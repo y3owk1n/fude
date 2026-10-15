@@ -21,5 +21,13 @@ fmt:
 fmt-check:
     test -z "$(gofumpt -l .)"
 
+# Build bin/fude.
+build:
+    go build -o bin/fude ./cmd/fude
+
+# Build and open a file in fude.
+run path: build
+    bin/fude {{ path }}
+
 # Run everything a commit needs.
 check: fmt-check vet test
