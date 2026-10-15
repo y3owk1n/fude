@@ -331,6 +331,12 @@ buffer's words, which Neovim's `'autocomplete'` takes from `'complete'`.
 Why: fude has no keyword completion, and a server's items already cover a
 buffer's own names.
 
+### N9. No mouse
+
+fude takes no mouse input, where Neovim's `mouse` defaults to `nvi`. The
+terminal keeps its own selection, scrolling and copy. Why: the user chose
+keys only on 2026-10-15.
+
 ## Open
 
 None.
