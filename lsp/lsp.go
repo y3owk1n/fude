@@ -35,6 +35,7 @@ type Client struct {
 	outbox   []func(enc string) any
 	encoding string
 	caps     map[string]json.RawMessage // what the server offers, once it answered
+	version  string                     // the server's version, if it gave one
 	wake     chan struct{}
 	done     chan struct{}
 }
@@ -164,6 +165,13 @@ func (c *Client) Capability(capability string) json.RawMessage {
 	return c.caps[capability]
 }
 
+// Version returns the version the server gave, or "".
+func (c *Client) Version() string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.version
+}
+
 // Encoding is the position encoding the server chose, or "" before it
 // answered initialize.
 func (c *Client) Encoding() string {
@@ -256,6 +264,7 @@ func (c *Client) send(m func(enc string) any) {
 type answer struct {
 	encoding string
 	caps     map[string]json.RawMessage
+	version  string
 }
 
 // write sends initialize, waits for the server's answer, then sends what is
@@ -276,7 +285,7 @@ func (c *Client) write(root string, initialized <-chan answer) {
 	}
 	enc := a.encoding
 	c.mu.Lock()
-	c.encoding, c.caps = enc, a.caps
+	c.encoding, c.caps, c.version = enc, a.caps, a.version
 	c.mu.Unlock()
 	if c.frame(message{Method: "initialized", Params: map[string]any{}}) != nil {
 		return
@@ -363,15 +372,23 @@ func (c *Client) read(r io.Reader, initialized chan<- answer, notify func(string
 		}
 		var res struct {
 			Capabilities map[string]json.RawMessage `json:"capabilities"`
+			ServerInfo   struct{ Version string }   `json:"serverInfo"`
 		}
 		json.Unmarshal(m.Result, &res)
+		// A Go server may give its build info as its version. Its main
+		// module's version is then the server's.
+		version := res.ServerInfo.Version
+		var build struct{ Main struct{ Version string } }
+		if json.Unmarshal([]byte(version), &build) == nil {
+			version = build.Main.Version
+		}
 		var enc string
 		json.Unmarshal(res.Capabilities["positionEncoding"], &enc)
 		// Without an answer the protocol's default holds, which is utf-16.
 		if enc != "utf-8" {
 			enc = "utf-16"
 		}
-		initialized <- answer{enc, res.Capabilities}
+		initialized <- answer{enc, res.Capabilities, version}
 	}
 }
 

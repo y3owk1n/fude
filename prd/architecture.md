@@ -786,7 +786,7 @@ theme = "dark"       # dark, light, or a base16 scheme such as "~/.config/stylix
 "<Leader>w" = ":w<CR>"
 "-" = ""             # "" drops a mapping, fude's own too, and "<Nop>" does nothing (B142)
 
-[keymap.listing]     # and [keymap.list], [keymap.timeline]: a kind of buffer's own keys (B142)
+[keymap.listing]     # and [keymap.list], [keymap.timeline], [keymap.lsp]: a kind of buffer's own keys (B142, B159)
 "<C-h>" = ""
 "<C-v>" = "<Plug>(listing.vsplit)"
 

@@ -212,7 +212,11 @@ func (c *client) float(f editor.Float, cx, cy, w, h int) (int, int, bool) {
 			c.box(doc, f.DocSpans, rows[:min(len(rows), f.H-2)], f.X+f.W, f.Y, f.DocW-4, -1)
 		}
 		rows, _ := wrap(f.Text, f.Spans, f.W-4)
-		return c.box(f.Text, f.Spans, rows[:min(len(rows), f.H-2)], f.X, f.Y, f.W-4, f.Cursor)
+		x, y, ok := c.box(f.Text, f.Spans, rows[:min(len(rows), f.H-2)], f.X, f.Y, f.W-4, f.Cursor)
+		if f.Title != "" {
+			c.s.PutStrStyled(f.X+2, f.Y, " "+f.Title+" ", base.Foreground(th.muted))
+		}
+		return x, y, ok
 	}
 	rows, width := wrap(f.Text, f.Spans, min(80, w-4))
 	below, above := h-cy-1, cy

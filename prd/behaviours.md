@@ -286,10 +286,13 @@ Where fude departs, the line says so and cites the departure in
   shows the theme in use, and `<Tab>` after it offers dark, light and the
   scheme `config.toml` names. A scheme that does not load says why and
   leaves the theme as it was.
-- B159 [5] `:lsp` lists the running language servers with their roots and
-  files, and says when the current file's server is not running (N20).
-  `:lsp restart` restarts the current file's server, or starts it again
-  after it stayed off (B63), and opens its files in the new one.
+- B159 [5] `:lsp` opens a panel with a card for each language server
+  `config.toml` sets: its state (running, starting, stopped, disabled,
+  failed with why, or no files), its version, and its roots and files
+  (N20). `j` and `k` move between cards, and `r`, `s`, `d` and `e` restart,
+  stop, disable or enable the server under the cursor, as `[keymap.lsp]`
+  maps them. `:lsp restart` restarts the current file's server, or starts
+  it again after it stayed off (B63), and opens its files in the new one.
 - B160 [5] `:lsp stop` stops the current file's server, and opening a file
   it serves starts it again. `:lsp disable` stops it and keeps it off for
   every file until `:lsp enable`, even through `:lsp restart`. `:lsp

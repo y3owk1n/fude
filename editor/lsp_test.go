@@ -161,7 +161,7 @@ func TestFakeServer(t *testing.T) {
 			body, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "method": "textDocument/publishDiagnostics", "params": map[string]any{"uri": m.Params.TextDocument.URI, "diagnostics": ds}})
 			fmt.Fprintf(os.Stdout, "Content-Length: %d\r\n\r\n%s", len(body), body)
 		case "initialize":
-			reply(m.ID, map[string]any{"capabilities": map[string]any{
+			reply(m.ID, map[string]any{"serverInfo": map[string]any{"name": "fake", "version": "v1"}, "capabilities": map[string]any{
 				"positionEncoding": os.Getenv("FUDE_FAKE_ENCODING"), "documentFormattingProvider": true, "completionProvider": map[string]any{"triggerCharacters": []string{"."}, "resolveProvider": true},
 			}})
 		case "shutdown":
@@ -236,25 +236,38 @@ func TestB63ServerCrash(t *testing.T) {
 }
 
 // B159
-func TestB159LspCommand(t *testing.T) {
+func TestB159LspPanel(t *testing.T) {
 	e, log := withServer(t, "x\n", "utf-8")
 	heard(t, log, `"method":"textDocument/didOpen"`, 1)
-	if feed(e, ":lsp<CR>"); !strings.Contains(text(e), "a.go") {
-		t.Fatalf(":lsp listed %q", text(e))
+	panel := func() string {
+		f, _ := e.Float()
+		return f.Text
 	}
-	// :lsp restart stops the server and opens the file in a new one.
-	feed(e, ":q<CR>:lsp restart<CR>")
+	feed(e, ":lsp<CR>")
+	settle(t, e, func() bool { return strings.Contains(panel(), "v1") && strings.Contains(panel(), "running") })
+	if !strings.Contains(panel(), "a.go") {
+		t.Fatalf("the panel showed %q", panel())
+	}
+	// s stops the server under the cursor, and r starts it again.
+	feed(e, "s")
 	heard(t, log, `"method":"shutdown"`, 1)
+	if !strings.Contains(panel(), "stopped") {
+		t.Fatalf("after s the panel showed %q", panel())
+	}
+	feed(e, "r")
 	heard(t, log, `"method":"textDocument/didOpen"`, 2)
-	// It also starts a server that stayed off after crashing twice.
+	if feed(e, "q"); panel() != "" {
+		t.Fatalf("q left the panel showing %q", panel())
+	}
+	// :lsp restart starts a server that stayed off after crashing twice.
 	feed(e, "i#<Esc>")
 	settle(t, e, func() bool { return strings.Contains(e.Message(), "was restarted") })
 	feed(e, "a#<Esc>")
 	settle(t, e, func() bool { return strings.Contains(e.Message(), "stays off") })
-	if feed(e, ":lsp<CR>"); !strings.Contains(text(e), "not running") {
-		t.Fatalf(":lsp with the server off listed %q", text(e))
+	if feed(e, ":lsp<CR>"); !strings.Contains(panel(), "crashed twice") {
+		t.Fatalf("with the server off the panel showed %q", panel())
 	}
-	feed(e, ":q<CR>:lsp restart<CR>")
+	feed(e, "q:lsp restart<CR>")
 	heard(t, log, `"method":"textDocument/didOpen"`, 4)
 }
 
@@ -266,10 +279,10 @@ func TestB160LspStopAndDisable(t *testing.T) {
 	heard(t, log, `"method":"shutdown"`, 1)
 	// A disabled server stays off, even through :lsp restart.
 	feed(e, ":lsp disable<CR>:lsp restart<CR>:lsp<CR>")
-	if !strings.Contains(text(e), "disable") || strings.Contains(text(e), "a.go") {
-		t.Fatalf(":lsp with the server disabled listed %q", text(e))
+	if f, _ := e.Float(); !strings.Contains(f.Text, "disabled") || strings.Contains(f.Text, "a.go") {
+		t.Fatalf("with the server disabled the panel showed %q", f.Text)
 	}
-	feed(e, ":q<CR>:lsp enable<CR>")
+	feed(e, "q:lsp enable<CR>")
 	heard(t, log, `"method":"textDocument/didOpen"`, 2)
 }
 

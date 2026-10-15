@@ -38,7 +38,7 @@ type Editor struct {
 	commands  map[string]func(*Session) // ex commands plugins registered
 	decos     map[any][]decoration      // by owner: a plugin, or a buffer for its diagnostics
 	servers   map[string]*server        // by command and root
-	off       map[string]bool           // the language servers :lsp disable turned off, by name
+	down      map[string]string         // by name, why a configured language server is not running
 	started   bool                      // Load ran, so new buffers attach to servers at once
 	sessions  []*Session                // the first is the one that opened the editor
 	setup     []func(*Session)          // what every session's machine gets, such as keymaps
@@ -76,6 +76,7 @@ type Session struct {
 	flash      *flash                  // text shown for a moment after a yank, put, undo or redo
 	locals     map[string]*vim.Keymaps // the keymaps of kinds of buffer, by kind, over the machine's (B142)
 	left       string                  // the float the key being handled closed, which hover enters
+	lspCards   []lspCard               // the cards of the :lsp panel, in order
 	history    []string                // the messages shown, oldest first, at most 200 (B157)
 	logged     string                  // the message last put in history
 	under      *window                 // the window a focused float was opened from
@@ -106,7 +107,7 @@ func open(cfg config, paths []string) (*Session, error) {
 	if len(paths) == 0 {
 		paths = []string{""}
 	}
-	ed := &Editor{next: 1, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(*Session){}, decos: map[any][]decoration{}, servers: map[string]*server{}, off: map[string]bool{}, listeners: map[*plugin.Plugin]*listener{}, segments: map[*plugin.Plugin]map[*buffer]string{}}
+	ed := &Editor{next: 1, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(*Session){}, decos: map[any][]decoration{}, servers: map[string]*server{}, down: map[string]string{}, listeners: map[*plugin.Plugin]*listener{}, segments: map[*plugin.Plugin]map[*buffer]string{}}
 	// Without a config directory there are no overrides, and loadConfig
 	// reports why.
 	if dir, err := xdgDir("XDG_CONFIG_HOME", ".config"); err == nil {
@@ -213,7 +214,21 @@ func builtins(e *Session) {
 		return nil
 	})
 	e.locals = map[string]*vim.Keymaps{}
-	for kind, keys := range map[string]map[string]string{"listing": listingKeys, "list": listKeys, "timeline": timelineKeys, "finder": finderKeys, "float": floatKeys} {
+	for _, sub := range lspCommands {
+		e.vim.Command("lsp."+sub, func(vim.Text, int, int) []vim.Edit {
+			e.lspCommand(sub, e.lspCardName())
+			return nil
+		})
+	}
+	e.vim.Command("lsp.next", func(_ vim.Text, _, count int) []vim.Edit {
+		e.lspMove(max(count, 1))
+		return nil
+	})
+	e.vim.Command("lsp.prev", func(_ vim.Text, _, count int) []vim.Edit {
+		e.lspMove(-max(count, 1))
+		return nil
+	})
+	for kind, keys := range map[string]map[string]string{"listing": listingKeys, "list": listKeys, "timeline": timelineKeys, "finder": finderKeys, "float": floatKeys, "lsp": lspKeys} {
 		mode := vim.Normal
 		if kind == "finder" {
 			mode = vim.Insert
@@ -300,7 +315,7 @@ func Start(args []string) (*Session, error) {
 		for mode, maps := range map[vim.Mode]map[string]string{vim.Normal: cfg.Keymap.Normal, vim.Visual: cfg.Keymap.Visual, vim.Insert: cfg.Keymap.Insert} {
 			mapAll(s.vim, mode, maps, cfg.Leader)
 		}
-		for kind, maps := range map[string]map[string]string{"listing": cfg.Keymap.Listing, "list": cfg.Keymap.List, "timeline": cfg.Keymap.Timeline, "float": cfg.Keymap.Float} {
+		for kind, maps := range map[string]map[string]string{"listing": cfg.Keymap.Listing, "list": cfg.Keymap.List, "timeline": cfg.Keymap.Timeline, "float": cfg.Keymap.Float, "lsp": cfg.Keymap.Lsp} {
 			mapAll(s.locals[kind], vim.Normal, maps, cfg.Leader)
 		}
 		mapAll(s.locals["finder"], vim.Insert, cfg.Keymap.Finder, cfg.Leader)
@@ -798,6 +813,7 @@ type Float struct {
 	Text        string
 	Spans       []syntax.Span
 	Top, Cursor int
+	Title       string // drawn in the top of its border
 	Doc         string // drawn beside it, styled by DocSpans
 	DocSpans    []syntax.Span
 	// Where a box in a place of its own goes, its border included. W is 0
@@ -817,6 +833,9 @@ func (e *Session) Float() (Float, bool) {
 		return f.float(t.Slice(0, t.Len()), e.Cursor(), e.width, e.height), true
 	}
 	if e.under != nil {
+		if e.win.buf.title == "[lsp]" {
+			return e.lspFloat(), true
+		}
 		t := e.Text()
 		return Float{Text: t.Slice(0, t.Len()), Spans: e.floatSpans, Top: e.Top(), Cursor: e.Cursor()}, true
 	}
@@ -1036,9 +1055,9 @@ func (e *Session) ex(line string) {
 		e.readIn(arg, last)
 	case "lsp":
 		if arg == "" {
-			e.lspInfo()
+			e.lspPanel()
 		} else {
-			e.lspCommand(arg)
+			e.lspCommand(arg, serverName(e.cfg.Filetype[e.win.buf.filetype()].LSP))
 		}
 	case "theme":
 		if arg == "" {

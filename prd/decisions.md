@@ -420,13 +420,13 @@ Neovim draws none without a plugin. Why: the redesign the user approved on
 
 ### N20. `:lsp` alone shows the servers, and there is no `:checkhealth`
 
-`:lsp` lists the running language servers, their roots and files, and
-says when the current file's server is not running (B159). Neovim's `:lsp`
+`:lsp` opens a panel of the language servers `config.toml` sets, with
+each one's state and why it failed (B159). Neovim's `:lsp`
 needs a subcommand, and its servers' state is in `:checkhealth`. Why:
 fude has no providers or plugin checks for `:checkhealth` to cover.
 Config errors already show at startup (B93), and server failures show as
-messages that `:messages` keeps (B157). Which servers run had nowhere
-to show, and `:lsp` shows it.
+messages that `:messages` keeps (B157). The servers' state had nowhere
+to show, and the panel shows it.
 
 ## Open
 

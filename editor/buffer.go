@@ -162,6 +162,8 @@ func (b *buffer) kind() string {
 		return "timeline"
 	case b.title == "[float]":
 		return "float"
+	case b.title == "[lsp]":
+		return "lsp"
 	}
 	return ""
 }

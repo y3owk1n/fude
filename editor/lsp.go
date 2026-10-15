@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"maps"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -33,7 +32,8 @@ type server struct {
 // for b's directory when none runs (B60).
 func (e *Session) attach(b *buffer) {
 	command := e.cfg.Filetype[b.filetype()].LSP
-	if len(command) == 0 || e.off[filepath.Base(command[0])] || b.file.path == "" || b.title != "" {
+	name := serverName(command)
+	if name == "" || e.down[name] == disabled || b.file.path == "" || b.title != "" {
 		return
 	}
 	abs, err := filepath.Abs(b.file.path)
@@ -48,9 +48,11 @@ func (e *Session) attach(b *buffer) {
 		s = &server{command: command, root: root}
 		if err := e.start(s); err != nil {
 			e.message = err.Error()
+			e.down[name] = err.Error()
 			return
 		}
 		e.servers[key] = s
+		delete(e.down, name)
 	}
 	s.bufs = append(s.bufs, b)
 	b.server, b.version = s, 0
@@ -85,9 +87,10 @@ func (e *Session) exited(s *server, err error) {
 	if s.closing {
 		return
 	}
-	name := filepath.Base(s.command[0])
+	name := serverName(s.command)
 	if s.restarted {
 		e.message = fmt.Sprintf("language server %s exited again (%v), so it stays off", name, err)
+		e.down[name] = "crashed twice"
 		e.stop(s)
 		return
 	}
@@ -114,80 +117,6 @@ func (e *Session) stop(s *server) {
 		if o == s {
 			delete(e.servers, k)
 		}
-	}
-}
-
-// lspInfo lists the running language servers with their roots and files,
-// first saying when the current buffer's filetype names one that is not
-// running (B159).
-func (e *Session) lspInfo() {
-	var lines []string
-	b := e.win.buf
-	if command := e.cfg.Filetype[b.filetype()].LSP; len(command) > 0 && b.server == nil {
-		name := filepath.Base(command[0])
-		why := "and :messages may say why"
-		if e.off[name] {
-			why = "because :lsp disable turned it off"
-		}
-		lines = append(lines, fmt.Sprintf("%s is set for %s files but is not running, %s", name, b.filetype(), why), "")
-	}
-	for _, k := range slices.Sorted(maps.Keys(e.servers)) {
-		s := e.servers[k]
-		lines = append(lines, strings.Join(append([]string{filepath.Base(s.command[0])}, s.command[1:]...), " ")+"  "+s.root)
-		for _, o := range s.bufs {
-			lines = append(lines, "  "+o.name())
-		}
-	}
-	if len(lines) == 0 {
-		e.message = "no language servers"
-		return
-	}
-	e.scratch("[lsp]", strings.Join(lines, "\n"), nil, nil)
-}
-
-// lspCommands are what :lsp takes after it.
-var lspCommands = []string{"disable", "enable", "restart", "stop"}
-
-// lspCommand runs :lsp sub on the current buffer's language server:
-// restart, stop, disable to keep it off for every file, or enable. Restart
-// and enable attach every buffer of the filetype that has no server, which
-// also starts one that stayed off after crashing (B159, B160).
-func (e *Session) lspCommand(sub string) {
-	b := e.win.buf
-	command := e.cfg.Filetype[b.filetype()].LSP
-	if len(command) == 0 {
-		e.message = "no language server is set for this file"
-		return
-	}
-	if !slices.Contains(lspCommands, sub) {
-		e.message = "not an lsp command: " + sub
-		return
-	}
-	name := filepath.Base(command[0])
-	if s := b.server; s != nil && sub != "enable" {
-		s.closing = true
-		s.client.Close()
-		e.stop(s)
-	}
-	switch sub {
-	case "stop":
-		e.message = "stopped " + name
-		return
-	case "disable":
-		e.off[name] = true
-	case "enable":
-		delete(e.off, name)
-	}
-	for _, o := range e.bufs {
-		if o.server == nil && o.filetype() == b.filetype() {
-			e.attach(o)
-		}
-	}
-	switch {
-	case e.off[name]:
-		e.message = name + " is off until :lsp enable"
-	case b.server != nil:
-		e.message = name + " is running"
 	}
 }
 
