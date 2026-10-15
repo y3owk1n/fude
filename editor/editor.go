@@ -812,6 +812,10 @@ func (e *Session) close(b *buffer, force bool) {
 	}
 	e.detach(b)
 	b.close()
+	for owner, ds := range e.decos {
+		e.decos[owner] = slices.DeleteFunc(ds, func(d decoration) bool { return d.buf == b })
+	}
+	delete(e.decos, b)
 	i := index(e.bufs, b)
 	e.bufs = append(e.bufs[:i], e.bufs[i+1:]...)
 	if len(e.bufs) == 0 {

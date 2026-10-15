@@ -756,4 +756,5 @@ it as one transaction of the proposer's origin, which makes one node
 (B72), and refuses a stale one. `:reject [n]` drops it, and nothing enters the
 timeline. Both default to the newest proposal on the current buffer. A
 client accepts or rejects with `keys`, and its state lists its proposals on
-its buffer with their ids. A proposal outlives the client that made it.
+its buffer with their ids. A proposal outlives the client that made it,
+and goes when its buffer closes.
