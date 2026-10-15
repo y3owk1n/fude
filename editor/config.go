@@ -23,7 +23,8 @@ type config struct {
 		Insert map[string]string `toml:"insert"`
 	} `toml:"keymap"`
 	Filetype map[string]struct {
-		IndentWidth uint `toml:"indent_width"`
+		IndentWidth uint     `toml:"indent_width"`
+		LSP         []string `toml:"lsp"` // the language server's command
 	} `toml:"filetype"`
 	Plugin []struct {
 		Path         string   `toml:"path"` // relative to the config directory

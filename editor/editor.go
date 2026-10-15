@@ -13,6 +13,7 @@ import (
 
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/core/kernel"
+	"github.com/y3owk1n/fude/lsp"
 	"github.com/y3owk1n/fude/plugin"
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
@@ -35,6 +36,8 @@ type Editor struct {
 	plugins  []*plugin.Plugin
 	commands map[string]func() // ex commands plugins registered
 	decos    map[*plugin.Plugin][]decoration
+	servers  map[string]*server // by command and root
+	started  bool               // Load ran, so new buffers attach to servers at once
 
 	width, height int // the space the windows share
 
@@ -56,7 +59,7 @@ func open(cfg config, paths []string) (*Editor, error) {
 	if len(paths) == 0 {
 		paths = []string{""}
 	}
-	e := &Editor{next: 1, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(){}, decos: map[*plugin.Plugin][]decoration{}}
+	e := &Editor{next: 1, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(){}, decos: map[*plugin.Plugin][]decoration{}, servers: map[string]*server{}}
 	// Without a config directory there are no overrides, and loadConfig
 	// reports why.
 	if dir, err := xdgDir("XDG_CONFIG_HOME", ".config"); err == nil {
@@ -143,26 +146,34 @@ func (e *Editor) add(path string) (string, error) {
 		}
 		return msg, nil
 	}
+	b.text.Listen(heard{b})
 	h, ok, err := syntax.New(b.filetype(), e.queries, e.queue)
 	if err != nil {
-		return err.Error(), nil
-	}
-	if ok {
+		msg = err.Error()
+	} else if ok {
 		b.syntax = h
-		b.text.Listen(heard{h})
+	}
+	if e.started {
+		e.attach(b)
 	}
 	return msg, nil
 }
 
-// heard passes a buffer's changes to its syntax.
-type heard struct{ h *syntax.Buffer }
+// heard passes a buffer's changes to its syntax and its language server.
+type heard struct{ b *buffer }
 
 func (l heard) Changed(before kernel.Snapshot, edits []kernel.Edit) {
 	out := make([]api.Edit, len(edits))
 	for i, e := range edits {
 		out[i] = api.Edit(e)
 	}
-	l.h.Changed(before, out)
+	if l.b.syntax != nil {
+		l.b.syntax.Changed(before, out)
+	}
+	if s := l.b.server; s != nil {
+		l.b.version++
+		s.client.Change(lsp.URI(l.b.file.path), l.b.version, before, out)
+	}
 }
 
 // Queue returns the work other goroutines hand the editor loop, such as new
@@ -428,6 +439,10 @@ func (e *Editor) quitAll(force bool) {
 	for _, p := range e.plugins {
 		p.Close(context.Background())
 	}
+	for _, s := range e.servers {
+		s.closing = true
+		s.client.Close()
+	}
 	e.done = true
 }
 
@@ -585,6 +600,7 @@ func (e *Editor) close(b *buffer, force bool) {
 		e.message = fmt.Sprintf("no write since the last change to \"%s\" (add ! to override)", b.name())
 		return
 	}
+	e.detach(b)
 	b.close()
 	i := index(e.bufs, b)
 	e.bufs = append(e.bufs[:i], e.bufs[i+1:]...)

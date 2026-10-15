@@ -21,9 +21,14 @@ import (
 var logMu sync.Mutex
 
 // Load starts the plugins config.toml lists, each on its own goroutine, so
-// none delays a frame (B56). Each plugin's init reads the current buffer, and
-// its results reach the editor loop through Queue.
+// none delays a frame (B56), and the language servers of the open buffers.
+// Each plugin's init reads the current buffer, and its results reach the
+// editor loop through Queue.
 func (e *Editor) Load() {
+	e.started = true
+	for _, b := range e.bufs {
+		e.attach(b)
+	}
 	config, err1 := xdgDir("XDG_CONFIG_HOME", ".config")
 	cache, err2 := xdgDir("XDG_CACHE_HOME", ".cache")
 	if err := errors.Join(err1, err2); err != nil {
@@ -38,7 +43,7 @@ func (e *Editor) Load() {
 		b, t := e.win.buf, e.Text()
 		go func() {
 			ctx := context.Background()
-			p, err := plugin.Load(ctx, path, s.Capabilities, filepath.Join(cache, "fude", "wasm"), logPlugin)
+			p, err := plugin.Load(ctx, path, s.Capabilities, filepath.Join(cache, "fude", "wasm"), logLine)
 			if err != nil {
 				e.queue <- func() { e.message = err.Error() }
 				return
@@ -126,7 +131,7 @@ func (e *Editor) unload(p *plugin.Plugin, err error) {
 	}
 	delete(e.decos, p)
 	e.message = fmt.Sprintf("%v, so it was unloaded", err)
-	logPlugin(e.message)
+	logLine(e.message)
 }
 
 // register adds a command, operator, object or key a plugin registered, as
@@ -187,10 +192,10 @@ func (e *Editor) run(p *plugin.Plugin, export string, t vim.Text, args ...uint64
 	return e.decorate(p, e.win.buf, res), res.Out, true
 }
 
-// logPlugin appends a line to fude's log, which is where a plugin's own log
-// lines and the calls it is denied go (B50). A line that cannot be written
+// logLine appends a line to fude's log, which is where a plugin's own log
+// lines, the calls it is denied and language servers' stderr go (B50). A line that cannot be written
 // is dropped, as the log is where it would have been reported.
-func logPlugin(line string) {
+func logLine(line string) {
 	dir, err := xdgDir("XDG_STATE_HOME", filepath.Join(".local", "state"))
 	if err != nil {
 		return

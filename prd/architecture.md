@@ -606,11 +606,28 @@ loaded at runtime (D29).
 
 ## LSP
 
+`[filetype.<name>] lsp` names a filetype's server command. fude starts one
+server per command and directory, after the first frame, for the buffers
+open then and any opened later. It talks to it over stdio with JSON-RPC
+from the standard library, through `lsp/`, which reads text through
+`api.Text`.
+
 fude offers the server `utf-8`, then `utf-16`, in `positionEncodings`.
 rust-analyzer and clangd take `utf-8`. gopls and most others answer
-`utf-16`, which the rope's cached UTF-16 counts convert in O(log n). Changes
-go out as incremental `didChange` notifications, in order, each relative to
-the text after the previous one.
+`utf-16`. A position converts by scanning its line from the rope's line
+start and counting 2 for each rune above U+FFFF, which costs the line's
+length. Changes go out as incremental `didChange` notifications, in order.
+The kernel's listener gives a change's edits sorted, against the text before
+it, so they go out last first and each range stays a range of that text
+(B60).
+
+Editing never waits on a server. A writer goroutine owns the server's
+stdin and sends from a queue that never blocks the loop. It holds
+everything until `initialize` returns and the encoding is known. A reader goroutine
+takes its stdout, another drains its stderr into fude's log, and another
+waits for it to exit and tells the loop. A server that exits without being
+asked is restarted once and its documents opened again. After a second
+crash it stays off, and fude says so (B63).
 
 ## Server split (step 6)
 
