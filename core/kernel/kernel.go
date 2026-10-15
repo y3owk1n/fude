@@ -347,7 +347,12 @@ func (b *Buffer) edit(edits []Edit) Change {
 		b.hear.Changed(b.Snapshot(), edits)
 	}
 	if len(b.log) == logSize {
-		b.log = slices.Delete(b.log, 0, logSize/2)
+		// Keep every list of a version or none, as an undo logs several.
+		cut := logSize / 2
+		for cut < len(b.log) && b.log[cut].at == b.log[cut-1].at {
+			cut++
+		}
+		b.log = slices.Delete(b.log, 0, cut)
 	}
 	b.log = append(b.log, logged{b.version, edits})
 	c := Change{Edits: edits, Removed: make([]string, len(edits))}
