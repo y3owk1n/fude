@@ -1128,6 +1128,15 @@ func (e *Session) write(b *buffer, force bool, then func()) {
 		}
 		return
 	}
+	if e.cfg.FormatOnSave {
+		e.formatOnSave(b, func() { e.writeOut(b, then) })
+		return
+	}
+	e.writeOut(b, then)
+}
+
+// writeOut writes b's text to its file, then runs then.
+func (e *Session) writeOut(b *buffer, then func()) {
 	s := b.text.Snapshot()
 	n, err := b.file.write(s.Slice(0, s.Len()))
 	if err != nil {

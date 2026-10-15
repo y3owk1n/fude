@@ -769,10 +769,18 @@ func markupText(raw json.RawMessage) string {
 }
 
 // format asks b's server to format the lines from start to end, as gq does,
-// and applies the answer as one timeline node. For a server that formats
-// only whole documents, fude asks for that and keeps the edits inside the
-// lines. It drops an answer for text that has changed since (B65).
+// and applies the answer as one timeline node (B65).
 func (e *Session) format(b *buffer, start, end int) {
+	e.formatting(b, start, end, func(t kernel.Snapshot, edits []kernel.Edit) {
+		e.reformat(b, t, edits, "gq")
+	})
+}
+
+// formatting asks b's server for the edits that format the lines from start
+// to end, and passes them to answer with the text they are for. For a
+// server that formats only whole documents, fude asks for that and keeps
+// the edits inside the lines.
+func (e *Session) formatting(b *buffer, start, end int, answer func(kernel.Snapshot, []kernel.Edit)) {
 	s := b.server
 	switch {
 	case s == nil:
@@ -800,31 +808,37 @@ func (e *Session) format(b *buffer, start, end int) {
 		}
 		return p
 	}, func(res json.RawMessage) {
-		var answer []struct {
+		var answers []struct {
 			Range   lsp.Range `json:"range"`
 			NewText string    `json:"newText"`
 		}
-		json.Unmarshal(res, &answer)
+		json.Unmarshal(res, &answers)
 		enc := s.client.Encoding()
-		tx := kernel.Transaction{Base: t.Version(), Origin: e.origin, Label: "gq", Time: e.now()}
-		for _, a := range answer {
+		var edits []kernel.Edit
+		for _, a := range answers {
 			start, end := lsp.Offset(t, a.Range.Start, enc), lsp.Offset(t, a.Range.End, enc)
 			if start >= from && end <= to {
-				tx.Edits = append(tx.Edits, kernel.Edit{Start: start, End: end, Text: a.NewText})
+				edits = append(edits, kernel.Edit{Start: start, End: end, Text: a.NewText})
 			}
 		}
-		if len(tx.Edits) == 0 {
-			return
-		}
-		slices.SortStableFunc(tx.Edits, func(x, y kernel.Edit) int { return cmp.Compare(x.Start, y.Start) })
-		if err := b.text.Apply(tx); err != nil {
-			if errors.Is(err, kernel.ErrStale) {
-				err = errors.New("the text changed while the server formatted it")
-			}
-			e.message = err.Error()
-			return
-		}
-		b.head = b.text.Head()
-		b.pushChange(tx.Edits[0].Start)
+		slices.SortStableFunc(edits, func(x, y kernel.Edit) int { return cmp.Compare(x.Start, y.Start) })
+		answer(t, edits)
 	})
+}
+
+// reformat applies edits for text t to b as one timeline node, and drops
+// them when b has changed since t.
+func (e *Session) reformat(b *buffer, t kernel.Snapshot, edits []kernel.Edit, label string) {
+	if len(edits) == 0 {
+		return
+	}
+	if err := b.text.Apply(kernel.Transaction{Base: t.Version(), Origin: e.origin, Label: label, Time: e.now(), Edits: edits}); err != nil {
+		if errors.Is(err, kernel.ErrStale) {
+			err = errors.New("the text changed while it was formatted")
+		}
+		e.message = err.Error()
+		return
+	}
+	b.head = b.text.Head()
+	b.pushChange(edits[0].Start)
 }

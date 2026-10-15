@@ -895,6 +895,25 @@ func TestB134Grep(t *testing.T) {
 	}
 }
 
+// B136
+func TestB136FormatOnSave(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.txt")
+	change(t, path, "keep\nx here\n")
+	config(t, "format_on_save = true\n[filetype.txt]\nformat = [[\"sed\", \"s/x/y/\"], [\"sed\", \"s/here/there/\"]]")
+	e := start(t, path)
+	// The commands run in turn, and the cursor on a line they keep stays.
+	feed(e, "ll:w<CR>")
+	settle(t, e, func() bool { return disk(t, path) == "keep\ny there\n" })
+	if text(e) != "keep\ny there" || e.Cursor() != 2 || e.Views()[0].Modified {
+		t.Fatalf("after :w the buffer has %q, the cursor at %d", text(e), e.Cursor())
+	}
+	// A formatter that fails leaves the text, which is written anyway.
+	config(t, "format_on_save = true\n[filetype.txt]\nformat = [[\"false\"]]")
+	e = start(t, path)
+	feed(e, "x:w<CR>")
+	settle(t, e, func() bool { return disk(t, path) == "eep\ny there\n" })
+}
+
 // B124
 func TestB124Listing(t *testing.T) {
 	dir := t.TempDir()

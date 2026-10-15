@@ -162,7 +162,7 @@ func TestFakeServer(t *testing.T) {
 			fmt.Fprintf(os.Stdout, "Content-Length: %d\r\n\r\n%s", len(body), body)
 		case "initialize":
 			reply(m.ID, map[string]any{"capabilities": map[string]any{
-				"positionEncoding": os.Getenv("FUDE_FAKE_ENCODING"), "completionProvider": map[string]any{"triggerCharacters": []string{"."}, "resolveProvider": true},
+				"positionEncoding": os.Getenv("FUDE_FAKE_ENCODING"), "documentFormattingProvider": true, "completionProvider": map[string]any{"triggerCharacters": []string{"."}, "resolveProvider": true},
 			}})
 		case "shutdown":
 			reply(m.ID, nil)
@@ -412,6 +412,17 @@ func TestB65Format(t *testing.T) {
 		if feed(e, "u"); text(e) != "a\nb\nc" {
 			t.Errorf("u after %s left %q, want it undone in one step", c[0], text(e))
 		}
+	}
+}
+
+// B136, without format commands
+func TestB136FormatOnSaveServer(t *testing.T) {
+	e, log := withServer(t, "a\nb", "utf-8", "format_on_save = true")
+	heard(t, log, `"method":"textDocument/didOpen"`, 1)
+	feed(e, ":w<CR>")
+	settle(t, e, func() bool { return !e.Views()[0].Modified && text(e) == "\ta\n\tb" })
+	if got := disk(t, e.Views()[0].Name); got != "\ta\n\tb" {
+		t.Fatalf(":w wrote %q", got)
 	}
 }
 

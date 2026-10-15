@@ -566,6 +566,19 @@ The text then starts at the same column on every row, so the cursor,
 wrapping and sideways scrolling need no change. The icons are a table of
 names and extensions in `editor/icons.go`, from mini.icons (B128).
 
+## Formatting on save
+
+With `format_on_save`, `write` formats before `writeOut` writes. A
+filetype's `format` commands run off the loop, in the file's directory.
+The text goes through each from stdin to stdout. Their output becomes one
+edit for each run of changed lines, from the line diff the timeline uses,
+so marks on the lines kept stay. Without commands, fude asks the language
+server for `textDocument/formatting` when it offers it. `gq` and saving
+share the request and `reformat`, which applies the edits as one node and
+drops them when the text changed meanwhile. A timer writes the text as it
+is after a second, since a server that answers with an error never calls
+back (B136).
+
 ## Command line completion
 
 The machine keeps the command line, and `editor/` completes it, since only
@@ -649,6 +662,7 @@ list = false         # show tabs, trailing spaces and no-break spaces (B118)
 ignore_case = false  # searches ignore case (B120)
 smart_case = false   # with ignore_case, an uppercase letter matches case (B120)
 expand_tab = false   # indent with spaces only (B122)
+format_on_save = false # format before :w writes (B136)
 icons = false        # nerd font icons in listings and diagnostic signs (B128)
 
 [keymap.normal]      # and [keymap.visual], [keymap.insert]. Keys map to keys.
@@ -656,6 +670,7 @@ icons = false        # nerd font icons in listings and diagnostic signs (B128)
 
 [filetype.go]        # overrides for buffers of that filetype (B94)
 indent_width = 4
+format = [["goimports"], ["gofumpt"]]   # run in turn by format_on_save (B136)
 
 [[plugin]]           # one table per plugin, loaded after the first frame
 path = "plugins/wordcount.wasm"   # relative to $XDG_CONFIG_HOME/fude

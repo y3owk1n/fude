@@ -169,6 +169,14 @@ Where fude departs, the line says so and cites the departure in
   register's text at the cursor, without its last line break, and
   `<C-r><C-w>` the word under the cursor in the text. A mapping to
   `:grep <C-r><C-w><CR>` greps the word under the cursor.
+- B136 [2] With `format_on_save` on, `:w` formats the buffer first, as
+  conform.nvim's `format_on_save` does. A filetype's `format` commands run
+  in turn, each reading the text on stdin and writing it on stdout, with
+  `{path}` in their arguments as the file's path. A filetype without them
+  formats through its language server. The formatting is one timeline
+  node, and the cursor stays on a line it keeps. A formatter that fails or
+  takes over a second leaves the text, which is written anyway, and says
+  why.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays

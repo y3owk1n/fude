@@ -21,6 +21,7 @@ type config struct {
 	// <C-x><C-o>.
 	Autocomplete bool   `toml:"autocomplete"`
 	Socket       string `toml:"socket"` // where clients attach, instead of a path per process
+	FormatOnSave bool   `toml:"format_on_save"`
 	options
 	Keymap struct {
 		Normal map[string]string `toml:"normal"`
@@ -28,8 +29,9 @@ type config struct {
 		Insert map[string]string `toml:"insert"`
 	} `toml:"keymap"`
 	Filetype map[string]struct {
-		IndentWidth uint     `toml:"indent_width"`
-		LSP         []string `toml:"lsp"` // the language server's command
+		IndentWidth uint       `toml:"indent_width"`
+		LSP         []string   `toml:"lsp"`    // the language server's command
+		Format      [][]string `toml:"format"` // formatters' commands, run in turn
 	} `toml:"filetype"`
 	Plugin []struct {
 		Path         string   `toml:"path"` // relative to the config directory
