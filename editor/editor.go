@@ -174,60 +174,21 @@ func builtins(e *Session) {
 			return 0, 0, false
 		})
 	}
-	e.vim.Operator("gc", e.comment)
-	e.vim.Operator("gq", func(_ vim.Text, start, end int, _ bool) []vim.Edit {
-		e.format(e.win.buf, start, end)
-		return nil
-	})
-	for name := range requests {
-		e.vim.Command(name, func(vim.Text, int, int) []vim.Edit {
-			e.request(name)
+	for _, op := range hostOperators {
+		e.vim.Operator(op.keys, func(t vim.Text, start, end int, lines bool) []vim.Edit {
+			return op.run(e, t, start, end, lines)
+		})
+	}
+	for _, p := range plugs {
+		e.vim.Command(p.name, func(_ vim.Text, _, count int) []vim.Edit {
+			p.run(e, count)
 			return nil
 		})
 	}
-	for _, act := range []string{"open", "split", "vsplit", "cwd", "reload"} {
-		e.vim.Command("listing."+act, func(vim.Text, int, int) []vim.Edit {
-			e.listingAct(act)
-			return nil
-		})
+	for keys, to := range defaultMaps {
+		e.vim.Map(vim.Normal, keys, to)
 	}
-	for _, act := range []string{"earlier", "later", "diff", "restore"} {
-		e.vim.Command("timeline."+act, func(vim.Text, int, int) []vim.Edit {
-			e.timelineAct(act)
-			return nil
-		})
-	}
-	for _, act := range []string{"open", "next", "prev"} {
-		e.vim.Command("finder."+act, func(vim.Text, int, int) []vim.Edit {
-			e.finderAct(act)
-			return nil
-		})
-	}
-	e.vim.Command("float.close", func(vim.Text, int, int) []vim.Edit {
-		if e.under != nil {
-			e.unfocus()
-		}
-		return nil
-	})
-	e.vim.Command("list.open", func(vim.Text, int, int) []vim.Edit {
-		e.openSpot()
-		return nil
-	})
 	e.locals = map[string]*vim.Keymaps{}
-	for _, sub := range lspCommands {
-		e.vim.Command("lsp."+sub, func(vim.Text, int, int) []vim.Edit {
-			e.lspCommand(sub, e.lspCardName())
-			return nil
-		})
-	}
-	e.vim.Command("lsp.next", func(_ vim.Text, _, count int) []vim.Edit {
-		e.lspMove(max(count, 1))
-		return nil
-	})
-	e.vim.Command("lsp.prev", func(_ vim.Text, _, count int) []vim.Edit {
-		e.lspMove(-max(count, 1))
-		return nil
-	})
 	for kind, keys := range map[string]map[string]string{"listing": listingKeys, "list": listKeys, "timeline": timelineKeys, "finder": finderKeys, "float": floatKeys, "lsp": lspKeys} {
 		mode := vim.Normal
 		if kind == "finder" {
@@ -237,39 +198,6 @@ func builtins(e *Session) {
 		for from, to := range keys {
 			e.locals[kind].Map(mode, from, to)
 		}
-	}
-	e.vim.Command("listing.up", func(_ vim.Text, _, count int) []vim.Edit {
-		e.up(count)
-		return nil
-	})
-	e.vim.Map(vim.Normal, "-", "<Plug>(listing.up)")
-	for keys, to := range map[string]string{"]h": "next", "[h": "prev", "[H": "first", "]H": "last"} {
-		e.vim.Command("git."+to, func(_ vim.Text, _, count int) []vim.Edit {
-			e.jumpHunk(to, max(count, 1))
-			return nil
-		})
-		e.vim.Map(vim.Normal, keys, "<Plug>(git."+to+")")
-	}
-	for name, d := range map[string]byte{"left": 'h', "down": 'j', "up": 'k', "right": 'l'} {
-		e.vim.Command("window."+name, func(vim.Text, int, int) []vim.Edit {
-			e.navigate(d)
-			return nil
-		})
-	}
-	e.vim.Command("git.preview", func(vim.Text, int, int) []vim.Edit {
-		e.previewHunk()
-		return nil
-	})
-	e.vim.Operator("gH", e.resetHunks)
-	e.vim.Map(vim.Normal, "<C-]>", "<Plug>(lsp.definition)")
-	e.vim.Map(vim.Normal, "K", "<Plug>(lsp.hover)")
-	for keys, n := range map[string]int{"]d": 1, "[d": -1} {
-		name := "diagnostic" + keys
-		e.vim.Command(name, func(_ vim.Text, _, count int) []vim.Edit {
-			e.diagnostic(n * max(count, 1))
-			return nil
-		})
-		e.vim.Map(vim.Normal, keys, "<Plug>("+name+")")
 	}
 	e.vim.Selector(func(t vim.Text, query string, start, end int) ([][2]int, error) {
 		if s := e.win.buf.syntax; s != nil {
@@ -1048,139 +976,21 @@ func (e *Session) ex(line string) {
 		e.message = err.Error()
 		return
 	}
+	name, arg, _ := strings.Cut(rest, " ")
+	name, force := strings.CutSuffix(name, "!")
 	if cmd, ok := strings.CutPrefix(rest, "!"); ok {
-		e.shell(cmd, first, last, ranged)
+		name, arg, force = "!", cmd, false
+	}
+	arg = strings.TrimSpace(arg)
+	if c, ok := commandsByName[name]; ok {
+		c.run(e, call{name, arg, force, first, last, ranged})
 		return
 	}
-	name, arg, _ := strings.Cut(rest, " ")
-	arg = strings.TrimSpace(arg)
-	name, force := strings.CutSuffix(name, "!")
-	switch name {
-	case "r", "read":
-		e.readIn(arg, last)
-	case "lsp":
-		if arg == "" {
-			e.lspPanel()
-		} else {
-			e.lspCommand(arg, serverName(e.cfg.Filetype[e.win.buf.filetype()].LSP))
-		}
-	case "theme":
-		if arg == "" {
-			e.message = e.theme
-		} else if err := e.setTheme(arg); err != nil {
-			e.message = err.Error()
-		}
-	case "mes", "messages":
-		e.messages()
-	case "marks":
-		e.marks()
-	case "ju", "jumps":
-		e.jumps()
-	case "changes":
-		e.changeList()
-	case "w", "write":
-		if arg != "" {
-			e.writeTo(e.win.buf, arg, force)
-			return
-		}
-		e.write(e.win.buf, force, nil)
-	case "up", "update":
-		if e.win.buf.modified() {
-			e.write(e.win.buf, force, nil)
-		}
-	case "enew", "new", "vne", "vnew":
-		if name != "enew" {
-			e.split(name[0] == 'v')
-		}
-		e.empty()
-	case "cd":
-		e.cd(arg)
-	case "pwd":
-		if dir, err := os.Getwd(); err != nil {
-			e.message = err.Error()
-		} else {
-			e.message = dir
-		}
-	case "wq", "x", "xit", "exit":
-		if name == "wq" || e.win.buf.modified() {
-			e.write(e.win.buf, force, func() { e.quit(force) })
-		} else {
-			e.quit(force)
-		}
-	case "wa", "wall":
-		e.writeAll(e.bufs, force, nil)
-	case "qa", "qall", "quita", "quitall":
-		e.quitAll(force)
-	case "wqa", "wqall", "xa", "xall":
-		e.writeAll(e.bufs, force, func() { e.quitAll(force) })
-	case "q", "quit":
-		e.quit(force)
-	case "reg", "registers":
-		e.registers(arg)
-	case "e", "edit":
-		if arg == "" {
-			e.reread(force)
-			return
-		}
-		e.edit(arg)
-	case "sp", "split", "vs", "vsplit":
-		e.split(name[0] == 'v')
-		if arg != "" {
-			e.edit(arg)
-		}
-	case "rename":
-		e.rename(arg)
-	case "se", "set":
-		e.set(arg)
-	case "accept", "reject":
-		e.decide(arg, name == "accept")
-	case "timeline":
-		e.timeline()
-	case "files":
-		e.files()
-	case "grep":
-		e.grepFiles(arg)
-	case "restore":
-		e.restore(arg)
-	case "diff":
-		e.diff(arg)
-	case "earlier", "later":
-		e.travel(arg, name == "later")
-	case "recover":
-		e.recover()
-	case "on", "only":
-		e.only()
-	case "clo", "close":
-		if err := e.closeWindow(e.win); err != nil {
-			e.message = err.Error()
-		}
-	case "ls", "buffers":
-		e.list()
-	case "b", "buffer":
-		if b := e.find(arg); b != nil {
-			e.show(b)
-		}
-	case "bn", "bnext", "bp", "bprevious", "bN", "bNext":
-		step := 1
-		if name != "bn" && name != "bnext" {
-			step = len(e.bufs) - 1
-		}
-		e.show(e.bufs[(index(e.bufs, e.win.buf)+step)%len(e.bufs)])
-	case "bd", "bdelete":
-		b := e.win.buf
-		if arg != "" {
-			b = e.find(arg)
-		}
-		if b != nil {
-			e.close(b, force)
-		}
-	default:
-		if run, ok := e.commands[name]; ok {
-			run(e)
-			return
-		}
-		e.message = "not a command: " + line
+	if run, ok := e.commands[name]; ok {
+		run(e)
+		return
 	}
+	e.message = "not a command: " + line
 }
 
 // edit shows the file at path, opening it if no buffer holds it.

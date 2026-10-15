@@ -22,13 +22,6 @@ type cmenu struct {
 	sel   int // the item in the line, or len(items) for typed
 }
 
-// commandNames are the editor's commands, one full name each.
-var commandNames = []string{
-	"accept", "bdelete", "bnext", "bprevious", "buffer", "buffers", "cd", "changes", "close", "diff", "earlier", "edit", "enew", "exit",
-	"files", "grep", "jumps", "later", "lsp", "marks", "messages", "new", "only", "pwd", "quit", "quitall", "read", "recover", "registers", "reject", "rename", "restore", "set", "theme",
-	"split", "timeline", "update", "vnew", "vsplit", "wall", "wq", "wqall", "write", "xall", "xit",
-}
-
 // commandKey takes a key while a command line is typed: <Tab> and <C-n>
 // put the next completion in the line, <S-Tab> and <C-p> the one before,
 // <C-y> keeps it and <C-e> puts back what was typed. It reports whether it
@@ -101,9 +94,8 @@ func newMenu(line string, start int, items []string) *cmenu {
 }
 
 // completions returns where the word being typed at the end of line begins,
-// and what it may become, the best first: a command's name, a path for
-// :edit, :split and :vsplit, an option for :set or a buffer for :buffer
-// and :bdelete.
+// and what it may become, the best first: a command's name, or what its
+// command completes its argument with.
 func (e *Session) completions(line string, wait bool) (int, []string) {
 	name, arg, spaced := strings.Cut(line, " ")
 	if !spaced {
@@ -112,8 +104,8 @@ func (e *Session) completions(line string, wait bool) (int, []string) {
 		if strings.ContainsFunc(line[:start], unicode.IsLetter) {
 			return 0, nil
 		}
-		names := slices.Concat(commandNames, slices.Collect(maps.Keys(e.commands)))
-		for _, c := range vim.Commands() {
+		names := slices.Collect(maps.Keys(e.commands))
+		for _, c := range slices.Concat(vim.Commands(), helpCommands()) {
 			names = append(names, c.Name)
 		}
 		slices.Sort(names)
@@ -121,37 +113,8 @@ func (e *Session) completions(line string, wait bool) (int, []string) {
 	}
 	arg = strings.TrimLeft(arg, " ")
 	start := len(line) - len(arg)
-	switch name {
-	case "e", "edit", "sp", "split", "vs", "vsplit", "w", "write", "cd", "r", "read":
-		if !wait {
-			e.completeLater(line, start, arg)
-			return 0, nil
-		}
-		dir, _ := filepath.Split(arg)
-		return start, pathMatches(arg, e.entries(dir))
-	case "se", "set":
-		i := strings.LastIndexByte(arg, ' ') + 1
-		opts := e.win.opts
-		names := slices.Concat(slices.Collect(maps.Keys(opts.switches())), slices.Collect(maps.Keys(opts.numbers())))
-		slices.Sort(names)
-		return start + i, match(names, arg[i:])
-	case "lsp":
-		return start, match(lspCommands, arg)
-	case "theme":
-		// Offer the scheme config.toml names, so :theme can switch back to it.
-		names := []string{"dark", "light"}
-		if !slices.Contains(names, e.cfg.Theme) {
-			names = append(names, e.cfg.Theme)
-		}
-		return start, match(names, arg)
-	case "b", "buffer", "bd", "bdelete":
-		var names []string
-		for _, b := range e.bufs {
-			if b.file.path != "" {
-				names = append(names, b.file.path)
-			}
-		}
-		return start, match(names, arg)
+	if c, ok := commandsByName[name]; ok && c.complete != nil {
+		return c.complete(e, line, start, arg, wait)
 	}
 	return 0, nil
 }

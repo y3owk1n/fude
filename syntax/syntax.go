@@ -45,13 +45,22 @@ func Comment(filetype string) (string, bool) {
 	return l.comment, ok
 }
 
-// Objects are the text objects a grammar gives, and the captures they
-// select. aa also takes a comma. an, in, ]n and [n select syntax nodes.
-var Objects = map[string]string{
-	"af": "function.outer", "if": "function.inner",
-	"ac": "class.outer", "ic": "class.inner",
-	"aa": "parameter.inner", "ia": "parameter.inner",
-	"an": "", "in": "", "]n": "", "[n": "",
+// Object is a text object a grammar gives: the capture it selects, or ""
+// for one that selects syntax nodes, and what it selects.
+type Object struct {
+	Capture, Help string
+}
+
+// Objects are the text objects a grammar gives, by their keys. aa also
+// takes a comma.
+var Objects = map[string]Object{
+	"af": {"function.outer", "a function"}, "if": {"function.inner", "the body of a function"},
+	"ac": {"class.outer", "a class"}, "ic": {"class.inner", "the body of a class"},
+	"aa": {"parameter.inner", "an argument and its comma"}, "ia": {"parameter.inner", "an argument"},
+	"an": {"", "the syntax node that holds the selection, or its parent"},
+	"in": {"", "the child of the node an came from, or the first child"},
+	"]n": {"", "the next syntax node beside the selection"},
+	"[n": {"", "the syntax node before the selection"},
 }
 
 // chunk is the most text a parse reads at once.
@@ -358,10 +367,10 @@ func (h *Buffer) Object(t api.Text, name string, start, end int) (int, int, bool
 	}
 	tree, done := h.current()
 	defer done()
-	if Objects[name] == "" {
+	if Objects[name].Capture == "" {
 		return h.node(tree.RootNode(), name, span{start, end})
 	}
-	want, _ := h.objects.CaptureIndexForName(Objects[name])
+	want, _ := h.objects.CaptureIndexForName(Objects[name].Capture)
 	h.cursor.SetByteRange(uint(start), uint(max(end, start+1)))
 	var best span
 	var node *ts.Node

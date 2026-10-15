@@ -3,6 +3,7 @@ package editor
 import (
 	"fmt"
 	"maps"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -10,16 +11,21 @@ import (
 
 // switches are the options :set turns on and off, by their names in
 // config.toml.
-func (o *options) switches() map[string]*bool {
-	return map[string]*bool{
-		"number": &o.Number, "relative_number": &o.RelativeNumber, "wrap": &o.Wrap, "cursor_line": &o.CursorLine, "list": &o.List,
-		"ignore_case": &o.IgnoreCase, "smart_case": &o.SmartCase, "expand_tab": &o.ExpandTab, "icons": &o.Icons, "clipboard": &o.Clipboard, "sign_column": &o.SignColumn, "indent_guides": &o.IndentGuides,
-	}
-}
+func (o *options) switches() map[string]*bool { return fields[bool](o) }
 
 // numbers are the options :set gives a number.
-func (o *options) numbers() map[string]*int {
-	return map[string]*int{"scroll_off": &o.ScrollOff}
+func (o *options) numbers() map[string]*int { return fields[int](o) }
+
+// fields returns o's fields of type T, by their toml names.
+func fields[T any](o *options) map[string]*T {
+	out := map[string]*T{}
+	v := reflect.ValueOf(o).Elem()
+	for _, f := range reflect.VisibleFields(v.Type()) {
+		if p, ok := v.FieldByIndex(f.Index).Addr().Interface().(*T); ok {
+			out[f.Tag.Get("toml")] = p
+		}
+	}
+	return out
 }
 
 // set runs :set on its arguments: name turns a switch on, noname off,

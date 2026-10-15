@@ -14,62 +14,61 @@ import (
 	"github.com/y3owk1n/fude/vim"
 )
 
-// config is what config.toml holds (D27).
+// config is what config.toml holds (D27). Each key's help tag is what
+// help says of it.
 type config struct {
-	IndentWidth uint `toml:"indent_width"` // 0 means the tab width
-	KeyTimeout  uint `toml:"key_timeout"`  // milliseconds
-	LargeFile   uint `toml:"large_file"`   // megabytes
-	// Ask the language server for completions while typing, not only on
-	// <C-x><C-o>.
-	Autocomplete bool   `toml:"autocomplete"`
-	Socket       string `toml:"socket"` // where clients attach, instead of a path per process
-	FormatOnSave bool   `toml:"format_on_save"`
-	Leader       string `toml:"leader"` // what <Leader> in a mapping stands for (N18)
-	Theme        string `toml:"theme"`  // the client's colours, dark or light
+	IndentWidth  uint   `toml:"indent_width" help:"the columns of an indent level, 0 for the tab width"`
+	KeyTimeout   uint   `toml:"key_timeout" help:"the milliseconds a mapping waits for its next key"`
+	LargeFile    uint   `toml:"large_file" help:"the megabytes over which a file opens with syntax and language servers off"`
+	Autocomplete bool   `toml:"autocomplete" help:"completions show while typing, not only on <C-x><C-o>"`
+	Socket       string `toml:"socket" help:"where clients attach, instead of a path for each process"`
+	FormatOnSave bool   `toml:"format_on_save" help:"a write formats the buffer first"`
+	Leader       string `toml:"leader" help:"what <Leader> in a mapping stands for"` // N18
+	Theme        string `toml:"theme" help:"the colours: dark, light or a base16 scheme file"`
 	options
 	Keymap struct {
-		Normal map[string]string `toml:"normal"`
-		Visual map[string]string `toml:"visual"`
-		Insert map[string]string `toml:"insert"`
-		// A kind of buffer's normal mode keys, over [keymap.normal].
-		Listing  map[string]string `toml:"listing"`
-		List     map[string]string `toml:"list"`
-		Timeline map[string]string `toml:"timeline"`
-		Finder   map[string]string `toml:"finder"` // in insert mode
-		Float    map[string]string `toml:"float"`  // a float the cursor is in
-		Lsp      map[string]string `toml:"lsp"`    // the panel of language servers
+		Normal   map[string]string `toml:"normal" help:"normal mode mappings"`
+		Visual   map[string]string `toml:"visual" help:"visual mode mappings"`
+		Insert   map[string]string `toml:"insert" help:"insert mode mappings"`
+		Listing  map[string]string `toml:"listing" help:"a listing's keys, over the normal mode ones"`
+		List     map[string]string `toml:"list" help:"a list of places' keys, over the normal mode ones"`
+		Timeline map[string]string `toml:"timeline" help:"a timeline's keys, over the normal mode ones"`
+		Finder   map[string]string `toml:"finder" help:"the finder's keys, in insert mode"`
+		Float    map[string]string `toml:"float" help:"a float's keys while the cursor is in it"`
+		Lsp      map[string]string `toml:"lsp" help:"the language server panel's keys"`
 	} `toml:"keymap"`
 	Filetype map[string]struct {
-		IndentWidth uint       `toml:"indent_width"`
-		LSP         []string   `toml:"lsp"`    // the language server's command
-		Format      [][]string `toml:"format"` // formatters' commands, run in turn
+		IndentWidth uint       `toml:"indent_width" help:"the columns of an indent level in files of the type"`
+		LSP         []string   `toml:"lsp" help:"the language server's command"`
+		Format      [][]string `toml:"format" help:"the formatters' commands, run in turn"`
 	} `toml:"filetype"`
 	Plugin []struct {
-		Path         string   `toml:"path"` // relative to the config directory
-		Capabilities []string `toml:"capabilities"`
-		Programs     []string `toml:"programs"` // what process may run
-		Hosts        []string `toml:"hosts"`    // what net may reach
+		Path         string   `toml:"path" help:"the plugin's file, from the config directory"`
+		Capabilities []string `toml:"capabilities" help:"what the plugin may do"`
+		Programs     []string `toml:"programs" help:"the programs process may run"`
+		Hosts        []string `toml:"hosts" help:"the hosts net may reach"`
 	} `toml:"plugin"`
 }
 
 var defaults = config{IndentWidth: 8, KeyTimeout: 1000, LargeFile: 50, Leader: "<Space>", Theme: "dark", options: options{Wrap: true, IndentGuides: true}}
 
 // options are the settings each window has, which :set changes for the
-// current window and the windows opened after it (B39).
+// current window and the windows opened after it (B39). :set takes each by
+// its toml name, a bool as a switch and an int as a number.
 type options struct {
-	Number         bool `toml:"number"`          // show line numbers
-	RelativeNumber bool `toml:"relative_number"` // number lines from the cursor's
-	Wrap           bool `toml:"wrap"`            // long lines go on the rows below, else the view scrolls sideways
-	ScrollOff      int  `toml:"scroll_off"`      // lines kept in view above and below the cursor's
-	CursorLine     bool `toml:"cursor_line"`     // shade the cursor's line
-	List           bool `toml:"list"`            // show tabs, trailing spaces and no-break spaces
-	IgnoreCase     bool `toml:"ignore_case"`     // searches ignore case
-	SmartCase      bool `toml:"smart_case"`      // a pattern with an uppercase letter matches case
-	ExpandTab      bool `toml:"expand_tab"`      // indent with spaces only
-	Clipboard      bool `toml:"clipboard"`       // yanks, deletes and puts use the system clipboard
-	SignColumn     bool `toml:"sign_column"`     // keep the sign column when there are no signs
-	IndentGuides   bool `toml:"indent_guides"`   // a faint line at each indent level
-	Icons          bool `toml:"icons"`           // nerd font icons in listings and signs
+	Number         bool `toml:"number" help:"shows line numbers"`
+	RelativeNumber bool `toml:"relative_number" help:"numbers lines from the cursor's"`
+	Wrap           bool `toml:"wrap" help:"long lines go on the rows below, else the view scrolls sideways"`
+	ScrollOff      int  `toml:"scroll_off" help:"the lines kept in view above and below the cursor's"`
+	CursorLine     bool `toml:"cursor_line" help:"shades the cursor's line"`
+	List           bool `toml:"list" help:"shows tabs, trailing spaces and no-break spaces"`
+	IgnoreCase     bool `toml:"ignore_case" help:"searches ignore case"`
+	SmartCase      bool `toml:"smart_case" help:"a pattern with an uppercase letter matches case"`
+	ExpandTab      bool `toml:"expand_tab" help:"indents with spaces only"`
+	Clipboard      bool `toml:"clipboard" help:"yanks, deletes and puts use the system clipboard"`
+	SignColumn     bool `toml:"sign_column" help:"keeps the sign column when there are no signs"`
+	IndentGuides   bool `toml:"indent_guides" help:"draws a faint line at each indent level"`
+	Icons          bool `toml:"icons" help:"shows nerd font icons in listings and signs"`
 }
 
 // loadConfig reads config.toml. A missing file is no error. After an error
