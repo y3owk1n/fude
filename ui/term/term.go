@@ -161,12 +161,11 @@ func (c *client) draw() {
 	f, floats := c.e.Float()
 	switch {
 	case c.e.Mode() == vim.Cmdline:
-		var left, bottom int
-		cx, cy, left, bottom = c.commandLine(w, h)
-		if floats {
-			// The completion menu goes under the command line.
-			c.float(f, left, bottom, w, h)
+		// The completion menu is part of the command line's box.
+		if !floats {
+			f = editor.Float{}
 		}
+		cx, cy = c.commandLine(w, h, f.Text, f.Spans)
 	case floats:
 		if x, y, ok := c.float(f, cx, cy, w, h); ok {
 			cx, cy = x, y
@@ -201,13 +200,13 @@ func (c *client) float(f editor.Float, cx, cy, w, h int) (int, int, bool) {
 		if f.DocW > 2 {
 			// The documentation box is as tall as the box beside it.
 			doc := f.Doc + strings.Repeat("\n", max(f.H-3-strings.Count(f.Doc, "\n"), 0))
-			rows, _ := wrap(doc, f.DocSpans, f.DocW-2)
-			c.box(doc, f.DocSpans, rows[:min(len(rows), f.H-2)], f.X+f.W, f.Y, f.DocW-2, -1)
+			rows, _ := wrap(doc, f.DocSpans, f.DocW-4)
+			c.box(doc, f.DocSpans, rows[:min(len(rows), f.H-2)], f.X+f.W, f.Y, f.DocW-4, -1)
 		}
-		rows, _ := wrap(f.Text, f.Spans, f.W-2)
-		return c.box(f.Text, f.Spans, rows[:min(len(rows), f.H-2)], f.X, f.Y, f.W-2, f.Cursor)
+		rows, _ := wrap(f.Text, f.Spans, f.W-4)
+		return c.box(f.Text, f.Spans, rows[:min(len(rows), f.H-2)], f.X, f.Y, f.W-4, f.Cursor)
 	}
-	rows, width := wrap(f.Text, f.Spans, min(80, w-2))
+	rows, width := wrap(f.Text, f.Spans, min(80, w-4))
 	below, above := h-cy-1, cy
 	n := min(len(rows), max(below, above)-2, 20)
 	if width < 1 || n < 1 {
@@ -227,16 +226,16 @@ func (c *client) float(f editor.Float, cx, cy, w, h int) (int, int, bool) {
 	if below < n+2 && above > below {
 		y = cy - n - 2
 	}
-	x := min(cx, max(w-width-2, 0))
+	x := min(cx, max(w-width-4, 0))
 	fx, fy, found := c.box(f.Text, f.Spans, rows[first:min(first+n, len(rows))], x, y, width, f.Cursor)
 	// The documentation goes right of the box, or left of it when there is
 	// more room there.
-	right, left := w-x-width-2, x
-	if room := max(right, left) - 2; f.Doc != "" && room >= 10 {
+	right, left := w-x-width-4, x
+	if room := max(right, left) - 4; f.Doc != "" && room >= 10 {
 		rows, dw := wrap(f.Doc, f.DocSpans, min(80, room))
-		dx := x + width + 2
+		dx := x + width + 4
 		if right < left {
-			dx = x - dw - 2
+			dx = x - dw - 4
 		}
 		c.box(f.Doc, f.DocSpans, rows[:min(len(rows), h-y-2, 20)], dx, y, dw, -1)
 	}
@@ -291,18 +290,26 @@ func wrap(text string, spans []syntax.Span, limit int) ([]row, int) {
 	return rows, width
 }
 
-// box draws rows of text, styled by spans, in a border at x and y, width
-// columns wide inside it, and reports where the byte at cursor is.
+// box draws rows of text, styled by spans, in a panel at x and y, width
+// columns wide inside it, and reports where the byte at cursor is. A row a
+// selected item starts takes the raised colour, with an accent bar for its
+// left border (B150).
 func (c *client) box(text string, spans []syntax.Span, rows []row, x, y, width, cursor int) (int, int, bool) {
 	styles := paint(spans, 0)
 	style := base
 	fx, fy, found := 0, 0, false
-	c.s.PutStrStyled(x, y, "┌"+strings.Repeat("─", width)+"┐", style)
+	// The text has a column of room on either side inside the border.
+	c.panel(x, y, width+2, len(rows))
+	x++
 	for i, r := range rows {
-		c.s.FillArea(x, y+1+i, width+2, 1, ' ', style)
-		c.s.Put(x, y+1+i, "│", style)
+		ground := th.bg
 		if r.rule {
-			c.s.PutStrStyled(x+1, y+1+i, strings.Repeat("─", width), colours["markup.rule"])
+			c.rule(x-1, y+1+i, width+2)
+		}
+		if r.start < len(styles) && styles[r.start] == colours["menu.selected"] {
+			ground = th.raised
+			c.s.FillArea(x, y+1+i, width+2, 1, ' ', style.Background(ground))
+			c.s.Put(x-1, y+1+i, "▌", base.Foreground(th.normal))
 		}
 		col := 0
 		for rest := text[r.start:r.end]; ; {
@@ -318,6 +325,7 @@ func (c *client) box(text string, spans []syntax.Span, rows []row, x, y, width, 
 			if p < len(styles) {
 				s = styles[p]
 			}
+			s = s.Background(ground)
 			if rest[0] == '\t' {
 				col, rest = col+4, rest[1:]
 				continue
@@ -326,9 +334,7 @@ func (c *client) box(text string, spans []syntax.Span, rows []row, x, y, width, 
 			rest, cw = c.s.Put(x+1+col, y+1+i, rest, s)
 			col += cw
 		}
-		c.s.Put(x+width+1, y+1+i, "│", style)
 	}
-	c.s.PutStrStyled(x, y+len(rows)+1, "└"+strings.Repeat("─", width)+"┘", style)
 	return fx, fy, found
 }
 

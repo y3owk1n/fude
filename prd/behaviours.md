@@ -238,6 +238,13 @@ Where fude departs, the line says so and cites the departure in
   row of the screen.
 - B149 [2] A message shows in a box in the top right corner until the next
   key, as a toast. A macro being recorded shows in the status line.
+- B150 [2] Floats, the command line, the finder and toasts are panels with
+  a rounded border on the editor's ground, a column of room inside it, and
+  rules joined to the border. A selected item takes the raised colour and
+  an accent bar for its left border. The completion menu of a command line
+  is part of its box. The finder heads its list with a prompt and the count
+  of matches, and its preview with the file's path, and keeps two columns
+  and a row from the screen's edges.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays

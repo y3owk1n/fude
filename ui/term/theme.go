@@ -88,7 +88,7 @@ func useTheme(t theme) {
 		// Markdown in floats, such as hover.
 		"markup.strong": base.Bold(true), "markup.italic": base.Italic(true), "markup.heading": base.Bold(true),
 		"markup.raw": fg(t.typ), "markup.link": base.Underline(true), "markup.rule": fg(t.faint),
-		"menu.selected": base.Background(t.selection),
+		"menu.selected": base.Background(t.raised),
 		// Text just yanked, put, undone or redone.
 		"flash": base.Background(t.cmd).Foreground(t.bg),
 		// A hunk's lines, as git's index has them and as they are.

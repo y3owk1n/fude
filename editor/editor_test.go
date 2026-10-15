@@ -828,14 +828,14 @@ func TestB130FilesPreview(t *testing.T) {
 	e.SetSize(100, 24)
 	feed(e, ":files<CR>")
 	doc := func() string { f, _ := e.Float(); return f.Doc }
-	settle(t, e, func() bool { return doc() == "one\ntwo" })
+	settle(t, e, func() bool { return doc() == "a\n\none\ntwo" })
 	feed(e, "<C-n>")
-	settle(t, e, func() bool { return doc() == "three" })
+	settle(t, e, func() bool { return doc() == "b\n\nthree" })
 	// A file's preview has its filetype's highlights.
 	feed(e, "<C-n>")
 	settle(t, e, func() bool {
 		f, _ := e.Float()
-		return f.Doc == "package c" && slices.ContainsFunc(f.DocSpans, func(s syntax.Span) bool { return s.Name == "keyword" })
+		return f.Doc == "c.go\n\npackage c" && slices.ContainsFunc(f.DocSpans, func(s syntax.Span) bool { return s.Name == "keyword" })
 	})
 	// A narrow screen has no room for it.
 	if e.SetSize(50, 24); doc() != "" {

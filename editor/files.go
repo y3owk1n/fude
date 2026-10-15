@@ -12,7 +12,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/syntax"
@@ -181,17 +183,30 @@ func (e *Session) seek(f *finder) {
 // with the cursor in the query. On a screen of 60 columns or more, the
 // selected file's first lines show in a box right of the list (B130).
 func (f *finder) float(query string, cursor, width, height int) Float {
-	total, h := min(162, width), min(22, height)
+	// A margin of two columns and a row keeps the box off the screen's edges.
+	total, h := min(162, width-4), min(22, height-2)
 	w, docW := total, 0
 	if total >= 60 {
 		w = total * 2 / 5
 		docW = total - w
 	}
-	rows := max(h-3, 0) // below the query
+	rows := max(h-4, 0) // below the query and its rule
 	first := max(f.sel-rows+1, 0)
 	var s strings.Builder
 	var spans []syntax.Span
-	s.WriteString(query)
+	// The query after a prompt, with the count of matches on the right.
+	s.WriteString(finderPrompt + query)
+	count := fmt.Sprintf("%d / %d", len(f.matches), len(f.paths))
+	if f.grep {
+		count = strconv.Itoa(len(f.matches))
+	}
+	if gap := w - 4 - utf8.RuneCountInString(finderPrompt+query) - len(count); gap > 1 {
+		s.WriteString(strings.Repeat(" ", gap))
+		spans = append(spans, syntax.Span{Start: s.Len(), End: s.Len() + len(count), Name: "comment"})
+		s.WriteString(count)
+	}
+	s.WriteByte('\n')
+	spans = append(spans, syntax.Span{Start: s.Len(), End: s.Len(), Name: "markup.rule"})
 	for i := first; i < first+rows; i++ {
 		s.WriteByte('\n')
 		if i >= len(f.matches) {
@@ -200,12 +215,12 @@ func (f *finder) float(query string, cursor, width, height int) Float {
 		p := f.matches[i]
 		if path, line, _, text := grepSpot(p); f.grep {
 			p = fmt.Sprintf("%s:%d: %s", path, line, strings.TrimLeft(text, " \t"))
-			if r := []rune(p); len(r) > w-2 {
-				p = string(r[:w-2])
+			if r := []rune(p); len(r) > w-4 {
+				p = string(r[:w-4])
 			}
-		} else if r := []rune(p); len(r) > w-2 {
+		} else if r := []rune(p); len(r) > w-4 {
 			// Cut the start of a long path, so its name stays in view.
-			p = "<" + string(r[len(r)-w+3:])
+			p = "<" + string(r[len(r)-w+5:])
 		}
 		if i == f.sel {
 			spans = append(spans, syntax.Span{Start: s.Len(), End: s.Len() + len(p), Name: "menu.selected"})
@@ -216,12 +231,19 @@ func (f *finder) float(query string, cursor, width, height int) Float {
 	if docW > 0 && f.sel < len(f.matches) {
 		if m := f.matches[f.sel]; m != f.shown && !f.reading {
 			f.reading = true
-			go f.read(m, h-2, docW-2)
+			go f.read(m, h-4, docW-4)
 		}
-		doc, docSpans = f.preview, f.spans
+		// The previewed file's path heads the preview, over a rule.
+		path, _, _, _ := grepSpot(f.shown)
+		head := path + "\n\n"
+		doc = head + f.preview
+		docSpans = []syntax.Span{{Start: 0, End: len(path), Name: "comment"}, {Start: len(path) + 1, End: len(path) + 1, Name: "markup.rule"}}
+		for _, sp := range f.spans {
+			docSpans = append(docSpans, syntax.Span{Start: sp.Start + len(head), End: sp.End + len(head), Name: sp.Name})
+		}
 		if f.grep && f.at >= 0 {
 			// The matching line is marked.
-			start := 0
+			start := len(head)
 			for range f.at {
 				start += strings.IndexByte(doc[start:], '\n') + 1
 			}
@@ -232,8 +254,11 @@ func (f *finder) float(query string, cursor, width, height int) Float {
 			docSpans = append(slices.Clip(docSpans), syntax.Span{Start: start, End: start + end, Name: "menu.selected"})
 		}
 	}
-	return Float{Text: s.String(), Spans: spans, Cursor: cursor, Doc: doc, DocSpans: docSpans, X: (width - total) / 2, Y: (height - h) / 2, W: w, H: h, DocW: docW}
+	return Float{Text: s.String(), Spans: spans, Cursor: cursor + len(finderPrompt), Doc: doc, DocSpans: docSpans, X: (width - total) / 2, Y: (height - h) / 2, W: w, H: h, DocW: docW}
 }
+
+// finderPrompt goes before the finder's query.
+const finderPrompt = "› "
 
 // read reads and highlights the preview of match m off the loop, as the
 // highlight takes over a millisecond (B130).

@@ -561,6 +561,14 @@ drawn while `Message` returns it, so it goes with the next key as before
 (B149). With both off the last row, `SetSize` gives the windows the whole
 screen.
 
+Every box is a `panel`: a rounded border on the editor's ground, cleared
+inside to the same ground. A box-drawing line sits in the middle of its
+cell, so a filled inside would leave a seam of the other colour between
+the line and the fill, which a terminal cannot avoid. A row a
+`menu.selected` span starts takes the raised colour, and the border cell
+beside it becomes an accent bar. A `markup.rule` row joins the border with
+`├` and `┤` (B150).
+
 The client keeps a cell grid, diffs it against the previous frame, and
 writes only the changed cells in one write. It wraps each frame in
 synchronized output where the terminal supports it.

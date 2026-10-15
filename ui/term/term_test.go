@@ -233,3 +233,31 @@ func TestB148CommandLine(t *testing.T) {
 		t.Fatalf("the toast is not in the top right:\n%s", strings.Join(rows[:3], "\n"))
 	}
 }
+
+// B150
+func TestB150Panels(t *testing.T) {
+	cl := start(t)
+	for _, k := range vim.Keys(":ti<Tab>") {
+		cl.e.Feed(k)
+	}
+	cl.draw()
+	w, h := cl.s.Size()
+	for y := range h {
+		for x := range w {
+			if s, style, _ := cl.s.Get(x, y); s == "╭" {
+				// The border and the inside are both on the ground, so no seam
+				// shows between them.
+				_, in, _ := cl.s.Get(x+1, y+1)
+				if style.GetBackground() != th.bg || in.GetBackground() != th.bg {
+					t.Fatalf("the border's ground is %v and the inside's %v, want the editor's", style.GetBackground(), in.GetBackground())
+				}
+				// The selected completion has the bar for its border.
+				if bar, _, _ := cl.s.Get(x, y+3); bar != "▌" {
+					t.Fatalf("the selected row starts with %q", bar)
+				}
+				return
+			}
+		}
+	}
+	t.Fatal("no panel on the screen")
+}
