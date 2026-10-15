@@ -234,7 +234,13 @@ engine, no regex translation for queries and no third-party query
 collection. The tree-sitter CLI (`tree-sitter query`, `tree-sitter
 highlight`) checks them against the same grammar. The cost is plainer
 highlighting than nvim-treesitter's and one tree-object file per language
-to maintain.
+to maintain. fude accepts one predicate outside the core ones.
+JavaScript's highlights mark built-in names with `#is-not? local`, which
+needs the locals a highlighter tracks. fude tracks none and lets those
+patterns match, so a local that shadows a built-in name takes the
+built-in's colour. A language's highlight files combine in the order its
+repo's `tree-sitter.json` lists them. Some come from another grammar's
+repo, as most of TypeScript's come from JavaScript's.
 
 ## D29. Go is linked in, and other grammars build on first use
 

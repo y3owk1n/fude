@@ -200,12 +200,13 @@ func compile(lang *ts.Language, src string) (*ts.Query, error) {
 			unknown = q.GeneralPredicates(i)[0].Operator
 		case len(q.PropertySettings(i)) > 0:
 			unknown = "set!"
-		case len(q.PropertyPredicates(i)) > 0:
+		case slices.ContainsFunc(q.PropertyPredicates(i), func(p ts.PropertyPredicate) bool { return p.Positive || p.Property.Key != "local" }):
 			unknown = "is?"
 			if !q.PropertyPredicates(i)[0].Positive {
 				unknown = "is-not?"
 			}
 		default:
+			// fude keeps no locals, so #is-not? local always holds (D28).
 			continue
 		}
 		line := strings.Count(src[:q.StartByteForPattern(i)], "\n") + 1

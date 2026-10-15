@@ -966,7 +966,8 @@ ships. Go has none.
 
 Queries use only the predicates the binding evaluates: the `eq?`,
 `match?` and `any-of?` families. A query that uses any other fails to load
-with its file and line. A file at
+with its file and line, but for `#is-not? local`, which always holds
+because fude keeps no locals (D28). A file at
 `$XDG_CONFIG_HOME/fude/queries/<lang>/<name>.scm` replaces the shipped
 query of that name (B41). Indentation is the previous line's (B29), so there
 are no indent or fold queries.

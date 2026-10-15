@@ -29,21 +29,28 @@ import (
 )
 
 // grammar is a grammar fude builds when a file needs it (D29): the repo it
-// comes from, the commit fude pins, the directories of its sources and its
-// queries in the repo, and its language's comment syntax. Its library
-// exports tree_sitter_<filetype>.
+// comes from, the commit fude pins, the directory of its sources in the
+// repo, its highlight queries in the order they combine, and its language's
+// comment syntax. A query named <filetype>:<path> is in that grammar's repo.
+// Its library exports tree_sitter_<filetype>.
 type grammar struct {
-	repo, commit, src, queries, comment string
+	repo, commit, src string
+	highlights        []string
+	comment           string
 }
 
 // registry are the grammars fude builds, by filetype.
 var registry = map[string]grammar{
-	"bash":     {"https://github.com/tree-sitter/tree-sitter-bash", "a06c2e4415e9bc0346c6b86d401879ffb44058f7", ".", "queries", "# %s"},
-	"json":     {"https://github.com/tree-sitter/tree-sitter-json", "ee35a6ebefcef0c5c416c0d1ccec7370cfca5a24", ".", "queries", ""},
-	"markdown": {"https://github.com/tree-sitter-grammars/tree-sitter-markdown", "f969cd3ae3f9fbd4e43205431d0ae286014c05b5", "tree-sitter-markdown", "tree-sitter-markdown/queries", "<!-- %s -->"},
-	"yaml":     {"https://github.com/tree-sitter-grammars/tree-sitter-yaml", "7708026449bed86239b1cd5bce6e3c34dbca6415", ".", "queries", "# %s"},
-	"lua":      {"https://github.com/tree-sitter-grammars/tree-sitter-lua", "10fe0054734eec83049514ea2e718b2a56acd0c9", ".", "queries", "-- %s"},
-	"toml":     {"https://github.com/tree-sitter-grammars/tree-sitter-toml", "64b56832c2cffe41758f28e05c756a3a98d16f41", ".", "queries", "# %s"},
+	"bash":       {"https://github.com/tree-sitter/tree-sitter-bash", "a06c2e4415e9bc0346c6b86d401879ffb44058f7", ".", []string{"queries/highlights.scm"}, "# %s"},
+	"javascript": {"https://github.com/tree-sitter/tree-sitter-javascript", "44c892e0be055ac465d5eeddae6d3e194424e7de", ".", []string{"queries/highlights.scm", "queries/highlights-jsx.scm", "queries/highlights-params.scm"}, "// %s"},
+	"json":       {"https://github.com/tree-sitter/tree-sitter-json", "ee35a6ebefcef0c5c416c0d1ccec7370cfca5a24", ".", []string{"queries/highlights.scm"}, ""},
+	"lua":        {"https://github.com/tree-sitter-grammars/tree-sitter-lua", "10fe0054734eec83049514ea2e718b2a56acd0c9", ".", []string{"queries/highlights.scm"}, "-- %s"},
+	"markdown":   {"https://github.com/tree-sitter-grammars/tree-sitter-markdown", "f969cd3ae3f9fbd4e43205431d0ae286014c05b5", "tree-sitter-markdown", []string{"tree-sitter-markdown/queries/highlights.scm"}, "<!-- %s -->"},
+	"python":     {"https://github.com/tree-sitter/tree-sitter-python", "293fdc02038ee2bf0e2e206711b69c90ac0d413f", ".", []string{"queries/highlights.scm"}, "# %s"},
+	"toml":       {"https://github.com/tree-sitter-grammars/tree-sitter-toml", "64b56832c2cffe41758f28e05c756a3a98d16f41", ".", []string{"queries/highlights.scm"}, "# %s"},
+	"tsx":        {"https://github.com/tree-sitter/tree-sitter-typescript", "f975a621f4e7f532fe322e13c4f79495e0a7b2e7", "tsx", []string{"queries/highlights.scm", "javascript:queries/highlights-jsx.scm", "javascript:queries/highlights.scm"}, "// %s"},
+	"typescript": {"https://github.com/tree-sitter/tree-sitter-typescript", "f975a621f4e7f532fe322e13c4f79495e0a7b2e7", "typescript", []string{"queries/highlights.scm", "javascript:queries/highlights.scm"}, "// %s"},
+	"yaml":       {"https://github.com/tree-sitter-grammars/tree-sitter-yaml", "7708026449bed86239b1cd5bce6e3c34dbca6415", ".", []string{"queries/highlights.scm"}, "# %s"},
 }
 
 // shipped holds the text objects fude writes for the grammars it builds
@@ -156,9 +163,9 @@ func Build(filetype string) error {
 		return fmt.Errorf("fude cannot build a grammar for %s", filetype)
 	}
 	loadMu.Lock()
-	dir := grammarsDir
+	grammars := grammarsDir
 	loadMu.Unlock()
-	if dir == "" {
+	if grammars == "" {
 		return fmt.Errorf("build the %s grammar: there is no data directory to build it in", filetype)
 	}
 	for _, tool := range []string{"git", "tree-sitter"} {
@@ -166,39 +173,68 @@ func Build(filetype string) error {
 			return fmt.Errorf("build the %s grammar: %s is not installed", filetype, tool)
 		}
 	}
-	src, err := os.MkdirTemp("", "fude-grammar-")
+	work, err := os.MkdirTemp("", "fude-grammar-")
 	if err != nil {
 		return fmt.Errorf("build the %s grammar: %w", filetype, err)
 	}
-	defer os.RemoveAll(src)
-	run := func(name string, args ...string) error {
+	defer os.RemoveAll(work)
+	run := func(dir, name string, args ...string) error {
 		cmd := exec.Command(name, args...)
-		cmd.Dir = src
+		cmd.Dir = dir
 		if out, err := cmd.CombinedOutput(); err != nil {
 			return fmt.Errorf("build the %s grammar: %s %s: %w: %s", filetype, name, args[0], err, strings.TrimSpace(string(out)))
 		}
 		return nil
 	}
-	for _, step := range [][]string{{"git", "init", "-q"}, {"git", "fetch", "-q", "--depth", "1", g.repo, g.commit}, {"git", "checkout", "-q", "FETCH_HEAD"}} {
-		if err := run(step[0], step[1:]...); err != nil {
+	// fetch checks out ft's grammar at its pin, once, and returns where.
+	repos := map[string]string{}
+	fetch := func(ft string) (string, error) {
+		if dir, ok := repos[ft]; ok {
+			return dir, nil
+		}
+		dir := filepath.Join(work, ft)
+		if err := os.Mkdir(dir, 0o755); err != nil {
+			return "", fmt.Errorf("build the %s grammar: %w", filetype, err)
+		}
+		for _, step := range [][]string{{"init", "-q"}, {"fetch", "-q", "--depth", "1", registry[ft].repo, registry[ft].commit}, {"checkout", "-q", "FETCH_HEAD"}} {
+			if err := run(dir, "git", step...); err != nil {
+				return "", err
+			}
+		}
+		repos[ft] = dir
+		return dir, nil
+	}
+	src, err := fetch(filetype)
+	if err != nil {
+		return err
+	}
+	var highlights []string
+	for _, q := range g.highlights {
+		ft, path, ok := strings.Cut(q, ":")
+		if !ok {
+			ft, path = filetype, q
+		}
+		dir, err := fetch(ft)
+		if err != nil {
 			return err
 		}
+		b, err := os.ReadFile(filepath.Join(dir, path))
+		if err != nil {
+			return fmt.Errorf("build the %s grammar: %w", filetype, err)
+		}
+		highlights = append(highlights, string(b))
 	}
-	out := filepath.Join(dir, filetype)
+	out := filepath.Join(grammars, filetype)
 	if err := os.MkdirAll(filepath.Join(out, "queries"), 0o755); err != nil {
 		return fmt.Errorf("build the %s grammar: %w", filetype, err)
 	}
-	b, err := os.ReadFile(filepath.Join(src, g.queries, "highlights.scm"))
-	if err == nil {
-		err = os.WriteFile(filepath.Join(out, "queries", "highlights.scm"), b, 0o644)
-	}
-	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+	if err := os.WriteFile(filepath.Join(out, "queries", "highlights.scm"), []byte(strings.Join(highlights, "\n")), 0o644); err != nil {
 		return fmt.Errorf("build the %s grammar: %w", filetype, err)
 	}
 	// Build writes the library last, through a rename, so a library there
 	// means the rest of the build is there too.
-	lib := library(dir, filetype)
-	if err := run("tree-sitter", "build", "-o", lib+".new", filepath.Join(src, g.src)); err != nil {
+	lib := library(grammars, filetype)
+	if err := run(src, "tree-sitter", "build", "-o", lib+".new", filepath.Join(src, g.src)); err != nil {
 		return err
 	}
 	if err := os.Rename(lib+".new", lib); err != nil {
