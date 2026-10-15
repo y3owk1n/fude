@@ -44,7 +44,7 @@ func (m *Machine) insert(k Key) error {
 		m.h.SetCursor(prev(t, LineStart(t, c), c))
 	case "<CR>":
 		return m.newline()
-	case "<BS>":
+	case "<BS>", "<C-h>":
 		if m.mode == Replace {
 			return m.unreplace()
 		}

@@ -20,16 +20,11 @@ import (
 
 // Run shows e in the terminal until the user quits.
 func Run(e *editor.Session) error {
-	// Negotiation waits on a terminal round trip, so fude turns it off and
-	// asks for the kitty keyboard protocol without querying (D26).
-	s, err := tcell.NewScreen(
-		tcell.OptNegotiation(false),
-		tcell.OptKeyboardProtocol(tcell.KittyKeyboard),
-		tcell.OptAdvancedKeys(true),
-	)
-	if err == nil {
-		err = s.Init()
+	tty, err := tcell.NewDevTty()
+	if err != nil {
+		return fmt.Errorf("open terminal: %w", err)
 	}
+	s, err := screen(tty)
 	if err != nil {
 		return fmt.Errorf("open terminal: %w", err)
 	}

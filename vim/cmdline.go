@@ -36,7 +36,7 @@ func (m *Machine) cmdline(k Key) error {
 	}
 	before, after := m.line[:m.lineAt], m.line[m.lineAt:]
 	switch {
-	case k == "<Esc>", k == "<BS>" && m.line == "":
+	case k == "<Esc>", (k == "<BS>" || k == "<C-h>") && m.line == "":
 		m.mode = m.back
 		m.count, m.op, m.opCount, m.reg = 0, "", 0, 0
 	case k == "<CR>":
@@ -50,7 +50,7 @@ func (m *Machine) cmdline(k Key) error {
 			line = m.search.pattern
 		}
 		return m.command(m.prompt + line)
-	case k == "<BS>":
+	case k == "<BS>", k == "<C-h>":
 		_, n := utf8.DecodeLastRuneInString(before)
 		m.cut(m.lineAt-n, m.lineAt)
 	case k == "<Del>":

@@ -195,6 +195,9 @@ Where fude departs, the line says so and cites the departure in
   `<Plug>(window.up)` and `<Plug>(window.right)` move to the window that
   way. Inside tmux, with no window that way, they move to tmux's pane
   there instead, as nvim-tmux-navigation does. No key is mapped to them.
+- B141 [2] A terminal's byte 0x08 is `<C-h>` and 0x7f is `<BS>`, as
+  Neovim reads them, so `<C-h>` maps apart from `<BS>` inside tmux too. In
+  insert mode and a command line, `<C-h>` deletes as `<BS>` does.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays

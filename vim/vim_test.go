@@ -697,3 +697,13 @@ func TestB137Clipboard(t *testing.T) {
 		t.Fatalf("p after a copy elsewhere made %q", h.text)
 	}
 }
+
+// B141, where <C-h> deletes as <BS> does
+func TestB141CtrlHDeletes(t *testing.T) {
+	if got, _, _ := run(t, "ab|c", "i<C-h><Esc>"); got != "|ac" {
+		t.Errorf("i<C-h> made %q, want %q", got, "|ac")
+	}
+	if _, _, m := run(t, "|x", ":ab<C-h>"); m.Line() != ":a" {
+		t.Errorf(":ab<C-h> left the line %q", m.Line())
+	}
+}

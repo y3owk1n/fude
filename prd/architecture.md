@@ -339,6 +339,11 @@ When the window stays the same and `$TMUX` is set, they run
 bindings decide which keys reach fude, so its `vim-tmux-navigator` pattern
 has to name `fude` (B140).
 
+tcell reads both 0x08 and 0x7f as backspace. A terminal sends 0x7f for
+backspace and 0x08 for `Ctrl+h`, and tmux passes both on as they are, so
+the terminal client reads the tty through a wrapper that turns 0x08 into
+`Ctrl+h` in the kitty keyboard protocol before tcell parses it (B141).
+
 ## Views
 
 A view is one buffer shown in one window. It owns a cursor mark, a top-line
