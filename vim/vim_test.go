@@ -722,3 +722,53 @@ func TestB113HostOperator(t *testing.T) {
 		}
 	}
 }
+
+// B42, with a selector that picks runs of digits
+func TestB42SelectRegions(t *testing.T) {
+	digits := func(t vim.Text, _ string, start, end int) ([][2]int, error) {
+		s := t.Slice(0, t.Len())
+		var out [][2]int
+		for i := start; i < end; i++ {
+			if j := i; s[i] >= '0' && s[i] <= '9' {
+				for j < end && s[j] >= '0' && s[j] <= '9' {
+					j++
+				}
+				out, i = append(out, [2]int{i, j}), j
+			}
+		}
+		return out, nil
+	}
+	for _, c := range [][3]string{
+		{"a1 b22 c333|\nd4", "V:select x<CR>d", "a| b c\nd4"},
+		{"a1 b22 c333|\nd4", "V:select x<CR>cXY<BS>Z<Esc>", "aX|Z bXZ cXZ\nd4"},
+		{"a1 b22 c333|\nd4", "V:select x<CR>y", "a|1 b22 c333\nd4"},
+		{"a1 b22 c333|\nd4", "V:select x<CR>ld", "a|b22 c333\nd4"},
+	} {
+		h := &host{text: strings.Replace(c[0], "|", "", 1), cursor: strings.Index(c[0], "|")}
+		m := vim.New(h)
+		m.Selector(digits)
+		for _, k := range vim.Keys(c[1]) {
+			if err := m.Feed(k); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if got := h.text[:h.cursor] + "|" + h.text[h.cursor:]; got != c[2] {
+			t.Errorf("%q on %q: got %q, want %q", c[1], c[0], got, c[2])
+		}
+		if c[1] == "V:select x<CR>y" {
+			if r, _ := m.Register('"'); r != "1\n22\n333" {
+				t.Errorf("y on regions yanked %q, want them joined by newlines", r)
+			}
+		}
+	}
+	h := &host{text: "abc"}
+	m := vim.New(h)
+	m.Selector(digits)
+	var err error
+	for _, k := range vim.Keys("V:select x<CR>") {
+		err = m.Feed(k)
+	}
+	if err == nil || err.Error() != "the query selected nothing" {
+		t.Errorf("a query with no match gave %v", err)
+	}
+}

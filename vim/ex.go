@@ -21,6 +21,11 @@ func (m *Machine) ex(line string) error {
 			m.h.SetCursor(firstNonBlank(t, last, LineEnd(t, last)))
 		}
 		return nil
+	case "select":
+		if !ranged {
+			first, last = 0, LineStart(t, t.Len())
+		}
+		return m.selectQuery(arg, first, LineEnd(t, last))
 	case "noh", "nohlsearch":
 		m.hl = false
 		return nil

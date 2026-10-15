@@ -136,6 +136,11 @@ type Machine struct {
 
 	objects map[string]func(Text, int, int) (int, int, bool) // text objects the host added
 	ops     map[string]func(Text, int, int, bool) []Edit     // operators the host added
+
+	// :select.
+	selector func(Text, string, int, int) ([][2]int, error)
+	regions  []region // in visual mode, every region :select chose, lowest first
+	cursors  []rune   // in insert mode, the marks of the cursors after the first
 }
 
 // change is the last change, for dot repeat.
@@ -251,9 +256,14 @@ func (m *Machine) run(keys []Key, mapped bool) error {
 	return nil
 }
 
-// apply edits through the host and marks the command as a change.
+// apply edits through the host and marks the command as a change. While a
+// change on several regions types into all of them, it repeats the edits at
+// every cursor.
 func (m *Machine) apply(edits []Edit, label string) error {
 	m.changed = true
+	if len(m.cursors) > 0 && (m.mode == Insert || m.mode == Replace) {
+		edits = m.mirror(edits)
+	}
 	return m.h.Apply(edits, label)
 }
 

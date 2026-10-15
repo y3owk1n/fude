@@ -18,6 +18,7 @@ func (m *Machine) insert(k Key) error {
 	}
 	switch k {
 	case "<Esc>":
+		m.cursors = nil
 		if b := m.blockInsert; b != nil {
 			m.blockInsert = nil
 			if err := m.finishBlock(b); err != nil {
@@ -55,6 +56,8 @@ func (m *Machine) insert(k Key) error {
 	case "<C-r>":
 		m.pending = k
 	case "<C-o>":
+		// The other cursors of a change on several regions stop here.
+		m.cursors = nil
 		m.h.EndGroup()
 		m.mode, m.oneshot, m.armed = Normal, true, false
 	case "<C-t>", "<C-d>":

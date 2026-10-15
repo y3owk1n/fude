@@ -10,7 +10,8 @@ type Selection struct {
 	Kind        Key // v, V or <C-v>
 	Start, End  int // the selected bytes, or every line a block spans
 	Block       bool
-	Left, Right int // a block's display columns, inclusive
+	Left, Right int      // a block's display columns, inclusive
+	Regions     [][2]int // every region :select chose, when it chose several
 }
 
 // Selection returns the visual selection, or false outside visual mode.
@@ -19,7 +20,11 @@ func (m *Machine) Selection() (Selection, bool) {
 		return Selection{}, false
 	}
 	r := m.selection()
-	return Selection{m.visual, r.start, r.end, r.block, r.left, r.right}, true
+	s := Selection{Kind: m.visual, Start: r.start, End: r.end, Block: r.block, Left: r.left, Right: r.right}
+	for _, g := range m.regions {
+		s.Regions = append(s.Regions, [2]int{g.start, g.end})
+	}
+	return s, true
 }
 
 // selection returns the text visual mode covers. Charwise it includes the
@@ -107,6 +112,11 @@ func (m *Machine) blockInsertStart(after bool) error {
 
 // visualKey handles a command in visual mode.
 func (m *Machine) visualKey(cmd string, count int, reg rune) error {
+	if len(m.regions) > 0 {
+		if ok, err := m.regionKey(cmd, reg); ok {
+			return err
+		}
+	}
 	t, c := m.h.Text(), m.h.Cursor()
 	if m.ops[cmd] != nil {
 		r := m.selection()
