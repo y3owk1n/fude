@@ -631,8 +631,11 @@ answer, and the answer comes back through the editor's queue, so a key that
 asks a server returns at once. `<C-]>` jumps to the first location the
 definition answer names, opening its file when no buffer has it. `K` shows
 the hover text in a float at the cursor, rendered from markdown.
-The next key closes the float and then acts as usual, and `K` while it shows
-opens the text in a read-only window, where it can scroll. Both keys exist in
+The next key closes the float and then acts as usual. `K` while it shows
+moves the cursor into the float, a read-only window outside the layout,
+where keys move and scroll as in any window. `q`, `:q`, `:close` and any
+`<C-w>` key leave it, and another ex command leaves it and runs in the
+window under it. Both keys exist in
 every buffer, as in Neovim, and say so when no server is attached (B62).
 
 A float is text and the spans that style it, which the editor holds and the

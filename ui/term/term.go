@@ -3,6 +3,7 @@
 package term
 
 import (
+	"cmp"
 	"fmt"
 	"slices"
 	"strings"
@@ -178,8 +179,10 @@ func (c *client) draw() {
 		}
 	}
 
-	if text, spans, ok := c.e.Float(); ok {
-		c.float(text, spans, cx, cy, w, h-1)
+	if f, ok := c.e.Float(); ok {
+		if x, y, ok := c.float(f, cx, cy, w, h-1); ok {
+			cx, cy = x, y
+		}
 	}
 
 	shape := tcell.CursorStyleSteadyBlock
@@ -207,11 +210,13 @@ func (c *client) draw() {
 	c.s.Show()
 }
 
-// float draws text, styled by spans, in a bordered box at the cursor, cx and
-// cy, below its line, or above it when there is more room there. Lines wrap
-// at the box's width, at most 80 columns, and a markup.rule line draws across
-// it. w and h are the space the windows have.
-func (c *client) float(text string, spans []syntax.Span, cx, cy, w, h int) {
+// float draws f in a bordered box at the cursor, cx and cy, below its line,
+// or above it when there is more room there. Lines wrap at the box's width,
+// at most 80 columns, and a markup.rule line draws across it. w and h are
+// the space the windows have. While f has the cursor, its rows scroll to
+// show it, and float reports where it is.
+func (c *client) float(f editor.Float, cx, cy, w, h int) (int, int, bool) {
+	text, spans := f.Text, f.Spans
 	styles := paint(spans, 0)
 	type row struct {
 		start, end int // bytes of text
@@ -249,7 +254,17 @@ func (c *client) float(text string, spans []syntax.Span, cx, cy, w, h int) {
 	below, above := h-cy-1, cy
 	n := min(len(rows), max(below, above)-2, 20)
 	if width < 1 || n < 1 {
-		return
+		return 0, 0, false
+	}
+	// rowOf is the row that shows the byte at p.
+	rowOf := func(p int) int {
+		i, _ := slices.BinarySearchFunc(rows, p, func(r row, p int) int { return cmp.Compare(r.start, p+1) })
+		return max(i-1, 0)
+	}
+	first := 0
+	if f.Cursor >= 0 {
+		cur := rowOf(f.Cursor)
+		first = min(max(rowOf(f.Top), cur-n+1), cur)
 	}
 	y := cy + 1
 	if below < n+2 && above > below {
@@ -257,16 +272,25 @@ func (c *client) float(text string, spans []syntax.Span, cx, cy, w, h int) {
 	}
 	x := min(cx, max(w-width-2, 0))
 	style := tcell.StyleDefault
+	fx, fy, found := 0, 0, false
 	c.s.PutStrStyled(x, y, "┌"+strings.Repeat("─", width)+"┐", style)
-	for i, r := range rows[:n] {
+	for i, r := range rows[first:min(first+n, len(rows))] {
 		c.s.FillArea(x, y+1+i, width+2, 1, ' ', style)
 		c.s.Put(x, y+1+i, "│", style)
 		if r.rule {
 			c.s.PutStrStyled(x+1, y+1+i, strings.Repeat("─", width), colours["markup.rule"])
 		}
-		for col, rest := 0, text[r.start:r.end]; !r.rule && rest != ""; {
+		col := 0
+		for rest := text[r.start:r.end]; ; {
+			p := r.end - len(rest)
+			if p == f.Cursor && (rest != "" || first+i == len(rows)-1 || rows[first+i+1].start != p) {
+				fx, fy, found = x+1+min(col, width-1), y+1+i, true
+			}
+			if r.rule || rest == "" {
+				break
+			}
 			s := style
-			if p := r.end - len(rest); p < len(styles) {
+			if p < len(styles) {
 				s = styles[p]
 			}
 			if rest[0] == '\t' {
@@ -280,6 +304,7 @@ func (c *client) float(text string, spans []syntax.Span, cx, cy, w, h int) {
 		c.s.Put(x+width+1, y+1+i, "│", style)
 	}
 	c.s.PutStrStyled(x, y+n+1, "└"+strings.Repeat("─", width)+"┘", style)
+	return fx, fy, found
 }
 
 // view draws one window: its text, a status line on its bottom row, and a

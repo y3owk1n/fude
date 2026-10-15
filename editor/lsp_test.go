@@ -260,9 +260,10 @@ func TestB62DefinitionAndHover(t *testing.T) {
 		t.Errorf("<C-o> after <C-]> went to %d, want back to 0", e.Cursor())
 	}
 	feed(e, "jwK")
-	settle(t, e, func() bool { _, _, ok := e.Float(); return ok })
+	settle(t, e, func() bool { _, ok := e.Float(); return ok })
 	// Hover's markdown shows with its markers gone and its styles as spans.
-	float, spans, _ := e.Float()
+	f, _ := e.Float()
+	float, spans := f.Text, f.Spans
 	if want := "func target()\n---\nhover at 1:2"; float != want {
 		t.Errorf("hover showed %q, want %q", float, want)
 	}
@@ -276,13 +277,18 @@ func TestB62DefinitionAndHover(t *testing.T) {
 	if feed(e, "l"); e.Cursor() != 5 {
 		t.Errorf("l with hover shown went to %d, want 5", e.Cursor())
 	}
-	if _, _, ok := e.Float(); ok {
+	if _, ok := e.Float(); ok {
 		t.Error("a key left the hover shown")
 	}
+	// K again moves the cursor into the float, where keys move, and q
+	// leaves it.
 	feed(e, "K")
-	settle(t, e, func() bool { _, _, ok := e.Float(); return ok })
-	if feed(e, "K"); text(e) != "func target()\n---\nhover at 1:3" {
-		t.Errorf("K on a shown hover showed %q, want it in a window", text(e))
+	settle(t, e, func() bool { _, ok := e.Float(); return ok })
+	if feed(e, "Kj"); text(e) != "func target()\n---\nhover at 1:3" || e.Cursor() != 14 || len(e.Views()) != 1 {
+		t.Errorf("K, j on a shown hover left %q with the cursor at %d in %d windows", text(e), e.Cursor(), len(e.Views()))
+	}
+	if feed(e, "q"); e.Cursor() != 5 {
+		t.Errorf("q in the float went to %d, want back to 5", e.Cursor())
 	}
 }
 
@@ -404,9 +410,9 @@ func TestB66ActionsAndSignature(t *testing.T) {
 		e, log := withServer(t, "x\n", "utf-8")
 		heard(t, log, `"method":"textDocument/didOpen"`, 1)
 		feed(e, "gra")
-		settle(t, e, func() bool { _, _, ok := e.Float(); return ok })
-		if f, _, _ := e.Float(); f != "1. Add hi\n2. Run cmd" {
-			t.Errorf("gra showed %q", f)
+		settle(t, e, func() bool { _, ok := e.Float(); return ok })
+		if f, _ := e.Float(); f.Text != "1. Add hi\n2. Run cmd" {
+			t.Errorf("gra showed %q", f.Text)
 		}
 		feed(e, c[0])
 		settle(t, e, func() bool { return text(e) != "x" })
@@ -418,8 +424,9 @@ func TestB66ActionsAndSignature(t *testing.T) {
 	e, log := withServer(t, "f(1, \n", "utf-8")
 	heard(t, log, `"method":"textDocument/didOpen"`, 1)
 	feed(e, "A<C-s>")
-	settle(t, e, func() bool { _, _, ok := e.Float(); return ok })
-	f, spans, _ := e.Float()
+	settle(t, e, func() bool { _, ok := e.Float(); return ok })
+	fl, _ := e.Float()
+	f, spans := fl.Text, fl.Spans
 	if f != "f(a int, b string)" || len(spans) != 1 || f[spans[0].Start:spans[0].End] != "b string" {
 		t.Errorf("<C-s> showed %q with %v, want the signature with b string bold", f, spans)
 	}

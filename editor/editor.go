@@ -59,6 +59,7 @@ type Session struct {
 	later      []vim.Key      // keys to feed once the key being fed is done
 	renameAt   int            // where grn was pressed
 	pick       *pick          // the code actions shown to choose from
+	under      *window        // the window a focused float was opened from
 	depth      int            // the undo groups the machine has open
 	pending    int            // the cursor when the group being made began
 
@@ -303,13 +304,16 @@ func (e *Session) feed(k vim.Key) {
 		return
 	}
 	if text := e.float; text != "" {
-		// Any key closes the float. K again opens its text in a window, where
-		// it can scroll.
+		// Any key closes the float. K again moves the cursor into it.
 		e.float = ""
 		if k == "K" && e.vim.Idle() {
-			e.scratch("[hover]", text, nil, nil)
+			e.focus(text)
 			return
 		}
+	}
+	if e.under != nil && k == "q" && e.vim.Idle() {
+		e.unfocus()
+		return
 	}
 	if ask := e.ask; ask != nil {
 		e.ask = nil
@@ -393,7 +397,7 @@ func (e *Session) Views() []View {
 		v := View{
 			Text: t, Top: top, Cursor: w.pos(),
 			X: w.x, Y: w.y, W: w.w, H: w.h,
-			Name: w.buf.name(), Modified: w.buf.modified(), Current: w == e.win,
+			Name: w.buf.name(), Modified: w.buf.modified(), Current: w == e.win || w == e.under,
 		}
 		last := vim.LineEnd(t, t.LineStart(min(t.LineOf(top)+max(w.h-2, 0), t.Lines()-1)))
 		if h := w.buf.syntax; h != nil {
@@ -468,10 +472,37 @@ func (e *Session) setCursor(pos int) { e.win.buf.text.MoveMark(e.win.cursor, pos
 // Mode returns the vim mode.
 func (e *Session) Mode() vim.Mode { return e.vim.Mode() }
 
-// Float returns the text to show over the windows at the cursor and the
-// spans that style it, or false when there is none.
-func (e *Session) Float() (string, []syntax.Span, bool) {
-	return e.float, e.floatSpans, e.float != ""
+// Float is text a client draws over the windows at the cursor, styled by
+// Spans. While it has the cursor, Top is the start of the first line it
+// shows and Cursor is where the cursor is in it, else -1.
+type Float struct {
+	Text        string
+	Spans       []syntax.Span
+	Top, Cursor int
+}
+
+// Float returns the float to draw, or false when there is none.
+func (e *Session) Float() (Float, bool) {
+	if e.under != nil {
+		t := e.Text()
+		return Float{t.Slice(0, t.Len()), e.floatSpans, e.Top(), e.Cursor()}, true
+	}
+	return Float{e.float, e.floatSpans, 0, -1}, e.float != ""
+}
+
+// focus moves the cursor into a float showing text, a read-only window
+// outside the layout, where keys move and scroll as in any window.
+func (e *Session) focus(text string) {
+	b := &buffer{text: kernel.New(text, nil), before: map[kernel.NodeID]int{}, marks: map[rune]kernel.MarkID{}, title: "[float]"}
+	b.file.readonly = true
+	w := newWindow(b, 0, 0)
+	w.w, w.h = 80, 21
+	e.under, e.win = e.win, w
+}
+
+// unfocus closes the float that has the cursor.
+func (e *Session) unfocus() {
+	e.win, e.under, e.floatSpans = e.under, nil, nil
 }
 
 // Cursors returns the cursors after the first while a change on several
@@ -1010,6 +1041,14 @@ func (h host) Redo() (int, int, error) {
 }
 
 func (h host) Unhandled(k string) {
+	if h.e.under != nil {
+		// In a float, :q, :close and <C-w> only leave it. Any other ex line
+		// leaves it and acts on the window under it.
+		h.e.unfocus()
+		if name, _, _ := strings.Cut(strings.TrimPrefix(k, ":"), " "); strings.HasPrefix(k, "<C-w>") || slices.Contains([]string{"q", "q!", "quit", "quit!", "clo", "close"}, name) {
+			return
+		}
+	}
 	if w, ok := strings.CutPrefix(k, "<C-w>"); ok {
 		h.e.window(w)
 		return
