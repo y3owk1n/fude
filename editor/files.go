@@ -87,10 +87,10 @@ func (e *Session) finding(k vim.Key) {
 			e.edit(f.matches[f.sel])
 		}
 		return
-	case "<C-n>", "<Down>":
+	case "<C-n>":
 		f.sel = max(min(f.sel+1, len(f.matches)-1), 0)
 		return
-	case "<C-p>", "<Up>":
+	case "<C-p>":
 		f.sel = max(f.sel-1, 0)
 		return
 	}

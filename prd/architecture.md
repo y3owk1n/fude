@@ -562,8 +562,7 @@ names and extensions in `editor/icons.go`, from mini.icons (B128).
 
 `:files` opens a float whose buffer is the query, in insert mode, so every
 insert key edits it. Keys reach the finder before anything else: `<CR>`,
-`<C-n>`, `<C-p>`, `<Down>` and `<Up>` are its own, and the rest go to the
-machine. When the machine leaves insert mode, by `<Esc>` or a mapping to
+`<C-n>` and `<C-p>` are its own, and the rest go to the machine. When the machine leaves insert mode, by `<Esc>` or a mapping to
 it, the finder closes. The editor places the box in the middle of the
 screen, at most 80 columns and 20 rows, through `Float`'s `X`, `Y`, `W`
 and `H`, and the terminal draws it there.
