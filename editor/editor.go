@@ -34,6 +34,7 @@ type Editor struct {
 	queries  string // the directory of query files that replace shipped ones
 	plugins  []*plugin.Plugin
 	commands map[string]func() // ex commands plugins registered
+	decos    map[*plugin.Plugin][]decoration
 
 	width, height int // the space the windows share
 
@@ -55,7 +56,7 @@ func open(cfg config, paths []string) (*Editor, error) {
 	if len(paths) == 0 {
 		paths = []string{""}
 	}
-	e := &Editor{next: 1, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(){}}
+	e := &Editor{next: 1, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(){}, decos: map[*plugin.Plugin][]decoration{}}
 	// Without a config directory there are no overrides, and loadConfig
 	// reports why.
 	if dir, err := xdgDir("XDG_CONFIG_HOME", ".config"); err == nil {
@@ -228,6 +229,7 @@ type View struct {
 	Name              string
 	Modified, Current bool
 	Highlights        []syntax.Span // in paint order, later ones drawing over earlier ones
+	Decorations       []syntax.Span // plugins' styles, drawn over highlights
 }
 
 // Views returns every window from the top left.
@@ -240,9 +242,19 @@ func (e *Editor) Views() []View {
 			X: w.x, Y: w.y, W: w.w, H: w.h,
 			Name: w.buf.name(), Modified: w.buf.modified(), Current: w == e.win,
 		}
+		last := vim.LineEnd(t, t.LineStart(min(t.LineOf(top)+max(w.h-2, 0), t.Lines()-1)))
 		if h := w.buf.syntax; h != nil {
-			last := t.LineStart(min(t.LineOf(top)+max(w.h-2, 0), t.Lines()-1))
-			v.Highlights = h.Show(t, top, vim.LineEnd(t, last))
+			v.Highlights = h.Show(t, top, last)
+		}
+		for _, ds := range e.decos {
+			for _, d := range ds {
+				if d.buf != w.buf {
+					continue
+				}
+				if s, end := w.buf.text.Mark(d.start), w.buf.text.Mark(d.end); s < end && end > top && s < last {
+					v.Decorations = append(v.Decorations, syntax.Span{Start: s, End: end, Name: d.style})
+				}
+			}
 		}
 		out = append(out, v)
 	}

@@ -79,6 +79,7 @@ type MarkID int
 type mark struct {
 	pos     int
 	gravity Gravity
+	dead    bool // deleted, its slot free for the next mark
 }
 
 // Snapshot is a buffer's text at one version. It never changes.
@@ -122,6 +123,7 @@ type Buffer struct {
 	head    NodeID
 	seq     map[Origin]uint64
 	marks   []mark
+	free    []MarkID // the slots of deleted marks
 	depth   int
 	group   *Node
 	redo    map[NodeID]NodeID // the child each node was last undone from
@@ -316,7 +318,7 @@ func replace(text rope.Rope, edits []Edit) rope.Rope {
 // through these edits first.
 func (b *Buffer) replay(edits []Edit, start int) int {
 	if start >= 0 {
-		m := mark{start, Left}
+		m := mark{pos: start, gravity: Left}
 		for i := len(edits) - 1; i >= 0; i-- {
 			m.pos = move(m, edits[i])
 		}
@@ -344,7 +346,9 @@ func (b *Buffer) edit(edits []Edit) Change {
 		c.Removed[i] = b.text.Slice(e.Start, e.End)
 		text = text.Replace(e.Start, e.End, e.Text)
 		for m := range b.marks {
-			b.marks[m].pos = move(b.marks[m], e)
+			if !b.marks[m].dead {
+				b.marks[m].pos = move(b.marks[m], e)
+			}
 		}
 	}
 	b.text = text
@@ -388,8 +392,20 @@ func (b *Buffer) EndGroup() {
 
 // SetMark places a mark at pos, clamped to the text.
 func (b *Buffer) SetMark(pos int, g Gravity) MarkID {
-	b.marks = append(b.marks, mark{min(max(pos, 0), b.text.Len()), g})
+	m := mark{pos: min(max(pos, 0), b.text.Len()), gravity: g}
+	if n := len(b.free); n > 0 {
+		id := b.free[n-1]
+		b.free, b.marks[id] = b.free[:n-1], m
+		return id
+	}
+	b.marks = append(b.marks, m)
 	return MarkID(len(b.marks) - 1)
+}
+
+// DeleteMark stops a mark moving with edits. Its id may name a later mark.
+func (b *Buffer) DeleteMark(id MarkID) {
+	b.marks[id].dead = true
+	b.free = append(b.free, id)
 }
 
 // MoveMark puts a mark at pos, clamped to the text.

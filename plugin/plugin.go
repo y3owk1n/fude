@@ -36,6 +36,22 @@ const (
 	Key                  // keys in normal mode, exported as func(cursor, count)
 )
 
+// Decoration is a style a plugin puts on [Start, End) of the text, such as a
+// highlight name. ID names it to the plugin.
+type Decoration struct {
+	ID         int
+	Start, End int
+	Style      string
+}
+
+// Result is what one call into a plugin asked for, and what it returned.
+type Result struct {
+	Edits      []fude.Edit
+	Decorate   []Decoration
+	Undecorate []int // the ids of decorations to remove
+	Out        []uint64
+}
+
 // Registration is one thing a plugin's init registered, run by its export.
 type Registration struct {
 	Kind         Kind
@@ -64,18 +80,18 @@ type Plugin struct {
 	log        func(string)
 
 	mu      sync.Mutex
+	next    int // the id the next decoration gets
 	cache   wazero.CompilationCache
 	runtime wazero.Runtime
 	mod     api.Module
 	call    *call // the call running now
 }
 
-// call holds the text one call into a plugin reads and the edits it asks
-// for.
+// call holds the text one call into a plugin reads and what it asks for.
 type call struct {
-	name  string
-	text  fude.Text
-	edits []fude.Edit
+	name string
+	text fude.Text
+	Result
 }
 
 // errBudget is a call that ran past its budget. The plugin is closed.
@@ -117,14 +133,14 @@ func (p *Plugin) Close(ctx context.Context) error {
 }
 
 // Call runs the plugin's export name with args under budget, reading t, and
-// returns the edits it asked for and what it returned. A call that traps or
-// runs past its budget returns an error, and its edits are dropped.
-func (p *Plugin) Call(ctx context.Context, name string, t fude.Text, budget time.Duration, args ...uint64) ([]fude.Edit, []uint64, error) {
+// returns what it asked for and returned. A call that traps or runs past its
+// budget returns an error, and nothing it asked for happens.
+func (p *Plugin) Call(ctx context.Context, name string, t fude.Text, budget time.Duration, args ...uint64) (Result, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	f := p.mod.ExportedFunction(name)
 	if f == nil {
-		return nil, nil, fmt.Errorf("plugin %s has no %s", p.Name, name)
+		return Result{}, fmt.Errorf("plugin %s has no %s", p.Name, name)
 	}
 	ctx, cancel := context.WithTimeout(ctx, budget)
 	defer cancel()
@@ -133,11 +149,12 @@ func (p *Plugin) Call(ctx context.Context, name string, t fude.Text, budget time
 	out, err := f.Call(ctx, args...)
 	switch {
 	case errors.Is(err, context.DeadlineExceeded):
-		return nil, nil, fmt.Errorf("plugin %s %w", p.Name, errBudget)
+		return Result{}, fmt.Errorf("plugin %s %w", p.Name, errBudget)
 	case err != nil:
-		return nil, nil, fmt.Errorf("plugin %s: %w", p.Name, err)
+		return Result{}, fmt.Errorf("plugin %s: %w", p.Name, err)
 	}
-	return p.call.edits, out, nil
+	p.call.Out = out
+	return p.call.Result, nil
 }
 
 // host adds the functions a plugin imports from "fude".
@@ -148,6 +165,8 @@ func (p *Plugin) host(ctx context.Context) error {
 		NewFunctionBuilder().WithFunc(p.text).Export("text").
 		NewFunctionBuilder().WithFunc(p.edit).Export("edit").
 		NewFunctionBuilder().WithFunc(p.register).Export("register").
+		NewFunctionBuilder().WithFunc(p.decorate).Export("decorate").
+		NewFunctionBuilder().WithFunc(p.undecorate).Export("undecorate").
 		Instantiate(ctx)
 	if err != nil {
 		return fmt.Errorf("plugin %s: %w", p.Name, err)
@@ -225,6 +244,30 @@ func (p *Plugin) edit(_ context.Context, m api.Module, start, end, ptr, n uint32
 	if !ok {
 		return errRange
 	}
-	p.call.edits = append(p.call.edits, fude.Edit{Start: int(start), End: int(end), Text: string(b)})
+	p.call.Edits = append(p.call.Edits, fude.Edit{Start: int(start), End: int(end), Text: string(b)})
+	return 0
+}
+
+// decorate asks to put the style at (ptr, n) on [start, end), and returns
+// the decoration's id.
+func (p *Plugin) decorate(_ context.Context, m api.Module, start, end, ptr, n uint32) int32 {
+	if p.call == nil || !p.allowed("ui", "decorate") {
+		return errDenied
+	}
+	style, ok := m.Memory().Read(ptr, n)
+	if start > end || int(end) > p.call.text.Len() || !ok {
+		return errRange
+	}
+	p.next++
+	p.call.Decorate = append(p.call.Decorate, Decoration{p.next, int(start), int(end), string(style)})
+	return int32(p.next)
+}
+
+// undecorate asks to remove the decoration id.
+func (p *Plugin) undecorate(id uint32) int32 {
+	if p.call == nil || !p.allowed("ui", "undecorate") {
+		return errDenied
+	}
+	p.call.Undecorate = append(p.call.Undecorate, int(id))
 	return 0
 }

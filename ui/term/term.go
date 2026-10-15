@@ -183,7 +183,7 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 	t := v.Text
 	cx, cy, found := 0, 0, false
 	pos := v.Top
-	paint := paint(v.Highlights, v.Top)
+	paint := paint(append(v.Highlights, v.Decorations...), v.Top)
 	var cursors []int
 	if v.Current {
 		cursors = c.e.Cursors()

@@ -43,16 +43,16 @@ func (e *Editor) Load() {
 				e.queue <- func() { e.message = err.Error() }
 				return
 			}
-			edits, _, err := p.Call(ctx, "init", t, plugin.InitBudget)
-			e.queue <- func() { e.loaded(p, err, b, t, edits) }
+			res, err := p.Call(ctx, "init", t, plugin.InitBudget)
+			e.queue <- func() { e.loaded(p, err, b, t, res) }
 		}()
 	}
 }
 
 // loaded keeps a plugin whose init returned, adds what it registered, and
-// applies the edits it asked for to b, whose text it saw as t. A plugin
-// whose init failed is unloaded.
-func (e *Editor) loaded(p *plugin.Plugin, err error, b *buffer, t kernel.Snapshot, edits []api.Edit) {
+// does what it asked for to b, whose text it saw as t. A plugin whose init
+// failed is unloaded.
+func (e *Editor) loaded(p *plugin.Plugin, err error, b *buffer, t kernel.Snapshot, res plugin.Result) {
 	if err != nil {
 		e.unload(p, err)
 		return
@@ -61,10 +61,14 @@ func (e *Editor) loaded(p *plugin.Plugin, err error, b *buffer, t kernel.Snapsho
 	for _, r := range p.Registered {
 		e.register(p, r)
 	}
+	if b.text.Snapshot().Version() != t.Version() {
+		e.message = fmt.Sprintf("plugin %s: the text changed while it loaded", p.Name)
+		return
+	}
+	edits := e.decorate(p, b, res)
 	if len(edits) == 0 {
 		return
 	}
-	slices.SortStableFunc(edits, func(x, y api.Edit) int { return cmp.Compare(x.Start, y.Start) })
 	tx := kernel.Transaction{Base: t.Version(), Origin: "user", Label: "plugin " + p.Name, Time: e.now()}
 	for _, ed := range edits {
 		tx.Edits = append(tx.Edits, kernel.Edit(ed))
@@ -77,10 +81,50 @@ func (e *Editor) loaded(p *plugin.Plugin, err error, b *buffer, t kernel.Snapsho
 	e.reveal()
 }
 
-// unload closes p after err and tells the user.
+// decoration is a plugin's style on a range of a buffer, kept as marks so
+// it moves with edits (B55).
+type decoration struct {
+	id         int
+	buf        *buffer
+	start, end kernel.MarkID
+	style      string
+}
+
+// remove deletes the decoration's marks.
+func (d decoration) remove() {
+	d.buf.text.DeleteMark(d.start)
+	d.buf.text.DeleteMark(d.end)
+}
+
+// decorate adds and removes the decorations res asks for on b. It returns
+// res's edits, sorted, for the caller to apply next, so they move the new
+// decorations.
+func (e *Editor) decorate(p *plugin.Plugin, b *buffer, res plugin.Result) []vim.Edit {
+	for _, d := range res.Decorate {
+		e.decos[p] = append(e.decos[p], decoration{d.ID, b, b.text.SetMark(d.Start, kernel.Right), b.text.SetMark(d.End, kernel.Left), d.Style})
+	}
+	for _, id := range res.Undecorate {
+		if i := slices.IndexFunc(e.decos[p], func(d decoration) bool { return d.id == id }); i >= 0 {
+			e.decos[p][i].remove()
+			e.decos[p] = slices.Delete(e.decos[p], i, i+1)
+		}
+	}
+	slices.SortStableFunc(res.Edits, func(x, y api.Edit) int { return cmp.Compare(x.Start, y.Start) })
+	edits := make([]vim.Edit, len(res.Edits))
+	for i, ed := range res.Edits {
+		edits[i] = vim.Edit(ed)
+	}
+	return edits
+}
+
+// unload closes p after err, removes its decorations and tells the user.
 func (e *Editor) unload(p *plugin.Plugin, err error) {
 	p.Close(context.Background())
 	e.plugins = slices.DeleteFunc(e.plugins, func(q *plugin.Plugin) bool { return q == p })
+	for _, d := range e.decos[p] {
+		d.remove()
+	}
+	delete(e.decos, p)
 	e.message = fmt.Sprintf("%v, so it was unloaded", err)
 	logPlugin(e.message)
 }
@@ -126,25 +170,21 @@ func (e *Editor) register(p *plugin.Plugin, r plugin.Registration) {
 	}
 }
 
-// run calls export of p on the input path, under its budget, and returns
-// the edits it asks for, sorted, and what it returned. A call that fails
-// unloads p, and calls into an unloaded plugin do nothing.
+// run calls export of p on the input path, under its budget, against the
+// current buffer. It adds the decorations the call asks for, and returns
+// its edits, sorted, and what it returned. A call that fails unloads p, and
+// calls into an unloaded plugin do nothing.
 func (e *Editor) run(p *plugin.Plugin, export string, t vim.Text, args ...uint64) ([]vim.Edit, []uint64, bool) {
 	if !slices.Contains(e.plugins, p) {
 		e.message = fmt.Sprintf("plugin %s is unloaded", p.Name)
 		return nil, nil, false
 	}
-	edits, out, err := p.Call(context.Background(), export, t, plugin.InputBudget, args...)
+	res, err := p.Call(context.Background(), export, t, plugin.InputBudget, args...)
 	if err != nil {
 		e.unload(p, err)
 		return nil, nil, false
 	}
-	slices.SortStableFunc(edits, func(x, y api.Edit) int { return cmp.Compare(x.Start, y.Start) })
-	converted := make([]vim.Edit, len(edits))
-	for i, ed := range edits {
-		converted[i] = vim.Edit(ed)
-	}
-	return converted, out, true
+	return e.decorate(p, e.win.buf, res), res.Out, true
 }
 
 // logPlugin appends a line to fude's log, which is where a plugin's own log

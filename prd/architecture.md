@@ -83,6 +83,7 @@ func (b *Buffer) Head() NodeID
 func (b *Buffer) Nodes() []Node
 func (b *Buffer) SetMark(pos int, g Gravity) MarkID
 func (b *Buffer) MoveMark(id MarkID, pos int)
+func (b *Buffer) DeleteMark(id MarkID) // its id may name a later mark
 func (b *Buffer) Listen(l Listener) // hears every change, with the text before it
 func (b *Buffer) Mark(id MarkID) int
 
@@ -410,15 +411,17 @@ never processes stale states one by one.
 
 ## Decorations
 
-A decoration is a mark range owned by a module, carrying a highlight,
-virtual text or a sign. It moves with edits like any mark. Syntax
-highlighting, diagnostics, search matches, inlay hints and proposal ghost
-text are all decorations. Clients render them and know nothing about where
-they came from.
+A decoration is a mark range owned by a plugin or module, carrying a style.
+It moves with edits like any mark, and goes when its owner unloads (B55).
+Clients render them and know nothing about where they came from. Virtual
+text and signs come with the behaviours that need them.
 
-Marks live in a tree ordered by position. An edit shifts the subtree after
-it lazily, so tens of thousands of highlight marks cost O(log n) per edit,
-as Neovim's marktree does.
+Marks live in a slice, which the kernel walks on every edit, and a deleted
+mark frees its slot for the next one. Syntax highlights are not marks. The
+syntax goroutine sends spans, and the frame moves them through the edits
+since (B43). If decorations ever number in the tens of thousands, marks move
+to a tree ordered by position that shifts lazily, as Neovim's marktree
+does.
 
 ## One keystroke
 
@@ -476,7 +479,8 @@ indent width through `Host.IndentWidth`.
 ## Plugin ABI
 
 Core wasm on wazero (D8). A plugin exports `memory`, `alloc(n) -> ptr` and
-`init()`, and later the operators, targets and commands it registers. It
+`init()`, and the operators, targets and commands it registers. Events
+(`on_event`) come with the first behaviour that needs them. It
 imports host functions from the module `fude`, gated by capability:
 
 | Capability | Grants |
@@ -501,6 +505,8 @@ take the result.
 | `text(start, end) -> i64` | `buffer.read` | the text in `[start, end)` |
 | `edit(start, end, ptr, len) -> i32` | `buffer.write` | asks to replace `[start, end)` |
 | `register(kind, name, nlen, export, elen) -> i32` | none, in `init` only | adds a command, operator, object or key |
+| `decorate(start, end, ptr, len) -> i32` | `ui` | puts a style, such as `keyword`, on `[start, end)`, and returns its id |
+| `undecorate(id) -> i32` | `ui` | removes a decoration |
 
 `register` names the export that runs what it adds. Kind 0 is an ex
 command and kind 3 a key in normal mode, both exported as `(cursor, count)`.
@@ -518,8 +524,9 @@ and `net` are accepted there but grant nothing yet. A call outside the
 declared capabilities returns -1, and fude logs it to
 `$XDG_STATE_HOME/fude/log` (B50).
 
-The edits a call asks for apply as one transaction once the call returns.
-A call that traps or runs past its budget leaves no edit (B53).
+The edits a call asks for apply as one transaction once the call returns,
+after its decorations, so its edits move them. A call that traps or runs
+past its budget leaves no edit and no decoration (B53).
 
 Each plugin gets its own wazero runtime, so each has its own memory limit,
 64MB (`WithMemoryLimitPages` is per runtime). All runtimes share one

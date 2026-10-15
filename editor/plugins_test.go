@@ -161,3 +161,37 @@ func TestB54PluginCommandsAndKeys(t *testing.T) {
 		}
 	}
 }
+
+// decorations returns what the current window shows of plugins'
+// decorations, as text and style.
+func decorations(e *editor.Editor) []string {
+	var out []string
+	for _, v := range e.Views() {
+		for _, d := range v.Decorations {
+			out = append(out, v.Text.Slice(d.Start, d.End)+" "+d.Name)
+		}
+	}
+	return out
+}
+
+// B55
+func TestB55PluginDecorations(t *testing.T) {
+	usePlugin(t, "deco", "ui")
+	path := filepath.Join(t.TempDir(), "f")
+	change(t, path, "abc\n")
+	e := start(t, path)
+	e.Load()
+	settle(t, e, func() bool { return len(decorations(e)) > 0 })
+	if got := decorations(e); len(got) != 1 || got[0] != "ab keyword" {
+		t.Fatalf("decorations are %q, want ab as keyword", got)
+	}
+	// One insert before it and one at its end.
+	feed(e, "ix<Esc>$iy<Esc>")
+	if got := decorations(e); text(e) != "xabyc" || len(got) != 1 || got[0] != "ab keyword" {
+		t.Errorf("after edits around it, %q has decorations %q, want ab still", text(e), got)
+	}
+	feed(e, "gX")
+	if got := decorations(e); len(got) != 0 || !strings.HasSuffix(e.Message(), "so it was unloaded") {
+		t.Errorf("after the plugin unloaded, decorations are %q and it said %q", got, e.Message())
+	}
+}
