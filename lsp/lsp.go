@@ -272,7 +272,10 @@ type answer struct {
 func (c *Client) write(root string, initialized <-chan answer) {
 	params := map[string]any{
 		"processId": nil, "rootUri": URI(root),
-		"capabilities": map[string]any{"general": map[string]any{"positionEncodings": []string{"utf-8", "utf-16"}}},
+		"capabilities": map[string]any{
+			"general": map[string]any{"positionEncodings": []string{"utf-8", "utf-16"}},
+			"window":  map[string]any{"workDoneProgress": true},
+		},
 	}
 	if c.frame(request{ID: 0, Method: "initialize", Params: params}) != nil {
 		return

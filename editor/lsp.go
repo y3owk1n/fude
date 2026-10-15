@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -26,6 +27,60 @@ type server struct {
 	restarted bool // it crashed once, and the next crash leaves it off
 	closing   bool // fude asked it to exit
 	bufs      []*buffer
+	work      map[string]*work // by token, what it reports doing (B161)
+}
+
+// work is a piece of work a server reports progress on (B161).
+type work struct {
+	title, message string
+	percent        *int
+}
+
+// progressed records the progress s reports on a piece of work, until the
+// work ends (B161).
+func (s *server) progressed(params json.RawMessage) {
+	var p struct {
+		Token json.RawMessage `json:"token"`
+		Value struct {
+			Kind, Title, Message string
+			Percentage           *int
+		} `json:"value"`
+	}
+	if err := json.Unmarshal(params, &p); err != nil {
+		logLine(fmt.Sprintf("progress from %s: %v", serverName(s.command), err))
+		return
+	}
+	token, v := string(p.Token), p.Value
+	switch v.Kind {
+	case "begin":
+		s.work[token] = &work{v.Title, v.Message, v.Percentage}
+	case "report":
+		if w := s.work[token]; w != nil {
+			w.message = cmp.Or(v.Message, w.message)
+			if v.Percentage != nil {
+				w.percent = v.Percentage
+			}
+		}
+	case "end":
+		delete(s.work, token)
+	}
+}
+
+// doing says what s is working on, the same piece of work each frame when
+// it reports several, or is "" once it is ready (B161).
+func (s *server) doing() string {
+	if s.client.Encoding() == "" {
+		return "starting"
+	}
+	if len(s.work) == 0 {
+		return ""
+	}
+	w := s.work[slices.Min(slices.Collect(maps.Keys(s.work)))]
+	text := strings.TrimSpace(w.title + " " + w.message)
+	if w.percent != nil {
+		text += fmt.Sprintf(" %d%%", *w.percent)
+	}
+	return text
 }
 
 // attach connects b to the language server its filetype names, starting one
@@ -77,7 +132,8 @@ func (e *Session) start(s *server) error {
 	if err != nil {
 		return err
 	}
-	s.client = c
+	// A restarted server starts with none of its old process's work.
+	s.client, s.work = c, map[string]*work{}
 	return nil
 }
 
@@ -127,6 +183,10 @@ var severities = map[int]string{1: "diagnostic.error", 2: "diagnostic.warn", 3: 
 // buffer they are for, as decorations it owns, so they move with edits until
 // the next ones come (B61).
 func (e *Session) notified(s *server, method string, params json.RawMessage) {
+	if method == "$/progress" {
+		s.progressed(params)
+		return
+	}
 	if method != "textDocument/publishDiagnostics" {
 		return
 	}

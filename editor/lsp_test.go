@@ -42,6 +42,16 @@ func TestFakeServer(t *testing.T) {
 		body, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": id, "result": result})
 		fmt.Fprintf(os.Stdout, "Content-Length: %d\r\n\r\n%s", len(body), body)
 	}
+	// progress reports the work "load" as begun with title, half done, or
+	// as ended.
+	progress := func(kind, title string) {
+		value := map[string]any{"kind": kind}
+		if kind == "begin" {
+			value["title"], value["percentage"] = title, 50
+		}
+		body, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "method": "$/progress", "params": map[string]any{"token": "load", "value": value}})
+		fmt.Fprintf(os.Stdout, "Content-Length: %d\r\n\r\n%s", len(body), body)
+	}
 	opened := map[string]string{}
 	for {
 		n := 0
@@ -168,9 +178,14 @@ func TestFakeServer(t *testing.T) {
 			reply(m.ID, nil)
 		case "exit":
 			os.Exit(0)
+		case "initialized":
+			progress("begin", "indexing")
 		case "textDocument/didChange":
 			if strings.Contains(string(body), `"text":"#"`) {
 				os.Exit(3)
+			}
+			if strings.Contains(string(body), `"text":"~"`) {
+				progress("end", "")
 			}
 		}
 	}
@@ -284,6 +299,18 @@ func TestB160LspStopAndDisable(t *testing.T) {
 	}
 	feed(e, "q:lsp enable<CR>")
 	heard(t, log, `"method":"textDocument/didOpen"`, 2)
+}
+
+// B161
+func TestB161Progress(t *testing.T) {
+	e, log := withServer(t, "x\n", "utf-8")
+	heard(t, log, `"method":"initialized"`, 1)
+	view := func() editor.View { return e.Views()[0] }
+	settle(t, e, func() bool { return view().Progress == "indexing 50%" })
+	if feed(e, "a~<Esc>"); view().Server == "" {
+		t.Fatal("the view names no server")
+	}
+	settle(t, e, func() bool { return view().Progress == "" })
 }
 
 // B61

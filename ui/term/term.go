@@ -40,9 +40,15 @@ func Run(e *editor.Session) error {
 	pasting := false
 	var timeout <-chan time.Time
 	for {
+		// While a frame shows a spinner, draw again a frame later to turn it.
+		var tick <-chan time.Time
+		if c.spinning {
+			tick = time.After(spinnerFrame)
+		}
 		var ev tcell.Event
 		select {
 		case ev = <-s.EventQ():
+		case <-tick:
 		case <-timeout:
 			e.Timeout()
 		case f := <-e.Queue():
@@ -125,13 +131,15 @@ func paint(spans []syntax.Span, top int) []tcell.Style {
 }
 
 type client struct {
-	s       tcell.Screen
-	e       *editor.Session
-	theme   string     // the theme drawn in, as e names it
-	colours *[16]int32 // its base16 scheme's colours, if it is one
+	s        tcell.Screen
+	e        *editor.Session
+	theme    string     // the theme drawn in, as e names it
+	colours  *[16]int32 // its base16 scheme's colours, if it is one
+	spinning bool       // the last frame shows a spinner
 }
 
 func (c *client) draw() {
+	c.spinning = false
 	// The theme e names may change at any time with :theme (B158).
 	if name, colours := c.e.Theme(); name != c.theme || colours != c.colours {
 		c.theme, c.colours = name, colours

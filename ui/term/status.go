@@ -4,6 +4,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gdamore/tcell/v3"
 	"github.com/gdamore/tcell/v3/color"
@@ -60,6 +61,19 @@ func (c *client) status(v editor.View, x, w int) {
 			right = append(right, part{shown + "  ", muted})
 		}
 	}
+	// The buffer's language server goes before the filetype. While it
+	// works, a spinner and what it is doing go with it (B161).
+	if v.Progress != "" {
+		frame := spinner[time.Now().UnixMilli()/spinnerFrame.Milliseconds()%int64(len(spinner))]
+		doing := v.Progress
+		if r := []rune(doing); len(r) > 32 {
+			doing = string(r[:31]) + "…"
+		}
+		right = append(right, part{string(frame) + " ", ground.Foreground(th.normal)}, part{v.Server + " " + doing + "  ", muted})
+		c.spinning = true
+	} else if v.Server != "" {
+		right = append(right, part{v.Server + "  ", muted})
+	}
 	if ft := filetype(name); ft != "" {
 		right = append(right, part{ft + "  ", muted})
 	}
@@ -76,6 +90,12 @@ func (c *client) status(v editor.View, x, w int) {
 		at = c.putClipped(at, y, x+w, p)
 	}
 }
+
+// spinner is the frames of the spinner a busy language server shows, one
+// each spinnerFrame.
+var spinner = []rune("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏")
+
+const spinnerFrame = 80 * time.Millisecond
 
 // mode is the current window's mode as the status line names it, and its
 // colour.

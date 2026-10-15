@@ -553,6 +553,14 @@ Neovim's form, `line,col`, then `-vcol` when the screen column differs,
 then `All`, `Top`, `Bot` or how far down the view is (B38), and the
 client shows it as `line:col` with the screen column (B147).
 
+Before the filetype goes the buffer's language server. fude asks servers
+for `$/progress` in `initialize`, and keeps each piece of work a server
+begins until it ends. `View.Progress` is "starting" until the server
+answers `initialize`, then the title, message and percentage of the work
+it began first, or "" when it has none. While a frame shows progress, the
+client draws a spinner and draws again every 80ms, so an idle editor runs
+no timer (B161).
+
 The client draws the command line in a box with a rounded border, a fifth
 of the way down the screen and at most 60 columns wide, and the
 completion menu under it, so the editor gives the menu's `Float` no place

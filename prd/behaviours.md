@@ -297,6 +297,10 @@ Where fude departs, the line says so and cites the departure in
   it serves starts it again. `:lsp disable` stops it and keeps it off for
   every file until `:lsp enable`, even through `:lsp restart`. `:lsp
   enable` starts it for the open files of the current file's filetype.
+- B161 [5] While a file's language server starts or reports work, the
+  file's status line shows a spinner, the server's name and what it is
+  doing, with a percentage when the server gives one. Once the server is
+  ready, its name shows alone, muted.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays

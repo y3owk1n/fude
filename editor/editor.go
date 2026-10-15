@@ -541,6 +541,8 @@ type View struct {
 	Ruler             string         // the cursor's line and column, and where the view is (B38)
 	Branch            string         // the git branch of the buffer's repository, "" outside one (B147)
 	Errors, Warnings  int            // the buffer's diagnostics of each severity (B147)
+	Server            string         // the buffer's language server, "" for none (B161)
+	Progress          string         // what the server is doing, "" once it is ready (B161)
 	Gutter            int            // the columns the sign column and line numbers take on the left
 	SignCols          int            // the columns of the sign column, at the gutter's left
 	Signs             map[int]Sign   // by line, the sign each one shows (B119)
@@ -602,6 +604,9 @@ func (e *Session) Views() []View {
 			}
 		}
 		v.Branch = w.buf.branch
+		if s := w.buf.server; s != nil {
+			v.Server, v.Progress = serverName(s.command), s.doing()
+		}
 		for _, d := range e.decos[w.buf] {
 			switch d.style {
 			case "diagnostic.error":
