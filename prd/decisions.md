@@ -398,6 +398,12 @@ Neovim's `<buffer>` mappings wait `timeoutlen` for the longer one unless
 marked `<nowait>`. Why: a timeline's `[` would wait for `[h` before it
 moved, and a buffer's own keys are the ones meant there.
 
+### N18. The leader is space
+
+`<Leader>` stands for `<Space>` unless `leader` sets it (B144), where
+Neovim's `mapleader` is `\`. Why: the user asked for it, and most Neovim
+configs set space.
+
 ## Open
 
 None.

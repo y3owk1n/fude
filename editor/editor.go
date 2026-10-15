@@ -288,12 +288,12 @@ func Start(args []string) (*Session, error) {
 	}
 	e.each(func(s *Session) {
 		for mode, maps := range map[vim.Mode]map[string]string{vim.Normal: cfg.Keymap.Normal, vim.Visual: cfg.Keymap.Visual, vim.Insert: cfg.Keymap.Insert} {
-			mapAll(s.vim, mode, maps)
+			mapAll(s.vim, mode, maps, cfg.Leader)
 		}
 		for kind, maps := range map[string]map[string]string{"listing": cfg.Keymap.Listing, "list": cfg.Keymap.List, "timeline": cfg.Keymap.Timeline, "float": cfg.Keymap.Float} {
-			mapAll(s.locals[kind], vim.Normal, maps)
+			mapAll(s.locals[kind], vim.Normal, maps, cfg.Leader)
 		}
-		mapAll(s.locals["finder"], vim.Insert, cfg.Keymap.Finder)
+		mapAll(s.locals["finder"], vim.Insert, cfg.Keymap.Finder, cfg.Leader)
 	})
 	return e, nil
 }

@@ -719,8 +719,10 @@ clipboard = false    # yanks, deletes and puts use the system clipboard (B137)
 sign_column = false  # keep the sign column when there are no signs (B143)
 icons = false        # nerd font icons in listings and diagnostic signs (B128)
 
+leader = "<Space>"   # what <Leader> in a mapping stands for (B144)
+
 [keymap.normal]      # and [keymap.visual], [keymap.insert]. Keys map to keys.
-"<Space>w" = ":w<CR>"
+"<Leader>w" = ":w<CR>"
 "-" = ""             # "" drops a mapping, fude's own too, and "<Nop>" does nothing (B142)
 
 [keymap.listing]     # and [keymap.list], [keymap.timeline]: a kind of buffer's own keys (B142)

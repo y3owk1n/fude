@@ -1068,6 +1068,23 @@ func TestB143SignColumn(t *testing.T) {
 	}
 }
 
+// B144
+func TestB144Leader(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "f")
+	for _, c := range []struct{ config, keys string }{
+		// <Space> by default, and leader changes it.
+		{"[keymap.normal]\n\"<Leader>d\" = \"dd\"", " d"},
+		{"leader = \",\"\n[keymap.normal]\n\"<leader>d\" = \"dd\"", ",d"},
+	} {
+		change(t, path, "a\nb\n")
+		config(t, c.config)
+		e := start(t, path)
+		if feed(e, c.keys); text(e) != "b" {
+			t.Errorf("%q with %q left %q", c.keys, c.config, text(e))
+		}
+	}
+}
+
 // B124
 func TestB124Listing(t *testing.T) {
 	dir := t.TempDir()

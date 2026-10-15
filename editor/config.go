@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/pelletier/go-toml/v2"
@@ -23,6 +24,7 @@ type config struct {
 	Autocomplete bool   `toml:"autocomplete"`
 	Socket       string `toml:"socket"` // where clients attach, instead of a path per process
 	FormatOnSave bool   `toml:"format_on_save"`
+	Leader       string `toml:"leader"` // what <Leader> in a mapping stands for (N18)
 	options
 	Keymap struct {
 		Normal map[string]string `toml:"normal"`
@@ -48,7 +50,7 @@ type config struct {
 	} `toml:"plugin"`
 }
 
-var defaults = config{IndentWidth: 8, KeyTimeout: 1000, LargeFile: 50, options: options{Wrap: true}}
+var defaults = config{IndentWidth: 8, KeyTimeout: 1000, LargeFile: 50, Leader: "<Space>", options: options{Wrap: true}}
 
 // options are the settings each window has, which :set changes for the
 // current window and the windows opened after it (B39).
@@ -125,14 +127,25 @@ type mapper interface {
 	Unmap(mode vim.Mode, from string)
 }
 
-// mapAll applies a config keymap table in mode. Keys mapped to "" lose
-// their mapping, a default one too, and <Nop> makes keys do nothing (B142).
-func mapAll(m mapper, mode vim.Mode, maps map[string]string) {
+// mapAll applies a config keymap table in mode, with <Leader> in it as
+// leader. Keys mapped to "" lose their mapping, a default one too, and
+// <Nop> makes keys do nothing (B142).
+func mapAll(m mapper, mode vim.Mode, maps map[string]string, leader string) {
 	for from, to := range maps {
+		from, to = withLeader(from, leader), withLeader(to, leader)
 		if to == "" {
 			m.Unmap(mode, from)
 		} else {
 			m.Map(mode, from, to)
 		}
 	}
+}
+
+// leaderKey is <Leader> in Vim notation, in any case.
+var leaderKey = regexp.MustCompile(`(?i)<leader>`)
+
+// withLeader puts leader in place of <Leader> in keys, as Neovim does when a
+// mapping is made (B144).
+func withLeader(keys, leader string) string {
+	return leaderKey.ReplaceAllLiteralString(keys, leader)
 }

@@ -205,7 +205,7 @@ func (e *Session) register(p *plugin.Plugin, r plugin.Registration) {
 				edits, _, _ := s.run(p, r.Export, t, uint64(pos), uint64(count))
 				return edits
 			})
-			s.vim.Map(vim.Normal, r.Name, "<Plug>("+name+")")
+			s.vim.Map(vim.Normal, withLeader(r.Name, e.cfg.Leader), "<Plug>("+name+")")
 		})
 	}
 }
