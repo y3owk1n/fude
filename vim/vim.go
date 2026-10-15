@@ -169,6 +169,10 @@ func (m *Machine) Mode() Mode { return m.mode }
 // Line returns the command line being typed, with its prompt.
 func (m *Machine) Line() string { return m.prompt + m.line }
 
+// SetLine replaces the command line being typed after its prompt, as
+// completion does.
+func (m *Machine) SetLine(s string) { m.line = s }
+
 // Message returns what the last key has to tell the user, or "".
 func (m *Machine) Message() string { return m.msg }
 

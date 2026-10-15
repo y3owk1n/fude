@@ -835,6 +835,39 @@ func TestB130FilesPreview(t *testing.T) {
 	}
 }
 
+// B131
+func TestB131CommandCompletion(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(dir, "editor"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	change(t, filepath.Join(dir, "editor", "files.go"), "")
+	change(t, filepath.Join(dir, "readme"), "")
+	t.Chdir(dir)
+	config(t, "autocomplete = true")
+	e := start(t, "readme")
+	e.SetSize(80, 24)
+	for _, c := range []struct{ keys, line string }{
+		// <Tab> puts the best match in the line, and <C-e> takes it back.
+		{":ti<Tab>", ":timeline"},
+		{"<C-e>", ":ti"},
+		// A path completes in the directory typed so far.
+		{"<Esc>:e ed<Tab>", ":e editor/"},
+		{"f<Tab>", ":e editor/files.go"},
+		// <S-Tab> goes back from the typed word to the last match.
+		{"<Esc>:set nu<S-Tab>", ":set relative_number"},
+	} {
+		if feed(e, c.keys); e.Line() != c.line {
+			t.Fatalf("after %q the line is %q, want %q", c.keys, e.Line(), c.line)
+		}
+	}
+	// With autocomplete, the menu shows as the line is typed.
+	feed(e, "<Esc>:bu")
+	if f, ok := e.Float(); !ok || !strings.HasPrefix(f.Text, "buffer") {
+		t.Fatalf("typing :bu shows the menu %q", f.Text)
+	}
+}
+
 // B124
 func TestB124Listing(t *testing.T) {
 	dir := t.TempDir()

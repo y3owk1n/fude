@@ -605,6 +605,9 @@ func (c *client) ghost(g editor.Ghost, left, x, y, w int) int {
 // yet. An Alt chord is <Esc> and the key, as a terminal without kitty sends
 // it (D26).
 func keys(ev *tcell.EventKey) []vim.Key {
+	if ev.Key() == tcell.KeyBacktab || ev.Key() == tcell.KeyTab && ev.Modifiers()&tcell.ModShift != 0 {
+		return []vim.Key{"<S-Tab>"}
+	}
 	if ev.Modifiers()&^tcell.ModShift == tcell.ModAlt {
 		if k := key(ev.Key(), 0, ev.Str()); k != "" {
 			return []vim.Key{"<Esc>", k}

@@ -558,6 +558,20 @@ The text then starts at the same column on every row, so the cursor,
 wrapping and sideways scrolling need no change. The icons are a table of
 names and extensions in `editor/icons.go`, from mini.icons (B128).
 
+## Command line completion
+
+The machine keeps the command line, and `editor/` completes it, since only
+the editor knows the commands, files, options and buffers. Keys reach the
+completion before the machine while a `:` line is typed. `Machine.SetLine`
+puts a completion in the line, and `vim.ExNames` lists the machine's own
+commands. The menu offers one full name for each command, so `:w` gained
+`:write`. The word being completed is the command's name, after any range
+such as `'<,'>`, or its argument after the first space. For `:set` it is
+the argument's last word. A path completes in the directory typed so far,
+from one `os.ReadDir`. The menu is a `Float` the
+editor places above the command line, under the word, at most 10 rows
+tall (B131).
+
 ## Finder
 
 `:files` opens a float whose buffer is the query, in insert mode, so every
@@ -609,7 +623,7 @@ $XDG_DATA_HOME/fude/grammars/       grammars and their queries, loaded at runtim
 indent_width = 8     # columns >, <, <C-t> and <C-d> shift by, 0 for the tab width
 key_timeout = 1000   # milliseconds a mapping prefix waits (B84)
 large_file = 50      # megabytes over which syntax and LSP stay off (B83)
-autocomplete = false # ask for completions while typing (B67)
+autocomplete = false # show completions while typing, in insert mode and a command line (B67, B131)
 socket = "/run/user/1000/fude.sock" # where clients attach, instead of one path per process (B97)
 number = false       # line numbers, which :set number changes per window (B39)
 relative_number = false # numbers from the cursor's line (B39)

@@ -67,6 +67,7 @@ type Session struct {
 	renameAt   int         // where grn was pressed
 	pick       *pick       // the code actions shown to choose from
 	finder     *finder     // the file finder, while it shows
+	cmenu      *cmenu      // the completions of the command line being typed
 	under      *window     // the window a focused float was opened from
 	opts       options     // what the session's new windows start with
 	changed    chan change // told when the shown text changes, for a client over the socket
@@ -388,10 +389,14 @@ func (e *Session) feed(k vim.Key) {
 		e.reveal()
 		return
 	}
+	if e.commandKey(k) {
+		return
+	}
 	e.vim.IgnoreCase(e.win.opts.IgnoreCase, e.win.opts.SmartCase)
 	e.vim.ExpandTab(e.win.opts.ExpandTab)
 	e.settle(e.vim.Feed(k))
 	e.autocomplete(k)
+	e.autocommand()
 }
 
 // Wait reports whether keys are held for a longer mapping, and how long to
@@ -710,6 +715,9 @@ type Float struct {
 
 // Float returns the float to draw, or false when there is none.
 func (e *Session) Float() (Float, bool) {
+	if m := e.cmenu; m != nil {
+		return m.float(e.width, e.height), true
+	}
 	if f := e.finder; f != nil {
 		e.seek(f)
 		t := e.Text()
@@ -883,7 +891,7 @@ func (e *Session) ex(line string) {
 	arg = strings.TrimSpace(arg)
 	name, force := strings.CutSuffix(name, "!")
 	switch name {
-	case "w":
+	case "w", "write":
 		e.write(e.win.buf, force, nil)
 	case "wq", "x", "xit", "exit":
 		if name == "wq" || e.win.buf.modified() {

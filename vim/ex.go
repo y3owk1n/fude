@@ -86,6 +86,12 @@ func (m *Machine) ex(line string) error {
 	return nil
 }
 
+// ExNames returns the machine's ex commands, one full name each, as a
+// command line's completion offers them.
+func ExNames() []string {
+	return []string{"copy", "delete", "global", "move", "nohlsearch", "normal", "select", "vglobal", "yank"}
+}
+
 // exName splits a command line after its range into the command's name and
 // its argument. A name is a run of letters, >, <, &, && or g!.
 func exName(s string) (string, string) {

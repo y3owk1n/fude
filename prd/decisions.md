@@ -351,6 +351,14 @@ Neovim configs set.
 another name for `:ls`. Why: the user chose the name on 2026-10-16, and
 `:ls` and `:buffers` still list buffers.
 
+### N12. autocomplete covers the command line
+
+With `autocomplete` on, a `:` command line shows its completions as it is
+typed (B131). Neovim's `'autocomplete'` is for insert mode only, and a
+command line needs `wildtrigger()` in a `CmdlineChanged` autocommand to do
+the same. Why: one setting for completion while typing, and fude has no
+autocommands.
+
 ## Open
 
 None.

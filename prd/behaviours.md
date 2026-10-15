@@ -137,6 +137,15 @@ Where fude departs, the line says so and cites the departure in
 - B130 [2] On a screen of 60 columns or more, the finder shows the start
   of the selected file in a box right of the list, as fff.nvim does. A
   file with a zero byte in its first 16KB shows "binary file".
+- B131 [2] In a `:` command line, `<Tab>` and `<C-n>` put the next
+  completion of the word being typed in the line, and `<S-Tab>` and
+  `<C-p>` the one before. After the last comes the word as typed. `<C-y>`
+  keeps the completion and `<C-e>` puts the typed word back. A menu above
+  the line shows the completions, ranked as `matchfuzzy()` ranks them, as
+  Neovim's wildmenu does with `wildoptions=pum,fuzzy`. The word is a
+  command's name, a path for `:edit`, `:split` and `:vsplit`, an option
+  for `:set` or a buffer for `:buffer` and `:bdelete`. With `autocomplete`
+  on, the menu shows as the line is typed (N12).
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays
