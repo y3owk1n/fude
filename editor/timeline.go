@@ -193,33 +193,40 @@ func timelineLines(src *buffer) (string, []kernel.NodeID) {
 	return strings.Join(lines, "\n"), ids
 }
 
-// timelineKey runs k in a timeline window and reports whether k is one of
-// its keys. [ and ] move the text to the state on the line above or below. d
-// diffs the state on the cursor's line against now. <CR> restores that state
-// on top of the newest one.
-func (e *Session) timelineKey(k vim.Key) bool {
+// timelineKeys are a timeline window's own keys, which [keymap.timeline]
+// changes (B142).
+var timelineKeys = map[string]string{
+	"[": "<Plug>(timeline.earlier)", "]": "<Plug>(timeline.later)", "d": "<Plug>(timeline.diff)", "<CR>": "<Plug>(timeline.restore)",
+}
+
+// timelineAct runs act in a timeline window. earlier and later move the
+// text to the state on the line above or below. diff diffs the state on the
+// cursor's line against now. restore restores that state on top of the
+// newest one.
+func (e *Session) timelineAct(act string) {
+	if e.win.buf.lines == nil {
+		e.message = "not in a timeline"
+		return
+	}
 	src, i := e.state("")
-	switch k {
-	case "[", "]":
+	switch act {
+	case "earlier", "later":
 		j := i - 1
-		if k == "]" {
+		if act == "later" {
 			j = i + 1
 		}
 		if ids := states(src); j >= 0 && j < len(ids) {
 			e.scrub(src, ids[j])
 			e.relist(j)
 		}
-	case "d":
+	case "diff":
 		e.diff("")
-	case "<CR>":
+	case "restore":
 		ids := states(src)
 		e.scrub(src, ids[len(ids)-1])
 		e.restore(strconv.Itoa(i))
 		e.relist(len(states(src)) - 1)
-	default:
-		return false
 	}
-	return true
 }
 
 // scrub moves src to state id. It moves the cursor of each window showing src

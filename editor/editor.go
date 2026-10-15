@@ -183,9 +183,22 @@ func builtins(e *Session) {
 			return nil
 		})
 	}
-	e.locals = map[string]*vim.Keymaps{"listing": {}}
-	for from, to := range listingKeys {
-		e.locals["listing"].Map(vim.Normal, from, to)
+	for _, act := range []string{"earlier", "later", "diff", "restore"} {
+		e.vim.Command("timeline."+act, func(vim.Text, int, int) []vim.Edit {
+			e.timelineAct(act)
+			return nil
+		})
+	}
+	e.vim.Command("list.open", func(vim.Text, int, int) []vim.Edit {
+		e.openSpot()
+		return nil
+	})
+	e.locals = map[string]*vim.Keymaps{}
+	for kind, keys := range map[string]map[string]string{"listing": listingKeys, "list": listKeys, "timeline": timelineKeys} {
+		e.locals[kind] = &vim.Keymaps{}
+		for from, to := range keys {
+			e.locals[kind].Map(vim.Normal, from, to)
+		}
 	}
 	e.vim.Command("listing.up", func(_ vim.Text, _, count int) []vim.Edit {
 		e.up(count)
@@ -260,7 +273,9 @@ func Start(args []string) (*Session, error) {
 		for mode, maps := range map[vim.Mode]map[string]string{vim.Normal: cfg.Keymap.Normal, vim.Visual: cfg.Keymap.Visual, vim.Insert: cfg.Keymap.Insert} {
 			mapAll(s.vim, mode, maps)
 		}
-		mapAll(s.locals["listing"], vim.Normal, cfg.Keymap.Listing)
+		for kind, maps := range map[string]map[string]string{"listing": cfg.Keymap.Listing, "list": cfg.Keymap.List, "timeline": cfg.Keymap.Timeline} {
+			mapAll(s.locals[kind], vim.Normal, maps)
+		}
 	})
 	return e, nil
 }
@@ -409,14 +424,6 @@ func (e *Session) feed(k vim.Key) {
 	if ask := e.ask; ask != nil {
 		e.ask = nil
 		ask(k == "y")
-		e.reveal()
-		return
-	}
-	if e.win.buf.spots != nil && e.vim.Idle() && e.listKey(k) {
-		e.settle(nil)
-		return
-	}
-	if e.win.buf.lines != nil && e.vim.Idle() && e.timelineKey(k) {
 		e.reveal()
 		return
 	}

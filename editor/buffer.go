@@ -152,8 +152,13 @@ func (b *buffer) close() {
 
 // kind names the buffer's own keymap, or is "" for a buffer with none.
 func (b *buffer) kind() string {
-	if b.listed != "" {
+	switch {
+	case b.listed != "":
 		return "listing"
+	case b.spots != nil:
+		return "list"
+	case b.lines != nil:
+		return "timeline"
 	}
 	return ""
 }

@@ -109,7 +109,7 @@ Where fude departs, the line says so and cites the departure in
   Neovim's built-in `-` does, in place of the `-` motion. In a listing,
   `<CR>` opens the entry, `<C-s>` and `<C-h>` open it in a split beside or
   below, `_` lists the working directory and `<C-l>` reads it again, as
-  oil.nvim's keys do. These are the listing's keys, which B142 changes.
+  oil.nvim's keys do. B142 changes these keys.
 - B125 [2] Editing a listing and `:w` changes the directory, as oil.nvim
   does: a changed name renames the entry, a deleted line deletes it, and a
   new line creates a file, or a directory when it ends in `/`. fude first
@@ -202,10 +202,11 @@ Where fude departs, the line says so and cites the departure in
 - B142 [2] A kind of buffer has keys of its own, which `[keymap.<kind>]`
   in config changes, as `<buffer>` mappings do in Neovim. In that kind of
   buffer, a key mapped there runs that mapping instead of
-  `[keymap.normal]`'s. In any
-  keymap table, a key mapped to `""` loses its mapping, fude's own default
-  too, and a key mapped to `<Nop>` does nothing. A listing's keys are
-  `[keymap.listing]`.
+  `[keymap.normal]`'s, at once, without waiting for a longer one (N17). In
+  any keymap table, a key mapped to `""` loses its mapping, fude's own
+  default too, and a key mapped to `<Nop>` does nothing. The kinds are
+  `listing`, `list` for the lists of places such as `grr`'s, and
+  `timeline`.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays
@@ -278,7 +279,7 @@ Where fude departs, the line says so and cites the departure in
   restoring a node creates a new node rather than discarding later ones. In
   its window, `[` and `]` move the text to the node above or below, `d`
   diffs the node under the cursor against now, and `<CR>` restores it on
-  top of the newest node.
+  top of the newest node. B142 changes these keys.
 - B32 [2] Any two nodes can be diffed.
 - B33 [2] The timeline persists across sessions when the file on disk still
   matches the last saved node.
@@ -359,7 +360,8 @@ Where fude departs, the line says so and cites the departure in
 - B66 [5] `grn` renames, `gra` lists code actions, `grr` references, `gri`
   implementations, `grt` the type definition, `gO` document symbols, and
   insert `<C-s>` shows signature help. They exist only while a server is
-  attached (N3).
+  attached (N3). In a list they open, `<CR>` jumps to the place on its
+  line. B142 changes this key.
 - B67 [5] With `autocomplete` on, typing a word character or a trigger
   character in insert mode lists the server's completions, with none put in
   the text until `<C-n>` or `<C-p>`.

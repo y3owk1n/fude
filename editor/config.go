@@ -29,7 +29,9 @@ type config struct {
 		Visual map[string]string `toml:"visual"`
 		Insert map[string]string `toml:"insert"`
 		// A kind of buffer's normal mode keys, over [keymap.normal].
-		Listing map[string]string `toml:"listing"`
+		Listing  map[string]string `toml:"listing"`
+		List     map[string]string `toml:"list"`
+		Timeline map[string]string `toml:"timeline"`
 	} `toml:"keymap"`
 	Filetype map[string]struct {
 		IndentWidth uint       `toml:"indent_width"`

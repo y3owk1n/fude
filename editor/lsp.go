@@ -695,12 +695,17 @@ func (e *Session) showList(title string, lines []string, spots []spot) {
 	e.win.buf.spots = spots
 }
 
-// listKey runs <CR> in a list window, and reports whether it did. It jumps
-// to the spot on the cursor's line in another window, keeping the list.
-func (e *Session) listKey(k vim.Key) bool {
+// listKeys are a list window's own keys, which [keymap.list] changes
+// (B142).
+var listKeys = map[string]string{"<CR>": "<Plug>(list.open)"}
+
+// openSpot jumps to the place on the cursor's line of a list window, such as
+// grr's, in another window, keeping the list.
+func (e *Session) openSpot() {
 	b := e.win.buf
-	if k != "<CR>" {
-		return false
+	if b.spots == nil {
+		e.message = "not in a list"
+		return
 	}
 	sp := b.spots[e.Text().LineOf(e.Cursor())]
 	for _, w := range e.root.windows() {
@@ -710,7 +715,6 @@ func (e *Session) listKey(k vim.Key) bool {
 		}
 	}
 	e.visit(sp)
-	return true
 }
 
 // visit jumps to sp, opening its file when no buffer has it.

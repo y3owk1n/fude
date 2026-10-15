@@ -390,6 +390,14 @@ and `splitright` set. Neovim's defaults put it above and left. Why: the
 user sets both, as many configs do, and asked for it on 2026-10-16. An
 option to choose waits for someone who wants the other way.
 
+### N17. A buffer's keys do not wait
+
+A mapping in a kind of buffer's keymap runs as soon as its keys are typed,
+even when a longer mapping of `[keymap.normal]` starts with them (B142).
+Neovim's `<buffer>` mappings wait `timeoutlen` for the longer one unless
+marked `<nowait>`. Why: a timeline's `[` would wait for `[h` before it
+moved, and a buffer's own keys are the ones meant there.
+
 ## Open
 
 None.

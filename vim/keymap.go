@@ -85,14 +85,14 @@ func (m *Machine) Timeout() error {
 	return m.flush()
 }
 
-// keymaps returns the mappings that apply to the next key, the local ones
-// first. None do while a command waits for a character or an operator waits
-// for its target.
-func (m *Machine) keymaps() []*keymap {
+// keymaps returns the local and the machine's mappings that apply to the
+// next key. None do while a command waits for a character or an operator
+// waits for its target.
+func (m *Machine) keymaps() (local, own *keymap) {
 	var mode Mode
 	switch {
 	case m.pending != "":
-		return nil
+		return nil, nil
 	case m.mode == Normal && m.op == "":
 		mode = Normal
 	case m.mode == Visual:
@@ -100,32 +100,40 @@ func (m *Machine) keymaps() []*keymap {
 	case m.mode == Insert, m.mode == Replace:
 		mode = Insert
 	default:
-		return nil
+		return nil, nil
 	}
-	var out []*keymap
-	if m.local != nil && m.local.modes[mode] != nil {
-		out = append(out, m.local.modes[mode])
+	if m.local != nil {
+		local = m.local.modes[mode]
 	}
-	if n := m.maps.modes[mode]; n != nil {
-		out = append(out, n)
+	return local, m.maps.modes[mode]
+}
+
+// walk returns the node keys lead to from n, or nil.
+func (n *keymap) walk(keys []Key) *keymap {
+	for _, k := range keys {
+		if n == nil {
+			return nil
+		}
+		n = n.next[k]
 	}
-	return out
+	return n
 }
 
 // press runs a typed key through the keymap. It holds the key while the held
 // keys start a longer mapping.
 func (m *Machine) press(k Key) error {
 	m.held = append(m.held, k)
-	for _, n := range m.keymaps() {
-		for _, k := range m.held {
-			if n == nil {
-				break
-			}
-			n = n.next[k]
+	local, own := m.keymaps()
+	if n := local.walk(m.held); n != nil {
+		// A local mapping runs at once, without waiting for a longer one of
+		// the machine's, as Neovim's <nowait> ones do (N17).
+		if n.end {
+			return m.flush()
 		}
-		if n != nil && n.next != nil {
-			return nil
-		}
+		return nil
+	}
+	if n := own.walk(m.held); n != nil && n.next != nil {
+		return nil
 	}
 	return m.flush()
 }
@@ -136,7 +144,8 @@ func (m *Machine) flush() error {
 	keys := m.held
 	m.held = nil
 	n, to := 0, keys[:1] // the keys the longest mapping takes, and what it runs
-	for _, node := range m.keymaps() {
+	local, own := m.keymaps()
+	for _, node := range []*keymap{local, own} {
 		for i := 0; i < len(keys) && node != nil; i++ {
 			if node = node.next[keys[i]]; node != nil && node.end && i+1 > n {
 				n, to = i+1, node.to

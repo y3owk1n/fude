@@ -315,8 +315,9 @@ keymap, and dot repeat replays the keys the mapping ran.
 
 A kind of buffer, such as a listing, has a `vim.Keymaps` of its own, which
 the editor lays over the machine's with `Machine.UseLocal` before each key.
-The machine walks both tries: the longer mapping runs, and the local one on
-a tie, as Neovim's `<buffer>` mappings win. A buffer's actions, such as a
+The machine walks both tries: a local mapping runs as soon as its keys are
+typed (N17), and otherwise the longer mapping runs, the local one on a tie,
+as Neovim's `<buffer>` mappings win. A buffer's actions, such as a
 listing's open and split, are `<Plug>` commands its keymap maps keys to,
 so a config table can move or drop each one. `""` in a table unmaps, which
 for a local key lets the global mapping through, and `<Nop>` maps a key to
@@ -714,7 +715,7 @@ icons = false        # nerd font icons in listings and diagnostic signs (B128)
 "<Space>w" = ":w<CR>"
 "-" = ""             # "" drops a mapping, fude's own too, and "<Nop>" does nothing (B142)
 
-[keymap.listing]     # a listing's own keys, over [keymap.normal] (B142)
+[keymap.listing]     # and [keymap.list], [keymap.timeline]: a kind of buffer's own keys (B142)
 "<C-h>" = ""
 "<C-v>" = "<Plug>(listing.vsplit)"
 
