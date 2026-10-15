@@ -675,6 +675,17 @@ edits that fall inside the lines. The answer applies as one transaction on
 the text the request saw, so it is one timeline node. fude drops an answer
 for text that has changed since, and says so (B65).
 
+`grr`, `gri`, `grt` and `gO` are mapped while the current buffer has a
+server and removed when it has none (N3). `Machine.Unmap` also removes the
+prefixes only they used, so `gr` waits for nothing in a buffer without one
+(B114). While a server is attached, `gr` waits `key_timeout` for the next
+key, as in Neovim. When an answer names one place, fude jumps there, as
+`<C-]>` does. When it names several, and always for references, fude opens
+a list window of `path:line:col: text` lines, with paths relative to the
+working directory.
+`gO` lists the document's symbols, nested ones indented. `<CR>` on a line
+jumps to its place in another window and keeps the list (B66).
+
 ## Server split (step 6)
 
 One server holds the kernel and its modules and orders every transaction.

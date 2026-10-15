@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -51,6 +52,7 @@ func (e *Editor) attach(b *buffer) {
 	s.bufs = append(s.bufs, b)
 	b.server, b.version = s, 0
 	s.client.Open(lsp.URI(b.file.path), b.filetype(), b.text.Snapshot())
+	e.syncKeys()
 }
 
 // detach disconnects b from its language server.
@@ -103,6 +105,7 @@ func (e *Editor) stop(s *server) {
 	for _, b := range s.bufs {
 		b.server = nil
 	}
+	e.syncKeys()
 	for k, o := range e.servers {
 		if o == s {
 			delete(e.servers, k)
@@ -186,9 +189,40 @@ func (e *Editor) diagnostic(n int) {
 	e.message = notes[p]
 }
 
+// requests are the language server requests that commands send, by name.
+var requests = map[string]string{
+	"lsp.definition":     "textDocument/definition",
+	"lsp.typeDefinition": "textDocument/typeDefinition",
+	"lsp.implementation": "textDocument/implementation",
+	"lsp.references":     "textDocument/references",
+	"lsp.symbols":        "textDocument/documentSymbol",
+	"lsp.hover":          "textDocument/hover",
+}
+
+// attached are the keys that exist only while the current buffer has a
+// language server, and the commands they run (N3).
+var attached = map[string]string{
+	"grr": "lsp.references", "gri": "lsp.implementation", "grt": "lsp.typeDefinition", "gO": "lsp.symbols",
+}
+
+// syncKeys maps the attached keys while the current buffer has a language
+// server and removes them otherwise, so gr waits for nothing without one.
+func (e *Editor) syncKeys() {
+	if want := e.win.buf.server != nil; want != e.lspKeys {
+		for keys, name := range attached {
+			if want {
+				e.vim.Map(vim.Normal, keys, "<Plug>("+name+")")
+			} else {
+				e.vim.Unmap(vim.Normal, keys)
+			}
+		}
+		e.lspKeys = want
+	}
+}
+
 // request sends the request named, such as lsp.definition, about the
 // cursor's place in the current buffer, and handles the answer on the editor
-// loop when it comes (B62).
+// loop when it comes (B62, B66).
 func (e *Editor) request(name string) {
 	b := e.win.buf
 	s := b.server
@@ -197,56 +231,183 @@ func (e *Editor) request(name string) {
 		return
 	}
 	t, c, uri := b.text.Snapshot(), e.Cursor(), lsp.URI(b.file.path)
-	method := map[string]string{"lsp.definition": "textDocument/definition", "lsp.hover": "textDocument/hover"}[name]
-	s.client.Request(method, func(enc string) any {
-		return map[string]any{"textDocument": map[string]any{"uri": uri}, "position": lsp.Point(t, c, enc)}
+	s.client.Request(requests[name], func(enc string) any {
+		p := map[string]any{"textDocument": map[string]any{"uri": uri}}
+		if name != "lsp.symbols" {
+			p["position"] = lsp.Point(t, c, enc)
+		}
+		if name == "lsp.references" {
+			p["context"] = map[string]any{"includeDeclaration": true}
+		}
+		return p
 	}, func(res json.RawMessage) {
 		switch name {
-		case "lsp.definition":
-			e.define(s, res)
 		case "lsp.hover":
 			e.hover(res)
+		case "lsp.symbols":
+			e.symbols(s, b, res)
+		default:
+			e.locate(s, name, res)
 		}
 	})
 }
 
-// define jumps to the first place a definition answer names, opening its
-// file when no buffer has it.
-func (e *Editor) define(s *server, res json.RawMessage) {
+// spot is a place in a file that a server named.
+type spot struct {
+	path string
+	pos  lsp.Position
+	enc  string // the encoding pos counts in
+}
+
+// locate jumps to the one place an answer names, or lists them in a window
+// when it names several, as references always are.
+func (e *Editor) locate(s *server, name string, res json.RawMessage) {
 	type location struct {
 		URI       string    `json:"uri"`
 		Range     lsp.Range `json:"range"`
 		TargetURI string    `json:"targetUri"`
 		Target    lsp.Range `json:"targetSelectionRange"`
 	}
-	var many []location
-	if json.Unmarshal(res, &many) != nil {
+	var locs []location
+	if json.Unmarshal(res, &locs) != nil {
 		var one location
-		if json.Unmarshal(res, &one) == nil {
-			many = []location{one}
+		if json.Unmarshal(res, &one) == nil && (one.URI != "" || one.TargetURI != "") {
+			locs = []location{one}
 		}
 	}
-	if len(many) == 0 || many[0].URI == "" && many[0].TargetURI == "" {
-		e.message = "no definition found"
+	var spots []spot
+	for _, l := range locs {
+		if l.TargetURI != "" {
+			l.URI, l.Range = l.TargetURI, l.Target
+		}
+		if u, err := url.Parse(l.URI); err == nil && u.Path != "" {
+			spots = append(spots, spot{u.Path, l.Range.Start, s.client.Encoding()})
+		}
+	}
+	what := strings.TrimPrefix(name, "lsp.")
+	switch {
+	case len(spots) == 0:
+		e.message = "no " + what + " found"
+	case len(spots) == 1 && name != "lsp.references":
+		e.visit(spots[0])
+	default:
+		// Paths under the working directory show relative to it.
+		wd, _ := os.Getwd()
+		lines := make([]string, len(spots))
+		for i, sp := range spots {
+			path := sp.path
+			if rel, err := filepath.Rel(wd, path); err == nil && !strings.HasPrefix(rel, "..") {
+				path = rel
+			}
+			lines[i] = fmt.Sprintf("%s:%d:%d: %s", path, sp.pos.Line+1, sp.pos.Character+1, e.lineAt(sp))
+		}
+		e.showList("["+what+"]", lines, spots)
+	}
+}
+
+// kinds are the names of the protocol's symbol kinds.
+var kinds = []string{
+	"", "File", "Module", "Namespace", "Package", "Class", "Method", "Property", "Field",
+	"Constructor", "Enum", "Interface", "Function", "Variable", "Constant", "String", "Number", "Boolean",
+	"Array", "Object", "Key", "Null", "EnumMember", "Struct", "Event", "Operator", "TypeParameter",
+}
+
+// symbols lists the symbols of b that a documentSymbol answer names, in a
+// window where <CR> jumps to one. Nested symbols are indented under theirs.
+func (e *Editor) symbols(s *server, b *buffer, res json.RawMessage) {
+	type symbol struct {
+		Name           string    `json:"name"`
+		Kind           int       `json:"kind"`
+		SelectionRange lsp.Range `json:"selectionRange"`
+		Location       struct {
+			Range lsp.Range `json:"range"`
+		} `json:"location"`
+		Children []json.RawMessage `json:"children"`
+	}
+	var lines []string
+	var spots []spot
+	var add func(raw []json.RawMessage, depth int)
+	add = func(raw []json.RawMessage, depth int) {
+		for _, r := range raw {
+			var sym symbol
+			if json.Unmarshal(r, &sym) != nil {
+				continue
+			}
+			// A symbol has a selectionRange, or a location when the answer is flat.
+			pos := sym.SelectionRange.Start
+			if sym.SelectionRange == (lsp.Range{}) {
+				pos = sym.Location.Range.Start
+			}
+			kind := ""
+			if sym.Kind > 0 && sym.Kind < len(kinds) {
+				kind = kinds[sym.Kind]
+			}
+			lines = append(lines, fmt.Sprintf("%d:%d: %s[%s] %s", pos.Line+1, pos.Character+1, strings.Repeat("  ", depth), kind, sym.Name))
+			spots = append(spots, spot{b.file.path, pos, s.client.Encoding()})
+			add(sym.Children, depth+1)
+		}
+	}
+	var raw []json.RawMessage
+	json.Unmarshal(res, &raw)
+	add(raw, 0)
+	if len(lines) == 0 {
+		e.message = "no symbols found"
 		return
 	}
-	l := many[0]
-	if l.TargetURI != "" {
-		l.URI, l.Range = l.TargetURI, l.Target
+	e.showList("[symbols]", lines, spots)
+}
+
+// lineAt returns the text of the line sp is on, from its buffer, or from
+// the file when no buffer has it.
+func (e *Editor) lineAt(sp spot) string {
+	text := ""
+	if i := slices.IndexFunc(e.bufs, func(b *buffer) bool { return b.is(sp.path) }); i >= 0 {
+		t := e.bufs[i].text.Snapshot()
+		text = t.Slice(0, t.Len())
+	} else if data, err := os.ReadFile(sp.path); err == nil {
+		text = string(data)
 	}
-	u, err := url.Parse(l.URI)
-	if err != nil {
-		e.message = err.Error()
-		return
+	if lines := strings.Split(text, "\n"); sp.pos.Line < len(lines) {
+		return strings.TrimSpace(lines[sp.pos.Line])
 	}
+	return ""
+}
+
+// showList opens a window of lines, each naming a spot, where <CR> jumps to the
+// spot on the cursor's line in another window.
+func (e *Editor) showList(title string, lines []string, spots []spot) {
+	e.scratch(title, strings.Join(lines, "\n"), nil, nil)
+	e.win.buf.spots = spots
+}
+
+// listKey runs <CR> in a list window, and reports whether it did. It jumps
+// to the spot on the cursor's line in another window, keeping the list.
+func (e *Editor) listKey(k vim.Key) bool {
+	b := e.win.buf
+	if k != "<CR>" {
+		return false
+	}
+	sp := b.spots[e.Text().LineOf(e.Cursor())]
+	for _, w := range e.root.windows() {
+		if w.buf != b {
+			e.win = w
+			break
+		}
+	}
+	e.visit(sp)
+	return true
+}
+
+// visit jumps to sp, opening its file when no buffer has it.
+func (e *Editor) visit(sp spot) {
 	// Moving to another buffer is a jump of its own.
-	if e.win.buf.is(u.Path) {
+	if e.win.buf.is(sp.path) {
 		e.pushJump(e.Cursor())
 	} else {
-		e.edit(u.Path)
+		e.edit(sp.path)
 	}
-	if e.win.buf.is(u.Path) {
-		e.setCursor(lsp.Offset(e.Text(), l.Range.Start, s.client.Encoding()))
+	if e.win.buf.is(sp.path) {
+		e.setCursor(lsp.Offset(e.Text(), sp.pos, sp.enc))
 		e.reveal()
 	}
 }

@@ -19,7 +19,9 @@ import (
 // run as a process of its own. It answers initialize with the encoding in
 // FUDE_FAKE_ENCODING, appends every message it gets to FUDE_FAKE_LOG, and
 // crashes when a change inserts "#". Each "bad" in an opened document gets
-// an error diagnostic, a definition is the first "target" in it, and hover
+// an error diagnostic, a definition or type definition is the first "target"
+// in it, references and implementations are every "target", its symbols are
+// f with x inside, and hover
 // is markdown that says where it was asked. Completion offers apple, apricot
 // and banana, and formatting the whole document puts a tab before each line,
 // as gopls formats only whole documents. Positions are in bytes.
@@ -72,15 +74,26 @@ func TestFakeServer(t *testing.T) {
 		}
 		json.Unmarshal(body, &m)
 		switch m.Method {
-		case "textDocument/definition":
+		case "textDocument/definition", "textDocument/typeDefinition", "textDocument/references", "textDocument/implementation":
 			uri := m.Params.TextDocument.URI
+			var locs []any
 			for line, l := range strings.Split(opened[uri], "\n") {
 				if i := strings.Index(l, "target"); i >= 0 {
 					r := map[string]any{"start": map[string]int{"line": line, "character": i}, "end": map[string]int{"line": line, "character": i + 6}}
-					reply(m.ID, []any{map[string]any{"uri": uri, "range": r}})
-					break
+					locs = append(locs, map[string]any{"uri": uri, "range": r})
 				}
 			}
+			if strings.HasSuffix(m.Method, "efinition") {
+				locs = locs[:1]
+			}
+			reply(m.ID, locs)
+		case "textDocument/documentSymbol":
+			at := func(line int) map[string]any {
+				p := map[string]int{"line": line, "character": 0}
+				return map[string]any{"start": p, "end": p}
+			}
+			x := map[string]any{"name": "x", "kind": 13, "range": at(1), "selectionRange": at(1)}
+			reply(m.ID, []any{map[string]any{"name": "f", "kind": 12, "range": at(0), "selectionRange": at(0), "children": []any{x}}})
 		case "textDocument/formatting":
 			var edits []any
 			for line := range strings.Split(opened[m.Params.TextDocument.URI], "\n") {
@@ -282,5 +295,44 @@ func TestB65Format(t *testing.T) {
 		if feed(e, "u"); text(e) != "a\nb\nc" {
 			t.Errorf("u after %s left %q, want it undone in one step", c[0], text(e))
 		}
+	}
+}
+
+// B66, for the keys that list or jump to places, and N3
+func TestB66Places(t *testing.T) {
+	e, log := withServer(t, "a target\nb target\nc\n", "utf-8")
+	heard(t, log, `"method":"textDocument/didOpen"`, 1)
+	path := e.Views()[0].Name
+
+	feed(e, "grr")
+	settle(t, e, func() bool { return strings.HasPrefix(text(e), path) })
+	if want := path + ":1:3: a target\n" + path + ":2:3: b target"; text(e) != want {
+		t.Errorf("grr listed %q, want %q", text(e), want)
+	}
+	if feed(e, "j<CR>"); e.Views()[0].Name != "[references]" || text(e) != "a target\nb target\nc" || e.Cursor() != 11 {
+		t.Errorf("<CR> on the second reference left %q at %d", text(e), e.Cursor())
+	}
+	feed(e, "ggjgrt")
+	settle(t, e, func() bool { return e.Cursor() == 2 })
+	feed(e, "gO")
+	settle(t, e, func() bool { return text(e) != "a target\nb target\nc" })
+	if want := "1:1: [Function] f\n2:1:   [Variable] x"; text(e) != want {
+		t.Errorf("gO listed %q, want %q", text(e), want)
+	}
+	// A list window has no server, so gr is free there (N3).
+	feed(e, "gr")
+	if _, waiting := e.Wait(); waiting {
+		t.Error("gr waits in a window with no language server")
+	}
+}
+
+// N3
+func TestB66KeysOnlyWhileAttached(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.go")
+	change(t, path, "x\n")
+	e := start(t, path)
+	feed(e, "gr")
+	if _, waiting := e.Wait(); waiting {
+		t.Error("gr waits with no language server attached")
 	}
 }

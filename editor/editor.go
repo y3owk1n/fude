@@ -42,6 +42,7 @@ type Editor struct {
 	decos      map[any][]decoration // by owner: a plugin, or a buffer for its diagnostics
 	servers    map[string]*server   // by command and root
 	started    bool                 // Load ran, so new buffers attach to servers at once
+	lspKeys    bool                 // the attached keys are mapped
 
 	width, height int // the space the windows share
 
@@ -83,13 +84,14 @@ func open(cfg config, paths []string) (*Editor, error) {
 		e.format(e.win.buf, start, end)
 		return nil
 	})
-	for keys, name := range map[string]string{"<C-]>": "lsp.definition", "K": "lsp.hover"} {
+	for name := range requests {
 		e.vim.Command(name, func(vim.Text, int, int) []vim.Edit {
 			e.request(name)
 			return nil
 		})
-		e.vim.Map(vim.Normal, keys, "<Plug>("+name+")")
 	}
+	e.vim.Map(vim.Normal, "<C-]>", "<Plug>(lsp.definition)")
+	e.vim.Map(vim.Normal, "K", "<Plug>(lsp.hover)")
 	for keys, n := range map[string]int{"]d": 1, "[d": -1} {
 		name := "diagnostic" + keys
 		e.vim.Command(name, func(_ vim.Text, _, count int) []vim.Edit {
@@ -225,6 +227,10 @@ func (e *Editor) Feed(k vim.Key) {
 		e.reveal()
 		return
 	}
+	if e.win.buf.spots != nil && e.vim.Idle() && e.listKey(k) {
+		e.settle(nil)
+		return
+	}
 	if e.win.buf.lines != nil && e.vim.Idle() && e.timelineKey(k) {
 		e.reveal()
 		return
@@ -252,6 +258,7 @@ func (e *Editor) settle(err error) {
 	} else if msg := e.vim.Message(); msg != "" && e.message == "" {
 		e.message = msg
 	}
+	e.syncKeys()
 	if log := e.win.buf.log; log != nil {
 		if err := log.failed(); err != nil {
 			e.message = err.Error()

@@ -45,6 +45,7 @@ type buffer struct {
 	title  string
 	source *buffer
 	lines  []kernel.NodeID // the timeline node on each line, for :restore
+	spots  []spot          // the place each line of a list names, for <CR>
 }
 
 // pushChange records an edit at pos, replacing the newest entry when it is
