@@ -130,6 +130,10 @@ func (m *Machine) Registry() *Registry  // add operators, targets, ex commands
 func (m *Machine) Map(mode Mode, keys string, to Binding) error
 ```
 
+This is the target. Today `Text` has `Len` and `Slice`, `Host` has its first
+six methods, and `Feed` returns an error. The rest are added when the
+behaviours that need them are built.
+
 `vim/` owns the grammar, modes, registers, dot repeat, macros, search and
 the edit-producing ex commands. It keeps its visual anchor and query
 selection regions as marks through `Host.Marks()`, so another view's edits

@@ -1,0 +1,41 @@
+package vim
+
+import (
+	"strings"
+	"unicode/utf8"
+)
+
+// Key is one key in Vim notation: a character such as "a", or a named key
+// such as "<Esc>".
+type Key string
+
+var names = map[string]Key{
+	"esc":   "<Esc>",
+	"cr":    "<CR>",
+	"enter": "<CR>",
+	"bs":    "<BS>",
+	"left":  "<Left>",
+	"right": "<Right>",
+	"lt":    "<",
+}
+
+// Keys splits Vim notation such as "ihello<Esc>" into keys. A "<" that does
+// not start a known name is the character "<".
+func Keys(s string) []Key {
+	var ks []Key
+	for s != "" {
+		if end := strings.IndexByte(s, '>'); s[0] == '<' && end > 0 {
+			if k, ok := names[strings.ToLower(s[1:end])]; ok {
+				ks = append(ks, k)
+				s = s[end+1:]
+				continue
+			}
+		}
+		_, n := utf8.DecodeRuneInString(s)
+		ks = append(ks, Key(s[:n]))
+		s = s[n:]
+	}
+	return ks
+}
+
+func (k Key) isChar() bool { return k != "" && (len(k) == 1 || k[0] != '<') }
