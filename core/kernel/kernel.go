@@ -96,6 +96,15 @@ func (s Snapshot) Len() int { return s.text.Len() }
 // Slice returns the bytes in [start, end).
 func (s Snapshot) Slice(start, end int) string { return s.text.Slice(start, end) }
 
+// Lines returns the number of lines, one more than the newlines.
+func (s Snapshot) Lines() int { return s.text.Lines() }
+
+// LineStart returns where line n starts, counting from 0.
+func (s Snapshot) LineStart(n int) int { return s.text.LineStart(n) }
+
+// LineOf returns the line pos is on, counting from 0.
+func (s Snapshot) LineOf(pos int) int { return s.text.LineOf(pos) }
+
 // Buffer is text with marks and a timeline.
 type Buffer struct {
 	text    rope.Rope

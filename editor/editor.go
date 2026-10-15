@@ -84,12 +84,7 @@ func Start(args []string) (*Editor, error) {
 	}
 	if line > 0 {
 		t := e.Text()
-		p := 0
-		for range line - 1 {
-			if le := vim.LineEnd(t, p); le < t.Len() {
-				p = le + 1
-			}
-		}
+		p := t.LineStart(min(line, t.Lines()) - 1)
 		l := t.Slice(p, vim.LineEnd(t, p))
 		e.setCursor(p + len(l) - len(strings.TrimLeft(l, " \t")))
 	}

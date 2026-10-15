@@ -31,6 +31,15 @@ type text string
 
 func (t text) Len() int                    { return len(t) }
 func (t text) Slice(start, end int) string { return string(t[start:end]) }
+func (t text) Lines() int                  { return strings.Count(string(t), "\n") + 1 }
+func (t text) LineOf(pos int) int          { return strings.Count(string(t[:pos]), "\n") }
+func (t text) LineStart(line int) int {
+	pos := 0
+	for range line {
+		pos += strings.IndexByte(string(t[pos:]), '\n') + 1
+	}
+	return pos
+}
 
 func (h *host) Text() vim.Text         { return text(h.text) }
 func (h *host) Cursor() int            { return h.cursor }

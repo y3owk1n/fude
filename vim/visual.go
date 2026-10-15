@@ -99,7 +99,7 @@ func (m *Machine) blockInsertStart(after bool) error {
 		}
 	}
 	m.blockInsert = &blockInsert{
-		start: m.h.Cursor(), col: col, lines: strings.Count(t.Slice(r.start, r.end), "\n"),
+		start: m.h.Cursor(), col: col, lines: t.LineOf(r.end) - t.LineOf(r.start),
 		toEnd: toEnd, pad: after, home: colStart(t, r.start, r.left),
 	}
 	return nil

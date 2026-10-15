@@ -220,6 +220,8 @@ Tested through `core/`'s exported API, with no editor around it.
 - B104 [1] Transactions inside a group become one timeline node.
 - B105 [1] Every node is handed to the store as it is created. A buffer
   rebuilt from those nodes has the same timeline and text.
+- B106 [1] A snapshot gives the number of lines, where any line starts and
+  which line holds any position, without reading the text before it.
 
 ## Vim library
 

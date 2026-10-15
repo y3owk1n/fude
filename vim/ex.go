@@ -57,7 +57,7 @@ func (m *Machine) ex(line string) error {
 		return m.copyLines(first, last, target)
 	case ">", "<":
 		times := 1 + strings.Count(arg, name)
-		lines := strings.Count(t.Slice(first, LineEnd(t, last)), "\n")
+		lines := t.LineOf(last) - t.LineOf(first)
 		if err := m.shift(name, ":"+name, region{start: first, end: LineEnd(t, last), lines: true}, 0, times); err != nil {
 			return err
 		}

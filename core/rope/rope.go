@@ -14,6 +14,7 @@ type node struct {
 	left, right *node
 	text        string
 	length      int
+	lines       int // newlines
 	height      int
 }
 
@@ -34,6 +35,51 @@ func (r Rope) Slice(start, end int) string {
 	return b.String()
 }
 
+// Lines returns the number of lines, one more than the newlines.
+func (r Rope) Lines() int { return lines(r.root) + 1 }
+
+// LineStart returns where line n starts, counting from 0.
+func (r Rope) LineStart(n int) int {
+	if n < 0 || n >= r.Lines() {
+		panic("rope: line out of range")
+	}
+	pos := 0
+	for nd := r.root; n > 0; {
+		if nd.left == nil {
+			i := 0
+			for range n {
+				i += strings.IndexByte(nd.text[i:], '\n') + 1
+			}
+			return pos + i
+		}
+		if n <= nd.left.lines {
+			nd = nd.left
+		} else {
+			n, pos, nd = n-nd.left.lines, pos+nd.left.length, nd.right
+		}
+	}
+	return pos
+}
+
+// LineOf returns the line pos is on, counting from 0.
+func (r Rope) LineOf(pos int) int {
+	if pos < 0 || pos > r.Len() {
+		panic("rope: position out of range")
+	}
+	line := 0
+	for nd := r.root; nd != nil; {
+		if nd.left == nil {
+			return line + strings.Count(nd.text[:pos], "\n")
+		}
+		if pos <= nd.left.length {
+			nd = nd.left
+		} else {
+			line, pos, nd = line+nd.left.lines, pos-nd.left.length, nd.right
+		}
+	}
+	return line
+}
+
 // Replace returns a rope with [start, end) replaced by text.
 func (r Rope) Replace(start, end int, text string) Rope {
 	if start < 0 || end > r.Len() || start > end {
@@ -49,7 +95,7 @@ func build(s string) *node {
 		return nil
 	}
 	if len(s) <= maxLeaf {
-		return &node{text: s, length: len(s), height: 1}
+		return &node{text: s, length: len(s), lines: strings.Count(s, "\n"), height: 1}
 	}
 	mid := len(s) / 2
 	return branch(build(s[:mid]), build(s[mid:]))
@@ -138,7 +184,7 @@ func rotateLeft(n *node) *node {
 }
 
 func branch(l, r *node) *node {
-	return &node{left: l, right: r, length: l.length + r.length, height: max(l.height, r.height) + 1}
+	return &node{left: l, right: r, length: l.length + r.length, lines: l.lines + r.lines, height: max(l.height, r.height) + 1}
 }
 
 func length(n *node) int {
@@ -146,6 +192,13 @@ func length(n *node) int {
 		return 0
 	}
 	return n.length
+}
+
+func lines(n *node) int {
+	if n == nil {
+		return 0
+	}
+	return n.lines
 }
 
 func height(n *node) int {

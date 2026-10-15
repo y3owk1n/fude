@@ -111,6 +111,9 @@ implements:
 type Text interface { // read-only, core's Snapshot satisfies it as is
     Len() int
     Slice(start, end int) string
+    Lines() int
+    LineStart(line int) int // lines count from 0
+    LineOf(pos int) int
 }
 
 type Host interface {

@@ -58,8 +58,7 @@ func (m *Machine) motion(cmd string, count int) (int, kind, bool) {
 		p, k, keep = m.toLine(t, c, m.window(t, cmd, n)), linewise, true
 	case "%":
 		if count > 0 {
-			lines := strings.Count(t.Slice(0, t.Len()), "\n") + 1
-			p, k, keep = m.toLine(t, c, down(t, 0, (count*lines+99)/100-1)), linewise, true
+			p, k, keep = m.toLine(t, c, down(t, 0, (count*t.Lines()+99)/100-1)), linewise, true
 			break
 		}
 		var ok bool
@@ -426,25 +425,12 @@ func emptyLine(t Text, p int) bool {
 // down returns the start of the line n lines below the one at start, or of
 // the last line.
 func down(t Text, start, n int) int {
-	for range n {
-		e := LineEnd(t, start)
-		if e == t.Len() {
-			break
-		}
-		start = e + 1
-	}
-	return start
+	return t.LineStart(min(t.LineOf(start)+n, t.Lines()-1))
 }
 
 // up returns the start of the line n lines above the one at start, or 0.
 func up(t Text, start, n int) int {
-	for range n {
-		if start == 0 {
-			break
-		}
-		start = LineStart(t, start-1)
-	}
-	return start
+	return t.LineStart(max(t.LineOf(start)-n, 0))
 }
 
 // column returns the display column of pos on the line at start.

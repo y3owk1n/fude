@@ -323,7 +323,7 @@ func (e *Editor) state(arg string) (*buffer, int) {
 	ids := states(b)
 	if arg == "" && e.win.buf.lines != nil {
 		t := e.Text()
-		line := strings.Count(t.Slice(0, e.Cursor()), "\n")
+		line := t.LineOf(e.Cursor())
 		return b, slices.Index(ids, e.win.buf.lines[line])
 	}
 	i, err := strconv.Atoi(arg)

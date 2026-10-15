@@ -54,6 +54,38 @@ func TestB100ApplyAndSnapshot(t *testing.T) {
 	}
 }
 
+// B106. Checks the line index against a scan of the text after random edits.
+func TestB106LineIndex(t *testing.T) {
+	want := strings.Repeat("the quick brown fox\n\n", 300)
+	b := kernel.New(want, nil)
+	r := rand.New(rand.NewPCG(3, 4))
+	for range 500 {
+		start := r.IntN(len(want) + 1)
+		end := start + r.IntN(min(len(want)-start, 300)+1)
+		ins := strings.Repeat("ab\n", r.IntN(100))
+		apply(t, b, kernel.Edit{Start: start, End: end, Text: ins})
+		want = want[:start] + ins + want[end:]
+	}
+	s := b.Snapshot()
+	if s.Lines() != strings.Count(want, "\n")+1 {
+		t.Fatalf("%d lines, want %d", s.Lines(), strings.Count(want, "\n")+1)
+	}
+	line := 0
+	for pos := 0; pos <= len(want); pos++ {
+		if s.LineOf(pos) != line {
+			t.Fatalf("LineOf(%d) is %d, want %d", pos, s.LineOf(pos), line)
+		}
+		if pos == 0 || want[pos-1] == '\n' {
+			if s.LineStart(line) != pos {
+				t.Fatalf("LineStart(%d) is %d, want %d", line, s.LineStart(line), pos)
+			}
+		}
+		if pos < len(want) && want[pos] == '\n' {
+			line++
+		}
+	}
+}
+
 // B101
 func TestB101StaleBaseRejected(t *testing.T) {
 	b := kernel.New("abc", nil)
