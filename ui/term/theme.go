@@ -128,6 +128,9 @@ func build(t theme) styles {
 		"boolean": fg(t.number), "conditional": fg(t.keyword), "repeat": fg(t.keyword), "label": fg(t.keyword),
 		"preproc": fg(t.keyword), "tag": fg(t.keyword), "method": fg(t.function), "constructor": fg(t.typ),
 		"attribute": fg(t.typ), "property": fg(t.typ), "field": fg(t.typ),
+		// The names CSS's grammar gives its at-rules.
+		"charset": fg(t.keyword), "import": fg(t.keyword), "keyframes": fg(t.keyword), "media": fg(t.keyword),
+		"namespace": fg(t.keyword), "supports": fg(t.keyword),
 		// The names markdown's grammar uses.
 		"text.title": fg(t.function).Bold(true), "text.literal": fg(t.typ), "text.uri": base.Underline(true), "text.reference": fg(t.function),
 		// Markdown in floats, such as hover.

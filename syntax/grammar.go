@@ -45,6 +45,8 @@ var registry = map[string]grammar{
 	"cpp":        {"https://github.com/tree-sitter/tree-sitter-cpp", "f41e1a044c8a84ea9fa8577fdd2eab92ec96de02", ".", []string{"c:queries/highlights.scm", "queries/highlights.scm"}, "// %s"},
 	"rust":       {"https://github.com/tree-sitter/tree-sitter-rust", "77a3747266f4d621d0757825e6b11edcbf991ca5", ".", []string{"queries/highlights.scm"}, "// %s"},
 	"bash":       {"https://github.com/tree-sitter/tree-sitter-bash", "a06c2e4415e9bc0346c6b86d401879ffb44058f7", ".", []string{"queries/highlights.scm"}, "# %s"},
+	"css":        {"https://github.com/tree-sitter/tree-sitter-css", "dda5cfc5722c429eaba1c910ca32c2c0c5bb1a3f", ".", []string{"queries/highlights.scm"}, "/* %s */"},
+	"html":       {"https://github.com/tree-sitter/tree-sitter-html", "5a5ca8551a179998360b4a4ca2c0f366a35acc03", ".", []string{"queries/highlights.scm"}, "<!-- %s -->"},
 	"javascript": {"https://github.com/tree-sitter/tree-sitter-javascript", "44c892e0be055ac465d5eeddae6d3e194424e7de", ".", []string{"queries/highlights.scm", "queries/highlights-jsx.scm", "queries/highlights-params.scm"}, "// %s"},
 	"json":       {"https://github.com/tree-sitter/tree-sitter-json", "ee35a6ebefcef0c5c416c0d1ccec7370cfca5a24", ".", []string{"queries/highlights.scm"}, ""},
 	"lua":        {"https://github.com/tree-sitter-grammars/tree-sitter-lua", "10fe0054734eec83049514ea2e718b2a56acd0c9", ".", []string{"queries/highlights.scm"}, "-- %s"},
