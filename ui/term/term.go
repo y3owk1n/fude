@@ -190,11 +190,6 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 			if rest == "" || x >= v.W {
 				break
 			}
-			if rest[0] == '\t' {
-				x += vim.Tabstop - x%vim.Tabstop
-				rest = rest[1:]
-				continue
-			}
 			style := tcell.StyleDefault
 			if i := at - v.Top; i < len(paint) {
 				style = paint[i]
@@ -208,6 +203,13 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 				// Reversing syntax colours would stripe the selection, so it
 				// drops them.
 				style = tcell.StyleDefault.Reverse(true)
+			}
+			if rest[0] == '\t' {
+				w := vim.Tabstop - x%vim.Tabstop
+				c.s.FillArea(v.X+x, y, min(w, v.W-x), 1, ' ', style)
+				x += w
+				rest = rest[1:]
+				continue
 			}
 			var width int
 			rest, width = c.s.Put(v.X+x, y, rest, style)
