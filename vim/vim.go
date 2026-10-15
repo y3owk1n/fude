@@ -123,12 +123,14 @@ type Machine struct {
 		pattern string
 		forward bool
 	}
-	hl      bool // matches of the last search are highlighted
-	re      *pattern
-	reSrc   string
-	lastRep string // the previous replacement, for ~
-	lastSub struct{ pattern, rep, flags string }
-	msg     string
+	hl                    bool // matches of the last search are highlighted
+	re                    *pattern
+	reSrc                 string
+	reIgnore              bool // re ignores case
+	ignoreCase, smartCase bool
+	lastRep               string // the previous replacement, for ~
+	lastSub               struct{ pattern, rep, flags string }
+	msg                   string
 
 	// Insert mode.
 	insStart   int  // where typing began, the limit of <C-w> and <C-u>

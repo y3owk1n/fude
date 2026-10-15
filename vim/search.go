@@ -10,14 +10,35 @@ import (
 
 // compile returns src as a pattern, reusing the last one compiled.
 func (m *Machine) compile(src string) (*pattern, error) {
-	if m.re == nil || m.reSrc != src {
-		p, err := compile(src, m.lastRep)
+	// With smartcase, an uppercase letter in the pattern asks for case.
+	ignore := m.ignoreCase && !(m.smartCase && hasUpper(src))
+	if m.re == nil || m.reSrc != src || m.reIgnore != ignore {
+		p, err := compile(src, m.lastRep, ignore)
 		if err != nil {
 			return nil, err
 		}
-		m.re, m.reSrc = p, src
+		m.re, m.reSrc, m.reIgnore = p, src, ignore
 	}
 	return m.re, nil
+}
+
+// IgnoreCase sets whether searches and substitutes ignore case, and
+// whether a pattern with an uppercase letter matches case anyway, as
+// Neovim's ignorecase and smartcase do (B120).
+func (m *Machine) IgnoreCase(ignore, smart bool) { m.ignoreCase, m.smartCase = ignore, smart }
+
+// hasUpper reports whether src has an uppercase letter that is not part
+// of a backslash item, such as \S.
+func hasUpper(src string) bool {
+	for i := 0; i < len(src); i++ {
+		switch c := src[i]; {
+		case c == '\\':
+			i++
+		case c >= 'A' && c <= 'Z':
+			return true
+		}
+	}
+	return false
 }
 
 // seek returns the n-th match of src after the cursor, or before it when

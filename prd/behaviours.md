@@ -108,6 +108,10 @@ Where fude departs, the line says so and cites the departure in
   Matches highlight in every window while typing and after the search. `<C-l>` clears the
   highlight. Patterns use Vim syntax on a linear-time engine, and a pattern
   that needs backtracking is refused with a message naming the atom (N1).
+- B120 [2] With `ignore_case`, searches, `:s` and their highlights ignore
+  case, and with `smart_case` too a pattern with an uppercase letter
+  matches case. `\c` and `\C` in a pattern override both, as with
+  Neovim's `ignorecase` and `smartcase`.
 - B22 [2] `:s/pat/rep/flags` substitutes with the pattern syntax of B21 and
   Vim's replacement forms (N1). `&` repeats the last substitute with its
   flags. The whole substitute is one transaction.

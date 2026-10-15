@@ -355,6 +355,7 @@ func (e *Session) feed(k vim.Key) {
 		e.reveal()
 		return
 	}
+	e.vim.IgnoreCase(e.win.opts.IgnoreCase, e.win.opts.SmartCase)
 	e.settle(e.vim.Feed(k))
 	e.autocomplete(k)
 }

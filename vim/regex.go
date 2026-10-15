@@ -36,8 +36,10 @@ type token struct {
 }
 
 // compile translates a Vim pattern to Go's regexp. ~ stands for last, the
-// previous replacement. Atoms that need backtracking are refused.
-func compile(src, last string) (*pattern, error) {
+// previous replacement. It ignores case when ignore is set, unless \C asks
+// for case, and always when \c asks for it. Atoms that need backtracking
+// are refused.
+func compile(src, last string, ignore bool) (*pattern, error) {
 	var toks []token
 	for i := 0; i < len(src); i++ {
 		if src[i] == '\\' && i+1 < len(src) {
@@ -53,7 +55,7 @@ func compile(src, last string) (*pattern, error) {
 		return nil, err
 	}
 	flags := "(?m)"
-	if c.ignoreCase {
+	if c.caseFlag == 'c' || ignore && c.caseFlag != 'C' {
 		flags = "(?mi)"
 	}
 	re, err := regexp.Compile(flags + body)
@@ -72,13 +74,13 @@ func compile(src, last string) (*pattern, error) {
 }
 
 type compiler struct {
-	toks       []token
-	i          int
-	mode       byte // v, m, M or V: very magic, magic, nomagic, very nomagic
-	last       string
-	ignoreCase bool
-	groups     int // Vim capturing groups opened so far
-	spans      int // \zs and \ze groups so far
+	toks     []token
+	i        int
+	mode     byte // v, m, M or V: very magic, magic, nomagic, very nomagic
+	last     string
+	caseFlag byte // c or C from \c or \C, \c winning, or 0
+	groups   int  // Vim capturing groups opened so far
+	spans    int  // \zs and \ze groups so far
 }
 
 // special reports whether t is an operator in the current magic mode.
@@ -165,10 +167,10 @@ func (c *compiler) atom(t token, first bool) (string, error) {
 	case strings.IndexByte("vmMV", x) >= 0:
 		c.mode = x
 		return "", nil
-	case x == 'c':
-		c.ignoreCase = true
-		return "", nil
-	case x == 'C':
+	case x == 'c', x == 'C':
+		if c.caseFlag != 'c' {
+			c.caseFlag = x
+		}
 		return "", nil
 	case x == '_':
 		return c.newlineClass()

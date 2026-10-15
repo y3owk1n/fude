@@ -463,7 +463,10 @@ trailing space as `-` and a no-break space as `+`, in grey, as Neovim's
 default `listchars` does (B118). A buffer with diagnostics shows a sign
 column, two columns left of the line numbers, with the letter of each
 line's worst diagnostic in its colour, as Neovim's `signcolumn=auto` shows
-`vim.diagnostic`'s signs (B119).
+`vim.diagnostic`'s signs (B119). `ignore_case` and `smart_case` reach the
+machine through `Machine.IgnoreCase`, so `/`, `:s` and their highlights
+ignore case, and a pattern with an uppercase letter matches case with
+`smart_case` (B120).
 `number` puts line numbers in a gutter at least 4 columns wide, and
 `relative_number` numbers lines from the cursor's. With both, the cursor's
 line shows its own number on the left, as in Neovim (B39).
@@ -504,6 +507,8 @@ wrap = true          # long lines go on the rows below, else the view scrolls si
 scroll_off = 0       # lines kept in view above and below the cursor's (B116)
 cursor_line = false  # shade the cursor's line (B117)
 list = false         # show tabs, trailing spaces and no-break spaces (B118)
+ignore_case = false  # searches ignore case (B120)
+smart_case = false   # with ignore_case, an uppercase letter matches case (B120)
 
 [keymap.normal]      # and [keymap.visual], [keymap.insert]. Keys map to keys.
 "<Space>w" = ":w<CR>"

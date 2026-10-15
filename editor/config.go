@@ -50,6 +50,8 @@ type options struct {
 	ScrollOff      int  `toml:"scroll_off"`      // lines kept in view above and below the cursor's
 	CursorLine     bool `toml:"cursor_line"`     // shade the cursor's line
 	List           bool `toml:"list"`            // show tabs, trailing spaces and no-break spaces
+	IgnoreCase     bool `toml:"ignore_case"`     // searches ignore case
+	SmartCase      bool `toml:"smart_case"`      // a pattern with an uppercase letter matches case
 }
 
 // loadConfig reads config.toml. A missing file is no error. After an error

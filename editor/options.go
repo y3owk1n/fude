@@ -11,7 +11,10 @@ import (
 // switches are the options :set turns on and off, by their names in
 // config.toml.
 func (o *options) switches() map[string]*bool {
-	return map[string]*bool{"number": &o.Number, "relative_number": &o.RelativeNumber, "wrap": &o.Wrap, "cursor_line": &o.CursorLine, "list": &o.List}
+	return map[string]*bool{
+		"number": &o.Number, "relative_number": &o.RelativeNumber, "wrap": &o.Wrap, "cursor_line": &o.CursorLine, "list": &o.List,
+		"ignore_case": &o.IgnoreCase, "smart_case": &o.SmartCase,
+	}
 }
 
 // numbers are the options :set gives a number.

@@ -323,6 +323,34 @@ func TestB27ScreenRows(t *testing.T) {
 	}
 }
 
+// B120
+func TestB120IgnoreCase(t *testing.T) {
+	for _, c := range []struct {
+		ignore, smart bool
+		keys          string
+		want          int
+	}{
+		{false, false, "/abc<CR>", 10},
+		{true, false, "/abc<CR>", 2},
+		{true, true, "/abc<CR>", 2},
+		{true, true, "/Abc<CR>", 6},
+		{true, true, `/\Cabc<CR>`, 10},
+		{false, false, `/abc\c<CR>`, 2},
+	} {
+		h := &host{text: "x ABC Abc abc"}
+		m := vim.New(h)
+		m.IgnoreCase(c.ignore, c.smart)
+		for _, k := range vim.Keys(c.keys) {
+			if err := m.Feed(k); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if h.cursor != c.want {
+			t.Errorf("%s with ignore %v and smart %v went to %d, want %d", c.keys, c.ignore, c.smart, h.cursor, c.want)
+		}
+	}
+}
+
 // B29
 func TestB29InsertKeys(t *testing.T) {
 	cases(t)

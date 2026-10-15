@@ -666,6 +666,15 @@ func TestB117CursorLine(t *testing.T) {
 	}
 }
 
+// B120, through :set
+func TestB120SetIgnoreCase(t *testing.T) {
+	e := open(t, "")
+	feed(e, "ix ABC abc<Esc>0:set ignore_case<CR>/abc<CR>")
+	if e.Cursor() != 2 {
+		t.Fatalf("/abc with ignore_case went to %d, want 2", e.Cursor())
+	}
+}
+
 // B118
 func TestB118List(t *testing.T) {
 	e := open(t, "")
