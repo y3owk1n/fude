@@ -135,8 +135,9 @@ Where fude departs, the line says so and cites the departure in
   `<CR>` opens the selected file, and leaving insert mode closes the
   finder (N11).
 - B130 [2] On a screen of 60 columns or more, the finder shows the start
-  of the selected file in a box right of the list, as fff.nvim does. A
-  file with a zero byte in its first 16KB shows "binary file".
+  of the selected file in a box right of the list, as fff.nvim does, with
+  its filetype's highlights. A file with a zero byte in its first 16KB
+  shows "binary file".
 - B131 [2] In a `:` command line, `<Tab>` and `<C-n>` put the next
   completion of the word being typed in the line, and `<S-Tab>` and
   `<C-p>` the one before. After the last comes the word as typed. `<C-y>`

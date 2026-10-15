@@ -28,15 +28,20 @@ type finder struct {
 	query   string   // the query matches are for
 	matches []string // paths, or grep's path:line:column:text
 	sel     int
-	stale   bool   // paths came after matches were found
-	busy    bool   // a match runs
-	shown   string // the match previewed
-	preview string // the lines around it
-	at      int    // the row of the preview its line is on
+	stale   bool          // paths came after matches were found
+	busy    bool          // a match runs
+	shown   string        // the match previewed
+	preview string        // the lines around it
+	spans   []syntax.Span // their highlights
+	at      int           // the row of the preview its line is on
+	reading bool          // a preview is read off the loop
+	queries string        // where highlight queries are, for the preview
+	queue   chan<- func() // the editor loop's, for the preview
 }
 
 // openFinder opens f in a box with query typed.
 func (e *Session) openFinder(f *finder, query string) {
+	f.queries, f.queue = e.queries, e.queue
 	b := &buffer{text: kernel.New(query, nil), before: map[kernel.NodeID]int{}, marks: map[rune]kernel.MarkID{}, title: "[find]"}
 	e.finder, e.under, e.win = f, e.win, newWindow(b, 0, 0)
 	e.later = append(e.later, "A")
@@ -191,12 +196,11 @@ func (f *finder) float(query string, cursor, width, height int) Float {
 	}
 	doc, docSpans := "", []syntax.Span(nil)
 	if docW > 0 && f.sel < len(f.matches) {
-		if m := f.matches[f.sel]; m != f.shown {
-			path, line, _, _ := grepSpot(m)
-			f.shown = m
-			f.preview, f.at = preview(path, max(line-1, 0), h-2, docW-2)
+		if m := f.matches[f.sel]; m != f.shown && !f.reading {
+			f.reading = true
+			go f.read(m, h-2, docW-2)
 		}
-		doc = f.preview
+		doc, docSpans = f.preview, f.spans
 		if f.grep && f.at >= 0 {
 			// The matching line is marked.
 			start := 0
@@ -207,10 +211,27 @@ func (f *finder) float(query string, cursor, width, height int) Float {
 			if end < 0 {
 				end = len(doc) - start
 			}
-			docSpans = []syntax.Span{{Start: start, End: start + end, Name: "menu.selected"}}
+			docSpans = append(slices.Clip(docSpans), syntax.Span{Start: start, End: start + end, Name: "menu.selected"})
 		}
 	}
 	return Float{Text: s.String(), Spans: spans, Cursor: cursor, Doc: doc, DocSpans: docSpans, X: (width - total) / 2, Y: (height - h) / 2, W: w, H: h, DocW: docW}
+}
+
+// read reads and highlights the preview of match m off the loop, as the
+// highlight takes over a millisecond (B130).
+func (f *finder) read(m string, rows, cols int) {
+	path, line, _, _ := grepSpot(m)
+	text, at := preview(path, max(line-1, 0), rows, cols)
+	var spans []syntax.Span
+	if at >= 0 {
+		var err error
+		if spans, err = syntax.Highlight(strings.TrimPrefix(filepath.Ext(path), "."), f.queries, text); err != nil {
+			logLine(err.Error())
+		}
+	}
+	f.queue <- func() {
+		f.shown, f.preview, f.spans, f.at, f.reading = m, text, spans, at, false
+	}
 }
 
 // preview returns rows lines of the file at path from a third of them

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/y3owk1n/fude/editor"
+	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
 )
 
@@ -820,15 +821,21 @@ func TestB130FilesPreview(t *testing.T) {
 	dir := t.TempDir()
 	change(t, filepath.Join(dir, "a"), "one\ntwo\n")
 	change(t, filepath.Join(dir, "b"), "three\n")
+	change(t, filepath.Join(dir, "c.go"), "package c\n")
 	t.Chdir(dir)
 	e := open(t, "a")
 	e.SetSize(100, 24)
 	feed(e, ":files<CR>")
 	doc := func() string { f, _ := e.Float(); return f.Doc }
 	settle(t, e, func() bool { return doc() == "one\ntwo" })
-	if feed(e, "<C-n>"); doc() != "three" {
-		t.Fatalf("after <C-n> the preview is %q", doc())
-	}
+	feed(e, "<C-n>")
+	settle(t, e, func() bool { return doc() == "three" })
+	// A file's preview has its filetype's highlights.
+	feed(e, "<C-n>")
+	settle(t, e, func() bool {
+		f, _ := e.Float()
+		return f.Doc == "package c" && slices.ContainsFunc(f.DocSpans, func(s syntax.Span) bool { return s.Name == "keyword" })
+	})
 	// A narrow screen has no room for it.
 	if e.SetSize(50, 24); doc() != "" {
 		t.Fatalf("on 50 columns the preview is %q", doc())

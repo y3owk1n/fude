@@ -652,9 +652,11 @@ last matches until the new ones come (B129).
 
 On a screen of 60 columns or more, the list takes two fifths of the width
 and a preview box the rest, up to 160 columns in all. `Float.DocW` is the
-preview box's width. The preview is the first 16KB of the selected file,
-cut to the box, with tabs as 4 spaces and no highlights. fude reads it on
-the loop when the selection changes (B130).
+preview box's width. The preview is the start of the selected file, cut to
+the box, with tabs as 4 spaces. `syntax.Highlight` colours it by the
+file's extension, which takes over a millisecond, so fude reads and
+highlights it off the loop, one at a time, when the selection changes. The
+old preview shows until the new one comes (B130).
 
 `:grep` opens the same finder in grep mode. Each change to the query runs
 `rg --fixed-strings --smart-case` off the loop, or `git grep -F` with `-i`
