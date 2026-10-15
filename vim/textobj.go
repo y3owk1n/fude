@@ -83,7 +83,7 @@ func word(t Text, c, n int, big, around bool) (int, int, bool) {
 // sentence selects n sentences or gaps between them in the paragraph. With
 // around set each sentence takes the blanks after it, or before it when it
 // is the last. A selection that ends a line and starts at or before its first
-// non-blank covers whole lines, as Neovim's sentence motion does.
+// non-blank covers whole lines.
 func sentence(t Text, c, n int, around bool) (region, bool) {
 	segs := segments(t, c)
 	if len(segs) == 0 {

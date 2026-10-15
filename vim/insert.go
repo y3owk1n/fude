@@ -39,7 +39,7 @@ func (m *Machine) insert(k Key) error {
 		}
 		return m.erase(m.backspace(t, c))
 	case "<C-w>", "<C-u>":
-		// Neovim maps both to start a new undo step first.
+		// Both start a new undo step first.
 		m.h.EndGroup()
 		m.h.BeginGroup()
 		p := wordBefore(t, c, m.insStart)
@@ -60,7 +60,7 @@ func (m *Machine) insert(k Key) error {
 		if k == "<Right>" {
 			n = next(t, c, LineEnd(t, c))
 		}
-		// A move splits the undo step, as in Neovim.
+		// A move splits the undo step.
 		if n != c {
 			m.h.EndGroup()
 			m.h.BeginGroup()

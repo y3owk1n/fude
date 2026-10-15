@@ -158,7 +158,7 @@ func (m *Machine) span(t Text, c int, op, cmd string, count int) (region, bool) 
 	return r, true
 }
 
-// store saves r in reg, or in the registers Neovim uses when reg is 0: "0 for
+// store saves r in reg, or in the default registers when reg is 0: "0 for
 // a yank, "1 to "9 for a deleted line, "- for a smaller delete.
 func (m *Machine) store(reg rune, op string, r register) {
 	if m.regs == nil {
@@ -212,7 +212,7 @@ func (m *Machine) put(reg rune, after bool, n int) error {
 	}
 	r, ok := m.regs[unicode.ToLower(reg)]
 	if !ok {
-		return fmt.Errorf("E353: Nothing in register %c", reg)
+		return fmt.Errorf("nothing in register %c", reg)
 	}
 	label := "P"
 	if after {

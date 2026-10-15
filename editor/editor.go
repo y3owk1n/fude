@@ -49,8 +49,13 @@ func (e *Editor) Feed(k vim.Key) {
 	e.message = ""
 	if err := e.vim.Feed(k); err != nil {
 		e.message = err.Error()
+	} else if msg := e.vim.Message(); msg != "" {
+		e.message = msg
 	}
 }
+
+// Matches returns the search matches between from and to, for highlighting.
+func (e *Editor) Matches(from, to int) [][2]int { return e.vim.Matches(from, to) }
 
 // Paste inserts text as typed, with no key mapping applied (B8).
 func (e *Editor) Paste(text string) {
@@ -94,14 +99,14 @@ func (e *Editor) ex(line string) {
 		e.write()
 	case "q":
 		if e.buf.Head() != e.saved {
-			e.message = fmt.Sprintf("E37: No write since last change to \"%s\" (add ! to override)", e.file.path)
+			e.message = fmt.Sprintf("no write since the last change to \"%s\" (add ! to override)", e.file.path)
 			return
 		}
 		e.done = true
 	case "q!":
 		e.done = true
 	default:
-		e.message = "E492: Not an editor command: " + line
+		e.message = "not a command: " + line
 	}
 }
 
@@ -118,13 +123,13 @@ func (e *Editor) registers(names string) {
 
 func (e *Editor) write() {
 	if e.file.readonly {
-		e.message = fmt.Sprintf("E45: \"%s\" is read-only", e.file.path)
+		e.message = fmt.Sprintf("\"%s\" is read-only", e.file.path)
 		return
 	}
 	s := e.buf.Snapshot()
 	n, err := e.file.write(s.Slice(0, s.Len()))
 	if err != nil {
-		e.message = "E212: " + err.Error()
+		e.message = err.Error()
 		return
 	}
 	tag := ""
@@ -185,7 +190,7 @@ func (h host) Unhandled(k string) { h.e.ex(strings.TrimPrefix(k, ":")) }
 
 func (h host) Apply(edits []vim.Edit, label string) error {
 	if h.e.file.readonly {
-		return errors.New("E21: cannot make changes, the file is read-only")
+		return errors.New("cannot make changes, the file is read-only")
 	}
 	t := kernel.Transaction{Base: h.e.buf.Snapshot().Version(), Origin: "user", Label: label}
 	for _, ed := range edits {

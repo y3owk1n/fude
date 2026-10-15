@@ -32,6 +32,9 @@ This repo is production grade, and the way to get there is less code.
   handled once. Never swallow one.
 - Comments are short. One line says what a name is or why code is odd.
   Never restate what the code says.
+- fude is not a Neovim clone. Code, comments and messages never mention
+  Neovim or use its error codes. Messages are plain lowercase sentences.
+  Only `prd/` names Neovim, as the behaviour reference.
 
 ## Before every commit
 

@@ -7,8 +7,7 @@ import (
 	"unicode"
 )
 
-// shiftwidth is Neovim's default indent step, made of tabs since expandtab
-// is off.
+// shiftwidth is the indent step. Indents are made of tabs.
 const shiftwidth = 8
 
 // aliases are the commands that are an operator and a target.

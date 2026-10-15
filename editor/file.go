@@ -20,7 +20,7 @@ type file struct {
 }
 
 // read returns the file at path and its text. The text has \n line endings
-// and no final newline, as Neovim shows it.
+// and no final newline.
 func read(path string) (file, string, error) {
 	f := file{path: path, eol: true}
 	data, err := os.ReadFile(path)
