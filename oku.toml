@@ -1,0 +1,28 @@
+# The development toolchain. `oku sync` installs it, `oku allow` lets the shell
+# hook put it on PATH inside this repo. CI installs the same tools from
+# oku.lock with the oku action.
+[lock]
+platforms = ["darwin-arm64", "darwin-amd64", "linux-amd64-glibc", "linux-arm64-glibc"]
+
+# go: packages build with this go, on the same go line as the go package below.
+[runtimes]
+go = { ref = "./.oku/go.toml", version = "1.26" }
+
+# A version names the line to follow, and oku.lock pins the exact build. The
+# linter decides what CI accepts, so a new major version of it is a change to
+# review. The other tools follow the newest release.
+[packages]
+go = { ref = "./.oku/go.toml", version = "1.26" }
+golangci-lint = { ref = "github:golangci/golangci-lint", version = "^2" }
+just = { ref = "github:casey/just", version = "^1" }
+gofumpt = "go:mvdan.cc/gofumpt"
+golines = "github:golangci/golines"
+gopls = "go:golang.org/x/tools/gopls"
+goimports = "go:golang.org/x/tools/cmd/goimports"
+golangci-lint-langserver = "github:nametake/golangci-lint-langserver"
+just-lsp = "github:terror/just-lsp"
+
+# tree-sitter grammars build through cgo, so builds need a C compiler.
+[host]
+xcode-clt = { path = "/Library/Developer/CommandLineTools/usr/bin/clang", install = "xcode-select --install", when = { os = "darwin" } }
+cc = { command = "cc", install = "install your distribution's C compiler, such as build-essential", when = { os = "linux" } }
