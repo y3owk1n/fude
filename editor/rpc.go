@@ -198,6 +198,12 @@ func (ed *Editor) SocketPath() string {
 	if ed.cfg.Socket != "" {
 		return ed.cfg.Socket
 	}
+	return processSocket()
+}
+
+// processSocket is a socket named by this process, in XDG_RUNTIME_DIR or the
+// temporary directory.
+func processSocket() string {
 	dir := os.Getenv("XDG_RUNTIME_DIR")
 	if dir == "" {
 		dir = os.TempDir()
@@ -229,12 +235,13 @@ type proposal struct {
 var modes = []string{vim.Normal: "normal", vim.Insert: "insert", vim.Cmdline: "cmdline", vim.Visual: "visual", vim.Replace: "replace"}
 
 // Serve listens at path for clients, each a session of its own, until the
-// returned func is called. It tells the user when it cannot listen.
+// returned func is called. When another fude answers at path, it listens
+// at a socket named by its process instead, as fude does without the
+// socket setting (B97). It tells the user when it cannot listen.
 func (e *Session) Serve(path string) func() {
 	if c, err := net.Dial("unix", path); err == nil {
 		c.Close()
-		e.message = "clients cannot attach: another fude listens at " + path
-		return func() {}
+		path = processSocket()
 	}
 	// No one answers this socket, so a fude that crashed left it.
 	os.Remove(path)

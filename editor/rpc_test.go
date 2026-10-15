@@ -7,7 +7,6 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -130,10 +129,10 @@ func TestB97SocketSetting(t *testing.T) {
 		t.Fatalf("no socket at the path the setting names: %v", err)
 	}
 	c.Close()
-	// A second fude leaves the first one's socket alone.
+	// A second fude leaves the first one's socket alone, and says nothing.
 	other := start(t)
-	other.Serve(other.SocketPath())
-	if c, err := net.Dial("unix", path); err != nil || !strings.Contains(other.Message(), "another fude") {
+	defer other.Serve(other.SocketPath())()
+	if c, err := net.Dial("unix", path); err != nil || other.Message() != "" {
 		t.Fatalf("a second fude said %q, and dialing the first gave %v", other.Message(), err)
 	} else {
 		c.Close()

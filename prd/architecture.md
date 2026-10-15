@@ -1001,8 +1001,10 @@ Clients attach over a unix socket: the `socket` setting, or else
 listens on no network address. A client on another machine forwards the
 socket over SSH, as `ssh -L /tmp/fude.sock:/run/user/1000/fude.sock host`,
 and dials the local end, so SSH encrypts and authenticates it (B97). fude
-leaves alone a socket that another fude answers, and replaces one that no
-one answers, which a crashed fude left. Each call is a line of JSON,
+leaves alone a socket that another fude answers and listens at the socket
+named by its process instead, as without the setting, so a second fude in
+another pane says nothing. It replaces a socket that no one answers, which
+a crashed fude left. Each call is a line of JSON,
 `{"id", "method", "params"}`, and each reply is a line with the `id` and a
 `result` or an `error`. `keys` types keys as one complete input, so keys
 held for a longer mapping run at once. `request` runs a request, and
