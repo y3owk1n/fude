@@ -201,7 +201,9 @@ do, a plugin can do through the ABI, gated by capability.
 
 A call on the input path that runs over budget cancels the command, stops
 the plugin, and tells the user (B51). The keystroke never waits longer than
-the budget.
+the budget. A plugin runs one call at a time, and a key whose plugin is
+busy with an event handler says the plugin is busy instead of waiting
+(B57).
 
 A user who wants a different grammar builds a distribution without
 `vim/`. A plugin cannot replace the grammar, because the input path
@@ -392,14 +394,19 @@ text hash, and a clean close adds a `close` record. On open:
 
 The kernel reports only changes, through its listener. `editor/` turns
 that into `buffer.changed` and emits the rest by name: `buffer.opened`,
-`buffer.changed`, `buffer.saved`, `buffer.closed`, `view.moved`,
-`mode.changed`, `syntax.updated`, `lsp.diagnostics`, plus any a plugin
-declares under its own prefix.
+`buffer.saved`, `buffer.closed`, `view.moved` when a key moves the cursor
+or the view, `mode.changed`, `syntax.updated` when a parse lands,
+`lsp.diagnostics`, and a plugin's own events, named `plugin.event`, which
+it emits with `emit`.
 
-Each subscriber has its own queue, and emitting never blocks. An event
-carries the snapshot it describes. A subscriber that falls behind gets one
-`buffer.changed` covering every edit since the last one it handled, so it
-never processes stale states one by one.
+Each plugin that subscribes has its own goroutine and its own list of
+events to hear, and emitting only adds to that list, so it never blocks.
+An event of a name and buffer already on the list replaces the one there.
+The goroutine takes the next event on the editor loop, with the buffer's
+text at that moment, so a plugin that falls behind hears the newest state
+once, never the stale ones in between (B57). What the handler asks for
+applies only if the text has not changed since, and when it has, the
+event about the newer text follows.
 
 ## Decorations
 
@@ -473,9 +480,11 @@ indent width through `Host.IndentWidth`.
 ## Plugin ABI
 
 Core wasm on wazero (D8). A plugin exports `memory`, `alloc(n) -> ptr` and
-`init()`, and the operators, targets and commands it registers. Events
-(`on_event`) come with the first behaviour that needs them. It
-imports host functions from the module `fude`, gated by capability:
+`init()`, the operators, targets and commands it registers, and
+`on_event(ptr, len)` when it subscribes to events. `on_event` gets the
+event's name, and for `mode.changed` a space and the new mode, and reads
+the text of the buffer the event is about. It runs off the input path
+under a budget of 100ms. A plugin imports host functions from the module `fude`, gated by capability:
 
 | Capability | Grants |
 |---|---|
@@ -499,6 +508,8 @@ take the result.
 | `text(start, end) -> i64` | `buffer.read` | the text in `[start, end)` |
 | `edit(start, end, ptr, len) -> i32` | `buffer.write` | asks to replace `[start, end)` |
 | `register(kind, name, nlen, export, elen) -> i32` | none, in `init` only | adds a command, operator, object or key |
+| `subscribe(ptr, len) -> i32` | none, in `init` only | hears the event named through `on_event` |
+| `emit(ptr, len) -> i32` | none | emits the event `plugin.name` about the buffer the call read |
 | `decorate(start, end, ptr, len) -> i32` | `ui` | puts a style, such as `keyword`, on `[start, end)`, and returns its id |
 | `undecorate(id) -> i32` | `ui` | removes a decoration |
 

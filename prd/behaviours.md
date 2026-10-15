@@ -181,6 +181,10 @@ Where fude departs, the line says so and cites the departure in
 - B55 [4] A plugin's decorations render and move with edits, and are
   removed when the plugin unloads.
 - B56 [4] Loading plugins never delays the first frame.
+- B57 [4] A plugin hears the events it subscribes to off the input path,
+  with the text they are about. One that falls behind hears the newest
+  state once, not every step, and a key that needs a plugin busy with an
+  event says so instead of waiting.
 
 ## LSP
 

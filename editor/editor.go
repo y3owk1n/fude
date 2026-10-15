@@ -23,19 +23,20 @@ import (
 // Editor is the open files and what works on them: plugins, language
 // servers and decorations. Every client's session shares it.
 type Editor struct {
-	bufs     []*buffer
-	next     int // the id the next buffer gets
-	cfg      config
-	queue    chan func()
-	queries  string // the directory of query files that replace shipped ones
-	plugins  []*plugin.Plugin
-	commands map[string]func(*Session) // ex commands plugins registered
-	decos    map[any][]decoration      // by owner: a plugin, or a buffer for its diagnostics
-	servers  map[string]*server        // by command and root
-	started  bool                      // Load ran, so new buffers attach to servers at once
-	sessions []*Session                // the first is the one that opened the editor
-	setup    []func(*Session)          // what every session's machine gets, such as keymaps
-	proposed int                       // the id of the newest proposal
+	bufs      []*buffer
+	next      int // the id the next buffer gets
+	cfg       config
+	queue     chan func()
+	queries   string // the directory of query files that replace shipped ones
+	plugins   []*plugin.Plugin
+	commands  map[string]func(*Session) // ex commands plugins registered
+	decos     map[any][]decoration      // by owner: a plugin, or a buffer for its diagnostics
+	servers   map[string]*server        // by command and root
+	started   bool                      // Load ran, so new buffers attach to servers at once
+	sessions  []*Session                // the first is the one that opened the editor
+	setup     []func(*Session)          // what every session's machine gets, such as keymaps
+	proposed  int                       // the id of the newest proposal
+	listeners map[*plugin.Plugin]*listener
 
 	now func() time.Time // the clock edits are stamped with
 }
@@ -65,6 +66,8 @@ type Session struct {
 	changed    chan change // told when the shown text changes, for a client over the socket
 	clip       string      // the text last copied, when no clipboard command runs
 	toTerminal bool        // the client has yet to put clip on its terminal's clipboard
+	mode       vim.Mode    // the mode as plugins last heard it
+	seen       view        // the current window as plugins last heard it
 	depth      int         // the undo groups the machine has open
 	pending    int         // the cursor when the group being made began
 
@@ -86,7 +89,7 @@ func open(cfg config, paths []string) (*Session, error) {
 	if len(paths) == 0 {
 		paths = []string{""}
 	}
-	ed := &Editor{next: 1, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(*Session){}, decos: map[any][]decoration{}, servers: map[string]*server{}}
+	ed := &Editor{next: 1, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(*Session){}, decos: map[any][]decoration{}, servers: map[string]*server{}, listeners: map[*plugin.Plugin]*listener{}}
 	// Without a config directory there are no overrides, and loadConfig
 	// reports why.
 	if dir, err := xdgDir("XDG_CONFIG_HOME", ".config"); err == nil {
@@ -227,13 +230,14 @@ func (e *Session) add(path string) (string, error) {
 	e.next++
 	e.bufs = append(e.bufs, b)
 	b.text.Listen(heard{e.Editor, b})
+	e.emit("buffer.opened", "", b)
 	if limit := e.cfg.LargeFile; b.text.Snapshot().Len() > int(limit)<<20 {
 		if msg == "" {
 			msg = fmt.Sprintf("\"%s\" is over %dMB, syntax and LSP are off", path, limit)
 		}
 		return msg, nil
 	}
-	h, ok, err := syntax.New(b.filetype(), e.queries, e.queue)
+	h, ok, err := syntax.New(b.filetype(), e.queries, e.queue, func() { e.emit("syntax.updated", "", b) })
 	if err != nil {
 		msg = err.Error()
 	} else if ok {
@@ -253,6 +257,7 @@ type heard struct {
 }
 
 func (l heard) Changed(before kernel.Snapshot, edits []kernel.Edit) {
+	l.ed.emit("buffer.changed", "", l.b)
 	for _, s := range l.ed.sessions {
 		if s.changed != nil && s.win.buf == l.b {
 			// This change replaces one the client has yet to hear of. The
@@ -376,6 +381,20 @@ func (e *Session) settle(err error) {
 		}
 	}
 	e.reveal()
+	if m := e.vim.Mode(); m != e.mode {
+		e.mode = m
+		e.emit("mode.changed", modes[m], e.win.buf)
+	}
+	if v := (view{e.win.buf, e.Cursor(), e.Top()}); v != e.seen {
+		e.seen = v
+		e.emit("view.moved", "", v.buf)
+	}
+}
+
+// view is where the current window is, for view.moved.
+type view struct {
+	buf         *buffer
+	cursor, top int
 }
 
 // SetSize sets the columns and rows the windows share, status lines
@@ -641,6 +660,10 @@ func (e *Session) quitAll(force bool) {
 	for _, b := range e.bufs {
 		b.close()
 	}
+	for p, l := range e.listeners {
+		close(l.done)
+		delete(e.listeners, p)
+	}
 	for _, p := range e.plugins {
 		p.Close(context.Background())
 	}
@@ -820,6 +843,7 @@ func (e *Session) close(b *buffer, force bool) {
 	}
 	e.detach(b)
 	b.close()
+	e.emit("buffer.closed", "", b)
 	for owner, ds := range e.decos {
 		e.decos[owner] = slices.DeleteFunc(ds, func(d decoration) bool { return d.buf == b })
 	}
@@ -893,6 +917,7 @@ func (e *Session) write(b *buffer, force bool, then func()) {
 	}
 	b.file.isNew = false
 	b.markSaved()
+	e.emit("buffer.saved", "", b)
 	e.message = fmt.Sprintf("\"%s\" %s%dB written", b.file.path, tag, n)
 	if then != nil {
 		then()

@@ -56,6 +56,50 @@ func fudeLog() string {
 	return string(b)
 }
 
+// B57
+func TestB57Events(t *testing.T) {
+	e := withPlugin(t, "listen", "buffer.read", "ui")
+	e.SetSize(80, 10)
+	e.Load()
+	select {
+	case f := <-e.Queue():
+		f()
+	case <-time.After(5 * time.Second):
+		t.Fatal("the plugin did not load in 5s")
+	}
+	// Five edits made before the loop runs again come as one event, about
+	// the text after all of them.
+	feed(e, "Ahello<Esc>")
+	settle(t, e, func() bool { d := decorations(e); return len(d) == 1 && d[0] == "abchello keyword" })
+	// Any later event would come within a moment.
+	for quiet := time.After(200 * time.Millisecond); ; {
+		select {
+		case f := <-e.Queue():
+			f()
+			continue
+		case <-quiet:
+		}
+		break
+	}
+	if n := strings.Count(fudeLog(), "listen: buffer.changed"); n != 1 {
+		t.Fatalf("the plugin heard %d events, want one for five edits", n)
+	}
+	// It hears an event it emits under its own name.
+	feed(e, "gZ")
+	settle(t, e, func() bool { return strings.Contains(fudeLog(), "listen: listen.ping") })
+	// While it handles an event, its key says it is busy instead of waiting.
+	// The loop hands it the event, and its log shows it began. It then loops
+	// until its budget runs out.
+	feed(e, "A!<Esc>")
+	(<-e.Queue())()
+	for strings.Count(fudeLog(), "listen: buffer.changed") < 2 {
+		time.Sleep(time.Millisecond)
+	}
+	if feed(e, "gZ"); !strings.Contains(e.Message(), "busy") {
+		t.Fatalf("gZ while the plugin handled an event said %q", e.Message())
+	}
+}
+
 // B50
 func TestB50Capabilities(t *testing.T) {
 	e := withPlugin(t, "write")

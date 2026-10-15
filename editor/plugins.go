@@ -67,10 +67,19 @@ func (e *Session) loaded(p *plugin.Plugin, err error, b *buffer, t kernel.Snapsh
 	for _, r := range p.Registered {
 		e.register(p, r)
 	}
+	if len(p.Subscribed) > 0 {
+		e.listen(p)
+	}
 	if b.text.Snapshot().Version() != t.Version() {
 		e.message = fmt.Sprintf("plugin %s: the text changed while it loaded", p.Name)
 		return
 	}
+	e.result(p, b, t, res)
+}
+
+// result applies the decorations and edits a call into p asked for on b,
+// which read t.
+func (e *Session) result(p *plugin.Plugin, b *buffer, t kernel.Snapshot, res plugin.Result) {
 	edits := e.decorate(p, b, res)
 	if len(edits) == 0 {
 		return
@@ -104,10 +113,13 @@ func (d decoration) remove() {
 	d.buf.text.DeleteMark(d.end)
 }
 
-// decorate adds and removes the decorations res asks for on b. It returns
-// res's edits, sorted, for the caller to apply next, so they move the new
-// decorations.
+// decorate adds and removes the decorations res asks for on b, and emits
+// its events about b. It returns res's edits, sorted, for the caller to
+// apply next, so they move the new decorations.
 func (e *Session) decorate(p *plugin.Plugin, b *buffer, res plugin.Result) []vim.Edit {
+	for _, name := range res.Emit {
+		e.emit(name, "", b)
+	}
 	for _, d := range res.Decorate {
 		e.decos[p] = append(e.decos[p], decoration{d.ID, b, b.text.SetMark(d.Start, kernel.Right), b.text.SetMark(d.End, kernel.Left), d.Style, "", nil})
 	}
@@ -127,6 +139,10 @@ func (e *Session) decorate(p *plugin.Plugin, b *buffer, res plugin.Result) []vim
 
 // unload closes p after err, removes its decorations and tells the user.
 func (e *Session) unload(p *plugin.Plugin, err error) {
+	if l := e.listeners[p]; l != nil {
+		close(l.done)
+		delete(e.listeners, p)
+	}
 	p.Close(context.Background())
 	e.plugins = slices.DeleteFunc(e.plugins, func(q *plugin.Plugin) bool { return q == p })
 	for _, d := range e.decos[p] {
@@ -193,8 +209,12 @@ func (e *Session) run(p *plugin.Plugin, export string, t vim.Text, args ...uint6
 		e.message = fmt.Sprintf("plugin %s is unloaded", p.Name)
 		return nil, nil, false
 	}
-	res, err := p.Call(context.Background(), export, t, plugin.InputBudget, args...)
-	if err != nil {
+	res, err := p.CallNow(context.Background(), export, t, plugin.InputBudget, args...)
+	switch {
+	case errors.Is(err, plugin.ErrBusy):
+		e.message = err.Error()
+		return nil, nil, false
+	case err != nil:
 		e.unload(p, err)
 		return nil, nil, false
 	}

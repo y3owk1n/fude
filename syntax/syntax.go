@@ -68,7 +68,8 @@ type Span struct {
 // Its methods run on the editor loop, and its results come back through the
 // loop's queue.
 type Buffer struct {
-	queue chan<- func()
+	queue  chan<- func()
+	parsed func()
 
 	// The editor loop's side.
 	seq     int      // changes heard
@@ -117,9 +118,10 @@ type request struct {
 }
 
 // New returns the syntax of a buffer of filetype, which sends its results to
-// queue, or false when fude has no grammar for it. A query in
-// dir/<filetype>/ replaces the shipped one of the same name.
-func New(filetype, dir string, queue chan<- func()) (*Buffer, bool, error) {
+// queue, or false when fude has no grammar for it. parsed runs on the loop
+// after each new parse lands. A query in dir/<filetype>/ replaces the
+// shipped one of the same name.
+func New(filetype, dir string, queue chan<- func(), parsed func()) (*Buffer, bool, error) {
 	l, ok := languages[filetype]
 	if !ok {
 		return nil, false, nil
@@ -141,7 +143,7 @@ func New(filetype, dir string, queue chan<- func()) (*Buffer, bool, error) {
 		return nil, false, fmt.Errorf("grammar for %s: %w", filetype, err)
 	}
 	h := &Buffer{
-		queue: queue, lang: l.lang, objects: objects, cursor: ts.NewQueryCursor(),
+		queue: queue, parsed: parsed, lang: l.lang, objects: objects, cursor: ts.NewQueryCursor(),
 		wake: make(chan struct{}, 1), quit: make(chan struct{}),
 	}
 	go h.run(p, q)
@@ -275,6 +277,7 @@ func (h *Buffer) take(seq int, spans []Span, tree *ts.Tree) {
 		i++
 	}
 	h.log = h.log[i:]
+	h.parsed()
 }
 
 // run parses and highlights each newest request until Close.

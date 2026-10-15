@@ -3,6 +3,7 @@
 package plugin
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -22,7 +23,8 @@ import (
 // Budgets are how long one call into a plugin may run.
 const (
 	InitBudget  = 200 * time.Millisecond
-	InputBudget = 16 * time.Millisecond // an operator, object or command, one frame
+	InputBudget = 16 * time.Millisecond  // an operator, object or command, one frame
+	EventBudget = 100 * time.Millisecond // on_event, off the input path
 )
 
 // Kind is what a plugin registers.
@@ -48,7 +50,8 @@ type Decoration struct {
 type Result struct {
 	Edits      []fude.Edit
 	Decorate   []Decoration
-	Undecorate []int // the ids of decorations to remove
+	Undecorate []int    // the ids of decorations to remove
+	Emit       []string // the events to emit, named plugin.event
 	Out        []uint64
 }
 
@@ -72,10 +75,15 @@ const (
 	errMemory = -3 // the plugin's memory could not take the result
 )
 
+// ErrBusy is what a call on the input path returns while another call
+// runs, such as an event handler. The input path never waits for one.
+var ErrBusy = errors.New("is busy")
+
 // Plugin is one loaded wasm plugin. Calls into it take turns.
 type Plugin struct {
 	Name       string
 	Registered []Registration // what its init registered
+	Subscribed []string       // the events its init subscribed to
 	caps       []string
 	log        func(string)
 
@@ -133,11 +141,41 @@ func (p *Plugin) Close(ctx context.Context) error {
 }
 
 // Call runs the plugin's export name with args under budget, reading t, and
-// returns what it asked for and returned. A call that traps or runs past its
-// budget returns an error, and nothing it asked for happens.
+// returns what it asked for and returned. It waits for a call already
+// running. A call that traps or runs past its budget returns an error, and
+// nothing it asked for happens.
 func (p *Plugin) Call(ctx context.Context, name string, t fude.Text, budget time.Duration, args ...uint64) (Result, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	return p.run(ctx, name, t, budget, args...)
+}
+
+// CallNow is Call for the input path. It returns ErrBusy instead of waiting
+// for a call already running.
+func (p *Plugin) CallNow(ctx context.Context, name string, t fude.Text, budget time.Duration, args ...uint64) (Result, error) {
+	if !p.mu.TryLock() {
+		return Result{}, fmt.Errorf("plugin %s %w", p.Name, ErrBusy)
+	}
+	defer p.mu.Unlock()
+	return p.run(ctx, name, t, budget, args...)
+}
+
+// Event runs the plugin's on_event with the event's name, written into its
+// memory, reading t, under EventBudget (B57).
+func (p *Plugin) Event(ctx context.Context, name string, t fude.Text) (Result, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	ctx, cancel := context.WithTimeout(ctx, EventBudget)
+	defer cancel()
+	out, err := p.mod.ExportedFunction("alloc").Call(ctx, uint64(len(name)))
+	if err != nil || len(out) == 0 || !p.mod.Memory().WriteString(uint32(out[0]), name) {
+		return Result{}, fmt.Errorf("plugin %s: write the event's name: %w", p.Name, cmp.Or(err, errors.New("no memory for it")))
+	}
+	return p.run(ctx, "on_event", t, EventBudget, out[0], uint64(len(name)))
+}
+
+// run makes one call while p.mu is held.
+func (p *Plugin) run(ctx context.Context, name string, t fude.Text, budget time.Duration, args ...uint64) (Result, error) {
 	f := p.mod.ExportedFunction(name)
 	if f == nil {
 		return Result{}, fmt.Errorf("plugin %s has no %s", p.Name, name)
@@ -165,6 +203,8 @@ func (p *Plugin) host(ctx context.Context) error {
 		NewFunctionBuilder().WithFunc(p.text).Export("text").
 		NewFunctionBuilder().WithFunc(p.edit).Export("edit").
 		NewFunctionBuilder().WithFunc(p.register).Export("register").
+		NewFunctionBuilder().WithFunc(p.subscribe).Export("subscribe").
+		NewFunctionBuilder().WithFunc(p.emit).Export("emit").
 		NewFunctionBuilder().WithFunc(p.decorate).Export("decorate").
 		NewFunctionBuilder().WithFunc(p.undecorate).Export("undecorate").
 		Instantiate(ctx)
@@ -227,6 +267,33 @@ func (p *Plugin) register(_ context.Context, m api.Module, kind, nptr, nn, eptr,
 		return errRange
 	}
 	p.Registered = append(p.Registered, Registration{Kind(kind), string(name), string(export)})
+	return 0
+}
+
+// subscribe records, during init, that the plugin hears the event named at
+// (ptr, n) through on_event.
+func (p *Plugin) subscribe(_ context.Context, m api.Module, ptr, n uint32) int32 {
+	name, ok := m.Memory().Read(ptr, n)
+	switch {
+	case p.call == nil || p.call.name != "init":
+		return errDenied
+	case !ok:
+		return errRange
+	}
+	p.Subscribed = append(p.Subscribed, string(name))
+	return 0
+}
+
+// emit asks to emit the event named at (ptr, n), under the plugin's name.
+func (p *Plugin) emit(_ context.Context, m api.Module, ptr, n uint32) int32 {
+	name, ok := m.Memory().Read(ptr, n)
+	switch {
+	case p.call == nil:
+		return errDenied
+	case !ok:
+		return errRange
+	}
+	p.call.Emit = append(p.call.Emit, p.Name+"."+string(name))
 	return 0
 }
 

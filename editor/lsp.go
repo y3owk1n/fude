@@ -161,6 +161,7 @@ func (e *Session) notified(s *server, method string, params json.RawMessage) {
 		ds = append(ds, decoration{0, b, b.text.SetMark(start, kernel.Right), b.text.SetMark(end, kernel.Left), style, d.Message, raw})
 	}
 	e.decos[b] = ds
+	e.emit("lsp.diagnostics", "", b)
 }
 
 // diagnostic moves the cursor to the nth diagnostic after it, or before it
