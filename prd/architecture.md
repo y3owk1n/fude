@@ -696,6 +696,17 @@ server names, or fude leaves that file alone and says so. A command runs
 inside the machine's handling of the key that ran it, so keys it wants
 typed, such as `:rename`, wait in a queue until that key is done.
 
+`gra` asks for the code actions at the cursor, sending the diagnostics on
+its line, and shows them numbered in a float. A number and `<CR>` take one,
+as Neovim's prompt does, and any other key cancels. An action's edit
+applies as rename's does, and its command goes to the server with
+`workspace/executeCommand`. An action with neither but `data` is resolved
+first when the server can. A server request such as `workspace/applyEdit`,
+which gopls sends to finish a command, reaches the editor loop, which
+answers it. While a server is attached, insert `<C-s>` shows the signature
+being typed in a float, with its active parameter bold. The next key closes
+it (B66).
+
 ## Server split (step 6)
 
 One server holds the kernel and its modules and orders every transaction.

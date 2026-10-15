@@ -51,10 +51,12 @@ type Range struct {
 	End   Position `json:"end"`
 }
 
-// Start runs command for the files under root. notify runs on the editor
-// loop, through queue, with each notification the server sends, and exited
-// once it exits, with why. Lines the server writes to stderr go to log.
-func Start(command []string, root string, queue chan<- func(), log func(string), notify func(method string, params json.RawMessage), exited func(error)) (*Client, error) {
+// Start runs command for the files under root. Three funcs run on the
+// editor loop, through queue. notify gets each notification the server
+// sends. serve gets each request, and its result goes back as the answer.
+// exited runs once the server exits, with why. Lines the server writes to
+// stderr go to log.
+func Start(command []string, root string, queue chan<- func(), log func(string), notify func(method string, params json.RawMessage), serve func(method string, params json.RawMessage) any, exited func(error)) (*Client, error) {
 	cmd := exec.Command(command[0], command[1:]...)
 	cmd.Dir = root
 	stdin, err1 := cmd.StdinPipe()
@@ -72,7 +74,7 @@ func Start(command []string, root string, queue chan<- func(), log func(string),
 	}
 	initialized := make(chan answer, 1)
 	go c.write(root, initialized)
-	go c.read(stdout, initialized, notify)
+	go c.read(stdout, initialized, notify, serve)
 	go func() {
 		s := bufio.NewScanner(stderr)
 		for s.Scan() {
@@ -151,10 +153,15 @@ func (c *Client) Request(method string, build func(enc string) any, answer func(
 // Supports reports whether the server offers capability, such as
 // documentRangeFormattingProvider.
 func (c *Client) Supports(capability string) bool {
+	v := c.Capability(capability)
+	return v != nil && string(v) != "false" && string(v) != "null"
+}
+
+// Capability returns what the server said of capability, or nil.
+func (c *Client) Capability(capability string) json.RawMessage {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	v, ok := c.caps[capability]
-	return ok && string(v) != "false" && string(v) != "null"
+	return c.caps[capability]
 }
 
 // Encoding is the position encoding the server chose, or "" before it
@@ -222,7 +229,7 @@ type request struct {
 }
 
 type incoming struct {
-	ID     *int            `json:"id"`
+	ID     json.RawMessage `json:"id"` // a number or a string, from the server
 	Method string          `json:"method"`
 	Params json.RawMessage `json:"params"`
 	Result json.RawMessage `json:"result"`
@@ -311,9 +318,9 @@ func (c *Client) frame(v any) error {
 }
 
 // read takes messages from the server until it exits. The answer to
-// initialize goes to the writer, and notifications to the editor loop. A
-// request from the server gets an empty answer, as fude offers it nothing.
-func (c *Client) read(r io.Reader, initialized chan<- answer, notify func(string, json.RawMessage)) {
+// initialize goes to the writer, and notifications and requests to the editor
+// loop.
+func (c *Client) read(r io.Reader, initialized chan<- answer, notify func(string, json.RawMessage), serve func(string, json.RawMessage) any) {
 	br := bufio.NewReader(r)
 	for {
 		body, err := readFrame(br)
@@ -325,22 +332,28 @@ func (c *Client) read(r io.Reader, initialized chan<- answer, notify func(string
 			continue
 		}
 		if m.Method != "" {
-			if m.ID != nil {
-				id := *m.ID
-				c.send(func(string) any { return map[string]any{"jsonrpc": "2.0", "id": id, "result": nil} })
-				continue
-			}
 			method, params := m.Method, m.Params
+			f := func() { notify(method, params) }
+			if m.ID != nil {
+				id := m.ID
+				f = func() {
+					result := serve(method, params)
+					c.send(func(string) any { return map[string]any{"jsonrpc": "2.0", "id": id, "result": result} })
+				}
+			}
 			select {
-			case c.queue <- func() { notify(method, params) }:
+			case c.queue <- f:
 			case <-c.done:
 			}
 			continue
 		}
-		if m.ID == nil {
+		// What is left is an answer to one of fude's requests, whose ids are
+		// numbers.
+		id, err := strconv.Atoi(string(m.ID))
+		if err != nil {
 			continue
 		}
-		if id := *m.ID; id != 0 {
+		if id != 0 {
 			result, failed := m.Result, m.Error
 			select {
 			case c.queue <- func() { c.answered(id, result, failed) }:

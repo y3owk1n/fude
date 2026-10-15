@@ -9,10 +9,12 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/lsp"
+	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
 )
 
@@ -67,6 +69,7 @@ func (e *Editor) detach(b *buffer) {
 func (e *Editor) start(s *server) error {
 	c, err := lsp.Start(s.command, s.root, e.queue, logLine,
 		func(method string, params json.RawMessage) { e.notified(s, method, params) },
+		func(method string, params json.RawMessage) any { return e.served(s, method, params) },
 		func(err error) { e.exited(s, err) })
 	if err != nil {
 		return err
@@ -124,12 +127,8 @@ func (e *Editor) notified(s *server, method string, params json.RawMessage) {
 		return
 	}
 	var p struct {
-		URI         string `json:"uri"`
-		Diagnostics []struct {
-			Range    lsp.Range `json:"range"`
-			Severity int       `json:"severity"`
-			Message  string    `json:"message"`
-		} `json:"diagnostics"`
+		URI         string            `json:"uri"`
+		Diagnostics []json.RawMessage `json:"diagnostics"`
 	}
 	if err := json.Unmarshal(params, &p); err != nil {
 		logLine(fmt.Sprintf("diagnostics from %s: %v", filepath.Base(s.command[0]), err))
@@ -145,13 +144,21 @@ func (e *Editor) notified(s *server, method string, params json.RawMessage) {
 	}
 	t, enc := b.text.Snapshot(), s.client.Encoding()
 	var ds []decoration
-	for _, d := range p.Diagnostics {
+	for _, raw := range p.Diagnostics {
+		var d struct {
+			Range    lsp.Range `json:"range"`
+			Severity int       `json:"severity"`
+			Message  string    `json:"message"`
+		}
+		if json.Unmarshal(raw, &d) != nil {
+			continue
+		}
 		style := severities[d.Severity]
 		if style == "" {
 			style = severities[1]
 		}
 		start, end := lsp.Offset(t, d.Range.Start, enc), lsp.Offset(t, d.Range.End, enc)
-		ds = append(ds, decoration{0, b, b.text.SetMark(start, kernel.Right), b.text.SetMark(end, kernel.Left), style, d.Message})
+		ds = append(ds, decoration{0, b, b.text.SetMark(start, kernel.Right), b.text.SetMark(end, kernel.Left), style, d.Message, raw})
 	}
 	e.decos[b] = ds
 }
@@ -198,13 +205,14 @@ var requests = map[string]string{
 	"lsp.symbols":        "textDocument/documentSymbol",
 	"lsp.hover":          "textDocument/hover",
 	"lsp.rename":         "textDocument/rename",
+	"lsp.codeAction":     "textDocument/codeAction",
 }
 
 // attached are the keys that exist only while the current buffer has a
 // language server, and the commands they run (N3).
 var attached = map[string]string{
 	"grr": "lsp.references", "gri": "lsp.implementation", "grt": "lsp.typeDefinition", "gO": "lsp.symbols",
-	"grn": "lsp.rename",
+	"grn": "lsp.rename", "gra": "lsp.codeAction",
 }
 
 // syncKeys maps the attached keys while the current buffer has a language
@@ -230,6 +238,10 @@ func (e *Editor) request(name string) {
 	s := b.server
 	if s == nil {
 		e.message = "no language server"
+		return
+	}
+	if name == "lsp.codeAction" {
+		e.codeActions()
 		return
 	}
 	if name == "lsp.rename" {
@@ -286,15 +298,22 @@ func (e *Editor) rename(name string) {
 	t, c, uri := b.text.Snapshot(), min(e.renameAt, b.text.Snapshot().Len()), lsp.URI(b.file.path)
 	s.client.Request(requests["lsp.rename"], func(enc string) any {
 		return map[string]any{"textDocument": map[string]any{"uri": uri}, "position": lsp.Point(t, c, enc), "newName": name}
-	}, func(res json.RawMessage) { e.workspaceEdit(s, b, t, res) })
+	}, func(res json.RawMessage) {
+		changed, problems := e.workspaceEdit(s, b, t, res)
+		e.message = fmt.Sprintf("renamed in %d files", changed)
+		if len(problems) > 0 {
+			e.message = strings.Join(problems, "  ")
+		}
+	})
 }
 
 // workspaceEdit applies a server's workspace edit, each file's edits as one
-// transaction. A file with no buffer opens in one and is not written. from
-// is the buffer that asked, whose edits must apply to t, the text it asked
-// about. Another buffer's must apply to the version the server names, when
-// it names one.
-func (e *Editor) workspaceEdit(s *server, from *buffer, t kernel.Snapshot, res json.RawMessage) {
+// transaction, and returns how many files changed and what went wrong. A
+// file with no buffer opens in one and is not written. from is the buffer
+// that asked, if any, whose edits must apply to t, the text it asked about.
+// Another buffer's must apply to the version the server names, when it
+// names one.
+func (e *Editor) workspaceEdit(s *server, from *buffer, t kernel.Snapshot, res json.RawMessage) (int, []string) {
 	type textEdit struct {
 		Range   lsp.Range `json:"range"`
 		NewText string    `json:"newText"`
@@ -310,8 +329,7 @@ func (e *Editor) workspaceEdit(s *server, from *buffer, t kernel.Snapshot, res j
 		} `json:"documentChanges"`
 	}
 	if err := json.Unmarshal(res, &w); err != nil {
-		e.message = fmt.Sprintf("rename: %v", err)
-		return
+		return 0, []string{fmt.Sprintf("workspace edit: %v", err)}
 	}
 	type file struct {
 		edits   []textEdit
@@ -364,10 +382,188 @@ func (e *Editor) workspaceEdit(s *server, from *buffer, t kernel.Snapshot, res j
 		b.head = b.text.Head()
 		changed++
 	}
-	e.message = fmt.Sprintf("renamed in %d files", changed)
+	return changed, problems
+}
+
+// served answers a request from s. workspace/applyEdit applies its edit, as
+// a code action's command asks. Other requests get an empty answer, as fude
+// offers nothing else.
+func (e *Editor) served(s *server, method string, params json.RawMessage) any {
+	if method != "workspace/applyEdit" {
+		return nil
+	}
+	var p struct {
+		Edit json.RawMessage `json:"edit"`
+	}
+	json.Unmarshal(params, &p)
+	_, problems := e.workspaceEdit(s, nil, kernel.Snapshot{}, p.Edit)
 	if len(problems) > 0 {
 		e.message = strings.Join(problems, "  ")
 	}
+	return map[string]any{"applied": len(problems) == 0}
+}
+
+// pick is a numbered list of code actions, which a number and <CR> choose
+// from, as Neovim's prompt does.
+type pick struct {
+	s       *server
+	b       *buffer
+	t       kernel.Snapshot
+	actions []json.RawMessage
+	typed   string
+}
+
+// codeActions asks for the code actions at the cursor, with the diagnostics
+// on its line, and shows them to pick from (B66).
+func (e *Editor) codeActions() {
+	b := e.win.buf
+	s := b.server
+	if s == nil {
+		e.message = "no language server"
+		return
+	}
+	t, c, uri := b.text.Snapshot(), e.Cursor(), lsp.URI(b.file.path)
+	diags := []json.RawMessage{}
+	for _, d := range e.decos[b] {
+		if d.raw != nil && t.LineOf(b.text.Mark(d.start)) == t.LineOf(c) {
+			diags = append(diags, d.raw)
+		}
+	}
+	s.client.Request("textDocument/codeAction", func(enc string) any {
+		p := lsp.Point(t, c, enc)
+		return map[string]any{
+			"textDocument": map[string]any{"uri": uri}, "range": lsp.Range{Start: p, End: p},
+			"context": map[string]any{"diagnostics": diags},
+		}
+	}, func(res json.RawMessage) {
+		var actions []json.RawMessage
+		json.Unmarshal(res, &actions)
+		if len(actions) == 0 {
+			e.message = "no code actions"
+			return
+		}
+		var lines []string
+		for i, a := range actions {
+			var title struct {
+				Title string `json:"title"`
+			}
+			json.Unmarshal(a, &title)
+			lines = append(lines, fmt.Sprintf("%d. %s", i+1, title.Title))
+		}
+		e.pick = &pick{s: s, b: b, t: t, actions: actions}
+		e.float, e.floatSpans = strings.Join(lines, "\n"), nil
+		e.message = "type a number and <Enter>, or <Esc>"
+	})
+}
+
+// picking takes a key while code actions show: a digit, <BS>, <CR> to take
+// the action numbered, or anything else to cancel.
+func (e *Editor) picking(k vim.Key) {
+	p := e.pick
+	switch {
+	case len(k) == 1 && k[0] >= '0' && k[0] <= '9':
+		p.typed += string(k)
+	case k == "<BS>" && p.typed != "":
+		p.typed = p.typed[:len(p.typed)-1]
+	case k == "<CR>":
+		e.pick, e.float = nil, ""
+		if n, err := strconv.Atoi(p.typed); err == nil && n >= 1 && n <= len(p.actions) {
+			e.act(p, p.actions[n-1])
+		}
+		return
+	default:
+		e.pick, e.float = nil, ""
+		return
+	}
+	e.message = "type a number and <Enter>, or <Esc>: " + p.typed
+}
+
+// act takes a code action: it applies its edit and runs its command. An
+// action with neither but data is resolved first, when the server can.
+func (e *Editor) act(p *pick, raw json.RawMessage) {
+	var a struct {
+		Edit      json.RawMessage `json:"edit"`
+		Command   json.RawMessage `json:"command"`
+		Arguments json.RawMessage `json:"arguments"`
+		Data      json.RawMessage `json:"data"`
+	}
+	json.Unmarshal(raw, &a)
+	var resolve struct {
+		ResolveProvider bool `json:"resolveProvider"`
+	}
+	json.Unmarshal(p.s.client.Capability("codeActionProvider"), &resolve)
+	if a.Edit == nil && a.Command == nil && a.Data != nil && resolve.ResolveProvider {
+		p.s.client.Request("codeAction/resolve", func(string) any { return raw }, func(res json.RawMessage) { e.act(p, res) })
+		return
+	}
+	if a.Edit != nil {
+		if _, problems := e.workspaceEdit(p.s, p.b, p.t, a.Edit); len(problems) > 0 {
+			e.message = strings.Join(problems, "  ")
+			return
+		}
+	}
+	var command json.RawMessage
+	switch {
+	case a.Command == nil:
+		return
+	case a.Command[0] == '{':
+		// A code action's command is an object of its own.
+		command = a.Command
+	default:
+		// A bare command names itself with a string.
+		command = raw
+	}
+	p.s.client.Request("workspace/executeCommand", func(string) any { return command }, func(json.RawMessage) {})
+}
+
+// signature shows the signature at the cursor in a float, with the parameter
+// being typed in bold (B66).
+func (e *Editor) signature() {
+	b := e.win.buf
+	s := b.server
+	t, c, uri := b.text.Snapshot(), e.Cursor(), lsp.URI(b.file.path)
+	s.client.Request("textDocument/signatureHelp", func(enc string) any {
+		return map[string]any{"textDocument": map[string]any{"uri": uri}, "position": lsp.Point(t, c, enc)}
+	}, func(res json.RawMessage) {
+		var help struct {
+			Signatures []struct {
+				Label      string `json:"label"`
+				Parameters []struct {
+					Label json.RawMessage `json:"label"`
+				} `json:"parameters"`
+				ActiveParameter *int `json:"activeParameter"`
+			} `json:"signatures"`
+			ActiveSignature int `json:"activeSignature"`
+			ActiveParameter int `json:"activeParameter"`
+		}
+		json.Unmarshal(res, &help)
+		if len(help.Signatures) == 0 {
+			e.message = "no signature help"
+			return
+		}
+		sig := help.Signatures[min(help.ActiveSignature, len(help.Signatures)-1)]
+		active := help.ActiveParameter
+		if sig.ActiveParameter != nil {
+			active = *sig.ActiveParameter
+		}
+		var spans []syntax.Span
+		if active >= 0 && active < len(sig.Parameters) {
+			// A parameter's label is its text in the signature, or where it is.
+			var name string
+			var at [2]int
+			if json.Unmarshal(sig.Parameters[active].Label, &name) == nil {
+				if i := strings.Index(sig.Label, name); i >= 0 {
+					at = [2]int{i, i + len(name)}
+				}
+			} else {
+				json.Unmarshal(sig.Parameters[active].Label, &at)
+			}
+			if at[0] < at[1] && at[1] <= len(sig.Label) {
+				spans = []syntax.Span{{Start: at[0], End: at[1], Name: "markup.strong"}}
+			}
+		}
+		e.float, e.floatSpans = sig.Label, spans
+	})
 }
 
 // spot is a place in a file that a server named.

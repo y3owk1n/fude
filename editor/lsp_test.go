@@ -22,7 +22,9 @@ import (
 // an error diagnostic, a definition or type definition is the first "target"
 // in it, references and implementations are every "target", its symbols are
 // f with x inside, rename changes every "target" and puts a line at the top
-// of other.go beside it, and hover
+// of other.go beside it, code actions are an edit that puts "hi " first and
+// a command that asks fude to put "cmd " first, signature help is
+// f(a int, b string) on b, and hover
 // is markdown that says where it was asked. Completion offers apple, apricot
 // and banana, and formatting the whole document puts a tab before each line,
 // as gopls formats only whole documents. Positions are in bytes.
@@ -63,7 +65,8 @@ func TestFakeServer(t *testing.T) {
 			ID     *int   `json:"id"`
 			Method string `json:"method"`
 			Params struct {
-				NewName      string `json:"newName"`
+				NewName      string   `json:"newName"`
+				Arguments    []string `json:"arguments"`
 				TextDocument struct {
 					URI  string `json:"uri"`
 					Text string `json:"text"`
@@ -101,6 +104,23 @@ func TestFakeServer(t *testing.T) {
 			top := map[string]any{"start": map[string]int{"line": 0, "character": 0}, "end": map[string]int{"line": 0, "character": 0}}
 			other := strings.TrimSuffix(uri, "a.go") + "other.go"
 			reply(m.ID, map[string]any{"changes": map[string]any{uri: edits, other: []any{map[string]any{"range": top, "newText": "// renamed\n"}}}})
+		case "textDocument/codeAction":
+			uri := m.Params.TextDocument.URI
+			top := map[string]any{"start": map[string]int{"line": 0, "character": 0}, "end": map[string]int{"line": 0, "character": 0}}
+			reply(m.ID, []any{
+				map[string]any{"title": "Add hi", "edit": map[string]any{"changes": map[string]any{uri: []any{map[string]any{"range": top, "newText": "hi "}}}}},
+				map[string]any{"title": "Run cmd", "command": "fake.run", "arguments": []any{uri}},
+			})
+		case "workspace/executeCommand":
+			top := map[string]any{"start": map[string]int{"line": 0, "character": 0}, "end": map[string]int{"line": 0, "character": 0}}
+			edit := map[string]any{"changes": map[string]any{m.Params.Arguments[0]: []any{map[string]any{"range": top, "newText": "cmd "}}}}
+			apply, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": "apply-1", "method": "workspace/applyEdit", "params": map[string]any{"edit": edit}})
+			fmt.Fprintf(os.Stdout, "Content-Length: %d\r\n\r\n%s", len(apply), apply)
+			reply(m.ID, nil)
+		case "textDocument/signatureHelp":
+			reply(m.ID, map[string]any{"activeSignature": 0, "activeParameter": 1, "signatures": []any{
+				map[string]any{"label": "f(a int, b string)", "parameters": []any{map[string]any{"label": "a int"}, map[string]any{"label": []int{9, 17}}}},
+			}})
 		case "textDocument/documentSymbol":
 			at := func(line int) map[string]any {
 				p := map[string]int{"line": line, "character": 0}
@@ -375,5 +395,32 @@ func TestB66Rename(t *testing.T) {
 	}
 	if feed(e, ":b a.go<CR>u"); text(e) != "a target\nb target\nc" {
 		t.Errorf("u after the rename left %q, want it undone in one step", text(e))
+	}
+}
+
+// B66, for gra and insert <C-s>
+func TestB66ActionsAndSignature(t *testing.T) {
+	for _, c := range [][2]string{{"1<CR>", "hi x"}, {"2<CR>", "cmd x"}} {
+		e, log := withServer(t, "x\n", "utf-8")
+		heard(t, log, `"method":"textDocument/didOpen"`, 1)
+		feed(e, "gra")
+		settle(t, e, func() bool { _, _, ok := e.Float(); return ok })
+		if f, _, _ := e.Float(); f != "1. Add hi\n2. Run cmd" {
+			t.Errorf("gra showed %q", f)
+		}
+		feed(e, c[0])
+		settle(t, e, func() bool { return text(e) != "x" })
+		if text(e) != c[1] {
+			t.Errorf("gra %s left %q, want %q", c[0], text(e), c[1])
+		}
+	}
+
+	e, log := withServer(t, "f(1, \n", "utf-8")
+	heard(t, log, `"method":"textDocument/didOpen"`, 1)
+	feed(e, "A<C-s>")
+	settle(t, e, func() bool { _, _, ok := e.Float(); return ok })
+	f, spans, _ := e.Float()
+	if f != "f(a int, b string)" || len(spans) != 1 || f[spans[0].Start:spans[0].End] != "b string" {
+		t.Errorf("<C-s> showed %q with %v, want the signature with b string bold", f, spans)
 	}
 }

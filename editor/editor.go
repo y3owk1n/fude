@@ -45,6 +45,7 @@ type Editor struct {
 	lspKeys    bool                 // the attached keys are mapped
 	later      []vim.Key            // keys to feed once the key being fed is done
 	renameAt   int                  // where grn was pressed
+	pick       *pick                // the code actions shown to choose from
 
 	width, height int // the space the windows share
 
@@ -221,6 +222,11 @@ func (e *Editor) Feed(k vim.Key) {
 func (e *Editor) feed(k vim.Key) {
 	e.message = ""
 	if e.completing(k) {
+		e.reveal()
+		return
+	}
+	if e.pick != nil {
+		e.picking(k)
 		e.reveal()
 		return
 	}

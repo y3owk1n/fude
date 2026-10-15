@@ -33,6 +33,10 @@ func (e *Editor) completing(k vim.Key) bool {
 		}
 		return false
 	}
+	if k == "<C-s>" && e.win.buf.server != nil {
+		e.signature()
+		return true
+	}
 	if e.ctrlX {
 		e.ctrlX = false
 		if k == "<C-o>" {
