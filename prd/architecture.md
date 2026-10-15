@@ -73,8 +73,8 @@ func Load(text string, head NodeID, nodes []Node, store Store) (*Buffer, error)
 
 func (b *Buffer) Snapshot() Snapshot
 func (b *Buffer) Apply(t Transaction) error // ErrStale unless at its base
-func (b *Buffer) BeginGroup()
-func (b *Buffer) EndGroup()
+func (b *Buffer) BeginGroup(o Origin) // another origin's transaction splits it
+func (b *Buffer) EndGroup(o Origin)
 func (b *Buffer) Undo() (start int, ok bool)
 func (b *Buffer) Redo() (start int, ok bool)
 func (b *Buffer) Goto(id NodeID) (start int, ok bool) // any node, any branch
@@ -128,8 +128,8 @@ type Host interface {
     BeginGroup()
     EndGroup()
     Unhandled(keys string) // ex lines and <C-w> keys vim does not own
-    Undo() (start, cursor int, ok bool)
-    Redo() (start, cursor int, ok bool)
+    Undo() (start, cursor int, err error) // ErrNoStep at the end
+    Redo() (start, cursor int, err error)
     Step(n int) (start int, ok bool) // g- and g+, in time order
     SetMark(name rune, pos int)      // marks move with edits
     Mark(name rune) (int, bool)
@@ -717,11 +717,19 @@ it (B66).
 
 ## Server split (step 6)
 
-One server holds the kernel and its modules and orders every transaction.
-Clients send requests and keys. Each client applies its own edits at once,
-and on receiving the server's order rebases its unconfirmed ones over it,
-as CodeMirror's collab module does. Two clients converge because the
-server's order is the only history (B73).
+One server holds the kernel and its modules and applies every client's
+keys and requests in arrival order on the editor loop. Clients keep no
+text of their own (D24). Two clients converge because there is one copy of
+each buffer (B73).
+
+`editor.Editor` is the shared state: buffers, plugins, language servers and
+decorations. `editor.Session` is one client: its windows, vim machine,
+message and float. The terminal is the first session, and `Attach` adds
+another. Every session's machine gets the built-in operators, the config
+keymaps and the plugin keys, including a session that attaches later. A
+session's edits carry its origin, so a kernel group never mixes two
+clients' edits and `u` reverts only the session's own changes with
+`UndoOrigin` (B77).
 
 The protocol is fude's own and carries state, not cells: buffer text and
 edits, views, decorations, modes and proposals. A terminal client renders

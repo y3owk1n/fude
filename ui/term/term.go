@@ -17,7 +17,7 @@ import (
 )
 
 // Run shows e in the terminal until the user quits.
-func Run(e *editor.Editor) error {
+func Run(e *editor.Session) error {
 	// Negotiation waits on a terminal round trip, so fude turns it off and
 	// asks for the kitty keyboard protocol without querying (D26).
 	s, err := tcell.NewScreen(
@@ -159,7 +159,7 @@ var visualLabels = map[vim.Key]string{"v": "-- VISUAL --", "V": "-- VISUAL LINE 
 
 type client struct {
 	s tcell.Screen
-	e *editor.Editor
+	e *editor.Session
 }
 
 func (c *client) draw() {

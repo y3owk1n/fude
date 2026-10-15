@@ -27,9 +27,12 @@ type Edit struct {
 	Text       string
 }
 
+// ErrNoStep is what Host's Undo and Redo return at the end of the history.
+var ErrNoStep = errors.New("no step to move to")
+
 // Host owns the text, the cursor and the undo history. Edits between
 // BeginGroup and EndGroup are one undo step. Undo and Redo return where the
-// step's text starts and the cursor from before the step, or false when
+// step's text starts and the cursor from before the step, or ErrNoStep when
 // there is no step to move to.
 type Host interface {
 	Text() Text
@@ -39,8 +42,8 @@ type Host interface {
 	BeginGroup()
 	EndGroup()
 	Unhandled(keys string) // an ex line such as ":w"
-	Undo() (start, cursor int, ok bool)
-	Redo() (start, cursor int, ok bool)
+	Undo() (start, cursor int, err error)
+	Redo() (start, cursor int, err error)
 	SetMark(name rune, pos int) // a mark moves with edits to the text
 	Mark(name rune) (int, bool)
 	Viewport() (top, height int) // the first line shown and how many fit
@@ -569,14 +572,16 @@ func (m *Machine) undo(back bool, n int) error {
 		step = m.h.Undo
 	}
 	for i := range n {
-		start, cursor, ok := step()
+		start, cursor, err := step()
 		switch {
-		case !ok && i > 0:
+		case errors.Is(err, ErrNoStep) && i > 0:
 			return nil
-		case !ok && back:
+		case errors.Is(err, ErrNoStep) && back:
 			return errors.New("already at the oldest change")
-		case !ok:
+		case errors.Is(err, ErrNoStep):
 			return errors.New("already at the newest change")
+		case err != nil:
+			return err
 		}
 		t := m.h.Text()
 		top := LineStart(t, start)

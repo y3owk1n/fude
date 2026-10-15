@@ -42,7 +42,7 @@ func goTo(b *buffer, id kernel.NodeID) (int, bool) {
 
 // step moves n states later in the order they were made, or earlier when n
 // is negative, as g+ and g- do.
-func (e *Editor) step(n int) (int, bool) {
+func (e *Session) step(n int) (int, bool) {
 	ids := states(e.win.buf)
 	i := slices.Index(ids, e.win.buf.text.Head()) + n
 	if i < 0 || i >= len(ids) || n == 0 {
@@ -53,7 +53,7 @@ func (e *Editor) step(n int) (int, bool) {
 
 // travel runs :earlier or :later. The argument is a count of states, a time
 // such as 10s, 5m, 2h or 1d, or a count of writes such as 1f.
-func (e *Editor) travel(arg string, later bool) {
+func (e *Session) travel(arg string, later bool) {
 	b := e.win.buf
 	ids := states(b)
 	cur := slices.Index(ids, b.text.Head())
@@ -107,7 +107,7 @@ func (e *Editor) travel(arg string, later bool) {
 
 // timeOf returns when node id was made, or the zero time for the text
 // before any edit.
-func (e *Editor) timeOf(b *buffer, id kernel.NodeID) time.Time {
+func (e *Session) timeOf(b *buffer, id kernel.NodeID) time.Time {
 	for _, n := range b.text.Nodes() {
 		if n.ID == id {
 			return n.Time
@@ -119,7 +119,7 @@ func (e *Editor) timeOf(b *buffer, id kernel.NodeID) time.Time {
 // saveFrom returns the state n writes back from cur, or forward when later
 // is set. Going back from changes made since the last write counts that
 // write as the first. Past the newest write it is the newest state.
-func (e *Editor) saveFrom(b *buffer, ids []kernel.NodeID, cur, n int, later bool) int {
+func (e *Session) saveFrom(b *buffer, ids []kernel.NodeID, cur, n int, later bool) int {
 	var saved []int
 	for _, s := range b.saves {
 		saved = append(saved, slices.Index(ids, s))
@@ -142,7 +142,7 @@ func (e *Editor) saveFrom(b *buffer, ids []kernel.NodeID, cur, n int, later bool
 
 // recover moves to the newest unsaved change from a session that did not
 // close.
-func (e *Editor) recover() {
+func (e *Session) recover() {
 	b := e.win.buf
 	if b.unsaved == (kernel.NodeID{}) {
 		e.message = "nothing to recover"
@@ -159,7 +159,7 @@ func (e *Editor) recover() {
 // per line with its number, time and the command that made it. * marks the
 // state the text is at, and (from N) a state that does not follow the one
 // before it.
-func (e *Editor) timeline() {
+func (e *Session) timeline() {
 	src := e.win.buf
 	if src.source != nil {
 		src = src.source
@@ -196,7 +196,7 @@ func listing(src *buffer) (string, []kernel.NodeID) {
 // its keys. [ and ] move the text to the state on the line above or below. d
 // diffs the state on the cursor's line against now. <CR> restores that state
 // on top of the newest one.
-func (e *Editor) timelineKey(k vim.Key) bool {
+func (e *Session) timelineKey(k vim.Key) bool {
 	src, i := e.state("")
 	switch k {
 	case "[", "]":
@@ -223,7 +223,7 @@ func (e *Editor) timelineKey(k vim.Key) bool {
 
 // scrub moves src to state id. It moves the cursor of each window showing src
 // to where the last change there starts.
-func (e *Editor) scrub(src *buffer, id kernel.NodeID) {
+func (e *Session) scrub(src *buffer, id kernel.NodeID) {
 	start, _ := goTo(src, id)
 	for _, w := range e.root.windows() {
 		if w.buf == src {
@@ -234,7 +234,7 @@ func (e *Editor) scrub(src *buffer, id kernel.NodeID) {
 
 // relist rewrites the current timeline window from its buffer's timeline
 // and puts the cursor on line.
-func (e *Editor) relist(line int) {
+func (e *Session) relist(line int) {
 	b := e.win.buf
 	text, ids := listing(b.source)
 	old := b.text.Snapshot()
@@ -253,7 +253,7 @@ func (e *Editor) relist(line int) {
 // restore makes the text of state N the newest state, as a new node, so no
 // state is lost. In a timeline window, N defaults to the line under the
 // cursor.
-func (e *Editor) restore(arg string) {
+func (e *Session) restore(arg string) {
 	b, i := e.state(arg)
 	if b == nil {
 		return
@@ -267,7 +267,7 @@ func (e *Editor) restore(arg string) {
 	}
 	ed := replace(old, new)
 	t := kernel.Transaction{
-		Base: now.Version(), Origin: "user", Label: "restore " + strconv.Itoa(i), Time: e.now(),
+		Base: now.Version(), Origin: e.origin, Label: "restore " + strconv.Itoa(i), Time: e.now(),
 		Edits: []kernel.Edit{ed},
 	}
 	if err := b.text.Apply(t); err != nil {
@@ -294,7 +294,7 @@ func replace(old, new string) kernel.Edit {
 
 // diff opens a window with the lines that differ between states N and M of
 // the current buffer, M being the state the text is at when left out.
-func (e *Editor) diff(arg string) {
+func (e *Session) diff(arg string) {
 	from, to, _ := strings.Cut(arg, " ")
 	b, i := e.state(from)
 	if b == nil {
@@ -315,7 +315,7 @@ func (e *Editor) diff(arg string) {
 // state resolves a state number for :restore and :diff, from arg or from the
 // line under the cursor in a timeline window. It returns the buffer the
 // state belongs to, or nil after telling the user why not.
-func (e *Editor) state(arg string) (*buffer, int) {
+func (e *Session) state(arg string) (*buffer, int) {
 	b := e.win.buf
 	if b.source != nil {
 		b = b.source
@@ -335,7 +335,7 @@ func (e *Editor) state(arg string) (*buffer, int) {
 }
 
 // scratch shows text in a new read-only window titled title, about src.
-func (e *Editor) scratch(title, text string, src *buffer, lines []kernel.NodeID) {
+func (e *Session) scratch(title, text string, src *buffer, lines []kernel.NodeID) {
 	b, _, err := openBuffer(e.next, "")
 	if err != nil {
 		e.message = err.Error()

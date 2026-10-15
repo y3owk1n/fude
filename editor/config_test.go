@@ -23,7 +23,7 @@ func config(t *testing.T, src string) {
 	}
 }
 
-func start(t *testing.T, args ...string) *editor.Editor {
+func start(t *testing.T, args ...string) *editor.Session {
 	t.Helper()
 	e, err := editor.Start(args)
 	if err != nil {

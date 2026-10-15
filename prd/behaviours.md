@@ -229,7 +229,8 @@ Tested through `core/`'s exported API, with no editor around it.
   transactions see consistent text, under the race detector.
 - B103 [1] A mark moves with edits before it. An insert at the mark's own
   position goes before or after it by the mark's gravity.
-- B104 [1] Transactions inside a group become one timeline node.
+- B104 [1] Transactions inside a group become one timeline node. Another
+  origin's transaction inside it ends the node and starts a new one.
 - B105 [1] Every node is handed to the store as it is created. A buffer
   rebuilt from those nodes has the same timeline and text.
 - B106 [1] A snapshot gives the number of lines, where any line starts and

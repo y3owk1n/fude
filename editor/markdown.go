@@ -10,7 +10,7 @@ import (
 // language's colours, and inline code, bold, italic, headings and links with
 // their markers gone. A line of --- stays, spanned as markup.rule for the
 // client to draw across. It returns the text and the spans that style it.
-func (e *Editor) markdown(src string) (string, []syntax.Span) {
+func (e *Session) markdown(src string) (string, []syntax.Span) {
 	var b strings.Builder
 	var spans []syntax.Span
 	lines := strings.Split(src, "\n")

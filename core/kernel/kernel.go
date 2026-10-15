@@ -123,9 +123,9 @@ type Buffer struct {
 	head    NodeID
 	seq     map[Origin]uint64
 	marks   []mark
-	free    []MarkID // the slots of deleted marks
-	depth   int
-	group   *Node
+	free    []MarkID          // the slots of deleted marks
+	depth   map[Origin]int    // the groups each origin has open
+	group   *Node             // the node being made, of one origin
 	redo    map[NodeID]NodeID // the child each node was last undone from
 
 	log      []logged        // the newest edits, for Map
@@ -134,7 +134,7 @@ type Buffer struct {
 
 // New returns a buffer holding text. store may be nil.
 func New(text string, store Store) *Buffer {
-	return &Buffer{text: rope.New(text), store: store, seq: map[Origin]uint64{}}
+	return &Buffer{text: rope.New(text), store: store, seq: map[Origin]uint64{}, depth: map[Origin]int{}}
 }
 
 // Load returns a buffer whose text is the text at node head. nodes must be in
@@ -178,6 +178,10 @@ func (b *Buffer) Apply(t Transaction) error {
 	if len(t.Edits) == 0 {
 		return nil
 	}
+	if b.group != nil && b.group.ID.Origin != t.Origin {
+		// A group never mixes origins, so another origin's change ends its node.
+		b.commit()
+	}
 	c := b.edit(t.Edits)
 	b.version++
 
@@ -185,7 +189,7 @@ func (b *Buffer) Apply(t Transaction) error {
 		b.group = &Node{ID: b.next(t.Origin), Parent: b.head, Label: t.Label, Time: t.Time}
 	}
 	b.group.Changes = append(b.group.Changes, c)
-	if b.depth == 0 {
+	if b.depth[t.Origin] == 0 {
 		b.commit()
 	}
 	return nil
@@ -383,16 +387,17 @@ func (b *Buffer) index(id NodeID) (int, bool) {
 	return 0, false
 }
 
-// BeginGroup starts a group that becomes one node. Groups nest.
-func (b *Buffer) BeginGroup() { b.depth++ }
+// BeginGroup starts a group of o's transactions that becomes one node.
+// Groups nest. A transaction of another origin applied inside it splits it.
+func (b *Buffer) BeginGroup(o Origin) { b.depth[o]++ }
 
-// EndGroup ends a group and makes its node if anything was applied.
-func (b *Buffer) EndGroup() {
-	if b.depth == 0 {
+// EndGroup ends a group of o's and makes its node if anything was applied.
+func (b *Buffer) EndGroup(o Origin) {
+	if b.depth[o] == 0 {
 		return
 	}
-	b.depth--
-	if b.depth == 0 && b.group != nil {
+	b.depth[o]--
+	if b.depth[o] == 0 && b.group != nil && b.group.ID.Origin == o {
 		b.commit()
 	}
 }

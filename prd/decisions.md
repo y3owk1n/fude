@@ -155,13 +155,18 @@ APIs.
 
 ## D24. One authoritative server for multi-client editing
 
-The server orders transactions. Clients apply their own edits at once and
-rebase unconfirmed ones on the server's order. Undo reverts only the
-undoer's own transactions. Why: fude has a server by design, so the main
-payoff of a CRDT (offline merge without a server) is not needed. Yrs, Loro
-and Automerge each own the document, which would demote the rope to a
-mirror and add cgo. CodeMirror's collab module shows the rebase approach is
-small. D18 keeps a CRDT in fude's own tree possible later, as Zed built.
+The server holds every buffer and applies each client's keys and requests
+in the order they arrive. Clients send keys and requests and draw the
+state they get back. Each client is a session with its own
+windows, vim machine and origin, and undo reverts only the undoer's own
+transactions. Why: fude has a server by design, so the main payoff of a
+CRDT (offline merge without a server) is not needed. Yrs, Loro and
+Automerge each own the document, which would demote the rope to a mirror
+and add cgo. Every client so far runs on the same machine as the server.
+fude builds a client replica that applies its edits at once and rebases
+them on the server's order, as CodeMirror's collab module does, only when
+a networked client needs one. D18 keeps a CRDT in fude's own tree possible
+later, as Zed built.
 
 ## D25. fude's own client protocol, carrying state
 

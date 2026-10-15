@@ -30,7 +30,7 @@ type server struct {
 
 // attach connects b to the language server its filetype names, starting one
 // for b's directory when none runs (B60).
-func (e *Editor) attach(b *buffer) {
+func (e *Session) attach(b *buffer) {
 	command := e.cfg.Filetype[b.filetype()].LSP
 	if len(command) == 0 || b.file.path == "" || b.title != "" {
 		return
@@ -58,7 +58,7 @@ func (e *Editor) attach(b *buffer) {
 }
 
 // detach disconnects b from its language server.
-func (e *Editor) detach(b *buffer) {
+func (e *Session) detach(b *buffer) {
 	if s := b.server; s != nil {
 		s.client.CloseDocument(lsp.URI(b.file.path))
 		s.bufs = slices.DeleteFunc(s.bufs, func(o *buffer) bool { return o == b })
@@ -66,7 +66,7 @@ func (e *Editor) detach(b *buffer) {
 	}
 }
 
-func (e *Editor) start(s *server) error {
+func (e *Session) start(s *server) error {
 	c, err := lsp.Start(s.command, s.root, e.queue, logLine,
 		func(method string, params json.RawMessage) { e.notified(s, method, params) },
 		func(method string, params json.RawMessage) any { return e.served(s, method, params) },
@@ -80,7 +80,7 @@ func (e *Editor) start(s *server) error {
 
 // exited restarts a server that stopped without being asked to, once. Its
 // buffers open in the new one. After a second crash it stays off (B63).
-func (e *Editor) exited(s *server, err error) {
+func (e *Session) exited(s *server, err error) {
 	if s.closing {
 		return
 	}
@@ -104,7 +104,7 @@ func (e *Editor) exited(s *server, err error) {
 }
 
 // stop detaches every buffer from s and forgets it.
-func (e *Editor) stop(s *server) {
+func (e *Session) stop(s *server) {
 	for _, b := range s.bufs {
 		b.server = nil
 	}
@@ -122,7 +122,7 @@ var severities = map[int]string{1: "diagnostic.error", 2: "diagnostic.warn", 3: 
 // notified handles a notification from s. Diagnostics replace those of the
 // buffer they are for, as decorations it owns, so they move with edits until
 // the next ones come (B61).
-func (e *Editor) notified(s *server, method string, params json.RawMessage) {
+func (e *Session) notified(s *server, method string, params json.RawMessage) {
 	if method != "textDocument/publishDiagnostics" {
 		return
 	}
@@ -165,7 +165,7 @@ func (e *Editor) notified(s *server, method string, params json.RawMessage) {
 
 // diagnostic moves the cursor to the nth diagnostic after it, or before it
 // when n is negative, going round the ends, and shows its message.
-func (e *Editor) diagnostic(n int) {
+func (e *Session) diagnostic(n int) {
 	b := e.win.buf
 	var at []int
 	notes := map[int]string{}
@@ -217,7 +217,7 @@ var attached = map[string]string{
 
 // syncKeys maps the attached keys while the current buffer has a language
 // server and removes them otherwise, so gr waits for nothing without one.
-func (e *Editor) syncKeys() {
+func (e *Session) syncKeys() {
 	if want := e.win.buf.server != nil; want != e.lspKeys {
 		for keys, name := range attached {
 			if want {
@@ -233,7 +233,7 @@ func (e *Editor) syncKeys() {
 // request sends the request named, such as lsp.definition, about the
 // cursor's place in the current buffer, and handles the answer on the editor
 // loop when it comes (B62, B66).
-func (e *Editor) request(name string) {
+func (e *Session) request(name string) {
 	b := e.win.buf
 	s := b.server
 	if s == nil {
@@ -284,7 +284,7 @@ func (e *Editor) request(name string) {
 // rename asks the current buffer's server to rename the symbol where grn
 // was pressed to name, and applies the edits it answers with, in every file
 // they name (B66).
-func (e *Editor) rename(name string) {
+func (e *Session) rename(name string) {
 	b := e.win.buf
 	s := b.server
 	if s == nil {
@@ -313,7 +313,7 @@ func (e *Editor) rename(name string) {
 // that asked, if any, whose edits must apply to t, the text it asked about.
 // Another buffer's must apply to the version the server names, when it
 // names one.
-func (e *Editor) workspaceEdit(s *server, from *buffer, t kernel.Snapshot, res json.RawMessage) (int, []string) {
+func (e *Session) workspaceEdit(s *server, from *buffer, t kernel.Snapshot, res json.RawMessage) (int, []string) {
 	type textEdit struct {
 		Range   lsp.Range `json:"range"`
 		NewText string    `json:"newText"`
@@ -367,7 +367,7 @@ func (e *Editor) workspaceEdit(s *server, from *buffer, t kernel.Snapshot, res j
 			problems = append(problems, stale)
 			continue
 		}
-		tx := kernel.Transaction{Base: base.Version(), Origin: "user", Label: "rename", Time: e.now()}
+		tx := kernel.Transaction{Base: base.Version(), Origin: e.origin, Label: "rename", Time: e.now()}
 		for _, ed := range f.edits {
 			tx.Edits = append(tx.Edits, kernel.Edit{Start: lsp.Offset(base, ed.Range.Start, enc), End: lsp.Offset(base, ed.Range.End, enc), Text: ed.NewText})
 		}
@@ -388,7 +388,7 @@ func (e *Editor) workspaceEdit(s *server, from *buffer, t kernel.Snapshot, res j
 // served answers a request from s. workspace/applyEdit applies its edit, as
 // a code action's command asks. Other requests get an empty answer, as fude
 // offers nothing else.
-func (e *Editor) served(s *server, method string, params json.RawMessage) any {
+func (e *Session) served(s *server, method string, params json.RawMessage) any {
 	if method != "workspace/applyEdit" {
 		return nil
 	}
@@ -415,7 +415,7 @@ type pick struct {
 
 // codeActions asks for the code actions at the cursor, with the diagnostics
 // on its line, and shows them to pick from (B66).
-func (e *Editor) codeActions() {
+func (e *Session) codeActions() {
 	b := e.win.buf
 	s := b.server
 	if s == nil {
@@ -458,7 +458,7 @@ func (e *Editor) codeActions() {
 
 // picking takes a key while code actions show: a digit, <BS>, <CR> to take
 // the action numbered, or anything else to cancel.
-func (e *Editor) picking(k vim.Key) {
+func (e *Session) picking(k vim.Key) {
 	p := e.pick
 	switch {
 	case len(k) == 1 && k[0] >= '0' && k[0] <= '9':
@@ -480,7 +480,7 @@ func (e *Editor) picking(k vim.Key) {
 
 // act takes a code action: it applies its edit and runs its command. An
 // action with neither but data is resolved first, when the server can.
-func (e *Editor) act(p *pick, raw json.RawMessage) {
+func (e *Session) act(p *pick, raw json.RawMessage) {
 	var a struct {
 		Edit      json.RawMessage `json:"edit"`
 		Command   json.RawMessage `json:"command"`
@@ -518,7 +518,7 @@ func (e *Editor) act(p *pick, raw json.RawMessage) {
 
 // signature shows the signature at the cursor in a float, with the parameter
 // being typed in bold (B66).
-func (e *Editor) signature() {
+func (e *Session) signature() {
 	b := e.win.buf
 	s := b.server
 	t, c, uri := b.text.Snapshot(), e.Cursor(), lsp.URI(b.file.path)
@@ -575,7 +575,7 @@ type spot struct {
 
 // locate jumps to the one place an answer names, or lists them in a window
 // when it names several, as references always are.
-func (e *Editor) locate(s *server, name string, res json.RawMessage) {
+func (e *Session) locate(s *server, name string, res json.RawMessage) {
 	type location struct {
 		URI       string    `json:"uri"`
 		Range     lsp.Range `json:"range"`
@@ -628,7 +628,7 @@ var kinds = []string{
 
 // symbols lists the symbols of b that a documentSymbol answer names, in a
 // window where <CR> jumps to one. Nested symbols are indented under theirs.
-func (e *Editor) symbols(s *server, b *buffer, res json.RawMessage) {
+func (e *Session) symbols(s *server, b *buffer, res json.RawMessage) {
 	type symbol struct {
 		Name           string    `json:"name"`
 		Kind           int       `json:"kind"`
@@ -673,7 +673,7 @@ func (e *Editor) symbols(s *server, b *buffer, res json.RawMessage) {
 
 // lineAt returns the text of the line sp is on, from its buffer, or from
 // the file when no buffer has it.
-func (e *Editor) lineAt(sp spot) string {
+func (e *Session) lineAt(sp spot) string {
 	text := ""
 	if i := slices.IndexFunc(e.bufs, func(b *buffer) bool { return b.is(sp.path) }); i >= 0 {
 		t := e.bufs[i].text.Snapshot()
@@ -689,14 +689,14 @@ func (e *Editor) lineAt(sp spot) string {
 
 // showList opens a window of lines, each naming a spot, where <CR> jumps to the
 // spot on the cursor's line in another window.
-func (e *Editor) showList(title string, lines []string, spots []spot) {
+func (e *Session) showList(title string, lines []string, spots []spot) {
 	e.scratch(title, strings.Join(lines, "\n"), nil, nil)
 	e.win.buf.spots = spots
 }
 
 // listKey runs <CR> in a list window, and reports whether it did. It jumps
 // to the spot on the cursor's line in another window, keeping the list.
-func (e *Editor) listKey(k vim.Key) bool {
+func (e *Session) listKey(k vim.Key) bool {
 	b := e.win.buf
 	if k != "<CR>" {
 		return false
@@ -713,7 +713,7 @@ func (e *Editor) listKey(k vim.Key) bool {
 }
 
 // visit jumps to sp, opening its file when no buffer has it.
-func (e *Editor) visit(sp spot) {
+func (e *Session) visit(sp spot) {
 	// Moving to another buffer is a jump of its own.
 	if e.win.buf.is(sp.path) {
 		e.pushJump(e.Cursor())
@@ -728,7 +728,7 @@ func (e *Editor) visit(sp spot) {
 
 // hover shows a hover answer's text in a float at the cursor, rendered from
 // markdown.
-func (e *Editor) hover(res json.RawMessage) {
+func (e *Session) hover(res json.RawMessage) {
 	var h struct {
 		Contents json.RawMessage `json:"contents"`
 	}
@@ -762,7 +762,7 @@ func (e *Editor) hover(res json.RawMessage) {
 // and applies the answer as one timeline node. For a server that formats
 // only whole documents, fude asks for that and keeps the edits inside the
 // lines. It drops an answer for text that has changed since (B65).
-func (e *Editor) format(b *buffer, start, end int) {
+func (e *Session) format(b *buffer, start, end int) {
 	s := b.server
 	switch {
 	case s == nil:
@@ -796,7 +796,7 @@ func (e *Editor) format(b *buffer, start, end int) {
 		}
 		json.Unmarshal(res, &answer)
 		enc := s.client.Encoding()
-		tx := kernel.Transaction{Base: t.Version(), Origin: "user", Label: "gq", Time: e.now()}
+		tx := kernel.Transaction{Base: t.Version(), Origin: e.origin, Label: "gq", Time: e.now()}
 		for _, a := range answer {
 			start, end := lsp.Offset(t, a.Range.Start, enc), lsp.Offset(t, a.Range.End, enc)
 			if start >= from && end <= to {

@@ -27,7 +27,7 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-func open(t *testing.T, path string) *editor.Editor {
+func open(t *testing.T, path string) *editor.Session {
 	t.Helper()
 	e, err := editor.Open(path)
 	if err != nil {
@@ -36,13 +36,13 @@ func open(t *testing.T, path string) *editor.Editor {
 	return e
 }
 
-func feed(e *editor.Editor, keys string) {
+func feed(e *editor.Session, keys string) {
 	for _, k := range vim.Keys(keys) {
 		e.Feed(k)
 	}
 }
 
-func text(e *editor.Editor) string {
+func text(e *editor.Session) string {
 	s := e.Text()
 	return s.Slice(0, s.Len())
 }
@@ -180,7 +180,7 @@ func TestB27Scrolling(t *testing.T) {
 	if err := os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	line := func(e *editor.Editor, pos int) int { return strings.Count(text(e)[:pos], "\n") + 1 }
+	line := func(e *editor.Session, pos int) int { return strings.Count(text(e)[:pos], "\n") + 1 }
 	for _, c := range []struct {
 		keys      string
 		top, line int
@@ -448,7 +448,7 @@ func TestB90JumpsAndChanges(t *testing.T) {
 }
 
 // windows describes each window as x,y wxh and * for the current one.
-func windows(e *editor.Editor) string {
+func windows(e *editor.Session) string {
 	var out []string
 	for _, v := range e.Views() {
 		cur := ""
@@ -703,7 +703,7 @@ func TestB5QuitRefusesUnsaved(t *testing.T) {
 
 // captures waits until the current window shows highlights, and returns the
 // captures of each highlighted piece of text, joined by spaces.
-func captures(t *testing.T, e *editor.Editor) map[string]string {
+func captures(t *testing.T, e *editor.Session) map[string]string {
 	t.Helper()
 	deadline := time.After(5 * time.Second)
 	for {

@@ -102,7 +102,7 @@ func (n *node) leaf(w *window) *node {
 
 // split opens a new window on the shown buffer above the current one, or
 // left of it when across is set, and moves to it.
-func (e *Editor) split(across bool) {
+func (e *Session) split(across bool) {
 	old := e.win
 	nw := newWindow(old.buf, old.pos(), old.buf.text.Mark(old.top))
 	nw.alt = old.alt
@@ -124,7 +124,7 @@ func (e *Editor) split(across bool) {
 
 // closeWindow closes w. The window before it in the split, or else the one
 // after, takes its place and becomes current.
-func (e *Editor) closeWindow(w *window) error {
+func (e *Session) closeWindow(w *window) error {
 	l := e.root.leaf(w)
 	p := l.parent
 	if p == nil {
@@ -151,14 +151,14 @@ func (e *Editor) closeWindow(w *window) error {
 }
 
 // only closes every window but the current one.
-func (e *Editor) only() {
+func (e *Session) only() {
 	e.root = &node{win: e.win}
 	e.layout()
 }
 
 // moveTo moves to the window next to the current one in direction d, one of
 // h, j, k and l, on the cursor's row or column.
-func (e *Editor) moveTo(d byte) {
+func (e *Session) moveTo(d byte) {
 	w := e.win
 	t := w.buf.text.Snapshot()
 	row, col := w.y, w.x
@@ -185,7 +185,7 @@ func (e *Editor) moveTo(d byte) {
 }
 
 // layout places every window in the space the editor has.
-func (e *Editor) layout() {
+func (e *Session) layout() {
 	e.root.place(0, 0, max(e.width, 1), max(e.height, 2))
 }
 

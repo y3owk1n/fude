@@ -41,12 +41,12 @@ func (t text) LineStart(line int) int {
 	return pos
 }
 
-func (h *host) Text() vim.Text         { return text(h.text) }
-func (h *host) Cursor() int            { return h.cursor }
-func (h *host) SetCursor(pos int)      { h.cursor = pos }
-func (h *host) BeginGroup()            { h.depth++ }
-func (h *host) Unhandled(string)       {}
-func (h *host) Undo() (int, int, bool) { return 0, 0, false }
+func (h *host) Text() vim.Text          { return text(h.text) }
+func (h *host) Cursor() int             { return h.cursor }
+func (h *host) SetCursor(pos int)       { h.cursor = pos }
+func (h *host) BeginGroup()             { h.depth++ }
+func (h *host) Unhandled(string)        {}
+func (h *host) Undo() (int, int, error) { return 0, 0, vim.ErrNoStep }
 func (h *host) SetMark(r rune, pos int) {
 	if h.marks == nil {
 		h.marks = map[rune]int{}
@@ -58,7 +58,7 @@ func (h *host) Mark(r rune) (int, bool) {
 	p, ok := h.marks[r]
 	return p, ok
 }
-func (h *host) Redo() (int, int, bool) { return 0, 0, false }
+func (h *host) Redo() (int, int, error) { return 0, 0, vim.ErrNoStep }
 func (h *host) EndGroup() {
 	h.depth--
 	if h.depth == 0 && h.applied {

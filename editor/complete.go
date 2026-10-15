@@ -25,7 +25,7 @@ type menu struct {
 // whether it took it. <C-x><C-o> asks the server, and while the menu shows,
 // <C-n>, <C-p>, <C-y> and <C-e> work it. Any other key keeps the item and
 // goes on to type.
-func (e *Editor) completing(k vim.Key) bool {
+func (e *Session) completing(k vim.Key) bool {
 	if e.vim.Mode() != vim.Insert {
 		e.ctrlX = false
 		if e.menu != nil {
@@ -71,7 +71,7 @@ func (e *Editor) completing(k vim.Key) bool {
 
 // complete asks the current buffer's server what may go at the cursor, and
 // shows the answer as a menu with its first item in the text.
-func (e *Editor) complete() {
+func (e *Session) complete() {
 	b := e.win.buf
 	s := b.server
 	if s == nil {
@@ -124,7 +124,7 @@ func (e *Editor) complete() {
 
 // choose puts item i of the menu in the text, or the typed word for the
 // menu's last stop, and shows the menu with it selected.
-func (e *Editor) choose(i int) {
+func (e *Session) choose(i int) {
 	m := e.menu
 	b := e.win.buf
 	start := b.text.Mark(m.start)
@@ -154,7 +154,7 @@ func (e *Editor) choose(i int) {
 }
 
 // closeMenu stops completing and keeps what is in the text.
-func (e *Editor) closeMenu() {
+func (e *Session) closeMenu() {
 	e.win.buf.text.DeleteMark(e.menu.start)
 	e.menu, e.float, e.floatSpans = nil, "", nil
 }

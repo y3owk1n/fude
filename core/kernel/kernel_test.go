@@ -4,6 +4,7 @@ import (
 	"errors"
 	"math/rand/v2"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -176,16 +177,32 @@ func TestB103MarksMoveWithEdits(t *testing.T) {
 // B104
 func TestB104GroupIsOneNode(t *testing.T) {
 	b := kernel.New("", nil)
-	b.BeginGroup()
+	b.BeginGroup("user")
 	for _, s := range []string{"h", "i", "!"} {
 		apply(t, b, kernel.Edit{Start: b.Snapshot().Len(), End: b.Snapshot().Len(), Text: s})
 	}
 	if len(b.Nodes()) != 0 {
 		t.Fatal("node made before the group ended")
 	}
-	b.EndGroup()
+	b.EndGroup("user")
 	if n := b.Nodes(); len(n) != 1 || len(n[0].Changes) != 3 || text(b) != "hi!" {
 		t.Fatalf("got %d nodes and text %q, want one node of 3 changes and %q", len(n), text(b), "hi!")
+	}
+
+	// Another origin's change splits the group around it.
+	b.BeginGroup("user")
+	apply(t, b, kernel.Edit{Start: 0, End: 0, Text: "a"})
+	if err := b.Apply(kernel.Transaction{Base: b.Snapshot().Version(), Origin: "agent", Edits: []kernel.Edit{{Start: 0, End: 0, Text: "b"}}}); err != nil {
+		t.Fatal(err)
+	}
+	apply(t, b, kernel.Edit{Start: 0, End: 0, Text: "c"})
+	b.EndGroup("user")
+	var origins []kernel.Origin
+	for _, n := range b.Nodes()[1:] {
+		origins = append(origins, n.ID.Origin)
+	}
+	if !slices.Equal(origins, []kernel.Origin{"user", "agent", "user"}) {
+		t.Fatalf("a group split by another origin made nodes of %v", origins)
 	}
 }
 
@@ -194,10 +211,10 @@ func TestB105StoreRebuildsTimeline(t *testing.T) {
 	var store nodes
 	b := kernel.New("hello", &store)
 	apply(t, b, kernel.Edit{Start: 5, End: 5, Text: " world"})
-	b.BeginGroup()
+	b.BeginGroup("user")
 	apply(t, b, kernel.Edit{Start: 0, End: 1, Text: "H"})
 	apply(t, b, kernel.Edit{Start: 6, End: 7, Text: "W"})
-	b.EndGroup()
+	b.EndGroup("user")
 
 	if !reflect.DeepEqual([]kernel.Node(store), b.Nodes()) {
 		t.Fatalf("store got %d nodes, buffer has %d", len(store), len(b.Nodes()))

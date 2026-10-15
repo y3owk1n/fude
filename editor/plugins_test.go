@@ -13,7 +13,7 @@ import (
 
 // withPlugin writes a config that loads the test plugin name with caps, and
 // starts an editor on a file holding "abc".
-func withPlugin(t *testing.T, name string, caps ...string) *editor.Editor {
+func withPlugin(t *testing.T, name string, caps ...string) *editor.Session {
 	t.Helper()
 	usePlugin(t, name, caps...)
 	path := filepath.Join(t.TempDir(), "f")
@@ -37,7 +37,7 @@ func usePlugin(t *testing.T, name string, caps ...string) {
 }
 
 // settle runs the work queued for the editor loop until done reports true.
-func settle(t *testing.T, e *editor.Editor, done func() bool) {
+func settle(t *testing.T, e *editor.Session, done func() bool) {
 	t.Helper()
 	deadline := time.After(5 * time.Second)
 	for !done() {
@@ -112,7 +112,7 @@ func TestB53PluginTraps(t *testing.T) {
 }
 
 // withKit starts an editor on "ab cd\nef" with the kit plugin loaded.
-func withKit(t *testing.T) *editor.Editor {
+func withKit(t *testing.T) *editor.Session {
 	t.Helper()
 	usePlugin(t, "kit", "buffer.read", "buffer.write")
 	path := filepath.Join(t.TempDir(), "f")
@@ -164,7 +164,7 @@ func TestB54PluginCommandsAndKeys(t *testing.T) {
 
 // decorations returns what the current window shows of plugins'
 // decorations, as text and style.
-func decorations(e *editor.Editor) []string {
+func decorations(e *editor.Session) []string {
 	var out []string
 	for _, v := range e.Views() {
 		for _, d := range v.Decorations {

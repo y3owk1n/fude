@@ -172,7 +172,7 @@ func TestFakeServer(t *testing.T) {
 // withServer starts an editor on a Go file holding text, with the fake
 // server configured for Go and answering in encoding, and returns the editor
 // and the server's log.
-func withServer(t *testing.T, text, encoding string) (*editor.Editor, string) {
+func withServer(t *testing.T, text, encoding string) (*editor.Session, string) {
 	t.Helper()
 	log := filepath.Join(t.TempDir(), "server.log")
 	t.Setenv("FUDE_FAKE_LSP", "1")

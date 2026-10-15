@@ -25,7 +25,7 @@ var logMu sync.Mutex
 // none delays a frame (B56), and the language servers of the open buffers.
 // Each plugin's init reads the current buffer, and its results reach the
 // editor loop through Queue.
-func (e *Editor) Load() {
+func (e *Session) Load() {
 	e.started = true
 	for _, b := range e.bufs {
 		e.attach(b)
@@ -58,7 +58,7 @@ func (e *Editor) Load() {
 // loaded keeps a plugin whose init returned, adds what it registered, and
 // does what it asked for to b, whose text it saw as t. A plugin whose init
 // failed is unloaded.
-func (e *Editor) loaded(p *plugin.Plugin, err error, b *buffer, t kernel.Snapshot, res plugin.Result) {
+func (e *Session) loaded(p *plugin.Plugin, err error, b *buffer, t kernel.Snapshot, res plugin.Result) {
 	if err != nil {
 		e.unload(p, err)
 		return
@@ -75,7 +75,7 @@ func (e *Editor) loaded(p *plugin.Plugin, err error, b *buffer, t kernel.Snapsho
 	if len(edits) == 0 {
 		return
 	}
-	tx := kernel.Transaction{Base: t.Version(), Origin: "user", Label: "plugin " + p.Name, Time: e.now()}
+	tx := kernel.Transaction{Base: t.Version(), Origin: e.origin, Label: "plugin " + p.Name, Time: e.now()}
 	for _, ed := range edits {
 		tx.Edits = append(tx.Edits, kernel.Edit(ed))
 	}
@@ -107,7 +107,7 @@ func (d decoration) remove() {
 // decorate adds and removes the decorations res asks for on b. It returns
 // res's edits, sorted, for the caller to apply next, so they move the new
 // decorations.
-func (e *Editor) decorate(p *plugin.Plugin, b *buffer, res plugin.Result) []vim.Edit {
+func (e *Session) decorate(p *plugin.Plugin, b *buffer, res plugin.Result) []vim.Edit {
 	for _, d := range res.Decorate {
 		e.decos[p] = append(e.decos[p], decoration{d.ID, b, b.text.SetMark(d.Start, kernel.Right), b.text.SetMark(d.End, kernel.Left), d.Style, "", nil})
 	}
@@ -126,7 +126,7 @@ func (e *Editor) decorate(p *plugin.Plugin, b *buffer, res plugin.Result) []vim.
 }
 
 // unload closes p after err, removes its decorations and tells the user.
-func (e *Editor) unload(p *plugin.Plugin, err error) {
+func (e *Session) unload(p *plugin.Plugin, err error) {
 	p.Close(context.Background())
 	e.plugins = slices.DeleteFunc(e.plugins, func(q *plugin.Plugin) bool { return q == p })
 	for _, d := range e.decos[p] {
@@ -139,42 +139,48 @@ func (e *Editor) unload(p *plugin.Plugin, err error) {
 
 // register adds a command, operator, object or key a plugin registered, as
 // the machine's own, so it composes with every built-in (B52, B54).
-func (e *Editor) register(p *plugin.Plugin, r plugin.Registration) {
+func (e *Session) register(p *plugin.Plugin, r plugin.Registration) {
 	switch r.Kind {
 	case plugin.Command:
-		e.commands[r.Name] = func() {
-			if edits, _, ok := e.run(p, r.Export, e.Text(), uint64(e.Cursor()), 0); ok && len(edits) > 0 {
-				if err := (host{e}).Apply(edits, ":"+r.Name); err != nil {
-					e.message = err.Error()
+		e.commands[r.Name] = func(s *Session) {
+			if edits, _, ok := s.run(p, r.Export, s.Text(), uint64(s.Cursor()), 0); ok && len(edits) > 0 {
+				if err := (host{s}).Apply(edits, ":"+r.Name); err != nil {
+					s.message = err.Error()
 					return
 				}
-				e.setCursor(edits[0].Start)
+				s.setCursor(edits[0].Start)
 			}
 		}
 	case plugin.Operator:
-		e.vim.Operator(r.Name, func(t vim.Text, start, end int, lines bool) []vim.Edit {
-			linewise := uint64(0)
-			if lines {
-				linewise = 1
-			}
-			edits, _, _ := e.run(p, r.Export, t, uint64(start), uint64(end), linewise)
-			return edits
+		e.each(func(s *Session) {
+			s.vim.Operator(r.Name, func(t vim.Text, start, end int, lines bool) []vim.Edit {
+				linewise := uint64(0)
+				if lines {
+					linewise = 1
+				}
+				edits, _, _ := s.run(p, r.Export, t, uint64(start), uint64(end), linewise)
+				return edits
+			})
 		})
 	case plugin.Object:
-		e.vim.Object(r.Name, func(t vim.Text, start, end int) (int, int, bool) {
-			_, out, ok := e.run(p, r.Export, t, uint64(start), uint64(end))
-			if !ok || len(out) == 0 || int64(out[0]) < 0 {
-				return 0, 0, false
-			}
-			return int(out[0] >> 32), int(uint32(out[0])), true
+		e.each(func(s *Session) {
+			s.vim.Object(r.Name, func(t vim.Text, start, end int) (int, int, bool) {
+				_, out, ok := s.run(p, r.Export, t, uint64(start), uint64(end))
+				if !ok || len(out) == 0 || int64(out[0]) < 0 {
+					return 0, 0, false
+				}
+				return int(out[0] >> 32), int(uint32(out[0])), true
+			})
 		})
 	case plugin.Key:
 		name := p.Name + "." + r.Export
-		e.vim.Command(name, func(t vim.Text, pos, count int) []vim.Edit {
-			edits, _, _ := e.run(p, r.Export, t, uint64(pos), uint64(count))
-			return edits
+		e.each(func(s *Session) {
+			s.vim.Command(name, func(t vim.Text, pos, count int) []vim.Edit {
+				edits, _, _ := s.run(p, r.Export, t, uint64(pos), uint64(count))
+				return edits
+			})
+			s.vim.Map(vim.Normal, r.Name, "<Plug>("+name+")")
 		})
-		e.vim.Map(vim.Normal, r.Name, "<Plug>("+name+")")
 	}
 }
 
@@ -182,7 +188,7 @@ func (e *Editor) register(p *plugin.Plugin, r plugin.Registration) {
 // current buffer. It adds the decorations the call asks for, and returns
 // its edits, sorted, and what it returned. A call that fails unloads p, and
 // calls into an unloaded plugin do nothing.
-func (e *Editor) run(p *plugin.Plugin, export string, t vim.Text, args ...uint64) ([]vim.Edit, []uint64, bool) {
+func (e *Session) run(p *plugin.Plugin, export string, t vim.Text, args ...uint64) ([]vim.Edit, []uint64, bool) {
 	if !slices.Contains(e.plugins, p) {
 		e.message = fmt.Sprintf("plugin %s is unloaded", p.Name)
 		return nil, nil, false
