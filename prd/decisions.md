@@ -375,6 +375,13 @@ the clipboard, so a block copied in Neovim puts as plain text. Why: the
 clipboard holds only text, and the user chose a better way over
 Neovim's on 2026-10-16.
 
+### N15. Yanks and undos flash
+
+Text just yanked, put, undone or redone shows highlighted for a moment
+(B139). Neovim shows nothing unless a config calls `vim.hl.on_yank()` or a
+plugin does the rest. Why: it shows what a command touched, and the user
+runs undo-glow.nvim for it.
+
 ## Open
 
 None.

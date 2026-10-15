@@ -948,6 +948,37 @@ func TestB138Hunks(t *testing.T) {
 	}
 }
 
+// B139
+func TestB139Flash(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "f")
+	change(t, path, "ab cd\n")
+	e := open(t, path)
+	flashed := func() []int {
+		for _, d := range e.Views()[0].Decorations {
+			if d.Name == "flash" {
+				return []int{d.Start, d.End}
+			}
+		}
+		return nil
+	}
+	for _, c := range []struct {
+		keys string
+		want []int
+	}{
+		{"yiw", []int{0, 2}},
+		{"p", []int{1, 3}},
+		{"x", nil},
+		{"u", []int{2, 3}},
+		{"uu<C-r>", []int{1, 3}},
+	} {
+		if feed(e, c.keys); !slices.Equal(flashed(), c.want) {
+			t.Errorf("after %q the flash is %v, want %v", c.keys, flashed(), c.want)
+		}
+	}
+	// It goes after a moment.
+	settle(t, e, func() bool { return flashed() == nil })
+}
+
 // B124
 func TestB124Listing(t *testing.T) {
 	dir := t.TempDir()

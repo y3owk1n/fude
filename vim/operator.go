@@ -139,6 +139,9 @@ func (m *Machine) act(op string, reg rune, label string, r region) error {
 		text += "\n"
 	}
 	m.store(reg, op, register{text: text, linewise: lines})
+	if op == "y" {
+		m.flash = [2]int{start, end}
+	}
 	switch {
 	case op == "y" && lines:
 		if s := LineStart(t, start); s != LineStart(t, c) {
@@ -341,6 +344,10 @@ func (m *Machine) put(reg rune, after bool, n int) error {
 	}
 	if err := m.apply([]Edit{{Start: at, End: at, Text: text}}, label); err != nil {
 		return err
+	}
+	m.flash = [2]int{at, at + len(text)}
+	if r.linewise && after {
+		m.flash[0]++ // after the line break put before the lines
 	}
 	t = m.h.Text()
 	switch {

@@ -44,6 +44,7 @@ type buffer struct {
 	noted    map[string]string // a listing's note of each name it has shown
 	base     *string           // the text git's index has, nil outside a repository
 	git      map[int]Sign      // the git sign of each changed line
+	touched  [2]int            // the text the last change made, as it is after it
 	status   map[string]Sign   // a listing's git status sign of each name
 	gitStale bool              // the text changed since the last diff
 	gitBusy  bool              // a diff runs

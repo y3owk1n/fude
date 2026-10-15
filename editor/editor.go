@@ -68,6 +68,7 @@ type Session struct {
 	pick       *pick       // the code actions shown to choose from
 	finder     *finder     // the file finder, while it shows
 	cmenu      *cmenu      // the completions of the command line being typed
+	flash      *flash      // text shown for a moment after a yank, put, undo or redo
 	under      *window     // the window a focused float was opened from
 	opts       options     // what the session's new windows start with
 	changed    chan change // told when the shown text changes, for a client over the socket
@@ -299,8 +300,13 @@ type heard struct {
 
 func (l heard) Changed(before kernel.Snapshot, edits []kernel.Edit) {
 	l.b.gitStale = true
+	l.b.touched = touched(edits)
 	l.ed.emit("buffer.changed", "", l.b)
 	for _, s := range l.ed.sessions {
+		if s.flash != nil && s.flash.b == l.b {
+			// What it showed has moved.
+			s.flash = nil
+		}
 		if s.changed != nil && s.win.buf == l.b {
 			// This change replaces one the client has yet to hear of. The
 			// loop is the only sender, so the send never waits.
@@ -408,6 +414,9 @@ func (e *Session) feed(k vim.Key) {
 	e.vim.ExpandTab(e.win.opts.ExpandTab)
 	e.vim.UseClipboard(e.win.opts.Clipboard)
 	e.settle(e.vim.Feed(k))
+	if start, end, ok := e.vim.Flash(); ok {
+		e.flashOn(e.win.buf, start, end)
+	}
 	e.autocomplete(k)
 	e.autocommand()
 }
@@ -531,6 +540,10 @@ func (e *Session) Views() []View {
 			if s := e.segments[p][w.buf]; s != "" {
 				v.Segments = append(v.Segments, s)
 			}
+		}
+		if f := e.flash; f != nil && f.b == w.buf && f.end > top && f.start < last {
+			// Only what shows, as an undo can touch the whole text.
+			v.Decorations = append(v.Decorations, syntax.Span{Start: max(f.start, top), End: min(f.end, last), Name: "flash"})
 		}
 		for _, ds := range e.decos {
 			for _, d := range ds {
@@ -1326,6 +1339,7 @@ func (h host) Undo() (int, int, error) {
 		cursor = start
 	}
 	b.head = b.text.Head()
+	h.e.flashOn(b, b.touched[0], b.touched[1])
 	return start, cursor, nil
 }
 
@@ -1337,6 +1351,7 @@ func (h host) Redo() (int, int, error) {
 	if !ok {
 		return 0, 0, vim.ErrNoStep
 	}
+	h.e.flashOn(b, b.touched[0], b.touched[1])
 	return start, b.before[b.head], nil
 }
 

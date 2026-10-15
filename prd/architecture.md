@@ -326,6 +326,13 @@ the host's clipboard after the default registers, and a put without a
 register reads the clipboard and compares it with the unnamed register
 (B137).
 
+`Machine.Flash` reports what the last key yanked or put. The editor's
+`Undo` and `Redo` take what the kernel's listener last heard changed, as
+the text is after it. The session keeps one flash, a decoration over that
+text cut to the window's visible lines, since undoing a `:s` can touch the
+whole file. A timer through the queue clears it after 300ms, and a change
+to its buffer clears it at once (B139).
+
 ## Views
 
 A view is one buffer shown in one window. It owns a cursor mark, a top-line

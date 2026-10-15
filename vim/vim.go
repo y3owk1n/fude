@@ -136,6 +136,7 @@ type Machine struct {
 	reIgnore              bool // re ignores case
 	ignoreCase, smartCase bool
 	clipboard             bool   // commands without a register use the host's clipboard too
+	flash                 [2]int // what the last key yanked or put, empty when nothing
 	expandTab             bool   // indents are spaces only
 	lastRep               string // the previous replacement, for ~
 	lastSub               struct{ pattern, rep, flags string }
@@ -181,6 +182,12 @@ func (m *Machine) Line() string { return m.prompt + m.line }
 // completion does.
 func (m *Machine) SetLine(s string) { m.line, m.lineAt = s, len(s) }
 
+// Flash returns the text the last key yanked or put, for the host to show
+// for a moment, or false when it did neither (B139).
+func (m *Machine) Flash() (start, end int, ok bool) {
+	return m.flash[0], m.flash[1], m.flash[1] > m.flash[0]
+}
+
 // LineCursor returns where the cursor is in Line, in bytes.
 func (m *Machine) LineCursor() int { return len(m.prompt) + m.lineAt }
 
@@ -210,7 +217,7 @@ func (m *Machine) fetch(name rune) (register, bool, error) {
 // Feed handles one key. It returns the host's error if an edit fails.
 func (m *Machine) Feed(k Key) error {
 	defer m.show(k)
-	m.beep, m.msg = false, ""
+	m.beep, m.msg, m.flash = false, "", [2]int{}
 	if m.mode == Normal {
 		// The host's own edits, such as another client's, can leave the
 		// cursor past the end of its line.
