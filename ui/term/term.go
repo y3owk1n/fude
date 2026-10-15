@@ -108,6 +108,7 @@ var colours = map[string]tcell.Style{
 	"markup.raw":     tcell.StyleDefault.Foreground(color.Teal),
 	"markup.link":    tcell.StyleDefault.Underline(true),
 	"markup.rule":    tcell.StyleDefault.Foreground(color.Gray),
+	"menu.selected":  tcell.StyleDefault.Reverse(true),
 	"string":         tcell.StyleDefault.Foreground(color.Green),
 	"escape":         tcell.StyleDefault.Foreground(color.Teal),
 	"number":         tcell.StyleDefault.Foreground(color.Olive),

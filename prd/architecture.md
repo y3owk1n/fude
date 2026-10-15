@@ -658,6 +658,16 @@ Inline code, bold, italic, headings and links lose their markers and keep
 their styles as spans, and a line of `---` draws as a rule across the
 float. A full markdown grammar comes only if servers start sending more.
 
+Completion works as Neovim's does with the same items. In insert mode,
+`<C-x><C-o>` asks the server what may go at the cursor. When the answer
+comes, fude puts the first item in place of the word before the cursor and
+shows every item's label in a float. `<C-n>` and `<C-p>` step through the
+items and the typed word, putting each in the text. `<C-y>` keeps the item
+and `<C-e>` puts the typed word back. Any other key keeps the item and goes
+on to type. An item puts in its `textEdit`, else its `insertText`, else its
+label, and fude offers no snippets. Each step is an edit inside the insert's
+undo group, so the whole insert stays one undo step (B64).
+
 ## Server split (step 6)
 
 One server holds the kernel and its modules and orders every transaction.

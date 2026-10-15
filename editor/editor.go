@@ -32,6 +32,8 @@ type Editor struct {
 	cfg        config
 	ask        func(yes bool) // takes the answer to the question in the message
 	float      string         // text shown over the windows at the cursor, such as hover
+	menu       *menu          // the completions shown while typing
+	ctrlX      bool           // <C-x> began a completion key in insert mode
 	floatSpans []syntax.Span  // the styles of the float's text
 	queue      chan func()
 	queries    string // the directory of query files that replace shipped ones
@@ -200,6 +202,10 @@ func (e *Editor) Queue() <-chan func() { return e.queue }
 // Feed handles one key. An error becomes the message.
 func (e *Editor) Feed(k vim.Key) {
 	e.message = ""
+	if e.completing(k) {
+		e.reveal()
+		return
+	}
 	if text := e.float; text != "" {
 		// Any key closes the float. K again opens its text in a window, where
 		// it can scroll.

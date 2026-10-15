@@ -20,7 +20,8 @@ import (
 // FUDE_FAKE_ENCODING, appends every message it gets to FUDE_FAKE_LOG, and
 // crashes when a change inserts "#". Each "bad" in an opened document gets
 // an error diagnostic, a definition is the first "target" in it, and hover
-// is markdown that says where it was asked. Positions are in bytes.
+// is markdown that says where it was asked. Completion offers apple, apricot
+// and banana. Positions are in bytes.
 func TestFakeServer(t *testing.T) {
 	if os.Getenv("FUDE_FAKE_LSP") == "" {
 		return
@@ -79,6 +80,10 @@ func TestFakeServer(t *testing.T) {
 					break
 				}
 			}
+		case "textDocument/completion":
+			reply(m.ID, map[string]any{"items": []any{
+				map[string]any{"label": "apple"}, map[string]any{"label": "apricot"}, map[string]any{"label": "banana"},
+			}})
 		case "textDocument/hover":
 			p := m.Params.Position
 			value := fmt.Sprintf("```go\nfunc target()\n```\n---\n**hover** at %d:%d", p.Line, p.Character)
@@ -223,5 +228,30 @@ func TestB62DefinitionAndHover(t *testing.T) {
 	settle(t, e, func() bool { _, _, ok := e.Float(); return ok })
 	if feed(e, "K"); text(e) != "func target()\n---\nhover at 1:3" {
 		t.Errorf("K on a shown hover showed %q, want it in a window", text(e))
+	}
+}
+
+// B64, with what Neovim does given the same completions
+func TestB64Completion(t *testing.T) {
+	for _, c := range [][2]string{
+		{"<Esc>", "x apple"},
+		{"<C-n><Esc>", "x apricot"},
+		{"<C-n><C-n><Esc>", "x banana"},
+		{"<C-n><C-n><C-n><Esc>", "x ap"},
+		{"<C-p><Esc>", "x ap"},
+		{"<C-n><C-y><Esc>", "x apricot"},
+		{"<C-e><Esc>", "x ap"},
+		{"z<Esc>", "x applez"},
+	} {
+		e, log := withServer(t, "x ap\n", "utf-8")
+		heard(t, log, `"method":"textDocument/didOpen"`, 1)
+		feed(e, "A<C-x><C-o>")
+		settle(t, e, func() bool { return text(e) == "x apple" })
+		if feed(e, c[0]); text(e) != c[1] {
+			t.Errorf("%s left %q, want %q", c[0], text(e), c[1])
+		}
+		if feed(e, "u"); text(e) != "x ap" {
+			t.Errorf("u after %s left %q, want the insert undone", c[0], text(e))
+		}
 	}
 }
