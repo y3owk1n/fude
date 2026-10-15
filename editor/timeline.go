@@ -139,6 +139,19 @@ func (e *Editor) saveFrom(b *buffer, ids []kernel.NodeID, cur, n int, later bool
 	return saved[i-n]
 }
 
+// recover moves to the newest unsaved change from a session that did not
+// close.
+func (e *Editor) recover() {
+	b := e.win.buf
+	if b.unsaved == (kernel.NodeID{}) {
+		e.message = "nothing to recover"
+		return
+	}
+	id := b.unsaved
+	b.unsaved = kernel.NodeID{}
+	e.goTo(id)
+}
+
 // timeline opens a window listing every state of the current buffer, one
 // per line with its number, time and the command that made it. * marks the
 // state the text is at, and (from N) a state that does not follow the one

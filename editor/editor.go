@@ -110,6 +110,11 @@ func (e *Editor) Feed(k vim.Key) {
 	} else if msg := e.vim.Message(); msg != "" && e.message == "" {
 		e.message = msg
 	}
+	if log := e.win.buf.log; log != nil {
+		if err := log.failed(); err != nil {
+			e.message = err.Error()
+		}
+	}
 	e.reveal()
 }
 
@@ -296,6 +301,9 @@ func (e *Editor) quit(force bool) {
 			return
 		}
 	}
+	for _, b := range e.bufs {
+		b.close()
+	}
 	e.done = true
 }
 
@@ -326,6 +334,8 @@ func (e *Editor) ex(line string) {
 		e.diff(arg)
 	case "earlier", "later":
 		e.travel(arg, name == "later")
+	case "recover":
+		e.recover()
 	case "on", "only":
 		e.only()
 	case "clo", "close":
@@ -423,6 +433,7 @@ func (e *Editor) close(b *buffer, force bool) {
 		e.message = fmt.Sprintf("no write since the last change to \"%s\" (add ! to override)", b.name())
 		return
 	}
+	b.close()
 	i := index(e.bufs, b)
 	e.bufs = append(e.bufs[:i], e.bufs[i+1:]...)
 	if len(e.bufs) == 0 {
@@ -479,6 +490,9 @@ func (e *Editor) write() {
 	b.file.isNew = false
 	b.saved = b.text.Head()
 	b.saves = append(b.saves, b.saved)
+	if b.log != nil {
+		b.log.write(record{Kind: "save", Head: b.saved, Hash: hash(s.Slice(0, s.Len()))})
+	}
 	e.message = fmt.Sprintf("\"%s\" %s%dB written", b.file.path, tag, n)
 }
 

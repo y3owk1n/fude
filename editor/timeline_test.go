@@ -10,6 +10,7 @@ import (
 
 // B35, :earlier and :later by time, with a clock the test moves.
 func TestB35EarlierLaterByTime(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	e, err := Open(filepath.Join(t.TempDir(), "f"))
 	if err != nil {
 		t.Fatal(err)

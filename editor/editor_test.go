@@ -11,6 +11,18 @@ import (
 	"github.com/y3owk1n/fude/vim"
 )
 
+// TestMain keeps every test's timeline logs in a directory of its own.
+func TestMain(m *testing.M) {
+	dir, err := os.MkdirTemp("", "fude-state")
+	if err != nil {
+		panic(err)
+	}
+	os.Setenv("XDG_STATE_HOME", dir)
+	code := m.Run()
+	os.RemoveAll(dir)
+	os.Exit(code)
+}
+
 func open(t *testing.T, path string) *editor.Editor {
 	t.Helper()
 	e, err := editor.Open(path)
@@ -449,6 +461,61 @@ func TestB35TimeOrder(t *testing.T) {
 	feed(e, "g-")
 	if e.Message() != "already at the oldest change" {
 		t.Errorf("g- with no history said %q", e.Message())
+	}
+}
+
+// B33
+func TestB33TimelineAcrossSessions(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "f")
+	if err := os.WriteFile(path, []byte("one"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	feed(open(t, path), "A two<Esc>:w<CR>A three<Esc>u:q<CR>")
+
+	e := open(t, path)
+	feed(e, ":timeline<CR>")
+	if lines := strings.Split(text(e), "\n"); len(lines) != 3 || !strings.HasPrefix(lines[1], "* 1") {
+		t.Fatalf("the next session's :timeline listed %q, want three states at 1", lines)
+	}
+	feed(e, ":q<CR>u")
+	if text(e) != "one" {
+		t.Errorf("undo past the restart left %q, want one", text(e))
+	}
+
+	// A file changed outside fude starts a new timeline.
+	if err := os.WriteFile(path, []byte("other"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	e = open(t, path)
+	feed(e, ":timeline<CR>")
+	if lines := strings.Split(text(e), "\n"); len(lines) != 1 {
+		t.Errorf("after an outside change, :timeline listed %q, want only the start", lines)
+	}
+}
+
+// B34
+func TestB34Recovery(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "f")
+	if err := os.WriteFile(path, []byte("one"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// The session ends without :q, as a crash would.
+	feed(open(t, path), "A two<Esc>:w<CR>A three<Esc>")
+
+	e := open(t, path)
+	if !strings.Contains(e.Message(), ":recover") || text(e) != "one two" {
+		t.Fatalf("after a crash, opening said %q with %q", e.Message(), text(e))
+	}
+	feed(e, ":recover<CR>")
+	if text(e) != "one two three" {
+		t.Errorf(":recover left %q", text(e))
+	}
+
+	// Declining keeps the change on the timeline as a branch.
+	e = open(t, path)
+	feed(e, ":timeline<CR>")
+	if lines := strings.Split(text(e), "\n"); len(lines) != 3 || !strings.HasPrefix(lines[1], "* 1") {
+		t.Errorf("without :recover, :timeline listed %q, want the unsaved state kept", lines)
 	}
 }
 

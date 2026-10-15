@@ -33,6 +33,8 @@ type buffer struct {
 
 	saves []kernel.NodeID // the node at each write, oldest first
 
+	log     *history      // the timeline on disk, nil for a buffer with no file
+	unsaved kernel.NodeID // the newest unsaved change from a session that did not close
 	// A scratch buffer shows something about another buffer, such as its
 	// timeline, under a title instead of a file name.
 	title  string
@@ -70,6 +72,20 @@ func openBuffer(id int, path string) (*buffer, string, error) {
 	case f.isNew && path != "":
 		msg = fmt.Sprintf("\"%s\" [New]", path)
 	}
+	if path == "" || f.readonly {
+		return b, msg, nil
+	}
+	log, l, err := openHistory(path, text)
+	if err != nil {
+		return nil, "", err
+	}
+	if b.text, err = kernel.Load(text, l.head, l.nodes, log); err != nil {
+		return nil, "", fmt.Errorf("timeline of %s: %w", path, err)
+	}
+	b.log, b.saved, b.head, b.saves, b.unsaved = log, l.head, l.head, l.saves, l.unsaved
+	if l.unsaved != (kernel.NodeID{}) {
+		msg = fmt.Sprintf("\"%s\" has changes a session did not save, :recover brings them back", path)
+	}
 	return b, msg, nil
 }
 
@@ -91,4 +107,12 @@ func (b *buffer) is(path string) bool {
 	x, err1 := filepath.Abs(b.file.path)
 	y, err2 := filepath.Abs(path)
 	return b.file.path != "" && err1 == nil && err2 == nil && x == y
+}
+
+// close notes a clean close in the timeline log, so the next open offers no
+// recovery.
+func (b *buffer) close() {
+	if b.log != nil {
+		b.log.close(b.text.Head())
+	}
 }
