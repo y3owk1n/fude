@@ -29,7 +29,7 @@ func (m *Machine) motion(cmd string, count int) (int, kind, bool) {
 	t, c := m.h.Text(), m.h.Cursor()
 	n := max(count, 1)
 	if cmd == "gj" || cmd == "gk" {
-		// Lines do not wrap, so a screen line is a text line.
+		// gj and gk move by text lines, as j and k do.
 		cmd = cmd[1:]
 	}
 	start := LineStart(t, c)
@@ -483,6 +483,22 @@ func atColumn(t Text, start, col int) int {
 		}
 	}
 	return p
+}
+
+// Rows returns where each screen row of the line at start begins when it
+// wraps at cols columns: start, then each cluster that does not fit on the
+// row before it. A tab is as wide as it is at its column in the line.
+func Rows(t Text, start, cols int) []int {
+	rows := []int{start}
+	x, col := 0, 0
+	for g := graphemes.FromString(t.Slice(start, LineEnd(t, start))); g.Next(); {
+		w := width(g.Value(), col)
+		if x > 0 && x+w > cols {
+			rows, x = append(rows, start+g.Start()), 0
+		}
+		x, col = x+w, col+w
+	}
+	return rows
 }
 
 func width(cluster string, col int) int {

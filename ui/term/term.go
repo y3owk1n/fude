@@ -356,62 +356,78 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 	if v.Current {
 		cursors = c.e.Cursors()
 	}
-	for row := 0; row < v.H-1; row++ {
-		y := v.Y + row
+	row := 0
+	for row < v.H-1 {
 		end := vim.LineEnd(t, pos)
-		line := t.Slice(pos, end)
 		var matches [][2]int
 		for _, mt := range v.Matches {
 			if mt[1] > pos && mt[0] <= end {
 				matches = append(matches, mt)
 			}
 		}
-		x := 0
-		for rest := line; ; {
-			at := pos + len(line) - len(rest)
-			for _, g := range v.Ghosts {
-				if g.Pos == at {
-					x = c.ghost(g, v.X, x, y, v.W)
-				}
-			}
-			if v.Current && (at == v.Cursor || x >= v.W && v.Cursor >= at && v.Cursor <= end) {
-				cx, cy, found = v.X+min(x, v.W-1), y, true
-			}
-			if rest == "" || x >= v.W {
+		// A line wraps onto as many rows as it needs (B37). col is the
+		// column in the line, which tabs are measured from.
+		starts := vim.Rows(t, pos, v.W)
+		col := 0
+		for i, start := range starts {
+			if row >= v.H-1 {
 				break
 			}
-			style := tcell.StyleDefault
-			if i := at - v.Top; i < len(paint) {
-				style = paint[i]
+			y, stop := v.Y+row, end
+			if i+1 < len(starts) {
+				stop = starts[i+1]
 			}
-			for _, mt := range matches {
-				if at >= mt[0] && at < mt[1] {
-					style = style.Background(color.Yellow).Foreground(color.Black)
+			x := 0
+			for rest := t.Slice(start, stop); ; {
+				at := stop - len(rest)
+				for _, g := range v.Ghosts {
+					if g.Pos == at {
+						x = c.ghost(g, v.X, x, y, v.W)
+					}
 				}
+				if v.Current && at == v.Cursor && (rest != "" || stop == end) {
+					cx, cy, found = v.X+min(x, v.W-1), y, true
+				}
+				if rest == "" || x >= v.W {
+					break
+				}
+				style := tcell.StyleDefault
+				if i := at - v.Top; i < len(paint) {
+					style = paint[i]
+				}
+				for _, mt := range matches {
+					if at >= mt[0] && at < mt[1] {
+						style = style.Background(color.Yellow).Foreground(color.Black)
+					}
+				}
+				if visual && selected(sel, at, col) || slices.Contains(cursors, at) {
+					// Reversing syntax colours would stripe the selection, so it
+					// drops them.
+					style = tcell.StyleDefault.Reverse(true)
+				}
+				if rest[0] == '\t' {
+					w := vim.Tabstop - col%vim.Tabstop
+					c.s.FillArea(v.X+x, y, min(w, v.W-x), 1, ' ', style)
+					x, col, rest = x+w, col+w, rest[1:]
+					continue
+				}
+				var width int
+				rest, width = c.s.Put(v.X+x, y, rest, style)
+				x, col = x+width, col+width
 			}
-			if visual && selected(sel, at, x) || slices.Contains(cursors, at) {
-				// Reversing syntax colours would stripe the selection, so it
-				// drops them.
-				style = tcell.StyleDefault.Reverse(true)
+			if i == len(starts)-1 && slices.Contains(cursors, end) && x < v.W {
+				c.s.Put(v.X+x, y, " ", tcell.StyleDefault.Reverse(true))
 			}
-			if rest[0] == '\t' {
-				w := vim.Tabstop - x%vim.Tabstop
-				c.s.FillArea(v.X+x, y, min(w, v.W-x), 1, ' ', style)
-				x += w
-				rest = rest[1:]
-				continue
-			}
-			var width int
-			rest, width = c.s.Put(v.X+x, y, rest, style)
-			x += width
-		}
-		if slices.Contains(cursors, end) && x < v.W {
-			c.s.Put(v.X+x, y, " ", tcell.StyleDefault.Reverse(true))
+			row++
 		}
 		if end == t.Len() {
 			break
 		}
 		pos = end + 1
+	}
+	// Rows past the end of the text show ~.
+	for ; row < v.H-1; row++ {
+		c.s.Put(v.X, v.Y+row, "~", tcell.StyleDefault.Foreground(color.Gray))
 	}
 	if v.X > 0 {
 		for y := v.Y; y < v.Y+v.H; y++ {

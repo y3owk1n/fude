@@ -67,6 +67,9 @@ Where fude departs, the line says so and cites the departure in
 - B36 [2] `"+` and `"*` are the system clipboard: `y`, `d` and `c` write
   it, and `p`, `P`, `@` and insert `<C-r>` read it. Text ending in a line
   break puts as lines.
+- B37 [2] A line longer than its window wraps onto the rows below, as with
+  Neovim's `wrap`, and the window scrolls so the cursor's whole line shows.
+  Rows past the end of the text show `~`.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays

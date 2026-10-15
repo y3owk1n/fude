@@ -565,6 +565,21 @@ func TestB36TerminalClipboard(t *testing.T) {
 	}
 }
 
+// B37
+func TestB37Wrap(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "f")
+	change(t, path, strings.Repeat("a", 20)+"\nb\nc\n")
+	e := open(t, path)
+	// Three rows of text, ten columns wide: the first line takes two.
+	e.SetSize(10, 4)
+	if feed(e, "j"); e.Top() != 0 {
+		t.Fatalf("on line 2 the window starts at %d, want 0", e.Top())
+	}
+	if feed(e, "j"); e.Top() != 21 {
+		t.Fatalf("on line 3 the window starts at %d, want line 2 at 21", e.Top())
+	}
+}
+
 // B31
 func TestB31Timeline(t *testing.T) {
 	e := open(t, filepath.Join(t.TempDir(), "f"))

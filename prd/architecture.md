@@ -443,6 +443,12 @@ the frame never waits for a reparse (B43).
 
 ## Rendering
 
+A line longer than its window wraps onto the rows below at the first
+cluster that does not fit, as Neovim's `wrap` does. `vim.Rows` gives where
+each row of a line starts. The editor scrolls the window by those rows and
+the client draws them, so the two agree. Rows past the end of the text
+show `~` (B37).
+
 The client keeps a cell grid, diffs it against the previous frame, and
 writes only the changed cells in one write. It wraps each frame in
 synchronized output where the terminal supports it.

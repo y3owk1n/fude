@@ -478,18 +478,20 @@ func (e *Session) topOf(w *window) int {
 func (e *Session) rows() int { return max(e.win.h-1, 1) }
 
 // reveal scrolls the current window the least it must to show the cursor's
-// line.
+// line, which takes as many rows as it wraps to (B37).
 func (e *Session) reveal() {
 	w := e.win
 	t, c := w.buf.text.Snapshot(), w.pos()
 	line := vim.LineStart(t, c)
-	// low is the earliest top that still shows the cursor's line.
-	low := line
-	for range e.rows() - 1 {
-		if low == 0 {
+	// low is the earliest top that still shows the cursor's line, found
+	// walking back from it, so a far jump looks at one window of lines.
+	low, rows := line, len(vim.Rows(t, line, w.w))
+	for low > 0 {
+		prev := vim.LineStart(t, low-1)
+		if rows += len(vim.Rows(t, prev, w.w)); rows > e.rows() {
 			break
 		}
-		low = vim.LineStart(t, low-1)
+		low = prev
 	}
 	w.buf.text.MoveMark(w.top, min(max(e.Top(), low), line))
 }
