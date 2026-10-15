@@ -48,20 +48,33 @@ func (m *Machine) selection() region {
 	return region{start: s, end: min(end, t.Len())}
 }
 
+// leaveVisual returns to normal mode, keeping the selection's ends for '<
+// and '>.
+func (m *Machine) leaveVisual() {
+	r := m.selection()
+	m.marked, m.hasMarked = [2]int{r.start, max(r.start, r.end-1)}, true
+	m.mode = Normal
+}
+
 // visualKey handles a command in visual mode.
 func (m *Machine) visualKey(cmd string, count int, reg rune) error {
 	t, c := m.h.Text(), m.h.Cursor()
 	switch cmd {
 	case "<Esc>":
-		m.mode = Normal
+		m.leaveVisual()
 		m.h.SetCursor(clamp(t, c))
 		return nil
 	case "v", "V", "<C-v>":
 		if Key(cmd) == m.visual {
-			m.mode = Normal
+			m.leaveVisual()
 			m.h.SetCursor(clamp(t, c))
 		}
 		m.visual = Key(cmd)
+		return nil
+	case ":":
+		// The command line starts with the range of the selected lines.
+		m.leaveVisual()
+		m.back, m.mode, m.prompt, m.line = Normal, Cmdline, ":", "'<,'>"
 		return nil
 	case "o":
 		m.anchor, c = c, m.anchor
@@ -70,7 +83,7 @@ func (m *Machine) visualKey(cmd string, count int, reg rune) error {
 	case "*", "#":
 		// Search for the selected text literally.
 		r := m.selection()
-		m.mode = Normal
+		m.leaveVisual()
 		pat := strings.ReplaceAll(strings.ReplaceAll(t.Slice(r.start, r.end), `\`, `\\`), "\n", `\n`)
 		m.search.pattern, m.search.forward = `\V`+pat, cmd == "*"
 		p, k, _ := m.seek(m.search.pattern, m.search.forward, max(count, 1))
@@ -84,7 +97,7 @@ func (m *Machine) visualKey(cmd string, count int, reg rune) error {
 			op = "d"
 		}
 		r := m.selection()
-		m.mode = Normal
+		m.leaveVisual()
 		if err := m.act(op, reg, string(m.visual)+op, r); err != nil {
 			return err
 		}

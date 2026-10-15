@@ -83,8 +83,10 @@ type Machine struct {
 	depth     int  // nested replays, to stop runaway recursion
 
 	// Visual mode.
-	visual      Key // v, V or <C-v>
-	anchor      int // the end of the selection the cursor is not on
+	visual      Key    // v, V or <C-v>
+	anchor      int    // the end of the selection the cursor is not on
+	marked      [2]int // the first and last character of the last selection, for '< and '>
+	hasMarked   bool
 	blockInsert *blockInsert
 	replaced    []string // what each key typed in replace mode overwrote
 

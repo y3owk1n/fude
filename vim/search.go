@@ -117,7 +117,10 @@ func (m *Machine) Matches(from, to int) [][2]int {
 // anything else to the host.
 func (m *Machine) ex(line string) error {
 	t, c := m.h.Text(), m.h.Cursor()
-	first, last, rest := lineRange(t, c, line)
+	first, last, rest, err := m.lineRange(t, c, line)
+	if err != nil {
+		return err
+	}
 	switch {
 	case rest == "noh" || rest == "nohlsearch":
 		m.hl = false
@@ -146,18 +149,30 @@ func isWordByte(b byte) bool {
 }
 
 // lineRange parses a leading range: %, or one or two addresses (a line
-// number, . or $) joined by a comma. It returns the starts of the first and
-// last lines and the rest of s. Without a range both are the cursor's line.
-func lineRange(t Text, c int, s string) (int, int, string) {
+// number, ., $, '< or '>) joined by a comma. It returns the starts of the
+// first and last lines and the rest of s. Without a range both are the
+// cursor's line.
+func (m *Machine) lineRange(t Text, c int, s string) (int, int, string, error) {
 	if rest, ok := strings.CutPrefix(s, "%"); ok {
-		return 0, LineStart(t, t.Len()), rest
+		return 0, LineStart(t, t.Len()), rest, nil
 	}
+	var err error
 	addr := func(s string) (int, string, bool) {
 		switch {
 		case strings.HasPrefix(s, "."):
 			return LineStart(t, c), s[1:], true
 		case strings.HasPrefix(s, "$"):
 			return LineStart(t, t.Len()), s[1:], true
+		case strings.HasPrefix(s, "'<") || strings.HasPrefix(s, "'>"):
+			if !m.hasMarked {
+				err = errors.New("no previous selection")
+				return 0, s, false
+			}
+			p := m.marked[0]
+			if s[1] == '>' {
+				p = m.marked[1]
+			}
+			return LineStart(t, min(p, t.Len())), s[2:], true
 		}
 		i := 0
 		for i < len(s) && s[i] >= '0' && s[i] <= '9' {
@@ -171,7 +186,7 @@ func lineRange(t Text, c int, s string) (int, int, string) {
 	}
 	first, rest, ok := addr(s)
 	if !ok {
-		return LineStart(t, c), LineStart(t, c), s
+		return LineStart(t, c), LineStart(t, c), s, err
 	}
 	last := first
 	if r, found := strings.CutPrefix(rest, ","); found {
@@ -179,7 +194,7 @@ func lineRange(t Text, c int, s string) (int, int, string) {
 			last, rest = l, r2
 		}
 	}
-	return min(first, last), max(first, last), rest
+	return min(first, last), max(first, last), rest, err
 }
 
 // splitDelim splits s at each delim not after a backslash, and drops the

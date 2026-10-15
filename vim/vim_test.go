@@ -385,6 +385,9 @@ func TestB22Substitute(t *testing.T) {
 		{"|a(b)", ":s/(b)/[&]/<CR>", "|a[(b)]"},
 		{"|a.b", ":s/./-/g<CR>", "|---"},
 		{"|a+b", ":s/\\v(a)\\+(b)/\\2\\1/<CR>", "|ba"},
+		{"|ab\ncd\nef", "Vj:s/./x/<CR>", "xb\n|xd\nef"},
+		{"ab\n|cd\nef", "vj:s/./x/g<CR>", "ab\nxx\n|xx"},
+		{"a|b\ncd", "v<Esc>j:'<,'>s/a/z/<CR>", "|zb\ncd"},
 	})
 	if _, h, _ := run(t, "|a\na\na", ":%s/a/b/<CR>"); h.steps != 1 {
 		t.Errorf("a substitute over three lines made %d undo steps, want 1", h.steps)
