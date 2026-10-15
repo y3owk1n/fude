@@ -32,6 +32,7 @@ type config struct {
 		Listing  map[string]string `toml:"listing"`
 		List     map[string]string `toml:"list"`
 		Timeline map[string]string `toml:"timeline"`
+		Finder   map[string]string `toml:"finder"` // in insert mode
 	} `toml:"keymap"`
 	Filetype map[string]struct {
 		IndentWidth uint       `toml:"indent_width"`

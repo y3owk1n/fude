@@ -133,7 +133,7 @@ Where fude departs, the line says so and cites the departure in
   mode. Below it are the files whose paths hold its letters in order,
   ranked as `matchfuzzy()` ranks them. `<C-n>` and `<C-p>` move the selection,
   `<CR>` opens the selected file, and leaving insert mode closes the
-  finder (N11).
+  finder (N11). B142 changes these keys.
 - B130 [2] On a screen of 60 columns or more, the finder shows the start
   of the selected file in a box right of the list, as fff.nvim does, with
   its filetype's highlights. A file with a zero byte in its first 16KB
@@ -205,8 +205,8 @@ Where fude departs, the line says so and cites the departure in
   `[keymap.normal]`'s, at once, without waiting for a longer one (N17). In
   any keymap table, a key mapped to `""` loses its mapping, fude's own
   default too, and a key mapped to `<Nop>` does nothing. The kinds are
-  `listing`, `list` for the lists of places such as `grr`'s, and
-  `timeline`.
+  `listing`, `list` for the lists of places such as `grr`'s, `timeline`,
+  and `finder`, whose keys are insert mode's.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays

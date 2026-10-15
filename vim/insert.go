@@ -22,6 +22,10 @@ func (m *Machine) insert(k Key) error {
 		}
 		return m.typeText(r.text)
 	}
+	if name, ok := strings.CutPrefix(string(k), "<Plug>("); ok {
+		// A host's command, as a mapping in insert mode runs it.
+		return m.plug(strings.TrimSuffix(name, ")"), 0)
+	}
 	switch k {
 	case "<Esc>":
 		m.cursors = nil

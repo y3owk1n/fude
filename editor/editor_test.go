@@ -1027,7 +1027,11 @@ func TestB142LocalKeymaps(t *testing.T) {
 "<C-h>" = ""
 "<C-v>" = "<Plug>(listing.vsplit)"
 x = "<Nop>"
+
+[keymap.finder]
+"<C-j>" = "<Plug>(finder.next)"
 `)
+	t.Chdir(dir)
 	e := start(t, filepath.Join(dir, "a"))
 	e.SetSize(80, 24)
 	feed(e, ":vsplit<CR>-")
@@ -1038,6 +1042,15 @@ x = "<Nop>"
 	// A key mapped in it runs the listing's action, and <Nop> does nothing.
 	if feed(e, "<C-w>ljx<C-v>"); len(e.Views()) != 3 || text(e) != "B" {
 		t.Fatalf("<C-v> on b left %d windows showing %q", len(e.Views()), text(e))
+	}
+	// The finder's keys are an insert mode keymap.
+	feed(e, "<C-w>h:files<CR>")
+	settle(t, e, func() bool {
+		f, _ := e.Float()
+		return strings.Count(f.Text, "\n") > 0 && strings.Contains(f.Text, "\nb")
+	})
+	if feed(e, "<C-j><CR>"); text(e) != "B" {
+		t.Fatalf("<C-j><CR> in the finder opened %q", text(e))
 	}
 }
 

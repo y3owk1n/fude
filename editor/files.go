@@ -35,6 +35,7 @@ type finder struct {
 	spans   []syntax.Span // their highlights
 	at      int           // the row of the preview its line is on
 	reading bool          // a preview is read off the loop
+	open    bool          // <Plug>(finder.open) ran, for finding to act on after the key
 	queries string        // where highlight queries are, for the preview
 	queue   chan<- func() // the editor loop's, for the preview
 }
@@ -89,13 +90,39 @@ func listFiles(dir string) ([]string, error) {
 	return paths, err
 }
 
-// finding takes a key while the finder shows: <CR> opens the selected file,
-// <C-n> and <C-p> move the selection, and other keys edit the query.
-// Leaving insert mode closes it.
+// finderKeys are the finder's own keys, in insert mode: <CR> opens the
+// selected file, and <C-n> and <C-p> move the selection. [keymap.finder]
+// changes them (B142).
+var finderKeys = map[string]string{
+	"<CR>": "<Plug>(finder.open)", "<C-n>": "<Plug>(finder.next)", "<C-p>": "<Plug>(finder.prev)",
+}
+
+// finderAct runs act, one of the finder's actions, while the finder shows.
+// open waits for the key to end, as closing the finder feeds the machine.
+func (e *Session) finderAct(act string) {
+	f := e.finder
+	if f == nil {
+		e.message = "no finder"
+		return
+	}
+	switch act {
+	case "open":
+		f.open = true
+	case "next":
+		f.sel = max(min(f.sel+1, len(f.matches)-1), 0)
+	case "prev":
+		f.sel = max(f.sel-1, 0)
+	}
+}
+
+// finding takes a key while the finder shows. Its keymap runs its actions,
+// other keys edit the query, and leaving insert mode closes it.
 func (e *Session) finding(k vim.Key) {
 	f := e.finder
-	switch k {
-	case "<CR>":
+	e.vim.UseLocal(e.locals["finder"])
+	e.settle(e.vim.Feed(k))
+	switch {
+	case f.open:
 		e.closeFinder()
 		if f.sel < len(f.matches) {
 			path, line, col, _ := grepSpot(f.matches[f.sel])
@@ -105,16 +132,7 @@ func (e *Session) finding(k vim.Key) {
 				e.setCursor(min(start+col-1, vim.LineEnd(t, start)))
 			}
 		}
-		return
-	case "<C-n>":
-		f.sel = max(min(f.sel+1, len(f.matches)-1), 0)
-		return
-	case "<C-p>":
-		f.sel = max(f.sel-1, 0)
-		return
-	}
-	e.settle(e.vim.Feed(k))
-	if e.vim.Mode() != vim.Insert {
+	case e.vim.Mode() != vim.Insert:
 		e.closeFinder()
 	}
 }

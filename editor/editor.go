@@ -189,15 +189,25 @@ func builtins(e *Session) {
 			return nil
 		})
 	}
+	for _, act := range []string{"open", "next", "prev"} {
+		e.vim.Command("finder."+act, func(vim.Text, int, int) []vim.Edit {
+			e.finderAct(act)
+			return nil
+		})
+	}
 	e.vim.Command("list.open", func(vim.Text, int, int) []vim.Edit {
 		e.openSpot()
 		return nil
 	})
 	e.locals = map[string]*vim.Keymaps{}
-	for kind, keys := range map[string]map[string]string{"listing": listingKeys, "list": listKeys, "timeline": timelineKeys} {
+	for kind, keys := range map[string]map[string]string{"listing": listingKeys, "list": listKeys, "timeline": timelineKeys, "finder": finderKeys} {
+		mode := vim.Normal
+		if kind == "finder" {
+			mode = vim.Insert
+		}
 		e.locals[kind] = &vim.Keymaps{}
 		for from, to := range keys {
-			e.locals[kind].Map(vim.Normal, from, to)
+			e.locals[kind].Map(mode, from, to)
 		}
 	}
 	e.vim.Command("listing.up", func(_ vim.Text, _, count int) []vim.Edit {
@@ -276,6 +286,7 @@ func Start(args []string) (*Session, error) {
 		for kind, maps := range map[string]map[string]string{"listing": cfg.Keymap.Listing, "list": cfg.Keymap.List, "timeline": cfg.Keymap.Timeline} {
 			mapAll(s.locals[kind], vim.Normal, maps)
 		}
+		mapAll(s.locals["finder"], vim.Insert, cfg.Keymap.Finder)
 	})
 	return e, nil
 }

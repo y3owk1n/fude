@@ -321,7 +321,9 @@ as Neovim's `<buffer>` mappings win. A buffer's actions, such as a
 listing's open and split, are `<Plug>` commands its keymap maps keys to,
 so a config table can move or drop each one. `""` in a table unmaps, which
 for a local key lets the global mapping through, and `<Nop>` maps a key to
-nothing (B142).
+nothing. The finder's keymap is an insert mode one, so the machine runs a
+`<Plug>` key in insert mode too. Its open action closes the finder after
+the key, as closing feeds the machine `<Esc>` (B142).
 
 The terminal sends the arrows, `<Home>`, `<End>`, `<Del>`, `<PageUp>` and
 `<PageDown>`. In normal and visual mode the machine reads each as the
