@@ -136,10 +136,13 @@ type Host interface {
 func New(h Host) *Machine
 func (m *Machine) Feed(key Key) error
 func (m *Machine) Paste(text string) error
+func (m *Machine) Map(mode Mode, from, to string)
+func (m *Machine) Waiting() bool
+func (m *Machine) Timeout() error
 ```
 
-Later behaviours add keymaps with `timeoutlen`, a clipboard for `"+`, and a
-registry for host and plugin operators and targets.
+Later behaviours add a clipboard for `"+` and a registry for host and plugin
+operators and targets.
 
 
 `vim/` owns the grammar, modes, registers, dot repeat, macros, search and
@@ -284,13 +287,17 @@ macro. A request with `At` leaves the user's cursor where it was.
 ## Keys
 
 Keys are written in Vim notation: `d3w`, `<C-w>v`, `<Esc>`, `<CR>`,
-`<leader>`. One parser reads them in config keymaps, macro text, `:reg`
+`<Space>`. One parser reads them in config keymaps, macro text, `:reg`
 output and the RPC `keys` call.
 
-The machine keeps a keymap trie per mode. A leaf is a command
-template, an ex line or a plugin function. When a typed prefix is also a
-complete mapping, `Feed` returns a deadline `timeoutlen` away, as Neovim
-does, and the host calls `Timeout` if no key comes first. Operator-pending is a mode.
+The machine keeps a keymap trie for each of normal, visual and insert mode.
+A mapping runs keys, so an ex line is keys ending in `<CR>`. Plugin
+functions come with plugins. The machine never maps the keys a mapping
+runs, and an operator waiting for its target takes keys unmapped. While typed keys
+start a longer mapping, `Feed` holds them and `Waiting` reports true. The
+machine reads no clock, so the host waits its key timeout and calls
+`Timeout` if no key comes first. A macro replays its keys through the
+keymap, and dot repeat replays the keys the mapping ran.
 
 ## Views
 

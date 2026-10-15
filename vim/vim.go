@@ -124,6 +124,10 @@ type Machine struct {
 	autoIndent bool // the line's indent came from autoindent and is untouched
 	oneshot    bool // <C-o> is running one normal command
 	armed      bool // that command has begun
+
+	// Keymaps.
+	maps map[Mode]*keymap
+	held []Key // typed keys that start a longer mapping
 }
 
 // change is the last change, for dot repeat.
@@ -158,13 +162,13 @@ func (m *Machine) Register(name rune) (string, bool) {
 func (m *Machine) Feed(k Key) error {
 	m.beep, m.msg = false, ""
 	if m.recording != 0 {
-		if k == "q" && m.idle() {
+		if k == "q" && m.idle() && len(m.held) == 0 {
 			m.stopRecording()
 			return nil
 		}
 		m.macro = append(m.macro, k)
 	}
-	return m.feed(k)
+	return m.press(k)
 }
 
 // feed handles one key, from the user or a replay, and keeps the keys of the
@@ -211,17 +215,26 @@ func (m *Machine) idle() bool {
 	return m.mode == Normal && m.pending == "" && m.op == "" && m.count == 0 && m.reg == 0
 }
 
-// run feeds keys until one fails or a motion beeps.
-func (m *Machine) run(keys []Key) error {
+// run feeds keys until one fails or a motion beeps, through the keymap when
+// mapped is set.
+func (m *Machine) run(keys []Key, mapped bool) error {
 	if m.depth++; m.depth > 100 {
 		m.depth--
 		return errors.New("macro nested too deeply")
 	}
 	defer func() { m.depth-- }()
 	for _, k := range keys {
-		if err := m.feed(k); err != nil || m.beep {
+		step := m.feed
+		if mapped {
+			step = m.press
+		}
+		if err := step(k); err != nil || m.beep {
+			m.held = nil
 			return err
 		}
+	}
+	if mapped && len(m.held) > 0 {
+		return m.flush()
 	}
 	return nil
 }
@@ -245,7 +258,7 @@ func (m *Machine) repeat(count int) error {
 	if d.count > 0 {
 		keys = append(keys, Keys(strconv.Itoa(d.count))...)
 	}
-	return m.run(append(keys, d.keys...))
+	return m.run(append(keys, d.keys...), false)
 }
 
 // execute replays the macro in register name n times.
@@ -259,7 +272,7 @@ func (m *Machine) execute(name rune, n int) error {
 	}
 	m.executed = name
 	for range n {
-		if err := m.run(Keys(r.text)); err != nil || m.beep {
+		if err := m.run(Keys(r.text), true); err != nil || m.beep {
 			return err
 		}
 	}

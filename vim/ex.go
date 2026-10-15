@@ -252,7 +252,7 @@ func (m *Machine) normalLines(first, last int, keys string) error {
 			break
 		}
 		m.h.SetCursor(ls)
-		if err := m.run(Keys(keys)); err != nil {
+		if err := m.run(Keys(keys), true); err != nil {
 			return err
 		}
 		for m.mode != Normal || !m.idle() {

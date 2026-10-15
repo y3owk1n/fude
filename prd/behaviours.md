@@ -224,8 +224,8 @@ Tested through `vim/`'s exported API with a minimal host over a byte slice.
 
 - B110 [2] Every grammar behaviour gives the same result with the minimal
   host as with fude's editor.
-- B111 [2] `Feed` never blocks. An ambiguous key prefix returns a deadline,
-  and `Timeout` at that deadline resolves it as Neovim does after
+- B111 [2] `Feed` never blocks. While typed keys start a longer mapping,
+  `Waiting` reports true, and `Timeout` resolves them as Neovim does after
   `timeoutlen`.
 - B112 [2] Keys the machine does not own, such as `:w` and `<C-w>v`, reach
   the host's `Unhandled` with their full text and count.

@@ -610,3 +610,43 @@ func TestB9GraphemeClusters(t *testing.T) {
 		{"|xéy", "ll", "xé|y"},
 	})
 }
+
+// B84, B111
+func TestB84MappingPrefixWaits(t *testing.T) {
+	cs := []struct {
+		keys, want string
+		waits      bool
+	}{
+		{"ijkX", "one\n|wo three\nfour", false},
+		{"ijxk<Esc>", "one\ntwjx|ko three\nfour", false},
+		{",d", "one\nfo|ur", false},
+		{",", "one\ntw| three\nfour", true},
+		{",,", "one\ntw|three\nfour", true},
+		{"dw", "one\ntw|three\nfour", false},
+		{"w", "one\n|two three\nfour", false},
+		{"x", "one\nfo|ur", false},
+	}
+	for _, c := range cs {
+		h := &host{text: "one\ntwo three\nfour", cursor: 6}
+		m := vim.New(h)
+		m.Map(vim.Insert, "jk", "<Esc>")
+		m.Map(vim.Normal, ",", "x")
+		m.Map(vim.Normal, ",d", "dd")
+		m.Map(vim.Normal, "x", "dd")
+		m.Map(vim.Normal, "w", "b")
+		for _, k := range vim.Keys(c.keys) {
+			if err := m.Feed(k); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if m.Waiting() != c.waits {
+			t.Errorf("%q: waiting is %v, want %v", c.keys, m.Waiting(), c.waits)
+		}
+		if err := m.Timeout(); err != nil {
+			t.Fatal(err)
+		}
+		if got := h.text[:h.cursor] + "|" + h.text[h.cursor:]; got != c.want {
+			t.Errorf("%q: got %q, want %q", c.keys, got, c.want)
+		}
+	}
+}
