@@ -63,6 +63,7 @@ type options struct {
 	SmartCase      bool `toml:"smart_case"`      // a pattern with an uppercase letter matches case
 	ExpandTab      bool `toml:"expand_tab"`      // indent with spaces only
 	Clipboard      bool `toml:"clipboard"`       // yanks, deletes and puts use the system clipboard
+	SignColumn     bool `toml:"sign_column"`     // keep the sign column when there are no signs
 	Icons          bool `toml:"icons"`           // nerd font icons in listings and signs
 }
 

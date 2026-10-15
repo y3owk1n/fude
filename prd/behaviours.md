@@ -209,6 +209,10 @@ Where fude departs, the line says so and cites the departure in
   `finder`, whose keys are insert mode's, and `float` for a float the
   cursor is in, where `q` closes it. Hover while a float shows moves the
   cursor into it, whichever key runs hover.
+- B143 [2] With `sign_column` on, every window keeps its sign column, so
+  the text does not move when a git or diagnostic sign comes, as with
+  Neovim's `signcolumn=yes`. Off, the column shows while the buffer has
+  signs. `:set sign_column` changes it for one window.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays

@@ -49,9 +49,9 @@ func (w *window) iconCols() int {
 }
 
 // signCols is 2 when the buffer has signs, as Neovim's signcolumn=auto
-// shows them, and 0 otherwise (B119).
+// shows them, or always with sign_column, and 0 otherwise (B119, B143).
 func (w *window) signCols() int {
-	if w.buf.signed || len(w.buf.git) > 0 || w.buf.listed != "" {
+	if w.opts.SignColumn || w.buf.signed || len(w.buf.git) > 0 || w.buf.listed != "" {
 		return 2
 	}
 	return 0

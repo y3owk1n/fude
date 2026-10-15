@@ -863,7 +863,7 @@ func TestB131CommandCompletion(t *testing.T) {
 		{"<Esc>:e ed<Tab>", ":e editor/"},
 		{"f<Tab>", ":e editor/files.go"},
 		// <S-Tab> goes back from the typed word to the last match.
-		{"<Esc>:set nu<S-Tab>", ":set relative_number"},
+		{"<Esc>:set nu<S-Tab>", ":set sign_column"},
 	} {
 		if feed(e, c.keys); e.Line() != c.line {
 			t.Fatalf("after %q the line is %q, want %q", c.keys, e.Line(), c.line)
@@ -1051,6 +1051,20 @@ x = "<Nop>"
 	})
 	if feed(e, "<C-j><CR>"); text(e) != "B" {
 		t.Fatalf("<C-j><CR> in the finder opened %q", text(e))
+	}
+}
+
+// B143
+func TestB143SignColumn(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "f")
+	change(t, path, "a\n")
+	config(t, "sign_column = true")
+	e := start(t, path)
+	if v := e.Views()[0]; v.SignCols != 2 || v.Gutter != 2 {
+		t.Fatalf("with sign_column a file with no signs has %d sign columns", v.SignCols)
+	}
+	if feed(e, ":set nosign_column<CR>"); e.Views()[0].SignCols != 0 {
+		t.Fatal(":set nosign_column kept the sign column")
 	}
 }
 

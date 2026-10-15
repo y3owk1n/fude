@@ -716,6 +716,7 @@ smart_case = false   # with ignore_case, an uppercase letter matches case (B120)
 expand_tab = false   # indent with spaces only (B122)
 format_on_save = false # format before :w writes (B136)
 clipboard = false    # yanks, deletes and puts use the system clipboard (B137)
+sign_column = false  # keep the sign column when there are no signs (B143)
 icons = false        # nerd font icons in listings and diagnostic signs (B128)
 
 [keymap.normal]      # and [keymap.visual], [keymap.insert]. Keys map to keys.
