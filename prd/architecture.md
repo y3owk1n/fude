@@ -816,7 +816,8 @@ yet.
 
 - `pull {buffer, version}` returns `{buffer, version, edits}`, the edit
   lists from `Since`, or `{buffer, version, text}` when the version is
-  left out or the server no longer has the edits. It shows the buffer in
+  left out or the server no longer has the edits. Both carry `indent`,
+  the buffer's indent width from the server's `config.toml`. It shows the buffer in
   the client's window, so the client hears `changed` for it.
 - `push {buffer, version, changes}` applies the changes, each a list of
   edits, one after another as one node of the client's origin when
@@ -841,5 +842,6 @@ the client's session on the server, so undo reverts the client's own
 changes from the one timeline (B77, B98). The jumplist and changelist are
 the client's own, as marks in the copy, and `g-` and `g+` run on the
 server, as the timeline is there (B99). `"+` and `"*` are the clipboard of
-the client's machine (B36). The grammar's cases in
+the client's machine (B36), and `>` and `<` shift by the server's indent
+width for the buffer (B94). The grammar's cases in
 `vim/testdata/grammar.txt` run through it too (B110).

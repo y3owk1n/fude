@@ -29,12 +29,12 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-// served starts an editor on an empty buffer, serves it on a socket and
+// served starts an editor on the files args name, or an empty buffer, serves it on a socket and
 // runs its loop. typed runs keys in its session on the loop and returns
 // the text after them.
-func served(t *testing.T) (typed func(keys string) string, path string) {
+func served(t *testing.T, args ...string) (typed func(keys string) string, path string) {
 	t.Helper()
-	e, err := editor.Open("")
+	e, err := editor.Start(args)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -261,4 +261,28 @@ func readFile(t *testing.T, path string) string {
 		t.Fatal(err)
 	}
 	return string(b)
+}
+
+// B94, in a client
+func TestB94ClientIndentWidth(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	if err := os.MkdirAll(filepath.Join(dir, "fude"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "fude", "config.toml"), []byte("[filetype.go]\nindent_width = 4\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(t.TempDir(), "a.go")
+	if err := os.WriteFile(file, []byte("x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, path := served(t, file)
+	r, err := dial(t, path).Open(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if feed(t, client.NewEditor(r, 22), ">>"); r.Text() != "    x" {
+		t.Fatalf(">> in a Go file made %q, want four spaces", r.Text())
+	}
 }

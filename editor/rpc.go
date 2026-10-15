@@ -392,6 +392,7 @@ type pulled struct {
 	Version kernel.Version `json:"version"`
 	Edits   [][]wireEdit   `json:"edits,omitempty"`
 	Text    *string        `json:"text,omitempty"`
+	Indent  int            `json:"indent"` // the columns > and < shift by, from config.toml
 }
 
 // pull returns buffer id's edits since version, and shows the buffer in the
@@ -405,7 +406,7 @@ func (e *Session) pull(id int, version *kernel.Version) (pulled, error) {
 		e.win.show(b)
 	}
 	t := b.text.Snapshot()
-	p := pulled{Buffer: b.id, Version: t.Version()}
+	p := pulled{Buffer: b.id, Version: t.Version(), Indent: host{e}.IndentWidth()}
 	if version != nil {
 		if lists, ok := b.text.Since(*version); ok {
 			for _, l := range lists {

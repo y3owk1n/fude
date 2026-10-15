@@ -1,6 +1,7 @@
 package client
 
 import (
+	"cmp"
 	"errors"
 	"slices"
 	"strconv"
@@ -216,4 +217,5 @@ func (h host) Step(n int) (int, bool) {
 	return start, err == nil
 }
 
-func (h host) IndentWidth() int { return vim.Tabstop }
+// IndentWidth is the buffer's setting in the server's config.toml (B94).
+func (h host) IndentWidth() int { return cmp.Or(h.e.r.indent, vim.Tabstop) }
