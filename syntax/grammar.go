@@ -41,6 +41,9 @@ type grammar struct {
 
 // registry are the grammars fude builds, by filetype.
 var registry = map[string]grammar{
+	"c":          {"https://github.com/tree-sitter/tree-sitter-c", "b780e47fc780ddc8da13afa35a3f4ed5c157823d", ".", []string{"queries/highlights.scm"}, "// %s"},
+	"cpp":        {"https://github.com/tree-sitter/tree-sitter-cpp", "f41e1a044c8a84ea9fa8577fdd2eab92ec96de02", ".", []string{"c:queries/highlights.scm", "queries/highlights.scm"}, "// %s"},
+	"rust":       {"https://github.com/tree-sitter/tree-sitter-rust", "77a3747266f4d621d0757825e6b11edcbf991ca5", ".", []string{"queries/highlights.scm"}, "// %s"},
 	"bash":       {"https://github.com/tree-sitter/tree-sitter-bash", "a06c2e4415e9bc0346c6b86d401879ffb44058f7", ".", []string{"queries/highlights.scm"}, "# %s"},
 	"javascript": {"https://github.com/tree-sitter/tree-sitter-javascript", "44c892e0be055ac465d5eeddae6d3e194424e7de", ".", []string{"queries/highlights.scm", "queries/highlights-jsx.scm", "queries/highlights-params.scm"}, "// %s"},
 	"json":       {"https://github.com/tree-sitter/tree-sitter-json", "ee35a6ebefcef0c5c416c0d1ccec7370cfca5a24", ".", []string{"queries/highlights.scm"}, ""},
