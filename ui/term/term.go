@@ -11,7 +11,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/gdamore/tcell/v3"
-	"github.com/gdamore/tcell/v3/color"
 
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/syntax"
@@ -32,7 +31,7 @@ func Run(e *editor.Session) error {
 	s.EnablePaste()
 	s.EnableFocus()
 
-	c := client{s: s, e: e}
+	c := newClient(s, e)
 	c.draw()
 	// Plugins load after the first frame, so they never delay it (B56).
 	e.Load()
@@ -92,43 +91,6 @@ func selected(sel vim.Selection, at, x int) bool {
 	return at >= sel.Start && at < sel.End && (!sel.Block || x >= sel.Left && x <= sel.Right)
 }
 
-// colours are the styles of highlight captures. A capture with no entry takes
-// the one for its name without its last part, so function.builtin falls back
-// to function. Palette colours follow the terminal's theme.
-var colours = map[string]tcell.Style{
-	"comment": tcell.StyleDefault.Foreground(color.Gray),
-	"keyword": tcell.StyleDefault.Foreground(color.Purple),
-	// Markdown in floats, such as hover.
-	"markup.strong":  tcell.StyleDefault.Bold(true),
-	"markup.italic":  tcell.StyleDefault.Italic(true),
-	"markup.heading": tcell.StyleDefault.Bold(true),
-	"markup.raw":     tcell.StyleDefault.Foreground(color.Teal),
-	"markup.link":    tcell.StyleDefault.Underline(true),
-	"markup.rule":    tcell.StyleDefault.Foreground(color.Gray),
-	"menu.selected":  tcell.StyleDefault.Reverse(true),
-	// Text just yanked, put, undone or redone.
-	"flash": tcell.StyleDefault.Background(color.Orange).Foreground(color.Black),
-	// A hunk's lines, as git's index has them and as they are.
-	"diff.minus": tcell.StyleDefault.Foreground(color.Red),
-	"diff.plus":  tcell.StyleDefault.Foreground(color.Green),
-	// What a proposal would replace.
-	"proposal":       tcell.StyleDefault.Foreground(color.Gray).StrikeThrough(true),
-	"proposal.stale": tcell.StyleDefault.Foreground(color.Red).StrikeThrough(true),
-	"string":         tcell.StyleDefault.Foreground(color.Green),
-	"escape":         tcell.StyleDefault.Foreground(color.Teal),
-	"number":         tcell.StyleDefault.Foreground(color.Olive),
-	"constant":       tcell.StyleDefault.Foreground(color.Olive),
-	"function":       tcell.StyleDefault.Foreground(color.Navy),
-	"type":           tcell.StyleDefault.Foreground(color.Teal),
-}
-
-// underlines are the colours diagnostics underline their text in, over its
-// other colours.
-var underlines = map[string]color.Color{
-	"diagnostic.error": color.Red, "diagnostic.warn": color.Yellow,
-	"diagnostic.info": color.Blue, "diagnostic.hint": color.Aqua,
-}
-
 // paint returns the style of each byte from top that a highlight colours.
 func paint(spans []syntax.Span, top int) []tcell.Style {
 	var out []tcell.Style
@@ -167,8 +129,19 @@ type client struct {
 	e *editor.Session
 }
 
+// newClient draws e on s, in the theme e's config names, or dark for a name
+// it does not know.
+func newClient(s tcell.Screen, e *editor.Session) *client {
+	t, ok := themes[e.Theme()]
+	if !ok {
+		t = themes["dark"]
+	}
+	useTheme(t)
+	return &client{s: s, e: e}
+}
+
 func (c *client) draw() {
-	c.s.Clear()
+	c.s.Fill(' ', base)
 	w, h := c.s.Size()
 	c.e.SetSize(w, h-1)
 	sel, visual := c.e.Selection()
@@ -318,7 +291,7 @@ func wrap(text string, spans []syntax.Span, limit int) ([]row, int) {
 // columns wide inside it, and reports where the byte at cursor is.
 func (c *client) box(text string, spans []syntax.Span, rows []row, x, y, width, cursor int) (int, int, bool) {
 	styles := paint(spans, 0)
-	style := tcell.StyleDefault
+	style := base
 	fx, fy, found := 0, 0, false
 	c.s.PutStrStyled(x, y, "┌"+strings.Repeat("─", width)+"┐", style)
 	for i, r := range rows {
@@ -392,10 +365,10 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 			}
 			y, stop := v.Y+row, end
 			if s, ok := v.Signs[t.LineOf(pos)]; ok && i == 0 {
-				c.s.PutStrStyled(numbers, y, s.Text, tcell.StyleDefault.Foreground(signColours[s.Name]))
+				c.s.PutStrStyled(numbers, y, s.Text, base.Foreground(signColours[s.Name]))
 			}
 			if s, ok := v.Icons[t.LineOf(pos)]; ok && i == 0 {
-				c.s.PutStrStyled(v.X-2, y, s.Text, tcell.StyleDefault.Foreground(signColours[s.Name]))
+				c.s.PutStrStyled(v.X-2, y, s.Text, base.Foreground(signColours[s.Name]))
 			}
 			if i == 0 && (v.Number || v.Relative) {
 				c.number(t.LineOf(pos), cur, numbers+v.SignCols, y, v)
@@ -427,12 +400,12 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 				if rest == "" || x >= v.W {
 					break
 				}
-				style := tcell.StyleDefault
+				style := base
 				if i := at - v.Top; i < len(paint) {
 					style = paint[i]
 				}
 				if shade {
-					style = style.Background(cursorLine)
+					style = style.Background(th.cursorLine)
 				}
 				if slices.Contains(v.Pair, at) {
 					// As Neovim's MatchParen shows in a terminal.
@@ -440,19 +413,19 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 				}
 				for _, mt := range matches {
 					if at >= mt[0] && at < mt[1] {
-						style = style.Background(color.Yellow).Foreground(color.Black)
+						style = style.Background(th.warn).Foreground(th.bg)
 					}
 				}
 				if visual && selected(sel, at, col) || slices.Contains(cursors, at) {
 					// Reversing syntax colours would stripe the selection, so it
 					// drops them.
-					style = tcell.StyleDefault.Reverse(true)
+					style = base.Background(th.selection)
 				}
 				if rest[0] == '\t' {
 					w := vim.Tabstop - col%vim.Tabstop
 					c.s.FillArea(v.X+x, y, min(w, v.W-x), 1, ' ', style)
 					if v.List {
-						c.s.Put(v.X+x, y, ">", style.Foreground(color.Gray))
+						c.s.Put(v.X+x, y, ">", style.Foreground(th.faint))
 					}
 					x, col, rest = x+w, col+w, rest[1:]
 					continue
@@ -460,7 +433,7 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 				if v.List {
 					if mark, ok := listChar(rest, at >= trail); ok {
 						// The mark takes the place of the one-column character.
-						c.s.Put(v.X+x, y, mark, style.Foreground(color.Gray))
+						c.s.Put(v.X+x, y, mark, style.Foreground(th.faint))
 						_, size := utf8.DecodeRuneInString(rest)
 						x, col, rest = x+1, col+1, rest[size:]
 						continue
@@ -471,9 +444,9 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 				x, col = x+width, col+width
 			}
 			if n := v.Notes[t.LineOf(pos)]; i == len(starts)-1 && x >= 0 {
-				style := tcell.StyleDefault.Foreground(color.Gray)
+				style := base.Foreground(th.faint)
 				if shade {
-					style = style.Background(cursorLine)
+					style = style.Background(th.cursorLine)
 				}
 				for n != "" && x < v.W {
 					var width int
@@ -482,10 +455,10 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 				}
 			}
 			if shade && x < v.W {
-				c.s.FillArea(v.X+x, y, v.W-x, 1, ' ', tcell.StyleDefault.Background(cursorLine))
+				c.s.FillArea(v.X+x, y, v.W-x, 1, ' ', base.Background(th.cursorLine))
 			}
 			if i == len(starts)-1 && slices.Contains(cursors, end) && x < v.W {
-				c.s.Put(v.X+x, y, " ", tcell.StyleDefault.Reverse(true))
+				c.s.Put(v.X+x, y, " ", base.Background(th.selection))
 			}
 			row++
 		}
@@ -496,13 +469,13 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 	}
 	// Rows past the end of the text show ~.
 	for ; row < v.H-1; row++ {
-		c.s.Put(numbers, v.Y+row, "~", tcell.StyleDefault.Foreground(color.Gray))
+		c.s.Put(numbers, v.Y+row, "~", base.Foreground(th.faint))
 	}
 	// The separator and status line span the whole window.
 	v.X, v.W = numbers, v.W+v.Gutter
 	if v.X > 0 {
 		for y := v.Y; y < v.Y+v.H; y++ {
-			c.s.Put(v.X-1, y, "│", tcell.StyleDefault)
+			c.s.Put(v.X-1, y, "│", base)
 		}
 	}
 	status := " " + v.Name
@@ -513,7 +486,10 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 		// Cut the start of a long name, so the end and [+] stay in view.
 		status = "<" + string(r[len(r)-v.W+1:])
 	}
-	style := tcell.StyleDefault.Reverse(true).Bold(v.Current)
+	style := base.Background(th.raised).Bold(v.Current)
+	if !v.Current {
+		style = style.Foreground(th.muted)
+	}
 	c.s.FillArea(v.X, v.Y+v.H-1, v.W, 1, ' ', style)
 	c.s.PutStrStyled(v.X, v.Y+v.H-1, status, style)
 	// Plugins' segments, the keys being typed and the ruler go on the right
@@ -545,10 +521,10 @@ func (c *client) number(line, cur, x, y int, v editor.View) {
 	if v.Relative && v.Number && line == cur {
 		text = fmt.Sprintf("%-*d ", w, line+1)
 	}
-	style := tcell.StyleDefault.Foreground(color.Gray)
+	style := base.Foreground(th.faint)
 	if v.CursorLine && line == cur {
 		// The cursor's line number stands out, as Neovim's CursorLineNr.
-		style = tcell.StyleDefault.Bold(true)
+		style = base.Bold(true)
 	}
 	c.s.PutStrStyled(x, y, text, style)
 }
@@ -566,22 +542,6 @@ func listChar(rest string, trailing bool) (string, bool) {
 	return "", false
 }
 
-// signColours are the colours of signs and icons: diagnostics' as they
-// underline, and git's as gitsigns' defaults.
-var signColours = map[string]color.Color{
-	"diagnostic.error": color.Red, "diagnostic.warn": color.Yellow,
-	"diagnostic.info": color.Blue, "diagnostic.hint": color.Aqua,
-	"git.add": color.Green, "git.change": color.Blue, "git.delete": color.Red,
-	// The colours of icons, as mini.icons names them.
-	"icon.azure": color.DeepSkyBlue, "icon.blue": color.Blue, "icon.cyan": color.Teal, "icon.green": color.Green,
-	"icon.grey": color.Gray, "icon.orange": color.Orange, "icon.purple": color.Purple, "icon.red": color.Red,
-	"icon.yellow": color.Yellow,
-}
-
-// cursorLine is the background of the cursor's line with cursor_line on,
-// a dark grey like Neovim's default CursorLine.
-var cursorLine = color.XTerm236
-
 // ghostText shows a line break and a tab in a proposal's text as one cell
 // each.
 var ghostText = strings.NewReplacer("\n", "⏎", "\t", " ")
@@ -589,9 +549,9 @@ var ghostText = strings.NewReplacer("\n", "⏎", "\t", " ")
 // ghost draws g's text from column x of a window at left that is w wide,
 // and returns the column after it.
 func (c *client) ghost(g editor.Ghost, left, x, y, w int) int {
-	style := tcell.StyleDefault.Foreground(color.Gray).Italic(true)
+	style := base.Foreground(th.faint).Italic(true)
 	if g.Stale {
-		style = style.Foreground(color.Red)
+		style = style.Foreground(th.err)
 	}
 	for s := ghostText.Replace(g.Text); s != "" && x < w; {
 		var width int

@@ -25,6 +25,7 @@ type config struct {
 	Socket       string `toml:"socket"` // where clients attach, instead of a path per process
 	FormatOnSave bool   `toml:"format_on_save"`
 	Leader       string `toml:"leader"` // what <Leader> in a mapping stands for (N18)
+	Theme        string `toml:"theme"`  // the client's colours, dark or light
 	options
 	Keymap struct {
 		Normal map[string]string `toml:"normal"`
@@ -50,7 +51,7 @@ type config struct {
 	} `toml:"plugin"`
 }
 
-var defaults = config{IndentWidth: 8, KeyTimeout: 1000, LargeFile: 50, Leader: "<Space>", options: options{Wrap: true}}
+var defaults = config{IndentWidth: 8, KeyTimeout: 1000, LargeFile: 50, Leader: "<Space>", Theme: "dark", options: options{Wrap: true}}
 
 // options are the settings each window has, which :set changes for the
 // current window and the windows opened after it (B39).

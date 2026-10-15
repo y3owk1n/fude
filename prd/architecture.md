@@ -720,6 +720,7 @@ sign_column = false  # keep the sign column when there are no signs (B143)
 icons = false        # nerd font icons in listings and diagnostic signs (B128)
 
 leader = "<Space>"   # what <Leader> in a mapping stands for (B144)
+theme = "dark"       # the terminal client's colours, dark or light (B145)
 
 [keymap.normal]      # and [keymap.visual], [keymap.insert]. Keys map to keys.
 "<Leader>w" = ":w<CR>"
@@ -846,8 +847,10 @@ its parser, tree, query and cursor when the buffer closes.
 
 Captures paint as tree-sitter's own highlighter picks them (B46). A capture
 on a node inside another wins, and of the captures on one node only the last
-pattern's counts. The terminal client colours them from the palette, so the
-terminal's theme applies.
+pattern's counts. The terminal client colours them from fude's theme, in
+`ui/term/theme.go`: a set of named colours for each of dark and light,
+from which every style derives, starting with the text's colours on the
+ground (B145, D33).
 
 Each language is a grammar and its queries, from the grammar's own repo
 (D28):

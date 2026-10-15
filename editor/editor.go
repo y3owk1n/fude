@@ -814,6 +814,9 @@ func (e *Session) Selection() (vim.Selection, bool) { return e.vim.Selection() }
 // Line returns the command line being typed.
 func (e *Session) Line() string { return e.vim.Line() }
 
+// Theme names the colours config.toml asks the client for.
+func (e *Session) Theme() string { return e.cfg.Theme }
+
 // LineCursor returns where the cursor is in Line, in bytes.
 func (e *Session) LineCursor() int { return e.vim.LineCursor() }
 

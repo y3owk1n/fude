@@ -216,6 +216,10 @@ Where fude departs, the line says so and cites the departure in
 - B144 [2] `<Leader>` in a mapping, from config or a plugin, stands for
   the `leader` setting, `<Space>` unless set, as Neovim's `mapleader` does
   when the mapping is made (N18).
+- B145 [2] The terminal client draws in fude's own theme, in true colour:
+  `dark` unless the `theme` setting names `light`. The ground, text,
+  syntax, signs, selection and search take the theme's colours, not the
+  terminal's (D33).
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays

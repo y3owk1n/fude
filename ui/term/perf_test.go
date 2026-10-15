@@ -16,33 +16,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gdamore/tcell/v3"
-	"github.com/gdamore/tcell/v3/vt"
-
-	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/vim"
 )
-
-// start opens args in an editor drawn on a mock terminal, with its config
-// and timeline logs in temp directories.
-func start(t *testing.T, args ...string) *client {
-	t.Helper()
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	t.Setenv("XDG_STATE_HOME", t.TempDir())
-	e, err := editor.Start(args)
-	if err != nil {
-		t.Fatal(err)
-	}
-	s, err := tcell.NewTerminfoScreenFromTty(vt.NewMockTerm(vt.MockOptSize{X: 120, Y: 40}))
-	if err == nil {
-		err = s.Init()
-	}
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(s.Fini)
-	return &client{s: s, e: e}
-}
 
 // code writes about size bytes of Go-like text, with a blank line every ten
 // lines, and returns its path.

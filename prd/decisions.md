@@ -268,6 +268,14 @@ grammar through the Go binding in the grammar's own repo, starting with
 the standard library, and the official binding tracks the C library. Its
 one dependency, `github.com/mattn/go-pointer`, passes Go callbacks to C.
 
+## D33. The terminal client draws in its own true colour theme
+
+The terminal client paints every cell from fude's theme, dark or light in
+24-bit colour, where it took the terminal's 16 colours before. Why: the
+user wants a modern look like Zed's and Helix's, and 16 colours
+give too few shades for layered grounds, a cursor line and muted text. A
+terminal without true colour gets the nearest colours tcell can send.
+
 ## Departures from Neovim
 
 Each entry: what differs, then why.
