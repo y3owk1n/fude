@@ -179,6 +179,18 @@ func builtins(e *Session) {
 		return nil
 	})
 	e.vim.Map(vim.Normal, "-", "<Plug>(listing.up)")
+	for keys, to := range map[string]string{"]h": "next", "[h": "prev", "[H": "first", "]H": "last"} {
+		e.vim.Command("git."+to, func(_ vim.Text, _, count int) []vim.Edit {
+			e.jumpHunk(to, max(count, 1))
+			return nil
+		})
+		e.vim.Map(vim.Normal, keys, "<Plug>(git."+to+")")
+	}
+	e.vim.Command("git.preview", func(vim.Text, int, int) []vim.Edit {
+		e.previewHunk()
+		return nil
+	})
+	e.vim.Operator("gH", e.resetHunks)
 	e.vim.Map(vim.Normal, "<C-]>", "<Plug>(lsp.definition)")
 	e.vim.Map(vim.Normal, "K", "<Plug>(lsp.hover)")
 	for keys, n := range map[string]int{"]d": 1, "[d": -1} {

@@ -111,6 +111,9 @@ var colours = map[string]tcell.Style{
 	"markup.link":    tcell.StyleDefault.Underline(true),
 	"markup.rule":    tcell.StyleDefault.Foreground(color.Gray),
 	"menu.selected":  tcell.StyleDefault.Reverse(true),
+	// A hunk's lines, as git's index has them and as they are.
+	"diff.minus": tcell.StyleDefault.Foreground(color.Red),
+	"diff.plus":  tcell.StyleDefault.Foreground(color.Green),
 	// What a proposal would replace.
 	"proposal":       tcell.StyleDefault.Foreground(color.Gray).StrikeThrough(true),
 	"proposal.stale": tcell.StyleDefault.Foreground(color.Red).StrikeThrough(true),

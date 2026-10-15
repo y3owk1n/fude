@@ -3,7 +3,11 @@ package editor
 import (
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
+
+	"github.com/y3owk1n/fude/syntax"
+	"github.com/y3owk1n/fude/vim"
 )
 
 // hasGit reports whether git is installed. Without it, files show no git
@@ -127,39 +131,180 @@ func (ed *Editor) diffGit(b *buffer) {
 	}()
 }
 
-// gitSigns returns the sign of each line of now that differs from base.
-func gitSigns(base, now string) map[int]Sign {
+// hunk is one run of lines that differ from git's index: count lines of
+// the text from line, which replaced old.
+type hunk struct {
+	line, count int
+	old         []string
+}
+
+// span returns the first and last line a hunk's sign is on. A deletion's
+// is the line before it, or the first line.
+func (h hunk) span() (int, int) {
+	if h.count == 0 {
+		return max(h.line-1, 0), max(h.line-1, 0)
+	}
+	return h.line, h.line + h.count - 1
+}
+
+// hunks returns where now differs from base, line by line.
+func hunks(base, now string) []hunk {
 	ops := lineDiff(strings.Split(base, "\n"), strings.Split(now, "\n"))
-	out := map[int]Sign{}
+	var out []hunk
 	line := 0 // the line of now the next op is at
 	for i := 0; i < len(ops); {
 		if ops[i].kind == ' ' {
 			line, i = line+1, i+1
 			continue
 		}
-		del, add := 0, 0
+		h := hunk{line: line}
 		for ; i < len(ops) && ops[i].kind != ' '; i++ {
 			if ops[i].kind == '-' {
-				del++
+				h.old = append(h.old, ops[i].line)
 			} else {
-				add++
+				h.count++
 			}
 		}
+		line += h.count
+		out = append(out, h)
+	}
+	return out
+}
+
+// gitSigns returns the sign of each line of now that differs from base.
+func gitSigns(base, now string) map[int]Sign {
+	out := map[int]Sign{}
+	for _, h := range hunks(base, now) {
+		add, del := h.count, len(h.old)
 		for j := range add {
-			out[line+j] = gitAdd
+			out[h.line+j] = gitAdd
 			if j < del {
-				out[line+j] = gitChange
+				out[h.line+j] = gitChange
 			}
 		}
 		switch {
-		case add == 0 && line == 0:
+		case add == 0 && h.line == 0:
 			out[0] = gitTopDelete
 		case add == 0:
-			out[line-1] = gitDelete
+			out[h.line-1] = gitDelete
 		case del > add:
-			out[line+add-1] = gitChangeDelete
+			out[h.line+add-1] = gitChangeDelete
 		}
-		line += add
 	}
 	return out
+}
+
+// hunks returns b's hunks against git's index, or false outside a
+// repository, after telling the user so.
+func (e *Session) hunks(b *buffer) ([]hunk, bool) {
+	if b.base == nil {
+		e.message = "not in a git repository"
+		return nil, false
+	}
+	t := b.text.Snapshot()
+	return hunks(*b.base, t.Slice(0, t.Len())), true
+}
+
+// jumpHunk moves the cursor to the start of a hunk: the count'th after its
+// line for ]h, before it for [h, or the first or last for [H and ]H
+// (B138).
+func (e *Session) jumpHunk(to string, count int) {
+	hs, ok := e.hunks(e.win.buf)
+	if !ok {
+		return
+	}
+	if len(hs) == 0 {
+		e.message = "no hunks"
+		return
+	}
+	t := e.Text()
+	cur := t.LineOf(e.Cursor())
+	var starts []int
+	for _, h := range hs {
+		start, _ := h.span()
+		starts = append(starts, start)
+	}
+	i := -1
+	switch to {
+	case "first":
+		i = 0
+	case "last":
+		i = len(starts) - 1
+	case "next":
+		if j := slices.IndexFunc(starts, func(l int) bool { return l > cur }); j >= 0 {
+			i = min(j+count-1, len(starts)-1)
+		}
+	case "prev":
+		for j, l := range starts {
+			if l < cur {
+				i = j
+			}
+		}
+		if i >= 0 {
+			i = max(i-count+1, 0)
+		}
+	}
+	if i < 0 {
+		e.message = "no " + to + " hunk"
+		return
+	}
+	e.setCursor(t.LineStart(starts[i]))
+}
+
+// resetHunks returns the edits that put the hunks meeting the lines from
+// start to end back as git's index has them, as gH does (B138).
+func (e *Session) resetHunks(t vim.Text, start, end int, _ bool) []vim.Edit {
+	hs, ok := e.hunks(e.win.buf)
+	if !ok {
+		return nil
+	}
+	now := t.Slice(0, t.Len())
+	lines := strings.Split(now, "\n")
+	first, last := t.LineOf(start), t.LineOf(end)
+	for _, h := range slices.Backward(hs) {
+		if lo, hi := h.span(); hi >= first && lo <= last {
+			lines = slices.Concat(lines[:h.line], h.old, lines[h.line+h.count:])
+		}
+	}
+	var edits []vim.Edit
+	for _, ed := range lineEdits(now, strings.Join(lines, "\n")) {
+		edits = append(edits, vim.Edit(ed))
+	}
+	return edits
+}
+
+// previewHunk shows the hunk on the cursor's line in a float, its old lines
+// after - and its new ones after + (B138).
+func (e *Session) previewHunk() {
+	b := e.win.buf
+	hs, ok := e.hunks(b)
+	if !ok {
+		return
+	}
+	t := b.text.Snapshot()
+	cur := t.LineOf(e.Cursor())
+	for _, h := range hs {
+		if lo, hi := h.span(); cur < lo || cur > hi {
+			continue
+		}
+		var s strings.Builder
+		var spans []syntax.Span
+		line := func(prefix, text, style string) {
+			if s.Len() > 0 {
+				s.WriteByte('\n')
+			}
+			spans = append(spans, syntax.Span{Start: s.Len(), End: s.Len() + 1 + len(text), Name: style})
+			s.WriteString(prefix + text)
+		}
+		for _, l := range h.old {
+			line("-", l, "diff.minus")
+		}
+		for i := h.line; i < h.line+h.count; i++ {
+			start := t.LineStart(i)
+			line("+", t.Slice(start, vim.LineEnd(t, start)), "diff.plus")
+		}
+		e.float, e.floatSpans = s.String(), spans
+		return
+	}
+	e.message = "no hunk on this line"
 }

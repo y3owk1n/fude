@@ -182,6 +182,12 @@ Where fude departs, the line says so and cites the departure in
   nothing. A put without a register takes the clipboard when something
   outside fude changed it, and else the unnamed register, so a line or
   block copied in fude puts as one (N14).
+- B138 [2] In a file in a git repository, `]h` and `[h` go to the start
+  of the next and previous hunk, with a count, and `]H` and `[H` to the
+  last and first, as mini.diff's keys do. `gH{motion}` puts the hunks in
+  its lines back as git's index has them, as one change.
+  `<Plug>(git.preview)` shows the hunk on the cursor's line in a float,
+  its old lines after `-` and its new ones after `+`.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays

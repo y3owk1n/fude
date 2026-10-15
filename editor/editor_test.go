@@ -914,6 +914,40 @@ func TestB136FormatOnSave(t *testing.T) {
 	settle(t, e, func() bool { return disk(t, path) == "eep\ny there\n" })
 }
 
+// B138
+func TestB138Hunks(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "f")
+	change(t, path, "a\nb\nc\nd\ne\n")
+	for _, args := range [][]string{{"init", "-q"}, {"add", "f"}} {
+		if out, err := exec.Command("git", append([]string{"-C", dir}, args...)...).CombinedOutput(); err != nil {
+			t.Skipf("git %v: %v: %s", args, err, out)
+		}
+	}
+	e := open(t, path)
+	e.SetSize(40, 10)
+	feed(e, "jrBjjrD")
+	settle(t, e, func() bool { return len(e.Views()[0].Signs) == 2 })
+	line := func() int { return e.Text().LineOf(e.Cursor()) }
+	for _, c := range []struct {
+		keys string
+		line int
+	}{{"gg]h", 1}, {"]h", 3}, {"[h", 1}, {"]H", 3}, {"[H", 1}, {"gg2]h", 3}} {
+		if feed(e, c.keys); line() != c.line {
+			t.Errorf("%s went to line %d, want %d", c.keys, line(), c.line)
+		}
+	}
+	// The preview shows the hunk's old and new lines.
+	feed(e, "[h<Plug>(git.preview)")
+	if f, ok := e.Float(); !ok || f.Text != "-b\n+B" {
+		t.Fatalf("the preview is %q", f.Text)
+	}
+	// gH puts the hunks in range back as the index has them.
+	if feed(e, "<Esc>]hVgH"); text(e) != "a\nB\nc\nd\ne" {
+		t.Fatalf("VgH on line 4 left %q", text(e))
+	}
+}
+
 // B124
 func TestB124Listing(t *testing.T) {
 	dir := t.TempDir()

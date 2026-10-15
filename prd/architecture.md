@@ -497,6 +497,13 @@ back. When a frame finds the text changed, fude diffs it with that copy,
 also off the loop and one diff at a time. A diagnostic's sign wins on its
 line, as Neovim puts diagnostics over gitsigns' signs. Without git on
 the PATH, fude runs nothing and shows no git signs (B123).
+
+A hunk is a run of changed lines from that diff: where it starts in the
+text, how many lines it has there, and the index's lines it replaced. The
+signs come from the hunks. `]h`, `[h`, `gH` and the preview diff the text
+with the base again on the loop, so they act on the text as it is and not
+on signs a diff off the loop has yet to update. A deletion's hunk starts
+on the line its sign is on (B138).
 `number` puts line numbers in a gutter at least 4 columns wide, and
 `relative_number` numbers lines from the cursor's. With both, the cursor's
 line shows its own number on the left, as in Neovim (B39).
