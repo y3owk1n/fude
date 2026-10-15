@@ -86,6 +86,37 @@ func TestB106LineIndex(t *testing.T) {
 	}
 }
 
+// heard keeps the text a listener would rebuild from the changes it hears.
+type heard struct{ text string }
+
+func (h *heard) Changed(before kernel.Snapshot, edits []kernel.Edit) {
+	if before.Slice(0, before.Len()) != h.text {
+		panic("listener: before is not the text it last heard")
+	}
+	for i := len(edits) - 1; i >= 0; i-- {
+		e := edits[i]
+		h.text = h.text[:e.Start] + e.Text + h.text[e.End:]
+	}
+}
+
+// B107
+func TestB107ListenerHearsEveryChange(t *testing.T) {
+	b := kernel.New("one two", nil)
+	h := &heard{text: "one two"}
+	b.Listen(h)
+	apply(t, b, kernel.Edit{Start: 0, End: 3, Text: "1"}, kernel.Edit{Start: 4, End: 7, Text: "2"})
+	apply(t, b, kernel.Edit{Start: 1, End: 1, Text: "!"})
+	first := b.Head()
+	b.Undo()
+	b.Undo()
+	b.Redo()
+	apply(t, b, kernel.Edit{Start: 0, End: 0, Text: "x"})
+	b.Goto(first)
+	if h.text != text(b) {
+		t.Errorf("the listener rebuilt %q, want %q", h.text, text(b))
+	}
+}
+
 // B101
 func TestB101StaleBaseRejected(t *testing.T) {
 	b := kernel.New("abc", nil)

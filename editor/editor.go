@@ -9,7 +9,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/core/kernel"
+	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
 )
 
@@ -25,6 +27,7 @@ type Editor struct {
 	done    bool
 	cfg     config
 	ask     func(yes bool) // takes the answer to the question in the message
+	queue   chan func()
 
 	width, height int // the space the windows share
 
@@ -46,7 +49,7 @@ func open(cfg config, paths []string) (*Editor, error) {
 	if len(paths) == 0 {
 		paths = []string{""}
 	}
-	e := &Editor{next: 1, now: time.Now, cfg: cfg}
+	e := &Editor{next: 1, now: time.Now, cfg: cfg, queue: make(chan func(), 16)}
 	e.vim = vim.New(host{e})
 	for i, p := range paths {
 		msg, err := e.add(p)
@@ -107,11 +110,37 @@ func (e *Editor) add(path string) (string, error) {
 	}
 	e.next++
 	e.bufs = append(e.bufs, b)
-	if limit := e.cfg.LargeFile; msg == "" && b.text.Snapshot().Len() > int(limit)<<20 {
-		msg = fmt.Sprintf("\"%s\" is over %dMB, syntax and LSP are off", path, limit)
+	if limit := e.cfg.LargeFile; b.text.Snapshot().Len() > int(limit)<<20 {
+		if msg == "" {
+			msg = fmt.Sprintf("\"%s\" is over %dMB, syntax and LSP are off", path, limit)
+		}
+		return msg, nil
+	}
+	h, ok, err := syntax.New(b.filetype(), e.queue)
+	if err != nil {
+		return err.Error(), nil
+	}
+	if ok {
+		b.syntax = h
+		b.text.Listen(heard{h})
 	}
 	return msg, nil
 }
+
+// heard passes a buffer's changes to its highlighter.
+type heard struct{ h *syntax.Highlighter }
+
+func (l heard) Changed(before kernel.Snapshot, edits []kernel.Edit) {
+	out := make([]api.Edit, len(edits))
+	for i, e := range edits {
+		out[i] = api.Edit(e)
+	}
+	l.h.Changed(before, out)
+}
+
+// Queue returns the work other goroutines hand the editor loop, such as new
+// highlights. The loop runs each func it receives, then draws.
+func (e *Editor) Queue() <-chan func() { return e.queue }
 
 // Feed handles one key. An error becomes the message.
 func (e *Editor) Feed(k vim.Key) {
@@ -172,17 +201,24 @@ type View struct {
 	X, Y, W, H        int // H counts the status line on the bottom row
 	Name              string
 	Modified, Current bool
+	Highlights        []syntax.Span // in paint order, later ones drawing over earlier ones
 }
 
 // Views returns every window from the top left.
 func (e *Editor) Views() []View {
 	var out []View
 	for _, w := range e.root.windows() {
-		out = append(out, View{
-			Text: w.buf.text.Snapshot(), Top: e.topOf(w), Cursor: w.pos(),
+		t, top := w.buf.text.Snapshot(), e.topOf(w)
+		v := View{
+			Text: t, Top: top, Cursor: w.pos(),
 			X: w.x, Y: w.y, W: w.w, H: w.h,
 			Name: w.buf.name(), Modified: w.buf.modified(), Current: w == e.win,
-		})
+		}
+		if h := w.buf.syntax; h != nil {
+			last := t.LineStart(min(t.LineOf(top)+max(w.h-2, 0), t.Lines()-1))
+			v.Highlights = h.Show(t, top, vim.LineEnd(t, last))
+		}
+		out = append(out, v)
 	}
 	return out
 }

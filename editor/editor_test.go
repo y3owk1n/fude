@@ -699,3 +699,48 @@ func TestB5QuitRefusesUnsaved(t *testing.T) {
 		t.Fatal(":q! did not quit")
 	}
 }
+
+// captures waits until the current window shows highlights, and returns the
+// captures of each highlighted piece of text, joined by spaces.
+func captures(t *testing.T, e *editor.Editor) map[string]string {
+	t.Helper()
+	deadline := time.After(5 * time.Second)
+	for {
+		for _, v := range e.Views() {
+			if v.Current && len(v.Highlights) > 0 {
+				out := map[string]string{}
+				for _, s := range v.Highlights {
+					text := v.Text.Slice(s.Start, s.End)
+					out[text] = strings.TrimSpace(out[text] + " " + s.Name)
+				}
+				return out
+			}
+		}
+		select {
+		case f := <-e.Queue():
+			f()
+		case <-deadline:
+			t.Fatal("no highlights after 5s")
+		}
+	}
+}
+
+// B46
+func TestB46Highlighting(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.go")
+	change(t, path, "package main\n\nfunc main() {\n\tx := len(\"hi\") // note\n}\n")
+	e := start(t, path)
+	e.SetSize(80, 10)
+	got := captures(t, e)
+	// len is a call, a builtin and an identifier, and the identifier pattern
+	// comes last in the query.
+	for text, name := range map[string]string{"package": "keyword", "func": "keyword", `"hi"`: "string", "// note": "comment", "len": "variable"} {
+		if got[text] != name {
+			t.Errorf("%s shows as %q, want %q", text, got[text], name)
+		}
+	}
+	feed(e, "Ox<Esc>")
+	if got := captures(t, e); got["package"] != "keyword" {
+		t.Errorf("after an edit above it, package shows as %q", got["package"])
+	}
+}

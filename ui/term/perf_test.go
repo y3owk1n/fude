@@ -56,8 +56,13 @@ func code(t *testing.T, size int) string {
 	return path
 }
 
-// press feeds keys and draws one frame, and returns how long that took.
+// press runs the work queued for the editor loop, as the loop does between
+// keys, then feeds keys and draws one frame, and returns how long the keys
+// and the frame took.
 func (c *client) press(keys string) time.Duration {
+	for len(c.e.Queue()) > 0 {
+		(<-c.e.Queue())()
+	}
 	at := time.Now()
 	for _, k := range vim.Keys(keys) {
 		c.e.Feed(k)

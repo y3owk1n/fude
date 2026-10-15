@@ -156,6 +156,10 @@ Where fude departs, the line says so and cites the departure in
   of the language at the cursor, including injected languages.
 - B45 [3] In visual mode, `an` and `in` select the enclosing syntax node,
   and `]n` and `[n` move to the next and previous node, as in Neovim.
+- B46 [3] With a grammar for the buffer's filetype, text shows in the colour
+  of its highlight capture. When captures overlap, fude picks one the way
+  tree-sitter's own highlighter does. Edited text keeps its colour until the
+  next parse.
 
 ## Plugins
 
@@ -228,6 +232,8 @@ Tested through `core/`'s exported API, with no editor around it.
   rebuilt from those nodes has the same timeline and text.
 - B106 [1] A snapshot gives the number of lines, where any line starts and
   which line holds any position, without reading the text before it.
+- B107 [1] A listener hears every change to the text, from transactions,
+  undo, redo and moves across the timeline, with the text before it.
 
 ## Vim library
 

@@ -83,9 +83,11 @@ func (b *Buffer) Head() NodeID
 func (b *Buffer) Nodes() []Node
 func (b *Buffer) SetMark(pos int, g Gravity) MarkID
 func (b *Buffer) MoveMark(id MarkID, pos int)
+func (b *Buffer) Listen(l Listener) // hears every change, with the text before it
 func (b *Buffer) Mark(id MarkID) int
 
 type Store interface{ Append(Node) }
+type Listener interface{ Changed(before Snapshot, edits []Edit) }
 ```
 
 A transaction carries the host's time, since the kernel reads no clock.
@@ -485,12 +487,26 @@ again from the compiled module without recompiling.
 
 ## Syntax
 
-tree-sitter through cgo, with the official `go-tree-sitter` binding.
-Parsing is incremental and runs on its own goroutine with its own parser,
-on a clone of the last tree, so a keystroke never waits for a parse (B43).
-A parse for an old version is abandoned through the progress callback of
-`ParseWithOptions` and the parser is reset. The binding has no finalizers,
-so `syntax/` closes every parser, tree, query and cursor it makes.
+tree-sitter through cgo, with the official `go-tree-sitter` binding (D32).
+`syntax/` reads text through `api.Text` and never imports `core/`. Until
+modules are wired through `api/` in step 4, `editor/` imports it directly.
+
+Each highlighted buffer has one goroutine that owns its parser, its tree
+and a copy of its text. The kernel's listener hands every change to the
+buffer's highlighter on the editor loop, which queues it for the goroutine
+as a tree edit and a text edit. Each frame asks for the captures of the
+window plus a margin. The goroutine takes the newest request and the edits
+up to it, parses incrementally and sends the spans back through the
+editor's queue. Until they arrive, the frame moves the old spans through the
+edits made since, so a keystroke never waits for a parse (B43). The
+goroutine abandons a parse for an old request through the progress callback
+of `ParseWithOptions`. The binding has no finalizers, so the goroutine closes
+its parser, tree, query and cursor when the buffer closes.
+
+Captures paint as tree-sitter's own highlighter picks them (B46). A capture
+on a node inside another wins, and of the captures on one node only the last
+pattern's counts. The terminal client colours them from the palette, so the
+terminal's theme applies.
 
 Each language is a grammar and its queries, from the grammar's own repo
 (D28):

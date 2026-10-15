@@ -11,6 +11,7 @@ import (
 	"github.com/gdamore/tcell/v3/color"
 
 	"github.com/y3owk1n/fude/editor"
+	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
 )
 
@@ -44,6 +45,8 @@ func Run(e *editor.Editor) error {
 		case ev = <-s.EventQ():
 		case <-timeout:
 			e.Timeout()
+		case f := <-e.Queue():
+			f()
 		}
 		switch ev := ev.(type) {
 		case *tcell.EventResize:
@@ -79,6 +82,42 @@ func Run(e *editor.Editor) error {
 		}
 		c.draw()
 	}
+}
+
+// colours are the styles of highlight captures. A capture with no entry takes
+// the one for its name without its last part, so function.builtin falls back
+// to function. Palette colours follow the terminal's theme.
+var colours = map[string]tcell.Style{
+	"comment":  tcell.StyleDefault.Foreground(color.Gray),
+	"keyword":  tcell.StyleDefault.Foreground(color.Purple),
+	"string":   tcell.StyleDefault.Foreground(color.Green),
+	"escape":   tcell.StyleDefault.Foreground(color.Teal),
+	"number":   tcell.StyleDefault.Foreground(color.Olive),
+	"constant": tcell.StyleDefault.Foreground(color.Olive),
+	"function": tcell.StyleDefault.Foreground(color.Navy),
+	"type":     tcell.StyleDefault.Foreground(color.Teal),
+}
+
+// paint returns the style of each byte from top that a highlight colours.
+func paint(spans []syntax.Span, top int) []tcell.Style {
+	var out []tcell.Style
+	for _, s := range spans {
+		style, ok := colours[s.Name]
+		for name := s.Name; !ok && strings.Contains(name, "."); {
+			name = name[:strings.LastIndexByte(name, '.')]
+			style, ok = colours[name]
+		}
+		if !ok || s.End <= top {
+			continue
+		}
+		if n := s.End - top; n > len(out) {
+			out = append(out, make([]tcell.Style, n-len(out))...)
+		}
+		for i := max(s.Start-top, 0); i < s.End-top; i++ {
+			out[i] = style
+		}
+	}
+	return out
 }
 
 var visualLabels = map[vim.Key]string{"v": "-- VISUAL --", "V": "-- VISUAL LINE --", "<C-v>": "-- VISUAL BLOCK --"}
@@ -133,6 +172,7 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 	t := v.Text
 	cx, cy, found := 0, 0, false
 	pos := v.Top
+	paint := paint(v.Highlights, v.Top)
 	for row := 0; row < v.H-1; row++ {
 		y := v.Y + row
 		end := vim.LineEnd(t, pos)
@@ -156,6 +196,9 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 				continue
 			}
 			style := tcell.StyleDefault
+			if i := at - v.Top; i < len(paint) {
+				style = paint[i]
+			}
 			for _, mt := range matches {
 				if at >= mt[0] && at < mt[1] {
 					style = style.Background(color.Yellow).Foreground(color.Black)

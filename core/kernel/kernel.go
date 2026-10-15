@@ -105,11 +105,19 @@ func (s Snapshot) LineStart(n int) int { return s.text.LineStart(n) }
 // LineOf returns the line pos is on, counting from 0.
 func (s Snapshot) LineOf(pos int) int { return s.text.LineOf(pos) }
 
+// Listener hears every change to a buffer's text as it is made, on the
+// writing goroutine, with the text from before it. edits are sorted and
+// apply to before.
+type Listener interface {
+	Changed(before Snapshot, edits []Edit)
+}
+
 // Buffer is text with marks and a timeline.
 type Buffer struct {
 	text    rope.Rope
 	version Version
 	store   Store
+	hear    Listener
 	nodes   []Node
 	head    NodeID
 	seq     map[Origin]uint64
@@ -321,8 +329,14 @@ func (b *Buffer) replay(edits []Edit, start int) int {
 	return start
 }
 
+// Listen makes l hear every later change to the text. A nil l stops it.
+func (b *Buffer) Listen(l Listener) { b.hear = l }
+
 // edit applies checked edits to the text and marks.
 func (b *Buffer) edit(edits []Edit) Change {
+	if b.hear != nil && len(edits) > 0 {
+		b.hear.Changed(b.Snapshot(), edits)
+	}
 	c := Change{Edits: edits, Removed: make([]string, len(edits))}
 	text := b.text
 	for i := len(edits) - 1; i >= 0; i-- {

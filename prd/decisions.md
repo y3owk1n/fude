@@ -243,6 +243,14 @@ key and a syntax error. A decode that fails keeps what it read before the
 error. BurntSushi/toml gives no line for a bad value and decodes the whole
 file or nothing. go-toml has no dependencies.
 
+## D32. tree-sitter comes through its official Go binding
+
+`syntax/` uses `github.com/tree-sitter/go-tree-sitter` and links each
+grammar through the Go binding in the grammar's own repo, starting with
+`github.com/tree-sitter/tree-sitter-go`. Why: there is no tree-sitter in
+the standard library, and the official binding tracks the C library. Its
+one dependency, `github.com/mattn/go-pointer`, passes Go callbacks to C.
+
 ## Departures from Neovim
 
 Each entry: what differs, then why.
