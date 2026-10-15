@@ -760,6 +760,47 @@ func TestB124Listing(t *testing.T) {
 	}
 }
 
+// B125
+func TestB125EditListing(t *testing.T) {
+	dir := t.TempDir()
+	for _, f := range []string{"a.txt", "b.txt", "keep.txt", "old/x", "old/y"} {
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(dir, f)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		change(t, filepath.Join(dir, f), f+"\n")
+	}
+	e := open(t, filepath.Join(dir, "a.txt"))
+	// a.txt becomes z.txt, b.txt and old/ go, and new.txt and new/ come.
+	feed(e, "-ggcwz<Esc>jddjjddOnew.txt<CR>new/<Esc>:w<CR>")
+	if want := "rename a.txt to z.txt, delete b.txt, delete old/ and its 2 files, create new.txt, create new/? (y/n)"; e.Message() != want {
+		t.Fatalf(":w asked %q, want %q", e.Message(), want)
+	}
+	if feed(e, "n"); disk(t, filepath.Join(dir, "a.txt")) != "a.txt\n" {
+		t.Fatal("answering n changed the directory")
+	}
+	feed(e, ":w<CR>y")
+	for path, want := range map[string]string{"z.txt": "a.txt\n", "keep.txt": "keep.txt\n", "new.txt": ""} {
+		if got := disk(t, filepath.Join(dir, path)); got != want {
+			t.Errorf("%s holds %q, want %q", path, got, want)
+		}
+	}
+	for _, gone := range []string{"a.txt", "b.txt", "old"} {
+		if _, err := os.Stat(filepath.Join(dir, gone)); err == nil {
+			t.Errorf("%s is still there", gone)
+		}
+	}
+	if info, err := os.Stat(filepath.Join(dir, "new")); err != nil || !info.IsDir() {
+		t.Errorf("new/ is not a directory: %v", err)
+	}
+	if text(e) != "keep.txt\nnew/\nnew.txt\nz.txt" || e.Views()[0].Modified {
+		t.Errorf("after :w the listing is %q", text(e))
+	}
+	// The renamed file's buffer follows it.
+	if feed(e, ":b 1<CR>"); e.Views()[0].Name != filepath.Join(dir, "z.txt") {
+		t.Errorf("the buffer of a.txt is named %q", e.Views()[0].Name)
+	}
+}
+
 // B118
 func TestB118List(t *testing.T) {
 	e := open(t, "")

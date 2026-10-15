@@ -110,6 +110,12 @@ Where fude departs, the line says so and cites the departure in
   `<CR>` opens the entry, `<C-s>` and `<C-h>` open it in a split beside or
   above, `_` lists the working directory and `<C-l>` reads it again, as
   oil.nvim's keys do.
+- B125 [2] Editing a listing and `:w` changes the directory, as oil.nvim
+  does: a changed name renames the entry, a deleted line deletes it, and a
+  new line creates a file, or a directory when it ends in `/`. fude first
+  asks with each change and the number of files a deleted directory
+  holds, and changes nothing on `n`. Open buffers of renamed files follow
+  them.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays

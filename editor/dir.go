@@ -2,8 +2,10 @@ package editor
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/y3owk1n/fude/core/kernel"
@@ -35,6 +37,7 @@ func dirBuffer(id int, dir string) (*buffer, error) {
 	}
 	b := &buffer{id: id, text: kernel.New(text, nil), before: map[kernel.NodeID]int{}, marks: map[rune]kernel.MarkID{}}
 	b.dir, b.title = dir, strings.TrimSuffix(dir, string(filepath.Separator))+string(filepath.Separator)
+	b.mark()
 	return b, nil
 }
 
@@ -154,4 +157,239 @@ func (e *Session) reload(b *buffer) {
 		}
 	}
 	b.head, b.saved = b.text.Head(), b.text.Head()
+	b.mark()
+}
+
+// entry is one name a listing showed when it was read. Text inserted at
+// its start mark goes before it, and text inserted at its end mark goes
+// after it, so lines added around the entry stay outside it.
+type entry struct {
+	name       string
+	start, end kernel.MarkID
+}
+
+// mark places the marks of b's entries, one a line, dropping old ones.
+func (b *buffer) mark() {
+	for _, en := range b.entries {
+		b.text.DeleteMark(en.start)
+		b.text.DeleteMark(en.end)
+	}
+	b.entries = nil
+	t := b.text.Snapshot()
+	for line := range t.Lines() {
+		start := t.LineStart(line)
+		end := vim.LineEnd(t, start)
+		if start == end {
+			continue
+		}
+		b.entries = append(b.entries, entry{t.Slice(start, end), b.text.SetMark(start, kernel.Right), b.text.SetMark(end, kernel.Left)})
+	}
+}
+
+// changes are what saving a listing does to its directory.
+type changes struct {
+	renames [][2]string // old and new names
+	deletes []string
+	creates []string // a trailing slash makes a directory
+}
+
+// plan reads the edits to b's listing as changes (B125). Each entry's line
+// is the one its marks are on. An entry whose marks met is gone, unless
+// they are still on one line no other entry has. A line no entry has is a
+// new entry. A name both gone and new is a line that moved, which changes
+// nothing.
+func (b *buffer) plan() (changes, error) {
+	t := b.text.Snapshot()
+	owner := map[int]string{} // line to the entry name on it
+	var met []entry
+	for _, en := range b.entries {
+		s, e := b.text.Mark(en.start), b.text.Mark(en.end)
+		if s >= e {
+			met = append(met, en)
+			continue
+		}
+		line := t.LineOf(s)
+		if _, ok := owner[line]; ok {
+			return changes{}, fmt.Errorf("%s and another entry are on one line", en.name)
+		}
+		owner[line] = en.name
+	}
+	var gone []string
+	for _, en := range met {
+		// cc leaves the marks met on one line, and the name there replaces
+		// the entry's. Lines inserted where dd left them spread them apart,
+		// and those lines are new.
+		line := t.LineOf(b.text.Mark(en.end))
+		if t.LineOf(b.text.Mark(en.start)) == line && owner[line] == "" {
+			owner[line] = en.name
+		} else {
+			gone = append(gone, en.name)
+		}
+	}
+	var c changes
+	var made []string
+	for line := range t.Lines() {
+		start := t.LineStart(line)
+		now := strings.TrimSpace(t.Slice(start, vim.LineEnd(t, start)))
+		was, ok := owner[line]
+		switch {
+		case !ok && now != "":
+			made = append(made, now)
+		case ok && now == "":
+			gone = append(gone, was)
+		case ok && now != was:
+			c.renames = append(c.renames, [2]string{was, now})
+		}
+	}
+	for _, name := range gone {
+		if i := slices.Index(made, name); i >= 0 {
+			made = slices.Delete(made, i, i+1)
+		} else {
+			c.deletes = append(c.deletes, name)
+		}
+	}
+	c.creates = made
+	return c, nil
+}
+
+// ask is the question that lists the changes. It counts the files in each
+// directory to delete.
+func (c changes) ask(dir string) string {
+	var parts []string
+	for _, r := range c.renames {
+		parts = append(parts, fmt.Sprintf("rename %s to %s", r[0], r[1]))
+	}
+	for _, name := range c.deletes {
+		part := "delete " + name
+		if strings.HasSuffix(name, "/") {
+			if n := files(filepath.Join(dir, name)); n > 0 {
+				part += fmt.Sprintf(" and its %d files", n)
+			}
+		}
+		parts = append(parts, part)
+	}
+	for _, name := range c.creates {
+		parts = append(parts, "create "+name)
+	}
+	return strings.Join(parts, ", ") + "? (y/n)"
+}
+
+// files counts the files below dir.
+func files(dir string) int {
+	n := 0
+	filepath.WalkDir(dir, func(_ string, d fs.DirEntry, err error) error {
+		if err == nil && !d.IsDir() {
+			n++
+		}
+		return nil
+	})
+	return n
+}
+
+// apply makes the changes in dir. Renames go through names of their own
+// first, so two entries can swap names.
+func (c changes) apply(dir string) error {
+	join := func(name string) string { return filepath.Join(dir, strings.TrimSuffix(name, "/")) }
+	// Nothing changes unless every new name is free, or one a rename frees.
+	freed := map[string]bool{}
+	names := slices.Clone(c.creates)
+	for _, r := range c.renames {
+		freed[r[0]] = true
+		names = append(names, r[1])
+	}
+	for _, name := range names {
+		if _, err := os.Lstat(join(name)); err == nil && !freed[name] {
+			return fmt.Errorf("%s exists", name)
+		}
+	}
+	for i, r := range c.renames {
+		if err := os.Rename(join(r[0]), join(r[0])+fmt.Sprintf(".fude-rename-%d", i)); err != nil {
+			return fmt.Errorf("rename %s: %w", r[0], err)
+		}
+	}
+	for i, r := range c.renames {
+		to := join(r[1])
+		if err := os.MkdirAll(filepath.Dir(to), 0o755); err != nil {
+			return fmt.Errorf("rename %s: %w", r[0], err)
+		}
+		if err := os.Rename(join(r[0])+fmt.Sprintf(".fude-rename-%d", i), to); err != nil {
+			return fmt.Errorf("rename %s to %s: %w", r[0], r[1], err)
+		}
+	}
+	for _, name := range c.deletes {
+		if err := os.RemoveAll(join(name)); err != nil {
+			return fmt.Errorf("delete %s: %w", name, err)
+		}
+	}
+	for _, name := range c.creates {
+		path := join(name)
+		if strings.HasSuffix(name, "/") {
+			if err := os.MkdirAll(path, 0o755); err != nil {
+				return fmt.Errorf("create %s: %w", name, err)
+			}
+			continue
+		}
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			return fmt.Errorf("create %s: %w", name, err)
+		}
+		f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
+		if err != nil {
+			return fmt.Errorf("create %s: %w", name, err)
+		}
+		if err := f.Close(); err != nil {
+			return fmt.Errorf("create %s: %w", name, err)
+		}
+	}
+	return nil
+}
+
+// save asks, then makes the edits to listing b in its directory. It moves
+// open buffers of renamed files, reads the listing again and runs then
+// (B125).
+func (e *Session) save(b *buffer, then func()) {
+	c, err := b.plan()
+	if err != nil {
+		e.message = err.Error()
+		return
+	}
+	if len(c.renames)+len(c.deletes)+len(c.creates) == 0 {
+		e.reload(b)
+		if then != nil {
+			then()
+		}
+		return
+	}
+	e.message = c.ask(b.dir)
+	e.ask = func(yes bool) {
+		if !yes {
+			e.message = ""
+			return
+		}
+		err := c.apply(b.dir)
+		for _, r := range c.renames {
+			e.moved(filepath.Join(b.dir, r[0]), filepath.Join(b.dir, r[1]))
+		}
+		e.reload(b)
+		if err != nil {
+			e.message = err.Error()
+			return
+		}
+		if then != nil {
+			then()
+		}
+	}
+}
+
+// moved points the buffers of files at or below from to where they are
+// now, below to.
+func (e *Session) moved(from, to string) {
+	for _, b := range e.bufs {
+		abs, err := filepath.Abs(b.file.path)
+		if b.file.path == "" || err != nil {
+			continue
+		}
+		if rel, err := filepath.Rel(from, abs); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			b.file.path = filepath.Join(to, rel)
+		}
+	}
 }

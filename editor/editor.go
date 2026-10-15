@@ -1059,6 +1059,10 @@ func (e *Session) registers(names string) {
 // write writes b to its file, then runs then. Without force it asks first
 // when the file changed on disk since fude read it.
 func (e *Session) write(b *buffer, force bool, then func()) {
+	if b.dir != "" {
+		e.save(b, then)
+		return
+	}
 	switch {
 	case b.file.path == "":
 		e.message = "no file name"

@@ -517,6 +517,25 @@ the cursor, `<C-s>` and `<C-h>` open it in a split beside or above, and
 `_` lists the working directory. `R` stays replace mode, as a listing is
 text to edit (B124).
 
+A listing is text to edit, as oil.nvim's buffers are. Reading a listing
+puts two marks on each entry. Text inserted at the start mark goes before
+it, and text inserted at the end mark goes after it. A line added beside
+an entry is then a line of its own. `:w` reads the edits as changes:
+- An entry's line is the one its marks are on. A different name there
+  renames the entry.
+- `dd` makes an entry's marks meet, and the entry is deleted. `cc` makes
+  them meet too, but leaves them on one line no other entry has, and that
+  line keeps the entry.
+- A line no entry has creates a file, or a directory when it ends in `/`.
+- A name both deleted and created is a line that moved, which changes
+  nothing.
+fude asks first, with the number of files in each directory it would
+delete. If a new name exists already, it changes nothing. On `y` it
+renames each entry to a temporary name and then to its new one, so two
+entries can swap names. Then it deletes, with what a directory holds, and
+creates. Open buffers of renamed files follow them, and fude reads the
+listing again (B125).
+
 ## Paths
 
 ```
