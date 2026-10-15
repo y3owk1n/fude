@@ -282,6 +282,14 @@ is the Escape key. Neovim stores raw key codes, which show as `A!^[j`. Why:
 a macro you can put, read and edit as plain text and yank back is the point
 of D15.
 
+### N7. Marks follow their character
+
+A mark stays on the character it was set on when text before it on the same
+line changes. When its text is deleted, it moves to where the deletion was.
+Neovim marks track the line and keep their column, and drop a mark whose
+line is deleted. Why: a mark should point at the text you marked, which is
+what kernel marks already do.
+
 ## Open
 
 None.
