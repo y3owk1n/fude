@@ -68,20 +68,19 @@ func Run(e *editor.Editor) error {
 var visualLabels = map[vim.Key]string{"v": "-- VISUAL --", "V": "-- VISUAL LINE --", "<C-v>": "-- VISUAL BLOCK --"}
 
 type client struct {
-	s   tcell.Screen
-	e   *editor.Editor
-	top int // byte offset of the first visible line
+	s tcell.Screen
+	e *editor.Editor
 }
 
 func (c *client) draw() {
 	c.s.Clear()
 	w, h := c.s.Size()
 	t, cur := c.e.Text(), c.e.Cursor()
-	c.scroll(t, cur, h-1)
+	c.e.SetHeight(h - 1)
 	sel, visual := c.e.Selection()
 
 	cx, cy := 0, 0
-	pos := c.top
+	pos := c.e.Top()
 	for y := 0; y < h-1; y++ {
 		end := vim.LineEnd(t, pos)
 		line := t.Slice(pos, end)
@@ -142,25 +141,6 @@ func (c *client) draw() {
 	c.s.SetCursorStyle(shape)
 	c.s.ShowCursor(cx, cy)
 	c.s.Show()
-}
-
-// scroll moves top so the line holding cur is on screen.
-func (c *client) scroll(t vim.Text, cur, rows int) {
-	if cur < c.top {
-		c.top = vim.LineStart(t, cur)
-		return
-	}
-	below := 0
-	for p := c.top; ; below++ {
-		end := vim.LineEnd(t, p)
-		if cur <= end {
-			break
-		}
-		p = end + 1
-	}
-	for ; below >= rows; below-- {
-		c.top = vim.LineEnd(t, c.top) + 1
-	}
 }
 
 // keys returns ev in Vim notation, or nothing for a key fude does not use

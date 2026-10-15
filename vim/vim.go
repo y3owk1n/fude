@@ -39,6 +39,8 @@ type Host interface {
 	Redo() (start, cursor int, ok bool)
 	SetMark(name rune, pos int) // a mark moves with edits to the text
 	Mark(name rune) (int, bool)
+	Viewport() (top, height int) // the first line shown and how many fit
+	SetTop(top int)
 }
 
 // Mode is normal, insert, command line, visual or replace.
@@ -302,7 +304,7 @@ func (m *Machine) normal(k Key) error {
 		m.counted = true
 		return nil
 	}
-	if len(cmd) == 1 && strings.Contains("gftFT\"q@rm`'", cmd) {
+	if len(cmd) == 1 && strings.Contains("gftFT\"q@rm`'z", cmd) {
 		m.pending = k
 		m.counted = cmd == "\""
 		return nil
@@ -385,6 +387,9 @@ func (m *Machine) command(cmd string) error {
 			m.h.SetCursor(clamp(m.h.Text(), p))
 		}
 		return nil
+	}
+	if ok, err := m.scroll(cmd, count); ok {
+		return err
 	}
 	m.wantSet = false
 

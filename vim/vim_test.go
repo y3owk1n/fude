@@ -16,7 +16,11 @@ type host struct {
 	applied bool
 	steps   int
 	marks   map[rune]int // fixed positions, since these tests do not edit before a mark
+	top     int
 }
+
+func (h *host) Viewport() (int, int) { return h.top, 22 }
+func (h *host) SetTop(top int)       { h.top = top }
 
 type text string
 

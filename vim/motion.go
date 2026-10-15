@@ -54,6 +54,8 @@ func (m *Machine) motion(cmd string, count int) (int, kind, bool) {
 			return c, failed, true
 		}
 		p, k, keep = m.toLine(t, c, line), linewise, true
+	case "H", "M", "L":
+		p, k, keep = m.toLine(t, c, m.window(t, cmd, n)), linewise, true
 	case "%":
 		if count > 0 {
 			lines := strings.Count(t.Slice(0, t.Len()), "\n") + 1

@@ -1,6 +1,7 @@
 package editor_test
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -150,6 +151,51 @@ func TestB20Marks(t *testing.T) {
 	feed(e, "`b")
 	if e.Message() != "mark not set" {
 		t.Errorf("jumping to an unset mark gave %q", e.Message())
+	}
+}
+
+// B27
+func TestB27Scrolling(t *testing.T) {
+	var lines []string
+	for i := 1; i <= 30; i++ {
+		lines = append(lines, fmt.Sprintf("  %d", i))
+	}
+	path := filepath.Join(t.TempDir(), "f")
+	if err := os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	line := func(e *editor.Editor, pos int) int { return strings.Count(text(e)[:pos], "\n") + 1 }
+	for _, c := range []struct {
+		keys      string
+		top, line int
+	}{
+		{"<C-e>", 2, 2},
+		{"3<C-e>", 4, 4},
+		{"10G<C-y>", 1, 10},
+		{"<C-d>", 9, 12},
+		{"<C-d><C-d>", 9, 23},
+		{"2<C-d>", 3, 3},
+		{"30G<C-u>", 1, 19},
+		{"<C-f>", 21, 21},
+		{"<C-f><C-f>", 30, 30},
+		{"30G<C-b>", 1, 22},
+		{"15Gzz", 5, 15},
+		{"15Gzt", 15, 15},
+		{"15Gzb", 1, 15},
+		{"M", 1, 11},
+		{"L", 1, 22},
+		{"3L", 1, 20},
+		{"2H", 1, 2},
+		{"30GH", 9, 9},
+		{"20Gzt5<C-e>", 25, 25},
+		{"G<C-d>", 9, 30},
+	} {
+		e := open(t, path)
+		e.SetHeight(22)
+		feed(e, c.keys)
+		if top, cur := line(e, e.Top()), line(e, e.Cursor()); top != c.top || cur != c.line {
+			t.Errorf("%q: top %d, cursor line %d, want %d and %d", c.keys, top, cur, c.top, c.line)
+		}
 	}
 }
 

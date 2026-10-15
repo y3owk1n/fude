@@ -27,6 +27,9 @@ type Editor struct {
 	head    kernel.NodeID
 
 	marks map[rune]kernel.MarkID
+
+	top    kernel.MarkID // on the first line shown, so it follows edits
+	height int           // how many lines fit
 }
 
 // Open opens path. A path that does not exist opens an empty buffer.
@@ -36,6 +39,7 @@ func Open(path string) (*Editor, error) {
 		return nil, err
 	}
 	e := &Editor{file: f, buf: kernel.New(text, nil), before: map[kernel.NodeID]int{}, marks: map[rune]kernel.MarkID{}}
+	e.top = e.buf.SetMark(0, kernel.Left)
 	e.vim = vim.New(host{e})
 	switch {
 	case f.readonly:
@@ -54,6 +58,33 @@ func (e *Editor) Feed(k vim.Key) {
 	} else if msg := e.vim.Message(); msg != "" {
 		e.message = msg
 	}
+	e.reveal()
+}
+
+// SetHeight sets how many lines of text the view shows.
+func (e *Editor) SetHeight(h int) {
+	e.height = h
+	e.reveal()
+}
+
+// Top returns the start of the first line shown.
+func (e *Editor) Top() int { return vim.LineStart(e.buf.Snapshot(), e.buf.Mark(e.top)) }
+
+// reveal scrolls the view the least it must to show the cursor's line.
+func (e *Editor) reveal() {
+	t, c, top := e.buf.Snapshot(), e.cursor, e.Top()
+	if c < top {
+		e.buf.MoveMark(e.top, vim.LineStart(t, c))
+		return
+	}
+	below := 0
+	for p := top; p < vim.LineStart(t, c); p = vim.LineEnd(t, p) + 1 {
+		below++
+	}
+	for ; below >= max(e.height, 1); below-- {
+		top = vim.LineEnd(t, top) + 1
+	}
+	e.buf.MoveMark(e.top, top)
 }
 
 // Matches returns the search matches between from and to, for highlighting.
@@ -65,6 +96,7 @@ func (e *Editor) Paste(text string) {
 	if err := e.vim.Paste(text); err != nil {
 		e.message = err.Error()
 	}
+	e.reveal()
 }
 
 // Text returns the buffer's current text.
@@ -191,6 +223,9 @@ func (h host) Mark(name rune) (int, bool) {
 	}
 	return h.e.buf.Mark(id), true
 }
+
+func (h host) Viewport() (int, int) { return h.e.Top(), h.e.height }
+func (h host) SetTop(top int)       { h.e.buf.MoveMark(h.e.top, top) }
 
 func (h host) Undo() (int, int, bool) {
 	node := h.e.buf.Head()
