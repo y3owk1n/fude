@@ -60,6 +60,7 @@ type Session struct {
 	renameAt   int            // where grn was pressed
 	pick       *pick          // the code actions shown to choose from
 	under      *window        // the window a focused float was opened from
+	changed    chan struct{}  // told when the shown text changes, for a client over the socket
 	depth      int            // the undo groups the machine has open
 	pending    int            // the cursor when the group being made began
 
@@ -248,6 +249,14 @@ type heard struct {
 }
 
 func (l heard) Changed(before kernel.Snapshot, edits []kernel.Edit) {
+	for _, s := range l.ed.sessions {
+		if s.changed != nil && s.win.buf == l.b {
+			select {
+			case s.changed <- struct{}{}:
+			default: // the client has yet to hear of an earlier change
+			}
+		}
+	}
 	for owner, ds := range l.ed.decos {
 		if _, ok := owner.(*Session); !ok {
 			continue

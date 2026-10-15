@@ -730,8 +730,10 @@ held for a longer mapping run at once. `request` runs a request, and
 `state` changes nothing. Every result is the session's state: its buffer,
 the buffer's name, version and text, the cursor, the mode, the message and
 the session's proposals on the buffer.
-The server only answers calls. It pushes nothing until a client needs to
-redraw when another client edits.
+Between replies the server sends `{"method": "changed"}` when the text of
+the buffer a client shows changes, whoever changed it, so a client knows to
+read `state` and redraw (B78). One notice covers every change since the
+client last heard one.
 
 The protocol is fude's own and carries state, not cells: buffer text and
 edits, views, decorations, modes and proposals. A terminal client renders
