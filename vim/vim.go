@@ -135,6 +135,7 @@ type Machine struct {
 	reSrc                 string
 	reIgnore              bool // re ignores case
 	ignoreCase, smartCase bool
+	clipboard             bool   // commands without a register use the host's clipboard too
 	expandTab             bool   // indents are spaces only
 	lastRep               string // the previous replacement, for ~
 	lastSub               struct{ pattern, rep, flags string }

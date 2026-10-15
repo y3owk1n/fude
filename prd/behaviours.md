@@ -177,6 +177,11 @@ Where fude departs, the line says so and cites the departure in
   node, and the cursor stays on a line it keeps. A formatter that fails or
   takes over a second leaves the text, which is written anyway, and says
   why.
+- B137 [2] With `clipboard` on, a yank, delete or change without a
+  register also copies to the system clipboard, and `"_` still copies
+  nothing. A put without a register takes the clipboard when something
+  outside fude changed it, and else the unnamed register, so a line or
+  block copied in fude puts as one (N14).
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays

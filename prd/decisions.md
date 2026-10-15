@@ -366,6 +366,15 @@ Neovim's `:grep` runs `'grepprg'` once and fills the quickfix list. Why:
 the user searches with fff.nvim's live grep, and fude has no quickfix
 list.
 
+### N14. clipboard keeps a copy's shape
+
+With `clipboard` on, a put without a register takes the unnamed register
+while the system clipboard holds its text, and the clipboard once it
+holds other text (B137). Neovim's `clipboard=unnamedplus` always puts from
+the clipboard, so a block copied in Neovim puts as plain text. Why: the
+clipboard holds only text, and the user chose a better way over
+Neovim's on 2026-10-16.
+
 ## Open
 
 None.

@@ -321,6 +321,11 @@ line keeps a cursor, which `Machine.LineCursor` reports, and a history of
 `<C-r>` waits for a register's name or `<C-w>`, as it does in insert mode
 (B135).
 
+`Machine.UseClipboard` turns on the `clipboard` option. `store` then writes
+the host's clipboard after the default registers, and a put without a
+register reads the clipboard and compares it with the unnamed register
+(B137).
+
 ## Views
 
 A view is one buffer shown in one window. It owns a cursor mark, a top-line
@@ -663,6 +668,7 @@ ignore_case = false  # searches ignore case (B120)
 smart_case = false   # with ignore_case, an uppercase letter matches case (B120)
 expand_tab = false   # indent with spaces only (B122)
 format_on_save = false # format before :w writes (B136)
+clipboard = false    # yanks, deletes and puts use the system clipboard (B137)
 icons = false        # nerd font icons in listings and diagnostic signs (B128)
 
 [keymap.normal]      # and [keymap.visual], [keymap.insert]. Keys map to keys.

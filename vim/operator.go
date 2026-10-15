@@ -263,6 +263,37 @@ func (m *Machine) store(reg rune, op string, r register) {
 		m.regs['-'] = r
 	}
 	m.regs['"'] = r
+	if reg == 0 && m.clipboard {
+		if err := m.h.SetClipboard(r.text); err != nil {
+			m.msg = err.Error()
+		}
+	}
+}
+
+// UseClipboard sets whether yanks, deletes and puts without a register use
+// the host's clipboard too (B137).
+func (m *Machine) UseClipboard(on bool) { m.clipboard = on }
+
+// fetchPut returns the register a put takes and its name: reg, or for 0
+// the unnamed register. With the clipboard on, a put without a register
+// takes the clipboard, unless it holds the unnamed register's text, which
+// keeps its shape as a line or a block.
+func (m *Machine) fetchPut(reg rune) (rune, register, bool, error) {
+	if reg != 0 {
+		r, ok, err := m.fetch(reg)
+		return reg, r, ok, err
+	}
+	if m.clipboard {
+		r, ok, err := m.fetch('+')
+		if err != nil {
+			// The unnamed register puts, and the message says why.
+			m.msg = err.Error()
+		} else if ok && r.text != m.regs['"'].text {
+			return '+', r, true, nil
+		}
+	}
+	r, ok, err := m.fetch('"')
+	return '"', r, ok, err
 }
 
 // appendRegister adds r to old. Mixing a linewise register with a charwise
@@ -282,10 +313,7 @@ func appendRegister(old, r register) register {
 
 // put inserts reg n times, after the cursor for p and before it for P.
 func (m *Machine) put(reg rune, after bool, n int) error {
-	if reg == 0 {
-		reg = '"'
-	}
-	r, ok, err := m.fetch(reg)
+	reg, r, ok, err := m.fetchPut(reg)
 	switch {
 	case err != nil:
 		return err

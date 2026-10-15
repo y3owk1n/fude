@@ -665,3 +665,35 @@ func TestB135CommandLineRegister(t *testing.T) {
 		t.Errorf("<C-r><C-w> and <C-r>a made %q, want %q", m.Line(), ":bar foo bar")
 	}
 }
+
+// B137
+func TestB137Clipboard(t *testing.T) {
+	h := &host{text: "ab cd\nxy zw"}
+	m := vim.New(h)
+	m.UseClipboard(true)
+	feed := func(keys string) {
+		for _, k := range vim.Keys(keys) {
+			if err := m.Feed(k); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	// A yank without a register copies to the clipboard, and "_ does not.
+	if feed("yiw"); h.clip != "ab" {
+		t.Fatalf("yiw put %q on the clipboard", h.clip)
+	}
+	if feed(`"_dd`); h.clip != "ab" {
+		t.Fatalf(`"_dd put %q on the clipboard`, h.clip)
+	}
+	// A block copied in the editor puts as a block, though the clipboard
+	// holds its text only.
+	h.text, h.cursor = "ab\ncd", 0
+	if feed("<C-v>jly$p"); h.text != "abab\ncdcd" {
+		t.Fatalf("a block put made %q", h.text)
+	}
+	// Text copied elsewhere puts from the clipboard.
+	h.clip, h.text, h.cursor = "zz", "a", 0
+	if feed("p"); h.text != "azz" {
+		t.Fatalf("p after a copy elsewhere made %q", h.text)
+	}
+}

@@ -155,10 +155,7 @@ func (m *Machine) replaceSelection(k Key) error {
 // delete's does. A line register goes on lines of its own, and lines take
 // other text as a line.
 func (m *Machine) putOver(reg rune, keep bool, n int) error {
-	if reg == 0 {
-		reg = '"'
-	}
-	put, ok, err := m.fetch(reg)
+	reg, put, ok, err := m.fetchPut(reg)
 	switch {
 	case err != nil:
 		return err
