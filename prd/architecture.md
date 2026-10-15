@@ -585,6 +585,12 @@ would write every keystroke to the timeline log. The machine keeps up to 16
 compiled patterns, as the search highlight and the preview take turns
 (B154).
 
+`:cd` makes every buffer's path absolute before it changes the working
+directory, so a buffer opened by a relative name keeps naming its file,
+and its language server URI stays right. `:e!` and the reload on focus
+share `revert`, which puts the file's text in as one `reload` node, so `u`
+brings the changes back (B155).
+
 The client keeps a cell grid, diffs it against the previous frame, and
 writes only the changed cells in one write. It wraps each frame in
 synchronized output where the terminal supports it.

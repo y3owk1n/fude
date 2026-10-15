@@ -1606,3 +1606,52 @@ func TestB42Select(t *testing.T) {
 		feed(e, "<Esc>")
 	}
 }
+
+// B155
+func TestB155WritingAndFiles(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "a")
+	change(t, path, "one\n")
+	t.Chdir(dir)
+	e := open(t, "a")
+	// :w with a name writes a copy, and the buffer stays on its own file.
+	feed(e, "x:w b<CR>")
+	if disk(t, filepath.Join(dir, "b")) != "ne\n" || disk(t, path) != "one\n" || e.Views()[0].Name != "a" {
+		t.Fatalf(":w b wrote %q, left a %q, and the window shows %q", disk(t, filepath.Join(dir, "b")), disk(t, path), e.Views()[0].Name)
+	}
+	if feed(e, ":w b<CR>"); !strings.Contains(e.Message(), "exists") {
+		t.Fatalf(":w over a file that exists said %q", e.Message())
+	}
+	// :e keeps changes, and :e! drops them.
+	if feed(e, ":e<CR>"); text(e) != "ne" {
+		t.Fatalf(":e with changes left %q", text(e))
+	}
+	if feed(e, ":e!<CR>"); text(e) != "one" || e.Views()[0].Modified {
+		t.Fatalf(":e! left %q", text(e))
+	}
+	// :update writes only a buffer with changes.
+	change(t, path, "two\n")
+	if feed(e, ":update<CR>"); disk(t, path) != "two\n" {
+		t.Fatal(":update wrote a buffer with no changes")
+	}
+	// :new splits to a buffer with no file.
+	if feed(e, ":new<CR>"); len(e.Views()) != 2 || e.Views()[1].Name != "[No Name]" {
+		t.Fatalf(":new left windows %v", e.Views())
+	}
+	// :cd moves the working directory, and the buffers keep their files.
+	sub := filepath.Join(dir, "sub")
+	if err := os.Mkdir(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	feed(e, ":cd sub<CR><C-w>k")
+	if wd, _ := os.Getwd(); wd != sub && !strings.HasSuffix(wd, "/sub") {
+		t.Fatalf(":cd sub left the working directory %s", wd)
+	}
+	if feed(e, ":pwd<CR>"); !strings.HasSuffix(e.Message(), "/sub") {
+		t.Fatalf(":pwd said %q", e.Message())
+	}
+	// a changed on disk above, so :w! writes over it.
+	if feed(e, "0x:w!<CR>"); disk(t, path) != "ne\n" {
+		t.Fatalf("after :cd, :w! wrote %q to a", disk(t, path))
+	}
+}

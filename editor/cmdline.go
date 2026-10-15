@@ -24,9 +24,9 @@ type cmenu struct {
 
 // commandNames are the editor's commands, one full name each.
 var commandNames = []string{
-	"accept", "bdelete", "bnext", "bprevious", "buffer", "buffers", "close", "diff", "earlier", "edit", "exit",
-	"files", "grep", "later", "only", "quit", "quitall", "recover", "registers", "reject", "rename", "restore", "set",
-	"split", "timeline", "vsplit", "wall", "wq", "wqall", "write", "xall", "xit",
+	"accept", "bdelete", "bnext", "bprevious", "buffer", "buffers", "cd", "close", "diff", "earlier", "edit", "enew", "exit",
+	"files", "grep", "later", "new", "only", "pwd", "quit", "quitall", "recover", "registers", "reject", "rename", "restore", "set",
+	"split", "timeline", "update", "vnew", "vsplit", "wall", "wq", "wqall", "write", "xall", "xit",
 }
 
 // commandKey takes a key while a command line is typed: <Tab> and <C-n>
@@ -119,7 +119,7 @@ func (e *Session) completions(line string, wait bool) (int, []string) {
 	arg = strings.TrimLeft(arg, " ")
 	start := len(line) - len(arg)
 	switch name {
-	case "e", "edit", "sp", "split", "vs", "vsplit":
+	case "e", "edit", "sp", "split", "vs", "vsplit", "w", "write", "cd":
 		if !wait {
 			e.completeLater(line, start, arg)
 			return 0, nil

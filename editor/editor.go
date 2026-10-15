@@ -1001,7 +1001,28 @@ func (e *Session) ex(line string) {
 	name, force := strings.CutSuffix(name, "!")
 	switch name {
 	case "w", "write":
+		if arg != "" {
+			e.writeTo(e.win.buf, arg, force)
+			return
+		}
 		e.write(e.win.buf, force, nil)
+	case "up", "update":
+		if e.win.buf.modified() {
+			e.write(e.win.buf, force, nil)
+		}
+	case "enew", "new", "vne", "vnew":
+		if name != "enew" {
+			e.split(name[0] == 'v')
+		}
+		e.empty()
+	case "cd":
+		e.cd(arg)
+	case "pwd":
+		if dir, err := os.Getwd(); err != nil {
+			e.message = err.Error()
+		} else {
+			e.message = dir
+		}
 	case "wq", "x", "xit", "exit":
 		if name == "wq" || e.win.buf.modified() {
 			e.write(e.win.buf, force, func() { e.quit(force) })
@@ -1019,6 +1040,10 @@ func (e *Session) ex(line string) {
 	case "reg", "registers":
 		e.registers(arg)
 	case "e", "edit":
+		if arg == "" {
+			e.reread(force)
+			return
+		}
 		e.edit(arg)
 	case "sp", "split", "vs", "vsplit":
 		e.split(name[0] == 'v')
@@ -1290,22 +1315,10 @@ func (e *Session) Focus() {
 			b.file.warned = true
 			continue
 		}
-		f, text, err := read(b.file.path)
-		if err != nil {
+		if err := e.revert(b); err != nil {
 			e.message = err.Error()
 			continue
 		}
-		now := b.text.Snapshot()
-		if old := now.Slice(0, now.Len()); old != text {
-			t := kernel.Transaction{Base: now.Version(), Origin: e.origin, Label: "reload", Time: e.now(), Edits: []kernel.Edit{replace(old, text)}}
-			if err := b.text.Apply(t); err != nil {
-				e.message = err.Error()
-				continue
-			}
-			b.head = b.text.Head()
-		}
-		b.file = f
-		b.markSaved()
 		e.message = fmt.Sprintf("\"%s\" changed on disk, reloaded", b.file.path)
 	}
 	e.reveal()

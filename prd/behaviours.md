@@ -261,6 +261,13 @@ Where fude departs, the line says so and cites the departure in
   struck out with its replacement after it. The text does not change until
   `<CR>`, and `<Esc>` leaves nothing behind. The windows stay untinted
   while it shows.
+- B155 [2] `:w file` writes a copy of the buffer to `file` and leaves the
+  buffer on its own file, and refuses to write over a file that exists
+  without `!`. `:e` reads the buffer's file again unless it has changes,
+  which `:e!` drops, as one undo step. `:update` writes only a buffer with
+  changes. `:enew` shows a new buffer with no file, and `:new` and `:vnew`
+  show one in a new split. `:cd dir` changes the working directory, home
+  without `dir`, and `:pwd` shows it.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays
