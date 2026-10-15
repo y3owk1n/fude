@@ -546,6 +546,12 @@ keeps the signs by name and matches them to the visible lines each frame,
 so a sign moves with its line. fude reads the status when it opens a
 listing, when it reads the listing again, and when it gains focus (B126).
 
+A listing's windows show a note after some names: where a symlink points,
+or a mark for an executable or special file. fude reads a name's note with
+`lstat` the first time a window shows it, and forgets the notes when it
+reads the listing again. A directory of thousands of entries costs one
+`lstat` for each visible line, not one for each entry (B127).
+
 ## Paths
 
 ```

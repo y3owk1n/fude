@@ -120,6 +120,9 @@ Where fude departs, the line says so and cites the departure in
   the sign column: `✹` for modified, `•` staged, `≠` both, `+` added, `?`
   untracked, `-` deleted and `→` renamed. A directory shows the status of
   the first change below it. Without git installed, there are no signs.
+- B127 [2] A listing shows dim text after some names, as `ls -F` marks
+  them: `-> target` after a symlink, `*` after an executable file, and `|`,
+  `=`, `%` or `#` after a pipe, socket, character device or block device.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays

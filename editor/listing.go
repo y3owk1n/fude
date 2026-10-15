@@ -157,9 +157,64 @@ func (e *Session) reload(b *buffer) {
 			return
 		}
 	}
-	b.head, b.saved = b.text.Head(), b.text.Head()
+	b.head, b.saved, b.noted = b.text.Head(), b.text.Head(), nil
 	b.mark()
 	e.loadGit(b)
+}
+
+// notes returns the note of each line of listing b from top to last,
+// reading each name's note once.
+func (b *buffer) notes(t kernel.Snapshot, top, last int) map[int]string {
+	if b.listed == "" {
+		return nil
+	}
+	if b.noted == nil {
+		b.noted = map[string]string{}
+	}
+	out := map[int]string{}
+	for line := t.LineOf(top); line <= t.LineOf(last); line++ {
+		start := t.LineStart(line)
+		name := t.Slice(start, vim.LineEnd(t, start))
+		n, ok := b.noted[name]
+		if !ok {
+			n = note(filepath.Join(b.listed, name))
+			b.noted[name] = n
+		}
+		if n != "" {
+			out[line] = n
+		}
+	}
+	return out
+}
+
+// note is what a listing shows after the entry at path: where a symlink
+// points, * for an executable, or a mark for a pipe, socket or device
+// (B127).
+func note(path string) string {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return ""
+	}
+	m := info.Mode()
+	switch {
+	case m&fs.ModeSymlink != 0:
+		to, err := os.Readlink(path)
+		if err != nil {
+			to = "?"
+		}
+		return " -> " + to
+	case m&fs.ModeNamedPipe != 0:
+		return "|"
+	case m&fs.ModeSocket != 0:
+		return "="
+	case m&fs.ModeCharDevice != 0:
+		return "%"
+	case m&fs.ModeDevice != 0:
+		return "#"
+	case m.IsRegular() && m&0o111 != 0:
+		return "*"
+	}
+	return ""
 }
 
 // entry is one name a listing showed when it was read. Text inserted at

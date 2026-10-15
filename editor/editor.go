@@ -449,18 +449,19 @@ type View struct {
 	Highlights        []syntax.Span // in paint order, later ones drawing over earlier ones
 	Decorations       []syntax.Span // plugins' styles, drawn over highlights
 	Ghosts            []Ghost
-	Matches           [][2]int     // of the search, shown in every window
-	Segments          []string     // plugins' statusline segments, in the order they loaded
-	Ruler             string       // the cursor's line and column, and where the view is (B38)
-	Gutter            int          // the columns the sign column and line numbers take on the left
-	SignCols          int          // the columns of the sign column, at the gutter's left
-	Signs             map[int]Sign // by line, the sign each one shows (B119)
-	Number, Relative  bool         // show line numbers, and relative ones (B39)
-	Wrap              bool         // long lines go on the rows below
-	CursorLine        bool         // shade the cursor's line (B117)
-	Pair              []int        // the bracket at the cursor and its match, shown bold (B121)
-	List              bool         // show tabs, trailing spaces and no-break spaces (B118)
-	Left              int          // the first column shown without wrap
+	Matches           [][2]int       // of the search, shown in every window
+	Segments          []string       // plugins' statusline segments, in the order they loaded
+	Ruler             string         // the cursor's line and column, and where the view is (B38)
+	Gutter            int            // the columns the sign column and line numbers take on the left
+	SignCols          int            // the columns of the sign column, at the gutter's left
+	Signs             map[int]Sign   // by line, the sign each one shows (B119)
+	Notes             map[int]string // by line, dim text after its end (B127)
+	Number, Relative  bool           // show line numbers, and relative ones (B39)
+	Wrap              bool           // long lines go on the rows below
+	CursorLine        bool           // shade the cursor's line (B117)
+	Pair              []int          // the bracket at the cursor and its match, shown bold (B121)
+	List              bool           // show tabs, trailing spaces and no-break spaces (B118)
+	Left              int            // the first column shown without wrap
 }
 
 // Ghost is a proposal's text, drawn before the byte at Pos but not in the
@@ -490,6 +491,7 @@ func (e *Session) Views() []View {
 		v.Matches = e.vim.Matches(t, top, last)
 		e.diffGit(w.buf)
 		v.Signs = e.signs(w.buf, top, last)
+		v.Notes = w.buf.notes(t, top, last)
 		v.Pair = e.pair(w, t, top, last)
 		v.Ruler = ruler(t, w.pos(), top, max(w.h-1, 1), func(p int) int { return w.rows(t, p) })
 		for _, p := range e.plugins {

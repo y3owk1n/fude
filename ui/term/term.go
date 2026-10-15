@@ -457,6 +457,17 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 				rest, width = c.s.Put(v.X+x, y, rest, style)
 				x, col = x+width, col+width
 			}
+			if n := v.Notes[t.LineOf(pos)]; i == len(starts)-1 && x >= 0 {
+				style := tcell.StyleDefault.Foreground(color.Gray)
+				if shade {
+					style = style.Background(cursorLine)
+				}
+				for n != "" && x < v.W {
+					var width int
+					n, width = c.s.Put(v.X+x, y, n, style)
+					x += width
+				}
+			}
 			if shade && x < v.W {
 				c.s.FillArea(v.X+x, y, v.W-x, 1, ' ', tcell.StyleDefault.Background(cursorLine))
 			}

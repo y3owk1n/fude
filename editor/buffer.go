@@ -35,19 +35,20 @@ type buffer struct {
 
 	saves []kernel.NodeID // the node at each write, oldest first
 
-	log      *history        // the timeline on disk, nil for a buffer with no file
-	syntax   *syntax.Buffer  // nil without a grammar for the filetype
-	server   *server         // the language server it is attached to, or nil
-	signed   bool            // it has diagnostics, so windows show a sign column
-	listed   string          // the directory a listing lists, "" for any other buffer
-	entries  []entry         // a listing's names as it read them
-	base     *string         // the text git's index has, nil outside a repository
-	git      map[int]Sign    // the git sign of each changed line
-	status   map[string]Sign // a listing's git status sign of each name
-	gitStale bool            // the text changed since the last diff
-	gitBusy  bool            // a diff runs
-	version  int             // the changes the server has heard since it opened
-	unsaved  kernel.NodeID   // the newest unsaved change from a session that did not close
+	log      *history          // the timeline on disk, nil for a buffer with no file
+	syntax   *syntax.Buffer    // nil without a grammar for the filetype
+	server   *server           // the language server it is attached to, or nil
+	signed   bool              // it has diagnostics, so windows show a sign column
+	listed   string            // the directory a listing lists, "" for any other buffer
+	entries  []entry           // a listing's names as it read them
+	noted    map[string]string // a listing's note of each name it has shown
+	base     *string           // the text git's index has, nil outside a repository
+	git      map[int]Sign      // the git sign of each changed line
+	status   map[string]Sign   // a listing's git status sign of each name
+	gitStale bool              // the text changed since the last diff
+	gitBusy  bool              // a diff runs
+	version  int               // the changes the server has heard since it opened
+	unsaved  kernel.NodeID     // the newest unsaved change from a session that did not close
 	// A scratch buffer shows something about another buffer, such as its
 	// timeline, under a title instead of a file name.
 	title  string
