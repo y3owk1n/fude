@@ -446,8 +446,10 @@ the frame never waits for a reparse (B43).
 A line longer than its window wraps onto the rows below at the first
 cluster that does not fit, as Neovim's `wrap` does. `vim.Rows` gives where
 each row of a line starts. The editor scrolls the window by those rows and
-the client draws them, so the two agree. Rows past the end of the text
-show `~` (B37).
+the client draws them, so the two agree. With `wrap` off, which `:set`
+changes per window, a line takes one row, and the window scrolls sideways
+the least it must to show the cursor's column, as Neovim's `sidescroll` of
+1 does. Rows past the end of the text show `~` (B37).
 
 `:set` changes the options of the current window, and the ones the
 session's next windows start with, as Neovim's `:set` sets both the local
@@ -489,6 +491,7 @@ autocomplete = false # ask for completions while typing (B67)
 socket = "/run/user/1000/fude.sock" # where clients attach, instead of one path per process (B97)
 number = false       # line numbers, which :set number changes per window (B39)
 relative_number = false # numbers from the cursor's line (B39)
+wrap = true          # long lines go on the rows below, else the view scrolls sideways (B37)
 
 [keymap.normal]      # and [keymap.visual], [keymap.insert]. Keys map to keys.
 "<Space>w" = ":w<CR>"

@@ -69,7 +69,9 @@ Where fude departs, the line says so and cites the departure in
   break puts as lines.
 - B37 [2] A line longer than its window wraps onto the rows below, as with
   Neovim's `wrap`, and the window scrolls so the cursor's whole line shows.
-  Rows past the end of the text show `~`.
+  With `wrap` off, each line takes one row and the view scrolls sideways
+  the least it must to show the cursor. Rows past the end of the text show
+  `~`.
 - B38 [2] Each window's status line ends with Neovim's ruler: the cursor's
   line and column, its screen column when that differs, and `All`, `Top`,
   `Bot` or how far down the view is. The current window's also shows the

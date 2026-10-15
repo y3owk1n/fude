@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -424,6 +425,8 @@ type View struct {
 	Ruler             string   // the cursor's line and column, and where the view is (B38)
 	Gutter            int      // the columns line numbers take on the left
 	Number, Relative  bool     // show line numbers, and relative ones (B39)
+	Wrap              bool     // long lines go on the rows below
+	Left              int      // the first column shown without wrap
 }
 
 // Ghost is a proposal's text, drawn before the byte at Pos but not in the
@@ -444,13 +447,14 @@ func (e *Session) Views() []View {
 			X: w.x, Y: w.y, W: w.w, H: w.h,
 			Name: w.buf.name(), Modified: w.buf.modified(), Current: w == e.win || w == e.under,
 			Gutter: w.gutter(), Number: w.opts.Number, Relative: w.opts.RelativeNumber,
+			Wrap: w.opts.Wrap, Left: w.left,
 		}
 		last := vim.LineEnd(t, t.LineStart(min(t.LineOf(top)+max(w.h-2, 0), t.Lines()-1)))
 		if h := w.buf.syntax; h != nil {
 			v.Highlights = h.Show(t, top, last)
 		}
 		v.Matches = e.vim.Matches(t, top, last)
-		v.Ruler = ruler(t, w.pos(), top, max(w.h-1, 1), w.cols())
+		v.Ruler = ruler(t, w.pos(), top, max(w.h-1, 1), func(p int) int { return w.rows(t, p) })
 		for _, p := range e.plugins {
 			if s := e.segments[p][w.buf]; s != "" {
 				v.Segments = append(v.Segments, s)
@@ -475,10 +479,11 @@ func (e *Session) Views() []View {
 	return out
 }
 
-// ruler is what Neovim's ruler shows for a window of rows rows, cols
-// wide, from top with the cursor at c: line,col, then -screen column when
-// it differs, then All, Top, Bot or how far down the view is (B38).
-func ruler(t kernel.Snapshot, c, top, rows, cols int) string {
+// ruler is what Neovim's ruler shows for a window of rows rows from top,
+// whose lines take rowsOf rows, with the cursor at c: line,col, then
+// -screen column when it differs, then All, Top, Bot or how far down the
+// view is (B38).
+func ruler(t kernel.Snapshot, c, top, rows int, rowsOf func(int) int) string {
 	line, ls := t.LineOf(c), vim.LineStart(t, c)
 	col, vcol := c-ls+1, vim.Column(t, ls, c)+1
 	if ls == vim.LineEnd(t, ls) {
@@ -491,7 +496,7 @@ func ruler(t kernel.Snapshot, c, top, rows, cols int) string {
 	// last is the last line the view shows.
 	last := t.LineOf(top)
 	for p, n := top, 0; ; p = vim.LineEnd(t, p) + 1 {
-		if n += len(vim.Rows(t, p, cols)); n > rows {
+		if n += rowsOf(p); n > rows {
 			break
 		}
 		last = t.LineOf(p)
@@ -533,15 +538,20 @@ func (e *Session) reveal() {
 	line := vim.LineStart(t, c)
 	// low is the earliest top that still shows the cursor's line, found
 	// walking back from it, so a far jump looks at one window of lines.
-	low, rows := line, len(vim.Rows(t, line, w.cols()))
+	low, rows := line, w.rows(t, line)
 	for low > 0 {
 		prev := vim.LineStart(t, low-1)
-		if rows += len(vim.Rows(t, prev, w.cols())); rows > e.rows() {
+		if rows += w.rows(t, prev); rows > e.rows() {
 			break
 		}
 		low = prev
 	}
 	w.buf.text.MoveMark(w.top, min(max(e.Top(), low), line))
+	// Without wrap the view scrolls sideways the least it must to show the
+	// cursor's column, as with Neovim's sidescroll of 1 (B37).
+	if col := vim.Column(t, line, c); !w.opts.Wrap {
+		w.left = min(max(w.left, col-w.cols()+1), col)
+	}
 }
 
 // Paste inserts text as typed, with no key mapping applied (B8).
@@ -1085,10 +1095,16 @@ func (h host) Mark(name rune) (int, bool) {
 	return b.text.Mark(id), true
 }
 
-func (h host) Viewport() (int, int, int) { return h.e.Top(), h.e.rows(), h.e.win.cols() }
-func (h host) SetTop(top int)            { h.e.win.buf.text.MoveMark(h.e.win.top, top) }
-func (h host) PushJump(pos int)          { h.e.pushJump(pos) }
-func (h host) Jump(n int) bool           { return h.e.jump(n) }
+// Viewport gives a width no line reaches without wrap, so gj is j.
+func (h host) Viewport() (int, int, int) {
+	if !h.e.win.opts.Wrap {
+		return h.e.Top(), h.e.rows(), math.MaxInt
+	}
+	return h.e.Top(), h.e.rows(), h.e.win.cols()
+}
+func (h host) SetTop(top int)   { h.e.win.buf.text.MoveMark(h.e.win.top, top) }
+func (h host) PushJump(pos int) { h.e.pushJump(pos) }
+func (h host) Jump(n int) bool  { return h.e.jump(n) }
 
 func (h host) Change(n int) bool {
 	b := h.e.win.buf

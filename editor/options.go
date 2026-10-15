@@ -8,7 +8,7 @@ import (
 // switches are the options :set turns on and off, by their names in
 // config.toml.
 func (o *options) switches() map[string]*bool {
-	return map[string]*bool{"number": &o.Number, "relative_number": &o.RelativeNumber}
+	return map[string]*bool{"number": &o.Number, "relative_number": &o.RelativeNumber, "wrap": &o.Wrap}
 }
 
 // set runs :set on its arguments: name turns an option on, noname off,

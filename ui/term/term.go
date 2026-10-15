@@ -370,7 +370,10 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 		}
 		// A line wraps onto as many rows as it needs (B37). col is the
 		// column in the line, which tabs are measured from.
-		starts := vim.Rows(t, pos, v.W)
+		starts := []int{pos}
+		if v.Wrap {
+			starts = vim.Rows(t, pos, v.W)
+		}
 		col := 0
 		for i, start := range starts {
 			if row >= v.H-1 {
@@ -383,7 +386,14 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 			if i+1 < len(starts) {
 				stop = starts[i+1]
 			}
+			// Without wrap the row starts at the first cluster v.Left columns
+			// into the line, after blanks for a wide one cut by the edge.
 			x := 0
+			if !v.Wrap {
+				start = vim.ColumnStart(t, pos, v.Left)
+				col = vim.Column(t, pos, start)
+				x = col - v.Left
+			}
 			for rest := t.Slice(start, stop); ; {
 				at := stop - len(rest)
 				for _, g := range v.Ghosts {

@@ -541,6 +541,10 @@ moves:
 // from 0, with tabs as wide as they show.
 func Column(t Text, start, pos int) int { return column(t, start, pos) }
 
+// ColumnStart returns the first cluster on the line at start that begins
+// at or after screen column col, or the line's end.
+func ColumnStart(t Text, start, col int) int { return colStart(t, start, col) }
+
 // Rows returns where each screen row of the line at start begins when it
 // wraps at cols columns: start, then each cluster that does not fit on the
 // row before it. A tab is as wide as it is at its column in the line.

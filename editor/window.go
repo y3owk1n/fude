@@ -18,6 +18,7 @@ type window struct {
 	jumps  []place
 	jumpAt int // the jump <C-o> last moved to, or len(jumps)
 	opts   options
+	left   int // the first screen column shown, without wrap
 
 	x, y, w, h int // where the layout puts it, its status line included
 }
@@ -41,6 +42,14 @@ func (w *window) gutter() int {
 
 // cols is how many columns of text the window shows on a row.
 func (w *window) cols() int { return max(w.w-w.gutter(), 1) }
+
+// rows is how many rows the line at start takes in the window.
+func (w *window) rows(t kernel.Snapshot, start int) int {
+	if !w.opts.Wrap {
+		return 1
+	}
+	return len(vim.Rows(t, start, w.cols()))
+}
 
 // show switches the window to b, at the place b was last left.
 func (w *window) show(b *buffer) {

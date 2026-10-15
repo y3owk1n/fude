@@ -578,6 +578,11 @@ func TestB37Wrap(t *testing.T) {
 	if feed(e, "j"); e.Top() != 21 {
 		t.Fatalf("on line 3 the window starts at %d, want line 2 at 21", e.Top())
 	}
+	// Without wrap the view scrolls sideways to the cursor's column.
+	feed(e, "gg:set nowrap<CR>$")
+	if v := e.Views()[0]; v.Top != 0 || v.Left != 10 {
+		t.Fatalf("on the last of 20 columns in 10 the view starts at %d, column %d, want 0 and 10", v.Top, v.Left)
+	}
 }
 
 // B38
