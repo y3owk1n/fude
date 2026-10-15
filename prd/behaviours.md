@@ -127,6 +127,13 @@ Where fude departs, the line says so and cites the departure in
   name, in mini.icons' glyphs and colours. A file's icon goes by its name
   or extension, and a directory shows a folder. Diagnostic signs show
   icons in place of `E`, `W`, `I` and `H`. `icons` is off by default.
+- B129 [2] `:files` opens a fuzzy file finder, as fff.nvim's is, over the
+  working directory's files: in a git repository those git does not
+  ignore, and elsewhere every file. The user types the query in insert
+  mode. Below it are the files whose paths hold its letters in order,
+  ranked as `matchfuzzy()` ranks them. `<C-n>` and `<C-p>` move the selection,
+  `<CR>` opens the selected file, and leaving insert mode closes the
+  finder (N11).
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays

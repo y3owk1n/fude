@@ -66,6 +66,7 @@ type Session struct {
 	later      []vim.Key   // keys to feed once the key being fed is done
 	renameAt   int         // where grn was pressed
 	pick       *pick       // the code actions shown to choose from
+	finder     *finder     // the file finder, while it shows
 	under      *window     // the window a focused float was opened from
 	opts       options     // what the session's new windows start with
 	changed    chan change // told when the shown text changes, for a client over the socket
@@ -343,6 +344,11 @@ func (e *Session) Feed(k vim.Key) {
 // feed handles one key, typed or queued by a command for after it.
 func (e *Session) feed(k vim.Key) {
 	e.message = ""
+	if e.finder != nil {
+		e.finding(k)
+		e.reveal()
+		return
+	}
 	if e.completing(k) {
 		e.reveal()
 		return
@@ -696,15 +702,23 @@ type Float struct {
 	Top, Cursor int
 	Doc         string // drawn beside it, styled by DocSpans
 	DocSpans    []syntax.Span
+	// Where a box in a place of its own goes, its border included, or W 0
+	// for one at the cursor.
+	X, Y, W, H int
 }
 
 // Float returns the float to draw, or false when there is none.
 func (e *Session) Float() (Float, bool) {
+	if f := e.finder; f != nil {
+		e.seek(f)
+		t := e.Text()
+		return f.float(t.Slice(0, t.Len()), e.Cursor(), e.width, e.height), true
+	}
 	if e.under != nil {
 		t := e.Text()
-		return Float{t.Slice(0, t.Len()), e.floatSpans, e.Top(), e.Cursor(), "", nil}, true
+		return Float{Text: t.Slice(0, t.Len()), Spans: e.floatSpans, Top: e.Top(), Cursor: e.Cursor()}, true
 	}
-	return Float{e.float, e.floatSpans, 0, -1, e.doc, e.docSpans}, e.float != ""
+	return Float{Text: e.float, Spans: e.floatSpans, Cursor: -1, Doc: e.doc, DocSpans: e.docSpans}, e.float != ""
 }
 
 // focus moves the cursor into a float showing text, a read-only window
@@ -901,6 +915,8 @@ func (e *Session) ex(line string) {
 		e.decide(arg, name == "accept")
 	case "timeline":
 		e.timeline()
+	case "files":
+		e.files()
 	case "restore":
 		e.restore(arg)
 	case "diff":
@@ -915,7 +931,7 @@ func (e *Session) ex(line string) {
 		if err := e.closeWindow(e.win); err != nil {
 			e.message = err.Error()
 		}
-	case "ls", "buffers", "files":
+	case "ls", "buffers":
 		e.list()
 	case "b", "buffer":
 		if b := e.find(arg); b != nil {

@@ -345,6 +345,12 @@ With `expand_tab`, `<Tab>` in insert mode types spaces to the next
 fude has one indent setting, and a `<Tab>` that indents by it is what most
 Neovim configs set.
 
+### N11. :files finds files
+
+`:files` opens a fuzzy file finder (B129), where Neovim's `:files` is
+another name for `:ls`. Why: the user chose the name on 2026-10-16, and
+`:ls` and `:buffers` still list buffers.
+
 ## Open
 
 None.

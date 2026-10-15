@@ -220,6 +220,10 @@ func (c *client) draw() {
 // windows have. While f has the cursor, its rows scroll to show it, and
 // float reports where it is.
 func (c *client) float(f editor.Float, cx, cy, w, h int) (int, int, bool) {
+	if f.W > 2 && f.H > 2 {
+		rows, _ := wrap(f.Text, f.Spans, f.W-2)
+		return c.box(f.Text, f.Spans, rows[:min(len(rows), f.H-2)], f.X, f.Y, f.W-2, f.Cursor)
+	}
 	rows, width := wrap(f.Text, f.Spans, min(80, w-2))
 	below, above := h-cy-1, cy
 	n := min(len(rows), max(below, above)-2, 20)

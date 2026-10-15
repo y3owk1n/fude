@@ -558,6 +558,34 @@ The text then starts at the same column on every row, so the cursor,
 wrapping and sideways scrolling need no change. The icons are a table of
 names and extensions in `editor/icons.go`, from mini.icons (B128).
 
+## Finder
+
+`:files` opens a float whose buffer is the query, in insert mode, so every
+insert key edits it. Keys reach the finder before anything else: `<CR>`,
+`<C-n>`, `<C-p>`, `<Down>` and `<Up>` are its own, and the rest go to the
+machine. When the machine leaves insert mode, by `<Esc>` or a mapping to
+it, the finder closes. The editor places the box in the middle of the
+screen, at most 80 columns and 20 rows, through `Float`'s `X`, `Y`, `W`
+and `H`, and the terminal draws it there.
+
+The files come from `git ls-files -z --cached --others --exclude-standard`
+when the working directory is in a repository, and from a walk of it that
+skips `.git` and unreadable directories when it is not. fude reads them off
+the loop when the finder opens.
+
+Matching uses fzy's algorithm, as `matchfuzzy()` does, so the ranking is
+the same. A dynamic program over the query and the path scores each
+matched letter by what comes before it:
+- 1.0 after the letter matched before it
+- 0.9 after `/`, and at the start
+- 0.8 after `-`, `_` or a space
+- 0.7 for a capital after a lower case letter
+- 0.6 after `.`
+Each letter skipped costs a little. A tie keeps git's order. Matching runs
+off the loop, one match at a time, and a query that grows searches only
+the last matches. 4,000 paths take 2ms for one letter. The box shows the
+last matches until the new ones come (B129).
+
 ## Paths
 
 ```

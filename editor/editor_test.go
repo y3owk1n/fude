@@ -778,6 +778,43 @@ func TestB127ListingNotes(t *testing.T) {
 	}
 }
 
+// B129
+func TestB129Files(t *testing.T) {
+	dir := t.TempDir()
+	for _, f := range []string{"editor/editor.go", "editor/git.go", "editor/editor_test.go", "prd/decisions.md", "skip.go"} {
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(dir, f)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		change(t, filepath.Join(dir, f), f+"\n")
+	}
+	change(t, filepath.Join(dir, ".gitignore"), "skip.go\n")
+	if out, err := exec.Command("git", "-C", dir, "init", "-q").CombinedOutput(); err != nil {
+		t.Skipf("git init: %v: %s", err, out)
+	}
+	t.Chdir(dir)
+	e := open(t, "prd/decisions.md")
+	e.SetSize(80, 24)
+	results := func() []string {
+		f, _ := e.Float()
+		return strings.Fields(strings.SplitN(f.Text, "\n", 2)[1])
+	}
+	// The finder lists the files git does not ignore.
+	feed(e, ":files<CR>")
+	settle(t, e, func() bool { return len(results()) == 5 })
+	feed(e, "edgo")
+	settle(t, e, func() bool {
+		return slices.Equal(results(), []string{"editor/editor.go", "editor/git.go", "editor/editor_test.go"})
+	})
+	if feed(e, "<C-n><CR>"); e.Views()[0].Name != "editor/git.go" || e.Mode() != vim.Normal {
+		t.Fatalf("<C-n><CR> opened %q in %v mode", e.Views()[0].Name, e.Mode())
+	}
+	// <Esc> closes the finder and opens nothing.
+	feed(e, ":files<CR>x<Esc>")
+	if _, ok := e.Float(); ok || e.Views()[0].Name != "editor/git.go" || text(e) != "editor/git.go" {
+		t.Fatalf("after <Esc> the finder shows %v and the window has %q", ok, e.Views()[0].Name)
+	}
+}
+
 // B124
 func TestB124Listing(t *testing.T) {
 	dir := t.TempDir()
