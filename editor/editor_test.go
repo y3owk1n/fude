@@ -765,7 +765,7 @@ func captures(t *testing.T, e *editor.Session) map[string]string {
 	}
 }
 
-// B46
+// B46, and B43 for the edit
 func TestB46Highlighting(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "a.go")
 	change(t, path, "package main\n\nfunc main() {\n\tx := len(\"hi\") // note\n}\n")
@@ -779,6 +779,8 @@ func TestB46Highlighting(t *testing.T) {
 			t.Errorf("%s shows as %q, want %q", text, got[text], name)
 		}
 	}
+	// The edit lands before any reparse, and the highlights it shows are the
+	// old parse's moved through it.
 	feed(e, "Ox<Esc>")
 	if got := captures(t, e); got["package"] != "keyword" {
 		t.Errorf("after an edit above it, package shows as %q", got["package"])

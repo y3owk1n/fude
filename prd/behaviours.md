@@ -89,8 +89,8 @@ Where fude departs, the line says so and cites the departure in
   flags. The whole substitute is one transaction.
 - B23 [2] `<C-w>s` and `<C-w>v` split, `<C-w>hjkl` move between splits, and
   two splits on one buffer see each other's edits.
-- B24 [2] Every key sequence in the grammar produces the same `Command`
-  value whether it comes from keys, a macro, a plugin or RPC.
+- B24 [2] Every key sequence in the grammar gives the same result whether
+  it comes from typed keys, a macro, a plugin key or a client (D3).
 - B25 [2] `x X s S r R J gJ ~ g~ gu gU > < D C Y` act as in Neovim with
   counts. `Y` yanks to the end of the line.
 - B26 [2] `<C-a>` and `<C-x>` add to and subtract from the decimal, hex or

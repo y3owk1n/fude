@@ -80,7 +80,7 @@ func (cl *client) call(line string) result {
 	return result{}
 }
 
-// B70
+// B70, and B24 for a client's keys
 func TestB70CommandOverSocket(t *testing.T) {
 	typed := open(t, "")
 	feed(typed, `isay "hi" now<Esc>0f"lci"hello<Esc>`)
