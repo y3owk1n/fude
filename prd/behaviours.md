@@ -281,6 +281,11 @@ Where fude departs, the line says so and cites the departure in
   `:jumps` and `:changes` list the buffer's marks, the window's jumps and
   the buffer's changes with their line, column and text, and `<CR>` on one
   goes there.
+- B158 [2] `:theme dark`, `:theme light` or `:theme` with a base16 scheme
+  file redraws every client in that theme until fude quits. `:theme` alone
+  shows the theme in use, and `<Tab>` after it offers dark, light and the
+  scheme `config.toml` names. A scheme that does not load says why and
+  leaves the theme as it was.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays

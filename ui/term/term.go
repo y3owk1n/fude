@@ -32,7 +32,7 @@ func Run(e *editor.Session) error {
 	s.EnablePaste()
 	s.EnableFocus()
 
-	c := newClient(s, e)
+	c := &client{s: s, e: e}
 	c.draw()
 	// Plugins load after the first frame, so they never delay it (B56).
 	e.Load()
@@ -125,26 +125,22 @@ func paint(spans []syntax.Span, top int) []tcell.Style {
 }
 
 type client struct {
-	s tcell.Screen
-	e *editor.Session
-}
-
-// newClient draws e on s, in the theme e's config names, or dark for a name
-// it does not know.
-func newClient(s tcell.Screen, e *editor.Session) *client {
-	name, colours := e.Theme()
-	t, ok := themes[name]
-	switch {
-	case colours != nil:
-		t = fromBase16(*colours)
-	case !ok:
-		t = themes["dark"]
-	}
-	useTheme(t)
-	return &client{s: s, e: e}
+	s       tcell.Screen
+	e       *editor.Session
+	theme   string     // the theme drawn in, as e names it
+	colours *[16]int32 // its base16 scheme's colours, if it is one
 }
 
 func (c *client) draw() {
+	// The theme e names may change at any time with :theme (B158).
+	if name, colours := c.e.Theme(); name != c.theme || colours != c.colours {
+		c.theme, c.colours = name, colours
+		t := themes[name]
+		if colours != nil {
+			t = fromBase16(*colours)
+		}
+		useTheme(t)
+	}
 	// The windows take every row: the command line floats and messages
 	// are toasts (B148, B149).
 	w, h := c.s.Size()

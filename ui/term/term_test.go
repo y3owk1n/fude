@@ -48,7 +48,7 @@ func startWith(t *testing.T, config string, args ...string) *client {
 		t.Fatal(err)
 	}
 	t.Cleanup(s.Fini)
-	return newClient(s, e)
+	return &client{s: s, e: e}
 }
 
 // typed is a terminal the user typed in, as bytes, and whose output goes
@@ -308,5 +308,44 @@ func TestB153IndentGuides(t *testing.T) {
 	}
 	if cl.draw(); cell(0, 1) != " " {
 		t.Fatalf("with noindent_guides the first column has %q", cell(0, 1))
+	}
+}
+
+// B158
+func TestB158SwitchTheme(t *testing.T) {
+	cl := start(t)
+	ground := func() color.Color {
+		cl.draw()
+		_, style, _ := cl.s.Get(0, 0)
+		return style.GetBackground()
+	}
+	feed := func(keys string) {
+		for _, k := range vim.Keys(keys) {
+			cl.e.Feed(k)
+		}
+	}
+	if feed(":theme light<CR>"); ground() != themes["light"].bg {
+		t.Fatalf(":theme light drew the ground %v", ground())
+	}
+	if feed(":theme<CR>"); cl.e.Message() != "light" {
+		t.Errorf(":theme said %q", cl.e.Message())
+	}
+	// A scheme that does not load says why and keeps the theme.
+	feed(":theme " + filepath.Join(t.TempDir(), "none") + "<CR>")
+	if !strings.Contains(cl.e.Message(), "theme") || ground() != themes["light"].bg {
+		t.Errorf("a missing scheme said %q and drew the ground %v", cl.e.Message(), ground())
+	}
+	// <Tab> offers the scheme config.toml names, to switch back to it.
+	path := filepath.Join(t.TempDir(), "palette.json")
+	var j strings.Builder
+	for i := range 16 {
+		fmt.Fprintf(&j, "\"base0%X\": \"%06x\",\n", i, 0x101010*(i%15+1))
+	}
+	if err := os.WriteFile(path, []byte(j.String()), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cl = startWith(t, fmt.Sprintf("theme = %q", path))
+	if feed(":theme light<CR>:theme pal<Tab><CR>"); ground() != color.NewHexColor(0x101010) {
+		t.Errorf(":theme pal<Tab> drew the ground %v, want the scheme's", ground())
 	}
 }

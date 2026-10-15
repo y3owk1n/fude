@@ -25,7 +25,7 @@ type cmenu struct {
 // commandNames are the editor's commands, one full name each.
 var commandNames = []string{
 	"accept", "bdelete", "bnext", "bprevious", "buffer", "buffers", "cd", "changes", "close", "diff", "earlier", "edit", "enew", "exit",
-	"files", "grep", "jumps", "later", "marks", "messages", "new", "only", "pwd", "quit", "quitall", "read", "recover", "registers", "reject", "rename", "restore", "set",
+	"files", "grep", "jumps", "later", "marks", "messages", "new", "only", "pwd", "quit", "quitall", "read", "recover", "registers", "reject", "rename", "restore", "set", "theme",
 	"split", "timeline", "update", "vnew", "vsplit", "wall", "wq", "wqall", "write", "xall", "xit",
 }
 
@@ -132,6 +132,13 @@ func (e *Session) completions(line string, wait bool) (int, []string) {
 		names := slices.Concat(slices.Collect(maps.Keys(opts.switches())), slices.Collect(maps.Keys(opts.numbers())))
 		slices.Sort(names)
 		return start + i, match(names, arg[i:])
+	case "theme":
+		// Offer the scheme config.toml names, so :theme can switch back to it.
+		names := []string{"dark", "light"}
+		if !slices.Contains(names, e.cfg.Theme) {
+			names = append(names, e.cfg.Theme)
+		}
+		return start, match(names, arg)
 	case "b", "buffer", "bd", "bdelete":
 		var names []string
 		for _, b := range e.bufs {

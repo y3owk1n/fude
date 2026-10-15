@@ -915,7 +915,9 @@ are the grounds and faint text, base04 and base05 muted and plain text, and
 base08 to base0E errors, numbers, warnings, strings, hints, functions and
 keywords. `editor/` reads the scheme, as config, with one pattern that
 takes both stylix's JSON and Tinted Theming's YAML, so no YAML parser comes
-in (B146).
+in (B146). `:theme` sets the editor's theme for every client. Each client
+compares the theme with the one it draws in before each frame and builds
+the new styles when they differ (B158).
 
 Each language is a grammar and its queries, from the grammar's own repo
 (D28):
