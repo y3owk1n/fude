@@ -47,7 +47,11 @@ type Machine struct {
 	label   string
 	line    string
 	count   int
-	pending Key    // g, f, t, F or T waiting for the next key
+	op      string // d, c or y waiting for a motion
+	opCount int
+	reg     rune // the register named with ", or 0
+	regs    map[rune]register
+	pending Key    // g, f, t, F, T or " waiting for the next key
 	find    string // the last f, t, F or T and its character
 	want    int    // the column j and k aim for
 	wantSet bool
@@ -102,14 +106,33 @@ func (m *Machine) normal(k Key) error {
 		m.count = m.count*10 + int(cmd[0]-'0')
 		return nil
 	}
-	if len(cmd) == 1 && strings.Contains("gftFT", cmd) {
+	if len(cmd) == 1 && strings.Contains("gftFT\"", cmd) {
 		m.pending = k
 		return nil
 	}
+	if cmd[0] == '"' {
+		if Key(cmd[1:]).isChar() {
+			m.reg, _ = utf8.DecodeRuneInString(cmd[1:])
+		}
+		return nil
+	}
+	if m.op == "" && (cmd == "d" || cmd == "c" || cmd == "y") {
+		m.op, m.opCount, m.count = cmd, m.count, 0
+		return nil
+	}
 	count := m.count
-	m.count = 0
-	if p, ok := m.motion(cmd, count); ok {
-		m.h.SetCursor(p)
+	if m.opCount > 0 {
+		count = m.opCount * max(count, 1)
+	}
+	op, reg := m.op, m.reg
+	m.count, m.op, m.opCount, m.reg = 0, "", 0, 0
+	if op != "" {
+		return m.operate(op, reg, cmd, count)
+	}
+	if p, k, ok := m.motion(cmd, count); ok {
+		if k != failed {
+			m.h.SetCursor(clamp(m.h.Text(), p))
+		}
 		return nil
 	}
 	m.wantSet = false
@@ -117,6 +140,8 @@ func (m *Machine) normal(k Key) error {
 	t, c := m.h.Text(), m.h.Cursor()
 	start, end := LineStart(t, c), LineEnd(t, c)
 	switch k {
+	case "p", "P":
+		return m.put(reg, k == "p", max(count, 1))
 	case ":":
 		m.mode = Cmdline
 		m.line = ""

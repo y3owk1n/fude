@@ -115,7 +115,7 @@ func TestB8PasteIsTypedText(t *testing.T) {
 
 // B10
 func TestB10Motions(t *testing.T) {
-	cases := []struct{ start, keys, want string }{
+	cases(t, [][3]string{
 		{"|abcdef", "3l", "abc|def"},
 		{"|abcdef", "10l", "abcde|f"},
 		{"abc|def", "2h", "a|bcdef"},
@@ -147,25 +147,89 @@ func TestB10Motions(t *testing.T) {
 		{"|a,b,c,d", "f,;,", "a|,b,c,d"},
 		{"a,b,c,|d", "F,", "a,b,c|,d"},
 		{"a,b,c,|d", "2T,", "a,b,|c,d"},
-	}
-	for _, c := range cases {
-		if got, _, _ := run(t, c.start, c.keys); got != c.want {
-			t.Errorf("%q on %q: got %q, want %q", c.keys, c.start, got, c.want)
+	})
+}
+
+// cases runs each start, keys and want through run.
+func cases(t *testing.T, cs [][3]string) {
+	t.Helper()
+	for _, c := range cs {
+		if got, _, _ := run(t, c[0], c[1]); got != c[2] {
+			t.Errorf("%q on %q: got %q, want %q", c[1], c[0], got, c[2])
 		}
 	}
 }
 
+// B11
+func TestB11OperatorsWithMotions(t *testing.T) {
+	cases(t, [][3]string{
+		{"foo |bar baz", "dw", "foo |baz"},
+		{"one |two\n  three", "dw", "one| \n  three"},
+		{"|\nb", "dw", "|b"},
+		{"one |two\nthree", "2dw", "one| "},
+		{"foo |bar baz", "2d2w", "foo| "},
+		{"foo |bar baz", "cwX<Esc>", "foo |X baz"},
+		{"foo ba|r baz", "cwX<Esc>", "foo ba|X baz"},
+		{"a |  b", "cwX<Esc>", "a |Xb"},
+		{"foo |bar baz", "de", "foo | baz"},
+		{"ab|c", "d$", "a|b"},
+		{"ab|c", "2dh", "|c"},
+		{"foo bar ba|z", "db", "foo bar |z"},
+		{"foo |bar", "d0", "|bar"},
+		{"a(b|c)", "dF(", "a|c)"},
+		{"a|bc\nd\ne", "d2j", "|"},
+		{"a|bc", "dj", "a|bc"},
+		{"a\n  b|c\n  d", "dk", "  |d"},
+		{"a|b\nc\nd", "cjX<Esc>", "|X\nd"},
+	})
+}
+
+// B12
+func TestB12LineOperators(t *testing.T) {
+	cases(t, [][3]string{
+		{"a\nb|cd\ne", "dd", "a\n|e"},
+		{"ab\n  x|yz\nlast", "dd", "ab\nlas|t"},
+		{"a\nbc|d", "dd", "|a"},
+		{"a|b\nc\nd", "2dd", "|d"},
+		{"  a|bc\nd", "ccX<Esc>", "  |X\nd"},
+		{"ab|c\nd", "yyP", "|abc\nabc\nd"},
+		{"ab|c", "yy3p", "abc\n|abc\nabc\nabc"},
+	})
+}
+
+// B14
+func TestB14Registers(t *testing.T) {
+	cases(t, [][3]string{
+		{"x|yz", "\"ayl\"Ayl\"ap", "xyy|yz"},
+		{"a|b\nc\nd", "\"add\"bdd\"ap\"bp", "d\nab\n|c"},
+		{"one\n|two", "yy\"_ddP", "|two\none"},
+	})
+}
+
+// B15
+func TestB15Put(t *testing.T) {
+	cases(t, [][3]string{
+		{"hello |world", "ywwp", "hello worldworl|d"},
+		{"a|b", "ywP", "a|bb"},
+		{"ab|c", "yl3p", "abccc|c"},
+		{"one |two\nthree", "2ywP", "one |two\nthreetwo\nthree"},
+		{"one |two\nthree", "2ywp", "one t|two\nthreewo\nthree"},
+		{"a|bc\nde", "yjjp", "abc\nde\n|abc\nde"},
+		{"x|y\nz", "yyjp", "xy\nz\n|xy"},
+	})
+}
+
+// B19
+func TestB19EscCancelsOperator(t *testing.T) {
+	cases(t, [][3]string{{"foo |bar", "d<Esc>w", "foo ba|r"}})
+}
+
 // B9
 func TestB9GraphemeClusters(t *testing.T) {
-	cases := []struct{ start, keys, want string }{
+	cases(t, [][3]string{
 		{"|a👍🏽b", "l", "a|👍🏽b"},
 		{"|a👍🏽b", "ll", "a👍🏽|b"},
 		{"a👍🏽|b", "h", "a|👍🏽b"},
 		{"|xéy", "ll", "xé|y"},
-	}
-	for _, c := range cases {
-		if got, _, _ := run(t, c.start, c.keys); got != c.want {
-			t.Errorf("%q on %q: got %q, want %q", c.keys, c.start, got, c.want)
-		}
-	}
+	})
 }

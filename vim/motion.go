@@ -13,12 +13,23 @@ import (
 // Tabstop is the width of a tab, Neovim's default.
 const Tabstop = 8
 
-// motion returns where cmd moves the cursor, or false if cmd is not a motion.
-func (m *Machine) motion(cmd string, count int) (int, bool) {
+// kind is how an operator treats the text a motion crosses.
+type kind int
+
+const (
+	exclusive kind = iota
+	inclusive
+	linewise
+	failed // the motion could not move, so an operator does nothing
+)
+
+// motion returns where cmd moves the cursor and its kind, or false if cmd is
+// not a motion.
+func (m *Machine) motion(cmd string, count int) (int, kind, bool) {
 	t, c := m.h.Text(), m.h.Cursor()
 	n := max(count, 1)
 	start := LineStart(t, c)
-	p := c
+	p, k := c, exclusive
 	keep := false // whether to keep the column j and k aim for
 	switch cmd {
 	case "h":
@@ -39,52 +50,81 @@ func (m *Machine) motion(cmd string, count int) (int, bool) {
 		case cmd == "gg" || count > 0:
 			line = down(t, 0, n-1)
 		}
+		if line == start && (cmd == "j" || cmd == "k") {
+			return c, failed, true
+		}
 		if !m.wantSet {
 			m.want, m.wantSet = column(t, start, c), true
 		}
-		p, keep = atColumn(t, line, m.want), true
+		p, k, keep = atColumn(t, line, m.want), linewise, true
 	case "0":
 		p = start
 	case "^":
 		p = firstNonBlank(t, start, LineEnd(t, c))
 	case "$":
-		p = LineEnd(t, down(t, start, n-1))
+		p, k = lastChar(t, LineEnd(t, down(t, start, n-1))), inclusive
 		m.want, keep = math.MaxInt, true
 	case "w", "W":
-		p = wordForward(t, c, n, cmd == "W")
+		p = wordForward(t, c, n, cmd == "W", false)
 	case "b", "B":
 		p = wordBack(t, c, n, cmd == "B")
 	case "e", "E":
-		p = wordEnd(t, c, n, cmd == "E")
+		p, k = wordEnd(t, c, n, cmd == "E", false), inclusive
 	case ";", ",":
-		if m.find == "" {
-			return c, true
-		}
 		f := m.find
+		if f == "" {
+			return c, failed, true
+		}
 		if cmd == "," {
 			f = reverse[f[:1]] + f[1:]
 		}
-		p = find(t, c, n, f, true)
+		p, ok := find(t, c, n, f, true)
+		return m.found(p, f, ok)
 	default:
 		if len(cmd) < 2 || !strings.Contains("ftFT", cmd[:1]) || !Key(cmd[1:]).isChar() {
-			return c, false
+			return c, exclusive, false
 		}
 		m.find = cmd
-		p = find(t, c, n, cmd, false)
+		p, ok := find(t, c, n, cmd, false)
+		return m.found(p, cmd, ok)
 	}
 	m.wantSet = keep
-	// In normal mode the cursor stays off a line's end, unless the line is empty.
-	if s, e := LineStart(t, p), LineEnd(t, p); p >= e && p > s {
-		p = prev(t, s, e)
+	return p, k, true
+}
+
+// found turns a find's result into a motion. f and t are inclusive, F and T
+// exclusive.
+func (m *Machine) found(p int, f string, ok bool) (int, kind, bool) {
+	m.wantSet = false
+	switch {
+	case !ok:
+		return p, failed, true
+	case f[0] == 'f' || f[0] == 't':
+		return p, inclusive, true
 	}
-	return p, true
+	return p, exclusive, true
+}
+
+// clamp keeps a normal-mode cursor off a line's end, unless the line is
+// empty.
+func clamp(t Text, p int) int {
+	if s, e := LineStart(t, p), LineEnd(t, p); p >= e && p > s {
+		return prev(t, s, e)
+	}
+	return p
+}
+
+// lastChar returns the last cluster before end on its line, or end on an
+// empty line.
+func lastChar(t Text, end int) int {
+	return prev(t, LineStart(t, end), end)
 }
 
 var reverse = map[string]string{"f": "F", "F": "f", "t": "T", "T": "t"}
 
 // find returns where f, t, F or T and a character land after n matches, or
-// c if there are fewer. again skips a match next to c, as ; and , do.
-func find(t Text, c, n int, cmd string, again bool) int {
+// false if there are fewer. again skips a match next to c, as ; and , do.
+func find(t Text, c, n int, cmd string, again bool) (int, bool) {
 	key, ch := cmd[:1], cmd[1:]
 	start, end := LineStart(t, c), LineEnd(t, c)
 	p := c
@@ -96,7 +136,7 @@ func find(t Text, c, n int, cmd string, again bool) int {
 		for range n {
 			i := strings.Index(t.Slice(from, end), ch)
 			if i < 0 {
-				return c
+				return c, false
 			}
 			p = from + i
 			from = p + len(ch)
@@ -104,7 +144,7 @@ func find(t Text, c, n int, cmd string, again bool) int {
 		if key == "t" {
 			p = prev(t, start, p)
 		}
-		return p
+		return p, true
 	}
 	to := c
 	if key == "T" && again {
@@ -113,7 +153,7 @@ func find(t Text, c, n int, cmd string, again bool) int {
 	for range n {
 		i := strings.LastIndex(t.Slice(start, to), ch)
 		if i < 0 {
-			return c
+			return c, false
 		}
 		p = start + i
 		to = p
@@ -121,13 +161,14 @@ func find(t Text, c, n int, cmd string, again bool) int {
 	if key == "T" {
 		p = next(t, p, end)
 	}
-	return p
+	return p, true
 }
 
 // wordForward is w, or W when big is set. An empty line counts as a word.
-func wordForward(t Text, p, n int, big bool) int {
+// Under an operator the last word stops at its line's end.
+func wordForward(t Text, p, n int, big, op bool) int {
 	end := t.Len()
-	for range n {
+	for i := range n {
 		if c := class(t, p, big); c != 0 {
 			for p < end && class(t, p, big) == c {
 				p = next(t, p, end)
@@ -138,7 +179,7 @@ func wordForward(t Text, p, n int, big bool) int {
 				p = next(t, p, end)
 				continue
 			}
-			if p++; p == end || at(t, p) == '\n' {
+			if p++; op && i == n-1 || p == end || at(t, p) == '\n' {
 				break
 			}
 		}
@@ -146,11 +187,14 @@ func wordForward(t Text, p, n int, big bool) int {
 	return p
 }
 
-// wordEnd is e, or E when big is set.
-func wordEnd(t Text, p, n int, big bool) int {
+// wordEnd is e, or E when big is set. With stop set, a cursor on a word's
+// last character stays there, as cw needs.
+func wordEnd(t Text, p, n int, big, stop bool) int {
 	end := t.Len()
-	for range n {
-		p = next(t, p, end)
+	for i := range n {
+		if !stop || i > 0 || class(t, p, big) == 0 {
+			p = next(t, p, end)
+		}
 		for p < end && class(t, p, big) == 0 {
 			p = next(t, p, end)
 		}
