@@ -12,9 +12,9 @@ import (
 	"github.com/y3owk1n/fude/vim"
 )
 
-// dirListing returns dir's entries, one name a line in the order the
+// readListing returns dir's entries, one name a line in the order the
 // directory gives them, directories with a trailing slash (B124).
-func dirListing(dir string) (string, error) {
+func readListing(dir string) (string, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return "", fmt.Errorf("list %s: %w", dir, err)
@@ -29,22 +29,22 @@ func dirListing(dir string) (string, error) {
 	return strings.Join(names, "\n"), nil
 }
 
-// dirBuffer returns a listing of dir as a buffer numbered id.
-func dirBuffer(id int, dir string) (*buffer, error) {
-	text, err := dirListing(dir)
+// listingBuffer returns a listing of dir as a buffer numbered id.
+func listingBuffer(id int, dir string) (*buffer, error) {
+	text, err := readListing(dir)
 	if err != nil {
 		return nil, err
 	}
 	b := &buffer{id: id, text: kernel.New(text, nil), before: map[kernel.NodeID]int{}, marks: map[rune]kernel.MarkID{}}
-	b.dir, b.title = dir, strings.TrimSuffix(dir, string(filepath.Separator))+string(filepath.Separator)
+	b.listed, b.title = dir, strings.TrimSuffix(dir, string(filepath.Separator))+string(filepath.Separator)
 	b.mark()
 	return b, nil
 }
 
-// openDir shows the listing of dir in the current window, with the cursor
-// on the entry named at when there is one. A directory already listed shows
-// its buffer as it was left.
-func (e *Session) openDir(dir, at string) {
+// openListing shows the listing of dir in the current window, with the
+// cursor on the entry named at when there is one. A directory already
+// listed shows its buffer as it was left.
+func (e *Session) openListing(dir, at string) {
 	abs, err := filepath.Abs(dir)
 	if err != nil {
 		e.message = err.Error()
@@ -52,12 +52,12 @@ func (e *Session) openDir(dir, at string) {
 	}
 	var b *buffer
 	for _, o := range e.bufs {
-		if o.dir == abs {
+		if o.listed == abs {
 			b = o
 		}
 	}
 	if b == nil {
-		if b, err = dirBuffer(e.next, abs); err != nil {
+		if b, err = listingBuffer(e.next, abs); err != nil {
 			e.message = err.Error()
 			return
 		}
@@ -77,7 +77,7 @@ func (e *Session) openDir(dir, at string) {
 // cursor on what it came from, as Neovim's - does. count goes up that many
 // levels, and 1 lists the working directory instead.
 func (e *Session) up(count int) {
-	from := e.win.buf.dir
+	from := e.win.buf.listed
 	if from == "" {
 		from = e.win.buf.file.path
 	}
@@ -87,7 +87,7 @@ func (e *Session) up(count int) {
 			e.message = err.Error()
 			return
 		}
-		e.openDir(cwd, "")
+		e.openListing(cwd, "")
 		return
 	}
 	from, err := filepath.Abs(from)
@@ -95,30 +95,30 @@ func (e *Session) up(count int) {
 		e.message = err.Error()
 		return
 	}
-	at, isDir := "", e.win.buf.dir != ""
+	at, isListing := "", e.win.buf.listed != ""
 	for range max(count, 1) {
 		at = filepath.Base(from)
-		if isDir {
+		if isListing {
 			at += "/"
 		}
-		from, isDir = filepath.Dir(from), true
+		from, isListing = filepath.Dir(from), true
 	}
-	e.openDir(from, at)
+	e.openListing(from, at)
 }
 
-// dirKey handles a key in a listing, as oil.nvim's are: <CR> opens the
+// listingKey handles a key in a listing, as oil.nvim's are: <CR> opens the
 // entry under the cursor, <C-s> and <C-h> open it in a split beside or
 // above, _ lists the working directory and <C-l> reads the listing again.
-func (e *Session) dirKey(k vim.Key) bool {
+func (e *Session) listingKey(k vim.Key) bool {
 	b := e.win.buf
 	t, c := b.text.Snapshot(), e.Cursor()
 	name := t.Slice(vim.LineStart(t, c), vim.LineEnd(t, c))
 	switch k {
 	case "<CR>":
-		e.openEntry(b.dir, name)
+		e.openEntry(b.listed, name)
 	case "<C-s>", "<C-h>":
 		e.split(k == "<C-s>")
-		e.openEntry(b.dir, name)
+		e.openEntry(b.listed, name)
 	case "_":
 		e.up(1)
 	case "<C-l>":
@@ -135,7 +135,7 @@ func (e *Session) openEntry(dir, name string) {
 	switch {
 	case name == "":
 	case strings.HasSuffix(name, "/"):
-		e.openDir(filepath.Join(dir, name), "")
+		e.openListing(filepath.Join(dir, name), "")
 	default:
 		e.edit(filepath.Join(dir, name))
 	}
@@ -144,7 +144,7 @@ func (e *Session) openEntry(dir, name string) {
 // reload reads b's directory again and puts its entries in place of the
 // listing.
 func (e *Session) reload(b *buffer) {
-	text, err := dirListing(b.dir)
+	text, err := readListing(b.listed)
 	if err != nil {
 		e.message = err.Error()
 		return
@@ -359,15 +359,15 @@ func (e *Session) save(b *buffer, then func()) {
 		}
 		return
 	}
-	e.message = c.ask(b.dir)
+	e.message = c.ask(b.listed)
 	e.ask = func(yes bool) {
 		if !yes {
 			e.message = ""
 			return
 		}
-		err := c.apply(b.dir)
+		err := c.apply(b.listed)
 		for _, r := range c.renames {
-			e.moved(filepath.Join(b.dir, r[0]), filepath.Join(b.dir, r[1]))
+			e.moved(filepath.Join(b.listed, r[0]), filepath.Join(b.listed, r[1]))
 		}
 		e.reload(b)
 		if err != nil {

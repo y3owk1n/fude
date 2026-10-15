@@ -172,11 +172,11 @@ func builtins(e *Session) {
 			return nil
 		})
 	}
-	e.vim.Command("dir.up", func(_ vim.Text, _, count int) []vim.Edit {
+	e.vim.Command("listing.up", func(_ vim.Text, _, count int) []vim.Edit {
 		e.up(count)
 		return nil
 	})
-	e.vim.Map(vim.Normal, "-", "<Plug>(dir.up)")
+	e.vim.Map(vim.Normal, "-", "<Plug>(listing.up)")
 	e.vim.Map(vim.Normal, "<C-]>", "<Plug>(lsp.definition)")
 	e.vim.Map(vim.Normal, "K", "<Plug>(lsp.hover)")
 	for keys, n := range map[string]int{"]d": 1, "[d": -1} {
@@ -240,7 +240,7 @@ func (e *Session) add(path string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("list %s: %w", path, err)
 		}
-		b, err := dirBuffer(e.next, abs)
+		b, err := listingBuffer(e.next, abs)
 		if err != nil {
 			return "", err
 		}
@@ -369,7 +369,7 @@ func (e *Session) feed(k vim.Key) {
 		e.reveal()
 		return
 	}
-	if e.win.buf.dir != "" && e.vim.Idle() && e.dirKey(k) {
+	if e.win.buf.listed != "" && e.vim.Idle() && e.listingKey(k) {
 		e.settle(nil)
 		return
 	}
@@ -944,7 +944,7 @@ func (e *Session) edit(path string) {
 		}
 	}
 	if info, err := os.Stat(path); err == nil && info.IsDir() {
-		e.openDir(path, "")
+		e.openListing(path, "")
 		return
 	}
 	msg, err := e.add(path)
@@ -1059,7 +1059,7 @@ func (e *Session) registers(names string) {
 // write writes b to its file, then runs then. Without force it asks first
 // when the file changed on disk since fude read it.
 func (e *Session) write(b *buffer, force bool, then func()) {
-	if b.dir != "" {
+	if b.listed != "" {
 		e.save(b, then)
 		return
 	}

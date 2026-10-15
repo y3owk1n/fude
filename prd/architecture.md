@@ -508,7 +508,7 @@ show no line numbers and always keep a sign column, as Neovim's directory
 ftplugin sets them. A directory already listed shows its buffer as it was
 left, and `<C-l>` reads it again.
 
-`-` is mapped in normal mode to `<Plug>(dir.up)`, in place of the `-`
+`-` is mapped in normal mode to `<Plug>(listing.up)`, in place of the `-`
 motion, as Neovim does by default: it lists the directory holding the
 current file or listing with the cursor on what it came from, `N-` goes up
 N levels, and `1-` lists the working directory. A listing takes oil.nvim's
