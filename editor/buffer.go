@@ -39,6 +39,7 @@ type buffer struct {
 	syntax   *syntax.Buffer // nil without a grammar for the filetype
 	server   *server        // the language server it is attached to, or nil
 	signed   bool           // it has diagnostics, so windows show a sign column
+	dir      string         // the directory a listing lists, "" for any other buffer
 	base     *string        // the text git's index has, nil outside a repository
 	git      map[int]Sign   // the git sign of each changed line
 	gitStale bool           // the text changed since the last diff

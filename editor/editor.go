@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"maps"
 	"math"
+	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -171,6 +172,11 @@ func builtins(e *Session) {
 			return nil
 		})
 	}
+	e.vim.Command("dir.up", func(_ vim.Text, _, count int) []vim.Edit {
+		e.up(count)
+		return nil
+	})
+	e.vim.Map(vim.Normal, "-", "<Plug>(dir.up)")
 	e.vim.Map(vim.Normal, "<C-]>", "<Plug>(lsp.definition)")
 	e.vim.Map(vim.Normal, "K", "<Plug>(lsp.hover)")
 	for keys, n := range map[string]int{"]d": 1, "[d": -1} {
@@ -229,6 +235,19 @@ func Start(args []string) (*Session, error) {
 
 // add opens path as a new buffer at the end of the list.
 func (e *Session) add(path string) (string, error) {
+	if info, err := os.Stat(path); err == nil && info.IsDir() {
+		abs, err := filepath.Abs(path)
+		if err != nil {
+			return "", fmt.Errorf("list %s: %w", path, err)
+		}
+		b, err := dirBuffer(e.next, abs)
+		if err != nil {
+			return "", err
+		}
+		e.next++
+		e.bufs = append(e.bufs, b)
+		return "", nil
+	}
 	b, msg, err := openBuffer(e.next, path)
 	if err != nil {
 		return "", err
@@ -350,6 +369,10 @@ func (e *Session) feed(k vim.Key) {
 		e.reveal()
 		return
 	}
+	if e.win.buf.dir != "" && e.vim.Idle() && e.dirKey(k) {
+		e.settle(nil)
+		return
+	}
 	if e.win.buf.spots != nil && e.vim.Idle() && e.listKey(k) {
 		e.settle(nil)
 		return
@@ -456,7 +479,7 @@ func (e *Session) Views() []View {
 			Text: t, Top: top, Cursor: w.pos(),
 			X: w.x, Y: w.y, W: w.w, H: w.h,
 			Name: w.buf.name(), Modified: w.buf.modified(), Current: w == e.win || w == e.under,
-			Gutter: w.gutter(), SignCols: w.signCols(), Number: w.opts.Number, Relative: w.opts.RelativeNumber,
+			Gutter: w.gutter(), SignCols: w.signCols(), Number: w.numberCols() > 0 && w.opts.Number, Relative: w.numberCols() > 0 && w.opts.RelativeNumber,
 			Wrap: w.opts.Wrap, Left: w.left, CursorLine: w.opts.CursorLine, List: w.opts.List,
 		}
 		last := vim.LineEnd(t, t.LineStart(min(t.LineOf(top)+max(w.h-2, 0), t.Lines()-1)))
@@ -919,6 +942,10 @@ func (e *Session) edit(path string) {
 			e.show(b)
 			return
 		}
+	}
+	if info, err := os.Stat(path); err == nil && info.IsDir() {
+		e.openDir(path, "")
+		return
 	}
 	msg, err := e.add(path)
 	if err != nil {

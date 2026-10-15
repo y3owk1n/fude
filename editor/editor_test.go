@@ -724,6 +724,42 @@ func TestB123GitSigns(t *testing.T) {
 	}
 }
 
+// B124
+func TestB124Listing(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(dir, "sub"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	change(t, filepath.Join(dir, "a.txt"), "A\n")
+	change(t, filepath.Join(dir, "b.txt"), "B\n")
+	change(t, filepath.Join(dir, "sub", "c"), "C\n")
+	e := open(t, filepath.Join(dir, "a.txt"))
+	line := func() string {
+		s, c := e.Text(), e.Cursor()
+		return s.Slice(s.LineStart(s.LineOf(c)), vim.LineEnd(s, c))
+	}
+	for _, c := range []struct{ keys, text, line string }{
+		// - lists the file's directory with the cursor on the file.
+		{"-", "a.txt\nb.txt\nsub/", "a.txt"},
+		{"G<CR>", "c", "c"},
+		{"<CR>", "C", "C"},
+		{"-", "c", "c"},
+		{"-", "a.txt\nb.txt\nsub/", "sub/"},
+		{"gg<CR>", "A", "A"},
+		// A count goes up that many levels from the file.
+		{":e " + filepath.Join(dir, "sub", "c") + "<CR>2-", "a.txt\nb.txt\nsub/", "sub/"},
+	} {
+		if feed(e, c.keys); text(e) != c.text || line() != c.line {
+			t.Fatalf("after %q the text is %q on %q, want %q on %q", c.keys, text(e), line(), c.text, c.line)
+		}
+	}
+	// 1- and _ list the working directory.
+	t.Chdir(filepath.Join(dir, "sub"))
+	if feed(e, "1-"); text(e) != "c" {
+		t.Fatalf("1- listed %q", text(e))
+	}
+}
+
 // B118
 func TestB118List(t *testing.T) {
 	e := open(t, "")

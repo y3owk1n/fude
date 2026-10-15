@@ -102,6 +102,14 @@ Where fude departs, the line says so and cites the departure in
   lines, `▁` under the line before deleted ones, and `~` on a change that
   also deleted lines. A diagnostic's sign wins on its line. Without git
   installed, there are no git signs.
+- B124 [2] `:e dir`, `fude dir` and `-` open a directory as a listing: a
+  buffer of its entries' names, directories with a trailing `/`, with no
+  line numbers. `-` lists the current file's directory with the cursor on
+  it, `N-` goes up N levels and `1-` lists the working directory, as
+  Neovim's built-in `-` does, in place of the `-` motion. In a listing,
+  `<CR>` opens the entry, `<C-s>` and `<C-h>` open it in a split beside or
+  above, `_` lists the working directory and `<C-l>` reads it again, as
+  oil.nvim's keys do.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays

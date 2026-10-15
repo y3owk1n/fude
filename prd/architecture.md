@@ -498,6 +498,25 @@ The client keeps a cell grid, diffs it against the previous frame, and
 writes only the changed cells in one write. It wraps each frame in
 synchronized output where the terminal supports it.
 
+## Listings
+
+`:e dir`, `fude dir` and `-` open a directory as a listing: a buffer of
+its entries' names in the order `os.ReadDir` gives them, directories with a
+trailing `/`, as Neovim's built-in `dir` plugin lists them. The buffer's
+name is the directory with a trailing `/`, and it has no file. Its windows
+show no line numbers and always keep a sign column, as Neovim's directory
+ftplugin sets them. A directory already listed shows its buffer as it was
+left, and `<C-l>` reads it again.
+
+`-` is mapped in normal mode to `<Plug>(dir.up)`, in place of the `-`
+motion, as Neovim does by default: it lists the directory holding the
+current file or listing with the cursor on what it came from, `N-` goes up
+N levels, and `1-` lists the working directory. A listing takes oil.nvim's
+keys, while the machine is between commands: `<CR>` opens the entry under
+the cursor, `<C-s>` and `<C-h>` open it in a split beside or above, and
+`_` lists the working directory. `R` stays replace mode, as a listing is
+text to edit (B124).
+
 ## Paths
 
 ```
