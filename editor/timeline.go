@@ -164,12 +164,13 @@ func (e *Session) timeline() {
 	if src.source != nil {
 		src = src.source
 	}
-	text, ids := listing(src)
+	text, ids := timelineLines(src)
 	e.scratch("[timeline]", text, src, ids)
 }
 
-// listing returns the lines of src's timeline window and the state on each.
-func listing(src *buffer) (string, []kernel.NodeID) {
+// timelineLines returns the lines of src's timeline window and the state on
+// each.
+func timelineLines(src *buffer) (string, []kernel.NodeID) {
 	var lines []string
 	nodes := src.text.Nodes()
 	ids := []kernel.NodeID{{}}
@@ -236,7 +237,7 @@ func (e *Session) scrub(src *buffer, id kernel.NodeID) {
 // and puts the cursor on line.
 func (e *Session) relist(line int) {
 	b := e.win.buf
-	text, ids := listing(b.source)
+	text, ids := timelineLines(b.source)
 	old := b.text.Snapshot()
 	if err := b.text.Apply(kernel.Transaction{Base: old.Version(), Edits: []kernel.Edit{{End: old.Len(), Text: text}}}); err != nil {
 		e.message = err.Error()
