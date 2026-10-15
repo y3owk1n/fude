@@ -611,6 +611,13 @@ preview box's width. The preview is the first 16KB of the selected file,
 cut to the box, with tabs as 4 spaces and no highlights. fude reads it on
 the loop when the selection changes (B130).
 
+`:grep` opens the same finder in grep mode. Each change to the query runs
+`rg --fixed-strings --smart-case` off the loop, or `git grep -F` with `-i`
+for a query without capitals when `rg` is not installed. One search runs
+at a time, as matching does. fude reads at most 1000 lines of its output
+and kills it after them. A match is `path:line:column:text`, and the
+preview starts a third of its rows above the match's line (B134).
+
 ## Paths
 
 ```

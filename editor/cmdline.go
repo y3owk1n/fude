@@ -27,7 +27,7 @@ type cmenu struct {
 // commandNames are the editor's commands, one full name each.
 var commandNames = []string{
 	"accept", "bdelete", "bnext", "bprevious", "buffer", "buffers", "close", "diff", "earlier", "edit", "exit",
-	"files", "later", "only", "quit", "quitall", "recover", "registers", "reject", "rename", "restore", "set",
+	"files", "grep", "later", "only", "quit", "quitall", "recover", "registers", "reject", "rename", "restore", "set",
 	"split", "timeline", "vsplit", "wall", "wq", "wqall", "write", "xall", "xit",
 }
 

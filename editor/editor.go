@@ -929,6 +929,8 @@ func (e *Session) ex(line string) {
 		e.timeline()
 	case "files":
 		e.files()
+	case "grep":
+		e.grepFiles(arg)
 	case "restore":
 		e.restore(arg)
 	case "diff":

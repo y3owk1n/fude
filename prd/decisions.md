@@ -359,6 +359,13 @@ command line needs `wildtrigger()` in a `CmdlineChanged` autocommand to do
 the same. Why: one setting for completion while typing, and fude has no
 autocommands.
 
+### N13. :grep is a live grep
+
+`:grep` opens a finder that searches as the query is typed (B134), where
+Neovim's `:grep` runs `'grepprg'` once and fills the quickfix list. Why:
+the user searches with fff.nvim's live grep, and fude has no quickfix
+list.
+
 ## Open
 
 None.

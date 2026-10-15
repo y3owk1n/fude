@@ -1,8 +1,10 @@
 package editor
 
 import (
+	"bufio"
 	"bytes"
 	"cmp"
+	"fmt"
 	"io"
 	"io/fs"
 	"math"
@@ -17,27 +19,34 @@ import (
 	"github.com/y3owk1n/fude/vim"
 )
 
-// finder is the fuzzy file finder :files opens: a box whose first line is
-// the query, typed in insert mode, with the files that match it below, the
-// best first (B129).
+// finder is the fuzzy file finder :files opens, or the live grep :grep
+// opens: a box whose first line is the query, typed in insert mode, with
+// the files or lines that match it below, the best first (B129, B134).
 type finder struct {
+	grep    bool     // it searches files' lines, not their names
 	paths   []string // the working directory's files, nil until read
 	query   string   // the query matches are for
-	matches []string
+	matches []string // paths, or grep's path:line:column:text
 	sel     int
 	stale   bool   // paths came after matches were found
 	busy    bool   // a match runs
-	shown   string // the path previewed
-	preview string // its first lines
+	shown   string // the match previewed
+	preview string // the lines around it
+	at      int    // the row of the preview its line is on
 }
 
-// files opens the finder and reads the working directory's files off the
-// loop.
+// openFinder opens f in a box with query typed.
+func (e *Session) openFinder(f *finder, query string) {
+	b := &buffer{text: kernel.New(query, nil), before: map[kernel.NodeID]int{}, marks: map[rune]kernel.MarkID{}, title: "[find]"}
+	e.finder, e.under, e.win = f, e.win, newWindow(b, 0, 0)
+	e.later = append(e.later, "A")
+}
+
+// files opens the file finder and reads the working directory's files off
+// the loop.
 func (e *Session) files() {
 	f := &finder{}
-	b := &buffer{text: kernel.New("", nil), before: map[kernel.NodeID]int{}, marks: map[rune]kernel.MarkID{}, title: "[files]"}
-	e.finder, e.under, e.win = f, e.win, newWindow(b, 0, 0)
-	e.later = append(e.later, "i")
+	e.openFinder(f, "")
 	go func() {
 		paths, err := listFiles(".")
 		e.queue <- func() {
@@ -84,7 +93,12 @@ func (e *Session) finding(k vim.Key) {
 	case "<CR>":
 		e.closeFinder()
 		if f.sel < len(f.matches) {
-			e.edit(f.matches[f.sel])
+			path, line, col, _ := grepSpot(f.matches[f.sel])
+			if e.edit(path); line > 0 && e.win.buf.is(path) {
+				t := e.Text()
+				start := t.LineStart(min(line-1, t.Lines()-1))
+				e.setCursor(min(start+col-1, vim.LineEnd(t, start)))
+			}
 		}
 		return
 	case "<C-n>":
@@ -115,7 +129,7 @@ func (e *Session) closeFinder() {
 func (e *Session) seek(f *finder) {
 	t := e.Text()
 	q := t.Slice(0, t.Len())
-	if f.busy || f.paths == nil || q == f.query && !f.stale {
+	if f.busy || !f.grep && f.paths == nil || q == f.query && !f.stale {
 		return
 	}
 	from := f.paths
@@ -124,8 +138,19 @@ func (e *Session) seek(f *finder) {
 	}
 	f.busy, f.stale = true, false
 	go func() {
-		matches := match(from, q)
-		e.queue <- func() { f.query, f.matches, f.sel, f.busy = q, matches, 0, false }
+		var matches []string
+		var err error
+		if f.grep {
+			matches, err = grep(q)
+		} else {
+			matches = match(from, q)
+		}
+		e.queue <- func() {
+			if err != nil {
+				e.message = err.Error()
+			}
+			f.query, f.matches, f.sel, f.busy = q, matches, 0, false
+		}
 	}()
 }
 
@@ -150,7 +175,12 @@ func (f *finder) float(query string, cursor, width, height int) Float {
 			continue
 		}
 		p := f.matches[i]
-		if r := []rune(p); len(r) > w-2 {
+		if path, line, _, text := grepSpot(p); f.grep {
+			p = fmt.Sprintf("%s:%d: %s", path, line, strings.TrimLeft(text, " \t"))
+			if r := []rune(p); len(r) > w-2 {
+				p = string(r[:w-2])
+			}
+		} else if r := []rune(p); len(r) > w-2 {
 			// Cut the start of a long path, so its name stays in view.
 			p = "<" + string(r[len(r)-w+3:])
 		}
@@ -159,39 +189,60 @@ func (f *finder) float(query string, cursor, width, height int) Float {
 		}
 		s.WriteString(p)
 	}
-	doc := ""
+	doc, docSpans := "", []syntax.Span(nil)
 	if docW > 0 && f.sel < len(f.matches) {
-		if p := f.matches[f.sel]; p != f.shown {
-			f.shown, f.preview = p, preview(p, h-2, docW-2)
+		if m := f.matches[f.sel]; m != f.shown {
+			path, line, _, _ := grepSpot(m)
+			f.shown = m
+			f.preview, f.at = preview(path, max(line-1, 0), h-2, docW-2)
 		}
 		doc = f.preview
+		if f.grep && f.at >= 0 {
+			// The matching line is marked.
+			start := 0
+			for range f.at {
+				start += strings.IndexByte(doc[start:], '\n') + 1
+			}
+			end := strings.IndexByte(doc[start:], '\n')
+			if end < 0 {
+				end = len(doc) - start
+			}
+			docSpans = []syntax.Span{{Start: start, End: start + end, Name: "menu.selected"}}
+		}
 	}
-	return Float{Text: s.String(), Spans: spans, Cursor: cursor, Doc: doc, X: (width - total) / 2, Y: (height - h) / 2, W: w, H: h, DocW: docW}
+	return Float{Text: s.String(), Spans: spans, Cursor: cursor, Doc: doc, DocSpans: docSpans, X: (width - total) / 2, Y: (height - h) / 2, W: w, H: h, DocW: docW}
 }
 
-// preview returns at most rows lines from the start of the file at path,
-// cut to cols columns with tabs as 4 spaces, or why it shows none.
-func preview(path string, rows, cols int) string {
+// preview returns rows lines of the file at path from a third of them
+// above line, cut to cols columns with tabs as 4 spaces, and the row line
+// is on. A file with a zero byte in its first 16KB, or one that fails to
+// read, shows why there is no preview.
+func preview(path string, line, rows, cols int) (string, int) {
 	f, err := os.Open(path)
 	if err != nil {
-		return err.Error()
+		return err.Error(), -1
 	}
 	defer f.Close()
-	buf := make([]byte, 16<<10)
-	n, err := io.ReadFull(f, buf)
-	if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
-		return err.Error()
+	r := bufio.NewReader(f)
+	if head, _ := r.Peek(16 << 10); bytes.IndexByte(head, 0) >= 0 {
+		return "binary file", -1
 	}
-	if bytes.IndexByte(buf[:n], 0) >= 0 {
-		return "binary file"
+	first := max(line-rows/3, 0)
+	var lines []string
+	for i := 0; len(lines) < rows; i++ {
+		l, err := r.ReadString('\n')
+		if i >= first && (l != "" || err == nil) {
+			c := []rune(strings.ReplaceAll(strings.TrimSuffix(l, "\n"), "\t", "    "))
+			lines = append(lines, string(c[:min(len(c), cols)]))
+		}
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err.Error(), -1
+		}
 	}
-	lines := strings.Split(strings.TrimSuffix(string(buf[:n]), "\n"), "\n")
-	lines = lines[:min(len(lines), rows)]
-	for i, l := range lines {
-		r := []rune(strings.ReplaceAll(l, "\t", "    "))
-		lines[i] = string(r[:min(len(r), cols)])
-	}
-	return strings.Join(lines, "\n")
+	return strings.Join(lines, "\n"), line - first
 }
 
 // match returns the paths query matches, the best first, and all of them

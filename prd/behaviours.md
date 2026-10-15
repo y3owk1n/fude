@@ -158,6 +158,13 @@ Where fude departs, the line says so and cites the departure in
   cursor and `<C-u>` all before it. `<Up>` and `<Down>` recall older and
   newer lines that start with the text typed, `:` lines and searches each
   from their own history, as Neovim's command line does.
+- B134 [2] `:grep` opens a live grep in the finder, as fff.nvim's is, and
+  `:grep text` starts it with text typed. Each change to the query
+  searches the working directory's files for it as plain text, with `rg`
+  when it is installed and `git grep` otherwise. A query without capitals
+  ignores case. Each match shows as `path:line: text`, at most 1000 of
+  them, and the preview shows the lines around it with its line marked.
+  `<CR>` opens the file at the match (N13).
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays
