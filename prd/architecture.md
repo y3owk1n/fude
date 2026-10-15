@@ -553,6 +553,14 @@ Neovim's form, `line,col`, then `-vcol` when the screen column differs,
 then `All`, `Top`, `Bot` or how far down the view is (B38), and the
 client shows it as `line:col` with the screen column (B147).
 
+The client draws the command line in a box with a rounded border, a fifth
+of the way down the screen and at most 60 columns wide, and the
+completion menu under it, so the editor gives the menu's `Float` no place
+of its own (B148). The last message is a toast in the top right corner,
+drawn while `Message` returns it, so it goes with the next key as before
+(B149). With both off the last row, `SetSize` gives the windows the whole
+screen.
+
 The client keeps a cell grid, diffs it against the previous frame, and
 writes only the changed cells in one write. It wraps each frame in
 synchronized output where the terminal supports it.

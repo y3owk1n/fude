@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -175,7 +176,7 @@ func TestB147StatusLine(t *testing.T) {
 		var b strings.Builder
 		w, h := cl.s.Size()
 		for x := 0; x < w; x++ {
-			s, _, _ := cl.s.Get(x, h-2)
+			s, _, _ := cl.s.Get(x, h-1)
 			b.WriteString(s)
 		}
 		return b.String()
@@ -193,5 +194,42 @@ func TestB147StatusLine(t *testing.T) {
 	}
 	if feed("<Esc>"); !strings.Contains(row(), "notes.txt ●") {
 		t.Fatalf("after a change the status line is %q", row())
+	}
+}
+
+// B148, B149
+func TestB148CommandLine(t *testing.T) {
+	cl := start(t)
+	screen := func() string {
+		cl.draw()
+		var b strings.Builder
+		w, h := cl.s.Size()
+		for y := range h {
+			for x := range w {
+				s, _, _ := cl.s.Get(x, y)
+				b.WriteString(s)
+			}
+			b.WriteByte('\n')
+		}
+		return b.String()
+	}
+	feed := func(keys string) {
+		for _, k := range vim.Keys(keys) {
+			cl.e.Feed(k)
+		}
+	}
+	// The line floats in a box in the upper middle, with its menu below.
+	feed(":ti<Tab>")
+	rows := strings.Split(screen(), "\n")
+	w, h := cl.s.Size()
+	at := slices.IndexFunc(rows, func(r string) bool { return strings.Contains(r, ": timeline") })
+	below := slices.IndexFunc(rows[at+1:], func(r string) bool { return strings.Contains(r, "timeline") })
+	if at < 1 || at > h/2 || !strings.Contains(rows[at-1], "╭") || below < 0 {
+		t.Fatalf("the command line is on row %d of:\n%s", at, strings.Join(rows, "\n"))
+	}
+	// A message is a toast in the top right corner.
+	feed("<Esc>:set number?<CR>")
+	if rows = strings.Split(screen(), "\n"); !strings.HasSuffix(strings.TrimRight(rows[1], " │"), "nonumber") || len(rows[1]) < w {
+		t.Fatalf("the toast is not in the top right:\n%s", strings.Join(rows[:3], "\n"))
 	}
 }

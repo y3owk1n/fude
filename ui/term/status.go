@@ -33,6 +33,9 @@ func (c *client) status(v editor.View, x, w int) {
 	if v.Current {
 		label, colour := c.mode()
 		left = append(left, part{" " + label + " ", ground.Background(colour).Foreground(th.bg).Bold(true)})
+		if r := c.e.Recording(); r != 0 {
+			left = append(left, part{" ● @" + string(r), ground.Foreground(th.err).Bold(true)})
+		}
 	}
 	dir, name := splitName(v.Name)
 	left = append(left, part{" " + dir, ground.Foreground(th.faint)}, part{name, ground.Bold(v.Current)})

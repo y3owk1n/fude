@@ -8,7 +8,6 @@ import (
 	"slices"
 	"strings"
 	"unicode"
-	"unicode/utf8"
 
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
@@ -18,7 +17,6 @@ import (
 // <Tab> and <S-Tab> step through, each replacing the word (B131).
 type cmenu struct {
 	start int    // where the word begins in the line, after the prompt
-	col   int    // the screen column it begins at, after the prompt
 	typed string // the word as typed, the menu's last stop
 	items []string
 	sel   int // the item in the line, or len(items) for typed
@@ -99,7 +97,7 @@ func newMenu(line string, start int, items []string) *cmenu {
 	if len(items) == 0 {
 		return nil
 	}
-	return &cmenu{start: start, col: utf8.RuneCountInString(line[:start]), typed: line[start:], items: items, sel: len(items)}
+	return &cmenu{start: start, typed: line[start:], items: items, sel: len(items)}
 }
 
 // completions returns where the word being typed at the end of line begins,
@@ -219,15 +217,11 @@ func readEntries(dir string) []string {
 	return names
 }
 
-// float shows the menu above the command line, under the word it
-// completes, at most 10 rows tall.
-func (m *cmenu) float(width, height int) Float {
-	rows := min(len(m.items), 10, max(height-2, 0))
+// float shows the menu, at most 10 rows tall, for the client to put under
+// the command line (B148).
+func (m *cmenu) float() Float {
+	rows := min(len(m.items), 10)
 	first := max(min(m.sel, len(m.items)-1)-rows+1, 0)
-	w := 0
-	for _, it := range m.items {
-		w = max(w, utf8.RuneCountInString(it))
-	}
 	var s strings.Builder
 	var spans []syntax.Span
 	for i := first; i < first+rows; i++ {
@@ -239,7 +233,5 @@ func (m *cmenu) float(width, height int) Float {
 		}
 		s.WriteString(m.items[i])
 	}
-	// The box's border goes left of the word, after the prompt.
-	x := max(min(m.col, width-w-2), 0)
-	return Float{Text: s.String(), Spans: spans, Cursor: -1, X: x, Y: height - rows - 2, W: w + 2, H: rows + 2}
+	return Float{Text: s.String(), Spans: spans, Cursor: -1}
 }

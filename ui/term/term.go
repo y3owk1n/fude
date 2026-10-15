@@ -145,8 +145,10 @@ func newClient(s tcell.Screen, e *editor.Session) *client {
 
 func (c *client) draw() {
 	c.s.Fill(' ', base)
+	// The windows take every row: the command line floats and messages
+	// are toasts (B148, B149).
 	w, h := c.s.Size()
-	c.e.SetSize(w, h-1)
+	c.e.SetSize(w, h)
 	sel, visual := c.e.Selection()
 
 	cx, cy := 0, 0
@@ -156,30 +158,30 @@ func (c *client) draw() {
 		}
 	}
 
-	if f, ok := c.e.Float(); ok {
-		if x, y, ok := c.float(f, cx, cy, w, h-1); ok {
+	f, floats := c.e.Float()
+	switch {
+	case c.e.Mode() == vim.Cmdline:
+		var left, bottom int
+		cx, cy, left, bottom = c.commandLine(w, h)
+		if floats {
+			// The completion menu goes under the command line.
+			c.float(f, left, bottom, w, h)
+		}
+	case floats:
+		if x, y, ok := c.float(f, cx, cy, w, h); ok {
 			cx, cy = x, y
 		}
 	}
+	if msg := c.e.Message(); msg != "" {
+		c.toast(msg, w)
+	}
 
 	shape := tcell.CursorStyleSteadyBlock
-	// The status line names the mode, so the last row has the command line
-	// or the last message.
 	switch c.e.Mode() {
 	case vim.Insert:
 		shape = tcell.CursorStyleSteadyBar
 	case vim.Replace:
 		shape = tcell.CursorStyleSteadyUnderline
-	}
-	if c.e.Mode() == vim.Cmdline {
-		c.s.PutStrStyled(0, h-1, c.e.Line(), base)
-		cx, cy = utf8.RuneCountInString(c.e.Line()[:c.e.LineCursor()]), h-1
-	} else {
-		msg := c.e.Message()
-		if r := c.e.Recording(); r != 0 && msg == "" {
-			msg = "recording @" + string(r)
-		}
-		c.s.PutStrStyled(0, h-1, msg, base)
 	}
 	if text, ok := c.e.TerminalClipboard(); ok {
 		c.s.SetClipboard([]byte(text))

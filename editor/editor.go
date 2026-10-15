@@ -793,7 +793,7 @@ type Float struct {
 // Float returns the float to draw, or false when there is none.
 func (e *Session) Float() (Float, bool) {
 	if m := e.cmenu; m != nil {
-		return m.float(e.width, e.height), true
+		return m.float(), true
 	}
 	if f := e.finder; f != nil {
 		e.seek(f)

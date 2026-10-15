@@ -232,6 +232,12 @@ Where fude departs, the line says so and cites the departure in
   counts of errors and warnings. The right holds plugins' segments, the
   keys being typed, the filetype and the ruler as `line:col`. The last row
   no longer names the mode.
+- B148 [2] The command line floats in a box with a rounded border in the
+  upper middle of the screen, its prompt in the colour of commands or of
+  search, and its completion menu under the box. The windows take every
+  row of the screen.
+- B149 [2] A message shows in a box in the top right corner until the next
+  key, as a toast. A macro being recorded shows in the status line.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays
