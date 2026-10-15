@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -672,6 +673,27 @@ func TestB120SetIgnoreCase(t *testing.T) {
 	feed(e, "ix ABC abc<Esc>0:set ignore_case<CR>/abc<CR>")
 	if e.Cursor() != 2 {
 		t.Fatalf("/abc with ignore_case went to %d, want 2", e.Cursor())
+	}
+}
+
+// B121
+func TestB121MatchParen(t *testing.T) {
+	e := open(t, "")
+	feed(e, "if(a, (b))<Esc>")
+	for _, c := range []struct {
+		keys string
+		want []int
+	}{
+		{"0", nil},
+		{"l", []int{1, 8}},
+		{"f(", []int{5, 7}},
+		{"$", []int{8, 1}},
+		// In insert mode the bracket before the cursor counts.
+		{"a", []int{8, 1}},
+	} {
+		if feed(e, c.keys); !slices.Equal(e.Views()[0].Pair, c.want) {
+			t.Errorf("after %q the pair is %v, want %v", c.keys, e.Views()[0].Pair, c.want)
+		}
 	}
 }
 

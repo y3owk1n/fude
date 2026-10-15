@@ -430,6 +430,7 @@ type View struct {
 	Number, Relative  bool         // show line numbers, and relative ones (B39)
 	Wrap              bool         // long lines go on the rows below
 	CursorLine        bool         // shade the cursor's line (B117)
+	Pair              []int        // the bracket at the cursor and its match, shown bold (B121)
 	List              bool         // show tabs, trailing spaces and no-break spaces (B118)
 	Left              int          // the first column shown without wrap
 }
@@ -460,6 +461,7 @@ func (e *Session) Views() []View {
 		}
 		v.Matches = e.vim.Matches(t, top, last)
 		v.Signs = e.signs(w.buf)
+		v.Pair = e.pair(w, t, top, last)
 		v.Ruler = ruler(t, w.pos(), top, max(w.h-1, 1), func(p int) int { return w.rows(t, p) })
 		for _, p := range e.plugins {
 			if s := e.segments[p][w.buf]; s != "" {
@@ -483,6 +485,22 @@ func (e *Session) Views() []View {
 		out = append(out, v)
 	}
 	return out
+}
+
+// pair returns the bracket at w's cursor and its match within the lines
+// from top to last, or nil. In insert mode the bracket may be the one
+// before the cursor, as Neovim's matchparen takes it.
+func (e *Session) pair(w *window, t kernel.Snapshot, top, last int) []int {
+	at := []int{w.pos()}
+	if w == e.win && e.vim.Mode() == vim.Insert && at[0] > 0 {
+		at = append(at, at[0]-1)
+	}
+	for _, p := range at {
+		if q, ok := vim.Pair(t, p, top, last); ok {
+			return []int{p, q}
+		}
+	}
+	return nil
 }
 
 // Sign is a letter in the sign column and the style it takes its colour

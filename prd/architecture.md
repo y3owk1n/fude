@@ -466,7 +466,11 @@ line's worst diagnostic in its colour, as Neovim's `signcolumn=auto` shows
 `vim.diagnostic`'s signs (B119). `ignore_case` and `smart_case` reach the
 machine through `Machine.IgnoreCase`, so `/`, `:s` and their highlights
 ignore case, and a pattern with an uppercase letter matches case with
-`smart_case` (B120).
+`smart_case` (B120). With the cursor on a bracket, or just after one in
+insert mode, the bracket and its match show bold and underlined, as
+Neovim's matchparen shows them in a terminal. `vim.Pair` looks for the
+match only within the window's lines, so a frame never scans the file
+(B121).
 `number` puts line numbers in a gutter at least 4 columns wide, and
 `relative_number` numbers lines from the cursor's. With both, the cursor's
 line shows its own number on the left, as in Neovim (B39).

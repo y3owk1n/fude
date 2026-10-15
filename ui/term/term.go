@@ -421,6 +421,10 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 				if shade {
 					style = style.Background(cursorLine)
 				}
+				if slices.Contains(v.Pair, at) {
+					// As Neovim's MatchParen shows in a terminal.
+					style = style.Bold(true).Underline(true)
+				}
 				for _, mt := range matches {
 					if at >= mt[0] && at < mt[1] {
 						style = style.Background(color.Yellow).Foreground(color.Black)

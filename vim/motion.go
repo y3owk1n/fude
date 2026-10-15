@@ -215,6 +215,44 @@ func match(t Text, c int) (int, bool) {
 	return c, false
 }
 
+// Pair returns the bracket that matches the one at pos, looking no further
+// than [from, to), or false when pos is not on a bracket or its match is
+// outside, as Neovim's matchparen looks within the window (B121).
+func Pair(t Text, pos, from, to int) (int, bool) {
+	if pos >= t.Len() {
+		return 0, false
+	}
+	k := strings.IndexByte("(){}[]", t.Slice(pos, pos+1)[0])
+	if k < 0 {
+		return 0, false
+	}
+	open, close := "(){}[]"[k&^1], "(){}[]"[k|1]
+	depth := 0
+	if k%2 == 0 {
+		for i, c := range []byte(t.Slice(pos+1, max(to, pos+1))) {
+			if c == open {
+				depth++
+			} else if c == close && depth == 0 {
+				return pos + 1 + i, true
+			} else if c == close {
+				depth--
+			}
+		}
+		return 0, false
+	}
+	s := t.Slice(min(from, pos), pos)
+	for i := len(s) - 1; i >= 0; i-- {
+		if s[i] == close {
+			depth++
+		} else if s[i] == open && depth == 0 {
+			return pos - len(s) + i, true
+		} else if s[i] == open {
+			depth--
+		}
+	}
+	return 0, false
+}
+
 // sentenceForward is ), which stops at the next sentence or empty line.
 func sentenceForward(t Text, c, n int) int {
 	for range n {
