@@ -393,6 +393,59 @@ func TestB26Increment(t *testing.T) {
 	})
 }
 
+// B27
+func TestB27Motions(t *testing.T) {
+	cases(t, [][3]string{
+		{"f(a, |b)", "%", "f|(a, b)"},
+		{"|f(a, b)", "%", "f(a, b|)"},
+		{"f(a, b|)", "%", "f|(a, b)"},
+		{"x [|y] z", "d%", "x |] z"},
+		{"ab|c", "%", "ab|c"},
+		{"1\n2\n3\n4\n|5", "50%", "1\n2\n|3\n4\n5"},
+		{"One. Tw|o three. Four.", ")", "One. Two three. |Four."},
+		{"One. Tw|o three. Four.", "(", "One. |Two three. Four."},
+		{"One. Tw|o three. Four.", "d)", "One. Tw|Four."},
+		{"a\n|b\n\nc\nd", "}", "a\nb\n|\nc\nd"},
+		{"a\nb\n\n|c\nd", "{", "a\nb\n|\nc\nd"},
+		{"a\n|b\n\nc\nd", "d}", "a\n|\nc\nd"},
+		{"a\n|b\n  \nc", "}", "a\nb\n  \n|c"},
+	})
+}
+
+// B29
+func TestB29InsertKeys(t *testing.T) {
+	cases(t, [][3]string{
+		{"foo ba|r", "a baz<C-w>X<Esc>", "foo bar |X"},
+		{"foo ba|r", "a<C-w>X<Esc>", "foo |X"},
+		{"foo.ba|r", "a<C-w>X<Esc>", "foo.|X"},
+		{"foo| ", "a<C-w>X<Esc>", "|X"},
+		{"a\n|b", "i<C-w>X<Esc>", "a|Xb"},
+		{"foo ba|r", "a baz<C-u>X<Esc>", "foo bar|X"},
+		{"foo ba|r", "a<C-u>X<Esc>", "|X"},
+		{"  foo ba|r", "a<C-u>X<Esc>", "  |X"},
+		{"foo |bar", "yiwA <C-r>\"<Esc>", "foo bar ba|r"},
+		{"a|b", "yyA<C-r>\"x<Esc>", "abab\n|x"},
+		{"ab|c", "a<C-o>0X<Esc>", "|Xabc"},
+		{"ab|c", "i<C-o>$X<Esc>", "abc|X"},
+		{"a|b", "i<C-t>X<Esc>", "\ta|Xb"},
+		{"\ta|b", "i<C-d>X<Esc>", "a|Xb"},
+		{"  a|b", "A<CR>x<Esc>", "  ab\n  |x"},
+		{"  a|b", "A<CR><Esc>", "  ab\n|"},
+		{"  a|b", "ox<Esc>", "  ab\n  |x"},
+		{"  a|b", "o<Esc>", "  ab\n|"},
+		{"  a|b", "Ox<Esc>", "  |x\n  ab"},
+		{"  a|b", "A<CR><CR>x<Esc>", "  ab\n\n  |x"},
+		{"  a|b", "o<BS>x<Esc>", "  ab\n|x"},
+	})
+	// <C-w>, <C-u> and <C-o> each end the undo step, so typing around them
+	// makes two.
+	for _, keys := range []string{"ifoo<C-w>x<Esc>", "ifoo<C-u>x<Esc>", "ifoo<C-o>0x<Esc>"} {
+		if _, h, _ := run(t, "|", keys); h.steps != 2 {
+			t.Errorf("%q made %d undo steps, want 2", keys, h.steps)
+		}
+	}
+}
+
 // B9
 func TestB9GraphemeClusters(t *testing.T) {
 	cases(t, [][3]string{

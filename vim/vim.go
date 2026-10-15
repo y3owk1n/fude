@@ -87,6 +87,12 @@ type Machine struct {
 	anchor      int // the end of the selection the cursor is not on
 	blockInsert *blockInsert
 	replaced    []string // what each key typed in replace mode overwrote
+
+	// Insert mode.
+	insStart   int  // where typing began, the limit of <C-w> and <C-u>
+	autoIndent bool // the line's indent came from autoindent and is untouched
+	oneshot    bool // <C-o> is running one normal command
+	armed      bool // that command has begun
 }
 
 // change is the last change, for dot repeat.
@@ -149,6 +155,19 @@ func (m *Machine) feed(k Key) error {
 	if m.idle() && m.changed {
 		m.dot = change{m.dotCount, m.dotReg, slices.Clone(m.keys)}
 		m.changed = false
+	}
+	// <C-o> returns to insert mode once its command is done. A command that
+	// enters insert mode ends <C-o>. A visual command returns to insert mode
+	// when visual mode ends.
+	switch {
+	case m.oneshot && m.mode != Normal:
+		m.oneshot = m.mode == Visual
+	case m.oneshot && m.idle() && m.armed:
+		m.oneshot, m.mode = false, Insert
+		m.h.BeginGroup()
+		m.insStart = m.h.Cursor()
+	case m.oneshot && m.idle():
+		m.armed = true
 	}
 	return err
 }
@@ -240,7 +259,7 @@ func (m *Machine) stopRecording() {
 func (m *Machine) Paste(s string) error {
 	switch m.mode {
 	case Insert, Replace:
-		return m.insertText(s)
+		return m.typeText(s)
 	case Cmdline:
 		m.line += s
 		return nil
@@ -320,9 +339,15 @@ func (m *Machine) normal(k Key) error {
 		return err
 	}
 	if p, k, ok := m.motion(cmd, count); ok {
-		if k == failed {
+		switch {
+		case k == failed:
 			m.beep = true
-		} else {
+		case m.oneshot && cmd == "$":
+			// After <C-o>, $ leaves the cursor past the end, ready to type.
+			m.h.SetCursor(LineEnd(m.h.Text(), p))
+		case m.oneshot:
+			m.h.SetCursor(p)
+		default:
 			m.h.SetCursor(clamp(m.h.Text(), p))
 		}
 		return nil
@@ -358,64 +383,10 @@ func (m *Machine) normal(k Key) error {
 		m.startInsert(k, end)
 	case "o":
 		m.startInsert(k, end)
-		return m.insertText("\n")
+		return m.newline()
 	case "O":
 		m.startInsert(k, start)
-		if err := m.insertText("\n"); err != nil {
-			return err
-		}
-		m.h.SetCursor(start)
-	}
-	return nil
-}
-
-func (m *Machine) insert(k Key) error {
-	t, c := m.h.Text(), m.h.Cursor()
-	switch k {
-	case "<Esc>":
-		if b := m.blockInsert; b != nil {
-			m.blockInsert = nil
-			if err := m.finishBlock(b); err != nil {
-				return err
-			}
-			t, c = m.h.Text(), m.h.Cursor()
-		}
-		m.h.EndGroup()
-		m.mode = Normal
-		m.h.SetCursor(prev(t, LineStart(t, c), c))
-	case "<CR>":
-		return m.insertText("\n")
-	case "<BS>":
-		if m.mode == Replace {
-			return m.unreplace()
-		}
-		if c == 0 {
-			return nil
-		}
-		// At a line start, backspace joins the lines.
-		p := prev(t, LineStart(t, c), c)
-		if p == c {
-			p = c - 1
-		}
-		if err := m.apply([]Edit{{Start: p, End: c}}, m.label); err != nil {
-			return err
-		}
-		m.h.SetCursor(p)
-	case "<Left>", "<Right>":
-		n := prev(t, LineStart(t, c), c)
-		if k == "<Right>" {
-			n = next(t, c, LineEnd(t, c))
-		}
-		// A move splits the undo step, as in Neovim.
-		if n != c {
-			m.h.EndGroup()
-			m.h.BeginGroup()
-			m.h.SetCursor(n)
-		}
-	default:
-		if k.isChar() {
-			return m.insertText(string(k))
-		}
+		return m.openAbove()
 	}
 	return nil
 }
@@ -461,24 +432,5 @@ func (m *Machine) undo(back bool, n int) error {
 		}
 		m.h.SetCursor(clamp(t, p))
 	}
-	return nil
-}
-
-func (m *Machine) startInsert(k Key, pos int) {
-	m.mode = Insert
-	m.label = string(k)
-	m.h.BeginGroup()
-	m.h.SetCursor(pos)
-}
-
-func (m *Machine) insertText(s string) error {
-	if m.mode == Replace {
-		return m.overwrite(s)
-	}
-	c := m.h.Cursor()
-	if err := m.apply([]Edit{{Start: c, End: c, Text: s}}, m.label); err != nil {
-		return err
-	}
-	m.h.SetCursor(c + len(s))
 	return nil
 }

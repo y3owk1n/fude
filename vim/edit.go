@@ -287,7 +287,7 @@ func (m *Machine) shift(op, label string, r region, col int) error {
 			} else {
 				w = max(w-shiftwidth, 0)
 			}
-			edits = append(edits, Edit{Start: ls, End: ind, Text: strings.Repeat("\t", w/Tabstop) + strings.Repeat(" ", w%Tabstop)})
+			edits = append(edits, Edit{Start: ls, End: ind, Text: indentText(w)})
 		}
 		if le >= r.end || le == t.Len() {
 			break
@@ -302,6 +302,11 @@ func (m *Machine) shift(op, label string, r region, col int) error {
 	t = m.h.Text()
 	m.h.SetCursor(clamp(t, atColumn(t, LineStart(t, r.start), col)))
 	return nil
+}
+
+// indentText returns an indent w columns wide, in tabs then spaces.
+func indentText(w int) string {
+	return strings.Repeat("\t", w/Tabstop) + strings.Repeat(" ", w%Tabstop)
 }
 
 func swapCase(s string) string {

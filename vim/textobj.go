@@ -85,32 +85,7 @@ func word(t Text, c, n int, big, around bool) (int, int, bool) {
 // is the last. A selection that ends a line and starts at or before its first
 // non-blank covers whole lines, as Neovim's sentence motion does.
 func sentence(t Text, c, n int, around bool) (region, bool) {
-	ps, pe := paragraph(t, c, 1, false)
-	text := t.Slice(ps, pe)
-	type seg struct {
-		start, end int
-		blank      bool
-	}
-	var segs []seg
-	for i := 0; i < len(text); {
-		j := i
-		blank := isBlank(text[i])
-		if blank {
-			for j < len(text) && isBlank(text[j]) {
-				j++
-			}
-		} else {
-			for j < len(text) && !sentenceEnd(text, j) {
-				j++
-			}
-			j = min(j+1, len(text))
-			for j < len(text) && strings.IndexByte(`)]"'`, text[j]) >= 0 {
-				j++
-			}
-		}
-		segs = append(segs, seg{ps + i, ps + j, blank})
-		i = j
-	}
+	segs := segments(t, c)
 	if len(segs) == 0 {
 		return region{}, false
 	}
@@ -139,6 +114,39 @@ func sentence(t Text, c, n int, around bool) (region, bool) {
 		r = region{start: s, end: r.end, lines: true, adjusted: true}
 	}
 	return r, true
+}
+
+// seg is a sentence, or the blanks between two.
+type seg struct {
+	start, end int
+	blank      bool
+}
+
+// segments splits the paragraph at c into sentences and the blanks between.
+func segments(t Text, c int) []seg {
+	ps, pe := paragraph(t, c, 1, false)
+	text := t.Slice(ps, pe)
+	var segs []seg
+	for i := 0; i < len(text); {
+		j := i
+		blank := isBlank(text[i])
+		if blank {
+			for j < len(text) && isBlank(text[j]) {
+				j++
+			}
+		} else {
+			for j < len(text) && !sentenceEnd(text, j) {
+				j++
+			}
+			j = min(j+1, len(text))
+			for j < len(text) && strings.IndexByte(`)]"'`, text[j]) >= 0 {
+				j++
+			}
+		}
+		segs = append(segs, seg{ps + i, ps + j, blank})
+		i = j
+	}
+	return segs
 }
 
 // sentenceEnd reports whether text[i] is a ., ! or ? that ends a sentence.

@@ -53,10 +53,26 @@ func (m *Machine) motion(cmd string, count int) (int, kind, bool) {
 		if line == start && (cmd == "j" || cmd == "k") {
 			return c, failed, true
 		}
-		if !m.wantSet {
-			m.want, m.wantSet = column(t, start, c), true
+		p, k, keep = m.toLine(t, c, line), linewise, true
+	case "%":
+		if count > 0 {
+			lines := strings.Count(t.Slice(0, t.Len()), "\n") + 1
+			p, k, keep = m.toLine(t, c, down(t, 0, (count*lines+99)/100-1)), linewise, true
+			break
 		}
-		p, k, keep = atColumn(t, line, m.want), linewise, true
+		var ok bool
+		if p, ok = match(t, c); !ok {
+			return c, failed, true
+		}
+		k = inclusive
+	case ")":
+		p = sentenceForward(t, c, n)
+	case "(":
+		p = sentenceBack(t, c, n)
+	case "}":
+		p = paragraphForward(t, c, n)
+	case "{":
+		p = paragraphBack(t, c, n)
 	case "0":
 		p = start
 	case "^":
@@ -118,6 +134,123 @@ func clamp(t Text, p int) int {
 // empty line.
 func lastChar(t Text, end int) int {
 	return prev(t, LineStart(t, end), end)
+}
+
+// toLine returns the cluster under the column j and k aim for on the line
+// starting at line. It sets that column from c first if it is unset.
+func (m *Machine) toLine(t Text, c, line int) int {
+	if !m.wantSet {
+		m.want, m.wantSet = column(t, LineStart(t, c), c), true
+	}
+	return atColumn(t, line, m.want)
+}
+
+// match returns the bracket matching the first one at or after c on its
+// line, as % does.
+func match(t Text, c int) (int, bool) {
+	i := strings.IndexAny(t.Slice(c, LineEnd(t, c)), "(){}[]")
+	if i < 0 {
+		return c, false
+	}
+	p := c + i
+	k := strings.IndexByte("(){}[]", at(t, p))
+	open, close := "(){}[]"[k&^1], "(){}[]"[k|1]
+	if at(t, p) == close {
+		q := outer(t, p, 1, open, close)
+		return q, q >= 0
+	}
+	depth := 0
+	for q := p + 1; q < t.Len(); q++ {
+		switch at(t, q) {
+		case open:
+			depth++
+		case close:
+			if depth == 0 {
+				return q, true
+			}
+			depth--
+		}
+	}
+	return c, false
+}
+
+// sentenceForward is ), which stops at the next sentence or empty line.
+func sentenceForward(t Text, c, n int) int {
+	for range n {
+		next := -1
+		for _, s := range segments(t, c) {
+			if !s.blank && s.start > c {
+				next = s.start
+				break
+			}
+		}
+		if next < 0 {
+			_, pe := paragraph(t, c, 1, false)
+			next = min(pe+1, t.Len())
+		}
+		c = next
+	}
+	return c
+}
+
+// sentenceBack is (, which stops at the start of a sentence or an empty line.
+func sentenceBack(t Text, c, n int) int {
+	for range n {
+		start := -1
+		for _, s := range segments(t, c) {
+			if !s.blank && s.start < c {
+				start = s.start
+			}
+		}
+		if start < 0 {
+			ps, _ := paragraph(t, c, 1, false)
+			start = 0
+			if ps > 0 {
+				start = LineStart(t, ps-1)
+			}
+		}
+		c = start
+	}
+	return c
+}
+
+// paragraphForward is }, which stops at the next empty line or the end.
+func paragraphForward(t Text, c, n int) int {
+	for range n {
+		p := LineStart(t, c)
+		for p < t.Len() && LineEnd(t, p) == p {
+			p++
+		}
+		for {
+			le := LineEnd(t, p)
+			if le == t.Len() {
+				p = le
+				break
+			}
+			if p = le + 1; LineEnd(t, p) == p {
+				break
+			}
+		}
+		c = p
+	}
+	return c
+}
+
+// paragraphBack is {, which stops at the previous empty line or the start.
+func paragraphBack(t Text, c, n int) int {
+	for range n {
+		p := LineStart(t, c)
+		for p > 0 && LineEnd(t, p) == p {
+			p = LineStart(t, p-1)
+		}
+		for p > 0 {
+			if p = LineStart(t, p-1); LineEnd(t, p) == p {
+				break
+			}
+		}
+		c = p
+	}
+	return c
 }
 
 var reverse = map[string]string{"f": "F", "F": "f", "t": "T", "T": "t"}
