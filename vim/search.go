@@ -120,10 +120,10 @@ func keywordAt(t Text, c int) (string, bool) {
 	return t.Slice(p, e), true
 }
 
-// Matches returns the search matches between from and to for a client to
-// highlight: those of the pattern being typed after / or ?, or else of the
-// last search until <C-l> or :noh.
-func (m *Machine) Matches(from, to int) [][2]int {
+// Matches returns the search matches in t between from and to for a client
+// to highlight: those of the pattern being typed after / or ?, or else of
+// the last search until <C-l> or :noh. t may be any window's text.
+func (m *Machine) Matches(t Text, from, to int) [][2]int {
 	src := ""
 	switch {
 	case m.mode == Cmdline && m.prompt != ":":
@@ -138,7 +138,6 @@ func (m *Machine) Matches(from, to int) [][2]int {
 	if err != nil {
 		return nil
 	}
-	t := m.h.Text()
 	from, to = LineStart(t, from), LineEnd(t, to)
 	var out [][2]int
 	for _, mt := range p.all(t.Slice(from, to)) {

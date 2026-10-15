@@ -205,6 +205,9 @@ func (c *client) draw() {
 		}
 		c.s.PutStr(0, h-1, msg)
 	}
+	if text, ok := c.e.TerminalClipboard(); ok {
+		c.s.SetClipboard([]byte(text))
+	}
 	c.s.SetCursorStyle(shape)
 	c.s.ShowCursor(cx, cy)
 	c.s.Show()
@@ -358,8 +361,10 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 		end := vim.LineEnd(t, pos)
 		line := t.Slice(pos, end)
 		var matches [][2]int
-		if v.Current {
-			matches = c.e.Matches(pos, end)
+		for _, mt := range v.Matches {
+			if mt[1] > pos && mt[0] <= end {
+				matches = append(matches, mt)
+			}
 		}
 		x := 0
 		for rest := line; ; {

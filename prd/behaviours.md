@@ -220,7 +220,8 @@ Where fude departs, the line says so and cites the departure in
   it meant, mapped through the edits since. If those edits overlap it, it
   is refused and the client is told.
 - B77 [6] Undo by one client reverts only that client's own transactions.
-- B78 [6] A client hears when the text of the buffer it shows changes.
+- B78 [6] A client hears the buffer and its version when the text of the
+  buffer it shows changes.
 
 ## Kernel library
 

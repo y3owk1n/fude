@@ -2,7 +2,6 @@ package vim
 
 import (
 	"strings"
-	"unicode"
 	"unicode/utf8"
 )
 
@@ -11,10 +10,14 @@ func (m *Machine) insert(k Key) error {
 	if m.pending == "<C-r>" {
 		m.pending = ""
 		name, _ := utf8.DecodeRuneInString(string(k))
-		if r, ok := m.regs[unicode.ToLower(name)]; ok && k.isChar() {
-			return m.typeText(r.text)
+		if !k.isChar() {
+			return nil
 		}
-		return nil
+		r, ok, err := m.fetch(name)
+		if err != nil || !ok {
+			return err
+		}
+		return m.typeText(r.text)
 	}
 	switch k {
 	case "<Esc>":

@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/editor"
@@ -102,9 +103,14 @@ func TestB78ClientHearsChanges(t *testing.T) {
 	done := make(chan struct{})
 	cl.do <- func() { feed(e, "ihi<Esc>"); close(done) }
 	<-done
-	if !cl.in.Scan() || cl.in.Text() != `{"method":"changed"}` {
-		t.Fatalf("after another session's edit the client heard %q", cl.in.Text())
+	// The client hears of the edit's two keys, and of the second last.
+	cl.c.SetReadDeadline(time.Now().Add(5 * time.Second))
+	for cl.in.Scan() {
+		if cl.in.Text() == `{"method":"changed","params":{"buffer":1,"version":2}}` {
+			return
+		}
 	}
+	t.Fatalf("after another session's edit the client last heard %q", cl.in.Text())
 }
 
 // B75

@@ -254,7 +254,9 @@ on `inner_quote` with `Text: "hello"` is `ci"`, then the text pasted as
 typed (B8), then `<Esc>`. An operator on `lines` is the operator doubled.
 `editor/rpc.go` lists every name with its keys: the built-in operators,
 the motions and text objects, and the syntax objects such as
-`a_function`. A name with no keys is refused.
+`a_function`. A name in neither can name what a plugin registered, as
+`plugin.key`: `kit.gs` is the operator the plugin kit registered as `gs`.
+A name with no keys is refused.
 
 ### Rules
 
@@ -741,10 +743,11 @@ held for a longer mapping run at once. `request` runs a request, and
 `state` changes nothing. Every result is the session's state: its buffer,
 the buffer's name, version and text, the cursor, the mode, the message and
 the session's proposals on the buffer.
-Between replies the server sends `{"method": "changed"}` when the text of
+Between replies the server sends
+`{"method": "changed", "params": {"buffer", "version"}}` when the text of
 the buffer a client shows changes, whoever changed it, so a client knows to
-read `state` and redraw (B78). One notice covers every change since the
-client last heard one.
+read `state` and redraw (B78). A newer notice replaces one the client has
+yet to read, so it hears the newest version and not every step.
 
 The protocol is fude's own and carries state, not cells: buffer text and
 edits, views, decorations, modes and proposals. A terminal client renders

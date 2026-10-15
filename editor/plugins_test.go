@@ -128,6 +128,14 @@ func withKit(t *testing.T) *editor.Session {
 	return e
 }
 
+// B52, named in a client's command
+func TestB52PluginNamesInCommands(t *testing.T) {
+	e := withKit(t)
+	if err := e.Request(editor.Request{Command: editor.Command{Op: "kit.gs", Target: editor.Target{Name: "kit.aL"}}}); err != nil || text(e) != "AB CD\nEF" {
+		t.Fatalf("kit.gs on kit.aL made %q: %v", text(e), err)
+	}
+}
+
 // B52
 func TestB52PluginOperatorsAndObjects(t *testing.T) {
 	for _, c := range [][2]string{

@@ -44,6 +44,8 @@ type Host interface {
 	Unhandled(keys string) // an ex line such as ":w"
 	Undo() (start, cursor int, err error)
 	Redo() (start, cursor int, err error)
+	Clipboard() (string, error) // the system clipboard, the "+ and "* register
+	SetClipboard(text string) error
 	SetMark(name rune, pos int) // a mark moves with edits to the text
 	Mark(name rune) (int, bool)
 	Viewport() (top, height int) // the first line shown and how many fit
@@ -171,13 +173,29 @@ func (m *Machine) Recording() rune { return m.recording }
 
 // Register returns the text in register name.
 func (m *Machine) Register(name rune) (string, bool) {
+	r, ok, err := m.fetch(name)
+	return r.text, ok && err == nil
+}
+
+// fetch returns register name, or false when it is empty. "+ and "* are the
+// host's clipboard, linewise when its text ends in a line break.
+func (m *Machine) fetch(name rune) (register, bool, error) {
+	if name == '+' || name == '*' {
+		text, err := m.h.Clipboard()
+		return register{text: text, linewise: strings.HasSuffix(text, "\n")}, text != "", err
+	}
 	r, ok := m.regs[unicode.ToLower(name)]
-	return r.text, ok
+	return r, ok, nil
 }
 
 // Feed handles one key. It returns the host's error if an edit fails.
 func (m *Machine) Feed(k Key) error {
 	m.beep, m.msg = false, ""
+	if m.mode == Normal {
+		// The host's own edits, such as another client's, can leave the
+		// cursor past the end of its line.
+		m.h.SetCursor(clamp(m.h.Text(), m.h.Cursor()))
+	}
 	if m.recording != 0 {
 		if k == "q" && m.idle() && len(m.held) == 0 {
 			m.stopRecording()
@@ -292,9 +310,9 @@ func (m *Machine) execute(name rune, n int) error {
 	if name == '@' {
 		name = m.executed
 	}
-	r, ok := m.regs[unicode.ToLower(name)]
-	if !ok {
-		return nil
+	r, ok, err := m.fetch(name)
+	if !ok || err != nil {
+		return err
 	}
 	m.executed = name
 	for range n {
@@ -395,6 +413,9 @@ func (m *Machine) normal(k Key) error {
 		return nil
 	}
 	if strings.HasPrefix(cmd, "<C-w>") {
+		if m.count > 0 {
+			cmd = strconv.Itoa(m.count) + cmd
+		}
 		m.count, m.reg, m.op, m.opCount = 0, 0, "", 0
 		m.h.Unhandled(cmd)
 		return nil
@@ -432,10 +453,10 @@ func (m *Machine) command(cmd string) error {
 	m.count, m.op, m.opCount, m.reg = 0, "", 0, 0
 	m.dotCount, m.dotReg = count, reg
 	if op != "" {
-		return m.operate(op, reg, cmd, count)
+		return m.operate(op, reg, cmd, count, op+cmd)
 	}
 	if a, ok := aliases[cmd]; ok {
-		return m.operate(a[:1], reg, a[1:], count)
+		return m.operate(a[:1], reg, a[1:], count, cmd)
 	}
 	if ok, err := m.edit(cmd, count); ok {
 		return err
@@ -481,6 +502,10 @@ func (m *Machine) command(cmd string) error {
 		return m.execute(m.recorded, max(count, 1))
 	case ":":
 		m.back, m.mode, m.prompt, m.line = Normal, Cmdline, ":", ""
+		if count > 0 {
+			// A count is a range of that many lines from the cursor's.
+			m.line = ".,.+" + strconv.Itoa(count-1)
+		}
 	case "<C-l>":
 		m.hl = false
 	case "gv":

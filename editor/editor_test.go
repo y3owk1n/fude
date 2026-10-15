@@ -531,6 +531,40 @@ func TestB91WindowCommands(t *testing.T) {
 	}
 }
 
+// B21, in every window
+func TestB21MatchesInEveryWindow(t *testing.T) {
+	dir := t.TempDir()
+	change(t, filepath.Join(dir, "a"), "xa\n")
+	change(t, filepath.Join(dir, "b"), "ax\n")
+	e := open(t, filepath.Join(dir, "a"))
+	feed(e, ":vs "+filepath.Join(dir, "b")+"<CR>/a<CR>")
+	for _, v := range e.Views() {
+		if want := strings.Index(v.Text.Slice(0, v.Text.Len()), "a"); len(v.Matches) != 1 || v.Matches[0] != [2]int{want, want + 1} {
+			t.Errorf("%s shows matches %v", v.Name, v.Matches)
+		}
+	}
+}
+
+// B36, in a terminal with no clipboard command
+func TestB36TerminalClipboard(t *testing.T) {
+	t.Setenv("PATH", "")
+	t.Setenv("WAYLAND_DISPLAY", "")
+	t.Setenv("DISPLAY", "")
+	path := filepath.Join(t.TempDir(), "f")
+	change(t, path, "ab cd\n")
+	e := open(t, path)
+	feed(e, `"+yiw`)
+	if text, ok := e.TerminalClipboard(); !ok || text != "ab" {
+		t.Fatalf(`"+yiw gave the terminal %q`, text)
+	}
+	if feed(e, `$"*p`); text(e) != "ab cdab" {
+		t.Fatalf(`"*p put %q`, text(e))
+	}
+	if _, ok := e.TerminalClipboard(); ok {
+		t.Fatal("the terminal was given the copy twice")
+	}
+}
+
 // B31
 func TestB31Timeline(t *testing.T) {
 	e := open(t, filepath.Join(t.TempDir(), "f"))
@@ -553,6 +587,11 @@ func TestB31Timeline(t *testing.T) {
 	feed(e, "3G:restore<CR>:q<CR>")
 	if text(e) != "two" {
 		t.Errorf(":restore on the line of state 2 left %q, want two", text(e))
+	}
+	// A command that stands for an operator, as x for dl, shows as typed.
+	feed(e, "x:timeline<CR>")
+	if lines = strings.Split(text(e), "\n"); !strings.HasSuffix(lines[len(lines)-1], " x") {
+		t.Errorf("after x, :timeline listed %q", lines)
 	}
 
 	// In the window, ] moves the text a state later, <CR> restores the
@@ -726,7 +765,7 @@ func captures(t *testing.T, e *editor.Session) map[string]string {
 	}
 }
 
-// B46
+// B46, and B43 for the edit
 func TestB46Highlighting(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "a.go")
 	change(t, path, "package main\n\nfunc main() {\n\tx := len(\"hi\") // note\n}\n")
@@ -740,6 +779,8 @@ func TestB46Highlighting(t *testing.T) {
 			t.Errorf("%s shows as %q, want %q", text, got[text], name)
 		}
 	}
+	// The edit lands before any reparse, and the highlights it shows are the
+	// old parse's moved through it.
 	feed(e, "Ox<Esc>")
 	if got := captures(t, e); got["package"] != "keyword" {
 		t.Errorf("after an edit above it, package shows as %q", got["package"])

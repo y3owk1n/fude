@@ -1,6 +1,7 @@
 package vim
 
 import (
+	"fmt"
 	"math"
 	"strings"
 )
@@ -110,6 +111,105 @@ func (m *Machine) blockInsertStart(after bool) error {
 	return nil
 }
 
+// visualOps are the keys that apply an operator to the selection, and
+// whether they take its whole lines.
+var visualOps = map[string]struct {
+	op    string
+	lines bool
+}{
+	"d": {"d", false}, "x": {"d", false}, "c": {"c", false}, "s": {"c", false}, "y": {"y", false},
+	"~": {"g~", false}, "u": {"gu", false}, "U": {"gU", false},
+	"g~": {"g~", false}, "gu": {"gu", false}, "gU": {"gU", false},
+	">": {">", true}, "<": {"<", true},
+	"X": {"d", true}, "D": {"d", true}, "Y": {"y", true}, "C": {"c", true}, "S": {"c", true}, "R": {"c", true},
+}
+
+// replaceSelection replaces every character of the selection with k,
+// keeping its line breaks.
+func (m *Machine) replaceSelection(k Key) error {
+	r := m.selection()
+	m.leaveVisual()
+	t := m.h.Text()
+	ranges := lineRanges(t, r)
+	var edits []Edit
+	for _, rg := range ranges {
+		n := 0
+		for p := rg[0]; p < rg[1]; p = next(t, p, rg[1]) {
+			n++
+		}
+		if n > 0 {
+			edits = append(edits, Edit{Start: rg[0], End: rg[1], Text: strings.Repeat(string(k), n)})
+		}
+	}
+	if len(edits) > 0 {
+		if err := m.apply(edits, "r"+string(k)); err != nil {
+			return err
+		}
+	}
+	m.h.SetCursor(ranges[0][0])
+	return nil
+}
+
+// putOver replaces the selection with register reg n times, as one undo
+// step. Without keep, the text it replaces goes to the registers as a
+// delete's does. A line register goes on lines of its own, and lines take
+// other text as a line.
+func (m *Machine) putOver(reg rune, keep bool, n int) error {
+	if reg == 0 {
+		reg = '"'
+	}
+	put, ok, err := m.fetch(reg)
+	switch {
+	case err != nil:
+		return err
+	case !ok:
+		return fmt.Errorf("nothing in register %c", reg)
+	}
+	r := m.selection()
+	m.leaveVisual()
+	t := m.h.Text()
+	text := strings.Repeat(put.text, n)
+	ranges := lineRanges(t, r)
+	var edits []Edit
+	var old []string
+	switch {
+	case r.block:
+		// Text with no line break goes on every line of the block, and other
+		// text on its first.
+		fill := !strings.Contains(text, "\n")
+		for i, rg := range ranges {
+			e := Edit{Start: rg[0], End: rg[1]}
+			if fill || i == 0 {
+				e.Text = strings.TrimSuffix(text, "\n")
+			}
+			edits, old = append(edits, e), append(old, t.Slice(rg[0], rg[1]))
+		}
+	case r.lines:
+		edits, old = []Edit{{Start: r.start, End: r.end, Text: strings.TrimSuffix(text, "\n")}}, []string{t.Slice(r.start, r.end) + "\n"}
+	case put.linewise:
+		edits, old = []Edit{{Start: r.start, End: r.end, Text: "\n" + text}}, []string{t.Slice(r.start, r.end)}
+	default:
+		edits, old = []Edit{{Start: r.start, End: r.end, Text: text}}, []string{t.Slice(r.start, r.end)}
+	}
+	label := "P"
+	if !keep {
+		label = "p"
+		m.store(0, "d", register{text: strings.Join(old, "\n"), linewise: r.lines, block: r.block})
+	}
+	if err := m.apply(edits, label); err != nil {
+		return err
+	}
+	t = m.h.Text()
+	at := edits[0].Start
+	if r.lines || put.linewise {
+		at += len(edits[0].Text) - len(strings.TrimLeft(edits[0].Text, "\n"))
+		m.h.SetCursor(firstNonBlank(t, at, LineEnd(t, at)))
+		return nil
+	}
+	m.h.SetCursor(lastChar(t, at+len(edits[0].Text)))
+	return nil
+}
+
 // visualKey handles a command in visual mode.
 func (m *Machine) visualKey(cmd string, count int, reg rune) error {
 	if len(m.regions) > 0 {
@@ -160,20 +260,42 @@ func (m *Machine) visualKey(cmd string, count int, reg rune) error {
 			m.h.SetCursor(clamp(t, p))
 		}
 		return nil
-	case "d", "x", "c", "y":
-		op := cmd
-		if op == "x" {
-			op = "d"
-		}
+	case "J", "gJ":
 		r := m.selection()
 		m.leaveVisual()
-		if err := m.act(op, reg, string(m.visual)+op, r); err != nil {
+		last := r.end
+		if !r.lines && !r.block && last > r.start {
+			last--
+		}
+		m.h.SetCursor(r.start)
+		return m.join(max(t.LineOf(last)-t.LineOf(r.start), 1), cmd == "J")
+	case "p", "P":
+		return m.putOver(reg, cmd == "P", max(count, 1))
+	}
+	if v, ok := visualOps[cmd]; ok {
+		r := m.selection()
+		switch {
+		case m.visual == "<C-v>" && (cmd == "D" || cmd == "C"):
+			// In a block, they act to the end of every line.
+			r.right = math.MaxInt
+		case v.lines && !r.lines:
+			last := r.end
+			if !r.block && last > r.start {
+				last--
+			}
+			r = region{start: LineStart(t, r.start), end: LineEnd(t, last), lines: true}
+		}
+		m.leaveVisual()
+		if err := m.act(v.op, reg, string(m.visual)+cmd, r); err != nil {
 			return err
 		}
-		if op == "y" && r.lines {
+		if v.op == "y" && r.lines {
 			m.h.SetCursor(r.start)
 		}
 		return nil
+	}
+	if len(cmd) > 1 && cmd[0] == 'r' && Key(cmd[1:]).isChar() {
+		return m.replaceSelection(Key(cmd[1:]))
 	}
 	if r, ok := m.object(t, c, count, cmd); ok {
 		m.anchor = r.start

@@ -10,9 +10,11 @@ import (
 	"path/filepath"
 	"slices"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/y3owk1n/fude/core/kernel"
+	"github.com/y3owk1n/fude/plugin"
 	"github.com/y3owk1n/fude/vim"
 )
 
@@ -64,13 +66,27 @@ var targets = map[string]string{
 	"inner_argument": "ia", "an_argument": "aa",
 }
 
-// keys returns the keys c names.
-func (c Command) keys() (string, error) {
+// change is the newest version of the buffer a client shows, as the
+// server tells it (B78).
+type change struct {
+	Buffer  int            `json:"buffer"`
+	Version kernel.Version `json:"version"`
+}
+
+// commandKeys returns the keys c names. A name in neither table can name
+// what a plugin registered, as plugin.key: kit.gs is the operator kit
+// registered as gs.
+func (e *Session) commandKeys(c Command) (string, error) {
 	op, ok := ops[c.Op]
 	if !ok {
-		return "", fmt.Errorf("no operator named %q", c.Op)
+		if op, ok = e.registered(c.Op, plugin.Operator); !ok {
+			return "", fmt.Errorf("no operator named %q", c.Op)
+		}
 	}
 	target, ok := targets[c.Target.Name]
+	if !ok {
+		target, ok = e.registered(c.Target.Name, plugin.Object)
+	}
 	switch {
 	case c.Target.Name == "lines" && op != "":
 		// An operator on lines is the operator doubled.
@@ -88,9 +104,23 @@ func (c Command) keys() (string, error) {
 	return keys, nil
 }
 
+// registered returns the keys of what a plugin registered of kind, named as
+// plugin.key.
+func (e *Session) registered(name string, kind plugin.Kind) (string, bool) {
+	pname, key, _ := strings.Cut(name, ".")
+	for _, p := range e.plugins {
+		for _, r := range p.Registered {
+			if p.Name == pname && r.Kind == kind && r.Name == key {
+				return key, true
+			}
+		}
+	}
+	return "", false
+}
+
 // Request runs r's command in the session.
 func (e *Session) Request(r Request) error {
-	keys, err := r.Command.keys()
+	keys, err := e.commandKeys(r.Command)
 	if err != nil {
 		return err
 	}
@@ -218,7 +248,7 @@ func (e *Session) serve(c net.Conn, o kernel.Origin) {
 		e.queue <- func() { f(); close(done) }
 		<-done
 	}
-	changed := make(chan struct{}, 1)
+	changed := make(chan change, 1)
 	on(func() {
 		s = e.Attach(o)
 		s.changed = changed
@@ -237,8 +267,8 @@ func (e *Session) serve(c net.Conn, o kernel.Origin) {
 	go func() {
 		for {
 			select {
-			case <-changed:
-				if out(map[string]string{"method": "changed"}) != nil {
+			case c := <-changed:
+				if out(map[string]any{"method": "changed", "params": c}) != nil {
 					return
 				}
 			case <-left:

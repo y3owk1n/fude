@@ -28,6 +28,10 @@ const (
 func (m *Machine) motion(cmd string, count int) (int, kind, bool) {
 	t, c := m.h.Text(), m.h.Cursor()
 	n := max(count, 1)
+	if cmd == "gj" || cmd == "gk" {
+		// Lines do not wrap, so a screen line is a text line.
+		cmd = cmd[1:]
+	}
 	start := LineStart(t, c)
 	p, k := c, exclusive
 	keep := false // whether to keep the column j and k aim for
@@ -54,6 +58,13 @@ func (m *Machine) motion(cmd string, count int) (int, kind, bool) {
 			return c, failed, true
 		}
 		p, k, keep = m.toLine(t, c, line), linewise, true
+	case "go":
+		// Byte n of the text, counting from 1, at the start of its character.
+		p = min(n-1, t.Len())
+		for p > 0 && p < t.Len() && !utf8.RuneStart(t.Slice(p, p+1)[0]) {
+			p--
+		}
+		p = clamp(t, p)
 	case "H", "M", "L":
 		p, k, keep = m.toLine(t, c, m.window(t, cmd, n)), linewise, true
 	case "%":

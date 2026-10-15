@@ -261,10 +261,19 @@ func (m *Machine) changeCase(op, label string, r region) error {
 	case "gU":
 		f = strings.ToUpper
 	}
-	if err := m.apply([]Edit{{Start: r.start, End: r.end, Text: f(t.Slice(r.start, r.end))}}, label); err != nil {
-		return err
+	ranges := lineRanges(t, r)
+	var edits []Edit
+	for _, rg := range ranges {
+		if rg[0] < rg[1] {
+			edits = append(edits, Edit{Start: rg[0], End: rg[1], Text: f(t.Slice(rg[0], rg[1]))})
+		}
 	}
-	m.h.SetCursor(r.start)
+	if len(edits) > 0 {
+		if err := m.apply(edits, label); err != nil {
+			return err
+		}
+	}
+	m.h.SetCursor(ranges[0][0])
 	return nil
 }
 

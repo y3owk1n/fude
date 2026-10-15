@@ -28,15 +28,16 @@ type register struct {
 }
 
 // operate applies d, c or y to the text cmd covers. cmd is a motion, a text
-// object, or the operator again for whole lines.
-func (m *Machine) operate(op string, reg rune, cmd string, count int) error {
+// object, or the operator again for whole lines. label names the edit, as
+// the keys typed for it.
+func (m *Machine) operate(op string, reg rune, cmd string, count int, label string) error {
 	t, c := m.h.Text(), m.h.Cursor()
 	r, ok := m.span(t, c, op, cmd, count)
 	if !ok {
 		m.beep = true
 		return nil
 	}
-	return m.act(op, reg, op+cmd, r)
+	return m.act(op, reg, label, r)
 }
 
 // Operator adds an operator such as gc, which works with every motion and
@@ -112,28 +113,26 @@ func (m *Machine) act(op string, reg rune, label string, r region) error {
 	if m.ops[op] != nil {
 		return m.hostOp(op, label, r)
 	}
-	if r.block {
-		return m.actBlock(op, reg, label, r)
-	}
-	if r.start == r.end && !r.lines {
-		if op == "c" {
-			m.startInsert(Key(label), r.start)
-		}
-		return nil
-	}
 	t, c := m.h.Text(), m.h.Cursor()
-	start, end, lines := r.start, r.end, r.lines
 	col := column(t, LineStart(t, c), c)
 	if m.wantSet {
 		col = m.want
 	}
 	m.wantSet = false
-	switch op {
-	case "g~", "gu", "gU":
+	switch {
+	case op == "g~" || op == "gu" || op == "gU":
 		return m.changeCase(op, label, r)
-	case ">", "<":
+	case op == ">" || op == "<":
 		return m.shift(op, label, r, col, 1)
+	case r.block:
+		return m.actBlock(op, reg, label, r)
+	case r.start == r.end && !r.lines:
+		if op == "c" {
+			m.startInsert(Key(label), r.start)
+		}
+		return nil
 	}
+	start, end, lines := r.start, r.end, r.lines
 
 	text := t.Slice(start, end)
 	if lines {
@@ -230,7 +229,8 @@ func (m *Machine) span(t Text, c int, op, cmd string, count int) (region, bool) 
 }
 
 // store saves r in reg, or in the default registers when reg is 0: "0 for
-// a yank, "1 to "9 for a deleted line, "- for a smaller delete.
+// a yank, "1 to "9 for a deleted line, "- for a smaller delete. "+ and "*
+// are the host's clipboard.
 func (m *Machine) store(reg rune, op string, r register) {
 	if m.regs == nil {
 		m.regs = map[rune]register{}
@@ -238,6 +238,10 @@ func (m *Machine) store(reg rune, op string, r register) {
 	switch {
 	case reg == '_':
 		return
+	case reg == '+' || reg == '*':
+		if err := m.h.SetClipboard(r.text); err != nil {
+			m.msg = err.Error()
+		}
 	case unicode.IsUpper(reg):
 		reg = unicode.ToLower(reg)
 		if old, ok := m.regs[reg]; ok {
@@ -281,8 +285,11 @@ func (m *Machine) put(reg rune, after bool, n int) error {
 	if reg == 0 {
 		reg = '"'
 	}
-	r, ok := m.regs[unicode.ToLower(reg)]
-	if !ok {
+	r, ok, err := m.fetch(reg)
+	switch {
+	case err != nil:
+		return err
+	case !ok:
 		return fmt.Errorf("nothing in register %c", reg)
 	}
 	label := "P"
@@ -321,26 +328,38 @@ func (m *Machine) put(reg rune, after bool, n int) error {
 	return nil
 }
 
+// lineRanges returns the text r covers on each of its lines, without line
+// breaks: a block's columns, or else from its start to its end.
+func lineRanges(t Text, r region) [][2]int {
+	var out [][2]int
+	for a := r.start; ; {
+		le := LineEnd(t, a)
+		rg := [2]int{a, min(le, r.end)}
+		if r.block {
+			rg = [2]int{colStart(t, a, r.left), le}
+			if r.right != math.MaxInt {
+				rg[1] = colStart(t, a, r.right+1)
+			}
+		}
+		out = append(out, rg)
+		if le >= r.end || le == t.Len() {
+			return out
+		}
+		a = le + 1
+	}
+}
+
 // actBlock applies d, c or y to the columns of a block. c inserts on the
 // first line, and leaving insert mode copies the text to the other lines.
 func (m *Machine) actBlock(op string, reg rune, label string, r region) error {
 	t := m.h.Text()
 	var texts []string
 	var edits []Edit
-	for ls := r.start; ; {
-		a, b := colStart(t, ls, r.left), LineEnd(t, ls)
-		if r.right != math.MaxInt {
-			b = colStart(t, ls, r.right+1)
+	for _, rg := range lineRanges(t, r) {
+		texts = append(texts, t.Slice(rg[0], rg[1]))
+		if rg[0] < rg[1] {
+			edits = append(edits, Edit{Start: rg[0], End: rg[1]})
 		}
-		texts = append(texts, t.Slice(a, b))
-		if a < b {
-			edits = append(edits, Edit{Start: a, End: b})
-		}
-		le := LineEnd(t, ls)
-		if le >= r.end || le == t.Len() {
-			break
-		}
-		ls = le + 1
 	}
 	m.store(reg, op, register{text: strings.Join(texts, "\n"), block: true})
 	top := colStart(t, r.start, r.left)
