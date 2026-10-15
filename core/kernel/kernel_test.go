@@ -244,9 +244,9 @@ func TestB109UndoOrigin(t *testing.T) {
 		}
 	}
 	edit("a", kernel.Edit{Start: 0, End: 0, Text: "1"})
-	edit("b", kernel.Edit{Start: 4, End: 4, Text: "2"})
+	edit("b", kernel.Edit{Start: 1, End: 1, Text: "2"})
 	// a's change is under b's, so undoing a reverts only it, as a new node.
-	if _, err := b.UndoOrigin("a", "undo", time.Time{}); err != nil || text(b) != "abc2" || len(b.Nodes()) != 3 {
+	if _, err := b.UndoOrigin("a", "undo", time.Time{}); err != nil || text(b) != "2abc" || len(b.Nodes()) != 3 {
 		t.Fatalf("undoing a left %q in %d nodes: %v", text(b), len(b.Nodes()), err)
 	}
 	// Undoing a again finds nothing, as its change and the undo of it are

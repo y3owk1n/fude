@@ -91,8 +91,9 @@ func (b *Buffer) UndoOrigin(o Origin, label string, at time.Time) (int, error) {
 				if e.Start < inv.End && inv.Start < e.End || e.Start == e.End && inv.Start < e.Start && e.Start < inv.End {
 					return 0, ErrOverlap
 				}
-				inv.Start = move(mark{pos: inv.Start, gravity: Left}, e)
-				inv.End = move(mark{pos: inv.End, gravity: Right}, e)
+				// Text another change inserted at its edges stays.
+				inv.Start = move(mark{pos: inv.Start, gravity: Right}, e)
+				inv.End = max(move(mark{pos: inv.End, gravity: Left}, e), inv.Start)
 			}
 		}
 	}
