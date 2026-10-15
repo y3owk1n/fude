@@ -122,6 +122,27 @@ func TestB59PluginFloat(t *testing.T) {
 	}
 }
 
+// B47
+func TestB47ReadFile(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(dir, "project"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	change(t, filepath.Join(dir, "out.txt"), "secret")
+	change(t, filepath.Join(dir, "project", "data.txt"), "hello")
+	if err := os.Symlink(filepath.Join(dir, "out.txt"), filepath.Join(dir, "project", "link")); err != nil {
+		t.Fatal(err)
+	}
+	usePlugin(t, "fsread", "fs.read")
+	t.Chdir(filepath.Join(dir, "project"))
+	e := start(t, "data.txt")
+	e.Load()
+	(<-e.Queue())()
+	if log := fudeLog(); !strings.Contains(log, "fsread: hello") || !strings.Contains(log, "fsread: refused") || !strings.Contains(log, "fsread: unlinked") || strings.Contains(log, "secret") {
+		t.Fatalf("the plugin logged:\n%s", log)
+	}
+}
+
 // B50
 func TestB50Capabilities(t *testing.T) {
 	e := withPlugin(t, "write")

@@ -499,7 +499,8 @@ The plugin passes text as a pointer and length into its memory. The host returns
 plugin's `alloc` and writing there, and returns the `i64` `ptr<<32|len`. A
 negative result is an error: -1 when the plugin did not declare the
 capability, -2 for a range outside the text, -3 when its memory could not
-take the result.
+take the result, -4 for a file outside the project or one that cannot be
+read.
 
 | Function | Capability | Does |
 |---|---|---|
@@ -512,6 +513,7 @@ take the result.
 | `emit(ptr, len) -> i32` | none | emits the event `plugin.name` about the buffer the call read |
 | `decorate(start, end, ptr, len) -> i32` | `ui` | puts a style, such as `keyword`, on `[start, end)`, and returns its id |
 | `undecorate(id) -> i32` | `ui` | removes a decoration |
+| `read_file(ptr, len) -> i64` | `fs.read` | the file at the path, relative to the project, the directory fude started in. fude refuses a path that leads outside it, through `..` or a link (B47) |
 | `float(ptr, len) -> i32` | `ui` | shows the markdown in a float at the cursor, or closes it for "" (B59) |
 | `status(ptr, len) -> i32` | `ui` | shows the text on the statusline of the buffer the call read, or none for "" (B58) |
 
@@ -526,8 +528,8 @@ adding that with `Machine.Command`. So they compose with every built-in,
 and macros and dot repeat replay them (B52, B54). A call that fails unloads
 the plugin, and using what it added then says the plugin is unloaded.
 
-A plugin declares its capabilities in `config.toml`. `fs.read`, `process`
-and `net` are accepted there but grant nothing yet. A call outside the
+A plugin declares its capabilities in `config.toml`. `process` and `net`
+are accepted there but grant nothing yet. A call outside the
 declared capabilities returns -1, and fude logs it to
 `$XDG_STATE_HOME/fude/log` (B50).
 

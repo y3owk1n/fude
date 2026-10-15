@@ -66,8 +66,8 @@ type Registration struct {
 // memoryPages is the most memory a plugin may grow to, 64MB.
 const memoryPages = 1024
 
-// capabilities are the ones a plugin may declare. fs.read, process and net
-// grant nothing yet.
+// capabilities are the ones a plugin may declare. process and net grant
+// nothing yet.
 var capabilities = []string{"buffer.read", "buffer.write", "ui", "fs.read", "process", "net"}
 
 // Errors a host function returns to the plugin.
@@ -75,6 +75,7 @@ const (
 	errDenied = -1 // the plugin did not declare the capability, or no call runs
 	errRange  = -2 // a range outside the text
 	errMemory = -3 // the plugin's memory could not take the result
+	errFile   = -4 // a file outside the project, or one that cannot be read
 )
 
 // ErrBusy is what a call on the input path returns while another call
@@ -88,6 +89,7 @@ type Plugin struct {
 	Subscribed []string       // the events its init subscribed to
 	caps       []string
 	log        func(string)
+	root       string // the project: the directory fude started in
 
 	mu      sync.Mutex
 	next    int // the id the next decoration gets
@@ -120,7 +122,11 @@ func Load(ctx context.Context, path string, caps []string, cacheDir string, log 
 	if err != nil {
 		return nil, fmt.Errorf("load plugin: %w", err)
 	}
-	p := &Plugin{Name: strings.TrimSuffix(filepath.Base(path), ".wasm"), caps: caps, log: log}
+	root, err := os.Getwd()
+	if err != nil {
+		return nil, fmt.Errorf("load plugin: %w", err)
+	}
+	p := &Plugin{Name: strings.TrimSuffix(filepath.Base(path), ".wasm"), caps: caps, log: log, root: root}
 	if p.cache, err = wazero.NewCompilationCacheWithDir(cacheDir); err != nil {
 		return nil, fmt.Errorf("plugin cache: %w", err)
 	}
@@ -209,6 +215,7 @@ func (p *Plugin) host(ctx context.Context) error {
 		NewFunctionBuilder().WithFunc(p.emit).Export("emit").
 		NewFunctionBuilder().WithFunc(p.status).Export("status").
 		NewFunctionBuilder().WithFunc(p.float).Export("float").
+		NewFunctionBuilder().WithFunc(p.readFile).Export("read_file").
 		NewFunctionBuilder().WithFunc(p.decorate).Export("decorate").
 		NewFunctionBuilder().WithFunc(p.undecorate).Export("undecorate").
 		Instantiate(ctx)
@@ -251,12 +258,56 @@ func (p *Plugin) text(ctx context.Context, m api.Module, start, end uint32) int6
 	if start > end || int(end) > t.Len() {
 		return errRange
 	}
-	s := t.Slice(int(start), int(end))
+	return give(ctx, m, t.Slice(int(start), int(end)))
+}
+
+// give writes s into memory the plugin allocates, and returns where, as
+// ptr<<32|len.
+func give(ctx context.Context, m api.Module, s string) int64 {
 	out, err := m.ExportedFunction("alloc").Call(ctx, uint64(len(s)))
 	if err != nil || len(out) == 0 || !m.Memory().WriteString(uint32(out[0]), s) {
 		return errMemory
 	}
 	return int64(out[0])<<32 | int64(len(s))
+}
+
+// readFile writes the file at the path at (ptr, n), relative to the
+// project, into memory the plugin allocates. A path that leads outside the
+// project, through .. or a link, is refused (B47).
+func (p *Plugin) readFile(ctx context.Context, m api.Module, ptr, n uint32) int64 {
+	if p.call == nil || !p.allowed("fs.read", "read_file") {
+		return errDenied
+	}
+	name, ok := m.Memory().Read(ptr, n)
+	if !ok {
+		return errRange
+	}
+	data, err := p.read(string(name))
+	if err != nil {
+		p.log(fmt.Sprintf("%s: read_file: %v", p.Name, err))
+		return errFile
+	}
+	return give(ctx, m, string(data))
+}
+
+// read reads the file at name, relative to the project, if it is in it.
+func (p *Plugin) read(name string) ([]byte, error) {
+	root, err := filepath.EvalSymlinks(p.root)
+	if err != nil {
+		return nil, fmt.Errorf("find the project: %w", err)
+	}
+	path, err := filepath.EvalSymlinks(filepath.Join(root, name))
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", name, err)
+	}
+	if rel, err := filepath.Rel(root, path); err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return nil, fmt.Errorf("%s is outside the project", name)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", name, err)
+	}
+	return data, nil
 }
 
 // register records, during init, that the export at (eptr, en) runs the
