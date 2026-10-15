@@ -11,7 +11,7 @@ its weight. The spec is `prd/`: start with `prd/product.md`, then
 ## Toolchain
 
 `oku sync && oku allow` installs Go and the tools in `oku.toml`. Add a tool
-there, never with a system package manager.
+there, never with a system package manager. `just` lists the recipes.
 
 ## How to write code here
 
@@ -35,7 +35,7 @@ This repo is production grade, and the way to get there is less code.
 
 ## Before every commit
 
-1. Run the tests and `go vet` for each module touched.
+1. Run `just check`: formatting, `go vet` and the tests of every module.
 2. Run `/cursor-team-kit_deslop` on the diff and apply its findings.
 3. Stop and ask the user to run `/cursor_unslop`. Commit only after they
    say it is done.

@@ -13,4 +13,5 @@ oku installs the toolchain.
 ```
 oku allow
 oku sync
+just test
 ```
