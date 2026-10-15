@@ -211,6 +211,10 @@ func (m *Machine) feed(k Key) error {
 	return err
 }
 
+// Idle reports whether the machine is in normal mode between commands, with
+// no count, register or held key.
+func (m *Machine) Idle() bool { return m.idle() && len(m.held) == 0 }
+
 // idle reports whether the machine is between commands.
 func (m *Machine) idle() bool {
 	return m.mode == Normal && m.pending == "" && m.op == "" && m.count == 0 && m.reg == 0

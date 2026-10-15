@@ -121,7 +121,10 @@ Where fude departs, the line says so and cites the departure in
 - B30 [2] `u` and `<C-r>` move along the current branch. An edit after an
   undo starts a new branch and keeps the old one.
 - B31 [2] `:timeline` lists every node with its time and command, and
-  restoring a node creates a new node rather than discarding later ones.
+  restoring a node creates a new node rather than discarding later ones. In
+  its window, `[` and `]` move the text to the node above or below, `d`
+  diffs the node under the cursor against now, and `<CR>` restores it on
+  top of the newest node.
 - B32 [2] Any two nodes can be diffed.
 - B33 [2] The timeline persists across sessions when the file on disk still
   matches the last saved node.

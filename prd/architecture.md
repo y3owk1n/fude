@@ -138,6 +138,7 @@ func New(h Host) *Machine
 func (m *Machine) Feed(key Key) error
 func (m *Machine) Paste(text string) error
 func (m *Machine) Map(mode Mode, from, to string)
+func (m *Machine) Idle() bool // normal mode, between commands
 func (m *Machine) Waiting() bool
 func (m *Machine) Timeout() error
 ```

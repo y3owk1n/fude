@@ -432,6 +432,32 @@ func TestB31Timeline(t *testing.T) {
 	if text(e) != "two" {
 		t.Errorf(":restore on the line of state 2 left %q, want two", text(e))
 	}
+
+	// In the window, ] moves the text a state later, <CR> restores the
+	// state on top of the newest, and d diffs it against now.
+	path := filepath.Join(t.TempDir(), "g")
+	e = open(t, path)
+	source := func() string {
+		for _, v := range e.Views() {
+			if v.Name == path {
+				return v.Text.Slice(0, v.Text.Len())
+			}
+		}
+		return ""
+	}
+	feed(e, "ione<Esc>uitwo<Esc>:timeline<CR>]")
+	if source() != "one" {
+		t.Fatalf("] left %q, want state 1", source())
+	}
+	feed(e, "<CR>")
+	lines = strings.Split(text(e), "\n")
+	if source() != "one" || len(lines) != 4 || !strings.HasPrefix(lines[3], "* 3") {
+		t.Fatalf("<CR> left %q and listed %q, want state 1 restored as state 3", source(), lines)
+	}
+	feed(e, "ggd")
+	if want := "@@ -1 +1 @@\n-\n+one"; text(e) != want {
+		t.Errorf("d on state 0 showed %q, want %q", text(e), want)
+	}
 }
 
 // B32

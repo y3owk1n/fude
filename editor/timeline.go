@@ -22,10 +22,9 @@ func states(b *buffer) []kernel.NodeID {
 	return ids
 }
 
-// goTo moves the current window's buffer to node id and puts the cursor
-// where the last change there starts.
-func (e *Editor) goTo(id kernel.NodeID) (int, bool) {
-	b := e.win.buf
+// goTo moves b to node id and returns where the last change there starts,
+// for the cursor.
+func goTo(b *buffer, id kernel.NodeID) (int, bool) {
 	start, ok := b.text.Goto(id)
 	if !ok {
 		return 0, false
@@ -38,7 +37,6 @@ func (e *Editor) goTo(id kernel.NodeID) (int, bool) {
 		_, n := utf8.DecodeLastRuneInString(t.Slice(ls, start))
 		start -= n
 	}
-	e.setCursor(start)
 	return start, true
 }
 
@@ -50,7 +48,7 @@ func (e *Editor) step(n int) (int, bool) {
 	if i < 0 || i >= len(ids) || n == 0 {
 		return 0, false
 	}
-	return e.goTo(ids[i])
+	return goTo(e.win.buf, ids[i])
 }
 
 // travel runs :earlier or :later. The argument is a count of states, a time
@@ -99,9 +97,12 @@ func (e *Editor) travel(arg string, later bool) {
 			target = cur + n
 		}
 	}
-	if _, ok := e.goTo(ids[max(0, min(target, len(ids)-1))]); !ok {
+	start, ok := goTo(b, ids[max(0, min(target, len(ids)-1))])
+	if !ok {
 		e.message = "no such state"
+		return
 	}
+	e.setCursor(start)
 }
 
 // timeOf returns when node id was made, or the zero time for the text
@@ -149,7 +150,9 @@ func (e *Editor) recover() {
 	}
 	id := b.unsaved
 	b.unsaved = kernel.NodeID{}
-	e.goTo(id)
+	if start, ok := goTo(b, id); ok {
+		e.setCursor(start)
+	}
 }
 
 // timeline opens a window listing every state of the current buffer, one
@@ -161,6 +164,12 @@ func (e *Editor) timeline() {
 	if src.source != nil {
 		src = src.source
 	}
+	text, ids := listing(src)
+	e.scratch("[timeline]", text, src, ids)
+}
+
+// listing returns the lines of src's timeline window and the state on each.
+func listing(src *buffer) (string, []kernel.NodeID) {
 	var lines []string
 	nodes := src.text.Nodes()
 	ids := []kernel.NodeID{{}}
@@ -180,7 +189,65 @@ func (e *Editor) timeline() {
 		}
 		lines = append(lines, line)
 	}
-	e.scratch("[timeline]", strings.Join(lines, "\n"), src, ids)
+	return strings.Join(lines, "\n"), ids
+}
+
+// timelineKey runs k in a timeline window and reports whether k is one of
+// its keys. [ and ] move the text to the state on the line above or below. d
+// diffs the state on the cursor's line against now. <CR> restores that state
+// on top of the newest one.
+func (e *Editor) timelineKey(k vim.Key) bool {
+	src, i := e.state("")
+	switch k {
+	case "[", "]":
+		j := i - 1
+		if k == "]" {
+			j = i + 1
+		}
+		if ids := states(src); j >= 0 && j < len(ids) {
+			e.scrub(src, ids[j])
+			e.relist(j)
+		}
+	case "d":
+		e.diff("")
+	case "<CR>":
+		ids := states(src)
+		e.scrub(src, ids[len(ids)-1])
+		e.restore(strconv.Itoa(i))
+		e.relist(len(states(src)) - 1)
+	default:
+		return false
+	}
+	return true
+}
+
+// scrub moves src to state id. It moves the cursor of each window showing src
+// to where the last change there starts.
+func (e *Editor) scrub(src *buffer, id kernel.NodeID) {
+	start, _ := goTo(src, id)
+	for _, w := range e.root.windows() {
+		if w.buf == src {
+			src.text.MoveMark(w.cursor, start)
+		}
+	}
+}
+
+// relist rewrites the current timeline window from its buffer's timeline
+// and puts the cursor on line.
+func (e *Editor) relist(line int) {
+	b := e.win.buf
+	text, ids := listing(b.source)
+	old := b.text.Snapshot()
+	if err := b.text.Apply(kernel.Transaction{Base: old.Version(), Edits: []kernel.Edit{{End: old.Len(), Text: text}}}); err != nil {
+		e.message = err.Error()
+		return
+	}
+	b.saved, b.lines = b.text.Head(), ids
+	t, p := b.text.Snapshot(), 0
+	for range line {
+		p = vim.LineEnd(t, p) + 1
+	}
+	e.setCursor(p)
 }
 
 // restore makes the text of state N the newest state, as a new node, so no
@@ -194,6 +261,10 @@ func (e *Editor) restore(arg string) {
 	target, _ := b.text.At(states(b)[i])
 	now := b.text.Snapshot()
 	old, new := now.Slice(0, now.Len()), target.Slice(0, target.Len())
+	if old == new {
+		e.message = fmt.Sprintf("the text is already state %d", i)
+		return
+	}
 	pre, suf := 0, 0
 	for pre < len(old) && pre < len(new) && old[pre] == new[pre] {
 		pre++

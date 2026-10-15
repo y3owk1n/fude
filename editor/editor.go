@@ -116,6 +116,10 @@ func (e *Editor) add(path string) (string, error) {
 // Feed handles one key. An error becomes the message.
 func (e *Editor) Feed(k vim.Key) {
 	e.message = ""
+	if e.win.buf.lines != nil && e.vim.Idle() && e.timelineKey(k) {
+		e.reveal()
+		return
+	}
 	e.settle(e.vim.Feed(k))
 }
 
