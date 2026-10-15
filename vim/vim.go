@@ -71,9 +71,30 @@ func (m *Machine) Feed(k Key) error {
 	return m.normal(k)
 }
 
+// Paste inserts s as typed text, with no key mapping applied. In normal mode
+// it goes after the cursor and the mode stays normal, as in Neovim.
+func (m *Machine) Paste(s string) error {
+	switch m.mode {
+	case Insert:
+		return m.insertText(s)
+	case Cmdline:
+		m.line += s
+		return nil
+	}
+	t, c := m.h.Text(), m.h.Cursor()
+	at := next(t, c, LineEnd(t, c))
+	if err := m.h.Apply([]Edit{{Start: at, End: at, Text: s}}, "paste"); err != nil {
+		return err
+	}
+	end := at + len(s)
+	t = m.h.Text()
+	m.h.SetCursor(prev(t, LineStart(t, end), end))
+	return nil
+}
+
 func (m *Machine) normal(k Key) error {
 	t, c := m.h.Text(), m.h.Cursor()
-	start, end := lineStart(t, c), lineEnd(t, c)
+	start, end := LineStart(t, c), LineEnd(t, c)
 	switch k {
 	case ":":
 		m.mode = Cmdline
@@ -111,7 +132,7 @@ func (m *Machine) insert(k Key) error {
 	case "<Esc>":
 		m.h.EndGroup()
 		m.mode = Normal
-		m.h.SetCursor(prev(t, lineStart(t, c), c))
+		m.h.SetCursor(prev(t, LineStart(t, c), c))
 	case "<CR>":
 		return m.insertText("\n")
 	case "<BS>":
@@ -119,7 +140,7 @@ func (m *Machine) insert(k Key) error {
 			return nil
 		}
 		// At a line start, backspace joins the lines.
-		p := prev(t, lineStart(t, c), c)
+		p := prev(t, LineStart(t, c), c)
 		if p == c {
 			p = c - 1
 		}
@@ -128,9 +149,9 @@ func (m *Machine) insert(k Key) error {
 		}
 		m.h.SetCursor(p)
 	case "<Left>", "<Right>":
-		n := prev(t, lineStart(t, c), c)
+		n := prev(t, LineStart(t, c), c)
 		if k == "<Right>" {
-			n = next(t, c, lineEnd(t, c))
+			n = next(t, c, LineEnd(t, c))
 		}
 		// A move splits the undo step, as in Neovim.
 		if n != c {
@@ -180,7 +201,8 @@ func (m *Machine) insertText(s string) error {
 // chunk is how many bytes line scans read at a time.
 const chunk = 256
 
-func lineStart(t Text, pos int) int {
+// LineStart returns the start of the line holding pos.
+func LineStart(t Text, pos int) int {
 	for pos > 0 {
 		lo := max(pos-chunk, 0)
 		if i := strings.LastIndexByte(t.Slice(lo, pos), '\n'); i >= 0 {
@@ -191,7 +213,8 @@ func lineStart(t Text, pos int) int {
 	return 0
 }
 
-func lineEnd(t Text, pos int) int {
+// LineEnd returns the end of the line holding pos, before its newline.
+func LineEnd(t Text, pos int) int {
 	n := t.Len()
 	for pos < n {
 		hi := min(pos+chunk, n)

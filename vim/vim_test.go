@@ -95,6 +95,24 @@ func TestB7InsertIsOneUndoStep(t *testing.T) {
 	}
 }
 
+// B8
+func TestB8PasteIsTypedText(t *testing.T) {
+	_, h, m := run(t, "a|b", "i")
+	if err := m.Paste("x<Esc>"); err != nil {
+		t.Fatal(err)
+	}
+	if h.text != "ax<Esc>b" || m.Mode() != vim.Insert {
+		t.Errorf("insert-mode paste: got %q in mode %v", h.text, m.Mode())
+	}
+	_, h, m = run(t, "a|b", "")
+	if err := m.Paste("dd"); err != nil {
+		t.Fatal(err)
+	}
+	if got := h.text[:h.cursor] + "|" + h.text[h.cursor:]; got != "abd|d" || m.Mode() != vim.Normal {
+		t.Errorf("normal-mode paste: got %q in mode %v", got, m.Mode())
+	}
+}
+
 // B9
 func TestB9GraphemeClusters(t *testing.T) {
 	cases := []struct{ start, keys, want string }{
