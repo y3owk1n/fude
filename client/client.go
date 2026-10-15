@@ -122,11 +122,16 @@ type Replica struct {
 	buf       int
 	text      *kernel.Buffer
 	confirmed kernel.Version // the server's version the copy has heard of
-	pending   []pending      // edits the server has yet to take, oldest first
+	pending   []pending      // nodes the server has yet to take, oldest first
+	open      int            // the groups Begin opened
 }
 
-// pending is one Edit call the server has yet to take.
-type pending struct {
+// pending is one node of the copy's that the server has yet to take: the
+// changes of one Edit call, or of every call in a group.
+type pending []change
+
+// change is one Edit call.
+type change struct {
 	edits []kernel.Edit
 	old   []string       // the text each edit replaced
 	at    kernel.Version // the copy's version before it
@@ -150,31 +155,58 @@ func (r *Replica) Text() string {
 	return t.Slice(0, t.Len())
 }
 
+// Begin starts a group of Edit calls that the server takes as one node, as
+// an insert is. Groups nest.
+func (r *Replica) Begin() {
+	if r.open == 0 {
+		r.pending = append(r.pending, nil)
+	}
+	r.open++
+	r.text.BeginGroup("local")
+}
+
+// End ends a group Begin started.
+func (r *Replica) End() {
+	r.open--
+	r.text.EndGroup("local")
+	if n := len(r.pending); r.open == 0 && len(r.pending[n-1]) == 0 {
+		r.pending = r.pending[:n-1]
+	}
+}
+
 // Edit applies edits, sorted and apart, to the copy at once.
 func (r *Replica) Edit(edits ...kernel.Edit) error {
 	if len(edits) == 0 {
 		return nil
 	}
 	t := r.text.Snapshot()
-	p := pending{edits: edits, at: t.Version()}
+	c := change{edits: edits, at: t.Version()}
 	for _, e := range edits {
 		if e.Start < 0 || e.End > t.Len() || e.Start > e.End {
 			return fmt.Errorf("edit [%d, %d) is outside the text", e.Start, e.End)
 		}
-		p.old = append(p.old, t.Slice(e.Start, e.End))
+		c.old = append(c.old, t.Slice(e.Start, e.End))
 	}
 	if err := r.text.Apply(kernel.Transaction{Base: t.Version(), Origin: "local", Edits: edits}); err != nil {
 		return fmt.Errorf("edit: %w", err)
 	}
-	r.pending = append(r.pending, p)
+	if r.open > 0 {
+		r.pending[len(r.pending)-1] = append(r.pending[len(r.pending)-1], c)
+	} else {
+		r.pending = append(r.pending, pending{c})
+	}
 	return nil
 }
 
 // Sync takes the server's edits and sends the copy's own. An edit of its
-// own whose text another client changed first is dropped, and Sync returns
-// it.
+// own whose text another client changed first is dropped, with the rest of
+// its node, and Sync returns them. Inside a group it does nothing, as the
+// group is not a node yet.
 func (r *Replica) Sync() ([]kernel.Edit, error) {
-	dropped, err := r.pull()
+	if r.open > 0 {
+		return nil, nil
+	}
+	dropped, _, err := r.pull()
 	if err != nil {
 		return dropped, err
 	}
@@ -183,19 +215,21 @@ func (r *Replica) Sync() ([]kernel.Edit, error) {
 			Applied bool           `json:"applied"`
 			Version kernel.Version `json:"version"`
 		}
-		edits := make([]edit, len(r.pending[0].edits))
-		for i, e := range r.pending[0].edits {
-			edits[i] = edit(e)
+		changes := make([][]edit, len(r.pending[0]))
+		for i, c := range r.pending[0] {
+			for _, e := range c.edits {
+				changes[i] = append(changes[i], edit(e))
+			}
 		}
-		if err := r.c.call("push", map[string]any{"buffer": r.buf, "version": r.confirmed, "edits": edits}, &res); err != nil {
+		if err := r.c.call("push", map[string]any{"buffer": r.buf, "version": r.confirmed, "changes": changes}, &res); err != nil {
 			return dropped, err
 		}
 		if res.Applied {
-			// The server's text is now the copy's after this edit.
+			// The server's text is now the copy's after this node.
 			r.confirmed, r.pending = res.Version, r.pending[1:]
 			continue
 		}
-		more, err := r.pull()
+		more, _, err := r.pull()
 		dropped = append(dropped, more...)
 		if err != nil {
 			return dropped, err
@@ -204,21 +238,22 @@ func (r *Replica) Sync() ([]kernel.Edit, error) {
 	return dropped, nil
 }
 
-// pull takes the server's edits since the confirmed version, and moves the
-// pending edits over them.
-func (r *Replica) pull() ([]kernel.Edit, error) {
+// pull takes the server's edits since the confirmed version, moves the
+// pending nodes over them, and returns those it drops and the server's
+// edits.
+func (r *Replica) pull() ([]kernel.Edit, [][]kernel.Edit, error) {
 	var p pulled
 	if err := r.c.call("pull", map[string]any{"buffer": r.buf, "version": r.confirmed}, &p); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if p.Version == r.confirmed {
-		return nil, nil
+		return nil, nil, nil
 	}
-	// Without the pending edits, the copy is the server's text at the
+	// Without the pending nodes, the copy is the server's text at the
 	// confirmed version.
 	for range r.pending {
 		if _, ok := r.text.Undo(); !ok {
-			return nil, errors.New("the copy lost its pending edits")
+			return nil, nil, errors.New("the copy lost its pending edits")
 		}
 	}
 	remote := make([][]kernel.Edit, len(p.Edits))
@@ -234,39 +269,63 @@ func (r *Replica) pull() ([]kernel.Edit, error) {
 	}
 	for _, edits := range remote {
 		if err := r.text.Apply(kernel.Transaction{Base: r.text.Snapshot().Version(), Origin: "server", Edits: edits}); err != nil {
-			return nil, fmt.Errorf("apply the server's edits: %w", err)
+			return nil, nil, fmt.Errorf("apply the server's edits: %w", err)
 		}
 	}
 	r.confirmed = p.Version
-	return r.replay()
+	dropped, err := r.replay()
+	return dropped, remote, err
 }
 
-// replay applies each pending edit again where Map moves it, unless the
-// text it replaced has changed, and returns those it drops.
+// replay applies each pending node again where Map moves its edits, as one
+// node, unless the text an edit of it replaced has changed, and returns the
+// edits of the nodes it drops.
 func (r *Replica) replay() ([]kernel.Edit, error) {
 	var kept []pending
 	var dropped []kernel.Edit
 	for _, p := range r.pending {
-		t := r.text.Snapshot()
-		moved := pending{at: t.Version(), old: p.old}
-		for i, e := range p.edits {
-			start, ok1 := r.text.Map(e.Start, p.at)
-			end, ok2 := r.text.Map(e.End, p.at)
-			if !ok1 || !ok2 || t.Slice(start, end) != p.old[i] {
-				moved.edits = nil
-				break
+		moved, err := r.again(p)
+		if err != nil {
+			return dropped, err
+		}
+		if moved == nil {
+			for _, c := range p {
+				dropped = append(dropped, c.edits...)
 			}
-			moved.edits = append(moved.edits, kernel.Edit{Start: start, End: end, Text: e.Text})
-		}
-		if moved.edits == nil {
-			dropped = append(dropped, p.edits...)
 			continue
-		}
-		if err := r.text.Apply(kernel.Transaction{Base: t.Version(), Origin: "local", Edits: moved.edits}); err != nil {
-			return dropped, fmt.Errorf("apply an edit again: %w", err)
 		}
 		kept = append(kept, moved)
 	}
 	r.pending = kept
 	return dropped, nil
+}
+
+// again applies node p again as one node, or undoes what it applied of it
+// and returns nil when the text an edit of it replaced has changed.
+func (r *Replica) again(p pending) (pending, error) {
+	r.text.BeginGroup("local")
+	var moved pending
+	for _, c := range p {
+		t := r.text.Snapshot()
+		next := change{at: t.Version(), old: c.old}
+		for i, e := range c.edits {
+			start, ok1 := r.text.Map(e.Start, c.at)
+			end, ok2 := r.text.Map(e.End, c.at)
+			if !ok1 || !ok2 || t.Slice(start, end) != c.old[i] {
+				r.text.EndGroup("local")
+				if len(moved) > 0 {
+					r.text.Undo()
+				}
+				return nil, nil
+			}
+			next.edits = append(next.edits, kernel.Edit{Start: start, End: end, Text: e.Text})
+		}
+		if err := r.text.Apply(kernel.Transaction{Base: t.Version(), Origin: "local", Edits: next.edits}); err != nil {
+			r.text.EndGroup("local")
+			return nil, fmt.Errorf("apply an edit again: %w", err)
+		}
+		moved = append(moved, next)
+	}
+	r.text.EndGroup("local")
+	return moved, nil
 }

@@ -1,9 +1,11 @@
 package client_test
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/y3owk1n/fude/client"
@@ -27,21 +29,24 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-// B79
-func TestB79Replica(t *testing.T) {
+// served starts an editor on an empty buffer, serves it on a socket and
+// runs its loop. typed runs keys in its session on the loop and returns
+// the text after them.
+func served(t *testing.T) (typed func(keys string) string, path string) {
+	t.Helper()
 	e, err := editor.Open("")
 	if err != nil {
 		t.Fatal(err)
 	}
-	// type runs keys in the editor's session on its loop.
 	do, done := make(chan func()), make(chan struct{})
-	defer close(done)
+	t.Cleanup(func() { close(done) })
 	dir, err := os.MkdirTemp("", "fude")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(dir)
-	defer e.Serve(filepath.Join(dir, "s"))()
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	path = filepath.Join(dir, "s")
+	t.Cleanup(e.Serve(path))
 	go func() {
 		for {
 			select {
@@ -54,7 +59,7 @@ func TestB79Replica(t *testing.T) {
 			}
 		}
 	}()
-	typed := func(keys string) string {
+	typed = func(keys string) string {
 		var text string
 		ran := make(chan struct{})
 		do <- func() {
@@ -68,14 +73,26 @@ func TestB79Replica(t *testing.T) {
 		<-ran
 		return text
 	}
-	typed("ihello world<Esc>")
+	return typed, path
+}
 
-	c, err := client.Dial(filepath.Join(dir, "s"))
+// dial connects to the editor at path.
+func dial(t *testing.T, path string) *client.Conn {
+	t.Helper()
+	c, err := client.Dial(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer c.Close()
-	r, err := c.Open(0)
+	t.Cleanup(func() { c.Close() })
+	return c
+}
+
+// B79
+func TestB79Replica(t *testing.T) {
+	typed, path := served(t)
+	typed("ihello world<Esc>")
+
+	r, err := dial(t, path).Open(0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,5 +120,78 @@ func TestB79Replica(t *testing.T) {
 	}
 	if server := typed(""); r.Text() != "big hello there!" || server != r.Text() {
 		t.Fatalf("after sync the replica has %q and the server %q", r.Text(), server)
+	}
+}
+
+// feed sends keys to ed.
+func feed(t *testing.T, ed *client.Editor, keys string) {
+	t.Helper()
+	for _, k := range vim.Keys(keys) {
+		if err := ed.Feed(k); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+// B98
+func TestB98EditorOnReplica(t *testing.T) {
+	typed, path := served(t)
+	typed("ione two<Esc>")
+	r, err := dial(t, path).Open(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ed := client.NewEditor(r, 22)
+	// Its keys edit the copy at once.
+	if feed(t, ed, "wciwX<Esc>"); ed.Text() != "one X" {
+		t.Fatalf("ciwX made %q", ed.Text())
+	}
+	if _, err := ed.Sync(); err != nil || typed("") != "one X" {
+		t.Fatalf("after sync the server has %q: %v", typed(""), err)
+	}
+	// The insert is one node of the client's, so its u reverts it whole and
+	// leaves the terminal's later edit.
+	typed("A!<Esc>")
+	if feed(t, ed, "u"); ed.Text() != "one two!" || typed("") != ed.Text() {
+		t.Fatalf("u from the client left %q, and the server %q", ed.Text(), typed(""))
+	}
+}
+
+// B110, through a client running the grammar on a replica
+func TestB110GrammarCases(t *testing.T) {
+	src, err := os.ReadFile("../vim/testdata/grammar.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, path := served(t)
+	c := dial(t, path)
+	base, err := c.Open(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, l := range strings.Split(strings.TrimRight(string(src), "\n"), "\n") {
+		if l == "" || strings.HasPrefix(l, "# ") {
+			continue
+		}
+		var cs [3]string
+		if _, err := fmt.Sscanf(l, "%q %q %q", &cs[0], &cs[1], &cs[2]); err != nil {
+			t.Fatalf("%s: %v", l, err)
+		}
+		// The server's text becomes the case's.
+		if err := base.Edit(kernel.Edit{End: len(base.Text()), Text: strings.Replace(cs[0], "|", "", 1)}); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := base.Sync(); err != nil {
+			t.Fatal(err)
+		}
+		r, err := c.Open(0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ed := client.NewEditor(r, 22)
+		feed(t, ed, fmt.Sprintf("%dgo%s", strings.Index(cs[0], "|")+1, cs[1]))
+		if got := ed.Text()[:ed.Cursor()] + "|" + ed.Text()[ed.Cursor():]; got != cs[2] {
+			t.Errorf("%q on %q: got %q, want %q", cs[1], cs[0], got, cs[2])
+		}
 	}
 }

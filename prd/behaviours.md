@@ -248,6 +248,9 @@ Where fude departs, the line says so and cites the departure in
 - B97 [6] The `socket` setting is where fude listens, so a client on
   another machine reaches it through `ssh -L`. A second fude leaves a socket
   another one answers alone.
+- B98 [6] A client may run the grammar on its copy. Its keys edit the copy
+  at once as they do in fude, an insert reaches the server as one node, and
+  `u` from the client reverts that insert whole.
 
 ## Kernel library
 

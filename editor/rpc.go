@@ -364,12 +364,12 @@ func (e *Session) call(method string, params json.RawMessage) (any, error) {
 		var p struct {
 			Buffer  int            `json:"buffer"`
 			Version kernel.Version `json:"version"`
-			Edits   []wireEdit     `json:"edits"`
+			Changes [][]wireEdit   `json:"changes"`
 		}
 		if err := json.Unmarshal(params, &p); err != nil {
 			return nil, fmt.Errorf("read push: %w", err)
 		}
-		return e.push(p.Buffer, p.Version, p.Edits)
+		return e.push(p.Buffer, p.Version, p.Changes)
 	case "state":
 	default:
 		return nil, errors.New("no method " + method)
@@ -431,9 +431,9 @@ type pushed struct {
 	Version kernel.Version `json:"version"`
 }
 
-// push applies edits made against version of buffer id as one transaction
-// of the session's.
-func (e *Session) push(id int, version kernel.Version, edits []wireEdit) (pushed, error) {
+// push applies changes, each a list of edits, made against version of
+// buffer id one after another, as one node of the session's.
+func (e *Session) push(id int, version kernel.Version, changes [][]wireEdit) (pushed, error) {
 	b, err := e.buffer(id)
 	if err != nil {
 		return pushed{}, err
@@ -441,19 +441,25 @@ func (e *Session) push(id int, version kernel.Version, edits []wireEdit) (pushed
 	if b.file.readonly {
 		return pushed{}, errors.New("cannot make changes, the file is read-only")
 	}
-	t := kernel.Transaction{Base: version, Origin: e.origin, Label: "push", Time: e.now()}
-	for _, ed := range edits {
-		t.Edits = append(t.Edits, kernel.Edit(ed))
-	}
-	switch err := b.text.Apply(t); {
-	case errors.Is(err, kernel.ErrStale):
+	if b.text.Snapshot().Version() != version {
 		return pushed{false, b.text.Snapshot().Version()}, nil
-	case err != nil:
-		return pushed{}, fmt.Errorf("push: %w", err)
 	}
-	if len(edits) > 0 {
+	b.text.BeginGroup(e.origin)
+	defer func() {
+		b.text.EndGroup(e.origin)
 		b.head = b.text.Head()
-		b.pushChange(edits[0].Start)
+	}()
+	for _, c := range changes {
+		t := kernel.Transaction{Base: b.text.Snapshot().Version(), Origin: e.origin, Label: "push", Time: e.now()}
+		for _, ed := range c {
+			t.Edits = append(t.Edits, kernel.Edit(ed))
+		}
+		if err := b.text.Apply(t); err != nil {
+			return pushed{}, fmt.Errorf("push: %w", err)
+		}
+		if len(c) > 0 {
+			b.pushChange(c[0].Start)
+		}
 	}
 	return pushed{true, b.text.Snapshot().Version()}, nil
 }

@@ -168,7 +168,10 @@ vim machine and origin, and undo reverts only the undoer's own
 transactions. A thin client sends keys and requests and draws the state it
 gets back. A replica keeps a copy of a buffer in a kernel of its own,
 applies its edits there at once, and rebases them on the server's order,
-as CodeMirror's collab module does (B79). Why: fude has a server by
+as CodeMirror's collab module does (B79). A replica may run the grammar
+on its copy, so keys cost no round trip, while undo and the commands the
+grammar leaves to its host still run on the server, which keeps the one
+timeline (B98). Why: fude has a server by
 design, so the main payoff of a CRDT (offline merge without a server) is
 not needed. Yrs, Loro and Automerge each own the document, which would
 demote the rope to a mirror and add cgo. The replica reuses the kernel's

@@ -807,17 +807,19 @@ and goes when its buffer closes.
 
 `client.Replica` keeps a copy of one buffer in a `kernel.Buffer` of its
 own. `Edit` applies edits to the copy at once, so they show without a
-round trip, and keeps them as pending. `Sync` pulls the server's edits
-since the version the copy last heard, then pushes the pending edits one
-`Edit` call at a time.
+round trip, and keeps them as pending. `Begin` and `End` group `Edit`
+calls into one node, as an insert is. `Sync` pulls the server's edits
+since the version the copy last heard, then pushes the pending nodes one
+at a time. Inside a group it does nothing, as the group is not a node
+yet.
 
 - `pull {buffer, version}` returns `{buffer, version, edits}`, the edit
   lists from `Since`, or `{buffer, version, text}` when the version is
   left out or the server no longer has the edits. It shows the buffer in
   the client's window, so the client hears `changed` for it.
-- `push {buffer, version, edits}` applies the edits as one transaction of
-  the client's origin when `version` is the buffer's, and returns
-  `{applied: true, version}`. Otherwise it returns `{applied: false,
+- `push {buffer, version, changes}` applies the changes, each a list of
+  edits, one after another as one node of the client's origin when
+  `version` is the buffer's, and returns `{applied: true, version}`. Otherwise it returns `{applied: false,
   version}` and changes nothing, and the client pulls and pushes again.
 
 To take the server's edits, the replica first undoes its pending edits.
@@ -829,3 +831,13 @@ edit keeps the text it replaced. When another client changed that text
 first, the replica drops the edit, and `Sync` returns it. A replica so far behind that the server
 no longer has the edits takes the server's whole text, which drops every
 pending edit inside it.
+
+`client.Editor` runs the vim grammar on a replica, with its cursor and
+marks as marks in the copy, so they move when `Sync` rebases. Keys edit the
+copy with no round trip, and an insert is one group. `u`, `<C-r>` and the
+keys the grammar leaves to its host, such as `:w`, sync and then run in
+the client's session on the server, so undo reverts the client's own
+changes from the one timeline (B77, B98). The jumplist, changelist and
+`g-` stay on the server. `"+` reports no clipboard, so a client's UI
+supplies its own. The grammar's cases in `vim/testdata/grammar.txt` run through it
+too (B110).
