@@ -840,6 +840,6 @@ keys the grammar leaves to its host, such as `:w`, sync and then run in
 the client's session on the server, so undo reverts the client's own
 changes from the one timeline (B77, B98). The jumplist and changelist are
 the client's own, as marks in the copy, and `g-` and `g+` run on the
-server, as the timeline is there (B99). `"+` reports no clipboard, so a client's UI
-supplies its own. The grammar's cases in `vim/testdata/grammar.txt` run through it
-too (B110).
+server, as the timeline is there (B99). `"+` and `"*` are the clipboard of
+the client's machine (B36). The grammar's cases in
+`vim/testdata/grammar.txt` run through it too (B110).

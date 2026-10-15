@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strconv"
 
+	"github.com/y3owk1n/fude/clipboard"
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/vim"
 )
@@ -140,12 +141,10 @@ func (h host) Unhandled(keys string) {
 func (h host) Undo() (int, int, error) { return h.e.step("u") }
 func (h host) Redo() (int, int, error) { return h.e.step("<C-r>") }
 
-// errClipboard is what "+ and "* give, as a client's UI has its own
-// clipboard.
-var errClipboard = errors.New("no clipboard in this client")
-
-func (h host) Clipboard() (string, error) { return "", errClipboard }
-func (h host) SetClipboard(string) error  { return errClipboard }
+// Clipboard and SetClipboard are the system clipboard of the client's
+// machine (B36).
+func (h host) Clipboard() (string, error)     { return clipboard.Read() }
+func (h host) SetClipboard(text string) error { return clipboard.Write(text) }
 
 func (h host) SetMark(name rune, pos int) {
 	if id, ok := h.e.marks[name]; ok {

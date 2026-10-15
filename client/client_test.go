@@ -220,3 +220,45 @@ func TestB99ClientJumpsChangesAndSteps(t *testing.T) {
 		t.Fatalf("g- left %q, and the server %q", ed.Text(), typed(""))
 	}
 }
+
+// B36, in a client, with fake clipboard programs that keep the clipboard
+// in a file
+func TestB36ClientClipboard(t *testing.T) {
+	bin := t.TempDir()
+	board := filepath.Join(bin, "board")
+	for name, script := range map[string]string{
+		"pbcopy": "cat > " + board, "wl-copy": "cat > " + board,
+		"pbpaste": "cat " + board, "wl-paste": "cat " + board,
+	} {
+		if err := os.WriteFile(filepath.Join(bin, name), []byte("#!/bin/sh\n"+script+"\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("PATH", bin+":/bin:/usr/bin")
+	t.Setenv("WAYLAND_DISPLAY", "fude-test")
+	typed, path := served(t)
+	typed("ione two<Esc>")
+	r, err := dial(t, path).Open(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ed := client.NewEditor(r, 22)
+	if feed(t, ed, `"+yiw`); readFile(t, board) != "one" {
+		t.Fatalf(`"+yiw put %q on the clipboard`, readFile(t, board))
+	}
+	if err := os.WriteFile(board, []byte("Z"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if feed(t, ed, `$"+p`); ed.Text() != "one twoZ" {
+		t.Fatalf(`"+p made %q`, ed.Text())
+	}
+}
+
+func readFile(t *testing.T, path string) string {
+	t.Helper()
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(b)
+}
