@@ -460,7 +460,10 @@ many lines in view above and below the cursor's, at most half the window
 (B116). `cursor_line` shades the cursor's line in a dark grey and shows
 its number in bold (B117). `list` shows a tab as `>` and blanks, a
 trailing space as `-` and a no-break space as `+`, in grey, as Neovim's
-default `listchars` does (B118).
+default `listchars` does (B118). A buffer with diagnostics shows a sign
+column, two columns left of the line numbers, with the letter of each
+line's worst diagnostic in its colour, as Neovim's `signcolumn=auto` shows
+`vim.diagnostic`'s signs (B119).
 `number` puts line numbers in a gutter at least 4 columns wide, and
 `relative_number` numbers lines from the cursor's. With both, the cursor's
 line shows its own number on the left, as in Neovim (B39).

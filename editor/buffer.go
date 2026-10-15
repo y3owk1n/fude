@@ -38,6 +38,7 @@ type buffer struct {
 	log     *history       // the timeline on disk, nil for a buffer with no file
 	syntax  *syntax.Buffer // nil without a grammar for the filetype
 	server  *server        // the language server it is attached to, or nil
+	signed  bool           // it has diagnostics, so windows show a sign column
 	version int            // the changes the server has heard since it opened
 	unsaved kernel.NodeID  // the newest unsaved change from a session that did not close
 	// A scratch buffer shows something about another buffer, such as its

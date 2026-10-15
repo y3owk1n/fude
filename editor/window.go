@@ -30,10 +30,22 @@ func newWindow(b *buffer, pos, top int) *window {
 
 func (w *window) pos() int { return w.buf.text.Mark(w.cursor) }
 
-// gutter is how many columns the window's line numbers take, 0 without
-// them: at least Neovim's numberwidth of 4, else the last line's digits and
-// a space.
-func (w *window) gutter() int {
+// gutter is how many columns the window's sign column and line numbers
+// take on the left.
+func (w *window) gutter() int { return w.signCols() + w.numberCols() }
+
+// signCols is 2 when the buffer has signs, as Neovim's signcolumn=auto
+// shows them, and 0 otherwise (B119).
+func (w *window) signCols() int {
+	if w.buf.signed {
+		return 2
+	}
+	return 0
+}
+
+// numberCols is how many columns the line numbers take, 0 without them: at
+// least Neovim's numberwidth of 4, else the last line's digits and a space.
+func (w *window) numberCols() int {
 	if !w.opts.Number && !w.opts.RelativeNumber {
 		return 0
 	}

@@ -88,6 +88,9 @@ Where fude departs, the line says so and cites the departure in
   bold, as Neovim's `cursorline` does.
 - B118 [2] `list` shows a tab as `>` and blanks, a trailing space as `-`
   and a no-break space as `+`, Neovim's default `listchars`.
+- B119 [5] A buffer with diagnostics shows a sign column, two columns left
+  of the line numbers, with the letter of each line's worst diagnostic,
+  `E`, `W`, `I` or `H`, as Neovim's `signcolumn=auto` does.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays

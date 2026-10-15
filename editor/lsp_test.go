@@ -255,6 +255,19 @@ func TestB61Diagnostics(t *testing.T) {
 	}
 }
 
+// B119
+func TestB119SignColumn(t *testing.T) {
+	e, _ := withServer(t, "ok\nbad x bad\n", "utf-8")
+	if v := e.Views()[0]; v.SignCols != 0 {
+		t.Fatalf("before any diagnostics the sign column takes %d columns", v.SignCols)
+	}
+	settle(t, e, func() bool { return len(decorations(e)) == 2 })
+	v := e.Views()[0]
+	if v.SignCols != 2 || v.Gutter != 2 || len(v.Signs) != 1 || v.Signs[1] != (editor.Sign{Text: "E", Name: "diagnostic.error"}) {
+		t.Fatalf("with two errors on line 2 the view has %d sign columns and signs %v", v.SignCols, v.Signs)
+	}
+}
+
 // B62
 func TestB62DefinitionAndHover(t *testing.T) {
 	e, log := withServer(t, "a\nb target\n", "utf-8")

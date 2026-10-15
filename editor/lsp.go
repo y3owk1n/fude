@@ -160,7 +160,7 @@ func (e *Session) notified(s *server, method string, params json.RawMessage) {
 		start, end := lsp.Offset(t, d.Range.Start, enc), lsp.Offset(t, d.Range.End, enc)
 		ds = append(ds, decoration{0, b, b.text.SetMark(start, kernel.Right), b.text.SetMark(end, kernel.Left), style, d.Message, raw})
 	}
-	e.decos[b] = ds
+	e.decos[b], b.signed = ds, len(ds) > 0
 	e.emit("lsp.diagnostics", "", b)
 }
 

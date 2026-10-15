@@ -420,15 +420,17 @@ type View struct {
 	Highlights        []syntax.Span // in paint order, later ones drawing over earlier ones
 	Decorations       []syntax.Span // plugins' styles, drawn over highlights
 	Ghosts            []Ghost
-	Matches           [][2]int // of the search, shown in every window
-	Segments          []string // plugins' statusline segments, in the order they loaded
-	Ruler             string   // the cursor's line and column, and where the view is (B38)
-	Gutter            int      // the columns line numbers take on the left
-	Number, Relative  bool     // show line numbers, and relative ones (B39)
-	Wrap              bool     // long lines go on the rows below
-	CursorLine        bool     // shade the cursor's line (B117)
-	List              bool     // show tabs, trailing spaces and no-break spaces (B118)
-	Left              int      // the first column shown without wrap
+	Matches           [][2]int     // of the search, shown in every window
+	Segments          []string     // plugins' statusline segments, in the order they loaded
+	Ruler             string       // the cursor's line and column, and where the view is (B38)
+	Gutter            int          // the columns the sign column and line numbers take on the left
+	SignCols          int          // the columns of the sign column, at the gutter's left
+	Signs             map[int]Sign // by line, the sign each one shows (B119)
+	Number, Relative  bool         // show line numbers, and relative ones (B39)
+	Wrap              bool         // long lines go on the rows below
+	CursorLine        bool         // shade the cursor's line (B117)
+	List              bool         // show tabs, trailing spaces and no-break spaces (B118)
+	Left              int          // the first column shown without wrap
 }
 
 // Ghost is a proposal's text, drawn before the byte at Pos but not in the
@@ -448,7 +450,7 @@ func (e *Session) Views() []View {
 			Text: t, Top: top, Cursor: w.pos(),
 			X: w.x, Y: w.y, W: w.w, H: w.h,
 			Name: w.buf.name(), Modified: w.buf.modified(), Current: w == e.win || w == e.under,
-			Gutter: w.gutter(), Number: w.opts.Number, Relative: w.opts.RelativeNumber,
+			Gutter: w.gutter(), SignCols: w.signCols(), Number: w.opts.Number, Relative: w.opts.RelativeNumber,
 			Wrap: w.opts.Wrap, Left: w.left, CursorLine: w.opts.CursorLine, List: w.opts.List,
 		}
 		last := vim.LineEnd(t, t.LineStart(min(t.LineOf(top)+max(w.h-2, 0), t.Lines()-1)))
@@ -456,6 +458,7 @@ func (e *Session) Views() []View {
 			v.Highlights = h.Show(t, top, last)
 		}
 		v.Matches = e.vim.Matches(t, top, last)
+		v.Signs = e.signs(w.buf)
 		v.Ruler = ruler(t, w.pos(), top, max(w.h-1, 1), func(p int) int { return w.rows(t, p) })
 		for _, p := range e.plugins {
 			if s := e.segments[p][w.buf]; s != "" {
@@ -477,6 +480,33 @@ func (e *Session) Views() []View {
 			}
 		}
 		out = append(out, v)
+	}
+	return out
+}
+
+// Sign is a letter in the sign column and the style it takes its colour
+// from, such as diagnostic.error.
+type Sign struct {
+	Text, Name string
+}
+
+// diagnosticSigns are the diagnostic letters by severity, the worst first,
+// as Neovim's vim.diagnostic shows them.
+var diagnosticSigns = []Sign{{"E", "diagnostic.error"}, {"W", "diagnostic.warn"}, {"I", "diagnostic.info"}, {"H", "diagnostic.hint"}}
+
+// signs returns each line of b's sign: the letter of its worst diagnostic.
+func (e *Session) signs(b *buffer) map[int]Sign {
+	if !b.signed {
+		return nil
+	}
+	t := b.text.Snapshot()
+	out := map[int]Sign{}
+	for _, d := range e.decos[b] {
+		line := t.LineOf(b.text.Mark(d.start))
+		i := slices.IndexFunc(diagnosticSigns, func(s Sign) bool { return s.Name == d.style })
+		if old, ok := out[line]; i >= 0 && (!ok || i < slices.Index(diagnosticSigns, old)) {
+			out[line] = diagnosticSigns[i]
+		}
 	}
 	return out
 }

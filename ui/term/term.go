@@ -350,7 +350,7 @@ func (c *client) box(text string, spans []syntax.Span, rows []row, x, y, width, 
 // window it reports where the cursor is.
 func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, bool) {
 	t := v.Text
-	// The text goes right of the line numbers.
+	// The text goes right of the sign column and the line numbers.
 	numbers, cur := v.X, t.LineOf(v.Cursor)
 	v.X, v.W = v.X+v.Gutter, v.W-v.Gutter
 	cx, cy, found := 0, 0, false
@@ -381,8 +381,11 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 				break
 			}
 			y, stop := v.Y+row, end
-			if i == 0 && v.Gutter > 0 {
-				c.number(t.LineOf(pos), cur, numbers, y, v)
+			if s, ok := v.Signs[t.LineOf(pos)]; ok && i == 0 {
+				c.s.PutStrStyled(numbers, y, s.Text, tcell.StyleDefault.Foreground(underlines[s.Name]))
+			}
+			if i == 0 && v.Gutter > v.SignCols {
+				c.number(t.LineOf(pos), cur, numbers+v.SignCols, y, v)
 			}
 			shade := v.CursorLine && t.LineOf(pos) == cur
 			// trail is where the line's trailing spaces start.
@@ -509,9 +512,10 @@ func (c *client) number(line, cur, x, y int, v editor.View) {
 	if v.Relative {
 		n = max(line-cur, cur-line)
 	}
-	text := fmt.Sprintf("%*d ", v.Gutter-1, n)
+	w := v.Gutter - v.SignCols - 1
+	text := fmt.Sprintf("%*d ", w, n)
 	if v.Relative && v.Number && line == cur {
-		text = fmt.Sprintf("%-*d ", v.Gutter-1, line+1)
+		text = fmt.Sprintf("%-*d ", w, line+1)
 	}
 	style := tcell.StyleDefault.Foreground(color.Gray)
 	if v.CursorLine && line == cur {
