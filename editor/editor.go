@@ -74,6 +74,8 @@ type Session struct {
 	flash      *flash                  // text shown for a moment after a yank, put, undo or redo
 	locals     map[string]*vim.Keymaps // the keymaps of kinds of buffer, by kind, over the machine's (B142)
 	left       string                  // the float the key being handled closed, which hover enters
+	history    []string                // the messages shown, oldest first, at most 200 (B157)
+	logged     string                  // the message last put in history
 	under      *window                 // the window a focused float was opened from
 	opts       options                 // what the session's new windows start with
 	changed    chan change             // told when the shown text changes, for a client over the socket
@@ -865,7 +867,15 @@ func (e *Session) Theme() (string, *[16]int32) { return e.cfg.Theme, e.base16 }
 func (e *Session) LineCursor() int { return e.vim.LineCursor() }
 
 // Message returns the last message for the user, or "".
-func (e *Session) Message() string { return e.message }
+// It puts each new message into the history that :messages lists.
+func (e *Session) Message() string {
+	if e.message != e.logged && e.message != "" {
+		e.history = append(e.history, e.message)
+		e.history = e.history[max(len(e.history)-200, 0):]
+	}
+	e.logged = e.message
+	return e.message
+}
 
 // Done reports whether the user has quit.
 func (e *Session) Done() bool { return e.done }
@@ -1011,6 +1021,14 @@ func (e *Session) ex(line string) {
 	switch name {
 	case "r", "read":
 		e.readIn(arg, last)
+	case "mes", "messages":
+		e.messages()
+	case "marks":
+		e.marks()
+	case "ju", "jumps":
+		e.jumps()
+	case "changes":
+		e.changeList()
 	case "w", "write":
 		if arg != "" {
 			e.writeTo(e.win.buf, arg, force)

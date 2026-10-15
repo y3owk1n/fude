@@ -1678,3 +1678,35 @@ func TestB156Shell(t *testing.T) {
 	feed(e, ":!echo hi<CR>")
 	settle(t, e, func() bool { return e.Message() == "hi" })
 }
+
+// B157
+func TestB157InfoViews(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "f")
+	change(t, path, "one\ntwo\nthree\n")
+	e := open(t, path)
+	e.SetSize(80, 24)
+	// :messages lists the messages shown so far.
+	for _, keys := range []string{":set number?<CR>", ":set wrap?<CR>"} {
+		feed(e, keys)
+		e.Message()
+	}
+	if feed(e, ":messages<CR>"); text(e) != "nonumber\nwrap" {
+		t.Fatalf(":messages listed %q", text(e))
+	}
+	// :marks lists the marks, and <CR> jumps to one.
+	feed(e, ":q<CR>majjmb:marks<CR>")
+	if text(e) != "a  1:1  one\nb  3:1  three" {
+		t.Fatalf(":marks listed %q", text(e))
+	}
+	if feed(e, "j<CR>"); e.Cursor() != 8 {
+		t.Fatalf("<CR> on mark b went to %d", e.Cursor())
+	}
+	// :jumps and :changes list where the cursor jumped and the text changed.
+	feed(e, ":only<CR>ggGx:jumps<CR>")
+	if !strings.Contains(text(e), "1:1  one") {
+		t.Fatalf(":jumps listed %q", text(e))
+	}
+	if feed(e, ":q<CR>:changes<CR>"); text(e) != "1  3:1  hree" {
+		t.Fatalf(":changes listed %q", text(e))
+	}
+}

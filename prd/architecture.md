@@ -597,6 +597,11 @@ runs them, and `Machine.LineRange` gives it the range its own commands
 start with. A command runs in `$SHELL -c` off the loop, and its output goes
 in through `reformat`, so text that changed meanwhile drops it (B156).
 
+Every message reaches a client through `Message`, so `Message` puts each
+one into the session's history the first time it returns it. Code that
+sets a message does nothing more. `:marks`, `:jumps` and `:changes` open
+list windows of places, like the one `grr` opens (B157).
+
 The client keeps a cell grid, diffs it against the previous frame, and
 writes only the changed cells in one write. It wraps each frame in
 synchronized output where the terminal supports it.

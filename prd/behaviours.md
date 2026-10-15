@@ -276,6 +276,11 @@ Where fude departs, the line says so and cites the departure in
   shell command writes, `:{range}!cmd` puts its lines through the command,
   and `:r file` and `:r !cmd` put a file or a command's output below the
   line.
+- B157 [2] `:messages` lists the session's last 200 messages in a window,
+  oldest first, since a toast goes away with the next key. `:marks`,
+  `:jumps` and `:changes` list the buffer's marks, the window's jumps and
+  the buffer's changes with their line, column and text, and `<CR>` on one
+  goes there.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays
