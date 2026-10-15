@@ -87,12 +87,15 @@ type Machine struct {
 	depth     int  // nested replays, to stop runaway recursion
 
 	// Visual mode.
-	visual      Key // v, V or <C-v>
-	anchor      int // the end of the selection the cursor is not on
-	lastVisual  Key // the kind of the last selection, for gv
-	anchorFirst bool
-	blockInsert *blockInsert
-	replaced    []string // what each key typed in replace mode overwrote
+	visual     Key // v, V or <C-v>
+	anchor     int // the end of the selection the cursor is not on
+	lastVisual Key // the kind of the last selection, for gv
+
+	jumps, changes history
+	marksMade      int // gives each private mark a new name
+	anchorFirst    bool
+	blockInsert    *blockInsert
+	replaced       []string // what each key typed in replace mode overwrote
 
 	// Command line and search.
 	prompt string // :, / or ?
@@ -218,7 +221,11 @@ func (m *Machine) run(keys []Key) error {
 // apply edits through the host and marks the command as a change.
 func (m *Machine) apply(edits []Edit, label string) error {
 	m.changed = true
-	return m.h.Apply(edits, label)
+	if err := m.h.Apply(edits, label); err != nil {
+		return err
+	}
+	m.pushChange(edits[0].Start)
+	return nil
 }
 
 // repeat replays the last change, with count in place of its own when set.
@@ -386,6 +393,9 @@ func (m *Machine) command(cmd string) error {
 		case m.oneshot:
 			m.h.SetCursor(p)
 		default:
+			if isJump(cmd) {
+				m.pushJump(m.h.Cursor())
+			}
 			m.h.SetCursor(clamp(m.h.Text(), p))
 		}
 		return nil
@@ -415,6 +425,14 @@ func (m *Machine) command(cmd string) error {
 		m.hl = false
 	case "gv":
 		m.reselect()
+	case "<C-o>":
+		m.walk(&m.jumps, max(count, 1))
+	case "<C-i>", "\t":
+		m.walk(&m.jumps, -max(count, 1))
+	case "g;":
+		m.walk(&m.changes, max(count, 1))
+	case "g,":
+		m.walk(&m.changes, -max(count, 1))
 	case "&":
 		return m.ex("&&")
 	case "v", "V", "<C-v>":

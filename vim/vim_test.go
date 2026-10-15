@@ -1,6 +1,7 @@
 package vim_test
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -594,6 +595,42 @@ func TestB88Normal(t *testing.T) {
 	})
 	if _, h, _ := run(t, "|a\nb", ":%normal A!<CR>"); h.steps != 1 {
 		t.Errorf(":normal made %d undo steps, want 1", h.steps)
+	}
+}
+
+// B90
+func TestB90JumpsAndChanges(t *testing.T) {
+	var lines []string
+	for i := 1; i <= 20; i++ {
+		lines = append(lines, fmt.Sprintf("l%d x", i))
+	}
+	start := "|" + strings.Join(lines, "\n")
+	for _, c := range []struct {
+		keys      string
+		line, col int
+	}{
+		{"G<C-o>", 1, 0},
+		{"G<C-o><C-i>", 20, 0},
+		{"5G10G15G<C-o><C-o>", 5, 0},
+		{"5G10G15G<C-o><C-o><C-i>", 10, 0},
+		{"jjj<C-o>", 4, 0},
+		{"/l9<CR><C-o>", 1, 0},
+		{"5Gjj10G<C-o>", 7, 0},
+		{"G<C-o><C-o>", 1, 0},
+		{"Ggg<C-o>", 20, 0},
+		{"G\t", 20, 0},
+		{"3Gx8Gx12Gxg;", 12, 0},
+		{"3Gx8Gx12Gxg;g;", 8, 0},
+		{"3Gx8Gx12Gxg;g;g,", 12, 0},
+		{"3Gx8Gx12Gx2g;", 8, 0},
+		{"llx3Gx8Gg;g;", 1, 2},
+	} {
+		_, h, _ := run(t, start, c.keys)
+		line := strings.Count(h.text[:h.cursor], "\n") + 1
+		col := h.cursor - strings.LastIndexByte(h.text[:h.cursor], '\n') - 1
+		if line != c.line || col != c.col {
+			t.Errorf("%q: line %d col %d, want %d and %d", c.keys, line, col, c.line, c.col)
+		}
 	}
 }
 
