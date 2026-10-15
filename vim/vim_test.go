@@ -23,6 +23,7 @@ func (h *host) Viewport() (int, int) { return h.top, 22 }
 func (h *host) PushJump(int)         {}
 func (h *host) Jump(int) bool        { return false }
 func (h *host) Change(int) bool      { return false }
+func (h *host) Step(int) (int, bool) { return 0, false }
 func (h *host) SetTop(top int)       { h.top = top }
 
 type text string

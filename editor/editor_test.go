@@ -395,6 +395,63 @@ func TestB91WindowCommands(t *testing.T) {
 	}
 }
 
+// B31
+func TestB31Timeline(t *testing.T) {
+	e := open(t, filepath.Join(t.TempDir(), "f"))
+	feed(e, "ione<Esc>uitwo<Esc>:timeline<CR>")
+	lines := strings.Split(text(e), "\n")
+	if len(lines) != 3 || !strings.HasPrefix(lines[0], "  0") || !strings.HasPrefix(lines[1], "  1") ||
+		!strings.HasPrefix(lines[2], "* 2") || !strings.HasSuffix(lines[2], "(from 0)") {
+		t.Fatalf(":timeline listed %q", lines)
+	}
+	feed(e, ":q<CR>:restore 1<CR>")
+	if text(e) != "one" {
+		t.Fatalf(":restore 1 left %q, want one", text(e))
+	}
+	feed(e, ":timeline<CR>")
+	lines = strings.Split(text(e), "\n")
+	if len(lines) != 4 || !strings.HasPrefix(lines[3], "* 3") || !strings.HasSuffix(lines[3], "restore 1") {
+		t.Errorf("after :restore, :timeline listed %q, want a new state 3 and state 2 kept", lines)
+	}
+	// In a timeline window, :restore takes the state on the cursor's line.
+	feed(e, "3G:restore<CR>:q<CR>")
+	if text(e) != "two" {
+		t.Errorf(":restore on the line of state 2 left %q, want two", text(e))
+	}
+}
+
+// B32
+func TestB32Diff(t *testing.T) {
+	e := open(t, filepath.Join(t.TempDir(), "f"))
+	feed(e, "ia<CR>one<CR>c<Esc>uia<CR>two<CR>c<Esc>:diff 1<CR>")
+	if want := "@@ -1 +1 @@\n a\n-one\n+two\n c"; text(e) != want {
+		t.Errorf(":diff 1 showed %q, want %q", text(e), want)
+	}
+}
+
+// B35
+func TestB35TimeOrder(t *testing.T) {
+	run(t, [][3]string{
+		{"x", "A1<Esc>uA2<Esc>g-", "x|1"},
+		{"x", "A1<Esc>uA2<Esc>g-g-", "|x"},
+		{"x", "A1<Esc>uA2<Esc>g-g-g+", "x|1"},
+		{"x", "A1<Esc>uA2<Esc>g-g-g+g+", "x|2"},
+		{"x", "A1<Esc>A2<Esc>A3<Esc>:earlier 2<CR>", "x|1"},
+		{"x", "A1<Esc>A2<Esc>A3<Esc>:earlier 2<CR>:later<CR>", "x1|2"},
+		{"x", "A1<Esc>A2<Esc>A3<Esc>:earlier 2<CR>uA9<Esc>g-", "x12|3"},
+		{"x", "A1<Esc>A2<Esc>A3<Esc>:earlier 2<CR>uA9<Esc>g-g-", "x1|2"},
+		{"x", "A1<Esc>:w<CR>A2<Esc>:earlier 1f<CR>", "x|1"},
+		{"x", "A1<Esc>:w<CR>A2<Esc>:earlier 1f<CR>:earlier 1f<CR>", "|x"},
+		{"x", "A1<Esc>:w<CR>A2<Esc>:earlier 2f<CR>:later 1f<CR>", "x|1"},
+		{"x", "A1<Esc>:w<CR>A2<Esc>:earlier 2f<CR>:later 2f<CR>", "x1|2"},
+	})
+	e := open(t, filepath.Join(t.TempDir(), "f"))
+	feed(e, "g-")
+	if e.Message() != "already at the oldest change" {
+		t.Errorf("g- with no history said %q", e.Message())
+	}
+}
+
 // run opens a file holding each case's text, feeds its keys and compares the
 // text with | at the cursor.
 func run(t *testing.T, cases [][3]string) {

@@ -30,6 +30,14 @@ type buffer struct {
 
 	changes  []kernel.MarkID // where edits happened, oldest first
 	changeAt int             // the change g; last moved to, or len(changes)
+
+	saves []kernel.NodeID // the node at each write, oldest first
+
+	// A scratch buffer shows something about another buffer, such as its
+	// timeline, under a title instead of a file name.
+	title  string
+	source *buffer
+	lines  []kernel.NodeID // the timeline node on each line, for :restore
 }
 
 // pushChange records an edit at pos, replacing the newest entry when it is
@@ -69,7 +77,10 @@ func (b *buffer) modified() bool { return b.text.Head() != b.saved }
 
 // name is the buffer's path, or [No Name] for a buffer with no file.
 func (b *buffer) name() string {
-	if b.file.path == "" {
+	switch {
+	case b.title != "":
+		return b.title
+	case b.file.path == "":
 		return "[No Name]"
 	}
 	return b.file.path

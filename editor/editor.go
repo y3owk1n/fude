@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/vim"
@@ -24,6 +25,8 @@ type Editor struct {
 	done    bool
 
 	width, height int // the space the windows share
+
+	now func() time.Time // the clock edits are stamped with
 }
 
 // place is a position in a buffer, kept as a mark so it follows edits.
@@ -39,7 +42,7 @@ func Open(paths ...string) (*Editor, error) {
 	if len(paths) == 0 {
 		paths = []string{""}
 	}
-	e := &Editor{next: 1}
+	e := &Editor{next: 1, now: time.Now}
 	e.vim = vim.New(host{e})
 	for i, p := range paths {
 		msg, err := e.add(p)
@@ -315,6 +318,14 @@ func (e *Editor) ex(line string) {
 		if arg != "" {
 			e.edit(arg)
 		}
+	case "timeline":
+		e.timeline()
+	case "restore":
+		e.restore(arg)
+	case "diff":
+		e.diff(arg)
+	case "earlier", "later":
+		e.travel(arg, name == "later")
 	case "on", "only":
 		e.only()
 	case "clo", "close":
@@ -467,6 +478,7 @@ func (e *Editor) write() {
 	}
 	b.file.isNew = false
 	b.saved = b.text.Head()
+	b.saves = append(b.saves, b.saved)
 	e.message = fmt.Sprintf("\"%s\" %s%dB written", b.file.path, tag, n)
 }
 
@@ -540,6 +552,8 @@ func (h host) Change(n int) bool {
 	return true
 }
 
+func (h host) Step(n int) (int, bool) { return h.e.step(n) }
+
 func (h host) Undo() (int, int, bool) {
 	b := h.e.win.buf
 	node := b.text.Head()
@@ -568,7 +582,7 @@ func (h host) Apply(edits []vim.Edit, label string) error {
 	if b.file.readonly {
 		return errors.New("cannot make changes, the file is read-only")
 	}
-	t := kernel.Transaction{Base: b.text.Snapshot().Version(), Origin: "user", Label: label}
+	t := kernel.Transaction{Base: b.text.Snapshot().Version(), Origin: "user", Label: label, Time: h.e.now()}
 	for _, ed := range edits {
 		t.Edits = append(t.Edits, kernel.Edit(ed))
 	}

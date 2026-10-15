@@ -47,6 +47,10 @@ type Host interface {
 	PushJump(pos int)
 	Jump(n int) bool
 	Change(n int) bool
+	// Step moves n states later on the timeline in the order they were made,
+	// across branches, or earlier when n is negative. It returns where the
+	// last change it made starts, or false at either end.
+	Step(n int) (int, bool)
 }
 
 // Mode is normal, insert, command line, visual or replace.
@@ -438,6 +442,19 @@ func (m *Machine) command(cmd string) error {
 		m.walk(m.h.Jump, max(count, 1))
 	case "<C-i>", "\t":
 		m.walk(m.h.Jump, -max(count, 1))
+	case "g-", "g+":
+		n := max(count, 1)
+		if cmd == "g-" {
+			n = -n
+		}
+		start, ok := m.h.Step(n)
+		switch {
+		case !ok && n < 0:
+			return errors.New("already at the oldest change")
+		case !ok:
+			return errors.New("already at the newest change")
+		}
+		m.h.SetCursor(clamp(m.h.Text(), start))
 	case "g;":
 		m.walk(m.h.Change, max(count, 1))
 	case "g,":
