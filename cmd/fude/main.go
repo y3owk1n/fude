@@ -10,11 +10,7 @@ import (
 )
 
 func main() {
-	if len(os.Args) != 2 {
-		fmt.Fprintln(os.Stderr, "usage: fude <path>")
-		os.Exit(2)
-	}
-	e, err := editor.Open(os.Args[1])
+	e, err := editor.Start(os.Args[1:])
 	if err == nil {
 		err = term.Run(e)
 	}

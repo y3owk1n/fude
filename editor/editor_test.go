@@ -199,6 +199,70 @@ func TestB27Scrolling(t *testing.T) {
 	}
 }
 
+// B80
+func TestB80StartWithFiles(t *testing.T) {
+	dir := t.TempDir()
+	a, b := filepath.Join(dir, "a"), filepath.Join(dir, "b")
+	if err := os.WriteFile(a, []byte("one\n  two\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(b, []byte("bee\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	e, err := editor.Start([]string{"+2", a, b})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if text(e) != "one\n  two" || e.Cursor() != 6 {
+		t.Fatalf("started on %q at %d, want line 2 of a at 6", text(e), e.Cursor())
+	}
+	feed(e, ":bn<CR>")
+	if text(e) != "bee" {
+		t.Fatalf(":bn showed %q, want b", text(e))
+	}
+}
+
+// B89
+func TestB89Buffers(t *testing.T) {
+	dir := t.TempDir()
+	a, b := filepath.Join(dir, "a"), filepath.Join(dir, "b")
+	if err := os.WriteFile(a, []byte("aaa"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(b, []byte("bbb"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	e := open(t, a)
+	feed(e, "x:e "+b+"<CR>")
+	if text(e) != "bbb" {
+		t.Fatalf(":e showed %q", text(e))
+	}
+	feed(e, ":ls<CR>")
+	if want := `1+ "` + a + `"  2% "` + b + `"`; e.Message() != want {
+		t.Errorf(":ls said %q, want %q", e.Message(), want)
+	}
+	feed(e, ":b 1<CR>")
+	if text(e) != "aa" {
+		t.Fatalf(":b 1 showed %q, want the modified a", text(e))
+	}
+	feed(e, ":bp<CR>")
+	if text(e) != "bbb" {
+		t.Fatalf(":bp showed %q", text(e))
+	}
+	feed(e, ":bd 1<CR>")
+	if !strings.Contains(e.Message(), a) {
+		t.Errorf(":bd of a modified buffer said %q, want it refused", e.Message())
+	}
+	feed(e, ":q<CR>")
+	if e.Done() || !strings.Contains(e.Message(), a) {
+		t.Errorf(":q with a modified hidden buffer: done %v, message %q", e.Done(), e.Message())
+	}
+	feed(e, ":bd! 1<CR>:ls<CR>")
+	if want := `2% "` + b + `"`; e.Message() != want {
+		t.Errorf("after :bd! 1, :ls said %q, want %q", e.Message(), want)
+	}
+}
+
 // run opens a file holding each case's text, feeds its keys and compares the
 // text with | at the cursor.
 func run(t *testing.T, cases [][3]string) {

@@ -1,53 +1,90 @@
-// Package editor hosts the kernel and the vim machine for one file.
+// Package editor hosts the kernel and the vim machine for a set of files.
 package editor
 
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/vim"
 )
 
-// Editor is one file in a buffer. Keys edit it through the vim machine.
+// Editor is a set of open files, one of them shown. Keys edit it through the
+// vim machine.
 type Editor struct {
-	file    file
-	buf     *kernel.Buffer
+	bufs    []*buffer
+	cur     *buffer
+	next    int // the id the next buffer gets
 	vim     *vim.Machine
-	cursor  int
-	saved   kernel.NodeID
 	message string
 	done    bool
-
-	// The cursor from before each undo step, for the vim machine's undo.
-	before  map[kernel.NodeID]int
-	pending int // the cursor when the step being made began
-	depth   int
-	head    kernel.NodeID
-
-	marks map[rune]kernel.MarkID
-
-	top    kernel.MarkID // on the first line shown, so it follows edits
-	height int           // how many lines fit
+	height  int // how many lines the view shows
 }
 
-// Open opens path. A path that does not exist opens an empty buffer.
-func Open(path string) (*Editor, error) {
-	f, text, err := read(path)
+// Open opens each path as a buffer and shows the first. A path that does not
+// exist opens an empty buffer. With no paths it opens one empty buffer with
+// no file.
+func Open(paths ...string) (*Editor, error) {
+	if len(paths) == 0 {
+		paths = []string{""}
+	}
+	e := &Editor{next: 1}
+	e.vim = vim.New(host{e})
+	for i, p := range paths {
+		msg, err := e.add(p)
+		if err != nil {
+			return nil, err
+		}
+		if i == 0 {
+			e.cur, e.message = e.bufs[0], msg
+		}
+	}
+	return e, nil
+}
+
+// Start opens the files a command line names. +N puts the cursor on the
+// first non-blank of line N of the first file.
+func Start(args []string) (*Editor, error) {
+	line := 0
+	var paths []string
+	for _, a := range args {
+		if n, ok := strings.CutPrefix(a, "+"); ok {
+			if v, err := strconv.Atoi(n); err == nil {
+				line = v
+				continue
+			}
+		}
+		paths = append(paths, a)
+	}
+	e, err := Open(paths...)
 	if err != nil {
 		return nil, err
 	}
-	e := &Editor{file: f, buf: kernel.New(text, nil), before: map[kernel.NodeID]int{}, marks: map[rune]kernel.MarkID{}}
-	e.top = e.buf.SetMark(0, kernel.Left)
-	e.vim = vim.New(host{e})
-	switch {
-	case f.readonly:
-		e.message = fmt.Sprintf("\"%s\" is not valid UTF-8, opened read-only", path)
-	case f.isNew:
-		e.message = fmt.Sprintf("\"%s\" [New]", path)
+	if line > 0 {
+		t := e.Text()
+		p := 0
+		for range line - 1 {
+			if le := vim.LineEnd(t, p); le < t.Len() {
+				p = le + 1
+			}
+		}
+		l := t.Slice(p, vim.LineEnd(t, p))
+		e.cur.cursor = p + len(l) - len(strings.TrimLeft(l, " \t"))
 	}
 	return e, nil
+}
+
+// add opens path as a new buffer at the end of the list.
+func (e *Editor) add(path string) (string, error) {
+	b, msg, err := openBuffer(e.next, path)
+	if err != nil {
+		return "", err
+	}
+	e.next++
+	e.bufs = append(e.bufs, b)
+	return msg, nil
 }
 
 // Feed handles one key. An error becomes the message.
@@ -55,7 +92,7 @@ func (e *Editor) Feed(k vim.Key) {
 	e.message = ""
 	if err := e.vim.Feed(k); err != nil {
 		e.message = err.Error()
-	} else if msg := e.vim.Message(); msg != "" {
+	} else if msg := e.vim.Message(); msg != "" && e.message == "" {
 		e.message = msg
 	}
 	e.reveal()
@@ -68,13 +105,16 @@ func (e *Editor) SetHeight(h int) {
 }
 
 // Top returns the start of the first line shown.
-func (e *Editor) Top() int { return vim.LineStart(e.buf.Snapshot(), e.buf.Mark(e.top)) }
+func (e *Editor) Top() int {
+	return vim.LineStart(e.cur.text.Snapshot(), e.cur.text.Mark(e.cur.top))
+}
 
 // reveal scrolls the view the least it must to show the cursor's line.
 func (e *Editor) reveal() {
-	t, c, top := e.buf.Snapshot(), e.cursor, e.Top()
+	b := e.cur
+	t, c, top := b.text.Snapshot(), b.cursor, e.Top()
 	if c < top {
-		e.buf.MoveMark(e.top, vim.LineStart(t, c))
+		b.text.MoveMark(b.top, vim.LineStart(t, c))
 		return
 	}
 	below := 0
@@ -84,7 +124,7 @@ func (e *Editor) reveal() {
 	for ; below >= max(e.height, 1); below-- {
 		top = vim.LineEnd(t, top) + 1
 	}
-	e.buf.MoveMark(e.top, top)
+	b.text.MoveMark(b.top, top)
 }
 
 // Matches returns the search matches between from and to, for highlighting.
@@ -99,11 +139,11 @@ func (e *Editor) Paste(text string) {
 	e.reveal()
 }
 
-// Text returns the buffer's current text.
-func (e *Editor) Text() kernel.Snapshot { return e.buf.Snapshot() }
+// Text returns the shown buffer's text.
+func (e *Editor) Text() kernel.Snapshot { return e.cur.text.Snapshot() }
 
 // Cursor returns the cursor's byte offset.
-func (e *Editor) Cursor() int { return e.cursor }
+func (e *Editor) Cursor() int { return e.cur.cursor }
 
 // Mode returns the vim mode.
 func (e *Editor) Mode() vim.Mode { return e.vim.Mode() }
@@ -124,23 +164,134 @@ func (e *Editor) Done() bool { return e.done }
 func (e *Editor) Recording() rune { return e.vim.Recording() }
 
 func (e *Editor) ex(line string) {
-	if args, ok := strings.CutPrefix(strings.TrimSpace(line), "reg "); ok {
-		e.registers(strings.TrimSpace(args))
-		return
-	}
-	switch strings.TrimSpace(line) {
+	name, arg, _ := strings.Cut(strings.TrimSpace(line), " ")
+	arg = strings.TrimSpace(arg)
+	switch name {
 	case "w":
 		e.write()
 	case "q":
-		if e.buf.Head() != e.saved {
-			e.message = fmt.Sprintf("no write since the last change to \"%s\" (add ! to override)", e.file.path)
-			return
+		for _, b := range e.bufs {
+			if b.modified() {
+				e.message = fmt.Sprintf("no write since the last change to \"%s\" (add ! to override)", b.name())
+				return
+			}
 		}
 		e.done = true
 	case "q!":
 		e.done = true
+	case "reg", "registers":
+		e.registers(arg)
+	case "e", "edit":
+		e.edit(arg)
+	case "ls", "buffers", "files":
+		e.list()
+	case "b", "buffer":
+		if b := e.find(arg); b != nil {
+			e.cur = b
+		}
+	case "bn", "bnext", "bp", "bprevious", "bN", "bNext":
+		step := 1
+		if name != "bn" && name != "bnext" {
+			step = len(e.bufs) - 1
+		}
+		e.cur = e.bufs[(e.index(e.cur)+step)%len(e.bufs)]
+	case "bd", "bdelete", "bd!", "bdelete!":
+		b := e.cur
+		if arg != "" {
+			b = e.find(arg)
+		}
+		if b != nil {
+			e.close(b, strings.HasSuffix(name, "!"))
+		}
 	default:
 		e.message = "not a command: " + line
+	}
+}
+
+// edit shows the file at path, opening it if no buffer holds it.
+func (e *Editor) edit(path string) {
+	if path == "" {
+		e.message = "no file name"
+		return
+	}
+	for _, b := range e.bufs {
+		if b.is(path) {
+			e.cur = b
+			return
+		}
+	}
+	msg, err := e.add(path)
+	if err != nil {
+		e.message = err.Error()
+		return
+	}
+	e.cur, e.message = e.bufs[len(e.bufs)-1], msg
+}
+
+// list shows every buffer with its number, % for the shown one and + for a
+// modified one, as :ls does.
+func (e *Editor) list() {
+	var shown []string
+	for _, b := range e.bufs {
+		flags := ""
+		if b == e.cur {
+			flags += "%"
+		}
+		if b.modified() {
+			flags += "+"
+		}
+		shown = append(shown, fmt.Sprintf("%d%s \"%s\"", b.id, flags, b.name()))
+	}
+	e.message = strings.Join(shown, "  ")
+}
+
+// find returns the buffer numbered s, or the one whose name contains s.
+func (e *Editor) find(s string) *buffer {
+	var found *buffer
+	for _, b := range e.bufs {
+		switch {
+		case strconv.Itoa(b.id) == s:
+			return b
+		case s != "" && strings.Contains(b.name(), s):
+			if found != nil {
+				e.message = "more than one buffer matches " + s
+				return nil
+			}
+			found = b
+		}
+	}
+	if found == nil {
+		e.message = "no buffer matches " + s
+	}
+	return found
+}
+
+func (e *Editor) index(b *buffer) int {
+	for i, x := range e.bufs {
+		if x == b {
+			return i
+		}
+	}
+	return -1
+}
+
+// close removes b, refusing a modified buffer unless forced. The shown
+// buffer moves to the next one, or to a new empty buffer if none is left.
+func (e *Editor) close(b *buffer, force bool) {
+	if b.modified() && !force {
+		e.message = fmt.Sprintf("no write since the last change to \"%s\" (add ! to override)", b.name())
+		return
+	}
+	i := e.index(b)
+	e.bufs = append(e.bufs[:i], e.bufs[i+1:]...)
+	if len(e.bufs) == 0 {
+		if _, err := e.add(""); err != nil {
+			e.message = err.Error()
+			return
+		}
+	}
+	if b == e.cur {
+		e.cur = e.bufs[min(i, len(e.bufs)-1)]
 	}
 }
 
@@ -156,101 +307,114 @@ func (e *Editor) registers(names string) {
 }
 
 func (e *Editor) write() {
-	if e.file.readonly {
-		e.message = fmt.Sprintf("\"%s\" is read-only", e.file.path)
+	b := e.cur
+	switch {
+	case b.file.path == "":
+		e.message = "no file name"
+		return
+	case b.file.readonly:
+		e.message = fmt.Sprintf("\"%s\" is read-only", b.file.path)
 		return
 	}
-	s := e.buf.Snapshot()
-	n, err := e.file.write(s.Slice(0, s.Len()))
+	s := b.text.Snapshot()
+	n, err := b.file.write(s.Slice(0, s.Len()))
 	if err != nil {
 		e.message = err.Error()
 		return
 	}
 	tag := ""
-	if e.file.isNew {
+	if b.file.isNew {
 		tag = "[New] "
 	}
-	e.file.isNew = false
-	e.saved = e.buf.Head()
-	e.message = fmt.Sprintf("\"%s\" %s%dB written", e.file.path, tag, n)
+	b.file.isNew = false
+	b.saved = b.text.Head()
+	e.message = fmt.Sprintf("\"%s\" %s%dB written", b.file.path, tag, n)
 }
 
-// host implements vim.Host for an Editor.
+// host implements vim.Host for an Editor, acting on the shown buffer.
 type host struct{ e *Editor }
 
-func (h host) Text() vim.Text    { return h.e.buf.Snapshot() }
-func (h host) Cursor() int       { return h.e.cursor }
-func (h host) SetCursor(pos int) { h.e.cursor = pos }
+func (h host) Text() vim.Text    { return h.e.cur.text.Snapshot() }
+func (h host) Cursor() int       { return h.e.cur.cursor }
+func (h host) SetCursor(pos int) { h.e.cur.cursor = pos }
 func (h host) BeginGroup() {
+	b := h.e.cur
 	h.begin()
-	h.e.depth++
-	h.e.buf.BeginGroup()
+	b.depth++
+	b.text.BeginGroup()
 }
 
 func (h host) EndGroup() {
-	h.e.depth--
-	h.e.buf.EndGroup()
+	b := h.e.cur
+	b.depth--
+	b.text.EndGroup()
 	h.end()
 }
 
 // begin notes the cursor when a new undo step may begin.
 func (h host) begin() {
-	if h.e.depth == 0 {
-		h.e.pending = h.e.cursor
+	if b := h.e.cur; b.depth == 0 {
+		b.pending = b.cursor
 	}
 }
 
 // end saves the noted cursor for the step just made, if there is one.
 func (h host) end() {
-	if head := h.e.buf.Head(); head != h.e.head {
-		h.e.before[head] = h.e.pending
-		h.e.head = head
+	b := h.e.cur
+	if head := b.text.Head(); head != b.head {
+		b.before[head] = b.pending
+		b.head = head
 	}
 }
 
 func (h host) SetMark(name rune, pos int) {
-	if id, ok := h.e.marks[name]; ok {
-		h.e.buf.MoveMark(id, pos)
+	b := h.e.cur
+	if id, ok := b.marks[name]; ok {
+		b.text.MoveMark(id, pos)
 		return
 	}
-	h.e.marks[name] = h.e.buf.SetMark(pos, kernel.Right)
+	b.marks[name] = b.text.SetMark(pos, kernel.Right)
 }
 
 func (h host) Mark(name rune) (int, bool) {
-	id, ok := h.e.marks[name]
+	b := h.e.cur
+	id, ok := b.marks[name]
 	if !ok {
 		return 0, false
 	}
-	return h.e.buf.Mark(id), true
+	return b.text.Mark(id), true
 }
 
 func (h host) Viewport() (int, int) { return h.e.Top(), h.e.height }
-func (h host) SetTop(top int)       { h.e.buf.MoveMark(h.e.top, top) }
+func (h host) SetTop(top int)       { h.e.cur.text.MoveMark(h.e.cur.top, top) }
 
 func (h host) Undo() (int, int, bool) {
-	node := h.e.buf.Head()
-	start, ok := h.e.buf.Undo()
-	h.e.head = h.e.buf.Head()
-	return start, h.e.before[node], ok
+	b := h.e.cur
+	node := b.text.Head()
+	start, ok := b.text.Undo()
+	b.head = b.text.Head()
+	return start, b.before[node], ok
 }
 
 func (h host) Redo() (int, int, bool) {
-	start, ok := h.e.buf.Redo()
-	h.e.head = h.e.buf.Head()
-	return start, h.e.before[h.e.head], ok
+	b := h.e.cur
+	start, ok := b.text.Redo()
+	b.head = b.text.Head()
+	return start, b.before[b.head], ok
 }
 func (h host) Unhandled(k string) { h.e.ex(strings.TrimPrefix(k, ":")) }
 
 func (h host) Apply(edits []vim.Edit, label string) error {
-	if h.e.file.readonly {
+	b := h.e.cur
+	if b.file.readonly {
 		return errors.New("cannot make changes, the file is read-only")
 	}
-	t := kernel.Transaction{Base: h.e.buf.Snapshot().Version(), Origin: "user", Label: label}
+	t := kernel.Transaction{Base: b.text.Snapshot().Version(), Origin: "user", Label: label}
 	for _, ed := range edits {
 		t.Edits = append(t.Edits, kernel.Edit(ed))
 	}
 	h.begin()
-	err := h.e.buf.Apply(t)
+	err := b.text.Apply(t)
 	h.end()
 	return err
 }
