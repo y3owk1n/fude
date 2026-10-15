@@ -251,6 +251,30 @@ func TestB108Map(t *testing.T) {
 	}
 }
 
+// B115
+func TestB115Since(t *testing.T) {
+	b := kernel.New("ab", nil)
+	apply(t, b, kernel.Edit{Start: 2, End: 2, Text: "c"})
+	from := b.Snapshot().Version()
+	apply(t, b, kernel.Edit{Start: 0, End: 1, Text: "A"})
+	b.Undo()
+	got, ok := b.Since(from)
+	want := [][]kernel.Edit{{{Start: 0, End: 1, Text: "A"}}, {{Start: 0, End: 1, Text: "a"}}}
+	if !ok || !reflect.DeepEqual(got, want) {
+		t.Fatalf("since %d got %v, %v, want %v", from, got, ok, want)
+	}
+	if got, ok := b.Since(b.Snapshot().Version()); !ok || len(got) != 0 {
+		t.Errorf("since now got %v, %v, want nothing", got, ok)
+	}
+	// Once the edits after a version are gone, it says so.
+	for range 5000 {
+		apply(t, b, kernel.Edit{Start: 0, End: 0, Text: "x"})
+	}
+	if _, ok := b.Since(from); ok {
+		t.Error("since a version 5000 edits back reported the edits")
+	}
+}
+
 // B109
 func TestB109UndoOrigin(t *testing.T) {
 	b := kernel.New("abc", nil)

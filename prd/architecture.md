@@ -85,6 +85,7 @@ func (b *Buffer) SetMark(pos int, g Gravity) MarkID
 func (b *Buffer) MoveMark(id MarkID, pos int)
 func (b *Buffer) DeleteMark(id MarkID) // its id may name a later mark
 func (b *Buffer) Map(pos int, from Version) (int, bool)
+func (b *Buffer) Since(from Version) ([][]Edit, bool) // the edits after from (B115)
 func (b *Buffer) UndoOrigin(o Origin, label string, at time.Time) (int, error)
 func (b *Buffer) Listen(l Listener) // hears every change, with the text before it
 func (b *Buffer) Mark(id MarkID) int

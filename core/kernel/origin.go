@@ -25,21 +25,13 @@ const logSize = 4096
 // edit since replaced it, or from is older than the edits Map remembers. Text
 // inserted at pos goes before it.
 func (b *Buffer) Map(pos int, from Version) (int, bool) {
-	if from > b.version {
+	lists, ok := b.Since(from)
+	if !ok {
 		return 0, false
 	}
-	i := slices.IndexFunc(b.log, func(l logged) bool { return l.at >= from })
-	if i < 0 {
-		// Nothing changed since from.
-		return pos, true
-	}
-	if i == 0 && b.log[0].at > from && from < b.version {
-		// The edits right after from are no longer in the log.
-		return 0, false
-	}
-	for _, l := range b.log[i:] {
-		for j := len(l.edits) - 1; j >= 0; j-- {
-			e := l.edits[j]
+	for _, edits := range lists {
+		for j := len(edits) - 1; j >= 0; j-- {
+			e := edits[j]
 			if e.Start < pos && pos < e.End {
 				return 0, false
 			}
@@ -47,6 +39,27 @@ func (b *Buffer) Map(pos int, from Version) (int, bool) {
 		}
 	}
 	return pos, true
+}
+
+// Since returns the edits made after version from, one list per change,
+// oldest first, or false when from is older than the edits it remembers.
+// Each list applies to the text the one before it left (B115).
+func (b *Buffer) Since(from Version) ([][]Edit, bool) {
+	i := slices.IndexFunc(b.log, func(l logged) bool { return l.at >= from })
+	switch {
+	case from > b.version:
+		return nil, false
+	case i < 0:
+		return nil, from == b.version
+	case b.log[i].at > from:
+		// The edits right after from are no longer in the log.
+		return nil, false
+	}
+	out := make([][]Edit, 0, len(b.log)-i)
+	for _, l := range b.log[i:] {
+		out = append(out, slices.Clone(l.edits))
+	}
+	return out, true
 }
 
 // UndoOrigin reverts the newest change of origin o still in the text, and
