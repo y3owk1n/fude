@@ -64,20 +64,24 @@ Where fude departs, the line says so and cites the departure in
 - B14 [2] `"x` before a command uses register `x`. Uppercase appends.
   `"_` discards. `"+` is the system clipboard.
 - B15 [2] `p` and `P` put a register, linewise or charwise as it was yanked.
+- B36 [2] `"+` and `"*` are the system clipboard: `y`, `d` and `c` write
+  it, and `p`, `P`, `@` and insert `<C-r>` read it. Text ending in a line
+  break puts as lines.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays
   them. `@@` repeats the last executed register and `Q` replays the last
   recorded one. `:reg x` shows the macro as text, and editing that text
   changes the macro.
-- B18 [2] `v`, `V` and `<C-v>` select, and any operator applies to the
-  selection.
+- B18 [2] `v`, `V` and `<C-v>` select. Any operator, `~ u U r J gJ p P`
+  and the line commands `X D Y C S R` apply to the selection as in Neovim,
+  and `.` repeats them.
 - B19 [2] An operator in operator-pending state waits for a target. `<Esc>`
   cancels and changes nothing.
 - B20 [2] `m{a-z}` sets a mark, and `` `x `` and `'x` jump to it. Marks
   move with edits above them.
 - B21 [2] `/` and `?` search forward and back, and `n` and `N` repeat.
-  Matches highlight while typing and after the search. `<C-l>` clears the
+  Matches highlight in every window while typing and after the search. `<C-l>` clears the
   highlight. Patterns use Vim syntax on a linear-time engine, and a pattern
   that needs backtracking is refused with a message naming the atom (N1).
 - B22 [2] `:s/pat/rep/flags` substitutes with the pattern syntax of B21 and
@@ -91,7 +95,7 @@ Where fude departs, the line says so and cites the departure in
   counts. `Y` yanks to the end of the line.
 - B26 [2] `<C-a>` and `<C-x>` add to and subtract from the decimal, hex or
   binary number at or after the cursor, with counts.
-- B27 [2] `% ( ) { } H M L gj gk` move as in Neovim. `<C-d> <C-u> <C-f>
+- B27 [2] `% ( ) { } H M L gj gk go` move as in Neovim. `<C-d> <C-u> <C-f>
   <C-b> <C-e> <C-y> zz zt zb` scroll as in Neovim.
 - B28 [2] `*` and `#` search for the word under the cursor. In visual mode
   they search for the selected text literally.

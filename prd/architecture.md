@@ -139,6 +139,8 @@ type Host interface {
     Jump(n int) bool
     Change(n int) bool
     IndentWidth() int // the buffer's setting, so filetypes can differ
+    Clipboard() (string, error) // the system clipboard, "+ and "* (B36)
+    SetClipboard(text string) error
 }
 
 func New(h Host) *Machine
@@ -163,8 +165,6 @@ first cursor is repeated at the others, moved by their distance from it. So
 `<C-w>` takes the same number of bytes at each cursor, not each cursor's
 own word. `<C-o>` and `<Esc>` end the other cursors, and dot repeat makes
 the change at one cursor (B42).
-
-A later behaviour adds a clipboard for `"+`.
 
 
 `vim/` owns the grammar, modes, registers, dot repeat, macros, search and

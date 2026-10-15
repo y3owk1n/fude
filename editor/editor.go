@@ -63,6 +63,8 @@ type Session struct {
 	pick       *pick       // the code actions shown to choose from
 	under      *window     // the window a focused float was opened from
 	changed    chan change // told when the shown text changes, for a client over the socket
+	clip       string      // the text last copied, when no clipboard command runs
+	toTerminal bool        // the client has yet to put clip on its terminal's clipboard
 	depth      int         // the undo groups the machine has open
 	pending    int         // the cursor when the group being made began
 
@@ -394,6 +396,7 @@ type View struct {
 	Highlights        []syntax.Span // in paint order, later ones drawing over earlier ones
 	Decorations       []syntax.Span // plugins' styles, drawn over highlights
 	Ghosts            []Ghost
+	Matches           [][2]int // of the search, shown in every window
 }
 
 // Ghost is a proposal's text, drawn before the byte at Pos but not in the
@@ -418,6 +421,7 @@ func (e *Session) Views() []View {
 		if h := w.buf.syntax; h != nil {
 			v.Highlights = h.Show(t, top, last)
 		}
+		v.Matches = e.vim.Matches(t, top, last)
 		for _, ds := range e.decos {
 			for _, d := range ds {
 				if d.buf != w.buf {
@@ -463,9 +467,6 @@ func (e *Session) reveal() {
 	}
 	w.buf.text.MoveMark(w.top, min(max(e.Top(), low), line))
 }
-
-// Matches returns the search matches between from and to, for highlighting.
-func (e *Session) Matches(from, to int) [][2]int { return e.vim.Matches(from, to) }
 
 // Paste inserts text as typed, with no key mapping applied (B8).
 func (e *Session) Paste(text string) {
@@ -1062,6 +1063,9 @@ func (h host) Redo() (int, int, error) {
 }
 
 func (h host) Unhandled(k string) {
+	// Splits share their space equally, so a count before <C-w> means
+	// nothing here.
+	k = strings.TrimLeft(k, "0123456789")
 	if h.e.under != nil {
 		// In a float, :q, :close and <C-w> only leave it. Any other ex line
 		// leaves it and acts on the window under it.
