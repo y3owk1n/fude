@@ -313,6 +313,15 @@ machine reads no clock, so the host waits its key timeout and calls
 `Timeout` if no key comes first. A macro replays its keys through the
 keymap, and dot repeat replays the keys the mapping ran.
 
+A kind of buffer, such as a listing, has a `vim.Keymaps` of its own, which
+the editor lays over the machine's with `Machine.UseLocal` before each key.
+The machine walks both tries: the longer mapping runs, and the local one on
+a tie, as Neovim's `<buffer>` mappings win. A buffer's actions, such as a
+listing's open and split, are `<Plug>` commands its keymap maps keys to,
+so a config table can move or drop each one. `""` in a table unmaps, which
+for a local key lets the global mapping through, and `<Nop>` maps a key to
+nothing (B142).
+
 The terminal sends the arrows, `<Home>`, `<End>`, `<Del>`, `<PageUp>` and
 `<PageDown>`. In normal and visual mode the machine reads each as the
 command it stands for before anything else sees it (B132). The command
@@ -703,6 +712,11 @@ icons = false        # nerd font icons in listings and diagnostic signs (B128)
 
 [keymap.normal]      # and [keymap.visual], [keymap.insert]. Keys map to keys.
 "<Space>w" = ":w<CR>"
+"-" = ""             # "" drops a mapping, fude's own too, and "<Nop>" does nothing (B142)
+
+[keymap.listing]     # a listing's own keys, over [keymap.normal] (B142)
+"<C-h>" = ""
+"<C-v>" = "<Plug>(listing.vsplit)"
 
 [filetype.go]        # overrides for buffers of that filetype (B94)
 indent_width = 4

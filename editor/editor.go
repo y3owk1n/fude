@@ -60,25 +60,26 @@ type Session struct {
 	floatSpans []syntax.Span  // the styles of the float's text
 	doc        string         // the selected completion's documentation, beside the menu
 	docSpans   []syntax.Span
-	menu       *menu               // the completions shown while typing
-	ctrlX      bool                // <C-x> began a completion key in insert mode
-	lspKeys    bool                // the attached keys are mapped
-	later      []vim.Key           // keys to feed once the key being fed is done
-	renameAt   int                 // where grn was pressed
-	pick       *pick               // the code actions shown to choose from
-	finder     *finder             // the file finder, while it shows
-	cmenu      *cmenu              // the completions of the command line being typed
-	dirs       map[string][]string // entries of directories the command line has completed in
-	flash      *flash              // text shown for a moment after a yank, put, undo or redo
-	under      *window             // the window a focused float was opened from
-	opts       options             // what the session's new windows start with
-	changed    chan change         // told when the shown text changes, for a client over the socket
-	clip       string              // the text last copied, when no clipboard command runs
-	toTerminal bool                // the client has yet to put clip on its terminal's clipboard
-	mode       vim.Mode            // the mode as plugins last heard it
-	seen       view                // the current window as plugins last heard it
-	depth      int                 // the undo groups the machine has open
-	pending    int                 // the cursor when the group being made began
+	menu       *menu                   // the completions shown while typing
+	ctrlX      bool                    // <C-x> began a completion key in insert mode
+	lspKeys    bool                    // the attached keys are mapped
+	later      []vim.Key               // keys to feed once the key being fed is done
+	renameAt   int                     // where grn was pressed
+	pick       *pick                   // the code actions shown to choose from
+	finder     *finder                 // the file finder, while it shows
+	cmenu      *cmenu                  // the completions of the command line being typed
+	dirs       map[string][]string     // entries of directories the command line has completed in
+	flash      *flash                  // text shown for a moment after a yank, put, undo or redo
+	locals     map[string]*vim.Keymaps // the keymaps of kinds of buffer, by kind, over the machine's (B142)
+	under      *window                 // the window a focused float was opened from
+	opts       options                 // what the session's new windows start with
+	changed    chan change             // told when the shown text changes, for a client over the socket
+	clip       string                  // the text last copied, when no clipboard command runs
+	toTerminal bool                    // the client has yet to put clip on its terminal's clipboard
+	mode       vim.Mode                // the mode as plugins last heard it
+	seen       view                    // the current window as plugins last heard it
+	depth      int                     // the undo groups the machine has open
+	pending    int                     // the cursor when the group being made began
 
 	width, height int // the space the windows share
 }
@@ -176,6 +177,16 @@ func builtins(e *Session) {
 			return nil
 		})
 	}
+	for _, act := range []string{"open", "split", "vsplit", "cwd", "reload"} {
+		e.vim.Command("listing."+act, func(vim.Text, int, int) []vim.Edit {
+			e.listingAct(act)
+			return nil
+		})
+	}
+	e.locals = map[string]*vim.Keymaps{"listing": {}}
+	for from, to := range listingKeys {
+		e.locals["listing"].Map(vim.Normal, from, to)
+	}
 	e.vim.Command("listing.up", func(_ vim.Text, _, count int) []vim.Edit {
 		e.up(count)
 		return nil
@@ -247,10 +258,9 @@ func Start(args []string) (*Session, error) {
 	}
 	e.each(func(s *Session) {
 		for mode, maps := range map[vim.Mode]map[string]string{vim.Normal: cfg.Keymap.Normal, vim.Visual: cfg.Keymap.Visual, vim.Insert: cfg.Keymap.Insert} {
-			for from, to := range maps {
-				s.vim.Map(mode, from, to)
-			}
+			mapAll(s.vim, mode, maps)
 		}
+		mapAll(s.locals["listing"], vim.Normal, cfg.Keymap.Listing)
 	})
 	return e, nil
 }
@@ -402,10 +412,6 @@ func (e *Session) feed(k vim.Key) {
 		e.reveal()
 		return
 	}
-	if e.win.buf.listed != "" && e.vim.Idle() && e.listingKey(k) {
-		e.settle(nil)
-		return
-	}
 	if e.win.buf.spots != nil && e.vim.Idle() && e.listKey(k) {
 		e.settle(nil)
 		return
@@ -420,6 +426,7 @@ func (e *Session) feed(k vim.Key) {
 	e.vim.IgnoreCase(e.win.opts.IgnoreCase, e.win.opts.SmartCase)
 	e.vim.ExpandTab(e.win.opts.ExpandTab)
 	e.vim.UseClipboard(e.win.opts.Clipboard)
+	e.vim.UseLocal(e.locals[e.win.buf.kind()])
 	e.settle(e.vim.Feed(k))
 	if start, end, ok := e.vim.Flash(); ok {
 		e.flashOn(e.win.buf, start, end)

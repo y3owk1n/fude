@@ -109,7 +109,7 @@ Where fude departs, the line says so and cites the departure in
   Neovim's built-in `-` does, in place of the `-` motion. In a listing,
   `<CR>` opens the entry, `<C-s>` and `<C-h>` open it in a split beside or
   below, `_` lists the working directory and `<C-l>` reads it again, as
-  oil.nvim's keys do.
+  oil.nvim's keys do. These are the listing's keys, which B142 changes.
 - B125 [2] Editing a listing and `:w` changes the directory, as oil.nvim
   does: a changed name renames the entry, a deleted line deletes it, and a
   new line creates a file, or a directory when it ends in `/`. fude first
@@ -199,6 +199,13 @@ Where fude departs, the line says so and cites the departure in
 - B141 [2] A terminal's byte 0x08 is `<C-h>` and 0x7f is `<BS>`, as
   Neovim reads them, so `<C-h>` maps apart from `<BS>` inside tmux too. In
   insert mode and a command line, `<C-h>` deletes as `<BS>` does.
+- B142 [2] A kind of buffer has keys of its own, which `[keymap.<kind>]`
+  in config changes, as `<buffer>` mappings do in Neovim. In that kind of
+  buffer, a key mapped there runs that mapping instead of
+  `[keymap.normal]`'s. In any
+  keymap table, a key mapped to `""` loses its mapping, fude's own default
+  too, and a key mapped to `<Nop>` does nothing. A listing's keys are
+  `[keymap.listing]`.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays

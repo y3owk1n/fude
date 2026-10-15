@@ -8,21 +8,38 @@ type keymap struct {
 	next map[Key]*keymap
 }
 
+// Keymaps are mappings by mode: the machine's own, or a kind of buffer's,
+// which the host lays over them while such a buffer is current (B142).
+type Keymaps struct {
+	modes map[Mode]*keymap
+}
+
 // Map makes typing from in mode run to instead. mode is Normal, Visual or
 // Insert, and Insert mappings apply in replace mode too. The machine never
-// maps the keys a mapping runs.
-func (m *Machine) Map(mode Mode, from, to string) {
+// maps the keys a mapping runs, and <Nop> runs nothing.
+func (m *Machine) Map(mode Mode, from, to string) { m.maps.Map(mode, from, to) }
+
+// Unmap removes the mapping of from in mode.
+func (m *Machine) Unmap(mode Mode, from string) { m.maps.Unmap(mode, from) }
+
+// UseLocal lays local over the machine's own mappings: where both map the
+// keys typed, the longer mapping runs, and local's on a tie. nil takes it
+// away.
+func (m *Machine) UseLocal(local *Keymaps) { m.local = local }
+
+// Map makes typing from in mode run to instead.
+func (ks *Keymaps) Map(mode Mode, from, to string) {
 	keys := Keys(from)
 	if len(keys) == 0 {
 		return
 	}
-	if m.maps == nil {
-		m.maps = map[Mode]*keymap{}
+	if ks.modes == nil {
+		ks.modes = map[Mode]*keymap{}
 	}
-	if m.maps[mode] == nil {
-		m.maps[mode] = &keymap{}
+	if ks.modes[mode] == nil {
+		ks.modes[mode] = &keymap{}
 	}
-	n := m.maps[mode]
+	n := ks.modes[mode]
 	for _, k := range keys {
 		if n.next == nil {
 			n.next = map[Key]*keymap{}
@@ -37,8 +54,8 @@ func (m *Machine) Map(mode Mode, from, to string) {
 
 // Unmap removes the mapping of from in mode, and with it any prefix only it
 // used, so typing that prefix no longer waits.
-func (m *Machine) Unmap(mode Mode, from string) {
-	m.maps[mode].unmap(Keys(from))
+func (ks *Keymaps) Unmap(mode Mode, from string) {
+	ks.modes[mode].unmap(Keys(from))
 }
 
 // unmap removes keys from below n, and reports whether n is left with
@@ -68,35 +85,47 @@ func (m *Machine) Timeout() error {
 	return m.flush()
 }
 
-// keymap returns the mappings that apply to the next key. None do while a
-// command waits for a character or an operator waits for its target.
-func (m *Machine) keymap() *keymap {
+// keymaps returns the mappings that apply to the next key, the local ones
+// first. None do while a command waits for a character or an operator waits
+// for its target.
+func (m *Machine) keymaps() []*keymap {
+	var mode Mode
 	switch {
 	case m.pending != "":
 		return nil
 	case m.mode == Normal && m.op == "":
-		return m.maps[Normal]
+		mode = Normal
 	case m.mode == Visual:
-		return m.maps[Visual]
+		mode = Visual
 	case m.mode == Insert, m.mode == Replace:
-		return m.maps[Insert]
+		mode = Insert
+	default:
+		return nil
 	}
-	return nil
+	var out []*keymap
+	if m.local != nil && m.local.modes[mode] != nil {
+		out = append(out, m.local.modes[mode])
+	}
+	if n := m.maps.modes[mode]; n != nil {
+		out = append(out, n)
+	}
+	return out
 }
 
 // press runs a typed key through the keymap. It holds the key while the held
 // keys start a longer mapping.
 func (m *Machine) press(k Key) error {
 	m.held = append(m.held, k)
-	n := m.keymap()
-	for _, k := range m.held {
-		if n == nil {
-			break
+	for _, n := range m.keymaps() {
+		for _, k := range m.held {
+			if n == nil {
+				break
+			}
+			n = n.next[k]
 		}
-		n = n.next[k]
-	}
-	if n != nil && n.next != nil {
-		return nil
+		if n != nil && n.next != nil {
+			return nil
+		}
 	}
 	return m.flush()
 }
@@ -106,13 +135,15 @@ func (m *Machine) press(k Key) error {
 func (m *Machine) flush() error {
 	keys := m.held
 	m.held = nil
-	n, to := 1, keys[:1]
-	node := m.keymap()
-	for i := 0; i < len(keys) && node != nil; i++ {
-		if node = node.next[keys[i]]; node != nil && node.end {
-			n, to = i+1, node.to
+	n, to := 0, keys[:1] // the keys the longest mapping takes, and what it runs
+	for _, node := range m.keymaps() {
+		for i := 0; i < len(keys) && node != nil; i++ {
+			if node = node.next[keys[i]]; node != nil && node.end && i+1 > n {
+				n, to = i+1, node.to
+			}
 		}
 	}
+	n = max(n, 1)
 	if err := m.run(to, false); err != nil {
 		return err
 	}

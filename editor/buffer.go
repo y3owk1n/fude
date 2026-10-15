@@ -149,3 +149,11 @@ func (b *buffer) close() {
 		b.syntax.Close()
 	}
 }
+
+// kind names the buffer's own keymap, or is "" for a buffer with none.
+func (b *buffer) kind() string {
+	if b.listed != "" {
+		return "listing"
+	}
+	return ""
+}

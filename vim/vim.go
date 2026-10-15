@@ -149,8 +149,9 @@ type Machine struct {
 	armed      bool // that command has begun
 
 	// Keymaps.
-	maps map[Mode]*keymap
-	held []Key // typed keys that start a longer mapping
+	maps  Keymaps
+	local *Keymaps // a kind of buffer's mappings, over maps
+	held  []Key    // typed keys that start a longer mapping
 
 	objects map[string]func(Text, int, int) (int, int, bool) // text objects the host added
 	ops     map[string]func(Text, int, int, bool) []Edit     // operators the host added
@@ -314,6 +315,9 @@ func (m *Machine) run(keys []Key, mapped bool) error {
 	}
 	defer func() { m.depth-- }()
 	for _, k := range keys {
+		if k == "<Nop>" {
+			continue
+		}
 		step := m.feed
 		if mapped {
 			step = m.press

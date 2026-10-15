@@ -107,27 +107,35 @@ func (e *Session) up(count int) {
 	e.openListing(from, at)
 }
 
-// listingKey handles a key in a listing, as oil.nvim's are: <CR> opens the
+// listingKeys are a listing's own keys, as oil.nvim's are: <CR> opens the
 // entry under the cursor, <C-s> and <C-h> open it in a split beside or
-// above, _ lists the working directory and <C-l> reads the listing again.
-func (e *Session) listingKey(k vim.Key) bool {
+// below, _ lists the working directory and <C-l> reads the listing again.
+// [keymap.listing] changes them (B142).
+var listingKeys = map[string]string{
+	"<CR>": "<Plug>(listing.open)", "<C-s>": "<Plug>(listing.vsplit)", "<C-h>": "<Plug>(listing.split)",
+	"_": "<Plug>(listing.cwd)", "<C-l>": "<Plug>(listing.reload)",
+}
+
+// listingAct runs act, a listing's action, on the entry under the cursor.
+func (e *Session) listingAct(act string) {
 	b := e.win.buf
+	if b.listed == "" {
+		e.message = "not in a listing"
+		return
+	}
 	t, c := b.text.Snapshot(), e.Cursor()
 	name := t.Slice(vim.LineStart(t, c), vim.LineEnd(t, c))
-	switch k {
-	case "<CR>":
+	switch act {
+	case "open":
 		e.openEntry(b.listed, name)
-	case "<C-s>", "<C-h>":
-		e.split(k == "<C-s>")
+	case "split", "vsplit":
+		e.split(act == "vsplit")
 		e.openEntry(b.listed, name)
-	case "_":
+	case "cwd":
 		e.up(1)
-	case "<C-l>":
+	case "reload":
 		e.reload(b)
-	default:
-		return false
 	}
-	return true
 }
 
 // openEntry opens the entry name of dir: a listing for a directory, the

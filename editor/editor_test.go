@@ -1015,6 +1015,32 @@ func TestB140Navigate(t *testing.T) {
 	}
 }
 
+// B142
+func TestB142LocalKeymaps(t *testing.T) {
+	dir := t.TempDir()
+	change(t, filepath.Join(dir, "a"), "A\n")
+	change(t, filepath.Join(dir, "b"), "B\n")
+	config(t, `[keymap.normal]
+"<C-h>" = "<Plug>(window.left)"
+
+[keymap.listing]
+"<C-h>" = ""
+"<C-v>" = "<Plug>(listing.vsplit)"
+x = "<Nop>"
+`)
+	e := start(t, filepath.Join(dir, "a"))
+	e.SetSize(80, 24)
+	feed(e, ":vsplit<CR>-")
+	// A key the listing's table drops falls through to [keymap.normal].
+	if feed(e, "<C-h>"); !e.Views()[0].Current {
+		t.Fatal("<C-h> in a listing did not move to the left window")
+	}
+	// A key mapped in it runs the listing's action, and <Nop> does nothing.
+	if feed(e, "<C-w>ljx<C-v>"); len(e.Views()) != 3 || text(e) != "B" {
+		t.Fatalf("<C-v> on b left %d windows showing %q", len(e.Views()), text(e))
+	}
+}
+
 // B124
 func TestB124Listing(t *testing.T) {
 	dir := t.TempDir()

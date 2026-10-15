@@ -27,6 +27,7 @@ var names = map[string]Key{
 	"space":    " ",
 	"tab":      "\t",
 	"s-tab":    "<S-Tab>",
+	"nop":      "<Nop>",
 	"c-^":      "<C-^>",
 	"c-]":      "<C-]>",
 }

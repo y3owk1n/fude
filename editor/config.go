@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/pelletier/go-toml/v2"
+	"github.com/y3owk1n/fude/vim"
 )
 
 // config is what config.toml holds (D27).
@@ -27,6 +28,8 @@ type config struct {
 		Normal map[string]string `toml:"normal"`
 		Visual map[string]string `toml:"visual"`
 		Insert map[string]string `toml:"insert"`
+		// A kind of buffer's normal mode keys, over [keymap.normal].
+		Listing map[string]string `toml:"listing"`
 	} `toml:"keymap"`
 	Filetype map[string]struct {
 		IndentWidth uint       `toml:"indent_width"`
@@ -109,4 +112,22 @@ func xdgDir(env, fallback string) (string, error) {
 		return "", err
 	}
 	return filepath.Join(home, fallback), nil
+}
+
+// mapper is what keymaps go into: a machine, or a kind of buffer's keymaps.
+type mapper interface {
+	Map(mode vim.Mode, from, to string)
+	Unmap(mode vim.Mode, from string)
+}
+
+// mapAll applies a config keymap table in mode. Keys mapped to "" lose
+// their mapping, a default one too, and <Nop> makes keys do nothing (B142).
+func mapAll(m mapper, mode vim.Mode, maps map[string]string) {
+	for from, to := range maps {
+		if to == "" {
+			m.Unmap(mode, from)
+		} else {
+			m.Map(mode, from, to)
+		}
+	}
 }
