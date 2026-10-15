@@ -25,9 +25,9 @@ fmt-check:
 build:
     go build -o bin/fude ./cmd/fude
 
-# Build and open a file in fude.
-run path: build
-    bin/fude {{ path }}
+# Build fude and open the files or directories given, or an empty buffer.
+run *args: build
+    bin/fude {{ args }}
 
 # Build the test plugins from their .wat files.
 wasm:
