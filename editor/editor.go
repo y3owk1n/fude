@@ -37,6 +37,7 @@ type Editor struct {
 	setup     []func(*Session)          // what every session's machine gets, such as keymaps
 	proposed  int                       // the id of the newest proposal
 	listeners map[*plugin.Plugin]*listener
+	segments  map[*plugin.Plugin]map[*buffer]string // what each plugin shows on the statusline of each buffer
 
 	now func() time.Time // the clock edits are stamped with
 }
@@ -89,7 +90,7 @@ func open(cfg config, paths []string) (*Session, error) {
 	if len(paths) == 0 {
 		paths = []string{""}
 	}
-	ed := &Editor{next: 1, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(*Session){}, decos: map[any][]decoration{}, servers: map[string]*server{}, listeners: map[*plugin.Plugin]*listener{}}
+	ed := &Editor{next: 1, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(*Session){}, decos: map[any][]decoration{}, servers: map[string]*server{}, listeners: map[*plugin.Plugin]*listener{}, segments: map[*plugin.Plugin]map[*buffer]string{}}
 	// Without a config directory there are no overrides, and loadConfig
 	// reports why.
 	if dir, err := xdgDir("XDG_CONFIG_HOME", ".config"); err == nil {
@@ -416,6 +417,7 @@ type View struct {
 	Decorations       []syntax.Span // plugins' styles, drawn over highlights
 	Ghosts            []Ghost
 	Matches           [][2]int // of the search, shown in every window
+	Segments          []string // plugins' statusline segments, in the order they loaded
 }
 
 // Ghost is a proposal's text, drawn before the byte at Pos but not in the
@@ -441,6 +443,11 @@ func (e *Session) Views() []View {
 			v.Highlights = h.Show(t, top, last)
 		}
 		v.Matches = e.vim.Matches(t, top, last)
+		for _, p := range e.plugins {
+			if s := e.segments[p][w.buf]; s != "" {
+				v.Segments = append(v.Segments, s)
+			}
+		}
 		for _, ds := range e.decos {
 			for _, d := range ds {
 				if d.buf != w.buf {
@@ -844,6 +851,9 @@ func (e *Session) close(b *buffer, force bool) {
 	e.detach(b)
 	b.close()
 	e.emit("buffer.closed", "", b)
+	for _, segs := range e.segments {
+		delete(segs, b)
+	}
 	for owner, ds := range e.decos {
 		e.decos[owner] = slices.DeleteFunc(ds, func(d decoration) bool { return d.buf == b })
 	}

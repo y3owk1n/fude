@@ -429,6 +429,10 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 	style := tcell.StyleDefault.Reverse(true).Bold(v.Current)
 	c.s.FillArea(v.X, v.Y+v.H-1, v.W, 1, ' ', style)
 	c.s.PutStrStyled(v.X, v.Y+v.H-1, status, style)
+	// Plugins' segments go on the right when they fit beside the name.
+	if right := strings.Join(v.Segments, "  ") + " "; len(v.Segments) > 0 && len([]rune(status))+len([]rune(right)) < v.W {
+		c.s.PutStrStyled(v.X+v.W-len([]rune(right)), v.Y+v.H-1, right, style)
+	}
 	return cx, cy, found
 }
 

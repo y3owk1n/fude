@@ -100,6 +100,16 @@ func TestB57Events(t *testing.T) {
 	}
 }
 
+// B58
+func TestB58StatuslineSegments(t *testing.T) {
+	e := withPlugin(t, "seg", "ui")
+	e.Load()
+	settle(t, e, func() bool { return len(e.Views()[0].Segments) > 0 })
+	if got := e.Views()[0].Segments; len(got) != 1 || got[0] != "ready" {
+		t.Fatalf("the statusline shows %q, want ready", got)
+	}
+}
+
 // B50
 func TestB50Capabilities(t *testing.T) {
 	e := withPlugin(t, "write")

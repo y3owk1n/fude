@@ -52,6 +52,7 @@ type Result struct {
 	Decorate   []Decoration
 	Undecorate []int    // the ids of decorations to remove
 	Emit       []string // the events to emit, named plugin.event
+	Status     *string  // the plugin's statusline segment for the text it read, "" for none
 	Out        []uint64
 }
 
@@ -205,6 +206,7 @@ func (p *Plugin) host(ctx context.Context) error {
 		NewFunctionBuilder().WithFunc(p.register).Export("register").
 		NewFunctionBuilder().WithFunc(p.subscribe).Export("subscribe").
 		NewFunctionBuilder().WithFunc(p.emit).Export("emit").
+		NewFunctionBuilder().WithFunc(p.status).Export("status").
 		NewFunctionBuilder().WithFunc(p.decorate).Export("decorate").
 		NewFunctionBuilder().WithFunc(p.undecorate).Export("undecorate").
 		Instantiate(ctx)
@@ -328,6 +330,21 @@ func (p *Plugin) decorate(_ context.Context, m api.Module, start, end, ptr, n ui
 	p.next++
 	p.call.Decorate = append(p.call.Decorate, Decoration{p.next, int(start), int(end), string(style)})
 	return int32(p.next)
+}
+
+// status asks to show the text at (ptr, n) as the plugin's statusline
+// segment for the buffer the call read, or none for "" (B58).
+func (p *Plugin) status(_ context.Context, m api.Module, ptr, n uint32) int32 {
+	if p.call == nil || !p.allowed("ui", "status") {
+		return errDenied
+	}
+	text, ok := m.Memory().Read(ptr, n)
+	if !ok {
+		return errRange
+	}
+	s := string(text)
+	p.call.Status = &s
+	return 0
 }
 
 // undecorate asks to remove the decoration id.

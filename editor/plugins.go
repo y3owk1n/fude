@@ -120,6 +120,12 @@ func (e *Session) decorate(p *plugin.Plugin, b *buffer, res plugin.Result) []vim
 	for _, name := range res.Emit {
 		e.emit(name, "", b)
 	}
+	if res.Status != nil {
+		if e.segments[p] == nil {
+			e.segments[p] = map[*buffer]string{}
+		}
+		e.segments[p][b] = *res.Status
+	}
 	for _, d := range res.Decorate {
 		e.decos[p] = append(e.decos[p], decoration{d.ID, b, b.text.SetMark(d.Start, kernel.Right), b.text.SetMark(d.End, kernel.Left), d.Style, "", nil})
 	}
@@ -149,6 +155,7 @@ func (e *Session) unload(p *plugin.Plugin, err error) {
 		d.remove()
 	}
 	delete(e.decos, p)
+	delete(e.segments, p)
 	e.message = fmt.Sprintf("%v, so it was unloaded", err)
 	logLine(e.message)
 }

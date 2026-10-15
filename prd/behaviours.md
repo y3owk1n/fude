@@ -185,6 +185,8 @@ Where fude departs, the line says so and cites the departure in
   with the text they are about. One that falls behind hears the newest
   state once, not every step, and a key that needs a plugin busy with an
   event says so instead of waiting.
+- B58 [4] A plugin with `ui` shows a segment on the statusline of the
+  buffer it read.
 
 ## LSP
 
