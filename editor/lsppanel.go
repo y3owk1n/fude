@@ -73,7 +73,7 @@ func (e *Session) lspCommand(sub, name string) {
 		delete(e.down, name)
 	}
 	for _, b := range e.bufs {
-		if b.server == nil && serverName(e.cfg.Filetype[b.filetype()].LSP) == name {
+		if b.server == nil && serverName(e.cfg.Filetype[e.filetype(b)].LSP) == name {
 			e.attach(b)
 		}
 	}

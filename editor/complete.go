@@ -116,7 +116,7 @@ func (e *Session) complete(auto bool) {
 		}
 		m := &menu{raws: items, asked: map[int]bool{}, start: mark, typed: b.text.Snapshot().Slice(start, cur), sel: len(items)}
 		for _, raw := range items {
-			it := readItem(raw, b.filetype())
+			it := readItem(raw, e.filetype(b))
 			m.items, m.labels, m.docs = append(m.items, it.text), append(m.labels, it.label), append(m.docs, it.doc)
 		}
 		e.menu = m
@@ -208,7 +208,7 @@ func (e *Session) resolve(m *menu, i int) {
 	if p, ok := completionOptions(s); !ok || !p.ResolveProvider {
 		return
 	}
-	ft := e.win.buf.filetype()
+	ft := e.filetype(e.win.buf)
 	s.client.Request("completionItem/resolve", func(string) any { return m.raws[i] }, func(res json.RawMessage) {
 		if m.docs[i] = readItem(res, ft).doc; e.menu == m && m.sel == i {
 			e.showMenu()

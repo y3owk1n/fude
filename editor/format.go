@@ -20,7 +20,7 @@ const formatTimeout = time.Second
 // fails, or takes longer than formatTimeout, leaves the text as it is, and
 // write runs anyway (B136).
 func (e *Session) formatOnSave(b *buffer, write func()) {
-	cmds, s := e.cfg.Filetype[b.filetype()].Format, b.server
+	cmds, s := e.cfg.Filetype[e.filetype(b)].Format, b.server
 	if len(cmds) == 0 && (s == nil || !s.client.Supports("documentFormattingProvider")) {
 		write()
 		return

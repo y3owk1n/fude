@@ -22,7 +22,7 @@ func (e *Session) markdown(src string) (string, []syntax.Span) {
 				code = append(code, lines[i])
 			}
 			text := strings.Join(code, "\n")
-			hl, err := syntax.Highlight(strings.TrimSpace(lang), e.queries, text)
+			hl, err := syntax.Highlight(e.filetypeOf("code."+strings.TrimSpace(lang)), e.queries, text)
 			if err != nil {
 				logLine(err.Error())
 			}

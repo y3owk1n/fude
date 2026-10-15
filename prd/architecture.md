@@ -802,6 +802,9 @@ theme = "dark"       # dark, light, or a base16 scheme such as "~/.config/stylix
 indent_width = 4
 format = [["goimports"], ["gofumpt"]]   # run in turn by format_on_save (B136)
 
+[filetype.toml]
+files = ["*.toml.tmpl"]   # more files of the filetype, by name (B164)
+
 [[plugin]]           # one table per plugin, loaded after the first frame
 path = "plugins/wordcount.wasm"   # relative to $XDG_CONFIG_HOME/fude
 capabilities = ["buffer.read", "ui", "process"]

@@ -1747,3 +1747,16 @@ func TestB163Man(t *testing.T) {
 		t.Errorf("the man page is %q...", page[:min(300, len(page))])
 	}
 }
+
+// B164
+func TestB164Filetypes(t *testing.T) {
+	config(t, "[filetype.toml]\nfiles = [\"*.toml.tmpl\"]\n")
+	dir := t.TempDir()
+	for name, want := range map[string]string{"a.toml.tmpl": "toml", "a.yml": "yaml", "a.rs": "rust", ".bashrc": "bash", "a.nix": "nix"} {
+		path := filepath.Join(dir, name)
+		change(t, path, "x\n")
+		if got := start(t, path).Views()[0].Filetype; got != want {
+			t.Errorf("%s has filetype %q, want %q", name, got, want)
+		}
+	}
+}

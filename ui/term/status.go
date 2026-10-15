@@ -74,8 +74,8 @@ func (c *client) status(v editor.View, x, w int) {
 	} else if v.Server != "" {
 		right = append(right, part{v.Server + "  ", muted})
 	}
-	if ft := filetype(name); ft != "" {
-		right = append(right, part{ft + "  ", muted})
+	if v.Filetype != "" {
+		right = append(right, part{v.Filetype + "  ", muted})
 	}
 	right = append(right, part{ruler(v.Ruler) + " ", muted})
 	if width(left)+1+width(right) > w {
@@ -136,14 +136,6 @@ func splitName(name string) (string, string) {
 	}
 	i := strings.LastIndexByte(strings.TrimSuffix(name, "/"), '/')
 	return name[:i+1], name[i+1:]
-}
-
-// filetype is the extension of a file's name, which names its filetype.
-func filetype(name string) string {
-	if i := strings.LastIndexByte(name, '.'); i > 0 {
-		return name[i+1:]
-	}
-	return ""
 }
 
 // ruler shows a Vim ruler, "21,12-13  48%", as the status line does:

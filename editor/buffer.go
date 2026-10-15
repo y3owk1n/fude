@@ -3,7 +3,6 @@ package editor
 import (
 	"fmt"
 	"path/filepath"
-	"strings"
 
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/syntax"
@@ -135,10 +134,6 @@ func (b *buffer) markSaved() {
 		b.log.write(record{Kind: "save", Head: b.saved, Hash: hash(s.Slice(0, s.Len()))})
 	}
 }
-
-// filetype is the file's extension without the dot, which names its
-// [filetype.<name>] table in config.toml.
-func (b *buffer) filetype() string { return strings.TrimPrefix(filepath.Ext(b.file.path), ".") }
 
 // close notes a clean close in the timeline log, so the next open offers no
 // recovery.

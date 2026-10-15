@@ -86,7 +86,7 @@ func (s *server) doing() string {
 // attach connects b to the language server its filetype names, starting one
 // for b's directory when none runs (B60).
 func (e *Session) attach(b *buffer) {
-	command := e.cfg.Filetype[b.filetype()].LSP
+	command := e.cfg.Filetype[e.filetype(b)].LSP
 	name := serverName(command)
 	if name == "" || e.down[name] == disabled || b.file.path == "" || b.title != "" {
 		return
@@ -111,8 +111,14 @@ func (e *Session) attach(b *buffer) {
 	}
 	s.bufs = append(s.bufs, b)
 	b.server, b.version = s, 0
-	s.client.Open(lsp.URI(b.file.path), b.filetype(), b.text.Snapshot())
+	s.client.Open(lsp.URI(b.file.path), languageID(e.filetype(b)), b.text.Snapshot())
 	e.syncKeys()
+}
+
+// languageID is the protocol's name for filetype ft. It is ft except for
+// these two.
+func languageID(ft string) string {
+	return cmp.Or(map[string]string{"bash": "shellscript", "tsx": "typescriptreact"}[ft], ft)
 }
 
 // detach disconnects b from its language server.
@@ -158,7 +164,7 @@ func (e *Session) exited(s *server, err error) {
 	}
 	for _, b := range s.bufs {
 		b.version = 0
-		s.client.Open(lsp.URI(b.file.path), b.filetype(), b.text.Snapshot())
+		s.client.Open(lsp.URI(b.file.path), languageID(e.filetype(b)), b.text.Snapshot())
 	}
 	e.message = fmt.Sprintf("language server %s exited (%v) and was restarted", name, err)
 }

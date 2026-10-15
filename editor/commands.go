@@ -97,7 +97,7 @@ func init() {
 				e.lspPanel()
 				return
 			}
-			e.lspCommand(x.arg, serverName(e.cfg.Filetype[e.win.buf.filetype()].LSP))
+			e.lspCommand(x.arg, serverName(e.cfg.Filetype[e.filetype(e.win.buf)].LSP))
 		}, func(_ *Session, _ string, start int, arg string, _ bool) (int, []string) {
 			return start, match(lspCommands, arg)
 		}},

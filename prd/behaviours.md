@@ -310,6 +310,14 @@ Where fude departs, the line says so and cites the departure in
 - B163 [2] `fude --man` prints fude's man page: the sections of `:h` with
   fude's defaults, and where fude keeps its config, state and socket.
   `just man` writes it to `share/man/man1/fude.1`.
+- B164 [5] A file's filetype is its language's name: from its whole name,
+  such as `.bashrc` for bash, else from its extension, such as `.yml` for
+  yaml and `.rs` for rust, else the extension itself. A `files` pattern in
+  a `[filetype.<name>]` table, such as `*.toml.tmpl`, comes before all of
+  these, and the files it matches have that filetype. The filetype picks the grammar, language
+  server, formatters, indent width and comment syntax, and shows on the
+  status line. A table named after an extension such as `[filetype.yml]`
+  becomes `[filetype.yaml]`.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays

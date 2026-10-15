@@ -281,7 +281,7 @@ func (e *Session) add(path string) (string, error) {
 		}
 		return msg, nil
 	}
-	h, ok, err := syntax.New(b.filetype(), e.queries, e.queue, func() { e.emit("syntax.updated", "", b) })
+	h, ok, err := syntax.New(e.filetype(b), e.queries, e.queue, func() { e.emit("syntax.updated", "", b) })
 	if err != nil {
 		msg = err.Error()
 	} else if ok {
@@ -469,6 +469,7 @@ type View struct {
 	Ruler             string         // the cursor's line and column, and where the view is (B38)
 	Branch            string         // the git branch of the buffer's repository, "" outside one (B147)
 	Errors, Warnings  int            // the buffer's diagnostics of each severity (B147)
+	Filetype          string         // the buffer's filetype, "" for none (B164)
 	Server            string         // the buffer's language server, "" for none (B161)
 	Progress          string         // what the server is doing, "" once it is ready (B161)
 	Gutter            int            // the columns the sign column and line numbers take on the left
@@ -531,7 +532,7 @@ func (e *Session) Views() []View {
 				v.Segments = append(v.Segments, s)
 			}
 		}
-		v.Branch = w.buf.branch
+		v.Branch, v.Filetype = w.buf.branch, e.filetype(w.buf)
 		if s := w.buf.server; s != nil {
 			v.Server, v.Progress = serverName(s.command), s.doing()
 		}
@@ -1295,7 +1296,7 @@ func (h host) IndentWidth() int { return h.e.indentWidth(h.e.win.buf) }
 // indent_width, or else the global one, or else the tab width.
 func (ed *Editor) indentWidth(b *buffer) int {
 	w := ed.cfg.IndentWidth
-	if ft, ok := ed.cfg.Filetype[b.filetype()]; ok && ft.IndentWidth > 0 {
+	if ft, ok := ed.cfg.Filetype[ed.filetype(b)]; ok && ft.IndentWidth > 0 {
 		w = ft.IndentWidth
 	}
 	if w == 0 {

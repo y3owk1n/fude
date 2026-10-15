@@ -25,26 +25,27 @@ import (
 // opens: a box whose first line is the query, typed in insert mode, with
 // the files or lines that match it below, the best first (B129, B134).
 type finder struct {
-	grep    bool     // it searches files' lines, not their names
-	paths   []string // the working directory's files, nil until read
-	query   string   // the query matches are for
-	matches []string // paths, or grep's path:line:column:text
-	sel     int
-	stale   bool          // paths came after matches were found
-	busy    bool          // a match runs
-	shown   string        // the match previewed
-	preview string        // the lines around it
-	spans   []syntax.Span // their highlights
-	at      int           // the row of the preview its line is on
-	reading bool          // a preview is read off the loop
-	open    bool          // <Plug>(finder.open) ran, for finding to act on after the key
-	queries string        // where highlight queries are, for the preview
-	queue   chan<- func() // the editor loop's, for the preview
+	grep     bool     // it searches files' lines, not their names
+	paths    []string // the working directory's files, nil until read
+	query    string   // the query matches are for
+	matches  []string // paths, or grep's path:line:column:text
+	sel      int
+	stale    bool                // paths came after matches were found
+	busy     bool                // a match runs
+	shown    string              // the match previewed
+	preview  string              // the lines around it
+	spans    []syntax.Span       // their highlights
+	at       int                 // the row of the preview its line is on
+	reading  bool                // a preview is read off the loop
+	open     bool                // <Plug>(finder.open) ran, for finding to act on after the key
+	queries  string              // where highlight queries are, for the preview
+	filetype func(string) string // the filetype of a path, which config.toml does not change while fude runs
+	queue    chan<- func()       // the editor loop's, for the preview
 }
 
 // openFinder opens f in a box with query typed.
 func (e *Session) openFinder(f *finder, query string) {
-	f.queries, f.queue = e.queries, e.queue
+	f.queries, f.queue, f.filetype = e.queries, e.queue, e.filetypeOf
 	b := &buffer{text: kernel.New(query, nil), before: map[kernel.NodeID]int{}, marks: map[rune]kernel.MarkID{}, title: "[find]"}
 	e.finder, e.under, e.win = f, e.win, newWindow(b, 0, 0)
 	e.later = append(e.later, "A")
@@ -282,7 +283,7 @@ func (f *finder) read(m string, rows, cols int) {
 	var spans []syntax.Span
 	if at >= 0 {
 		var err error
-		if spans, err = syntax.Highlight(strings.TrimPrefix(filepath.Ext(path), "."), f.queries, text); err != nil {
+		if spans, err = syntax.Highlight(f.filetype(path), f.queries, text); err != nil {
 			logLine(err.Error())
 		}
 	}

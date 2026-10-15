@@ -39,6 +39,7 @@ type config struct {
 		Help     map[string]string `toml:"help" help:"help's keys"`
 	} `toml:"keymap"`
 	Filetype map[string]struct {
+		Files       []string   `toml:"files" help:"the names of the files of the type, as patterns such as *.toml.tmpl"`
 		IndentWidth uint       `toml:"indent_width" help:"the columns of an indent level in files of the type"`
 		LSP         []string   `toml:"lsp" help:"the language server's command"`
 		Format      [][]string `toml:"format" help:"the formatters' commands, run in turn"`
@@ -96,6 +97,9 @@ func loadConfig() (config, error) {
 	var msg string
 	switch {
 	case err == nil:
+		if err := badPattern(c); err != nil {
+			return c, fmt.Errorf("%s: %w", path, err)
+		}
 		return c, nil
 	case errors.As(err, &strict):
 		de = &strict.Errors[0]
