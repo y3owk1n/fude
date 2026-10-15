@@ -266,6 +266,12 @@ exist from startup, show an error without a server, and make the built-in
 the option exists in both. Why: there is no Vim option compatibility
 (product.md boundaries).
 
+### N5. A missing final newline stays missing
+
+fude writes a file back with or without its final newline, as it read it.
+Neovim's `fixendofline` adds one. Why: a save should change only what the
+user edited.
+
 ## Open
 
 None.

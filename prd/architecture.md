@@ -120,7 +120,7 @@ type Host interface {
     Marks() Marks         // m{a-z} and their positions after edits
     Clipboard() Clipboard // "+ and "*, nil when there is none
     Viewport() Viewport   // top line and height, for <C-d>, zz, H, M, L
-    Unhandled(e Event)    // ex commands and window keys vim does not own
+    Unhandled(keys string) // ex lines and window keys vim does not own
 }
 
 func New(h Host, opts Options) *Machine
@@ -131,7 +131,7 @@ func (m *Machine) Map(mode Mode, keys string, to Binding) error
 ```
 
 This is the target. Today `Text` has `Len` and `Slice`, `Host` has its first
-six methods, and `Feed` returns an error. The rest are added when the
+six methods plus `Unhandled`, and `Feed` returns an error. The rest are added when the
 behaviours that need them are built.
 
 `vim/` owns the grammar, modes, registers, dot repeat, macros, search and
