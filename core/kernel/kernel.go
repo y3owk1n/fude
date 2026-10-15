@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"time"
 
 	"github.com/y3owk1n/fude/core/rope"
 )
@@ -38,6 +39,7 @@ type Transaction struct {
 	Base   Version
 	Origin Origin
 	Label  string
+	Time   time.Time // the host's clock, since the kernel reads none
 	Edits  []Edit
 }
 
@@ -53,6 +55,7 @@ type Node struct {
 	ID      NodeID
 	Parent  NodeID
 	Label   string
+	Time    time.Time // when its first transaction was made
 	Changes []Change
 }
 
@@ -157,7 +160,7 @@ func (b *Buffer) Apply(t Transaction) error {
 	b.version++
 
 	if b.group == nil {
-		b.group = &Node{ID: b.next(t.Origin), Parent: b.head, Label: t.Label}
+		b.group = &Node{ID: b.next(t.Origin), Parent: b.head, Label: t.Label, Time: t.Time}
 	}
 	b.group.Changes = append(b.group.Changes, c)
 	if b.depth == 0 {
@@ -209,6 +212,86 @@ func (b *Buffer) Redo() (int, bool) {
 	b.head = id
 	b.version++
 	return start, true
+}
+
+// At returns the text at node id without moving to it, or false if there
+// is no such node. The zero NodeID is the text before any edit.
+func (b *Buffer) At(id NodeID) (Snapshot, bool) {
+	up, down, ok := b.path(id)
+	if !ok {
+		return Snapshot{}, false
+	}
+	text := b.text
+	for _, n := range up {
+		for j := len(n.Changes) - 1; j >= 0; j-- {
+			text = replace(text, inverse(n.Changes[j]))
+		}
+	}
+	for _, n := range down {
+		for _, c := range n.Changes {
+			text = replace(text, c.Edits)
+		}
+	}
+	return Snapshot{text, b.version}, true
+}
+
+// Goto moves the text to node id along the timeline, on any branch, without
+// adding a node. It returns where the last change it made starts, or false
+// if there is no such node.
+func (b *Buffer) Goto(id NodeID) (int, bool) {
+	up, down, ok := b.path(id)
+	if !ok {
+		return 0, false
+	}
+	start := 0
+	for range up {
+		start, _ = b.Undo()
+	}
+	for _, n := range down {
+		start = -1
+		for _, c := range n.Changes {
+			start = b.replay(c.Edits, start)
+		}
+		b.head = n.ID
+		b.version++
+	}
+	return start, true
+}
+
+// path returns the nodes to undo from the head, newest first, and the nodes
+// to then redo, oldest first, to reach id.
+func (b *Buffer) path(id NodeID) (up, down []Node, ok bool) {
+	chain := func(id NodeID) ([]Node, bool) {
+		var out []Node
+		for id != (NodeID{}) {
+			i, found := b.index(id)
+			if !found {
+				return nil, false
+			}
+			out = append(out, b.nodes[i])
+			id = b.nodes[i].Parent
+		}
+		return out, true
+	}
+	from, ok1 := chain(b.head)
+	to, ok2 := chain(id)
+	if !ok1 || !ok2 {
+		return nil, nil, false
+	}
+	// Drop the ancestors both share, which end both chains.
+	for len(from) > 0 && len(to) > 0 && from[len(from)-1].ID == to[len(to)-1].ID {
+		from, to = from[:len(from)-1], to[:len(to)-1]
+	}
+	slices.Reverse(to)
+	return from, to, true
+}
+
+// replace applies edits to text without touching marks.
+func replace(text rope.Rope, edits []Edit) rope.Rope {
+	for i := len(edits) - 1; i >= 0; i-- {
+		text = text.Replace(edits[i].Start, edits[i].End, edits[i].Text)
+	}
+	return text
 }
 
 // replay applies edits and returns the lowest position changed so far. start
