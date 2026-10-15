@@ -1,0 +1,333 @@
+package vim
+
+import (
+	"slices"
+	"strings"
+)
+
+// blocks maps every name of a bracket object to its open and close bytes.
+var blocks = map[string]string{
+	"(": "()", ")": "()", "b": "()",
+	"[": "[]", "]": "[]",
+	"{": "{}", "}": "{}", "B": "{}",
+	"<": "<>", ">": "<>",
+}
+
+// textObject returns the text an object such as iw or a( selects, or false
+// if cmd is not one or nothing matches.
+func textObject(t Text, c, count int, cmd string) (region, bool) {
+	if len(cmd) != 2 || (cmd[0] != 'i' && cmd[0] != 'a') {
+		return region{}, false
+	}
+	around, n := cmd[0] == 'a', max(count, 1)
+	var r region
+	ok := true
+	switch obj := cmd[1:]; obj {
+	case "w", "W":
+		r.start, r.end, ok = word(t, c, n, obj == "W", around)
+	case "s":
+		return sentence(t, c, n, around)
+	case "p":
+		r.start, r.end = paragraph(t, c, n, around)
+		r.lines = true
+	case `"`, "'", "`":
+		r.start, r.end, ok = quote(t, c, obj[0], n > 1, around)
+	default:
+		pair, found := blocks[obj]
+		if !found {
+			return region{}, false
+		}
+		return block(t, c, n, pair[0], pair[1], around)
+	}
+	return r, ok
+}
+
+// word selects n runs of word characters or blanks on the line. With around
+// set each word takes the blanks after it, or before it at the line's end,
+// and each blank run takes the word after it.
+func word(t Text, c, n int, big, around bool) (int, int, bool) {
+	ls, le := LineStart(t, c), LineEnd(t, c)
+	if ls == le {
+		return c, c, false
+	}
+	runEnd := func(p int) int {
+		k := class(t, p, big)
+		for p < le && class(t, p, big) == k {
+			p = next(t, p, le)
+		}
+		return p
+	}
+	start := c
+	for start > ls && class(t, prev(t, ls, start), big) == class(t, c, big) {
+		start = prev(t, ls, start)
+	}
+	onBlank := class(t, c, big) == 0
+	end := c
+	for range n {
+		if end >= le {
+			return c, c, false
+		}
+		end = runEnd(end)
+		if around && end < le && (onBlank || class(t, end, big) == 0) {
+			end = runEnd(end)
+		}
+	}
+	if around && !onBlank && class(t, prev(t, ls, end), big) != 0 {
+		for start > ls && class(t, prev(t, ls, start), big) == 0 {
+			start = prev(t, ls, start)
+		}
+	}
+	return start, end, true
+}
+
+// sentence selects n sentences or gaps between them in the paragraph. With
+// around set each sentence takes the blanks after it, or before it when it
+// is the last. A selection that ends a line and starts at or before its first
+// non-blank covers whole lines, as Neovim's sentence motion does.
+func sentence(t Text, c, n int, around bool) (region, bool) {
+	ps, pe := paragraph(t, c, 1, false)
+	text := t.Slice(ps, pe)
+	type seg struct {
+		start, end int
+		blank      bool
+	}
+	var segs []seg
+	for i := 0; i < len(text); {
+		j := i
+		blank := isBlank(text[i])
+		if blank {
+			for j < len(text) && isBlank(text[j]) {
+				j++
+			}
+		} else {
+			for j < len(text) && !sentenceEnd(text, j) {
+				j++
+			}
+			j = min(j+1, len(text))
+			for j < len(text) && strings.IndexByte(`)]"'`, text[j]) >= 0 {
+				j++
+			}
+		}
+		segs = append(segs, seg{ps + i, ps + j, blank})
+		i = j
+	}
+	if len(segs) == 0 {
+		return region{}, false
+	}
+	k := 0
+	for k < len(segs)-1 && segs[k].end <= c {
+		k++
+	}
+	start, last := segs[k].start, k
+	for i := 1; i < n; i++ {
+		if last++; last >= len(segs) {
+			return region{}, false
+		}
+	}
+	if around {
+		switch {
+		case segs[k].blank && last+1 < len(segs):
+			last++
+		case !segs[last].blank && last+1 < len(segs):
+			last++
+		case !segs[k].blank && k > 0:
+			start = segs[k-1].start
+		}
+	}
+	r := region{start: start, end: segs[last].end}
+	if s := LineStart(t, start); r.end == LineEnd(t, r.end) && r.end < t.Len() && start <= firstNonBlank(t, s, LineEnd(t, s)) {
+		r = region{start: s, end: r.end, lines: true, adjusted: true}
+	}
+	return r, true
+}
+
+// sentenceEnd reports whether text[i] is a ., ! or ? that ends a sentence.
+// Closers may follow it, then a blank or the end of the text.
+func sentenceEnd(text string, i int) bool {
+	if strings.IndexByte(".!?", text[i]) < 0 {
+		return false
+	}
+	j := i + 1
+	for j < len(text) && strings.IndexByte(`)]"'`, text[j]) >= 0 {
+		j++
+	}
+	return j == len(text) || isBlank(text[j])
+}
+
+func isBlank(b byte) bool { return b == ' ' || b == '\t' || b == '\n' }
+
+// paragraph selects n runs of blank or non-blank lines, from the start of
+// the first to the end of the last. A line of only blanks counts as blank.
+// With around set a paragraph takes the blank lines after it, or before it
+// at the end of the text.
+func paragraph(t Text, c, n int, around bool) (int, int) {
+	blank := func(p int) bool {
+		return strings.TrimLeft(t.Slice(p, LineEnd(t, p)), " \t") == ""
+	}
+	extend := func(p int) int {
+		k := blank(p)
+		for {
+			le := LineEnd(t, p)
+			if le == t.Len() || blank(le+1) != k {
+				return p
+			}
+			p = le + 1
+		}
+	}
+	next := func(p int) (int, bool) {
+		le := LineEnd(t, p)
+		if le == t.Len() {
+			return p, false
+		}
+		return extend(le + 1), true
+	}
+	ls := LineStart(t, c)
+	onBlank := blank(ls)
+	start := ls
+	for start > 0 && blank(LineStart(t, start-1)) == onBlank {
+		start = LineStart(t, start-1)
+	}
+	end := extend(ls)
+	runs := n
+	if around {
+		runs = 2 * n
+	}
+	trailing := true
+	for i := 1; i < runs; i++ {
+		e, ok := next(end)
+		if !ok {
+			trailing = false
+			break
+		}
+		end = e
+	}
+	if around && !onBlank && !trailing {
+		for start > 0 && blank(LineStart(t, start-1)) {
+			start = LineStart(t, start-1)
+		}
+	}
+	return start, LineEnd(t, end)
+}
+
+// quote selects the quoted text around or after c on its line. Quotes after
+// a backslash do not count. withQuotes keeps the quotes, as a count of 2 does,
+// and around also takes the blanks after the string, or before it.
+func quote(t Text, c int, q byte, withQuotes, around bool) (int, int, bool) {
+	ls, le := LineStart(t, c), LineEnd(t, c)
+	line := t.Slice(ls, le)
+	var qs []int
+	for i := 0; i < len(line); i++ {
+		switch line[i] {
+		case '\\':
+			i++
+		case q:
+			qs = append(qs, i)
+		}
+	}
+	col := c - ls
+	open, close := -1, -1
+	if k := slices.Index(qs, col); k >= 0 {
+		// On a quote, pairs count from the start of the line.
+		if k%2 == 1 {
+			open, close = qs[k-1], qs[k]
+		} else if k+1 < len(qs) {
+			open, close = qs[k], qs[k+1]
+		}
+	} else {
+		// Off a quote, take the quotes around c, or the first string after.
+		i, _ := slices.BinarySearch(qs, col)
+		switch {
+		case i > 0 && i < len(qs):
+			open, close = qs[i-1], qs[i]
+		case i == 0 && len(qs) > 1:
+			open, close = qs[0], qs[1]
+		}
+	}
+	if open < 0 || close < 0 {
+		return c, c, false
+	}
+	start, end := ls+open+1, ls+close
+	if !withQuotes && !around {
+		return start, end, true
+	}
+	start, end = start-1, end+1
+	if around {
+		e := end
+		for e < le && (line[e-ls] == ' ' || line[e-ls] == '\t') {
+			e++
+		}
+		if e > end {
+			return start, e, true
+		}
+		for start > ls && (line[start-ls-1] == ' ' || line[start-ls-1] == '\t') {
+			start--
+		}
+	}
+	return start, end, true
+}
+
+// block selects the n-th pair of open and close around c, or the first pair
+// after c on its line. If the open bracket ends its line and the close
+// bracket starts its line, the inside is the whole lines between them.
+func block(t Text, c, n int, open, close byte, around bool) (region, bool) {
+	o, k := c, n
+	if at(t, c) == open {
+		k--
+	}
+	if k > 0 {
+		o = outer(t, c, k, open, close)
+	}
+	if o < 0 {
+		i := strings.IndexByte(t.Slice(c, LineEnd(t, c)), open)
+		if i < 0 {
+			return region{}, false
+		}
+		o = c + i
+	}
+	cl, depth := -1, 0
+	for p := o + 1; p < t.Len(); p++ {
+		switch at(t, p) {
+		case open:
+			depth++
+		case close:
+			if depth == 0 {
+				cl = p
+			}
+			depth--
+		}
+		if cl >= 0 {
+			break
+		}
+	}
+	if cl < 0 {
+		return region{}, false
+	}
+	if around {
+		return region{start: o, end: cl + 1}, true
+	}
+	if at(t, o+1) == '\n' && firstNonBlank(t, LineStart(t, cl), cl) == cl && o+2 <= cl {
+		end := LineStart(t, cl) - 1
+		return region{start: o + 2, end: end, lines: true}, end >= o+2
+	}
+	return region{start: o + 1, end: cl}, true
+}
+
+// outer returns the n-th unmatched open before c, or -1.
+func outer(t Text, c, n int, open, close byte) int {
+	depth := 0
+	for p := c - 1; p >= 0; p-- {
+		switch at(t, p) {
+		case close:
+			depth++
+		case open:
+			if depth == 0 {
+				if n--; n == 0 {
+					return p
+				}
+				continue
+			}
+			depth--
+		}
+	}
+	return -1
+}

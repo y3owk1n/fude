@@ -6,54 +6,33 @@ import (
 	"unicode"
 )
 
+// region is the text an operator covers.
+type region struct {
+	start, end int
+	lines      bool
+	// adjusted marks an exclusive motion that became linewise. A delete then
+	// puts the cursor on the first non-blank instead of keeping the column.
+	adjusted bool
+}
+
 // register is yanked or deleted text.
 type register struct {
 	text     string // a linewise register's text ends in a newline
 	linewise bool
 }
 
-// operate applies d, c or y to the text cmd covers. cmd is a motion, or the
-// operator again for whole lines.
+// operate applies d, c or y to the text cmd covers. cmd is a motion, a text
+// object, or the operator again for whole lines.
 func (m *Machine) operate(op string, reg rune, cmd string, count int) error {
 	t, c := m.h.Text(), m.h.Cursor()
-	n := max(count, 1)
-	start, end, lines := LineStart(t, c), 0, true
-	if cmd == op {
-		end = LineEnd(t, down(t, start, n-1))
-	} else {
-		var to int
-		var k kind
-		switch big := cmd == "W"; {
-		case op == "c" && (cmd == "w" || cmd == "W") && class(t, c, big) != 0:
-			to, k = wordEnd(t, c, n, big, true), inclusive
-		case cmd == "w" || cmd == "W":
-			to, k = wordForward(t, c, n, big, true), exclusive
-		default:
-			var ok bool
-			if to, k, ok = m.motion(cmd, count); !ok || k == failed {
-				return nil
-			}
-		}
-		start, end, lines = min(c, to), max(c, to), k == linewise
-		switch k {
-		case linewise:
-			start, end = LineStart(t, start), LineEnd(t, end)
-		case inclusive:
-			end = next(t, end, LineEnd(t, end))
-		case exclusive:
-			// An exclusive motion ending in column 0 stops at the end of the
-			// line before, and covers whole lines if it started at or before
-			// the first non-blank.
-			if end > start && end == LineStart(t, end) {
-				end--
-				if s := LineStart(t, start); start <= firstNonBlank(t, s, LineEnd(t, s)) {
-					start, lines = s, true
-				}
-			}
-		}
-		if start == end && !lines {
-			return nil
-		}
+	r, ok := m.span(t, c, op, cmd, count)
+	if !ok || r.start == r.end && !r.lines {
+		return nil
+	}
+	start, end, lines := r.start, r.end, r.lines
+	col := column(t, LineStart(t, c), c)
+	if m.wantSet {
+		col = m.want
 	}
 	m.wantSet = false
 
@@ -85,7 +64,6 @@ func (m *Machine) operate(op string, reg rune, cmd string, count int) error {
 		return m.h.Apply([]Edit{{Start: start, End: end}}, label)
 	}
 
-	col := column(t, LineStart(t, c), c)
 	if lines {
 		// Deleting lines also deletes the newline after them, or the one before
 		// on the last line.
@@ -99,12 +77,58 @@ func (m *Machine) operate(op string, reg rune, cmd string, count int) error {
 		return err
 	}
 	t = m.h.Text()
-	if lines {
-		m.h.SetCursor(atColumn(t, LineStart(t, start), col))
-	} else {
+	switch s := LineStart(t, start); {
+	case lines && r.adjusted:
+		m.h.SetCursor(firstNonBlank(t, s, LineEnd(t, s)))
+	case lines:
+		m.h.SetCursor(atColumn(t, s, col))
+	default:
 		m.h.SetCursor(clamp(t, start))
 	}
 	return nil
+}
+
+// span returns the text an operator covers, or false when cmd covers none.
+func (m *Machine) span(t Text, c int, op, cmd string, count int) (region, bool) {
+	n := max(count, 1)
+	if cmd == op {
+		s := LineStart(t, c)
+		return region{start: s, end: LineEnd(t, down(t, s, n-1)), lines: true}, true
+	}
+	if r, ok := textObject(t, c, count, cmd); ok {
+		return r, true
+	}
+	var to int
+	var k kind
+	var ok bool
+	switch big := cmd == "W"; {
+	case op == "c" && (cmd == "w" || cmd == "W") && class(t, c, big) != 0:
+		to, k = wordEnd(t, c, n, big, true), inclusive
+	case cmd == "w" || cmd == "W":
+		to, k = wordForward(t, c, n, big, true), exclusive
+	default:
+		if to, k, ok = m.motion(cmd, count); !ok || k == failed {
+			return region{}, false
+		}
+	}
+	r := region{start: min(c, to), end: max(c, to), lines: k == linewise}
+	switch k {
+	case linewise:
+		r.start, r.end = LineStart(t, r.start), LineEnd(t, r.end)
+	case inclusive:
+		r.end = next(t, r.end, LineEnd(t, r.end))
+	case exclusive:
+		// An exclusive motion ending in column 0 stops at the end of the line
+		// before, and covers whole lines if it started at or before the first
+		// non-blank.
+		if r.end > r.start && r.end == LineStart(t, r.end) {
+			r.end--
+			if s := LineStart(t, r.start); r.start <= firstNonBlank(t, s, LineEnd(t, s)) {
+				r.start, r.lines, r.adjusted = s, true, true
+			}
+		}
+	}
+	return r, true
 }
 
 // store saves r in reg, or in the registers Neovim uses when reg is 0: "0 for

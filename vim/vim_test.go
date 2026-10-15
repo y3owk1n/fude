@@ -199,6 +199,55 @@ func TestB12LineOperators(t *testing.T) {
 	})
 }
 
+// B13
+func TestB13TextObjects(t *testing.T) {
+	cases(t, [][3]string{
+		{"foo b|ar baz", "diw", "foo | baz"},
+		{"foo b|ar baz", "daw", "foo |baz"},
+		{"foo bar ba|z", "daw", "foo ba|r"},
+		{"foo |  bar", "diw", "foo|bar"},
+		{"foo |  bar", "daw", "fo|o"},
+		{"foo.b|ar", "diw", "foo|."},
+		{"a b| c d", "d2iw", "a b| d"},
+		{"a b| c d", "d2aw", "a |b"},
+		{"a b|c", "d3iw", "a b|c"},
+		{"|\nb", "diw", "|\nb"},
+		{`x = "a|b c" + "d"`, `di"`, `x = "|" + "d"`},
+		{`x = "a|b c" + "d"`, `da"`, `x = |+ "d"`},
+		{`|x = "ab"`, `di"`, `x = "|"`},
+		{`x = "ab|"`, `di"`, `x = "|"`},
+		{`"a\\"|b"`, `di"`, `"a\\"|"`},
+		{`"a" x| "b"`, `di"`, `"a"|"b"`},
+		{`"a|b"`, `d2i"`, `|`},
+		{`x "a|b"`, `da"`, `|x`},
+		{"f(a, (b|), c)", "di(", "f(a, (|), c)"},
+		{"f(a, (b|), c)", "d2i(", "f(|)"},
+		{"f(a, (b|), c)", "da(", "f(a, |, c)"},
+		{"f|(a)", "di)", "f(|)"},
+		{"f(|)", "di(", "f(|)"},
+		{"x |f(a)", "di(", "x f(|)"},
+		{"f(\n  a,|\n  b\n)", "di(", "f(\n|)"},
+		{"f(a, b|)", "ci(X<Esc>", "f(|X)"},
+		{"{a [b <c|>]}", "di<", "{a [b <|>]}"},
+		{"{a [b <c|>]}", "di[", "{a [|]}"},
+		{"{a [b <c|>]}", "diB", "{|}"},
+		{"One. Tw|o three. Four.", "dis", "One. | Four."},
+		{"One. Tw|o three. Four.", "das", "One. |Four."},
+		{"One. Two three.| Four.", "dis", "One. Two three.|Four."},
+		{"One. Two three.| Four.", "das", "One. Two three|."},
+		{"One.\nTw|o.\n\nX.", "dis", "One.\n|\nX."},
+		{"Hi (there.) Ne|xt.", "dis", "Hi (there.)| "},
+		{"a.\nTw|o.\nb.", "dis", "a.\n|b."},
+		{"One.\nTw|o.", "dis", "One.\n|"},
+		{"a\nb|\n\nc", "dip", "|\nc"},
+		{"a\nb|\n\nc", "dap", "|c"},
+		{"a\n\nb|", "dap", "|a"},
+		{"a\n|  \nb", "dip", "a\n|b"},
+		{"a\n|\n\nb\nc\n\nd", "d2ap", "|a"},
+		{"a|\nb\n\nc\nd", "d2ip", "|c\nd"},
+	})
+}
+
 // B14
 func TestB14Registers(t *testing.T) {
 	cases(t, [][3]string{

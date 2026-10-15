@@ -56,7 +56,7 @@ type Machine struct {
 	opCount int
 	reg     rune // the register named with ", or 0
 	regs    map[rune]register
-	pending Key    // g, f, t, F, T or " waiting for the next key
+	pending Key    // g, f, t, F, T, " or a text object's i or a
 	find    string // the last f, t, F or T and its character
 	want    int    // the column j and k aim for
 	wantSet bool
@@ -119,6 +119,10 @@ func (m *Machine) normal(k Key) error {
 		if Key(cmd[1:]).isChar() {
 			m.reg, _ = utf8.DecodeRuneInString(cmd[1:])
 		}
+		return nil
+	}
+	if m.op != "" && (cmd == "i" || cmd == "a") {
+		m.pending = k
 		return nil
 	}
 	if m.op == "" && (cmd == "d" || cmd == "c" || cmd == "y") {
