@@ -205,7 +205,9 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 				}
 			}
 			if visual && at >= sel.Start && at < sel.End && (!sel.Block || x >= sel.Left && x <= sel.Right) {
-				style = style.Reverse(true)
+				// Reversing syntax colours would stripe the selection, so it
+				// drops them.
+				style = tcell.StyleDefault.Reverse(true)
 			}
 			var width int
 			rest, width = c.s.Put(v.X+x, y, rest, style)
