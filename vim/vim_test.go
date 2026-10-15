@@ -15,6 +15,7 @@ type host struct {
 	depth   int
 	applied bool
 	steps   int
+	marks   map[rune]int // fixed positions, since these tests do not edit before a mark
 }
 
 type text string
@@ -28,6 +29,17 @@ func (h *host) SetCursor(pos int)      { h.cursor = pos }
 func (h *host) BeginGroup()            { h.depth++ }
 func (h *host) Unhandled(string)       {}
 func (h *host) Undo() (int, int, bool) { return 0, 0, false }
+func (h *host) SetMark(r rune, pos int) {
+	if h.marks == nil {
+		h.marks = map[rune]int{}
+	}
+	h.marks[r] = pos
+}
+
+func (h *host) Mark(r rune) (int, bool) {
+	p, ok := h.marks[r]
+	return p, ok
+}
 func (h *host) Redo() (int, int, bool) { return 0, 0, false }
 func (h *host) EndGroup() {
 	h.depth--

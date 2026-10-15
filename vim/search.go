@@ -149,7 +149,7 @@ func isWordByte(b byte) bool {
 }
 
 // lineRange parses a leading range: %, or one or two addresses (a line
-// number, ., $, '< or '>) joined by a comma. It returns the starts of the
+// number, ., $ or a mark such as 'a or '<) joined by a comma. It returns the starts of the
 // first and last lines and the rest of s. Without a range both are the
 // cursor's line.
 func (m *Machine) lineRange(t Text, c int, s string) (int, int, string, error) {
@@ -163,16 +163,13 @@ func (m *Machine) lineRange(t Text, c int, s string) (int, int, string, error) {
 			return LineStart(t, c), s[1:], true
 		case strings.HasPrefix(s, "$"):
 			return LineStart(t, t.Len()), s[1:], true
-		case strings.HasPrefix(s, "'<") || strings.HasPrefix(s, "'>"):
-			if !m.hasMarked {
-				err = errors.New("no previous selection")
+		case strings.HasPrefix(s, "'") && len(s) > 1:
+			p, ok := m.h.Mark(rune(s[1]))
+			if !ok {
+				err = errors.New("mark not set")
 				return 0, s, false
 			}
-			p := m.marked[0]
-			if s[1] == '>' {
-				p = m.marked[1]
-			}
-			return LineStart(t, min(p, t.Len())), s[2:], true
+			return LineStart(t, p), s[2:], true
 		}
 		i := 0
 		for i < len(s) && s[i] >= '0' && s[i] <= '9' {

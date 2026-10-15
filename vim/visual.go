@@ -52,7 +52,8 @@ func (m *Machine) selection() region {
 // and '>.
 func (m *Machine) leaveVisual() {
 	r := m.selection()
-	m.marked, m.hasMarked = [2]int{r.start, max(r.start, r.end-1)}, true
+	m.h.SetMark('<', r.start)
+	m.h.SetMark('>', max(r.start, r.end-1))
 	m.mode = Normal
 }
 

@@ -37,6 +37,8 @@ type Host interface {
 	Unhandled(keys string) // an ex line such as ":w"
 	Undo() (start, cursor int, ok bool)
 	Redo() (start, cursor int, ok bool)
+	SetMark(name rune, pos int) // a mark moves with edits to the text
+	Mark(name rune) (int, bool)
 }
 
 // Mode is normal, insert, command line, visual or replace.
@@ -83,10 +85,8 @@ type Machine struct {
 	depth     int  // nested replays, to stop runaway recursion
 
 	// Visual mode.
-	visual      Key    // v, V or <C-v>
-	anchor      int    // the end of the selection the cursor is not on
-	marked      [2]int // the first and last character of the last selection, for '< and '>
-	hasMarked   bool
+	visual      Key // v, V or <C-v>
+	anchor      int // the end of the selection the cursor is not on
 	blockInsert *blockInsert
 	replaced    []string // what each key typed in replace mode overwrote
 
@@ -302,7 +302,7 @@ func (m *Machine) normal(k Key) error {
 		m.counted = true
 		return nil
 	}
-	if len(cmd) == 1 && strings.Contains("gftFT\"q@r", cmd) {
+	if len(cmd) == 1 && strings.Contains("gftFT\"q@rm`'", cmd) {
 		m.pending = k
 		m.counted = cmd == "\""
 		return nil
@@ -312,6 +312,10 @@ func (m *Machine) normal(k Key) error {
 			m.reg, _ = utf8.DecodeRuneInString(cmd[1:])
 		}
 		m.counted = true
+		return nil
+	}
+	if cmd[0] == 'm' && len(cmd) == 2 && cmd[1] >= 'a' && cmd[1] <= 'z' {
+		m.h.SetMark(rune(cmd[1]), m.h.Cursor())
 		return nil
 	}
 	if (cmd[0] == 'q' || cmd[0] == '@') && len(cmd) > 1 {

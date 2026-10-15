@@ -133,6 +133,30 @@ func TestB30UndoRedoBranches(t *testing.T) {
 		{"abc", "lliX<Esc>iY<Esc>uu<C-r>", "ab|Xc"},
 		{"a b c", "dwwdwuu", "|a b c"},
 	}
+	run(t, cases)
+}
+
+// B20
+func TestB20Marks(t *testing.T) {
+	run(t, [][3]string{
+		{"x\nfoobar", "jlllmaggOnew<Esc>`a", "new\nx\nfoo|bar"},
+		{"x\ny\nfoobar", "jjlllmaggddG`a", "y\nfoo|bar"},
+		{"foobar", "lllma0iXX<Esc>`a", "XXfoo|bar"},
+		{"  foo\nbar", "llmaj'a", "  |foo\nbar"},
+		{"foo bar\nbaz", "wmajd`a", "foo |z"},
+		{"foo bar\nbaz", "jmaggd'a", "|"},
+	})
+	e := open(t, filepath.Join(t.TempDir(), "f"))
+	feed(e, "`b")
+	if e.Message() != "mark not set" {
+		t.Errorf("jumping to an unset mark gave %q", e.Message())
+	}
+}
+
+// run opens a file holding each case's text, feeds its keys and compares the
+// text with | at the cursor.
+func run(t *testing.T, cases [][3]string) {
+	t.Helper()
 	for _, c := range cases {
 		path := filepath.Join(t.TempDir(), "f")
 		if err := os.WriteFile(path, []byte(c[0]), 0o644); err != nil {

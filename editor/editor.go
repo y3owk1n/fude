@@ -25,6 +25,8 @@ type Editor struct {
 	pending int // the cursor when the step being made began
 	depth   int
 	head    kernel.NodeID
+
+	marks map[rune]kernel.MarkID
 }
 
 // Open opens path. A path that does not exist opens an empty buffer.
@@ -33,7 +35,7 @@ func Open(path string) (*Editor, error) {
 	if err != nil {
 		return nil, err
 	}
-	e := &Editor{file: f, buf: kernel.New(text, nil), before: map[kernel.NodeID]int{}}
+	e := &Editor{file: f, buf: kernel.New(text, nil), before: map[kernel.NodeID]int{}, marks: map[rune]kernel.MarkID{}}
 	e.vim = vim.New(host{e})
 	switch {
 	case f.readonly:
@@ -172,6 +174,22 @@ func (h host) end() {
 		h.e.before[head] = h.e.pending
 		h.e.head = head
 	}
+}
+
+func (h host) SetMark(name rune, pos int) {
+	if id, ok := h.e.marks[name]; ok {
+		h.e.buf.MoveMark(id, pos)
+		return
+	}
+	h.e.marks[name] = h.e.buf.SetMark(pos, kernel.Right)
+}
+
+func (h host) Mark(name rune) (int, bool) {
+	id, ok := h.e.marks[name]
+	if !ok {
+		return 0, false
+	}
+	return h.e.buf.Mark(id), true
 }
 
 func (h host) Undo() (int, int, bool) {

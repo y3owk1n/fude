@@ -107,6 +107,18 @@ func (m *Machine) motion(cmd string, count int) (int, kind, bool) {
 		p, ok := find(t, c, n, f, true)
 		return m.found(p, f, ok)
 	default:
+		if (cmd[0] == '`' || cmd[0] == '\'') && len(cmd) == 2 {
+			p, ok := m.h.Mark(rune(cmd[1]))
+			switch {
+			case !ok:
+				m.msg = "mark not set"
+				return c, failed, true
+			case cmd[0] == '\'':
+				s := LineStart(t, p)
+				return firstNonBlank(t, s, LineEnd(t, s)), linewise, true
+			}
+			return p, exclusive, true
+		}
 		if cmd[0] == '/' || cmd[0] == '?' {
 			m.search.pattern, m.search.forward = cmd[1:], cmd[0] == '/'
 			return m.seek(m.search.pattern, m.search.forward, n)
