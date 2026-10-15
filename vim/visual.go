@@ -111,17 +111,27 @@ func (m *Machine) blockInsertStart(after bool) error {
 	return nil
 }
 
-// visualOps are the keys that apply an operator to the selection, and
-// whether they take its whole lines.
-var visualOps = map[string]struct {
+// visualOp is a key that applies an operator to the selection, whether it
+// takes the selection's whole lines, and what it does.
+type visualOp struct {
 	op    string
 	lines bool
-}{
-	"d": {"d", false}, "x": {"d", false}, "c": {"c", false}, "s": {"c", false}, "y": {"y", false},
-	"~": {"g~", false}, "u": {"gu", false}, "U": {"gU", false},
-	"g~": {"g~", false}, "gu": {"gu", false}, "gU": {"gU", false},
-	">": {">", true}, "<": {"<", true},
-	"X": {"d", true}, "D": {"d", true}, "Y": {"y", true}, "C": {"c", true}, "S": {"c", true}, "R": {"c", true},
+	help  string
+}
+
+// visualOps are the keys that apply an operator to the selection.
+var visualOps = map[string]visualOp{
+	"d": {"d", false, "deletes the selection"}, "x": {"d", false, "deletes the selection"},
+	"c": {"c", false, "deletes the selection, then inserts"}, "s": {"c", false, "deletes the selection, then inserts"},
+	"y": {"y", false, "yanks the selection"},
+	"~": {"g~", false, "switches the case of the selection"}, "g~": {"g~", false, "switches the case of the selection"},
+	"u": {"gu", false, "lowercases the selection"}, "gu": {"gu", false, "lowercases the selection"},
+	"U": {"gU", false, "uppercases the selection"}, "gU": {"gU", false, "uppercases the selection"},
+	">": {">", true, "indents the selected lines"}, "<": {"<", true, "outdents the selected lines"},
+	"X": {"d", true, "deletes the selected lines"}, "D": {"d", true, "deletes the selected lines, or to the end of each line of a block"},
+	"Y": {"y", true, "yanks the selected lines"},
+	"C": {"c", true, "changes the selected lines, or to the end of each line of a block"},
+	"S": {"c", true, "changes the selected lines"}, "R": {"c", true, "changes the selected lines"},
 }
 
 // replaceSelection replaces every character of the selection with k,
@@ -207,6 +217,107 @@ func (m *Machine) putOver(reg rune, keep bool, n int) error {
 	return nil
 }
 
+// visualCall is what a visual mode command gets: the text, the cursor, the
+// keys, the count typed (0 for none) and the register named.
+type visualCall struct {
+	t     Text
+	c     int
+	cmd   string
+	count int
+	reg   rune
+}
+
+// visualKey is a visual mode command that is not an operator, an object or a
+// motion.
+type visualKey struct {
+	help string
+	run  func(m *Machine, x visualCall) error
+}
+
+// visuals are those commands by their keys. r{char} stands for r and any
+// character, which visualKey checks after visualOps.
+var visuals = map[string]visualKey{
+	"<Esc>": {"leaves visual mode", func(m *Machine, x visualCall) error {
+		m.leaveVisual()
+		m.h.SetCursor(clamp(x.t, x.c))
+		return nil
+	}},
+	"v":     {"selects characters, or leaves when it does", switchVisual},
+	"V":     {"selects lines, or leaves when it does", switchVisual},
+	"<C-v>": {"selects a block, or leaves when it does", switchVisual},
+	"I": {"inserts before a block on each of its lines", func(m *Machine, _ visualCall) error {
+		if m.visual == "<C-v>" {
+			return m.blockInsertStart(false)
+		}
+		return nil
+	}},
+	"A": {"inserts after a block on each of its lines", func(m *Machine, _ visualCall) error {
+		if m.visual == "<C-v>" {
+			return m.blockInsertStart(true)
+		}
+		return nil
+	}},
+	":": {"opens the command line with the selected lines as its range", func(m *Machine, _ visualCall) error {
+		m.leaveVisual()
+		m.enterLine(Normal, ":", "'<,'>")
+		return nil
+	}},
+	"o": {"moves the cursor to the other end of the selection", func(m *Machine, x visualCall) error {
+		m.anchor, x.c = x.c, m.anchor
+		m.h.SetCursor(x.c)
+		return nil
+	}},
+	"*":  {"searches forward for the selected text", searchSelection},
+	"#":  {"searches back for the selected text", searchSelection},
+	"J":  {"joins the selected lines, with spaces", joinSelection},
+	"gJ": {"joins the selected lines, as they are", joinSelection},
+	"p": {"replaces the selection with the register, n times", func(m *Machine, x visualCall) error {
+		return m.putOver(x.reg, false, max(x.count, 1))
+	}},
+	"P": {"replaces the selection with the register, n times, and keeps the register", func(m *Machine, x visualCall) error {
+		return m.putOver(x.reg, true, max(x.count, 1))
+	}},
+	"r{char}": {"replaces every selected character with char", func(m *Machine, x visualCall) error {
+		return m.replaceSelection(Key(x.cmd[1:]))
+	}},
+}
+
+// switchVisual is v, V and <C-v>, which switch to their kind of selection,
+// or leave visual mode when it is the one shown.
+func switchVisual(m *Machine, x visualCall) error {
+	if Key(x.cmd) == m.visual {
+		m.leaveVisual()
+		m.h.SetCursor(clamp(x.t, x.c))
+	}
+	m.visual = Key(x.cmd)
+	return nil
+}
+
+// searchSelection is * and #, which search for the selected text as it is.
+func searchSelection(m *Machine, x visualCall) error {
+	r := m.selection()
+	m.leaveVisual()
+	pat := strings.ReplaceAll(strings.ReplaceAll(x.t.Slice(r.start, r.end), `\`, `\\`), "\n", `\n`)
+	m.search.pattern, m.search.forward = `\V`+pat, x.cmd == "*"
+	p, k, _ := m.seek(m.search.pattern, m.search.forward, max(x.count, 1))
+	if k != failed {
+		m.h.SetCursor(clamp(x.t, p))
+	}
+	return nil
+}
+
+// joinSelection is J and gJ, which join the selected lines.
+func joinSelection(m *Machine, x visualCall) error {
+	r := m.selection()
+	m.leaveVisual()
+	last := r.end
+	if !r.lines && !r.block && last > r.start {
+		last--
+	}
+	m.h.SetCursor(r.start)
+	return m.join(max(x.t.LineOf(last)-x.t.LineOf(r.start), 1), x.cmd == "J")
+}
+
 // visualKey handles a command in visual mode.
 func (m *Machine) visualKey(cmd string, count int, reg rune) error {
 	if len(m.regions) > 0 {
@@ -220,54 +331,8 @@ func (m *Machine) visualKey(cmd string, count int, reg rune) error {
 		m.leaveVisual()
 		return m.act(cmd, reg, string(m.visual)+cmd, r)
 	}
-	switch cmd {
-	case "<Esc>":
-		m.leaveVisual()
-		m.h.SetCursor(clamp(t, c))
-		return nil
-	case "v", "V", "<C-v>":
-		if Key(cmd) == m.visual {
-			m.leaveVisual()
-			m.h.SetCursor(clamp(t, c))
-		}
-		m.visual = Key(cmd)
-		return nil
-	case "I", "A":
-		if m.visual == "<C-v>" {
-			return m.blockInsertStart(cmd == "A")
-		}
-		return nil
-	case ":":
-		// The command line starts with the range of the selected lines.
-		m.leaveVisual()
-		m.enterLine(Normal, ":", "'<,'>")
-		return nil
-	case "o":
-		m.anchor, c = c, m.anchor
-		m.h.SetCursor(c)
-		return nil
-	case "*", "#":
-		// Search for the selected text literally.
-		r := m.selection()
-		m.leaveVisual()
-		pat := strings.ReplaceAll(strings.ReplaceAll(t.Slice(r.start, r.end), `\`, `\\`), "\n", `\n`)
-		m.search.pattern, m.search.forward = `\V`+pat, cmd == "*"
-		p, k, _ := m.seek(m.search.pattern, m.search.forward, max(count, 1))
-		if k != failed {
-			m.h.SetCursor(clamp(t, p))
-		}
-		return nil
-	case "J", "gJ":
-		r := m.selection()
-		m.leaveVisual()
-		last := r.end
-		if !r.lines && !r.block && last > r.start {
-			last--
-		}
-		m.h.SetCursor(r.start)
-		return m.join(max(t.LineOf(last)-t.LineOf(r.start), 1), cmd == "J")
-	case "p", "P":
-		return m.putOver(reg, cmd == "P", max(count, 1))
+	if vk, ok := visuals[cmd]; ok {
+		return vk.run(m, visualCall{t, c, cmd, count, reg})
 	}
 	if v, ok := visualOps[cmd]; ok {
 		r := m.selection()
@@ -292,7 +357,7 @@ func (m *Machine) visualKey(cmd string, count int, reg rune) error {
 		return nil
 	}
 	if len(cmd) > 1 && cmd[0] == 'r' && Key(cmd[1:]).isChar() {
-		return m.replaceSelection(Key(cmd[1:]))
+		return visuals["r{char}"].run(m, visualCall{t, c, cmd, count, reg})
 	}
 	if r, ok := m.object(t, c, count, cmd); ok {
 		m.anchor = r.start

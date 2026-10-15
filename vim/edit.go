@@ -7,37 +7,74 @@ import (
 	"unicode"
 )
 
-// aliases are the commands that are an operator and a target.
-var aliases = map[string]string{
-	"x": "dl", "X": "dh", "s": "cl", "S": "cc", "D": "d$", "C": "c$", "Y": "y$",
+// alias is a command that is an operator and a target.
+type alias struct{ to, help string }
+
+// aliases are the commands that are an operator and a target, by their keys.
+var aliases = map[string]alias{
+	"x": {"dl", "deletes the character under the cursor"},
+	"X": {"dh", "deletes the character before the cursor"},
+	"s": {"cl", "changes the character under the cursor"},
+	"S": {"cc", "changes the line"},
+	"D": {"d$", "deletes to the end of the line"},
+	"C": {"c$", "changes to the end of the line"},
+	"Y": {"y$", "yanks to the end of the line"},
 }
 
-// operators are the keys that wait for a target.
-var operators = map[string]bool{
-	"d": true, "c": true, "y": true, "g~": true, "gu": true, "gU": true, ">": true, "<": true,
+// operators are the keys that wait for a target, and what they do with it.
+var operators = map[string]string{
+	"d": "deletes the text a motion or object covers", "c": "deletes the text a motion or object covers, then inserts",
+	"y": "yanks the text a motion or object covers", "g~": "switches the case of the text a motion or object covers",
+	"gu": "lowercases the text a motion or object covers", "gU": "uppercases the text a motion or object covers",
+	">": "indents the lines a motion or object covers", "<": "outdents the lines a motion or object covers",
+}
+
+// editKey is a command that changes text without an operator.
+type editKey struct {
+	help string
+	run  func(m *Machine, cmd string, count, n int) error
+}
+
+// edits are the commands that change text without an operator, by their
+// keys. r{char} stands for r and any character.
+var edits = map[string]editKey{
+	"~": {"switches the case of the character and moves past it", func(m *Machine, _ string, _, n int) error {
+		return m.toggleCase(n)
+	}},
+	"J": {"joins the line with the next, with a space", func(m *Machine, _ string, count, _ int) error {
+		return m.join(max(count, 2)-1, true)
+	}},
+	"gJ": {"joins the line with the next, as they are", func(m *Machine, _ string, count, _ int) error {
+		return m.join(max(count, 2)-1, false)
+	}},
+	"<C-a>": {"adds n to the number at or after the cursor", func(m *Machine, _ string, _, n int) error {
+		return m.increment(n)
+	}},
+	"<C-x>": {"subtracts n from the number at or after the cursor", func(m *Machine, _ string, _, n int) error {
+		return m.increment(-n)
+	}},
+	"R": {"types over the text until <Esc>", func(m *Machine, _ string, _, _ int) error {
+		m.startInsert("R", m.h.Cursor())
+		m.mode, m.replaced = Replace, nil
+		return nil
+	}},
+	"r{char}": {"replaces n characters with char", func(m *Machine, cmd string, _, n int) error {
+		return m.replaceChars(n, Key(cmd[1:]))
+	}},
 }
 
 // edit runs a command that changes text without an operator, or reports
 // false if cmd is not one.
 func (m *Machine) edit(cmd string, count int) (bool, error) {
-	n := max(count, 1)
-	switch {
-	case cmd == "~":
-		return true, m.toggleCase(n)
-	case cmd == "J" || cmd == "gJ":
-		return true, m.join(max(count, 2)-1, cmd == "J")
-	case cmd == "<C-a>":
-		return true, m.increment(n)
-	case cmd == "<C-x>":
-		return true, m.increment(-n)
-	case cmd == "R":
-		m.startInsert("R", m.h.Cursor())
-		m.mode, m.replaced = Replace, nil
-		return true, nil
-	case len(cmd) > 1 && cmd[0] == 'r':
-		return true, m.replaceChars(n, Key(cmd[1:]))
+	key := cmd
+	if len(cmd) > 1 && cmd[0] == 'r' {
+		key = "r{char}"
 	}
-	return false, nil
+	e, ok := edits[key]
+	if !ok {
+		return false, nil
+	}
+	return true, e.run(m, cmd, count, max(count, 1))
 }
 
 // toggleCase switches the case of n characters and moves past them.

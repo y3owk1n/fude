@@ -419,6 +419,17 @@ func (m *Machine) Paste(s string) error {
 	return nil
 }
 
+// prefixes are the keys normal reads itself, before or as a command, as
+// help shows them.
+var prefixes = []Binding{
+	{"normal", "{count}", "repeats the command that follows, or sets its n"},
+	{"normal", `"{reg}`, "names the register the next command uses"},
+	{"normal", "m{a-z}", "sets a mark at the cursor"},
+	{"normal", "q{reg}", "records keys into the register until q"},
+	{"normal", "@{reg}", "replays the register, n times"},
+	{"normal", "<C-w>{key}", "runs a window command"},
+}
+
 func (m *Machine) normal(k Key) error {
 	cmd := string(m.pending) + string(k)
 	m.pending = ""
@@ -494,7 +505,7 @@ func (m *Machine) command(cmd string) error {
 		m.dotCount, m.dotReg = count, reg
 		return m.visualKey(cmd, count, reg)
 	}
-	if m.op == "" && (operators[cmd] || m.ops[cmd] != nil) {
+	if _, op := operators[cmd]; m.op == "" && (op || m.ops[cmd] != nil) {
 		m.op, m.opCount, m.count = cmd, m.count, 0
 		return nil
 	}
@@ -509,7 +520,7 @@ func (m *Machine) command(cmd string) error {
 		return m.operate(op, reg, cmd, count, op+cmd)
 	}
 	if a, ok := aliases[cmd]; ok {
-		return m.operate(a[:1], reg, a[1:], count, cmd)
+		return m.operate(a.to[:1], reg, a.to[1:], count, cmd)
 	}
 	if ok, err := m.edit(cmd, count); ok {
 		return err
@@ -540,81 +551,165 @@ func (m *Machine) command(cmd string) error {
 	if name, ok := strings.CutPrefix(cmd, "<Plug>("); ok {
 		return m.plug(strings.TrimSuffix(name, ")"), count)
 	}
-	start, end := LineStart(t, c), LineEnd(t, c)
-	switch k {
-	case "p", "P":
-		return m.put(reg, k == "p", max(count, 1))
-	case "u", "<C-r>":
-		return m.undo(k == "u", max(count, 1))
-	case ".":
-		return m.repeat(count)
-	case "Q":
-		if m.recorded == 0 {
-			return nil
-		}
-		return m.execute(m.recorded, max(count, 1))
-	case ":":
-		line := ""
-		if count > 0 {
-			// A count is a range of that many lines from the cursor's.
-			line = ".,.+" + strconv.Itoa(count-1)
-		}
-		m.enterLine(Normal, ":", line)
-	case "<C-l>":
-		m.hl = false
-	case "gv":
-		m.reselect()
-	case "ZZ":
-		m.h.Unhandled(":x")
-
-	case "ZQ":
-		m.h.Unhandled(":q!")
-	case "<C-^>":
-		if count > 0 {
-			m.h.Unhandled(":b " + strconv.Itoa(count))
-		} else {
-			m.h.Unhandled(":b #")
-		}
-	case "<C-o>":
-		m.walk(m.h.Jump, max(count, 1))
-	case "<C-i>", "\t":
-		m.walk(m.h.Jump, -max(count, 1))
-	case "g-", "g+":
-		n := max(count, 1)
-		if cmd == "g-" {
-			n = -n
-		}
-		start, ok := m.h.Step(n)
-		switch {
-		case !ok && n < 0:
-			return errors.New("already at the oldest change")
-		case !ok:
-			return errors.New("already at the newest change")
-		}
-		m.h.SetCursor(clamp(m.h.Text(), start))
-	case "g;":
-		m.walk(m.h.Change, max(count, 1))
-	case "g,":
-		m.walk(m.h.Change, -max(count, 1))
-	case "&":
-		return m.ex("&&")
-	case "v", "V", "<C-v>":
-		m.mode, m.visual, m.anchor = Visual, k, c
-	case "i":
-		m.startInsert(k, c)
-	case "a":
-		m.startInsert(k, next(t, c, end))
-	case "I":
-		m.startInsert(k, firstNonBlank(t, start, end))
-	case "A":
-		m.startInsert(k, end)
-	case "o":
-		m.startInsert(k, end)
-		return m.newline()
-	case "O":
-		m.startInsert(k, start)
-		return m.openAbove()
+	key := cmd
+	if k == "\t" {
+		key = "<C-i>"
 	}
+	nk, ok := normals[key]
+	if !ok {
+		return nil
+	}
+	return nk.run(m, normalCall{t, c, LineStart(t, c), LineEnd(t, c), k, count, reg})
+}
+
+// normalCall is what a normal mode command gets: the text, the cursor, the
+// start and end of its line, the key, the count typed (0 for none) and the
+// register named.
+type normalCall struct {
+	t             Text
+	c, start, end int
+	k             Key
+	count         int
+	reg           rune
+}
+
+// n is the count, or 1 without one.
+func (x normalCall) n() int { return max(x.count, 1) }
+
+// normalKey is a normal mode command that is not an operator, a motion, an
+// edit or a scroll.
+type normalKey struct {
+	help string
+	run  func(m *Machine, x normalCall) error
+}
+
+// insertAt starts insert mode at where returns.
+func insertAt(where func(x normalCall) int) func(m *Machine, x normalCall) error {
+	return func(m *Machine, x normalCall) error {
+		m.startInsert(x.k, where(x))
+		return nil
+	}
+}
+
+// visualMode starts the kind of visual mode its key names.
+func visualMode(m *Machine, x normalCall) error {
+	m.mode, m.visual, m.anchor = Visual, x.k, x.c
+	return nil
+}
+
+// normals are the other normal mode commands, by their keys. <Tab> is <C-i>.
+// init fills them because . and Q run keys, which come back to them.
+var normals map[string]normalKey
+
+func init() {
+	normals = map[string]normalKey{
+		"p": {"puts the register after the cursor, n times", func(m *Machine, x normalCall) error {
+			return m.put(x.reg, true, x.n())
+		}},
+		"P": {"puts the register before the cursor, n times", func(m *Machine, x normalCall) error {
+			return m.put(x.reg, false, x.n())
+		}},
+		"u": {"undoes n changes", func(m *Machine, x normalCall) error {
+			return m.undo(true, x.n())
+		}},
+		"<C-r>": {"redoes n changes", func(m *Machine, x normalCall) error {
+			return m.undo(false, x.n())
+		}},
+		".": {"repeats the last change, with n as its count", func(m *Machine, x normalCall) error {
+			return m.repeat(x.count)
+		}},
+		"Q": {"replays the last recorded register, n times", func(m *Machine, x normalCall) error {
+			if m.recorded == 0 {
+				return nil
+			}
+			return m.execute(m.recorded, x.n())
+		}},
+		":": {"opens the command line, with n lines from the cursor's as its range", func(m *Machine, x normalCall) error {
+			line := ""
+			if x.count > 0 {
+				line = ".,.+" + strconv.Itoa(x.count-1)
+			}
+			m.enterLine(Normal, ":", line)
+			return nil
+		}},
+		"<C-l>": {"hides the last search's highlight", func(m *Machine, _ normalCall) error {
+			m.hl = false
+			return nil
+		}},
+		"gv": {"selects the last selection again", func(m *Machine, _ normalCall) error {
+			m.reselect()
+			return nil
+		}},
+		"ZZ": {"writes the buffer if it is modified, and closes the window", func(m *Machine, _ normalCall) error {
+			m.h.Unhandled(":x")
+			return nil
+		}},
+		"ZQ": {"closes the window without writing", func(m *Machine, _ normalCall) error {
+			m.h.Unhandled(":q!")
+			return nil
+		}},
+		"<C-^>": {"shows the buffer shown before, or buffer n", func(m *Machine, x normalCall) error {
+			if x.count > 0 {
+				m.h.Unhandled(":b " + strconv.Itoa(x.count))
+			} else {
+				m.h.Unhandled(":b #")
+			}
+			return nil
+		}},
+		"<C-o>": {"goes back n places in the jump list", func(m *Machine, x normalCall) error {
+			m.walk(m.h.Jump, x.n())
+			return nil
+		}},
+		"<C-i>": {"goes forward n places in the jump list", func(m *Machine, x normalCall) error {
+			m.walk(m.h.Jump, -x.n())
+			return nil
+		}},
+		"g-": {"goes n states back in the text's history", func(m *Machine, x normalCall) error {
+			return m.stepState(-x.n())
+		}},
+		"g+": {"goes n states forward in the text's history", func(m *Machine, x normalCall) error {
+			return m.stepState(x.n())
+		}},
+		"g;": {"goes back n places in the change list", func(m *Machine, x normalCall) error {
+			m.walk(m.h.Change, x.n())
+			return nil
+		}},
+		"g,": {"goes forward n places in the change list", func(m *Machine, x normalCall) error {
+			m.walk(m.h.Change, -x.n())
+			return nil
+		}},
+		"&": {"repeats the last substitute on the line, with its flags", func(m *Machine, _ normalCall) error {
+			return m.ex("&&")
+		}},
+		"v":     {"selects characters", visualMode},
+		"V":     {"selects lines", visualMode},
+		"<C-v>": {"selects a block", visualMode},
+		"i":     {"inserts before the cursor", insertAt(func(x normalCall) int { return x.c })},
+		"a":     {"inserts after the cursor", insertAt(func(x normalCall) int { return next(x.t, x.c, x.end) })},
+		"I":     {"inserts before the line's first non-blank", insertAt(func(x normalCall) int { return firstNonBlank(x.t, x.start, x.end) })},
+		"A":     {"inserts at the end of the line", insertAt(func(x normalCall) int { return x.end })},
+		"o": {"opens a line below and inserts", func(m *Machine, x normalCall) error {
+			m.startInsert(x.k, x.end)
+			return m.newline()
+		}},
+		"O": {"opens a line above and inserts", func(m *Machine, x normalCall) error {
+			m.startInsert(x.k, x.start)
+			return m.openAbove()
+		}},
+	}
+}
+
+// stepState moves n states through the text's history, back for a
+// negative n, and puts the cursor where the state changed.
+func (m *Machine) stepState(n int) error {
+	start, ok := m.h.Step(n)
+	switch {
+	case !ok && n < 0:
+		return errors.New("already at the oldest change")
+	case !ok:
+		return errors.New("already at the newest change")
+	}
+	m.h.SetCursor(clamp(m.h.Text(), start))
 	return nil
 }
 

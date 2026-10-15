@@ -26,8 +26,28 @@ func (m *Machine) insert(k Key) error {
 		// A host's command, as a mapping in insert mode runs it.
 		return m.plug(strings.TrimSuffix(name, ")"), 0)
 	}
-	switch k {
-	case "<Esc>":
+	if ik, ok := inserts[string(k)]; ok {
+		return ik.run(m, t, c, k)
+	}
+	if k == "\t" && m.expandTab {
+		iw := m.h.IndentWidth()
+		return m.typeText(strings.Repeat(" ", iw-column(t, LineStart(t, c), c)%iw))
+	}
+	if k.isChar() {
+		return m.typeText(string(k))
+	}
+	return nil
+}
+
+// insertKey is an insert mode key that does more than type itself.
+type insertKey struct {
+	help string
+	run  func(m *Machine, t Text, c int, k Key) error
+}
+
+// inserts are those keys. They work in replace mode too.
+var inserts = map[string]insertKey{
+	"<Esc>": {"leaves insert mode", func(m *Machine, _ Text, _ int, _ Key) error {
 		m.cursors = nil
 		if b := m.blockInsert; b != nil {
 			m.blockInsert = nil
@@ -42,59 +62,79 @@ func (m *Machine) insert(k Key) error {
 		if err := m.dropIndent(); err != nil {
 			return err
 		}
-		t, c = m.h.Text(), m.h.Cursor()
+		t, c := m.h.Text(), m.h.Cursor()
 		m.h.EndGroup()
 		m.mode = Normal
 		m.h.SetCursor(prev(t, LineStart(t, c), c))
-	case "<CR>":
-		return m.newline()
-	case "<BS>", "<C-h>":
-		if m.mode == Replace {
-			return m.unreplace()
-		}
-		return m.erase(m.backspace(t, c))
-	case "<C-w>", "<C-u>":
-		// Both start a new undo step first.
-		m.h.EndGroup()
-		m.h.BeginGroup()
-		p := wordBefore(t, c, m.insStart)
-		if k == "<C-u>" {
-			p = lineBefore(t, c, m.insStart)
-		}
-		m.insStart = min(m.insStart, p)
-		return m.erase(p)
-	case "<C-r>":
+		return nil
+	}},
+	"<CR>":  {"breaks the line", func(m *Machine, _ Text, _ int, _ Key) error { return m.newline() }},
+	"<BS>":  {"deletes the character before the cursor", backspaceKey},
+	"<C-h>": {"deletes the character before the cursor", backspaceKey},
+	"<C-w>": {"deletes the word before the cursor", eraseBack},
+	"<C-u>": {"deletes what was typed on the line, or the line before the cursor", eraseBack},
+	"<C-r>": {"types the register named next", func(m *Machine, _ Text, _ int, k Key) error {
 		m.pending = k
-	case "<C-o>":
+		return nil
+	}},
+	"<C-o>": {"runs one normal mode command, then comes back", func(m *Machine, _ Text, _ int, _ Key) error {
 		// The other cursors of a change on several regions stop here.
 		m.cursors = nil
 		m.h.EndGroup()
 		m.mode, m.oneshot, m.armed = Normal, true, false
-	case "<C-t>", "<C-d>":
-		return m.indentLine(k == "<C-t>")
-	case "<Del>":
+		return nil
+	}},
+	"<C-t>": {"indents the line", indentKey},
+	"<C-d>": {"outdents the line", indentKey},
+	"<Del>": {"deletes the character under the cursor, or joins the next line", func(m *Machine, t Text, c int, _ Key) error {
 		end := next(t, c, LineEnd(t, c))
 		if end == c && c < t.Len() {
 			end = c + 1 // the line break, which joins the next line
 		}
 		return m.apply([]Edit{{Start: c, End: end}}, m.label)
-	case "<Left>", "<Right>", "<Up>", "<Down>", "<Home>", "<End>":
-		n := m.insertMove(t, c, k)
-		// A move splits the undo step.
-		if n != c {
-			m.h.EndGroup()
-			m.h.BeginGroup()
-			m.h.SetCursor(n)
-			m.insStart = n
-		}
-	default:
-		if k == "\t" && m.expandTab {
-			iw := m.h.IndentWidth()
-			return m.typeText(strings.Repeat(" ", iw-column(t, LineStart(t, c), c)%iw))
-		}
-		if k.isChar() {
-			return m.typeText(string(k))
-		}
+	}},
+	"<Left>":  {"moves left", moveKey},
+	"<Right>": {"moves right", moveKey},
+	"<Up>":    {"moves up a line", moveKey},
+	"<Down>":  {"moves down a line", moveKey},
+	"<Home>":  {"goes to the start of the line", moveKey},
+	"<End>":   {"goes to the end of the line", moveKey},
+}
+
+// backspaceKey is <BS> and <C-h>, which put back what replace mode typed
+// over.
+func backspaceKey(m *Machine, t Text, c int, _ Key) error {
+	if m.mode == Replace {
+		return m.unreplace()
+	}
+	return m.erase(m.backspace(t, c))
+}
+
+// eraseBack is <C-w> and <C-u>, which start a new undo step first.
+func eraseBack(m *Machine, t Text, c int, k Key) error {
+	m.h.EndGroup()
+	m.h.BeginGroup()
+	p := wordBefore(t, c, m.insStart)
+	if k == "<C-u>" {
+		p = lineBefore(t, c, m.insStart)
+	}
+	m.insStart = min(m.insStart, p)
+	return m.erase(p)
+}
+
+// indentKey is <C-t> and <C-d>.
+func indentKey(m *Machine, _ Text, _ int, k Key) error {
+	return m.indentLine(k == "<C-t>")
+}
+
+// moveKey is the arrow keys, <Home> and <End>. A move splits the undo step.
+func moveKey(m *Machine, t Text, c int, k Key) error {
+	n := m.insertMove(t, c, k)
+	if n != c {
+		m.h.EndGroup()
+		m.h.BeginGroup()
+		m.h.SetCursor(n)
+		m.insStart = n
 	}
 	return nil
 }

@@ -1,6 +1,7 @@
 package vim
 
 import (
+	"cmp"
 	"slices"
 	"strings"
 	"unicode"
@@ -20,12 +21,7 @@ func (m *Machine) enterLine(back Mode, prompt, line string) {
 	m.line, m.lineAt, m.recalling = line, len(line), false
 }
 
-// cmdline takes a key while a command line is typed. The cursor moves with
-// <Left>, <Right>, <Home> or <C-b> and <End> or <C-e>. <BS> and <Del>
-// delete a character, <C-w> the word before the cursor and <C-u> all
-// before it. <Up> and <Down> recall older and newer lines that start with
-// the text typed. <C-r> and a register name put that register in the line,
-// and <C-r><C-w> the word under the cursor in the text.
+// cmdline takes a key while a command line is typed.
 func (m *Machine) cmdline(k Key) error {
 	if k != "<Up>" && k != "<Down>" {
 		m.recalling = false
@@ -34,50 +30,101 @@ func (m *Machine) cmdline(k Key) error {
 		m.pending = ""
 		return m.typeRegister(k)
 	}
-	before, after := m.line[:m.lineAt], m.line[m.lineAt:]
-	switch {
-	case k == "<Esc>", (k == "<BS>" || k == "<C-h>") && m.line == "":
-		m.mode = m.back
-		m.count, m.op, m.opCount, m.reg = 0, "", 0, 0
-	case k == "<CR>":
-		m.mode = m.back
-		m.remember()
-		if m.prompt == ":" {
-			return m.ex(m.line)
-		}
-		line := m.line
-		if line == "" {
-			line = m.search.pattern
-		}
-		return m.command(m.prompt + line)
-	case k == "<BS>", k == "<C-h>":
-		_, n := utf8.DecodeLastRuneInString(before)
-		m.cut(m.lineAt-n, m.lineAt)
-	case k == "<Del>":
-		_, n := utf8.DecodeRuneInString(after)
-		m.cut(m.lineAt, m.lineAt+n)
-	case k == "<C-w>":
-		m.cut(lineWordStart(before), m.lineAt)
-	case k == "<C-u>":
-		m.cut(0, m.lineAt)
-	case k == "<Left>":
-		_, n := utf8.DecodeLastRuneInString(before)
-		m.lineAt -= n
-	case k == "<Right>":
-		_, n := utf8.DecodeRuneInString(after)
-		m.lineAt += n
-	case k == "<Home>", k == "<C-b>":
-		m.lineAt = 0
-	case k == "<End>", k == "<C-e>":
-		m.lineAt = len(m.line)
-	case k == "<Up>", k == "<Down>":
-		m.recall(k == "<Up>")
-	case k == "<C-r>":
-		m.pending = k
-	case k.isChar():
+	if ck, ok := cmdlineKeys[string(k)]; ok {
+		return ck.run(m, k, m.line[:m.lineAt], m.line[m.lineAt:])
+	}
+	if k.isChar() {
 		m.typeLine(string(k))
 	}
 	return nil
+}
+
+// cmdlineKey is a key that edits or ends the command line.
+type cmdlineKey struct {
+	help string
+	run  func(m *Machine, k Key, before, after string) error
+}
+
+// leaveLine ends the command line without running it.
+func leaveLine(m *Machine, _ Key, _, _ string) error {
+	m.mode = m.back
+	m.count, m.op, m.opCount, m.reg = 0, "", 0, 0
+	return nil
+}
+
+// eraseLine is <BS> and <C-h>, which leave an empty line.
+func eraseLine(m *Machine, k Key, before, after string) error {
+	if m.line == "" {
+		return leaveLine(m, k, before, after)
+	}
+	_, n := utf8.DecodeLastRuneInString(before)
+	m.cut(m.lineAt-n, m.lineAt)
+	return nil
+}
+
+// cmdlineKeys are those keys. init fills them because <CR> runs the line,
+// which can type into another.
+var cmdlineKeys map[string]cmdlineKey
+
+func init() {
+	home := func(m *Machine, _ Key, _, _ string) error {
+		m.lineAt = 0
+		return nil
+	}
+	end := func(m *Machine, _ Key, _, _ string) error {
+		m.lineAt = len(m.line)
+		return nil
+	}
+	recall := func(m *Machine, k Key, _, _ string) error {
+		m.recall(k == "<Up>")
+		return nil
+	}
+	cmdlineKeys = map[string]cmdlineKey{
+		"<Esc>": {"leaves the command line", leaveLine},
+		"<CR>": {"runs the line", func(m *Machine, _ Key, _, _ string) error {
+			m.mode = m.back
+			m.remember()
+			if m.prompt == ":" {
+				return m.ex(m.line)
+			}
+			return m.command(m.prompt + cmp.Or(m.line, m.search.pattern))
+		}},
+		"<BS>":  {"deletes the character before the cursor, or leaves an empty line", eraseLine},
+		"<C-h>": {"deletes the character before the cursor, or leaves an empty line", eraseLine},
+		"<Del>": {"deletes the character under the cursor", func(m *Machine, _ Key, _, after string) error {
+			_, n := utf8.DecodeRuneInString(after)
+			m.cut(m.lineAt, m.lineAt+n)
+			return nil
+		}},
+		"<C-w>": {"deletes the word before the cursor", func(m *Machine, _ Key, before, _ string) error {
+			m.cut(lineWordStart(before), m.lineAt)
+			return nil
+		}},
+		"<C-u>": {"deletes all before the cursor", func(m *Machine, _ Key, _, _ string) error {
+			m.cut(0, m.lineAt)
+			return nil
+		}},
+		"<Left>": {"moves left", func(m *Machine, _ Key, before, _ string) error {
+			_, n := utf8.DecodeLastRuneInString(before)
+			m.lineAt -= n
+			return nil
+		}},
+		"<Right>": {"moves right", func(m *Machine, _ Key, _, after string) error {
+			_, n := utf8.DecodeRuneInString(after)
+			m.lineAt += n
+			return nil
+		}},
+		"<Home>": {"goes to the start of the line", home},
+		"<C-b>":  {"goes to the start of the line", home},
+		"<End>":  {"goes to the end of the line", end},
+		"<C-e>":  {"goes to the end of the line", end},
+		"<Up>":   {"recalls an older line that starts with what is typed", recall},
+		"<Down>": {"recalls a newer line that starts with what is typed", recall},
+		"<C-r>": {"types the register named next, or with <C-w> the word under the cursor", func(m *Machine, k Key, _, _ string) error {
+			m.pending = k
+			return nil
+		}},
+	}
 }
 
 // typeRegister puts register k in the command line, without its last line

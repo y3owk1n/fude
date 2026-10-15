@@ -5,12 +5,69 @@ import (
 	"strings"
 )
 
-// blocks maps every name of a bracket object to its open and close bytes.
-var blocks = map[string]string{
-	"(": "()", ")": "()", "b": "()",
-	"[": "[]", "]": "[]",
-	"{": "{}", "}": "{}", "B": "{}",
-	"<": "<>", ">": "<>",
+// textObjectKey is an object that i selects inside of and a around, and
+// what each selects.
+type textObjectKey struct {
+	inner, around string
+	find          func(t Text, c, n int, around bool) (region, bool)
+}
+
+// bracket is the object of the text between open and close.
+func bracket(open, close byte) textObjectKey {
+	return textObjectKey{
+		"the text inside " + string(open) + string(close), string(open) + string(close) + " and the text inside",
+		func(t Text, c, n int, around bool) (region, bool) { return block(t, c, n, open, close, around) },
+	}
+}
+
+// quoted is the object of the text between two of q on the line.
+func quoted(q byte) textObjectKey {
+	return textObjectKey{
+		"the text inside " + string(q) + string(q), string(q) + string(q) + ", the text inside and the blanks after",
+		func(t Text, c, n int, around bool) (region, bool) {
+			start, end, ok := quote(t, c, q, n > 1, around)
+			return region{start: start, end: end}, ok
+		},
+	}
+}
+
+// words is the object of words, or of words of non-blanks when big.
+func words(big bool) textObjectKey {
+	kind := "words"
+	if big {
+		kind = "words of non-blanks"
+	}
+	return textObjectKey{
+		"n " + kind + " or blank runs", "n " + kind + " with the blanks after",
+		func(t Text, c, n int, around bool) (region, bool) {
+			start, end, ok := word(t, c, n, big, around)
+			return region{start: start, end: end}, ok
+		},
+	}
+}
+
+// textObjects are the objects by the key after i or a.
+var textObjects = map[string]textObjectKey{
+	"w": words(false), "W": words(true),
+	"s": {"n sentences", "n sentences with the blanks after", sentence},
+	"p": {"n paragraphs", "n paragraphs with the blank lines after", func(t Text, c, n int, around bool) (region, bool) {
+		start, end := paragraph(t, c, n, around)
+		return region{start: start, end: end, lines: true}, true
+	}},
+	"l": {"the line without its leading and trailing blanks", "every line", func(t Text, c, _ int, around bool) (region, bool) {
+		if around {
+			return region{start: 0, end: t.Len(), lines: true}, true
+		}
+		ls := LineStart(t, c)
+		line := t.Slice(ls, LineEnd(t, c))
+		start := firstNonBlank(t, ls, ls+len(line))
+		return region{start: start, end: max(ls+len(strings.TrimRight(line, " \t")), start)}, true
+	}},
+	`"`: quoted('"'), "'": quoted('\''), "`": quoted('`'),
+	"(": bracket('(', ')'), ")": bracket('(', ')'), "b": bracket('(', ')'),
+	"[": bracket('[', ']'), "]": bracket('[', ']'),
+	"{": bracket('{', '}'), "}": bracket('{', '}'), "B": bracket('{', '}'),
+	"<": bracket('<', '>'), ">": bracket('<', '>'),
 }
 
 // Object adds a text object such as af, which works after every operator and
@@ -50,40 +107,14 @@ func (m *Machine) object(t Text, c, count int, cmd string) (region, bool) {
 // textObject returns the text an object such as iw or a( selects, or false
 // if cmd is not one or nothing matches.
 func textObject(t Text, c, count int, cmd string) (region, bool) {
-	if len(cmd) != 2 || (cmd[0] != 'i' && cmd[0] != 'a') {
+	if len(cmd) < 2 || (cmd[0] != 'i' && cmd[0] != 'a') {
 		return region{}, false
 	}
-	around, n := cmd[0] == 'a', max(count, 1)
-	var r region
-	ok := true
-	switch obj := cmd[1:]; obj {
-	case "w", "W":
-		r.start, r.end, ok = word(t, c, n, obj == "W", around)
-	case "s":
-		return sentence(t, c, n, around)
-	case "p":
-		r.start, r.end = paragraph(t, c, n, around)
-		r.lines = true
-	case "l":
-		// il is the line without its leading and trailing blanks, al every line.
-		if around {
-			return region{start: 0, end: t.Len(), lines: true}, true
-		}
-		ls := LineStart(t, c)
-		line := t.Slice(ls, LineEnd(t, c))
-		r.start = firstNonBlank(t, ls, ls+len(line))
-		r.end = ls + len(strings.TrimRight(line, " \t"))
-		r.end = max(r.end, r.start)
-	case `"`, "'", "`":
-		r.start, r.end, ok = quote(t, c, obj[0], n > 1, around)
-	default:
-		pair, found := blocks[obj]
-		if !found {
-			return region{}, false
-		}
-		return block(t, c, n, pair[0], pair[1], around)
+	obj, ok := textObjects[cmd[1:]]
+	if !ok {
+		return region{}, false
 	}
-	return r, ok
+	return obj.find(t, c, max(count, 1), cmd[0] == 'a')
 }
 
 // word selects n runs of word characters or blanks on the line. With around

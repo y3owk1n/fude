@@ -23,143 +23,260 @@ const (
 	failed // the motion could not move, so an operator does nothing
 )
 
+// motionCall is what a motion gets: the text, the cursor, the count typed
+// (0 for none), n for the count or 1, the start of the cursor's line, and
+// the keys typed.
+type motionCall struct {
+	t                Text
+	c, count, n, sol int
+	cmd              string
+}
+
+// motionKey is a motion and what it does.
+type motionKey struct {
+	help string
+	run  func(m *Machine, x motionCall) (int, kind)
+}
+
+// moved ends a motion at p of kind k, keeping the column j and k aim for
+// when keep is set.
+func (m *Machine) moved(p int, k kind, keep bool) (int, kind) {
+	m.wantSet = keep
+	return p, k
+}
+
+// wordMotion is w and W, b and B when back, or e and E when end.
+func wordMotion(back, end bool) func(m *Machine, x motionCall) (int, kind) {
+	return func(m *Machine, x motionCall) (int, kind) {
+		big := x.cmd == strings.ToUpper(x.cmd)
+		switch {
+		case back:
+			return m.moved(wordBack(x.t, x.c, x.n, big), exclusive, false)
+		case end:
+			return m.moved(wordEnd(x.t, x.c, x.n, big, false), inclusive, false)
+		}
+		return m.moved(wordForward(x.t, x.c, x.n, big, false), exclusive, false)
+	}
+}
+
+// lineMotion is j, k, gg and G.
+func lineMotion(m *Machine, x motionCall) (int, kind) {
+	line := LineStart(x.t, x.t.Len())
+	switch {
+	case x.cmd == "j":
+		line = down(x.t, x.sol, x.n)
+	case x.cmd == "k":
+		line = up(x.t, x.sol, x.n)
+	case x.cmd == "gg" || x.count > 0:
+		line = down(x.t, 0, x.n-1)
+	}
+	if line == x.sol && (x.cmd == "j" || x.cmd == "k") {
+		return x.c, failed
+	}
+	return m.moved(m.toLine(x.t, x.c, line), linewise, true)
+}
+
+// screenMotion is gj and gk.
+func screenMotion(m *Machine, x motionCall) (int, kind) {
+	p, ok := m.screenLine(x.t, x.c, x.n, x.cmd == "gj")
+	if !ok {
+		return x.c, failed
+	}
+	return p, exclusive
+}
+
+// windowMotion is H, M and L.
+func windowMotion(m *Machine, x motionCall) (int, kind) {
+	return m.moved(m.toLine(x.t, x.c, m.window(x.t, x.cmd, x.n)), linewise, true)
+}
+
+// searchMotion is n and N.
+func searchMotion(m *Machine, x motionCall) (int, kind) {
+	p, k, _ := m.seek(m.search.pattern, m.search.forward == (x.cmd == "n"), x.n)
+	return p, k
+}
+
+// starMotion is * and #.
+func starMotion(m *Machine, x motionCall) (int, kind) {
+	word, ok := keywordAt(x.t, x.c)
+	if !ok {
+		m.msg = "no word under the cursor"
+		return x.c, failed
+	}
+	m.search.pattern, m.search.forward = `\<`+word+`\>`, x.cmd == "*"
+	p, k, _ := m.seek(m.search.pattern, m.search.forward, x.n)
+	return p, k
+}
+
+// repeatFindMotion is ; and ,.
+func repeatFindMotion(m *Machine, x motionCall) (int, kind) {
+	f := m.find
+	if f == "" {
+		return x.c, failed
+	}
+	if x.cmd == "," {
+		f = reverse[f[:1]] + f[1:]
+	}
+	p, ok := find(x.t, x.c, x.n, f, true)
+	return m.found(p, f, ok)
+}
+
+// markMotion is ` and ' with a mark.
+func markMotion(m *Machine, x motionCall) (int, kind) {
+	p, ok := m.h.Mark(rune(x.cmd[1]))
+	switch {
+	case !ok:
+		m.msg = "mark not set"
+		return x.c, failed
+	case x.cmd[0] == '\'':
+		s := LineStart(x.t, p)
+		return firstNonBlank(x.t, s, LineEnd(x.t, s)), linewise
+	}
+	return p, exclusive
+}
+
+// searchForMotion is / and ? with a pattern.
+func searchForMotion(m *Machine, x motionCall) (int, kind) {
+	m.search.pattern, m.search.forward = x.cmd[1:], x.cmd[0] == '/'
+	p, k, _ := m.seek(m.search.pattern, m.search.forward, x.n)
+	return p, k
+}
+
+// findMotion is f, F, t and T with a character.
+func findMotion(m *Machine, x motionCall) (int, kind) {
+	m.find = x.cmd
+	p, ok := find(x.t, x.c, x.n, x.cmd, false)
+	return m.found(p, x.cmd, ok)
+}
+
+// motions are the motions by their keys. A key such as f{char} stands for
+// f and any character, and motionOf finds the entry for typed keys.
+var motions = map[string]motionKey{
+	"h": {"moves left", func(m *Machine, x motionCall) (int, kind) {
+		p := x.c
+		for range x.n {
+			p = prev(x.t, x.sol, p)
+		}
+		return m.moved(p, exclusive, false)
+	}},
+	"l": {"moves right", func(m *Machine, x motionCall) (int, kind) {
+		p := x.c
+		for range x.n {
+			p = next(x.t, p, LineEnd(x.t, x.c))
+		}
+		return m.moved(p, exclusive, false)
+	}},
+	"j":  {"moves down a line", lineMotion},
+	"k":  {"moves up a line", lineMotion},
+	"gg": {"goes to the first line, or line n", lineMotion},
+	"G":  {"goes to the last line, or line n", lineMotion},
+	"gj": {"moves down a row on the screen", screenMotion},
+	"gk": {"moves up a row on the screen", screenMotion},
+	"go": {"goes to byte n", func(m *Machine, x motionCall) (int, kind) {
+		p := min(x.n-1, x.t.Len())
+		for p > 0 && p < x.t.Len() && !utf8.RuneStart(x.t.Slice(p, p+1)[0]) {
+			p--
+		}
+		return m.moved(clamp(x.t, p), exclusive, false)
+	}},
+	"H": {"goes to the top line of the window, or line n from it", windowMotion},
+	"M": {"goes to the middle line of the window", windowMotion},
+	"L": {"goes to the bottom line of the window, or line n from it", windowMotion},
+	"%": {"goes to the bracket matching the next one on the line, or n% down the file", func(m *Machine, x motionCall) (int, kind) {
+		if x.count > 0 {
+			return m.moved(m.toLine(x.t, x.c, down(x.t, 0, (x.count*x.t.Lines()+99)/100-1)), linewise, true)
+		}
+		p, ok := match(x.t, x.c)
+		if !ok {
+			return x.c, failed
+		}
+		return m.moved(p, inclusive, false)
+	}},
+	")": {"goes to the next sentence", func(m *Machine, x motionCall) (int, kind) {
+		return m.moved(sentenceForward(x.t, x.c, x.n), exclusive, false)
+	}},
+	"(": {"goes to the start of the sentence", func(m *Machine, x motionCall) (int, kind) {
+		return m.moved(sentenceBack(x.t, x.c, x.n), exclusive, false)
+	}},
+	"}": {"goes to the next blank line", func(m *Machine, x motionCall) (int, kind) {
+		return m.moved(paragraphForward(x.t, x.c, x.n), exclusive, false)
+	}},
+	"{": {"goes to the blank line above", func(m *Machine, x motionCall) (int, kind) {
+		return m.moved(paragraphBack(x.t, x.c, x.n), exclusive, false)
+	}},
+	"0": {"goes to the start of the line", func(m *Machine, x motionCall) (int, kind) {
+		return m.moved(x.sol, exclusive, false)
+	}},
+	"^": {"goes to the first non-blank of the line", func(m *Machine, x motionCall) (int, kind) {
+		return m.moved(firstNonBlank(x.t, x.sol, LineEnd(x.t, x.c)), exclusive, false)
+	}},
+	"$": {"goes to the end of the line, or of the line n-1 below", func(m *Machine, x motionCall) (int, kind) {
+		m.want = math.MaxInt
+		return m.moved(lastChar(x.t, LineEnd(x.t, down(x.t, x.sol, x.n-1))), inclusive, true)
+	}},
+	"w":              {"goes to the start of the next word", wordMotion(false, false)},
+	"W":              {"goes to the start of the next word of non-blanks", wordMotion(false, false)},
+	"b":              {"goes to the start of the word", wordMotion(true, false)},
+	"B":              {"goes to the start of the word of non-blanks", wordMotion(true, false)},
+	"e":              {"goes to the end of the word", wordMotion(false, true)},
+	"E":              {"goes to the end of the word of non-blanks", wordMotion(false, true)},
+	"n":              {"goes to the next match of the last search", searchMotion},
+	"N":              {"goes to the previous match of the last search", searchMotion},
+	"*":              {"searches forward for the word under the cursor", starMotion},
+	"#":              {"searches back for the word under the cursor", starMotion},
+	";":              {"repeats the last f, t, F or T", repeatFindMotion},
+	",":              {"repeats the last f, t, F or T the other way", repeatFindMotion},
+	"`{mark}":        {"goes to the mark", markMotion},
+	"'{mark}":        {"goes to the first non-blank of the mark's line", markMotion},
+	"/{pattern}<CR>": {"searches forward for pattern", searchForMotion},
+	"?{pattern}<CR>": {"searches back for pattern", searchForMotion},
+	"f{char}":        {"goes to the next char on the line", findMotion},
+	"F{char}":        {"goes back to char on the line", findMotion},
+	"t{char}":        {"goes to just before the next char on the line", findMotion},
+	"T{char}":        {"goes back to just after char on the line", findMotion},
+}
+
+// motionOf returns the key in motions that cmd is, or false.
+func motionOf(cmd string) (string, bool) {
+	if _, ok := motions[cmd]; ok {
+		return cmd, true
+	}
+	switch {
+	case cmd == "":
+		return "", false
+	case (cmd[0] == '`' || cmd[0] == '\'') && len(cmd) == 2:
+		return cmd[:1] + "{mark}", true
+	case cmd[0] == '/' || cmd[0] == '?':
+		return cmd[:1] + "{pattern}<CR>", true
+	case len(cmd) >= 2 && strings.Contains("ftFT", cmd[:1]) && Key(cmd[1:]).isChar():
+		return cmd[:1] + "{char}", true
+	}
+	return "", false
+}
+
 // motion returns where cmd moves the cursor and its kind, or false if cmd is
 // not a motion.
 func (m *Machine) motion(cmd string, count int) (int, kind, bool) {
+	key, ok := motionOf(cmd)
+	if !ok {
+		return m.h.Cursor(), exclusive, false
+	}
 	t, c := m.h.Text(), m.h.Cursor()
-	n := max(count, 1)
-	start := LineStart(t, c)
-	if cmd == "gj" || cmd == "gk" {
-		p, ok := m.screenLine(t, c, n, cmd == "gj")
-		if !ok {
-			return c, failed, true
-		}
-		return p, exclusive, true
-	}
-	p, k := c, exclusive
-	keep := false // whether to keep the column j and k aim for
-	switch cmd {
-	case "h":
-		for range n {
-			p = prev(t, start, p)
-		}
-	case "l":
-		for range n {
-			p = next(t, p, LineEnd(t, c))
-		}
-	case "j", "k", "gg", "G":
-		line := LineStart(t, t.Len())
-		switch {
-		case cmd == "j":
-			line = down(t, start, n)
-		case cmd == "k":
-			line = up(t, start, n)
-		case cmd == "gg" || count > 0:
-			line = down(t, 0, n-1)
-		}
-		if line == start && (cmd == "j" || cmd == "k") {
-			return c, failed, true
-		}
-		p, k, keep = m.toLine(t, c, line), linewise, true
-	case "go":
-		// Byte n of the text, counting from 1, at the start of its character.
-		p = min(n-1, t.Len())
-		for p > 0 && p < t.Len() && !utf8.RuneStart(t.Slice(p, p+1)[0]) {
-			p--
-		}
-		p = clamp(t, p)
-	case "H", "M", "L":
-		p, k, keep = m.toLine(t, c, m.window(t, cmd, n)), linewise, true
-	case "%":
-		if count > 0 {
-			p, k, keep = m.toLine(t, c, down(t, 0, (count*t.Lines()+99)/100-1)), linewise, true
-			break
-		}
-		var ok bool
-		if p, ok = match(t, c); !ok {
-			return c, failed, true
-		}
-		k = inclusive
-	case ")":
-		p = sentenceForward(t, c, n)
-	case "(":
-		p = sentenceBack(t, c, n)
-	case "}":
-		p = paragraphForward(t, c, n)
-	case "{":
-		p = paragraphBack(t, c, n)
-	case "0":
-		p = start
-	case "^":
-		p = firstNonBlank(t, start, LineEnd(t, c))
-	case "$":
-		p, k = lastChar(t, LineEnd(t, down(t, start, n-1))), inclusive
-		m.want, keep = math.MaxInt, true
-	case "w", "W":
-		p = wordForward(t, c, n, cmd == "W", false)
-	case "b", "B":
-		p = wordBack(t, c, n, cmd == "B")
-	case "e", "E":
-		p, k = wordEnd(t, c, n, cmd == "E", false), inclusive
-	case "n", "N":
-		return m.seek(m.search.pattern, m.search.forward == (cmd == "n"), n)
-	case "*", "#":
-		word, ok := keywordAt(t, c)
-		if !ok {
-			m.msg = "no word under the cursor"
-			return c, failed, true
-		}
-		m.search.pattern, m.search.forward = `\<`+word+`\>`, cmd == "*"
-		return m.seek(m.search.pattern, m.search.forward, n)
-	case ";", ",":
-		f := m.find
-		if f == "" {
-			return c, failed, true
-		}
-		if cmd == "," {
-			f = reverse[f[:1]] + f[1:]
-		}
-		p, ok := find(t, c, n, f, true)
-		return m.found(p, f, ok)
-	default:
-		if (cmd[0] == '`' || cmd[0] == '\'') && len(cmd) == 2 {
-			p, ok := m.h.Mark(rune(cmd[1]))
-			switch {
-			case !ok:
-				m.msg = "mark not set"
-				return c, failed, true
-			case cmd[0] == '\'':
-				s := LineStart(t, p)
-				return firstNonBlank(t, s, LineEnd(t, s)), linewise, true
-			}
-			return p, exclusive, true
-		}
-		if cmd[0] == '/' || cmd[0] == '?' {
-			m.search.pattern, m.search.forward = cmd[1:], cmd[0] == '/'
-			return m.seek(m.search.pattern, m.search.forward, n)
-		}
-		if len(cmd) < 2 || !strings.Contains("ftFT", cmd[:1]) || !Key(cmd[1:]).isChar() {
-			return c, exclusive, false
-		}
-		m.find = cmd
-		p, ok := find(t, c, n, cmd, false)
-		return m.found(p, cmd, ok)
-	}
-	m.wantSet = keep
+	p, k := motions[key].run(m, motionCall{t, c, count, max(count, 1), LineStart(t, c), cmd})
 	return p, k, true
 }
 
 // found turns a find's result into a motion. f and t are inclusive, F and T
 // exclusive.
-func (m *Machine) found(p int, f string, ok bool) (int, kind, bool) {
+func (m *Machine) found(p int, f string, ok bool) (int, kind) {
 	m.wantSet = false
 	switch {
 	case !ok:
-		return p, failed, true
+		return p, failed
 	case f[0] == 'f' || f[0] == 't':
-		return p, inclusive, true
+		return p, inclusive
 	}
-	return p, exclusive, true
+	return p, exclusive
 }
 
 // clamp keeps a normal-mode cursor off a line's end, unless the line is
