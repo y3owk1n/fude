@@ -12,9 +12,6 @@ import (
 	"github.com/y3owk1n/fude/vim"
 )
 
-// tabstop is Neovim's default tab width.
-const tabstop = 8
-
 // Run shows e in the terminal until the user quits.
 func Run(e *editor.Editor) error {
 	// Negotiation waits on a terminal round trip, so fude turns it off and
@@ -94,7 +91,7 @@ func (c *client) draw() {
 				break
 			}
 			if rest[0] == '\t' {
-				x += tabstop - x%tabstop
+				x += vim.Tabstop - x%vim.Tabstop
 				rest = rest[1:]
 				continue
 			}

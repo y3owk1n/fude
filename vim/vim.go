@@ -5,8 +5,6 @@ package vim
 import (
 	"strings"
 	"unicode/utf8"
-
-	"github.com/clipperhouse/uax29/v2/graphemes"
 )
 
 // Text is the host's text. Positions are byte offsets.
@@ -44,10 +42,15 @@ const (
 
 // Machine turns keys into cursor moves and edits.
 type Machine struct {
-	h     Host
-	mode  Mode
-	label string
-	line  string
+	h       Host
+	mode    Mode
+	label   string
+	line    string
+	count   int
+	pending Key    // g, f, t, F or T waiting for the next key
+	find    string // the last f, t, F or T and its character
+	want    int    // the column j and k aim for
+	wantSet bool
 }
 
 // New returns a machine in normal mode.
@@ -93,18 +96,30 @@ func (m *Machine) Paste(s string) error {
 }
 
 func (m *Machine) normal(k Key) error {
+	cmd := string(m.pending) + string(k)
+	m.pending = ""
+	if len(cmd) == 1 && cmd >= "0" && cmd <= "9" && (cmd != "0" || m.count > 0) {
+		m.count = m.count*10 + int(cmd[0]-'0')
+		return nil
+	}
+	if len(cmd) == 1 && strings.Contains("gftFT", cmd) {
+		m.pending = k
+		return nil
+	}
+	count := m.count
+	m.count = 0
+	if p, ok := m.motion(cmd, count); ok {
+		m.h.SetCursor(p)
+		return nil
+	}
+	m.wantSet = false
+
 	t, c := m.h.Text(), m.h.Cursor()
 	start, end := LineStart(t, c), LineEnd(t, c)
 	switch k {
 	case ":":
 		m.mode = Cmdline
 		m.line = ""
-	case "h":
-		m.h.SetCursor(prev(t, start, c))
-	case "l":
-		if n := next(t, c, end); n < end {
-			m.h.SetCursor(n)
-		}
 	case "i":
 		m.startInsert(k, c)
 	case "a":
@@ -196,59 +211,4 @@ func (m *Machine) insertText(s string) error {
 	}
 	m.h.SetCursor(c + len(s))
 	return nil
-}
-
-// chunk is how many bytes line scans read at a time.
-const chunk = 256
-
-// LineStart returns the start of the line holding pos.
-func LineStart(t Text, pos int) int {
-	for pos > 0 {
-		lo := max(pos-chunk, 0)
-		if i := strings.LastIndexByte(t.Slice(lo, pos), '\n'); i >= 0 {
-			return lo + i + 1
-		}
-		pos = lo
-	}
-	return 0
-}
-
-// LineEnd returns the end of the line holding pos, before its newline.
-func LineEnd(t Text, pos int) int {
-	n := t.Len()
-	for pos < n {
-		hi := min(pos+chunk, n)
-		if i := strings.IndexByte(t.Slice(pos, hi), '\n'); i >= 0 {
-			return pos + i
-		}
-		pos = hi
-	}
-	return n
-}
-
-// next returns the end of the grapheme cluster at pos, or end.
-func next(t Text, pos, end int) int {
-	if pos >= end {
-		return end
-	}
-	g := graphemes.FromString(t.Slice(pos, end))
-	g.Next()
-	return pos + g.End()
-}
-
-// prev returns the start of the grapheme cluster before pos, or start.
-func prev(t Text, start, pos int) int {
-	p := start
-	for g := graphemes.FromString(t.Slice(start, pos)); g.Next(); {
-		p = start + g.Start()
-	}
-	return p
-}
-
-func firstNonBlank(t Text, start, end int) int {
-	line := t.Slice(start, end)
-	if i := strings.IndexFunc(line, func(r rune) bool { return r != ' ' && r != '\t' }); i >= 0 {
-		return start + i
-	}
-	return end
 }
