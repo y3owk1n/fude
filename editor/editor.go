@@ -60,24 +60,25 @@ type Session struct {
 	floatSpans []syntax.Span  // the styles of the float's text
 	doc        string         // the selected completion's documentation, beside the menu
 	docSpans   []syntax.Span
-	menu       *menu       // the completions shown while typing
-	ctrlX      bool        // <C-x> began a completion key in insert mode
-	lspKeys    bool        // the attached keys are mapped
-	later      []vim.Key   // keys to feed once the key being fed is done
-	renameAt   int         // where grn was pressed
-	pick       *pick       // the code actions shown to choose from
-	finder     *finder     // the file finder, while it shows
-	cmenu      *cmenu      // the completions of the command line being typed
-	flash      *flash      // text shown for a moment after a yank, put, undo or redo
-	under      *window     // the window a focused float was opened from
-	opts       options     // what the session's new windows start with
-	changed    chan change // told when the shown text changes, for a client over the socket
-	clip       string      // the text last copied, when no clipboard command runs
-	toTerminal bool        // the client has yet to put clip on its terminal's clipboard
-	mode       vim.Mode    // the mode as plugins last heard it
-	seen       view        // the current window as plugins last heard it
-	depth      int         // the undo groups the machine has open
-	pending    int         // the cursor when the group being made began
+	menu       *menu               // the completions shown while typing
+	ctrlX      bool                // <C-x> began a completion key in insert mode
+	lspKeys    bool                // the attached keys are mapped
+	later      []vim.Key           // keys to feed once the key being fed is done
+	renameAt   int                 // where grn was pressed
+	pick       *pick               // the code actions shown to choose from
+	finder     *finder             // the file finder, while it shows
+	cmenu      *cmenu              // the completions of the command line being typed
+	dirs       map[string][]string // entries of directories the command line has completed in
+	flash      *flash              // text shown for a moment after a yank, put, undo or redo
+	under      *window             // the window a focused float was opened from
+	opts       options             // what the session's new windows start with
+	changed    chan change         // told when the shown text changes, for a client over the socket
+	clip       string              // the text last copied, when no clipboard command runs
+	toTerminal bool                // the client has yet to put clip on its terminal's clipboard
+	mode       vim.Mode            // the mode as plugins last heard it
+	seen       view                // the current window as plugins last heard it
+	depth      int                 // the undo groups the machine has open
+	pending    int                 // the cursor when the group being made began
 
 	width, height int // the space the windows share
 }

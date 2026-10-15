@@ -618,8 +618,11 @@ puts a completion in the line, and `vim.ExNames` lists the machine's own
 commands. The menu offers one full name for each command, so `:w` gained
 `:write`. The word being completed is the command's name, after any range
 such as `'<,'>`, or its argument after the first space. For `:set` it is
-the argument's last word. A path completes in the directory typed so far,
-from one `os.ReadDir`. The menu is a `Float` the
+the argument's last word. A path completes in the directory typed so far.
+Reading a directory of 10,000 entries takes 10ms and matching them 1.5ms,
+so the menu that shows while typing completes a path off the loop. It
+shows the result only if the line has not changed by then. `<Tab>`
+completes at once. Each command line reads a directory once and keeps its entries. The menu is a `Float` the
 editor places above the command line, under the word, at most 10 rows
 tall (B131).
 
