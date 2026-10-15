@@ -351,6 +351,32 @@ func TestB120IgnoreCase(t *testing.T) {
 	}
 }
 
+// B122
+func TestB122ExpandTab(t *testing.T) {
+	for _, c := range []struct {
+		expand      bool
+		start, keys string
+		want        string
+	}{
+		{false, "|x", ">>", "\tx"},
+		{true, "|x", ">>", "        x"},
+		{true, "ab|c", "i<Tab><Esc>", "ab      c"},
+		{false, "ab|c", "i<Tab><Esc>", "ab\tc"},
+	} {
+		h := &host{text: strings.Replace(c.start, "|", "", 1), cursor: strings.Index(c.start, "|")}
+		m := vim.New(h)
+		m.ExpandTab(c.expand)
+		for _, k := range vim.Keys(c.keys) {
+			if err := m.Feed(k); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if h.text != c.want {
+			t.Errorf("%s on %q with expand %v made %q, want %q", c.keys, c.start, c.expand, h.text, c.want)
+		}
+	}
+}
+
 // B29
 func TestB29InsertKeys(t *testing.T) {
 	cases(t)

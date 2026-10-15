@@ -293,7 +293,7 @@ func (m *Machine) shift(op, label string, r region, col, times int) error {
 			} else {
 				w = max(w-m.h.IndentWidth()*times, 0)
 			}
-			edits = append(edits, Edit{Start: ls, End: ind, Text: indentText(w)})
+			edits = append(edits, Edit{Start: ls, End: ind, Text: m.indentText(w)})
 		}
 		if le >= r.end || le == t.Len() {
 			break
@@ -310,10 +310,19 @@ func (m *Machine) shift(op, label string, r region, col, times int) error {
 	return nil
 }
 
-// indentText returns an indent w columns wide, in tabs then spaces.
-func indentText(w int) string {
+// indentText returns an indent w columns wide, in tabs then spaces, or in
+// spaces with ExpandTab.
+func (m *Machine) indentText(w int) string {
+	if m.expandTab {
+		return strings.Repeat(" ", w)
+	}
 	return strings.Repeat("\t", w/Tabstop) + strings.Repeat(" ", w%Tabstop)
 }
+
+// ExpandTab sets whether indents are spaces only, and <Tab> in insert mode
+// types spaces to the next indent width's column, as Neovim's expandtab
+// does with softtabstop=-1 (B122, N10).
+func (m *Machine) ExpandTab(on bool) { m.expandTab = on }
 
 func swapCase(s string) string {
 	return strings.Map(func(r rune) rune {

@@ -470,7 +470,9 @@ ignore case, and a pattern with an uppercase letter matches case with
 insert mode, the bracket and its match show bold and underlined, as
 Neovim's matchparen shows them in a terminal. `vim.Pair` looks for the
 match only within the window's lines, so a frame never scans the file
-(B121).
+(B121). `expand_tab` reaches the machine through `Machine.ExpandTab`, so
+indents are spaces only and `<Tab>` types spaces to the next
+`indent_width` column (B122, N10).
 `number` puts line numbers in a gutter at least 4 columns wide, and
 `relative_number` numbers lines from the cursor's. With both, the cursor's
 line shows its own number on the left, as in Neovim (B39).
@@ -513,6 +515,7 @@ cursor_line = false  # shade the cursor's line (B117)
 list = false         # show tabs, trailing spaces and no-break spaces (B118)
 ignore_case = false  # searches ignore case (B120)
 smart_case = false   # with ignore_case, an uppercase letter matches case (B120)
+expand_tab = false   # indent with spaces only (B122)
 
 [keymap.normal]      # and [keymap.visual], [keymap.insert]. Keys map to keys.
 "<Space>w" = ":w<CR>"

@@ -52,6 +52,7 @@ type options struct {
 	List           bool `toml:"list"`            // show tabs, trailing spaces and no-break spaces
 	IgnoreCase     bool `toml:"ignore_case"`     // searches ignore case
 	SmartCase      bool `toml:"smart_case"`      // a pattern with an uppercase letter matches case
+	ExpandTab      bool `toml:"expand_tab"`      // indent with spaces only
 }
 
 // loadConfig reads config.toml. A missing file is no error. After an error

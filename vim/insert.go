@@ -78,6 +78,10 @@ func (m *Machine) insert(k Key) error {
 			m.insStart = n
 		}
 	default:
+		if k == "\t" && m.expandTab {
+			iw := m.h.IndentWidth()
+			return m.typeText(strings.Repeat(" ", iw-column(t, LineStart(t, c), c)%iw))
+		}
 		if k.isChar() {
 			return m.typeText(string(k))
 		}
@@ -243,7 +247,7 @@ func (m *Machine) indentLine(in bool) error {
 	} else {
 		w = max(w-m.h.IndentWidth(), 0)
 	}
-	s := indentText(w)
+	s := m.indentText(w)
 	if err := m.apply([]Edit{{Start: ls, End: ind, Text: s}}, m.label); err != nil {
 		return err
 	}

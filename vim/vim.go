@@ -128,6 +128,7 @@ type Machine struct {
 	reSrc                 string
 	reIgnore              bool // re ignores case
 	ignoreCase, smartCase bool
+	expandTab             bool   // indents are spaces only
 	lastRep               string // the previous replacement, for ~
 	lastSub               struct{ pattern, rep, flags string }
 	msg                   string

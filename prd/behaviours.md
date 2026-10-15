@@ -94,6 +94,9 @@ Where fude departs, the line says so and cites the departure in
 - B121 [2] With the cursor on a bracket, or just after one in insert mode,
   the bracket and its match in the window show bold and underlined, as
   Neovim's matchparen shows them.
+- B122 [2] With `expand_tab`, `>`, `<`, `<C-t>` and `<C-d>` indent with
+  spaces only, and `<Tab>` in insert mode types spaces to the next
+  `indent_width` column (N10).
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays

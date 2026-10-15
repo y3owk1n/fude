@@ -337,6 +337,14 @@ fude takes no mouse input, where Neovim's `mouse` defaults to `nvi`. The
 terminal keeps its own selection, scrolling and copy. Why: the user chose
 keys only on 2026-10-15.
 
+### N10. Tab with expand_tab goes to the next indent column
+
+With `expand_tab`, `<Tab>` in insert mode types spaces to the next
+`indent_width` column, as Neovim's `softtabstop=-1` does. Neovim's default
+`softtabstop` of 0 types spaces to the next 8-column tabstop instead. Why:
+fude has one indent setting, and a `<Tab>` that indents by it is what most
+Neovim configs set.
+
 ## Open
 
 None.
