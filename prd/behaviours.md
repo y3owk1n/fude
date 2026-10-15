@@ -123,6 +123,10 @@ Where fude departs, the line says so and cites the departure in
 - B127 [2] A listing shows dim text after some names, as `ls -F` marks
   them: `-> target` after a symlink, `*` after an executable file, and `|`,
   `=`, `%` or `#` after a pipe, socket, character device or block device.
+- B128 [2] With `icons` on, a listing shows a nerd font icon left of each
+  name, in mini.icons' glyphs and colours. A file's icon goes by its name
+  or extension, and a directory shows a folder. Diagnostic signs show
+  icons in place of `E`, `W`, `I` and `H`. `icons` is off by default.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -265,6 +266,29 @@ func TestB119SignColumn(t *testing.T) {
 	v := e.Views()[0]
 	if v.SignCols != 2 || v.Gutter != 2 || len(v.Signs) != 1 || v.Signs[1] != (editor.Sign{Text: "E", Name: "diagnostic.error"}) {
 		t.Fatalf("with two errors on line 2 the view has %d sign columns and signs %v", v.SignCols, v.Signs)
+	}
+}
+
+// B128
+func TestB128Icons(t *testing.T) {
+	e, _ := withServer(t, "ok\nbad x bad\n", "utf-8")
+	settle(t, e, func() bool { return len(decorations(e)) == 2 })
+	if feed(e, ":set icons<CR>"); e.Views()[0].Signs[1] != (editor.Sign{Text: "\uf057", Name: "diagnostic.error"}) {
+		t.Fatalf("with icons the error sign is %v", e.Views()[0].Signs[1])
+	}
+
+	// A listing's icons take two columns at the gutter's right.
+	dir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(dir, "sub"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	change(t, filepath.Join(dir, "main.go"), "")
+	change(t, filepath.Join(dir, "notes"), "")
+	feed(e, ":e "+dir+"<CR>")
+	v := e.Views()[0]
+	want := map[int]editor.Sign{0: {Text: "\U000f07d3", Name: "icon.azure"}, 1: {Text: "\U000f0214", Name: "icon.grey"}, 2: {Text: "\U000f024b", Name: "icon.azure"}}
+	if v.Gutter != v.SignCols+2 || !maps.Equal(v.Icons, want) {
+		t.Fatalf("the listing has gutter %d and icons %v", v.Gutter, v.Icons)
 	}
 }
 

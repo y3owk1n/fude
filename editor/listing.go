@@ -187,6 +187,21 @@ func (b *buffer) notes(t kernel.Snapshot, top, last int) map[int]string {
 	return out
 }
 
+// icons returns the icon of each line of listing b from top to last.
+func (b *buffer) icons(t kernel.Snapshot, top, last int) map[int]Sign {
+	if b.listed == "" {
+		return nil
+	}
+	out := map[int]Sign{}
+	for line := t.LineOf(top); line <= t.LineOf(last); line++ {
+		start := t.LineStart(line)
+		if name := t.Slice(start, vim.LineEnd(t, start)); name != "" {
+			out[line] = iconOf(name)
+		}
+	}
+	return out
+}
+
 // note is what a listing shows after the entry at path: where a symlink
 // points, * for an executable, or a mark for a pipe, socket or device
 // (B127).

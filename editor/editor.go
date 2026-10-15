@@ -456,6 +456,7 @@ type View struct {
 	SignCols          int            // the columns of the sign column, at the gutter's left
 	Signs             map[int]Sign   // by line, the sign each one shows (B119)
 	Notes             map[int]string // by line, dim text after its end (B127)
+	Icons             map[int]Sign   // by line, a listing's icon at the gutter's right (B128)
 	Number, Relative  bool           // show line numbers, and relative ones (B39)
 	Wrap              bool           // long lines go on the rows below
 	CursorLine        bool           // shade the cursor's line (B117)
@@ -492,6 +493,14 @@ func (e *Session) Views() []View {
 		e.diffGit(w.buf)
 		v.Signs = e.signs(w.buf, top, last)
 		v.Notes = w.buf.notes(t, top, last)
+		if w.opts.Icons {
+			v.Icons = w.buf.icons(t, top, last)
+			for line, s := range v.Signs {
+				if icon, ok := diagnosticIcons[s.Name]; ok {
+					v.Signs[line] = Sign{icon, s.Name}
+				}
+			}
+		}
 		v.Pair = e.pair(w, t, top, last)
 		v.Ruler = ruler(t, w.pos(), top, max(w.h-1, 1), func(p int) int { return w.rows(t, p) })
 		for _, p := range e.plugins {

@@ -552,6 +552,12 @@ or a mark for an executable or special file. fude reads a name's note with
 reads the listing again. A directory of thousands of entries costs one
 `lstat` for each visible line, not one for each entry (B127).
 
+With `icons` on, a listing's icons take two columns at the right of the
+gutter, not inline before the name as Neovim's virtual text puts them.
+The text then starts at the same column on every row, so the cursor,
+wrapping and sideways scrolling need no change. The icons are a table of
+names and extensions in `editor/icons.go`, from mini.icons (B128).
+
 ## Paths
 
 ```
@@ -581,6 +587,7 @@ list = false         # show tabs, trailing spaces and no-break spaces (B118)
 ignore_case = false  # searches ignore case (B120)
 smart_case = false   # with ignore_case, an uppercase letter matches case (B120)
 expand_tab = false   # indent with spaces only (B122)
+icons = false        # nerd font icons in listings and diagnostic signs (B128)
 
 [keymap.normal]      # and [keymap.visual], [keymap.insert]. Keys map to keys.
 "<Space>w" = ":w<CR>"

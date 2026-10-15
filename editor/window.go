@@ -32,7 +32,16 @@ func (w *window) pos() int { return w.buf.text.Mark(w.cursor) }
 
 // gutter is how many columns the window's sign column and line numbers
 // take on the left.
-func (w *window) gutter() int { return w.signCols() + w.numberCols() }
+func (w *window) gutter() int { return w.signCols() + w.numberCols() + w.iconCols() }
+
+// iconCols is 2 for a listing's icons with the icons option, at the
+// gutter's right, and 0 otherwise (B128).
+func (w *window) iconCols() int {
+	if w.opts.Icons && w.buf.listed != "" {
+		return 2
+	}
+	return 0
+}
 
 // signCols is 2 when the buffer has signs, as Neovim's signcolumn=auto
 // shows them, and 0 otherwise (B119).
