@@ -236,6 +236,12 @@ Tested through `core/`'s exported API, with no editor around it.
   which line holds any position, without reading the text before it.
 - B107 [1] A listener hears every change to the text, from transactions,
   undo, redo and moves across the timeline, with the text before it.
+- B108 [6] A position in an older version maps to where it is now, or to
+  nothing when an edit since replaced it.
+- B109 [6] Undoing one origin reverts only its newest change, moved through
+  the changes others made after it, as a new node. It refuses when one of
+  those overlaps it, and when the change is the newest node it is a plain
+  undo.
 
 ## Vim library
 

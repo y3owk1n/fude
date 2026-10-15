@@ -84,6 +84,8 @@ func (b *Buffer) Nodes() []Node
 func (b *Buffer) SetMark(pos int, g Gravity) MarkID
 func (b *Buffer) MoveMark(id MarkID, pos int)
 func (b *Buffer) DeleteMark(id MarkID) // its id may name a later mark
+func (b *Buffer) Map(pos int, from Version) (int, bool)
+func (b *Buffer) UndoOrigin(o Origin, label string, at time.Time) (int, error)
 func (b *Buffer) Listen(l Listener) // hears every change, with the text before it
 func (b *Buffer) Mark(id MarkID) int
 
@@ -93,8 +95,7 @@ type Listener interface{ Changed(before Snapshot, edits []Edit) }
 
 A transaction carries the host's time, since the kernel reads no clock.
 The host restores a state or diffs two. It reads both texts with `At` and
-applies or compares them. `Rebase`, `Map` and the change listener
-come with the behaviours that need them (B76).
+applies or compares them.
 
 The kernel calls its store synchronously on the writing goroutine. fude's
 store appends one line to the timeline log per node and reports its own
@@ -354,12 +355,19 @@ shows (B31). The ids and the base
 version are what step 6 and any later CRDT build on, so they exist from
 step 1 even with one client.
 
-The kernel applies a transaction only at its base version. For an older
-base it offers `Rebase`, which maps the edits through every transaction
-since and fails if one overlaps them. Whether to rebase, re-resolve the
-command or give up is the host's choice. `Map(pos, bias, from, to)` maps any
-position between two versions, which is how late async results, marks and
-proposal ranges follow the text.
+The kernel applies a transaction only at its base version. `Map(pos, from)`
+says where a position in an older version is now, or that an edit since
+replaced it (B108). It reads a log of the last 4096 edit lists the kernel
+made, so a position older than those maps to nothing. A request made
+against an older version resolves at its mapped position, and is refused
+when the position no longer exists (B76).
+
+`UndoOrigin(o)` reverts origin `o`'s newest change still in the text. When
+that change is the head node, it is a plain `Undo`, so redo keeps working.
+Otherwise it reverts the change as one edit, from the text after it back to
+the text before it. It moves that edit through the changes others made since
+and applies it as a new node of `o`'s. It refuses when one of those changes
+overlaps it (B109).
 
 The kernel keeps a transaction log beside the timeline. A command such as
 `dw` resolves to different edits at a different version, so the log stores

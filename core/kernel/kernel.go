@@ -127,6 +127,9 @@ type Buffer struct {
 	depth   int
 	group   *Node
 	redo    map[NodeID]NodeID // the child each node was last undone from
+
+	log      []logged        // the newest edits, for Map
+	reverted map[NodeID]bool // nodes UndoOrigin reverted, and the nodes that reverted them
 }
 
 // New returns a buffer holding text. store may be nil.
@@ -339,6 +342,10 @@ func (b *Buffer) edit(edits []Edit) Change {
 	if b.hear != nil && len(edits) > 0 {
 		b.hear.Changed(b.Snapshot(), edits)
 	}
+	if len(b.log) == logSize {
+		b.log = slices.Delete(b.log, 0, logSize/2)
+	}
+	b.log = append(b.log, logged{b.version, edits})
 	c := Change{Edits: edits, Removed: make([]string, len(edits))}
 	text := b.text
 	for i := len(edits) - 1; i >= 0; i-- {

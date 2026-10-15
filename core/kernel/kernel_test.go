@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/y3owk1n/fude/core/kernel"
 )
@@ -211,5 +212,75 @@ func TestB105StoreRebuildsTimeline(t *testing.T) {
 	apply(t, r, kernel.Edit{Start: 0, End: 0, Text: ">"})
 	if id := r.Head(); id.Seq != 3 || r.Nodes()[2].Parent != b.Head() {
 		t.Fatalf("new node after load is %v, want seq 3 on the loaded head", id)
+	}
+}
+
+// B108
+func TestB108Map(t *testing.T) {
+	b := kernel.New("abcdef", nil)
+	v := b.Snapshot().Version()
+	apply(t, b, kernel.Edit{Start: 0, End: 0, Text: "xx"})
+	apply(t, b, kernel.Edit{Start: 4, End: 6, Text: ""})
+	for _, c := range []struct {
+		pos, want int
+		ok        bool
+	}{{0, 2, true}, {1, 3, true}, {2, 4, true}, {3, 0, false}, {5, 5, true}} {
+		if got, ok := b.Map(c.pos, v); got != c.want || ok != c.ok {
+			t.Errorf("Map(%d) is %d, %v, want %d, %v", c.pos, got, ok, c.want, c.ok)
+		}
+	}
+	if _, ok := b.Map(0, b.Snapshot().Version()+1); ok {
+		t.Error("Map from a version still to come gave a position")
+	}
+}
+
+// B109
+func TestB109UndoOrigin(t *testing.T) {
+	b := kernel.New("abc", nil)
+	edit := func(o kernel.Origin, e kernel.Edit) {
+		t.Helper()
+		if err := b.Apply(kernel.Transaction{Base: b.Snapshot().Version(), Origin: o, Edits: []kernel.Edit{e}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	edit("a", kernel.Edit{Start: 0, End: 0, Text: "1"})
+	edit("b", kernel.Edit{Start: 4, End: 4, Text: "2"})
+	// a's change is under b's, so undoing a reverts only it, as a new node.
+	if _, err := b.UndoOrigin("a", "undo", time.Time{}); err != nil || text(b) != "abc2" || len(b.Nodes()) != 3 {
+		t.Fatalf("undoing a left %q in %d nodes: %v", text(b), len(b.Nodes()), err)
+	}
+	// Undoing a again finds nothing, as its change and the undo of it are
+	// both reverted.
+	if _, err := b.UndoOrigin("a", "undo", time.Time{}); !errors.Is(err, kernel.ErrNothing) {
+		t.Errorf("undoing a twice gave %v, want ErrNothing", err)
+	}
+	if _, err := b.UndoOrigin("b", "undo", time.Time{}); err != nil || text(b) != "abc" {
+		t.Errorf("undoing b left %q: %v", text(b), err)
+	}
+
+	// The head's own change undoes as Undo does, so it can be redone.
+	c := kernel.New("x", nil)
+	if err := c.Apply(kernel.Transaction{Origin: "a", Edits: []kernel.Edit{{Start: 1, End: 1, Text: "y"}}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.UndoOrigin("a", "undo", time.Time{}); err != nil || text(c) != "x" || len(c.Nodes()) != 1 {
+		t.Errorf("undoing the head left %q in %d nodes: %v", text(c), len(c.Nodes()), err)
+	}
+	if _, ok := c.Redo(); !ok || text(c) != "xy" {
+		t.Errorf("redo after undoing the head left %q", text(c))
+	}
+
+	// A later change inside it stops the undo.
+	d := kernel.New("", nil)
+	for _, e := range []struct {
+		o kernel.Origin
+		e kernel.Edit
+	}{{"a", kernel.Edit{Text: "abc"}}, {"b", kernel.Edit{Start: 1, End: 2, Text: "B"}}} {
+		if err := d.Apply(kernel.Transaction{Base: d.Snapshot().Version(), Origin: e.o, Edits: []kernel.Edit{e.e}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := d.UndoOrigin("a", "undo", time.Time{}); !errors.Is(err, kernel.ErrOverlap) || text(d) != "aBc" {
+		t.Errorf("undoing under an overlapping change left %q: %v", text(d), err)
 	}
 }
