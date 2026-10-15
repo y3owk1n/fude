@@ -586,6 +586,12 @@ off the loop, one match at a time, and a query that grows searches only
 the last matches. 4,000 paths take 2ms for one letter. The box shows the
 last matches until the new ones come (B129).
 
+On a screen of 60 columns or more, the list takes two fifths of the width
+and a preview box the rest, up to 160 columns in all. `Float.DocW` is the
+preview box's width. The preview is the first 16KB of the selected file,
+cut to the box, with tabs as 4 spaces and no highlights. fude reads it on
+the loop when the selection changes (B130).
+
 ## Paths
 
 ```

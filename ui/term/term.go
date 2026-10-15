@@ -221,6 +221,12 @@ func (c *client) draw() {
 // float reports where it is.
 func (c *client) float(f editor.Float, cx, cy, w, h int) (int, int, bool) {
 	if f.W > 2 && f.H > 2 {
+		if f.DocW > 2 {
+			// The documentation box is as tall as the box beside it.
+			doc := f.Doc + strings.Repeat("\n", max(f.H-3-strings.Count(f.Doc, "\n"), 0))
+			rows, _ := wrap(doc, f.DocSpans, f.DocW-2)
+			c.box(doc, f.DocSpans, rows[:min(len(rows), f.H-2)], f.X+f.W, f.Y, f.DocW-2, -1)
+		}
 		rows, _ := wrap(f.Text, f.Spans, f.W-2)
 		return c.box(f.Text, f.Spans, rows[:min(len(rows), f.H-2)], f.X, f.Y, f.W-2, f.Cursor)
 	}

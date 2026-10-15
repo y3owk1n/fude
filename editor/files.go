@@ -1,9 +1,12 @@
 package editor
 
 import (
+	"bytes"
 	"cmp"
+	"io"
 	"io/fs"
 	"math"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"slices"
@@ -22,8 +25,10 @@ type finder struct {
 	query   string   // the query matches are for
 	matches []string
 	sel     int
-	stale   bool // paths came after matches were found
-	busy    bool // a match runs
+	stale   bool   // paths came after matches were found
+	busy    bool   // a match runs
+	shown   string // the path previewed
+	preview string // its first lines
 }
 
 // files opens the finder and reads the working directory's files off the
@@ -124,11 +129,16 @@ func (e *Session) seek(f *finder) {
 	}()
 }
 
-// float shows the finder in a box in the middle of the screen, as wide and
-// tall as the screen allows up to 80 columns and 20 rows, with the cursor
-// in the query.
+// float shows the finder in the middle of the screen, at most 20 rows tall,
+// with the cursor in the query. On a screen of 60 columns or more, the
+// selected file's first lines show in a box right of the list (B130).
 func (f *finder) float(query string, cursor, width, height int) Float {
-	w, h := min(82, width), min(22, height)
+	total, h := min(162, width), min(22, height)
+	w, docW := total, 0
+	if total >= 60 {
+		w = total * 2 / 5
+		docW = total - w
+	}
 	rows := max(h-3, 0) // below the query
 	first := max(f.sel-rows+1, 0)
 	var s strings.Builder
@@ -149,7 +159,39 @@ func (f *finder) float(query string, cursor, width, height int) Float {
 		}
 		s.WriteString(p)
 	}
-	return Float{Text: s.String(), Spans: spans, Cursor: cursor, X: (width - w) / 2, Y: (height - h) / 2, W: w, H: h}
+	doc := ""
+	if docW > 0 && f.sel < len(f.matches) {
+		if p := f.matches[f.sel]; p != f.shown {
+			f.shown, f.preview = p, preview(p, h-2, docW-2)
+		}
+		doc = f.preview
+	}
+	return Float{Text: s.String(), Spans: spans, Cursor: cursor, Doc: doc, X: (width - total) / 2, Y: (height - h) / 2, W: w, H: h, DocW: docW}
+}
+
+// preview returns at most rows lines from the start of the file at path,
+// cut to cols columns with tabs as 4 spaces, or why it shows none.
+func preview(path string, rows, cols int) string {
+	f, err := os.Open(path)
+	if err != nil {
+		return err.Error()
+	}
+	defer f.Close()
+	buf := make([]byte, 16<<10)
+	n, err := io.ReadFull(f, buf)
+	if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
+		return err.Error()
+	}
+	if bytes.IndexByte(buf[:n], 0) >= 0 {
+		return "binary file"
+	}
+	lines := strings.Split(strings.TrimSuffix(string(buf[:n]), "\n"), "\n")
+	lines = lines[:min(len(lines), rows)]
+	for i, l := range lines {
+		r := []rune(strings.ReplaceAll(l, "\t", "    "))
+		lines[i] = string(r[:min(len(r), cols)])
+	}
+	return strings.Join(lines, "\n")
 }
 
 // match returns the paths query matches, the best first, and all of them

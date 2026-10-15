@@ -702,9 +702,10 @@ type Float struct {
 	Top, Cursor int
 	Doc         string // drawn beside it, styled by DocSpans
 	DocSpans    []syntax.Span
-	// Where a box in a place of its own goes, its border included, or W 0
-	// for one at the cursor.
-	X, Y, W, H int
+	// Where a box in a place of its own goes, its border included. W is 0
+	// for a box at the cursor. DocW is the width of the documentation's box
+	// right of it.
+	X, Y, W, H, DocW int
 }
 
 // Float returns the float to draw, or false when there is none.
