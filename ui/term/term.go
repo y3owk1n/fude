@@ -51,7 +51,7 @@ func Run(e *editor.Editor) error {
 			case pasting:
 				paste.WriteString(text(ev))
 			default:
-				if k := key(ev); k != "" {
+				for _, k := range keys(ev) {
 					e.Feed(k)
 				}
 			}
@@ -114,7 +114,11 @@ func (c *client) draw() {
 		c.s.PutStr(0, h-1, ":"+c.e.Line())
 		cx, cy = 1+len(c.e.Line()), h-1
 	default:
-		c.s.PutStr(0, h-1, c.e.Message())
+		msg := c.e.Message()
+		if r := c.e.Recording(); r != 0 && msg == "" {
+			msg = "recording @" + string(r)
+		}
+		c.s.PutStr(0, h-1, msg)
 	}
 	c.s.SetCursorStyle(style)
 	c.s.ShowCursor(cx, cy)
@@ -140,15 +144,29 @@ func (c *client) scroll(t vim.Text, cur, rows int) {
 	}
 }
 
-// key returns ev in Vim notation, or "" for a key fude does not use yet.
-func key(ev *tcell.EventKey) vim.Key {
-	switch ev.Key() {
+// keys returns ev in Vim notation, or nothing for a key fude does not use
+// yet. An Alt chord is <Esc> and the key, as a terminal without kitty sends
+// it (D26).
+func keys(ev *tcell.EventKey) []vim.Key {
+	if ev.Modifiers()&^tcell.ModShift == tcell.ModAlt {
+		if k := key(ev.Key(), 0, ev.Str()); k != "" {
+			return []vim.Key{"<Esc>", k}
+		}
+	}
+	if k := key(ev.Key(), ev.Modifiers()&^tcell.ModShift, ev.Str()); k != "" {
+		return []vim.Key{k}
+	}
+	return nil
+}
+
+func key(k tcell.Key, mods tcell.ModMask, str string) vim.Key {
+	switch k {
 	case tcell.KeyRune:
-		switch mods := ev.Modifiers() &^ tcell.ModShift; {
+		switch {
 		case mods == 0:
-			return vim.Key(ev.Str())
-		case mods == tcell.ModCtrl && len(ev.Str()) == 1:
-			return vim.Key("<C-" + strings.ToLower(ev.Str()) + ">")
+			return vim.Key(str)
+		case mods == tcell.ModCtrl && len(str) == 1:
+			return vim.Key("<C-" + strings.ToLower(str) + ">")
 		}
 	case tcell.KeyEnter:
 		return "<CR>"
