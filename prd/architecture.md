@@ -638,6 +638,19 @@ other colours, with no virtual text. `]d` and `[d` jump to the next and
 previous diagnostic, going round the ends, add the jump to the jumplist and
 show its message (B61).
 
+A request carries an id the loop keeps with the code that handles the
+answer, and the answer comes back through the editor's queue, so a key that
+asks a server returns at once. `<C-]>` jumps to the first location the
+definition answer names, opening its file when no buffer has it. `K` shows
+the hover text in a float at the cursor, without markdown's code fences.
+The next key closes the float and then acts as usual, and `K` while it shows
+opens the text in a read-only window, where it can scroll. Both keys exist in
+every buffer, as in Neovim, and say so when no server is attached (B62).
+
+A float is text the editor holds and the client draws over the windows, in
+a bordered box at the cursor: below its line, or above when there is more
+room there, at most 80 columns and 20 lines.
+
 ## Server split (step 6)
 
 One server holds the kernel and its modules and orders every transaction.

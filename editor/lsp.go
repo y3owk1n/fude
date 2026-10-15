@@ -3,6 +3,7 @@ package editor
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -180,4 +181,107 @@ func (e *Editor) diagnostic(n int) {
 	e.pushJump(c)
 	e.setCursor(p)
 	e.message = notes[p]
+}
+
+// request sends the request named, such as lsp.definition, about the
+// cursor's place in the current buffer, and handles the answer on the editor
+// loop when it comes (B62).
+func (e *Editor) request(name string) {
+	b := e.win.buf
+	s := b.server
+	if s == nil {
+		e.message = "no language server"
+		return
+	}
+	t, c, uri := b.text.Snapshot(), e.Cursor(), lsp.URI(b.file.path)
+	method := map[string]string{"lsp.definition": "textDocument/definition", "lsp.hover": "textDocument/hover"}[name]
+	s.client.Request(method, func(enc string) any {
+		return map[string]any{"textDocument": map[string]any{"uri": uri}, "position": lsp.Point(t, c, enc)}
+	}, func(res json.RawMessage) {
+		switch name {
+		case "lsp.definition":
+			e.define(s, res)
+		case "lsp.hover":
+			e.hover(res)
+		}
+	})
+}
+
+// define jumps to the first place a definition answer names, opening its
+// file when no buffer has it.
+func (e *Editor) define(s *server, res json.RawMessage) {
+	type location struct {
+		URI       string    `json:"uri"`
+		Range     lsp.Range `json:"range"`
+		TargetURI string    `json:"targetUri"`
+		Target    lsp.Range `json:"targetSelectionRange"`
+	}
+	var many []location
+	if json.Unmarshal(res, &many) != nil {
+		var one location
+		if json.Unmarshal(res, &one) == nil {
+			many = []location{one}
+		}
+	}
+	if len(many) == 0 || many[0].URI == "" && many[0].TargetURI == "" {
+		e.message = "no definition found"
+		return
+	}
+	l := many[0]
+	if l.TargetURI != "" {
+		l.URI, l.Range = l.TargetURI, l.Target
+	}
+	u, err := url.Parse(l.URI)
+	if err != nil {
+		e.message = err.Error()
+		return
+	}
+	// Moving to another buffer is a jump of its own.
+	if e.win.buf.is(u.Path) {
+		e.pushJump(e.Cursor())
+	} else {
+		e.edit(u.Path)
+	}
+	if e.win.buf.is(u.Path) {
+		e.setCursor(lsp.Offset(e.Text(), l.Range.Start, s.client.Encoding()))
+		e.reveal()
+	}
+}
+
+// hover shows a hover answer's text in a float at the cursor.
+func (e *Editor) hover(res json.RawMessage) {
+	var h struct {
+		Contents json.RawMessage `json:"contents"`
+	}
+	json.Unmarshal(res, &h)
+	// Contents is markup with a value, a string, or a list of either.
+	var parts []json.RawMessage
+	if json.Unmarshal(h.Contents, &parts) != nil {
+		parts = []json.RawMessage{h.Contents}
+	}
+	var texts []string
+	for _, p := range parts {
+		var markup struct {
+			Value string `json:"value"`
+		}
+		var plain string
+		switch {
+		case json.Unmarshal(p, &plain) == nil:
+			texts = append(texts, plain)
+		case json.Unmarshal(p, &markup) == nil && markup.Value != "":
+			texts = append(texts, markup.Value)
+		}
+	}
+	if len(texts) == 0 {
+		e.message = "no hover information"
+		return
+	}
+	// Markdown's code fences go, as fude shows the code as plain lines.
+	var lines []string
+	for _, l := range strings.Split(strings.Join(texts, "\n\n"), "\n") {
+		if !strings.HasPrefix(l, "```") {
+			lines = append(lines, l)
+		}
+	}
+	e.float = strings.TrimSpace(strings.Join(lines, "\n"))
 }

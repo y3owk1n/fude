@@ -22,6 +22,12 @@ import (
 type Client struct {
 	queue chan<- func()
 	stdin io.WriteCloser
+	log   func(string)
+
+	// Requests the editor loop sent and the server has yet to answer, which
+	// only the loop touches.
+	next    int
+	pending map[int]func(json.RawMessage)
 
 	// Messages waiting for the writer, built once the server chose its
 	// position encoding.
@@ -59,7 +65,10 @@ func Start(command []string, root string, queue chan<- func(), log func(string),
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("start %s: %w", command[0], err)
 	}
-	c := &Client{queue: queue, stdin: stdin, wake: make(chan struct{}, 1), done: make(chan struct{})}
+	c := &Client{
+		queue: queue, stdin: stdin, log: log, pending: map[int]func(json.RawMessage){},
+		wake: make(chan struct{}, 1), done: make(chan struct{}),
+	}
 	initialized := make(chan string, 1)
 	go c.write(root, initialized)
 	go c.read(stdout, initialized, notify)
@@ -126,6 +135,16 @@ func (c *Client) CloseDocument(uri string) {
 	c.send(func(string) any {
 		return message{Method: "textDocument/didClose", Params: map[string]any{"textDocument": map[string]any{"uri": uri}}}
 	})
+}
+
+// Request sends method with the params build makes in the server's encoding,
+// and runs answer on the editor loop with the server's result. An error
+// answer goes to the log.
+func (c *Client) Request(method string, build func(enc string) any, answer func(json.RawMessage)) {
+	c.next++
+	id := c.next
+	c.pending[id] = answer
+	c.send(func(enc string) any { return request{ID: id, Method: method, Params: build(enc)} })
 }
 
 // Encoding is the position encoding the server chose, or "" before it
@@ -197,6 +216,11 @@ type incoming struct {
 	Method string          `json:"method"`
 	Params json.RawMessage `json:"params"`
 	Result json.RawMessage `json:"result"`
+	Error  *responseError  `json:"error"`
+}
+
+type responseError struct {
+	Message string `json:"message"`
 }
 
 // send queues a message for the writer, which builds it once the server
@@ -296,7 +320,15 @@ func (c *Client) read(r io.Reader, initialized chan<- string, notify func(string
 			}
 			continue
 		}
-		if m.ID == nil || *m.ID != 0 {
+		if m.ID == nil {
+			continue
+		}
+		if id := *m.ID; id != 0 {
+			result, failed := m.Result, m.Error
+			select {
+			case c.queue <- func() { c.answered(id, result, failed) }:
+			case <-c.done:
+			}
 			continue
 		}
 		var res struct {
@@ -311,6 +343,18 @@ func (c *Client) read(r io.Reader, initialized chan<- string, notify func(string
 			enc = "utf-16"
 		}
 		initialized <- enc
+	}
+}
+
+// answered runs the answer waiting for request id.
+func (c *Client) answered(id int, result json.RawMessage, failed *responseError) {
+	answer, ok := c.pending[id]
+	delete(c.pending, id)
+	switch {
+	case failed != nil:
+		c.log(failed.Message)
+	case ok:
+		answer(result)
 	}
 }
 

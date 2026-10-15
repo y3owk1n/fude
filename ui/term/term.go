@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/gdamore/tcell/v3"
 	"github.com/gdamore/tcell/v3/color"
@@ -167,6 +168,10 @@ func (c *client) draw() {
 		}
 	}
 
+	if text, ok := c.e.Float(); ok {
+		c.float(text, cx, cy, w, h-1)
+	}
+
 	shape := tcell.CursorStyleSteadyBlock
 	switch c.e.Mode() {
 	case vim.Insert:
@@ -190,6 +195,41 @@ func (c *client) draw() {
 	c.s.SetCursorStyle(shape)
 	c.s.ShowCursor(cx, cy)
 	c.s.Show()
+}
+
+// float draws text in a bordered box at the cursor, cx and cy, below its
+// line, or above it when there is more room there. w and h are the space the
+// windows have.
+func (c *client) float(text string, cx, cy, w, h int) {
+	lines := strings.Split(strings.ReplaceAll(text, "\t", "    "), "\n")
+	width := 0
+	for _, l := range lines {
+		width = max(width, utf8.RuneCountInString(l))
+	}
+	width = min(width, w-2, 80)
+	below, above := h-cy-1, cy
+	n := min(len(lines), max(below, above)-2, 20)
+	if width < 1 || n < 1 {
+		return
+	}
+	y := cy + 1
+	if below < n+2 && above > below {
+		y = cy - n - 2
+	}
+	x := min(cx, max(w-width-2, 0))
+	style := tcell.StyleDefault
+	c.s.PutStrStyled(x, y, "┌"+strings.Repeat("─", width)+"┐", style)
+	for i, l := range lines[:n] {
+		c.s.FillArea(x, y+1+i, width+2, 1, ' ', style)
+		c.s.Put(x, y+1+i, "│", style)
+		for col, rest := 0, l; rest != "" && col < width; {
+			var cw int
+			rest, cw = c.s.Put(x+1+col, y+1+i, rest, style)
+			col += cw
+		}
+		c.s.Put(x+width+1, y+1+i, "│", style)
+	}
+	c.s.PutStrStyled(x, y+n+1, "└"+strings.Repeat("─", width)+"┘", style)
 }
 
 // view draws one window: its text, a status line on its bottom row, and a

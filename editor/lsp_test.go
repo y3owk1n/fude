@@ -19,7 +19,8 @@ import (
 // run as a process of its own. It answers initialize with the encoding in
 // FUDE_FAKE_ENCODING, appends every message it gets to FUDE_FAKE_LOG, and
 // crashes when a change inserts "#". Each "bad" in an opened document gets
-// an error diagnostic, with positions in bytes.
+// an error diagnostic, a definition is the first "target" in it, and hover
+// says where it was asked. Positions are in bytes.
 func TestFakeServer(t *testing.T) {
 	if os.Getenv("FUDE_FAKE_LSP") == "" {
 		return
@@ -33,6 +34,7 @@ func TestFakeServer(t *testing.T) {
 		body, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": id, "result": result})
 		fmt.Fprintf(os.Stdout, "Content-Length: %d\r\n\r\n%s", len(body), body)
 	}
+	opened := map[string]string{}
 	for {
 		n := 0
 		for {
@@ -60,11 +62,28 @@ func TestFakeServer(t *testing.T) {
 					URI  string `json:"uri"`
 					Text string `json:"text"`
 				} `json:"textDocument"`
+				Position struct {
+					Line      int `json:"line"`
+					Character int `json:"character"`
+				} `json:"position"`
 			} `json:"params"`
 		}
 		json.Unmarshal(body, &m)
 		switch m.Method {
+		case "textDocument/definition":
+			uri := m.Params.TextDocument.URI
+			for line, l := range strings.Split(opened[uri], "\n") {
+				if i := strings.Index(l, "target"); i >= 0 {
+					r := map[string]any{"start": map[string]int{"line": line, "character": i}, "end": map[string]int{"line": line, "character": i + 6}}
+					reply(m.ID, []any{map[string]any{"uri": uri, "range": r}})
+					break
+				}
+			}
+		case "textDocument/hover":
+			p := m.Params.Position
+			reply(m.ID, map[string]any{"contents": map[string]any{"kind": "plaintext", "value": fmt.Sprintf("hover at %d:%d", p.Line, p.Character)}})
 		case "textDocument/didOpen":
+			opened[m.Params.TextDocument.URI] = m.Params.TextDocument.Text
 			var ds []any
 			for line, l := range strings.Split(m.Params.TextDocument.Text, "\n") {
 				for i := 0; strings.Contains(l[i:], "bad"); i += 3 {
@@ -166,5 +185,30 @@ func TestB61Diagnostics(t *testing.T) {
 	feed(e, "ggOx<Esc>gg]d")
 	if e.Cursor() != 5 {
 		t.Errorf("after a line above it, ]d went to %d, want 5", e.Cursor())
+	}
+}
+
+// B62
+func TestB62DefinitionAndHover(t *testing.T) {
+	e, log := withServer(t, "a\nb target\n", "utf-8")
+	heard(t, log, `"method":"textDocument/didOpen"`, 1)
+	feed(e, "<C-]>")
+	settle(t, e, func() bool { return e.Cursor() == 4 })
+	feed(e, "<C-o>")
+	if e.Cursor() != 0 {
+		t.Errorf("<C-o> after <C-]> went to %d, want back to 0", e.Cursor())
+	}
+	feed(e, "jwK")
+	settle(t, e, func() bool { f, _ := e.Float(); return f == "hover at 1:2" })
+	if feed(e, "l"); e.Cursor() != 5 {
+		t.Errorf("l with hover shown went to %d, want 5", e.Cursor())
+	}
+	if _, ok := e.Float(); ok {
+		t.Error("a key left the hover shown")
+	}
+	feed(e, "K")
+	settle(t, e, func() bool { _, ok := e.Float(); return ok })
+	if feed(e, "K"); text(e) != "hover at 1:3" {
+		t.Errorf("K on a shown hover showed %q, want it in a window", text(e))
 	}
 }

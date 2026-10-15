@@ -31,6 +31,7 @@ type Editor struct {
 	done     bool
 	cfg      config
 	ask      func(yes bool) // takes the answer to the question in the message
+	float    string         // text shown over the windows at the cursor, such as hover
 	queue    chan func()
 	queries  string // the directory of query files that replace shipped ones
 	plugins  []*plugin.Plugin
@@ -75,6 +76,13 @@ func open(cfg config, paths []string) (*Editor, error) {
 		})
 	}
 	e.vim.Operator("gc", e.comment)
+	for keys, name := range map[string]string{"<C-]>": "lsp.definition", "K": "lsp.hover"} {
+		e.vim.Command(name, func(vim.Text, int, int) []vim.Edit {
+			e.request(name)
+			return nil
+		})
+		e.vim.Map(vim.Normal, keys, "<Plug>("+name+")")
+	}
 	for keys, n := range map[string]int{"]d": 1, "[d": -1} {
 		name := "diagnostic" + keys
 		e.vim.Command(name, func(_ vim.Text, _, count int) []vim.Edit {
@@ -191,6 +199,15 @@ func (e *Editor) Queue() <-chan func() { return e.queue }
 // Feed handles one key. An error becomes the message.
 func (e *Editor) Feed(k vim.Key) {
 	e.message = ""
+	if text := e.float; text != "" {
+		// Any key closes the float. K again opens its text in a window, where
+		// it can scroll.
+		e.float = ""
+		if k == "K" && e.vim.Idle() {
+			e.scratch("[hover]", text, nil, nil)
+			return
+		}
+	}
 	if ask := e.ask; ask != nil {
 		e.ask = nil
 		ask(k == "y")
@@ -329,6 +346,10 @@ func (e *Editor) setCursor(pos int) { e.win.buf.text.MoveMark(e.win.cursor, pos)
 
 // Mode returns the vim mode.
 func (e *Editor) Mode() vim.Mode { return e.vim.Mode() }
+
+// Float returns the text to show over the windows at the cursor, or false
+// when there is none.
+func (e *Editor) Float() (string, bool) { return e.float, e.float != "" }
 
 // Cursors returns the cursors after the first while a change on several
 // regions types into all of them.

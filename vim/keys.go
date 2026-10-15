@@ -20,6 +20,7 @@ var names = map[string]Key{
 	"space": " ",
 	"tab":   "\t",
 	"c-^":   "<C-^>",
+	"c-]":   "<C-]>",
 }
 
 // Keys splits Vim notation such as "ihello<Esc>" into keys. A "<" that does
