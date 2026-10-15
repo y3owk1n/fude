@@ -48,8 +48,8 @@ func (w *window) iconCols() int {
 	return 0
 }
 
-// signCols is 2 when the buffer has signs, as Neovim's signcolumn=auto
-// shows them, or always with sign_column, and 0 otherwise (B119, B143).
+// signCols is 2 when the buffer has signs, or always with sign_column, and
+// 0 otherwise (B119, B143).
 func (w *window) signCols() int {
 	if w.opts.SignColumn || w.buf.signed || len(w.buf.git) > 0 || w.buf.listed != "" {
 		return 2
@@ -58,10 +58,10 @@ func (w *window) signCols() int {
 }
 
 // numberCols is how many columns the line numbers take, 0 without them: at
-// least Neovim's numberwidth of 4, else the last line's digits and a space.
+// least 4, else the last line's digits and a space.
 func (w *window) numberCols() int {
 	if !w.opts.Number && !w.opts.RelativeNumber || w.buf.listed != "" {
-		// A listing shows names only, as Neovim's directory ftplugin sets it.
+		// A listing shows names only.
 		return 0
 	}
 	return max(4, len(strconv.Itoa(w.buf.text.Snapshot().Lines()))+1)

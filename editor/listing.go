@@ -75,7 +75,7 @@ func (e *Session) openListing(dir, at string) {
 }
 
 // up lists the directory holding the current file or listing, with the
-// cursor on what it came from, as Neovim's - does. count goes up that many
+// cursor on what it came from. count goes up that many
 // levels, and 1 lists the working directory instead.
 func (e *Session) up(count int) {
 	from := e.win.buf.listed
@@ -107,7 +107,7 @@ func (e *Session) up(count int) {
 	e.openListing(from, at)
 }
 
-// listingKeys are a listing's own keys, as oil.nvim's are: <CR> opens the
+// listingKeys are a listing's own keys: <CR> opens the
 // entry under the cursor, <C-s> and <C-h> open it in a split beside or
 // below, _ lists the working directory and <C-l> reads the listing again.
 // [keymap.listing] changes them (B142).

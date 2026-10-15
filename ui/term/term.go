@@ -440,7 +440,7 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 					style = style.Background(th.cursorLine)
 				}
 				if slices.Contains(v.Pair, at) {
-					// As Neovim's MatchParen shows in a terminal.
+					// A matched bracket is bold and underlined.
 					style = style.Bold(true).Underline(true)
 				}
 				for _, mt := range matches {
@@ -552,7 +552,7 @@ func (c *client) guides(v editor.View, t kernel.Snapshot, start, y int) {
 
 // number draws line's number in the gutter at x, y: from the cursor's
 // line cur with relative numbers, and its own on that line when numbers are
-// on too, put on the left as Neovim puts it (B39).
+// on too, put on the left (B39).
 func (c *client) number(line, cur, x, y int, v editor.View) {
 	n := line + 1
 	if v.Relative {
@@ -565,14 +565,14 @@ func (c *client) number(line, cur, x, y int, v editor.View) {
 	}
 	style := base.Foreground(th.faint)
 	if v.CursorLine && line == cur {
-		// The cursor's line number stands out, as Neovim's CursorLineNr.
+		// The cursor's line number stands out.
 		style = base.Bold(true)
 	}
 	c.s.PutStrStyled(x, y, text, style)
 }
 
 // listChar returns what list shows in place of the character rest starts
-// with, Neovim's default listchars: - for a trailing space and + for a
+// with: - for a trailing space and + for a
 // no-break space (B118).
 func listChar(rest string, trailing bool) (string, bool) {
 	switch {

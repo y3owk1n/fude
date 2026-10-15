@@ -173,7 +173,7 @@ func (m *Machine) press(k Key) error {
 	local, own := m.keymaps()
 	if n := local.walk(m.held); n != nil {
 		// A local mapping runs at once, without waiting for a longer one of
-		// the machine's, as Neovim's <nowait> ones do (N17).
+		// the machine's (N17).
 		if n.end {
 			return m.flush()
 		}

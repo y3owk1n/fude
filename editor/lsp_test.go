@@ -413,7 +413,7 @@ func TestB62DefinitionAndHover(t *testing.T) {
 	}
 }
 
-// B64, with what Neovim does given the same completions
+// B64
 func TestB64Completion(t *testing.T) {
 	for _, c := range [][2]string{
 		{"<Esc>", "x apple"},

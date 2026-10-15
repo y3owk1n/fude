@@ -300,7 +300,7 @@ func (e *Session) syncKeys() {
 // loop when it comes (B62, B66).
 func (e *Session) request(name string) {
 	if name == "lsp.hover" && e.left != "" {
-		// Hover while a float shows moves the cursor into it, as in Neovim.
+		// Hover while a float shows moves the cursor into it.
 		e.focus(e.left)
 		return
 	}
@@ -473,8 +473,8 @@ func (e *Session) served(s *server, method string, params json.RawMessage) any {
 	return map[string]any{"applied": len(problems) == 0}
 }
 
-// pick is a numbered list of code actions, which a number and <CR> choose
-// from, as Neovim's prompt does.
+// pick is a numbered list of code actions. Typing a number and <CR> picks
+// one.
 type pick struct {
 	s       *server
 	b       *buffer

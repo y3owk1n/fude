@@ -357,8 +357,7 @@ func (m *Machine) indentText(w int) string {
 }
 
 // ExpandTab sets whether indents are spaces only, and <Tab> in insert mode
-// types spaces to the next indent width's column, as Neovim's expandtab
-// does with softtabstop=-1 (B122, N10).
+// types spaces to the next indent width's column (B122, N10).
 func (m *Machine) ExpandTab(on bool) { m.expandTab = on }
 
 func swapCase(s string) string {

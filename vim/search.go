@@ -38,8 +38,7 @@ type patternKey struct {
 }
 
 // IgnoreCase sets whether searches and substitutes ignore case, and
-// whether a pattern with an uppercase letter matches case anyway, as
-// Neovim's ignorecase and smartcase do (B120).
+// whether a pattern with an uppercase letter matches case anyway (B120).
 func (m *Machine) IgnoreCase(ignore, smart bool) { m.ignoreCase, m.smartCase = ignore, smart }
 
 // hasUpper reports whether src has an uppercase letter that is not part

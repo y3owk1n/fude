@@ -274,8 +274,8 @@ func (m *Machine) feed(k Key) error {
 	return err
 }
 
-// Shown returns the keys of the command being typed, as Neovim's showcmd
-// shows them, or "" between commands (B38).
+// Shown returns the keys of the command being typed, or "" between
+// commands (B38).
 func (m *Machine) Shown() string {
 	var b strings.Builder
 	for _, k := range m.shown {

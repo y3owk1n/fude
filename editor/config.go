@@ -147,8 +147,8 @@ func mapAll(m mapper, mode vim.Mode, maps map[string]string, leader string) {
 // leaderKey is <Leader> in Vim notation, in any case.
 var leaderKey = regexp.MustCompile(`(?i)<leader>`)
 
-// withLeader puts leader in place of <Leader> in keys, as Neovim does when a
-// mapping is made (B144).
+// withLeader puts leader in place of <Leader> in keys, when a mapping is
+// made (B144).
 func withLeader(keys, leader string) string {
 	return leaderKey.ReplaceAllLiteralString(keys, leader)
 }

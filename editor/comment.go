@@ -39,8 +39,8 @@ func (e *Session) comment(t vim.Text, start, end int, linewise bool) []vim.Edit 
 }
 
 // toggle comments lines with cs, at the least indent of those not blank, or
-// uncomments them when every line that is not blank is commented, as Neovim's
-// gc does. A blank line becomes the comment's bare marker.
+// uncomments them when every line that is not blank is commented. A blank
+// line becomes the comment's bare marker.
 func toggle(lines []string, cs string) []string {
 	left, right, _ := strings.Cut(cs, "%s")
 	tl, tr := strings.TrimSpace(left), strings.TrimSpace(right)

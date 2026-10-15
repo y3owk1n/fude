@@ -459,7 +459,7 @@ func trim(t api.Text, s span) span {
 	return s
 }
 
-// node runs an, in, ]n or [n on sel as Neovim's tree selection does. an
+// node runs an, in, ]n or [n on sel. an
 // selects the node that holds sel, or its parent when sel is that node. in
 // goes back to the child an came from, or to the first child. ]n and [n
 // select the next and previous node beside it.

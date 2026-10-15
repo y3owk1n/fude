@@ -581,7 +581,7 @@ func (e *Session) Views() []View {
 
 // pair returns the bracket at w's cursor and its match within the lines
 // from top to last, or nil. In insert mode the bracket may be the one
-// before the cursor, as Neovim's matchparen takes it.
+// before the cursor.
 func (e *Session) pair(w *window, t kernel.Snapshot, top, last int) []int {
 	at := []int{w.pos()}
 	if w == e.win && e.vim.Mode() == vim.Insert && at[0] > 0 {
@@ -601,12 +601,11 @@ type Sign struct {
 	Text, Name string
 }
 
-// diagnosticSigns are the diagnostic letters by severity, the worst first,
-// as Neovim's vim.diagnostic shows them.
+// diagnosticSigns are the diagnostic letters by severity, the worst first.
 var diagnosticSigns = []Sign{{"E", "diagnostic.error"}, {"W", "diagnostic.warn"}, {"I", "diagnostic.info"}, {"H", "diagnostic.hint"}}
 
 // signs returns each line of b's sign: the letter of its worst diagnostic,
-// or else its git sign, as Neovim puts diagnostics over gitsigns' signs. A
+// or else its git sign. A
 // listing's lines from top to last show the git status of their names.
 func (e *Session) signs(b *buffer, top, last int) map[int]Sign {
 	if !b.signed && len(b.git) == 0 && len(b.status) == 0 {
@@ -633,10 +632,10 @@ func (e *Session) signs(b *buffer, top, last int) map[int]Sign {
 	return out
 }
 
-// ruler is what Neovim's ruler shows for a window of rows rows from top,
-// whose lines take rowsOf rows, with the cursor at c: line,col, then
-// -screen column when it differs, then All, Top, Bot or how far down the
-// view is (B38).
+// ruler returns the cursor's place for a window that shows rows rows from
+// top, whose lines take rowsOf rows each. It is line,col, then -screen
+// column when that differs, then All, Top, Bot or how far down the view is
+// (B38).
 func ruler(t kernel.Snapshot, c, top, rows int, rowsOf func(int) int) string {
 	line, ls := t.LineOf(c), vim.LineStart(t, c)
 	col, vcol := c-ls+1, vim.Column(t, ls, c)+1
@@ -691,7 +690,7 @@ func (e *Session) reveal() {
 	t, c := w.buf.text.Snapshot(), w.pos()
 	line := vim.LineStart(t, c)
 	// scroll_off lines stay in view above and below the cursor's, at most
-	// half the window, as with Neovim's scrolloff (B116).
+	// half the window (B116).
 	above, below := line, line
 	for range min(w.opts.ScrollOff, (e.rows()-1)/2) {
 		if above > 0 {
@@ -713,7 +712,7 @@ func (e *Session) reveal() {
 	}
 	w.buf.text.MoveMark(w.top, min(max(e.Top(), low), above))
 	// Without wrap the view scrolls sideways the least it must to show the
-	// cursor's column, as with Neovim's sidescroll of 1 (B37).
+	// cursor's column (B37).
 	if col := vim.Column(t, line, c); !w.opts.Wrap {
 		w.left = min(max(w.left, col-w.cols()+1), col)
 	}

@@ -24,7 +24,7 @@ func screen(tty tcell.Tty) (tcell.Screen, error) {
 // ctrlHKey is Ctrl+h in the kitty keyboard protocol.
 var ctrlHKey = []byte("\x1b[104;5u")
 
-// ctrlH is a tty that reads the byte 0x08 as Ctrl+h, as Neovim does, where
+// ctrlH is a tty that reads the byte 0x08 as Ctrl+h, where
 // tcell reads it as backspace. A terminal sends 0x7f for backspace and 0x08
 // for Ctrl+h, and tmux passes both on as they are, so <C-h> can be mapped
 // apart from <BS> (B141).

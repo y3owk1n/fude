@@ -334,7 +334,7 @@ func match(t Text, c int) (int, bool) {
 
 // Pair returns the bracket that matches the one at pos, looking no further
 // than [from, to), or false when pos is not on a bracket or its match is
-// outside, as Neovim's matchparen looks within the window (B121).
+// outside it (B121).
 func Pair(t Text, pos, from, to int) (int, bool) {
 	if pos >= t.Len() {
 		return 0, false

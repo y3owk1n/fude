@@ -44,8 +44,8 @@ func (m *Machine) operate(op string, reg rune, cmd string, count int, label stri
 // text object, in visual mode, and doubled for the current line, as gcc.
 // apply gets the target's range and whether it is linewise. A linewise range
 // runs from the start of its first line to the end of its last. apply returns
-// the edits it makes, and the cursor then goes where it goes after an
-// operator in Neovim.
+// the edits it makes, and the cursor then goes where it goes after the
+// built-in operators.
 func (m *Machine) Operator(name string, apply func(t Text, start, end int, lines bool) []Edit) {
 	if m.ops == nil {
 		m.ops = map[string]func(Text, int, int, bool) []Edit{}
