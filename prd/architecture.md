@@ -68,29 +68,27 @@ To stay reusable the kernel holds mechanism, never policy:
 The kernel's surface:
 
 ```go
-func NewBuffer(text []byte, opts Options) *Buffer
+func New(text string, store Store) *Buffer
+func Load(text string, head NodeID, nodes []Node, store Store) (*Buffer, error)
 
 func (b *Buffer) Snapshot() Snapshot
-func (b *Buffer) Apply(t Transaction) (NodeID, error) // only at its base version
-func (b *Buffer) Rebase(t Transaction) (Transaction, error)
-func (b *Buffer) Map(pos int, bias Bias, from, to Version) int
+func (b *Buffer) Apply(t Transaction) error // ErrStale unless at its base
 func (b *Buffer) BeginGroup()
 func (b *Buffer) EndGroup()
-func (b *Buffer) Undo() bool
-func (b *Buffer) Redo() bool
-func (b *Buffer) Restore(n NodeID) NodeID // a new node, nothing discarded
-func (b *Buffer) Diff(x, y NodeID) []Edit
-func (b *Buffer) SetMark(owner Owner, pos int, gravity Gravity) MarkID
-func (b *Buffer) Mark(MarkID) int
+func (b *Buffer) Head() NodeID
+func (b *Buffer) Nodes() []Node
+func (b *Buffer) SetMark(pos int, g Gravity) MarkID
+func (b *Buffer) Mark(id MarkID) int
 
-type Listener interface { Changed(Snapshot, []Edit, NodeID) }
-type Store    interface { Append(Node) error; Load() ([]Node, error) }
+type Store interface{ Append(Node) }
 ```
 
-The kernel calls its listener and store synchronously on the writing
-goroutine. fude's `editor/` implements both: the listener fans out to
-per-subscriber queues, and the store appends to the timeline log in the
-background.
+The kernel gains undo, redo, restore, diff, `Rebase`, `Map` and the change
+listener when the behaviours that need them are built (B30 to B32, B76).
+
+The kernel calls its store synchronously on the writing goroutine. fude's
+store appends to the timeline log in the background and reports its own
+errors, since the edit is already applied.
 
 ## The grammar as a library
 
@@ -105,7 +103,7 @@ implements:
 ```go
 type Text interface {        // read-only, core's Snapshot satisfies it as is
     Len() int
-    Slice(start, end int) []byte
+    Slice(start, end int) string
     LineStart(line int) int
     LineOf(pos int) int
     Lines() int
