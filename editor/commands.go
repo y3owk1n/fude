@@ -30,133 +30,191 @@ type call struct {
 	ranged      bool
 }
 
-// commands are the editor's ex commands.
-var commands = []command{
-	{vim.Command{Name: "!", Args: "{cmd}", Help: "runs cmd in the shell, or with a range puts the lines through it"}, func(e *Session, x call) {
-		e.shell(x.arg, x.first, x.last, x.ranged)
-	}, nil},
-	{vim.Command{Name: "accept", Args: "[n]", Help: "applies proposal n, or the buffer's newest"}, func(e *Session, x call) {
-		e.decide(x.arg, true)
-	}, nil},
-	{vim.Command{Name: "bdelete", Short: []string{"bd"}, Args: "[buffer]", Help: "closes the buffer. ! drops its changes"}, func(e *Session, x call) {
-		b := e.win.buf
-		if x.arg != "" {
-			b = e.find(x.arg)
-		}
-		if b != nil {
-			e.close(b, x.force)
-		}
-	}, completeBuffer},
-	{vim.Command{Name: "bnext", Short: []string{"bn"}, Help: "shows the next buffer"}, func(e *Session, _ call) {
-		e.show(e.bufs[(index(e.bufs, e.win.buf)+1)%len(e.bufs)])
-	}, nil},
-	{vim.Command{Name: "bprevious", Short: []string{"bp", "bN", "bNext"}, Help: "shows the buffer before"}, func(e *Session, _ call) {
-		e.show(e.bufs[(index(e.bufs, e.win.buf)+len(e.bufs)-1)%len(e.bufs)])
-	}, nil},
-	{vim.Command{Name: "buffer", Short: []string{"b"}, Args: "{buffer}", Help: "shows the buffer with that number, or whose name holds it. # is the one shown before"}, func(e *Session, x call) {
-		if b := e.find(x.arg); b != nil {
-			e.show(b)
-		}
-	}, completeBuffer},
-	{vim.Command{Name: "buffers", Short: []string{"ls"}, Help: "lists the buffers"}, func(e *Session, _ call) { e.list() }, nil},
-	{vim.Command{Name: "cd", Args: "[dir]", Help: "changes the working directory, to home without dir"}, func(e *Session, x call) { e.cd(x.arg) }, completePath},
-	{vim.Command{Name: "changes", Help: "lists where the buffer changed"}, func(e *Session, _ call) { e.changeList() }, nil},
-	{vim.Command{Name: "close", Short: []string{"clo"}, Help: "closes the window"}, func(e *Session, _ call) {
-		if err := e.closeWindow(e.win); err != nil {
-			e.message = err.Error()
-		}
-	}, nil},
-	{vim.Command{Name: "diff", Args: "{n} [m]", Help: "shows the lines that differ between states n and m, or n and now"}, func(e *Session, x call) { e.diff(x.arg) }, nil},
-	{vim.Command{Name: "earlier", Args: "{n}", Help: "goes n states back. n may be a time such as 5m, or a count of writes such as 1f"}, func(e *Session, x call) { e.travel(x.arg, false) }, nil},
-	{vim.Command{Name: "edit", Short: []string{"e"}, Args: "[file]", Help: "opens file, or reads the buffer's file again. ! drops changes"}, func(e *Session, x call) {
-		if x.arg == "" {
-			e.reread(x.force)
-			return
-		}
-		e.edit(x.arg)
-	}, completePath},
-	{vim.Command{Name: "enew", Help: "shows a new empty buffer"}, func(e *Session, _ call) { e.empty() }, nil},
-	{vim.Command{Name: "files", Help: "finds a file by name"}, func(e *Session, _ call) { e.files() }, nil},
-	{vim.Command{Name: "grep", Args: "[text]", Help: "searches the files for text as it is typed"}, func(e *Session, x call) { e.grepFiles(x.arg) }, nil},
-	{vim.Command{Name: "jumps", Short: []string{"ju"}, Help: "lists the window's jumps"}, func(e *Session, _ call) { e.jumps() }, nil},
-	{vim.Command{Name: "later", Args: "{n}", Help: "goes n states forward. n may be a time such as 5m, or a count of writes such as 1f"}, func(e *Session, x call) { e.travel(x.arg, true) }, nil},
-	{vim.Command{Name: "lsp", Args: "[restart|stop|disable|enable]", Help: "opens the panel of language servers, or acts on the file's server"}, func(e *Session, x call) {
-		if x.arg == "" {
-			e.lspPanel()
-			return
-		}
-		e.lspCommand(x.arg, serverName(e.cfg.Filetype[e.win.buf.filetype()].LSP))
-	}, func(_ *Session, _ string, start int, arg string, _ bool) (int, []string) {
-		return start, match(lspCommands, arg)
-	}},
-	{vim.Command{Name: "marks", Help: "lists the buffer's marks"}, func(e *Session, _ call) { e.marks() }, nil},
-	{vim.Command{Name: "messages", Short: []string{"mes"}, Help: "lists the messages shown, oldest first"}, func(e *Session, _ call) { e.messages() }, nil},
-	{vim.Command{Name: "new", Help: "opens a window below with a new empty buffer"}, func(e *Session, _ call) {
-		e.split(false)
-		e.empty()
-	}, nil},
-	{vim.Command{Name: "only", Short: []string{"on"}, Help: "closes every other window"}, func(e *Session, _ call) { e.only() }, nil},
-	{vim.Command{Name: "pwd", Help: "shows the working directory"}, func(e *Session, _ call) {
-		if dir, err := os.Getwd(); err != nil {
-			e.message = err.Error()
-		} else {
-			e.message = dir
-		}
-	}, nil},
-	{vim.Command{Name: "quit", Short: []string{"q"}, Help: "closes the window, and quits with the last. ! drops changes"}, func(e *Session, x call) { e.quit(x.force) }, nil},
-	{vim.Command{Name: "quitall", Short: []string{"qa", "qall", "quita"}, Help: "quits. ! drops every change"}, func(e *Session, x call) { e.quitAll(x.force) }, nil},
-	{vim.Command{Name: "read", Short: []string{"r"}, Args: "{file} | !{cmd}", Help: "puts a file, or what cmd writes, below the line"}, func(e *Session, x call) { e.readIn(x.arg, x.last) }, completePath},
-	{vim.Command{Name: "recover", Help: "goes to the newest unsaved change from a session that did not close"}, func(e *Session, _ call) { e.recover() }, nil},
-	{vim.Command{Name: "registers", Short: []string{"reg"}, Args: "[names]", Help: "lists the registers, or those named"}, func(e *Session, x call) { e.registers(x.arg) }, nil},
-	{vim.Command{Name: "reject", Args: "[n]", Help: "drops proposal n, or the buffer's newest"}, func(e *Session, x call) {
-		e.decide(x.arg, false)
-	}, nil},
-	{vim.Command{Name: "rename", Args: "{name}", Help: "renames the symbol under the cursor in every file, through the language server"}, func(e *Session, x call) { e.rename(x.arg) }, nil},
-	{vim.Command{Name: "restore", Args: "[n]", Help: "makes the text of state n the newest. In a timeline, n is the state under the cursor"}, func(e *Session, x call) { e.restore(x.arg) }, nil},
-	{vim.Command{Name: "set", Short: []string{"se"}, Args: "[option...]", Help: "sets options, or shows them all. name? shows one, noname turns one off and name! flips it"}, func(e *Session, x call) { e.set(x.arg) }, completeOption},
-	{vim.Command{Name: "split", Short: []string{"sp"}, Args: "[file]", Help: "opens a window below, then opens file in it"}, splitAndEdit, completePath},
-	{vim.Command{Name: "theme", Args: "[dark|light|{file}]", Help: "switches the theme of every client, or shows the one in use"}, func(e *Session, x call) {
-		if x.arg == "" {
-			e.message = e.theme
-		} else if err := e.setTheme(x.arg); err != nil {
-			e.message = err.Error()
-		}
-	}, completeTheme},
-	{vim.Command{Name: "timeline", Help: "lists every state of the buffer's text"}, func(e *Session, _ call) { e.timeline() }, nil},
-	{vim.Command{Name: "update", Short: []string{"up"}, Help: "writes the buffer if it is modified"}, func(e *Session, x call) {
-		if e.win.buf.modified() {
-			e.write(e.win.buf, x.force, nil)
-		}
-	}, nil},
-	{vim.Command{Name: "vnew", Short: []string{"vne"}, Help: "opens a window to the right with a new empty buffer"}, func(e *Session, _ call) {
-		e.split(true)
-		e.empty()
-	}, nil},
-	{vim.Command{Name: "vsplit", Short: []string{"vs"}, Args: "[file]", Help: "opens a window to the right, then opens file in it"}, splitAndEdit, completePath},
-	{vim.Command{Name: "wall", Short: []string{"wa"}, Help: "writes every modified buffer"}, func(e *Session, x call) { e.writeAll(e.bufs, x.force, nil) }, nil},
-	{vim.Command{Name: "wq", Help: "writes the buffer and closes the window"}, func(e *Session, x call) {
-		e.write(e.win.buf, x.force, func() { e.quit(x.force) })
-	}, nil},
-	{vim.Command{Name: "wqall", Short: []string{"wqa"}, Help: "writes every modified buffer and quits"}, writeAllAndQuit, nil},
-	{vim.Command{Name: "write", Short: []string{"w"}, Args: "[file]", Help: "writes the buffer, or to file. ! overwrites a file changed on disk"}, func(e *Session, x call) {
-		if x.arg != "" {
-			e.writeTo(e.win.buf, x.arg, x.force)
-			return
-		}
-		e.write(e.win.buf, x.force, nil)
-	}, completePath},
-	{vim.Command{Name: "xall", Short: []string{"xa"}, Help: "writes every modified buffer and quits"}, writeAllAndQuit, nil},
-	{vim.Command{Name: "xit", Short: []string{"x", "exit"}, Help: "writes the buffer if it is modified and closes the window"}, func(e *Session, x call) {
-		if e.win.buf.modified() {
-			e.write(e.win.buf, x.force, func() { e.quit(x.force) })
-		} else {
-			e.quit(x.force)
-		}
-	}, nil},
-}
+// commands are the editor's ex commands, plugs the commands keys run, and
+// commandsByName finds a command by any of its names. init fills them
+// because :help lists them.
+var (
+	commands       []command
+	plugs          []plug
+	commandsByName map[string]*command
+)
 
-// commandsByName finds a command by any of its names.
-var commandsByName = byName(commands)
+func init() {
+	commands = []command{
+		{vim.Command{Name: "!", Args: "{cmd}", Help: "runs cmd in the shell, or with a range puts the lines through it"}, func(e *Session, x call) {
+			e.shell(x.arg, x.first, x.last, x.ranged)
+		}, nil},
+		{vim.Command{Name: "accept", Args: "[n]", Help: "applies proposal n, or the buffer's newest"}, func(e *Session, x call) {
+			e.decide(x.arg, true)
+		}, nil},
+		{vim.Command{Name: "bdelete", Short: []string{"bd"}, Args: "[buffer]", Help: "closes the buffer. ! drops its changes"}, func(e *Session, x call) {
+			b := e.win.buf
+			if x.arg != "" {
+				b = e.find(x.arg)
+			}
+			if b != nil {
+				e.close(b, x.force)
+			}
+		}, completeBuffer},
+		{vim.Command{Name: "bnext", Short: []string{"bn"}, Help: "shows the next buffer"}, func(e *Session, _ call) {
+			e.show(e.bufs[(index(e.bufs, e.win.buf)+1)%len(e.bufs)])
+		}, nil},
+		{vim.Command{Name: "bprevious", Short: []string{"bp", "bN", "bNext"}, Help: "shows the buffer before"}, func(e *Session, _ call) {
+			e.show(e.bufs[(index(e.bufs, e.win.buf)+len(e.bufs)-1)%len(e.bufs)])
+		}, nil},
+		{vim.Command{Name: "buffer", Short: []string{"b"}, Args: "{buffer}", Help: "shows the buffer with that number, or whose name holds it. # is the one shown before"}, func(e *Session, x call) {
+			if b := e.find(x.arg); b != nil {
+				e.show(b)
+			}
+		}, completeBuffer},
+		{vim.Command{Name: "buffers", Short: []string{"ls"}, Help: "lists the buffers"}, func(e *Session, _ call) { e.list() }, nil},
+		{vim.Command{Name: "cd", Args: "[dir]", Help: "changes the working directory, to home without dir"}, func(e *Session, x call) { e.cd(x.arg) }, completePath},
+		{vim.Command{Name: "changes", Help: "lists where the buffer changed"}, func(e *Session, _ call) { e.changeList() }, nil},
+		{vim.Command{Name: "close", Short: []string{"clo"}, Help: "closes the window"}, func(e *Session, _ call) {
+			if err := e.closeWindow(e.win); err != nil {
+				e.message = err.Error()
+			}
+		}, nil},
+		{vim.Command{Name: "diff", Args: "{n} [m]", Help: "shows the lines that differ between states n and m, or n and now"}, func(e *Session, x call) { e.diff(x.arg) }, nil},
+		{vim.Command{Name: "earlier", Args: "{n}", Help: "goes n states back. n may be a time such as 5m, or a count of writes such as 1f"}, func(e *Session, x call) { e.travel(x.arg, false) }, nil},
+		{vim.Command{Name: "edit", Short: []string{"e"}, Args: "[file]", Help: "opens file, or reads the buffer's file again. ! drops changes"}, func(e *Session, x call) {
+			if x.arg == "" {
+				e.reread(x.force)
+				return
+			}
+			e.edit(x.arg)
+		}, completePath},
+		{vim.Command{Name: "enew", Help: "shows a new empty buffer"}, func(e *Session, _ call) { e.empty() }, nil},
+		{vim.Command{Name: "files", Help: "finds a file by name"}, func(e *Session, _ call) { e.files() }, nil},
+		{vim.Command{Name: "grep", Args: "[text]", Help: "searches the files for text as it is typed"}, func(e *Session, x call) { e.grepFiles(x.arg) }, nil},
+		{vim.Command{Name: "help", Short: []string{"h"}, Args: "[name]", Help: "opens help, at the entry for a command, key, option or setting"}, func(e *Session, x call) { e.help(x.arg) }, func(e *Session, _ string, start int, arg string, _ bool) (int, []string) {
+			return start, match(e.helpTags(), arg)
+		}},
+		{vim.Command{Name: "jumps", Short: []string{"ju"}, Help: "lists the window's jumps"}, func(e *Session, _ call) { e.jumps() }, nil},
+		{vim.Command{Name: "later", Args: "{n}", Help: "goes n states forward. n may be a time such as 5m, or a count of writes such as 1f"}, func(e *Session, x call) { e.travel(x.arg, true) }, nil},
+		{vim.Command{Name: "lsp", Args: "[restart|stop|disable|enable]", Help: "opens the panel of language servers, or acts on the file's server"}, func(e *Session, x call) {
+			if x.arg == "" {
+				e.lspPanel()
+				return
+			}
+			e.lspCommand(x.arg, serverName(e.cfg.Filetype[e.win.buf.filetype()].LSP))
+		}, func(_ *Session, _ string, start int, arg string, _ bool) (int, []string) {
+			return start, match(lspCommands, arg)
+		}},
+		{vim.Command{Name: "marks", Help: "lists the buffer's marks"}, func(e *Session, _ call) { e.marks() }, nil},
+		{vim.Command{Name: "messages", Short: []string{"mes"}, Help: "lists the messages shown, oldest first"}, func(e *Session, _ call) { e.messages() }, nil},
+		{vim.Command{Name: "new", Help: "opens a window below with a new empty buffer"}, func(e *Session, _ call) {
+			e.split(false)
+			e.empty()
+		}, nil},
+		{vim.Command{Name: "only", Short: []string{"on"}, Help: "closes every other window"}, func(e *Session, _ call) { e.only() }, nil},
+		{vim.Command{Name: "pwd", Help: "shows the working directory"}, func(e *Session, _ call) {
+			if dir, err := os.Getwd(); err != nil {
+				e.message = err.Error()
+			} else {
+				e.message = dir
+			}
+		}, nil},
+		{vim.Command{Name: "quit", Short: []string{"q"}, Help: "closes the window, and quits with the last. ! drops changes"}, func(e *Session, x call) { e.quit(x.force) }, nil},
+		{vim.Command{Name: "quitall", Short: []string{"qa", "qall", "quita"}, Help: "quits. ! drops every change"}, func(e *Session, x call) { e.quitAll(x.force) }, nil},
+		{vim.Command{Name: "read", Short: []string{"r"}, Args: "{file} | !{cmd}", Help: "puts a file, or what cmd writes, below the line"}, func(e *Session, x call) { e.readIn(x.arg, x.last) }, completePath},
+		{vim.Command{Name: "recover", Help: "goes to the newest unsaved change from a session that did not close"}, func(e *Session, _ call) { e.recover() }, nil},
+		{vim.Command{Name: "registers", Short: []string{"reg"}, Args: "[names]", Help: "lists the registers, or those named"}, func(e *Session, x call) { e.registers(x.arg) }, nil},
+		{vim.Command{Name: "reject", Args: "[n]", Help: "drops proposal n, or the buffer's newest"}, func(e *Session, x call) {
+			e.decide(x.arg, false)
+		}, nil},
+		{vim.Command{Name: "rename", Args: "{name}", Help: "renames the symbol under the cursor in every file, through the language server"}, func(e *Session, x call) { e.rename(x.arg) }, nil},
+		{vim.Command{Name: "restore", Args: "[n]", Help: "makes the text of state n the newest. In a timeline, n is the state under the cursor"}, func(e *Session, x call) { e.restore(x.arg) }, nil},
+		{vim.Command{Name: "set", Short: []string{"se"}, Args: "[option...]", Help: "sets options, or shows them all. name? shows one, noname turns one off and name! flips it"}, func(e *Session, x call) { e.set(x.arg) }, completeOption},
+		{vim.Command{Name: "split", Short: []string{"sp"}, Args: "[file]", Help: "opens a window below, then opens file in it"}, splitAndEdit, completePath},
+		{vim.Command{Name: "theme", Args: "[dark|light|{file}]", Help: "switches the theme of every client, or shows the one in use"}, func(e *Session, x call) {
+			if x.arg == "" {
+				e.message = e.theme
+			} else if err := e.setTheme(x.arg); err != nil {
+				e.message = err.Error()
+			}
+		}, completeTheme},
+		{vim.Command{Name: "timeline", Help: "lists every state of the buffer's text"}, func(e *Session, _ call) { e.timeline() }, nil},
+		{vim.Command{Name: "update", Short: []string{"up"}, Help: "writes the buffer if it is modified"}, func(e *Session, x call) {
+			if e.win.buf.modified() {
+				e.write(e.win.buf, x.force, nil)
+			}
+		}, nil},
+		{vim.Command{Name: "vnew", Short: []string{"vne"}, Help: "opens a window to the right with a new empty buffer"}, func(e *Session, _ call) {
+			e.split(true)
+			e.empty()
+		}, nil},
+		{vim.Command{Name: "vsplit", Short: []string{"vs"}, Args: "[file]", Help: "opens a window to the right, then opens file in it"}, splitAndEdit, completePath},
+		{vim.Command{Name: "wall", Short: []string{"wa"}, Help: "writes every modified buffer"}, func(e *Session, x call) { e.writeAll(e.bufs, x.force, nil) }, nil},
+		{vim.Command{Name: "wq", Help: "writes the buffer and closes the window"}, func(e *Session, x call) {
+			e.write(e.win.buf, x.force, func() { e.quit(x.force) })
+		}, nil},
+		{vim.Command{Name: "wqall", Short: []string{"wqa"}, Help: "writes every modified buffer and quits"}, writeAllAndQuit, nil},
+		{vim.Command{Name: "write", Short: []string{"w"}, Args: "[file]", Help: "writes the buffer, or to file. ! overwrites a file changed on disk"}, func(e *Session, x call) {
+			if x.arg != "" {
+				e.writeTo(e.win.buf, x.arg, x.force)
+				return
+			}
+			e.write(e.win.buf, x.force, nil)
+		}, completePath},
+		{vim.Command{Name: "xall", Short: []string{"xa"}, Help: "writes every modified buffer and quits"}, writeAllAndQuit, nil},
+		{vim.Command{Name: "xit", Short: []string{"x", "exit"}, Help: "writes the buffer if it is modified and closes the window"}, func(e *Session, x call) {
+			if e.win.buf.modified() {
+				e.write(e.win.buf, x.force, func() { e.quit(x.force) })
+			} else {
+				e.quit(x.force)
+			}
+		}, nil},
+	}
+	plugs = []plug{
+		request("lsp.definition", "goes to the definition of the symbol under the cursor"),
+		request("lsp.typeDefinition", "goes to the definition of the type of the symbol under the cursor"),
+		request("lsp.implementation", "lists the implementations of the symbol under the cursor"),
+		request("lsp.references", "lists the references to the symbol under the cursor"),
+		request("lsp.symbols", "lists the file's symbols"),
+		request("lsp.hover", "shows what the language server says of the symbol under the cursor"),
+		request("lsp.rename", "renames the symbol under the cursor in every file"),
+		request("lsp.codeAction", "lists the language server's actions for the cursor's place"),
+		{"listing.open", "opens the entry under the cursor", func(e *Session, _ int) { e.listingAct("open") }},
+		{"listing.split", "opens the entry under the cursor in a window below", func(e *Session, _ int) { e.listingAct("split") }},
+		{"listing.vsplit", "opens the entry under the cursor in a window to the right", func(e *Session, _ int) { e.listingAct("vsplit") }},
+		{"listing.cwd", "makes the listing's directory the working directory", func(e *Session, _ int) { e.listingAct("cwd") }},
+		{"listing.reload", "reads the listing's directory again", func(e *Session, _ int) { e.listingAct("reload") }},
+		{"listing.up", "lists the directory of the file or listing, n levels up", func(e *Session, count int) { e.up(count) }},
+		{"timeline.earlier", "moves the text a state back", func(e *Session, _ int) { e.timelineAct("earlier") }},
+		{"timeline.later", "moves the text a state forward", func(e *Session, _ int) { e.timelineAct("later") }},
+		{"timeline.diff", "shows how the state under the cursor differs from now", func(e *Session, _ int) { e.timelineAct("diff") }},
+		{"timeline.restore", "makes the state under the cursor the newest", func(e *Session, _ int) { e.timelineAct("restore") }},
+		{"finder.open", "opens the selected match", func(e *Session, _ int) { e.finderAct("open") }},
+		{"finder.next", "selects the next match", func(e *Session, _ int) { e.finderAct("next") }},
+		{"finder.prev", "selects the match before", func(e *Session, _ int) { e.finderAct("prev") }},
+		{"float.close", "closes the float the cursor is in", func(e *Session, _ int) {
+			if e.under != nil {
+				e.unfocus()
+			}
+		}},
+		{"list.open", "goes to the place under the cursor", func(e *Session, _ int) { e.openSpot() }},
+		{"help.follow", "goes to the help entry of the name under the cursor", func(e *Session, _ int) { e.followHelp() }},
+		{"lsp.restart", "restarts the language server under the cursor", func(e *Session, _ int) { e.lspCommand("restart", e.lspCardName()) }},
+		{"lsp.stop", "stops the language server under the cursor", func(e *Session, _ int) { e.lspCommand("stop", e.lspCardName()) }},
+		{"lsp.disable", "keeps the language server under the cursor off", func(e *Session, _ int) { e.lspCommand("disable", e.lspCardName()) }},
+		{"lsp.enable", "lets the language server under the cursor start again", func(e *Session, _ int) { e.lspCommand("enable", e.lspCardName()) }},
+		{"lsp.next", "moves n servers down", func(e *Session, count int) { e.lspMove(max(count, 1)) }},
+		{"lsp.prev", "moves n servers up", func(e *Session, count int) { e.lspMove(-max(count, 1)) }},
+		{"git.next", "goes to the next hunk", func(e *Session, count int) { e.jumpHunk("next", max(count, 1)) }},
+		{"git.prev", "goes to the hunk before", func(e *Session, count int) { e.jumpHunk("prev", max(count, 1)) }},
+		{"git.first", "goes to the first hunk", func(e *Session, count int) { e.jumpHunk("first", max(count, 1)) }},
+		{"git.last", "goes to the last hunk", func(e *Session, count int) { e.jumpHunk("last", max(count, 1)) }},
+		{"git.preview", "shows the hunk under the cursor as git's index has it", func(e *Session, _ int) { e.previewHunk() }},
+		{"window.left", "goes to the window, or tmux pane, to the left", func(e *Session, _ int) { e.navigate('h') }},
+		{"window.down", "goes to the window, or tmux pane, below", func(e *Session, _ int) { e.navigate('j') }},
+		{"window.up", "goes to the window, or tmux pane, above", func(e *Session, _ int) { e.navigate('k') }},
+		{"window.right", "goes to the window, or tmux pane, to the right", func(e *Session, _ int) { e.navigate('l') }},
+		{"diagnostic]d", "goes to the next diagnostic", func(e *Session, count int) { e.diagnostic(max(count, 1)) }},
+		{"diagnostic[d", "goes to the diagnostic before", func(e *Session, count int) { e.diagnostic(-max(count, 1)) }},
+	}
+	commandsByName = byName(commands)
+}
 
 // byName indexes cs by each of their names.
 func byName(cs []command) map[string]*command {
@@ -241,54 +299,6 @@ type plug struct {
 // request is the plug that sends the language server request of name.
 func request(name, help string) plug {
 	return plug{name, help, func(e *Session, _ int) { e.request(name) }}
-}
-
-// plugs are the editor's commands that keys run.
-var plugs = []plug{
-	request("lsp.definition", "goes to the definition of the symbol under the cursor"),
-	request("lsp.typeDefinition", "goes to the definition of the type of the symbol under the cursor"),
-	request("lsp.implementation", "lists the implementations of the symbol under the cursor"),
-	request("lsp.references", "lists the references to the symbol under the cursor"),
-	request("lsp.symbols", "lists the file's symbols"),
-	request("lsp.hover", "shows what the language server says of the symbol under the cursor"),
-	request("lsp.rename", "renames the symbol under the cursor in every file"),
-	request("lsp.codeAction", "lists the language server's actions for the cursor's place"),
-	{"listing.open", "opens the entry under the cursor", func(e *Session, _ int) { e.listingAct("open") }},
-	{"listing.split", "opens the entry under the cursor in a window below", func(e *Session, _ int) { e.listingAct("split") }},
-	{"listing.vsplit", "opens the entry under the cursor in a window to the right", func(e *Session, _ int) { e.listingAct("vsplit") }},
-	{"listing.cwd", "makes the listing's directory the working directory", func(e *Session, _ int) { e.listingAct("cwd") }},
-	{"listing.reload", "reads the listing's directory again", func(e *Session, _ int) { e.listingAct("reload") }},
-	{"listing.up", "lists the directory of the file or listing, n levels up", func(e *Session, count int) { e.up(count) }},
-	{"timeline.earlier", "moves the text a state back", func(e *Session, _ int) { e.timelineAct("earlier") }},
-	{"timeline.later", "moves the text a state forward", func(e *Session, _ int) { e.timelineAct("later") }},
-	{"timeline.diff", "shows how the state under the cursor differs from now", func(e *Session, _ int) { e.timelineAct("diff") }},
-	{"timeline.restore", "makes the state under the cursor the newest", func(e *Session, _ int) { e.timelineAct("restore") }},
-	{"finder.open", "opens the selected match", func(e *Session, _ int) { e.finderAct("open") }},
-	{"finder.next", "selects the next match", func(e *Session, _ int) { e.finderAct("next") }},
-	{"finder.prev", "selects the match before", func(e *Session, _ int) { e.finderAct("prev") }},
-	{"float.close", "closes the float the cursor is in", func(e *Session, _ int) {
-		if e.under != nil {
-			e.unfocus()
-		}
-	}},
-	{"list.open", "goes to the place under the cursor", func(e *Session, _ int) { e.openSpot() }},
-	{"lsp.restart", "restarts the language server under the cursor", func(e *Session, _ int) { e.lspCommand("restart", e.lspCardName()) }},
-	{"lsp.stop", "stops the language server under the cursor", func(e *Session, _ int) { e.lspCommand("stop", e.lspCardName()) }},
-	{"lsp.disable", "keeps the language server under the cursor off", func(e *Session, _ int) { e.lspCommand("disable", e.lspCardName()) }},
-	{"lsp.enable", "lets the language server under the cursor start again", func(e *Session, _ int) { e.lspCommand("enable", e.lspCardName()) }},
-	{"lsp.next", "moves n servers down", func(e *Session, count int) { e.lspMove(max(count, 1)) }},
-	{"lsp.prev", "moves n servers up", func(e *Session, count int) { e.lspMove(-max(count, 1)) }},
-	{"git.next", "goes to the next hunk", func(e *Session, count int) { e.jumpHunk("next", max(count, 1)) }},
-	{"git.prev", "goes to the hunk before", func(e *Session, count int) { e.jumpHunk("prev", max(count, 1)) }},
-	{"git.first", "goes to the first hunk", func(e *Session, count int) { e.jumpHunk("first", max(count, 1)) }},
-	{"git.last", "goes to the last hunk", func(e *Session, count int) { e.jumpHunk("last", max(count, 1)) }},
-	{"git.preview", "shows the hunk under the cursor as git's index has it", func(e *Session, _ int) { e.previewHunk() }},
-	{"window.left", "goes to the window, or tmux pane, to the left", func(e *Session, _ int) { e.navigate('h') }},
-	{"window.down", "goes to the window, or tmux pane, below", func(e *Session, _ int) { e.navigate('j') }},
-	{"window.up", "goes to the window, or tmux pane, above", func(e *Session, _ int) { e.navigate('k') }},
-	{"window.right", "goes to the window, or tmux pane, to the right", func(e *Session, _ int) { e.navigate('l') }},
-	{"diagnostic]d", "goes to the next diagnostic", func(e *Session, count int) { e.diagnostic(max(count, 1)) }},
-	{"diagnostic[d", "goes to the diagnostic before", func(e *Session, count int) { e.diagnostic(-max(count, 1)) }},
 }
 
 // defaultMaps are the normal mode keys fude maps to its commands.

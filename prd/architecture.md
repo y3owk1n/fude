@@ -794,7 +794,7 @@ theme = "dark"       # dark, light, or a base16 scheme such as "~/.config/stylix
 "<Leader>w" = ":w<CR>"
 "-" = ""             # "" drops a mapping, fude's own too, and "<Nop>" does nothing (B142)
 
-[keymap.listing]     # and [keymap.list], [keymap.timeline], [keymap.lsp]: a kind of buffer's own keys (B142, B159)
+[keymap.listing]     # and [keymap.list], [keymap.timeline], [keymap.lsp], [keymap.help]: a kind of buffer's own keys (B142, B159, B162)
 "<C-h>" = ""
 "<C-v>" = "<Plug>(listing.vsplit)"
 
@@ -926,6 +926,16 @@ takes both stylix's JSON and Tinted Theming's YAML, so no YAML parser comes
 in (B146). `:theme` sets the editor's theme for every client. Each client
 compares the theme with the one it draws in before each frame and builds
 the new styles when they differ (B158).
+
+fude builds help from the tables that run it, so help cannot fall behind
+them. Each ex command, key, `<Plug>` command and text object is an entry
+in a table that holds its handler and a line of help: `vim.Commands` and
+`vim.Bindings` for the machine's, `commands`, `plugs`, `hostOperators`
+and `syntax.Objects` for the editor's. Options and settings carry their
+help in a `help` tag beside their `toml` tag. The mappings come from the
+keymaps in use, so the user's own show too. The keys `normal` reads
+itself, such as `"{reg}` and `m{a-z}`, are the one list written beside
+the code instead of in a table (B162).
 
 Each language is a grammar and its queries, from the grammar's own repo
 (D28):

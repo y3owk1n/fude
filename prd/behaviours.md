@@ -301,6 +301,12 @@ Where fude departs, the line says so and cites the departure in
   file's status line shows a spinner, the server's name and what it is
   doing, with a percentage when the server gives one. Once the server is
   ready, its name shows alone, muted.
+- B162 [2] `:h` opens help in a window. It lists every command, key,
+  `<Plug>` command, option and `config.toml` setting fude has, with what
+  each does. It also lists the mappings in use and marks the ones
+  `config.toml` sets. `:h name` goes to the entry for a command (`:w`), a
+  key (`w`, `<Leader>w`), an option or a setting, and `<CR>` on a name in
+  help goes to its entry.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays

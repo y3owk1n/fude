@@ -1,5 +1,11 @@
 package vim
 
+import (
+	"maps"
+	"slices"
+	"strings"
+)
+
 // keymap is a trie of the mappings of one mode. A node with end set completes
 // a mapping, which runs the keys in to.
 type keymap struct {
@@ -26,6 +32,47 @@ func (m *Machine) Unmap(mode Mode, from string) { m.maps.Unmap(mode, from) }
 // keys typed, the longer mapping runs, and local's on a tie. nil takes it
 // away.
 func (m *Machine) UseLocal(local *Keymaps) { m.local = local }
+
+// Each calls f with each of the machine's own mappings in mode, in the
+// order of their keys.
+func (m *Machine) Each(mode Mode, f func(from, to string)) { m.maps.Each(mode, f) }
+
+// Each calls f with each mapping in mode, in the order of their keys.
+func (ks *Keymaps) Each(mode Mode, f func(from, to string)) {
+	var walk func(n *keymap, from string)
+	walk = func(n *keymap, from string) {
+		if n.end {
+			f(from, keysText(n.to))
+		}
+		for _, k := range slices.Sorted(maps.Keys(n.next)) {
+			walk(n.next[k], from+keysText([]Key{k}))
+		}
+	}
+	if n := ks.modes[mode]; n != nil {
+		walk(n, "")
+	}
+}
+
+// Notation returns keys written as mappings list them, such as <Space>w
+// for "<space>w" or " w".
+func Notation(keys string) string { return keysText(Keys(keys)) }
+
+// keysText is keys as a mapping writes them, with a space and a tab named
+// so they show.
+func keysText(keys []Key) string {
+	var b strings.Builder
+	for _, k := range keys {
+		switch k {
+		case " ":
+			b.WriteString("<Space>")
+		case "\t":
+			b.WriteString("<Tab>")
+		default:
+			b.WriteString(string(k))
+		}
+	}
+	return b.String()
+}
 
 // Map makes typing from in mode run to instead.
 func (ks *Keymaps) Map(mode Mode, from, to string) {

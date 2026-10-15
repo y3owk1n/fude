@@ -1710,3 +1710,29 @@ func TestB157InfoViews(t *testing.T) {
 		t.Fatalf(":changes listed %q", text(e))
 	}
 }
+
+// B162
+func TestB162Help(t *testing.T) {
+	e := open(t, "")
+	e.SetSize(100, 40)
+	line := func() string {
+		t := e.Text()
+		ls := t.LineStart(t.LineOf(e.Cursor()))
+		return t.Slice(ls, vim.LineEnd(t, ls))
+	}
+	if feed(e, ":h<CR>"); !strings.HasPrefix(text(e), "fude help") || !strings.Contains(text(e), "  :write [file]  :w\n      writes the buffer") {
+		t.Fatalf(":h opened %q", text(e)[:min(200, len(text(e)))])
+	}
+	for topic, want := range map[string]string{":w": "  :write [file]  :w", "w": "  w", "theme": `  theme = "dark"`} {
+		if feed(e, ":h "+topic+"<CR>"); line() != want {
+			t.Errorf(":h %s went to %q, want %q", topic, line(), want)
+		}
+	}
+	if feed(e, ":h nope<CR>"); e.Message() != "no help for nope" {
+		t.Errorf(":h nope said %q", e.Message())
+	}
+	// <CR> on a name in a description goes to its entry.
+	if feed(e, ":h ;<CR>jff<CR>"); line() != "  f{char}" {
+		t.Errorf("<CR> on f went to %q", line())
+	}
+}

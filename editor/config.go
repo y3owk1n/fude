@@ -36,6 +36,7 @@ type config struct {
 		Finder   map[string]string `toml:"finder" help:"the finder's keys, in insert mode"`
 		Float    map[string]string `toml:"float" help:"a float's keys while the cursor is in it"`
 		Lsp      map[string]string `toml:"lsp" help:"the language server panel's keys"`
+		Help     map[string]string `toml:"help" help:"help's keys"`
 	} `toml:"keymap"`
 	Filetype map[string]struct {
 		IndentWidth uint       `toml:"indent_width" help:"the columns of an indent level in files of the type"`

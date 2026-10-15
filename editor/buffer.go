@@ -164,6 +164,8 @@ func (b *buffer) kind() string {
 		return "float"
 	case b.title == "[lsp]":
 		return "lsp"
+	case b.title == "[help]":
+		return "help"
 	}
 	return ""
 }

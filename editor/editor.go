@@ -189,7 +189,7 @@ func builtins(e *Session) {
 		e.vim.Map(vim.Normal, keys, to)
 	}
 	e.locals = map[string]*vim.Keymaps{}
-	for kind, keys := range map[string]map[string]string{"listing": listingKeys, "list": listKeys, "timeline": timelineKeys, "finder": finderKeys, "float": floatKeys, "lsp": lspKeys} {
+	for kind, keys := range map[string]map[string]string{"listing": listingKeys, "list": listKeys, "timeline": timelineKeys, "finder": finderKeys, "float": floatKeys, "lsp": lspKeys, "help": helpKeys} {
 		mode := vim.Normal
 		if kind == "finder" {
 			mode = vim.Insert
@@ -243,7 +243,7 @@ func Start(args []string) (*Session, error) {
 		for mode, maps := range map[vim.Mode]map[string]string{vim.Normal: cfg.Keymap.Normal, vim.Visual: cfg.Keymap.Visual, vim.Insert: cfg.Keymap.Insert} {
 			mapAll(s.vim, mode, maps, cfg.Leader)
 		}
-		for kind, maps := range map[string]map[string]string{"listing": cfg.Keymap.Listing, "list": cfg.Keymap.List, "timeline": cfg.Keymap.Timeline, "float": cfg.Keymap.Float, "lsp": cfg.Keymap.Lsp} {
+		for kind, maps := range map[string]map[string]string{"listing": cfg.Keymap.Listing, "list": cfg.Keymap.List, "timeline": cfg.Keymap.Timeline, "float": cfg.Keymap.Float, "lsp": cfg.Keymap.Lsp, "help": cfg.Keymap.Help} {
 			mapAll(s.locals[kind], vim.Normal, maps, cfg.Leader)
 		}
 		mapAll(s.locals["finder"], vim.Insert, cfg.Keymap.Finder, cfg.Leader)
