@@ -642,14 +642,21 @@ A request carries an id the loop keeps with the code that handles the
 answer, and the answer comes back through the editor's queue, so a key that
 asks a server returns at once. `<C-]>` jumps to the first location the
 definition answer names, opening its file when no buffer has it. `K` shows
-the hover text in a float at the cursor, without markdown's code fences.
+the hover text in a float at the cursor, rendered from markdown.
 The next key closes the float and then acts as usual, and `K` while it shows
 opens the text in a read-only window, where it can scroll. Both keys exist in
 every buffer, as in Neovim, and say so when no server is attached (B62).
 
-A float is text the editor holds and the client draws over the windows, in
-a bordered box at the cursor: below its line, or above when there is more
-room there, at most 80 columns and 20 lines.
+A float is text and the spans that style it, which the editor holds and the
+client draws over the windows, in a bordered box at the cursor: below its
+line, or above when there is more room there, at most 80 columns and 20
+lines. Lines wrap at the box's width, as Neovim's floats wrap.
+
+fude renders the markdown language servers write, not all of markdown.
+Fenced code takes its language's highlights through `syntax.Highlight`.
+Inline code, bold, italic, headings and links lose their markers and keep
+their styles as spans, and a line of `---` draws as a rule across the
+float. A full markdown grammar comes only if servers start sending more.
 
 ## Server split (step 6)
 

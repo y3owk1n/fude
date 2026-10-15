@@ -579,6 +579,32 @@ func withComma(n *ts.Node, start, end int) (int, int) {
 	return start, end
 }
 
+// Highlight returns the highlight captures of text in filetype's language,
+// in paint order, or none when fude has no grammar for it. It parses on the
+// caller's goroutine, so text should be short, such as code in a hover. A
+// query in dir/<filetype>/ replaces the shipped one, as for buffers.
+func Highlight(filetype, dir, text string) ([]Span, error) {
+	l, ok := languages[filetype]
+	if !ok {
+		return nil, nil
+	}
+	q, err := query(l.lang, dir, filetype, "highlights", l.highlights)
+	if err != nil {
+		return nil, err
+	}
+	defer q.Close()
+	p := ts.NewParser()
+	defer p.Close()
+	if err := p.SetLanguage(l.lang); err != nil {
+		return nil, fmt.Errorf("grammar for %s: %w", filetype, err)
+	}
+	tree := p.Parse([]byte(text), nil)
+	defer tree.Close()
+	c := ts.NewQueryCursor()
+	defer c.Close()
+	return highlight(c, q, tree, []byte(text), 0, len(text)), nil
+}
+
 // highlight returns the captures in [from, to) in paint order, as
 // tree-sitter's own highlighter picks them. A capture on a node inside
 // another paints after it, and of the captures on one node only the last

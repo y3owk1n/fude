@@ -7,7 +7,6 @@ import (
 	"slices"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/gdamore/tcell/v3"
 	"github.com/gdamore/tcell/v3/color"
@@ -100,14 +99,21 @@ func selected(sel vim.Selection, at, x int) bool {
 // the one for its name without its last part, so function.builtin falls back
 // to function. Palette colours follow the terminal's theme.
 var colours = map[string]tcell.Style{
-	"comment":  tcell.StyleDefault.Foreground(color.Gray),
-	"keyword":  tcell.StyleDefault.Foreground(color.Purple),
-	"string":   tcell.StyleDefault.Foreground(color.Green),
-	"escape":   tcell.StyleDefault.Foreground(color.Teal),
-	"number":   tcell.StyleDefault.Foreground(color.Olive),
-	"constant": tcell.StyleDefault.Foreground(color.Olive),
-	"function": tcell.StyleDefault.Foreground(color.Navy),
-	"type":     tcell.StyleDefault.Foreground(color.Teal),
+	"comment": tcell.StyleDefault.Foreground(color.Gray),
+	"keyword": tcell.StyleDefault.Foreground(color.Purple),
+	// Markdown in floats, such as hover.
+	"markup.strong":  tcell.StyleDefault.Bold(true),
+	"markup.italic":  tcell.StyleDefault.Italic(true),
+	"markup.heading": tcell.StyleDefault.Bold(true),
+	"markup.raw":     tcell.StyleDefault.Foreground(color.Teal),
+	"markup.link":    tcell.StyleDefault.Underline(true),
+	"markup.rule":    tcell.StyleDefault.Foreground(color.Gray),
+	"string":         tcell.StyleDefault.Foreground(color.Green),
+	"escape":         tcell.StyleDefault.Foreground(color.Teal),
+	"number":         tcell.StyleDefault.Foreground(color.Olive),
+	"constant":       tcell.StyleDefault.Foreground(color.Olive),
+	"function":       tcell.StyleDefault.Foreground(color.Navy),
+	"type":           tcell.StyleDefault.Foreground(color.Teal),
 }
 
 // underlines are the colours diagnostics underline their text in, over its
@@ -168,8 +174,8 @@ func (c *client) draw() {
 		}
 	}
 
-	if text, ok := c.e.Float(); ok {
-		c.float(text, cx, cy, w, h-1)
+	if text, spans, ok := c.e.Float(); ok {
+		c.float(text, spans, cx, cy, w, h-1)
 	}
 
 	shape := tcell.CursorStyleSteadyBlock
@@ -197,18 +203,47 @@ func (c *client) draw() {
 	c.s.Show()
 }
 
-// float draws text in a bordered box at the cursor, cx and cy, below its
-// line, or above it when there is more room there. w and h are the space the
-// windows have.
-func (c *client) float(text string, cx, cy, w, h int) {
-	lines := strings.Split(strings.ReplaceAll(text, "\t", "    "), "\n")
-	width := 0
-	for _, l := range lines {
-		width = max(width, utf8.RuneCountInString(l))
+// float draws text, styled by spans, in a bordered box at the cursor, cx and
+// cy, below its line, or above it when there is more room there. Lines wrap
+// at the box's width, at most 80 columns, and a markup.rule line draws across
+// it. w and h are the space the windows have.
+func (c *client) float(text string, spans []syntax.Span, cx, cy, w, h int) {
+	styles := paint(spans, 0)
+	type row struct {
+		start, end int // bytes of text
+		rule       bool
 	}
-	width = min(width, w-2, 80)
+	limit := min(80, w-2)
+	var rows []row
+	width := 0
+	for at := 0; at <= len(text); {
+		end := strings.IndexByte(text[at:], '\n')
+		if end < 0 {
+			end = len(text) - at
+		}
+		end += at
+		if slices.ContainsFunc(spans, func(s syntax.Span) bool { return s.Name == "markup.rule" && s.Start == at }) {
+			rows = append(rows, row{at, end, true})
+		} else {
+			start, col := at, 0
+			for i, r := range text[at:end] {
+				cw := 1
+				if r == '\t' {
+					cw = 4
+				}
+				if col+cw > limit {
+					rows = append(rows, row{start, at + i, false})
+					start, col = at+i, 0
+				}
+				col += cw
+				width = max(width, col)
+			}
+			rows = append(rows, row{start, end, false})
+		}
+		at = end + 1
+	}
 	below, above := h-cy-1, cy
-	n := min(len(lines), max(below, above)-2, 20)
+	n := min(len(rows), max(below, above)-2, 20)
 	if width < 1 || n < 1 {
 		return
 	}
@@ -219,12 +254,23 @@ func (c *client) float(text string, cx, cy, w, h int) {
 	x := min(cx, max(w-width-2, 0))
 	style := tcell.StyleDefault
 	c.s.PutStrStyled(x, y, "┌"+strings.Repeat("─", width)+"┐", style)
-	for i, l := range lines[:n] {
+	for i, r := range rows[:n] {
 		c.s.FillArea(x, y+1+i, width+2, 1, ' ', style)
 		c.s.Put(x, y+1+i, "│", style)
-		for col, rest := 0, l; rest != "" && col < width; {
+		if r.rule {
+			c.s.PutStrStyled(x+1, y+1+i, strings.Repeat("─", width), colours["markup.rule"])
+		}
+		for col, rest := 0, text[r.start:r.end]; !r.rule && rest != ""; {
+			s := style
+			if p := r.end - len(rest); p < len(styles) {
+				s = styles[p]
+			}
+			if rest[0] == '\t' {
+				col, rest = col+4, rest[1:]
+				continue
+			}
 			var cw int
-			rest, cw = c.s.Put(x+1+col, y+1+i, rest, style)
+			rest, cw = c.s.Put(x+1+col, y+1+i, rest, s)
 			col += cw
 		}
 		c.s.Put(x+width+1, y+1+i, "│", style)

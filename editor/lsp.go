@@ -248,7 +248,8 @@ func (e *Editor) define(s *server, res json.RawMessage) {
 	}
 }
 
-// hover shows a hover answer's text in a float at the cursor.
+// hover shows a hover answer's text in a float at the cursor, rendered from
+// markdown.
 func (e *Editor) hover(res json.RawMessage) {
 	var h struct {
 		Contents json.RawMessage `json:"contents"`
@@ -276,12 +277,5 @@ func (e *Editor) hover(res json.RawMessage) {
 		e.message = "no hover information"
 		return
 	}
-	// Markdown's code fences go, as fude shows the code as plain lines.
-	var lines []string
-	for _, l := range strings.Split(strings.Join(texts, "\n\n"), "\n") {
-		if !strings.HasPrefix(l, "```") {
-			lines = append(lines, l)
-		}
-	}
-	e.float = strings.TrimSpace(strings.Join(lines, "\n"))
+	e.float, e.floatSpans = e.markdown(strings.TrimSpace(strings.Join(texts, "\n\n")))
 }

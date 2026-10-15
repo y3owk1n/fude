@@ -22,23 +22,24 @@ import (
 // Editor is a set of open files shown in windows. Keys edit the current
 // window's buffer through the vim machine.
 type Editor struct {
-	bufs     []*buffer
-	next     int // the id the next buffer gets
-	root     *node
-	win      *window // the current window
-	vim      *vim.Machine
-	message  string
-	done     bool
-	cfg      config
-	ask      func(yes bool) // takes the answer to the question in the message
-	float    string         // text shown over the windows at the cursor, such as hover
-	queue    chan func()
-	queries  string // the directory of query files that replace shipped ones
-	plugins  []*plugin.Plugin
-	commands map[string]func()    // ex commands plugins registered
-	decos    map[any][]decoration // by owner: a plugin, or a buffer for its diagnostics
-	servers  map[string]*server   // by command and root
-	started  bool                 // Load ran, so new buffers attach to servers at once
+	bufs       []*buffer
+	next       int // the id the next buffer gets
+	root       *node
+	win        *window // the current window
+	vim        *vim.Machine
+	message    string
+	done       bool
+	cfg        config
+	ask        func(yes bool) // takes the answer to the question in the message
+	float      string         // text shown over the windows at the cursor, such as hover
+	floatSpans []syntax.Span  // the styles of the float's text
+	queue      chan func()
+	queries    string // the directory of query files that replace shipped ones
+	plugins    []*plugin.Plugin
+	commands   map[string]func()    // ex commands plugins registered
+	decos      map[any][]decoration // by owner: a plugin, or a buffer for its diagnostics
+	servers    map[string]*server   // by command and root
+	started    bool                 // Load ran, so new buffers attach to servers at once
 
 	width, height int // the space the windows share
 
@@ -347,9 +348,11 @@ func (e *Editor) setCursor(pos int) { e.win.buf.text.MoveMark(e.win.cursor, pos)
 // Mode returns the vim mode.
 func (e *Editor) Mode() vim.Mode { return e.vim.Mode() }
 
-// Float returns the text to show over the windows at the cursor, or false
-// when there is none.
-func (e *Editor) Float() (string, bool) { return e.float, e.float != "" }
+// Float returns the text to show over the windows at the cursor and the
+// spans that style it, or false when there is none.
+func (e *Editor) Float() (string, []syntax.Span, bool) {
+	return e.float, e.floatSpans, e.float != ""
+}
 
 // Cursors returns the cursors after the first while a change on several
 // regions types into all of them.

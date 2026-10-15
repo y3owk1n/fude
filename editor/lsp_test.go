@@ -20,7 +20,7 @@ import (
 // FUDE_FAKE_ENCODING, appends every message it gets to FUDE_FAKE_LOG, and
 // crashes when a change inserts "#". Each "bad" in an opened document gets
 // an error diagnostic, a definition is the first "target" in it, and hover
-// says where it was asked. Positions are in bytes.
+// is markdown that says where it was asked. Positions are in bytes.
 func TestFakeServer(t *testing.T) {
 	if os.Getenv("FUDE_FAKE_LSP") == "" {
 		return
@@ -81,7 +81,8 @@ func TestFakeServer(t *testing.T) {
 			}
 		case "textDocument/hover":
 			p := m.Params.Position
-			reply(m.ID, map[string]any{"contents": map[string]any{"kind": "plaintext", "value": fmt.Sprintf("hover at %d:%d", p.Line, p.Character)}})
+			value := fmt.Sprintf("```go\nfunc target()\n```\n---\n**hover** at %d:%d", p.Line, p.Character)
+			reply(m.ID, map[string]any{"contents": map[string]any{"kind": "markdown", "value": value}})
 		case "textDocument/didOpen":
 			opened[m.Params.TextDocument.URI] = m.Params.TextDocument.Text
 			var ds []any
@@ -199,16 +200,28 @@ func TestB62DefinitionAndHover(t *testing.T) {
 		t.Errorf("<C-o> after <C-]> went to %d, want back to 0", e.Cursor())
 	}
 	feed(e, "jwK")
-	settle(t, e, func() bool { f, _ := e.Float(); return f == "hover at 1:2" })
+	settle(t, e, func() bool { _, _, ok := e.Float(); return ok })
+	// Hover's markdown shows with its markers gone and its styles as spans.
+	float, spans, _ := e.Float()
+	if want := "func target()\n---\nhover at 1:2"; float != want {
+		t.Errorf("hover showed %q, want %q", float, want)
+	}
+	styled := map[string]string{}
+	for _, s := range spans {
+		styled[float[s.Start:s.End]] = s.Name
+	}
+	if styled["func"] != "keyword" || styled["---"] != "markup.rule" || styled["hover"] != "markup.strong" {
+		t.Errorf("hover's styles are %v", styled)
+	}
 	if feed(e, "l"); e.Cursor() != 5 {
 		t.Errorf("l with hover shown went to %d, want 5", e.Cursor())
 	}
-	if _, ok := e.Float(); ok {
+	if _, _, ok := e.Float(); ok {
 		t.Error("a key left the hover shown")
 	}
 	feed(e, "K")
-	settle(t, e, func() bool { _, ok := e.Float(); return ok })
-	if feed(e, "K"); text(e) != "hover at 1:3" {
+	settle(t, e, func() bool { _, _, ok := e.Float(); return ok })
+	if feed(e, "K"); text(e) != "func target()\n---\nhover at 1:3" {
 		t.Errorf("K on a shown hover showed %q, want it in a window", text(e))
 	}
 }
