@@ -333,6 +333,12 @@ text cut to the window's visible lines, since undoing a `:s` can touch the
 whole file. A timer through the queue clears it after 300ms, and a change
 to its buffer clears it at once (B139).
 
+`<Plug>(window.*)` move as `<C-w>h`, `<C-w>j`, `<C-w>k` and `<C-w>l` do.
+When the window stays the same and `$TMUX` is set, they run
+`tmux select-pane -t $TMUX_PANE` with `-L`, `-D`, `-U` or `-R`. tmux's own
+bindings decide which keys reach fude, so its `vim-tmux-navigator` pattern
+has to name `fude` (B140).
+
 ## Views
 
 A view is one buffer shown in one window. It owns a cursor mark, a top-line

@@ -187,6 +187,12 @@ func builtins(e *Session) {
 		})
 		e.vim.Map(vim.Normal, keys, "<Plug>(git."+to+")")
 	}
+	for name, d := range map[string]byte{"left": 'h', "down": 'j', "up": 'k', "right": 'l'} {
+		e.vim.Command("window."+name, func(vim.Text, int, int) []vim.Edit {
+			e.navigate(d)
+			return nil
+		})
+	}
 	e.vim.Command("git.preview", func(vim.Text, int, int) []vim.Edit {
 		e.previewHunk()
 		return nil

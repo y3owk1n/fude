@@ -191,6 +191,10 @@ Where fude departs, the line says so and cites the departure in
 - B139 [2] Text just yanked, put, undone or redone shows highlighted for
   300ms, as undo-glow.nvim shows it, and a change to the buffer clears it
   sooner (N15).
+- B140 [2] `<Plug>(window.left)`, `<Plug>(window.down)`,
+  `<Plug>(window.up)` and `<Plug>(window.right)` move to the window that
+  way. Inside tmux, with no window that way, they move to tmux's pane
+  there instead, as nvim-tmux-navigation does. No key is mapped to them.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays

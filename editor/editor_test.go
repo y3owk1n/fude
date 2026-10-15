@@ -979,6 +979,31 @@ func TestB139Flash(t *testing.T) {
 	settle(t, e, func() bool { return flashed() == nil })
 }
 
+// B140
+func TestB140Navigate(t *testing.T) {
+	bin, log := t.TempDir(), filepath.Join(t.TempDir(), "tmux.log")
+	script := "#!/bin/sh\necho \"$@\" >> " + log + "\n"
+	if err := os.WriteFile(filepath.Join(bin, "tmux"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("TMUX", "/tmp/tmux-1/default,1,0")
+	t.Setenv("TMUX_PANE", "%3")
+	path := filepath.Join(t.TempDir(), "f")
+	change(t, path, "a\n")
+	e := open(t, path)
+	e.SetSize(80, 24)
+	// :vsplit leaves the cursor in the left window, so right moves within
+	// fude, and right again goes to tmux's pane.
+	feed(e, ":vsplit<CR><Plug>(window.right)")
+	if v := e.Views(); !v[1].Current || v[0].Current {
+		t.Fatal("<Plug>(window.right) did not move to the right window")
+	}
+	if feed(e, "<Plug>(window.right)"); disk(t, log) != "select-pane -t %3 -R\n" {
+		t.Fatalf("tmux heard %q", disk(t, log))
+	}
+}
+
 // B124
 func TestB124Listing(t *testing.T) {
 	dir := t.TempDir()
