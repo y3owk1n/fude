@@ -662,6 +662,14 @@ on to type. An item puts in its `textEdit`, else its `insertText`, else its
 label, and fude offers no snippets. Each step is an edit inside the insert's
 undo group, so the whole insert stays one undo step (B64).
 
+A second box beside the menu shows the selected item's `detail` as code of
+the buffer's filetype, then its `documentation` rendered from markdown as
+hover is. Neovim's `'completeopt'` `popup` shows the same. The box goes
+right of the menu, or left when there is more room there. When an item
+came without either, fude sends it back once with `completionItem/resolve`
+if the server offers that, and shows the answer if the item is still
+selected (B68).
+
 With `autocomplete` on, as with Neovim's `'autocomplete'`, typing a word
 character or one of the server's trigger characters asks for completions
 too. That menu puts nothing in the text until `<C-n>` or `<C-p>`, and the

@@ -16,8 +16,11 @@ import (
 // menu is the completions shown while typing, which <C-n> and <C-p> step
 // through, each replacing the word before the cursor (B64).
 type menu struct {
-	items  []string // what each puts in the text
-	labels []string // what the menu shows of each
+	items  []string          // what each puts in the text
+	labels []string          // what the menu shows of each
+	docs   []string          // each one's detail and documentation, as markdown
+	raws   []json.RawMessage // each as the server sent it, to resolve
+	asked  map[int]bool      // the items resolve was asked for
 	start  kernel.MarkID
 	typed  string // the word it replaced, the menu's last stop
 	sel    int    // the item in the text, or len(items) for typed
@@ -91,17 +94,10 @@ func (e *Session) complete(auto bool) {
 		return map[string]any{"textDocument": map[string]any{"uri": uri}, "position": lsp.Point(t, c, enc)}
 	}, func(res json.RawMessage) {
 		// The answer is a list, or a list inside an object.
-		type item struct {
-			Label      string `json:"label"`
-			InsertText string `json:"insertText"`
-			TextEdit   struct {
-				NewText string `json:"newText"`
-			} `json:"textEdit"`
-		}
-		var items []item
+		var items []json.RawMessage
 		if json.Unmarshal(res, &items) != nil {
 			var list struct {
-				Items []item `json:"items"`
+				Items []json.RawMessage `json:"items"`
 			}
 			json.Unmarshal(res, &list)
 			items = list.Items
@@ -118,10 +114,10 @@ func (e *Session) complete(auto bool) {
 		if e.menu != nil {
 			e.closeMenu()
 		}
-		m := &menu{start: mark, typed: b.text.Snapshot().Slice(start, cur), sel: len(items)}
-		for _, it := range items {
-			text := cmp.Or(it.TextEdit.NewText, it.InsertText, it.Label)
-			m.items, m.labels = append(m.items, text), append(m.labels, it.Label)
+		m := &menu{raws: items, asked: map[int]bool{}, start: mark, typed: b.text.Snapshot().Slice(start, cur), sel: len(items)}
+		for _, raw := range items {
+			it := readItem(raw, b.filetype())
+			m.items, m.labels, m.docs = append(m.items, it.text), append(m.labels, it.label), append(m.docs, it.doc)
 		}
 		e.menu = m
 		if auto {
@@ -155,10 +151,41 @@ func (e *Session) choose(i int) {
 	e.showMenu()
 }
 
+// item is what fude uses of a completion item.
+type item struct {
+	label, text, doc string
+}
+
+// readItem reads a completion item. Its doc is its detail as code of
+// filetype, then its documentation.
+func readItem(raw json.RawMessage, filetype string) item {
+	var it struct {
+		Label         string          `json:"label"`
+		InsertText    string          `json:"insertText"`
+		Detail        string          `json:"detail"`
+		Documentation json.RawMessage `json:"documentation"`
+		TextEdit      struct {
+			NewText string `json:"newText"`
+		} `json:"textEdit"`
+	}
+	json.Unmarshal(raw, &it)
+	doc := markupText(it.Documentation)
+	if it.Detail != "" {
+		doc = "```" + filetype + "\n" + it.Detail + "\n```\n" + doc
+	}
+	return item{it.Label, cmp.Or(it.TextEdit.NewText, it.InsertText, it.Label), strings.TrimSpace(doc)}
+}
+
 // showMenu shows the menu's labels in a float, the item in the text
-// selected.
+// selected, with its documentation beside it (B68).
 func (e *Session) showMenu() {
 	m := e.menu
+	e.doc, e.docSpans = "", nil
+	if i := m.sel; i < len(m.items) && m.docs[i] != "" {
+		e.doc, e.docSpans = e.markdown(m.docs[i])
+	} else if i < len(m.items) {
+		e.resolve(m, i)
+	}
 	var spans []syntax.Span
 	var shown strings.Builder
 	for j, l := range m.labels {
@@ -170,6 +197,25 @@ func (e *Session) showMenu() {
 	e.float, e.floatSpans = strings.TrimSuffix(shown.String(), "\n"), spans
 }
 
+// resolve asks the server once for the documentation of item i of m, which
+// came without any, and shows it if the item is still selected.
+func (e *Session) resolve(m *menu, i int) {
+	s := e.win.buf.server
+	if s == nil || m.asked[i] {
+		return
+	}
+	m.asked[i] = true
+	if p, ok := completionOptions(s); !ok || !p.ResolveProvider {
+		return
+	}
+	ft := e.win.buf.filetype()
+	s.client.Request("completionItem/resolve", func(string) any { return m.raws[i] }, func(res json.RawMessage) {
+		if m.docs[i] = readItem(res, ft).doc; e.menu == m && m.sel == i {
+			e.showMenu()
+		}
+	})
+}
+
 // autocomplete asks for completions after k typed a word character, or a
 // character the server names as a trigger, while autocomplete is on (B67).
 func (e *Session) autocomplete(k vim.Key) {
@@ -177,20 +223,26 @@ func (e *Session) autocomplete(k vim.Key) {
 	if !e.cfg.Autocomplete || s == nil || e.vim.Mode() != vim.Insert || utf8.RuneCountInString(string(k)) != 1 || k == "<" {
 		return
 	}
-	var p struct {
-		TriggerCharacters []string `json:"triggerCharacters"`
-	}
-	// A server that does not offer completion has no options to read.
-	if json.Unmarshal(s.client.Capability("completionProvider"), &p) != nil {
-		return
-	}
-	if isWord(k[0]) || slices.Contains(p.TriggerCharacters, string(k)) {
+	if p, ok := completionOptions(s); ok && (isWord(k[0]) || slices.Contains(p.TriggerCharacters, string(k))) {
 		e.complete(true)
 	}
+}
+
+// completion is what a server says of its completion.
+type completion struct {
+	TriggerCharacters []string `json:"triggerCharacters"`
+	ResolveProvider   bool     `json:"resolveProvider"`
+}
+
+// completionOptions returns what s said of its completion, or false when it
+// offers none.
+func completionOptions(s *server) (completion, bool) {
+	var p completion
+	return p, json.Unmarshal(s.client.Capability("completionProvider"), &p) == nil
 }
 
 // closeMenu stops completing and keeps what is in the text.
 func (e *Session) closeMenu() {
 	e.win.buf.text.DeleteMark(e.menu.start)
-	e.menu, e.float, e.floatSpans = nil, "", nil
+	e.menu, e.float, e.floatSpans, e.doc, e.docSpans = nil, "", nil, "", nil
 }

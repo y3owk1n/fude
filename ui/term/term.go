@@ -211,18 +211,56 @@ func (c *client) draw() {
 }
 
 // float draws f in a bordered box at the cursor, cx and cy, below its line,
-// or above it when there is more room there. Lines wrap at the box's width,
-// at most 80 columns, and a markup.rule line draws across it. w and h are
-// the space the windows have. While f has the cursor, its rows scroll to
-// show it, and float reports where it is.
+// or above it when there is more room there, at most 80 columns and 20 rows.
+// Its documentation goes in a box beside it. w and h are the space the
+// windows have. While f has the cursor, its rows scroll to show it, and
+// float reports where it is.
 func (c *client) float(f editor.Float, cx, cy, w, h int) (int, int, bool) {
-	text, spans := f.Text, f.Spans
-	styles := paint(spans, 0)
-	type row struct {
-		start, end int // bytes of text
-		rule       bool
+	rows, width := wrap(f.Text, f.Spans, min(80, w-2))
+	below, above := h-cy-1, cy
+	n := min(len(rows), max(below, above)-2, 20)
+	if width < 1 || n < 1 {
+		return 0, 0, false
 	}
-	limit := min(80, w-2)
+	// rowOf is the row that shows the byte at p.
+	rowOf := func(p int) int {
+		i, _ := slices.BinarySearchFunc(rows, p, func(r row, p int) int { return cmp.Compare(r.start, p+1) })
+		return max(i-1, 0)
+	}
+	first := 0
+	if f.Cursor >= 0 {
+		cur := rowOf(f.Cursor)
+		first = min(max(rowOf(f.Top), cur-n+1), cur)
+	}
+	y := cy + 1
+	if below < n+2 && above > below {
+		y = cy - n - 2
+	}
+	x := min(cx, max(w-width-2, 0))
+	fx, fy, found := c.box(f.Text, f.Spans, rows[first:min(first+n, len(rows))], x, y, width, f.Cursor)
+	// The documentation goes right of the box, or left of it when there is
+	// more room there.
+	right, left := w-x-width-2, x
+	if room := max(right, left) - 2; f.Doc != "" && room >= 10 {
+		rows, dw := wrap(f.Doc, f.DocSpans, min(80, room))
+		dx := x + width + 2
+		if right < left {
+			dx = x - dw - 2
+		}
+		c.box(f.Doc, f.DocSpans, rows[:min(len(rows), h-y-2, 20)], dx, y, dw, -1)
+	}
+	return fx, fy, found
+}
+
+// row is one row of a box: bytes of its text, or a rule across it.
+type row struct {
+	start, end int
+	rule       bool
+}
+
+// wrap splits text into rows at most limit columns wide, and returns them
+// and the widest one's width. A markup.rule line is a rule.
+func wrap(text string, spans []syntax.Span, limit int) ([]row, int) {
 	var rows []row
 	width := 0
 	for at := 0; at <= len(text); {
@@ -251,30 +289,17 @@ func (c *client) float(f editor.Float, cx, cy, w, h int) (int, int, bool) {
 		}
 		at = end + 1
 	}
-	below, above := h-cy-1, cy
-	n := min(len(rows), max(below, above)-2, 20)
-	if width < 1 || n < 1 {
-		return 0, 0, false
-	}
-	// rowOf is the row that shows the byte at p.
-	rowOf := func(p int) int {
-		i, _ := slices.BinarySearchFunc(rows, p, func(r row, p int) int { return cmp.Compare(r.start, p+1) })
-		return max(i-1, 0)
-	}
-	first := 0
-	if f.Cursor >= 0 {
-		cur := rowOf(f.Cursor)
-		first = min(max(rowOf(f.Top), cur-n+1), cur)
-	}
-	y := cy + 1
-	if below < n+2 && above > below {
-		y = cy - n - 2
-	}
-	x := min(cx, max(w-width-2, 0))
+	return rows, width
+}
+
+// box draws rows of text, styled by spans, in a border at x and y, width
+// columns wide inside it, and reports where the byte at cursor is.
+func (c *client) box(text string, spans []syntax.Span, rows []row, x, y, width, cursor int) (int, int, bool) {
+	styles := paint(spans, 0)
 	style := tcell.StyleDefault
 	fx, fy, found := 0, 0, false
 	c.s.PutStrStyled(x, y, "┌"+strings.Repeat("─", width)+"┐", style)
-	for i, r := range rows[first:min(first+n, len(rows))] {
+	for i, r := range rows {
 		c.s.FillArea(x, y+1+i, width+2, 1, ' ', style)
 		c.s.Put(x, y+1+i, "│", style)
 		if r.rule {
@@ -283,7 +308,8 @@ func (c *client) float(f editor.Float, cx, cy, w, h int) (int, int, bool) {
 		col := 0
 		for rest := text[r.start:r.end]; ; {
 			p := r.end - len(rest)
-			if p == f.Cursor && (rest != "" || first+i == len(rows)-1 || rows[first+i+1].start != p) {
+			// The end of a wrapped row is the start of the next one.
+			if p == cursor && (rest != "" || i == len(rows)-1 || rows[i+1].start != p) {
 				fx, fy, found = x+1+min(col, width-1), y+1+i, true
 			}
 			if r.rule || rest == "" {
@@ -303,7 +329,7 @@ func (c *client) float(f editor.Float, cx, cy, w, h int) (int, int, bool) {
 		}
 		c.s.Put(x+width+1, y+1+i, "│", style)
 	}
-	c.s.PutStrStyled(x, y+n+1, "└"+strings.Repeat("─", width)+"┘", style)
+	c.s.PutStrStyled(x, y+len(rows)+1, "└"+strings.Repeat("─", width)+"┘", style)
 	return fx, fy, found
 }
 

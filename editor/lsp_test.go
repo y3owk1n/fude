@@ -137,8 +137,12 @@ func TestFakeServer(t *testing.T) {
 			reply(m.ID, edits)
 		case "textDocument/completion":
 			reply(m.ID, map[string]any{"items": []any{
-				map[string]any{"label": "apple"}, map[string]any{"label": "apricot"}, map[string]any{"label": "banana"},
+				map[string]any{"label": "apple", "detail": "fruit", "documentation": "red fruit"},
+				map[string]any{"label": "apricot"},
+				map[string]any{"label": "banana"},
 			}})
+		case "completionItem/resolve":
+			reply(m.ID, map[string]any{"label": "apricot", "documentation": map[string]any{"kind": "markdown", "value": "**orange** fruit"}})
 		case "textDocument/hover":
 			p := m.Params.Position
 			value := fmt.Sprintf("```go\nfunc target()\n```\n---\n**hover** at %d:%d", p.Line, p.Character)
@@ -157,7 +161,7 @@ func TestFakeServer(t *testing.T) {
 			fmt.Fprintf(os.Stdout, "Content-Length: %d\r\n\r\n%s", len(body), body)
 		case "initialize":
 			reply(m.ID, map[string]any{"capabilities": map[string]any{
-				"positionEncoding": os.Getenv("FUDE_FAKE_ENCODING"), "completionProvider": map[string]any{"triggerCharacters": []string{"."}},
+				"positionEncoding": os.Getenv("FUDE_FAKE_ENCODING"), "completionProvider": map[string]any{"triggerCharacters": []string{"."}, "resolveProvider": true},
 			}})
 		case "shutdown":
 			reply(m.ID, nil)
@@ -334,6 +338,23 @@ func TestB67Autocomplete(t *testing.T) {
 	// A character the server names as a trigger asks too.
 	feed(e, ".")
 	heard(t, log, `"method":"textDocument/completion"`, 2)
+}
+
+// B68
+func TestB68CompletionDocs(t *testing.T) {
+	e, log := withServer(t, "x ap\n", "utf-8")
+	heard(t, log, `"method":"textDocument/didOpen"`, 1)
+	feed(e, "A<C-x><C-o>")
+	settle(t, e, func() bool { f, _ := e.Float(); return f.Doc != "" })
+	if f, _ := e.Float(); f.Doc != "fruit\nred fruit" {
+		t.Fatalf("apple's documentation is %q, want its detail and documentation", f.Doc)
+	}
+	// An item without documentation is resolved for it.
+	feed(e, "<C-n>")
+	settle(t, e, func() bool { f, _ := e.Float(); return f.Doc != "" })
+	if f, _ := e.Float(); f.Doc != "orange fruit" {
+		t.Fatalf("apricot's documentation is %q, want it resolved", f.Doc)
+	}
 }
 
 // B65

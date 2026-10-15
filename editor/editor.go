@@ -53,16 +53,18 @@ type Session struct {
 	ask        func(yes bool) // takes the answer to the question in the message
 	float      string         // text shown over the windows at the cursor, such as hover
 	floatSpans []syntax.Span  // the styles of the float's text
-	menu       *menu          // the completions shown while typing
-	ctrlX      bool           // <C-x> began a completion key in insert mode
-	lspKeys    bool           // the attached keys are mapped
-	later      []vim.Key      // keys to feed once the key being fed is done
-	renameAt   int            // where grn was pressed
-	pick       *pick          // the code actions shown to choose from
-	under      *window        // the window a focused float was opened from
-	changed    chan struct{}  // told when the shown text changes, for a client over the socket
-	depth      int            // the undo groups the machine has open
-	pending    int            // the cursor when the group being made began
+	doc        string         // the selected completion's documentation, beside the menu
+	docSpans   []syntax.Span
+	menu       *menu         // the completions shown while typing
+	ctrlX      bool          // <C-x> began a completion key in insert mode
+	lspKeys    bool          // the attached keys are mapped
+	later      []vim.Key     // keys to feed once the key being fed is done
+	renameAt   int           // where grn was pressed
+	pick       *pick         // the code actions shown to choose from
+	under      *window       // the window a focused float was opened from
+	changed    chan struct{} // told when the shown text changes, for a client over the socket
+	depth      int           // the undo groups the machine has open
+	pending    int           // the cursor when the group being made began
 
 	width, height int // the space the windows share
 }
@@ -489,15 +491,17 @@ type Float struct {
 	Text        string
 	Spans       []syntax.Span
 	Top, Cursor int
+	Doc         string // drawn beside it, styled by DocSpans
+	DocSpans    []syntax.Span
 }
 
 // Float returns the float to draw, or false when there is none.
 func (e *Session) Float() (Float, bool) {
 	if e.under != nil {
 		t := e.Text()
-		return Float{t.Slice(0, t.Len()), e.floatSpans, e.Top(), e.Cursor()}, true
+		return Float{t.Slice(0, t.Len()), e.floatSpans, e.Top(), e.Cursor(), "", nil}, true
 	}
-	return Float{e.float, e.floatSpans, 0, -1}, e.float != ""
+	return Float{e.float, e.floatSpans, 0, -1, e.doc, e.docSpans}, e.float != ""
 }
 
 // focus moves the cursor into a float showing text, a read-only window

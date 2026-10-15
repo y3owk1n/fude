@@ -740,15 +740,8 @@ func (e *Session) hover(res json.RawMessage) {
 	}
 	var texts []string
 	for _, p := range parts {
-		var markup struct {
-			Value string `json:"value"`
-		}
-		var plain string
-		switch {
-		case json.Unmarshal(p, &plain) == nil:
-			texts = append(texts, plain)
-		case json.Unmarshal(p, &markup) == nil && markup.Value != "":
-			texts = append(texts, markup.Value)
+		if text := markupText(p); text != "" {
+			texts = append(texts, text)
 		}
 	}
 	if len(texts) == 0 {
@@ -756,6 +749,22 @@ func (e *Session) hover(res json.RawMessage) {
 		return
 	}
 	e.float, e.floatSpans = e.markdown(strings.TrimSpace(strings.Join(texts, "\n\n")))
+}
+
+// markupText is the text of markup with a value or of a plain string, as
+// servers send hover and documentation, or "" for anything else.
+func markupText(raw json.RawMessage) string {
+	var plain string
+	if json.Unmarshal(raw, &plain) == nil {
+		return plain
+	}
+	var markup struct {
+		Value string `json:"value"`
+	}
+	if json.Unmarshal(raw, &markup) != nil {
+		return ""
+	}
+	return markup.Value
 }
 
 // format asks b's server to format the lines from start to end, as gq does,

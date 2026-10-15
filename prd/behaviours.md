@@ -200,6 +200,8 @@ Where fude departs, the line says so and cites the departure in
 - B67 [5] With `autocomplete` on, typing a word character or a trigger
   character in insert mode lists the server's completions, with none put in
   the text until `<C-n>` or `<C-p>`.
+- B68 [5] The selected completion's detail and documentation show beside
+  the menu, resolved from the server when the item came without them.
 
 ## Server and clients
 
