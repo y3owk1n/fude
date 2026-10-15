@@ -473,6 +473,17 @@ match only within the window's lines, so a frame never scans the file
 (B121). `expand_tab` reaches the machine through `Machine.ExpandTab`, so
 indents are spaces only and `<Tab>` types spaces to the next
 `indent_width` column (B122, N10).
+
+A file in a git repository shows in the sign column how it differs from
+git's index, as gitsigns.nvim does by default: `┃` on added lines in green
+and changed ones in blue, `▁` in red under the line before deleted lines,
+`▔` over the first line when the first lines went, and `~` on a change
+that also deleted lines. fude reads the index's copy with `git show` off
+the editor loop when it opens the file and when the terminal gets focus
+back. When a frame finds the text changed, fude diffs it with that copy,
+also off the loop and one diff at a time. A diagnostic's sign wins on its
+line, as Neovim puts diagnostics over gitsigns' signs. Without git on
+the PATH, fude runs nothing and shows no git signs (B123).
 `number` puts line numbers in a gutter at least 4 columns wide, and
 `relative_number` numbers lines from the cursor's. With both, the cursor's
 line shows its own number on the left, as in Neovim (B39).

@@ -37,7 +37,7 @@ func (w *window) gutter() int { return w.signCols() + w.numberCols() }
 // signCols is 2 when the buffer has signs, as Neovim's signcolumn=auto
 // shows them, and 0 otherwise (B119).
 func (w *window) signCols() int {
-	if w.buf.signed {
+	if w.buf.signed || len(w.buf.git) > 0 {
 		return 2
 	}
 	return 0

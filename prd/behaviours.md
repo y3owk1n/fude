@@ -97,6 +97,11 @@ Where fude departs, the line says so and cites the departure in
 - B122 [2] With `expand_tab`, `>`, `<`, `<C-t>` and `<C-d>` indent with
   spaces only, and `<Tab>` in insert mode types spaces to the next
   `indent_width` column (N10).
+- B123 [2] A file in a git repository shows in the sign column how it
+  differs from git's index, as gitsigns does: `┃` on added and changed
+  lines, `▁` under the line before deleted ones, and `~` on a change that
+  also deleted lines. A diagnostic's sign wins on its line. Without git
+  installed, there are no git signs.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays

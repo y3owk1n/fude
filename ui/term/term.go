@@ -382,7 +382,7 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 			}
 			y, stop := v.Y+row, end
 			if s, ok := v.Signs[t.LineOf(pos)]; ok && i == 0 {
-				c.s.PutStrStyled(numbers, y, s.Text, tcell.StyleDefault.Foreground(underlines[s.Name]))
+				c.s.PutStrStyled(numbers, y, s.Text, tcell.StyleDefault.Foreground(signColours[s.Name]))
 			}
 			if i == 0 && v.Gutter > v.SignCols {
 				c.number(t.LineOf(pos), cur, numbers+v.SignCols, y, v)
@@ -540,6 +540,14 @@ func listChar(rest string, trailing bool) (string, bool) {
 		return "+", true
 	}
 	return "", false
+}
+
+// signColours are the colours of signs: diagnostics' as they underline,
+// and git's as gitsigns' defaults.
+var signColours = map[string]color.Color{
+	"diagnostic.error": color.Red, "diagnostic.warn": color.Yellow,
+	"diagnostic.info": color.Blue, "diagnostic.hint": color.Aqua,
+	"git.add": color.Green, "git.change": color.Blue, "git.delete": color.Red,
 }
 
 // cursorLine is the background of the cursor's line with cursor_line on,

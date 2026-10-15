@@ -2,7 +2,9 @@ package editor_test
 
 import (
 	"fmt"
+	"maps"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -694,6 +696,31 @@ func TestB121MatchParen(t *testing.T) {
 		if feed(e, c.keys); !slices.Equal(e.Views()[0].Pair, c.want) {
 			t.Errorf("after %q the pair is %v, want %v", c.keys, e.Views()[0].Pair, c.want)
 		}
+	}
+}
+
+// B123
+func TestB123GitSigns(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "f")
+	change(t, path, "a\nb\nc\n")
+	for _, args := range [][]string{{"init", "-q"}, {"add", "f"}} {
+		if out, err := exec.Command("git", append([]string{"-C", dir}, args...)...).CombinedOutput(); err != nil {
+			t.Skipf("git %v: %v: %s", args, err, out)
+		}
+	}
+	e := open(t, path)
+	e.SetSize(40, 10)
+	// a becomes xa and b goes, a change that also deleted, and new is added.
+	feed(e, "ix<Esc>jddGonew<Esc>")
+	want := map[int]editor.Sign{0: {Text: "~", Name: "git.change"}, 2: {Text: "┃", Name: "git.add"}}
+	settle(t, e, func() bool { return maps.Equal(e.Views()[0].Signs, want) })
+
+	// Without git installed, the file shows no git signs.
+	t.Setenv("PATH", "")
+	e = open(t, path)
+	if feed(e, "ix<Esc>"); len(e.Views()[0].Signs) != 0 {
+		t.Fatalf("without git the signs are %v", e.Views()[0].Signs)
 	}
 }
 

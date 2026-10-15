@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"path/filepath"
 	"slices"
@@ -251,6 +252,7 @@ func (e *Session) add(path string) (string, error) {
 	if e.started {
 		e.attach(b)
 	}
+	e.loadGit(b)
 	return msg, nil
 }
 
@@ -262,6 +264,7 @@ type heard struct {
 }
 
 func (l heard) Changed(before kernel.Snapshot, edits []kernel.Edit) {
+	l.b.gitStale = true
 	l.ed.emit("buffer.changed", "", l.b)
 	for _, s := range l.ed.sessions {
 		if s.changed != nil && s.win.buf == l.b {
@@ -461,6 +464,7 @@ func (e *Session) Views() []View {
 			v.Highlights = h.Show(t, top, last)
 		}
 		v.Matches = e.vim.Matches(t, top, last)
+		e.diffGit(w.buf)
 		v.Signs = e.signs(w.buf)
 		v.Pair = e.pair(w, t, top, last)
 		v.Ruler = ruler(t, w.pos(), top, max(w.h-1, 1), func(p int) int { return w.rows(t, p) })
@@ -514,17 +518,21 @@ type Sign struct {
 // as Neovim's vim.diagnostic shows them.
 var diagnosticSigns = []Sign{{"E", "diagnostic.error"}, {"W", "diagnostic.warn"}, {"I", "diagnostic.info"}, {"H", "diagnostic.hint"}}
 
-// signs returns each line of b's sign: the letter of its worst diagnostic.
+// signs returns each line of b's sign: the letter of its worst diagnostic,
+// or else its git sign, as Neovim puts diagnostics over gitsigns' signs.
 func (e *Session) signs(b *buffer) map[int]Sign {
-	if !b.signed {
+	if !b.signed && len(b.git) == 0 {
 		return nil
 	}
 	t := b.text.Snapshot()
-	out := map[int]Sign{}
+	out := maps.Clone(b.git)
+	if out == nil {
+		out = map[int]Sign{}
+	}
 	for _, d := range e.decos[b] {
 		line := t.LineOf(b.text.Mark(d.start))
 		i := slices.IndexFunc(diagnosticSigns, func(s Sign) bool { return s.Name == d.style })
-		if old, ok := out[line]; i >= 0 && (!ok || i < slices.Index(diagnosticSigns, old)) {
+		if old, ok := out[line]; i >= 0 && (!ok || !slices.Contains(diagnosticSigns, old) || i < slices.Index(diagnosticSigns, old)) {
 			out[line] = diagnosticSigns[i]
 		}
 	}
@@ -1077,6 +1085,8 @@ func (e *Session) writeAll(bs []*buffer, force bool, then func()) {
 // undo step. A modified one keeps its text, and fude warns once.
 func (e *Session) Focus() {
 	for _, b := range e.bufs {
+		// git's index may have changed while fude was away.
+		e.loadGit(b)
 		if b.title != "" || b.file.warned || !b.file.changed() {
 			continue
 		}
