@@ -668,6 +668,13 @@ on to type. An item puts in its `textEdit`, else its `insertText`, else its
 label, and fude offers no snippets. Each step is an edit inside the insert's
 undo group, so the whole insert stays one undo step (B64).
 
+`gq` is an operator `editor/` adds. It asks for `rangeFormatting` of the
+target's lines when the server offers it. Otherwise it asks for
+`formatting` of the document, as gopls offers only that, and keeps the
+edits that fall inside the lines. The answer applies as one transaction on
+the text the request saw, so it is one timeline node. fude drops an answer
+for text that has changed since, and says so (B65).
+
 ## Server split (step 6)
 
 One server holds the kernel and its modules and orders every transaction.

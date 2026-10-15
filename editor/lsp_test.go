@@ -21,7 +21,8 @@ import (
 // crashes when a change inserts "#". Each "bad" in an opened document gets
 // an error diagnostic, a definition is the first "target" in it, and hover
 // is markdown that says where it was asked. Completion offers apple, apricot
-// and banana. Positions are in bytes.
+// and banana, and formatting the whole document puts a tab before each line,
+// as gopls formats only whole documents. Positions are in bytes.
 func TestFakeServer(t *testing.T) {
 	if os.Getenv("FUDE_FAKE_LSP") == "" {
 		return
@@ -80,6 +81,13 @@ func TestFakeServer(t *testing.T) {
 					break
 				}
 			}
+		case "textDocument/formatting":
+			var edits []any
+			for line := range strings.Split(opened[m.Params.TextDocument.URI], "\n") {
+				at := map[string]int{"line": line, "character": 0}
+				edits = append(edits, map[string]any{"range": map[string]any{"start": at, "end": at}, "newText": "\t"})
+			}
+			reply(m.ID, edits)
 		case "textDocument/completion":
 			reply(m.ID, map[string]any{"items": []any{
 				map[string]any{"label": "apple"}, map[string]any{"label": "apricot"}, map[string]any{"label": "banana"},
@@ -252,6 +260,27 @@ func TestB64Completion(t *testing.T) {
 		}
 		if feed(e, "u"); text(e) != "x ap" {
 			t.Errorf("u after %s left %q, want the insert undone", c[0], text(e))
+		}
+	}
+}
+
+// B65
+func TestB65Format(t *testing.T) {
+	for _, c := range [][2]string{
+		{"gqq", "\ta\nb\nc"},
+		{"gqj", "\ta\n\tb\nc"},
+		{"jgqG", "a\n\tb\n\tc"},
+		{"Vjgq", "\ta\n\tb\nc"},
+	} {
+		e, log := withServer(t, "a\nb\nc", "utf-8")
+		heard(t, log, `"method":"textDocument/didOpen"`, 1)
+		feed(e, c[0])
+		settle(t, e, func() bool { return text(e) != "a\nb\nc" })
+		if text(e) != c[1] {
+			t.Errorf("%s left %q, want %q", c[0], text(e), c[1])
+		}
+		if feed(e, "u"); text(e) != "a\nb\nc" {
+			t.Errorf("u after %s left %q, want it undone in one step", c[0], text(e))
 		}
 	}
 }

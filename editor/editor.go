@@ -79,6 +79,10 @@ func open(cfg config, paths []string) (*Editor, error) {
 		})
 	}
 	e.vim.Operator("gc", e.comment)
+	e.vim.Operator("gq", func(_ vim.Text, start, end int, _ bool) []vim.Edit {
+		e.format(e.win.buf, start, end)
+		return nil
+	})
 	for keys, name := range map[string]string{"<C-]>": "lsp.definition", "K": "lsp.hover"} {
 		e.vim.Command(name, func(vim.Text, int, int) []vim.Edit {
 			e.request(name)

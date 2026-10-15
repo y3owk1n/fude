@@ -1,7 +1,9 @@
 package editor
 
 import (
+	"cmp"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"path/filepath"
@@ -10,6 +12,7 @@ import (
 
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/lsp"
+	"github.com/y3owk1n/fude/vim"
 )
 
 // server is a running language server and the buffers attached to it.
@@ -278,4 +281,65 @@ func (e *Editor) hover(res json.RawMessage) {
 		return
 	}
 	e.float, e.floatSpans = e.markdown(strings.TrimSpace(strings.Join(texts, "\n\n")))
+}
+
+// format asks b's server to format the lines from start to end, as gq does,
+// and applies the answer as one timeline node. For a server that formats
+// only whole documents, fude asks for that and keeps the edits inside the
+// lines. It drops an answer for text that has changed since (B65).
+func (e *Editor) format(b *buffer, start, end int) {
+	s := b.server
+	switch {
+	case s == nil:
+		e.message = "no language server"
+		return
+	case b.file.readonly:
+		e.message = "cannot make changes, the file is read-only"
+		return
+	}
+	t, uri := b.text.Snapshot(), lsp.URI(b.file.path)
+	from, to := vim.LineStart(t, start), vim.LineEnd(t, end)
+	ranged := s.client.Supports("documentRangeFormattingProvider")
+	method := "textDocument/formatting"
+	if ranged {
+		method = "textDocument/rangeFormatting"
+	}
+	tab := (host{e}).IndentWidth()
+	s.client.Request(method, func(enc string) any {
+		p := map[string]any{
+			"textDocument": map[string]any{"uri": uri},
+			"options":      map[string]any{"tabSize": tab, "insertSpaces": false},
+		}
+		if ranged {
+			p["range"] = lsp.Range{Start: lsp.Point(t, from, enc), End: lsp.Point(t, to, enc)}
+		}
+		return p
+	}, func(res json.RawMessage) {
+		var answer []struct {
+			Range   lsp.Range `json:"range"`
+			NewText string    `json:"newText"`
+		}
+		json.Unmarshal(res, &answer)
+		enc := s.client.Encoding()
+		tx := kernel.Transaction{Base: t.Version(), Origin: "user", Label: "gq", Time: e.now()}
+		for _, a := range answer {
+			start, end := lsp.Offset(t, a.Range.Start, enc), lsp.Offset(t, a.Range.End, enc)
+			if start >= from && end <= to {
+				tx.Edits = append(tx.Edits, kernel.Edit{Start: start, End: end, Text: a.NewText})
+			}
+		}
+		if len(tx.Edits) == 0 {
+			return
+		}
+		slices.SortStableFunc(tx.Edits, func(x, y kernel.Edit) int { return cmp.Compare(x.Start, y.Start) })
+		if err := b.text.Apply(tx); err != nil {
+			if errors.Is(err, kernel.ErrStale) {
+				err = errors.New("the text changed while the server formatted it")
+			}
+			e.message = err.Error()
+			return
+		}
+		b.head = b.text.Head()
+		b.pushChange(tx.Edits[0].Start)
+	})
 }

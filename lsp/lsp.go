@@ -34,6 +34,7 @@ type Client struct {
 	mu       sync.Mutex
 	outbox   []func(enc string) any
 	encoding string
+	caps     map[string]json.RawMessage // what the server offers, once it answered
 	wake     chan struct{}
 	done     chan struct{}
 }
@@ -69,7 +70,7 @@ func Start(command []string, root string, queue chan<- func(), log func(string),
 		queue: queue, stdin: stdin, log: log, pending: map[int]func(json.RawMessage){},
 		wake: make(chan struct{}, 1), done: make(chan struct{}),
 	}
-	initialized := make(chan string, 1)
+	initialized := make(chan answer, 1)
 	go c.write(root, initialized)
 	go c.read(stdout, initialized, notify)
 	go func() {
@@ -145,6 +146,15 @@ func (c *Client) Request(method string, build func(enc string) any, answer func(
 	id := c.next
 	c.pending[id] = answer
 	c.send(func(enc string) any { return request{ID: id, Method: method, Params: build(enc)} })
+}
+
+// Supports reports whether the server offers capability, such as
+// documentRangeFormattingProvider.
+func (c *Client) Supports(capability string) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	v, ok := c.caps[capability]
+	return ok && string(v) != "false" && string(v) != "null"
 }
 
 // Encoding is the position encoding the server chose, or "" before it
@@ -235,9 +245,15 @@ func (c *Client) send(m func(enc string) any) {
 	}
 }
 
+// answer is what the server said to initialize.
+type answer struct {
+	encoding string
+	caps     map[string]json.RawMessage
+}
+
 // write sends initialize, waits for the server's answer, then sends what is
 // queued, in order, until the server exits.
-func (c *Client) write(root string, initialized <-chan string) {
+func (c *Client) write(root string, initialized <-chan answer) {
 	params := map[string]any{
 		"processId": nil, "rootUri": URI(root),
 		"capabilities": map[string]any{"general": map[string]any{"positionEncodings": []string{"utf-8", "utf-16"}}},
@@ -245,14 +261,15 @@ func (c *Client) write(root string, initialized <-chan string) {
 	if c.frame(request{ID: 0, Method: "initialize", Params: params}) != nil {
 		return
 	}
-	var enc string
+	var a answer
 	select {
-	case enc = <-initialized:
+	case a = <-initialized:
 	case <-c.done:
 		return
 	}
+	enc := a.encoding
 	c.mu.Lock()
-	c.encoding = enc
+	c.encoding, c.caps = enc, a.caps
 	c.mu.Unlock()
 	if c.frame(message{Method: "initialized", Params: map[string]any{}}) != nil {
 		return
@@ -296,7 +313,7 @@ func (c *Client) frame(v any) error {
 // read takes messages from the server until it exits. The answer to
 // initialize goes to the writer, and notifications to the editor loop. A
 // request from the server gets an empty answer, as fude offers it nothing.
-func (c *Client) read(r io.Reader, initialized chan<- string, notify func(string, json.RawMessage)) {
+func (c *Client) read(r io.Reader, initialized chan<- answer, notify func(string, json.RawMessage)) {
 	br := bufio.NewReader(r)
 	for {
 		body, err := readFrame(br)
@@ -332,17 +349,16 @@ func (c *Client) read(r io.Reader, initialized chan<- string, notify func(string
 			continue
 		}
 		var res struct {
-			Capabilities struct {
-				PositionEncoding string `json:"positionEncoding"`
-			} `json:"capabilities"`
+			Capabilities map[string]json.RawMessage `json:"capabilities"`
 		}
 		json.Unmarshal(m.Result, &res)
+		var enc string
+		json.Unmarshal(res.Capabilities["positionEncoding"], &enc)
 		// Without an answer the protocol's default holds, which is utf-16.
-		enc := res.Capabilities.PositionEncoding
 		if enc != "utf-8" {
 			enc = "utf-16"
 		}
-		initialized <- enc
+		initialized <- answer{enc, res.Capabilities}
 	}
 }
 
