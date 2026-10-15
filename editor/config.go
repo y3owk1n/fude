@@ -17,7 +17,10 @@ type config struct {
 	IndentWidth uint `toml:"indent_width"` // 0 means the tab width
 	KeyTimeout  uint `toml:"key_timeout"`  // milliseconds
 	LargeFile   uint `toml:"large_file"`   // megabytes
-	Keymap      struct {
+	// Ask the language server for completions while typing, not only on
+	// <C-x><C-o>.
+	Autocomplete bool `toml:"autocomplete"`
+	Keymap       struct {
 		Normal map[string]string `toml:"normal"`
 		Visual map[string]string `toml:"visual"`
 		Insert map[string]string `toml:"insert"`

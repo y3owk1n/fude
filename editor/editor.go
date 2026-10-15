@@ -330,6 +330,7 @@ func (e *Session) feed(k vim.Key) {
 		return
 	}
 	e.settle(e.vim.Feed(k))
+	e.autocomplete(k)
 }
 
 // Wait reports whether keys are held for a longer mapping, and how long to

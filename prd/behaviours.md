@@ -197,6 +197,9 @@ Where fude departs, the line says so and cites the departure in
   implementations, `grt` the type definition, `gO` document symbols, and
   insert `<C-s>` shows signature help. They exist only while a server is
   attached (N3).
+- B67 [5] With `autocomplete` on, typing a word character or a trigger
+  character in insert mode lists the server's completions, with none put in
+  the text until `<C-n>` or `<C-p>`.
 
 ## Server and clients
 

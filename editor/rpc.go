@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strconv"
+	"sync"
 
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/vim"
@@ -195,7 +196,8 @@ func (e *Session) Serve(path string) func() {
 }
 
 // serve answers one client's calls, one line of JSON each, in order. Each
-// call runs on the editor loop.
+// call runs on the editor loop. Between replies it tells the client when the
+// text of the buffer it shows changes (B78).
 func (e *Session) serve(c net.Conn, o kernel.Origin) {
 	defer c.Close()
 	var s *Session
@@ -204,17 +206,41 @@ func (e *Session) serve(c net.Conn, o kernel.Origin) {
 		e.queue <- func() { f(); close(done) }
 		<-done
 	}
-	on(func() { s = e.Attach(o) })
+	changed := make(chan struct{}, 1)
+	on(func() {
+		s = e.Attach(o)
+		s.changed = changed
+	})
 	defer on(func() { s.leave() })
-	in, out := bufio.NewScanner(c), json.NewEncoder(c)
+	in, enc := bufio.NewScanner(c), json.NewEncoder(c)
 	in.Buffer(nil, 1<<26)
+	var mu sync.Mutex
+	out := func(v any) error {
+		mu.Lock()
+		defer mu.Unlock()
+		return enc.Encode(v)
+	}
+	left := make(chan struct{})
+	defer close(left)
+	go func() {
+		for {
+			select {
+			case <-changed:
+				if out(map[string]string{"method": "changed"}) != nil {
+					return
+				}
+			case <-left:
+				return
+			}
+		}
+	}()
 	for in.Scan() {
 		var call struct {
 			ID     int             `json:"id"`
 			Method string          `json:"method"`
 			Params json.RawMessage `json:"params"`
 		}
-		reply, left := map[string]any{}, false
+		reply, quit := map[string]any{}, false
 		if err := json.Unmarshal(in.Bytes(), &call); err != nil {
 			reply["error"] = fmt.Sprintf("read call: %v", err)
 		} else {
@@ -232,10 +258,10 @@ func (e *Session) serve(c net.Conn, o kernel.Origin) {
 					}
 				}
 				reply["result"] = st
-				left = s.done
+				quit = s.done
 			})
 		}
-		if out.Encode(reply) != nil || left {
+		if out(reply) != nil || quit {
 			return
 		}
 	}

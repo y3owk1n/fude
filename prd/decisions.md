@@ -319,6 +319,13 @@ Neovim marks track the line and keep their column, and drop a mark whose
 line is deleted. Why: a mark should point at the text you marked, which is
 what kernel marks already do.
 
+### N8. Autocomplete asks the language server only
+
+With `autocomplete` on, the menu lists the server's items and never the
+buffer's words, which Neovim's `'autocomplete'` takes from `'complete'`.
+Why: fude has no keyword completion, and a server's items already cover a
+buffer's own names.
+
 ## Open
 
 None.

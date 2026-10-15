@@ -449,6 +449,7 @@ $XDG_DATA_HOME/fude/grammars/       grammars and their queries, loaded at runtim
 indent_width = 8     # columns >, <, <C-t> and <C-d> shift by, 0 for the tab width
 key_timeout = 1000   # milliseconds a mapping prefix waits (B84)
 large_file = 50      # megabytes over which syntax and LSP stay off (B83)
+autocomplete = false # ask for completions while typing (B67)
 
 [keymap.normal]      # and [keymap.visual], [keymap.insert]. Keys map to keys.
 "<Space>w" = ":w<CR>"
@@ -658,6 +659,13 @@ and `<C-e>` puts the typed word back. Any other key keeps the item and goes
 on to type. An item puts in its `textEdit`, else its `insertText`, else its
 label, and fude offers no snippets. Each step is an edit inside the insert's
 undo group, so the whole insert stays one undo step (B64).
+
+With `autocomplete` on, as with Neovim's `'autocomplete'`, typing a word
+character or one of the server's trigger characters asks for completions
+too. That menu puts nothing in the text until `<C-n>` or `<C-p>`, and the
+next typed key closes it and asks again. fude drops an answer for text that
+changed after the request. The items come from the language
+server only, not from the buffer's words (N8).
 
 `gq` is an operator `editor/` adds. It asks for `rangeFormatting` of the
 target's lines when the server offers it. Otherwise it asks for

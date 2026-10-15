@@ -156,7 +156,9 @@ func TestFakeServer(t *testing.T) {
 			body, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "method": "textDocument/publishDiagnostics", "params": map[string]any{"uri": m.Params.TextDocument.URI, "diagnostics": ds}})
 			fmt.Fprintf(os.Stdout, "Content-Length: %d\r\n\r\n%s", len(body), body)
 		case "initialize":
-			reply(m.ID, map[string]any{"capabilities": map[string]any{"positionEncoding": os.Getenv("FUDE_FAKE_ENCODING")}})
+			reply(m.ID, map[string]any{"capabilities": map[string]any{
+				"positionEncoding": os.Getenv("FUDE_FAKE_ENCODING"), "completionProvider": map[string]any{"triggerCharacters": []string{"."}},
+			}})
 		case "shutdown":
 			reply(m.ID, nil)
 		case "exit":
@@ -170,15 +172,15 @@ func TestFakeServer(t *testing.T) {
 }
 
 // withServer starts an editor on a Go file holding text, with the fake
-// server configured for Go and answering in encoding, and returns the editor
-// and the server's log.
-func withServer(t *testing.T, text, encoding string) (*editor.Session, string) {
+// server configured for Go and answering in encoding, and settings added to
+// config.toml, and returns the editor and the server's log.
+func withServer(t *testing.T, text, encoding string, settings ...string) (*editor.Session, string) {
 	t.Helper()
 	log := filepath.Join(t.TempDir(), "server.log")
 	t.Setenv("FUDE_FAKE_LSP", "1")
 	t.Setenv("FUDE_FAKE_LOG", log)
 	t.Setenv("FUDE_FAKE_ENCODING", encoding)
-	config(t, fmt.Sprintf("[filetype.go]\nlsp = [%q, \"-test.run=^TestFakeServer$\"]\n", os.Args[0]))
+	config(t, strings.Join(settings, "\n")+fmt.Sprintf("\n[filetype.go]\nlsp = [%q, \"-test.run=^TestFakeServer$\"]\n", os.Args[0]))
 	path := filepath.Join(t.TempDir(), "a.go")
 	change(t, path, text)
 	e := start(t, path)
@@ -315,6 +317,23 @@ func TestB64Completion(t *testing.T) {
 			t.Errorf("u after %s left %q, want the insert undone", c[0], text(e))
 		}
 	}
+}
+
+// B67
+func TestB67Autocomplete(t *testing.T) {
+	e, log := withServer(t, "x \n", "utf-8", "autocomplete = true")
+	heard(t, log, `"method":"textDocument/didOpen"`, 1)
+	feed(e, "Aa")
+	settle(t, e, func() bool { _, ok := e.Float(); return ok })
+	if text(e) != "x a" {
+		t.Fatalf("the menu put %q in the text, want nothing", text(e))
+	}
+	if feed(e, "<C-n>"); text(e) != "x apple" {
+		t.Fatalf("<C-n> made %q, want the first item", text(e))
+	}
+	// A character the server names as a trigger asks too.
+	feed(e, ".")
+	heard(t, log, `"method":"textDocument/completion"`, 2)
 }
 
 // B65

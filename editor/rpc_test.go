@@ -13,6 +13,72 @@ import (
 	"github.com/y3owk1n/fude/editor"
 )
 
+// client is a connection to an editor's socket, whose loop runs the calls
+// and what do hands it.
+type client struct {
+	t  *testing.T
+	c  net.Conn
+	in *bufio.Scanner
+	do chan func()
+}
+
+// dial serves e on a socket and connects to it.
+func dial(t *testing.T, e *editor.Session) *client {
+	// A socket path must be short, so it goes in a directory of its own.
+	dir, err := os.MkdirTemp("", "fude")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	t.Cleanup(e.Serve(filepath.Join(dir, "s")))
+	do, done := make(chan func()), make(chan struct{})
+	t.Cleanup(func() { close(done) })
+	go func() {
+		for {
+			select {
+			case f := <-e.Queue():
+				f()
+			case f := <-do:
+				f()
+			case <-done:
+				return
+			}
+		}
+	}()
+	c, err := net.Dial("unix", filepath.Join(dir, "s"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { c.Close() })
+	return &client{t, c, bufio.NewScanner(c), do}
+}
+
+// result is what a test reads of a reply.
+type result struct {
+	Version int    `json:"version"`
+	Text    string `json:"text"`
+}
+
+// call sends line and returns the reply's result, skipping notifications.
+func (cl *client) call(line string) result {
+	cl.t.Helper()
+	fmt.Fprintln(cl.c, line)
+	for cl.in.Scan() {
+		var reply struct {
+			Method string  `json:"method"`
+			Result *result `json:"result"`
+		}
+		if json.Unmarshal(cl.in.Bytes(), &reply) == nil && reply.Method == "" {
+			if reply.Result == nil {
+				cl.t.Fatalf("call %s got %s", line, cl.in.Text())
+			}
+			return *reply.Result
+		}
+	}
+	cl.t.Fatalf("call %s got no reply", line)
+	return result{}
+}
+
 // B70
 func TestB70CommandOverSocket(t *testing.T) {
 	typed := open(t, "")
@@ -20,51 +86,24 @@ func TestB70CommandOverSocket(t *testing.T) {
 
 	e := open(t, "")
 	feed(e, `isay "hi" now<Esc>`)
-	// A socket path must be short, so it goes in a directory of its own.
-	dir, err := os.MkdirTemp("", "fude")
-	if err != nil {
-		t.Fatal(err)
+	cl := dial(t, e)
+	base := cl.call(`{"id":1,"method":"state"}`).Version
+	got := cl.call(fmt.Sprintf(`{"id":2,"method":"request","params":{"at":5,"base":%d,"command":{"op":"change","target":{"name":"inner_quote"},"text":"hello"}}}`, base))
+	if want := text(typed); got.Text != want {
+		t.Fatalf("the command made %q, the keys %q", got.Text, want)
 	}
-	defer os.RemoveAll(dir)
-	stop := e.Serve(filepath.Join(dir, "s"))
-	defer stop()
-	done := make(chan struct{})
-	defer close(done)
-	go func() {
-		for {
-			select {
-			case f := <-e.Queue():
-				f()
-			case <-done:
-				return
-			}
-		}
-	}()
+}
 
-	c, err := net.Dial("unix", filepath.Join(dir, "s"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer c.Close()
-	in := bufio.NewScanner(c)
-	var reply struct {
-		Result struct {
-			Version int    `json:"version"`
-			Text    string `json:"text"`
-		} `json:"result"`
-		Error string `json:"error"`
-	}
-	call := func(line string) {
-		t.Helper()
-		fmt.Fprintln(c, line)
-		if !in.Scan() || json.Unmarshal(in.Bytes(), &reply) != nil || reply.Error != "" {
-			t.Fatalf("call %s got %q", line, in.Text())
-		}
-	}
-	call(`{"id":1,"method":"state"}`)
-	call(fmt.Sprintf(`{"id":2,"method":"request","params":{"at":5,"base":%d,"command":{"op":"change","target":{"name":"inner_quote"},"text":"hello"}}}`, reply.Result.Version))
-	if want := text(typed); reply.Result.Text != want {
-		t.Fatalf("the command made %q, the keys %q", reply.Result.Text, want)
+// B78
+func TestB78ClientHearsChanges(t *testing.T) {
+	e := open(t, "")
+	cl := dial(t, e)
+	cl.call(`{"id":1,"method":"state"}`)
+	done := make(chan struct{})
+	cl.do <- func() { feed(e, "ihi<Esc>"); close(done) }
+	<-done
+	if !cl.in.Scan() || cl.in.Text() != `{"method":"changed"}` {
+		t.Fatalf("after another session's edit the client heard %q", cl.in.Text())
 	}
 }
 

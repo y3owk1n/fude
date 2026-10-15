@@ -5,18 +5,19 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/vim"
 )
 
 // propose runs a command's keys at pos on a copy of b's text, and keeps the
-// change they make as a proposal on b. A copy has no syntax or language
-// server, so commands that need one change nothing.
+// change they make as a proposal on b. The copy shares b's syntax, whose
+// tree is of the same text until the keys edit the copy.
 func (e *Session) propose(b *buffer, pos int, keys, text string) error {
 	t := b.text.Snapshot()
 	old := t.Slice(0, t.Len())
-	cp := &buffer{file: b.file, text: kernel.New(old, nil), before: map[kernel.NodeID]int{}, marks: map[rune]kernel.MarkID{}}
+	cp := &buffer{file: b.file, text: kernel.New(old, nil), syntax: b.syntax, before: map[kernel.NodeID]int{}, marks: map[rune]kernel.MarkID{}}
 	win := e.win
 	e.win = newWindow(cp, pos, 0)
 	e.command(keys, text)
@@ -58,7 +59,7 @@ func (e *Session) decide(arg string, accept bool) {
 		}
 	}
 	if i < 0 {
-		e.message = "no proposal " + arg
+		e.message = strings.TrimSpace("no proposal " + arg)
 		return
 	}
 	d := e.decos[owner][i]
