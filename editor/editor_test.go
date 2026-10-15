@@ -1097,6 +1097,42 @@ func TestB147Branch(t *testing.T) {
 	settle(t, e, func() bool { return e.Views()[0].Branch == "trunk" })
 }
 
+// B152
+func TestB152Marks(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(dir, "editor"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	change(t, filepath.Join(dir, "editor", "flash.go"), "")
+	t.Chdir(dir)
+	e := open(t, "")
+	e.SetSize(100, 24)
+	// marked is the letters a float marks as matching, in order.
+	marked := func() string {
+		f, _ := e.Float()
+		var b strings.Builder
+		for _, s := range f.Spans {
+			if s.Name == "match" {
+				b.WriteString(f.Text[s.Start:s.End])
+			}
+		}
+		return b.String()
+	}
+	feed(e, ":files<CR>edfl")
+	settle(t, e, func() bool { return marked() == "edfl" })
+	feed(e, "<Esc>:ti<Tab>")
+	if marked() != "ti" {
+		t.Fatalf("the command menu marks %q", marked())
+	}
+	// A grep result longer than the box is cut, and marks what is left.
+	change(t, filepath.Join(dir, "long.txt"), "x needle "+strings.Repeat("y", 300)+" needle\n")
+	if out, err := exec.Command("git", "-C", dir, "init", "-q").CombinedOutput(); err != nil {
+		t.Skipf("git init: %v: %s", err, out)
+	}
+	feed(e, "<Esc>:grep needle<CR>")
+	settle(t, e, func() bool { return marked() == "needle" })
+}
+
 // B124
 func TestB124Listing(t *testing.T) {
 	dir := t.TempDir()

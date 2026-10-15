@@ -316,7 +316,9 @@ func (c *client) box(text string, spans []syntax.Span, rows []row, x, y, width, 
 		if r.rule {
 			c.rule(x-1, y+1+i, width+2)
 		}
-		if r.start < len(styles) && styles[r.start] == colours["menu.selected"] {
+		if slices.ContainsFunc(spans, func(s syntax.Span) bool {
+			return s.Name == "menu.selected" && s.Start <= r.start && r.start < s.End
+		}) {
 			ground = th.raised
 			c.s.FillArea(x, y+1+i, width+2, 1, ' ', style.Background(ground))
 			c.s.Put(x-1, y+1+i, "▌", base.Foreground(th.normal))

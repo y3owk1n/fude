@@ -696,6 +696,12 @@ off the loop, one match at a time, and a query that grows searches only
 the last matches. 4,000 paths take 2ms for one letter. The box shows the
 last matches until the new ones come (B129).
 
+The marks come from the same dynamic program kept whole, for the visible
+rows only: from the last letter back, each takes the last place that
+leads to the best score, or the place a run of letters needs, as fzy's
+`match_positions` and `matchfuzzypos()` do. Scoring keeps two rows, and
+both share the function that fills one (B152).
+
 On a screen of 60 columns or more, the list takes two fifths of the width
 and a preview box the rest, up to 160 columns in all. `Float.DocW` is the
 preview box's width. The preview is the start of the selected file, cut to

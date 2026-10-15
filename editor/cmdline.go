@@ -228,10 +228,17 @@ func (m *cmenu) float() Float {
 		if i > first {
 			s.WriteByte('\n')
 		}
+		it := m.items[i]
 		if i == m.sel {
-			spans = append(spans, syntax.Span{Start: s.Len(), End: s.Len() + len(m.items[i]), Name: "menu.selected"})
+			spans = append(spans, syntax.Span{Start: s.Len(), End: s.Len() + len(it), Name: "menu.selected"})
 		}
-		s.WriteString(m.items[i])
+		// A path marks the letters of its last part that the typed part
+		// matches (B152).
+		dir := strings.LastIndexByte(m.typed, '/') + 1
+		for _, at := range positions(lower(m.typed[dir:]), it[dir:]) {
+			spans = append(spans, syntax.Span{Start: s.Len() + dir + at, End: s.Len() + dir + at + 1, Name: "match"})
+		}
+		s.WriteString(it)
 	}
 	return Float{Text: s.String(), Spans: spans, Cursor: -1}
 }

@@ -248,6 +248,10 @@ Where fude departs, the line says so and cites the departure in
 - B151 [2] While the command line or the finder shows, the windows under
   it are drawn on a darker ground with their text faded into it, and the
   box draws on that ground with its text at full strength.
+- B152 [2] The finder marks in the accent colour the letters of each path
+  that its query matches, where `matchfuzzypos()` puts them, and a grep
+  result marks where the query is in its line. A command line's menu marks
+  the letters the typed word matches.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays

@@ -64,14 +64,28 @@ func (c *client) commandLine(w, h int, menu string, spans []syntax.Span) (int, i
 			sel = strings.Count(menu[:s.Start], "\n")
 		}
 	}
+	styles := paint(spans, 0)
+	at := 0 // where the item starts in menu
 	for i, it := range items {
-		style := base
+		ground := base
 		if i == sel {
-			style = colours["menu.selected"]
-			c.s.FillArea(left+1, top+3+i, inner, 1, ' ', style)
+			ground = colours["menu.selected"]
+			c.s.FillArea(left+1, top+3+i, inner, 1, ' ', ground)
 			c.s.Put(left, top+3+i, "▌", base.Foreground(th.cmd))
 		}
-		c.putClipped(left+4, top+3+i, left+inner+1, part{it, style})
+		x := left + 4
+		for k, r := range it {
+			if x >= left+inner+1 {
+				break
+			}
+			style := ground
+			if p := at + k; p < len(styles) && styles[p] == colours["match"] {
+				style = colours["match"].Background(ground.GetBackground())
+			}
+			_, cw := c.s.Put(x, top+3+i, string(r), style)
+			x += cw
+		}
+		at += len(it) + 1
 	}
 	return left + 4 + len(before) - skip, top + 1
 }
