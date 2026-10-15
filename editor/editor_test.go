@@ -826,3 +826,31 @@ func TestB45SyntaxNodes(t *testing.T) {
 		}
 	}
 }
+
+// B44
+func TestB44Comments(t *testing.T) {
+	src := "func f() {\n\tx := 1\n\n\t\ty := 2\n}"
+	for _, c := range [][3]string{
+		// Each starts after "x :=", as j5l puts it.
+		{src, "j5lgcc", "func f() {\n\t|// x := 1\n\n\t\ty := 2\n}"},
+		{src, "j5lgcj", "func f() {\n\t// x| := 1\n\t//\n\t\ty := 2\n}"},
+		{src, "j5lgc2j", "func f() {\n\t// x| := 1\n\t//\n\t// \ty := 2\n}"},
+		{src, "j5lgccgcc", "func f() {\n\t|x := 1\n\n\t\ty := 2\n}"},
+		{src, "j5lgc2jgc2j", "func f() {\n\tx :=| 1\n\n\t\ty := 2\n}"},
+		{src, "j5lgcc.", "func f() {\n\t|x := 1\n\n\t\ty := 2\n}"},
+		{src, "j5lvjgc", "func f() {\n\t// x| := 1\n\t//\n\t\ty := 2\n}"},
+		{src, "j5lgcip", "|// func f() {\n// \tx := 1\n\n\t\ty := 2\n}"},
+		{src, "j5lgcck.", "|// func f() {\n\t// x := 1\n\n\t\ty := 2\n}"},
+		{src, "jjgcc", "func f() {\n\tx := 1\n|\n\t\ty := 2\n}"},
+		{"a\n//b\n  //  c\n//", "gc3j", "|// a\n// //b\n//   //  c\n// //"},
+		{"//a\n//b\n\n  //  c\n//", "gc4j", "|a\nb\n\n   c\n"},
+	} {
+		path := filepath.Join(t.TempDir(), "a.go")
+		change(t, path, c[0])
+		e := open(t, path)
+		feed(e, c[1])
+		if got := text(e)[:e.Cursor()] + "|" + text(e)[e.Cursor():]; got != c[2] {
+			t.Errorf("%s on %q: got %q, want %q", c[1], c[0], got, c[2])
+		}
+	}
+}

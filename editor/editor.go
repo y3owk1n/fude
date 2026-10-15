@@ -66,6 +66,7 @@ func open(cfg config, paths []string) (*Editor, error) {
 			return 0, 0, false
 		})
 	}
+	e.vim.Operator("gc", e.comment)
 	for i, p := range paths {
 		msg, err := e.add(p)
 		if err != nil {

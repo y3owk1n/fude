@@ -695,3 +695,30 @@ func TestB113HostObject(t *testing.T) {
 		}
 	}
 }
+
+// B113, for an operator
+func TestB113HostOperator(t *testing.T) {
+	// gx puts brackets around its target.
+	brackets := func(_ vim.Text, start, end int, _ bool) []vim.Edit {
+		return []vim.Edit{{Start: start, End: start, Text: "["}, {Start: end, End: end, Text: "]"}}
+	}
+	for _, c := range [][3]string{
+		{"ab |cd ef", "gxiw", "ab |[cd] ef"},
+		{"ab |cd ef", "gxe", "ab |[cd] ef"},
+		{"ab |cd ef", "gxx", "|[ab cd ef]"},
+		{"ab |cd ef", "vlgx", "ab |[cd] ef"},
+		{"ab |cd ef\ngh", "gxj", "[ab| cd ef\ngh]"},
+	} {
+		h := &host{text: strings.Replace(c[0], "|", "", 1), cursor: strings.Index(c[0], "|")}
+		m := vim.New(h)
+		m.Operator("gx", brackets)
+		for _, k := range vim.Keys(c[1]) {
+			if err := m.Feed(k); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if got := h.text[:h.cursor] + "|" + h.text[h.cursor:]; got != c[2] {
+			t.Errorf("%q on %q: got %q, want %q", c[1], c[0], got, c[2])
+		}
+	}
+}

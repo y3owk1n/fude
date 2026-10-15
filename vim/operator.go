@@ -39,8 +39,51 @@ func (m *Machine) operate(op string, reg rune, cmd string, count int) error {
 	return m.act(op, reg, op+cmd, r)
 }
 
+// Operator adds an operator such as gc, which works with every motion and
+// text object, in visual mode, and doubled for the current line, as gcc.
+// apply gets the target's range and whether it is linewise. A linewise range
+// runs from the start of its first line to the end of its last. apply returns
+// the edits it makes, and the cursor then goes where it goes after an
+// operator in Neovim.
+func (m *Machine) Operator(name string, apply func(t Text, start, end int, lines bool) []Edit) {
+	if m.ops == nil {
+		m.ops = map[string]func(Text, int, int, bool) []Edit{}
+	}
+	m.ops[name] = apply
+}
+
+// hostOp applies an operator the host added to r, and leaves the cursor at
+// the start of r's first line: on its first non-blank when the operator was
+// doubled, at the cursor's column when the cursor was on that line and r is
+// linewise, and at r's own column otherwise. The column is a number of bytes
+// and does not move with the edits.
+func (m *Machine) hostOp(op, label string, r region) error {
+	t, c := m.h.Text(), m.h.Cursor()
+	line := t.LineOf(r.start)
+	ls := t.LineStart(line)
+	col := r.start - ls
+	switch {
+	case label == op+op[len(op)-1:] || label == op+op:
+		col = firstNonBlank(t, ls, LineEnd(t, ls)) - ls
+	case r.lines && LineStart(t, c) == ls:
+		col = c - ls
+	}
+	if edits := m.ops[op](t, r.start, r.end, r.lines); len(edits) > 0 {
+		if err := m.apply(edits, label); err != nil {
+			return err
+		}
+	}
+	t = m.h.Text()
+	ls = t.LineStart(min(line, t.Lines()-1))
+	m.h.SetCursor(clamp(t, min(ls+col, LineEnd(t, ls))))
+	return nil
+}
+
 // act applies d, c or y to r.
 func (m *Machine) act(op string, reg rune, label string, r region) error {
+	if m.ops[op] != nil {
+		return m.hostOp(op, label, r)
+	}
 	if r.block {
 		return m.actBlock(op, reg, label, r)
 	}

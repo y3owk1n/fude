@@ -147,9 +147,10 @@ func (m *Machine) Idle() bool // normal mode, between commands
 func (m *Machine) Waiting() bool
 func (m *Machine) Timeout() error
 func (m *Machine) Object(name string, find func(t Text, start, end int) (int, int, bool))
+func (m *Machine) Operator(name string, apply func(t Text, start, end int, lines bool) []Edit)
 ```
 
-Later behaviours add a clipboard for `"+` and operators the host adds.
+A later behaviour adds a clipboard for `"+`.
 
 
 `vim/` owns the grammar, modes, registers, dot repeat, macros, search and
@@ -160,7 +161,8 @@ storage, the clipboard and everything shown on screen. `:w` and `<C-w>v`
 reach the host through `Unhandled`.
 
 Tree targets are not part of `vim/`. `editor/` adds `af`, `if` and the rest
-from `syntax/` with `Machine.Object`, the way a plugin will.
+from `syntax/` with `Machine.Object`, and `gc` with `Machine.Operator`, the
+way a plugin will.
 
 `vim/` may use small pure-Go dependencies for Unicode segmentation and
 display width. It never imports `core/`, and `core/` never imports it.
@@ -524,6 +526,11 @@ object queries that clone moved through the edits made since. It picks the
 smallest capture that holds the cursor, without the blanks a grammar puts
 at a node's end (B40). `an`, `in`, `]n` and `[n` are objects too, run on
 the visual selection, and pick nodes as Neovim's tree selection does (B45).
+
+`gc` toggles comments on whole lines as Neovim's does, in the comment syntax
+`syntax/` gives for the buffer's language, such as `// %s` for Go (B44).
+Picking the language at the cursor matters once a grammar with injections
+ships. Go has none.
 
 Queries use only the predicates the binding evaluates: the `eq?`,
 `match?` and `any-of?` families. A query that uses any other fails to load

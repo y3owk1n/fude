@@ -135,6 +135,7 @@ type Machine struct {
 	held []Key // typed keys that start a longer mapping
 
 	objects map[string]func(Text, int, int) (int, int, bool) // text objects the host added
+	ops     map[string]func(Text, int, int, bool) []Edit     // operators the host added
 }
 
 // change is the last change, for dot repeat.
@@ -400,7 +401,7 @@ func (m *Machine) command(cmd string) error {
 		m.dotCount, m.dotReg = count, reg
 		return m.visualKey(cmd, count, reg)
 	}
-	if m.op == "" && operators[cmd] {
+	if m.op == "" && (operators[cmd] || m.ops[cmd] != nil) {
 		m.op, m.opCount, m.count = cmd, m.count, 0
 		return nil
 	}

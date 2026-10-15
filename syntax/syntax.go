@@ -33,8 +33,16 @@ var (
 var languages = map[string]struct {
 	lang                *ts.Language
 	highlights, objects string
+	comment             string // %s stands for the commented text
 }{
-	"go": {ts.NewLanguage(tsgo.Language()), goHighlights, goObjects},
+	"go": {ts.NewLanguage(tsgo.Language()), goHighlights, goObjects, "// %s"},
+}
+
+// Comment returns how filetype comments a line, such as "// %s", or false
+// when fude has no grammar for it.
+func Comment(filetype string) (string, bool) {
+	l, ok := languages[filetype]
+	return l.comment, ok
 }
 
 // Objects are the text objects a grammar gives, and the captures they

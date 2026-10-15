@@ -108,6 +108,11 @@ func (m *Machine) blockInsertStart(after bool) error {
 // visualKey handles a command in visual mode.
 func (m *Machine) visualKey(cmd string, count int, reg rune) error {
 	t, c := m.h.Text(), m.h.Cursor()
+	if m.ops[cmd] != nil {
+		r := m.selection()
+		m.leaveVisual()
+		return m.act(cmd, reg, string(m.visual)+cmd, r)
+	}
 	switch cmd {
 	case "<Esc>":
 		m.leaveVisual()
