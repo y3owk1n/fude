@@ -536,9 +536,20 @@ func (e *Session) reveal() {
 	w := e.win
 	t, c := w.buf.text.Snapshot(), w.pos()
 	line := vim.LineStart(t, c)
-	// low is the earliest top that still shows the cursor's line, found
-	// walking back from it, so a far jump looks at one window of lines.
-	low, rows := line, w.rows(t, line)
+	// scroll_off lines stay in view above and below the cursor's, at most
+	// half the window, as with Neovim's scrolloff (B116).
+	above, below := line, line
+	for range min(w.opts.ScrollOff, (e.rows()-1)/2) {
+		if above > 0 {
+			above = vim.LineStart(t, above-1)
+		}
+		if end := vim.LineEnd(t, below); end < t.Len() {
+			below = end + 1
+		}
+	}
+	// low is the earliest top that still shows below, found walking back
+	// from it, so a far jump looks at one window of lines.
+	low, rows := below, w.rows(t, below)
 	for low > 0 {
 		prev := vim.LineStart(t, low-1)
 		if rows += w.rows(t, prev); rows > e.rows() {
@@ -546,7 +557,7 @@ func (e *Session) reveal() {
 		}
 		low = prev
 	}
-	w.buf.text.MoveMark(w.top, min(max(e.Top(), low), line))
+	w.buf.text.MoveMark(w.top, min(max(e.Top(), low), above))
 	// Without wrap the view scrolls sideways the least it must to show the
 	// cursor's column, as with Neovim's sidescroll of 1 (B37).
 	if col := vim.Column(t, line, c); !w.opts.Wrap {

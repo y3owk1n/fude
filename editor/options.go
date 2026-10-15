@@ -1,7 +1,10 @@
 package editor
 
 import (
+	"fmt"
+	"maps"
 	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -11,31 +14,47 @@ func (o *options) switches() map[string]*bool {
 	return map[string]*bool{"number": &o.Number, "relative_number": &o.RelativeNumber, "wrap": &o.Wrap}
 }
 
-// set runs :set on its arguments: name turns an option on, noname off,
-// name! the other way, and name? shows it. With no arguments it shows every
-// option. It changes the current window and the default for the session's
-// windows opened later (B39).
+// numbers are the options :set gives a number.
+func (o *options) numbers() map[string]*int {
+	return map[string]*int{"scroll_off": &o.ScrollOff}
+}
+
+// set runs :set on its arguments: name turns a switch on, noname off,
+// name! the other way, name=n gives a number, and name? shows an option.
+// With no arguments it shows every option. It changes the current window
+// and the default for the session's windows opened later (B39).
 func (e *Session) set(args string) {
-	opts := e.win.opts.switches()
-	var shown []string
+	switches, numbers := e.win.opts.switches(), e.win.opts.numbers()
 	if args == "" {
-		for name := range opts {
-			shown = append(shown, name)
-		}
-		slices.Sort(shown)
-		args = strings.Join(shown, "? ") + "?"
-		shown = nil
+		names := slices.Sorted(maps.Keys(switches))
+		names = append(names, slices.Sorted(maps.Keys(numbers))...)
+		args = strings.Join(names, "? ") + "?"
 	}
+	var shown []string
 	for _, arg := range strings.Fields(args) {
-		name := strings.TrimRight(arg, "?!")
-		on, ok := opts[name]
-		value := true
+		name, value, isNumber := strings.Cut(strings.TrimRight(arg, "?!"), "=")
+		if n, ok := numbers[name]; ok {
+			switch {
+			case isNumber:
+				v, err := strconv.Atoi(value)
+				if err != nil || v < 0 {
+					e.message = fmt.Sprintf("%s takes a number of 0 or more, not %q", name, value)
+					return
+				}
+				*n = v
+			case strings.HasSuffix(arg, "?") || !isNumber:
+				shown = append(shown, fmt.Sprintf("%s=%d", name, *n))
+			}
+			continue
+		}
+		on, ok := switches[name]
+		turn := true
 		if !ok {
-			if on, ok = opts[strings.TrimPrefix(name, "no")]; !ok {
+			if on, ok = switches[strings.TrimPrefix(name, "no")]; !ok || isNumber {
 				e.message = "no option named " + name
 				return
 			}
-			name, value = strings.TrimPrefix(name, "no"), false
+			name, turn = strings.TrimPrefix(name, "no"), false
 		}
 		switch {
 		case strings.HasSuffix(arg, "?"):
@@ -46,7 +65,7 @@ func (e *Session) set(args string) {
 		case strings.HasSuffix(arg, "!"):
 			*on = !*on
 		default:
-			*on = value
+			*on = turn
 		}
 	}
 	e.opts = e.win.opts

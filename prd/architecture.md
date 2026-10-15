@@ -454,7 +454,10 @@ the least it must to show the cursor's column, as Neovim's `sidescroll` of
 `:set` changes the options of the current window, and the ones the
 session's next windows start with, as Neovim's `:set` sets both the local
 and the global value. It takes the names `config.toml` uses (N4): `name`,
-`noname`, `name!` and `name?`, and shows every option with no arguments.
+`noname` and `name!` for a switch, `name=n` for a number, and `name?` for
+either, and shows every option with no arguments. `scroll_off` keeps that
+many lines in view above and below the cursor's, at most half the window
+(B116).
 `number` puts line numbers in a gutter at least 4 columns wide, and
 `relative_number` numbers lines from the cursor's. With both, the cursor's
 line shows its own number on the left, as in Neovim (B39).
@@ -492,6 +495,7 @@ socket = "/run/user/1000/fude.sock" # where clients attach, instead of one path 
 number = false       # line numbers, which :set number changes per window (B39)
 relative_number = false # numbers from the cursor's line (B39)
 wrap = true          # long lines go on the rows below, else the view scrolls sideways (B37)
+scroll_off = 0       # lines kept in view above and below the cursor's (B116)
 
 [keymap.normal]      # and [keymap.visual], [keymap.insert]. Keys map to keys.
 "<Space>w" = ":w<CR>"

@@ -47,6 +47,7 @@ type options struct {
 	Number         bool `toml:"number"`          // show line numbers
 	RelativeNumber bool `toml:"relative_number"` // number lines from the cursor's
 	Wrap           bool `toml:"wrap"`            // long lines go on the rows below, else the view scrolls sideways
+	ScrollOff      int  `toml:"scroll_off"`      // lines kept in view above and below the cursor's
 }
 
 // loadConfig reads config.toml. A missing file is no error. After an error

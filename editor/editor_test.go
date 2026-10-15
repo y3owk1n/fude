@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -628,6 +629,32 @@ func TestB39Set(t *testing.T) {
 	config(t, "number = true\n")
 	if v := start(t).Views()[0]; !v.Number || v.Relative {
 		t.Errorf("with number = true a window starts as %+v", v)
+	}
+}
+
+// B116
+func TestB116ScrollOff(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "f")
+	var lines []string
+	for i := range 20 {
+		lines = append(lines, strconv.Itoa(i))
+	}
+	change(t, path, strings.Join(lines, "\n")+"\n")
+	e := open(t, path)
+	// Seven rows, and two lines kept below the cursor's.
+	e.SetSize(40, 8)
+	feed(e, ":set scroll_off=2<CR>")
+	if feed(e, "4j"); e.Top() != 0 {
+		t.Fatalf("on line 5 the view starts at %d, want 0", e.Top())
+	}
+	if feed(e, "j"); e.Top() != 2 {
+		t.Fatalf("on line 6 the view starts at %d, want line 2 at 2", e.Top())
+	}
+	if feed(e, ":set scroll_off?<CR>"); e.Message() != "scroll_off=2" {
+		t.Errorf(":set scroll_off? said %q", e.Message())
+	}
+	if feed(e, ":set scroll_off=x<CR>"); !strings.Contains(e.Message(), "takes a number") {
+		t.Errorf(":set scroll_off=x said %q", e.Message())
 	}
 }
 
