@@ -271,9 +271,9 @@ func (m *Machine) changeCase(op, label string, r region) error {
 	return nil
 }
 
-// shift indents the lines of r by one shiftwidth for >, or outdents them for
-// <, rebuilding the indent from tabs and spaces. Empty lines stay empty.
-func (m *Machine) shift(op, label string, r region, col int) error {
+// shift indents the lines of r by times shiftwidths for >, or outdents them
+// for <, rebuilding the indent from tabs and spaces. Empty lines stay empty.
+func (m *Machine) shift(op, label string, r region, col, times int) error {
 	t := m.h.Text()
 	var edits []Edit
 	for ls := LineStart(t, r.start); ; {
@@ -282,9 +282,9 @@ func (m *Machine) shift(op, label string, r region, col int) error {
 			ind := firstNonBlank(t, ls, le)
 			w := column(t, ls, ind)
 			if op == ">" {
-				w += shiftwidth
+				w += shiftwidth * times
 			} else {
-				w = max(w-shiftwidth, 0)
+				w = max(w-shiftwidth*times, 0)
 			}
 			edits = append(edits, Edit{Start: ls, End: ind, Text: indentText(w)})
 		}

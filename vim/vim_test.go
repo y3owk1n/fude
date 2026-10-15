@@ -15,7 +15,7 @@ type host struct {
 	depth   int
 	applied bool
 	steps   int
-	marks   map[rune]int // fixed positions, since these tests do not edit before a mark
+	marks   map[rune]int // they move with edits, staying after text inserted at them
 	top     int
 }
 
@@ -57,6 +57,14 @@ func (h *host) Apply(edits []vim.Edit, _ string) error {
 	for i := len(edits) - 1; i >= 0; i-- {
 		e := edits[i]
 		h.text = h.text[:e.Start] + e.Text + h.text[e.End:]
+		for r, p := range h.marks {
+			switch {
+			case p >= e.End:
+				h.marks[r] = p + len(e.Text) - (e.End - e.Start)
+			case p > e.Start:
+				h.marks[r] = e.Start
+			}
+		}
 	}
 	if h.depth == 0 {
 		h.steps++
@@ -523,6 +531,65 @@ func TestB29InsertKeys(t *testing.T) {
 		if _, h, _ := run(t, "|", keys); h.steps != 2 {
 			t.Errorf("%q made %d undo steps, want 2", keys, h.steps)
 		}
+	}
+}
+
+// B85
+func TestB85VisualExtras(t *testing.T) {
+	cases(t, [][3]string{
+		{"|ab\ncd", "vl<Esc>jgvd", "|\ncd"},
+		{"a|bcd\nefgh", "<C-v>jlIX<Esc>", "a|Xbcd\neXfgh"},
+		{"a|bcd\nefgh", "<C-v>jlAX<Esc>", "a|bcXd\nefgXh"},
+		{"a|bcd\nef\nijkl", "<C-v>jj$AX<Esc>", "a|bcdX\nefX\nijklX"},
+		{"a|bcd\ne\nijkl", "<C-v>jjlIX<Esc>", "a|Xbcd\neX\niXjkl"},
+	})
+}
+
+// B86
+func TestB86LineCommands(t *testing.T) {
+	cases(t, [][3]string{
+		{"a\n|b\n  c\nd", ":d<CR>", "a\n  |c\nd"},
+		{"a\n|b\nc\nd", ":2,3d<CR>", "a\n|d"},
+		{"a\nb\n|c", ":$d<CR>", "a\n|b"},
+		{"a\n|b\nc", ":y<CR>p", "a\nb\n|b\nc"},
+		{"|a\nb\nc\nd", ":1m3<CR>", "b\nc\n|a\nd"},
+		{"|a\nb\nc\nd", ":m$<CR>", "b\nc\nd\n|a"},
+		{"a\nb\n|c", ":m0<CR>", "|c\na\nb"},
+		{"|a\nb\nc", ":1,2t$<CR>", "a\nb\nc\na\n|b"},
+		{"|a\nb\nc", ":t.<CR>", "a\n|a\nb\nc"},
+		{"a|b\ncd", ":><CR>", "\t|ab\ncd"},
+		{"|\tab\ncd", ":<<CR>", "|ab\ncd"},
+		{"|a\nb\nc", ":>><CR>", "\t\t|a\nb\nc"},
+		{"|a\nb\nc\nd", ":3<CR>", "a\nb\n|c\nd"},
+		{"|a\nb\nc\nd", ":.+2<CR>", "a\nb\n|c\nd"},
+		{"a\nb\nc\n|d", ":-2<CR>", "a\n|b\nc\nd"},
+		{"|a\nfoo\nc", ":/foo/d<CR>", "a\n|c"},
+		{"|a\nb\nfoo\nd", ":.,/foo/-1d<CR>", "|foo\nd"},
+	})
+}
+
+// B87
+func TestB87Global(t *testing.T) {
+	cases(t, [][3]string{
+		{"|1x\n2\n3x\n4", ":g/x/d<CR>", "2\n|4"},
+		{"|a\nb\nc", ":g/^/m0<CR>", "|c\nb\na"},
+		{"|1x\n2\n3x", ":v/x/d<CR>", "1x\n|3x"},
+		{"|ax\nb\ncx", ":g/x/s/x/y/<CR>", "ay\nb\n|cy"},
+	})
+	if _, h, _ := run(t, "|1x\n2\n3x", ":g/x/d<CR>"); h.steps != 1 {
+		t.Errorf(":g made %d undo steps, want 1", h.steps)
+	}
+}
+
+// B88
+func TestB88Normal(t *testing.T) {
+	cases(t, [][3]string{
+		{"|ax\nb\ncx", ":g/x/normal Az<CR>", "axz\nb\ncx|z"},
+		{"|a\nb", ":%normal A!<CR>", "a!\nb|!"},
+		{"|a\nb\nc", ":2,3normal ix<CR>", "a\nxb\n|xc"},
+	})
+	if _, h, _ := run(t, "|a\nb", ":%normal A!<CR>"); h.steps != 1 {
+		t.Errorf(":normal made %d undo steps, want 1", h.steps)
 	}
 }
 

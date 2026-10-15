@@ -89,6 +89,8 @@ type Machine struct {
 	// Visual mode.
 	visual      Key // v, V or <C-v>
 	anchor      int // the end of the selection the cursor is not on
+	lastVisual  Key // the kind of the last selection, for gv
+	anchorFirst bool
 	blockInsert *blockInsert
 	replaced    []string // what each key typed in replace mode overwrote
 
@@ -411,6 +413,8 @@ func (m *Machine) command(cmd string) error {
 		m.back, m.mode, m.prompt, m.line = Normal, Cmdline, ":", ""
 	case "<C-l>":
 		m.hl = false
+	case "gv":
+		m.reselect()
 	case "&":
 		return m.ex("&&")
 	case "v", "V", "<C-v>":

@@ -277,8 +277,8 @@ user edited.
 ### N6. Macros are stored as key notation
 
 A recorded macro is text such as `A!<Esc>j`, and fude stores a typed `<` as
-`<lt>`. Running a register parses that notation, so `<Esc>` in a register
-is the Escape key. Neovim stores raw key codes, which show as `A!^[j`. Why:
+`<lt>`. Running a register or a `:normal` line parses that notation, so
+`<Esc>` in either is the Escape key. Neovim stores raw key codes, which show as `A!^[j`. Why:
 a macro you can put, read and edit as plain text and yank back is the point
 of D15.
 

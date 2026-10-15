@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -111,110 +110,6 @@ func (m *Machine) Matches(from, to int) [][2]int {
 		}
 	}
 	return out
-}
-
-// ex runs a command line. The machine runs :s, :&, :&& and :noh, and hands
-// anything else to the host.
-func (m *Machine) ex(line string) error {
-	t, c := m.h.Text(), m.h.Cursor()
-	first, last, rest, err := m.lineRange(t, c, line)
-	if err != nil {
-		return err
-	}
-	switch {
-	case rest == "noh" || rest == "nohlsearch":
-		m.hl = false
-	case rest == "&&":
-		return m.substitute(first, last, m.lastSub.pattern, m.lastSub.rep, m.lastSub.flags)
-	case rest == "&" || rest == "s":
-		return m.substitute(first, last, m.lastSub.pattern, m.lastSub.rep, "")
-	case len(rest) > 1 && rest[0] == 's' && !isWordByte(rest[1]) && rest[1] != ' ':
-		parts := splitDelim(rest[2:], rest[1])
-		for len(parts) < 3 {
-			parts = append(parts, "")
-		}
-		pat := parts[0]
-		if pat == "" {
-			pat = m.search.pattern
-		}
-		return m.substitute(first, last, pat, parts[1], parts[2])
-	default:
-		m.h.Unhandled(":" + line)
-	}
-	return nil
-}
-
-func isWordByte(b byte) bool {
-	return b == '_' || b >= '0' && b <= '9' || b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z'
-}
-
-// lineRange parses a leading range: %, or one or two addresses (a line
-// number, ., $ or a mark such as 'a or '<) joined by a comma. It returns the starts of the
-// first and last lines and the rest of s. Without a range both are the
-// cursor's line.
-func (m *Machine) lineRange(t Text, c int, s string) (int, int, string, error) {
-	if rest, ok := strings.CutPrefix(s, "%"); ok {
-		return 0, LineStart(t, t.Len()), rest, nil
-	}
-	var err error
-	addr := func(s string) (int, string, bool) {
-		switch {
-		case strings.HasPrefix(s, "."):
-			return LineStart(t, c), s[1:], true
-		case strings.HasPrefix(s, "$"):
-			return LineStart(t, t.Len()), s[1:], true
-		case strings.HasPrefix(s, "'") && len(s) > 1:
-			p, ok := m.h.Mark(rune(s[1]))
-			if !ok {
-				err = errors.New("mark not set")
-				return 0, s, false
-			}
-			return LineStart(t, p), s[2:], true
-		}
-		i := 0
-		for i < len(s) && s[i] >= '0' && s[i] <= '9' {
-			i++
-		}
-		if i == 0 {
-			return 0, s, false
-		}
-		n, _ := strconv.Atoi(s[:i])
-		return down(t, 0, max(n, 1)-1), s[i:], true
-	}
-	first, rest, ok := addr(s)
-	if !ok {
-		return LineStart(t, c), LineStart(t, c), s, err
-	}
-	last := first
-	if r, found := strings.CutPrefix(rest, ","); found {
-		if l, r2, ok := addr(r); ok {
-			last, rest = l, r2
-		}
-	}
-	return min(first, last), max(first, last), rest, err
-}
-
-// splitDelim splits s at each delim not after a backslash, and drops the
-// backslash before an escaped delim.
-func splitDelim(s string, delim byte) []string {
-	var parts []string
-	var b strings.Builder
-	for i := 0; i < len(s); i++ {
-		switch {
-		case s[i] == '\\' && i+1 < len(s) && s[i+1] == delim:
-			b.WriteByte(delim)
-			i++
-		case s[i] == '\\' && i+1 < len(s):
-			b.WriteString(s[i : i+2])
-			i++
-		case s[i] == delim:
-			parts = append(parts, b.String())
-			b.Reset()
-		default:
-			b.WriteByte(s[i])
-		}
-	}
-	return append(parts, b.String())
 }
 
 // substitute replaces pat with rep on the lines from first to last, once per

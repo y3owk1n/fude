@@ -61,7 +61,7 @@ func (m *Machine) act(op string, reg rune, label string, r region) error {
 	case "g~", "gu", "gU":
 		return m.changeCase(op, label, r)
 	case ">", "<":
-		return m.shift(op, label, r, col)
+		return m.shift(op, label, r, col, 1)
 	}
 
 	text := t.Slice(start, end)
@@ -279,7 +279,7 @@ func (m *Machine) actBlock(op string, reg rune, label string, r region) error {
 		return nil
 	case "c":
 		m.startInsert(Key(label), top)
-		m.blockInsert = &blockInsert{start: top, col: r.left, lines: len(texts) - 1}
+		m.blockInsert = &blockInsert{start: top, col: r.left, lines: len(texts) - 1, home: top}
 	}
 	if len(edits) > 0 {
 		if err := m.apply(edits, label); err != nil {
@@ -295,6 +295,9 @@ func (m *Machine) actBlock(op string, reg rune, label string, r region) error {
 // blockInsert is a block c waiting for insert mode to end.
 type blockInsert struct {
 	start, col, lines int
+	home              int  // the block's top-left, where the cursor ends
+	toEnd             bool // insert at each line's end, for $A
+	pad               bool // pad short lines with spaces to reach col, for A
 }
 
 // finishBlock copies text typed on the first line of a block c to the same
@@ -312,8 +315,16 @@ func (m *Machine) finishBlock(b *blockInsert) error {
 			break
 		}
 		ls = LineEnd(t, ls) + 1
-		if p := colStart(t, ls, b.col); column(t, ls, p) == b.col {
+		p := colStart(t, ls, b.col)
+		w := column(t, ls, p)
+		switch {
+		case b.toEnd:
+			p = LineEnd(t, ls)
 			edits = append(edits, Edit{Start: p, End: p, Text: typed})
+		case w == b.col:
+			edits = append(edits, Edit{Start: p, End: p, Text: typed})
+		case b.pad:
+			edits = append(edits, Edit{Start: p, End: p, Text: strings.Repeat(" ", b.col-w) + typed})
 		}
 	}
 	if len(edits) == 0 {

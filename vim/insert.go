@@ -23,6 +23,10 @@ func (m *Machine) insert(k Key) error {
 			if err := m.finishBlock(b); err != nil {
 				return err
 			}
+			m.h.EndGroup()
+			m.mode = Normal
+			m.h.SetCursor(clamp(m.h.Text(), b.home))
+			return nil
 		}
 		if err := m.dropIndent(); err != nil {
 			return err

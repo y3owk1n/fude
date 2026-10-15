@@ -51,10 +51,58 @@ func (m *Machine) selection() region {
 // leaveVisual returns to normal mode, keeping the selection's ends for '<
 // and '>.
 func (m *Machine) leaveVisual() {
-	r := m.selection()
-	m.h.SetMark('<', r.start)
-	m.h.SetMark('>', max(r.start, r.end-1))
+	c := m.h.Cursor()
+	m.h.SetMark('<', min(m.anchor, c))
+	m.h.SetMark('>', max(m.anchor, c))
+	m.lastVisual, m.anchorFirst = m.visual, m.anchor <= c
 	m.mode = Normal
+}
+
+// reselect is gv, which selects what the last visual mode selected.
+func (m *Machine) reselect() {
+	a, okA := m.h.Mark('<')
+	b, okB := m.h.Mark('>')
+	if !okA || !okB || m.lastVisual == "" {
+		return
+	}
+	if !m.anchorFirst {
+		a, b = b, a
+	}
+	m.mode, m.visual, m.anchor = Visual, m.lastVisual, a
+	m.h.SetCursor(b)
+}
+
+// blockInsertStart starts insert mode on the first line of a block, before
+// it for I or after it for A. Leaving insert mode copies the typed text to
+// the other lines, padding short ones for A.
+func (m *Machine) blockInsertStart(after bool) error {
+	t := m.h.Text()
+	r := m.selection()
+	toEnd := after && r.right == math.MaxInt
+	m.leaveVisual()
+	col := r.left
+	if after && !toEnd {
+		col = r.right + 1
+	}
+	pos := colStart(t, r.start, col)
+	if toEnd {
+		pos = LineEnd(t, r.start)
+	}
+	label := "<C-v>I"
+	if after {
+		label = "<C-v>A"
+	}
+	m.startInsert(Key(label), pos)
+	if w := column(t, r.start, pos); after && !toEnd && w < col {
+		if err := m.insertText(strings.Repeat(" ", col-w)); err != nil {
+			return err
+		}
+	}
+	m.blockInsert = &blockInsert{
+		start: m.h.Cursor(), col: col, lines: strings.Count(t.Slice(r.start, r.end), "\n"),
+		toEnd: toEnd, pad: after, home: colStart(t, r.start, r.left),
+	}
+	return nil
 }
 
 // visualKey handles a command in visual mode.
@@ -71,6 +119,11 @@ func (m *Machine) visualKey(cmd string, count int, reg rune) error {
 			m.h.SetCursor(clamp(t, c))
 		}
 		m.visual = Key(cmd)
+		return nil
+	case "I", "A":
+		if m.visual == "<C-v>" {
+			return m.blockInsertStart(cmd == "A")
+		}
 		return nil
 	case ":":
 		// The command line starts with the range of the selected lines.
