@@ -26,6 +26,7 @@ func (h *host) Text() vim.Text    { return text(h.text) }
 func (h *host) Cursor() int       { return h.cursor }
 func (h *host) SetCursor(pos int) { h.cursor = pos }
 func (h *host) BeginGroup()       { h.depth++ }
+func (h *host) Unhandled(string)  {}
 func (h *host) EndGroup() {
 	h.depth--
 	if h.depth == 0 && h.applied {

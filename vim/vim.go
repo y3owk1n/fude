@@ -4,6 +4,7 @@ package vim
 
 import (
 	"strings"
+	"unicode/utf8"
 
 	"github.com/clipperhouse/uax29/v2/graphemes"
 )
@@ -29,14 +30,16 @@ type Host interface {
 	Apply(edits []Edit, label string) error
 	BeginGroup()
 	EndGroup()
+	Unhandled(keys string) // an ex line such as ":w"
 }
 
-// Mode is normal or insert.
+// Mode is normal, insert or command line.
 type Mode int
 
 const (
 	Normal Mode = iota
 	Insert
+	Cmdline
 )
 
 // Machine turns keys into cursor moves and edits.
@@ -44,6 +47,7 @@ type Machine struct {
 	h     Host
 	mode  Mode
 	label string
+	line  string
 }
 
 // New returns a machine in normal mode.
@@ -52,10 +56,17 @@ func New(h Host) *Machine { return &Machine{h: h} }
 // Mode returns the current mode.
 func (m *Machine) Mode() Mode { return m.mode }
 
+// Line returns the command line being typed, without its ":".
+func (m *Machine) Line() string { return m.line }
+
 // Feed handles one key. It returns the host's error if an edit fails.
 func (m *Machine) Feed(k Key) error {
-	if m.mode == Insert {
+	switch m.mode {
+	case Insert:
 		return m.insert(k)
+	case Cmdline:
+		m.cmdline(k)
+		return nil
 	}
 	return m.normal(k)
 }
@@ -64,6 +75,9 @@ func (m *Machine) normal(k Key) error {
 	t, c := m.h.Text(), m.h.Cursor()
 	start, end := lineStart(t, c), lineEnd(t, c)
 	switch k {
+	case ":":
+		m.mode = Cmdline
+		m.line = ""
 	case "h":
 		m.h.SetCursor(prev(t, start, c))
 	case "l":
@@ -130,6 +144,21 @@ func (m *Machine) insert(k Key) error {
 		}
 	}
 	return nil
+}
+
+func (m *Machine) cmdline(k Key) {
+	switch {
+	case k == "<Esc>", k == "<BS>" && m.line == "":
+		m.mode = Normal
+	case k == "<CR>":
+		m.mode = Normal
+		m.h.Unhandled(":" + m.line)
+	case k == "<BS>":
+		_, n := utf8.DecodeLastRuneInString(m.line)
+		m.line = m.line[:len(m.line)-n]
+	case k.isChar():
+		m.line += string(k)
+	}
 }
 
 func (m *Machine) startInsert(k Key, pos int) {
