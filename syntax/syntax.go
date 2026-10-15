@@ -38,11 +38,12 @@ var languages = map[string]struct {
 }
 
 // Objects are the text objects a grammar gives, and the captures they
-// select. aa also takes a comma.
+// select. aa also takes a comma. an, in, ]n and [n select syntax nodes.
 var Objects = map[string]string{
 	"af": "function.outer", "if": "function.inner",
 	"ac": "class.outer", "ic": "class.inner",
 	"aa": "parameter.inner", "ia": "parameter.inner",
+	"an": "", "in": "", "]n": "", "[n": "",
 }
 
 // chunk is the most text a parse reads at once.
@@ -70,6 +71,13 @@ type Buffer struct {
 	cursor  *ts.QueryCursor
 	closed  bool
 	asked   request
+	// climb is where an last climbed to and the nodes it climbed from, so in
+	// can go back down. It lasts until the text changes.
+	climb struct {
+		seq  int
+		at   span
+		from []span
+	}
 
 	// Shared with the worker.
 	mu     sync.Mutex
@@ -318,10 +326,11 @@ func (h *Buffer) run(p *ts.Parser, q *ts.Query) {
 }
 
 // Object returns the range of t, the text now, that the text object name
-// selects around pos. It queries the last parse, moved through the edits
-// made since. It is false before the first parse, or when no such object
-// holds pos. name is a key of Objects.
-func (h *Buffer) Object(t api.Text, name string, pos int) (int, int, bool) {
+// selects from [start, end), the selection or the character under the
+// cursor. It queries the last parse, moved through the edits made since. It
+// is false before the first parse, or when there is no such object. name is
+// a key of Objects.
+func (h *Buffer) Object(t api.Text, name string, start, end int) (int, int, bool) {
 	if h.tree == nil {
 		return 0, 0, false
 	}
@@ -335,9 +344,12 @@ func (h *Buffer) Object(t api.Text, name string, pos int) (int, int, bool) {
 			}
 		}
 	}
+	if Objects[name] == "" {
+		return h.node(tree.RootNode(), name, span{start, end})
+	}
 	want, _ := h.objects.CaptureIndexForName(Objects[name])
-	h.cursor.SetByteRange(uint(pos), uint(pos+1))
-	start, end, found := 0, 0, false
+	h.cursor.SetByteRange(uint(start), uint(max(end, start+1)))
+	var best span
 	var node *ts.Node
 	matches := h.cursor.Matches(h.objects, tree.RootNode(), nil)
 	for m := matches.Next(); m != nil; m = matches.Next() {
@@ -353,18 +365,143 @@ func (h *Buffer) Object(t api.Text, name string, pos int) (int, int, bool) {
 			}
 			e = int(c.Node.EndByte())
 		}
-		if s >= 0 && s <= pos && pos < e && (!found || e-s < end-start) {
-			start, end, found, node = s, e, true, n
+		if s >= 0 && s <= start && end <= e && start < e && (node == nil || e-s < best.end-best.start) {
+			best, node = span{s, e}, n
 		}
 	}
-	// A grammar may end a node with the newline after it.
-	for end > start && strings.Contains(" \t\n", t.Slice(end-1, end)) {
-		end--
+	if node == nil {
+		return 0, 0, false
 	}
-	if found && name == "aa" {
-		start, end = withComma(node, start, end)
+	best = trim(t, best)
+	if name == "aa" {
+		best.start, best.end = withComma(node, best.start, best.end)
 	}
-	return start, end, found
+	return best.start, best.end, true
+}
+
+// span is a range of bytes.
+type span struct{ start, end int }
+
+// trim drops the blanks and newline a grammar may end a node with.
+func trim(t api.Text, s span) span {
+	for s.end > s.start && strings.Contains(" \t\n", t.Slice(s.end-1, s.end)) {
+		s.end--
+	}
+	return s
+}
+
+// node runs an, in, ]n or [n on sel as Neovim's tree selection does. an
+// selects the node that holds sel, or its parent when sel is that node. in
+// goes back to the child an came from, or to the first child. ]n and [n
+// select the next and previous node beside it.
+func (h *Buffer) node(root *ts.Node, name string, sel span) (int, int, bool) {
+	of := func(n *ts.Node) span { return span{int(n.StartByte()), int(n.EndByte())} }
+	n := root.NamedDescendantForByteRange(uint(sel.start), uint(sel.end))
+	if n == nil {
+		return 0, 0, false
+	}
+	// up climbs past parents with n's range, and down past such children.
+	up := func(n *ts.Node) *ts.Node {
+		for p := n.Parent(); p != nil && of(p) == of(n); p = n.Parent() {
+			n = p
+		}
+		return n
+	}
+	down := func(n *ts.Node) *ts.Node {
+		for {
+			var same *ts.Node
+			for i := uint(0); i < n.NamedChildCount() && same == nil; i++ {
+				if c := n.NamedChild(i); of(c) == of(n) {
+					same = c
+				}
+			}
+			if same == nil {
+				return n
+			}
+			n = same
+		}
+	}
+	var to span
+	switch name {
+	case "an":
+		if of(n) != sel {
+			to = of(n)
+			break
+		}
+		n = up(n)
+		p := n.Parent()
+		if p == nil {
+			return 0, 0, false
+		}
+		if h.climb.seq != h.seq || h.climb.at != of(n) {
+			h.climb.from = nil
+		}
+		h.climb.from = append(h.climb.from, of(n))
+		h.climb.seq, h.climb.at = h.seq, of(p)
+		to = of(p)
+	case "in":
+		n = down(n)
+		switch {
+		case of(n) != sel:
+			to = of(n)
+			if c := inside(n, sel, of); c != nil {
+				to = of(c)
+			}
+		case h.climb.seq == h.seq && h.climb.at == sel && len(h.climb.from) > 0:
+			last := len(h.climb.from) - 1
+			to, h.climb.from = h.climb.from[last], h.climb.from[:last]
+			h.climb.at = to
+		default:
+			h.climb.from = nil
+			to = of(n)
+			for i := uint(0); i < n.NamedChildCount(); i++ {
+				if c := of(n.NamedChild(i)); c.start < c.end {
+					to = c
+					break
+				}
+			}
+		}
+	case "]n", "[n":
+		n = up(n)
+		p := n.Parent()
+		if p == nil {
+			return 0, 0, false
+		}
+		i, count, step := 0, int(p.NamedChildCount()), 1
+		if name == "[n" {
+			step = -1
+		}
+		for i < count && p.NamedChild(uint(i)).Id() != n.Id() {
+			i++
+		}
+		for {
+			if i += step; i < 0 || i >= count {
+				return 0, 0, false
+			}
+			if to = of(p.NamedChild(uint(i))); to.start < to.end {
+				break
+			}
+		}
+	}
+	return to.start, to.end, true
+}
+
+// inside returns the first node under n that lies within sel, or nil.
+func inside(n *ts.Node, sel span, of func(*ts.Node) span) *ts.Node {
+	for i := uint(0); i < n.NamedChildCount(); i++ {
+		c := n.NamedChild(i)
+		r := of(c)
+		switch {
+		case r.start == r.end:
+		case sel.start <= r.start && r.end <= sel.end:
+			return c
+		case r.start < sel.end && sel.start < r.end:
+			if d := inside(c, sel, of); d != nil {
+				return d
+			}
+		}
+	}
+	return nil
 }
 
 // withComma widens a parameter to the comma and blanks after it, or when it

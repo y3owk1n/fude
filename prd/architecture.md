@@ -146,7 +146,7 @@ func (m *Machine) Map(mode Mode, from, to string)
 func (m *Machine) Idle() bool // normal mode, between commands
 func (m *Machine) Waiting() bool
 func (m *Machine) Timeout() error
-func (m *Machine) Object(name string, find func(t Text, pos int) (start, end int, ok bool))
+func (m *Machine) Object(name string, find func(t Text, start, end int) (int, int, bool))
 ```
 
 Later behaviours add a clipboard for `"+` and operators the host adds.
@@ -522,7 +522,8 @@ A text object reads a tree on the editor loop, so it never waits for a
 parse. The worker hands the loop a clone of each tree it parses, and an
 object queries that clone moved through the edits made since. It picks the
 smallest capture that holds the cursor, without the blanks a grammar puts
-at a node's end (B40).
+at a node's end (B40). `an`, `in`, `]n` and `[n` are objects too, run on
+the visual selection, and pick nodes as Neovim's tree selection does (B45).
 
 Queries use only the predicates the binding evaluates: the `eq?`,
 `match?` and `any-of?` families. A query that uses any other fails to load

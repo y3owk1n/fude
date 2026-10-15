@@ -134,7 +134,7 @@ type Machine struct {
 	maps map[Mode]*keymap
 	held []Key // typed keys that start a longer mapping
 
-	objects map[string]func(Text, int) (int, int, bool) // text objects the host added
+	objects map[string]func(Text, int, int) (int, int, bool) // text objects the host added
 }
 
 // change is the last change, for dot repeat.
@@ -341,7 +341,7 @@ func (m *Machine) normal(k Key) error {
 		m.counted = true
 		return nil
 	}
-	if len(cmd) == 1 && strings.Contains("gftFT\"q@rm`'zZ", cmd) {
+	if len(cmd) == 1 && strings.Contains("gftFT\"q@rm`'zZ[]", cmd) {
 		m.pending = k
 		m.counted = cmd == "\""
 		return nil

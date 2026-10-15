@@ -798,3 +798,31 @@ func TestB41QueryOverrides(t *testing.T) {
 		t.Errorf("an unknown predicate said %q, want %q", e.Message(), want)
 	}
 }
+
+// B45
+func TestB45SyntaxNodes(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.go")
+	change(t, path, "package p\n\nfunc F(a int, b string) error {\n\tx := g(a, b)\n\treturn nil\n}\n")
+	// Each case starts in visual mode on the a in g(a, b).
+	for _, c := range [][2]string{
+		{"any", "(a, b)"},
+		{"ananany", "x := g(a, b)"},
+		{"2any", "g(a, b)"},
+		{"ananiny", "(a, b)"},
+		{"ananininy", "a"},
+		{"iny", "a"},
+		{"]ny", "b"},
+		{"[ny", "a"},
+		{"an[ny", "g"},
+		{"ananan]ny", "return nil"},
+		{"anananany", "x := g(a, b)^J\treturn nil^J"},
+	} {
+		e := start(t, path)
+		e.SetSize(80, 20)
+		captures(t, e)
+		feed(e, "4Gf(lv"+c[0]+`:reg "<CR>`)
+		if want := `""   ` + c[1]; e.Message() != want {
+			t.Errorf("v%s yanked %q, want %q", c[0], e.Message(), want)
+		}
+	}
+}

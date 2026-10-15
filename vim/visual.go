@@ -166,7 +166,14 @@ func (m *Machine) visualKey(cmd string, count int, reg rune) error {
 			m.visual = "V"
 			m.h.SetCursor(LineStart(t, r.end))
 		} else {
-			m.h.SetCursor(prev(t, LineStart(t, r.end), r.end))
+			// An object that ends with a line break leaves the cursor on it,
+			// so the selection includes it.
+			m.visual = "v"
+			if r.end > r.start && t.Slice(r.end-1, r.end) == "\n" {
+				m.h.SetCursor(r.end - 1)
+			} else {
+				m.h.SetCursor(prev(t, LineStart(t, r.end), r.end))
+			}
 		}
 		return nil
 	}

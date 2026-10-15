@@ -664,7 +664,7 @@ func TestB84MappingPrefixWaits(t *testing.T) {
 // B113, for a target
 func TestB113HostObject(t *testing.T) {
 	// id selects the run of digits around the cursor.
-	digits := func(t vim.Text, pos int) (int, int, bool) {
+	digits := func(t vim.Text, pos, _ int) (int, int, bool) {
 		s := t.Slice(0, t.Len())
 		start, end := pos, pos
 		for start > 0 && s[start-1] >= '0' && s[start-1] <= '9' {

@@ -59,9 +59,9 @@ func open(cfg config, paths []string) (*Editor, error) {
 	}
 	e.vim = vim.New(host{e})
 	for name := range syntax.Objects {
-		e.vim.Object(name, func(t vim.Text, pos int) (int, int, bool) {
+		e.vim.Object(name, func(t vim.Text, start, end int) (int, int, bool) {
 			if s := e.win.buf.syntax; s != nil {
-				return s.Object(t, name, pos)
+				return s.Object(t, name, start, end)
 			}
 			return 0, 0, false
 		})
