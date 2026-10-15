@@ -996,10 +996,21 @@ func (e *Session) leave() {
 }
 
 func (e *Session) ex(line string) {
-	name, arg, _ := strings.Cut(strings.TrimSpace(line), " ")
+	first, last, rest, ranged, err := e.vim.LineRange(strings.TrimSpace(line))
+	if err != nil {
+		e.message = err.Error()
+		return
+	}
+	if cmd, ok := strings.CutPrefix(rest, "!"); ok {
+		e.shell(cmd, first, last, ranged)
+		return
+	}
+	name, arg, _ := strings.Cut(rest, " ")
 	arg = strings.TrimSpace(arg)
 	name, force := strings.CutSuffix(name, "!")
 	switch name {
+	case "r", "read":
+		e.readIn(arg, last)
 	case "w", "write":
 		if arg != "" {
 			e.writeTo(e.win.buf, arg, force)

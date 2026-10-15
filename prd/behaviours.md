@@ -268,6 +268,14 @@ Where fude departs, the line says so and cites the departure in
   changes. `:enew` shows a new buffer with no file, and `:new` and `:vnew`
   show one in a new split. `:cd dir` changes the working directory, home
   without `dir`, and `:pwd` shows it.
+- B156 [2] `:sort` sorts its range, every line without one: `!` in
+  reverse, `n` by each line's first number, `i` ignoring case and `u`
+  keeping one of lines that sort the same. `:join` joins its range, or the
+  line and the next, and `!` adds no spaces. `:retab` rewrites leading
+  blanks as `expand_tab` says, as tabs only with `!`. `:!cmd` shows what a
+  shell command writes, `:{range}!cmd` puts its lines through the command,
+  and `:r file` and `:r !cmd` put a file or a command's output below the
+  line.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays

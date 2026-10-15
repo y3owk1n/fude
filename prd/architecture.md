@@ -591,6 +591,12 @@ and its language server URI stays right. `:e!` and the reload on focus
 share `revert`, which puts the file's text in as one `reload` node, so `u`
 brings the changes back (B155).
 
+`:sort`, `:join` and `:retab` change only text, so the machine runs them
+with its ranges. `:!` and `:r` run programs or read files, so the editor
+runs them, and `Machine.LineRange` gives it the range its own commands
+start with. A command runs in `$SHELL -c` off the loop, and its output goes
+in through `reformat`, so text that changed meanwhile drops it (B156).
+
 The client keeps a cell grid, diffs it against the previous frame, and
 writes only the changed cells in one write. It wraps each frame in
 synchronized output where the terminal supports it.

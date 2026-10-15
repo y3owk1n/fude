@@ -1,7 +1,10 @@
 package vim
 
 import (
+	"cmp"
 	"errors"
+	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -81,6 +84,20 @@ func (m *Machine) ex(line string) error {
 		return m.global(first, last, parts[0], strings.Join(parts[1:], string(arg[0])), name == "g" || name == "global")
 	case "norm", "normal":
 		return m.normalLines(first, last, arg)
+	case "sor", "sort":
+		if !ranged {
+			first, last = 0, LineStart(t, t.Len())
+		}
+		return m.sortLines(first, last, arg)
+	case "j", "join":
+		// Without a range the line joins the one below it.
+		m.h.SetCursor(first)
+		return m.join(max(t.LineOf(last)-t.LineOf(first), 1), !strings.HasPrefix(arg, "!"))
+	case "ret", "retab":
+		if !ranged {
+			first, last = 0, LineStart(t, t.Len())
+		}
+		return m.retab(first, last, strings.HasPrefix(arg, "!"))
 	}
 	m.h.Unhandled(":" + line)
 	return nil
@@ -89,7 +106,97 @@ func (m *Machine) ex(line string) error {
 // ExNames returns the machine's ex commands, one full name each, as a
 // command line's completion offers them.
 func ExNames() []string {
-	return []string{"copy", "delete", "global", "move", "nohlsearch", "normal", "select", "vglobal", "yank"}
+	return []string{"copy", "delete", "global", "join", "move", "nohlsearch", "normal", "retab", "select", "sort", "vglobal", "yank"}
+}
+
+// LineRange reads the range line starts with, for the host's own commands:
+// the starts of its first and last lines, the rest of line, and whether it
+// had a range. Without one it is the cursor's line.
+func (m *Machine) LineRange(line string) (first, last int, rest string, ranged bool, err error) {
+	return m.lineRange(m.h.Text(), m.h.Cursor(), line)
+}
+
+// sortLines sorts the lines from first to last, as :sort does (B156). The
+// flags in arg are ! to reverse, n to sort by each line's first number, i
+// to ignore case and u to keep one of each line that sorts the same.
+func (m *Machine) sortLines(first, last int, arg string) error {
+	t := m.h.Text()
+	end := LineEnd(t, last)
+	lines := strings.Split(t.Slice(first, end), "\n")
+	key := func(l string) string {
+		if strings.Contains(arg, "i") {
+			return strings.ToLower(l)
+		}
+		return l
+	}
+	number := func(l string) (int, bool) {
+		n, err := strconv.Atoi(firstNumber.FindString(l))
+		return n, err == nil
+	}
+	compare := func(a, b string) int {
+		if strings.Contains(arg, "n") {
+			// A line without a number goes before the ones with one.
+			x, okx := number(a)
+			y, oky := number(b)
+			if c := cmp.Compare(btoi(okx), btoi(oky)); c != 0 || !okx {
+				return c
+			}
+			return cmp.Compare(x, y)
+		}
+		return strings.Compare(key(a), key(b))
+	}
+	slices.SortStableFunc(lines, compare)
+	if strings.HasPrefix(arg, "!") {
+		slices.Reverse(lines)
+	}
+	if strings.Contains(arg, "u") {
+		lines = slices.CompactFunc(lines, func(a, b string) bool { return compare(a, b) == 0 })
+	}
+	if err := m.apply([]Edit{{Start: first, End: end, Text: strings.Join(lines, "\n")}}, ":sort"); err != nil {
+		return err
+	}
+	m.h.SetCursor(first)
+	return nil
+}
+
+// firstNumber finds the number :sort n sorts a line by.
+var firstNumber = regexp.MustCompile(`-?[0-9]+`)
+
+func btoi(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
+
+// retab rewrites the leading blanks of the lines from first to last, as
+// :retab does (B156): as spaces with expand_tab, or with force as tabs and
+// then spaces without it.
+func (m *Machine) retab(first, last int, force bool) error {
+	if !m.expandTab && !force {
+		return nil
+	}
+	t := m.h.Text()
+	var edits []Edit
+	for ls := first; ; ls = LineEnd(t, ls) + 1 {
+		end := firstNonBlank(t, ls, LineEnd(t, ls))
+		if w := column(t, ls, end); w > 0 {
+			blanks := strings.Repeat(" ", w)
+			if !m.expandTab {
+				blanks = strings.Repeat("\t", w/Tabstop) + strings.Repeat(" ", w%Tabstop)
+			}
+			if blanks != t.Slice(ls, end) {
+				edits = append(edits, Edit{Start: ls, End: end, Text: blanks})
+			}
+		}
+		if ls >= last || LineEnd(t, ls) == t.Len() {
+			break
+		}
+	}
+	if len(edits) == 0 {
+		return nil
+	}
+	return m.apply(edits, ":retab")
 }
 
 // exName splits a command line after its range into the command's name and

@@ -707,3 +707,32 @@ func TestB141CtrlHDeletes(t *testing.T) {
 		t.Errorf(":ab<C-h> left the line %q", m.Line())
 	}
 }
+
+// B156
+func TestB156TextCommands(t *testing.T) {
+	for _, c := range []struct{ start, keys, want string }{
+		{"|b\na\nc\na", ":sort<CR>", "|a\na\nb\nc"},
+		{"|b\na\nc\na", ":sort! u<CR>", "|c\nb\na"},
+		{"|x10\nx9\ny\nx-1", ":sort n<CR>", "|y\nx-1\nx9\nx10"},
+		{"|B\na", ":sort i<CR>", "|a\nB"},
+		{"z\n|c\nb\na", ":2,3sort<CR>", "z\n|b\nc\na"},
+		{"|a\n  b\nc", ":join<CR>", "a| b\nc"},
+		{"|a\nb\nc", ":1,3j!<CR>", "ab|c"},
+	} {
+		if got, _, _ := run(t, c.start, c.keys); got != c.want {
+			t.Errorf("%s on %q made %q, want %q", c.keys, c.start, got, c.want)
+		}
+	}
+	// :retab rewrites leading blanks as expand_tab says.
+	h := &host{text: "\tx\n  \ty"}
+	m := vim.New(h)
+	m.ExpandTab(true)
+	for _, k := range vim.Keys(":retab<CR>") {
+		if err := m.Feed(k); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if h.text != "        x\n        y" {
+		t.Errorf(":retab made %q", h.text)
+	}
+}

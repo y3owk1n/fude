@@ -1655,3 +1655,26 @@ func TestB155WritingAndFiles(t *testing.T) {
 		t.Fatalf("after :cd, :w! wrote %q to a", disk(t, path))
 	}
 }
+
+// B156, for the commands that run a shell
+func TestB156Shell(t *testing.T) {
+	dir := t.TempDir()
+	change(t, filepath.Join(dir, "in.txt"), "read\n")
+	t.Chdir(dir)
+	t.Setenv("SHELL", "/bin/sh")
+	e := open(t, "")
+	feed(e, "ic<CR>a<CR>b<Esc>")
+	// A range goes through the command, and its output takes its place.
+	feed(e, ":%!sort<CR>")
+	settle(t, e, func() bool { return text(e) == "a\nb\nc" })
+	// :r puts a file's text, or a command's output, below the line.
+	feed(e, "gg:r in.txt<CR>")
+	if text(e) != "a\nread\nb\nc" {
+		t.Fatalf(":r in.txt made %q", text(e))
+	}
+	feed(e, "G:r !echo out<CR>")
+	settle(t, e, func() bool { return text(e) == "a\nread\nb\nc\nout" })
+	// Without a range, the output is a message.
+	feed(e, ":!echo hi<CR>")
+	settle(t, e, func() bool { return e.Message() == "hi" })
+}
