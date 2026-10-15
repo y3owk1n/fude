@@ -46,6 +46,14 @@ func (e *Editor) Feed(k vim.Key) {
 	}
 }
 
+// Paste inserts text as typed, with no key mapping applied (B8).
+func (e *Editor) Paste(text string) {
+	e.message = ""
+	if err := e.vim.Paste(text); err != nil {
+		e.message = err.Error()
+	}
+}
+
 // Text returns the buffer's current text.
 func (e *Editor) Text() kernel.Snapshot { return e.buf.Snapshot() }
 
