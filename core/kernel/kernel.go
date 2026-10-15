@@ -286,6 +286,11 @@ func (b *Buffer) SetMark(pos int, g Gravity) MarkID {
 	return MarkID(len(b.marks) - 1)
 }
 
+// MoveMark puts a mark at pos, clamped to the text.
+func (b *Buffer) MoveMark(id MarkID, pos int) {
+	b.marks[id].pos = min(max(pos, 0), b.text.Len())
+}
+
 // Mark returns a mark's current position.
 func (b *Buffer) Mark(id MarkID) int { return b.marks[id].pos }
 
