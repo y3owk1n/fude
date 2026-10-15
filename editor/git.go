@@ -22,6 +22,47 @@ var (
 	gitChangeDelete = Sign{"~", "git.change"} // a change that also deleted lines
 )
 
+// The signs of a listing entry's git status, by status code (B126).
+var statusSigns = map[string]Sign{
+	" M": {"✹", "git.change"}, "M ": {"•", "git.change"}, "MM": {"≠", "git.change"}, "R ": {"→", "git.change"},
+	"A ": {"+", "git.add"}, "??": {"?", "git.delete"}, "D ": {"-", "git.delete"},
+}
+
+// gitStatus returns the git status sign of each name in dir, or false
+// outside a repository. A directory takes the status of the first change
+// below it, and a name whose status has no sign maps to the zero Sign.
+func gitStatus(dir string) (map[string]Sign, bool) {
+	// git names paths from the repository's root, so each starts with dir's
+	// prefix.
+	prefix, err := exec.Command("git", "-C", dir, "rev-parse", "--show-prefix").Output()
+	if err != nil {
+		return nil, false
+	}
+	out, err := exec.Command("git", "-C", dir, "--no-optional-locks", "status", "--porcelain", "-z", "--", ".").Output()
+	if err != nil {
+		return nil, false
+	}
+	signs, pre := map[string]Sign{}, strings.TrimSuffix(string(prefix), "\n")
+	fields := strings.Split(string(out), "\x00")
+	for i := 0; i < len(fields); i++ {
+		if len(fields[i]) < 4 {
+			continue
+		}
+		code, path := fields[i][:2], fields[i][3:]
+		if code[0] == 'R' || code[0] == 'C' {
+			i++ // the old name
+		}
+		name := strings.TrimPrefix(path, pre)
+		if top, _, below := strings.Cut(name, "/"); below {
+			name = top + "/"
+		}
+		if _, seen := signs[name]; !seen {
+			signs[name] = statusSigns[code]
+		}
+	}
+	return signs, true
+}
+
 // gitBase reads path as git's index has it, the text gitsigns compares
 // with, or false when the file is not in a repository's index.
 func gitBase(path string) (string, bool) {
@@ -38,8 +79,17 @@ func gitBase(path string) (string, bool) {
 }
 
 // loadGit reads b's base from git off the editor loop, then diffs it
-// (B123).
+// (B123), or a listing's git status (B126).
 func (ed *Editor) loadGit(b *buffer) {
+	if b.listed != "" && hasGit() {
+		dir, had := b.listed, b.status != nil
+		go func() {
+			if signs, ok := gitStatus(dir); ok || had {
+				ed.queue <- func() { b.status = signs }
+			}
+		}()
+		return
+	}
 	if b.file.path == "" || b.title != "" || !hasGit() {
 		return
 	}

@@ -116,6 +116,10 @@ Where fude departs, the line says so and cites the departure in
   asks with each change and the number of files a deleted directory
   holds, and changes nothing on `n`. Open buffers of renamed files follow
   them.
+- B126 [2] A listing in a git repository shows each entry's git status in
+  the sign column: `✹` for modified, `•` staged, `≠` both, `+` added, `?`
+  untracked, `-` deleted and `→` renamed. A directory shows the status of
+  the first change below it. Without git installed, there are no signs.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays

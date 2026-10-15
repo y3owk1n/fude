@@ -536,6 +536,16 @@ entries can swap names. Then it deletes, with what a directory holds, and
 creates. Open buffers of renamed files follow them, and fude reads the
 listing again (B125).
 
+A listing in a git repository shows each entry's git status as a sign.
+Off the loop, fude runs `git rev-parse --show-prefix` in the directory,
+because git names paths from the repository's root. Then it runs `git
+--no-optional-locks status --porcelain -z -- .`. That flag stops git from
+taking the index lock, so a git command run in a terminal at the same
+time does not fail. A change below a directory marks the directory. fude
+keeps the signs by name and matches them to the visible lines each frame,
+so a sign moves with its line. fude reads the status when it opens a
+listing, when it reads the listing again, and when it gains focus (B126).
+
 ## Paths
 
 ```

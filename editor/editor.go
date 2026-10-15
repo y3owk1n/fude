@@ -246,6 +246,7 @@ func (e *Session) add(path string) (string, error) {
 		}
 		e.next++
 		e.bufs = append(e.bufs, b)
+		e.loadGit(b)
 		return "", nil
 	}
 	b, msg, err := openBuffer(e.next, path)
@@ -488,7 +489,7 @@ func (e *Session) Views() []View {
 		}
 		v.Matches = e.vim.Matches(t, top, last)
 		e.diffGit(w.buf)
-		v.Signs = e.signs(w.buf)
+		v.Signs = e.signs(w.buf, top, last)
 		v.Pair = e.pair(w, t, top, last)
 		v.Ruler = ruler(t, w.pos(), top, max(w.h-1, 1), func(p int) int { return w.rows(t, p) })
 		for _, p := range e.plugins {
@@ -542,9 +543,10 @@ type Sign struct {
 var diagnosticSigns = []Sign{{"E", "diagnostic.error"}, {"W", "diagnostic.warn"}, {"I", "diagnostic.info"}, {"H", "diagnostic.hint"}}
 
 // signs returns each line of b's sign: the letter of its worst diagnostic,
-// or else its git sign, as Neovim puts diagnostics over gitsigns' signs.
-func (e *Session) signs(b *buffer) map[int]Sign {
-	if !b.signed && len(b.git) == 0 {
+// or else its git sign, as Neovim puts diagnostics over gitsigns' signs. A
+// listing's lines from top to last show the git status of their names.
+func (e *Session) signs(b *buffer, top, last int) map[int]Sign {
+	if !b.signed && len(b.git) == 0 && len(b.status) == 0 {
 		return nil
 	}
 	t := b.text.Snapshot()
@@ -557,6 +559,12 @@ func (e *Session) signs(b *buffer) map[int]Sign {
 		i := slices.IndexFunc(diagnosticSigns, func(s Sign) bool { return s.Name == d.style })
 		if old, ok := out[line]; i >= 0 && (!ok || !slices.Contains(diagnosticSigns, old) || i < slices.Index(diagnosticSigns, old)) {
 			out[line] = diagnosticSigns[i]
+		}
+	}
+	for line := t.LineOf(top); len(b.status) > 0 && line <= t.LineOf(last); line++ {
+		start := t.LineStart(line)
+		if s := b.status[t.Slice(start, vim.LineEnd(t, start))]; s.Text != "" {
+			out[line] = s
 		}
 	}
 	return out

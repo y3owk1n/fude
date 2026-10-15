@@ -63,6 +63,7 @@ func (e *Session) openListing(dir, at string) {
 		}
 		e.next++
 		e.bufs = append(e.bufs, b)
+		e.loadGit(b)
 	}
 	e.show(b)
 	t := b.text.Snapshot()
@@ -158,6 +159,7 @@ func (e *Session) reload(b *buffer) {
 	}
 	b.head, b.saved = b.text.Head(), b.text.Head()
 	b.mark()
+	e.loadGit(b)
 }
 
 // entry is one name a listing showed when it was read. Text inserted at
