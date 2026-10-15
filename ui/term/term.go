@@ -117,6 +117,9 @@ func (c *client) draw() {
 	case vim.Insert:
 		shape = tcell.CursorStyleSteadyBar
 		c.s.PutStr(0, h-1, "-- INSERT --")
+	case vim.Replace:
+		shape = tcell.CursorStyleSteadyUnderline
+		c.s.PutStr(0, h-1, "-- REPLACE --")
 	case vim.Visual:
 		c.s.PutStr(0, h-1, visualLabels[sel.Kind])
 	case vim.Cmdline:

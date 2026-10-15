@@ -45,6 +45,9 @@ func (m *Machine) act(op string, reg rune, label string, r region) error {
 		return m.actBlock(op, reg, label, r)
 	}
 	if r.start == r.end && !r.lines {
+		if op == "c" {
+			m.startInsert(Key(label), r.start)
+		}
 		return nil
 	}
 	t, c := m.h.Text(), m.h.Cursor()
@@ -54,6 +57,12 @@ func (m *Machine) act(op string, reg rune, label string, r region) error {
 		col = m.want
 	}
 	m.wantSet = false
+	switch op {
+	case "g~", "gu", "gU":
+		return m.changeCase(op, label, r)
+	case ">", "<":
+		return m.shift(op, label, r, col)
+	}
 
 	text := t.Slice(start, end)
 	if lines {
@@ -109,7 +118,7 @@ func (m *Machine) act(op string, reg rune, label string, r region) error {
 // span returns the text an operator covers, or false when cmd covers none.
 func (m *Machine) span(t Text, c int, op, cmd string, count int) (region, bool) {
 	n := max(count, 1)
-	if cmd == op {
+	if cmd == op || len(op) == 2 && cmd == op[1:] {
 		s := LineStart(t, c)
 		return region{start: s, end: LineEnd(t, down(t, s, n-1)), lines: true}, true
 	}

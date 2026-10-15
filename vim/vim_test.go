@@ -341,6 +341,58 @@ func TestB19EscCancelsOperator(t *testing.T) {
 	cases(t, [][3]string{{"foo |bar", "d<Esc>w", "foo ba|r"}})
 }
 
+// B25
+func TestB25EditingCommands(t *testing.T) {
+	cases(t, [][3]string{
+		{"a|bcd", "2x", "a|d"},
+		{"abc|d", "3x", "ab|c"},
+		{"ab|cd", "2X", "|cd"},
+		{"a|bcd", "2sX<Esc>", "a|Xd"},
+		{"  a|b\nc", "SX<Esc>", "  |X\nc"},
+		{"a|bc\nd", "2D", "|a"},
+		{"a|bc", "CX<Esc>", "a|X"},
+		{"a|bc", "Yp", "abb|cc"},
+		{"a|bcd", "2rx", "ax|xd"},
+		{"a|bc", "5rx", "a|bc"},
+		{"a|bcd", "r<CR>", "a\n|cd"},
+		{"a|bcd", "RXY<Esc>", "aX|Yd"},
+		{"a|b", "RXYZ<Esc>", "aXY|Z"},
+		{"a|bcd", "RXY<BS><BS><Esc>", "|abcd"},
+		{"a|b\n  c\nd", "J", "ab| c\nd"},
+		{"a|b\n  c\nd", "3J", "ab c| d"},
+		{"a. |\nb", "J", "a. |b"},
+		{"a|b \nc", "J", "ab |c"},
+		{"a|(\n)", "J", "a(|)"},
+		{"a|\n\nb", "J", "|a\nb"},
+		{"a|b\n  c", "gJ", "ab|  c"},
+		{"a|bC", "2~", "aB|c"},
+		{"a|bC d", "g~w", "a|Bc d"},
+		{"ab|C d", "gUiw", "|ABC d"},
+		{"A|B\nC", "guu", "|ab\nC"},
+		{"a|b\nc", ">>", "|\tab\nc"},
+		{"a|b\nc\nd", "2>>", "|\tab\n\tc\nd"},
+		{"\t\t a|b", "<<", "\t a|b"},
+		{"   a|b", "<<", "a|b"},
+		{"a\n|b\n\nc", ">ip", "|\ta\n\tb\n\nc"},
+	})
+}
+
+// B26
+func TestB26Increment(t *testing.T) {
+	cases(t, [][3]string{
+		{"x 4|1 y", "<C-a>", "x 4|2 y"},
+		{"x|9", "5<C-a>", "x1|4"},
+		{"x -|3", "5<C-a>", "x |2"},
+		{"x|-3", "<C-a>", "x-|2"},
+		{"a-|3", "<C-a>", "a-|2"},
+		{"0x0|f", "<C-a>", "0x1|0"},
+		{"0b1|01", "<C-a>", "0b11|0"},
+		{"00|7", "<C-a>", "00|8"},
+		{"x|1", "3<C-x>", "x-|2"},
+		{"ab|c", "<C-a>", "ab|c"},
+	})
+}
+
 // B9
 func TestB9GraphemeClusters(t *testing.T) {
 	cases(t, [][3]string{

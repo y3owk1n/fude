@@ -39,7 +39,7 @@ type Host interface {
 	Redo() (start, cursor int, ok bool)
 }
 
-// Mode is normal, insert, command line or visual.
+// Mode is normal, insert, command line, visual or replace.
 type Mode int
 
 const (
@@ -47,6 +47,7 @@ const (
 	Insert
 	Cmdline
 	Visual
+	Replace
 )
 
 // Machine turns keys into cursor moves and edits.
@@ -85,6 +86,7 @@ type Machine struct {
 	visual      Key // v, V or <C-v>
 	anchor      int // the end of the selection the cursor is not on
 	blockInsert *blockInsert
+	replaced    []string // what each key typed in replace mode overwrote
 }
 
 // change is the last change, for dot repeat.
@@ -134,7 +136,7 @@ func (m *Machine) feed(k Key) error {
 	m.counted = false
 	var err error
 	switch m.mode {
-	case Insert:
+	case Insert, Replace:
 		err = m.insert(k)
 	case Cmdline:
 		m.cmdline(k)
@@ -237,7 +239,7 @@ func (m *Machine) stopRecording() {
 // it goes after the cursor and the mode stays normal, as in Neovim.
 func (m *Machine) Paste(s string) error {
 	switch m.mode {
-	case Insert:
+	case Insert, Replace:
 		return m.insertText(s)
 	case Cmdline:
 		m.line += s
@@ -262,7 +264,7 @@ func (m *Machine) normal(k Key) error {
 		m.counted = true
 		return nil
 	}
-	if len(cmd) == 1 && strings.Contains("gftFT\"q@", cmd) {
+	if len(cmd) == 1 && strings.Contains("gftFT\"q@r", cmd) {
 		m.pending = k
 		m.counted = cmd == "\""
 		return nil
@@ -297,7 +299,7 @@ func (m *Machine) normal(k Key) error {
 		m.dotCount, m.dotReg = count, reg
 		return m.visualKey(cmd, count, reg)
 	}
-	if m.op == "" && (cmd == "d" || cmd == "c" || cmd == "y") {
+	if m.op == "" && operators[cmd] {
 		m.op, m.opCount, m.count = cmd, m.count, 0
 		return nil
 	}
@@ -310,6 +312,12 @@ func (m *Machine) normal(k Key) error {
 	m.dotCount, m.dotReg = count, reg
 	if op != "" {
 		return m.operate(op, reg, cmd, count)
+	}
+	if a, ok := aliases[cmd]; ok {
+		return m.operate(a[:1], reg, a[1:], count)
+	}
+	if ok, err := m.edit(cmd, count); ok {
+		return err
 	}
 	if p, k, ok := m.motion(cmd, count); ok {
 		if k == failed {
@@ -378,6 +386,9 @@ func (m *Machine) insert(k Key) error {
 	case "<CR>":
 		return m.insertText("\n")
 	case "<BS>":
+		if m.mode == Replace {
+			return m.unreplace()
+		}
 		if c == 0 {
 			return nil
 		}
@@ -461,6 +472,9 @@ func (m *Machine) startInsert(k Key, pos int) {
 }
 
 func (m *Machine) insertText(s string) error {
+	if m.mode == Replace {
+		return m.overwrite(s)
+	}
 	c := m.h.Cursor()
 	if err := m.apply([]Edit{{Start: c, End: c, Text: s}}, m.label); err != nil {
 		return err
