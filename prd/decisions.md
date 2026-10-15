@@ -226,11 +226,12 @@ built with `tree-sitter build` and loaded at runtime with dlopen. Wasm
 grammars are out, because tree-sitter's wasm store needs wasmtime and
 cannot run on wazero.
 
-## D30. Grapheme clusters come from clipperhouse/uax29
+## D30. Grapheme clusters and widths come from clipperhouse
 
-`vim/` segments text with `github.com/clipperhouse/uax29/v2/graphemes`.
-Why: the standard library has no grapheme segmentation, and tcell v3 (D26)
-already depends on this library. The cursor and the renderer then agree on
+`vim/` segments text with `github.com/clipperhouse/uax29/v2/graphemes` and
+measures display width with `github.com/clipperhouse/displaywidth`. Why:
+the standard library has neither, and tcell v3 (D26) already depends on
+both. The cursor and the renderer then agree on
 cluster boundaries, and the binary contains one segmentation table.
 
 ## Departures from Neovim
