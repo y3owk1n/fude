@@ -237,14 +237,14 @@ A command names an edit for a client to send over the socket.
 type Command struct {
     Count    int    // 0 means no count
     Register string // "" means the unnamed register
-    Op       string // "delete", "change", "yank", ..., "" moves the cursor
+    Op       string // "delete", "change", "comment", ..., "" moves the cursor
     Target   Target
     Text     string // typed after a change
 }
 
 type Target struct {
-    Name string // "word", "inner_word", "inner_quote", "line_end", "find", "lines"
-    Arg  string // the character for find
+    Name string // "word", "find", "inner_quote", "a_function", "lines", ...
+    Arg  string // the character for find and till
 }
 ```
 
@@ -252,7 +252,9 @@ The server turns a command into the keys it names and feeds them to the
 client's session, so a command does what typing them does (B70). `change`
 on `inner_quote` with `Text: "hello"` is `ci"`, then the text pasted as
 typed (B8), then `<Esc>`. An operator on `lines` is the operator doubled.
-A name with no keys is refused.
+`editor/rpc.go` lists every name with its keys: the built-in operators,
+the motions and text objects, and the syntax objects such as
+`a_function`. A name with no keys is refused.
 
 ### Rules
 
@@ -746,7 +748,9 @@ A request with `Proposal` runs its keys on a copy of the buffer's text and
 keeps the one edit they make as a decoration the proposing session owns:
 marks around the text it replaces, and its new text. A view draws the new
 text as ghost text after the range, which it shows struck out, and the
-buffer's text does not change (B71). The marks move with edits, and an
+buffer's text does not change (B71). The copy shares the buffer's syntax,
+so `a_function` and the other syntax objects work in a proposal. `format`
+cannot be proposed, as its edit waits for the language server. The marks move with edits, and an
 edit inside the range marks the proposal stale (B74). `:accept [n]` applies
 it as one transaction of the proposer's origin, which makes one node
 (B72), and refuses a stale one. `:reject [n]` drops it, and nothing enters the

@@ -47,12 +47,21 @@ type Request struct {
 // ops are the keys of each operator a command may name.
 var ops = map[string]string{
 	"": "", "delete": "d", "change": "c", "yank": "y", "indent": ">", "outdent": "<",
-	"lowercase": "gu", "uppercase": "gU", "comment": "gc", "format": "gq",
+	"lowercase": "gu", "uppercase": "gU", "swap_case": "g~", "comment": "gc", "format": "gq",
 }
 
 // targets are the keys of each target a command may name.
 var targets = map[string]string{
-	"word": "w", "inner_word": "iw", "inner_quote": "i\"", "line_end": "$", "find": "f",
+	"word": "w", "big_word": "W", "word_end": "e", "word_back": "b",
+	"line_start": "0", "first_char": "^", "line_end": "$", "down": "j", "up": "k",
+	"file_start": "gg", "file_end": "G",
+	"find": "f", "find_back": "F", "till": "t", "till_back": "T",
+	"inner_word": "iw", "a_word": "aw", "inner_paragraph": "ip", "a_paragraph": "ap",
+	"inner_quote": "i\"", "a_quote": "a\"", "inner_single_quote": "i'", "a_single_quote": "a'",
+	"inner_paren": "i(", "a_paren": "a(", "inner_brace": "i{", "a_brace": "a{",
+	"inner_bracket": "i[", "a_bracket": "a[",
+	"inner_function": "if", "a_function": "af", "inner_class": "ic", "a_class": "ac",
+	"inner_argument": "ia", "an_argument": "aa",
 }
 
 // keys returns the keys c names.
@@ -105,6 +114,9 @@ func (e *Session) Request(r Request) error {
 		}
 	}
 	if r.Proposal {
+		if r.Command.Op == "format" {
+			return errors.New("formatting waits for the language server, so it cannot be proposed")
+		}
 		return e.propose(b, at, keys, r.Command.Text)
 	}
 	if r.At != nil {
