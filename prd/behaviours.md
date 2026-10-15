@@ -252,6 +252,10 @@ Where fude departs, the line says so and cites the departure in
   that its query matches, where `matchfuzzypos()` puts them, and a grep
   result marks where the query is in its line. A command line's menu marks
   the letters the typed word matches.
+- B153 [2] With `indent_guides` on, as it is unless set off, a faint line
+  marks each indent level in a line's leading blanks, at every
+  `indent_width` columns, and a blank line shows the guides of the next
+  line with text (N19). `list` hides them.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays

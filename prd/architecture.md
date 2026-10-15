@@ -749,6 +749,7 @@ expand_tab = false   # indent with spaces only (B122)
 format_on_save = false # format before :w writes (B136)
 clipboard = false    # yanks, deletes and puts use the system clipboard (B137)
 sign_column = false  # keep the sign column when there are no signs (B143)
+indent_guides = true # a faint line at each indent level (B153)
 icons = false        # nerd font icons in listings and diagnostic signs (B128)
 
 leader = "<Space>"   # what <Leader> in a mapping stands for (B144)

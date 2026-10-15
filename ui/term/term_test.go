@@ -289,3 +289,24 @@ func TestB151Tint(t *testing.T) {
 	}
 	t.Fatal("the typed text is not on the screen")
 }
+
+// B153
+func TestB153IndentGuides(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "f.txt")
+	if err := os.WriteFile(path, []byte("a\n\tb\n\n\tc\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cl := start(t, path)
+	cl.draw()
+	cell := func(x, y int) string { s, _, _ := cl.s.Get(x, y); return s }
+	// An indented line and the blank line before the next one show a guide.
+	if cell(0, 1) != "│" || cell(0, 2) != "│" || cell(0, 0) != "a" {
+		t.Fatalf("the first column reads %q %q %q", cell(0, 0), cell(0, 1), cell(0, 2))
+	}
+	for _, k := range vim.Keys(":set noindent_guides<CR>") {
+		cl.e.Feed(k)
+	}
+	if cl.draw(); cell(0, 1) != " " {
+		t.Fatalf("with noindent_guides the first column has %q", cell(0, 1))
+	}
+}

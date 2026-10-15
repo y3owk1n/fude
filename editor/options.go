@@ -13,7 +13,7 @@ import (
 func (o *options) switches() map[string]*bool {
 	return map[string]*bool{
 		"number": &o.Number, "relative_number": &o.RelativeNumber, "wrap": &o.Wrap, "cursor_line": &o.CursorLine, "list": &o.List,
-		"ignore_case": &o.IgnoreCase, "smart_case": &o.SmartCase, "expand_tab": &o.ExpandTab, "icons": &o.Icons, "clipboard": &o.Clipboard, "sign_column": &o.SignColumn,
+		"ignore_case": &o.IgnoreCase, "smart_case": &o.SmartCase, "expand_tab": &o.ExpandTab, "icons": &o.Icons, "clipboard": &o.Clipboard, "sign_column": &o.SignColumn, "indent_guides": &o.IndentGuides,
 	}
 }
 

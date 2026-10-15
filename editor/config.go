@@ -51,7 +51,7 @@ type config struct {
 	} `toml:"plugin"`
 }
 
-var defaults = config{IndentWidth: 8, KeyTimeout: 1000, LargeFile: 50, Leader: "<Space>", Theme: "dark", options: options{Wrap: true}}
+var defaults = config{IndentWidth: 8, KeyTimeout: 1000, LargeFile: 50, Leader: "<Space>", Theme: "dark", options: options{Wrap: true, IndentGuides: true}}
 
 // options are the settings each window has, which :set changes for the
 // current window and the windows opened after it (B39).
@@ -67,6 +67,7 @@ type options struct {
 	ExpandTab      bool `toml:"expand_tab"`      // indent with spaces only
 	Clipboard      bool `toml:"clipboard"`       // yanks, deletes and puts use the system clipboard
 	SignColumn     bool `toml:"sign_column"`     // keep the sign column when there are no signs
+	IndentGuides   bool `toml:"indent_guides"`   // a faint line at each indent level
 	Icons          bool `toml:"icons"`           // nerd font icons in listings and signs
 }
 

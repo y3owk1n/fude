@@ -538,6 +538,8 @@ type View struct {
 	Pair              []int          // the bracket at the cursor and its match, shown bold (B121)
 	List              bool           // show tabs, trailing spaces and no-break spaces (B118)
 	Left              int            // the first column shown without wrap
+	Indent            int            // the columns of an indent level, where guides go
+	Guides            bool           // draw indent guides (B153)
 }
 
 // Ghost is a proposal's text, drawn before the byte at Pos but not in the
@@ -559,6 +561,7 @@ func (e *Session) Views() []View {
 			Name: w.buf.name(), Modified: w.buf.modified(), Current: w == e.win || w == e.under,
 			Gutter: w.gutter(), SignCols: w.signCols(), Number: w.numberCols() > 0 && w.opts.Number, Relative: w.numberCols() > 0 && w.opts.RelativeNumber,
 			Wrap: w.opts.Wrap, Left: w.left, CursorLine: w.opts.CursorLine, List: w.opts.List,
+			Indent: e.indentWidth(w.buf), Guides: w.opts.IndentGuides,
 		}
 		last := vim.LineEnd(t, t.LineStart(min(t.LineOf(top)+max(w.h-2, 0), t.Lines()-1)))
 		if h := w.buf.syntax; h != nil {
@@ -1368,9 +1371,13 @@ func (h host) Step(n int) (int, bool) { return h.e.step(n) }
 
 // IndentWidth is the setting for the buffer's filetype, else the top-level
 // one.
-func (h host) IndentWidth() int {
-	w := h.e.cfg.IndentWidth
-	if ft, ok := h.e.cfg.Filetype[h.e.win.buf.filetype()]; ok && ft.IndentWidth > 0 {
+func (h host) IndentWidth() int { return h.e.indentWidth(h.e.win.buf) }
+
+// indentWidth is the columns an indent takes in b: its filetype's
+// indent_width, or else the global one, or else the tab width.
+func (ed *Editor) indentWidth(b *buffer) int {
+	w := ed.cfg.IndentWidth
+	if ft, ok := ed.cfg.Filetype[b.filetype()]; ok && ft.IndentWidth > 0 {
 		w = ft.IndentWidth
 	}
 	if w == 0 {

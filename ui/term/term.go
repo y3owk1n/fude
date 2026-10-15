@@ -12,6 +12,7 @@ import (
 
 	"github.com/gdamore/tcell/v3"
 
+	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
@@ -479,6 +480,9 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 			if shade && x < v.W {
 				c.s.FillArea(v.X+x, y, v.W-x, 1, ' ', base.Background(th.cursorLine))
 			}
+			if i == 0 && v.Guides && !v.List {
+				c.guides(v, t, pos, y)
+			}
 			if i == len(starts)-1 && slices.Contains(cursors, end) && x < v.W {
 				c.s.Put(v.X+x, y, " ", base.Background(th.selection))
 			}
@@ -502,6 +506,39 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 	}
 	c.status(v, v.X, v.W)
 	return cx, cy, found
+}
+
+// guides draws a faint line at each indent level in the leading blanks of
+// the line at start, on row y. A blank line takes the indent of the next
+// line with text, so the guides run through it (B153).
+func (c *client) guides(v editor.View, t kernel.Snapshot, start, y int) {
+	lead := 0
+	// A long run of blank lines looks 200 lines ahead at most.
+	for p, n := start, 0; n < 200; n++ {
+		end := vim.LineEnd(t, p)
+		text := t.Slice(p, end)
+		if rest := strings.TrimLeft(text, " \t"); rest != "" {
+			lead = vim.Column(t, p, p+len(text)-len(rest))
+			break
+		}
+		if end == t.Len() {
+			break
+		}
+		p = end + 1
+	}
+	left := 0
+	if !v.Wrap {
+		left = v.Left
+	}
+	for col := 0; col < lead; col += max(v.Indent, 1) {
+		x := v.X + col - left
+		if x < v.X || x >= v.X+v.W {
+			continue
+		}
+		if s, style, _ := c.s.Get(x, y); s == " " {
+			c.s.Put(x, y, "│", style.Foreground(th.border))
+		}
+	}
 }
 
 // number draws line's number in the gutter at x, y: from the cursor's

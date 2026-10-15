@@ -412,6 +412,12 @@ moved, and a buffer's own keys are the ones meant there.
 Neovim's `mapleader` is `\`. Why: the user asked for it, and most Neovim
 configs set space.
 
+### N19. Indent guides are on
+
+fude draws indent guides unless `indent_guides` is off (B153), where
+Neovim draws none without a plugin. Why: the redesign the user approved on
+2026-10-16 shows them, and `indent_guides = false` turns them off.
+
 ## Open
 
 None.
