@@ -124,6 +124,12 @@ func build(t theme) styles {
 		"number": fg(t.number), "constant": fg(t.number),
 		"function": fg(t.function), "type": fg(t.typ),
 		"punctuation": fg(t.punct), "operator": fg(t.punct),
+		// The names other grammars give the same kinds of text.
+		"boolean": fg(t.number), "conditional": fg(t.keyword), "repeat": fg(t.keyword), "label": fg(t.keyword),
+		"preproc": fg(t.keyword), "tag": fg(t.keyword), "method": fg(t.function), "constructor": fg(t.typ),
+		"attribute": fg(t.typ), "property": fg(t.typ), "field": fg(t.typ),
+		// The names markdown's grammar uses.
+		"text.title": fg(t.function).Bold(true), "text.literal": fg(t.typ), "text.uri": base.Underline(true), "text.reference": fg(t.function),
 		// Markdown in floats, such as hover.
 		"markup.strong": base.Bold(true), "markup.italic": base.Italic(true), "markup.heading": base.Bold(true),
 		"markup.raw": fg(t.typ), "markup.link": base.Underline(true), "markup.rule": fg(t.faint),

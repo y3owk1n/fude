@@ -38,8 +38,12 @@ type grammar struct {
 
 // registry are the grammars fude builds, by filetype.
 var registry = map[string]grammar{
-	"lua":  {"https://github.com/tree-sitter-grammars/tree-sitter-lua", "10fe0054734eec83049514ea2e718b2a56acd0c9", ".", "queries", "-- %s"},
-	"toml": {"https://github.com/tree-sitter-grammars/tree-sitter-toml", "64b56832c2cffe41758f28e05c756a3a98d16f41", ".", "queries", "# %s"},
+	"bash":     {"https://github.com/tree-sitter/tree-sitter-bash", "a06c2e4415e9bc0346c6b86d401879ffb44058f7", ".", "queries", "# %s"},
+	"json":     {"https://github.com/tree-sitter/tree-sitter-json", "ee35a6ebefcef0c5c416c0d1ccec7370cfca5a24", ".", "queries", ""},
+	"markdown": {"https://github.com/tree-sitter-grammars/tree-sitter-markdown", "f969cd3ae3f9fbd4e43205431d0ae286014c05b5", "tree-sitter-markdown", "tree-sitter-markdown/queries", "<!-- %s -->"},
+	"yaml":     {"https://github.com/tree-sitter-grammars/tree-sitter-yaml", "7708026449bed86239b1cd5bce6e3c34dbca6415", ".", "queries", "# %s"},
+	"lua":      {"https://github.com/tree-sitter-grammars/tree-sitter-lua", "10fe0054734eec83049514ea2e718b2a56acd0c9", ".", "queries", "-- %s"},
+	"toml":     {"https://github.com/tree-sitter-grammars/tree-sitter-toml", "64b56832c2cffe41758f28e05c756a3a98d16f41", ".", "queries", "# %s"},
 }
 
 // shipped holds the text objects fude writes for the grammars it builds

@@ -46,8 +46,8 @@ func Comment(filetype string) (string, bool) {
 	if l, ok := linked[filetype]; ok {
 		return l.comment, true
 	}
-	g, ok := registry[filetype]
-	return g.comment, ok
+	g := registry[filetype]
+	return g.comment, g.comment != ""
 }
 
 // Object is a text object a grammar gives: the capture it selects, or ""
