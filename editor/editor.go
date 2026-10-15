@@ -64,6 +64,7 @@ type Session struct {
 	renameAt   int         // where grn was pressed
 	pick       *pick       // the code actions shown to choose from
 	under      *window     // the window a focused float was opened from
+	opts       options     // what the session's new windows start with
 	changed    chan change // told when the shown text changes, for a client over the socket
 	clip       string      // the text last copied, when no clipboard command runs
 	toTerminal bool        // the client has yet to put clip on its terminal's clipboard
@@ -130,7 +131,9 @@ func (e *Session) join() {
 	if len(e.sessions) > 0 {
 		b = e.sessions[0].win.buf
 	}
+	e.opts = e.cfg.options
 	e.win = newWindow(b, 0, 0)
+	e.win.opts = e.opts
 	e.root = &node{win: e.win}
 	e.sessions = append(e.sessions, e)
 	e.layout()
@@ -419,6 +422,8 @@ type View struct {
 	Matches           [][2]int // of the search, shown in every window
 	Segments          []string // plugins' statusline segments, in the order they loaded
 	Ruler             string   // the cursor's line and column, and where the view is (B38)
+	Gutter            int      // the columns line numbers take on the left
+	Number, Relative  bool     // show line numbers, and relative ones (B39)
 }
 
 // Ghost is a proposal's text, drawn before the byte at Pos but not in the
@@ -438,13 +443,14 @@ func (e *Session) Views() []View {
 			Text: t, Top: top, Cursor: w.pos(),
 			X: w.x, Y: w.y, W: w.w, H: w.h,
 			Name: w.buf.name(), Modified: w.buf.modified(), Current: w == e.win || w == e.under,
+			Gutter: w.gutter(), Number: w.opts.Number, Relative: w.opts.RelativeNumber,
 		}
 		last := vim.LineEnd(t, t.LineStart(min(t.LineOf(top)+max(w.h-2, 0), t.Lines()-1)))
 		if h := w.buf.syntax; h != nil {
 			v.Highlights = h.Show(t, top, last)
 		}
 		v.Matches = e.vim.Matches(t, top, last)
-		v.Ruler = ruler(t, w.pos(), top, max(w.h-1, 1), w.w)
+		v.Ruler = ruler(t, w.pos(), top, max(w.h-1, 1), w.cols())
 		for _, p := range e.plugins {
 			if s := e.segments[p][w.buf]; s != "" {
 				v.Segments = append(v.Segments, s)
@@ -527,10 +533,10 @@ func (e *Session) reveal() {
 	line := vim.LineStart(t, c)
 	// low is the earliest top that still shows the cursor's line, found
 	// walking back from it, so a far jump looks at one window of lines.
-	low, rows := line, len(vim.Rows(t, line, w.w))
+	low, rows := line, len(vim.Rows(t, line, w.cols()))
 	for low > 0 {
 		prev := vim.LineStart(t, low-1)
-		if rows += len(vim.Rows(t, prev, w.w)); rows > e.rows() {
+		if rows += len(vim.Rows(t, prev, w.cols())); rows > e.rows() {
 			break
 		}
 		low = prev
@@ -766,6 +772,8 @@ func (e *Session) ex(line string) {
 		}
 	case "rename":
 		e.rename(arg)
+	case "se", "set":
+		e.set(arg)
 	case "accept", "reject":
 		e.decide(arg, name == "accept")
 	case "timeline":
@@ -1077,7 +1085,7 @@ func (h host) Mark(name rune) (int, bool) {
 	return b.text.Mark(id), true
 }
 
-func (h host) Viewport() (int, int, int) { return h.e.Top(), h.e.rows(), h.e.win.w }
+func (h host) Viewport() (int, int, int) { return h.e.Top(), h.e.rows(), h.e.win.cols() }
 func (h host) SetTop(top int)            { h.e.win.buf.text.MoveMark(h.e.win.top, top) }
 func (h host) PushJump(pos int)          { h.e.pushJump(pos) }
 func (h host) Jump(n int) bool           { return h.e.jump(n) }

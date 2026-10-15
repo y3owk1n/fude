@@ -2,6 +2,7 @@ package editor
 
 import (
 	"errors"
+	"strconv"
 
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/vim"
@@ -16,6 +17,7 @@ type window struct {
 	top    kernel.MarkID
 	jumps  []place
 	jumpAt int // the jump <C-o> last moved to, or len(jumps)
+	opts   options
 
 	x, y, w, h int // where the layout puts it, its status line included
 }
@@ -26,6 +28,19 @@ func newWindow(b *buffer, pos, top int) *window {
 }
 
 func (w *window) pos() int { return w.buf.text.Mark(w.cursor) }
+
+// gutter is how many columns the window's line numbers take, 0 without
+// them: at least Neovim's numberwidth of 4, else the last line's digits and
+// a space.
+func (w *window) gutter() int {
+	if !w.opts.Number && !w.opts.RelativeNumber {
+		return 0
+	}
+	return max(4, len(strconv.Itoa(w.buf.text.Snapshot().Lines()))+1)
+}
+
+// cols is how many columns of text the window shows on a row.
+func (w *window) cols() int { return max(w.w-w.gutter(), 1) }
 
 // show switches the window to b, at the place b was last left.
 func (w *window) show(b *buffer) {
@@ -105,6 +120,7 @@ func (n *node) leaf(w *window) *node {
 func (e *Session) split(across bool) {
 	old := e.win
 	nw := newWindow(old.buf, old.pos(), old.buf.text.Mark(old.top))
+	nw.opts = old.opts
 	nw.alt = old.alt
 	l := e.root.leaf(old)
 	add := &node{win: nw}

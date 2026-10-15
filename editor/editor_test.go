@@ -600,6 +600,32 @@ func TestB38Ruler(t *testing.T) {
 	}
 }
 
+// B39
+func TestB39Set(t *testing.T) {
+	e := open(t, "")
+	feed(e, ":set number relative_number<CR>")
+	if v := e.Views()[0]; !v.Number || !v.Relative || v.Gutter != 4 {
+		t.Fatalf("after :set number relative_number the view is %+v", v)
+	}
+	// A window split from it starts the same, and :set changes only the
+	// current one.
+	feed(e, ":sp<CR>:set nonumber relative_number!<CR>")
+	if vs := e.Views(); vs[0].Number || vs[0].Relative || vs[0].Gutter != 0 || !vs[1].Number {
+		t.Fatalf("after :set nonumber relative_number! in a split the views are %+v", vs)
+	}
+	if feed(e, ":set number?<CR>"); e.Message() != "nonumber" {
+		t.Errorf(":set number? said %q", e.Message())
+	}
+	if feed(e, ":set wide<CR>"); e.Message() != "no option named wide" {
+		t.Errorf(":set wide said %q", e.Message())
+	}
+	// config.toml sets what windows start with.
+	config(t, "number = true\n")
+	if v := start(t).Views()[0]; !v.Number || v.Relative {
+		t.Errorf("with number = true a window starts as %+v", v)
+	}
+}
+
 // B31
 func TestB31Timeline(t *testing.T) {
 	e := open(t, filepath.Join(t.TempDir(), "f"))

@@ -449,6 +449,14 @@ each row of a line starts. The editor scrolls the window by those rows and
 the client draws them, so the two agree. Rows past the end of the text
 show `~` (B37).
 
+`:set` changes the options of the current window, and the ones the
+session's next windows start with, as Neovim's `:set` sets both the local
+and the global value. It takes the names `config.toml` uses (N4): `name`,
+`noname`, `name!` and `name?`, and shows every option with no arguments.
+`number` puts line numbers in a gutter at least 4 columns wide, and
+`relative_number` numbers lines from the cursor's. With both, the cursor's
+line shows its own number on the left, as in Neovim (B39).
+
 A window's status line shows the buffer's name and `[+]` when it is
 modified, then on the right the plugins' segments, the keys of a command
 being typed in the current window, and Neovim's default ruler. The ruler
@@ -479,6 +487,8 @@ key_timeout = 1000   # milliseconds a mapping prefix waits (B84)
 large_file = 50      # megabytes over which syntax and LSP stay off (B83)
 autocomplete = false # ask for completions while typing (B67)
 socket = "/run/user/1000/fude.sock" # where clients attach, instead of one path per process (B97)
+number = false       # line numbers, which :set number changes per window (B39)
+relative_number = false # numbers from the cursor's line (B39)
 
 [keymap.normal]      # and [keymap.visual], [keymap.insert]. Keys map to keys.
 "<Space>w" = ":w<CR>"

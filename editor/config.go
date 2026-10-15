@@ -21,7 +21,8 @@ type config struct {
 	// <C-x><C-o>.
 	Autocomplete bool   `toml:"autocomplete"`
 	Socket       string `toml:"socket"` // where clients attach, instead of a path per process
-	Keymap       struct {
+	options
+	Keymap struct {
 		Normal map[string]string `toml:"normal"`
 		Visual map[string]string `toml:"visual"`
 		Insert map[string]string `toml:"insert"`
@@ -39,6 +40,13 @@ type config struct {
 }
 
 var defaults = config{IndentWidth: 8, KeyTimeout: 1000, LargeFile: 50}
+
+// options are the settings each window has, which :set changes for the
+// current window and the windows opened after it (B39).
+type options struct {
+	Number         bool `toml:"number"`          // show line numbers
+	RelativeNumber bool `toml:"relative_number"` // number lines from the cursor's
+}
 
 // loadConfig reads config.toml. A missing file is no error. After an error
 // it returns what it read before the error and the defaults for the rest.

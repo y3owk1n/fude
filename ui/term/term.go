@@ -349,6 +349,9 @@ func (c *client) box(text string, spans []syntax.Span, rows []row, x, y, width, 
 // window it reports where the cursor is.
 func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, bool) {
 	t := v.Text
+	// The text goes right of the line numbers.
+	numbers, cur := v.X, t.LineOf(v.Cursor)
+	v.X, v.W = v.X+v.Gutter, v.W-v.Gutter
 	cx, cy, found := 0, 0, false
 	pos := v.Top
 	paint := paint(append(v.Highlights, v.Decorations...), v.Top)
@@ -374,6 +377,9 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 				break
 			}
 			y, stop := v.Y+row, end
+			if i == 0 && v.Gutter > 0 {
+				c.number(t.LineOf(pos), cur, numbers, y, v)
+			}
 			if i+1 < len(starts) {
 				stop = starts[i+1]
 			}
@@ -427,8 +433,10 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 	}
 	// Rows past the end of the text show ~.
 	for ; row < v.H-1; row++ {
-		c.s.Put(v.X, v.Y+row, "~", tcell.StyleDefault.Foreground(color.Gray))
+		c.s.Put(numbers, v.Y+row, "~", tcell.StyleDefault.Foreground(color.Gray))
 	}
+	// The separator and status line span the whole window.
+	v.X, v.W = numbers, v.W+v.Gutter
 	if v.X > 0 {
 		for y := v.Y; y < v.Y+v.H; y++ {
 			c.s.Put(v.X-1, y, "│", tcell.StyleDefault)
@@ -459,6 +467,21 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 		c.s.PutStrStyled(v.X+v.W-len([]rune(right)), v.Y+v.H-1, right, style)
 	}
 	return cx, cy, found
+}
+
+// number draws line's number in the gutter at x, y: from the cursor's
+// line cur with relative numbers, and its own on that line when numbers are
+// on too, put on the left as Neovim puts it (B39).
+func (c *client) number(line, cur, x, y int, v editor.View) {
+	n := line + 1
+	if v.Relative {
+		n = max(line-cur, cur-line)
+	}
+	text := fmt.Sprintf("%*d ", v.Gutter-1, n)
+	if v.Relative && v.Number && line == cur {
+		text = fmt.Sprintf("%-*d ", v.Gutter-1, line+1)
+	}
+	c.s.PutStrStyled(x, y, text, tcell.StyleDefault.Foreground(color.Gray))
 }
 
 // ghostText shows a line break and a tab in a proposal's text as one cell

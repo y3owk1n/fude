@@ -74,6 +74,11 @@ Where fude departs, the line says so and cites the departure in
   line and column, its screen column when that differs, and `All`, `Top`,
   `Bot` or how far down the view is. The current window's also shows the
   keys of a command being typed, as `showcmd` does.
+- B39 [2] `:set` turns options on with `name`, off with `noname`, the other
+  way with `name!` and shows them with `name?`, or every one with no
+  arguments, as Neovim does with fude's option names (N4). `number` shows
+  line numbers and `relative_number` numbers lines from the cursor's. Each
+  is also a setting in `config.toml`.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays
