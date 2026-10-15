@@ -91,15 +91,16 @@ func selected(sel vim.Selection, at, x int) bool {
 	return at >= sel.Start && at < sel.End && (!sel.Block || x >= sel.Left && x <= sel.Right)
 }
 
-// paint returns the style of each byte from top that a highlight colours.
+// paint returns the style of each byte from top that a highlight colours,
+// and the base style for the bytes between them.
 func paint(spans []syntax.Span, top int) []tcell.Style {
 	var out []tcell.Style
 	for _, s := range spans {
 		if s.End <= top {
 			continue
 		}
-		if n := s.End - top; n > len(out) {
-			out = append(out, make([]tcell.Style, n-len(out))...)
+		for len(out) < s.End-top {
+			out = append(out, base)
 		}
 		if c, ok := underlines[s.Name]; ok {
 			for i := max(s.Start-top, 0); i < s.End-top; i++ {

@@ -108,5 +108,26 @@ func TestB145Theme(t *testing.T) {
 		if _, style, _ := cl.s.Get(0, 0); style.GetBackground() != themes[c.theme].bg {
 			t.Errorf("with %q the ground is %v, want %s's", c.config, style.GetBackground(), c.theme)
 		}
+	} // Text between highlights keeps the theme's colours too.
+	path := filepath.Join(t.TempDir(), "a.go")
+	if err := os.WriteFile(path, []byte("package a\n\nvar x = 1\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cl := start(t, path)
+	deadline := time.After(5 * time.Second)
+	for {
+		cl.draw()
+		if _, style, _ := cl.s.Get(0, 2); style.GetForeground() == themes["dark"].keyword {
+			break
+		}
+		select {
+		case f := <-cl.e.Queue():
+			f()
+		case <-deadline:
+			t.Fatal("var was never highlighted")
+		}
+	}
+	if _, style, _ := cl.s.Get(3, 2); style.GetBackground() != themes["dark"].bg {
+		t.Fatalf("the space after var has ground %v", style.GetBackground())
 	}
 }
