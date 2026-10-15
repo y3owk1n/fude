@@ -26,7 +26,11 @@ type register struct {
 func (m *Machine) operate(op string, reg rune, cmd string, count int) error {
 	t, c := m.h.Text(), m.h.Cursor()
 	r, ok := m.span(t, c, op, cmd, count)
-	if !ok || r.start == r.end && !r.lines {
+	if !ok {
+		m.beep = true
+		return nil
+	}
+	if r.start == r.end && !r.lines {
 		return nil
 	}
 	start, end, lines := r.start, r.end, r.lines
@@ -54,14 +58,14 @@ func (m *Machine) operate(op string, reg rune, cmd string, count int) error {
 	case op == "c" && lines:
 		indent := t.Slice(start, firstNonBlank(t, start, LineEnd(t, start)))
 		m.startInsert(Key(label), start)
-		if err := m.h.Apply([]Edit{{Start: start, End: end, Text: indent}}, label); err != nil {
+		if err := m.apply([]Edit{{Start: start, End: end, Text: indent}}, label); err != nil {
 			return err
 		}
 		m.h.SetCursor(start + len(indent))
 		return nil
 	case op == "c":
 		m.startInsert(Key(label), start)
-		return m.h.Apply([]Edit{{Start: start, End: end}}, label)
+		return m.apply([]Edit{{Start: start, End: end}}, label)
 	}
 
 	if lines {
@@ -73,7 +77,7 @@ func (m *Machine) operate(op string, reg rune, cmd string, count int) error {
 			start--
 		}
 	}
-	if err := m.h.Apply([]Edit{{Start: start, End: end}}, label); err != nil {
+	if err := m.apply([]Edit{{Start: start, End: end}}, label); err != nil {
 		return err
 	}
 	t = m.h.Text()
@@ -203,7 +207,7 @@ func (m *Machine) put(reg rune, after bool, n int) error {
 	case after:
 		at = next(t, c, LineEnd(t, c))
 	}
-	if err := m.h.Apply([]Edit{{Start: at, End: at, Text: text}}, label); err != nil {
+	if err := m.apply([]Edit{{Start: at, End: at, Text: text}}, label); err != nil {
 		return err
 	}
 	t = m.h.Text()

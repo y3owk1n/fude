@@ -78,7 +78,14 @@ func (e *Editor) Message() string { return e.message }
 // Done reports whether the user has quit.
 func (e *Editor) Done() bool { return e.done }
 
+// Recording returns the register a macro is being recorded into, or 0.
+func (e *Editor) Recording() rune { return e.vim.Recording() }
+
 func (e *Editor) ex(line string) {
+	if args, ok := strings.CutPrefix(strings.TrimSpace(line), "reg "); ok {
+		e.registers(strings.TrimSpace(args))
+		return
+	}
 	switch strings.TrimSpace(line) {
 	case "w":
 		e.write()
@@ -93,6 +100,17 @@ func (e *Editor) ex(line string) {
 	default:
 		e.message = "E492: Not an editor command: " + line
 	}
+}
+
+// registers shows each named register, as :reg does.
+func (e *Editor) registers(names string) {
+	var shown []string
+	for _, r := range names {
+		if text, ok := e.vim.Register(r); ok {
+			shown = append(shown, fmt.Sprintf("\"%c   %s", r, strings.ReplaceAll(text, "\n", "^J")))
+		}
+	}
+	e.message = strings.Join(shown, "  ")
 }
 
 func (e *Editor) write() {

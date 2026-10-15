@@ -270,6 +270,44 @@ func TestB15Put(t *testing.T) {
 	})
 }
 
+// B16
+func TestB16DotRepeat(t *testing.T) {
+	cases(t, [][3]string{
+		{"|a b c d e", "dw.", "|c d e"},
+		{"|a b c d e f g", "2dw.", "|e f g"},
+		{"|a b c d e f g", "2dw3.", "|f g"},
+		{"|a b c d e f g", "2d2w.", "|"},
+		{"|ab", "ihi<Esc>.", "hh|iiab"},
+		{"|foo bar", "cwX<Esc>w.", "X |X"},
+		{"|a", "yyp.", "a\na\n|a"},
+		{"|a b", "\"adw\"bdw..", "|"},
+	})
+}
+
+// B17
+func TestB17Macros(t *testing.T) {
+	cases(t, [][3]string{
+		{"|a\nb\nc", "qaA!<Esc>jq@a@@", "a!\nb!\nc|!"},
+		{"|a\nb\nc\nd", "qaA!<Esc>jq2@a", "a!\nb!\nc!\n|d"},
+		{"|1\n2\n3", "qaqqaA!<Esc>j@aq@a", "1!\n2!\n3|!"},
+		{"|a\nb", "qaA<lt>x<Esc>jq@a", "a<x\nb<|x"},
+	})
+	// A macro is text in a register, so putting it, editing it and yanking it
+	// back changes what @ runs.
+	_, h, m := run(t, "|a b", "qadwq")
+	if text, _ := m.Register('a'); text != "dw" {
+		t.Fatalf("recorded %q, want %q", text, "dw")
+	}
+	for _, k := range vim.Keys("o2dw<Esc>0\"ay$dd@a") {
+		if err := m.Feed(k); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if h.text != "" {
+		t.Errorf("edited macro left %q, want it to delete two words", h.text)
+	}
+}
+
 // B19
 func TestB19EscCancelsOperator(t *testing.T) {
 	cases(t, [][3]string{{"foo |bar", "d<Esc>w", "foo ba|r"}})
