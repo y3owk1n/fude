@@ -113,7 +113,8 @@ Where fude departs, the line says so and cites the departure in
 - B90 [2] `<C-o>` and `<C-i>` move through the jumplist, and `g;` and `g,`
   through the changelist, as in Neovim.
 - B91 [2] `<C-w>c`, `<C-w>o`, `<C-w>q`, `<C-w>=` and `:q` in a split close
-  or arrange splits as in Neovim.
+  or arrange splits as in Neovim, and `:sp`, `:vs`, `:on` and `:clo` split,
+  keep only, or close the current window.
 
 ## Timeline
 
@@ -125,7 +126,8 @@ Where fude departs, the line says so and cites the departure in
 - B33 [2] The timeline persists across sessions when the file on disk still
   matches the last saved node.
 - B34 [2] After a crash, opening the file offers to recover every edit made
-  since the last save. Declining keeps them on the timeline as a branch.
+  since the last save, and `:recover` brings them back. Declining keeps them
+  on the timeline as a branch.
 - B35 [2] `g-` and `g+` move through every node in time order across
   branches. `:earlier` and `:later` take a count, a time (`10m`) or saves
   (`1f`).

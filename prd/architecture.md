@@ -75,19 +75,26 @@ func (b *Buffer) Snapshot() Snapshot
 func (b *Buffer) Apply(t Transaction) error // ErrStale unless at its base
 func (b *Buffer) BeginGroup()
 func (b *Buffer) EndGroup()
+func (b *Buffer) Undo() (start int, ok bool)
+func (b *Buffer) Redo() (start int, ok bool)
+func (b *Buffer) Goto(id NodeID) (start int, ok bool) // any node, any branch
+func (b *Buffer) At(id NodeID) (Snapshot, bool)        // the text at a node
 func (b *Buffer) Head() NodeID
 func (b *Buffer) Nodes() []Node
 func (b *Buffer) SetMark(pos int, g Gravity) MarkID
+func (b *Buffer) MoveMark(id MarkID, pos int)
 func (b *Buffer) Mark(id MarkID) int
 
 type Store interface{ Append(Node) }
 ```
 
-The kernel gains undo, redo, restore, diff, `Rebase`, `Map` and the change
-listener when the behaviours that need them are built (B30 to B32, B76).
+A transaction carries the host's time, since the kernel reads no clock.
+The host restores a state or diffs two. It reads both texts with `At` and
+applies or compares them. `Rebase`, `Map` and the change listener
+come with the behaviours that need them (B76).
 
 The kernel calls its store synchronously on the writing goroutine. fude's
-store appends to the timeline log in the background and reports its own
+store appends one line to the timeline log per node and reports its own
 errors, since the edit is already applied.
 
 ## The grammar as a library
@@ -101,12 +108,9 @@ host feeds it keys, and it reads and acts through interfaces the host
 implements:
 
 ```go
-type Text interface {        // read-only, core's Snapshot satisfies it as is
+type Text interface { // read-only, core's Snapshot satisfies it as is
     Len() int
     Slice(start, end int) string
-    LineStart(line int) int
-    LineOf(pos int) int
-    Lines() int
 }
 
 type Host interface {
@@ -116,23 +120,27 @@ type Host interface {
     Apply(edits []Edit, label string) error
     BeginGroup()
     EndGroup()
-    History() History     // u, <C-r>, g-, g+, :earlier
-    Marks() Marks         // m{a-z} and their positions after edits
-    Clipboard() Clipboard // "+ and "*, nil when there is none
-    Viewport() Viewport   // top line and height, for <C-d>, zz, H, M, L
-    Unhandled(keys string) // ex lines and window keys vim does not own
+    Unhandled(keys string) // ex lines and <C-w> keys vim does not own
+    Undo() (start, cursor int, ok bool)
+    Redo() (start, cursor int, ok bool)
+    Step(n int) (start int, ok bool) // g- and g+, in time order
+    SetMark(name rune, pos int)      // marks move with edits
+    Mark(name rune) (int, bool)
+    Viewport() (top, height int)
+    SetTop(top int)
+    PushJump(pos int) // jumps may cross buffers, so the host keeps the lists
+    Jump(n int) bool
+    Change(n int) bool
 }
 
-func New(h Host, opts Options) *Machine
-func (m *Machine) Feed(key Key) Status  // pending, done, or a wait deadline
-func (m *Machine) Timeout()             // the host calls this at the deadline
-func (m *Machine) Registry() *Registry  // add operators, targets, ex commands
-func (m *Machine) Map(mode Mode, keys string, to Binding) error
+func New(h Host) *Machine
+func (m *Machine) Feed(key Key) error
+func (m *Machine) Paste(text string) error
 ```
 
-This is the target. Today `Text` has `Len` and `Slice`, `Host` has its first
-six methods plus `Unhandled`, and `Feed` returns an error. The rest are added when the
-behaviours that need them are built.
+Later behaviours add keymaps with `timeoutlen`, a clipboard for `"+`, and a
+registry for host and plugin operators and targets.
+
 
 `vim/` owns the grammar, modes, registers, dot repeat, macros, search and
 the edit-producing ex commands. It keeps its visual anchor and query
@@ -286,12 +294,13 @@ does, and the host calls `Timeout` if no key comes first. Operator-pending is a 
 
 ## Views
 
-A view is one buffer shown in one window. It owns a cursor mark, selection
-marks, a scroll position and a jumplist. Views belong to the client that
-shows them. The kernel only holds their marks, so another view's edits
-move them (B23).
+A view is one buffer shown in one window. It owns a cursor mark, a top-line
+mark and a jumplist. The kernel only holds their marks, so another view's
+edits move them (B23). Each buffer keeps its own changelist.
 
-The window layout (splits and tabs) is client state, outside the kernel.
+The window layout (splits) is outside the kernel. Until step 6 it lives in
+`editor/`, and the terminal client draws what `Editor.Views` returns. With
+remote clients, each client gets its own views (D16).
 After an undo, the view that undid puts its cursor at the start of the
 changed text, as Neovim does. Other views only see their marks move.
 
@@ -346,15 +355,17 @@ Neovim undo.
 ### Persistence
 
 The kernel hands each new node to its `Store`. fude's store keeps an
-append-only log per file under the timeline directory and writes it from a
-background goroutine. A save appends a marker with a hash of the saved
-text. On open:
+append-only log per file under the timeline directory, one JSON record per
+line. A `base` record holds a hash of the text the log starts from. Each node
+gets a `node` record. Every write adds a `save` record with the head and a
+text hash, and a clean close adds a `close` record. On open:
 
-- If the disk text matches the last save marker, the timeline loads (B33).
-- If nodes follow that marker, fude offers to recover them (B34). This
-  replaces swap files.
-- If the disk text matches neither, the log is set aside and the timeline
-  starts fresh.
+- If the disk text matches the last save, or the base, the timeline loads
+  (B33).
+- If nodes follow that save and no close does, fude offers them back with
+  `:recover` (B34). This replaces swap files.
+- If the disk text matches neither, fude renames the log with a timestamp
+  and starts a new one.
 
 ## Events
 
