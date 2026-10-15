@@ -10,7 +10,7 @@ import (
 // comment is the gc operator. It toggles comments on every line of the
 // target in the comment syntax of the current buffer's language.
 func (e *Session) comment(t vim.Text, start, end int, linewise bool) []vim.Edit {
-	cs, ok := syntax.Comment(e.filetype(e.win.buf))
+	cs, ok := syntax.Comment(e.languageAt(e.win.buf, e.Cursor()))
 	if !ok {
 		e.message = "no comment syntax for this file"
 		return nil

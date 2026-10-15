@@ -132,7 +132,7 @@ func build(t theme) styles {
 		"charset": fg(t.keyword), "import": fg(t.keyword), "keyframes": fg(t.keyword), "media": fg(t.keyword),
 		"namespace": fg(t.keyword), "supports": fg(t.keyword),
 		// The names markdown's grammar uses.
-		"text.title": fg(t.function).Bold(true), "text.literal": fg(t.typ), "text.uri": base.Underline(true), "text.reference": fg(t.function),
+		"text.title": fg(t.function).Bold(true), "text.strong": base.Bold(true), "text.emphasis": base.Italic(true), "text.literal": fg(t.typ), "text.uri": base.Underline(true), "text.reference": fg(t.function),
 		// Markdown in floats, such as hover.
 		"markup.strong": base.Bold(true), "markup.italic": base.Italic(true), "markup.heading": base.Bold(true),
 		"markup.raw": fg(t.typ), "markup.link": base.Underline(true), "markup.rule": fg(t.faint),

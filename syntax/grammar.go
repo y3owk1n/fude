@@ -30,33 +30,34 @@ import (
 
 // grammar is a grammar fude builds when a file needs it (D29): the repo it
 // comes from, the commit fude pins, the directory of its sources in the
-// repo, its highlight queries in the order they combine, and its language's
-// comment syntax. A query named <filetype>:<path> is in that grammar's repo.
+// repo, its highlight and injection queries in the order they combine, and
+// its language's comment syntax. A query named <filetype>:<path> is in that grammar's repo.
 // Its library exports tree_sitter_<filetype>.
 type grammar struct {
-	repo, commit, src string
-	highlights        []string
-	comment           string
+	repo, commit, src      string
+	highlights, injections []string
+	comment                string
 }
 
 // registry are the grammars fude builds, by filetype.
 var registry = map[string]grammar{
-	"c":          {"https://github.com/tree-sitter/tree-sitter-c", "b780e47fc780ddc8da13afa35a3f4ed5c157823d", ".", []string{"queries/highlights.scm"}, "// %s"},
-	"cpp":        {"https://github.com/tree-sitter/tree-sitter-cpp", "f41e1a044c8a84ea9fa8577fdd2eab92ec96de02", ".", []string{"c:queries/highlights.scm", "queries/highlights.scm"}, "// %s"},
-	"rust":       {"https://github.com/tree-sitter/tree-sitter-rust", "77a3747266f4d621d0757825e6b11edcbf991ca5", ".", []string{"queries/highlights.scm"}, "// %s"},
-	"bash":       {"https://github.com/tree-sitter/tree-sitter-bash", "a06c2e4415e9bc0346c6b86d401879ffb44058f7", ".", []string{"queries/highlights.scm"}, "# %s"},
-	"css":        {"https://github.com/tree-sitter/tree-sitter-css", "dda5cfc5722c429eaba1c910ca32c2c0c5bb1a3f", ".", []string{"queries/highlights.scm"}, "/* %s */"},
-	"html":       {"https://github.com/tree-sitter/tree-sitter-html", "5a5ca8551a179998360b4a4ca2c0f366a35acc03", ".", []string{"queries/highlights.scm"}, "<!-- %s -->"},
-	"javascript": {"https://github.com/tree-sitter/tree-sitter-javascript", "44c892e0be055ac465d5eeddae6d3e194424e7de", ".", []string{"queries/highlights.scm", "queries/highlights-jsx.scm", "queries/highlights-params.scm"}, "// %s"},
-	"json":       {"https://github.com/tree-sitter/tree-sitter-json", "ee35a6ebefcef0c5c416c0d1ccec7370cfca5a24", ".", []string{"queries/highlights.scm"}, ""},
-	"lua":        {"https://github.com/tree-sitter-grammars/tree-sitter-lua", "10fe0054734eec83049514ea2e718b2a56acd0c9", ".", []string{"queries/highlights.scm"}, "-- %s"},
-	"markdown":   {"https://github.com/tree-sitter-grammars/tree-sitter-markdown", "f969cd3ae3f9fbd4e43205431d0ae286014c05b5", "tree-sitter-markdown", []string{"tree-sitter-markdown/queries/highlights.scm"}, "<!-- %s -->"},
-	"python":     {"https://github.com/tree-sitter/tree-sitter-python", "293fdc02038ee2bf0e2e206711b69c90ac0d413f", ".", []string{"queries/highlights.scm"}, "# %s"},
-	"toml":       {"https://github.com/tree-sitter-grammars/tree-sitter-toml", "64b56832c2cffe41758f28e05c756a3a98d16f41", ".", []string{"queries/highlights.scm"}, "# %s"},
-	"tsx":        {"https://github.com/tree-sitter/tree-sitter-typescript", "f975a621f4e7f532fe322e13c4f79495e0a7b2e7", "tsx", []string{"queries/highlights.scm", "javascript:queries/highlights-jsx.scm", "javascript:queries/highlights.scm"}, "// %s"},
-	"typescript": {"https://github.com/tree-sitter/tree-sitter-typescript", "f975a621f4e7f532fe322e13c4f79495e0a7b2e7", "typescript", []string{"queries/highlights.scm", "javascript:queries/highlights.scm"}, "// %s"},
-	"zig":        {"https://github.com/tree-sitter-grammars/tree-sitter-zig", "b670c8df85a1568f498aa5c8cae42f51a90473c0", ".", []string{"queries/highlights.scm"}, "// %s"},
-	"yaml":       {"https://github.com/tree-sitter-grammars/tree-sitter-yaml", "7708026449bed86239b1cd5bce6e3c34dbca6415", ".", []string{"queries/highlights.scm"}, "# %s"},
+	"c":               {"https://github.com/tree-sitter/tree-sitter-c", "b780e47fc780ddc8da13afa35a3f4ed5c157823d", ".", []string{"queries/highlights.scm"}, nil, "// %s"},
+	"cpp":             {"https://github.com/tree-sitter/tree-sitter-cpp", "f41e1a044c8a84ea9fa8577fdd2eab92ec96de02", ".", []string{"c:queries/highlights.scm", "queries/highlights.scm"}, []string{"queries/injections.scm"}, "// %s"},
+	"rust":            {"https://github.com/tree-sitter/tree-sitter-rust", "77a3747266f4d621d0757825e6b11edcbf991ca5", ".", []string{"queries/highlights.scm"}, []string{"queries/injections.scm"}, "// %s"},
+	"bash":            {"https://github.com/tree-sitter/tree-sitter-bash", "a06c2e4415e9bc0346c6b86d401879ffb44058f7", ".", []string{"queries/highlights.scm"}, nil, "# %s"},
+	"css":             {"https://github.com/tree-sitter/tree-sitter-css", "dda5cfc5722c429eaba1c910ca32c2c0c5bb1a3f", ".", []string{"queries/highlights.scm"}, nil, "/* %s */"},
+	"html":            {"https://github.com/tree-sitter/tree-sitter-html", "5a5ca8551a179998360b4a4ca2c0f366a35acc03", ".", []string{"queries/highlights.scm"}, []string{"queries/injections.scm"}, "<!-- %s -->"},
+	"javascript":      {"https://github.com/tree-sitter/tree-sitter-javascript", "44c892e0be055ac465d5eeddae6d3e194424e7de", ".", []string{"queries/highlights.scm", "queries/highlights-jsx.scm", "queries/highlights-params.scm"}, []string{"queries/injections.scm"}, "// %s"},
+	"json":            {"https://github.com/tree-sitter/tree-sitter-json", "ee35a6ebefcef0c5c416c0d1ccec7370cfca5a24", ".", []string{"queries/highlights.scm"}, nil, ""},
+	"lua":             {"https://github.com/tree-sitter-grammars/tree-sitter-lua", "10fe0054734eec83049514ea2e718b2a56acd0c9", ".", []string{"queries/highlights.scm"}, []string{"queries/injections.scm"}, "-- %s"},
+	"markdown_inline": {"https://github.com/tree-sitter-grammars/tree-sitter-markdown", "f969cd3ae3f9fbd4e43205431d0ae286014c05b5", "tree-sitter-markdown-inline", []string{"tree-sitter-markdown-inline/queries/highlights.scm"}, []string{"tree-sitter-markdown-inline/queries/injections.scm"}, ""},
+	"markdown":        {"https://github.com/tree-sitter-grammars/tree-sitter-markdown", "f969cd3ae3f9fbd4e43205431d0ae286014c05b5", "tree-sitter-markdown", []string{"tree-sitter-markdown/queries/highlights.scm"}, []string{"tree-sitter-markdown/queries/injections.scm"}, "<!-- %s -->"},
+	"python":          {"https://github.com/tree-sitter/tree-sitter-python", "293fdc02038ee2bf0e2e206711b69c90ac0d413f", ".", []string{"queries/highlights.scm"}, nil, "# %s"},
+	"toml":            {"https://github.com/tree-sitter-grammars/tree-sitter-toml", "64b56832c2cffe41758f28e05c756a3a98d16f41", ".", []string{"queries/highlights.scm"}, nil, "# %s"},
+	"tsx":             {"https://github.com/tree-sitter/tree-sitter-typescript", "f975a621f4e7f532fe322e13c4f79495e0a7b2e7", "tsx", []string{"queries/highlights.scm", "javascript:queries/highlights-jsx.scm", "javascript:queries/highlights.scm"}, []string{"javascript:queries/injections.scm"}, "// %s"},
+	"typescript":      {"https://github.com/tree-sitter/tree-sitter-typescript", "f975a621f4e7f532fe322e13c4f79495e0a7b2e7", "typescript", []string{"queries/highlights.scm", "javascript:queries/highlights.scm"}, []string{"javascript:queries/injections.scm"}, "// %s"},
+	"zig":             {"https://github.com/tree-sitter-grammars/tree-sitter-zig", "b670c8df85a1568f498aa5c8cae42f51a90473c0", ".", []string{"queries/highlights.scm"}, []string{"queries/injections.scm"}, "// %s"},
+	"yaml":            {"https://github.com/tree-sitter-grammars/tree-sitter-yaml", "7708026449bed86239b1cd5bce6e3c34dbca6415", ".", []string{"queries/highlights.scm"}, nil, "# %s"},
 }
 
 // shipped holds the text objects fude writes for the grammars it builds
@@ -68,24 +69,44 @@ var shipped embed.FS
 var (
 	loadMu      sync.Mutex
 	grammarsDir string                   // where built grammars are, which Use sets
+	resolver    func(name string) string // the filetype an injection's language name stands for
 	loaded      = map[string]*language{} // the built grammars loaded so far, by filetype
 )
 
-// Use makes dir where fude looks for built grammars and builds them.
-// dir/<filetype>/ holds a grammar's library and its queries/ (B165).
-func Use(dir string) {
+// Use makes dir where fude looks for built grammars and builds them, and
+// resolve what turns a language an injection names, such as py, into a
+// filetype. dir/<filetype>/ holds a grammar's library and its queries/
+// (B165, B166).
+func Use(dir string, resolve func(name string) string) {
 	loadMu.Lock()
 	defer loadMu.Unlock()
-	grammarsDir = dir
+	grammarsDir, resolver = dir, resolve
 }
 
+// resolve returns the filetype the language name stands for. Workers call
+// it, so it holds the lock to read the resolver.
+func resolve(name string) string {
+	loadMu.Lock()
+	f := resolver
+	loadMu.Unlock()
+	if f == nil || name == "" {
+		return name
+	}
+	return f(name)
+}
+
+// buildVersion is the version of what a build writes. It goes up when a
+// build starts writing something new, so grammars built before build again
+// on first use. Version 2 began copying injections.
+const buildVersion = 2
+
 // library is the file of filetype's grammar in dir: named for the commit
-// fude pins, so a new pin needs a new build, or parser.so for a grammar
-// fude does not know.
+// fude pins and the build version, so a new pin or version needs a new
+// build, or parser.so for a grammar fude does not know.
 func library(dir, filetype string) string {
 	name := "parser"
 	if g, ok := registry[filetype]; ok {
-		name = g.commit
+		name = fmt.Sprintf("%s-%d", g.commit, buildVersion)
 	}
 	return filepath.Join(dir, filetype, name+".so")
 }
@@ -143,6 +164,9 @@ func load(path, filetype string) (*language, error) {
 	}
 	var err error
 	if l.highlights, err = read("highlights"); err != nil {
+		return nil, err
+	}
+	if l.injections, err = read("injections"); err != nil {
 		return nil, err
 	}
 	// fude's own text objects come first, as the grammar's repo has none.
@@ -214,28 +238,30 @@ func Build(filetype string) error {
 	if err != nil {
 		return err
 	}
-	var highlights []string
-	for _, q := range g.highlights {
-		ft, path, ok := strings.Cut(q, ":")
-		if !ok {
-			ft, path = filetype, q
-		}
-		dir, err := fetch(ft)
-		if err != nil {
-			return err
-		}
-		b, err := os.ReadFile(filepath.Join(dir, path))
-		if err != nil {
-			return fmt.Errorf("build the %s grammar: %w", filetype, err)
-		}
-		highlights = append(highlights, string(b))
-	}
 	out := filepath.Join(grammars, filetype)
 	if err := os.MkdirAll(filepath.Join(out, "queries"), 0o755); err != nil {
 		return fmt.Errorf("build the %s grammar: %w", filetype, err)
 	}
-	if err := os.WriteFile(filepath.Join(out, "queries", "highlights.scm"), []byte(strings.Join(highlights, "\n")), 0o644); err != nil {
-		return fmt.Errorf("build the %s grammar: %w", filetype, err)
+	for name, files := range map[string][]string{"highlights": g.highlights, "injections": g.injections} {
+		var parts []string
+		for _, q := range files {
+			ft, path, ok := strings.Cut(q, ":")
+			if !ok {
+				ft, path = filetype, q
+			}
+			dir, err := fetch(ft)
+			if err != nil {
+				return err
+			}
+			b, err := os.ReadFile(filepath.Join(dir, path))
+			if err != nil {
+				return fmt.Errorf("build the %s grammar: %w", filetype, err)
+			}
+			parts = append(parts, string(b))
+		}
+		if err := os.WriteFile(filepath.Join(out, "queries", name+".scm"), []byte(strings.Join(parts, "\n")), 0o644); err != nil {
+			return fmt.Errorf("build the %s grammar: %w", filetype, err)
+		}
 	}
 	// Build writes the library last, through a rename, so a library there
 	// means the rest of the build is there too.

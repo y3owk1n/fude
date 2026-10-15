@@ -118,7 +118,9 @@ func open(cfg config, paths []string) (*Session, error) {
 	// Without a data directory no grammar builds or loads, and a build says
 	// why.
 	if dir, err := xdgDir("XDG_DATA_HOME", filepath.Join(".local", "share")); err == nil {
-		syntax.Use(filepath.Join(dir, "fude", "grammars"))
+		// config.toml does not change while fude runs, so workers may resolve
+		// through it.
+		syntax.Use(filepath.Join(dir, "fude", "grammars"), func(name string) string { return ed.filetypeOf("code." + name) })
 	}
 	ed.setup = []func(*Session){builtins}
 	e := &Session{Editor: ed, origin: "user"}

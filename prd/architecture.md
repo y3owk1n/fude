@@ -960,9 +960,29 @@ at a node's end (B40). `an`, `in`, `]n` and `[n` are objects too, run on
 the visual selection, and pick nodes as Neovim's tree selection does (B45).
 
 `gc` toggles comments on whole lines as Neovim's does, in the comment syntax
-`syntax/` gives for the buffer's language, such as `// %s` for Go (B44).
-Picking the language at the cursor matters once a grammar with injections
-ships. Go has none.
+`syntax/` gives for the language at the cursor, such as `// %s` for Go
+(B44).
+
+A language's `injections.scm` marks text of another language inside it, as
+markdown marks a fenced block's code and HTML a `<script>`. After each
+parse the worker runs it over the requested range and parses each region
+it marks with a parser of its own, never the buffer's, which keeps its
+tree for the next incremental parse. A region is the content node's range
+less its named children's, unless `injection.include-children` says to
+keep them. Anonymous children stay. Markdown's block grammar makes its `*`
+and backticks children of the inline text, and its inline grammar needs
+them.
+`injection.combined` parses one pattern's regions of a language as one
+document. `SetIncludedRanges` keeps the region's bytes where they
+are in the whole text, so its spans need no moving. They paint over the
+buffer's own, and the region's own injections run in turn, three levels
+deep. A language name such as `py` becomes a filetype as a file's
+extension would. The worker hands the loop the regions with the spans, so
+`gc` finds the language at the cursor. An injected language with no
+grammar fude could build starts a build, and every buffer asks for its
+spans again once it is built. An injections query is lenient: a pattern
+with a predicate fude does not evaluate, such as JavaScript's `#offset!`,
+drops out, and the rest of the query stays (B166).
 
 Queries use only the predicates the binding evaluates: the `eq?`,
 `match?` and `any-of?` families. A query that uses any other fails to load

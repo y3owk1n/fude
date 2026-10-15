@@ -326,6 +326,11 @@ Where fude departs, the line says so and cites the departure in
   built or failed, and `:grammar install <filetype>` builds one again. A
   grammar built by hand into the grammars directory loads too.
   `auto_install = false` turns the builds off.
+- B166 [3] Text of another language inside a file shows in that
+  language's colours, as its grammar's `injections.scm` marks it: the code
+  in a markdown fenced block, markdown's inline text, a `<script>` or
+  `<style>` in HTML. An injected language whose grammar is not built
+  builds on first use, and its colours show once it is.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays
@@ -417,7 +422,8 @@ Where fude departs, the line says so and cites the departure in
   shipped one for that language. A query with a predicate fude does not
   know fails to load and names the file and line. `#lua-match?` with a
   pattern that means the same as a regular expression works as `#match?`,
-  and `#set! "priority"` is allowed and changes nothing (D28).
+  and `#set! "priority"` is allowed and changes nothing (D28). In an
+  `injections.scm` such a predicate leaves out its pattern instead (B166).
 - B42 [3] `:select <query>` in visual mode selects, as a region, every node
   that a capture of the tree-sitter query names within the selection. `d`,
   `x`, `y` and host operators such as `gc` then act on every region as one

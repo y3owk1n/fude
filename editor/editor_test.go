@@ -1809,3 +1809,32 @@ func TestB165BuiltGrammar(t *testing.T) {
 		return slices.ContainsFunc(e.Views()[0].Highlights, func(s syntax.Span) bool { return s.Name == "keyword" })
 	})
 }
+
+// B166, through an injection a query override makes: Go inside a Go raw
+// string.
+func TestB166Injections(t *testing.T) {
+	config(t, "")
+	dir := filepath.Join(os.Getenv("XDG_CONFIG_HOME"), "fude", "queries", "go")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	// The second pattern's predicate is one fude does not evaluate, which
+	// leaves that pattern out but keeps the query.
+	src := "((raw_string_literal_content) @injection.content (#set! injection.language \"go\"))\n" +
+		"((comment) @injection.content (#offset! @injection.content 0 1 0 0) (#set! injection.language \"go\"))\n"
+	if err := os.WriteFile(filepath.Join(dir, "injections.scm"), []byte(src), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	text := "package p\n\nvar s = `func f() {}`\n"
+	path := filepath.Join(t.TempDir(), "a.go")
+	change(t, path, text)
+	e := start(t, path)
+	e.SetSize(80, 10)
+	at := strings.Index(text, "`func") + 1
+	settle(t, e, func() bool {
+		return slices.ContainsFunc(e.Views()[0].Highlights, func(s syntax.Span) bool { return s.Name == "keyword" && s.Start == at })
+	})
+	if e.Message() != "" {
+		t.Errorf("the injections said %q", e.Message())
+	}
+}

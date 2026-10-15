@@ -31,14 +31,14 @@ var (
 
 // language is a grammar and its queries.
 type language struct {
-	lang                *ts.Language
-	highlights, objects string
-	comment             string // %s stands for the commented text
+	lang                            *ts.Language
+	highlights, objects, injections string
+	comment                         string // %s stands for the commented text
 }
 
 // linked are the grammars fude links in, by filetype (D29).
 var linked = map[string]*language{
-	"go": {ts.NewLanguage(tsgo.Language()), goHighlights, goObjects, "// %s"},
+	"go": {ts.NewLanguage(tsgo.Language()), goHighlights, goObjects, "", "// %s"},
 }
 
 // Comment returns how filetype comments a line, such as "// %s", or false
@@ -90,12 +90,15 @@ type Buffer struct {
 	seq     int      // changes heard
 	log     []change // changes since the text the spans and tree are for
 	spans   []Span   // in paint order, later spans drawing over earlier ones
+	regions []Region // of other languages, inner ones after the regions holding them
 	tree    *ts.Tree // a clone of the worker's last tree
 	lang    *ts.Language
 	objects *ts.Query
 	cursor  *ts.QueryCursor
 	closed  bool
 	asked   request
+	missing func(filetype string) // told once of each injected language with no grammar fude could build
+	wanted  map[string]bool
 	// climb is where an last climbed to and the nodes it climbed from, so in
 	// can go back down. It lasts until the text changes.
 	climb struct {
@@ -134,9 +137,10 @@ type request struct {
 
 // New returns the syntax of a buffer of filetype, which sends its results to
 // queue, or false when fude has no grammar for it. parsed runs on the loop
-// after each new parse lands. A query in dir/<filetype>/ replaces the
-// shipped one of the same name.
-func New(filetype, dir string, queue chan<- func(), parsed func()) (*Buffer, bool, error) {
+// after each new parse lands, and missing once for each language the buffer
+// injects that has no grammar fude could build. A query in dir/<filetype>/
+// replaces the shipped one of the same name.
+func New(filetype, dir string, queue chan<- func(), parsed func(), missing func(filetype string)) (*Buffer, bool, error) {
 	l, ok, err := lookup(filetype)
 	if !ok || err != nil {
 		return nil, false, err
@@ -150,18 +154,25 @@ func New(filetype, dir string, queue chan<- func(), parsed func()) (*Buffer, boo
 		q.Close()
 		return nil, false, err
 	}
+	inj, err := query(l.lang, dir, filetype, "injections", l.injections)
+	if err != nil {
+		q.Close()
+		objects.Close()
+		return nil, false, err
+	}
 	p := ts.NewParser()
 	if err := p.SetLanguage(l.lang); err != nil {
 		p.Close()
 		q.Close()
 		objects.Close()
+		inj.Close()
 		return nil, false, fmt.Errorf("grammar for %s: %w", filetype, err)
 	}
 	h := &Buffer{
-		queue: queue, parsed: parsed, lang: l.lang, objects: objects, cursor: ts.NewQueryCursor(),
+		queue: queue, parsed: parsed, missing: missing, wanted: map[string]bool{}, lang: l.lang, objects: objects, cursor: ts.NewQueryCursor(),
 		wake: make(chan struct{}, 1), quit: make(chan struct{}),
 	}
-	go h.run(p, q)
+	go h.run(p, q, inj, newInjector(dir))
 	return h, true, nil
 }
 
@@ -179,7 +190,11 @@ func query(lang *ts.Language, dir, filetype, name, shipped string) (*ts.Query, e
 			return nil, fmt.Errorf("read query: %w", err)
 		}
 	}
-	q, err := compile(lang, src)
+	compiler := compile
+	if name == "injections" {
+		compiler = compileInjections
+	}
+	q, err := compiler(lang, src)
 	if err != nil {
 		return nil, fmt.Errorf("%s %w", path, err)
 	}
@@ -190,39 +205,49 @@ func query(lang *ts.Language, dir, filetype, name, shipped string) (*ts.Query, e
 // evaluate, which is any outside the eq?, match? and any-of? families. Its
 // errors name the line in src.
 func compile(lang *ts.Language, src string) (*ts.Query, error) {
-	src = luaMatch.ReplaceAllStringFunc(src, func(m string) string {
+	q, qerr := ts.NewQuery(lang, plainLuaMatches(src))
+	if qerr != nil {
+		return nil, fmt.Errorf("line %d: %s", qerr.Row+1, qerr.Message)
+	}
+	for i := range q.PatternCount() {
+		if unknown := unknownPredicate(q, i, []string{"priority"}); unknown != "" {
+			line := strings.Count(src[:q.StartByteForPattern(i)], "\n") + 1
+			q.Close()
+			return nil, fmt.Errorf("line %d: fude does not evaluate #%s", line, unknown)
+		}
+	}
+	return q, nil
+}
+
+// unknownPredicate names the first predicate of pattern i that fude does not
+// evaluate, a setting outside settings among them, or is "".
+func unknownPredicate(q *ts.Query, i uint, settings []string) string {
+	switch {
+	case len(q.GeneralPredicates(i)) > 0:
+		return q.GeneralPredicates(i)[0].Operator
+	// A #set! "priority" orders highlights in other editors, and means
+	// nothing to fude.
+	case slices.ContainsFunc(q.PropertySettings(i), func(p ts.QueryProperty) bool { return !slices.Contains(settings, p.Key) }):
+		return "set!"
+	// fude keeps no locals, so #is-not? local always holds (D28).
+	case slices.ContainsFunc(q.PropertyPredicates(i), func(p ts.PropertyPredicate) bool { return p.Positive || p.Property.Key != "local" }):
+		if q.PropertyPredicates(i)[0].Positive {
+			return "is?"
+		}
+		return "is-not?"
+	}
+	return ""
+}
+
+// plainLuaMatches rewrites each #lua-match? in src whose pattern means the
+// same as a regular expression to #match? (D28).
+func plainLuaMatches(src string) string {
+	return luaMatch.ReplaceAllStringFunc(src, func(m string) string {
 		if pat := luaMatch.FindStringSubmatch(m)[2]; plainLua(pat) {
 			return strings.Replace(m, "#lua-match?", "#match?", 1)
 		}
 		return m
 	})
-	q, qerr := ts.NewQuery(lang, src)
-	if qerr != nil {
-		return nil, fmt.Errorf("line %d: %s", qerr.Row+1, qerr.Message)
-	}
-	for i := range q.PatternCount() {
-		var unknown string
-		switch {
-		case len(q.GeneralPredicates(i)) > 0:
-			unknown = q.GeneralPredicates(i)[0].Operator
-		// A #set! "priority" orders highlights in other editors, and means
-		// nothing to fude.
-		case slices.ContainsFunc(q.PropertySettings(i), func(p ts.QueryProperty) bool { return p.Key != "priority" }):
-			unknown = "set!"
-		case slices.ContainsFunc(q.PropertyPredicates(i), func(p ts.PropertyPredicate) bool { return p.Positive || p.Property.Key != "local" }):
-			unknown = "is?"
-			if !q.PropertyPredicates(i)[0].Positive {
-				unknown = "is-not?"
-			}
-		default:
-			// fude keeps no locals, so #is-not? local always holds (D28).
-			continue
-		}
-		line := strings.Count(src[:q.StartByteForPattern(i)], "\n") + 1
-		q.Close()
-		return nil, fmt.Errorf("line %d: fude does not evaluate #%s", line, unknown)
-	}
-	return q, nil
 }
 
 // luaMatch finds a #lua-match? predicate, with its capture and pattern.
@@ -309,16 +334,42 @@ func (h *Buffer) Show(t api.Text, from, to int) []Span {
 	return out
 }
 
-// take keeps the spans and tree found for the text after change seq.
-func (h *Buffer) take(seq int, spans []Span, tree *ts.Tree) {
+// Refresh makes the next Show ask for spans again, as for a grammar of an
+// injected language that came since the last (B166).
+func (h *Buffer) Refresh() { h.asked = request{} }
+
+// LanguageAt returns the filetype of the injected region at pos in the text
+// now, the innermost when they nest, or "" outside them (B44, B166).
+func (h *Buffer) LanguageAt(pos int) string {
+	lang := ""
+	for _, r := range h.regions {
+		for _, c := range h.log {
+			r.Start, r.End = through(c.edits, r.Start, true), through(c.edits, r.End, false)
+		}
+		if r.Start <= pos && pos < r.End {
+			lang = r.Lang
+		}
+	}
+	return lang
+}
+
+// take keeps the spans, regions and tree found for the text after change
+// seq, and tells of the injected languages with no grammar.
+func (h *Buffer) take(seq int, spans []Span, regions []Region, missing []string, tree *ts.Tree) {
 	if h.closed {
 		tree.Close()
 		return
 	}
+	for _, ft := range missing {
+		if !h.wanted[ft] && h.missing != nil {
+			h.wanted[ft] = true
+			h.missing(ft)
+		}
+	}
 	if h.tree != nil {
 		h.tree.Close()
 	}
-	h.spans, h.tree = spans, tree
+	h.spans, h.regions, h.tree = spans, regions, tree
 	i := 0
 	for i < len(h.log) && h.log[i].seq <= seq {
 		i++
@@ -327,10 +378,13 @@ func (h *Buffer) take(seq int, spans []Span, tree *ts.Tree) {
 	h.parsed()
 }
 
-// run parses and highlights each newest request until Close.
-func (h *Buffer) run(p *ts.Parser, q *ts.Query) {
+// run parses and highlights each newest request until Close, with the
+// regions of other languages that inj marks.
+func (h *Buffer) run(p *ts.Parser, q, inj *ts.Query, in *injector) {
 	defer p.Close()
 	defer q.Close()
+	defer inj.Close()
+	defer in.close()
 	c := ts.NewQueryCursor()
 	defer c.Close()
 	var tree *ts.Tree
@@ -384,9 +438,13 @@ func (h *Buffer) run(p *ts.Parser, q *ts.Query) {
 			tree, parsed = next, r.seq
 		}
 		spans := highlight(c, q, tree, text, r.from, r.to)
+		inner, regions := in.spans(inj, tree, text, r.from, r.to, injectionLevels)
+		spans = append(spans, inner...)
+		missing := in.missing
+		in.missing = nil
 		clone := tree.Clone()
 		select {
-		case h.queue <- func() { h.take(r.seq, spans, clone) }:
+		case h.queue <- func() { h.take(r.seq, spans, regions, missing, clone) }:
 		case <-h.quit:
 			clone.Close()
 			return
@@ -648,11 +706,20 @@ func Highlight(filetype, dir, text string) ([]Span, error) {
 	if err := p.SetLanguage(l.lang); err != nil {
 		return nil, fmt.Errorf("grammar for %s: %w", filetype, err)
 	}
+	inj, err := query(l.lang, dir, filetype, "injections", l.injections)
+	if err != nil {
+		return nil, err
+	}
+	defer inj.Close()
 	tree := p.Parse([]byte(text), nil)
 	defer tree.Close()
 	c := ts.NewQueryCursor()
 	defer c.Close()
-	return highlight(c, q, tree, []byte(text), 0, len(text)), nil
+	in := newInjector(dir)
+	defer in.close()
+	spans := highlight(c, q, tree, []byte(text), 0, len(text))
+	inner, _ := in.spans(inj, tree, []byte(text), 0, len(text), injectionLevels)
+	return append(spans, inner...), nil
 }
 
 // highlight returns the captures in [from, to) in paint order, as

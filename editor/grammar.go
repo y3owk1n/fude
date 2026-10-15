@@ -10,7 +10,11 @@ import (
 // attachSyntax gives b the syntax of its filetype's grammar, and reports
 // whether there is one (B46).
 func (e *Session) attachSyntax(b *buffer) (bool, error) {
-	h, ok, err := syntax.New(e.filetype(b), e.queries, e.queue, func() { e.emit("syntax.updated", "", b) })
+	h, ok, err := syntax.New(e.filetype(b), e.queries, e.queue, func() { e.emit("syntax.updated", "", b) }, func(ft string) {
+		if e.cfg.AutoInstall {
+			e.buildGrammar(ft, false)
+		}
+	})
 	if ok {
 		b.syntax = h
 	}
@@ -38,6 +42,11 @@ func (e *Session) buildGrammar(ft string, force bool) bool {
 			delete(e.failed, ft)
 			e.message = "built the " + ft + " grammar"
 			for _, b := range e.bufs {
+				// A buffer that injects the language colours it from its next
+				// request.
+				if b.syntax != nil {
+					b.syntax.Refresh()
+				}
 				if b.syntax != nil || e.filetype(b) != ft || b.text.Snapshot().Len() > int(e.cfg.LargeFile)<<20 {
 					continue
 				}
@@ -81,4 +90,15 @@ func (e *Session) grammar(arg string) {
 		lines = append(lines, fmt.Sprintf("%-12s %s", g.Filetype, state))
 	}
 	e.scratch("[grammars]", strings.Join(lines, "\n"), nil, nil)
+}
+
+// languageAt returns the filetype of the text at pos in b: an injected
+// language's, or b's own (B44, B166).
+func (e *Session) languageAt(b *buffer, pos int) string {
+	if b.syntax != nil {
+		if lang := b.syntax.LanguageAt(pos); lang != "" {
+			return lang
+		}
+	}
+	return e.filetype(b)
 }
