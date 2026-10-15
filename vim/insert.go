@@ -7,6 +7,9 @@ import (
 
 func (m *Machine) insert(k Key) error {
 	t, c := m.h.Text(), m.h.Cursor()
+	if k != "<Up>" && k != "<Down>" {
+		m.wantSet = false
+	}
 	if m.pending == "<C-r>" {
 		m.pending = ""
 		name, _ := utf8.DecodeRuneInString(string(k))
@@ -65,11 +68,14 @@ func (m *Machine) insert(k Key) error {
 		m.mode, m.oneshot, m.armed = Normal, true, false
 	case "<C-t>", "<C-d>":
 		return m.indentLine(k == "<C-t>")
-	case "<Left>", "<Right>":
-		n := prev(t, LineStart(t, c), c)
-		if k == "<Right>" {
-			n = next(t, c, LineEnd(t, c))
+	case "<Del>":
+		end := next(t, c, LineEnd(t, c))
+		if end == c && c < t.Len() {
+			end = c + 1 // the line break, which joins the next line
 		}
+		return m.apply([]Edit{{Start: c, End: end}}, m.label)
+	case "<Left>", "<Right>", "<Up>", "<Down>", "<Home>", "<End>":
+		n := m.insertMove(t, c, k)
 		// A move splits the undo step.
 		if n != c {
 			m.h.EndGroup()
@@ -87,6 +93,34 @@ func (m *Machine) insert(k Key) error {
 		}
 	}
 	return nil
+}
+
+// insertMove returns where an arrow key, <Home> or <End> moves the cursor
+// from c in insert mode. <Up> and <Down> keep the column, or go to the end
+// of a shorter line.
+func (m *Machine) insertMove(t Text, c int, k Key) int {
+	start := LineStart(t, c)
+	switch k {
+	case "<Left>":
+		return prev(t, start, c)
+	case "<Right>":
+		return next(t, c, LineEnd(t, c))
+	case "<Home>":
+		return start
+	case "<End>":
+		return LineEnd(t, c)
+	}
+	line := up(t, start, 1)
+	if k == "<Down>" {
+		line = down(t, start, 1)
+	}
+	if line == start {
+		return c
+	}
+	if p := m.toLine(t, c, line); column(t, line, LineEnd(t, line)) > m.want {
+		return p
+	}
+	return LineEnd(t, line)
 }
 
 func (m *Machine) startInsert(k Key, pos int) {

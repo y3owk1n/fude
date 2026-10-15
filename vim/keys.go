@@ -10,18 +10,25 @@ import (
 type Key string
 
 var names = map[string]Key{
-	"esc":   "<Esc>",
-	"cr":    "<CR>",
-	"enter": "<CR>",
-	"bs":    "<BS>",
-	"left":  "<Left>",
-	"right": "<Right>",
-	"lt":    "<",
-	"space": " ",
-	"tab":   "\t",
-	"s-tab": "<S-Tab>",
-	"c-^":   "<C-^>",
-	"c-]":   "<C-]>",
+	"esc":      "<Esc>",
+	"cr":       "<CR>",
+	"enter":    "<CR>",
+	"bs":       "<BS>",
+	"left":     "<Left>",
+	"right":    "<Right>",
+	"up":       "<Up>",
+	"down":     "<Down>",
+	"home":     "<Home>",
+	"end":      "<End>",
+	"del":      "<Del>",
+	"pageup":   "<PageUp>",
+	"pagedown": "<PageDown>",
+	"lt":       "<",
+	"space":    " ",
+	"tab":      "\t",
+	"s-tab":    "<S-Tab>",
+	"c-^":      "<C-^>",
+	"c-]":      "<C-]>",
 }
 
 // Keys splits Vim notation such as "ihello<Esc>" into keys. A "<" that does

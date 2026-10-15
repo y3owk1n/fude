@@ -146,6 +146,18 @@ Where fude departs, the line says so and cites the departure in
   command's name, a path for `:edit`, `:split` and `:vsplit`, an option
   for `:set` or a buffer for `:buffer` and `:bdelete`. With `autocomplete`
   on, the menu shows as the line is typed (N12).
+- B132 [2] In normal and visual mode `<Up>`, `<Down>`, `<Home>`, `<End>`,
+  `<PageUp>`, `<PageDown>` and `<Del>` are `k`, `j`, `0`, `$`, `<C-b>`,
+  `<C-f>` and `x`. In insert mode the arrows, `<Home>` and `<End>` move
+  the cursor and split the undo step. `<Up>` and `<Down>` keep the column,
+  or go to the end of a shorter line. `<Del>` deletes the character under
+  the cursor, and at the end of a line joins the next.
+- B133 [2] A command line has a cursor. `<Left>` and `<Right>` move it a
+  character, `<Home>` and `<C-b>` to the start, and `<End>` and `<C-e>` to
+  the end. Typed text goes in at the cursor. `<BS>` and `<Del>` delete a character, `<C-w>` the word before the
+  cursor and `<C-u>` all before it. `<Up>` and `<Down>` recall older and
+  newer lines that start with the text typed, `:` lines and searches each
+  from their own history, as Neovim's command line does.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays

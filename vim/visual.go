@@ -243,7 +243,7 @@ func (m *Machine) visualKey(cmd string, count int, reg rune) error {
 	case ":":
 		// The command line starts with the range of the selected lines.
 		m.leaveVisual()
-		m.back, m.mode, m.prompt, m.line = Normal, Cmdline, ":", "'<,'>"
+		m.enterLine(Normal, ":", "'<,'>")
 		return nil
 	case "o":
 		m.anchor, c = c, m.anchor

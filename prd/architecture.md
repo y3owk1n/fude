@@ -313,6 +313,12 @@ machine reads no clock, so the host waits its key timeout and calls
 `Timeout` if no key comes first. A macro replays its keys through the
 keymap, and dot repeat replays the keys the mapping ran.
 
+The terminal sends the arrows, `<Home>`, `<End>`, `<Del>`, `<PageUp>` and
+`<PageDown>`. In normal and visual mode the machine reads each as the
+command it stands for before anything else sees it (B132). The command
+line keeps a cursor, which `Machine.LineCursor` reports, and a history of
+`:` lines and one of searches for the session, which no file keeps (B133).
+
 ## Views
 
 A view is one buffer shown in one window. It owns a cursor mark, a top-line

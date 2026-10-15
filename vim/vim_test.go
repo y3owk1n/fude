@@ -610,3 +610,50 @@ func TestB114Unmap(t *testing.T) {
 		t.Errorf("a mapping beside the removed one left %q, want it to still run", h.text)
 	}
 }
+
+// B132
+func TestB132ArrowKeys(t *testing.T) {
+	for _, c := range []struct{ start, keys, want string }{
+		// In normal mode they are j, k, 0, $ and x.
+		{"ab|c\nxy", "<Down>", "abc\nx|y"},
+		{"abc\nx|y", "<Up><End>", "ab|c\nxy"},
+		{"a|bc", "<End><Home><Del>", "|bc"},
+		// In insert mode <Down> keeps the column, or ends a shorter line.
+		{"ab|c\nx", "i<Down>Z<Esc>", "abc\nx|Z"},
+		{"ab|c", "i<Home>Z<End>Y<Esc>", "Zabc|Y"},
+		// <Del> at the end of a line joins the next one.
+		{"ab|c\nx", "a<Del><Esc>", "ab|cx"},
+	} {
+		if got, _, _ := run(t, c.start, c.keys); got != c.want {
+			t.Errorf("%s on %q made %q, want %q", c.keys, c.start, got, c.want)
+		}
+	}
+}
+
+// B133
+func TestB133CommandLineEditing(t *testing.T) {
+	_, _, m := run(t, "|x", ":one<CR>:two<CR>")
+	for _, c := range []struct{ keys, line string }{
+		// The cursor moves, and text goes in where it is.
+		{":ac<Left>b", ":ab|c"},
+		{"<Home>X<End>Y", ":XabcY|"},
+		{"<Left><Left><Del><BS>", ":Xa|Y"},
+		{" foo bar<C-w>", ":Xa foo |Y"},
+		{"<C-u>", ":|Y"},
+		// <Up> recalls older lines that start with the text typed, and
+		// <Down> comes back to it.
+		{"<Esc>:o<Up>", ":one|"},
+		{"<Up>", ":one|"},
+		{"<Down>", ":o|"},
+		{"<Esc>:<Up><Up>", ":one|"},
+	} {
+		for _, k := range vim.Keys(c.keys) {
+			if err := m.Feed(k); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if got := m.Line()[:m.LineCursor()] + "|" + m.Line()[m.LineCursor():]; got != c.line {
+			t.Errorf("after %q the line is %q, want %q", c.keys, got, c.line)
+		}
+	}
+}

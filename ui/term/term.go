@@ -198,7 +198,7 @@ func (c *client) draw() {
 		c.s.PutStr(0, h-1, visualLabels[sel.Kind])
 	case vim.Cmdline:
 		c.s.PutStr(0, h-1, c.e.Line())
-		cx, cy = len(c.e.Line()), h-1
+		cx, cy = utf8.RuneCountInString(c.e.Line()[:c.e.LineCursor()]), h-1
 	default:
 		msg := c.e.Message()
 		if r := c.e.Recording(); r != 0 && msg == "" {
@@ -640,6 +640,20 @@ func key(k tcell.Key, mods tcell.ModMask, str string) vim.Key {
 		return "<Left>"
 	case tcell.KeyRight:
 		return "<Right>"
+	case tcell.KeyUp:
+		return "<Up>"
+	case tcell.KeyDown:
+		return "<Down>"
+	case tcell.KeyHome:
+		return "<Home>"
+	case tcell.KeyEnd:
+		return "<End>"
+	case tcell.KeyDelete:
+		return "<Del>"
+	case tcell.KeyPgUp:
+		return "<PageUp>"
+	case tcell.KeyPgDn:
+		return "<PageDown>"
 	case tcell.KeyTab:
 		return "\t"
 	}

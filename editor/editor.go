@@ -755,6 +755,9 @@ func (e *Session) Selection() (vim.Selection, bool) { return e.vim.Selection() }
 // Line returns the command line being typed.
 func (e *Session) Line() string { return e.vim.Line() }
 
+// LineCursor returns where the cursor is in Line, in bytes.
+func (e *Session) LineCursor() int { return e.vim.LineCursor() }
+
 // Message returns the last message for the user, or "".
 func (e *Session) Message() string { return e.message }
 

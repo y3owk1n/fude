@@ -80,6 +80,7 @@ type Machine struct {
 	mode    Mode
 	label   string
 	line    string
+	lineAt  int // the cursor in line, in bytes
 	count   int
 	op      string // d, c or y waiting for a motion
 	opCount int
@@ -118,8 +119,14 @@ type Machine struct {
 
 	// Command line and search.
 	prompt string // :, / or ?
-	back   Mode   // the mode a search returns to
-	search struct {
+	// The command lines and searches entered, oldest first, by : and /, and
+	// the one <Up> and <Down> recalled with the text typed before them.
+	history    map[string][]string
+	recalled   int
+	recalling  bool
+	recallFrom string
+	back       Mode // the mode a search returns to
+	search     struct {
 		pattern string
 		forward bool
 	}
@@ -171,7 +178,10 @@ func (m *Machine) Line() string { return m.prompt + m.line }
 
 // SetLine replaces the command line being typed after its prompt, as
 // completion does.
-func (m *Machine) SetLine(s string) { m.line = s }
+func (m *Machine) SetLine(s string) { m.line, m.lineAt = s, len(s) }
+
+// LineCursor returns where the cursor is in Line, in bytes.
+func (m *Machine) LineCursor() int { return len(m.prompt) + m.lineAt }
 
 // Message returns what the last key has to tell the user, or "".
 func (m *Machine) Message() string { return m.msg }
@@ -222,6 +232,9 @@ func (m *Machine) feed(k Key) error {
 		m.keys, m.changed = m.keys[:0], false
 	}
 	m.counted = false
+	if a, ok := arrows[k]; ok && (m.mode == Normal || m.mode == Visual) && m.pending == "" {
+		k = a
+	}
 	var err error
 	switch m.mode {
 	case Insert, Replace:
@@ -382,7 +395,7 @@ func (m *Machine) Paste(s string) error {
 	case Insert, Replace:
 		return m.typeText(s)
 	case Cmdline:
-		m.line += s
+		m.typeLine(s)
 		return nil
 	}
 	t, c := m.h.Text(), m.h.Cursor()
@@ -456,7 +469,7 @@ func (m *Machine) normal(k Key) error {
 	}
 	if cmd == "/" || cmd == "?" {
 		// The count, register and operator wait for the search to finish.
-		m.back, m.mode, m.prompt, m.line = m.mode, Cmdline, cmd, ""
+		m.enterLine(m.mode, cmd, "")
 		return nil
 	}
 	return m.command(cmd)
@@ -531,11 +544,12 @@ func (m *Machine) command(cmd string) error {
 		}
 		return m.execute(m.recorded, max(count, 1))
 	case ":":
-		m.back, m.mode, m.prompt, m.line = Normal, Cmdline, ":", ""
+		line := ""
 		if count > 0 {
 			// A count is a range of that many lines from the cursor's.
-			m.line = ".,.+" + strconv.Itoa(count-1)
+			line = ".,.+" + strconv.Itoa(count-1)
 		}
+		m.enterLine(Normal, ":", line)
 	case "<C-l>":
 		m.hl = false
 	case "gv":
@@ -590,30 +604,6 @@ func (m *Machine) command(cmd string) error {
 	case "O":
 		m.startInsert(k, start)
 		return m.openAbove()
-	}
-	return nil
-}
-
-func (m *Machine) cmdline(k Key) error {
-	switch {
-	case k == "<Esc>", k == "<BS>" && m.line == "":
-		m.mode = m.back
-		m.count, m.op, m.opCount, m.reg = 0, "", 0, 0
-	case k == "<CR>":
-		m.mode = m.back
-		if m.prompt == ":" {
-			return m.ex(m.line)
-		}
-		line := m.line
-		if line == "" {
-			line = m.search.pattern
-		}
-		return m.command(m.prompt + line)
-	case k == "<BS>":
-		_, n := utf8.DecodeLastRuneInString(m.line)
-		m.line = m.line[:len(m.line)-n]
-	case k.isChar():
-		m.line += string(k)
 	}
 	return nil
 }
