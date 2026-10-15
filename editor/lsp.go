@@ -235,6 +235,11 @@ func (e *Session) syncKeys() {
 // cursor's place in the current buffer, and handles the answer on the editor
 // loop when it comes (B62, B66).
 func (e *Session) request(name string) {
+	if name == "lsp.hover" && e.left != "" {
+		// Hover while a float shows moves the cursor into it, as in Neovim.
+		e.focus(e.left)
+		return
+	}
 	b := e.win.buf
 	s := b.server
 	if s == nil {

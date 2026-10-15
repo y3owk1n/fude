@@ -206,7 +206,9 @@ Where fude departs, the line says so and cites the departure in
   any keymap table, a key mapped to `""` loses its mapping, fude's own
   default too, and a key mapped to `<Nop>` does nothing. The kinds are
   `listing`, `list` for the lists of places such as `grr`'s, `timeline`,
-  and `finder`, whose keys are insert mode's.
+  `finder`, whose keys are insert mode's, and `float` for a float the
+  cursor is in, where `q` closes it. Hover while a float shows moves the
+  cursor into it, whichever key runs hover.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays

@@ -426,6 +426,22 @@ func TestB136FormatOnSaveServer(t *testing.T) {
 	}
 }
 
+// B142, for a float the cursor is in
+func TestB142FloatKeymap(t *testing.T) {
+	e, log := withServer(t, "a\nb target\n", "utf-8", "[keymap.float]\n\"<Esc>\" = \"<Plug>(float.close)\"")
+	heard(t, log, `"method":"textDocument/didOpen"`, 1)
+	feed(e, "jwK")
+	settle(t, e, func() bool { _, ok := e.Float(); return ok })
+	// Hover again moves the cursor into the float, and the float's keymap
+	// closes it.
+	if feed(e, "K"); !strings.Contains(text(e), "hover at") {
+		t.Fatalf("after K the cursor is in %q, want the float", text(e))
+	}
+	if feed(e, "<Esc>"); text(e) != "a\nb target" {
+		t.Fatalf("after <Esc> the cursor is in %q, want the file", text(e))
+	}
+}
+
 // B66, for the keys that list or jump to places, and N3
 func TestB66Places(t *testing.T) {
 	e, log := withServer(t, "a target\nb target\nc\n", "utf-8")

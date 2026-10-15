@@ -159,6 +159,8 @@ func (b *buffer) kind() string {
 		return "list"
 	case b.lines != nil:
 		return "timeline"
+	case b.title == "[float]":
+		return "float"
 	}
 	return ""
 }

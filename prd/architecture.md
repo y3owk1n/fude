@@ -325,6 +325,11 @@ nothing. The finder's keymap is an insert mode one, so the machine runs a
 `<Plug>` key in insert mode too. Its open action closes the finder after
 the key, as closing feeds the machine `<Esc>` (B142).
 
+A key closes a float that shows and keeps it for that key. When the key
+runs `<Plug>(lsp.hover)`, hover moves the cursor into the float it closed
+instead of asking the server again, so a remapped hover key enters a float
+as `K` does (B142).
+
 The terminal sends the arrows, `<Home>`, `<End>`, `<Del>`, `<PageUp>` and
 `<PageDown>`. In normal and visual mode the machine reads each as the
 command it stands for before anything else sees it (B132). The command

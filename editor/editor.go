@@ -71,6 +71,7 @@ type Session struct {
 	dirs       map[string][]string     // entries of directories the command line has completed in
 	flash      *flash                  // text shown for a moment after a yank, put, undo or redo
 	locals     map[string]*vim.Keymaps // the keymaps of kinds of buffer, by kind, over the machine's (B142)
+	left       string                  // the float the key being handled closed, which hover enters
 	under      *window                 // the window a focused float was opened from
 	opts       options                 // what the session's new windows start with
 	changed    chan change             // told when the shown text changes, for a client over the socket
@@ -195,12 +196,18 @@ func builtins(e *Session) {
 			return nil
 		})
 	}
+	e.vim.Command("float.close", func(vim.Text, int, int) []vim.Edit {
+		if e.under != nil {
+			e.unfocus()
+		}
+		return nil
+	})
 	e.vim.Command("list.open", func(vim.Text, int, int) []vim.Edit {
 		e.openSpot()
 		return nil
 	})
 	e.locals = map[string]*vim.Keymaps{}
-	for kind, keys := range map[string]map[string]string{"listing": listingKeys, "list": listKeys, "timeline": timelineKeys, "finder": finderKeys} {
+	for kind, keys := range map[string]map[string]string{"listing": listingKeys, "list": listKeys, "timeline": timelineKeys, "finder": finderKeys, "float": floatKeys} {
 		mode := vim.Normal
 		if kind == "finder" {
 			mode = vim.Insert
@@ -283,7 +290,7 @@ func Start(args []string) (*Session, error) {
 		for mode, maps := range map[vim.Mode]map[string]string{vim.Normal: cfg.Keymap.Normal, vim.Visual: cfg.Keymap.Visual, vim.Insert: cfg.Keymap.Insert} {
 			mapAll(s.vim, mode, maps)
 		}
-		for kind, maps := range map[string]map[string]string{"listing": cfg.Keymap.Listing, "list": cfg.Keymap.List, "timeline": cfg.Keymap.Timeline} {
+		for kind, maps := range map[string]map[string]string{"listing": cfg.Keymap.Listing, "list": cfg.Keymap.List, "timeline": cfg.Keymap.Timeline, "float": cfg.Keymap.Float} {
 			mapAll(s.locals[kind], vim.Normal, maps)
 		}
 		mapAll(s.locals["finder"], vim.Insert, cfg.Keymap.Finder)
@@ -420,18 +427,8 @@ func (e *Session) feed(k vim.Key) {
 		e.reveal()
 		return
 	}
-	if text := e.float; text != "" {
-		// Any key closes the float. K again moves the cursor into it.
-		e.float = ""
-		if k == "K" && e.vim.Idle() {
-			e.focus(text)
-			return
-		}
-	}
-	if e.under != nil && k == "q" && e.vim.Idle() {
-		e.unfocus()
-		return
-	}
+	// Any key closes the float, and hover again moves the cursor into it.
+	e.left, e.float = e.float, ""
 	if ask := e.ask; ask != nil {
 		e.ask = nil
 		ask(k == "y")
@@ -787,6 +784,10 @@ func (e *Session) Float() (Float, bool) {
 	}
 	return Float{Text: e.float, Spans: e.floatSpans, Cursor: -1, Doc: e.doc, DocSpans: e.docSpans}, e.float != ""
 }
+
+// floatKeys are a focused float's own keys, which [keymap.float] changes
+// (B142).
+var floatKeys = map[string]string{"q": "<Plug>(float.close)"}
 
 // focus moves the cursor into a float showing text, a read-only window
 // outside the layout, where keys move and scroll as in any window.
