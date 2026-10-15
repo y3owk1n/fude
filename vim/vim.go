@@ -88,6 +88,20 @@ type Machine struct {
 	blockInsert *blockInsert
 	replaced    []string // what each key typed in replace mode overwrote
 
+	// Command line and search.
+	prompt string // :, / or ?
+	back   Mode   // the mode a search returns to
+	search struct {
+		pattern string
+		forward bool
+	}
+	hl      bool // matches of the last search are highlighted
+	re      *pattern
+	reSrc   string
+	lastRep string // the previous replacement, for ~
+	lastSub struct{ pattern, rep, flags string }
+	msg     string
+
 	// Insert mode.
 	insStart   int  // where typing began, the limit of <C-w> and <C-u>
 	autoIndent bool // the line's indent came from autoindent and is untouched
@@ -108,8 +122,11 @@ func New(h Host) *Machine { return &Machine{h: h} }
 // Mode returns the current mode.
 func (m *Machine) Mode() Mode { return m.mode }
 
-// Line returns the command line being typed, without its ":".
-func (m *Machine) Line() string { return m.line }
+// Line returns the command line being typed, with its prompt.
+func (m *Machine) Line() string { return m.prompt + m.line }
+
+// Message returns what the last key has to tell the user, or "".
+func (m *Machine) Message() string { return m.msg }
 
 // Recording returns the register a macro is being recorded into, or 0.
 func (m *Machine) Recording() rune { return m.recording }
@@ -122,7 +139,7 @@ func (m *Machine) Register(name rune) (string, bool) {
 
 // Feed handles one key. It returns the host's error if an edit fails.
 func (m *Machine) Feed(k Key) error {
-	m.beep = false
+	m.beep, m.msg = false, ""
 	if m.recording != 0 {
 		if k == "q" && m.idle() {
 			m.stopRecording()
@@ -145,7 +162,7 @@ func (m *Machine) feed(k Key) error {
 	case Insert, Replace:
 		err = m.insert(k)
 	case Cmdline:
-		m.cmdline(k)
+		err = m.cmdline(k)
 	default:
 		err = m.normal(k)
 	}
@@ -181,7 +198,7 @@ func (m *Machine) idle() bool {
 func (m *Machine) run(keys []Key) error {
 	if m.depth++; m.depth > 100 {
 		m.depth--
-		return errors.New("E169: Command too recursive")
+		return errors.New("macro nested too deeply")
 	}
 	defer func() { m.depth-- }()
 	for _, k := range keys {
@@ -255,7 +272,7 @@ func (m *Machine) stopRecording() {
 }
 
 // Paste inserts s as typed text, with no key mapping applied. In normal mode
-// it goes after the cursor and the mode stays normal, as in Neovim.
+// it goes after the cursor and the mode stays normal.
 func (m *Machine) Paste(s string) error {
 	switch m.mode {
 	case Insert, Replace:
@@ -312,6 +329,17 @@ func (m *Machine) normal(k Key) error {
 		m.pending = k
 		return nil
 	}
+	if cmd == "/" || cmd == "?" {
+		// The count, register and operator wait for the search to finish.
+		m.back, m.mode, m.prompt, m.line = m.mode, Cmdline, cmd, ""
+		return nil
+	}
+	return m.command(cmd)
+}
+
+// command runs a complete normal or visual mode command.
+func (m *Machine) command(cmd string) error {
+	k := Key(cmd)
 	if m.mode == Visual {
 		count, reg := m.count, m.reg
 		m.count, m.reg = 0, 0
@@ -369,8 +397,11 @@ func (m *Machine) normal(k Key) error {
 		}
 		return m.execute(m.recorded, max(count, 1))
 	case ":":
-		m.mode = Cmdline
-		m.line = ""
+		m.back, m.mode, m.prompt, m.line = Normal, Cmdline, ":", ""
+	case "<C-l>":
+		m.hl = false
+	case "&":
+		return m.ex("&&")
 	case "v", "V", "<C-v>":
 		m.mode, m.visual, m.anchor = Visual, k, c
 	case "i":
@@ -391,24 +422,33 @@ func (m *Machine) normal(k Key) error {
 	return nil
 }
 
-func (m *Machine) cmdline(k Key) {
+func (m *Machine) cmdline(k Key) error {
 	switch {
 	case k == "<Esc>", k == "<BS>" && m.line == "":
-		m.mode = Normal
+		m.mode = m.back
+		m.count, m.op, m.opCount, m.reg = 0, "", 0, 0
 	case k == "<CR>":
-		m.mode = Normal
-		m.h.Unhandled(":" + m.line)
+		m.mode = m.back
+		if m.prompt == ":" {
+			return m.ex(m.line)
+		}
+		line := m.line
+		if line == "" {
+			line = m.search.pattern
+		}
+		return m.command(m.prompt + line)
 	case k == "<BS>":
 		_, n := utf8.DecodeLastRuneInString(m.line)
 		m.line = m.line[:len(m.line)-n]
 	case k.isChar():
 		m.line += string(k)
 	}
+	return nil
 }
 
 // undo moves n steps back, or forward for redo. The cursor goes back to
-// where it was before the step if that is on the step's first line, as in
-// Neovim, and to that line's first non-blank otherwise.
+// where it was before the step if that is on the step's first line, and to
+// that line's first non-blank otherwise.
 func (m *Machine) undo(back bool, n int) error {
 	step := m.h.Redo
 	if back {
@@ -420,9 +460,9 @@ func (m *Machine) undo(back bool, n int) error {
 		case !ok && i > 0:
 			return nil
 		case !ok && back:
-			return errors.New("Already at oldest change")
+			return errors.New("already at the oldest change")
 		case !ok:
-			return errors.New("Already at newest change")
+			return errors.New("already at the newest change")
 		}
 		t := m.h.Text()
 		top := LineStart(t, start)

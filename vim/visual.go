@@ -1,6 +1,9 @@
 package vim
 
-import "math"
+import (
+	"math"
+	"strings"
+)
 
 // Selection is the visual selection, for a client to draw.
 type Selection struct {
@@ -63,6 +66,17 @@ func (m *Machine) visualKey(cmd string, count int, reg rune) error {
 	case "o":
 		m.anchor, c = c, m.anchor
 		m.h.SetCursor(c)
+		return nil
+	case "*", "#":
+		// Search for the selected text literally.
+		r := m.selection()
+		m.mode = Normal
+		pat := strings.ReplaceAll(strings.ReplaceAll(t.Slice(r.start, r.end), `\`, `\\`), "\n", `\n`)
+		m.search.pattern, m.search.forward = `\V`+pat, cmd == "*"
+		p, k, _ := m.seek(m.search.pattern, m.search.forward, max(count, 1))
+		if k != failed {
+			m.h.SetCursor(clamp(t, p))
+		}
 		return nil
 	case "d", "x", "c", "y":
 		op := cmd

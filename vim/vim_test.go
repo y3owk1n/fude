@@ -341,6 +341,67 @@ func TestB19EscCancelsOperator(t *testing.T) {
 	cases(t, [][3]string{{"foo |bar", "d<Esc>w", "foo ba|r"}})
 }
 
+// B21
+func TestB21Search(t *testing.T) {
+	cases(t, [][3]string{
+		{"|foo bar foo", "/foo<CR>", "foo bar |foo"},
+		{"|foo bar foo", "/foo<CR>n", "|foo bar foo"},
+		{"foo bar |foo", "?foo<CR>", "|foo bar foo"},
+		{"|a foo b foo", "/foo<CR>N", "a foo b |foo"},
+		{"|a foo b foo", "2/foo<CR>", "a foo b |foo"},
+		{"|a foo b", "d/b<CR>", "|b"},
+		{"|a Foo foo", "/\\cfoo<CR>", "a |Foo foo"},
+		{"|a Foo foo", "/foo<CR>", "a Foo |foo"},
+		{"|ab\nxb", "/b$<CR>", "a|b\nxb"},
+		{"|ax\nb", "/^b<CR>", "ax\n|b"},
+		{"|a b", "/\\<b<CR>", "a |b"},
+	})
+	_, _, m := run(t, "|aa", "")
+	for _, k := range vim.Keys("/a\\1<CR>") {
+		_ = m.Feed(k)
+	}
+	if !strings.Contains(m.Message(), "backtracking") {
+		t.Errorf("a backreference gave message %q, want it refused", m.Message())
+	}
+}
+
+// B22
+func TestB22Substitute(t *testing.T) {
+	cases(t, [][3]string{
+		{"  a\nfoo |x", ":s/x/y/<CR>", "  a\n|foo y"},
+		{"|x\n  a b", ":2s/b/c/<CR>", "x\n  |a c"},
+		{"a a\n|b a\nc", ":%s/a/z/<CR>", "z a\n|b z\nc"},
+		{"a a\n|b a\nc", ":%s/a/z/g<CR>", "z z\n|b z\nc"},
+		{"a a\nb a\n|c", ":1,2s/a/z/g<CR>", "z z\n|b z\nc"},
+		{"|foo bar", ":s/\\(foo\\) \\(bar\\)/\\2 \\1/<CR>", "|bar foo"},
+		{"|foo bar", ":s/foo/\\u&/<CR>", "|Foo bar"},
+		{"|foo bar", ":s/\\w\\+/\\U&/g<CR>", "|FOO BAR"},
+		{"|foo bar", ":s/foo\\zsbar\\|o\\ze /X/<CR>", "|foX bar"},
+		{"|a,b", ":s/,/\\r/<CR>", "a\n|b"},
+		{"|a a\nb a", ":s/a/z/<CR>j&", "z a\n|b z"},
+		{"|a a\nb a a", ":s/a/z/g<CR>j&", "z z\n|b z z"},
+		{"|ab ab", ":s/a/x/<CR>:s/b/~y/<CR>", "|xxy ab"},
+		{"|aXb", ":s/x/-/i<CR>", "|a-b"},
+		{"|a(b)", ":s/(b)/[&]/<CR>", "|a[(b)]"},
+		{"|a.b", ":s/./-/g<CR>", "|---"},
+		{"|a+b", ":s/\\v(a)\\+(b)/\\2\\1/<CR>", "|ba"},
+	})
+	if _, h, _ := run(t, "|a\na\na", ":%s/a/b/<CR>"); h.steps != 1 {
+		t.Errorf("a substitute over three lines made %d undo steps, want 1", h.steps)
+	}
+}
+
+// B28
+func TestB28StarSearch(t *testing.T) {
+	cases(t, [][3]string{
+		{"|foo.x foo", "*", "foo.x |foo"},
+		{"foo |foo.x", "#", "|foo foo.x"},
+		{"|foobar foo", "*", "|foobar foo"},
+		{"|ab x ab", "vl*", "ab x |ab"},
+		{"|a.b a.b", "vll*", "a.b |a.b"},
+	})
+}
+
 // B25
 func TestB25EditingCommands(t *testing.T) {
 	cases(t, [][3]string{

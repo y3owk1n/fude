@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/gdamore/tcell/v3"
+	"github.com/gdamore/tcell/v3/color"
 
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/vim"
@@ -84,6 +85,7 @@ func (c *client) draw() {
 	for y := 0; y < h-1; y++ {
 		end := vim.LineEnd(t, pos)
 		line := t.Slice(pos, end)
+		matches := c.e.Matches(pos, end)
 		x := 0
 		for rest := line; ; {
 			at := pos + len(line) - len(rest)
@@ -99,6 +101,11 @@ func (c *client) draw() {
 				continue
 			}
 			style := tcell.StyleDefault
+			for _, mt := range matches {
+				if at >= mt[0] && at < mt[1] {
+					style = style.Background(color.Yellow).Foreground(color.Black)
+				}
+			}
 			if visual && at >= sel.Start && at < sel.End && (!sel.Block || x >= sel.Left && x <= sel.Right) {
 				style = style.Reverse(true)
 			}
@@ -123,8 +130,8 @@ func (c *client) draw() {
 	case vim.Visual:
 		c.s.PutStr(0, h-1, visualLabels[sel.Kind])
 	case vim.Cmdline:
-		c.s.PutStr(0, h-1, ":"+c.e.Line())
-		cx, cy = 1+len(c.e.Line()), h-1
+		c.s.PutStr(0, h-1, c.e.Line())
+		cx, cy = len(c.e.Line()), h-1
 	default:
 		msg := c.e.Message()
 		if r := c.e.Recording(); r != 0 && msg == "" {

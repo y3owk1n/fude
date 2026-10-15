@@ -10,7 +10,7 @@ import (
 	"github.com/clipperhouse/uax29/v2/graphemes"
 )
 
-// Tabstop is the width of a tab, Neovim's default.
+// Tabstop is the width of a tab.
 const Tabstop = 8
 
 // kind is how an operator treats the text a motion crosses.
@@ -86,6 +86,16 @@ func (m *Machine) motion(cmd string, count int) (int, kind, bool) {
 		p = wordBack(t, c, n, cmd == "B")
 	case "e", "E":
 		p, k = wordEnd(t, c, n, cmd == "E", false), inclusive
+	case "n", "N":
+		return m.seek(m.search.pattern, m.search.forward == (cmd == "n"), n)
+	case "*", "#":
+		word, ok := keywordAt(t, c)
+		if !ok {
+			m.msg = "no word under the cursor"
+			return c, failed, true
+		}
+		m.search.pattern, m.search.forward = `\<`+word+`\>`, cmd == "*"
+		return m.seek(m.search.pattern, m.search.forward, n)
 	case ";", ",":
 		f := m.find
 		if f == "" {
@@ -97,6 +107,10 @@ func (m *Machine) motion(cmd string, count int) (int, kind, bool) {
 		p, ok := find(t, c, n, f, true)
 		return m.found(p, f, ok)
 	default:
+		if cmd[0] == '/' || cmd[0] == '?' {
+			m.search.pattern, m.search.forward = cmd[1:], cmd[0] == '/'
+			return m.seek(m.search.pattern, m.search.forward, n)
+		}
 		if len(cmd) < 2 || !strings.Contains("ftFT", cmd[:1]) || !Key(cmd[1:]).isChar() {
 			return c, exclusive, false
 		}
