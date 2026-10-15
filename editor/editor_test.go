@@ -191,7 +191,7 @@ func TestB27Scrolling(t *testing.T) {
 		{"G<C-d>", 9, 30},
 	} {
 		e := open(t, path)
-		e.SetHeight(22)
+		e.SetSize(80, 23)
 		feed(e, c.keys)
 		if top, cur := line(e, e.Top()), line(e, e.Cursor()); top != c.top || cur != c.line {
 			t.Errorf("%q: top %d, cursor line %d, want %d and %d", c.keys, top, cur, c.top, c.line)
@@ -308,6 +308,90 @@ func TestB90JumpsAndChanges(t *testing.T) {
 		if first, _, _ := strings.Cut(got, "\n"); first != c.text || line != c.line || col != c.col {
 			t.Errorf("%q: in %q at line %d col %d, want %q at %d and %d", c.keys, first, line, col, c.text, c.line, c.col)
 		}
+	}
+}
+
+// windows describes each window as x,y wxh and * for the current one.
+func windows(e *editor.Editor) string {
+	var out []string
+	for _, v := range e.Views() {
+		cur := ""
+		if v.Current {
+			cur = "*"
+		}
+		out = append(out, fmt.Sprintf("%s%d,%d %dx%d", cur, v.X, v.Y, v.W, v.H))
+	}
+	return strings.Join(out, " ")
+}
+
+// B23
+func TestB23Splits(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "f")
+	if err := os.WriteFile(path, []byte("one\ntwo\nthree\nfour"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct{ keys, want string }{
+		{"<C-w>s", "*0,0 80x12 0,12 80x11"},
+		{"<C-w>v", "*0,0 40x23 41,0 39x23"},
+		{"<C-w>s<C-w>v", "*0,0 40x12 41,0 39x12 0,12 80x11"},
+		{"<C-w>s<C-w>j", "0,0 80x12 *0,12 80x11"},
+		{"<C-w>v<C-w>l", "0,0 40x23 *41,0 39x23"},
+		{"<C-w>v<C-w>l<C-w>h", "*0,0 40x23 41,0 39x23"},
+	} {
+		e := open(t, path)
+		e.SetSize(80, 23)
+		feed(e, c.keys)
+		if got := windows(e); got != c.want {
+			t.Errorf("%q: windows %q, want %q", c.keys, got, c.want)
+		}
+	}
+
+	// Both windows show one buffer, so an edit in one moves the cursor in
+	// the other, and an edit after it leaves it where it was.
+	e := open(t, path)
+	e.SetSize(80, 23)
+	feed(e, "jjl<C-w>sggdd<C-w>j")
+	if text(e) != "two\nthree\nfour" || e.Cursor() != 5 {
+		t.Errorf("after dd above it, the other window is at %d in %q, want 5", e.Cursor(), text(e))
+	}
+	e = open(t, path)
+	e.SetSize(80, 23)
+	feed(e, "jjl<C-w>sjx<C-w>j")
+	if e.Cursor() != 9 {
+		t.Errorf("after x below it, the other window is at %d, want 9", e.Cursor())
+	}
+}
+
+// B91
+func TestB91WindowCommands(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "f")
+	if err := os.WriteFile(path, []byte("one"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct{ keys, want string }{
+		{"<C-w>s<C-w>c", "*0,0 80x23"},
+		{"<C-w>s<C-w>s", "*0,0 80x8 0,8 80x8 0,16 80x7"},
+		{"<C-w>s<C-w>s<C-w>o", "*0,0 80x23"},
+		{"<C-w>s<C-w>s<C-w>=", "*0,0 80x8 0,8 80x8 0,16 80x7"},
+		{"<C-w>s:q<CR>", "*0,0 80x23"},
+		{"<C-w>v<C-w>q", "*0,0 80x23"},
+	} {
+		e := open(t, path)
+		e.SetSize(80, 23)
+		feed(e, c.keys)
+		if got := windows(e); got != c.want || e.Done() {
+			t.Errorf("%q: windows %q (done %v), want %q", c.keys, got, e.Done(), c.want)
+		}
+	}
+	e := open(t, path)
+	e.SetSize(80, 23)
+	feed(e, "<C-w>c")
+	if e.Message() != "cannot close the last window" {
+		t.Errorf("closing the last window said %q", e.Message())
+	}
+	feed(e, ":q<CR>")
+	if !e.Done() {
+		t.Error(":q in the last window did not quit")
 	}
 }
 

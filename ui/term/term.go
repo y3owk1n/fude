@@ -75,47 +75,14 @@ type client struct {
 func (c *client) draw() {
 	c.s.Clear()
 	w, h := c.s.Size()
-	t, cur := c.e.Text(), c.e.Cursor()
-	c.e.SetHeight(h - 1)
+	c.e.SetSize(w, h-1)
 	sel, visual := c.e.Selection()
 
 	cx, cy := 0, 0
-	pos := c.e.Top()
-	for y := 0; y < h-1; y++ {
-		end := vim.LineEnd(t, pos)
-		line := t.Slice(pos, end)
-		matches := c.e.Matches(pos, end)
-		x := 0
-		for rest := line; ; {
-			at := pos + len(line) - len(rest)
-			if at == cur || x >= w && cur >= at && cur <= end {
-				cx, cy = min(x, w-1), y
-			}
-			if rest == "" || x >= w {
-				break
-			}
-			if rest[0] == '\t' {
-				x += vim.Tabstop - x%vim.Tabstop
-				rest = rest[1:]
-				continue
-			}
-			style := tcell.StyleDefault
-			for _, mt := range matches {
-				if at >= mt[0] && at < mt[1] {
-					style = style.Background(color.Yellow).Foreground(color.Black)
-				}
-			}
-			if visual && at >= sel.Start && at < sel.End && (!sel.Block || x >= sel.Left && x <= sel.Right) {
-				style = style.Reverse(true)
-			}
-			var width int
-			rest, width = c.s.Put(x, y, rest, style)
-			x += width
+	for _, v := range c.e.Views() {
+		if x, y, ok := c.view(v, sel, visual && v.Current); ok {
+			cx, cy = x, y
 		}
-		if end == t.Len() {
-			break
-		}
-		pos = end + 1
 	}
 
 	shape := tcell.CursorStyleSteadyBlock
@@ -141,6 +108,72 @@ func (c *client) draw() {
 	c.s.SetCursorStyle(shape)
 	c.s.ShowCursor(cx, cy)
 	c.s.Show()
+}
+
+// view draws one window: its text, a status line on its bottom row, and a
+// separator on its left when another window is beside it. For the current
+// window it reports where the cursor is.
+func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, bool) {
+	t := v.Text
+	cx, cy, found := 0, 0, false
+	pos := v.Top
+	for row := 0; row < v.H-1; row++ {
+		y := v.Y + row
+		end := vim.LineEnd(t, pos)
+		line := t.Slice(pos, end)
+		var matches [][2]int
+		if v.Current {
+			matches = c.e.Matches(pos, end)
+		}
+		x := 0
+		for rest := line; ; {
+			at := pos + len(line) - len(rest)
+			if v.Current && (at == v.Cursor || x >= v.W && v.Cursor >= at && v.Cursor <= end) {
+				cx, cy, found = v.X+min(x, v.W-1), y, true
+			}
+			if rest == "" || x >= v.W {
+				break
+			}
+			if rest[0] == '\t' {
+				x += vim.Tabstop - x%vim.Tabstop
+				rest = rest[1:]
+				continue
+			}
+			style := tcell.StyleDefault
+			for _, mt := range matches {
+				if at >= mt[0] && at < mt[1] {
+					style = style.Background(color.Yellow).Foreground(color.Black)
+				}
+			}
+			if visual && at >= sel.Start && at < sel.End && (!sel.Block || x >= sel.Left && x <= sel.Right) {
+				style = style.Reverse(true)
+			}
+			var width int
+			rest, width = c.s.Put(v.X+x, y, rest, style)
+			x += width
+		}
+		if end == t.Len() {
+			break
+		}
+		pos = end + 1
+	}
+	if v.X > 0 {
+		for y := v.Y; y < v.Y+v.H; y++ {
+			c.s.Put(v.X-1, y, "│", tcell.StyleDefault)
+		}
+	}
+	status := " " + v.Name
+	if v.Modified {
+		status += " [+]"
+	}
+	if r := []rune(status); len(r) > v.W {
+		// Cut the start of a long name, so the end and [+] stay in view.
+		status = "<" + string(r[len(r)-v.W+1:])
+	}
+	style := tcell.StyleDefault.Reverse(true).Bold(v.Current)
+	c.s.FillArea(v.X, v.Y+v.H-1, v.W, 1, ' ', style)
+	c.s.PutStrStyled(v.X, v.Y+v.H-1, status, style)
+	return cx, cy, found
 }
 
 // keys returns ev in Vim notation, or nothing for a key fude does not use

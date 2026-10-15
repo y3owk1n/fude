@@ -8,14 +8,17 @@ import (
 	"github.com/y3owk1n/fude/vim"
 )
 
-// buffer is one open file: its text, where the cursor was, and what the vim
-// machine needs to undo, mark and scroll it.
+// buffer is one open file: its text, and what the vim machine needs to undo
+// and mark it.
 type buffer struct {
-	id     int
-	file   file
-	text   *kernel.Buffer
-	cursor int
-	saved  kernel.NodeID
+	id    int
+	file  file
+	text  *kernel.Buffer
+	saved kernel.NodeID
+
+	// Where the cursor and the top line were when the buffer was last left,
+	// for the next window to show it.
+	last, lastTop int
 
 	// The cursor from before each undo step, for the vim machine's undo.
 	before  map[kernel.NodeID]int
@@ -24,7 +27,6 @@ type buffer struct {
 	head    kernel.NodeID
 
 	marks map[rune]kernel.MarkID
-	top   kernel.MarkID // on the first line shown, so it follows edits
 
 	changes  []kernel.MarkID // where edits happened, oldest first
 	changeAt int             // the change g; last moved to, or len(changes)
@@ -53,7 +55,6 @@ func openBuffer(id int, path string) (*buffer, string, error) {
 		return nil, "", err
 	}
 	b := &buffer{id: id, file: f, text: kernel.New(text, nil), before: map[kernel.NodeID]int{}, marks: map[rune]kernel.MarkID{}}
-	b.top = b.text.SetMark(0, kernel.Left)
 	msg := ""
 	switch {
 	case f.readonly:

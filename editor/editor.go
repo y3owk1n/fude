@@ -1,4 +1,5 @@
-// Package editor hosts the kernel and the vim machine for a set of files.
+// Package editor hosts the kernel and the vim machine for a set of files
+// shown in a layout of windows.
 package editor
 
 import (
@@ -11,64 +12,24 @@ import (
 	"github.com/y3owk1n/fude/vim"
 )
 
-// Editor is a set of open files, one of them shown. Keys edit it through the
-// vim machine.
+// Editor is a set of open files shown in windows. Keys edit the current
+// window's buffer through the vim machine.
 type Editor struct {
 	bufs    []*buffer
-	cur     *buffer
 	next    int // the id the next buffer gets
+	root    *node
+	win     *window // the current window
 	vim     *vim.Machine
 	message string
 	done    bool
-	height  int // how many lines the view shows
 
-	jumps  []place
-	jumpAt int // the jump <C-o> last moved to, or len(jumps)
+	width, height int // the space the windows share
 }
 
 // place is a position in a buffer, kept as a mark so it follows edits.
 type place struct {
 	buf  *buffer
 	mark kernel.MarkID
-}
-
-// show switches to b. Leaving a buffer is a jump.
-func (e *Editor) show(b *buffer) {
-	if b != e.cur {
-		e.pushJump(e.cur.cursor)
-		e.cur = b
-	}
-}
-
-// pushJump records pos in the shown buffer as a jump, dropping any older one
-// on the same line of the same buffer.
-func (e *Editor) pushJump(pos int) {
-	b, t := e.cur, e.cur.text.Snapshot()
-	var kept []place
-	for _, j := range e.jumps {
-		if j.buf != b || !sameLine(t, b.text.Mark(j.mark), pos) {
-			kept = append(kept, j)
-		}
-	}
-	e.jumps = append(kept, place{b, b.text.SetMark(pos, kernel.Right)})
-	e.jumpAt = len(e.jumps)
-}
-
-// jump moves n jumps back, or forward when n is negative. The first step
-// back records where the cursor is, so <C-i> can return to it.
-func (e *Editor) jump(n int) bool {
-	if n > 0 && e.jumpAt == len(e.jumps) {
-		e.pushJump(e.cur.cursor)
-		e.jumpAt = len(e.jumps) - 1
-	}
-	i := e.jumpAt - n
-	if i < 0 || i >= len(e.jumps) {
-		return false
-	}
-	j := e.jumps[i]
-	e.jumpAt, e.cur = i, j.buf
-	e.cur.cursor = j.buf.text.Mark(j.mark)
-	return true
 }
 
 // Open opens each path as a buffer and shows the first. A path that does not
@@ -86,9 +47,12 @@ func Open(paths ...string) (*Editor, error) {
 			return nil, err
 		}
 		if i == 0 {
-			e.cur, e.message = e.bufs[0], msg
+			e.message = msg
 		}
 	}
+	e.win = newWindow(e.bufs[0], 0, 0)
+	e.root = &node{win: e.win}
+	e.layout()
 	return e, nil
 }
 
@@ -119,7 +83,7 @@ func Start(args []string) (*Editor, error) {
 			}
 		}
 		l := t.Slice(p, vim.LineEnd(t, p))
-		e.cur.cursor = p + len(l) - len(strings.TrimLeft(l, " \t"))
+		e.setCursor(p + len(l) - len(strings.TrimLeft(l, " \t")))
 	}
 	return e, nil
 }
@@ -146,33 +110,63 @@ func (e *Editor) Feed(k vim.Key) {
 	e.reveal()
 }
 
-// SetHeight sets how many lines of text the view shows.
-func (e *Editor) SetHeight(h int) {
-	e.height = h
+// SetSize sets the columns and rows the windows share, status lines
+// included.
+func (e *Editor) SetSize(w, h int) {
+	e.width, e.height = w, h
+	e.layout()
 	e.reveal()
 }
 
-// Top returns the start of the first line shown.
-func (e *Editor) Top() int {
-	return vim.LineStart(e.cur.text.Snapshot(), e.cur.text.Mark(e.cur.top))
+// View is one window as a client draws it.
+type View struct {
+	Text              kernel.Snapshot
+	Top, Cursor       int
+	X, Y, W, H        int // H counts the status line on the bottom row
+	Name              string
+	Modified, Current bool
 }
 
-// reveal scrolls the view the least it must to show the cursor's line.
+// Views returns every window from the top left.
+func (e *Editor) Views() []View {
+	var out []View
+	for _, w := range e.root.windows() {
+		out = append(out, View{
+			Text: w.buf.text.Snapshot(), Top: e.topOf(w), Cursor: w.pos(),
+			X: w.x, Y: w.y, W: w.w, H: w.h,
+			Name: w.buf.name(), Modified: w.buf.modified(), Current: w == e.win,
+		})
+	}
+	return out
+}
+
+// Top returns the start of the current window's first line shown.
+func (e *Editor) Top() int { return e.topOf(e.win) }
+
+func (e *Editor) topOf(w *window) int {
+	return vim.LineStart(w.buf.text.Snapshot(), w.buf.text.Mark(w.top))
+}
+
+// rows is how many lines of text the current window shows.
+func (e *Editor) rows() int { return max(e.win.h-1, 1) }
+
+// reveal scrolls the current window the least it must to show the cursor's
+// line.
 func (e *Editor) reveal() {
-	b := e.cur
-	t, c, top := b.text.Snapshot(), b.cursor, e.Top()
+	w := e.win
+	t, c, top := w.buf.text.Snapshot(), w.pos(), e.Top()
 	if c < top {
-		b.text.MoveMark(b.top, vim.LineStart(t, c))
+		w.buf.text.MoveMark(w.top, vim.LineStart(t, c))
 		return
 	}
 	below := 0
 	for p := top; p < vim.LineStart(t, c); p = vim.LineEnd(t, p) + 1 {
 		below++
 	}
-	for ; below >= max(e.height, 1); below-- {
+	for ; below >= e.rows(); below-- {
 		top = vim.LineEnd(t, top) + 1
 	}
-	b.text.MoveMark(b.top, top)
+	w.buf.text.MoveMark(w.top, top)
 }
 
 // Matches returns the search matches between from and to, for highlighting.
@@ -187,11 +181,13 @@ func (e *Editor) Paste(text string) {
 	e.reveal()
 }
 
-// Text returns the shown buffer's text.
-func (e *Editor) Text() kernel.Snapshot { return e.cur.text.Snapshot() }
+// Text returns the current window's text.
+func (e *Editor) Text() kernel.Snapshot { return e.win.buf.text.Snapshot() }
 
-// Cursor returns the cursor's byte offset.
-func (e *Editor) Cursor() int { return e.cur.cursor }
+// Cursor returns the cursor's byte offset in the current window.
+func (e *Editor) Cursor() int { return e.win.pos() }
+
+func (e *Editor) setCursor(pos int) { e.win.buf.text.MoveMark(e.win.cursor, pos) }
 
 // Mode returns the vim mode.
 func (e *Editor) Mode() vim.Mode { return e.vim.Mode() }
@@ -211,26 +207,120 @@ func (e *Editor) Done() bool { return e.done }
 // Recording returns the register a macro is being recorded into, or 0.
 func (e *Editor) Recording() rune { return e.vim.Recording() }
 
+// show switches the current window to b. Leaving a buffer is a jump.
+func (e *Editor) show(b *buffer) {
+	if b != e.win.buf {
+		e.pushJump(e.Cursor())
+		e.win.show(b)
+	}
+}
+
+// pushJump records pos in the current window's buffer as a jump, dropping
+// any older one on the same line of the same buffer.
+func (e *Editor) pushJump(pos int) {
+	w := e.win
+	b, t := w.buf, w.buf.text.Snapshot()
+	var kept []place
+	for _, j := range w.jumps {
+		if j.buf != b || !sameLine(t, b.text.Mark(j.mark), pos) {
+			kept = append(kept, j)
+		}
+	}
+	w.jumps = append(kept, place{b, b.text.SetMark(pos, kernel.Right)})
+	w.jumpAt = len(w.jumps)
+}
+
+// jump moves n jumps back, or forward when n is negative. The first step
+// back records where the cursor is, so <C-i> can return to it.
+func (e *Editor) jump(n int) bool {
+	w := e.win
+	if n > 0 && w.jumpAt == len(w.jumps) {
+		e.pushJump(e.Cursor())
+		w.jumpAt = len(w.jumps) - 1
+	}
+	i := w.jumpAt - n
+	if i < 0 || i >= len(w.jumps) {
+		return false
+	}
+	j := w.jumps[i]
+	if j.buf != w.buf {
+		w.show(j.buf)
+	}
+	w.jumpAt = i
+	e.setCursor(j.buf.text.Mark(j.mark))
+	return true
+}
+
+// window runs a <C-w> command.
+func (e *Editor) window(k string) {
+	var err error
+	switch k {
+	case "s", "S", "<C-s>":
+		e.split(false)
+	case "v", "<C-v>":
+		e.split(true)
+	case "h", "j", "k", "l":
+		e.moveTo(k[0])
+	case "<C-h>", "<C-j>", "<C-k>", "<C-l>":
+		e.moveTo(k[3])
+	case "c", "<C-c>":
+		err = e.closeWindow(e.win)
+	case "q", "<C-q>":
+		e.quit(false)
+	case "o", "<C-o>":
+		e.only()
+	case "=":
+		// Splits always share their space equally, so there is nothing to
+		// even out.
+	}
+	if err != nil {
+		e.message = err.Error()
+	}
+}
+
+// quit closes the current window, or quits once it is the last one. Without
+// force it refuses to quit while a buffer has unsaved changes.
+func (e *Editor) quit(force bool) {
+	if e.root.win == nil {
+		if err := e.closeWindow(e.win); err != nil {
+			e.message = err.Error()
+		}
+		return
+	}
+	for _, b := range e.bufs {
+		if b.modified() && !force {
+			e.message = fmt.Sprintf("no write since the last change to \"%s\" (add ! to override)", b.name())
+			return
+		}
+	}
+	e.done = true
+}
+
 func (e *Editor) ex(line string) {
 	name, arg, _ := strings.Cut(strings.TrimSpace(line), " ")
 	arg = strings.TrimSpace(arg)
 	switch name {
 	case "w":
 		e.write()
-	case "q":
-		for _, b := range e.bufs {
-			if b.modified() {
-				e.message = fmt.Sprintf("no write since the last change to \"%s\" (add ! to override)", b.name())
-				return
-			}
-		}
-		e.done = true
-	case "q!":
-		e.done = true
+	case "q", "quit":
+		e.quit(false)
+	case "q!", "quit!":
+		e.quit(true)
 	case "reg", "registers":
 		e.registers(arg)
 	case "e", "edit":
 		e.edit(arg)
+	case "sp", "split", "vs", "vsplit":
+		e.split(name[0] == 'v')
+		if arg != "" {
+			e.edit(arg)
+		}
+	case "on", "only":
+		e.only()
+	case "clo", "close":
+		if err := e.closeWindow(e.win); err != nil {
+			e.message = err.Error()
+		}
 	case "ls", "buffers", "files":
 		e.list()
 	case "b", "buffer":
@@ -242,9 +332,9 @@ func (e *Editor) ex(line string) {
 		if name != "bn" && name != "bnext" {
 			step = len(e.bufs) - 1
 		}
-		e.show(e.bufs[(e.index(e.cur)+step)%len(e.bufs)])
+		e.show(e.bufs[(index(e.bufs, e.win.buf)+step)%len(e.bufs)])
 	case "bd", "bdelete", "bd!", "bdelete!":
-		b := e.cur
+		b := e.win.buf
 		if arg != "" {
 			b = e.find(arg)
 		}
@@ -277,13 +367,13 @@ func (e *Editor) edit(path string) {
 	e.message = msg
 }
 
-// list shows every buffer with its number, % for the shown one and + for a
-// modified one, as :ls does.
+// list shows every buffer with its number, % for the current window's and +
+// for a modified one, as :ls does.
 func (e *Editor) list() {
 	var shown []string
 	for _, b := range e.bufs {
 		flags := ""
-		if b == e.cur {
+		if b == e.win.buf {
 			flags += "%"
 		}
 		if b.modified() {
@@ -315,39 +405,32 @@ func (e *Editor) find(s string) *buffer {
 	return found
 }
 
-func (e *Editor) index(b *buffer) int {
-	for i, x := range e.bufs {
-		if x == b {
-			return i
-		}
-	}
-	return -1
-}
-
-// close removes b, refusing a modified buffer unless forced. The shown
-// buffer moves to the next one, or to a new empty buffer if none is left.
+// close removes b, refusing a modified buffer unless forced. Windows showing
+// it move to the next buffer, or to a new empty buffer if none is left.
 func (e *Editor) close(b *buffer, force bool) {
 	if b.modified() && !force {
 		e.message = fmt.Sprintf("no write since the last change to \"%s\" (add ! to override)", b.name())
 		return
 	}
-	i := e.index(b)
+	i := index(e.bufs, b)
 	e.bufs = append(e.bufs[:i], e.bufs[i+1:]...)
-	var kept []place
-	for _, j := range e.jumps {
-		if j.buf != b {
-			kept = append(kept, j)
-		}
-	}
-	e.jumps, e.jumpAt = kept, len(kept)
 	if len(e.bufs) == 0 {
 		if _, err := e.add(""); err != nil {
 			e.message = err.Error()
 			return
 		}
 	}
-	if b == e.cur {
-		e.cur = e.bufs[min(i, len(e.bufs)-1)]
+	for _, w := range e.root.windows() {
+		var kept []place
+		for _, j := range w.jumps {
+			if j.buf != b {
+				kept = append(kept, j)
+			}
+		}
+		w.jumps, w.jumpAt = kept, len(kept)
+		if w.buf == b {
+			w.show(e.bufs[min(i, len(e.bufs)-1)])
+		}
 	}
 }
 
@@ -363,7 +446,7 @@ func (e *Editor) registers(names string) {
 }
 
 func (e *Editor) write() {
-	b := e.cur
+	b := e.win.buf
 	switch {
 	case b.file.path == "":
 		e.message = "no file name"
@@ -387,21 +470,21 @@ func (e *Editor) write() {
 	e.message = fmt.Sprintf("\"%s\" %s%dB written", b.file.path, tag, n)
 }
 
-// host implements vim.Host for an Editor, acting on the shown buffer.
+// host implements vim.Host for an Editor, acting on the current window.
 type host struct{ e *Editor }
 
-func (h host) Text() vim.Text    { return h.e.cur.text.Snapshot() }
-func (h host) Cursor() int       { return h.e.cur.cursor }
-func (h host) SetCursor(pos int) { h.e.cur.cursor = pos }
+func (h host) Text() vim.Text    { return h.e.Text() }
+func (h host) Cursor() int       { return h.e.Cursor() }
+func (h host) SetCursor(pos int) { h.e.setCursor(pos) }
 func (h host) BeginGroup() {
-	b := h.e.cur
+	b := h.e.win.buf
 	h.begin()
 	b.depth++
 	b.text.BeginGroup()
 }
 
 func (h host) EndGroup() {
-	b := h.e.cur
+	b := h.e.win.buf
 	b.depth--
 	b.text.EndGroup()
 	h.end()
@@ -409,14 +492,14 @@ func (h host) EndGroup() {
 
 // begin notes the cursor when a new undo step may begin.
 func (h host) begin() {
-	if b := h.e.cur; b.depth == 0 {
-		b.pending = b.cursor
+	if b := h.e.win.buf; b.depth == 0 {
+		b.pending = h.e.Cursor()
 	}
 }
 
 // end saves the noted cursor for the step just made, if there is one.
 func (h host) end() {
-	b := h.e.cur
+	b := h.e.win.buf
 	if head := b.text.Head(); head != b.head {
 		b.before[head] = b.pending
 		b.head = head
@@ -424,7 +507,7 @@ func (h host) end() {
 }
 
 func (h host) SetMark(name rune, pos int) {
-	b := h.e.cur
+	b := h.e.win.buf
 	if id, ok := b.marks[name]; ok {
 		b.text.MoveMark(id, pos)
 		return
@@ -433,7 +516,7 @@ func (h host) SetMark(name rune, pos int) {
 }
 
 func (h host) Mark(name rune) (int, bool) {
-	b := h.e.cur
+	b := h.e.win.buf
 	id, ok := b.marks[name]
 	if !ok {
 		return 0, false
@@ -441,23 +524,24 @@ func (h host) Mark(name rune) (int, bool) {
 	return b.text.Mark(id), true
 }
 
-func (h host) Viewport() (int, int) { return h.e.Top(), h.e.height }
+func (h host) Viewport() (int, int) { return h.e.Top(), h.e.rows() }
+func (h host) SetTop(top int)       { h.e.win.buf.text.MoveMark(h.e.win.top, top) }
 func (h host) PushJump(pos int)     { h.e.pushJump(pos) }
 func (h host) Jump(n int) bool      { return h.e.jump(n) }
 
 func (h host) Change(n int) bool {
-	b := h.e.cur
+	b := h.e.win.buf
 	i := b.changeAt - n
 	if i < 0 || i >= len(b.changes) {
 		return false
 	}
-	b.changeAt, b.cursor = i, b.text.Mark(b.changes[i])
+	b.changeAt = i
+	h.e.setCursor(b.text.Mark(b.changes[i]))
 	return true
 }
-func (h host) SetTop(top int) { h.e.cur.text.MoveMark(h.e.cur.top, top) }
 
 func (h host) Undo() (int, int, bool) {
-	b := h.e.cur
+	b := h.e.win.buf
 	node := b.text.Head()
 	start, ok := b.text.Undo()
 	b.head = b.text.Head()
@@ -465,15 +549,22 @@ func (h host) Undo() (int, int, bool) {
 }
 
 func (h host) Redo() (int, int, bool) {
-	b := h.e.cur
+	b := h.e.win.buf
 	start, ok := b.text.Redo()
 	b.head = b.text.Head()
 	return start, b.before[b.head], ok
 }
-func (h host) Unhandled(k string) { h.e.ex(strings.TrimPrefix(k, ":")) }
+
+func (h host) Unhandled(k string) {
+	if w, ok := strings.CutPrefix(k, "<C-w>"); ok {
+		h.e.window(w)
+		return
+	}
+	h.e.ex(strings.TrimPrefix(k, ":"))
+}
 
 func (h host) Apply(edits []vim.Edit, label string) error {
-	b := h.e.cur
+	b := h.e.win.buf
 	if b.file.readonly {
 		return errors.New("cannot make changes, the file is read-only")
 	}

@@ -342,6 +342,15 @@ func (m *Machine) normal(k Key) error {
 		}
 		return m.execute(name, count)
 	}
+	if cmd == "<C-w>" {
+		m.pending = k
+		return nil
+	}
+	if strings.HasPrefix(cmd, "<C-w>") {
+		m.count, m.reg, m.op, m.opCount = 0, 0, "", 0
+		m.h.Unhandled(cmd)
+		return nil
+	}
 	if (m.op != "" || m.mode == Visual) && (cmd == "i" || cmd == "a") {
 		m.pending = k
 		return nil
