@@ -44,7 +44,7 @@ func (e *Session) Load() {
 		b, t := e.win.buf, e.Text()
 		go func() {
 			ctx := context.Background()
-			p, err := plugin.Load(ctx, path, s.Capabilities, filepath.Join(cache, "fude", "wasm"), logLine)
+			p, err := plugin.Load(ctx, path, plugin.Grants{Capabilities: s.Capabilities, Programs: s.Programs}, filepath.Join(cache, "fude", "wasm"), logLine)
 			if err != nil {
 				e.queue <- func() { e.message = err.Error() }
 				return

@@ -143,6 +143,26 @@ func TestB47ReadFile(t *testing.T) {
 	}
 }
 
+// B48
+func TestB48RunPrograms(t *testing.T) {
+	wasm, err := filepath.Abs(filepath.Join("..", "plugin", "testdata", "proc.wasm"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	config(t, fmt.Sprintf("[[plugin]]\npath = %q\ncapabilities = [\"process\"]\nprograms = [\"echo\", \"sleep\"]\n", wasm))
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	e := start(t, "")
+	e.Load()
+	began := time.Now()
+	(<-e.Queue())()
+	if took := time.Since(began); took > 2*time.Second || !strings.Contains(e.Message(), "budget") {
+		t.Fatalf("sleep 5 ran %v and the plugin said %q, want its budget to stop it", took, e.Message())
+	}
+	if log := fudeLog(); !strings.Contains(log, "proc: hi\n") || !strings.Contains(log, "proc: refused") {
+		t.Fatalf("the plugin logged:\n%s", log)
+	}
+}
+
 // B50
 func TestB50Capabilities(t *testing.T) {
 	e := withPlugin(t, "write")

@@ -32,6 +32,7 @@ type config struct {
 	Plugin []struct {
 		Path         string   `toml:"path"` // relative to the config directory
 		Capabilities []string `toml:"capabilities"`
+		Programs     []string `toml:"programs"` // what process may run
 	} `toml:"plugin"`
 }
 

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -66,8 +67,7 @@ type Registration struct {
 // memoryPages is the most memory a plugin may grow to, 64MB.
 const memoryPages = 1024
 
-// capabilities are the ones a plugin may declare. process and net grant
-// nothing yet.
+// capabilities are the ones a plugin may declare. net grants nothing yet.
 var capabilities = []string{"buffer.read", "buffer.write", "ui", "fs.read", "process", "net"}
 
 // Errors a host function returns to the plugin.
@@ -76,6 +76,7 @@ const (
 	errRange  = -2 // a range outside the text
 	errMemory = -3 // the plugin's memory could not take the result
 	errFile   = -4 // a file outside the project, or one that cannot be read
+	errRun    = -5 // a program the plugin did not declare, or one that failed
 )
 
 // ErrBusy is what a call on the input path returns while another call
@@ -87,9 +88,9 @@ type Plugin struct {
 	Name       string
 	Registered []Registration // what its init registered
 	Subscribed []string       // the events its init subscribed to
-	caps       []string
-	log        func(string)
-	root       string // the project: the directory fude started in
+	Grants
+	log  func(string)
+	root string // the project: the directory fude started in
 
 	mu      sync.Mutex
 	next    int // the id the next decoration gets
@@ -109,11 +110,18 @@ type call struct {
 // errBudget is a call that ran past its budget. The plugin is closed.
 var errBudget = errors.New("ran past its budget")
 
-// Load compiles the plugin at path and instantiates it with caps. Compiled
-// code is kept in cacheDir between runs. log takes what the plugin logs and
-// the calls it was denied.
-func Load(ctx context.Context, path string, caps []string, cacheDir string, log func(string)) (*Plugin, error) {
-	for _, c := range caps {
+// Grants are what config.toml lets a plugin do: its capabilities, and the
+// programs process may run.
+type Grants struct {
+	Capabilities []string
+	Programs     []string
+}
+
+// Load compiles the plugin at path and instantiates it with g. Compiled code
+// is kept in cacheDir between runs. log takes what the plugin logs and the
+// calls it was denied.
+func Load(ctx context.Context, path string, g Grants, cacheDir string, log func(string)) (*Plugin, error) {
+	for _, c := range g.Capabilities {
 		if !slices.Contains(capabilities, c) {
 			return nil, fmt.Errorf("plugin %s: no capability %q", path, c)
 		}
@@ -126,7 +134,7 @@ func Load(ctx context.Context, path string, caps []string, cacheDir string, log 
 	if err != nil {
 		return nil, fmt.Errorf("load plugin: %w", err)
 	}
-	p := &Plugin{Name: strings.TrimSuffix(filepath.Base(path), ".wasm"), caps: caps, log: log, root: root}
+	p := &Plugin{Name: strings.TrimSuffix(filepath.Base(path), ".wasm"), Grants: g, log: log, root: root}
 	if p.cache, err = wazero.NewCompilationCacheWithDir(cacheDir); err != nil {
 		return nil, fmt.Errorf("plugin cache: %w", err)
 	}
@@ -216,6 +224,7 @@ func (p *Plugin) host(ctx context.Context) error {
 		NewFunctionBuilder().WithFunc(p.status).Export("status").
 		NewFunctionBuilder().WithFunc(p.float).Export("float").
 		NewFunctionBuilder().WithFunc(p.readFile).Export("read_file").
+		NewFunctionBuilder().WithFunc(p.runProgram).Export("run").
 		NewFunctionBuilder().WithFunc(p.decorate).Export("decorate").
 		NewFunctionBuilder().WithFunc(p.undecorate).Export("undecorate").
 		Instantiate(ctx)
@@ -228,7 +237,7 @@ func (p *Plugin) host(ctx context.Context) error {
 // allowed reports whether the plugin declared capability c, and logs the
 // call it denies.
 func (p *Plugin) allowed(c, fn string) bool {
-	if slices.Contains(p.caps, c) {
+	if slices.Contains(p.Capabilities, c) {
 		return true
 	}
 	p.log(fmt.Sprintf("%s: %s needs %s, which it did not declare", p.Name, fn, c))
@@ -288,6 +297,33 @@ func (p *Plugin) readFile(ctx context.Context, m api.Module, ptr, n uint32) int6
 		return errFile
 	}
 	return give(ctx, m, string(data))
+}
+
+// runProgram runs the program and arguments at (ptr, n), separated by NUL
+// bytes, in the project, and writes what it printed into memory the plugin
+// allocates. The program must be one the plugin's table lists, and the
+// call's budget stops it (B48).
+func (p *Plugin) runProgram(ctx context.Context, m api.Module, ptr, n uint32) int64 {
+	if p.call == nil || !p.allowed("process", "run") {
+		return errDenied
+	}
+	b, ok := m.Memory().Read(ptr, n)
+	if !ok || n == 0 {
+		return errRange
+	}
+	argv := strings.Split(string(b), "\x00")
+	if !slices.Contains(p.Programs, argv[0]) {
+		p.log(fmt.Sprintf("%s: run %s, which it did not declare", p.Name, argv[0]))
+		return errRun
+	}
+	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
+	cmd.Dir = p.root
+	out, err := cmd.Output()
+	if err != nil {
+		p.log(fmt.Sprintf("%s: run %s: %v", p.Name, argv[0], err))
+		return errRun
+	}
+	return give(ctx, m, string(out))
 }
 
 // read reads the file at name, relative to the project, if it is in it.
