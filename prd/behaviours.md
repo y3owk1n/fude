@@ -187,6 +187,8 @@ Where fude departs, the line says so and cites the departure in
   event says so instead of waiting.
 - B58 [4] A plugin with `ui` shows a segment on the statusline of the
   buffer it read.
+- B59 [4] A plugin with `ui` shows markdown in a float at the cursor, as
+  hover does.
 
 ## LSP
 

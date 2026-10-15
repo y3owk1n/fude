@@ -120,6 +120,9 @@ func (e *Session) decorate(p *plugin.Plugin, b *buffer, res plugin.Result) []vim
 	for _, name := range res.Emit {
 		e.emit(name, "", b)
 	}
+	if res.Float != nil {
+		e.float, e.floatSpans = e.markdown(*res.Float)
+	}
 	if res.Status != nil {
 		if e.segments[p] == nil {
 			e.segments[p] = map[*buffer]string{}

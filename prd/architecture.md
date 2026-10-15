@@ -512,6 +512,7 @@ take the result.
 | `emit(ptr, len) -> i32` | none | emits the event `plugin.name` about the buffer the call read |
 | `decorate(start, end, ptr, len) -> i32` | `ui` | puts a style, such as `keyword`, on `[start, end)`, and returns its id |
 | `undecorate(id) -> i32` | `ui` | removes a decoration |
+| `float(ptr, len) -> i32` | `ui` | shows the markdown in a float at the cursor, or closes it for "" (B59) |
 | `status(ptr, len) -> i32` | `ui` | shows the text on the statusline of the buffer the call read, or none for "" (B58) |
 
 `register` names the export that runs what it adds. Kind 0 is an ex

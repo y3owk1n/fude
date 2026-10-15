@@ -110,6 +110,18 @@ func TestB58StatuslineSegments(t *testing.T) {
 	}
 }
 
+// B59
+func TestB59PluginFloat(t *testing.T) {
+	e := withPlugin(t, "pop", "ui")
+	e.Load()
+	(<-e.Queue())()
+	feed(e, "gP")
+	f, ok := e.Float()
+	if !ok || f.Text != "hi" || len(f.Spans) != 1 || f.Spans[0].Name != "markup.strong" {
+		t.Fatalf("gP showed %q with %v, want hi in bold", f.Text, f.Spans)
+	}
+}
+
 // B50
 func TestB50Capabilities(t *testing.T) {
 	e := withPlugin(t, "write")

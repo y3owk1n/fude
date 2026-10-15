@@ -53,6 +53,7 @@ type Result struct {
 	Undecorate []int    // the ids of decorations to remove
 	Emit       []string // the events to emit, named plugin.event
 	Status     *string  // the plugin's statusline segment for the text it read, "" for none
+	Float      *string  // markdown to show at the cursor, "" to close it
 	Out        []uint64
 }
 
@@ -207,6 +208,7 @@ func (p *Plugin) host(ctx context.Context) error {
 		NewFunctionBuilder().WithFunc(p.subscribe).Export("subscribe").
 		NewFunctionBuilder().WithFunc(p.emit).Export("emit").
 		NewFunctionBuilder().WithFunc(p.status).Export("status").
+		NewFunctionBuilder().WithFunc(p.float).Export("float").
 		NewFunctionBuilder().WithFunc(p.decorate).Export("decorate").
 		NewFunctionBuilder().WithFunc(p.undecorate).Export("undecorate").
 		Instantiate(ctx)
@@ -344,6 +346,21 @@ func (p *Plugin) status(_ context.Context, m api.Module, ptr, n uint32) int32 {
 	}
 	s := string(text)
 	p.call.Status = &s
+	return 0
+}
+
+// float asks to show the markdown at (ptr, n) in a float at the cursor, or
+// to close it for "" (B59).
+func (p *Plugin) float(_ context.Context, m api.Module, ptr, n uint32) int32 {
+	if p.call == nil || !p.allowed("ui", "float") {
+		return errDenied
+	}
+	text, ok := m.Memory().Read(ptr, n)
+	if !ok {
+		return errRange
+	}
+	s := string(text)
+	p.call.Float = &s
 	return 0
 }
 
