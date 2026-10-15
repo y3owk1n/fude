@@ -54,8 +54,8 @@ func fromBase16(b [16]int32) theme {
 	}
 }
 
-// The styles drawing takes from the theme in use, which useTheme sets.
-var (
+// styles are what drawing takes from a theme.
+type styles struct {
 	th   theme
 	base tcell.Style // the text's colours on the ground, which every style starts from
 	// colours are the styles of highlight captures. A capture with no entry
@@ -69,16 +69,55 @@ var (
 	// underline, git's in its add, change and delete colours, and icons' by
 	// the names mini.icons gives them.
 	signColours map[string]color.Color
+}
+
+// The styles drawing takes now, which apply sets, from the theme in use and
+// its tint under a modal box.
+var (
+	th          theme
+	base        tcell.Style
+	colours     map[string]tcell.Style
+	underlines  map[string]color.Color
+	signColours map[string]color.Color
+	lit, dimmed styles
 )
 
 func init() { useTheme(themes["dark"]) }
 
 // useTheme draws with t from then on.
 func useTheme(t theme) {
-	th = t
-	base = tcell.StyleDefault.Background(t.bg).Foreground(t.text)
+	lit, dimmed = build(t), build(tint(t))
+	apply(lit)
+}
+
+// apply makes drawing take s.
+func apply(s styles) {
+	th, base, colours, underlines, signColours = s.th, s.base, s.colours, s.underlines, s.signColours
+}
+
+// tint is t darkened for what shows under a modal box: its grounds darker,
+// and every colour of text faded into the darker ground (B151).
+func tint(t theme) theme {
+	black := color.NewRGBColor(0, 0, 0)
+	g := func(c color.Color) color.Color { return mix(c, black, 0.35) }
+	bg := g(t.bg)
+	f := func(c color.Color) color.Color { return mix(c, bg, 0.55) }
+	return theme{
+		bg: bg, surface: g(t.surface), raised: g(t.raised), border: f(t.border),
+		text: f(t.text), muted: f(t.muted), faint: f(t.faint),
+		cursorLine: g(t.cursorLine), selection: g(t.selection),
+		normal: f(t.normal), insert: f(t.insert), visual: f(t.visual), cmd: f(t.cmd),
+		err: f(t.err), warn: f(t.warn), info: f(t.info), hint: f(t.hint),
+		keyword: f(t.keyword), str: f(t.str), function: f(t.function), typ: f(t.typ),
+		number: f(t.number), comment: f(t.comment), punct: f(t.punct),
+	}
+}
+
+func build(t theme) styles {
+	base := tcell.StyleDefault.Background(t.bg).Foreground(t.text)
 	fg := func(c color.Color) tcell.Style { return base.Foreground(c) }
-	colours = map[string]tcell.Style{
+	s := styles{th: t, base: base}
+	s.colours = map[string]tcell.Style{
 		"comment": fg(t.comment).Italic(true),
 		"keyword": fg(t.keyword),
 		"string":  fg(t.str), "escape": fg(t.typ),
@@ -96,14 +135,27 @@ func useTheme(t theme) {
 		// What a proposal would replace.
 		"proposal": fg(t.faint).StrikeThrough(true), "proposal.stale": fg(t.err).StrikeThrough(true),
 	}
-	underlines = map[string]color.Color{
+	s.underlines = map[string]color.Color{
 		"diagnostic.error": t.err, "diagnostic.warn": t.warn, "diagnostic.info": t.info, "diagnostic.hint": t.hint,
 	}
-	signColours = map[string]color.Color{
+	s.signColours = map[string]color.Color{
 		"diagnostic.error": t.err, "diagnostic.warn": t.warn, "diagnostic.info": t.info, "diagnostic.hint": t.hint,
 		"git.add": t.insert, "git.change": t.normal, "git.delete": t.err,
 		"icon.azure": t.function, "icon.blue": t.normal, "icon.cyan": t.hint, "icon.green": t.str,
 		"icon.grey": t.muted, "icon.orange": t.number, "icon.purple": t.keyword, "icon.red": t.err,
 		"icon.yellow": t.warn,
 	}
+	return s
+}
+
+// mix returns the colour t of the way from a to b, for tints. A colour that
+// is not one, such as the terminal's default, stays as it is.
+func mix(a, b color.Color, t float64) color.Color {
+	if !a.Valid() || !b.Valid() {
+		return a
+	}
+	ar, ag, ab := a.RGB()
+	br, bg, bb := b.RGB()
+	at := func(x, y int32) int32 { return x + int32(float64(y-x)*t) }
+	return color.NewRGBColor(at(ar, br), at(ag, bg), at(ab, bb))
 }

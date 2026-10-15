@@ -245,11 +245,10 @@ func TestB150Panels(t *testing.T) {
 	for y := range h {
 		for x := range w {
 			if s, style, _ := cl.s.Get(x, y); s == "╭" {
-				// The border and the inside are both on the ground, so no seam
-				// shows between them.
-				_, in, _ := cl.s.Get(x+1, y+1)
-				if style.GetBackground() != th.bg || in.GetBackground() != th.bg {
-					t.Fatalf("the border's ground is %v and the inside's %v, want the editor's", style.GetBackground(), in.GetBackground())
+				// The border and the inside are on one ground, so no seam shows
+				// between them.
+				if _, in, _ := cl.s.Get(x+1, y+1); style.GetBackground() != in.GetBackground() {
+					t.Fatalf("the border's ground is %v and the inside's %v", style.GetBackground(), in.GetBackground())
 				}
 				// The selected completion has the bar for its border.
 				if bar, _, _ := cl.s.Get(x, y+3); bar != "▌" {
@@ -260,4 +259,33 @@ func TestB150Panels(t *testing.T) {
 		}
 	}
 	t.Fatal("no panel on the screen")
+}
+
+// B151
+func TestB151Tint(t *testing.T) {
+	cl := start(t)
+	cl.draw()
+	_, before, _ := cl.s.Get(0, 0)
+	for _, k := range vim.Keys(":ab") {
+		cl.e.Feed(k)
+	}
+	cl.draw()
+	// The windows under the command line are on a darker ground.
+	_, under, _ := cl.s.Get(0, 0)
+	if under.GetBackground() == before.GetBackground() {
+		t.Fatalf("under the command line the ground stays %v", under.GetBackground())
+	}
+	// The box is on the same ground, with its text at full strength.
+	w, h := cl.s.Size()
+	for y := range h {
+		for x := range w {
+			if s, style, _ := cl.s.Get(x, y); s == "a" {
+				if style.GetBackground() != under.GetBackground() || style.GetForeground() != th.text {
+					t.Fatalf("the typed text is %v on %v", style.GetForeground(), style.GetBackground())
+				}
+				return
+			}
+		}
+	}
+	t.Fatal("the typed text is not on the screen")
 }

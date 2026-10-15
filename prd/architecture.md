@@ -569,6 +569,12 @@ the line and the fill, which a terminal cannot avoid. A row a
 beside it becomes an accent bar. A `markup.rule` row joins the border with
 `├` and `┤` (B150).
 
+Setting a theme also builds its tint: every ground 35% of the way to black
+and every colour of text 55% of the way to the tinted ground. A frame with
+the command line or the finder open draws the windows in the tint, then
+the box in the theme's own colours on the tinted ground, so nothing draws
+twice and no seam shows (B151).
+
 The client keeps a cell grid, diffs it against the previous frame, and
 writes only the changed cells in one write. It wraps each frame in
 synchronized output where the terminal supports it.

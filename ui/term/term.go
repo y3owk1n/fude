@@ -144,21 +144,31 @@ func newClient(s tcell.Screen, e *editor.Session) *client {
 }
 
 func (c *client) draw() {
-	c.s.Fill(' ', base)
 	// The windows take every row: the command line floats and messages
 	// are toasts (B148, B149).
 	w, h := c.s.Size()
 	c.e.SetSize(w, h)
 	sel, visual := c.e.Selection()
 
+	// A modal box, the command line or the finder, has the windows under it
+	// drawn in the tinted theme, and draws on the tinted ground (B151).
+	f, floats := c.e.Float()
+	modal := c.e.Mode() == vim.Cmdline || floats && f.W > 0
+	if modal {
+		apply(dimmed)
+		defer apply(lit)
+	}
+	c.s.Fill(' ', base)
 	cx, cy := 0, 0
 	for _, v := range c.e.Views() {
 		if x, y, ok := c.view(v, sel, visual && v.Current); ok {
 			cx, cy = x, y
 		}
 	}
-
-	f, floats := c.e.Float()
+	if modal {
+		apply(lit)
+		base = base.Background(dimmed.th.bg)
+	}
 	switch {
 	case c.e.Mode() == vim.Cmdline:
 		// The completion menu is part of the command line's box.
@@ -302,7 +312,7 @@ func (c *client) box(text string, spans []syntax.Span, rows []row, x, y, width, 
 	c.panel(x, y, width+2, len(rows))
 	x++
 	for i, r := range rows {
-		ground := th.bg
+		ground := base.GetBackground()
 		if r.rule {
 			c.rule(x-1, y+1+i, width+2)
 		}
