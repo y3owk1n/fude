@@ -30,6 +30,18 @@ This repo is production grade, and the way to get there is less code.
   works around it.
 - Errors carry context (`fmt.Errorf("open %s: %w", path, err)`) and are
   handled once. Never swallow one.
+- Comments are short. One line says what a name is or why code is odd.
+  Never restate what the code says.
+
+## Before every commit
+
+1. Run the tests and `go vet` for each module touched.
+2. Run `/cursor-team-kit_deslop` on the diff and apply its findings.
+3. Stop and ask the user to run `/cursor_unslop`. Commit only after they
+   say it is done.
+
+Commit straight to `main` with conventional, atomic commits. Never add AI
+attribution of any kind.
 
 ## Boundaries that CI enforces
 
@@ -45,6 +57,9 @@ Test only what `prd/behaviours.md` promises, through a public boundary:
 keys into a headless buffer, the CLI, a file on disk, the exported API of
 `core/` and `vim/`, the plugin ABI or the RPC protocol. Name the B-number
 the test covers. Mock only at system boundaries.
+
+Avoid over testing. Write one test per behaviour, for what would break. No tests for helpers, internals, getters or the toolchain, and no
+second test that proves the same thing.
 
 Keep this file short. It loads into every session. Add only rules an agent
 cannot infer from the code or the spec.
