@@ -7,9 +7,6 @@ import (
 	"unicode"
 )
 
-// shiftwidth is the indent step. Indents are made of tabs.
-const shiftwidth = 8
-
 // aliases are the commands that are an operator and a target.
 var aliases = map[string]string{
 	"x": "dl", "X": "dh", "s": "cl", "S": "cc", "D": "d$", "C": "c$", "Y": "y$",
@@ -271,8 +268,9 @@ func (m *Machine) changeCase(op, label string, r region) error {
 	return nil
 }
 
-// shift indents the lines of r by times shiftwidths for >, or outdents them
-// for <, rebuilding the indent from tabs and spaces. Empty lines stay empty.
+// shift indents the lines of r by times the indent width for >, or outdents
+// them for <, rebuilding the indent from tabs and spaces. Empty lines stay
+// empty.
 func (m *Machine) shift(op, label string, r region, col, times int) error {
 	t := m.h.Text()
 	var edits []Edit
@@ -282,9 +280,9 @@ func (m *Machine) shift(op, label string, r region, col, times int) error {
 			ind := firstNonBlank(t, ls, le)
 			w := column(t, ls, ind)
 			if op == ">" {
-				w += shiftwidth * times
+				w += m.h.IndentWidth() * times
 			} else {
-				w = max(w-shiftwidth*times, 0)
+				w = max(w-m.h.IndentWidth()*times, 0)
 			}
 			edits = append(edits, Edit{Start: ls, End: ind, Text: indentText(w)})
 		}

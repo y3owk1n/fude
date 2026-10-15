@@ -94,7 +94,7 @@ Where fude departs, the line says so and cites the departure in
 - B29 [2] Insert-mode `<BS> <C-w> <C-u> <C-r>{reg} <C-o> <C-t> <C-d>` act as
   in Neovim. `<C-w>` and `<C-u>` start a new undo step first. New lines
   keep the previous line's indent.
-- B84 [2] A typed prefix that is also a complete mapping waits `timeoutlen`
+- B84 [2] A typed prefix that is also a complete mapping waits `key_timeout`
   (1000ms by default), then runs the complete mapping.
 - B85 [2] `gv` reselects the last selection, `o` in visual mode swaps its
   ends, and `I` and `A` in blockwise visual mode insert on every line.

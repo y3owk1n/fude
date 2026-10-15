@@ -5,6 +5,7 @@ package term
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/gdamore/tcell/v3"
 	"github.com/gdamore/tcell/v3/color"
@@ -35,7 +36,14 @@ func Run(e *editor.Editor) error {
 	c.draw()
 	var paste strings.Builder
 	pasting := false
-	for ev := range s.EventQ() {
+	var timeout <-chan time.Time
+	for {
+		var ev tcell.Event
+		select {
+		case ev = <-s.EventQ():
+		case <-timeout:
+			e.Timeout()
+		}
 		switch ev := ev.(type) {
 		case *tcell.EventResize:
 			s.Sync()
@@ -60,9 +68,12 @@ func Run(e *editor.Editor) error {
 		if e.Done() {
 			return nil
 		}
+		timeout = nil
+		if d, ok := e.Wait(); ok {
+			timeout = time.After(d)
+		}
 		c.draw()
 	}
-	return nil
 }
 
 var visualLabels = map[vim.Key]string{"v": "-- VISUAL --", "V": "-- VISUAL LINE --", "<C-v>": "-- VISUAL BLOCK --"}

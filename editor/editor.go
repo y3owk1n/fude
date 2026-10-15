@@ -23,6 +23,7 @@ type Editor struct {
 	vim     *vim.Machine
 	message string
 	done    bool
+	cfg     config
 
 	width, height int // the space the windows share
 
@@ -42,7 +43,7 @@ func Open(paths ...string) (*Editor, error) {
 	if len(paths) == 0 {
 		paths = []string{""}
 	}
-	e := &Editor{next: 1, now: time.Now}
+	e := &Editor{next: 1, now: time.Now, cfg: defaults}
 	e.vim = vim.New(host{e})
 	for i, p := range paths {
 		msg, err := e.add(p)
@@ -59,8 +60,8 @@ func Open(paths ...string) (*Editor, error) {
 	return e, nil
 }
 
-// Start opens the files a command line names. +N puts the cursor on the
-// first non-blank of line N of the first file.
+// Start reads config.toml and opens the files a command line names. +N puts
+// the cursor on the first non-blank of line N of the first file.
 func Start(args []string) (*Editor, error) {
 	line := 0
 	var paths []string
@@ -88,6 +89,16 @@ func Start(args []string) (*Editor, error) {
 		l := t.Slice(p, vim.LineEnd(t, p))
 		e.setCursor(p + len(l) - len(strings.TrimLeft(l, " \t")))
 	}
+	cfg, err := loadConfig()
+	if err != nil {
+		e.message = err.Error()
+	}
+	e.cfg = cfg
+	for mode, maps := range map[vim.Mode]map[string]string{vim.Normal: cfg.Keymap.Normal, vim.Visual: cfg.Keymap.Visual, vim.Insert: cfg.Keymap.Insert} {
+		for from, to := range maps {
+			e.vim.Map(mode, from, to)
+		}
+	}
 	return e, nil
 }
 
@@ -105,7 +116,25 @@ func (e *Editor) add(path string) (string, error) {
 // Feed handles one key. An error becomes the message.
 func (e *Editor) Feed(k vim.Key) {
 	e.message = ""
-	if err := e.vim.Feed(k); err != nil {
+	e.settle(e.vim.Feed(k))
+}
+
+// Wait reports whether keys are held for a longer mapping, and how long to
+// wait for the next key before calling Timeout.
+func (e *Editor) Wait() (time.Duration, bool) {
+	return time.Duration(e.cfg.KeyTimeout) * time.Millisecond, e.vim.Waiting()
+}
+
+// Timeout runs the keys held for a longer mapping when no key came in time.
+func (e *Editor) Timeout() {
+	e.message = ""
+	e.settle(e.vim.Timeout())
+}
+
+// settle shows the error or message from the keys just run, and scrolls to
+// the cursor.
+func (e *Editor) settle(err error) {
+	if err != nil {
 		e.message = err.Error()
 	} else if msg := e.vim.Message(); msg != "" && e.message == "" {
 		e.message = msg
@@ -567,6 +596,19 @@ func (h host) Change(n int) bool {
 }
 
 func (h host) Step(n int) (int, bool) { return h.e.step(n) }
+
+// IndentWidth is the setting for the buffer's filetype, else the top-level
+// one.
+func (h host) IndentWidth() int {
+	w := h.e.cfg.IndentWidth
+	if ft, ok := h.e.cfg.Filetype[h.e.win.buf.filetype()]; ok && ft.IndentWidth > 0 {
+		w = ft.IndentWidth
+	}
+	if w == 0 {
+		return vim.Tabstop
+	}
+	return int(w)
+}
 
 func (h host) Undo() (int, int, bool) {
 	b := h.e.win.buf

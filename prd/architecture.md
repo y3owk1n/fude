@@ -32,12 +32,12 @@ vim/             Go module: the vim grammar, no dependency on core/
                  Command, keys, keymap trie, modes, registers, resolution,
                  built-in operators and targets, ex parsing, regex
 api/             fude's module API: events, decorations, UI, registration
-editor/          the editor loop, event queues, budgets, the vim host
+editor/          the editor loop, config, event queues, budgets, the vim host
 syntax/          tree-sitter parsing, highlights, tree targets
 plugin/          wazero host, the ABI that mirrors api/
 lsp/             language server client
 ui/term/         terminal client
-cmd/fude/        main, config, paths, distribution wiring
+cmd/fude/        main, distribution wiring
 ```
 
 Modules import `api/`, never `core/` or `vim/` directly. Only `editor/`
@@ -131,6 +131,7 @@ type Host interface {
     PushJump(pos int) // jumps may cross buffers, so the host keeps the lists
     Jump(n int) bool
     Change(n int) bool
+    IndentWidth() int // the buffer's setting, so filetypes can differ
 }
 
 func New(h Host) *Machine
@@ -427,6 +428,25 @@ $XDG_CONFIG_HOME/fude/queries/      tree-sitter queries that override shipped on
 $XDG_STATE_HOME/fude/timeline/      timeline logs, keyed by file path
 $XDG_DATA_HOME/fude/grammars/       grammars and their queries, loaded at runtime
 ```
+
+## Config
+
+`editor.Start` reads `config.toml` once (D27, D31). It holds:
+
+```toml
+indent_width = 8     # columns >, <, <C-t> and <C-d> shift by, 0 for the tab width
+key_timeout = 1000   # milliseconds a mapping prefix waits (B84)
+
+[keymap.normal]      # and [keymap.visual], [keymap.insert]. Keys map to keys.
+"<Space>w" = ":w<CR>"
+
+[filetype.go]        # overrides for buffers of that filetype (B94)
+indent_width = 4
+```
+
+fude shows an error with its line, and the settings after it keep their
+defaults (B93). `editor/` keeps the settings and gives the machine the
+indent width through `Host.IndentWidth`.
 
 ## Plugin ABI
 

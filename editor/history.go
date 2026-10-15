@@ -41,13 +41,9 @@ func historyPath(path string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("timeline of %s: %w", path, err)
 	}
-	dir := os.Getenv("XDG_STATE_HOME")
-	if dir == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", fmt.Errorf("timeline of %s: %w", path, err)
-		}
-		dir = filepath.Join(home, ".local", "state")
+	dir, err := xdgDir("XDG_STATE_HOME", filepath.Join(".local", "state"))
+	if err != nil {
+		return "", fmt.Errorf("timeline of %s: %w", path, err)
 	}
 	sum := sha256.Sum256([]byte(abs))
 	return filepath.Join(dir, "fude", "timeline", hex.EncodeToString(sum[:16])+".log"), nil

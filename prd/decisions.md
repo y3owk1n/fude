@@ -234,6 +234,15 @@ the standard library has neither, and tcell v3 (D26) already depends on
 both. The cursor and the renderer then agree on
 cluster boundaries, and the binary contains one segmentation table.
 
+## D31. config.toml is read with pelletier/go-toml
+
+`editor/` decodes `config.toml` with `github.com/pelletier/go-toml/v2` and
+rejects unknown keys. Why: the standard library has no TOML parser. B93
+needs the line of an error, and go-toml gives it for a bad value, an unknown
+key and a syntax error. A decode that fails keeps what it read before the
+error. BurntSushi/toml gives no line for a bad value and decodes the whole
+file or nothing. go-toml has no dependencies.
+
 ## Departures from Neovim
 
 Each entry: what differs, then why.

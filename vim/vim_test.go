@@ -25,6 +25,7 @@ func (h *host) Jump(int) bool        { return false }
 func (h *host) Change(int) bool      { return false }
 func (h *host) Step(int) (int, bool) { return 0, false }
 func (h *host) SetTop(top int)       { h.top = top }
+func (h *host) IndentWidth() int     { return 8 }
 
 type text string
 

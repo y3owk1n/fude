@@ -3,6 +3,7 @@ package editor
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/vim"
@@ -108,6 +109,10 @@ func (b *buffer) is(path string) bool {
 	y, err2 := filepath.Abs(path)
 	return b.file.path != "" && err1 == nil && err2 == nil && x == y
 }
+
+// filetype is the file's extension without the dot, which names its
+// [filetype.<name>] table in config.toml.
+func (b *buffer) filetype() string { return strings.TrimPrefix(filepath.Ext(b.file.path), ".") }
 
 // close notes a clean close in the timeline log, so the next open offers no
 // recovery.

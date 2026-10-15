@@ -4,6 +4,7 @@ go 1.26.0
 
 require (
 	github.com/gdamore/tcell/v3 v3.6.0
+	github.com/pelletier/go-toml/v2 v2.4.3
 	github.com/y3owk1n/fude/core v0.0.0
 	github.com/y3owk1n/fude/vim v0.0.0
 )

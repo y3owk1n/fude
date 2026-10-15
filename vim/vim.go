@@ -51,6 +51,7 @@ type Host interface {
 	// across branches, or earlier when n is negative. It returns where the
 	// last change it made starts, or false at either end.
 	Step(n int) (int, bool)
+	IndentWidth() int // the columns >, <, <C-t> and <C-d> shift by
 }
 
 // Mode is normal, insert, command line, visual or replace.

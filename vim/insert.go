@@ -119,14 +119,15 @@ func (m *Machine) erase(p int) error {
 }
 
 // backspace returns where <BS> deletes back to. In leading blanks it removes
-// one shiftwidth, as smarttab does, and at a line start it joins the lines.
+// one indent width, as smarttab does, and at a line start it joins the lines.
 func (m *Machine) backspace(t Text, c int) int {
 	ls := LineStart(t, c)
 	if c == ls {
 		return max(c-1, 0)
 	}
 	if strings.TrimLeft(t.Slice(ls, c), " \t") == "" {
-		target := (column(t, ls, c) - 1) / shiftwidth * shiftwidth
+		iw := m.h.IndentWidth()
+		target := (column(t, ls, c) - 1) / iw * iw
 		p := c
 		for p > ls && column(t, ls, p) > target {
 			p = prev(t, ls, p)
@@ -224,7 +225,7 @@ func (m *Machine) dropIndent() error {
 	return nil
 }
 
-// indentLine shifts the cursor's line one shiftwidth in for <C-t>, or out for
+// indentLine shifts the cursor's line one indent width in for <C-t>, or out for
 // <C-d>, keeping the cursor on the same text.
 func (m *Machine) indentLine(in bool) error {
 	t, c := m.h.Text(), m.h.Cursor()
@@ -232,9 +233,9 @@ func (m *Machine) indentLine(in bool) error {
 	ind := firstNonBlank(t, ls, LineEnd(t, ls))
 	w := column(t, ls, ind)
 	if in {
-		w += shiftwidth
+		w += m.h.IndentWidth()
 	} else {
-		w = max(w-shiftwidth, 0)
+		w = max(w-m.h.IndentWidth(), 0)
 	}
 	s := indentText(w)
 	if err := m.apply([]Edit{{Start: ls, End: ind, Text: s}}, m.label); err != nil {

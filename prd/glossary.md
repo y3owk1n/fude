@@ -18,6 +18,8 @@
   may build one with different modules.
 - **Buffer**: a rope of text plus its marks and timeline. Its path and
   file state belong to `editor/`, not the kernel.
+- **Filetype**: a buffer's file extension without the dot, such as `go`. It
+  names the `[filetype.<name>]` table in `config.toml` that applies to it.
 - **Snapshot**: a buffer's rope root and version at one moment. Free to
   take, safe to read from any goroutine.
 - **Version**: a counter on a buffer that moves with every applied edit.
