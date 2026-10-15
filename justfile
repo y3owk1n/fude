@@ -29,5 +29,13 @@ build:
 run path: build
     bin/fude {{ path }}
 
+# Check the speed promises, without the race detector.
+perf:
+    go test -count=1 -v -run Promise ./ui/term/ | grep -v '^=== RUN'
+
+# Fail if core/ grows past 10k lines of Go, tests excluded.
+kernel-size:
+    test $(find core -name '*.go' ! -name '*_test.go' -exec cat {} + | wc -l) -le 10000
+
 # Run everything a commit needs.
-check: fmt-check vet test
+check: fmt-check vet test kernel-size perf

@@ -38,7 +38,8 @@ This repo is production grade, and the way to get there is less code.
 
 ## Before every commit
 
-1. Run `just check`: formatting, `go vet` and the tests of every module.
+1. Run `just check`: formatting, `go vet`, the tests of every module, the
+   kernel's size and the speed promises.
 2. Run `/cursor-team-kit_deslop` on the diff and apply its findings.
 3. Stop and ask the user to run `/cursor_unslop`. Commit only after they
    say it is done.
