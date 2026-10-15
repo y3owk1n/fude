@@ -21,18 +21,19 @@ import (
 // Editor is a set of open files shown in windows. Keys edit the current
 // window's buffer through the vim machine.
 type Editor struct {
-	bufs    []*buffer
-	next    int // the id the next buffer gets
-	root    *node
-	win     *window // the current window
-	vim     *vim.Machine
-	message string
-	done    bool
-	cfg     config
-	ask     func(yes bool) // takes the answer to the question in the message
-	queue   chan func()
-	queries string // the directory of query files that replace shipped ones
-	plugins []*plugin.Plugin
+	bufs     []*buffer
+	next     int // the id the next buffer gets
+	root     *node
+	win      *window // the current window
+	vim      *vim.Machine
+	message  string
+	done     bool
+	cfg      config
+	ask      func(yes bool) // takes the answer to the question in the message
+	queue    chan func()
+	queries  string // the directory of query files that replace shipped ones
+	plugins  []*plugin.Plugin
+	commands map[string]func() // ex commands plugins registered
 
 	width, height int // the space the windows share
 
@@ -54,7 +55,7 @@ func open(cfg config, paths []string) (*Editor, error) {
 	if len(paths) == 0 {
 		paths = []string{""}
 	}
-	e := &Editor{next: 1, now: time.Now, cfg: cfg, queue: make(chan func(), 16)}
+	e := &Editor{next: 1, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(){}}
 	// Without a config directory there are no overrides, and loadConfig
 	// reports why.
 	if dir, err := xdgDir("XDG_CONFIG_HOME", ".config"); err == nil {
@@ -485,6 +486,10 @@ func (e *Editor) ex(line string) {
 			e.close(b, force)
 		}
 	default:
+		if run, ok := e.commands[name]; ok {
+			run()
+			return
+		}
 		e.message = "not a command: " + line
 	}
 }

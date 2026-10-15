@@ -149,6 +149,7 @@ func (m *Machine) Timeout() error
 func (m *Machine) Object(name string, find func(t Text, start, end int) (int, int, bool))
 func (m *Machine) Operator(name string, apply func(t Text, start, end int, lines bool) []Edit)
 func (m *Machine) Selector(find func(t Text, query string, start, end int) ([][2]int, error))
+func (m *Machine) Command(name string, run func(t Text, pos, count int) []Edit) // the key <Plug>(name)
 func (m *Machine) Cursors() []int // the other cursors while c types into several regions
 ```
 
@@ -499,6 +500,18 @@ take the result.
 | `text_len() -> i32` | `buffer.read` | the length of the text |
 | `text(start, end) -> i64` | `buffer.read` | the text in `[start, end)` |
 | `edit(start, end, ptr, len) -> i32` | `buffer.write` | asks to replace `[start, end)` |
+| `register(kind, name, nlen, export, elen) -> i32` | none, in `init` only | adds a command, operator, object or key |
+
+`register` names the export that runs what it adds. Kind 0 is an ex
+command and kind 3 a key in normal mode, both exported as `(cursor, count)`.
+Kind 1 is an operator, exported as `(start, end, linewise)`. Kind 2 is a
+text object, exported as `(start, end) -> i64` and returning
+`start<<32|end`, or a negative number for none. fude adds them to the
+machine as its own: operators and objects with `Machine.Operator` and
+`Machine.Object`, and a key by mapping it to `<Plug>(plugin.export)` and
+adding that with `Machine.Command`. So they compose with every built-in,
+and macros and dot repeat replay them (B52, B54). A call that fails unloads
+the plugin, and using what it added then says the plugin is unloaded.
 
 A plugin declares its capabilities in `config.toml`. `fs.read`, `process`
 and `net` are accepted there but grant nothing yet. A call outside the

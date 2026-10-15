@@ -23,10 +23,18 @@ var names = map[string]Key{
 }
 
 // Keys splits Vim notation such as "ihello<Esc>" into keys. A "<" that does
-// not start a known name is the character "<".
+// not start a known name is the character "<". <Plug>(name) is one key, which
+// runs the command the host added as name.
 func Keys(s string) []Key {
 	var ks []Key
 	for s != "" {
+		if rest, ok := strings.CutPrefix(s, "<Plug>("); ok {
+			if end := strings.IndexByte(rest, ')'); end > 0 {
+				ks = append(ks, Key("<Plug>("+rest[:end+1]))
+				s = rest[end+1:]
+				continue
+			}
+		}
 		if end := strings.IndexByte(s, '>'); s[0] == '<' && end > 0 {
 			name := strings.ToLower(s[1:end])
 			k, ok := names[name]

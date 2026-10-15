@@ -14,6 +14,7 @@ import (
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/plugin"
+	"github.com/y3owk1n/fude/vim"
 )
 
 // logMu keeps lines that plugin goroutines log whole.
@@ -42,22 +43,24 @@ func (e *Editor) Load() {
 				e.queue <- func() { e.message = err.Error() }
 				return
 			}
-			edits, err := p.Call(ctx, "init", t, plugin.InitBudget)
+			edits, _, err := p.Call(ctx, "init", t, plugin.InitBudget)
 			e.queue <- func() { e.loaded(p, err, b, t, edits) }
 		}()
 	}
 }
 
-// loaded keeps a plugin whose init returned, and applies the edits it asked
-// for to b, whose text it saw as t. A plugin whose init failed is unloaded.
+// loaded keeps a plugin whose init returned, adds what it registered, and
+// applies the edits it asked for to b, whose text it saw as t. A plugin
+// whose init failed is unloaded.
 func (e *Editor) loaded(p *plugin.Plugin, err error, b *buffer, t kernel.Snapshot, edits []api.Edit) {
 	if err != nil {
-		p.Close(context.Background())
-		e.message = fmt.Sprintf("%v, so it was unloaded", err)
-		logPlugin(e.message)
+		e.unload(p, err)
 		return
 	}
 	e.plugins = append(e.plugins, p)
+	for _, r := range p.Registered {
+		e.register(p, r)
+	}
 	if len(edits) == 0 {
 		return
 	}
@@ -72,6 +75,76 @@ func (e *Editor) loaded(p *plugin.Plugin, err error, b *buffer, t kernel.Snapsho
 	}
 	b.head = b.text.Head()
 	e.reveal()
+}
+
+// unload closes p after err and tells the user.
+func (e *Editor) unload(p *plugin.Plugin, err error) {
+	p.Close(context.Background())
+	e.plugins = slices.DeleteFunc(e.plugins, func(q *plugin.Plugin) bool { return q == p })
+	e.message = fmt.Sprintf("%v, so it was unloaded", err)
+	logPlugin(e.message)
+}
+
+// register adds a command, operator, object or key a plugin registered, as
+// the machine's own, so it composes with every built-in (B52, B54).
+func (e *Editor) register(p *plugin.Plugin, r plugin.Registration) {
+	switch r.Kind {
+	case plugin.Command:
+		e.commands[r.Name] = func() {
+			if edits, _, ok := e.run(p, r.Export, e.Text(), uint64(e.Cursor()), 0); ok && len(edits) > 0 {
+				if err := (host{e}).Apply(edits, ":"+r.Name); err != nil {
+					e.message = err.Error()
+					return
+				}
+				e.setCursor(edits[0].Start)
+			}
+		}
+	case plugin.Operator:
+		e.vim.Operator(r.Name, func(t vim.Text, start, end int, lines bool) []vim.Edit {
+			linewise := uint64(0)
+			if lines {
+				linewise = 1
+			}
+			edits, _, _ := e.run(p, r.Export, t, uint64(start), uint64(end), linewise)
+			return edits
+		})
+	case plugin.Object:
+		e.vim.Object(r.Name, func(t vim.Text, start, end int) (int, int, bool) {
+			_, out, ok := e.run(p, r.Export, t, uint64(start), uint64(end))
+			if !ok || len(out) == 0 || int64(out[0]) < 0 {
+				return 0, 0, false
+			}
+			return int(out[0] >> 32), int(uint32(out[0])), true
+		})
+	case plugin.Key:
+		name := p.Name + "." + r.Export
+		e.vim.Command(name, func(t vim.Text, pos, count int) []vim.Edit {
+			edits, _, _ := e.run(p, r.Export, t, uint64(pos), uint64(count))
+			return edits
+		})
+		e.vim.Map(vim.Normal, r.Name, "<Plug>("+name+")")
+	}
+}
+
+// run calls export of p on the input path, under its budget, and returns
+// the edits it asks for, sorted, and what it returned. A call that fails
+// unloads p, and calls into an unloaded plugin do nothing.
+func (e *Editor) run(p *plugin.Plugin, export string, t vim.Text, args ...uint64) ([]vim.Edit, []uint64, bool) {
+	if !slices.Contains(e.plugins, p) {
+		e.message = fmt.Sprintf("plugin %s is unloaded", p.Name)
+		return nil, nil, false
+	}
+	edits, out, err := p.Call(context.Background(), export, t, plugin.InputBudget, args...)
+	if err != nil {
+		e.unload(p, err)
+		return nil, nil, false
+	}
+	slices.SortStableFunc(edits, func(x, y api.Edit) int { return cmp.Compare(x.Start, y.Start) })
+	converted := make([]vim.Edit, len(edits))
+	for i, ed := range edits {
+		converted[i] = vim.Edit(ed)
+	}
+	return converted, out, true
 }
 
 // logPlugin appends a line to fude's log, which is where a plugin's own log

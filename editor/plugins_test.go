@@ -15,6 +15,15 @@ import (
 // starts an editor on a file holding "abc".
 func withPlugin(t *testing.T, name string, caps ...string) *editor.Editor {
 	t.Helper()
+	usePlugin(t, name, caps...)
+	path := filepath.Join(t.TempDir(), "f")
+	change(t, path, "abc\n")
+	return start(t, path)
+}
+
+// usePlugin writes a config that loads the test plugin name with caps.
+func usePlugin(t *testing.T, name string, caps ...string) {
+	t.Helper()
 	wasm, err := filepath.Abs(filepath.Join("..", "plugin", "testdata", name+".wasm"))
 	if err != nil {
 		t.Fatal(err)
@@ -25,9 +34,6 @@ func withPlugin(t *testing.T, name string, caps ...string) *editor.Editor {
 	}
 	config(t, fmt.Sprintf("[[plugin]]\npath = %q\ncapabilities = [%s]\n", wasm, strings.Join(quoted, ", ")))
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
-	path := filepath.Join(t.TempDir(), "f")
-	change(t, path, "abc\n")
-	return start(t, path)
 }
 
 // settle runs the work queued for the editor loop until done reports true.
@@ -102,5 +108,56 @@ func TestB53PluginTraps(t *testing.T) {
 	}
 	if text(e) != "abc" {
 		t.Errorf("a trap left %q, want no change", text(e))
+	}
+}
+
+// withKit starts an editor on "ab cd\nef" with the kit plugin loaded.
+func withKit(t *testing.T) *editor.Editor {
+	t.Helper()
+	usePlugin(t, "kit", "buffer.read", "buffer.write")
+	path := filepath.Join(t.TempDir(), "f")
+	change(t, path, "ab cd\nef\n")
+	e := start(t, path)
+	e.Load()
+	select {
+	case f := <-e.Queue():
+		f()
+	case <-time.After(5 * time.Second):
+		t.Fatal("the plugin did not load in 5s")
+	}
+	return e
+}
+
+// B52
+func TestB52PluginOperatorsAndObjects(t *testing.T) {
+	for _, c := range [][2]string{
+		{"gsiw", "AB cd\nef"},
+		{"gss", "AB CD\nef"},
+		{"gsaL", "AB CD\nEF"},
+		{"daL", ""},
+		{"gsiww.", "AB CD\nef"},
+		{"vegs", "AB cd\nef"},
+	} {
+		e := withKit(t)
+		if feed(e, c[0]); text(e) != c[1] {
+			t.Errorf("%s left %q, want %q", c[0], text(e), c[1])
+		}
+	}
+}
+
+// B54
+func TestB54PluginCommandsAndKeys(t *testing.T) {
+	for _, c := range [][2]string{
+		{":Shout<CR>", "!ab cd\nef"},
+		{"gS", "!ab cd\nef"},
+		{"gS.", "!!ab cd\nef"},
+		{"qagSq@a", "!!ab cd\nef"},
+		{"qa:Shout<CR>q@a", "!!ab cd\nef"},
+		{"gSu", "ab cd\nef"},
+	} {
+		e := withKit(t)
+		if feed(e, c[0]); text(e) != c[1] {
+			t.Errorf("%s left %q, want %q", c[0], text(e), c[1])
+		}
 	}
 }

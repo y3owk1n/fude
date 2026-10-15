@@ -52,6 +52,34 @@ func (m *Machine) Operator(name string, apply func(t Text, start, end int, lines
 	m.ops[name] = apply
 }
 
+// Command adds a normal mode command, run by the key <Plug>(name), for the
+// host to map keys to. run gets the cursor and the count, and returns the
+// edits it makes. Dot repeats it like any change.
+func (m *Machine) Command(name string, run func(t Text, pos, count int) []Edit) {
+	if m.cmds == nil {
+		m.cmds = map[string]func(Text, int, int) []Edit{}
+	}
+	m.cmds[name] = run
+}
+
+// plug runs the command the host added as name, and leaves the cursor where
+// its first edit starts.
+func (m *Machine) plug(name string, count int) error {
+	run := m.cmds[name]
+	if run == nil {
+		return nil
+	}
+	edits := run(m.h.Text(), m.h.Cursor(), count)
+	if len(edits) == 0 {
+		return nil
+	}
+	if err := m.apply(edits, "<Plug>("+name+")"); err != nil {
+		return err
+	}
+	m.h.SetCursor(clamp(m.h.Text(), edits[0].Start))
+	return nil
+}
+
 // hostOp applies an operator the host added to r, and leaves the cursor at
 // the start of r's first line: on its first non-blank when the operator was
 // doubled, at the cursor's column when the cursor was on that line and r is

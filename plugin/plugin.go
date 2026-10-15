@@ -19,8 +19,28 @@ import (
 	fude "github.com/y3owk1n/fude/api"
 )
 
-// InitBudget is how long a plugin's init may run.
-const InitBudget = 200 * time.Millisecond
+// Budgets are how long one call into a plugin may run.
+const (
+	InitBudget  = 200 * time.Millisecond
+	InputBudget = 16 * time.Millisecond // an operator, object or command, one frame
+)
+
+// Kind is what a plugin registers.
+type Kind int32
+
+// What a plugin registers during init, named as its register call names it.
+const (
+	Command  Kind = iota // an ex command, exported as func(cursor, count)
+	Operator             // exported as func(start, end, linewise)
+	Object               // exported as func(start, end) i64, start<<32|end or negative for none
+	Key                  // keys in normal mode, exported as func(cursor, count)
+)
+
+// Registration is one thing a plugin's init registered, run by its export.
+type Registration struct {
+	Kind         Kind
+	Name, Export string
+}
 
 // memoryPages is the most memory a plugin may grow to, 64MB.
 const memoryPages = 1024
@@ -38,9 +58,10 @@ const (
 
 // Plugin is one loaded wasm plugin. Calls into it take turns.
 type Plugin struct {
-	Name string
-	caps []string
-	log  func(string)
+	Name       string
+	Registered []Registration // what its init registered
+	caps       []string
+	log        func(string)
 
 	mu      sync.Mutex
 	cache   wazero.CompilationCache
@@ -52,6 +73,7 @@ type Plugin struct {
 // call holds the text one call into a plugin reads and the edits it asks
 // for.
 type call struct {
+	name  string
 	text  fude.Text
 	edits []fude.Edit
 }
@@ -94,28 +116,28 @@ func (p *Plugin) Close(ctx context.Context) error {
 	return errors.Join(p.runtime.Close(ctx), p.cache.Close(ctx))
 }
 
-// Call runs the plugin's export name under budget, reading t, and returns
-// the edits it asked for. A call that traps or runs past its budget returns
-// an error, and its edits are dropped.
-func (p *Plugin) Call(ctx context.Context, name string, t fude.Text, budget time.Duration) ([]fude.Edit, error) {
+// Call runs the plugin's export name with args under budget, reading t, and
+// returns the edits it asked for and what it returned. A call that traps or
+// runs past its budget returns an error, and its edits are dropped.
+func (p *Plugin) Call(ctx context.Context, name string, t fude.Text, budget time.Duration, args ...uint64) ([]fude.Edit, []uint64, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	f := p.mod.ExportedFunction(name)
 	if f == nil {
-		return nil, fmt.Errorf("plugin %s has no %s", p.Name, name)
+		return nil, nil, fmt.Errorf("plugin %s has no %s", p.Name, name)
 	}
 	ctx, cancel := context.WithTimeout(ctx, budget)
 	defer cancel()
-	p.call = &call{text: t}
+	p.call = &call{name: name, text: t}
 	defer func() { p.call = nil }()
-	_, err := f.Call(ctx)
+	out, err := f.Call(ctx, args...)
 	switch {
 	case errors.Is(err, context.DeadlineExceeded):
-		return nil, fmt.Errorf("plugin %s %w", p.Name, errBudget)
+		return nil, nil, fmt.Errorf("plugin %s %w", p.Name, errBudget)
 	case err != nil:
-		return nil, fmt.Errorf("plugin %s: %w", p.Name, err)
+		return nil, nil, fmt.Errorf("plugin %s: %w", p.Name, err)
 	}
-	return p.call.edits, nil
+	return p.call.edits, out, nil
 }
 
 // host adds the functions a plugin imports from "fude".
@@ -125,6 +147,7 @@ func (p *Plugin) host(ctx context.Context) error {
 		NewFunctionBuilder().WithFunc(p.textLen).Export("text_len").
 		NewFunctionBuilder().WithFunc(p.text).Export("text").
 		NewFunctionBuilder().WithFunc(p.edit).Export("edit").
+		NewFunctionBuilder().WithFunc(p.register).Export("register").
 		Instantiate(ctx)
 	if err != nil {
 		return fmt.Errorf("plugin %s: %w", p.Name, err)
@@ -171,6 +194,21 @@ func (p *Plugin) text(ctx context.Context, m api.Module, start, end uint32) int6
 		return errMemory
 	}
 	return int64(out[0])<<32 | int64(len(s))
+}
+
+// register records, during init, that the export at (eptr, en) runs the
+// command, operator, object or key of kind named at (nptr, nn).
+func (p *Plugin) register(_ context.Context, m api.Module, kind, nptr, nn, eptr, en uint32) int32 {
+	name, ok1 := m.Memory().Read(nptr, nn)
+	export, ok2 := m.Memory().Read(eptr, en)
+	switch {
+	case p.call == nil || p.call.name != "init" || Kind(kind) > Key:
+		return errDenied
+	case !ok1 || !ok2:
+		return errRange
+	}
+	p.Registered = append(p.Registered, Registration{Kind(kind), string(name), string(export)})
+	return 0
 }
 
 // edit asks to replace [start, end) with the text at ptr. The edits a call

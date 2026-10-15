@@ -136,6 +136,7 @@ type Machine struct {
 
 	objects map[string]func(Text, int, int) (int, int, bool) // text objects the host added
 	ops     map[string]func(Text, int, int, bool) []Edit     // operators the host added
+	cmds    map[string]func(Text, int, int) []Edit           // commands the host added
 
 	// :select.
 	selector func(Text, string, int, int) ([][2]int, error)
@@ -454,6 +455,9 @@ func (m *Machine) command(cmd string) error {
 	m.wantSet = false
 
 	t, c := m.h.Text(), m.h.Cursor()
+	if name, ok := strings.CutPrefix(cmd, "<Plug>("); ok {
+		return m.plug(strings.TrimSuffix(name, ")"), count)
+	}
 	start, end := LineStart(t, c), LineEnd(t, c)
 	switch k {
 	case "p", "P":
@@ -475,6 +479,7 @@ func (m *Machine) command(cmd string) error {
 		m.reselect()
 	case "ZZ":
 		m.h.Unhandled(":x")
+
 	case "ZQ":
 		m.h.Unhandled(":q!")
 	case "<C-^>":
