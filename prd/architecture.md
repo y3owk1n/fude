@@ -644,7 +644,8 @@ every buffer, as in Neovim, and say so when no server is attached (B62).
 A float is text and the spans that style it, which the editor holds and the
 client draws over the windows, in a bordered box at the cursor: below its
 line, or above when there is more room there, at most 80 columns and 20
-lines. Lines wrap at the box's width, as Neovim's floats wrap.
+lines. A line wraps after the last space that fits in the box, or at the
+box's edge when one word is wider, as Neovim's `'linebreak'` wraps.
 
 fude renders the markdown language servers write, not all of markdown.
 Fenced code takes its language's highlights through `syntax.Highlight`.

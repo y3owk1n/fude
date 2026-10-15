@@ -258,8 +258,9 @@ type row struct {
 	rule       bool
 }
 
-// wrap splits text into rows at most limit columns wide, and returns them
-// and the widest one's width. A markup.rule line is a rule.
+// wrap splits text into rows at most limit columns wide and returns them
+// with the widest one's width. A row ends after the last space that fits,
+// or at the limit when none does. A markup.rule line is a rule.
 func wrap(text string, spans []syntax.Span, limit int) ([]row, int) {
 	var rows []row
 	width := 0
@@ -273,17 +274,24 @@ func wrap(text string, spans []syntax.Span, limit int) ([]row, int) {
 			rows = append(rows, row{at, end, true})
 		} else {
 			start, col := at, 0
+			brk, brkCol := start, 0 // just after the row's last space, and its column
 			for i, r := range text[at:end] {
 				cw := 1
 				if r == '\t' {
 					cw = 4
 				}
 				if col+cw > limit {
-					rows = append(rows, row{start, at + i, false})
-					start, col = at+i, 0
+					if brk == start {
+						brk, brkCol = at+i, col
+					}
+					rows = append(rows, row{start, brk, false})
+					start, col = brk, col-brkCol
 				}
 				col += cw
 				width = max(width, col)
+				if r == ' ' {
+					brk, brkCol = at+i+1, col
+				}
 			}
 			rows = append(rows, row{start, end, false})
 		}
