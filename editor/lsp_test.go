@@ -21,7 +21,8 @@ import (
 // crashes when a change inserts "#". Each "bad" in an opened document gets
 // an error diagnostic, a definition or type definition is the first "target"
 // in it, references and implementations are every "target", its symbols are
-// f with x inside, and hover
+// f with x inside, rename changes every "target" and puts a line at the top
+// of other.go beside it, and hover
 // is markdown that says where it was asked. Completion offers apple, apricot
 // and banana, and formatting the whole document puts a tab before each line,
 // as gopls formats only whole documents. Positions are in bytes.
@@ -62,6 +63,7 @@ func TestFakeServer(t *testing.T) {
 			ID     *int   `json:"id"`
 			Method string `json:"method"`
 			Params struct {
+				NewName      string `json:"newName"`
 				TextDocument struct {
 					URI  string `json:"uri"`
 					Text string `json:"text"`
@@ -87,6 +89,18 @@ func TestFakeServer(t *testing.T) {
 				locs = locs[:1]
 			}
 			reply(m.ID, locs)
+		case "textDocument/rename":
+			uri := m.Params.TextDocument.URI
+			var edits []any
+			for line, l := range strings.Split(opened[uri], "\n") {
+				if i := strings.Index(l, "target"); i >= 0 {
+					r := map[string]any{"start": map[string]int{"line": line, "character": i}, "end": map[string]int{"line": line, "character": i + 6}}
+					edits = append(edits, map[string]any{"range": r, "newText": m.Params.NewName})
+				}
+			}
+			top := map[string]any{"start": map[string]int{"line": 0, "character": 0}, "end": map[string]int{"line": 0, "character": 0}}
+			other := strings.TrimSuffix(uri, "a.go") + "other.go"
+			reply(m.ID, map[string]any{"changes": map[string]any{uri: edits, other: []any{map[string]any{"range": top, "newText": "// renamed\n"}}}})
 		case "textDocument/documentSymbol":
 			at := func(line int) map[string]any {
 				p := map[string]int{"line": line, "character": 0}
@@ -334,5 +348,32 @@ func TestB66KeysOnlyWhileAttached(t *testing.T) {
 	feed(e, "gr")
 	if _, waiting := e.Wait(); waiting {
 		t.Error("gr waits with no language server attached")
+	}
+}
+
+// B66, for grn
+func TestB66Rename(t *testing.T) {
+	e, log := withServer(t, "a target\nb target\nc\n", "utf-8")
+	heard(t, log, `"method":"textDocument/didOpen"`, 1)
+	other := filepath.Join(filepath.Dir(e.Views()[0].Name), "other.go")
+	change(t, other, "package p\n")
+
+	feed(e, "wgrn")
+	if e.Line() != ":rename target" {
+		t.Fatalf("grn opened %q, want the command line with the word", e.Line())
+	}
+	feed(e, "<BS><BS><BS><BS><BS><BS>goal<CR>")
+	settle(t, e, func() bool { return text(e) != "a target\nb target\nc" })
+	if text(e) != "a goal\nb goal\nc" || e.Message() != "renamed in 2 files" {
+		t.Errorf("rename left %q saying %q", text(e), e.Message())
+	}
+	if disk(t, other) != "package p\n" {
+		t.Errorf("rename wrote other.go: %q", disk(t, other))
+	}
+	if feed(e, ":b other<CR>"); text(e) != "// renamed\npackage p" {
+		t.Errorf("other.go's buffer has %q, want the renamed line", text(e))
+	}
+	if feed(e, ":b a.go<CR>u"); text(e) != "a target\nb target\nc" {
+		t.Errorf("u after the rename left %q, want it undone in one step", text(e))
 	}
 }

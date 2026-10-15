@@ -197,12 +197,14 @@ var requests = map[string]string{
 	"lsp.references":     "textDocument/references",
 	"lsp.symbols":        "textDocument/documentSymbol",
 	"lsp.hover":          "textDocument/hover",
+	"lsp.rename":         "textDocument/rename",
 }
 
 // attached are the keys that exist only while the current buffer has a
 // language server, and the commands they run (N3).
 var attached = map[string]string{
 	"grr": "lsp.references", "gri": "lsp.implementation", "grt": "lsp.typeDefinition", "gO": "lsp.symbols",
+	"grn": "lsp.rename",
 }
 
 // syncKeys maps the attached keys while the current buffer has a language
@@ -230,6 +232,21 @@ func (e *Editor) request(name string) {
 		e.message = "no language server"
 		return
 	}
+	if name == "lsp.rename" {
+		// grn asks for the new name on the command line, starting from the
+		// word under the cursor, and :rename sends it.
+		t, c := e.Text(), e.Cursor()
+		start, end := c, c
+		for start > 0 && isWord(t.Slice(start-1, start)[0]) {
+			start--
+		}
+		for end < t.Len() && isWord(t.Slice(end, end+1)[0]) {
+			end++
+		}
+		e.later = append(e.later, vim.Keys(":rename "+t.Slice(start, end))...)
+		e.renameAt = c
+		return
+	}
 	t, c, uri := b.text.Snapshot(), e.Cursor(), lsp.URI(b.file.path)
 	s.client.Request(requests[name], func(enc string) any {
 		p := map[string]any{"textDocument": map[string]any{"uri": uri}}
@@ -250,6 +267,107 @@ func (e *Editor) request(name string) {
 			e.locate(s, name, res)
 		}
 	})
+}
+
+// rename asks the current buffer's server to rename the symbol where grn
+// was pressed to name, and applies the edits it answers with, in every file
+// they name (B66).
+func (e *Editor) rename(name string) {
+	b := e.win.buf
+	s := b.server
+	if s == nil {
+		e.message = "no language server"
+		return
+	}
+	if name == "" {
+		e.message = "no new name"
+		return
+	}
+	t, c, uri := b.text.Snapshot(), min(e.renameAt, b.text.Snapshot().Len()), lsp.URI(b.file.path)
+	s.client.Request(requests["lsp.rename"], func(enc string) any {
+		return map[string]any{"textDocument": map[string]any{"uri": uri}, "position": lsp.Point(t, c, enc), "newName": name}
+	}, func(res json.RawMessage) { e.workspaceEdit(s, b, t, res) })
+}
+
+// workspaceEdit applies a server's workspace edit, each file's edits as one
+// transaction. A file with no buffer opens in one and is not written. from
+// is the buffer that asked, whose edits must apply to t, the text it asked
+// about. Another buffer's must apply to the version the server names, when
+// it names one.
+func (e *Editor) workspaceEdit(s *server, from *buffer, t kernel.Snapshot, res json.RawMessage) {
+	type textEdit struct {
+		Range   lsp.Range `json:"range"`
+		NewText string    `json:"newText"`
+	}
+	var w struct {
+		Changes         map[string][]textEdit `json:"changes"`
+		DocumentChanges []struct {
+			TextDocument struct {
+				URI     string `json:"uri"`
+				Version *int   `json:"version"`
+			} `json:"textDocument"`
+			Edits []textEdit `json:"edits"`
+		} `json:"documentChanges"`
+	}
+	if err := json.Unmarshal(res, &w); err != nil {
+		e.message = fmt.Sprintf("rename: %v", err)
+		return
+	}
+	type file struct {
+		edits   []textEdit
+		version *int
+	}
+	files := map[string]file{}
+	for uri, edits := range w.Changes {
+		files[uri] = file{edits: edits}
+	}
+	for _, d := range w.DocumentChanges {
+		files[d.TextDocument.URI] = file{d.Edits, d.TextDocument.Version}
+	}
+	enc, changed := s.client.Encoding(), 0
+	var problems []string
+	for uri, f := range files {
+		u, err := url.Parse(uri)
+		if err != nil {
+			continue
+		}
+		i := slices.IndexFunc(e.bufs, func(b *buffer) bool { return b.is(u.Path) })
+		if i < 0 {
+			if _, err := e.add(u.Path); err != nil {
+				problems = append(problems, err.Error())
+				continue
+			}
+			i = len(e.bufs) - 1
+		}
+		b := e.bufs[i]
+		base := b.text.Snapshot()
+		if b == from {
+			base = t
+		}
+		stale := fmt.Sprintf("%s changed since the server answered, so it was left alone", b.name())
+		if f.version != nil && b.server == s && b != from && *f.version != b.version {
+			problems = append(problems, stale)
+			continue
+		}
+		tx := kernel.Transaction{Base: base.Version(), Origin: "user", Label: "rename", Time: e.now()}
+		for _, ed := range f.edits {
+			tx.Edits = append(tx.Edits, kernel.Edit{Start: lsp.Offset(base, ed.Range.Start, enc), End: lsp.Offset(base, ed.Range.End, enc), Text: ed.NewText})
+		}
+		slices.SortStableFunc(tx.Edits, func(x, y kernel.Edit) int { return cmp.Compare(x.Start, y.Start) })
+		if err := b.text.Apply(tx); err != nil {
+			if errors.Is(err, kernel.ErrStale) {
+				err = errors.New(stale)
+			}
+			problems = append(problems, err.Error())
+			continue
+		}
+		b.head = b.text.Head()
+		changed++
+	}
+	e.message = fmt.Sprintf("renamed in %d files", changed)
+	if len(problems) > 0 {
+		e.message = strings.Join(problems, "  ")
+	}
 }
 
 // spot is a place in a file that a server named.

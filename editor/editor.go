@@ -43,6 +43,8 @@ type Editor struct {
 	servers    map[string]*server   // by command and root
 	started    bool                 // Load ran, so new buffers attach to servers at once
 	lspKeys    bool                 // the attached keys are mapped
+	later      []vim.Key            // keys to feed once the key being fed is done
+	renameAt   int                  // where grn was pressed
 
 	width, height int // the space the windows share
 
@@ -207,6 +209,16 @@ func (e *Editor) Queue() <-chan func() { return e.queue }
 
 // Feed handles one key. An error becomes the message.
 func (e *Editor) Feed(k vim.Key) {
+	e.feed(k)
+	for len(e.later) > 0 {
+		k := e.later[0]
+		e.later = e.later[1:]
+		e.feed(k)
+	}
+}
+
+// feed handles one key, typed or queued by a command for after it.
+func (e *Editor) feed(k vim.Key) {
 	e.message = ""
 	if e.completing(k) {
 		e.reveal()
@@ -525,6 +537,8 @@ func (e *Editor) ex(line string) {
 		if arg != "" {
 			e.edit(arg)
 		}
+	case "rename":
+		e.rename(arg)
 	case "timeline":
 		e.timeline()
 	case "restore":

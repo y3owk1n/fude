@@ -686,6 +686,16 @@ working directory.
 `gO` lists the document's symbols, nested ones indented. `<CR>` on a line
 jumps to its place in another window and keeps the list (B66).
 
+`grn` opens the command line as `:rename <word>`, with the word under the
+cursor, the way Neovim prompts with it. `:rename new` asks the server to
+rename the symbol where `grn` was pressed. Its workspace edit applies one
+transaction per file, opening a buffer for a file that has none and
+writing nothing, as Neovim does. Edits to the buffer that asked must fit
+the text it asked about, and edits to another buffer the version the
+server names, or fude leaves that file alone and says so. A command runs
+inside the machine's handling of the key that ran it, so keys it wants
+typed, such as `:rename`, wait in a queue until that key is done.
+
 ## Server split (step 6)
 
 One server holds the kernel and its modules and orders every transaction.
