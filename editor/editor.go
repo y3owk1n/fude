@@ -67,6 +67,12 @@ func open(cfg config, paths []string) (*Editor, error) {
 		})
 	}
 	e.vim.Operator("gc", e.comment)
+	e.vim.Selector(func(t vim.Text, query string, start, end int) ([][2]int, error) {
+		if s := e.win.buf.syntax; s != nil {
+			return s.Select(t, query, start, end)
+		}
+		return nil, errors.New("no syntax for this file")
+	})
 	for i, p := range paths {
 		msg, err := e.add(p)
 		if err != nil {
@@ -288,6 +294,10 @@ func (e *Editor) setCursor(pos int) { e.win.buf.text.MoveMark(e.win.cursor, pos)
 
 // Mode returns the vim mode.
 func (e *Editor) Mode() vim.Mode { return e.vim.Mode() }
+
+// Cursors returns the cursors after the first while a change on several
+// regions types into all of them.
+func (e *Editor) Cursors() []int { return e.vim.Cursors() }
 
 // Selection returns the visual selection, or false outside visual mode.
 func (e *Editor) Selection() (vim.Selection, bool) { return e.vim.Selection() }

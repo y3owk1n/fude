@@ -75,6 +75,7 @@ type Buffer struct {
 	log     []change // changes since the text the spans and tree are for
 	spans   []Span   // in paint order, later spans drawing over earlier ones
 	tree    *ts.Tree // a clone of the worker's last tree
+	lang    *ts.Language
 	objects *ts.Query
 	cursor  *ts.QueryCursor
 	closed  bool
@@ -140,7 +141,7 @@ func New(filetype, dir string, queue chan<- func()) (*Buffer, bool, error) {
 		return nil, false, fmt.Errorf("grammar for %s: %w", filetype, err)
 	}
 	h := &Buffer{
-		queue: queue, objects: objects, cursor: ts.NewQueryCursor(),
+		queue: queue, lang: l.lang, objects: objects, cursor: ts.NewQueryCursor(),
 		wake: make(chan struct{}, 1), quit: make(chan struct{}),
 	}
 	go h.run(p, q)
@@ -148,8 +149,7 @@ func New(filetype, dir string, queue chan<- func()) (*Buffer, bool, error) {
 }
 
 // query compiles the query name of filetype from dir when the file is
-// there, and from shipped otherwise. It refuses a predicate fude does not
-// evaluate, which is any outside the eq?, match? and any-of? families.
+// there, and from shipped otherwise.
 func query(lang *ts.Language, dir, filetype, name, shipped string) (*ts.Query, error) {
 	path, src := filepath.Join(filetype, name+".scm"), shipped
 	if dir != "" {
@@ -162,9 +162,20 @@ func query(lang *ts.Language, dir, filetype, name, shipped string) (*ts.Query, e
 			return nil, fmt.Errorf("read query: %w", err)
 		}
 	}
+	q, err := compile(lang, src)
+	if err != nil {
+		return nil, fmt.Errorf("%s %w", path, err)
+	}
+	return q, nil
+}
+
+// compile compiles the query src. It refuses a predicate fude does not
+// evaluate, which is any outside the eq?, match? and any-of? families. Its
+// errors name the line in src.
+func compile(lang *ts.Language, src string) (*ts.Query, error) {
 	q, qerr := ts.NewQuery(lang, src)
 	if qerr != nil {
-		return nil, fmt.Errorf("%s line %d: %s", path, qerr.Row+1, qerr.Message)
+		return nil, fmt.Errorf("line %d: %s", qerr.Row+1, qerr.Message)
 	}
 	for i := range q.PatternCount() {
 		var unknown string
@@ -183,7 +194,7 @@ func query(lang *ts.Language, dir, filetype, name, shipped string) (*ts.Query, e
 		}
 		line := strings.Count(src[:q.StartByteForPattern(i)], "\n") + 1
 		q.Close()
-		return nil, fmt.Errorf("%s line %d: fude does not evaluate #%s", path, line, unknown)
+		return nil, fmt.Errorf("line %d: fude does not evaluate #%s", line, unknown)
 	}
 	return q, nil
 }
@@ -342,16 +353,8 @@ func (h *Buffer) Object(t api.Text, name string, start, end int) (int, int, bool
 	if h.tree == nil {
 		return 0, 0, false
 	}
-	tree := h.tree
-	if len(h.log) > 0 {
-		tree = tree.Clone()
-		defer tree.Close()
-		for _, c := range h.log {
-			for i := range c.tree {
-				tree.Edit(&c.tree[i])
-			}
-		}
-	}
+	tree, done := h.current()
+	defer done()
 	if Objects[name] == "" {
 		return h.node(tree.RootNode(), name, span{start, end})
 	}
@@ -385,6 +388,52 @@ func (h *Buffer) Object(t api.Text, name string, start, end int) (int, int, bool
 		best.start, best.end = withComma(node, best.start, best.end)
 	}
 	return best.start, best.end, true
+}
+
+// Select returns the range of every node a capture of the query src names
+// within [start, end) of t, the text now. It queries the last parse, moved
+// through the edits made since.
+func (h *Buffer) Select(t api.Text, src string, start, end int) ([][2]int, error) {
+	if h.tree == nil {
+		return nil, errors.New("the file is not parsed yet")
+	}
+	q, err := compile(h.lang, src)
+	if err != nil {
+		return nil, fmt.Errorf("query %w", err)
+	}
+	defer q.Close()
+	if len(q.CaptureNames()) == 0 {
+		return nil, errors.New("the query captures nothing")
+	}
+	tree, done := h.current()
+	defer done()
+	c := ts.NewQueryCursor()
+	defer c.Close()
+	c.SetByteRange(uint(start), uint(end))
+	var out [][2]int
+	caps := c.Captures(q, tree.RootNode(), []byte(t.Slice(0, t.Len())))
+	for m, i := caps.Next(); m != nil; m, i = caps.Next() {
+		n := m.Captures[i].Node
+		if s, e := int(n.StartByte()), int(n.EndByte()); start <= s && e <= end {
+			out = append(out, [2]int{s, e})
+		}
+	}
+	return out, nil
+}
+
+// current returns the last parse moved through the edits made since, and
+// the func to call when done with it.
+func (h *Buffer) current() (*ts.Tree, func()) {
+	if len(h.log) == 0 {
+		return h.tree, func() {}
+	}
+	tree := h.tree.Clone()
+	for _, c := range h.log {
+		for i := range c.tree {
+			tree.Edit(&c.tree[i])
+		}
+	}
+	return tree, tree.Close
 }
 
 // span is a range of bytes.

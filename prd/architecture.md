@@ -148,7 +148,18 @@ func (m *Machine) Waiting() bool
 func (m *Machine) Timeout() error
 func (m *Machine) Object(name string, find func(t Text, start, end int) (int, int, bool))
 func (m *Machine) Operator(name string, apply func(t Text, start, end int, lines bool) []Edit)
+func (m *Machine) Selector(find func(t Text, query string, start, end int) ([][2]int, error))
+func (m *Machine) Cursors() []int // the other cursors while c types into several regions
 ```
+
+`:select` asks the host's selector for regions, and of two that overlap the
+earlier stays. The next `d`, `x`, `y` or host operator acts on every region
+as one undo step, and any other key keeps only the first region. `c`
+deletes every region and types into all of them: each edit made at the
+first cursor is repeated at the others, moved by their distance from it. So
+`<C-w>` takes the same number of bytes at each cursor, not each cursor's
+own word. `<C-o>` and `<Esc>` end the other cursors, and dot repeat makes
+the change at one cursor (B42).
 
 A later behaviour adds a clipboard for `"+`.
 

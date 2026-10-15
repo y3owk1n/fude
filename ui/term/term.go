@@ -4,6 +4,7 @@ package term
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -82,6 +83,14 @@ func Run(e *editor.Editor) error {
 		}
 		c.draw()
 	}
+}
+
+// selected reports whether the byte at, drawn at column x, is in sel.
+func selected(sel vim.Selection, at, x int) bool {
+	if len(sel.Regions) > 0 {
+		return slices.ContainsFunc(sel.Regions, func(r [2]int) bool { return at >= r[0] && at < r[1] })
+	}
+	return at >= sel.Start && at < sel.End && (!sel.Block || x >= sel.Left && x <= sel.Right)
 }
 
 // colours are the styles of highlight captures. A capture with no entry takes
@@ -173,6 +182,10 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 	cx, cy, found := 0, 0, false
 	pos := v.Top
 	paint := paint(v.Highlights, v.Top)
+	var cursors []int
+	if v.Current {
+		cursors = c.e.Cursors()
+	}
 	for row := 0; row < v.H-1; row++ {
 		y := v.Y + row
 		end := vim.LineEnd(t, pos)
@@ -199,7 +212,7 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 					style = style.Background(color.Yellow).Foreground(color.Black)
 				}
 			}
-			if visual && at >= sel.Start && at < sel.End && (!sel.Block || x >= sel.Left && x <= sel.Right) {
+			if visual && selected(sel, at, x) || slices.Contains(cursors, at) {
 				// Reversing syntax colours would stripe the selection, so it
 				// drops them.
 				style = tcell.StyleDefault.Reverse(true)
@@ -214,6 +227,9 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 			var width int
 			rest, width = c.s.Put(v.X+x, y, rest, style)
 			x += width
+		}
+		if slices.Contains(cursors, end) && x < v.W {
+			c.s.Put(v.X+x, y, " ", tcell.StyleDefault.Reverse(true))
 		}
 		if end == t.Len() {
 			break

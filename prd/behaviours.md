@@ -148,8 +148,10 @@ Where fude departs, the line says so and cites the departure in
 - B41 [3] A query file in the config `queries/` directory overrides the
   shipped one for that language. A query with a predicate fude does not
   know fails to load and names the file and line.
-- B42 [3] `:select <query>` in visual mode selects every match as a region,
-  and the next operator applies to every region in one transaction.
+- B42 [3] `:select <query>` in visual mode selects, as a region, every node
+  that a capture of the tree-sitter query names within the selection. `d`,
+  `x`, `y` and host operators such as `gc` then act on every region as one
+  undo step, and `c` types into every region at once until `<Esc>`.
 - B43 [3] A keystroke never waits for a reparse. Highlighting may lag by a
   frame, editing does not.
 - B44 [3] `gc{target}` and `gcc` toggle comments, using the comment syntax

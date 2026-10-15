@@ -854,3 +854,36 @@ func TestB44Comments(t *testing.T) {
 		}
 	}
 }
+
+// B42
+func TestB42Select(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.go")
+	change(t, path, "package p\n\nfunc f() {\n\ta := b + c\n}\n")
+	for _, c := range [][3]string{
+		{"d", "package p\n\nfunc f() {\n\t :=  + \n}", ""},
+		{"du", "package p\n\nfunc f() {\n\ta := b + c\n}", ""},
+		{"cxy<Esc>", "package p\n\nfunc f() {\n\txy := xy + xy\n}", ""},
+		{"cxy<Esc>u", "package p\n\nfunc f() {\n\ta := b + c\n}", ""},
+	} {
+		e := start(t, path)
+		e.SetSize(80, 20)
+		captures(t, e)
+		feed(e, "4GV:select (identifier) @x<CR>"+c[0])
+		if text(e) != c[1] {
+			t.Errorf("%s on every identifier left %q, want %q", c[0], text(e), c[1])
+		}
+	}
+	e := start(t, path)
+	e.SetSize(80, 20)
+	captures(t, e)
+	for query, want := range map[string]string{
+		"(identifier)":                     "the query captures nothing",
+		`((identifier) @x (#foo? @x "y"))`: "query line 1: fude does not evaluate #foo?",
+	} {
+		feed(e, "4GV:select "+query+"<CR>")
+		if e.Message() != want {
+			t.Errorf(":select %s said %q, want %q", query, e.Message(), want)
+		}
+		feed(e, "<Esc>")
+	}
+}
