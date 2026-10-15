@@ -5,7 +5,7 @@ package vim
 // except that <C-d> and <C-u> move it with the view.
 func (m *Machine) scroll(cmd string, count int) (bool, error) {
 	t, c := m.h.Text(), m.h.Cursor()
-	top, h := m.h.Viewport()
+	top, h, _ := m.h.Viewport()
 	h = max(h, 1)
 	n := max(count, 1)
 	line, last := LineStart(t, c), LineStart(t, t.Len())
@@ -61,7 +61,7 @@ func (m *Machine) scroll(cmd string, count int) (bool, error) {
 // window returns the line H, M or L moves to: the n-th from the top or
 // bottom of the view, or its middle.
 func (m *Machine) window(t Text, cmd string, n int) int {
-	top, h := m.h.Viewport()
+	top, h, _ := m.h.Viewport()
 	bottom := down(t, top, max(h, 1)-1)
 	switch cmd {
 	case "H":

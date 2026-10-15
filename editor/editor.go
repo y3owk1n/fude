@@ -1035,10 +1035,10 @@ func (h host) Mark(name rune) (int, bool) {
 	return b.text.Mark(id), true
 }
 
-func (h host) Viewport() (int, int) { return h.e.Top(), h.e.rows() }
-func (h host) SetTop(top int)       { h.e.win.buf.text.MoveMark(h.e.win.top, top) }
-func (h host) PushJump(pos int)     { h.e.pushJump(pos) }
-func (h host) Jump(n int) bool      { return h.e.jump(n) }
+func (h host) Viewport() (int, int, int) { return h.e.Top(), h.e.rows(), h.e.win.w }
+func (h host) SetTop(top int)            { h.e.win.buf.text.MoveMark(h.e.win.top, top) }
+func (h host) PushJump(pos int)          { h.e.pushJump(pos) }
+func (h host) Jump(n int) bool           { return h.e.jump(n) }
 
 func (h host) Change(n int) bool {
 	b := h.e.win.buf

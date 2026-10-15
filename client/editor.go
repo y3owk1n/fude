@@ -21,6 +21,7 @@ type Editor struct {
 	marks   map[rune]kernel.MarkID
 	top     int
 	rows    int
+	cols    int
 	message string        // the server's message for the last command it ran
 	dropped []kernel.Edit // edits a sync inside a key dropped, for Sync to return
 
@@ -31,9 +32,9 @@ type Editor struct {
 }
 
 // NewEditor runs the grammar on r, with the cursor at its start and a view
-// of rows lines.
-func NewEditor(r *Replica, rows int) *Editor {
-	e := &Editor{r: r, marks: map[rune]kernel.MarkID{}, rows: rows, cursor: r.text.SetMark(0, kernel.Right)}
+// of rows lines, cols columns wide.
+func NewEditor(r *Replica, rows, cols int) *Editor {
+	e := &Editor{r: r, marks: map[rune]kernel.MarkID{}, rows: rows, cols: cols, cursor: r.text.SetMark(0, kernel.Right)}
 	e.m = vim.New(host{e})
 	return e
 }
@@ -163,8 +164,8 @@ func (h host) Mark(name rune) (int, bool) {
 	return h.e.r.text.Mark(id), true
 }
 
-func (h host) Viewport() (int, int) { return h.e.top, h.e.rows }
-func (h host) SetTop(top int)       { h.e.top = top }
+func (h host) Viewport() (int, int, int) { return h.e.top, h.e.rows, h.e.cols }
+func (h host) SetTop(top int)            { h.e.top = top }
 
 // PushJump records pos as a jump, dropping an older one on its line.
 func (h host) PushJump(pos int) {

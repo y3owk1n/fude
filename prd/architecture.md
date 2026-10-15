@@ -138,7 +138,7 @@ type Host interface {
     Step(n int) (start int, ok bool) // g- and g+, in time order
     SetMark(name rune, pos int)      // marks move with edits
     Mark(name rune) (int, bool)
-    Viewport() (top, height int)
+    Viewport() (top, height, width int)
     SetTop(top int)
     PushJump(pos int) // jumps may cross buffers, so the host keeps the lists
     Jump(n int) bool

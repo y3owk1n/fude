@@ -28,11 +28,14 @@ const (
 func (m *Machine) motion(cmd string, count int) (int, kind, bool) {
 	t, c := m.h.Text(), m.h.Cursor()
 	n := max(count, 1)
-	if cmd == "gj" || cmd == "gk" {
-		// gj and gk move by text lines, as j and k do.
-		cmd = cmd[1:]
-	}
 	start := LineStart(t, c)
+	if cmd == "gj" || cmd == "gk" {
+		p, ok := m.screenLine(t, c, n, cmd == "gj")
+		if !ok {
+			return c, failed, true
+		}
+		return p, exclusive, true
+	}
 	p, k := c, exclusive
 	keep := false // whether to keep the column j and k aim for
 	switch cmd {
@@ -483,6 +486,55 @@ func atColumn(t Text, start, col int) int {
 		}
 	}
 	return p
+}
+
+// screenLine returns where n rows below the cursor, or above it when down
+// is false, the cursor goes on lines that wrap at the view's width, at the
+// cursor's column in its row, or false when there is no row to move to.
+func (m *Machine) screenLine(t Text, c, n int, down bool) (int, bool) {
+	_, _, cols := m.h.Viewport()
+	ls := LineStart(t, c)
+	rows := Rows(t, ls, cols)
+	r := len(rows) - 1
+	for r > 0 && rows[r] > c {
+		r--
+	}
+	at := column(t, ls, c) - column(t, ls, rows[r])
+	// A count past the last row stops there, and no row to move to fails.
+moves:
+	for i := range n {
+		switch {
+		case down && r+1 < len(rows):
+			r++
+		case down && LineEnd(t, ls) < t.Len():
+			ls = LineEnd(t, ls) + 1
+			rows, r = Rows(t, ls, cols), 0
+		case !down && r > 0:
+			r--
+		case !down && ls > 0:
+			ls = LineStart(t, ls-1)
+			rows = Rows(t, ls, cols)
+			r = len(rows) - 1
+		case i == 0:
+			return 0, false
+		default:
+			break moves
+		}
+	}
+	// The cluster at the same column of the row, or the row's last.
+	end := LineEnd(t, ls)
+	if r+1 < len(rows) {
+		end = rows[r+1]
+	}
+	p, x := rows[r], 0
+	base := column(t, ls, rows[r])
+	for g := graphemes.FromString(t.Slice(rows[r], end)); g.Next(); {
+		p = rows[r] + g.Start()
+		if x += width(g.Value(), base+x); x > at {
+			break
+		}
+	}
+	return clamp(t, p), true
 }
 
 // Rows returns where each screen row of the line at start begins when it

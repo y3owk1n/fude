@@ -48,7 +48,7 @@ type Host interface {
 	SetClipboard(text string) error
 	SetMark(name rune, pos int) // a mark moves with edits to the text
 	Mark(name rune) (int, bool)
-	Viewport() (top, height int) // the first line shown and how many fit
+	Viewport() (top, height, width int) // the first line shown, how many rows fit and how wide they are
 	SetTop(top int)
 	// These keep the jumplist and changelist. PushJump records where a jump
 	// leaves from. Jump and Change move n entries back, or forward when n is

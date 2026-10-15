@@ -1,6 +1,7 @@
 package vim_test
 
 import (
+	"cmp"
 	"fmt"
 	"os"
 	"regexp"
@@ -22,19 +23,20 @@ type host struct {
 	marks   map[rune]int // they move with edits, staying after text inserted at them
 	top     int
 	keys    []string // what reached Unhandled
+	cols    int      // how wide the view is, 80 when 0
 	clip    string
 }
 
 func (h *host) Clipboard() (string, error)  { return h.clip, nil }
 func (h *host) SetClipboard(s string) error { h.clip = s; return nil }
 
-func (h *host) Viewport() (int, int) { return h.top, 22 }
-func (h *host) PushJump(int)         {}
-func (h *host) Jump(int) bool        { return false }
-func (h *host) Change(int) bool      { return false }
-func (h *host) Step(int) (int, bool) { return 0, false }
-func (h *host) SetTop(top int)       { h.top = top }
-func (h *host) IndentWidth() int     { return 8 }
+func (h *host) Viewport() (int, int, int) { return h.top, 22, cmp.Or(h.cols, 80) }
+func (h *host) PushJump(int)              {}
+func (h *host) Jump(int) bool             { return false }
+func (h *host) Change(int) bool           { return false }
+func (h *host) Step(int) (int, bool)      { return 0, false }
+func (h *host) SetTop(top int)            { h.top = top }
+func (h *host) IndentWidth() int          { return 8 }
 
 type text string
 
@@ -302,6 +304,23 @@ func TestB26Increment(t *testing.T) {
 // B27
 func TestB27Motions(t *testing.T) {
 	cases(t)
+}
+
+// B27, on a line that wraps in a view 20 columns wide
+func TestB27ScreenRows(t *testing.T) {
+	h := &host{text: "abcdefghijklmnopqrstuvwxyz0123\nshort", cursor: 3, cols: 20}
+	m := vim.New(h)
+	for _, c := range []struct {
+		keys string
+		want int
+	}{{"gj", 23}, {"gj", 34}, {"gk", 23}, {"gk", 3}} {
+		if err := m.Feed(vim.Key(c.keys[:1])); err != nil {
+			t.Fatal(err)
+		}
+		if err := m.Feed(vim.Key(c.keys[1:])); err != nil || h.cursor != c.want {
+			t.Fatalf("%s went to %d, want %d: %v", c.keys, h.cursor, c.want, err)
+		}
+	}
 }
 
 // B29

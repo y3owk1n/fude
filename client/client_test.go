@@ -141,7 +141,7 @@ func TestB98EditorOnReplica(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ed := client.NewEditor(r, 22)
+	ed := client.NewEditor(r, 22, 80)
 	// Its keys edit the copy at once.
 	if feed(t, ed, "wciwX<Esc>"); ed.Text() != "one X" {
 		t.Fatalf("ciwX made %q", ed.Text())
@@ -188,7 +188,7 @@ func TestB110GrammarCases(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		ed := client.NewEditor(r, 22)
+		ed := client.NewEditor(r, 22, 80)
 		feed(t, ed, fmt.Sprintf("%dgo%s", strings.Index(cs[0], "|")+1, cs[1]))
 		if got := ed.Text()[:ed.Cursor()] + "|" + ed.Text()[ed.Cursor():]; got != cs[2] {
 			t.Errorf("%q on %q: got %q, want %q", cs[1], cs[0], got, cs[2])
@@ -204,7 +204,7 @@ func TestB99ClientJumpsChangesAndSteps(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ed := client.NewEditor(r, 22)
+	ed := client.NewEditor(r, 22, 80)
 	line := func() int { return strings.Count(ed.Text()[:ed.Cursor()], "\n") + 1 }
 	if feed(t, ed, "Gxgg<C-o>"); line() != 3 {
 		t.Fatalf("<C-o> after gg went to line %d, want 3", line())
@@ -242,7 +242,7 @@ func TestB36ClientClipboard(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ed := client.NewEditor(r, 22)
+	ed := client.NewEditor(r, 22, 80)
 	if feed(t, ed, `"+yiw`); readFile(t, board) != "one" {
 		t.Fatalf(`"+yiw put %q on the clipboard`, readFile(t, board))
 	}
@@ -282,7 +282,7 @@ func TestB94ClientIndentWidth(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if feed(t, client.NewEditor(r, 22), ">>"); r.Text() != "    x" {
+	if feed(t, client.NewEditor(r, 22, 80), ">>"); r.Text() != "    x" {
 		t.Fatalf(">> in a Go file made %q, want four spaces", r.Text())
 	}
 }
