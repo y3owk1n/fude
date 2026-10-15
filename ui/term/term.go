@@ -37,6 +37,8 @@ func Run(e *editor.Editor) error {
 
 	c := client{s: s, e: e}
 	c.draw()
+	// Plugins load after the first frame, so they never delay it (B56).
+	e.Load()
 	var paste strings.Builder
 	pasting := false
 	var timeout <-chan time.Time

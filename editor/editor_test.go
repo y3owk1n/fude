@@ -12,8 +12,8 @@ import (
 	"github.com/y3owk1n/fude/vim"
 )
 
-// TestMain keeps every test's timeline logs and config in a directory of
-// its own.
+// TestMain keeps every test's timeline logs, config and caches in a
+// directory of its own.
 func TestMain(m *testing.M) {
 	dir, err := os.MkdirTemp("", "fude-test")
 	if err != nil {
@@ -21,6 +21,7 @@ func TestMain(m *testing.M) {
 	}
 	os.Setenv("XDG_STATE_HOME", filepath.Join(dir, "state"))
 	os.Setenv("XDG_CONFIG_HOME", filepath.Join(dir, "config"))
+	os.Setenv("XDG_CACHE_HOME", filepath.Join(dir, "cache"))
 	code := m.Run()
 	os.RemoveAll(dir)
 	os.Exit(code)

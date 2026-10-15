@@ -3,6 +3,7 @@
 package editor
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/core/kernel"
+	"github.com/y3owk1n/fude/plugin"
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
 )
@@ -30,6 +32,7 @@ type Editor struct {
 	ask     func(yes bool) // takes the answer to the question in the message
 	queue   chan func()
 	queries string // the directory of query files that replace shipped ones
+	plugins []*plugin.Plugin
 
 	width, height int // the space the windows share
 
@@ -408,6 +411,9 @@ func (e *Editor) quitAll(force bool) {
 	}
 	for _, b := range e.bufs {
 		b.close()
+	}
+	for _, p := range e.plugins {
+		p.Close(context.Background())
 	}
 	e.done = true
 }

@@ -462,6 +462,10 @@ large_file = 50      # megabytes over which syntax and LSP stay off (B83)
 
 [filetype.go]        # overrides for buffers of that filetype (B94)
 indent_width = 4
+
+[[plugin]]           # one table per plugin, loaded after the first frame
+path = "plugins/wordcount.wasm"   # relative to $XDG_CONFIG_HOME/fude
+capabilities = ["buffer.read", "ui"]
 ```
 
 fude shows an error with its line, and the settings after it keep their
@@ -470,8 +474,9 @@ indent width through `Host.IndentWidth`.
 
 ## Plugin ABI
 
-Core wasm on wazero. A plugin exports `init`, `on_event` and the operators,
-targets and commands it registers. The host imports, gated by capability:
+Core wasm on wazero (D8). A plugin exports `memory`, `alloc(n) -> ptr` and
+`init()`, and later the operators, targets and commands it registers. It
+imports host functions from the module `fude`, gated by capability:
 
 | Capability | Grants |
 |---|---|
@@ -482,21 +487,45 @@ targets and commands it registers. The host imports, gated by capability:
 | `process` | spawn a declared program |
 | `net` | open connections to declared hosts |
 
-A call outside the declared capabilities returns an error to the plugin and
-logs it.
+The plugin passes text as a pointer and length into its memory. The host returns text by calling the
+plugin's `alloc` and writing there, and returns the `i64` `ptr<<32|len`. A
+negative result is an error: -1 when the plugin did not declare the
+capability, -2 for a range outside the text, -3 when its memory could not
+take the result.
 
-Each plugin gets its own wazero runtime, so each has its own memory limit
-(`WithMemoryLimitPages` is per runtime). All runtimes share one compilation
-cache on disk. Plugins compile and instantiate after the first frame
-(B56).
+| Function | Capability | Does |
+|---|---|---|
+| `log(ptr, len)` | none | adds a line to fude's log |
+| `text_len() -> i32` | `buffer.read` | the length of the text |
+| `text(start, end) -> i64` | `buffer.read` | the text in `[start, end)` |
+| `edit(start, end, ptr, len) -> i32` | `buffer.write` | asks to replace `[start, end)` |
 
-Each plugin runs on its own goroutine, and every call into it carries a
-context with its budget. With `WithCloseOnContextDone`, wazero stops the
-plugin at its next loop back-edge after the deadline. Compiled code is
-never preempted mid-loop, so host functions check the context themselves
-and never block. A stopped or trapped instance is closed and its state is
-lost. fude unloads it and tells the user (B51, B53). It can be instantiated
-again from the compiled module without recompiling.
+A plugin declares its capabilities in `config.toml`. `fs.read`, `process`
+and `net` are accepted there but grant nothing yet. A call outside the
+declared capabilities returns -1, and fude logs it to
+`$XDG_STATE_HOME/fude/log` (B50).
+
+The edits a call asks for apply as one transaction once the call returns.
+A call that traps or runs past its budget leaves no edit (B53).
+
+Each plugin gets its own wazero runtime, so each has its own memory limit,
+64MB (`WithMemoryLimitPages` is per runtime). All runtimes share one
+compilation cache, in `$XDG_CACHE_HOME/fude/wasm`. Plugins compile and run
+`init` on their own goroutines, started after the first frame (B56).
+
+Calls into one plugin take turns. Every call carries a context with its
+budget: 200ms for `init`, 100ms for an event, and 16ms, one frame, for an
+operator, target or command on the input path. With
+`WithCloseOnContextDone`, wazero stops the plugin at its next loop back-edge
+after the deadline. Compiled code is never preempted mid-loop, so host
+functions never block. A stopped or trapped instance is closed and its state
+is lost. fude unloads it and tells the user which plugin (B51, B53). It can
+be instantiated again from the compiled module without recompiling.
+
+Test plugins are `.wat` files in `plugin/testdata`, with the `.wasm` that
+`just wasm` builds from them beside them, so tests never need
+`wasm-tools`. Go and other WASI plugins wait for a behaviour that needs
+them.
 
 ## Syntax
 

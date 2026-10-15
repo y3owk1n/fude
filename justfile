@@ -29,6 +29,10 @@ build:
 run path: build
     bin/fude {{ path }}
 
+# Build the test plugins from their .wat files.
+wasm:
+    for f in plugin/testdata/*.wat; do wasm-tools parse $f -o ${f%.wat}.wasm; done
+
 # Check the speed promises, without the race detector.
 perf:
     go test -count=1 -v -run Promise ./ui/term/ | grep -v '^=== RUN'

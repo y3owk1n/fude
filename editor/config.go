@@ -25,6 +25,10 @@ type config struct {
 	Filetype map[string]struct {
 		IndentWidth uint `toml:"indent_width"`
 	} `toml:"filetype"`
+	Plugin []struct {
+		Path         string   `toml:"path"` // relative to the config directory
+		Capabilities []string `toml:"capabilities"`
+	} `toml:"plugin"`
 }
 
 var defaults = config{IndentWidth: 8, KeyTimeout: 1000, LargeFile: 50}
