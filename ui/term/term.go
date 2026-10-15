@@ -31,6 +31,7 @@ func Run(e *editor.Editor) error {
 	}
 	defer s.Fini()
 	s.EnablePaste()
+	s.EnableFocus()
 
 	c := client{s: s, e: e}
 	c.draw()
@@ -47,6 +48,10 @@ func Run(e *editor.Editor) error {
 		switch ev := ev.(type) {
 		case *tcell.EventResize:
 			s.Sync()
+		case *tcell.EventFocus:
+			if ev.Focused {
+				e.Focus()
+			}
 		case *tcell.EventPaste:
 			pasting = ev.Start()
 			if pasting {

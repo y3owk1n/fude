@@ -265,6 +265,23 @@ func (e *Editor) restore(arg string) {
 		e.message = fmt.Sprintf("the text is already state %d", i)
 		return
 	}
+	ed := replace(old, new)
+	t := kernel.Transaction{
+		Base: now.Version(), Origin: "user", Label: "restore " + strconv.Itoa(i), Time: e.now(),
+		Edits: []kernel.Edit{ed},
+	}
+	if err := b.text.Apply(t); err != nil {
+		e.message = err.Error()
+		return
+	}
+	b.head = b.text.Head()
+	b.pushChange(ed.Start)
+	e.message = fmt.Sprintf("restored state %d as a new state", i)
+}
+
+// replace returns one edit that turns old into new, keeping the text they
+// start and end with.
+func replace(old, new string) kernel.Edit {
 	pre, suf := 0, 0
 	for pre < len(old) && pre < len(new) && old[pre] == new[pre] {
 		pre++
@@ -272,17 +289,7 @@ func (e *Editor) restore(arg string) {
 	for suf < len(old)-pre && suf < len(new)-pre && old[len(old)-1-suf] == new[len(new)-1-suf] {
 		suf++
 	}
-	t := kernel.Transaction{
-		Base: now.Version(), Origin: "user", Label: "restore " + strconv.Itoa(i), Time: e.now(),
-		Edits: []kernel.Edit{{Start: pre, End: len(old) - suf, Text: new[pre : len(new)-suf]}},
-	}
-	if err := b.text.Apply(t); err != nil {
-		e.message = err.Error()
-		return
-	}
-	b.head = b.text.Head()
-	b.pushChange(pre)
-	e.message = fmt.Sprintf("restored state %d as a new state", i)
+	return kernel.Edit{Start: pre, End: len(old) - suf, Text: new[pre : len(new)-suf]}
 }
 
 // diff opens a window with the lines that differ between states N and M of

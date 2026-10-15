@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/vim"
@@ -233,6 +234,73 @@ func TestB80StartWithFiles(t *testing.T) {
 	feed(e, ":bn<CR>")
 	if text(e) != "bee" {
 		t.Fatalf(":bn showed %q, want b", text(e))
+	}
+}
+
+// change writes text to path as another program would, an hour later.
+func change(t *testing.T, path, text string) {
+	t.Helper()
+	if err := os.WriteFile(path, []byte(text), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	later := time.Now().Add(time.Hour)
+	if err := os.Chtimes(path, later, later); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// B81
+func TestB81WriteAsksWhenDiskChanged(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "f")
+	change(t, path, "one\n")
+	e := open(t, path)
+	feed(e, "x")
+	change(t, path, "disk\n")
+	feed(e, ":w<CR>")
+	if !strings.Contains(e.Message(), "changed on disk") || disk(t, path) != "disk\n" {
+		t.Fatalf(":w said %q and left %q, want a question and the disk text", e.Message(), disk(t, path))
+	}
+	feed(e, "n")
+	if disk(t, path) != "disk\n" {
+		t.Fatalf("n wrote %q", disk(t, path))
+	}
+	feed(e, ":w<CR>y")
+	if disk(t, path) != "ne\n" {
+		t.Fatalf("y left %q, want fude's text", disk(t, path))
+	}
+	change(t, path, "disk\n")
+	feed(e, ":w!<CR>")
+	if disk(t, path) != "ne\n" {
+		t.Errorf(":w! left %q, want fude's text", disk(t, path))
+	}
+}
+
+// B82
+func TestB82ReloadOnFocus(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "f")
+	change(t, path, "one\n")
+	e := open(t, path)
+	change(t, path, "two\n")
+	e.Focus()
+	if text(e) != "two" {
+		t.Fatalf("focus left %q, want the disk text", text(e))
+	}
+	feed(e, "x")
+	change(t, path, "three\n")
+	e.Focus()
+	if text(e) != "wo" || !strings.Contains(e.Message(), "changed on disk and in fude") {
+		t.Errorf("focus on a modified buffer left %q and said %q, want fude's text and a warning", text(e), e.Message())
+	}
+}
+
+// B83
+func TestB83LargeFile(t *testing.T) {
+	config(t, "large_file = 1\n")
+	path := filepath.Join(t.TempDir(), "f")
+	change(t, path, strings.Repeat("x", 1<<20+1))
+	e := start(t, path)
+	if !strings.Contains(e.Message(), "over 1MB") {
+		t.Errorf("opened with %q, want it to say the file is large", e.Message())
 	}
 }
 

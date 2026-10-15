@@ -16,6 +16,7 @@ import (
 type config struct {
 	IndentWidth uint `toml:"indent_width"` // 0 means the tab width
 	KeyTimeout  uint `toml:"key_timeout"`  // milliseconds
+	LargeFile   uint `toml:"large_file"`   // megabytes
 	Keymap      struct {
 		Normal map[string]string `toml:"normal"`
 		Visual map[string]string `toml:"visual"`
@@ -26,7 +27,7 @@ type config struct {
 	} `toml:"filetype"`
 }
 
-var defaults = config{IndentWidth: 8, KeyTimeout: 1000}
+var defaults = config{IndentWidth: 8, KeyTimeout: 1000, LargeFile: 50}
 
 // loadConfig reads config.toml. A missing file is no error. After an error
 // it returns what it read before the error and the defaults for the rest.

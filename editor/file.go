@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 	"unicode/utf8"
 )
 
@@ -17,6 +18,11 @@ type file struct {
 	eol      bool // the text ended in a newline
 	isNew    bool
 	readonly bool // not valid UTF-8
+
+	// The file's modification time and size when fude last read or wrote it.
+	mod    time.Time
+	size   int64
+	warned bool // fude warned that the file changed on disk since then
 }
 
 // read returns the file at path and its text. The text has \n line endings
@@ -31,6 +37,7 @@ func read(path string) (file, string, error) {
 	if err != nil {
 		return f, "", fmt.Errorf("open %s: %w", path, err)
 	}
+	f.note()
 	text := string(data)
 	if !utf8.ValidString(text) {
 		f.readonly = true
@@ -77,5 +84,20 @@ func (f *file) write(text string) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("write %s: %w", f.path, err)
 	}
+	f.note()
 	return len(text), nil
+}
+
+// note records the file's modification time and size on disk.
+func (f *file) note() {
+	if fi, err := os.Stat(f.path); err == nil {
+		f.mod, f.size, f.warned = fi.ModTime(), fi.Size(), false
+	}
+}
+
+// changed reports whether the file on disk changed since fude last read or
+// wrote it.
+func (f *file) changed() bool {
+	fi, err := os.Stat(f.path)
+	return f.path != "" && err == nil && (!fi.ModTime().Equal(f.mod) || fi.Size() != f.size)
 }

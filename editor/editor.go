@@ -24,6 +24,7 @@ type Editor struct {
 	message string
 	done    bool
 	cfg     config
+	ask     func(yes bool) // takes the answer to the question in the message
 
 	width, height int // the space the windows share
 
@@ -39,11 +40,13 @@ type place struct {
 // Open opens each path as a buffer and shows the first. A path that does not
 // exist opens an empty buffer. With no paths it opens one empty buffer with
 // no file.
-func Open(paths ...string) (*Editor, error) {
+func Open(paths ...string) (*Editor, error) { return open(defaults, paths) }
+
+func open(cfg config, paths []string) (*Editor, error) {
 	if len(paths) == 0 {
 		paths = []string{""}
 	}
-	e := &Editor{next: 1, now: time.Now, cfg: defaults}
+	e := &Editor{next: 1, now: time.Now, cfg: cfg}
 	e.vim = vim.New(host{e})
 	for i, p := range paths {
 		msg, err := e.add(p)
@@ -74,7 +77,8 @@ func Start(args []string) (*Editor, error) {
 		}
 		paths = append(paths, a)
 	}
-	e, err := Open(paths...)
+	cfg, cfgErr := loadConfig()
+	e, err := open(cfg, paths)
 	if err != nil {
 		return nil, err
 	}
@@ -89,11 +93,9 @@ func Start(args []string) (*Editor, error) {
 		l := t.Slice(p, vim.LineEnd(t, p))
 		e.setCursor(p + len(l) - len(strings.TrimLeft(l, " \t")))
 	}
-	cfg, err := loadConfig()
-	if err != nil {
-		e.message = err.Error()
+	if cfgErr != nil {
+		e.message = cfgErr.Error()
 	}
-	e.cfg = cfg
 	for mode, maps := range map[vim.Mode]map[string]string{vim.Normal: cfg.Keymap.Normal, vim.Visual: cfg.Keymap.Visual, vim.Insert: cfg.Keymap.Insert} {
 		for from, to := range maps {
 			e.vim.Map(mode, from, to)
@@ -110,12 +112,21 @@ func (e *Editor) add(path string) (string, error) {
 	}
 	e.next++
 	e.bufs = append(e.bufs, b)
+	if limit := e.cfg.LargeFile; msg == "" && b.text.Snapshot().Len() > int(limit)<<20 {
+		msg = fmt.Sprintf("\"%s\" is over %dMB, syntax and LSP are off", path, limit)
+	}
 	return msg, nil
 }
 
 // Feed handles one key. An error becomes the message.
 func (e *Editor) Feed(k vim.Key) {
 	e.message = ""
+	if ask := e.ask; ask != nil {
+		e.ask = nil
+		ask(k == "y")
+		e.reveal()
+		return
+	}
 	if e.win.buf.lines != nil && e.vim.Idle() && e.timelineKey(k) {
 		e.reveal()
 		return
@@ -195,19 +206,17 @@ func (e *Editor) rows() int { return max(e.win.h-1, 1) }
 // line.
 func (e *Editor) reveal() {
 	w := e.win
-	t, c, top := w.buf.text.Snapshot(), w.pos(), e.Top()
-	if c < top {
-		w.buf.text.MoveMark(w.top, vim.LineStart(t, c))
-		return
+	t, c := w.buf.text.Snapshot(), w.pos()
+	line := vim.LineStart(t, c)
+	// low is the earliest top that still shows the cursor's line.
+	low := line
+	for range e.rows() - 1 {
+		if low == 0 {
+			break
+		}
+		low = vim.LineStart(t, low-1)
 	}
-	below := 0
-	for p := top; p < vim.LineStart(t, c); p = vim.LineEnd(t, p) + 1 {
-		below++
-	}
-	for ; below >= e.rows(); below-- {
-		top = vim.LineEnd(t, top) + 1
-	}
-	w.buf.text.MoveMark(w.top, top)
+	w.buf.text.MoveMark(w.top, min(max(e.Top(), low), line))
 }
 
 // Matches returns the search matches between from and to, for highlighting.
@@ -344,8 +353,8 @@ func (e *Editor) ex(line string) {
 	name, arg, _ := strings.Cut(strings.TrimSpace(line), " ")
 	arg = strings.TrimSpace(arg)
 	switch name {
-	case "w":
-		e.write()
+	case "w", "w!":
+		e.write(name == "w!")
 	case "q", "quit":
 		e.quit(false)
 	case "q!", "quit!":
@@ -500,7 +509,9 @@ func (e *Editor) registers(names string) {
 	e.message = strings.Join(shown, "  ")
 }
 
-func (e *Editor) write() {
+// write writes the current buffer to its file. Without force it asks first
+// when the file changed on disk since fude read it.
+func (e *Editor) write(force bool) {
 	b := e.win.buf
 	switch {
 	case b.file.path == "":
@@ -508,6 +519,14 @@ func (e *Editor) write() {
 		return
 	case b.file.readonly:
 		e.message = fmt.Sprintf("\"%s\" is read-only", b.file.path)
+		return
+	case !force && b.file.changed():
+		e.message = fmt.Sprintf("\"%s\" changed on disk since fude read it, write anyway? (y/n)", b.file.path)
+		e.ask = func(yes bool) {
+			if yes {
+				e.write(true)
+			}
+		}
 		return
 	}
 	s := b.text.Snapshot()
@@ -521,12 +540,41 @@ func (e *Editor) write() {
 		tag = "[New] "
 	}
 	b.file.isNew = false
-	b.saved = b.text.Head()
-	b.saves = append(b.saves, b.saved)
-	if b.log != nil {
-		b.log.write(record{Kind: "save", Head: b.saved, Hash: hash(s.Slice(0, s.Len()))})
-	}
+	b.markSaved()
 	e.message = fmt.Sprintf("\"%s\" %s%dB written", b.file.path, tag, n)
+}
+
+// Focus reloads each unmodified buffer whose file changed on disk, as one
+// undo step. A modified one keeps its text, and fude warns once.
+func (e *Editor) Focus() {
+	for _, b := range e.bufs {
+		if b.title != "" || b.file.warned || !b.file.changed() {
+			continue
+		}
+		if b.modified() {
+			e.message = fmt.Sprintf("\"%s\" changed on disk and in fude, keeping fude's text", b.file.path)
+			b.file.warned = true
+			continue
+		}
+		f, text, err := read(b.file.path)
+		if err != nil {
+			e.message = err.Error()
+			continue
+		}
+		now := b.text.Snapshot()
+		if old := now.Slice(0, now.Len()); old != text {
+			t := kernel.Transaction{Base: now.Version(), Origin: "user", Label: "reload", Time: e.now(), Edits: []kernel.Edit{replace(old, text)}}
+			if err := b.text.Apply(t); err != nil {
+				e.message = err.Error()
+				continue
+			}
+			b.head = b.text.Head()
+		}
+		b.file = f
+		b.markSaved()
+		e.message = fmt.Sprintf("\"%s\" changed on disk, reloaded", b.file.path)
+	}
+	e.reveal()
 }
 
 // host implements vim.Host for an Editor, acting on the current window.

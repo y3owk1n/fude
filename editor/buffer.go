@@ -110,6 +110,16 @@ func (b *buffer) is(path string) bool {
 	return b.file.path != "" && err1 == nil && err2 == nil && x == y
 }
 
+// markSaved notes that the file on disk holds the buffer's text.
+func (b *buffer) markSaved() {
+	b.saved = b.text.Head()
+	b.saves = append(b.saves, b.saved)
+	if b.log != nil {
+		s := b.text.Snapshot()
+		b.log.write(record{Kind: "save", Head: b.saved, Hash: hash(s.Slice(0, s.Len()))})
+	}
+}
+
 // filetype is the file's extension without the dot, which names its
 // [filetype.<name>] table in config.toml.
 func (b *buffer) filetype() string { return strings.TrimPrefix(filepath.Ext(b.file.path), ".") }

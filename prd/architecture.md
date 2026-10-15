@@ -437,6 +437,7 @@ $XDG_DATA_HOME/fude/grammars/       grammars and their queries, loaded at runtim
 ```toml
 indent_width = 8     # columns >, <, <C-t> and <C-d> shift by, 0 for the tab width
 key_timeout = 1000   # milliseconds a mapping prefix waits (B84)
+large_file = 50      # megabytes over which syntax and LSP stay off (B83)
 
 [keymap.normal]      # and [keymap.visual], [keymap.insert]. Keys map to keys.
 "<Space>w" = ":w<CR>"
