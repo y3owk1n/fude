@@ -235,6 +235,29 @@ func TestB63ServerCrash(t *testing.T) {
 	}
 }
 
+// B159
+func TestB159LspCommand(t *testing.T) {
+	e, log := withServer(t, "x\n", "utf-8")
+	heard(t, log, `"method":"textDocument/didOpen"`, 1)
+	if feed(e, ":lsp<CR>"); !strings.Contains(text(e), "a.go") {
+		t.Fatalf(":lsp listed %q", text(e))
+	}
+	// :lsp restart stops the server and opens the file in a new one.
+	feed(e, ":q<CR>:lsp restart<CR>")
+	heard(t, log, `"method":"shutdown"`, 1)
+	heard(t, log, `"method":"textDocument/didOpen"`, 2)
+	// It also starts a server that stayed off after crashing twice.
+	feed(e, "i#<Esc>")
+	settle(t, e, func() bool { return strings.Contains(e.Message(), "was restarted") })
+	feed(e, "a#<Esc>")
+	settle(t, e, func() bool { return strings.Contains(e.Message(), "stays off") })
+	if feed(e, ":lsp<CR>"); !strings.Contains(text(e), "not running") {
+		t.Fatalf(":lsp with the server off listed %q", text(e))
+	}
+	feed(e, ":q<CR>:lsp restart<CR>")
+	heard(t, log, `"method":"textDocument/didOpen"`, 4)
+}
+
 // B61
 func TestB61Diagnostics(t *testing.T) {
 	e, _ := withServer(t, "ok\nbad x bad\n", "utf-8")

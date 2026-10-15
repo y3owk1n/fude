@@ -286,6 +286,10 @@ Where fude departs, the line says so and cites the departure in
   shows the theme in use, and `<Tab>` after it offers dark, light and the
   scheme `config.toml` names. A scheme that does not load says why and
   leaves the theme as it was.
+- B159 [5] `:lsp` lists the running language servers with their roots and
+  files, and says when the current file's server is not running (N20).
+  `:lsp restart` restarts the current file's server, or starts it again
+  after it stayed off (B63), and opens its files in the new one.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -113,6 +114,53 @@ func (e *Session) stop(s *server) {
 		if o == s {
 			delete(e.servers, k)
 		}
+	}
+}
+
+// lspInfo lists the running language servers with their roots and files,
+// first saying when the current buffer's filetype names one that is not
+// running (B159).
+func (e *Session) lspInfo() {
+	var lines []string
+	b := e.win.buf
+	if command := e.cfg.Filetype[b.filetype()].LSP; len(command) > 0 && b.server == nil {
+		lines = append(lines, fmt.Sprintf("%s is set for %s files but is not running, and :messages may say why", filepath.Base(command[0]), b.filetype()), "")
+	}
+	for _, k := range slices.Sorted(maps.Keys(e.servers)) {
+		s := e.servers[k]
+		lines = append(lines, strings.Join(append([]string{filepath.Base(s.command[0])}, s.command[1:]...), " ")+"  "+s.root)
+		for _, o := range s.bufs {
+			lines = append(lines, "  "+o.name())
+		}
+	}
+	if len(lines) == 0 {
+		e.message = "no language servers"
+		return
+	}
+	e.scratch("[lsp]", strings.Join(lines, "\n"), nil, nil)
+}
+
+// restartServer stops the current buffer's language server, then attaches
+// every buffer of its filetype that has none, which also starts a server
+// that stayed off after crashing (B159).
+func (e *Session) restartServer() {
+	b := e.win.buf
+	if len(e.cfg.Filetype[b.filetype()].LSP) == 0 {
+		e.message = "no language server is set for this file"
+		return
+	}
+	if s := b.server; s != nil {
+		s.closing = true
+		s.client.Close()
+		e.stop(s)
+	}
+	for _, o := range e.bufs {
+		if o.server == nil && o.filetype() == b.filetype() {
+			e.attach(o)
+		}
+	}
+	if b.server != nil {
+		e.message = "restarted " + filepath.Base(b.server.command[0])
 	}
 }
 

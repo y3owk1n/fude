@@ -1033,6 +1033,15 @@ func (e *Session) ex(line string) {
 	switch name {
 	case "r", "read":
 		e.readIn(arg, last)
+	case "lsp":
+		switch arg {
+		case "":
+			e.lspInfo()
+		case "restart":
+			e.restartServer()
+		default:
+			e.message = "not an lsp command: " + arg
+		}
 	case "theme":
 		if arg == "" {
 			e.message = e.theme
