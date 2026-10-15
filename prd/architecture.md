@@ -231,45 +231,28 @@ around the cursor and on the visible lines. They are never stored.
 
 ## Command
 
+A command names an edit for a client to send over the socket.
+
 ```go
 type Command struct {
-    Count    int    // 0 means no count was typed
-    Register rune   // 0 means the unnamed register
-    Op       string // registered operator, "" means move the cursor
+    Count    int    // 0 means no count
+    Register string // "" means the unnamed register
+    Op       string // "delete", "change", "yank", ..., "" moves the cursor
     Target   Target
-    Text     string // inserted text, or an ex operator's argument
+    Text     string // typed after a change
 }
 
 type Target struct {
-    Name string // registered target: "word", "find", "inner_quote", "tree", "lines", "selection"
-    Arg  string // its argument: the char for f, the pattern for /, the query, the line range
+    Name string // "word", "inner_word", "inner_quote", "line_end", "find", "lines"
+    Arg  string // the character for find
 }
 ```
 
-Operators and targets are registered by name, never stored as functions, so
-a command serializes to JSON and back unchanged. Plugin names are prefixed
-with the plugin name.
-
-Counts multiply as in Neovim. `2d3w` is `Count: 6`.
-
-### Resolution
-
-```go
-type Range struct {
-    Anchor, Head int  // byte offsets, Head is where a move puts the cursor
-    Kind         Kind // charwise, linewise, blockwise
-}
-
-type TargetFunc   func(t Text, at, count int, arg string) ([]Range, error)
-type OperatorFunc func(t Text, rs []Range, reg *Register, text string) ([]Edit, error)
-```
-
-The machine resolves a command against the host's text and cursor. It
-calls the target and gets ranges, several for blockwise or a query
-selection (B42). With no operator, the cursor moves to the last range's
-head. Otherwise the operator turns the ranges into edits, which the host applies
-as one transaction. Inclusive, exclusive and linewise rules belong
-to the target, as Vim's motion types do.
+The server turns a command into the keys it names and feeds them to the
+client's session, so a command does what typing them does (B70). `change`
+on `inner_quote` with `Text: "hello"` is `ci"`, then the text pasted as
+typed (B8), then `<Esc>`. An operator on `lines` is the operator doubled.
+A name with no keys is refused.
 
 ### Rules
 
@@ -278,34 +261,30 @@ to the target, as Vim's motion types do.
   a visual operator, `.` applies to a region of the same size at the cursor,
   as in Neovim.
 - **Macros** are key text in a register. `@x` feeds the text through the
-  grammar, which produces commands. `:reg x` shows the text and editing it
-  changes the macro (B17). A macro can hold anything keys can do, including
-  `:w` and `<C-w>v`.
-- **Ex edits** are commands. `:3,5d` is `delete` on `lines` with
-  `Arg: "3,5"`. `:s/a/b/g` is `substitute` on `lines` with the pattern in
-  `Text`. Ex commands that do not edit text (`:w`, `:q`, `:e`) are module
-  calls.
-- **Insert** is `change` on an empty target at the insert position (`i`,
-  `a`, `o` differ only in the target). The text typed before `<Esc>` is
-  `Text`, so `.` reinserts it.
+  grammar. `:reg x` shows the text and editing it changes the macro (B17).
+  A macro can hold anything keys can do, including `:w` and `<C-w>v`.
+- **Ex edits** such as `:3,5d` and `:s/a/b/g` run in the machine. Ex
+  commands that do not edit text (`:w`, `:q`, `:e`) reach the host's
+  `Unhandled`.
+- **Insert** keeps the text typed before `<Esc>`, so `.` reinserts it.
 
 ### Request
 
-Clients and plugins send a command inside a request.
+Clients send a command inside a request.
 
 ```go
 type Request struct {
-    Buffer   BufferID
-    View     ViewID    // whose cursor to use and move, zero for none
-    At       *Position // resolve here through a temporary mark instead
-    Base     Version   // the snapshot the sender saw
-    Proposal bool      // show as ghost text, apply only on accept (B71)
-    Command  Command
+    Buffer  int     // 0 for the session's current buffer
+    At      *int    // a byte offset to act at instead of the cursor
+    Base    Version // the version At is in
+    Command Command
 }
 ```
 
 The anchor lives on the request, so it never reaches dot repeat or a
-macro. A request with `At` leaves the user's cursor where it was.
+macro. A request with `At` acts there and leaves every cursor where it was
+(B75). `At` maps from `Base` through the edits since, and a request whose
+position an edit since replaced is refused (B76).
 
 ## Keys
 
@@ -730,6 +709,16 @@ keymaps and the plugin keys, including a session that attaches later. A
 session's edits carry its origin, so a kernel group never mixes two
 clients' edits and `u` reverts only the session's own changes with
 `UndoOrigin` (B77).
+
+Clients attach over a unix socket, `fude.<pid>.sock` in `XDG_RUNTIME_DIR`
+or else the temporary directory. Each call is a line of JSON,
+`{"id", "method", "params"}`, and each reply is a line with the `id` and a
+`result` or an `error`. `keys` types keys as one complete input, so keys
+held for a longer mapping run at once. `request` runs a request, and
+`state` changes nothing. Every result is the session's state: its buffer,
+the buffer's name, version and text, the cursor, the mode and the message.
+The server only answers calls. It pushes nothing until a client needs to
+redraw when another client edits.
 
 The protocol is fude's own and carries state, not cells: buffer text and
 edits, views, decorations, modes and proposals. A terminal client renders

@@ -546,8 +546,7 @@ func (e *Session) quit(force bool) {
 // changes. A session other than the first only leaves, and fude keeps running.
 func (e *Session) quitAll(force bool) {
 	if e != e.sessions[0] {
-		e.sessions = slices.DeleteFunc(e.sessions, func(s *Session) bool { return s == e })
-		e.done = true
+		e.leave()
 		return
 	}
 	for _, b := range e.bufs {
@@ -569,6 +568,12 @@ func (e *Session) quitAll(force bool) {
 	for _, s := range e.sessions {
 		s.done = true
 	}
+}
+
+// leave ends a session other than the first.
+func (e *Session) leave() {
+	e.sessions = slices.DeleteFunc(e.sessions, func(s *Session) bool { return s == e })
+	e.done = true
 }
 
 func (e *Session) ex(line string) {

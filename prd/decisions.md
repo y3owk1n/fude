@@ -74,15 +74,20 @@ changing the verb-first grammar.
 
 ## D13. Operators and targets are registered names
 
-A command holds names, never functions. Why: a command must serialize to
-JSON and back unchanged for macros, RPC and plugins, and a plugin's
-operator must compose with a built-in target through the same lookup.
+The machine registers operators, targets and commands by name, and a
+client's command names them. The server turns a command into the keys it
+names and feeds them to the client's session. Why: a plugin's operator
+must compose with a built-in target through the same lookup, a command
+must cross the socket as JSON, and as keys a client's edit, a macro and
+typed keys all go through one grammar.
 
 ## D14. The anchor lives on the request, not the command
 
-A command has no position. A request carries the buffer, view, optional
-anchor and base version. Why: dot repeat must replay at the current cursor,
-and an agent must be able to edit line 40 without moving the user's cursor.
+A command has no position. A request carries the buffer, an optional byte
+offset and the version the offset is in. Why: dot repeat must replay at
+the current cursor, and an agent must be able to edit line 40 without
+moving the user's cursor. A byte offset maps through edits with the
+kernel's `Map`, which a line and column cannot without the old text.
 
 ## D15. Macros are key text
 

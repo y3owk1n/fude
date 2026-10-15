@@ -53,7 +53,7 @@ An agent attaches over RPC and sends:
 ```json
 {
   "buffer": 3,
-  "at": {"line": 40, "col": 12},
+  "at": 1180,
   "base": 118,
   "proposal": true,
   "command": {"op": "change", "target": {"name": "inner_quote"}, "text": "hello"}
