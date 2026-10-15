@@ -123,8 +123,6 @@ func paint(spans []syntax.Span, top int) []tcell.Style {
 	return out
 }
 
-var visualLabels = map[vim.Key]string{"v": "-- VISUAL --", "V": "-- VISUAL LINE --", "<C-v>": "-- VISUAL BLOCK --"}
-
 type client struct {
 	s tcell.Screen
 	e *editor.Session
@@ -165,24 +163,23 @@ func (c *client) draw() {
 	}
 
 	shape := tcell.CursorStyleSteadyBlock
+	// The status line names the mode, so the last row has the command line
+	// or the last message.
 	switch c.e.Mode() {
 	case vim.Insert:
 		shape = tcell.CursorStyleSteadyBar
-		c.s.PutStr(0, h-1, "-- INSERT --")
 	case vim.Replace:
 		shape = tcell.CursorStyleSteadyUnderline
-		c.s.PutStr(0, h-1, "-- REPLACE --")
-	case vim.Visual:
-		c.s.PutStr(0, h-1, visualLabels[sel.Kind])
-	case vim.Cmdline:
-		c.s.PutStr(0, h-1, c.e.Line())
+	}
+	if c.e.Mode() == vim.Cmdline {
+		c.s.PutStrStyled(0, h-1, c.e.Line(), base)
 		cx, cy = utf8.RuneCountInString(c.e.Line()[:c.e.LineCursor()]), h-1
-	default:
+	} else {
 		msg := c.e.Message()
 		if r := c.e.Recording(); r != 0 && msg == "" {
 			msg = "recording @" + string(r)
 		}
-		c.s.PutStr(0, h-1, msg)
+		c.s.PutStrStyled(0, h-1, msg, base)
 	}
 	if text, ok := c.e.TerminalClipboard(); ok {
 		c.s.SetClipboard([]byte(text))
@@ -483,33 +480,7 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 			c.s.Put(v.X-1, y, "│", base)
 		}
 	}
-	status := " " + v.Name
-	if v.Modified {
-		status += " [+]"
-	}
-	if r := []rune(status); len(r) > v.W {
-		// Cut the start of a long name, so the end and [+] stay in view.
-		status = "<" + string(r[len(r)-v.W+1:])
-	}
-	style := base.Background(th.raised).Bold(v.Current)
-	if !v.Current {
-		style = style.Foreground(th.muted)
-	}
-	c.s.FillArea(v.X, v.Y+v.H-1, v.W, 1, ' ', style)
-	c.s.PutStrStyled(v.X, v.Y+v.H-1, status, style)
-	// Plugins' segments, the keys being typed and the ruler go on the right
-	// when they fit beside the name (B38).
-	shown := ""
-	if v.Current {
-		shown = c.e.Shown()
-	}
-	right := fmt.Sprintf("%-11s%s ", shown, v.Ruler)
-	if len(v.Segments) > 0 {
-		right = strings.Join(v.Segments, "  ") + "  " + right
-	}
-	if len([]rune(status))+len([]rune(right)) < v.W {
-		c.s.PutStrStyled(v.X+v.W-len([]rune(right)), v.Y+v.H-1, right, style)
-	}
+	c.status(v, v.X, v.W)
 	return cx, cy, found
 }
 

@@ -1,0 +1,146 @@
+package term
+
+import (
+	"os"
+	"strconv"
+	"strings"
+
+	"github.com/gdamore/tcell/v3"
+	"github.com/gdamore/tcell/v3/color"
+	"github.com/y3owk1n/fude/editor"
+	"github.com/y3owk1n/fude/vim"
+)
+
+// part is a run of a status line, in its style.
+type part struct {
+	text  string
+	style tcell.Style
+}
+
+// status draws v's status line on its bottom row (B147). On the left: the
+// mode in its colour, for the current window, the file's name after its
+// directory, dim, a dot while it is modified, the git branch and the
+// diagnostics. On the right: plugins' segments, the keys being typed, the
+// filetype and the ruler. The right goes first when the line is too narrow.
+func (c *client) status(v editor.View, x, w int) {
+	y := v.Y + v.H - 1
+	ground := base.Foreground(th.muted)
+	if v.Current {
+		ground = base.Background(th.surface)
+	}
+	c.s.FillArea(x, y, w, 1, ' ', ground)
+	var left, right []part
+	if v.Current {
+		label, colour := c.mode()
+		left = append(left, part{" " + label + " ", ground.Background(colour).Foreground(th.bg).Bold(true)})
+	}
+	dir, name := splitName(v.Name)
+	left = append(left, part{" " + dir, ground.Foreground(th.faint)}, part{name, ground.Bold(v.Current)})
+	if v.Modified {
+		left = append(left, part{" ●", ground.Foreground(th.cmd)})
+	}
+	if v.Branch != "" {
+		left = append(left, part{"   " + v.Branch, ground.Foreground(th.muted)})
+	}
+	if v.Errors > 0 {
+		left = append(left, part{"   " + strconv.Itoa(v.Errors), ground.Foreground(th.err)})
+	}
+	if v.Warnings > 0 {
+		left = append(left, part{"   " + strconv.Itoa(v.Warnings), ground.Foreground(th.warn)})
+	}
+	muted := ground.Foreground(th.muted)
+	for _, s := range v.Segments {
+		right = append(right, part{s + "  ", muted})
+	}
+	if v.Current {
+		if shown := c.e.Shown(); shown != "" {
+			right = append(right, part{shown + "  ", muted})
+		}
+	}
+	if ft := filetype(name); ft != "" {
+		right = append(right, part{ft + "  ", muted})
+	}
+	right = append(right, part{ruler(v.Ruler) + " ", muted})
+	if width(left)+1+width(right) > w {
+		right = nil
+	}
+	at := x
+	for _, p := range left {
+		at = c.putClipped(at, y, x+w, p)
+	}
+	at = x + w - width(right)
+	for _, p := range right {
+		at = c.putClipped(at, y, x+w, p)
+	}
+}
+
+// mode is the current window's mode as the status line names it, and its
+// colour.
+func (c *client) mode() (string, color.Color) {
+	switch c.e.Mode() {
+	case vim.Insert:
+		return "INSERT", th.insert
+	case vim.Replace:
+		return "REPLACE", th.err
+	case vim.Cmdline:
+		return "COMMAND", th.cmd
+	case vim.Visual:
+		sel, _ := c.e.Selection()
+		return map[vim.Key]string{"v": "VISUAL", "V": "V-LINE", "<C-v>": "V-BLOCK"}[sel.Kind], th.visual
+	}
+	return "NORMAL", th.normal
+}
+
+// putClipped draws p from x on row y, cut at end, and returns the column
+// after it.
+func (c *client) putClipped(x, y, end int, p part) int {
+	for rest := p.text; rest != "" && x < end; {
+		var w int
+		rest, w = c.s.Put(x, y, rest, p.style)
+		x += w
+	}
+	return x
+}
+
+// splitName splits a buffer's name into its directory, with a trailing
+// slash and the home directory as ~, and the rest. A listing's name keeps
+// its own trailing slash.
+func splitName(name string) (string, string) {
+	if home, err := os.UserHomeDir(); err == nil {
+		if rest, ok := strings.CutPrefix(name, home+"/"); ok {
+			name = "~/" + rest
+		}
+	}
+	i := strings.LastIndexByte(strings.TrimSuffix(name, "/"), '/')
+	return name[:i+1], name[i+1:]
+}
+
+// filetype is the extension of a file's name, which names its filetype.
+func filetype(name string) string {
+	if i := strings.LastIndexByte(name, '.'); i > 0 {
+		return name[i+1:]
+	}
+	return ""
+}
+
+// ruler shows a Vim ruler, "21,12-13  48%", as the status line does:
+// "21:13  48%", with the screen column when it differs.
+func ruler(r string) string {
+	f := strings.Fields(r)
+	if len(f) < 2 {
+		return r
+	}
+	line, col, _ := strings.Cut(f[0], ",")
+	if _, screen, ok := strings.Cut(col, "-"); ok {
+		col = screen
+	}
+	return line + ":" + col + "  " + f[1]
+}
+
+func width(ps []part) int {
+	n := 0
+	for _, p := range ps {
+		n += len([]rune(p.text))
+	}
+	return n
+}

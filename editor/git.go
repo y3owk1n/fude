@@ -67,6 +67,16 @@ func gitStatus(dir string) (map[string]Sign, bool) {
 	return signs, true
 }
 
+// gitBranch returns the branch checked out in dir's repository, or "" for
+// none, outside one or on a detached head (B147).
+func gitBranch(dir string) string {
+	out, err := exec.Command("git", "-C", dir, "branch", "--show-current").Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
+}
+
 // gitBase reads path as git's index has it, the text gitsigns compares
 // with, or false when the file is not in a repository's index.
 func gitBase(path string) (string, bool) {
@@ -86,10 +96,11 @@ func gitBase(path string) (string, bool) {
 // (B123), or a listing's git status (B126).
 func (ed *Editor) loadGit(b *buffer) {
 	if b.listed != "" && hasGit() {
-		dir, had := b.listed, b.status != nil
+		dir, had := b.listed, b.status != nil || b.branch != ""
 		go func() {
-			if signs, ok := gitStatus(dir); ok || had {
-				ed.queue <- func() { b.status = signs }
+			signs, ok := gitStatus(dir)
+			if branch := gitBranch(dir); ok || had {
+				ed.queue <- func() { b.status, b.branch = signs, branch }
 			}
 		}()
 		return
@@ -97,14 +108,16 @@ func (ed *Editor) loadGit(b *buffer) {
 	if b.file.path == "" || b.title != "" || !hasGit() {
 		return
 	}
-	path, had := b.file.path, b.base != nil
+	path, had := b.file.path, b.base != nil || b.branch != ""
 	go func() {
 		base, ok := gitBase(path)
-		if !ok && !had {
+		branch := gitBranch(filepath.Dir(path))
+		if !ok && !had && branch == "" {
 			// Nothing to show or to clear, so the loop need not hear of it.
 			return
 		}
 		ed.queue <- func() {
+			b.branch = branch
 			if !ok {
 				b.base, b.git = nil, nil
 				return

@@ -525,6 +525,8 @@ type View struct {
 	Matches           [][2]int       // of the search, shown in every window
 	Segments          []string       // plugins' statusline segments, in the order they loaded
 	Ruler             string         // the cursor's line and column, and where the view is (B38)
+	Branch            string         // the git branch of the buffer's repository, "" outside one (B147)
+	Errors, Warnings  int            // the buffer's diagnostics of each severity (B147)
 	Gutter            int            // the columns the sign column and line numbers take on the left
 	SignCols          int            // the columns of the sign column, at the gutter's left
 	Signs             map[int]Sign   // by line, the sign each one shows (B119)
@@ -579,6 +581,15 @@ func (e *Session) Views() []View {
 		for _, p := range e.plugins {
 			if s := e.segments[p][w.buf]; s != "" {
 				v.Segments = append(v.Segments, s)
+			}
+		}
+		v.Branch = w.buf.branch
+		for _, d := range e.decos[w.buf] {
+			switch d.style {
+			case "diagnostic.error":
+				v.Errors++
+			case "diagnostic.warn":
+				v.Warnings++
 			}
 		}
 		if f := e.flash; f != nil && f.b == w.buf && f.end > top && f.start < last {

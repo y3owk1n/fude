@@ -162,3 +162,36 @@ func TestB146Base16(t *testing.T) {
 		t.Errorf("a missing scheme said %q", cl.e.Message())
 	}
 }
+
+// B147
+func TestB147StatusLine(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "notes.txt")
+	if err := os.WriteFile(path, []byte("a\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cl := start(t, path)
+	row := func() string {
+		cl.draw()
+		var b strings.Builder
+		w, h := cl.s.Size()
+		for x := 0; x < w; x++ {
+			s, _, _ := cl.s.Get(x, h-2)
+			b.WriteString(s)
+		}
+		return b.String()
+	}
+	if got := row(); !strings.HasPrefix(got, " NORMAL ") || !strings.Contains(got, "notes.txt") || !strings.Contains(got, "1:1") {
+		t.Fatalf("the status line is %q", got)
+	}
+	feed := func(keys string) {
+		for _, k := range vim.Keys(keys) {
+			cl.e.Feed(k)
+		}
+	}
+	if feed("ix"); !strings.HasPrefix(row(), " INSERT ") {
+		t.Fatalf("in insert mode the status line is %q", row())
+	}
+	if feed("<Esc>"); !strings.Contains(row(), "notes.txt ●") {
+		t.Fatalf("after a change the status line is %q", row())
+	}
+}

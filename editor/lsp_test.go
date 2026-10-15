@@ -442,6 +442,15 @@ func TestB142FloatKeymap(t *testing.T) {
 	}
 }
 
+// B147, for the diagnostics the status line counts
+func TestB147Diagnostics(t *testing.T) {
+	e, _ := withServer(t, "ok\nbad x bad\n", "utf-8")
+	settle(t, e, func() bool { return len(decorations(e)) == 2 })
+	if v := e.Views()[0]; v.Errors != 2 || v.Warnings != 0 {
+		t.Fatalf("the view counts %d errors and %d warnings, want 2 and 0", v.Errors, v.Warnings)
+	}
+}
+
 // B66, for the keys that list or jump to places, and N3
 func TestB66Places(t *testing.T) {
 	e, log := withServer(t, "a target\nb target\nc\n", "utf-8")

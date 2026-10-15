@@ -225,6 +225,13 @@ Where fude departs, the line says so and cites the departure in
   in its sixteen colours, each in the role base16's styling guide gives
   it. A file without all of `base00` to `base0F` says so, and fude draws in
   `dark`.
+- B147 [2] A window's status line shows, in the current window, the mode
+  in its colour: NORMAL, INSERT, VISUAL, V-LINE, V-BLOCK, REPLACE or
+  COMMAND. Then come the buffer's name with its directory dim and `~` for
+  the home directory, a dot when it is modified, the git branch and the
+  counts of errors and warnings. The right holds plugins' segments, the
+  keys being typed, the filetype and the ruler as `line:col`. The last row
+  no longer names the mode.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays

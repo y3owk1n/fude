@@ -46,6 +46,7 @@ type buffer struct {
 	git      map[int]Sign      // the git sign of each changed line
 	touched  [2]int            // the text the last change made, as it is after it
 	status   map[string]Sign   // a listing's git status sign of each name
+	branch   string            // the git branch of its repository, "" outside one
 	gitStale bool              // the text changed since the last diff
 	gitBusy  bool              // a diff runs
 	version  int               // the changes the server has heard since it opened

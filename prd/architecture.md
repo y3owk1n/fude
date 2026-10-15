@@ -543,11 +543,15 @@ on the line its sign is on (B138).
 `relative_number` numbers lines from the cursor's. With both, the cursor's
 line shows its own number on the left, as in Neovim (B39).
 
-A window's status line shows the buffer's name and `[+]` when it is
-modified, then on the right the plugins' segments, the keys of a command
-being typed in the current window, and Neovim's default ruler. The ruler
-is an 18-column field: `line,col`, then `-vcol` when the screen column
-differs, then `All`, `Top`, `Bot` or how far down the view is (B38).
+A window's status line starts, in the current window, with the mode in
+its colour, then the buffer's name with its directory dim, a dot when it
+is modified, the git branch and the counts of errors and warnings. On the
+right are the plugins' segments, the keys of a command being typed, the
+filetype and the ruler, which the line drops first when it is too narrow.
+`View` carries the branch and the counts. The editor keeps `View.Ruler` in
+Neovim's form, `line,col`, then `-vcol` when the screen column differs,
+then `All`, `Top`, `Bot` or how far down the view is (B38), and the
+client shows it as `line:col` with the screen column (B147).
 
 The client keeps a cell grid, diffs it against the previous frame, and
 writes only the changed cells in one write. It wraps each frame in
