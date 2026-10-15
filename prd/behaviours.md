@@ -245,6 +245,9 @@ Where fude departs, the line says so and cites the departure in
   once, and after another client's edits land in between, both copies hold
   both edits. An edit of its own whose text another client changed first
   is dropped and reported.
+- B97 [6] The `socket` setting is where fude listens, so a client on
+  another machine reaches it through `ssh -L`. A second fude leaves a socket
+  another one answers alone.
 
 ## Kernel library
 

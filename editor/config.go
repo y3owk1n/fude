@@ -19,7 +19,8 @@ type config struct {
 	LargeFile   uint `toml:"large_file"`   // megabytes
 	// Ask the language server for completions while typing, not only on
 	// <C-x><C-o>.
-	Autocomplete bool `toml:"autocomplete"`
+	Autocomplete bool   `toml:"autocomplete"`
+	Socket       string `toml:"socket"` // where clients attach, instead of a path per process
 	Keymap       struct {
 		Normal map[string]string `toml:"normal"`
 		Visual map[string]string `toml:"visual"`

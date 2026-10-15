@@ -190,9 +190,14 @@ func (e *Session) keys(keys string) {
 	}
 }
 
-// SocketPath is where fude listens for clients: a socket named by its
-// process in XDG_RUNTIME_DIR, or else the temporary directory.
-func SocketPath() string {
+// SocketPath is where fude listens for clients: the socket setting, or else
+// a socket named by its process in XDG_RUNTIME_DIR or the temporary
+// directory. A fixed path lets a client on another machine reach it
+// through ssh -L (B97).
+func (ed *Editor) SocketPath() string {
+	if ed.cfg.Socket != "" {
+		return ed.cfg.Socket
+	}
 	dir := os.Getenv("XDG_RUNTIME_DIR")
 	if dir == "" {
 		dir = os.TempDir()
@@ -226,7 +231,12 @@ var modes = []string{vim.Normal: "normal", vim.Insert: "insert", vim.Cmdline: "c
 // Serve listens at path for clients, each a session of its own, until the
 // returned func is called. It tells the user when it cannot listen.
 func (e *Session) Serve(path string) func() {
-	// Only a crashed fude with the same process id can have left a socket at path.
+	if c, err := net.Dial("unix", path); err == nil {
+		c.Close()
+		e.message = "clients cannot attach: another fude listens at " + path
+		return func() {}
+	}
+	// No one answers this socket, so a fude that crashed left it.
 	os.Remove(path)
 	l, err := net.Listen("unix", path)
 	if err != nil {

@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -111,6 +112,32 @@ func TestB78ClientHearsChanges(t *testing.T) {
 		}
 	}
 	t.Fatalf("after another session's edit the client last heard %q", cl.in.Text())
+}
+
+// B97
+func TestB97SocketSetting(t *testing.T) {
+	dir, err := os.MkdirTemp("", "fude")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+	path := filepath.Join(dir, "s")
+	config(t, fmt.Sprintf("socket = %q\n", path))
+	e := start(t)
+	defer e.Serve(e.SocketPath())()
+	c, err := net.Dial("unix", path)
+	if err != nil {
+		t.Fatalf("no socket at the path the setting names: %v", err)
+	}
+	c.Close()
+	// A second fude leaves the first one's socket alone.
+	other := start(t)
+	other.Serve(other.SocketPath())
+	if c, err := net.Dial("unix", path); err != nil || !strings.Contains(other.Message(), "another fude") {
+		t.Fatalf("a second fude said %q, and dialing the first gave %v", other.Message(), err)
+	} else {
+		c.Close()
+	}
 }
 
 // B75

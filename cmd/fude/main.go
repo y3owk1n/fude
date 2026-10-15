@@ -12,7 +12,7 @@ import (
 func main() {
 	e, err := editor.Start(os.Args[1:])
 	if err == nil {
-		stop := e.Serve(editor.SocketPath())
+		stop := e.Serve(e.SocketPath())
 		err = term.Run(e)
 		stop()
 	}

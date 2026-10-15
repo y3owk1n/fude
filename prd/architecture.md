@@ -465,6 +465,7 @@ indent_width = 8     # columns >, <, <C-t> and <C-d> shift by, 0 for the tab wid
 key_timeout = 1000   # milliseconds a mapping prefix waits (B84)
 large_file = 50      # megabytes over which syntax and LSP stay off (B83)
 autocomplete = false # ask for completions while typing (B67)
+socket = "/run/user/1000/fude.sock" # where clients attach, instead of one path per process (B97)
 
 [keymap.normal]      # and [keymap.visual], [keymap.insert]. Keys map to keys.
 "<Space>w" = ":w<CR>"
@@ -760,8 +761,13 @@ session's edits carry its origin, so a kernel group never mixes two
 clients' edits and `u` reverts only the session's own changes with
 `UndoOrigin` (B77).
 
-Clients attach over a unix socket, `fude.<pid>.sock` in `XDG_RUNTIME_DIR`
-or else the temporary directory. Each call is a line of JSON,
+Clients attach over a unix socket: the `socket` setting, or else
+`fude.<pid>.sock` in `XDG_RUNTIME_DIR` or the temporary directory. fude
+listens on no network address. A client on another machine forwards the
+socket over SSH, as `ssh -L /tmp/fude.sock:/run/user/1000/fude.sock host`,
+and dials the local end, so SSH encrypts and authenticates it (B97). fude
+leaves alone a socket that another fude answers, and replaces one that no
+one answers, which a crashed fude left. Each call is a line of JSON,
 `{"id", "method", "params"}`, and each reply is a line with the `id` and a
 `result` or an `error`. `keys` types keys as one complete input, so keys
 held for a longer mapping run at once. `request` runs a request, and
