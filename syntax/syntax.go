@@ -5,7 +5,11 @@ package syntax
 import (
 	"cmp"
 	_ "embed"
+	"errors"
 	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
@@ -96,20 +100,21 @@ type request struct {
 }
 
 // New returns the syntax of a buffer of filetype, which sends its results to
-// queue, or false when fude has no grammar for it.
-func New(filetype string, queue chan<- func()) (*Buffer, bool, error) {
+// queue, or false when fude has no grammar for it. A query in
+// dir/<filetype>/ replaces the shipped one of the same name.
+func New(filetype, dir string, queue chan<- func()) (*Buffer, bool, error) {
 	l, ok := languages[filetype]
 	if !ok {
 		return nil, false, nil
 	}
-	q, qerr := ts.NewQuery(l.lang, l.highlights)
-	if qerr != nil {
-		return nil, false, fmt.Errorf("highlights for %s, line %d: %s", filetype, qerr.Row+1, qerr.Message)
+	q, err := query(l.lang, dir, filetype, "highlights", l.highlights)
+	if err != nil {
+		return nil, false, err
 	}
-	objects, qerr := ts.NewQuery(l.lang, l.objects)
-	if qerr != nil {
+	objects, err := query(l.lang, dir, filetype, "textobjects", l.objects)
+	if err != nil {
 		q.Close()
-		return nil, false, fmt.Errorf("textobjects for %s, line %d: %s", filetype, qerr.Row+1, qerr.Message)
+		return nil, false, err
 	}
 	p := ts.NewParser()
 	if err := p.SetLanguage(l.lang); err != nil {
@@ -124,6 +129,47 @@ func New(filetype string, queue chan<- func()) (*Buffer, bool, error) {
 	}
 	go h.run(p, q)
 	return h, true, nil
+}
+
+// query compiles the query name of filetype from dir when the file is
+// there, and from shipped otherwise. It refuses a predicate fude does not
+// evaluate, which is any outside the eq?, match? and any-of? families.
+func query(lang *ts.Language, dir, filetype, name, shipped string) (*ts.Query, error) {
+	path, src := filepath.Join(filetype, name+".scm"), shipped
+	if dir != "" {
+		p := filepath.Join(dir, path)
+		b, err := os.ReadFile(p)
+		switch {
+		case err == nil:
+			path, src = p, string(b)
+		case !errors.Is(err, fs.ErrNotExist):
+			return nil, fmt.Errorf("read query: %w", err)
+		}
+	}
+	q, qerr := ts.NewQuery(lang, src)
+	if qerr != nil {
+		return nil, fmt.Errorf("%s line %d: %s", path, qerr.Row+1, qerr.Message)
+	}
+	for i := range q.PatternCount() {
+		var unknown string
+		switch {
+		case len(q.GeneralPredicates(i)) > 0:
+			unknown = q.GeneralPredicates(i)[0].Operator
+		case len(q.PropertySettings(i)) > 0:
+			unknown = "set!"
+		case len(q.PropertyPredicates(i)) > 0:
+			unknown = "is?"
+			if !q.PropertyPredicates(i)[0].Positive {
+				unknown = "is-not?"
+			}
+		default:
+			continue
+		}
+		line := strings.Count(src[:q.StartByteForPattern(i)], "\n") + 1
+		q.Close()
+		return nil, fmt.Errorf("%s line %d: fude does not evaluate #%s", path, line, unknown)
+	}
+	return q, nil
 }
 
 // Close stops the buffer's goroutine, which frees its tree-sitter state, and

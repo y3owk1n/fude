@@ -5,6 +5,7 @@ package editor
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -28,6 +29,7 @@ type Editor struct {
 	cfg     config
 	ask     func(yes bool) // takes the answer to the question in the message
 	queue   chan func()
+	queries string // the directory of query files that replace shipped ones
 
 	width, height int // the space the windows share
 
@@ -50,6 +52,11 @@ func open(cfg config, paths []string) (*Editor, error) {
 		paths = []string{""}
 	}
 	e := &Editor{next: 1, now: time.Now, cfg: cfg, queue: make(chan func(), 16)}
+	// Without a config directory there are no overrides, and loadConfig
+	// reports why.
+	if dir, err := xdgDir("XDG_CONFIG_HOME", ".config"); err == nil {
+		e.queries = filepath.Join(dir, "fude", "queries")
+	}
 	e.vim = vim.New(host{e})
 	for name := range syntax.Objects {
 		e.vim.Object(name, func(t vim.Text, pos int) (int, int, bool) {
@@ -124,7 +131,7 @@ func (e *Editor) add(path string) (string, error) {
 		}
 		return msg, nil
 	}
-	h, ok, err := syntax.New(b.filetype(), e.queue)
+	h, ok, err := syntax.New(b.filetype(), e.queries, e.queue)
 	if err != nil {
 		return err.Error(), nil
 	}

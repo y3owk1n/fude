@@ -526,7 +526,9 @@ at a node's end (B40).
 
 Queries use only the predicates the binding evaluates: the `eq?`,
 `match?` and `any-of?` families. A query that uses any other fails to load
-with its file and line. Indentation is the previous line's (B29), so there
+with its file and line. A file at
+`$XDG_CONFIG_HOME/fude/queries/<lang>/<name>.scm` replaces the shipped
+query of that name (B41). Indentation is the previous line's (B29), so there
 are no indent or fold queries.
 
 A distribution links its grammars through each grammar repo's Go binding.

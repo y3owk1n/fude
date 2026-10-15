@@ -770,3 +770,31 @@ func TestB40SyntaxObjects(t *testing.T) {
 		}
 	}
 }
+
+// B41
+func TestB41QueryOverrides(t *testing.T) {
+	config(t, "")
+	dir := filepath.Join(os.Getenv("XDG_CONFIG_HOME"), "fude", "queries", "go")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "highlights.scm"), []byte("(comment) @keyword\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "a.go")
+	change(t, path, "package p // note\n")
+	e := start(t, path)
+	e.SetSize(80, 10)
+	if got := captures(t, e); len(got) != 1 || got["// note"] != "keyword" {
+		t.Errorf("with an override, captures are %v, want only the comment as a keyword", got)
+	}
+
+	objects := filepath.Join(dir, "textobjects.scm")
+	if err := os.WriteFile(objects, []byte("(comment) @x\n((identifier) @y\n  (#foo? @y \"z\"))\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	e = start(t, path)
+	if want := objects + " line 2: "; !strings.Contains(e.Message(), want) {
+		t.Errorf("an unknown predicate said %q, want %q", e.Message(), want)
+	}
+}
