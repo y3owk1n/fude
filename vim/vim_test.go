@@ -708,10 +708,13 @@ func TestB113HostOperator(t *testing.T) {
 		{"ab |cd ef", "gxx", "|[ab cd ef]"},
 		{"ab |cd ef", "vlgx", "ab |[cd] ef"},
 		{"ab |cd ef\ngh", "gxj", "[ab| cd ef\ngh]"},
+		// q waits for a register name, except to double an operator.
+		{"ab |cd ef", "gqq", "|[ab cd ef]"},
 	} {
 		h := &host{text: strings.Replace(c[0], "|", "", 1), cursor: strings.Index(c[0], "|")}
 		m := vim.New(h)
 		m.Operator("gx", brackets)
+		m.Operator("gq", brackets)
 		for _, k := range vim.Keys(c[1]) {
 			if err := m.Feed(k); err != nil {
 				t.Fatal(err)

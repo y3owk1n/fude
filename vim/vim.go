@@ -353,6 +353,11 @@ func (m *Machine) normal(k Key) error {
 		m.counted = true
 		return nil
 	}
+	if len(m.op) == 2 && cmd == m.op[1:] {
+		// A doubled operator such as gqq, whose last key would otherwise
+		// wait for more.
+		return m.command(cmd)
+	}
 	if len(cmd) == 1 && strings.Contains("gftFT\"q@rm`'zZ[]", cmd) {
 		m.pending = k
 		m.counted = cmd == "\""
