@@ -657,3 +657,11 @@ func TestB133CommandLineEditing(t *testing.T) {
 		}
 	}
 }
+
+// B135
+func TestB135CommandLineRegister(t *testing.T) {
+	_, _, m := run(t, "foo |bar", `"ayy:<C-r><C-w> <C-r>a`)
+	if m.Line() != ":bar foo bar" {
+		t.Errorf("<C-r><C-w> and <C-r>a made %q, want %q", m.Line(), ":bar foo bar")
+	}
+}

@@ -165,6 +165,10 @@ Where fude departs, the line says so and cites the departure in
   ignores case. Each match shows as `path:line: text`, at most 1000 of
   them, and the preview shows the lines around it with its line marked.
   `<CR>` opens the file at the match (N13).
+- B135 [2] In a command line, `<C-r>` and a register's name put the
+  register's text at the cursor, without its last line break, and
+  `<C-r><C-w>` the word under the cursor in the text. A mapping to
+  `:grep <C-r><C-w><CR>` greps the word under the cursor.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays

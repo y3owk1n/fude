@@ -318,6 +318,8 @@ The terminal sends the arrows, `<Home>`, `<End>`, `<Del>`, `<PageUp>` and
 command it stands for before anything else sees it (B132). The command
 line keeps a cursor, which `Machine.LineCursor` reports, and a history of
 `:` lines and one of searches for the session, which no file keeps (B133).
+`<C-r>` waits for a register's name or `<C-w>`, as it does in insert mode
+(B135).
 
 ## Views
 

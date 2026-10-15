@@ -24,10 +24,15 @@ func (m *Machine) enterLine(back Mode, prompt, line string) {
 // <Left>, <Right>, <Home> or <C-b> and <End> or <C-e>. <BS> and <Del>
 // delete a character, <C-w> the word before the cursor and <C-u> all
 // before it. <Up> and <Down> recall older and newer lines that start with
-// the text typed.
+// the text typed. <C-r> and a register name put that register in the line,
+// and <C-r><C-w> the word under the cursor in the text.
 func (m *Machine) cmdline(k Key) error {
 	if k != "<Up>" && k != "<Down>" {
 		m.recalling = false
+	}
+	if m.pending == "<C-r>" {
+		m.pending = ""
+		return m.typeRegister(k)
 	}
 	before, after := m.line[:m.lineAt], m.line[m.lineAt:]
 	switch {
@@ -67,10 +72,32 @@ func (m *Machine) cmdline(k Key) error {
 		m.lineAt = len(m.line)
 	case k == "<Up>", k == "<Down>":
 		m.recall(k == "<Up>")
+	case k == "<C-r>":
+		m.pending = k
 	case k.isChar():
 		m.typeLine(string(k))
 	}
 	return nil
+}
+
+// typeRegister puts register k in the command line, without its last line
+// break, or the word under the cursor for <C-w>.
+func (m *Machine) typeRegister(k Key) error {
+	if k == "<C-w>" {
+		if w, ok := keywordAt(m.h.Text(), m.h.Cursor()); ok {
+			m.typeLine(w)
+		}
+		return nil
+	}
+	if !k.isChar() {
+		return nil
+	}
+	name, _ := utf8.DecodeRuneInString(string(k))
+	r, ok, err := m.fetch(name)
+	if ok {
+		m.typeLine(strings.TrimSuffix(r.text, "\n"))
+	}
+	return err
 }
 
 // typeLine puts s in the command line at the cursor.
