@@ -658,6 +658,14 @@ func TestB116ScrollOff(t *testing.T) {
 	}
 }
 
+// B117
+func TestB117CursorLine(t *testing.T) {
+	e := open(t, "")
+	if feed(e, ":set cursor_line<CR>"); !e.Views()[0].CursorLine {
+		t.Fatal(":set cursor_line left the window without it")
+	}
+}
+
 // B31
 func TestB31Timeline(t *testing.T) {
 	e := open(t, filepath.Join(t.TempDir(), "f"))

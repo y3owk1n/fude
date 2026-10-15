@@ -383,6 +383,7 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 			if i == 0 && v.Gutter > 0 {
 				c.number(t.LineOf(pos), cur, numbers, y, v)
 			}
+			shade := v.CursorLine && t.LineOf(pos) == cur
 			if i+1 < len(starts) {
 				stop = starts[i+1]
 			}
@@ -411,6 +412,9 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 				if i := at - v.Top; i < len(paint) {
 					style = paint[i]
 				}
+				if shade {
+					style = style.Background(cursorLine)
+				}
 				for _, mt := range matches {
 					if at >= mt[0] && at < mt[1] {
 						style = style.Background(color.Yellow).Foreground(color.Black)
@@ -430,6 +434,9 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 				var width int
 				rest, width = c.s.Put(v.X+x, y, rest, style)
 				x, col = x+width, col+width
+			}
+			if shade && x < v.W {
+				c.s.FillArea(v.X+x, y, v.W-x, 1, ' ', tcell.StyleDefault.Background(cursorLine))
 			}
 			if i == len(starts)-1 && slices.Contains(cursors, end) && x < v.W {
 				c.s.Put(v.X+x, y, " ", tcell.StyleDefault.Reverse(true))
@@ -491,8 +498,17 @@ func (c *client) number(line, cur, x, y int, v editor.View) {
 	if v.Relative && v.Number && line == cur {
 		text = fmt.Sprintf("%-*d ", v.Gutter-1, line+1)
 	}
-	c.s.PutStrStyled(x, y, text, tcell.StyleDefault.Foreground(color.Gray))
+	style := tcell.StyleDefault.Foreground(color.Gray)
+	if v.CursorLine && line == cur {
+		// The cursor's line number stands out, as Neovim's CursorLineNr.
+		style = tcell.StyleDefault.Bold(true)
+	}
+	c.s.PutStrStyled(x, y, text, style)
 }
+
+// cursorLine is the background of the cursor's line with cursor_line on,
+// a dark grey like Neovim's default CursorLine.
+var cursorLine = color.XTerm236
 
 // ghostText shows a line break and a tab in a proposal's text as one cell
 // each.

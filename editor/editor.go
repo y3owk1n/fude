@@ -426,6 +426,7 @@ type View struct {
 	Gutter            int      // the columns line numbers take on the left
 	Number, Relative  bool     // show line numbers, and relative ones (B39)
 	Wrap              bool     // long lines go on the rows below
+	CursorLine        bool     // shade the cursor's line (B117)
 	Left              int      // the first column shown without wrap
 }
 
@@ -447,7 +448,7 @@ func (e *Session) Views() []View {
 			X: w.x, Y: w.y, W: w.w, H: w.h,
 			Name: w.buf.name(), Modified: w.buf.modified(), Current: w == e.win || w == e.under,
 			Gutter: w.gutter(), Number: w.opts.Number, Relative: w.opts.RelativeNumber,
-			Wrap: w.opts.Wrap, Left: w.left,
+			Wrap: w.opts.Wrap, Left: w.left, CursorLine: w.opts.CursorLine,
 		}
 		last := vim.LineEnd(t, t.LineStart(min(t.LineOf(top)+max(w.h-2, 0), t.Lines()-1)))
 		if h := w.buf.syntax; h != nil {

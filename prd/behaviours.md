@@ -84,6 +84,8 @@ Where fude departs, the line says so and cites the departure in
 - B116 [2] `scroll_off`, set with `:set scroll_off=n` or in `config.toml`,
   keeps n lines in view above and below the cursor's, at most half the
   window, as Neovim's `scrolloff` does.
+- B117 [2] `cursor_line` shades the cursor's line and shows its number in
+  bold, as Neovim's `cursorline` does.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays
