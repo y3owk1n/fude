@@ -69,6 +69,9 @@ func (e *Editor) Cursor() int { return e.cursor }
 // Mode returns the vim mode.
 func (e *Editor) Mode() vim.Mode { return e.vim.Mode() }
 
+// Selection returns the visual selection, or false outside visual mode.
+func (e *Editor) Selection() (vim.Selection, bool) { return e.vim.Selection() }
+
 // Line returns the command line being typed.
 func (e *Editor) Line() string { return e.vim.Line() }
 

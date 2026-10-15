@@ -308,6 +308,34 @@ func TestB17Macros(t *testing.T) {
 	}
 }
 
+// B18
+func TestB18Visual(t *testing.T) {
+	cases(t, [][3]string{
+		{"a|bcd", "vld", "a|d"},
+		{"a|bc\nde", "v$d", "a|de"},
+		{"ab|c\ndef", "vjd", "a|b"},
+		{"abc\nd|ef", "vkd", "a|f"},
+		{"a|b\n  cd\nx", "Vjd", "|x"},
+		{"x\n  a|b\ncd", "Vd", "x\nc|d"},
+		{"ab|c\nde", "vjy", "ab|c\nde"},
+		{"abc\nd|ef", "vky", "a|bc\ndef"},
+		{"a|b\ncd", "Vjy", "|ab\ncd"},
+		{"a|bcd", "vlc<Esc>", "|ad"},
+		{"ab|cd\nx", "VcX<Esc>", "|X\nx"},
+		{"a|bcd", "vlohd", "|d"},
+		{"foo b|ar baz", "viwd", "foo | baz"},
+		{"a\nb|\n\nc", "vapd", "|c"},
+		{"a|bcd\nefgh\nijkl", "<C-v>jld", "a|d\neh\nijkl"},
+		{"a|bcd\nefgh\nijkl", "<C-v>jly", "a|bcd\nefgh\nijkl"},
+		{"a|bcd\nefgh\nijkl", "<C-v>jlcX<Esc>", "a|Xd\neXh\nijkl"},
+		{"a|bcd\nef\nijkl", "<C-v>jj$d", "|a\ne\ni"},
+		{"a|bcd\nefgh", "<C-v>jlyGo<Esc>p", "abcd\nefgh\n|bc\nfg"},
+		{"a|bcd\nefgh\nx", "<C-v>jly0P", "|bcabcd\nfgefgh\nx"},
+		{"ab|c", "vV<Esc>", "ab|c"},
+		{"a|bc\nd", "vjVd", "|"},
+	})
+}
+
 // B19
 func TestB19EscCancelsOperator(t *testing.T) {
 	cases(t, [][3]string{{"foo |bar", "d<Esc>w", "foo ba|r"}})

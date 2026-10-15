@@ -2,6 +2,7 @@ package vim
 
 import (
 	"fmt"
+	"math"
 	"strings"
 	"unicode"
 )
@@ -13,12 +14,17 @@ type region struct {
 	// adjusted marks an exclusive motion that became linewise. A delete then
 	// puts the cursor on the first non-blank instead of keeping the column.
 	adjusted bool
+	// block selects display columns left to right, inclusive, of every line
+	// from start to end. right is math.MaxInt after $.
+	block       bool
+	left, right int
 }
 
 // register is yanked or deleted text.
 type register struct {
 	text     string // a linewise register's text ends in a newline
 	linewise bool
+	block    bool // one line of the text per line of the block
 }
 
 // operate applies d, c or y to the text cmd covers. cmd is a motion, a text
@@ -30,9 +36,18 @@ func (m *Machine) operate(op string, reg rune, cmd string, count int) error {
 		m.beep = true
 		return nil
 	}
+	return m.act(op, reg, op+cmd, r)
+}
+
+// act applies d, c or y to r.
+func (m *Machine) act(op string, reg rune, label string, r region) error {
+	if r.block {
+		return m.actBlock(op, reg, label, r)
+	}
 	if r.start == r.end && !r.lines {
 		return nil
 	}
+	t, c := m.h.Text(), m.h.Cursor()
 	start, end, lines := r.start, r.end, r.lines
 	col := column(t, LineStart(t, c), c)
 	if m.wantSet {
@@ -44,8 +59,7 @@ func (m *Machine) operate(op string, reg rune, cmd string, count int) error {
 	if lines {
 		text += "\n"
 	}
-	m.store(reg, op, register{text, lines})
-	label := op + cmd
+	m.store(reg, op, register{text: text, linewise: lines})
 	switch {
 	case op == "y" && lines:
 		if s := LineStart(t, start); s != LineStart(t, c) {
@@ -171,7 +185,7 @@ func (m *Machine) store(reg rune, op string, r register) {
 // one makes it linewise.
 func appendRegister(old, r register) register {
 	if !old.linewise && !r.linewise {
-		return register{old.text + r.text, false}
+		return register{text: old.text + r.text}
 	}
 	line := func(s string) string {
 		if !strings.HasSuffix(s, "\n") {
@@ -179,7 +193,7 @@ func appendRegister(old, r register) register {
 		}
 		return s
 	}
-	return register{line(old.text) + line(r.text), true}
+	return register{text: line(old.text) + line(r.text), linewise: true}
 }
 
 // put inserts reg n times, after the cursor for p and before it for P.
@@ -191,12 +205,15 @@ func (m *Machine) put(reg rune, after bool, n int) error {
 	if !ok {
 		return fmt.Errorf("E353: Nothing in register %c", reg)
 	}
-	t, c := m.h.Text(), m.h.Cursor()
-	text := strings.Repeat(r.text, n)
 	label := "P"
 	if after {
 		label = "p"
 	}
+	if r.block {
+		return m.putBlock(r.text, after, n, label)
+	}
+	t, c := m.h.Text(), m.h.Cursor()
+	text := strings.Repeat(r.text, n)
 	at := c
 	switch {
 	case r.linewise && after:
@@ -221,5 +238,124 @@ func (m *Machine) put(reg rune, after bool, n int) error {
 	default:
 		m.h.SetCursor(lastChar(t, at+len(text)))
 	}
+	return nil
+}
+
+// actBlock applies d, c or y to the columns of a block. c inserts on the
+// first line, and leaving insert mode copies the text to the other lines.
+func (m *Machine) actBlock(op string, reg rune, label string, r region) error {
+	t := m.h.Text()
+	var texts []string
+	var edits []Edit
+	for ls := r.start; ; {
+		a, b := colStart(t, ls, r.left), LineEnd(t, ls)
+		if r.right != math.MaxInt {
+			b = colStart(t, ls, r.right+1)
+		}
+		texts = append(texts, t.Slice(a, b))
+		if a < b {
+			edits = append(edits, Edit{Start: a, End: b})
+		}
+		le := LineEnd(t, ls)
+		if le >= r.end || le == t.Len() {
+			break
+		}
+		ls = le + 1
+	}
+	m.store(reg, op, register{text: strings.Join(texts, "\n"), block: true})
+	top := colStart(t, r.start, r.left)
+	switch op {
+	case "y":
+		m.h.SetCursor(top)
+		return nil
+	case "c":
+		m.startInsert(Key(label), top)
+		m.blockInsert = &blockInsert{start: top, col: r.left, lines: len(texts) - 1}
+	}
+	if len(edits) > 0 {
+		if err := m.apply(edits, label); err != nil {
+			return err
+		}
+	}
+	if op == "d" {
+		m.h.SetCursor(clamp(m.h.Text(), top))
+	}
+	return nil
+}
+
+// blockInsert is a block c waiting for insert mode to end.
+type blockInsert struct {
+	start, col, lines int
+}
+
+// finishBlock copies text typed on the first line of a block c to the same
+// column of the block's other lines, skipping lines too short to reach it.
+func (m *Machine) finishBlock(b *blockInsert) error {
+	t, c := m.h.Text(), m.h.Cursor()
+	if c <= b.start || LineStart(t, c) != LineStart(t, b.start) {
+		return nil
+	}
+	typed := t.Slice(b.start, c)
+	var edits []Edit
+	ls := LineStart(t, b.start)
+	for range b.lines {
+		if LineEnd(t, ls) == t.Len() {
+			break
+		}
+		ls = LineEnd(t, ls) + 1
+		if p := colStart(t, ls, b.col); column(t, ls, p) == b.col {
+			edits = append(edits, Edit{Start: p, End: p, Text: typed})
+		}
+	}
+	if len(edits) == 0 {
+		return nil
+	}
+	return m.apply(edits, m.label)
+}
+
+// putBlock puts a block n times wide, after the cursor for p and at it for P.
+// It pads short lines with spaces, pads the block to a rectangle when text
+// follows it, and adds missing lines at the end.
+func (m *Machine) putBlock(text string, after bool, n int, label string) error {
+	t, c := m.h.Text(), m.h.Cursor()
+	col := column(t, LineStart(t, c), c)
+	if after && c < LineEnd(t, c) {
+		col += textWidth(t.Slice(c, next(t, c, LineEnd(t, c))), col)
+	}
+	lines := strings.Split(text, "\n")
+	w := 0
+	for _, l := range lines {
+		w = max(w, textWidth(strings.Repeat(l, n), 0))
+	}
+	var edits []Edit
+	tail, top := "", 0
+	ls := LineStart(t, c)
+	for i, l := range lines {
+		l = strings.Repeat(l, n)
+		if i > 0 {
+			if LineEnd(t, ls) == t.Len() {
+				tail += "\n" + strings.Repeat(" ", col) + l
+				continue
+			}
+			ls = LineEnd(t, ls) + 1
+		}
+		p := colStart(t, ls, col)
+		pad := strings.Repeat(" ", col-column(t, ls, p))
+		if i == 0 {
+			top = p + len(pad)
+		}
+		s := pad + l
+		if p < LineEnd(t, ls) {
+			s += strings.Repeat(" ", w-textWidth(l, 0))
+		}
+		edits = append(edits, Edit{Start: p, End: p, Text: s})
+	}
+	if tail != "" {
+		edits = append(edits, Edit{Start: t.Len(), End: t.Len(), Text: tail})
+	}
+	if err := m.apply(edits, label); err != nil {
+		return err
+	}
+	m.h.SetCursor(top)
 	return nil
 }

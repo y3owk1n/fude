@@ -39,13 +39,14 @@ type Host interface {
 	Redo() (start, cursor int, ok bool)
 }
 
-// Mode is normal, insert or command line.
+// Mode is normal, insert, command line or visual.
 type Mode int
 
 const (
 	Normal Mode = iota
 	Insert
 	Cmdline
+	Visual
 )
 
 // Machine turns keys into cursor moves and edits.
@@ -79,6 +80,11 @@ type Machine struct {
 	executed  rune // the register @@ replays
 	beep      bool // a motion failed, which stops a running macro
 	depth     int  // nested replays, to stop runaway recursion
+
+	// Visual mode.
+	visual      Key // v, V or <C-v>
+	anchor      int // the end of the selection the cursor is not on
+	blockInsert *blockInsert
 }
 
 // change is the last change, for dot repeat.
@@ -281,9 +287,15 @@ func (m *Machine) normal(k Key) error {
 		}
 		return m.execute(name, count)
 	}
-	if m.op != "" && (cmd == "i" || cmd == "a") {
+	if (m.op != "" || m.mode == Visual) && (cmd == "i" || cmd == "a") {
 		m.pending = k
 		return nil
+	}
+	if m.mode == Visual {
+		count, reg := m.count, m.reg
+		m.count, m.reg = 0, 0
+		m.dotCount, m.dotReg = count, reg
+		return m.visualKey(cmd, count, reg)
 	}
 	if m.op == "" && (cmd == "d" || cmd == "c" || cmd == "y") {
 		m.op, m.opCount, m.count = cmd, m.count, 0
@@ -326,6 +338,8 @@ func (m *Machine) normal(k Key) error {
 	case ":":
 		m.mode = Cmdline
 		m.line = ""
+	case "v", "V", "<C-v>":
+		m.mode, m.visual, m.anchor = Visual, k, c
 	case "i":
 		m.startInsert(k, c)
 	case "a":
@@ -351,6 +365,13 @@ func (m *Machine) insert(k Key) error {
 	t, c := m.h.Text(), m.h.Cursor()
 	switch k {
 	case "<Esc>":
+		if b := m.blockInsert; b != nil {
+			m.blockInsert = nil
+			if err := m.finishBlock(b); err != nil {
+				return err
+			}
+			t, c = m.h.Text(), m.h.Cursor()
+		}
 		m.h.EndGroup()
 		m.mode = Normal
 		m.h.SetCursor(prev(t, LineStart(t, c), c))

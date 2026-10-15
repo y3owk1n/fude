@@ -64,6 +64,8 @@ func Run(e *editor.Editor) error {
 	return nil
 }
 
+var visualLabels = map[vim.Key]string{"v": "-- VISUAL --", "V": "-- VISUAL LINE --", "<C-v>": "-- VISUAL BLOCK --"}
+
 type client struct {
 	s   tcell.Screen
 	e   *editor.Editor
@@ -75,6 +77,7 @@ func (c *client) draw() {
 	w, h := c.s.Size()
 	t, cur := c.e.Text(), c.e.Cursor()
 	c.scroll(t, cur, h-1)
+	sel, visual := c.e.Selection()
 
 	cx, cy := 0, 0
 	pos := c.top
@@ -95,8 +98,12 @@ func (c *client) draw() {
 				rest = rest[1:]
 				continue
 			}
+			style := tcell.StyleDefault
+			if visual && at >= sel.Start && at < sel.End && (!sel.Block || x >= sel.Left && x <= sel.Right) {
+				style = style.Reverse(true)
+			}
 			var width int
-			rest, width = c.s.Put(x, y, rest, tcell.StyleDefault)
+			rest, width = c.s.Put(x, y, rest, style)
 			x += width
 		}
 		if end == t.Len() {
@@ -105,11 +112,13 @@ func (c *client) draw() {
 		pos = end + 1
 	}
 
-	style := tcell.CursorStyleSteadyBlock
+	shape := tcell.CursorStyleSteadyBlock
 	switch c.e.Mode() {
 	case vim.Insert:
-		style = tcell.CursorStyleSteadyBar
+		shape = tcell.CursorStyleSteadyBar
 		c.s.PutStr(0, h-1, "-- INSERT --")
+	case vim.Visual:
+		c.s.PutStr(0, h-1, visualLabels[sel.Kind])
 	case vim.Cmdline:
 		c.s.PutStr(0, h-1, ":"+c.e.Line())
 		cx, cy = 1+len(c.e.Line()), h-1
@@ -120,7 +129,7 @@ func (c *client) draw() {
 		}
 		c.s.PutStr(0, h-1, msg)
 	}
-	c.s.SetCursorStyle(style)
+	c.s.SetCursorStyle(shape)
 	c.s.ShowCursor(cx, cy)
 	c.s.Show()
 }

@@ -288,11 +288,30 @@ func up(t Text, start, n int) int {
 
 // column returns the display column of pos on the line at start.
 func column(t Text, start, pos int) int {
-	col := 0
-	for g := graphemes.FromString(t.Slice(start, pos)); g.Next(); {
-		col += width(g.Value(), col)
+	return textWidth(t.Slice(start, pos), 0)
+}
+
+// textWidth returns the display width of s starting at column col.
+func textWidth(s string, col int) int {
+	w := 0
+	for g := graphemes.FromString(s); g.Next(); {
+		w += width(g.Value(), col+w)
 	}
-	return col
+	return w
+}
+
+// colStart returns the first cluster on the line at start that begins at or
+// after display column col, or the line's end.
+func colStart(t Text, start, col int) int {
+	end := LineEnd(t, start)
+	x := 0
+	for g := graphemes.FromString(t.Slice(start, end)); g.Next(); {
+		if x >= col {
+			return start + g.Start()
+		}
+		x += width(g.Value(), x)
+	}
+	return end
 }
 
 // atColumn returns the cluster covering col on the line at start, or the
