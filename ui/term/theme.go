@@ -130,6 +130,8 @@ func build(t theme) styles {
 		"menu.selected": base.Background(t.raised),
 		// The letters of an item that match what was typed.
 		"match": fg(t.normal).Bold(true),
+		// What the :s being typed replaces, and what with.
+		"sub.old": fg(t.err).StrikeThrough(true), "sub.new": fg(t.insert),
 		// Text just yanked, put, undone or redone.
 		"flash": base.Background(t.cmd).Foreground(t.bg),
 		// A hunk's lines, as git's index has them and as they are.

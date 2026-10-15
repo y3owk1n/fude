@@ -12,14 +12,29 @@ import (
 func (m *Machine) compile(src string) (*pattern, error) {
 	// With smartcase, an uppercase letter in the pattern asks for case.
 	ignore := m.ignoreCase && !(m.smartCase && hasUpper(src))
-	if m.re == nil || m.reSrc != src || m.reIgnore != ignore {
-		p, err := compile(src, m.lastRep, ignore)
-		if err != nil {
-			return nil, err
-		}
-		m.re, m.reSrc, m.reIgnore = p, src, ignore
+	key := patternKey{src, m.lastRep, ignore}
+	if p, ok := m.res[key]; ok {
+		return p, nil
 	}
-	return m.re, nil
+	p, err := compile(src, m.lastRep, ignore)
+	if err != nil {
+		return nil, err
+	}
+	if len(m.res) >= 16 {
+		m.res = nil // the patterns typed on the way to this one
+	}
+	if m.res == nil {
+		m.res = map[patternKey]*pattern{}
+	}
+	m.res[key] = p
+	return p, nil
+}
+
+// patternKey is what a compiled pattern depends on: its source, the
+// replacement ~ stands for, and whether it ignores case.
+type patternKey struct {
+	src, rep string
+	ignore   bool
 }
 
 // IgnoreCase sets whether searches and substitutes ignore case, and
@@ -181,28 +196,9 @@ func (m *Machine) substitute(first, last int, pat, rep, flags string) error {
 	m.lastRep = rep
 	m.lastSub.pattern, m.lastSub.rep, m.lastSub.flags = pat, rep, strings.Trim(flags, "&")
 	m.search.pattern, m.search.forward, m.hl = pat, true, true
-	src := pat
-	switch {
-	case strings.Contains(flags, "i"):
-		src = `\c` + pat
-	case strings.Contains(flags, "I"):
-		src = `\C` + pat
-	}
-	p, err := m.compile(src)
+	edits, err := m.subEdits(first, last, pat, rep, flags)
 	if err != nil {
 		return err
-	}
-	t := m.h.Text()
-	end := LineEnd(t, last)
-	text := t.Slice(first, end)
-	var edits []Edit
-	line := -1
-	for _, mt := range p.all(text) {
-		s, e := p.span(mt)
-		if ls := LineStart(t, first+s); ls != line || strings.Contains(flags, "g") {
-			line = ls
-			edits = append(edits, Edit{Start: first + s, End: first + e, Text: p.expand(rep, text, mt)})
-		}
 	}
 	if len(edits) == 0 {
 		return fmt.Errorf("pattern not found: %s", pat)
@@ -216,10 +212,85 @@ func (m *Machine) substitute(first, last int, pat, rep, flags string) error {
 	if err := m.apply(edits, ":s"); err != nil {
 		return err
 	}
-	t = m.h.Text()
+	t := m.h.Text()
 	ls := LineStart(t, after)
 	m.h.SetCursor(firstNonBlank(t, ls, LineEnd(t, ls)))
 	return nil
+}
+
+// subEdits returns the edits :s with pat, rep and flags makes on the lines
+// from first to last, changing nothing.
+func (m *Machine) subEdits(first, last int, pat, rep, flags string) ([]Edit, error) {
+	src := pat
+	switch {
+	case strings.Contains(flags, "i"):
+		src = `\c` + pat
+	case strings.Contains(flags, "I"):
+		src = `\C` + pat
+	}
+	p, err := m.compile(src)
+	if err != nil {
+		return nil, err
+	}
+	t := m.h.Text()
+	text := t.Slice(first, LineEnd(t, last))
+	var edits []Edit
+	line := -1
+	for _, mt := range p.all(text) {
+		s, e := p.span(mt)
+		if ls := LineStart(t, first+s); ls != line || strings.Contains(flags, "g") {
+			line = ls
+			edits = append(edits, Edit{Start: first + s, End: first + e, Text: p.expand(rep, text, mt)})
+		}
+	}
+	return edits, nil
+}
+
+// Preview returns the edits the :s being typed would make on the lines
+// from top to end, for the host to show before they are made, and whether
+// its replacement is typed yet (B154).
+func (m *Machine) Preview(top, end int) ([]Edit, bool) {
+	first, last, parts, ok := m.subLine()
+	if !ok {
+		return nil, false
+	}
+	t := m.h.Text()
+	replacing := len(parts) > 1
+	for len(parts) < 3 {
+		parts = append(parts, "")
+	}
+	if first, last = max(first, LineStart(t, top)), min(last, LineStart(t, end)); first > last {
+		return nil, false
+	}
+	edits, err := m.subEdits(first, last, parts[0], replaceTilde(parts[1], m.lastRep), parts[2])
+	if err != nil {
+		return nil, false
+	}
+	return edits, replacing
+}
+
+// Substituting reports whether the command line is a :s with its pattern
+// typed, which Preview shows.
+func (m *Machine) Substituting() bool {
+	_, _, _, ok := m.subLine()
+	return ok
+}
+
+// subLine reads the command line being typed as a :s: the lines it covers
+// and its pattern, replacement and flags as far as they are typed, or false
+// when it is not one with a pattern yet.
+func (m *Machine) subLine() (int, int, []string, bool) {
+	if m.mode != Cmdline || m.prompt != ":" {
+		return 0, 0, nil, false
+	}
+	t, c := m.h.Text(), m.h.Cursor()
+	first, last, rest, _, err := m.lineRange(t, c, m.line)
+	name, arg := exName(rest)
+	if err != nil || name != "s" || len(arg) < 2 {
+		return 0, 0, nil, false
+	}
+	parts := splitDelim(arg[1:], arg[0])
+	return first, last, parts, parts[0] != ""
 }
 
 // replaceTilde puts the previous replacement in place of each ~ not after a

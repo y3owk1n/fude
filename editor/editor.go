@@ -548,6 +548,7 @@ type Ghost struct {
 	Pos   int
 	Text  string
 	Stale bool
+	Style string // how it shows: "" for a proposal's text, or sub.new for :s's (B154)
 }
 
 // Views returns every window from the top left.
@@ -595,6 +596,19 @@ func (e *Session) Views() []View {
 				v.Warnings++
 			}
 		}
+		if w == e.win {
+			// The :s being typed shows its matches, then each match struck
+			// out before its replacement (B154).
+			edits, replacing := e.vim.Preview(top, last)
+			for _, ed := range edits {
+				if !replacing {
+					v.Matches = append(v.Matches, [2]int{ed.Start, ed.End})
+					continue
+				}
+				v.Decorations = append(v.Decorations, syntax.Span{Start: ed.Start, End: ed.End, Name: "sub.old"})
+				v.Ghosts = append(v.Ghosts, Ghost{Pos: ed.End, Text: ed.Text, Style: "sub.new"})
+			}
+		}
 		if f := e.flash; f != nil && f.b == w.buf && f.end > top && f.start < last {
 			// Only what shows, as an undo can touch the whole text.
 			v.Decorations = append(v.Decorations, syntax.Span{Start: max(f.start, top), End: min(f.end, last), Name: "flash"})
@@ -609,7 +623,7 @@ func (e *Session) Views() []View {
 					v.Decorations = append(v.Decorations, syntax.Span{Start: s, End: end, Name: d.style})
 				}
 				if strings.HasPrefix(d.style, "proposal") && d.note != "" && end >= top && end <= last {
-					v.Ghosts = append(v.Ghosts, Ghost{end, d.note, d.style == "proposal.stale"})
+					v.Ghosts = append(v.Ghosts, Ghost{Pos: end, Text: d.note, Stale: d.style == "proposal.stale"})
 				}
 			}
 		}
@@ -838,6 +852,10 @@ func (e *Session) Selection() (vim.Selection, bool) { return e.vim.Selection() }
 
 // Line returns the command line being typed.
 func (e *Session) Line() string { return e.vim.Line() }
+
+// Substituting reports whether a :s is being typed with its pattern, whose
+// preview the windows show.
+func (e *Session) Substituting() bool { return e.vim.Substituting() }
 
 // Theme names the colours config.toml asks the client for, dark or light,
 // or returns the sixteen colours of the base16 scheme it names (B146).

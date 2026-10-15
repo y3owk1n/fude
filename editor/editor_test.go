@@ -1133,6 +1133,30 @@ func TestB152Marks(t *testing.T) {
 	settle(t, e, func() bool { return marked() == "needle" })
 }
 
+// B154
+func TestB154SubstitutePreview(t *testing.T) {
+	e := open(t, "")
+	e.SetSize(80, 24)
+	feed(e, "ifoo bar foo<CR>foo<Esc>gg")
+	// While the pattern is typed, its match on the line shows.
+	if feed(e, ":s/foo"); !slices.Equal(e.Views()[0].Matches, [][2]int{{0, 3}}) {
+		t.Fatalf("typing :s/foo shows matches %v", e.Views()[0].Matches)
+	}
+	// With a replacement, each match is struck out before what replaces it,
+	// and the text stays as it is.
+	feed(e, "/x")
+	v := e.Views()[0]
+	if len(v.Ghosts) != 1 || v.Ghosts[0] != (editor.Ghost{Pos: 3, Text: "x", Style: "sub.new"}) || text(e) != "foo bar foo\nfoo" {
+		t.Fatalf("typing :s/foo/x shows %v over %q", v.Ghosts, text(e))
+	}
+	if feed(e, "<Esc>:%s/foo/y/g"); len(e.Views()[0].Ghosts) != 3 {
+		t.Fatalf(":%%s/foo/y/g previews %d replacements, want 3", len(e.Views()[0].Ghosts))
+	}
+	if feed(e, "<Esc>"); len(e.Views()[0].Ghosts) != 0 || text(e) != "foo bar foo\nfoo" {
+		t.Fatalf("after <Esc> the preview left %v over %q", e.Views()[0].Ghosts, text(e))
+	}
+}
+
 // B124
 func TestB124Listing(t *testing.T) {
 	dir := t.TempDir()

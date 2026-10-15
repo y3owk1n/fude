@@ -256,6 +256,11 @@ Where fude departs, the line says so and cites the departure in
   marks each indent level in a line's leading blanks, at every
   `indent_width` columns, and a blank line shows the guides of the next
   line with text (N19). `list` hides them.
+- B154 [2] While a `:s` is typed, the window shows what it would do, as
+  Neovim's `inccommand` does: the matches of its pattern, then each match
+  struck out with its replacement after it. The text does not change until
+  `<CR>`, and `<Esc>` leaves nothing behind. The windows stay untinted
+  while it shows.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays

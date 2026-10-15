@@ -575,6 +575,16 @@ the command line or the finder open draws the windows in the tint, then
 the box in the theme's own colours on the tinted ground, so nothing draws
 twice and no seam shows (B151).
 
+A `:s` being typed shows in the current window. `Machine.Preview` reads the
+command line as a `:s` and returns the edits it would make on the visible
+lines only, from the same code `:s` applies, so `:%s` on a large file costs
+one screen. The editor shows them as search matches until a replacement is
+typed, then as a struck-out `sub.old` decoration with a `sub.new` ghost
+after it. Neovim's `inccommand` changes the text and undoes it, which here
+would write every keystroke to the timeline log. The machine keeps up to 16
+compiled patterns, as the search highlight and the preview take turns
+(B154).
+
 The client keeps a cell grid, diffs it against the previous frame, and
 writes only the changed cells in one write. It wraps each frame in
 synchronized output where the terminal supports it.

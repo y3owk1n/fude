@@ -154,7 +154,8 @@ func (c *client) draw() {
 	// A modal box, the command line or the finder, has the windows under it
 	// drawn in the tinted theme, and draws on the tinted ground (B151).
 	f, floats := c.e.Float()
-	modal := c.e.Mode() == vim.Cmdline || floats && f.W > 0
+	// A :s being typed shows its preview in the windows, so they stay lit.
+	modal := c.e.Mode() == vim.Cmdline && !c.e.Substituting() || floats && f.W > 0
 	if modal {
 		apply(dimmed)
 		defer apply(lit)
@@ -583,7 +584,10 @@ var ghostText = strings.NewReplacer("\n", "⏎", "\t", " ")
 // and returns the column after it.
 func (c *client) ghost(g editor.Ghost, left, x, y, w int) int {
 	style := base.Foreground(th.faint).Italic(true)
-	if g.Stale {
+	switch {
+	case g.Style != "":
+		style = colours[g.Style]
+	case g.Stale:
 		style = style.Foreground(th.err)
 	}
 	for s := ghostText.Replace(g.Text); s != "" && x < w; {
