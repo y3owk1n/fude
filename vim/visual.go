@@ -160,7 +160,7 @@ func (m *Machine) visualKey(cmd string, count int, reg rune) error {
 		}
 		return nil
 	}
-	if r, ok := textObject(t, c, count, cmd); ok {
+	if r, ok := m.object(t, c, count, cmd); ok {
 		m.anchor = r.start
 		if r.lines {
 			m.visual = "V"

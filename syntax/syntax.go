@@ -17,16 +17,28 @@ import (
 	"github.com/y3owk1n/fude/api"
 )
 
-//go:embed queries/go/highlights.scm
-var goHighlights string
+var (
+	//go:embed queries/go/highlights.scm
+	goHighlights string
+	//go:embed queries/go/textobjects.scm
+	goObjects string
+)
 
-// languages are the grammars fude links in, by filetype, with their highlight
-// queries (D28, D29).
+// languages are the grammars fude links in, by filetype, with their queries
+// (D28, D29).
 var languages = map[string]struct {
-	lang       *ts.Language
-	highlights string
+	lang                *ts.Language
+	highlights, objects string
 }{
-	"go": {ts.NewLanguage(tsgo.Language()), goHighlights},
+	"go": {ts.NewLanguage(tsgo.Language()), goHighlights, goObjects},
+}
+
+// Objects are the text objects a grammar gives, and the captures they
+// select. aa also takes a comma.
+var Objects = map[string]string{
+	"af": "function.outer", "if": "function.inner",
+	"ac": "class.outer", "ic": "class.inner",
+	"aa": "parameter.inner", "ia": "parameter.inner",
 }
 
 // chunk is the most text a parse reads at once.
@@ -39,16 +51,21 @@ type Span struct {
 	Name       string
 }
 
-// Highlighter parses one buffer on its own goroutine. Its methods run on the
-// editor loop, and its results come back through the loop's queue.
-type Highlighter struct {
+// Buffer is one buffer's syntax. It parses the buffer on its own goroutine.
+// Its methods run on the editor loop, and its results come back through the
+// loop's queue.
+type Buffer struct {
 	queue chan<- func()
 
 	// The editor loop's side.
-	seq   int      // changes heard
-	log   []change // changes since the text the spans are for
-	spans []Span   // in paint order, later spans drawing over earlier ones
-	asked request
+	seq     int      // changes heard
+	log     []change // changes since the text the spans and tree are for
+	spans   []Span   // in paint order, later spans drawing over earlier ones
+	tree    *ts.Tree // a clone of the worker's last tree
+	objects *ts.Query
+	cursor  *ts.QueryCursor
+	closed  bool
+	asked   request
 
 	// Shared with the worker.
 	mu     sync.Mutex
@@ -62,6 +79,7 @@ type Highlighter struct {
 type change struct {
 	seq   int
 	edits []api.Edit
+	tree  []ts.InputEdit // the same edits, last first, for a tree
 }
 
 // pending is an edit the worker has yet to make to its tree and text, from
@@ -77,9 +95,9 @@ type request struct {
 	seq, from, to int
 }
 
-// New returns a highlighter for buffers of filetype, which sends its results
-// to queue, or false when fude has no grammar for it.
-func New(filetype string, queue chan<- func()) (*Highlighter, bool, error) {
+// New returns the syntax of a buffer of filetype, which sends its results to
+// queue, or false when fude has no grammar for it.
+func New(filetype string, queue chan<- func()) (*Buffer, bool, error) {
 	l, ok := languages[filetype]
 	if !ok {
 		return nil, false, nil
@@ -88,42 +106,63 @@ func New(filetype string, queue chan<- func()) (*Highlighter, bool, error) {
 	if qerr != nil {
 		return nil, false, fmt.Errorf("highlights for %s, line %d: %s", filetype, qerr.Row+1, qerr.Message)
 	}
+	objects, qerr := ts.NewQuery(l.lang, l.objects)
+	if qerr != nil {
+		q.Close()
+		return nil, false, fmt.Errorf("textobjects for %s, line %d: %s", filetype, qerr.Row+1, qerr.Message)
+	}
 	p := ts.NewParser()
 	if err := p.SetLanguage(l.lang); err != nil {
 		p.Close()
 		q.Close()
+		objects.Close()
 		return nil, false, fmt.Errorf("grammar for %s: %w", filetype, err)
 	}
-	h := &Highlighter{queue: queue, wake: make(chan struct{}, 1), quit: make(chan struct{})}
+	h := &Buffer{
+		queue: queue, objects: objects, cursor: ts.NewQueryCursor(),
+		wake: make(chan struct{}, 1), quit: make(chan struct{}),
+	}
 	go h.run(p, q)
 	return h, true, nil
 }
 
-// Close stops the highlighter's goroutine, which frees its tree-sitter state.
-func (h *Highlighter) Close() { close(h.quit) }
+// Close stops the buffer's goroutine, which frees its tree-sitter state, and
+// frees the editor loop's.
+func (h *Buffer) Close() {
+	close(h.quit)
+	h.closed = true
+	h.objects.Close()
+	h.cursor.Close()
+	if h.tree != nil {
+		h.tree.Close()
+	}
+}
 
 // Changed takes a change to the text, with the text from before it.
-func (h *Highlighter) Changed(before api.Text, edits []api.Edit) {
+func (h *Buffer) Changed(before api.Text, edits []api.Edit) {
 	h.seq++
-	h.log = append(h.log, change{h.seq, edits})
+	c := change{seq: h.seq, edits: edits}
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	// Last first, so each edit's positions hold when it is made.
 	for i := len(edits) - 1; i >= 0; i-- {
 		e := edits[i]
 		start := point(before, e.Start)
-		h.edits = append(h.edits, pending{h.seq, ts.InputEdit{
+		in := ts.InputEdit{
 			StartByte: uint(e.Start), OldEndByte: uint(e.End), NewEndByte: uint(e.Start + len(e.Text)),
 			StartPosition: start, OldEndPosition: point(before, e.End), NewEndPosition: after(start, e.Text),
-		}, e})
+		}
+		c.tree = append(c.tree, in)
+		h.edits = append(h.edits, pending{h.seq, in, e})
 	}
+	h.log = append(h.log, c)
 }
 
 // Show returns the spans that colour [from, to) of t, the text now. When t
 // or the range has moved past the last request, it asks the worker for new
 // spans. Until they come, it returns the old ones moved through the edits
 // made since.
-func (h *Highlighter) Show(t api.Text, from, to int) []Span {
+func (h *Buffer) Show(t api.Text, from, to int) []Span {
 	if a := h.asked; a.text == nil || a.seq != h.seq || from < a.from || to > a.to {
 		n := to - from
 		h.asked = request{t, h.seq, max(from-n, 0), min(to+n, t.Len())}
@@ -148,9 +187,16 @@ func (h *Highlighter) Show(t api.Text, from, to int) []Span {
 	return out
 }
 
-// take keeps spans found for the text after change seq.
-func (h *Highlighter) take(seq int, spans []Span) {
-	h.spans = spans
+// take keeps the spans and tree found for the text after change seq.
+func (h *Buffer) take(seq int, spans []Span, tree *ts.Tree) {
+	if h.closed {
+		tree.Close()
+		return
+	}
+	if h.tree != nil {
+		h.tree.Close()
+	}
+	h.spans, h.tree = spans, tree
 	i := 0
 	for i < len(h.log) && h.log[i].seq <= seq {
 		i++
@@ -159,7 +205,7 @@ func (h *Highlighter) take(seq int, spans []Span) {
 }
 
 // run parses and highlights each newest request until Close.
-func (h *Highlighter) run(p *ts.Parser, q *ts.Query) {
+func (h *Buffer) run(p *ts.Parser, q *ts.Query) {
 	defer p.Close()
 	defer q.Close()
 	c := ts.NewQueryCursor()
@@ -215,12 +261,82 @@ func (h *Highlighter) run(p *ts.Parser, q *ts.Query) {
 			tree, parsed = next, r.seq
 		}
 		spans := highlight(c, q, tree, text, r.from, r.to)
+		clone := tree.Clone()
 		select {
-		case h.queue <- func() { h.take(r.seq, spans) }:
+		case h.queue <- func() { h.take(r.seq, spans, clone) }:
 		case <-h.quit:
+			clone.Close()
 			return
 		}
 	}
+}
+
+// Object returns the range of t, the text now, that the text object name
+// selects around pos. It queries the last parse, moved through the edits
+// made since. It is false before the first parse, or when no such object
+// holds pos. name is a key of Objects.
+func (h *Buffer) Object(t api.Text, name string, pos int) (int, int, bool) {
+	if h.tree == nil {
+		return 0, 0, false
+	}
+	tree := h.tree
+	if len(h.log) > 0 {
+		tree = tree.Clone()
+		defer tree.Close()
+		for _, c := range h.log {
+			for i := range c.tree {
+				tree.Edit(&c.tree[i])
+			}
+		}
+	}
+	want, _ := h.objects.CaptureIndexForName(Objects[name])
+	h.cursor.SetByteRange(uint(pos), uint(pos+1))
+	start, end, found := 0, 0, false
+	var node *ts.Node
+	matches := h.cursor.Matches(h.objects, tree.RootNode(), nil)
+	for m := matches.Next(); m != nil; m = matches.Next() {
+		// A capture that repeats in one match, such as a struct's fields,
+		// selects from the first to the last.
+		s, e, n := -1, 0, (*ts.Node)(nil)
+		for _, c := range m.Captures {
+			if c.Index != uint32(want) {
+				continue
+			}
+			if s < 0 {
+				s, n = int(c.Node.StartByte()), &c.Node
+			}
+			e = int(c.Node.EndByte())
+		}
+		if s >= 0 && s <= pos && pos < e && (!found || e-s < end-start) {
+			start, end, found, node = s, e, true, n
+		}
+	}
+	// A grammar may end a node with the newline after it.
+	for end > start && strings.Contains(" \t\n", t.Slice(end-1, end)) {
+		end--
+	}
+	if found && name == "aa" {
+		start, end = withComma(node, start, end)
+	}
+	return start, end, found
+}
+
+// withComma widens a parameter to the comma and blanks after it, or when it
+// is last, to the end of the one before it.
+func withComma(n *ts.Node, start, end int) (int, int) {
+	if next := n.NextSibling(); next != nil && next.Kind() == "," {
+		if after := next.NextNamedSibling(); after != nil {
+			return start, int(after.StartByte())
+		}
+		return start, int(next.EndByte())
+	}
+	if prev := n.PrevSibling(); prev != nil && prev.Kind() == "," {
+		if before := prev.PrevNamedSibling(); before != nil {
+			return int(before.EndByte()), end
+		}
+		return int(prev.StartByte()), end
+	}
+	return start, end
 }
 
 // highlight returns the captures in [from, to) in paint order, as

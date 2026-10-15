@@ -13,6 +13,26 @@ var blocks = map[string]string{
 	"<": "<>", ">": "<>",
 }
 
+// Object adds a text object such as af, which works after every operator and
+// in visual mode. Its name starts with i or a. find returns the text it
+// selects around pos, or false when there is none.
+func (m *Machine) Object(name string, find func(t Text, pos int) (start, end int, ok bool)) {
+	if m.objects == nil {
+		m.objects = map[string]func(Text, int) (int, int, bool){}
+	}
+	m.objects[name] = find
+}
+
+// object returns the text an object selects, trying the ones the host added
+// first.
+func (m *Machine) object(t Text, c, count int, cmd string) (region, bool) {
+	if find, ok := m.objects[cmd]; ok {
+		start, end, ok := find(t, c)
+		return region{start: start, end: end}, ok
+	}
+	return textObject(t, c, count, cmd)
+}
+
 // textObject returns the text an object such as iw or a( selects, or false
 // if cmd is not one or nothing matches.
 func textObject(t Text, c, count int, cmd string) (region, bool) {

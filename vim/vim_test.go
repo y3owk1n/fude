@@ -660,3 +660,38 @@ func TestB84MappingPrefixWaits(t *testing.T) {
 		}
 	}
 }
+
+// B113, for a target
+func TestB113HostObject(t *testing.T) {
+	// id selects the run of digits around the cursor.
+	digits := func(t vim.Text, pos int) (int, int, bool) {
+		s := t.Slice(0, t.Len())
+		start, end := pos, pos
+		for start > 0 && s[start-1] >= '0' && s[start-1] <= '9' {
+			start--
+		}
+		for end < len(s) && s[end] >= '0' && s[end] <= '9' {
+			end++
+		}
+		return start, end, start < end
+	}
+	for _, c := range [][3]string{
+		{"ab 12|34 cd", "did", "ab | cd"},
+		{"ab 12|34 cd", "cidX<Esc>", "ab |X cd"},
+		{"ab 12|34 cd", "yid$p", "ab 1234 cd123|4"},
+		{"ab 12|34 cd", "vidd", "ab | cd"},
+		{"ab |cd", "did", "ab |cd"},
+	} {
+		h := &host{text: strings.Replace(c[0], "|", "", 1), cursor: strings.Index(c[0], "|")}
+		m := vim.New(h)
+		m.Object("id", digits)
+		for _, k := range vim.Keys(c[1]) {
+			if err := m.Feed(k); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if got := h.text[:h.cursor] + "|" + h.text[h.cursor:]; got != c[2] {
+			t.Errorf("%q on %q: got %q, want %q", c[1], c[0], got, c[2])
+		}
+	}
+}

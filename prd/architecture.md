@@ -146,10 +146,10 @@ func (m *Machine) Map(mode Mode, from, to string)
 func (m *Machine) Idle() bool // normal mode, between commands
 func (m *Machine) Waiting() bool
 func (m *Machine) Timeout() error
+func (m *Machine) Object(name string, find func(t Text, pos int) (start, end int, ok bool))
 ```
 
-Later behaviours add a clipboard for `"+` and a registry for host and plugin
-operators and targets.
+Later behaviours add a clipboard for `"+` and operators the host adds.
 
 
 `vim/` owns the grammar, modes, registers, dot repeat, macros, search and
@@ -159,8 +159,8 @@ move them (B23). The host owns files, windows, history
 storage, the clipboard and everything shown on screen. `:w` and `<C-w>v`
 reach the host through `Unhandled`.
 
-Tree targets are not part of `vim/`. fude's `syntax/` registers `af`, `if`
-and the rest into the machine's registry, the same way a plugin would.
+Tree targets are not part of `vim/`. `editor/` adds `af`, `if` and the rest
+from `syntax/` with `Machine.Object`, the way a plugin will.
 
 `vim/` may use small pure-Go dependencies for Unicode segmentation and
 display width. It never imports `core/`, and `core/` never imports it.
@@ -493,7 +493,7 @@ modules are wired through `api/` in step 4, `editor/` imports it directly.
 
 Each highlighted buffer has one goroutine that owns its parser, its tree
 and a copy of its text. The kernel's listener hands every change to the
-buffer's highlighter on the editor loop, which queues it for the goroutine
+buffer's `syntax.Buffer` on the editor loop, which queues it for the goroutine
 as a tree edit and a text edit. Each frame asks for the captures of the
 window plus a margin. The goroutine takes the newest request and the edits
 up to it, parses incrementally and sends the spans back through the
@@ -514,8 +514,15 @@ Each language is a grammar and its queries, from the grammar's own repo
 - `highlights.scm`, `injections.scm` and `locals.scm` as the repo ships
   them, with tree-sitter's standard capture names.
 - `textobjects.scm`, which fude writes, with `@function.outer`,
-  `@function.inner`, `@parameter.outer`, `@parameter.inner`, `@class.outer`
-  and `@class.inner`.
+  `@function.inner`, `@parameter.inner`, `@class.outer` and `@class.inner`.
+  `aa` is a parameter with the comma and blanks after it, or the comma
+  before it when it is last.
+
+A text object reads a tree on the editor loop, so it never waits for a
+parse. The worker hands the loop a clone of each tree it parses, and an
+object queries that clone moved through the edits made since. It picks the
+smallest capture that holds the cursor, without the blanks a grammar puts
+at a node's end (B40).
 
 Queries use only the predicates the binding evaluates: the `eq?`,
 `match?` and `any-of?` families. A query that uses any other fails to load

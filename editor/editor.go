@@ -51,6 +51,14 @@ func open(cfg config, paths []string) (*Editor, error) {
 	}
 	e := &Editor{next: 1, now: time.Now, cfg: cfg, queue: make(chan func(), 16)}
 	e.vim = vim.New(host{e})
+	for name := range syntax.Objects {
+		e.vim.Object(name, func(t vim.Text, pos int) (int, int, bool) {
+			if s := e.win.buf.syntax; s != nil {
+				return s.Object(t, name, pos)
+			}
+			return 0, 0, false
+		})
+	}
 	for i, p := range paths {
 		msg, err := e.add(p)
 		if err != nil {
@@ -127,8 +135,8 @@ func (e *Editor) add(path string) (string, error) {
 	return msg, nil
 }
 
-// heard passes a buffer's changes to its highlighter.
-type heard struct{ h *syntax.Highlighter }
+// heard passes a buffer's changes to its syntax.
+type heard struct{ h *syntax.Buffer }
 
 func (l heard) Changed(before kernel.Snapshot, edits []kernel.Edit) {
 	out := make([]api.Edit, len(edits))

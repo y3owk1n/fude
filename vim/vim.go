@@ -133,6 +133,8 @@ type Machine struct {
 	// Keymaps.
 	maps map[Mode]*keymap
 	held []Key // typed keys that start a longer mapping
+
+	objects map[string]func(Text, int) (int, int, bool) // text objects the host added
 }
 
 // change is the last change, for dot repeat.

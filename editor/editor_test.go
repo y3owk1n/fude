@@ -744,3 +744,29 @@ func TestB46Highlighting(t *testing.T) {
 		t.Errorf("after an edit above it, package shows as %q", got["package"])
 	}
 }
+
+// B40
+func TestB40SyntaxObjects(t *testing.T) {
+	src := "package p\n\ntype T struct {\n\tA int\n\tB string\n}\n\nfunc F(a int, b string) error {\n\tx := g(a, b)\n\treturn nil\n}\n"
+	typ := "type T struct {\n\tA int\n\tB string\n}"
+	fn := "func F(a int, b string) error {\n\tx := g(a, b)\n\treturn nil\n}"
+	for _, c := range [][2]string{
+		{"9G^dif", "package p\n\n" + typ + "\n\nfunc F(a int, b string) error {\n\t\n}"},
+		{"9G^vifd", "package p\n\n" + typ + "\n\nfunc F(a int, b string) error {\n\t\n}"},
+		{"9Gdaf", "package p\n\n" + typ + "\n\n"},
+		{"4G^dic", "package p\n\ntype T struct {\n\t\n}\n\n" + fn},
+		{"4Gdac", "package p\n\n\n\n" + fn},
+		{"8Gf(ldia", "package p\n\n" + typ + "\n\nfunc F(, b string) error {\n\tx := g(a, b)\n\treturn nil\n}"},
+		{"8Gf(ldaa", "package p\n\n" + typ + "\n\nfunc F(b string) error {\n\tx := g(a, b)\n\treturn nil\n}"},
+		{"8Gfbdaa", "package p\n\n" + typ + "\n\nfunc F(a int) error {\n\tx := g(a, b)\n\treturn nil\n}"},
+	} {
+		path := filepath.Join(t.TempDir(), "a.go")
+		change(t, path, src)
+		e := start(t, path)
+		e.SetSize(80, 20)
+		captures(t, e)
+		if feed(e, c[0]); text(e) != c[1] {
+			t.Errorf("%s left %q, want %q", c[0], text(e), c[1])
+		}
+	}
+}

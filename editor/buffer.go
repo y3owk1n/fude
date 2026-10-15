@@ -35,9 +35,9 @@ type buffer struct {
 
 	saves []kernel.NodeID // the node at each write, oldest first
 
-	log     *history            // the timeline on disk, nil for a buffer with no file
-	syntax  *syntax.Highlighter // nil without a grammar for the filetype
-	unsaved kernel.NodeID       // the newest unsaved change from a session that did not close
+	log     *history       // the timeline on disk, nil for a buffer with no file
+	syntax  *syntax.Buffer // nil without a grammar for the filetype
+	unsaved kernel.NodeID  // the newest unsaved change from a session that did not close
 	// A scratch buffer shows something about another buffer, such as its
 	// timeline, under a title instead of a file name.
 	title  string

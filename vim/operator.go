@@ -122,7 +122,7 @@ func (m *Machine) span(t Text, c int, op, cmd string, count int) (region, bool) 
 		s := LineStart(t, c)
 		return region{start: s, end: LineEnd(t, down(t, s, n-1)), lines: true}, true
 	}
-	if r, ok := textObject(t, c, count, cmd); ok {
+	if r, ok := m.object(t, c, count, cmd); ok {
 		return r, true
 	}
 	var to int
