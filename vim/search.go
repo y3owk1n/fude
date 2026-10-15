@@ -3,7 +3,6 @@ package vim
 import (
 	"errors"
 	"fmt"
-	"sort"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -34,33 +33,71 @@ func (m *Machine) seek(src string, forward bool, n int) (int, kind, bool) {
 		m.msg = err.Error()
 		return c, failed, true
 	}
-	var starts []int
-	for _, mt := range p.all(t.Slice(0, t.Len())) {
-		s, _ := p.span(mt)
-		starts = append(starts, s)
-	}
-	if len(starts) == 0 {
-		m.msg = "pattern not found: " + src
-		return c, failed, true
-	}
-	m.hl = true
 	pos := c
 	for range n {
+		var ok bool
 		if forward {
-			i := sort.SearchInts(starts, pos+1)
-			if i == len(starts) {
-				i, m.msg = 0, "search hit the end, continuing at the start"
+			if pos, ok = p.first(t, pos+1); !ok {
+				pos, ok = p.first(t, 0)
+				m.msg = "search hit the end, continuing at the start"
 			}
-			pos = starts[i]
-		} else {
-			i := sort.SearchInts(starts, pos) - 1
-			if i < 0 {
-				i, m.msg = len(starts)-1, "search hit the start, continuing at the end"
-			}
-			pos = starts[i]
+		} else if pos, ok = p.last(t, pos); !ok {
+			pos, ok = p.last(t, t.Len()+1)
+			m.msg = "search hit the start, continuing at the end"
+		}
+		if !ok {
+			m.msg = "pattern not found: " + src
+			return c, failed, true
 		}
 	}
+	m.hl = true
 	return pos, exclusive, true
+}
+
+// searchWindow is how many bytes a search reads first. It doubles until it
+// holds a match, so a search near the cursor never reads the whole text.
+const searchWindow = 1 << 10
+
+// first returns the start of the first match that starts at or after least.
+// It reads from least's line, so ^ and \< see the text before least.
+func (p *pattern) first(t Text, least int) (int, bool) {
+	if least > t.Len() {
+		return 0, false
+	}
+	from := LineStart(t, least)
+	for size := searchWindow; ; size *= 2 {
+		to := LineEnd(t, min(from+size, t.Len()))
+		for _, mt := range p.all(t.Slice(from, to)) {
+			// A match that reaches the window's end may be longer in the
+			// whole text, so the search retries it with a bigger window.
+			if s, _ := p.span(mt); from+s >= least && (mt[1] < to-from || to == t.Len()) {
+				return from + s, true
+			}
+		}
+		if to == t.Len() {
+			return 0, false
+		}
+	}
+}
+
+// last returns the start of the last match that starts before limit.
+func (p *pattern) last(t Text, limit int) (int, bool) {
+	to := LineEnd(t, min(limit, t.Len()))
+	for size := searchWindow; ; size *= 2 {
+		from := LineStart(t, max(to-size, 0))
+		found := -1
+		for _, mt := range p.all(t.Slice(from, to)) {
+			if s, _ := p.span(mt); from+s < limit {
+				found = from + s
+			}
+		}
+		if found >= 0 {
+			return found, true
+		}
+		if from == 0 {
+			return 0, false
+		}
+	}
 }
 
 // keywordAt returns the word of word characters at or after c on its line.
