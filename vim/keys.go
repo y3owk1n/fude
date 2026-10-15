@@ -6,7 +6,7 @@ import (
 )
 
 // Key is one key in Vim notation: a character such as "a", or a named key
-// such as "<Esc>".
+// such as "<Esc>" or "<C-r>".
 type Key string
 
 var names = map[string]Key{
@@ -25,7 +25,12 @@ func Keys(s string) []Key {
 	var ks []Key
 	for s != "" {
 		if end := strings.IndexByte(s, '>'); s[0] == '<' && end > 0 {
-			if k, ok := names[strings.ToLower(s[1:end])]; ok {
+			name := strings.ToLower(s[1:end])
+			k, ok := names[name]
+			if len(name) == 3 && strings.HasPrefix(name, "c-") && name[2] >= 'a' && name[2] <= 'z' {
+				k, ok = Key("<C-"+name[2:]+">"), true
+			}
+			if ok {
 				ks = append(ks, k)
 				s = s[end+1:]
 				continue

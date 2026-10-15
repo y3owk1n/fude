@@ -3,6 +3,7 @@
 package vim
 
 import (
+	"errors"
 	"strings"
 	"unicode/utf8"
 )
@@ -19,8 +20,10 @@ type Edit struct {
 	Text       string
 }
 
-// Host owns the text and the cursor. Edits between BeginGroup and EndGroup
-// are one undo step.
+// Host owns the text, the cursor and the undo history. Edits between
+// BeginGroup and EndGroup are one undo step. Undo and Redo return where the
+// step's text starts and the cursor from before the step, or false when
+// there is no step to move to.
 type Host interface {
 	Text() Text
 	Cursor() int
@@ -29,6 +32,8 @@ type Host interface {
 	BeginGroup()
 	EndGroup()
 	Unhandled(keys string) // an ex line such as ":w"
+	Undo() (start, cursor int, ok bool)
+	Redo() (start, cursor int, ok bool)
 }
 
 // Mode is normal, insert or command line.
@@ -142,6 +147,8 @@ func (m *Machine) normal(k Key) error {
 	switch k {
 	case "p", "P":
 		return m.put(reg, k == "p", max(count, 1))
+	case "u", "<C-r>":
+		return m.undo(k == "u", max(count, 1))
 	case ":":
 		m.mode = Cmdline
 		m.line = ""
@@ -222,11 +229,40 @@ func (m *Machine) cmdline(k Key) {
 	}
 }
 
+// undo moves n steps back, or forward for redo. The cursor goes back to
+// where it was before the step if that is on the step's first line, as in
+// Neovim, and to that line's first non-blank otherwise.
+func (m *Machine) undo(back bool, n int) error {
+	step := m.h.Redo
+	if back {
+		step = m.h.Undo
+	}
+	for i := range n {
+		start, cursor, ok := step()
+		switch {
+		case !ok && i > 0:
+			return nil
+		case !ok && back:
+			return errors.New("Already at oldest change")
+		case !ok:
+			return errors.New("Already at newest change")
+		}
+		t := m.h.Text()
+		top := LineStart(t, start)
+		p := firstNonBlank(t, top, LineEnd(t, top))
+		if cursor >= top && cursor <= t.Len() && LineStart(t, cursor) == top {
+			p = cursor
+		}
+		m.h.SetCursor(clamp(t, p))
+	}
+	return nil
+}
+
 func (m *Machine) startInsert(k Key, pos int) {
 	m.mode = Insert
 	m.label = string(k)
-	m.h.SetCursor(pos)
 	m.h.BeginGroup()
+	m.h.SetCursor(pos)
 }
 
 func (m *Machine) insertText(s string) error {

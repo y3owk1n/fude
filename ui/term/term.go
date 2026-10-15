@@ -144,8 +144,11 @@ func (c *client) scroll(t vim.Text, cur, rows int) {
 func key(ev *tcell.EventKey) vim.Key {
 	switch ev.Key() {
 	case tcell.KeyRune:
-		if ev.Modifiers()&^tcell.ModShift == 0 {
+		switch mods := ev.Modifiers() &^ tcell.ModShift; {
+		case mods == 0:
 			return vim.Key(ev.Str())
+		case mods == tcell.ModCtrl && len(ev.Str()) == 1:
+			return vim.Key("<C-" + strings.ToLower(ev.Str()) + ">")
 		}
 	case tcell.KeyEnter:
 		return "<CR>"

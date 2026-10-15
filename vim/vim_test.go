@@ -22,11 +22,13 @@ type text string
 func (t text) Len() int                    { return len(t) }
 func (t text) Slice(start, end int) string { return string(t[start:end]) }
 
-func (h *host) Text() vim.Text    { return text(h.text) }
-func (h *host) Cursor() int       { return h.cursor }
-func (h *host) SetCursor(pos int) { h.cursor = pos }
-func (h *host) BeginGroup()       { h.depth++ }
-func (h *host) Unhandled(string)  {}
+func (h *host) Text() vim.Text         { return text(h.text) }
+func (h *host) Cursor() int            { return h.cursor }
+func (h *host) SetCursor(pos int)      { h.cursor = pos }
+func (h *host) BeginGroup()            { h.depth++ }
+func (h *host) Unhandled(string)       {}
+func (h *host) Undo() (int, int, bool) { return 0, 0, false }
+func (h *host) Redo() (int, int, bool) { return 0, 0, false }
 func (h *host) EndGroup() {
 	h.depth--
 	if h.depth == 0 && h.applied {

@@ -19,6 +19,12 @@ type Editor struct {
 	saved   kernel.NodeID
 	message string
 	done    bool
+
+	// The cursor from before each undo step, for the vim machine's undo.
+	before  map[kernel.NodeID]int
+	pending int // the cursor when the step being made began
+	depth   int
+	head    kernel.NodeID
 }
 
 // Open opens path. A path that does not exist opens an empty buffer.
@@ -27,7 +33,7 @@ func Open(path string) (*Editor, error) {
 	if err != nil {
 		return nil, err
 	}
-	e := &Editor{file: f, buf: kernel.New(text, nil)}
+	e := &Editor{file: f, buf: kernel.New(text, nil), before: map[kernel.NodeID]int{}}
 	e.vim = vim.New(host{e})
 	switch {
 	case f.readonly:
@@ -112,11 +118,48 @@ func (e *Editor) write() {
 // host implements vim.Host for an Editor.
 type host struct{ e *Editor }
 
-func (h host) Text() vim.Text     { return h.e.buf.Snapshot() }
-func (h host) Cursor() int        { return h.e.cursor }
-func (h host) SetCursor(pos int)  { h.e.cursor = pos }
-func (h host) BeginGroup()        { h.e.buf.BeginGroup() }
-func (h host) EndGroup()          { h.e.buf.EndGroup() }
+func (h host) Text() vim.Text    { return h.e.buf.Snapshot() }
+func (h host) Cursor() int       { return h.e.cursor }
+func (h host) SetCursor(pos int) { h.e.cursor = pos }
+func (h host) BeginGroup() {
+	h.begin()
+	h.e.depth++
+	h.e.buf.BeginGroup()
+}
+
+func (h host) EndGroup() {
+	h.e.depth--
+	h.e.buf.EndGroup()
+	h.end()
+}
+
+// begin notes the cursor when a new undo step may begin.
+func (h host) begin() {
+	if h.e.depth == 0 {
+		h.e.pending = h.e.cursor
+	}
+}
+
+// end saves the noted cursor for the step just made, if there is one.
+func (h host) end() {
+	if head := h.e.buf.Head(); head != h.e.head {
+		h.e.before[head] = h.e.pending
+		h.e.head = head
+	}
+}
+
+func (h host) Undo() (int, int, bool) {
+	node := h.e.buf.Head()
+	start, ok := h.e.buf.Undo()
+	h.e.head = h.e.buf.Head()
+	return start, h.e.before[node], ok
+}
+
+func (h host) Redo() (int, int, bool) {
+	start, ok := h.e.buf.Redo()
+	h.e.head = h.e.buf.Head()
+	return start, h.e.before[h.e.head], ok
+}
 func (h host) Unhandled(k string) { h.e.ex(strings.TrimPrefix(k, ":")) }
 
 func (h host) Apply(edits []vim.Edit, label string) error {
@@ -127,5 +170,8 @@ func (h host) Apply(edits []vim.Edit, label string) error {
 	for _, ed := range edits {
 		t.Edits = append(t.Edits, kernel.Edit(ed))
 	}
-	return h.e.buf.Apply(t)
+	h.begin()
+	err := h.e.buf.Apply(t)
+	h.end()
+	return err
 }

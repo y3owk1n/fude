@@ -122,6 +122,31 @@ func TestB4InvalidUTF8IsReadOnly(t *testing.T) {
 	}
 }
 
+// B30
+func TestB30UndoRedoBranches(t *testing.T) {
+	cases := [][3]string{
+		{"abcd", "llihello<Esc>u", "ab|cd"},
+		{"abcd", "llihello<Esc>u<C-r>", "ab|hellocd"},
+		{"a\nbcd\ne", "jlddu", "a\nb|cd\ne"},
+		{"a\nbcd\ne", "jlddu<C-r>", "a\n|e"},
+		{"abc", "lliX<Esc>uiY<Esc>u<C-r>", "ab|Yc"},
+		{"abc", "lliX<Esc>iY<Esc>uu<C-r>", "ab|Xc"},
+		{"a b c", "dwwdwuu", "|a b c"},
+	}
+	for _, c := range cases {
+		path := filepath.Join(t.TempDir(), "f")
+		if err := os.WriteFile(path, []byte(c[0]), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		e := open(t, path)
+		feed(e, c[1])
+		got := text(e)
+		if got = got[:e.Cursor()] + "|" + got[e.Cursor():]; got != c[2] {
+			t.Errorf("%q on %q: got %q, want %q", c[1], c[0], got, c[2])
+		}
+	}
+}
+
 // B5
 func TestB5QuitRefusesUnsaved(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "f")
