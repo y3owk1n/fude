@@ -213,6 +213,8 @@ func key(k tcell.Key, mods tcell.ModMask, str string) vim.Key {
 		switch {
 		case mods == 0:
 			return vim.Key(str)
+		case mods == tcell.ModCtrl && (str == "6" || str == "^"):
+			return "<C-^>"
 		case mods == tcell.ModCtrl && len(str) == 1:
 			return vim.Key("<C-" + strings.ToLower(str) + ">")
 		}

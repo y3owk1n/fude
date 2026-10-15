@@ -22,6 +22,10 @@ Where fude departs, the line says so and cites the departure in
   so.
 - B5 [1] `:q` on a modified buffer refuses and names the buffer. `:q!` quits.
 - B80 [1] `fude a b` opens both as buffers. `fude +N path` opens at line N.
+- B95 [1] `:wq` writes and quits. `:x` and `ZZ` do the same but write only a
+  modified buffer, and `ZQ` is `:q!`. `:wa` writes every modified buffer.
+  `:qa` refuses while a buffer is modified, and `:qa!` quits anyway. `:wqa`
+  and `:xa` write every modified buffer, then quit.
 - B81 [1] `:w` on a file changed on disk since fude read it asks before
   overwriting. `:w!` overwrites without asking.
 - B82 [1] A file changed on disk while unmodified in fude reloads when fude
@@ -109,6 +113,8 @@ Where fude departs, the line says so and cites the departure in
 - B88 [2] `:{range}normal keys` runs keys on each line of the range, as one
   transaction.
 - B89 [2] `:e path`, `:ls`, `:b N`, `:bn`, `:bp` and `:bd` manage buffers.
+- B96 [2] `<C-^>` shows the buffer the window showed before, and `N<C-^>`
+  shows buffer N. `#` names that buffer in `:b` and `:e`.
   Switching away from a modified buffer keeps it loaded and modified.
 - B90 [2] `<C-o>` and `<C-i>` move through the jumplist, and `g;` and `g,`
   through the changelist, as in Neovim.

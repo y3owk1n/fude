@@ -339,7 +339,7 @@ func (m *Machine) normal(k Key) error {
 		m.counted = true
 		return nil
 	}
-	if len(cmd) == 1 && strings.Contains("gftFT\"q@rm`'z", cmd) {
+	if len(cmd) == 1 && strings.Contains("gftFT\"q@rm`'zZ", cmd) {
 		m.pending = k
 		m.counted = cmd == "\""
 		return nil
@@ -460,6 +460,16 @@ func (m *Machine) command(cmd string) error {
 		m.hl = false
 	case "gv":
 		m.reselect()
+	case "ZZ":
+		m.h.Unhandled(":x")
+	case "ZQ":
+		m.h.Unhandled(":q!")
+	case "<C-^>":
+		if count > 0 {
+			m.h.Unhandled(":b " + strconv.Itoa(count))
+		} else {
+			m.h.Unhandled(":b #")
+		}
 	case "<C-o>":
 		m.walk(m.h.Jump, max(count, 1))
 	case "<C-i>", "\t":

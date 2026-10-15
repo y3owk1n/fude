@@ -332,6 +332,12 @@ func (e *Editor) quit(force bool) {
 		}
 		return
 	}
+	e.quitAll(force)
+}
+
+// quitAll quits fude. Without force it refuses while a buffer has unsaved
+// changes.
+func (e *Editor) quitAll(force bool) {
 	for _, b := range e.bufs {
 		if b.modified() && !force {
 			e.message = fmt.Sprintf("no write since the last change to \"%s\" (add ! to override)", b.name())
@@ -347,13 +353,24 @@ func (e *Editor) quit(force bool) {
 func (e *Editor) ex(line string) {
 	name, arg, _ := strings.Cut(strings.TrimSpace(line), " ")
 	arg = strings.TrimSpace(arg)
+	name, force := strings.CutSuffix(name, "!")
 	switch name {
-	case "w", "w!":
-		e.write(name == "w!")
+	case "w":
+		e.write(e.win.buf, force, nil)
+	case "wq", "x", "xit", "exit":
+		if name == "wq" || e.win.buf.modified() {
+			e.write(e.win.buf, force, func() { e.quit(force) })
+		} else {
+			e.quit(force)
+		}
+	case "wa", "wall":
+		e.writeAll(e.bufs, force, nil)
+	case "qa", "qall", "quita", "quitall":
+		e.quitAll(force)
+	case "wqa", "wqall", "xa", "xall":
+		e.writeAll(e.bufs, force, func() { e.quitAll(force) })
 	case "q", "quit":
-		e.quit(false)
-	case "q!", "quit!":
-		e.quit(true)
+		e.quit(force)
 	case "reg", "registers":
 		e.registers(arg)
 	case "e", "edit":
@@ -391,13 +408,13 @@ func (e *Editor) ex(line string) {
 			step = len(e.bufs) - 1
 		}
 		e.show(e.bufs[(index(e.bufs, e.win.buf)+step)%len(e.bufs)])
-	case "bd", "bdelete", "bd!", "bdelete!":
+	case "bd", "bdelete":
 		b := e.win.buf
 		if arg != "" {
 			b = e.find(arg)
 		}
 		if b != nil {
-			e.close(b, strings.HasSuffix(name, "!"))
+			e.close(b, force)
 		}
 	default:
 		e.message = "not a command: " + line
@@ -406,8 +423,14 @@ func (e *Editor) ex(line string) {
 
 // edit shows the file at path, opening it if no buffer holds it.
 func (e *Editor) edit(path string) {
-	if path == "" {
+	switch path {
+	case "":
 		e.message = "no file name"
+		return
+	case "#":
+		if b := e.find(path); b != nil {
+			e.show(b)
+		}
 		return
 	}
 	for _, b := range e.bufs {
@@ -442,8 +465,15 @@ func (e *Editor) list() {
 	e.message = strings.Join(shown, "  ")
 }
 
-// find returns the buffer numbered s, or the one whose name contains s.
+// find returns the buffer numbered s or the one whose name contains s. #
+// names the buffer the window showed before.
 func (e *Editor) find(s string) *buffer {
+	if s == "#" {
+		if e.win.alt == nil {
+			e.message = "no alternate buffer"
+		}
+		return e.win.alt
+	}
 	var found *buffer
 	for _, b := range e.bufs {
 		switch {
@@ -487,6 +517,9 @@ func (e *Editor) close(b *buffer, force bool) {
 			}
 		}
 		w.jumps, w.jumpAt = kept, len(kept)
+		if w.alt == b {
+			w.alt = nil
+		}
 		if w.buf == b {
 			w.show(e.bufs[min(i, len(e.bufs)-1)])
 		}
@@ -504,10 +537,9 @@ func (e *Editor) registers(names string) {
 	e.message = strings.Join(shown, "  ")
 }
 
-// write writes the current buffer to its file. Without force it asks first
+// write writes b to its file, then runs then. Without force it asks first
 // when the file changed on disk since fude read it.
-func (e *Editor) write(force bool) {
-	b := e.win.buf
+func (e *Editor) write(b *buffer, force bool, then func()) {
 	switch {
 	case b.file.path == "":
 		e.message = "no file name"
@@ -519,7 +551,7 @@ func (e *Editor) write(force bool) {
 		e.message = fmt.Sprintf("\"%s\" changed on disk since fude read it, write anyway? (y/n)", b.file.path)
 		e.ask = func(yes bool) {
 			if yes {
-				e.write(true)
+				e.write(b, true, then)
 			}
 		}
 		return
@@ -537,6 +569,23 @@ func (e *Editor) write(force bool) {
 	b.file.isNew = false
 	b.markSaved()
 	e.message = fmt.Sprintf("\"%s\" %s%dB written", b.file.path, tag, n)
+	if then != nil {
+		then()
+	}
+}
+
+// writeAll writes each modified buffer in bs, then runs then. It stops at
+// the first buffer that fails to write.
+func (e *Editor) writeAll(bs []*buffer, force bool, then func()) {
+	for i, b := range bs {
+		if b.modified() {
+			e.write(b, force, func() { e.writeAll(bs[i+1:], force, then) })
+			return
+		}
+	}
+	if then != nil {
+		then()
+	}
 }
 
 // Focus reloads each unmodified buffer whose file changed on disk, as one

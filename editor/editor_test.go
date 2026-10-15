@@ -304,6 +304,59 @@ func TestB83LargeFile(t *testing.T) {
 	}
 }
 
+// B95
+func TestB95WriteAndQuit(t *testing.T) {
+	dir := t.TempDir()
+	a, b := filepath.Join(dir, "a"), filepath.Join(dir, "b")
+	for _, c := range []struct {
+		keys, a, b string
+		done       bool
+	}{
+		{"xZZ", "ne\n", "two\n", true},
+		{"xZQ", "one\n", "two\n", true},
+		{"x:bn<CR>x:bp<CR>:wq<CR>", "ne\n", "two\n", false},
+		{"x:bn<CR>x:wa<CR>:qa<CR>", "ne\n", "wo\n", true},
+		{"x:bn<CR>x:wqa<CR>", "ne\n", "wo\n", true},
+		{"x:qa<CR>", "one\n", "two\n", false},
+		{"x:qa!<CR>", "one\n", "two\n", true},
+	} {
+		change(t, a, "one\n")
+		change(t, b, "two\n")
+		e := start(t, a, b)
+		feed(e, c.keys)
+		if disk(t, a) != c.a || disk(t, b) != c.b || e.Done() != c.done {
+			t.Errorf("%s left %q and %q, done %v, want %q and %q, done %v", c.keys, disk(t, a), disk(t, b), e.Done(), c.a, c.b, c.done)
+		}
+	}
+	// :x writes only a modified buffer.
+	e := start(t, a)
+	change(t, a, "disk\n")
+	feed(e, ":x<CR>")
+	if disk(t, a) != "disk\n" || !e.Done() {
+		t.Errorf(":x on an unmodified buffer left %q, done %v", disk(t, a), e.Done())
+	}
+}
+
+// B96
+func TestB96AlternateBuffer(t *testing.T) {
+	dir := t.TempDir()
+	a, b := filepath.Join(dir, "a"), filepath.Join(dir, "b")
+	change(t, a, "one\n")
+	change(t, b, "two\n")
+	e := start(t, a, b)
+	feed(e, "<C-^>")
+	if e.Message() != "no alternate buffer" {
+		t.Errorf("<C-^> with no alternate said %q", e.Message())
+	}
+	for _, c := range [][2]string{
+		{":bn<CR><C-^>", "one"}, {"<C-^>", "two"}, {"1<C-^>", "one"}, {":b #<CR>", "two"}, {":e #<CR>", "one"},
+	} {
+		if feed(e, c[0]); text(e) != c[1] {
+			t.Errorf("%s showed %q, want %q", c[0], text(e), c[1])
+		}
+	}
+}
+
 // B89
 func TestB89Buffers(t *testing.T) {
 	dir := t.TempDir()

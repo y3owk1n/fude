@@ -11,6 +11,7 @@ import (
 // so edits made in another window move them.
 type window struct {
 	buf    *buffer
+	alt    *buffer // the buffer shown before, for <C-^> and #
 	cursor kernel.MarkID
 	top    kernel.MarkID
 	jumps  []place
@@ -29,6 +30,9 @@ func (w *window) pos() int { return w.buf.text.Mark(w.cursor) }
 // show switches the window to b, at the place b was last left.
 func (w *window) show(b *buffer) {
 	w.buf.last, w.buf.lastTop = w.pos(), w.buf.text.Mark(w.top)
+	if w.buf != b {
+		w.alt = w.buf
+	}
 	w.buf = b
 	w.cursor = b.text.SetMark(b.last, kernel.Right)
 	w.top = b.text.SetMark(b.lastTop, kernel.Left)
@@ -101,6 +105,7 @@ func (n *node) leaf(w *window) *node {
 func (e *Editor) split(across bool) {
 	old := e.win
 	nw := newWindow(old.buf, old.pos(), old.buf.text.Mark(old.top))
+	nw.alt = old.alt
 	l := e.root.leaf(old)
 	add := &node{win: nw}
 	if p := l.parent; p != nil && p.across == across {
