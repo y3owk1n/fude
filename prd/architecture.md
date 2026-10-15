@@ -274,10 +274,11 @@ Clients send a command inside a request.
 
 ```go
 type Request struct {
-    Buffer  int     // 0 for the session's current buffer
-    At      *int    // a byte offset to act at instead of the cursor
-    Base    Version // the version At is in
-    Command Command
+    Buffer   int     // 0 for the session's current buffer
+    At       *int    // a byte offset to act at instead of the cursor
+    Base     Version // the version At is in
+    Proposal bool    // show as ghost text, apply only on accept (B71)
+    Command  Command
 }
 ```
 
@@ -398,8 +399,8 @@ never processes stale states one by one.
 
 ## Decorations
 
-A decoration is a mark range owned by a plugin, or by a buffer for its
-diagnostics, carrying a style.
+A decoration is a mark range owned by a plugin, by a buffer for its
+diagnostics, or by a session for its proposals, carrying a style.
 It moves with edits like any mark, and goes when its owner unloads (B55).
 Clients render them and know nothing about where they came from. Virtual
 text and signs come with the behaviours that need them.
@@ -415,7 +416,7 @@ does.
 
 ```
 key -> client -> grammar (keymap trie, mode state)
-    -> Command when complete -> resolve against snapshot -> Transaction
+    -> edits when a command completes -> Transaction
     -> kernel applies -> timeline node -> event "buffer.changed"
     -> client renders from the new snapshot and current decorations
     -> modules react off the loop (reparse, lsp didChange, plugins)
@@ -716,7 +717,8 @@ or else the temporary directory. Each call is a line of JSON,
 `result` or an `error`. `keys` types keys as one complete input, so keys
 held for a longer mapping run at once. `request` runs a request, and
 `state` changes nothing. Every result is the session's state: its buffer,
-the buffer's name, version and text, the cursor, the mode and the message.
+the buffer's name, version and text, the cursor, the mode, the message and
+the session's proposals on the buffer.
 The server only answers calls. It pushes nothing until a client needs to
 redraw when another client edits.
 
@@ -727,9 +729,14 @@ straight from it. Neovim's UI protocol does not fit, because it shares one
 screen and one cursor between every client, and real Neovim GUIs also call
 much of Neovim's Lua and Vimscript API (D25).
 
-A proposal is a branch off the current node, with its own origin. Clients
-show the branch's edits as ghost text decorations, anchored by `Map`. On
-accept, the server rebases the branch's edits onto the head and applies
-them as one transaction (B72). If an edit since overlaps them, the proposal
-is stale and cannot be accepted until the sender refreshes it (B74). Reject
-drops the branch, and nothing enters the timeline.
+A request with `Proposal` runs its keys on a copy of the buffer's text and
+keeps the one edit they make as a decoration the proposing session owns:
+marks around the text it replaces, and its new text. A view draws the new
+text as ghost text after the range, which it shows struck out, and the
+buffer's text does not change (B71). The marks move with edits, and an
+edit inside the range marks the proposal stale (B74). `:accept [n]` applies
+it as one transaction of the proposer's origin, which makes one node
+(B72), and refuses a stale one. `:reject [n]` drops it, and nothing enters the
+timeline. Both default to the newest proposal on the current buffer. A
+client accepts or rejects with `keys`, and its state lists its proposals on
+its buffer with their ids. A proposal outlives the client that made it.

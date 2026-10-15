@@ -109,6 +109,9 @@ var colours = map[string]tcell.Style{
 	"markup.link":    tcell.StyleDefault.Underline(true),
 	"markup.rule":    tcell.StyleDefault.Foreground(color.Gray),
 	"menu.selected":  tcell.StyleDefault.Reverse(true),
+	// What a proposal would replace.
+	"proposal":       tcell.StyleDefault.Foreground(color.Gray).StrikeThrough(true),
+	"proposal.stale": tcell.StyleDefault.Foreground(color.Red).StrikeThrough(true),
 	"string":         tcell.StyleDefault.Foreground(color.Green),
 	"escape":         tcell.StyleDefault.Foreground(color.Teal),
 	"number":         tcell.StyleDefault.Foreground(color.Olive),
@@ -302,6 +305,11 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 		x := 0
 		for rest := line; ; {
 			at := pos + len(line) - len(rest)
+			for _, g := range v.Ghosts {
+				if g.Pos == at {
+					x = c.ghost(g, v.X, x, y, v.W)
+				}
+			}
 			if v.Current && (at == v.Cursor || x >= v.W && v.Cursor >= at && v.Cursor <= end) {
 				cx, cy, found = v.X+min(x, v.W-1), y, true
 			}
@@ -358,6 +366,25 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 	c.s.FillArea(v.X, v.Y+v.H-1, v.W, 1, ' ', style)
 	c.s.PutStrStyled(v.X, v.Y+v.H-1, status, style)
 	return cx, cy, found
+}
+
+// ghostText shows a line break and a tab in a proposal's text as one cell
+// each.
+var ghostText = strings.NewReplacer("\n", "⏎", "\t", " ")
+
+// ghost draws g's text from column x of a window at left that is w wide,
+// and returns the column after it.
+func (c *client) ghost(g editor.Ghost, left, x, y, w int) int {
+	style := tcell.StyleDefault.Foreground(color.Gray).Italic(true)
+	if g.Stale {
+		style = style.Foreground(color.Red)
+	}
+	for s := ghostText.Replace(g.Text); s != "" && x < w; {
+		var width int
+		s, width = c.s.Put(left+x, y, s, style)
+		x += width
+	}
+	return x
 }
 
 // keys returns ev in Vim notation, or nothing for a key fude does not use

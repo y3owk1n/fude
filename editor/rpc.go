@@ -33,12 +33,14 @@ type Target struct {
 
 // Request is a command for a buffer. With At, it acts there instead of at
 // the cursor, which stays where it was (B75). At is an offset in the text at
-// version Base, mapped through the edits since (B76).
+// version Base, mapped through the edits since (B76). A proposal changes
+// nothing until a user accepts it (B71).
 type Request struct {
-	Buffer  int            `json:"buffer,omitempty"` // 0 for the current one
-	At      *int           `json:"at,omitempty"`
-	Base    kernel.Version `json:"base,omitempty"`
-	Command Command        `json:"command"`
+	Buffer   int            `json:"buffer,omitempty"` // 0 for the current one
+	At       *int           `json:"at,omitempty"`
+	Base     kernel.Version `json:"base,omitempty"`
+	Proposal bool           `json:"proposal,omitempty"`
+	Command  Command        `json:"command"`
 }
 
 // ops are the keys of each operator a command may name.
@@ -94,11 +96,17 @@ func (e *Session) Request(r Request) error {
 		e.win.show(b)
 		defer e.win.show(shown)
 	}
+	at := e.Cursor()
 	if r.At != nil {
-		at, ok := b.text.Map(*r.At, r.Base)
-		if !ok {
+		var ok bool
+		if at, ok = b.text.Map(*r.At, r.Base); !ok {
 			return fmt.Errorf("the text at %d changed since version %d", *r.At, r.Base)
 		}
+	}
+	if r.Proposal {
+		return e.propose(b, at, keys, r.Command.Text)
+	}
+	if r.At != nil {
 		cursor := b.text.SetMark(e.Cursor(), kernel.Right)
 		defer func() {
 			e.setCursor(b.text.Mark(cursor))
@@ -106,12 +114,18 @@ func (e *Session) Request(r Request) error {
 		}()
 		e.setCursor(at)
 	}
+	e.command(keys, r.Command.Text)
+	return nil
+}
+
+// command feeds a command's keys, then types its text if they began an
+// insert.
+func (e *Session) command(keys, text string) {
 	e.keys(keys)
-	if r.Command.Text != "" && e.vim.Mode() == vim.Insert {
-		e.Paste(r.Command.Text)
+	if text != "" && e.vim.Mode() == vim.Insert {
+		e.Paste(text)
 		e.Feed("<Esc>")
 	}
-	return nil
 }
 
 // keys feeds keys as one complete input, so keys held for a longer mapping
@@ -137,13 +151,23 @@ func SocketPath() string {
 
 // state is what the server tells a client after each call.
 type state struct {
-	Buffer  int            `json:"buffer"`
-	Name    string         `json:"name"`
-	Version kernel.Version `json:"version"`
-	Text    string         `json:"text"`
-	Cursor  int            `json:"cursor"`
-	Mode    string         `json:"mode"`
-	Message string         `json:"message,omitempty"`
+	Buffer    int            `json:"buffer"`
+	Name      string         `json:"name"`
+	Version   kernel.Version `json:"version"`
+	Text      string         `json:"text"`
+	Cursor    int            `json:"cursor"`
+	Mode      string         `json:"mode"`
+	Message   string         `json:"message,omitempty"`
+	Proposals []proposal     `json:"proposals,omitempty"` // the session's, on its buffer
+}
+
+// proposal is a proposal as a client reads it.
+type proposal struct {
+	ID    int    `json:"id"`
+	Start int    `json:"start"`
+	End   int    `json:"end"`
+	Text  string `json:"text"`
+	Stale bool   `json:"stale,omitempty"`
 }
 
 var modes = []string{vim.Normal: "normal", vim.Insert: "insert", vim.Cmdline: "cmdline", vim.Visual: "visual", vim.Replace: "replace"}
@@ -201,7 +225,13 @@ func (e *Session) serve(c net.Conn, o kernel.Origin) {
 					return
 				}
 				t := s.Text()
-				reply["result"] = state{s.win.buf.id, s.win.buf.name(), t.Version(), t.Slice(0, t.Len()), s.Cursor(), modes[s.Mode()], s.message}
+				st := state{s.win.buf.id, s.win.buf.name(), t.Version(), t.Slice(0, t.Len()), s.Cursor(), modes[s.Mode()], s.message, nil}
+				for _, d := range s.decos[s] {
+					if d.buf == s.win.buf {
+						st.Proposals = append(st.Proposals, proposal{d.id, d.buf.text.Mark(d.start), d.buf.text.Mark(d.end), d.note, d.style == "proposal.stale"})
+					}
+				}
+				reply["result"] = st
 				left = s.done
 			})
 		}

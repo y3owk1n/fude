@@ -10,9 +10,9 @@ A small kernel holds buffers, marks, transactions and events. Everything a
 user sees, including normal mode, is a module on top. What ships is a
 distribution of modules, the way a Linux distro sits on a kernel.
 
-Every command is a value. A keystroke, a macro, a plugin and an AI agent all
-produce the same `Command`, so dot repeat, macros, remote clients and agent
-proposals share one mechanism.
+Every edit goes through one grammar. A keystroke, a macro, a plugin key and
+an AI agent's command all become keys the vim machine runs, so dot repeat,
+macros, remote clients and agent proposals share one mechanism.
 
 The syntax tree is a first-class noun. `daf` deletes the enclosing function in
 every language fude has a grammar for, from one small query file per

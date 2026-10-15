@@ -35,6 +35,7 @@ type Editor struct {
 	started  bool                      // Load ran, so new buffers attach to servers at once
 	sessions []*Session                // the first is the one that opened the editor
 	setup    []func(*Session)          // what every session's machine gets, such as keymaps
+	proposed int                       // the id of the newest proposal
 
 	now func() time.Time // the clock edits are stamped with
 }
@@ -219,13 +220,13 @@ func (e *Session) add(path string) (string, error) {
 	}
 	e.next++
 	e.bufs = append(e.bufs, b)
+	b.text.Listen(heard{e.Editor, b})
 	if limit := e.cfg.LargeFile; b.text.Snapshot().Len() > int(limit)<<20 {
 		if msg == "" {
 			msg = fmt.Sprintf("\"%s\" is over %dMB, syntax and LSP are off", path, limit)
 		}
 		return msg, nil
 	}
-	b.text.Listen(heard{b})
 	h, ok, err := syntax.New(b.filetype(), e.queries, e.queue)
 	if err != nil {
 		msg = err.Error()
@@ -238,10 +239,30 @@ func (e *Session) add(path string) (string, error) {
 	return msg, nil
 }
 
-// heard passes a buffer's changes to its syntax and its language server.
-type heard struct{ b *buffer }
+// heard passes a buffer's changes to its syntax and its language server,
+// and marks the proposals they overlap stale (B74).
+type heard struct {
+	ed *Editor
+	b  *buffer
+}
 
 func (l heard) Changed(before kernel.Snapshot, edits []kernel.Edit) {
+	for owner, ds := range l.ed.decos {
+		if _, ok := owner.(*Session); !ok {
+			continue
+		}
+		for i, d := range ds {
+			if d.buf != l.b {
+				continue
+			}
+			start, end := l.b.text.Mark(d.start), l.b.text.Mark(d.end)
+			for _, e := range edits {
+				if e.Start < end && start < e.End || e.Start == e.End && start < e.Start && e.Start < end {
+					ds[i].style = "proposal.stale"
+				}
+			}
+		}
+	}
 	out := make([]api.Edit, len(edits))
 	for i, e := range edits {
 		out[i] = api.Edit(e)
@@ -353,6 +374,15 @@ type View struct {
 	Modified, Current bool
 	Highlights        []syntax.Span // in paint order, later ones drawing over earlier ones
 	Decorations       []syntax.Span // plugins' styles, drawn over highlights
+	Ghosts            []Ghost
+}
+
+// Ghost is a proposal's text, drawn before the byte at Pos but not in the
+// text (B71).
+type Ghost struct {
+	Pos   int
+	Text  string
+	Stale bool
 }
 
 // Views returns every window from the top left.
@@ -374,8 +404,12 @@ func (e *Session) Views() []View {
 				if d.buf != w.buf {
 					continue
 				}
-				if s, end := w.buf.text.Mark(d.start), w.buf.text.Mark(d.end); s < end && end > top && s < last {
+				s, end := w.buf.text.Mark(d.start), w.buf.text.Mark(d.end)
+				if s < end && end > top && s < last {
 					v.Decorations = append(v.Decorations, syntax.Span{Start: s, End: end, Name: d.style})
+				}
+				if strings.HasPrefix(d.style, "proposal") && d.note != "" && end >= top && end <= last {
+					v.Ghosts = append(v.Ghosts, Ghost{end, d.note, d.style == "proposal.stale"})
 				}
 			}
 		}
@@ -570,7 +604,8 @@ func (e *Session) quitAll(force bool) {
 	}
 }
 
-// leave ends a session other than the first.
+// leave ends a session other than the first. Its proposals stay until a
+// user decides them.
 func (e *Session) leave() {
 	e.sessions = slices.DeleteFunc(e.sessions, func(s *Session) bool { return s == e })
 	e.done = true
@@ -608,6 +643,8 @@ func (e *Session) ex(line string) {
 		}
 	case "rename":
 		e.rename(arg)
+	case "accept", "reject":
+		e.decide(arg, name == "accept")
 	case "timeline":
 		e.timeline()
 	case "restore":

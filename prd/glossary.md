@@ -52,7 +52,7 @@
   syntax, rendered markdown, hex) and writes edits back to the text.
 - **Client**: anything that attaches to the kernel and sends requests. The
   terminal UI is a client.
-- **Proposal**: a branch of edits a client offers without applying. The
-  user accepts it as one node or rejects it.
+- **Proposal**: an edit a client offers without applying, shown as ghost
+  text. The user accepts it as one node or rejects it.
 - **Capability**: a permission a plugin declares, such as reading buffers or
   spawning a process. The host refuses calls outside it.

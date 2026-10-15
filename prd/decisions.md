@@ -14,12 +14,14 @@ Operator then target, as in Vim. Visual mode is the selection-first escape
 hatch. Why: the user's muscle memory is vim, and tree objects fit vim's noun
 model directly.
 
-## D3. Commands are data
+## D3. Every edit goes through the grammar
 
-Every edit is a `Command` value before it is a transaction. Why: dot repeat,
-plugin-defined verbs and nouns that compose with every existing one, RPC
-and agent proposals all fall out of one type. Macros are keys that produce
-commands (D15).
+Typed keys, a macro, a plugin key and a client's `Command` all reach the
+vim machine as keys, and the machine's edits become transactions. Why:
+with one path, dot repeat, plugin verbs and nouns, RPC and agent proposals
+all behave as typed keys do. A `Command`
+is how a client names an edit instead of typing it (D13). Macros are key
+text (D15).
 
 ## D4. A kernel with modules on top
 
