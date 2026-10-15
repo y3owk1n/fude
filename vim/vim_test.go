@@ -269,6 +269,10 @@ func TestB13TextObjects(t *testing.T) {
 		{"a\n|  \nb", "dip", "a\n|b"},
 		{"a\n|\n\nb\nc\n\nd", "d2ap", "|a"},
 		{"a|\nb\n\nc\nd", "d2ip", "|c\nd"},
+		{"a\n  b|c  \nd", "dil", "a\n  |  \nd"},
+		{"a\n  b|c  \nd", "dal", "|"},
+		{"a\n|\nb", "dil", "a\n|\nb"},
+		{"a\n  b|c\nd", "cilX<Esc>", "a\n  |X\nd"},
 	})
 }
 

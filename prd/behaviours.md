@@ -55,8 +55,8 @@ Where fude departs, the line says so and cites the departure in
 - B11 [2] `d`, `c`, `y` combine with every motion and text object, with
   counts on both sides: `2d3w` deletes six words.
 - B12 [2] `dd`, `cc`, `yy` act on lines, with counts.
-- B13 [2] Text objects `iw aw iW aW is as ip ap` and the quote and bracket
-  pairs `i" a" i' a' i( a( i[ a[ i{ a{ i< a<` select as in Neovim.
+- B13 [2] Text objects `iw aw iW aW is as ip ap il al` and the quote and
+  bracket pairs `i" a" i' a' i( a( i[ a[ i{ a{ i< a<` select as in Neovim.
 - B14 [2] `"x` before a command uses register `x`. Uppercase appends.
   `"_` discards. `"+` is the system clipboard.
 - B15 [2] `p` and `P` put a register, linewise or charwise as it was yanked.

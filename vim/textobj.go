@@ -30,6 +30,16 @@ func textObject(t Text, c, count int, cmd string) (region, bool) {
 	case "p":
 		r.start, r.end = paragraph(t, c, n, around)
 		r.lines = true
+	case "l":
+		// il is the line without its leading and trailing blanks, al every line.
+		if around {
+			return region{start: 0, end: t.Len(), lines: true}, true
+		}
+		ls := LineStart(t, c)
+		line := t.Slice(ls, LineEnd(t, c))
+		r.start = firstNonBlank(t, ls, ls+len(line))
+		r.end = ls + len(strings.TrimRight(line, " \t"))
+		r.end = max(r.end, r.start)
 	case `"`, "'", "`":
 		r.start, r.end, ok = quote(t, c, obj[0], n > 1, around)
 	default:
