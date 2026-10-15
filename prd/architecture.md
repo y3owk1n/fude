@@ -720,7 +720,7 @@ sign_column = false  # keep the sign column when there are no signs (B143)
 icons = false        # nerd font icons in listings and diagnostic signs (B128)
 
 leader = "<Space>"   # what <Leader> in a mapping stands for (B144)
-theme = "dark"       # the terminal client's colours, dark or light (B145)
+theme = "dark"       # dark, light, or a base16 scheme such as "~/.config/stylix/palette.json" (B145, B146)
 
 [keymap.normal]      # and [keymap.visual], [keymap.insert]. Keys map to keys.
 "<Leader>w" = ":w<CR>"
@@ -850,7 +850,12 @@ on a node inside another wins, and of the captures on one node only the last
 pattern's counts. The terminal client colours them from fude's theme, in
 `ui/term/theme.go`: a set of named colours for each of dark and light,
 from which every style derives, starting with the text's colours on the
-ground (B145, D33).
+ground (B145, D33). A base16 scheme fills the same set: base00 to base03
+are the grounds and faint text, base04 and base05 muted and plain text, and
+base08 to base0E errors, numbers, warnings, strings, hints, functions and
+keywords. `editor/` reads the scheme, as config, with one pattern that
+takes both stylix's JSON and Tinted Theming's YAML, so no YAML parser comes
+in (B146).
 
 Each language is a grammar and its queries, from the grammar's own repo
 (D28):

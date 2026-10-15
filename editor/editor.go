@@ -3,6 +3,7 @@
 package editor
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -29,6 +30,7 @@ type Editor struct {
 	bufs      []*buffer
 	next      int // the id the next buffer gets
 	cfg       config
+	base16    *[16]int32 // the colours of the base16 scheme the theme setting names
 	queue     chan func()
 	queries   string // the directory of query files that replace shipped ones
 	plugins   []*plugin.Plugin
@@ -285,6 +287,15 @@ func Start(args []string) (*Session, error) {
 	}
 	if cfgErr != nil {
 		e.message = cfgErr.Error()
+	}
+	if t := cfg.Theme; t != "dark" && t != "light" {
+		colours, err := readBase16(t)
+		if err != nil {
+			e.cfg.Theme = "dark"
+			e.message = cmp.Or(e.message, err.Error())
+		} else {
+			e.base16 = &colours
+		}
 	}
 	e.each(func(s *Session) {
 		for mode, maps := range map[vim.Mode]map[string]string{vim.Normal: cfg.Keymap.Normal, vim.Visual: cfg.Keymap.Visual, vim.Insert: cfg.Keymap.Insert} {
@@ -814,8 +825,9 @@ func (e *Session) Selection() (vim.Selection, bool) { return e.vim.Selection() }
 // Line returns the command line being typed.
 func (e *Session) Line() string { return e.vim.Line() }
 
-// Theme names the colours config.toml asks the client for.
-func (e *Session) Theme() string { return e.cfg.Theme }
+// Theme names the colours config.toml asks the client for, dark or light,
+// or returns the sixteen colours of the base16 scheme it names (B146).
+func (e *Session) Theme() (string, *[16]int32) { return e.cfg.Theme, e.base16 }
 
 // LineCursor returns where the cursor is in Line, in bytes.
 func (e *Session) LineCursor() int { return e.vim.LineCursor() }

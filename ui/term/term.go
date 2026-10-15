@@ -133,8 +133,12 @@ type client struct {
 // newClient draws e on s, in the theme e's config names, or dark for a name
 // it does not know.
 func newClient(s tcell.Screen, e *editor.Session) *client {
-	t, ok := themes[e.Theme()]
-	if !ok {
+	name, colours := e.Theme()
+	t, ok := themes[name]
+	switch {
+	case colours != nil:
+		t = fromBase16(*colours)
+	case !ok:
 		t = themes["dark"]
 	}
 	useTheme(t)

@@ -220,6 +220,11 @@ Where fude departs, the line says so and cites the departure in
   `dark` unless the `theme` setting names `light`. The ground, text,
   syntax, signs, selection and search take the theme's colours, not the
   terminal's (D33).
+- B146 [2] `theme` may name a base16 scheme file instead, such as
+  stylix's `palette.json` or a Tinted Theming scheme, and the client draws
+  in its sixteen colours, each in the role base16's styling guide gives
+  it. A file without all of `base00` to `base0F` says so, and fude draws in
+  `dark`.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays

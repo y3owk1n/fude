@@ -1,13 +1,16 @@
 package term
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/gdamore/tcell/v3"
+	"github.com/gdamore/tcell/v3/color"
 	"github.com/gdamore/tcell/v3/vt"
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/vim"
@@ -108,7 +111,8 @@ func TestB145Theme(t *testing.T) {
 		if _, style, _ := cl.s.Get(0, 0); style.GetBackground() != themes[c.theme].bg {
 			t.Errorf("with %q the ground is %v, want %s's", c.config, style.GetBackground(), c.theme)
 		}
-	} // Text between highlights keeps the theme's colours too.
+	}
+	// Text between highlights keeps the theme's colours too.
 	path := filepath.Join(t.TempDir(), "a.go")
 	if err := os.WriteFile(path, []byte("package a\n\nvar x = 1\n"), 0o600); err != nil {
 		t.Fatal(err)
@@ -129,5 +133,32 @@ func TestB145Theme(t *testing.T) {
 	}
 	if _, style, _ := cl.s.Get(3, 2); style.GetBackground() != themes["dark"].bg {
 		t.Fatalf("the space after var has ground %v", style.GetBackground())
+	}
+}
+
+// B146
+func TestB146Base16(t *testing.T) {
+	dir := t.TempDir()
+	stylix := filepath.Join(dir, "palette.json")
+	tinted := filepath.Join(dir, "scheme.yaml")
+	var j, y strings.Builder
+	for i := range 16 {
+		fmt.Fprintf(&j, "  \"base0%X\": \"%06x\",\n", i, 0x101010*(i%15+1))
+		fmt.Fprintf(&y, "  base0%X: \"#%06x\"\n", i, 0x101010*(i%15+1))
+	}
+	for path, src := range map[string]string{stylix: "{\n" + j.String() + "  \"scheme\": \"x\"\n}\n", tinted: "system: \"base16\"\npalette:\n" + y.String()} {
+		if err := os.WriteFile(path, []byte(src), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		cl := startWith(t, fmt.Sprintf("theme = %q", path))
+		cl.draw()
+		if _, style, _ := cl.s.Get(0, 0); style.GetBackground() != color.NewHexColor(0x101010) {
+			t.Errorf("with %s the ground is %v, want base00", filepath.Base(path), style.GetBackground())
+		}
+	}
+	// A file that is not a scheme says so, and fude draws in dark.
+	cl := startWith(t, fmt.Sprintf("theme = %q", filepath.Join(dir, "none")))
+	if cl.draw(); !strings.Contains(cl.e.Message(), "theme") {
+		t.Errorf("a missing scheme said %q", cl.e.Message())
 	}
 }

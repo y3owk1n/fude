@@ -39,6 +39,21 @@ var themes = map[string]theme{
 	},
 }
 
+// fromBase16 is the theme a base16 scheme's colours, base00 to base0F, make,
+// by the roles base16's styling guide gives them (B146).
+func fromBase16(b [16]int32) theme {
+	c := func(i int) color.Color { return color.NewHexColor(b[i]) }
+	return theme{
+		bg: c(0x0), surface: c(0x1), raised: c(0x2), border: c(0x2),
+		text: c(0x5), muted: c(0x4), faint: c(0x3),
+		cursorLine: c(0x1), selection: c(0x2),
+		normal: c(0xD), insert: c(0xB), visual: c(0xE), cmd: c(0x9),
+		err: c(0x8), warn: c(0xA), info: c(0xD), hint: c(0xC),
+		keyword: c(0xE), str: c(0xB), function: c(0xD), typ: c(0xA),
+		number: c(0x9), comment: c(0x3), punct: c(0x4),
+	}
+}
+
 // The styles drawing takes from the theme in use, which useTheme sets.
 var (
 	th   theme
