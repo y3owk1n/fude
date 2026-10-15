@@ -21,6 +21,54 @@ type Editor struct {
 	message string
 	done    bool
 	height  int // how many lines the view shows
+
+	jumps  []place
+	jumpAt int // the jump <C-o> last moved to, or len(jumps)
+}
+
+// place is a position in a buffer, kept as a mark so it follows edits.
+type place struct {
+	buf  *buffer
+	mark kernel.MarkID
+}
+
+// show switches to b. Leaving a buffer is a jump.
+func (e *Editor) show(b *buffer) {
+	if b != e.cur {
+		e.pushJump(e.cur.cursor)
+		e.cur = b
+	}
+}
+
+// pushJump records pos in the shown buffer as a jump, dropping any older one
+// on the same line of the same buffer.
+func (e *Editor) pushJump(pos int) {
+	b, t := e.cur, e.cur.text.Snapshot()
+	var kept []place
+	for _, j := range e.jumps {
+		if j.buf != b || !sameLine(t, b.text.Mark(j.mark), pos) {
+			kept = append(kept, j)
+		}
+	}
+	e.jumps = append(kept, place{b, b.text.SetMark(pos, kernel.Right)})
+	e.jumpAt = len(e.jumps)
+}
+
+// jump moves n jumps back, or forward when n is negative. The first step
+// back records where the cursor is, so <C-i> can return to it.
+func (e *Editor) jump(n int) bool {
+	if n > 0 && e.jumpAt == len(e.jumps) {
+		e.pushJump(e.cur.cursor)
+		e.jumpAt = len(e.jumps) - 1
+	}
+	i := e.jumpAt - n
+	if i < 0 || i >= len(e.jumps) {
+		return false
+	}
+	j := e.jumps[i]
+	e.jumpAt, e.cur = i, j.buf
+	e.cur.cursor = j.buf.text.Mark(j.mark)
+	return true
 }
 
 // Open opens each path as a buffer and shows the first. A path that does not
@@ -187,14 +235,14 @@ func (e *Editor) ex(line string) {
 		e.list()
 	case "b", "buffer":
 		if b := e.find(arg); b != nil {
-			e.cur = b
+			e.show(b)
 		}
 	case "bn", "bnext", "bp", "bprevious", "bN", "bNext":
 		step := 1
 		if name != "bn" && name != "bnext" {
 			step = len(e.bufs) - 1
 		}
-		e.cur = e.bufs[(e.index(e.cur)+step)%len(e.bufs)]
+		e.show(e.bufs[(e.index(e.cur)+step)%len(e.bufs)])
 	case "bd", "bdelete", "bd!", "bdelete!":
 		b := e.cur
 		if arg != "" {
@@ -216,7 +264,7 @@ func (e *Editor) edit(path string) {
 	}
 	for _, b := range e.bufs {
 		if b.is(path) {
-			e.cur = b
+			e.show(b)
 			return
 		}
 	}
@@ -225,7 +273,8 @@ func (e *Editor) edit(path string) {
 		e.message = err.Error()
 		return
 	}
-	e.cur, e.message = e.bufs[len(e.bufs)-1], msg
+	e.show(e.bufs[len(e.bufs)-1])
+	e.message = msg
 }
 
 // list shows every buffer with its number, % for the shown one and + for a
@@ -284,6 +333,13 @@ func (e *Editor) close(b *buffer, force bool) {
 	}
 	i := e.index(b)
 	e.bufs = append(e.bufs[:i], e.bufs[i+1:]...)
+	var kept []place
+	for _, j := range e.jumps {
+		if j.buf != b {
+			kept = append(kept, j)
+		}
+	}
+	e.jumps, e.jumpAt = kept, len(kept)
 	if len(e.bufs) == 0 {
 		if _, err := e.add(""); err != nil {
 			e.message = err.Error()
@@ -386,7 +442,19 @@ func (h host) Mark(name rune) (int, bool) {
 }
 
 func (h host) Viewport() (int, int) { return h.e.Top(), h.e.height }
-func (h host) SetTop(top int)       { h.e.cur.text.MoveMark(h.e.cur.top, top) }
+func (h host) PushJump(pos int)     { h.e.pushJump(pos) }
+func (h host) Jump(n int) bool      { return h.e.jump(n) }
+
+func (h host) Change(n int) bool {
+	b := h.e.cur
+	i := b.changeAt - n
+	if i < 0 || i >= len(b.changes) {
+		return false
+	}
+	b.changeAt, b.cursor = i, b.text.Mark(b.changes[i])
+	return true
+}
+func (h host) SetTop(top int) { h.e.cur.text.MoveMark(h.e.cur.top, top) }
 
 func (h host) Undo() (int, int, bool) {
 	b := h.e.cur
@@ -416,5 +484,8 @@ func (h host) Apply(edits []vim.Edit, label string) error {
 	h.begin()
 	err := b.text.Apply(t)
 	h.end()
+	if err == nil {
+		b.pushChange(edits[0].Start)
+	}
 	return err
 }

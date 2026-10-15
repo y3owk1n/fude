@@ -263,6 +263,54 @@ func TestB89Buffers(t *testing.T) {
 	}
 }
 
+// B90
+func TestB90JumpsAndChanges(t *testing.T) {
+	var lines []string
+	for i := 1; i <= 20; i++ {
+		lines = append(lines, fmt.Sprintf("l%d x", i))
+	}
+	dir := t.TempDir()
+	path, other := filepath.Join(dir, "a"), filepath.Join(dir, "b")
+	if err := os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(other, []byte("b1\nb2\nb3"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		keys      string
+		text      string // the first line of the buffer shown at the end
+		line, col int
+	}{
+		{"G<C-o>", "l1 x", 1, 0},
+		{"G<C-o><C-i>", "l1 x", 20, 0},
+		{"5G10G15G<C-o><C-o>", "l1 x", 5, 0},
+		{"5G10G15G<C-o><C-o><C-i>", "l1 x", 10, 0},
+		{"jjj<C-o>", "l1 x", 4, 0},
+		{"/l9<CR><C-o>", "l1 x", 1, 0},
+		{"5Gjj10G<C-o>", "l1 x", 7, 0},
+		{"G<C-o><C-o>", "l1 x", 1, 0},
+		{"Ggg<C-o>", "l1 x", 20, 0},
+		{"G\t", "l1 x", 20, 0},
+		{"3Gx8Gx12Gxg;", "l1 x", 12, 0},
+		{"3Gx8Gx12Gxg;g;", "l1 x", 8, 0},
+		{"3Gx8Gx12Gxg;g;g,", "l1 x", 12, 0},
+		{"3Gx8Gx12Gx2g;", "l1 x", 8, 0},
+		{"llx3Gx8Gg;g;", "l1x", 1, 2},
+		{"j:e " + other + "<CR><C-o>", "l1 x", 2, 0},
+		{"j:e " + other + "<CR><C-o><C-i>", "b1", 1, 0},
+	} {
+		e := open(t, path)
+		feed(e, c.keys)
+		got := text(e)
+		line := strings.Count(got[:e.Cursor()], "\n") + 1
+		col := e.Cursor() - strings.LastIndexByte(got[:e.Cursor()], '\n') - 1
+		if first, _, _ := strings.Cut(got, "\n"); first != c.text || line != c.line || col != c.col {
+			t.Errorf("%q: in %q at line %d col %d, want %q at %d and %d", c.keys, first, line, col, c.text, c.line, c.col)
+		}
+	}
+}
+
 // run opens a file holding each case's text, feeds its keys and compares the
 // text with | at the cursor.
 func run(t *testing.T, cases [][3]string) {

@@ -41,6 +41,12 @@ type Host interface {
 	Mark(name rune) (int, bool)
 	Viewport() (top, height int) // the first line shown and how many fit
 	SetTop(top int)
+	// These keep the jumplist and changelist. PushJump records where a jump
+	// leaves from. Jump and Change move n entries back, or forward when n is
+	// negative, and report false at either end. A jump may change buffers.
+	PushJump(pos int)
+	Jump(n int) bool
+	Change(n int) bool
 }
 
 // Mode is normal, insert, command line, visual or replace.
@@ -91,11 +97,9 @@ type Machine struct {
 	anchor     int // the end of the selection the cursor is not on
 	lastVisual Key // the kind of the last selection, for gv
 
-	jumps, changes history
-	marksMade      int // gives each private mark a new name
-	anchorFirst    bool
-	blockInsert    *blockInsert
-	replaced       []string // what each key typed in replace mode overwrote
+	anchorFirst bool
+	blockInsert *blockInsert
+	replaced    []string // what each key typed in replace mode overwrote
 
 	// Command line and search.
 	prompt string // :, / or ?
@@ -221,11 +225,7 @@ func (m *Machine) run(keys []Key) error {
 // apply edits through the host and marks the command as a change.
 func (m *Machine) apply(edits []Edit, label string) error {
 	m.changed = true
-	if err := m.h.Apply(edits, label); err != nil {
-		return err
-	}
-	m.pushChange(edits[0].Start)
-	return nil
+	return m.h.Apply(edits, label)
 }
 
 // repeat replays the last change, with count in place of its own when set.
@@ -394,7 +394,7 @@ func (m *Machine) command(cmd string) error {
 			m.h.SetCursor(p)
 		default:
 			if isJump(cmd) {
-				m.pushJump(m.h.Cursor())
+				m.h.PushJump(m.h.Cursor())
 			}
 			m.h.SetCursor(clamp(m.h.Text(), p))
 		}
@@ -426,13 +426,13 @@ func (m *Machine) command(cmd string) error {
 	case "gv":
 		m.reselect()
 	case "<C-o>":
-		m.walk(&m.jumps, max(count, 1))
+		m.walk(m.h.Jump, max(count, 1))
 	case "<C-i>", "\t":
-		m.walk(&m.jumps, -max(count, 1))
+		m.walk(m.h.Jump, -max(count, 1))
 	case "g;":
-		m.walk(&m.changes, max(count, 1))
+		m.walk(m.h.Change, max(count, 1))
 	case "g,":
-		m.walk(&m.changes, -max(count, 1))
+		m.walk(m.h.Change, -max(count, 1))
 	case "&":
 		return m.ex("&&")
 	case "v", "V", "<C-v>":

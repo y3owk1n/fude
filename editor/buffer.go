@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/y3owk1n/fude/core/kernel"
+	"github.com/y3owk1n/fude/vim"
 )
 
 // buffer is one open file: its text, where the cursor was, and what the vim
@@ -24,6 +25,25 @@ type buffer struct {
 
 	marks map[rune]kernel.MarkID
 	top   kernel.MarkID // on the first line shown, so it follows edits
+
+	changes  []kernel.MarkID // where edits happened, oldest first
+	changeAt int             // the change g; last moved to, or len(changes)
+}
+
+// pushChange records an edit at pos, replacing the newest entry when it is
+// on the same line.
+func (b *buffer) pushChange(pos int) {
+	t := b.text.Snapshot()
+	if n := len(b.changes); n > 0 && sameLine(t, b.text.Mark(b.changes[n-1]), pos) {
+		b.text.MoveMark(b.changes[n-1], pos)
+	} else {
+		b.changes = append(b.changes, b.text.SetMark(pos, kernel.Right))
+	}
+	b.changeAt = len(b.changes)
+}
+
+func sameLine(t kernel.Snapshot, p, q int) bool {
+	return vim.LineStart(t, p) == vim.LineStart(t, q)
 }
 
 // openBuffer reads path into a buffer, and returns what to tell the user.
