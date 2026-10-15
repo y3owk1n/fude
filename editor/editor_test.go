@@ -580,6 +580,26 @@ func TestB37Wrap(t *testing.T) {
 	}
 }
 
+// B38
+func TestB38Ruler(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "f")
+	change(t, path, "ab\n\tx\n\n4\n5\n6\n")
+	e := open(t, path)
+	e.SetSize(40, 4)
+	for _, c := range [][2]string{{"", "1,1 Top"}, {"j$", "2,2-9 Top"}, {"j", "3,0-1 Top"}, {"j", "4,1 33%"}, {"G", "6,1 Bot"}} {
+		feed(e, c[0])
+		if got := strings.Join(strings.Fields(e.Views()[0].Ruler), " "); got != c[1] {
+			t.Errorf("after %q the ruler is %q, want %q", c[0], got, c[1])
+		}
+	}
+	if feed(e, "2d"); e.Shown() != "2d" {
+		t.Errorf("2d shows %q", e.Shown())
+	}
+	if feed(e, "<Esc>"); e.Shown() != "" {
+		t.Errorf("after <Esc> it shows %q", e.Shown())
+	}
+}
+
 // B31
 func TestB31Timeline(t *testing.T) {
 	e := open(t, filepath.Join(t.TempDir(), "f"))

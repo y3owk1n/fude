@@ -85,6 +85,7 @@ type Machine struct {
 	opCount int
 	reg     rune // the register named with ", or 0
 	regs    map[rune]register
+	shown   []Key  // the keys of the command being typed, for Shown
 	pending Key    // g, f, t, F, T, ", q, @ or a text object's i or a
 	find    string // the last f, t, F or T and its character
 	want    int    // the column j and k aim for
@@ -190,6 +191,7 @@ func (m *Machine) fetch(name rune) (register, bool, error) {
 
 // Feed handles one key. It returns the host's error if an edit fails.
 func (m *Machine) Feed(k Key) error {
+	defer m.show(k)
 	m.beep, m.msg = false, ""
 	if m.mode == Normal {
 		// The host's own edits, such as another client's, can leave the
@@ -243,6 +245,27 @@ func (m *Machine) feed(k Key) error {
 		m.armed = true
 	}
 	return err
+}
+
+// Shown returns the keys of the command being typed, as Neovim's showcmd
+// shows them, or "" between commands (B38).
+func (m *Machine) Shown() string {
+	var b strings.Builder
+	for _, k := range m.shown {
+		b.WriteString(string(k))
+	}
+	return b.String()
+}
+
+// show keeps k for Shown while a command is being typed in normal or visual
+// mode, and forgets the keys once it is done.
+func (m *Machine) show(k Key) {
+	typing := m.pending != "" || m.op != "" || m.count > 0 || m.reg != 0 || len(m.held) > 0
+	if !typing || m.mode == Insert || m.mode == Cmdline || m.mode == Replace {
+		m.shown = nil
+		return
+	}
+	m.shown = append(m.shown, k)
 }
 
 // Idle reports whether the machine is in normal mode between commands, with

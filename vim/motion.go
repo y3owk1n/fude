@@ -537,6 +537,10 @@ moves:
 	return clamp(t, p), true
 }
 
+// Column returns the screen column of pos in the line at start, counting
+// from 0, with tabs as wide as they show.
+func Column(t Text, start, pos int) int { return column(t, start, pos) }
+
 // Rows returns where each screen row of the line at start begins when it
 // wraps at cols columns: start, then each cluster that does not fit on the
 // row before it. A tab is as wide as it is at its column in the line.

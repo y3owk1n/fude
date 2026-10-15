@@ -70,6 +70,10 @@ Where fude departs, the line says so and cites the departure in
 - B37 [2] A line longer than its window wraps onto the rows below, as with
   Neovim's `wrap`, and the window scrolls so the cursor's whole line shows.
   Rows past the end of the text show `~`.
+- B38 [2] Each window's status line ends with Neovim's ruler: the cursor's
+  line and column, its screen column when that differs, and `All`, `Top`,
+  `Bot` or how far down the view is. The current window's also shows the
+  keys of a command being typed, as `showcmd` does.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays

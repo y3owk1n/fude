@@ -418,6 +418,7 @@ type View struct {
 	Ghosts            []Ghost
 	Matches           [][2]int // of the search, shown in every window
 	Segments          []string // plugins' statusline segments, in the order they loaded
+	Ruler             string   // the cursor's line and column, and where the view is (B38)
 }
 
 // Ghost is a proposal's text, drawn before the byte at Pos but not in the
@@ -443,6 +444,7 @@ func (e *Session) Views() []View {
 			v.Highlights = h.Show(t, top, last)
 		}
 		v.Matches = e.vim.Matches(t, top, last)
+		v.Ruler = ruler(t, w.pos(), top, max(w.h-1, 1), w.w)
 		for _, p := range e.plugins {
 			if s := e.segments[p][w.buf]; s != "" {
 				v.Segments = append(v.Segments, s)
@@ -466,6 +468,46 @@ func (e *Session) Views() []View {
 	}
 	return out
 }
+
+// ruler is what Neovim's ruler shows for a window of rows rows, cols
+// wide, from top with the cursor at c: line,col, then -screen column when
+// it differs, then All, Top, Bot or how far down the view is (B38).
+func ruler(t kernel.Snapshot, c, top, rows, cols int) string {
+	line, ls := t.LineOf(c), vim.LineStart(t, c)
+	col, vcol := c-ls+1, vim.Column(t, ls, c)+1
+	if ls == vim.LineEnd(t, ls) {
+		col = 0
+	}
+	at := fmt.Sprintf("%d,%d", line+1, col)
+	if vcol != col {
+		at += fmt.Sprintf("-%d", vcol)
+	}
+	// last is the last line the view shows.
+	last := t.LineOf(top)
+	for p, n := top, 0; ; p = vim.LineEnd(t, p) + 1 {
+		if n += len(vim.Rows(t, p, cols)); n > rows {
+			break
+		}
+		last = t.LineOf(p)
+		if vim.LineEnd(t, p) == t.Len() {
+			break
+		}
+	}
+	above, below := t.LineOf(top), t.Lines()-1-last
+	where := fmt.Sprintf("%d%%", above*100/max(above+below, 1))
+	switch {
+	case above == 0 && below == 0:
+		where = "All"
+	case above == 0:
+		where = "Top"
+	case below == 0:
+		where = "Bot"
+	}
+	return fmt.Sprintf("%-*s %s", 17-len(where), at, where)
+}
+
+// Shown returns the keys of the command being typed, or "".
+func (e *Session) Shown() string { return e.vim.Shown() }
 
 // Top returns the start of the current window's first line shown.
 func (e *Session) Top() int { return e.topOf(e.win) }

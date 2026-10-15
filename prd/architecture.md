@@ -449,6 +449,12 @@ each row of a line starts. The editor scrolls the window by those rows and
 the client draws them, so the two agree. Rows past the end of the text
 show `~` (B37).
 
+A window's status line shows the buffer's name and `[+]` when it is
+modified, then on the right the plugins' segments, the keys of a command
+being typed in the current window, and Neovim's default ruler. The ruler
+is an 18-column field: `line,col`, then `-vcol` when the screen column
+differs, then `All`, `Top`, `Bot` or how far down the view is (B38).
+
 The client keeps a cell grid, diffs it against the previous frame, and
 writes only the changed cells in one write. It wraps each frame in
 synchronized output where the terminal supports it.
