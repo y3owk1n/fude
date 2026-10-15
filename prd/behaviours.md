@@ -190,6 +190,8 @@ Where fude departs, the line says so and cites the departure in
 - B48 [4] A plugin with `process` runs the programs its `[[plugin]]` table
   lists, and no others, in the project and within its call's budget, and
   reads what they print.
+- B49 [4] A plugin with `net` gets http and https URLs on the hosts its
+  `[[plugin]]` table lists, and no others, even through a redirect.
 - B58 [4] A plugin with `ui` shows a segment on the statusline of the
   buffer it read.
 - B59 [4] A plugin with `ui` shows markdown in a float at the cursor, as

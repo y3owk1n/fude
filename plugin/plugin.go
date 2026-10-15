@@ -7,6 +7,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -67,7 +70,7 @@ type Registration struct {
 // memoryPages is the most memory a plugin may grow to, 64MB.
 const memoryPages = 1024
 
-// capabilities are the ones a plugin may declare. net grants nothing yet.
+// capabilities are the ones a plugin may declare.
 var capabilities = []string{"buffer.read", "buffer.write", "ui", "fs.read", "process", "net"}
 
 // Errors a host function returns to the plugin.
@@ -77,6 +80,7 @@ const (
 	errMemory = -3 // the plugin's memory could not take the result
 	errFile   = -4 // a file outside the project, or one that cannot be read
 	errRun    = -5 // a program the plugin did not declare, or one that failed
+	errNet    = -6 // a host the plugin did not declare, or a request that failed
 )
 
 // ErrBusy is what a call on the input path returns while another call
@@ -110,11 +114,12 @@ type call struct {
 // errBudget is a call that ran past its budget. The plugin is closed.
 var errBudget = errors.New("ran past its budget")
 
-// Grants are what config.toml lets a plugin do: its capabilities, and the
-// programs process may run.
+// Grants are what config.toml lets a plugin do: its capabilities, the
+// programs process may run and the hosts net may reach.
 type Grants struct {
 	Capabilities []string
 	Programs     []string
+	Hosts        []string
 }
 
 // Load compiles the plugin at path and instantiates it with g. Compiled code
@@ -225,6 +230,7 @@ func (p *Plugin) host(ctx context.Context) error {
 		NewFunctionBuilder().WithFunc(p.float).Export("float").
 		NewFunctionBuilder().WithFunc(p.readFile).Export("read_file").
 		NewFunctionBuilder().WithFunc(p.runProgram).Export("run").
+		NewFunctionBuilder().WithFunc(p.httpGet).Export("http_get").
 		NewFunctionBuilder().WithFunc(p.decorate).Export("decorate").
 		NewFunctionBuilder().WithFunc(p.undecorate).Export("undecorate").
 		Instantiate(ctx)
@@ -324,6 +330,65 @@ func (p *Plugin) runProgram(ctx context.Context, m api.Module, ptr, n uint32) in
 		return errRun
 	}
 	return give(ctx, m, string(out))
+}
+
+// maxBody is the most of a response http_get reads, 16MB.
+const maxBody = 16 << 20
+
+// httpGet gets the http or https URL at (ptr, n) and writes the response's
+// body into memory the plugin allocates. Its host must be one the plugin's
+// table lists, and the call's budget stops the request (B49).
+func (p *Plugin) httpGet(ctx context.Context, m api.Module, ptr, n uint32) int64 {
+	if p.call == nil || !p.allowed("net", "http_get") {
+		return errDenied
+	}
+	b, ok := m.Memory().Read(ptr, n)
+	if !ok {
+		return errRange
+	}
+	body, err := p.get(ctx, string(b))
+	if err != nil {
+		p.log(fmt.Sprintf("%s: http_get: %v", p.Name, err))
+		return errNet
+	}
+	return give(ctx, m, string(body))
+}
+
+// get gets rawURL if the plugin may reach its host.
+func (p *Plugin) get(ctx context.Context, rawURL string) ([]byte, error) {
+	u, err := url.Parse(rawURL)
+	switch {
+	case err != nil:
+		return nil, fmt.Errorf("get %s: %w", rawURL, err)
+	case u.Scheme != "http" && u.Scheme != "https":
+		return nil, fmt.Errorf("get %s: only http and https", rawURL)
+	case !slices.Contains(p.Hosts, u.Hostname()):
+		return nil, fmt.Errorf("get %s: %s is not a host it declared", rawURL, u.Hostname())
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("get %s: %w", rawURL, err)
+	}
+	// A redirect may not lead to a host the plugin did not declare.
+	client := &http.Client{CheckRedirect: func(r *http.Request, _ []*http.Request) error {
+		if !slices.Contains(p.Hosts, r.URL.Hostname()) {
+			return fmt.Errorf("redirect to %s, which it did not declare", r.URL.Hostname())
+		}
+		return nil
+	}}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("get %s: %w", rawURL, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode/100 != 2 {
+		return nil, fmt.Errorf("get %s: %s", rawURL, resp.Status)
+	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxBody))
+	if err != nil {
+		return nil, fmt.Errorf("get %s: %w", rawURL, err)
+	}
+	return body, nil
 }
 
 // read reads the file at name, relative to the project, if it is in it.

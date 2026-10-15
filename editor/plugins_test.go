@@ -2,6 +2,8 @@ package editor_test
 
 import (
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -160,6 +162,34 @@ func TestB48RunPrograms(t *testing.T) {
 	}
 	if log := fudeLog(); !strings.Contains(log, "proc: hi\n") || !strings.Contains(log, "proc: refused") {
 		t.Fatalf("the plugin logged:\n%s", log)
+	}
+}
+
+// B49
+func TestB49HTTPGet(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/away" {
+			http.Redirect(w, r, "http://example.invalid/", http.StatusFound)
+			return
+		}
+		fmt.Fprint(w, "pong")
+	}))
+	defer srv.Close()
+	wasm, err := filepath.Abs(filepath.Join("..", "plugin", "testdata", "net.wasm"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	config(t, fmt.Sprintf("[[plugin]]\npath = %q\ncapabilities = [\"buffer.read\", \"net\"]\nhosts = [\"127.0.0.1\"]\n", wasm))
+	for url, want := range map[string]string{srv.URL: "net: pong", srv.URL + "/away": "redirect to example.invalid"} {
+		t.Setenv("XDG_STATE_HOME", t.TempDir())
+		path := filepath.Join(t.TempDir(), "url")
+		change(t, path, url)
+		e := start(t, path)
+		e.Load()
+		(<-e.Queue())()
+		if log := fudeLog(); !strings.Contains(log, want) || !strings.Contains(log, "net: refused") {
+			t.Fatalf("getting %s, the plugin logged:\n%s", url, log)
+		}
 	}
 }
 

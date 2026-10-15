@@ -494,14 +494,15 @@ under a budget of 100ms. A plugin imports host functions from the module `fude`,
 | `ui` | decorations, statusline segments, floating windows |
 | `fs.read` | read files under the project root |
 | `process` | spawn a declared program |
-| `net` | open connections to declared hosts |
+| `net` | get http and https URLs on declared hosts |
 
 The plugin passes text as a pointer and length into its memory. The host returns text by calling the
 plugin's `alloc` and writing there, and returns the `i64` `ptr<<32|len`. A
 negative result is an error: -1 when the plugin did not declare the
 capability, -2 for a range outside the text, -3 when its memory could not
 take the result, -4 for a file outside the project or one that cannot be
-read, -5 for a program the plugin may not run or one that failed.
+read, -5 for a program the plugin may not run or one that failed, -6 for a
+host it may not reach or a request that failed.
 
 | Function | Capability | Does |
 |---|---|---|
@@ -516,6 +517,7 @@ read, -5 for a program the plugin may not run or one that failed.
 | `undecorate(id) -> i32` | `ui` | removes a decoration |
 | `read_file(ptr, len) -> i64` | `fs.read` | the file at the path, relative to the project, the directory fude started in. fude refuses a path that leads outside it, through `..` or a link (B47) |
 | `run(ptr, len) -> i64` | `process` | what the program prints, run with its arguments, NUL-separated, in the project. It must be in the plugin's `programs`, and the call's budget stops it (B48) |
+| `http_get(ptr, len) -> i64` | `net` | the body of the http or https URL, up to 16MB. Its host, and any host a redirect leads to, must be in the plugin's `hosts`, and the call's budget stops the request (B49) |
 | `float(ptr, len) -> i32` | `ui` | shows the markdown in a float at the cursor, or closes it for "" (B59) |
 | `status(ptr, len) -> i32` | `ui` | shows the text on the statusline of the buffer the call read, or none for "" (B58) |
 
@@ -530,9 +532,9 @@ adding that with `Machine.Command`. So they compose with every built-in,
 and macros and dot repeat replay them (B52, B54). A call that fails unloads
 the plugin, and using what it added then says the plugin is unloaded.
 
-A plugin declares its capabilities in `config.toml`, and for `process` the
-programs it may run as `programs = ["git"]`. `net` is accepted there but
-grants nothing yet. A call outside the
+A plugin declares its capabilities in `config.toml`, for `process` the
+programs it may run as `programs = ["git"]`, and for `net` the hosts it may
+reach as `hosts = ["api.github.com"]`. A call outside the
 declared capabilities returns -1, and fude logs it to
 `$XDG_STATE_HOME/fude/log` (B50).
 

@@ -33,6 +33,7 @@ type config struct {
 		Path         string   `toml:"path"` // relative to the config directory
 		Capabilities []string `toml:"capabilities"`
 		Programs     []string `toml:"programs"` // what process may run
+		Hosts        []string `toml:"hosts"`    // what net may reach
 	} `toml:"plugin"`
 }
 
