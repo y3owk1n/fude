@@ -28,21 +28,26 @@ var (
 	goObjects string
 )
 
-// languages are the grammars fude links in, by filetype, with their queries
-// (D28, D29).
-var languages = map[string]struct {
+// language is a grammar and its queries.
+type language struct {
 	lang                *ts.Language
 	highlights, objects string
 	comment             string // %s stands for the commented text
-}{
+}
+
+// linked are the grammars fude links in, by filetype (D29).
+var linked = map[string]*language{
 	"go": {ts.NewLanguage(tsgo.Language()), goHighlights, goObjects, "// %s"},
 }
 
 // Comment returns how filetype comments a line, such as "// %s", or false
-// when fude has no grammar for it.
+// when fude knows no comment syntax for it.
 func Comment(filetype string) (string, bool) {
-	l, ok := languages[filetype]
-	return l.comment, ok
+	if l, ok := linked[filetype]; ok {
+		return l.comment, true
+	}
+	g, ok := registry[filetype]
+	return g.comment, ok
 }
 
 // Object is a text object a grammar gives: the capture it selects, or ""
@@ -131,9 +136,9 @@ type request struct {
 // after each new parse lands. A query in dir/<filetype>/ replaces the
 // shipped one of the same name.
 func New(filetype, dir string, queue chan<- func(), parsed func()) (*Buffer, bool, error) {
-	l, ok := languages[filetype]
-	if !ok {
-		return nil, false, nil
+	l, ok, err := lookup(filetype)
+	if !ok || err != nil {
+		return nil, false, err
 	}
 	q, err := query(l.lang, dir, filetype, "highlights", l.highlights)
 	if err != nil {
@@ -596,9 +601,9 @@ func withComma(n *ts.Node, start, end int) (int, int) {
 // caller's goroutine, so text should be short, such as code in a hover. A
 // query in dir/<filetype>/ replaces the shipped one, as for buffers.
 func Highlight(filetype, dir, text string) ([]Span, error) {
-	l, ok := languages[filetype]
-	if !ok {
-		return nil, nil
+	l, ok, err := lookup(filetype)
+	if !ok || err != nil {
+		return nil, err
 	}
 	q, err := query(l.lang, dir, filetype, "highlights", l.highlights)
 	if err != nil {

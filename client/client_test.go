@@ -24,6 +24,14 @@ func TestMain(m *testing.M) {
 	os.Setenv("XDG_STATE_HOME", filepath.Join(dir, "state"))
 	os.Setenv("XDG_CONFIG_HOME", filepath.Join(dir, "config"))
 	os.Setenv("XDG_CACHE_HOME", filepath.Join(dir, "cache"))
+	os.Setenv("XDG_DATA_HOME", filepath.Join(dir, "data"))
+	// No test fetches a grammar.
+	if err := os.MkdirAll(filepath.Join(dir, "config", "fude"), 0o700); err != nil {
+		panic(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "config", "fude", "config.toml"), []byte("auto_install = false\n"), 0o600); err != nil {
+		panic(err)
+	}
 	code := m.Run()
 	os.RemoveAll(dir)
 	os.Exit(code)

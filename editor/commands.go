@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
 )
 
@@ -86,6 +87,13 @@ func init() {
 		}, completePath},
 		{vim.Command{Name: "enew", Help: "shows a new empty buffer"}, func(e *Session, _ call) { e.empty() }, nil},
 		{vim.Command{Name: "files", Help: "finds a file by name"}, func(e *Session, _ call) { e.files() }, nil},
+		{vim.Command{Name: "grammar", Args: "[install {filetype}]", Help: "lists the grammars and whether each is built, or builds one again"}, func(e *Session, x call) { e.grammar(x.arg) }, func(_ *Session, _ string, start int, arg string, _ bool) (int, []string) {
+			var names []string
+			for _, g := range syntax.Grammars() {
+				names = append(names, "install "+g.Filetype)
+			}
+			return start, match(names, arg)
+		}},
 		{vim.Command{Name: "grep", Args: "[text]", Help: "searches the files for text as it is typed"}, func(e *Session, x call) { e.grepFiles(x.arg) }, nil},
 		{vim.Command{Name: "help", Short: []string{"h"}, Args: "[name]", Help: "opens help, at the entry for a command, key, option or setting"}, func(e *Session, x call) { e.help(x.arg) }, func(e *Session, _ string, start int, arg string, _ bool) (int, []string) {
 			return start, match(e.helpTags(), arg)

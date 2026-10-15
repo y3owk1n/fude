@@ -10,7 +10,8 @@ import (
 	"github.com/y3owk1n/fude/editor"
 )
 
-// config writes src as config.toml in a new config directory.
+// config writes src as config.toml in a new config directory, with no
+// grammar fetched.
 func config(t *testing.T, src string) {
 	t.Helper()
 	dir := t.TempDir()
@@ -18,7 +19,7 @@ func config(t *testing.T, src string) {
 	if err := os.MkdirAll(filepath.Join(dir, "fude"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "fude", "config.toml"), []byte(src), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "fude", "config.toml"), []byte("auto_install = false\n"+src), 0o600); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -48,7 +49,15 @@ func TestB92NoConfigFile(t *testing.T) {
 
 // B93
 func TestB93ConfigErrorShowsItsLine(t *testing.T) {
-	config(t, "indent_width = 2\nkey_timeout = \"soon\"\n")
+	// The file as written, without the line config adds, as its lines count.
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	if err := os.MkdirAll(filepath.Join(dir, "fude"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "fude", "config.toml"), []byte("indent_width = 2\nkey_timeout = \"soon\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	e := start(t)
 	if !strings.Contains(e.Message(), "config.toml line 2: ") {
 		t.Errorf("started with %q, want the error on line 2", e.Message())

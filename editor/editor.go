@@ -39,6 +39,8 @@ type Editor struct {
 	decos     map[any][]decoration      // by owner: a plugin, or a buffer for its diagnostics
 	servers   map[string]*server        // by command and root
 	down      map[string]string         // by name, why a configured language server is not running
+	building  map[string]bool           // the filetypes whose grammar builds now
+	failed    map[string]string         // by filetype, why its grammar did not build this session
 	started   bool                      // Load ran, so new buffers attach to servers at once
 	sessions  []*Session                // the first is the one that opened the editor
 	setup     []func(*Session)          // what every session's machine gets, such as keymaps
@@ -107,11 +109,16 @@ func open(cfg config, paths []string) (*Session, error) {
 	if len(paths) == 0 {
 		paths = []string{""}
 	}
-	ed := &Editor{next: 1, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(*Session){}, decos: map[any][]decoration{}, servers: map[string]*server{}, down: map[string]string{}, listeners: map[*plugin.Plugin]*listener{}, segments: map[*plugin.Plugin]map[*buffer]string{}}
+	ed := &Editor{next: 1, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(*Session){}, decos: map[any][]decoration{}, servers: map[string]*server{}, down: map[string]string{}, building: map[string]bool{}, failed: map[string]string{}, listeners: map[*plugin.Plugin]*listener{}, segments: map[*plugin.Plugin]map[*buffer]string{}}
 	// Without a config directory there are no overrides, and loadConfig
 	// reports why.
 	if dir, err := xdgDir("XDG_CONFIG_HOME", ".config"); err == nil {
 		ed.queries = filepath.Join(dir, "fude", "queries")
+	}
+	// Without a data directory no grammar builds or loads, and a build says
+	// why.
+	if dir, err := xdgDir("XDG_DATA_HOME", filepath.Join(".local", "share")); err == nil {
+		syntax.Use(filepath.Join(dir, "fude", "grammars"))
 	}
 	ed.setup = []func(*Session){builtins}
 	e := &Session{Editor: ed, origin: "user"}
@@ -281,11 +288,10 @@ func (e *Session) add(path string) (string, error) {
 		}
 		return msg, nil
 	}
-	h, ok, err := syntax.New(e.filetype(b), e.queries, e.queue, func() { e.emit("syntax.updated", "", b) })
-	if err != nil {
+	if ok, err := e.attachSyntax(b); err != nil {
 		msg = err.Error()
-	} else if ok {
-		b.syntax = h
+	} else if ft := e.filetype(b); !ok && syntax.Buildable(ft) && e.cfg.AutoInstall && e.buildGrammar(ft, false) {
+		msg = cmp.Or(msg, "building the "+ft+" grammar")
 	}
 	if e.started {
 		e.attach(b)

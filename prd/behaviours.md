@@ -318,6 +318,14 @@ Where fude departs, the line says so and cites the departure in
   server, formatters, indent width and comment syntax, and shows on the
   status line. A table named after an extension such as `[filetype.yml]`
   becomes `[filetype.yaml]`.
+- B165 [3] Opening a file whose language fude knows but has no grammar
+  for builds the grammar in the background, at the commit fude pins, with
+  git and the tree-sitter CLI, and the file shows its highlights once the
+  build ends. A build that needs a missing tool says which. `:grammar`
+  lists each grammar and whether it is linked in, built, building, not
+  built or failed, and `:grammar install <filetype>` builds one again. A
+  grammar built by hand into the grammars directory loads too.
+  `auto_install = false` turns the builds off.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays

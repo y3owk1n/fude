@@ -23,6 +23,8 @@ golangci-lint-langserver = "github:nametake/golangci-lint-langserver"
 just-lsp = "github:terror/just-lsp"
 # wasm-tools turns the test plugins from .wat into .wasm.
 wasm-tools = "github:bytecodealliance/wasm-tools"
+# tree-sitter builds the grammars fude loads at runtime, in tests too (D29).
+tree-sitter = { ref = "./.oku/tree-sitter.toml", version = "^0.27" }
 
 # tree-sitter grammars build through cgo, so builds need a C compiler.
 [host]

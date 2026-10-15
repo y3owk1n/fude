@@ -31,11 +31,13 @@ func startWith(t *testing.T, config string, args ...string) *client {
 	if err := os.MkdirAll(filepath.Join(dir, "fude"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "fude", "config.toml"), []byte(config), 0o600); err != nil {
+	// No test fetches a grammar.
+	if err := os.WriteFile(filepath.Join(dir, "fude", "config.toml"), []byte("auto_install = false\n"+config), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("XDG_CONFIG_HOME", dir)
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	e, err := editor.Start(args)
 	if err != nil {
 		t.Fatal(err)

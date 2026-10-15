@@ -27,6 +27,14 @@ func TestMain(m *testing.M) {
 	os.Setenv("XDG_STATE_HOME", filepath.Join(dir, "state"))
 	os.Setenv("XDG_CONFIG_HOME", filepath.Join(dir, "config"))
 	os.Setenv("XDG_CACHE_HOME", filepath.Join(dir, "cache"))
+	os.Setenv("XDG_DATA_HOME", filepath.Join(dir, "data"))
+	// No test fetches a grammar.
+	if err := os.MkdirAll(filepath.Join(dir, "config", "fude"), 0o700); err != nil {
+		panic(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "config", "fude", "config.toml"), []byte("auto_install = false\n"), 0o600); err != nil {
+		panic(err)
+	}
 	code := m.Run()
 	os.RemoveAll(dir)
 	os.Exit(code)
@@ -1759,4 +1767,42 @@ func TestB164Filetypes(t *testing.T) {
 			t.Errorf("%s has filetype %q, want %q", name, got, want)
 		}
 	}
+}
+
+// B165, through a grammar built by hand: Go's, as the filetype gotest.
+func TestB165BuiltGrammar(t *testing.T) {
+	mod, err := exec.Command("go", "list", "-m", "-f", "{{.Dir}}", "github.com/tree-sitter/tree-sitter-go").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := filepath.Join(t.TempDir(), "src")
+	if err := os.CopyFS(src, os.DirFS(filepath.Join(strings.TrimSpace(string(mod)), "src"))); err != nil {
+		t.Fatal(err)
+	}
+	for name, from := range map[string]string{"parser.c": "tree_sitter_go(", "grammar.json": `"name": "go"`} {
+		b, err := os.ReadFile(filepath.Join(src, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		b = []byte(strings.Replace(string(b), from, strings.Replace(from, "go", "gotest", 1), 1))
+		if err := os.WriteFile(filepath.Join(src, name), b, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	data := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", data)
+	out := filepath.Join(data, "fude", "grammars", "gotest")
+	if err := os.CopyFS(filepath.Join(out, "queries"), os.DirFS("../syntax/queries/go")); err != nil {
+		t.Fatal(err)
+	}
+	if b, err := exec.Command("tree-sitter", "build", "-o", filepath.Join(out, "parser.so"), filepath.Dir(src)).CombinedOutput(); err != nil {
+		t.Fatalf("tree-sitter build: %v: %s", err, b)
+	}
+	path := filepath.Join(t.TempDir(), "a.gotest")
+	change(t, path, "package p\n")
+	e := start(t, path)
+	e.SetSize(80, 20)
+	settle(t, e, func() bool {
+		return slices.ContainsFunc(e.Views()[0].Highlights, func(s syntax.Span) bool { return s.Name == "keyword" })
+	})
 }

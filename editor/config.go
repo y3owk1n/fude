@@ -21,6 +21,7 @@ type config struct {
 	KeyTimeout   uint   `toml:"key_timeout" help:"the milliseconds a mapping waits for its next key"`
 	LargeFile    uint   `toml:"large_file" help:"the megabytes over which a file opens with syntax and language servers off"`
 	Autocomplete bool   `toml:"autocomplete" help:"completions show while typing, not only on <C-x><C-o>"`
+	AutoInstall  bool   `toml:"auto_install" help:"builds a missing grammar the first time a file needs it"`
 	Socket       string `toml:"socket" help:"where clients attach, instead of a path for each process"`
 	FormatOnSave bool   `toml:"format_on_save" help:"a write formats the buffer first"`
 	Leader       string `toml:"leader" help:"what <Leader> in a mapping stands for"` // N18
@@ -52,7 +53,7 @@ type config struct {
 	} `toml:"plugin"`
 }
 
-var defaults = config{IndentWidth: 8, KeyTimeout: 1000, LargeFile: 50, Leader: "<Space>", Theme: "dark", options: options{Wrap: true, IndentGuides: true}}
+var defaults = config{IndentWidth: 8, KeyTimeout: 1000, LargeFile: 50, AutoInstall: true, Leader: "<Space>", Theme: "dark", options: options{Wrap: true, IndentGuides: true}}
 
 // options are the settings each window has, which :set changes for the
 // current window and the windows opened after it (B39). :set takes each by

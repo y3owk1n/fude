@@ -971,10 +971,19 @@ with its file and line. A file at
 query of that name (B41). Indentation is the previous line's (B29), so there
 are no indent or fold queries.
 
-A distribution links its grammars through each grammar repo's Go binding.
-Any other grammar is built with `tree-sitter build` into
-`$XDG_DATA_HOME/fude/grammars/<lang>/`, with its queries beside it, and
-loaded at runtime (D29).
+Go's grammar is linked in. The others come from a registry in
+`syntax/grammar.go`, each a repo, a pinned commit, the directories of its
+sources and queries, and a comment syntax. The first file of a language
+whose grammar is not built starts a build off the loop: git fetches the
+pinned commit alone into a temporary directory, the highlights query is
+copied out, and `tree-sitter build` writes the library to
+`$XDG_DATA_HOME/fude/grammars/<filetype>/<commit>.so`, last and through a
+rename, so a library there means a whole build. `lookup` loads each
+library once with dlopen, and fude never closes it. It takes a lock,
+because the finder's preview highlights off the loop. The text objects of a built
+grammar are fude's, embedded beside Go's. Every buffer of the language
+gets its syntax when the build ends, and a failed build is not tried
+again that session except by `:grammar install` (D29, B165).
 
 ## LSP
 

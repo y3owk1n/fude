@@ -226,7 +226,8 @@ beside wasm, and Neovim configs would not run anyway, since they call
 ## D28. Queries come from each grammar's own repo
 
 Highlights, injections and locals are the queries the grammar repo ships.
-fude writes one `textobjects.scm` per language it ships. No query comes
+fude writes one `textobjects.scm` per language it links in or builds, and
+embeds it. No query comes
 from nvim-treesitter or Helix. Why: grammar repos' queries use only the
 core predicates the Go binding evaluates, so fude needs no predicate
 engine, no regex translation for queries and no third-party query
@@ -235,13 +236,24 @@ highlight`) checks them against the same grammar. The cost is plainer
 highlighting than nvim-treesitter's and one tree-object file per language
 to maintain.
 
-## D29. Grammars are linked in, or built with the tree-sitter CLI
+## D29. Go is linked in, and other grammars build on first use
 
-A distribution links its grammars through each grammar repo's Go binding,
-so the shipped set needs no files beside the binary. Any other grammar is
-built with `tree-sitter build` and loaded at runtime with dlopen. Wasm
-grammars are out, because tree-sitter's wasm store needs wasmtime and
-cannot run on wazero.
+fude links in only Go's grammar, through its repo's Go binding. Every other
+language fude knows is a registry entry in `syntax/`: its repo, a pinned
+commit, where its sources and queries are, and its comment syntax. Opening
+a file of that language fetches the commit with git, builds it with
+`tree-sitter build` into `$XDG_DATA_HOME/fude/grammars/<filetype>/`, and
+loads the library with dlopen. The library is named for the commit, so a
+release that pins a new one builds again on first use. A grammar built by
+hand into that directory as `parser.so` loads too. Wasm grammars are out,
+because tree-sitter's wasm store needs wasmtime and cannot run on wazero.
+
+Why, as of 2026-10-16: some grammars, markdown's among them, have no Go
+binding to link. Linking sixteen more would add about 20MB to the binary,
+and each new language would need a release. The cost is that building
+needs git, the tree-sitter CLI and a C compiler, and the first file of a
+language shows without highlights until its build ends. `auto_install =
+false` keeps fude from fetching anything.
 
 ## D30. Grapheme clusters and widths come from clipperhouse
 

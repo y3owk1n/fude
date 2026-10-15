@@ -380,6 +380,38 @@ sha256 = '0b48cbf1dfa2efb95348b751a1be6f4837e61ace5dd156daef2c2719f650883c'
 verified = 'checksum-file'
 
 [[package]]
+name = 'tree-sitter'
+ref = './.oku/tree-sitter.toml'
+manifest_sha256 = '8d15315e912fec6f7fe54613debaacfaa05bb4365c971a1d4d10a1d181d67e29'
+version = '0.27.1'
+tag = 'v0.27.1'
+
+[package.platform]
+[package.platform.darwin-amd64]
+strategy = 'artifact'
+url = 'https://github.com/tree-sitter/tree-sitter/releases/download/v0.27.1/tree-sitter-cli-macos-x64.zip'
+sha256 = 'fd7e60f57b6e00caecaa055b94da20d7875b05cef2277831588546e08ab8bb29'
+verified = 'published'
+
+[package.platform.darwin-arm64]
+strategy = 'artifact'
+url = 'https://github.com/tree-sitter/tree-sitter/releases/download/v0.27.1/tree-sitter-cli-macos-arm64.zip'
+sha256 = '6362cda144b6e45d92c739d4eafb7e3c322f0545b0b959b4f7ca7d53fb3300fa'
+verified = 'published'
+
+[package.platform.linux-amd64-glibc]
+strategy = 'artifact'
+url = 'https://github.com/tree-sitter/tree-sitter/releases/download/v0.27.1/tree-sitter-cli-linux-x64.zip'
+sha256 = 'c7e686aec16ba17053c2e6fd87600ccb10cf8ba3d055756b17e756d538e11114'
+verified = 'published'
+
+[package.platform.linux-arm64-glibc]
+strategy = 'artifact'
+url = 'https://github.com/tree-sitter/tree-sitter/releases/download/v0.27.1/tree-sitter-cli-linux-arm64.zip'
+sha256 = '3c0d0113cae3fea36f2336c271cbdacbcdb349edb006319155652b9386803c55'
+verified = 'published'
+
+[[package]]
 name = 'wasm-tools'
 ref = 'github:bytecodealliance/wasm-tools'
 commit = 'e22db44da4eaf17a0e46ec55b911c7539589a3cc'

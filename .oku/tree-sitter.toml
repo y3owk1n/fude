@@ -1,0 +1,30 @@
+[package]
+name = "tree-sitter"
+description = "Parser generator and incremental parsing"
+homepage = "https://github.com/tree-sitter/tree-sitter"
+license = "MIT"
+
+[version]
+from = "github-releases"
+repo = "tree-sitter/tree-sitter"
+strip_prefix = "v"
+
+[[artifact]]
+match = { os = "linux", arch = "amd64" }
+url = "https://github.com/tree-sitter/tree-sitter/releases/download/{{tag}}/tree-sitter-cli-linux-x64.zip"
+bin = ["tree-sitter"]
+
+[[artifact]]
+match = { os = "linux", arch = "arm64" }
+url = "https://github.com/tree-sitter/tree-sitter/releases/download/{{tag}}/tree-sitter-cli-linux-arm64.zip"
+bin = ["tree-sitter"]
+
+[[artifact]]
+match = { os = "darwin", arch = "arm64" }
+url = "https://github.com/tree-sitter/tree-sitter/releases/download/{{tag}}/tree-sitter-cli-macos-arm64.zip"
+bin = ["tree-sitter"]
+
+[[artifact]]
+match = { os = "darwin", arch = "amd64" }
+url = "https://github.com/tree-sitter/tree-sitter/releases/download/{{tag}}/tree-sitter-cli-macos-x64.zip"
+bin = ["tree-sitter"]
