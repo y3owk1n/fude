@@ -113,7 +113,8 @@ func openHistory(path, text string) (*history, loaded, error) {
 		return nil, loaded{}, err
 	}
 	h := &history{path: p}
-	l, ok, err := readHistory(p, hash(text))
+	sum := hash(text)
+	l, ok, err := readHistory(p, sum)
 	if err != nil {
 		return nil, loaded{}, err
 	}
@@ -121,7 +122,7 @@ func openHistory(path, text string) (*history, loaded, error) {
 		if err := os.Rename(p, p+"."+strconv.FormatInt(time.Now().Unix(), 10)); err != nil && !errors.Is(err, fs.ErrNotExist) {
 			return nil, loaded{}, fmt.Errorf("set aside timeline log %s: %w", p, err)
 		}
-		h.write(record{Kind: "base", Hash: hash(text)})
+		h.write(record{Kind: "base", Hash: sum})
 		return h, loaded{}, nil
 	}
 	return h, l, nil

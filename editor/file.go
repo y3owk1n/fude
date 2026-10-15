@@ -3,6 +3,7 @@ package editor
 import (
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -29,7 +30,7 @@ type file struct {
 // and no final newline.
 func read(path string) (file, string, error) {
 	f := file{path: path, eol: true}
-	data, err := os.ReadFile(path)
+	text, err := slurp(path)
 	if errors.Is(err, fs.ErrNotExist) {
 		f.isNew = true
 		return f, "", nil
@@ -38,7 +39,6 @@ func read(path string) (file, string, error) {
 		return f, "", fmt.Errorf("open %s: %w", path, err)
 	}
 	f.note()
-	text := string(data)
 	if !utf8.ValidString(text) {
 		f.readonly = true
 		return f, text, nil
@@ -52,6 +52,21 @@ func read(path string) (file, string, error) {
 		text = strings.TrimSuffix(text, "\n")
 	}
 	return f, text, nil
+}
+
+// slurp reads the file at path into a string without copying it.
+func slurp(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	var b strings.Builder
+	if fi, err := f.Stat(); err == nil {
+		b.Grow(int(fi.Size()))
+	}
+	_, err = io.Copy(&b, f)
+	return b.String(), err
 }
 
 // write stores text at the file's path through a temp file and a rename, so
