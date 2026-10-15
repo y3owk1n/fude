@@ -37,10 +37,13 @@ syntax/          tree-sitter parsing, highlights, tree targets
 plugin/          wazero host, the ABI that mirrors api/
 lsp/             language server client
 ui/term/         terminal client
+client/          a client over the socket, with replicas of buffers
 cmd/fude/        main, distribution wiring
 ```
 
-Modules import `api/`, never `core/` or `vim/` directly. Only `editor/`
+Modules import `api/`, never `core/` or `vim/` directly. `client/` is not
+a module: it runs in a client's process and keeps its replicas in kernels
+of its own. Only `editor/`
 holds a kernel and a vim machine, and it holds the machine through a small
 grammar interface (`Feed`, `Timeout`, `Registry`), so a distribution can
 swap in another grammar. The kernel budget in `prd/product.md`
@@ -743,9 +746,10 @@ it (B66).
 ## Server split (step 6)
 
 One server holds the kernel and its modules and applies every client's
-keys and requests in arrival order on the editor loop. Clients keep no
-text of their own (D24). Two clients converge because there is one copy of
-each buffer (B73).
+keys and requests in arrival order on the editor loop. A thin client keeps
+no text of its own, and a replica keeps a copy it rebases on the server's
+order (D24). Either way the server's buffer is the one history, so two
+clients converge (B73).
 
 `editor.Editor` is the shared state: buffers, plugins, language servers and
 decorations. `editor.Session` is one client: its windows, vim machine,
@@ -761,7 +765,8 @@ or else the temporary directory. Each call is a line of JSON,
 `{"id", "method", "params"}`, and each reply is a line with the `id` and a
 `result` or an `error`. `keys` types keys as one complete input, so keys
 held for a longer mapping run at once. `request` runs a request, and
-`state` changes nothing. Every result is the session's state: its buffer,
+`state` changes nothing. `pull` and `push` are a replica's, below, and
+return results of their own. Every other result is the session's state: its buffer,
 the buffer's name, version and text, the cursor, the mode, the message and
 the session's proposals on the buffer.
 Between replies the server sends
@@ -791,3 +796,30 @@ timeline. Both default to the newest proposal on the current buffer. A
 client accepts or rejects with `keys`, and its state lists its proposals on
 its buffer with their ids. A proposal outlives the client that made it,
 and goes when its buffer closes.
+
+### Replicas
+
+`client.Replica` keeps a copy of one buffer in a `kernel.Buffer` of its
+own. `Edit` applies edits to the copy at once, so they show without a
+round trip, and keeps them as pending. `Sync` pulls the server's edits
+since the version the copy last heard, then pushes the pending edits one
+`Edit` call at a time.
+
+- `pull {buffer, version}` returns `{buffer, version, edits}`, the edit
+  lists from `Since`, or `{buffer, version, text}` when the version is
+  left out or the server no longer has the edits. It shows the buffer in
+  the client's window, so the client hears `changed` for it.
+- `push {buffer, version, edits}` applies the edits as one transaction of
+  the client's origin when `version` is the buffer's, and returns
+  `{applied: true, version}`. Otherwise it returns `{applied: false,
+  version}` and changes nothing, and the client pulls and pushes again.
+
+To take the server's edits, the replica first undoes its pending edits.
+That leaves the server's text as the replica last heard it. It applies the
+server's edits, then applies each pending edit again where `Map` moves it
+from the version it was made at. The log from that version holds the edit
+itself and its undo, which cancel, and the server's edits. Each pending
+edit keeps the text it replaced. When another client changed that text
+first, the replica drops the edit, and `Sync` returns it. A replica so far behind that the server
+no longer has the edits takes the server's whole text, which drops every
+pending edit inside it.

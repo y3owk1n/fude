@@ -124,13 +124,9 @@ func (e *Session) Request(r Request) error {
 	if err != nil {
 		return err
 	}
-	b := e.win.buf
-	if r.Buffer != 0 {
-		i := slices.IndexFunc(e.bufs, func(b *buffer) bool { return b.id == r.Buffer })
-		if i < 0 {
-			return fmt.Errorf("no buffer %d", r.Buffer)
-		}
-		b = e.bufs[i]
+	b, err := e.buffer(r.Buffer)
+	if err != nil {
+		return err
 	}
 	if shown := e.win.buf; b != shown {
 		e.win.show(b)
@@ -159,6 +155,18 @@ func (e *Session) Request(r Request) error {
 	}
 	e.command(keys, r.Command.Text)
 	return nil
+}
+
+// buffer returns the buffer numbered id, or the current one for 0.
+func (e *Session) buffer(id int) (*buffer, error) {
+	if id == 0 {
+		return e.win.buf, nil
+	}
+	i := slices.IndexFunc(e.bufs, func(b *buffer) bool { return b.id == id })
+	if i < 0 {
+		return nil, fmt.Errorf("no buffer %d", id)
+	}
+	return e.bufs[i], nil
 }
 
 // command feeds a command's keys, then types its text if they began an
@@ -288,8 +296,13 @@ func (e *Session) serve(c net.Conn, o kernel.Origin) {
 		} else {
 			reply["id"] = call.ID
 			on(func() {
-				if err := s.call(call.Method, call.Params); err != nil {
+				res, err := s.call(call.Method, call.Params)
+				switch {
+				case err != nil:
 					reply["error"] = err.Error()
+					return
+				case res != nil:
+					reply["result"] = res
 					return
 				}
 				t := s.Text()
@@ -309,27 +322,128 @@ func (e *Session) serve(c net.Conn, o kernel.Origin) {
 	}
 }
 
-// call runs one call of a client's: keys to type, a request, or state to
-// read.
-func (e *Session) call(method string, params json.RawMessage) error {
+// call runs one call of a client's: keys to type, a request, state to
+// read, or a replica's pull or push. It returns the result of a call that
+// has one of its own, and nil for those whose result is the state.
+func (e *Session) call(method string, params json.RawMessage) (any, error) {
 	switch method {
 	case "keys":
 		var p struct {
 			Keys string `json:"keys"`
 		}
 		if err := json.Unmarshal(params, &p); err != nil {
-			return fmt.Errorf("read keys: %w", err)
+			return nil, fmt.Errorf("read keys: %w", err)
 		}
 		e.keys(p.Keys)
 	case "request":
 		var r Request
 		if err := json.Unmarshal(params, &r); err != nil {
-			return fmt.Errorf("read request: %w", err)
+			return nil, fmt.Errorf("read request: %w", err)
 		}
-		return e.Request(r)
+		return nil, e.Request(r)
+	case "pull":
+		var p struct {
+			Buffer  int             `json:"buffer"`
+			Version *kernel.Version `json:"version"`
+		}
+		if err := json.Unmarshal(params, &p); err != nil {
+			return nil, fmt.Errorf("read pull: %w", err)
+		}
+		return e.pull(p.Buffer, p.Version)
+	case "push":
+		var p struct {
+			Buffer  int            `json:"buffer"`
+			Version kernel.Version `json:"version"`
+			Edits   []wireEdit     `json:"edits"`
+		}
+		if err := json.Unmarshal(params, &p); err != nil {
+			return nil, fmt.Errorf("read push: %w", err)
+		}
+		return e.push(p.Buffer, p.Version, p.Edits)
 	case "state":
 	default:
-		return errors.New("no method " + method)
+		return nil, errors.New("no method " + method)
 	}
-	return nil
+	return nil, nil
+}
+
+// wireEdit replaces [Start, End) with Text, as a replica pulls and pushes
+// it.
+type wireEdit struct {
+	Start int    `json:"start"`
+	End   int    `json:"end"`
+	Text  string `json:"text"`
+}
+
+// pulled is a buffer's edits since the version a replica holds, or its
+// whole text when the version is too old or not given (B79).
+type pulled struct {
+	Buffer  int            `json:"buffer"`
+	Version kernel.Version `json:"version"`
+	Edits   [][]wireEdit   `json:"edits,omitempty"`
+	Text    *string        `json:"text,omitempty"`
+}
+
+// pull returns buffer id's edits since version, and shows the buffer in the
+// session's window so the client hears when it changes.
+func (e *Session) pull(id int, version *kernel.Version) (pulled, error) {
+	b, err := e.buffer(id)
+	if err != nil {
+		return pulled{}, err
+	}
+	if b != e.win.buf {
+		e.win.show(b)
+	}
+	t := b.text.Snapshot()
+	p := pulled{Buffer: b.id, Version: t.Version()}
+	if version != nil {
+		if lists, ok := b.text.Since(*version); ok {
+			for _, l := range lists {
+				edits := make([]wireEdit, len(l))
+				for i, ed := range l {
+					edits[i] = wireEdit(ed)
+				}
+				p.Edits = append(p.Edits, edits)
+			}
+			return p, nil
+		}
+	}
+	text := t.Slice(0, t.Len())
+	p.Text = &text
+	return p, nil
+}
+
+// pushed is whether a replica's edits applied, and the buffer's version.
+// Edits made against an older version do not apply, and the replica pulls
+// and pushes them again (B79).
+type pushed struct {
+	Applied bool           `json:"applied"`
+	Version kernel.Version `json:"version"`
+}
+
+// push applies edits made against version of buffer id as one transaction
+// of the session's.
+func (e *Session) push(id int, version kernel.Version, edits []wireEdit) (pushed, error) {
+	b, err := e.buffer(id)
+	if err != nil {
+		return pushed{}, err
+	}
+	if b.file.readonly {
+		return pushed{}, errors.New("cannot make changes, the file is read-only")
+	}
+	t := kernel.Transaction{Base: version, Origin: e.origin, Label: "push", Time: e.now()}
+	for _, ed := range edits {
+		t.Edits = append(t.Edits, kernel.Edit(ed))
+	}
+	switch err := b.text.Apply(t); {
+	case errors.Is(err, kernel.ErrStale):
+		return pushed{false, b.text.Snapshot().Version()}, nil
+	case err != nil:
+		return pushed{}, fmt.Errorf("push: %w", err)
+	}
+	if len(edits) > 0 {
+		b.head = b.text.Head()
+		b.pushChange(edits[0].Start)
+	}
+	return pushed{true, b.text.Snapshot().Version()}, nil
 }

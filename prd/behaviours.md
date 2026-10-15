@@ -241,6 +241,10 @@ Where fude departs, the line says so and cites the departure in
 - B77 [6] Undo by one client reverts only that client's own transactions.
 - B78 [6] A client hears the buffer and its version when the text of the
   buffer it shows changes.
+- B79 [6] A client that keeps a copy of a buffer shows its own edits at
+  once, and after another client's edits land in between, both copies hold
+  both edits. An edit of its own whose text another client changed first
+  is dropped and reported.
 
 ## Kernel library
 
