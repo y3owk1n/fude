@@ -109,20 +109,36 @@ var colours = map[string]tcell.Style{
 	"type":     tcell.StyleDefault.Foreground(color.Teal),
 }
 
+// underlines are the colours diagnostics underline their text in, over its
+// other colours.
+var underlines = map[string]color.Color{
+	"diagnostic.error": color.Red, "diagnostic.warn": color.Yellow,
+	"diagnostic.info": color.Blue, "diagnostic.hint": color.Aqua,
+}
+
 // paint returns the style of each byte from top that a highlight colours.
 func paint(spans []syntax.Span, top int) []tcell.Style {
 	var out []tcell.Style
 	for _, s := range spans {
+		if s.End <= top {
+			continue
+		}
+		if n := s.End - top; n > len(out) {
+			out = append(out, make([]tcell.Style, n-len(out))...)
+		}
+		if c, ok := underlines[s.Name]; ok {
+			for i := max(s.Start-top, 0); i < s.End-top; i++ {
+				out[i] = out[i].Underline(true, c)
+			}
+			continue
+		}
 		style, ok := colours[s.Name]
 		for name := s.Name; !ok && strings.Contains(name, "."); {
 			name = name[:strings.LastIndexByte(name, '.')]
 			style, ok = colours[name]
 		}
-		if !ok || s.End <= top {
+		if !ok {
 			continue
-		}
-		if n := s.End - top; n > len(out) {
-			out = append(out, make([]tcell.Style, n-len(out))...)
 		}
 		for i := max(s.Start-top, 0); i < s.End-top; i++ {
 			out[i] = style

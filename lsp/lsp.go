@@ -25,10 +25,11 @@ type Client struct {
 
 	// Messages waiting for the writer, built once the server chose its
 	// position encoding.
-	mu     sync.Mutex
-	outbox []func(enc string) any
-	wake   chan struct{}
-	done   chan struct{}
+	mu       sync.Mutex
+	outbox   []func(enc string) any
+	encoding string
+	wake     chan struct{}
+	done     chan struct{}
 }
 
 // Position is a place in a text as the protocol counts it.
@@ -43,10 +44,10 @@ type Range struct {
 	End   Position `json:"end"`
 }
 
-// Start runs command for the files under root. exited runs on the editor
-// loop, through queue, once the server exits, with why. Lines the server
-// writes to stderr go to log.
-func Start(command []string, root string, queue chan<- func(), log func(string), exited func(error)) (*Client, error) {
+// Start runs command for the files under root. notify runs on the editor
+// loop, through queue, with each notification the server sends, and exited
+// once it exits, with why. Lines the server writes to stderr go to log.
+func Start(command []string, root string, queue chan<- func(), log func(string), notify func(method string, params json.RawMessage), exited func(error)) (*Client, error) {
 	cmd := exec.Command(command[0], command[1:]...)
 	cmd.Dir = root
 	stdin, err1 := cmd.StdinPipe()
@@ -61,7 +62,7 @@ func Start(command []string, root string, queue chan<- func(), log func(string),
 	c := &Client{queue: queue, stdin: stdin, wake: make(chan struct{}, 1), done: make(chan struct{})}
 	initialized := make(chan string, 1)
 	go c.write(root, initialized)
-	go c.read(stdout, initialized)
+	go c.read(stdout, initialized, notify)
 	go func() {
 		s := bufio.NewScanner(stderr)
 		for s.Scan() {
@@ -127,6 +128,40 @@ func (c *Client) CloseDocument(uri string) {
 	})
 }
 
+// Encoding is the position encoding the server chose, or "" before it
+// answered initialize.
+func (c *Client) Encoding() string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.encoding
+}
+
+// Offset returns where p is in t, p being counted in encoding enc.
+func Offset(t api.Text, p Position, enc string) int {
+	if p.Line >= t.Lines() {
+		return t.Len()
+	}
+	ls := t.LineStart(p.Line)
+	end := t.Len()
+	if p.Line+1 < t.Lines() {
+		end = t.LineStart(p.Line+1) - 1
+	}
+	if enc != "utf-16" {
+		return min(ls+p.Character, end)
+	}
+	n := 0
+	for i, r := range t.Slice(ls, end) {
+		if n >= p.Character {
+			return ls + i
+		}
+		n++
+		if r > 0xFFFF {
+			n++
+		}
+	}
+	return end
+}
+
 // Point returns pos in t as the protocol counts it in encoding enc.
 func Point(t api.Text, pos int, enc string) Position {
 	line := t.LineOf(pos)
@@ -160,6 +195,7 @@ type request struct {
 type incoming struct {
 	ID     *int            `json:"id"`
 	Method string          `json:"method"`
+	Params json.RawMessage `json:"params"`
 	Result json.RawMessage `json:"result"`
 }
 
@@ -191,6 +227,9 @@ func (c *Client) write(root string, initialized <-chan string) {
 	case <-c.done:
 		return
 	}
+	c.mu.Lock()
+	c.encoding = enc
+	c.mu.Unlock()
 	if c.frame(message{Method: "initialized", Params: map[string]any{}}) != nil {
 		return
 	}
@@ -231,8 +270,9 @@ func (c *Client) frame(v any) error {
 }
 
 // read takes messages from the server until it exits. The answer to
-// initialize goes to the writer.
-func (c *Client) read(r io.Reader, initialized chan<- string) {
+// initialize goes to the writer, and notifications to the editor loop. A
+// request from the server gets an empty answer, as fude offers it nothing.
+func (c *Client) read(r io.Reader, initialized chan<- string, notify func(string, json.RawMessage)) {
 	br := bufio.NewReader(r)
 	for {
 		body, err := readFrame(br)
@@ -240,7 +280,23 @@ func (c *Client) read(r io.Reader, initialized chan<- string) {
 			return
 		}
 		var m incoming
-		if json.Unmarshal(body, &m) != nil || m.ID == nil || *m.ID != 0 || m.Method != "" {
+		if json.Unmarshal(body, &m) != nil {
+			continue
+		}
+		if m.Method != "" {
+			if m.ID != nil {
+				id := *m.ID
+				c.send(func(string) any { return map[string]any{"jsonrpc": "2.0", "id": id, "result": nil} })
+				continue
+			}
+			method, params := m.Method, m.Params
+			select {
+			case c.queue <- func() { notify(method, params) }:
+			case <-c.done:
+			}
+			continue
+		}
+		if m.ID == nil || *m.ID != 0 {
 			continue
 		}
 		var res struct {

@@ -411,7 +411,8 @@ never processes stale states one by one.
 
 ## Decorations
 
-A decoration is a mark range owned by a plugin or module, carrying a style.
+A decoration is a mark range owned by a plugin, or by a buffer for its
+diagnostics, carrying a style.
 It moves with edits like any mark, and goes when its owner unloads (B55).
 Clients render them and know nothing about where they came from. Virtual
 text and signs come with the behaviours that need them.
@@ -627,7 +628,15 @@ everything until `initialize` returns and the encoding is known. A reader gorout
 takes its stdout, another drains its stderr into fude's log, and another
 waits for it to exit and tells the loop. A server that exits without being
 asked is restarted once and its documents opened again. After a second
-crash it stays off, and fude says so (B63).
+crash it stays off, and fude says so (B63). A request from the server gets
+an empty answer, since fude offers no client features yet.
+
+Diagnostics are decorations the buffer owns, so they move with edits until
+the server publishes new ones. They show inline the way Neovim shows them
+by default: an underline in the colour of their severity, over the text's
+other colours, with no virtual text. `]d` and `[d` jump to the next and
+previous diagnostic, going round the ends, add the jump to the jumplist and
+show its message (B61).
 
 ## Server split (step 6)
 

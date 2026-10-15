@@ -93,6 +93,7 @@ type decoration struct {
 	buf        *buffer
 	start, end kernel.MarkID
 	style      string
+	note       string // a diagnostic's message
 }
 
 // remove deletes the decoration's marks.
@@ -106,7 +107,7 @@ func (d decoration) remove() {
 // decorations.
 func (e *Editor) decorate(p *plugin.Plugin, b *buffer, res plugin.Result) []vim.Edit {
 	for _, d := range res.Decorate {
-		e.decos[p] = append(e.decos[p], decoration{d.ID, b, b.text.SetMark(d.Start, kernel.Right), b.text.SetMark(d.End, kernel.Left), d.Style})
+		e.decos[p] = append(e.decos[p], decoration{d.ID, b, b.text.SetMark(d.Start, kernel.Right), b.text.SetMark(d.End, kernel.Left), d.Style, ""})
 	}
 	for _, id := range res.Undecorate {
 		if i := slices.IndexFunc(e.decos[p], func(d decoration) bool { return d.id == id }); i >= 0 {

@@ -34,10 +34,10 @@ type Editor struct {
 	queue    chan func()
 	queries  string // the directory of query files that replace shipped ones
 	plugins  []*plugin.Plugin
-	commands map[string]func() // ex commands plugins registered
-	decos    map[*plugin.Plugin][]decoration
-	servers  map[string]*server // by command and root
-	started  bool               // Load ran, so new buffers attach to servers at once
+	commands map[string]func()    // ex commands plugins registered
+	decos    map[any][]decoration // by owner: a plugin, or a buffer for its diagnostics
+	servers  map[string]*server   // by command and root
+	started  bool                 // Load ran, so new buffers attach to servers at once
 
 	width, height int // the space the windows share
 
@@ -59,7 +59,7 @@ func open(cfg config, paths []string) (*Editor, error) {
 	if len(paths) == 0 {
 		paths = []string{""}
 	}
-	e := &Editor{next: 1, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(){}, decos: map[*plugin.Plugin][]decoration{}, servers: map[string]*server{}}
+	e := &Editor{next: 1, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(){}, decos: map[any][]decoration{}, servers: map[string]*server{}}
 	// Without a config directory there are no overrides, and loadConfig
 	// reports why.
 	if dir, err := xdgDir("XDG_CONFIG_HOME", ".config"); err == nil {
@@ -75,6 +75,14 @@ func open(cfg config, paths []string) (*Editor, error) {
 		})
 	}
 	e.vim.Operator("gc", e.comment)
+	for keys, n := range map[string]int{"]d": 1, "[d": -1} {
+		name := "diagnostic" + keys
+		e.vim.Command(name, func(_ vim.Text, _, count int) []vim.Edit {
+			e.diagnostic(n * max(count, 1))
+			return nil
+		})
+		e.vim.Map(vim.Normal, keys, "<Plug>("+name+")")
+	}
 	e.vim.Selector(func(t vim.Text, query string, start, end int) ([][2]int, error) {
 		if s := e.win.buf.syntax; s != nil {
 			return s.Select(t, query, start, end)

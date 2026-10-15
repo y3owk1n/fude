@@ -18,7 +18,8 @@ import (
 // TestFakeServer is a language server when FUDE_FAKE_LSP is set, which tests
 // run as a process of its own. It answers initialize with the encoding in
 // FUDE_FAKE_ENCODING, appends every message it gets to FUDE_FAKE_LOG, and
-// crashes when a change inserts "#".
+// crashes when a change inserts "#". Each "bad" in an opened document gets
+// an error diagnostic, with positions in bytes.
 func TestFakeServer(t *testing.T) {
 	if os.Getenv("FUDE_FAKE_LSP") == "" {
 		return
@@ -54,9 +55,26 @@ func TestFakeServer(t *testing.T) {
 		var m struct {
 			ID     *int   `json:"id"`
 			Method string `json:"method"`
+			Params struct {
+				TextDocument struct {
+					URI  string `json:"uri"`
+					Text string `json:"text"`
+				} `json:"textDocument"`
+			} `json:"params"`
 		}
 		json.Unmarshal(body, &m)
 		switch m.Method {
+		case "textDocument/didOpen":
+			var ds []any
+			for line, l := range strings.Split(m.Params.TextDocument.Text, "\n") {
+				for i := 0; strings.Contains(l[i:], "bad"); i += 3 {
+					i += strings.Index(l[i:], "bad")
+					r := map[string]any{"start": map[string]int{"line": line, "character": i}, "end": map[string]int{"line": line, "character": i + 3}}
+					ds = append(ds, map[string]any{"range": r, "severity": 1, "message": "bad word"})
+				}
+			}
+			body, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "method": "textDocument/publishDiagnostics", "params": map[string]any{"uri": m.Params.TextDocument.URI, "diagnostics": ds}})
+			fmt.Fprintf(os.Stdout, "Content-Length: %d\r\n\r\n%s", len(body), body)
 		case "initialize":
 			reply(m.ID, map[string]any{"capabilities": map[string]any{"positionEncoding": os.Getenv("FUDE_FAKE_ENCODING")}})
 		case "shutdown":
@@ -84,6 +102,7 @@ func withServer(t *testing.T, text, encoding string) (*editor.Editor, string) {
 	path := filepath.Join(t.TempDir(), "a.go")
 	change(t, path, text)
 	e := start(t, path)
+	e.SetSize(80, 20)
 	t.Cleanup(func() { feed(e, ":qa!<CR>") })
 	e.Load()
 	return e, log
@@ -126,5 +145,26 @@ func TestB63ServerCrash(t *testing.T) {
 	settle(t, e, func() bool { return strings.Contains(e.Message(), "stays off") })
 	if feed(e, "ay<Esc>"); text(e) != "##yx" {
 		t.Errorf("editing after the crashes left %q, want ##yx", text(e))
+	}
+}
+
+// B61
+func TestB61Diagnostics(t *testing.T) {
+	e, _ := withServer(t, "ok\nbad x bad\n", "utf-8")
+	settle(t, e, func() bool { return len(decorations(e)) == 2 })
+	if got := decorations(e); got[0] != "bad diagnostic.error" || got[1] != "bad diagnostic.error" {
+		t.Errorf("decorations are %q, want two errors on bad", got)
+	}
+	for _, c := range []struct {
+		keys string
+		at   int
+	}{{"gg]d", 3}, {"]d", 9}, {"]d", 3}, {"[d", 9}, {"gg2]d", 9}} {
+		if feed(e, c.keys); e.Cursor() != c.at || e.Message() != "bad word" {
+			t.Errorf("%s put the cursor at %d saying %q, want %d and the message", c.keys, e.Cursor(), e.Message(), c.at)
+		}
+	}
+	feed(e, "ggOx<Esc>gg]d")
+	if e.Cursor() != 5 {
+		t.Errorf("after a line above it, ]d went to %d, want 5", e.Cursor())
 	}
 }

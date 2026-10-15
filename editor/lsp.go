@@ -1,11 +1,13 @@
 package editor
 
 import (
+	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"slices"
 	"strings"
 
+	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/lsp"
 )
 
@@ -57,7 +59,9 @@ func (e *Editor) detach(b *buffer) {
 }
 
 func (e *Editor) start(s *server) error {
-	c, err := lsp.Start(s.command, s.root, e.queue, logLine, func(err error) { e.exited(s, err) })
+	c, err := lsp.Start(s.command, s.root, e.queue, logLine,
+		func(method string, params json.RawMessage) { e.notified(s, method, params) },
+		func(err error) { e.exited(s, err) })
 	if err != nil {
 		return err
 	}
@@ -100,4 +104,80 @@ func (e *Editor) stop(s *server) {
 			delete(e.servers, k)
 		}
 	}
+}
+
+// severities are the styles of diagnostics, by the protocol's severity.
+var severities = map[int]string{1: "diagnostic.error", 2: "diagnostic.warn", 3: "diagnostic.info", 4: "diagnostic.hint"}
+
+// notified handles a notification from s. Diagnostics replace those of the
+// buffer they are for, as decorations it owns, so they move with edits until
+// the next ones come (B61).
+func (e *Editor) notified(s *server, method string, params json.RawMessage) {
+	if method != "textDocument/publishDiagnostics" {
+		return
+	}
+	var p struct {
+		URI         string `json:"uri"`
+		Diagnostics []struct {
+			Range    lsp.Range `json:"range"`
+			Severity int       `json:"severity"`
+			Message  string    `json:"message"`
+		} `json:"diagnostics"`
+	}
+	if err := json.Unmarshal(params, &p); err != nil {
+		logLine(fmt.Sprintf("diagnostics from %s: %v", filepath.Base(s.command[0]), err))
+		return
+	}
+	i := slices.IndexFunc(s.bufs, func(b *buffer) bool { return lsp.URI(b.file.path) == p.URI })
+	if i < 0 {
+		return
+	}
+	b := s.bufs[i]
+	for _, d := range e.decos[b] {
+		d.remove()
+	}
+	t, enc := b.text.Snapshot(), s.client.Encoding()
+	var ds []decoration
+	for _, d := range p.Diagnostics {
+		style := severities[d.Severity]
+		if style == "" {
+			style = severities[1]
+		}
+		start, end := lsp.Offset(t, d.Range.Start, enc), lsp.Offset(t, d.Range.End, enc)
+		ds = append(ds, decoration{0, b, b.text.SetMark(start, kernel.Right), b.text.SetMark(end, kernel.Left), style, d.Message})
+	}
+	e.decos[b] = ds
+}
+
+// diagnostic moves the cursor to the nth diagnostic after it, or before it
+// when n is negative, going round the ends, and shows its message.
+func (e *Editor) diagnostic(n int) {
+	b := e.win.buf
+	var at []int
+	notes := map[int]string{}
+	for _, d := range e.decos[b] {
+		p := b.text.Mark(d.start)
+		at = append(at, p)
+		notes[p] = d.note
+	}
+	if len(at) == 0 {
+		e.message = "no diagnostics"
+		return
+	}
+	slices.Sort(at)
+	at = slices.Compact(at)
+	c := e.Cursor()
+	i, found := slices.BinarySearch(at, c)
+	if n > 0 {
+		if found {
+			i++
+		}
+		i += n - 1
+	} else {
+		i += n
+	}
+	p := at[((i%len(at))+len(at))%len(at)]
+	e.pushJump(c)
+	e.setCursor(p)
+	e.message = notes[p]
 }
