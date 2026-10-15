@@ -251,6 +251,8 @@ Where fude departs, the line says so and cites the departure in
 - B98 [6] A client may run the grammar on its copy. Its keys edit the copy
   at once as they do in fude, an insert reaches the server as one node, and
   `u` from the client reverts that insert whole.
+- B99 [6] A client running the grammar keeps its own jumplist and
+  changelist, and its `g-` and `g+` move the server's timeline.
 
 ## Kernel library
 

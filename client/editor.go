@@ -2,6 +2,8 @@ package client
 
 import (
 	"errors"
+	"slices"
+	"strconv"
 
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/vim"
@@ -19,6 +21,11 @@ type Editor struct {
 	rows    int
 	message string        // the server's message for the last command it ran
 	dropped []kernel.Edit // edits a sync inside a key dropped, for Sync to return
+
+	jumps    []kernel.MarkID // where jumps left from, oldest first
+	jumpAt   int             // the jump <C-o> last moved to, or len(jumps)
+	changes  []kernel.MarkID // where edits happened, oldest first
+	changeAt int             // the change g; last moved to, or len(changes)
 }
 
 // NewEditor runs the grammar on r, with the cursor at its start and a view
@@ -107,10 +114,21 @@ func (h host) EndGroup()         { h.e.r.End() }
 
 func (h host) Apply(edits []vim.Edit, _ string) error {
 	out := make([]kernel.Edit, len(edits))
-	for i, e := range edits {
-		out[i] = kernel.Edit(e)
+	for i, ed := range edits {
+		out[i] = kernel.Edit(ed)
 	}
-	return h.e.r.Edit(out...)
+	if err := h.e.r.Edit(out...); err != nil {
+		return err
+	}
+	// The changelist keeps one place per line, the newest.
+	e, t := h.e, h.e.r.text.Snapshot()
+	if n := len(e.changes); n > 0 && t.LineOf(e.r.text.Mark(e.changes[n-1])) == t.LineOf(edits[0].Start) {
+		e.r.text.MoveMark(e.changes[n-1], edits[0].Start)
+	} else {
+		e.changes = append(e.changes, e.r.text.SetMark(edits[0].Start, kernel.Right))
+	}
+	e.changeAt = len(e.changes)
+	return nil
 }
 
 func (h host) Unhandled(keys string) {
@@ -148,10 +166,55 @@ func (h host) Mark(name rune) (int, bool) {
 func (h host) Viewport() (int, int) { return h.e.top, h.e.rows }
 func (h host) SetTop(top int)       { h.e.top = top }
 
-// The jumplist, changelist and timeline steps are the server's, and a
-// client keeps none of its own.
-func (h host) PushJump(int)         {}
-func (h host) Jump(int) bool        { return false }
-func (h host) Change(int) bool      { return false }
-func (h host) Step(int) (int, bool) { return 0, false }
-func (h host) IndentWidth() int     { return vim.Tabstop }
+// PushJump records pos as a jump, dropping an older one on its line.
+func (h host) PushJump(pos int) {
+	e, t := h.e, h.e.r.text.Snapshot()
+	e.jumps = slices.DeleteFunc(e.jumps, func(j kernel.MarkID) bool { return t.LineOf(e.r.text.Mark(j)) == t.LineOf(pos) })
+	e.jumps = append(e.jumps, e.r.text.SetMark(pos, kernel.Right))
+	e.jumpAt = len(e.jumps)
+}
+
+// Jump moves n jumps back, or forward when n is negative. The first step
+// back records where the cursor is, so <C-i> can return to it.
+func (h host) Jump(n int) bool {
+	e := h.e
+	if n > 0 && e.jumpAt == len(e.jumps) {
+		h.PushJump(e.Cursor())
+		e.jumpAt = len(e.jumps) - 1
+	}
+	i := e.jumpAt - n
+	if i < 0 || i >= len(e.jumps) {
+		return false
+	}
+	e.jumpAt = i
+	h.SetCursor(e.r.text.Mark(e.jumps[i]))
+	return true
+}
+
+// Change moves n places back in the changelist, or forward when n is
+// negative.
+func (h host) Change(n int) bool {
+	e := h.e
+	i := e.changeAt - n
+	if i < 0 || i >= len(e.changes) {
+		return false
+	}
+	e.changeAt = i
+	h.SetCursor(e.r.text.Mark(e.changes[i]))
+	return true
+}
+
+// Step is g- and g+ on the server, whose timeline it moves through.
+func (h host) Step(n int) (int, bool) {
+	keys := "g+"
+	if n < 0 {
+		n, keys = -n, "g-"
+	}
+	start, _, err := h.e.step(strconv.Itoa(n) + keys)
+	if err != nil && !errors.Is(err, vim.ErrNoStep) {
+		h.e.message = err.Error()
+	}
+	return start, err == nil
+}
+
+func (h host) IndentWidth() int { return vim.Tabstop }

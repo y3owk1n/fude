@@ -195,3 +195,28 @@ func TestB110GrammarCases(t *testing.T) {
 		}
 	}
 }
+
+// B99
+func TestB99ClientJumpsChangesAndSteps(t *testing.T) {
+	typed, path := served(t)
+	typed("ione<CR>two<CR>three<Esc>")
+	r, err := dial(t, path).Open(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ed := client.NewEditor(r, 22)
+	line := func() int { return strings.Count(ed.Text()[:ed.Cursor()], "\n") + 1 }
+	if feed(t, ed, "Gxgg<C-o>"); line() != 3 {
+		t.Fatalf("<C-o> after gg went to line %d, want 3", line())
+	}
+	if feed(t, ed, "ggg;"); line() != 3 {
+		t.Fatalf("g; went to line %d, want the change on 3", line())
+	}
+	// g- moves the server's timeline, which the copy follows.
+	if _, err := ed.Sync(); err != nil {
+		t.Fatal(err)
+	}
+	if feed(t, ed, "g-"); ed.Text() != "one\ntwo\nthree" || typed("") != ed.Text() {
+		t.Fatalf("g- left %q, and the server %q", ed.Text(), typed(""))
+	}
+}
