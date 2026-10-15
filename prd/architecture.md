@@ -1,0 +1,497 @@
+# Architecture
+
+## Layers
+
+```
+clients   terminal UI | GPU UI | web UI | remote fude | agent
+            | keys, mouse, Requests       ^ frames, events
+modules   statusline | picker | syntax | lsp | plugins (wasm)
+            | Requests, via api/          ^ events
+editor    the loop | event queues | budgets | files | timeline log
+            |    keys --> vim machine --> edits        (vim/, embeddable)
+            | Transactions                ^ changes
+kernel    buffers | marks | transactions | timeline    (core/, embeddable)
+            |
+storage   rope (persistent, structural sharing)        (core/)
+```
+
+Each layer talks only to the one below it, and listens to events from it.
+The vim machine sits beside the editor, not below it. The editor feeds it
+keys and text, and applies the edits it returns. It never sees the kernel.
+
+Step 6 puts an RPC boundary between clients and modules. Until then the
+terminal client calls the module API in-process, behind the same interface.
+
+## Packages
+
+```
+core/            Go module: stdlib only, no cgo
+  rope/          persistent rope
+  kernel/        buffers, marks, transactions, timeline
+vim/             Go module: the vim grammar, no dependency on core/
+                 Command, keys, keymap trie, modes, registers, resolution,
+                 built-in operators and targets, ex parsing, regex
+api/             fude's module API: events, decorations, UI, registration
+editor/          the editor loop, event queues, budgets, the vim host
+syntax/          tree-sitter parsing, highlights, tree targets
+plugin/          wazero host, the ABI that mirrors api/
+lsp/             language server client
+ui/term/         terminal client
+cmd/fude/        main, config, paths, distribution wiring
+```
+
+Modules import `api/`, never `core/` or `vim/` directly. Only `editor/`
+holds a kernel and a vim machine, and it holds the machine through a small
+grammar interface (`Feed`, `Timeout`, `Registry`), so a distribution can
+swap in another grammar. The kernel budget in `prd/product.md`
+counts `core/`.
+
+## The kernel as a library
+
+`core/` is a Go module of its own, so another program (a TUI text field, a
+collaborative server, a code tool) can import it without pulling in
+tree-sitter, wazero or a terminal. Its exported API is a public boundary
+with semver, and its behaviours are tested through that API.
+
+To stay reusable the kernel holds mechanism, never policy:
+
+- **No goroutines.** The kernel is a data structure. Writes come from one
+  goroutine the host chooses. Snapshots are safe to read from any goroutine.
+- **No I/O.** It never touches a file, a path or a clock it was not given.
+  Loading text, saving files and persisting the timeline go through
+  interfaces the host implements.
+- **No editor concepts.** It knows text, marks, transactions and history.
+  Commands, modes, keys, views, registers, syntax and files are above it.
+  A transaction's origin and label are opaque values the host supplies.
+- **No dependencies.** Standard library only, enforced in CI.
+
+The kernel's surface:
+
+```go
+func NewBuffer(text []byte, opts Options) *Buffer
+
+func (b *Buffer) Snapshot() Snapshot
+func (b *Buffer) Apply(t Transaction) (NodeID, error) // only at its base version
+func (b *Buffer) Rebase(t Transaction) (Transaction, error)
+func (b *Buffer) Map(pos int, bias Bias, from, to Version) int
+func (b *Buffer) BeginGroup()
+func (b *Buffer) EndGroup()
+func (b *Buffer) Undo() bool
+func (b *Buffer) Redo() bool
+func (b *Buffer) Restore(n NodeID) NodeID // a new node, nothing discarded
+func (b *Buffer) Diff(x, y NodeID) []Edit
+func (b *Buffer) SetMark(owner Owner, pos int, gravity Gravity) MarkID
+func (b *Buffer) Mark(MarkID) int
+
+type Listener interface { Changed(Snapshot, []Edit, NodeID) }
+type Store    interface { Append(Node) error; Load() ([]Node, error) }
+```
+
+The kernel calls its listener and store synchronously on the writing
+goroutine. fude's `editor/` implements both: the listener fans out to
+per-subscriber queues, and the store appends to the timeline log in the
+background.
+
+## The grammar as a library
+
+`vim/` is a second Go module. A program that wants Neovim's editing model
+over its own text (a TUI text field, a REPL, another editor) imports it
+without `core/`. fude is one host of it.
+
+The machine is a state machine with no goroutines, no I/O and no clock. The
+host feeds it keys, and it reads and acts through interfaces the host
+implements:
+
+```go
+type Text interface {        // read-only, core's Snapshot satisfies it as is
+    Len() int
+    Slice(start, end int) []byte
+    LineStart(line int) int
+    LineOf(pos int) int
+    Lines() int
+}
+
+type Host interface {
+    Text() Text
+    Cursor() int
+    SetCursor(pos int)
+    Apply(edits []Edit, label string) error
+    BeginGroup()
+    EndGroup()
+    History() History     // u, <C-r>, g-, g+, :earlier
+    Marks() Marks         // m{a-z} and their positions after edits
+    Clipboard() Clipboard // "+ and "*, nil when there is none
+    Viewport() Viewport   // top line and height, for <C-d>, zz, H, M, L
+    Unhandled(e Event)    // ex commands and window keys vim does not own
+}
+
+func New(h Host, opts Options) *Machine
+func (m *Machine) Feed(key Key) Status  // pending, done, or a wait deadline
+func (m *Machine) Timeout()             // the host calls this at the deadline
+func (m *Machine) Registry() *Registry  // add operators, targets, ex commands
+func (m *Machine) Map(mode Mode, keys string, to Binding) error
+```
+
+`vim/` owns the grammar, modes, registers, dot repeat, macros, search and
+the edit-producing ex commands. It keeps its visual anchor and query
+selection regions as marks through `Host.Marks()`, so another view's edits
+move them (B23). The host owns files, windows, history
+storage, the clipboard and everything shown on screen. `:w` and `<C-w>v`
+reach the host through `Unhandled`.
+
+Tree targets are not part of `vim/`. fude's `syntax/` registers `af`, `if`
+and the rest into the machine's registry, the same way a plugin would.
+
+`vim/` may use small pure-Go dependencies for Unicode segmentation and
+display width. It never imports `core/`, and `core/` never imports it.
+
+## Extension
+
+A module is a Go package compiled into a distribution. A plugin is a wasm
+file loaded at runtime. Both get the same API: what a built-in module can
+do, a plugin can do through the ABI, gated by capability.
+
+| Extension point | Adds | Runs |
+|---|---|---|
+| Operator | a verb, composes with every target | input path, budgeted |
+| Target | a motion or text object, composes with every operator | input path, budgeted |
+| Ex command | `:name args` | input path, budgeted |
+| Keymap binding | keys to a command, an ex line, or a plugin function | input path, budgeted |
+| Event handler | reacts to an event | off the input path |
+| Decoration | highlight, virtual text, sign on a range | rendered by clients |
+| UI element | statusline segment, floating window, picker source | rendered by clients |
+| Completion source | items for insert-mode completion | off the input path |
+| Client | anything over RPC (step 6) | its own process |
+
+A call on the input path that runs over budget cancels the command, stops
+the plugin, and tells the user (B51). The keystroke never waits longer than
+the budget.
+
+A user who wants a different grammar builds a distribution without
+`vim/`. A plugin cannot replace the grammar, because the input path
+must stay inside the latency budget.
+
+## Concurrency
+
+The editor loop in `editor/` is the one goroutine that writes to the
+kernel. It reads input, runs the grammar, resolves commands and applies
+transactions. Everything else works on
+snapshots. A snapshot is a rope root and a version, and a persistent rope
+makes it free.
+
+Background work (parsing, LSP, plugins, persistence, rendering) takes a
+snapshot, works off the loop, and posts its result back to the loop's queue
+tagged with the version it read. A result for an old version is mapped
+through the edits since, or dropped.
+
+## Text and positions
+
+The rope holds UTF-8 bytes. A position is a byte offset. Each rope node
+caches its byte count, newline count and UTF-16 code unit count, so line,
+column and LSP position conversions are O(log n).
+
+Grapheme clusters and display width are computed where they are needed,
+around the cursor and on the visible lines. They are never stored.
+
+## Command
+
+```go
+type Command struct {
+    Count    int    // 0 means no count was typed
+    Register rune   // 0 means the unnamed register
+    Op       string // registered operator, "" means move the cursor
+    Target   Target
+    Text     string // inserted text, or an ex operator's argument
+}
+
+type Target struct {
+    Name string // registered target: "word", "find", "inner_quote", "tree", "lines", "selection"
+    Arg  string // its argument: the char for f, the pattern for /, the query, the line range
+}
+```
+
+Operators and targets are registered by name, never stored as functions, so
+a command serializes to JSON and back unchanged. Plugin names are prefixed
+with the plugin name.
+
+Counts multiply as in Neovim. `2d3w` is `Count: 6`.
+
+### Resolution
+
+```go
+type Range struct {
+    Anchor, Head int  // byte offsets, Head is where a move puts the cursor
+    Kind         Kind // charwise, linewise, blockwise
+}
+
+type TargetFunc   func(t Text, at, count int, arg string) ([]Range, error)
+type OperatorFunc func(t Text, rs []Range, reg *Register, text string) ([]Edit, error)
+```
+
+The machine resolves a command against the host's text and cursor. It
+calls the target and gets ranges, several for blockwise or a query
+selection (B42). With no operator, the cursor moves to the last range's
+head. Otherwise the operator turns the ranges into edits, which the host applies
+as one transaction. Inclusive, exclusive and linewise rules belong
+to the target, as Vim's motion types do.
+
+### Rules
+
+- **Dot repeat** replays the last command whose operator changes text,
+  resolved at the current cursor. Moves and yanks are never repeated. After
+  a visual operator, `.` applies to a region of the same size at the cursor,
+  as in Neovim.
+- **Macros** are key text in a register. `@x` feeds the text through the
+  grammar, which produces commands. `:reg x` shows the text and editing it
+  changes the macro (B17). A macro can hold anything keys can do, including
+  `:w` and `<C-w>v`.
+- **Ex edits** are commands. `:3,5d` is `delete` on `lines` with
+  `Arg: "3,5"`. `:s/a/b/g` is `substitute` on `lines` with the pattern in
+  `Text`. Ex commands that do not edit text (`:w`, `:q`, `:e`) are module
+  calls.
+- **Insert** is `change` on an empty target at the insert position (`i`,
+  `a`, `o` differ only in the target). The text typed before `<Esc>` is
+  `Text`, so `.` reinserts it.
+
+### Request
+
+Clients and plugins send a command inside a request.
+
+```go
+type Request struct {
+    Buffer   BufferID
+    View     ViewID    // whose cursor to use and move, zero for none
+    At       *Position // resolve here through a temporary mark instead
+    Base     Version   // the snapshot the sender saw
+    Proposal bool      // show as ghost text, apply only on accept (B71)
+    Command  Command
+}
+```
+
+The anchor lives on the request, so it never reaches dot repeat or a
+macro. A request with `At` leaves the user's cursor where it was.
+
+## Keys
+
+Keys are written in Vim notation: `d3w`, `<C-w>v`, `<Esc>`, `<CR>`,
+`<leader>`. One parser reads them in config keymaps, macro text, `:reg`
+output and the RPC `keys` call.
+
+The machine keeps a keymap trie per mode. A leaf is a command
+template, an ex line or a plugin function. When a typed prefix is also a
+complete mapping, `Feed` returns a deadline `timeoutlen` away, as Neovim
+does, and the host calls `Timeout` if no key comes first. Operator-pending is a mode.
+
+## Views
+
+A view is one buffer shown in one window. It owns a cursor mark, selection
+marks, a scroll position and a jumplist. Views belong to the client that
+shows them. The kernel only holds their marks, so another view's edits
+move them (B23).
+
+The window layout (splits and tabs) is client state, outside the kernel.
+After an undo, the view that undid puts its cursor at the start of the
+changed text, as Neovim does. Other views only see their marks move.
+
+## Registers
+
+Registers belong to the vim machine and are shared by every view.
+Unnamed, `"a` to `"z` with uppercase append, `"0` to `"9`, `"-`, `".`,
+`":`, `"/`, `"%`, `"_`, `"+` and `"*` behave as in Neovim. `"+` and `"*`
+go through the host's clipboard. fude's uses the OS clipboard command when
+there is one, and OSC 52 in a terminal without one, such as over SSH.
+
+## Transactions and the timeline
+
+A transaction is a sorted list of non-overlapping edits, each a range and
+new text relative to its base version. It also carries its id, which is its
+origin and a sequence number counted per origin, and a label. The origin
+is the client the edit came from, such as the terminal client or an agent.
+A plugin's edit carries the origin of the client whose action or buffer ran
+it, so a plugin's `gsip` undoes with plain `u`. The label names the author
+(keys, a plugin, an agent) and the command's key text, which `:timeline`
+shows (B31). The ids and the base
+version are what step 6 and any later CRDT build on, so they exist from
+step 1 even with one client.
+
+The kernel applies a transaction only at its base version. For an older
+base it offers `Rebase`, which maps the edits through every transaction
+since and fails if one overlaps them. Whether to rebase, re-resolve the
+command or give up is the host's choice. `Map(pos, bias, from, to)` maps any
+position between two versions, which is how late async results, marks and
+proposal ranges follow the text.
+
+The kernel keeps a transaction log beside the timeline. A command such as
+`dw` resolves to different edits at a different version, so the log stores
+the resolved edits and the label, never only the command.
+
+The vim machine may open a group through its host. Edits in an open group
+apply and render immediately, and closing the group makes one timeline
+node. Insert mode is one group (B7). `<Left>`, `<Right>`, `<C-w>`, `<C-u>`
+and `<C-g>u` in insert mode close it and open a new one, as in Neovim.
+
+A timeline node holds its parent, time, transaction id, label, edits, the
+inverse edits and a rope root. The host supplies the time. Roots share
+structure, so every node costs only the rope nodes its edits touched.
+
+Undo only reverts the undoer's own transactions. When the undoer's last
+transaction is the head, undo moves the head to its parent, and the next
+edit starts a new branch (B30). When another origin has edited since, undo
+appends a new node with the inverse edits, mapped through the later ones
+(B77). With one client the first case is the only one, so this is plain
+Neovim undo.
+
+### Persistence
+
+The kernel hands each new node to its `Store`. fude's store keeps an
+append-only log per file under the timeline directory and writes it from a
+background goroutine. A save appends a marker with a hash of the saved
+text. On open:
+
+- If the disk text matches the last save marker, the timeline loads (B33).
+- If nodes follow that marker, fude offers to recover them (B34). This
+  replaces swap files.
+- If the disk text matches neither, the log is set aside and the timeline
+  starts fresh.
+
+## Events
+
+The kernel reports only changes, through its listener. `editor/` turns
+that into `buffer.changed` and emits the rest by name: `buffer.opened`,
+`buffer.changed`, `buffer.saved`, `buffer.closed`, `view.moved`,
+`mode.changed`, `syntax.updated`, `lsp.diagnostics`, plus any a plugin
+declares under its own prefix.
+
+Each subscriber has its own queue, and emitting never blocks. An event
+carries the snapshot it describes. A subscriber that falls behind gets one
+`buffer.changed` covering every edit since the last one it handled, so it
+never processes stale states one by one.
+
+## Decorations
+
+A decoration is a mark range owned by a module, carrying a highlight,
+virtual text or a sign. It moves with edits like any mark. Syntax
+highlighting, diagnostics, search matches, inlay hints and proposal ghost
+text are all decorations. Clients render them and know nothing about where
+they came from.
+
+Marks live in a tree ordered by position. An edit shifts the subtree after
+it lazily, so tens of thousands of highlight marks cost O(log n) per edit,
+as Neovim's marktree does.
+
+## One keystroke
+
+```
+key -> client -> grammar (keymap trie, mode state)
+    -> Command when complete -> resolve against snapshot -> Transaction
+    -> kernel applies -> timeline node -> event "buffer.changed"
+    -> client renders from the new snapshot and current decorations
+    -> modules react off the loop (reparse, lsp didChange, plugins)
+```
+
+Highlighting from the previous parse is mapped through the new edits, so
+the frame never waits for a reparse (B43).
+
+## Rendering
+
+The client keeps a cell grid, diffs it against the previous frame, and
+writes only the changed cells in one write. It wraps each frame in
+synchronized output where the terminal supports it.
+
+## Paths
+
+```
+$XDG_CONFIG_HOME/fude/config.toml   settings, keymaps, plugin list
+$XDG_CONFIG_HOME/fude/plugins/      .wasm files
+$XDG_CONFIG_HOME/fude/queries/      tree-sitter queries that override shipped ones
+$XDG_STATE_HOME/fude/timeline/      timeline logs, keyed by file path
+$XDG_DATA_HOME/fude/grammars/       grammars and their queries, loaded at runtime
+```
+
+## Plugin ABI
+
+Core wasm on wazero. A plugin exports `init`, `on_event` and the operators,
+targets and commands it registers. The host imports, gated by capability:
+
+| Capability | Grants |
+|---|---|
+| `buffer.read` | read text, marks, syntax nodes |
+| `buffer.write` | submit requests |
+| `ui` | decorations, statusline segments, floating windows |
+| `fs.read` | read files under the project root |
+| `process` | spawn a declared program |
+| `net` | open connections to declared hosts |
+
+A call outside the declared capabilities returns an error to the plugin and
+logs it.
+
+Each plugin gets its own wazero runtime, so each has its own memory limit
+(`WithMemoryLimitPages` is per runtime). All runtimes share one compilation
+cache on disk. Plugins compile and instantiate after the first frame
+(B56).
+
+Each plugin runs on its own goroutine, and every call into it carries a
+context with its budget. With `WithCloseOnContextDone`, wazero stops the
+plugin at its next loop back-edge after the deadline. Compiled code is
+never preempted mid-loop, so host functions check the context themselves
+and never block. A stopped or trapped instance is closed and its state is
+lost. fude unloads it and tells the user (B51, B53). It can be instantiated
+again from the compiled module without recompiling.
+
+## Syntax
+
+tree-sitter through cgo, with the official `go-tree-sitter` binding.
+Parsing is incremental and runs on its own goroutine with its own parser,
+on a clone of the last tree, so a keystroke never waits for a parse (B43).
+A parse for an old version is abandoned through the progress callback of
+`ParseWithOptions` and the parser is reset. The binding has no finalizers,
+so `syntax/` closes every parser, tree, query and cursor it makes.
+
+Each language is a grammar and its queries, from the grammar's own repo
+(D28):
+
+- `highlights.scm`, `injections.scm` and `locals.scm` as the repo ships
+  them, with tree-sitter's standard capture names.
+- `textobjects.scm`, which fude writes, with `@function.outer`,
+  `@function.inner`, `@parameter.outer`, `@parameter.inner`, `@class.outer`
+  and `@class.inner`.
+
+Queries use only the predicates the binding evaluates: the `eq?`,
+`match?` and `any-of?` families. A query that uses any other fails to load
+with its file and line. Indentation is the previous line's (B29), so there
+are no indent or fold queries.
+
+A distribution links its grammars through each grammar repo's Go binding.
+Any other grammar is built with `tree-sitter build` into
+`$XDG_DATA_HOME/fude/grammars/<lang>/`, with its queries beside it, and
+loaded at runtime (D29).
+
+## LSP
+
+fude offers the server `utf-8`, then `utf-16`, in `positionEncodings`.
+rust-analyzer and clangd take `utf-8`. gopls and most others answer
+`utf-16`, which the rope's cached UTF-16 counts convert in O(log n). Changes
+go out as incremental `didChange` notifications, in order, each relative to
+the text after the previous one.
+
+## Server split (step 6)
+
+One server holds the kernel and its modules and orders every transaction.
+Clients send requests and keys. Each client applies its own edits at once,
+and on receiving the server's order rebases its unconfirmed ones over it,
+as CodeMirror's collab module does. Two clients converge because the
+server's order is the only history (B73).
+
+The protocol is fude's own and carries state, not cells: buffer text and
+edits, views, decorations, modes and proposals. A terminal client renders
+its own cells from that state, and an agent reads text and positions
+straight from it. Neovim's UI protocol does not fit, because it shares one
+screen and one cursor between every client, and real Neovim GUIs also call
+much of Neovim's Lua and Vimscript API (D25).
+
+A proposal is a branch off the current node, with its own origin. Clients
+show the branch's edits as ghost text decorations, anchored by `Map`. On
+accept, the server rebases the branch's edits onto the head and applies
+them as one transaction (B72). If an edit since overlaps them, the proposal
+is stale and cannot be accepted until the sender refreshes it (B74). Reject
+drops the branch, and nothing enters the timeline.
