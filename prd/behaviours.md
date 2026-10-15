@@ -250,3 +250,5 @@ Tested through `vim/`'s exported API with a minimal host over a byte slice.
   the host's `Unhandled` with their full text and count.
 - B113 [2] An operator or target the host registers composes with every
   built-in target or operator.
+- B114 [2] Removing a mapping removes the prefixes only it used, so typing
+  one no longer waits.

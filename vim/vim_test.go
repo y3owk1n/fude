@@ -775,3 +775,31 @@ func TestB42SelectRegions(t *testing.T) {
 		t.Errorf("a query with no match gave %v", err)
 	}
 }
+
+// B114
+func TestB114Unmap(t *testing.T) {
+	h := &host{text: "ab cd"}
+	m := vim.New(h)
+	m.Map(vim.Normal, "grn", ":Rename<CR>")
+	m.Map(vim.Normal, "gq", "x")
+	m.Unmap(vim.Normal, "grn")
+	for _, k := range vim.Keys("gr") {
+		if err := m.Feed(k); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if m.Waiting() {
+		t.Error("gr waits after the only mapping it began was removed")
+	}
+	if err := m.Feed("<Esc>"); err != nil {
+		t.Fatal(err)
+	}
+	for _, k := range vim.Keys("gq") {
+		if err := m.Feed(k); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if h.text != "b cd" {
+		t.Errorf("a mapping beside the removed one left %q, want it to still run", h.text)
+	}
+}

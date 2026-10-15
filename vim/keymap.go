@@ -35,6 +35,26 @@ func (m *Machine) Map(mode Mode, from, to string) {
 	n.to, n.end = Keys(to), true
 }
 
+// Unmap removes the mapping of from in mode, and with it any prefix only it
+// used, so typing that prefix no longer waits.
+func (m *Machine) Unmap(mode Mode, from string) {
+	m.maps[mode].unmap(Keys(from))
+}
+
+// unmap removes keys from below n, and reports whether n is left with
+// nothing, for its parent to drop it.
+func (n *keymap) unmap(keys []Key) bool {
+	if n == nil {
+		return false
+	}
+	if len(keys) == 0 {
+		n.to, n.end = nil, false
+	} else if child := n.next[keys[0]]; child.unmap(keys[1:]) {
+		delete(n.next, keys[0])
+	}
+	return !n.end && len(n.next) == 0
+}
+
 // Waiting reports whether typed keys are held because they start a longer
 // mapping. The host calls Timeout if no key comes in time.
 func (m *Machine) Waiting() bool { return len(m.held) > 0 }
