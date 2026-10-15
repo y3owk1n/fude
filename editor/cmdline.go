@@ -133,7 +133,7 @@ func (e *Session) completions(line string, wait bool) (int, []string) {
 		slices.Sort(names)
 		return start + i, match(names, arg[i:])
 	case "lsp":
-		return start, match([]string{"restart"}, arg)
+		return start, match(lspCommands, arg)
 	case "theme":
 		// Offer the scheme config.toml names, so :theme can switch back to it.
 		names := []string{"dark", "light"}

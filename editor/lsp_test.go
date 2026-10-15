@@ -258,6 +258,21 @@ func TestB159LspCommand(t *testing.T) {
 	heard(t, log, `"method":"textDocument/didOpen"`, 4)
 }
 
+// B160
+func TestB160LspStopAndDisable(t *testing.T) {
+	e, log := withServer(t, "x\n", "utf-8")
+	heard(t, log, `"method":"textDocument/didOpen"`, 1)
+	feed(e, ":lsp stop<CR>")
+	heard(t, log, `"method":"shutdown"`, 1)
+	// A disabled server stays off, even through :lsp restart.
+	feed(e, ":lsp disable<CR>:lsp restart<CR>:lsp<CR>")
+	if !strings.Contains(text(e), "disable") || strings.Contains(text(e), "a.go") {
+		t.Fatalf(":lsp with the server disabled listed %q", text(e))
+	}
+	feed(e, ":q<CR>:lsp enable<CR>")
+	heard(t, log, `"method":"textDocument/didOpen"`, 2)
+}
+
 // B61
 func TestB61Diagnostics(t *testing.T) {
 	e, _ := withServer(t, "ok\nbad x bad\n", "utf-8")

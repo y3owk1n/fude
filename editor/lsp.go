@@ -33,7 +33,7 @@ type server struct {
 // for b's directory when none runs (B60).
 func (e *Session) attach(b *buffer) {
 	command := e.cfg.Filetype[b.filetype()].LSP
-	if len(command) == 0 || b.file.path == "" || b.title != "" {
+	if len(command) == 0 || e.off[filepath.Base(command[0])] || b.file.path == "" || b.title != "" {
 		return
 	}
 	abs, err := filepath.Abs(b.file.path)
@@ -124,7 +124,12 @@ func (e *Session) lspInfo() {
 	var lines []string
 	b := e.win.buf
 	if command := e.cfg.Filetype[b.filetype()].LSP; len(command) > 0 && b.server == nil {
-		lines = append(lines, fmt.Sprintf("%s is set for %s files but is not running, and :messages may say why", filepath.Base(command[0]), b.filetype()), "")
+		name := filepath.Base(command[0])
+		why := "and :messages may say why"
+		if e.off[name] {
+			why = "because :lsp disable turned it off"
+		}
+		lines = append(lines, fmt.Sprintf("%s is set for %s files but is not running, %s", name, b.filetype(), why), "")
 	}
 	for _, k := range slices.Sorted(maps.Keys(e.servers)) {
 		s := e.servers[k]
@@ -140,27 +145,49 @@ func (e *Session) lspInfo() {
 	e.scratch("[lsp]", strings.Join(lines, "\n"), nil, nil)
 }
 
-// restartServer stops the current buffer's language server, then attaches
-// every buffer of its filetype that has none, which also starts a server
-// that stayed off after crashing (B159).
-func (e *Session) restartServer() {
+// lspCommands are what :lsp takes after it.
+var lspCommands = []string{"disable", "enable", "restart", "stop"}
+
+// lspCommand runs :lsp sub on the current buffer's language server:
+// restart, stop, disable to keep it off for every file, or enable. Restart
+// and enable attach every buffer of the filetype that has no server, which
+// also starts one that stayed off after crashing (B159, B160).
+func (e *Session) lspCommand(sub string) {
 	b := e.win.buf
-	if len(e.cfg.Filetype[b.filetype()].LSP) == 0 {
+	command := e.cfg.Filetype[b.filetype()].LSP
+	if len(command) == 0 {
 		e.message = "no language server is set for this file"
 		return
 	}
-	if s := b.server; s != nil {
+	if !slices.Contains(lspCommands, sub) {
+		e.message = "not an lsp command: " + sub
+		return
+	}
+	name := filepath.Base(command[0])
+	if s := b.server; s != nil && sub != "enable" {
 		s.closing = true
 		s.client.Close()
 		e.stop(s)
+	}
+	switch sub {
+	case "stop":
+		e.message = "stopped " + name
+		return
+	case "disable":
+		e.off[name] = true
+	case "enable":
+		delete(e.off, name)
 	}
 	for _, o := range e.bufs {
 		if o.server == nil && o.filetype() == b.filetype() {
 			e.attach(o)
 		}
 	}
-	if b.server != nil {
-		e.message = "restarted " + filepath.Base(b.server.command[0])
+	switch {
+	case e.off[name]:
+		e.message = name + " is off until :lsp enable"
+	case b.server != nil:
+		e.message = name + " is running"
 	}
 }
 

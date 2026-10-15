@@ -290,6 +290,10 @@ Where fude departs, the line says so and cites the departure in
   files, and says when the current file's server is not running (N20).
   `:lsp restart` restarts the current file's server, or starts it again
   after it stayed off (B63), and opens its files in the new one.
+- B160 [5] `:lsp stop` stops the current file's server, and opening a file
+  it serves starts it again. `:lsp disable` stops it and keeps it off for
+  every file until `:lsp enable`, even through `:lsp restart`. `:lsp
+  enable` starts it for the open files of the current file's filetype.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays

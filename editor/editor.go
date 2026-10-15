@@ -38,6 +38,7 @@ type Editor struct {
 	commands  map[string]func(*Session) // ex commands plugins registered
 	decos     map[any][]decoration      // by owner: a plugin, or a buffer for its diagnostics
 	servers   map[string]*server        // by command and root
+	off       map[string]bool           // the language servers :lsp disable turned off, by name
 	started   bool                      // Load ran, so new buffers attach to servers at once
 	sessions  []*Session                // the first is the one that opened the editor
 	setup     []func(*Session)          // what every session's machine gets, such as keymaps
@@ -105,7 +106,7 @@ func open(cfg config, paths []string) (*Session, error) {
 	if len(paths) == 0 {
 		paths = []string{""}
 	}
-	ed := &Editor{next: 1, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(*Session){}, decos: map[any][]decoration{}, servers: map[string]*server{}, listeners: map[*plugin.Plugin]*listener{}, segments: map[*plugin.Plugin]map[*buffer]string{}}
+	ed := &Editor{next: 1, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(*Session){}, decos: map[any][]decoration{}, servers: map[string]*server{}, off: map[string]bool{}, listeners: map[*plugin.Plugin]*listener{}, segments: map[*plugin.Plugin]map[*buffer]string{}}
 	// Without a config directory there are no overrides, and loadConfig
 	// reports why.
 	if dir, err := xdgDir("XDG_CONFIG_HOME", ".config"); err == nil {
@@ -1034,13 +1035,10 @@ func (e *Session) ex(line string) {
 	case "r", "read":
 		e.readIn(arg, last)
 	case "lsp":
-		switch arg {
-		case "":
+		if arg == "" {
 			e.lspInfo()
-		case "restart":
-			e.restartServer()
-		default:
-			e.message = "not an lsp command: " + arg
+		} else {
+			e.lspCommand(arg)
 		}
 	case "theme":
 		if arg == "" {
