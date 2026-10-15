@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -189,6 +190,12 @@ func query(lang *ts.Language, dir, filetype, name, shipped string) (*ts.Query, e
 // evaluate, which is any outside the eq?, match? and any-of? families. Its
 // errors name the line in src.
 func compile(lang *ts.Language, src string) (*ts.Query, error) {
+	src = luaMatch.ReplaceAllStringFunc(src, func(m string) string {
+		if pat := luaMatch.FindStringSubmatch(m)[2]; plainLua(pat) {
+			return strings.Replace(m, "#lua-match?", "#match?", 1)
+		}
+		return m
+	})
 	q, qerr := ts.NewQuery(lang, src)
 	if qerr != nil {
 		return nil, fmt.Errorf("line %d: %s", qerr.Row+1, qerr.Message)
@@ -198,7 +205,9 @@ func compile(lang *ts.Language, src string) (*ts.Query, error) {
 		switch {
 		case len(q.GeneralPredicates(i)) > 0:
 			unknown = q.GeneralPredicates(i)[0].Operator
-		case len(q.PropertySettings(i)) > 0:
+		// A #set! "priority" orders highlights in other editors, and means
+		// nothing to fude.
+		case slices.ContainsFunc(q.PropertySettings(i), func(p ts.QueryProperty) bool { return p.Key != "priority" }):
 			unknown = "set!"
 		case slices.ContainsFunc(q.PropertyPredicates(i), func(p ts.PropertyPredicate) bool { return p.Positive || p.Property.Key != "local" }):
 			unknown = "is?"
@@ -214,6 +223,29 @@ func compile(lang *ts.Language, src string) (*ts.Query, error) {
 		return nil, fmt.Errorf("line %d: fude does not evaluate #%s", line, unknown)
 	}
 	return q, nil
+}
+
+// luaMatch finds a #lua-match? predicate, with its capture and pattern.
+var luaMatch = regexp.MustCompile(`#lua-match\? +(@[\w.]+) +"((?:[^"\\]|\\.)*)"`)
+
+// plainLua reports whether the Lua pattern pat means the same as a regular
+// expression: it has no % item, and no - outside a set, which in Lua repeats
+// lazily (D28).
+func plainLua(pat string) bool {
+	set := false
+	for _, c := range pat {
+		switch {
+		case c == '%':
+			return false
+		case c == '[':
+			set = true
+		case c == ']':
+			set = false
+		case c == '-' && !set:
+			return false
+		}
+	}
+	return true
 }
 
 // Close stops the buffer's goroutine, which frees its tree-sitter state, and

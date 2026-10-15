@@ -415,7 +415,9 @@ Where fude departs, the line says so and cites the departure in
   argument and class through tree-sitter queries.
 - B41 [3] A query file in the config `queries/` directory overrides the
   shipped one for that language. A query with a predicate fude does not
-  know fails to load and names the file and line.
+  know fails to load and names the file and line. `#lua-match?` with a
+  pattern that means the same as a regular expression works as `#match?`,
+  and `#set! "priority"` is allowed and changes nothing (D28).
 - B42 [3] `:select <query>` in visual mode selects, as a region, every node
   that a capture of the tree-sitter query names within the selection. `d`,
   `x`, `y` and host operators such as `gc` then act on every region as one

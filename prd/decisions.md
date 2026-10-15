@@ -234,11 +234,15 @@ engine, no regex translation for queries and no third-party query
 collection. The tree-sitter CLI (`tree-sitter query`, `tree-sitter
 highlight`) checks them against the same grammar. The cost is plainer
 highlighting than nvim-treesitter's and one tree-object file per language
-to maintain. fude accepts one predicate outside the core ones.
+to maintain. fude accepts three predicates outside the core ones.
 JavaScript's highlights mark built-in names with `#is-not? local`, which
 needs the locals a highlighter tracks. fude tracks none and lets those
 patterns match, so a local that shadows a built-in name takes the
-built-in's colour. A language's highlight files combine in the order its
+built-in's colour. Zig's highlights, written for Neovim, use `#lua-match?`
+and `#set! "priority"`. A Lua pattern with no `%` item and no `-` outside
+a set means the same as a regular expression, so fude reads it as
+`#match?`, and refuses any other Lua pattern. A priority orders highlights in Neovim,
+and fude ignores it. A language's highlight files combine in the order its
 repo's `tree-sitter.json` lists them. Some come from another grammar's
 repo, as most of TypeScript's come from JavaScript's.
 

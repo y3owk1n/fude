@@ -53,6 +53,7 @@ var registry = map[string]grammar{
 	"toml":       {"https://github.com/tree-sitter-grammars/tree-sitter-toml", "64b56832c2cffe41758f28e05c756a3a98d16f41", ".", []string{"queries/highlights.scm"}, "# %s"},
 	"tsx":        {"https://github.com/tree-sitter/tree-sitter-typescript", "f975a621f4e7f532fe322e13c4f79495e0a7b2e7", "tsx", []string{"queries/highlights.scm", "javascript:queries/highlights-jsx.scm", "javascript:queries/highlights.scm"}, "// %s"},
 	"typescript": {"https://github.com/tree-sitter/tree-sitter-typescript", "f975a621f4e7f532fe322e13c4f79495e0a7b2e7", "typescript", []string{"queries/highlights.scm", "javascript:queries/highlights.scm"}, "// %s"},
+	"zig":        {"https://github.com/tree-sitter-grammars/tree-sitter-zig", "b670c8df85a1568f498aa5c8cae42f51a90473c0", ".", []string{"queries/highlights.scm"}, "// %s"},
 	"yaml":       {"https://github.com/tree-sitter-grammars/tree-sitter-yaml", "7708026449bed86239b1cd5bce6e3c34dbca6415", ".", []string{"queries/highlights.scm"}, "# %s"},
 }
 
