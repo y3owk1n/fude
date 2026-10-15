@@ -437,7 +437,7 @@ func TestB66Places(t *testing.T) {
 	if want := path + ":1:3: a target\n" + path + ":2:3: b target"; text(e) != want {
 		t.Errorf("grr listed %q, want %q", text(e), want)
 	}
-	if feed(e, "j<CR>"); e.Views()[0].Name != "[references]" || text(e) != "a target\nb target\nc" || e.Cursor() != 11 {
+	if feed(e, "j<CR>"); e.Views()[1].Name != "[references]" || text(e) != "a target\nb target\nc" || e.Cursor() != 11 {
 		t.Errorf("<CR> on the second reference left %q at %d", text(e), e.Cursor())
 	}
 	feed(e, "ggjgrt")

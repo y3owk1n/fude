@@ -472,12 +472,13 @@ func TestB23Splits(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, c := range []struct{ keys, want string }{
-		{"<C-w>s", "*0,0 80x12 0,12 80x11"},
-		{"<C-w>v", "*0,0 40x23 41,0 39x23"},
-		{"<C-w>s<C-w>v", "*0,0 40x12 41,0 39x12 0,12 80x11"},
-		{"<C-w>s<C-w>j", "0,0 80x12 *0,12 80x11"},
-		{"<C-w>v<C-w>l", "0,0 40x23 *41,0 39x23"},
-		{"<C-w>v<C-w>l<C-w>h", "*0,0 40x23 41,0 39x23"},
+		// A new window goes below or right, and the cursor goes to it.
+		{"<C-w>s", "0,0 80x12 *0,12 80x11"},
+		{"<C-w>v", "0,0 40x23 *41,0 39x23"},
+		{"<C-w>s<C-w>v", "0,0 80x12 0,12 40x11 *41,12 39x11"},
+		{"<C-w>s<C-w>k", "*0,0 80x12 0,12 80x11"},
+		{"<C-w>v<C-w>h", "*0,0 40x23 41,0 39x23"},
+		{"<C-w>v<C-w>h<C-w>l", "0,0 40x23 *41,0 39x23"},
 	} {
 		e := open(t, path)
 		e.SetSize(80, 23)
@@ -491,13 +492,13 @@ func TestB23Splits(t *testing.T) {
 	// the other, and an edit after it leaves it where it was.
 	e := open(t, path)
 	e.SetSize(80, 23)
-	feed(e, "jjl<C-w>sggdd<C-w>j")
+	feed(e, "jjl<C-w>sggdd<C-w>k")
 	if text(e) != "two\nthree\nfour" || e.Cursor() != 5 {
 		t.Errorf("after dd above it, the other window is at %d in %q, want 5", e.Cursor(), text(e))
 	}
 	e = open(t, path)
 	e.SetSize(80, 23)
-	feed(e, "jjl<C-w>sjx<C-w>j")
+	feed(e, "jjl<C-w>sjx<C-w>k")
 	if e.Cursor() != 9 {
 		t.Errorf("after x below it, the other window is at %d, want 9", e.Cursor())
 	}
@@ -511,9 +512,9 @@ func TestB91WindowCommands(t *testing.T) {
 	}
 	for _, c := range []struct{ keys, want string }{
 		{"<C-w>s<C-w>c", "*0,0 80x23"},
-		{"<C-w>s<C-w>s", "*0,0 80x8 0,8 80x8 0,16 80x7"},
+		{"<C-w>s<C-w>s", "0,0 80x8 0,8 80x8 *0,16 80x7"},
 		{"<C-w>s<C-w>s<C-w>o", "*0,0 80x23"},
-		{"<C-w>s<C-w>s<C-w>=", "*0,0 80x8 0,8 80x8 0,16 80x7"},
+		{"<C-w>s<C-w>s<C-w>=", "0,0 80x8 0,8 80x8 *0,16 80x7"},
 		{"<C-w>s:q<CR>", "*0,0 80x23"},
 		{"<C-w>v<C-w>q", "*0,0 80x23"},
 	} {
@@ -620,7 +621,7 @@ func TestB39Set(t *testing.T) {
 	// A window split from it starts the same, and :set changes only the
 	// current one.
 	feed(e, ":sp<CR>:set nonumber relative_number!<CR>")
-	if vs := e.Views(); vs[0].Number || vs[0].Relative || vs[0].Gutter != 0 || !vs[1].Number {
+	if vs := e.Views(); vs[1].Number || vs[1].Relative || vs[1].Gutter != 0 || !vs[0].Number {
 		t.Fatalf("after :set nonumber relative_number! in a split the views are %+v", vs)
 	}
 	if feed(e, ":set number?<CR>"); e.Message() != "nonumber" {
@@ -1003,13 +1004,13 @@ func TestB140Navigate(t *testing.T) {
 	change(t, path, "a\n")
 	e := open(t, path)
 	e.SetSize(80, 24)
-	// :vsplit leaves the cursor in the left window, so right moves within
-	// fude, and right again goes to tmux's pane.
-	feed(e, ":vsplit<CR><Plug>(window.right)")
-	if v := e.Views(); !v[1].Current || v[0].Current {
-		t.Fatal("<Plug>(window.right) did not move to the right window")
+	// :vsplit leaves the cursor in the right window, so left moves within
+	// fude, and left again goes to tmux's pane.
+	feed(e, ":vsplit<CR><Plug>(window.left)")
+	if v := e.Views(); !v[0].Current || v[1].Current {
+		t.Fatal("<Plug>(window.left) did not move to the left window")
 	}
-	if feed(e, "<Plug>(window.right)"); disk(t, log) != "select-pane -t %3 -R\n" {
+	if feed(e, "<Plug>(window.left)"); disk(t, log) != "select-pane -t %3 -L\n" {
 		t.Fatalf("tmux heard %q", disk(t, log))
 	}
 }

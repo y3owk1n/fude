@@ -551,7 +551,7 @@ motion, as Neovim does by default: it lists the directory holding the
 current file or listing with the cursor on what it came from, `N-` goes up
 N levels, and `1-` lists the working directory. A listing takes oil.nvim's
 keys, while the machine is between commands: `<CR>` opens the entry under
-the cursor, `<C-s>` and `<C-h>` open it in a split beside or above, and
+the cursor, `<C-s>` and `<C-h>` open it in a split beside or below, and
 `_` lists the working directory. `R` stays replace mode, as a listing is
 text to edit (B124).
 

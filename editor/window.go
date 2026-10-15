@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -150,8 +151,8 @@ func (n *node) leaf(w *window) *node {
 	return nil
 }
 
-// split opens a new window on the shown buffer above the current one, or
-// left of it when across is set, and moves to it.
+// split opens a new window on the shown buffer below the current one, or
+// right of it when across is set, and moves to it (N16).
 func (e *Session) split(across bool) {
 	old := e.win
 	nw := newWindow(old.buf, old.pos(), old.buf.text.Mark(old.top))
@@ -162,12 +163,12 @@ func (e *Session) split(across bool) {
 	if p := l.parent; p != nil && p.across == across {
 		i := index(p.kids, l)
 		add.parent = p
-		p.kids = append(p.kids[:i], append([]*node{add}, p.kids[i:]...)...)
+		p.kids = slices.Insert(p.kids, i+1, add)
 	} else {
 		// l becomes a split holding the new window and the old one.
 		keep := &node{win: old, parent: l}
 		add.parent = l
-		l.win, l.across, l.kids = nil, across, []*node{add, keep}
+		l.win, l.across, l.kids = nil, across, []*node{keep, add}
 	}
 	e.win = nw
 	e.layout()

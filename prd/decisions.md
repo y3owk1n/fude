@@ -382,6 +382,14 @@ Text just yanked, put, undone or redone shows highlighted for a moment
 plugin does the rest. Why: it shows what a command touched, and the user
 runs undo-glow.nvim for it.
 
+### N16. Splits open below and right
+
+A new window goes below the current one for `:split` and right of it for
+`:vsplit`, and takes the cursor (B23), as Neovim does with `splitbelow`
+and `splitright` set. Neovim's defaults put it above and left. Why: the
+user sets both, as many configs do, and asked for it on 2026-10-16. An
+option to choose waits for someone who wants the other way.
+
 ## Open
 
 None.

@@ -108,7 +108,7 @@ Where fude departs, the line says so and cites the departure in
   it, `N-` goes up N levels and `1-` lists the working directory, as
   Neovim's built-in `-` does, in place of the `-` motion. In a listing,
   `<CR>` opens the entry, `<C-s>` and `<C-h>` open it in a split beside or
-  above, `_` lists the working directory and `<C-l>` reads it again, as
+  below, `_` lists the working directory and `<C-l>` reads it again, as
   oil.nvim's keys do.
 - B125 [2] Editing a listing and `:w` changes the directory, as oil.nvim
   does: a changed name renames the entry, a deleted line deletes it, and a
@@ -224,7 +224,8 @@ Where fude departs, the line says so and cites the departure in
   Vim's replacement forms (N1). `&` repeats the last substitute with its
   flags. The whole substitute is one transaction.
 - B23 [2] `<C-w>s` and `<C-w>v` split, `<C-w>hjkl` move between splits, and
-  two splits on one buffer see each other's edits.
+  two splits on one buffer see each other's edits. A new window goes below
+  or right of the current one and takes the cursor (N16).
 - B24 [2] Every key sequence in the grammar gives the same result whether
   it comes from typed keys, a macro, a plugin key or a client (D3).
 - B25 [2] `x X s S r R J gJ ~ g~ gu gU > < D C Y` act as in Neovim with
