@@ -38,6 +38,7 @@ plugin/          wazero host, the ABI that mirrors api/
 lsp/             language server client
 ui/term/         terminal client
 client/          a client over the socket, with replicas of buffers
+clipboard/       the system clipboard, through pbcopy, wl-copy or xclip
 cmd/fude/        main, distribution wiring
 ```
 
