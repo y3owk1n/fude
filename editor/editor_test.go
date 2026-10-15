@@ -1120,8 +1120,8 @@ func TestB152Marks(t *testing.T) {
 	}
 	feed(e, ":files<CR>edfl")
 	settle(t, e, func() bool { return marked() == "edfl" })
-	feed(e, "<Esc>:ti<Tab>")
-	if marked() != "ti" {
+	feed(e, "<Esc>:tim<Tab>")
+	if marked() != "tim" {
 		t.Fatalf("the command menu marks %q", marked())
 	}
 	// A grep result longer than the box is cut, and marks what is left.

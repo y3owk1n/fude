@@ -286,7 +286,7 @@ func (m *Machine) subLine() (int, int, []string, bool) {
 	t, c := m.h.Text(), m.h.Cursor()
 	first, last, rest, _, err := m.lineRange(t, c, m.line)
 	name, arg := exName(rest)
-	if err != nil || name != "s" || len(arg) < 2 {
+	if cmd := exByName[name]; err != nil || cmd == nil || cmd.Name != "substitute" || len(arg) < 2 {
 		return 0, 0, nil, false
 	}
 	parts := splitDelim(arg[1:], arg[0])

@@ -112,7 +112,10 @@ func (e *Session) completions(line string, wait bool) (int, []string) {
 		if strings.ContainsFunc(line[:start], unicode.IsLetter) {
 			return 0, nil
 		}
-		names := slices.Concat(commandNames, vim.ExNames(), slices.Collect(maps.Keys(e.commands)))
+		names := slices.Concat(commandNames, slices.Collect(maps.Keys(e.commands)))
+		for _, c := range vim.Commands() {
+			names = append(names, c.Name)
+		}
 		slices.Sort(names)
 		return start, match(names, line[start:])
 	}

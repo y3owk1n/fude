@@ -9,6 +9,106 @@ import (
 	"strings"
 )
 
+// Command is an ex command, as help shows it.
+type Command struct {
+	Name  string   // its full name
+	Short []string // the other names it answers to
+	Args  string   // what may follow it
+	Help  string   // what it does
+}
+
+// exCommand is one of the machine's ex commands and what runs it.
+type exCommand struct {
+	Command
+	run func(m *Machine, x exCall) error
+}
+
+// exCall is what an ex command gets from its command line. first and last
+// are the starts of the range's first and last lines, and ranged says
+// whether the line had a range.
+type exCall struct {
+	t           Text
+	c           int // the cursor
+	first, last int
+	ranged      bool
+	name, arg   string
+}
+
+// rangeOrAll returns the range, or every line when there is none.
+func (x exCall) rangeOrAll() (int, int) {
+	if x.ranged {
+		return x.first, x.last
+	}
+	return 0, LineStart(x.t, x.t.Len())
+}
+
+// exCommands are the machine's ex commands, and exByName finds one by any
+// of its names. init fills them because :g runs ex, which reads them, and
+// Go rejects a variable whose value refers to itself.
+var (
+	exCommands []exCommand
+	exByName   map[string]*exCommand
+)
+
+func init() {
+	exCommands = []exCommand{
+		{Command{"&&", nil, "", "repeats the last substitute with its flags"}, func(m *Machine, x exCall) error {
+			return m.substitute(x.first, x.last, m.lastSub.pattern, m.lastSub.rep, m.lastSub.flags)
+		}},
+		{Command{"&", nil, "", "repeats the last substitute without its flags"}, func(m *Machine, x exCall) error {
+			return m.substitute(x.first, x.last, m.lastSub.pattern, m.lastSub.rep, "")
+		}},
+		{Command{">", nil, "[>...]", "indents the lines, once more for each >"}, (*Machine).exShift},
+		{Command{"<", nil, "[<...]", "outdents the lines, once more for each <"}, (*Machine).exShift},
+		{Command{"copy", []string{"co", "t"}, "{address}", "copies the lines below the line at address, 0 for the top"}, (*Machine).exMove},
+		{Command{"delete", []string{"d"}, "[x]", "deletes the lines into register x"}, (*Machine).exYank},
+		{Command{"global", []string{"g"}, "/{pattern}/{command}", "runs command on each line that matches. Without a range, every line"}, (*Machine).exGlobal},
+		{Command{"join", []string{"j"}, "[!]", "joins the lines, or the line with the next. ! keeps their blanks"}, func(m *Machine, x exCall) error {
+			m.h.SetCursor(x.first)
+			return m.join(max(x.t.LineOf(x.last)-x.t.LineOf(x.first), 1), !strings.HasPrefix(x.arg, "!"))
+		}},
+		{Command{"move", []string{"m"}, "{address}", "moves the lines below the line at address, 0 for the top"}, (*Machine).exMove},
+		{Command{"nohlsearch", []string{"noh"}, "", "hides the last search's highlight until the next search"}, func(m *Machine, _ exCall) error {
+			m.hl = false
+			return nil
+		}},
+		{Command{"normal", []string{"norm"}, "{keys}", "types keys in normal mode at the start of each line"}, func(m *Machine, x exCall) error {
+			return m.normalLines(x.first, x.last, x.arg)
+		}},
+		{Command{"retab", []string{"ret"}, "[!]", "rewrites leading blanks as spaces with expand_tab, or as tabs with !. Without a range, every line"}, func(m *Machine, x exCall) error {
+			first, last := x.rangeOrAll()
+			return m.retab(first, last, strings.HasPrefix(x.arg, "!"))
+		}},
+		{Command{"substitute", []string{"s"}, "/{pattern}/{replacement}/[flags]", "replaces the first match of pattern on each line, or every match with g. i ignores case and I matches it"}, (*Machine).exSubstitute},
+		{Command{"select", nil, "{query}", "puts a cursor on each capture of a syntax query. Without a range, every line"}, func(m *Machine, x exCall) error {
+			first, last := x.rangeOrAll()
+			return m.selectQuery(x.arg, first, LineEnd(x.t, last))
+		}},
+		{Command{"sort", []string{"sor"}, "[!][n][i][u]", "sorts the lines. ! reverses, n sorts by number, i ignores case and u drops repeats. Without a range, every line"}, func(m *Machine, x exCall) error {
+			first, last := x.rangeOrAll()
+			return m.sortLines(first, last, x.arg)
+		}},
+		{Command{"vglobal", []string{"v", "g!"}, "/{pattern}/{command}", "runs command on each line that does not match. Without a range, every line"}, (*Machine).exGlobal},
+		{Command{"yank", []string{"y"}, "[x]", "yanks the lines into register x"}, (*Machine).exYank},
+	}
+	exByName = map[string]*exCommand{}
+	for i := range exCommands {
+		c := &exCommands[i]
+		for _, name := range append([]string{c.Name}, c.Short...) {
+			exByName[name] = c
+		}
+	}
+}
+
+// Commands returns the machine's ex commands, for help and completion.
+func Commands() []Command {
+	out := make([]Command, len(exCommands))
+	for i, c := range exCommands {
+		out[i] = c.Command
+	}
+	return out
+}
+
 // ex runs a command line. The machine runs the commands that edit text and
 // :noh, and hands anything else to the host.
 func (m *Machine) ex(line string) error {
@@ -18,95 +118,69 @@ func (m *Machine) ex(line string) error {
 		return err
 	}
 	name, arg := exName(rest)
-	switch name {
-	case "":
+	if name == "" {
 		if ranged {
 			m.h.SetCursor(firstNonBlank(t, last, LineEnd(t, last)))
 		}
 		return nil
-	case "select":
-		if !ranged {
-			first, last = 0, LineStart(t, t.Len())
-		}
-		return m.selectQuery(arg, first, LineEnd(t, last))
-	case "noh", "nohlsearch":
-		m.hl = false
-		return nil
-	case "&&":
-		return m.substitute(first, last, m.lastSub.pattern, m.lastSub.rep, m.lastSub.flags)
-	case "&":
-		return m.substitute(first, last, m.lastSub.pattern, m.lastSub.rep, "")
-	case "s":
-		if arg == "" {
-			return m.substitute(first, last, m.lastSub.pattern, m.lastSub.rep, "")
-		}
-		parts := splitDelim(arg[1:], arg[0])
-		for len(parts) < 3 {
-			parts = append(parts, "")
-		}
-		pat := parts[0]
-		if pat == "" {
-			pat = m.search.pattern
-		}
-		return m.substitute(first, last, pat, parts[1], parts[2])
-	case "d", "delete", "y", "yank":
-		return m.exYank(name[0] == 'd', first, last, arg)
-	case "m", "move", "t", "co", "copy":
-		target, rest, ok, err := m.address(t, c, arg)
-		if err != nil {
-			return err
-		}
-		if !ok || rest != "" {
-			return errors.New("bad destination: " + arg)
-		}
-		if name[0] == 'm' {
-			return m.moveLines(first, last, target)
-		}
-		return m.copyLines(first, last, target)
-	case ">", "<":
-		times := 1 + strings.Count(arg, name)
-		lines := t.LineOf(last) - t.LineOf(first)
-		if err := m.shift(name, ":"+name, region{start: first, end: LineEnd(t, last), lines: true}, 0, times); err != nil {
-			return err
-		}
-		t = m.h.Text()
-		ls := down(t, first, lines)
-		m.h.SetCursor(firstNonBlank(t, ls, LineEnd(t, ls)))
-		return nil
-	case "g", "global", "g!", "v", "vglobal":
-		if !ranged {
-			first, last = 0, LineStart(t, t.Len())
-		}
-		if arg == "" {
-			return errors.New("missing pattern for :" + name)
-		}
-		parts := splitDelim(arg[1:], arg[0])
-		return m.global(first, last, parts[0], strings.Join(parts[1:], string(arg[0])), name == "g" || name == "global")
-	case "norm", "normal":
-		return m.normalLines(first, last, arg)
-	case "sor", "sort":
-		if !ranged {
-			first, last = 0, LineStart(t, t.Len())
-		}
-		return m.sortLines(first, last, arg)
-	case "j", "join":
-		// Without a range the line joins the one below it.
-		m.h.SetCursor(first)
-		return m.join(max(t.LineOf(last)-t.LineOf(first), 1), !strings.HasPrefix(arg, "!"))
-	case "ret", "retab":
-		if !ranged {
-			first, last = 0, LineStart(t, t.Len())
-		}
-		return m.retab(first, last, strings.HasPrefix(arg, "!"))
+	}
+	if cmd, ok := exByName[name]; ok {
+		return cmd.run(m, exCall{t, c, first, last, ranged, name, arg})
 	}
 	m.h.Unhandled(":" + line)
 	return nil
 }
 
-// ExNames returns the machine's ex commands, one full name each, as a
-// command line's completion offers them.
-func ExNames() []string {
-	return []string{"copy", "delete", "global", "join", "move", "nohlsearch", "normal", "retab", "select", "sort", "vglobal", "yank"}
+// exSubstitute runs :s, which without an argument repeats the last
+// substitute, and with an empty pattern takes the last search's.
+func (m *Machine) exSubstitute(x exCall) error {
+	if x.arg == "" {
+		return m.substitute(x.first, x.last, m.lastSub.pattern, m.lastSub.rep, "")
+	}
+	parts := splitDelim(x.arg[1:], x.arg[0])
+	for len(parts) < 3 {
+		parts = append(parts, "")
+	}
+	pat := cmp.Or(parts[0], m.search.pattern)
+	return m.substitute(x.first, x.last, pat, parts[1], parts[2])
+}
+
+// exMove runs :m, :t and :co.
+func (m *Machine) exMove(x exCall) error {
+	target, rest, ok, err := m.address(x.t, x.c, x.arg)
+	if err != nil {
+		return err
+	}
+	if !ok || rest != "" {
+		return errors.New("bad destination: " + x.arg)
+	}
+	if x.name[0] == 'm' {
+		return m.moveLines(x.first, x.last, target)
+	}
+	return m.copyLines(x.first, x.last, target)
+}
+
+// exShift runs :> and :<, once more for each > or < after the first.
+func (m *Machine) exShift(x exCall) error {
+	times := 1 + strings.Count(x.arg, x.name)
+	lines := x.t.LineOf(x.last) - x.t.LineOf(x.first)
+	if err := m.shift(x.name, ":"+x.name, region{start: x.first, end: LineEnd(x.t, x.last), lines: true}, 0, times); err != nil {
+		return err
+	}
+	t := m.h.Text()
+	ls := down(t, x.first, lines)
+	m.h.SetCursor(firstNonBlank(t, ls, LineEnd(t, ls)))
+	return nil
+}
+
+// exGlobal runs :g, and :v and :g! for the lines that do not match.
+func (m *Machine) exGlobal(x exCall) error {
+	first, last := x.rangeOrAll()
+	if x.arg == "" {
+		return errors.New("missing pattern for :" + x.name)
+	}
+	parts := splitDelim(x.arg[1:], x.arg[0])
+	return m.global(first, last, parts[0], strings.Join(parts[1:], string(x.arg[0])), x.name == "g" || x.name == "global")
 }
 
 // LineRange reads the range line starts with, for the host's own commands:
@@ -223,13 +297,14 @@ func exName(s string) (string, string) {
 	return s[:i], strings.TrimLeft(s[i:], " ")
 }
 
-// exYank yanks lines first to last, or deletes them, into the register named
-// by arg. A delete puts the cursor on the first non-blank of the line that
-// takes their place.
-func (m *Machine) exYank(del bool, first, last int, arg string) error {
+// exYank runs :y, which yanks the lines into the register its argument
+// names, and :d, which deletes them and puts the cursor on the first
+// non-blank of the line that takes their place.
+func (m *Machine) exYank(x exCall) error {
+	del, first, last := x.name[0] == 'd', x.first, x.last
 	var reg rune
-	if arg != "" {
-		reg = rune(arg[0])
+	if x.arg != "" {
+		reg = rune(x.arg[0])
 	}
 	op := "y"
 	if del {
