@@ -1736,3 +1736,14 @@ func TestB162Help(t *testing.T) {
 		t.Errorf("<CR> on f went to %q", line())
 	}
 }
+
+// B163
+func TestB163Man(t *testing.T) {
+	page, err := editor.Man()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(page, ".TH FUDE 1 ") || !strings.Contains(page, ".TP\n\\fB:write [file]  :w\\fR\nwrites the buffer") {
+		t.Errorf("the man page is %q...", page[:min(300, len(page))])
+	}
+}

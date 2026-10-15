@@ -307,6 +307,9 @@ Where fude departs, the line says so and cites the departure in
   `config.toml` sets. `:h name` goes to the entry for a command (`:w`), a
   key (`w`, `<Leader>w`), an option or a setting, and `<CR>` on a name in
   help goes to its entry.
+- B163 [2] `fude --man` prints fude's man page: the sections of `:h` with
+  fude's defaults, and where fude keeps its config, state and socket.
+  `just man` writes it to `share/man/man1/fude.1`.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays

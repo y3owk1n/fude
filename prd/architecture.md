@@ -935,7 +935,9 @@ and `syntax.Objects` for the editor's. Options and settings carry their
 help in a `help` tag beside their `toml` tag. The mappings come from the
 keymaps in use, so the user's own show too. The keys `normal` reads
 itself, such as `"{reg}` and `m{a-z}`, are the one list written beside
-the code instead of in a table (B162).
+the code instead of in a table (B162). `fude --man` renders the same
+sections as roff, from an editor with the default config, so the page
+does not depend on whoever builds it (B163).
 
 Each language is a grammar and its queries, from the grammar's own repo
 (D28):

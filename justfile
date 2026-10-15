@@ -25,6 +25,10 @@ fmt-check:
 build:
     go build -o bin/fude ./cmd/fude
 
+# Write fude's man page to share/man/man1/fude.1, for packaging.
+man: build
+    mkdir -p share/man/man1 && bin/fude --man > share/man/man1/fude.1
+
 # Build fude and open the files or directories given, or an empty buffer.
 run *args: build
     bin/fude {{ args }}
