@@ -86,6 +86,8 @@ Where fude departs, the line says so and cites the departure in
   window, as Neovim's `scrolloff` does.
 - B117 [2] `cursor_line` shades the cursor's line and shows its number in
   bold, as Neovim's `cursorline` does.
+- B118 [2] `list` shows a tab as `>` and blanks, a trailing space as `-`
+  and a no-break space as `+`, Neovim's default `listchars`.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays

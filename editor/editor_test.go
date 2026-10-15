@@ -666,6 +666,14 @@ func TestB117CursorLine(t *testing.T) {
 	}
 }
 
+// B118
+func TestB118List(t *testing.T) {
+	e := open(t, "")
+	if feed(e, ":set list<CR>"); !e.Views()[0].List {
+		t.Fatal(":set list left the window without it")
+	}
+}
+
 // B31
 func TestB31Timeline(t *testing.T) {
 	e := open(t, filepath.Join(t.TempDir(), "f"))

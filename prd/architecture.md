@@ -458,7 +458,9 @@ and the global value. It takes the names `config.toml` uses (N4): `name`,
 either, and shows every option with no arguments. `scroll_off` keeps that
 many lines in view above and below the cursor's, at most half the window
 (B116). `cursor_line` shades the cursor's line in a dark grey and shows
-its number in bold (B117).
+its number in bold (B117). `list` shows a tab as `>` and blanks, a
+trailing space as `-` and a no-break space as `+`, in grey, as Neovim's
+default `listchars` does (B118).
 `number` puts line numbers in a gutter at least 4 columns wide, and
 `relative_number` numbers lines from the cursor's. With both, the cursor's
 line shows its own number on the left, as in Neovim (B39).
@@ -498,6 +500,7 @@ relative_number = false # numbers from the cursor's line (B39)
 wrap = true          # long lines go on the rows below, else the view scrolls sideways (B37)
 scroll_off = 0       # lines kept in view above and below the cursor's (B116)
 cursor_line = false  # shade the cursor's line (B117)
+list = false         # show tabs, trailing spaces and no-break spaces (B118)
 
 [keymap.normal]      # and [keymap.visual], [keymap.insert]. Keys map to keys.
 "<Space>w" = ":w<CR>"

@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/gdamore/tcell/v3"
 	"github.com/gdamore/tcell/v3/color"
@@ -384,6 +385,8 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 				c.number(t.LineOf(pos), cur, numbers, y, v)
 			}
 			shade := v.CursorLine && t.LineOf(pos) == cur
+			// trail is where the line's trailing spaces start.
+			trail := pos + len(strings.TrimRight(t.Slice(pos, end), " "))
 			if i+1 < len(starts) {
 				stop = starts[i+1]
 			}
@@ -428,8 +431,20 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 				if rest[0] == '\t' {
 					w := vim.Tabstop - col%vim.Tabstop
 					c.s.FillArea(v.X+x, y, min(w, v.W-x), 1, ' ', style)
+					if v.List {
+						c.s.Put(v.X+x, y, ">", style.Foreground(color.Gray))
+					}
 					x, col, rest = x+w, col+w, rest[1:]
 					continue
+				}
+				if v.List {
+					if mark, ok := listChar(rest, at >= trail); ok {
+						// The mark takes the place of the one-column character.
+						c.s.Put(v.X+x, y, mark, style.Foreground(color.Gray))
+						_, size := utf8.DecodeRuneInString(rest)
+						x, col, rest = x+1, col+1, rest[size:]
+						continue
+					}
 				}
 				var width int
 				rest, width = c.s.Put(v.X+x, y, rest, style)
@@ -504,6 +519,19 @@ func (c *client) number(line, cur, x, y int, v editor.View) {
 		style = tcell.StyleDefault.Bold(true)
 	}
 	c.s.PutStrStyled(x, y, text, style)
+}
+
+// listChar returns what list shows in place of the character rest starts
+// with, Neovim's default listchars: - for a trailing space and + for a
+// no-break space (B118).
+func listChar(rest string, trailing bool) (string, bool) {
+	switch {
+	case rest[0] == ' ' && trailing:
+		return "-", true
+	case strings.HasPrefix(rest, "\u00a0"):
+		return "+", true
+	}
+	return "", false
 }
 
 // cursorLine is the background of the cursor's line with cursor_line on,
