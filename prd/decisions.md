@@ -187,9 +187,10 @@ Costs accepted: Super and Meta are one modifier, so `<D-x>` cannot differ
 from `<M-x>`. Paste arrives as keys between markers, which `ui/term/`
 collects into one paste (B8). Grapheme mode 2027 is never enabled. Without
 kitty or modifyOtherKeys, `<C-i>` and `<Tab>` are the same key, as in every
-terminal library. Step 1 must confirm that legacy keys still decode with
-negotiation off. If they do not, fude sends the kitty query itself after
-the first frame. Ultraviolet is the fallback if these costs bite.
+terminal library. With the kitty protocol forced, tcell's
+parser still decodes legacy bytes. A terminal without kitty sends an Alt
+chord as `<Esc>` and the key, which vim reads as those two keys.
+Ultraviolet is the fallback if these costs bite.
 
 ## D27. Config is TOML data, never code that runs later
 
