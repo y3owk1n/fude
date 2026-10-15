@@ -104,6 +104,7 @@ type Buffer struct {
 	marks   []mark
 	depth   int
 	group   *Node
+	redo    map[NodeID]NodeID // the child each node was last undone from
 }
 
 // New returns a buffer holding text. store may be nil.
@@ -152,17 +153,7 @@ func (b *Buffer) Apply(t Transaction) error {
 	if len(t.Edits) == 0 {
 		return nil
 	}
-	c := Change{Edits: t.Edits, Removed: make([]string, len(t.Edits))}
-	text := b.text
-	for i := len(t.Edits) - 1; i >= 0; i-- {
-		e := t.Edits[i]
-		c.Removed[i] = b.text.Slice(e.Start, e.End)
-		text = text.Replace(e.Start, e.End, e.Text)
-		for m := range b.marks {
-			b.marks[m].pos = move(b.marks[m], e)
-		}
-	}
-	b.text = text
+	c := b.edit(t.Edits)
 	b.version++
 
 	if b.group == nil {
@@ -173,6 +164,106 @@ func (b *Buffer) Apply(t Transaction) error {
 		b.commit()
 	}
 	return nil
+}
+
+// Undo reverts the head node and moves the head to its parent. It returns
+// where the reverted text starts, or false at the root.
+func (b *Buffer) Undo() (int, bool) {
+	i, ok := b.index(b.head)
+	if !ok {
+		return 0, false
+	}
+	n := b.nodes[i]
+	start := -1
+	for j := len(n.Changes) - 1; j >= 0; j-- {
+		start = b.replay(inverse(n.Changes[j]), start)
+	}
+	if b.redo == nil {
+		b.redo = map[NodeID]NodeID{}
+	}
+	b.redo[n.Parent] = n.ID
+	b.head = n.Parent
+	b.version++
+	return start, true
+}
+
+// Redo reapplies the child of the head that was last undone, or the newest
+// child. It returns where the reapplied text starts, or false at a leaf.
+func (b *Buffer) Redo() (int, bool) {
+	id, ok := b.redo[b.head]
+	if !ok {
+		for _, n := range b.nodes {
+			if n.Parent == b.head {
+				id, ok = n.ID, true
+			}
+		}
+	}
+	i, found := b.index(id)
+	if !ok || !found {
+		return 0, false
+	}
+	start := -1
+	for _, c := range b.nodes[i].Changes {
+		start = b.replay(c.Edits, start)
+	}
+	b.head = id
+	b.version++
+	return start, true
+}
+
+// replay applies edits and returns the lowest position changed so far. start
+// is the lowest position from earlier edits, or -1, and replay maps it
+// through these edits first.
+func (b *Buffer) replay(edits []Edit, start int) int {
+	if start >= 0 {
+		m := mark{start, Left}
+		for i := len(edits) - 1; i >= 0; i-- {
+			m.pos = move(m, edits[i])
+		}
+		start = m.pos
+	}
+	b.edit(edits)
+	if len(edits) > 0 && (start < 0 || edits[0].Start < start) {
+		start = edits[0].Start
+	}
+	return start
+}
+
+// edit applies checked edits to the text and marks.
+func (b *Buffer) edit(edits []Edit) Change {
+	c := Change{Edits: edits, Removed: make([]string, len(edits))}
+	text := b.text
+	for i := len(edits) - 1; i >= 0; i-- {
+		e := edits[i]
+		c.Removed[i] = b.text.Slice(e.Start, e.End)
+		text = text.Replace(e.Start, e.End, e.Text)
+		for m := range b.marks {
+			b.marks[m].pos = move(b.marks[m], e)
+		}
+	}
+	b.text = text
+	return c
+}
+
+// inverse returns the edits that undo c, in offsets of the text after it.
+func inverse(c Change) []Edit {
+	inv := make([]Edit, len(c.Edits))
+	shift := 0
+	for i, e := range c.Edits {
+		start := e.Start + shift
+		inv[i] = Edit{Start: start, End: start + len(e.Text), Text: c.Removed[i]}
+		shift += len(e.Text) - (e.End - e.Start)
+	}
+	return inv
+}
+
+func (b *Buffer) index(id NodeID) (int, bool) {
+	for i := len(b.nodes) - 1; i >= 0; i-- {
+		if b.nodes[i].ID == id {
+			return i, true
+		}
+	}
+	return 0, false
 }
 
 // BeginGroup starts a group that becomes one node. Groups nest.
