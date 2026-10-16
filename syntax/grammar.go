@@ -50,6 +50,7 @@ type grammar struct {
 
 // registry are the grammars fude builds, by filetype.
 var registry = map[string]grammar{
+	"go":              {"https://github.com/tree-sitter/tree-sitter-go", "1547678a9da59885853f5f5cc8a99cc203fa2e2c", ".", []string{"queries/highlights.scm"}, nil, "// %s"},
 	"c":               {"https://github.com/tree-sitter/tree-sitter-c", "b780e47fc780ddc8da13afa35a3f4ed5c157823d", ".", []string{"queries/highlights.scm"}, nil, "// %s"},
 	"cpp":             {"https://github.com/tree-sitter/tree-sitter-cpp", "f41e1a044c8a84ea9fa8577fdd2eab92ec96de02", ".", []string{"c:queries/highlights.scm", "queries/highlights.scm"}, []string{"queries/injections.scm"}, "// %s"},
 	"rust":            {"https://github.com/tree-sitter/tree-sitter-rust", "77a3747266f4d621d0757825e6b11edcbf991ca5", ".", []string{"queries/highlights.scm"}, []string{"queries/injections.scm"}, "// %s"},
@@ -139,10 +140,10 @@ func resolve(name string) string {
 // on first use. Version 2 began copying injections.
 const buildVersion = 2
 
-// library is the file of filetype's grammar in dir: named for the commit
+// Library is the file of filetype's grammar in dir: named for the commit
 // fude pins and the build version, so a new pin or version needs a new
 // build, or parser.so for a grammar fude does not know.
-func library(dir, filetype string) string {
+func Library(dir, filetype string) string {
 	name := "parser"
 	if g, ok := registry[filetype]; ok {
 		name = fmt.Sprintf("%s-%d", g.commit, buildVersion)
@@ -150,12 +151,9 @@ func library(dir, filetype string) string {
 	return filepath.Join(dir, filetype, name+".so")
 }
 
-// lookup returns filetype's language, linked in or loaded from its built
-// grammar, or false when it has neither.
+// lookup returns filetype's language, loaded from its built grammar, or
+// false when it has none.
 func lookup(filetype string) (*language, bool, error) {
-	if l, ok := linked[filetype]; ok {
-		return l, true, nil
-	}
 	loadMu.Lock()
 	defer loadMu.Unlock()
 	if l, ok := loaded[filetype]; ok {
@@ -164,7 +162,7 @@ func lookup(filetype string) (*language, bool, error) {
 	if grammarsDir == "" || filetype == "" {
 		return nil, false, nil
 	}
-	path := library(grammarsDir, filetype)
+	path := Library(grammarsDir, filetype)
 	if _, err := os.Stat(path); errors.Is(err, fs.ErrNotExist) {
 		return nil, false, nil
 	}
@@ -308,7 +306,7 @@ func Build(filetype string) error {
 	}
 	// Build writes the library last, through a rename, so a library there
 	// means the rest of the build is there too.
-	lib := library(grammars, filetype)
+	lib := Library(grammars, filetype)
 	if err := run(src, "tree-sitter", "build", "-o", lib+".new", filepath.Join(src, g.src)); err != nil {
 		return err
 	}
@@ -332,19 +330,16 @@ type Grammar struct {
 	Filetype, State string
 }
 
-// Grammars returns the grammars fude links in or builds, by filetype, and
-// whether each is built.
+// Grammars returns the grammars fude builds, by filetype, and whether each
+// is built.
 func Grammars() []Grammar {
 	loadMu.Lock()
 	dir := grammarsDir
 	loadMu.Unlock()
 	var out []Grammar
-	for _, ft := range slices.Sorted(maps.Keys(linked)) {
-		out = append(out, Grammar{ft, "linked in"})
-	}
 	for _, ft := range slices.Sorted(maps.Keys(registry)) {
 		state := "not built"
-		if _, err := os.Stat(library(dir, ft)); err == nil {
+		if _, err := os.Stat(Library(dir, ft)); err == nil {
 			state = "built"
 		} else if old, _ := filepath.Glob(filepath.Join(dir, ft, "*-*.so")); len(old) > 0 {
 			// It was built at an older pin, or by an older fude.

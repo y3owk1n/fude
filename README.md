@@ -88,7 +88,7 @@ Put `bin/fude` on your PATH. `go install` works from the first release on. Until
 
 | Tool                                        | For                                                  |
 | :------------------------------------------ | :--------------------------------------------------- |
-| `git` and the `tree-sitter` CLI             | Building grammars for languages other than Go        |
+| `git` and the `tree-sitter` CLI             | Building each language's grammar                     |
 | `rg`                                        | `:pick grep`, which falls back to `git grep`         |
 | `pbcopy`, `wl-copy` or `xclip`              | The system clipboard                                 |
 | TinyGo                                      | Building plugins                                     |
@@ -111,7 +111,7 @@ The first frame shows in under 5ms, with no config file and nothing asking for o
 - **Go back in time.** After twenty minutes of refactoring, `:timeline` lists every state of the file. `[` and `]` scrub through them, `d` diffs one against now, and `<CR>` restores it as a new state, so even the restore can be undone.
 - **Ask.** Type the start of a command and wait, and a panel shows every key that may follow. `:h guide-start` opens the written guide.
 
-A file in a language other than Go builds its grammar in the background the first time you open it, and its colours appear when the build ends. `fude --tail` in another terminal prints what a running fude does, as it happens.
+Each language's grammar builds in the background the first time you open one of its files, and its colours appear when the build ends. `fude --tail` in another terminal prints what a running fude does, as it happens.
 
 ---
 
@@ -121,7 +121,7 @@ A file in a language other than Go builds its grammar in the background the firs
 | :------------------- | :----------------------------------------------------------------------------------------------------------------- |
 | **Editing**          | `s` to jump anywhere in view by a label, `zc` and `za` to fold by indent, `ys`, `ds` and `cs` to surround, counts on both sides of an operator, registers and the clipboard, macros as editable text, `:s` with a live preview, `:g`, `:normal` |
 | **Timeline**         | `u` and `<C-r>` along a branch, `g-` and `g+` across every state, `:earlier 10m`, `:timeline` to diff and restore, `:recover` after a crash |
-| **Syntax**           | tree-sitter for Go built in, 46 more languages built on first use, code inside markdown coloured, `daf`, `cic` and `dia`, the enclosing function pinned at the top |
+| **Syntax**           | tree-sitter for 47 languages, each built on first use, code inside markdown coloured, `daf`, `cic` and `dia`, the enclosing function pinned at the top |
 | **Language servers** | Several per file, merged diagnostics, hover, definitions, references, code actions, signature help, inlay hints, a `:lsp` panel |
 | **Completion**       | From language servers, snippets, paths and the buffer, with VS Code snippet files                                  |
 | **Formatting**       | Formatters by name, run in turn or the first that applies, with the language server as the fallback              |
@@ -220,7 +220,7 @@ storage   persistent rope with structural sharing
 - **One goroutine owns every change.** Keys, the vim machine and edits run on one loop with no locks. Language servers, grammar builds and the finder work on snapshots of the text, which the persistent rope makes free, and post their results back. That is why nothing on the input path waits.
 - **The vim machine never sees the kernel.** It reads text through a small interface and returns edits. The editor applies them as transactions, which carry their origin, so each client's `u` undoes only its own edits.
 - **The kernel is mechanism only.** `core/` has no goroutines, no I/O and no dependencies, and `just check` fails if it grows past 10k lines. The editor gives it a store, and the store appends each change to the timeline log on disk.
-- **Syntax comes from the grammars' own repos.** Go's grammar is linked in. fude builds any other on first use at a pinned commit, with the queries its repo ships, and `:grammar update` rebuilds the ones built at an older pin.
+- **Syntax comes from the grammars' own repos.** fude builds each grammar on first use at a pinned commit, with the queries its repo ships, and `:grammar update` rebuilds the ones built at an older pin.
 - **The spec comes first.** [`prd/`](prd) holds what fude is for, how it works, why it is shaped this way, and every behaviour it promises, each numbered and each with a test.
 
 `core/` imports only the standard library, `vim/` never imports `core/`, and cgo lives only in the syntax package.

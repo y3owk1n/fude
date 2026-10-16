@@ -18,16 +18,8 @@ import (
 	"time"
 
 	ts "github.com/tree-sitter/go-tree-sitter"
-	tsgo "github.com/tree-sitter/tree-sitter-go/bindings/go"
 
 	"github.com/y3owk1n/fude/api"
-)
-
-var (
-	//go:embed queries/go/highlights.scm
-	goHighlights string
-	//go:embed queries/go/textobjects.scm
-	goObjects string
 )
 
 // language is a grammar and its queries.
@@ -37,17 +29,9 @@ type language struct {
 	comment                         string // %s stands for the commented text
 }
 
-// linked are the grammars fude links in, by filetype (D29).
-var linked = map[string]*language{
-	"go": {ts.NewLanguage(tsgo.Language()), goHighlights, goObjects, "", "// %s"},
-}
-
 // Comment returns how filetype comments a line, such as "// %s", or false
 // when fude knows no comment syntax for it.
 func Comment(filetype string) (string, bool) {
-	if l, ok := linked[filetype]; ok {
-		return l.comment, true
-	}
 	g := registry[filetype]
 	return g.comment, g.comment != ""
 }

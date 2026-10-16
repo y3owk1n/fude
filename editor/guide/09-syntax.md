@@ -5,8 +5,8 @@ same grammar gives the syntax text objects and the comment syntax of `gc`.
 
 ## Grammars
 
-Go's grammar is part of fude. The others build the first time a file
-needs them, with git and the tree-sitter CLI, which must be on PATH. The
+Every grammar, Go's too, builds the first time a file needs it, with git,
+the tree-sitter CLI and a C compiler, which must be on PATH. The
 file shows its colours once the build ends. `auto_install = false` stops
 the builds.
 

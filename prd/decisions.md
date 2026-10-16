@@ -246,24 +246,27 @@ and fude ignores it. A language's highlight files combine in the order its
 repo's `tree-sitter.json` lists them. Some come from another grammar's
 repo, as most of TypeScript's come from JavaScript's.
 
-## D29. Go is linked in, and other grammars build on first use
+## D29. Every grammar builds on first use
 
-fude links in only Go's grammar, through its repo's Go binding. Every other
-language fude knows is a registry entry in `syntax/`: its repo, a pinned
-commit, where its sources and queries are, and its comment syntax. Opening
-a file of that language fetches the commit with git, builds it with
-`tree-sitter build` into `$XDG_DATA_HOME/fude/grammars/<filetype>/`, and
-loads the library with dlopen. The library is named for the commit, so a
-release that pins a new one builds again on first use. A grammar built by
-hand into that directory as `parser.so` loads too. Wasm grammars are out,
-because tree-sitter's wasm store needs wasmtime and cannot run on wazero.
+Every language fude knows, Go included, is a registry entry in `syntax/`:
+its repo, a pinned commit, where its sources and queries are, and its
+comment syntax. Opening a file of that language fetches the commit with
+git, builds it with `tree-sitter build` into
+`$XDG_DATA_HOME/fude/grammars/<filetype>/`, and loads the library with
+dlopen. The library is named for the commit, so a release that pins a new
+one builds again on first use. A grammar built by hand into that
+directory as `parser.so` loads too. Wasm grammars are out, because
+tree-sitter's wasm store needs wasmtime and cannot run on wazero.
 
-Why, as of 2026-10-16: some grammars, markdown's among them, have no Go
-binding to link. Linking sixteen more would add about 20MB to the binary,
-and each new language would need a release. The cost is that building
-needs git, the tree-sitter CLI and a C compiler, and the first file of a
-language shows without highlights until its build ends. `auto_install =
-false` keeps fude from fetching anything.
+Why, as of 2026-10-17: some grammars, markdown's among them, have no Go
+binding to link, and linking more would add to the binary for languages a
+user may never open. Go was linked in until then, which made it the one
+grammar `:grammar` showed differently. The user chose one way for every
+language. The cost is that building needs git, the tree-sitter CLI and a
+C compiler, and the first file of a language, Go's too, shows without
+highlights until its build ends. `auto_install = false` keeps fude from
+fetching anything. Tests build Go's grammar from tree-sitter-go's module,
+which stays in go.mod for that, through `syntax/syntaxtest`.
 
 ## D30. Grapheme clusters and widths come from clipperhouse
 

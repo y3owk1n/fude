@@ -1160,10 +1160,10 @@ because fude keeps no locals. A plain `#lua-match?` becomes `#match?` in
 the source before it compiles, and `#set! "priority"` is ignored (D28). A
 file at
 `$XDG_CONFIG_HOME/fude/queries/<lang>/<name>.scm` replaces the shipped
-query of that name (B41). Indentation is the previous line's (B29), so there
-are no indent or fold queries.
+query of that name (B41). Indentation follows brackets (B211) and folds
+follow indent (B224), so there are no indent or fold queries.
 
-Go's grammar is linked in. The others come from a registry in
+Every grammar, Go's too, comes from a registry in
 `syntax/grammar.go`, each a repo, a pinned commit, the directories of its
 sources and queries, and a comment syntax. The first file of a language
 whose grammar is not built starts a build off the loop: git fetches the

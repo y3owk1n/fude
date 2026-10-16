@@ -14,6 +14,7 @@ import (
 	"github.com/gdamore/tcell/v3/color"
 	"github.com/gdamore/tcell/v3/vt"
 	"github.com/y3owk1n/fude/editor"
+	"github.com/y3owk1n/fude/syntax/syntaxtest"
 	"github.com/y3owk1n/fude/vim"
 )
 
@@ -35,9 +36,13 @@ func startWith(t *testing.T, config string, args ...string) *client {
 	if err := os.WriteFile(filepath.Join(dir, "fude", "config.toml"), []byte("auto_install = false\n"+config), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	data := t.TempDir()
+	if err := syntaxtest.InstallGo(data); err != nil {
+		t.Fatal(err)
+	}
 	t.Setenv("XDG_CONFIG_HOME", dir)
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
-	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", data)
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
 	e, err := editor.Start(args)
 	if err != nil {

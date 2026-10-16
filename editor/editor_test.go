@@ -14,6 +14,7 @@ import (
 
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/syntax"
+	"github.com/y3owk1n/fude/syntax/syntaxtest"
 	"github.com/y3owk1n/fude/vim"
 )
 
@@ -22,6 +23,11 @@ import (
 func TestMain(m *testing.M) {
 	dir, err := os.MkdirTemp("", "fude-test")
 	if err != nil {
+		panic(err)
+	}
+	// Go's grammar builds once into the user's cache, before the cache
+	// directory moves.
+	if err := syntaxtest.InstallGo(filepath.Join(dir, "data")); err != nil {
 		panic(err)
 	}
 	os.Setenv("XDG_STATE_HOME", filepath.Join(dir, "state"))
@@ -2383,7 +2389,7 @@ func TestB165BuiltGrammar(t *testing.T) {
 	data := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", data)
 	out := filepath.Join(data, "fude", "grammars", "gotest")
-	if err := os.CopyFS(filepath.Join(out, "queries"), os.DirFS("../syntax/queries/go")); err != nil {
+	if err := os.CopyFS(filepath.Join(out, "queries"), os.DirFS(filepath.Join(strings.TrimSpace(string(mod)), "queries"))); err != nil {
 		t.Fatal(err)
 	}
 	if b, err := exec.Command("tree-sitter", "build", "-o", filepath.Join(out, "parser.so"), filepath.Dir(src)).CombinedOutput(); err != nil {
