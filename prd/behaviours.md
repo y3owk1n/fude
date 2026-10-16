@@ -534,6 +534,8 @@ Where fude departs, the line says so and cites the departure in
   function of the plugin's runs with its output or error, as a timer's
   does (B180). At most 8 of a plugin's jobs run at once, and the rest
   wait. Unloading the plugin stops them.
+- B182 [4] A plugin that hears `view.moved` hears where the cursor is and
+  where the view starts, in the session whose view moved.
 - B59 [4] A plugin with `ui` shows markdown in a float at the cursor, as
   hover does.
 

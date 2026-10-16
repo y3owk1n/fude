@@ -486,7 +486,7 @@ func (e *Session) settle(err error) {
 	}
 	if v := (view{e.win.buf, e.Cursor(), e.Top()}); v != e.seen {
 		e.seen = v
-		e.emit("view.moved", "", v.buf)
+		e.emit("view.moved", fmt.Sprintf("%d %d", v.cursor, v.top), v.buf)
 	}
 }
 

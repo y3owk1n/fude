@@ -855,7 +855,8 @@ timer, and `_initialize`, `init` or both.
 fude runs `_initialize`, where a compiler such as TinyGo puts the program's
 setup, then `init`, together under the init budget, and either may register
 and subscribe (D35). `on_event` gets the
-event's name, and for `mode.changed` a space and the new mode, and reads
+event's name, and for `mode.changed` a space and the new mode, or for
+`view.moved` a space, the cursor, a space and the view's top (B182), and reads
 the text of the buffer the event is about. It runs off the input path
 under a budget of 100ms. A plugin imports host functions from the module `fude`, gated by capability:
 

@@ -402,6 +402,14 @@ func TestB181PluginJobs(t *testing.T) {
 	})
 }
 
+// B182
+func TestB182PluginHearsTheCursor(t *testing.T) {
+	e := loaded(t, "watch", "f", "a\nb\nc\n", "ui")
+	e.SetSize(80, 10)
+	feed(e, "jj")
+	settle(t, e, func() bool { s := e.Views()[0].Segments; return len(s) == 1 && s[0] == "4 0" })
+}
+
 // decorations returns what the current window shows of plugins'
 // decorations, as text and style.
 func decorations(e *editor.Session) []string {
