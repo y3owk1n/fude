@@ -51,6 +51,7 @@ type Decoration struct {
 	ID         int
 	Start, End int
 	Style      string
+	Sign, Note string // what shows on Start's line, in the sign column or after its end (B184)
 }
 
 // Result is what one call into a plugin asked for, and what it returned.
@@ -307,6 +308,8 @@ func (p *Plugin) host(ctx context.Context) error {
 		NewFunctionBuilder().WithFunc(p.httpGet).Export("http_get").
 		NewFunctionBuilder().WithFunc(p.decorate).Export("decorate").
 		NewFunctionBuilder().WithFunc(p.undecorate).Export("undecorate").
+		NewFunctionBuilder().WithFunc(p.sign).Export("sign").
+		NewFunctionBuilder().WithFunc(p.note).Export("note").
 		Instantiate(ctx)
 	if err != nil {
 		return fmt.Errorf("plugin %s: %w", p.Name, err)
@@ -685,7 +688,38 @@ func (p *Plugin) decorate(_ context.Context, m api.Module, start, end, ptr, n ui
 		return errRange
 	}
 	p.next++
-	p.call.Decorate = append(p.call.Decorate, Decoration{p.next, int(start), int(end), string(style)})
+	p.call.Decorate = append(p.call.Decorate, Decoration{ID: p.next, Start: int(start), End: int(end), Style: string(style)})
+	return int32(p.next)
+}
+
+// sign puts the text at (ptr, n) in the sign column on pos's line, in the
+// style after a NUL, and returns its id, which undecorate removes (B184).
+func (p *Plugin) sign(_ context.Context, m api.Module, pos, ptr, n uint32) int32 {
+	if p.call == nil || !p.allowed("ui", "sign") {
+		return errDenied
+	}
+	b, ok := m.Memory().Read(ptr, n)
+	if int(pos) > p.call.text.Len() || !ok {
+		return errRange
+	}
+	text, style, _ := strings.Cut(string(b), "\x00")
+	p.next++
+	p.call.Decorate = append(p.call.Decorate, Decoration{ID: p.next, Start: int(pos), End: int(pos), Style: style, Sign: text})
+	return int32(p.next)
+}
+
+// note shows the text at (ptr, n) after the end of pos's line, and returns
+// its id, which undecorate removes (B184).
+func (p *Plugin) note(_ context.Context, m api.Module, pos, ptr, n uint32) int32 {
+	if p.call == nil || !p.allowed("ui", "note") {
+		return errDenied
+	}
+	text, ok := m.Memory().Read(ptr, n)
+	if int(pos) > p.call.text.Len() || !ok {
+		return errRange
+	}
+	p.next++
+	p.call.Decorate = append(p.call.Decorate, Decoration{ID: p.next, Start: int(pos), End: int(pos), Note: string(text)})
 	return int32(p.next)
 }
 

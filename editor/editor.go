@@ -578,6 +578,16 @@ func (e *Session) Views() []View {
 		e.diffGit(w.buf)
 		v.Signs = e.signs(w.buf, top, last)
 		v.Notes = w.buf.notes(t, top, last)
+		for _, p := range e.plugins {
+			for _, d := range e.decos[p] {
+				if at := w.buf.text.Mark(d.start); d.buf == w.buf && d.note != "" && at >= top && at <= last {
+					if v.Notes == nil {
+						v.Notes = map[int]string{}
+					}
+					v.Notes[t.LineOf(at)] = d.note
+				}
+			}
+		}
 		if w.opts.Icons {
 			v.Icons = w.buf.icons(t, top, last)
 			for line, s := range v.Signs {
@@ -673,13 +683,22 @@ var diagnosticSigns = []Sign{{"E", "diagnostic.error"}, {"W", "diagnostic.warn"}
 // or else its git sign. A
 // listing's lines from top to last show the git status of their names.
 func (e *Session) signs(b *buffer, top, last int) map[int]Sign {
-	if !b.signed && len(b.git) == 0 && len(b.status) == 0 {
+	if !b.signed && b.signs == 0 && len(b.git) == 0 && len(b.status) == 0 {
 		return nil
 	}
 	t := b.text.Snapshot()
 	out := maps.Clone(b.git)
 	if out == nil {
 		out = map[int]Sign{}
+	}
+	// A plugin's sign wins over git's, and a diagnostic over a plugin's
+	// (B184).
+	for _, p := range e.plugins {
+		for _, d := range e.decos[p] {
+			if d.buf == b && d.sign != "" {
+				out[t.LineOf(b.text.Mark(d.start))] = Sign{d.sign, d.style}
+			}
+		}
 	}
 	for _, d := range e.diagnostics(b) {
 		line := t.LineOf(b.text.Mark(d.start))

@@ -868,7 +868,7 @@ under a budget of 100ms. A plugin imports host functions from the module `fude`,
 |---|---|
 | `buffer.read` | read the text and where its lines start |
 | `buffer.write` | edit the text |
-| `ui` | decorations, statusline segments, floating windows |
+| `ui` | decorations, signs, notes after a line, statusline segments, floating windows |
 | `fs.read` | read files under the project root |
 | `process` | spawn a declared program |
 | `net` | get http and https URLs on declared hosts |
@@ -899,7 +899,9 @@ host it may not reach or a request that failed.
 | `subscribe(ptr, len) -> i32` | none, in `init` only | hears the event named through `on_event` |
 | `emit(ptr, len) -> i32` | none | emits the event `plugin.name` about the buffer the call read |
 | `decorate(start, end, ptr, len) -> i32` | `ui` | puts a style, such as `keyword`, on `[start, end)`, and returns its id |
-| `undecorate(id) -> i32` | `ui` | removes a decoration |
+| `undecorate(id) -> i32` | `ui` | removes a decoration, sign or note |
+| `sign(pos, ptr, len) -> i32` | `ui` | shows the text, then a NUL and its style, in the sign column on `pos`'s line, and returns its id (B184) |
+| `note(pos, ptr, len) -> i32` | `ui` | shows the text dim after the end of `pos`'s line, and returns its id (B184) |
 | `read_file(ptr, len) -> i64` | `fs.read` | the file at the path, relative to the project, the directory fude started in. fude refuses a path that leads outside it, through `..` or a link (B47) |
 | `run(ptr, len) -> i64` | `process` | what the program prints, run with its arguments, NUL-separated, in the project. It must be in the plugin's `programs`, and the call's budget stops it (B48) |
 | `http_get(ptr, len) -> i64` | `net` | the body of the http or https URL, up to 16MB. Its host, and any host a redirect leads to, must be in the plugin's `hosts`, and the call's budget stops the request (B49) |

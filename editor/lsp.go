@@ -333,7 +333,7 @@ func (e *Session) notified(s *server, method string, params json.RawMessage) {
 			style = severities[1]
 		}
 		start, end := lsp.Offset(t, d.Range.Start, enc), lsp.Offset(t, d.Range.End, enc)
-		ds = append(ds, decoration{0, b, b.text.SetMark(start, kernel.Right), b.text.SetMark(end, kernel.Left), style, d.Message, raw})
+		ds = append(ds, decoration{0, b, b.text.SetMark(start, kernel.Right), b.text.SetMark(end, kernel.Left), style, d.Message, "", raw})
 	}
 	e.decos[diagnosed{s, b}] = ds
 	b.signed = len(e.diagnostics(b)) > 0

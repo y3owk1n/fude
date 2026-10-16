@@ -120,6 +120,12 @@ func hostEmit(ptr *byte, n uint32) int32
 //go:wasmimport fude decorate
 func hostDecorate(start, end uint32, ptr *byte, n uint32) int32
 
+//go:wasmimport fude sign
+func hostSign(pos uint32, ptr *byte, n uint32) int32
+
+//go:wasmimport fude note
+func hostNote(pos uint32, ptr *byte, n uint32) int32
+
 //go:wasmimport fude undecorate
 func hostUndecorate(id uint32) int32
 
@@ -415,6 +421,25 @@ func Emit(name string) error {
 func Decorate(start, end int, style string) (int, error) {
 	p, n := ptr(style)
 	id := hostDecorate(uint32(start), uint32(end), p, n)
+	return int(id), fail(int64(id))
+}
+
+// Sign shows text in the sign column on the line that holds pos, in the
+// colour of style, such as diagnostic.warn. The column shows its first two
+// characters. It returns an id for Undecorate, and moves with edits. A
+// diagnostic's sign wins on its line, and a plugin's wins over git's. It
+// needs ui.
+func Sign(pos int, text, style string) (int, error) {
+	p, n := ptr(text + "\x00" + style)
+	id := hostSign(uint32(pos), p, n)
+	return int(id), fail(int64(id))
+}
+
+// Note shows text dim after the end of the line that holds pos. It returns
+// an id for Undecorate, and moves with edits. It needs ui.
+func Note(pos int, text string) (int, error) {
+	p, n := ptr(text)
+	id := hostNote(uint32(pos), p, n)
 	return int(id), fail(int64(id))
 }
 

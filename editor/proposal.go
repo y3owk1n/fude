@@ -37,7 +37,7 @@ func (e *Session) propose(b *buffer, pos int, keys, text string) error {
 		gravity = kernel.Right
 	}
 	e.proposed++
-	e.decos[e] = append(e.decos[e], decoration{e.proposed, b, b.text.SetMark(ed.Start, kernel.Right), b.text.SetMark(ed.End, gravity), "proposal", ed.Text, nil})
+	e.decos[e] = append(e.decos[e], decoration{e.proposed, b, b.text.SetMark(ed.Start, kernel.Right), b.text.SetMark(ed.End, gravity), "proposal", ed.Text, "", nil})
 	return nil
 }
 

@@ -133,7 +133,8 @@ type decoration struct {
 	buf        *buffer
 	start, end kernel.MarkID
 	style      string
-	note       string          // a diagnostic's message
+	note       string          // a diagnostic's message, or a plugin's text after the end of the line
+	sign       string          // a plugin's text for the sign column
 	raw        json.RawMessage // a diagnostic as the server sent it, for code actions
 }
 
@@ -141,6 +142,9 @@ type decoration struct {
 func (d decoration) remove() {
 	d.buf.text.DeleteMark(d.start)
 	d.buf.text.DeleteMark(d.end)
+	if d.sign != "" {
+		d.buf.signs--
+	}
 }
 
 // decorate adds and removes the decorations res asks for on b, emits its
@@ -185,7 +189,13 @@ func (e *Session) decorate(p *plugin.Plugin, b *buffer, res plugin.Result) []vim
 		e.segments[p][b] = *res.Status
 	}
 	for _, d := range res.Decorate {
-		e.decos[p] = append(e.decos[p], decoration{d.ID, b, b.text.SetMark(d.Start, kernel.Right), b.text.SetMark(d.End, kernel.Left), d.Style, "", nil})
+		// A sign shows its first two characters, as the column is two wide.
+		sign := []rune(d.Sign)
+		sign = sign[:min(len(sign), 2)]
+		e.decos[p] = append(e.decos[p], decoration{d.ID, b, b.text.SetMark(d.Start, kernel.Right), b.text.SetMark(d.End, kernel.Left), d.Style, d.Note, string(sign), nil})
+		if len(sign) > 0 {
+			b.signs++
+		}
 	}
 	for _, id := range res.Undecorate {
 		if i := slices.IndexFunc(e.decos[p], func(d decoration) bool { return d.id == id }); i >= 0 {

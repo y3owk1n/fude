@@ -420,6 +420,23 @@ func TestB183PluginHearsWhatChanged(t *testing.T) {
 	settle(t, e, func() bool { d := decorations(e); return len(d) == 1 && d[0] == "hiabcxy keyword" })
 }
 
+// B184
+func TestB184PluginSignsAndNotes(t *testing.T) {
+	e := loaded(t, "watch", "f", "a\nb\n", "ui")
+	e.SetSize(80, 10)
+	feed(e, "jix<Esc>")
+	settle(t, e, func() bool {
+		v := e.Views()[0]
+		return v.Signs[1] == editor.Sign{Text: "+", Name: "git.add"} && v.Notes[1] == "changed"
+	})
+	// A new change moves them, and the line they left shows none.
+	feed(e, "kix<Esc>")
+	settle(t, e, func() bool {
+		v := e.Views()[0]
+		return v.Notes[0] == "changed" && v.Notes[1] == "" && v.Signs[1].Text == ""
+	})
+}
+
 // decorations returns what the current window shows of plugins'
 // decorations, as text and style.
 func decorations(e *editor.Session) []string {

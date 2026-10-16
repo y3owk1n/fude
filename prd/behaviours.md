@@ -539,6 +539,10 @@ Where fude departs, the line says so and cites the departure in
 - B183 [4] A plugin that hears `buffer.changed` hears the range the change
   covers in the text it reads. Changes it heard of as one, because it fell
   behind, come as one range that covers them all.
+- B184 [4] A plugin with `ui` shows text in the sign column of a line, its
+  first two characters, and dim text after the end of a line. Both move
+  with edits and go when the plugin removes them or unloads. On one line,
+  a diagnostic's sign wins over a plugin's, and a plugin's over git's.
 - B59 [4] A plugin with `ui` shows markdown in a float at the cursor, as
   hover does.
 
