@@ -40,7 +40,11 @@ func (e *Session) completing(k vim.Key) bool {
 		return false
 	}
 	if k == "<C-s>" && len(e.win.buf.servers) > 0 {
-		e.signature()
+		if e.sig != nil {
+			e.sig = nil
+		} else {
+			e.signature(false)
+		}
 		return true
 	}
 	if e.ctrlX {
@@ -250,6 +254,26 @@ func (e *Session) autocomplete(k vim.Key) {
 		return ok && (isWord(k[0]) || slices.Contains(p.TriggerCharacters, string(k)))
 	}) {
 		e.complete(true)
+	}
+}
+
+// signatureHelp asks for the signature after k is typed in insert mode,
+// when k is one of a server's trigger characters or a signature already
+// shows. Out of insert mode, no signature shows (B203).
+func (e *Session) signatureHelp(k vim.Key) {
+	if e.vim.Mode() != vim.Insert {
+		e.sig = nil
+		return
+	}
+	if e.sig != nil || slices.ContainsFunc(e.win.buf.servers, func(s *server) bool {
+		var p struct {
+			TriggerCharacters   []string `json:"triggerCharacters"`
+			RetriggerCharacters []string `json:"retriggerCharacters"`
+		}
+		json.Unmarshal(s.client.Capability("signatureHelpProvider"), &p)
+		return slices.Contains(p.TriggerCharacters, string(k)) || slices.Contains(p.RetriggerCharacters, string(k))
+	}) {
+		e.signature(true)
 	}
 }
 

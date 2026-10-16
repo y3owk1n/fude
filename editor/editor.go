@@ -71,6 +71,7 @@ type Session struct {
 	ask        func(yes bool) // takes the answer to the question in the message
 	jumpTo     *jumpTo        // where a plugin's call asked to move the cursor, after the key
 	lastList   *places        // the last list of places a window showed
+	sig        *Float         // the signature help showing in insert mode (B203)
 	float      string         // text shown over the windows at the cursor, such as hover
 	floatSpans []syntax.Span  // the styles of the float's text
 	doc        string         // the selected completion's documentation, beside the menu
@@ -464,6 +465,7 @@ func (e *Session) feed(k vim.Key) {
 		e.flashOn(e.win.buf, start, end)
 	}
 	e.autocomplete(k)
+	e.signatureHelp(k)
 	e.autocommand()
 }
 
@@ -861,6 +863,15 @@ type Float struct {
 	// for a box at the cursor. DocW is the width of the documentation's box
 	// right of it.
 	X, Y, W, H, DocW int
+}
+
+// Signature returns the signature help to draw above the cursor's line, or
+// false when none shows (B203).
+func (e *Session) Signature() (Float, bool) {
+	if e.sig == nil {
+		return Float{}, false
+	}
+	return *e.sig, true
 }
 
 // Float returns the float to draw, or false when there is none.

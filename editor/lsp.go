@@ -796,25 +796,35 @@ func (e *Session) act(p *pick, a reply) {
 	s.client.Request("workspace/executeCommand", func(string) any { return command }, func(json.RawMessage) {})
 }
 
-// signature shows the signature at the cursor in a float, with the parameter
-// being typed in bold. The first server that offers signatures says it
-// (B66, N22).
-func (e *Session) signature() {
+// signature asks the server for the signature of the call at the cursor. It
+// shows above the cursor's line, with the parameter being typed in bold,
+// and under a rule that parameter's documentation and the function's. The
+// first server that offers signatures answers. When a typed key asked, it
+// gives no message if there is none (B66, B203, N22).
+func (e *Session) signature(typed bool) {
 	b := e.win.buf
 	s := first(b.servers, "textDocument/signatureHelp")
 	if s == nil {
-		e.message = "no language server offers signature help"
+		if !typed {
+			e.message = "no language server offers signature help"
+		}
 		return
 	}
 	t, c, uri := b.text.Snapshot(), e.Cursor(), lsp.URI(b.file.path)
 	s.client.Request("textDocument/signatureHelp", func(enc string) any {
 		return map[string]any{"textDocument": map[string]any{"uri": uri}, "position": lsp.Point(t, c, enc)}
 	}, func(res json.RawMessage) {
+		// Insert mode may have ended while the server answered.
+		if e.vim.Mode() != vim.Insert {
+			return
+		}
 		var help struct {
 			Signatures []struct {
-				Label      string `json:"label"`
-				Parameters []struct {
-					Label json.RawMessage `json:"label"`
+				Label         string          `json:"label"`
+				Documentation json.RawMessage `json:"documentation"`
+				Parameters    []struct {
+					Label         json.RawMessage `json:"label"`
+					Documentation json.RawMessage `json:"documentation"`
 				} `json:"parameters"`
 				ActiveParameter *int `json:"activeParameter"`
 			} `json:"signatures"`
@@ -823,7 +833,10 @@ func (e *Session) signature() {
 		}
 		json.Unmarshal(res, &help)
 		if len(help.Signatures) == 0 {
-			e.message = "no signature help"
+			e.sig = nil
+			if !typed {
+				e.message = "no signature help"
+			}
 			return
 		}
 		sig := help.Signatures[min(help.ActiveSignature, len(help.Signatures)-1)]
@@ -832,7 +845,11 @@ func (e *Session) signature() {
 			active = *sig.ActiveParameter
 		}
 		var spans []syntax.Span
+		var docs []string
 		if active >= 0 && active < len(sig.Parameters) {
+			if d := markupText(sig.Parameters[active].Documentation); d != "" {
+				docs = append(docs, d)
+			}
 			// A parameter's label is its text in the signature, or where it is.
 			var name string
 			var at [2]int
@@ -847,7 +864,19 @@ func (e *Session) signature() {
 				spans = []syntax.Span{{Start: at[0], End: at[1], Name: "markup.strong"}}
 			}
 		}
-		e.float, e.floatSpans = sig.Label, spans
+		if d := markupText(sig.Documentation); d != "" {
+			docs = append(docs, d)
+		}
+		text := sig.Label
+		if len(docs) > 0 {
+			md, mdSpans := e.markdown("---\n" + strings.Join(docs, "\n\n"))
+			for _, sp := range mdSpans {
+				sp.Start, sp.End = sp.Start+len(text)+1, sp.End+len(text)+1
+				spans = append(spans, sp)
+			}
+			text += "\n" + md
+		}
+		e.sig = &Float{Text: text, Spans: spans, Cursor: -1}
 	})
 }
 

@@ -227,6 +227,7 @@ func (c *client) draw() {
 	// A modal box, the command line or the finder, has the windows under it
 	// drawn in the tinted theme, and draws on the tinted ground (B151).
 	f, floats := c.e.Float()
+	sig, signs := c.e.Signature()
 	msg := c.e.Message()
 	// A :s being typed shows its preview in the windows, so they stay lit.
 	modal := c.e.Mode() == vim.Cmdline && !c.e.Substituting() || floats && f.W > 0 && !f.Lit
@@ -236,7 +237,7 @@ func (c *client) draw() {
 	}
 	// No line's sig holds what draws over the windows, so every line draws
 	// while something is over them and in the frame after.
-	over := c.e.Mode() == vim.Cmdline || floats || msg != ""
+	over := c.e.Mode() == vim.Cmdline || floats || signs || msg != ""
 	// The windows cover from left to right, which changes when :center does.
 	views := c.e.Views()
 	left, right := w, 0
@@ -257,6 +258,11 @@ func (c *client) draw() {
 	if modal {
 		apply(lit)
 		base = base.Background(dimmed.th.bg)
+	}
+	// The signature goes above the cursor's line, and a completion menu below
+	// it draws over it if they meet (B203).
+	if signs {
+		c.above(sig, cx, cy, w, h)
 	}
 	switch {
 	case c.e.Mode() == vim.Cmdline:
@@ -335,6 +341,22 @@ func (c *client) float(f editor.Float, cx, cy, w, h int) (int, int, bool) {
 		c.box(f.Doc, f.DocSpans, rows[:min(len(rows), h-y-2, 20)], dx, y, dw, -1)
 	}
 	return fx, fy, found
+}
+
+// above draws f in a box above the cursor's line at cx and cy, at most 80
+// columns and 10 rows. When it does not fit there and there is more room
+// below, it goes below. w and h are the space the windows have.
+func (c *client) above(f editor.Float, cx, cy, w, h int) {
+	rows, width := wrap(f.Text, f.Spans, min(80, w-4))
+	want, up, down := min(len(rows), 10), cy-2, h-cy-3
+	n, y := min(want, up), cy-min(want, up)-2
+	if up < want && down > up {
+		n, y = min(want, down), cy+1
+	}
+	if width < 1 || n < 1 {
+		return
+	}
+	c.box(f.Text, f.Spans, rows[:n], min(cx, max(w-width-4, 0)), y, width, -1)
 }
 
 // scroll returns the first of rows to show in a box n rows tall. It is f's

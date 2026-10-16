@@ -653,6 +653,12 @@ Where fude departs, the line says so and cites the departure in
   insert `<C-s>` shows signature help. They exist only while a server is
   attached (N3). In a list they open, `<CR>` jumps to the place on its
   line. B142 changes this key.
+- B203 [5] In insert mode, typing a character the server names as a
+  signature trigger, such as `(` or `,`, shows the signature of the call
+  above the cursor's line, with the parameter being typed in bold, and
+  under a rule that parameter's documentation and the function's. It asks
+  again after each key while it shows, and goes when the server has none
+  for the cursor or insert mode ends. `<C-s>` shows it or hides it.
 - B67 [5] With `autocomplete` on, typing a word character or a trigger
   character in insert mode lists the server's completions, with none put in
   the text until `<C-n>` or `<C-p>`.

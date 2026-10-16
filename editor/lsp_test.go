@@ -133,7 +133,9 @@ func TestFakeServer(t *testing.T) {
 			reply(m.ID, nil)
 		case "textDocument/signatureHelp":
 			reply(m.ID, map[string]any{"activeSignature": 0, "activeParameter": 1, "signatures": []any{
-				map[string]any{"label": "f(a int, b string)", "parameters": []any{map[string]any{"label": "a int"}, map[string]any{"label": []int{9, 17}}}},
+				map[string]any{"label": "f(a int, b string)", "documentation": "adds **things**", "parameters": []any{
+					map[string]any{"label": "a int"}, map[string]any{"label": []int{9, 17}, "documentation": map[string]any{"kind": "markdown", "value": "the name"}},
+				}},
 			}})
 		case "textDocument/documentSymbol":
 			at := func(line int) map[string]any {
@@ -188,7 +190,7 @@ func TestFakeServer(t *testing.T) {
 			reply(m.ID, map[string]any{"serverInfo": map[string]any{"name": "fake", "version": "v1"}, "capabilities": map[string]any{
 				"positionEncoding": os.Getenv("FUDE_FAKE_ENCODING"), "textDocumentSync": json.RawMessage(cmp.Or(os.Getenv("FUDE_FAKE_SYNC"), "2")), "documentFormattingProvider": true, "completionProvider": map[string]any{"triggerCharacters": []string{"."}, "resolveProvider": true},
 				"definitionProvider": true, "typeDefinitionProvider": true, "implementationProvider": true, "referencesProvider": true, "renameProvider": true,
-				"codeActionProvider": true, "signatureHelpProvider": map[string]any{}, "documentSymbolProvider": true, "hoverProvider": true,
+				"codeActionProvider": true, "signatureHelpProvider": map[string]any{"triggerCharacters": []string{"("}, "retriggerCharacters": []string{","}}, "documentSymbolProvider": true, "hoverProvider": true,
 			}})
 		case "shutdown":
 			reply(m.ID, nil)
@@ -764,10 +766,29 @@ func TestB66ActionsAndSignature(t *testing.T) {
 	e, log := withServer(t, "f(1, \n", "utf-8")
 	heard(t, log, `"method":"textDocument/didOpen"`, 1)
 	feed(e, "A<C-s>")
-	settle(t, e, func() bool { _, ok := e.Float(); return ok })
-	fl, _ := e.Float()
-	f, spans := fl.Text, fl.Spans
-	if f != "f(a int, b string)" || len(spans) != 1 || f[spans[0].Start:spans[0].End] != "b string" {
-		t.Errorf("<C-s> showed %q with %v, want the signature with b string bold", f, spans)
+	settle(t, e, func() bool { _, ok := e.Signature(); return ok })
+	if s, _ := e.Signature(); !strings.HasPrefix(s.Text, "f(a int, b string)\n") || s.Text[s.Spans[0].Start:s.Spans[0].End] != "b string" {
+		t.Errorf("<C-s> showed %q with %v, want the signature with b string bold", s.Text, s.Spans)
+	}
+}
+
+// B203
+func TestB203SignatureWhileTyping(t *testing.T) {
+	e, log := withServer(t, "x\n", "utf-8")
+	heard(t, log, `"method":"textDocument/didOpen"`, 1)
+	shown := func() bool { _, ok := e.Signature(); return ok }
+	feed(e, "Af(")
+	settle(t, e, shown)
+	s, _ := e.Signature()
+	if !strings.Contains(s.Text, "the name") || !strings.Contains(s.Text, "adds things") || s.Text[s.Spans[0].Start:s.Spans[0].End] != "b string" {
+		t.Errorf("typing ( showed %q with %v, want the signature, b string bold, and both documentations", s.Text, s.Spans)
+	}
+	if feed(e, "<C-s>"); shown() {
+		t.Error("<C-s> left the signature showing")
+	}
+	feed(e, "1,")
+	settle(t, e, shown)
+	if feed(e, "<Esc>"); shown() {
+		t.Error("<Esc> left the signature showing")
 	}
 }
