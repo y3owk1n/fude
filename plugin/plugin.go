@@ -62,8 +62,21 @@ type Result struct {
 	Status     *string  // the plugin's statusline segment for the text it read, "" for none
 	Float      *string  // markdown to show at the cursor, "" to close it
 	Timers     []Timer  // the callbacks to run later
+	Jobs       []Job    // the work to do in the background
 	Out        []uint64
 }
+
+// Job is a program to run or a URL to get in the background. Once it ends,
+// fude runs the plugin's callback with its id, with the output and any
+// error in its context (B181).
+type Job struct {
+	ID   uint32
+	Argv []string
+	URL  string
+}
+
+// maxJobs is how many of a plugin's jobs run at once. One more waits.
+const maxJobs = 8
 
 // Timer is a callback the plugin asked fude to run after a while, through
 // its callback export, by the id it gave (B180).
@@ -114,7 +127,8 @@ type Plugin struct {
 	cache   wazero.CompilationCache
 	runtime wazero.Runtime
 	mod     api.Module
-	call    *call // the call running now
+	call    *call         // the call running now
+	jobs    chan struct{} // a slot for each job running
 }
 
 // call holds the text one call into a plugin reads, what the call is
@@ -164,7 +178,7 @@ func Load(ctx context.Context, path string, g Grants, cacheDir string, log func(
 	if err != nil {
 		return nil, fmt.Errorf("load plugin: %w", err)
 	}
-	p := &Plugin{Name: strings.TrimSuffix(filepath.Base(path), ".wasm"), Grants: g, log: log, root: root}
+	p := &Plugin{Name: strings.TrimSuffix(filepath.Base(path), ".wasm"), Grants: g, log: log, root: root, jobs: make(chan struct{}, maxJobs)}
 	if p.cache, err = wazero.NewCompilationCacheWithDir(cacheDir); err != nil {
 		return nil, fmt.Errorf("plugin cache: %w", err)
 	}
@@ -275,6 +289,8 @@ func (p *Plugin) host(ctx context.Context) error {
 		NewFunctionBuilder().WithFunc(p.context).Export("context").
 		NewFunctionBuilder().WithFunc(p.setting).Export("setting").
 		NewFunctionBuilder().WithFunc(p.after).Export("after").
+		NewFunctionBuilder().WithFunc(p.start).Export("start").
+		NewFunctionBuilder().WithFunc(p.fetch).Export("fetch").
 		NewFunctionBuilder().WithFunc(p.textLen).Export("text_len").
 		NewFunctionBuilder().WithFunc(p.lines).Export("lines").
 		NewFunctionBuilder().WithFunc(p.lineOf).Export("line_of").
@@ -445,19 +461,77 @@ func (p *Plugin) runProgram(ctx context.Context, m api.Module, ptr, n uint32) in
 	if !ok || n == 0 {
 		return errRange
 	}
-	argv := strings.Split(string(b), "\x00")
-	if !slices.Contains(p.Programs, argv[0]) {
-		p.log(fmt.Sprintf("%s: run %s, which it did not declare", p.Name, argv[0]))
+	out, err := p.program(ctx, strings.Split(string(b), "\x00"))
+	if err != nil {
+		p.log(fmt.Sprintf("%s: %v", p.Name, err))
 		return errRun
+	}
+	return give(ctx, m, out)
+}
+
+// program runs argv in the project and returns what it prints, if the
+// plugin declared the program.
+func (p *Plugin) program(ctx context.Context, argv []string) (string, error) {
+	if !slices.Contains(p.Programs, argv[0]) {
+		return "", fmt.Errorf("run %s, which it did not declare", argv[0])
 	}
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
 	cmd.Dir = p.root
 	out, err := cmd.Output()
 	if err != nil {
-		p.log(fmt.Sprintf("%s: run %s: %v", p.Name, argv[0], err))
+		return "", fmt.Errorf("run %s: %w", argv[0], err)
+	}
+	return string(out), nil
+}
+
+// start asks fude to run the program and arguments at (ptr, n), NUL
+// separated, in the background, and to run the plugin's callback with id
+// once it exits (B181).
+func (p *Plugin) start(_ context.Context, m api.Module, ptr, n, id uint32) int32 {
+	if p.call == nil || !p.allowed("process", "start") {
+		return errDenied
+	}
+	b, ok := m.Memory().Read(ptr, n)
+	if !ok || n == 0 {
+		return errRange
+	}
+	argv := strings.Split(string(b), "\x00")
+	if !slices.Contains(p.Programs, argv[0]) {
+		p.log(fmt.Sprintf("%s: start %s, which it did not declare", p.Name, argv[0]))
 		return errRun
 	}
-	return give(ctx, m, string(out))
+	p.call.Jobs = append(p.call.Jobs, Job{ID: id, Argv: argv})
+	return 0
+}
+
+// fetch asks fude to get the URL at (ptr, n) in the background, and to run
+// the plugin's callback with id once it has the body (B181).
+func (p *Plugin) fetch(_ context.Context, m api.Module, ptr, n, id uint32) int32 {
+	if p.call == nil || !p.allowed("net", "fetch") {
+		return errDenied
+	}
+	b, ok := m.Memory().Read(ptr, n)
+	if !ok {
+		return errRange
+	}
+	p.call.Jobs = append(p.call.Jobs, Job{ID: id, URL: string(b)})
+	return 0
+}
+
+// Work does j, a program or a get, as run and http_get do but with no
+// budget, until it ends or ctx does. At most maxJobs run at once.
+func (p *Plugin) Work(ctx context.Context, j Job) (string, error) {
+	select {
+	case p.jobs <- struct{}{}:
+	case <-ctx.Done():
+		return "", ctx.Err()
+	}
+	defer func() { <-p.jobs }()
+	if j.URL != "" {
+		body, err := p.get(ctx, j.URL)
+		return string(body), err
+	}
+	return p.program(ctx, j.Argv)
 }
 
 // maxBody is the most of a response http_get reads, 16MB.

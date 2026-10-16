@@ -529,6 +529,11 @@ Where fude departs, the line says so and cites the departure in
   runs once, off the input path, as an event does. It is about the buffer
   the call that asked was about, and does not run when that buffer closed
   meanwhile.
+- B181 [4] A plugin can run a program it declared, or get a URL on a host
+  it declared, in the background, with no budget. When the work ends, a
+  function of the plugin's runs with its output or error, as a timer's
+  does (B180). At most 8 of a plugin's jobs run at once, and the rest
+  wait. Unloading the plugin stops them.
 - B59 [4] A plugin with `ui` shows markdown in a float at the cursor, as
   hover does.
 

@@ -2,6 +2,7 @@ package editor
 
 import (
 	"context"
+	"maps"
 	"slices"
 	"sync"
 	"time"
@@ -18,6 +19,7 @@ type event struct {
 	name, detail string
 	buf          *buffer
 	id           uint32
+	extra        plugin.Context // what a callback's context adds, such as a job's output
 }
 
 // listener hands one plugin the events it subscribed to, one at a time, off
@@ -29,7 +31,9 @@ type listener struct {
 	mu      sync.Mutex
 	pending []event
 	wake    chan struct{}
-	done    chan struct{}
+	// ctx ends when the plugin unloads, which stops its jobs.
+	ctx  context.Context
+	stop context.CancelFunc
 }
 
 // emit tells every plugin subscribed to name of b.
@@ -70,7 +74,8 @@ func (e *Session) listen(p *plugin.Plugin) *listener {
 	if l := e.listeners[p]; l != nil {
 		return l
 	}
-	l := &listener{p: p, wake: make(chan struct{}, 1), done: make(chan struct{})}
+	l := &listener{p: p, wake: make(chan struct{}, 1)}
+	l.ctx, l.stop = context.WithCancel(context.Background())
 	e.listeners[p] = l
 	// on runs f on the editor loop and waits for it, or reports false once
 	// the plugin is unloaded.
@@ -78,13 +83,13 @@ func (e *Session) listen(p *plugin.Plugin) *listener {
 		ran := make(chan struct{})
 		select {
 		case e.queue <- func() { f(); close(ran) }:
-		case <-l.done:
+		case <-l.ctx.Done():
 			return false
 		}
 		select {
 		case <-ran:
 			return true
-		case <-l.done:
+		case <-l.ctx.Done():
 			return false
 		}
 	}
@@ -92,7 +97,7 @@ func (e *Session) listen(p *plugin.Plugin) *listener {
 		for {
 			select {
 			case <-l.wake:
-			case <-l.done:
+			case <-l.ctx.Done():
 				return
 			}
 			for {
@@ -112,6 +117,7 @@ func (e *Session) listen(p *plugin.Plugin) *listener {
 					if more = len(l.pending) > 0; more {
 						ev, l.pending = l.pending[0], l.pending[1:]
 						t, about = ev.buf.text.Snapshot(), e.about(ev.buf)
+						maps.Copy(about, ev.extra)
 					}
 				}) {
 					return

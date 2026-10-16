@@ -76,6 +76,12 @@ func hostContext(ptr *byte, n uint32) int64
 //go:wasmimport fude after
 func hostAfter(ms, id uint32) int32
 
+//go:wasmimport fude start
+func hostStart(ptr *byte, n uint32, id uint32) int32
+
+//go:wasmimport fude fetch
+func hostFetch(ptr *byte, n uint32, id uint32) int32
+
 //go:wasmimport fude setting
 func hostSetting(ptr *byte, n uint32) int64
 
@@ -170,7 +176,7 @@ func call(id uint32, a, b, c int64) int64 {
 	return handlers[id](a, b, c)
 }
 
-// later are the functions After runs once, by the id fude calls them back
+// later are the functions After, Start and Fetch run once, by the id fude calls them back
 // with, and last is the id given last.
 var (
 	later = map[uint32]func(){}
@@ -190,9 +196,42 @@ func callback(id uint32) {
 // returns, off the input path, as an event runs. f reads the text of the
 // buffer that call was about. A call that fails asks for nothing.
 func After(ms int, f func()) error {
+	return schedule(f, func(id uint32) int32 { return hostAfter(uint32(ms), id) })
+}
+
+// Start runs the program name with args in the background, in the project,
+// with no budget, and then f with what it printed, off the input path, as
+// an event runs. It needs process, and name in the plugin's programs.
+func Start(f func(output string, err error), name string, args ...string) error {
+	p, n := ptr(strings.Join(append([]string{name}, args...), "\x00"))
+	return schedule(done(f), func(id uint32) int32 { return hostStart(p, n, id) })
+}
+
+// Fetch gets the http or https URL in the background, with no budget, and
+// then runs f with the body, as Start does. It needs net, and the URL's
+// host in the plugin's hosts.
+func Fetch(url string, f func(body string, err error)) error {
+	p, n := ptr(url)
+	return schedule(done(f), func(id uint32) int32 { return hostFetch(p, n, id) })
+}
+
+// done is the callback that runs f with a job's output and error.
+func done(f func(string, error)) func() {
+	return func() {
+		var err error
+		if e := about("error"); e != "" {
+			err = errors.New(e)
+		}
+		f(about("output"), err)
+	}
+}
+
+// schedule keeps f under a new id and asks fude for it with ask, or forgets
+// it when fude refuses.
+func schedule(f func(), ask func(id uint32) int32) error {
 	last++
 	later[last] = f
-	if err := fail(int64(hostAfter(uint32(ms), last))); err != nil {
+	if err := fail(int64(ask(last))); err != nil {
 		delete(later, last)
 		return err
 	}

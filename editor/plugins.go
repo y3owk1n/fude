@@ -144,11 +144,27 @@ func (d decoration) remove() {
 }
 
 // decorate adds and removes the decorations res asks for on b, emits its
-// events about b and arms its timers, whose callbacks are about b. It returns res's edits, sorted, for the caller to
-// apply next, so they move the new decorations.
+// events about b, arms its timers and starts its jobs, whose callbacks are
+// about b. It returns res's edits, sorted, for the caller to apply next, so
+// they move the new decorations.
 func (e *Session) decorate(p *plugin.Plugin, b *buffer, res plugin.Result) []vim.Edit {
 	for _, name := range res.Emit {
 		e.emit(name, "", b)
+	}
+	for _, j := range res.Jobs {
+		l := e.listen(p)
+		go func() {
+			out, err := p.Work(l.ctx, j)
+			extra := plugin.Context{"output": out}
+			if err != nil {
+				extra["error"] = err.Error()
+			}
+			e.queue <- func() {
+				if slices.Contains(e.plugins, p) {
+					l.add(event{buf: b, id: j.ID, extra: extra})
+				}
+			}
+		}()
 	}
 	for _, tm := range res.Timers {
 		time.AfterFunc(tm.After, func() {
@@ -188,7 +204,7 @@ func (e *Session) decorate(p *plugin.Plugin, b *buffer, res plugin.Result) []vim
 // unload closes p after err, removes its decorations and tells the user.
 func (e *Session) unload(p *plugin.Plugin, err error) {
 	if l := e.listeners[p]; l != nil {
-		close(l.done)
+		l.stop()
 		delete(e.listeners, p)
 	}
 	p.Close(context.Background())

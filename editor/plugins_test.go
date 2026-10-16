@@ -388,6 +388,20 @@ func TestB180PluginTimers(t *testing.T) {
 	settle(t, e, func() bool { return text(e) == "tta" })
 }
 
+// B181
+func TestB181PluginJobs(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, "pong") }))
+	defer srv.Close()
+	useTable(t, "later", "programs = [\"echo\", \"sleep\"]\nhosts = [\"127.0.0.1\"]\n", "buffer.write", "process", "net")
+	e := opened(t, "f", "a\n")
+	// sleep runs past the budget of a command, which the job does not have.
+	feed(e, ":Jobs<CR>:Fetch "+srv.URL+"<CR>")
+	settle(t, e, func() bool {
+		s := text(e)
+		return strings.Contains(s, "hi\n") && strings.Contains(s, "slept") && strings.Contains(s, "pong")
+	})
+}
+
 // decorations returns what the current window shows of plugins'
 // decorations, as text and style.
 func decorations(e *editor.Session) []string {

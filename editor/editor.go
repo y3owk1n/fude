@@ -1025,7 +1025,7 @@ func (e *Session) quitAll(force bool) {
 		b.close()
 	}
 	for p, l := range e.listeners {
-		close(l.done)
+		l.stop()
 		delete(e.listeners, p)
 	}
 	for _, p := range e.plugins {

@@ -880,6 +880,8 @@ host it may not reach or a request that failed.
 |---|---|---|
 | `log(ptr, len)` | none | adds a line to fude's log |
 | `after(ms, id) -> i32` | none | runs `callback(id)` once, `ms` milliseconds after the call returns, under the event budget, about the buffer the call was about (B180) |
+| `start(ptr, len, id) -> i32` | `process` | runs the program with its arguments, NUL-separated, in the background, then `callback(id)`. The program must be in the plugin's `programs` (B181) |
+| `fetch(ptr, len, id) -> i32` | `net` | gets the http or https URL in the background, as `http_get` does, then `callback(id)` (B181) |
 | `setting(ptr, len) -> i64` | none | the value of the plugin's setting by its name, as text, or -2 for a name it has none of (B178) |
 | `context(ptr, len) -> i64` | none | the value of what the call is about by its name, or -2 for a name it has none of. Every call has `buffer`, `path` and `filetype`, of the buffer it is about, and `mode` (B176) |
 | `text_len() -> i32` | `buffer.read` | the length of the text |
@@ -925,7 +927,18 @@ declared capabilities returns -1, and fude logs it to
 
 The edits a call asks for apply as one transaction once the call returns,
 after its decorations, so its edits move them. A call that traps or runs
-past its budget leaves no edit and no decoration (B53).
+past its budget leaves no edit and no decoration (B53), and starts no
+timer and no job.
+
+Timers and jobs come back through the plugin's listener, the goroutine
+that hands it events, so one call into it runs at a time. A timer's
+callback runs once, after its delay. A job is a program or a get with no
+budget, which `Plugin.Work` runs through the same checks as `run` and
+`http_get`, at most 8 at once for a plugin. Its callback reads `output`,
+and `error` when it failed, from its `context`. Each callback runs under
+the event budget, about the buffer the call that asked was about, and not
+at all once that buffer closes. Unloading the plugin cancels its
+listener's context, which stops its jobs (B180, B181).
 
 Each plugin gets its own wazero runtime, so each has its own memory limit,
 64MB (`WithMemoryLimitPages` is per runtime). All runtimes share one
