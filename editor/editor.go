@@ -581,6 +581,11 @@ type View struct {
 	Guides            bool           // draw indent guides (B153)
 	ColorColumn       int            // the column of the text to shade, from 1, or 0 (B200)
 	Colours           []Colour       // text that names a colour, shown on it (B208, B209)
+	// Context is the start of each line pinned over the window's first rows,
+	// the functions and classes the text under them is in, with their
+	// highlights (B217).
+	Context           []int
+	ContextHighlights []syntax.Span
 	// A terminal window in terminal mode shows its program's screen, with
 	// the program's cursor at CellX and CellY, or -1 when it hides it (B205).
 	Cells        [][]Cell
@@ -606,6 +611,11 @@ func (e *Session) Views() []View {
 	}
 	for b, ws := range shown {
 		if b.syntax != nil {
+			for _, w := range slices.Clone(ws) {
+				for i := range maxContext {
+					ws = append(ws, contextRow{w.(*window), i})
+				}
+			}
 			b.syntax.Keep(ws)
 		}
 	}
@@ -631,6 +641,12 @@ func (e *Session) Views() []View {
 		last := vim.LineEnd(t, t.LineStart(min(t.LineOf(top)+max(w.h-2, 0), t.Lines()-1)))
 		if h := w.buf.syntax; h != nil {
 			v.Highlights = h.Show(t, w, top, last)
+			if e.cfg.StickyContext {
+				v.Context = e.pinned(w, t, top)
+				for i, start := range v.Context {
+					v.ContextHighlights = append(v.ContextHighlights, h.Show(t, contextRow{w, i}, start, vim.LineEnd(t, start))...)
+				}
+			}
 		}
 		v.Matches = e.vim.Matches(t, top, last)
 		if e.cfg.HighlightColors {
@@ -731,6 +747,48 @@ func (e *Session) Views() []View {
 		out = append(out, v)
 	}
 	return out
+}
+
+// maxContext is the most lines sticky context pins (B217).
+const maxContext = 3
+
+// contextRow names a line sticky context pins over w's rows, for the
+// highlights of a line above what w shows.
+type contextRow struct {
+	w   *window
+	row int
+}
+
+// pinned returns the starts of the lines pinned over w's first rows: those
+// of the functions and classes that hold the first line they leave in view
+// and start above it, the outermost first. They never cover the cursor's
+// line (B217).
+func (e *Session) pinned(w *window, t kernel.Snapshot, top int) []int {
+	p, h := &w.pinned, w.buf.syntax
+	if p.version == t.Version() && p.top == top && p.cursor == w.pos() && p.parses == h.Parses() {
+		return p.starts
+	}
+	var starts []int
+	first := t.LineOf(top)
+	room := min(maxContext, t.LineOf(w.pos())-first, max(w.h-3, 0))
+	// Each pinned line covers one more line of text, so the loop asks again
+	// about the line under them until the answer stops changing.
+	for range maxContext {
+		under := first + len(starts)
+		var found []int
+		for _, s := range h.Context(t.LineStart(min(under, t.Lines()-1))) {
+			if ls := t.LineStart(t.LineOf(s)); t.LineOf(s) < under && !slices.Contains(found, ls) {
+				found = append(found, ls)
+			}
+		}
+		found = found[max(len(found)-room, 0):]
+		if slices.Equal(found, starts) {
+			break
+		}
+		starts = found
+	}
+	p.version, p.top, p.cursor, p.parses, p.starts = t.Version(), top, w.pos(), h.Parses(), starts
+	return starts
 }
 
 // pair returns the bracket at w's cursor and its match within the lines

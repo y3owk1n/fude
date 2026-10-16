@@ -26,6 +26,14 @@ type window struct {
 	jumpAt int // the jump <C-o> last moved to, or len(jumps)
 	opts   options
 	left   int // the first screen column shown, without wrap
+	// pinned is the last sticky context worked out, with the text's version,
+	// the top, cursor and parse it was for, so a frame that changes none of
+	// them asks no tree.
+	pinned struct {
+		version             kernel.Version
+		top, cursor, parses int
+		starts              []int
+	}
 
 	x, y, w, h int // where the layout puts it, its status line included
 }

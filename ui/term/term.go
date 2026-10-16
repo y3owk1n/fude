@@ -518,6 +518,10 @@ func (c *client) view(v editor.View, left int, sel vim.Selection, visual bool) (
 	}
 	// win holds what every line of the window draws from.
 	win := sig(nil).int(v.X).int(v.Y).int(v.W).int(v.Left).flag(v.Wrap).flag(v.List).int(v.ColorColumn)
+	// Pinned lines cover rows, so a change to them draws every row again.
+	for _, p := range v.Context {
+		win = win.int(p)
+	}
 	if visual {
 		win = win.int(sel.Start).int(sel.End).flag(sel.Block).int(sel.Left).int(sel.Right)
 		for _, r := range sel.Regions {
@@ -701,10 +705,47 @@ func (c *client) view(v editor.View, left int, sel vim.Selection, visual bool) (
 		c.s.FillArea(numbers, v.Y+row, v.Gutter+v.W, 1, ' ', base)
 		c.s.Put(numbers, v.Y+row, "~", base.Foreground(th.faint))
 	}
+	c.pin(v, numbers, cur)
 	// The separator and status line span the whole window.
 	v.X, v.W = numbers, v.W+v.Gutter
 	c.edge(v, left)
 	return cx, cy, found
+}
+
+// pin draws the lines of v.Context over v's first rows on the surface
+// colour, each with its number and highlights, cut at the window's edge
+// (B217). numbers is where the gutter starts.
+func (c *client) pin(v editor.View, numbers, cur int) {
+	t := v.Text
+	for i, start := range v.Context {
+		y, end := v.Y+i, vim.LineEnd(t, start)
+		ground := base.Background(th.surface)
+		c.s.FillArea(numbers, y, v.Gutter+v.W, 1, ' ', ground)
+		if v.Number || v.Relative {
+			c.number(t.LineOf(start), cur, numbers+v.SignCols, y, v)
+			for x := numbers; x < v.X; x++ {
+				if s, style, _ := c.s.Get(x, y); s != "" {
+					c.s.Put(x, y, s, style.Background(th.surface))
+				}
+			}
+		}
+		styles := paint(nil, v.ContextHighlights, start, end)
+		x, col := 0, 0
+		for rest := t.Slice(start, end); rest != "" && x < v.W; {
+			style := styles[len(styles)-len(rest)]
+			if style.GetBackground() == base.GetBackground() {
+				style = style.Background(th.surface)
+			}
+			if rest[0] == '\t' {
+				w := vim.Tabstop - col%vim.Tabstop
+				x, col, rest = x+w, col+w, rest[1:]
+				continue
+			}
+			var width int
+			rest, width = c.s.Put(v.X+x, y, rest, style)
+			x, col = x+width, col+width
+		}
+	}
 }
 
 // edge draws v's status line on its bottom row, and a separator on its

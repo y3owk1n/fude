@@ -89,6 +89,7 @@ type Buffer struct {
 
 	// The editor loop's side.
 	seq     int      // changes heard
+	parses  int      // parses taken
 	log     []change // changes since the text the spans and tree are for
 	spans   []Span   // in paint order, later spans drawing over earlier ones
 	regions []Region // of other languages, inner ones after the regions holding them
@@ -389,6 +390,7 @@ func (h *Buffer) take(seq int, spans []Span, regions []Region, missing []string,
 		go h.tree.Close()
 	}
 	h.spans, h.regions, h.tree = spans, regions, tree
+	h.parses++
 	i := 0
 	for i < len(h.log) && h.log[i].seq <= seq {
 		i++
@@ -534,6 +536,38 @@ func (h *Buffer) Object(t api.Text, name string, start, end int) (int, int, bool
 		best.start, best.end = withComma(node, best.start, best.end)
 	}
 	return best.start, best.end, true
+}
+
+// Parses returns how many parses the buffer has taken, which a caller of
+// Context keeps to know when its answer may have changed.
+func (h *Buffer) Parses() int { return h.parses }
+
+// Context returns where each function and class that holds pos starts,
+// the outermost first, in the last parse moved through the edits made since
+// (B217).
+func (h *Buffer) Context(pos int) []int {
+	if h.tree == nil {
+		return nil
+	}
+	tree, done := h.current()
+	defer done()
+	fn, okFn := h.objects.CaptureIndexForName("function.outer")
+	class, okClass := h.objects.CaptureIndexForName("class.outer")
+	h.cursor.SetByteRange(uint(pos), uint(pos+1))
+	var starts []int
+	matches := h.cursor.Matches(h.objects, tree.RootNode(), nil)
+	for m := matches.Next(); m != nil; m = matches.Next() {
+		for _, c := range m.Captures {
+			if !(okFn && c.Index == uint32(fn) || okClass && c.Index == uint32(class)) {
+				continue
+			}
+			if s, e := int(c.Node.StartByte()), int(c.Node.EndByte()); s <= pos && pos < e {
+				starts = append(starts, s)
+			}
+		}
+	}
+	slices.Sort(starts)
+	return slices.Compact(starts)
 }
 
 // Select returns the range of every node a capture of the query src names

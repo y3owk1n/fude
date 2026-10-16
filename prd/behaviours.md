@@ -580,6 +580,13 @@ Where fude departs, the line says so and cites the departure in
 
 - B40 [3] With a grammar installed, `if af ia aa ic ac` select function,
   argument and class through tree-sitter queries.
+- B217 [3] With `sticky_context` on, as it is unless set off, a window
+  whose top is inside a function or class pins that one's first line over
+  its top row when the line is above it. Nested ones pin too, the
+  outermost first, at most 3, each with its number and highlights on the
+  surface colour. The grammar's text objects say what a function or class
+  is, and the first line left in view under the pinned ones decides which
+  pin. They never cover the cursor's line.
 - B41 [3] A query file in the config `queries/` directory overrides the
   shipped one for that language. A query with a predicate fude does not
   know fails to load and names the file and line. `#lua-match?` with a

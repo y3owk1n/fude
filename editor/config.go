@@ -26,6 +26,7 @@ type config struct {
 	Autocomplete    bool     `toml:"autocomplete" help:"completions show while typing, not only on <C-x><C-o>"`
 	HighlightColors bool     `toml:"highlight_colors" help:"text that names a colour, such as #ff8800 or rgb(255, 136, 0), shows on that colour"`
 	InlayHints      bool     `toml:"inlay_hints" help:"language servers' inlay hints, such as parameter names and types, show in the text"`
+	StickyContext   bool     `toml:"sticky_context" help:"the first lines of the functions and classes the top of a window is in stay pinned over it"`
 	Autopairs       bool     `toml:"autopairs" help:"an opening bracket or quote typed comes with its closing one"`
 	Sources         []string `toml:"completion_sources" help:"where completions come from, in the menu's order: lsp, snippet, path and buffer"`
 	AutoInstall     bool     `toml:"auto_install" help:"builds a missing grammar the first time a file needs it"`
@@ -78,7 +79,7 @@ type config struct {
 	} `toml:"plugin"`
 }
 
-var defaults = config{IndentWidth: 8, KeyTimeout: 1000, KeyHints: 300, FormatTimeout: 1000, LargeFile: 2, HighlightColors: true, InlayHints: true, Autopairs: true, Sources: []string{"lsp", "snippet", "path", "buffer"}, AutoInstall: true, Leader: "<Space>", Theme: "dark", options: options{Wrap: true, IndentGuides: true}}
+var defaults = config{IndentWidth: 8, KeyTimeout: 1000, KeyHints: 300, FormatTimeout: 1000, LargeFile: 2, HighlightColors: true, InlayHints: true, StickyContext: true, Autopairs: true, Sources: []string{"lsp", "snippet", "path", "buffer"}, AutoInstall: true, Leader: "<Space>", Theme: "dark", options: options{Wrap: true, IndentGuides: true}}
 
 // options are the settings each window has, which :set changes for the
 // current window and the windows opened after it (B39). :set takes each by
