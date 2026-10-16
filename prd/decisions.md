@@ -298,6 +298,16 @@ user wants a modern look like Zed's and Helix's, and 16 colours
 give too few shades for layered grounds, a cursor line and muted text. A
 terminal without true colour gets the nearest colours tcell can send.
 
+## D34. Help is a written guide beside the reference built from code
+
+`:h` opens one markdown buffer: an index, the guide's pages, then the
+reference (B162). The reference comes from the tables that run fude, so it
+cannot fall behind them. The guide is markdown in `editor/guide`, written
+by hand and embedded in the binary. Why: a line per command says what it
+does, but not how the parts fit, which needs prose and examples no table
+can hold. Keeping both in one buffer lets `/` search all of help and keeps
+`:h name` a jump to a line.
+
 ## Departures from Neovim
 
 Each entry: what differs, then why.

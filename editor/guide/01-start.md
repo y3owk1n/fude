@@ -1,0 +1,70 @@
+# Getting started
+
+fude is a modal text editor. A key does different things in each mode, so
+most editing is short commands typed in normal mode, not keys held down
+together. This page covers enough to open, edit and save files.
+
+## Opening files
+
+`fude a.go b.go` opens both files, each in a buffer, and shows the first.
+`fude +42 a.go` starts on line 42. `fude` alone opens an empty buffer, and
+`fude src/` lists a folder. In a listing, `<CR>` opens the entry under the
+cursor and `-` goes up a folder.
+
+## Modes
+
+- Normal mode is where fude starts. Keys move and change text.
+- In insert mode, keys type text. `i`, `a` and `o` enter it, before the
+  cursor, after it and on a new line. `<Esc>` goes back to normal mode.
+- In visual mode, motions select text for the next command. `v` selects
+  characters, `V` lines and `<C-v>` a block.
+- The command line runs a command typed after `:`, such as `:w`.
+
+The status line names the mode.
+
+## Moving
+
+`h`, `j`, `k` and `l` move left, down, up and right. `w` and `b` go a word
+forward and back, `0` and `$` to the start and end of the line, and `gg`
+and `G` to the first and last line. `/text<CR>` searches forward, and `n`
+and `N` go to the next and previous match. A count repeats a motion, so
+`3j` goes down three lines.
+
+## Changing text
+
+An operator followed by a motion acts on the text the motion covers. `dw`
+deletes to the next word, `c$` changes to the end of the line, and `y}`
+copies to the end of the paragraph. An operator typed twice acts on the
+line, so `dd` deletes it.
+
+A text object names the thing around the cursor. `ciw` changes the word,
+`di(` deletes inside the parentheses, and `daf` deletes the function when
+the file's grammar knows functions.
+
+`x` deletes the character under the cursor, and `p` puts what was deleted
+or copied. `u` undoes, `<C-r>` redoes and `.` repeats the last change.
+
+## Saving and quitting
+
+`:w` writes the buffer. `:q` closes the window, and quits with the last
+one. `:wq` writes and quits, and `:q!` quits without writing. fude keeps
+every change on the file's timeline, including changes not yet written.
+After a crash, `:recover` brings them back. `:restart` starts fude again on the
+same files after a change to its config.
+
+## Finding things
+
+`:e path` opens a file. `:files` finds a file by name, `:grep text`
+searches the files' text, and `:buffers` lists the open buffers.
+
+## When you forget a key
+
+Type the start of a command and wait. A panel lists the keys that may
+follow, such as every command after `g`. `<BS>` goes back a key, and
+`<Esc>` drops the command. `:h w` explains a key, and `:h :write` a
+command.
+
+## Next
+
+- `guide-config` sets fude up through its config file.
+- `index` lists every page of help.

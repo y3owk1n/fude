@@ -1,8 +1,11 @@
 package editor
 
 import (
+	"embed"
 	"fmt"
+	"io/fs"
 	"maps"
+	"path"
 	"reflect"
 	"slices"
 	"strings"
@@ -24,6 +27,32 @@ type helpEntry struct {
 type helpSection struct {
 	title, note string
 	entries     []helpEntry
+}
+
+// guideFiles are the guide's pages, each a markdown file whose name orders
+// it and names its tag: 01-start.md is guide-start.
+//
+//go:embed guide/*.md
+var guideFiles embed.FS
+
+// guidePage is a page of the guide: its tag, its title and its markdown.
+type guidePage struct {
+	tag, title, text string
+}
+
+// guide returns the guide's pages in order (B162).
+func guide() []guidePage {
+	// The files are in the binary, so neither call fails.
+	names, _ := fs.Glob(guideFiles, "guide/*.md")
+	var out []guidePage
+	for _, name := range names {
+		data, _ := guideFiles.ReadFile(name)
+		text := strings.TrimSpace(string(data))
+		_, base, _ := strings.Cut(strings.TrimSuffix(path.Base(name), ".md"), "-")
+		title, _, _ := strings.Cut(strings.TrimPrefix(text, "# "), "\n")
+		out = append(out, guidePage{"guide-" + base, title, text})
+	}
+	return out
 }
 
 // helpKeys are help's own keys, which [keymap.help] changes (B162).
@@ -249,8 +278,10 @@ func helpFields(v reflect.Value) []helpField {
 	return out
 }
 
-// helpText returns help as text, and the line of each name :h finds an
-// entry by, the first entry's when several share it.
+// helpText returns help as markdown: an index, the guide's pages, then the
+// reference built from the tables. It also returns the line of each name
+// :h finds a page, section or entry by, the first one's when several share
+// it.
 func (e *Session) helpText() (string, map[string]int) {
 	var b strings.Builder
 	tags := map[string]int{}
@@ -258,33 +289,79 @@ func (e *Session) helpText() (string, map[string]int) {
 	write := func(s string) {
 		b.WriteString(s)
 		b.WriteByte('\n')
-		line++
+		line += 1 + strings.Count(s, "\n")
 	}
-	write("fude help")
-	write("")
-	write(":h {name} goes to a command, key, option or setting. <CR> on a name")
-	write("goes to its entry, and q closes this window.")
-	for _, s := range e.helpSections() {
-		if len(s.entries) == 0 {
-			continue
+	tag := func(t string) {
+		if _, ok := tags[t]; !ok {
+			tags[t] = line
 		}
+	}
+	pages := guide()
+	var sections []helpSection
+	for _, s := range e.helpSections() {
+		if len(s.entries) > 0 {
+			sections = append(sections, s)
+		}
+	}
+	tag("index")
+	write("# fude help")
+	write("")
+	write("`:h {name}` goes to a page of the guide, a section of the reference, or a")
+	write("command, key, option or setting. `<CR>` on a name goes to it, and `q`")
+	write("closes this window.")
+	write("")
+	write("## Guide")
+	write("")
+	for _, p := range pages {
+		write("- " + p.title + "  `" + p.tag + "`")
+	}
+	write("")
+	write("## Reference")
+	write("")
+	for _, s := range sections {
+		write("- " + sentence(s.title) + "  `" + slug(s.title) + "`")
+	}
+	for _, p := range pages {
 		write("")
-		write(s.title)
+		tag(p.tag)
+		write(p.text)
+	}
+	for _, s := range sections {
+		write("")
+		tag(slug(s.title))
+		write("## " + sentence(s.title))
 		if s.note != "" {
+			write("")
 			write(s.note)
 		}
-		write("")
 		for _, en := range s.entries {
+			write("")
 			for _, t := range en.tags {
-				if _, ok := tags[t]; !ok {
-					tags[t] = line
-				}
+				tag(t)
 			}
-			write("  " + en.head)
-			write("      " + en.text)
+			write(code(en.head))
+			write("  " + en.text)
 		}
 	}
 	return strings.TrimSuffix(b.String(), "\n"), tags
+}
+
+// sentence returns an upper case title in sentence case.
+func sentence(title string) string {
+	return title[:1] + strings.ToLower(title[1:])
+}
+
+// slug is the tag of a reference section, such as normal-mode.
+func slug(title string) string {
+	return strings.ReplaceAll(strings.ToLower(title), " ", "-")
+}
+
+// code returns s as markdown's inline code, fenced past any backtick in it.
+func code(s string) string {
+	if strings.Contains(s, "`") {
+		return "`` " + s + " ``"
+	}
+	return "`" + s + "`"
 }
 
 // helpLine returns the line of the entry topic names: the entry tagged
@@ -320,6 +397,14 @@ func (e *Session) help(topic string) {
 		}
 	} else {
 		e.scratch("[help]", text, nil, nil)
+		// Help is markdown, coloured as such once its grammar is built.
+		b := e.win.buf
+		b.ft = "markdown"
+		if ok, err := e.attachSyntax(b); err != nil {
+			e.message = err.Error()
+		} else if !ok && syntax.Buildable(b.ft) && e.cfg.AutoInstall && e.buildGrammar(b.ft, false) {
+			e.message = "building the markdown grammar"
+		}
 	}
 	// The entry goes at the top of the window, its text below it.
 	at := e.win.buf.text.Snapshot().LineStart(line)
@@ -338,7 +423,7 @@ func (e *Session) followHelp() {
 	if i := strings.IndexAny(line[at:], " \t"); i >= 0 {
 		end = at + i
 	}
-	word := strings.TrimRight(line[start:end], ".,")
+	word := strings.Trim(line[start:end], ".,`()")
 	if word == "" {
 		return
 	}

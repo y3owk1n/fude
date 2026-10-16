@@ -317,12 +317,15 @@ Where fude departs, the line says so and cites the departure in
   file's status line shows a spinner, the server's name and what it is
   doing, with a percentage when the server gives one. Once the server is
   ready, its name shows alone, muted.
-- B162 [2] `:h` opens help in a window. It lists every command, key,
-  `<Plug>` command, option and `config.toml` setting fude has, with what
-  each does. It also lists the mappings in use and marks the ones
-  `config.toml` sets. `:h name` goes to the entry for a command (`:w`), a
-  key (`w`, `<Leader>w`), an option or a setting, and `<CR>` on a name in
-  help goes to its entry.
+- B162 [2] `:h` opens help in a window, as markdown, on an index of its
+  guide and reference. The guide's pages explain fude with examples, and
+  each has a tag such as `guide-start`. The reference lists every command,
+  key, `<Plug>` command, option and `config.toml` setting fude has, with
+  what each does. It also lists the mappings in use and marks the ones
+  `config.toml` sets. `:h name` goes to a page, a reference section such
+  as `settings`, or the entry for a command (`:w`), a key (`w`,
+  `<Leader>w`), an option or a setting. `<CR>` on a name in help goes to
+  it (D34).
 - B172 [2] When a command being typed in normal or visual mode waits
   `key_hints` milliseconds for its next key, a panel above the status line
   lists the keys that may follow, with what each does. It lists fude's own

@@ -44,10 +44,11 @@ func (ed *Editor) filetypeOf(path string) string {
 	return cmp.Or(extFiletypes[ext], ext)
 }
 
-// filetype returns b's filetype, or "" for a buffer with no file.
+// filetype returns b's filetype. A buffer with no file has the one it was
+// given, or "".
 func (ed *Editor) filetype(b *buffer) string {
 	if b.file.path == "" {
-		return ""
+		return b.ft
 	}
 	return ed.filetypeOf(b.file.path)
 }

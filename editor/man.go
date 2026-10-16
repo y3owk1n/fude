@@ -34,8 +34,8 @@ fude \- a modal text editor
 .SH DESCRIPTION
 fude opens each file in a buffer, or an empty buffer when none is given.
 With \fB+\fR\fIline\fR, the cursor starts on that line of the first file.
-Inside fude, \fB:h\fR shows the same help as this page, along with the
-mappings config.toml adds.
+Inside fude, \fB:h\fR shows this reference, the mappings config.toml adds,
+and a guide to fude.
 \fB\-\-man\fR prints this page.
 `)
 	for _, s := range e.helpSections() {

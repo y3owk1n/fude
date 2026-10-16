@@ -52,6 +52,7 @@ type buffer struct {
 	// A scratch buffer shows something about another buffer, such as its
 	// timeline, under a title instead of a file name.
 	title  string
+	ft     string // the filetype of a buffer with no file, such as help's markdown
 	source *buffer
 	lines  []kernel.NodeID // the timeline node on each line, for :restore
 	spots  []spot          // the place each line of a list names, for <CR>
