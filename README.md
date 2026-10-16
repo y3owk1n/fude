@@ -99,7 +99,7 @@ macOS.
 
 You need:
 
-- Go 1.26 or later.
+- Go 1.26 or later, which oku installs for its own build.
 - A C compiler, as fude's tree-sitter binding uses cgo.
 - A terminal with true colour.
 
@@ -112,7 +112,14 @@ fude also uses these when they are on PATH:
 - TinyGo, to build plugins.
 - A nerd font, for icons, which are off by default.
 
-Then:
+With [oku](https://github.com/y3owk1n/oku), one line builds the newest
+commit of `main` and installs fude with its man pages:
+
+```sh
+oku add github:y3owk1n/fude
+```
+
+`oku update fude` moves to the newest commit. Without oku:
 
 ```sh
 git clone https://github.com/y3owk1n/fude

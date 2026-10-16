@@ -1,0 +1,81 @@
+# The manifest `oku add github:y3owk1n/fude` reads. fude has no releases yet,
+# so oku builds the newest commit of main. Check a change with
+# `oku manifest lint` and `oku manifest test`.
+[package]
+name = "fude"
+description = "A modal text editor that works the way Neovim does, without its weight"
+homepage = "https://github.com/y3owk1n/fude"
+license = "MIT"
+
+[version]
+from = "git-branch"
+repo = "https://github.com/y3owk1n/fude"
+branch = "main"
+
+# tree-sitter's binding builds through cgo, so the build needs a C compiler.
+[host]
+xcode-clt = { path = "/Library/Developer/CommandLineTools/usr/bin/clang", install = "xcode-select --install", when = { os = "darwin" } }
+cc = { command = "cc", apt = "build-essential", dnf = "gcc", pacman = "base-devel", when = { os = "linux" } }
+git = { command = "git", apt = "git", dnf = "git", pacman = "git", when = { os = "linux" } }
+
+# It builds as `just build` and `just man` do, with go from the repo's own
+# manifest at the same commit. fude does not run on Windows.
+[build]
+needs = ["git"]
+deps = [{ ref = "./.oku/go.toml", version = "~1.26" }]
+source = { git = "https://github.com/y3owk1n/fude", tag = "{{tag}}" }
+when = [{ os = "darwin" }, { os = "linux" }]
+
+# go mod vendor refuses to run in a workspace. The root module's go.mod
+# brings in core and vim through its replace lines, so the build needs no
+# go.work.
+[[build.step]]
+run = "rm -f go.work go.work.sum"
+shell = "sh"
+
+[[build.step]]
+vendor = "go"
+
+# go mod vendor keeps only the folders of Go packages, so it leaves out the C
+# that tree-sitter's cgo includes: go-tree-sitter's include and src, and the
+# Go grammar's src. These fetch the two modules from the Go proxy at the
+# versions go.mod requires, and the step after puts the C back.
+[[build.step]]
+fetch = { url = "https://proxy.golang.org/github.com/tree-sitter/go-tree-sitter/@v/v0.25.0.zip", sha256 = "a2be3a1732377f427a97b3640739383585d46e14dc92637bfbd3d89dd2a9e6a7", to = "c/go-tree-sitter.zip" }
+
+[[build.step]]
+extract = { file = "c/go-tree-sitter.zip", to = "c/go-tree-sitter", strip = 3 }
+
+[[build.step]]
+fetch = { url = "https://proxy.golang.org/github.com/tree-sitter/tree-sitter-go/@v/v0.25.0.zip", sha256 = "e4501d10db1aee5f0b15354f4ae31296d8d8a93282a85d12302e6c682944438a", to = "c/tree-sitter-go.zip" }
+
+[[build.step]]
+extract = { file = "c/tree-sitter-go.zip", to = "c/tree-sitter-go", strip = 3 }
+
+# When go.mod moves either module to another version, the fetches above must
+# move with it, and this step stops the build until they do.
+[[build.step]]
+run = """
+set -eu
+for m in go-tree-sitter tree-sitter-go; do
+  grep -q "^# github.com/tree-sitter/$m v0.25.0$" vendor/modules.txt || { echo "go.mod moved github.com/tree-sitter/$m from v0.25.0, so oku.pkg.toml must fetch its new version"; exit 1; }
+done
+cp -R c/go-tree-sitter/include c/go-tree-sitter/src vendor/github.com/tree-sitter/go-tree-sitter/
+cp -R c/tree-sitter-go/src vendor/github.com/tree-sitter/tree-sitter-go/
+"""
+shell = "sh"
+
+[[build.step]]
+run = """
+set -eu
+go build -mod=vendor -trimpath -ldflags="-s -w" -o fude ./cmd/fude
+mkdir -p man
+./fude --man > man/fude.1
+./fude --man config > man/fude-config.5
+./fude --man guide > man/fude-guide.7
+"""
+shell = "sh"
+env = { CGO_ENABLED = "1", GOTOOLCHAIN = "local", GOFLAGS = "-buildvcs=false" }
+
+[[build.step]]
+install = { bin = ["fude"], man = ["man/fude.1", "man/fude-config.5", "man/fude-guide.7"] }
