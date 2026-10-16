@@ -16,9 +16,10 @@ const RestartEnv = "FUDE_RESTART"
 
 // saved is the session :restart keeps for the new process.
 type saved struct {
-	Buffers []savedBuffer
-	Layout  savedNode
-	Current int // the current window, counted from the top left
+	Buffers  []savedBuffer
+	Layout   savedNode
+	Current  int  // the current window, counted from the top left
+	Centered bool // :center is on (B199)
 }
 
 // savedBuffer is a buffer's file and the timeline node its text was at.
@@ -73,7 +74,7 @@ func (e *Session) restart() {
 		e.message = "only the terminal fude started in can restart it"
 		return
 	}
-	var s saved
+	s := saved{Centered: e.centered}
 	for _, b := range e.bufs {
 		if abs, err := filepath.Abs(b.file.path); restorable(b) && err == nil {
 			s.Buffers = append(s.Buffers, savedBuffer{abs, b.text.Head()})
@@ -152,6 +153,7 @@ func restartSession() (*saved, error) {
 // restoreSession puts each saved buffer's text back at its node and builds the
 // saved windows. It leaves out the windows of a file that did not open.
 func (e *Session) restoreSession(s saved) {
+	e.centered = s.Centered
 	for _, sb := range s.Buffers {
 		if i := slices.IndexFunc(e.bufs, func(b *buffer) bool { return b.is(sb.Path) }); i >= 0 && e.bufs[i].text.Head() != sb.Head {
 			goTo(e.bufs[i], sb.Head)
@@ -194,5 +196,7 @@ func (e *Session) restoreSession(s saved) {
 	e.root = root
 	ws := root.windows()
 	e.win = ws[min(s.Current, len(ws)-1)]
+	// New windows start with the current one's options, as after :set.
+	e.opts = e.win.opts
 	e.layout()
 }

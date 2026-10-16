@@ -30,6 +30,16 @@ language servers off, and fude says so when it opens one. The default is
 2. A file's syntax tree takes about 30 times the file's size in memory,
 60MB for a 2MB file.
 
+## center
+
+Starts with the windows centered, as `:center` and `<Plug>(center)`
+toggle them. On a wide screen, the windows then sit in its middle, with
+blank margins on either side, so the text is in front of you on a wide
+monitor. Each window gets `color_column` columns of text, or 100 without
+one, and its gutter, so a split side by side doubles the width. When the
+windows need more than the screen, they take all of it. The default is
+off.
+
 ## autocomplete
 
 In insert mode, the language server's completions show as a word or a
@@ -136,6 +146,12 @@ or diagnostic sign comes. Off, the column shows while the buffer has signs.
 
 Draws a faint line at each indent level in a line's leading blanks, and a
 blank line shows the guides of the next line with text.
+
+## color_column
+
+Shades this column of the text, counting from 1, on each line. It is also
+how many columns of text `:center` leaves, and centered windows end there,
+so they shade none. The default is 0, for none.
 
 ## icons
 

@@ -807,6 +807,7 @@ $XDG_DATA_HOME/fude/grammars/       grammars and their queries, loaded at runtim
 indent_width = 8     # columns >, <, <C-t> and <C-d> shift by, 0 for the tab width
 key_timeout = 1000   # milliseconds a mapping prefix waits (B84)
 large_file = 2       # megabytes over which syntax and LSP stay off (B83)
+center = false       # start with the windows centered, as :center toggles (B199)
 autocomplete = false # show completions while typing, in insert mode and a command line (B67, B131)
 socket = "/run/user/1000/fude.sock" # where clients attach, instead of one path per process (B97)
 number = false       # line numbers, which :set number changes per window (B39)
@@ -824,6 +825,7 @@ key_hints = 300        # milliseconds before the keys that may follow show, 0 fo
 clipboard = false    # yanks, deletes and puts use the system clipboard (B137)
 sign_column = false  # keep the sign column when there are no signs (B143)
 indent_guides = true # a faint line at each indent level (B153)
+color_column = 0     # the column of the text to shade, and how wide :center is (B200)
 icons = false        # nerd font icons in listings and diagnostic signs (B128)
 
 leader = "<Space>"   # what <Leader> in a mapping stands for (B144)

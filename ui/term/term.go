@@ -177,7 +177,7 @@ type client struct {
 	frame    int               // counts the frames drawn
 	lines    map[[2]int]*shown // the windows' lines drawn, by the cell each starts at
 	overlaid bool              // the last frame drew a box, the command line or a message over the windows
-	size     [2]int            // the screen's size in the last frame
+	size     [4]int            // the screen's size, and where the windows started and ended, in the last frame
 	sig      sig               // reused to build each line's sig
 }
 
@@ -237,14 +237,20 @@ func (c *client) draw() {
 	// No line's sig holds what draws over the windows, so every line draws
 	// while something is over them and in the frame after.
 	over := c.e.Mode() == vim.Cmdline || floats || msg != ""
-	if fresh || over || c.overlaid || c.size != [2]int{w, h} {
+	// The windows cover from left to right, which changes when :center does.
+	views := c.e.Views()
+	left, right := w, 0
+	for _, v := range views {
+		left, right = min(left, v.X), max(right, v.X+v.W)
+	}
+	if fresh || over || c.overlaid || c.size != [4]int{w, h, left, right} {
 		c.s.Fill(' ', base)
 		c.lines = map[[2]int]*shown{}
 	}
-	c.overlaid, c.size = over, [2]int{w, h}
+	c.overlaid, c.size = over, [4]int{w, h, left, right}
 	cx, cy := 0, 0
-	for _, v := range c.e.Views() {
-		if x, y, ok := c.view(v, sel, visual && v.Current); ok {
+	for _, v := range views {
+		if x, y, ok := c.view(v, left, sel, visual && v.Current); ok {
 			cx, cy = x, y
 		}
 	}
@@ -265,7 +271,7 @@ func (c *client) draw() {
 		}
 	}
 	if msg != "" {
-		c.toast(msg, w, h)
+		c.toast(msg, left, right, h)
 	}
 
 	shape := tcell.CursorStyleSteadyBlock
@@ -448,10 +454,11 @@ func (c *client) box(text string, spans []syntax.Span, rows []row, x, y, width, 
 }
 
 // view draws one window: its text, a status line on its bottom row, and a
-// separator on its left when another window is beside it. A line keeps its
+// separator on its left when another window is beside it. left is the
+// column the windows start at, which has none. A line keeps its
 // rows when the last frame drew it from the same, unless it holds the
 // cursor. For the current window it reports where the cursor is.
-func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, bool) {
+func (c *client) view(v editor.View, left int, sel vim.Selection, visual bool) (int, int, bool) {
 	t := v.Text
 	// The text goes right of the sign column and the line numbers.
 	numbers, cur := v.X, t.LineOf(v.Cursor)
@@ -467,7 +474,7 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 		cursors = c.e.Cursors()
 	}
 	// win holds what every line of the window draws from.
-	win := sig(nil).int(v.X).int(v.Y).int(v.W).int(v.Left).flag(v.Wrap).flag(v.List)
+	win := sig(nil).int(v.X).int(v.Y).int(v.W).int(v.Left).flag(v.Wrap).flag(v.List).int(v.ColorColumn)
 	if visual {
 		win = win.int(sel.Start).int(sel.End).flag(sel.Block).int(sel.Left).int(sel.Right)
 		for _, r := range sel.Regions {
@@ -633,6 +640,7 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 				if i == 0 && lead > 0 {
 					c.guides(v, lead, y)
 				}
+				c.colorColumn(v, y)
 				if i == len(starts)-1 && slices.Contains(cursors, end) && x < v.W {
 					c.s.Put(v.X+x, y, " ", base.Background(th.selection))
 				}
@@ -651,13 +659,29 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 	}
 	// The separator and status line span the whole window.
 	v.X, v.W = numbers, v.W+v.Gutter
-	if v.X > 0 {
+	if v.X > left {
 		for y := v.Y; y < v.Y+v.H; y++ {
 			c.s.Put(v.X-1, y, "│", base)
 		}
 	}
 	c.status(v, v.X, v.W)
 	return cx, cy, found
+}
+
+// colorColumn shades the colour column on row y of v's text, where the
+// row's cell keeps the ground, so the cursor's line, a selection and a
+// match keep theirs (B200).
+func (c *client) colorColumn(v editor.View, y int) {
+	x := v.ColorColumn - 1
+	if !v.Wrap {
+		x -= v.Left
+	}
+	if v.ColorColumn == 0 || x < 0 || x >= v.W {
+		return
+	}
+	if s, style, _ := c.s.Get(v.X+x, y); s != "" && style.GetBackground() == base.GetBackground() {
+		c.s.Put(v.X+x, y, s, style.Background(th.raised))
+	}
 }
 
 // indentOf returns the columns of the leading blanks of the line at start.

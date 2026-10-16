@@ -179,6 +179,89 @@ func TestB197FrameAfterFrame(t *testing.T) {
 	parsed(func() bool { return !keyword(1) })
 }
 
+// B199
+func TestB199Center(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.txt")
+	if err := os.WriteFile(path, []byte("text\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	c := startWith(t, "center = true\n", path)
+	// On the 120 columns of the mock terminal, 100 columns of text start at
+	// 10. With a colour column of 50 they start at 35, and stay there as
+	// line numbers of 4 columns come and a message shows. Two windows side
+	// by side take 109 columns from 5, and three take the whole width.
+	for _, step := range []struct {
+		keys        string
+		text, right int
+	}{
+		{"", 10, 110},
+		{":set color_column=50<CR>", 35, 85},
+		{":set number<CR>", 35, 85},
+		{":set number?<CR>", 35, 85},
+		{":vsplit<CR>", 9, 114},
+		{":vsplit<CR>", 4, 120},
+		{":center<CR>", 4, 120},
+	} {
+		for _, k := range vim.Keys(step.keys) {
+			c.e.Feed(k)
+		}
+		c.draw()
+		left := step.text - c.e.Views()[0].Gutter
+		for y := range 40 {
+			for x := range 120 {
+				if s, _, _ := c.s.Get(x, y); (x < left || x >= step.right) && s != " " {
+					t.Fatalf("after %q the margin at %d,%d shows %q", step.keys, x, y, s)
+				}
+			}
+		}
+		if s, _, _ := c.s.Get(step.text, 0); s != "t" {
+			t.Errorf("after %q the text starts with %q at column %d", step.keys, s, step.text)
+		}
+		// Centered, the colour column at 50 is the edge, and shows no shade.
+		if _, style, _ := c.s.Get(step.text+49, 0); step.right < 120 && style.GetBackground() == themes["dark"].raised {
+			t.Errorf("after %q the centered window shades its colour column", step.keys)
+		}
+	}
+	for _, k := range vim.Keys(":set color_column=200<CR>:center<CR>") {
+		c.e.Feed(k)
+	}
+	if !strings.Contains(c.e.Message(), "too narrow") {
+		t.Errorf("centering 200 columns on 120 said %q", c.e.Message())
+	}
+	// :restart keeps the windows centered.
+	for _, k := range vim.Keys(":only<CR>:set color_column=60<CR>ZR") {
+		c.e.Feed(k)
+	}
+	t.Setenv(editor.RestartEnv, c.e.Restart())
+	c = startWith(t, "")
+	c.draw()
+	if s, _, _ := c.s.Get(30, 0); s != "t" {
+		t.Errorf("after :restart the text starts with %q at column 30", s)
+	}
+}
+
+// B200
+func TestB200ColorColumn(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.txt")
+	if err := os.WriteFile(path, []byte("text\n\nmore\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	c := startWith(t, "color_column = 3\ncursor_line = true\n", path)
+	c.draw()
+	ground := func(x, y int) color.Color {
+		_, style, _ := c.s.Get(x, y)
+		return style.GetBackground()
+	}
+	for y := 1; y < 3; y++ {
+		if ground(2, y) != themes["dark"].raised || ground(1, y) != themes["dark"].bg {
+			t.Errorf("on line %d the colour column is %v and the column before it %v", y+1, ground(2, y), ground(1, y))
+		}
+	}
+	if ground(2, 0) != themes["dark"].cursorLine {
+		t.Errorf("on the cursor's line the colour column is %v, want the line's shade", ground(2, 0))
+	}
+}
+
 // B145
 func TestB145Theme(t *testing.T) {
 	for _, c := range []struct{ config, theme string }{{"", "dark"}, {`theme = "light"`, "light"}} {

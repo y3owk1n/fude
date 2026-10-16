@@ -565,6 +565,15 @@ their size. Why: opening a file reads its whole log, at about 7ms a
 megabyte, and one `:%s` over a 10MB file adds 315KB. A cap on bytes bounds
 the time to open a file, whatever made the changes.
 
+### N27. The windows can sit in the middle of a wide screen
+
+`:center` lays fude's windows out in a centered part of a wider screen,
+each as wide as the colour column, and leaves the margins blank (B199). Neovim
+has no such command. Plugins get the effect with empty windows or floats
+beside the real one, which `<C-w>` keys, `:q` and window counts then see.
+Why: on a wide monitor, text at the left edge turns the reader's head. In
+fude the margins are no windows at all, only less room for the layout.
+
 ## Open
 
 None.

@@ -21,6 +21,7 @@ type config struct {
 	KeyTimeout    uint   `toml:"key_timeout" help:"the milliseconds a mapping waits for its next key"`
 	KeyHints      uint   `toml:"key_hints" help:"the milliseconds a command being typed waits before the keys that may follow it show, 0 for never"`
 	LargeFile     uint   `toml:"large_file" help:"the megabytes over which a file opens with syntax and language servers off"`
+	Center        bool   `toml:"center" help:"the windows start centered on a wide screen, as :center toggles"`
 	Autocomplete  bool   `toml:"autocomplete" help:"completions show while typing, not only on <C-x><C-o>"`
 	AutoInstall   bool   `toml:"auto_install" help:"builds a missing grammar the first time a file needs it"`
 	Socket        string `toml:"socket" help:"where clients attach, instead of a path for each process"`
@@ -89,6 +90,7 @@ type options struct {
 	Clipboard      bool `toml:"clipboard" help:"yanks, deletes and puts use the system clipboard"`
 	SignColumn     bool `toml:"sign_column" help:"keeps the sign column when there are no signs"`
 	IndentGuides   bool `toml:"indent_guides" help:"draws a faint line at each indent level"`
+	ColorColumn    int  `toml:"color_column" help:"shades this column of the text, and is how wide :center makes it, 0 for none"`
 	Icons          bool `toml:"icons" help:"shows nerd font icons in listings and signs"`
 }
 

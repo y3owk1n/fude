@@ -79,4 +79,6 @@ func (e *Session) set(args string) {
 	}
 	e.opts = e.win.opts
 	e.message = strings.Join(shown, "  ")
+	// A colour column changes how wide centering makes the windows.
+	e.layout()
 }

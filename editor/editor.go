@@ -100,7 +100,8 @@ type Session struct {
 	depth      int                     // the undo groups the machine has open
 	pending    int                     // the cursor when the group being made began
 
-	width, height int // the space the windows share
+	width, height int  // the space the windows share
+	centered      bool // the windows sit in the middle of the screen (B199)
 }
 
 // place is a position in a buffer, kept as a mark so it follows edits.
@@ -165,7 +166,7 @@ func (e *Session) join() {
 	if len(e.sessions) > 0 {
 		b = e.sessions[0].win.buf
 	}
-	e.opts = e.cfg.options
+	e.opts, e.centered = e.cfg.options, e.cfg.Center
 	e.win = newWindow(b, 0, 0)
 	e.win.opts = e.opts
 	e.root = &node{win: e.win}
@@ -539,6 +540,7 @@ type View struct {
 	Left              int            // the first column shown without wrap
 	Indent            int            // the columns of an indent level, where guides go
 	Guides            bool           // draw indent guides (B153)
+	ColorColumn       int            // the column of the text to shade, from 1, or 0 (B200)
 }
 
 // Ghost is a proposal's text, drawn before the byte at Pos but not in the
@@ -564,6 +566,7 @@ func (e *Session) Views() []View {
 		}
 	}
 	var out []View
+	_, _, centered := e.area()
 	for _, w := range e.root.windows() {
 		t, top := w.buf.text.Snapshot(), e.topOf(w)
 		v := View{
@@ -572,7 +575,11 @@ func (e *Session) Views() []View {
 			Name: w.buf.name(), Modified: w.buf.modified(), Current: w == e.win || w == e.under,
 			Gutter: w.gutter(), SignCols: w.signCols(), Number: w.numberCols() > 0 && w.opts.Number, Relative: w.numberCols() > 0 && w.opts.RelativeNumber,
 			Wrap: w.opts.Wrap, Left: w.left, CursorLine: w.opts.CursorLine, List: w.opts.List,
-			Indent: e.indentWidth(w.buf), Guides: w.opts.IndentGuides,
+			Indent: e.indentWidth(w.buf), Guides: w.opts.IndentGuides, ColorColumn: w.opts.ColorColumn,
+		}
+		// Centered, the colour column is the windows' edge, so it shows none.
+		if centered {
+			v.ColorColumn = 0
 		}
 		last := vim.LineEnd(t, t.LineStart(min(t.LineOf(top)+max(w.h-2, 0), t.Lines()-1)))
 		if h := w.buf.syntax; h != nil {

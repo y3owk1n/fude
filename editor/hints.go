@@ -73,7 +73,9 @@ func (e *Session) hintPieces(h vim.Hint) []piece {
 // hintsFloat is the panel across the bottom that lists the hints in
 // columns, groups first, above the status line.
 func (e *Session) hintsFloat() Float {
-	inner := max(e.width-4, hintWidth)
+	// It spans the windows, which :center may narrow.
+	x, w, _ := e.area()
+	inner := max(w-4, hintWidth)
 	cols := max((inner+2)/(hintWidth+2), 1)
 	cellW := (inner+2)/cols - 2
 	hints := slices.Clone(e.hints)
@@ -142,5 +144,5 @@ func (e *Session) hintsFloat() Float {
 	}
 	text := strings.TrimRight(s.String(), " ")
 	h := rows + 2
-	return Float{Text: text, Spans: spans, Cursor: -1, Title: vim.Notation(e.vim.Shown()), Lit: true, X: 0, Y: max(e.height-1-h, 0), W: e.width, H: h}
+	return Float{Text: text, Spans: spans, Cursor: -1, Title: vim.Notation(e.vim.Shown()), Lit: true, X: x, Y: max(e.height-1-h, 0), W: w, H: h}
 }

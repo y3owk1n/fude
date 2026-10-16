@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"os"
@@ -335,7 +336,61 @@ func (e *Session) moveTo(d byte) {
 
 // layout places every window in the space the editor has.
 func (e *Session) layout() {
-	e.root.place(0, 0, max(e.width, 1), max(e.height, 2))
+	x, w, _ := e.area()
+	e.root.place(x, 0, w, max(e.height, 2))
+}
+
+// area returns the columns the windows take, and whether they are
+// centered. Centered, each window gets its gutter and as many columns of
+// text as the colour column new windows start with, or centerWidth. The
+// windows sit in the middle of a wider screen. A lone window's text sits
+// in the middle instead, so it stays put as the gutter grows (B199).
+func (e *Session) area() (x, w int, centered bool) {
+	w = max(e.width, 1)
+	text := cmp.Or(e.opts.ColorColumn, centerWidth)
+	need := e.root.needs(text)
+	switch {
+	case !e.centered || need > w:
+		return 0, w, false
+	case e.root.win != nil:
+		return max((w-text)/2-e.root.win.gutter(), 0), need, true
+	}
+	return (w - need) / 2, need, true
+}
+
+// needs returns how many columns n takes centered, with text columns of
+// text in each window. Windows side by side add up, with a separator
+// between each two. A stack takes as many as its widest window.
+func (n *node) needs(text int) int {
+	if n.win != nil {
+		return text + n.win.gutter()
+	}
+	need := 0
+	for _, k := range n.kids {
+		if n.across {
+			need += k.needs(text)
+		} else {
+			need = max(need, k.needs(text))
+		}
+	}
+	if n.across {
+		need += len(n.kids) - 1
+	}
+	return need
+}
+
+// centerWidth is how many columns of text :center leaves without a colour
+// column.
+const centerWidth = 100
+
+// center turns centering on or off (B199). On a screen too narrow it still
+// turns on, and centers once the windows fit.
+func (e *Session) center() {
+	e.centered = !e.centered
+	e.layout()
+	if _, _, ok := e.area(); e.centered && !ok {
+		e.message = fmt.Sprintf("the screen is too narrow to center %d columns", e.root.needs(cmp.Or(e.opts.ColorColumn, centerWidth)))
+	}
 }
 
 func index[T comparable](s []T, x T) int {

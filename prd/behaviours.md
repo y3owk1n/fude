@@ -438,6 +438,22 @@ Where fude departs, the line says so and cites the departure in
   `:resize` and `:vertical resize` take a size, or a change of it with `+`
   or `-`. Every other window keeps at least a row and its status line, or
   a column.
+- B199 [2] `:center` and `<Plug>(center)` toggle the windows centered
+  (N27). Centered, each window gets `color_column` columns of text, or
+  100 without one, and its gutter. Windows side by side add up, with a
+  separator between them, and a stack takes its widest window's columns.
+  The windows sit in the middle of a wider screen, with blank margins on
+  either side, and a lone window's text stays put as its gutter grows.
+  Each status line spans its own window, and messages and key hints show
+  within the windows. When the windows need more than the screen, they
+  take its whole width, and `:center` says so. They center again once
+  they fit.
+  `center = true` starts with the windows centered, and `:restart` keeps
+  them so.
+- B200 [2] `color_column`, which `:set` changes per window, shades that
+  column of the text, counting from 1, on each line. The cursor's line, a
+  selection and a match keep their colours there. 0, the default, shades
+  none, and neither do centered windows, since it is their edge (B199).
 - B194 [2] The last list of places a window showed, such as `grr`'s, is
   the quickfix list (N25). `]q` and `:cnext` go to its next place, and
   `[q` and `:cprev` to the one before. `[Q`, `]Q`, `:cfirst` and `:clast`
