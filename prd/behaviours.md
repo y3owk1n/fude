@@ -30,7 +30,7 @@ Where fude departs, the line says so and cites the departure in
   overwriting. `:w!` overwrites without asking.
 - B82 [1] A file changed on disk while unmodified in fude reloads when fude
   regains focus. If it is modified in fude, fude warns and keeps its text.
-- B83 [1] A file over the `large_file` setting (50MB by default) opens with
+- B83 [1] A file over the `large_file` setting (2MB by default) opens with
   syntax and LSP off and says so. Editing and scrolling behave as for any file.
 
 ## Config

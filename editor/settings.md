@@ -26,7 +26,9 @@ mapping's keys run before its hints show.
 ## large_file
 
 A file larger than this many megabytes opens with syntax colours and
-language servers off, and fude says so when it opens one.
+language servers off, and fude says so when it opens one. The default is
+2. A file's syntax tree takes about 30 times the file's size in memory,
+60MB for a 2MB file.
 
 ## autocomplete
 

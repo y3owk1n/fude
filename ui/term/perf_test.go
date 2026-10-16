@@ -119,7 +119,7 @@ func TestPromiseColdStart(t *testing.T) {
 // work the edits queue, such as reparsing, runs between keys as the loop
 // runs it, and a key that arrives while it runs waits for it.
 func TestPromiseKeyLatency(t *testing.T) {
-	c := start(t, realCode(t, 10<<20))
+	c := startWith(t, "large_file = 20", realCode(t, 10<<20))
 	c.draw()
 	session := "jjjjkkwwbbeeWB}}{{50%ggG90000G/func<CR>nnN*#xu.uddpyyPuuciwbar<Esc>u" +
 		"ihello world<Esc>uoreturn nil<Esc>uA;<Esc>u<C-d><C-u><C-f><C-b>zzHML%:s/err/e/<CR>u"
@@ -156,6 +156,7 @@ func TestPromiseKeyLatencyFullSetup(t *testing.T) {
 	}
 	t.Setenv("FUDE_PERF_LSP", "1")
 	c := startWith(t, fmt.Sprintf(`autocomplete = true
+large_file = 20
 lsp.busy.command = [%q, "-test.run=^TestPerfServer$"]
 [filetype.go]
 lsp = ["busy"]
