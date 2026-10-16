@@ -563,6 +563,11 @@ Where fude departs, the line says so and cites the departure in
 - B191 [4] `:plugin reload` reads the `[[plugin]]` tables of config.toml
   again and loads every plugin anew, a rebuilt one from its new file. What
   a plugin it no longer lists added goes with it.
+- B192 [4] A plugin's author tests the plugin in `go test` with
+  `plugin/plugintest`. It loads the plugin's `.wasm` with the capabilities
+  a `[[plugin]]` table would give it. It runs a command, a key, an event
+  or a callback against a text, and returns what the call asked for and
+  what the plugin logged.
 - B186 [4] A plugin with `ui` shows text in a read-only window with a
   title, coloured as a filetype it names. Showing text under a title
   already open replaces what that window shows. `:q` closes it without

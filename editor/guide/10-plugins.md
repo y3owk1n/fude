@@ -111,6 +111,26 @@ from a list or to type an answer. `sdk.Jump` moves the cursor, and
 files, programs and the web, and `sdk.Log` writes to fude's log. A call
 outside the plugin's capabilities returns `sdk.ErrDenied`.
 
+## Testing a plugin
+
+`plugin/plugintest` runs a built plugin in `go test`, as fude would,
+without fude. It works from a plugin's own module once fude has tagged
+releases.
+
+```go
+func TestWords(t *testing.T) {
+	p := plugintest.Load(t, "wordcount.wasm", plugin.Grants{Capabilities: []string{"buffer.read", "ui"}}, "")
+	res := p.Command("Words", "", "two words", 0)
+	if *res.Status != "2 words" {
+		t.Errorf("the statusline says %q", *res.Status)
+	}
+}
+```
+
+`Command`, `Key` and `Event` run what the plugin added against a text and
+return what it asked for: its edits, decorations, status and the rest.
+`plugintest.Apply` makes its edits, and `Log` returns what it logged.
+
 ## Next
 
 - `guide-remote` edits from other programs.

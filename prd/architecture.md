@@ -1001,6 +1001,14 @@ for a build that is not one, so a release tags `sdk/vX.Y.Z` beside
 info, which would make it twenty times its size, finding it through `go list -m` in the plugin's
 module (B173).
 
+`plugin/plugintest` runs a plugin in `go test` without fude (B192). It
+loads the `.wasm` with `plugin.Load`, as fude does, and calls it with a
+scope over a string, the only open buffer. A test gets the call's
+`plugin.Result`, and `Apply` makes the edits it asks for. Timers, jobs,
+requests and picks stay in the result, and the test runs their callback
+itself with `Callback`. A plugin's own module can use it only once fude
+has tagged releases (D37).
+
 Test plugins are written with the sdk, each a folder in `plugin/testdata`.
 `just wasm` builds each with `fude plugin build`, and the `.wasm` it builds
 sits beside the source, so tests never need TinyGo.
