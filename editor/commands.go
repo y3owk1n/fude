@@ -251,6 +251,7 @@ func init() {
 		{"listing.cwd", "makes the listing's directory the working directory", func(e *Session, _ int) { e.listingAct("cwd") }},
 		{"listing.reload", "reads the listing's directory again", func(e *Session, _ int) { e.listingAct("reload") }},
 		{"restart", "starts fude again on the same session", func(e *Session, _ int) { e.restart() }},
+		{"jump", "jumps to a match of the characters typed next, by its label", func(e *Session, _ int) { e.jumping = &jump{} }},
 		{"center", "centers the windows on a wide screen, or stops", func(e *Session, _ int) { e.center() }},
 		{"listing.up", "lists the directory of the file or listing, n levels up", func(e *Session, count int) { e.up(count) }},
 		{"timeline.earlier", "moves the text a state back", func(e *Session, _ int) { e.timelineAct("earlier") }},
@@ -386,6 +387,7 @@ var defaultMaps = map[string]string{
 	"]q": "<Plug>(list.next)", "[q": "<Plug>(list.prev)", "[Q": "<Plug>(list.first)", "]Q": "<Plug>(list.last)",
 	"<C-]>": "<Plug>(lsp.definition)", "K": "<Plug>(lsp.hover)",
 	"]d": "<Plug>(diagnostic]d)", "[d": "<Plug>(diagnostic[d)",
+	"s": "<Plug>(jump)",
 }
 
 // hostOperator is an operator fude adds, and what it does.

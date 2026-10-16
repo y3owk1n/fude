@@ -30,6 +30,10 @@ and `G` to the first and last line. `/text<CR>` searches forward, and `n`
 and `N` go to the next and previous match. A count repeats a motion, so
 `3j` goes down three lines.
 
+`s` jumps anywhere in view. Type a character or two of where you want to
+go, and each match gets a highlighted label. Type the label to go there,
+`<CR>` to go to the nearest match, or `<Esc>` to stay.
+
 ## Changing text
 
 An operator followed by a motion acts on the text the motion covers. `dw`

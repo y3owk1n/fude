@@ -1812,6 +1812,31 @@ func captures(t *testing.T, e *editor.Session) map[string]string {
 }
 
 // B46, and B43 for the edit
+// B218
+func TestB218Jump(t *testing.T) {
+	e := open(t, "")
+	e.SetSize(80, 10)
+	feed(e, "ifoo bar baz bat<Esc>0")
+	// Two characters label each match, never with a character that would
+	// continue one, and the label goes to its match.
+	feed(e, "sba")
+	labels := e.Views()[0].Labels
+	if len(labels) != 3 || slices.ContainsFunc(labels, func(l editor.Label) bool { return strings.Contains("rzt", l.Text) }) {
+		t.Fatalf("sba labels %v", labels)
+	}
+	i := slices.IndexFunc(labels, func(l editor.Label) bool { return l.Pos == 10 })
+	if feed(e, labels[i].Text); e.Cursor() != 8 || e.Views()[0].Labels != nil {
+		t.Errorf("the label of baz went to %d", e.Cursor())
+	}
+	// <CR> goes to the nearest, and <Esc> leaves the cursor where it was.
+	if feed(e, "0sb<CR>"); e.Cursor() != 4 {
+		t.Errorf("sb<CR> went to %d, want 4", e.Cursor())
+	}
+	if feed(e, "sfo<Esc>"); e.Cursor() != 4 {
+		t.Errorf("sfo<Esc> moved the cursor to %d", e.Cursor())
+	}
+}
+
 // B217
 func TestB217StickyContext(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "a.go")

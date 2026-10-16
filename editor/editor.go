@@ -86,6 +86,7 @@ type Session struct {
 	renameAt   int                     // where grn was pressed
 	pick       *pick                   // the code actions shown to choose from
 	finder     *finder                 // the file finder, while it shows
+	jumping    *jump                   // the jump being typed after s (B218)
 	cmenu      *cmenu                  // the completions of the command line being typed
 	dirs       map[string][]string     // entries of directories the command line has completed in
 	flash      *flash                  // text shown for a moment after a yank, put, undo or redo
@@ -212,6 +213,7 @@ func builtins(e *Session) {
 	for keys, to := range defaultMaps {
 		e.vim.Map(vim.Normal, keys, to)
 	}
+	e.vim.Map(vim.Visual, "s", "<Plug>(jump)")
 	e.locals = map[string]*vim.Keymaps{}
 	for kind, keys := range map[string]map[string]string{"listing": listingKeys, "list": listKeys, "timeline": timelineKeys, "finder": finderKeys, "float": floatKeys, "lsp": lspKeys, "help": helpKeys, "scratch": scratchKeys} {
 		mode := vim.Normal
@@ -432,6 +434,10 @@ func (e *Session) Feed(k vim.Key) {
 // feed handles one key, typed or queued by a command for after it.
 func (e *Session) feed(k vim.Key) {
 	e.message = ""
+	if e.jumping != nil {
+		e.jumpKey(k)
+		return
+	}
 	if e.finder != nil {
 		e.finding(k)
 		e.reveal()
@@ -581,6 +587,7 @@ type View struct {
 	Guides            bool           // draw indent guides (B153)
 	ColorColumn       int            // the column of the text to shade, from 1, or 0 (B200)
 	Colours           []Colour       // text that names a colour, shown on it (B208, B209)
+	Labels            []Label        // a jump's labels, drawn over the text (B218)
 	// Context is the start of each line pinned over the window's first rows,
 	// the functions and classes the text under them is in, with their
 	// highlights (B217).
@@ -717,6 +724,14 @@ func (e *Session) Views() []View {
 		}
 		if w == e.win {
 			v.Decorations = append(v.Decorations, e.snippetSpan(w.buf)...)
+			if j := e.jumping; j != nil {
+				for _, m := range j.matches {
+					v.Decorations = append(v.Decorations, syntax.Span{Start: m[0], End: m[1], Name: "jump.match"})
+				}
+				for l, m := range j.labels {
+					v.Labels = append(v.Labels, Label{Pos: m[1], Text: l})
+				}
+			}
 		}
 		for _, ds := range e.decos {
 			for _, d := range ds {
@@ -892,7 +907,12 @@ func ruler(t kernel.Snapshot, c, top, rows int, rowsOf func(int) int) string {
 }
 
 // Shown returns the keys of the command being typed, or "".
-func (e *Session) Shown() string { return e.vim.Shown() }
+func (e *Session) Shown() string {
+	if e.jumping != nil {
+		return "s" + e.jumping.query
+	}
+	return e.vim.Shown()
+}
 
 // Top returns the start of the current window's first line shown.
 func (e *Session) Top() int { return e.topOf(e.win) }

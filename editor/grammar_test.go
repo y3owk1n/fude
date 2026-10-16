@@ -9,12 +9,13 @@ import (
 )
 
 // B110: the vim module's grammar cases give the same result here as with
-// its minimal host.
+// its minimal host, with s unmapped, as fude maps it to a jump (N32).
 func TestB110GrammarCases(t *testing.T) {
 	src, err := os.ReadFile("../vim/testdata/grammar.txt")
 	if err != nil {
 		t.Fatal(err)
 	}
+	config(t, "[keymap.normal]\n\"s\" = \"\"\n[keymap.visual]\n\"s\" = \"\"\n")
 	dir := t.TempDir()
 	for i, l := range strings.Split(strings.TrimRight(string(src), "\n"), "\n") {
 		if l == "" || strings.HasPrefix(l, "# ") {
@@ -26,7 +27,7 @@ func TestB110GrammarCases(t *testing.T) {
 		}
 		path := filepath.Join(dir, fmt.Sprint(i))
 		change(t, path, strings.Replace(c[0], "|", "", 1)+"\n")
-		e := open(t, path)
+		e := start(t, path)
 		e.SetSize(80, 23)
 		feed(e, fmt.Sprintf("%dgo%s", strings.Index(c[0], "|")+1, c[1]))
 		got := text(e)

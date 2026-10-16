@@ -137,7 +137,8 @@ func build(t theme) styles {
 		"markup.strong": base.Bold(true), "markup.italic": base.Italic(true), "markup.heading": base.Bold(true),
 		"markup.raw": fg(t.typ), "markup.link": base.Underline(true), "markup.rule": fg(t.faint),
 		"diagnostic.error.text": fg(t.err), "diagnostic.warn.text": fg(t.warn), "diagnostic.info.text": fg(t.info), "diagnostic.hint.text": fg(t.hint),
-		"menu.selected": base.Background(t.raised), "inlay": fg(t.muted).Background(t.surface), "finder.dir": fg(t.muted), "finder.file": base.Bold(true), "snippet.placeholder": base.Background(t.selection),
+		"menu.selected": base.Background(t.raised), "inlay": fg(t.muted).Background(t.surface),
+		"jump.match": base.Background(t.selection), "jump.label": base.Background(t.cmd).Foreground(t.bg).Bold(true), "finder.dir": fg(t.muted), "finder.file": base.Bold(true), "snippet.placeholder": base.Background(t.selection),
 		// The letters of an item that match what was typed.
 		"match": fg(t.normal).Bold(true),
 		// What the :s being typed replaces, and what with.

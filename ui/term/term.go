@@ -583,6 +583,11 @@ func (c *client) view(v editor.View, left int, sel vim.Selection, visual bool) (
 				k = k.int(4).int(g.Pos - pos).str(g.Text).str(g.Style).flag(g.Stale)
 			}
 		}
+		for _, l := range v.Labels {
+			if l.Pos >= pos && l.Pos <= end {
+				k = k.int(5).int(l.Pos - pos).str(l.Text)
+			}
+		}
 		c.sig = k
 		styles := paint[min(pos-v.Top, len(paint)):min(end-v.Top, len(paint))]
 		at := [2]int{v.X, v.Y + row}
@@ -623,6 +628,25 @@ func (c *client) view(v editor.View, left int, sel vim.Selection, visual bool) (
 					}
 					if v.Current && at == v.Cursor && (rest != "" || stop == end) {
 						cx, cy, found = v.X+min(x, v.W-1), y, true
+					}
+					// A jump's label takes the place of the character after its
+					// match, or the column after the line (B218).
+					if i := slices.IndexFunc(v.Labels, func(l editor.Label) bool { return l.Pos == at }); i >= 0 && x < v.W && (rest != "" || stop == end) {
+						width, next := 1, rest
+						switch {
+						case rest == "":
+						case rest[0] == '\t':
+							width, next = vim.Tabstop-col%vim.Tabstop, rest[1:]
+						default:
+							next, width = c.s.Put(v.X+x, y, rest, base)
+						}
+						c.s.FillArea(v.X+x, y, min(width, v.W-x), 1, ' ', base)
+						c.s.Put(v.X+x, y, v.Labels[i].Text, colours["jump.label"])
+						x, col, rest = x+width, col+width, next
+						if rest == "" {
+							break
+						}
+						continue
 					}
 					if rest == "" || x >= v.W {
 						break

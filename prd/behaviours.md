@@ -548,6 +548,15 @@ Where fude departs, the line says so and cites the departure in
   typed. They show under their file, each as its line, name and kind, and
   `<CR>` goes to the one picked. Without a server that finds symbols, it
   says so.
+- B218 [2] `s` in normal and visual mode starts a jump (N32). Each
+  character typed after it adds to a text to find in the current window's
+  view, ignoring case unless it has a capital. Each match is highlighted,
+  and the nearest ones to the cursor get a label, a letter drawn over the
+  character after the match. A label is never the character after any
+  match, so typing more of the text never jumps. Typing a label moves the
+  cursor to its match's start, `<CR>` to the nearest match's, `<BS>` drops
+  the last character, and `<Esc>` stays. A jump is in the jumplist. The
+  status line shows what was typed.
 - B90 [2] `<C-o>` and `<C-i>` move through the jumplist, and `g;` and `g,`
   through the changelist, as in Neovim.
 - B91 [2] `<C-w>c`, `<C-w>o`, `<C-w>q`, `<C-w>=` and `:q` in a split close
@@ -875,7 +884,8 @@ Tested through `core/`'s exported API, with no editor around it.
 Tested through `vim/`'s exported API with a minimal host over a byte slice.
 
 - B110 [2] Every grammar behaviour gives the same result with the minimal
-  host as with fude's editor.
+  host as with fude's editor, once a config maps the editor's own
+  mappings of the grammar's keys, such as `s` (N32), to `""`.
 - B111 [2] `Feed` never blocks. While typed keys start a longer mapping,
   `Waiting` reports true, and `Timeout` resolves them as Neovim does after
   `timeoutlen`.

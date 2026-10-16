@@ -631,6 +631,15 @@ Neovim records a macro there. Why: these windows are read-only, so a macro
 in them has nothing to edit, and configs such as LazyVim map `q` to close
 them. A listing keeps `q`, as it is a directory you edit.
 
+### N32. s jumps
+
+`s` in normal and visual mode starts a labelled jump (B218), as flash.nvim
+does, where Neovim's `s` deletes the characters under the cursor and
+starts insert mode. Why: `cl` and `c` do what `s` did, and a jump reaches
+any text in view in three or four keys. The user asked for jump labels on 2026-10-17. `s` does not
+start a jump after an operator, as `ds`, `cs` and `ys` are surround's
+(B219).
+
 ## Open
 
 None.
