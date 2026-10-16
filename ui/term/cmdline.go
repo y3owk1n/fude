@@ -64,7 +64,7 @@ func (c *client) commandLine(w, h int, menu string, spans []syntax.Span) (int, i
 			sel = strings.Count(menu[:s.Start], "\n")
 		}
 	}
-	styles := paint(spans, 0)
+	styles := paint(nil, spans, 0, len(menu))
 	at := 0 // where the item starts in menu
 	for i, it := range items {
 		ground := base

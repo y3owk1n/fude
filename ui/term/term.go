@@ -131,19 +131,21 @@ func selected(sel vim.Selection, at, x int) bool {
 	return at >= sel.Start && at < sel.End && (!sel.Block || x >= sel.Left && x <= sel.Right)
 }
 
-// paint returns the style of each byte from top that a highlight colours,
-// and the base style for the bytes between them.
-func paint(spans []syntax.Span, top int) []tcell.Style {
-	var out []tcell.Style
+// paint returns the style of each byte in [top, end) that a highlight
+// colours, and the base style for the bytes between them. It reuses out.
+func paint(out []tcell.Style, spans []syntax.Span, top, end int) []tcell.Style {
+	n := max(end-top, 0)
+	out = slices.Grow(out[:0], n)[:n]
+	for i := range out {
+		out[i] = base
+	}
 	for _, s := range spans {
-		if s.End <= top {
+		s.Start, s.End = max(s.Start, top), min(s.End, end)
+		if s.Start >= s.End {
 			continue
 		}
-		for len(out) < s.End-top {
-			out = append(out, base)
-		}
 		if c, ok := underlines[s.Name]; ok {
-			for i := max(s.Start-top, 0); i < s.End-top; i++ {
+			for i := s.Start - top; i < s.End-top; i++ {
 				out[i] = out[i].Underline(true, c)
 			}
 			continue
@@ -156,7 +158,7 @@ func paint(spans []syntax.Span, top int) []tcell.Style {
 		if !ok {
 			continue
 		}
-		for i := max(s.Start-top, 0); i < s.End-top; i++ {
+		for i := s.Start - top; i < s.End-top; i++ {
 			out[i] = style
 		}
 	}
@@ -166,9 +168,10 @@ func paint(spans []syntax.Span, top int) []tcell.Style {
 type client struct {
 	s        tcell.Screen
 	e        *editor.Session
-	theme    string     // the theme drawn in, as e names it
-	colours  *[16]int32 // its base16 scheme's colours, if it is one
-	spinning bool       // the last frame shows a spinner
+	theme    string        // the theme drawn in, as e names it
+	colours  *[16]int32    // its base16 scheme's colours, if it is one
+	spinning bool          // the last frame shows a spinner
+	styles   []tcell.Style // a view's, kept between frames so painting them allocates nothing
 }
 
 func (c *client) draw() {
@@ -357,7 +360,7 @@ func wrap(text string, spans []syntax.Span, limit int) ([]row, int) {
 // selected item starts takes the raised colour, with an accent bar for its
 // left border (B150).
 func (c *client) box(text string, spans []syntax.Span, rows []row, x, y, width, cursor int) (int, int, bool) {
-	styles := paint(spans, 0)
+	styles := paint(nil, spans, 0, len(text))
 	style := base
 	fx, fy, found := 0, 0, false
 	// The text has a column of room on either side inside the border.
@@ -415,7 +418,10 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 	v.X, v.W = v.X+v.Gutter, v.W-v.Gutter
 	cx, cy, found := 0, 0, false
 	pos := v.Top
-	paint := paint(append(v.Highlights, v.Decorations...), v.Top)
+	// The rows show at most one line each from the top's.
+	end := vim.LineEnd(t, t.LineStart(min(t.LineOf(v.Top)+v.H, t.Lines()-1))) + 1
+	c.styles = paint(c.styles, append(v.Highlights, v.Decorations...), v.Top, end)
+	paint := c.styles
 	var cursors []int
 	if v.Current {
 		cursors = c.e.Cursors()
