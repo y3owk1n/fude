@@ -77,8 +77,12 @@ func New(dir string) error {
 	if info, ok := debug.ReadBuildInfo(); ok && release.MatchString(info.Main.Version) {
 		version = info.Main.Version
 	}
-	if out, err := goCommand(dir, "get", sdkModule+"@"+version).CombinedOutput(); err != nil {
-		return errors.Join(fmt.Errorf("plugin new: go get %s@%s: %w: %s", sdkModule, version, err, strings.TrimSpace(string(out))), os.RemoveAll(dir))
+	// go get marks the sdk indirect, and tidy marks it direct once it reads
+	// main.go's imports.
+	for _, args := range [][]string{{"get", sdkModule + "@" + version}, {"mod", "tidy"}} {
+		if out, err := goCommand(dir, args...).CombinedOutput(); err != nil {
+			return errors.Join(fmt.Errorf("plugin new: go %s: %w: %s", strings.Join(args, " "), err, strings.TrimSpace(string(out))), os.RemoveAll(dir))
+		}
 	}
 	return nil
 }
@@ -101,7 +105,8 @@ func Build(dir string) (string, error) {
 	}
 	target := filepath.Join(strings.TrimSpace(string(out)), "fude.json")
 	wasm := filepath.Join(dir, filepath.Base(dir)+".wasm")
-	cmd := exec.Command(tinygo, "build", "-target="+target, "-o", wasm, ".")
+	// Debug info would make a plugin twenty times its size.
+	cmd := exec.Command(tinygo, "build", "-no-debug", "-target="+target, "-o", wasm, ".")
 	cmd.Dir, cmd.Env = dir, append(os.Environ(), "GOWORK=off")
 	// TinyGo finds its library beside its binary, and a link to the binary
 	// hides where that is.
