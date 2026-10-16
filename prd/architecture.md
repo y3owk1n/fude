@@ -860,8 +860,8 @@ under a budget of 100ms. A plugin imports host functions from the module `fude`,
 
 | Capability | Grants |
 |---|---|
-| `buffer.read` | read text, marks, syntax nodes |
-| `buffer.write` | submit requests |
+| `buffer.read` | read the text and where its lines start |
+| `buffer.write` | edit the text |
 | `ui` | decorations, statusline segments, floating windows |
 | `fs.read` | read files under the project root |
 | `process` | spawn a declared program |
@@ -878,9 +878,12 @@ host it may not reach or a request that failed.
 | Function | Capability | Does |
 |---|---|---|
 | `log(ptr, len)` | none | adds a line to fude's log |
-| `context(ptr, len) -> i64` | none | the value of what the call is about by its name, or -2 for a name it has none of |
+| `context(ptr, len) -> i64` | none | the value of what the call is about by its name, or -2 for a name it has none of. Every call has `buffer`, `path` and `filetype`, of the buffer it is about, and `mode` (B176) |
 | `text_len() -> i32` | `buffer.read` | the length of the text |
 | `text(start, end) -> i64` | `buffer.read` | the text in `[start, end)` |
+| `lines() -> i32` | `buffer.read` | how many lines the text has |
+| `line_of(pos) -> i32` | `buffer.read` | the line that holds `pos`, from 0 |
+| `line_start(line) -> i32` | `buffer.read` | where `line` starts |
 | `edit(start, end, ptr, len) -> i32` | `buffer.write` | asks to replace `[start, end)` |
 | `register(kind, name, nlen, help, hlen, id) -> i32` | none, in init only | adds a command, operator, object or key that `call` runs by id, with the help `:h` and the key hints show |
 | `subscribe(ptr, len) -> i32` | none, in `init` only | hears the event named through `on_event` |

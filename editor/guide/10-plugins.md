@@ -84,8 +84,12 @@ for an event:
 `buffer.opened`, `buffer.changed`, `buffer.saved`, `buffer.closed`,
 `mode.changed`, `view.moved`, `syntax.updated` or `lsp.diagnostics`.
 
+`sdk.Current` gives the id, path and filetype of the buffer a call or
+event is about, and `sdk.Mode` the mode.
+
 The rest of the sdk reaches fude, each function behind its capability.
-`sdk.Text` and `sdk.Len` read the text, `sdk.Edit` changes it,
+`sdk.Text` and `sdk.Len` read the text, and `sdk.Lines`, `sdk.LineOf`
+and `sdk.LineStart` where its lines start. `sdk.Edit` changes it,
 `sdk.Decorate`, `sdk.Status` and `sdk.Float` show things,
 `sdk.ReadFile`, `sdk.Run` and `sdk.Get` reach files, programs and the
 web, and `sdk.Log` writes to fude's log. A call outside the plugin's

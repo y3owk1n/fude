@@ -118,10 +118,11 @@ type call struct {
 }
 
 // Context is what a call is about, by name, which the plugin reads through
-// context. In a command's call, args is the text typed after its name, and
-// bang is true when ! followed the name. first and last are where its
-// range's first and last lines start, and ranged is true when it was given
-// a range.
+// context. Every call has buffer, path and filetype, of the buffer it is
+// about, and mode. In a command's call, args is the text typed after its
+// name, and bang is true when ! followed the name. first and last are where
+// its range's first and last lines start, and ranged is true when it was
+// given a range.
 type Context map[string]string
 
 // errBudget is a call that ran past its budget. The plugin is closed.
@@ -172,12 +173,12 @@ func Load(ctx context.Context, path string, g Grants, cacheDir string, log func(
 // Init runs the plugin's _initialize, where a compiler puts its program's
 // setup, then its init, each when it exports one, together under
 // InitBudget. Both may register and subscribe.
-func (p *Plugin) Init(ctx context.Context, t fude.Text) (Result, error) {
+func (p *Plugin) Init(ctx context.Context, t fude.Text, about Context) (Result, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	ctx, cancel := context.WithTimeout(ctx, InitBudget)
 	defer cancel()
-	p.call = &call{name: "init", text: t}
+	p.call = &call{name: "init", text: t, about: about}
 	defer func() { p.call = nil }()
 	for _, name := range []string{"_initialize", "init"} {
 		f := p.mod.ExportedFunction(name)
@@ -215,7 +216,7 @@ func (p *Plugin) CallNow(ctx context.Context, name string, t fude.Text, about Co
 
 // Event runs the plugin's on_event with the event's name, written into its
 // memory, reading t, under EventBudget (B57).
-func (p *Plugin) Event(ctx context.Context, name string, t fude.Text) (Result, error) {
+func (p *Plugin) Event(ctx context.Context, name string, t fude.Text, about Context) (Result, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	ctx, cancel := context.WithTimeout(ctx, EventBudget)
@@ -224,7 +225,7 @@ func (p *Plugin) Event(ctx context.Context, name string, t fude.Text) (Result, e
 	if err != nil || len(out) == 0 || !p.mod.Memory().WriteString(uint32(out[0]), name) {
 		return Result{}, fmt.Errorf("plugin %s: write the event's name: %w", p.Name, cmp.Or(err, errors.New("no memory for it")))
 	}
-	return p.run(ctx, "on_event", t, nil, EventBudget, out[0], uint64(len(name)))
+	return p.run(ctx, "on_event", t, about, EventBudget, out[0], uint64(len(name)))
 }
 
 // run makes one call while p.mu is held.
@@ -254,6 +255,9 @@ func (p *Plugin) host(ctx context.Context) error {
 		NewFunctionBuilder().WithFunc(p.logText).Export("log").
 		NewFunctionBuilder().WithFunc(p.context).Export("context").
 		NewFunctionBuilder().WithFunc(p.textLen).Export("text_len").
+		NewFunctionBuilder().WithFunc(p.lines).Export("lines").
+		NewFunctionBuilder().WithFunc(p.lineOf).Export("line_of").
+		NewFunctionBuilder().WithFunc(p.lineStart).Export("line_start").
 		NewFunctionBuilder().WithFunc(p.text).Export("text").
 		NewFunctionBuilder().WithFunc(p.edit).Export("edit").
 		NewFunctionBuilder().WithFunc(p.register).Export("register").
@@ -309,6 +313,36 @@ func (p *Plugin) textLen() int32 {
 		return errDenied
 	}
 	return int32(p.call.text.Len())
+}
+
+// lines returns how many lines the text has.
+func (p *Plugin) lines() int32 {
+	if p.call == nil || !p.allowed("buffer.read", "lines") {
+		return errDenied
+	}
+	return int32(p.call.text.Lines())
+}
+
+// lineOf returns the line that holds pos, from 0.
+func (p *Plugin) lineOf(pos uint32) int32 {
+	if p.call == nil || !p.allowed("buffer.read", "line_of") {
+		return errDenied
+	}
+	if int(pos) > p.call.text.Len() {
+		return errRange
+	}
+	return int32(p.call.text.LineOf(int(pos)))
+}
+
+// lineStart returns where line, from 0, starts.
+func (p *Plugin) lineStart(line uint32) int32 {
+	if p.call == nil || !p.allowed("buffer.read", "line_start") {
+		return errDenied
+	}
+	if int(line) >= p.call.text.Lines() {
+		return errRange
+	}
+	return int32(p.call.text.LineStart(int(line)))
 }
 
 // text writes [start, end) of the text into memory the plugin allocates,

@@ -253,15 +253,15 @@ func TestB53PluginTraps(t *testing.T) {
 // withKit starts an editor on "ab cd\nef" with the kit plugin loaded.
 func withKit(t *testing.T) *editor.Session {
 	t.Helper()
-	return loaded(t, "kit", "ab cd\nef\n", "buffer.read", "buffer.write")
+	return loaded(t, "kit", "f", "ab cd\nef\n", "buffer.read", "buffer.write")
 }
 
-// loaded starts an editor on a file holding text, with the test plugin name
-// loaded with caps.
-func loaded(t *testing.T, name, text string, caps ...string) *editor.Session {
+// loaded starts an editor on the file named file holding text, with the
+// test plugin name loaded with caps.
+func loaded(t *testing.T, name, file, text string, caps ...string) *editor.Session {
 	t.Helper()
 	usePlugin(t, name, caps...)
-	path := filepath.Join(t.TempDir(), "f")
+	path := filepath.Join(t.TempDir(), file)
 	change(t, path, text)
 	e := start(t, path)
 	e.Load()
@@ -327,10 +327,20 @@ func TestB175PluginCommandArguments(t *testing.T) {
 		{":2,3Ctx! x  y<CR>", "x  y|true|2|4|truea\nb\nc"},
 		{":Ctx<CR>", "|false|0|0|falsea\nb\nc"},
 	} {
-		e := loaded(t, "ctx", "a\nb\nc\n", "buffer.write")
+		e := loaded(t, "ctx", "f", "a\nb\nc\n", "buffer.write")
 		if feed(e, c[0]); text(e) != c[1] {
 			t.Errorf("%s left %q, want %q", c[0], text(e), c[1])
 		}
+	}
+}
+
+// B176
+func TestB176PluginReadsWhereItRuns(t *testing.T) {
+	e := loaded(t, "ctx", "f.go", "a\nbc\nd\n", "buffer.read", "buffer.write")
+	path := e.Views()[0].Name
+	feed(e, "j:Where<CR>")
+	if want := "1|" + path + "|go|normal|3|1|5"; !strings.Contains(text(e), want) {
+		t.Errorf(":Where typed %q, want %q", text(e), want)
 	}
 }
 

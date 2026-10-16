@@ -75,6 +75,15 @@ func hostContext(ptr *byte, n uint32) int64
 //go:wasmimport fude text_len
 func hostTextLen() int32
 
+//go:wasmimport fude lines
+func hostLines() int32
+
+//go:wasmimport fude line_of
+func hostLineOf(pos uint32) int32
+
+//go:wasmimport fude line_start
+func hostLineStart(line uint32) int32
+
 //go:wasmimport fude text
 func hostText(start, end uint32) int64
 
@@ -235,6 +244,42 @@ func Log(text string) {
 // Len returns the length of the text in bytes. It needs buffer.read.
 func Len() (int, error) {
 	n := hostTextLen()
+	return int(n), fail(int64(n))
+}
+
+// Buffer is the buffer a call or event is about: its id, its file's path,
+// "" for none, and its filetype, "" for none.
+type Buffer struct {
+	ID             int
+	Path, Filetype string
+}
+
+// Current returns the buffer the call running is about.
+func Current() Buffer {
+	id, _ := strconv.Atoi(about("buffer"))
+	return Buffer{id, about("path"), about("filetype")}
+}
+
+// Mode returns the mode, such as normal or insert.
+func Mode() string { return about("mode") }
+
+// Lines returns how many lines the text has. It needs buffer.read.
+func Lines() (int, error) {
+	n := hostLines()
+	return int(n), fail(int64(n))
+}
+
+// LineOf returns the line that holds the byte at pos, from 0. It needs
+// buffer.read.
+func LineOf(pos int) (int, error) {
+	n := hostLineOf(uint32(pos))
+	return int(n), fail(int64(n))
+}
+
+// LineStart returns where line starts, counting lines from 0. It needs
+// buffer.read.
+func LineStart(line int) (int, error) {
+	n := hostLineStart(uint32(line))
 	return int(n), fail(int64(n))
 }
 

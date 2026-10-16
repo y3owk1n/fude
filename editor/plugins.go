@@ -49,7 +49,7 @@ func (e *Session) Load() {
 		if !filepath.IsAbs(path) {
 			path = filepath.Join(config, "fude", path)
 		}
-		b, t := e.win.buf, e.Text()
+		b, t, about := e.win.buf, e.Text(), e.about(e.win.buf)
 		go func() {
 			ctx := context.Background()
 			p, err := plugin.Load(ctx, path, plugin.Grants{Capabilities: s.Capabilities, Programs: s.Programs, Hosts: s.Hosts}, filepath.Join(cache, "fude", "wasm"), logLine)
@@ -57,7 +57,7 @@ func (e *Session) Load() {
 				e.queue <- func() { e.message = err.Error() }
 				return
 			}
-			res, err := p.Init(ctx, t)
+			res, err := p.Init(ctx, t, about)
 			e.queue <- func() { e.loaded(p, err, b, t, res) }
 		}()
 	}
@@ -182,10 +182,9 @@ func (e *Session) register(p *plugin.Plugin, r plugin.Registration) {
 	case plugin.Command:
 		e.pluginHelp[":"+r.Name] = r.Help
 		e.commands[r.Name] = func(s *Session, c call) {
-			about := plugin.Context{
-				"args": c.arg, "bang": strconv.FormatBool(c.force),
-				"first": strconv.Itoa(c.first), "last": strconv.Itoa(c.last), "ranged": strconv.FormatBool(c.ranged),
-			}
+			about := s.about(s.win.buf)
+			about["args"], about["bang"] = c.arg, strconv.FormatBool(c.force)
+			about["first"], about["last"], about["ranged"] = strconv.Itoa(c.first), strconv.Itoa(c.last), strconv.FormatBool(c.ranged)
 			if edits, _, ok := s.run(p, r.ID, s.Text(), about, uint64(s.Cursor()), 0); ok && len(edits) > 0 {
 				if err := (host{s}).Apply(edits, ":"+r.Name); err != nil {
 					s.message = err.Error()
@@ -202,7 +201,7 @@ func (e *Session) register(p *plugin.Plugin, r plugin.Registration) {
 				if lines {
 					linewise = 1
 				}
-				edits, _, _ := s.run(p, r.ID, t, nil, uint64(start), uint64(end), linewise)
+				edits, _, _ := s.run(p, r.ID, t, s.about(s.win.buf), uint64(start), uint64(end), linewise)
 				return edits
 			})
 		})
@@ -210,7 +209,7 @@ func (e *Session) register(p *plugin.Plugin, r plugin.Registration) {
 		e.pluginBindings = append(e.pluginBindings, vim.Binding{Kind: "object", Keys: r.Name, Help: r.Help})
 		e.each(func(s *Session) {
 			s.vim.Object(r.Name, func(t vim.Text, start, end int) (int, int, bool) {
-				_, out, ok := s.run(p, r.ID, t, nil, uint64(start), uint64(end))
+				_, out, ok := s.run(p, r.ID, t, s.about(s.win.buf), uint64(start), uint64(end))
 				if !ok || len(out) == 0 || int64(out[0]) < 0 {
 					return 0, 0, false
 				}
@@ -222,12 +221,18 @@ func (e *Session) register(p *plugin.Plugin, r plugin.Registration) {
 		e.pluginHelp["<Plug>("+name+")"] = r.Help
 		e.each(func(s *Session) {
 			s.vim.Command(name, func(t vim.Text, pos, count int) []vim.Edit {
-				edits, _, _ := s.run(p, r.ID, t, nil, uint64(pos), uint64(count))
+				edits, _, _ := s.run(p, r.ID, t, s.about(s.win.buf), uint64(pos), uint64(count))
 				return edits
 			})
 			s.vim.Map(vim.Normal, withLeader(r.Name, e.cfg.Leader), "<Plug>("+name+")")
 		})
 	}
+}
+
+// about is what a call about b tells the plugin through context: the
+// buffer's id, path and filetype, and the mode (B176).
+func (e *Session) about(b *buffer) plugin.Context {
+	return plugin.Context{"buffer": strconv.Itoa(b.id), "path": b.file.path, "filetype": e.filetype(b), "mode": modes[e.vim.Mode()]}
 }
 
 // run calls what p registered as id, through its call export, on the input

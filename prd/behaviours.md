@@ -515,6 +515,10 @@ Where fude departs, the line says so and cites the departure in
 - B175 [4] A plugin's ex command gets what was typed after its name,
   whether `!` followed the name, and its range, as a built-in command
   does. Without a range, the range is the cursor's line.
+- B176 [4] Every call into a plugin and every event it hears tells it the
+  id, path and filetype of the buffer it is about, and the mode. With
+  `buffer.read`, it reads how many lines the text has, which line holds a
+  position and where a line starts, without reading the text.
 - B59 [4] A plugin with `ui` shows markdown in a float at the cursor, as
   hover does.
 

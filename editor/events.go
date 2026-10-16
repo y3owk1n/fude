@@ -83,13 +83,14 @@ func (e *Session) listen(p *plugin.Plugin) {
 				// plugin is free to hear it, so both are the newest.
 				var ev event
 				var t kernel.Snapshot
+				var about plugin.Context
 				more := false
 				if !on(func() {
 					l.mu.Lock()
 					defer l.mu.Unlock()
 					if more = len(l.pending) > 0; more {
 						ev, l.pending = l.pending[0], l.pending[1:]
-						t = ev.buf.text.Snapshot()
+						t, about = ev.buf.text.Snapshot(), e.about(ev.buf)
 					}
 				}) {
 					return
@@ -102,7 +103,7 @@ func (e *Session) listen(p *plugin.Plugin) {
 					name += " " + ev.detail
 				}
 				at := time.Now()
-				res, err := p.Event(context.Background(), name, t)
+				res, err := p.Event(context.Background(), name, t, about)
 				api.Trace("plugin", p.Name+" heard "+name, time.Since(at))
 				if !on(func() { e.handled(p, err, ev.buf, t, res) }) {
 					return
