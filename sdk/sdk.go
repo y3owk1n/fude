@@ -129,6 +129,12 @@ func hostNote(pos uint32, ptr *byte, n uint32) int32
 //go:wasmimport fude show
 func hostShow(ptr *byte, n uint32) int32
 
+//go:wasmimport fude jump
+func hostJump(pos uint32) int32
+
+//go:wasmimport fude open
+func hostOpen(pos uint32, ptr *byte, n uint32) int32
+
 //go:wasmimport fude undecorate
 func hostUndecorate(id uint32) int32
 
@@ -444,6 +450,20 @@ func Note(pos int, text string) (int, error) {
 	p, n := ptr(text)
 	id := hostNote(uint32(pos), p, n)
 	return int(id), fail(int64(id))
+}
+
+// Jump moves the cursor to pos once the call returns, after its edits, when
+// the current window shows the buffer the call was about. It needs ui.
+func Jump(pos int) error {
+	return fail(int64(hostJump(uint32(pos))))
+}
+
+// Open opens the file at path, relative to the project, in the current
+// window once the call returns, with the cursor at pos. It refuses a path
+// that leads outside the project. It needs ui.
+func Open(path string, pos int) error {
+	p, n := ptr(path)
+	return fail(int64(hostOpen(uint32(pos), p, n)))
 }
 
 // Show shows text in a read-only window titled title, coloured as

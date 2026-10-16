@@ -454,6 +454,22 @@ func TestB186PluginWindows(t *testing.T) {
 	}
 }
 
+// B187
+func TestB187PluginMovesTheCursor(t *testing.T) {
+	e := loaded(t, "ctx", "f", "abc\n", "ui")
+	if feed(e, ":Go 2<CR>"); e.Cursor() != 2 {
+		t.Errorf(":Go 2 left the cursor at %d", e.Cursor())
+	}
+	// The tests run in editor/, which is the project.
+	name := e.Views()[0].Name
+	if feed(e, ":Open ../go.mod<CR>"); e.Views()[0].Name != name {
+		t.Errorf("a file outside the project opened: %s", e.Views()[0].Name)
+	}
+	if feed(e, ":Open guide/01-start.md<CR>"); !strings.HasSuffix(e.Views()[0].Name, "guide/01-start.md") || e.Cursor() != 2 {
+		t.Errorf(":Open opened %s with the cursor at %d", e.Views()[0].Name, e.Cursor())
+	}
+}
+
 // decorations returns what the current window shows of plugins'
 // decorations, as text and style.
 func decorations(e *editor.Session) []string {

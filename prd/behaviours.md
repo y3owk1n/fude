@@ -547,6 +547,10 @@ Where fude departs, the line says so and cites the departure in
   title, coloured as a filetype it names. Showing text under a title
   already open replaces what that window shows. `:q` closes it without
   asking to save.
+- B187 [4] A plugin with `ui` moves the cursor in the window that shows
+  the buffer its call was about, once the call and its edits are done. It
+  also opens a file of the project at a position, in the current window.
+  A path that leads outside the project opens nothing.
 - B59 [4] A plugin with `ui` shows markdown in a float at the cursor, as
   hover does.
 

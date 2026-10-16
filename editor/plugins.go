@@ -110,6 +110,7 @@ func (e *Session) loaded(p *plugin.Plugin, err error, b *buffer, t kernel.Snapsh
 // result applies the decorations and edits a call into p asked for on b,
 // which read t.
 func (e *Session) result(p *plugin.Plugin, b *buffer, t kernel.Snapshot, res plugin.Result) {
+	defer e.went()
 	edits := e.decorate(p, b, res)
 	if len(edits) == 0 {
 		return
@@ -144,6 +145,29 @@ func (d decoration) remove() {
 	d.buf.text.DeleteMark(d.end)
 	if d.sign != "" {
 		d.buf.signs--
+	}
+}
+
+// jumpTo is where a plugin's call about b asked to move the cursor.
+type jumpTo struct {
+	b *buffer
+	plugin.Jump
+}
+
+// went moves the cursor where a plugin's call last asked to, after the call
+// and its edits: in a file it opens, or in the current window when it shows
+// the buffer the call was about (B187).
+func (e *Session) went() {
+	g := e.jumpTo
+	e.jumpTo = nil
+	switch {
+	case g == nil:
+	case g.Path != "":
+		if e.edit(g.Path); e.win.buf.is(g.Path) {
+			e.setCursor(g.Pos)
+		}
+	case e.win.buf == g.b:
+		e.setCursor(g.Pos)
 	}
 }
 
@@ -184,6 +208,9 @@ func (e *Session) decorate(p *plugin.Plugin, b *buffer, res plugin.Result) []vim
 	}
 	if s := res.Show; s != nil {
 		e.panel(s.Title, s.Filetype, s.Text)
+	}
+	if j := res.Jump; j != nil {
+		e.jumpTo = &jumpTo{b, *j}
 	}
 	if res.Status != nil {
 		if e.segments[p] == nil {

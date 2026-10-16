@@ -63,6 +63,7 @@ type Result struct {
 	Status     *string  // the plugin's statusline segment for the text it read, "" for none
 	Float      *string  // markdown to show at the cursor, "" to close it
 	Show       *Panel   // text to show in a window of its own
+	Jump       *Jump    // where to move the cursor
 	Timers     []Timer  // the callbacks to run later
 	Jobs       []Job    // the work to do in the background
 	Out        []uint64
@@ -79,6 +80,14 @@ type Job struct {
 
 // maxJobs is how many of a plugin's jobs run at once. One more waits.
 const maxJobs = 8
+
+// Jump is where a plugin moves the cursor: Pos in the buffer the call was
+// about, or in the file at Path when it is not "", which fude opens
+// (B187).
+type Jump struct {
+	Path string
+	Pos  int
+}
 
 // Panel is text a plugin shows in a read-only window titled Title, coloured
 // as Filetype. It replaces the text of a window open under that title
@@ -319,6 +328,8 @@ func (p *Plugin) host(ctx context.Context) error {
 		NewFunctionBuilder().WithFunc(p.sign).Export("sign").
 		NewFunctionBuilder().WithFunc(p.note).Export("note").
 		NewFunctionBuilder().WithFunc(p.show).Export("show").
+		NewFunctionBuilder().WithFunc(p.jump).Export("jump").
+		NewFunctionBuilder().WithFunc(p.open).Export("open").
 		Instantiate(ctx)
 	if err != nil {
 		return fmt.Errorf("plugin %s: %w", p.Name, err)
@@ -605,18 +616,28 @@ func (p *Plugin) get(ctx context.Context, rawURL string) ([]byte, error) {
 	return body, nil
 }
 
-// read reads the file at name, relative to the project, if it is in it.
-func (p *Plugin) read(name string) ([]byte, error) {
+// inside returns where the file at name, relative to the project, is, or an
+// error when it is not in the project, through .. or a link.
+func (p *Plugin) inside(name string) (string, error) {
 	root, err := filepath.EvalSymlinks(p.root)
 	if err != nil {
-		return nil, fmt.Errorf("find the project: %w", err)
+		return "", fmt.Errorf("find the project: %w", err)
 	}
 	path, err := filepath.EvalSymlinks(filepath.Join(root, name))
 	if err != nil {
-		return nil, fmt.Errorf("read %s: %w", name, err)
+		return "", fmt.Errorf("find %s: %w", name, err)
 	}
 	if rel, err := filepath.Rel(root, path); err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return nil, fmt.Errorf("%s is outside the project", name)
+		return "", fmt.Errorf("%s is outside the project", name)
+	}
+	return path, nil
+}
+
+// read reads the file at name, relative to the project, if it is in it.
+func (p *Plugin) read(name string) ([]byte, error) {
+	path, err := p.inside(name)
+	if err != nil {
+		return nil, err
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -715,6 +736,38 @@ func (p *Plugin) sign(_ context.Context, m api.Module, pos, ptr, n uint32) int32
 	p.next++
 	p.call.Decorate = append(p.call.Decorate, Decoration{ID: p.next, Start: int(pos), End: int(pos), Style: style, Sign: text})
 	return int32(p.next)
+}
+
+// jump moves the cursor to pos once the call returns (B187).
+func (p *Plugin) jump(pos uint32) int32 {
+	if p.call == nil || !p.allowed("ui", "jump") {
+		return errDenied
+	}
+	if int(pos) > p.call.text.Len() {
+		return errRange
+	}
+	p.call.Jump = &Jump{Pos: int(pos)}
+	return 0
+}
+
+// open opens the file at the path at (ptr, n), relative to the project, and
+// puts the cursor at pos in it, once the call returns. A path that leads
+// outside the project is refused, as for read_file (B187).
+func (p *Plugin) open(_ context.Context, m api.Module, pos, ptr, n uint32) int32 {
+	if p.call == nil || !p.allowed("ui", "open") {
+		return errDenied
+	}
+	name, ok := m.Memory().Read(ptr, n)
+	if !ok {
+		return errRange
+	}
+	path, err := p.inside(string(name))
+	if err != nil {
+		p.log(fmt.Sprintf("%s: open: %v", p.Name, err))
+		return errFile
+	}
+	p.call.Jump = &Jump{path, int(pos)}
+	return 0
 }
 
 // show shows, in a window of its own, the title, filetype and text at

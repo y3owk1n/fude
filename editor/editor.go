@@ -68,6 +68,7 @@ type Session struct {
 	restarting string         // the session file :restart saved, for main (B170)
 	hints      []vim.Hint     // the keys that may follow the command being typed, while they show (B172)
 	ask        func(yes bool) // takes the answer to the question in the message
+	jumpTo     *jumpTo        // where a plugin's call asked to move the cursor, after the key
 	float      string         // text shown over the windows at the cursor, such as hover
 	floatSpans []syntax.Span  // the styles of the float's text
 	doc        string         // the selected completion's documentation, beside the menu
@@ -468,6 +469,7 @@ func (e *Session) Timeout() {
 // settle shows the error or message from the keys just run, and scrolls to
 // the cursor.
 func (e *Session) settle(err error) {
+	e.went()
 	if err != nil {
 		e.message = err.Error()
 	} else if msg := e.vim.Message(); msg != "" && e.message == "" {
