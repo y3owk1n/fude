@@ -124,9 +124,9 @@ func (e *Session) helpSections() []helpSection {
 				settings.entries = append(settings.entries, helpEntry{[]string{name + "." + k.name}, "[" + name + "." + k.name + "]", k.help})
 			}
 		case v.Kind() == reflect.Map || v.Kind() == reflect.Slice:
-			// [filetype.go] and [[plugin]] tables, whose keys are the fields of
-			// their elements.
-			table := "[" + name + ".{type}]"
+			// [filetype.go], [lsp.gopls] and [[plugin]] tables, whose keys are
+			// the fields of their elements.
+			table := "[" + name + ".{" + f.Tag.Get("key") + "}]"
 			if v.Kind() == reflect.Slice {
 				table = "[[" + name + "]]"
 			}

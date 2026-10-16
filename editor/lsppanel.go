@@ -17,19 +17,15 @@ import (
 // the server from starting when a file it serves opens (B160).
 const disabled = "disabled"
 
-// serverName names the language server command runs, or is "" for none.
-func serverName(command []string) string {
-	if len(command) == 0 {
-		return ""
-	}
-	return filepath.Base(command[0])
-}
+// notInstalled is why a server whose program is not on PATH is down. It
+// keeps the server from starting until :lsp restart or enable.
+const notInstalled = "not installed"
 
 // instances are the running servers named name, by root.
 func (e *Editor) instances(name string) []*server {
 	var out []*server
 	for _, s := range e.servers {
-		if serverName(s.command) == name {
+		if s.name == name {
 			out = append(out, s)
 		}
 	}
@@ -72,9 +68,14 @@ func (e *Session) lspCommand(sub, name string) {
 	case "enable":
 		delete(e.down, name)
 	}
+	if e.down[name] == notInstalled {
+		delete(e.down, name)
+	}
 	for _, b := range e.bufs {
-		if b.server == nil && serverName(e.cfg.Filetype[e.filetype(b)].LSP) == name {
-			e.attach(b)
+		if b.server == nil && e.serverOf(b) == name {
+			if err := e.attach(b); err != nil {
+				e.message = err.Error()
+			}
 		}
 	}
 	switch {
@@ -115,7 +116,7 @@ func (e *Session) lspPanel() {
 func (e *Editor) configured() map[string][]string {
 	out := map[string][]string{}
 	for ft, c := range e.cfg.Filetype {
-		if name := serverName(c.LSP); name != "" {
+		for _, name := range c.LSP {
 			out[name] = append(out[name], ft)
 		}
 	}
@@ -197,7 +198,7 @@ func (e *Session) lspFloat() Float {
 			state, style = "starting", "lsp.starting"
 		case len(running) > 0:
 			state, style = "running", "lsp.running"
-		case e.down[name] == disabled || e.down[name] == "stopped":
+		case e.down[name] == disabled || e.down[name] == "stopped" || e.down[name] == notInstalled:
 			state = e.down[name]
 		case e.down[name] != "":
 			state, style = "failed", "lsp.error"

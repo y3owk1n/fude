@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/y3owk1n/fude/editor"
+	"github.com/y3owk1n/fude/lsp"
 )
 
 // TestFakeServer is a language server when FUDE_FAKE_LSP is set, which tests
@@ -196,12 +197,20 @@ func TestFakeServer(t *testing.T) {
 // config.toml, and returns the editor and the server's log.
 func withServer(t *testing.T, text, encoding string, settings ...string) (*editor.Session, string) {
 	t.Helper()
+	return withServerAt(t, filepath.Join(t.TempDir(), "a.go"), text, encoding, settings...)
+}
+
+// withServerAt is withServer on the Go file at path. The server is named
+// fake, and settings come before any table, so a line such as
+// lsp.fake.root = ["go.mod"] adds to its table.
+func withServerAt(t *testing.T, path, text, encoding string, settings ...string) (*editor.Session, string) {
+	t.Helper()
 	log := filepath.Join(t.TempDir(), "server.log")
 	t.Setenv("FUDE_FAKE_LSP", "1")
 	t.Setenv("FUDE_FAKE_LOG", log)
 	t.Setenv("FUDE_FAKE_ENCODING", encoding)
-	config(t, strings.Join(settings, "\n")+fmt.Sprintf("\n[filetype.go]\nlsp = [%q, \"-test.run=^TestFakeServer$\"]\n", os.Args[0]))
-	path := filepath.Join(t.TempDir(), "a.go")
+	command := fmt.Sprintf("lsp.fake.command = [%q, \"-test.run=^TestFakeServer$\"]\n", os.Args[0])
+	config(t, command+strings.Join(settings, "\n")+"\n[filetype.go]\nlsp = [\"fake\"]\n")
 	change(t, path, text)
 	e := start(t, path)
 	e.SetSize(80, 20)
@@ -248,6 +257,17 @@ func TestB63ServerCrash(t *testing.T) {
 	if feed(e, "ay<Esc>"); text(e) != "##yx" {
 		t.Errorf("editing after the crashes left %q, want ##yx", text(e))
 	}
+}
+
+// B167
+func TestB167ProjectRoot(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "pkg"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	change(t, filepath.Join(dir, "go.mod"), "module m\n")
+	_, log := withServerAt(t, filepath.Join(dir, "pkg", "a.go"), "x\n", "utf-8", `lsp.fake.root = ["go.work", "go.mod"]`)
+	heard(t, log, fmt.Sprintf(`"rootUri":%q`, lsp.URI(dir)), 1)
 }
 
 // B159

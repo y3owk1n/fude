@@ -8,6 +8,7 @@ import (
 	"maps"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -22,6 +23,7 @@ import (
 // server is a running language server and the buffers attached to it.
 type server struct {
 	client    *lsp.Client
+	name      string // the name config.toml gives it
 	command   []string
 	root      string
 	restarted bool // it crashed once, and the next crash leaves it off
@@ -47,7 +49,7 @@ func (s *server) progressed(params json.RawMessage) {
 		} `json:"value"`
 	}
 	if err := json.Unmarshal(params, &p); err != nil {
-		logLine(fmt.Sprintf("progress from %s: %v", serverName(s.command), err))
+		logLine(fmt.Sprintf("progress from %s: %v", s.name, err))
 		return
 	}
 	token, v := string(p.Token), p.Value
@@ -84,27 +86,35 @@ func (s *server) doing() string {
 }
 
 // attach connects b to the language server its filetype names, starting one
-// for b's directory when none runs (B60).
-func (e *Session) attach(b *buffer) {
-	command := e.cfg.Filetype[e.filetype(b)].LSP
-	name := serverName(command)
-	if name == "" || e.down[name] == disabled || b.file.path == "" || b.title != "" {
-		return
+// for b's project root when none runs, and returns why it could not
+// (B60, B167).
+func (e *Session) attach(b *buffer) error {
+	name := e.serverOf(b)
+	if name == "" || e.down[name] == disabled || e.down[name] == notInstalled || b.file.path == "" || b.title != "" {
+		return nil
 	}
 	abs, err := filepath.Abs(b.file.path)
 	if err != nil {
-		e.message = err.Error()
-		return
+		return err
 	}
-	root := filepath.Dir(abs)
-	key := strings.Join(append(slices.Clone(command), root), "\x00")
+	c := e.cfg.LSP[name]
+	root := rootOf(abs, c.Root)
+	key := name + "\x00" + root
 	s := e.servers[key]
 	if s == nil {
-		s = &server{command: command, root: root}
+		command := c.Command
+		if len(command) == 0 {
+			command = []string{name}
+		}
+		s = &server{name: name, command: command, root: root}
 		if err := e.start(s); err != nil {
-			e.message = err.Error()
 			e.down[name] = err.Error()
-			return
+			// A program missing from PATH stays missing, so files opened
+			// later do not try again.
+			if errors.Is(err, exec.ErrNotFound) {
+				e.down[name] = notInstalled
+			}
+			return err
 		}
 		e.servers[key] = s
 		delete(e.down, name)
@@ -113,6 +123,34 @@ func (e *Session) attach(b *buffer) {
 	b.server, b.version = s, 0
 	s.client.Open(lsp.URI(b.file.path), languageID(e.filetype(b)), b.text.Snapshot())
 	e.syncKeys()
+	return nil
+}
+
+// serverOf names the language server of b's filetype, or is "" for none.
+func (e *Editor) serverOf(b *buffer) string {
+	if names := e.cfg.Filetype[e.filetype(b)].LSP; len(names) > 0 {
+		return names[0]
+	}
+	return ""
+}
+
+// rootOf returns the project root of the file at abs: the nearest folder
+// above it that holds the first of markers found, or the file's folder
+// when it has none (B167).
+func rootOf(abs string, markers []string) string {
+	for _, m := range markers {
+		for dir := filepath.Dir(abs); ; {
+			if _, err := os.Stat(filepath.Join(dir, m)); err == nil {
+				return dir
+			}
+			up := filepath.Dir(dir)
+			if up == dir {
+				break
+			}
+			dir = up
+		}
+	}
+	return filepath.Dir(abs)
 }
 
 // languageID is the protocol's name for filetype ft. It is ft except for
@@ -149,10 +187,9 @@ func (e *Session) exited(s *server, err error) {
 	if s.closing {
 		return
 	}
-	name := serverName(s.command)
 	if s.restarted {
-		e.message = fmt.Sprintf("language server %s exited again (%v), so it stays off", name, err)
-		e.down[name] = "crashed twice"
+		e.message = fmt.Sprintf("language server %s exited again (%v), so it stays off", s.name, err)
+		e.down[s.name] = "crashed twice"
 		e.stop(s)
 		return
 	}
@@ -166,7 +203,7 @@ func (e *Session) exited(s *server, err error) {
 		b.version = 0
 		s.client.Open(lsp.URI(b.file.path), languageID(e.filetype(b)), b.text.Snapshot())
 	}
-	e.message = fmt.Sprintf("language server %s exited (%v) and was restarted", name, err)
+	e.message = fmt.Sprintf("language server %s exited (%v) and was restarted", s.name, err)
 }
 
 // stop detaches every buffer from s and forgets it.
@@ -201,7 +238,7 @@ func (e *Session) notified(s *server, method string, params json.RawMessage) {
 		Diagnostics []json.RawMessage `json:"diagnostics"`
 	}
 	if err := json.Unmarshal(params, &p); err != nil {
-		logLine(fmt.Sprintf("diagnostics from %s: %v", filepath.Base(s.command[0]), err))
+		logLine(fmt.Sprintf("diagnostics from %s: %v", s.name, err))
 		return
 	}
 	i := slices.IndexFunc(s.bufs, func(b *buffer) bool { return lsp.URI(b.file.path) == p.URI })

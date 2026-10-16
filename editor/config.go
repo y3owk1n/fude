@@ -42,9 +42,13 @@ type config struct {
 	Filetype map[string]struct {
 		Files       []string   `toml:"files" help:"the names of the files of the type, as patterns such as *.toml.tmpl"`
 		IndentWidth uint       `toml:"indent_width" help:"the columns of an indent level in files of the type"`
-		LSP         []string   `toml:"lsp" help:"the language server's command"`
+		LSP         []string   `toml:"lsp" help:"the language servers of files of the type, by the names of their [lsp.{name}] tables"`
 		Format      [][]string `toml:"format" help:"the formatters' commands, run in turn"`
-	} `toml:"filetype"`
+	} `toml:"filetype" key:"type"`
+	LSP map[string]struct {
+		Command []string `toml:"command" help:"the server's command, its name when unset"`
+		Root    []string `toml:"root" help:"the files that mark a project's root, most wanted first, looked for from the file's folder up"`
+	} `toml:"lsp" key:"name"`
 	Plugin []struct {
 		Path         string   `toml:"path" help:"the plugin's file, from the config directory"`
 		Capabilities []string `toml:"capabilities" help:"what the plugin may do"`

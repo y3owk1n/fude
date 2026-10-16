@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -27,8 +28,14 @@ var logMu sync.Mutex
 // editor loop through Queue.
 func (e *Session) Load() {
 	e.started = true
+	var failed []string
 	for _, b := range e.bufs {
-		e.attach(b)
+		if err := e.attach(b); err != nil {
+			failed = append(failed, err.Error())
+		}
+	}
+	if len(failed) > 0 {
+		e.message = strings.Join(failed, "  ")
 	}
 	config, err1 := xdgDir("XDG_CONFIG_HOME", ".config")
 	cache, err2 := xdgDir("XDG_CACHE_HOME", ".cache")

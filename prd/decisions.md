@@ -450,6 +450,16 @@ Config errors already show at startup (B93), and server failures show as
 messages that `:messages` keeps (B157). The servers' state had nowhere
 to show, and the panel shows it.
 
+### N21. A server that is not installed stops trying
+
+When a language server's program is not on PATH, fude says so once and
+does not start it for files opened later. `:lsp` shows it as not
+installed, and `:lsp restart` or `:lsp enable` tries again (B167).
+Neovim tries again for each file it opens and shows the error each time.
+Why: fude's PATH does not change while it runs, so a missing program
+stays missing. A server installed for some projects only would otherwise
+show the same error on every file.
+
 ## Open
 
 None.

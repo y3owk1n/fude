@@ -288,7 +288,8 @@ Where fude departs, the line says so and cites the departure in
   leaves the theme as it was.
 - B159 [5] `:lsp` opens a panel with a card for each language server
   `config.toml` sets: its state (running, starting, stopped, disabled,
-  failed with why, or no files), its version, and its roots and files
+  failed with why, not installed, or no files), its version, and its
+  roots and files
   (N20). `j` and `k` move between cards, and a panel taller than the
   screen scrolls to show the card under the cursor. `r`, `s`, `d` and `e`
   restart, stop, disable or enable that server, as `[keymap.lsp]` maps
@@ -495,6 +496,14 @@ Where fude departs, the line says so and cites the departure in
   the text until `<C-n>` or `<C-p>`.
 - B68 [5] The selected completion's detail and documentation show beside
   the menu, resolved from the server when the item came without them.
+- B167 [5] `[filetype.<name>] lsp` names a filetype's servers. An
+  `[lsp.<name>]` table sets a server's `command`, which is its name when
+  unset, and its `root`, the files that mark a project's root, most wanted
+  first. fude starts one server per root. The root is the nearest folder
+  above the file that holds the first of those files found, or else the
+  file's folder. When a server's program is not on PATH, fude says so once
+  and does not start the server for files opened later, until `:lsp
+  restart` or `:lsp enable` (N21).
 
 ## Server and clients
 

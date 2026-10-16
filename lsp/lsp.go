@@ -272,6 +272,7 @@ type answer struct {
 func (c *Client) write(root string, initialized <-chan answer) {
 	params := map[string]any{
 		"processId": nil, "rootUri": URI(root),
+		"workspaceFolders": []map[string]string{{"uri": URI(root), "name": filepath.Base(root)}},
 		"capabilities": map[string]any{
 			"general": map[string]any{"positionEncodings": []string{"utf-8", "utf-16"}},
 			"window":  map[string]any{"workDoneProgress": true},

@@ -296,7 +296,9 @@ func (e *Session) add(path string) (string, error) {
 		msg = cmp.Or(msg, "building the "+ft+" grammar")
 	}
 	if e.started {
-		e.attach(b)
+		if err := e.attach(b); err != nil {
+			msg = strings.TrimSpace(msg + "  " + err.Error())
+		}
 	}
 	e.loadGit(b)
 	return msg, nil
@@ -542,7 +544,7 @@ func (e *Session) Views() []View {
 		}
 		v.Branch, v.Filetype = w.buf.branch, e.filetype(w.buf)
 		if s := w.buf.server; s != nil {
-			v.Server, v.Progress = serverName(s.command), s.doing()
+			v.Server, v.Progress = s.name, s.doing()
 		}
 		for _, d := range e.decos[w.buf] {
 			switch d.style {
