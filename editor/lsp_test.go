@@ -38,6 +38,7 @@ func TestFakeServer(t *testing.T) {
 	if err != nil {
 		os.Exit(2)
 	}
+	fmt.Fprintf(log, "args %q\n", os.Args[1:])
 	r := bufio.NewReader(os.Stdin)
 	reply := func(id *int, result any) {
 		body, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": id, "result": result})
@@ -214,7 +215,8 @@ func withServerAt(t *testing.T, path, text, encoding string, settings ...string)
 	t.Setenv("FUDE_FAKE_LSP", "1")
 	t.Setenv("FUDE_FAKE_LOG", log)
 	t.Setenv("FUDE_FAKE_ENCODING", encoding)
-	command := fmt.Sprintf("lsp.fake.command = [%q, \"-test.run=^TestFakeServer$\"]\n", os.Args[0])
+	// The last argument tests B167's ~/.
+	command := fmt.Sprintf("lsp.fake.command = [%q, \"-test.run=^TestFakeServer$\", \"~/fake\"]\n", os.Args[0])
 	config(t, command+strings.Join(settings, "\n")+"\n[filetype.go]\nlsp = [\"fake\"]\n")
 	change(t, path, text)
 	e := start(t, path)
@@ -273,6 +275,12 @@ func TestB167ProjectRoot(t *testing.T) {
 	change(t, filepath.Join(dir, "go.mod"), "module m\n")
 	_, log := withServerAt(t, filepath.Join(dir, "pkg", "a.go"), "x\n", "utf-8", `lsp.fake.root = ["go.work", "go.mod"]`)
 	heard(t, log, fmt.Sprintf(`"rootUri":%q`, lsp.URI(dir)), 1)
+	// A command's ~/ is the home directory.
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	heard(t, log, fmt.Sprintf("%q", filepath.Join(home, "fake")), 1)
 }
 
 // B168

@@ -501,7 +501,8 @@ Where fude departs, the line says so and cites the departure in
 - B167 [5] `[filetype.<name>] lsp` names a filetype's servers. An
   `[lsp.<name>]` table sets a server's `command`, which is its name when
   unset, and its `root`, the files that mark a project's root, most wanted
-  first. fude starts one server per root. The root is the nearest folder
+  first. A leading `~/` in a word of the command is the home directory.
+  fude starts one server per root. The root is the nearest folder
   above the file that holds the first of those files found, or else the
   file's folder. When a server's program is not on PATH, fude says so once
   and does not start the server for files opened later, until `:lsp

@@ -15,16 +15,26 @@ import (
 // write them.
 var base16Line = regexp.MustCompile(`(?i)base0([0-9a-f])"?\s*:\s*"#?([0-9a-f]{6})"`)
 
+// expandHome returns path with a leading ~/ made the home directory.
+func expandHome(path string) (string, error) {
+	rest, ok := strings.CutPrefix(path, "~/")
+	if !ok {
+		return path, nil
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", path, err)
+	}
+	return filepath.Join(home, rest), nil
+}
+
 // readBase16 reads the colours base00 to base0F of the base16 scheme at
 // path, where a leading ~/ is the home directory (B146).
 func readBase16(path string) ([16]int32, error) {
 	var colours [16]int32
-	if rest, ok := strings.CutPrefix(path, "~/"); ok {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return colours, fmt.Errorf("theme %s: %w", path, err)
-		}
-		path = filepath.Join(home, rest)
+	path, err := expandHome(path)
+	if err != nil {
+		return colours, fmt.Errorf("theme: %w", err)
 	}
 	src, err := os.ReadFile(path)
 	if err != nil {
