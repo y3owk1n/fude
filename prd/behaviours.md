@@ -57,8 +57,8 @@ Where fude departs, the line says so and cites the departure in
   them. A quote after a letter, digit or `_` types only itself. Typing a
   closing one that comes next steps over it, `<BS>` in an empty pair
   deletes both, and `<CR>` in empty brackets puts the closing one a line
-  further down with an indented line between (N28). A paste is never
-  paired.
+  further down with an indented line between (N28). A paste and the
+  finder's query are never paired.
 
 ## Grammar
 

@@ -156,7 +156,10 @@ func (e *Session) finderAct(act string) {
 func (e *Session) finding(k vim.Key) {
 	f := e.finder
 	e.vim.UseLocal(e.locals["finder"])
+	// A query matches what is typed, so a bracket in it comes alone (B202).
+	e.vim.AutoPairs(false)
 	e.settle(e.vim.Feed(k))
+	e.vim.AutoPairs(e.cfg.Autopairs)
 	t := e.Text()
 	query := t.Slice(0, t.Len())
 	switch {

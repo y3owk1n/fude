@@ -993,6 +993,16 @@ func TestB195FinderLists(t *testing.T) {
 	}
 }
 
+// B202, for the finder's query
+func TestB202FinderQuery(t *testing.T) {
+	e := open(t, "")
+	e.SetSize(100, 24)
+	feed(e, ":grep<CR>f(")
+	if f, _ := e.Float(); !strings.HasPrefix(f.Text, "› f( ") {
+		t.Fatalf("typing f( in the finder makes the line %q", strings.SplitN(f.Text, "\n", 2)[0])
+	}
+}
+
 // B210
 func TestB210FinderIgnored(t *testing.T) {
 	dir := t.TempDir()
