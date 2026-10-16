@@ -308,6 +308,19 @@ does, but not how the parts fit, which needs prose and examples no table
 can hold. Keeping both in one buffer lets `/` search all of help and keeps
 `:h name` a jump to a line.
 
+## D35. A plugin runs what it registers through one export, call
+
+`register` takes an id and a line of help, and fude runs every command,
+operator, object and key a plugin registered through its export
+`call(id, a, b, c)`. fude runs a plugin's `_initialize` before its `init`.
+Before, `register` took an export's name for each, and fude called only
+`init`. Why: a
+plugin written in Go, built by TinyGo, declares its exports when it
+compiles and cannot add one for each function it registers. One dispatcher
+lets the SDK register Go functions as they are, in Go's own `init`, which
+`_initialize` runs. The help lets `:h` and the key hints say what a
+plugin's keys do, as they do for fude's own.
+
 ## Departures from Neovim
 
 Each entry: what differs, then why.

@@ -488,7 +488,9 @@ Where fude departs, the line says so and cites the departure in
   built-in target or operator.
 - B53 [4] A plugin that traps or panics is unloaded and no buffer changes.
 - B54 [4] A plugin can register an ex command and a keymap binding, and
-  both behave like built-in ones, including in macros and dot repeat.
+  both behave like built-in ones, including in macros and dot repeat. The
+  help a plugin gives each thing it registers shows in `:h` and the key
+  hints.
 - B55 [4] A plugin's decorations render and move with edits, and are
   removed when the plugin unloads.
 - B56 [4] Loading plugins never delays the first frame.

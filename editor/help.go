@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"cmp"
 	"embed"
 	"fmt"
 	"io/fs"
@@ -110,11 +111,11 @@ func (e *Session) helpSections() []helpSection {
 		commands.entries = append(commands.entries, helpEntry{tags, head, c.Help})
 	}
 	for _, name := range slices.Sorted(maps.Keys(e.commands)) {
-		commands.entries = append(commands.entries, helpEntry{[]string{":" + name}, ":" + name, "a plugin's command"})
+		commands.entries = append(commands.entries, helpEntry{[]string{":" + name}, ":" + name, cmp.Or(e.pluginHelp[":"+name], "a plugin's command")})
 	}
 	out = append(out, commands)
 
-	bindings := append(vim.Bindings(), hostBindings()...)
+	bindings := slices.Concat(vim.Bindings(), hostBindings(), e.pluginBindings)
 	for _, k := range keyKinds {
 		s := helpSection{title: k.title, note: k.note}
 		for _, b := range bindings {
@@ -213,12 +214,15 @@ func hostBindings() []vim.Binding {
 	return out
 }
 
-// mappingText says what a mapping that runs to does: its <Plug>'s help, or
-// the keys it types.
-func mappingText(to string) string {
+// mappingText says what a mapping that runs to does: its <Plug>'s help, a
+// plugin's own, or the keys it types.
+func (ed *Editor) mappingText(to string) string {
 	name, ok := strings.CutPrefix(to, "<Plug>(")
 	if !ok {
 		return "types " + to
+	}
+	if help := ed.pluginHelp[to]; help != "" {
+		return help
 	}
 	name = strings.TrimSuffix(name, ")")
 	if i := slices.IndexFunc(plugs, func(p plug) bool { return p.name == name }); i >= 0 {
@@ -240,7 +244,7 @@ func (e *Session) mappings() []helpSection {
 	section := func(title, kind string, each func(func(from, to string))) helpSection {
 		s := helpSection{title: title}
 		each(func(from, to string) {
-			text := mappingText(to)
+			text := e.mappingText(to)
 			for k := range mine[kind] {
 				if slices.Equal(vim.Keys(withLeader(k, e.cfg.Leader)), vim.Keys(from)) {
 					text += ", as config.toml maps it"

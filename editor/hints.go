@@ -43,7 +43,7 @@ func (e *Session) HintsIn() (time.Duration, bool) {
 // stay while it goes on. A mapping's held keys then wait for the next key
 // instead of key_timeout (B172).
 func (e *Session) ShowHints() {
-	if e.hints = e.vim.Hints(hostBindings()); len(e.hints) == 0 {
+	if e.hints = e.vim.Hints(slices.Concat(hostBindings(), e.pluginBindings)); len(e.hints) == 0 {
 		e.hints = nil
 	}
 }
@@ -56,7 +56,7 @@ type piece struct{ text, style string }
 func (e *Session) hintPieces(h vim.Hint) []piece {
 	help := h.Help
 	if h.To != "" {
-		if help = mappingText(h.To); strings.HasPrefix(help, "types ") {
+		if help = e.mappingText(h.To); strings.HasPrefix(help, "types ") {
 			return []piece{{h.To, "hints.typed"}}
 		}
 	}

@@ -4,7 +4,7 @@
 ;; of. Once the text is over 8 bytes, it loops until its budget runs out.
 (module
   (import "fude" "subscribe" (func $subscribe (param i32 i32) (result i32)))
-  (import "fude" "register" (func $register (param i32 i32 i32 i32 i32) (result i32)))
+  (import "fude" "register" (func $register (param i32 i32 i32 i32 i32 i32) (result i32)))
   (import "fude" "log" (func $log (param i32 i32)))
   (import "fude" "emit" (func $emit (param i32 i32) (result i32)))
   (import "fude" "text_len" (func $len (result i32)))
@@ -19,9 +19,10 @@
   (func (export "init")
     (drop (call $subscribe (i32.const 16) (i32.const 14)))
     (drop (call $subscribe (i32.const 43) (i32.const 11)))
-    (drop (call $register (i32.const 3) (i32.const 37) (i32.const 2) (i32.const 39) (i32.const 4))))
-  (func (export "ping") (param i32 i32)
-    (drop (call $emit (i32.const 39) (i32.const 4))))
+    (drop (call $register (i32.const 3) (i32.const 37) (i32.const 2) (i32.const 0) (i32.const 0) (i32.const 0))))
+  (func (export "call") (param i32 i64 i64 i64) (result i64)
+    (drop (call $emit (i32.const 39) (i32.const 4)))
+    (i64.const 0))
   (func (export "on_event") (param $ptr i32) (param $n i32)
     (call $log (local.get $ptr) (local.get $n))
     (if (i32.gt_u (call $len) (i32.const 8)) (then (loop $spin (br $spin))))

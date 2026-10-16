@@ -56,7 +56,7 @@ func (e *Session) Load() {
 				e.queue <- func() { e.message = err.Error() }
 				return
 			}
-			res, err := p.Call(ctx, "init", t, plugin.InitBudget)
+			res, err := p.Init(ctx, t)
 			e.queue <- func() { e.loaded(p, err, b, t, res) }
 		}()
 	}
@@ -173,10 +173,14 @@ func (e *Session) unload(p *plugin.Plugin, err error) {
 // register adds a command, operator, object or key a plugin registered, as
 // the machine's own, so it composes with every built-in (B52, B54).
 func (e *Session) register(p *plugin.Plugin, r plugin.Registration) {
+	if e.pluginHelp == nil {
+		e.pluginHelp = map[string]string{}
+	}
 	switch r.Kind {
 	case plugin.Command:
+		e.pluginHelp[":"+r.Name] = r.Help
 		e.commands[r.Name] = func(s *Session) {
-			if edits, _, ok := s.run(p, r.Export, s.Text(), uint64(s.Cursor()), 0); ok && len(edits) > 0 {
+			if edits, _, ok := s.run(p, r.ID, s.Text(), uint64(s.Cursor()), 0); ok && len(edits) > 0 {
 				if err := (host{s}).Apply(edits, ":"+r.Name); err != nil {
 					s.message = err.Error()
 					return
@@ -185,20 +189,22 @@ func (e *Session) register(p *plugin.Plugin, r plugin.Registration) {
 			}
 		}
 	case plugin.Operator:
+		e.pluginBindings = append(e.pluginBindings, vim.Binding{Kind: "operator", Keys: r.Name + "{motion}", Help: r.Help})
 		e.each(func(s *Session) {
 			s.vim.Operator(r.Name, func(t vim.Text, start, end int, lines bool) []vim.Edit {
 				linewise := uint64(0)
 				if lines {
 					linewise = 1
 				}
-				edits, _, _ := s.run(p, r.Export, t, uint64(start), uint64(end), linewise)
+				edits, _, _ := s.run(p, r.ID, t, uint64(start), uint64(end), linewise)
 				return edits
 			})
 		})
 	case plugin.Object:
+		e.pluginBindings = append(e.pluginBindings, vim.Binding{Kind: "object", Keys: r.Name, Help: r.Help})
 		e.each(func(s *Session) {
 			s.vim.Object(r.Name, func(t vim.Text, start, end int) (int, int, bool) {
-				_, out, ok := s.run(p, r.Export, t, uint64(start), uint64(end))
+				_, out, ok := s.run(p, r.ID, t, uint64(start), uint64(end))
 				if !ok || len(out) == 0 || int64(out[0]) < 0 {
 					return 0, 0, false
 				}
@@ -206,10 +212,11 @@ func (e *Session) register(p *plugin.Plugin, r plugin.Registration) {
 			})
 		})
 	case plugin.Key:
-		name := p.Name + "." + r.Export
+		name := p.Name + "." + r.Name
+		e.pluginHelp["<Plug>("+name+")"] = r.Help
 		e.each(func(s *Session) {
 			s.vim.Command(name, func(t vim.Text, pos, count int) []vim.Edit {
-				edits, _, _ := s.run(p, r.Export, t, uint64(pos), uint64(count))
+				edits, _, _ := s.run(p, r.ID, t, uint64(pos), uint64(count))
 				return edits
 			})
 			s.vim.Map(vim.Normal, withLeader(r.Name, e.cfg.Leader), "<Plug>("+name+")")
@@ -217,16 +224,22 @@ func (e *Session) register(p *plugin.Plugin, r plugin.Registration) {
 	}
 }
 
-// run calls export of p on the input path, under its budget, against the
-// current buffer. It adds the decorations the call asks for, and returns
-// its edits, sorted, and what it returned. A call that fails unloads p, and
-// calls into an unloaded plugin do nothing.
-func (e *Session) run(p *plugin.Plugin, export string, t vim.Text, args ...uint64) ([]vim.Edit, []uint64, bool) {
+// run calls what p registered as id, through its call export, on the input
+// path, under its budget, against the current buffer. It adds the
+// decorations the call asks for, and returns its edits, sorted, and what it
+// returned. A call that fails unloads p, and calls into an unloaded plugin
+// do nothing.
+func (e *Session) run(p *plugin.Plugin, id uint32, t vim.Text, args ...uint64) ([]vim.Edit, []uint64, bool) {
 	if !slices.Contains(e.plugins, p) {
 		e.message = fmt.Sprintf("plugin %s is unloaded", p.Name)
 		return nil, nil, false
 	}
-	res, err := p.CallNow(context.Background(), export, t, plugin.InputBudget, args...)
+	// call takes the id and three arguments, and the ones a kind does not
+	// use are 0.
+	full := make([]uint64, 4)
+	full[0] = uint64(id)
+	copy(full[1:], args)
+	res, err := p.CallNow(context.Background(), "call", t, plugin.InputBudget, full...)
 	switch {
 	case errors.Is(err, plugin.ErrBusy):
 		e.message = err.Error()

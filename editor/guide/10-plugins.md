@@ -35,9 +35,10 @@ and editing goes on with no change from that call.
 
 ## Writing a plugin
 
-A module exports `memory`, `alloc(n)` and `init()`. In `init` it calls
-`register` to add a command, operator, object or key, naming the export
-that runs it, and `subscribe` to hear events through `on_event`. The
+A module exports `memory`, `alloc(n)`, `call(id, a, b, c)` and `init()`.
+In `init` it calls `register` to add a command, operator, object or key,
+with a line of help and the id `call` runs it by, and `subscribe` to hear
+events through `on_event`. The
 events are `buffer.opened`, `buffer.changed`, `buffer.saved`,
 `buffer.closed`, `mode.changed`, `view.moved`, `syntax.updated` and
 `lsp.diagnostics`.

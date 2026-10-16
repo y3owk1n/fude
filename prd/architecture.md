@@ -841,9 +841,12 @@ indent width through `Host.IndentWidth`.
 
 ## Plugin ABI
 
-Core wasm on wazero (D8). A plugin exports `memory`, `alloc(n) -> ptr` and
-`init()`, the operators, targets and commands it registers, and
-`on_event(ptr, len)` when it subscribes to events. `on_event` gets the
+Core wasm on wazero (D8). A plugin exports `memory`, `alloc(n) -> ptr`,
+`call(id, a, b, c) -> i64`, which runs what it registered, `on_event(ptr,
+len)` when it subscribes to events, and `_initialize`, `init` or both.
+fude runs `_initialize`, where a compiler such as TinyGo puts the program's
+setup, then `init`, together under the init budget, and either may register
+and subscribe (D35). `on_event` gets the
 event's name, and for `mode.changed` a space and the new mode, and reads
 the text of the buffer the event is about. It runs off the input path
 under a budget of 100ms. A plugin imports host functions from the module `fude`, gated by capability:
@@ -871,7 +874,7 @@ host it may not reach or a request that failed.
 | `text_len() -> i32` | `buffer.read` | the length of the text |
 | `text(start, end) -> i64` | `buffer.read` | the text in `[start, end)` |
 | `edit(start, end, ptr, len) -> i32` | `buffer.write` | asks to replace `[start, end)` |
-| `register(kind, name, nlen, export, elen) -> i32` | none, in `init` only | adds a command, operator, object or key |
+| `register(kind, name, nlen, help, hlen, id) -> i32` | none, in init only | adds a command, operator, object or key that `call` runs by id, with the help `:h` and the key hints show |
 | `subscribe(ptr, len) -> i32` | none, in `init` only | hears the event named through `on_event` |
 | `emit(ptr, len) -> i32` | none | emits the event `plugin.name` about the buffer the call read |
 | `decorate(start, end, ptr, len) -> i32` | `ui` | puts a style, such as `keyword`, on `[start, end)`, and returns its id |
@@ -882,14 +885,14 @@ host it may not reach or a request that failed.
 | `float(ptr, len) -> i32` | `ui` | shows the markdown in a float at the cursor, or closes it for "" (B59) |
 | `status(ptr, len) -> i32` | `ui` | shows the text on the statusline of the buffer the call read, or none for "" (B58) |
 
-`register` names the export that runs what it adds. Kind 0 is an ex
-command and kind 3 a key in normal mode, both exported as `(cursor, count)`.
-Kind 1 is an operator, exported as `(start, end, linewise)`. Kind 2 is a
-text object, exported as `(start, end) -> i64` and returning
-`start<<32|end`, or a negative number for none. fude adds them to the
-machine as its own: operators and objects with `Machine.Operator` and
-`Machine.Object`, and a key by mapping it to `<Plug>(plugin.export)` and
-adding that with `Machine.Command`. So they compose with every built-in,
+`register` gives what it adds an id, and fude runs it through
+`call(id, a, b, c)`. Kind 0 is an ex command and kind 3 a key in normal
+mode, both called with `(cursor, count)`. Kind 1 is an operator, called
+with `(start, end, linewise)`. Kind 2 is a text object, called with
+`(start, end)` and returning `start<<32|end`, or a negative number for
+none. fude adds them to the machine as its own: operators and objects with
+`Machine.Operator` and `Machine.Object`, and a key by mapping it to
+`<Plug>(plugin.keys)` and adding that with `Machine.Command`. So they compose with every built-in,
 and macros and dot repeat replay them (B52, B54). A call that fails unloads
 the plugin, and using what it added then says the plugin is unloaded.
 

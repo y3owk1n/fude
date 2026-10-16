@@ -307,6 +307,11 @@ func TestB54PluginCommandsAndKeys(t *testing.T) {
 			t.Errorf("%s left %q, want %q", c[0], text(e), c[1])
 		}
 	}
+	// Help says what a plugin's command does, as the plugin describes it.
+	e := withKit(t)
+	if feed(e, ":h :Shout<CR>"); !strings.Contains(text(e), "`:Shout`\n  types ! at the cursor") {
+		t.Error("help does not describe :Shout")
+	}
 }
 
 // decorations returns what the current window shows of plugins'

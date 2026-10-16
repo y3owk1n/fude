@@ -34,12 +34,14 @@ const (
 // Kind is what a plugin registers.
 type Kind int32
 
-// What a plugin registers during init, named as its register call names it.
+// What a plugin registers during init. fude runs each through the plugin's
+// export call(id, a, b, c) i64, with the id it registered and these
+// arguments.
 const (
-	Command  Kind = iota // an ex command, exported as func(cursor, count)
-	Operator             // exported as func(start, end, linewise)
-	Object               // exported as func(start, end) i64, start<<32|end or negative for none
-	Key                  // keys in normal mode, exported as func(cursor, count)
+	Command  Kind = iota // an ex command, called with (cursor, count)
+	Operator             // called with (start, end, linewise)
+	Object               // called with (start, end), returns start<<32|end or negative for none
+	Key                  // keys in normal mode, called with (cursor, count)
 )
 
 // Decoration is a style a plugin puts on [Start, End) of the text, such as a
@@ -61,10 +63,12 @@ type Result struct {
 	Out        []uint64
 }
 
-// Registration is one thing a plugin's init registered, run by its export.
+// Registration is one thing a plugin's init registered: its name, what it
+// does, and the id call runs it by.
 type Registration struct {
-	Kind         Kind
-	Name, Export string
+	Kind       Kind
+	Name, Help string
+	ID         uint32
 }
 
 // memoryPages is the most memory a plugin may grow to, 64MB.
@@ -154,6 +158,32 @@ func Load(ctx context.Context, path string, g Grants, cacheDir string, log func(
 		return nil, fmt.Errorf("plugin %s: %w", p.Name, err)
 	}
 	return p, nil
+}
+
+// Init runs the plugin's _initialize, where a compiler puts its program's
+// setup, then its init, each when it exports one, together under
+// InitBudget. Both may register and subscribe.
+func (p *Plugin) Init(ctx context.Context, t fude.Text) (Result, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	ctx, cancel := context.WithTimeout(ctx, InitBudget)
+	defer cancel()
+	p.call = &call{name: "init", text: t}
+	defer func() { p.call = nil }()
+	for _, name := range []string{"_initialize", "init"} {
+		f := p.mod.ExportedFunction(name)
+		if f == nil {
+			continue
+		}
+		_, err := f.Call(ctx)
+		switch {
+		case errors.Is(err, context.DeadlineExceeded):
+			return Result{}, fmt.Errorf("plugin %s %w", p.Name, errBudget)
+		case err != nil:
+			return Result{}, fmt.Errorf("plugin %s: %s: %w", p.Name, name, err)
+		}
+	}
+	return p.call.Result, nil
 }
 
 // Close frees the plugin.
@@ -411,18 +441,19 @@ func (p *Plugin) read(name string) ([]byte, error) {
 	return data, nil
 }
 
-// register records, during init, that the export at (eptr, en) runs the
-// command, operator, object or key of kind named at (nptr, nn).
-func (p *Plugin) register(_ context.Context, m api.Module, kind, nptr, nn, eptr, en uint32) int32 {
+// register records, during init, the command, operator, object or key of
+// kind named at (nptr, nn), with the help at (hptr, hn), which call runs by
+// id.
+func (p *Plugin) register(_ context.Context, m api.Module, kind, nptr, nn, hptr, hn, id uint32) int32 {
 	name, ok1 := m.Memory().Read(nptr, nn)
-	export, ok2 := m.Memory().Read(eptr, en)
+	help, ok2 := m.Memory().Read(hptr, hn)
 	switch {
 	case p.call == nil || p.call.name != "init" || Kind(kind) > Key:
 		return errDenied
 	case !ok1 || !ok2:
 		return errRange
 	}
-	p.Registered = append(p.Registered, Registration{Kind(kind), string(name), string(export)})
+	p.Registered = append(p.Registered, Registration{Kind(kind), string(name), string(help), id})
 	return 0
 }
 

@@ -27,26 +27,30 @@ import (
 // Editor is the open files and what works on them: plugins, language
 // servers and decorations. Every client's session shares it.
 type Editor struct {
-	bufs      []*buffer
-	next      int // the id the next buffer gets
-	cfg       config
-	theme     string     // the theme clients draw in, which :theme changes
-	base16    *[16]int32 // the colours of the base16 scheme it names
-	queue     chan func()
-	queries   string // the directory of query files that replace shipped ones
-	plugins   []*plugin.Plugin
-	commands  map[string]func(*Session) // ex commands plugins registered
-	decos     map[any][]decoration      // by owner: a plugin, or a buffer for its diagnostics
-	servers   map[string]*server        // by command and root
-	down      map[string]string         // by name, why a configured language server is not running
-	building  map[string]bool           // the filetypes whose grammar builds now
-	failed    map[string]string         // by filetype, why its grammar did not build this session
-	started   bool                      // Load ran, so new buffers attach to servers at once
-	sessions  []*Session                // the first is the one that opened the editor
-	setup     []func(*Session)          // what every session's machine gets, such as keymaps
-	proposed  int                       // the id of the newest proposal
-	listeners map[*plugin.Plugin]*listener
-	segments  map[*plugin.Plugin]map[*buffer]string // what each plugin shows on the statusline of each buffer
+	bufs    []*buffer
+	next    int // the id the next buffer gets
+	cfg     config
+	theme   string     // the theme clients draw in, which :theme changes
+	base16  *[16]int32 // the colours of the base16 scheme it names
+	queue   chan func()
+	queries string // the directory of query files that replace shipped ones
+	plugins []*plugin.Plugin
+	// What plugins add, for help and the key hints: what each command and
+	// key does, by :name and <Plug>(name), and their operators and objects.
+	pluginHelp     map[string]string
+	pluginBindings []vim.Binding
+	commands       map[string]func(*Session) // ex commands plugins registered
+	decos          map[any][]decoration      // by owner: a plugin, or a buffer for its diagnostics
+	servers        map[string]*server        // by command and root
+	down           map[string]string         // by name, why a configured language server is not running
+	building       map[string]bool           // the filetypes whose grammar builds now
+	failed         map[string]string         // by filetype, why its grammar did not build this session
+	started        bool                      // Load ran, so new buffers attach to servers at once
+	sessions       []*Session                // the first is the one that opened the editor
+	setup          []func(*Session)          // what every session's machine gets, such as keymaps
+	proposed       int                       // the id of the newest proposal
+	listeners      map[*plugin.Plugin]*listener
+	segments       map[*plugin.Plugin]map[*buffer]string // what each plugin shows on the statusline of each buffer
 
 	now func() time.Time // the clock edits are stamped with
 }
