@@ -216,12 +216,12 @@ own are `<CR>`, `<C-s>`, `<C-h>`, `_` and `<C-l>`.
 ## keymap.list
 
 Keys in a list of places, such as `grr`'s references, where `<CR>` goes to
-the place on its line.
+the place on its line and `q` closes the list.
 
 ## keymap.timeline
 
-Keys in the `:timeline` window, where `[` and `]` move the text, `d` diffs
-and `<CR>` restores.
+Keys in the `:timeline` window, where `[` and `]` move the text, `d` diffs,
+`<CR>` restores and `q` closes it.
 
 ## keymap.finder
 
@@ -241,6 +241,11 @@ stops it, `d` keeps it off and `e` lets it start.
 
 Keys in help, where `<CR>` goes to the name under the cursor and `q` closes
 it.
+
+## keymap.scratch
+
+Keys in a window fude writes to show something, such as `:messages`, `:grammar`
+or a diff, where `q` closes it.
 
 ## keymap.groups
 

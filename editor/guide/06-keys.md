@@ -29,8 +29,10 @@ never mapped again.
 Some buffers have keys of their own: `[keymap.listing]` for listings,
 `[keymap.list]` for lists of places, `[keymap.timeline]`,
 `[keymap.finder]`, `[keymap.float]`, `[keymap.lsp]` for the language
-server panel and `[keymap.help]`. A key mapped there runs in that kind of
-buffer at once, before the normal mode mappings.
+server panel, `[keymap.help]` and `[keymap.scratch]` for the windows fude
+writes, such as `:messages` and a diff. A key mapped there runs in that
+kind of buffer at once, before the normal mode mappings. In each of them
+but a listing, `q` closes the window.
 
 ## Waiting for a longer mapping
 

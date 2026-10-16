@@ -58,6 +58,7 @@ type buffer struct {
 	ft     string // the filetype of a buffer with no file, such as help's markdown
 	source *buffer
 	lines  []kernel.NodeID // the timeline node on each line, for :restore
+	shown  bool            // fude wrote it to show something, such as :messages or a diff
 	spots  []spot          // the place each line of a list names, for <CR>
 }
 
@@ -172,6 +173,8 @@ func (b *buffer) kind() string {
 		return "lsp"
 	case b.title == "[help]":
 		return "help"
+	case b.shown:
+		return "scratch"
 	}
 	return ""
 }

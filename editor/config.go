@@ -45,6 +45,7 @@ type config struct {
 		Float    map[string]string `toml:"float" help:"a float's keys while the cursor is in it"`
 		Lsp      map[string]string `toml:"lsp" help:"the language server panel's keys"`
 		Help     map[string]string `toml:"help" help:"help's keys"`
+		Scratch  map[string]string `toml:"scratch" help:"the keys of a window fude writes to show something, such as :messages or a diff"`
 		Groups   map[string]string `toml:"groups" help:"names of the keys mappings start with, which key hints show"`
 	} `toml:"keymap"`
 	Filetype map[string]struct {

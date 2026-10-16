@@ -198,7 +198,12 @@ func timelineLines(src *buffer) (string, []kernel.NodeID) {
 // changes (B142).
 var timelineKeys = map[string]string{
 	"[": "<Plug>(timeline.earlier)", "]": "<Plug>(timeline.later)", "d": "<Plug>(timeline.diff)", "<CR>": "<Plug>(timeline.restore)",
+	"q": ":close<CR>",
 }
+
+// scratchKeys are the keys of a window fude wrote to show something, such
+// as :messages or a diff, which [keymap.scratch] changes (B142, B212).
+var scratchKeys = map[string]string{"q": ":close<CR>"}
 
 // timelineAct runs act in a timeline window. earlier and later move the
 // text to the state on the line above or below. diff diffs the state on the
@@ -384,7 +389,7 @@ func (e *Session) scratch(title, text string, src *buffer, lines []kernel.NodeID
 		return
 	}
 	b.saved = b.text.Head()
-	b.title, b.source, b.lines, b.file.readonly = title, src, lines, true
+	b.title, b.source, b.lines, b.file.readonly, b.shown = title, src, lines, true, true
 	e.bufs = append(e.bufs, b)
 	e.split(false)
 	e.win.show(b)

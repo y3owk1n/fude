@@ -1003,6 +1003,27 @@ func TestB202FinderQuery(t *testing.T) {
 	}
 }
 
+// B212
+func TestB212QCloses(t *testing.T) {
+	dir := t.TempDir()
+	change(t, filepath.Join(dir, "a.txt"), "a\n")
+	t.Chdir(dir)
+	e := open(t, "a.txt")
+	e.SetSize(100, 30)
+	feed(e, "ix<Esc>")
+	// A list of places, a timeline and a window fude wrote each close.
+	feed(e, ":files<CR>")
+	settle(t, e, func() bool { f, _ := e.Float(); return strings.Contains(f.Text, "a.txt") })
+	for _, keys := range []string{"<C-q>", ":timeline<CR>", ":grammar<CR>"} {
+		if feed(e, keys); len(e.Views()) != 2 {
+			t.Fatalf("%s made %d windows", keys, len(e.Views()))
+		}
+		if feed(e, "q"); len(e.Views()) != 1 || e.Recording() != 0 {
+			t.Errorf("q after %s left %d windows, recording %q", keys, len(e.Views()), e.Recording())
+		}
+	}
+}
+
 // B210
 func TestB210FinderIgnored(t *testing.T) {
 	dir := t.TempDir()

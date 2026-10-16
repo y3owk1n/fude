@@ -274,6 +274,7 @@ func (e *Session) mappings() []helpSection {
 		{"float", "KEYS IN A FLOAT"},
 		{"lsp", "KEYS IN THE LANGUAGE SERVER PANEL"},
 		{"help", "KEYS IN HELP"},
+		{"scratch", "KEYS IN A WINDOW FUDE WROTE"},
 	} {
 		mode := vim.Normal
 		if k.kind == "finder" {

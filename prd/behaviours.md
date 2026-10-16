@@ -238,9 +238,14 @@ Where fude departs, the line says so and cites the departure in
   any keymap table, a key mapped to `""` loses its mapping, fude's own
   default too, and a key mapped to `<Nop>` does nothing. The kinds are
   `listing`, `list` for the lists of places such as `grr`'s, `timeline`,
-  `finder`, whose keys are insert mode's, and `float` for a float the
-  cursor is in, where `q` closes it. Hover while a float shows moves the
+  `finder`, whose keys are insert mode's, `float` for a float the cursor
+  is in, `lsp`, `help`, and `scratch` for the windows fude writes, such as
+  `:messages`, `:grammar` and a diff (B212). Hover while a float shows moves the
   cursor into it, whichever key runs hover.
+- B212 [2] `q` closes a list of places, a timeline, help, the `lsp`
+  panel, a float the cursor is in and every window fude writes, such as
+  `:messages` and a diff, instead of recording a macro (N31). A listing
+  keeps `q`, as its text is a directory to edit.
 - B143 [2] With `sign_column` on, every window keeps its sign column, so
   the text does not move when a git or diagnostic sign comes, as with
   Neovim's `signcolumn=yes`. Off, the column shows while the buffer has

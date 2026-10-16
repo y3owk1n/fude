@@ -619,6 +619,14 @@ snippets of its own (B207). Why: friendly-snippets, the collection most
 Neovim snippet plugins load, ships in VS Code's format, so it works as it
 is.
 
+### N31. `q` closes fude's own windows
+
+In a list of places, a timeline, help, the `lsp` panel and the windows fude
+writes, such as `:messages` and a diff, `q` closes the window (B212).
+Neovim records a macro there. Why: these windows are read-only, so a macro
+in them has nothing to edit, and configs such as LazyVim map `q` to close
+them. A listing keeps `q`, as it is a directory you edit.
+
 ## Open
 
 None.

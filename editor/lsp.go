@@ -1152,7 +1152,7 @@ func (e *Session) closeList() {
 
 // listKeys are a list window's own keys, which [keymap.list] changes
 // (B142).
-var listKeys = map[string]string{"<CR>": "<Plug>(list.open)"}
+var listKeys = map[string]string{"<CR>": "<Plug>(list.open)", "q": ":close<CR>"}
 
 // openSpot jumps to the place on the cursor's line of a list window, such as
 // grr's, in another window, keeping the list.
