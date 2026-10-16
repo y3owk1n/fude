@@ -19,6 +19,13 @@ new one right. The new window takes the cursor. `<C-w>h`, `<C-w>j`,
 `<C-w>o` closes every other one, and `:q` in a split closes only that
 window. `:sp file` and `:vs file` split and open a file.
 
+`<C-w>+` and `<C-w>-` make the window taller or shorter, and `<C-w>>`
+and `<C-w><` wider or narrower, by the count typed before them, such as
+`5<C-w>+`. `<C-w>_` and `<C-w>|` make it as large as it can be, or the
+count tall or wide, and `<C-w>=` makes every window the same size again.
+`:resize 20`, `:resize +5` and `:vertical resize 80` do the same from the
+command line.
+
 `<Plug>(window.left)` and the others for down, up and right move between
 windows too, and inside tmux they move to the next tmux pane when no
 window is that way. No key is mapped to them, so map them, such as

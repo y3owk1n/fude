@@ -87,6 +87,17 @@ func init() {
 		}, completePath},
 		{vim.Command{Name: "enew", Help: "shows a new empty buffer"}, func(e *Session, _ call) { e.empty() }, nil},
 		{vim.Command{Name: "files", Help: "finds a file by name"}, func(e *Session, _ call) { e.files() }, nil},
+		{vim.Command{Name: "resize", Short: []string{"res"}, Args: "[+-]{n}", Help: "makes the window n rows tall, or n taller or shorter, or as tall as it can be"}, func(e *Session, x call) {
+			e.resizeTo(false, x.arg)
+		}, nil},
+		{vim.Command{Name: "vertical", Short: []string{"vert"}, Args: "resize [+-]{n}", Help: "makes the window n columns wide, or n wider or narrower, or as wide as it can be"}, func(e *Session, x call) {
+			name, arg, _ := strings.Cut(x.arg, " ")
+			if name != "resize" && name != "res" {
+				e.message = "usage: :vertical resize [+-]{n}"
+				return
+			}
+			e.resizeTo(true, strings.TrimSpace(arg))
+		}, nil},
 		{vim.Command{Name: "plugin", Args: "reload", Help: "reads config.toml's plugins again and loads them anew"}, func(e *Session, x call) {
 			if x.arg != "reload" {
 				e.message = "usage: :plugin reload"

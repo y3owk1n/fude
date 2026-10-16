@@ -428,6 +428,14 @@ Where fude departs, the line says so and cites the departure in
 - B96 [2] `<C-^>` shows the buffer the window showed before, and `N<C-^>`
   shows buffer N. `#` names that buffer in `:b` and `:e`.
   Switching away from a modified buffer keeps it loaded and modified.
+- B193 [2] `<C-w>+`, `<C-w>-`, `<C-w>>` and `<C-w><` make the window
+  taller, shorter, wider or narrower by the count. `<C-w>_` and `<C-w>|`
+  make it the count tall or wide, or as large as it can be. `<C-w>=` makes
+  the windows share their space equally again. All of them work as in
+  Neovim.
+  `:resize` and `:vertical resize` take a size, or a change of it with `+`
+  or `-`. Every other window keeps at least a row and its status line, or
+  a column.
 - B90 [2] `<C-o>` and `<C-i>` move through the jumplist, and `g;` and `g,`
   through the changelist, as in Neovim.
 - B91 [2] `<C-w>c`, `<C-w>o`, `<C-w>q`, `<C-w>=` and `:q` in a split close

@@ -370,6 +370,13 @@ A view is one buffer shown in one window. It owns a cursor mark, a top-line
 mark and a jumplist. The kernel only holds their marks, so another view's
 edits move them (B23). Each buffer keeps its own changelist.
 
+A split shares its space equally until a window in it asks for a size,
+with `<C-w>+` or `:resize` and the others (B193). The node that holds it in
+the split keeps that size, in rows or columns, while every other node of
+the split keeps its least. The rest share what is left, so a terminal that
+shrinks shrinks the windows without a size first. `<C-w>=` drops every
+size.
+
 The window layout (splits) is outside the kernel. Until step 6 it lives in
 `editor/`, and the terminal client draws what `Editor.Views` returns. With
 remote clients, each client gets its own views (D16).

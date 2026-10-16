@@ -90,33 +90,65 @@ func (w *window) show(b *buffer) {
 	w.top = b.text.SetMark(b.lastTop, kernel.Left)
 }
 
-// node is one part of the layout: a window, or splits that share its space
-// equally, side by side when across is set and stacked otherwise.
+// node is one part of the layout: a window, or splits side by side when
+// across is set and stacked otherwise.
 type node struct {
 	win    *window
 	across bool
 	kids   []*node
 	parent *node
+	// size is the rows, or the columns side by side, the node asks for in
+	// its split, and 0 shares what the others leave (B193).
+	size int
+	w, h int // where the layout last placed it
 }
 
 // place gives n the rectangle at x, y of width w and height h. Side by side
-// windows have a column between them for a separator, and any space left
-// over goes to the first ones.
+// windows have a column between them for a separator. A kid that asks for
+// a size gets it, as long as every other kid keeps its least: a row and a
+// status line, or a column. The other kids share what is left, and the
+// first ones get any odd space.
 func (n *node) place(x, y, w, h int) {
+	n.w, n.h = w, h
 	if n.win != nil {
 		n.win.x, n.win.y, n.win.w, n.win.h = x, y, w, h
 		return
 	}
 	k := len(n.kids)
-	room := h
+	room, least := h, 2
 	if n.across {
-		room = w - (k - 1)
+		room, least = w-(k-1), 1
+	}
+	sizes, flex := make([]int, k), 0
+	for _, kid := range n.kids {
+		if kid.size == 0 {
+			flex++
+		}
+	}
+	// Every other kid keeps its least, so a size takes only what is left.
+	left, fixed := room-least*flex, k-flex
+	for i, kid := range n.kids {
+		if kid.size == 0 {
+			continue
+		}
+		fixed--
+		sizes[i] = max(least, min(kid.size, left-least*fixed))
+		left -= sizes[i]
+	}
+	left += least * flex
+	for i, kid := range n.kids {
+		if kid.size == 0 {
+			sizes[i] = left / flex
+			if i < left%flex {
+				sizes[i]++
+			}
+		}
+	}
+	if flex == 0 {
+		sizes[k-1] += left
 	}
 	for i, kid := range n.kids {
-		size := room / k
-		if i < room%k {
-			size++
-		}
+		size := sizes[i]
 		if n.across {
 			kid.place(x, y, size, h)
 			x += size + 1
@@ -150,6 +182,54 @@ func (n *node) leaf(w *window) *node {
 		}
 	}
 	return nil
+}
+
+// resize sets the size of the current window's split across, or stacked,
+// to what to makes of its size now and the room its split has, and does
+// nothing when no split goes that way (B193).
+func (e *Session) resize(across bool, to func(now, room int) int) {
+	l := e.root.leaf(e.win)
+	for l.parent != nil && l.parent.across != across {
+		l = l.parent
+	}
+	p := l.parent
+	if p == nil {
+		return
+	}
+	now, room := l.h, p.h
+	if across {
+		now, room = l.w, p.w-(len(p.kids)-1)
+	}
+	l.size = max(to(now, room), 1)
+	e.layout()
+}
+
+// resizeTo runs :resize, or :vertical resize when across, with arg: n
+// sets the size, +n and -n change it, and none makes it as large as it can
+// be (B193).
+func (e *Session) resizeTo(across bool, arg string) {
+	n, err := strconv.Atoi(arg)
+	if arg != "" && err != nil {
+		e.message = "not a size: " + arg
+		return
+	}
+	e.resize(across, func(now, room int) int {
+		switch {
+		case arg == "":
+			return room
+		case arg[0] == '+' || arg[0] == '-':
+			return now + n
+		}
+		return n
+	})
+}
+
+// even makes every split share its space equally again.
+func (n *node) even() {
+	n.size = 0
+	for _, k := range n.kids {
+		k.even()
+	}
 }
 
 // split opens a new window on the shown buffer below the current one, or

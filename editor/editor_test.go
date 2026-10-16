@@ -545,6 +545,41 @@ func TestB91WindowCommands(t *testing.T) {
 	}
 }
 
+// B193
+func TestB193WindowSizes(t *testing.T) {
+	e := open(t, "")
+	e.SetSize(80, 20)
+	heights := func() []int {
+		var out []int
+		for _, v := range e.Views() {
+			out = append(out, v.H)
+		}
+		return out
+	}
+	for _, c := range []struct {
+		keys string
+		want []int
+	}{
+		// The new window is below, and is the current one.
+		{"<C-w>s", []int{10, 10}},
+		{"3<C-w>+", []int{7, 13}},
+		{"<C-w>=", []int{10, 10}},
+		{":resize 5<CR>", []int{15, 5}},
+		{":resize +2<CR>", []int{13, 7}},
+		{"2<C-w>-", []int{15, 5}},
+		// The other window keeps a row and its status line.
+		{"<C-w>_", []int{2, 18}},
+	} {
+		if feed(e, c.keys); !slices.Equal(heights(), c.want) {
+			t.Errorf("%s left the windows %v rows tall, want %v", c.keys, heights(), c.want)
+		}
+	}
+	feed(e, "<C-w>o<C-w>v:vertical resize 30<CR>")
+	if vs := e.Views(); len(vs) != 2 || vs[0].W != 49 || vs[1].W != 30 {
+		t.Errorf(":vertical resize 30 left the windows %d and %d wide", vs[0].W, vs[1].W)
+	}
+}
+
 // B21, in every window
 func TestB21MatchesInEveryWindow(t *testing.T) {
 	dir := t.TempDir()
