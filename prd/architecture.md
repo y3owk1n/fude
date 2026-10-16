@@ -806,6 +806,10 @@ lsp = ["gopls"]      # its language servers, by name (B167)
 [lsp.gopls]          # a language server, all optional (B167)
 command = ["gopls"]  # its name when unset
 root = ["go.work", "go.mod", ".git"]   # marks a project's root, most wanted first
+init_options = {}    # sent with initialize (B168)
+
+[lsp.gopls.settings.gopls]   # what workspace/configuration answers, by section (B168)
+gofumpt = true
 
 [filetype.toml]
 files = ["*.toml.tmpl"]   # more files of the filetype, by name (B164)
@@ -1039,8 +1043,12 @@ everything until `initialize` returns and the encoding is known. A reader gorout
 takes its stdout, another drains its stderr into fude's log, and another
 waits for it to exit and tells the loop. A server that exits without being
 asked is restarted once and its documents opened again. After a second
-crash it stays off, and fude says so (B63). A request from the server gets
-an empty answer, since fude offers no client features yet.
+crash it stays off, and fude says so (B63). fude answers
+`workspace/configuration` with the sections of the server's settings that
+the request names. It answers `workspace/applyEdit` by applying the edit.
+Every other request from a server gets an empty answer. fude also sends a
+server's settings in `workspace/didChangeConfiguration` once the server
+has started (B168).
 
 Diagnostics are decorations the buffer owns, so they move with edits until
 the server publishes new ones. They show inline the way Neovim shows them

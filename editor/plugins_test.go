@@ -46,6 +46,8 @@ func settle(t *testing.T, e *editor.Session, done func() bool) {
 		select {
 		case f := <-e.Queue():
 			f()
+		case <-time.After(10 * time.Millisecond):
+			// done may wait on something other than the loop, such as a log.
 		case <-deadline:
 			t.Fatal("still waiting after 5s")
 		}

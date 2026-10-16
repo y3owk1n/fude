@@ -504,6 +504,10 @@ Where fude departs, the line says so and cites the departure in
   file's folder. When a server's program is not on PATH, fude says so once
   and does not start the server for files opened later, until `:lsp
   restart` or `:lsp enable` (N21).
+- B168 [5] An `[lsp.<name>]` table's `init_options` go to the server when
+  it starts, and its `settings` go to it once it has started. A server
+  that asks for a section of its settings, such as `gopls.ui`, gets that
+  part of them.
 
 ## Server and clients
 

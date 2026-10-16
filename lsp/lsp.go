@@ -52,12 +52,12 @@ type Range struct {
 	End   Position `json:"end"`
 }
 
-// Start runs command for the files under root. Three funcs run on the
-// editor loop, through queue. notify gets each notification the server
-// sends. serve gets each request, and its result goes back as the answer.
-// exited runs once the server exits, with why. Lines the server writes to
-// stderr go to log.
-func Start(command []string, root string, queue chan<- func(), log func(string), notify func(method string, params json.RawMessage), serve func(method string, params json.RawMessage) any, exited func(error)) (*Client, error) {
+// Start runs command for the files under root, and sends options with
+// initialize. Three funcs run on the editor loop, through queue. notify
+// gets each notification the server sends. serve gets each request, and
+// its result goes back as the answer. exited runs once the server exits,
+// with why. Lines the server writes to stderr go to log.
+func Start(command []string, root string, options any, queue chan<- func(), log func(string), notify func(method string, params json.RawMessage), serve func(method string, params json.RawMessage) any, exited func(error)) (*Client, error) {
 	cmd := exec.Command(command[0], command[1:]...)
 	cmd.Dir = root
 	stdin, err1 := cmd.StdinPipe()
@@ -74,7 +74,7 @@ func Start(command []string, root string, queue chan<- func(), log func(string),
 		wake: make(chan struct{}, 1), done: make(chan struct{}),
 	}
 	initialized := make(chan answer, 1)
-	go c.write(root, initialized)
+	go c.write(root, options, initialized)
 	go c.read(stdout, initialized, notify, serve)
 	go func() {
 		s := bufio.NewScanner(stderr)
@@ -132,6 +132,11 @@ func (c *Client) Change(uri string, version int, before api.Text, edits []api.Ed
 			"contentChanges": changes,
 		}}
 	})
+}
+
+// Notify sends the server a notification.
+func (c *Client) Notify(method string, params any) {
+	c.send(func(string) any { return message{Method: method, Params: params} })
 }
 
 // CloseDocument tells the server a document closed.
@@ -269,13 +274,14 @@ type answer struct {
 
 // write sends initialize, waits for the server's answer, then sends what is
 // queued, in order, until the server exits.
-func (c *Client) write(root string, initialized <-chan answer) {
+func (c *Client) write(root string, options any, initialized <-chan answer) {
 	params := map[string]any{
-		"processId": nil, "rootUri": URI(root),
+		"processId": nil, "rootUri": URI(root), "initializationOptions": options,
 		"workspaceFolders": []map[string]string{{"uri": URI(root), "name": filepath.Base(root)}},
 		"capabilities": map[string]any{
-			"general": map[string]any{"positionEncodings": []string{"utf-8", "utf-16"}},
-			"window":  map[string]any{"workDoneProgress": true},
+			"general":   map[string]any{"positionEncodings": []string{"utf-8", "utf-16"}},
+			"window":    map[string]any{"workDoneProgress": true},
+			"workspace": map[string]any{"configuration": true, "didChangeConfiguration": map[string]any{}},
 		},
 	}
 	if c.frame(request{ID: 0, Method: "initialize", Params: params}) != nil {

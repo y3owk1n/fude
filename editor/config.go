@@ -46,8 +46,10 @@ type config struct {
 		Format      [][]string `toml:"format" help:"the formatters' commands, run in turn"`
 	} `toml:"filetype" key:"type"`
 	LSP map[string]struct {
-		Command []string `toml:"command" help:"the server's command, its name when unset"`
-		Root    []string `toml:"root" help:"the files that mark a project's root, most wanted first, looked for from the file's folder up"`
+		Command     []string       `toml:"command" help:"the server's command, its name when unset"`
+		Root        []string       `toml:"root" help:"the files that mark a project's root, most wanted first, looked for from the file's folder up"`
+		Settings    map[string]any `toml:"settings" help:"the server's settings, which it reads by section"`
+		InitOptions map[string]any `toml:"init_options" help:"what the server gets as its initialization options"`
 	} `toml:"lsp" key:"name"`
 	Plugin []struct {
 		Path         string   `toml:"path" help:"the plugin's file, from the config directory"`

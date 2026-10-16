@@ -181,6 +181,9 @@ func TestFakeServer(t *testing.T) {
 			os.Exit(0)
 		case "initialized":
 			progress("begin", "indexing")
+			// fude's answer goes to the log, as everything fude sends does.
+			body, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": 1, "method": "workspace/configuration", "params": map[string]any{"items": []any{map[string]string{"section": "fake.answer"}}}})
+			fmt.Fprintf(os.Stdout, "Content-Length: %d\r\n\r\n%s", len(body), body)
 		case "textDocument/didChange":
 			if strings.Contains(string(body), `"text":"#"`) {
 				os.Exit(3)
@@ -268,6 +271,18 @@ func TestB167ProjectRoot(t *testing.T) {
 	change(t, filepath.Join(dir, "go.mod"), "module m\n")
 	_, log := withServerAt(t, filepath.Join(dir, "pkg", "a.go"), "x\n", "utf-8", `lsp.fake.root = ["go.work", "go.mod"]`)
 	heard(t, log, fmt.Sprintf(`"rootUri":%q`, lsp.URI(dir)), 1)
+}
+
+// B168
+func TestB168ServerSettings(t *testing.T) {
+	e, log := withServer(t, "x\n", "utf-8", "lsp.fake.settings.fake.answer = 42", `lsp.fake.init_options.mode = "test"`)
+	heard(t, log, `"initializationOptions":{"mode":"test"}`, 1)
+	heard(t, log, `"method":"workspace/didChangeConfiguration","params":{"settings":{"fake":{"answer":42}}}`, 1)
+	// The server asks for the section fake.answer, on the editor loop.
+	settle(t, e, func() bool {
+		b, _ := os.ReadFile(log)
+		return strings.Contains(string(b), `"result":[42]`)
+	})
 }
 
 // B159

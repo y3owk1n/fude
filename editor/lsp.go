@@ -169,7 +169,8 @@ func (e *Session) detach(b *buffer) {
 }
 
 func (e *Session) start(s *server) error {
-	c, err := lsp.Start(s.command, s.root, e.queue, logLine,
+	cfg := e.cfg.LSP[s.name]
+	c, err := lsp.Start(s.command, s.root, cfg.InitOptions, e.queue, logLine,
 		func(method string, params json.RawMessage) { e.notified(s, method, params) },
 		func(method string, params json.RawMessage) any { return e.served(s, method, params) },
 		func(err error) { e.exited(s, err) })
@@ -178,6 +179,9 @@ func (e *Session) start(s *server) error {
 	}
 	// A restarted server starts with none of its old process's work.
 	s.client, s.work = c, map[string]*work{}
+	if len(cfg.Settings) > 0 {
+		c.Notify("workspace/didChangeConfiguration", map[string]any{"settings": cfg.Settings})
+	}
 	return nil
 }
 
@@ -499,9 +503,23 @@ func (e *Session) workspaceEdit(s *server, from *buffer, t kernel.Snapshot, res 
 }
 
 // served answers a request from s. workspace/applyEdit applies its edit, as
-// a code action's command asks. Other requests get an empty answer, as fude
-// offers nothing else.
+// a code action's command asks, and workspace/configuration gets the
+// sections of s's settings that the request names (B168). Other requests get an empty
+// answer, as fude offers nothing else.
 func (e *Session) served(s *server, method string, params json.RawMessage) any {
+	if method == "workspace/configuration" {
+		var p struct {
+			Items []struct {
+				Section string `json:"section"`
+			} `json:"items"`
+		}
+		json.Unmarshal(params, &p)
+		out := make([]any, len(p.Items))
+		for i, it := range p.Items {
+			out[i] = section(e.cfg.LSP[s.name].Settings, it.Section)
+		}
+		return out
+	}
 	if method != "workspace/applyEdit" {
 		return nil
 	}
@@ -514,6 +532,23 @@ func (e *Session) served(s *server, method string, params json.RawMessage) any {
 		e.message = strings.Join(problems, "  ")
 	}
 	return map[string]any{"applied": len(problems) == 0}
+}
+
+// section returns the part of settings that a dotted name such as
+// "gopls.ui" names, all of it for "", or nil when there is none.
+func section(settings map[string]any, name string) any {
+	if name == "" {
+		return settings
+	}
+	var v any = settings
+	for k := range strings.SplitSeq(name, ".") {
+		m, ok := v.(map[string]any)
+		if !ok {
+			return nil
+		}
+		v = m[k]
+	}
+	return v
 }
 
 // pick is a numbered list of code actions. Typing a number and <CR> picks
