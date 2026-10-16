@@ -792,6 +792,7 @@ type Float struct {
 	Title       string // drawn in the top of its border
 	Doc         string // drawn beside it, styled by DocSpans
 	DocSpans    []syntax.Span
+	Lit         bool // the windows under it stay lit, as under the key hints (B151)
 	// Where a box in a place of its own goes, its border included. W is 0
 	// for a box at the cursor. DocW is the width of the documentation's box
 	// right of it.

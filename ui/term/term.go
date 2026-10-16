@@ -172,7 +172,7 @@ func (c *client) draw() {
 	// drawn in the tinted theme, and draws on the tinted ground (B151).
 	f, floats := c.e.Float()
 	// A :s being typed shows its preview in the windows, so they stay lit.
-	modal := c.e.Mode() == vim.Cmdline && !c.e.Substituting() || floats && f.W > 0
+	modal := c.e.Mode() == vim.Cmdline && !c.e.Substituting() || floats && f.W > 0 && !f.Lit
 	if modal {
 		apply(dimmed)
 		defer apply(lit)

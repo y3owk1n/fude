@@ -142,5 +142,5 @@ func (e *Session) hintsFloat() Float {
 	}
 	text := strings.TrimRight(s.String(), " ")
 	h := rows + 2
-	return Float{Text: text, Spans: spans, Cursor: -1, Title: vim.Notation(e.vim.Shown()), X: 0, Y: max(e.height-1-h, 0), W: e.width, H: h}
+	return Float{Text: text, Spans: spans, Cursor: -1, Title: vim.Notation(e.vim.Shown()), Lit: true, X: 0, Y: max(e.height-1-h, 0), W: e.width, H: h}
 }

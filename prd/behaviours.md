@@ -256,9 +256,10 @@ Where fude departs, the line says so and cites the departure in
   is part of its box. The finder heads its list with a prompt and the count
   of matches, and its preview with the file's path, and keeps two columns
   and a row from the screen's edges.
-- B151 [2] While the command line or the finder shows, the windows under
-  it are drawn on a darker ground with their text faded into it, and the
-  box draws on that ground with its text at full strength.
+- B151 [2] While the command line, the finder or the `:lsp` panel shows,
+  the windows under it are drawn on a darker ground with their text faded
+  into it, and the box draws on that ground with its text at full
+  strength. The key hints leave the windows as they are (B172).
 - B152 [2] The finder marks in the accent colour the letters of each path
   that its query matches, where `matchfuzzypos()` puts them, and a grep
   result marks where the query is in its line. A command line's menu marks

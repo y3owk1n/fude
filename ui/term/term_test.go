@@ -274,6 +274,14 @@ func TestB151Tint(t *testing.T) {
 	cl := start(t)
 	cl.draw()
 	_, before, _ := cl.s.Get(0, 0)
+	// The key hints leave the windows lit.
+	cl.e.Feed("g")
+	cl.e.ShowHints()
+	cl.draw()
+	if _, under, _ := cl.s.Get(0, 0); under.GetBackground() != before.GetBackground() {
+		t.Fatalf("under the key hints the ground is %v", under.GetBackground())
+	}
+	cl.e.Feed("<Esc>")
 	for _, k := range vim.Keys(":ab") {
 		cl.e.Feed(k)
 	}
