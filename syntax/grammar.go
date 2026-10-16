@@ -67,6 +67,36 @@ var registry = map[string]grammar{
 	"typescript":      {"https://github.com/tree-sitter/tree-sitter-typescript", "f975a621f4e7f532fe322e13c4f79495e0a7b2e7", "typescript", []string{"queries/highlights.scm", "javascript:queries/highlights.scm"}, []string{"javascript:queries/injections.scm"}, "// %s"},
 	"zig":             {"https://github.com/tree-sitter-grammars/tree-sitter-zig", "b670c8df85a1568f498aa5c8cae42f51a90473c0", ".", []string{"queries/highlights.scm"}, []string{"queries/injections.scm"}, "// %s"},
 	"yaml":            {"https://github.com/tree-sitter-grammars/tree-sitter-yaml", "7708026449bed86239b1cd5bce6e3c34dbca6415", ".", []string{"queries/highlights.scm"}, nil, "# %s"},
+	"fish":            {"https://github.com/ram02z/tree-sitter-fish", "b7f1d682941e0c62dfcd6bf9ef481638351bab16", ".", []string{"queries/highlights.scm"}, nil, "# %s"},
+	"jsonc":           {"https://gitlab.com/WhyNotHugo/tree-sitter-jsonc.git", "f7890ba894d885d1b2b721cfae759b07d53c8886", ".", []string{"json:queries/highlights.scm"}, nil, "// %s"},
+	"just":            {"https://github.com/casey/tree-sitter-just", "5685543a6e64f66335e25518c9ae8ffa1dae3d01", ".", []string{"queries/just/highlights.scm"}, []string{"queries/just/injections.scm"}, "# %s"},
+	"dockerfile":      {"https://github.com/camdencheek/tree-sitter-dockerfile", "971acdd908568b4531b0ba28a445bf0bb720aba5", ".", []string{"queries/highlights.scm"}, nil, "# %s"},
+	"nix":             {"https://github.com/nix-community/tree-sitter-nix", "32c3ce98afdafc2ec9aedf0280a678750f76254c", ".", []string{"queries/highlights.scm"}, []string{"queries/injections.scm"}, "# %s"},
+	"gomod":           {"https://github.com/camdencheek/tree-sitter-go-mod", "2e886870578eeba1927a2dc4bd2e2b3f598c5f9a", ".", []string{"queries/highlights.scm"}, nil, "// %s"},
+	"gosum":           {"https://github.com/tree-sitter-grammars/tree-sitter-go-sum", "27816eb6b7315746ae9fcf711e4e1396dc1cf237", ".", []string{"queries/highlights.scm"}, nil, ""},
+	"gowork":          {"https://github.com/omertuc/tree-sitter-go-work", "949a8a470559543857a62102c84700d291fc984c", ".", []string{"queries/highlights.scm"}, nil, "// %s"},
+	"sql":             {"https://github.com/derekstride/tree-sitter-sql", "39fdb006403747241244326e8af3b3e96b85381c", ".", []string{"queries/highlights.scm"}, nil, "-- %s"},
+	"gitcommit":       {"https://github.com/gbprod/tree-sitter-gitcommit", "55a265cf763ec15d6e2d96bb206e3f5e30d82bae", ".", []string{"queries/highlights.scm"}, []string{"queries/injections.scm"}, "# %s"},
+	"git_rebase":      {"https://github.com/the-mikedavis/tree-sitter-git-rebase", "32686d6b72980b36f876ae2d07719c9c3ed154e2", ".", []string{"queries/highlights.scm"}, nil, "# %s"},
+	"diff":            {"https://github.com/tree-sitter-grammars/tree-sitter-diff", "ada384ac7bfc1307f32de474620120add29998fb", ".", []string{"queries/highlights.scm"}, nil, ""},
+	"gitignore":       {"https://github.com/shunsambongi/tree-sitter-gitignore", "f4685bf11ac466dd278449bcfe5fd014e94aa504", ".", nil, nil, "# %s"},
+	"make":            {"https://github.com/tree-sitter-grammars/tree-sitter-make", "70613f3d812cbabbd7f38d104d60a409c4008b43", ".", []string{"queries/highlights.scm"}, []string{"queries/injections.scm"}, "# %s"},
+	"ruby":            {"https://github.com/tree-sitter/tree-sitter-ruby", "ad907a69da0c8a4f7a943a7fe012712208da6dee", ".", []string{"queries/highlights.scm"}, nil, "# %s"},
+	"java":            {"https://github.com/tree-sitter/tree-sitter-java", "e10607b45ff745f5f876bfa3e94fbcc6b44bdc11", ".", []string{"queries/highlights.scm"}, nil, "// %s"},
+	"kotlin":          {"https://github.com/fwcd/tree-sitter-kotlin", "1852ea17b7f60fb3f9d84e0b1555d56b46b39fb1", ".", []string{"queries/highlights.scm"}, nil, "// %s"},
+	"swift":           {"https://github.com/alex-pinkus/tree-sitter-swift", "82bb3a533e0801fd2bbaa11dc49676e10bf41948", ".", []string{"queries/highlights.scm"}, []string{"queries/injections.scm"}, "// %s"},
+	"php":             {"https://github.com/tree-sitter/tree-sitter-php", "58d5643086ae60e93a3746cca648363ee97c8761", "php", []string{"queries/highlights.scm"}, []string{"queries/injections.scm", "queries/injections-text.scm"}, "// %s"},
+	"elixir":          {"https://github.com/elixir-lang/tree-sitter-elixir", "4b0c7118760af58a2e7081bbc8396e136f820b37", ".", []string{"queries/highlights.scm"}, []string{"queries/injections.scm"}, "# %s"},
+	"haskell":         {"https://github.com/tree-sitter-grammars/tree-sitter-haskell", "98aedbd2d6947a168ba3ba3755d70b0cb6b78395", ".", []string{"queries/highlights.scm"}, []string{"queries/injections.scm"}, "-- %s"},
+	"scala":           {"https://github.com/tree-sitter/tree-sitter-scala", "db390f312a54b04b13790e1767bfac32665c17ac", ".", []string{"queries/highlights.scm"}, nil, "// %s"},
+	"dart":            {"https://github.com/UserNobody14/tree-sitter-dart", "3f0c7a8309d89927e7cc6bef39569c815fddb2e5", ".", []string{"queries/highlights.scm"}, nil, "// %s"},
+	"scss":            {"https://github.com/tree-sitter-grammars/tree-sitter-scss", "5da5ba71a558b007b352c505bfcd9095ae337022", ".", []string{"css:queries/highlights.scm", "queries/highlights.scm"}, nil, "// %s"},
+	"vue":             {"https://github.com/tree-sitter-grammars/tree-sitter-vue", "ce8011a414fdf8091f4e4071752efc376f4afb08", ".", []string{"html:queries/highlights.scm"}, []string{"html:queries/injections.scm", "queries/vue/injections.scm"}, "<!-- %s -->"},
+	"svelte":          {"https://github.com/tree-sitter-grammars/tree-sitter-svelte", "ae5199db47757f785e43a14b332118a5474de1a2", ".", []string{"html:queries/highlights.scm", "queries/highlights.scm"}, []string{"html:queries/injections.scm"}, "<!-- %s -->"},
+	"astro":           {"https://github.com/virchau13/tree-sitter-astro", "213f6e6973d9b456c6e50e86f19f66877e7ef0ee", ".", []string{"queries/highlights.scm"}, []string{"html:queries/injections.scm", "queries/injections.scm"}, "<!-- %s -->"},
+	"graphql":         {"https://github.com/bkegley/tree-sitter-graphql", "5e66e961eee421786bdda8495ed1db045e06b5fe", ".", []string{"queries/graphql/highlights.scm"}, nil, "# %s"},
+	"xml":             {"https://github.com/tree-sitter-grammars/tree-sitter-xml", "5000ae8f22d11fbe93939b05c1e37cf21117162d", "xml", []string{"queries/xml/highlights.scm"}, nil, "<!-- %s -->"},
+	"prisma":          {"https://github.com/victorhqc/tree-sitter-prisma", "3556b2c1f20ec9ac91e92d32c43d9d2a0ca3cc49", ".", []string{"queries/highlights.scm"}, nil, "// %s"},
 }
 
 // shipped holds the text objects fude writes for the grammars it builds
@@ -174,6 +204,10 @@ func load(path, filetype string) (*language, error) {
 	var err error
 	if l.highlights, err = read("highlights"); err != nil {
 		return nil, err
+	}
+	// fude's own highlights stand in for a grammar's repo that has none.
+	if b, err := shipped.ReadFile("queries/" + filetype + "/highlights.scm"); err == nil && l.highlights == "" {
+		l.highlights = string(b)
 	}
 	if l.injections, err = read("injections"); err != nil {
 		return nil, err

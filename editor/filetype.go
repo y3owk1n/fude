@@ -16,12 +16,26 @@ var extFiletypes = map[string]string{
 	"js": "javascript", "mjs": "javascript", "cjs": "javascript", "jsx": "javascript",
 	"ts": "typescript", "mts": "typescript", "cts": "typescript",
 	"rs": "rust", "h": "c", "cc": "cpp", "cxx": "cpp", "hpp": "cpp", "hh": "cpp", "htm": "html",
+	"just": "just", "dockerfile": "dockerfile", "containerfile": "dockerfile", "patch": "diff", "mk": "make",
+	"rb": "ruby", "rake": "ruby", "gemspec": "ruby", "ru": "ruby", "kt": "kotlin", "kts": "kotlin", "phtml": "php",
+	"ex": "elixir", "exs": "elixir", "hs": "haskell", "sc": "scala", "sbt": "scala",
+	"gql": "graphql", "graphqls": "graphql",
+	"svg": "xml", "plist": "xml", "xsd": "xml", "xsl": "xml", "xslt": "xml", "rss": "xml", "atom": "xml",
 }
 
 // nameFiletypes are the filetypes of files known by their whole name.
 var nameFiletypes = map[string]string{
 	".bashrc": "bash", ".bash_profile": "bash", ".bash_aliases": "bash", ".profile": "bash", "PKGBUILD": "bash",
-	"Cargo.lock": "toml",
+	"Cargo.lock":    "toml",
+	"tsconfig.json": "jsonc", "jsconfig.json": "jsonc", ".eslintrc": "jsonc", ".babelrc": "jsonc", "bun.lock": "jsonc",
+	"justfile": "just", "Justfile": "just", ".justfile": "just",
+	"Dockerfile": "dockerfile", "dockerfile": "dockerfile", "Containerfile": "dockerfile",
+	"go.mod": "gomod", "go.sum": "gosum", "go.work.sum": "gosum", "go.work": "gowork",
+	"COMMIT_EDITMSG": "gitcommit", "MERGE_MSG": "gitcommit", "TAG_EDITMSG": "gitcommit", "git-rebase-todo": "git_rebase",
+	".gitignore": "gitignore", ".ignore": "gitignore", ".rgignore": "gitignore", ".fdignore": "gitignore",
+	"Makefile": "make", "makefile": "make", "GNUmakefile": "make",
+	"Gemfile": "ruby", "Rakefile": "ruby", "Guardfile": "ruby", "Podfile": "ruby", "Vagrantfile": "ruby", "Brewfile": "ruby",
+	"mix.lock": "elixir",
 }
 
 // filetypeOf returns the filetype of the file at path: the one whose files

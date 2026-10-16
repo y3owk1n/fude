@@ -52,7 +52,7 @@ how Neovim works and drops the weight.
   every state, `:earlier 10m` and `:later 1f` by time or writes, and
   `:timeline` lists, diffs and restores any state. Unsaved changes survive
   a crash, and `:recover` brings them back.
-- **Syntax.** tree-sitter highlighting for Go built in, and for other
+- **Syntax.** tree-sitter highlighting for Go built in, and for 46 other
   languages through grammars fude builds the first time a file needs one.
   Languages inside other languages, such as code in markdown, get their own
   colours. `daf` deletes a function, `cic` changes a class's body and
