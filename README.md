@@ -120,8 +120,9 @@ cd fude
 go build -o bin/fude ./cmd/fude
 ```
 
-Put `bin/fude` on your PATH. `go install` does not work yet, because the
-repository's modules point at each other through local paths.
+Put `bin/fude` on your PATH. `go install` works from the first release on.
+Until then the repository's modules point at each other through local
+paths, which `go install` refuses.
 
 ## Getting started
 

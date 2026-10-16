@@ -335,6 +335,21 @@ runtime takes longer to start. TinyGo leaves out parts of the standard
 library, such as `os` and `net`, which a plugin reaches through fude's
 functions anyway.
 
+## D37. The modules are released together, and the first release brings go install
+
+fude's modules are the root, `core/`, `vim/` and `sdk/`. They take one
+version together, tagged `vX.Y.Z`, `core/vX.Y.Z`, `vim/vX.Y.Z` and
+`sdk/vX.Y.Z` on one commit. Until the first release, the root's `go.mod` points at
+`core/` and `vim/` through `replace` lines, so `go install` refuses it and
+fude builds from a clone. A release drops the `replace` lines and requires
+the tags, which makes `go install github.com/y3owk1n/fude/cmd/fude@vX.Y.Z`
+work. `just standalone` builds every module outside the workspace, so a
+module whose `go.mod` lacks a requirement fails before a release does. Why:
+`core/` and `vim/` stay modules of their own, for programs that embed them
+without fude's dependencies (D22, D23). Requiring each other by commit
+before there are releases would add a second commit and push to every
+change of `core/` or `vim/` the editor depends on.
+
 ## Departures from Neovim
 
 Each entry: what differs, then why.

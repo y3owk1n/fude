@@ -14,6 +14,12 @@ vet:
     for m in {{ modules }}; do (cd $m && go vet ./...) || exit 1; done
     cd sdk && GOOS=wasip1 GOARCH=wasm go vet ./...
 
+# Build every module on its own, outside the workspace, as go get and go
+# install build them, so a requirement the workspace hides fails here (D37).
+standalone:
+    for m in {{ modules }}; do (cd $m && GOWORK=off go build ./...) || exit 1; done
+    cd sdk && GOWORK=off GOOS=wasip1 GOARCH=wasm go build ./...
+
 # Format every Go file.
 fmt:
     gofumpt -w .
@@ -50,4 +56,4 @@ kernel-size:
     test $(find core -name '*.go' ! -name '*_test.go' -exec cat {} + | wc -l) -le 10000
 
 # Run everything a commit needs.
-check: fmt-check vet test kernel-size perf
+check: fmt-check vet standalone test kernel-size perf
