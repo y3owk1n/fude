@@ -8,6 +8,7 @@
 package term
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -31,14 +32,60 @@ func code(t *testing.T, size int) string {
 	return path
 }
 
-// press runs the work queued for the editor loop, as the loop does between
-// keys, then feeds keys and draws one frame, and returns how long the keys
-// and the frame took.
-func (c *client) press(keys string) time.Duration {
-	for len(c.e.Queue()) > 0 {
-		(<-c.e.Queue())()
+// realCode writes about size bytes of Go, the standard library's own source
+// over and over, and returns its path. It has the nesting, long lines,
+// comments and unicode of real code.
+func realCode(t *testing.T, size int) string {
+	t.Helper()
+	var b strings.Builder
+	err := filepath.WalkDir(filepath.Join(runtime.GOROOT(), "src"), func(path string, d fs.DirEntry, err error) error {
+		switch {
+		case err != nil:
+			return err
+		case d.IsDir() && d.Name() == "testdata":
+			return filepath.SkipDir
+		case b.Len() >= size:
+			return filepath.SkipAll
+		case !strings.HasSuffix(path, ".go"):
+			return nil
+		}
+		src, err := os.ReadFile(path)
+		b.Write(src)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "f.go")
+	if err := os.WriteFile(path, []byte(b.String()), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+// press runs the editor loop for gap, as it runs between keys: it does the
+// work other goroutines queue as it comes, such as a new syntax tree, and
+// draws after each. Then keys arrive, and it feeds them and draws. When
+// queued work was still running as the keys arrived, it returns the time
+// from their arrival to the frame, since the keys waited for that work.
+// Otherwise it counts from when the wait ends, because the test's timer
+// fires late, and a real key would not wait for it.
+func (c *client) press(keys string, gap time.Duration) time.Duration {
+	arrive := time.Now().Add(gap)
+	busy := false // work ran past the keys' arrival
+	for wait := time.Until(arrive); wait > 0; wait = time.Until(arrive) {
+		select {
+		case f := <-c.e.Queue():
+			f()
+			c.draw()
+			busy = time.Now().After(arrive)
+		case <-time.After(wait):
+		}
 	}
 	at := time.Now()
+	if busy {
+		at = arrive
+	}
 	for _, k := range vim.Keys(keys) {
 		c.e.Feed(k)
 	}
@@ -62,18 +109,20 @@ func TestPromiseColdStart(t *testing.T) {
 	}
 }
 
-// Key read to frame written under 1ms at p99, on a 10MB file. The test feeds
-// and draws each key of a mix of motions, edits, searches and scrolls, over a
-// thousand keys.
+// Key read to frame written under 1ms at p99, on 10MB of real Go with its
+// syntax on. The test feeds a mix of motions, edits, searches and scrolls,
+// over a thousand keys, 10ms apart, which is faster than key repeat. The
+// work the edits queue, such as reparsing, runs between keys as the loop
+// runs it, and a key that arrives while it runs waits for it.
 func TestPromiseKeyLatency(t *testing.T) {
-	c := start(t, code(t, 10<<20))
+	c := start(t, realCode(t, 10<<20))
 	c.draw()
-	session := "jjjjkkwwbbeeWB}}{{50%ggG90000G/fox<CR>nnN*#xu.uddpyyPuuciwbar<Esc>u" +
-		"ihello world<Esc>uoreturn nil<Esc>uA;<Esc>u<C-d><C-u><C-f><C-b>zzHML%:s/fox/cat/<CR>u"
+	session := "jjjjkkwwbbeeWB}}{{50%ggG90000G/func<CR>nnN*#xu.uddpyyPuuciwbar<Esc>u" +
+		"ihello world<Esc>uoreturn nil<Esc>uA;<Esc>u<C-d><C-u><C-f><C-b>zzHML%:s/err/e/<CR>u"
 	var times []time.Duration
 	for len(times) < 1000 {
 		for _, k := range vim.Keys(session) {
-			times = append(times, c.press(string(k)))
+			times = append(times, c.press(string(k), 10*time.Millisecond))
 		}
 	}
 	slices.Sort(times)
@@ -104,7 +153,7 @@ func TestPromiseHugeFile(t *testing.T) {
 	}
 	slowest := time.Duration(0)
 	for _, k := range []string{"<C-f>", "<C-d>", "<C-b>", "<C-u>", "j", "k", "G", "gg", "5000000G", "}", "{"} {
-		d := c.press(k)
+		d := c.press(k, 0)
 		slowest = max(slowest, d)
 		if d > 16*time.Millisecond {
 			t.Errorf("%s took %v, want under 16ms", k, d)

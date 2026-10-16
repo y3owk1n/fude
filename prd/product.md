@@ -38,7 +38,9 @@ Neovim works and drops the weight.
   is a decision with its reason (D20).
 - **Fast**: CI fails when any of these regress, measured on an M-series Mac.
   - Cold start to first frame on an empty buffer under 5ms.
-  - Key read to frame written under 1ms at p99, on a 10MB file.
+  - Key read to frame written under 1ms at p99, on 10MB of real Go with its
+    syntax on. Keys come 10ms apart, and the work the loop does between
+    them counts.
   - A 1GB file shows its first frame in under 1s and scrolls at frame rate.
 - **Extendable**: every built-in operator, target, ex command, keymap,
   decoration and UI element uses the API a plugin gets. Anything the
