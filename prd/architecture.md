@@ -509,6 +509,16 @@ changes per window, a line takes one row, and the window scrolls sideways
 the least it must to show the cursor's column, as Neovim's `sidescroll` of
 1 does. Rows past the end of the text show `~` (B37).
 
+A frame draws only the lines that changed. For each line, the client keeps
+what it drew the line from: the window's place and selection, and the
+line's text, styles, cursor-line shade, matches, brackets, cursors,
+proposals, note and indent. When a line draws from the same as in the
+last frame, it keeps its rows. The gutter, the status line and the
+cursor's line draw in every frame. The cursor's line draws so the client
+knows where the cursor is. While a box,
+the command line or a message is over the windows, and in the frame after
+it, every line draws (B197).
+
 `:set` changes the options of the current window, and the ones the
 session's next windows start with, as Neovim's `:set` sets both the local
 and the global value. It takes the names `config.toml` uses (N4): `name`,

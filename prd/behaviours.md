@@ -268,6 +268,8 @@ Where fude departs, the line says so and cites the departure in
   marks each indent level in a line's leading blanks, at every
   `indent_width` columns, and a blank line shows the guides of the next
   line with text (N19). `list` hides them.
+- B197 [2] Every frame shows the same cells as the first frame of a fresh
+  client would, whatever frames came before it.
 - B154 [2] While a `:s` is typed, the window shows what it would do, as
   Neovim's `inccommand` does: the matches of its pattern, then each match
   struck out with its replacement after it. The text does not change until

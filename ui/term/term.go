@@ -3,7 +3,9 @@
 package term
 
 import (
+	"bytes"
 	"cmp"
+	"encoding/binary"
 	"fmt"
 	"slices"
 	"strings"
@@ -168,18 +170,47 @@ func paint(out []tcell.Style, spans []syntax.Span, top, end int) []tcell.Style {
 type client struct {
 	s        tcell.Screen
 	e        *editor.Session
-	theme    string        // the theme drawn in, as e names it
-	colours  *[16]int32    // its base16 scheme's colours, if it is one
-	spinning bool          // the last frame shows a spinner
-	styles   []tcell.Style // a view's, kept between frames so painting them allocates nothing
+	theme    string            // the theme drawn in, as e names it
+	colours  *[16]int32        // its base16 scheme's colours, if it is one
+	spinning bool              // the last frame shows a spinner
+	styles   []tcell.Style     // a view's, kept between frames so painting them allocates nothing
+	frame    int               // counts the frames drawn
+	lines    map[[2]int]*shown // the windows' lines drawn, by the cell each starts at
+	overlaid bool              // the last frame drew a box, the command line or a message over the windows
+	size     [2]int            // the screen's size in the last frame
+	sig      sig               // reused to build each line's sig
+}
+
+// shown is what a frame drew a window's line from. When the next frame
+// would draw the line from the same, it leaves the line's rows as they are.
+type shown struct {
+	frame  int
+	sig    sig
+	styles []tcell.Style
+}
+
+// sig holds what a line draws from, as bytes to compare.
+type sig []byte
+
+func (k sig) int(n int) sig    { return binary.AppendVarint(k, int64(n)) }
+func (k sig) str(s string) sig { return append(k.int(len(s)), s...) }
+
+func (k sig) flag(b bool) sig {
+	if b {
+		return k.int(1)
+	}
+	return k.int(0)
 }
 
 func (c *client) draw() {
 	at := time.Now()
 	defer func() { api.Trace("frame", "drawn", time.Since(at)) }()
+	c.frame++
 	c.spinning = false
+	fresh := c.lines == nil
 	// The theme e names may change at any time with :theme (B158).
 	if name, colours := c.e.Theme(); name != c.theme || colours != c.colours {
+		fresh = true
 		c.theme, c.colours = name, colours
 		t := themes[name]
 		if colours != nil {
@@ -196,13 +227,21 @@ func (c *client) draw() {
 	// A modal box, the command line or the finder, has the windows under it
 	// drawn in the tinted theme, and draws on the tinted ground (B151).
 	f, floats := c.e.Float()
+	msg := c.e.Message()
 	// A :s being typed shows its preview in the windows, so they stay lit.
 	modal := c.e.Mode() == vim.Cmdline && !c.e.Substituting() || floats && f.W > 0 && !f.Lit
 	if modal {
 		apply(dimmed)
 		defer apply(lit)
 	}
-	c.s.Fill(' ', base)
+	// No line's sig holds what draws over the windows, so every line draws
+	// while something is over them and in the frame after.
+	over := c.e.Mode() == vim.Cmdline || floats || msg != ""
+	if fresh || over || c.overlaid || c.size != [2]int{w, h} {
+		c.s.Fill(' ', base)
+		c.lines = map[[2]int]*shown{}
+	}
+	c.overlaid, c.size = over, [2]int{w, h}
 	cx, cy := 0, 0
 	for _, v := range c.e.Views() {
 		if x, y, ok := c.view(v, sel, visual && v.Current); ok {
@@ -225,7 +264,7 @@ func (c *client) draw() {
 			cx, cy = x, y
 		}
 	}
-	if msg := c.e.Message(); msg != "" {
+	if msg != "" {
 		c.toast(msg, w, h)
 	}
 
@@ -409,8 +448,9 @@ func (c *client) box(text string, spans []syntax.Span, rows []row, x, y, width, 
 }
 
 // view draws one window: its text, a status line on its bottom row, and a
-// separator on its left when another window is beside it. For the current
-// window it reports where the cursor is.
+// separator on its left when another window is beside it. A line keeps its
+// rows when the last frame drew it from the same, unless it holds the
+// cursor. For the current window it reports where the cursor is.
 func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, bool) {
 	t := v.Text
 	// The text goes right of the sign column and the line numbers.
@@ -426,128 +466,179 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 	if v.Current {
 		cursors = c.e.Cursors()
 	}
+	// win holds what every line of the window draws from.
+	win := sig(nil).int(v.X).int(v.Y).int(v.W).int(v.Left).flag(v.Wrap).flag(v.List)
+	if visual {
+		win = win.int(sel.Start).int(sel.End).flag(sel.Block).int(sel.Left).int(sel.Right)
+		for _, r := range sel.Regions {
+			win = win.int(r[0]).int(r[1])
+		}
+	}
 	row := 0
 	for row < v.H-1 {
-		end := vim.LineEnd(t, pos)
+		end, line := vim.LineEnd(t, pos), t.LineOf(pos)
 		var matches [][2]int
 		for _, mt := range v.Matches {
 			if mt[1] > pos && mt[0] <= end {
 				matches = append(matches, mt)
 			}
 		}
-		// A line wraps onto as many rows as it needs (B37). col is the
-		// column in the line, which tabs are measured from.
+		// A line wraps onto as many rows as it needs (B37).
 		starts := []int{pos}
 		if v.Wrap {
 			starts = vim.Rows(t, pos, v.W)
 		}
-		col := 0
-		for i, start := range starts {
-			if row >= v.H-1 {
-				break
+		starts = starts[:min(len(starts), v.H-1-row)]
+		// The gutter draws in every frame, as relative numbers change with
+		// the cursor's line.
+		c.s.FillArea(numbers, v.Y+row, v.Gutter, len(starts), ' ', base)
+		if s, ok := v.Signs[line]; ok {
+			c.s.PutStrStyled(numbers, v.Y+row, s.Text, base.Foreground(signColours[s.Name]))
+		}
+		if s, ok := v.Icons[line]; ok {
+			c.s.PutStrStyled(v.X-2, v.Y+row, s.Text, base.Foreground(signColours[s.Name]))
+		}
+		if v.Number || v.Relative {
+			c.number(line, cur, numbers+v.SignCols, v.Y+row, v)
+		}
+		shade := v.CursorLine && line == cur
+		lead := -1
+		if v.Guides && !v.List {
+			lead = indentOf(t, pos)
+		}
+		text := t.Slice(pos, end)
+		// A tag starts each part of the sig, so two different lines never
+		// read the same. Its positions count from the line's start, so a
+		// line keeps its sig when text above it changes.
+		k := append(c.sig[:0], win...).int(row).int(len(starts)).str(text).flag(shade).int(lead).str(v.Notes[line])
+		for _, p := range v.Pair {
+			if p >= pos && p <= end {
+				k = k.int(1).int(p - pos)
 			}
-			y, stop := v.Y+row, end
-			if s, ok := v.Signs[t.LineOf(pos)]; ok && i == 0 {
-				c.s.PutStrStyled(numbers, y, s.Text, base.Foreground(signColours[s.Name]))
+		}
+		for _, mt := range matches {
+			k = k.int(2).int(mt[0] - pos).int(mt[1] - pos)
+		}
+		for _, p := range cursors {
+			if p >= pos && p <= end {
+				k = k.int(3).int(p - pos)
 			}
-			if s, ok := v.Icons[t.LineOf(pos)]; ok && i == 0 {
-				c.s.PutStrStyled(v.X-2, y, s.Text, base.Foreground(signColours[s.Name]))
+		}
+		for _, g := range v.Ghosts {
+			if g.Pos >= pos && g.Pos <= end {
+				k = k.int(4).int(g.Pos - pos).str(g.Text).str(g.Style).flag(g.Stale)
 			}
-			if i == 0 && (v.Number || v.Relative) {
-				c.number(t.LineOf(pos), cur, numbers+v.SignCols, y, v)
+		}
+		c.sig = k
+		styles := paint[min(pos-v.Top, len(paint)):min(end-v.Top, len(paint))]
+		at := [2]int{v.X, v.Y + row}
+		last := c.lines[at]
+		if last != nil && last.frame == c.frame-1 && bytes.Equal(last.sig, k) && slices.Equal(last.styles, styles) &&
+			!(v.Current && v.Cursor >= pos && v.Cursor <= end) {
+			last.frame = c.frame
+		} else {
+			if last == nil {
+				last = &shown{}
+				c.lines[at] = last
 			}
-			shade := v.CursorLine && t.LineOf(pos) == cur
-			// trail is where the line's trailing spaces start.
-			trail := pos + len(strings.TrimRight(t.Slice(pos, end), " "))
-			if i+1 < len(starts) {
-				stop = starts[i+1]
-			}
-			// Without wrap the row starts at the first cluster v.Left columns
-			// into the line, after blanks for a wide one cut by the edge.
-			x := 0
-			if !v.Wrap {
-				start = vim.ColumnStart(t, pos, v.Left)
-				col = vim.Column(t, pos, start)
-				x = col - v.Left
-			}
-			for rest := t.Slice(start, stop); ; {
-				at := stop - len(rest)
-				for _, g := range v.Ghosts {
-					if g.Pos == at {
-						x = c.ghost(g, v.X, x, y, v.W)
+			last.frame, last.sig, last.styles = c.frame, append(last.sig[:0], k...), append(last.styles[:0], styles...)
+			c.s.FillArea(v.X, v.Y+row, v.W, len(starts), ' ', base)
+			// trail is where the line's trailing spaces start. col is the column
+			// in the line, which tabs are measured from.
+			trail := pos + len(strings.TrimRight(text, " "))
+			col := 0
+			for i, start := range starts {
+				y, stop := v.Y+row+i, end
+				if i+1 < len(starts) {
+					stop = starts[i+1]
+				}
+				// Without wrap the row starts at the first cluster v.Left columns
+				// into the line, after blanks for a wide one cut by the edge.
+				x := 0
+				if !v.Wrap {
+					start = vim.ColumnStart(t, pos, v.Left)
+					col = vim.Column(t, pos, start)
+					x = col - v.Left
+				}
+				for rest := t.Slice(start, stop); ; {
+					at := stop - len(rest)
+					for _, g := range v.Ghosts {
+						if g.Pos == at {
+							x = c.ghost(g, v.X, x, y, v.W)
+						}
 					}
-				}
-				if v.Current && at == v.Cursor && (rest != "" || stop == end) {
-					cx, cy, found = v.X+min(x, v.W-1), y, true
-				}
-				if rest == "" || x >= v.W {
-					break
-				}
-				style := base
-				if i := at - v.Top; i < len(paint) {
-					style = paint[i]
-				}
-				if shade {
-					style = style.Background(th.cursorLine)
-				}
-				if slices.Contains(v.Pair, at) {
-					// A matched bracket is bold and underlined.
-					style = style.Bold(true).Underline(true)
-				}
-				for _, mt := range matches {
-					if at >= mt[0] && at < mt[1] {
-						style = style.Background(th.warn).Foreground(th.bg)
+					if v.Current && at == v.Cursor && (rest != "" || stop == end) {
+						cx, cy, found = v.X+min(x, v.W-1), y, true
 					}
-				}
-				if visual && selected(sel, at, col) || slices.Contains(cursors, at) {
-					// Reversing syntax colours would stripe the selection, so it
-					// drops them.
-					style = base.Background(th.selection)
-				}
-				if rest[0] == '\t' {
-					w := vim.Tabstop - col%vim.Tabstop
-					c.s.FillArea(v.X+x, y, min(w, v.W-x), 1, ' ', style)
-					if v.List {
-						c.s.Put(v.X+x, y, ">", style.Foreground(th.faint))
+					if rest == "" || x >= v.W {
+						break
 					}
-					x, col, rest = x+w, col+w, rest[1:]
-					continue
-				}
-				if v.List {
-					if mark, ok := listChar(rest, at >= trail); ok {
-						// The mark takes the place of the one-column character.
-						c.s.Put(v.X+x, y, mark, style.Foreground(th.faint))
-						_, size := utf8.DecodeRuneInString(rest)
-						x, col, rest = x+1, col+1, rest[size:]
+					style := base
+					if i := at - v.Top; i < len(paint) {
+						style = paint[i]
+					}
+					if shade {
+						style = style.Background(th.cursorLine)
+					}
+					if slices.Contains(v.Pair, at) {
+						// A matched bracket is bold and underlined.
+						style = style.Bold(true).Underline(true)
+					}
+					for _, mt := range matches {
+						if at >= mt[0] && at < mt[1] {
+							style = style.Background(th.warn).Foreground(th.bg)
+						}
+					}
+					if visual && selected(sel, at, col) || slices.Contains(cursors, at) {
+						// Reversing syntax colours would stripe the selection, so it
+						// drops them.
+						style = base.Background(th.selection)
+					}
+					if rest[0] == '\t' {
+						w := vim.Tabstop - col%vim.Tabstop
+						c.s.FillArea(v.X+x, y, min(w, v.W-x), 1, ' ', style)
+						if v.List {
+							c.s.Put(v.X+x, y, ">", style.Foreground(th.faint))
+						}
+						x, col, rest = x+w, col+w, rest[1:]
 						continue
 					}
-				}
-				var width int
-				rest, width = c.s.Put(v.X+x, y, rest, style)
-				x, col = x+width, col+width
-			}
-			if n := v.Notes[t.LineOf(pos)]; i == len(starts)-1 && x >= 0 {
-				style := base.Foreground(th.faint)
-				if shade {
-					style = style.Background(th.cursorLine)
-				}
-				for n != "" && x < v.W {
+					if v.List {
+						if mark, ok := listChar(rest, at >= trail); ok {
+							// The mark takes the place of the one-column character.
+							c.s.Put(v.X+x, y, mark, style.Foreground(th.faint))
+							_, size := utf8.DecodeRuneInString(rest)
+							x, col, rest = x+1, col+1, rest[size:]
+							continue
+						}
+					}
 					var width int
-					n, width = c.s.Put(v.X+x, y, n, style)
-					x += width
+					rest, width = c.s.Put(v.X+x, y, rest, style)
+					x, col = x+width, col+width
+				}
+				if n := v.Notes[line]; i == len(starts)-1 && x >= 0 {
+					style := base.Foreground(th.faint)
+					if shade {
+						style = style.Background(th.cursorLine)
+					}
+					for n != "" && x < v.W {
+						var width int
+						n, width = c.s.Put(v.X+x, y, n, style)
+						x += width
+					}
+				}
+				if shade && x < v.W {
+					c.s.FillArea(v.X+x, y, v.W-x, 1, ' ', base.Background(th.cursorLine))
+				}
+				if i == 0 && lead > 0 {
+					c.guides(v, lead, y)
+				}
+				if i == len(starts)-1 && slices.Contains(cursors, end) && x < v.W {
+					c.s.Put(v.X+x, y, " ", base.Background(th.selection))
 				}
 			}
-			if shade && x < v.W {
-				c.s.FillArea(v.X+x, y, v.W-x, 1, ' ', base.Background(th.cursorLine))
-			}
-			if i == 0 && v.Guides && !v.List {
-				c.guides(v, t, pos, y)
-			}
-			if i == len(starts)-1 && slices.Contains(cursors, end) && x < v.W {
-				c.s.Put(v.X+x, y, " ", base.Background(th.selection))
-			}
-			row++
 		}
+		row += len(starts)
 		if end == t.Len() {
 			break
 		}
@@ -555,6 +646,7 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 	}
 	// Rows past the end of the text show ~.
 	for ; row < v.H-1; row++ {
+		c.s.FillArea(numbers, v.Y+row, v.Gutter+v.W, 1, ' ', base)
 		c.s.Put(numbers, v.Y+row, "~", base.Foreground(th.faint))
 	}
 	// The separator and status line span the whole window.
@@ -568,10 +660,10 @@ func (c *client) view(v editor.View, sel vim.Selection, visual bool) (int, int, 
 	return cx, cy, found
 }
 
-// guides draws a faint line at each indent level in the leading blanks of
-// the line at start, on row y. A blank line takes the indent of the next
-// line with text, so the guides run through it (B153).
-func (c *client) guides(v editor.View, t kernel.Snapshot, start, y int) {
+// indentOf returns the columns of the leading blanks of the line at start.
+// A blank line takes the indent of the next line with text, so the guides
+// run through it (B153).
+func indentOf(t kernel.Snapshot, start int) int {
 	lead := 0
 	// A long run of blank lines looks 200 lines ahead at most.
 	for p, n := start, 0; n < 200; n++ {
@@ -586,6 +678,12 @@ func (c *client) guides(v editor.View, t kernel.Snapshot, start, y int) {
 		}
 		p = end + 1
 	}
+	return lead
+}
+
+// guides draws a faint line at each indent level in the first lead columns
+// of a line, on row y.
+func (c *client) guides(v editor.View, lead, y int) {
 	left := 0
 	if !v.Wrap {
 		left = v.Left

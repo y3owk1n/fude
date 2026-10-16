@@ -43,6 +43,12 @@ func startWith(t *testing.T, config string, args ...string) *client {
 	if err != nil {
 		t.Fatal(err)
 	}
+	return &client{s: mock(t), e: e}
+}
+
+// mock returns a screen on a mock terminal of 120 by 40.
+func mock(t *testing.T) tcell.Screen {
+	t.Helper()
 	s, err := tcell.NewTerminfoScreenFromTty(vt.NewMockTerm(vt.MockOptSize{X: 120, Y: 40}))
 	if err == nil {
 		err = s.Init()
@@ -51,7 +57,7 @@ func startWith(t *testing.T, config string, args ...string) *client {
 		t.Fatal(err)
 	}
 	t.Cleanup(s.Fini)
-	return &client{s: s, e: e}
+	return s
 }
 
 // typed is a terminal the user typed in, as bytes, and whose output goes
@@ -105,6 +111,72 @@ func TestB141CtrlH(t *testing.T) {
 			break
 		}
 	}
+}
+
+// B197
+func TestB197FrameAfterFrame(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.go")
+	text := "package a\n\nfunc f(x int) {\n\tif x > 0 {  \n\n\t\treturn\n\t}\n" +
+		"\t// " + strings.Repeat("a long line that wraps ", 12) + "\n}\n"
+	if err := os.WriteFile(path, []byte(text), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	c := startWith(t, "number = true\nrelative_number = true\ncursor_line = true\n", path)
+	// step feeds keys, draws, and compares each cell with a first frame's.
+	step := func(keys string) {
+		t.Helper()
+		for _, k := range vim.Keys(keys) {
+			c.e.Feed(k)
+		}
+		c.draw()
+		fresh := &client{s: mock(t), e: c.e}
+		fresh.draw()
+		for y := range 40 {
+			for x := range 120 {
+				s, style, _ := c.s.Get(x, y)
+				if fs, fstyle, _ := fresh.s.Get(x, y); s != fs || style != fstyle {
+					t.Fatalf("after %s the cell at %d,%d is %q, and %q in a first frame", keys, x, y, s, fs)
+				}
+			}
+		}
+	}
+	// keyword reports whether row y shows a keyword.
+	keyword := func(y int) bool {
+		for x := range 120 {
+			if _, style, _ := c.s.Get(x, y); style.GetForeground() == themes["dark"].keyword {
+				return true
+			}
+		}
+		return false
+	}
+	// parsed runs queued work, such as a new parse, with a step after each,
+	// until done reports true.
+	parsed := func(done func() bool) {
+		t.Helper()
+		deadline := time.After(5 * time.Second)
+		for step(""); !done(); step("") {
+			select {
+			case f := <-c.e.Queue():
+				f()
+			case <-deadline:
+				t.Fatal("the parse never showed")
+			}
+		}
+	}
+	parsed(func() bool { return keyword(0) })
+	for _, keys := range []string{
+		"jj", "f{", "%", "*", "j", "*", "ggjj", "Vjj", "y", "<C-v>jjl", "y",
+		"jjjihello<Esc>", "dd", "u", "Gk", "J", "u", "ggjA" + strings.Repeat(" more", 30) + "<Esc>", "u",
+		"/return<CR>", "<<", "k", ":vsplit<CR>", "/that<CR>", "b", "rq", "<C-w>w", ":set list<CR>",
+		":set nowrap<CR>", "/wraps<CR>", "j", "k", "$", "0", "x", "gg", ":w<CR>", "j", ":set nonumber<CR>",
+	} {
+		step(keys)
+	}
+	// The parse after a comment around the text recolours lines away from
+	// the cursor.
+	step("ggO/*<Esc>")
+	step("Go*/<Esc>")
+	parsed(func() bool { return !keyword(1) })
 }
 
 // B145
