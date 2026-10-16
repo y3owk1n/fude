@@ -179,6 +179,7 @@ type Machine struct {
 	clipboard             bool   // commands without a register use the host's clipboard too
 	flash                 [2]int // what the last key yanked or put, empty when nothing
 	expandTab             bool   // indents are spaces only
+	autoPairs             bool   // brackets and quotes typed come with their closing one
 	lastRep               string // the previous replacement, for ~
 	lastSub               struct{ pattern, rep, flags string }
 	msg                   string

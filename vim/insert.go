@@ -34,9 +34,52 @@ func (m *Machine) insert(k Key) error {
 		return m.typeText(strings.Repeat(" ", iw-column(t, LineStart(t, c), c)%iw))
 	}
 	if k.isChar() {
+		if m.autoPairs && m.mode == Insert {
+			if paired, err := m.pair(t, c, string(k)); paired {
+				return err
+			}
+		}
 		return m.typeText(string(k))
 	}
 	return nil
+}
+
+// pairs are the brackets and quotes autopairs closes, by their opening one.
+var pairs = map[string]string{"(": ")", "[": "]", "{": "}", `"`: `"`, "'": "'", "`": "`"}
+
+// pair types s and its closing character when s opens a pair. When s is a
+// closing character that comes next, it steps over it instead. It pairs
+// only before a blank, a line end or a closing bracket. A quote after a
+// word's character stays single, so don't keeps one quote. It reports
+// whether it did either (B202).
+func (m *Machine) pair(t Text, c int, s string) (bool, error) {
+	after := t.Slice(c, min(c+1, t.Len()))
+	if after == s && strings.Contains(")]}\"'`", s) {
+		m.h.SetCursor(c + 1)
+		return true, nil
+	}
+	closing, ok := pairs[s]
+	if !ok || after != "" && !strings.Contains(" \t\n)]}", after) {
+		return false, nil
+	}
+	if s == closing && c > 0 && class(t, prev(t, LineStart(t, c), c), false) == 2 {
+		return false, nil
+	}
+	if err := m.typeText(s + closing); err != nil {
+		return true, err
+	}
+	m.h.SetCursor(c + len(s))
+	return true, nil
+}
+
+// inPair reports whether the cursor c is between an opening bracket or
+// quote and its closing one, with nothing between them.
+func inPair(t Text, c int) bool {
+	if c == 0 || c >= t.Len() {
+		return false
+	}
+	closing, ok := pairs[t.Slice(c-1, c)]
+	return ok && t.Slice(c, c+1) == closing
 }
 
 // insertKey is an insert mode key that does more than type itself.
@@ -106,6 +149,14 @@ var inserts = map[string]insertKey{
 func backspaceKey(m *Machine, t Text, c int, _ Key) error {
 	if m.mode == Replace {
 		return m.unreplace()
+	}
+	// In an empty pair, <BS> deletes both of it (B202).
+	if m.autoPairs && inPair(t, c) {
+		if err := m.apply([]Edit{{Start: c - 1, End: c + 1}}, m.label); err != nil {
+			return err
+		}
+		m.h.SetCursor(c - 1)
+		return nil
 	}
 	return m.erase(m.backspace(t, c))
 }
@@ -275,6 +326,20 @@ func (m *Machine) newline() error {
 	indent := t.Slice(ls, min(firstNonBlank(t, ls, LineEnd(t, ls)), c))
 	if err := m.dropIndent(); err != nil {
 		return err
+	}
+	// In an empty pair of brackets, the closing one goes a line further down
+	// and the cursor onto an indented line between them (B202).
+	if m.autoPairs && inPair(t, c) && strings.Contains("([{", t.Slice(c-1, c)) {
+		inner := indent + "\t"
+		if m.expandTab {
+			inner = indent + strings.Repeat(" ", m.h.IndentWidth())
+		}
+		if err := m.insertText("\n" + inner + "\n" + indent); err != nil {
+			return err
+		}
+		m.h.SetCursor(c + 1 + len(inner))
+		m.autoIndent = true
+		return nil
 	}
 	if err := m.insertText("\n" + indent); err != nil {
 		return err

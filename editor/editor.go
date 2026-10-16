@@ -159,6 +159,7 @@ func (ed *Editor) Attach(o kernel.Origin) *Session {
 // window on the first session's buffer, or the first buffer.
 func (e *Session) join() {
 	e.vim = vim.New(host{e})
+	e.vim.AutoPairs(e.cfg.Autopairs)
 	for _, f := range e.setup {
 		f(e)
 	}

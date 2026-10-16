@@ -360,6 +360,10 @@ func (m *Machine) indentText(w int) string {
 // types spaces to the next indent width's column (B122, N10).
 func (m *Machine) ExpandTab(on bool) { m.expandTab = on }
 
+// AutoPairs makes an opening bracket or quote typed in insert mode come with
+// its closing one (B202).
+func (m *Machine) AutoPairs(on bool) { m.autoPairs = on }
+
 func swapCase(s string) string {
 	return strings.Map(func(r rune) rune {
 		if unicode.IsUpper(r) {

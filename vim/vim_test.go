@@ -131,6 +131,44 @@ func TestB6EnterAndLeaveInsert(t *testing.T) {
 	}
 }
 
+// B202
+func TestB202AutoPairs(t *testing.T) {
+	for _, c := range []struct{ start, keys, want string }{
+		{"|", "i(", "(|)"},
+		{"|)", "i[", "[|])"},
+		{"|x", "i(", "(|x"},
+		{"|", "i(a)", "(a)|"},
+		{"|", `i"`, `"|"`},
+		{"|", `i""`, `""|`},
+		{"do|n", "a'", "don'|"},
+		{"|", "i(<BS>", "|"},
+		{"(|)", "i<BS>", "|"},
+		{"  |", "a{<CR>", "  {\n  \t|\n  }"},
+	} {
+		h := &host{text: strings.Replace(c.start, "|", "", 1), cursor: strings.Index(c.start, "|")}
+		m := vim.New(h)
+		m.AutoPairs(true)
+		for _, k := range vim.Keys(c.keys) {
+			if err := m.Feed(k); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if got := h.text[:h.cursor] + "|" + h.text[h.cursor:]; got != c.want {
+			t.Errorf("%q on %q made %q, want %q", c.keys, c.start, got, c.want)
+		}
+	}
+	// A paste is never paired, and the machine pairs nothing unless asked.
+	h := &host{}
+	m := vim.New(h)
+	m.AutoPairs(true)
+	if m.Feed("i"); m.Paste("(") != nil || h.text != "(" {
+		t.Errorf("pasting ( made %q", h.text)
+	}
+	if got, _, _ := run(t, "|", "i("); got != "(|" {
+		t.Errorf("without AutoPairs, i( made %q", got)
+	}
+}
+
 // B7
 func TestB7InsertIsOneUndoStep(t *testing.T) {
 	if got, h, _ := run(t, "|", "ihello<CR>world<BS><Esc>"); h.steps != 1 || got != "hello\nwor|l" {

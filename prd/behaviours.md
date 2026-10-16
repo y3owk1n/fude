@@ -51,6 +51,14 @@ Where fude departs, the line says so and cites the departure in
 - B8 [1] A bracketed paste is inserted as typed text, with no keymap applied.
 - B9 [1] The cursor moves by grapheme cluster. An emoji with a skin tone
   modifier, or a letter with combining marks, is one step for `l` and `h`.
+- B202 [2] With `autopairs` on, as it is unless set off, typing `(`, `[`,
+  `{`, `"`, `'` or `` ` `` in insert mode before a blank, a line end or a
+  closing bracket types its closing one too, with the cursor between
+  them. A quote after a letter, digit or `_` types only itself. Typing a
+  closing one that comes next steps over it, `<BS>` in an empty pair
+  deletes both, and `<CR>` in empty brackets puts the closing one a line
+  further down with an indented line between (N28). A paste is never
+  paired.
 
 ## Grammar
 

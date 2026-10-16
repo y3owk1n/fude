@@ -574,6 +574,14 @@ beside the real one, which `<C-w>` keys, `:q` and window counts then see.
 Why: on a wide monitor, text at the left edge turns the reader's head. In
 fude the margins are no windows at all, only less room for the layout.
 
+### N28. Brackets and quotes close themselves
+
+fude closes a bracket or quote as it is typed, which `autopairs` turns off
+(B202). Neovim closes nothing, and plugins such as nvim-autopairs add it.
+Why: most editors people come from close pairs. Pairing only before a
+blank or a closing bracket, and never a quote after a letter, avoids the
+cases that make it annoying, so it can stay on.
+
 ## Open
 
 None.

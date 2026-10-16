@@ -47,6 +47,14 @@ trigger character such as `.` is typed, with none put in the text until
 `<C-n>` or `<C-p>`. On the command line, the completion menu shows as the
 line is typed. Off, `<C-x><C-o>` and `<Tab>` ask for them.
 
+## autopairs
+
+An opening bracket or quote typed in insert mode comes with its closing
+one, before a blank, a line end or a closing bracket. Typing the closing
+one steps over it, `<BS>` in an empty pair deletes both, and `<CR>` in
+empty brackets opens an indented line between them. A quote after a
+letter stays one, as in `don't`. The default is on.
+
 ## auto_install
 
 When a file needs a grammar that is not built yet, fude builds it in the
