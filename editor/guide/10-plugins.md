@@ -99,8 +99,8 @@ function with the output.
 The rest of the sdk reaches fude, each function behind its capability.
 `sdk.Text` and `sdk.Len` read the text, and `sdk.Lines`, `sdk.LineOf`
 and `sdk.LineStart` where its lines start. `sdk.Edit` changes it,
-`sdk.Decorate`, `sdk.Sign`, `sdk.Note`, `sdk.Status` and `sdk.Float`
-show things,
+`sdk.Decorate`, `sdk.Sign`, `sdk.Note`, `sdk.Status`, `sdk.Float` and
+`sdk.Show` show things,
 `sdk.ReadFile`, `sdk.Run` and `sdk.Get` reach files, programs and the
 web, and `sdk.Log` writes to fude's log. A call outside the plugin's
 capabilities returns `sdk.ErrDenied`.

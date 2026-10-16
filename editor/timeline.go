@@ -9,6 +9,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/y3owk1n/fude/core/kernel"
+	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
 )
 
@@ -340,6 +341,34 @@ func (e *Session) state(arg string) (*buffer, int) {
 		return nil, -1
 	}
 	return b, i
+}
+
+// panel shows text in the read-only window titled title, coloured as
+// filetype once its grammar is built. It opens the window unless one of
+// that title is open. It reports whether it could, and says why not when it
+// could not.
+func (e *Session) panel(title, filetype, text string) bool {
+	if i := slices.IndexFunc(e.root.windows(), func(w *window) bool { return w.buf.title == title }); i >= 0 {
+		e.win = e.root.windows()[i]
+		t := e.win.buf.text.Snapshot()
+		if err := e.win.buf.text.Apply(kernel.Transaction{Base: t.Version(), Edits: []kernel.Edit{{End: t.Len(), Text: text}}}); err != nil {
+			e.message = err.Error()
+			return false
+		}
+		e.win.buf.saved = e.win.buf.text.Head()
+		return true
+	}
+	e.scratch(title, text, nil, nil)
+	b := e.win.buf
+	if b.ft = filetype; b.ft == "" {
+		return true
+	}
+	if ok, err := e.attachSyntax(b); err != nil {
+		e.message = err.Error()
+	} else if !ok && syntax.Buildable(b.ft) && e.cfg.AutoInstall && e.buildGrammar(b.ft, false) {
+		e.message = "building the " + b.ft + " grammar"
+	}
+	return true
 }
 
 // scratch shows text in a new read-only window titled title, about src.

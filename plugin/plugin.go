@@ -62,6 +62,7 @@ type Result struct {
 	Emit       []string // the events to emit, named plugin.event
 	Status     *string  // the plugin's statusline segment for the text it read, "" for none
 	Float      *string  // markdown to show at the cursor, "" to close it
+	Show       *Panel   // text to show in a window of its own
 	Timers     []Timer  // the callbacks to run later
 	Jobs       []Job    // the work to do in the background
 	Out        []uint64
@@ -78,6 +79,13 @@ type Job struct {
 
 // maxJobs is how many of a plugin's jobs run at once. One more waits.
 const maxJobs = 8
+
+// Panel is text a plugin shows in a read-only window titled Title, coloured
+// as Filetype. It replaces the text of a window open under that title
+// (B186).
+type Panel struct {
+	Title, Filetype, Text string
+}
 
 // Timer is a callback the plugin asked fude to run after a while, through
 // its callback export, by the id it gave (B180).
@@ -310,6 +318,7 @@ func (p *Plugin) host(ctx context.Context) error {
 		NewFunctionBuilder().WithFunc(p.undecorate).Export("undecorate").
 		NewFunctionBuilder().WithFunc(p.sign).Export("sign").
 		NewFunctionBuilder().WithFunc(p.note).Export("note").
+		NewFunctionBuilder().WithFunc(p.show).Export("show").
 		Instantiate(ctx)
 	if err != nil {
 		return fmt.Errorf("plugin %s: %w", p.Name, err)
@@ -706,6 +715,21 @@ func (p *Plugin) sign(_ context.Context, m api.Module, pos, ptr, n uint32) int32
 	p.next++
 	p.call.Decorate = append(p.call.Decorate, Decoration{ID: p.next, Start: int(pos), End: int(pos), Style: style, Sign: text})
 	return int32(p.next)
+}
+
+// show shows, in a window of its own, the title, filetype and text at
+// (ptr, n), separated by NULs (B186).
+func (p *Plugin) show(_ context.Context, m api.Module, ptr, n uint32) int32 {
+	if p.call == nil || !p.allowed("ui", "show") {
+		return errDenied
+	}
+	b, ok := m.Memory().Read(ptr, n)
+	parts := strings.SplitN(string(b), "\x00", 3)
+	if !ok || len(parts) != 3 || parts[0] == "" {
+		return errRange
+	}
+	p.call.Show = &Panel{parts[0], parts[1], parts[2]}
+	return 0
 }
 
 // note shows the text at (ptr, n) after the end of pos's line, and returns

@@ -12,7 +12,6 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
 )
@@ -415,23 +414,9 @@ func (e *Session) help(topic string) {
 			return
 		}
 	}
-	if i := slices.IndexFunc(e.root.windows(), func(w *window) bool { return w.buf.title == "[help]" }); i >= 0 {
-		e.win = e.root.windows()[i]
-		t := e.win.buf.text.Snapshot()
-		if err := e.win.buf.text.Apply(kernel.Transaction{Base: t.Version(), Edits: []kernel.Edit{{End: t.Len(), Text: text}}}); err != nil {
-			e.message = err.Error()
-			return
-		}
-	} else {
-		e.scratch("[help]", text, nil, nil)
-		// Help is markdown, coloured as such once its grammar is built.
-		b := e.win.buf
-		b.ft = "markdown"
-		if ok, err := e.attachSyntax(b); err != nil {
-			e.message = err.Error()
-		} else if !ok && syntax.Buildable(b.ft) && e.cfg.AutoInstall && e.buildGrammar(b.ft, false) {
-			e.message = "building the markdown grammar"
-		}
+	// Help is markdown, coloured as such once its grammar is built.
+	if !e.panel("[help]", "markdown", text) {
+		return
 	}
 	// The entry goes at the top of the window, its text below it.
 	at := e.win.buf.text.Snapshot().LineStart(line)

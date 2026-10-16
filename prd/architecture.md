@@ -868,7 +868,7 @@ under a budget of 100ms. A plugin imports host functions from the module `fude`,
 |---|---|
 | `buffer.read` | read the text and where its lines start |
 | `buffer.write` | edit the text |
-| `ui` | decorations, signs, notes after a line, statusline segments, floating windows |
+| `ui` | decorations, signs, notes after a line, statusline segments, floating windows, read-only windows |
 | `fs.read` | read files under the project root |
 | `process` | spawn a declared program |
 | `net` | get http and https URLs on declared hosts |
@@ -905,6 +905,7 @@ host it may not reach or a request that failed.
 | `read_file(ptr, len) -> i64` | `fs.read` | the file at the path, relative to the project, the directory fude started in. fude refuses a path that leads outside it, through `..` or a link (B47) |
 | `run(ptr, len) -> i64` | `process` | what the program prints, run with its arguments, NUL-separated, in the project. It must be in the plugin's `programs`, and the call's budget stops it (B48) |
 | `http_get(ptr, len) -> i64` | `net` | the body of the http or https URL, up to 16MB. Its host, and any host a redirect leads to, must be in the plugin's `hosts`, and the call's budget stops the request (B49) |
+| `show(ptr, len) -> i32` | `ui` | shows the title, filetype and text, NUL-separated, in a read-only window, or in place of what the window of that title shows (B186) |
 | `float(ptr, len) -> i32` | `ui` | shows the markdown in a float at the cursor, or closes it for "" (B59) |
 | `status(ptr, len) -> i32` | `ui` | shows the text on the statusline of the buffer the call read, or none for "" (B58) |
 

@@ -182,6 +182,9 @@ func (e *Session) decorate(p *plugin.Plugin, b *buffer, res plugin.Result) []vim
 	if res.Float != nil {
 		e.float, e.floatSpans = e.markdown(*res.Float)
 	}
+	if s := res.Show; s != nil {
+		e.panel(s.Title, s.Filetype, s.Text)
+	}
 	if res.Status != nil {
 		if e.segments[p] == nil {
 			e.segments[p] = map[*buffer]string{}

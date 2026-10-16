@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -435,6 +436,22 @@ func TestB184PluginSignsAndNotes(t *testing.T) {
 		v := e.Views()[0]
 		return v.Notes[0] == "changed" && v.Notes[1] == "" && v.Signs[1].Text == ""
 	})
+}
+
+// B186
+func TestB186PluginWindows(t *testing.T) {
+	e := loaded(t, "ctx", "f", "a\n", "ui")
+	e.SetSize(80, 20)
+	feed(e, ":Show one<CR>:Show two<CR>")
+	vs := e.Views()
+	i := slices.IndexFunc(vs, func(v editor.View) bool { return v.Name == "[shown]" })
+	if len(vs) != 2 || i < 0 || vs[i].Text.Slice(0, vs[i].Text.Len()) != "two" || vs[i].Filetype != "go" {
+		t.Fatalf("after two :Show, the windows are %d and [shown] is %d", len(vs), i)
+	}
+	// It closes without asking to save.
+	if feed(e, ":q<CR>"); len(e.Views()) != 1 {
+		t.Errorf(":q in [shown] said %q", e.Message())
+	}
 }
 
 // decorations returns what the current window shows of plugins'

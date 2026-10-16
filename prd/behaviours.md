@@ -543,6 +543,10 @@ Where fude departs, the line says so and cites the departure in
   first two characters, and dim text after the end of a line. Both move
   with edits and go when the plugin removes them or unloads. On one line,
   a diagnostic's sign wins over a plugin's, and a plugin's over git's.
+- B186 [4] A plugin with `ui` shows text in a read-only window with a
+  title, coloured as a filetype it names. Showing text under a title
+  already open replaces what that window shows. `:q` closes it without
+  asking to save.
 - B59 [4] A plugin with `ui` shows markdown in a float at the cursor, as
   hover does.
 

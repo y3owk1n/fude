@@ -4,7 +4,8 @@
 // types the buffer's id, path and filetype, the mode, how many lines the
 // text has, the cursor's line and where the last line starts. The insert
 // mode key <C-j> types the mode it ran in, in brackets. :Set name types
-// the setting name, or none. Needs buffer.read and buffer.write.
+// the setting name, or none. :Show text shows text in a window titled
+// [shown], as Go. Needs buffer.read, buffer.write and ui.
 package main
 
 import (
@@ -28,6 +29,9 @@ func init() {
 			v = "none"
 		}
 		sdk.Edit(c.Cursor, c.Cursor, v)
+	})
+	sdk.Command("Show", "shows its args in a window", func(c sdk.Call) {
+		sdk.Show("[shown]", "go", c.Args)
 	})
 	sdk.Command("Where", "types where its call ran", func(c sdk.Call) {
 		b := sdk.Current()

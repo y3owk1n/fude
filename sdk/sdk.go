@@ -126,6 +126,9 @@ func hostSign(pos uint32, ptr *byte, n uint32) int32
 //go:wasmimport fude note
 func hostNote(pos uint32, ptr *byte, n uint32) int32
 
+//go:wasmimport fude show
+func hostShow(ptr *byte, n uint32) int32
+
 //go:wasmimport fude undecorate
 func hostUndecorate(id uint32) int32
 
@@ -441,6 +444,14 @@ func Note(pos int, text string) (int, error) {
 	p, n := ptr(text)
 	id := hostNote(uint32(pos), p, n)
 	return int(id), fail(int64(id))
+}
+
+// Show shows text in a read-only window titled title, coloured as
+// filetype, "" for none. A window of that title already open shows text in
+// place of what it showed. It needs ui.
+func Show(title, filetype, text string) error {
+	p, n := ptr(title + "\x00" + filetype + "\x00" + text)
+	return fail(int64(hostShow(p, n)))
 }
 
 // Undecorate removes the decoration id. It needs ui.
