@@ -64,12 +64,21 @@ fude \- a modal text editor
 .br
 .B fude \-\-man
 [\fBconfig\fR|\fBguide\fR]
+.br
+.B fude plugin new
+\fIname\fR
+.br
+.B fude plugin build
+[\fIdir\fR]
 .SH DESCRIPTION
 fude opens each file in a buffer, or an empty buffer when none is given.
 A folder opens as a listing of its entries.
 With \fB+\fR\fIline\fR, the cursor starts on that line of the first file.
 \fB\-\-man\fR prints this page, \fB\-\-man config\fR prints fude\-config(5)
 and \fB\-\-man guide\fR prints fude\-guide(7).
+\fBplugin new\fR writes a plugin in Go in a new folder, and
+\fBplugin build\fR builds the one in \fIdir\fR with TinyGo, as
+fude\-guide(7) describes.
 Inside fude, \fB:h\fR shows this reference, the settings, the mappings
 config.toml adds and the guide.
 `)

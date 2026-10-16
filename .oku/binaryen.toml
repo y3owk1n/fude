@@ -1,0 +1,39 @@
+[package]
+name = "binaryen"
+description = "WebAssembly optimizer, whose wasm-opt tinygo runs on the wasm it builds"
+homepage = "https://github.com/WebAssembly/binaryen"
+license = "Apache-2.0"
+
+[version]
+from = "github-releases"
+repo = "WebAssembly/binaryen"
+strip_prefix = "version_"
+
+# wasm-opt finds its library in the lib folder beside its bin.
+[[artifact]]
+match = { os = "darwin", arch = "arm64" }
+url = "https://github.com/WebAssembly/binaryen/releases/download/{{tag}}/binaryen-{{tag}}-arm64-macos.tar.gz"
+sha256_url = "https://github.com/WebAssembly/binaryen/releases/download/{{tag}}/binaryen-{{tag}}-arm64-macos.tar.gz.sha256"
+strip = 1
+bin = ["bin/wasm-opt"]
+
+[[artifact]]
+match = { os = "darwin", arch = "amd64" }
+url = "https://github.com/WebAssembly/binaryen/releases/download/{{tag}}/binaryen-{{tag}}-x86_64-macos.tar.gz"
+sha256_url = "https://github.com/WebAssembly/binaryen/releases/download/{{tag}}/binaryen-{{tag}}-x86_64-macos.tar.gz.sha256"
+strip = 1
+bin = ["bin/wasm-opt"]
+
+[[artifact]]
+match = { os = "linux", arch = "arm64" }
+url = "https://github.com/WebAssembly/binaryen/releases/download/{{tag}}/binaryen-{{tag}}-aarch64-linux.tar.gz"
+sha256_url = "https://github.com/WebAssembly/binaryen/releases/download/{{tag}}/binaryen-{{tag}}-aarch64-linux.tar.gz.sha256"
+strip = 1
+bin = ["bin/wasm-opt"]
+
+[[artifact]]
+match = { os = "linux", arch = "amd64" }
+url = "https://github.com/WebAssembly/binaryen/releases/download/{{tag}}/binaryen-{{tag}}-x86_64-linux.tar.gz"
+sha256_url = "https://github.com/WebAssembly/binaryen/releases/download/{{tag}}/binaryen-{{tag}}-x86_64-linux.tar.gz.sha256"
+strip = 1
+bin = ["bin/wasm-opt"]

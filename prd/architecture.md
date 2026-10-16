@@ -920,10 +920,23 @@ functions never block. A stopped or trapped instance is closed and its state
 is lost. fude unloads it and tells the user which plugin (B51, B53). It can
 be instantiated again from the compiled module without recompiling.
 
-Test plugins are `.wat` files in `plugin/testdata`, with the `.wasm` that
-`just wasm` builds from them beside them, so tests never need
-`wasm-tools`. Go and other WASI plugins wait for a behaviour that needs
-them.
+Plugins are written in Go with `sdk/`, a module of its own that imports
+nothing of fude's (D36). The package registers Go functions from the
+plugin's `init` functions, which TinyGo runs in `_initialize`. It keeps
+them in a table, and its `call` export runs them by id. It also exports
+`on_event`, and `alloc`, which keeps the buffer it hands fude in a package
+variable until the plugin has read it. `sdk/fude.json` is the TinyGo target
+plugins build for. It is `wasm-unknown`, which imports no WASI, with the
+conservative collector and a 64KB stack, as the target's own collector
+never frees memory. `fude plugin
+new` writes a plugin that requires the sdk of fude's release, or the newest
+for a build that is not one, so a release tags `sdk/vX.Y.Z` beside
+`vX.Y.Z`. `fude plugin build` builds a plugin with that target, finding it through `go list -m` in the plugin's
+module (B173).
+
+Test plugins are `.wat` files in `plugin/testdata`, and `stamp`, written
+with the sdk. `just wasm` builds the `.wasm` beside each, so tests never
+need `wasm-tools` or TinyGo.
 
 ## Syntax
 

@@ -1,0 +1,24 @@
+[package]
+name = "tinygo"
+description = "Go compiler for small places, which builds sdk plugins into wasm"
+homepage = "https://tinygo.org"
+license = "BSD-3-Clause"
+
+[version]
+from = "github-releases"
+repo = "tinygo-org/tinygo"
+strip_prefix = "v"
+
+# Each archive holds the tinygo folder, whose lib and src the binary finds
+# beside it.
+[[artifact]]
+match = { os = "darwin" }
+url = "https://github.com/tinygo-org/tinygo/releases/download/{{tag}}/tinygo{{version}}.darwin-{{arch}}.tar.gz"
+strip = 1
+bin = ["bin/tinygo"]
+
+[[artifact]]
+match = { os = "linux" }
+url = "https://github.com/tinygo-org/tinygo/releases/download/{{tag}}/tinygo{{version}}.linux-{{arch}}.tar.gz"
+strip = 1
+bin = ["bin/tinygo"]

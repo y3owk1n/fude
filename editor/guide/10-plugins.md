@@ -35,18 +35,58 @@ and editing goes on with no change from that call.
 
 ## Writing a plugin
 
-A module exports `memory`, `alloc(n)`, `call(id, a, b, c)` and `init()`.
-In `init` it calls `register` to add a command, operator, object or key,
-with a line of help and the id `call` runs it by, and `subscribe` to hear
-events through `on_event`. The
-events are `buffer.opened`, `buffer.changed`, `buffer.saved`,
-`buffer.closed`, `mode.changed`, `view.moved`, `syntax.updated` and
-`lsp.diagnostics`.
+Plugins are written in Go with fude's sdk and built with TinyGo, which
+must be on PATH.
 
-It calls fude through the functions of the module `fude`, such as `text`,
-`edit`, `decorate`, `status`, `float`, `read_file`, `run` and `http_get`,
-each behind its capability. Text goes in and out through the plugin's
-memory as a pointer and a length.
+```sh
+fude plugin new wordcount
+cd wordcount
+fude plugin build
+```
+
+`fude plugin new` writes a folder with a `go.mod` that requires the sdk and
+a `main.go` with one command. `fude plugin build` builds `wordcount.wasm`
+in the folder, which a `[[plugin]]` table then loads.
+
+```go
+package main
+
+import (
+	"strings"
+
+	"github.com/y3owk1n/fude/sdk"
+)
+
+func init() {
+	sdk.Operator("zu", "upper-cases the text a motion covers", func(r sdk.Range) {
+		text, err := sdk.Text(r.Start, r.End)
+		if err != nil {
+			sdk.Log(err.Error())
+			return
+		}
+		sdk.Edit(r.Start, r.End, strings.ToUpper(text))
+	})
+	sdk.On("buffer.saved", func(sdk.Event) {
+		sdk.Status("saved")
+	})
+}
+
+func main() {}
+```
+
+A plugin registers what it adds from its `init` functions. `sdk.Command`
+adds an ex command, `sdk.Key` keys in normal mode, `sdk.Operator` an
+operator and `sdk.Object` a text object, each with a line of help that
+`:h` and the key hints show. `sdk.On` runs a function for an event:
+`buffer.opened`, `buffer.changed`, `buffer.saved`, `buffer.closed`,
+`mode.changed`, `view.moved`, `syntax.updated` or `lsp.diagnostics`.
+
+The rest of the sdk reaches fude, each function behind its capability.
+`sdk.Text` and `sdk.Len` read the text, `sdk.Edit` changes it,
+`sdk.Decorate`, `sdk.Status` and `sdk.Float` show things,
+`sdk.ReadFile`, `sdk.Run` and `sdk.Get` reach files, programs and the
+web, and `sdk.Log` writes to fude's log. A call outside the plugin's
+capabilities returns `sdk.ErrDenied`.
 
 ## Next
 

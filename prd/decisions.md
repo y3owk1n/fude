@@ -321,6 +321,20 @@ lets the SDK register Go functions as they are, in Go's own `init`, which
 `_initialize` runs. The help lets `:h` and the key hints say what a
 plugin's keys do, as they do for fude's own.
 
+## D36. Plugins are written in Go and built with TinyGo
+
+`sdk/` is a Go package for writing plugins, and `fude plugin new` and
+`fude plugin build` write and build one with TinyGo for its
+`wasm-unknown` target (B173). Why: the plugin ABI moves text through
+pointers into the plugin's memory, which nobody should write by hand.
+TinyGo's `wasm-unknown` modules import nothing, so the sandbox stays as the
+capabilities draw it, and they come out at tens or hundreds of kilobytes,
+which compile and start well inside the init budget. Go's own `wasip1`
+target would need WASI in the sandbox, builds modules of megabytes, and its
+runtime takes longer to start. TinyGo leaves out parts of the standard
+library, such as `os` and `net`, which a plugin reaches through fude's
+functions anyway.
+
 ## Departures from Neovim
 
 Each entry: what differs, then why.

@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -346,4 +347,20 @@ func TestB55PluginDecorations(t *testing.T) {
 	if got := decorations(e); len(got) != 0 || !strings.HasSuffix(e.Message(), "so it was unloaded") {
 		t.Errorf("after the plugin unloaded, decorations are %q and it said %q", got, e.Message())
 	}
+}
+
+// B173
+func TestB173SDKPlugin(t *testing.T) {
+	e := withPlugin(t, "stamp/stamp", "buffer.read", "buffer.write", "ui")
+	e.Load()
+	(<-e.Queue())()
+	// Its command and operator run the Go functions it registered.
+	if feed(e, ":Stamp<CR>"); text(e) != "stampabc" {
+		t.Fatalf(":Stamp left %q", text(e))
+	}
+	if feed(e, "zuiw"); text(e) != "STAMPABC" {
+		t.Fatalf("zuiw left %q", text(e))
+	}
+	// Its handler hears the change it subscribed to.
+	settle(t, e, func() bool { return slices.Contains(e.Views()[0].Segments, "changed") })
 }

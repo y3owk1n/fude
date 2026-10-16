@@ -3,6 +3,38 @@
 include = []
 
 [[package]]
+name = 'binaryen'
+ref = './.oku/binaryen.toml'
+manifest_sha256 = '8ec7895da01ac67f5a30c8d0645f09d699d29252d9597d39f72d2fe50eea7b45'
+version = '133'
+tag = 'version_133'
+
+[package.platform]
+[package.platform.darwin-amd64]
+strategy = 'artifact'
+url = 'https://github.com/WebAssembly/binaryen/releases/download/version_133/binaryen-version_133-x86_64-macos.tar.gz'
+sha256 = '13a9b90be775c6389ce3d1f879cb8627bea56708ba8c122983941d53a8199b95'
+verified = 'checksum-file'
+
+[package.platform.darwin-arm64]
+strategy = 'artifact'
+url = 'https://github.com/WebAssembly/binaryen/releases/download/version_133/binaryen-version_133-arm64-macos.tar.gz'
+sha256 = 'ad66da82ac13f163e424b1643f16c6dfcccc98b5966296b43e52d3cab04f84a8'
+verified = 'checksum-file'
+
+[package.platform.linux-amd64-glibc]
+strategy = 'artifact'
+url = 'https://github.com/WebAssembly/binaryen/releases/download/version_133/binaryen-version_133-x86_64-linux.tar.gz'
+sha256 = '2dc9c7813f5375db93d96ead4b78222fcc3e2677bbb832297af4797782a37489'
+verified = 'checksum-file'
+
+[package.platform.linux-arm64-glibc]
+strategy = 'artifact'
+url = 'https://github.com/WebAssembly/binaryen/releases/download/version_133/binaryen-version_133-aarch64-linux.tar.gz'
+sha256 = '89c07ea56faf38d0fbecf36ca8ec0721756716185f265b568e133d427f299bf8'
+verified = 'checksum-file'
+
+[[package]]
 name = 'go'
 ref = './.oku/go.toml'
 manifest_sha256 = '850dfc0af428be9b5da144c08de9d6c247b2bd41a401c160d99a076a8ce62691'
@@ -378,6 +410,38 @@ strategy = 'artifact'
 url = 'https://github.com/terror/just-lsp/releases/download/0.10.0/just-lsp-0.10.0-aarch64-unknown-linux-gnu.tar.gz'
 sha256 = '0b48cbf1dfa2efb95348b751a1be6f4837e61ace5dd156daef2c2719f650883c'
 verified = 'checksum-file'
+
+[[package]]
+name = 'tinygo'
+ref = './.oku/tinygo.toml'
+manifest_sha256 = '08b7c23c5554874bea45a3c6dcc26227159a9d17839b3bbe8d0b42c1ee8df9cb'
+version = '0.43.0'
+tag = 'v0.43.0'
+
+[package.platform]
+[package.platform.darwin-amd64]
+strategy = 'artifact'
+url = 'https://github.com/tinygo-org/tinygo/releases/download/v0.43.0/tinygo0.43.0.darwin-amd64.tar.gz'
+sha256 = 'e544fe732d7b81f058ac8d2c7303e22031eff734c027295e7a53c3037e4d9e89'
+verified = 'published'
+
+[package.platform.darwin-arm64]
+strategy = 'artifact'
+url = 'https://github.com/tinygo-org/tinygo/releases/download/v0.43.0/tinygo0.43.0.darwin-arm64.tar.gz'
+sha256 = 'f5e0161f212fb69ad4650a4809e3ca66856e184892e80058f0d47abc64151812'
+verified = 'published'
+
+[package.platform.linux-amd64-glibc]
+strategy = 'artifact'
+url = 'https://github.com/tinygo-org/tinygo/releases/download/v0.43.0/tinygo0.43.0.linux-amd64.tar.gz'
+sha256 = 'ca9fc6d055e3889462dea4450a2e42a92242d88b5c362a7ec39bdb563413d78a'
+verified = 'published'
+
+[package.platform.linux-arm64-glibc]
+strategy = 'artifact'
+url = 'https://github.com/tinygo-org/tinygo/releases/download/v0.43.0/tinygo0.43.0.linux-arm64.tar.gz'
+sha256 = 'a2165b9f46aff9a895a0abed54aedffab1e93317a387c6c2e9dd839425527cbd'
+verified = 'published'
 
 [[package]]
 name = 'tree-sitter'

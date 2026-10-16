@@ -9,9 +9,10 @@ default:
 test:
     for m in {{ modules }}; do (cd $m && go test -race ./...) || exit 1; done
 
-# Run go vet on every module.
+# Run go vet on every module, and on the sdk as the wasm it builds into.
 vet:
     for m in {{ modules }}; do (cd $m && go vet ./...) || exit 1; done
+    cd sdk && GOOS=wasip1 GOARCH=wasm go vet ./...
 
 # Format every Go file.
 fmt:
@@ -36,9 +37,11 @@ man: build
 run *args: build
     bin/fude {{ args }}
 
-# Build the test plugins from their .wat files.
+# Build the test plugins: the .wat ones with wasm-tools, and the sdk one
+# with fude plugin build.
 wasm:
     for f in plugin/testdata/*.wat; do wasm-tools parse $f -o ${f%.wat}.wasm; done
+    go run ./cmd/fude plugin build plugin/testdata/stamp
 
 # Check the speed promises, without the race detector.
 perf:

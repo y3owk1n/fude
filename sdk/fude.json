@@ -1,0 +1,5 @@
+{
+	"inherits": ["wasm-unknown"],
+	"gc": "conservative",
+	"default-stack-size": 65536
+}
