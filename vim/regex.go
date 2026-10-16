@@ -4,13 +4,20 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"regexp/syntax"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 // pattern is a Vim pattern translated to Go's regexp (N1).
 type pattern struct {
 	re *regexp.Regexp
+	// lit is the text a pattern of plain characters matches, which a search
+	// finds without the regexp. fold means it ignores ASCII case, and words
+	// means it matches only between word edges, as \<word\> does.
+	lit         string
+	fold, words bool
 	// spans are the Go groups that \zs and \ze mark, one per branch that
 	// uses them. A match without one is the whole match.
 	spans []int
@@ -63,6 +70,7 @@ func compile(src, last string, ignore bool) (*pattern, error) {
 		return nil, fmt.Errorf("bad pattern %s: %w", src, err)
 	}
 	p := &pattern{re: re}
+	p.lit, p.fold, p.words = literal(flags + body)
 	for i, name := range re.SubexpNames() {
 		if strings.HasPrefix(name, "zs") {
 			p.spans = append(p.spans, i)
@@ -332,6 +340,33 @@ func (c *compiler) newlineClass() (string, error) {
 		return cls[:len(cls)-1] + `\n]`, nil
 	}
 	return "", fmt.Errorf(`unknown class \_%c`, x)
+}
+
+// literal returns the text the Go pattern expr matches when expr is plain
+// characters, alone or between word edges, and whether it folds case. It
+// returns "" for any other pattern, and when expr folds the case of a letter
+// outside ASCII.
+func literal(expr string) (lit string, fold, words bool) {
+	re, err := syntax.Parse(expr, syntax.Perl)
+	if err != nil {
+		return "", false, false
+	}
+	if re.Op == syntax.OpConcat && len(re.Sub) == 3 && re.Sub[0].Op == syntax.OpWordBoundary && re.Sub[2].Op == syntax.OpWordBoundary {
+		re, words = re.Sub[1], true
+	}
+	if re.Op != syntax.OpLiteral {
+		return "", false, false
+	}
+	lit, fold = string(re.Rune), re.Flags&syntax.FoldCase != 0
+	for _, r := range lit {
+		if fold && r > unicode.MaxASCII {
+			return "", false, false
+		}
+	}
+	if fold {
+		lit = strings.ToLower(lit)
+	}
+	return lit, fold, words
 }
 
 // all returns every match in text, each as Go submatch indexes.

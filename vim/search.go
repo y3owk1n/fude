@@ -71,13 +71,14 @@ func (m *Machine) seek(src string, forward bool, n int) (int, kind, bool) {
 	pos := c
 	for range n {
 		var ok bool
+		// After wrapping, a search reads only up to where it began.
 		if forward {
-			if pos, ok = p.first(t, pos+1); !ok {
-				pos, ok = p.first(t, 0)
+			if pos, ok = p.first(t, pos+1, t.Len()+1); !ok {
+				pos, ok = p.first(t, 0, pos+1)
 				m.msg = "search hit the end, continuing at the start"
 			}
-		} else if pos, ok = p.last(t, pos); !ok {
-			pos, ok = p.last(t, t.Len()+1)
+		} else if pos, ok = p.last(t, 0, pos); !ok {
+			pos, ok = p.last(t, pos, t.Len()+1)
 			m.msg = "search hit the start, continuing at the end"
 		}
 		if !ok {
@@ -93,30 +94,48 @@ func (m *Machine) seek(src string, forward bool, n int) (int, kind, bool) {
 // holds a match, so a search near the cursor never reads the whole text.
 const searchWindow = 1 << 10
 
-// first returns the start of the first match that starts at or after least.
-// It reads from least's line, so ^ and \< see the text before least.
-func (p *pattern) first(t Text, least int) (int, bool) {
-	if least > t.Len() {
+// first returns the start of the first match that starts at or after least
+// and before limit. It reads from least's line, so ^ and \< see the text
+// before least.
+func (p *pattern) first(t Text, least, limit int) (int, bool) {
+	limit = min(limit, t.Len()+1)
+	if least >= limit {
 		return 0, false
+	}
+	if p.lit != "" {
+		return p.firstLit(t, least, limit)
 	}
 	from := LineStart(t, least)
 	for size := searchWindow; ; size *= 2 {
 		to := LineEnd(t, min(from+size, t.Len()))
+		retry := false // a match that reaches the window's end
 		for _, mt := range p.all(t.Slice(from, to)) {
+			s, _ := p.span(mt)
+			switch {
+			case from+s < least:
+			case from+s >= limit:
+				return 0, false
 			// A match that reaches the window's end may be longer in the
 			// whole text, so the search retries it with a bigger window.
-			if s, _ := p.span(mt); from+s >= least && (mt[1] < to-from || to == t.Len()) {
+			case mt[1] == to-from && to < t.Len():
+				retry = true
+			default:
 				return from + s, true
 			}
 		}
-		if to == t.Len() {
+		if to == t.Len() || to >= limit && !retry {
 			return 0, false
 		}
 	}
 }
 
-// last returns the start of the last match that starts before limit.
-func (p *pattern) last(t Text, limit int) (int, bool) {
+// last returns the start of the last match that starts at or after least
+// and before limit.
+func (p *pattern) last(t Text, least, limit int) (int, bool) {
+	limit = min(limit, t.Len()+1)
+	if p.lit != "" {
+		return p.lastLit(t, least, limit)
+	}
 	to := LineEnd(t, min(limit, t.Len()))
 	for size := searchWindow; ; size *= 2 {
 		from := LineStart(t, max(to-size, 0))
@@ -126,13 +145,145 @@ func (p *pattern) last(t Text, limit int) (int, bool) {
 				found = from + s
 			}
 		}
-		if found >= 0 {
+		switch {
+		case found >= least:
 			return found, true
-		}
-		if from == 0 {
+		case found >= 0 || from <= least:
 			return 0, false
 		}
 	}
+}
+
+// litChunk is how much text a literal search reads at a time. It reads each
+// chunk once, plus the literal's length less one byte, so it finds a match
+// that crosses into the next chunk while it reads the first.
+const litChunk = 1 << 16
+
+// firstLit is first for a literal. It returns the start of its first match
+// in [least, limit).
+func (p *pattern) firstLit(t Text, least, limit int) (int, bool) {
+	n := len(p.lit)
+	for at := least; at < limit; at += litChunk {
+		s := t.Slice(at, min(at+litChunk+n-1, t.Len()))
+		for off := 0; ; off++ {
+			i := p.index(s[off:])
+			if i < 0 || off+i >= litChunk {
+				break
+			}
+			off += i
+			if at+off >= limit {
+				return 0, false
+			}
+			if p.edges(t, at+off) {
+				return at + off, true
+			}
+		}
+	}
+	return 0, false
+}
+
+// lastLit is last for a literal. It returns the start of its last match in
+// [least, limit).
+func (p *pattern) lastLit(t Text, least, limit int) (int, bool) {
+	n := len(p.lit)
+	for to := limit; to > least; to -= litChunk {
+		from := max(to-litChunk, least)
+		s := t.Slice(from, min(to+n-1, t.Len()))
+		// A match starts before to, so it ends by to+n-1.
+		for end := len(s); ; {
+			i := p.lastIndex(s[:end])
+			if i < 0 {
+				break
+			}
+			if from+i < to && p.edges(t, from+i) {
+				return from + i, true
+			}
+			end = i + n - 1
+		}
+	}
+	return 0, false
+}
+
+// index returns where the literal first is in s, or -1. When it folds case,
+// it tracks where each case of the first letter comes next, so it reads s
+// once.
+func (p *pattern) index(s string) int {
+	if !p.fold {
+		return strings.Index(s, p.lit)
+	}
+	lo, up := p.lit[0], upper(p.lit[0])
+	i, j := -1, -1 // the next lo and up at or after at, or len(s) for none
+	for at := 0; at+len(p.lit) <= len(s); at++ {
+		if i < at {
+			i = nextByte(s, at, lo)
+		}
+		if j < at {
+			j = nextByte(s, at, up)
+		}
+		if at = min(i, j); at+len(p.lit) <= len(s) && strings.EqualFold(s[at:at+len(p.lit)], p.lit) {
+			return at
+		}
+	}
+	return -1
+}
+
+// nextByte returns where c is in s at or after at, or len(s).
+func nextByte(s string, at int, c byte) int {
+	if i := strings.IndexByte(s[at:], c); i >= 0 {
+		return at + i
+	}
+	return len(s)
+}
+
+// lastIndex returns where the literal last is in s, or -1.
+func (p *pattern) lastIndex(s string) int {
+	if !p.fold {
+		return strings.LastIndex(s, p.lit)
+	}
+	lo, up := p.lit[0], upper(p.lit[0])
+	i, j := len(s), len(s) // the last lo and up before end, or -1 for none
+	for end := len(s); ; {
+		if i >= end {
+			i = strings.LastIndexByte(s[:end], lo)
+		}
+		if j >= end {
+			j = strings.LastIndexByte(s[:end], up)
+		}
+		if end = max(i, j); end < 0 {
+			return -1
+		}
+		if end+len(p.lit) <= len(s) && strings.EqualFold(s[end:end+len(p.lit)], p.lit) {
+			return end
+		}
+	}
+}
+
+// upper returns the ASCII letter c in upper case, and c itself otherwise.
+func upper(c byte) byte {
+	if c >= 'a' && c <= 'z' {
+		return c - 'a' + 'A'
+	}
+	return c
+}
+
+// edges reports whether a match at pos starts and ends at word edges, as
+// Go's \b finds them. It is true when the pattern does not ask for edges.
+func (p *pattern) edges(t Text, pos int) bool {
+	if !p.words {
+		return true
+	}
+	end := pos + len(p.lit)
+	return wordByte(t, pos-1) != wordByte(t, pos) && wordByte(t, end-1) != wordByte(t, end)
+}
+
+// wordByte reports whether the byte at pos is an ASCII word character, and
+// false outside the text.
+func wordByte(t Text, pos int) bool {
+	if pos < 0 || pos >= t.Len() {
+		return false
+	}
+	c := t.Slice(pos, pos+1)[0]
+	return c == '_' || c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
 }
 
 // keywordAt returns the word of word characters at or after c on its line.
