@@ -4,6 +4,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 	"syscall"
 
 	"github.com/y3owk1n/fude/editor"
@@ -17,11 +18,12 @@ func main() {
 	}
 }
 
-// run prints the man page for --man, or opens args in the terminal. After
-// :restart it runs fude again in its place, on the saved session (B170).
+// run prints a man page for --man, fude(1) or the one named after it, or
+// opens args in the terminal. After :restart it runs fude again in its
+// place, on the saved session (B170).
 func run(args []string) error {
-	if len(args) == 1 && args[0] == "--man" {
-		page, err := editor.Man()
+	if len(args) > 0 && len(args) <= 2 && args[0] == "--man" {
+		page, err := editor.Man(strings.Join(args[1:], ""))
 		if err != nil {
 			return err
 		}

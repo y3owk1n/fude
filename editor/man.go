@@ -1,14 +1,21 @@
 package editor
 
 import (
+	"cmp"
 	"fmt"
+	"regexp"
 	"runtime/debug"
+	"slices"
 	"strings"
 )
 
-// Man returns fude's man page in roff, the sections of help with fude's
+// ManPages are the man pages Man writes, by the name fude --man takes: ""
+// for fude(1), "config" for fude-config(5) and "guide" for fude-guide(7).
+var ManPages = []string{"", "config", "guide"}
+
+// Man returns the man page that page names in roff, from help with fude's
 // defaults, for fude --man (B163).
-func Man() (string, error) {
+func Man(page string) (string, error) {
 	e, err := open(defaults, nil)
 	if err != nil {
 		return "", fmt.Errorf("man page: %w", err)
@@ -23,56 +30,173 @@ func Man() (string, error) {
 		}
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, ".TH FUDE 1 %q fude \"User Commands\"\n", date)
-	b.WriteString(`.SH NAME
+	// The options and settings are fude-config(5)'s, and the rest of the
+	// reference is fude(1)'s.
+	config := func(s helpSection) bool { return s.title == "OPTIONS" || s.title == "SETTINGS" }
+	reference := func(keep func(helpSection) bool) {
+		for _, s := range e.helpSections() {
+			if len(s.entries) == 0 || !keep(s) {
+				continue
+			}
+			fmt.Fprintf(&b, ".SH %s\n", roff(s.title))
+			if s.note != "" {
+				fmt.Fprintf(&b, "%s\n", roff(s.note))
+			}
+			for _, en := range s.entries {
+				fmt.Fprintf(&b, ".TP\n\\fB%s\\fR\n%s\n", roff(en.head), roff(en.text))
+			}
+		}
+	}
+	pages := guide()
+	switch page {
+	case "":
+		fmt.Fprintf(&b, ".TH FUDE 1 %q fude \"User Commands\"\n", date)
+		b.WriteString(`.SH NAME
 fude \- a modal text editor
 .SH SYNOPSIS
 .B fude
 [\fB+\fIline\fR] [\fIfile\fR ...]
 .br
 .B fude \-\-man
+[\fBconfig\fR|\fBguide\fR]
 .SH DESCRIPTION
 fude opens each file in a buffer, or an empty buffer when none is given.
+A folder opens as a listing of its entries.
 With \fB+\fR\fIline\fR, the cursor starts on that line of the first file.
-Inside fude, \fB:h\fR shows this reference, the mappings config.toml adds,
-and a guide to fude.
-\fB\-\-man\fR prints this page.
+\fB\-\-man\fR prints this page, \fB\-\-man config\fR prints fude\-config(5)
+and \fB\-\-man guide\fR prints fude\-guide(7).
+Inside fude, \fB:h\fR shows this reference, the settings, the mappings
+config.toml adds and the guide.
 `)
-	for _, s := range e.helpSections() {
-		if len(s.entries) == 0 {
-			continue
-		}
-		fmt.Fprintf(&b, ".SH %s\n", roff(s.title))
-		if s.note != "" {
-			fmt.Fprintf(&b, "%s\n", roff(s.note))
-		}
-		for _, en := range s.entries {
-			fmt.Fprintf(&b, ".TP\n\\fB%s\\fR\n%s\n", roff(en.head), roff(en.text))
-		}
-	}
-	b.WriteString(`.SH FILES
+		reference(func(s helpSection) bool { return !config(s) })
+		b.WriteString(`.SH FILES
 .TP
 \fI$XDG_CONFIG_HOME/fude/config.toml\fR
 The settings, options and mappings, in \fI~/.config\fR without
-$XDG_CONFIG_HOME.
+$XDG_CONFIG_HOME. See fude\-config(5).
 .TP
 \fI$XDG_STATE_HOME/fude\fR
 Each file's timeline and fude's log, in \fI~/.local/state\fR without
 $XDG_STATE_HOME.
 .TP
+\fI$XDG_DATA_HOME/fude/grammars\fR
+The grammars fude builds, in \fI~/.local/share\fR without $XDG_DATA_HOME.
+.TP
 \fI$XDG_RUNTIME_DIR/fude.\fIpid\fI.sock\fR
 The socket clients attach to, in the temporary directory without
 $XDG_RUNTIME_DIR, unless the socket setting names another.
+.SH SEE ALSO
+fude\-config(5), fude\-guide(7)
 `)
+	case "config":
+		fmt.Fprintf(&b, ".TH FUDE-CONFIG 5 %q fude \"File Formats\"\n", date)
+		b.WriteString(".SH NAME\nfude\\-config \\- fude's config.toml\n")
+		// The guide's page on config is the description.
+		i := slices.IndexFunc(pages, func(p guidePage) bool { return p.tag == "guide-config" })
+		b.WriteString(manText(pages[i].text, ".SH DESCRIPTION"))
+		reference(config)
+		b.WriteString(".SH SEE ALSO\nfude(1), fude\\-guide(7)\n")
+	case "guide":
+		fmt.Fprintf(&b, ".TH FUDE-GUIDE 7 %q fude \"Miscellaneous\"\n", date)
+		b.WriteString(".SH NAME\nfude\\-guide \\- a guide to the fude editor\n")
+		for _, p := range pages {
+			b.WriteString(manText(p.text, ""))
+		}
+		b.WriteString(".SH SEE ALSO\nfude(1), fude\\-config(5)\n")
+	default:
+		return "", fmt.Errorf("no man page %q, only config and guide", page)
+	}
 	return b.String(), nil
 }
 
-// roff escapes text for a man page: backslashes and hyphens, and a dot or
-// quote that starts a line, which roff reads as a request.
-func roff(text string) string {
-	text = strings.NewReplacer(`\`, `\e`, "-", `\-`).Replace(text)
-	if strings.HasPrefix(text, ".") || strings.HasPrefix(text, "'") {
-		text = `\&` + text
+// manText returns a guide page's markdown as roff. Its title becomes a
+// section, or head when head is set, and its headings subsections. It
+// reads paragraphs, "- " lists, fenced code and inline code.
+func manText(md, head string) string {
+	var b strings.Builder
+	// A heading starts a paragraph of its own, so no .PP follows one.
+	heading := false
+	para := func() {
+		if !heading {
+			b.WriteString(".PP\n")
+		}
 	}
-	return text
+	lines := strings.Split(md, "\n")
+	for i := 0; i < len(lines); i++ {
+		l := lines[i]
+		switch {
+		case strings.HasPrefix(l, "# "):
+			b.WriteString(cmp.Or(head, ".SH "+roff(strings.ToUpper(strings.TrimPrefix(l, "# ")))) + "\n")
+			heading = true
+		case strings.HasPrefix(l, "## "):
+			b.WriteString(".SS " + roff(strings.TrimPrefix(l, "## ")) + "\n")
+			heading = true
+		case strings.HasPrefix(l, "```"):
+			para()
+			b.WriteString(".RS 4\n.nf\n")
+			for i++; i < len(lines) && !strings.HasPrefix(lines[i], "```"); i++ {
+				b.WriteString(roff(lines[i]) + "\n")
+			}
+			b.WriteString(".fi\n.RE\n")
+			heading = false
+		case strings.HasPrefix(l, "- "):
+			b.WriteString(".IP \\(bu 2\n" + manInline(strings.TrimPrefix(l, "- ")) + "\n")
+			// A list item goes on over the lines indented under it.
+			for i+1 < len(lines) && strings.HasPrefix(lines[i+1], "  ") {
+				i++
+				b.WriteString(manInline(strings.TrimSpace(lines[i])) + "\n")
+			}
+			heading = false
+		case l == "":
+			// A blank line before text starts a paragraph.
+			if next := lines[min(i+1, len(lines)-1)]; next != "" && !strings.HasPrefix(next, "#") && !strings.HasPrefix(next, "- ") && !strings.HasPrefix(next, "```") {
+				para()
+			}
+		default:
+			b.WriteString(manInline(l) + "\n")
+			heading = false
+		}
+	}
+	return b.String()
+}
+
+// codeSpan is markdown's inline code, in single backticks or in double
+// ones around text with a backtick.
+var codeSpan = regexp.MustCompile("``\\s?(.+?)\\s?``|`([^`]+)`")
+
+// manInline returns a line of markdown as roff, with its inline code in bold.
+func manInline(text string) string {
+	var b strings.Builder
+	at := 0
+	for _, m := range codeSpan.FindAllStringSubmatchIndex(text, -1) {
+		b.WriteString(escape(text[at:m[0]]))
+		// The first group is a double backtick span's, the second a single's.
+		code := ""
+		if m[2] >= 0 {
+			code = text[m[2]:m[3]]
+		} else {
+			code = text[m[4]:m[5]]
+		}
+		b.WriteString(`\fB` + escape(code) + `\fR`)
+		at = m[1]
+	}
+	b.WriteString(escape(text[at:]))
+	return guard(b.String())
+}
+
+// roff escapes a line of text for a man page.
+func roff(text string) string { return guard(escape(text)) }
+
+// escape escapes the backslashes and hyphens of text for roff.
+func escape(text string) string {
+	return strings.NewReplacer(`\`, `\e`, "-", `\-`).Replace(text)
+}
+
+// guard keeps roff from reading a line that starts with a dot or a quote as
+// a request.
+func guard(line string) string {
+	if strings.HasPrefix(line, ".") || strings.HasPrefix(line, "'") {
+		return `\&` + line
+	}
+	return line
 }

@@ -338,9 +338,11 @@ Where fude departs, the line says so and cites the departure in
   `key_timeout`. `<BS>` drops the last key typed, and `<Esc>` drops the
   command without running any of its keys (N24). `key_hints = 0` turns the
   panel off.
-- B163 [2] `fude --man` prints fude's man page: the sections of `:h` with
-  fude's defaults, and where fude keeps its config, state and socket.
-  `just man` writes it to `share/man/man1/fude.1`.
+- B163 [2] `fude --man` prints fude(1): the commands, keys and mappings of
+  `:h` with fude's defaults, and where fude keeps its config, state and
+  socket. `fude --man config` prints fude-config(5), the guide's page on
+  config with the options and settings, and `fude --man guide` prints
+  fude-guide(7), the guide. `just man` writes the three to `share/man`.
 - B164 [5] A file's filetype is its language's name: from its whole name,
   such as `.bashrc` for bash, else from its extension, such as `.yml` for
   yaml and `.rs` for rust, else the extension itself. A `files` pattern in

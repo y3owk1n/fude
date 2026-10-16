@@ -1778,12 +1778,19 @@ func TestB162Help(t *testing.T) {
 
 // B163
 func TestB163Man(t *testing.T) {
-	page, err := editor.Man()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.HasPrefix(page, ".TH FUDE 1 ") || !strings.Contains(page, ".TP\n\\fB:write [file]  :w\\fR\nwrites the buffer") {
-		t.Errorf("the man page is %q...", page[:min(300, len(page))])
+	// Each page has its own part of help.
+	for name, want := range map[string]string{
+		"":       ".TP\n\\fB:write [file]  :w\\fR\nwrites the buffer",
+		"config": ".TP\n\\fBtheme = \"dark\"\\fR",
+		"guide":  ".SH GETTING STARTED",
+	} {
+		page, err := editor.Man(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.HasPrefix(page, ".TH FUDE") || !strings.Contains(page, want) {
+			t.Errorf("man page %q is %q...", name, page[:min(300, len(page))])
+		}
 	}
 }
 
