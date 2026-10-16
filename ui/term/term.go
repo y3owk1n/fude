@@ -712,7 +712,7 @@ func (c *client) view(v editor.View, left int, sel vim.Selection, visual bool) (
 func (c *client) edge(v editor.View, left int) {
 	if v.X > left {
 		for y := v.Y; y < v.Y+v.H; y++ {
-			c.s.Put(v.X-1, y, "│", base)
+			c.s.Put(v.X-1, y, "│", base.Foreground(th.border))
 		}
 	}
 	c.status(v, v.X, v.W)

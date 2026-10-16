@@ -240,6 +240,19 @@ func TestB199Center(t *testing.T) {
 	}
 }
 
+// B23, for the line between windows side by side
+func TestB23Separator(t *testing.T) {
+	c := startWith(t, "")
+	for _, k := range vim.Keys(":vsplit<CR>") {
+		c.e.Feed(k)
+	}
+	c.draw()
+	x := c.e.Views()[1].X - 1
+	if s, style, _ := c.s.Get(x, 0); s != "│" || style.GetForeground() != themes["dark"].border {
+		t.Errorf("between the windows is %q in %v, want the border colour", s, style.GetForeground())
+	}
+}
+
 // B200
 func TestB200ColorColumn(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "a.txt")

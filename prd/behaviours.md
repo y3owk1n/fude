@@ -425,7 +425,8 @@ Where fude departs, the line says so and cites the departure in
   flags. The whole substitute is one transaction.
 - B23 [2] `<C-w>s` and `<C-w>v` split, `<C-w>hjkl` move between splits, and
   two splits on one buffer see each other's edits. A new window goes below
-  or right of the current one and takes the cursor (N16).
+  or right of the current one and takes the cursor (N16). Windows side by
+  side have a line between them in the border colour floats have.
 - B24 [2] Every key sequence in the grammar gives the same result whether
   it comes from typed keys, a macro, a plugin key or a client (D3).
 - B25 [2] `x X s S r R J gJ ~ g~ gu gU > < D C Y` act as in Neovim with
