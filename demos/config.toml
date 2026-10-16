@@ -7,8 +7,8 @@ autocomplete = true
 scroll_off = 6
 
 [keymap.normal]
-"<Leader><Leader>" = ":files<CR>"
-"<Leader>sg" = ":grep<CR>"
+"<Leader><Leader>" = ":pick files<CR>"
+"<Leader>sg" = ":pick grep<CR>"
 
 [keymap.groups]
 "<Leader>s" = "search"

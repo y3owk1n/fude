@@ -743,7 +743,7 @@ tall (B131).
 
 ## Finder
 
-`:files` opens a float whose buffer is the query, in insert mode, so every
+`:pick files` opens a float whose buffer is the query, in insert mode, so every
 insert key edits it. Keys reach the finder before anything else: `<CR>`,
 `<C-n>` and `<C-p>` are its own, and the rest go to the machine. When the machine leaves insert mode, by `<Esc>` or a mapping to
 it, the finder closes. The editor places the box in the middle of the
@@ -782,7 +782,7 @@ file's extension, which takes over a millisecond, so fude reads and
 highlights it off the loop, one at a time, when the selection changes. The
 old preview shows until the new one comes (B130).
 
-`:grep` opens the same finder in grep mode. Each change to the query runs
+`:pick grep` opens the same finder in grep mode. Each change to the query runs
 `rg --fixed-strings --smart-case` off the loop, or `git grep -F` with `-i`
 for a query without capitals when `rg` is not installed. One search runs
 at a time, as matching does. fude reads at most 1000 lines of its output

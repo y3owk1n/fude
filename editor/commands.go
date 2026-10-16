@@ -87,7 +87,9 @@ func init() {
 			e.edit(x.arg)
 		}, completePath},
 		{vim.Command{Name: "enew", Help: "shows a new empty buffer"}, func(e *Session, _ call) { e.empty() }, nil},
-		{vim.Command{Name: "files", Help: "finds a file by name"}, func(e *Session, _ call) { e.files() }, nil},
+		{vim.Command{Name: "pick", Args: "{source} [text]", Help: "opens the finder on a source: files, grep [text], buffers or recent"}, func(e *Session, x call) { e.openPick(x.arg) }, func(e *Session, _ string, start int, arg string, _ bool) (int, []string) {
+			return start, match(pickSources, arg)
+		}},
 		{vim.Command{Name: "diagnostics", Help: "lists the buffer's diagnostics as places, the worst first"}, func(e *Session, _ call) { e.listDiagnostics() }, nil},
 		{vim.Command{Name: "cnext", Short: []string{"cn"}, Help: "goes to the next place of the last list of places"}, func(e *Session, _ call) {
 			e.stepPlace(func(at, _ int) int { return at + 1 })
@@ -143,7 +145,6 @@ func init() {
 			}
 			return start, match(names, arg)
 		}},
-		{vim.Command{Name: "grep", Args: "[text]", Help: "searches the files for text as it is typed"}, func(e *Session, x call) { e.grepFiles(x.arg) }, nil},
 		{vim.Command{Name: "help", Short: []string{"h"}, Args: "[name]", Help: "opens help, at the entry for a command, key, option or setting"}, func(e *Session, x call) { e.help(x.arg) }, func(e *Session, _ string, start int, arg string, _ bool) (int, []string) {
 			return start, match(e.helpTags(), arg)
 		}},

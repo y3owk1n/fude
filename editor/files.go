@@ -23,9 +23,10 @@ import (
 	"github.com/y3owk1n/fude/vim"
 )
 
-// finder is the fuzzy file finder :files opens, or the live grep :grep
-// opens: a box whose first line is the query, typed in insert mode, with
-// the files or lines that match it below, the best first (B129, B134).
+// finder is the fuzzy file finder :pick files opens, or the live grep
+// :pick grep opens: a box whose first line is the query, typed in insert
+// mode, with the files or lines that match it below, the best first (B129,
+// B134).
 type finder struct {
 	grep     bool     // it searches files' lines, not their names
 	all      bool     // it searches the files git ignores and hidden ones too
@@ -49,6 +50,7 @@ type finder struct {
 	// instead of opening a file. It gets the index in paths of the item
 	// picked, or -1, the query, and false when cancelled.
 	prompt string
+	title  string // drawn in the box's border, such as :pick's source
 	chose  func(picked int, query string, ok bool)
 }
 
@@ -375,7 +377,7 @@ func (f *finder) float(query string, cursor, width, height int) Float {
 			docSpans = append(slices.Clip(docSpans), syntax.Span{Start: start, End: start + end, Name: "menu.selected"})
 		}
 	}
-	return Float{Text: s.String(), Spans: spans, Cursor: cursor + len(prompt), Doc: doc, DocSpans: docSpans, X: (width - total) / 2, Y: (height - h) / 2, W: w, H: h, DocW: docW}
+	return Float{Text: s.String(), Spans: spans, Title: f.title, Cursor: cursor + len(prompt), Doc: doc, DocSpans: docSpans, X: (width - total) / 2, Y: (height - h) / 2, W: w, H: h, DocW: docW}
 }
 
 // writePath writes path in at most width columns: its name, in style when

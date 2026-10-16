@@ -8,7 +8,7 @@ A mapping makes typed keys run other keys. Mappings are tables in
 ```toml
 [keymap.normal]
 "<Leader>w" = ":w<CR>"
-"<Leader>sw" = ":grep <C-r><C-w><CR>"
+"<Leader>sw" = ":pick grep <C-r><C-w><CR>"
 "<C-h>" = "<Plug>(window.left)"
 "-" = ""
 

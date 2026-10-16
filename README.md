@@ -89,7 +89,7 @@ Put `bin/fude` on your PATH. `go install` works from the first release on. Until
 | Tool                                        | For                                                  |
 | :------------------------------------------ | :--------------------------------------------------- |
 | `git` and the `tree-sitter` CLI             | Building grammars for languages other than Go        |
-| `rg`                                        | `:grep`, which falls back to `git grep`              |
+| `rg`                                        | `:pick grep`, which falls back to `git grep`         |
 | `pbcopy`, `wl-copy` or `xclip`              | The system clipboard                                 |
 | TinyGo                                      | Building plugins                                     |
 | A nerd font                                 | Icons, which are off by default                      |
@@ -107,7 +107,7 @@ fude main.go
 The first frame shows in under 5ms, with no config file and nothing asking for one.
 
 - **Edit as you always have.** `ciw`, `dap`, `3j`, `.` and `u` do what you expect. With the cursor in a function, `daf` deletes it and `cia` changes the argument under the cursor, in every language fude has a grammar for.
-- **Find things.** `:files` opens a fuzzy finder and `:grep` a live grep, each with a preview. `<C-q>` sends the matches to a list.
+- **Find things.** `:pick files` opens a fuzzy finder and `:pick grep` a live grep, each with a preview. `:pick buffers` and `:pick recent` find open and recent files. `<C-q>` sends the matches to a list.
 - **Go back in time.** After twenty minutes of refactoring, `:timeline` lists every state of the file. `[` and `]` scrub through them, `d` diffs one against now, and `<CR>` restores it as a new state, so even the restore can be undone.
 - **Ask.** Type the start of a command and wait, and a panel shows every key that may follow. `:h guide-start` opens the written guide.
 
@@ -125,7 +125,7 @@ A file in a language other than Go builds its grammar in the background the firs
 | **Language servers** | Several per file, merged diagnostics, hover, definitions, references, code actions, signature help, a `:lsp` panel |
 | **Completion**       | From language servers, snippets, paths and the buffer, with VS Code snippet files                                  |
 | **Formatting**       | Formatters by name, run in turn or the first that applies, with the language server as the fallback              |
-| **Finder**           | `:files` and `:grep` with a preview, `<C-g>` to search ignored files, `<C-q>` to a list                           |
+| **Finder**           | `:pick` for files, grep, buffers and recent files, with a preview, `<C-g>` to search ignored files, `<C-q>` to a list                           |
 | **Folders**          | Edit a listing and `:w` to rename, delete and create files                                                         |
 | **Git**              | Signs, `]h` and `[h` between hunks, a hunk preview, `gH` to put a hunk back as the index has it                  |
 | **Terminal**         | `:terminal` in a split, and `<Esc><Esc>` to move through its output in normal mode                                |
@@ -158,8 +158,8 @@ scroll_off = 8
 format_on_save = true
 
 [keymap.normal]
-"<Leader><Leader>" = ":files<CR>"
-"<Leader>sg" = ":grep<CR>"
+"<Leader><Leader>" = ":pick files<CR>"
+"<Leader>sg" = ":pick grep<CR>"
 
 [keymap.groups]
 "<Leader>s" = "search"           # the name key hints show
@@ -344,7 +344,7 @@ fude is built on:
 
 Much of what fude builds in follows a plugin or project that did it first: [oil.nvim](https://github.com/stevearc/oil.nvim) for editing folders, [fff.nvim](https://github.com/dmtrKovalenko/fff) for the finder and grep, [which-key.nvim](https://github.com/folke/which-key.nvim) for key hints, [gitsigns.nvim](https://github.com/lewis6991/gitsigns.nvim) and [mini.diff](https://github.com/nvim-mini/mini.diff) for git signs and hunks, [mini.icons](https://github.com/nvim-mini/mini.icons) for icons, [conform.nvim](https://github.com/stevearc/conform.nvim) for formatting, [undo-glow.nvim](https://github.com/y3owk1n/undo-glow.nvim) for the flash of a yank or undo, [nvim-tmux-navigation](https://github.com/alexghergh/nvim-tmux-navigation) for moving into tmux panes, [fzy](https://github.com/jhawthorn/fzy) for fuzzy ranking, [CodeMirror's collab module](https://codemirror.net/examples/collab/) for rebasing a client's edits, [base16](https://github.com/chriskempson/base16) and [Tinted Theming](https://github.com/tinted-theming) for schemes, [stylix](https://github.com/nix-community/stylix) for palettes, and [Helix](https://helix-editor.com) and [Zed](https://zed.dev) for the look.
 
-`:grep` runs [ripgrep](https://github.com/BurntSushi/ripgrep) when it is installed, and [just](https://github.com/casey/just) and [oku](https://github.com/y3owk1n/oku) run fude's development.
+`:pick grep` runs [ripgrep](https://github.com/BurntSushi/ripgrep) when it is installed, and [just](https://github.com/casey/just) and [oku](https://github.com/y3owk1n/oku) run fude's development.
 
 </details>
 

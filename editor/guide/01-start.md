@@ -54,8 +54,9 @@ on the same files after a change to its config.
 
 ## Finding things
 
-`:e path` opens a file. `:files` finds a file by name, `:grep text`
-searches the files' text, and `:buffers` lists the open buffers.
+`:e path` opens a file. `:pick files` finds a file by name, `:pick grep
+text` searches the files' text, `:pick buffers` finds an open buffer and
+`:pick recent` a file you opened before.
 
 ## When you forget a key
 

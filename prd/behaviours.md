@@ -145,7 +145,7 @@ Where fude departs, the line says so and cites the departure in
   name, in mini.icons' glyphs and colours. A file's icon goes by its name
   or extension, and a directory shows a folder. Diagnostic signs show
   icons in place of `E`, `W`, `I` and `H`. `icons` is off by default.
-- B129 [2] `:files` opens a fuzzy file finder, as fff.nvim's is, over the
+- B129 [2] `:pick files` opens a fuzzy file finder, as fff.nvim's is, over the
   working directory's files: in a git repository those git does not
   ignore, and elsewhere every file. The user types the query in insert
   mode. Below it are the files whose paths hold its letters in order,
@@ -159,7 +159,7 @@ Where fude departs, the line says so and cites the departure in
   its filetype's highlights. The two boxes have the same width and height.
   A file with a zero byte in its first 16KB shows "binary file". When
   nothing matches, the list says "no matches". Before a query is typed,
-  `:grep` says "type to search the files' lines".
+  `:pick grep` says "type to search the files' lines".
 - B131 [2] In a `:` command line, `<Tab>` and `<C-n>` put the next
   completion of the word being typed in the line, and `<S-Tab>` and
   `<C-p>` the one before. After the last comes the word as typed. `<C-y>`
@@ -181,8 +181,8 @@ Where fude departs, the line says so and cites the departure in
   cursor and `<C-u>` all before it. `<Up>` and `<Down>` recall older and
   newer lines that start with the text typed, `:` lines and searches each
   from their own history, as Neovim's command line does.
-- B134 [2] `:grep` opens a live grep in the finder, as fff.nvim's is, and
-  `:grep text` starts it with text typed. Each change to the query
+- B134 [2] `:pick grep` opens a live grep in the finder, as fff.nvim's
+  is, and `:pick grep text` starts it with text typed. Each change to the query
   searches the working directory's files for it as plain text, with `rg`
   when it is installed and `git grep` otherwise. A query without capitals
   ignores case. Matches show under a row naming their file, each as its
@@ -193,7 +193,7 @@ Where fude departs, the line says so and cites the departure in
 - B135 [2] In a command line, `<C-r>` and a register's name put the
   register's text at the cursor, without its last line break, and
   `<C-r><C-w>` the word under the cursor in the text. A mapping to
-  `:grep <C-r><C-w><CR>` greps the word under the cursor.
+  `:pick grep <C-r><C-w><CR>` greps the word under the cursor.
 - B136 [2] With `format_on_save` on, `:w` formats the buffer first, as
   conform.nvim's `format_on_save` does. A filetype's `format` names its
   formatters, which run in turn, each reading the text on stdin and writing
@@ -517,12 +517,19 @@ Where fude departs, the line says so and cites the departure in
   does not show the list, and work after its window closes too. Each says
   which place it is, of how many. `:copen` shows the list again, and
   `:cclose` closes its window.
-- B195 [2] In `:grep`'s and `:files`' finders, `<C-q>` closes the finder
+- B195 [2] In the finders of `:pick files` and `:pick grep`, `<C-q>` closes the finder
   and shows every match in a list of places, which becomes the last list.
   A grep match's place is its line and column, and a file's is its start.
-- B210 [2] In `:grep`'s and `:files`' finders, `<C-g>` searches the files
+- B210 [2] In the finders of `:pick files` and `:pick grep`, `<C-g>` searches the files
   git ignores and hidden files too, and the count says "with ignored".
   `<C-g>` again leaves them out. The finders never search `.git`.
+- B213 [2] `:pick {source}` opens the finder on a source's items, and
+  `<Tab>` completes the source's name. `files` and `grep` are B129's and
+  B134's finders. `buffers` lists the open buffers that have a file.
+  `recent` lists the last 100 files a window showed, newest first, and
+  keeps them across sessions. Neither lists the current file. `<CR>` opens
+  the file picked, and B130's preview shows it. The finder's border names
+  the source (N11).
 - B196 [2] `:diagnostics` lists the buffer's diagnostics as places, each
   with its line, column, severity and message, the worst first and then in
   the order of the text.

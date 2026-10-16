@@ -44,14 +44,17 @@ a file, or a folder when it ends in `/`. fude asks before each change.
 
 ## Finding files and text
 
-`:files` opens a fuzzy finder over the working directory's files, those
-git does not ignore inside a repository. Type part of a path, move with
-`<C-n>` and `<C-p>`, and `<CR>` opens the file. A wide screen shows the
-selected file beside the list.
+`:pick files` opens a fuzzy finder over the working directory's files,
+those git does not ignore inside a repository. Type part of a path, move
+with `<C-n>` and `<C-p>`, and `<CR>` opens the file. A wide screen shows
+the selected file beside the list.
 
-`:grep` searches the files' text as the query is typed, with `rg` when it
-is installed and `git grep` otherwise. `:grep text` starts with text
-typed, and `<CR>` opens the file at the match.
+`:pick grep` searches the files' text as the query is typed, with `rg`
+when it is installed and `git grep` otherwise. `:pick grep text` starts
+with text typed, and `<CR>` opens the file at the match.
+
+`:pick buffers` finds an open buffer, and `:pick recent` one of the last
+100 files you opened. `<Tab>` after `:pick ` lists every source.
 
 ## Lists of places
 
@@ -61,7 +64,7 @@ list. `]q` and `[q` go to its next place and the one before, `]Q` and
 `[Q` to its ends, and `:cnext`, `:cprev` and `:cc 3` do the same from the
 command line, after its window closes too. `:copen` shows it again.
 
-`<C-q>` in the `:grep` or `:files` finder sends every match to a list of
+`<C-q>` in the `:pick grep` or `:pick files` finder sends every match to a list of
 places, and `:diagnostics` lists the buffer's diagnostics, the worst
 first. Either becomes the last list.
 

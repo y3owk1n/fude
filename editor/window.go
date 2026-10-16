@@ -32,6 +32,7 @@ type window struct {
 
 // newWindow shows b with the cursor at pos and top as the first line.
 func newWindow(b *buffer, pos, top int) *window {
+	noteRecent(b.file.path)
 	return &window{buf: b, cursor: b.text.SetMark(pos, kernel.Right), top: b.text.SetMark(top, kernel.Left)}
 }
 
@@ -87,6 +88,7 @@ func (w *window) show(b *buffer) {
 		w.alt = w.buf
 	}
 	w.buf = b
+	noteRecent(b.file.path)
 	w.cursor = b.text.SetMark(b.last, kernel.Right)
 	w.top = b.text.SetMark(b.lastTop, kernel.Left)
 }

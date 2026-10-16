@@ -225,7 +225,7 @@ Keys in the `:timeline` window, where `[` and `]` move the text, `d` diffs,
 
 ## keymap.finder
 
-Keys in the finder of `:files` and `:grep`, which are insert mode keys, such
+Keys in the finders of `:pick`, which are insert mode keys, such
 as `<C-n>` and `<C-p>`.
 
 ## keymap.float

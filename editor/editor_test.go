@@ -845,7 +845,7 @@ func TestB129Files(t *testing.T) {
 	}
 	// The finder lists the files git does not ignore, each by its name and
 	// then its directory.
-	feed(e, ":files<CR>")
+	feed(e, ":pick files<CR>")
 	settle(t, e, func() bool { return len(results()) == 5 })
 	feed(e, "edgo")
 	settle(t, e, func() bool {
@@ -855,7 +855,7 @@ func TestB129Files(t *testing.T) {
 		t.Fatalf("<C-n><CR> opened %q in %v mode", e.Views()[0].Name, e.Mode())
 	}
 	// <Esc> closes the finder and opens nothing.
-	feed(e, ":files<CR>x<Esc>")
+	feed(e, ":pick files<CR>x<Esc>")
 	if _, ok := e.Float(); ok || e.Views()[0].Name != "editor/git.go" || text(e) != "editor/git.go" {
 		t.Fatalf("after <Esc> the finder shows %v and the window has %q", ok, e.Views()[0].Name)
 	}
@@ -870,7 +870,7 @@ func TestB130FilesPreview(t *testing.T) {
 	t.Chdir(dir)
 	e := open(t, "a")
 	e.SetSize(100, 24)
-	feed(e, ":files<CR>")
+	feed(e, ":pick files<CR>")
 	doc := func() string { f, _ := e.Float(); return f.Doc }
 	settle(t, e, func() bool { return doc() == "a\n\none\ntwo" })
 	feed(e, "<C-n>")
@@ -948,7 +948,7 @@ func TestB134Grep(t *testing.T) {
 	}
 	// A query in lower case ignores case, and one with a capital does not.
 	// Each match shows under its file, as its line number and its line.
-	feed(e, ":grep needle<CR>")
+	feed(e, ":pick grep needle<CR>")
 	settle(t, e, func() bool { return len(results()) == 4 })
 	feed(e, "<BS><BS><BS><BS><BS><BS>Needle")
 	settle(t, e, func() bool { return slices.Equal(results(), []string{"a.go", "2  two Needle"}) })
@@ -980,7 +980,7 @@ func TestB195FinderLists(t *testing.T) {
 		return append(names, e.Views()[0].Name)
 	}
 	// Grep shows each match under a row for its file.
-	for find, rows := range map[string]int{":grep needle<CR>": 4, ":files<CR>": 2} {
+	for find, rows := range map[string]int{":pick grep needle<CR>": 4, ":pick files<CR>": 2} {
 		feed(e, find)
 		settle(t, e, func() bool { return shown() == rows })
 		// <C-q> sends both matches to a list, which is the last list.
@@ -997,10 +997,38 @@ func TestB195FinderLists(t *testing.T) {
 func TestB202FinderQuery(t *testing.T) {
 	e := open(t, "")
 	e.SetSize(100, 24)
-	feed(e, ":grep<CR>f(")
+	feed(e, ":pick grep<CR>f(")
 	if f, _ := e.Float(); !strings.HasPrefix(f.Text, "› f( ") {
 		t.Fatalf("typing f( in the finder makes the line %q", strings.SplitN(f.Text, "\n", 2)[0])
 	}
+}
+
+// B213
+func TestB213Pick(t *testing.T) {
+	dir := t.TempDir()
+	change(t, filepath.Join(dir, "a.txt"), "a\n")
+	change(t, filepath.Join(dir, "b.txt"), "b\n")
+	t.Chdir(dir)
+	e := open(t, "a.txt")
+	e.SetSize(100, 30)
+	feed(e, ":e b.txt<CR>")
+	rows := func() []string {
+		f, _ := e.Float()
+		return slices.DeleteFunc(strings.Split(f.Text, "\n")[1:], func(l string) bool { return l == "" })
+	}
+	// Buffers and recent files list the files but the current one, and
+	// <CR> opens the one picked.
+	for _, source := range []string{"buffers", "recent"} {
+		feed(e, ":pick "+source+"<CR>")
+		settle(t, e, func() bool { return slices.Contains(rows(), "a.txt") && !slices.Contains(rows(), "b.txt") })
+		if feed(e, "a.txt<CR>"); e.Views()[0].Name != "a.txt" {
+			t.Fatalf("<CR> in :pick %s opened %q", source, e.Views()[0].Name)
+		}
+		feed(e, ":e b.txt<CR>")
+	}
+	// Files and grep are sources too.
+	feed(e, ":pick grep b<CR>")
+	settle(t, e, func() bool { return slices.Contains(rows(), "b.txt") })
 }
 
 // B212
@@ -1012,7 +1040,7 @@ func TestB212QCloses(t *testing.T) {
 	e.SetSize(100, 30)
 	feed(e, "ix<Esc>")
 	// A list of places, a timeline and a window fude wrote each close.
-	feed(e, ":files<CR>")
+	feed(e, ":pick files<CR>")
 	settle(t, e, func() bool { f, _ := e.Float(); return strings.Contains(f.Text, "a.txt") })
 	for _, keys := range []string{"<C-q>", ":timeline<CR>", ":grammar<CR>"} {
 		if feed(e, keys); len(e.Views()) != 2 {
@@ -1045,8 +1073,8 @@ func TestB210FinderIgnored(t *testing.T) {
 		find          string
 		without, with []string
 	}{
-		{":grep needle<CR>", []string{"1  needle", "a.go"}, []string{"1  needle", "1  needle", "a.go", "skip.go"}},
-		{":files<CR>", []string{".gitignore", "a.go"}, []string{".gitignore", "a.go", "skip.go"}},
+		{":pick grep needle<CR>", []string{"1  needle", "a.go"}, []string{"1  needle", "1  needle", "a.go", "skip.go"}},
+		{":pick files<CR>", []string{".gitignore", "a.go"}, []string{".gitignore", "a.go", "skip.go"}},
 	} {
 		feed(e, c.find)
 		settle(t, e, func() bool { return slices.Equal(shown(), c.without) })
@@ -1220,7 +1248,7 @@ x = "<Nop>"
 		t.Fatalf("<C-v> on b left %d windows showing %q", len(e.Views()), text(e))
 	}
 	// The finder's keys are an insert mode keymap.
-	feed(e, "<C-w>h:files<CR>")
+	feed(e, "<C-w>h:pick files<CR>")
 	settle(t, e, func() bool {
 		f, _ := e.Float()
 		return strings.Count(f.Text, "\n") > 0 && strings.Contains(f.Text, "\nb")
@@ -1294,7 +1322,7 @@ func TestB152Marks(t *testing.T) {
 		}
 		return b.String()
 	}
-	feed(e, ":files<CR>edfl")
+	feed(e, ":pick files<CR>edfl")
 	settle(t, e, func() bool { return marked() == "edfl" })
 	feed(e, "<Esc>:tim<Tab>")
 	if marked() != "tim" {
@@ -1305,7 +1333,7 @@ func TestB152Marks(t *testing.T) {
 	if out, err := exec.Command("git", "-C", dir, "init", "-q").CombinedOutput(); err != nil {
 		t.Skipf("git init: %v: %s", err, out)
 	}
-	feed(e, "<Esc>:grep needle<CR>")
+	feed(e, "<Esc>:pick grep needle<CR>")
 	settle(t, e, func() bool { return marked() == "needle" })
 }
 
@@ -2227,7 +2255,7 @@ func TestB170Restart(t *testing.T) {
 func TestB172KeyHints(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "a.txt")
 	change(t, path, "ab\n")
-	config(t, "[keymap.normal]\n\"<Leader>w\" = \":w<CR>\"\n\"<Leader>sg\" = \":grep<CR>\"\n[keymap.groups]\n\"<Leader>s\" = \"search\"\n")
+	config(t, "[keymap.normal]\n\"<Leader>w\" = \":w<CR>\"\n\"<Leader>sg\" = \":pick grep<CR>\"\n[keymap.groups]\n\"<Leader>s\" = \"search\"\n")
 	e := start(t, path)
 	e.SetSize(100, 30)
 	// After a mapping's first key, the hints say what may follow, and the key

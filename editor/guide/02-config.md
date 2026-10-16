@@ -58,7 +58,7 @@ setting.
 ```toml
 [keymap.normal]
 "<Leader>w" = ":w<CR>"
-"<Leader>sg" = ":grep<CR>"
+"<Leader>sg" = ":pick grep<CR>"
 "<Leader>gd" = "<Plug>(git.preview)"
 
 [keymap.groups]

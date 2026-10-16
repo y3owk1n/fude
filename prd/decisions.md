@@ -441,11 +441,14 @@ With `expand_tab`, `<Tab>` in insert mode types spaces to the next
 fude has one indent setting, and a `<Tab>` that indents by it is what most
 Neovim configs set.
 
-### N11. :files finds files
+### N11. :pick finds things
 
-`:files` opens a fuzzy file finder (B129), where Neovim's `:files` is
-another name for `:ls`. Why: the user chose the name on 2026-10-16, and
-`:ls` and `:buffers` still list buffers.
+`:pick files`, `:pick grep`, `:pick buffers` and `:pick recent` open the
+finder on files, their text, the open buffers and the recent files (B129,
+B134, B213). Neovim has no finder, and its `:files` is another name for
+`:ls`. Why: one command opens every finder, so each works the same way and
+`<Tab>` lists every source. The user chose it on 2026-10-17, in place
+of `:files` and `:grep`.
 
 ### N12. autocomplete covers the command line
 
@@ -455,12 +458,13 @@ command line needs `wildtrigger()` in a `CmdlineChanged` autocommand to do
 the same. Why: one setting for completion while typing, and fude has no
 autocommands.
 
-### N13. :grep is a live grep
+### N13. No :grep, and :pick grep is a live grep
 
-`:grep` opens a finder that searches as the query is typed (B134), where
-Neovim's `:grep` runs `'grepprg'` once and fills the quickfix list. Why:
-the user searches with fff.nvim's live grep. Its matches reach the last
-list of places, fude's quickfix list, only when sent there (N25).
+fude has no `:grep`. `:pick grep` opens a finder that searches as the query
+is typed (B134), where Neovim's `:grep` runs `'grepprg'` once and fills the
+quickfix list. Why: the user searches with fff.nvim's live grep. Its
+matches reach the last list of places, fude's quickfix list, only when sent
+there (N25).
 
 ### N14. clipboard keeps a copy's shape
 
