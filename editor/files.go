@@ -271,7 +271,8 @@ func (f *finder) float(query string, cursor, width, height int) Float {
 	var spans []syntax.Span
 	// The query after a prompt, with the count of matches on the right.
 	prompt := cmp.Or(f.prompt, finderPrompt)
-	s.WriteString(prompt + query)
+	s.WriteString(prompt)
+	s.WriteString(query)
 	count := fmt.Sprintf("%d / %d", len(f.matches), len(f.paths))
 	if f.grep {
 		count = strconv.Itoa(len(f.matches))
