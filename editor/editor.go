@@ -1281,7 +1281,8 @@ func (e *Session) write(b *buffer, force bool, then func()) {
 // writeOut writes b's text to its file, then runs then.
 func (e *Session) writeOut(b *buffer, then func()) {
 	s, at := b.text.Snapshot(), time.Now()
-	n, err := b.file.write(s.Slice(0, s.Len()))
+	text := s.Slice(0, s.Len())
+	n, err := b.file.write(text)
 	traced("file", fmt.Sprintf("wrote %q, %d bytes", b.file.path, n), at, err)
 	if err != nil {
 		e.message = err.Error()
@@ -1292,7 +1293,7 @@ func (e *Session) writeOut(b *buffer, then func()) {
 		tag = "[New] "
 	}
 	b.file.isNew = false
-	b.markSaved()
+	b.markSaved(text)
 	e.emit("buffer.saved", "", b)
 	e.message = fmt.Sprintf("\"%s\" %s%dB written", b.file.path, tag, n)
 	if then != nil {

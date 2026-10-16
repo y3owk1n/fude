@@ -50,8 +50,14 @@ func historyPath(path string) (string, error) {
 }
 
 func hash(text string) string {
-	sum := sha256.Sum256([]byte(text))
-	return hex.EncodeToString(sum[:])
+	// A chunk at a time, as converting a long text whole would copy it.
+	h, buf := sha256.New(), make([]byte, 64<<10)
+	for len(text) > 0 {
+		n := copy(buf, text)
+		h.Write(buf[:n])
+		text = text[n:]
+	}
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 // Append writes a node to the log.

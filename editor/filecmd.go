@@ -23,7 +23,7 @@ func (e *Session) revert(b *buffer) error {
 		b.head = b.text.Head()
 	}
 	b.file = f
-	b.markSaved()
+	b.markSaved(text)
 	return nil
 }
 

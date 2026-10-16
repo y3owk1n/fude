@@ -84,7 +84,7 @@ func openBuffer(id int, path string) (*buffer, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	b := &buffer{id: id, file: f, text: kernel.New(text, nil), before: map[kernel.NodeID]int{}, marks: map[rune]kernel.MarkID{}}
+	b := &buffer{id: id, file: f, before: map[kernel.NodeID]int{}, marks: map[rune]kernel.MarkID{}}
 	msg := ""
 	switch {
 	case f.readonly:
@@ -93,6 +93,7 @@ func openBuffer(id int, path string) (*buffer, string, error) {
 		msg = fmt.Sprintf("\"%s\" [New]", path)
 	}
 	if path == "" || f.readonly {
+		b.text = kernel.New(text, nil)
 		return b, msg, nil
 	}
 	log, l, err := openHistory(path, text)
@@ -129,13 +130,12 @@ func (b *buffer) is(path string) bool {
 	return b.file.path != "" && err1 == nil && err2 == nil && x == y
 }
 
-// markSaved notes that the file on disk holds the buffer's text.
-func (b *buffer) markSaved() {
+// markSaved notes that the file on disk holds text, the buffer's text.
+func (b *buffer) markSaved(text string) {
 	b.saved = b.text.Head()
 	b.saves = append(b.saves, b.saved)
 	if b.log != nil {
-		s := b.text.Snapshot()
-		b.log.write(record{Kind: "save", Head: b.saved, Hash: hash(s.Slice(0, s.Len()))})
+		b.log.write(record{Kind: "save", Head: b.saved, Hash: hash(text)})
 	}
 }
 

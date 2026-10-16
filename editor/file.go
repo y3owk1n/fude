@@ -72,10 +72,14 @@ func slurp(path string) (string, error) {
 // write stores text at the file's path through a temp file and a rename, so
 // a failed write leaves the old file unchanged. It returns the bytes written.
 func (f *file) write(text string) (int, error) {
+	// The final line break goes in a write of its own, as adding it would
+	// copy the text.
+	eol := ""
 	if f.eol {
-		text += "\n"
+		eol = "\n"
 	}
 	if f.crlf {
+		eol = strings.ReplaceAll(eol, "\n", "\r\n")
 		text = strings.ReplaceAll(text, "\n", "\r\n")
 	}
 	path := f.path
@@ -92,6 +96,9 @@ func (f *file) write(text string) (int, error) {
 	}
 	defer os.Remove(tmp.Name())
 	_, err = tmp.WriteString(text)
+	if err == nil {
+		_, err = tmp.WriteString(eol)
+	}
 	err = errors.Join(err, tmp.Chmod(mode), tmp.Sync(), tmp.Close())
 	if err == nil {
 		err = os.Rename(tmp.Name(), path)
@@ -100,7 +107,7 @@ func (f *file) write(text string) (int, error) {
 		return 0, fmt.Errorf("write %s: %w", f.path, err)
 	}
 	f.note()
-	return len(text), nil
+	return len(text) + len(eol), nil
 }
 
 // note records the file's modification time and size on disk.
