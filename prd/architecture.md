@@ -931,12 +931,13 @@ conservative collector and a 64KB stack, as the target's own collector
 never frees memory. `fude plugin
 new` writes a plugin that requires the sdk of fude's release, or the newest
 for a build that is not one, so a release tags `sdk/vX.Y.Z` beside
-`vX.Y.Z`. `fude plugin build` builds a plugin with that target, finding it through `go list -m` in the plugin's
+`vX.Y.Z`. `fude plugin build` builds a plugin with that target and without debug
+info, which would make it twenty times its size, finding it through `go list -m` in the plugin's
 module (B173).
 
-Test plugins are `.wat` files in `plugin/testdata`, and `stamp`, written
-with the sdk. `just wasm` builds the `.wasm` beside each, so tests never
-need `wasm-tools` or TinyGo.
+Test plugins are written with the sdk, each a folder in `plugin/testdata`.
+`just wasm` builds each with `fude plugin build`, and the `.wasm` it builds
+sits beside the source, so tests never need TinyGo.
 
 ## Syntax
 

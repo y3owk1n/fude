@@ -1,4 +1,4 @@
-module stamp
+module write
 
 go 1.26.0
 

@@ -6,7 +6,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -27,7 +26,7 @@ func withPlugin(t *testing.T, name string, caps ...string) *editor.Session {
 // usePlugin writes a config that loads the test plugin name with caps.
 func usePlugin(t *testing.T, name string, caps ...string) {
 	t.Helper()
-	wasm, err := filepath.Abs(filepath.Join("..", "plugin", "testdata", name+".wasm"))
+	wasm, err := filepath.Abs(filepath.Join("..", "plugin", "testdata", name, name+".wasm"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,7 +149,7 @@ func TestB47ReadFile(t *testing.T) {
 
 // B48
 func TestB48RunPrograms(t *testing.T) {
-	wasm, err := filepath.Abs(filepath.Join("..", "plugin", "testdata", "proc.wasm"))
+	wasm, err := filepath.Abs(filepath.Join("..", "plugin", "testdata", "proc", "proc.wasm"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -178,7 +177,7 @@ func TestB49HTTPGet(t *testing.T) {
 		fmt.Fprint(w, "pong")
 	}))
 	defer srv.Close()
-	wasm, err := filepath.Abs(filepath.Join("..", "plugin", "testdata", "net.wasm"))
+	wasm, err := filepath.Abs(filepath.Join("..", "plugin", "testdata", "net", "net.wasm"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -293,7 +292,7 @@ func TestB52PluginOperatorsAndObjects(t *testing.T) {
 	}
 }
 
-// B54
+// B54, and B173 as kit is written with the sdk
 func TestB54PluginCommandsAndKeys(t *testing.T) {
 	for _, c := range [][2]string{
 		{":Shout<CR>", "!ab cd\nef"},
@@ -347,20 +346,4 @@ func TestB55PluginDecorations(t *testing.T) {
 	if got := decorations(e); len(got) != 0 || !strings.HasSuffix(e.Message(), "so it was unloaded") {
 		t.Errorf("after the plugin unloaded, decorations are %q and it said %q", got, e.Message())
 	}
-}
-
-// B173
-func TestB173SDKPlugin(t *testing.T) {
-	e := withPlugin(t, "stamp/stamp", "buffer.read", "buffer.write", "ui")
-	e.Load()
-	(<-e.Queue())()
-	// Its command and operator run the Go functions it registered.
-	if feed(e, ":Stamp<CR>"); text(e) != "stampabc" {
-		t.Fatalf(":Stamp left %q", text(e))
-	}
-	if feed(e, "zuiw"); text(e) != "STAMPABC" {
-		t.Fatalf("zuiw left %q", text(e))
-	}
-	// Its handler hears the change it subscribed to.
-	settle(t, e, func() bool { return slices.Contains(e.Views()[0].Segments, "changed") })
 }

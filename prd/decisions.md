@@ -328,8 +328,8 @@ plugin's keys do, as they do for fude's own.
 `wasm-unknown` target (B173). Why: the plugin ABI moves text through
 pointers into the plugin's memory, which nobody should write by hand.
 TinyGo's `wasm-unknown` modules import nothing, so the sandbox stays as the
-capabilities draw it, and they come out at tens or hundreds of kilobytes,
-which compile and start well inside the init budget. Go's own `wasip1`
+capabilities draw it, and they come out between a few kilobytes and a few
+tens of kilobytes, which compile and start well inside the init budget. Go's own `wasip1`
 target would need WASI in the sandbox, builds modules of megabytes, and its
 runtime takes longer to start. TinyGo leaves out parts of the standard
 library, such as `os` and `net`, which a plugin reaches through fude's

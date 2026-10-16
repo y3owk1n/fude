@@ -21,8 +21,6 @@ gopls = "go:golang.org/x/tools/gopls"
 goimports = "go:golang.org/x/tools/cmd/goimports"
 golangci-lint-langserver = "github:nametake/golangci-lint-langserver"
 just-lsp = "github:terror/just-lsp"
-# wasm-tools turns the test plugins from .wat into .wasm.
-wasm-tools = "github:bytecodealliance/wasm-tools"
 # tinygo builds plugins written with the sdk into .wasm, and runs
 # binaryen's wasm-opt on them.
 tinygo = { ref = "./.oku/tinygo.toml", version = "^0.43" }

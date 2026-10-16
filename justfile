@@ -37,11 +37,9 @@ man: build
 run *args: build
     bin/fude {{ args }}
 
-# Build the test plugins: the .wat ones with wasm-tools, and the sdk one
-# with fude plugin build.
+# Build the test plugins, each written with the sdk, with fude plugin build.
 wasm:
-    for f in plugin/testdata/*.wat; do wasm-tools parse $f -o ${f%.wat}.wasm; done
-    go run ./cmd/fude plugin build plugin/testdata/stamp
+    for d in plugin/testdata/*/; do go run ./cmd/fude plugin build $d || exit 1; done
 
 # Check the speed promises, without the race detector.
 perf:
