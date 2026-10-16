@@ -25,8 +25,9 @@ type window struct {
 	jumps  []place
 	jumpAt int // the jump <C-o> last moved to, or len(jumps)
 	opts   options
-	left   int    // the first screen column shown, without wrap
-	folds  []fold // its closed folds (B224)
+	left   int      // the first screen column shown, without wrap
+	folds  []fold   // its closed folds (B224)
+	saved  *options // its options while the start screen shows (B225)
 	// pinned is the last sticky context worked out, with the text's version,
 	// the top, cursor and parse it was for, so a frame that changes none of
 	// them asks no tree.
@@ -118,6 +119,9 @@ func (w *window) show(b *buffer) {
 		w.alt = w.buf
 	}
 	w.buf = b
+	if w.saved != nil && b.title != "[start]" {
+		w.opts, w.saved = *w.saved, nil
+	}
 	noteRecent(b.file.path)
 	w.cursor = b.text.SetMark(b.last, kernel.Right)
 	w.top = b.text.SetMark(b.lastTop, kernel.Left)

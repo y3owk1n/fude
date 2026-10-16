@@ -298,6 +298,11 @@ func init() {
 		{"window.right", "goes to the window, or tmux pane, to the right", func(e *Session, _ int) { e.navigate('l') }},
 		{"diagnostic]d", "goes to the next diagnostic", func(e *Session, count int) { e.diagnostic(max(count, 1)) }},
 		{"diagnostic[d", "goes to the diagnostic before", func(e *Session, count int) { e.diagnostic(-max(count, 1)) }},
+		{"start.open", "runs the start screen's line under the cursor", func(e *Session, _ int) { e.startOpen() }},
+		{"start.config", "opens config.toml", func(e *Session, _ int) { e.startConfig() }},
+	}
+	for n := 1; n <= 9; n++ {
+		plugs = append(plugs, plug{"start." + strconv.Itoa(n), "opens the start screen's recent file " + strconv.Itoa(n), func(e *Session, _ int) { e.startRecent(n) }})
 	}
 	commandsByName = byName(commands)
 }

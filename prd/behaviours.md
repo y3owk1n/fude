@@ -118,6 +118,14 @@ Where fude departs, the line says so and cites the departure in
   `<CR>` opens the entry, `<C-s>` and `<C-h>` open it in a split beside or
   below, `_` lists the working directory and `<C-l>` reads it again, as
   oil.nvim's keys do. B142 changes these keys.
+- B225 [2] `fude` with no file, when not restarting, shows a start screen
+  in place of the empty buffer. Under fude's name, a line for each key
+  says what it does. `f` runs `:pick files`, `g` runs `:pick grep`, `r`
+  runs `:pick recent`, `e` opens an empty buffer, `c` opens config.toml
+  and `q` quits. The 9 newest recent files follow, numbered, with `~` for
+  the home directory. A digit opens its recent file, and `<CR>` runs the
+  line under the cursor. The screen shows no line numbers or guides, and
+  the window gets its options back when it shows another buffer.
 - B201 [2] `fude dir`, with no other file, makes `dir` the working
   directory, so the finder, grep and relative paths start there. Helix's
   `hx dir` does the same.
@@ -254,8 +262,8 @@ Where fude departs, the line says so and cites the departure in
   default too, and a key mapped to `<Nop>` does nothing. The kinds are
   `listing`, `list` for the lists of places such as `grr`'s, `timeline`,
   `finder`, whose keys are insert mode's, `float` for a float the cursor
-  is in, `lsp`, `help`, and `scratch` for the windows fude writes, such as
-  `:messages`, `:grammar` and a diff (B212). Hover while a float shows moves the
+  is in, `lsp`, `help`, `scratch` for the windows fude writes, such as
+  `:messages`, `:grammar` and a diff (B212), and `start` (B225). Hover while a float shows moves the
   cursor into it, whichever key runs hover.
 - B212 [2] `q` closes a list of places, a timeline, help, the `lsp`
   panel, a float the cursor is in and every window fude writes, such as

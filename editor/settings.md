@@ -259,6 +259,12 @@ stops it, `d` keeps it off and `e` lets it start.
 Keys in help, where `<CR>` goes to the name under the cursor and `q` closes
 it.
 
+## keymap.start
+
+Keys on the start screen that `fude` with no file shows, where `f`, `g`,
+`r`, `e`, `c` and `q` do what their lines say, a digit opens that recent
+file and `<CR>` runs the line under the cursor.
+
 ## keymap.scratch
 
 Keys in a window fude writes to show something, such as `:messages`, `:grammar`

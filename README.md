@@ -131,7 +131,7 @@ A file in a language other than Go builds its grammar in the background the firs
 | **Terminal**         | `:terminal` in a split, and `<Esc><Esc>` to move through its output in normal mode                                |
 | **Discovery**        | Key hints for a half-typed command, `:h` with a written guide and a full reference, man pages                    |
 | **Typing**           | Autopairs, and `#hex`, `rgb()` and `hsl()` text shown on the colour it names                                       |
-| **Sessions**         | `:restart` reloads config and plugins and keeps every window, cursor and unsaved change                          |
+| **Sessions**         | A start screen with your recent files, `:restart` reloads config and plugins and keeps every window, cursor and unsaved change                          |
 | **Look**             | Dark and light themes in true colour, any base16 scheme such as stylix's `palette.json`, `:center` for prose      |
 
 ### Where it differs from Neovim

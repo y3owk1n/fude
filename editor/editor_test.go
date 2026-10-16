@@ -1887,6 +1887,35 @@ func captures(t *testing.T, e *editor.Session) map[string]string {
 }
 
 // B46, and B43 for the edit
+// B225
+func TestB225StartScreen(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "a.txt")
+	change(t, path, "a\n")
+	t.Chdir(dir)
+	e := start(t, "a.txt")
+	e.SetSize(80, 24)
+	settle(t, e, func() bool {
+		b, _ := os.ReadFile(filepath.Join(os.Getenv("XDG_STATE_HOME"), "fude", "recent"))
+		return strings.Contains(string(b), "a.txt")
+	})
+	// The start screen lists the actions, then the recent files once read.
+	e.Welcome()
+	if got := text(e); !strings.Contains(got, "f  find a file") || !strings.Contains(got, "q  quit") {
+		t.Fatalf("the start screen shows %q", got)
+	}
+	settle(t, e, func() bool { return strings.Contains(text(e), "1  a.txt") })
+	// A digit opens its recent file, and the window shows numbers again.
+	if feed(e, "1"); e.Views()[0].Name != "a.txt" {
+		t.Errorf("1 opened %q", e.Views()[0].Name)
+	}
+	// <CR> runs the line's key, as f opens the finder.
+	e.Welcome()
+	if feed(e, "<CR>"); func() bool { _, ok := e.Float(); return !ok }() {
+		t.Error("<CR> on f did not open the finder")
+	}
+}
+
 // B224
 func TestB224Folds(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "a.go")

@@ -60,6 +60,7 @@ type buffer struct {
 	source *buffer
 	lines  []kernel.NodeID // the timeline node on each line, for :restore
 	shown  bool            // fude wrote it to show something, such as :messages or a diff
+	recent []string        // the recent files the start screen lists (B225)
 	spots  []spot          // the place each line of a list names, for <CR>
 }
 
@@ -174,6 +175,8 @@ func (b *buffer) kind() string {
 		return "lsp"
 	case b.title == "[help]":
 		return "help"
+	case b.title == "[start]":
+		return "start"
 	case b.shown:
 		return "scratch"
 	}

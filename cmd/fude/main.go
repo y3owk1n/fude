@@ -83,6 +83,9 @@ func run(args []string) error {
 	if err != nil {
 		return err
 	}
+	if len(args) == 0 && os.Getenv(editor.RestartEnv) == "" {
+		e.Welcome()
+	}
 	stop := e.Serve(e.SocketPath())
 	err = term.Run(e)
 	stop()

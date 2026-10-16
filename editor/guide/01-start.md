@@ -7,8 +7,9 @@ together. This page covers enough to open, edit and save files.
 ## Opening files
 
 `fude a.go b.go` opens both files, each in a buffer, and shows the first.
-`fude +42 a.go` starts on line 42. `fude` alone opens an empty buffer, and
-`fude src/` lists a folder. In a listing, `<CR>` opens the entry under the
+`fude +42 a.go` starts on line 42. `fude` alone shows a start screen, where
+`f` finds a file, `r` lists the files you opened last, a digit opens one of
+them and `e` starts an empty buffer. `fude src/` lists a folder. In a listing, `<CR>` opens the entry under the
 cursor and `-` goes up a folder.
 
 ## Modes
