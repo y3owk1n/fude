@@ -549,6 +549,9 @@ Where fude departs, the line says so and cites the departure in
   timer's does (B180), with the item picked or the text typed, or with
   none when they cancel. A list asked for while one shows is cancelled at
   once.
+- B188 [4] A plugin with `buffer.read` lists the open buffers, each with
+  its id, path and filetype, and reads the text of any of them as it was
+  when the call began.
 - B186 [4] A plugin with `ui` shows text in a read-only window with a
   title, coloured as a filetype it names. Showing text under a title
   already open replaces what that window shows. `:q` closes it without

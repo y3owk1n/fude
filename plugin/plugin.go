@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/url"
 	"os"
@@ -159,13 +160,25 @@ type Plugin struct {
 	jobs    chan struct{} // a slot for each job running
 }
 
-// call holds the text one call into a plugin reads, what the call is
-// about, and what it asks for.
+// call holds what one call into a plugin reads and what it asks for.
 type call struct {
-	name  string
-	text  fude.Text
-	about Context
+	name string
+	Scope
 	Result
+}
+
+// Scope is what one call into a plugin reads: the text of the buffer it is
+// about, what it is about, and every open buffer, by id (B188).
+type Scope struct {
+	Text    fude.Text
+	About   Context
+	Buffers map[int]Buffer
+}
+
+// Buffer is an open buffer as a plugin reads it.
+type Buffer struct {
+	Path, Filetype string
+	Text           fude.Text
 }
 
 // Context is what a call is about, by name, which the plugin reads through
@@ -226,12 +239,12 @@ func Load(ctx context.Context, path string, g Grants, cacheDir string, log func(
 // Init runs the plugin's _initialize, where a compiler puts its program's
 // setup, then its init, each when it exports one, together under
 // InitBudget. Both may register and subscribe.
-func (p *Plugin) Init(ctx context.Context, t fude.Text, about Context) (Result, error) {
+func (p *Plugin) Init(ctx context.Context, s Scope) (Result, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	ctx, cancel := context.WithTimeout(ctx, InitBudget)
 	defer cancel()
-	p.call = &call{name: "init", text: t, about: about}
+	p.call = &call{name: "init", Scope: s}
 	defer func() { p.call = nil }()
 	for _, name := range []string{"_initialize", "init"} {
 		f := p.mod.ExportedFunction(name)
@@ -255,29 +268,29 @@ func (p *Plugin) Close(ctx context.Context) error {
 }
 
 // CallNow runs the plugin's export name with args under budget, on the
-// input path, reading t, about what about says. It returns what the call
+// input path, reading s. It returns what the call
 // asked for and returned, or ErrBusy instead of waiting for a call already
 // running. A call that traps or runs past its budget returns an error, and
 // nothing it asked for happens.
-func (p *Plugin) CallNow(ctx context.Context, name string, t fude.Text, about Context, budget time.Duration, args ...uint64) (Result, error) {
+func (p *Plugin) CallNow(ctx context.Context, name string, s Scope, budget time.Duration, args ...uint64) (Result, error) {
 	if !p.mu.TryLock() {
 		return Result{}, fmt.Errorf("plugin %s %w", p.Name, ErrBusy)
 	}
 	defer p.mu.Unlock()
-	return p.run(ctx, name, t, about, budget, args...)
+	return p.run(ctx, name, s, budget, args...)
 }
 
-// Callback runs the plugin's callback export with id, reading t, about what
-// about says, under EventBudget. It waits for a call already running.
-func (p *Plugin) Callback(ctx context.Context, id uint32, t fude.Text, about Context) (Result, error) {
+// Callback runs the plugin's callback export with id, reading s, under
+// EventBudget. It waits for a call already running.
+func (p *Plugin) Callback(ctx context.Context, id uint32, s Scope) (Result, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	return p.run(ctx, "callback", t, about, EventBudget, uint64(id))
+	return p.run(ctx, "callback", s, EventBudget, uint64(id))
 }
 
 // Event runs the plugin's on_event with the event's name, written into its
-// memory, reading t, under EventBudget (B57).
-func (p *Plugin) Event(ctx context.Context, name string, t fude.Text, about Context) (Result, error) {
+// memory, reading s, under EventBudget (B57).
+func (p *Plugin) Event(ctx context.Context, name string, s Scope) (Result, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	ctx, cancel := context.WithTimeout(ctx, EventBudget)
@@ -286,18 +299,18 @@ func (p *Plugin) Event(ctx context.Context, name string, t fude.Text, about Cont
 	if err != nil || len(out) == 0 || !p.mod.Memory().WriteString(uint32(out[0]), name) {
 		return Result{}, fmt.Errorf("plugin %s: write the event's name: %w", p.Name, cmp.Or(err, errors.New("no memory for it")))
 	}
-	return p.run(ctx, "on_event", t, about, EventBudget, out[0], uint64(len(name)))
+	return p.run(ctx, "on_event", s, EventBudget, out[0], uint64(len(name)))
 }
 
 // run makes one call while p.mu is held.
-func (p *Plugin) run(ctx context.Context, name string, t fude.Text, about Context, budget time.Duration, args ...uint64) (Result, error) {
+func (p *Plugin) run(ctx context.Context, name string, s Scope, budget time.Duration, args ...uint64) (Result, error) {
 	f := p.mod.ExportedFunction(name)
 	if f == nil {
 		return Result{}, fmt.Errorf("plugin %s has no %s", p.Name, name)
 	}
 	ctx, cancel := context.WithTimeout(ctx, budget)
 	defer cancel()
-	p.call = &call{name: name, text: t, about: about}
+	p.call = &call{name: name, Scope: s}
 	defer func() { p.call = nil }()
 	out, err := f.Call(ctx, args...)
 	switch {
@@ -321,6 +334,9 @@ func (p *Plugin) host(ctx context.Context) error {
 		NewFunctionBuilder().WithFunc(p.fetch).Export("fetch").
 		NewFunctionBuilder().WithFunc(p.textLen).Export("text_len").
 		NewFunctionBuilder().WithFunc(p.lines).Export("lines").
+		NewFunctionBuilder().WithFunc(p.buffers).Export("buffers").
+		NewFunctionBuilder().WithFunc(p.lenOf).Export("len_of").
+		NewFunctionBuilder().WithFunc(p.textOf).Export("text_of").
 		NewFunctionBuilder().WithFunc(p.lineOf).Export("line_of").
 		NewFunctionBuilder().WithFunc(p.lineStart).Export("line_start").
 		NewFunctionBuilder().WithFunc(p.text).Export("text").
@@ -372,7 +388,7 @@ func (p *Plugin) context(ctx context.Context, m api.Module, ptr, n uint32) int64
 		return errDenied
 	}
 	name, ok := m.Memory().Read(ptr, n)
-	v, has := p.call.about[string(name)]
+	v, has := p.call.About[string(name)]
 	if !ok || !has {
 		return errRange
 	}
@@ -408,7 +424,46 @@ func (p *Plugin) textLen() int32 {
 	if p.call == nil || !p.allowed("buffer.read", "text_len") {
 		return errDenied
 	}
-	return int32(p.call.text.Len())
+	return int32(p.call.Text.Len())
+}
+
+// buffers writes the id, path and filetype of each open buffer, each
+// followed by a NUL, into memory the plugin allocates (B188).
+func (p *Plugin) buffers(ctx context.Context, m api.Module) int64 {
+	if p.call == nil || !p.allowed("buffer.read", "buffers") {
+		return errDenied
+	}
+	var b strings.Builder
+	for _, id := range slices.Sorted(maps.Keys(p.call.Buffers)) {
+		o := p.call.Buffers[id]
+		fmt.Fprintf(&b, "%d\x00%s\x00%s\x00", id, o.Path, o.Filetype)
+	}
+	return give(ctx, m, b.String())
+}
+
+// lenOf returns the length of the text of the buffer id.
+func (p *Plugin) lenOf(id uint32) int32 {
+	if p.call == nil || !p.allowed("buffer.read", "len_of") {
+		return errDenied
+	}
+	o, ok := p.call.Buffers[int(id)]
+	if !ok {
+		return errRange
+	}
+	return int32(o.Text.Len())
+}
+
+// textOf writes [start, end) of the text of the buffer id into memory the
+// plugin allocates.
+func (p *Plugin) textOf(ctx context.Context, m api.Module, id, start, end uint32) int64 {
+	if p.call == nil || !p.allowed("buffer.read", "text_of") {
+		return errDenied
+	}
+	o, ok := p.call.Buffers[int(id)]
+	if !ok || start > end || int(end) > o.Text.Len() {
+		return errRange
+	}
+	return give(ctx, m, o.Text.Slice(int(start), int(end)))
 }
 
 // lines returns how many lines the text has.
@@ -416,7 +471,7 @@ func (p *Plugin) lines() int32 {
 	if p.call == nil || !p.allowed("buffer.read", "lines") {
 		return errDenied
 	}
-	return int32(p.call.text.Lines())
+	return int32(p.call.Text.Lines())
 }
 
 // lineOf returns the line that holds pos, from 0.
@@ -424,10 +479,10 @@ func (p *Plugin) lineOf(pos uint32) int32 {
 	if p.call == nil || !p.allowed("buffer.read", "line_of") {
 		return errDenied
 	}
-	if int(pos) > p.call.text.Len() {
+	if int(pos) > p.call.Text.Len() {
 		return errRange
 	}
-	return int32(p.call.text.LineOf(int(pos)))
+	return int32(p.call.Text.LineOf(int(pos)))
 }
 
 // lineStart returns where line, from 0, starts.
@@ -435,10 +490,10 @@ func (p *Plugin) lineStart(line uint32) int32 {
 	if p.call == nil || !p.allowed("buffer.read", "line_start") {
 		return errDenied
 	}
-	if int(line) >= p.call.text.Lines() {
+	if int(line) >= p.call.Text.Lines() {
 		return errRange
 	}
-	return int32(p.call.text.LineStart(int(line)))
+	return int32(p.call.Text.LineStart(int(line)))
 }
 
 // text writes [start, end) of the text into memory the plugin allocates,
@@ -447,7 +502,7 @@ func (p *Plugin) text(ctx context.Context, m api.Module, start, end uint32) int6
 	if p.call == nil || !p.allowed("buffer.read", "text") {
 		return errDenied
 	}
-	t := p.call.text
+	t := p.call.Text
 	if start > end || int(end) > t.Len() {
 		return errRange
 	}
@@ -706,7 +761,7 @@ func (p *Plugin) edit(_ context.Context, m api.Module, start, end, ptr, n uint32
 	if p.call == nil || !p.allowed("buffer.write", "edit") {
 		return errDenied
 	}
-	t := p.call.text
+	t := p.call.Text
 	if start > end || int(end) > t.Len() {
 		return errRange
 	}
@@ -725,7 +780,7 @@ func (p *Plugin) decorate(_ context.Context, m api.Module, start, end, ptr, n ui
 		return errDenied
 	}
 	style, ok := m.Memory().Read(ptr, n)
-	if start > end || int(end) > p.call.text.Len() || !ok {
+	if start > end || int(end) > p.call.Text.Len() || !ok {
 		return errRange
 	}
 	p.next++
@@ -740,7 +795,7 @@ func (p *Plugin) sign(_ context.Context, m api.Module, pos, ptr, n uint32) int32
 		return errDenied
 	}
 	b, ok := m.Memory().Read(ptr, n)
-	if int(pos) > p.call.text.Len() || !ok {
+	if int(pos) > p.call.Text.Len() || !ok {
 		return errRange
 	}
 	text, style, _ := strings.Cut(string(b), "\x00")
@@ -770,7 +825,7 @@ func (p *Plugin) jump(pos uint32) int32 {
 	if p.call == nil || !p.allowed("ui", "jump") {
 		return errDenied
 	}
-	if int(pos) > p.call.text.Len() {
+	if int(pos) > p.call.Text.Len() {
 		return errRange
 	}
 	p.call.Jump = &Jump{Pos: int(pos)}
@@ -819,7 +874,7 @@ func (p *Plugin) note(_ context.Context, m api.Module, pos, ptr, n uint32) int32
 		return errDenied
 	}
 	text, ok := m.Memory().Read(ptr, n)
-	if int(pos) > p.call.text.Len() || !ok {
+	if int(pos) > p.call.Text.Len() || !ok {
 		return errRange
 	}
 	p.next++

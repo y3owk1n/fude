@@ -96,6 +96,15 @@ func hostTextLen() int32
 //go:wasmimport fude lines
 func hostLines() int32
 
+//go:wasmimport fude buffers
+func hostBuffers() int64
+
+//go:wasmimport fude len_of
+func hostLenOf(id uint32) int32
+
+//go:wasmimport fude text_of
+func hostTextOf(id, start, end uint32) int64
+
 //go:wasmimport fude line_of
 func hostLineOf(pos uint32) int32
 
@@ -384,6 +393,34 @@ func Setting(name string) (string, bool) {
 	p, n := ptr(name)
 	v, err := answer(hostSetting(p, n))
 	return v, err == nil
+}
+
+// Buffers returns every open buffer, by id. It needs buffer.read.
+func Buffers() ([]Buffer, error) {
+	s, err := answer(hostBuffers())
+	if err != nil {
+		return nil, err
+	}
+	var out []Buffer
+	f := strings.Split(s, "\x00")
+	for i := 0; i+2 < len(f); i += 3 {
+		id, _ := strconv.Atoi(f[i])
+		out = append(out, Buffer{id, f[i+1], f[i+2]})
+	}
+	return out, nil
+}
+
+// LenOf returns the length of the text of the buffer id, as it was when the
+// call began. It needs buffer.read.
+func LenOf(id int) (int, error) {
+	n := hostLenOf(uint32(id))
+	return int(n), fail(int64(n))
+}
+
+// TextOf returns [start, end) of the text of the buffer id, as it was when
+// the call began. It needs buffer.read.
+func TextOf(id, start, end int) (string, error) {
+	return answer(hostTextOf(uint32(id), uint32(start), uint32(end)))
 }
 
 // Mode returns the mode, such as normal or insert.

@@ -153,7 +153,7 @@ func (e *Session) listen(p *plugin.Plugin) *listener {
 				// plugin is free to hear it, so both are the newest.
 				var ev event
 				var t kernel.Snapshot
-				var about plugin.Context
+				var scope plugin.Scope
 				more := false
 				if !on(func() {
 					l.mu.Lock()
@@ -164,8 +164,9 @@ func (e *Session) listen(p *plugin.Plugin) *listener {
 					}
 					if more = len(l.pending) > 0; more {
 						ev, l.pending = l.pending[0], l.pending[1:]
-						t, about = ev.buf.text.Snapshot(), e.about(ev.buf)
-						maps.Copy(about, ev.extra)
+						t = ev.buf.text.Snapshot()
+						scope = e.scope(ev.buf, t)
+						maps.Copy(scope.About, ev.extra)
 					}
 				}) {
 					return
@@ -184,10 +185,10 @@ func (e *Session) listen(p *plugin.Plugin) *listener {
 				var res plugin.Result
 				var err error
 				if ev.name == "" {
-					res, err = p.Callback(context.Background(), ev.id, t, about)
+					res, err = p.Callback(context.Background(), ev.id, scope)
 					api.Trace("plugin", p.Name+" ran a callback", time.Since(at))
 				} else {
-					res, err = p.Event(context.Background(), name, t, about)
+					res, err = p.Event(context.Background(), name, scope)
 					api.Trace("plugin", p.Name+" heard "+name, time.Since(at))
 				}
 				if !on(func() { e.handled(p, err, ev.buf, t, res) }) {

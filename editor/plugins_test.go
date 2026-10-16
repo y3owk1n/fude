@@ -489,6 +489,16 @@ func TestB185PluginPicksAndAsks(t *testing.T) {
 	settle(t, e, func() bool { return text(e) == "bobnonebananaa" })
 }
 
+// B188
+func TestB188PluginReadsOtherBuffers(t *testing.T) {
+	e := loaded(t, "ctx", "f", "ab\n", "buffer.read", "buffer.write")
+	other := filepath.Join(t.TempDir(), "g")
+	change(t, other, "xy\n")
+	if feed(e, ":e "+other+"<CR>:Bufs<CR>"); text(e) != "1=ab|2=xyxy" {
+		t.Errorf(":Bufs typed %q, want 1=ab|2=xy", text(e))
+	}
+}
+
 // decorations returns what the current window shows of plugins'
 // decorations, as text and style.
 func decorations(e *editor.Session) []string {

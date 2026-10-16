@@ -866,13 +866,17 @@ under a budget of 100ms. A plugin imports host functions from the module `fude`,
 
 | Capability | Grants |
 |---|---|
-| `buffer.read` | read the text and where its lines start |
+| `buffer.read` | read the text and where its lines start, and every open buffer's text |
 | `buffer.write` | edit the text |
 | `ui` | decorations, signs, notes after a line, statusline segments, floating windows, read-only windows, lists to pick from and questions, moving the cursor, opening project files |
 | `fs.read` | read files under the project root |
 | `process` | spawn a declared program |
 | `net` | get http and https URLs on declared hosts |
 
+Each call reads a `plugin.Scope` that the editor loop builds before the
+call. It holds the text of the buffer the call is about, its `context`,
+and a snapshot of every open buffer. A call off the loop reads text that
+does not change under it.
 The plugin passes text as a pointer and length into its memory. The host returns text by calling the
 plugin's `alloc` and writing there, and returns the `i64` `ptr<<32|len`. A
 negative result is an error: -1 when the plugin did not declare the
@@ -892,6 +896,9 @@ host it may not reach or a request that failed.
 | `text_len() -> i32` | `buffer.read` | the length of the text |
 | `text(start, end) -> i64` | `buffer.read` | the text in `[start, end)` |
 | `lines() -> i32` | `buffer.read` | how many lines the text has |
+| `buffers() -> i64` | `buffer.read` | each open buffer's id, path and filetype, each followed by a NUL (B188) |
+| `len_of(id) -> i32` | `buffer.read` | the length of the text of the buffer `id` |
+| `text_of(id, start, end) -> i64` | `buffer.read` | the text of the buffer `id` in `[start, end)` |
 | `line_of(pos) -> i32` | `buffer.read` | the line that holds `pos`, from 0 |
 | `line_start(line) -> i32` | `buffer.read` | where `line` starts |
 | `edit(start, end, ptr, len) -> i32` | `buffer.write` | asks to replace `[start, end)` |

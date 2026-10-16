@@ -54,7 +54,7 @@ func (e *Session) Load() {
 			e.message = fmt.Sprintf("load plugin %s: %v", s.Path, err)
 			continue
 		}
-		b, t, about := e.win.buf, e.Text(), e.about(e.win.buf)
+		b, t, scope := e.win.buf, e.Text(), e.scope(e.win.buf, e.Text())
 		go func() {
 			ctx := context.Background()
 			p, err := plugin.Load(ctx, path, plugin.Grants{Capabilities: s.Capabilities, Programs: s.Programs, Hosts: s.Hosts, Settings: settings}, filepath.Join(cache, "fude", "wasm"), logLine)
@@ -62,7 +62,7 @@ func (e *Session) Load() {
 				e.queue <- func() { e.message = err.Error() }
 				return
 			}
-			res, err := p.Init(ctx, t, about)
+			res, err := p.Init(ctx, scope)
 			e.queue <- func() { e.loaded(p, err, b, t, res) }
 		}()
 	}
@@ -282,10 +282,10 @@ func (e *Session) register(p *plugin.Plugin, r plugin.Registration) {
 	case plugin.Command:
 		e.pluginHelp[":"+r.Name] = r.Help
 		e.commands[r.Name] = func(s *Session, c call) {
-			about := s.about(s.win.buf)
-			about["args"], about["bang"] = c.arg, strconv.FormatBool(c.force)
-			about["first"], about["last"], about["ranged"] = strconv.Itoa(c.first), strconv.Itoa(c.last), strconv.FormatBool(c.ranged)
-			if edits, _, ok := s.run(p, r.ID, s.Text(), about, uint64(s.Cursor()), 0); ok && len(edits) > 0 {
+			scope := s.scope(s.win.buf, s.Text())
+			scope.About["args"], scope.About["bang"] = c.arg, strconv.FormatBool(c.force)
+			scope.About["first"], scope.About["last"], scope.About["ranged"] = strconv.Itoa(c.first), strconv.Itoa(c.last), strconv.FormatBool(c.ranged)
+			if edits, _, ok := s.run(p, r.ID, scope, uint64(s.Cursor()), 0); ok && len(edits) > 0 {
 				if err := (host{s}).Apply(edits, ":"+r.Name); err != nil {
 					s.message = err.Error()
 					return
@@ -301,7 +301,7 @@ func (e *Session) register(p *plugin.Plugin, r plugin.Registration) {
 				if lines {
 					linewise = 1
 				}
-				edits, _, _ := s.run(p, r.ID, t, s.about(s.win.buf), uint64(start), uint64(end), linewise)
+				edits, _, _ := s.run(p, r.ID, s.scope(s.win.buf, t), uint64(start), uint64(end), linewise)
 				return edits
 			})
 		})
@@ -309,7 +309,7 @@ func (e *Session) register(p *plugin.Plugin, r plugin.Registration) {
 		e.pluginBindings = append(e.pluginBindings, vim.Binding{Kind: "object", Keys: r.Name, Help: r.Help})
 		e.each(func(s *Session) {
 			s.vim.Object(r.Name, func(t vim.Text, start, end int) (int, int, bool) {
-				_, out, ok := s.run(p, r.ID, t, s.about(s.win.buf), uint64(start), uint64(end))
+				_, out, ok := s.run(p, r.ID, s.scope(s.win.buf, t), uint64(start), uint64(end))
 				if !ok || len(out) == 0 || int64(out[0]) < 0 {
 					return 0, 0, false
 				}
@@ -321,7 +321,7 @@ func (e *Session) register(p *plugin.Plugin, r plugin.Registration) {
 		e.pluginHelp["<Plug>("+name+")"] = r.Help
 		e.each(func(s *Session) {
 			s.vim.Command(name, func(t vim.Text, pos, count int) []vim.Edit {
-				edits, _, _ := s.run(p, r.ID, t, s.about(s.win.buf), uint64(pos), uint64(count))
+				edits, _, _ := s.run(p, r.ID, s.scope(s.win.buf, t), uint64(pos), uint64(count))
 				return edits
 			})
 			s.vim.Map(vim.Normal, withLeader(r.Name, e.cfg.Leader), "<Plug>("+name+")")
@@ -331,12 +331,22 @@ func (e *Session) register(p *plugin.Plugin, r plugin.Registration) {
 		e.pluginHelp["<Plug>("+name+")"] = r.Help
 		e.each(func(s *Session) {
 			s.vim.Command(name, func(t vim.Text, pos, _ int) []vim.Edit {
-				edits, _, _ := s.run(p, r.ID, t, s.about(s.win.buf), uint64(pos), 0)
+				edits, _, _ := s.run(p, r.ID, s.scope(s.win.buf, t), uint64(pos), 0)
 				return edits
 			})
 			s.vim.Map(vim.Insert, r.Name, "<Plug>("+name+")")
 		})
 	}
+}
+
+// scope is what a call about b reads: the text t, what the call is about,
+// and every open buffer (B188).
+func (e *Session) scope(b *buffer, t api.Text) plugin.Scope {
+	bufs := map[int]plugin.Buffer{}
+	for _, o := range e.bufs {
+		bufs[o.id] = plugin.Buffer{Path: o.file.path, Filetype: e.filetype(o), Text: o.text.Snapshot()}
+	}
+	return plugin.Scope{Text: t, About: e.about(b), Buffers: bufs}
 }
 
 // about is what a call about b tells the plugin through context: the
@@ -346,11 +356,11 @@ func (e *Session) about(b *buffer) plugin.Context {
 }
 
 // run calls what p registered as id, through its call export, on the input
-// path, under its budget, against the current buffer, about what about says. It adds the
+// path, under its budget, against the current buffer, reading scope. It adds the
 // decorations the call asks for, and returns its edits, sorted, and what it
 // returned. A call that fails unloads p, and calls into an unloaded plugin
 // do nothing.
-func (e *Session) run(p *plugin.Plugin, id uint32, t vim.Text, about plugin.Context, args ...uint64) ([]vim.Edit, []uint64, bool) {
+func (e *Session) run(p *plugin.Plugin, id uint32, scope plugin.Scope, args ...uint64) ([]vim.Edit, []uint64, bool) {
 	if !slices.Contains(e.plugins, p) {
 		e.message = fmt.Sprintf("plugin %s is unloaded", p.Name)
 		return nil, nil, false
@@ -361,7 +371,7 @@ func (e *Session) run(p *plugin.Plugin, id uint32, t vim.Text, about plugin.Cont
 	full[0] = uint64(id)
 	copy(full[1:], args)
 	at := time.Now()
-	res, err := p.CallNow(context.Background(), "call", t, about, plugin.InputBudget, full...)
+	res, err := p.CallNow(context.Background(), "call", scope, plugin.InputBudget, full...)
 	name := strconv.Itoa(int(id))
 	for _, r := range p.Registered {
 		if r.ID == id {

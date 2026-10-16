@@ -6,8 +6,8 @@
 // mode key <C-j> types the mode it ran in, in brackets. :Set name types
 // the setting name, or none. :Show text shows text in a window titled
 // [shown], as Go. :Go pos moves the cursor to pos, and :Open path opens
-// the file at path with the cursor at 2. Needs buffer.read, buffer.write
-// and ui.
+// the file at path with the cursor at 2. :Bufs types the id and text of
+// every open buffer. Needs buffer.read, buffer.write and ui.
 package main
 
 import (
@@ -41,6 +41,16 @@ func init() {
 	})
 	sdk.Command("Open", "opens a file", func(c sdk.Call) {
 		sdk.Open(c.Args, 2)
+	})
+	sdk.Command("Bufs", "types every buffer's text", func(c sdk.Call) {
+		bufs, _ := sdk.Buffers()
+		var all []string
+		for _, b := range bufs {
+			n, _ := sdk.LenOf(b.ID)
+			text, _ := sdk.TextOf(b.ID, 0, n)
+			all = append(all, strconv.Itoa(b.ID)+"="+text)
+		}
+		sdk.Edit(c.Cursor, c.Cursor, strings.Join(all, "|"))
 	})
 	sdk.Command("Where", "types where its call ran", func(c sdk.Call) {
 		b := sdk.Current()
