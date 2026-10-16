@@ -61,6 +61,7 @@ type Session struct {
 	vim        *vim.Machine
 	message    string
 	done       bool
+	restarting string         // the session file :restart saved, for main (B170)
 	ask        func(yes bool) // takes the answer to the question in the message
 	float      string         // text shown over the windows at the cursor, such as hover
 	floatSpans []syntax.Span  // the styles of the float's text
@@ -230,10 +231,24 @@ func Start(args []string) (*Session, error) {
 		}
 		paths = append(paths, a)
 	}
+	// A restart opens the saved session's files instead (B170).
+	restored, restoreErr := restartSession()
+	if restored != nil {
+		paths, line = nil, 0
+		for _, b := range restored.Buffers {
+			paths = append(paths, b.Path)
+		}
+	}
 	cfg, cfgErr := loadConfig()
 	e, err := open(cfg, paths)
 	if err != nil {
 		return nil, err
+	}
+	if restored != nil {
+		e.restoreSession(*restored)
+	}
+	if restoreErr != nil {
+		e.message = restoreErr.Error()
 	}
 	if line > 0 {
 		t := e.Text()
@@ -480,7 +495,7 @@ type View struct {
 	Branch            string         // the git branch of the buffer's repository, "" outside one (B147)
 	Errors, Warnings  int            // the buffer's diagnostics of each severity (B147)
 	Filetype          string         // the buffer's filetype, "" for none (B164)
-	Server            string         // the buffer's language server, "" for none (B161)
+	Server            string         // the buffer's language servers, "" for none (B161, B169)
 	Progress          string         // what the server is doing, "" once it is ready (B161)
 	Gutter            int            // the columns the sign column and line numbers take on the left
 	SignCols          int            // the columns of the sign column, at the gutter's left

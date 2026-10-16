@@ -470,6 +470,16 @@ servers formatting the same text undo each other's layout, and two
 renames edit the same names twice. The user already orders the servers in
 the filetype's list, so that order decides.
 
+### N23. `:restart` keeps unsaved changes
+
+`:restart` saves each buffer's timeline node with the session, and the new
+process puts the text back at it, so it never refuses and loses nothing
+(B170). Neovim's `:restart` quits with `:qall`, which refuses while a
+buffer has unsaved changes, takes `+qall!` to drop them, and takes `!` to
+skip the session. Why: fude's timeline already keeps every unsaved change
+on disk, so the new process can put them back. Refusing would only make
+the user write or drop changes to reload config.
+
 ## Open
 
 None.

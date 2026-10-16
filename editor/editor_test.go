@@ -1838,3 +1838,31 @@ func TestB166Injections(t *testing.T) {
 		t.Errorf("the injections said %q", e.Message())
 	}
 }
+
+// B170
+func TestB170Restart(t *testing.T) {
+	dir := t.TempDir()
+	a, b := filepath.Join(dir, "a.txt"), filepath.Join(dir, "b.txt")
+	change(t, a, "one\ntwo\n")
+	change(t, b, "three\n")
+	e := start(t, a, b)
+	e.SetSize(80, 20)
+	feed(e, "j:vsplit<CR>:b 2<CR>ix<Esc>:set number<CR>:restart<CR>")
+	if !e.Done() || e.Restart() == "" {
+		t.Fatal(":restart did not quit with a saved session")
+	}
+	t.Setenv(editor.RestartEnv, e.Restart())
+	e = start(t)
+	e.SetSize(80, 20)
+	vs := e.Views()
+	if len(vs) != 2 || vs[0].Name != a || vs[1].Name != b {
+		t.Fatalf("the restarted session shows %d windows", len(vs))
+	}
+	// The unsaved change, the cursor, the option and the current window come back.
+	if got := vs[1].Text.Slice(0, vs[1].Text.Len()); !vs[1].Current || got != "xthree" || !vs[1].Number || !vs[1].Modified {
+		t.Errorf("the current window shows %q, current %v, number %v", got, vs[1].Current, vs[1].Number)
+	}
+	if vs[0].Cursor != 4 {
+		t.Errorf("the other window's cursor is at %d, want 4", vs[0].Cursor)
+	}
+}

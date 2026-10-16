@@ -390,6 +390,11 @@ Where fude departs, the line says so and cites the departure in
 - B88 [2] `:{range}normal keys` runs keys on each line of the range, as one
   transaction.
 - B89 [2] `:e path`, `:ls`, `:b N`, `:bn`, `:bp` and `:bd` manage buffers.
+- B170 [2] `:restart` and `ZR` replace fude's process with a new fude,
+  which loads config.toml, plugins, grammars and language servers again.
+  The new process opens the same files and splits, with each window's cursor,
+  top line and options, the same current window, and every unsaved change
+  (N23). A client attached over RPC must attach again.
 - B96 [2] `<C-^>` shows the buffer the window showed before, and `N<C-^>`
   shows buffer N. `#` names that buffer in `:b` and `:e`.
   Switching away from a modified buffer keeps it loaded and modified.

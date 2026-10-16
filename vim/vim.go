@@ -648,6 +648,10 @@ func init() {
 			m.h.Unhandled(":q!")
 			return nil
 		}},
+		"ZR": {"starts fude again on the same session", func(m *Machine, _ normalCall) error {
+			m.h.Unhandled(":restart")
+			return nil
+		}},
 		"<C-^>": {"shows the buffer shown before, or buffer n", func(m *Machine, x normalCall) error {
 			if x.count > 0 {
 				m.h.Unhandled(":b " + strconv.Itoa(x.count))
