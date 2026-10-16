@@ -395,6 +395,7 @@ func (l heard) Changed(before kernel.Snapshot, edits []kernel.Edit) {
 		s.versions[l.b]++
 		s.client.Change(lsp.URI(l.b.file.path), s.versions[l.b], before, out)
 		l.ed.askColours(s, l.b)
+		l.ed.askHints(s, l.b)
 	}
 }
 
@@ -592,7 +593,7 @@ type Ghost struct {
 	Pos   int
 	Text  string
 	Stale bool
-	Style string // how it shows: "" for a proposal's text, or sub.new for :s's (B154)
+	Style string // how it shows: "" for a proposal's text, sub.new for :s's (B154) or inlay for an inlay hint (B216)
 }
 
 // Views returns every window from the top left.
@@ -710,6 +711,12 @@ func (e *Session) Views() []View {
 				if hex, ok := strings.CutPrefix(d.style, "colour #"); ok {
 					if rgb, err := strconv.ParseInt(hex, 16, 32); err == nil && s < end && end > top && s < last {
 						v.Colours = append(v.Colours, Colour{s, end, int32(rgb)})
+					}
+					continue
+				}
+				if d.style == "inlay" {
+					if s >= top && s <= last {
+						v.Ghosts = append(v.Ghosts, Ghost{Pos: s, Text: d.note, Style: "inlay"})
 					}
 					continue
 				}

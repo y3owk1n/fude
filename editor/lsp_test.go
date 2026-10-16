@@ -148,6 +148,15 @@ func TestFakeServer(t *testing.T) {
 				}
 			}
 			reply(m.ID, found)
+		case "textDocument/inlayHint":
+			// A parameter's name before what each call of f( passes.
+			var found []any
+			for line, l := range strings.Split(opened[m.Params.TextDocument.URI], "\n") {
+				if i := strings.Index(l, "f("); i >= 0 {
+					found = append(found, map[string]any{"position": map[string]int{"line": line, "character": i + 2}, "label": []any{map[string]string{"value": "n:"}}, "paddingRight": true})
+				}
+			}
+			reply(m.ID, found)
 		case "workspace/symbol":
 			// Each word of an opened file that holds the query is a function
 			// there.
@@ -216,7 +225,7 @@ func TestFakeServer(t *testing.T) {
 			reply(m.ID, map[string]any{"serverInfo": map[string]any{"name": "fake", "version": "v1"}, "capabilities": map[string]any{
 				"positionEncoding": os.Getenv("FUDE_FAKE_ENCODING"), "textDocumentSync": json.RawMessage(cmp.Or(os.Getenv("FUDE_FAKE_SYNC"), "2")), "documentFormattingProvider": true, "completionProvider": map[string]any{"triggerCharacters": []string{"."}, "resolveProvider": true},
 				"definitionProvider": true, "typeDefinitionProvider": true, "implementationProvider": true, "referencesProvider": true, "renameProvider": true,
-				"codeActionProvider": true, "colorProvider": true, "signatureHelpProvider": map[string]any{"triggerCharacters": []string{"("}, "retriggerCharacters": []string{","}}, "documentSymbolProvider": true, "workspaceSymbolProvider": true, "hoverProvider": true,
+				"codeActionProvider": true, "colorProvider": true, "signatureHelpProvider": map[string]any{"triggerCharacters": []string{"("}, "retriggerCharacters": []string{","}}, "documentSymbolProvider": true, "workspaceSymbolProvider": true, "inlayHintProvider": true, "hoverProvider": true,
 			}})
 		case "shutdown":
 			reply(m.ID, nil)
@@ -292,6 +301,20 @@ func TestB209ServerColours(t *testing.T) {
 	// The colour moves with the text, as the server says again.
 	feed(e, "Ia<Esc>")
 	settle(t, e, teal(3))
+}
+
+// B216
+func TestB216InlayHints(t *testing.T) {
+	e, _ := withServer(t, "x f(1)\n", "utf-8")
+	hint := func(at int) func() bool {
+		return func() bool {
+			return slices.Contains(e.Views()[0].Ghosts, editor.Ghost{Pos: at, Text: "n: ", Style: "inlay"})
+		}
+	}
+	settle(t, e, hint(4))
+	// The hint moves with the text, as the server says again.
+	feed(e, "Ia<Esc>")
+	settle(t, e, hint(5))
 }
 
 // B60

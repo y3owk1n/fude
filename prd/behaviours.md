@@ -732,6 +732,12 @@ Where fude departs, the line says so and cites the departure in
 - B209 [5] With `highlight_colors` on, the colours a language server
   reports for a buffer show as B208's do, and the server is asked again
   after each change.
+- B216 [5] With `inlay_hints` on, as it is unless set off, the inlay
+  hints a language server gives for a buffer show among its text, dim on
+  the surface colour, before the character they are at, with the padding
+  the server asks for. They are not part of the text, so the cursor,
+  motions and edits pass over them. fude asks the server again after each
+  change, and the hints move with the text until it answers.
 - B203 [5] In insert mode, typing a character the server names as a
   signature trigger, such as `(` or `,`, shows the signature of the call
   above the cursor's line, with the parameter being typed in bold, and

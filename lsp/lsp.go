@@ -321,7 +321,7 @@ func (c *Client) write(root string, options any, initialized <-chan answer, noti
 		"workspaceFolders": []map[string]string{{"uri": URI(root), "name": filepath.Base(root)}},
 		"capabilities": map[string]any{
 			"general":      map[string]any{"positionEncodings": []string{"utf-8", "utf-16"}},
-			"textDocument": map[string]any{"completion": map[string]any{"completionItem": map[string]any{"snippetSupport": true}}},
+			"textDocument": map[string]any{"completion": map[string]any{"completionItem": map[string]any{"snippetSupport": true}}, "inlayHint": map[string]any{}},
 			"window":       map[string]any{"workDoneProgress": true},
 			"workspace":    map[string]any{"configuration": true, "didChangeConfiguration": map[string]any{}},
 		},

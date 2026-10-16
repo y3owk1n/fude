@@ -55,6 +55,15 @@ whichever reads better. That is `#rgb`, `#rgba`, `#rrggbb` and
 and the colours a language server reports, such as Tailwind's class
 names. The default is on.
 
+## inlay_hints
+
+A language server's inlay hints, such as the names of a call's
+parameters or a variable's inferred type, show among the text in a dim
+colour, at the place the server gives. They are not part of the text, so
+the cursor and edits pass over them. The default is on. Some servers send
+hints only when their settings ask for them, such as gopls with
+`[lsp.gopls.settings.gopls.hints]`.
+
 ## autopairs
 
 An opening bracket or quote typed in insert mode comes with its closing

@@ -122,7 +122,7 @@ A file in a language other than Go builds its grammar in the background the firs
 | **Editing**          | Counts on both sides of an operator, registers and the clipboard, macros as editable text, `:s` with a live preview, `:g`, `:normal` |
 | **Timeline**         | `u` and `<C-r>` along a branch, `g-` and `g+` across every state, `:earlier 10m`, `:timeline` to diff and restore, `:recover` after a crash |
 | **Syntax**           | tree-sitter for Go built in, 46 more languages built on first use, code inside markdown coloured, `daf`, `cic` and `dia` |
-| **Language servers** | Several per file, merged diagnostics, hover, definitions, references, code actions, signature help, a `:lsp` panel |
+| **Language servers** | Several per file, merged diagnostics, hover, definitions, references, code actions, signature help, inlay hints, a `:lsp` panel |
 | **Completion**       | From language servers, snippets, paths and the buffer, with VS Code snippet files                                  |
 | **Formatting**       | Formatters by name, run in turn or the first that applies, with the language server as the fallback              |
 | **Finder**           | `:pick` for files, grep, buffers, recent files, diagnostics, symbols, help and keymaps, with a preview, `<C-g>` to search ignored files, `<C-q>` to a list                           |
