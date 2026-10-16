@@ -33,12 +33,14 @@ type Range struct {
 }
 
 // Event is an event the plugin subscribed to with On. Detail is the new
-// mode for mode.changed, and the cursor and the top of the view, as
-// "cursor top", for view.moved. Cursor and Top hold the same two numbers
-// for view.moved (B182).
+// mode for mode.changed. For view.moved it is the cursor and the top of the
+// view, as "cursor top", which Cursor and Top hold too (B182). For
+// buffer.changed it is the range the change covers, as "start end", which
+// Start and End hold too (B183).
 type Event struct {
 	Name, Detail string
 	Cursor, Top  int
+	Start, End   int
 }
 
 // The errors fude returns for a call it refuses.
@@ -248,10 +250,14 @@ var listeners = map[string][]func(Event){}
 func onEvent(p *byte, n uint32) {
 	name, detail, _ := strings.Cut(string(unsafe.Slice(p, n)), " ")
 	ev := Event{Name: name, Detail: detail}
-	if name == "view.moved" {
-		cursor, top, _ := strings.Cut(detail, " ")
-		ev.Cursor, _ = strconv.Atoi(cursor)
-		ev.Top, _ = strconv.Atoi(top)
+	a, b, _ := strings.Cut(detail, " ")
+	x, _ := strconv.Atoi(a)
+	y, _ := strconv.Atoi(b)
+	switch name {
+	case "view.moved":
+		ev.Cursor, ev.Top = x, y
+	case "buffer.changed":
+		ev.Start, ev.End = x, y
 	}
 	for _, f := range listeners[name] {
 		f(ev)

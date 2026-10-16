@@ -536,6 +536,9 @@ Where fude departs, the line says so and cites the departure in
   wait. Unloading the plugin stops them.
 - B182 [4] A plugin that hears `view.moved` hears where the cursor is and
   where the view starts, in the session whose view moved.
+- B183 [4] A plugin that hears `buffer.changed` hears the range the change
+  covers in the text it reads. Changes it heard of as one, because it fell
+  behind, come as one range that covers them all.
 - B59 [4] A plugin with `ui` shows markdown in a float at the cursor, as
   hover does.
 

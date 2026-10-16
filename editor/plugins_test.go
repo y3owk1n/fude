@@ -410,6 +410,16 @@ func TestB182PluginHearsTheCursor(t *testing.T) {
 	settle(t, e, func() bool { s := e.Views()[0].Segments; return len(s) == 1 && s[0] == "4 0" })
 }
 
+// B183
+func TestB183PluginHearsWhatChanged(t *testing.T) {
+	e := loaded(t, "watch", "f", "abc\nde\n", "ui")
+	e.SetSize(80, 10)
+	// Both changes come before the plugin hears the first, so it hears one
+	// range that covers both, in the text after them.
+	feed(e, "Axy<Esc>0ihi<Esc>")
+	settle(t, e, func() bool { d := decorations(e); return len(d) == 1 && d[0] == "hiabcxy keyword" })
+}
+
 // decorations returns what the current window shows of plugins'
 // decorations, as text and style.
 func decorations(e *editor.Session) []string {

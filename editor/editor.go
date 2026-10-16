@@ -334,7 +334,7 @@ type heard struct {
 func (l heard) Changed(before kernel.Snapshot, edits []kernel.Edit) {
 	l.b.gitStale = true
 	l.b.touched = touched(edits)
-	l.ed.emit("buffer.changed", "", l.b)
+	l.ed.changed(l.b, edits)
 	for _, s := range l.ed.sessions {
 		if s.flash != nil && s.flash.b == l.b {
 			// What it showed has moved.

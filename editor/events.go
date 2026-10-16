@@ -2,6 +2,7 @@ package editor
 
 import (
 	"context"
+	"fmt"
 	"maps"
 	"slices"
 	"sync"
@@ -20,6 +21,7 @@ type event struct {
 	buf          *buffer
 	id           uint32
 	extra        plugin.Context // what a callback's context adds, such as a job's output
+	start, end   int            // the range buffer.changed covers, in the text after it
 }
 
 // listener hands one plugin the events it subscribed to, one at a time, off
@@ -66,6 +68,52 @@ func (l *listener) add(ev event) {
 	case l.wake <- struct{}{}:
 	default:
 	}
+}
+
+// changed tells every plugin subscribed to buffer.changed of edits to b,
+// with the range they cover in the text after them. An older change the
+// plugin has yet to hear of moves through edits, and the range covers both
+// (B183).
+func (ed *Editor) changed(b *buffer, edits []kernel.Edit) {
+	if len(edits) == 0 {
+		return
+	}
+	start, end := edits[0].Start, moved(edits, edits[len(edits)-1].End)
+	for _, l := range ed.listeners {
+		if !slices.Contains(l.p.Subscribed, "buffer.changed") {
+			continue
+		}
+		ev := event{name: "buffer.changed", buf: b, start: start, end: end}
+		l.mu.Lock()
+		if i := slices.IndexFunc(l.pending, func(o event) bool { return o.name == ev.name && o.buf == b }); i >= 0 {
+			o := l.pending[i]
+			ev.start, ev.end = min(ev.start, moved(edits, o.start)), max(ev.end, moved(edits, o.end))
+			l.pending[i] = ev
+		} else {
+			l.pending = append(l.pending, ev)
+		}
+		l.mu.Unlock()
+		select {
+		case l.wake <- struct{}{}:
+		default:
+		}
+	}
+}
+
+// moved returns where pos, in the text before edits, is after them. A
+// position inside an edit's range goes to the end of its new text.
+func moved(edits []kernel.Edit, pos int) int {
+	d := 0
+	for _, e := range edits {
+		switch {
+		case pos < e.Start:
+			return pos + d
+		case pos <= e.End:
+			return e.Start + d + len(e.Text)
+		}
+		d += len(e.Text) - (e.End - e.Start)
+	}
+	return pos + d
 }
 
 // listen returns p's listener, starting it the first time, which hands p
@@ -128,6 +176,9 @@ func (e *Session) listen(p *plugin.Plugin) *listener {
 				name := ev.name
 				if ev.detail != "" {
 					name += " " + ev.detail
+				}
+				if ev.name == "buffer.changed" {
+					name += fmt.Sprintf(" %d %d", ev.start, ev.end)
 				}
 				at := time.Now()
 				var res plugin.Result

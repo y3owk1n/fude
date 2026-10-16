@@ -854,10 +854,14 @@ len)` when it subscribes to events, `callback(id)` when it asks for a
 timer, and `_initialize`, `init` or both.
 fude runs `_initialize`, where a compiler such as TinyGo puts the program's
 setup, then `init`, together under the init budget, and either may register
-and subscribe (D35). `on_event` gets the
-event's name, and for `mode.changed` a space and the new mode, or for
-`view.moved` a space, the cursor, a space and the view's top (B182), and reads
-the text of the buffer the event is about. It runs off the input path
+and subscribe (D35). `on_event` gets the event's name, and for some events
+a space and a detail. For `mode.changed` the detail is the new mode. For
+`view.moved` it is the cursor and the view's top, as `cursor top` (B182).
+For `buffer.changed` it is where the change starts and ends in the text
+after it, as `start end`. Changes the plugin hears of as one come as one
+range that covers them all, with an older one moved through the edits
+after it (B183). `on_event` reads the text of the buffer the event is
+about. It runs off the input path
 under a budget of 100ms. A plugin imports host functions from the module `fude`, gated by capability:
 
 | Capability | Grants |
