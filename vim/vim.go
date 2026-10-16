@@ -549,7 +549,7 @@ func (m *Machine) command(cmd string) error {
 
 	t, c := m.h.Text(), m.h.Cursor()
 	if name, ok := strings.CutPrefix(cmd, "<Plug>("); ok {
-		return m.plug(strings.TrimSuffix(name, ")"), count)
+		return m.plug(strings.TrimSuffix(name, ")"), count, false)
 	}
 	key := cmd
 	if k == "\t" {

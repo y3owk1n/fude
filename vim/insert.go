@@ -24,7 +24,7 @@ func (m *Machine) insert(k Key) error {
 	}
 	if name, ok := strings.CutPrefix(string(k), "<Plug>("); ok {
 		// A host's command, as a mapping in insert mode runs it.
-		return m.plug(strings.TrimSuffix(name, ")"), 0)
+		return m.plug(strings.TrimSuffix(name, ")"), 0, true)
 	}
 	if ik, ok := inserts[string(k)]; ok {
 		return ik.run(m, t, c, k)

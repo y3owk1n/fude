@@ -468,6 +468,22 @@ func TestB112Unhandled(t *testing.T) {
 	}
 }
 
+// B179
+func TestB179HostCommandInInsert(t *testing.T) {
+	h := &host{text: "abcd", cursor: 2}
+	m := vim.New(h)
+	m.Command("xy", func(_ vim.Text, pos, _ int) []vim.Edit { return []vim.Edit{{Start: pos, End: pos, Text: "XY"}} })
+	m.Map(vim.Insert, "<C-j>", "<Plug>(xy)")
+	for _, k := range vim.Keys("i<C-j>z<Esc>") {
+		if err := m.Feed(k); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if h.text != "abXYzcd" {
+		t.Errorf("typing z after the command left %q, want abXYzcd", h.text)
+	}
+}
+
 // B113, for a target
 func TestB113HostObject(t *testing.T) {
 	// id selects the run of digits around the cursor.

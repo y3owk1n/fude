@@ -64,8 +64,9 @@ func (m *Machine) Command(name string, run func(t Text, pos, count int) []Edit) 
 }
 
 // plug runs the command the host added as name, and leaves the cursor where
-// its first edit starts.
-func (m *Machine) plug(name string, count int) error {
+// its first edit starts, or after the edit's text when typed, as in insert
+// mode.
+func (m *Machine) plug(name string, count int, typed bool) error {
 	run := m.cmds[name]
 	if run == nil {
 		return nil
@@ -76,6 +77,10 @@ func (m *Machine) plug(name string, count int) error {
 	}
 	if err := m.apply(edits, "<Plug>("+name+")"); err != nil {
 		return err
+	}
+	if typed {
+		m.h.SetCursor(edits[0].Start + len(edits[0].Text))
+		return nil
 	}
 	m.h.SetCursor(clamp(m.h.Text(), edits[0].Start))
 	return nil
