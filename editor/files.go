@@ -28,6 +28,7 @@ import (
 // the files or lines that match it below, the best first (B129, B134).
 type finder struct {
 	grep     bool     // it searches files' lines, not their names
+	all      bool     // it searches the files git ignores and hidden ones too
 	paths    []string // the working directory's files, nil until read
 	query    string   // the query matches are for
 	matches  []string // paths, or grep's path:line:column:text
@@ -59,29 +60,37 @@ func (e *Session) openFinder(f *finder, query string) {
 	e.later = append(e.later, "A")
 }
 
-// files opens the file finder and reads the working directory's files off
-// the loop.
+// files opens the file finder.
 func (e *Session) files() {
 	f := &finder{}
 	e.openFinder(f, "")
+	e.readPaths(f)
+}
+
+// readPaths reads the working directory's files for f off the loop. It
+// drops a list read before f.all changed.
+func (e *Session) readPaths(f *finder) {
+	all := f.all
 	go func() {
 		at := time.Now()
-		paths, err := listFiles(".")
+		paths, err := listFiles(".", all)
 		traced("file", fmt.Sprintf("listed %d files", len(paths)), at, err)
 		e.queue <- func() {
 			if err != nil {
 				e.message = err.Error()
 			}
-			f.paths, f.stale = paths, true
+			if f.all == all {
+				f.paths, f.stale = paths, true
+			}
 		}
 	}()
 }
 
-// listFiles returns the files below dir: in a repository, those git tracks
-// and the untracked ones it does not ignore, and elsewhere every file but
-// those in unreadable directories.
-func listFiles(dir string) ([]string, error) {
-	if hasGit() {
+// listFiles returns the files below dir. In a repository they are those git
+// tracks and the untracked ones it does not ignore. Elsewhere, or with all,
+// they are every file outside .git and unreadable directories.
+func listFiles(dir string, all bool) ([]string, error) {
+	if !all && hasGit() {
 		// Outside a repository git fails, and the walk lists the files.
 		out, err := exec.Command("git", "-C", dir, "ls-files", "-z", "--cached", "--others", "--exclude-standard").Output()
 		if err == nil {
@@ -104,11 +113,12 @@ func listFiles(dir string) ([]string, error) {
 }
 
 // finderKeys are the finder's own keys, in insert mode: <CR> opens the
-// selected file, <C-n> and <C-p> move the selection, and <C-q> lists every
-// match. [keymap.finder] changes them (B142).
+// selected file, <C-n> and <C-p> move the selection, <C-q> lists every
+// match and <C-g> turns searching ignored files on or off. [keymap.finder]
+// changes them (B142).
 var finderKeys = map[string]string{
 	"<CR>": "<Plug>(finder.open)", "<C-n>": "<Plug>(finder.next)", "<C-p>": "<Plug>(finder.prev)",
-	"<C-q>": "<Plug>(finder.list)",
+	"<C-q>": "<Plug>(finder.list)", "<C-g>": "<Plug>(finder.all)",
 }
 
 // finderAct runs act, one of the finder's actions, while the finder shows.
@@ -128,6 +138,16 @@ func (e *Session) finderAct(act string) {
 		f.sel = max(min(f.sel+1, len(f.matches)-1), 0)
 	case "prev":
 		f.sel = max(f.sel-1, 0)
+	case "all":
+		if f.chose != nil {
+			// A plugin's list has no files to add.
+			return
+		}
+		f.all, f.stale = !f.all, true
+		if !f.grep {
+			f.paths = nil
+			e.readPaths(f)
+		}
 	}
 }
 
@@ -212,12 +232,13 @@ func (e *Session) seek(f *finder) {
 		from = f.matches
 	}
 	f.busy, f.stale = true, false
+	all := f.all
 	go func() {
 		var matches []string
 		var err error
 		if f.grep {
 			at := time.Now()
-			matches, err = grep(q)
+			matches, err = grep(q, all)
 			traced("file", fmt.Sprintf("grep %q found %d", q, len(matches)), at, err)
 		} else {
 			matches = match(from, q)
@@ -251,6 +272,9 @@ func (f *finder) float(query string, cursor, width, height int) Float {
 	count := fmt.Sprintf("%d / %d", len(f.matches), len(f.paths))
 	if f.grep {
 		count = strconv.Itoa(len(f.matches))
+	}
+	if f.all {
+		count = "with ignored  " + count
 	}
 	if gap := w - 4 - utf8.RuneCountInString(prompt+query) - len(count); gap > 1 {
 		s.WriteString(strings.Repeat(" ", gap))

@@ -507,6 +507,9 @@ Where fude departs, the line says so and cites the departure in
 - B195 [2] In `:grep`'s and `:files`' finders, `<C-q>` closes the finder
   and shows every match in a list of places, which becomes the last list.
   A grep match's place is its line and column, and a file's is its start.
+- B210 [2] In `:grep`'s and `:files`' finders, `<C-g>` searches the files
+  git ignores and hidden files too, and the count says "with ignored".
+  `<C-g>` again leaves them out. The finders never search `.git`.
 - B196 [2] `:diagnostics` lists the buffer's diagnostics as places, each
   with its line, column, severity and message, the worst first and then in
   the order of the text.

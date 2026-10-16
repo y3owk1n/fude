@@ -993,6 +993,40 @@ func TestB195FinderLists(t *testing.T) {
 	}
 }
 
+// B210
+func TestB210FinderIgnored(t *testing.T) {
+	dir := t.TempDir()
+	change(t, filepath.Join(dir, "a.go"), "needle\n")
+	change(t, filepath.Join(dir, "skip.go"), "needle\n")
+	change(t, filepath.Join(dir, ".gitignore"), "skip.go\n")
+	if out, err := exec.Command("git", "-C", dir, "init", "-q").CombinedOutput(); err != nil {
+		t.Skipf("git init: %v: %s", err, out)
+	}
+	t.Chdir(dir)
+	e := open(t, "a.go")
+	e.SetSize(100, 24)
+	// shown is the finder's rows, sorted, as the search's order may vary.
+	shown := func() []string {
+		f, _ := e.Float()
+		return slices.Sorted(slices.Values(slices.DeleteFunc(strings.Split(f.Text, "\n")[1:], func(l string) bool { return l == "" })))
+	}
+	for _, c := range []struct {
+		find          string
+		without, with []string
+	}{
+		{":grep needle<CR>", []string{"1  needle", "a.go"}, []string{"1  needle", "1  needle", "a.go", "skip.go"}},
+		{":files<CR>", []string{".gitignore", "a.go"}, []string{".gitignore", "a.go", "skip.go"}},
+	} {
+		feed(e, c.find)
+		settle(t, e, func() bool { return slices.Equal(shown(), c.without) })
+		feed(e, "<C-g>")
+		settle(t, e, func() bool { return slices.Equal(shown(), c.with) })
+		feed(e, "<C-g>")
+		settle(t, e, func() bool { return slices.Equal(shown(), c.without) })
+		feed(e, "<Esc>")
+	}
+}
+
 // B136
 func TestB136FormatOnSave(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "a.txt")

@@ -20,16 +20,25 @@ func (e *Session) grepFiles(query string) {
 // grep returns the lines of the working directory's files that hold query,
 // as path:line:column:text, at most grepLimit of them. It runs rg when it
 // is installed, and git grep in a repository otherwise. A query without
-// capitals ignores case.
-func grep(query string) ([]string, error) {
+// capitals ignores case. With all, it searches the files git ignores and
+// hidden ones too.
+func grep(query string, all bool) ([]string, error) {
 	if query == "" {
 		return nil, nil
 	}
 	var cmd *exec.Cmd
 	if _, err := exec.LookPath("rg"); err == nil {
-		cmd = exec.Command("rg", "--line-number", "--column", "--no-heading", "--color=never", "--smart-case", "--fixed-strings", "--", query)
+		args := []string{"--line-number", "--column", "--no-heading", "--color=never", "--smart-case", "--fixed-strings"}
+		if all {
+			args = append(args, "--no-ignore", "--hidden", "--glob=!.git")
+		}
+		cmd = exec.Command("rg", append(args, "--", query)...)
 	} else if hasGit() {
-		args := []string{"grep", "-n", "--column", "-I", "--untracked", "--exclude-standard", "-F"}
+		ignores := "--exclude-standard"
+		if all {
+			ignores = "--no-exclude-standard"
+		}
+		args := []string{"grep", "-n", "--column", "-I", "--untracked", ignores, "-F"}
 		if strings.ToLower(query) == query {
 			args = append(args, "-i")
 		}

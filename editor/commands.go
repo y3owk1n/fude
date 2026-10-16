@@ -261,6 +261,7 @@ func init() {
 		{"finder.list", "lists every match as places, the last list", func(e *Session, _ int) { e.finderAct("list") }},
 		{"finder.next", "selects the next match", func(e *Session, _ int) { e.finderAct("next") }},
 		{"finder.prev", "selects the match before", func(e *Session, _ int) { e.finderAct("prev") }},
+		{"finder.all", "turns searching the files git ignores and hidden ones on or off", func(e *Session, _ int) { e.finderAct("all") }},
 		{"float.close", "closes the float the cursor is in", func(e *Session, _ int) {
 			if e.under != nil {
 				e.unfocus()
