@@ -2026,6 +2026,10 @@ func TestB170Restart(t *testing.T) {
 	if vs[0].Cursor != 4 {
 		t.Errorf("the other window's cursor is at %d, want 4", vs[0].Cursor)
 	}
+	e = start(t, a)
+	if feed(e, "ZR"); !e.Done() || e.Restart() == "" {
+		t.Error("ZR did not quit with a saved session")
+	}
 }
 
 // B172

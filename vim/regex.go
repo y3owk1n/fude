@@ -183,7 +183,7 @@ func (c *compiler) atom(t token, first bool) (string, error) {
 	case x == '_':
 		return c.newlineClass()
 	case x >= '1' && x <= '9', x == '&', x == 'z':
-		return "", fmt.Errorf(`\%c needs backtracking, which fude's patterns cannot do`, x)
+		return "", fmt.Errorf(`\%c needs backtracking, which Go's regexp cannot do`, x)
 	case classes[x] != "":
 		return classes[x], nil
 	case escapes[x] != "":
@@ -229,7 +229,7 @@ func (c *compiler) operator(t token, first bool) (string, error) {
 			return c.group("(?:")
 		}
 	}
-	return "", fmt.Errorf(`\%s needs backtracking, which fude's patterns cannot do`, t.s)
+	return "", fmt.Errorf(`\%s needs backtracking, which Go's regexp cannot do`, t.s)
 }
 
 // group translates a group up to its closing paren.

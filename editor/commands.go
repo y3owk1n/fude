@@ -248,6 +248,7 @@ func init() {
 		{"listing.vsplit", "opens the entry under the cursor in a window to the right", func(e *Session, _ int) { e.listingAct("vsplit") }},
 		{"listing.cwd", "makes the listing's directory the working directory", func(e *Session, _ int) { e.listingAct("cwd") }},
 		{"listing.reload", "reads the listing's directory again", func(e *Session, _ int) { e.listingAct("reload") }},
+		{"restart", "starts fude again on the same session", func(e *Session, _ int) { e.restart() }},
 		{"listing.up", "lists the directory of the file or listing, n levels up", func(e *Session, count int) { e.up(count) }},
 		{"timeline.earlier", "moves the text a state back", func(e *Session, _ int) { e.timelineAct("earlier") }},
 		{"timeline.later", "moves the text a state forward", func(e *Session, _ int) { e.timelineAct("later") }},
@@ -376,7 +377,7 @@ func request(name, help string) plug {
 
 // defaultMaps are the normal mode keys fude maps to its commands.
 var defaultMaps = map[string]string{
-	"-":  "<Plug>(listing.up)",
+	"-": "<Plug>(listing.up)", "ZR": "<Plug>(restart)",
 	"]h": "<Plug>(git.next)", "[h": "<Plug>(git.prev)", "[H": "<Plug>(git.first)", "]H": "<Plug>(git.last)",
 	"]q": "<Plug>(list.next)", "[q": "<Plug>(list.prev)", "[Q": "<Plug>(list.first)", "]Q": "<Plug>(list.last)",
 	"<C-]>": "<Plug>(lsp.definition)", "K": "<Plug>(lsp.hover)",
