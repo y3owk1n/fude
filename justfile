@@ -49,7 +49,7 @@ wasm:
 
 # Check the speed promises, without the race detector.
 perf:
-    go test -count=1 -v -run Promise ./ui/term/ | grep -v '^=== RUN'
+    go test -count=1 -v -run Promise ./ui/term/
 
 # Fail if core/ grows past 10k lines of Go, tests excluded.
 kernel-size:
