@@ -87,6 +87,9 @@ func hostStart(ptr *byte, n uint32, id uint32) int32
 //go:wasmimport fude fetch
 func hostFetch(ptr *byte, n uint32, id uint32) int32
 
+//go:wasmimport fude request
+func hostRequest(ptr *byte, n uint32, pos, id uint32) int32
+
 //go:wasmimport fude setting
 func hostSetting(ptr *byte, n uint32) int64
 
@@ -248,6 +251,15 @@ func Start(f func(output string, err error), name string, args ...string) error 
 func Fetch(url string, f func(body string, err error)) error {
 	p, n := ptr(url)
 	return schedule(done(f), func(id uint32) int32 { return hostFetch(p, n, id) })
+}
+
+// Request sends method to the language servers of the buffer the call is
+// about, with its textDocument, its position at pos unless pos is -1, and
+// params, a JSON object or "". Then f runs, as Start's does, with the first
+// answer that is not null, as JSON. It needs lsp.
+func Request(method string, pos int, params string, f func(result string, err error)) error {
+	p, n := ptr(method + "\x00" + params)
+	return schedule(done(f), func(id uint32) int32 { return hostRequest(p, n, uint32(pos), id) })
 }
 
 // done is the callback that runs f with a job's output and error.

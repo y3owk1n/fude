@@ -8,7 +8,9 @@
 // [shown], as Go. :Go pos moves the cursor to pos, and :Open path opens
 // the file at path with the cursor at 2. :Bufs types the id and text of
 // every open buffer, and :Node the kinds of the syntax node at the cursor
-// and its parent. Needs buffer.read, buffer.write and ui.
+// and its parent. :Hover asks the language server for hover at the cursor
+// and types its answer, or the error, at the start. Needs buffer.read,
+// buffer.write, ui and lsp.
 package main
 
 import (
@@ -57,6 +59,14 @@ func init() {
 		n, _ := sdk.NodeAt(c.Cursor, 0)
 		up, _ := sdk.NodeAt(c.Cursor, 1)
 		sdk.Edit(c.Cursor, c.Cursor, n.Kind+"|"+up.Kind+"|")
+	})
+	sdk.Command("Hover", "types the server's hover", func(c sdk.Call) {
+		sdk.Request("textDocument/hover", c.Cursor, "", func(out string, err error) {
+			if err != nil {
+				out = err.Error()
+			}
+			sdk.Edit(0, 0, out)
+		})
 	})
 	sdk.Command("Where", "types where its call ran", func(c sdk.Call) {
 		b := sdk.Current()

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/core/kernel"
+	"github.com/y3owk1n/fude/lsp"
 	"github.com/y3owk1n/fude/plugin"
 	"github.com/y3owk1n/fude/vim"
 )
@@ -149,6 +151,56 @@ func (d decoration) remove() {
 	}
 }
 
+// pluginRequest sends a plugin's request to those of b's servers that offer it,
+// every one for a method outside textDocument/, and hands the plugin the
+// first answer that is not null, as a job's output (B190).
+func (e *Session) pluginRequest(p *plugin.Plugin, b *buffer, rq plugin.Request) {
+	l := e.listen(p)
+	reply := func(extra plugin.Context) {
+		if slices.Contains(e.plugins, p) {
+			l.add(event{buf: b, id: rq.ID, extra: extra})
+		}
+	}
+	var to []*server
+	for _, s := range b.servers {
+		if !strings.HasPrefix(rq.Method, "textDocument/") || s.offers(rq.Method) {
+			to = append(to, s)
+		}
+	}
+	var params map[string]any
+	if rq.Params != "" {
+		if err := json.Unmarshal([]byte(rq.Params), &params); err != nil {
+			reply(plugin.Context{"error": fmt.Sprintf("the params of %s: %v", rq.Method, err)})
+			return
+		}
+	}
+	if len(to) == 0 {
+		reply(plugin.Context{"error": "no language server offers " + rq.Method})
+		return
+	}
+	t, uri := b.text.Snapshot(), lsp.URI(b.file.path)
+	left, done := len(to), false
+	for _, s := range to {
+		s.client.Request(rq.Method, func(enc string) any {
+			out := map[string]any{"textDocument": map[string]any{"uri": uri}}
+			if rq.Pos >= 0 {
+				out["position"] = lsp.Point(t, rq.Pos, enc)
+			}
+			maps.Copy(out, params)
+			return out
+		}, func(res json.RawMessage) {
+			switch left--; {
+			case done:
+			case len(res) > 0 && string(res) != "null":
+				done = true
+				reply(plugin.Context{"output": string(res), "server": s.name})
+			case left == 0:
+				reply(plugin.Context{"error": "no language server answered " + rq.Method})
+			}
+		})
+	}
+}
+
 // jumpTo is where a plugin's call about b asked to move the cursor.
 type jumpTo struct {
 	b *buffer
@@ -179,6 +231,9 @@ func (e *Session) went() {
 func (e *Session) decorate(p *plugin.Plugin, b *buffer, res plugin.Result) []vim.Edit {
 	for _, name := range res.Emit {
 		e.emit(name, "", b)
+	}
+	for _, rq := range res.Requests {
+		e.pluginRequest(p, b, rq)
 	}
 	for _, j := range res.Jobs {
 		l := e.listen(p)

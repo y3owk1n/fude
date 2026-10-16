@@ -509,6 +509,21 @@ func TestB189PluginReadsSyntaxNodes(t *testing.T) {
 	}
 }
 
+// B190
+func TestB190PluginAsksTheServer(t *testing.T) {
+	wasm, err := filepath.Abs(filepath.Join("..", "plugin", "testdata", "ctx", "ctx.wasm"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	e, log := withServer(t, "a\nb target\n", "utf-8", fmt.Sprintf("[[plugin]]\npath = %q\ncapabilities = [\"buffer.write\", \"lsp\"]", wasm))
+	heard(t, log, `"method":"textDocument/didOpen"`, 1)
+	feed(e, "jw")
+	// :Hover is not a command until the plugin loads.
+	settle(t, e, func() bool { feed(e, ":Hover<CR>"); return e.Message() == "" })
+	// The server says where it was asked, which fude put at the cursor.
+	settle(t, e, func() bool { return strings.Contains(text(e), "**hover** at 1:2") })
+}
+
 // decorations returns what the current window shows of plugins'
 // decorations, as text and style.
 func decorations(e *editor.Session) []string {

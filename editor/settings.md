@@ -320,7 +320,7 @@ The plugin's WebAssembly file, from the folder of config.toml, such as
 ## plugin.capabilities
 
 What the plugin may call: `buffer.read`, `buffer.write`, `ui`, `fs.read`,
-`process` and `net`. A call outside them gets an error and changes nothing.
+`process`, `net` and `lsp`. A call outside them gets an error and changes nothing.
 
 ## plugin.programs
 

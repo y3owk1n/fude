@@ -59,15 +59,16 @@ type Decoration struct {
 type Result struct {
 	Edits      []fude.Edit
 	Decorate   []Decoration
-	Undecorate []int    // the ids of decorations to remove
-	Emit       []string // the events to emit, named plugin.event
-	Status     *string  // the plugin's statusline segment for the text it read, "" for none
-	Float      *string  // markdown to show at the cursor, "" to close it
-	Show       *Panel   // text to show in a window of its own
-	Jump       *Jump    // where to move the cursor
-	Pick       *Pick    // a list to pick from, or a question to answer
-	Timers     []Timer  // the callbacks to run later
-	Jobs       []Job    // the work to do in the background
+	Undecorate []int     // the ids of decorations to remove
+	Emit       []string  // the events to emit, named plugin.event
+	Status     *string   // the plugin's statusline segment for the text it read, "" for none
+	Float      *string   // markdown to show at the cursor, "" to close it
+	Show       *Panel    // text to show in a window of its own
+	Jump       *Jump     // where to move the cursor
+	Pick       *Pick     // a list to pick from, or a question to answer
+	Timers     []Timer   // the callbacks to run later
+	Jobs       []Job     // the work to do in the background
+	Requests   []Request // the requests to send the buffer's language servers
 	Out        []uint64
 }
 
@@ -78,6 +79,17 @@ type Job struct {
 	ID   uint32
 	Argv []string
 	URL  string
+}
+
+// Request is a request a plugin sends the language servers of the buffer
+// the call was about. fude fills in its textDocument, and its position at
+// Pos unless Pos is negative, and adds Params, a JSON object. The plugin's
+// callback with ID gets the first answer that is not null (B190).
+type Request struct {
+	ID     uint32
+	Method string
+	Pos    int
+	Params string
 }
 
 // maxJobs is how many of a plugin's jobs run at once. One more waits.
@@ -126,7 +138,7 @@ type Registration struct {
 const memoryPages = 1024
 
 // capabilities are the ones a plugin may declare.
-var capabilities = []string{"buffer.read", "buffer.write", "ui", "fs.read", "process", "net"}
+var capabilities = []string{"buffer.read", "buffer.write", "ui", "fs.read", "process", "net", "lsp"}
 
 // Errors a host function returns to the plugin.
 const (
@@ -348,6 +360,7 @@ func (p *Plugin) host(ctx context.Context) error {
 		NewFunctionBuilder().WithFunc(p.after).Export("after").
 		NewFunctionBuilder().WithFunc(p.start).Export("start").
 		NewFunctionBuilder().WithFunc(p.fetch).Export("fetch").
+		NewFunctionBuilder().WithFunc(p.request).Export("request").
 		NewFunctionBuilder().WithFunc(p.textLen).Export("text_len").
 		NewFunctionBuilder().WithFunc(p.lines).Export("lines").
 		NewFunctionBuilder().WithFunc(p.node).Export("node").
@@ -638,6 +651,23 @@ func (p *Plugin) fetch(_ context.Context, m api.Module, ptr, n, id uint32) int32
 		return errRange
 	}
 	p.call.Jobs = append(p.call.Jobs, Job{ID: id, URL: string(b)})
+	return 0
+}
+
+// request asks fude to send the method and params at (ptr, n), NUL
+// separated, to the language servers of the buffer the call is about, at
+// pos, or with no position for a negative pos, and to run the plugin's
+// callback with id with the answer (B190).
+func (p *Plugin) request(_ context.Context, m api.Module, ptr, n, pos, id uint32) int32 {
+	if p.call == nil || !p.allowed("lsp", "request") {
+		return errDenied
+	}
+	b, ok := m.Memory().Read(ptr, n)
+	method, params, _ := strings.Cut(string(b), "\x00")
+	if !ok || method == "" || int(int32(pos)) > p.call.Text.Len() {
+		return errRange
+	}
+	p.call.Requests = append(p.call.Requests, Request{id, method, int(int32(pos)), params})
 	return 0
 }
 

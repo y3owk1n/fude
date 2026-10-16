@@ -555,6 +555,11 @@ Where fude departs, the line says so and cites the departure in
 - B189 [4] A plugin with `buffer.read` reads the kind, start and end of
   the named syntax node at a position in the buffer its call is about,
   and of that node's named parents.
+- B190 [4] A plugin with `lsp` sends a request to the language servers of
+  the buffer its call is about. fude fills in the document, and the
+  position in each server's encoding when the plugin gives one. A function
+  of the plugin's then runs, as a job's does (B181), with the first answer
+  that is not null.
 - B186 [4] A plugin with `ui` shows text in a read-only window with a
   title, coloured as a filetype it names. Showing text under a title
   already open replaces what that window shows. `:q` closes it without

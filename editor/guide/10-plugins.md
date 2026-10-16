@@ -94,7 +94,8 @@ plugin's own settings, which its table in `config.toml` gives as
 `settings = { depth = 3 }`. `sdk.After` runs a function once, a number
 of milliseconds later, as an event runs. `sdk.Start` and `sdk.Fetch` run
 a program or get a URL in the background, with no budget, then run a
-function with the output.
+function with the output. `sdk.Request` asks the buffer's language
+servers, at a position, and runs a function with the answer.
 
 The rest of the sdk reaches fude, each function behind its capability.
 `sdk.Text` and `sdk.Len` read the text, and `sdk.Lines`, `sdk.LineOf`
