@@ -793,6 +793,28 @@ func TestB221StageHunk(t *testing.T) {
 	settle(t, e, func() bool { return git("show", ":a.txt") == "A\nb\nc\n" && len(e.Views()[0].Signs) == 1 })
 }
 
+// B222
+func TestB222GitDiff(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "a.txt")
+	change(t, path, "a\nb\n")
+	git := func(args ...string) {
+		if out, err := exec.Command("git", append([]string{"-C", dir, "-c", "user.name=t", "-c", "user.email=t@t"}, args...)...).CombinedOutput(); err != nil {
+			t.Skipf("git %v: %v: %s", args, err, out)
+		}
+	}
+	git("init", "-q")
+	git("add", ".")
+	git("commit", "-qm", "init")
+	e := open(t, path)
+	e.SetSize(80, 10)
+	settle(t, e, func() bool { feed(e, ":gitdiff<CR>"); return e.Message() == "no changes from git's index" })
+	feed(e, "jrB:gitdiff<CR>")
+	if got := text(e); !strings.Contains(got, "-b\n+B") {
+		t.Errorf(":gitdiff shows %q", got)
+	}
+}
+
 // B220
 func TestB220Blame(t *testing.T) {
 	dir := t.TempDir()

@@ -226,6 +226,11 @@ Where fude departs, the line says so and cites the departure in
   The file's line endings and git's filters apply as `git add` would
   apply them. The staged hunks' signs go once git is done. `gh`
   starts no Select mode, as fude has none (N2).
+- B222 [2] `:gitdiff` opens a window with the lines of the current buffer
+  that differ from git's index, unsaved changes too. Each removed line
+  comes after `-` and each added one after `+`, with 3 lines around each
+  run, as `:diff` shows two states. Without changes, it says so, and `q`
+  closes it.
 - B220 [2] `:blame` shows, dim after the cursor's line, who changed it
   last, how long ago and the commit's summary, as gitsigns'
   `current_line_blame` does, or "not committed yet" for a line changed

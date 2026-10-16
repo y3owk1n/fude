@@ -339,6 +339,22 @@ func (e *Session) resetHunks(t vim.Text, start, end int, _ bool) []vim.Edit {
 	return edits
 }
 
+// gitDiff opens a window with the lines of the current buffer that differ
+// from git's index, with 3 lines around each, as :diff shows states (B222).
+func (e *Session) gitDiff() {
+	b := e.win.buf
+	if _, ok := e.hunks(b); !ok {
+		return
+	}
+	t := b.text.Snapshot()
+	ops := lineDiff(strings.Split(*b.base, "\n"), strings.Split(t.Slice(0, t.Len()), "\n"))
+	if !slices.ContainsFunc(ops, func(o op) bool { return o.kind != ' ' }) {
+		e.message = "no changes from git's index"
+		return
+	}
+	e.scratch("[git diff "+b.name()+"]", unified(ops, 3), b, nil)
+}
+
 // stageHunks writes the hunks meeting the lines from start to end to git's
 // index, as gh does, and leaves the others as the index has them. git runs
 // off the loop, and the signs follow once it is done (B221).
