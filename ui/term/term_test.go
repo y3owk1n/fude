@@ -351,3 +351,37 @@ func TestB158SwitchTheme(t *testing.T) {
 		t.Errorf(":theme pal<Tab> drew the ground %v, want the scheme's", ground())
 	}
 }
+
+// B159
+func TestB159LspPanelScrolls(t *testing.T) {
+	// The config sets more cards than the screen has rows.
+	var config strings.Builder
+	for i := range 20 {
+		fmt.Fprintf(&config, "[filetype.t%02d]\nlsp = [\"server%02d\"]\n", i, i)
+	}
+	cl := startWith(t, config.String())
+	shows := func(name string) bool {
+		cl.draw()
+		w, h := cl.s.Size()
+		var screen strings.Builder
+		for y := range h {
+			for x := range w {
+				s, _, _ := cl.s.Get(x, y)
+				screen.WriteString(s)
+			}
+		}
+		return strings.Contains(screen.String(), name)
+	}
+	for _, k := range vim.Keys(":lsp<CR>") {
+		cl.e.Feed(k)
+	}
+	if !shows("server00") {
+		t.Fatal("the panel does not show its first card")
+	}
+	for _, k := range vim.Keys(strings.Repeat("j", 19)) {
+		cl.e.Feed(k)
+	}
+	if !shows("server19") {
+		t.Fatal("the panel does not scroll to its last card")
+	}
+}

@@ -210,9 +210,13 @@ func (e *Session) lspFloat() Float {
 		add(name, "markup.strong")
 		title := 2 + utf8.RuneCountInString(name)
 		if len(running) > 0 {
-			if v := running[0].client.Version(); v != "" {
-				add(" "+v, "comment")
-				title += 1 + utf8.RuneCountInString(v)
+			if v := []rune(running[0].client.Version()); len(v) > 0 {
+				// The state needs room, so a long version, such as clangd's, ends in an ellipsis.
+				if fit := inner - title - len(state) - 2; len(v) > fit {
+					v = append(v[:max(fit-1, 0)], '…')
+				}
+				add(" "+string(v), "comment")
+				title += 1 + len(v)
 			}
 		}
 		s.WriteString(strings.Repeat(" ", max(inner-title-len(state), 1)))
@@ -268,6 +272,9 @@ func (e *Session) lspFloat() Float {
 	}
 	end := heads[at] + strings.IndexByte(text[heads[at]:], '\n')
 	spans = append(spans, syntax.Span{Start: heads[at], End: end + 1, Name: "menu.selected"})
+	// The panel sits a fifth of the way down, or higher when it is too tall
+	// for that.
 	h := min(strings.Count(text, "\n")+3, e.height-2)
-	return Float{Text: text, Spans: spans, Cursor: e.Cursor(), Title: "language servers", X: (e.width - w) / 2, Y: max(e.height/5, 1), W: w, H: h}
+	y := max(min(e.height/5, e.height-1-h), 0)
+	return Float{Text: text, Spans: spans, Cursor: e.Cursor(), Title: "language servers", X: (e.width - w) / 2, Y: y, W: w, H: h}
 }

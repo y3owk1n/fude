@@ -220,7 +220,8 @@ func (c *client) float(f editor.Float, cx, cy, w, h int) (int, int, bool) {
 			c.box(doc, f.DocSpans, rows[:min(len(rows), f.H-2)], f.X+f.W, f.Y, f.DocW-4, -1)
 		}
 		rows, _ := wrap(f.Text, f.Spans, f.W-4)
-		x, y, ok := c.box(f.Text, f.Spans, rows[:min(len(rows), f.H-2)], f.X, f.Y, f.W-4, f.Cursor)
+		first := scroll(rows, f, f.H-2)
+		x, y, ok := c.box(f.Text, f.Spans, rows[first:min(first+f.H-2, len(rows))], f.X, f.Y, f.W-4, f.Cursor)
 		if f.Title != "" {
 			c.s.PutStrStyled(f.X+2, f.Y, " "+f.Title+" ", base.Foreground(th.muted))
 		}
@@ -232,16 +233,7 @@ func (c *client) float(f editor.Float, cx, cy, w, h int) (int, int, bool) {
 	if width < 1 || n < 1 {
 		return 0, 0, false
 	}
-	// rowOf is the row that shows the byte at p.
-	rowOf := func(p int) int {
-		i, _ := slices.BinarySearchFunc(rows, p, func(r row, p int) int { return cmp.Compare(r.start, p+1) })
-		return max(i-1, 0)
-	}
-	first := 0
-	if f.Cursor >= 0 {
-		cur := rowOf(f.Cursor)
-		first = min(max(rowOf(f.Top), cur-n+1), cur)
-	}
+	first := scroll(rows, f, n)
 	y := cy + 1
 	if below < n+2 && above > below {
 		y = cy - n - 2
@@ -260,6 +252,21 @@ func (c *client) float(f editor.Float, cx, cy, w, h int) (int, int, bool) {
 		c.box(f.Doc, f.DocSpans, rows[:min(len(rows), h-y-2, 20)], dx, y, dw, -1)
 	}
 	return fx, fy, found
+}
+
+// scroll returns the first of rows to show in a box n rows tall. It is f's
+// top row, moved so the cursor's row shows when f has the cursor.
+func scroll(rows []row, f editor.Float, n int) int {
+	// rowOf is the row that shows the byte at p.
+	rowOf := func(p int) int {
+		i, _ := slices.BinarySearchFunc(rows, p, func(r row, p int) int { return cmp.Compare(r.start, p+1) })
+		return max(i-1, 0)
+	}
+	if f.Cursor < 0 {
+		return 0
+	}
+	cur := rowOf(f.Cursor)
+	return min(max(rowOf(f.Top), cur-n+1), cur)
 }
 
 // row is one row of a box: bytes of its text, or a rule across it.
@@ -352,9 +359,12 @@ func (c *client) box(text string, spans []syntax.Span, rows []row, x, y, width, 
 				col, rest = col+4, rest[1:]
 				continue
 			}
-			var cw int
-			rest, cw = c.s.Put(x+1+col, y+1+i, rest, s)
-			col += cw
+			next, cw := c.s.Put(x+1+col, y+1+i, rest, s)
+			// Put draws nothing off the screen, so the row stops there.
+			if len(next) == len(rest) {
+				break
+			}
+			rest, col = next, col+cw
 		}
 	}
 	return fx, fy, found

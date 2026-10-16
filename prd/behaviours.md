@@ -289,9 +289,10 @@ Where fude departs, the line says so and cites the departure in
 - B159 [5] `:lsp` opens a panel with a card for each language server
   `config.toml` sets: its state (running, starting, stopped, disabled,
   failed with why, or no files), its version, and its roots and files
-  (N20). `j` and `k` move between cards, and `r`, `s`, `d` and `e` restart,
-  stop, disable or enable the server under the cursor, as `[keymap.lsp]`
-  maps them. `:lsp restart` restarts the current file's server, or starts
+  (N20). `j` and `k` move between cards, and a panel taller than the
+  screen scrolls to show the card under the cursor. `r`, `s`, `d` and `e`
+  restart, stop, disable or enable that server, as `[keymap.lsp]` maps
+  them. `:lsp restart` restarts the current file's server, or starts
   it again after it stayed off (B63), and opens its files in the new one.
 - B160 [5] `:lsp stop` stops the current file's server, and opening a file
   it serves starts it again. `:lsp disable` stops it and keeps it off for
