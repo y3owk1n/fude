@@ -543,6 +543,12 @@ Where fude departs, the line says so and cites the departure in
   first two characters, and dim text after the end of a line. Both move
   with edits and go when the plugin removes them or unloads. On one line,
   a diagnostic's sign wins over a plugin's, and a plugin's over git's.
+- B185 [4] A plugin with `ui` asks the user to pick from a list it gives,
+  or to type an answer to a question. The list narrows as they type, as
+  the file finder's does. A function of the plugin's then runs, as a
+  timer's does (B180), with the item picked or the text typed, or with
+  none when they cancel. A list asked for while one shows is cancelled at
+  once.
 - B186 [4] A plugin with `ui` shows text in a read-only window with a
   title, coloured as a filetype it names. Showing text under a title
   already open replaces what that window shows. `:q` closes it without

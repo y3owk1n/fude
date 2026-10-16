@@ -868,7 +868,7 @@ under a budget of 100ms. A plugin imports host functions from the module `fude`,
 |---|---|
 | `buffer.read` | read the text and where its lines start |
 | `buffer.write` | edit the text |
-| `ui` | decorations, signs, notes after a line, statusline segments, floating windows, read-only windows, moving the cursor, opening project files |
+| `ui` | decorations, signs, notes after a line, statusline segments, floating windows, read-only windows, lists to pick from and questions, moving the cursor, opening project files |
 | `fs.read` | read files under the project root |
 | `process` | spawn a declared program |
 | `net` | get http and https URLs on declared hosts |
@@ -906,6 +906,7 @@ host it may not reach or a request that failed.
 | `run(ptr, len) -> i64` | `process` | what the program prints, run with its arguments, NUL-separated, in the project. It must be in the plugin's `programs`, and the call's budget stops it (B48) |
 | `http_get(ptr, len) -> i64` | `net` | the body of the http or https URL, up to 16MB. Its host, and any host a redirect leads to, must be in the plugin's `hosts`, and the call's budget stops the request (B49) |
 | `show(ptr, len) -> i32` | `ui` | shows the title, filetype and text, NUL-separated, in a read-only window, or in place of what the window of that title shows (B186) |
+| `pick(ptr, len, id) -> i32` | `ui` | shows a prompt and the items after it, NUL-separated, in the finder. With no items it asks the prompt as a question. Then it runs `callback(id)`, whose `context` has `picked`, the item's index or -1, `text`, what was typed, and `ok`, false when cancelled (B185) |
 | `jump(pos) -> i32` | `ui` | moves the cursor to `pos` once the call and its edits are done, when the current window shows the buffer the call was about (B187) |
 | `open(pos, ptr, len) -> i32` | `ui` | opens the file at the path, relative to the project, in the current window with the cursor at `pos`. It refuses a path that leads outside the project, as `read_file` does (B187) |
 | `float(ptr, len) -> i32` | `ui` | shows the markdown in a float at the cursor, or closes it for "" (B59) |

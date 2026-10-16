@@ -212,6 +212,20 @@ func (e *Session) decorate(p *plugin.Plugin, b *buffer, res plugin.Result) []vim
 	if j := res.Jump; j != nil {
 		e.jumpTo = &jumpTo{b, *j}
 	}
+	if pk := res.Pick; pk != nil {
+		answer := func(picked int, query string, ok bool) {
+			if slices.Contains(e.plugins, p) {
+				e.listen(p).add(event{buf: b, id: pk.ID, extra: plugin.Context{"picked": strconv.Itoa(picked), "text": query, "ok": strconv.FormatBool(ok)}})
+			}
+		}
+		// One list shows at a time, so a second is cancelled.
+		if e.finder != nil {
+			answer(-1, "", false)
+		} else {
+			// stale, so the first frame matches the items, which are all here.
+			e.openFinder(&finder{paths: pk.Items, stale: true, prompt: pk.Prompt + " ", chose: answer}, "")
+		}
+	}
 	if res.Status != nil {
 		if e.segments[p] == nil {
 			e.segments[p] = map[*buffer]string{}

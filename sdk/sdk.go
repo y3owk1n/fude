@@ -132,6 +132,9 @@ func hostShow(ptr *byte, n uint32) int32
 //go:wasmimport fude jump
 func hostJump(pos uint32) int32
 
+//go:wasmimport fude pick
+func hostPick(ptr *byte, n uint32, id uint32) int32
+
 //go:wasmimport fude open
 func hostOpen(pos uint32, ptr *byte, n uint32) int32
 
@@ -450,6 +453,26 @@ func Note(pos int, text string) (int, error) {
 	p, n := ptr(text)
 	id := hostNote(uint32(pos), p, n)
 	return int(id), fail(int64(id))
+}
+
+// Pick shows items in a list, after prompt, once the call returns. The
+// user types to narrow it and picks one with enter. Then f runs, as an
+// event does, with the index of the item picked, or false when they
+// cancelled or no item matched. A list asked for while one shows is
+// cancelled. It needs ui.
+func Pick(prompt string, items []string, f func(i int, ok bool)) error {
+	p, n := ptr(strings.Join(append([]string{prompt}, items...), "\x00"))
+	return schedule(func() {
+		i, _ := strconv.Atoi(about("picked"))
+		f(i, about("ok") == "true" && i >= 0)
+	}, func(id uint32) int32 { return hostPick(p, n, id) })
+}
+
+// Ask asks the user prompt once the call returns, and runs f, as an event
+// does, with what they typed, or false when they cancelled. It needs ui.
+func Ask(prompt string, f func(text string, ok bool)) error {
+	p, n := ptr(prompt)
+	return schedule(func() { f(about("text"), about("ok") == "true") }, func(id uint32) int32 { return hostPick(p, n, id) })
 }
 
 // Jump moves the cursor to pos once the call returns, after its edits, when

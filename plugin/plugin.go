@@ -64,6 +64,7 @@ type Result struct {
 	Float      *string  // markdown to show at the cursor, "" to close it
 	Show       *Panel   // text to show in a window of its own
 	Jump       *Jump    // where to move the cursor
+	Pick       *Pick    // a list to pick from, or a question to answer
 	Timers     []Timer  // the callbacks to run later
 	Jobs       []Job    // the work to do in the background
 	Out        []uint64
@@ -80,6 +81,15 @@ type Job struct {
 
 // maxJobs is how many of a plugin's jobs run at once. One more waits.
 const maxJobs = 8
+
+// Pick is a list of items the plugin asks the user to pick from with
+// Prompt, or with none a question whose answer is what they type. fude runs
+// the plugin's callback with ID once they answer or cancel (B185).
+type Pick struct {
+	ID     uint32
+	Prompt string
+	Items  []string
+}
 
 // Jump is where a plugin moves the cursor: Pos in the buffer the call was
 // about, or in the file at Path when it is not "", which fude opens
@@ -329,6 +339,7 @@ func (p *Plugin) host(ctx context.Context) error {
 		NewFunctionBuilder().WithFunc(p.note).Export("note").
 		NewFunctionBuilder().WithFunc(p.show).Export("show").
 		NewFunctionBuilder().WithFunc(p.jump).Export("jump").
+		NewFunctionBuilder().WithFunc(p.pick).Export("pick").
 		NewFunctionBuilder().WithFunc(p.open).Export("open").
 		Instantiate(ctx)
 	if err != nil {
@@ -736,6 +747,22 @@ func (p *Plugin) sign(_ context.Context, m api.Module, pos, ptr, n uint32) int32
 	p.next++
 	p.call.Decorate = append(p.call.Decorate, Decoration{ID: p.next, Start: int(pos), End: int(pos), Style: style, Sign: text})
 	return int32(p.next)
+}
+
+// pick asks the user to pick from the items at (ptr, n), after a prompt,
+// all NUL-separated, or with no items to answer the prompt, once the call
+// returns. The plugin's callback with id runs with the answer (B185).
+func (p *Plugin) pick(_ context.Context, m api.Module, ptr, n, id uint32) int32 {
+	if p.call == nil || !p.allowed("ui", "pick") {
+		return errDenied
+	}
+	b, ok := m.Memory().Read(ptr, n)
+	if !ok {
+		return errRange
+	}
+	parts := strings.Split(string(b), "\x00")
+	p.call.Pick = &Pick{id, parts[0], parts[1:]}
+	return 0
 }
 
 // jump moves the cursor to pos once the call returns (B187).

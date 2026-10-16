@@ -470,6 +470,25 @@ func TestB187PluginMovesTheCursor(t *testing.T) {
 	}
 }
 
+// B185
+func TestB185PluginPicksAndAsks(t *testing.T) {
+	e := loaded(t, "later", "f", "a\n", "buffer.write", "ui")
+	e.SetSize(80, 20)
+	// The list narrows as the file finder's does, off the loop, as frames
+	// ask for it.
+	feed(e, ":Pick<CR>ban")
+	settle(t, e, func() bool {
+		f, _ := e.Float()
+		return strings.Contains(f.Text, "fruit ban") && strings.Contains(f.Text, "1 / 3")
+	})
+	feed(e, "<CR>")
+	settle(t, e, func() bool { return text(e) == "bananaa" })
+	feed(e, ":Pick<CR><Esc>")
+	settle(t, e, func() bool { return text(e) == "nonebananaa" })
+	feed(e, ":Ask<CR>bob<CR>")
+	settle(t, e, func() bool { return text(e) == "bobnonebananaa" })
+}
+
 // decorations returns what the current window shows of plugins'
 // decorations, as text and style.
 func decorations(e *editor.Session) []string {

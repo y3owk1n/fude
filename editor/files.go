@@ -42,6 +42,11 @@ type finder struct {
 	queries  string              // where highlight queries are, for the preview
 	filetype func(string) string // the filetype of a path, which config.toml does not change while fude runs
 	queue    chan<- func()       // the editor loop's, for the preview
+	// prompt and chose are a plugin's list or question (B185). chose runs
+	// instead of opening a file. It gets the index in paths of the item
+	// picked, or -1, the query, and false when cancelled.
+	prompt string
+	chose  func(picked int, query string, ok bool)
 }
 
 // openFinder opens f in a box with query typed.
@@ -127,7 +132,16 @@ func (e *Session) finding(k vim.Key) {
 	f := e.finder
 	e.vim.UseLocal(e.locals["finder"])
 	e.settle(e.vim.Feed(k))
+	t := e.Text()
+	query := t.Slice(0, t.Len())
 	switch {
+	case f.open && f.chose != nil:
+		e.closeFinder()
+		picked := -1
+		if f.sel < len(f.matches) {
+			picked = slices.Index(f.paths, f.matches[f.sel])
+		}
+		f.chose(picked, query, true)
 	case f.open:
 		e.closeFinder()
 		if f.sel < len(f.matches) {
@@ -140,6 +154,9 @@ func (e *Session) finding(k vim.Key) {
 		}
 	case e.vim.Mode() != vim.Insert:
 		e.closeFinder()
+		if f.chose != nil {
+			f.chose(-1, query, false)
+		}
 	}
 }
 
@@ -192,7 +209,7 @@ func (f *finder) float(query string, cursor, width, height int) Float {
 	// A margin of two columns and a row keeps the box off the screen's edges.
 	total, h := min(162, width-4), min(22, height-2)
 	w, docW := total, 0
-	if total >= 60 {
+	if total >= 60 && f.chose == nil {
 		w = total * 2 / 5
 		docW = total - w
 	}
@@ -201,12 +218,13 @@ func (f *finder) float(query string, cursor, width, height int) Float {
 	var s strings.Builder
 	var spans []syntax.Span
 	// The query after a prompt, with the count of matches on the right.
-	s.WriteString(finderPrompt + query)
+	prompt := cmp.Or(f.prompt, finderPrompt)
+	s.WriteString(prompt + query)
 	count := fmt.Sprintf("%d / %d", len(f.matches), len(f.paths))
 	if f.grep {
 		count = strconv.Itoa(len(f.matches))
 	}
-	if gap := w - 4 - utf8.RuneCountInString(finderPrompt+query) - len(count); gap > 1 {
+	if gap := w - 4 - utf8.RuneCountInString(prompt+query) - len(count); gap > 1 {
 		s.WriteString(strings.Repeat(" ", gap))
 		spans = append(spans, syntax.Span{Start: s.Len(), End: s.Len() + len(count), Name: "comment"})
 		s.WriteString(count)
@@ -274,7 +292,7 @@ func (f *finder) float(query string, cursor, width, height int) Float {
 			docSpans = append(slices.Clip(docSpans), syntax.Span{Start: start, End: start + end, Name: "menu.selected"})
 		}
 	}
-	return Float{Text: s.String(), Spans: spans, Cursor: cursor + len(finderPrompt), Doc: doc, DocSpans: docSpans, X: (width - total) / 2, Y: (height - h) / 2, W: w, H: h, DocW: docW}
+	return Float{Text: s.String(), Spans: spans, Cursor: cursor + len(prompt), Doc: doc, DocSpans: docSpans, X: (width - total) / 2, Y: (height - h) / 2, W: w, H: h, DocW: docW}
 }
 
 // finderPrompt goes before the finder's query.
