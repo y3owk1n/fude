@@ -373,8 +373,10 @@ func (h *Buffer) take(seq int, spans []Span, regions []Region, missing []string,
 			h.missing(ft)
 		}
 	}
+	// Freeing the old tree of a large file takes up to half a millisecond,
+	// and only this held it, so it frees off the loop.
 	if h.tree != nil {
-		h.tree.Close()
+		go h.tree.Close()
 	}
 	h.spans, h.regions, h.tree = spans, regions, tree
 	i := 0

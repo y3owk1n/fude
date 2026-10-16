@@ -65,18 +65,22 @@ func realCode(t *testing.T, size int) string {
 
 // press runs the editor loop for gap, as it runs between keys. It does the
 // work other goroutines queue as it comes, such as a new syntax tree, and
-// draws after each. Then keys arrive, and it feeds them and draws. It returns
-// the time from their arrival to the frame, so keys that come while queued
-// work runs wait for it. It spins through the gap. A core left idle for
-// 10ms draws the next frame about seven times slower, and the test would
-// time that instead of fude.
+// draws after each burst of it. Then keys arrive, and it feeds them and
+// draws. It returns the time from their arrival to the frame, so keys that
+// come while queued work runs wait for it. They wait only for the work
+// running, as the loop then runs them first and draws their frame alone.
+// It spins through the gap. A core left idle for 10ms draws the next frame
+// about seven times slower, and the test would time that instead of fude.
 func (c *client) press(keys string, gap time.Duration) time.Duration {
 	arrive := time.Now().Add(gap)
 	for time.Now().Before(arrive) {
 		select {
 		case f := <-c.e.Queue():
 			f()
-			c.draw()
+			arrived := func() bool { return !time.Now().Before(arrive) }
+			if drain(c.e, arrived); !arrived() {
+				c.draw()
+			}
 		default:
 		}
 	}

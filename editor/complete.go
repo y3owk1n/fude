@@ -93,6 +93,12 @@ func (e *Session) complete(auto bool) {
 	asked := ask(b.servers, "textDocument/completion", func(_ *server, enc string) any {
 		return map[string]any{"textDocument": map[string]any{"uri": uri}, "position": lsp.Point(t, c, enc)}
 	}, func(rs []reply) {
+		start, cur := b.text.Mark(mark), e.Cursor()
+		// An answer about text since changed is dropped before it is read.
+		if e.vim.Mode() != vim.Insert || e.win.buf != b || cur < start || b.text.Snapshot().Version() != t.Version() {
+			b.text.DeleteMark(mark)
+			return
+		}
 		var items []json.RawMessage
 		var from []*server
 		for _, r := range rs {
@@ -110,11 +116,9 @@ func (e *Session) complete(auto bool) {
 				from = append(from, r.s)
 			}
 		}
-		start := b.text.Mark(mark)
-		cur := e.Cursor()
-		if e.vim.Mode() != vim.Insert || e.win.buf != b || cur < start || b.text.Snapshot().Version() != t.Version() || len(items) == 0 {
+		if len(items) == 0 {
 			b.text.DeleteMark(mark)
-			if len(items) == 0 && !auto {
+			if !auto {
 				e.message = "no completions"
 			}
 			return
@@ -123,8 +127,9 @@ func (e *Session) complete(auto bool) {
 			e.closeMenu()
 		}
 		m := &menu{raws: items, from: from, asked: map[int]bool{}, start: mark, typed: b.text.Snapshot().Slice(start, cur), sel: len(items)}
+		ft := e.filetype(b)
 		for _, raw := range items {
-			it := readItem(raw, e.filetype(b))
+			it := readItem(raw, ft)
 			m.items, m.labels, m.docs = append(m.items, it.text), append(m.labels, it.label), append(m.docs, it.doc)
 		}
 		e.menu = m

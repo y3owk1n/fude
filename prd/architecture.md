@@ -225,7 +225,10 @@ makes it free.
 Background work (parsing, LSP, plugins, persistence, rendering) takes a
 snapshot, works off the loop, and posts its result back to the loop's queue
 tagged with the version it read. A result for an old version is mapped
-through the edits since, or dropped.
+through the edits since, or dropped. The loop handles a waiting key before
+queued work, and draws one frame after all the queued work that is ready.
+A key that comes while queued work runs waits only for that func, and the
+frame it draws shows both.
 
 ## Text and positions
 

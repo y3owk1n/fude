@@ -58,6 +58,7 @@ func Run(e *editor.Session) error {
 			e.ShowHints()
 		case f := <-e.Queue():
 			f()
+			drain(e, func() bool { return len(s.EventQ()) > 0 })
 		}
 		switch ev := ev.(type) {
 		case *tcell.EventResize:
@@ -100,7 +101,25 @@ func Run(e *editor.Session) error {
 		} else if hints == nil || key {
 			hints = time.After(d)
 		}
+		// A key waiting draws its own frame, which shows this too.
+		if len(s.EventQ()) > 0 {
+			continue
+		}
 		c.draw()
+	}
+}
+
+// drain runs the work queued for the loop that is waiting now, so a burst
+// of it, such as a server's answers, draws one frame. It stops when a key
+// is waiting, which goes first.
+func drain(e *editor.Session, key func() bool) {
+	for !key() {
+		select {
+		case f := <-e.Queue():
+			f()
+		default:
+			return
+		}
 	}
 }
 
