@@ -956,6 +956,40 @@ func TestB134Grep(t *testing.T) {
 	}
 }
 
+// B195
+func TestB195FinderLists(t *testing.T) {
+	dir := t.TempDir()
+	change(t, filepath.Join(dir, "a.go"), "one\n  two Needle\n")
+	change(t, filepath.Join(dir, "b.txt"), "needles\n")
+	if out, err := exec.Command("git", "-C", dir, "init", "-q").CombinedOutput(); err != nil {
+		t.Skipf("git init: %v: %s", err, out)
+	}
+	t.Chdir(dir)
+	e := open(t, "b.txt")
+	e.SetSize(100, 24)
+	shown := func() int {
+		f, _ := e.Float()
+		return len(slices.DeleteFunc(strings.Split(f.Text, "\n")[1:], func(l string) bool { return l == "" }))
+	}
+	visited := func() []string {
+		feed(e, ":cclose<CR>:cfirst<CR>")
+		names := []string{e.Views()[0].Name}
+		feed(e, ":cnext<CR>")
+		return append(names, e.Views()[0].Name)
+	}
+	for _, find := range []string{":grep needle<CR>", ":files<CR>"} {
+		feed(e, find)
+		settle(t, e, func() bool { return shown() == 2 })
+		// <C-q> sends both matches to a list, which is the last list.
+		if feed(e, "<C-q>"); len(e.Views()) != 2 {
+			t.Fatalf("<C-q> after %s left %d windows", find, len(e.Views()))
+		}
+		if got := visited(); !slices.Contains(got, "a.go") || !slices.Contains(got, "b.txt") {
+			t.Errorf("the list of %s went to %q", find, got)
+		}
+	}
+}
+
 // B136
 func TestB136FormatOnSave(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "a.txt")

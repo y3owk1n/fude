@@ -61,6 +61,10 @@ list. `]q` and `[q` go to its next place and the one before, `]Q` and
 `[Q` to its ends, and `:cnext`, `:cprev` and `:cc 3` do the same from the
 command line, after its window closes too. `:copen` shows it again.
 
+`<C-q>` in the `:grep` or `:files` finder sends every match to a list of
+places, and `:diagnostics` lists the buffer's diagnostics, the worst
+first. Either becomes the last list.
+
 ## Jumping back
 
 A jump, such as `gg`, a search or opening a file, goes on the window's

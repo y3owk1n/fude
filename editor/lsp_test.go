@@ -658,6 +658,19 @@ func TestB194LastList(t *testing.T) {
 	}
 }
 
+// B196
+func TestB196DiagnosticsList(t *testing.T) {
+	e, _ := withServer(t, "ok\nbad x bad\n", "utf-8")
+	settle(t, e, func() bool { return len(decorations(e)) == 2 })
+	feed(e, ":diagnostics<CR>")
+	if got := text(e); !strings.HasSuffix(strings.Split(got, "\n")[0], ":2:1: error bad word") {
+		t.Errorf(":diagnostics listed %q", got)
+	}
+	if feed(e, ":cclose<CR>:clast<CR>"); e.Cursor() != 9 {
+		t.Errorf(":clast went to %d, want the second bad", e.Cursor())
+	}
+}
+
 // N3
 func TestB66KeysOnlyWhileAttached(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "a.go")

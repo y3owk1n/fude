@@ -545,8 +545,9 @@ these".
 
 ### N25. The last list of places is the quickfix list
 
-Every list of places a window shows, such as `grr`'s or `:marks`',
-becomes the last list, which `]q`, `[q`, `:cnext`, `:cprev`,
+Every list of places a window shows, such as `grr`'s, `:marks`', a
+finder's matches sent with `<C-q>` or `:diagnostics`', becomes the last
+list, which `]q`, `[q`, `:cnext`, `:cprev`,
 `:cfirst`, `:clast` and `:cc` go through after its window closes (B194).
 `:copen` shows it again. Neovim keeps one quickfix list and a location list
 per window, which commands fill and others list. Why: fude already shows

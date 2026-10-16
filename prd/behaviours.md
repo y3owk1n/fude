@@ -443,6 +443,12 @@ Where fude departs, the line says so and cites the departure in
   does not show the list, and work after its window closes too. Each says
   which place it is, of how many. `:copen` shows the list again, and
   `:cclose` closes its window.
+- B195 [2] In `:grep`'s and `:files`' finders, `<C-q>` closes the finder
+  and shows every match in a list of places, which becomes the last list.
+  A grep match's place is its line and column, and a file's is its start.
+- B196 [2] `:diagnostics` lists the buffer's diagnostics as places, each
+  with its line, column, severity and message, the worst first and then in
+  the order of the text.
 - B90 [2] `<C-o>` and `<C-i>` move through the jumplist, and `g;` and `g,`
   through the changelist, as in Neovim.
 - B91 [2] `<C-w>c`, `<C-w>o`, `<C-w>q`, `<C-w>=` and `:q` in a split close

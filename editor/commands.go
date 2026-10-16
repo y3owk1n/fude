@@ -88,6 +88,7 @@ func init() {
 		}, completePath},
 		{vim.Command{Name: "enew", Help: "shows a new empty buffer"}, func(e *Session, _ call) { e.empty() }, nil},
 		{vim.Command{Name: "files", Help: "finds a file by name"}, func(e *Session, _ call) { e.files() }, nil},
+		{vim.Command{Name: "diagnostics", Help: "lists the buffer's diagnostics as places, the worst first"}, func(e *Session, _ call) { e.listDiagnostics() }, nil},
 		{vim.Command{Name: "cnext", Short: []string{"cn"}, Help: "goes to the next place of the last list of places"}, func(e *Session, _ call) {
 			e.stepPlace(func(at, _ int) int { return at + 1 })
 		}, nil},
@@ -253,6 +254,7 @@ func init() {
 		{"timeline.diff", "shows how the state under the cursor differs from now", func(e *Session, _ int) { e.timelineAct("diff") }},
 		{"timeline.restore", "makes the state under the cursor the newest", func(e *Session, _ int) { e.timelineAct("restore") }},
 		{"finder.open", "opens the selected match", func(e *Session, _ int) { e.finderAct("open") }},
+		{"finder.list", "lists every match as places, the last list", func(e *Session, _ int) { e.finderAct("list") }},
 		{"finder.next", "selects the next match", func(e *Session, _ int) { e.finderAct("next") }},
 		{"finder.prev", "selects the match before", func(e *Session, _ int) { e.finderAct("prev") }},
 		{"float.close", "closes the float the cursor is in", func(e *Session, _ int) {

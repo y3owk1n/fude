@@ -18,6 +18,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/y3owk1n/fude/core/kernel"
+	"github.com/y3owk1n/fude/lsp"
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
 )
@@ -39,6 +40,7 @@ type finder struct {
 	at       int                 // the row of the preview its line is on
 	reading  bool                // a preview is read off the loop
 	open     bool                // <Plug>(finder.open) ran, for finding to act on after the key
+	list     bool                // <Plug>(finder.list) ran
 	queries  string              // where highlight queries are, for the preview
 	filetype func(string) string // the filetype of a path, which config.toml does not change while fude runs
 	queue    chan<- func()       // the editor loop's, for the preview
@@ -102,10 +104,11 @@ func listFiles(dir string) ([]string, error) {
 }
 
 // finderKeys are the finder's own keys, in insert mode: <CR> opens the
-// selected file, and <C-n> and <C-p> move the selection. [keymap.finder]
-// changes them (B142).
+// selected file, <C-n> and <C-p> move the selection, and <C-q> lists every
+// match. [keymap.finder] changes them (B142).
 var finderKeys = map[string]string{
 	"<CR>": "<Plug>(finder.open)", "<C-n>": "<Plug>(finder.next)", "<C-p>": "<Plug>(finder.prev)",
+	"<C-q>": "<Plug>(finder.list)",
 }
 
 // finderAct runs act, one of the finder's actions, while the finder shows.
@@ -119,6 +122,8 @@ func (e *Session) finderAct(act string) {
 	switch act {
 	case "open":
 		f.open = true
+	case "list":
+		f.list = true
 	case "next":
 		f.sel = max(min(f.sel+1, len(f.matches)-1), 0)
 	case "prev":
@@ -135,6 +140,9 @@ func (e *Session) finding(k vim.Key) {
 	t := e.Text()
 	query := t.Slice(0, t.Len())
 	switch {
+	case f.list && f.chose == nil:
+		e.closeFinder()
+		e.listMatches(f)
 	case f.open && f.chose != nil:
 		e.closeFinder()
 		picked := -1
@@ -158,6 +166,27 @@ func (e *Session) finding(k vim.Key) {
 			f.chose(-1, query, false)
 		}
 	}
+}
+
+// listMatches shows the finder's matches in a list of places, which
+// becomes the last list (B195).
+func (e *Session) listMatches(f *finder) {
+	var lines []string
+	var spots []spot
+	for _, m := range f.matches {
+		path, line, col, text := grepSpot(m)
+		sp := spot{path: path, enc: "utf-8"}
+		if line > 0 {
+			sp.pos = lsp.Position{Line: line - 1, Character: col - 1}
+			m = fmt.Sprintf("%s:%d:%d: %s", path, line, col, strings.TrimSpace(text))
+		}
+		lines, spots = append(lines, m), append(spots, sp)
+	}
+	what := "files"
+	if f.grep {
+		what = "matches"
+	}
+	e.places(what, lines, spots)
 }
 
 // closeFinder leaves insert mode in the query and closes the finder.

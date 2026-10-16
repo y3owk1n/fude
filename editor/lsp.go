@@ -984,6 +984,29 @@ func (e *Session) showList(title string, lines []string, spots []spot) {
 	e.lastList = &places{e.win.buf, title, lines, spots, -1}
 }
 
+// listDiagnostics shows the current buffer's diagnostics in a list of
+// places, the worst first, then in the order of the text (B195).
+func (e *Session) listDiagnostics() {
+	b := e.win.buf
+	t := b.text.Snapshot()
+	ds := slices.Clone(e.diagnostics(b))
+	worst := func(d decoration) int {
+		return slices.IndexFunc(diagnosticSigns, func(s Sign) bool { return s.Name == d.style })
+	}
+	slices.SortStableFunc(ds, func(x, y decoration) int {
+		return cmp.Or(cmp.Compare(worst(x), worst(y)), cmp.Compare(b.text.Mark(x.start), b.text.Mark(y.start)))
+	})
+	var lines []string
+	var spots []spot
+	for _, d := range ds {
+		at := b.text.Mark(d.start)
+		p := lsp.Point(t, at, "utf-8")
+		lines = append(lines, fmt.Sprintf("%s:%d:%d: %s %s", b.name(), p.Line+1, p.Character+1, strings.TrimPrefix(d.style, "diagnostic."), d.note))
+		spots = append(spots, spot{b.file.path, p, "utf-8"})
+	}
+	e.places("diagnostics", lines, spots)
+}
+
 // places is the last list of places a window showed, which ]q, :cnext and
 // the others go through after its window closes (B194, N25).
 type places struct {
