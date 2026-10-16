@@ -63,10 +63,11 @@ type config struct {
 		Workspace bool     `toml:"workspace_required" help:"the formatter runs only for a file under one of its root files"`
 	} `toml:"formatter" key:"name"`
 	Plugin []struct {
-		Path         string   `toml:"path" help:"the plugin's file, from the config directory"`
-		Capabilities []string `toml:"capabilities" help:"what the plugin may do"`
-		Programs     []string `toml:"programs" help:"the programs process may run"`
-		Hosts        []string `toml:"hosts" help:"the hosts net may reach"`
+		Path         string         `toml:"path" help:"the plugin's file, from the config directory"`
+		Capabilities []string       `toml:"capabilities" help:"what the plugin may do"`
+		Programs     []string       `toml:"programs" help:"the programs process may run"`
+		Hosts        []string       `toml:"hosts" help:"the hosts net may reach"`
+		Settings     map[string]any `toml:"settings" help:"what the plugin reads with its setting function"`
 	} `toml:"plugin"`
 }
 

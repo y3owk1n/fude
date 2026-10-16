@@ -521,6 +521,10 @@ Where fude departs, the line says so and cites the departure in
   position and where a line starts, without reading the text.
 - B177 [4] A plugin can map keys in insert mode. They run what it
   registered, and the cursor lands after the text it typed (B179).
+- B178 [4] A plugin reads its settings by name, as text, from the
+  `settings` of its `[[plugin]]` table. Each is a number, a string or a boolean,
+  and a table or a list there keeps the plugin from loading, with a
+  message that names it.
 - B59 [4] A plugin with `ui` shows markdown in a float at the cursor, as
   hover does.
 

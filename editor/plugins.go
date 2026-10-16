@@ -49,10 +49,15 @@ func (e *Session) Load() {
 		if !filepath.IsAbs(path) {
 			path = filepath.Join(config, "fude", path)
 		}
+		settings, err := texts(s.Settings)
+		if err != nil {
+			e.message = fmt.Sprintf("load plugin %s: %v", s.Path, err)
+			continue
+		}
 		b, t, about := e.win.buf, e.Text(), e.about(e.win.buf)
 		go func() {
 			ctx := context.Background()
-			p, err := plugin.Load(ctx, path, plugin.Grants{Capabilities: s.Capabilities, Programs: s.Programs, Hosts: s.Hosts}, filepath.Join(cache, "fude", "wasm"), logLine)
+			p, err := plugin.Load(ctx, path, plugin.Grants{Capabilities: s.Capabilities, Programs: s.Programs, Hosts: s.Hosts, Settings: settings}, filepath.Join(cache, "fude", "wasm"), logLine)
 			if err != nil {
 				e.queue <- func() { e.message = err.Error() }
 				return
@@ -61,6 +66,22 @@ func (e *Session) Load() {
 			e.queue <- func() { e.loaded(p, err, b, t, res) }
 		}()
 	}
+}
+
+// texts returns a plugin's settings as the text its setting function gives
+// it. Only numbers, strings and booleans read as text, so a table or a list
+// is refused (B178).
+func texts(settings map[string]any) (map[string]string, error) {
+	out := map[string]string{}
+	for name, v := range settings {
+		switch v.(type) {
+		case string, int64, float64, bool:
+			out[name] = fmt.Sprint(v)
+		default:
+			return nil, fmt.Errorf("setting %s is not a number, string or boolean", name)
+		}
+	}
+	return out, nil
 }
 
 // loaded keeps a plugin whose init returned, adds what it registered, and

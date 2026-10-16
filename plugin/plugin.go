@@ -130,11 +130,13 @@ type Context map[string]string
 var errBudget = errors.New("ran past its budget")
 
 // Grants are what config.toml lets a plugin do: its capabilities, the
-// programs process may run and the hosts net may reach.
+// programs process may run and the hosts net may reach. Settings are what
+// it reads through setting, by name.
 type Grants struct {
 	Capabilities []string
 	Programs     []string
 	Hosts        []string
+	Settings     map[string]string
 }
 
 // Load compiles the plugin at path and instantiates it with g. Compiled code
@@ -255,6 +257,7 @@ func (p *Plugin) host(ctx context.Context) error {
 	_, err := p.runtime.NewHostModuleBuilder("fude").
 		NewFunctionBuilder().WithFunc(p.logText).Export("log").
 		NewFunctionBuilder().WithFunc(p.context).Export("context").
+		NewFunctionBuilder().WithFunc(p.setting).Export("setting").
 		NewFunctionBuilder().WithFunc(p.textLen).Export("text_len").
 		NewFunctionBuilder().WithFunc(p.lines).Export("lines").
 		NewFunctionBuilder().WithFunc(p.lineOf).Export("line_of").
@@ -303,6 +306,21 @@ func (p *Plugin) context(ctx context.Context, m api.Module, ptr, n uint32) int64
 	}
 	name, ok := m.Memory().Read(ptr, n)
 	v, has := p.call.about[string(name)]
+	if !ok || !has {
+		return errRange
+	}
+	return give(ctx, m, v)
+}
+
+// setting writes the value of the plugin's setting named at (ptr, n) into
+// memory the plugin allocates, or returns errRange for one it has none of
+// (B178).
+func (p *Plugin) setting(ctx context.Context, m api.Module, ptr, n uint32) int64 {
+	if p.call == nil {
+		return errDenied
+	}
+	name, ok := m.Memory().Read(ptr, n)
+	v, has := p.Settings[string(name)]
 	if !ok || !has {
 		return errRange
 	}

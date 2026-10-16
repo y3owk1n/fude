@@ -73,6 +73,9 @@ func hostLog(ptr *byte, n uint32)
 //go:wasmimport fude context
 func hostContext(ptr *byte, n uint32) int64
 
+//go:wasmimport fude setting
+func hostSetting(ptr *byte, n uint32) int64
+
 //go:wasmimport fude text_len
 func hostTextLen() int32
 
@@ -269,6 +272,14 @@ type Buffer struct {
 func Current() Buffer {
 	id, _ := strconv.Atoi(about("buffer"))
 	return Buffer{id, about("path"), about("filetype")}
+}
+
+// Setting returns the value of the setting name in the plugin's settings
+// table in config.toml, as text, or false when it has none.
+func Setting(name string) (string, bool) {
+	p, n := ptr(name)
+	v, err := answer(hostSetting(p, n))
+	return v, err == nil
 }
 
 // Mode returns the mode, such as normal or insert.

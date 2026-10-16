@@ -330,3 +330,8 @@ The programs a plugin with `process` may run, such as `["git"]`.
 
 The hosts a plugin with `net` may reach over http and https, a redirect too,
 such as `["api.github.com"]`.
+
+## plugin.settings
+
+A table of the plugin's own settings, such as `{ depth = 3, style = "box" }`,
+which it reads by name. Each is a number, a string or a boolean.

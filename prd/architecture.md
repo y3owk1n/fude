@@ -878,6 +878,7 @@ host it may not reach or a request that failed.
 | Function | Capability | Does |
 |---|---|---|
 | `log(ptr, len)` | none | adds a line to fude's log |
+| `setting(ptr, len) -> i64` | none | the value of the plugin's setting by its name, as text, or -2 for a name it has none of (B178) |
 | `context(ptr, len) -> i64` | none | the value of what the call is about by its name, or -2 for a name it has none of. Every call has `buffer`, `path` and `filetype`, of the buffer it is about, and `mode` (B176) |
 | `text_len() -> i32` | `buffer.read` | the length of the text |
 | `text(start, end) -> i64` | `buffer.read` | the text in `[start, end)` |
@@ -917,7 +918,8 @@ A plugin declares its capabilities in `config.toml`, for `process` the
 programs it may run as `programs = ["git"]`, and for `net` the hosts it may
 reach as `hosts = ["api.github.com"]`. A call outside the
 declared capabilities returns -1, and fude logs it to
-`$XDG_STATE_HOME/fude/log` (B50).
+`$XDG_STATE_HOME/fude/log` (B50). Its table's `settings`, such as
+`settings = { depth = 3 }`, are what it reads through `setting`.
 
 The edits a call asks for apply as one transaction once the call returns,
 after its decorations, so its edits move them. A call that traps or runs

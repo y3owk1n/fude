@@ -26,6 +26,13 @@ func withPlugin(t *testing.T, name string, caps ...string) *editor.Session {
 // usePlugin writes a config that loads the test plugin name with caps.
 func usePlugin(t *testing.T, name string, caps ...string) {
 	t.Helper()
+	useTable(t, name, "", caps...)
+}
+
+// useTable is usePlugin with more lines of the plugin's table, such as its
+// settings.
+func useTable(t *testing.T, name, more string, caps ...string) {
+	t.Helper()
 	wasm, err := filepath.Abs(filepath.Join("..", "plugin", "testdata", name, name+".wasm"))
 	if err != nil {
 		t.Fatal(err)
@@ -34,7 +41,7 @@ func usePlugin(t *testing.T, name string, caps ...string) {
 	for i, c := range caps {
 		quoted[i] = fmt.Sprintf("%q", c)
 	}
-	config(t, fmt.Sprintf("[[plugin]]\npath = %q\ncapabilities = [%s]\n", wasm, strings.Join(quoted, ", ")))
+	config(t, fmt.Sprintf("[[plugin]]\npath = %q\ncapabilities = [%s]\n%s", wasm, strings.Join(quoted, ", "), more))
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 }
 
@@ -261,6 +268,13 @@ func withKit(t *testing.T) *editor.Session {
 func loaded(t *testing.T, name, file, text string, caps ...string) *editor.Session {
 	t.Helper()
 	usePlugin(t, name, caps...)
+	return opened(t, file, text)
+}
+
+// opened starts an editor on the file named file holding text, and waits
+// for the plugin config.toml lists to load.
+func opened(t *testing.T, file, text string) *editor.Session {
+	t.Helper()
 	path := filepath.Join(t.TempDir(), file)
 	change(t, path, text)
 	e := start(t, path)
@@ -349,6 +363,21 @@ func TestB177PluginInsertKeys(t *testing.T) {
 	e := loaded(t, "ctx", "f", "a\n", "buffer.write")
 	if feed(e, "i<C-j>z<Esc>"); text(e) != "[insert]za" {
 		t.Errorf("i<C-j>z left %q, want [insert]za", text(e))
+	}
+}
+
+// B178
+func TestB178PluginSettings(t *testing.T) {
+	useTable(t, "ctx", "settings = { depth = 3, on = true }\n", "buffer.write")
+	e := opened(t, "f", "a\n")
+	if feed(e, ":Set depth<CR>:Set on<CR>:Set none<CR>"); text(e) != "nonetrue3a" {
+		t.Errorf(":Set typed %q, want nonetrue3a", text(e))
+	}
+	// A list is no setting, so the plugin does not load.
+	useTable(t, "ctx", "settings = { depth = [3] }\n", "buffer.write")
+	e = start(t, filepath.Join(t.TempDir(), "f"))
+	if e.Load(); !strings.Contains(e.Message(), "setting depth is not a number, string or boolean") {
+		t.Errorf("a list as a setting said %q", e.Message())
 	}
 }
 

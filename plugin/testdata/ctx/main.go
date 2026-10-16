@@ -3,8 +3,8 @@
 // was about: its args, bang, first, last and ranged, joined by |. :Where
 // types the buffer's id, path and filetype, the mode, how many lines the
 // text has, the cursor's line and where the last line starts. The insert
-// mode key <C-j> types the mode it ran in, in brackets. Needs buffer.read
-// and buffer.write.
+// mode key <C-j> types the mode it ran in, in brackets. :Set name types
+// the setting name, or none. Needs buffer.read and buffer.write.
 package main
 
 import (
@@ -21,6 +21,13 @@ func init() {
 	})
 	sdk.Insert("<C-j>", "types the mode", func(c sdk.Call) {
 		sdk.Edit(c.Cursor, c.Cursor, "["+sdk.Mode()+"]")
+	})
+	sdk.Command("Set", "types a setting", func(c sdk.Call) {
+		v, ok := sdk.Setting(c.Args)
+		if !ok {
+			v = "none"
+		}
+		sdk.Edit(c.Cursor, c.Cursor, v)
 	})
 	sdk.Command("Where", "types where its call ran", func(c sdk.Call) {
 		b := sdk.Current()
