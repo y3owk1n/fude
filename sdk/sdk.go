@@ -96,6 +96,9 @@ func hostTextLen() int32
 //go:wasmimport fude lines
 func hostLines() int32
 
+//go:wasmimport fude node
+func hostNode(pos, up uint32) int64
+
 //go:wasmimport fude buffers
 func hostBuffers() int64
 
@@ -393,6 +396,27 @@ func Setting(name string) (string, bool) {
 	p, n := ptr(name)
 	v, err := answer(hostSetting(p, n))
 	return v, err == nil
+}
+
+// Node is a syntax node: its kind, such as function_declaration, and where
+// it starts and ends.
+type Node struct {
+	Kind       string
+	Start, End int
+}
+
+// NodeAt returns the named syntax node that holds pos, or with up above 0
+// its up'th named parent, in the buffer the call is about. It is false
+// without a grammar or a parse, or above the root. It needs buffer.read.
+func NodeAt(pos, up int) (Node, bool) {
+	s, err := answer(hostNode(uint32(pos), uint32(up)))
+	if err != nil {
+		return Node{}, false
+	}
+	f := strings.Split(s, "\x00")
+	start, _ := strconv.Atoi(f[1])
+	end, _ := strconv.Atoi(f[2])
+	return Node{f[0], start, end}, true
 }
 
 // Buffers returns every open buffer, by id. It needs buffer.read.

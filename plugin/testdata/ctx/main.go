@@ -7,7 +7,8 @@
 // the setting name, or none. :Show text shows text in a window titled
 // [shown], as Go. :Go pos moves the cursor to pos, and :Open path opens
 // the file at path with the cursor at 2. :Bufs types the id and text of
-// every open buffer. Needs buffer.read, buffer.write and ui.
+// every open buffer, and :Node the kinds of the syntax node at the cursor
+// and its parent. Needs buffer.read, buffer.write and ui.
 package main
 
 import (
@@ -51,6 +52,11 @@ func init() {
 			all = append(all, strconv.Itoa(b.ID)+"="+text)
 		}
 		sdk.Edit(c.Cursor, c.Cursor, strings.Join(all, "|"))
+	})
+	sdk.Command("Node", "types the syntax nodes at the cursor", func(c sdk.Call) {
+		n, _ := sdk.NodeAt(c.Cursor, 0)
+		up, _ := sdk.NodeAt(c.Cursor, 1)
+		sdk.Edit(c.Cursor, c.Cursor, n.Kind+"|"+up.Kind+"|")
 	})
 	sdk.Command("Where", "types where its call ran", func(c sdk.Call) {
 		b := sdk.Current()

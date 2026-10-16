@@ -567,6 +567,34 @@ func (h *Buffer) Select(t api.Text, src string, start, end int) ([][2]int, error
 	return out, nil
 }
 
+// Nodes returns a lookup and the func that frees it. The lookup finds the
+// named node that holds pos, or its up'th named parent, in the last parse
+// moved through the edits made since. It reads a copy of the tree, so one
+// other goroutine may use it until it is freed (B189).
+func (h *Buffer) Nodes() (func(pos, up int) (kind string, start, end int, ok bool), func()) {
+	if h.tree == nil {
+		return func(int, int) (string, int, int, bool) { return "", 0, 0, false }, func() {}
+	}
+	tree := h.tree.Clone()
+	for _, c := range h.log {
+		for i := range c.tree {
+			tree.Edit(&c.tree[i])
+		}
+	}
+	at := func(pos, up int) (string, int, int, bool) {
+		n := tree.RootNode().NamedDescendantForByteRange(uint(pos), uint(pos))
+		for ; n != nil && up > 0; up-- {
+			for n = n.Parent(); n != nil && !n.IsNamed(); n = n.Parent() {
+			}
+		}
+		if n == nil {
+			return "", 0, 0, false
+		}
+		return n.Kind(), int(n.StartByte()), int(n.EndByte()), true
+	}
+	return at, tree.Close
+}
+
 // current returns the last parse moved through the edits made since, and
 // the func to call when done with it.
 func (h *Buffer) current() (*ts.Tree, func()) {

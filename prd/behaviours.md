@@ -552,6 +552,9 @@ Where fude departs, the line says so and cites the departure in
 - B188 [4] A plugin with `buffer.read` lists the open buffers, each with
   its id, path and filetype, and reads the text of any of them as it was
   when the call began.
+- B189 [4] A plugin with `buffer.read` reads the kind, start and end of
+  the named syntax node at a position in the buffer its call is about,
+  and of that node's named parents.
 - B186 [4] A plugin with `ui` shows text in a read-only window with a
   title, coloured as a filetype it names. Showing text under a title
   already open replaces what that window shows. `:q` closes it without

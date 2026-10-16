@@ -59,6 +59,7 @@ func (e *Session) Load() {
 			ctx := context.Background()
 			p, err := plugin.Load(ctx, path, plugin.Grants{Capabilities: s.Capabilities, Programs: s.Programs, Hosts: s.Hosts, Settings: settings}, filepath.Join(cache, "fude", "wasm"), logLine)
 			if err != nil {
+				scope.Done()
 				e.queue <- func() { e.message = err.Error() }
 				return
 			}
@@ -340,13 +341,17 @@ func (e *Session) register(p *plugin.Plugin, r plugin.Registration) {
 }
 
 // scope is what a call about b reads: the text t, what the call is about,
-// and every open buffer (B188).
+// every open buffer (B188), and b's syntax nodes (B189).
 func (e *Session) scope(b *buffer, t api.Text) plugin.Scope {
 	bufs := map[int]plugin.Buffer{}
 	for _, o := range e.bufs {
 		bufs[o.id] = plugin.Buffer{Path: o.file.path, Filetype: e.filetype(o), Text: o.text.Snapshot()}
 	}
-	return plugin.Scope{Text: t, About: e.about(b), Buffers: bufs}
+	s := plugin.Scope{Text: t, About: e.about(b), Buffers: bufs}
+	if b.syntax != nil {
+		s.Node, s.Free = b.syntax.Nodes()
+	}
+	return s
 }
 
 // about is what a call about b tells the plugin through context: the
@@ -362,6 +367,7 @@ func (e *Session) about(b *buffer) plugin.Context {
 // do nothing.
 func (e *Session) run(p *plugin.Plugin, id uint32, scope plugin.Scope, args ...uint64) ([]vim.Edit, []uint64, bool) {
 	if !slices.Contains(e.plugins, p) {
+		scope.Done()
 		e.message = fmt.Sprintf("plugin %s is unloaded", p.Name)
 		return nil, nil, false
 	}

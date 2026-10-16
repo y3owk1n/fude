@@ -173,6 +173,18 @@ type Scope struct {
 	Text    fude.Text
 	About   Context
 	Buffers map[int]Buffer
+	// Node finds a syntax node in Text, as syntax.Buffer.Nodes does. Free
+	// frees what it reads once the call is done (B189).
+	Node func(pos, up int) (kind string, start, end int, ok bool)
+	Free func()
+}
+
+// Done frees what s holds, once the call reading it is done. The calls
+// that take s call it.
+func (s Scope) Done() {
+	if s.Free != nil {
+		s.Free()
+	}
 }
 
 // Buffer is an open buffer as a plugin reads it.
@@ -240,6 +252,7 @@ func Load(ctx context.Context, path string, g Grants, cacheDir string, log func(
 // setup, then its init, each when it exports one, together under
 // InitBudget. Both may register and subscribe.
 func (p *Plugin) Init(ctx context.Context, s Scope) (Result, error) {
+	defer s.Done()
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	ctx, cancel := context.WithTimeout(ctx, InitBudget)
@@ -273,6 +286,7 @@ func (p *Plugin) Close(ctx context.Context) error {
 // running. A call that traps or runs past its budget returns an error, and
 // nothing it asked for happens.
 func (p *Plugin) CallNow(ctx context.Context, name string, s Scope, budget time.Duration, args ...uint64) (Result, error) {
+	defer s.Done()
 	if !p.mu.TryLock() {
 		return Result{}, fmt.Errorf("plugin %s %w", p.Name, ErrBusy)
 	}
@@ -283,6 +297,7 @@ func (p *Plugin) CallNow(ctx context.Context, name string, s Scope, budget time.
 // Callback runs the plugin's callback export with id, reading s, under
 // EventBudget. It waits for a call already running.
 func (p *Plugin) Callback(ctx context.Context, id uint32, s Scope) (Result, error) {
+	defer s.Done()
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.run(ctx, "callback", s, EventBudget, uint64(id))
@@ -291,6 +306,7 @@ func (p *Plugin) Callback(ctx context.Context, id uint32, s Scope) (Result, erro
 // Event runs the plugin's on_event with the event's name, written into its
 // memory, reading s, under EventBudget (B57).
 func (p *Plugin) Event(ctx context.Context, name string, s Scope) (Result, error) {
+	defer s.Done()
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	ctx, cancel := context.WithTimeout(ctx, EventBudget)
@@ -334,6 +350,7 @@ func (p *Plugin) host(ctx context.Context) error {
 		NewFunctionBuilder().WithFunc(p.fetch).Export("fetch").
 		NewFunctionBuilder().WithFunc(p.textLen).Export("text_len").
 		NewFunctionBuilder().WithFunc(p.lines).Export("lines").
+		NewFunctionBuilder().WithFunc(p.node).Export("node").
 		NewFunctionBuilder().WithFunc(p.buffers).Export("buffers").
 		NewFunctionBuilder().WithFunc(p.lenOf).Export("len_of").
 		NewFunctionBuilder().WithFunc(p.textOf).Export("text_of").
@@ -425,6 +442,23 @@ func (p *Plugin) textLen() int32 {
 		return errDenied
 	}
 	return int32(p.call.Text.Len())
+}
+
+// node writes the kind, start and end of the named syntax node that holds
+// pos, or its up'th named parent, NUL-separated, into memory the plugin
+// allocates, or returns errRange for none (B189).
+func (p *Plugin) node(ctx context.Context, m api.Module, pos, up uint32) int64 {
+	if p.call == nil || !p.allowed("buffer.read", "node") {
+		return errDenied
+	}
+	if p.call.Node == nil || int(pos) > p.call.Text.Len() {
+		return errRange
+	}
+	kind, start, end, ok := p.call.Node(int(pos), int(up))
+	if !ok {
+		return errRange
+	}
+	return give(ctx, m, fmt.Sprintf("%s\x00%d\x00%d", kind, start, end))
 }
 
 // buffers writes the id, path and filetype of each open buffer, each

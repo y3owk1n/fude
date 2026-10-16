@@ -499,6 +499,16 @@ func TestB188PluginReadsOtherBuffers(t *testing.T) {
 	}
 }
 
+// B189
+func TestB189PluginReadsSyntaxNodes(t *testing.T) {
+	e := loaded(t, "ctx", "a.go", "package p\n\nfunc F() {}\n", "buffer.read", "buffer.write")
+	e.SetSize(80, 20)
+	captures(t, e)
+	if feed(e, "3Gw:Node<CR>"); !strings.Contains(text(e), "func identifier|function_declaration|F()") {
+		t.Errorf(":Node typed %q, want the kinds of F and its function", text(e))
+	}
+}
+
 // decorations returns what the current window shows of plugins'
 // decorations, as text and style.
 func decorations(e *editor.Session) []string {
