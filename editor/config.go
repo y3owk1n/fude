@@ -17,15 +17,16 @@ import (
 // config is what config.toml holds (D27). Each key's help tag is what
 // help says of it.
 type config struct {
-	IndentWidth  uint   `toml:"indent_width" help:"the columns of an indent level, 0 for the tab width"`
-	KeyTimeout   uint   `toml:"key_timeout" help:"the milliseconds a mapping waits for its next key"`
-	LargeFile    uint   `toml:"large_file" help:"the megabytes over which a file opens with syntax and language servers off"`
-	Autocomplete bool   `toml:"autocomplete" help:"completions show while typing, not only on <C-x><C-o>"`
-	AutoInstall  bool   `toml:"auto_install" help:"builds a missing grammar the first time a file needs it"`
-	Socket       string `toml:"socket" help:"where clients attach, instead of a path for each process"`
-	FormatOnSave bool   `toml:"format_on_save" help:"a write formats the buffer first"`
-	Leader       string `toml:"leader" help:"what <Leader> in a mapping stands for"` // N18
-	Theme        string `toml:"theme" help:"the colours: dark, light or a base16 scheme file"`
+	IndentWidth   uint   `toml:"indent_width" help:"the columns of an indent level, 0 for the tab width"`
+	KeyTimeout    uint   `toml:"key_timeout" help:"the milliseconds a mapping waits for its next key"`
+	LargeFile     uint   `toml:"large_file" help:"the megabytes over which a file opens with syntax and language servers off"`
+	Autocomplete  bool   `toml:"autocomplete" help:"completions show while typing, not only on <C-x><C-o>"`
+	AutoInstall   bool   `toml:"auto_install" help:"builds a missing grammar the first time a file needs it"`
+	Socket        string `toml:"socket" help:"where clients attach, instead of a path for each process"`
+	FormatOnSave  bool   `toml:"format_on_save" help:"a write formats the buffer first"`
+	FormatTimeout uint   `toml:"format_timeout" help:"the milliseconds formatting before a write may take"`
+	Leader        string `toml:"leader" help:"what <Leader> in a mapping stands for"` // N18
+	Theme         string `toml:"theme" help:"the colours: dark, light or a base16 scheme file"`
 	options
 	Keymap struct {
 		Normal   map[string]string `toml:"normal" help:"normal mode mappings"`
@@ -40,10 +41,11 @@ type config struct {
 		Help     map[string]string `toml:"help" help:"help's keys"`
 	} `toml:"keymap"`
 	Filetype map[string]struct {
-		Files       []string   `toml:"files" help:"the names of the files of the type, as patterns such as *.toml.tmpl"`
-		IndentWidth uint       `toml:"indent_width" help:"the columns of an indent level in files of the type"`
-		LSP         []string   `toml:"lsp" help:"the language servers of files of the type, by the names of their [lsp.{name}] tables"`
-		Format      [][]string `toml:"format" help:"the formatters' commands, run in turn"`
+		Files       []string `toml:"files" help:"the names of the files of the type, as patterns such as *.toml.tmpl"`
+		IndentWidth uint     `toml:"indent_width" help:"the columns of an indent level in files of the type"`
+		LSP         []string `toml:"lsp" help:"the language servers of files of the type, by the names of their [lsp.{name}] tables"`
+		Format      []string `toml:"format" help:"the formatters of files of the type, by the names of their [formatter.{name}] tables, run in turn"`
+		FormatFirst bool     `toml:"format_first" help:"only the first formatter that is installed runs"`
 	} `toml:"filetype" key:"type"`
 	LSP map[string]struct {
 		Command     []string       `toml:"command" help:"the server's command, its name when unset"`
@@ -53,6 +55,11 @@ type config struct {
 		Files       []string       `toml:"files" help:"the files the server is for, as patterns of names or, with a slash, of the ends of paths, such as .github/workflows/*"`
 		Workspace   bool           `toml:"workspace_required" help:"the server starts only for a file under one of its root files"`
 	} `toml:"lsp" key:"name"`
+	Formatter map[string]struct {
+		Command   []string `toml:"command" help:"the formatter's command, its name when unset, which reads the text on stdin and writes it on stdout. {path} in it is the file's path"`
+		Root      []string `toml:"root" help:"the files that mark the folder it runs in, most wanted first, looked for from the file's folder up"`
+		Workspace bool     `toml:"workspace_required" help:"the formatter runs only for a file under one of its root files"`
+	} `toml:"formatter" key:"name"`
 	Plugin []struct {
 		Path         string   `toml:"path" help:"the plugin's file, from the config directory"`
 		Capabilities []string `toml:"capabilities" help:"what the plugin may do"`
@@ -61,7 +68,7 @@ type config struct {
 	} `toml:"plugin"`
 }
 
-var defaults = config{IndentWidth: 8, KeyTimeout: 1000, LargeFile: 50, AutoInstall: true, Leader: "<Space>", Theme: "dark", options: options{Wrap: true, IndentGuides: true}}
+var defaults = config{IndentWidth: 8, KeyTimeout: 1000, FormatTimeout: 1000, LargeFile: 50, AutoInstall: true, Leader: "<Space>", Theme: "dark", options: options{Wrap: true, IndentGuides: true}}
 
 // options are the settings each window has, which :set changes for the
 // current window and the windows opened after it (B39). :set takes each by

@@ -677,15 +677,17 @@ names and extensions in `editor/icons.go`, from mini.icons (B128).
 ## Formatting on save
 
 With `format_on_save`, `write` formats before `writeOut` writes. A
-filetype's `format` commands run off the loop, in the file's directory.
-The text goes through each from stdin to stdout. Their output becomes one
-edit for each run of changed lines, from the line diff the timeline uses,
-so marks on the lines kept stay. Without commands, fude asks the language
-server for `textDocument/formatting` when it offers it. `gq` and saving
+filetype's formatters run off the loop, each in its root's folder or the
+file's. The text goes through each from stdin to stdout. fude leaves out
+a formatter whose program is not on PATH or whose required root is
+missing. With `format_first`, only the first one left runs (B171). Their output
+becomes one edit for each run of changed lines, from the line diff the
+timeline uses, so marks on the lines kept stay. When no formatter is left, fude asks the
+first language server that offers `textDocument/formatting`. `gq` and saving
 share the request and `reformat`, which applies the edits as one node and
 drops them when the text changed meanwhile. A timer writes the text as it
-is after a second, since a server that answers with an error never calls
-back (B136).
+is after `format_timeout`, so a formatter or server that hangs cannot hold
+the write (B136).
 
 ## Command line completion
 
@@ -782,6 +784,7 @@ ignore_case = false  # searches ignore case (B120)
 smart_case = false   # with ignore_case, an uppercase letter matches case (B120)
 expand_tab = false   # indent with spaces only (B122)
 format_on_save = false # format before :w writes (B136)
+format_timeout = 1000  # milliseconds a format before a write may take (B136)
 clipboard = false    # yanks, deletes and puts use the system clipboard (B137)
 sign_column = false  # keep the sign column when there are no signs (B143)
 indent_guides = true # a faint line at each indent level (B153)
@@ -800,8 +803,14 @@ theme = "dark"       # dark, light, or a base16 scheme such as "~/.config/stylix
 
 [filetype.go]        # overrides for buffers of that filetype (B94)
 indent_width = 4
-format = [["goimports"], ["gofumpt"]]   # run in turn by format_on_save (B136)
+format = ["goimports", "gofumpt"]   # formatters, run in turn by format_on_save (B136)
+format_first = false # true runs only the first that applies (B171)
 lsp = ["gopls", "golangci_lint_ls"]   # its language servers, by name, in order (B167, B169)
+
+[formatter.prettierd]   # a formatter, all optional (B136, B171)
+command = ["prettierd", "{path}"]   # reads stdin, writes stdout; its name when unset
+root = [".prettierrc", "package.json"]   # it runs where the first is found
+workspace_required = false   # true runs it only under a root file
 
 [lsp.gopls]          # a language server, all optional (B167)
 command = ["gopls"]  # its name when unset

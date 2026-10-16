@@ -122,14 +122,9 @@ func (e *Session) attachTo(b *buffer, name string) error {
 	key := name + "\x00" + root
 	s := e.servers[key]
 	if s == nil {
-		command := slices.Clone(c.Command)
-		if len(command) == 0 {
-			command = []string{name}
-		}
-		for i, arg := range command {
-			if command[i], err = expandHome(arg); err != nil {
-				return fmt.Errorf("start %s: %w", name, err)
-			}
+		command, err := commandOf(name, c.Command)
+		if err != nil {
+			return fmt.Errorf("start %s: %w", name, err)
 		}
 		s = &server{name: name, command: command, root: root, versions: map[*buffer]int{}}
 		if err := e.start(s); err != nil {

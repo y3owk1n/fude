@@ -171,13 +171,21 @@ Where fude departs, the line says so and cites the departure in
   `<C-r><C-w>` the word under the cursor in the text. A mapping to
   `:grep <C-r><C-w><CR>` greps the word under the cursor.
 - B136 [2] With `format_on_save` on, `:w` formats the buffer first, as
-  conform.nvim's `format_on_save` does. A filetype's `format` commands run
-  in turn, each reading the text on stdin and writing it on stdout, with
-  `{path}` in their arguments as the file's path. A filetype without them
-  formats through its language server. The formatting is one timeline
-  node, and the cursor stays on a line it keeps. A formatter that fails or
-  takes over a second leaves the text, which is written anyway, and says
-  why.
+  conform.nvim's `format_on_save` does. A filetype's `format` names its
+  formatters, which run in turn, each reading the text on stdin and writing
+  it on stdout. A `[formatter.<name>]` table's `command` is the name when
+  unset, and `{path}` in it is the file's path. A filetype without a
+  formatter that applies formats through its language server. The
+  formatting is one timeline node, and the cursor stays on a line it keeps.
+  A formatter that fails or takes over `format_timeout` milliseconds leaves
+  the text, which is written anyway, and says why. The write's message
+  names the formatters that are not installed.
+- B171 [2] With `format_first`, only the first of a filetype's formatters
+  that applies runs. A formatter applies when its program is on PATH and,
+  with `workspace_required`, when one of its `root` files is found above
+  the file. It runs in the folder that holds the root file, or else the
+  file's folder. With `format_first`, the write's message does not name
+  the formatters that are not installed.
 - B137 [2] With `clipboard` on, a yank, delete or change without a
   register also copies to the system clipboard, and `"_` still copies
   nothing. A put without a register takes the clipboard when something
