@@ -817,8 +817,13 @@ func highlight(c *ts.QueryCursor, q *ts.Query, tree *ts.Tree, text []byte, from,
 	var cs []capture
 	caps := c.Captures(q, tree.RootNode(), text)
 	for m, i := caps.Next(); m != nil; m, i = caps.Next() {
-		n := m.Captures[i].Node
-		cs = append(cs, capture{Span{int(n.StartByte()), int(n.EndByte()), names[m.Captures[i].Index]}, m.PatternIndex})
+		n, name := m.Captures[i].Node, names[m.Captures[i].Index]
+		// Other editors' spell and conceal captures, and the _ ones a
+		// predicate reads, colour nothing, so they never hide one that does.
+		if strings.HasPrefix(name, "_") || name == "spell" || name == "nospell" || name == "conceal" {
+			continue
+		}
+		cs = append(cs, capture{Span{int(n.StartByte()), int(n.EndByte()), name}, m.PatternIndex})
 	}
 	slices.SortStableFunc(cs, func(a, b capture) int {
 		return cmp.Or(cmp.Compare(a.Start, b.Start), cmp.Compare(b.End, a.End), cmp.Compare(a.pattern, b.pattern))

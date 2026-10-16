@@ -551,8 +551,10 @@ Where fude departs, the line says so and cites the departure in
   and `]n` and `[n` move to the next and previous node, as in Neovim.
 - B46 [3] With a grammar for the buffer's filetype, text shows in the colour
   of its highlight capture. When captures overlap, fude picks one the way
-  tree-sitter's own highlighter does. Edited text keeps its colour until the
-  next parse.
+  tree-sitter's own highlighter does. A capture that colours nothing in
+  fude, such as `@spell`, `@nospell`, `@conceal` or one whose name starts
+  with `_`, never hides one that does. Edited text keeps its colour until
+  the next parse.
 
 ## Plugins
 
