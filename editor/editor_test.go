@@ -769,6 +769,35 @@ func TestB123GitSigns(t *testing.T) {
 	}
 }
 
+// B220
+func TestB220Blame(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "a.txt")
+	change(t, path, "one\ntwo\n")
+	git := func(args ...string) {
+		if out, err := exec.Command("git", append([]string{"-C", dir, "-c", "user.name=Ann", "-c", "user.email=a@a"}, args...)...).CombinedOutput(); err != nil {
+			t.Skipf("git %v: %v: %s", args, err, out)
+		}
+	}
+	git("init", "-q")
+	git("add", ".")
+	git("commit", "-qm", "first words")
+	e := open(t, path)
+	e.SetSize(80, 10)
+	note := func(want string) func() bool {
+		return func() bool { return strings.Contains(e.Views()[0].Notes[e.Text().LineOf(e.Cursor())], want) }
+	}
+	// :blame shows who changed the cursor's line, and a line changed since
+	// shows it is not committed.
+	feed(e, "j:blame<CR>")
+	settle(t, e, note("Ann, just now · first words"))
+	feed(e, "Ax<Esc>")
+	settle(t, e, note("not committed yet"))
+	if feed(e, ":blame<CR>"); e.Views()[0].Notes[1] != "" {
+		t.Errorf("after :blame again the line shows %q", e.Views()[0].Notes[1])
+	}
+}
+
 // B126
 func TestB126ListingGitStatus(t *testing.T) {
 	dir := t.TempDir()

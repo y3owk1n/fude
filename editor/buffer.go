@@ -50,6 +50,7 @@ type buffer struct {
 	branch   string            // the git branch of its repository, "" outside one
 	gitStale bool              // the text changed since the last diff
 	gitBusy  bool              // a diff runs
+	blamed   blamed            // git blame of the cursor's line, for :blame (B220)
 	unsaved  kernel.NodeID     // the newest unsaved change from a session that did not close
 	term     *terminal         // the program a terminal buffer shows, nil for any other (B205)
 	// A scratch buffer shows something about another buffer, such as its

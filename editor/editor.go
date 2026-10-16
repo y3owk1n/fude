@@ -87,6 +87,7 @@ type Session struct {
 	pick       *pick                   // the code actions shown to choose from
 	finder     *finder                 // the file finder, while it shows
 	jumping    *jump                   // the jump being typed after s (B218)
+	blame      bool                    // :blame shows the cursor's line's commit (B220)
 	cmenu      *cmenu                  // the completions of the command line being typed
 	dirs       map[string][]string     // entries of directories the command line has completed in
 	flash      *flash                  // text shown for a moment after a yank, put, undo or redo
@@ -663,6 +664,14 @@ func (e *Session) Views() []View {
 		e.diffGit(w.buf)
 		v.Signs = e.signs(w.buf, top, last)
 		v.Notes = w.buf.notes(t, top, last)
+		if e.blame && w == e.win {
+			if note := e.blameNote(w); note != "" {
+				if v.Notes == nil {
+					v.Notes = map[int]string{}
+				}
+				v.Notes[t.LineOf(w.pos())] = "   " + note
+			}
+		}
 		for _, p := range e.plugins {
 			for _, d := range e.decos[p] {
 				if d.buf != w.buf || d.note == "" {
