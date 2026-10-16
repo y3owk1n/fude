@@ -625,7 +625,8 @@ Where fude departs, the line says so and cites the departure in
 
 - B60 [5] fude starts the servers configured for the buffer's language,
   offers `utf-8` then `utf-16` positions, and sends incremental changes in
-  the encoding the server chose.
+  the encoding the server chose, or the whole text to a server that syncs
+  whole texts.
 - B61 [5] Diagnostics show inline and `]d` and `[d` move between them.
 - B62 [5] `<C-]>` jumps to the definition and `K` shows hover, as in
   Neovim with a server attached.

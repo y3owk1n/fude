@@ -2,6 +2,7 @@ package editor_test
 
 import (
 	"bufio"
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -174,7 +175,7 @@ func TestFakeServer(t *testing.T) {
 			fmt.Fprintf(os.Stdout, "Content-Length: %d\r\n\r\n%s", len(body), body)
 		case "initialize":
 			reply(m.ID, map[string]any{"serverInfo": map[string]any{"name": "fake", "version": "v1"}, "capabilities": map[string]any{
-				"positionEncoding": os.Getenv("FUDE_FAKE_ENCODING"), "documentFormattingProvider": true, "completionProvider": map[string]any{"triggerCharacters": []string{"."}, "resolveProvider": true},
+				"positionEncoding": os.Getenv("FUDE_FAKE_ENCODING"), "textDocumentSync": json.RawMessage(cmp.Or(os.Getenv("FUDE_FAKE_SYNC"), "2")), "documentFormattingProvider": true, "completionProvider": map[string]any{"triggerCharacters": []string{"."}, "resolveProvider": true},
 				"definitionProvider": true, "typeDefinitionProvider": true, "implementationProvider": true, "referencesProvider": true, "renameProvider": true,
 				"codeActionProvider": true, "signatureHelpProvider": map[string]any{}, "documentSymbolProvider": true, "hoverProvider": true,
 			}})
@@ -248,6 +249,15 @@ func TestB60ServerAndEncodings(t *testing.T) {
 		heard(t, log, `"method":"textDocument/didOpen"`, 1)
 		feed(e, "$a!<Esc>")
 		heard(t, log, fmt.Sprintf(`"range":{"start":{"line":0,"character":%d},"end":{"line":0,"character":%d}},"text":"!"`, col, col), 1)
+	}
+	// A server that asks for whole texts, by a number or an object, gets
+	// the whole text.
+	for _, sync := range []string{"1", `{"change":1}`} {
+		t.Setenv("FUDE_FAKE_SYNC", sync)
+		e, log := withServer(t, "ab\n", "utf-8")
+		heard(t, log, `"method":"textDocument/didOpen"`, 1)
+		feed(e, "$a!<Esc>")
+		heard(t, log, `"contentChanges":[{"text":"ab!"}]`, 1)
 	}
 }
 

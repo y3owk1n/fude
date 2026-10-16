@@ -127,9 +127,24 @@ func (c *Client) Open(uri, language string, t api.Text) {
 
 // Change tells the server about edits to before, the text ahead of the
 // document's change number version. The protocol applies changes in order.
-// Sending the last first keeps each range a range of before.
+// Sending the last first keeps each range a range of before. A server that
+// asks for whole texts gets the text after the edits (B60).
 func (c *Client) Change(uri string, version int, before api.Text, edits []api.Edit) {
 	c.send(func(enc string) any {
+		doc := map[string]any{"uri": uri, "version": version}
+		if c.wholeText() {
+			var after strings.Builder
+			at := 0
+			for _, e := range edits {
+				after.WriteString(before.Slice(at, e.Start))
+				after.WriteString(e.Text)
+				at = e.End
+			}
+			after.WriteString(before.Slice(at, before.Len()))
+			return message{Method: "textDocument/didChange", Params: map[string]any{
+				"textDocument": doc, "contentChanges": []map[string]any{{"text": after.String()}},
+			}}
+		}
 		changes := make([]map[string]any, 0, len(edits))
 		for i := len(edits) - 1; i >= 0; i-- {
 			e := edits[i]
@@ -138,10 +153,25 @@ func (c *Client) Change(uri string, version int, before api.Text, edits []api.Ed
 			})
 		}
 		return message{Method: "textDocument/didChange", Params: map[string]any{
-			"textDocument":   map[string]any{"uri": uri, "version": version},
-			"contentChanges": changes,
+			"textDocument": doc, "contentChanges": changes,
 		}}
 	})
+}
+
+// wholeText reports whether the server syncs documents by their whole text.
+// That is kind 1 of textDocumentSync, sent as a number or as the change
+// field of an object.
+func (c *Client) wholeText() bool {
+	raw := c.Capability("textDocumentSync")
+	var kind int
+	if json.Unmarshal(raw, &kind) != nil {
+		var sync struct {
+			Change int `json:"change"`
+		}
+		json.Unmarshal(raw, &sync)
+		kind = sync.Change
+	}
+	return kind == 1
 }
 
 // Notify sends the server a notification.
