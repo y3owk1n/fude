@@ -436,6 +436,10 @@ func TestB184PluginSignsAndNotes(t *testing.T) {
 		v := e.Views()[0]
 		return v.Notes[0] == "changed" && v.Notes[1] == "" && v.Signs[1].Text == ""
 	})
+	// A window on another buffer shows none of them.
+	if feed(e, ":vnew<CR>"); len(e.Views()) != 2 || e.Views()[1].Notes[0] != "" || e.Views()[1].Signs[0].Text != "" {
+		t.Errorf("a window on a new buffer shows another buffer's notes or signs")
+	}
 }
 
 // B186

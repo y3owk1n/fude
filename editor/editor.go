@@ -584,7 +584,10 @@ func (e *Session) Views() []View {
 		v.Notes = w.buf.notes(t, top, last)
 		for _, p := range e.plugins {
 			for _, d := range e.decos[p] {
-				if at := w.buf.text.Mark(d.start); d.buf == w.buf && d.note != "" && at >= top && at <= last {
+				if d.buf != w.buf || d.note == "" {
+					continue
+				}
+				if at := w.buf.text.Mark(d.start); at >= top && at <= last {
 					if v.Notes == nil {
 						v.Notes = map[int]string{}
 					}
