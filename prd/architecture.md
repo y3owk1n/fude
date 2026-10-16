@@ -952,10 +952,20 @@ as a tree edit and a text edit. Each frame asks for the captures of the
 window plus a margin. The goroutine takes the newest request and the edits
 up to it, parses incrementally and sends the spans back through the
 editor's queue. Until they arrive, the frame moves the old spans through the
-edits made since, so a keystroke never waits for a parse (B43). The
-goroutine abandons a parse for an old request through the progress callback
-of `ParseWithOptions`. The binding has no finalizers, so the goroutine closes
-its parser, tree, query and cursor when the buffer closes.
+edits made since, so a keystroke never waits for a parse (B43). A parse
+runs to the end even when a newer request comes, since a stopped parse
+starts over. On a large file, keys that come faster than the first parse
+would stop it each time, and the buffer would never get colours. Only
+closing the buffer stops a parse, through the progress callback of
+`ParseWithOptions`. A parser stopped as it balances its tree cannot parse
+again, because `ts_parser_reset` leaves it set to resume a tree it freed.
+The binding has no finalizers, so the goroutine closes its parser, tree,
+query and cursor when the buffer closes.
+
+The binding routes each of tree-sitter's allocations through a call into
+Go. Those calls cost a fifth of a parse. `syntax/` sets tree-sitter's
+allocator back to C's malloc at init. Both use the same C heap, so memory
+allocated before the switch frees safely.
 
 Captures paint as tree-sitter's own highlighter picks them (B46). A capture
 on a node inside another wins, and of the captures on one node only the last

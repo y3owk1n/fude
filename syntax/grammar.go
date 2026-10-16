@@ -8,6 +8,9 @@ package syntax
 // language calls the function a grammar's library exports, which returns
 // its language.
 static const void *language(void *f) { return ((const void *(*)(void))f)(); }
+
+// ts_set_allocator is in the tree-sitter library the binding links in.
+void ts_set_allocator(void *(*)(size_t), void *(*)(size_t, size_t), void *(*)(void *, size_t), void (*)(void *));
 */
 import "C"
 
@@ -27,6 +30,12 @@ import (
 
 	ts "github.com/tree-sitter/go-tree-sitter"
 )
+
+// The binding has tree-sitter allocate through a call into Go, which then
+// calls C's malloc. Those calls cost a fifth of a parse. This has tree-sitter
+// call C's malloc and free itself. Both use the one C heap, so free releases
+// memory allocated before the switch.
+func init() { C.ts_set_allocator(nil, nil, nil, nil) }
 
 // grammar is a grammar fude builds when a file needs it (D29): the repo it
 // comes from, the commit fude pins, the directory of its sources in the

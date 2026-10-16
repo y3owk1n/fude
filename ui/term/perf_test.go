@@ -63,34 +63,28 @@ func realCode(t *testing.T, size int) string {
 	return path
 }
 
-// press runs the editor loop for gap, as it runs between keys: it does the
+// press runs the editor loop for gap, as it runs between keys. It does the
 // work other goroutines queue as it comes, such as a new syntax tree, and
-// draws after each. Then keys arrive, and it feeds them and draws. When
-// queued work was still running as the keys arrived, it returns the time
-// from their arrival to the frame, since the keys waited for that work.
-// Otherwise it counts from when the wait ends, because the test's timer
-// fires late, and a real key would not wait for it.
+// draws after each. Then keys arrive, and it feeds them and draws. It returns
+// the time from their arrival to the frame, so keys that come while queued
+// work runs wait for it. It spins through the gap. A core left idle for
+// 10ms draws the next frame about seven times slower, and the test would
+// time that instead of fude.
 func (c *client) press(keys string, gap time.Duration) time.Duration {
 	arrive := time.Now().Add(gap)
-	busy := false // work ran past the keys' arrival
-	for wait := time.Until(arrive); wait > 0; wait = time.Until(arrive) {
+	for time.Now().Before(arrive) {
 		select {
 		case f := <-c.e.Queue():
 			f()
 			c.draw()
-			busy = time.Now().After(arrive)
-		case <-time.After(wait):
+		default:
 		}
-	}
-	at := time.Now()
-	if busy {
-		at = arrive
 	}
 	for _, k := range vim.Keys(keys) {
 		c.e.Feed(k)
 	}
 	c.draw()
-	return time.Since(at)
+	return time.Since(arrive)
 }
 
 // Cold start to first frame on an empty buffer under 5ms. It runs in

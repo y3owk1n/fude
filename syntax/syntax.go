@@ -14,7 +14,6 @@ import (
 	"slices"
 	"strings"
 	"sync"
-	"sync/atomic"
 
 	ts "github.com/tree-sitter/go-tree-sitter"
 	tsgo "github.com/tree-sitter/tree-sitter-go/bindings/go"
@@ -108,12 +107,11 @@ type Buffer struct {
 	}
 
 	// Shared with the worker.
-	mu     sync.Mutex
-	req    request
-	edits  []pending    // heard since the worker last took them
-	latest atomic.Int64 // the newest request, so the worker drops older parses
-	wake   chan struct{}
-	quit   chan struct{}
+	mu    sync.Mutex
+	req   request
+	edits []pending // heard since the worker last took them
+	wake  chan struct{}
+	quit  chan struct{}
 }
 
 type change struct {
@@ -316,7 +314,6 @@ func (h *Buffer) Show(t api.Text, from, to int) []Span {
 		h.mu.Lock()
 		h.req = h.asked
 		h.mu.Unlock()
-		h.latest.Store(int64(h.seq))
 		select {
 		case h.wake <- struct{}{}:
 		default:
@@ -423,14 +420,24 @@ func (h *Buffer) run(p *ts.Parser, q, inj *ts.Query, in *injector) {
 			if tree == nil {
 				text = []byte(r.text.Slice(0, r.text.Len()))
 			}
+			// A parse runs to the end even when a newer request comes, since a
+			// stopped parse would start over. Only Close stops one. Reset does
+			// not clear a parser stopped as it balances its tree, so its next
+			// parse resumes the freed tree and aborts.
+			stop := func(ts.ParseState) bool {
+				select {
+				case <-h.quit:
+					return true
+				default:
+					return false
+				}
+			}
 			// The binding copies each chunk the callback returns, so chunks stay
 			// small.
 			next := p.ParseWithOptions(func(i int, _ ts.Point) []byte { return text[i:min(i+chunk, len(text))] }, tree,
-				&ts.ParseOptions{ProgressCallback: func(ts.ParseState) bool { return h.latest.Load() != int64(r.seq) }})
+				&ts.ParseOptions{ProgressCallback: stop})
 			if next == nil {
-				// A newer request came, and its wake is waiting.
-				p.Reset()
-				continue
+				return
 			}
 			if tree != nil {
 				tree.Close()
