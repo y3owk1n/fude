@@ -142,7 +142,9 @@ func runFormatters(runs []run, text, path string, timeout time.Duration) (string
 		}
 		cmd := exec.CommandContext(ctx, r.command[0], args...)
 		cmd.Dir, cmd.Stdin = r.dir, strings.NewReader(text)
+		at := time.Now()
 		out, err := cmd.Output()
+		traced("file", "ran formatter "+r.name+" on "+path, at, err)
 		if exit, ok := errors.AsType[*exec.ExitError](err); ok && len(exit.Stderr) > 0 {
 			return "", fmt.Errorf("%s: %s", r.name, strings.TrimSpace(string(exit.Stderr)))
 		}

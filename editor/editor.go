@@ -385,6 +385,8 @@ func (e *Session) Queue() <-chan func() { return e.queue }
 
 // Feed handles one key. An error becomes the message.
 func (e *Session) Feed(k vim.Key) {
+	at, mode := time.Now(), e.vim.Mode()
+	defer func() { api.Trace("key", fmt.Sprintf("%q in %s", k, modes[mode]), time.Since(at)) }()
 	// While hints show, <Esc> drops the command being typed, held keys too,
 	// and <BS> its last key.
 	if e.hints != nil && (k == "<Esc>" || k == "<BS>") {
@@ -431,6 +433,10 @@ func (e *Session) feed(k vim.Key) {
 		ask(k == "y")
 		e.reveal()
 		return
+	}
+	if e.vim.Mode() == vim.Cmdline && k == "<CR>" {
+		at, line := time.Now(), e.vim.Line()
+		defer func() { api.Trace("cmd", line, time.Since(at)) }()
 	}
 	if e.commandKey(k) {
 		return
@@ -886,6 +892,7 @@ func (e *Session) LineCursor() int { return e.vim.LineCursor() }
 // It puts each new message into the history that :messages lists.
 func (e *Session) Message() string {
 	if e.message != e.logged && e.message != "" {
+		api.Trace("msg", e.message, 0)
 		e.history = append(e.history, e.message)
 		e.history = e.history[max(len(e.history)-200, 0):]
 	}
@@ -1214,8 +1221,9 @@ func (e *Session) write(b *buffer, force bool, then func()) {
 
 // writeOut writes b's text to its file, then runs then.
 func (e *Session) writeOut(b *buffer, then func()) {
-	s := b.text.Snapshot()
+	s, at := b.text.Snapshot(), time.Now()
 	n, err := b.file.write(s.Slice(0, s.Len()))
+	traced("file", fmt.Sprintf("wrote %q, %d bytes", b.file.path, n), at, err)
 	if err != nil {
 		e.message = err.Error()
 		return

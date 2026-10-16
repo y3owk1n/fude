@@ -39,6 +39,23 @@ shows in the text as ghost text and changes nothing until accepted.
 A proposal follows edits made after it. One whose text was edited since
 is marked stale and cannot be accepted.
 
+## Watching fude
+
+`fude --tail` in another terminal prints what a running fude does, as it
+happens. Each line has the time, the source, what happened and how long
+it took.
+
+```
+13:02:28.700 cmd    :set nu (0.036ms)
+13:02:28.701 msg    no option named nu
+13:02:29.759 lsp    gopls answered #1, 1019 bytes (38.513ms)
+```
+
+It starts with the last 4096 events, so a tail started after something
+went wrong shows what led to it. `--json` prints each event as a line of
+JSON, for `jq`. With several fudes running, name the socket of one, as
+`fude --tail $XDG_RUNTIME_DIR/fude.1234.sock`.
+
 ## Next
 
 - `index` lists every page of help.

@@ -3,7 +3,9 @@ package editor
 import (
 	"fmt"
 	"strings"
+	"time"
 
+	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/syntax"
 )
 
@@ -31,7 +33,13 @@ func (e *Session) buildGrammar(ft string, force bool) bool {
 	}
 	e.building[ft] = true
 	go func() {
+		at := time.Now()
 		err := syntax.Build(ft)
+		done := "built the " + ft + " grammar"
+		if err != nil {
+			done = err.Error()
+		}
+		api.Trace("syntax", done, time.Since(at))
 		e.queue <- func() {
 			delete(e.building, ft)
 			if err != nil {

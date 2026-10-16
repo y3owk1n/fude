@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -70,6 +71,7 @@ func (e *Session) loaded(p *plugin.Plugin, err error, b *buffer, t kernel.Snapsh
 		e.unload(p, err)
 		return
 	}
+	api.Trace("plugin", "loaded "+p.Name, 0)
 	e.plugins = append(e.plugins, p)
 	for _, r := range p.Registered {
 		e.register(p, r)
@@ -239,7 +241,15 @@ func (e *Session) run(p *plugin.Plugin, id uint32, t vim.Text, args ...uint64) (
 	full := make([]uint64, 4)
 	full[0] = uint64(id)
 	copy(full[1:], args)
+	at := time.Now()
 	res, err := p.CallNow(context.Background(), "call", t, plugin.InputBudget, full...)
+	name := strconv.Itoa(int(id))
+	for _, r := range p.Registered {
+		if r.ID == id {
+			name = r.Name
+		}
+	}
+	api.Trace("plugin", p.Name+" ran "+name, time.Since(at))
 	switch {
 	case errors.Is(err, plugin.ErrBusy):
 		e.message = err.Error()
@@ -255,6 +265,7 @@ func (e *Session) run(p *plugin.Plugin, id uint32, t vim.Text, args ...uint64) (
 // lines, the calls it is denied and language servers' stderr go (B50). A line that cannot be written
 // is dropped, as the log is where it would have been reported.
 func logLine(line string) {
+	api.Trace("log", line, 0)
 	dir, err := xdgDir("XDG_STATE_HOME", filepath.Join(".local", "state"))
 	if err != nil {
 		return

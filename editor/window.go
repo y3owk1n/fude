@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/vim"
@@ -218,7 +219,10 @@ func (e *Session) navigate(d byte) {
 		return
 	}
 	flag := map[byte]string{'h': "-L", 'j': "-D", 'k': "-U", 'l': "-R"}[d]
-	if out, err := exec.Command("tmux", "select-pane", "-t", os.Getenv("TMUX_PANE"), flag).CombinedOutput(); err != nil {
+	at := time.Now()
+	out, err := exec.Command("tmux", "select-pane", "-t", os.Getenv("TMUX_PANE"), flag).CombinedOutput()
+	traced("file", "moved to the tmux pane "+flag, at, err)
+	if err != nil {
 		e.message = fmt.Sprintf("tmux select-pane %s: %v: %s", flag, err, strings.TrimSpace(string(out)))
 	}
 }

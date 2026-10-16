@@ -596,6 +596,14 @@ Where fude departs, the line says so and cites the departure in
   `u` from the client reverts that insert whole.
 - B99 [6] A client running the grammar keeps its own jumplist and
   changelist, and its `g-` and `g+` move the server's timeline.
+- B174 [6] `fude --tail` prints what a running fude does as it happens,
+  one line per event with how long it took. Events cover keys and the
+  mode each ran in, command lines and messages. They also cover frames,
+  parses, language server messages and answers, and plugin calls. Files,
+  the programs fude runs, client calls and log lines are events too. It
+  first prints the last 4096 events, so a tail started after a problem
+  shows what led to it. `--json` prints each event as JSON. While nothing
+  tails, fude keeps events in memory and writes nothing.
 
 ## Kernel library
 

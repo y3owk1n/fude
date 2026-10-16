@@ -2,6 +2,7 @@ package editor
 
 import (
 	"bufio"
+	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,7 +13,9 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/plugin"
 	"github.com/y3owk1n/fude/vim"
@@ -201,14 +204,15 @@ func (ed *Editor) SocketPath() string {
 	return processSocket()
 }
 
-// processSocket is a socket named by this process, in XDG_RUNTIME_DIR or the
-// temporary directory.
+// processSocket is a socket named by this process, in socketDir.
 func processSocket() string {
-	dir := os.Getenv("XDG_RUNTIME_DIR")
-	if dir == "" {
-		dir = os.TempDir()
-	}
-	return filepath.Join(dir, fmt.Sprintf("fude.%d.sock", os.Getpid()))
+	return filepath.Join(socketDir(), fmt.Sprintf("fude.%d.sock", os.Getpid()))
+}
+
+// socketDir is where fude listens without the socket setting:
+// XDG_RUNTIME_DIR, or else the temporary directory.
+func socketDir() string {
+	return cmp.Or(os.Getenv("XDG_RUNTIME_DIR"), os.TempDir())
 }
 
 // state is what the server tells a client after each call.
@@ -278,6 +282,8 @@ func (e *Session) serve(c net.Conn, o kernel.Origin) {
 		s = e.Attach(o)
 		s.changed = changed
 	})
+	api.Trace("rpc", string(o)+" attached", 0)
+	defer api.Trace("rpc", string(o)+" left", 0)
 	defer on(func() { s.leave() })
 	in, enc := bufio.NewScanner(c), json.NewEncoder(c)
 	in.Buffer(nil, 1<<26)
@@ -310,10 +316,38 @@ func (e *Session) serve(c net.Conn, o kernel.Origin) {
 		reply, quit := map[string]any{}, false
 		if err := json.Unmarshal(in.Bytes(), &call); err != nil {
 			reply["error"] = fmt.Sprintf("read call: %v", err)
+		} else if call.Method == "tail" {
+			// This writes the events off the loop, as they come, until the
+			// client leaves.
+			kept, next, stop := api.Watch()
+			defer stop()
+			if out(map[string]any{"id": call.ID}) != nil {
+				return
+			}
+			for _, ev := range kept {
+				if out(map[string]any{"method": "event", "params": ev}) != nil {
+					return
+				}
+			}
+			go func() {
+				for {
+					select {
+					case ev := <-next:
+						if out(map[string]any{"method": "event", "params": ev}) != nil {
+							return
+						}
+					case <-left:
+						return
+					}
+				}
+			}()
+			continue
 		} else {
 			reply["id"] = call.ID
 			on(func() {
+				at := time.Now()
 				res, err := s.call(call.Method, call.Params)
+				traced("rpc", string(o)+" called "+call.Method, at, err)
 				switch {
 				case err != nil:
 					reply["error"] = err.Error()

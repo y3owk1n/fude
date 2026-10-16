@@ -3,6 +3,7 @@ package editor
 import (
 	"fmt"
 	"path/filepath"
+	"time"
 
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/syntax"
@@ -76,7 +77,9 @@ func sameLine(t kernel.Snapshot, p, q int) bool {
 
 // openBuffer reads path into a buffer, and returns what to tell the user.
 func openBuffer(id int, path string) (*buffer, string, error) {
+	at := time.Now()
 	f, text, err := read(path)
+	traced("file", fmt.Sprintf("read %q, %d bytes", path, len(text)), at, err)
 	if err != nil {
 		return nil, "", err
 	}

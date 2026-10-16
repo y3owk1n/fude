@@ -38,6 +38,21 @@ func pluginCommand(sub string, args []string) error {
 	return errors.New("usage: fude plugin new <name>, or fude plugin build [dir]")
 }
 
+// tail runs fude --tail [--json] [socket] (B174).
+func tail(args []string) error {
+	asJSON := len(args) > 0 && args[0] == "--json"
+	if asJSON {
+		args = args[1:]
+	}
+	switch len(args) {
+	case 0:
+		return editor.Tail(os.Stdout, "", asJSON)
+	case 1:
+		return editor.Tail(os.Stdout, args[0], asJSON)
+	}
+	return errors.New("usage: fude --tail [--json] [socket]")
+}
+
 func main() {
 	if err := run(os.Args[1:]); err != nil {
 		fmt.Fprintln(os.Stderr, "fude:", err)
@@ -46,9 +61,9 @@ func main() {
 }
 
 // run prints a man page for --man, fude(1) or the one named after it,
-// writes or builds a plugin for plugin new and plugin build, or opens args
-// in the terminal. After :restart it runs fude again in its place, on the
-// saved session (B170).
+// writes or builds a plugin for plugin new and plugin build, prints what a
+// running fude does for --tail, or opens args in the terminal. After
+// :restart it runs fude again in its place, on the saved session (B170).
 func run(args []string) error {
 	if len(args) >= 2 && args[0] == "plugin" && (args[1] == "new" || args[1] == "build") {
 		return pluginCommand(args[1], args[2:])
@@ -60,6 +75,9 @@ func run(args []string) error {
 		}
 		fmt.Print(page)
 		return nil
+	}
+	if len(args) > 0 && args[0] == "--tail" {
+		return tail(args[1:])
 	}
 	e, err := editor.Start(args)
 	if err != nil {

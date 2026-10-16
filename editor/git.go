@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
@@ -98,8 +99,11 @@ func (ed *Editor) loadGit(b *buffer) {
 	if b.listed != "" && hasGit() {
 		dir, had := b.listed, b.status != nil || b.branch != ""
 		go func() {
+			at := time.Now()
 			signs, ok := gitStatus(dir)
-			if branch := gitBranch(dir); ok || had {
+			branch := gitBranch(dir)
+			traced("file", "read the git status of "+dir, at, nil)
+			if ok || had {
 				ed.queue <- func() { b.status, b.branch = signs, branch }
 			}
 		}()
@@ -110,8 +114,10 @@ func (ed *Editor) loadGit(b *buffer) {
 	}
 	path, had := b.file.path, b.base != nil || b.branch != ""
 	go func() {
+		at := time.Now()
 		base, ok := gitBase(path)
 		branch := gitBranch(filepath.Dir(path))
+		traced("file", "read the git base of "+path, at, nil)
 		if !ok && !had && branch == "" {
 			// Nothing to show or to clear, so the loop need not hear of it.
 			return

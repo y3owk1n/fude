@@ -1259,6 +1259,27 @@ client accepts or rejects with `keys`, and its state lists its proposals on
 its buffer with their ids. A proposal outlives the client that made it,
 and goes when its buffer closes.
 
+### Trace
+
+`fude --tail` shows what a running fude does, as it happens (B174). Code
+in any package records an event with `api.Trace(src, text, took)`. The
+sources are a key and its mode, a command line, a message the user saw,
+a frame, a parse or highlight, a language server's messages and answers,
+a plugin call or event, a file read or written, a program fude ran, a
+client's call, and a line of fude's log. `api.Trace` is safe on any
+goroutine. It takes a mutex, stamps the time and a sequence number, and
+keeps the event in a ring of the last 4096. With no tail watching that is
+all it does. It does no I/O, and it adds about 40µs to key latency at p99.
+
+A client's `tail` call gets an empty reply, then the kept events and each
+new one as `{"method": "event", "params": {"seq", "at", "src", "text",
+"took"}}`. The server writes them off the editor loop until the client
+leaves. A tail that falls 4096 events behind loses events instead of
+slowing fude, and the gap in `seq` says how many. `fude --tail [--json] [socket]` dials the
+socket, or else the `socket` setting, or else the one fude that answers in
+`XDG_RUNTIME_DIR` or the temporary directory. It prints each event as the
+time, the source, what happened and how long it took, or as JSON.
+
 ### Replicas
 
 `client.Replica` keeps a copy of one buffer in a `kernel.Buffer` of its

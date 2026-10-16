@@ -14,6 +14,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	ts "github.com/tree-sitter/go-tree-sitter"
 	tsgo "github.com/tree-sitter/tree-sitter-go/bindings/go"
@@ -170,7 +171,7 @@ func New(filetype, dir string, queue chan<- func(), parsed func(), missing func(
 		queue: queue, parsed: parsed, missing: missing, wanted: map[string]bool{}, lang: l.lang, objects: objects, cursor: ts.NewQueryCursor(),
 		wake: make(chan struct{}, 1), quit: make(chan struct{}),
 	}
-	go h.run(p, q, inj, newInjector(dir))
+	go h.run(filetype, p, q, inj, newInjector(dir))
 	return h, true, nil
 }
 
@@ -375,9 +376,9 @@ func (h *Buffer) take(seq int, spans []Span, regions []Region, missing []string,
 	h.parsed()
 }
 
-// run parses and highlights each newest request until Close, with the
-// regions of other languages that inj marks.
-func (h *Buffer) run(p *ts.Parser, q, inj *ts.Query, in *injector) {
+// run parses the filetype's text and highlights each newest request until
+// Close, with the regions of other languages that inj marks.
+func (h *Buffer) run(filetype string, p *ts.Parser, q, inj *ts.Query, in *injector) {
 	defer p.Close()
 	defer q.Close()
 	defer inj.Close()
@@ -434,6 +435,7 @@ func (h *Buffer) run(p *ts.Parser, q, inj *ts.Query, in *injector) {
 			}
 			// The binding copies each chunk the callback returns, so chunks stay
 			// small.
+			at := time.Now()
 			next := p.ParseWithOptions(func(i int, _ ts.Point) []byte { return text[i:min(i+chunk, len(text))] }, tree,
 				&ts.ParseOptions{ProgressCallback: stop})
 			if next == nil {
@@ -443,10 +445,13 @@ func (h *Buffer) run(p *ts.Parser, q, inj *ts.Query, in *injector) {
 				tree.Close()
 			}
 			tree, parsed = next, r.seq
+			api.Trace("syntax", fmt.Sprintf("parsed %s, %d bytes after %d edits", filetype, len(text), len(edits)), time.Since(at))
 		}
+		at := time.Now()
 		spans := highlight(c, q, tree, text, r.from, r.to)
 		inner, regions := in.spans(inj, tree, text, r.from, r.to, injectionLevels)
 		spans = append(spans, inner...)
+		api.Trace("syntax", fmt.Sprintf("highlighted bytes %d to %d of %s, %d spans", r.from, r.to, filetype, len(spans)), time.Since(at))
 		missing := in.missing
 		in.missing = nil
 		clone := tree.Clone()

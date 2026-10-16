@@ -65,6 +65,9 @@ fude \- a modal text editor
 .B fude \-\-man
 [\fBconfig\fR|\fBguide\fR]
 .br
+.B fude \-\-tail
+[\fB\-\-json\fR] [\fIsocket\fR]
+.br
 .B fude plugin new
 \fIname\fR
 .br
@@ -76,6 +79,10 @@ A folder opens as a listing of its entries.
 With \fB+\fR\fIline\fR, the cursor starts on that line of the first file.
 \fB\-\-man\fR prints this page, \fB\-\-man config\fR prints fude\-config(5)
 and \fB\-\-man guide\fR prints fude\-guide(7).
+\fB\-\-tail\fR prints what a running fude does as it happens, a line
+per event, or JSON with \fB\-\-json\fR. It watches the fude at
+\fIsocket\fR, or else at the socket setting, or else the one fude
+running.
 \fBplugin new\fR writes a plugin in Go in a new folder, and
 \fBplugin build\fR builds the one in \fIdir\fR with TinyGo, as
 fude\-guide(7) describes.

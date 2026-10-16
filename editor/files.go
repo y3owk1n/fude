@@ -14,6 +14,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/y3owk1n/fude/core/kernel"
@@ -57,7 +58,9 @@ func (e *Session) files() {
 	f := &finder{}
 	e.openFinder(f, "")
 	go func() {
+		at := time.Now()
 		paths, err := listFiles(".")
+		traced("file", fmt.Sprintf("listed %d files", len(paths)), at, err)
 		e.queue <- func() {
 			if err != nil {
 				e.message = err.Error()
@@ -167,7 +170,9 @@ func (e *Session) seek(f *finder) {
 		var matches []string
 		var err error
 		if f.grep {
+			at := time.Now()
 			matches, err = grep(q)
+			traced("file", fmt.Sprintf("grep %q found %d", q, len(matches)), at, err)
 		} else {
 			matches = match(from, q)
 		}

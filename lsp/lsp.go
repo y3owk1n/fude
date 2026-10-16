@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/y3owk1n/fude/api"
 )
@@ -23,11 +24,12 @@ type Client struct {
 	queue chan<- func()
 	stdin io.WriteCloser
 	log   func(string)
+	name  string
 
 	// Requests the editor loop sent and the server has yet to answer, which
 	// only the loop touches.
 	next    int
-	pending map[int]func(json.RawMessage)
+	pending map[int]pending
 
 	// Messages waiting for the writer, built once the server chose its
 	// position encoding.
@@ -52,12 +54,13 @@ type Range struct {
 	End   Position `json:"end"`
 }
 
-// Start runs command for the files under root, and sends options with
-// initialize. Three funcs run on the editor loop, through queue. notify
-// gets each notification the server sends. serve gets each request, and
-// its result goes back as the answer. exited runs once the server exits,
-// with why. Lines the server writes to stderr go to log.
-func Start(command []string, root string, options any, queue chan<- func(), log func(string), notify func(method string, params json.RawMessage), serve func(method string, params json.RawMessage) any, exited func(error)) (*Client, error) {
+// Start runs command, the server called name, for the files under root,
+// and sends options with initialize. Three funcs run on the editor loop,
+// through queue. notify gets each notification the server sends. serve gets
+// each request, and its result goes back as the answer. exited runs once
+// the server exits, with why. Lines the server writes to stderr go to log,
+// after its name.
+func Start(name string, command []string, root string, options any, queue chan<- func(), log func(string), notify func(method string, params json.RawMessage), serve func(method string, params json.RawMessage) any, exited func(error)) (*Client, error) {
 	cmd := exec.Command(command[0], command[1:]...)
 	cmd.Dir = root
 	stdin, err1 := cmd.StdinPipe()
@@ -70,7 +73,7 @@ func Start(command []string, root string, options any, queue chan<- func(), log 
 		return nil, fmt.Errorf("start %s: %w", command[0], err)
 	}
 	c := &Client{
-		queue: queue, stdin: stdin, log: log, pending: map[int]func(json.RawMessage){},
+		queue: queue, stdin: stdin, log: log, name: name, pending: map[int]pending{},
 		wake: make(chan struct{}, 1), done: make(chan struct{}),
 	}
 	initialized := make(chan answer, 1)
@@ -79,7 +82,7 @@ func Start(command []string, root string, options any, queue chan<- func(), log 
 	go func() {
 		s := bufio.NewScanner(stderr)
 		for s.Scan() {
-			log(filepath.Base(command[0]) + ": " + s.Text())
+			log(c.name + ": " + s.Text())
 		}
 	}()
 	go func() {
@@ -87,9 +90,9 @@ func Start(command []string, root string, options any, queue chan<- func(), log 
 		close(c.done)
 		c.queue <- func() {
 			// The server exited, so no answer to these will come.
-			for id, answer := range c.pending {
+			for id, p := range c.pending {
 				delete(c.pending, id)
-				answer(nil)
+				p.answer(nil)
 			}
 			exited(err)
 		}
@@ -160,7 +163,7 @@ func (c *Client) CloseDocument(uri string) {
 func (c *Client) Request(method string, build func(enc string) any, answer func(json.RawMessage)) {
 	c.next++
 	id := c.next
-	c.pending[id] = answer
+	c.pending[id] = pending{answer, time.Now()}
 	c.send(func(enc string) any { return request{ID: id, Method: method, Params: build(enc)} })
 }
 
@@ -328,18 +331,20 @@ func (c *Client) write(root string, options any, initialized <-chan answer) {
 
 // frame writes v as one message with its Content-Length header.
 func (c *Client) frame(v any) error {
+	what := "an answer"
 	switch m := v.(type) {
 	case message:
-		m.JSONRPC = "2.0"
+		m.JSONRPC, what = "2.0", m.Method
 		v = m
 	case request:
-		m.JSONRPC = "2.0"
+		m.JSONRPC, what = "2.0", fmt.Sprintf("%s #%d", m.Method, m.ID)
 		v = m
 	}
 	body, err := json.Marshal(v)
 	if err != nil {
 		return err
 	}
+	api.Trace("lsp", fmt.Sprintf("sent %s %s, %d bytes", c.name, what, len(body)), 0)
 	_, err = fmt.Fprintf(c.stdin, "Content-Length: %d\r\n\r\n%s", len(body), body)
 	return err
 }
@@ -355,10 +360,12 @@ func (c *Client) read(r io.Reader, initialized chan<- answer, notify func(string
 			return
 		}
 		var m incoming
-		if json.Unmarshal(body, &m) != nil {
+		if err := json.Unmarshal(body, &m); err != nil {
+			api.Trace("lsp", fmt.Sprintf("%s sent a message fude cannot read: %v", c.name, err), 0)
 			continue
 		}
 		if m.Method != "" {
+			api.Trace("lsp", fmt.Sprintf("%s sent %s, %d bytes", c.name, m.Method, len(body)), 0)
 			method, params := m.Method, m.Params
 			f := func() { notify(method, params) }
 			if m.ID != nil {
@@ -406,21 +413,31 @@ func (c *Client) read(r io.Reader, initialized chan<- answer, notify func(string
 		if enc != "utf-8" {
 			enc = "utf-16"
 		}
+		api.Trace("lsp", fmt.Sprintf("%s answered initialize, %d bytes", c.name, len(body)), 0)
 		initialized <- answer{enc, res.Capabilities, version}
 	}
 }
 
 // answered runs the answer waiting for request id.
 func (c *Client) answered(id int, result json.RawMessage, failed *responseError) {
-	answer, ok := c.pending[id]
+	p, ok := c.pending[id]
 	delete(c.pending, id)
+	if ok {
+		api.Trace("lsp", fmt.Sprintf("%s answered #%d, %d bytes", c.name, id, len(result)), time.Since(p.at))
+	}
 	if failed != nil {
 		c.log(failed.Message)
 		result = nil
 	}
 	if ok {
-		answer(result)
+		p.answer(result)
 	}
+}
+
+// pending is a request waiting for its answer, and when it was asked.
+type pending struct {
+	answer func(json.RawMessage)
+	at     time.Time
 }
 
 // readFrame reads one message body after its headers.

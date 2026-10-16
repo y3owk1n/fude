@@ -12,6 +12,7 @@ import (
 
 	"github.com/gdamore/tcell/v3"
 
+	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/syntax"
@@ -152,6 +153,8 @@ type client struct {
 }
 
 func (c *client) draw() {
+	at := time.Now()
+	defer func() { api.Trace("frame", "drawn", time.Since(at)) }()
 	c.spinning = false
 	// The theme e names may change at any time with :theme (B158).
 	if name, colours := c.e.Theme(); name != c.theme || colours != c.colours {

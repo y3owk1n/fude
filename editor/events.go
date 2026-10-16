@@ -4,7 +4,9 @@ import (
 	"context"
 	"slices"
 	"sync"
+	"time"
 
+	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/plugin"
 )
@@ -99,7 +101,9 @@ func (e *Session) listen(p *plugin.Plugin) {
 				if ev.detail != "" {
 					name += " " + ev.detail
 				}
+				at := time.Now()
 				res, err := p.Event(context.Background(), name, t)
+				api.Trace("plugin", p.Name+" heard "+name, time.Since(at))
 				if !on(func() { e.handled(p, err, ev.buf, t, res) }) {
 					return
 				}

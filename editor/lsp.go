@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/lsp"
 	"github.com/y3owk1n/fude/syntax"
@@ -226,13 +227,14 @@ func (e *Editor) forget(s *server, b *buffer) {
 
 func (e *Session) start(s *server) error {
 	cfg := e.cfg.LSP[s.name]
-	c, err := lsp.Start(s.command, s.root, cfg.InitOptions, e.queue, logLine,
+	c, err := lsp.Start(s.name, s.command, s.root, cfg.InitOptions, e.queue, logLine,
 		func(method string, params json.RawMessage) { e.notified(s, method, params) },
 		func(method string, params json.RawMessage) any { return e.served(s, method, params) },
 		func(err error) { e.exited(s, err) })
 	if err != nil {
 		return err
 	}
+	api.Trace("lsp", "started "+s.name+" in "+s.root, 0)
 	// A restarted server starts with none of its old process's work.
 	s.client, s.work = c, map[string]*work{}
 	if len(cfg.Settings) > 0 {
@@ -244,6 +246,11 @@ func (e *Session) start(s *server) error {
 // exited restarts a server that stopped without being asked to, once. Its
 // buffers open in the new one. After a second crash it stays off (B63).
 func (e *Session) exited(s *server, err error) {
+	if err != nil {
+		api.Trace("lsp", s.name+" exited: "+err.Error(), 0)
+	} else {
+		api.Trace("lsp", s.name+" exited", 0)
+	}
 	if s.closing {
 		return
 	}

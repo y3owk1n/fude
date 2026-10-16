@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/editor"
 )
@@ -111,6 +112,27 @@ func TestB78ClientHearsChanges(t *testing.T) {
 		}
 	}
 	t.Fatalf("after another session's edit the client last heard %q", cl.in.Text())
+}
+
+// B174
+func TestB174Tail(t *testing.T) {
+	e := open(t, "")
+	cl := dial(t, e)
+	fmt.Fprintln(cl.c, `{"id":1,"method":"tail"}`)
+	done := make(chan struct{})
+	cl.do <- func() { feed(e, "ix<Esc>"); close(done) }
+	<-done
+	cl.c.SetReadDeadline(time.Now().Add(5 * time.Second))
+	for cl.in.Scan() {
+		var line struct {
+			Method string
+			Params api.Event
+		}
+		if json.Unmarshal(cl.in.Bytes(), &line) == nil && line.Method == "event" && line.Params.Src == "key" && line.Params.Text == `"x" in insert` {
+			return
+		}
+	}
+	t.Fatalf("a client tailing fude never heard of the key typed, and last heard %q", cl.in.Text())
 }
 
 // B97

@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/vim"
@@ -19,7 +20,9 @@ func runShell(cmd, stdin string) (string, error) {
 	c.Stdin = strings.NewReader(stdin)
 	var errOut bytes.Buffer
 	c.Stderr = &errOut
+	at := time.Now()
 	out, err := c.Output()
+	traced("file", "ran "+cmd, at, err)
 	if err != nil {
 		return "", fmt.Errorf("%s: %w: %s", cmd, err, strings.TrimSpace(errOut.String()))
 	}

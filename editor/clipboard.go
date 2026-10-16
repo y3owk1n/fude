@@ -2,6 +2,7 @@ package editor
 
 import (
 	"errors"
+	"time"
 
 	"github.com/y3owk1n/fude/clipboard"
 )
@@ -9,7 +10,9 @@ import (
 // Clipboard reads the system clipboard. Without a clipboard program it is
 // the text the session last copied (B36).
 func (h host) Clipboard() (string, error) {
+	at := time.Now()
 	text, err := clipboard.Read()
+	traced("file", "read the clipboard", at, err)
 	if !errors.Is(err, clipboard.ErrNone) {
 		return text, err
 	}
@@ -22,7 +25,9 @@ func (h host) Clipboard() (string, error) {
 // SetClipboard writes text to the system clipboard. Without a clipboard
 // program, the client puts it on the terminal's clipboard (B36).
 func (h host) SetClipboard(text string) error {
+	at := time.Now()
 	err := clipboard.Write(text)
+	traced("file", "wrote the clipboard", at, err)
 	if errors.Is(err, clipboard.ErrNone) {
 		h.e.clip, h.e.toTerminal = text, true
 		return nil

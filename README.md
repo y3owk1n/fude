@@ -144,7 +144,8 @@ and `:h guide-start` is the place to begin. Type the start of a command
 and wait, and a panel shows every key that may follow.
 
 `fude --man`, `fude --man config` and `fude --man guide` print the
-fude(1), fude-config(5) and fude-guide(7) man pages.
+fude(1), fude-config(5) and fude-guide(7) man pages. `fude --tail` in
+another terminal prints what a running fude does, as it happens.
 
 ## Configuration
 
