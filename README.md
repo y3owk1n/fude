@@ -248,6 +248,7 @@ M-series Mac:
 |---|---|---|
 | Cold start to the first frame | 5ms | about 3ms |
 | A key read to its frame written, p99, on 10MB of real Go with syntax on | 1ms | about 0.75ms |
+| The same in git and two windows, with a language server and a plugin | 2ms | about 0.9ms |
 | A 1GB file's first frame | 1s | about 0.6s |
 
 ## How it is built

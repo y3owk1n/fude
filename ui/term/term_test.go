@@ -38,6 +38,7 @@ func startWith(t *testing.T, config string, args ...string) *client {
 	t.Setenv("XDG_CONFIG_HOME", dir)
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
 	e, err := editor.Start(args)
 	if err != nil {
 		t.Fatal(err)

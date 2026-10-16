@@ -41,6 +41,10 @@ Neovim works and drops the weight.
   - Key read to frame written under 1ms at p99, on 10MB of real Go with its
     syntax on. Keys come 10ms apart, and the work the loop does between
     them counts.
+  - The same under 2ms at p99 with fude set up as for work: the file in a
+    git repository and in two windows, a language server that publishes
+    diagnostics after each change and completes while typing, and a plugin
+    that reads the text on each change.
   - A 1GB file shows its first frame in under 1s and scrolls at frame rate.
 - **Extendable**: every built-in operator, target, ex command, keymap,
   decoration and UI element uses the API a plugin gets. Anything the

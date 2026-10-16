@@ -8,11 +8,17 @@
 package term
 
 import (
+	"bufio"
+	"encoding/json"
+	"fmt"
+	"io"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -128,6 +134,132 @@ func TestPromiseKeyLatency(t *testing.T) {
 	t.Logf("p50 %v, p99 %v, worst %v over %d keys", p50, p99, worst, len(times))
 	if p99 > time.Millisecond {
 		t.Errorf("p99 is %v, want under 1ms", p99)
+	}
+}
+
+// Key read to frame written under 2ms at p99, as TestPromiseKeyLatency
+// measures it, with fude set up as for work. The 10MB of real Go is in a git
+// repository, so its signs diff, and shows in two windows. A language server
+// publishes diagnostics after each change and offers completions as keys
+// are typed, and a plugin counts words on each change.
+func TestPromiseKeyLatencyFullSetup(t *testing.T) {
+	path := realCode(t, 10<<20)
+	dir := filepath.Dir(path)
+	for _, args := range [][]string{{"init", "-q"}, {"add", "f.go"}, {"-c", "user.name=fude", "-c", "user.email=fude@localhost", "commit", "-qm", "base"}} {
+		if out, err := exec.Command("git", append([]string{"-C", dir}, args...)...).CombinedOutput(); err != nil {
+			t.Fatalf("git %s: %v: %s", args[0], err, out)
+		}
+	}
+	count, err := filepath.Abs("../../plugin/testdata/count/count.wasm")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("FUDE_PERF_LSP", "1")
+	c := startWith(t, fmt.Sprintf(`autocomplete = true
+lsp.busy.command = [%q, "-test.run=^TestPerfServer$"]
+[filetype.go]
+lsp = ["busy"]
+[[plugin]]
+path = %q
+capabilities = ["buffer.read", "ui"]
+`, os.Args[0], count), path)
+	c.draw()
+	c.e.Load()
+	c.press("<C-w>v", 0)
+	session := "jjjjkkwwbbeeWB}}{{50%ggG90000G/func<CR>nnN*#xu.uddpyyPuuciwbar<Esc>u" +
+		"ihello world<Esc>uoreturn nil<Esc>uA;<Esc>u<C-d><C-u><C-f><C-b>zzHML%:s/err/e/<CR>u" +
+		"ofmt.Println(err.Error())<Esc>uA // fix this later<Esc>u<C-w>wjjk<C-w>w"
+	var times []time.Duration
+	for len(times) < 1000 {
+		for _, k := range vim.Keys(session) {
+			times = append(times, c.press(string(k), 10*time.Millisecond))
+		}
+	}
+	slices.Sort(times)
+	p50, p99, worst := times[len(times)/2], times[len(times)*99/100], times[len(times)-1]
+	t.Logf("p50 %v, p99 %v, worst %v over %d keys", p50, p99, worst, len(times))
+	if p99 > 2*time.Millisecond {
+		t.Errorf("p99 is %v, want under 2ms", p99)
+	}
+}
+
+// perfDiagnostics and perfItems are how many diagnostics TestPerfServer
+// publishes after each change, and how many completions it offers.
+const perfDiagnostics, perfItems = 100, 300
+
+// TestPerfServer is a language server when FUDE_PERF_LSP is set, which the
+// full setup runs as a process of its own. It acts as a busy gopls does:
+// after each change it publishes perfDiagnostics diagnostics spread over the
+// text, it offers perfItems completions, and it answers every other request
+// with null.
+func TestPerfServer(t *testing.T) {
+	if os.Getenv("FUDE_PERF_LSP") == "" {
+		return
+	}
+	r := bufio.NewReader(os.Stdin)
+	send := func(v map[string]any) {
+		v["jsonrpc"] = "2.0"
+		body, _ := json.Marshal(v)
+		fmt.Fprintf(os.Stdout, "Content-Length: %d\r\n\r\n%s", len(body), body)
+	}
+	lines := 1
+	for {
+		n := 0
+		for {
+			line, err := r.ReadString('\n')
+			if err != nil {
+				os.Exit(0)
+			}
+			if line = strings.TrimSpace(line); line == "" {
+				break
+			}
+			if v, ok := strings.CutPrefix(line, "Content-Length: "); ok {
+				n, _ = strconv.Atoi(v)
+			}
+		}
+		body := make([]byte, n)
+		if _, err := io.ReadFull(r, body); err != nil {
+			os.Exit(0)
+		}
+		var m struct {
+			ID     json.RawMessage `json:"id"`
+			Method string          `json:"method"`
+			Params struct {
+				TextDocument struct {
+					URI  string `json:"uri"`
+					Text string `json:"text"`
+				} `json:"textDocument"`
+			} `json:"params"`
+		}
+		json.Unmarshal(body, &m)
+		switch m.Method {
+		case "initialize":
+			send(map[string]any{"id": m.ID, "result": map[string]any{"capabilities": map[string]any{
+				"positionEncoding": "utf-8", "completionProvider": map[string]any{"triggerCharacters": []string{"."}},
+			}}})
+		case "textDocument/didOpen", "textDocument/didChange":
+			if m.Method == "textDocument/didOpen" {
+				lines = strings.Count(m.Params.TextDocument.Text, "\n") + 1
+			}
+			var ds []any
+			for i := range perfDiagnostics {
+				at := map[string]int{"line": i * lines / perfDiagnostics, "character": 0}
+				ds = append(ds, map[string]any{"range": map[string]any{"start": at, "end": at}, "severity": 1 + i%4, "message": "a problem the server found"})
+			}
+			send(map[string]any{"method": "textDocument/publishDiagnostics", "params": map[string]any{"uri": m.Params.TextDocument.URI, "diagnostics": ds}})
+		case "textDocument/completion":
+			var items []any
+			for i := range perfItems {
+				items = append(items, map[string]any{"label": fmt.Sprintf("item%03d", i), "kind": 3, "detail": "func()"})
+			}
+			send(map[string]any{"id": m.ID, "result": map[string]any{"isIncomplete": true, "items": items}})
+		case "exit":
+			os.Exit(0)
+		default:
+			if m.ID != nil {
+				send(map[string]any{"id": m.ID, "result": nil})
+			}
+		}
 	}
 }
 
