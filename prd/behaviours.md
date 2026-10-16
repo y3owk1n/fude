@@ -436,6 +436,13 @@ Where fude departs, the line says so and cites the departure in
   `:resize` and `:vertical resize` take a size, or a change of it with `+`
   or `-`. Every other window keeps at least a row and its status line, or
   a column.
+- B194 [2] The last list of places a window showed, such as `grr`'s, is
+  the quickfix list (N25). `]q` and `:cnext` go to its next place, and
+  `[q` and `:cprev` to the one before. `[Q`, `]Q`, `:cfirst` and `:clast`
+  go to its ends, and `:cc n` to place n. They go there in a window that
+  does not show the list, and work after its window closes too. Each says
+  which place it is, of how many. `:copen` shows the list again, and
+  `:cclose` closes its window.
 - B90 [2] `<C-o>` and `<C-i>` move through the jumplist, and `g;` and `g,`
   through the changelist, as in Neovim.
 - B91 [2] `<C-w>c`, `<C-w>o`, `<C-w>q`, `<C-w>=` and `:q` in a split close

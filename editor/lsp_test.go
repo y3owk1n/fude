@@ -629,6 +629,35 @@ func TestB66Places(t *testing.T) {
 	}
 }
 
+// B194
+func TestB194LastList(t *testing.T) {
+	e, log := withServer(t, "target\nb target\ntarget\n", "utf-8")
+	heard(t, log, `"method":"textDocument/didOpen"`, 1)
+	feed(e, "grr")
+	settle(t, e, func() bool { return len(e.Views()) == 2 })
+	// The list's window closes, and the list stays.
+	feed(e, ":cclose<CR>")
+	for _, c := range []struct {
+		keys string
+		want int
+	}{
+		{":cfirst<CR>", 0}, {"]q", 9}, {":clast<CR>", 16}, {"[q", 9}, {":cc 3<CR>", 16}, {":cprevious<CR>", 9},
+	} {
+		if feed(e, c.keys); e.Cursor() != c.want {
+			t.Errorf("%s left the cursor at %d, want %d", c.keys, e.Cursor(), c.want)
+		}
+	}
+	if !strings.HasPrefix(e.Message(), "(2 of 3)") {
+		t.Errorf("going to place 2 said %q", e.Message())
+	}
+	if feed(e, "]q]q"); e.Message() != "no more places" {
+		t.Errorf("going past the last place said %q", e.Message())
+	}
+	if feed(e, ":copen<CR>"); len(e.Views()) != 2 || e.Cursor() != e.Text().LineStart(2) {
+		t.Errorf(":copen showed %d windows with the cursor at %d", len(e.Views()), e.Cursor())
+	}
+}
+
 // N3
 func TestB66KeysOnlyWhileAttached(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "a.go")

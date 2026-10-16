@@ -445,8 +445,8 @@ autocommands.
 
 `:grep` opens a finder that searches as the query is typed (B134), where
 Neovim's `:grep` runs `'grepprg'` once and fills the quickfix list. Why:
-the user searches with fff.nvim's live grep, and fude has no quickfix
-list.
+the user searches with fff.nvim's live grep. Its matches reach the last
+list of places, fude's quickfix list, only when sent there (N25).
 
 ### N14. clipboard keeps a copy's shape
 
@@ -542,6 +542,16 @@ runs that key as typed. Why: fude's keys and mappings already say what
 they do for `:h`, so the hints need only a panel. Someone reading the
 hints should not race `key_timeout`, and `<Esc>` there means "none of
 these".
+
+### N25. The last list of places is the quickfix list
+
+Every list of places a window shows, such as `grr`'s or `:marks`',
+becomes the last list, which `]q`, `[q`, `:cnext`, `:cprev`,
+`:cfirst`, `:clast` and `:cc` go through after its window closes (B194).
+`:copen` shows it again. Neovim keeps one quickfix list and a location list
+per window, which commands fill and others list. Why: fude already shows
+every list of places in a window, so the newest one is the one to go
+through, and a second kind of list would make the user pick which.
 
 ## Open
 

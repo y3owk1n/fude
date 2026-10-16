@@ -53,6 +53,14 @@ selected file beside the list.
 is installed and `git grep` otherwise. `:grep text` starts with text
 typed, and `<CR>` opens the file at the match.
 
+## Lists of places
+
+`grr`, `:marks`, `:jumps` and the others show their places in a list
+window, where `<CR>` goes to one. The last list shown is the quickfix
+list. `]q` and `[q` go to its next place and the one before, `]Q` and
+`[Q` to its ends, and `:cnext`, `:cprev` and `:cc 3` do the same from the
+command line, after its window closes too. `:copen` shows it again.
+
 ## Jumping back
 
 A jump, such as `gg`, a search or opening a file, goes on the window's

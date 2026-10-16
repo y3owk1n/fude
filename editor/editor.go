@@ -70,6 +70,7 @@ type Session struct {
 	hints      []vim.Hint     // the keys that may follow the command being typed, while they show (B172)
 	ask        func(yes bool) // takes the answer to the question in the message
 	jumpTo     *jumpTo        // where a plugin's call asked to move the cursor, after the key
+	lastList   *places        // the last list of places a window showed
 	float      string         // text shown over the windows at the cursor, such as hover
 	floatSpans []syntax.Span  // the styles of the float's text
 	doc        string         // the selected completion's documentation, beside the menu

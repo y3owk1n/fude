@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/y3owk1n/fude/syntax"
@@ -87,6 +88,33 @@ func init() {
 		}, completePath},
 		{vim.Command{Name: "enew", Help: "shows a new empty buffer"}, func(e *Session, _ call) { e.empty() }, nil},
 		{vim.Command{Name: "files", Help: "finds a file by name"}, func(e *Session, _ call) { e.files() }, nil},
+		{vim.Command{Name: "cnext", Short: []string{"cn"}, Help: "goes to the next place of the last list of places"}, func(e *Session, _ call) {
+			e.stepPlace(func(at, _ int) int { return at + 1 })
+		}, nil},
+		{vim.Command{Name: "cprevious", Short: []string{"cp", "cN", "cNext"}, Help: "goes to the place before in the last list of places"}, func(e *Session, _ call) {
+			e.stepPlace(func(at, _ int) int { return max(at, 0) - 1 })
+		}, nil},
+		{vim.Command{Name: "cfirst", Short: []string{"cfir", "crewind", "cr"}, Help: "goes to the first place of the last list of places"}, func(e *Session, _ call) {
+			e.stepPlace(func(int, int) int { return 0 })
+		}, nil},
+		{vim.Command{Name: "clast", Short: []string{"cla"}, Help: "goes to the last place of the last list of places"}, func(e *Session, _ call) {
+			e.stepPlace(func(_, n int) int { return n - 1 })
+		}, nil},
+		{vim.Command{Name: "cc", Args: "[n]", Help: "goes to place n of the last list of places, or the one last gone to"}, func(e *Session, x call) {
+			n, err := strconv.Atoi(x.arg)
+			if x.arg != "" && err != nil {
+				e.message = "not a number: " + x.arg
+				return
+			}
+			e.stepPlace(func(at, _ int) int {
+				if x.arg == "" {
+					return max(at, 0)
+				}
+				return n - 1
+			})
+		}, nil},
+		{vim.Command{Name: "copen", Short: []string{"cope"}, Help: "shows the last list of places in a window"}, func(e *Session, _ call) { e.openList() }, nil},
+		{vim.Command{Name: "cclose", Short: []string{"ccl"}, Help: "closes the window of the last list of places"}, func(e *Session, _ call) { e.closeList() }, nil},
 		{vim.Command{Name: "resize", Short: []string{"res"}, Args: "[+-]{n}", Help: "makes the window n rows tall, or n taller or shorter, or as tall as it can be"}, func(e *Session, x call) {
 			e.resizeTo(false, x.arg)
 		}, nil},
@@ -240,6 +268,10 @@ func init() {
 		{"lsp.enable", "lets the language server under the cursor start again", func(e *Session, _ int) { e.lspCommand("enable", e.lspCardName()) }},
 		{"lsp.next", "moves n servers down", func(e *Session, count int) { e.lspMove(max(count, 1)) }},
 		{"lsp.prev", "moves n servers up", func(e *Session, count int) { e.lspMove(-max(count, 1)) }},
+		{"list.next", "goes to the next place of the last list", func(e *Session, n int) { e.stepPlace(func(at, _ int) int { return at + max(n, 1) }) }},
+		{"list.prev", "goes to the place before in the last list", func(e *Session, n int) { e.stepPlace(func(at, _ int) int { return max(at, 0) - max(n, 1) }) }},
+		{"list.first", "goes to the first place of the last list", func(e *Session, _ int) { e.stepPlace(func(int, int) int { return 0 }) }},
+		{"list.last", "goes to the last place of the last list", func(e *Session, _ int) { e.stepPlace(func(_, n int) int { return n - 1 }) }},
 		{"git.next", "goes to the next hunk", func(e *Session, count int) { e.jumpHunk("next", max(count, 1)) }},
 		{"git.prev", "goes to the hunk before", func(e *Session, count int) { e.jumpHunk("prev", max(count, 1)) }},
 		{"git.first", "goes to the first hunk", func(e *Session, count int) { e.jumpHunk("first", max(count, 1)) }},
@@ -344,6 +376,7 @@ func request(name, help string) plug {
 var defaultMaps = map[string]string{
 	"-":  "<Plug>(listing.up)",
 	"]h": "<Plug>(git.next)", "[h": "<Plug>(git.prev)", "[H": "<Plug>(git.first)", "]H": "<Plug>(git.last)",
+	"]q": "<Plug>(list.next)", "[q": "<Plug>(list.prev)", "[Q": "<Plug>(list.first)", "]Q": "<Plug>(list.last)",
 	"<C-]>": "<Plug>(lsp.definition)", "K": "<Plug>(lsp.hover)",
 	"]d": "<Plug>(diagnostic]d)", "[d": "<Plug>(diagnostic[d)",
 }
