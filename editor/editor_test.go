@@ -1115,10 +1115,10 @@ func TestB215PickLists(t *testing.T) {
 	// :pick alone lists the sources, and picking one opens its finder.
 	feed(e, ":pick<CR>")
 	settle(t, e, func() bool { return shows("keymaps") })
-	feed(e, "keymaps<CR>")
+	feed(e, "keymaps<CR>zq")
 	settle(t, e, func() bool { return shows("zq  :set<Space>number<CR>") })
 	// A mapping picked runs.
-	if feed(e, "zq<CR>"); !e.Views()[0].Number {
+	if feed(e, "<CR>"); !e.Views()[0].Number {
 		t.Error("picking zq did not run it")
 	}
 	if feed(e, ":pick help<CR>guide-start<CR>"); !strings.HasPrefix(text(e), "# fude help") {
@@ -1887,6 +1887,37 @@ func captures(t *testing.T, e *editor.Session) map[string]string {
 }
 
 // B46, and B43 for the edit
+// B224
+func TestB224Folds(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.go")
+	change(t, path, "func a() {\n\tx\n\ty\n}\nfunc b() {\n\tz\n}\n")
+	e := start(t, path)
+	e.SetSize(80, 20)
+	folds := func() map[int]int { return e.Views()[0].Folds }
+	// zc in a body closes the fold of the line above it with less indent,
+	// and j passes over it.
+	if feed(e, "jzc"); !maps.Equal(folds(), map[int]int{0: 2}) || e.Cursor() != 0 {
+		t.Fatalf("zc made folds %v with the cursor at %d", folds(), e.Cursor())
+	}
+	if feed(e, "j"); e.Text().LineOf(e.Cursor()) != 3 {
+		t.Errorf("j over the fold went to line %d", e.Text().LineOf(e.Cursor()))
+	}
+	// A search into a closed fold opens it.
+	if feed(e, "gg/y<CR>"); folds() != nil {
+		t.Errorf("searching into the fold left %v", folds())
+	}
+	// zM closes every outermost fold, za opens one, and zR all.
+	if feed(e, "zM"); !maps.Equal(folds(), map[int]int{0: 2, 4: 1}) {
+		t.Errorf("zM made %v", folds())
+	}
+	if feed(e, "za"); !maps.Equal(folds(), map[int]int{4: 1}) {
+		t.Errorf("za made %v", folds())
+	}
+	if feed(e, "zR"); folds() != nil {
+		t.Errorf("zR left %v", folds())
+	}
+}
+
 // B218
 func TestB218Jump(t *testing.T) {
 	e := open(t, "")

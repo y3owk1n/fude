@@ -254,6 +254,11 @@ func init() {
 		{"listing.reload", "reads the listing's directory again", func(e *Session, _ int) { e.listingAct("reload") }},
 		{"restart", "starts fude again on the same session", func(e *Session, _ int) { e.restart() }},
 		{"jump", "jumps to a match of the characters typed next, by its label", func(e *Session, _ int) { e.jumping = &jump{} }},
+		{"fold.toggle", "opens the closed fold at the cursor, or closes the one it is in", func(e *Session, _ int) { e.foldAct("toggle") }},
+		{"fold.close", "closes the fold the cursor's line starts, or the one it is in", func(e *Session, _ int) { e.foldAct("close") }},
+		{"fold.open", "opens the closed fold at the cursor", func(e *Session, _ int) { e.foldAct("open") }},
+		{"fold.openAll", "opens every fold", func(e *Session, _ int) { e.foldAct("openAll") }},
+		{"fold.closeAll", "closes every outermost fold", func(e *Session, _ int) { e.foldAct("closeAll") }},
 		{"center", "centers the windows on a wide screen, or stops", func(e *Session, _ int) { e.center() }},
 		{"listing.up", "lists the directory of the file or listing, n levels up", func(e *Session, count int) { e.up(count) }},
 		{"timeline.earlier", "moves the text a state back", func(e *Session, _ int) { e.timelineAct("earlier") }},
@@ -389,7 +394,8 @@ var defaultMaps = map[string]string{
 	"]q": "<Plug>(list.next)", "[q": "<Plug>(list.prev)", "[Q": "<Plug>(list.first)", "]Q": "<Plug>(list.last)",
 	"<C-]>": "<Plug>(lsp.definition)", "K": "<Plug>(lsp.hover)",
 	"]d": "<Plug>(diagnostic]d)", "[d": "<Plug>(diagnostic[d)",
-	"s": "<Plug>(jump)",
+	"s":  "<Plug>(jump)",
+	"za": "<Plug>(fold.toggle)", "zc": "<Plug>(fold.close)", "zo": "<Plug>(fold.open)", "zR": "<Plug>(fold.openAll)", "zM": "<Plug>(fold.closeAll)",
 }
 
 // hostOperator is an operator fude adds, and what it does.

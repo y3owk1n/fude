@@ -428,6 +428,14 @@ func (e *Session) Feed(k vim.Key) {
 		e.later = e.later[1:]
 		e.feed(k)
 	}
+	// A cursor that lands inside a closed fold, past its first line, opens
+	// it, as search, G and marks do in Neovim (B224).
+	if t := e.Text(); len(e.win.folds) > 0 {
+		line := t.LineOf(e.Cursor())
+		if first, _ := e.win.fold(t, line); first != line {
+			e.win.openFold(t, line)
+		}
+	}
 	if e.hints != nil {
 		e.ShowHints()
 	}
@@ -590,6 +598,7 @@ type View struct {
 	ColorColumn       int            // the column of the text to shade, from 1, or 0 (B200)
 	Colours           []Colour       // text that names a colour, shown on it (B208, B209)
 	Labels            []Label        // a jump's labels, drawn over the text (B218)
+	Folds             map[int]int    // by the first line of each closed fold shown, the lines it hides (B224)
 	// Context is the start of each line pinned over the window's first rows,
 	// the functions and classes the text under them is in, with their
 	// highlights (B217).
@@ -647,7 +656,28 @@ func (e *Session) Views() []View {
 		if term := w.buf.term; term != nil && term.typing {
 			v.Cells, v.CellX, v.CellY = term.screen()
 		}
-		last := vim.LineEnd(t, t.LineStart(min(t.LineOf(top)+max(w.h-2, 0), t.Lines()-1)))
+		// The last line shown, a closed fold counting as one (B224).
+		lastStart := t.LineStart(min(t.LineOf(top)+max(w.h-2, 0), t.Lines()-1))
+		if len(w.folds) > 0 {
+			lastStart = top
+			for range max(w.h-2, 0) {
+				next, ok := w.nextLine(t, lastStart)
+				if !ok {
+					break
+				}
+				lastStart = next
+			}
+		}
+		last := vim.LineEnd(t, lastStart)
+		for _, f := range w.folds {
+			first, end := w.fold(t, t.LineOf(w.buf.text.Mark(f.first)))
+			if s := t.LineStart(first); s >= top && s <= last {
+				if v.Folds == nil {
+					v.Folds = map[int]int{}
+				}
+				v.Folds[first] = end - first
+			}
+		}
 		if h := w.buf.syntax; h != nil {
 			v.Highlights = h.Show(t, w, top, last)
 			if e.cfg.StickyContext {
@@ -944,24 +974,22 @@ func (e *Session) reveal() {
 	// half the window (B116).
 	above, below := line, line
 	for range min(w.opts.ScrollOff, (e.rows()-1)/2) {
-		if above > 0 {
-			above = vim.LineStart(t, above-1)
-		}
-		if end := vim.LineEnd(t, below); end < t.Len() {
-			below = end + 1
-		}
+		above = w.prevLine(t, above)
+		below, _ = w.nextLine(t, below)
 	}
 	// low is the earliest top that still shows below, found walking back
 	// from it, so a far jump looks at one window of lines.
 	low, rows := below, w.rows(t, below)
 	for low > 0 {
-		prev := vim.LineStart(t, low-1)
+		prev := w.prevLine(t, low)
 		if rows += w.rows(t, prev); rows > e.rows() {
 			break
 		}
 		low = prev
 	}
-	w.buf.text.MoveMark(w.top, min(max(e.Top(), low), above))
+	// A top inside a closed fold is its first line (B224).
+	first, _ := w.fold(t, t.LineOf(e.Top()))
+	w.buf.text.MoveMark(w.top, min(max(t.LineStart(first), low), above))
 	// Without wrap the view scrolls sideways the least it must to show the
 	// cursor's column (B37).
 	if col := vim.Column(t, line, c); !w.opts.Wrap {
@@ -1604,8 +1632,9 @@ func (h host) Step(n int) (int, bool) { return h.e.step(n) }
 // one.
 func (h host) IndentWidth() int { return h.e.indentWidth(h.e.win.buf) }
 
-// Fold reports no folds.
-func (h host) Fold(line int) (int, int) { return line, line }
+// Fold returns the closed fold of the current window that holds line
+// (B224).
+func (h host) Fold(line int) (int, int) { return h.e.win.fold(h.e.Text(), line) }
 
 // indentWidth is the columns an indent takes in b: its filetype's
 // indent_width, or else the global one, or else the tab width.

@@ -650,6 +650,15 @@ selected lines. `ys`, `ds` and `cs` have no meaning in Neovim, so they take
 nothing away. The vim module offers it through `Surround`, off until a
 host turns it on.
 
+### N34. Folds come from indent, through zc, zo, za, zR and zM
+
+A window folds by indent, as VS Code does by default (B224). Neovim's
+default `foldmethod` is manual, where `zf` makes a fold, and `foldmethod`
+offers indent, syntax, markers and expressions. fude has no `zf`,
+`foldmethod`, `zj`, `zk`, `zC` or `zO`. Why: indent folds work in every
+file, with or without a grammar, and grammar repos ship no fold queries
+(D28). The user asked for folding on 2026-10-17.
+
 ## Open
 
 None.

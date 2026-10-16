@@ -25,7 +25,8 @@ type window struct {
 	jumps  []place
 	jumpAt int // the jump <C-o> last moved to, or len(jumps)
 	opts   options
-	left   int // the first screen column shown, without wrap
+	left   int    // the first screen column shown, without wrap
+	folds  []fold // its closed folds (B224)
 	// pinned is the last sticky context worked out, with the text's version,
 	// the top, cursor and parse it was for, so a frame that changes none of
 	// them asks no tree.
@@ -82,6 +83,27 @@ func (w *window) numberCols() int {
 func (w *window) cols() int { return max(w.w-w.gutter(), 1) }
 
 // rows is how many rows the line at start takes in the window.
+// prevLine returns the start of the line shown before the one at start,
+// over a closed fold, or 0.
+func (w *window) prevLine(t kernel.Snapshot, start int) int {
+	line := t.LineOf(start)
+	if line == 0 {
+		return 0
+	}
+	first, _ := w.fold(t, line-1)
+	return t.LineStart(first)
+}
+
+// nextLine returns the start of the line shown after the one at start, over
+// a closed fold, or false after the last.
+func (w *window) nextLine(t kernel.Snapshot, start int) (int, bool) {
+	_, last := w.fold(t, t.LineOf(start))
+	if last+1 >= t.Lines() {
+		return start, false
+	}
+	return t.LineStart(last + 1), true
+}
+
 func (w *window) rows(t kernel.Snapshot, start int) int {
 	if !w.opts.Wrap {
 		return 1

@@ -496,8 +496,19 @@ func (c *client) view(v editor.View, left int, sel vim.Selection, visual bool) (
 	v.X, v.W = v.X+v.Gutter, v.W-v.Gutter
 	cx, cy, found := 0, 0, false
 	pos := v.Top
-	// The rows show at most one line each from the top's.
-	end := vim.LineEnd(t, t.LineStart(min(t.LineOf(v.Top)+v.H, t.Lines()-1))) + 1
+	// The rows show at most one line each from the top's, a closed fold
+	// taking one (B224). place is each line's place among them, for
+	// relative numbers, which count a closed fold as one line.
+	var place map[int]int
+	last := t.LineOf(v.Top) + v.H
+	if len(v.Folds) > 0 {
+		place, last = map[int]int{}, t.LineOf(v.Top)
+		for i := 0; i <= v.H && last < t.Lines(); i++ {
+			place[last] = i
+			last += 1 + v.Folds[last]
+		}
+	}
+	end := vim.LineEnd(t, t.LineStart(min(last, t.Lines()-1))) + 1
 	c.styles = paint(c.styles, append(v.Highlights, v.Decorations...), v.Top, end)
 	paint := c.styles
 	// Text that names a colour shows on it, in black or white, whichever
@@ -553,7 +564,11 @@ func (c *client) view(v editor.View, left int, sel vim.Selection, visual bool) (
 			c.s.PutStrStyled(v.X-2, v.Y+row, s.Text, base.Foreground(signColours[s.Name]))
 		}
 		if v.Number || v.Relative {
-			c.number(line, cur, numbers+v.SignCols, v.Y+row, v)
+			rel := max(line-cur, cur-line)
+			if at, ok := place[cur]; ok {
+				rel = max(place[line]-at, at-place[line])
+			}
+			c.number(line, rel, line == cur, numbers+v.SignCols, v.Y+row, v)
 		}
 		shade := v.CursorLine && line == cur
 		lead := -1
@@ -564,7 +579,7 @@ func (c *client) view(v editor.View, left int, sel vim.Selection, visual bool) (
 		// A tag starts each part of the sig, so two different lines never
 		// read the same. Its positions count from the line's start, so a
 		// line keeps its sig when text above it changes.
-		k := append(c.sig[:0], win...).int(row).int(len(starts)).str(text).flag(shade).int(lead).str(v.Notes[line])
+		k := append(c.sig[:0], win...).int(row).int(len(starts)).str(text).flag(shade).int(lead).str(v.Notes[line]).int(v.Folds[line])
 		for _, p := range v.Pair {
 			if p >= pos && p <= end {
 				k = k.int(1).int(p - pos)
@@ -695,6 +710,18 @@ func (c *client) view(v editor.View, left int, sel vim.Selection, visual bool) (
 					rest, width = c.s.Put(v.X+x, y, rest, style)
 					x, col = x+width, col+width
 				}
+				// A closed fold's first line says how many lines it hides.
+				if n := v.Folds[line]; n > 0 && i == len(starts)-1 && x < v.W {
+					s := fmt.Sprintf("  ⋯ %d lines ", n)
+					if n == 1 {
+						s = "  ⋯ 1 line "
+					}
+					for s != "" && x < v.W {
+						var width int
+						s, width = c.s.Put(v.X+x, y, s, base.Foreground(th.muted).Background(th.surface))
+						x += width
+					}
+				}
 				if n := v.Notes[line]; i == len(starts)-1 && x >= 0 {
 					style := base.Foreground(th.faint)
 					if shade {
@@ -719,6 +746,13 @@ func (c *client) view(v editor.View, left int, sel vim.Selection, visual bool) (
 			}
 		}
 		row += len(starts)
+		// A closed fold's other lines do not show.
+		if n := v.Folds[line]; n > 0 {
+			if line+n+1 >= t.Lines() {
+				break
+			}
+			end = vim.LineEnd(t, t.LineStart(line+n))
+		}
 		if end == t.Len() {
 			break
 		}
@@ -746,7 +780,8 @@ func (c *client) pin(v editor.View, numbers, cur int) {
 		ground := base.Background(th.surface)
 		c.s.FillArea(numbers, y, v.Gutter+v.W, 1, ' ', ground)
 		if v.Number || v.Relative {
-			c.number(t.LineOf(start), cur, numbers+v.SignCols, y, v)
+			line := t.LineOf(start)
+			c.number(line, max(line-cur, cur-line), false, numbers+v.SignCols, y, v)
 			for x := numbers; x < v.X; x++ {
 				if s, style, _ := c.s.Get(x, y); s != "" {
 					c.s.Put(x, y, s, style.Background(th.surface))
@@ -841,18 +876,18 @@ func (c *client) guides(v editor.View, lead, y int) {
 // number draws line's number in the gutter at x, y: from the cursor's
 // line cur with relative numbers, and its own on that line when numbers are
 // on too, put on the left (B39).
-func (c *client) number(line, cur, x, y int, v editor.View) {
+func (c *client) number(line, rel int, onCursor bool, x, y int, v editor.View) {
 	n := line + 1
 	if v.Relative {
-		n = max(line-cur, cur-line)
+		n = rel
 	}
 	w := v.Gutter - v.SignCols - 1
 	text := fmt.Sprintf("%*d ", w, n)
-	if v.Relative && v.Number && line == cur {
+	if v.Relative && v.Number && onCursor {
 		text = fmt.Sprintf("%-*d ", w, line+1)
 	}
 	style := base.Foreground(th.faint)
-	if v.CursorLine && line == cur {
+	if v.CursorLine && onCursor {
 		// The cursor's line number stands out.
 		style = base.Bold(true)
 	}

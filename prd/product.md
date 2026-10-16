@@ -116,4 +116,4 @@ The order is dependency order, not priority. Behaviours in
 6. Server split: RPC protocol, remote and agent clients, proposals,
    multi-client editing.
 
-Not scheduled: lenses, folding, DAP, GPU and web clients.
+Not scheduled: lenses, DAP, GPU and web clients.

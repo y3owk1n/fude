@@ -54,7 +54,7 @@ Helix and Kakoune are lean because they started over, and they changed the gramm
 
 fude fits if you think in Vim's grammar, want language servers, a finder and git without assembling them from plugins, and want one config file with no code in it.
 
-It does not fit if you depend on Neovim's Lua plugins, which fude will never run, or need a mouse, a GUI, a debugger or folding, which fude does not have. See [Status](#status) before you trust it with work.
+It does not fit if you depend on Neovim's Lua plugins, which fude will never run, or need a mouse, a GUI or a debugger, which fude does not have. See [Status](#status) before you trust it with work.
 
 ---
 
@@ -119,7 +119,7 @@ A file in a language other than Go builds its grammar in the background the firs
 
 | Area                 | What you get                                                                                                       |
 | :------------------- | :----------------------------------------------------------------------------------------------------------------- |
-| **Editing**          | `s` to jump anywhere in view by a label, `ys`, `ds` and `cs` to surround, counts on both sides of an operator, registers and the clipboard, macros as editable text, `:s` with a live preview, `:g`, `:normal` |
+| **Editing**          | `s` to jump anywhere in view by a label, `zc` and `za` to fold by indent, `ys`, `ds` and `cs` to surround, counts on both sides of an operator, registers and the clipboard, macros as editable text, `:s` with a live preview, `:g`, `:normal` |
 | **Timeline**         | `u` and `<C-r>` along a branch, `g-` and `g+` across every state, `:earlier 10m`, `:timeline` to diff and restore, `:recover` after a crash |
 | **Syntax**           | tree-sitter for Go built in, 46 more languages built on first use, code inside markdown coloured, `daf`, `cic` and `dia`, the enclosing function pinned at the top |
 | **Language servers** | Several per file, merged diagnostics, hover, definitions, references, code actions, signature help, inlay hints, a `:lsp` panel |
@@ -300,7 +300,7 @@ Measured on an Apple M-series Mac. `just check` fails when one of these regresse
 
 fude is alpha. It has no releases or version numbers yet, and the config format, the plugin ABI, the socket protocol and the timeline log on disk may change between commits. Its author uses it daily on macOS. Keep backups of work you care about.
 
-Not here yet: folding, debugging through DAP, and GPU or web clients. Never here: vimscript, Lua, the mouse, and plugins without a sandbox.
+Not here yet: debugging through DAP, and GPU or web clients. Never here: vimscript, Lua, the mouse, and plugins without a sandbox.
 
 ## Documentation
 

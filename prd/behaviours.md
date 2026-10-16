@@ -586,6 +586,16 @@ Where fude departs, the line says so and cites the departure in
   first line, and a linewise command, such as `dd`, `dj` or `V`, takes
   every line of the folds its ends are in, as Neovim does. A host with
   `vim.Defaults` has no folds.
+- B224 [2] A window folds by indent (N34). A fold starts on a line
+  followed by lines indented more, and holds them and the blank lines
+  among them, up to the last line indented more. `zc` closes the fold the
+  cursor's line starts, or else the innermost one it is in. `zo` opens the
+  closed fold it is on, and `za` does one or the other. `zR` opens every
+  fold, and `zM` closes every outermost one. A closed fold shows its first
+  line, then how many lines it hides. `j` and `k` pass over it as B223
+  says, relative numbers count it as one line, and any other move that
+  lands the cursor inside it, such as a search, `G` or a mark, opens it.
+  Folds belong to the window, and edits move them.
 - B90 [2] `<C-o>` and `<C-i>` move through the jumplist, and `g;` and `g,`
   through the changelist, as in Neovim.
 - B91 [2] `<C-w>c`, `<C-w>o`, `<C-w>q`, `<C-w>=` and `:q` in a split close
