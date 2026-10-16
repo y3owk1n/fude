@@ -15,3 +15,7 @@ oku allow
 oku sync
 just test
 ```
+
+## License
+
+fude uses the MIT license. Its text is in `LICENSE`.
