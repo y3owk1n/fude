@@ -315,6 +315,15 @@ func Build(filetype string) error {
 	if err := os.Rename(lib+".new", lib); err != nil {
 		return fmt.Errorf("build the %s grammar: %w", filetype, err)
 	}
+	// Libraries of older pins go, as nothing loads them now.
+	old, _ := filepath.Glob(filepath.Join(out, "*-*.so"))
+	for _, p := range old {
+		if p != lib {
+			if err := os.Remove(p); err != nil {
+				return fmt.Errorf("build the %s grammar: %w", filetype, err)
+			}
+		}
+	}
 	return nil
 }
 
@@ -337,6 +346,9 @@ func Grammars() []Grammar {
 		state := "not built"
 		if _, err := os.Stat(library(dir, ft)); err == nil {
 			state = "built"
+		} else if old, _ := filepath.Glob(filepath.Join(dir, ft, "*-*.so")); len(old) > 0 {
+			// It was built at an older pin, or by an older fude.
+			state = "outdated"
 		}
 		out = append(out, Grammar{ft, state})
 	}

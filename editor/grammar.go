@@ -82,6 +82,19 @@ func (e *Session) grammar(arg string) {
 		}
 		return
 	}
+	if arg == "update" {
+		var started []string
+		for _, g := range syntax.Grammars() {
+			if g.State == "outdated" && e.buildGrammar(g.Filetype, true) {
+				started = append(started, g.Filetype)
+			}
+		}
+		e.message = "every grammar built is up to date"
+		if len(started) > 0 {
+			e.message = "updating the " + strings.Join(started, ", ") + " grammars"
+		}
+		return
+	}
 	if arg != "" {
 		e.message = "not a grammar command: " + arg
 		return

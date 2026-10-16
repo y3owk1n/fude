@@ -382,9 +382,11 @@ Where fude departs, the line says so and cites the departure in
   for builds the grammar in the background, at the commit fude pins, with
   git and the tree-sitter CLI, and the file shows its highlights once the
   build ends. A build that needs a missing tool says which. `:grammar`
-  lists each grammar and whether it is linked in, built, building, not
-  built or failed, and `:grammar install <filetype>` builds one again. A
-  grammar built by hand into the grammars directory loads too.
+  lists each grammar and whether it is linked in, built, outdated (built at
+  an older pin), building, not built or failed. `:grammar install
+  <filetype>` builds one again, and `:grammar update` builds every outdated
+  one again. A build removes the libraries of older pins. A grammar built by
+  hand into the grammars directory loads too.
   `auto_install = false` turns the builds off.
 - B166 [3] Text of another language inside a file shows in that
   language's colours, as its grammar's `injections.scm` marks it: the code

@@ -2077,6 +2077,21 @@ func TestB165BuiltGrammar(t *testing.T) {
 		return slices.ContainsFunc(e.Views()[0].Highlights, func(s syntax.Span) bool { return s.Name == "keyword" })
 	})
 
+	// A grammar built at an older pin is outdated, and :grammar update
+	// builds it again. Without git on the PATH the build fails at once.
+	old := filepath.Join(data, "fude", "grammars", "toml")
+	if err := os.MkdirAll(old, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	change(t, filepath.Join(old, "0000000-1.so"), "")
+	if feed(e, ":grammar<CR>"); !strings.Contains(text(e), "toml         outdated") {
+		t.Fatalf(":grammar listed %q, want toml outdated", text(e))
+	}
+	t.Setenv("PATH", "")
+	if feed(e, ":q<CR>:grammar update<CR>"); e.Message() != "updating the toml grammars" {
+		t.Fatalf(":grammar update said %q", e.Message())
+	}
+	settle(t, e, func() bool { return strings.Contains(e.Message(), "git is not installed") })
 }
 
 // B166, through an injection a query override makes: Go inside a Go raw

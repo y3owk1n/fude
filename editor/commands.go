@@ -136,8 +136,8 @@ func init() {
 		}, func(_ *Session, _ string, start int, arg string, _ bool) (int, []string) {
 			return start, match([]string{"reload"}, arg)
 		}},
-		{vim.Command{Name: "grammar", Args: "[install {filetype}]", Help: "lists the grammars and whether each is built, or builds one again"}, func(e *Session, x call) { e.grammar(x.arg) }, func(_ *Session, _ string, start int, arg string, _ bool) (int, []string) {
-			var names []string
+		{vim.Command{Name: "grammar", Args: "[install {filetype}|update]", Help: "lists the grammars and whether each is built, builds one again, or builds again those built at an older pin"}, func(e *Session, x call) { e.grammar(x.arg) }, func(_ *Session, _ string, start int, arg string, _ bool) (int, []string) {
+			names := []string{"update"}
 			for _, g := range syntax.Grammars() {
 				names = append(names, "install "+g.Filetype)
 			}
