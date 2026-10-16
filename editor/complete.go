@@ -21,6 +21,7 @@ type menu struct {
 	items  []string          // what each puts in the text
 	labels []string          // what the menu shows of each
 	docs   []string          // each one's detail and documentation, as markdown
+	stops  [][]tabStop       // each one's snippet stops, nil for plain text
 	raws   []json.RawMessage // each as its server sent it, to resolve
 	from   []*server         // the server each came from, nil for the other sources
 	asked  map[int]bool      // the items resolve was asked for
@@ -75,8 +76,8 @@ func (e *Session) completing(k vim.Key) bool {
 	case "<C-y>":
 		e.closeMenu()
 	default:
-		e.closeMenu()
-		return false
+		// <Tab> on a snippet starts it, at its first stop.
+		return e.closeMenu() && k == "\t"
 	}
 	return true
 }
@@ -105,6 +106,13 @@ func (e *Session) complete(auto bool) {
 	local := map[string][]item{}
 	if slices.Contains(e.cfg.Sources, "buffer") {
 		local["buffer"] = e.words(t.Slice(start, c), start)
+	}
+	if slices.Contains(e.cfg.Sources, "snippet") {
+		snips, err := userSnippets(e.filetype(b), t.Slice(start, c))
+		if err != nil {
+			e.message = err.Error()
+		}
+		local["snippet"] = snips
 	}
 	if !slices.Contains(e.cfg.Sources, "lsp") || len(b.servers) == 0 {
 		e.offer(auto, t, start, local)
@@ -149,8 +157,20 @@ func (e *Session) offer(auto bool, t kernel.Snapshot, start int, items map[strin
 	}
 	m := &menu{asked: map[int]bool{}, typed: t.Slice(start, cur)}
 	seen := map[string]bool{}
+	// A snippet's lines take the indent of the line it goes on.
+	before := t.Slice(vim.LineStart(t, start), start)
+	indent := before[:len(before)-len(strings.TrimLeft(before, " \t"))]
+	unit := "\t"
+	if e.win.opts.ExpandTab {
+		unit = strings.Repeat(" ", e.indentWidth(b))
+	}
+	vars := e.snippetVars(b, start)
 	for _, source := range e.cfg.Sources {
 		for _, it := range items[source] {
+			var stops []tabStop
+			if it.snippet {
+				it.text, stops = expandSnippet(it.text, indent, unit, vars)
+			}
 			if seen[it.text] || it.text == m.typed {
 				continue
 			}
@@ -160,7 +180,7 @@ func (e *Session) offer(auto bool, t kernel.Snapshot, start int, items map[strin
 				label += "  [" + source + "]"
 			}
 			m.items, m.labels, m.docs = append(m.items, it.text), append(m.labels, label), append(m.docs, it.doc)
-			m.raws, m.from = append(m.raws, it.raw), append(m.from, it.from)
+			m.raws, m.from, m.stops = append(m.raws, it.raw), append(m.from, it.from), append(m.stops, stops)
 		}
 	}
 	if len(m.items) == 0 {
@@ -296,6 +316,7 @@ func (e *Session) choose(i int) {
 // item as it came and the server, to resolve it.
 type item struct {
 	label, text, doc string
+	snippet          bool // text is a snippet's body (B207)
 	raw              json.RawMessage
 	from             *server
 }
@@ -307,6 +328,7 @@ func readItem(raw json.RawMessage, filetype string) item {
 		Label         string          `json:"label"`
 		InsertText    string          `json:"insertText"`
 		Detail        string          `json:"detail"`
+		Format        int             `json:"insertTextFormat"`
 		Documentation json.RawMessage `json:"documentation"`
 		TextEdit      struct {
 			NewText string `json:"newText"`
@@ -317,7 +339,8 @@ func readItem(raw json.RawMessage, filetype string) item {
 	if it.Detail != "" {
 		doc = "```" + filetype + "\n" + it.Detail + "\n```\n" + doc
 	}
-	return item{label: it.Label, text: cmp.Or(it.TextEdit.NewText, it.InsertText, it.Label), doc: strings.TrimSpace(doc)}
+	// Format 2 is a snippet.
+	return item{label: it.Label, text: cmp.Or(it.TextEdit.NewText, it.InsertText, it.Label), doc: strings.TrimSpace(doc), snippet: it.Format == 2}
 }
 
 // showMenu shows the menu's labels in a float, the item in the text
@@ -413,8 +436,16 @@ func completionOptions(s *server) (completion, bool) {
 	return p, json.Unmarshal(s.client.Capability("completionProvider"), &p) == nil
 }
 
-// closeMenu stops completing and keeps what is in the text.
-func (e *Session) closeMenu() {
-	e.win.buf.text.DeleteMark(e.menu.start)
+// closeMenu stops completing and keeps what is in the text. A snippet
+// kept starts, and closeMenu reports that it did (B207).
+func (e *Session) closeMenu() bool {
+	m := e.menu
+	start := e.win.buf.text.Mark(m.start)
+	e.win.buf.text.DeleteMark(m.start)
 	e.menu, e.float, e.floatSpans, e.doc, e.docSpans = nil, "", nil, "", nil
+	if m.sel < len(m.items) && m.stops[m.sel] != nil {
+		e.startSnippet(start, m.items[m.sel], m.stops[m.sel])
+		return true
+	}
+	return false
 }

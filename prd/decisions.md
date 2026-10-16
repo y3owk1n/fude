@@ -610,6 +610,15 @@ file being edited, so it opens below it. `<Esc><Esc>` is quicker to type
 than `<C-\><C-n>`. Text that stays as it was keeps the cursor and marks in
 place in normal mode while the program goes on writing.
 
+### N30. Snippets come from VS Code's snippet files
+
+fude reads snippets from `snippets/<filetype>.json` and `snippets/all.json`
+in its config directory, in VS Code's format, and lists them as
+completions, where Neovim has `vim.snippet` to expand them and no
+snippets of its own (B207). Why: friendly-snippets, the collection most
+Neovim snippet plugins load, ships in VS Code's format, so it works as it
+is.
+
 ## Open
 
 None.

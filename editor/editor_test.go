@@ -1339,6 +1339,38 @@ func TestB206CompletionSources(t *testing.T) {
 	}
 }
 
+// B207
+func TestB207Snippets(t *testing.T) {
+	config(t, "")
+	dir := filepath.Join(os.Getenv("XDG_CONFIG_HOME"), "fude", "snippets")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	snippets := `{"for loop": {"prefix": "for", "body": ["for ${1:i} := 0; $1 < ${2:n}; $1++ {", "\t$0", "}"]}}`
+	change(t, filepath.Join(dir, "all.json"), snippets)
+	path := filepath.Join(t.TempDir(), "a.txt")
+	change(t, path, "x\n")
+	e := start(t, path)
+	feed(e, "ofor<C-x><C-o>")
+	if text(e) != "x\nfor i := 0; i < n; i++ {\n\t\n}" {
+		t.Fatalf("the snippet went in as %q", text(e))
+	}
+	// Typing replaces a stop's placeholder everywhere it repeats as it is
+	// typed. <Tab> goes on to the next stop, <S-Tab> back, and the last
+	// <Tab> to the end.
+	for _, step := range []struct{ keys, want string }{
+		{"<C-y>j", "x\nfor j := 0; j < n; j++ {\n\t\n}"},
+		{"<Tab>m<S-Tab>k", "x\nfor k := 0; k < m; k++ {\n\t\n}"},
+		{"<Tab><Tab>x", "x\nfor k := 0; k < m; k++ {\n\tx\n}"},
+	} {
+		if feed(e, step.keys); text(e) != step.want {
+			t.Errorf("%s made %q, want %q", step.keys, text(e), step.want)
+		}
+	}
+	_, log := withServer(t, "x\n", "utf-8")
+	heard(t, log, `"snippetSupport":true`, 1)
+}
+
 // B124
 func TestB124Listing(t *testing.T) {
 	dir := t.TempDir()

@@ -682,9 +682,20 @@ Where fude departs, the line says so and cites the departure in
   relative to the file's directory, and the words of the open buffers that
   start with the word typed, nearest the cursor first. So it works in a
   file with no server. `completion_sources` picks the sources and orders
-  them in the menu, `["lsp", "path", "buffer"]` by default, and the menu
+  them in the menu, `["lsp", "snippet", "path", "buffer"]` by default, and
+  the menu
   names the source of each item that is not a server's. With
   `autocomplete` on, a `/` lists a path's entries.
+- B207 [5] A completion can be a snippet, from a server or from
+  `snippets/<filetype>.json` or `snippets/all.json` in fude's config
+  directory, in VS Code's format (N30). It goes in with its placeholders,
+  first choices and variables filled in, and its lines indented as the line
+  it goes on. `<C-y>`, or `<Tab>` on it in the menu, starts it at its first
+  stop, with the placeholder shown selected. Typing replaces the
+  placeholder, and every other place the stop shows follows each key.
+  `<Tab>` and `<S-Tab>` go to the next stop and the one before. The last
+  stop, `$0` or the snippet's end, ends it, and so do leaving insert mode
+  and moving out of the stop. fude tells servers it takes snippets.
 - B67 [5] With `autocomplete` on, typing a word character or a trigger
   character in insert mode lists the server's completions, with none put in
   the text until `<C-n>` or `<C-p>`.

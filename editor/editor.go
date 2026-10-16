@@ -74,6 +74,7 @@ type Session struct {
 	jumpTo     *jumpTo        // where a plugin's call asked to move the cursor, after the key
 	lastList   *places        // the last list of places a window showed
 	sig        *Float         // the signature help showing in insert mode (B203)
+	snip       *snippet       // the snippet being filled in (B207)
 	float      string         // text shown over the windows at the cursor, such as hover
 	floatSpans []syntax.Span  // the styles of the float's text
 	doc        string         // the selected completion's documentation, beside the menu
@@ -446,7 +447,7 @@ func (e *Session) feed(k vim.Key) {
 			return
 		}
 	}
-	if e.completing(k) {
+	if e.completing(k) || e.snippetKey(k) {
 		e.reveal()
 		return
 	}
@@ -478,6 +479,7 @@ func (e *Session) feed(k vim.Key) {
 	if start, end, ok := e.vim.Flash(); ok {
 		e.flashOn(e.win.buf, start, end)
 	}
+	e.snippetAfter()
 	e.autocomplete(k)
 	e.signatureHelp(k)
 	e.autocommand()
@@ -690,6 +692,9 @@ func (e *Session) Views() []View {
 		if f := e.flash; f != nil && f.b == w.buf && f.end > top && f.start < last {
 			// Only what shows, as an undo can touch the whole text.
 			v.Decorations = append(v.Decorations, syntax.Span{Start: max(f.start, top), End: min(f.end, last), Name: "flash"})
+		}
+		if w == e.win {
+			v.Decorations = append(v.Decorations, e.snippetSpan(w.buf)...)
 		}
 		for _, ds := range e.decos {
 			for _, d := range ds {

@@ -58,12 +58,14 @@ letter stays one, as in `don't`. The default is on.
 ## completion_sources
 
 Where completions come from, in the menu's order. `lsp` is the language
-servers' items. `path` is the entries of the directory a path before the
+servers' items. `snippet` is the snippets in `snippets/<filetype>.json`
+and `snippets/all.json` next to this file, in VS Code's format, whose
+prefix starts with the word typed. `path` is the entries of the directory a path before the
 cursor names, once it holds a `/`, relative to the file's directory.
 `buffer` is the words of the open buffers that start with the word typed,
 nearest the cursor first. The menu names the source of each item that is
-not a server's. The default is `["lsp", "path", "buffer"]`, and leaving a
-name out turns that source off.
+not a server's. The default is `["lsp", "snippet", "path", "buffer"]`, and
+leaving a name out turns that source off.
 
 ## auto_install
 

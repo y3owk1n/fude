@@ -136,7 +136,7 @@ func build(t theme) styles {
 		// Markdown in floats, such as hover.
 		"markup.strong": base.Bold(true), "markup.italic": base.Italic(true), "markup.heading": base.Bold(true),
 		"markup.raw": fg(t.typ), "markup.link": base.Underline(true), "markup.rule": fg(t.faint),
-		"menu.selected": base.Background(t.raised),
+		"menu.selected": base.Background(t.raised), "snippet.placeholder": base.Background(t.selection),
 		// The letters of an item that match what was typed.
 		"match": fg(t.normal).Bold(true),
 		// What the :s being typed replaces, and what with.

@@ -25,7 +25,7 @@ type config struct {
 	Center        bool     `toml:"center" help:"the windows start centered on a wide screen, as :center toggles"`
 	Autocomplete  bool     `toml:"autocomplete" help:"completions show while typing, not only on <C-x><C-o>"`
 	Autopairs     bool     `toml:"autopairs" help:"an opening bracket or quote typed comes with its closing one"`
-	Sources       []string `toml:"completion_sources" help:"where completions come from, in the menu's order: lsp, path and buffer"`
+	Sources       []string `toml:"completion_sources" help:"where completions come from, in the menu's order: lsp, snippet, path and buffer"`
 	AutoInstall   bool     `toml:"auto_install" help:"builds a missing grammar the first time a file needs it"`
 	Socket        string   `toml:"socket" help:"where clients attach, instead of a path for each process"`
 	FormatOnSave  bool     `toml:"format_on_save" help:"a write formats the buffer first"`
@@ -75,7 +75,7 @@ type config struct {
 	} `toml:"plugin"`
 }
 
-var defaults = config{IndentWidth: 8, KeyTimeout: 1000, KeyHints: 300, FormatTimeout: 1000, LargeFile: 2, Autopairs: true, Sources: []string{"lsp", "path", "buffer"}, AutoInstall: true, Leader: "<Space>", Theme: "dark", options: options{Wrap: true, IndentGuides: true}}
+var defaults = config{IndentWidth: 8, KeyTimeout: 1000, KeyHints: 300, FormatTimeout: 1000, LargeFile: 2, Autopairs: true, Sources: []string{"lsp", "snippet", "path", "buffer"}, AutoInstall: true, Leader: "<Space>", Theme: "dark", options: options{Wrap: true, IndentGuides: true}}
 
 // options are the settings each window has, which :set changes for the
 // current window and the windows opened after it (B39). :set takes each by
