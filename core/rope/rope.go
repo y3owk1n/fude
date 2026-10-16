@@ -29,9 +29,27 @@ func (r Rope) Slice(start, end int) string {
 	if start < 0 || end > r.Len() || start > end {
 		panic("rope: slice out of range")
 	}
+	if start == end {
+		return ""
+	}
+	// A range inside one leaf is that leaf's own text, without a copy.
+	n := r.root
+	for n.left != nil {
+		l := n.left.length
+		if end <= l {
+			n = n.left
+		} else if start >= l {
+			n, start, end = n.right, start-l, end-l
+		} else {
+			break
+		}
+	}
+	if n.left == nil {
+		return n.text[start:end]
+	}
 	var b strings.Builder
 	b.Grow(end - start)
-	collect(r.root, start, end, &b)
+	collect(n, start, end, &b)
 	return b.String()
 }
 
