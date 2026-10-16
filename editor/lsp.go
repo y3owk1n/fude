@@ -341,15 +341,12 @@ func (e *Session) notified(s *server, method string, params json.RawMessage) {
 }
 
 // diagnostic moves the cursor to the nth diagnostic after it, or before it
-// when n is negative, going round the ends, and shows its message.
+// when n is negative, going round the ends, and shows it in a float.
 func (e *Session) diagnostic(n int) {
 	b := e.win.buf
 	var at []int
-	notes := map[int]string{}
 	for _, d := range e.diagnostics(b) {
-		p := b.text.Mark(d.start)
-		at = append(at, p)
-		notes[p] = d.note
+		at = append(at, b.text.Mark(d.start))
 	}
 	if len(at) == 0 {
 		e.message = "no diagnostics"
@@ -370,7 +367,40 @@ func (e *Session) diagnostic(n int) {
 	p := at[((i%len(at))+len(at))%len(at)]
 	e.pushJump(c)
 	e.setCursor(p)
-	e.message = notes[p]
+	e.diagnosticFloat(b, p)
+}
+
+// diagnosticFloat shows the diagnostics that start at p in a float at the
+// cursor, each message in its severity's colour with the source and code
+// its server gives after it (B61).
+func (e *Session) diagnosticFloat(b *buffer, p int) {
+	var text strings.Builder
+	var spans []syntax.Span
+	for _, d := range e.diagnostics(b) {
+		if b.text.Mark(d.start) != p {
+			continue
+		}
+		var from struct {
+			Source string          `json:"source"`
+			Code   json.RawMessage `json:"code"`
+		}
+		json.Unmarshal(d.raw, &from)
+		if text.Len() > 0 {
+			text.WriteByte('\n')
+		}
+		spans = append(spans, syntax.Span{Start: text.Len(), End: text.Len() + len(d.note), Name: d.style + ".text"})
+		text.WriteString(d.note)
+		// A code is a number or a string.
+		source := from.Source
+		if code := strings.Trim(string(from.Code), `"`); code != "" {
+			source += "(" + code + ")"
+		}
+		if source != "" {
+			spans = append(spans, syntax.Span{Start: text.Len() + 2, End: text.Len() + 2 + len(source), Name: "comment"})
+			text.WriteString("  " + source)
+		}
+	}
+	e.float, e.floatSpans = text.String(), spans
 }
 
 // requests are the language server requests that commands send, by name.

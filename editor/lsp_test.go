@@ -181,7 +181,7 @@ func TestFakeServer(t *testing.T) {
 				for i := 0; strings.Contains(l[i:], "bad"); i += 3 {
 					i += strings.Index(l[i:], "bad")
 					r := map[string]any{"start": map[string]int{"line": line, "character": i}, "end": map[string]int{"line": line, "character": i + 3}}
-					ds = append(ds, map[string]any{"range": r, "severity": 1, "message": "bad word"})
+					ds = append(ds, map[string]any{"range": r, "severity": 1, "message": "bad word", "source": "fake", "code": 7})
 				}
 			}
 			body, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "method": "textDocument/publishDiagnostics", "params": map[string]any{"uri": m.Params.TextDocument.URI, "diagnostics": ds}})
@@ -419,8 +419,9 @@ func TestB61Diagnostics(t *testing.T) {
 		keys string
 		at   int
 	}{{"gg]d", 3}, {"]d", 9}, {"]d", 3}, {"[d", 9}, {"gg2]d", 9}} {
-		if feed(e, c.keys); e.Cursor() != c.at || e.Message() != "bad word" {
-			t.Errorf("%s put the cursor at %d saying %q, want %d and the message", c.keys, e.Cursor(), e.Message(), c.at)
+		feed(e, c.keys)
+		if f, _ := e.Float(); e.Cursor() != c.at || f.Text != "bad word  fake(7)" || f.Spans[0].Name != "diagnostic.error.text" || e.Message() != "" {
+			t.Errorf("%s put the cursor at %d showing %q, want %d and the diagnostic in a float", c.keys, e.Cursor(), f.Text, c.at)
 		}
 	}
 	feed(e, "ggOx<Esc>gg]d")

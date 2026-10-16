@@ -656,6 +656,9 @@ Where fude departs, the line says so and cites the departure in
   the encoding the server chose, or the whole text to a server that syncs
   whole texts.
 - B61 [5] Diagnostics show inline and `]d` and `[d` move between them.
+  Each move shows the diagnostics that start at the cursor in a float
+  there, in their severity's colour, with their source and code, until the
+  next key.
 - B62 [5] `<C-]>` jumps to the definition and `K` shows hover, as in
   Neovim with a server attached.
 - B63 [5] A server that crashes is reported and restarted once. Editing never
