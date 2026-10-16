@@ -36,7 +36,7 @@ type buffer struct {
 
 	log      *history          // the timeline on disk, nil for a buffer with no file
 	syntax   *syntax.Buffer    // nil without a grammar for the filetype
-	server   *server           // the language server it is attached to, or nil
+	servers  []*server         // the language servers attached to it, in its filetype's order
 	signed   bool              // it has diagnostics, so windows show a sign column
 	listed   string            // the directory a listing lists, "" for any other buffer
 	entries  []entry           // a listing's names as it read them
@@ -48,7 +48,6 @@ type buffer struct {
 	branch   string            // the git branch of its repository, "" outside one
 	gitStale bool              // the text changed since the last diff
 	gitBusy  bool              // a diff runs
-	version  int               // the changes the server has heard since it opened
 	unsaved  kernel.NodeID     // the newest unsaved change from a session that did not close
 	// A scratch buffer shows something about another buffer, such as its
 	// timeline, under a title instead of a file name.

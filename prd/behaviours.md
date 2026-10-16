@@ -293,12 +293,14 @@ Where fude departs, the line says so and cites the departure in
   (N20). `j` and `k` move between cards, and a panel taller than the
   screen scrolls to show the card under the cursor. `r`, `s`, `d` and `e`
   restart, stop, disable or enable that server, as `[keymap.lsp]` maps
-  them. `:lsp restart` restarts the current file's server, or starts
-  it again after it stayed off (B63), and opens its files in the new one.
-- B160 [5] `:lsp stop` stops the current file's server, and opening a file
-  it serves starts it again. `:lsp disable` stops it and keeps it off for
-  every file until `:lsp enable`, even through `:lsp restart`. `:lsp
-  enable` starts it for the open files of the current file's filetype.
+  them. `:lsp restart` restarts each of the current file's servers, or
+  starts one again after it stayed off (B63), and opens its files in the
+  new one.
+- B160 [5] `:lsp stop` stops each of the current file's servers, and
+  opening a file one serves starts it again. `:lsp disable` stops them and
+  keeps them off for every file until `:lsp enable`, even through `:lsp
+  restart`. `:lsp enable` starts them for the open files of the current
+  file's filetype.
 - B161 [5] While a file's language server starts or reports work, the
   file's status line shows a spinner, the server's name and what it is
   doing, with a percentage when the server gives one. Once the server is
@@ -473,7 +475,7 @@ Where fude departs, the line says so and cites the departure in
 
 ## LSP
 
-- B60 [5] fude starts the server configured for the buffer's language,
+- B60 [5] fude starts the servers configured for the buffer's language,
   offers `utf-8` then `utf-16` positions, and sends incremental changes in
   the encoding the server chose.
 - B61 [5] Diagnostics show inline and `]d` and `[d` move between them.
@@ -508,6 +510,16 @@ Where fude departs, the line says so and cites the departure in
   it starts, and its `settings` go to it once it has started. A server
   that asks for a section of its settings, such as `gopls.ui`, gets that
   part of them.
+- B169 [5] Each server a filetype names starts for its files, and the
+  diagnostics of every one show. Hover, definitions, references,
+  implementations, type definitions, symbols, code actions and completions
+  come from every server that offers them, in the filetype's order. With
+  several servers, each code action names its own. Rename, signature help
+  and formatting go to the first server that offers them (N22). An
+  `[lsp.<name>]` table's `files` keeps its server to the files that match
+  one of its patterns: a name, such as `*.go`, or with a slash the end of a
+  path, such as `.github/workflows/*`. `workspace_required` keeps it to
+  files under one of its root files.
 
 ## Server and clients
 

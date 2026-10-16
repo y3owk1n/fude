@@ -50,6 +50,8 @@ type config struct {
 		Root        []string       `toml:"root" help:"the files that mark a project's root, most wanted first, looked for from the file's folder up"`
 		Settings    map[string]any `toml:"settings" help:"the server's settings, which it reads by section"`
 		InitOptions map[string]any `toml:"init_options" help:"what the server gets as its initialization options"`
+		Files       []string       `toml:"files" help:"the files the server is for, as patterns of names or, with a slash, of the ends of paths, such as .github/workflows/*"`
+		Workspace   bool           `toml:"workspace_required" help:"the server starts only for a file under one of its root files"`
 	} `toml:"lsp" key:"name"`
 	Plugin []struct {
 		Path         string   `toml:"path" help:"the plugin's file, from the config directory"`

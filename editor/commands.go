@@ -100,12 +100,22 @@ func init() {
 		}},
 		{vim.Command{Name: "jumps", Short: []string{"ju"}, Help: "lists the window's jumps"}, func(e *Session, _ call) { e.jumps() }, nil},
 		{vim.Command{Name: "later", Args: "{n}", Help: "goes n states forward. n may be a time such as 5m, or a count of writes such as 1f"}, func(e *Session, x call) { e.travel(x.arg, true) }, nil},
-		{vim.Command{Name: "lsp", Args: "[restart|stop|disable|enable]", Help: "opens the panel of language servers, or acts on the file's server"}, func(e *Session, x call) {
+		{vim.Command{Name: "lsp", Args: "[restart|stop|disable|enable]", Help: "opens the panel of language servers, or acts on the file's servers"}, func(e *Session, x call) {
 			if x.arg == "" {
 				e.lspPanel()
 				return
 			}
-			e.lspCommand(x.arg, e.serverOf(e.win.buf))
+			names := e.serverNames(e.win.buf)
+			if len(names) == 0 {
+				e.lspCommand(x.arg, "")
+				return
+			}
+			var said []string
+			for _, name := range names {
+				e.lspCommand(x.arg, name)
+				said = append(said, e.message)
+			}
+			e.message = strings.Join(slices.Compact(said), "  ")
 		}, func(_ *Session, _ string, start int, arg string, _ bool) (int, []string) {
 			return start, match(lspCommands, arg)
 		}},

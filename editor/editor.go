@@ -353,9 +353,9 @@ func (l heard) Changed(before kernel.Snapshot, edits []kernel.Edit) {
 	if l.b.syntax != nil {
 		l.b.syntax.Changed(before, out)
 	}
-	if s := l.b.server; s != nil {
-		l.b.version++
-		s.client.Change(lsp.URI(l.b.file.path), l.b.version, before, out)
+	for _, s := range l.b.servers {
+		s.versions[l.b]++
+		s.client.Change(lsp.URI(l.b.file.path), s.versions[l.b], before, out)
 	}
 }
 
@@ -543,10 +543,13 @@ func (e *Session) Views() []View {
 			}
 		}
 		v.Branch, v.Filetype = w.buf.branch, e.filetype(w.buf)
-		if s := w.buf.server; s != nil {
-			v.Server, v.Progress = s.name, s.doing()
+		var names []string
+		for _, s := range w.buf.servers {
+			names = append(names, s.name)
+			v.Progress = cmp.Or(v.Progress, s.doing())
 		}
-		for _, d := range e.decos[w.buf] {
+		v.Server = strings.Join(names, ", ")
+		for _, d := range e.diagnostics(w.buf) {
 			switch d.style {
 			case "diagnostic.error":
 				v.Errors++
@@ -627,7 +630,7 @@ func (e *Session) signs(b *buffer, top, last int) map[int]Sign {
 	if out == nil {
 		out = map[int]Sign{}
 	}
-	for _, d := range e.decos[b] {
+	for _, d := range e.diagnostics(b) {
 		line := t.LineOf(b.text.Mark(d.start))
 		i := slices.IndexFunc(diagnosticSigns, func(s Sign) bool { return s.Name == d.style })
 		if old, ok := out[line]; i >= 0 && (!ok || !slices.Contains(diagnosticSigns, old) || i < slices.Index(diagnosticSigns, old)) {
@@ -1095,7 +1098,6 @@ func (e *Session) close(b *buffer, force bool) {
 	for owner, ds := range e.decos {
 		e.decos[owner] = slices.DeleteFunc(ds, func(d decoration) bool { return d.buf == b })
 	}
-	delete(e.decos, b)
 	i := index(e.bufs, b)
 	e.bufs = append(e.bufs[:i], e.bufs[i+1:]...)
 	if len(e.bufs) == 0 {

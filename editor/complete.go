@@ -19,7 +19,8 @@ type menu struct {
 	items  []string          // what each puts in the text
 	labels []string          // what the menu shows of each
 	docs   []string          // each one's detail and documentation, as markdown
-	raws   []json.RawMessage // each as the server sent it, to resolve
+	raws   []json.RawMessage // each as its server sent it, to resolve
+	from   []*server         // the server each came from
 	asked  map[int]bool      // the items resolve was asked for
 	start  kernel.MarkID
 	typed  string // the word it replaced, the menu's last stop
@@ -38,7 +39,7 @@ func (e *Session) completing(k vim.Key) bool {
 		}
 		return false
 	}
-	if k == "<C-s>" && e.win.buf.server != nil {
+	if k == "<C-s>" && len(e.win.buf.servers) > 0 {
 		e.signature()
 		return true
 	}
@@ -74,13 +75,12 @@ func (e *Session) completing(k vim.Key) bool {
 	return true
 }
 
-// complete asks the current buffer's server what may go at the cursor, and
-// shows the answer as a menu with its first item in the text, or with none
-// when auto. It drops an answer for text that changed since.
+// complete asks the current buffer's servers what may go at the cursor, and
+// shows their answers as one menu with its first item in the text, or with
+// none when auto. It drops answers for text that changed since (B169).
 func (e *Session) complete(auto bool) {
 	b := e.win.buf
-	s := b.server
-	if s == nil {
+	if len(b.servers) == 0 {
 		e.message = "no language server"
 		return
 	}
@@ -90,17 +90,25 @@ func (e *Session) complete(auto bool) {
 		start--
 	}
 	mark := b.text.SetMark(start, kernel.Left)
-	s.client.Request("textDocument/completion", func(enc string) any {
+	asked := ask(b.servers, "textDocument/completion", func(_ *server, enc string) any {
 		return map[string]any{"textDocument": map[string]any{"uri": uri}, "position": lsp.Point(t, c, enc)}
-	}, func(res json.RawMessage) {
-		// The answer is a list, or a list inside an object.
+	}, func(rs []reply) {
 		var items []json.RawMessage
-		if json.Unmarshal(res, &items) != nil {
-			var list struct {
-				Items []json.RawMessage `json:"items"`
+		var from []*server
+		for _, r := range rs {
+			// The answer is a list, or a list inside an object.
+			var got []json.RawMessage
+			if json.Unmarshal(r.res, &got) != nil {
+				var list struct {
+					Items []json.RawMessage `json:"items"`
+				}
+				json.Unmarshal(r.res, &list)
+				got = list.Items
 			}
-			json.Unmarshal(res, &list)
-			items = list.Items
+			items = append(items, got...)
+			for range got {
+				from = append(from, r.s)
+			}
 		}
 		start := b.text.Mark(mark)
 		cur := e.Cursor()
@@ -114,7 +122,7 @@ func (e *Session) complete(auto bool) {
 		if e.menu != nil {
 			e.closeMenu()
 		}
-		m := &menu{raws: items, asked: map[int]bool{}, start: mark, typed: b.text.Snapshot().Slice(start, cur), sel: len(items)}
+		m := &menu{raws: items, from: from, asked: map[int]bool{}, start: mark, typed: b.text.Snapshot().Slice(start, cur), sel: len(items)}
 		for _, raw := range items {
 			it := readItem(raw, e.filetype(b))
 			m.items, m.labels, m.docs = append(m.items, it.text), append(m.labels, it.label), append(m.docs, it.doc)
@@ -126,6 +134,12 @@ func (e *Session) complete(auto bool) {
 		}
 		e.choose(0)
 	})
+	if !asked {
+		b.text.DeleteMark(mark)
+		if !auto {
+			e.message = "no language server offers completion"
+		}
+	}
 }
 
 // choose puts item i of the menu in the text, or the typed word for the
@@ -200,8 +214,8 @@ func (e *Session) showMenu() {
 // resolve asks the server once for the documentation of item i of m, which
 // came without any, and shows it if the item is still selected.
 func (e *Session) resolve(m *menu, i int) {
-	s := e.win.buf.server
-	if s == nil || m.asked[i] {
+	s := m.from[i]
+	if m.asked[i] {
 		return
 	}
 	m.asked[i] = true
@@ -210,6 +224,9 @@ func (e *Session) resolve(m *menu, i int) {
 	}
 	ft := e.filetype(e.win.buf)
 	s.client.Request("completionItem/resolve", func(string) any { return m.raws[i] }, func(res json.RawMessage) {
+		if res == nil {
+			return
+		}
 		if m.docs[i] = readItem(res, ft).doc; e.menu == m && m.sel == i {
 			e.showMenu()
 		}
@@ -217,13 +234,16 @@ func (e *Session) resolve(m *menu, i int) {
 }
 
 // autocomplete asks for completions after k typed a word character, or a
-// character the server names as a trigger, while autocomplete is on (B67).
+// character one of the servers names as a trigger, while autocomplete is on
+// (B67).
 func (e *Session) autocomplete(k vim.Key) {
-	s := e.win.buf.server
-	if !e.cfg.Autocomplete || s == nil || e.vim.Mode() != vim.Insert || utf8.RuneCountInString(string(k)) != 1 || k == "<" {
+	if !e.cfg.Autocomplete || e.vim.Mode() != vim.Insert || utf8.RuneCountInString(string(k)) != 1 || k == "<" {
 		return
 	}
-	if p, ok := completionOptions(s); ok && (isWord(k[0]) || slices.Contains(p.TriggerCharacters, string(k))) {
+	if slices.ContainsFunc(e.win.buf.servers, func(s *server) bool {
+		p, ok := completionOptions(s)
+		return ok && (isWord(k[0]) || slices.Contains(p.TriggerCharacters, string(k)))
+	}) {
 		e.complete(true)
 	}
 }

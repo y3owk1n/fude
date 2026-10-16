@@ -72,12 +72,13 @@ func (e *Session) lspCommand(sub, name string) {
 		delete(e.down, name)
 	}
 	for _, b := range e.bufs {
-		if b.server == nil && e.serverOf(b) == name {
-			if err := e.attach(b); err != nil {
+		if slices.Contains(e.serverNames(b), name) {
+			if err := e.attachTo(b, name); err != nil {
 				e.message = err.Error()
 			}
 		}
 	}
+	e.syncKeys()
 	switch {
 	case e.down[name] == disabled:
 		e.message = name + " is off until :lsp enable"

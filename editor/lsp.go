@@ -29,6 +29,7 @@ type server struct {
 	restarted bool // it crashed once, and the next crash leaves it off
 	closing   bool // fude asked it to exit
 	bufs      []*buffer
+	versions  map[*buffer]int  // the changes it has heard of each, since it opened
 	work      map[string]*work // by token, what it reports doing (B161)
 }
 
@@ -85,12 +86,28 @@ func (s *server) doing() string {
 	return text
 }
 
-// attach connects b to the language server its filetype names, starting one
-// for b's project root when none runs, and returns why it could not
-// (B60, B167).
+// attach connects b to each language server its filetype names, and
+// returns why any could not start (B60, B169).
 func (e *Session) attach(b *buffer) error {
-	name := e.serverOf(b)
-	if name == "" || e.down[name] == disabled || e.down[name] == notInstalled || b.file.path == "" || b.title != "" {
+	var failed []string
+	for _, name := range e.serverNames(b) {
+		if err := e.attachTo(b, name); err != nil {
+			failed = append(failed, err.Error())
+		}
+	}
+	e.syncKeys()
+	if len(failed) > 0 {
+		return errors.New(strings.Join(failed, "  "))
+	}
+	return nil
+}
+
+// attachTo connects b to the language server name when it is for b and not
+// attached yet, starting one for b's project root when none runs (B167,
+// B169).
+func (e *Session) attachTo(b *buffer, name string) error {
+	if e.down[name] == disabled || e.down[name] == notInstalled || b.file.path == "" || b.title != "" ||
+		slices.ContainsFunc(b.servers, func(s *server) bool { return s.name == name }) {
 		return nil
 	}
 	abs, err := filepath.Abs(b.file.path)
@@ -98,7 +115,10 @@ func (e *Session) attach(b *buffer) error {
 		return err
 	}
 	c := e.cfg.LSP[name]
-	root := rootOf(abs, c.Root)
+	root, found := rootOf(abs, c.Root)
+	if !found && c.Workspace || len(c.Files) > 0 && !slices.ContainsFunc(c.Files, func(p string) bool { return matchEnd(p, abs) }) {
+		return nil
+	}
 	key := name + "\x00" + root
 	s := e.servers[key]
 	if s == nil {
@@ -106,7 +126,7 @@ func (e *Session) attach(b *buffer) error {
 		if len(command) == 0 {
 			command = []string{name}
 		}
-		s = &server{name: name, command: command, root: root}
+		s = &server{name: name, command: command, root: root, versions: map[*buffer]int{}}
 		if err := e.start(s); err != nil {
 			e.down[name] = err.Error()
 			// A program missing from PATH stays missing, so files opened
@@ -119,29 +139,30 @@ func (e *Session) attach(b *buffer) error {
 		e.servers[key] = s
 		delete(e.down, name)
 	}
-	s.bufs = append(s.bufs, b)
-	b.server, b.version = s, 0
+	s.bufs, s.versions[b] = append(s.bufs, b), 0
+	// A server attached again after :lsp restart keeps its place.
+	names := e.serverNames(b)
+	b.servers = append(b.servers, s)
+	slices.SortStableFunc(b.servers, func(x, y *server) int {
+		return cmp.Compare(slices.Index(names, x.name), slices.Index(names, y.name))
+	})
 	s.client.Open(lsp.URI(b.file.path), languageID(e.filetype(b)), b.text.Snapshot())
-	e.syncKeys()
 	return nil
 }
 
-// serverOf names the language server of b's filetype, or is "" for none.
-func (e *Editor) serverOf(b *buffer) string {
-	if names := e.cfg.Filetype[e.filetype(b)].LSP; len(names) > 0 {
-		return names[0]
-	}
-	return ""
+// serverNames are the language servers of b's filetype, in order.
+func (e *Editor) serverNames(b *buffer) []string {
+	return e.cfg.Filetype[e.filetype(b)].LSP
 }
 
 // rootOf returns the project root of the file at abs: the nearest folder
 // above it that holds the first of markers found, or the file's folder
-// when it has none (B167).
-func rootOf(abs string, markers []string) string {
+// when it has none, and whether a marker was found (B167).
+func rootOf(abs string, markers []string) (string, bool) {
 	for _, m := range markers {
 		for dir := filepath.Dir(abs); ; {
 			if _, err := os.Stat(filepath.Join(dir, m)); err == nil {
-				return dir
+				return dir, true
 			}
 			up := filepath.Dir(dir)
 			if up == dir {
@@ -150,7 +171,16 @@ func rootOf(abs string, markers []string) string {
 			dir = up
 		}
 	}
-	return filepath.Dir(abs)
+	return filepath.Dir(abs), false
+}
+
+// matchEnd reports whether pattern matches the file at abs: its name, or
+// with a slash in pattern, as many of the path's last parts (B169).
+func matchEnd(pattern, abs string) bool {
+	parts := strings.Split(abs, string(filepath.Separator))
+	n := strings.Count(pattern, "/") + 1
+	ok, _ := filepath.Match(pattern, strings.Join(parts[max(len(parts)-n, 0):], "/"))
+	return ok
 }
 
 // languageID is the protocol's name for filetype ft. It is ft except for
@@ -159,13 +189,39 @@ func languageID(ft string) string {
 	return cmp.Or(map[string]string{"bash": "shellscript", "tsx": "typescriptreact"}[ft], ft)
 }
 
-// detach disconnects b from its language server.
+// detach disconnects b from its language servers.
 func (e *Session) detach(b *buffer) {
-	if s := b.server; s != nil {
+	for _, s := range b.servers {
 		s.client.CloseDocument(lsp.URI(b.file.path))
 		s.bufs = slices.DeleteFunc(s.bufs, func(o *buffer) bool { return o == b })
-		b.server = nil
+		delete(s.versions, b)
+		e.forget(s, b)
 	}
+	b.servers = nil
+}
+
+// diagnosed owns the diagnostics a server published for a buffer.
+type diagnosed struct {
+	s *server
+	b *buffer
+}
+
+// diagnostics are b's diagnostics from each of its servers.
+func (e *Editor) diagnostics(b *buffer) []decoration {
+	var out []decoration
+	for _, s := range b.servers {
+		out = append(out, e.decos[diagnosed{s, b}]...)
+	}
+	return out
+}
+
+// forget drops the diagnostics s published for b.
+func (e *Editor) forget(s *server, b *buffer) {
+	for _, d := range e.decos[diagnosed{s, b}] {
+		d.remove()
+	}
+	delete(e.decos, diagnosed{s, b})
+	b.signed = len(e.diagnostics(b)) > 0
 }
 
 func (e *Session) start(s *server) error {
@@ -204,7 +260,7 @@ func (e *Session) exited(s *server, err error) {
 		return
 	}
 	for _, b := range s.bufs {
-		b.version = 0
+		s.versions[b] = 0
 		s.client.Open(lsp.URI(b.file.path), languageID(e.filetype(b)), b.text.Snapshot())
 	}
 	e.message = fmt.Sprintf("language server %s exited (%v) and was restarted", s.name, err)
@@ -213,7 +269,8 @@ func (e *Session) exited(s *server, err error) {
 // stop detaches every buffer from s and forgets it.
 func (e *Session) stop(s *server) {
 	for _, b := range s.bufs {
-		b.server = nil
+		b.servers = slices.DeleteFunc(b.servers, func(o *server) bool { return o == s })
+		e.forget(s, b)
 	}
 	e.syncKeys()
 	for k, o := range e.servers {
@@ -250,7 +307,7 @@ func (e *Session) notified(s *server, method string, params json.RawMessage) {
 		return
 	}
 	b := s.bufs[i]
-	for _, d := range e.decos[b] {
+	for _, d := range e.decos[diagnosed{s, b}] {
 		d.remove()
 	}
 	t, enc := b.text.Snapshot(), s.client.Encoding()
@@ -271,7 +328,8 @@ func (e *Session) notified(s *server, method string, params json.RawMessage) {
 		start, end := lsp.Offset(t, d.Range.Start, enc), lsp.Offset(t, d.Range.End, enc)
 		ds = append(ds, decoration{0, b, b.text.SetMark(start, kernel.Right), b.text.SetMark(end, kernel.Left), style, d.Message, raw})
 	}
-	e.decos[b], b.signed = ds, len(ds) > 0
+	e.decos[diagnosed{s, b}] = ds
+	b.signed = len(e.diagnostics(b)) > 0
 	e.emit("lsp.diagnostics", "", b)
 }
 
@@ -281,7 +339,7 @@ func (e *Session) diagnostic(n int) {
 	b := e.win.buf
 	var at []int
 	notes := map[int]string{}
-	for _, d := range e.decos[b] {
+	for _, d := range e.diagnostics(b) {
 		p := b.text.Mark(d.start)
 		at = append(at, p)
 		notes[p] = d.note
@@ -330,7 +388,7 @@ var attached = map[string]string{
 // syncKeys maps the attached keys while the current buffer has a language
 // server and removes them otherwise, so gr waits for nothing without one.
 func (e *Session) syncKeys() {
-	if want := e.win.buf.server != nil; want != e.lspKeys {
+	if want := len(e.win.buf.servers) > 0; want != e.lspKeys {
 		for keys, name := range attached {
 			if want {
 				e.vim.Map(vim.Normal, keys, "<Plug>("+name+")")
@@ -352,8 +410,7 @@ func (e *Session) request(name string) {
 		return
 	}
 	b := e.win.buf
-	s := b.server
-	if s == nil {
+	if len(b.servers) == 0 {
 		e.message = "no language server"
 		return
 	}
@@ -377,7 +434,7 @@ func (e *Session) request(name string) {
 		return
 	}
 	t, c, uri := b.text.Snapshot(), e.Cursor(), lsp.URI(b.file.path)
-	s.client.Request(requests[name], func(enc string) any {
+	asked := ask(b.servers, requests[name], func(_ *server, enc string) any {
 		p := map[string]any{"textDocument": map[string]any{"uri": uri}}
 		if name != "lsp.symbols" {
 			p["position"] = lsp.Point(t, c, enc)
@@ -386,16 +443,63 @@ func (e *Session) request(name string) {
 			p["context"] = map[string]any{"includeDeclaration": true}
 		}
 		return p
-	}, func(res json.RawMessage) {
+	}, func(rs []reply) {
 		switch name {
 		case "lsp.hover":
-			e.hover(res)
+			e.hover(rs)
 		case "lsp.symbols":
-			e.symbols(s, b, res)
+			e.symbols(b, rs)
 		default:
-			e.locate(s, name, res)
+			e.locate(name, rs)
 		}
 	})
+	if !asked {
+		e.message = "no language server offers " + strings.TrimPrefix(name, "lsp.")
+	}
+}
+
+// reply is a server's answer to a request, nil when it answered with an
+// error.
+type reply struct {
+	s   *server
+	res json.RawMessage
+}
+
+// offers reports whether s offers method, such as textDocument/hover. A
+// server that has not started yet may.
+func (s *server) offers(method string) bool {
+	return s.client.Encoding() == "" || s.client.Supports(strings.TrimPrefix(method, "textDocument/")+"Provider")
+}
+
+// ask sends method to each of servers that offers it, with the params build
+// makes for that server in its encoding, and passes answer their replies in
+// the servers' order once every one has come. build runs off the editor
+// loop. It reports whether any server was asked (B169).
+func ask(servers []*server, method string, build func(s *server, enc string) any, answer func([]reply)) bool {
+	var to []*server
+	for _, s := range servers {
+		if s.offers(method) {
+			to = append(to, s)
+		}
+	}
+	replies, left := make([]reply, len(to)), len(to)
+	for i, s := range to {
+		s.client.Request(method, func(enc string) any { return build(s, enc) }, func(res json.RawMessage) {
+			replies[i] = reply{s, res}
+			if left--; left == 0 {
+				answer(replies)
+			}
+		})
+	}
+	return len(to) > 0
+}
+
+// first returns the first of servers that offers method, or nil.
+func first(servers []*server, method string) *server {
+	if i := slices.IndexFunc(servers, func(s *server) bool { return s.offers(method) }); i >= 0 {
+		return servers[i]
+	}
+	return nil
 }
 
 // rename asks the current buffer's server to rename the symbol where grn
@@ -403,9 +507,9 @@ func (e *Session) request(name string) {
 // they name (B66).
 func (e *Session) rename(name string) {
 	b := e.win.buf
-	s := b.server
+	s := first(b.servers, requests["lsp.rename"])
 	if s == nil {
-		e.message = "no language server"
+		e.message = "no language server offers rename"
 		return
 	}
 	if name == "" {
@@ -416,6 +520,9 @@ func (e *Session) rename(name string) {
 	s.client.Request(requests["lsp.rename"], func(enc string) any {
 		return map[string]any{"textDocument": map[string]any{"uri": uri}, "position": lsp.Point(t, c, enc), "newName": name}
 	}, func(res json.RawMessage) {
+		if res == nil {
+			return
+		}
 		changed, problems := e.workspaceEdit(s, b, t, res)
 		e.message = fmt.Sprintf("renamed in %d files", changed)
 		if len(problems) > 0 {
@@ -480,7 +587,7 @@ func (e *Session) workspaceEdit(s *server, from *buffer, t kernel.Snapshot, res 
 			base = t
 		}
 		stale := fmt.Sprintf("%s changed since the server answered, so it was left alone", b.name())
-		if f.version != nil && b.server == s && b != from && *f.version != b.version {
+		if f.version != nil && slices.Contains(b.servers, s) && b != from && *f.version != s.versions[b] {
 			problems = append(problems, stale)
 			continue
 		}
@@ -554,38 +661,43 @@ func section(settings map[string]any, name string) any {
 // pick is a numbered list of code actions. Typing a number and <CR> picks
 // one.
 type pick struct {
-	s       *server
 	b       *buffer
 	t       kernel.Snapshot
-	actions []json.RawMessage
+	actions []reply // each action and the server it is from
 	typed   string
 }
 
-// codeActions asks for the code actions at the cursor, with the diagnostics
-// on its line, and shows them to pick from (B66).
+// codeActions asks each server for the code actions at the cursor, with
+// the diagnostics it published on the cursor's line, and shows them to pick
+// from. With several servers, each action names its own (B66, B169).
 func (e *Session) codeActions() {
 	b := e.win.buf
-	s := b.server
-	if s == nil {
-		e.message = "no language server"
-		return
-	}
 	t, c, uri := b.text.Snapshot(), e.Cursor(), lsp.URI(b.file.path)
-	diags := []json.RawMessage{}
-	for _, d := range e.decos[b] {
-		if d.raw != nil && t.LineOf(b.text.Mark(d.start)) == t.LineOf(c) {
-			diags = append(diags, d.raw)
+	// build runs off the loop, so this gathers the diagnostics first.
+	diags := map[*server][]json.RawMessage{}
+	for _, s := range b.servers {
+		diags[s] = []json.RawMessage{}
+		for _, d := range e.decos[diagnosed{s, b}] {
+			if d.raw != nil && t.LineOf(b.text.Mark(d.start)) == t.LineOf(c) {
+				diags[s] = append(diags[s], d.raw)
+			}
 		}
 	}
-	s.client.Request("textDocument/codeAction", func(enc string) any {
+	asked := ask(b.servers, "textDocument/codeAction", func(s *server, enc string) any {
 		p := lsp.Point(t, c, enc)
 		return map[string]any{
 			"textDocument": map[string]any{"uri": uri}, "range": lsp.Range{Start: p, End: p},
-			"context": map[string]any{"diagnostics": diags},
+			"context": map[string]any{"diagnostics": diags[s]},
 		}
-	}, func(res json.RawMessage) {
-		var actions []json.RawMessage
-		json.Unmarshal(res, &actions)
+	}, func(rs []reply) {
+		var actions []reply
+		for _, r := range rs {
+			var raws []json.RawMessage
+			json.Unmarshal(r.res, &raws)
+			for _, raw := range raws {
+				actions = append(actions, reply{r.s, raw})
+			}
+		}
 		if len(actions) == 0 {
 			e.message = "no code actions"
 			return
@@ -595,13 +707,20 @@ func (e *Session) codeActions() {
 			var title struct {
 				Title string `json:"title"`
 			}
-			json.Unmarshal(a, &title)
-			lines = append(lines, fmt.Sprintf("%d. %s", i+1, title.Title))
+			json.Unmarshal(a.res, &title)
+			line := fmt.Sprintf("%d. %s", i+1, title.Title)
+			if len(rs) > 1 {
+				line += " (" + a.s.name + ")"
+			}
+			lines = append(lines, line)
 		}
-		e.pick = &pick{s: s, b: b, t: t, actions: actions}
+		e.pick = &pick{b: b, t: t, actions: actions}
 		e.float, e.floatSpans = strings.Join(lines, "\n"), nil
 		e.message = "type a number and <Enter>, or <Esc>"
 	})
+	if !asked {
+		e.message = "no language server offers code actions"
+	}
 }
 
 // picking takes a key while code actions show: a digit, <BS>, <CR> to take
@@ -626,49 +745,60 @@ func (e *Session) picking(k vim.Key) {
 	e.message = "type a number and <Enter>, or <Esc>: " + p.typed
 }
 
-// act takes a code action: it applies its edit and runs its command. An
-// action with neither but data is resolved first, when the server can.
-func (e *Session) act(p *pick, raw json.RawMessage) {
-	var a struct {
+// act takes a code action from its server: it applies its edit and runs its
+// command. An action with neither but data is resolved first, when the
+// server can.
+func (e *Session) act(p *pick, a reply) {
+	s, raw := a.s, a.res
+	var action struct {
 		Edit      json.RawMessage `json:"edit"`
 		Command   json.RawMessage `json:"command"`
 		Arguments json.RawMessage `json:"arguments"`
 		Data      json.RawMessage `json:"data"`
 	}
-	json.Unmarshal(raw, &a)
+	json.Unmarshal(raw, &action)
 	var resolve struct {
 		ResolveProvider bool `json:"resolveProvider"`
 	}
-	json.Unmarshal(p.s.client.Capability("codeActionProvider"), &resolve)
-	if a.Edit == nil && a.Command == nil && a.Data != nil && resolve.ResolveProvider {
-		p.s.client.Request("codeAction/resolve", func(string) any { return raw }, func(res json.RawMessage) { e.act(p, res) })
+	json.Unmarshal(s.client.Capability("codeActionProvider"), &resolve)
+	if action.Edit == nil && action.Command == nil && action.Data != nil && resolve.ResolveProvider {
+		s.client.Request("codeAction/resolve", func(string) any { return raw }, func(res json.RawMessage) {
+			if res != nil {
+				e.act(p, reply{s, res})
+			}
+		})
 		return
 	}
-	if a.Edit != nil {
-		if _, problems := e.workspaceEdit(p.s, p.b, p.t, a.Edit); len(problems) > 0 {
+	if action.Edit != nil {
+		if _, problems := e.workspaceEdit(s, p.b, p.t, action.Edit); len(problems) > 0 {
 			e.message = strings.Join(problems, "  ")
 			return
 		}
 	}
 	var command json.RawMessage
 	switch {
-	case a.Command == nil:
+	case action.Command == nil:
 		return
-	case a.Command[0] == '{':
+	case action.Command[0] == '{':
 		// A code action's command is an object of its own.
-		command = a.Command
+		command = action.Command
 	default:
 		// A bare command names itself with a string.
 		command = raw
 	}
-	p.s.client.Request("workspace/executeCommand", func(string) any { return command }, func(json.RawMessage) {})
+	s.client.Request("workspace/executeCommand", func(string) any { return command }, func(json.RawMessage) {})
 }
 
 // signature shows the signature at the cursor in a float, with the parameter
-// being typed in bold (B66).
+// being typed in bold. The first server that offers signatures says it
+// (B66, N22).
 func (e *Session) signature() {
 	b := e.win.buf
-	s := b.server
+	s := first(b.servers, "textDocument/signatureHelp")
+	if s == nil {
+		e.message = "no language server offers signature help"
+		return
+	}
 	t, c, uri := b.text.Snapshot(), e.Cursor(), lsp.URI(b.file.path)
 	s.client.Request("textDocument/signatureHelp", func(enc string) any {
 		return map[string]any{"textDocument": map[string]any{"uri": uri}, "position": lsp.Point(t, c, enc)}
@@ -721,29 +851,31 @@ type spot struct {
 	enc  string // the encoding pos counts in
 }
 
-// locate jumps to the one place an answer names, or lists them in a window
-// when it names several, as references always are.
-func (e *Session) locate(s *server, name string, res json.RawMessage) {
+// locate jumps to the one place the replies name, or lists them in a
+// window when they name several, as references always are.
+func (e *Session) locate(name string, rs []reply) {
 	type location struct {
 		URI       string    `json:"uri"`
 		Range     lsp.Range `json:"range"`
 		TargetURI string    `json:"targetUri"`
 		Target    lsp.Range `json:"targetSelectionRange"`
 	}
-	var locs []location
-	if json.Unmarshal(res, &locs) != nil {
-		var one location
-		if json.Unmarshal(res, &one) == nil && (one.URI != "" || one.TargetURI != "") {
-			locs = []location{one}
-		}
-	}
 	var spots []spot
-	for _, l := range locs {
-		if l.TargetURI != "" {
-			l.URI, l.Range = l.TargetURI, l.Target
+	for _, r := range rs {
+		var locs []location
+		if json.Unmarshal(r.res, &locs) != nil {
+			var one location
+			if json.Unmarshal(r.res, &one) == nil && (one.URI != "" || one.TargetURI != "") {
+				locs = []location{one}
+			}
 		}
-		if u, err := url.Parse(l.URI); err == nil && u.Path != "" {
-			spots = append(spots, spot{u.Path, l.Range.Start, s.client.Encoding()})
+		for _, l := range locs {
+			if l.TargetURI != "" {
+				l.URI, l.Range = l.TargetURI, l.Target
+			}
+			if u, err := url.Parse(l.URI); err == nil && u.Path != "" {
+				spots = append(spots, spot{u.Path, l.Range.Start, r.s.client.Encoding()})
+			}
 		}
 	}
 	what := strings.TrimPrefix(name, "lsp.")
@@ -774,9 +906,9 @@ var kinds = []string{
 	"Array", "Object", "Key", "Null", "EnumMember", "Struct", "Event", "Operator", "TypeParameter",
 }
 
-// symbols lists the symbols of b that a documentSymbol answer names, in a
+// symbols lists the symbols of b that the documentSymbol replies name, in a
 // window where <CR> jumps to one. Nested symbols are indented under theirs.
-func (e *Session) symbols(s *server, b *buffer, res json.RawMessage) {
+func (e *Session) symbols(b *buffer, rs []reply) {
 	type symbol struct {
 		Name           string    `json:"name"`
 		Kind           int       `json:"kind"`
@@ -788,8 +920,8 @@ func (e *Session) symbols(s *server, b *buffer, res json.RawMessage) {
 	}
 	var lines []string
 	var spots []spot
-	var add func(raw []json.RawMessage, depth int)
-	add = func(raw []json.RawMessage, depth int) {
+	var add func(s *server, raw []json.RawMessage, depth int)
+	add = func(s *server, raw []json.RawMessage, depth int) {
 		for _, r := range raw {
 			var sym symbol
 			if json.Unmarshal(r, &sym) != nil {
@@ -806,12 +938,14 @@ func (e *Session) symbols(s *server, b *buffer, res json.RawMessage) {
 			}
 			lines = append(lines, fmt.Sprintf("%d:%d: %s[%s] %s", pos.Line+1, pos.Character+1, strings.Repeat("  ", depth), kind, sym.Name))
 			spots = append(spots, spot{b.file.path, pos, s.client.Encoding()})
-			add(sym.Children, depth+1)
+			add(s, sym.Children, depth+1)
 		}
 	}
-	var raw []json.RawMessage
-	json.Unmarshal(res, &raw)
-	add(raw, 0)
+	for _, r := range rs {
+		var raw []json.RawMessage
+		json.Unmarshal(r.res, &raw)
+		add(r.s, raw, 0)
+	}
 	if len(lines) == 0 {
 		e.message = "no symbols found"
 		return
@@ -878,22 +1012,24 @@ func (e *Session) visit(sp spot) {
 	}
 }
 
-// hover shows a hover answer's text in a float at the cursor, rendered from
-// markdown.
-func (e *Session) hover(res json.RawMessage) {
-	var h struct {
-		Contents json.RawMessage `json:"contents"`
-	}
-	json.Unmarshal(res, &h)
-	// Contents is markup with a value, a string, or a list of either.
-	var parts []json.RawMessage
-	if json.Unmarshal(h.Contents, &parts) != nil {
-		parts = []json.RawMessage{h.Contents}
-	}
+// hover shows the hover replies' text in a float at the cursor, rendered
+// from markdown.
+func (e *Session) hover(rs []reply) {
 	var texts []string
-	for _, p := range parts {
-		if text := markupText(p); text != "" {
-			texts = append(texts, text)
+	for _, r := range rs {
+		var h struct {
+			Contents json.RawMessage `json:"contents"`
+		}
+		json.Unmarshal(r.res, &h)
+		// Contents is markup with a value, a string, or a list of either.
+		var parts []json.RawMessage
+		if json.Unmarshal(h.Contents, &parts) != nil {
+			parts = []json.RawMessage{h.Contents}
+		}
+		for _, p := range parts {
+			if text := markupText(p); text != "" {
+				texts = append(texts, text)
+			}
 		}
 	}
 	if len(texts) == 0 {
@@ -927,15 +1063,27 @@ func (e *Session) format(b *buffer, start, end int) {
 	})
 }
 
-// formatting asks b's server for the edits that format the lines from start
-// to end, and passes them to answer with the text they are for. For a
+// formatter returns the first of b's servers that formats, or may once it
+// has started, or nil (N22).
+func formatter(b *buffer) *server {
+	i := slices.IndexFunc(b.servers, func(s *server) bool {
+		return s.client.Encoding() == "" || s.client.Supports("documentFormattingProvider") || s.client.Supports("documentRangeFormattingProvider")
+	})
+	if i < 0 {
+		return nil
+	}
+	return b.servers[i]
+}
+
+// formatting asks b's formatter for the edits that format the lines from
+// start to end, and passes them to answer with the text they are for. For a
 // server that formats only whole documents, fude asks for that and keeps
 // the edits inside the lines.
 func (e *Session) formatting(b *buffer, start, end int, answer func(kernel.Snapshot, []kernel.Edit)) {
-	s := b.server
+	s := formatter(b)
 	switch {
 	case s == nil:
-		e.message = "no language server"
+		e.message = "no language server formats this file"
 		return
 	case b.file.readonly:
 		e.message = "cannot make changes, the file is read-only"

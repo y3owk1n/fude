@@ -85,7 +85,14 @@ func Start(command []string, root string, options any, queue chan<- func(), log 
 	go func() {
 		err := cmd.Wait()
 		close(c.done)
-		c.queue <- func() { exited(err) }
+		c.queue <- func() {
+			// The server exited, so no answer to these will come.
+			for id, answer := range c.pending {
+				delete(c.pending, id)
+				answer(nil)
+			}
+			exited(err)
+		}
 	}()
 	return c, nil
 }
@@ -148,7 +155,8 @@ func (c *Client) CloseDocument(uri string) {
 
 // Request sends method with the params build makes in the server's encoding,
 // and runs answer on the editor loop with the server's result. An error
-// answer goes to the log.
+// answer goes to the log, and answer gets nil, as it does when the server
+// exits first.
 func (c *Client) Request(method string, build func(enc string) any, answer func(json.RawMessage)) {
 	c.next++
 	id := c.next
@@ -406,10 +414,11 @@ func (c *Client) read(r io.Reader, initialized chan<- answer, notify func(string
 func (c *Client) answered(id int, result json.RawMessage, failed *responseError) {
 	answer, ok := c.pending[id]
 	delete(c.pending, id)
-	switch {
-	case failed != nil:
+	if failed != nil {
 		c.log(failed.Message)
-	case ok:
+		result = nil
+	}
+	if ok {
 		answer(result)
 	}
 }

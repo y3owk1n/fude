@@ -460,6 +460,16 @@ Why: fude's PATH does not change while it runs, so a missing program
 stays missing. A server installed for some projects only would otherwise
 show the same error on every file.
 
+### N22. One server formats, renames and gives signatures
+
+With several servers on a file, formatting, rename and signature help go
+to the first server in the filetype's list that offers them (B169).
+Neovim formats with every server in turn, renames with every server in
+turn, and shows every server's signatures, which `<C-s>` cycles. Why: two
+servers formatting the same text undo each other's layout, and two
+renames edit the same names twice. The user already orders the servers in
+the filetype's list, so that order decides.
+
 ## Open
 
 None.

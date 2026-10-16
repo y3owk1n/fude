@@ -801,10 +801,12 @@ theme = "dark"       # dark, light, or a base16 scheme such as "~/.config/stylix
 [filetype.go]        # overrides for buffers of that filetype (B94)
 indent_width = 4
 format = [["goimports"], ["gofumpt"]]   # run in turn by format_on_save (B136)
-lsp = ["gopls"]      # its language servers, by name (B167)
+lsp = ["gopls", "golangci_lint_ls"]   # its language servers, by name, in order (B167, B169)
 
 [lsp.gopls]          # a language server, all optional (B167)
 command = ["gopls"]  # its name when unset
+files = ["*.go"]     # the files it is for, by name or the end of the path (B169)
+workspace_required = false   # true starts it only under a root file (B169)
 root = ["go.work", "go.mod", ".git"]   # marks a project's root, most wanted first
 init_options = {}    # sent with initialize (B168)
 
@@ -1022,7 +1024,11 @@ again that session except by `:grammar install` (D29, B165).
 `[filetype.<name>] lsp` names a filetype's servers, and `[lsp.<name>]`
 sets one's command and root markers. fude starts one server per name and
 project root, after the first frame, for the buffers open then and any
-opened later. The root is the nearest folder above the file holding the
+opened later. A buffer has each server its filetype names whose `files`
+match it. A request goes to every one of them that declared the provider
+for it, and fude waits for all their answers before it shows them. When a
+server exits before it answers, fude counts its answer as empty (B169). The root is the nearest
+folder above the file holding the
 first marker found, or else the file's folder. fude sends it as the
 server's `rootUri` and its only workspace folder (B167). It talks to it over stdio with JSON-RPC
 from the standard library, through `lsp/`, which reads text through

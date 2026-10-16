@@ -174,6 +174,8 @@ func TestFakeServer(t *testing.T) {
 		case "initialize":
 			reply(m.ID, map[string]any{"serverInfo": map[string]any{"name": "fake", "version": "v1"}, "capabilities": map[string]any{
 				"positionEncoding": os.Getenv("FUDE_FAKE_ENCODING"), "documentFormattingProvider": true, "completionProvider": map[string]any{"triggerCharacters": []string{"."}, "resolveProvider": true},
+				"definitionProvider": true, "typeDefinitionProvider": true, "implementationProvider": true, "referencesProvider": true, "renameProvider": true,
+				"codeActionProvider": true, "signatureHelpProvider": map[string]any{}, "documentSymbolProvider": true, "hoverProvider": true,
 			}})
 		case "shutdown":
 			reply(m.ID, nil)
@@ -283,6 +285,33 @@ func TestB168ServerSettings(t *testing.T) {
 		b, _ := os.ReadFile(log)
 		return strings.Contains(string(b), `"result":[42]`)
 	})
+}
+
+// B169
+func TestB169SeveralServers(t *testing.T) {
+	log := filepath.Join(t.TempDir(), "server.log")
+	t.Setenv("FUDE_FAKE_LSP", "1")
+	t.Setenv("FUDE_FAKE_LOG", log)
+	t.Setenv("FUDE_FAKE_ENCODING", "utf-8")
+	var c strings.Builder
+	for _, name := range []string{"fake", "again", "elsewhere", "rootless"} {
+		fmt.Fprintf(&c, "lsp.%s.command = [%q, \"-test.run=^TestFakeServer$\"]\n", name, os.Args[0])
+	}
+	// One is for other files and one needs a root, so neither starts.
+	c.WriteString("lsp.elsewhere.files = [\"other/*.go\"]\nlsp.rootless.root = [\"go.work\"]\nlsp.rootless.workspace_required = true\n")
+	c.WriteString("[filetype.go]\nlsp = [\"fake\", \"again\", \"elsewhere\", \"rootless\"]\n")
+	config(t, c.String())
+	path := filepath.Join(t.TempDir(), "a.go")
+	change(t, path, "bad\n")
+	e := start(t, path)
+	e.SetSize(80, 20)
+	t.Cleanup(func() { feed(e, ":qa!<CR>") })
+	e.Load()
+	// Each server's diagnostics show beside the other's.
+	settle(t, e, func() bool { return e.Views()[0].Errors == 2 })
+	if v := e.Views()[0]; v.Server != "fake, again" {
+		t.Errorf("the statusline names %q, want fake, again", v.Server)
+	}
 }
 
 // B159
