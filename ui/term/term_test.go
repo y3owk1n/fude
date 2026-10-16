@@ -423,6 +423,13 @@ func TestB147StatusLine(t *testing.T) {
 	if feed("<Esc>"); !strings.Contains(row(), "notes.txt ●") {
 		t.Fatalf("after a change the status line is %q", row())
 	}
+	// Another window's status line has the same ground.
+	feed(":vsplit<CR>")
+	cl.draw()
+	_, h := cl.s.Size()
+	if _, style, _ := cl.s.Get(1, h-1); style.GetBackground() != themes["dark"].surface {
+		t.Errorf("another window's status line is on %v", style.GetBackground())
+	}
 }
 
 // B148, B149

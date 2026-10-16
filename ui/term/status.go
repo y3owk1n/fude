@@ -25,9 +25,11 @@ type part struct {
 // filetype and the ruler. The right goes first when the line is too narrow.
 func (c *client) status(v editor.View, x, w int) {
 	y := v.Y + v.H - 1
-	ground := base.Foreground(th.muted)
-	if v.Current {
-		ground = base.Background(th.surface)
+	// Every status line has the surface ground. Another window's has muted
+	// text, and no mode.
+	ground := base.Background(th.surface)
+	if !v.Current {
+		ground = ground.Foreground(th.muted)
 	}
 	c.s.FillArea(x, y, w, 1, ' ', ground)
 	var left, right []part
