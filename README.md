@@ -18,6 +18,8 @@ A modal text editor with Vim's grammar, rebuilt from the kernel up. Language ser
 
 ---
 
+![fude on its own source: key hints, the file finder, live grep, hover, deleting and restoring a function, completion and the timeline](demos/fude.gif)
+
 fude (筆) is a writing brush. It is a terminal editor for people who already know Vim's keys. `ciw`, `dap`, `3j`, `.`, `q`, `"a`, `:s` and `<C-w>v` do what they do in Neovim. Underneath, everything is new: a small kernel with a branching history on disk, a vim machine that every edit goes through, plugins in a sandbox, and an editor that runs headless with the terminal as one of its clients.
 
 ## Why fude exists

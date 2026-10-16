@@ -47,6 +47,10 @@ run *args: build
 wasm:
     for d in plugin/testdata/*/; do go run ./cmd/fude plugin build $d || exit 1; done
 
+# Record the README's demo with VHS (demos/README.md).
+demo:
+    vhs demos/fude.tape
+
 # Check the speed promises, without the race detector.
 perf:
     go test -count=1 -v -run Promise ./ui/term/

@@ -1,0 +1,17 @@
+# The config the demo runs with.
+number = true
+relative_number = true
+cursor_line = true
+icons = true
+autocomplete = true
+scroll_off = 6
+
+[keymap.normal]
+"<Leader><Leader>" = ":files<CR>"
+"<Leader>sg" = ":grep<CR>"
+
+[keymap.groups]
+"<Leader>s" = "search"
+
+[filetype.go]
+lsp = ["gopls"]
