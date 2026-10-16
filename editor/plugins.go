@@ -226,6 +226,16 @@ func (e *Session) register(p *plugin.Plugin, r plugin.Registration) {
 			})
 			s.vim.Map(vim.Normal, withLeader(r.Name, e.cfg.Leader), "<Plug>("+name+")")
 		})
+	case plugin.Insert:
+		name := p.Name + ".insert." + r.Name
+		e.pluginHelp["<Plug>("+name+")"] = r.Help
+		e.each(func(s *Session) {
+			s.vim.Command(name, func(t vim.Text, pos, _ int) []vim.Edit {
+				edits, _, _ := s.run(p, r.ID, t, s.about(s.win.buf), uint64(pos), 0)
+				return edits
+			})
+			s.vim.Map(vim.Insert, r.Name, "<Plug>("+name+")")
+		})
 	}
 }
 

@@ -344,6 +344,14 @@ func TestB176PluginReadsWhereItRuns(t *testing.T) {
 	}
 }
 
+// B177
+func TestB177PluginInsertKeys(t *testing.T) {
+	e := loaded(t, "ctx", "f", "a\n", "buffer.write")
+	if feed(e, "i<C-j>z<Esc>"); text(e) != "[insert]za" {
+		t.Errorf("i<C-j>z left %q, want [insert]za", text(e))
+	}
+}
+
 // decorations returns what the current window shows of plugins'
 // decorations, as text and style.
 func decorations(e *editor.Session) []string {

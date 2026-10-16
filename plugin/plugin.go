@@ -42,6 +42,7 @@ const (
 	Operator             // called with (start, end, linewise)
 	Object               // called with (start, end), returns start<<32|end or negative for none
 	Key                  // keys in normal mode, called with (cursor, count)
+	Insert               // keys in insert mode, called with (cursor, 0)
 )
 
 // Decoration is a style a plugin puts on [Start, End) of the text, such as a
@@ -500,7 +501,7 @@ func (p *Plugin) register(_ context.Context, m api.Module, kind, nptr, nn, hptr,
 	name, ok1 := m.Memory().Read(nptr, nn)
 	help, ok2 := m.Memory().Read(hptr, hn)
 	switch {
-	case p.call == nil || p.call.name != "init" || Kind(kind) > Key:
+	case p.call == nil || p.call.name != "init" || Kind(kind) > Insert:
 		return errDenied
 	case !ok1 || !ok2:
 		return errRange

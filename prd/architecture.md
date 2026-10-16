@@ -898,7 +898,9 @@ host it may not reach or a request that failed.
 
 `register` gives what it adds an id, and fude runs it through
 `call(id, a, b, c)`. Kind 0 is an ex command and kind 3 a key in normal
-mode, both called with `(cursor, count)`. An ex command's `context` has
+mode, both called with `(cursor, count)`. Kind 4 is a key in insert mode,
+called with `(cursor, 0)`. The cursor then goes after the text of its
+first edit, as typing that text would leave it (B177, B179). An ex command's `context` has
 `args`, the text typed after its name, `bang`, `true` when `!` followed the
 name, `first` and `last`, where its range's first and last lines start,
 and `ranged`, `true` when it was given a range. Without one, the range is

@@ -62,6 +62,7 @@ const (
 	kindOperator
 	kindObject
 	kindKey
+	kindInsert
 )
 
 // The functions fude gives a plugin.
@@ -197,6 +198,16 @@ func about(name string) string {
 func Key(keys, help string, f func(Call)) {
 	add(kindKey, keys, help, func(a, b, _ int64) int64 {
 		f(Call{Cursor: int(a), Count: int(b)})
+		return 0
+	})
+}
+
+// Insert maps keys in insert mode to f, as a mapping in config.toml does.
+// The cursor goes after the text f's first edit puts in, as typing it
+// would leave it. help says what it does, for :h and the key hints.
+func Insert(keys, help string, f func(Call)) {
+	add(kindInsert, keys, help, func(a, _, _ int64) int64 {
+		f(Call{Cursor: int(a)})
 		return 0
 	})
 }

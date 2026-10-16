@@ -519,6 +519,8 @@ Where fude departs, the line says so and cites the departure in
   id, path and filetype of the buffer it is about, and the mode. With
   `buffer.read`, it reads how many lines the text has, which line holds a
   position and where a line starts, without reading the text.
+- B177 [4] A plugin can map keys in insert mode. They run what it
+  registered, and the cursor lands after the text it typed (B179).
 - B59 [4] A plugin with `ui` shows markdown in a float at the cursor, as
   hover does.
 
