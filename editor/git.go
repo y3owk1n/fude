@@ -133,9 +133,13 @@ func (ed *Editor) loadGit(b *buffer) {
 	}()
 }
 
+// gitEvery is how often at most a buffer's signs diff, so typing in a long
+// file copies and diffs its text a few times a second, not once a key.
+const gitEvery = 100 * time.Millisecond
+
 // diffGit diffs b's text with its base off the editor loop, when the text
 // changed since the last diff. One diff runs at a time, and a change made
-// while it runs starts another after it.
+// while it runs, or within gitEvery after, starts another then.
 func (ed *Editor) diffGit(b *buffer) {
 	if b.base == nil || !b.gitStale || b.gitBusy {
 		return
@@ -144,9 +148,10 @@ func (ed *Editor) diffGit(b *buffer) {
 	base, t := *b.base, b.text.Snapshot()
 	go func() {
 		signs := gitSigns(base, t.Slice(0, t.Len()))
-		ed.queue <- func() {
-			b.git, b.gitBusy = signs, false
-		}
+		ed.queue <- func() { b.git = signs }
+		time.Sleep(gitEvery)
+		// The frame after this diffs what changed meanwhile.
+		ed.queue <- func() { b.gitBusy = false }
 	}()
 }
 
@@ -166,11 +171,25 @@ func (h hunk) span() (int, int) {
 	return h.line, h.line + h.count - 1
 }
 
-// hunks returns where now differs from base, line by line.
+// hunks returns where now differs from base, line by line. Only the lines
+// between those both start and end with are split and diffed, so a small
+// change to a long text is cheap.
 func hunks(base, now string) []hunk {
-	ops := lineDiff(strings.Split(base, "\n"), strings.Split(now, "\n"))
+	if base == now {
+		return nil
+	}
+	// pre is the start of the first line that differs, and the shared end
+	// starts with the newline after the last one.
+	pre := common(base, now, false)
+	pre = strings.LastIndexByte(base[:pre], '\n') + 1
+	end := common(base[pre:], now[pre:], true)
+	for end > 0 && base[len(base)-end] != '\n' {
+		end--
+	}
+	a, b := base[pre:len(base)-end], now[pre:len(now)-end]
+	ops := lineDiff(strings.Split(a, "\n"), strings.Split(b, "\n"))
 	var out []hunk
-	line := 0 // the line of now the next op is at
+	line := strings.Count(base[:pre], "\n") // the line of now the next op is at
 	for i := 0; i < len(ops); {
 		if ops[i].kind == ' ' {
 			line, i = line+1, i+1
@@ -188,6 +207,33 @@ func hunks(base, now string) []hunk {
 		out = append(out, h)
 	}
 	return out
+}
+
+// common returns how many bytes a and b start with that are the same, or
+// end with when back is set. It compares 4KB blocks first, then bytes.
+func common(a, b string, back bool) int {
+	n := min(len(a), len(b))
+	if back {
+		a, b = a[len(a)-n:], b[len(b)-n:]
+	}
+	const block = 4 << 10
+	i := 0
+	if back {
+		for i+block <= n && a[n-i-block:n-i] == b[n-i-block:n-i] {
+			i += block
+		}
+		for i < n && a[n-1-i] == b[n-1-i] {
+			i++
+		}
+		return i
+	}
+	for i+block <= n && a[i:i+block] == b[i:i+block] {
+		i += block
+	}
+	for i < n && a[i] == b[i] {
+		i++
+	}
+	return i
 }
 
 // gitSigns returns the sign of each line of now that differs from base.

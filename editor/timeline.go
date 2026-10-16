@@ -368,8 +368,30 @@ type op struct {
 }
 
 // lineDiff returns the shortest edit script turning lines a into lines b,
-// by Myers' algorithm.
+// by Myers' algorithm. The lines both start and end with are kept, and only
+// those between are searched, so a small change to a long text is cheap.
 func lineDiff(a, b []string) []op {
+	pre := 0
+	for pre < len(a) && pre < len(b) && a[pre] == b[pre] {
+		pre++
+	}
+	suf := 0
+	for suf < len(a)-pre && suf < len(b)-pre && a[len(a)-1-suf] == b[len(b)-1-suf] {
+		suf++
+	}
+	ops := make([]op, 0, len(a)+len(b)-pre-suf)
+	for _, l := range a[:pre] {
+		ops = append(ops, op{' ', l})
+	}
+	ops = append(ops, myers(a[pre:len(a)-suf], b[pre:len(b)-suf])...)
+	for _, l := range a[len(a)-suf:] {
+		ops = append(ops, op{' ', l})
+	}
+	return ops
+}
+
+// myers returns the shortest edit script turning lines a into lines b.
+func myers(a, b []string) []op {
 	n, m := len(a), len(b)
 	off := n + m + 1
 	v := make([]int, 2*off+1)

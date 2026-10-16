@@ -529,7 +529,11 @@ and changed ones in blue, `▁` in red under the line before deleted lines,
 that also deleted lines. fude reads the index's copy with `git show` off
 the editor loop when it opens the file and when the terminal gets focus
 back. When a frame finds the text changed, fude diffs it with that copy,
-also off the loop and one diff at a time. A diagnostic's sign wins on its
+also off the loop and one diff at a time. A buffer diffs at most every
+100ms, so typing in a long file copies its text a few times a second and
+not once a key, and its signs trail the text by up to that. The diff
+skips the lines both copies start and end with, so it reads only the
+lines between. A diagnostic's sign wins on its
 line, as Neovim puts diagnostics over gitsigns' signs. Without git on
 the PATH, fude runs nothing and shows no git signs (B123).
 
