@@ -882,6 +882,13 @@ func TestB131CommandCompletion(t *testing.T) {
 	if f, ok := e.Float(); !ok || !strings.HasPrefix(f.Text, "buffer") {
 		t.Fatalf("typing :bu shows the menu %q", f.Text)
 	}
+	// A long menu shows its best matches first, and <C-n> takes the first.
+	feed(e, "<Esc>:h plug")
+	f, _ := e.Float()
+	best, _, _ := strings.Cut(f.Text, "\n")
+	if feed(e, "<C-n>"); e.Line() != ":h "+best {
+		t.Errorf("the menu starts with %q, and <C-n> put %q in the line", best, e.Line())
+	}
 	// A path's menu shows once its directory is read.
 	feed(e, "<Esc>:e ed")
 	settle(t, e, func() bool { f, ok := e.Float(); return ok && strings.HasPrefix(f.Text, "editor/\n") })

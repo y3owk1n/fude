@@ -196,7 +196,11 @@ func readEntries(dir string) []string {
 // the command line (B148).
 func (m *cmenu) float() Float {
 	rows := min(len(m.items), 10)
-	first := max(min(m.sel, len(m.items)-1)-rows+1, 0)
+	// The rows start at the top until an item is selected, then follow it.
+	first := 0
+	if m.sel < len(m.items) {
+		first = max(m.sel-rows+1, 0)
+	}
 	var s strings.Builder
 	var spans []syntax.Span
 	for i := first; i < first+rows; i++ {
