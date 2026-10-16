@@ -548,6 +548,17 @@ type Ghost struct {
 
 // Views returns every window from the top left.
 func (e *Session) Views() []View {
+	shown := map[*buffer][]any{}
+	for _, s := range e.sessions {
+		for _, w := range s.root.windows() {
+			shown[w.buf] = append(shown[w.buf], w)
+		}
+	}
+	for b, ws := range shown {
+		if b.syntax != nil {
+			b.syntax.Keep(ws)
+		}
+	}
 	var out []View
 	for _, w := range e.root.windows() {
 		t, top := w.buf.text.Snapshot(), e.topOf(w)

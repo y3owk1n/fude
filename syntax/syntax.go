@@ -341,6 +341,16 @@ func (h *Buffer) Show(t api.Text, view any, from, to int) []Span {
 	return out
 }
 
+// Keep drops the ranges of the views not in views, which no longer show
+// the text, so the worker stops highlighting a closed window's part of it.
+func (h *Buffer) Keep(views []any) {
+	for v := range h.asked.ranges {
+		if !slices.Contains(views, v) {
+			delete(h.asked.ranges, v)
+		}
+	}
+}
+
 // Refresh makes the next Show ask for spans again, as for a grammar of an
 // injected language that came since the last (B166).
 func (h *Buffer) Refresh() { h.asked = request{} }
