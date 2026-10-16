@@ -34,6 +34,10 @@ func (m *Machine) insert(k Key) error {
 		return m.typeText(strings.Repeat(" ", iw-column(t, LineStart(t, c), c)%iw))
 	}
 	if k.isChar() {
+		if err := m.closeIndent(t, c, string(k)); err != nil {
+			return err
+		}
+		t, c = m.h.Text(), m.h.Cursor()
 		if m.autoPairs && m.mode == Insert {
 			if paired, err := m.pair(t, c, string(k)); paired {
 				return err
@@ -316,25 +320,27 @@ func lineBefore(t Text, c, start int) int {
 
 // newline breaks the line at the cursor. The new line copies the indent of
 // the current one, and an indent nothing was typed after goes away, as
-// autoindent does.
+// autoindent does. After an opening bracket the new line gets one more
+// level, and the bracket's closing one, when it comes next, goes a line
+// further down (B202, B211).
 func (m *Machine) newline() error {
 	if m.mode == Replace {
 		return m.overwrite("\n")
 	}
 	t, c := m.h.Text(), m.h.Cursor()
-	ls := LineStart(t, c)
-	indent := t.Slice(ls, min(firstNonBlank(t, ls, LineEnd(t, ls)), c))
+	ls, le := LineStart(t, c), LineEnd(t, c)
+	indent := t.Slice(ls, min(firstNonBlank(t, ls, le), c))
 	if err := m.dropIndent(); err != nil {
 		return err
 	}
-	// In an empty pair of brackets, the closing one goes a line further down
-	// and the cursor onto an indented line between them (B202).
-	if m.autoPairs && inPair(t, c) && strings.Contains("([{", t.Slice(c-1, c)) {
-		inner := indent + "\t"
-		if m.expandTab {
-			inner = indent + strings.Repeat(" ", m.h.IndentWidth())
+	before := strings.TrimRight(t.Slice(ls, c), " \t")
+	if closing, ok := brackets[before[max(len(before)-1, 0):]]; ok {
+		inner := indent + m.level()
+		text := "\n" + inner
+		if strings.HasPrefix(strings.TrimLeft(t.Slice(c, le), " \t"), closing) {
+			text += "\n" + indent
 		}
-		if err := m.insertText("\n" + inner + "\n" + indent); err != nil {
+		if err := m.insertText(text); err != nil {
 			return err
 		}
 		m.h.SetCursor(c + 1 + len(inner))
@@ -348,15 +354,57 @@ func (m *Machine) newline() error {
 	return nil
 }
 
-// openAbove opens a line above the cursor's for O, with the same indent.
+// openAbove opens a line above the cursor's for O, with the same indent, or a
+// level more above a closing bracket (B211).
 func (m *Machine) openAbove() error {
 	t, c := m.h.Text(), m.h.Cursor()
-	indent := t.Slice(c, firstNonBlank(t, c, LineEnd(t, c)))
+	fnb := firstNonBlank(t, c, LineEnd(t, c))
+	indent := t.Slice(c, fnb)
+	if strings.Contains(")]}", t.Slice(fnb, min(fnb+1, t.Len()))) && fnb < t.Len() {
+		indent += m.level()
+	}
 	if err := m.apply([]Edit{{Start: c, End: c, Text: indent + "\n"}}, m.label); err != nil {
 		return err
 	}
 	m.h.SetCursor(c + len(indent))
 	m.autoIndent = indent != ""
+	return nil
+}
+
+// level is one level of indent: a tab, or spaces with expand_tab.
+func (m *Machine) level() string {
+	if m.expandTab {
+		return strings.Repeat(" ", m.h.IndentWidth())
+	}
+	return "\t"
+}
+
+// brackets are the closing brackets by their opening ones.
+var brackets = map[string]string{"(": ")", "[": "]", "{": "}"}
+
+// closeIndent gives the cursor's line the indent of the line its opening
+// bracket is on when s is a closing bracket typed on a line of blanks
+// (B211).
+func (m *Machine) closeIndent(t Text, c int, s string) error {
+	k := strings.Index(")]}", s)
+	ls := LineStart(t, c)
+	if k < 0 || m.mode != Insert || strings.TrimLeft(t.Slice(ls, c), " \t") != "" {
+		return nil
+	}
+	open := outer(t, ls, 1, "([{"[k], s[0])
+	if open < 0 {
+		return nil
+	}
+	ols := LineStart(t, open)
+	indent := t.Slice(ols, firstNonBlank(t, ols, LineEnd(t, ols)))
+	if indent == t.Slice(ls, c) {
+		return nil
+	}
+	if err := m.apply([]Edit{{Start: ls, End: c, Text: indent}}, m.label); err != nil {
+		return err
+	}
+	m.h.SetCursor(ls + len(indent))
+	m.autoIndent = false
 	return nil
 }
 

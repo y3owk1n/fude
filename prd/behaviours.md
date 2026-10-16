@@ -439,7 +439,14 @@ Where fude departs, the line says so and cites the departure in
   they search for the selected text literally.
 - B29 [2] Insert-mode `<BS> <C-w> <C-u> <C-r>{reg} <C-o> <C-t> <C-d>` act as
   in Neovim. `<C-w>` and `<C-u>` start a new undo step first. New lines
-  keep the previous line's indent.
+  keep the previous line's indent, as B211 adds to.
+- B211 [2] A new line after a line ending in `(`, `[` or `{` gets one
+  more indent level. When that bracket's closing one comes next on the
+  line, `<CR>` moves the closing one a line further down, at the line's
+  indent. `O` above a line starting with a closing bracket opens a level
+  in. A closing bracket typed on a line of blanks takes the indent of the
+  line with its opening bracket. Neovim's indent for Go, C and JavaScript
+  does the same.
 - B84 [2] A typed prefix that is also a complete mapping waits `key_timeout`
   (1000ms by default), then runs the complete mapping.
 - B85 [2] `gv` reselects the last selection, `o` in visual mode swaps its

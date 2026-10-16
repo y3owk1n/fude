@@ -169,6 +169,25 @@ func TestB202AutoPairs(t *testing.T) {
 	}
 }
 
+// B211
+func TestB211SmartIndent(t *testing.T) {
+	for _, c := range []struct{ start, keys, want string }{
+		// A line ending in an opening bracket indents the next a level more.
+		{"  if x {|", "o", "  if x {\n  \t|"},
+		{"f(|", "a<CR>", "f(\n\t|"},
+		// Between a bracket and its closing one, the closing one moves down.
+		{"x := []int{|}", "i<CR>", "x := []int{\n\t|\n}"},
+		// O above a closing bracket opens a level in.
+		{"{\n|}", "O", "{\n\t|\n}"},
+		// A closing bracket typed on a line of blanks takes its opener's indent.
+		{"  {\n\t\t|", "a}", "  {\n  }|"},
+	} {
+		if got, _, _ := run(t, c.start, c.keys); got != c.want {
+			t.Errorf("%q on %q made %q, want %q", c.keys, c.start, got, c.want)
+		}
+	}
+}
+
 // B7
 func TestB7InsertIsOneUndoStep(t *testing.T) {
 	if got, h, _ := run(t, "|", "ihello<CR>world<BS><Esc>"); h.steps != 1 || got != "hello\nwor|l" {
