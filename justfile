@@ -55,5 +55,26 @@ perf:
 kernel-size:
     test $(find core -name '*.go' ! -name '*_test.go' -exec cat {} + | wc -l) -le 10000
 
+# Count lines of Go code by category, without tests, test plugins, blanks
+# or comment-only lines.
+loc:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    count() { find "$@" -maxdepth 1 -name '*.go' ! -name '*_test.go' -exec cat {} + | grep -cvE '^[[:space:]]*(//|$)'; }
+    total=0
+    while read -r name dirs; do
+        n=$(count $dirs)
+        total=$((total + n))
+        printf '%-12s %6d  %s\n' "$name" "$n" "$dirs"
+    done <<'EOF'
+    editor editor
+    vim vim
+    modules syntax plugin lsp sdk api
+    clients ui/term client
+    kernel core/kernel core/rope
+    glue cmd/fude pty clipboard
+    EOF
+    printf '%-12s %6d\n' total "$total"
+
 # Run everything a commit needs.
 check: fmt-check vet standalone test kernel-size perf
