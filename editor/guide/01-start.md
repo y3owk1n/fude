@@ -49,8 +49,8 @@ or copied. `u` undoes, `<C-r>` redoes and `.` repeats the last change.
 `:w` writes the buffer. `:q` closes the window, and quits with the last
 one. `:wq` writes and quits, and `:q!` quits without writing. fude keeps
 every change on the file's timeline, including changes not yet written.
-After a crash, `:recover` brings them back. `:restart` starts fude again on the
-same files after a change to its config.
+After a crash, `:recover` brings them back. `:restart` starts fude again
+on the same files after a change to its config.
 
 ## Finding things
 
@@ -67,4 +67,5 @@ command.
 ## Next
 
 - `guide-config` sets fude up through its config file.
+- `guide-editing` goes further with operators, objects and registers.
 - `index` lists every page of help.

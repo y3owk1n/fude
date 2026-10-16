@@ -68,12 +68,14 @@ setting.
 
 `[keymap.normal]`, `[keymap.visual]` and `[keymap.insert]` map keys in
 those modes. A kind of buffer, such as a listing, has a table of its own
-whose keys override the normal mode ones in that buffer. A key mapped to `""` loses its mapping,
-and `<Plug>(name)` runs one of fude's commands, which `:h` lists.
+whose keys override the normal mode ones in that buffer. A key mapped to
+`""` loses its mapping, and `<Plug>(name)` runs one of fude's commands.
 `[keymap.groups]` names the keys mappings start with, for the key hints.
 
 ## Next
 
+- `guide-keys`, `guide-lsp` and `guide-format` go further with keymaps,
+  language servers and formatters.
 - `settings` lists every setting with its default.
 - `options` lists the options.
 - `mappings-in-normal-mode` lists the mappings in use.
