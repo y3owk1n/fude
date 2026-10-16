@@ -39,6 +39,7 @@ type Editor struct {
 	// key does, by :name and <Plug>(name), and their operators and objects.
 	pluginHelp     map[string]string
 	pluginBindings []vim.Binding
+	plugged        int                             // how many of setup come before the plugins' own
 	commands       map[string]func(*Session, call) // ex commands plugins registered
 	decos          map[any][]decoration            // by owner: a plugin, or a buffer for its diagnostics
 	servers        map[string]*server              // by command and root

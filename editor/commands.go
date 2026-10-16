@@ -87,6 +87,15 @@ func init() {
 		}, completePath},
 		{vim.Command{Name: "enew", Help: "shows a new empty buffer"}, func(e *Session, _ call) { e.empty() }, nil},
 		{vim.Command{Name: "files", Help: "finds a file by name"}, func(e *Session, _ call) { e.files() }, nil},
+		{vim.Command{Name: "plugin", Args: "reload", Help: "reads config.toml's plugins again and loads them anew"}, func(e *Session, x call) {
+			if x.arg != "reload" {
+				e.message = "usage: :plugin reload"
+				return
+			}
+			e.reloadPlugins()
+		}, func(_ *Session, _ string, start int, arg string, _ bool) (int, []string) {
+			return start, match([]string{"reload"}, arg)
+		}},
 		{vim.Command{Name: "grammar", Args: "[install {filetype}]", Help: "lists the grammars and whether each is built, or builds one again"}, func(e *Session, x call) { e.grammar(x.arg) }, func(_ *Session, _ string, start int, arg string, _ bool) (int, []string) {
 			var names []string
 			for _, g := range syntax.Grammars() {

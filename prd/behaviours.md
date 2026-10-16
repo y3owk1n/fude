@@ -560,6 +560,9 @@ Where fude departs, the line says so and cites the departure in
   position in each server's encoding when the plugin gives one. A function
   of the plugin's then runs, as a job's does (B181), with the first answer
   that is not null.
+- B191 [4] `:plugin reload` reads the `[[plugin]]` tables of config.toml
+  again and loads every plugin anew, a rebuilt one from its new file. What
+  a plugin it no longer lists added goes with it.
 - B186 [4] A plugin with `ui` shows text in a read-only window with a
   title, coloured as a filetype it names. Showing text under a title
   already open replaces what that window shows. `:q` closes it without

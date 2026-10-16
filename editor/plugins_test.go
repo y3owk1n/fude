@@ -524,6 +524,19 @@ func TestB190PluginAsksTheServer(t *testing.T) {
 	settle(t, e, func() bool { return strings.Contains(text(e), "**hover** at 1:2") })
 }
 
+// B191
+func TestB191PluginReload(t *testing.T) {
+	e := loaded(t, "ctx", "f", "a\n", "buffer.write")
+	// The config now lists another plugin in place of ctx.
+	usePlugin(t, "later", "buffer.write")
+	feed(e, ":plugin reload<CR>")
+	settle(t, e, func() bool { feed(e, ":Twice<CR>"); return e.Message() == "" })
+	settle(t, e, func() bool { return text(e) == "tta" })
+	if feed(e, ":Ctx<CR>"); !strings.Contains(e.Message(), "not a command") {
+		t.Errorf("after the reload, :Ctx said %q", e.Message())
+	}
+}
+
 // decorations returns what the current window shows of plugins'
 // decorations, as text and style.
 func decorations(e *editor.Session) []string {

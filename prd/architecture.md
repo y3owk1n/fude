@@ -978,6 +978,14 @@ functions never block. A stopped or trapped instance is closed and its state
 is lost. fude unloads it and tells the user which plugin (B51, B53). It can
 be instantiated again from the compiled module without recompiling.
 
+`:plugin reload` reads the `[[plugin]]` tables of config.toml again,
+closes every plugin and takes out what it added: its commands, keys,
+decorations, segments, help and key hints. Then it loads the plugins as at
+startup, each from its file, so a rebuilt `.wasm` runs at once.
+`Editor.setup` holds first what each session's machine gets before the
+plugins. A reload keeps that part, and the plugins add theirs again as
+they register (B191).
+
 Plugins are written in Go with `sdk/`, a module of its own that imports
 nothing of fude's (D36). The package registers Go functions from the
 plugin's `init` functions, which TinyGo runs in `_initialize`. It keeps

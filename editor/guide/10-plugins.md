@@ -46,7 +46,8 @@ fude plugin build
 
 `fude plugin new` writes a folder with a `go.mod` that requires the sdk and
 a `main.go` with one command. `fude plugin build` builds `wordcount.wasm`
-in the folder, which a `[[plugin]]` table then loads.
+in the folder, which a `[[plugin]]` table then loads. After a rebuild, or
+a change to the tables, `:plugin reload` loads every plugin anew.
 
 ```go
 package main

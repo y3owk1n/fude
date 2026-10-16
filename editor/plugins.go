@@ -40,6 +40,12 @@ func (e *Session) Load() {
 	if len(failed) > 0 {
 		e.message = strings.Join(failed, "  ")
 	}
+	e.plugged = len(e.setup)
+	e.loadPlugins()
+}
+
+// loadPlugins starts the plugins config.toml lists.
+func (e *Session) loadPlugins() {
 	config, err1 := xdgDir("XDG_CONFIG_HOME", ".config")
 	cache, err2 := xdgDir("XDG_CACHE_HOME", ".cache")
 	if err := errors.Join(err1, err2); err != nil {
@@ -313,6 +319,53 @@ func (e *Session) decorate(p *plugin.Plugin, b *buffer, res plugin.Result) []vim
 
 // unload closes p after err, removes its decorations and tells the user.
 func (e *Session) unload(p *plugin.Plugin, err error) {
+	e.drop(p)
+	e.message = fmt.Sprintf("%v, so it was unloaded", err)
+	logLine(e.message)
+}
+
+// reloadPlugins reads the [[plugin]] tables of config.toml again, closes
+// every plugin and what it added, and loads them anew (B191).
+func (e *Session) reloadPlugins() {
+	if !e.started {
+		e.message = "the plugins have not loaded yet"
+		return
+	}
+	cfg, err := loadConfig()
+	if err != nil {
+		e.message = err.Error()
+		return
+	}
+	for _, p := range slices.Clone(e.plugins) {
+		e.unregister(p)
+		e.drop(p)
+	}
+	e.cfg.Plugin = cfg.Plugin
+	e.setup = e.setup[:e.plugged]
+	e.pluginBindings, e.pluginHelp = nil, nil
+	e.message = fmt.Sprintf("reloading %d plugins", len(cfg.Plugin))
+	e.loadPlugins()
+}
+
+// unregister removes the commands and mappings p added, so a reload that
+// leaves p out leaves nothing of it.
+func (e *Session) unregister(p *plugin.Plugin) {
+	for _, r := range p.Registered {
+		for _, s := range e.sessions {
+			switch r.Kind {
+			case plugin.Command:
+				delete(e.commands, r.Name)
+			case plugin.Key:
+				s.vim.Unmap(vim.Normal, withLeader(r.Name, e.cfg.Leader))
+			case plugin.Insert:
+				s.vim.Unmap(vim.Insert, r.Name)
+			}
+		}
+	}
+}
+
+// drop closes p and removes its listener, decorations and segments.
+func (e *Session) drop(p *plugin.Plugin) {
 	if l := e.listeners[p]; l != nil {
 		l.stop()
 		delete(e.listeners, p)
@@ -324,8 +377,6 @@ func (e *Session) unload(p *plugin.Plugin, err error) {
 	}
 	delete(e.decos, p)
 	delete(e.segments, p)
-	e.message = fmt.Sprintf("%v, so it was unloaded", err)
-	logLine(e.message)
 }
 
 // register adds a command, operator, object or key a plugin registered, as
