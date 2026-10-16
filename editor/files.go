@@ -28,7 +28,14 @@ import (
 // mode, with the files or lines that match it below, the best first (B129,
 // B134).
 type finder struct {
-	grep     bool     // it searches files' lines, not their names
+	files  bool   // it finds the working directory's files by name
+	grep   bool   // it searches files' lines, not their names
+	places bool   // its items are places, path:line:column:text, shown under their file
+	enc    string // the encoding of places' columns, "" for bytes
+	hint   string // what an empty query of a live search shows
+	// lookup asks for the query's items on the loop and passes them to
+	// found, for a search a language server answers.
+	lookup   func(q string, found func([]string, error))
 	all      bool     // it searches the files git ignores and hidden ones too
 	paths    []string // the working directory's files, nil until read
 	query    string   // the query matches are for
@@ -64,7 +71,7 @@ func (e *Session) openFinder(f *finder, query string) {
 
 // files opens the file finder.
 func (e *Session) files() {
-	f := &finder{}
+	f := &finder{files: true}
 	e.openFinder(f, "")
 	e.readPaths(f)
 }
@@ -141,8 +148,8 @@ func (e *Session) finderAct(act string) {
 	case "prev":
 		f.sel = max(f.sel-1, 0)
 	case "all":
-		if f.chose != nil {
-			// A plugin's list has no files to add.
+		if !f.files && !f.grep {
+			// Only the files and grep finders have files to add.
 			return
 		}
 		f.all, f.stale = !f.all, true
@@ -182,7 +189,11 @@ func (e *Session) finding(k vim.Key) {
 			if e.edit(path); line > 0 && e.win.buf.is(path) {
 				t := e.Text()
 				start := t.LineStart(min(line-1, t.Lines()-1))
-				e.setCursor(min(start+col-1, vim.LineEnd(t, start)))
+				at := start + col - 1
+				if f.enc != "" {
+					at = lsp.Offset(t, lsp.Position{Line: line - 1, Character: col - 1}, f.enc)
+				}
+				e.setCursor(min(at, vim.LineEnd(t, start)))
 			}
 		}
 	case e.vim.Mode() != vim.Insert:
@@ -200,7 +211,7 @@ func (e *Session) listMatches(f *finder) {
 	var spots []spot
 	for _, m := range f.matches {
 		path, line, col, text := grepSpot(m)
-		sp := spot{path: path, enc: "utf-8"}
+		sp := spot{path: path, enc: cmp.Or(f.enc, "utf-8")}
 		if line > 0 {
 			sp.pos = lsp.Position{Line: line - 1, Character: col - 1}
 			m = fmt.Sprintf("%s:%d:%d: %s", path, line, col, strings.TrimSpace(text))
@@ -208,8 +219,8 @@ func (e *Session) listMatches(f *finder) {
 		lines, spots = append(lines, m), append(spots, sp)
 	}
 	what := "files"
-	if f.grep {
-		what = "matches"
+	if f.grep || f.places {
+		what = cmp.Or(f.title, "matches")
 	}
 	e.places(what, lines, spots)
 }
@@ -229,7 +240,17 @@ func (e *Session) closeFinder() {
 func (e *Session) seek(f *finder) {
 	t := e.Text()
 	q := t.Slice(0, t.Len())
-	if f.busy || !f.grep && f.paths == nil || q == f.query && !f.stale {
+	if f.busy || !f.grep && f.lookup == nil && f.paths == nil || q == f.query && !f.stale {
+		return
+	}
+	if f.lookup != nil {
+		f.busy, f.stale = true, false
+		f.lookup(q, func(matches []string, err error) {
+			if err != nil {
+				e.message = err.Error()
+			}
+			f.query, f.matches, f.sel, f.busy = q, matches, 0, false
+		})
 		return
 	}
 	from := f.paths
@@ -276,7 +297,7 @@ func (f *finder) float(query string, cursor, width, height int) Float {
 	s.WriteString(prompt)
 	s.WriteString(query)
 	count := fmt.Sprintf("%d / %d", len(f.matches), len(f.paths))
-	if f.grep {
+	if f.grep || f.lookup != nil {
 		count = strconv.Itoa(len(f.matches))
 	}
 	if f.all {
@@ -298,7 +319,7 @@ func (f *finder) float(query string, cursor, width, height int) Float {
 	var list []listRow
 	selRow, lineW := 0, 1
 	for i, m := range f.matches {
-		if path, line, _, _ := grepSpot(m); f.grep {
+		if path, line, _, _ := grepSpot(m); f.grep || f.places {
 			if prev, _, _, _ := grepSpot(f.matches[max(i-1, 0)]); i == 0 || prev != path {
 				list = append(list, listRow{i, true})
 			}
@@ -316,7 +337,7 @@ func (f *finder) float(query string, cursor, width, height int) Float {
 		switch path, line, _, text := grepSpot(m); {
 		case r.header:
 			writePath(&s, &spans, path, nil, w-4, "finder.file")
-		case f.grep:
+		case f.grep || f.places:
 			num := fmt.Sprintf("%*d  ", lineW, line)
 			spans = append(spans, syntax.Span{Start: s.Len(), End: s.Len() + lineW, Name: "finder.dir"})
 			s.WriteString(num)
@@ -324,7 +345,11 @@ func (f *finder) float(query string, cursor, width, height int) Float {
 			if r := []rune(text); len(r) > w-4-len(num) {
 				text = string(r[:max(w-4-len(num), 0)])
 			}
-			for _, at := range occurrences(text, f.query, 0) {
+			marks := occurrences(text, f.query, 0)
+			if f.places {
+				marks = positions(lower(f.query), text)
+			}
+			for _, at := range marks {
 				spans = append(spans, syntax.Span{Start: s.Len() + at, End: s.Len() + at + 1, Name: "match"})
 			}
 			s.WriteString(text)
@@ -336,11 +361,11 @@ func (f *finder) float(query string, cursor, width, height int) Float {
 		}
 	}
 	// An empty list says why, once the matches are for the query typed.
-	if len(list) == 0 && f.query == query && (f.grep || f.paths != nil) {
+	if len(list) == 0 && f.query == query && (f.grep || f.lookup != nil || f.paths != nil) {
 		list = append(list, listRow{})
 		empty := "no matches"
-		if f.grep && query == "" {
-			empty = "type to search the files' lines"
+		if f.hint != "" && query == "" {
+			empty = f.hint
 		}
 		s.WriteByte('\n')
 		spans = append(spans, syntax.Span{Start: s.Len(), End: s.Len() + len(empty), Name: "comment"})
@@ -364,7 +389,7 @@ func (f *finder) float(query string, cursor, width, height int) Float {
 		for _, sp := range f.spans {
 			docSpans = append(docSpans, syntax.Span{Start: sp.Start + len(head), End: sp.End + len(head), Name: sp.Name})
 		}
-		if f.grep && f.at >= 0 {
+		if (f.grep || f.places) && f.at >= 0 {
 			// The matching line is marked.
 			start := len(head)
 			for range f.at {

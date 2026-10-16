@@ -14,7 +14,7 @@ const grepLimit = 1000
 
 // grepFiles opens the finder as a live grep with query typed (B134).
 func (e *Session) grepFiles(query string) {
-	e.openFinder(&finder{grep: true}, query)
+	e.openFinder(&finder{grep: true, hint: "type to search the files' lines"}, query)
 }
 
 // grep returns the lines of the working directory's files that hold query,

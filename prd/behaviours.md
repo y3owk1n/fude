@@ -517,9 +517,10 @@ Where fude departs, the line says so and cites the departure in
   does not show the list, and work after its window closes too. Each says
   which place it is, of how many. `:copen` shows the list again, and
   `:cclose` closes its window.
-- B195 [2] In the finders of `:pick files` and `:pick grep`, `<C-q>` closes the finder
-  and shows every match in a list of places, which becomes the last list.
-  A grep match's place is its line and column, and a file's is its start.
+- B195 [2] In a `:pick` finder, `<C-q>` closes the finder and shows every
+  match in a list of places, which becomes the last list. A grep match, a
+  diagnostic or a symbol is a place at its line and column, and a file is
+  one at its start.
 - B210 [2] In the finders of `:pick files` and `:pick grep`, `<C-g>` searches the files
   git ignores and hidden files too, and the count says "with ignored".
   `<C-g>` again leaves them out. The finders never search `.git`.
@@ -527,12 +528,20 @@ Where fude departs, the line says so and cites the departure in
   `<Tab>` completes the source's name. `files` and `grep` are B129's and
   B134's finders. `buffers` lists the open buffers that have a file.
   `recent` lists the last 100 files a window showed, newest first, and
-  keeps them across sessions. Neither lists the current file. `<CR>` opens
+  keeps them across sessions. Neither lists the current file. B196 and
+  B214 add `diagnostics` and `symbols`. `<CR>` opens
   the file picked, and B130's preview shows it. The finder's border names
   the source (N11).
-- B196 [2] `:diagnostics` lists the buffer's diagnostics as places, each
-  with its line, column, severity and message, the worst first and then in
-  the order of the text.
+- B196 [2] `:pick diagnostics` opens the finder on the diagnostics of
+  every open buffer, the current buffer's first. They show under their
+  file, the worst first and then in the order of the text, each as its
+  line, severity and message. `<CR>` goes to the one picked, and the
+  preview shows its line.
+- B214 [5] `:pick symbols` opens the finder on the symbols the current
+  buffer's language server finds for the query, asking again as it is
+  typed. They show under their file, each as its line, name and kind, and
+  `<CR>` goes to the one picked. Without a server that finds symbols, it
+  says so.
 - B90 [2] `<C-o>` and `<C-i>` move through the jumplist, and `g;` and `g,`
   through the changelist, as in Neovim.
 - B91 [2] `<C-w>c`, `<C-w>o`, `<C-w>q`, `<C-w>=` and `:q` in a split close

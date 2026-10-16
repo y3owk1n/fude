@@ -642,8 +642,8 @@ is the editor's last list, which keeps its places, its buffer and the
 place last gone to, so `]q` and the `:c` commands go through it after
 its window closes (B194, N25). `<C-q>` in a finder sends its matches to
 a list, a grep match as a place at its line and column, a file at its
-start (B195), and `:diagnostics` sends the buffer's diagnostics, the worst
-first (B196).
+start (B195). The places of `:pick diagnostics` and `:pick symbols` go
+the same way (B196, B214).
 
 The client keeps a cell grid, diffs it against the previous frame, and
 writes only the changed cells in one write. It wraps each frame in

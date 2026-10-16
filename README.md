@@ -125,7 +125,7 @@ A file in a language other than Go builds its grammar in the background the firs
 | **Language servers** | Several per file, merged diagnostics, hover, definitions, references, code actions, signature help, a `:lsp` panel |
 | **Completion**       | From language servers, snippets, paths and the buffer, with VS Code snippet files                                  |
 | **Formatting**       | Formatters by name, run in turn or the first that applies, with the language server as the fallback              |
-| **Finder**           | `:pick` for files, grep, buffers and recent files, with a preview, `<C-g>` to search ignored files, `<C-q>` to a list                           |
+| **Finder**           | `:pick` for files, grep, buffers, recent files, diagnostics and symbols, with a preview, `<C-g>` to search ignored files, `<C-q>` to a list                           |
 | **Folders**          | Edit a listing and `:w` to rename, delete and create files                                                         |
 | **Git**              | Signs, `]h` and `[h` between hunks, a hunk preview, `gH` to put a hunk back as the index has it                  |
 | **Terminal**         | `:terminal` in a split, and `<Esc><Esc>` to move through its output in normal mode                                |

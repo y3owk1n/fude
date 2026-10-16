@@ -64,9 +64,10 @@ list. `]q` and `[q` go to its next place and the one before, `]Q` and
 `[Q` to its ends, and `:cnext`, `:cprev` and `:cc 3` do the same from the
 command line, after its window closes too. `:copen` shows it again.
 
-`<C-q>` in the `:pick grep` or `:pick files` finder sends every match to a list of
-places, and `:diagnostics` lists the buffer's diagnostics, the worst
-first. Either becomes the last list.
+`<C-q>` in a `:pick` finder sends every match to a list of places, which
+becomes the last list. `:pick diagnostics` finds the open buffers'
+diagnostics, and `:pick symbols` the language server's symbols as you
+type their name.
 
 ## Jumping back
 

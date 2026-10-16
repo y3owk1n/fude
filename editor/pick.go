@@ -1,14 +1,20 @@
 package editor
 
 import (
+	"cmp"
+	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
+
+	"github.com/y3owk1n/fude/lsp"
 )
 
 // pickSources are the sources :pick finds in, by name.
-var pickSources = []string{"files", "grep", "buffers", "recent"}
+var pickSources = []string{"files", "grep", "buffers", "recent", "diagnostics", "symbols"}
 
 // openPick opens the finder on the items of source. grep takes the text
 // after it as its query (B213).
@@ -39,6 +45,10 @@ func (e *Session) openPick(arg string) {
 				f.paths, f.stale = paths, true
 			}
 		}()
+	case "diagnostics":
+		e.openFinder(&finder{paths: e.diagnosticPlaces(), stale: true, places: true, title: "diagnostics"}, "")
+	case "symbols":
+		e.pickSymbols()
 	default:
 		e.message = fmt.Sprintf("no source named %q, only %s", source, strings.Join(pickSources, ", "))
 	}
@@ -66,5 +76,95 @@ func recentFiles(current string) ([]string, error) {
 		}
 		out = append(out, p)
 	}
+	return out, nil
+}
+
+// diagnosticPlaces returns the diagnostics of every buffer as places, the
+// current buffer's first, each buffer's worst first and then in the order
+// of its text (B196).
+func (e *Session) diagnosticPlaces() []string {
+	bufs := slices.Concat([]*buffer{e.win.buf}, slices.DeleteFunc(slices.Clone(e.bufs), func(b *buffer) bool { return b == e.win.buf }))
+	var out []string
+	for _, b := range bufs {
+		t := b.text.Snapshot()
+		ds := slices.Clone(e.diagnostics(b))
+		worst := func(d decoration) int {
+			return slices.IndexFunc(diagnosticSigns, func(s Sign) bool { return s.Name == d.style })
+		}
+		slices.SortStableFunc(ds, func(x, y decoration) int {
+			return cmp.Or(cmp.Compare(worst(x), worst(y)), cmp.Compare(b.text.Mark(x.start), b.text.Mark(y.start)))
+		})
+		for _, d := range ds {
+			p := lsp.Point(t, b.text.Mark(d.start), "utf-8")
+			note, _, _ := strings.Cut(d.note, "\n")
+			out = append(out, fmt.Sprintf("%s:%d:%d:%s  %s", b.file.path, p.Line+1, p.Character+1, strings.TrimPrefix(d.style, "diagnostic."), note))
+		}
+	}
+	return out
+}
+
+// pickSymbols opens the finder on workspace symbols. The first of the
+// current buffer's language servers that offers them finds them as the
+// query is typed (B214).
+func (e *Session) pickSymbols() {
+	s := first(e.win.buf.servers, "workspace/symbol")
+	if s == nil {
+		e.message = "no language server offers workspace symbols"
+		return
+	}
+	f := &finder{places: true, enc: s.client.Encoding(), title: "symbols", hint: "type to search the symbols"}
+	f.lookup = func(q string, found func([]string, error)) {
+		if q == "" {
+			found(nil, nil)
+			return
+		}
+		s.client.Request("workspace/symbol", func(string) any { return map[string]any{"query": q} }, func(res json.RawMessage) {
+			found(symbolPlaces(res))
+		})
+	}
+	e.openFinder(f, "")
+}
+
+// symbolPlaces returns the symbols of a workspace/symbol answer as places,
+// each its name and kind, grouped by file, at most grepLimit of them.
+func symbolPlaces(res json.RawMessage) ([]string, error) {
+	var found []struct {
+		Name     string `json:"name"`
+		Kind     int    `json:"kind"`
+		Location struct {
+			URI   string    `json:"uri"`
+			Range lsp.Range `json:"range"`
+		} `json:"location"`
+	}
+	if err := json.Unmarshal(res, &found); err != nil {
+		return nil, fmt.Errorf("workspace symbols: %w", err)
+	}
+	wd, err := os.Getwd()
+	if err != nil {
+		return nil, fmt.Errorf("workspace symbols: %w", err)
+	}
+	var out []string
+	for _, sym := range found[:min(len(found), grepLimit)] {
+		u, err := url.Parse(sym.Location.URI)
+		if err != nil || u.Path == "" {
+			continue
+		}
+		path := u.Path
+		if rel, err := filepath.Rel(wd, path); err == nil && !strings.HasPrefix(rel, "..") {
+			path = rel
+		}
+		kind := ""
+		if sym.Kind > 0 && sym.Kind < len(kinds) {
+			kind = "  " + kinds[sym.Kind]
+		}
+		p := sym.Location.Range.Start
+		out = append(out, fmt.Sprintf("%s:%d:%d:%s%s", path, p.Line+1, p.Character+1, sym.Name, kind))
+	}
+	// Places show under their file, so a file's come together.
+	slices.SortStableFunc(out, func(a, b string) int {
+		pa, _, _, _ := grepSpot(a)
+		pb, _, _, _ := grepSpot(b)
+		return strings.Compare(pa, pb)
+	})
 	return out, nil
 }

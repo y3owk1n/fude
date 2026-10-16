@@ -81,6 +81,7 @@ func TestFakeServer(t *testing.T) {
 			Method string `json:"method"`
 			Params struct {
 				NewName      string   `json:"newName"`
+				Query        string   `json:"query"`
 				Arguments    []string `json:"arguments"`
 				TextDocument struct {
 					URI  string `json:"uri"`
@@ -147,6 +148,21 @@ func TestFakeServer(t *testing.T) {
 				}
 			}
 			reply(m.ID, found)
+		case "workspace/symbol":
+			// Each word of an opened file that holds the query is a function
+			// there.
+			var found []any
+			for uri, text := range opened {
+				for line, l := range strings.Split(text, "\n") {
+					for _, w := range strings.Fields(l) {
+						if i := strings.Index(l, w); m.Params.Query != "" && strings.Contains(w, m.Params.Query) {
+							p := map[string]int{"line": line, "character": i}
+							found = append(found, map[string]any{"name": w, "kind": 12, "location": map[string]any{"uri": uri, "range": map[string]any{"start": p, "end": p}}})
+						}
+					}
+				}
+			}
+			reply(m.ID, found)
 		case "textDocument/documentSymbol":
 			at := func(line int) map[string]any {
 				p := map[string]int{"line": line, "character": 0}
@@ -200,7 +216,7 @@ func TestFakeServer(t *testing.T) {
 			reply(m.ID, map[string]any{"serverInfo": map[string]any{"name": "fake", "version": "v1"}, "capabilities": map[string]any{
 				"positionEncoding": os.Getenv("FUDE_FAKE_ENCODING"), "textDocumentSync": json.RawMessage(cmp.Or(os.Getenv("FUDE_FAKE_SYNC"), "2")), "documentFormattingProvider": true, "completionProvider": map[string]any{"triggerCharacters": []string{"."}, "resolveProvider": true},
 				"definitionProvider": true, "typeDefinitionProvider": true, "implementationProvider": true, "referencesProvider": true, "renameProvider": true,
-				"codeActionProvider": true, "colorProvider": true, "signatureHelpProvider": map[string]any{"triggerCharacters": []string{"("}, "retriggerCharacters": []string{","}}, "documentSymbolProvider": true, "hoverProvider": true,
+				"codeActionProvider": true, "colorProvider": true, "signatureHelpProvider": map[string]any{"triggerCharacters": []string{"("}, "retriggerCharacters": []string{","}}, "documentSymbolProvider": true, "workspaceSymbolProvider": true, "hoverProvider": true,
 			}})
 		case "shutdown":
 			reply(m.ID, nil)
@@ -720,16 +736,26 @@ func TestB194LastList(t *testing.T) {
 	}
 }
 
-// B196
-func TestB196DiagnosticsList(t *testing.T) {
-	e, _ := withServer(t, "ok\nbad x bad\n", "utf-8")
+// B196, B214
+func TestB196PickPlaces(t *testing.T) {
+	e, _ := withServer(t, "ok\nbad x bad\nfunc needle\n", "utf-16")
 	settle(t, e, func() bool { return len(decorations(e)) == 2 })
-	feed(e, ":diagnostics<CR>")
-	if got := text(e); !strings.HasSuffix(strings.Split(got, "\n")[0], ":2:1: error bad word") {
-		t.Errorf(":diagnostics listed %q", got)
+	rows := func() []string {
+		f, _ := e.Float()
+		return slices.DeleteFunc(strings.Split(f.Text, "\n")[2:], func(l string) bool { return l == "" })
 	}
-	if feed(e, ":cclose<CR>:clast<CR>"); e.Cursor() != 9 {
-		t.Errorf(":clast went to %d, want the second bad", e.Cursor())
+	// Diagnostics show under their file, each its line, severity and
+	// message, and <CR> goes to the one picked.
+	feed(e, ":pick diagnostics<CR>")
+	settle(t, e, func() bool { r := rows(); return len(r) == 3 && r[1] == "2  error  bad word" })
+	if feed(e, "<C-n><CR>"); e.Cursor() != 9 {
+		t.Errorf("the second diagnostic is at %d, want 9", e.Cursor())
+	}
+	// Symbols come from the server as the query is typed.
+	feed(e, ":pick symbols<CR>need")
+	settle(t, e, func() bool { r := rows(); return len(r) == 2 && r[1] == "3  needle  Function" })
+	if feed(e, "<CR>"); e.Cursor() != 18 {
+		t.Errorf("the symbol is at %d, want 18", e.Cursor())
 	}
 }
 
