@@ -145,6 +145,10 @@ func build(t theme) styles {
 		"flash": base.Background(t.cmd).Foreground(t.bg),
 		// A hunk's lines, as git's index has them and as they are.
 		"diff.minus": fg(t.err), "diff.plus": fg(t.insert),
+		// The key hints: keys, groups of longer ones, counts, and the keys a
+		// mapping types.
+		"hints.key": fg(t.normal).Bold(true), "hints.group": fg(t.keyword).Bold(true),
+		"hints.muted": fg(t.muted), "hints.typed": fg(t.str),
 		// A language server's state in the :lsp panel.
 		"lsp.running": fg(t.insert), "lsp.starting": fg(t.warn), "lsp.error": fg(t.err),
 		// What a proposal would replace.

@@ -785,6 +785,7 @@ smart_case = false   # with ignore_case, an uppercase letter matches case (B120)
 expand_tab = false   # indent with spaces only (B122)
 format_on_save = false # format before :w writes (B136)
 format_timeout = 1000  # milliseconds a format before a write may take (B136)
+key_hints = 300        # milliseconds before the keys that may follow show, 0 for never (B172)
 clipboard = false    # yanks, deletes and puts use the system clipboard (B137)
 sign_column = false  # keep the sign column when there are no signs (B143)
 indent_guides = true # a faint line at each indent level (B153)
@@ -796,6 +797,9 @@ theme = "dark"       # dark, light, or a base16 scheme such as "~/.config/stylix
 [keymap.normal]      # and [keymap.visual], [keymap.insert]. Keys map to keys.
 "<Leader>w" = ":w<CR>"
 "-" = ""             # "" drops a mapping, fude's own too, and "<Nop>" does nothing (B142)
+
+[keymap.groups]      # names of the keys mappings start with, for key hints (B172)
+"<Leader>s" = "search"
 
 [keymap.listing]     # and [keymap.list], [keymap.timeline], [keymap.lsp], [keymap.help]: a kind of buffer's own keys (B142, B159, B162)
 "<C-h>" = ""

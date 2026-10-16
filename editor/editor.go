@@ -62,6 +62,7 @@ type Session struct {
 	message    string
 	done       bool
 	restarting string         // the session file :restart saved, for main (B170)
+	hints      []vim.Hint     // the keys that may follow the command being typed, while they show (B172)
 	ask        func(yes bool) // takes the answer to the question in the message
 	float      string         // text shown over the windows at the cursor, such as hover
 	floatSpans []syntax.Span  // the styles of the float's text
@@ -380,11 +381,25 @@ func (e *Session) Queue() <-chan func() { return e.queue }
 
 // Feed handles one key. An error becomes the message.
 func (e *Session) Feed(k vim.Key) {
+	// While hints show, <Esc> drops the command being typed, held keys too,
+	// and <BS> its last key.
+	if e.hints != nil && (k == "<Esc>" || k == "<BS>") {
+		if k == "<Esc>" {
+			e.vim.Cancel()
+		} else {
+			e.vim.Back()
+		}
+		e.ShowHints()
+		return
+	}
 	e.feed(k)
 	for len(e.later) > 0 {
 		k := e.later[0]
 		e.later = e.later[1:]
 		e.feed(k)
+	}
+	if e.hints != nil {
+		e.ShowHints()
 	}
 }
 
@@ -431,7 +446,7 @@ func (e *Session) feed(k vim.Key) {
 // Wait reports whether keys are held for a longer mapping, and how long to
 // wait for the next key before calling Timeout.
 func (e *Session) Wait() (time.Duration, bool) {
-	return time.Duration(e.cfg.KeyTimeout) * time.Millisecond, e.vim.Waiting()
+	return time.Duration(e.cfg.KeyTimeout) * time.Millisecond, e.vim.Waiting() && e.hints == nil
 }
 
 // Timeout runs the keys held for a longer mapping when no key came in time.
@@ -785,6 +800,9 @@ type Float struct {
 
 // Float returns the float to draw, or false when there is none.
 func (e *Session) Float() (Float, bool) {
+	if e.hints != nil {
+		return e.hintsFloat(), true
+	}
 	if m := e.cmenu; m != nil {
 		return m.float(), true
 	}
@@ -920,29 +938,37 @@ func (e *Session) jump(n int) bool {
 	return true
 }
 
+// windowKey is a <C-w> command: its keys after <C-w>, what it does, and
+// how.
+type windowKey struct {
+	keys []string
+	help string
+	run  func(e *Session) error
+}
+
+// windowKeys are the <C-w> commands (B91).
+var windowKeys = []windowKey{
+	{[]string{"s", "S", "<C-s>"}, "splits the window, the new one below", func(e *Session) error { e.split(false); return nil }},
+	{[]string{"v", "<C-v>"}, "splits the window, the new one right", func(e *Session) error { e.split(true); return nil }},
+	{[]string{"h", "<C-h>"}, "moves to the window left", func(e *Session) error { e.moveTo('h'); return nil }},
+	{[]string{"j", "<C-j>"}, "moves to the window below", func(e *Session) error { e.moveTo('j'); return nil }},
+	{[]string{"k", "<C-k>"}, "moves to the window above", func(e *Session) error { e.moveTo('k'); return nil }},
+	{[]string{"l", "<C-l>"}, "moves to the window right", func(e *Session) error { e.moveTo('l'); return nil }},
+	{[]string{"c", "<C-c>"}, "closes the window", func(e *Session) error { return e.closeWindow(e.win) }},
+	{[]string{"q", "<C-q>"}, "closes the window, and quits with the last", func(e *Session) error { e.quit(false); return nil }},
+	{[]string{"o", "<C-o>"}, "closes every other window", func(e *Session) error { e.only(); return nil }},
+	// Splits always share their space equally, so there is nothing to even
+	// out.
+	{[]string{"="}, "makes the windows the same size", func(*Session) error { return nil }},
+}
+
 // window runs a <C-w> command.
 func (e *Session) window(k string) {
-	var err error
-	switch k {
-	case "s", "S", "<C-s>":
-		e.split(false)
-	case "v", "<C-v>":
-		e.split(true)
-	case "h", "j", "k", "l":
-		e.moveTo(k[0])
-	case "<C-h>", "<C-j>", "<C-k>", "<C-l>":
-		e.moveTo(k[3])
-	case "c", "<C-c>":
-		err = e.closeWindow(e.win)
-	case "q", "<C-q>":
-		e.quit(false)
-	case "o", "<C-o>":
-		e.only()
-	case "=":
-		// Splits always share their space equally, so there is nothing to
-		// even out.
+	i := slices.IndexFunc(windowKeys, func(w windowKey) bool { return slices.Contains(w.keys, k) })
+	if i < 0 {
+		return
 	}
-	if err != nil {
+	if err := windowKeys[i].run(e); err != nil {
 		e.message = err.Error()
 	}
 }

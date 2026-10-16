@@ -19,6 +19,7 @@ import (
 type config struct {
 	IndentWidth   uint   `toml:"indent_width" help:"the columns of an indent level, 0 for the tab width"`
 	KeyTimeout    uint   `toml:"key_timeout" help:"the milliseconds a mapping waits for its next key"`
+	KeyHints      uint   `toml:"key_hints" help:"the milliseconds a command being typed waits before the keys that may follow it show, 0 for never"`
 	LargeFile     uint   `toml:"large_file" help:"the megabytes over which a file opens with syntax and language servers off"`
 	Autocomplete  bool   `toml:"autocomplete" help:"completions show while typing, not only on <C-x><C-o>"`
 	AutoInstall   bool   `toml:"auto_install" help:"builds a missing grammar the first time a file needs it"`
@@ -39,6 +40,7 @@ type config struct {
 		Float    map[string]string `toml:"float" help:"a float's keys while the cursor is in it"`
 		Lsp      map[string]string `toml:"lsp" help:"the language server panel's keys"`
 		Help     map[string]string `toml:"help" help:"help's keys"`
+		Groups   map[string]string `toml:"groups" help:"names of the keys mappings start with, which key hints show"`
 	} `toml:"keymap"`
 	Filetype map[string]struct {
 		Files       []string `toml:"files" help:"the names of the files of the type, as patterns such as *.toml.tmpl"`
@@ -68,7 +70,7 @@ type config struct {
 	} `toml:"plugin"`
 }
 
-var defaults = config{IndentWidth: 8, KeyTimeout: 1000, FormatTimeout: 1000, LargeFile: 50, AutoInstall: true, Leader: "<Space>", Theme: "dark", options: options{Wrap: true, IndentGuides: true}}
+var defaults = config{IndentWidth: 8, KeyTimeout: 1000, KeyHints: 300, FormatTimeout: 1000, LargeFile: 50, AutoInstall: true, Leader: "<Space>", Theme: "dark", options: options{Wrap: true, IndentGuides: true}}
 
 // options are the settings each window has, which :set changes for the
 // current window and the windows opened after it (B39). :set takes each by

@@ -480,6 +480,17 @@ skip the session. Why: fude's timeline already keeps every unsaved change
 on disk, so the new process can put them back. Refusing would only make
 the user write or drop changes to reload config.
 
+### N24. Key hints show without a plugin
+
+fude lists the keys that may follow a command being typed, as which-key.nvim
+does for Neovim (B172). While the hints show, `<Esc>` drops the held keys
+of a mapping, `<BS>` goes back a key, and `key_timeout` waits. Neovim has
+no hints without a plugin, and there `<Esc>` after a mapping's first key
+runs that key as typed. Why: fude's keys and mappings already say what
+they do for `:h`, so the hints need only a panel. Someone reading the
+hints should not race `key_timeout`, and `<Esc>` there means "none of
+these".
+
 ## Open
 
 None.

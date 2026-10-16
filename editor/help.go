@@ -67,13 +67,7 @@ func (e *Session) helpSections() []helpSection {
 	}
 	out = append(out, commands)
 
-	bindings := vim.Bindings()
-	for _, op := range hostOperators {
-		bindings = append(bindings, vim.Binding{Kind: "operator", Keys: op.keys + "{motion}", Help: op.help})
-	}
-	for _, name := range slices.Sorted(maps.Keys(syntax.Objects)) {
-		bindings = append(bindings, vim.Binding{Kind: "object", Keys: name, Help: syntax.Objects[name].Help})
-	}
+	bindings := append(vim.Bindings(), hostBindings()...)
 	for _, k := range keyKinds {
 		s := helpSection{title: k.title, note: k.note}
 		for _, b := range bindings {
@@ -154,6 +148,38 @@ func keyTags(keys string) []string {
 	return tags
 }
 
+// hostBindings are the operators, objects and window commands fude adds to
+// the machine's.
+func hostBindings() []vim.Binding {
+	var out []vim.Binding
+	for _, op := range hostOperators {
+		out = append(out, vim.Binding{Kind: "operator", Keys: op.keys + "{motion}", Help: op.help})
+	}
+	for _, name := range slices.Sorted(maps.Keys(syntax.Objects)) {
+		out = append(out, vim.Binding{Kind: "object", Keys: name, Help: syntax.Objects[name].Help})
+	}
+	for _, w := range windowKeys {
+		for _, k := range w.keys {
+			out = append(out, vim.Binding{Kind: "normal", Keys: "<C-w>" + k, Help: w.help})
+		}
+	}
+	return out
+}
+
+// mappingText says what a mapping that runs to does: its <Plug>'s help, or
+// the keys it types.
+func mappingText(to string) string {
+	name, ok := strings.CutPrefix(to, "<Plug>(")
+	if !ok {
+		return "types " + to
+	}
+	name = strings.TrimSuffix(name, ")")
+	if i := slices.IndexFunc(plugs, func(p plug) bool { return p.name == name }); i >= 0 {
+		return plugs[i].help
+	}
+	return "runs " + to
+}
+
 // mappings returns help's sections of the session's mappings: the
 // machine's in each mode and each kind of buffer's own, fude's and those
 // config.toml sets.
@@ -167,15 +193,7 @@ func (e *Session) mappings() []helpSection {
 	section := func(title, kind string, each func(func(from, to string))) helpSection {
 		s := helpSection{title: title}
 		each(func(from, to string) {
-			text := "types " + to
-			if name, ok := strings.CutPrefix(to, "<Plug>("); ok {
-				name = strings.TrimSuffix(name, ")")
-				if i := slices.IndexFunc(plugs, func(p plug) bool { return p.name == name }); i >= 0 {
-					text = plugs[i].help
-				} else {
-					text = "runs " + to
-				}
-			}
+			text := mappingText(to)
 			for k := range mine[kind] {
 				if slices.Equal(vim.Keys(withLeader(k, e.cfg.Leader)), vim.Keys(from)) {
 					text += ", as config.toml maps it"

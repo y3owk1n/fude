@@ -319,6 +319,18 @@ Where fude departs, the line says so and cites the departure in
   `config.toml` sets. `:h name` goes to the entry for a command (`:w`), a
   key (`w`, `<Leader>w`), an option or a setting, and `<CR>` on a name in
   help goes to its entry.
+- B172 [2] When a command being typed in normal or visual mode waits
+  `key_hints` milliseconds for its next key, a panel above the status line
+  lists the keys that may follow, with what each does. It lists fude's own
+  keys, operators and objects, and the mappings. A mapping replaces the key
+  it shadows. A key that starts longer ones is a group, listed first with
+  its name and how many keys follow it. `[keymap.groups]` names the keys
+  mappings start with, such as `"<Leader>s" = "search"`, and fude names its
+  own, such as `gr`, `[` and `]`. The panel follows the keys typed after
+  it. While it shows, a mapping's keys wait for the next key instead of
+  `key_timeout`. `<BS>` drops the last key typed, and `<Esc>` drops the
+  command without running any of its keys (N24). `key_hints = 0` turns the
+  panel off.
 - B163 [2] `fude --man` prints fude's man page: the sections of `:h` with
   fude's defaults, and where fude keeps its config, state and socket.
   `just man` writes it to `share/man/man1/fude.1`.
