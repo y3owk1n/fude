@@ -180,6 +180,8 @@ type Machine struct {
 	flash                 [2]int // what the last key yanked or put, empty when nothing
 	expandTab             bool   // indents are spaces only
 	autoPairs             bool   // brackets and quotes typed come with their closing one
+	surround              bool   // ys, ds, cs and visual S surround text (B219)
+	wait                  *charWait
 	lastRep               string // the previous replacement, for ~
 	lastSub               struct{ pattern, rep, flags string }
 	msg                   string
@@ -331,7 +333,7 @@ func (m *Machine) Shown() string {
 // show keeps k for Shown while a command is being typed in normal or visual
 // mode, and forgets the keys once it is done.
 func (m *Machine) show(k Key) {
-	typing := m.pending != "" || m.op != "" || m.count > 0 || m.reg != 0 || len(m.held) > 0
+	typing := m.pending != "" || m.op != "" || m.count > 0 || m.reg != 0 || len(m.held) > 0 || m.wait != nil
 	if !typing || m.mode == Insert || m.mode == Cmdline || m.mode == Replace {
 		m.shown = nil
 		return
@@ -345,7 +347,7 @@ func (m *Machine) Idle() bool { return m.idle() && len(m.held) == 0 }
 
 // idle reports whether the machine is between commands.
 func (m *Machine) idle() bool {
-	return m.mode == Normal && m.pending == "" && m.op == "" && m.count == 0 && m.reg == 0
+	return m.mode == Normal && m.pending == "" && m.op == "" && m.count == 0 && m.reg == 0 && m.wait == nil
 }
 
 // run feeds keys until one fails or a motion beeps, through the keymap when
@@ -475,11 +477,30 @@ var prefixes = []Binding{
 }
 
 func (m *Machine) normal(k Key) error {
+	if m.wait != nil {
+		return m.takeChar(k)
+	}
 	cmd := string(m.pending) + string(k)
 	m.pending = ""
 	if len(cmd) == 1 && cmd >= "0" && cmd <= "9" && (cmd != "0" || m.count > 0) {
 		m.count = m.count*10 + int(cmd[0]-'0')
 		m.counted = true
+		return nil
+	}
+	if m.surround && cmd == "s" && (m.op == "y" || m.op == "d" || m.op == "c") {
+		// ys waits for a motion like any operator, and ds and cs for the
+		// characters that name the brackets (B219).
+		if m.op == "y" {
+			m.op = "ys"
+			return nil
+		}
+		op := m.op
+		m.op, m.opCount, m.count, m.reg = "", 0, 0, 0
+		if op == "d" {
+			m.wait = &charWait{n: 1, run: func(ch []string) error { return m.resurround(ch[0], "", "ds"+ch[0]) }}
+		} else {
+			m.wait = &charWait{n: 2, run: func(ch []string) error { return m.resurround(ch[0], ch[1], "cs"+ch[0]+ch[1]) }}
+		}
 		return nil
 	}
 	if len(m.op) == 2 && cmd == m.op[1:] {

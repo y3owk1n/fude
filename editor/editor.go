@@ -165,6 +165,7 @@ func (ed *Editor) Attach(o kernel.Origin) *Session {
 func (e *Session) join() {
 	e.vim = vim.New(host{e})
 	e.vim.AutoPairs(e.cfg.Autopairs)
+	e.vim.Surround(true)
 	for _, f := range e.setup {
 		f(e)
 	}

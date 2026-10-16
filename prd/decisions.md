@@ -640,6 +640,16 @@ any text in view in three or four keys. The user asked for jump labels on 2026-1
 start a jump after an operator, as `ds`, `cs` and `ys` are surround's
 (B219).
 
+### N33. Surround is built in, and S in visual mode surrounds
+
+`ys`, `ds`, `cs` and `S` in visual mode add, delete and change the brackets
+and quotes around text (B219), as vim-surround does. Neovim has none of
+them, and its `S` in visual mode changes the selected lines. Why: the user
+asked for surround on 2026-10-17, and `R` in visual mode still changes the
+selected lines. `ys`, `ds` and `cs` have no meaning in Neovim, so they take
+nothing away. The vim module offers it through `Surround`, off until a
+host turns it on.
+
 ## Open
 
 None.

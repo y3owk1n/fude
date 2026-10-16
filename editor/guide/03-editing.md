@@ -29,6 +29,15 @@ around it.
 `ci"` changes the text inside the quotes around the cursor, wherever the
 cursor is in them.
 
+## Surrounding
+
+`ys` puts brackets or quotes around what a motion or object covers, and
+the next key says which: `ysiw)` makes `word` into `(word)`, and `ysiw(`
+into `( word )`. `yss` surrounds the line, and `S` in visual mode the
+selection. `ds"` deletes the quotes around the cursor, and `cs"'` changes
+them to single quotes. `b`, `r`, `B` and `a` stand for `)`, `]`, `}` and
+`>`, and `.` repeats any of them.
+
 ## Registers and the clipboard
 
 Deleted and copied text goes to the unnamed register, and `p` and `P` put

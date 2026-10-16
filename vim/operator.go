@@ -115,6 +115,10 @@ func (m *Machine) hostOp(op, label string, r region) error {
 
 // act applies d, c or y to r.
 func (m *Machine) act(op string, reg rune, label string, r region) error {
+	if op == "ys" {
+		m.wait = &charWait{n: 1, run: func(ch []string) error { return m.surroundRegion(r, ch[0], label+ch[0]) }}
+		return nil
+	}
 	if m.ops[op] != nil {
 		return m.hostOp(op, label, r)
 	}

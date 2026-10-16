@@ -557,6 +557,15 @@ Where fude departs, the line says so and cites the departure in
   cursor to its match's start, `<CR>` to the nearest match's, `<BS>` drops
   the last character, and `<Esc>` stays. A jump is in the jumplist. The
   status line shows what was typed.
+- B219 [2] As vim-surround does, `ys{motion}{char}` puts brackets or
+  quotes around what the motion or object covers, `yss{char}` around the
+  line's text from its first non-blank, and `S{char}` in visual mode
+  around the selection (N33). `ds{char}` deletes the pair around the
+  cursor and `cs{old}{new}` changes it. A closing bracket, or `b`, `r`, `B`
+  or `a`, names a pair. An opening bracket names the same pair with a
+  blank inside each side, and `ds` and `cs` also take those blanks away.
+  Any other character goes on both sides. Dot repeats each, with its characters, and
+  `<Esc>` cancels one waiting for its character.
 - B90 [2] `<C-o>` and `<C-i>` move through the jumplist, and `g;` and `g,`
   through the changelist, as in Neovim.
 - B91 [2] `<C-w>c`, `<C-w>o`, `<C-w>q`, `<C-w>=` and `:q` in a split close

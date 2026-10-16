@@ -334,6 +334,12 @@ func (m *Machine) visualKey(cmd string, count int, reg rune) error {
 	if vk, ok := visuals[cmd]; ok {
 		return vk.run(m, visualCall{t, c, cmd, count, reg})
 	}
+	if m.surround && cmd == "S" {
+		r := m.selection()
+		m.leaveVisual()
+		m.wait = &charWait{n: 1, run: func(ch []string) error { return m.surroundRegion(r, ch[0], "vS"+ch[0]) }}
+		return nil
+	}
 	if v, ok := visualOps[cmd]; ok {
 		r := m.selection()
 		switch {
