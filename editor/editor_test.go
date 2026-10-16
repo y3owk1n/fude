@@ -1031,6 +1031,26 @@ func TestB213Pick(t *testing.T) {
 	settle(t, e, func() bool { return slices.Contains(rows(), "b.txt") })
 }
 
+// B215
+func TestB215PickLists(t *testing.T) {
+	config(t, "[keymap.normal]\n\"zq\" = \":set number<CR>\"\n")
+	e := start(t)
+	e.SetSize(100, 30)
+	shows := func(want string) bool { f, _ := e.Float(); return strings.Contains(f.Text, want) }
+	// :pick alone lists the sources, and picking one opens its finder.
+	feed(e, ":pick<CR>")
+	settle(t, e, func() bool { return shows("keymaps") })
+	feed(e, "keymaps<CR>")
+	settle(t, e, func() bool { return shows("zq  :set<Space>number<CR>") })
+	// A mapping picked runs.
+	if feed(e, "zq<CR>"); !e.Views()[0].Number {
+		t.Error("picking zq did not run it")
+	}
+	if feed(e, ":pick help<CR>guide-start<CR>"); !strings.HasPrefix(text(e), "# fude help") {
+		t.Errorf("picking guide-start opened %q", e.Views()[len(e.Views())-1].Name)
+	}
+}
+
 // B212
 func TestB212QCloses(t *testing.T) {
 	dir := t.TempDir()

@@ -11,16 +11,29 @@ import (
 	"strings"
 
 	"github.com/y3owk1n/fude/lsp"
+	"github.com/y3owk1n/fude/vim"
 )
 
 // pickSources are the sources :pick finds in, by name.
-var pickSources = []string{"files", "grep", "buffers", "recent", "diagnostics", "symbols"}
+var pickSources = []string{"files", "grep", "buffers", "recent", "diagnostics", "symbols", "help", "keymaps"}
 
-// openPick opens the finder on the items of source. grep takes the text
-// after it as its query (B213).
+// openPick opens the finder on the items of source, or on the sources
+// without one. grep takes the text after it as its query (B213).
 func (e *Session) openPick(arg string) {
 	source, rest, _ := strings.Cut(arg, " ")
 	switch source {
+	case "":
+		e.pickFrom("pick", pickSources, func(i int) { e.openPick(pickSources[i]) })
+	case "help":
+		tags := e.helpTags()
+		e.pickFrom("help", tags, func(i int) { e.help(tags[i]) })
+	case "keymaps":
+		var items, keys []string
+		e.vim.Each(vim.Normal, func(from, to string) {
+			items, keys = append(items, from+"  "+to), append(keys, from)
+		})
+		// The keys picked run as if typed, once the finder closes.
+		e.pickFrom("keymaps", items, func(i int) { e.later = append(e.later, vim.Keys(keys[i])...) })
 	case "files":
 		e.files()
 	case "grep":
@@ -77,6 +90,16 @@ func recentFiles(current string) ([]string, error) {
 		out = append(out, p)
 	}
 	return out, nil
+}
+
+// pickFrom opens the finder on items with no preview, and runs picked with
+// the index of the one picked (B215).
+func (e *Session) pickFrom(title string, items []string, picked func(int)) {
+	e.openFinder(&finder{paths: items, stale: true, title: title, chose: func(i int, _ string, ok bool) {
+		if ok && i >= 0 {
+			picked(i)
+		}
+	}}, "")
 }
 
 // diagnosticPlaces returns the diagnostics of every buffer as places, the

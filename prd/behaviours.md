@@ -528,8 +528,9 @@ Where fude departs, the line says so and cites the departure in
   `<Tab>` completes the source's name. `files` and `grep` are B129's and
   B134's finders. `buffers` lists the open buffers that have a file.
   `recent` lists the last 100 files a window showed, newest first, and
-  keeps them across sessions. Neither lists the current file. B196 and
-  B214 add `diagnostics` and `symbols`. `<CR>` opens
+  keeps them across sessions. Neither lists the current file. B196,
+  B214 and B215 add `diagnostics`, `symbols`, `help` and `keymaps`. A
+  `<CR>` typed before the list narrows picks from what was typed. `<CR>` opens
   the file picked, and B130's preview shows it. The finder's border names
   the source (N11).
 - B196 [2] `:pick diagnostics` opens the finder on the diagnostics of
@@ -537,6 +538,11 @@ Where fude departs, the line says so and cites the departure in
   file, the worst first and then in the order of the text, each as its
   line, severity and message. `<CR>` goes to the one picked, and the
   preview shows its line.
+- B215 [2] `:pick` alone lists the sources, and picking one opens its
+  finder. `:pick help` lists help's names and opens help at the one
+  picked. `:pick keymaps` lists the normal mode mappings, each with what
+  it maps to, and runs the one picked. These lists, and a plugin's list
+  (B185), show each item as text with no preview.
 - B214 [5] `:pick symbols` opens the finder on the symbols the current
   buffer's language server finds for the query, asking again as it is
   typed. They show under their file, each as its line, name and kind, and

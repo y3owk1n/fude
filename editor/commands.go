@@ -87,7 +87,7 @@ func init() {
 			e.edit(x.arg)
 		}, completePath},
 		{vim.Command{Name: "enew", Help: "shows a new empty buffer"}, func(e *Session, _ call) { e.empty() }, nil},
-		{vim.Command{Name: "pick", Args: "{source} [text]", Help: "opens the finder on a source: files, grep [text], buffers, recent, diagnostics or symbols"}, func(e *Session, x call) { e.openPick(x.arg) }, func(e *Session, _ string, start int, arg string, _ bool) (int, []string) {
+		{vim.Command{Name: "pick", Args: "[source] [text]", Help: "opens the finder on a source, or on the sources: files, grep [text], buffers, recent, diagnostics, symbols, help or keymaps"}, func(e *Session, x call) { e.openPick(x.arg) }, func(e *Session, _ string, start int, arg string, _ bool) (int, []string) {
 			return start, match(pickSources, arg)
 		}},
 		{vim.Command{Name: "cnext", Short: []string{"cn"}, Help: "goes to the next place of the last list of places"}, func(e *Session, _ call) {

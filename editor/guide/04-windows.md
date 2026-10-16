@@ -54,7 +54,8 @@ when it is installed and `git grep` otherwise. `:pick grep text` starts
 with text typed, and `<CR>` opens the file at the match.
 
 `:pick buffers` finds an open buffer, and `:pick recent` one of the last
-100 files you opened. `<Tab>` after `:pick ` lists every source.
+100 files you opened. `:pick help` finds a help topic, and `:pick keymaps`
+a mapping, which runs when picked. `:pick` alone lists every source.
 
 ## Lists of places
 

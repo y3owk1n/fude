@@ -171,6 +171,10 @@ func (e *Session) finding(k vim.Key) {
 	e.vim.AutoPairs(e.cfg.Autopairs)
 	t := e.Text()
 	query := t.Slice(0, t.Len())
+	if (f.open || f.list) && query != f.query && !f.grep && f.lookup == nil && f.paths != nil {
+		// Keys typed faster than matching runs pick from what they typed.
+		f.query, f.matches, f.sel = query, match(f.paths, query), 0
+	}
 	switch {
 	case f.list && f.chose == nil:
 		e.closeFinder()
@@ -353,6 +357,15 @@ func (f *finder) float(query string, cursor, width, height int) Float {
 				spans = append(spans, syntax.Span{Start: s.Len() + at, End: s.Len() + at + 1, Name: "match"})
 			}
 			s.WriteString(text)
+		case f.chose != nil:
+			// An item of a list is text, not a path.
+			if r := []rune(m); len(r) > w-4 {
+				m = string(r[:max(w-4, 0)])
+			}
+			for _, at := range positions(lower(f.query), m) {
+				spans = append(spans, syntax.Span{Start: s.Len() + at, End: s.Len() + at + 1, Name: "match"})
+			}
+			s.WriteString(m)
 		default:
 			writePath(&s, &spans, m, positions(lower(f.query), m), w-4, "")
 		}
@@ -361,7 +374,7 @@ func (f *finder) float(query string, cursor, width, height int) Float {
 		}
 	}
 	// An empty list says why, once the matches are for the query typed.
-	if len(list) == 0 && f.query == query && (f.grep || f.lookup != nil || f.paths != nil) {
+	if len(list) == 0 && f.query == query && !f.stale && !f.busy && (f.grep || f.lookup != nil || f.paths != nil) {
 		list = append(list, listRow{})
 		empty := "no matches"
 		if f.hint != "" && query == "" {
