@@ -469,6 +469,9 @@ Where fude departs, the line says so and cites the departure in
 - B32 [2] Any two nodes can be diffed.
 - B33 [2] The timeline persists across sessions when the file on disk still
   matches the last saved node.
+- B198 [2] Closing a file at its last save cuts a timeline log over 1MB to
+  the newest changes on the way to that save that fit in 1MB (N26). The
+  timeline that is left persists as B33 says.
 - B34 [2] After a crash, opening the file offers to recover every edit made
   since the last save, and `:recover` brings them back. Declining keeps them
   on the timeline as a branch.

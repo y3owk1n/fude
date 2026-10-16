@@ -31,9 +31,14 @@ type record struct {
 type history struct {
 	path     string
 	f        *os.File
-	err      error // the first write that failed, which stops the log
+	err      error  // the first write that failed, which stops the log
+	saved    record // the last base or save record, which the next open matches
 	reported bool
 }
+
+// logCap is the size over which a clean close cuts a timeline log, as
+// opening the file reads the whole log (N26).
+const logCap = 1 << 20
 
 // historyPath returns where the timeline log of the file at path lives.
 func historyPath(path string) (string, error) {
@@ -67,6 +72,9 @@ func (h *history) write(r record) {
 	if h.err != nil {
 		return
 	}
+	if r.Kind == "base" || r.Kind == "save" {
+		h.saved = r
+	}
 	line, err := json.Marshal(r)
 	if err == nil && h.f == nil {
 		if err = os.MkdirAll(filepath.Dir(h.path), 0o700); err == nil {
@@ -81,8 +89,27 @@ func (h *history) write(r record) {
 	}
 }
 
-// close records a clean close at head and releases the file.
-func (h *history) close(head kernel.NodeID) {
+// close records a clean close at t's head and releases the file. With cut,
+// a log over logCap whose text is at its last save is then cut to the
+// newest nodes on the way to the head that fit in logCap (B198).
+func (h *history) close(t *kernel.Buffer, saves []kernel.NodeID, cut bool) {
+	head := t.Head()
+	h.end(head)
+	if !cut || h.err != nil || head != h.saved.Head {
+		return
+	}
+	info, err := os.Stat(h.path)
+	if err != nil {
+		h.err = fmt.Errorf("timeline log %s: %w", h.path, err)
+		return
+	}
+	if info.Size() > logCap {
+		h.err = h.cut(t.Nodes(), head, saves)
+	}
+}
+
+// end writes the close record at head and closes the file.
+func (h *history) end(head kernel.NodeID) {
 	h.write(record{Kind: "close", Head: head})
 	if h.f != nil {
 		if err := h.f.Close(); err != nil && h.err == nil {
@@ -90,6 +117,60 @@ func (h *history) close(head kernel.NodeID) {
 		}
 		h.f = nil
 	}
+}
+
+// cut rewrites the log with the nodes on the way to head, from the newest,
+// until the next one would take it past logCap. The oldest node kept starts
+// from the log's start. It drops older nodes and the branches off that way.
+func (h *history) cut(nodes []kernel.Node, head kernel.NodeID, saves []kernel.NodeID) error {
+	byID := make(map[kernel.NodeID]kernel.Node, len(nodes))
+	for _, n := range nodes {
+		byID[n.ID] = n
+	}
+	var kept []kernel.Node // newest first
+	keep := map[kernel.NodeID]bool{}
+	for id, size := head, 0; id != (kernel.NodeID{}); {
+		n := byID[id]
+		line, err := json.Marshal(record{Kind: "node", Node: &n})
+		if err != nil {
+			return fmt.Errorf("cut timeline log %s: %w", h.path, err)
+		}
+		// The head always stays, so undo reverts the newest change.
+		if size += len(line); size > logCap && len(kept) > 0 {
+			break
+		}
+		kept, keep[id] = append(kept, n), true
+		id = n.Parent
+	}
+	if len(kept) > 0 {
+		kept[len(kept)-1].Parent = kernel.NodeID{}
+	}
+	cut := &history{path: h.path + ".new"}
+	if err := os.Remove(cut.path); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("cut timeline log %s: %w", h.path, err)
+	}
+	cut.write(record{Kind: "base"})
+	for i := len(kept) - 1; i >= 0; i-- {
+		cut.write(record{Kind: "node", Node: &kept[i]})
+	}
+	// The last save is h.saved, which carries the hash the next open matches.
+	if h.saved.Kind == "save" {
+		saves = saves[:len(saves)-1]
+	}
+	for _, s := range saves {
+		if keep[s] {
+			cut.write(record{Kind: "save", Head: s})
+		}
+	}
+	cut.write(h.saved)
+	cut.end(head)
+	if cut.err != nil {
+		return cut.err
+	}
+	if err := os.Rename(cut.path, h.path); err != nil {
+		return fmt.Errorf("cut timeline log %s: %w", h.path, err)
+	}
+	return nil
 }
 
 // failed returns a write error the first time it is asked, so the editor
@@ -130,6 +211,10 @@ func openHistory(path, text string) (*history, loaded, error) {
 		}
 		h.write(record{Kind: "base", Hash: sum})
 		return h, loaded{}, nil
+	}
+	h.saved = record{Kind: "base", Head: l.head, Hash: sum}
+	if len(l.saves) > 0 {
+		h.saved.Kind = "save"
 	}
 	return h, l, nil
 }

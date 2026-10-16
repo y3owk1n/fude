@@ -554,6 +554,17 @@ per window, which commands fill and others list. Why: fude already shows
 every list of places in a window, so the newest one is the one to go
 through, and a second kind of list would make the user pick which.
 
+### N26. The timeline keeps its newest megabyte
+
+When a file closes at its last save and its timeline log is over 1MB, fude
+cuts the log to the newest changes on the way to that save that fit in
+1MB, and drops older changes and the branches off that way (B198). The
+session that offers a crash's changes with `:recover` does not cut. Neovim
+keeps the last 1000 changes of the undo tree, by `undolevels`, whatever
+their size. Why: opening a file reads its whole log, at about 7ms a
+megabyte, and one `:%s` over a 10MB file adds 315KB. A cap on bytes bounds
+the time to open a file, whatever made the changes.
+
 ## Open
 
 None.

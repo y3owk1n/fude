@@ -1467,6 +1467,45 @@ func TestB33TimelineAcrossSessions(t *testing.T) {
 	}
 }
 
+// B198
+func TestB198TimelineLogCut(t *testing.T) {
+	state := t.TempDir()
+	t.Setenv("XDG_STATE_HOME", state)
+	path := filepath.Join(t.TempDir(), "f")
+	if err := os.WriteFile(path, []byte("one"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	e := open(t, path)
+	for range 15 {
+		feed(e, "o")
+		e.Paste(strings.Repeat("x", 100<<10))
+		feed(e, "<Esc>")
+	}
+	feed(e, "A last<Esc>:w<CR>")
+	want := text(e)
+	feed(e, "u")
+	before := text(e)
+	feed(e, "<C-r>:q<CR>")
+	logs, err := filepath.Glob(filepath.Join(state, "fude", "timeline", "*.log"))
+	if err != nil || len(logs) != 1 {
+		t.Fatalf("the timeline logs are %q, %v", logs, err)
+	}
+	info, err := os.Stat(logs[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Size() > 1<<20 {
+		t.Fatalf("after closing, the log is %d bytes, want at most 1MB", info.Size())
+	}
+	e = open(t, path)
+	if text(e) != want || e.Message() != "" {
+		t.Fatalf("reopening said %q", e.Message())
+	}
+	if feed(e, "u"); text(e) != before {
+		t.Errorf("undo after reopening left %d bytes, want %d", len(text(e)), len(before))
+	}
+}
+
 // B34
 func TestB34Recovery(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "f")

@@ -143,7 +143,8 @@ func (b *buffer) markSaved(text string) {
 // recovery.
 func (b *buffer) close() {
 	if b.log != nil {
-		b.log.close(b.text.Head())
+		// The log keeps a crash's changes while :recover offers them.
+		b.log.close(b.text, b.saves, b.unsaved == kernel.NodeID{})
 	}
 	if b.syntax != nil {
 		b.syntax.Close()
