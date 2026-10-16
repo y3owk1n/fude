@@ -262,6 +262,36 @@ func TestB200ColorColumn(t *testing.T) {
 	}
 }
 
+// B64, for a menu longer than its box
+func TestB64MenuScrolls(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.txt")
+	var words []string
+	for i := range 30 {
+		words = append(words, fmt.Sprintf("w%02d", i))
+	}
+	if err := os.WriteFile(path, []byte(strings.Join(words, " ")+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	c := startWith(t, "", path)
+	for _, k := range vim.Keys("o w<C-x><C-o>" + strings.Repeat("<C-n>", 24)) {
+		c.e.Feed(k)
+	}
+	c.draw()
+	buf := c.e.Text()
+	chosen := strings.TrimSpace(buf.Slice(buf.LineStart(1), buf.Len()))
+	for y := range 40 {
+		var row strings.Builder
+		for x := range 120 {
+			s, _, _ := c.s.Get(x, y)
+			row.WriteString(s)
+		}
+		if strings.Contains(row.String(), chosen+"  [buffer]") {
+			return
+		}
+	}
+	t.Errorf("the 25th item, %s, is not in the menu on screen", chosen)
+}
+
 // B145
 func TestB145Theme(t *testing.T) {
 	for _, c := range []struct{ config, theme string }{{"", "dark"}, {`theme = "light"`, "light"}} {

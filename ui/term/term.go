@@ -360,7 +360,8 @@ func (c *client) above(f editor.Float, cx, cy, w, h int) {
 }
 
 // scroll returns the first of rows to show in a box n rows tall. It is f's
-// top row, moved so the cursor's row shows when f has the cursor.
+// top row, moved so the cursor's row shows when f has the cursor. A menu
+// without the cursor shows its selected item (B64).
 func scroll(rows []row, f editor.Float, n int) int {
 	// rowOf is the row that shows the byte at p.
 	rowOf := func(p int) int {
@@ -368,7 +369,11 @@ func scroll(rows []row, f editor.Float, n int) int {
 		return max(i-1, 0)
 	}
 	if f.Cursor < 0 {
-		return 0
+		i := slices.IndexFunc(f.Spans, func(s syntax.Span) bool { return s.Name == "menu.selected" })
+		if i < 0 {
+			return 0
+		}
+		return max(rowOf(f.Spans[i].Start)-n+1, 0)
 	}
 	cur := rowOf(f.Cursor)
 	return min(max(rowOf(f.Top), cur-n+1), cur)

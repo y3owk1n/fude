@@ -662,7 +662,8 @@ Where fude departs, the line says so and cites the departure in
   blocks on a server.
 - B64 [5] `<C-x><C-o>` in insert mode lists the server's completions.
   `<C-n>` and `<C-p>` select, `<C-y>` accepts, and the accepted text is part
-  of the insert's undo step.
+  of the insert's undo step. A menu longer than its box scrolls to keep the
+  selected item in view.
 - B65 [5] `gq{target}` formats that range through the server, as one
   timeline node.
 - B66 [5] `grn` renames, `gra` lists code actions, `grr` references, `gri`
