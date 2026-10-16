@@ -284,6 +284,50 @@ wants an editing buffer with a timeline, or a vim grammar over its own
 text. The kernel has no dependencies, and the vim machine reads and edits
 any text through a small interface.
 
+```sh
+go get github.com/y3owk1n/fude/core github.com/y3owk1n/fude/vim
+```
+
+A host embeds `vim.Defaults` for what it has no use for, such as jump
+lists, and writes the rest. A host over the kernel needs about one line
+per method:
+
+```go
+type host struct {
+	vim.Defaults
+	b      *kernel.Buffer
+	cursor kernel.MarkID
+	marks  map[rune]kernel.MarkID
+}
+
+func (h *host) Text() vim.Text    { return h.b.Snapshot() }
+func (h *host) Cursor() int       { return h.b.Mark(h.cursor) }
+func (h *host) SetCursor(pos int) { h.b.MoveMark(h.cursor, pos) }
+func (h *host) BeginGroup()       { h.b.BeginGroup("me") }
+func (h *host) EndGroup()         { h.b.EndGroup("me") }
+
+func (h *host) Apply(edits []vim.Edit, label string) error {
+	t := kernel.Transaction{Base: h.b.Snapshot().Version(), Origin: "me", Label: label, Time: time.Now()}
+	for _, e := range edits {
+		t.Edits = append(t.Edits, kernel.Edit(e))
+	}
+	return h.b.Apply(t)
+}
+
+func (h *host) Undo() (int, int, error) {
+	start, ok := h.b.Undo()
+	if !ok {
+		return 0, 0, vim.ErrNoStep
+	}
+	return start, start, nil
+}
+```
+
+`Redo` has the shape of `Undo`. `SetMark` and `Mark` keep each name's
+`kernel.MarkID` in `marks`, and `Viewport` and `SetTop` come from the
+program's own view. `vim.New(&host{...})` then takes keys with `Feed`.
+The examples in each package's documentation run as tests.
+
 ## Development
 
 [oku](https://github.com/y3owk1n/oku) installs the toolchain from

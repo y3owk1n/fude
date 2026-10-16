@@ -1,5 +1,10 @@
 // Package kernel holds buffers: text, marks, transactions and the timeline.
 // Write a Buffer from one goroutine. Snapshots are safe on any goroutine.
+//
+// The kernel does no I/O and reads no clock. Each Transaction carries the
+// host's time, and a Store the host gives it receives every timeline node
+// to persist. A Snapshot is a github.com/y3owk1n/fude/vim Text as it is, so
+// the vim machine can edit a Buffer through a small host.
 package kernel
 
 import (

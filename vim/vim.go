@@ -1,5 +1,16 @@
 // Package vim is a vim grammar state machine. The host feeds it keys, and it
 // reads and edits the host's text through Host.
+//
+// The machine owns modes, counts, operators, motions, text objects,
+// registers, dot repeat, macros, search and the ex commands that edit text.
+// The host owns the text, its undo history, files, windows and what shows
+// on screen. The machine starts no goroutines, does no I/O and reads no
+// clock. A host drives it from one goroutine with Feed. When Waiting
+// reports keys that wait for more, the host calls Timeout after its delay.
+//
+// A host can keep its text in the kernel of github.com/y3owk1n/fude/core.
+// The kernel's Snapshot is a Text as it is, and kernel.Edit(e) converts an
+// Edit.
 package vim
 
 import (
@@ -31,24 +42,35 @@ type Edit struct {
 var ErrNoStep = errors.New("no step to move to")
 
 // Host owns the text, the cursor and the undo history. Edits between
-// BeginGroup and EndGroup are one undo step. Undo and Redo return where the
-// step's text starts and the cursor from before the step, or ErrNoStep when
-// there is no step to move to.
+// BeginGroup and EndGroup are one undo step, and groups nest. Undo and Redo
+// return where the step's text starts and the cursor from before the step,
+// or ErrNoStep when there is no step to move to. A host embeds Defaults for
+// the methods it has no use for.
 type Host interface {
 	Text() Text
 	Cursor() int
 	SetCursor(pos int)
+	// Apply makes edits, sorted and apart, at offsets in the text before
+	// them. label is the keys of the command. It makes all of them, or none
+	// and returns an error.
 	Apply(edits []Edit, label string) error
 	BeginGroup()
 	EndGroup()
-	Unhandled(keys string) // an ex line such as ":w"
+	// Unhandled gets what the machine leaves to the host: an ex line such as
+	// ":w", and a <C-w> key with its count, such as "2<C-w>+".
+	Unhandled(keys string)
 	Undo() (start, cursor int, err error)
 	Redo() (start, cursor int, err error)
 	Clipboard() (string, error) // the system clipboard, the "+ and "* register
 	SetClipboard(text string) error
-	SetMark(name rune, pos int) // a mark moves with edits to the text
+	// SetMark keeps a mark that moves with edits, staying after text
+	// inserted at it. Names are mark letters, or runes from 0xF0000 up,
+	// which the machine uses for its own marks.
+	SetMark(name rune, pos int)
 	Mark(name rune) (int, bool)
-	Viewport() (top, height, width int) // the first line shown, how many rows fit and how wide they are
+	// Viewport returns the first line shown, how many rows fit and how wide
+	// they are, or math.MaxInt wide when lines do not wrap.
+	Viewport() (top, height, width int)
 	SetTop(top int)
 	// These keep the jumplist and changelist. PushJump records where a jump
 	// leaves from. Jump and Change move n entries back, or forward when n is
@@ -62,6 +84,27 @@ type Host interface {
 	Step(n int) (int, bool)
 	IndentWidth() int // the columns >, <, <C-t> and <C-d> shift by
 }
+
+// Defaults is the part of a Host a host may leave out by embedding it. It
+// has no undo history, jumps, changes or system clipboard, ignores what
+// reaches Unhandled, and indents by Tabstop columns. A host then writes
+// Text, Cursor, SetCursor, Apply, SetMark, Mark, Viewport and SetTop.
+type Defaults struct{}
+
+func (Defaults) BeginGroup()                {}
+func (Defaults) EndGroup()                  {}
+func (Defaults) Unhandled(string)           {}
+func (Defaults) Undo() (int, int, error)    { return 0, 0, ErrNoStep }
+func (Defaults) Redo() (int, int, error)    { return 0, 0, ErrNoStep }
+func (Defaults) Step(int) (int, bool)       { return 0, false }
+func (Defaults) PushJump(int)               {}
+func (Defaults) Jump(int) bool              { return false }
+func (Defaults) Change(int) bool            { return false }
+func (Defaults) IndentWidth() int           { return Tabstop }
+func (Defaults) Clipboard() (string, error) { return "", errNoClipboard }
+func (Defaults) SetClipboard(string) error  { return errNoClipboard }
+
+var errNoClipboard = errors.New("there is no system clipboard")
 
 // Mode is normal, insert, command line, visual or replace.
 type Mode int

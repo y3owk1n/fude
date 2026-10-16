@@ -15,6 +15,7 @@ import (
 // host is the minimal host over a string. It counts undo steps the way the
 // kernel makes nodes.
 type host struct {
+	vim.Defaults
 	text    string
 	cursor  int
 	depth   int
@@ -31,12 +32,7 @@ func (h *host) Clipboard() (string, error)  { return h.clip, nil }
 func (h *host) SetClipboard(s string) error { h.clip = s; return nil }
 
 func (h *host) Viewport() (int, int, int) { return h.top, 22, cmp.Or(h.cols, 80) }
-func (h *host) PushJump(int)              {}
-func (h *host) Jump(int) bool             { return false }
-func (h *host) Change(int) bool           { return false }
-func (h *host) Step(int) (int, bool)      { return 0, false }
 func (h *host) SetTop(top int)            { h.top = top }
-func (h *host) IndentWidth() int          { return 8 }
 
 type text string
 
@@ -52,12 +48,11 @@ func (t text) LineStart(line int) int {
 	return pos
 }
 
-func (h *host) Text() vim.Text          { return text(h.text) }
-func (h *host) Cursor() int             { return h.cursor }
-func (h *host) SetCursor(pos int)       { h.cursor = pos }
-func (h *host) BeginGroup()             { h.depth++ }
-func (h *host) Unhandled(k string)      { h.keys = append(h.keys, k) }
-func (h *host) Undo() (int, int, error) { return 0, 0, vim.ErrNoStep }
+func (h *host) Text() vim.Text     { return text(h.text) }
+func (h *host) Cursor() int        { return h.cursor }
+func (h *host) SetCursor(pos int)  { h.cursor = pos }
+func (h *host) BeginGroup()        { h.depth++ }
+func (h *host) Unhandled(k string) { h.keys = append(h.keys, k) }
 func (h *host) SetMark(r rune, pos int) {
 	if h.marks == nil {
 		h.marks = map[rune]int{}
@@ -69,7 +64,7 @@ func (h *host) Mark(r rune) (int, bool) {
 	p, ok := h.marks[r]
 	return p, ok
 }
-func (h *host) Redo() (int, int, error) { return 0, 0, vim.ErrNoStep }
+
 func (h *host) EndGroup() {
 	h.depth--
 	if h.depth == 0 && h.applied {

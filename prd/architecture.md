@@ -148,6 +148,11 @@ type Host interface {
     SetClipboard(text string) error
 }
 
+// Defaults is the part of Host a host may leave out: no history, jumps,
+// changes or clipboard, and Unhandled ignored. Embedding it leaves Text,
+// Cursor, SetCursor, Apply, SetMark, Mark, Viewport and SetTop to write.
+type Defaults struct{}
+
 func New(h Host) *Machine
 func (m *Machine) Feed(key Key) error
 func (m *Machine) Paste(text string) error
@@ -174,7 +179,7 @@ the change at one cursor (B42).
 
 `vim/` owns the grammar, modes, registers, dot repeat, macros, search and
 the edit-producing ex commands. It keeps its visual anchor and query
-selection regions as marks through `Host.Marks()`, so another view's edits
+selection regions as marks through `Host.SetMark`, so another view's edits
 move them (B23). The host owns files, windows, history
 storage, the clipboard and everything shown on screen. `:w` and `<C-w>v`
 reach the host through `Unhandled`.
