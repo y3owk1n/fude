@@ -157,7 +157,9 @@ func runFormatters(runs []run, text, path string, timeout time.Duration) (string
 }
 
 // lineEdits returns the edits that turn old into new, one for each run of
-// changed lines, so marks on the lines that stay keep their place.
+// changed lines, so marks on the lines that stay keep their place. When a
+// run has as many new lines as old ones, each line changes on its own and
+// keeps its line break, so a mark on it stays on its line.
 func lineEdits(old, new string) []kernel.Edit {
 	var edits []kernel.Edit
 	pos := 0 // where the next op's line starts in old
@@ -167,13 +169,28 @@ func lineEdits(old, new string) []kernel.Edit {
 			pos, i = pos+len(ops[i].line), i+1
 			continue
 		}
-		e := kernel.Edit{Start: pos}
+		var gone, added []string
 		for ; i < len(ops) && ops[i].kind != ' '; i++ {
 			if ops[i].kind == '-' {
-				pos += len(ops[i].line)
+				gone = append(gone, ops[i].line)
 			} else {
-				e.Text += ops[i].line
+				added = append(added, ops[i].line)
 			}
+		}
+		if len(gone) == len(added) {
+			for k, line := range gone {
+				e := kernel.Edit{Start: pos, End: pos + len(line), Text: added[k]}
+				if strings.HasSuffix(line, "\n") && strings.HasSuffix(e.Text, "\n") {
+					e.End, e.Text = e.End-1, strings.TrimSuffix(e.Text, "\n")
+				}
+				edits = append(edits, e)
+				pos += len(line)
+			}
+			continue
+		}
+		e := kernel.Edit{Start: pos, Text: strings.Join(added, "")}
+		for _, line := range gone {
+			pos += len(line)
 		}
 		e.End = pos
 		edits = append(edits, e)

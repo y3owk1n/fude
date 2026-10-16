@@ -148,6 +148,17 @@ func TestFakeServer(t *testing.T) {
 				at := map[string]int{"line": line, "character": 0}
 				edits = append(edits, map[string]any{"range": map[string]any{"start": at, "end": at}, "newText": "\t"})
 			}
+			// Some servers send the whole text formatted, ending in a line break.
+			if os.Getenv("FUDE_FAKE_WHOLE") != "" {
+				lines := strings.Split(opened[m.Params.TextDocument.URI], "\n")
+				end := map[string]int{"line": len(lines) - 1, "character": len(lines[len(lines)-1])}
+				whole := map[string]any{"start": map[string]int{"line": 0, "character": 0}, "end": end}
+				var text strings.Builder
+				for _, l := range lines {
+					text.WriteString("\t" + strings.TrimPrefix(l, "\t") + "\n")
+				}
+				edits = []any{map[string]any{"range": whole, "newText": text.String()}}
+			}
 			reply(m.ID, edits)
 		case "textDocument/completion":
 			reply(m.ID, map[string]any{"items": []any{
@@ -583,6 +594,20 @@ func TestB136FormatOnSaveServer(t *testing.T) {
 	settle(t, e, func() bool { return !e.Views()[0].Modified && text(e) == "\ta\n\tb" })
 	if got := disk(t, e.Views()[0].Name); got != "\ta\n\tb" {
 		t.Fatalf(":w wrote %q", got)
+	}
+	// A server that sends the whole text, ending in a line break, adds no
+	// line to a file that ends with one, and the cursor on a line it changes
+	// stays on it.
+	t.Setenv("FUDE_FAKE_WHOLE", "1")
+	e, log = withServer(t, "ab\n\tb\nc\n", "utf-8", "format_on_save = true")
+	heard(t, log, `"method":"textDocument/didOpen"`, 1)
+	feed(e, "l:w<CR>")
+	settle(t, e, func() bool { return !e.Views()[0].Modified && text(e) != "ab\n\tb\nc" })
+	if got := disk(t, e.Views()[0].Name); got != "\tab\n\tb\n\tc\n" {
+		t.Fatalf(":w wrote %q", got)
+	}
+	if line := e.Text().LineOf(e.Cursor()); line != 0 {
+		t.Errorf("after formatting the cursor is on line %d, want 1", line+1)
 	}
 }
 

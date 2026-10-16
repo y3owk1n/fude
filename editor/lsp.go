@@ -1221,12 +1221,35 @@ func (e *Session) formatting(b *buffer, start, end int, answer func(kernel.Snaps
 		var edits []kernel.Edit
 		for _, a := range answers {
 			start, end := lsp.Offset(t, a.Range.Start, enc), lsp.Offset(t, a.Range.End, enc)
+			// A buffer holds no last line break, so a server that adds one
+			// adds the line break the file has.
+			if end == t.Len() && b.file.eol {
+				if a.NewText = strings.TrimSuffix(a.NewText, "\n"); start == end && a.NewText == "" {
+					continue
+				}
+			}
 			if start >= from && end <= to {
 				edits = append(edits, kernel.Edit{Start: start, End: end, Text: a.NewText})
 			}
 		}
 		slices.SortStableFunc(edits, func(x, y kernel.Edit) int { return cmp.Compare(x.Start, y.Start) })
-		answer(t, edits)
+		// A server may replace the whole text, which would take the cursor to
+		// its end, so the edits become the lines they change.
+		old := t.Slice(0, t.Len())
+		var formatted strings.Builder
+		at := 0
+		for _, ed := range edits {
+			// Edits that overlap go as they are, for the kernel to refuse.
+			if ed.Start < at {
+				answer(t, edits)
+				return
+			}
+			formatted.WriteString(old[at:ed.Start])
+			formatted.WriteString(ed.Text)
+			at = ed.End
+		}
+		formatted.WriteString(old[at:])
+		answer(t, lineEdits(old, formatted.String()))
 	})
 }
 
