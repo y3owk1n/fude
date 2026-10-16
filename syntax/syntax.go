@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -129,9 +130,12 @@ type pending struct {
 	text api.Edit
 }
 
+// request asks for the spans of the parts of text that views show, each
+// with a margin, by view.
 type request struct {
-	text          api.Text
-	seq, from, to int
+	text   api.Text
+	seq    int
+	ranges map[any]span
 }
 
 // New returns the syntax of a buffer of filetype, which sends its results to
@@ -304,16 +308,21 @@ func (h *Buffer) Changed(before api.Text, edits []api.Edit) {
 	h.log = append(h.log, c)
 }
 
-// Show returns the spans that colour [from, to) of t, the text now. When t
-// or the range has moved past the last request, it asks the worker for new
-// spans. Until they come, it returns the old ones moved through the edits
-// made since.
-func (h *Buffer) Show(t api.Text, from, to int) []Span {
-	if a := h.asked; a.text == nil || a.seq != h.seq || from < a.from || to > a.to {
+// Show returns the spans that colour [from, to) of t, the text now, which
+// view shows. When t has changed, or the range has moved past view's last
+// request, it asks the worker for new spans. The request holds view's range
+// and those of the other views that showed t since. Until the spans come,
+// it returns the old ones moved through the edits made since.
+func (h *Buffer) Show(t api.Text, view any, from, to int) []Span {
+	a := &h.asked
+	if a.text == nil || a.seq != h.seq {
+		*a = request{t, h.seq, map[any]span{}}
+	}
+	if r, ok := a.ranges[view]; !ok || from < r.start || to > r.end {
 		n := to - from
-		h.asked = request{t, h.seq, max(from-n, 0), min(to+n, t.Len())}
+		a.ranges[view] = span{max(from-n, 0), min(to+n, t.Len())}
 		h.mu.Lock()
-		h.req = h.asked
+		h.req = request{t, a.seq, maps.Clone(a.ranges)}
 		h.mu.Unlock()
 		select {
 		case h.wake <- struct{}{}:
@@ -448,10 +457,15 @@ func (h *Buffer) run(filetype string, p *ts.Parser, q, inj *ts.Query, in *inject
 			api.Trace("syntax", fmt.Sprintf("parsed %s, %d bytes after %d edits", filetype, len(text), len(edits)), time.Since(at))
 		}
 		at := time.Now()
-		spans := highlight(c, q, tree, text, r.from, r.to)
-		inner, regions := in.spans(inj, tree, text, r.from, r.to, injectionLevels)
-		spans = append(spans, inner...)
-		api.Trace("syntax", fmt.Sprintf("highlighted bytes %d to %d of %s, %d spans", r.from, r.to, filetype, len(spans)), time.Since(at))
+		var spans []Span
+		var regions []Region
+		ranges := merge(r.ranges)
+		for _, rg := range ranges {
+			spans = append(spans, highlight(c, q, tree, text, rg.start, rg.end)...)
+			inner, rs := in.spans(inj, tree, text, rg.start, rg.end, injectionLevels)
+			spans, regions = append(spans, inner...), append(regions, rs...)
+		}
+		api.Trace("syntax", fmt.Sprintf("highlighted %d ranges of %s, %d spans", len(ranges), filetype, len(spans)), time.Since(at))
 		missing := in.missing
 		in.missing = nil
 		clone := tree.Clone()
@@ -558,6 +572,21 @@ func (h *Buffer) current() (*ts.Tree, func()) {
 
 // span is a range of bytes.
 type span struct{ start, end int }
+
+// merge returns ranges in order, with those that overlap made one.
+func merge(ranges map[any]span) []span {
+	out := slices.SortedFunc(maps.Values(ranges), func(a, b span) int { return a.start - b.start })
+	n := 0
+	for _, s := range out {
+		if n > 0 && s.start <= out[n-1].end {
+			out[n-1].end = max(out[n-1].end, s.end)
+			continue
+		}
+		out[n] = s
+		n++
+	}
+	return out[:n]
+}
 
 // trim drops the blanks and newline a grammar may end a node with.
 func trim(t api.Text, s span) span {

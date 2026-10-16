@@ -948,8 +948,11 @@ modules are wired through `api/` in step 4, `editor/` imports it directly.
 Each highlighted buffer has one goroutine that owns its parser, its tree
 and a copy of its text. The kernel's listener hands every change to the
 buffer's `syntax.Buffer` on the editor loop, which queues it for the goroutine
-as a tree edit and a text edit. Each frame asks for the captures of the
-window plus a margin. The goroutine takes the newest request and the edits
+as a tree edit and a text edit. Each frame asks for the captures of each
+window on the buffer, plus a margin. One request holds every window's
+range, keyed by the window, so two windows on far apart parts of a file
+do not take turns replacing each other's request. The goroutine merges
+ranges that overlap, then takes the newest request and the edits
 up to it, parses incrementally and sends the spans back through the
 editor's queue. Until they arrive, the frame moves the old spans through the
 edits made since, so a keystroke never waits for a parse (B43). A parse

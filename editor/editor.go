@@ -561,7 +561,7 @@ func (e *Session) Views() []View {
 		}
 		last := vim.LineEnd(t, t.LineStart(min(t.LineOf(top)+max(w.h-2, 0), t.Lines()-1)))
 		if h := w.buf.syntax; h != nil {
-			v.Highlights = h.Show(t, top, last)
+			v.Highlights = h.Show(t, w, top, last)
 		}
 		v.Matches = e.vim.Matches(t, top, last)
 		e.diffGit(w.buf)
