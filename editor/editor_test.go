@@ -1265,6 +1265,23 @@ func TestB154SubstitutePreview(t *testing.T) {
 	}
 }
 
+// B201
+func TestB201StartInDirectory(t *testing.T) {
+	t.Chdir(t.TempDir())
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	change(t, filepath.Join(dir, "a.txt"), "A\n")
+	e := start(t, dir)
+	if wd, _ := os.Getwd(); wd != dir {
+		t.Fatalf("fude %s works in %s", dir, wd)
+	}
+	if feed(e, ":e a.txt<CR>"); text(e) != "A" {
+		t.Errorf(":e a.txt opened %q, want the file in %s", text(e), dir)
+	}
+}
+
 // B124
 func TestB124Listing(t *testing.T) {
 	dir := t.TempDir()

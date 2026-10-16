@@ -110,6 +110,9 @@ Where fude departs, the line says so and cites the departure in
   `<CR>` opens the entry, `<C-s>` and `<C-h>` open it in a split beside or
   below, `_` lists the working directory and `<C-l>` reads it again, as
   oil.nvim's keys do. B142 changes these keys.
+- B201 [2] `fude dir`, with no other file, makes `dir` the working
+  directory, so the finder, grep and relative paths start there. Helix's
+  `hx dir` does the same.
 - B125 [2] Editing a listing and `:w` changes the directory, as oil.nvim
   does: a changed name renames the entry, a deleted line deletes it, and a
   new line creates a file, or a directory when it ends in `/`. fude first

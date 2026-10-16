@@ -248,6 +248,15 @@ func Start(args []string) (*Session, error) {
 			paths = append(paths, b.Path)
 		}
 	}
+	// fude started on a directory works in it (B201).
+	if len(paths) == 1 && restored == nil {
+		if info, err := os.Stat(paths[0]); err == nil && info.IsDir() {
+			if err := os.Chdir(paths[0]); err != nil {
+				return nil, fmt.Errorf("cd %s: %w", paths[0], err)
+			}
+			paths[0] = "."
+		}
+	}
 	cfg, cfgErr := loadConfig()
 	e, err := open(cfg, paths)
 	if err != nil {
