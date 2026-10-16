@@ -143,12 +143,21 @@ func (d decoration) remove() {
 	d.buf.text.DeleteMark(d.end)
 }
 
-// decorate adds and removes the decorations res asks for on b, and emits
-// its events about b. It returns res's edits, sorted, for the caller to
+// decorate adds and removes the decorations res asks for on b, emits its
+// events about b and arms its timers, whose callbacks are about b. It returns res's edits, sorted, for the caller to
 // apply next, so they move the new decorations.
 func (e *Session) decorate(p *plugin.Plugin, b *buffer, res plugin.Result) []vim.Edit {
 	for _, name := range res.Emit {
 		e.emit(name, "", b)
+	}
+	for _, tm := range res.Timers {
+		time.AfterFunc(tm.After, func() {
+			e.queue <- func() {
+				if slices.Contains(e.plugins, p) {
+					e.listen(p).add(event{buf: b, id: tm.ID})
+				}
+			}
+		})
 	}
 	if res.Float != nil {
 		e.float, e.floatSpans = e.markdown(*res.Float)

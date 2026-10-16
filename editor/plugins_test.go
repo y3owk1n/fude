@@ -381,6 +381,13 @@ func TestB178PluginSettings(t *testing.T) {
 	}
 }
 
+// B180
+func TestB180PluginTimers(t *testing.T) {
+	e := loaded(t, "later", "f", "a\n", "buffer.write")
+	feed(e, ":Twice<CR>")
+	settle(t, e, func() bool { return text(e) == "tta" })
+}
+
 // decorations returns what the current window shows of plugins'
 // decorations, as text and style.
 func decorations(e *editor.Session) []string {

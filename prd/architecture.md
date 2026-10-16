@@ -850,7 +850,8 @@ indent width through `Host.IndentWidth`.
 
 Core wasm on wazero (D8). A plugin exports `memory`, `alloc(n) -> ptr`,
 `call(id, a, b, c) -> i64`, which runs what it registered, `on_event(ptr,
-len)` when it subscribes to events, and `_initialize`, `init` or both.
+len)` when it subscribes to events, `callback(id)` when it asks for a
+timer, and `_initialize`, `init` or both.
 fude runs `_initialize`, where a compiler such as TinyGo puts the program's
 setup, then `init`, together under the init budget, and either may register
 and subscribe (D35). `on_event` gets the
@@ -878,6 +879,7 @@ host it may not reach or a request that failed.
 | Function | Capability | Does |
 |---|---|---|
 | `log(ptr, len)` | none | adds a line to fude's log |
+| `after(ms, id) -> i32` | none | runs `callback(id)` once, `ms` milliseconds after the call returns, under the event budget, about the buffer the call was about (B180) |
 | `setting(ptr, len) -> i64` | none | the value of the plugin's setting by its name, as text, or -2 for a name it has none of (B178) |
 | `context(ptr, len) -> i64` | none | the value of what the call is about by its name, or -2 for a name it has none of. Every call has `buffer`, `path` and `filetype`, of the buffer it is about, and `mode` (B176) |
 | `text_len() -> i32` | `buffer.read` | the length of the text |

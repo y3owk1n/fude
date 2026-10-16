@@ -12,10 +12,12 @@ import (
 )
 
 // event is something a plugin may subscribe to, about a buffer. detail is
-// what the event's name carries after a space, such as the new mode.
+// what the event's name carries after a space, such as the new mode. An
+// event with no name is a callback the plugin asked for, run by its id.
 type event struct {
 	name, detail string
 	buf          *buffer
+	id           uint32
 }
 
 // listener hands one plugin the events it subscribed to, one at a time, off
@@ -36,7 +38,7 @@ func (ed *Editor) emit(name, detail string, b *buffer) {
 		if !slices.Contains(l.p.Subscribed, name) {
 			continue
 		}
-		ev := event{name, detail, b}
+		ev := event{name: name, detail: detail, buf: b}
 		l.mu.Lock()
 		if i := slices.IndexFunc(l.pending, func(o event) bool { return o.name == name && o.buf == b }); i >= 0 {
 			l.pending[i] = ev
@@ -51,8 +53,23 @@ func (ed *Editor) emit(name, detail string, b *buffer) {
 	}
 }
 
-// listen starts handing p the events it subscribed to.
-func (e *Session) listen(p *plugin.Plugin) {
+// add puts ev last in what l hands its plugin, as a callback is.
+func (l *listener) add(ev event) {
+	l.mu.Lock()
+	l.pending = append(l.pending, ev)
+	l.mu.Unlock()
+	select {
+	case l.wake <- struct{}{}:
+	default:
+	}
+}
+
+// listen returns p's listener, starting it the first time, which hands p
+// the events it subscribed to and the callbacks it asked for.
+func (e *Session) listen(p *plugin.Plugin) *listener {
+	if l := e.listeners[p]; l != nil {
+		return l
+	}
 	l := &listener{p: p, wake: make(chan struct{}, 1), done: make(chan struct{})}
 	e.listeners[p] = l
 	// on runs f on the editor loop and waits for it, or reports false once
@@ -88,6 +105,10 @@ func (e *Session) listen(p *plugin.Plugin) {
 				if !on(func() {
 					l.mu.Lock()
 					defer l.mu.Unlock()
+					// Drop what is about a buffer closed since.
+					for len(l.pending) > 0 && !slices.Contains(e.bufs, l.pending[0].buf) {
+						l.pending = l.pending[1:]
+					}
 					if more = len(l.pending) > 0; more {
 						ev, l.pending = l.pending[0], l.pending[1:]
 						t, about = ev.buf.text.Snapshot(), e.about(ev.buf)
@@ -103,14 +124,22 @@ func (e *Session) listen(p *plugin.Plugin) {
 					name += " " + ev.detail
 				}
 				at := time.Now()
-				res, err := p.Event(context.Background(), name, t, about)
-				api.Trace("plugin", p.Name+" heard "+name, time.Since(at))
+				var res plugin.Result
+				var err error
+				if ev.name == "" {
+					res, err = p.Callback(context.Background(), ev.id, t, about)
+					api.Trace("plugin", p.Name+" ran a callback", time.Since(at))
+				} else {
+					res, err = p.Event(context.Background(), name, t, about)
+					api.Trace("plugin", p.Name+" heard "+name, time.Since(at))
+				}
 				if !on(func() { e.handled(p, err, ev.buf, t, res) }) {
 					return
 				}
 			}
 		}
 	}()
+	return l
 }
 
 // handled does what p asked for when it heard of b at t. Its edits and

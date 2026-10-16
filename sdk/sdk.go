@@ -73,6 +73,9 @@ func hostLog(ptr *byte, n uint32)
 //go:wasmimport fude context
 func hostContext(ptr *byte, n uint32) int64
 
+//go:wasmimport fude after
+func hostAfter(ms, id uint32) int32
+
 //go:wasmimport fude setting
 func hostSetting(ptr *byte, n uint32) int64
 
@@ -165,6 +168,35 @@ func add(kind uint32, name, help string, run func(a, b, c int64) int64) {
 //go:wasmexport call
 func call(id uint32, a, b, c int64) int64 {
 	return handlers[id](a, b, c)
+}
+
+// later are the functions After runs once, by the id fude calls them back
+// with, and last is the id given last.
+var (
+	later = map[uint32]func(){}
+	last  uint32
+)
+
+//go:wasmexport callback
+func callback(id uint32) {
+	f := later[id]
+	delete(later, id)
+	if f != nil {
+		f()
+	}
+}
+
+// After runs f once, ms milliseconds after the call that asks for it
+// returns, off the input path, as an event runs. f reads the text of the
+// buffer that call was about. A call that fails asks for nothing.
+func After(ms int, f func()) error {
+	last++
+	later[last] = f
+	if err := fail(int64(hostAfter(uint32(ms), last))); err != nil {
+		delete(later, last)
+		return err
+	}
+	return nil
 }
 
 // listeners are the functions On added, by event.

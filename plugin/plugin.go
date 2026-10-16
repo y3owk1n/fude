@@ -61,7 +61,15 @@ type Result struct {
 	Emit       []string // the events to emit, named plugin.event
 	Status     *string  // the plugin's statusline segment for the text it read, "" for none
 	Float      *string  // markdown to show at the cursor, "" to close it
+	Timers     []Timer  // the callbacks to run later
 	Out        []uint64
+}
+
+// Timer is a callback the plugin asked fude to run after a while, through
+// its callback export, by the id it gave (B180).
+type Timer struct {
+	ID    uint32
+	After time.Duration
 }
 
 // Registration is one thing a plugin's init registered: its name, what it
@@ -217,6 +225,14 @@ func (p *Plugin) CallNow(ctx context.Context, name string, t fude.Text, about Co
 	return p.run(ctx, name, t, about, budget, args...)
 }
 
+// Callback runs the plugin's callback export with id, reading t, about what
+// about says, under EventBudget. It waits for a call already running.
+func (p *Plugin) Callback(ctx context.Context, id uint32, t fude.Text, about Context) (Result, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.run(ctx, "callback", t, about, EventBudget, uint64(id))
+}
+
 // Event runs the plugin's on_event with the event's name, written into its
 // memory, reading t, under EventBudget (B57).
 func (p *Plugin) Event(ctx context.Context, name string, t fude.Text, about Context) (Result, error) {
@@ -258,6 +274,7 @@ func (p *Plugin) host(ctx context.Context) error {
 		NewFunctionBuilder().WithFunc(p.logText).Export("log").
 		NewFunctionBuilder().WithFunc(p.context).Export("context").
 		NewFunctionBuilder().WithFunc(p.setting).Export("setting").
+		NewFunctionBuilder().WithFunc(p.after).Export("after").
 		NewFunctionBuilder().WithFunc(p.textLen).Export("text_len").
 		NewFunctionBuilder().WithFunc(p.lines).Export("lines").
 		NewFunctionBuilder().WithFunc(p.lineOf).Export("line_of").
@@ -310,6 +327,16 @@ func (p *Plugin) context(ctx context.Context, m api.Module, ptr, n uint32) int64
 		return errRange
 	}
 	return give(ctx, m, v)
+}
+
+// after asks fude to run the plugin's callback with id, ms milliseconds
+// after the call returns.
+func (p *Plugin) after(ms, id uint32) int32 {
+	if p.call == nil {
+		return errDenied
+	}
+	p.call.Timers = append(p.call.Timers, Timer{id, time.Duration(ms) * time.Millisecond})
+	return 0
 }
 
 // setting writes the value of the plugin's setting named at (ptr, n) into

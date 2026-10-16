@@ -525,6 +525,10 @@ Where fude departs, the line says so and cites the departure in
   `settings` of its `[[plugin]]` table. Each is a number, a string or a boolean,
   and a table or a list there keeps the plugin from loading, with a
   message that names it.
+- B180 [4] A plugin can ask to run a function after a while. The function
+  runs once, off the input path, as an event does. It is about the buffer
+  the call that asked was about, and does not run when that buffer closed
+  meanwhile.
 - B59 [4] A plugin with `ui` shows markdown in a float at the cursor, as
   hover does.
 

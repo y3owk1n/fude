@@ -88,7 +88,8 @@ for an event:
 `sdk.Current` gives the id, path and filetype of the buffer a call or
 event is about, and `sdk.Mode` the mode. `sdk.Setting` reads the
 plugin's own settings, which its table in `config.toml` gives as
-`settings = { depth = 3 }`.
+`settings = { depth = 3 }`. `sdk.After` runs a function once, a number
+of milliseconds later, as an event runs.
 
 The rest of the sdk reaches fude, each function behind its capability.
 `sdk.Text` and `sdk.Len` read the text, and `sdk.Lines`, `sdk.LineOf`
