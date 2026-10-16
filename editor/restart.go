@@ -74,6 +74,18 @@ func (e *Session) restart() {
 		e.message = "only the terminal fude started in can restart it"
 		return
 	}
+	path, err := writeSession(e.session())
+	if err != nil {
+		e.message = err.Error()
+		return
+	}
+	e.restarting = path
+	e.quitAll(true)
+}
+
+// session returns the session to keep: the buffers on files, the windows
+// and which is current.
+func (e *Session) session() saved {
 	s := saved{Centered: e.centered}
 	for _, b := range e.bufs {
 		if abs, err := filepath.Abs(b.file.path); restorable(b) && err == nil {
@@ -89,13 +101,7 @@ func (e *Session) restart() {
 			s.Current++
 		}
 	}
-	path, err := writeSession(s)
-	if err != nil {
-		e.message = err.Error()
-		return
-	}
-	e.restarting = path
-	e.quitAll(true)
+	return s
 }
 
 // writeSession writes s to a file of its own in fude's state directory and
@@ -153,12 +159,18 @@ func restartSession() (*saved, error) {
 // restoreSession puts each saved buffer's text back at its node and builds the
 // saved windows. It leaves out the windows of a file that did not open.
 func (e *Session) restoreSession(s saved) {
-	e.centered = s.Centered
 	for _, sb := range s.Buffers {
 		if i := slices.IndexFunc(e.bufs, func(b *buffer) bool { return b.is(sb.Path) }); i >= 0 && e.bufs[i].text.Head() != sb.Head {
 			goTo(e.bufs[i], sb.Head)
 		}
 	}
+	e.restoreLayout(s)
+}
+
+// restoreLayout builds s's windows on the open buffers, leaving out those
+// of a file that is not open.
+func (e *Session) restoreLayout(s saved) {
+	e.centered = s.Centered
 	var build func(sn savedNode) *node
 	build = func(sn savedNode) *node {
 		if sn.Kids == nil {

@@ -1887,6 +1887,28 @@ func captures(t *testing.T, e *editor.Session) map[string]string {
 }
 
 // B46, and B43 for the edit
+// B226
+func TestB226ProjectSession(t *testing.T) {
+	dir := t.TempDir()
+	change(t, filepath.Join(dir, "a.txt"), "a\nline two\n")
+	change(t, filepath.Join(dir, "b.txt"), "b\n")
+	t.Chdir(dir)
+	e := start(t, "a.txt")
+	e.SetSize(80, 24)
+	feed(e, "j$:vsplit<CR>:e b.txt<CR>:qa<CR>")
+	// fude started again with no file offers the session, and s restores
+	// its windows, the current one and the cursors.
+	e = start(t)
+	e.SetSize(80, 24)
+	e.Welcome()
+	settle(t, e, func() bool { return strings.Contains(text(e), "s  restore the last session here") })
+	feed(e, "s")
+	vs := e.Views()
+	if len(vs) != 2 || vs[0].Name != "a.txt" || vs[1].Name != "b.txt" || !vs[1].Current || vs[0].Cursor != 9 {
+		t.Fatalf("s restored %d windows, the first %q at %d", len(vs), vs[0].Name, vs[0].Cursor)
+	}
+}
+
 // B225
 func TestB225StartScreen(t *testing.T) {
 	dir := t.TempDir()
@@ -1895,9 +1917,13 @@ func TestB225StartScreen(t *testing.T) {
 	t.Chdir(dir)
 	e := start(t, "a.txt")
 	e.SetSize(80, 24)
+	abs, err := filepath.Abs("a.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
 	settle(t, e, func() bool {
 		b, _ := os.ReadFile(filepath.Join(os.Getenv("XDG_STATE_HOME"), "fude", "recent"))
-		return strings.Contains(string(b), "a.txt")
+		return strings.Contains(string(b), abs)
 	})
 	// The start screen lists the actions, then the recent files once read.
 	e.Welcome()

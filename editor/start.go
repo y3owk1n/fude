@@ -16,7 +16,7 @@ import (
 // (B225).
 var startKeys = map[string]string{
 	"f": ":pick files<CR>", "g": ":pick grep<CR>", "r": ":pick recent<CR>", "e": ":enew<CR>",
-	"c": "<Plug>(start.config)", "q": ":qa<CR>", "<CR>": "<Plug>(start.open)",
+	"c": "<Plug>(start.config)", "q": ":qa<CR>", "<CR>": "<Plug>(start.open)", "s": "<Plug>(start.session)",
 	"1": "<Plug>(start.1)", "2": "<Plug>(start.2)", "3": "<Plug>(start.3)", "4": "<Plug>(start.4)", "5": "<Plug>(start.5)",
 	"6": "<Plug>(start.6)", "7": "<Plug>(start.7)", "8": "<Plug>(start.8)", "9": "<Plug>(start.9)",
 }
@@ -52,21 +52,23 @@ func (e *Session) Welcome() {
 	// gets its options back when it shows another buffer.
 	opts := e.win.opts
 	e.win.saved, e.win.opts = &opts, options{}
-	e.fillStart(b, nil)
+	e.fillStart(b, nil, false)
 	go func() {
 		paths, err := recentFiles("")
+		session := hasProject()
 		e.queue <- func() {
 			if err != nil {
 				e.message = err.Error()
 			}
-			e.fillStart(b, paths[:min(len(paths), 9)])
+			e.fillStart(b, paths[:min(len(paths), 9)], session)
 		}
 	}()
 }
 
-// fillStart writes the start screen into b, with recent, and styles its
-// keys and title.
-func (e *Session) fillStart(b *buffer, recent []string) {
+// fillStart writes the start screen into b, with a line to restore the
+// directory's session when it has one and recent, and styles its keys and
+// title.
+func (e *Session) fillStart(b *buffer, recent []string, session bool) {
 	var s strings.Builder
 	type span struct {
 		start, end int
@@ -80,7 +82,11 @@ func (e *Session) fillStart(b *buffer, recent []string) {
 	s.WriteString("\n   ")
 	mark("fude 筆", "markup.heading")
 	s.WriteString("\n\n")
-	for _, a := range startActions {
+	actions := startActions
+	if session {
+		actions = append([][2]string{{"s", "restore the last session here"}}, actions...)
+	}
+	for _, a := range actions {
 		s.WriteString("   ")
 		mark(a[0], "keyword")
 		s.WriteString("  " + a[1] + "\n")
@@ -121,7 +127,7 @@ func (e *Session) fillStart(b *buffer, recent []string) {
 	e.decos[startOwner{}] = ds
 	b.recent = recent
 	if e.win.buf == b {
-		e.setCursor(strings.Index(text, "   "+startActions[0][0]+"  ") + 3)
+		e.setCursor(strings.Index(text, "   "+actions[0][0]+"  ") + 3)
 	}
 }
 

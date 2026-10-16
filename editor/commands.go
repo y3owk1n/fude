@@ -300,6 +300,7 @@ func init() {
 		{"diagnostic[d", "goes to the diagnostic before", func(e *Session, count int) { e.diagnostic(-max(count, 1)) }},
 		{"start.open", "runs the start screen's line under the cursor", func(e *Session, _ int) { e.startOpen() }},
 		{"start.config", "opens config.toml", func(e *Session, _ int) { e.startConfig() }},
+		{"start.session", "restores the last session of the working directory", func(e *Session, _ int) { e.restoreProject() }},
 	}
 	for n := 1; n <= 9; n++ {
 		plugs = append(plugs, plug{"start." + strconv.Itoa(n), "opens the start screen's recent file " + strconv.Itoa(n), func(e *Session, _ int) { e.startRecent(n) }})
