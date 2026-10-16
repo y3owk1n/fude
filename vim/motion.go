@@ -64,9 +64,9 @@ func lineMotion(m *Machine, x motionCall) (int, kind) {
 	line := LineStart(x.t, x.t.Len())
 	switch {
 	case x.cmd == "j":
-		line = down(x.t, x.sol, x.n)
+		line = m.foldDown(x.t, x.sol, x.n)
 	case x.cmd == "k":
-		line = up(x.t, x.sol, x.n)
+		line = m.foldUp(x.t, x.sol, x.n)
 	case x.cmd == "gg" || x.count > 0:
 		line = down(x.t, 0, x.n-1)
 	}
@@ -595,6 +595,38 @@ func emptyLine(t Text, p int) bool {
 // the last line.
 func down(t Text, start, n int) int {
 	return t.LineStart(min(t.LineOf(start)+n, t.Lines()-1))
+}
+
+// foldDown returns the start of the line n lines below the one at start, a
+// closed fold counting as one line, or of the last line (B223).
+func (m *Machine) foldDown(t Text, start, n int) int {
+	line := t.LineOf(start)
+	for ; n > 0; n-- {
+		_, last := m.h.Fold(line)
+		if last+1 >= t.Lines() {
+			break
+		}
+		line, _ = m.h.Fold(last + 1)
+	}
+	return t.LineStart(line)
+}
+
+// foldUp returns the start of the line n lines above the one at start, a
+// closed fold counting as one line, or 0 (B223).
+func (m *Machine) foldUp(t Text, start, n int) int {
+	line, _ := m.h.Fold(t.LineOf(start))
+	for ; n > 0 && line > 0; n-- {
+		line, _ = m.h.Fold(line - 1)
+	}
+	return t.LineStart(line)
+}
+
+// folded widens the linewise r to the closed folds its ends are in.
+func (m *Machine) folded(t Text, r region) region {
+	first, _ := m.h.Fold(t.LineOf(r.start))
+	_, last := m.h.Fold(t.LineOf(r.end))
+	r.start, r.end = t.LineStart(first), LineEnd(t, t.LineStart(last))
+	return r
 }
 
 // up returns the start of the line n lines above the one at start, or 0.

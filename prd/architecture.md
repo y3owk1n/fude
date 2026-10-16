@@ -146,6 +146,7 @@ type Host interface {
     IndentWidth() int // the buffer's setting, so filetypes can differ
     Clipboard() (string, error) // the system clipboard, "+ and "* (B36)
     SetClipboard(text string) error
+    Fold(line int) (first, last int) // the closed fold holding line (B223)
 }
 
 // Defaults is the part of Host a host may leave out: no history, jumps,

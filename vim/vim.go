@@ -83,11 +83,16 @@ type Host interface {
 	// last change it made starts, or false at either end.
 	Step(n int) (int, bool)
 	IndentWidth() int // the columns >, <, <C-t> and <C-d> shift by
+	// Fold returns the first and last line of the closed fold that holds
+	// line, or line twice outside one. j and k pass over a closed fold as
+	// one line, and a linewise command takes all of it (B223).
+	Fold(line int) (first, last int)
 }
 
 // Defaults is the part of a Host a host may leave out by embedding it. It
 // has no undo history, jumps, changes or system clipboard, ignores what
-// reaches Unhandled, and indents by Tabstop columns. A host then writes
+// reaches Unhandled, indents by Tabstop columns and has no folds. A host
+// then writes
 // Text, Cursor, SetCursor, Apply, SetMark, Mark, Viewport and SetTop.
 type Defaults struct{}
 
@@ -101,6 +106,7 @@ func (Defaults) PushJump(int)               {}
 func (Defaults) Jump(int) bool              { return false }
 func (Defaults) Change(int) bool            { return false }
 func (Defaults) IndentWidth() int           { return Tabstop }
+func (Defaults) Fold(line int) (int, int)   { return line, line }
 func (Defaults) Clipboard() (string, error) { return "", errNoClipboard }
 func (Defaults) SetClipboard(string) error  { return errNoClipboard }
 

@@ -202,7 +202,7 @@ func (m *Machine) span(t Text, c int, op, cmd string, count int) (region, bool) 
 	n := max(count, 1)
 	if cmd == op || len(op) == 2 && cmd == op[1:] {
 		s := LineStart(t, c)
-		return region{start: s, end: LineEnd(t, down(t, s, n-1)), lines: true}, true
+		return m.folded(t, region{start: s, end: LineEnd(t, m.foldDown(t, s, n-1)), lines: true}), true
 	}
 	if r, ok := m.object(t, c, count, cmd); ok {
 		return r, true
@@ -223,7 +223,7 @@ func (m *Machine) span(t Text, c int, op, cmd string, count int) (region, bool) 
 	r := region{start: min(c, to), end: max(c, to), lines: k == linewise}
 	switch k {
 	case linewise:
-		r.start, r.end = LineStart(t, r.start), LineEnd(t, r.end)
+		r = m.folded(t, region{start: LineStart(t, r.start), end: LineEnd(t, r.end), lines: true})
 	case inclusive:
 		r.end = next(t, r.end, LineEnd(t, r.end))
 	case exclusive:

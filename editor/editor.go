@@ -1604,6 +1604,9 @@ func (h host) Step(n int) (int, bool) { return h.e.step(n) }
 // one.
 func (h host) IndentWidth() int { return h.e.indentWidth(h.e.win.buf) }
 
+// Fold reports no folds.
+func (h host) Fold(line int) (int, int) { return line, line }
+
 // indentWidth is the columns an indent takes in b: its filetype's
 // indent_width, or else the global one, or else the tab width.
 func (ed *Editor) indentWidth(b *buffer) int {

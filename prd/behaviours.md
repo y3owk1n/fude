@@ -581,6 +581,11 @@ Where fude departs, the line says so and cites the departure in
   blank inside each side, and `ds` and `cs` also take those blanks away.
   Any other character goes on both sides. Dot repeats each, with its characters, and
   `<Esc>` cancels one waiting for its character.
+- B223 [2] The vim machine asks its host for the closed fold that holds a
+  line. `j` and `k` pass over a closed fold as one line, landing on its
+  first line, and a linewise command, such as `dd`, `dj` or `V`, takes
+  every line of the folds its ends are in, as Neovim does. A host with
+  `vim.Defaults` has no folds.
 - B90 [2] `<C-o>` and `<C-i>` move through the jumplist, and `g;` and `g,`
   through the changelist, as in Neovim.
 - B91 [2] `<C-w>c`, `<C-w>o`, `<C-w>q`, `<C-w>=` and `:q` in a split close

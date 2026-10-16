@@ -26,6 +26,14 @@ type host struct {
 	keys    []string // what reached Unhandled
 	cols    int      // how wide the view is, 80 when 0
 	clip    string
+	fold    [2]int // a closed fold's first and last line, when last > 0
+}
+
+func (h *host) Fold(line int) (int, int) {
+	if h.fold[1] > 0 && line >= h.fold[0] && line <= h.fold[1] {
+		return h.fold[0], h.fold[1]
+	}
+	return line, line
 }
 
 func (h *host) Clipboard() (string, error)  { return h.clip, nil }
@@ -189,6 +197,29 @@ func TestB219Surround(t *testing.T) {
 		h := &host{text: strings.Replace(c.start, "|", "", 1), cursor: strings.Index(c.start, "|")}
 		m := vim.New(h)
 		m.Surround(true)
+		for _, k := range vim.Keys(c.keys) {
+			if err := m.Feed(k); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if got := h.text[:h.cursor] + "|" + h.text[h.cursor:]; got != c.want {
+			t.Errorf("%q on %q made %q, want %q", c.keys, c.start, got, c.want)
+		}
+	}
+}
+
+// B223
+func TestB223Folds(t *testing.T) {
+	// Lines 1 to 3 are a closed fold.
+	for _, c := range []struct{ start, keys, want string }{
+		{"|a\nb\nc\nd\ne", "j", "a\n|b\nc\nd\ne"},
+		{"|a\nb\nc\nd\ne", "2j", "a\nb\nc\nd\n|e"},
+		{"a\nb\nc\nd\n|e", "k", "a\n|b\nc\nd\ne"},
+		{"a\n|b\nc\nd\ne", "dd", "a\n|e"},
+		{"|a\nb\nc\nd\ne", "dj", "|e"},
+	} {
+		h := &host{text: strings.Replace(c.start, "|", "", 1), cursor: strings.Index(c.start, "|"), fold: [2]int{1, 3}}
+		m := vim.New(h)
 		for _, k := range vim.Keys(c.keys) {
 			if err := m.Feed(k); err != nil {
 				t.Fatal(err)

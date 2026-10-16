@@ -36,7 +36,7 @@ func (m *Machine) selection() region {
 	toEnd := m.wantSet && m.want == math.MaxInt
 	switch m.visual {
 	case "V":
-		return region{start: LineStart(t, s), end: LineEnd(t, e), lines: true}
+		return m.folded(t, region{start: LineStart(t, s), end: LineEnd(t, e), lines: true})
 	case "<C-v>":
 		ca, cc := column(t, LineStart(t, m.anchor), m.anchor), column(t, LineStart(t, c), c)
 		wa := max(textWidth(t.Slice(m.anchor, next(t, m.anchor, LineEnd(t, m.anchor))), ca), 1)
