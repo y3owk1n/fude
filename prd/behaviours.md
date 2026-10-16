@@ -288,6 +288,12 @@ Where fude departs, the line says so and cites the departure in
   line with text (N19). `list` hides them.
 - B197 [2] Every frame shows the same cells as the first frame of a fresh
   client would, whatever frames came before it.
+- B208 [2] With `highlight_colors` on, as it is unless set off, text
+  that names a colour shows on that colour, in black or white text,
+  whichever reads better. A colour is `#rgb`, `#rgba`, `#rrggbb` or
+  `#rrggbbaa` without a word character either side, or `rgb()`, `rgba()`,
+  `hsl()` or `hsla()` with arguments apart by commas, blanks or a slash.
+  The cursor's line keeps them.
 - B154 [2] While a `:s` is typed, the window shows what it would do, as
   Neovim's `inccommand` does: the matches of its pattern, then each match
   struck out with its replacement after it. The text does not change until
@@ -674,6 +680,9 @@ Where fude departs, the line says so and cites the departure in
   insert `<C-s>` shows signature help. They exist only while a server is
   attached (N3). In a list they open, `<CR>` jumps to the place on its
   line. B142 changes this key.
+- B209 [5] With `highlight_colors` on, the colours a language server
+  reports for a buffer show as B208's do, and the server is asked again
+  after each change.
 - B203 [5] In insert mode, typing a character the server names as a
   signature trigger, such as `(` or `,`, shows the signature of the call
   above the cursor's line, with the parameter being typed in bold, and

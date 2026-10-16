@@ -9,6 +9,7 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -137,6 +138,15 @@ func TestFakeServer(t *testing.T) {
 					map[string]any{"label": "a int"}, map[string]any{"label": []int{9, 17}, "documentation": map[string]any{"kind": "markdown", "value": "the name"}},
 				}},
 			}})
+		case "textDocument/documentColor":
+			var found []any
+			for line, l := range strings.Split(opened[m.Params.TextDocument.URI], "\n") {
+				if i := strings.Index(l, "teal"); i >= 0 {
+					r := map[string]any{"start": map[string]int{"line": line, "character": i}, "end": map[string]int{"line": line, "character": i + 4}}
+					found = append(found, map[string]any{"range": r, "color": map[string]float64{"red": 0, "green": 0.5, "blue": 0.5, "alpha": 1}})
+				}
+			}
+			reply(m.ID, found)
 		case "textDocument/documentSymbol":
 			at := func(line int) map[string]any {
 				p := map[string]int{"line": line, "character": 0}
@@ -190,7 +200,7 @@ func TestFakeServer(t *testing.T) {
 			reply(m.ID, map[string]any{"serverInfo": map[string]any{"name": "fake", "version": "v1"}, "capabilities": map[string]any{
 				"positionEncoding": os.Getenv("FUDE_FAKE_ENCODING"), "textDocumentSync": json.RawMessage(cmp.Or(os.Getenv("FUDE_FAKE_SYNC"), "2")), "documentFormattingProvider": true, "completionProvider": map[string]any{"triggerCharacters": []string{"."}, "resolveProvider": true},
 				"definitionProvider": true, "typeDefinitionProvider": true, "implementationProvider": true, "referencesProvider": true, "renameProvider": true,
-				"codeActionProvider": true, "signatureHelpProvider": map[string]any{"triggerCharacters": []string{"("}, "retriggerCharacters": []string{","}}, "documentSymbolProvider": true, "hoverProvider": true,
+				"codeActionProvider": true, "colorProvider": true, "signatureHelpProvider": map[string]any{"triggerCharacters": []string{"("}, "retriggerCharacters": []string{","}}, "documentSymbolProvider": true, "hoverProvider": true,
 			}})
 		case "shutdown":
 			reply(m.ID, nil)
@@ -252,6 +262,20 @@ func heard(t *testing.T, log, want string, times int) {
 	}
 	b, _ := os.ReadFile(log)
 	t.Fatalf("the server got %s fewer than %d times, in:\n%s", want, times, b)
+}
+
+// B209
+func TestB209ServerColours(t *testing.T) {
+	e, _ := withServer(t, "x teal\n", "utf-8")
+	teal := func(at int) func() bool {
+		return func() bool {
+			return slices.Contains(e.Views()[0].Colours, editor.Colour{Start: at, End: at + 4, RGB: 0x008080})
+		}
+	}
+	settle(t, e, teal(2))
+	// The colour moves with the text, as the server says again.
+	feed(e, "Ia<Esc>")
+	settle(t, e, teal(3))
 }
 
 // B60

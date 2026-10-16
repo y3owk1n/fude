@@ -292,6 +292,33 @@ func TestB64MenuScrolls(t *testing.T) {
 	t.Errorf("the 25th item, %s, is not in the menu on screen", chosen)
 }
 
+// B208
+func TestB208Colours(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.txt")
+	if err := os.WriteFile(path, []byte("a #ff0000 rgb(0, 255, 0) hsl(240, 100%, 50%) #12\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	// The cursor's line keeps the colours.
+	c := startWith(t, "cursor_line = true\n", path)
+	c.draw()
+	for _, cell := range []struct {
+		x       int
+		bg, ink color.Color
+	}{{2, color.NewHexColor(0xff0000), color.White}, {10, color.NewHexColor(0x00ff00), color.Black}, {26, color.NewHexColor(0x0000ff), color.White}} {
+		if _, style, _ := c.s.Get(cell.x, 0); style.GetBackground() != cell.bg || style.GetForeground() != cell.ink {
+			t.Errorf("the colour at column %d is drawn on %v in %v, want %v in %v", cell.x, style.GetBackground(), style.GetForeground(), cell.bg, cell.ink)
+		}
+	}
+	if _, style, _ := c.s.Get(46, 0); style.GetBackground() != themes["dark"].cursorLine {
+		t.Errorf("#12, no colour, is drawn on %v", style.GetBackground())
+	}
+	c = startWith(t, "highlight_colors = false\n", path)
+	c.draw()
+	if _, style, _ := c.s.Get(2, 0); style.GetBackground() != themes["dark"].bg {
+		t.Errorf("with highlight_colors off, #ff0000 is drawn on %v", style.GetBackground())
+	}
+}
+
 // B145
 func TestB145Theme(t *testing.T) {
 	for _, c := range []struct{ config, theme string }{{"", "dark"}, {`theme = "light"`, "light"}} {

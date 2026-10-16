@@ -77,7 +77,7 @@ func Start(name string, command []string, root string, options any, queue chan<-
 		wake: make(chan struct{}, 1), done: make(chan struct{}),
 	}
 	initialized := make(chan answer, 1)
-	go c.write(root, options, initialized)
+	go c.write(root, options, initialized, notify)
 	go c.read(stdout, initialized, notify, serve)
 	go func() {
 		s := bufio.NewScanner(stderr)
@@ -315,7 +315,7 @@ type answer struct {
 
 // write sends initialize, waits for the server's answer, then sends what is
 // queued, in order, until the server exits.
-func (c *Client) write(root string, options any, initialized <-chan answer) {
+func (c *Client) write(root string, options any, initialized <-chan answer, notify func(string, json.RawMessage)) {
 	params := map[string]any{
 		"processId": nil, "rootUri": URI(root), "initializationOptions": options,
 		"workspaceFolders": []map[string]string{{"uri": URI(root), "name": filepath.Base(root)}},
@@ -339,6 +339,12 @@ func (c *Client) write(root string, options any, initialized <-chan answer) {
 	c.mu.Lock()
 	c.encoding, c.caps, c.version = enc, a.caps, a.version
 	c.mu.Unlock()
+	// The editor hears initialized once the server's capabilities are known.
+	select {
+	case c.queue <- func() { notify("initialized", nil) }:
+	case <-c.done:
+		return
+	}
 	if c.frame(message{Method: "initialized", Params: map[string]any{}}) != nil {
 		return
 	}

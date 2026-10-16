@@ -148,6 +148,7 @@ func (e *Session) attachTo(b *buffer, name string) error {
 		return cmp.Compare(slices.Index(names, x.name), slices.Index(names, y.name))
 	})
 	s.client.Open(lsp.URI(b.file.path), languageID(e.filetype(b)), b.text.Snapshot())
+	e.askColours(s, b)
 	return nil
 }
 
@@ -218,10 +219,12 @@ func (e *Editor) diagnostics(b *buffer) []decoration {
 
 // forget drops the diagnostics s published for b.
 func (e *Editor) forget(s *server, b *buffer) {
-	for _, d := range e.decos[diagnosed{s, b}] {
-		d.remove()
+	for _, owner := range []any{diagnosed{s, b}, coloured{s, b}} {
+		for _, d := range e.decos[owner] {
+			d.remove()
+		}
+		delete(e.decos, owner)
 	}
-	delete(e.decos, diagnosed{s, b})
 	b.signed = len(e.diagnostics(b)) > 0
 }
 
@@ -294,8 +297,14 @@ var severities = map[int]string{1: "diagnostic.error", 2: "diagnostic.warn", 3: 
 // buffer they are for, as decorations it owns, so they move with edits until
 // the next ones come (B61).
 func (e *Session) notified(s *server, method string, params json.RawMessage) {
-	if method == "$/progress" {
+	switch method {
+	case "$/progress":
 		s.progressed(params)
+		return
+	case "initialized":
+		for _, b := range s.bufs {
+			e.askColours(s, b)
+		}
 		return
 	}
 	if method != "textDocument/publishDiagnostics" {

@@ -394,6 +394,7 @@ func (l heard) Changed(before kernel.Snapshot, edits []kernel.Edit) {
 	for _, s := range l.b.servers {
 		s.versions[l.b]++
 		s.client.Change(lsp.URI(l.b.file.path), s.versions[l.b], before, out)
+		l.ed.askColours(s, l.b)
 	}
 }
 
@@ -578,6 +579,7 @@ type View struct {
 	Indent            int            // the columns of an indent level, where guides go
 	Guides            bool           // draw indent guides (B153)
 	ColorColumn       int            // the column of the text to shade, from 1, or 0 (B200)
+	Colours           []Colour       // text that names a colour, shown on it (B208, B209)
 	// A terminal window in terminal mode shows its program's screen, with
 	// the program's cursor at CellX and CellY, or -1 when it hides it (B205).
 	Cells        [][]Cell
@@ -630,6 +632,9 @@ func (e *Session) Views() []View {
 			v.Highlights = h.Show(t, w, top, last)
 		}
 		v.Matches = e.vim.Matches(t, top, last)
+		if e.cfg.HighlightColors {
+			v.Colours = textColours(t.Slice(top, last), top)
+		}
 		e.diffGit(w.buf)
 		v.Signs = e.signs(w.buf, top, last)
 		v.Notes = w.buf.notes(t, top, last)
@@ -702,6 +707,12 @@ func (e *Session) Views() []View {
 					continue
 				}
 				s, end := w.buf.text.Mark(d.start), w.buf.text.Mark(d.end)
+				if hex, ok := strings.CutPrefix(d.style, "colour #"); ok {
+					if rgb, err := strconv.ParseInt(hex, 16, 32); err == nil && s < end && end > top && s < last {
+						v.Colours = append(v.Colours, Colour{s, end, int32(rgb)})
+					}
+					continue
+				}
 				if s < end && end > top && s < last {
 					v.Decorations = append(v.Decorations, syntax.Span{Start: s, End: end, Name: d.style})
 				}

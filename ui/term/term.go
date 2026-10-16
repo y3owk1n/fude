@@ -13,6 +13,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/gdamore/tcell/v3"
+	"github.com/gdamore/tcell/v3/color"
 
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/core/kernel"
@@ -499,6 +500,18 @@ func (c *client) view(v editor.View, left int, sel vim.Selection, visual bool) (
 	end := vim.LineEnd(t, t.LineStart(min(t.LineOf(v.Top)+v.H, t.Lines()-1))) + 1
 	c.styles = paint(c.styles, append(v.Highlights, v.Decorations...), v.Top, end)
 	paint := c.styles
+	// Text that names a colour shows on it, in black or white, whichever
+	// reads better (B208).
+	for _, col := range v.Colours {
+		r, g, b := col.RGB>>16&0xff, col.RGB>>8&0xff, col.RGB&0xff
+		ink := color.Black
+		if r*299+g*587+b*114 < 128000 {
+			ink = color.White
+		}
+		for i := max(col.Start, v.Top) - v.Top; i < min(col.End, end)-v.Top && i < len(paint); i++ {
+			paint[i] = paint[i].Background(color.NewHexColor(col.RGB)).Foreground(ink)
+		}
+	}
 	var cursors []int
 	if v.Current {
 		cursors = c.e.Cursors()
@@ -614,7 +627,8 @@ func (c *client) view(v editor.View, left int, sel vim.Selection, visual bool) (
 					if i := at - v.Top; i < len(paint) {
 						style = paint[i]
 					}
-					if shade {
+					// The cursor's line shades only what has no ground of its own.
+					if shade && style.GetBackground() == base.GetBackground() {
 						style = style.Background(th.cursorLine)
 					}
 					if slices.Contains(v.Pair, at) {

@@ -47,6 +47,14 @@ trigger character such as `.` is typed, with none put in the text until
 `<C-n>` or `<C-p>`. On the command line, the completion menu shows as the
 line is typed. Off, `<C-x><C-o>` and `<Tab>` ask for them.
 
+## highlight_colors
+
+Text that names a colour shows on that colour, in black or white text,
+whichever reads better. That is `#rgb`, `#rgba`, `#rrggbb` and
+`#rrggbbaa`, the CSS functions `rgb()`, `rgba()`, `hsl()` and `hsla()`,
+and the colours a language server reports, such as Tailwind's class
+names. The default is on.
+
 ## autopairs
 
 An opening bracket or quote typed in insert mode comes with its closing
