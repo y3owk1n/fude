@@ -91,14 +91,24 @@ func (c *client) commandLine(w, h int, menu string, spans []syntax.Span) (int, i
 }
 
 // toast draws msg in a box in the top right corner of a screen w columns
-// wide, its lines cut to half the screen (B149).
-func (c *client) toast(msg string, w int) {
-	lines := strings.Split(msg, "\n")
-	inner := 0
-	for _, l := range lines {
-		inner = max(inner, utf8.RuneCountInString(l))
+// wide and h rows tall. Its lines wrap at half the screen's width. A
+// message taller than a third of the rows ends in an ellipsis (B149).
+func (c *client) toast(msg string, w, h int) {
+	longest := 0
+	for l := range strings.SplitSeq(msg, "\n") {
+		longest = max(longest, utf8.RuneCountInString(l))
 	}
-	inner = min(inner+2, max(w/2, 20), w-4)
+	inner := min(longest+2, max(w/2, 20), w-4)
+	rows, _ := wrap(msg, nil, inner-2)
+	lines := make([]string, len(rows))
+	for i, r := range rows {
+		lines[i] = msg[r.start:r.end]
+	}
+	if limit := max(h/3, 1); len(lines) > limit {
+		lines = lines[:limit]
+		last := []rune(lines[limit-1])
+		lines[limit-1] = string(last[:min(len(last), inner-3)]) + "…"
+	}
 	x := w - inner - 3
 	c.panel(x, 0, inner, len(lines))
 	for i, l := range lines {

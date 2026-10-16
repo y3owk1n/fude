@@ -201,7 +201,7 @@ func (c *client) draw() {
 		}
 	}
 	if msg := c.e.Message(); msg != "" {
-		c.toast(msg, w)
+		c.toast(msg, w, h)
 	}
 
 	shape := tcell.CursorStyleSteadyBlock

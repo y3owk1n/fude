@@ -245,7 +245,10 @@ Where fude departs, the line says so and cites the departure in
   search, and its completion menu under the box. The windows take every
   row of the screen.
 - B149 [2] A message shows in a box in the top right corner until the next
-  key, as a toast. A macro being recorded shows in the status line.
+  key, as a toast. A long message wraps at half the screen's width. A
+  message taller than a third of the screen's rows ends in an ellipsis,
+  and `:messages` keeps all of it. A macro being recorded shows in the
+  status line.
 - B150 [2] Floats, the command line, the finder and toasts are panels with
   a rounded border on the editor's ground, a column of room inside it, and
   rules joined to the border. A selected item takes the raised colour and

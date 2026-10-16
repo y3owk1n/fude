@@ -234,6 +234,12 @@ func TestB148CommandLine(t *testing.T) {
 	if rows = strings.Split(screen(), "\n"); !strings.HasSuffix(strings.TrimRight(rows[1], " │"), "nonumber") || len(rows[1]) < w {
 		t.Fatalf("the toast is not in the top right:\n%s", strings.Join(rows[:3], "\n"))
 	}
+	// A long message wraps onto more lines instead of being cut.
+	long := strings.Repeat("word ", 30) + "end"
+	feed(":" + long + "<CR>")
+	if s := screen(); !strings.Contains(s, "word end") {
+		t.Fatalf("the long message lost its end:\n%s", strings.Join(strings.Split(s, "\n")[:6], "\n"))
+	}
 }
 
 // B150
