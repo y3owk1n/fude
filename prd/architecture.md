@@ -957,7 +957,9 @@ the new styles when they differ (B158).
 Help is markdown in one buffer: an index, the guide, then the reference
 (D34). The guide's pages are files in `editor/guide`, embedded in the
 binary, whose names order them and give their tags. fude builds the
-reference from the tables that run it, so it cannot fall behind them. Each ex command, key, `<Plug>` command and text object is an entry
+reference from the tables that run it, so it cannot fall behind them.
+`editor/settings.md` explains each option and setting at length, under a
+heading of its name, and help puts each explanation under its entry. Each ex command, key, `<Plug>` command and text object is an entry
 in a table that holds its handler and a line of help: `vim.Commands` and
 `vim.Bindings` for the machine's, `commands`, `plugs`, `hostOperators`
 and `syntax.Objects` for the editor's. Options and settings carry their

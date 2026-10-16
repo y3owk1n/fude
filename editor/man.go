@@ -33,6 +33,7 @@ func Man(page string) (string, error) {
 	// The options and settings are fude-config(5)'s, and the rest of the
 	// reference is fude(1)'s.
 	config := func(s helpSection) bool { return s.title == "OPTIONS" || s.title == "SETTINGS" }
+	more := details()
 	reference := func(keep func(helpSection) bool) {
 		for _, s := range e.helpSections() {
 			if len(s.entries) == 0 || !keep(s) {
@@ -44,6 +45,10 @@ func Man(page string) (string, error) {
 			}
 			for _, en := range s.entries {
 				fmt.Fprintf(&b, ".TP\n\\fB%s\\fR\n%s\n", roff(en.head), roff(en.text))
+				// The longer explanation's paragraphs stay under the entry.
+				if d := more[en.tags[0]]; d != "" {
+					b.WriteString(".RS\n.PP\n" + manText(d, "") + ".RE\n")
+				}
 			}
 		}
 	}

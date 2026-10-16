@@ -1771,6 +1771,17 @@ func TestB162Help(t *testing.T) {
 			t.Errorf(":h %s went to %q, want %q", topic, line(), want)
 		}
 	}
+	// Every option and setting has a longer explanation after its line.
+	for _, section := range []string{"## Options", "## Settings"} {
+		_, rest, _ := strings.Cut(text(e), "\n"+section+"\n")
+		rest, _, _ = strings.Cut(rest, "\n## ")
+		blocks := strings.Split(rest, "\n\n")
+		for i, b := range blocks {
+			if strings.HasPrefix(b, "`") && (i+1 == len(blocks) || !strings.HasPrefix(blocks[i+1], "  ")) {
+				t.Errorf("%s has no longer explanation", strings.SplitN(b, "\n", 2)[0])
+			}
+		}
+	}
 	if feed(e, ":h nope<CR>"); e.Message() != "no help for nope" {
 		t.Errorf(":h nope said %q", e.Message())
 	}

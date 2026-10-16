@@ -55,6 +55,24 @@ func guide() []guidePage {
 	return out
 }
 
+// settingsFile holds the longer explanations of the options and settings,
+// each under a heading of the name :h finds it by.
+//
+//go:embed settings.md
+var settingsFile string
+
+// details returns the longer explanations of the options and settings, by
+// the name :h finds each by (B162).
+func details() map[string]string {
+	out := map[string]string{}
+	parts := strings.Split(settingsFile, "\n## ")
+	for _, p := range parts[1:] {
+		name, text, _ := strings.Cut(p, "\n")
+		out[name] = strings.TrimSpace(text)
+	}
+	return out
+}
+
 // helpKeys are help's own keys, which [keymap.help] changes (B162).
 var helpKeys = map[string]string{"<CR>": "<Plug>(help.follow)", "<C-]>": "<Plug>(help.follow)", "q": ":close<CR>"}
 
@@ -326,6 +344,7 @@ func (e *Session) helpText() (string, map[string]int) {
 		tag(p.tag)
 		write(p.text)
 	}
+	more := details()
 	for _, s := range sections {
 		write("")
 		tag(slug(s.title))
@@ -341,6 +360,10 @@ func (e *Session) helpText() (string, map[string]int) {
 			}
 			write(code(en.head))
 			write("  " + en.text)
+			if d := more[en.tags[0]]; d != "" {
+				write("")
+				write("  " + strings.ReplaceAll(d, "\n", "\n  "))
+			}
 		}
 	}
 	return strings.TrimSuffix(b.String(), "\n"), tags
