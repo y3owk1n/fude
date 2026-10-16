@@ -149,13 +149,17 @@ Where fude departs, the line says so and cites the departure in
   working directory's files: in a git repository those git does not
   ignore, and elsewhere every file. The user types the query in insert
   mode. Below it are the files whose paths hold its letters in order,
-  ranked as `matchfuzzy()` ranks them. `<C-n>` and `<C-p>` move the selection,
+  ranked as `matchfuzzy()` ranks them. Each shows its name, then its
+  directory dimmed, cut in the middle to its first and last directories
+  when it does not fit. `<C-n>` and `<C-p>` move the selection,
   `<CR>` opens the selected file, and leaving insert mode closes the
   finder (N11). B142 changes these keys.
 - B130 [2] On a screen of 60 columns or more, the finder shows the start
   of the selected file in a box right of the list, as fff.nvim does, with
-  its filetype's highlights. A file with a zero byte in its first 16KB
-  shows "binary file".
+  its filetype's highlights. The two boxes have the same width and height.
+  A file with a zero byte in its first 16KB shows "binary file". When
+  nothing matches, the list says "no matches". Before a query is typed,
+  `:grep` says "type to search the files' lines".
 - B131 [2] In a `:` command line, `<Tab>` and `<C-n>` put the next
   completion of the word being typed in the line, and `<S-Tab>` and
   `<C-p>` the one before. After the last comes the word as typed. `<C-y>`
@@ -181,8 +185,10 @@ Where fude departs, the line says so and cites the departure in
   `:grep text` starts it with text typed. Each change to the query
   searches the working directory's files for it as plain text, with `rg`
   when it is installed and `git grep` otherwise. A query without capitals
-  ignores case. Each match shows as `path:line: text`, at most 1000 of
-  them, and the preview shows the lines around it with its line marked.
+  ignores case. Matches show under a row naming their file, each as its
+  line number and its line without leading blanks, at most 1000 of them.
+  The selection moves over matches only, and the preview shows the lines
+  around the selected one with its line marked.
   `<CR>` opens the file at the match (N13).
 - B135 [2] In a command line, `<C-r>` and a register's name put the
   register's text at the cursor, without its last line break, and

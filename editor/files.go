@@ -239,11 +239,10 @@ func (f *finder) float(query string, cursor, width, height int) Float {
 	total, h := min(162, width-4), min(22, height-2)
 	w, docW := total, 0
 	if total >= 60 && f.chose == nil {
-		w = total * 2 / 5
+		w = total / 2
 		docW = total - w
 	}
 	rows := max(h-4, 0) // below the query and its rule
-	first := max(f.sel-rows+1, 0)
 	var s strings.Builder
 	var spans []syntax.Span
 	// The query after a prompt, with the count of matches on the right.
@@ -260,39 +259,66 @@ func (f *finder) float(query string, cursor, width, height int) Float {
 	}
 	s.WriteByte('\n')
 	spans = append(spans, syntax.Span{Start: s.Len(), End: s.Len(), Name: "markup.rule"})
-	for i := first; i < first+rows; i++ {
-		s.WriteByte('\n')
-		if i >= len(f.matches) {
-			continue
-		}
-		p := f.matches[i]
-		var marks []int // the bytes of p to mark as matching the query
-		if path, line, _, text := grepSpot(p); f.grep {
-			head := fmt.Sprintf("%s:%d: ", path, line)
-			p = head + strings.TrimLeft(text, " \t")
-			if r := []rune(p); len(r) > w-4 {
-				p = string(r[:w-4])
+	// Grep's matches show under a row for their file, so each is just its
+	// line number and text. A row is a match, or its file's name when header.
+	type listRow struct {
+		match  int
+		header bool
+	}
+	var list []listRow
+	selRow, lineW := 0, 1
+	for i, m := range f.matches {
+		if path, line, _, _ := grepSpot(m); f.grep {
+			if prev, _, _, _ := grepSpot(f.matches[max(i-1, 0)]); i == 0 || prev != path {
+				list = append(list, listRow{i, true})
 			}
-			marks = occurrences(p, f.query, min(len(head), len(p)))
-		} else {
-			marks = positions(lower(f.query), p)
-			if r := []rune(p); len(r) > w-4 {
-				// Cut the start of a long path, so its name stays in view.
-				cut := len(p) - len(string(r[len(r)-w+5:]))
-				p = "<" + p[cut:]
-				marks = slices.DeleteFunc(marks, func(at int) bool { return at < cut })
-				for k := range marks {
-					marks[k] += 1 - cut
-				}
-			}
+			lineW = max(lineW, len(strconv.Itoa(line)))
 		}
 		if i == f.sel {
-			spans = append(spans, syntax.Span{Start: s.Len(), End: s.Len() + len(p), Name: "menu.selected"})
+			selRow = len(list)
 		}
-		for _, at := range marks {
-			spans = append(spans, syntax.Span{Start: s.Len() + at, End: s.Len() + at + 1, Name: "match"})
+		list = append(list, listRow{i, false})
+	}
+	for _, r := range list[max(selRow-rows+1, 0):min(max(selRow-rows+1, 0)+rows, len(list))] {
+		s.WriteByte('\n')
+		start := s.Len()
+		m := f.matches[r.match]
+		switch path, line, _, text := grepSpot(m); {
+		case r.header:
+			writePath(&s, &spans, path, nil, w-4, "finder.file")
+		case f.grep:
+			num := fmt.Sprintf("%*d  ", lineW, line)
+			spans = append(spans, syntax.Span{Start: s.Len(), End: s.Len() + lineW, Name: "finder.dir"})
+			s.WriteString(num)
+			text = strings.TrimLeft(text, " \t")
+			if r := []rune(text); len(r) > w-4-len(num) {
+				text = string(r[:max(w-4-len(num), 0)])
+			}
+			for _, at := range occurrences(text, f.query, 0) {
+				spans = append(spans, syntax.Span{Start: s.Len() + at, End: s.Len() + at + 1, Name: "match"})
+			}
+			s.WriteString(text)
+		default:
+			writePath(&s, &spans, m, positions(lower(f.query), m), w-4, "")
 		}
-		s.WriteString(p)
+		if r.match == f.sel && !r.header {
+			spans = append(spans, syntax.Span{Start: start, End: s.Len(), Name: "menu.selected"})
+		}
+	}
+	// An empty list says why, once the matches are for the query typed.
+	if len(list) == 0 && f.query == query && (f.grep || f.paths != nil) {
+		list = append(list, listRow{})
+		empty := "no matches"
+		if f.grep && query == "" {
+			empty = "type to search the files' lines"
+		}
+		s.WriteByte('\n')
+		spans = append(spans, syntax.Span{Start: s.Len(), End: s.Len() + len(empty), Name: "comment"})
+		s.WriteString(empty)
+	}
+	if docW > 0 {
+		// The list is as tall as the preview beside it.
+		s.WriteString(strings.Repeat("\n", max(rows-len(list), 0)))
 	}
 	doc, docSpans := "", []syntax.Span(nil)
 	if docW > 0 && f.sel < len(f.matches) {
@@ -322,6 +348,76 @@ func (f *finder) float(query string, cursor, width, height int) Float {
 		}
 	}
 	return Float{Text: s.String(), Spans: spans, Cursor: cursor + len(prompt), Doc: doc, DocSpans: docSpans, X: (width - total) / 2, Y: (height - h) / 2, W: w, H: h, DocW: docW}
+}
+
+// writePath writes path in at most width columns: its name, in style when
+// given, then its directory dimmed and cut in the middle to fit. marks are
+// the bytes of path that match the query, marked where they show (B129, B152).
+func writePath(s *strings.Builder, spans *[]syntax.Span, path string, marks []int, width int, style string) {
+	dir, name := filepath.Split(path)
+	nameAt, at := len(dir), s.Len()
+	dir = strings.TrimSuffix(dir, "/")
+	if r := []rune(name); len(r) > width {
+		name = string(r[:max(width, 0)])
+	}
+	if style != "" {
+		*spans = append(*spans, syntax.Span{Start: at, End: at + len(name), Name: style})
+	}
+	s.WriteString(name)
+	shown, place := "", func(int) int { return -1 }
+	if room := width - utf8.RuneCountInString(name) - 2; dir != "" && room >= 4 {
+		shown, place = shorten(dir, room)
+		s.WriteString("  ")
+		*spans = append(*spans, syntax.Span{Start: s.Len(), End: s.Len() + len(shown), Name: "finder.dir"})
+	}
+	dirAt := s.Len()
+	s.WriteString(shown)
+	for _, m := range marks {
+		k := -1
+		switch {
+		case m >= nameAt && m-nameAt < len(name):
+			k = at + m - nameAt
+		case m < len(dir) && place(m) >= 0:
+			k = dirAt + place(m)
+		}
+		if k >= 0 {
+			*spans = append(*spans, syntax.Span{Start: k, End: k + 1, Name: "match"})
+		}
+	}
+}
+
+// shorten returns dir in at most room columns: whole, or its first
+// directory, an ellipsis and as many of its last ones as fit, or else the
+// end of the last one. place returns where a byte of dir is in it, or -1.
+func shorten(dir string, room int) (shown string, place func(int) int) {
+	if utf8.RuneCountInString(dir) <= room {
+		return dir, func(i int) int { return i }
+	}
+	head, _, _ := strings.Cut(dir, "/")
+	for tail := dir; strings.Contains(tail, "/"); {
+		tail = tail[strings.IndexByte(tail, '/')+1:]
+		if shown := head + "/…/" + tail; utf8.RuneCountInString(shown) <= room {
+			cut := len(dir) - len(tail)
+			return shown, func(i int) int {
+				switch {
+				case i < len(head):
+					return i
+				case i >= cut:
+					return len(head) + len("/…/") + i - cut
+				}
+				return -1
+			}
+		}
+	}
+	r := []rune(dir)
+	tail := string(r[len(r)-room+1:])
+	cut := len(dir) - len(tail)
+	return "…" + tail, func(i int) int {
+		if i >= cut {
+			return len("…") + i - cut
+		}
+		return -1
+	}
 }
 
 // finderPrompt goes before the finder's query.

@@ -841,14 +841,15 @@ func TestB129Files(t *testing.T) {
 	e.SetSize(80, 24)
 	results := func() []string {
 		f, _ := e.Float()
-		return strings.Fields(strings.SplitN(f.Text, "\n", 2)[1])
+		return slices.DeleteFunc(strings.Split(f.Text, "\n")[1:], func(l string) bool { return l == "" })
 	}
-	// The finder lists the files git does not ignore.
+	// The finder lists the files git does not ignore, each by its name and
+	// then its directory.
 	feed(e, ":files<CR>")
 	settle(t, e, func() bool { return len(results()) == 5 })
 	feed(e, "edgo")
 	settle(t, e, func() bool {
-		return slices.Equal(results(), []string{"editor/editor.go", "editor/git.go", "editor/editor_test.go"})
+		return slices.Equal(results(), []string{"editor.go  editor", "git.go  editor", "editor_test.go  editor"})
 	})
 	if feed(e, "<C-n><CR>"); e.Views()[0].Name != "editor/git.go" || e.Mode() != vim.Normal {
 		t.Fatalf("<C-n><CR> opened %q in %v mode", e.Views()[0].Name, e.Mode())
@@ -946,10 +947,11 @@ func TestB134Grep(t *testing.T) {
 		return slices.DeleteFunc(lines, func(l string) bool { return l == "" })
 	}
 	// A query in lower case ignores case, and one with a capital does not.
+	// Each match shows under its file, as its line number and its line.
 	feed(e, ":grep needle<CR>")
-	settle(t, e, func() bool { return len(results()) == 2 })
+	settle(t, e, func() bool { return len(results()) == 4 })
 	feed(e, "<BS><BS><BS><BS><BS><BS>Needle")
-	settle(t, e, func() bool { return slices.Equal(results(), []string{"a.go:2: two Needle"}) })
+	settle(t, e, func() bool { return slices.Equal(results(), []string{"a.go", "2  two Needle"}) })
 	// <CR> opens the file on the match.
 	if feed(e, "<CR>"); e.Views()[0].Name != "a.go" || e.Cursor() != 10 {
 		t.Fatalf("<CR> opened %q at %d", e.Views()[0].Name, e.Cursor())
@@ -977,9 +979,10 @@ func TestB195FinderLists(t *testing.T) {
 		feed(e, ":cnext<CR>")
 		return append(names, e.Views()[0].Name)
 	}
-	for _, find := range []string{":grep needle<CR>", ":files<CR>"} {
+	// Grep shows each match under a row for its file.
+	for find, rows := range map[string]int{":grep needle<CR>": 4, ":files<CR>": 2} {
 		feed(e, find)
-		settle(t, e, func() bool { return shown() == 2 })
+		settle(t, e, func() bool { return shown() == rows })
 		// <C-q> sends both matches to a list, which is the last list.
 		if feed(e, "<C-q>"); len(e.Views()) != 2 {
 			t.Fatalf("<C-q> after %s left %d windows", find, len(e.Views()))
