@@ -705,8 +705,14 @@ func ColumnStart(t Text, start, col int) int { return colStart(t, start, col) }
 // row before it. A tab is as wide as it is at its column in the line.
 func Rows(t Text, start, cols int) []int {
 	rows := []int{start}
+	line := t.Slice(start, LineEnd(t, start))
+	// No cluster is wider than its bytes, and no tab wider than Tabstop, so
+	// a line this short fits on one row.
+	if len(line)+(Tabstop-1)*strings.Count(line, "\t") <= cols {
+		return rows
+	}
 	x, col := 0, 0
-	for g := graphemes.FromString(t.Slice(start, LineEnd(t, start))); g.Next(); {
+	for g := graphemes.FromString(line); g.Next(); {
 		w := width(g.Value(), col)
 		if x > 0 && x+w > cols {
 			rows, x = append(rows, start+g.Start()), 0
