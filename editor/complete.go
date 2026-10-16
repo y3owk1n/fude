@@ -3,6 +3,8 @@ package editor
 import (
 	"cmp"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"unicode/utf8"
@@ -20,7 +22,7 @@ type menu struct {
 	labels []string          // what the menu shows of each
 	docs   []string          // each one's detail and documentation, as markdown
 	raws   []json.RawMessage // each as its server sent it, to resolve
-	from   []*server         // the server each came from
+	from   []*server         // the server each came from, nil for the other sources
 	asked  map[int]bool      // the items resolve was asked for
 	start  kernel.MarkID
 	typed  string // the word it replaced, the menu's last stop
@@ -81,30 +83,38 @@ func (e *Session) completing(k vim.Key) bool {
 
 // complete asks the current buffer's servers what may go at the cursor, and
 // shows their answers as one menu with its first item in the text, or with
-// none when auto. It drops answers for text that changed since (B169).
+// complete lists completions for the word before the cursor from the
+// sources completion_sources names, in its order, each text once: a
+// language server's, the entries of the directory a path before the
+// cursor names, and words of the open buffers. With auto it only shows
+// them, and says nothing when there are none (B64, B206).
 func (e *Session) complete(auto bool) {
 	b := e.win.buf
-	if len(b.servers) == 0 {
-		e.message = "no language server"
+	t, c := b.text.Snapshot(), e.Cursor()
+	if dir, start, ok := e.pathBefore(t, c); ok && slices.Contains(e.cfg.Sources, "path") {
+		go func() {
+			names := readEntries(dir)
+			e.queue <- func() { e.offer(auto, t, start, map[string][]item{"path": pathItems(names, t.Slice(start, c))}) }
+		}()
 		return
 	}
-	t, c, uri := b.text.Snapshot(), e.Cursor(), lsp.URI(b.file.path)
 	start := c
 	for start > 0 && isWord(t.Slice(start-1, start)[0]) {
 		start--
 	}
-	mark := b.text.SetMark(start, kernel.Left)
+	local := map[string][]item{}
+	if slices.Contains(e.cfg.Sources, "buffer") {
+		local["buffer"] = e.words(t.Slice(start, c), start)
+	}
+	if !slices.Contains(e.cfg.Sources, "lsp") || len(b.servers) == 0 {
+		e.offer(auto, t, start, local)
+		return
+	}
+	uri := lsp.URI(b.file.path)
 	asked := ask(b.servers, "textDocument/completion", func(_ *server, enc string) any {
 		return map[string]any{"textDocument": map[string]any{"uri": uri}, "position": lsp.Point(t, c, enc)}
 	}, func(rs []reply) {
-		start, cur := b.text.Mark(mark), e.Cursor()
-		// An answer about text since changed is dropped before it is read.
-		if e.vim.Mode() != vim.Insert || e.win.buf != b || cur < start || b.text.Snapshot().Version() != t.Version() {
-			b.text.DeleteMark(mark)
-			return
-		}
-		var items []json.RawMessage
-		var from []*server
+		ft := e.filetype(b)
 		for _, r := range rs {
 			// The answer is a list, or a list inside an object.
 			var got []json.RawMessage
@@ -115,41 +125,149 @@ func (e *Session) complete(auto bool) {
 				json.Unmarshal(r.res, &list)
 				got = list.Items
 			}
-			items = append(items, got...)
-			for range got {
-				from = append(from, r.s)
+			for _, raw := range got {
+				it := readItem(raw, ft)
+				it.raw, it.from = raw, r.s
+				local["lsp"] = append(local["lsp"], it)
 			}
 		}
-		if len(items) == 0 {
-			b.text.DeleteMark(mark)
-			if !auto {
-				e.message = "no completions"
-			}
-			return
-		}
-		if e.menu != nil {
-			e.closeMenu()
-		}
-		m := &menu{raws: items, from: from, asked: map[int]bool{}, start: mark, typed: b.text.Snapshot().Slice(start, cur), sel: len(items)}
-		ft := e.filetype(b)
-		for _, raw := range items {
-			it := readItem(raw, ft)
-			m.items, m.labels, m.docs = append(m.items, it.text), append(m.labels, it.label), append(m.docs, it.doc)
-		}
-		e.menu = m
-		if auto {
-			e.showMenu()
-			return
-		}
-		e.choose(0)
+		e.offer(auto, t, start, local)
 	})
 	if !asked {
-		b.text.DeleteMark(mark)
-		if !auto {
-			e.message = "no language server offers completion"
-		}
+		e.offer(auto, t, start, local)
 	}
 }
+
+// offer shows the menu of items, by source, that replace the text from
+// start to the cursor in t, in the order completion_sources gives the
+// sources and without a second item of the same text. An answer about
+// text since changed is dropped.
+func (e *Session) offer(auto bool, t kernel.Snapshot, start int, items map[string][]item) {
+	b, cur := e.win.buf, e.Cursor()
+	if e.vim.Mode() != vim.Insert || b.text.Snapshot().Version() != t.Version() || cur < start {
+		return
+	}
+	m := &menu{asked: map[int]bool{}, typed: t.Slice(start, cur)}
+	seen := map[string]bool{}
+	for _, source := range e.cfg.Sources {
+		for _, it := range items[source] {
+			if seen[it.text] || it.text == m.typed {
+				continue
+			}
+			seen[it.text] = true
+			label := it.label
+			if source != "lsp" {
+				label += "  [" + source + "]"
+			}
+			m.items, m.labels, m.docs = append(m.items, it.text), append(m.labels, label), append(m.docs, it.doc)
+			m.raws, m.from = append(m.raws, it.raw), append(m.from, it.from)
+		}
+	}
+	if len(m.items) == 0 {
+		if !auto {
+			e.message = "no completions"
+		}
+		return
+	}
+	if e.menu != nil {
+		e.closeMenu()
+	}
+	m.start, m.sel = b.text.SetMark(start, kernel.Left), len(m.items)
+	e.menu = m
+	if auto {
+		e.showMenu()
+		return
+	}
+	e.choose(0)
+}
+
+// pathBefore reports whether the text before c, back to a blank or a
+// quote, is a path, and returns the directory it names and where its last
+// part starts. A relative path is from the current file's directory, and ~/
+// is the home directory.
+func (e *Session) pathBefore(t kernel.Snapshot, c int) (string, int, bool) {
+	ls := vim.LineStart(t, c)
+	line := t.Slice(ls, c)
+	path := line[strings.LastIndexAny(line, " \t\"'`(<=,;")+1:]
+	slash := strings.LastIndexByte(path, '/')
+	if slash < 0 {
+		return "", 0, false
+	}
+	dir := path[:slash+1]
+	switch {
+	case strings.HasPrefix(dir, "~/"):
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", 0, false
+		}
+		dir = filepath.Join(home, dir[2:]) + "/"
+	case !filepath.IsAbs(dir) && e.win.buf.file.path != "":
+		dir = filepath.Join(filepath.Dir(e.win.buf.file.path), dir) + "/"
+	}
+	return dir, c - (len(path) - slash - 1), true
+}
+
+// pathItems returns the entries of a directory that start with part, the
+// hidden ones only for a part that starts with a dot.
+func pathItems(names []string, part string) []item {
+	var out []item
+	for _, n := range pathMatches(part, names) {
+		out = append(out, item{label: n, text: n})
+	}
+	return out
+}
+
+// wordWindow is how many bytes around the cursor, and from the start of
+// each other buffer, words come from, so a large file does not slow a key.
+const wordWindow = 64 << 10
+
+// words returns the words longer than prefix that start with it, from the
+// current buffer nearest c first, then from the other open buffers (B206).
+func (e *Session) words(prefix string, c int) []item {
+	if prefix == "" {
+		return nil
+	}
+	cur := e.win.buf.text.Snapshot()
+	lo, hi := max(c-wordWindow, 0), min(c+wordWindow, cur.Len())
+	type found struct {
+		word string
+		far  int
+	}
+	var all []found
+	seen := map[string]bool{}
+	scan := func(text string, at, base int) {
+		for i := 0; i < len(text); {
+			if !isWord(text[i]) {
+				i++
+				continue
+			}
+			j := i
+			for j < len(text) && isWord(text[j]) {
+				j++
+			}
+			if w := text[i:j]; len(w) > len(prefix) && strings.HasPrefix(w, prefix) && !seen[w] {
+				seen[w] = true
+				all = append(all, found{w, base + abs(at-i)})
+			}
+			i = j
+		}
+	}
+	scan(cur.Slice(lo, hi), c-lo, 0)
+	for _, b := range e.bufs {
+		if b != e.win.buf && b.term == nil {
+			t := b.text.Snapshot()
+			scan(t.Slice(0, min(t.Len(), wordWindow)), 0, cur.Len())
+		}
+	}
+	slices.SortStableFunc(all, func(a, b found) int { return cmp.Compare(a.far, b.far) })
+	out := make([]item, len(all))
+	for i, f := range all {
+		out[i] = item{label: f.word, text: f.word}
+	}
+	return out
+}
+
+func abs(n int) int { return max(n, -n) }
 
 // choose puts item i of the menu in the text, or the typed word for the
 // menu's last stop, and shows the menu with it selected.
@@ -174,9 +292,12 @@ func (e *Session) choose(i int) {
 	e.showMenu()
 }
 
-// item is what fude uses of a completion item.
+// item is what fude uses of a completion item, and for a server's, the
+// item as it came and the server, to resolve it.
 type item struct {
 	label, text, doc string
+	raw              json.RawMessage
+	from             *server
 }
 
 // readItem reads a completion item. Its doc is its detail as code of
@@ -196,7 +317,7 @@ func readItem(raw json.RawMessage, filetype string) item {
 	if it.Detail != "" {
 		doc = "```" + filetype + "\n" + it.Detail + "\n```\n" + doc
 	}
-	return item{it.Label, cmp.Or(it.TextEdit.NewText, it.InsertText, it.Label), strings.TrimSpace(doc)}
+	return item{label: it.Label, text: cmp.Or(it.TextEdit.NewText, it.InsertText, it.Label), doc: strings.TrimSpace(doc)}
 }
 
 // showMenu shows the menu's labels in a float, the item in the text
@@ -224,7 +345,7 @@ func (e *Session) showMenu() {
 // came without any, and shows it if the item is still selected.
 func (e *Session) resolve(m *menu, i int) {
 	s := m.from[i]
-	if m.asked[i] {
+	if s == nil || m.asked[i] {
 		return
 	}
 	m.asked[i] = true
@@ -242,17 +363,19 @@ func (e *Session) resolve(m *menu, i int) {
 	})
 }
 
-// autocomplete asks for completions after k typed a word character, or a
-// character one of the servers names as a trigger, while autocomplete is on
-// (B67).
+// autocomplete asks for completions after k typed a word character, a /
+// for paths, or a character one of the servers names as a trigger, while
+// autocomplete is on (B67, B206).
 func (e *Session) autocomplete(k vim.Key) {
 	if !e.cfg.Autocomplete || e.vim.Mode() != vim.Insert || utf8.RuneCountInString(string(k)) != 1 || k == "<" {
 		return
 	}
-	if slices.ContainsFunc(e.win.buf.servers, func(s *server) bool {
+	server := slices.ContainsFunc(e.win.buf.servers, func(s *server) bool {
 		p, ok := completionOptions(s)
 		return ok && (isWord(k[0]) || slices.Contains(p.TriggerCharacters, string(k)))
-	}) {
+	})
+	local := isWord(k[0]) && slices.Contains(e.cfg.Sources, "buffer") || k == "/" && slices.Contains(e.cfg.Sources, "path")
+	if server || local {
 		e.complete(true)
 	}
 }

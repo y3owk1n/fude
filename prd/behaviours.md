@@ -676,6 +676,14 @@ Where fude departs, the line says so and cites the departure in
   under a rule that parameter's documentation and the function's. It asks
   again after each key while it shows, and goes when the server has none
   for the cursor or insert mode ends. `<C-s>` shows it or hides it.
+- B206 [5] Completion lists, beside a language server's items, the entries
+  of the directory a path before the cursor names when it holds a `/`,
+  relative to the file's directory, and the words of the open buffers that
+  start with the word typed, nearest the cursor first. So it works in a
+  file with no server. `completion_sources` picks the sources and orders
+  them in the menu, `["lsp", "path", "buffer"]` by default, and the menu
+  names the source of each item that is not a server's. With
+  `autocomplete` on, a `/` lists a path's entries.
 - B67 [5] With `autocomplete` on, typing a word character or a trigger
   character in insert mode lists the server's completions, with none put in
   the text until `<C-n>` or `<C-p>`.

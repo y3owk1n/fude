@@ -55,6 +55,16 @@ one steps over it, `<BS>` in an empty pair deletes both, and `<CR>` in
 empty brackets opens an indented line between them. A quote after a
 letter stays one, as in `don't`. The default is on.
 
+## completion_sources
+
+Where completions come from, in the menu's order. `lsp` is the language
+servers' items. `path` is the entries of the directory a path before the
+cursor names, once it holds a `/`, relative to the file's directory.
+`buffer` is the words of the open buffers that start with the word typed,
+nearest the cursor first. The menu names the source of each item that is
+not a server's. The default is `["lsp", "path", "buffer"]`, and leaving a
+name out turns that source off.
+
 ## auto_install
 
 When a file needs a grammar that is not built yet, fude builds it in the

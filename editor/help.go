@@ -164,7 +164,7 @@ func (e *Session) helpSections() []helpSection {
 			for _, k := range helpFields(v) {
 				settings.entries = append(settings.entries, helpEntry{[]string{name + "." + k.name}, "[" + name + "." + k.name + "]", k.help})
 			}
-		case v.Kind() == reflect.Map || v.Kind() == reflect.Slice:
+		case (v.Kind() == reflect.Map || v.Kind() == reflect.Slice) && v.Type().Elem().Kind() == reflect.Struct:
 			// [filetype.go], [lsp.gopls] and [[plugin]] tables, whose keys are
 			// the fields of their elements.
 			table := "[" + name + ".{" + f.Tag.Get("key") + "}]"
@@ -176,8 +176,12 @@ func (e *Session) helpSections() []helpSection {
 			}
 		default:
 			value := fmt.Sprint(v.Interface())
-			if v.Kind() == reflect.String {
+			switch v.Kind() {
+			case reflect.String:
 				value = fmt.Sprintf("%q", value)
+			case reflect.Slice:
+				// A list of strings, as completion_sources is.
+				value = strings.ReplaceAll(fmt.Sprintf("%q", v.Interface()), `" "`, `", "`)
 			}
 			settings.entries = append(settings.entries, helpEntry{[]string{name}, name + " = " + value, f.Tag.Get("help")})
 		}

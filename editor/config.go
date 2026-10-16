@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/pelletier/go-toml/v2"
@@ -17,19 +18,20 @@ import (
 // config is what config.toml holds (D27). Each key's help tag is what
 // help says of it.
 type config struct {
-	IndentWidth   uint   `toml:"indent_width" help:"the columns of an indent level, 0 for the tab width"`
-	KeyTimeout    uint   `toml:"key_timeout" help:"the milliseconds a mapping waits for its next key"`
-	KeyHints      uint   `toml:"key_hints" help:"the milliseconds a command being typed waits before the keys that may follow it show, 0 for never"`
-	LargeFile     uint   `toml:"large_file" help:"the megabytes over which a file opens with syntax and language servers off"`
-	Center        bool   `toml:"center" help:"the windows start centered on a wide screen, as :center toggles"`
-	Autocomplete  bool   `toml:"autocomplete" help:"completions show while typing, not only on <C-x><C-o>"`
-	Autopairs     bool   `toml:"autopairs" help:"an opening bracket or quote typed comes with its closing one"`
-	AutoInstall   bool   `toml:"auto_install" help:"builds a missing grammar the first time a file needs it"`
-	Socket        string `toml:"socket" help:"where clients attach, instead of a path for each process"`
-	FormatOnSave  bool   `toml:"format_on_save" help:"a write formats the buffer first"`
-	FormatTimeout uint   `toml:"format_timeout" help:"the milliseconds formatting before a write may take"`
-	Leader        string `toml:"leader" help:"what <Leader> in a mapping stands for"` // N18
-	Theme         string `toml:"theme" help:"the colours: dark, light or a base16 scheme file"`
+	IndentWidth   uint     `toml:"indent_width" help:"the columns of an indent level, 0 for the tab width"`
+	KeyTimeout    uint     `toml:"key_timeout" help:"the milliseconds a mapping waits for its next key"`
+	KeyHints      uint     `toml:"key_hints" help:"the milliseconds a command being typed waits before the keys that may follow it show, 0 for never"`
+	LargeFile     uint     `toml:"large_file" help:"the megabytes over which a file opens with syntax and language servers off"`
+	Center        bool     `toml:"center" help:"the windows start centered on a wide screen, as :center toggles"`
+	Autocomplete  bool     `toml:"autocomplete" help:"completions show while typing, not only on <C-x><C-o>"`
+	Autopairs     bool     `toml:"autopairs" help:"an opening bracket or quote typed comes with its closing one"`
+	Sources       []string `toml:"completion_sources" help:"where completions come from, in the menu's order: lsp, path and buffer"`
+	AutoInstall   bool     `toml:"auto_install" help:"builds a missing grammar the first time a file needs it"`
+	Socket        string   `toml:"socket" help:"where clients attach, instead of a path for each process"`
+	FormatOnSave  bool     `toml:"format_on_save" help:"a write formats the buffer first"`
+	FormatTimeout uint     `toml:"format_timeout" help:"the milliseconds formatting before a write may take"`
+	Leader        string   `toml:"leader" help:"what <Leader> in a mapping stands for"` // N18
+	Theme         string   `toml:"theme" help:"the colours: dark, light or a base16 scheme file"`
 	options
 	Keymap struct {
 		Normal   map[string]string `toml:"normal" help:"normal mode mappings"`
@@ -73,7 +75,7 @@ type config struct {
 	} `toml:"plugin"`
 }
 
-var defaults = config{IndentWidth: 8, KeyTimeout: 1000, KeyHints: 300, FormatTimeout: 1000, LargeFile: 2, Autopairs: true, AutoInstall: true, Leader: "<Space>", Theme: "dark", options: options{Wrap: true, IndentGuides: true}}
+var defaults = config{IndentWidth: 8, KeyTimeout: 1000, KeyHints: 300, FormatTimeout: 1000, LargeFile: 2, Autopairs: true, Sources: []string{"lsp", "path", "buffer"}, AutoInstall: true, Leader: "<Space>", Theme: "dark", options: options{Wrap: true, IndentGuides: true}}
 
 // options are the settings each window has, which :set changes for the
 // current window and the windows opened after it (B39). :set takes each by
@@ -121,6 +123,11 @@ func loadConfig() (config, error) {
 	case err == nil:
 		if err := badPattern(c); err != nil {
 			return c, fmt.Errorf("%s: %w", path, err)
+		}
+		for _, s := range c.Sources {
+			if !slices.Contains(defaults.Sources, s) {
+				return c, fmt.Errorf("%s: completion_sources has no source %q", path, s)
+			}
 		}
 		return c, nil
 	case errors.As(err, &strict):

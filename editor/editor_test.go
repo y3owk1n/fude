@@ -1313,6 +1313,32 @@ func TestB204PathExpansion(t *testing.T) {
 	}
 }
 
+// B206
+func TestB206CompletionSources(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "a.txt")
+	change(t, path, "apple apricot\n")
+	change(t, filepath.Join(dir, "notes.md"), "")
+	e := open(t, path)
+	// The nearest word comes first, and the menu names where it came from.
+	feed(e, "o ap<C-x><C-o>")
+	if f, _ := e.Float(); text(e) != "apple apricot\n apricot" || !strings.Contains(f.Text, "apple  [buffer]") {
+		t.Fatalf("<C-x><C-o> after ap made %q with the menu %q", text(e), f.Text)
+	}
+	feed(e, "<Esc>o./no<C-x><C-o>")
+	settle(t, e, func() bool { return strings.HasSuffix(text(e), "./notes.md") })
+
+	config(t, `completion_sources = ["buffer"]`)
+	e = start(t, path)
+	if feed(e, "o./no<C-x><C-o>"); e.Message() != "no completions" {
+		t.Errorf("with only buffer words, a path completed to %q", text(e))
+	}
+	config(t, `completion_sources = ["nope"]`)
+	if e = start(t, path); !strings.Contains(e.Message(), `no source "nope"`) {
+		t.Errorf("an unknown source said %q", e.Message())
+	}
+}
+
 // B124
 func TestB124Listing(t *testing.T) {
 	dir := t.TempDir()
