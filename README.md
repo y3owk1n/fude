@@ -127,7 +127,7 @@ A file in a language other than Go builds its grammar in the background the firs
 | **Formatting**       | Formatters by name, run in turn or the first that applies, with the language server as the fallback              |
 | **Finder**           | `:pick` for files, grep, buffers, recent files, diagnostics, symbols, help and keymaps, with a preview, `<C-g>` to search ignored files, `<C-q>` to a list                           |
 | **Folders**          | Edit a listing and `:w` to rename, delete and create files                                                         |
-| **Git**              | Signs, `]h` and `[h` between hunks, a hunk preview, `gH` to put a hunk back as the index has it, `:blame` for the cursor's line                  |
+| **Git**              | Signs, `]h` and `[h` between hunks, a hunk preview, `gh` to stage a hunk and `gH` to put one back as the index has it, `:blame` for the cursor's line                  |
 | **Terminal**         | `:terminal` in a split, and `<Esc><Esc>` to move through its output in normal mode                                |
 | **Discovery**        | Key hints for a half-typed command, `:h` with a written guide and a full reference, man pages                    |
 | **Typing**           | Autopairs, and `#hex`, `rgb()` and `hsl()` text shown on the colour it names                                       |

@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"fmt"
 	"os/exec"
 	"path/filepath"
 	"slices"
@@ -336,6 +337,77 @@ func (e *Session) resetHunks(t vim.Text, start, end int, _ bool) []vim.Edit {
 		edits = append(edits, vim.Edit(ed))
 	}
 	return edits
+}
+
+// stageHunks writes the hunks meeting the lines from start to end to git's
+// index, as gh does, and leaves the others as the index has them. git runs
+// off the loop, and the signs follow once it is done (B221).
+func (e *Session) stageHunks(t vim.Text, start, end int, _ bool) []vim.Edit {
+	b := e.win.buf
+	hs, ok := e.hunks(b)
+	if !ok {
+		return nil
+	}
+	lines := strings.Split(t.Slice(0, t.Len()), "\n")
+	first, last, staged := t.LineOf(start), t.LineOf(end), 0
+	for _, h := range slices.Backward(hs) {
+		if lo, hi := h.span(); hi >= first && lo <= last {
+			staged++
+			continue
+		}
+		lines = slices.Concat(lines[:h.line], h.old, lines[h.line+h.count:])
+	}
+	if staged == 0 {
+		e.message = "no hunk here"
+		return nil
+	}
+	// The text goes to git as the file would be, which git cleans as it
+	// cleans the file.
+	text := strings.Join(lines, "\n")
+	if b.file.eol {
+		text += "\n"
+	}
+	if b.file.crlf {
+		text = strings.ReplaceAll(text, "\n", "\r\n")
+	}
+	path := b.file.path
+	go func() {
+		err := stage(path, text)
+		e.queue <- func() {
+			if err != nil {
+				e.message = err.Error()
+				return
+			}
+			e.loadGit(b)
+		}
+	}()
+	return nil
+}
+
+// stage puts text in git's index as the file at path, keeping its mode.
+func stage(path, text string) error {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return fmt.Errorf("stage %s: %w", path, err)
+	}
+	dir, name := filepath.Dir(abs), filepath.Base(abs)
+	mode := "100644"
+	if out, err := exec.Command("git", "-C", dir, "ls-files", "-s", "--", name).Output(); err == nil {
+		if f := strings.Fields(string(out)); len(f) > 0 {
+			mode = f[0]
+		}
+	}
+	hash := exec.Command("git", "-C", dir, "hash-object", "-w", "--stdin", "--path", name)
+	hash.Stdin = strings.NewReader(text)
+	out, err := hash.Output()
+	if err != nil {
+		return fmt.Errorf("stage %s: %w", path, err)
+	}
+	info := mode + "," + strings.TrimSpace(string(out)) + "," + name
+	if out, err := exec.Command("git", "-C", dir, "update-index", "--cacheinfo", info).CombinedOutput(); err != nil {
+		return fmt.Errorf("stage %s: %w: %s", path, err, strings.TrimSpace(string(out)))
+	}
+	return nil
 }
 
 // previewHunk shows the hunk on the cursor's line in a float, its old lines

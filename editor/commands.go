@@ -405,4 +405,5 @@ var hostOperators = []hostOperator{
 		return nil
 	}},
 	{"gH", "puts the hunks a motion or object covers back as git's index has them", (*Session).resetHunks},
+	{"gh", "stages the hunks a motion or object covers in git's index", (*Session).stageHunks},
 }

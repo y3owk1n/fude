@@ -221,6 +221,11 @@ Where fude departs, the line says so and cites the departure in
   its lines back as git's index has them, as one change.
   `<Plug>(git.preview)` shows the hunk on the cursor's line in a float,
   its old lines after `-` and its new ones after `+`.
+- B221 [2] `gh{motion}` stages the hunks in its lines in git's index, as
+  mini.diff's `gh` does, and leaves the index's other lines as they are.
+  The file's line endings and git's filters apply as `git add` would
+  apply them. The staged hunks' signs go once git is done. `gh`
+  starts no Select mode, as fude has none (N2).
 - B220 [2] `:blame` shows, dim after the cursor's line, who changed it
   last, how long ago and the commit's summary, as gitsigns'
   `current_line_blame` does, or "not committed yet" for a line changed

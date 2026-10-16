@@ -769,6 +769,30 @@ func TestB123GitSigns(t *testing.T) {
 	}
 }
 
+// B221
+func TestB221StageHunk(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "a.txt")
+	change(t, path, "a\nb\nc\n")
+	git := func(args ...string) string {
+		out, err := exec.Command("git", append([]string{"-C", dir, "-c", "user.name=t", "-c", "user.email=t@t"}, args...)...).CombinedOutput()
+		if err != nil {
+			t.Skipf("git %v: %v: %s", args, err, out)
+		}
+		return string(out)
+	}
+	git("init", "-q")
+	git("add", ".")
+	git("commit", "-qm", "init")
+	e := open(t, path)
+	e.SetSize(80, 10)
+	feed(e, "rAGrC")
+	settle(t, e, func() bool { return len(e.Views()[0].Signs) == 2 })
+	// ghh stages the first line's hunk, and the last stays as it was.
+	feed(e, "ggghh")
+	settle(t, e, func() bool { return git("show", ":a.txt") == "A\nb\nc\n" && len(e.Views()[0].Signs) == 1 })
+}
+
 // B220
 func TestB220Blame(t *testing.T) {
 	dir := t.TempDir()
