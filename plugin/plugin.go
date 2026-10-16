@@ -108,12 +108,21 @@ type Plugin struct {
 	call    *call // the call running now
 }
 
-// call holds the text one call into a plugin reads and what it asks for.
+// call holds the text one call into a plugin reads, what the call is
+// about, and what it asks for.
 type call struct {
-	name string
-	text fude.Text
+	name  string
+	text  fude.Text
+	about Context
 	Result
 }
+
+// Context is what a call is about, by name, which the plugin reads through
+// context. In a command's call, args is the text typed after its name, and
+// bang is true when ! followed the name. first and last are where its
+// range's first and last lines start, and ranged is true when it was given
+// a range.
+type Context map[string]string
 
 // errBudget is a call that ran past its budget. The plugin is closed.
 var errBudget = errors.New("ran past its budget")
@@ -191,24 +200,17 @@ func (p *Plugin) Close(ctx context.Context) error {
 	return errors.Join(p.runtime.Close(ctx), p.cache.Close(ctx))
 }
 
-// Call runs the plugin's export name with args under budget, reading t, and
-// returns what it asked for and returned. It waits for a call already
+// CallNow runs the plugin's export name with args under budget, on the
+// input path, reading t, about what about says. It returns what the call
+// asked for and returned, or ErrBusy instead of waiting for a call already
 // running. A call that traps or runs past its budget returns an error, and
 // nothing it asked for happens.
-func (p *Plugin) Call(ctx context.Context, name string, t fude.Text, budget time.Duration, args ...uint64) (Result, error) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	return p.run(ctx, name, t, budget, args...)
-}
-
-// CallNow is Call for the input path. It returns ErrBusy instead of waiting
-// for a call already running.
-func (p *Plugin) CallNow(ctx context.Context, name string, t fude.Text, budget time.Duration, args ...uint64) (Result, error) {
+func (p *Plugin) CallNow(ctx context.Context, name string, t fude.Text, about Context, budget time.Duration, args ...uint64) (Result, error) {
 	if !p.mu.TryLock() {
 		return Result{}, fmt.Errorf("plugin %s %w", p.Name, ErrBusy)
 	}
 	defer p.mu.Unlock()
-	return p.run(ctx, name, t, budget, args...)
+	return p.run(ctx, name, t, about, budget, args...)
 }
 
 // Event runs the plugin's on_event with the event's name, written into its
@@ -222,18 +224,18 @@ func (p *Plugin) Event(ctx context.Context, name string, t fude.Text) (Result, e
 	if err != nil || len(out) == 0 || !p.mod.Memory().WriteString(uint32(out[0]), name) {
 		return Result{}, fmt.Errorf("plugin %s: write the event's name: %w", p.Name, cmp.Or(err, errors.New("no memory for it")))
 	}
-	return p.run(ctx, "on_event", t, EventBudget, out[0], uint64(len(name)))
+	return p.run(ctx, "on_event", t, nil, EventBudget, out[0], uint64(len(name)))
 }
 
 // run makes one call while p.mu is held.
-func (p *Plugin) run(ctx context.Context, name string, t fude.Text, budget time.Duration, args ...uint64) (Result, error) {
+func (p *Plugin) run(ctx context.Context, name string, t fude.Text, about Context, budget time.Duration, args ...uint64) (Result, error) {
 	f := p.mod.ExportedFunction(name)
 	if f == nil {
 		return Result{}, fmt.Errorf("plugin %s has no %s", p.Name, name)
 	}
 	ctx, cancel := context.WithTimeout(ctx, budget)
 	defer cancel()
-	p.call = &call{name: name, text: t}
+	p.call = &call{name: name, text: t, about: about}
 	defer func() { p.call = nil }()
 	out, err := f.Call(ctx, args...)
 	switch {
@@ -250,6 +252,7 @@ func (p *Plugin) run(ctx context.Context, name string, t fude.Text, budget time.
 func (p *Plugin) host(ctx context.Context) error {
 	_, err := p.runtime.NewHostModuleBuilder("fude").
 		NewFunctionBuilder().WithFunc(p.logText).Export("log").
+		NewFunctionBuilder().WithFunc(p.context).Export("context").
 		NewFunctionBuilder().WithFunc(p.textLen).Export("text_len").
 		NewFunctionBuilder().WithFunc(p.text).Export("text").
 		NewFunctionBuilder().WithFunc(p.edit).Export("edit").
@@ -284,6 +287,21 @@ func (p *Plugin) logText(_ context.Context, m api.Module, ptr, n uint32) {
 	if b, ok := m.Memory().Read(ptr, n); ok {
 		p.log(p.Name + ": " + string(b))
 	}
+}
+
+// context writes the value named at (ptr, n) of what the call is about into
+// memory the plugin allocates, or returns errRange for a name it has none
+// of.
+func (p *Plugin) context(ctx context.Context, m api.Module, ptr, n uint32) int64 {
+	if p.call == nil {
+		return errDenied
+	}
+	name, ok := m.Memory().Read(ptr, n)
+	v, has := p.call.about[string(name)]
+	if !ok || !has {
+		return errRange
+	}
+	return give(ctx, m, v)
 }
 
 func (p *Plugin) textLen() int32 {

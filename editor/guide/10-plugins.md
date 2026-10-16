@@ -77,7 +77,10 @@ func main() {}
 A plugin registers what it adds from its `init` functions. `sdk.Command`
 adds an ex command, `sdk.Key` keys in normal mode, `sdk.Operator` an
 operator and `sdk.Object` a text object, each with a line of help that
-`:h` and the key hints show. `sdk.On` runs a function for an event:
+`:h` and the key hints show. A command's `sdk.Call` has what was typed
+after its name in `Args`, `Bang` for a `!` after the name, and its range
+in `First` and `Last`, where its lines start. `sdk.On` runs a function
+for an event:
 `buffer.opened`, `buffer.changed`, `buffer.saved`, `buffer.closed`,
 `mode.changed`, `view.moved`, `syntax.updated` or `lsp.diagnostics`.
 

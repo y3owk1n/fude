@@ -7,14 +7,22 @@ package sdk
 
 import (
 	"errors"
+	"strconv"
 	"strings"
 	"unsafe"
 )
 
 // Call is where a command or key ran: the cursor's byte offset and the
-// count typed before it, 0 for none.
+// count typed before it, 0 for none. A command's call also has the text
+// typed after its name, whether ! followed the name, and where the first
+// and last lines of its range start, which are the cursor's line when
+// Ranged is false.
 type Call struct {
 	Cursor, Count int
+	Args          string
+	Bang          bool
+	First, Last   int
+	Ranged        bool
 }
 
 // Range is the text [Start, End) an operator acts on. Lines is set when it
@@ -60,6 +68,9 @@ const (
 
 //go:wasmimport fude log
 func hostLog(ptr *byte, n uint32)
+
+//go:wasmimport fude context
+func hostContext(ptr *byte, n uint32) int64
 
 //go:wasmimport fude text_len
 func hostTextLen() int32
@@ -158,16 +169,25 @@ func onEvent(p *byte, n uint32) {
 // for :h. Call it from an init function.
 func Command(name, help string, f func(Call)) {
 	add(kindCommand, name, help, func(a, b, _ int64) int64 {
-		f(Call{int(a), int(b)})
+		first, _ := strconv.Atoi(about("first"))
+		last, _ := strconv.Atoi(about("last"))
+		f(Call{int(a), int(b), about("args"), about("bang") == "true", first, last, about("ranged") == "true"})
 		return 0
 	})
+}
+
+// about returns what the call running is about by name, or "".
+func about(name string) string {
+	p, n := ptr(name)
+	v, _ := answer(hostContext(p, n))
+	return v
 }
 
 // Key maps keys in normal mode to f, as a mapping in config.toml does.
 // help says what it does, for :h and the key hints.
 func Key(keys, help string, f func(Call)) {
 	add(kindKey, keys, help, func(a, b, _ int64) int64 {
-		f(Call{int(a), int(b)})
+		f(Call{Cursor: int(a), Count: int(b)})
 		return 0
 	})
 }

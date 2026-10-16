@@ -878,6 +878,7 @@ host it may not reach or a request that failed.
 | Function | Capability | Does |
 |---|---|---|
 | `log(ptr, len)` | none | adds a line to fude's log |
+| `context(ptr, len) -> i64` | none | the value of what the call is about by its name, or -2 for a name it has none of |
 | `text_len() -> i32` | `buffer.read` | the length of the text |
 | `text(start, end) -> i64` | `buffer.read` | the text in `[start, end)` |
 | `edit(start, end, ptr, len) -> i32` | `buffer.write` | asks to replace `[start, end)` |
@@ -894,7 +895,11 @@ host it may not reach or a request that failed.
 
 `register` gives what it adds an id, and fude runs it through
 `call(id, a, b, c)`. Kind 0 is an ex command and kind 3 a key in normal
-mode, both called with `(cursor, count)`. Kind 1 is an operator, called
+mode, both called with `(cursor, count)`. An ex command's `context` has
+`args`, the text typed after its name, `bang`, `true` when `!` followed the
+name, `first` and `last`, where its range's first and last lines start,
+and `ranged`, `true` when it was given a range. Without one, the range is
+the cursor's line (B175). Kind 1 is an operator, called
 with `(start, end, linewise)`. Kind 2 is a text object, called with
 `(start, end)` and returning `start<<32|end`, or a negative number for
 none. fude adds them to the machine as its own: operators and objects with

@@ -181,8 +181,12 @@ func (e *Session) register(p *plugin.Plugin, r plugin.Registration) {
 	switch r.Kind {
 	case plugin.Command:
 		e.pluginHelp[":"+r.Name] = r.Help
-		e.commands[r.Name] = func(s *Session) {
-			if edits, _, ok := s.run(p, r.ID, s.Text(), uint64(s.Cursor()), 0); ok && len(edits) > 0 {
+		e.commands[r.Name] = func(s *Session, c call) {
+			about := plugin.Context{
+				"args": c.arg, "bang": strconv.FormatBool(c.force),
+				"first": strconv.Itoa(c.first), "last": strconv.Itoa(c.last), "ranged": strconv.FormatBool(c.ranged),
+			}
+			if edits, _, ok := s.run(p, r.ID, s.Text(), about, uint64(s.Cursor()), 0); ok && len(edits) > 0 {
 				if err := (host{s}).Apply(edits, ":"+r.Name); err != nil {
 					s.message = err.Error()
 					return
@@ -198,7 +202,7 @@ func (e *Session) register(p *plugin.Plugin, r plugin.Registration) {
 				if lines {
 					linewise = 1
 				}
-				edits, _, _ := s.run(p, r.ID, t, uint64(start), uint64(end), linewise)
+				edits, _, _ := s.run(p, r.ID, t, nil, uint64(start), uint64(end), linewise)
 				return edits
 			})
 		})
@@ -206,7 +210,7 @@ func (e *Session) register(p *plugin.Plugin, r plugin.Registration) {
 		e.pluginBindings = append(e.pluginBindings, vim.Binding{Kind: "object", Keys: r.Name, Help: r.Help})
 		e.each(func(s *Session) {
 			s.vim.Object(r.Name, func(t vim.Text, start, end int) (int, int, bool) {
-				_, out, ok := s.run(p, r.ID, t, uint64(start), uint64(end))
+				_, out, ok := s.run(p, r.ID, t, nil, uint64(start), uint64(end))
 				if !ok || len(out) == 0 || int64(out[0]) < 0 {
 					return 0, 0, false
 				}
@@ -218,7 +222,7 @@ func (e *Session) register(p *plugin.Plugin, r plugin.Registration) {
 		e.pluginHelp["<Plug>("+name+")"] = r.Help
 		e.each(func(s *Session) {
 			s.vim.Command(name, func(t vim.Text, pos, count int) []vim.Edit {
-				edits, _, _ := s.run(p, r.ID, t, uint64(pos), uint64(count))
+				edits, _, _ := s.run(p, r.ID, t, nil, uint64(pos), uint64(count))
 				return edits
 			})
 			s.vim.Map(vim.Normal, withLeader(r.Name, e.cfg.Leader), "<Plug>("+name+")")
@@ -227,11 +231,11 @@ func (e *Session) register(p *plugin.Plugin, r plugin.Registration) {
 }
 
 // run calls what p registered as id, through its call export, on the input
-// path, under its budget, against the current buffer. It adds the
+// path, under its budget, against the current buffer, about what about says. It adds the
 // decorations the call asks for, and returns its edits, sorted, and what it
 // returned. A call that fails unloads p, and calls into an unloaded plugin
 // do nothing.
-func (e *Session) run(p *plugin.Plugin, id uint32, t vim.Text, args ...uint64) ([]vim.Edit, []uint64, bool) {
+func (e *Session) run(p *plugin.Plugin, id uint32, t vim.Text, about plugin.Context, args ...uint64) ([]vim.Edit, []uint64, bool) {
 	if !slices.Contains(e.plugins, p) {
 		e.message = fmt.Sprintf("plugin %s is unloaded", p.Name)
 		return nil, nil, false
@@ -242,7 +246,7 @@ func (e *Session) run(p *plugin.Plugin, id uint32, t vim.Text, args ...uint64) (
 	full[0] = uint64(id)
 	copy(full[1:], args)
 	at := time.Now()
-	res, err := p.CallNow(context.Background(), "call", t, plugin.InputBudget, full...)
+	res, err := p.CallNow(context.Background(), "call", t, about, plugin.InputBudget, full...)
 	name := strconv.Itoa(int(id))
 	for _, r := range p.Registered {
 		if r.ID == id {

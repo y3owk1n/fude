@@ -253,9 +253,16 @@ func TestB53PluginTraps(t *testing.T) {
 // withKit starts an editor on "ab cd\nef" with the kit plugin loaded.
 func withKit(t *testing.T) *editor.Session {
 	t.Helper()
-	usePlugin(t, "kit", "buffer.read", "buffer.write")
+	return loaded(t, "kit", "ab cd\nef\n", "buffer.read", "buffer.write")
+}
+
+// loaded starts an editor on a file holding text, with the test plugin name
+// loaded with caps.
+func loaded(t *testing.T, name, text string, caps ...string) *editor.Session {
+	t.Helper()
+	usePlugin(t, name, caps...)
 	path := filepath.Join(t.TempDir(), "f")
-	change(t, path, "ab cd\nef\n")
+	change(t, path, text)
 	e := start(t, path)
 	e.Load()
 	select {
@@ -311,6 +318,19 @@ func TestB54PluginCommandsAndKeys(t *testing.T) {
 	e := withKit(t)
 	if feed(e, ":h :Shout<CR>"); !strings.Contains(text(e), "`:Shout`\n  types ! at the cursor") {
 		t.Error("help does not describe :Shout")
+	}
+}
+
+// B175
+func TestB175PluginCommandArguments(t *testing.T) {
+	for _, c := range [][2]string{
+		{":2,3Ctx! x  y<CR>", "x  y|true|2|4|truea\nb\nc"},
+		{":Ctx<CR>", "|false|0|0|falsea\nb\nc"},
+	} {
+		e := loaded(t, "ctx", "a\nb\nc\n", "buffer.write")
+		if feed(e, c[0]); text(e) != c[1] {
+			t.Errorf("%s left %q, want %q", c[0], text(e), c[1])
+		}
 	}
 }
 

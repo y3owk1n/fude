@@ -39,16 +39,16 @@ type Editor struct {
 	// key does, by :name and <Plug>(name), and their operators and objects.
 	pluginHelp     map[string]string
 	pluginBindings []vim.Binding
-	commands       map[string]func(*Session) // ex commands plugins registered
-	decos          map[any][]decoration      // by owner: a plugin, or a buffer for its diagnostics
-	servers        map[string]*server        // by command and root
-	down           map[string]string         // by name, why a configured language server is not running
-	building       map[string]bool           // the filetypes whose grammar builds now
-	failed         map[string]string         // by filetype, why its grammar did not build this session
-	started        bool                      // Load ran, so new buffers attach to servers at once
-	sessions       []*Session                // the first is the one that opened the editor
-	setup          []func(*Session)          // what every session's machine gets, such as keymaps
-	proposed       int                       // the id of the newest proposal
+	commands       map[string]func(*Session, call) // ex commands plugins registered
+	decos          map[any][]decoration            // by owner: a plugin, or a buffer for its diagnostics
+	servers        map[string]*server              // by command and root
+	down           map[string]string               // by name, why a configured language server is not running
+	building       map[string]bool                 // the filetypes whose grammar builds now
+	failed         map[string]string               // by filetype, why its grammar did not build this session
+	started        bool                            // Load ran, so new buffers attach to servers at once
+	sessions       []*Session                      // the first is the one that opened the editor
+	setup          []func(*Session)                // what every session's machine gets, such as keymaps
+	proposed       int                             // the id of the newest proposal
 	listeners      map[*plugin.Plugin]*listener
 	segments       map[*plugin.Plugin]map[*buffer]string // what each plugin shows on the statusline of each buffer
 
@@ -115,7 +115,7 @@ func open(cfg config, paths []string) (*Session, error) {
 	if len(paths) == 0 {
 		paths = []string{""}
 	}
-	ed := &Editor{next: 1, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(*Session){}, decos: map[any][]decoration{}, servers: map[string]*server{}, down: map[string]string{}, building: map[string]bool{}, failed: map[string]string{}, listeners: map[*plugin.Plugin]*listener{}, segments: map[*plugin.Plugin]map[*buffer]string{}}
+	ed := &Editor{next: 1, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(*Session, call){}, decos: map[any][]decoration{}, servers: map[string]*server{}, down: map[string]string{}, building: map[string]bool{}, failed: map[string]string{}, listeners: map[*plugin.Plugin]*listener{}, segments: map[*plugin.Plugin]map[*buffer]string{}}
 	// Without a config directory there are no overrides, and loadConfig
 	// reports why.
 	if dir, err := xdgDir("XDG_CONFIG_HOME", ".config"); err == nil {
@@ -1064,7 +1064,7 @@ func (e *Session) ex(line string) {
 		return
 	}
 	if run, ok := e.commands[name]; ok {
-		run(e)
+		run(e, call{name, arg, force, first, last, ranged})
 		return
 	}
 	e.message = "not a command: " + line
