@@ -1136,6 +1136,12 @@ func (e *Session) ex(line string) {
 	}
 	arg = strings.TrimSpace(arg)
 	if c, ok := commandsByName[name]; ok {
+		if takesPath(c) {
+			if arg, err = e.expand(arg); err != nil {
+				e.message = err.Error()
+				return
+			}
+		}
 		c.run(e, call{name, arg, force, first, last, ranged})
 		return
 	}

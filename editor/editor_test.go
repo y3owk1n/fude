@@ -1282,6 +1282,37 @@ func TestB201StartInDirectory(t *testing.T) {
 	}
 }
 
+// B204
+func TestB204PathExpansion(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("HOME", dir)
+	b, c := filepath.Join(dir, "b.go"), filepath.Join(dir, "c.txt")
+	change(t, b, "B\n")
+	change(t, c, "C\n")
+	change(t, filepath.Join(dir, "d.txt"), "D\n")
+	e := open(t, b)
+	for _, step := range []struct{ keys, want string }{
+		{":e %:h/c.txt<CR>", "C"},
+		{":e #<CR>", "B"},
+		{":e ~/d.txt<CR>", "D"},
+		{":e %:p:h/c.%:e<CR>", "C"},
+	} {
+		if feed(e, step.keys); text(e) != step.want {
+			t.Errorf("%s opened %q, want %q", step.keys, text(e), step.want)
+		}
+	}
+	feed(e, `:w %:r.bak<CR>:w %:h/x\%y<CR>`)
+	if disk(t, filepath.Join(dir, "c.bak")) != "C\n" || disk(t, filepath.Join(dir, "x%y")) != "C\n" {
+		t.Errorf(":w %%:r.bak and :w %%:h/x\\%%y did not write c.bak and x%%y")
+	}
+	feed(e, ":e %:h/c.t<Tab>")
+	settle(t, e, func() bool { return e.Line() == ":e "+c })
+	feed(e, "<Esc>:enew<CR>:e %<CR>")
+	if !strings.Contains(e.Message(), "no file for %") {
+		t.Errorf("an unnamed buffer's :e %% said %q", e.Message())
+	}
+}
+
 // B124
 func TestB124Listing(t *testing.T) {
 	dir := t.TempDir()

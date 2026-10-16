@@ -114,6 +114,12 @@ func (e *Session) completions(line string, wait bool) (int, []string) {
 	arg = strings.TrimLeft(arg, " ")
 	start := len(line) - len(arg)
 	if c, ok := commandsByName[name]; ok && c.complete != nil {
+		// A path completes from what it expands to, which replaces it.
+		if takesPath(c) {
+			if full, err := e.expand(arg); err == nil {
+				arg = full
+			}
+		}
 		return c.complete(e, line, start, arg, wait)
 	}
 	return 0, nil

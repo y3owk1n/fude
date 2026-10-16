@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/y3owk1n/fude/core/kernel"
 )
@@ -104,4 +105,70 @@ func (e *Session) cd(dir string) {
 		return
 	}
 	e.message = wd
+}
+
+// takesPath reports whether c's argument is a file or a directory, which
+// expand expands.
+func takesPath(c *command) bool {
+	return strings.Contains(c.Args, "file]") || strings.Contains(c.Args, "file}") || strings.Contains(c.Args, "[dir]")
+}
+
+// expand returns arg with % made the current file's path and # the
+// alternate file's, each changed by the modifiers after it: :p the full
+// path, :h its directory, :t its name, :r it without its extension and :e
+// the extension. A ~ that starts a word is the home directory, and \% and
+// \# are % and # (B204).
+func (e *Session) expand(arg string) (string, error) {
+	var b strings.Builder
+	for i := 0; i < len(arg); i++ {
+		ch := arg[i]
+		switch {
+		case ch == '\\' && i+1 < len(arg) && (arg[i+1] == '%' || arg[i+1] == '#'):
+			i++
+			b.WriteByte(arg[i])
+		case ch == '%' || ch == '#':
+			path := e.win.buf.file.path
+			if ch == '#' {
+				path = ""
+				if e.win.alt != nil {
+					path = e.win.alt.file.path
+				}
+			}
+			if path == "" {
+				return "", fmt.Errorf("no file for %c", ch)
+			}
+			for i+2 < len(arg) && arg[i+1] == ':' && strings.IndexByte("phtre", arg[i+2]) >= 0 {
+				var err error
+				if path, err = modify(path, arg[i+2]); err != nil {
+					return "", err
+				}
+				i += 2
+			}
+			b.WriteString(path)
+		case ch == '~' && (i == 0 || arg[i-1] == ' ') && (i+1 == len(arg) || arg[i+1] == '/' || arg[i+1] == ' '):
+			home, err := os.UserHomeDir()
+			if err != nil {
+				return "", fmt.Errorf("expand ~: %w", err)
+			}
+			b.WriteString(home)
+		default:
+			b.WriteByte(ch)
+		}
+	}
+	return b.String(), nil
+}
+
+// modify returns path changed by the modifier m of expand, one of phtre.
+func modify(path string, m byte) (string, error) {
+	switch m {
+	case 'p':
+		return filepath.Abs(path)
+	case 'h':
+		return filepath.Dir(path), nil
+	case 't':
+		return filepath.Base(path), nil
+	case 'r':
+		return strings.TrimSuffix(path, filepath.Ext(path)), nil
+	}
+	return strings.TrimPrefix(filepath.Ext(path), "."), nil
 }

@@ -121,6 +121,13 @@ Where fude departs, the line says so and cites the departure in
 - B201 [2] `fude dir`, with no other file, makes `dir` the working
   directory, so the finder, grep and relative paths start there. Helix's
   `hx dir` does the same.
+- B204 [2] In a command's file or directory argument, as in `:e %:h/x`
+  or `:cd ~`, `%` is the current file's path and `#` the alternate
+  file's, as in Neovim. Each takes the modifiers `:p` (the full path), `:h` (its
+  directory), `:t` (its name), `:r` (without its extension) and `:e` (the
+  extension) after it, in turn. A `~` that starts a word is the home
+  directory, and `\%` and `\#` are themselves. `<Tab>` completes from what
+  the path expands to. Without such a file, the command says so.
 - B125 [2] Editing a listing and `:w` changes the directory, as oil.nvim
   does: a changed name renames the entry, a deleted line deletes it, and a
   new line creates a file, or a directory when it ends in `/`. fude first
