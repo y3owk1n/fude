@@ -338,6 +338,14 @@ func (e *Session) moveTo(d byte) {
 func (e *Session) layout() {
 	x, w, _ := e.area()
 	e.root.place(x, 0, w, max(e.height, 2))
+	// A terminal is as big as the window showing it, its status line aside.
+	for _, win := range e.root.windows() {
+		if t := win.buf.term; t != nil {
+			if err := t.fit(win.w, win.h-1); err != nil {
+				e.message = err.Error()
+			}
+		}
+	}
 }
 
 // area returns the columns the windows take, and whether they are

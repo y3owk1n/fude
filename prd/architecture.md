@@ -1306,6 +1306,22 @@ answers it. While a server is attached, insert `<C-s>` shows the signature
 being typed in a float, with its active parameter bold. The next key closes
 it (B66).
 
+## Terminal
+
+A terminal is a buffer whose `term` holds a program running in a
+pseudo-terminal (D38). Three goroutines serve it. One reads the program's
+output and hands each chunk to the editor loop, which writes it into the
+emulator, so the emulator and the screen it keeps are only ever touched
+on the loop. One copies what the emulator answers and encodes, such as
+keys, to the program. One waits for the program to end and tells the
+loop. In terminal mode, `Feed` sends keys to the emulator before
+anything else sees them, and the view carries the screen's cells, which
+the client draws as they are, every frame, outside B197's line keys.
+Leaving terminal mode replaces the buffer's kernel text with the
+scrollback and screen as text, marks the windows on it afresh, and makes
+it read-only. The layout tells each terminal its window's size, and
+closing the buffer ends the program (B205).
+
 ## Server split (step 6)
 
 One server holds the kernel and its modules and applies every client's

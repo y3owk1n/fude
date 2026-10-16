@@ -51,6 +51,7 @@ type buffer struct {
 	gitStale bool              // the text changed since the last diff
 	gitBusy  bool              // a diff runs
 	unsaved  kernel.NodeID     // the newest unsaved change from a session that did not close
+	term     *terminal         // the program a terminal buffer shows, nil for any other (B205)
 	// A scratch buffer shows something about another buffer, such as its
 	// timeline, under a title instead of a file name.
 	title  string
@@ -149,11 +150,16 @@ func (b *buffer) close() {
 	if b.syntax != nil {
 		b.syntax.Close()
 	}
+	if b.term != nil {
+		b.term.stop()
+	}
 }
 
 // kind names the buffer's own keymap, or is "" for a buffer with none.
 func (b *buffer) kind() string {
 	switch {
+	case b.term != nil:
+		return "terminal"
 	case b.listed != "":
 		return "listing"
 	case b.spots != nil:

@@ -481,6 +481,9 @@ func (c *client) box(text string, spans []syntax.Span, rows []row, x, y, width, 
 // rows when the last frame drew it from the same, unless it holds the
 // cursor. For the current window it reports where the cursor is.
 func (c *client) view(v editor.View, left int, sel vim.Selection, visual bool) (int, int, bool) {
+	if v.Cells != nil {
+		return c.cells(v, left)
+	}
 	t := v.Text
 	// The text goes right of the sign column and the line numbers.
 	numbers, cur := v.X, t.LineOf(v.Cursor)
@@ -681,13 +684,19 @@ func (c *client) view(v editor.View, left int, sel vim.Selection, visual bool) (
 	}
 	// The separator and status line span the whole window.
 	v.X, v.W = numbers, v.W+v.Gutter
+	c.edge(v, left)
+	return cx, cy, found
+}
+
+// edge draws v's status line on its bottom row, and a separator on its
+// left unless the windows start there, at left.
+func (c *client) edge(v editor.View, left int) {
 	if v.X > left {
 		for y := v.Y; y < v.Y+v.H; y++ {
 			c.s.Put(v.X-1, y, "│", base)
 		}
 	}
 	c.status(v, v.X, v.W)
-	return cx, cy, found
 }
 
 // colorColumn shades the colour column on row y of v's text, where the

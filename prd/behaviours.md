@@ -472,6 +472,16 @@ Where fude departs, the line says so and cites the departure in
   column of the text, counting from 1, on each line. The cursor's line, a
   selection and a match keep their colours there. 0, the default, shades
   none, and neither do centered windows, since it is their edge (B199).
+- B205 [2] `:terminal` runs the shell, and `:terminal cmd` runs `cmd`
+  through it, in a terminal window below a third of the screen tall, in
+  terminal mode (N29). In terminal mode every key and paste goes to the
+  program, the window shows its screen in its colours, and the status line
+  says TERMINAL. The program's terminal is the window's size and follows
+  it. `<C-\><C-n>`, or `<Esc>` twice, goes to normal mode, where the
+  window holds the scrollback and screen as text to move through, search
+  and yank, and `i` or `a` goes back. When the program ends, the window
+  stays, in normal mode, with its exit status in its name. Closing the
+  buffer or quitting fude ends the program.
 - B194 [2] The last list of places a window showed, such as `grr`'s, is
   the quickfix list (N25). `]q` and `:cnext` go to its next place, and
   `[q` and `:cprev` to the one before. `[Q`, `]Q`, `:cfirst` and `:clast`

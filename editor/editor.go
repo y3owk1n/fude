@@ -16,6 +16,8 @@ import (
 	"strings"
 	"time"
 
+	uv "github.com/charmbracelet/ultraviolet"
+
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/lsp"
@@ -432,6 +434,18 @@ func (e *Session) feed(k vim.Key) {
 		e.reveal()
 		return
 	}
+	// In terminal mode every key goes to the program, and in normal mode in
+	// a terminal i and a go back to terminal mode (B205).
+	if t := e.win.buf.term; t != nil {
+		switch {
+		case t.typing:
+			e.terminalKey(k)
+			return
+		case (k == "i" || k == "a") && e.vim.Idle():
+			e.enterTerminal()
+			return
+		}
+	}
 	if e.completing(k) {
 		e.reveal()
 		return
@@ -472,12 +486,21 @@ func (e *Session) feed(k vim.Key) {
 // Wait reports whether keys are held for a longer mapping, and how long to
 // wait for the next key before calling Timeout.
 func (e *Session) Wait() (time.Duration, bool) {
+	if t := e.win.buf.term; t != nil && t.esc {
+		return escTwice, true
+	}
 	return time.Duration(e.cfg.KeyTimeout) * time.Millisecond, e.vim.Waiting() && e.hints == nil
 }
 
-// Timeout runs the keys held for a longer mapping when no key came in time.
+// Timeout runs the keys held for a longer mapping when no key came in time,
+// or sends a terminal's program the <Esc> no second one followed.
 func (e *Session) Timeout() {
 	e.message = ""
+	if t := e.win.buf.term; t != nil && t.esc {
+		t.esc = false
+		t.em.SendKey(uv.KeyPressEvent{Code: uv.KeyEscape})
+		return
+	}
 	e.settle(e.vim.Timeout())
 }
 
@@ -553,6 +576,10 @@ type View struct {
 	Indent            int            // the columns of an indent level, where guides go
 	Guides            bool           // draw indent guides (B153)
 	ColorColumn       int            // the column of the text to shade, from 1, or 0 (B200)
+	// A terminal window in terminal mode shows its program's screen, with
+	// the program's cursor at CellX and CellY, or -1 when it hides it (B205).
+	Cells        [][]Cell
+	CellX, CellY int
 }
 
 // Ghost is a proposal's text, drawn before the byte at Pos but not in the
@@ -592,6 +619,9 @@ func (e *Session) Views() []View {
 		// Centered, the colour column is the windows' edge, so it shows none.
 		if centered {
 			v.ColorColumn = 0
+		}
+		if term := w.buf.term; term != nil && term.typing {
+			v.Cells, v.CellX, v.CellY = term.screen()
 		}
 		last := vim.LineEnd(t, t.LineStart(min(t.LineOf(top)+max(w.h-2, 0), t.Lines()-1)))
 		if h := w.buf.syntax; h != nil {
@@ -831,6 +861,10 @@ func (e *Session) reveal() {
 // Paste inserts text as typed, with no key mapping applied (B8).
 func (e *Session) Paste(text string) {
 	e.message = ""
+	if t := e.win.buf.term; t != nil && t.typing {
+		t.em.Paste(text)
+		return
+	}
 	if err := e.vim.Paste(text); err != nil {
 		e.message = err.Error()
 	}
@@ -872,6 +906,13 @@ func (e *Session) Signature() (Float, bool) {
 		return Float{}, false
 	}
 	return *e.sig, true
+}
+
+// Terminal reports whether the current window is a terminal in terminal
+// mode, where every key goes to its program (B205).
+func (e *Session) Terminal() bool {
+	t := e.win.buf.term
+	return t != nil && t.typing
 }
 
 // Float returns the float to draw, or false when there is none.

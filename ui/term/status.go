@@ -100,6 +100,9 @@ const spinnerFrame = 80 * time.Millisecond
 // mode is the current window's mode as the status line names it, and its
 // colour.
 func (c *client) mode() (string, color.Color) {
+	if c.e.Terminal() {
+		return "TERMINAL", th.insert
+	}
 	switch c.e.Mode() {
 	case vim.Insert:
 		return "INSERT", th.insert

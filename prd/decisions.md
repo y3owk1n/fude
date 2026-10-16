@@ -350,6 +350,20 @@ without fude's dependencies (D22, D23). Requiring each other by commit
 before there are releases would add a second commit and push to every
 change of `core/` or `vim/` the editor depends on.
 
+## D38. A terminal is charmbracelet/x/vt in a pseudo-terminal from x/sys
+
+`:terminal` runs its program in a pseudo-terminal that fude opens itself
+with `golang.org/x/sys`, already a dependency through tcell, in about 50
+lines for macOS and Linux. The program's output goes through
+`github.com/charmbracelet/x/vt`, a terminal emulator, which keeps the
+screen, 10,000 lines of scrollback and the alternate screen, and turns
+keys and pastes into what the program reads (B205). Why: the standard
+library opens no pseudo-terminal. tcell's own emulator, `tcell/v3/vt`,
+has no alternate screen, so `less`, `htop` or `vim` in a terminal would
+leave its screen garbled, and it keeps its cells to itself, so fude
+cannot add one. An emulator of fude's own would be about 1,500 lines of terminal
+quirks. The cost is 14 modules more and a v0.1.0 API, pinned by `go.sum`.
+
 ## Departures from Neovim
 
 Each entry: what differs, then why.
@@ -581,6 +595,20 @@ fude closes a bracket or quote as it is typed, which `autopairs` turns off
 Why: most editors people come from close pairs. Pairing only before a
 blank or a closing bracket, and never a quote after a letter, avoids the
 cases that make it annoying, so it can stay on.
+
+### N29. A terminal opens below, and <Esc> twice leaves it
+
+`:terminal` opens in a window below, a third of the screen tall, in
+terminal mode, where Neovim's replaces the current window and starts in
+normal mode. `<Esc>` twice leaves terminal mode as `<C-\><C-n>` does. A
+single `<Esc>` waits 300ms for a second one, then goes to the program,
+ahead of any other key, so an Alt chord stays one. In normal mode the
+window holds the scrollback and screen as text, as they were when
+terminal mode was left, without the program's colours. `i` and `a` go
+back to the live screen (B205). Why: a terminal usually runs beside the
+file being edited, so it opens below it. `<Esc><Esc>` is quicker to type
+than `<C-\><C-n>`. Text that stays as it was keeps the cursor and marks in
+place in normal mode while the program goes on writing.
 
 ## Open
 
