@@ -188,6 +188,8 @@ func (b *buffer) kind() string {
 		return "help"
 	case b.title == "[start]":
 		return "start"
+	case b.title == "[debug]":
+		return "debug"
 	case b.shown:
 		return "scratch"
 	}

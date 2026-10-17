@@ -322,6 +322,11 @@ Keys while the cursor is in a float, such as hover's, where `q` closes it.
 Keys in the `:lsp` panel. `r` restarts the server under the cursor, `s`
 stops it, `d` keeps it off and `e` lets it start.
 
+## keymap.debug
+
+Keys in the debug panel. `<CR>` chooses the frame under the cursor, or
+shows or hides the members of its variable, and `q` closes the panel.
+
 ## keymap.help
 
 Keys in help, where `<CR>` goes to the name under the cursor and `q` closes

@@ -73,7 +73,7 @@ func init() {
 				e.message = err.Error()
 			}
 		}, nil},
-		{vim.Command{Name: "debug", Args: "{start [name]|stop|break|continue|next|in|out}", Help: "debugs the program the launch settings name, or acts on the debug session"}, func(e *Session, x call) { e.debugCommand(x.arg) }, completeDebug},
+		{vim.Command{Name: "debug", Args: "{start [name]|stop|break|continue|next|in|out|panel}", Help: "debugs the program the launch settings name, or acts on the debug session"}, func(e *Session, x call) { e.debugCommand(x.arg) }, completeDebug},
 		{vim.Command{Name: "diff", Args: "{n} [m]", Help: "shows the lines that differ between states n and m, or n and now"}, func(e *Session, x call) { e.diff(x.arg) }, nil},
 		{vim.Command{Name: "earlier", Args: "{n}", Help: "goes n states back. n may be a time such as 5m, or a count of writes such as 1f"}, func(e *Session, x call) { e.travel(x.arg, false) }, nil},
 		{vim.Command{Name: "edit", Short: []string{"e"}, Args: "[file]", Help: "opens file, or reads the buffer's file again. ! drops changes"}, func(e *Session, x call) {
@@ -308,6 +308,8 @@ func init() {
 		{"debug.in", "steps into the stopped program's line", func(e *Session, _ int) { e.debugStep("in") }},
 		{"debug.out", "steps out of the stopped program's function", func(e *Session, _ int) { e.debugStep("out") }},
 		{"debug.stop", "ends the debug session", func(e *Session, _ int) { e.debugStop() }},
+		{"debug.panel", "shows the debug session's frames, variables and output", func(e *Session, _ int) { e.debugPanel() }},
+		{"debug.open", "chooses the debug panel's frame under the cursor, or shows or hides its variable's members", func(e *Session, _ int) { e.debugOpen() }},
 		{"spell.next", "goes to the next misspelled word", func(e *Session, _ int) { e.stepTypo(false) }},
 		{"spell.prev", "goes to the misspelled word before", func(e *Session, _ int) { e.stepTypo(true) }},
 		{"spell.suggest", "lists words for the one under the cursor, and the one chosen replaces it", func(e *Session, _ int) { e.suggest() }},
@@ -423,7 +425,7 @@ var defaultMaps = map[string]string{
 	"]d": "<Plug>(diagnostic]d)", "[d": "<Plug>(diagnostic[d)",
 	"s":          "<Plug>(jump)",
 	"<Leader>db": "<Plug>(debug.break)", "<Leader>dc": "<Plug>(debug.continue)", "<Leader>dn": "<Plug>(debug.next)",
-	"<Leader>di": "<Plug>(debug.in)", "<Leader>do": "<Plug>(debug.out)", "<Leader>dq": "<Plug>(debug.stop)",
+	"<Leader>di": "<Plug>(debug.in)", "<Leader>do": "<Plug>(debug.out)", "<Leader>dq": "<Plug>(debug.stop)", "<Leader>dp": "<Plug>(debug.panel)",
 	"]s": "<Plug>(spell.next)", "[s": "<Plug>(spell.prev)", "z=": "<Plug>(spell.suggest)", "zg": "<Plug>(spell.good)",
 	"za": "<Plug>(fold.toggle)", "zc": "<Plug>(fold.close)", "zo": "<Plug>(fold.open)", "zR": "<Plug>(fold.openAll)", "zM": "<Plug>(fold.closeAll)",
 }

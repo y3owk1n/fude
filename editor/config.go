@@ -102,6 +102,7 @@ type keymap struct {
 	Finder   map[string]string `toml:"finder" help:"the finder's keys, in insert mode"`
 	Float    map[string]string `toml:"float" help:"a float's keys while the cursor is in it"`
 	Lsp      map[string]string `toml:"lsp" help:"the language server panel's keys"`
+	Debug    map[string]string `toml:"debug" help:"the debug panel's keys"`
 	Help     map[string]string `toml:"help" help:"help's keys"`
 	Start    map[string]string `toml:"start" help:"the start screen's keys"`
 	Terminal map[string]string `toml:"terminal" help:"a terminal window's keys in normal mode"`

@@ -64,6 +64,14 @@ type debugging struct {
 	thread int // the stopped thread, 0 while the program runs
 	frames []stackFrame
 	frame  int // the chosen frame
+
+	// The panel, and what it shows of the chosen frame (B264).
+	panel   *buffer
+	rows    []panelRow
+	scopes  []variable
+	members map[int][]variable // by reference, the members fetched
+	open    map[int]bool       // the references that show their members
+	output  []string           // the program's last lines
 }
 
 // stackFrame is a frame of the stopped thread, as stackTrace answers it.
@@ -82,7 +90,7 @@ type stackFrame struct {
 type stoppedLine struct{}
 
 // debugCommands are :debug's subcommands.
-var debugCommands = []string{"start", "stop", "break", "continue", "next", "in", "out"}
+var debugCommands = []string{"start", "stop", "break", "continue", "next", "in", "out", "panel"}
 
 // completeDebug completes :debug's subcommand, and after start the names of
 // the launch settings, which it reads off the loop (B262).
@@ -117,6 +125,8 @@ func (e *Session) debugCommand(arg string) {
 		e.toggleBreak()
 	case "continue", "next", "in", "out":
 		e.debugStep(sub)
+	case "panel":
+		e.debugPanel()
 	default:
 		e.message = "debug what? " + strings.Join(debugCommands, ", ")
 	}
@@ -173,7 +183,7 @@ func (e *Session) launch(name string, l launch) {
 	}
 	file, _ := filepath.Abs(b.file.path)
 	args := expandVars(l.Args, map[string]string{"{file}": file, "{dir}": filepath.Dir(file), "{project}": e.project})
-	d := &debugging{s: e, name: name}
+	d := &debugging{s: e, name: name, members: map[int][]variable{}, open: map[int]bool{}}
 	c, err := dap.Start(adapter, cfg.Command, e.project, e.queue, logLine,
 		func(event string, body json.RawMessage) { e.debugEvent(d, event, body) },
 		func(error) { e.debugEnd(d, "the debug adapter "+adapter+" ended") })
@@ -289,6 +299,8 @@ func (e *Session) debugEvent(d *debugging, event string, body json.RawMessage) {
 		})
 	case "continued":
 		e.running(d)
+	case "output":
+		e.debugOutput(d, body)
 	case "terminated":
 		e.debugEnd(d, d.name+" ended")
 	case "exited":
@@ -318,8 +330,12 @@ func (e *Session) stoppedAt(d *debugging, thread int, why string) {
 			e.message = why + ", with no stack: " + err.Error()
 			return
 		}
-		d.frames, d.frame = st.Frames, 0
+		d.frames, d.frame, d.scopes = st.Frames, 0, nil
+		clear(d.open)
+		clear(d.members)
 		e.showFrame(d)
+		e.fetchScopes(d)
+		e.drawPanel(d)
 		d.s.message = why
 	})
 }
@@ -333,6 +349,12 @@ func (e *Session) showFrame(d *debugging) {
 	}
 	f := d.frames[d.frame]
 	s := d.s
+	// The line shows in a window other than the panel's.
+	if s.win.buf == d.panel {
+		if i := slices.IndexFunc(s.root.windows(), func(w *window) bool { return w.buf != d.panel }); i >= 0 {
+			s.win = s.root.windows()[i]
+		}
+	}
 	if f.Source.Path == "" {
 		s.message = "the frame " + f.Name + " has no source"
 		return
@@ -360,8 +382,9 @@ func (e *Session) clearStopped() {
 
 // running notes that d's program runs again.
 func (e *Session) running(d *debugging) {
-	d.thread, d.frames = 0, nil
+	d.thread, d.frames, d.scopes = 0, nil, nil
 	e.clearStopped()
+	e.drawPanel(d)
 }
 
 // debugEnd ends d, saying why, when it is still the editor's session.

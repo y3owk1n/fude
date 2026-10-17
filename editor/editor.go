@@ -255,7 +255,7 @@ func builtins(e *Session) {
 	}
 	e.vim.Map(vim.Visual, "s", "<Plug>(jump)")
 	e.locals = map[string]*vim.Keymaps{}
-	for kind, keys := range map[string]map[string]string{"listing": listingKeys, "list": listKeys, "timeline": timelineKeys, "finder": finderKeys, "float": floatKeys, "lsp": lspKeys, "help": helpKeys, "scratch": scratchKeys, "start": startKeys, "terminal": terminalKeys} {
+	for kind, keys := range map[string]map[string]string{"listing": listingKeys, "list": listKeys, "timeline": timelineKeys, "finder": finderKeys, "float": floatKeys, "lsp": lspKeys, "help": helpKeys, "scratch": scratchKeys, "start": startKeys, "terminal": terminalKeys, "debug": debugKeys} {
 		mode := vim.Normal
 		if kind == "finder" {
 			mode = vim.Insert
@@ -343,7 +343,7 @@ func (e *Session) useKeys(km keymap, leader string) {
 	for mode, maps := range map[vim.Mode]map[string]string{vim.Normal: km.Normal, vim.Visual: km.Visual, vim.Insert: km.Insert} {
 		mapAll(e.vim, mode, maps, leader)
 	}
-	for kind, maps := range map[string]map[string]string{"listing": km.Listing, "list": km.List, "timeline": km.Timeline, "float": km.Float, "lsp": km.Lsp, "help": km.Help, "scratch": km.Scratch, "start": km.Start, "terminal": km.Terminal} {
+	for kind, maps := range map[string]map[string]string{"listing": km.Listing, "list": km.List, "timeline": km.Timeline, "float": km.Float, "lsp": km.Lsp, "help": km.Help, "scratch": km.Scratch, "start": km.Start, "terminal": km.Terminal, "debug": km.Debug} {
 		mapAll(e.locals[kind], vim.Normal, maps, leader)
 	}
 	mapAll(e.locals["finder"], vim.Insert, km.Finder, leader)

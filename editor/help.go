@@ -241,7 +241,7 @@ func (e *Session) mappings() []helpSection {
 	mine := map[string]map[string]string{
 		"normal": e.cfg.Keymap.Normal, "visual": e.cfg.Keymap.Visual, "insert": e.cfg.Keymap.Insert,
 		"listing": e.cfg.Keymap.Listing, "list": e.cfg.Keymap.List, "timeline": e.cfg.Keymap.Timeline,
-		"finder": e.cfg.Keymap.Finder, "float": e.cfg.Keymap.Float, "lsp": e.cfg.Keymap.Lsp, "help": e.cfg.Keymap.Help,
+		"finder": e.cfg.Keymap.Finder, "float": e.cfg.Keymap.Float, "lsp": e.cfg.Keymap.Lsp, "help": e.cfg.Keymap.Help, "debug": e.cfg.Keymap.Debug,
 	}
 	leader := vim.Notation(e.cfg.Leader)
 	section := func(title, kind string, each func(func(from, to string))) helpSection {

@@ -48,7 +48,7 @@ func refuses(name, arg string) bool {
 var refusedPlugs = map[string]bool{
 	"restart": true, "listing.cwd": true,
 	"lsp.restart": true, "lsp.stop": true, "lsp.disable": true, "lsp.enable": true,
-	"debug.break": true, "debug.continue": true, "debug.next": true, "debug.in": true, "debug.out": true, "debug.stop": true,
+	"debug.break": true, "debug.continue": true, "debug.next": true, "debug.in": true, "debug.out": true, "debug.stop": true, "debug.panel": true, "debug.open": true,
 }
 
 // refusedOperators are the operators a guest may not run, because they

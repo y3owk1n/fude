@@ -22,9 +22,11 @@ import (
 // run as a process of its own. It talks on stdio, or on the port -port=
 // names. It appends each message it gets to FUDE_FAKE_DAP_LOG. It sends
 // initialized on launch and answers launch only after configurationDone,
-// as some adapters do, and asks to runInTerminal. The program stops at
-// each breakpoint in turn, next and the steps go to the line after, and
-// continue past the last breakpoint ends it.
+// as some adapters do, and asks to runInTerminal. The program writes hello
+// and stops at each breakpoint in turn, next and the steps go to the line
+// after, and continue past the last breakpoint ends it. Its stack is
+// main.main over main.caller, whose locals are a = 1 and s, with x = 2 in
+// it, and z = 9.
 func TestFakeAdapter(t *testing.T) {
 	if os.Getenv("FUDE_FAKE_DAP") == "" {
 		return
@@ -111,6 +113,7 @@ func TestFakeAdapter(t *testing.T) {
 		case "configurationDone":
 			respond(m.Seq, m.Command, nil)
 			respond(launchSeq, "launch", nil)
+			send(map[string]any{"type": "event", "event": "output", "body": map[string]any{"category": "stdout", "output": "hello\n"}})
 			if len(breaks) > 0 {
 				line = breaks[0]
 				stop("breakpoint")
@@ -118,7 +121,25 @@ func TestFakeAdapter(t *testing.T) {
 		case "stackTrace":
 			respond(m.Seq, m.Command, map[string]any{"stackFrames": []any{
 				map[string]any{"id": 1, "name": "main.main", "line": line, "column": 1, "source": map[string]any{"path": path}},
+				map[string]any{"id": 2, "name": "main.caller", "line": 1, "column": 1, "source": map[string]any{"path": path}},
 			}})
+		case "scopes":
+			var a struct {
+				Frame int `json:"frameId"`
+			}
+			json.Unmarshal(m.Arguments, &a)
+			respond(m.Seq, m.Command, map[string]any{"scopes": []any{map[string]any{"name": "Locals", "variablesReference": 10 * a.Frame}}})
+		case "variables":
+			var a struct {
+				Ref int `json:"variablesReference"`
+			}
+			json.Unmarshal(m.Arguments, &a)
+			vars := map[int][]any{
+				10: {map[string]any{"name": "a", "value": "1"}, map[string]any{"name": "s", "value": "{...}", "variablesReference": 11}},
+				11: {map[string]any{"name": "x", "value": "2"}},
+				20: {map[string]any{"name": "z", "value": "9"}},
+			}[a.Ref]
+			respond(m.Seq, m.Command, map[string]any{"variables": vars})
 		case "next", "stepIn", "stepOut":
 			respond(m.Seq, m.Command, nil)
 			line++
@@ -256,5 +277,54 @@ func TestB263Stepping(t *testing.T) {
 	settle(t, e, func() bool { return e.Message() == "run ended" })
 	if feed(e, ":debug next<CR>"); e.Message() != "no debug session runs" {
 		t.Errorf(":debug next after the end said %q", e.Message())
+	}
+}
+
+// B264
+func TestB264Panel(t *testing.T) {
+	e, _ := withAdapter(t, false)
+	feed(e, "4G<Space>db<Space>dc")
+	settle(t, e, func() bool { return e.Message() == "run stopped: breakpoint" })
+	// The panel shows the frames, the chosen one marked, the first scope
+	// open and the program's output.
+	feed(e, "<Space>dp")
+	panel := func() string {
+		for _, v := range e.Views() {
+			if v.Name == "[debug]" {
+				return v.Text.Slice(0, v.Text.Len())
+			}
+		}
+		return ""
+	}
+	settle(t, e, func() bool { return strings.Contains(panel(), "a = 1") })
+	want := "Frames\n→ main.main  main.go:4\n  main.caller  main.go:1\nVariables\n▾ Locals\n    a = 1\n  ▸ s = {...}\nOutput\n  hello"
+	if panel() != want {
+		t.Fatalf("the panel shows\n%s\nwant\n%s", panel(), want)
+	}
+	for _, v := range e.Views() {
+		if v.Name == "[debug]" && v.Modified {
+			t.Error("the panel shows as modified")
+		}
+	}
+	// <CR> on a variable with members shows them, and again hides them.
+	feed(e, "/s = <CR><CR>")
+	settle(t, e, func() bool { return strings.Contains(panel(), "x = 2") })
+	if feed(e, "<CR>"); strings.Contains(panel(), "x = 2") {
+		t.Error("<CR> again left the members showing")
+	}
+	// <CR> on a frame chooses it, shows its line and its variables.
+	feed(e, "gg/caller<CR><CR>")
+	settle(t, e, func() bool { return strings.Contains(panel(), "z = 9") })
+	if !strings.Contains(panel(), "→ main.caller") {
+		t.Errorf("choosing main.caller left the panel\n%s", panel())
+	}
+	var shown string
+	for _, v := range e.Views() {
+		if v.Current {
+			shown = v.Name
+		}
+	}
+	if shown != "main.go" || e.Text().LineOf(e.Cursor()) != 0 {
+		t.Errorf("choosing main.caller shows %s with the cursor on line %d", shown, e.Text().LineOf(e.Cursor())+1)
 	}
 }

@@ -91,6 +91,10 @@ session, or lets it go on once it stops. `<Leader>dn`, `<Leader>di` and
 `<Leader>do` step over, into and out, and `<Leader>dq` ends it. Each is
 a `:debug` command too, such as `:debug next`.
 
+`<Leader>dp` opens a panel of the stopped thread's frames, the chosen
+frame's variables and the program's output. `<CR>` on a frame chooses it,
+and on a variable shows or hides its members.
+
 ## Next
 
 - `guide-format` formats files when they are written.
