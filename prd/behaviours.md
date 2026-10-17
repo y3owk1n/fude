@@ -449,6 +449,7 @@ Where fude departs, the line says so and cites the departure in
 - B20 [2] `m{a-z}` sets a mark, and `` `x `` and `'x` jump to it. Marks
   move with edits above them.
 - B21 [2] `/` and `?` search forward and back, and `n` and `N` repeat.
+  A search that reaches an end of the text goes on from the other.
   Matches highlight in every window while typing and after the search. `<C-l>` clears the
   highlight. Patterns use Vim syntax on a linear-time engine, and a pattern
   that needs backtracking is refused with a message naming the atom (N1).

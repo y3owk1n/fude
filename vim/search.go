@@ -70,21 +70,22 @@ func (m *Machine) seek(src string, forward bool, n int) (int, kind, bool) {
 	}
 	pos := c
 	for range n {
-		var ok bool
 		// After wrapping, a search reads only up to where it began.
+		at, ok := 0, false
 		if forward {
-			if pos, ok = p.first(t, pos+1, t.Len()+1); !ok {
-				pos, ok = p.first(t, 0, pos+1)
+			if at, ok = p.first(t, pos+1, t.Len()+1); !ok {
+				at, ok = p.first(t, 0, pos+1)
 				m.msg = "search hit the end, continuing at the start"
 			}
-		} else if pos, ok = p.last(t, 0, pos); !ok {
-			pos, ok = p.last(t, pos, t.Len()+1)
+		} else if at, ok = p.last(t, 0, pos); !ok {
+			at, ok = p.last(t, pos, t.Len()+1)
 			m.msg = "search hit the start, continuing at the end"
 		}
 		if !ok {
 			m.msg = "pattern not found: " + src
 			return c, failed, true
 		}
+		pos = at
 	}
 	m.hl = true
 	return pos, exclusive, true

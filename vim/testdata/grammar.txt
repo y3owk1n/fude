@@ -186,6 +186,7 @@
 # B21
 "|foo bar foo" "/foo<CR>" "foo bar |foo"
 "|foo bar foo" "/foo<CR>n" "|foo bar foo"
+"a foo\nb |c" "/foo<CR>" "a |foo\nb c"
 "foo bar |foo" "?foo<CR>" "|foo bar foo"
 "|a foo b foo" "/foo<CR>N" "a foo b |foo"
 "|a foo b foo" "2/foo<CR>" "a foo b |foo"
