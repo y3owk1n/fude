@@ -1555,12 +1555,15 @@ guest session, and `:restart` starts fude again without `--share`.
 
 ### Relay
 
-`fude relay [address]` takes connections that name a room and whether
-they share or join, joins the two of one room, and copies bytes between
-them until either closes. It never terminates the TLS, so it cannot read
-what it copies. A
-share string names the relay and the room instead of an address when
-`--share --relay host` made it.
+`fude relay [address]` takes connections whose first line names a room
+and whether they share or join. It answers each with one line, `{}` or
+an error. A share holds the room's one place, and a later share for the
+room takes the place from it. A join to a held place takes it, the relay
+sends the share a second `{}`, and the relay copies bytes between the
+two until either closes. It never terminates the TLS, so it cannot read
+what it copies. The host holds a new place each time a guest takes one.
+A share string names the relay and a random room instead of an address,
+as `relay/room/fingerprint/secret`, when `--share --relay host` made it.
 
 ### Later phases
 

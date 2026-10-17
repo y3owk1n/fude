@@ -1081,6 +1081,15 @@ Where fude departs, the line says so and cites the departure in
 - B250 [7] `:who` lists the guests by name, and `:kick name` ends that
   guest's session, whose client says the host ended it. A second guest
   with a name already taken gets a number after it.
+- B251 [7] `fude relay [address]` passes shares through, on port 7418 of
+  every interface without an address. `fude --share --relay host
+  [file...]` shares through the relay at host, port 7418 unless host
+  names one, and its share string names the relay and a room in place
+  of an address. A join with it works as B248 and B249 say. The TLS runs
+  end to end, so the relay copies only ciphertext. A join to a room no
+  one shares in says so. A relay that cannot be reached when
+  fude starts is an error. When the relay goes away the host says so,
+  and `:share` holds a new place at it.
 
 ## Kernel library
 
