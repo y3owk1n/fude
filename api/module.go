@@ -54,4 +54,5 @@ type Registration struct {
 	Kind       Kind
 	Name, Help string
 	ID         uint32
+	Host       bool // only the host's session may run it, as gh is (B244)
 }

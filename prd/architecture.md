@@ -236,6 +236,10 @@ run off the loop. Built-in modules live in `modules/` and import only
 | Completion source | items for insert-mode completion | off the input path |
 | Client | anything over RPC (step 6) | its own process |
 
+A module marks a registration host-only, and fude refuses a guest that
+runs it (B244). A plugin that changes what sessions share declares
+`process`, and fude refuses a guest the whole plugin (B246).
+
 A call on the input path that runs over budget cancels the command, stops
 the plugin, and tells the user (B51). The keystroke never waits longer than
 the budget. A plugin runs one call at a time, and a key whose plugin is
@@ -494,8 +498,9 @@ The kernel reports only changes, through its listener. `editor/` turns
 that into `buffer.changed` and emits the rest by name: `buffer.opened`,
 `buffer.saved`, `buffer.closed`, `view.moved` when a key moves the cursor
 or the view, `mode.changed`, `syntax.updated` when a parse lands,
-`lsp.diagnostics`, and a plugin's own events, named `plugin.event`, which
-it emits with `emit`.
+`lsp.diagnostics`, `editor.focused` when the terminal gets the focus back
+(B277), and a plugin's own events, named `plugin.event`, which it emits
+with `emit`.
 
 Each plugin that subscribes has its own goroutine and its own list of
 events to hear, and emitting only adds to that list, so it never blocks.

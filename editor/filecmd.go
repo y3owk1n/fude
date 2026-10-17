@@ -247,6 +247,7 @@ func (e *Session) writeAll(bs []*buffer, force bool, then func()) {
 // Focus reloads each unmodified buffer whose file changed on disk, as one
 // undo step. A modified one keeps its text, and fude warns once.
 func (e *Session) Focus() {
+	e.emit("editor.focused", "", e.win.buf)
 	for _, b := range e.bufs {
 		// git's index may have changed while fude was away.
 		e.loadGit(b)

@@ -536,14 +536,18 @@ func (e *Session) run(p api.Module, id uint32, scope api.Scope, args ...int) ([]
 		e.message = fmt.Sprintf("plugin %s is unloaded", p.Name())
 		return nil, nil, false
 	}
-	at := time.Now()
-	res, err := p.Call(context.Background(), id, scope, args...)
 	name := strconv.Itoa(int(id))
 	for _, r := range p.Registered() {
 		if r.ID == id {
 			name = r.Name
+			if r.Host && e.power != Host {
+				e.message = "a guest may not run " + name
+				return nil, nil, false
+			}
 		}
 	}
+	at := time.Now()
+	res, err := p.Call(context.Background(), id, scope, args...)
 	trace.Record("plugin", p.Name()+" ran "+name, time.Since(at))
 	switch {
 	case errors.Is(err, api.ErrBusy):

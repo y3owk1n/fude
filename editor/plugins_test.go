@@ -1,6 +1,7 @@
 package editor_test
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/wire"
 )
@@ -618,6 +620,54 @@ func TestB276PluginStylesAWindow(t *testing.T) {
 	e.SetSize(80, 20)
 	if feed(e, ":Styled abc<CR>"); !slices.Contains(decorations(e), "abc diff.plus") {
 		t.Errorf(":Styled abc decorated %q, want abc in diff.plus", decorations(e))
+	}
+}
+
+// B277
+func TestB277PluginHearsFocus(t *testing.T) {
+	e := loaded(t, "listen", "f", "a\n", "buffer.read", "ui")
+	e.Focus()
+	settle(t, e, func() bool { return strings.Contains(fudeLog(), "listen: editor.focused") })
+}
+
+// idle is a module that does nothing, for modules in tests to build on.
+type idle struct{}
+
+func (idle) Name() string                                        { return "idle" }
+func (idle) Registered() []api.Registration                      { return nil }
+func (idle) Subscribed() []string                                { return nil }
+func (idle) Init(context.Context, api.Scope) (api.Result, error) { return api.Result{}, nil }
+func (idle) Call(context.Context, uint32, api.Scope, ...int) (api.Result, error) {
+	return api.Result{}, nil
+}
+
+func (idle) Event(context.Context, string, api.Scope) (api.Result, error) { return api.Result{}, nil }
+
+func (idle) Callback(context.Context, uint32, api.Scope) (api.Result, error) {
+	return api.Result{}, nil
+}
+func (idle) Work(context.Context, api.Job) (string, error) { return "", nil }
+func (idle) Close(context.Context) error                   { return nil }
+
+// hostOnly is a module whose key gX only the host may run (B244).
+type hostOnly struct{ idle }
+
+func (hostOnly) Registered() []api.Registration {
+	return []api.Registration{{Kind: api.Key, Name: "gX", Help: "does nothing, as the host", ID: 1, Host: true}}
+}
+
+// B244, a module's registration marked host-only
+func TestB244GuestRefusesAModuleKey(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "f")
+	change(t, path, "a\n")
+	e := start(t, path)
+	e.Use(hostOnly{})
+	guest := e.Attach("guest", editor.Guest)
+	if feed(guest, "gX"); guest.Message() != "a guest may not run gX" {
+		t.Errorf("the guest's gX said %q", guest.Message())
+	}
+	if feed(e, "gX"); e.Message() != "" {
+		t.Errorf("the host's gX said %q", e.Message())
 	}
 }
 
