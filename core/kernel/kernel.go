@@ -246,13 +246,19 @@ func (b *Buffer) Redo() (int, bool) {
 	if !ok || !found {
 		return 0, false
 	}
+	return b.forward(b.nodes[i]), true
+}
+
+// forward replays n, a child of the head, and makes it the head. It returns
+// where the last change it made starts.
+func (b *Buffer) forward(n Node) int {
 	start := -1
-	for _, c := range b.nodes[i].Changes {
+	for _, c := range n.Changes {
 		start = b.replay(c.Edits, start)
 	}
-	b.head = id
+	b.head = n.ID
 	b.version++
-	return start, true
+	return start
 }
 
 // At returns the text at node id without moving to it, or false if there
@@ -296,12 +302,7 @@ func (b *Buffer) Goto(id NodeID) (int, bool) {
 		start, _ = b.Undo()
 	}
 	for _, n := range down {
-		start = -1
-		for _, c := range n.Changes {
-			start = b.replay(c.Edits, start)
-		}
-		b.head = n.ID
-		b.version++
+		start = b.forward(n)
 	}
 	return start, true
 }

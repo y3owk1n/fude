@@ -109,12 +109,12 @@ type edit struct {
 // pulled is the server's answer to pull: a buffer's edits since a version,
 // or its whole text.
 type pulled struct {
-	Buffer  int            `json:"buffer"`
-	Version kernel.Version `json:"version"`
-	Edits   [][]edit       `json:"edits"`
-	Text    *string        `json:"text"`
-	Indent  int            `json:"indent"`
-	Tab     int            `json:"tab"`
+	Buffer  int             `json:"buffer"`
+	Version kernel.Version  `json:"version"`
+	Edits   [][]kernel.Edit `json:"edits"`
+	Text    *string         `json:"text"`
+	Indent  int             `json:"indent"`
+	Tab     int             `json:"tab"`
 }
 
 // Replica is a copy of one buffer. Its own edits apply to it at once, and
@@ -184,15 +184,13 @@ func (r *Replica) Edit(edits ...kernel.Edit) error {
 		return nil
 	}
 	t := r.text.Snapshot()
-	c := change{edits: edits, at: t.Version()}
-	for _, e := range edits {
-		if e.Start < 0 || e.End > t.Len() || e.Start > e.End {
-			return fmt.Errorf("edit [%d, %d) is outside the text", e.Start, e.End)
-		}
-		c.old = append(c.old, t.Slice(e.Start, e.End))
-	}
 	if err := r.text.Apply(kernel.Transaction{Base: t.Version(), Origin: "local", Edits: edits}); err != nil {
 		return fmt.Errorf("edit: %w", err)
+	}
+	// The kernel checked the edits against t, which is the text before them.
+	c := change{edits: edits, at: t.Version()}
+	for _, e := range edits {
+		c.old = append(c.old, t.Slice(e.Start, e.End))
 	}
 	if r.open > 0 {
 		r.pending[len(r.pending)-1] = append(r.pending[len(r.pending)-1], c)
@@ -264,12 +262,7 @@ func (r *Replica) pull() ([]kernel.Edit, [][]kernel.Edit, error) {
 			return nil, nil, errors.New("the copy lost its pending edits")
 		}
 	}
-	remote := make([][]kernel.Edit, len(p.Edits))
-	for i, l := range p.Edits {
-		for _, e := range l {
-			remote[i] = append(remote[i], kernel.Edit(e))
-		}
-	}
+	remote := p.Edits
 	if p.Text != nil {
 		// The server no longer has the edits since, so its text replaces
 		// the copy's.
