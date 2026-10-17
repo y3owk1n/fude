@@ -203,6 +203,7 @@ func (b *Buffer) Apply(t Transaction) error {
 // Undo reverts the head node and moves the head to its parent. It returns
 // where the reverted text starts, or false at the root.
 func (b *Buffer) Undo() (int, bool) {
+	b.close()
 	i, ok := b.index(b.head)
 	if !ok {
 		return 0, false
@@ -224,6 +225,7 @@ func (b *Buffer) Undo() (int, bool) {
 // Redo reapplies the child of the head that was last undone, or the newest
 // child. It returns where the reapplied text starts, or false at a leaf.
 func (b *Buffer) Redo() (int, bool) {
+	b.close()
 	id, ok := b.redo[b.head]
 	if !ok {
 		for _, n := range b.nodes {
@@ -253,6 +255,12 @@ func (b *Buffer) At(id NodeID) (Snapshot, bool) {
 		return Snapshot{}, false
 	}
 	text := b.text
+	if g := b.group; g != nil {
+		// The open group's edits are in the text but on no node yet.
+		for j := len(g.Changes) - 1; j >= 0; j-- {
+			text = replace(text, inverse(g.Changes[j]))
+		}
+	}
 	for _, n := range up {
 		for j := len(n.Changes) - 1; j >= 0; j-- {
 			text = replace(text, inverse(n.Changes[j]))
@@ -270,6 +278,7 @@ func (b *Buffer) At(id NodeID) (Snapshot, bool) {
 // adding a node. It returns where the last change it made starts, or false
 // if there is no such node.
 func (b *Buffer) Goto(id NodeID) (int, bool) {
+	b.close()
 	up, down, ok := b.path(id)
 	if !ok {
 		return 0, false
@@ -452,6 +461,13 @@ func (b *Buffer) check(edits []Edit) error {
 func (b *Buffer) next(o Origin) NodeID {
 	b.seq[o]++
 	return NodeID{o, b.seq[o]}
+}
+
+// close ends the open group, so the head node holds every edit in the text.
+func (b *Buffer) close() {
+	if b.group != nil {
+		b.commit()
+	}
 }
 
 func (b *Buffer) commit() {

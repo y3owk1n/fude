@@ -68,6 +68,7 @@ func (b *Buffer) Since(from Version) ([][]Edit, bool) {
 // it, applies as a new node of o's, labelled label at time at, and it fails
 // with ErrOverlap when one of those changes overlaps it.
 func (b *Buffer) UndoOrigin(o Origin, label string, at time.Time) (int, error) {
+	b.close()
 	var later []Node // the nodes after o's change, newest first
 	var target Node
 	found := false

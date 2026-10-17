@@ -204,6 +204,21 @@ func TestB104GroupIsOneNode(t *testing.T) {
 	if !slices.Equal(origins, []kernel.Origin{"user", "agent", "user"}) {
 		t.Fatalf("a group split by another origin made nodes of %v", origins)
 	}
+
+	// While a group is open, the head's text leaves out its edits, and an
+	// undo ends its node first.
+	g := kernel.New("one", nil)
+	if err := g.Apply(kernel.Transaction{Origin: "agent", Edits: []kernel.Edit{{Start: 3, End: 3, Text: " two"}}}); err != nil {
+		t.Fatal(err)
+	}
+	g.BeginGroup("user")
+	apply(t, g, kernel.Edit{Start: 0, End: 0, Text: "X"})
+	if s, _ := g.At(g.Head()); s.Slice(0, s.Len()) != "one two" {
+		t.Errorf("the head's text inside a group is %q, want %q", s.Slice(0, s.Len()), "one two")
+	}
+	if _, err := g.UndoOrigin("agent", "undo", time.Time{}); err != nil || text(g) != "Xone" {
+		t.Errorf("undoing agent inside user's group left %q: %v", text(g), err)
+	}
 }
 
 // B105
