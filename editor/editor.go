@@ -1098,7 +1098,7 @@ func (e *Session) close(b *buffer, force bool) {
 				w.alt = nil
 			}
 			if w.buf == b {
-				w.show(s.mayShow(e.bufs[min(i, len(e.bufs)-1)]))
+				w.show(s.mayShow(s.after(i)))
 			}
 		}
 	}

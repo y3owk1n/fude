@@ -58,12 +58,8 @@ func init() {
 				e.close(b, x.force)
 			}
 		}, completeBuffer},
-		{vim.Command{Name: "bnext", Short: []string{"bn"}, Help: "shows the next buffer"}, func(e *Session, _ call) {
-			e.show(e.bufs[(slices.Index(e.bufs, e.win.buf)+1)%len(e.bufs)])
-		}, nil},
-		{vim.Command{Name: "bprevious", Short: []string{"bp", "bN", "bNext"}, Help: "shows the buffer before"}, func(e *Session, _ call) {
-			e.show(e.bufs[(slices.Index(e.bufs, e.win.buf)+len(e.bufs)-1)%len(e.bufs)])
-		}, nil},
+		{vim.Command{Name: "bnext", Short: []string{"bn"}, Help: "shows the next buffer"}, func(e *Session, _ call) { e.stepBuffer(1) }, nil},
+		{vim.Command{Name: "bprevious", Short: []string{"bp", "bN", "bNext"}, Help: "shows the buffer before"}, func(e *Session, _ call) { e.stepBuffer(-1) }, nil},
 		{vim.Command{Name: "buffer", Short: []string{"b"}, Args: "{buffer}", Help: "shows the buffer with that number, or whose name holds it. # is the one shown before"}, func(e *Session, x call) {
 			if b := e.find(x.arg); b != nil {
 				e.show(b)

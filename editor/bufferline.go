@@ -20,8 +20,8 @@ func (e *Session) Buffers() []Tab {
 	}
 	var bufs []*buffer
 	bases := map[string]int{}
-	for _, b := range e.bufs {
-		if b.file.path != "" && b.kind() == "" && e.barred(b) == nil {
+	for _, b := range e.listed() {
+		if b.file.path != "" {
 			bufs = append(bufs, b)
 			bases[filepath.Base(b.file.path)]++
 		}
@@ -44,4 +44,43 @@ func (e *Session) Buffers() []Tab {
 		tabs[i] = Tab{b.id, name, b == current.buf, b.modified()}
 	}
 	return tabs
+}
+
+// listed returns the buffers a user edits, which :bn and :bp go through:
+// not help, lists, listings, terminals or the windows fude writes, and none
+// a guest may not show (B89).
+func (e *Session) listed() []*buffer {
+	return slices.DeleteFunc(slices.Clone(e.bufs), func(b *buffer) bool { return b.kind() != "" || e.barred(b) != nil })
+}
+
+// stepBuffer shows the listed buffer n after the current one, wrapping at
+// either end, as :bn and :bp do (B89). From a buffer not listed, :bn goes
+// to the first and :bp to the last.
+func (e *Session) stepBuffer(n int) {
+	bufs := e.listed()
+	if len(bufs) == 0 {
+		return
+	}
+	at := slices.Index(bufs, e.win.buf)
+	switch {
+	case at >= 0:
+		at = ((at+n)%len(bufs) + len(bufs)) % len(bufs)
+	case n > 0:
+		at = 0
+	default:
+		at = len(bufs) - 1
+	}
+	e.show(bufs[at])
+}
+
+// after returns the first listed buffer at or after index i of the
+// buffers, wrapping, or the buffer at i when none is listed (B89).
+func (e *Session) after(i int) *buffer {
+	i = min(i, len(e.bufs)-1)
+	for k := range e.bufs {
+		if b := e.bufs[(i+k)%len(e.bufs)]; b.kind() == "" && e.barred(b) == nil {
+			return b
+		}
+	}
+	return e.bufs[i]
 }

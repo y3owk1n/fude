@@ -417,6 +417,18 @@ func TestB89Buffers(t *testing.T) {
 	if want := `2% "` + b + `"`; e.Message() != want {
 		t.Errorf("after :bd! 1, :ls said %q, want %q", e.Message(), want)
 	}
+	// :bn and :bp go through the buffers being edited, past help, wrapping
+	// at either end, and :bd moves the window to one of them.
+	e = open(t, a)
+	feed(e, ":e "+b+"<CR>:h<CR>:only<CR>")
+	name := func() string { return filepath.Base(e.Views()[0].Name) }
+	for _, c := range []struct{ keys, want string }{
+		{":bn<CR>", "a"}, {":bn<CR>", "b"}, {":bn<CR>", "a"}, {":bp<CR>", "b"}, {":bp<CR>", "a"}, {":bn<CR>", "b"}, {":bd<CR>", "a"},
+	} {
+		if feed(e, c.keys); name() != c.want {
+			t.Errorf("%s showed %s, want %s", c.keys, name(), c.want)
+		}
+	}
 }
 
 // B90

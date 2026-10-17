@@ -567,6 +567,10 @@ Where fude departs, the line says so and cites the departure in
 - B88 [2] `:{range}normal keys` runs keys on each line of the range, as one
   transaction.
 - B89 [2] `:e path`, `:ls`, `:b N`, `:bn`, `:bp` and `:bd` manage buffers.
+  `:bn` and `:bp` go through the buffers being edited, wrapping at
+  either end, and pass help, lists, listings, terminals and the windows
+  fude writes. After `:bd`, a window that showed the buffer shows the
+  next buffer being edited.
 - B170 [2] `:restart` and `ZR` replace fude's process with a new fude,
   which loads config.toml, plugins, grammars and language servers again.
   The new process opens the same files and splits, with each window's cursor,

@@ -7,7 +7,7 @@ windows may show the same one, each with its own cursor.
 
 `:e path` opens a file in a buffer. `:buffers` lists the open buffers with
 their numbers, and `:b 3` shows buffer 3. `:bn` and `:bp` go to the next
-and previous buffer, and `:bd` closes one. `<C-^>` goes back to the
+and previous buffer you edit, past help and lists, and `:bd` closes one. `<C-^>` goes back to the
 buffer the window showed before. A buffer with changes stays loaded when
 the window shows another.
 
