@@ -4,7 +4,9 @@ fude reads its settings from `config.toml` in `$XDG_CONFIG_HOME/fude`, or
 `~/.config/fude` when that variable is unset. Every setting is optional,
 and fude starts without the file. A mistake shows with its line when fude
 starts, and that setting keeps its default. `:restart` loads the file
-again.
+again. `fude --clean` starts with the defaults and reads nothing in that
+folder. Use it to tell whether a problem comes from your config or from
+fude.
 
 ## Settings and options
 

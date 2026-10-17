@@ -49,6 +49,11 @@ Where fude departs, the line says so and cites the departure in
   `tab_width` set the file's `expand_tab`, `indent_width` and `tab_width`,
   over config.toml's. A nearer file wins over one above it, and a later
   section over an earlier one. `editorconfig = false` reads none.
+- B270 [2] `fude --clean` starts with the defaults and reads nothing in
+  fude's config directory. It loads no `config.toml`, so no plugins, and
+  no snippets, queries or own words. It still keeps files' timelines,
+  recent files and sessions. fude is still clean after `:restart`, and
+  `fude --clean --join` joins with the default keys.
 
 ## Modes and insert
 

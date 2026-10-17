@@ -189,9 +189,30 @@ func decodeError(path string, err error) error {
 	return fmt.Errorf("%s line %d: %s", path, line, msg)
 }
 
+// cleanDir is the empty directory fude reads as its config directory with
+// --clean, or "" (B270).
+var cleanDir string
+
+// Clean makes fude read no config, as --clean asks, until the caller runs
+// remove (B270).
+func Clean() (remove func(), err error) {
+	dir, err := os.MkdirTemp("", "fude-clean-")
+	if err != nil {
+		return nil, fmt.Errorf("clean: %w", err)
+	}
+	cleanDir = dir
+	return func() {
+		cleanDir = ""
+		os.RemoveAll(dir)
+	}, nil
+}
+
 // xdgDir returns the directory the XDG variable env names, or else fallback
-// in the home directory.
+// in the home directory. With --clean, config gets the empty directory.
 func xdgDir(env, fallback string) (string, error) {
+	if env == "XDG_CONFIG_HOME" && cleanDir != "" {
+		return cleanDir, nil
+	}
 	if dir := os.Getenv(env); dir != "" {
 		return dir, nil
 	}

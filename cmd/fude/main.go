@@ -164,6 +164,17 @@ func run(args []string) error {
 	if len(args) > 0 && args[0] == "--tail" {
 		return tail(args[1:])
 	}
+	// --clean reads no config (B270).
+	clean := len(args) > 0 && args[0] == "--clean"
+	remove := func() {}
+	if clean {
+		var err error
+		if remove, err = editor.Clean(); err != nil {
+			return err
+		}
+		args = args[1:]
+	}
+	defer remove()
 	// --name names this machine's session, or else $USER does (B252).
 	name := os.Getenv("USER")
 	if len(args) > 1 && args[0] == "--name" {
@@ -223,7 +234,13 @@ func run(args []string) error {
 		if err != nil {
 			return fmt.Errorf("restart: %w", err)
 		}
-		return fmt.Errorf("restart: %w", syscall.Exec(exe, os.Args[:1], append(os.Environ(), editor.RestartEnv+"="+path)))
+		argv := os.Args[:1]
+		if clean {
+			argv = []string{os.Args[0], "--clean"}
+		}
+		// Exec replaces the process, so deferred calls never run.
+		remove()
+		return fmt.Errorf("restart: %w", syscall.Exec(exe, argv, append(os.Environ(), editor.RestartEnv+"="+path)))
 	}
 	return err
 }

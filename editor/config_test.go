@@ -58,6 +58,20 @@ func TestB92NoConfigFile(t *testing.T) {
 	}
 }
 
+// B270
+func TestB270Clean(t *testing.T) {
+	config(t, "number = true\n")
+	remove, err := editor.Clean()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(remove)
+	e := start(t)
+	if e.Views()[0].Number || e.Message() != "" {
+		t.Errorf("--clean started with number %v and %q, want the defaults", e.Views()[0].Number, e.Message())
+	}
+}
+
 // B93
 func TestB93ConfigErrorShowsItsLine(t *testing.T) {
 	// The file as written, without the line config adds, as its lines count.

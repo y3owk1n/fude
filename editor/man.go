@@ -56,7 +56,7 @@ func Man(page string) (string, error) {
 fude \- a modal text editor
 .SH SYNOPSIS
 .B fude
-[\fB+\fIline\fR] [\fIfile\fR ...]
+[\fB\-\-clean\fR] [\fB+\fIline\fR] [\fIfile\fR ...]
 .br
 .B fude \-\-man
 [\fBconfig\fR|\fBguide\fR]
@@ -73,6 +73,8 @@ fude \- a modal text editor
 fude opens each file in a buffer, or an empty buffer when none is given.
 A folder opens as a listing of its entries.
 With \fB+\fR\fIline\fR, the cursor starts on that line of the first file.
+With \fB\-\-clean\fR, fude reads nothing in its config folder and
+starts with the defaults.
 \fB\-\-man\fR prints this page, \fB\-\-man config\fR prints fude\-config(5)
 and \fB\-\-man guide\fR prints fude\-guide(7).
 \fB\-\-tail\fR prints what a running fude does as it happens, a line
