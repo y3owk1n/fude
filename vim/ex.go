@@ -514,7 +514,9 @@ func (m *Machine) lineRange(t Text, c int, s string) (int, int, string, bool, er
 			last, rest = l, r2
 		}
 	}
-	return min(first, last), max(first, last), rest, true, nil
+	// Line 0 is the first line for any command but :m and :t, which take
+	// their address on their own.
+	return max(min(first, last), 0), max(first, last, 0), rest, true, nil
 }
 
 // address parses one line address: a line number, ., $, a mark such as 'a,

@@ -247,6 +247,9 @@ func TestB219Surround(t *testing.T) {
 		{"|a b", "ysiw)W.", "(a) |(b)"},
 		// <Esc> cancels one waiting for its character.
 		{"|ab", "ysiw<Esc>", "|ab"},
+		// A blank names no pair.
+		{"(|a)", "ds<Space>", "(|a)"},
+		{"(|a)", "cs<Space>x", "(|a)"},
 	} {
 		h := &host{text: strings.Replace(c.start, "|", "", 1), cursor: strings.Index(c.start, "|")}
 		m := vim.New(h)

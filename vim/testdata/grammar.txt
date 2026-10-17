@@ -160,6 +160,7 @@
 "a|bcd\nef\nijkl" "<C-v>jj$d" "|a\ne\ni"
 "a|bcd\nefgh" "<C-v>jlyGo<Esc>p" "abcd\nefgh\n|bc\nfg"
 "a|bcd\nefgh\nx" "<C-v>jly0P" "|bcabcd\nfgefgh\nx"
+"|xy\nab\n世b" "<C-v>jyjjlP" "xy\nab\n世|xb\n  a"
 "ab|c" "vV<Esc>" "ab|c"
 "a|bc\nd" "vjVd" "|"
 "|abcd\n  efgh" "vl~" "|ABcd\n  efgh"
@@ -318,6 +319,8 @@
 "a|bcd\nefgh" "<C-v>jlAX<Esc>" "a|bcXd\nefgXh"
 "a|bcd\nef\nijkl" "<C-v>jj$AX<Esc>" "a|bcdX\nefX\nijklX"
 "a|bcd\ne\nijkl" "<C-v>jjlIX<Esc>" "a|Xbcd\neX\niXjkl"
+"a|bc\n\tb\nabc" "<C-v>jjAZ<Esc>" "a|bZc\n\tZb\nabZc"
+"a|bc\n世b\nabc" "<C-v>jjAZ<Esc>" "a|bZc\n世Zb\nabZc"
 
 # B235
 "|abcd\n  efgh" "Vj>><Esc>" "\t\tabcd\n|\t\t  efgh"
@@ -335,6 +338,7 @@
 
 # B86
 "a\n|b\n  c\nd" ":d<CR>" "a\n  |c\nd"
+"one\n|two\nthree" ":0d<CR>" "|two\nthree"
 "a\n|b\nc\nd" ":2,3d<CR>" "a\n|d"
 "a\nb\n|c" ":$d<CR>" "a\n|b"
 "a\n|b\nc" ":y<CR>p" "a\nb\n|b\nc"

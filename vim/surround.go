@@ -75,6 +75,10 @@ func (m *Machine) resurround(old, new string, label string) error {
 	t, c := m.h.Text(), m.h.Cursor()
 	open, close := surrounding(old)
 	o, cl := strings.TrimSpace(open), strings.TrimSpace(close)
+	if o == "" || cl == "" {
+		m.beep = true
+		return nil
+	}
 	var start, end int
 	if o == cl {
 		s, e, ok := quote(t, c, o[0], true, false)

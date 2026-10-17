@@ -469,7 +469,8 @@ func (m *Machine) finishBlock(b *blockInsert) error {
 		case w == b.col:
 			edits = append(edits, Edit{Start: p, End: p, Text: typed})
 		case b.pad:
-			edits = append(edits, Edit{Start: p, End: p, Text: strings.Repeat(" ", b.col-w) + typed})
+			// A tab or wide character over the column takes no padding.
+			edits = append(edits, Edit{Start: p, End: p, Text: strings.Repeat(" ", max(b.col-w, 0)) + typed})
 		}
 	}
 	if len(edits) == 0 {
@@ -506,7 +507,7 @@ func (m *Machine) putBlock(text string, after bool, n int, label string) error {
 			ls = LineEnd(t, ls) + 1
 		}
 		p := colStart(t, ls, col, tab)
-		pad := strings.Repeat(" ", col-column(t, ls, p, tab))
+		pad := strings.Repeat(" ", max(col-column(t, ls, p, tab), 0))
 		if i == 0 {
 			top = p + len(pad)
 		}
