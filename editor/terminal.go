@@ -71,6 +71,16 @@ var termKeys = map[vim.Key]rune{
 	"<PageUp>": uv.KeyPgUp, "<PageDown>": uv.KeyPgDown,
 }
 
+// terminalWindow shows b in a new window below, terminal_height percent of
+// the screen tall, with none of the window options, and moves to it (B205).
+func (e *Session) terminalWindow(b *buffer) {
+	e.splitBeside(false, true)
+	e.root.leaf(e.win).size = max((e.height*int(e.cfg.TerminalHeight)+50)/100, 3)
+	e.show(b)
+	e.win.opts = options{}
+	e.layout()
+}
+
 // openTerminal runs arg through the shell, or the shell alone, in a window
 // below terminal_height percent of the screen tall, in terminal mode. A task's window keeps
 // the cursor in the window it ran from, and its name says the task.
@@ -91,11 +101,7 @@ func (e *Session) openTerminal(arg, task string) {
 	if task != "" {
 		b.title = "[task " + task + "]"
 	}
-	e.splitBeside(false, true)
-	e.root.leaf(e.win).size = max((e.height*int(e.cfg.TerminalHeight)+50)/100, 3)
-	e.show(b)
-	e.win.opts = options{Wrap: false}
-	e.layout()
+	e.terminalWindow(b)
 	t := &terminal{name: cmp.Or(arg, shell), typing: true, cols: max(e.win.w, 1), rows: max(e.win.h-1, 1), task: task, started: time.Now()}
 	t.em = vt.NewEmulator(t.cols, t.rows)
 	t.cmd = exec.Command(argv[0], argv[1:]...)

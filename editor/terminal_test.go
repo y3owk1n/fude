@@ -146,7 +146,7 @@ func TestB231BackgroundTasks(t *testing.T) {
 	dir := t.TempDir()
 	change(t, filepath.Join(dir, "a.txt"), "a\n")
 	t.Chdir(dir)
-	config(t, "[task.wait]\ncommand = \"sleep 0.5\"\n")
+	config(t, "terminal_height = 50\n[task.wait]\ncommand = \"sleep 0.5\"\n")
 	e := start(t, "a.txt")
 	e.SetSize(80, 24)
 	// A running task shows on the status line, and q in its window hides
@@ -159,8 +159,8 @@ func TestB231BackgroundTasks(t *testing.T) {
 	// :pick tasks marks it, and picking it shows its window again.
 	feed(e, ":pick tasks<CR>")
 	settle(t, e, func() bool { f, _ := e.Float(); return strings.Contains(f.Text, "wait  config, running") })
-	if feed(e, "<CR>"); len(e.Views()) != 2 {
-		t.Fatalf("picking the running task shows %d windows", len(e.Views()))
+	if feed(e, "<CR>"); len(e.Views()) != 2 || e.Views()[1].H != 12 {
+		t.Fatalf("picking the running task shows %d windows, the last %d rows tall, want 12", len(e.Views()), e.Views()[len(e.Views())-1].H)
 	}
 	// Once it ends, the message says so and the status line drops it.
 	settle(t, e, func() bool {
