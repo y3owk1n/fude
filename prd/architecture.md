@@ -31,7 +31,7 @@ core/            Go module: stdlib only, no cgo
 vim/             Go module: the vim grammar, no dependency on core/
                  Command, keys, keymap trie, modes, registers, resolution,
                  built-in operators and targets, ex parsing, regex
-api/             fude's module API: events, decorations, UI, registration
+api/             Go module: fude's module API, stdlib only
 editor/          the editor loop, config, event queues, budgets, the vim host
 syntax/          Go module: tree-sitter parsing, highlights, tree targets,
                  the only cgo, no dependency on fude's other packages
@@ -49,6 +49,7 @@ internal/        packages only fude's own packages may import
   clipboard/     the system clipboard, through pbcopy, wl-copy or xclip
   pty/           a program in a pseudo-terminal, for :terminal
   relay/         passes a share's connections between its host and guests
+  trace/         what fude did, for fude --tail
 cmd/fude/        main, distribution wiring
 ```
 
@@ -1425,11 +1426,12 @@ and goes when its buffer closes.
 ### Trace
 
 `fude --tail` shows what a running fude does, as it happens (B174). Code
-in any package records an event with `api.Trace(src, text, took)`. The
+in any package of the root module records an event with
+`trace.Record(src, text, took)`, from `internal/trace/`. The
 sources are a key and its mode, a command line, a message the user saw,
 a frame, a parse or highlight, a language server's messages and answers,
 a plugin call or event, a file read or written, a program fude ran, a
-client's call, and a line of fude's log. `api.Trace` is safe on any
+client's call, and a line of fude's log. `trace.Record` is safe on any
 goroutine. It takes a mutex, stamps the time and a sequence number, and
 keeps the event in a ring of the last 4096. With no tail watching that is
 all it does. It does no I/O, and it adds about 40µs to key latency at p99.

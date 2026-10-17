@@ -1,5 +1,5 @@
 # The Go modules in this repo.
-modules := "core vim syntax protocol plugin ."
+modules := "api core vim syntax protocol plugin ."
 
 # List the recipes.
 default:
@@ -80,7 +80,7 @@ loc:
     modules syntax plugin protocol/lsp sdk api
     clients ui/term client
     kernel core/kernel core/rope
-    glue cmd/fude internal/pty internal/clipboard
+    glue cmd/fude internal/pty internal/clipboard internal/trace
     EOF
     printf '%-12s %6d\n' total "$total"
 

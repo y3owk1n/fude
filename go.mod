@@ -9,6 +9,7 @@ require (
 	github.com/clipperhouse/displaywidth v0.11.0
 	github.com/gdamore/tcell/v3 v3.6.0
 	github.com/pelletier/go-toml/v2 v2.4.3
+	github.com/y3owk1n/fude/api v0.0.0
 	github.com/y3owk1n/fude/core v0.0.0
 	github.com/y3owk1n/fude/plugin v0.0.0
 	github.com/y3owk1n/fude/protocol v0.0.0
@@ -40,6 +41,7 @@ require (
 )
 
 replace (
+	github.com/y3owk1n/fude/api => ./api
 	github.com/y3owk1n/fude/core => ./core
 	github.com/y3owk1n/fude/plugin => ./plugin
 	github.com/y3owk1n/fude/protocol => ./protocol

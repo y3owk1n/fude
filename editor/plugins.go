@@ -17,6 +17,7 @@ import (
 
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/core/kernel"
+	"github.com/y3owk1n/fude/internal/trace"
 	"github.com/y3owk1n/fude/plugin"
 	"github.com/y3owk1n/fude/protocol/lsp"
 	"github.com/y3owk1n/fude/vim"
@@ -101,7 +102,7 @@ func (e *Session) loaded(p *plugin.Plugin, err error, b *buffer, t kernel.Snapsh
 		e.unload(p, err)
 		return
 	}
-	api.Trace("plugin", "loaded "+p.Name, 0)
+	trace.Record("plugin", "loaded "+p.Name, 0)
 	e.plugins = append(e.plugins, p)
 	for _, r := range p.Registered {
 		e.register(p, r)
@@ -503,7 +504,7 @@ func (e *Session) run(p *plugin.Plugin, id uint32, scope plugin.Scope, args ...u
 			name = r.Name
 		}
 	}
-	api.Trace("plugin", p.Name+" ran "+name, time.Since(at))
+	trace.Record("plugin", p.Name+" ran "+name, time.Since(at))
 	switch {
 	case errors.Is(err, plugin.ErrBusy):
 		e.message = err.Error()
@@ -519,7 +520,7 @@ func (e *Session) run(p *plugin.Plugin, id uint32, scope plugin.Scope, args ...u
 // lines, the calls it is denied and language servers' stderr go (B50). A line that cannot be written
 // is dropped, as the log is where it would have been reported.
 func logLine(line string) {
-	api.Trace("log", line, 0)
+	trace.Record("log", line, 0)
 	dir, err := xdgDir("XDG_STATE_HOME", filepath.Join(".local", "state"))
 	if err != nil {
 		return

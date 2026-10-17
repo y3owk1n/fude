@@ -14,7 +14,7 @@ import (
 	"github.com/gdamore/tcell/v3"
 	"github.com/gdamore/tcell/v3/color"
 
-	"github.com/y3owk1n/fude/api"
+	"github.com/y3owk1n/fude/internal/trace"
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
 	"github.com/y3owk1n/fude/wire"
@@ -208,7 +208,7 @@ func (k sig) flag(b bool) sig {
 
 func (c *client) draw() {
 	at := time.Now()
-	defer func() { api.Trace("frame", "drawn", time.Since(at)) }()
+	defer func() { trace.Record("frame", "drawn", time.Since(at)) }()
 	c.frame++
 	c.spinning = false
 	fresh := c.lines == nil

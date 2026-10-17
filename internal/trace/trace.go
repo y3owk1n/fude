@@ -1,4 +1,5 @@
-package api
+// Package trace keeps what fude did, for fude --tail (B174).
+package trace
 
 import (
 	"sync"
@@ -27,9 +28,9 @@ var trace struct {
 	watches map[chan Event]bool
 }
 
-// Trace records an event, with how long it took or 0. It is safe on any
+// Record keeps an event, with how long it took or 0. It is safe on any
 // goroutine. With no tail watching, it only keeps the event.
-func Trace(src, text string, took time.Duration) {
+func Record(src, text string, took time.Duration) {
 	trace.Lock()
 	defer trace.Unlock()
 	trace.seq++

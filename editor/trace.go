@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/y3owk1n/fude/api"
+	"github.com/y3owk1n/fude/internal/trace"
 )
 
 // traced records what as an event of src that took since at, with err when
@@ -20,7 +20,7 @@ func traced(src, what string, at time.Time, err error) {
 	if err != nil {
 		what += ": " + err.Error()
 	}
-	api.Trace(src, what, time.Since(at))
+	trace.Record(src, what, time.Since(at))
 }
 
 // Tail prints what the fude listening at socket does, as fude --tail does
@@ -48,8 +48,8 @@ func Tail(w io.Writer, socket string, asJSON bool) error {
 	last := 0
 	for in.Scan() {
 		var line struct {
-			Method string    `json:"method"`
-			Params api.Event `json:"params"`
+			Method string      `json:"method"`
+			Params trace.Event `json:"params"`
 		}
 		if err := json.Unmarshal(in.Bytes(), &line); err != nil {
 			return fmt.Errorf("tail %s: %w", socket, err)

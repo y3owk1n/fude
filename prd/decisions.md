@@ -341,12 +341,12 @@ functions anyway.
 
 ## D37. The modules are released together, and the first release brings go install
 
-fude's modules are the root, `core/`, `vim/`, `syntax/`, `protocol/`,
-`plugin/` and `sdk/`. They take one version together, tagged `vX.Y.Z`,
-`core/vX.Y.Z`, `vim/vX.Y.Z`, `syntax/vX.Y.Z`, `protocol/vX.Y.Z`,
-`plugin/vX.Y.Z` and `sdk/vX.Y.Z` on one commit. Until the first release,
-the root's `go.mod` points at `core/`, `vim/`, `syntax/`, `protocol/` and
-`plugin/` through `replace` lines, so `go install` refuses it and
+fude's modules are the root, `api/`, `core/`, `vim/`, `syntax/`,
+`protocol/`, `plugin/` and `sdk/`. They take one version together, tagged
+`vX.Y.Z`, `api/vX.Y.Z`, `core/vX.Y.Z`, `vim/vX.Y.Z`, `syntax/vX.Y.Z`,
+`protocol/vX.Y.Z`, `plugin/vX.Y.Z` and `sdk/vX.Y.Z` on one commit. Until the
+first release, the root's `go.mod` points at `api/`, `core/`, `vim/`,
+`syntax/`, `protocol/` and `plugin/` through `replace` lines, so `go install` refuses it and
 fude builds from a clone. A release drops the `replace` lines and requires
 the tags, which makes `go install github.com/y3owk1n/fude/cmd/fude@vX.Y.Z`
 work. `just standalone` builds every module outside the workspace, so a
@@ -444,7 +444,7 @@ variables and evaluation.
 
 `syntax/` has its own `go.mod`. It reads text through its own `Text` and
 `Edit`, as `vim/` does. Its host passes `New` a trace func that hears each
-parse and highlight, since `api.Trace` belongs to the editor. Why: a
+parse and highlight, since the trace ring belongs to the editor. Why: a
 program that wants tree-sitter highlights, tree targets and grammars
 built on first use imports it without the editor, wazero or a terminal.
 The cost is a fifth tag on every release (D37).
@@ -491,6 +491,14 @@ them without the editor. `wire/` stays in the root module until a client
 outside it needs the types. It takes `Span` from `syntax/`, and a view
 carries its `kernel.Snapshot` for a client in the same process, so it
 imports both.
+
+## D48. api is a Go module that imports only the standard library
+
+`api/` has its own `go.mod`. The trace ring that was in it moved to
+`internal/trace/`, since it is the editor's and holds process-wide state.
+Why: Go modules and wasm plugins share one API (D21), and `plugin/` is a
+module of its own (D45), which cannot import a package of the root. The
+cost is an eighth tag on every release (D37).
 
 ## Departures from Neovim
 

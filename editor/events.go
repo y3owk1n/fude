@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/core/kernel"
+	"github.com/y3owk1n/fude/internal/trace"
 	"github.com/y3owk1n/fude/plugin"
 )
 
@@ -174,10 +174,10 @@ func (e *Session) listen(p *plugin.Plugin) *listener {
 				var err error
 				if ev.name == "" {
 					res, err = p.Callback(context.Background(), ev.id, scope)
-					api.Trace("plugin", p.Name+" ran a callback", time.Since(at))
+					trace.Record("plugin", p.Name+" ran a callback", time.Since(at))
 				} else {
 					res, err = p.Event(context.Background(), name, scope)
-					api.Trace("plugin", p.Name+" heard "+name, time.Since(at))
+					trace.Record("plugin", p.Name+" heard "+name, time.Since(at))
 				}
 				if !on(func() { e.handled(p, err, ev.buf, t, res) }) {
 					return

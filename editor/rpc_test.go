@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/y3owk1n/fude/internal/trace"
 	"github.com/y3owk1n/fude/vim"
 	"github.com/y3owk1n/fude/wire"
 
-	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/editor"
 )
@@ -209,7 +209,7 @@ func TestB174Tail(t *testing.T) {
 	for cl.in.Scan() {
 		var line struct {
 			Method string
-			Params api.Event
+			Params trace.Event
 		}
 		if json.Unmarshal(cl.in.Bytes(), &line) == nil && line.Method == "event" && line.Params.Src == "key" && line.Params.Text == `"x" in insert` {
 			return

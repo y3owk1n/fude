@@ -15,8 +15,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/core/kernel"
+	"github.com/y3owk1n/fude/internal/trace"
 	"github.com/y3owk1n/fude/plugin"
 	"github.com/y3owk1n/fude/vim"
 	"github.com/y3owk1n/fude/wire"
@@ -293,8 +293,8 @@ func (e *Session) serve(c net.Conn, o kernel.Origin) {
 		s = e.Attach(o, Host)
 		s.changed = changed
 	})
-	api.Trace("rpc", string(o)+" attached", 0)
-	defer api.Trace("rpc", string(o)+" left", 0)
+	trace.Record("rpc", string(o)+" attached", 0)
+	defer trace.Record("rpc", string(o)+" left", 0)
 	defer on(func() { s.leave() })
 	in, enc := bufio.NewScanner(c), json.NewEncoder(c)
 	in.Buffer(nil, 1<<26)
@@ -348,7 +348,7 @@ func (e *Session) serve(c net.Conn, o kernel.Origin) {
 		} else if call.Method == "tail" {
 			// This writes the events off the loop, as they come, until the
 			// client leaves.
-			kept, next, stop := api.Watch()
+			kept, next, stop := trace.Watch()
 			defer stop()
 			if out(map[string]any{"id": call.ID}) != nil {
 				return

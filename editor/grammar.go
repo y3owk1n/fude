@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/y3owk1n/fude/api"
+	"github.com/y3owk1n/fude/internal/trace"
 	"github.com/y3owk1n/fude/syntax"
 )
 
@@ -19,7 +19,7 @@ func (e *Session) attachSyntax(b *buffer) (bool, error) {
 		case e.cfg.AutoInstall:
 			e.buildGrammar(ft, false)
 		}
-	}, func(text string, took time.Duration) { api.Trace("syntax", text, took) })
+	}, func(text string, took time.Duration) { trace.Record("syntax", text, took) })
 	if ok {
 		b.syntax = h
 	}
@@ -42,7 +42,7 @@ func (e *Session) buildGrammar(ft string, force bool) bool {
 		if err != nil {
 			done = err.Error()
 		}
-		api.Trace("syntax", done, time.Since(at))
+		trace.Record("syntax", done, time.Since(at))
 		e.queue <- func() {
 			delete(e.building, ft)
 			if err != nil {
