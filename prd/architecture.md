@@ -1369,7 +1369,7 @@ clients' edits and `u` reverts only the session's own changes with
 
 Clients attach over a unix socket: the `socket` setting, or else
 `fude.<pid>.sock` in `XDG_RUNTIME_DIR` or the temporary directory. fude
-listens on no network address. A client on another machine forwards the
+listens on no network address unless `fude --share` asks it to (D40). A client on another machine forwards the
 socket over SSH, as `ssh -L /tmp/fude.sock:/run/user/1000/fude.sock host`,
 and dials the local end, so SSH encrypts and authenticates it (B97). fude
 leaves alone a socket that another fude answers and listens at the socket
@@ -1473,3 +1473,93 @@ server, as the timeline is there (B99). `"+` and `"*` are the clipboard of
 the client's machine (B36), and `>` and `<` shift by the server's indent
 width for the buffer (B94). The grammar's cases in
 `vim/testdata/grammar.txt` run through it too (B110).
+
+## Sharing (step 7)
+
+Step 7 lets another person edit in a running fude. It comes in phases,
+each usable on its own: attach (D39), guests and `--share` (D40), the
+relay (D41), then presence, a guest's own keymaps and options, read-only
+and follow, and attaching through a replica.
+
+### Attach
+
+`fude --attach` dials the socket and calls `attach`. The server makes a
+session for the connection with `Attach`, and the connection then carries
+a stream each way. The client sends `keys`, `paste`, `size` and `focus`
+notices. The server sends a `frame` notice after the loop runs anything
+that changes what the session draws, and only when it differs from the
+last one sent. Closing the connection makes the session leave (B240).
+
+A frame holds what `ui/term` reads of a session: the views without their
+text, the float, the command line and its cursor, the mode, message,
+selection, other cursors, theme, key hints, signature help, `:s` preview,
+the macro being recorded and the text to put on the client's clipboard.
+Each view names its buffer and version. A buffer's text comes once, then
+as the edits since the version the client holds, the lists `Since` gives
+and `pull` returns. A client that falls too far behind gets the whole
+text again.
+
+`ui/term` reads a session through one interface, the methods it calls
+today, such as `Views`, `Float`, `Feed` and `SetSize`. `*editor.Session`
+implements it, and so does the attached session in `ui/term`, which
+applies frames as they come and sends input as it is typed. The speed
+harness measures the attached path on the local socket as it measures
+the local one.
+
+A session other than the first keeps its clipboard to itself: a copy
+sets the text it puts and hands it to its client, which writes it with
+its machine's clipboard program or OSC 52, and a put reads that text
+(B241). Only the first session reads and writes the system clipboard.
+
+### Guests
+
+Whether a session is a guest, and whether it is read-only, is fixed when
+the session is made. The server checks each limit in one place:
+
+- Commands: `ex` and the `<Plug>` dispatch refuse, for a guest, the
+  commands B244 names, so a key mapped to one is refused too. A code
+  action that runs a command is refused where it is taken.
+- Paths: one check, under the project after `EvalSymlinks` with `under`,
+  runs where a buffer opens, where a file is written, read or listed, and
+  where a listing applies its changes (B245). A guest cannot show a
+  buffer whose path fails that check, even one already open.
+- Plugins: a plugin's key, command, operator or object checks the
+  plugin's grants before it runs for a guest (B246).
+- Read-only: `host.Apply` refuses the session's origin, and `push`,
+  requests and `:accept` go through it, so one check covers every edit
+  (B247).
+
+### Share and join
+
+`fude --share [address]` makes a self-signed certificate for the share,
+listens with TLS, and prints the share string: the address, the
+certificate's SHA-256 fingerprint and a 128-bit secret. `fude --join
+string` dials it with `InsecureSkipVerify` and a `VerifyConnection` that
+compares the fingerprint, then sends the secret as its first line. The
+host's fude asks whether to let the guest in, and on yes the connection
+goes on as an attach does, to a guest session. The secret then no
+longer works. `:who` lists the guests and `:kick name` ends one. Ending
+the share ends every guest session.
+
+### Relay
+
+`fude relay [address]` takes connections that name a room and whether
+they share or join, joins the two of one room, and copies bytes between
+them until either closes. It never terminates the TLS, so it cannot read
+what it copies. A
+share string names the relay and the room instead of an address when
+`--share --relay host` made it.
+
+### Later phases
+
+- Presence: each session has a name, `--name` or else `$USER`, and a
+  colour. A view shows the cursors and selections of the other sessions
+  in its buffer, and the status line names them.
+- A guest's own config: the client sends its keymaps, leader, window
+  options and theme, which apply to its session only. Filetypes,
+  language servers, formatters and plugins stay the host's.
+- `fude --join --read-only`, which asks for a read-only guest (B247),
+  and `:follow name`, which keeps a window on the other session's buffer
+  and view.
+- Attaching through a replica, so keys need no round trip on a slow link
+  (D24, B98).

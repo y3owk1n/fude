@@ -46,6 +46,8 @@ Neovim works and drops the weight.
     diagnostics after each change and completes while typing, and a plugin
     that reads the text on each change.
   - A 1GB file shows its first frame in under 1s and scrolls at frame rate.
+  - Through `fude --attach` on the local socket, key read to frame drawn
+    under 5ms at p99, on the same file as the 1ms promise.
 - **Extendable**: every built-in operator, target, ex command, keymap,
   decoration and UI element uses the API a plugin gets. Anything the
   distribution does, a plugin can do (D21).
@@ -115,5 +117,9 @@ The order is dependency order, not priority. Behaviours in
    rename, code actions.
 6. Server split: RPC protocol, remote and agent clients, proposals,
    multi-client editing.
+7. Sharing: `fude --attach`, guest sessions, `fude --share` and
+   `fude --join` over TLS, `fude relay`, then presence, a guest's own
+   keymaps and options, read-only and follow, and attaching through a
+   replica (D39, D40, D41).
 
 Not scheduled: lenses, DAP, GPU and web clients.

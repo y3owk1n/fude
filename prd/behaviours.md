@@ -994,7 +994,8 @@ Where fude departs, the line says so and cites the departure in
   both edits. An edit of its own whose text another client changed first
   is dropped and reported.
 - B97 [6] The `socket` setting is where fude listens, so a client on
-  another machine reaches it through `ssh -L`. A second fude leaves a socket
+  another machine reaches it through `ssh -L`. fude listens on no network
+  address unless `fude --share` asks it to (D40). A second fude leaves a socket
   another one answers alone. It listens at a socket of its own, as it would
   without the setting, and shows no message.
 - B98 [6] A client may run the grammar on its copy. Its keys edit the copy
@@ -1011,6 +1012,54 @@ Where fude departs, the line says so and cites the departure in
   first prints the last 4096 events, so a tail started after a problem
   shows what led to it. `--json` prints each event as JSON. While nothing
   tails, fude keeps events in memory and writes nothing.
+
+## Sharing
+
+- B239 [7] `fude --attach [socket]` opens a terminal client on a new
+  session of the fude at socket, or of the one fude that answers in
+  `XDG_RUNTIME_DIR` or the temporary directory, as `fude --tail` finds it.
+  It draws what fude's own terminal draws for that session: its windows,
+  highlights, decorations, floats, command line, key hints and status
+  line, in the server's theme. Its keys, pastes, size and focus go to that
+  session, so two attached clients of one fude each have their own
+  windows, cursor, mode and undo (D39).
+- B240 [7] In an attached session, `:q` on its last window, `:qa` and `ZZ`
+  leave fude instead of quitting it. The session and its windows go, and
+  the server, its buffers and the other sessions go on. Changes the
+  session made stay in the buffers, unsaved, for any session to write.
+  `:restart` there says it runs only in fude's own terminal.
+- B241 [7] An attached session's `"+` and `"*` are the clipboard of the
+  machine its client runs on. A copy goes there, through its clipboard
+  program or else OSC 52, and a put takes the text the session last
+  copied. An attached session never reads or writes the system clipboard
+  of the machine fude runs on.
+- B242 [7] When fude quits, each attached client says so and exits. A
+  client whose connection breaks exits and says why.
+- B243 [7] A guest is a session with less power than the host's, as B244
+  to B247 say. The project is the directory fude started in. A session
+  from `fude --share` is always a guest, and one from the local socket
+  never is (D40).
+- B244 [7] A guest runs no program and changes nothing every session
+  shares, such as the working directory, the theme and the language
+  servers. `:!`, `:r !`, `:{range}!`, `:terminal`, `:task`, `:pick tasks`,
+  `:restart`, `:cd`, `:plugin reload`, `:grammar install` and `update`,
+  `:lsp` with a subcommand, `:theme`, and a code action that runs a
+  command each say a guest may not, and change nothing. So do keys mapped
+  to them, such as `ZR`. A guest's `:q` on its last window and `:qa` leave
+  fude, as B240 says.
+- B245 [7] A guest opens, shows, writes, creates, renames and deletes only
+  files under the project, after symlinks resolve, as a plugin with
+  `fs.read` reads (B47). That holds for `:e`, `:w file`, `:r file`, the
+  splits, `:b` on a buffer whose file is outside, a listing's changes
+  (B125), the finder, grep and a request naming a buffer. A path outside
+  says so, and nothing happens.
+- B246 [7] A guest's key or command from a plugin that declared `process`,
+  `net` or `fs.read` says a guest may not, and the plugin is not called.
+  Those of other plugins run as they do for any session.
+- B247 [7] A read-only guest changes no text. Its keys, its requests, a
+  replica's pushes and its `:accept` each say it is read-only, whichever
+  edit they would make, and the buffer stays as it was. It still moves,
+  searches, yanks and proposes.
 
 ## Kernel library
 

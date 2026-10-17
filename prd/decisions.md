@@ -178,7 +178,8 @@ demote the rope to a mirror and add cgo. The replica reuses the kernel's
 `Undo`, `Map` and `Since`, so it is a small library over two calls, and
 the server stays the only history. The user asked for it on 2026-10-15,
 ahead of a client on another machine. D18 keeps a CRDT in fude's own tree
-possible later, as Zed built.
+possible later, as Zed built. D40 reopens one part: fude listens on a
+network address when `fude --share` asks it to.
 
 ## D25. fude's own client protocol, carrying state
 
@@ -369,6 +370,54 @@ quirks. The cost is 14 modules more and a v0.1.0 API, pinned by `go.sum`.
 x/vt's API brings two of them in as direct dependencies:
 `charmbracelet/ultraviolet` for the key names fude sends it, and
 `charmbracelet/x/ansi` for the colours it returns.
+
+## D39. An attached client draws the session's views, sent as frames
+
+`fude --attach` is fude's terminal client drawing a session of another
+fude (B239). The server sends the session's frame, the views, floats,
+command line, hints and status that the terminal draws, whenever it
+changes, and the client sends keys, pastes, size and focus. Text goes
+once per buffer and then as the edits since, from the kernel's `Since`,
+as a replica takes them. The terminal client reads a session through one
+interface, which the local session and the attached one both implement.
+Why: one renderer draws both, so an attached client looks and behaves as
+fude's own terminal does. Frames carry state, not cells (D25), so a
+client draws at its own size, and keys need no grammar on the client.
+Every key waits a round trip, which is fine on a local socket or a local
+network. A client on a slow link attaches through a replica later, as
+`client.Editor` already runs the grammar on one (B98). The user chose
+this on 2026-10-17.
+
+## D40. Sharing goes to guest sessions, over TLS, with a one-time token
+
+`fude --share` listens on a network address with TLS and prints one
+string for the guest: where to reach it, the SHA-256 fingerprint of its
+self-signed certificate, and a secret of at least 128 bits. `fude --join`
+pins that fingerprint, then proves the secret inside the channel. The
+host approves each join, and the secret works once. A session that
+joins is a guest, with less power than the host's (B243 to B247). This
+reopens D24 and B97, under which fude listened on no network address.
+Why: pairing over SSH gives the other person a shell on the host, which
+the user ruled out on 2026-10-17. A session attached by any path has
+fude's powers, `:!`, `:terminal`, every file the host can read and the
+host's clipboard, so the limits belong to the server's session, never to
+a client. Formatters, language servers and git still run for a guest as
+the host's config says, as they act on the project's files. Go's
+`crypto/tls` has no pre-shared keys, so the share string carries a
+fingerprint to pin instead, which needs only the standard library.
+
+## D41. A relay is fude itself, passing ciphertext between two dial-outs
+
+`fude relay` runs on any machine both sides reach, such as a small server.
+`fude --share --relay host` dials it, and the guest's `fude --join` dials
+it too, and the relay joins the two connections by a room the share
+string names. The TLS of D40 runs end to end through it. Why: two
+machines behind NAT cannot reach each other, and the user wants pairing
+on a shared network and across the internet alike. The guest pins the
+host's fingerprint, so the relay sees only ciphertext and needs no trust,
+and anyone can run one. A public relay would mean hosting it, and NAT
+traversal or a tunnelling service would bring a large dependency or a
+third party's account.
 
 ## Departures from Neovim
 
