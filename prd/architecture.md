@@ -1586,11 +1586,13 @@ of the theme reaches the host.
 
 `fude --join --read-only` sets `read_only` in its first line, the host's
 question names it, and the session is `ReadOnly` (B247, B255). `:follow
-name` stores the session's current window and the session it follows.
-`Views` first moves that window to the other's buffer, top and cursor,
-so each frame and draw shows where the other is. `Feed` and `Paste` end
-following, since keys typed at the other's cursor would edit there
-(B256).
+name` stores the session it follows. `Views` first rebuilds the
+session's window tree as a copy of the other's. It keeps each window
+that copied one of the other's last time, and makes the rest anew. Each
+window takes its counterpart's buffer, top, left column and cursor. Then
+it scrolls as its own rows need to show the cursor, so each frame and
+draw shows what the other shows. `Feed` and `Paste` end following, since keys
+typed at the other's cursor would edit there (B256).
 
 ### Later phases
 

@@ -1107,12 +1107,15 @@ Where fude departs, the line says so and cites the departure in
 - B255 [7] `fude --join --read-only string` asks to join as a read-only
   guest (B247). The host's question says so, and on y the guest's
   session is read-only.
-- B256 [7] `:follow name` makes the current window show what the current
-  window of the session called name shows: its buffer, top line and
-  cursor. The window keeps up as that session moves. A key typed or a
-  paste in the following session stops following. So does that session
-  leaving, and the message says so. A guest follows only into files it
-  may show (B245).
+- B256 [7] `:follow name` makes the session's windows show what the
+  windows of the session called name show: their layout, which one is
+  current, and each one's buffer, top line, left column and cursor. They
+  keep up as that session moves. A window too short to show the cursor
+  from that top line scrolls the least it must to show it. A key typed
+  or a paste in the following session stops following, and the windows
+  stay as they are. So does that session leaving, and the message says
+  so. A guest's window keeps its buffer when the other's is one the
+  guest may not show (B244, B245).
 
 ## Kernel library
 
