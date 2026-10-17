@@ -460,15 +460,16 @@ terminal. The two clients share `framing/`, so one module holds all three
 rather than three modules that require each other. The cost is a sixth
 tag on every release (D37).
 
-## D45. plugin is a Go module that requires only wazero
+## D45. plugin is a Go module that requires wazero and api
 
 `plugin/` has its own `go.mod` and holds the wazero host and
-`plugintest`. Its `Scope` and `Result` read and carry text through its own
-`Text` and `Edit`, until `api/` is the module API that plugins and
-built-in modules share (D21). Why: a plugin's
-tests run its `.wasm` with `plugintest`, and before this a plugin's module
-could not require it, since the root's `go.mod` requires `core/` and
-`vim/` at versions that only its `replace` lines resolve. A program that
+`plugintest`. It requires wazero and `api/`, whose `Scope` and `Result` it
+translates the ABI to (D48). Why: a plugin's tests run its `.wasm` with
+`plugintest`, and a plugin's own module can require it without the root,
+whose `go.mod` brings the editor's dependencies. Until the first release,
+`plugin/` requires `api/` through a `replace` line, which Go ignores in a
+dependency. So a plugin's module can require `plugintest` from the first
+release on, as with `go install` (D37). A program that
 runs fude plugins imports the host without the editor, cgo or a terminal.
 The cost is a seventh tag on every release (D37).
 
@@ -497,8 +498,10 @@ imports both.
 `api/` has its own `go.mod`. The trace ring that was in it moved to
 `internal/trace/`, since it is the editor's and holds process-wide state.
 Why: Go modules and wasm plugins share one API (D21), and `plugin/` is a
-module of its own (D45), which cannot import a package of the root. The
-cost is an eighth tag on every release (D37).
+module of its own (D45), which cannot import a package of the root.
+`Scope`, `Result` and what a `Result` asks for are in `api/`, and
+`plugin/` translates the ABI to them, adding only the values a wasm
+export returns. The cost is an eighth tag on every release (D37).
 
 ## Departures from Neovim
 

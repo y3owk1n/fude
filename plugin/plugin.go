@@ -21,6 +21,8 @@ import (
 
 	"github.com/tetratelabs/wazero"
 	"github.com/tetratelabs/wazero/api"
+
+	fude "github.com/y3owk1n/fude/api"
 )
 
 // Budgets are how long one call into a plugin may run.
@@ -44,101 +46,8 @@ const (
 	Insert               // keys in insert mode, called with (cursor, 0)
 )
 
-// Decoration is a style a plugin puts on [Start, End) of the text, such as a
-// highlight name. ID names it to the plugin.
-type Decoration struct {
-	ID         int
-	Start, End int
-	Style      string
-	Sign, Note string // what shows on Start's line, in the sign column or after its end (B184)
-}
-
-// Text is the text of a buffer as a plugin reads it. Lines count from 0.
-// core's Snapshot satisfies it as is.
-type Text interface {
-	Len() int
-	Slice(start, end int) string
-	Lines() int
-	LineStart(line int) int
-	LineOf(pos int) int
-}
-
-// Edit replaces the bytes from Start to End with Text.
-type Edit struct {
-	Start, End int
-	Text       string
-}
-
-// Result is what one call into a plugin asked for, and what it returned.
-type Result struct {
-	Edits      []Edit
-	Decorate   []Decoration
-	Undecorate []int     // the ids of decorations to remove
-	Emit       []string  // the events to emit, named plugin.event
-	Status     *string   // the plugin's statusline segment for the text it read, "" for none
-	Float      *string   // markdown to show at the cursor, "" to close it
-	Show       *Panel    // text to show in a window of its own
-	Jump       *Jump     // where to move the cursor
-	Pick       *Pick     // a list to pick from, or a question to answer
-	Timers     []Timer   // the callbacks to run later
-	Jobs       []Job     // the work to do in the background
-	Requests   []Request // the requests to send the buffer's language servers
-	Out        []uint64
-}
-
-// Job is a program to run or a URL to get in the background. Once it ends,
-// fude runs the plugin's callback with its id, with the output and any
-// error in its context (B181).
-type Job struct {
-	ID   uint32
-	Argv []string
-	URL  string
-}
-
-// Request is a request a plugin sends the language servers of the buffer
-// the call was about. fude fills in its textDocument, and its position at
-// Pos unless Pos is negative, and adds Params, a JSON object. The plugin's
-// callback with ID gets the first answer that is not null (B190).
-type Request struct {
-	ID     uint32
-	Method string
-	Pos    int
-	Params string
-}
-
 // maxJobs is how many of a plugin's jobs run at once. One more waits.
 const maxJobs = 8
-
-// Pick is a list of items the plugin asks the user to pick from with
-// Prompt, or with none a question whose answer is what they type. fude runs
-// the plugin's callback with ID once they answer or cancel (B185).
-type Pick struct {
-	ID     uint32
-	Prompt string
-	Items  []string
-}
-
-// Jump is where a plugin moves the cursor: Pos in the buffer the call was
-// about, or in the file at Path when it is not "", which fude opens
-// (B187).
-type Jump struct {
-	Path string
-	Pos  int
-}
-
-// Panel is text a plugin shows in a read-only window titled Title, coloured
-// as Filetype. It replaces the text of a window open under that title
-// (B186).
-type Panel struct {
-	Title, Filetype, Text string
-}
-
-// Timer is a callback the plugin asked fude to run after a while, through
-// its callback export, by the id it gave (B180).
-type Timer struct {
-	ID    uint32
-	After time.Duration
-}
 
 // Registration is one thing a plugin's init registered: its name, what it
 // does, and the id call runs it by.
@@ -189,43 +98,16 @@ type Plugin struct {
 // call holds what one call into a plugin reads and what it asks for.
 type call struct {
 	name string
-	Scope
+	fude.Scope
 	Result
 }
 
-// Scope is what one call into a plugin reads: the text of the buffer it is
-// about, what it is about, and every open buffer, by id (B188).
-type Scope struct {
-	Text    Text
-	About   Context
-	Buffers map[int]Buffer
-	// Node finds a syntax node in Text, as syntax.Buffer.Nodes does. Free
-	// frees what it reads once the call is done (B189).
-	Node func(pos, up int) (kind string, start, end int, ok bool)
-	Free func()
+// Result is what one call into a plugin asked for, and the values its
+// export returned.
+type Result struct {
+	fude.Result
+	Out []uint64
 }
-
-// Done frees what s holds, once the call reading it is done. The calls
-// that take s call it.
-func (s Scope) Done() {
-	if s.Free != nil {
-		s.Free()
-	}
-}
-
-// Buffer is an open buffer as a plugin reads it.
-type Buffer struct {
-	Path, Filetype string
-	Text           Text
-}
-
-// Context is what a call is about, by name, which the plugin reads through
-// context. Every call has buffer, path and filetype, of the buffer it is
-// about, and mode. In a command's call, args is the text typed after its
-// name, and bang is true when ! followed the name. first and last are where
-// its range's first and last lines start, and ranged is true when it was
-// given a range.
-type Context map[string]string
 
 // errBudget is a call that ran past its budget. The plugin is closed.
 var errBudget = errors.New("ran past its budget")
@@ -290,7 +172,7 @@ func Load(ctx context.Context, path string, g Grants, cacheDir string, log func(
 // Init runs the plugin's _initialize, where a compiler puts its program's
 // setup, then its init, each when it exports one, together under
 // InitBudget. Both may register and subscribe.
-func (p *Plugin) Init(ctx context.Context, s Scope) (Result, error) {
+func (p *Plugin) Init(ctx context.Context, s fude.Scope) (Result, error) {
 	defer s.Done()
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -324,7 +206,7 @@ func (p *Plugin) Close(ctx context.Context) error {
 // asked for and returned, or ErrBusy instead of waiting for a call already
 // running. A call that traps or runs past its budget returns an error, and
 // nothing it asked for happens.
-func (p *Plugin) CallNow(ctx context.Context, name string, s Scope, budget time.Duration, args ...uint64) (Result, error) {
+func (p *Plugin) CallNow(ctx context.Context, name string, s fude.Scope, budget time.Duration, args ...uint64) (Result, error) {
 	defer s.Done()
 	if !p.mu.TryLock() {
 		return Result{}, fmt.Errorf("plugin %s %w", p.Name, ErrBusy)
@@ -335,7 +217,7 @@ func (p *Plugin) CallNow(ctx context.Context, name string, s Scope, budget time.
 
 // Callback runs the plugin's callback export with id, reading s, under
 // EventBudget. It waits for a call already running.
-func (p *Plugin) Callback(ctx context.Context, id uint32, s Scope) (Result, error) {
+func (p *Plugin) Callback(ctx context.Context, id uint32, s fude.Scope) (Result, error) {
 	defer s.Done()
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -344,7 +226,7 @@ func (p *Plugin) Callback(ctx context.Context, id uint32, s Scope) (Result, erro
 
 // Event runs the plugin's on_event with the event's name, written into its
 // memory, reading s, under EventBudget (B57).
-func (p *Plugin) Event(ctx context.Context, name string, s Scope) (Result, error) {
+func (p *Plugin) Event(ctx context.Context, name string, s fude.Scope) (Result, error) {
 	defer s.Done()
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -358,7 +240,7 @@ func (p *Plugin) Event(ctx context.Context, name string, s Scope) (Result, error
 }
 
 // run makes one call while p.mu is held.
-func (p *Plugin) run(ctx context.Context, name string, s Scope, budget time.Duration, args ...uint64) (Result, error) {
+func (p *Plugin) run(ctx context.Context, name string, s fude.Scope, budget time.Duration, args ...uint64) (Result, error) {
 	f := p.mod.ExportedFunction(name)
 	if f == nil {
 		return Result{}, fmt.Errorf("plugin %s has no %s", p.Name, name)
@@ -458,7 +340,7 @@ func (p *Plugin) after(ms, id uint32) int32 {
 	if p.call == nil {
 		return errDenied
 	}
-	p.call.Timers = append(p.call.Timers, Timer{id, time.Duration(ms) * time.Millisecond})
+	p.call.Timers = append(p.call.Timers, fude.Timer{ID: id, After: time.Duration(ms) * time.Millisecond})
 	return 0
 }
 
@@ -664,7 +546,7 @@ func (p *Plugin) start(_ context.Context, m api.Module, ptr, n, id uint32) int32
 		p.log(fmt.Sprintf("%s: start %s, which it did not declare", p.Name, argv[0]))
 		return errRun
 	}
-	p.call.Jobs = append(p.call.Jobs, Job{ID: id, Argv: argv})
+	p.call.Jobs = append(p.call.Jobs, fude.Job{ID: id, Argv: argv})
 	return 0
 }
 
@@ -678,7 +560,7 @@ func (p *Plugin) fetch(_ context.Context, m api.Module, ptr, n, id uint32) int32
 	if !ok {
 		return errRange
 	}
-	p.call.Jobs = append(p.call.Jobs, Job{ID: id, URL: string(b)})
+	p.call.Jobs = append(p.call.Jobs, fude.Job{ID: id, URL: string(b)})
 	return 0
 }
 
@@ -695,13 +577,13 @@ func (p *Plugin) request(_ context.Context, m api.Module, ptr, n, pos, id uint32
 	if !ok || method == "" || int(int32(pos)) > p.call.Text.Len() {
 		return errRange
 	}
-	p.call.Requests = append(p.call.Requests, Request{id, method, int(int32(pos)), params})
+	p.call.Requests = append(p.call.Requests, fude.Request{ID: id, Method: method, Pos: int(int32(pos)), Params: params})
 	return 0
 }
 
 // Work does j, a program or a get, as run and http_get do but with no
 // budget, until it ends or ctx does. At most maxJobs run at once.
-func (p *Plugin) Work(ctx context.Context, j Job) (string, error) {
+func (p *Plugin) Work(ctx context.Context, j fude.Job) (string, error) {
 	select {
 	case p.jobs <- struct{}{}:
 	case <-ctx.Done():
@@ -864,7 +746,7 @@ func (p *Plugin) edit(_ context.Context, m api.Module, start, end, ptr, n uint32
 	if !ok {
 		return errRange
 	}
-	p.call.Edits = append(p.call.Edits, Edit{Start: int(start), End: int(end), Text: string(b)})
+	p.call.Edits = append(p.call.Edits, fude.Edit{Start: int(start), End: int(end), Text: string(b)})
 	return 0
 }
 
@@ -879,7 +761,7 @@ func (p *Plugin) decorate(_ context.Context, m api.Module, start, end, ptr, n ui
 		return errRange
 	}
 	p.next++
-	p.call.Decorate = append(p.call.Decorate, Decoration{ID: p.next, Start: int(start), End: int(end), Style: string(style)})
+	p.call.Decorate = append(p.call.Decorate, fude.Decoration{ID: p.next, Start: int(start), End: int(end), Style: string(style)})
 	return int32(p.next)
 }
 
@@ -895,7 +777,7 @@ func (p *Plugin) sign(_ context.Context, m api.Module, pos, ptr, n uint32) int32
 	}
 	text, style, _ := strings.Cut(string(b), "\x00")
 	p.next++
-	p.call.Decorate = append(p.call.Decorate, Decoration{ID: p.next, Start: int(pos), End: int(pos), Style: style, Sign: text})
+	p.call.Decorate = append(p.call.Decorate, fude.Decoration{ID: p.next, Start: int(pos), End: int(pos), Style: style, Sign: text})
 	return int32(p.next)
 }
 
@@ -911,7 +793,7 @@ func (p *Plugin) pick(_ context.Context, m api.Module, ptr, n, id uint32) int32 
 		return errRange
 	}
 	parts := strings.Split(string(b), "\x00")
-	p.call.Pick = &Pick{id, parts[0], parts[1:]}
+	p.call.Pick = &fude.Pick{ID: id, Prompt: parts[0], Items: parts[1:]}
 	return 0
 }
 
@@ -923,7 +805,7 @@ func (p *Plugin) jump(pos uint32) int32 {
 	if int(pos) > p.call.Text.Len() {
 		return errRange
 	}
-	p.call.Jump = &Jump{Pos: int(pos)}
+	p.call.Jump = &fude.Jump{Pos: int(pos)}
 	return 0
 }
 
@@ -943,7 +825,7 @@ func (p *Plugin) open(_ context.Context, m api.Module, pos, ptr, n uint32) int32
 		p.log(fmt.Sprintf("%s: open: %v", p.Name, err))
 		return errFile
 	}
-	p.call.Jump = &Jump{path, int(pos)}
+	p.call.Jump = &fude.Jump{Path: path, Pos: int(pos)}
 	return 0
 }
 
@@ -958,7 +840,7 @@ func (p *Plugin) show(_ context.Context, m api.Module, ptr, n uint32) int32 {
 	if !ok || len(parts) != 3 || parts[0] == "" {
 		return errRange
 	}
-	p.call.Show = &Panel{parts[0], parts[1], parts[2]}
+	p.call.Show = &fude.Panel{Title: parts[0], Filetype: parts[1], Text: parts[2]}
 	return 0
 }
 
@@ -973,7 +855,7 @@ func (p *Plugin) note(_ context.Context, m api.Module, pos, ptr, n uint32) int32
 		return errRange
 	}
 	p.next++
-	p.call.Decorate = append(p.call.Decorate, Decoration{ID: p.next, Start: int(pos), End: int(pos), Note: string(text)})
+	p.call.Decorate = append(p.call.Decorate, fude.Decoration{ID: p.next, Start: int(pos), End: int(pos), Note: string(text)})
 	return int32(p.next)
 }
 

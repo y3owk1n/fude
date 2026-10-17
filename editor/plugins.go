@@ -161,9 +161,9 @@ func (d decoration) remove() {
 // pluginRequest sends a plugin's request to those of b's servers that offer it,
 // every one for a method outside textDocument/, and hands the plugin the
 // first answer that is not null, as a job's output (B190).
-func (e *Session) pluginRequest(p *plugin.Plugin, b *buffer, rq plugin.Request) {
+func (e *Session) pluginRequest(p *plugin.Plugin, b *buffer, rq api.Request) {
 	l := e.listen(p)
-	reply := func(extra plugin.Context) {
+	reply := func(extra api.Context) {
 		if slices.Contains(e.plugins, p) {
 			l.add(event{buf: b, id: rq.ID, extra: extra})
 		}
@@ -177,12 +177,12 @@ func (e *Session) pluginRequest(p *plugin.Plugin, b *buffer, rq plugin.Request) 
 	var params map[string]any
 	if rq.Params != "" {
 		if err := json.Unmarshal([]byte(rq.Params), &params); err != nil {
-			reply(plugin.Context{"error": fmt.Sprintf("the params of %s: %v", rq.Method, err)})
+			reply(api.Context{"error": fmt.Sprintf("the params of %s: %v", rq.Method, err)})
 			return
 		}
 	}
 	if len(to) == 0 {
-		reply(plugin.Context{"error": "no language server offers " + rq.Method})
+		reply(api.Context{"error": "no language server offers " + rq.Method})
 		return
 	}
 	t, uri := b.text.Snapshot(), lsp.URI(b.file.path)
@@ -200,9 +200,9 @@ func (e *Session) pluginRequest(p *plugin.Plugin, b *buffer, rq plugin.Request) 
 			case done:
 			case len(res) > 0 && string(res) != "null":
 				done = true
-				reply(plugin.Context{"output": string(res), "server": s.name})
+				reply(api.Context{"output": string(res), "server": s.name})
 			case left == 0:
-				reply(plugin.Context{"error": "no language server answered " + rq.Method})
+				reply(api.Context{"error": "no language server answered " + rq.Method})
 			}
 		})
 	}
@@ -211,7 +211,7 @@ func (e *Session) pluginRequest(p *plugin.Plugin, b *buffer, rq plugin.Request) 
 // jumpTo is where a plugin's call about b asked to move the cursor.
 type jumpTo struct {
 	b *buffer
-	plugin.Jump
+	api.Jump
 }
 
 // went moves the cursor where a plugin's call last asked to, after the call
@@ -246,7 +246,7 @@ func (e *Session) decorate(p *plugin.Plugin, b *buffer, res plugin.Result) []vim
 		l := e.listen(p)
 		go func() {
 			out, err := p.Work(l.ctx, j)
-			extra := plugin.Context{"output": out}
+			extra := api.Context{"output": out}
 			if err != nil {
 				extra["error"] = err.Error()
 			}
@@ -278,7 +278,7 @@ func (e *Session) decorate(p *plugin.Plugin, b *buffer, res plugin.Result) []vim
 	if pk := res.Pick; pk != nil {
 		answer := func(picked int, query string, ok bool) {
 			if slices.Contains(e.plugins, p) {
-				e.listen(p).add(event{buf: b, id: pk.ID, extra: plugin.Context{"picked": strconv.Itoa(picked), "text": query, "ok": strconv.FormatBool(ok)}})
+				e.listen(p).add(event{buf: b, id: pk.ID, extra: api.Context{"picked": strconv.Itoa(picked), "text": query, "ok": strconv.FormatBool(ok)}})
 			}
 		}
 		// One list shows at a time, so a second is cancelled.
@@ -310,7 +310,7 @@ func (e *Session) decorate(p *plugin.Plugin, b *buffer, res plugin.Result) []vim
 			e.decos[p] = slices.Delete(e.decos[p], i, i+1)
 		}
 	}
-	slices.SortStableFunc(res.Edits, func(x, y plugin.Edit) int { return cmp.Compare(x.Start, y.Start) })
+	slices.SortStableFunc(res.Edits, func(x, y api.Edit) int { return cmp.Compare(x.Start, y.Start) })
 	edits := make([]vim.Edit, len(res.Edits))
 	for i, ed := range res.Edits {
 		edits[i] = vim.Edit(ed)
@@ -456,12 +456,12 @@ func (e *Session) register(p *plugin.Plugin, r plugin.Registration) {
 
 // scope is what a call about b reads: the text t, what the call is about,
 // every open buffer (B188), and b's syntax nodes (B189).
-func (e *Session) scope(b *buffer, t api.Text) plugin.Scope {
-	bufs := map[int]plugin.Buffer{}
+func (e *Session) scope(b *buffer, t api.Text) api.Scope {
+	bufs := map[int]api.Buffer{}
 	for _, o := range e.bufs {
-		bufs[o.id] = plugin.Buffer{Path: o.file.path, Filetype: e.filetype(o), Text: o.text.Snapshot()}
+		bufs[o.id] = api.Buffer{Path: o.file.path, Filetype: e.filetype(o), Text: o.text.Snapshot()}
 	}
-	s := plugin.Scope{Text: t, About: e.about(b), Buffers: bufs}
+	s := api.Scope{Text: t, About: e.about(b), Buffers: bufs}
 	if b.syntax != nil {
 		s.Node, s.Free = b.syntax.Nodes()
 	}
@@ -470,8 +470,8 @@ func (e *Session) scope(b *buffer, t api.Text) plugin.Scope {
 
 // about is what a call about b tells the plugin through context: the
 // buffer's id, path and filetype, and the mode (B176).
-func (e *Session) about(b *buffer) plugin.Context {
-	return plugin.Context{"buffer": strconv.Itoa(b.id), "path": b.file.path, "filetype": e.filetype(b), "mode": modes[e.vim.Mode()]}
+func (e *Session) about(b *buffer) api.Context {
+	return api.Context{"buffer": strconv.Itoa(b.id), "path": b.file.path, "filetype": e.filetype(b), "mode": modes[e.vim.Mode()]}
 }
 
 // run calls what p registered as id, through its call export, on the input
@@ -479,7 +479,7 @@ func (e *Session) about(b *buffer) plugin.Context {
 // decorations the call asks for, and returns its edits, sorted, and what it
 // returned. A call that fails unloads p, and calls into an unloaded plugin
 // do nothing.
-func (e *Session) run(p *plugin.Plugin, id uint32, scope plugin.Scope, args ...uint64) ([]vim.Edit, []uint64, bool) {
+func (e *Session) run(p *plugin.Plugin, id uint32, scope api.Scope, args ...uint64) ([]vim.Edit, []uint64, bool) {
 	// A guest may not call a plugin granted process, net or fs.read (B246).
 	if e.power != Host && slices.ContainsFunc(p.Capabilities, func(c string) bool { return c == "process" || c == "net" || c == "fs.read" }) {
 		scope.Done()

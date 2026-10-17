@@ -12,6 +12,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/plugin"
 )
 
@@ -60,7 +61,7 @@ func (p *Plugin) Log() []string {
 func (p *Plugin) Command(name, args, text string, cursor int) plugin.Result {
 	p.t.Helper()
 	id := p.id(plugin.Command, name)
-	return p.call(scope(text, plugin.Context{"args": args, "bang": "false", "first": "0", "last": "0", "ranged": "false"}), uint64(id), uint64(cursor), 0)
+	return p.call(scope(text, api.Context{"args": args, "bang": "false", "first": "0", "last": "0", "ranged": "false"}), uint64(id), uint64(cursor), 0)
 }
 
 // Key runs the plugin's normal mode key keys against text, with the cursor
@@ -85,7 +86,7 @@ func (p *Plugin) Event(name, text string) plugin.Result {
 
 // Callback runs the callback a timer, job, request or pick asked for by id,
 // against text, with what its context adds, such as a job's output.
-func (p *Plugin) Callback(id uint32, text string, extra plugin.Context) plugin.Result {
+func (p *Plugin) Callback(id uint32, text string, extra api.Context) plugin.Result {
 	p.t.Helper()
 	res, err := p.p.Callback(context.Background(), id, scope(text, extra))
 	if err != nil {
@@ -105,7 +106,7 @@ func (p *Plugin) id(kind plugin.Kind, name string) uint32 {
 }
 
 // call runs the plugin's call export with args.
-func (p *Plugin) call(s plugin.Scope, args ...uint64) plugin.Result {
+func (p *Plugin) call(s api.Scope, args ...uint64) plugin.Result {
 	p.t.Helper()
 	full := make([]uint64, 4)
 	copy(full, args)
@@ -119,7 +120,7 @@ func (p *Plugin) call(s plugin.Scope, args ...uint64) plugin.Result {
 // Apply returns text with the edits res asks for made.
 func Apply(text string, res plugin.Result) string {
 	edits := slices.Clone(res.Edits)
-	slices.SortStableFunc(edits, func(a, b plugin.Edit) int { return b.Start - a.Start })
+	slices.SortStableFunc(edits, func(a, b api.Edit) int { return b.Start - a.Start })
 	for _, e := range edits {
 		text = text[:e.Start] + e.Text + text[e.End:]
 	}
@@ -128,13 +129,13 @@ func Apply(text string, res plugin.Result) string {
 
 // scope is what a call against text reads, as the only open buffer, with
 // what extra adds to its context.
-func scope(text string, extra plugin.Context) plugin.Scope {
-	about := plugin.Context{"buffer": "1", "path": "", "filetype": "", "mode": "normal"}
+func scope(text string, extra api.Context) api.Scope {
+	about := api.Context{"buffer": "1", "path": "", "filetype": "", "mode": "normal"}
 	for k, v := range extra {
 		about[k] = v
 	}
 	t := str(text)
-	return plugin.Scope{Text: t, About: about, Buffers: map[int]plugin.Buffer{1: {Text: t}}}
+	return api.Scope{Text: t, About: about, Buffers: map[int]api.Buffer{1: {Text: t}}}
 }
 
 // str is a text held in a string.

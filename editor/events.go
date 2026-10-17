@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/internal/trace"
 	"github.com/y3owk1n/fude/plugin"
@@ -20,8 +21,8 @@ type event struct {
 	name, detail string
 	buf          *buffer
 	id           uint32
-	extra        plugin.Context // what a callback's context adds, such as a job's output
-	start, end   int            // the range buffer.changed covers, in the text after it
+	extra        api.Context // what a callback's context adds, such as a job's output
+	start, end   int         // the range buffer.changed covers, in the text after it
 }
 
 // listener hands one plugin the events it subscribed to, one at a time, off
@@ -141,7 +142,7 @@ func (e *Session) listen(p *plugin.Plugin) *listener {
 				// plugin is free to hear it, so both are the newest.
 				var ev event
 				var t kernel.Snapshot
-				var scope plugin.Scope
+				var scope api.Scope
 				more := false
 				if !on(func() {
 					l.mu.Lock()

@@ -36,7 +36,7 @@ editor/          the editor loop, config, event queues, budgets, the vim host
 syntax/          Go module: tree-sitter parsing, highlights, tree targets,
                  the only cgo, no dependency on fude's other packages
 plugin/          Go module: the wazero host and its ABI, plugintest for
-                 plugin tests, no dependency on fude's other packages
+                 plugin tests, depends only on api/
 protocol/        Go module: stdlib only, no dependency on fude's other packages
   lsp/           language server client
   dap/           debug adapter client
@@ -1075,8 +1075,9 @@ loads the `.wasm` with `plugin.Load`, as fude does, and calls it with a
 scope over a string, the only open buffer. A test gets the call's
 `plugin.Result`, and `Apply` makes the edits it asks for. Timers, jobs,
 requests and picks stay in the result, and the test runs their callback
-itself with `Callback`. `plugin/` is a Go module that requires only
-wazero (D45), so a plugin's own module can require it.
+itself with `Callback`. `plugin/` is a Go module that requires wazero
+and `api/` (D45), so a plugin's own module can require it from fude's
+first release on (D37).
 
 Test plugins are written with the sdk, each a folder in `plugin/testdata`.
 `just wasm` builds each with `fude plugin build`, and the `.wasm` it builds

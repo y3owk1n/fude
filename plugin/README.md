@@ -1,6 +1,6 @@
 # plugin
 
-This module holds the host that runs fude plugins, and `plugintest`, which runs a plugin in `go test`. A plugin is a `.wasm` file written with [`sdk`](../sdk). The host runs it on [wazero](https://wazero.io), with only the capabilities you grant it and a time budget on every call. It requires wazero and nothing else from fude.
+This module holds the host that runs fude plugins, and `plugintest`, which runs a plugin in `go test`. A plugin is a `.wasm` file written with [`sdk`](../sdk). The host runs it on [wazero](https://wazero.io), with only the capabilities you grant it and a time budget on every call. It requires wazero and fude's [`api`](../api) module, whose `Scope` and `Result` each call reads and returns.
 
 | Package | What it does |
 |---|---|
@@ -11,7 +11,7 @@ This module holds the host that runs fude plugins, and `plugintest`, which runs 
 go get github.com/y3owk1n/fude/plugin
 ```
 
-fude has no release yet. Until the first one, `go get` takes the latest commit and the API can change.
+fude has no release yet. This module requires `api` at a version only the first release tags, so until then it builds only inside a clone of fude.
 
 ## Testing a plugin
 
@@ -45,8 +45,8 @@ for _, r := range p.Registered {
 }
 ```
 
-- **A call reads a `Scope`.** It holds the text of the buffer the call is about, what the call is about by name (buffer, path, filetype, mode, a command's args), and every open buffer. A `Text` is anything with `Len`, `Slice`, `Lines`, `LineStart` and `LineOf`, and a `kernel.Snapshot` from [`core`](../core) is one as it is.
-- **A call returns a `Result`.** It lists what the plugin asked for, and the host decides how to apply each: edits, decorations, a statusline segment, a float, a panel, a jump, a pick, timers, background jobs and language server requests.
+- **A call reads an `api.Scope`.** It holds the text of the buffer the call is about, what the call is about by name (buffer, path, filetype, mode, a command's args), and every open buffer. A `Text` is anything with `Len`, `Slice`, `Lines`, `LineStart` and `LineOf`, and a `kernel.Snapshot` from [`core`](../core) is one as it is.
+- **A call returns a `Result`.** It embeds an `api.Result`, with the values the export returned in `Out`. It lists what the plugin asked for, and the host decides how to apply each: edits, decorations, a statusline segment, a float, a panel, a jump, a pick, timers, background jobs and language server requests.
 - **Calls take turns.** `CallNow` runs a registration through the plugin's `call` export, with its `ID` and arguments, under a budget such as `InputBudget`. It returns `ErrBusy` instead of waiting when another call is running. `Event` and `Callback` wait their turn, under `EventBudget`.
 - **Budgets.** A call that traps or runs past its budget returns an error, and nothing it asked for applies.
 - **Capabilities.** `Grants` lists the capabilities, the programs a plugin may run and the hosts it may fetch from. A call outside them returns an error to the plugin, and the log func gets a line about it.

@@ -1,5 +1,6 @@
-// Package api is what fude gives its modules. Modules import it, never core
-// or vim.
+// Package api is what fude gives its modules and plugins (D21). Modules
+// import it, never core or vim. A module or plugin owns what it registers.
+// A call runs one of those things, reads a Scope and returns a Result.
 package api
 
 // Text is a buffer's text at one moment. It never changes and is safe to read
