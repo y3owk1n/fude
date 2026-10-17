@@ -63,3 +63,40 @@ func TestB205Terminal(t *testing.T) {
 		t.Errorf("after cat ended, terminal mode is %v with %q", e.Terminal(), text(e))
 	}
 }
+
+// B228
+func TestB228Tasks(t *testing.T) {
+	t.Setenv("SHELL", "/bin/sh")
+	dir := t.TempDir()
+	change(t, filepath.Join(dir, "Makefile"), "build:\n\techo b\n")
+	change(t, filepath.Join(dir, "a.txt"), "one\ntwo\n")
+	t.Chdir(dir)
+	config(t, "[task.say]\ncommand = \"echo said {line}\"\n")
+	e := start(t, "a.txt")
+	e.SetSize(80, 24)
+	// :pick tasks lists config.toml's tasks and the Makefile's targets.
+	feed(e, ":pick tasks<CR>")
+	settle(t, e, func() bool {
+		f, _ := e.Float()
+		return strings.Contains(f.Text, "say  config") && strings.Contains(f.Text, "build  make")
+	})
+	feed(e, "<Esc>")
+	// A task runs below, the cursor staying where it ran from, and its
+	// window names how it ended.
+	feed(e, "j:task say<CR>")
+	settle(t, e, func() bool { vs := e.Views(); return len(vs) == 2 && strings.HasPrefix(vs[1].Name, "[task say ✓") })
+	if vs := e.Views(); !vs[0].Current {
+		t.Errorf("the task took the cursor")
+	}
+	// :task runs the last one again, in place of its window.
+	feed(e, ":task<CR>")
+	settle(t, e, func() bool { vs := e.Views(); return len(vs) == 2 && strings.HasPrefix(vs[1].Name, "[task say ✓") })
+	feed(e, "<C-w>j")
+	if !strings.Contains(text(e), "said 2") {
+		t.Errorf("the task's window shows %q", text(e))
+	}
+	// q closes the window of a task that is done.
+	if feed(e, "q"); len(e.Views()) != 1 {
+		t.Errorf("q left %d windows", len(e.Views()))
+	}
+}

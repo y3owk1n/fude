@@ -198,7 +198,8 @@ func init() {
 		{vim.Command{Name: "restore", Args: "[n]", Help: "makes the text of state n the newest. In a timeline, n is the state under the cursor"}, func(e *Session, x call) { e.restore(x.arg) }, nil},
 		{vim.Command{Name: "set", Short: []string{"se"}, Args: "[option...]", Help: "sets options, or shows them all. name? shows one, noname turns one off and name! flips it"}, func(e *Session, x call) { e.set(x.arg) }, completeOption},
 		{vim.Command{Name: "split", Short: []string{"sp"}, Args: "[file]", Help: "opens a window below, then opens file in it"}, splitAndEdit, completePath},
-		{vim.Command{Name: "terminal", Short: []string{"ter", "term"}, Args: "[cmd]", Help: "runs cmd, or the shell, in a terminal window below. <C-\\><C-n> or <Esc><Esc> leaves terminal mode, and i goes back"}, func(e *Session, x call) { e.openTerminal(x.arg) }, nil},
+		{vim.Command{Name: "task", Args: "[name]", Help: "runs the task named in a terminal window below, or the last one run again"}, func(e *Session, x call) { e.task(x.arg) }, nil},
+		{vim.Command{Name: "terminal", Short: []string{"ter", "term"}, Args: "[cmd]", Help: "runs cmd, or the shell, in a terminal window below. <C-\\><C-n> or <Esc><Esc> leaves terminal mode, and i goes back"}, func(e *Session, x call) { e.openTerminal(x.arg, "") }, nil},
 		{vim.Command{Name: "theme", Args: "[dark|light|{file}]", Help: "switches the theme of every client, or shows the one in use"}, func(e *Session, x call) {
 			if x.arg == "" {
 				e.message = e.theme
@@ -298,6 +299,7 @@ func init() {
 		{"window.right", "goes to the window, or tmux pane, to the right", func(e *Session, _ int) { e.navigate('l') }},
 		{"diagnostic]d", "goes to the next diagnostic", func(e *Session, count int) { e.diagnostic(max(count, 1)) }},
 		{"diagnostic[d", "goes to the diagnostic before", func(e *Session, count int) { e.diagnostic(-max(count, 1)) }},
+		{"terminal.close", "closes the terminal or task window once its program has ended", func(e *Session, _ int) { e.closeTerminal() }},
 		{"start.open", "runs the start screen's line under the cursor", func(e *Session, _ int) { e.startOpen() }},
 		{"start.config", "opens config.toml", func(e *Session, _ int) { e.startConfig() }},
 		{"start.session", "restores the last session of the working directory", func(e *Session, _ int) { e.restoreProject() }},

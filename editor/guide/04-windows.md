@@ -57,6 +57,16 @@ with text typed, and `<CR>` opens the file at the match.
 100 files you opened. `:pick help` finds a help topic, and `:pick keymaps`
 a mapping, which runs when picked. `:pick` alone lists every source.
 
+## Tasks
+
+`:pick tasks` lists the tasks of the working directory: those
+`config.toml` names under `[task.<name>]`, the justfile's recipes, the
+Makefile's targets and package.json's scripts. The one picked runs in a
+terminal window below, while the cursor stays where it was, and the
+window's name says ✓ or ✗ and how long it took. `:task name` runs one
+directly, and `:task` alone runs the last one again. In its window, `q`
+closes it once the task is done.
+
 ## Lists of places
 
 `grr`, `:marks`, `:jumps` and the others show their places in a list

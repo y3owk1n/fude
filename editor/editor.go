@@ -88,6 +88,7 @@ type Session struct {
 	finder     *finder                 // the file finder, while it shows
 	jumping    *jump                   // the jump being typed after s (B218)
 	blame      bool                    // :blame shows the cursor's line's commit (B220)
+	lastTask   *task                   // the task :task runs again (B228)
 	cmenu      *cmenu                  // the completions of the command line being typed
 	dirs       map[string][]string     // entries of directories the command line has completed in
 	flash      *flash                  // text shown for a moment after a yank, put, undo or redo
@@ -217,7 +218,7 @@ func builtins(e *Session) {
 	}
 	e.vim.Map(vim.Visual, "s", "<Plug>(jump)")
 	e.locals = map[string]*vim.Keymaps{}
-	for kind, keys := range map[string]map[string]string{"listing": listingKeys, "list": listKeys, "timeline": timelineKeys, "finder": finderKeys, "float": floatKeys, "lsp": lspKeys, "help": helpKeys, "scratch": scratchKeys, "start": startKeys} {
+	for kind, keys := range map[string]map[string]string{"listing": listingKeys, "list": listKeys, "timeline": timelineKeys, "finder": finderKeys, "float": floatKeys, "lsp": lspKeys, "help": helpKeys, "scratch": scratchKeys, "start": startKeys, "terminal": terminalKeys} {
 		mode := vim.Normal
 		if kind == "finder" {
 			mode = vim.Insert
@@ -294,7 +295,7 @@ func Start(args []string) (*Session, error) {
 		for mode, maps := range map[vim.Mode]map[string]string{vim.Normal: cfg.Keymap.Normal, vim.Visual: cfg.Keymap.Visual, vim.Insert: cfg.Keymap.Insert} {
 			mapAll(s.vim, mode, maps, cfg.Leader)
 		}
-		for kind, maps := range map[string]map[string]string{"listing": cfg.Keymap.Listing, "list": cfg.Keymap.List, "timeline": cfg.Keymap.Timeline, "float": cfg.Keymap.Float, "lsp": cfg.Keymap.Lsp, "help": cfg.Keymap.Help, "scratch": cfg.Keymap.Scratch, "start": cfg.Keymap.Start} {
+		for kind, maps := range map[string]map[string]string{"listing": cfg.Keymap.Listing, "list": cfg.Keymap.List, "timeline": cfg.Keymap.Timeline, "float": cfg.Keymap.Float, "lsp": cfg.Keymap.Lsp, "help": cfg.Keymap.Help, "scratch": cfg.Keymap.Scratch, "start": cfg.Keymap.Start, "terminal": cfg.Keymap.Terminal} {
 			mapAll(s.locals[kind], vim.Normal, maps, cfg.Leader)
 		}
 		mapAll(s.locals["finder"], vim.Insert, cfg.Keymap.Finder, cfg.Leader)

@@ -265,6 +265,11 @@ Keys on the start screen that `fude` with no file shows, where `f`, `g`,
 `r`, `e`, `c` and `q` do what their lines say, a digit opens that recent
 file and `<CR>` runs the line under the cursor.
 
+## keymap.terminal
+
+Keys in a terminal or task window in normal mode, where `q` closes the
+window once its program has ended.
+
 ## keymap.scratch
 
 Keys in a window fude writes to show something, such as `:messages`, `:grammar`
@@ -385,6 +390,18 @@ folder.
 
 Runs the formatter only for a file under one of its `root` files, such as
 biome where a project has a `biome.json`.
+
+## task.command
+
+The shell command a task runs, which `:task name` and `:pick tasks` run in
+a terminal window below. `{file}`, `{dir}`, `{line}` and `{word}` in it
+stand for the current buffer's file, its folder, the cursor's line and the
+word under the cursor.
+
+```toml
+[task.test-file]
+command = "go test {dir}"
+```
 
 ## plugin.path
 

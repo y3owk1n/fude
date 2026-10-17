@@ -134,6 +134,21 @@ Where fude departs, the line says so and cites the departure in
   started in that directory then has an `s` line first, and `s` opens the
   session's files and builds its windows. A file that no longer opens is
   left out, and the message says why.
+- B228 [2] A task is a shell command: a `[task.<name>]` table's
+  `command` in config.toml, a recipe of the working directory's justfile,
+  a target of its Makefile or a script of its package.json. `:pick tasks`
+  lists them, each with where it comes from and what it does, and runs the
+  one picked. `:task name` runs one, and `:task` alone runs the last one
+  again. A task runs in a terminal window below a third of the screen
+  tall, as `:terminal` does (B205), while the cursor stays in the window it
+  ran from. The window is named after the task, then also with ✓ or ✗,
+  the exit code when it failed, and how long it took. Running a task again
+  closes the window of its last run first, and a task still running says
+  so instead. In a terminal or task window in normal mode, `q` closes it
+  once its program has ended. While the program runs, `q` says so and
+  leaves the window. `{file}`, `{dir}`, `{line}` and `{word}` in a command stand
+  for the current buffer's file, its folder, the cursor's line and the
+  word under it.
 - B201 [2] `fude dir`, with no other file, makes `dir` the working
   directory, so the finder, grep and relative paths start there. Helix's
   `hx dir` does the same.
@@ -272,7 +287,8 @@ Where fude departs, the line says so and cites the departure in
   `listing`, `list` for the lists of places such as `grr`'s, `timeline`,
   `finder`, whose keys are insert mode's, `float` for a float the cursor
   is in, `lsp`, `help`, `scratch` for the windows fude writes, such as
-  `:messages`, `:grammar` and a diff (B212), and `start` (B225). Hover while a float shows moves the
+  `:messages`, `:grammar` and a diff (B212), `start` (B225), and
+  `terminal` for a terminal or task window in normal mode (B228). Hover while a float shows moves the
   cursor into it, whichever key runs hover.
 - B212 [2] `q` closes a list of places, a timeline, help, the `lsp`
   panel, a float the cursor is in and every window fude writes, such as
@@ -562,8 +578,8 @@ Where fude departs, the line says so and cites the departure in
   B134's finders. `buffers` lists the open buffers that have a file.
   `recent` lists the last 100 files a window showed, newest first, and
   keeps them across sessions. Those under the working directory come
-  before the others. Neither lists the current file. B196,
-  B214 and B215 add `diagnostics`, `symbols`, `help` and `keymaps`. A
+  before the others. Neither lists the current file. B196, B214, B228 and
+  B215 add `diagnostics`, `symbols`, `tasks`, `help` and `keymaps`. A
   `<CR>` typed before the list narrows picks from what was typed. `<CR>` opens
   the file picked, and B130's preview shows it. The finder's border names
   the source (N11).

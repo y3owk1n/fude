@@ -15,6 +15,11 @@ import (
 	"github.com/y3owk1n/fude/vim"
 )
 
+// taskConfig is a task config.toml names (B228).
+type taskConfig struct {
+	Command string `toml:"command" help:"the shell command the task runs. {file}, {dir}, {line} and {word} in it stand for the current buffer's file, its folder, the cursor's line and the word under it"`
+}
+
 // config is what config.toml holds (D27). Each key's help tag is what
 // help says of it.
 type config struct {
@@ -48,6 +53,7 @@ type config struct {
 		Lsp      map[string]string `toml:"lsp" help:"the language server panel's keys"`
 		Help     map[string]string `toml:"help" help:"help's keys"`
 		Start    map[string]string `toml:"start" help:"the start screen's keys"`
+		Terminal map[string]string `toml:"terminal" help:"a terminal window's keys in normal mode"`
 		Scratch  map[string]string `toml:"scratch" help:"the keys of a window fude writes to show something, such as :messages or a diff"`
 		Groups   map[string]string `toml:"groups" help:"names of the keys mappings start with, which key hints show"`
 	} `toml:"keymap"`
@@ -71,6 +77,7 @@ type config struct {
 		Root      []string `toml:"root" help:"the files that mark the folder it runs in, most wanted first, looked for from the file's folder up"`
 		Workspace bool     `toml:"workspace_required" help:"the formatter runs only for a file under one of its root files"`
 	} `toml:"formatter" key:"name"`
+	Task   map[string]taskConfig `toml:"task" key:"name"`
 	Plugin []struct {
 		Path         string         `toml:"path" help:"the plugin's file, from the config directory"`
 		Capabilities []string       `toml:"capabilities" help:"what the plugin may do"`

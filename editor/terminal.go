@@ -30,6 +30,8 @@ type terminal struct {
 	esc        bool   // an <Esc> waits for a second one, which leaves terminal mode
 	cols, rows int
 	exited     bool
+	task       string    // the task it runs, "" for :terminal (B228)
+	started    time.Time // when the task started
 }
 
 // Cell is a character of a terminal window's screen with its look. A nil
@@ -39,6 +41,22 @@ type Cell struct {
 	Width                                           int
 	Fg, Bg                                          color.Color
 	Bold, Faint, Italic, Underline, Reverse, Strike bool
+}
+
+// terminalKeys are a terminal window's own keys in normal mode, which
+// [keymap.terminal] changes (B142, B205).
+var terminalKeys = map[string]string{"q": "<Plug>(terminal.close)"}
+
+// closeTerminal closes the current terminal window once its program has
+// ended.
+func (e *Session) closeTerminal() {
+	if t := e.win.buf.term; t != nil && !t.exited {
+		e.message = "the program is still running, and :q stops it"
+		return
+	}
+	if err := e.closeWindow(e.win); err != nil {
+		e.message = err.Error()
+	}
 }
 
 // escTwice is how soon a second <Esc> must follow the first to leave
@@ -54,8 +72,10 @@ var termKeys = map[vim.Key]rune{
 }
 
 // openTerminal runs arg through the shell, or the shell alone, in a window
-// below a third of the screen tall, in terminal mode.
-func (e *Session) openTerminal(arg string) {
+// below a third of the screen tall, in terminal mode. A task's window keeps
+// the cursor in the window it ran from, and its name says the task.
+func (e *Session) openTerminal(arg, task string) {
+	from := e.win
 	shell := cmp.Or(os.Getenv("SHELL"), "/bin/sh")
 	argv := []string{shell}
 	if arg != "" {
@@ -68,12 +88,15 @@ func (e *Session) openTerminal(arg string) {
 	b := e.bufs[len(e.bufs)-1]
 	b.file.readonly = true
 	b.title = "[terminal " + cmp.Or(arg, shell) + "]"
+	if task != "" {
+		b.title = "[task " + task + "]"
+	}
 	e.split(false)
 	e.root.leaf(e.win).size = max(e.height/3, 3)
 	e.show(b)
 	e.win.opts = options{Wrap: false}
 	e.layout()
-	t := &terminal{name: cmp.Or(arg, shell), typing: true, cols: max(e.win.w, 1), rows: max(e.win.h-1, 1)}
+	t := &terminal{name: cmp.Or(arg, shell), typing: true, cols: max(e.win.w, 1), rows: max(e.win.h-1, 1), task: task, started: time.Now()}
 	t.em = vt.NewEmulator(t.cols, t.rows)
 	t.cmd = exec.Command(argv[0], argv[1:]...)
 	t.cmd.Env = append(os.Environ(), "TERM=xterm-256color")
@@ -118,6 +141,9 @@ func (e *Session) openTerminal(arg string) {
 		err := t.cmd.Wait()
 		e.queue <- func() { e.terminalExited(b, err) }
 	}()
+	if task != "" {
+		e.win = from
+	}
 }
 
 // terminalExited notes that b's program ended, and shows its last screen
@@ -134,6 +160,13 @@ func (e *Session) terminalExited(b *buffer, err error) {
 		status = exit.ExitCode()
 	}
 	b.title = fmt.Sprintf("[terminal %s, exited %d]", t.name, status)
+	if t.task != "" {
+		took := time.Since(t.started).Round(100 * time.Millisecond)
+		b.title = fmt.Sprintf("[task %s ✓ %s]", t.task, took)
+		if status != 0 {
+			b.title = fmt.Sprintf("[task %s ✗ %d, %s]", t.task, status, took)
+		}
+	}
 	if t.typing {
 		t.typing = false
 		e.freeze(b)
