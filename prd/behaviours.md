@@ -352,9 +352,11 @@ Where fude departs, the line says so and cites the departure in
   COMMAND. Then come the buffer's name with its directory dim and `~` for
   the home directory, a dot when it is modified, the git branch and the
   counts of errors and warnings. The right holds plugins' segments, the
-  keys being typed, the filetype and the ruler as `line:col`. The last row
-  no longer names the mode. Every status line has the theme's surface
-  ground, and another window's has muted text.
+  keys being typed, the filetype and the ruler as `line:col`. A wide
+  character takes two cells, and when the two sides do not fit, the status
+  line leaves out the right one. The last row no longer names the mode.
+  Every status line has the theme's surface ground, and another window's
+  has muted text.
 - B148 [2] The command line floats in a box with a rounded border in the
   upper middle of the screen, its prompt in the colour of commands or of
   search, and its completion menu under the box. Its cursor counts a wide

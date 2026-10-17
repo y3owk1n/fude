@@ -450,6 +450,19 @@ func TestB147StatusLine(t *testing.T) {
 	if _, style, _ := cl.s.Get(1, h-1); style.GetBackground() != themes["dark"].surface {
 		t.Errorf("another window's status line is on %v", style.GetBackground())
 	}
+	// Each wide character of a name takes two cells. When the name leaves no
+	// room, the status line leaves out its right side instead of drawing it
+	// over the name.
+	dir := t.TempDir()
+	t.Chdir(dir)
+	wide := strings.Repeat("世", 60) + ".txt"
+	if err := os.WriteFile(filepath.Join(dir, wide), []byte("a\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cl = start(t, wide)
+	if got := row(); strings.Contains(got, "1:1") {
+		t.Errorf("the right side drew over a wide name: %q", got)
+	}
 }
 
 // B148, B149
