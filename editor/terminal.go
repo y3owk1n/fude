@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"image/color"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -350,5 +351,12 @@ func (t *terminal) stop() {
 		t.cmd.Process.Kill()
 	}
 	t.pty.Close()
+	// The emulator's Close races its Read, which the goroutine passing its
+	// answers to the program waits in. Closing its input pipe ends that Read
+	// without the race.
+	if pw, ok := t.em.InputPipe().(*io.PipeWriter); ok {
+		pw.Close()
+		return
+	}
 	t.em.Close()
 }
