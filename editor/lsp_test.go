@@ -662,12 +662,18 @@ func TestB65Format(t *testing.T) {
 			t.Errorf("u after %s left %q, want it undone in one step", c[0], text(e))
 		}
 	}
+	// The server hears the file's indent width and whether it indents with
+	// spaces.
+	e, log := withServer(t, "a\nb\nc", "utf-8", "expand_tab = true\nindent_width = 2")
+	heard(t, log, `"method":"textDocument/didOpen"`, 1)
+	feed(e, "gqq")
+	heard(t, log, `"options":{"insertSpaces":true,"tabSize":2}`, 1)
 	// A formatter formats the whole file, and only its changes to the lines
 	// apply.
 	path := filepath.Join(t.TempDir(), "a.txt")
 	change(t, path, "x\nx\nx\n")
 	config(t, "[filetype.txt]\nformat = [\"y\"]\n[formatter.y]\ncommand = [\"sed\", \"s/x/y/\"]\n")
-	e := start(t, path)
+	e = start(t, path)
 	feed(e, "jgqq")
 	settle(t, e, func() bool { return text(e) != "x\nx\nx" })
 	if text(e) != "x\ny\nx" {

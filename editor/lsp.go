@@ -1454,11 +1454,11 @@ func (e *Session) formatting(b *buffer, s *server, start, end int, answer func(k
 	if ranged {
 		method = "textDocument/rangeFormatting"
 	}
-	tab := (host{e}).IndentWidth()
+	tab, spaces := e.indentWidth(b), e.expandTab(b)
 	s.client.Request(method, func(enc string) any {
 		p := map[string]any{
 			"textDocument": map[string]any{"uri": uri},
-			"options":      map[string]any{"tabSize": tab, "insertSpaces": false},
+			"options":      map[string]any{"tabSize": tab, "insertSpaces": spaces},
 		}
 		if ranged {
 			p["range"] = lsp.Range{Start: lsp.Point(t, from, enc), End: lsp.Point(t, to, enc)}

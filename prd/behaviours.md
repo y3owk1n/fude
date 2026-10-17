@@ -878,7 +878,8 @@ Where fude departs, the line says so and cites the departure in
   of the insert's undo step. A menu longer than its box scrolls to keep the
   selected item in view.
 - B65 [5] `gq{target}` formats the lines it covers as `:format` does,
-  through the filetype's formatters or else the server. The formatting is
+  through the filetype's formatters or else the server, which hears the
+  file's indent width and whether it indents with spaces. The formatting is
   one timeline node. A formatter formats the whole file, and fude applies
   only its changes inside the lines.
 - B66 [5] `grn` renames, `gra` lists code actions, `grr` references, `gri`
