@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/plugin"
@@ -196,6 +197,7 @@ func run(args []string) error {
 		defer unshare()
 	}
 	err = term.Run(e)
+	e.Finish(time.Second)
 	stop()
 	if path := e.Restart(); err == nil && path != "" {
 		exe, err := os.Executable()

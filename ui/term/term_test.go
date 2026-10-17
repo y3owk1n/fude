@@ -690,10 +690,11 @@ func TestB159LspPanelScrolls(t *testing.T) {
 	}
 }
 
-// serve serves e on a socket, running its loop off the test's goroutine,
-// and returns the socket and a way to run a func on that loop. The loop
-// stops before the test's other cleanups run.
-func serve(t *testing.T, e *editor.Session) (string, func(func())) {
+// serve serves e on a socket, running its loop off the test's goroutine.
+// It returns the socket, a way to run a func on that loop, and a way to run
+// a func as the loop's last, as fude's loop ends once its terminal does.
+// The loop stops before the test's other cleanups run.
+func serve(t *testing.T, e *editor.Session) (string, func(func()), func(func())) {
 	t.Helper()
 	// A socket path must be short, so it goes in a directory of its own.
 	dir, err := os.MkdirTemp("", "fude")
@@ -703,7 +704,7 @@ func serve(t *testing.T, e *editor.Session) (string, func(func())) {
 	t.Cleanup(func() { os.RemoveAll(dir) })
 	path := filepath.Join(dir, "s")
 	t.Cleanup(e.Serve(path))
-	do, stop, stopped := make(chan func()), make(chan struct{}), make(chan struct{})
+	do, last, stop, stopped := make(chan func()), make(chan func()), make(chan struct{}), make(chan struct{})
 	t.Cleanup(func() { close(stop); <-stopped })
 	go func() {
 		defer close(stopped)
@@ -713,16 +714,22 @@ func serve(t *testing.T, e *editor.Session) (string, func(func())) {
 				f()
 			case f := <-do:
 				f()
+			case f := <-last:
+				f()
+				return
 			case <-stop:
 				return
 			}
 		}
 	}()
 	return path, func(f func()) {
-		ran := make(chan struct{})
-		do <- func() { f(); close(ran) }
-		<-ran
-	}
+			ran := make(chan struct{})
+			do <- func() { f(); close(ran) }
+			<-ran
+		}, func(f func()) {
+			last <- f
+			<-stopped
+		}
 }
 
 // shows runs what the frames bring and draws, until the screen shows want
@@ -756,7 +763,7 @@ func TestB239Attach(t *testing.T) {
 		t.Fatal(err)
 	}
 	host := startWith(t, "", path).e.(*editor.Session)
-	socket, on := serve(t, host)
+	socket, on, halt := serve(t, host)
 	a, err := Attach(socket)
 	if err != nil {
 		t.Fatal(err)
@@ -793,12 +800,13 @@ func TestB239Attach(t *testing.T) {
 	if !strings.Contains(broken.Ended(), "the connection to fude broke") {
 		t.Errorf("a client whose connection broke said %q", broken.Ended())
 	}
-	// When fude quits, it says so.
-	on(func() {
+	// When fude quits, it says so, though its loop ends with its terminal.
+	halt(func() {
 		for _, k := range vim.Keys(":qa!<CR>") {
 			host.Feed(k)
 		}
 	})
+	host.Finish(time.Second)
 	for deadline := time.After(5 * time.Second); !a.Done(); {
 		select {
 		case f := <-a.Queue():
@@ -911,7 +919,7 @@ func TestB248Share(t *testing.T) {
 	}
 	t.Setenv("USER", "kyle")
 	host := startWith(t, "", path).e.(*editor.Session)
-	_, on := serve(t, host)
+	_, on, _ := serve(t, host)
 	join := joining(share(t, host, on, ""))
 	// The host is asked, and y lets the guest in to a guest's session.
 	asked(t, host, on, "kyle")
@@ -961,7 +969,7 @@ func TestB249ShareOnce(t *testing.T) {
 	}
 	t.Setenv("USER", "kyle")
 	host := startWith(t, "", "a.txt").e.(*editor.Session)
-	_, on := serve(t, host)
+	_, on, _ := serve(t, host)
 	str := share(t, host, on, "")
 	refused := func(s, why string) { refused(t, s, why) }
 	feed := func(keys string) {
@@ -1041,7 +1049,7 @@ func TestB250WhoAndKick(t *testing.T) {
 	}
 	t.Setenv("USER", "kyle")
 	host := startWith(t, "", "a.txt").e.(*editor.Session)
-	_, on := serve(t, host)
+	_, on, _ := serve(t, host)
 	ex := func(line string) string {
 		var msg string
 		on(func() {
@@ -1118,7 +1126,7 @@ func TestB251Relay(t *testing.T) {
 	}
 	t.Setenv("USER", "kyle")
 	host := startWith(t, "", "a.txt").e.(*editor.Session)
-	_, on := serve(t, host)
+	_, on, _ := serve(t, host)
 	ex := func(line string) string {
 		var msg string
 		on(func() {

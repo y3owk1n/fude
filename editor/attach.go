@@ -113,7 +113,9 @@ func (e *Session) attached(s *Session, in *bufio.Scanner, out func(any) error, o
 	kick, gone := make(chan struct{}, 1), make(chan struct{})
 	handled := 0 // on the loop, as the frames read it there
 	defer close(gone)
+	e.clients.Add(1)
 	go func() {
+		defer e.clients.Add(-1)
 		// One goroutine makes and sends the frames, so the edits of each
 		// reach the client in order.
 		sent, last := map[int]kernel.Version{}, []byte(nil)
@@ -168,6 +170,19 @@ func (e *Session) attached(s *Session, in *bufio.Scanner, out func(any) error, o
 		select {
 		case kick <- struct{}{}:
 		default:
+		}
+	}
+}
+
+// Finish runs the loop's work until each attached client has had its last
+// frame, for at most d, so a client hears that fude quit before fude
+// exits (B242).
+func (e *Session) Finish(d time.Duration) {
+	for deadline := time.Now().Add(d); e.clients.Load() > 0 && time.Now().Before(deadline); {
+		select {
+		case f := <-e.queue:
+			f()
+		case <-time.After(time.Millisecond):
 		}
 	}
 }

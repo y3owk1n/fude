@@ -144,7 +144,7 @@ func TestPromiseKeyLatency(t *testing.T) {
 // the attached client draws each key's frame once it comes.
 func TestPromiseAttachLatency(t *testing.T) {
 	host := startWith(t, "large_file = 20", realCode(t, 10<<20)).e.(*editor.Session)
-	socket, _ := serve(t, host)
+	socket, _, _ := serve(t, host)
 	a, err := Attach(socket)
 	if err != nil {
 		t.Fatal(err)
