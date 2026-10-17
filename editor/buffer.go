@@ -75,8 +75,17 @@ func (b *buffer) pushChange(pos int) {
 	} else {
 		b.changes = append(b.changes, b.text.SetMark(pos, kernel.Right))
 	}
+	if over := len(b.changes) - placesKept; over > 0 {
+		for _, id := range b.changes[:over] {
+			b.text.DeleteMark(id)
+		}
+		b.changes = b.changes[over:]
+	}
 	b.changeAt = len(b.changes)
 }
+
+// placesKept is how many places a jumplist or changelist keeps (B90).
+const placesKept = 100
 
 func sameLine(t kernel.Snapshot, p, q int) bool {
 	return vim.LineStart(t, p) == vim.LineStart(t, q)

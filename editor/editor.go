@@ -1191,10 +1191,18 @@ func (e *Session) pushJump(pos int) {
 	for _, j := range w.jumps {
 		if j.buf != b || !sameLine(t, b.text.Mark(j.mark), pos) {
 			kept = append(kept, j)
+		} else {
+			j.buf.text.DeleteMark(j.mark)
 		}
 	}
-	w.jumps = append(kept, place{b, b.text.SetMark(pos, kernel.Right)})
-	w.jumpAt = len(w.jumps)
+	kept = append(kept, place{b, b.text.SetMark(pos, kernel.Right)})
+	if over := len(kept) - placesKept; over > 0 {
+		for _, j := range kept[:over] {
+			j.buf.text.DeleteMark(j.mark)
+		}
+		kept = kept[over:]
+	}
+	w.jumps, w.jumpAt = kept, len(kept)
 }
 
 // jump moves n jumps back, or forward when n is negative. The first step
@@ -1448,7 +1456,11 @@ func (e *Session) close(b *buffer, force bool) {
 		delete(segs, b)
 	}
 	for owner, ds := range e.decos {
-		e.decos[owner] = slices.DeleteFunc(ds, func(d decoration) bool { return d.buf == b })
+		// An owner with no decorations left, such as a closed diff's colours,
+		// is deleted.
+		if e.decos[owner] = slices.DeleteFunc(ds, func(d decoration) bool { return d.buf == b }); len(e.decos[owner]) == 0 {
+			delete(e.decos, owner)
+		}
 	}
 	i := index(e.bufs, b)
 	e.bufs = append(e.bufs[:i], e.bufs[i+1:]...)

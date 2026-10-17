@@ -130,6 +130,7 @@ func (h host) Apply(edits []vim.Edit, _ string) error {
 	} else {
 		e.changes = append(e.changes, e.r.text.SetMark(edits[0].Start, kernel.Right))
 	}
+	e.changes = e.trim(e.changes)
 	e.changeAt = len(e.changes)
 	return nil
 }
@@ -170,9 +171,30 @@ func (h host) SetTop(top int)            { h.e.top = top }
 // PushJump records pos as a jump, dropping an older one on its line.
 func (h host) PushJump(pos int) {
 	e, t := h.e, h.e.r.text.Snapshot()
-	e.jumps = slices.DeleteFunc(e.jumps, func(j kernel.MarkID) bool { return t.LineOf(e.r.text.Mark(j)) == t.LineOf(pos) })
-	e.jumps = append(e.jumps, e.r.text.SetMark(pos, kernel.Right))
+	e.jumps = slices.DeleteFunc(e.jumps, func(j kernel.MarkID) bool {
+		if t.LineOf(e.r.text.Mark(j)) != t.LineOf(pos) {
+			return false
+		}
+		e.r.text.DeleteMark(j)
+		return true
+	})
+	e.jumps = e.trim(append(e.jumps, e.r.text.SetMark(pos, kernel.Right)))
 	e.jumpAt = len(e.jumps)
+}
+
+// placesKept is how many places a jumplist or changelist keeps (B90).
+const placesKept = 100
+
+// trim drops the oldest of places past placesKept, with their marks.
+func (e *Editor) trim(places []kernel.MarkID) []kernel.MarkID {
+	over := len(places) - placesKept
+	if over <= 0 {
+		return places
+	}
+	for _, id := range places[:over] {
+		e.r.text.DeleteMark(id)
+	}
+	return places[over:]
 }
 
 // Jump moves n jumps back, or forward when n is negative. The first step

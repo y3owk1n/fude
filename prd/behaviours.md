@@ -690,7 +690,7 @@ Where fude departs, the line says so and cites the departure in
   `c`, `d`, `x`, `y` and host operators then act on every region, as on
   `:select`'s (B42), so `c` types into all of them at once (N35).
 - B90 [2] `<C-o>` and `<C-i>` move through the jumplist, and `g;` and `g,`
-  through the changelist, as in Neovim.
+  through the changelist, as in Neovim. Each keeps its newest 100 places.
 - B91 [2] `<C-w>c`, `<C-w>o`, `<C-w>q`, `<C-w>=` and `:q` in a split close
   or arrange splits as in Neovim, and `:sp`, `:vs`, `:on` and `:clo` split,
   keep only, or close the current window.

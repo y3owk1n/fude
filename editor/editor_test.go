@@ -464,6 +464,18 @@ func TestB90JumpsAndChanges(t *testing.T) {
 			t.Errorf("%q: in %q at line %d col %d, want %q at %d and %d", c.keys, first, line, col, c.text, c.line, c.col)
 		}
 	}
+	// The jumplist keeps the newest 100 places.
+	lines = nil
+	var jumps strings.Builder
+	for i := 1; i <= 130; i++ {
+		lines = append(lines, fmt.Sprintf("l%d", i))
+		fmt.Fprintf(&jumps, "%dG", i)
+	}
+	change(t, path, strings.Join(lines, "\n"))
+	e := open(t, path)
+	if feed(e, jumps.String()+"99<C-o><C-o>"); e.Text().LineOf(e.Cursor()) != 30 {
+		t.Errorf("<C-o> past the oldest of 100 jumps went to line %d, want 31", e.Text().LineOf(e.Cursor())+1)
+	}
 }
 
 // windows describes each window as x,y wxh and * for the current one.
