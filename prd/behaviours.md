@@ -486,6 +486,10 @@ Where fude departs, the line says so and cites the departure in
 - B235 [2] `>` and `<` in visual mode shift the selected lines and keep
   them selected, so `V>>>` shifts them three times (N36). A count shifts
   that many levels at once, as `V3>` does. `<Esc>` ends the selection.
+- B236 [2] `]e` and `[e` move the line down and up, n lines with a count,
+  and stop at the first and last lines. In visual mode they move the
+  selected lines and keep them selected (N37). Each move is one undo
+  step, and `.` repeats it.
 - B19 [2] An operator in operator-pending state waits for a target. `<Esc>`
   cancels and changes nothing.
 - B20 [2] `m{a-z}` sets a mark, and `` `x `` and `'x` jump to it. Marks

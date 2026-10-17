@@ -155,7 +155,7 @@ func (m *Machine) exMove(x exCall) error {
 		return errors.New("bad destination: " + x.arg)
 	}
 	if x.name[0] == 'm' {
-		return m.moveLines(x.first, x.last, target)
+		return m.moveLines(x.first, x.last, target, ":m")
 	}
 	return m.copyLines(x.first, x.last, target)
 }
@@ -327,7 +327,7 @@ func (m *Machine) exYank(x exCall) error {
 // moveLines moves lines first to last below the line starting at target, or
 // above the first line when target is -1, and puts the cursor on the last
 // line moved.
-func (m *Machine) moveLines(first, last, target int) error {
+func (m *Machine) moveLines(first, last, target int, label string) error {
 	t := m.h.Text()
 	end := LineEnd(t, last)
 	if target >= first && target <= last {
@@ -353,7 +353,7 @@ func (m *Machine) moveLines(first, last, target int) error {
 		e = Edit{Start: first, End: tend, Text: middle + "\n" + block}
 		landed = first + len(middle) + 1
 	}
-	if err := m.apply([]Edit{e}, ":m"); err != nil {
+	if err := m.apply([]Edit{e}, label); err != nil {
 		return err
 	}
 	m.cursorOnLast(landed, block)
@@ -384,6 +384,41 @@ func (m *Machine) cursorOnLast(start int, block string) {
 	t := m.h.Text()
 	ls := start + strings.LastIndexByte(block, '\n') + 1
 	m.h.SetCursor(firstNonBlank(t, ls, LineEnd(t, ls)))
+}
+
+// moveBy moves lines first to last n lines down, or up when n is negative,
+// as far as the text allows, and returns how far they moved (B236).
+func (m *Machine) moveBy(first, last, n int, label string) (int, error) {
+	t := m.h.Text()
+	a, b := t.LineOf(first), t.LineOf(last)
+	if n = max(min(n, t.Lines()-1-b), -a); n == 0 {
+		m.beep = true
+		return 0, nil
+	}
+	target := -1
+	switch {
+	case n > 0:
+		target = t.LineStart(b + n)
+	case a+n > 0:
+		target = t.LineStart(a + n - 1)
+	}
+	return n, m.moveLines(first, last, target, label)
+}
+
+// moveSelection moves the selected lines n lines down, or up when n is
+// negative, and keeps them selected (B236).
+func (m *Machine) moveSelection(n int, label string) error {
+	t, a, c := m.h.Text(), m.anchor, m.h.Cursor()
+	la, lc := t.LineOf(a), t.LineOf(c)
+	da, dc := a-t.LineStart(la), c-t.LineStart(lc)
+	n, err := m.moveBy(t.LineStart(min(la, lc)), t.LineStart(max(la, lc)), n, string(m.visual)+label)
+	if err != nil {
+		return err
+	}
+	t = m.h.Text()
+	m.anchor = t.LineStart(la+n) + da
+	m.h.SetCursor(t.LineStart(lc+n) + dc)
+	return nil
 }
 
 // global runs cmd on every line from first to last that matches pat, or that

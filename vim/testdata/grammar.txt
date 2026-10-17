@@ -324,6 +324,15 @@
 "|\t\tab\n\tcd" "Vj<<<Esc>" "ab\n|cd"
 "|ab\ncd" "Vj2><Esc>" "\t\tab\n\t\t|cd"
 
+# B236
+"|a\nb\nc" "]e" "b\n|a\nc"
+"a\nb\n|c" "2[e" "|c\na\nb"
+"|a\nb\nc" "5]e" "b\nc\n|a"
+"|a\nb\nc" "[e" "|a\nb\nc"
+"|a\nb\nc\nd" "Vj]e]e<Esc>" "c\nd\na\n|b"
+"a\nb\n|c\nd" "Vj[ed" "a\n|b"
+"|a\nb\nc" "]e." "b\nc\n|a"
+
 # B86
 "a\n|b\n  c\nd" ":d<CR>" "a\n  |c\nd"
 "a\n|b\nc\nd" ":2,3d<CR>" "a\n|d"

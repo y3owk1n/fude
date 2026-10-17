@@ -10,6 +10,8 @@ object, and a count may come before either. `2d3w` deletes six words.
   mode, `>` and `<` keep the selection, so `V>>>` indents three times.
 - `gc` comments lines, or uncomments them, in the language at the cursor.
 - `gq` formats lines through the filetype's formatters or the language server.
+- `]e` and `[e` move the line down and up. In visual mode they move the
+  selected lines and keep them selected.
 
 An operator typed twice acts on the line, so `yy` copies it and `>>`
 indents it. `D`, `C` and `Y` act to the end of the line.

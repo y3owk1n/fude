@@ -567,6 +567,14 @@ func TestB235VisualShiftKeeps(t *testing.T) {
 	cases(t)
 }
 
+// B236
+func TestB236MoveLines(t *testing.T) {
+	cases(t)
+	if _, h, _ := run(t, "|a\nb\nc\nd", "2]e"); h.steps != 1 {
+		t.Errorf("2]e made %d undo steps, want 1", h.steps)
+	}
+}
+
 // B86
 func TestB86LineCommands(t *testing.T) {
 	cases(t)

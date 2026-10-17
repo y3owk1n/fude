@@ -713,6 +713,14 @@ func init() {
 		"gn":    {"selects the next match of the last search", func(m *Machine, _ normalCall) error { return m.selectMatch(false) }},
 		"gN":    {"selects the match of the last search before the cursor", func(m *Machine, _ normalCall) error { return m.selectMatch(true) }},
 		"<C-n>": {"selects the word under the cursor, for <C-n> in visual mode to add its next match", func(m *Machine, _ normalCall) error { return m.addRegion() }},
+		"]e": {"moves the line n lines down", func(m *Machine, x normalCall) error {
+			_, err := m.moveBy(x.start, x.start, max(x.count, 1), "]e")
+			return err
+		}},
+		"[e": {"moves the line n lines up", func(m *Machine, x normalCall) error {
+			_, err := m.moveBy(x.start, x.start, -max(x.count, 1), "[e")
+			return err
+		}},
 		"gv": {"selects the last selection again", func(m *Machine, _ normalCall) error {
 			m.reselect()
 			return nil

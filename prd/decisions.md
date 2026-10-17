@@ -679,6 +679,16 @@ fix that. Why: indenting a block by several levels takes one `>` per
 level, and the user asked on 2026-10-17 for `V>>>` to keep shifting the
 block. The other operators still end visual mode.
 
+### N37. ]e and [e move lines
+
+`]e` and `[e` move the line, or the selected lines, down and up (B236),
+as vim-unimpaired's do. Neovim has no default keys for this, and LazyVim
+maps `<A-j>` and `<A-k>` to `:m`. Why: the user asked on 2026-10-17 for
+a way to move a line or a block. fude reads an Alt chord as `<Esc>` and
+then the key, which is what a terminal without the kitty protocol sends.
+So fude has no Alt keys to map. `]` and `[` already start fude's other pairs, such as
+`]h` and `]q`.
+
 ## Open
 
 None.

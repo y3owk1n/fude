@@ -237,6 +237,12 @@ type visualKey struct {
 // visuals are those commands by their keys. r{char} stands for r and any
 // character, which visualKey checks after visualOps.
 var visuals = map[string]visualKey{
+	"]e": {"moves the selected lines n lines down and keeps them selected", func(m *Machine, x visualCall) error {
+		return m.moveSelection(max(x.count, 1), "]e")
+	}},
+	"[e": {"moves the selected lines n lines up and keeps them selected", func(m *Machine, x visualCall) error {
+		return m.moveSelection(-max(x.count, 1), "[e")
+	}},
 	"<Esc>": {"leaves visual mode", func(m *Machine, x visualCall) error {
 		m.leaveVisual()
 		m.h.SetCursor(clamp(x.t, x.c))
