@@ -124,6 +124,11 @@ func drain(e Session, key func() bool) {
 	}
 }
 
+// presence returns the colour of other sessions numbered n (B253).
+func presence(n int) color.Color {
+	return [...]color.Color{th.insert, th.visual, th.cmd, th.hint, th.warn, th.normal}[n%6]
+}
+
 // selected reports whether the byte at, drawn at column x, is in sel.
 func selected(sel vim.Selection, at, x int) bool {
 	if len(sel.Regions) > 0 {
@@ -352,6 +357,15 @@ func (c *client) view(v editor.View, left int, sel vim.Selection, visual bool) (
 			win = win.int(r[0]).int(r[1])
 		}
 	}
+	for _, o := range v.Others {
+		win = win.int(o.Colour).int(o.Cursor)
+		if s := o.Selection; s != nil {
+			win = win.int(s.Start).int(s.End).flag(s.Block).int(s.Left).int(s.Right)
+			for _, r := range s.Regions {
+				win = win.int(r[0]).int(r[1])
+			}
+		}
+	}
 	row := 0
 	for row < v.H-1 {
 		end, line := vim.LineEnd(t, pos), t.LineOf(pos)
@@ -501,6 +515,16 @@ func (c *client) view(v editor.View, left int, sel vim.Selection, visual bool) (
 						// drops them.
 						style = base.Background(th.selection)
 					}
+					// Other sessions' selections draw underlined, and their
+					// cursors draw as cells, in their colours (B253).
+					for _, o := range v.Others {
+						if o.Selection != nil && selected(*o.Selection, at, col) {
+							style = style.Underline(true, presence(o.Colour))
+						}
+						if at == o.Cursor {
+							style = base.Background(presence(o.Colour)).Foreground(th.bg)
+						}
+					}
 					if rest[0] == '\t' {
 						w := v.Tab - col%v.Tab
 						c.s.FillArea(v.X+x, y, min(w, v.W-x), 1, ' ', style)
@@ -547,6 +571,11 @@ func (c *client) view(v editor.View, left int, sel vim.Selection, visual bool) (
 				c.colorColumn(v, y)
 				if i == len(starts)-1 && slices.Contains(cursors, end) && x < v.W {
 					c.s.Put(v.X+x, y, " ", base.Background(th.selection))
+				}
+				for _, o := range v.Others {
+					if i == len(starts)-1 && o.Cursor == end && x < v.W {
+						c.s.Put(v.X+x, y, " ", base.Background(presence(o.Colour)))
+					}
 				}
 			}
 		}

@@ -739,21 +739,26 @@ func (c *client) shows(t *testing.T, y int, want string) {
 	deadline := time.After(5 * time.Second)
 	for {
 		c.draw()
-		var b strings.Builder
-		for x := range 120 {
-			s, _, _ := c.s.Get(x, y)
-			b.WriteString(s)
-		}
-		if strings.Contains(b.String(), want) {
+		if strings.Contains(c.row(y), want) {
 			return
 		}
 		select {
 		case f := <-c.e.Queue():
 			f()
 		case <-deadline:
-			t.Fatalf("row %d is %q, want %q in it", y, b.String(), want)
+			t.Fatalf("row %d is %q, want %q in it", y, c.row(y), want)
 		}
 	}
+}
+
+// row returns the text row y of the screen shows.
+func (c *client) row(y int) string {
+	var b strings.Builder
+	for x := range 120 {
+		s, _, _ := c.s.Get(x, y)
+		b.WriteString(s)
+	}
+	return b.String()
 }
 
 // B239, B242
@@ -1239,5 +1244,41 @@ func TestB252Names(t *testing.T) {
 		case <-deadline:
 			t.Fatalf("the attached client sees %q", names(a.Views()))
 		}
+	}
+}
+
+// B253
+func TestB253Presence(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.txt")
+	if err := os.WriteFile(path, []byte("hello world\nsecond line\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	c := startWith(t, "", path)
+	host := c.e.(*editor.Session)
+	other := host.Attach("agent", editor.Host)
+	for _, k := range vim.Keys("jwvl") {
+		other.Feed(k)
+	}
+	c.draw()
+	// The other session's cursor is a cell in its colour, and its selection
+	// is underlined in it, on a line other than the host's cursor.
+	colour := presence(1)
+	if _, s, _ := c.s.Get(8, 1); s.GetBackground() != colour {
+		t.Errorf("the other session's cursor has the ground %v, want %v", s.GetBackground(), colour)
+	}
+	if _, s, _ := c.s.Get(7, 1); s.GetUnderlineStyle() == tcell.UnderlineStyleNone || s.GetUnderlineColor() != colour {
+		t.Errorf("the other session's selection is underlined %v in %v, want %v", s.GetUnderlineStyle(), s.GetUnderlineColor(), colour)
+	}
+	// The status line names it.
+	if row := c.row(39); !strings.Contains(row, "agent") {
+		t.Errorf("the status line is %q, want it to name the other session", row)
+	}
+	// A cursor after the line's end shows there.
+	for _, k := range vim.Keys("<Esc>A") {
+		other.Feed(k)
+	}
+	c.draw()
+	if _, s, _ := c.s.Get(11, 1); s.GetBackground() != colour {
+		t.Errorf("the other session's cursor after the line has the ground %v, want %v", s.GetBackground(), colour)
 	}
 }
