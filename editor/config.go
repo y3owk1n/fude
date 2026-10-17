@@ -30,6 +30,7 @@ type config struct {
 	FlashTime       uint     `toml:"flash_time" help:"the milliseconds text just yanked, put, undone or redone shows highlighted, 0 for never"`
 	LargeFile       uint     `toml:"large_file" help:"the megabytes over which a file opens with syntax and language servers off"`
 	Center          bool     `toml:"center" help:"the windows start centered on a wide screen, as :center toggles"`
+	TerminalHeight  uint     `toml:"terminal_height" help:"the percent of the screen's rows a terminal or task window takes when it opens"`
 	Autocomplete    bool     `toml:"autocomplete" help:"completions show while typing, not only on <C-x><C-o>"`
 	HighlightColors bool     `toml:"highlight_colors" help:"text that names a colour, such as #ff8800 or rgb(255, 136, 0), shows on that colour"`
 	InlayHints      bool     `toml:"inlay_hints" help:"language servers' inlay hints, such as parameter names and types, show in the text"`
@@ -94,7 +95,7 @@ type config struct {
 	} `toml:"plugin"`
 }
 
-var defaults = config{TabWidth: 8, KeyTimeout: 1000, KeyHints: 300, FlashTime: 300, FormatTimeout: 1000, LargeFile: 2, HighlightColors: true, InlayHints: true, StickyContext: true, Autopairs: true, Sources: []string{"lsp", "snippet", "path", "buffer"}, AutoInstall: true, Leader: "<Space>", Theme: "dark", options: options{Wrap: true, IndentGuides: true}}
+var defaults = config{TabWidth: 8, KeyTimeout: 1000, KeyHints: 300, FlashTime: 300, FormatTimeout: 1000, LargeFile: 2, TerminalHeight: 33, HighlightColors: true, InlayHints: true, StickyContext: true, Autopairs: true, Sources: []string{"lsp", "snippet", "path", "buffer"}, AutoInstall: true, Leader: "<Space>", Theme: "dark", options: options{Wrap: true, IndentGuides: true}}
 
 // options are the settings each window has, which :set changes for the
 // current window and the windows opened after it (B39). :set takes each by

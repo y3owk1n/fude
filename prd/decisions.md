@@ -605,9 +605,9 @@ cases that make it annoying, so it can stay on.
 
 ### N29. A terminal opens below, and <Esc> twice leaves it
 
-`:terminal` opens in a window below, a third of the screen tall, in
-terminal mode, where Neovim's replaces the current window and starts in
-normal mode. `<Esc>` twice leaves terminal mode as `<C-\><C-n>` does. A
+`:terminal` opens in a window below, a third of the screen tall unless
+`terminal_height` says otherwise, in terminal mode, where Neovim's
+replaces the current window and starts in normal mode. `<Esc>` twice leaves terminal mode as `<C-\><C-n>` does. A
 single `<Esc>` waits 300ms for a second one, then goes to the program,
 ahead of any other key, so an Alt chord stays one. In normal mode the
 window holds the scrollback and screen as text, as they were when

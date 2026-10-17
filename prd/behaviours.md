@@ -146,9 +146,8 @@ Where fude departs, the line says so and cites the departure in
   a target of its Makefile or a script of its package.json. `:pick tasks`
   lists them, each with where it comes from and what it does, and runs the
   one picked. `:task name` runs one, and `:task` alone runs the last one
-  again. A task runs in a terminal window below a third of the screen
-  tall, as `:terminal` does (B205), while the cursor stays in the window it
-  ran from. The window is named after the task, then also with ✓ or ✗,
+  again. A task runs in a terminal window below, as `:terminal` does
+  (B205), while the cursor stays in the window it ran from. The window is named after the task, then also with ✓ or ✗,
   the exit code when it failed, and how long it took. Running a task again
   closes the window of its last run first. In a terminal window in normal
   mode, `q` closes it once its program has ended, and while it runs says
@@ -587,8 +586,8 @@ Where fude departs, the line says so and cites the departure in
   selection and a match keep their colours there. 0, the default, shades
   none, and neither do centered windows, since it is their edge (B199).
 - B205 [2] `:terminal` runs the shell, and `:terminal cmd` runs `cmd`
-  through it, in a terminal window below a third of the screen tall, in
-  terminal mode (N29). In terminal mode every key and paste goes to the
+  through it, in a terminal window below, in terminal mode (N29). The
+  window opens `terminal_height` percent of the screen tall, 33 unless set. In terminal mode every key and paste goes to the
   program, the window shows its screen in its colours, and the status line
   says TERMINAL. The program's terminal is the window's size and follows
   it. `<C-\><C-n>`, or `<Esc>` twice, goes to normal mode, where the

@@ -72,7 +72,7 @@ var termKeys = map[vim.Key]rune{
 }
 
 // openTerminal runs arg through the shell, or the shell alone, in a window
-// below a third of the screen tall, in terminal mode. A task's window keeps
+// below terminal_height percent of the screen tall, in terminal mode. A task's window keeps
 // the cursor in the window it ran from, and its name says the task.
 func (e *Session) openTerminal(arg, task string) {
 	from := e.win
@@ -92,7 +92,7 @@ func (e *Session) openTerminal(arg, task string) {
 		b.title = "[task " + task + "]"
 	}
 	e.split(false)
-	e.root.leaf(e.win).size = max(e.height/3, 3)
+	e.root.leaf(e.win).size = max((e.height*int(e.cfg.TerminalHeight)+50)/100, 3)
 	e.show(b)
 	e.win.opts = options{Wrap: false}
 	e.layout()

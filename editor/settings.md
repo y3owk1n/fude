@@ -56,6 +56,12 @@ one, and its gutter, so a split side by side doubles the width. When the
 windows need more than the screen, they take all of it. The default is
 off.
 
+## terminal_height
+
+How tall a window from `:terminal` or a task opens, in percent of the
+screen's rows, 33 unless set. It is never under 3 rows, and `:resize`
+changes it after.
+
 ## autocomplete
 
 In insert mode, the language server's completions show as a word or a

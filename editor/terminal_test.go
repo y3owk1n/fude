@@ -64,6 +64,14 @@ func TestB205Terminal(t *testing.T) {
 	if e.Terminal() || !strings.HasPrefix(text(e), "hi\nhi") {
 		t.Errorf("after cat ended, terminal mode is %v with %q", e.Terminal(), text(e))
 	}
+	// terminal_height sets how tall the window opens.
+	config(t, "terminal_height = 50\n")
+	e = start(t, path)
+	e.SetSize(80, 24)
+	feed(e, ":terminal cat<CR>")
+	if vs := e.Views(); len(vs) != 2 || vs[1].H != 12 {
+		t.Errorf("with terminal_height = 50 the terminal is %d rows tall, want 12", vs[len(vs)-1].H)
+	}
 }
 
 // B228
