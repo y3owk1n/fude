@@ -86,12 +86,6 @@ func init() {
 		}, completePath},
 		{vim.Command{Name: "enew", Help: "shows a new empty buffer"}, func(e *Session, _ call) { e.empty() }, nil},
 		{vim.Command{Name: "follow", Args: "{name}", Help: "keeps the window on what the session called name shows, until a key is typed"}, func(e *Session, x call) { e.startFollow(x.arg) }, completeFollow},
-		{vim.Command{Name: "format", Help: "formats the buffer, or the lines of a range, as a write with format_on_save does, without writing it"}, func(e *Session, x call) {
-			if !x.ranged {
-				x.first, x.last = 0, e.win.buf.text.Snapshot().Len()
-			}
-			e.format(e.win.buf, x.first, x.last)
-		}, nil},
 		{vim.Command{Name: "pick", Args: "[source] [text]", Help: "opens the finder on a source, or on the sources: files, grep [text], buffers, recent, diagnostics, symbols, help or keymaps"}, func(e *Session, x call) { e.openPick(x.arg) }, func(e *Session, _ string, start int, arg string, _ bool) (int, []string) {
 			return start, match(pickSources, arg)
 		}},
@@ -458,9 +452,4 @@ type hostOperator struct {
 }
 
 // hostOperators are the operators fude adds.
-var hostOperators = []hostOperator{
-	{"gq", "formats the lines a motion or object covers", func(e *Session, _ vim.Text, start, end int, _ bool) []vim.Edit {
-		e.format(e.win.buf, start, end)
-		return nil
-	}},
-}
+var hostOperators = []hostOperator{}

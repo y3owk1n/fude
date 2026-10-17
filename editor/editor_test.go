@@ -16,6 +16,7 @@ import (
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/modules/blame"
 	"github.com/y3owk1n/fude/modules/comment"
+	"github.com/y3owk1n/fude/modules/format"
 	gitmod "github.com/y3owk1n/fude/modules/git"
 	"github.com/y3owk1n/fude/modules/spell"
 	"github.com/y3owk1n/fude/syntax"
@@ -873,6 +874,7 @@ func TestB247ReadOnlyGuest(t *testing.T) {
 	project := t.TempDir()
 	t.Chdir(project)
 	e, log := withServerAt(t, filepath.Join(project, "a.go"), `say "hi" target`+"\n", "utf-8")
+	e.Use(format.New())
 	heard(t, log, `"method":"textDocument/didOpen"`, 1)
 	agent := e.Attach("agent", editor.Host)
 	viewer := e.Attach("viewer", editor.ReadOnly)
@@ -1935,6 +1937,7 @@ func TestB136FormatOnSave(t *testing.T) {
 	change(t, path, "keep\nx here\n")
 	config(t, "format_on_save = true\n[filetype.txt]\nformat = [\"y\", \"there\"]\n[formatter.y]\ncommand = [\"sed\", \"s/x/y/\"]\n[formatter.there]\ncommand = [\"sed\", \"s/here/there/\"]\n")
 	e := start(t, path)
+	e.Use(format.New())
 	// The commands run in turn, and the cursor on a line they keep stays.
 	feed(e, "ll:w<CR>")
 	settle(t, e, func() bool { return disk(t, path) == "keep\ny there\n" })
@@ -1944,11 +1947,13 @@ func TestB136FormatOnSave(t *testing.T) {
 	// A formatter that fails leaves the text, which is written anyway.
 	config(t, "format_on_save = true\n[filetype.txt]\nformat = [\"false\"]")
 	e = start(t, path)
+	e.Use(format.New())
 	feed(e, "x:w<CR>")
 	settle(t, e, func() bool { return disk(t, path) == "eep\ny there\n" })
 	// A filetype's format_on_save wins over the one at the top.
 	config(t, "format_on_save = true\n[filetype.txt]\nformat_on_save = false\nformat = [\"y\"]\n[formatter.y]\ncommand = [\"sed\", \"s/y/z/\"]\n")
 	e = start(t, path)
+	e.Use(format.New())
 	feed(e, "x:w<CR>")
 	settle(t, e, func() bool { return disk(t, path) == "ep\ny there\n" })
 }
@@ -1959,6 +1964,7 @@ func TestB234Format(t *testing.T) {
 	change(t, path, "keep\nx here\n")
 	config(t, "[filetype.txt]\nformat = [\"y\", \"fude-no-such-formatter\"]\n[formatter.y]\ncommand = [\"sed\", \"s/x/y/\"]\n")
 	e := start(t, path)
+	e.Use(format.New())
 	feed(e, "j:format<CR>")
 	settle(t, e, func() bool { return text(e) == "keep\ny here" })
 	if !e.Views()[0].Modified || disk(t, path) != "keep\nx here\n" {
@@ -1992,6 +1998,7 @@ command = ["tr", "a-z", "A-Z"]
 command = ["tr", "A-Z", "a-z"]
 `)
 	e := start(t, path)
+	e.Use(format.New())
 	feed(e, ":w<CR>")
 	settle(t, e, func() bool { return disk(t, path) == "AB\n" })
 }
@@ -2627,6 +2634,7 @@ func TestB34Recovery(t *testing.T) {
 	change(t, path, "one\n")
 	config(t, fmt.Sprintf("[filetype.txt]\nformat = [\"up\"]\n[formatter.up]\ncommand = [\"sh\", \"-c\", \"sed s/one/ONE/; touch %s\"]\n", done))
 	e = start(t, path)
+	e.Use(format.New())
 	feed(e, ":format<CR>:bd!<CR>")
 	settle(t, e, func() bool { _, err := os.Stat(done); return err == nil })
 	for end := time.After(100 * time.Millisecond); ; {

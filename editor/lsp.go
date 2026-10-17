@@ -883,3 +883,19 @@ func markupText(raw json.RawMessage) string {
 	}
 	return markup.Value
 }
+
+// commandOf returns the command config.toml gives name, or the name alone,
+// with a leading ~/ in each word made the home directory.
+func commandOf(name string, command []string) ([]string, error) {
+	if len(command) == 0 {
+		return []string{name}, nil
+	}
+	out := make([]string, len(command))
+	for i, word := range command {
+		var err error
+		if out[i], err = expandHome(word); err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}

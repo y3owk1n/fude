@@ -23,6 +23,7 @@ type event struct {
 	extra        api.Context // what a callback's context adds, such as a job's output
 	start, end   int         // the range buffer.changed covers, in the text after it
 	save         *saving     // the write that waits for this event, or nil (B282)
+	from         *Session    // the session whose call asked for this callback, or nil
 }
 
 // listener hands one plugin the events it subscribed to, one at a time, off
@@ -190,7 +191,12 @@ func (e *Session) listen(p api.Module) *listener {
 					trace.Record("plugin", p.Name()+" heard "+name, time.Since(at))
 				}
 				scope.Done()
-				if !on(func() { e.handled(p, ev, err, t, res) }) {
+				// A callback runs as the session that asked for it (B247).
+				s := e
+				if ev.from != nil && slices.Contains(e.sessions, ev.from) {
+					s = ev.from
+				}
+				if !on(func() { s.handled(p, ev, err, t, res) }) {
 					return
 				}
 			}

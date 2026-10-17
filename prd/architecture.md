@@ -55,6 +55,7 @@ modules/         Go packages over api/ and protocol/ that cmd/fude adds with
                  editor.Use
   blame/         :blame
   comment/       gc
+  format/        gq, :format and format_on_save
   git/           git signs, hunks, gh, gH and :gitdiff
   spell/         spell, ]s, [s, z= and zg
 cmd/fude/        main, distribution wiring

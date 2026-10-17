@@ -136,6 +136,11 @@ func (e *Session) result(p api.Module, b *buffer, t kernel.Snapshot, res api.Res
 	if len(edits) == 0 {
 		return
 	}
+	// A read-only session changes no text, through a module either (B247).
+	if err := e.mayEdit(); err != nil {
+		e.message = err.Error()
+		return
+	}
 	tx := kernel.Transaction{Base: t.Version(), Origin: e.origin, Label: "plugin " + p.Name(), Time: e.now()}
 	for _, ed := range edits {
 		tx.Edits = append(tx.Edits, kernel.Edit(ed))
@@ -177,7 +182,7 @@ func (e *Session) pluginRequest(p api.Module, b *buffer, rq api.Request, save *s
 	l := e.listen(p)
 	reply := func(extra api.Context) {
 		if slices.Contains(e.modules, p) {
-			l.add(event{buf: b, id: rq.ID, extra: extra, save: save})
+			l.add(event{buf: b, id: rq.ID, extra: extra, save: save, from: e})
 		}
 	}
 	var to []*server
@@ -276,7 +281,7 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 			}
 			e.queue <- func() {
 				if slices.Contains(e.modules, p) {
-					l.add(event{buf: b, id: j.ID, extra: extra, save: save})
+					l.add(event{buf: b, id: j.ID, extra: extra, save: save, from: e})
 				}
 			}
 		}()
@@ -286,7 +291,7 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 		time.AfterFunc(tm.After, func() {
 			e.queue <- func() {
 				if slices.Contains(e.modules, p) {
-					e.listen(p).add(event{buf: b, id: tm.ID, save: save})
+					e.listen(p).add(event{buf: b, id: tm.ID, save: save, from: e})
 				}
 			}
 		})
@@ -311,7 +316,7 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 		wait()
 		answer := func(picked int, query string, ok bool) {
 			if slices.Contains(e.modules, p) {
-				e.listen(p).add(event{buf: b, id: pk.ID, extra: api.Context{"picked": strconv.Itoa(picked), "text": query, "ok": strconv.FormatBool(ok)}, save: save})
+				e.listen(p).add(event{buf: b, id: pk.ID, extra: api.Context{"picked": strconv.Itoa(picked), "text": query, "ok": strconv.FormatBool(ok)}, save: save, from: e})
 			}
 		}
 		// One list shows at a time, so a second is cancelled.

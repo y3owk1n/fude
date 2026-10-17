@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/y3owk1n/fude/editor"
+	"github.com/y3owk1n/fude/modules/format"
 	"github.com/y3owk1n/fude/protocol/lsp"
 	"github.com/y3owk1n/fude/wire"
 )
@@ -653,6 +654,7 @@ func TestB65Format(t *testing.T) {
 		{"Vjgq", "\ta\n\tb\nc"},
 	} {
 		e, log := withServer(t, "a\nb\nc", "utf-8")
+		e.Use(format.New())
 		heard(t, log, `"method":"textDocument/didOpen"`, 1)
 		feed(e, c[0])
 		settle(t, e, func() bool { return text(e) != "a\nb\nc" })
@@ -666,15 +668,18 @@ func TestB65Format(t *testing.T) {
 	// The server hears the file's indent width and whether it indents with
 	// spaces.
 	e, log := withServer(t, "a\nb\nc", "utf-8", "expand_tab = true\nindent_width = 2")
+	e.Use(format.New())
 	heard(t, log, `"method":"textDocument/didOpen"`, 1)
 	feed(e, "gqq")
-	heard(t, log, `"options":{"insertSpaces":true,"tabSize":2}`, 1)
+	// The module asks the server from the loop, so the loop runs meanwhile.
+	settle(t, e, func() bool { return strings.Contains(disk(t, log), `"options":{"insertSpaces":true,"tabSize":2}`) })
 	// A formatter formats the whole file, and only its changes to the lines
 	// apply.
 	path := filepath.Join(t.TempDir(), "a.txt")
 	change(t, path, "x\nx\nx\n")
 	config(t, "[filetype.txt]\nformat = [\"y\"]\n[formatter.y]\ncommand = [\"sed\", \"s/x/y/\"]\n")
 	e = start(t, path)
+	e.Use(format.New())
 	feed(e, "jgqq")
 	settle(t, e, func() bool { return text(e) != "x\nx\nx" })
 	if text(e) != "x\ny\nx" {
@@ -685,6 +690,7 @@ func TestB65Format(t *testing.T) {
 // B136, without format commands
 func TestB136FormatOnSaveServer(t *testing.T) {
 	e, log := withServer(t, "a\nb", "utf-8", "format_on_save = true")
+	e.Use(format.New())
 	heard(t, log, `"method":"textDocument/didOpen"`, 1)
 	feed(e, ":w<CR>")
 	settle(t, e, func() bool { return !e.Views()[0].Modified && text(e) == "\ta\n\tb" })
@@ -696,6 +702,7 @@ func TestB136FormatOnSaveServer(t *testing.T) {
 	// stays on it.
 	t.Setenv("FUDE_FAKE_WHOLE", "1")
 	e, log = withServer(t, "ab\n\tb\nc\n", "utf-8", "format_on_save = true")
+	e.Use(format.New())
 	heard(t, log, `"method":"textDocument/didOpen"`, 1)
 	feed(e, "l:w<CR>")
 	settle(t, e, func() bool { return !e.Views()[0].Modified && text(e) != "ab\n\tb\nc" })
