@@ -646,6 +646,36 @@ func TestB36TerminalClipboard(t *testing.T) {
 	}
 }
 
+// B241
+func TestB241AttachedClipboard(t *testing.T) {
+	bin := t.TempDir()
+	board := filepath.Join(bin, "board")
+	for name, script := range map[string]string{
+		"pbcopy": "cat > " + board, "wl-copy": "cat > " + board,
+		"pbpaste": "cat " + board, "wl-paste": "cat " + board,
+	} {
+		if err := os.WriteFile(filepath.Join(bin, name), []byte("#!/bin/sh\n"+script+"\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("PATH", bin+":/bin:/usr/bin")
+	t.Setenv("WAYLAND_DISPLAY", "fude-test")
+	change(t, board, "host")
+	path := filepath.Join(t.TempDir(), "f")
+	change(t, path, "ab cd\n")
+	e := open(t, path)
+	agent := e.Attach("agent")
+	// Its copy goes to its client, and leaves the host's clipboard alone.
+	feed(agent, `"+yiw`)
+	if text, ok := agent.TerminalClipboard(); !ok || text != "ab" || disk(t, board) != "host" {
+		t.Fatalf(`"+yiw in an attached session gave its client %q, and the host's clipboard holds %q`, text, disk(t, board))
+	}
+	// Its put takes its own copy, not the host's clipboard.
+	if feed(agent, `$"+p`); text(e) != "ab cdab" {
+		t.Fatalf(`"+p in an attached session put %q`, text(e))
+	}
+}
+
 // B37
 func TestB37Wrap(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "f")
