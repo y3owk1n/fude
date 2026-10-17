@@ -723,7 +723,8 @@ first language server that offers `textDocument/formatting`. `gq` and saving
 share the request and `reformat`, which applies the edits as one node and
 drops them when the text changed meanwhile. A timer writes the text as it
 is after `format_timeout`, so a formatter or server that hangs cannot hold
-the write (B136).
+the write (B136). `:format` runs the same formatting without the write
+(B234).
 
 ## Command line completion
 
@@ -824,7 +825,7 @@ ignore_case = false  # searches ignore case (B120)
 smart_case = false   # with ignore_case, an uppercase letter matches case (B120)
 expand_tab = false   # indent with spaces only (B122)
 format_on_save = false # format before :w writes (B136)
-format_timeout = 1000  # milliseconds a format before a write may take (B136)
+format_timeout = 1000  # milliseconds a format may take (B136, B234)
 key_hints = 300        # milliseconds before the keys that may follow show, 0 for never (B172)
 clipboard = false    # yanks, deletes and puts use the system clipboard (B137)
 sign_column = false  # keep the sign column when there are no signs (B143)

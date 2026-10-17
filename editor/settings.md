@@ -113,9 +113,9 @@ is one change on the timeline.
 
 ## format_timeout
 
-How long formatting before a write may take, in milliseconds. A formatter or
-server that takes longer leaves the text as it was, and fude writes it
-anyway and says why.
+How long formatting may take, in milliseconds. A formatter or server that
+takes longer leaves the text as it was, and fude says why. Before a write,
+fude writes the text anyway.
 
 ## leader
 

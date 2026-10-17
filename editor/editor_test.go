@@ -1245,6 +1245,25 @@ func TestB136FormatOnSave(t *testing.T) {
 	settle(t, e, func() bool { return disk(t, path) == "eep\ny there\n" })
 }
 
+// B234
+func TestB234Format(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.txt")
+	change(t, path, "keep\nx here\n")
+	config(t, "[filetype.txt]\nformat = [\"y\", \"fude-no-such-formatter\"]\n[formatter.y]\ncommand = [\"sed\", \"s/x/y/\"]\n")
+	e := start(t, path)
+	feed(e, "j:format<CR>")
+	settle(t, e, func() bool { return text(e) == "keep\ny here" })
+	if !e.Views()[0].Modified || disk(t, path) != "keep\nx here\n" {
+		t.Fatalf("after :format the file has %q, want it unwritten", disk(t, path))
+	}
+	if m := e.Message(); m != "fude-no-such-formatter not installed" {
+		t.Errorf("after :format the message is %q, want the formatter not installed", m)
+	}
+	if feed(e, "u"); text(e) != "keep\nx here" {
+		t.Errorf("u after :format left %q, want it undone in one step", text(e))
+	}
+}
+
 // B171
 func TestB171FirstFormatter(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "a.txt")

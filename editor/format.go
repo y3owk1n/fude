@@ -69,28 +69,60 @@ func commandOf(name string, command []string) ([]string, error) {
 	return out, nil
 }
 
-// formatOnSave formats b, then runs write: through its filetype's
-// formatters in turn, or else through its language server when none
-// applies. A formatter that fails, or takes longer than format_timeout,
-// leaves the text as it is, and write runs anyway (B136, B171).
+// formatOnSave formats b, then runs write. A formatter that fails leaves
+// the text as it is, and write runs anyway (B136, B171).
 func (e *Session) formatOnSave(b *buffer, write func()) {
 	runs, missing, err := e.formatters(b)
-	if err != nil {
-		e.message = err.Error()
-		write()
-		return
-	}
 	// The write's message names the formatters that are not installed.
-	written := func() {
+	written := func(failed string) {
 		write()
-		if len(missing) > 0 {
+		if failed != "" {
+			e.message = failed + ", written as it was"
+		} else if len(missing) > 0 {
 			e.message += ", " + strings.Join(missing, ", ") + " not installed"
 		}
 	}
+	switch {
+	case err != nil:
+		written(err.Error())
+	case !e.formatWith(b, runs, written):
+		written("")
+	}
+}
+
+// formatBuffer formats b as a write would, without writing it (B234).
+func (e *Session) formatBuffer(b *buffer) {
+	if b.file.readonly {
+		e.message = "cannot make changes, the file is read-only"
+		return
+	}
+	runs, missing, err := e.formatters(b)
+	if err != nil {
+		e.message = err.Error()
+		return
+	}
+	said := func(failed string) {
+		if failed != "" {
+			e.message = failed
+		} else if len(missing) > 0 {
+			e.message = strings.Join(missing, ", ") + " not installed"
+		}
+	}
+	if !e.formatWith(b, runs, said) {
+		e.message = "nothing formats this file"
+		said("")
+	}
+}
+
+// formatWith formats b through runs in turn, or else through its language
+// server when runs is empty. The formatting is one timeline node. It then
+// passes done why it failed, or "" when it did not. A formatter that fails,
+// or takes longer than format_timeout, leaves the text as it is. It returns
+// false, without calling done, when nothing formats b.
+func (e *Session) formatWith(b *buffer, runs []run, done func(failed string)) bool {
 	s := formatter(b)
 	if len(runs) == 0 && (s == nil || !s.client.Supports("documentFormattingProvider")) {
-		written()
-		return
+		return false
 	}
 	t := b.text.Snapshot()
 	waiting := true
@@ -102,10 +134,7 @@ func (e *Session) formatOnSave(b *buffer, write func()) {
 		waiting = false
 		timer.Stop()
 		e.reformat(b, t, edits, "format")
-		written()
-		if failed != "" {
-			e.message = failed + ", written as it was"
-		}
+		done(failed)
 	}
 	timeout := time.Duration(e.cfg.FormatTimeout) * time.Millisecond
 	timer = time.AfterFunc(timeout, func() {
@@ -124,9 +153,10 @@ func (e *Session) formatOnSave(b *buffer, write func()) {
 				finish(t, lineEdits(old, strings.TrimSuffix(out, "\n")), "")
 			}
 		}()
-		return
+		return true
 	}
 	e.formatting(b, 0, t.Len(), func(t kernel.Snapshot, edits []kernel.Edit) { finish(t, edits, "") })
+	return true
 }
 
 // runFormatters passes text through each formatter in turn, from its stdin

@@ -37,7 +37,7 @@ type config struct {
 	AutoInstall     bool     `toml:"auto_install" help:"builds a missing grammar the first time a file needs it"`
 	Socket          string   `toml:"socket" help:"where clients attach, instead of a path for each process"`
 	FormatOnSave    bool     `toml:"format_on_save" help:"a write formats the buffer first"`
-	FormatTimeout   uint     `toml:"format_timeout" help:"the milliseconds formatting before a write may take"`
+	FormatTimeout   uint     `toml:"format_timeout" help:"the milliseconds formatting may take"`
 	Leader          string   `toml:"leader" help:"what <Leader> in a mapping stands for"` // N18
 	Theme           string   `toml:"theme" help:"the colours: dark, light or a base16 scheme file"`
 	options

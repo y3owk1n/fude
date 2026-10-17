@@ -87,6 +87,13 @@ func init() {
 			e.edit(x.arg)
 		}, completePath},
 		{vim.Command{Name: "enew", Help: "shows a new empty buffer"}, func(e *Session, _ call) { e.empty() }, nil},
+		{vim.Command{Name: "format", Help: "formats the buffer as a write with format_on_save does, without writing it"}, func(e *Session, x call) {
+			if x.ranged {
+				e.message = "format takes no range, gq formats lines"
+				return
+			}
+			e.formatBuffer(e.win.buf)
+		}, nil},
 		{vim.Command{Name: "gitdiff", Help: "shows the lines that differ from git's index"}, func(e *Session, _ call) { e.gitDiff() }, nil},
 		{vim.Command{Name: "blame", Help: "shows who last changed the cursor's line, and when, after it, or stops showing it"}, func(e *Session, _ call) { e.blame = !e.blame }, nil},
 		{vim.Command{Name: "pick", Args: "[source] [text]", Help: "opens the finder on a source, or on the sources: files, grep [text], buffers, recent, diagnostics, symbols, help or keymaps"}, func(e *Session, x call) { e.openPick(x.arg) }, func(e *Session, _ string, start int, arg string, _ bool) (int, []string) {

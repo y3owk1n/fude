@@ -257,6 +257,10 @@ Where fude departs, the line says so and cites the departure in
   the file. It runs in the folder that holds the root file, or else the
   file's folder. With `format_first`, the write's message does not name
   the formatters that are not installed.
+- B234 [2] `:format` formats the buffer as `:w` with `format_on_save` does,
+  without writing it, and says which formatters are not installed. A
+  formatter that fails or takes over `format_timeout` milliseconds leaves
+  the text and says why. With nothing to format the file, it says so.
 - B137 [2] With `clipboard` on, a yank, delete or change without a
   register also copies to the system clipboard, and `"_` still copies
   nothing. A put without a register takes the clipboard when something
