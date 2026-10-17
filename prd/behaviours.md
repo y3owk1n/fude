@@ -1039,12 +1039,14 @@ Where fude departs, the line says so and cites the departure in
   to B247 say. The project is the directory fude started in. A session
   from `fude --share` is always a guest, and one from the local socket
   never is (D40).
-- B244 [7] A guest runs no program and changes nothing every session
-  shares, such as the working directory, the theme and the language
-  servers. `:!`, `:r !`, `:{range}!`, `:terminal`, `:task`, `:pick tasks`,
-  `:restart`, `:cd`, `:plugin reload`, `:grammar install` and `update`,
-  `:lsp` with a subcommand, `:theme`, and a code action that runs a
-  command each say a guest may not, and change nothing. So do keys mapped
+- B244 [7] A guest runs no program of its choosing and changes nothing
+  every session shares, such as the working directory, git's index, the
+  theme and the language servers. Formatters, language servers and git
+  run for it as the host's config says (D40). `:!`, `:r !`, `:{range}!`,
+  `:terminal`, `:task`, `:pick tasks`, `:restart`, `:cd`,
+  `:plugin reload`, `:grammar install` and `update`, `:lsp` with a
+  subcommand, `:theme`, `gh`, `gH` and a code action that runs a command
+  each say a guest may not, and change nothing. So do keys mapped
   to them, such as `ZR`. A guest's `:q` on its last window and `:qa` leave
   fude, as B240 says.
 - B245 [7] A guest opens, shows, writes, creates, renames and deletes only

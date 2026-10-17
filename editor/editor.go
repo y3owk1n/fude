@@ -219,6 +219,10 @@ func builtins(e *Session) {
 	}
 	for _, op := range hostOperators {
 		e.vim.Operator(op.keys, func(t vim.Text, start, end int, lines bool) []vim.Edit {
+			if e.power != Host && refusedOperators[op.keys] {
+				e.message = "a guest may not run " + op.keys
+				return nil
+			}
 			return op.run(e, t, start, end, lines)
 		})
 	}

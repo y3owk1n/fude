@@ -1521,8 +1521,9 @@ its machine's clipboard program or OSC 52, and a put reads that text
 Whether a session is a guest, and whether it is read-only, is fixed when
 the session is made. The server checks each limit in one place:
 
-- Commands: `ex` and the `<Plug>` dispatch refuse, for a guest, the
-  commands B244 names, so a key mapped to one is refused too. A code
+- Commands: `ex`, the `<Plug>` dispatch and fude's own operators refuse,
+  for a guest, the commands B244 names, so a key mapped to one is refused
+  too. A code
   action that runs a command is refused where it is taken.
 - Paths: one check, under the project after `EvalSymlinks` with `under`,
   runs where a buffer opens, where a file is written, read or listed, and
