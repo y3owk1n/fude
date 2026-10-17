@@ -247,7 +247,8 @@ Where fude departs, the line says so and cites the departure in
   ignores case. Matches show under a row naming their file, each as its
   line number and its line without leading blanks, at most 1000 of them.
   The selection moves over matches only, and the preview shows the lines
-  around the selected one with its line marked.
+  around the selected one with its line marked. A match on a line longer
+  than 64KB shows the line's start.
   `<CR>` opens the file at the match (N13).
 - B135 [2] In a command line, `<C-r>` and a register's name put the
   register's text at the cursor, without its last line break, and

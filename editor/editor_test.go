@@ -1054,6 +1054,10 @@ func TestB134Grep(t *testing.T) {
 	if feed(e, "<CR>"); e.Views()[0].Name != "a.go" || e.Cursor() != 10 {
 		t.Fatalf("<CR> opened %q at %d", e.Views()[0].Name, e.Cursor())
 	}
+	// A match on a line of megabytes shows with the others.
+	change(t, filepath.Join(dir, "c.txt"), "needle "+strings.Repeat("x", 2<<20)+"\n")
+	feed(e, ":pick grep needle<CR>")
+	settle(t, e, func() bool { r := results(); return slices.Contains(r, "b.txt") && slices.Contains(r, "c.txt") })
 }
 
 // B195

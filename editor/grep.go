@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"io"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -54,15 +55,26 @@ func grep(query string, all bool) ([]string, error) {
 		return nil, fmt.Errorf("%s: %w", cmd.Path, err)
 	}
 	var lines []string
-	in := bufio.NewScanner(out)
-	in.Buffer(nil, 1<<20)
-	for len(lines) < grepLimit && in.Scan() {
-		lines = append(lines, in.Text())
+	in := bufio.NewReaderSize(out, 64<<10)
+	for len(lines) < grepLimit && err == nil {
+		var line []byte
+		var more bool
+		if line, more, err = in.ReadLine(); err != nil {
+			break
+		}
+		lines = append(lines, string(line))
+		// A line longer than the reader's buffer shows its start.
+		for more && err == nil {
+			_, more, err = in.ReadLine()
+		}
 	}
-	if len(lines) == grepLimit {
-		// The rest are not shown, so the search stops.
+	if len(lines) == grepLimit || err != nil && !errors.Is(err, io.EOF) {
+		// The rest are not shown, or cannot be read, so the search stops.
 		cmd.Process.Kill()
 		cmd.Wait()
+		if len(lines) < grepLimit {
+			return nil, fmt.Errorf("%s: %w", cmd.Path, err)
+		}
 		return lines, nil
 	}
 	// Both exit with 1 when nothing matches.
