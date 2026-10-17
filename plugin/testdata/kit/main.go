@@ -1,7 +1,7 @@
 // Package main is a test plugin written with the sdk.
 // It registers the operator gs, which upper-cases its target, the object
-// aL, which is the whole text, and the key gS and the command :Shout, which
-// type "!" at the cursor. Needs buffer.read and buffer.write.
+// aL, which is the whole text, and the keys gS and <Leader>! and the command
+// :Shout, which type "!" at the cursor. Needs buffer.read and buffer.write.
 package main
 
 import (
@@ -22,6 +22,7 @@ func init() {
 	})
 	shout := func(c sdk.Call) { sdk.Edit(c.Cursor, c.Cursor, "!") }
 	sdk.Key("gS", "types ! at the cursor", shout)
+	sdk.Key("<Leader>!", "types ! at the cursor", shout)
 	sdk.Command("Shout", "types ! at the cursor", shout)
 }
 

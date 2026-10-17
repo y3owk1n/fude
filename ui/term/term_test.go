@@ -1285,13 +1285,41 @@ func TestB253Presence(t *testing.T) {
 
 // B254
 func TestB254OwnConfig(t *testing.T) {
+	kit, err := filepath.Abs("../../plugin/testdata/kit/kit.wasm")
+	if err != nil {
+		t.Fatal(err)
+	}
 	t.Chdir(t.TempDir())
 	if err := os.WriteFile("a.txt", []byte("hello\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("USER", "kyle")
-	host := startWith(t, "[keymap.normal]\nQ = \"ihost <Esc>\"\n", "a.txt").e.(*editor.Session)
+	host := startWith(t, fmt.Sprintf("[keymap.normal]\nQ = \"ihost <Esc>\"\n[[plugin]]\npath = %q\ncapabilities = [\"buffer.read\", \"buffer.write\"]\n", kit), "a.txt").e.(*editor.Session)
+	host.Load()
 	_, on, _ := serve(t, host)
+	text := func() string {
+		var s string
+		on(func() { t := host.Text(); s = t.Slice(0, t.Len()) })
+		return s
+	}
+	// The plugin has loaded once its command types on the host.
+	for deadline := time.Now().Add(5 * time.Second); text() != "!hello"; time.Sleep(10 * time.Millisecond) {
+		if time.Now().After(deadline) {
+			t.Fatalf("the plugin never loaded, leaving %q", text())
+		}
+		on(func() {
+			if text := host.Text(); text.Slice(0, text.Len()) == "hello" {
+				for _, k := range vim.Keys(":Shout<CR>") {
+					host.Feed(k)
+				}
+			}
+		})
+	}
+	on(func() {
+		for _, k := range vim.Keys("u") {
+			host.Feed(k)
+		}
+	})
 	str := share(t, host, on, "")
 	// config.toml on the guest's machine.
 	dir := t.TempDir()
@@ -1323,14 +1351,18 @@ func TestB254OwnConfig(t *testing.T) {
 	for _, k := range vim.Keys("Q,q") {
 		j.a.Feed(k)
 	}
-	text := func() string {
-		var s string
-		on(func() { t := host.Text(); s = t.Slice(0, t.Len()) })
-		return s
-	}
 	for deadline := time.Now().Add(5 * time.Second); text() != "guest hello"; time.Sleep(time.Millisecond) {
 		if time.Now().After(deadline) {
 			t.Fatalf("the guest's Q,q left %q, want its own mapping typed alone", text())
+		}
+	}
+	// A plugin's leader key takes the guest's leader.
+	for _, k := range vim.Keys(",!") {
+		j.a.Feed(k)
+	}
+	for deadline := time.Now().Add(5 * time.Second); strings.Count(text(), "!") != 1; time.Sleep(time.Millisecond) {
+		if time.Now().After(deadline) {
+			t.Fatalf("the guest's ,! left %q, want the plugin's key to type", text())
 		}
 	}
 	// Its windows take its options, and it draws in its theme.

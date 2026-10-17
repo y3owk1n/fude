@@ -1187,10 +1187,11 @@ Where fude departs, the line says so and cites the departure in
   window shows its buffer, as a cell in that session's colour, and that
   session's selection underlined in it. The window's status line names
   those sessions, each in its colour.
-- B254 [7] A guest's session takes the keymaps, leader and window options
-  of `config.toml` on the guest's machine, never the host's, and the
-  guest's terminal draws in that file's theme. Filetypes, language
-  servers, formatters, plugins and every other setting stay the host's.
+- B254 [7] A guest's session takes the keymaps, leader and window
+  options of `config.toml` on the guest's machine, never the host's, and
+  its leader stands for `<Leader>` in plugins' keys too. The guest's
+  terminal draws in that file's theme. Filetypes, language servers,
+  formatters, plugins and every other setting stay the host's.
 - B255 [7] `fude --join --read-only string` asks to join as a read-only
   guest (B247). The host's question says so, and on y the guest's
   session is read-only.

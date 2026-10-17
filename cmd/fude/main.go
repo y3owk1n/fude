@@ -81,8 +81,9 @@ func attach(args []string, name string) error {
 	if err := term.Run(a); err != nil {
 		return err
 	}
+	// The reason is a whole message, such as "fude quit".
 	if why := a.Ended(); why != "" {
-		fmt.Println("fude:", why)
+		fmt.Println(why)
 	}
 	return nil
 }
@@ -112,8 +113,9 @@ func join(args []string, name string) error {
 	if err := term.Run(a); err != nil {
 		return err
 	}
+	// The reason is a whole message, such as "fude quit".
 	if why := a.Ended(); why != "" {
-		fmt.Println("fude:", why)
+		fmt.Println(why)
 	}
 	return nil
 }

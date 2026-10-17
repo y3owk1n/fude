@@ -361,7 +361,7 @@ func (e *Session) unregister(p *plugin.Plugin) {
 			case plugin.Object:
 				s.vim.Object(r.Name, nil)
 			case plugin.Key:
-				s.vim.Unmap(vim.Normal, withLeader(r.Name, e.cfg.Leader))
+				s.vim.Unmap(vim.Normal, withLeader(r.Name, s.leader))
 				s.vim.Command(p.Name+"."+r.Name, nil)
 			case plugin.Insert:
 				s.vim.Unmap(vim.Insert, r.Name)
@@ -438,7 +438,7 @@ func (e *Session) register(p *plugin.Plugin, r plugin.Registration) {
 				edits, _, _ := s.run(p, r.ID, s.scope(s.win.buf, t), uint64(pos), uint64(count))
 				return edits
 			})
-			s.vim.Map(vim.Normal, withLeader(r.Name, e.cfg.Leader), "<Plug>("+name+")")
+			s.vim.Map(vim.Normal, withLeader(r.Name, s.leader), "<Plug>("+name+")")
 		})
 	case plugin.Insert:
 		name := p.Name + ".insert." + r.Name

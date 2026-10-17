@@ -7,6 +7,9 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+
+	"github.com/y3owk1n/fude/plugin"
+	"github.com/y3owk1n/fude/vim"
 )
 
 // Power is how much a session may do, fixed when it is made (B243).
@@ -138,9 +141,21 @@ func OwnConfig() (Own, error) {
 	return own, err
 }
 
-// use gives e the keys and window options of a guest's own config (B254).
+// use gives e the keys and window options of a guest's own config, and
+// moves the plugins' keys to its leader (B254).
 func (e *Session) use(own Own) {
 	e.useKeys(own.Keymap, own.Leader)
+	if own.Leader != "" {
+		for _, p := range e.plugins {
+			for _, r := range p.Registered {
+				if r.Kind == plugin.Key {
+					e.vim.Unmap(vim.Normal, withLeader(r.Name, e.leader))
+					e.vim.Map(vim.Normal, withLeader(r.Name, own.Leader), "<Plug>("+p.Name+"."+r.Name+")")
+				}
+			}
+		}
+		e.leader = own.Leader
+	}
 	e.opts = own.Options
 	for _, w := range e.root.windows() {
 		w.opts = own.Options

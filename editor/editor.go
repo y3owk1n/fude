@@ -72,6 +72,7 @@ type Session struct {
 	origin     kernel.Origin
 	power      Power               // how much the session may do (B243)
 	name       string              // who uses the session, "" for a client that sent none (B252)
+	leader     string              // what <Leader> in a plugin's keys stands for, a guest's own (B254)
 	following  *Session            // the session whose windows :follow copies (B256)
 	mirrors    map[*window]*window // by the other's window, the window that copies it
 	colour     int                 // which of six colours shows the session to others (B252)
@@ -186,6 +187,7 @@ func (ed *Editor) Attach(o kernel.Origin, p Power) *Session {
 // join gives the session a machine with everything sessions get, and one
 // window on the first session's buffer, or the first buffer.
 func (e *Session) join() {
+	e.leader = e.cfg.Leader
 	e.vim = vim.New(host{e})
 	e.vim.AutoPairs(e.cfg.Autopairs)
 	e.vim.Surround(true)
