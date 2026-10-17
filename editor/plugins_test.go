@@ -62,6 +62,17 @@ func settle(t *testing.T, e *editor.Session, done func() bool) {
 	}
 }
 
+// next runs the next thing the editor queues, or fails after 5s.
+func next(t *testing.T, e *editor.Session) {
+	t.Helper()
+	select {
+	case f := <-e.Queue():
+		f()
+	case <-time.After(5 * time.Second):
+		t.Fatal("nothing queued after 5s")
+	}
+}
+
 // fudeLog returns fude's log, or "" before anything is logged.
 func fudeLog() string {
 	b, _ := os.ReadFile(filepath.Join(os.Getenv("XDG_STATE_HOME"), "fude", "log"))
@@ -103,9 +114,11 @@ func TestB57Events(t *testing.T) {
 	// The loop hands it the event, and its log shows it began. It then loops
 	// until its budget runs out.
 	feed(e, "A!<Esc>")
-	(<-e.Queue())()
-	for strings.Count(fudeLog(), "listen: buffer.changed") < 2 {
-		time.Sleep(time.Millisecond)
+	next(t, e)
+	for deadline := time.Now().Add(5 * time.Second); strings.Count(fudeLog(), "listen: buffer.changed") < 2; time.Sleep(time.Millisecond) {
+		if time.Now().After(deadline) {
+			t.Fatal("the plugin never began the event")
+		}
 	}
 	if feed(e, "gZ"); !strings.Contains(e.Message(), "busy") {
 		t.Fatalf("gZ while the plugin handled an event said %q", e.Message())
@@ -126,7 +139,7 @@ func TestB58StatuslineSegments(t *testing.T) {
 func TestB59PluginFloat(t *testing.T) {
 	e := withPlugin(t, "pop", "ui")
 	e.Load()
-	(<-e.Queue())()
+	next(t, e)
 	feed(e, "gP")
 	f, ok := e.Float()
 	if !ok || f.Text != "hi" || len(f.Spans) != 1 || f.Spans[0].Name != "markup.strong" {
@@ -149,7 +162,7 @@ func TestB47ReadFile(t *testing.T) {
 	t.Chdir(filepath.Join(dir, "project"))
 	e := start(t, "data.txt")
 	e.Load()
-	(<-e.Queue())()
+	next(t, e)
 	if log := fudeLog(); !strings.Contains(log, "fsread: hello") || !strings.Contains(log, "fsread: refused") || !strings.Contains(log, "fsread: unlinked") || strings.Contains(log, "secret") {
 		t.Fatalf("the plugin logged:\n%s", log)
 	}
@@ -166,7 +179,7 @@ func TestB48RunPrograms(t *testing.T) {
 	e := start(t, "")
 	e.Load()
 	began := time.Now()
-	(<-e.Queue())()
+	next(t, e)
 	if took := time.Since(began); took > 2*time.Second || !strings.Contains(e.Message(), "budget") {
 		t.Fatalf("sleep 5 ran %v and the plugin said %q, want its budget to stop it", took, e.Message())
 	}
@@ -182,7 +195,7 @@ func TestB48RunPrograms(t *testing.T) {
 	e = start(t, "")
 	e.Load()
 	began = time.Now()
-	(<-e.Queue())()
+	next(t, e)
 	if took := time.Since(began); took > 2*time.Second {
 		t.Fatalf("a program whose child kept its output ran %v, want it to end with the program", took)
 	}
@@ -213,7 +226,7 @@ func TestB49HTTPGet(t *testing.T) {
 		change(t, path, url)
 		e := start(t, path)
 		e.Load()
-		(<-e.Queue())()
+		next(t, e)
 		if log := fudeLog(); !strings.Contains(log, want) || !strings.Contains(log, "net: refused") {
 			t.Fatalf("getting %s, the plugin logged:\n%s", url, log)
 		}
