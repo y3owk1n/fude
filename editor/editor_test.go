@@ -822,6 +822,23 @@ func TestB245GuestProject(t *testing.T) {
 		}
 	}
 	feed(e, ":cd "+project+"<CR>")
+	// A server's rename edits no file outside, even through a link in the
+	// project.
+	change(t, filepath.Join(away, "other.go"), "package p\n")
+	if err := os.Symlink(filepath.Join(away, "other.go"), "other.go"); err != nil {
+		t.Fatal(err)
+	}
+	served, log := withServerAt(t, filepath.Join(project, "a.go"), "a target\n", "utf-8")
+	heard(t, log, `"method":"textDocument/didOpen"`, 1)
+	renamer := served.Attach("guest", editor.Guest)
+	feed(renamer, "wgrn<BS><BS><BS><BS><BS><BS>goal<CR>")
+	settle(t, renamer, func() bool {
+		return strings.Contains(renamer.Message(), "renamed") || strings.Contains(renamer.Message(), "outside")
+	})
+	feed(served, ":ls<CR>")
+	if text(served) != "a goal" || !strings.HasSuffix(renamer.Message(), "other.go is outside the project") || strings.Contains(served.Message(), "other.go") {
+		t.Errorf("a guest's rename left %q, said %q, with the buffers %s", text(served), renamer.Message(), served.Message())
+	}
 }
 
 // B247
