@@ -1191,6 +1191,14 @@ func TestB129Files(t *testing.T) {
 	if feed(e, "<C-n><CR>"); e.Views()[0].Name != "editor/git.go" || e.Mode() != vim.Normal {
 		t.Fatalf("<C-n><CR> opened %q in %v mode", e.Views()[0].Name, e.Mode())
 	}
+	// A screen too short for a row of matches still shows the query.
+	e.SetSize(80, 5)
+	feed(e, ":pick files<CR>zzz")
+	if f, _ := e.Float(); !strings.HasPrefix(f.Text, "› zzz") {
+		t.Errorf("on a short screen the finder shows %q", f.Text)
+	}
+	feed(e, "<Esc>")
+	e.SetSize(80, 24)
 	// <Esc> closes the finder and opens nothing.
 	feed(e, ":pick files<CR>x<Esc>")
 	if _, ok := e.Float(); ok || e.Views()[0].Name != "editor/git.go" || text(e) != "editor/git.go" {

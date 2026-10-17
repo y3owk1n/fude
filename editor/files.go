@@ -339,7 +339,8 @@ func (f *finder) float(query string, cursor, width, height int) Float {
 		}
 		list = append(list, listRow{i, false})
 	}
-	for _, r := range list[max(selRow-rows+1, 0):min(max(selRow-rows+1, 0)+rows, len(list))] {
+	first := min(max(selRow-rows+1, 0), len(list))
+	for _, r := range list[first:min(first+rows, len(list))] {
 		s.WriteByte('\n')
 		start := s.Len()
 		m := f.matches[r.match]
