@@ -338,7 +338,7 @@ func (m *Machine) newline() error {
 	}
 	before := strings.TrimRight(t.Slice(ls, c), " \t")
 	if closing, ok := brackets[before[max(len(before)-1, 0):]]; ok {
-		inner := indent + m.level()
+		inner := m.indentText(textWidth(indent, 0, m.h.TabWidth()) + m.h.IndentWidth())
 		text := "\n" + inner
 		if strings.HasPrefix(strings.TrimLeft(t.Slice(c, le), " \t"), closing) {
 			text += "\n" + indent
@@ -364,7 +364,7 @@ func (m *Machine) openAbove() error {
 	fnb := firstNonBlank(t, c, LineEnd(t, c))
 	indent := t.Slice(c, fnb)
 	if strings.Contains(")]}", t.Slice(fnb, min(fnb+1, t.Len()))) && fnb < t.Len() {
-		indent += m.level()
+		indent = m.indentText(textWidth(indent, 0, m.h.TabWidth()) + m.h.IndentWidth())
 	}
 	if err := m.apply([]Edit{{Start: c, End: c, Text: indent + "\n"}}, m.label); err != nil {
 		return err
@@ -372,14 +372,6 @@ func (m *Machine) openAbove() error {
 	m.h.SetCursor(c + len(indent))
 	m.autoIndent = indent != ""
 	return nil
-}
-
-// level is one level of indent: a tab, or spaces with expand_tab.
-func (m *Machine) level() string {
-	if m.expandTab {
-		return strings.Repeat(" ", m.h.IndentWidth())
-	}
-	return "\t"
 }
 
 // brackets are the closing brackets by their opening ones.

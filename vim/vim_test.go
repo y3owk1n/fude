@@ -27,7 +27,10 @@ type host struct {
 	cols    int      // how wide the view is, 80 when 0
 	clip    string
 	fold    [2]int // a closed fold's first and last line, when last > 0
+	indent  int    // the indent width, the tab's when 0
 }
+
+func (h *host) IndentWidth() int { return cmp.Or(h.indent, vim.Tabstop) }
 
 func (h *host) Fold(line int) (int, int) {
 	if h.fold[1] > 0 && line >= h.fold[0] && line <= h.fold[1] {
@@ -151,7 +154,7 @@ func TestB202AutoPairs(t *testing.T) {
 		{"do|n", "a'", "don'|"},
 		{"|", "i(<BS>", "|"},
 		{"(|)", "i<BS>", "|"},
-		{"  |", "a{<CR>", "  {\n  \t|\n  }"},
+		{"  |", "a{<CR>", "  {\n\t  |\n  }"},
 	} {
 		h := &host{text: strings.Replace(c.start, "|", "", 1), cursor: strings.Index(c.start, "|")}
 		m := vim.New(h)
@@ -292,7 +295,7 @@ func TestB223Folds(t *testing.T) {
 func TestB211SmartIndent(t *testing.T) {
 	for _, c := range []struct{ start, keys, want string }{
 		// A line ending in an opening bracket indents the next a level more.
-		{"  if x {|", "o", "  if x {\n  \t|"},
+		{"  if x {|", "o", "  if x {\n\t  |"},
 		{"f(|", "a<CR>", "f(\n\t|"},
 		// Between a bracket and its closing one, the closing one moves down.
 		{"x := []int{|}", "i<CR>", "x := []int{\n\t|\n}"},
@@ -304,6 +307,16 @@ func TestB211SmartIndent(t *testing.T) {
 		if got, _, _ := run(t, c.start, c.keys); got != c.want {
 			t.Errorf("%q on %q made %q, want %q", c.keys, c.start, got, c.want)
 		}
+	}
+	// The level is indent_width wide, as >> shifts, in tabs then spaces.
+	h := &host{text: "\tif x {", cursor: 1, indent: 4}
+	for _, k := range vim.Keys("o") {
+		if err := vim.New(h).Feed(k); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if want := "\tif x {\n\t    "; h.text != want {
+		t.Errorf("o after a bracket with indent_width 4 made %q, want %q", h.text, want)
 	}
 }
 

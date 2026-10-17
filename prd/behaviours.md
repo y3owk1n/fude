@@ -540,7 +540,8 @@ Where fude departs, the line says so and cites the departure in
   in Neovim. `<C-w>` and `<C-u>` start a new undo step first. New lines
   keep the previous line's indent, as B211 adds to.
 - B211 [2] A new line after a line ending in `(`, `[` or `{` gets one
-  more indent level. When that bracket's closing one comes next on the
+  more indent level, `indent_width` columns more in tabs then spaces as
+  `>>` makes them. When that bracket's closing one comes next on the
   line, `<CR>` moves the closing one a line further down, at the line's
   indent. `O` above a line starting with a closing bracket opens a level
   in. A closing bracket typed on a line of blanks takes the indent of the
