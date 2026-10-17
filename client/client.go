@@ -13,6 +13,7 @@ import (
 	"sync"
 
 	"github.com/y3owk1n/fude/core/kernel"
+	"github.com/y3owk1n/fude/wire"
 )
 
 // Conn is a connection to fude, a session of its own on the server.
@@ -99,24 +100,6 @@ func (c *Conn) call(method string, params, result any) error {
 	return nil
 }
 
-// edit is an edit as the protocol carries it.
-type edit struct {
-	Start int    `json:"start"`
-	End   int    `json:"end"`
-	Text  string `json:"text"`
-}
-
-// pulled is the server's answer to pull: a buffer's edits since a version,
-// or its whole text.
-type pulled struct {
-	Buffer  int             `json:"buffer"`
-	Version kernel.Version  `json:"version"`
-	Edits   [][]kernel.Edit `json:"edits"`
-	Text    *string         `json:"text"`
-	Indent  int             `json:"indent"`
-	Tab     int             `json:"tab"`
-}
-
 // Replica is a copy of one buffer. Its own edits apply to it at once, and
 // Sync sends them to the server.
 type Replica struct {
@@ -143,7 +126,7 @@ type change struct {
 
 // Open copies buffer, or the session's current one for 0.
 func (c *Conn) Open(buffer int) (*Replica, error) {
-	var p pulled
+	var p wire.Pulled
 	if err := c.call("pull", map[string]any{"buffer": buffer}, &p); err != nil {
 		return nil, err
 	}
@@ -213,14 +196,11 @@ func (r *Replica) Sync() ([]kernel.Edit, error) {
 		return dropped, err
 	}
 	for len(r.pending) > 0 {
-		var res struct {
-			Applied bool           `json:"applied"`
-			Version kernel.Version `json:"version"`
-		}
-		changes := make([][]edit, len(r.pending[0]))
+		var res wire.Pushed
+		changes := make([][]wire.Edit, len(r.pending[0]))
 		for i, c := range r.pending[0] {
 			for _, e := range c.edits {
-				changes[i] = append(changes[i], edit(e))
+				changes[i] = append(changes[i], wire.Edit(e))
 			}
 		}
 		if err := r.c.call("push", map[string]any{"buffer": r.buf, "version": r.confirmed, "changes": changes}, &res); err != nil {
@@ -248,7 +228,7 @@ func (r *Replica) pull() ([]kernel.Edit, [][]kernel.Edit, error) {
 	if r.open > 0 {
 		return nil, nil, errors.New("cannot take the server's edits inside a group")
 	}
-	var p pulled
+	var p wire.Pulled
 	if err := r.c.call("pull", map[string]any{"buffer": r.buf, "version": r.confirmed}, &p); err != nil {
 		return nil, nil, err
 	}
@@ -262,7 +242,14 @@ func (r *Replica) pull() ([]kernel.Edit, [][]kernel.Edit, error) {
 			return nil, nil, errors.New("the copy lost its pending edits")
 		}
 	}
-	remote := p.Edits
+	var remote [][]kernel.Edit
+	for _, l := range p.Edits {
+		edits := make([]kernel.Edit, len(l))
+		for i, e := range l {
+			edits[i] = kernel.Edit(e)
+		}
+		remote = append(remote, edits)
+	}
 	if p.Text != nil {
 		// The server no longer has the edits since, so its text replaces
 		// the copy's.

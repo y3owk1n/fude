@@ -479,6 +479,14 @@ fude uses it. Why: a program may import any package outside `internal/`,
 and fude would have to keep that package's API for it. These have no
 such program.
 
+## D47. One package holds what goes over the socket
+
+`wire/` holds the types fude and its clients send each other: a replica's
+edits, pulls and pushes. `editor/` and `client/` both use it. Why: each
+side had its own copy of the replica types, and two copies of one
+protocol can disagree with nothing to catch it. `wire/` stays in the root
+module until a client outside it needs the types.
+
 ## Departures from Neovim
 
 Each entry: what differs, then why.

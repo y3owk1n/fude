@@ -41,6 +41,7 @@ protocol/        Go module: stdlib only, no dependency on fude's other packages
   lsp/           language server client
   dap/           debug adapter client
   framing/       the Content-Length frames both use
+wire/            what fude and its clients send over the socket
 ui/term/         terminal client
 client/          a client over the socket, with replicas of buffers
 internal/        packages only fude's own packages may import

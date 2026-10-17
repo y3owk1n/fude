@@ -19,6 +19,7 @@ import (
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/plugin"
 	"github.com/y3owk1n/fude/vim"
+	"github.com/y3owk1n/fude/wire"
 )
 
 // Command is an edit by names, as clients send it. It becomes the keys it
@@ -433,7 +434,7 @@ func (e *Session) call(method string, params json.RawMessage) (any, error) {
 		var p struct {
 			Buffer  int            `json:"buffer"`
 			Version kernel.Version `json:"version"`
-			Changes [][]wireEdit   `json:"changes"`
+			Changes [][]wire.Edit  `json:"changes"`
 		}
 		if err := json.Unmarshal(params, &p); err != nil {
 			return nil, fmt.Errorf("read push: %w", err)
@@ -446,43 +447,24 @@ func (e *Session) call(method string, params json.RawMessage) (any, error) {
 	return nil, nil
 }
 
-// wireEdit replaces [Start, End) with Text, as a replica pulls and pushes
-// it.
-type wireEdit struct {
-	Start int    `json:"start"`
-	End   int    `json:"end"`
-	Text  string `json:"text"`
-}
-
-// pulled is a buffer's edits since the version a replica holds, or its
-// whole text when the version is too old or not given (B79).
-type pulled struct {
-	Buffer  int            `json:"buffer"`
-	Version kernel.Version `json:"version"`
-	Edits   [][]wireEdit   `json:"edits,omitempty"`
-	Text    *string        `json:"text,omitempty"`
-	Indent  int            `json:"indent"` // the columns > and < shift by in the buffer
-	Tab     int            `json:"tab"`    // the columns a tab shows as in the buffer
-}
-
 // pull returns buffer id's edits since version, and shows the buffer in the
 // session's window so the client hears when it changes.
-func (e *Session) pull(id int, version *kernel.Version) (pulled, error) {
+func (e *Session) pull(id int, version *kernel.Version) (wire.Pulled, error) {
 	b, err := e.buffer(id)
 	if err != nil {
-		return pulled{}, err
+		return wire.Pulled{}, err
 	}
 	if b != e.win.buf {
 		e.win.show(b)
 	}
 	t := b.text.Snapshot()
-	p := pulled{Buffer: b.id, Version: t.Version(), Indent: host{e}.IndentWidth(), Tab: host{e}.TabWidth()}
+	p := wire.Pulled{Buffer: b.id, Version: t.Version(), Indent: host{e}.IndentWidth(), Tab: host{e}.TabWidth()}
 	if version != nil {
 		if lists, ok := b.text.Since(*version); ok {
 			for _, l := range lists {
-				edits := make([]wireEdit, len(l))
+				edits := make([]wire.Edit, len(l))
 				for i, ed := range l {
-					edits[i] = wireEdit(ed)
+					edits[i] = wire.Edit(ed)
 				}
 				p.Edits = append(p.Edits, edits)
 			}
@@ -494,26 +476,18 @@ func (e *Session) pull(id int, version *kernel.Version) (pulled, error) {
 	return p, nil
 }
 
-// pushed is whether a replica's edits applied, and the buffer's version.
-// Edits made against an older version do not apply, and the replica pulls
-// and pushes them again (B79).
-type pushed struct {
-	Applied bool           `json:"applied"`
-	Version kernel.Version `json:"version"`
-}
-
 // push applies changes, each a list of edits, made against version of
 // buffer id one after another, as one node of the session's.
-func (e *Session) push(id int, version kernel.Version, changes [][]wireEdit) (pushed, error) {
+func (e *Session) push(id int, version kernel.Version, changes [][]wire.Edit) (wire.Pushed, error) {
 	b, err := e.buffer(id)
 	if err != nil {
-		return pushed{}, err
+		return wire.Pushed{}, err
 	}
 	if b.file.readonly {
-		return pushed{}, errors.New("cannot make changes, the file is read-only")
+		return wire.Pushed{}, errors.New("cannot make changes, the file is read-only")
 	}
 	if b.text.Snapshot().Version() != version {
-		return pushed{false, b.text.Snapshot().Version()}, nil
+		return wire.Pushed{Applied: false, Version: b.text.Snapshot().Version()}, nil
 	}
 	b.text.BeginGroup(e.origin)
 	defer func() {
@@ -526,11 +500,11 @@ func (e *Session) push(id int, version kernel.Version, changes [][]wireEdit) (pu
 			t.Edits = append(t.Edits, kernel.Edit(ed))
 		}
 		if err := b.text.Apply(t); err != nil {
-			return pushed{}, fmt.Errorf("push: %w", err)
+			return wire.Pushed{}, fmt.Errorf("push: %w", err)
 		}
 		if len(c) > 0 {
 			b.pushChange(c[0].Start)
 		}
 	}
-	return pushed{true, b.text.Snapshot().Version()}, nil
+	return wire.Pushed{Applied: true, Version: b.text.Snapshot().Version()}, nil
 }
