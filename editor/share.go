@@ -383,3 +383,14 @@ func (e *Session) kick(name string) {
 	s.leave()
 	e.message = "ended " + name + "'s session"
 }
+
+// completeKick completes the names of the guests.
+func completeKick(e *Session, _ string, start int, arg string, _ bool) (int, []string) {
+	var names []string
+	for _, s := range e.sessions {
+		if s.power != Host {
+			names = append(names, s.name)
+		}
+	}
+	return start, match(names, arg)
+}

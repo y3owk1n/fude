@@ -183,6 +183,19 @@ func (e *Session) completeLater(line string, start int, arg string) {
 	}()
 }
 
+// completeOff finds the completions of line from start off the loop, and
+// shows them when the line is the same once they come.
+func (e *Session) completeOff(line string, start int, find func() []string) {
+	go func() {
+		items := find()
+		e.queue <- func() {
+			if now, _ := strings.CutPrefix(e.vim.Line(), ":"); e.vim.Mode() == vim.Cmdline && now == line {
+				e.cmenu = newMenu(line, start, items)
+			}
+		}
+	}()
+}
+
 // readEntries returns the names in dir, directories with a trailing slash,
 // and none for a directory it cannot read.
 func readEntries(dir string) []string {

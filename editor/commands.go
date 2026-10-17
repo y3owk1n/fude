@@ -84,7 +84,7 @@ func init() {
 			e.edit(x.arg)
 		}, completePath},
 		{vim.Command{Name: "enew", Help: "shows a new empty buffer"}, func(e *Session, _ call) { e.empty() }, nil},
-		{vim.Command{Name: "follow", Args: "{name}", Help: "keeps the window on what the session called name shows, until a key is typed"}, func(e *Session, x call) { e.startFollow(x.arg) }, nil},
+		{vim.Command{Name: "follow", Args: "{name}", Help: "keeps the window on what the session called name shows, until a key is typed"}, func(e *Session, x call) { e.startFollow(x.arg) }, completeFollow},
 		{vim.Command{Name: "format", Help: "formats the buffer, or the lines of a range, as a write with format_on_save does, without writing it"}, func(e *Session, x call) {
 			if !x.ranged {
 				x.first, x.last = 0, e.win.buf.text.Snapshot().Len()
@@ -156,7 +156,7 @@ func init() {
 			return start, match(e.helpTags(), arg)
 		}},
 		{vim.Command{Name: "jumps", Short: []string{"ju"}, Help: "lists the window's jumps"}, func(e *Session, _ call) { e.jumps() }, nil},
-		{vim.Command{Name: "kick", Args: "{name}", Help: "ends the session of the guest called name"}, func(e *Session, x call) { e.kick(x.arg) }, nil},
+		{vim.Command{Name: "kick", Args: "{name}", Help: "ends the session of the guest called name"}, func(e *Session, x call) { e.kick(x.arg) }, completeKick},
 		{vim.Command{Name: "later", Args: "{n}", Help: "goes n states forward. n may be a time such as 5m, or a count of writes such as 1f"}, func(e *Session, x call) { e.travel(x.arg, true) }, nil},
 		{vim.Command{Name: "lsp", Args: "[restart|stop|disable|enable]", Help: "opens the panel of language servers, or acts on the file's servers"}, func(e *Session, x call) {
 			if x.arg == "" {
@@ -206,7 +206,7 @@ func init() {
 		{vim.Command{Name: "set", Short: []string{"se"}, Args: "[option...]", Help: "sets options, or shows them all. name? shows one, noname turns one off and name! flips it"}, func(e *Session, x call) { e.set(x.arg) }, completeOption},
 		{vim.Command{Name: "share", Help: "shows a new share string, which lets one more guest join"}, func(e *Session, _ call) { e.reshare() }, nil},
 		{vim.Command{Name: "split", Short: []string{"sp"}, Args: "[file]", Help: "opens a window below, then opens file in it"}, splitAndEdit, completePath},
-		{vim.Command{Name: "task", Args: "[name]", Help: "runs the task named in a terminal window below, or the last one run again"}, func(e *Session, x call) { e.task(x.arg) }, nil},
+		{vim.Command{Name: "task", Args: "[name]", Help: "runs the task named in a terminal window below, or the last one run again"}, func(e *Session, x call) { e.task(x.arg) }, completeTask},
 		{vim.Command{Name: "terminal", Short: []string{"ter", "term"}, Args: "[cmd]", Help: "runs cmd, or the shell, in a terminal window below. <C-\\><C-n> or <Esc><Esc> leaves terminal mode, and i goes back"}, func(e *Session, x call) { e.openTerminal(x.arg, "") }, nil},
 		{vim.Command{Name: "theme", Args: "[dark|light|{file}]", Help: "switches the theme of every client, or shows the one in use"}, func(e *Session, x call) {
 			if x.arg == "" {

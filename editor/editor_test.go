@@ -1487,6 +1487,24 @@ func TestB131CommandCompletion(t *testing.T) {
 			t.Fatalf("after %q the line is %q, want %q", c.keys, e.Line(), c.line)
 		}
 	}
+	// Other sessions complete for :follow and guests for :kick.
+	e.Attach("pat", editor.Host)
+	e.Attach("guest", editor.Guest).SetName("sam")
+	for _, c := range []struct{ keys, line string }{
+		{"<Esc>:follow p<Tab>", ":follow pat"},
+		{"<Esc>:kick <Tab>", ":kick sam"},
+	} {
+		if feed(e, c.keys); e.Line() != c.line {
+			t.Errorf("after %q the line is %q, want %q", c.keys, e.Line(), c.line)
+		}
+	}
+	// Tasks complete off the loop as the line is typed.
+	if err := os.MkdirAll(".fude", 0o755); err != nil {
+		t.Fatal(err)
+	}
+	change(t, filepath.Join(".fude", "tasks.toml"), "[task.build]\ncommand = \"true\"\n")
+	feed(e, "<Esc>:task b")
+	settle(t, e, func() bool { f, _ := e.Float(); return strings.HasPrefix(f.Text, "build") })
 	// With autocomplete, the menu shows as the line is typed.
 	feed(e, "<Esc>:bu")
 	if f, ok := e.Float(); !ok || !strings.HasPrefix(f.Text, "buffer") {

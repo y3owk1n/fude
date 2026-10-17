@@ -97,3 +97,14 @@ func (e *Session) unfollow() func() {
 		}
 	}
 }
+
+// completeFollow completes the names of the other sessions.
+func completeFollow(e *Session, _ string, start int, arg string, _ bool) (int, []string) {
+	var names []string
+	for _, s := range e.sessions {
+		if s != e {
+			names = append(names, s.label())
+		}
+	}
+	return start, match(names, arg)
+}

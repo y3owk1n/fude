@@ -222,13 +222,17 @@ Where fude departs, the line says so and cites the departure in
   `:pick grep` says "type to search the files' lines".
 - B131 [2] In a `:` command line, `<Tab>` and `<C-n>` put the next
   completion of the word being typed in the line, and `<S-Tab>` and
-  `<C-p>` the one before. After the last comes the word as typed. `<C-y>`
-  keeps the completion and `<C-e>` puts the typed word back. A menu above
-  the line shows the completions, ranked as `matchfuzzy()` ranks them, as
-  Neovim's wildmenu does with `wildoptions=pum,fuzzy`. The word is a
-  command's name, a path for `:edit`, `:split` and `:vsplit`, an option
-  for `:set` or a buffer for `:buffer` and `:bdelete`. With `autocomplete`
-  on, the menu shows as the line is typed (N12).
+  `<C-p>` the one before. After the last comes the word as typed.
+  `<C-y>` keeps the completion and `<C-e>` puts the typed word back. A
+  menu above the line shows the completions, ranked as `matchfuzzy()`
+  ranks them, as Neovim's wildmenu does with `wildoptions=pum,fuzzy`.
+  The word is a command's name, a path for `:edit`, `:split` and
+  `:vsplit`, an option for `:set`, a buffer for `:buffer` and
+  `:bdelete`, a subcommand and launch settings for `:debug`, another
+  session for `:follow`, a guest for `:kick` or a task for `:task`.
+  Completions that need a file read or a program run, such as tasks,
+  show in the menu once found, and typing goes on meanwhile. With
+  `autocomplete` on, the menu shows as the line is typed (N12).
 - B132 [2] In normal and visual mode `<Up>`, `<Down>`, `<Home>`, `<End>`,
   `<PageUp>`, `<PageDown>` and `<Del>` are `k`, `j`, `0`, `$`, `<C-b>`,
   `<C-f>` and `x`. In insert mode the arrows, `<Home>` and `<End>` move

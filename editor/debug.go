@@ -102,16 +102,18 @@ func completeDebug(e *Session, line string, start int, arg string, wait bool) (i
 		return start, match(debugCommands, sub)
 	case sub != "start":
 		return 0, nil
-	case !wait:
-		e.completeLater(line, start, arg)
+	}
+	start += len(sub) + 1
+	names := func() []string {
+		// A file that fails to read gives no names, and :debug start says why.
+		all, _ := launches()
+		return match(slices.Sorted(maps.Keys(all)), rest)
+	}
+	if !wait {
+		e.completeOff(line, start, names)
 		return 0, nil
 	}
-	// A file that fails to read shows no names here, and :debug start says why.
-	all, err := launches()
-	if err != nil {
-		return 0, nil
-	}
-	return start + len(sub) + 1, match(slices.Sorted(maps.Keys(all)), rest)
+	return start, names()
 }
 
 // debugCommand runs :debug's subcommand in arg (B262, B263).

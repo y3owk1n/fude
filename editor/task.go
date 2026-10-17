@@ -263,3 +263,22 @@ func (e *Session) runningTasks() []string {
 	}
 	return out
 }
+
+// completeTask completes the names of the tasks, which it finds off the
+// loop while the line is typed, as finding them may run just.
+func completeTask(e *Session, line string, start int, arg string, wait bool) (int, []string) {
+	names := func() []string {
+		// Tasks that fail to read give no names, and :task says why.
+		ts, _ := findTasks(e.cfg.Task)
+		var out []string
+		for _, t := range ts {
+			out = append(out, t.name)
+		}
+		return match(out, arg)
+	}
+	if !wait {
+		e.completeOff(line, start, names)
+		return 0, nil
+	}
+	return start, names()
+}
