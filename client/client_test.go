@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/y3owk1n/fude/client"
 	"github.com/y3owk1n/fude/core/kernel"
@@ -141,6 +142,23 @@ func feed(t *testing.T, ed *client.Editor, keys string) {
 		if err := ed.Feed(k); err != nil {
 			t.Fatal(err)
 		}
+	}
+}
+
+// B78, through the client
+func TestB78ClientHearsChanges(t *testing.T) {
+	typed, path := served(t)
+	typed("ione<Esc>")
+	c := dial(t, path)
+	if _, err := c.Open(0); err != nil {
+		t.Fatal(err)
+	}
+	// Another session's edit of the buffer the client shows reaches it.
+	typed("atwo<Esc>")
+	select {
+	case <-c.Changed():
+	case <-time.After(5 * time.Second):
+		t.Fatal("the client heard no change after 5s")
 	}
 }
 
