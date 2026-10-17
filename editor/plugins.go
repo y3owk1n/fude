@@ -309,7 +309,7 @@ func (e *Session) decorate(p *plugin.Plugin, b *buffer, res plugin.Result) []vim
 			e.decos[p] = slices.Delete(e.decos[p], i, i+1)
 		}
 	}
-	slices.SortStableFunc(res.Edits, func(x, y api.Edit) int { return cmp.Compare(x.Start, y.Start) })
+	slices.SortStableFunc(res.Edits, func(x, y plugin.Edit) int { return cmp.Compare(x.Start, y.Start) })
 	edits := make([]vim.Edit, len(res.Edits))
 	for i, ed := range res.Edits {
 		edits[i] = vim.Edit(ed)

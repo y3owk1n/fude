@@ -79,6 +79,7 @@ A call on the input path, such as a key or an operator, has a time budget. fude 
 ## More
 
 - [`plugin/testdata`](../plugin/testdata) holds small plugins, each written with this module.
+- [`plugintest`](../plugin/plugintest) runs a plugin's `.wasm` in `go test`, as fude runs it.
 - `:h guide-plugins` in fude covers settings, events and the budget.
 
 ## License

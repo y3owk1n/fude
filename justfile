@@ -1,5 +1,5 @@
 # The Go modules in this repo.
-modules := "core vim syntax protocol ."
+modules := "core vim syntax protocol plugin ."
 
 # List the recipes.
 default:

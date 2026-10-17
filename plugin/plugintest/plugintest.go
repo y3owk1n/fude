@@ -12,7 +12,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/plugin"
 )
 
@@ -120,7 +119,7 @@ func (p *Plugin) call(s plugin.Scope, args ...uint64) plugin.Result {
 // Apply returns text with the edits res asks for made.
 func Apply(text string, res plugin.Result) string {
 	edits := slices.Clone(res.Edits)
-	slices.SortStableFunc(edits, func(a, b api.Edit) int { return b.Start - a.Start })
+	slices.SortStableFunc(edits, func(a, b plugin.Edit) int { return b.Start - a.Start })
 	for _, e := range edits {
 		text = text[:e.Start] + e.Text + text[e.End:]
 	}

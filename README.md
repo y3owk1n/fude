@@ -202,7 +202,7 @@ path = "plugins/upper.wasm"
 capabilities = ["buffer.read", "buffer.write"]
 ```
 
-`zu` now works with every motion and text object, with counts, in macros and with `.`. A plugin gets only the capabilities its table names: `buffer.read`, `buffer.write`, `ui`, `fs.read`, `process` and `net`, the last two limited to the programs and hosts listed. fude logs a call outside them and returns an error to the plugin. `plugin/testdata` holds small examples, and `:h guide-plugins` covers the rest.
+`zu` now works with every motion and text object, with counts, in macros and with `.`. A plugin gets only the capabilities its table names: `buffer.read`, `buffer.write`, `ui`, `fs.read`, `process` and `net`, the last two limited to the programs and hosts listed. fude logs a call outside them and returns an error to the plugin. `plugin/testdata` holds small examples, [`plugintest`](plugin/plugintest) runs a plugin in `go test`, and `:h guide-plugins` covers the rest.
 
 ---
 

@@ -3,6 +3,7 @@ go 1.26.0
 use (
 	.
 	./core
+	./plugin
 	./protocol
 	./sdk
 	./syntax

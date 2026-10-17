@@ -21,8 +21,6 @@ import (
 
 	"github.com/tetratelabs/wazero"
 	"github.com/tetratelabs/wazero/api"
-
-	fude "github.com/y3owk1n/fude/api"
 )
 
 // Budgets are how long one call into a plugin may run.
@@ -55,9 +53,25 @@ type Decoration struct {
 	Sign, Note string // what shows on Start's line, in the sign column or after its end (B184)
 }
 
+// Text is the text of a buffer as a plugin reads it. Lines count from 0.
+// core's Snapshot satisfies it as is.
+type Text interface {
+	Len() int
+	Slice(start, end int) string
+	Lines() int
+	LineStart(line int) int
+	LineOf(pos int) int
+}
+
+// Edit replaces the bytes from Start to End with Text.
+type Edit struct {
+	Start, End int
+	Text       string
+}
+
 // Result is what one call into a plugin asked for, and what it returned.
 type Result struct {
-	Edits      []fude.Edit
+	Edits      []Edit
 	Decorate   []Decoration
 	Undecorate []int     // the ids of decorations to remove
 	Emit       []string  // the events to emit, named plugin.event
@@ -182,7 +196,7 @@ type call struct {
 // Scope is what one call into a plugin reads: the text of the buffer it is
 // about, what it is about, and every open buffer, by id (B188).
 type Scope struct {
-	Text    fude.Text
+	Text    Text
 	About   Context
 	Buffers map[int]Buffer
 	// Node finds a syntax node in Text, as syntax.Buffer.Nodes does. Free
@@ -202,7 +216,7 @@ func (s Scope) Done() {
 // Buffer is an open buffer as a plugin reads it.
 type Buffer struct {
 	Path, Filetype string
-	Text           fude.Text
+	Text           Text
 }
 
 // Context is what a call is about, by name, which the plugin reads through
@@ -850,7 +864,7 @@ func (p *Plugin) edit(_ context.Context, m api.Module, start, end, ptr, n uint32
 	if !ok {
 		return errRange
 	}
-	p.call.Edits = append(p.call.Edits, fude.Edit{Start: int(start), End: int(end), Text: string(b)})
+	p.call.Edits = append(p.call.Edits, Edit{Start: int(start), End: int(end), Text: string(b)})
 	return 0
 }
 

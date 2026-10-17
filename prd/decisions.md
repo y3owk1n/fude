@@ -341,11 +341,12 @@ functions anyway.
 
 ## D37. The modules are released together, and the first release brings go install
 
-fude's modules are the root, `core/`, `vim/`, `syntax/`, `protocol/` and
-`sdk/`. They take one version together, tagged `vX.Y.Z`, `core/vX.Y.Z`,
-`vim/vX.Y.Z`, `syntax/vX.Y.Z`, `protocol/vX.Y.Z` and `sdk/vX.Y.Z` on one
-commit. Until the first release, the root's `go.mod` points at `core/`,
-`vim/`, `syntax/` and `protocol/` through `replace` lines, so `go install` refuses it and
+fude's modules are the root, `core/`, `vim/`, `syntax/`, `protocol/`,
+`plugin/` and `sdk/`. They take one version together, tagged `vX.Y.Z`,
+`core/vX.Y.Z`, `vim/vX.Y.Z`, `syntax/vX.Y.Z`, `protocol/vX.Y.Z`,
+`plugin/vX.Y.Z` and `sdk/vX.Y.Z` on one commit. Until the first release,
+the root's `go.mod` points at `core/`, `vim/`, `syntax/`, `protocol/` and
+`plugin/` through `replace` lines, so `go install` refuses it and
 fude builds from a clone. A release drops the `replace` lines and requires
 the tags, which makes `go install github.com/y3owk1n/fude/cmd/fude@vX.Y.Z`
 work. `just standalone` builds every module outside the workspace, so a
@@ -458,6 +459,18 @@ debug adapters imports them without the editor, cgo, wazero or a
 terminal. The two clients share `framing/`, so one module holds all three
 rather than three modules that require each other. The cost is a sixth
 tag on every release (D37).
+
+## D45. plugin is a Go module that requires only wazero
+
+`plugin/` has its own `go.mod` and holds the wazero host and
+`plugintest`. Its `Scope` and `Result` read and carry text through its own
+`Text` and `Edit`, until `api/` is the module API that plugins and
+built-in modules share (D21). Why: a plugin's
+tests run its `.wasm` with `plugintest`, and before this a plugin's module
+could not require it, since the root's `go.mod` requires `core/` and
+`vim/` at versions that only its `replace` lines resolve. A program that
+runs fude plugins imports the host without the editor, cgo or a terminal.
+The cost is a seventh tag on every release (D37).
 
 ## Departures from Neovim
 
