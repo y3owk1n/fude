@@ -676,6 +676,29 @@ func TestB241AttachedClipboard(t *testing.T) {
 	}
 }
 
+// B240
+func TestB240AttachedLeaves(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "f")
+	change(t, path, "abc\n")
+	e := open(t, path)
+	// :qa leaves, and the change it made stays, unsaved, for the host.
+	agent := e.Attach("agent")
+	feed(agent, "x:qa<CR>")
+	if !agent.Done() || e.Done() || text(e) != "bc" || !e.Views()[0].Modified {
+		t.Fatalf(":qa in an attached session: it done %v, fude done %v, text %q", agent.Done(), e.Done(), text(e))
+	}
+	for _, keys := range []string{":q<CR>", "ZZ"} {
+		agent = e.Attach("agent")
+		if feed(agent, keys); !agent.Done() || e.Done() {
+			t.Errorf("%s in an attached session: it done %v, fude done %v", keys, agent.Done(), e.Done())
+		}
+	}
+	agent = e.Attach("agent")
+	if feed(agent, ":restart<CR>"); agent.Done() || !strings.Contains(agent.Message(), "only the terminal") {
+		t.Errorf(":restart in an attached session said %q", agent.Message())
+	}
+}
+
 // B37
 func TestB37Wrap(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "f")
