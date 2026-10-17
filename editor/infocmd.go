@@ -10,13 +10,25 @@ import (
 	"github.com/y3owk1n/fude/vim"
 )
 
-// messages lists the session's messages in a window (B157).
-func (e *Session) messages() {
-	if len(e.history) == 0 {
+// messages lists the session's messages in a window, or with yank puts the
+// last on the clipboard (B157, B268).
+func (e *Session) messages(arg string) {
+	switch {
+	case len(e.history) == 0:
 		e.message = "no messages"
-		return
+	case arg == "yank":
+		// The clipboard is the client's for a session other than the first
+		// (B241).
+		if err := (host{e}).SetClipboard(e.history[len(e.history)-1]); err != nil {
+			e.message = err.Error()
+			return
+		}
+		e.message = "copied the last message"
+	case arg != "":
+		e.message = "messages takes yank or nothing"
+	default:
+		e.scratch("[messages]", strings.Join(e.history, "\n"), nil, nil)
 	}
-	e.scratch("[messages]", strings.Join(e.history, "\n"), nil, nil)
 }
 
 // placeLine is a line of a list of places: the place's line and column and

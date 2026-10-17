@@ -428,6 +428,9 @@ Where fude departs, the line says so and cites the departure in
   `:jumps` and `:changes` list the buffer's marks, the window's jumps and
   the buffer's changes with their line, column and text, and `<CR>` on one
   goes there.
+- B268 [2] `:messages yank` puts the last message shown, whole, on the
+  clipboard, as `"+y` does (B36, B241), so a message that wrapped in its
+  toast or was cut short copies as one.
 - B158 [2] `:theme dark`, `:theme light` or `:theme` with a base16 scheme
   file redraws every client in that theme until fude quits. `:theme` alone
   shows the theme in use, and `<Tab>` after it offers dark, light and the

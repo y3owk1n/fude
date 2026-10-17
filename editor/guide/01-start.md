@@ -76,6 +76,10 @@ follow, such as every command after `g`. `<BS>` goes back a key, and
 `<Esc>` drops the command. `:h w` explains a key, and `:h :write` a
 command.
 
+A message shows in the top right until the next key. `:messages` lists
+the session's messages, and `:messages yank` puts the last one on the
+clipboard, whole.
+
 ## Next
 
 - `guide-config` sets fude up through its config file.

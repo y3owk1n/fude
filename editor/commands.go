@@ -178,7 +178,9 @@ func init() {
 			return start, match(lspCommands, arg)
 		}},
 		{vim.Command{Name: "marks", Help: "lists the buffer's marks"}, func(e *Session, _ call) { e.marks() }, nil},
-		{vim.Command{Name: "messages", Short: []string{"mes"}, Help: "lists the messages shown, oldest first"}, func(e *Session, _ call) { e.messages() }, nil},
+		{vim.Command{Name: "messages", Short: []string{"mes"}, Args: "[yank]", Help: "lists the messages shown, oldest first, or with yank puts the last on the clipboard"}, func(e *Session, x call) { e.messages(x.arg) }, func(_ *Session, _ string, start int, arg string, _ bool) (int, []string) {
+			return start, match([]string{"yank"}, arg)
+		}},
 		{vim.Command{Name: "new", Help: "opens a window below with a new empty buffer, or above with split_below off"}, func(e *Session, _ call) {
 			e.split(false)
 			e.empty()
