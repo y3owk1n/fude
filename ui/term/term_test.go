@@ -486,6 +486,25 @@ func TestB148CommandLine(t *testing.T) {
 	if s := screen(); !strings.Contains(s, "word end") {
 		t.Fatalf("the long message lost its end:\n%s", strings.Join(strings.Split(s, "\n")[:6], "\n"))
 	}
+	// The cursor stands after a wide character as after two narrow ones.
+	term := vt.NewMockTerm(vt.MockOptSize{X: 120, Y: 40})
+	s, err := tcell.NewTerminfoScreenFromTty(term)
+	if err == nil {
+		err = s.Init()
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(s.Fini)
+	cl.s = s
+	cursor := func(keys string) vt.Coord {
+		feed("<Esc>" + keys)
+		cl.draw()
+		return term.Pos()
+	}
+	if narrow, wide := cursor(":ab"), cursor(":世"); narrow != wide {
+		t.Errorf("after :世 the cursor is at %v, and after :ab at %v", wide, narrow)
+	}
 }
 
 // B150

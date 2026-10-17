@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/clipperhouse/displaywidth"
 	"github.com/gdamore/tcell/v3"
 	"github.com/gdamore/tcell/v3/color"
 	"github.com/y3owk1n/fude/editor"
@@ -163,10 +164,11 @@ func ruler(r string) string {
 	return line + ":" + col + "  " + f[1]
 }
 
+// width is how many cells ps take.
 func width(ps []part) int {
 	n := 0
 	for _, p := range ps {
-		n += len([]rune(p.text))
+		n += displaywidth.String(p.text)
 	}
 	return n
 }

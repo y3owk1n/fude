@@ -357,7 +357,8 @@ Where fude departs, the line says so and cites the departure in
   ground, and another window's has muted text.
 - B148 [2] The command line floats in a box with a rounded border in the
   upper middle of the screen, its prompt in the colour of commands or of
-  search, and its completion menu under the box. The windows take every
+  search, and its completion menu under the box. Its cursor counts a wide
+  character as the two cells it takes. The windows take every
   row of the screen.
 - B149 [2] A message shows in a box in the top right corner until the next
   key, as a toast. A long message wraps at half the screen's width. A

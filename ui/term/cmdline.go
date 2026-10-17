@@ -4,6 +4,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/clipperhouse/displaywidth"
 	"github.com/y3owk1n/fude/syntax"
 )
 
@@ -51,10 +52,13 @@ func (c *client) commandLine(w, h int, menu string, spans []syntax.Span) (int, i
 	}
 	c.s.Put(left+2, top+1, prompt, base.Foreground(colour).Bold(true))
 	// A line longer than the box shows its end, where the cursor usually is.
-	before := []rune(rest[:c.e.LineCursor()-1])
-	room := inner - 4
-	skip := max(len(before)-room, 0)
-	c.putClipped(left+4, top+1, left+inner+1, part{string([]rune(rest)[skip:]), base})
+	before := rest[:c.e.LineCursor()-1]
+	skip := 0 // the bytes of rest left out at its start
+	for displaywidth.String(before[skip:]) > inner-4 {
+		_, n := utf8.DecodeRuneInString(before[skip:])
+		skip += n
+	}
+	c.putClipped(left+4, top+1, left+inner+1, part{rest[skip:], base})
 	if len(items) > 0 {
 		c.rule(left, top+2, inner)
 	}
@@ -87,7 +91,7 @@ func (c *client) commandLine(w, h int, menu string, spans []syntax.Span) (int, i
 		}
 		at += len(it) + 1
 	}
-	return left + 4 + len(before) - skip, top + 1
+	return left + 4 + displaywidth.String(before[skip:]), top + 1
 }
 
 // toast draws msg in a box at the top right of the windows, which cover
