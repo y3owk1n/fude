@@ -1,7 +1,9 @@
 package editor
 
 import (
+	"cmp"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os/exec"
@@ -11,6 +13,7 @@ import (
 	"time"
 
 	"github.com/y3owk1n/fude/core/kernel"
+	"github.com/y3owk1n/fude/lsp"
 	"github.com/y3owk1n/fude/vim"
 )
 
@@ -244,4 +247,93 @@ func lineEdits(old, new string) []kernel.Edit {
 		edits = append(edits, e)
 	}
 	return edits
+}
+
+// formatter returns the first of b's servers that formats, or nil (N22).
+func formatter(b *buffer) *server {
+	i := slices.IndexFunc(b.servers, func(s *server) bool {
+		return s.client.Supports("documentFormattingProvider") || s.client.Supports("documentRangeFormattingProvider")
+	})
+	if i < 0 {
+		return nil
+	}
+	return b.servers[i]
+}
+
+// formatting asks s for the edits that format b's lines from start to end,
+// and passes them to answer with the text they are for. For a server that
+// formats only whole documents, fude asks for that and keeps the edits
+// inside the lines.
+func (e *Session) formatting(b *buffer, s *server, start, end int, answer func(kernel.Snapshot, []kernel.Edit)) {
+	t, uri := b.text.Snapshot(), lsp.URI(b.file.path)
+	from, to := vim.LineStart(t, start), vim.LineEnd(t, end)
+	ranged := s.client.Supports("documentRangeFormattingProvider")
+	method := "textDocument/formatting"
+	if ranged {
+		method = "textDocument/rangeFormatting"
+	}
+	tab, spaces := e.indentWidth(b), e.expandTab(b)
+	s.client.Request(method, func(enc string) any {
+		p := map[string]any{
+			"textDocument": map[string]any{"uri": uri},
+			"options":      map[string]any{"tabSize": tab, "insertSpaces": spaces},
+		}
+		if ranged {
+			p["range"] = lsp.Range{Start: lsp.Point(t, from, enc), End: lsp.Point(t, to, enc)}
+		}
+		return p
+	}, func(res json.RawMessage) {
+		var answers []textEdit
+		json.Unmarshal(res, &answers)
+		enc := s.client.Encoding()
+		var edits []kernel.Edit
+		for _, a := range answers {
+			start, end := lsp.Offset(t, a.Range.Start, enc), lsp.Offset(t, a.Range.End, enc)
+			// A buffer holds no last line break, so a server that adds one
+			// adds the line break the file has.
+			if end == t.Len() && b.file.eol {
+				if a.NewText = strings.TrimSuffix(a.NewText, "\n"); start == end && a.NewText == "" {
+					continue
+				}
+			}
+			if start >= from && end <= to {
+				edits = append(edits, kernel.Edit{Start: start, End: end, Text: a.NewText})
+			}
+		}
+		slices.SortStableFunc(edits, func(x, y kernel.Edit) int { return cmp.Compare(x.Start, y.Start) })
+		// A server may replace the whole text, which would take the cursor to
+		// its end, so the edits become the lines they change.
+		old := t.Slice(0, t.Len())
+		var formatted strings.Builder
+		at := 0
+		for _, ed := range edits {
+			// Edits that overlap go as they are, for the kernel to refuse.
+			if ed.Start < at {
+				answer(t, edits)
+				return
+			}
+			formatted.WriteString(old[at:ed.Start])
+			formatted.WriteString(ed.Text)
+			at = ed.End
+		}
+		formatted.WriteString(old[at:])
+		answer(t, lineEdits(old, formatted.String()))
+	})
+}
+
+// reformat applies edits for text t to b as one timeline node, and drops
+// them when b has changed since t or has closed.
+func (e *Session) reformat(b *buffer, t kernel.Snapshot, edits []kernel.Edit, label string) {
+	if len(edits) == 0 || !slices.Contains(e.bufs, b) {
+		return
+	}
+	if err := b.text.Apply(kernel.Transaction{Base: t.Version(), Origin: e.origin, Label: label, Time: e.now(), Edits: edits}); err != nil {
+		if errors.Is(err, kernel.ErrStale) {
+			err = errors.New("the text changed while it was formatted")
+		}
+		e.message = err.Error()
+		return
+	}
+	b.head = b.text.Head()
+	b.pushChange(edits[0].Start)
 }
