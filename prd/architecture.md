@@ -54,6 +54,7 @@ internal/        packages only fude's own packages may import
 modules/         Go packages over api/ and protocol/ that cmd/fude adds with
                  editor.Use
   blame/         :blame
+  colours/       text that names a colour, and a server's colours
   comment/       gc
   editorconfig/  .editorconfig files set a file's indentation
   format/        gq, :format and format_on_save

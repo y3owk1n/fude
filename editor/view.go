@@ -89,20 +89,11 @@ func (e *Session) Views() []wire.View {
 			}
 		}
 		v.Matches = e.vim.Matches(t, top, last)
-		if e.cfg.HighlightColors {
-			v.Colours = textColours(t.Slice(top, last), top)
-		}
 		if v.Current {
 			v.Tasks = e.runningTasks()
 			v.Sharing = e.sharing()
 		}
 		v.Others = e.others(w.buf)
-		if b := w.buf; b.ask {
-			b.ask = false
-			for _, s := range b.servers {
-				e.askColours(s, b)
-			}
-		}
 		v.Signs = e.signs(w.buf, top, last)
 		v.Notes = w.buf.notes(t, top, last)
 		for _, p := range e.modules {

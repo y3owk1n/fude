@@ -448,9 +448,6 @@ func (l heard) Changed(before kernel.Snapshot, edits []kernel.Edit) {
 		s.versions[l.b]++
 		s.client.Change(lsp.URI(l.b.file.path), s.versions[l.b], before, out)
 	}
-	// The kernel tells of a change before making it, so the next frame asks
-	// the servers for colours and hints, about the text after it.
-	l.b.ask = true
 }
 
 // Queue returns the work other goroutines hand the editor loop, such as new

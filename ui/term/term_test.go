@@ -16,6 +16,7 @@ import (
 	"github.com/gdamore/tcell/v3/vt"
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/internal/relay"
+	colourmod "github.com/y3owk1n/fude/modules/colours"
 	"github.com/y3owk1n/fude/syntax/syntaxtest"
 	"github.com/y3owk1n/fude/vim"
 	"github.com/y3owk1n/fude/wire"
@@ -342,7 +343,20 @@ func TestB208Colours(t *testing.T) {
 	}
 	// The cursor's line keeps the colours.
 	c := startWith(t, "cursor_line = true\n", path)
-	c.draw()
+	c.e.(*editor.Session).Use(colourmod.New())
+	// The module's colours land through the loop.
+	for deadline := time.After(5 * time.Second); ; {
+		if c.draw(); func() bool { _, style, _ := c.s.Get(2, 0); return style.GetBackground() == color.NewHexColor(0xff0000) }() {
+			break
+		}
+		select {
+		case f := <-c.e.Queue():
+			f()
+		case <-time.After(10 * time.Millisecond):
+		case <-deadline:
+			t.Fatal("the colours never showed")
+		}
+	}
 	for _, cell := range []struct {
 		x       int
 		bg, ink color.Color
@@ -355,6 +369,7 @@ func TestB208Colours(t *testing.T) {
 		t.Errorf("#12, no colour, is drawn on %v", style.GetBackground())
 	}
 	c = startWith(t, "highlight_colors = false\n", path)
+	c.e.(*editor.Session).Use(colourmod.New())
 	c.draw()
 	if _, style, _ := c.s.Get(2, 0); style.GetBackground() != themes["dark"].bg {
 		t.Errorf("with highlight_colors off, #ff0000 is drawn on %v", style.GetBackground())

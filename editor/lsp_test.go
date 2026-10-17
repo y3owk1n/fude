@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/y3owk1n/fude/editor"
+	"github.com/y3owk1n/fude/modules/colours"
 	"github.com/y3owk1n/fude/modules/format"
 	"github.com/y3owk1n/fude/modules/inlay"
 	"github.com/y3owk1n/fude/protocol/lsp"
@@ -296,6 +297,7 @@ func heard(t *testing.T, log, want string, times int) {
 // B209
 func TestB209ServerColours(t *testing.T) {
 	e, _ := withServer(t, "x teal\n", "utf-8")
+	e.Use(colours.New())
 	teal := func(at int) func() bool {
 		return func() bool {
 			return slices.Contains(e.Views()[0].Colours, wire.Colour{Start: at, End: at + 4, RGB: 0x008080})
