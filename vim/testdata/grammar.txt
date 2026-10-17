@@ -194,6 +194,7 @@
 "|a foo b" "d/b<CR>" "|b"
 "|a Foo foo" "/\\cfoo<CR>" "a |Foo foo"
 "|a Foo foo" "/foo<CR>" "a Foo |foo"
+"|ab\ncd" "/b\\_Sc<CR>" "a|b\ncd"
 "|ab\nxb" "/b$<CR>" "a|b\nxb"
 "|ax\nb" "/^b<CR>" "ax\n|b"
 "|a b" "/\\<b<CR>" "a |b"

@@ -337,6 +337,10 @@ func (c *compiler) newlineClass() (string, error) {
 		return "$", nil
 	case classes[x] != "":
 		cls := classes[x]
+		if strings.HasPrefix(cls, "[^") {
+			// A negated class leaves out the line break, so \_ lets it in.
+			return strings.TrimSuffix(cls, `\n]`) + "]", nil
+		}
 		return cls[:len(cls)-1] + `\n]`, nil
 	}
 	return "", fmt.Errorf(`unknown class \_%c`, x)
