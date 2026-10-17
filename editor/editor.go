@@ -1325,6 +1325,7 @@ func (e *Session) quitAll(force bool) {
 		s.closing = true
 		s.client.Close()
 	}
+	flushRecent()
 	for _, s := range e.sessions {
 		s.done = true
 	}

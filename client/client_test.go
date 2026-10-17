@@ -81,6 +81,9 @@ func served(t *testing.T, args ...string) (typed func(keys string) string, path 
 		<-ran
 		return text
 	}
+	// Quitting when the test ends stops what the editor started, while the
+	// loop above still runs.
+	t.Cleanup(func() { typed("<Esc><Esc>:qa!<CR>") })
 	return typed, path
 }
 

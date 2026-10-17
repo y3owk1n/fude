@@ -52,6 +52,7 @@ func open(t *testing.T, path string) *editor.Session {
 	if err != nil {
 		t.Fatal(err)
 	}
+	quitAtEnd(t, e)
 	return e
 }
 

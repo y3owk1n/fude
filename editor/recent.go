@@ -18,9 +18,16 @@ const recentCap = 100
 var (
 	// recentNotes are the files shown, for the one goroutine that writes
 	// the recent file, so writes keep their order and stay off the loop.
-	recentNotes = make(chan string, 64)
+	recentNotes = make(chan recentNote, 64)
 	recentOnce  sync.Once
 )
+
+// recentNote is a file a window showed. With done set, it asks for done to
+// close once the notes before it are written.
+type recentNote struct {
+	path string
+	done chan<- struct{}
+}
 
 // noteRecent records that a window shows the file at path. It drops the
 // note when the queue is full, as a burst of window switches notes the same
@@ -31,9 +38,18 @@ func noteRecent(path string) {
 	}
 	recentOnce.Do(func() { go writeRecent() })
 	select {
-	case recentNotes <- path:
+	case recentNotes <- recentNote{path: path}:
 	default:
 	}
+}
+
+// flushRecent returns once every file noted before it is in the recent
+// file, so quitting keeps the last ones.
+func flushRecent() {
+	recentOnce.Do(func() { go writeRecent() })
+	done := make(chan struct{})
+	recentNotes <- recentNote{done: done}
+	<-done
 }
 
 // recentPath is where the files shown last are kept, newest first.
@@ -52,8 +68,12 @@ func writeRecent() {
 	if err != nil {
 		logLine(err.Error())
 	}
-	for path := range recentNotes {
-		abs, err := filepath.Abs(path)
+	for n := range recentNotes {
+		if n.done != nil {
+			close(n.done)
+			continue
+		}
+		abs, err := filepath.Abs(n.path)
 		if err != nil {
 			logLine(fmt.Sprintf("recent files: %v", err))
 			continue

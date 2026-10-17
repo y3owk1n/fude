@@ -30,7 +30,18 @@ func start(t *testing.T, args ...string) *editor.Session {
 	if err != nil {
 		t.Fatal(err)
 	}
+	quitAtEnd(t, e)
 	return e
+}
+
+// quitAtEnd quits e when the test ends, before its temp directories go, so
+// nothing it started writes into them or outlives the test.
+func quitAtEnd(t *testing.T, e *editor.Session) {
+	t.Cleanup(func() {
+		if !e.Done() {
+			feed(e, "<Esc><Esc>:qa!<CR>")
+		}
+	})
 }
 
 // B92

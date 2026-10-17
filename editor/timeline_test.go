@@ -8,13 +8,17 @@ import (
 	"github.com/y3owk1n/fude/vim"
 )
 
-// B35, :earlier and :later by time, with a clock the test moves.
+// B35, :earlier and :later by time, with a clock the test moves. It is
+// inside the package, as only there can it set the clock edits are stamped
+// with.
 func TestB35EarlierLaterByTime(t *testing.T) {
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	e, err := Open(filepath.Join(t.TempDir(), "f"))
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Quitting writes what it noted before the temp directories go.
+	t.Cleanup(func() { e.quitAll(true) })
 	clock := time.Unix(0, 0)
 	e.now = func() time.Time { return clock }
 	type step struct {

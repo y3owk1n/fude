@@ -48,6 +48,13 @@ func startWith(t *testing.T, config string, args ...string) *client {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Quitting when the test ends stops what the editor started before its
+	// temp directories go.
+	t.Cleanup(func() {
+		for _, k := range vim.Keys("<Esc><Esc>:qa!<CR>") {
+			e.Feed(k)
+		}
+	})
 	return &client{s: mock(t), e: e}
 }
 
