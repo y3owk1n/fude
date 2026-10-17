@@ -1099,6 +1099,10 @@ Where fude departs, the line says so and cites the departure in
   window shows its buffer, as a cell in that session's colour, and that
   session's selection underlined in it. The window's status line names
   those sessions, each in its colour.
+- B254 [7] A guest's session takes the keymaps, leader and window options
+  of `config.toml` on the guest's machine, never the host's, and the
+  guest's terminal draws in that file's theme. Filetypes, language
+  servers, formatters, plugins and every other setting stay the host's.
 
 ## Kernel library
 

@@ -1574,11 +1574,16 @@ maps the number to one of six of the theme's accents, so each client
 draws the others in its own theme. The attach call and a guest's first
 line carry the client's name.
 
+### A guest's own config
+
+`fude --join` reads `config.toml` on its own machine. Its first line
+carries the file's keymaps, leader and window options, which the guest's
+session takes in place of the host's (B254). The client keeps the theme
+and draws in it. It reads a base16 file on its own machine, so nothing
+of the theme reaches the host.
+
 ### Later phases
 
-- A guest's own config: the client sends its keymaps, leader, window
-  options and theme, which apply to its session only. Filetypes,
-  language servers, formatters and plugins stay the host's.
 - `fude --join --read-only`, which asks for a read-only guest (B247),
   and `:follow name`, which keeps a window on the other session's buffer
   and view.
