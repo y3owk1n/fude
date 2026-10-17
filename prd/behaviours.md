@@ -1090,6 +1090,15 @@ Where fude departs, the line says so and cites the departure in
   one shares in says so. A relay that cannot be reached when
   fude starts is an error. When the relay goes away the host says so,
   and `:share` holds a new place at it.
+- B252 [7] Each session has a name and a colour. The terminal fude
+  started in takes `--name`, or else `$USER`, and `--attach` and `--join`
+  send the name the same way, from the machine they run on. A client over
+  the socket that sends none takes its origin as its name. Sessions take
+  six colours in turn, in the order they began.
+- B253 [7] A window shows the cursor of each other session whose current
+  window shows its buffer, as a cell in that session's colour, and that
+  session's selection underlined in it. The window's status line names
+  those sessions, each in its colour.
 
 ## Kernel library
 

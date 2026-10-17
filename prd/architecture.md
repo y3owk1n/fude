@@ -1565,11 +1565,17 @@ what it copies. The host holds a new place each time a guest takes one.
 A share string names the relay and a random room instead of an address,
 as `relay/room/fingerprint/secret`, when `--share --relay host` made it.
 
+### Presence
+
+Each session has a name and a colour, a number fixed when it begins.
+`Views` gives each view the other sessions whose current window shows
+its buffer, with their names, colours, cursors and selections. `ui/term`
+maps the number to one of six of the theme's accents, so each client
+draws the others in its own theme. The attach call and a guest's first
+line carry the client's name.
+
 ### Later phases
 
-- Presence: each session has a name, `--name` or else `$USER`, and a
-  colour. A view shows the cursors and selections of the other sessions
-  in its buffer, and the status line names them.
 - A guest's own config: the client sends its keymaps, leader, window
   options and theme, which apply to its session only. Filetypes,
   language servers, formatters and plugins stay the host's.
