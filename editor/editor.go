@@ -232,10 +232,6 @@ func builtins(e *Session) {
 	}
 	for _, op := range hostOperators {
 		e.vim.Operator(op.keys, func(t vim.Text, start, end int, lines bool) []vim.Edit {
-			if e.power != Host && refusedOperators[op.keys] {
-				e.message = "a guest may not run " + op.keys
-				return nil
-			}
 			return op.run(e, t, start, end, lines)
 		})
 	}
@@ -407,7 +403,6 @@ type heard struct {
 }
 
 func (l heard) Changed(before kernel.Snapshot, edits []kernel.Edit) {
-	l.b.gitStale = true
 	l.b.touched = touched(edits)
 	l.ed.changed(l.b, edits)
 	for _, s := range l.ed.sessions {

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
 )
@@ -137,6 +138,14 @@ func (e *Session) helpSections() []helpSection {
 	plugsSection := helpSection{title: "COMMANDS FOR KEYS", note: `Map a key to one in config.toml, such as "<Leader>d" = "<Plug>(lsp.definition)" in [keymap.normal].`}
 	for _, p := range plugs {
 		plugsSection.entries = append(plugsSection.entries, helpEntry{[]string{"<Plug>(" + p.name + ")", p.name}, "<Plug>(" + p.name + ")", p.help})
+	}
+	for _, m := range e.modules {
+		for _, r := range m.Registered() {
+			if r.Kind == api.Key || r.Kind == api.Plug {
+				name := m.Name() + "." + r.Name
+				plugsSection.entries = append(plugsSection.entries, helpEntry{[]string{"<Plug>(" + name + ")", name}, "<Plug>(" + name + ")", r.Help})
+			}
+		}
 	}
 	out = append(out, plugsSection)
 

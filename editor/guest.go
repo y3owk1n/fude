@@ -54,10 +54,6 @@ var refusedPlugs = map[string]bool{
 	"debug.break": true, "debug.continue": true, "debug.next": true, "debug.in": true, "debug.out": true, "debug.stop": true, "debug.panel": true, "debug.open": true, "debug.eval": true,
 }
 
-// refusedOperators are the operators a guest may not run, because they
-// stage or reset hunks in git's index (B244).
-var refusedOperators = map[string]bool{"gh": true, "gH": true}
-
 // inside says whether path, once symlinks resolve, is under project and
 // not in a .git, whose config can name programs git runs. A path that does
 // not exist yet resolves through its nearest existing directory (B245).

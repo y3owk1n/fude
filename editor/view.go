@@ -3,7 +3,6 @@ package editor
 import (
 	"cmp"
 	"fmt"
-	"maps"
 	"slices"
 	"strconv"
 	"strings"
@@ -93,7 +92,6 @@ func (e *Session) Views() []wire.View {
 		if e.cfg.HighlightColors {
 			v.Colours = textColours(t.Slice(top, last), top)
 		}
-		e.diffGit(w.buf)
 		if v.Current {
 			v.Tasks = e.runningTasks()
 			v.Sharing = e.sharing()
@@ -275,7 +273,7 @@ var diagnosticSigns = []wire.Sign{{Text: "E", Name: "diagnostic.error"}, {Text: 
 // or else its git sign. A
 // listing's lines from top to last show the git status of their names.
 func (e *Session) signs(b *buffer, top, last int) map[int]wire.Sign {
-	if !b.signed && b.signs == 0 && len(b.git) == 0 && len(b.status) == 0 && len(b.breaks) == 0 && !b.stopped {
+	if !b.signed && b.signs == 0 && len(b.status) == 0 && len(b.breaks) == 0 && !b.stopped {
 		return nil
 	}
 	t := b.text.Snapshot()
@@ -292,7 +290,6 @@ func (e *Session) signs(b *buffer, top, last int) map[int]wire.Sign {
 		}
 	}
 	put(true)
-	maps.Copy(out, b.git)
 	put(false)
 	for _, d := range e.diagnostics(b) {
 		line := t.LineOf(b.text.Mark(d.start))

@@ -92,7 +92,6 @@ func init() {
 			}
 			e.format(e.win.buf, x.first, x.last)
 		}, nil},
-		{vim.Command{Name: "gitdiff", Help: "shows the lines that differ from git's index"}, func(e *Session, _ call) { e.gitDiff() }, nil},
 		{vim.Command{Name: "pick", Args: "[source] [text]", Help: "opens the finder on a source, or on the sources: files, grep [text], buffers, recent, diagnostics, symbols, help or keymaps"}, func(e *Session, x call) { e.openPick(x.arg) }, func(e *Session, _ string, start int, arg string, _ bool) (int, []string) {
 			return start, match(pickSources, arg)
 		}},
@@ -302,11 +301,6 @@ func init() {
 		{"list.prev", "goes to the place before in the last list", func(e *Session, n int) { e.stepPlace(func(at, _ int) int { return max(at, 0) - max(n, 1) }) }},
 		{"list.first", "goes to the first place of the last list", func(e *Session, _ int) { e.stepPlace(func(int, int) int { return 0 }) }},
 		{"list.last", "goes to the last place of the last list", func(e *Session, _ int) { e.stepPlace(func(_, n int) int { return n - 1 }) }},
-		{"git.next", "goes to the next hunk", func(e *Session, count int) { e.jumpHunk("next", max(count, 1)) }},
-		{"git.prev", "goes to the hunk before", func(e *Session, count int) { e.jumpHunk("prev", max(count, 1)) }},
-		{"git.first", "goes to the first hunk", func(e *Session, count int) { e.jumpHunk("first", max(count, 1)) }},
-		{"git.last", "goes to the last hunk", func(e *Session, count int) { e.jumpHunk("last", max(count, 1)) }},
-		{"git.preview", "shows the hunk under the cursor as git's index has it", func(e *Session, _ int) { e.previewHunk() }},
 		{"debug.break", "puts a breakpoint on the cursor's line, or takes it off", func(e *Session, _ int) { e.toggleBreak() }},
 		{"debug.continue", "lets the stopped program go on, or starts a debug session", func(e *Session, _ int) { e.debugStep("continue") }},
 		{"debug.next", "steps over the stopped program's line", func(e *Session, _ int) { e.debugStep("next") }},
@@ -448,7 +442,6 @@ func request(name, help string) plug {
 // defaultMaps are the normal mode keys fude maps to its commands.
 var defaultMaps = map[string]string{
 	"-": "<Plug>(listing.up)", "ZR": "<Plug>(restart)",
-	"]h": "<Plug>(git.next)", "[h": "<Plug>(git.prev)", "[H": "<Plug>(git.first)", "]H": "<Plug>(git.last)",
 	"]q": "<Plug>(list.next)", "[q": "<Plug>(list.prev)", "[Q": "<Plug>(list.first)", "]Q": "<Plug>(list.last)",
 	"<C-]>": "<Plug>(lsp.definition)", "K": "<Plug>(lsp.hover)",
 	"]d": "<Plug>(diagnostic]d)", "[d": "<Plug>(diagnostic[d)",
@@ -470,6 +463,4 @@ var hostOperators = []hostOperator{
 		e.format(e.win.buf, start, end)
 		return nil
 	}},
-	{"gH", "puts the hunks a motion or object covers back as git's index has them", (*Session).resetHunks},
-	{"gh", "stages the hunks a motion or object covers in git's index", (*Session).stageHunks},
 }

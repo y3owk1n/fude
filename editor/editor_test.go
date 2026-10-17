@@ -16,6 +16,7 @@ import (
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/modules/blame"
 	"github.com/y3owk1n/fude/modules/comment"
+	gitmod "github.com/y3owk1n/fude/modules/git"
 	"github.com/y3owk1n/fude/modules/spell"
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/syntax/syntaxtest"
@@ -721,6 +722,7 @@ func TestB244GuestRefuses(t *testing.T) {
 	project := t.TempDir()
 	t.Chdir(project)
 	e, log := withServerAt(t, filepath.Join(project, "a.go"), "b\na\n", "utf-8")
+	e.Use(gitmod.New())
 	heard(t, log, `"method":"textDocument/didOpen"`, 1)
 	guest := e.Attach("guest", editor.Guest)
 	wd, err := os.Getwd()
@@ -1278,6 +1280,7 @@ func TestB123GitSigns(t *testing.T) {
 		}
 	}
 	e := open(t, path)
+	e.Use(gitmod.New())
 	e.SetSize(40, 10)
 	// a becomes xa and b goes, a change that also deleted, and new is added.
 	feed(e, "ix<Esc>jddGonew<Esc>")
@@ -1287,6 +1290,7 @@ func TestB123GitSigns(t *testing.T) {
 	// Without git installed, the file shows no git signs.
 	t.Setenv("PATH", "")
 	e = open(t, path)
+	e.Use(gitmod.New())
 	if feed(e, "ix<Esc>"); len(e.Views()[0].Signs) != 0 {
 		t.Fatalf("without git the signs are %v", e.Views()[0].Signs)
 	}
@@ -1308,6 +1312,7 @@ func TestB221StageHunk(t *testing.T) {
 	git("add", ".")
 	git("commit", "-qm", "init")
 	e := open(t, path)
+	e.Use(gitmod.New())
 	e.SetSize(80, 10)
 	feed(e, "rAGrC")
 	settle(t, e, func() bool { return len(e.Views()[0].Signs) == 2 })
@@ -1330,6 +1335,7 @@ func TestB222GitDiff(t *testing.T) {
 	git("add", ".")
 	git("commit", "-qm", "init")
 	e := open(t, path)
+	e.Use(gitmod.New())
 	e.SetSize(80, 10)
 	settle(t, e, func() bool { feed(e, ":gitdiff<CR>"); return e.Message() == "no changes from git's index" })
 	feed(e, "jrB:gitdiff<CR>")
@@ -2001,6 +2007,7 @@ func TestB138Hunks(t *testing.T) {
 		}
 	}
 	e := open(t, path)
+	e.Use(gitmod.New())
 	e.SetSize(40, 10)
 	feed(e, "jrBjjrD")
 	settle(t, e, func() bool { return len(e.Views()[0].Signs) == 2 })
