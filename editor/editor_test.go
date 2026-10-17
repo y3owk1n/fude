@@ -2002,6 +2002,11 @@ func TestB218Jump(t *testing.T) {
 	if feed(e, "sfo<Esc>"); e.Cursor() != 4 {
 		t.Errorf("sfo<Esc> moved the cursor to %d", e.Cursor())
 	}
+	// In visual mode a jump moves the selection's end.
+	feed(e, "0vsbat<CR>")
+	if sel, ok := e.Selection(); !ok || sel.End != 13 {
+		t.Errorf("vsbat<CR> made the selection %+v", sel)
+	}
 }
 
 // B217

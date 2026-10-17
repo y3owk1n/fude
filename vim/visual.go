@@ -326,6 +326,11 @@ func (m *Machine) visualKey(cmd string, count int, reg rune) error {
 		}
 	}
 	t, c := m.h.Text(), m.h.Cursor()
+	if name, ok := strings.CutPrefix(cmd, "<Plug>("); ok {
+		// A host's command runs with the selection kept, as a mapping in
+		// visual mode runs it.
+		return m.plug(strings.TrimSuffix(name, ")"), count, false)
+	}
 	if m.ops[cmd] != nil {
 		r := m.selection()
 		m.leaveVisual()
