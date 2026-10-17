@@ -1046,9 +1046,10 @@ Where fude departs, the line says so and cites the departure in
   `:terminal`, `:task`, `:pick tasks`, `:restart`, `:cd`,
   `:plugin reload`, `:grammar install` and `update`, `:lsp` with a
   subcommand, `:theme`, `:share`, `:kick`, `gh`, `gH` and a code action
-  that runs a command each say a guest may not, and change nothing. So do keys mapped
-  to them, such as `ZR`. A guest's `:q` on its last window and `:qa` leave
-  fude, as B240 says.
+  that runs a command each say a guest may not, and change nothing. So
+  do keys mapped to them, such as `ZR`. A guest's `:q` on its last
+  window and `:qa` leave fude, as B240 says. A guest shows no terminal
+  or task window's buffer, whose keys would go to a program on the host.
 - B245 [7] A guest opens, shows, writes, creates, renames and deletes only
   files under the project, after symlinks resolve, as a plugin with
   `fs.read` reads (B47). That holds for `:e`, `:w file`, `:r file`, the

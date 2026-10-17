@@ -85,10 +85,20 @@ func (e *Session) outside(path string) error {
 	return fmt.Errorf("%s is outside the project", path)
 }
 
+// barred returns why e may not show b. A guest shows no terminal, whose
+// keys would go to a program on the host (B244), and no file outside the
+// project (B245).
+func (e *Session) barred(b *buffer) error {
+	if e.power != Host && b.term != nil {
+		return errors.New("a guest may not use a terminal")
+	}
+	return e.outside(cmp.Or(b.file.path, b.listed))
+}
+
 // mayShow returns b if e may show it. Otherwise it returns the first
 // buffer e may show, or a new empty one (B245).
 func (e *Session) mayShow(b *buffer) *buffer {
-	ok := func(b *buffer) bool { return e.outside(cmp.Or(b.file.path, b.listed)) == nil }
+	ok := func(b *buffer) bool { return e.barred(b) == nil }
 	if ok(b) {
 		return b
 	}

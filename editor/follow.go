@@ -1,9 +1,6 @@
 package editor
 
-import (
-	"cmp"
-	"slices"
-)
+import "slices"
 
 // startFollow makes the current window follow the session called name, as
 // :follow does (B256).
@@ -40,7 +37,7 @@ func (e *Session) follow() {
 	// A float or the finder has a buffer of its own, and a guest shows only
 	// what it may (B245).
 	b := s.win.buf
-	if !slices.Contains(e.bufs, b) || e.outside(cmp.Or(b.file.path, b.listed)) != nil {
+	if !slices.Contains(e.bufs, b) || e.barred(b) != nil {
 		return
 	}
 	if w.buf != b {

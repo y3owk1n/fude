@@ -129,7 +129,7 @@ func (e *Session) Request(r Request) error {
 	}
 	b, err := e.buffer(r.Buffer)
 	if err == nil {
-		err = e.outside(cmp.Or(b.file.path, b.listed))
+		err = e.barred(b)
 	}
 	if err != nil {
 		return err

@@ -747,6 +747,14 @@ func TestB244GuestRefuses(t *testing.T) {
 			t.Errorf("%s in a guest said %q", keys, guest.Message())
 		}
 	}
+	// A guest shows no terminal, whose keys would run on the host.
+	t.Setenv("SHELL", "/bin/sh")
+	feed(e, `:terminal cat<CR><C-\><C-n>`)
+	views := e.Views()
+	term := views[len(views)-1]
+	if feed(guest, fmt.Sprintf(":b %d<CR>", term.Buffer)); guest.Message() != "a guest may not use a terminal" || guest.Views()[0].Name == term.Name {
+		t.Errorf(":b on the host's terminal in a guest said %q and shows %s", guest.Message(), guest.Views()[0].Name)
+	}
 }
 
 // B245

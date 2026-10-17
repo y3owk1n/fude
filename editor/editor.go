@@ -823,7 +823,7 @@ func (e *Session) Recording() rune { return e.vim.Recording() }
 
 // show switches the current window to b. Leaving a buffer is a jump.
 func (e *Session) show(b *buffer) {
-	if err := e.outside(cmp.Or(b.file.path, b.listed)); err != nil {
+	if err := e.barred(b); err != nil {
 		e.message = err.Error()
 		return
 	}
