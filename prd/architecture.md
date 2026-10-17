@@ -59,6 +59,7 @@ modules/         Go packages over api/ and protocol/ that cmd/fude adds with
   editorconfig/  .editorconfig files set a file's indentation
   format/        gq, :format and format_on_save
   git/           git signs, hunks, gh, gH and :gitdiff
+  grep/          :pick grep, a live search of the files' lines
   inlay/         a language server's inlay hints
   spell/         spell, ]s, [s, z= and zg
 cmd/fude/        main, distribution wiring

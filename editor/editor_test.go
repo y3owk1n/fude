@@ -18,6 +18,7 @@ import (
 	"github.com/y3owk1n/fude/modules/comment"
 	"github.com/y3owk1n/fude/modules/format"
 	gitmod "github.com/y3owk1n/fude/modules/git"
+	"github.com/y3owk1n/fude/modules/grep"
 	"github.com/y3owk1n/fude/modules/spell"
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/syntax/syntaxtest"
@@ -1633,6 +1634,7 @@ func TestB257Cdo(t *testing.T) {
 	}
 	t.Chdir(dir)
 	e := open(t, "a.txt")
+	e.Use(grep.New())
 	e.SetSize(100, 24)
 	feed(e, ":pick grep foo<CR>")
 	// The query and three matches.
@@ -1676,6 +1678,7 @@ func TestB134Grep(t *testing.T) {
 	}
 	t.Chdir(dir)
 	e := open(t, "b.txt")
+	e.Use(grep.New())
 	e.SetSize(100, 24)
 	results := func() []string {
 		f, _ := e.Float()
@@ -1708,6 +1711,7 @@ func TestB195FinderLists(t *testing.T) {
 	}
 	t.Chdir(dir)
 	e := open(t, "b.txt")
+	e.Use(grep.New())
 	e.SetSize(100, 24)
 	shown := func() int {
 		f, _ := e.Float()
@@ -1736,6 +1740,7 @@ func TestB195FinderLists(t *testing.T) {
 // B202, for the finder's query
 func TestB202FinderQuery(t *testing.T) {
 	e := open(t, "")
+	e.Use(grep.New())
 	e.SetSize(100, 24)
 	feed(e, ":pick grep<CR>f(")
 	if f, _ := e.Float(); !strings.HasPrefix(f.Text, "› f( ") {
@@ -1750,6 +1755,7 @@ func TestB213Pick(t *testing.T) {
 	change(t, filepath.Join(dir, "b.txt"), "b\n")
 	t.Chdir(dir)
 	e := open(t, "a.txt")
+	e.Use(grep.New())
 	e.SetSize(100, 30)
 	feed(e, ":e b.txt<CR>")
 	rows := func() []string {
@@ -1908,6 +1914,7 @@ func TestB210FinderIgnored(t *testing.T) {
 	}
 	t.Chdir(dir)
 	e := open(t, "a.go")
+	e.Use(grep.New())
 	e.SetSize(100, 24)
 	// shown is the finder's rows, sorted, as the search's order may vary.
 	shown := func() []string {
@@ -2191,6 +2198,7 @@ func TestB152Marks(t *testing.T) {
 	change(t, filepath.Join(dir, "editor", "flash.go"), "")
 	t.Chdir(dir)
 	e := open(t, "")
+	e.Use(grep.New())
 	e.SetSize(100, 24)
 	// marked is the letters a float marks as matching, in order.
 	marked := func() string {
