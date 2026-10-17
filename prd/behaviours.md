@@ -979,6 +979,12 @@ Tested through `vim/`'s exported API with a minimal host over a byte slice.
 - B110 [2] Every grammar behaviour gives the same result with the minimal
   host as with fude's editor, once a config maps the editor's own
   mappings of the grammar's keys, such as `s` (N32), to `""`.
+- B229 [2] In insert mode, a character that may start a longer
+  insert-mode mapping, such as the `j` of a `jk` mapped to `<Esc>`, types
+  at once instead of waiting. When the mapping comes, the characters typed
+  ahead go and the mapping runs. When another key or the timeout comes,
+  they stay. Dot repeats what stayed. A bracket or quote, several cursors
+  and a block insert still wait, as B84 says.
 - B111 [2] `Feed` never blocks. While typed keys start a longer mapping,
   `Waiting` reports true, and `Timeout` resolves them as Neovim does after
   `timeoutlen`.

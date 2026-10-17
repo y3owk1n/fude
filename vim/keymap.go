@@ -180,16 +180,32 @@ func (m *Machine) press(k Key) error {
 		return nil
 	}
 	if n := own.walk(m.held); n != nil && n.next != nil {
+		// In insert mode a character that may start a mapping, such as the
+		// j of jk, types at once, and the mapping deletes it again when it
+		// comes (B229).
+		if m.ahead == len(m.held)-1 && m.typesAhead(k) {
+			if err := m.feed(k); err != nil {
+				return err
+			}
+			m.ahead++
+		}
 		return nil
 	}
 	return m.flush()
 }
 
+// typesAhead reports whether k, held for a longer mapping, types at once:
+// a character other than a bracket or quote, in insert mode with one
+// cursor.
+func (m *Machine) typesAhead(k Key) bool {
+	return m.mode == Insert && k.isChar() && len(m.cursors) == 0 && m.blockInsert == nil && !strings.Contains("()[]{}\"'`", string(k))
+}
+
 // flush runs the longest mapping the held keys start with, or else the first
 // held key as typed, then presses the keys after it again.
 func (m *Machine) flush() error {
-	keys := m.held
-	m.held = nil
+	keys, ahead := m.held, m.ahead
+	m.held, m.ahead = nil, 0
 	n, to := 0, keys[:1] // the keys the longest mapping takes, and what it runs
 	local, own := m.keymaps()
 	for _, node := range []*keymap{local, own} {
@@ -197,6 +213,21 @@ func (m *Machine) flush() error {
 			if node = node.next[keys[i]]; node != nil && node.end && i+1 > n {
 				n, to = i+1, node.to
 			}
+		}
+	}
+	switch {
+	case ahead > 0 && n == 0:
+		// The keys typed ahead stay, and the rest run.
+		for _, k := range keys[ahead:] {
+			if err := m.press(k); err != nil {
+				return err
+			}
+		}
+		return nil
+	case ahead > 0:
+		// A mapping came, so the keys typed ahead go before it runs.
+		if err := m.untype(keys[:ahead]); err != nil {
+			return err
 		}
 	}
 	n = max(n, 1)
@@ -208,5 +239,22 @@ func (m *Machine) flush() error {
 			return err
 		}
 	}
+	return nil
+}
+
+// untype deletes the text keys typed ahead before the cursor, and forgets
+// them for dot repeat.
+func (m *Machine) untype(keys []Key) error {
+	var typed strings.Builder
+	for _, k := range keys {
+		typed.WriteString(string(k))
+	}
+	c := m.h.Cursor()
+	start := max(c-typed.Len(), 0)
+	if err := m.apply([]Edit{{Start: start, End: c}}, m.label); err != nil {
+		return err
+	}
+	m.h.SetCursor(start)
+	m.keys = m.keys[:max(len(m.keys)-len(keys), 0)]
 	return nil
 }

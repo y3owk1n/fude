@@ -146,6 +146,7 @@ func (m *Machine) Back() {
 	switch {
 	case len(m.held) > 0:
 		m.held = m.held[:len(m.held)-1]
+		m.ahead = min(m.ahead, len(m.held))
 	case m.pending != "":
 		m.pending = ""
 	case m.op != "":
@@ -162,5 +163,5 @@ func (m *Machine) Back() {
 // Cancel drops the command being typed and the held keys, running none of
 // them, as <Esc> does while hints show (B172).
 func (m *Machine) Cancel() {
-	m.held, m.pending, m.op, m.count, m.opCount, m.reg, m.shown = nil, "", "", 0, 0, 0, nil
+	m.held, m.ahead, m.pending, m.op, m.count, m.opCount, m.reg, m.shown = nil, 0, "", "", 0, 0, 0, nil
 }

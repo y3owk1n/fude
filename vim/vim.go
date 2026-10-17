@@ -202,6 +202,7 @@ type Machine struct {
 	maps  Keymaps
 	local *Keymaps // a kind of buffer's mappings, over maps
 	held  []Key    // typed keys that start a longer mapping
+	ahead int      // how many of held insert mode typed already (B229)
 
 	objects map[string]func(Text, int, int) (int, int, bool) // text objects the host added
 	ops     map[string]func(Text, int, int, bool) []Edit     // operators the host added

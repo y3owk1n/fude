@@ -177,6 +177,39 @@ func TestB202AutoPairs(t *testing.T) {
 	}
 }
 
+// B229
+func TestB229TypeAhead(t *testing.T) {
+	h := &host{}
+	m := vim.New(h)
+	m.Map(vim.Insert, "jk", "<Esc>")
+	feed := func(keys string) {
+		for _, k := range vim.Keys(keys) {
+			if err := m.Feed(k); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	// The j of jk shows at once, and goes when the k comes.
+	if feed("ihej"); h.text != "hej" || !m.Waiting() {
+		t.Fatalf("typing hej shows %q, waiting %v", h.text, m.Waiting())
+	}
+	if feed("k"); h.text != "he" || m.Mode() != vim.Normal {
+		t.Fatalf("jk left %q in mode %v", h.text, m.Mode())
+	}
+	// A j another key follows, or the timeout, stays once.
+	if feed("ajx"); h.text != "hejx" {
+		t.Fatalf("jx made %q", h.text)
+	}
+	if feed("j"); m.Timeout() != nil || h.text != "hejxj" {
+		t.Fatalf("j and the timeout made %q", h.text)
+	}
+	// Dot repeats what was typed, not the j that went.
+	feed("<Esc>0D")
+	if feed("Ahijk."); h.text != "hihi" {
+		t.Errorf("Ahijk then dot made %q, want hihi", h.text)
+	}
+}
+
 // B219
 func TestB219Surround(t *testing.T) {
 	for _, c := range []struct{ start, keys, want string }{
