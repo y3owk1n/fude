@@ -402,7 +402,9 @@ the user ruled out on 2026-10-17. A session attached by any path has
 fude's powers, `:!`, `:terminal`, every file the host can read and the
 host's clipboard, so the limits belong to the server's session, never to
 a client. Formatters, language servers and git still run for a guest as
-the host's config says, as they act on the project's files. Go's
+the host's config says, as they act on the project's files. A guest
+cannot reach a `.git`, because fude runs git in the background and git
+runs programs its config names, such as `core.fsmonitor`. Go's
 `crypto/tls` has no pre-shared keys, so the share string carries a
 fingerprint to pin instead, which needs only the standard library.
 

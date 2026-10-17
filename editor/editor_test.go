@@ -756,6 +756,10 @@ func TestB245GuestProject(t *testing.T) {
 	change(t, "a.txt", "a\n")
 	change(t, filepath.Join(away, "out.txt"), "out\n")
 	out := filepath.Join(away, "out.txt")
+	if err := os.Mkdir(".git", 0o755); err != nil {
+		t.Fatal(err)
+	}
+	change(t, filepath.Join(".git", "config"), "")
 	for link, to := range map[string]string{"link": away, "outlink": out} {
 		if err := os.Symlink(to, link); err != nil {
 			t.Fatal(err)
@@ -780,6 +784,7 @@ func TestB245GuestProject(t *testing.T) {
 		":e " + out + "<CR>", ":e link/out.txt<CR>", ":b out<CR>", ":split " + out + "<CR>",
 		":r " + out + "<CR>", ":w " + filepath.Join(away, "new.txt") + "<CR>",
 		":e .<CR>/^outlink<CR><CR>", ":e .<CR>Go../made.txt<Esc>:w<CR>", "-",
+		":e .git/config<CR>", ":w .git/config<CR>",
 	} {
 		if feed(guest, keys); !strings.HasSuffix(guest.Message(), "is outside the project") {
 			t.Errorf("%s in a guest said %q", keys, guest.Message())

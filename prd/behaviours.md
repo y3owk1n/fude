@@ -1051,8 +1051,9 @@ Where fude departs, the line says so and cites the departure in
   files under the project, after symlinks resolve, as a plugin with
   `fs.read` reads (B47). That holds for `:e`, `:w file`, `:r file`, the
   splits, `:b` on a buffer whose file is outside, a listing's changes
-  (B125), the finder, grep and a request naming a buffer. A path outside
-  says so, and nothing happens.
+  (B125), the finder, grep and a request naming a buffer. A `.git` and
+  what is under it count as outside. A path outside says so, and nothing
+  happens.
 - B246 [7] A guest's key or command from a plugin that declared `process`,
   `net` or `fs.read` says a guest may not, and the plugin is not called.
   Those of other plugins run as they do for any session.

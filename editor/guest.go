@@ -50,9 +50,9 @@ var refusedPlugs = map[string]bool{
 	"lsp.restart": true, "lsp.stop": true, "lsp.disable": true, "lsp.enable": true,
 }
 
-// inside says whether path, once symlinks resolve, is under project. A
-// path that does not exist yet resolves through its nearest existing
-// directory (B245).
+// inside says whether path, once symlinks resolve, is under project and
+// not in a .git, whose config can name programs git runs. A path that does
+// not exist yet resolves through its nearest existing directory (B245).
 func inside(project, path string) bool {
 	abs, err := filepath.Abs(path)
 	if err != nil {
@@ -61,8 +61,8 @@ func inside(project, path string) bool {
 	rest := ""
 	for {
 		if real, err := filepath.EvalSymlinks(abs); err == nil {
-			_, ok := under(project, filepath.Join(real, rest))
-			return ok
+			rel, ok := under(project, filepath.Join(real, rest))
+			return ok && !slices.Contains(strings.Split(rel, string(filepath.Separator)), ".git")
 		}
 		up := filepath.Dir(abs)
 		if up == abs {
