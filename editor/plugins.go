@@ -479,6 +479,12 @@ func (e *Session) about(b *buffer) plugin.Context {
 // returned. A call that fails unloads p, and calls into an unloaded plugin
 // do nothing.
 func (e *Session) run(p *plugin.Plugin, id uint32, scope plugin.Scope, args ...uint64) ([]vim.Edit, []uint64, bool) {
+	// A guest may not call a plugin granted process, net or fs.read (B246).
+	if e.power != Host && slices.ContainsFunc(p.Capabilities, func(c string) bool { return c == "process" || c == "net" || c == "fs.read" }) {
+		scope.Done()
+		e.message = "a guest may not use plugin " + p.Name
+		return nil, nil, false
+	}
 	if !slices.Contains(e.plugins, p) {
 		scope.Done()
 		e.message = fmt.Sprintf("plugin %s is unloaded", p.Name)

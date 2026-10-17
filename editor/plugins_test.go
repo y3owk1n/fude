@@ -648,3 +648,34 @@ func TestB55PluginDecorations(t *testing.T) {
 		t.Errorf("after the plugin unloaded, decorations are %q and it said %q", got, e.Message())
 	}
 }
+
+// B246
+func TestB246GuestPlugins(t *testing.T) {
+	for _, fsRead := range []bool{true, false} {
+		t.Run(fmt.Sprintf("fs.read %v", fsRead), func(t *testing.T) {
+			caps := []string{"buffer.read", "buffer.write"}
+			if fsRead {
+				caps = append(caps, "fs.read")
+			}
+			usePlugin(t, "kit", caps...)
+			t.Chdir(t.TempDir())
+			change(t, "f", "ab cd\nef\n")
+			e := start(t, "f")
+			e.Load()
+			select {
+			case f := <-e.Queue():
+				f()
+			case <-time.After(5 * time.Second):
+				t.Fatal("the plugin did not load in 5s")
+			}
+			guest := e.Attach("guest", editor.Guest)
+			for _, keys := range []string{"gS", ":Shout<CR>", "gsaL"} {
+				before := text(e)
+				feed(guest, keys)
+				if refused := guest.Message() == "a guest may not use plugin kit"; refused != fsRead || refused == (text(e) != before) {
+					t.Errorf("%s in a guest said %q and left %q", keys, guest.Message(), text(e))
+				}
+			}
+		})
+	}
+}
