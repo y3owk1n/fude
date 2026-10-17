@@ -94,8 +94,13 @@ func join(args []string, name string) error {
 	if len(args) != 1 {
 		return errors.New("usage: fude --join string")
 	}
+	// A guest still joins with what it read of a config that fails (B254).
+	own, err := editor.OwnConfig()
+	if err != nil {
+		fmt.Println("fude:", err)
+	}
 	fmt.Println("waiting for the host to let you in")
-	a, err := term.Join(args[0], name)
+	a, err := term.Join(args[0], name, own)
 	if err != nil {
 		return err
 	}

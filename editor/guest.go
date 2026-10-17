@@ -100,3 +100,38 @@ func (e *Session) mayShow(b *buffer) *buffer {
 	}
 	return e.bufs[len(e.bufs)-1]
 }
+
+// Own is what a guest's session takes from config.toml on the guest's
+// machine. Its client keeps the theme and draws in it (B254).
+type Own struct {
+	Leader  string
+	Keymap  keymap
+	Options options
+	Theme   string     `json:"-"`
+	Base16  *[16]int32 `json:"-"`
+}
+
+// OwnConfig reads what of config.toml on this machine a guest takes. After
+// an error it returns what it read and the defaults for the rest.
+func OwnConfig() (Own, error) {
+	cfg, err := loadConfig()
+	own := Own{Leader: cfg.Leader, Keymap: cfg.Keymap, Options: cfg.options, Theme: cfg.Theme}
+	if cfg.Theme != "dark" && cfg.Theme != "light" {
+		colours, berr := readBase16(cfg.Theme)
+		if berr != nil {
+			own.Theme = "dark"
+			return own, cmp.Or(err, berr)
+		}
+		own.Base16 = &colours
+	}
+	return own, err
+}
+
+// use gives e the keys and window options of a guest's own config (B254).
+func (e *Session) use(own Own) {
+	e.useKeys(own.Keymap, own.Leader)
+	e.opts = own.Options
+	for _, w := range e.root.windows() {
+		w.opts = own.Options
+	}
+}

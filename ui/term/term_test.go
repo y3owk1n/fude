@@ -890,7 +890,7 @@ func asked(t *testing.T, host *editor.Session, on func(func()), name string) {
 func joining(share string) <-chan joined {
 	ch := make(chan joined, 1)
 	go func() {
-		a, err := Join(share, os.Getenv("USER"))
+		a, err := Join(share, os.Getenv("USER"), editor.Own{})
 		ch <- joined{a, err}
 	}()
 	return ch
@@ -1280,5 +1280,71 @@ func TestB253Presence(t *testing.T) {
 	c.draw()
 	if _, s, _ := c.s.Get(11, 1); s.GetBackground() != colour {
 		t.Errorf("the other session's cursor after the line has the ground %v, want %v", s.GetBackground(), colour)
+	}
+}
+
+// B254
+func TestB254OwnConfig(t *testing.T) {
+	t.Chdir(t.TempDir())
+	if err := os.WriteFile("a.txt", []byte("hello\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("USER", "kyle")
+	host := startWith(t, "[keymap.normal]\nQ = \"ihost <Esc>\"\n", "a.txt").e.(*editor.Session)
+	_, on, _ := serve(t, host)
+	str := share(t, host, on, "")
+	// config.toml on the guest's machine.
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "fude"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	guestConfig := "leader = \",\"\nnumber = true\ntheme = \"light\"\n[keymap.normal]\n\"<leader>q\" = \"iguest <Esc>\"\n"
+	if err := os.WriteFile(filepath.Join(dir, "fude", "config.toml"), []byte(guestConfig), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	own, err := editor.OwnConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	waiting := make(chan joined, 1)
+	go func() {
+		a, err := Join(str, "kyle", own)
+		waiting <- joined{a, err}
+	}()
+	asked(t, host, on, "kyle")
+	on(func() { host.Feed("y") })
+	j := <-waiting
+	if j.err != nil {
+		t.Fatal(j.err)
+	}
+	defer j.a.Close()
+	// The guest's keys are its own, and the host's are not the guest's.
+	for _, k := range vim.Keys("Q,q") {
+		j.a.Feed(k)
+	}
+	text := func() string {
+		var s string
+		on(func() { t := host.Text(); s = t.Slice(0, t.Len()) })
+		return s
+	}
+	for deadline := time.Now().Add(5 * time.Second); text() != "guest hello"; time.Sleep(time.Millisecond) {
+		if time.Now().After(deadline) {
+			t.Fatalf("the guest's Q,q left %q, want its own mapping typed alone", text())
+		}
+	}
+	// Its windows take its options, and it draws in its theme.
+	for deadline := time.After(5 * time.Second); !j.a.Views()[0].Number; {
+		select {
+		case f := <-j.a.Queue():
+			f()
+		case <-deadline:
+			t.Fatal("the guest's window shows no line numbers")
+		}
+	}
+	var hostNumber bool
+	on(func() { hostNumber = host.Views()[0].Number })
+	if name, _ := j.a.Theme(); name != "light" || hostNumber {
+		t.Errorf("the guest draws in %q, and the host shows numbers %v", name, hostNumber)
 	}
 }

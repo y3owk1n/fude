@@ -48,6 +48,7 @@ type share struct {
 type Hello struct {
 	Secret string `json:"secret"`
 	Name   string `json:"name"`
+	Own    Own    `json:"own"`
 }
 
 // Share listens on address with TLS for guests to join, and offers the
@@ -281,7 +282,7 @@ func (e *Session) admit(c net.Conn, stopped <-chan struct{}) {
 	admitted := make(chan *Session, 1)
 	var s *Session
 	var err error
-	on(func() { err = e.letIn(name, hello.Secret, admitted) })
+	on(func() { err = e.letIn(name, hello.Secret, hello.Own, admitted) })
 	if err == nil {
 		select {
 		case s = <-admitted:
@@ -304,9 +305,10 @@ func (e *Session) admit(c net.Conn, stopped <-chan struct{}) {
 }
 
 // letIn asks the host whether to let the guest called name in, when its
-// secret is the share's. It sends the guest's new session on admitted, or
-// nil when the host says no, and returns why it did not ask.
-func (e *Session) letIn(name, secret string, admitted chan<- *Session) error {
+// secret is the share's. It sends the guest's new session, which takes
+// own, on admitted, or nil when the host says no, and returns why it did
+// not ask.
+func (e *Session) letIn(name, secret string, own Own, admitted chan<- *Session) error {
 	host, sh := e.sessions[0], e.share
 	switch {
 	case sh.secret == "" || subtle.ConstantTimeCompare([]byte(secret), []byte(sh.secret)) != 1:
@@ -331,6 +333,7 @@ func (e *Session) letIn(name, secret string, admitted chan<- *Session) error {
 		}
 		s := e.Attach(kernel.Origin("guest "+name), Guest)
 		s.name = e.guestName(name)
+		s.use(own)
 		host.message = s.name + " joined"
 		admitted <- s
 	}

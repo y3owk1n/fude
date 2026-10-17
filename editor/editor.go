@@ -321,16 +321,25 @@ func Start(args []string) (*Session, error) {
 		e.theme = "dark"
 		e.message = cmp.Or(e.message, err.Error())
 	}
+	// A guest takes its own keys (B254).
 	e.each(func(s *Session) {
-		for mode, maps := range map[vim.Mode]map[string]string{vim.Normal: cfg.Keymap.Normal, vim.Visual: cfg.Keymap.Visual, vim.Insert: cfg.Keymap.Insert} {
-			mapAll(s.vim, mode, maps, cfg.Leader)
+		if s.power == Host {
+			s.useKeys(cfg.Keymap, cfg.Leader)
 		}
-		for kind, maps := range map[string]map[string]string{"listing": cfg.Keymap.Listing, "list": cfg.Keymap.List, "timeline": cfg.Keymap.Timeline, "float": cfg.Keymap.Float, "lsp": cfg.Keymap.Lsp, "help": cfg.Keymap.Help, "scratch": cfg.Keymap.Scratch, "start": cfg.Keymap.Start, "terminal": cfg.Keymap.Terminal} {
-			mapAll(s.locals[kind], vim.Normal, maps, cfg.Leader)
-		}
-		mapAll(s.locals["finder"], vim.Insert, cfg.Keymap.Finder, cfg.Leader)
 	})
 	return e, nil
+}
+
+// useKeys maps km's keys on e's machine and kinds of buffer, with leader as
+// <Leader>.
+func (e *Session) useKeys(km keymap, leader string) {
+	for mode, maps := range map[vim.Mode]map[string]string{vim.Normal: km.Normal, vim.Visual: km.Visual, vim.Insert: km.Insert} {
+		mapAll(e.vim, mode, maps, leader)
+	}
+	for kind, maps := range map[string]map[string]string{"listing": km.Listing, "list": km.List, "timeline": km.Timeline, "float": km.Float, "lsp": km.Lsp, "help": km.Help, "scratch": km.Scratch, "start": km.Start, "terminal": km.Terminal} {
+		mapAll(e.locals[kind], vim.Normal, maps, leader)
+	}
+	mapAll(e.locals["finder"], vim.Insert, km.Finder, leader)
 }
 
 // add opens path as a new buffer at the end of the list.

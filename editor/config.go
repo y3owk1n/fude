@@ -47,22 +47,7 @@ type config struct {
 	Leader          string   `toml:"leader" help:"what <Leader> in a mapping stands for"` // N18
 	Theme           string   `toml:"theme" help:"the colours: dark, light or a base16 scheme file"`
 	options
-	Keymap struct {
-		Normal   map[string]string `toml:"normal" help:"normal mode mappings"`
-		Visual   map[string]string `toml:"visual" help:"visual mode mappings"`
-		Insert   map[string]string `toml:"insert" help:"insert mode mappings"`
-		Listing  map[string]string `toml:"listing" help:"a listing's keys, over the normal mode ones"`
-		List     map[string]string `toml:"list" help:"a list of places' keys, over the normal mode ones"`
-		Timeline map[string]string `toml:"timeline" help:"a timeline's keys, over the normal mode ones"`
-		Finder   map[string]string `toml:"finder" help:"the finder's keys, in insert mode"`
-		Float    map[string]string `toml:"float" help:"a float's keys while the cursor is in it"`
-		Lsp      map[string]string `toml:"lsp" help:"the language server panel's keys"`
-		Help     map[string]string `toml:"help" help:"help's keys"`
-		Start    map[string]string `toml:"start" help:"the start screen's keys"`
-		Terminal map[string]string `toml:"terminal" help:"a terminal window's keys in normal mode"`
-		Scratch  map[string]string `toml:"scratch" help:"the keys of a window fude writes to show something, such as :messages or a diff"`
-		Groups   map[string]string `toml:"groups" help:"names of the keys mappings start with, which key hints show"`
-	} `toml:"keymap"`
+	Keymap   keymap `toml:"keymap"`
 	Filetype map[string]struct {
 		Files        []string `toml:"files" help:"the names of the files of the type, as patterns such as *.toml.tmpl"`
 		IndentWidth  uint     `toml:"indent_width" help:"the columns of an indent level in files of the type"`
@@ -96,6 +81,25 @@ type config struct {
 		Hosts        []string       `toml:"hosts" help:"the hosts net may reach"`
 		Settings     map[string]any `toml:"settings" help:"what the plugin reads with its setting function"`
 	} `toml:"plugin"`
+}
+
+// keymap is config.toml's [keymap] tables, a mode's or a kind of
+// buffer's mappings.
+type keymap struct {
+	Normal   map[string]string `toml:"normal" help:"normal mode mappings"`
+	Visual   map[string]string `toml:"visual" help:"visual mode mappings"`
+	Insert   map[string]string `toml:"insert" help:"insert mode mappings"`
+	Listing  map[string]string `toml:"listing" help:"a listing's keys, over the normal mode ones"`
+	List     map[string]string `toml:"list" help:"a list of places' keys, over the normal mode ones"`
+	Timeline map[string]string `toml:"timeline" help:"a timeline's keys, over the normal mode ones"`
+	Finder   map[string]string `toml:"finder" help:"the finder's keys, in insert mode"`
+	Float    map[string]string `toml:"float" help:"a float's keys while the cursor is in it"`
+	Lsp      map[string]string `toml:"lsp" help:"the language server panel's keys"`
+	Help     map[string]string `toml:"help" help:"help's keys"`
+	Start    map[string]string `toml:"start" help:"the start screen's keys"`
+	Terminal map[string]string `toml:"terminal" help:"a terminal window's keys in normal mode"`
+	Scratch  map[string]string `toml:"scratch" help:"the keys of a window fude writes to show something, such as :messages or a diff"`
+	Groups   map[string]string `toml:"groups" help:"names of the keys mappings start with, which key hints show"`
 }
 
 var defaults = config{TabWidth: 8, Editorconfig: true, KeyTimeout: 1000, KeyHints: 300, FlashTime: 300, FormatTimeout: 1000, LargeFile: 2, TerminalHeight: 33, SplitBelow: true, SplitRight: true, HighlightColors: true, InlayHints: true, StickyContext: true, Autopairs: true, Sources: []string{"lsp", "snippet", "path", "buffer"}, AutoInstall: true, Leader: "<Space>", Theme: "dark", options: options{Wrap: true, IndentGuides: true}}

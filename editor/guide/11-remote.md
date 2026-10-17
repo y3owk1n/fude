@@ -68,8 +68,9 @@ next. `:who` lists the guests, and `:kick name` ends one's session.
 Others see you by `$USER`, or by the name `--name` gives before the
 rest, as in `fude --name kyle --join <string>`. A window shows the
 cursor of each other session on its file as a cell in that session's
-colour, with its selection underlined, and its status line names them.
-Quitting fude ends the share.
+colour, with its selection underlined, and its status line names them. A
+guest's keymaps, leader, window options and theme come from
+`config.toml` on its own machine. Quitting fude ends the share.
 
 ## Clients
 

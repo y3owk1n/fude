@@ -32,7 +32,8 @@ type Attached struct {
 	w, h  int                    // the size last sent
 	clip  *string                // for the terminal's clipboard, once
 	done  bool
-	ended string // why the session ended, for after the screen is gone
+	ended string     // why the session ended, for after the screen is gone
+	own   editor.Own // a guest's own config, whose theme it draws in (B254)
 }
 
 var _ Session = (*Attached)(nil)
@@ -52,9 +53,9 @@ func Attach(socket, name string) (*Attached, error) {
 }
 
 // Join makes a guest session called name of the fude a share string
-// names, once its host lets the guest in, and returns it once its first
-// frame has come (B248).
-func Join(share, name string) (*Attached, error) {
+// names, which takes own, once its host lets the guest in. It returns the
+// session once its first frame has come (B248, B254).
+func Join(share, name string, own editor.Own) (*Attached, error) {
 	i := strings.LastIndexByte(share, '/')
 	j := strings.LastIndexByte(share[:max(i, 0)], '/')
 	if j < 0 {
@@ -73,10 +74,11 @@ func Join(share, name string) (*Attached, error) {
 	if err != nil {
 		return nil, fmt.Errorf("join %s: %w", addr, err)
 	}
-	a, err := begin(c, editor.Hello{Secret: secret, Name: name})
+	a, err := begin(c, editor.Hello{Secret: secret, Name: name, Own: own})
 	if err != nil {
 		return nil, fmt.Errorf("join %s: %w", addr, err)
 	}
+	a.own = own
 	return a, nil
 }
 
@@ -257,16 +259,23 @@ func (a *Attached) Selection() (vim.Selection, bool) {
 	return *a.f.Selection, true
 }
 
-func (a *Attached) Line() string                { return a.f.Line }
-func (a *Attached) LineCursor() int             { return a.f.LineCursor }
-func (a *Attached) Mode() vim.Mode              { return a.f.Mode }
-func (a *Attached) Message() string             { return a.f.Message }
-func (a *Attached) Cursors() []int              { return a.f.Cursors }
-func (a *Attached) Recording() rune             { return a.f.Recording }
-func (a *Attached) Substituting() bool          { return a.f.Substituting }
-func (a *Attached) Terminal() bool              { return a.f.Terminal }
-func (a *Attached) Shown() string               { return a.f.Shown }
-func (a *Attached) Theme() (string, *[16]int32) { return a.f.Theme, a.f.Base16 }
+func (a *Attached) Line() string       { return a.f.Line }
+func (a *Attached) LineCursor() int    { return a.f.LineCursor }
+func (a *Attached) Mode() vim.Mode     { return a.f.Mode }
+func (a *Attached) Message() string    { return a.f.Message }
+func (a *Attached) Cursors() []int     { return a.f.Cursors }
+func (a *Attached) Recording() rune    { return a.f.Recording }
+func (a *Attached) Substituting() bool { return a.f.Substituting }
+func (a *Attached) Terminal() bool     { return a.f.Terminal }
+func (a *Attached) Shown() string      { return a.f.Shown }
+
+// Theme returns a guest's own theme, or else the one fude draws in.
+func (a *Attached) Theme() (string, *[16]int32) {
+	if a.own.Theme != "" {
+		return a.own.Theme, a.own.Base16
+	}
+	return a.f.Theme, a.f.Base16
+}
 
 // TerminalClipboard returns a copy for the terminal's clipboard once.
 func (a *Attached) TerminalClipboard() (string, bool) {
