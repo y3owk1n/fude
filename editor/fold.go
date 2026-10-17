@@ -15,27 +15,27 @@ type fold struct {
 
 // indentCol returns the column of line's first non-blank, or false for a
 // line of blanks.
-func indentCol(t kernel.Snapshot, line int) (int, bool) {
+func indentCol(t kernel.Snapshot, line, tab int) (int, bool) {
 	ls := t.LineStart(line)
 	text := t.Slice(ls, vim.LineEnd(t, ls))
 	rest := strings.TrimLeft(text, " \t")
 	if rest == "" {
 		return 0, false
 	}
-	return vim.Column(t, ls, ls+len(text)-len(rest)), true
+	return vim.Column(t, ls, ls+len(text)-len(rest), tab), true
 }
 
 // foldEnd returns the last line of the fold line starts: the lines after
 // it that are blank or indented more, without the blank ones they end with.
 // It is false when no line after it is indented more.
-func foldEnd(t kernel.Snapshot, line int) (int, bool) {
-	ind, ok := indentCol(t, line)
+func foldEnd(t kernel.Snapshot, line, tab int) (int, bool) {
+	ind, ok := indentCol(t, line, tab)
 	if !ok {
 		return 0, false
 	}
 	last := line
 	for l := line + 1; l < t.Lines(); l++ {
-		col, ok := indentCol(t, l)
+		col, ok := indentCol(t, l, tab)
 		if !ok {
 			continue
 		}
@@ -70,8 +70,8 @@ func (w *window) fold(t kernel.Snapshot, line int) (int, int) {
 }
 
 // closeFold closes the fold that starts on line, when there is one.
-func (w *window) closeFold(t kernel.Snapshot, line int) bool {
-	last, ok := foldEnd(t, line)
+func (w *window) closeFold(t kernel.Snapshot, line, tab int) bool {
+	last, ok := foldEnd(t, line, tab)
 	if !ok {
 		return false
 	}
@@ -120,7 +120,7 @@ func (e *Session) foldAct(act string) {
 		}
 	case "closeAll":
 		for l := 0; l < t.Lines(); l++ {
-			if w.closeFold(t, l) {
+			if w.closeFold(t, l, e.tabWidth(w.buf)) {
 				_, l = w.fold(t, l)
 			}
 		}
@@ -134,13 +134,14 @@ func (e *Session) foldAct(act string) {
 // closeAround closes the fold line starts, or else the innermost one that
 // holds it: the one started by the nearest line above with less indent.
 func (e *Session) closeAround(t kernel.Snapshot, line int) {
-	if e.win.closeFold(t, line) {
+	tab := e.tabWidth(e.win.buf)
+	if e.win.closeFold(t, line, tab) {
 		return
 	}
-	ind, ok := indentCol(t, line)
+	ind, ok := indentCol(t, line, tab)
 	for l := line - 1; l >= 0; l-- {
-		if col, text := indentCol(t, l); text && (!ok || col < ind) {
-			if e.win.closeFold(t, l) {
+		if col, text := indentCol(t, l, tab); text && (!ok || col < ind) {
+			if e.win.closeFold(t, l, tab) {
 				return
 			}
 		}

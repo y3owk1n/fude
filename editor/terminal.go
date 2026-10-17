@@ -260,7 +260,7 @@ func (e *Session) freeze(b *buffer) {
 	// The program's cursor is a column, which the line's characters make a
 	// byte.
 	s := b.text.Snapshot()
-	at := vim.ColumnStart(s, s.LineStart(last), cur.X)
+	at := vim.ColumnStart(s, s.LineStart(last), cur.X, e.tabWidth(b))
 	for _, s := range e.sessions {
 		for _, w := range s.root.windows() {
 			if w.buf == b {

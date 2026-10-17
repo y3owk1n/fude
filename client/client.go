@@ -114,6 +114,7 @@ type pulled struct {
 	Edits   [][]edit       `json:"edits"`
 	Text    *string        `json:"text"`
 	Indent  int            `json:"indent"`
+	Tab     int            `json:"tab"`
 }
 
 // Replica is a copy of one buffer. Its own edits apply to it at once, and
@@ -126,6 +127,7 @@ type Replica struct {
 	pending   []pending      // nodes the server has yet to take, oldest first
 	open      int            // the groups Begin opened
 	indent    int            // the columns > and < shift by, as the server's config says
+	tab       int            // the columns a tab shows as, as the server's config says
 }
 
 // pending is one node of the copy's that the server has yet to take: the
@@ -148,7 +150,7 @@ func (c *Conn) Open(buffer int) (*Replica, error) {
 	if p.Text == nil {
 		return nil, errors.New("pull: no text")
 	}
-	return &Replica{c: c, buf: p.Buffer, text: kernel.New(*p.Text, nil), confirmed: p.Version, indent: p.Indent}, nil
+	return &Replica{c: c, buf: p.Buffer, text: kernel.New(*p.Text, nil), confirmed: p.Version, indent: p.Indent, tab: p.Tab}, nil
 }
 
 // Text returns the copy's text.

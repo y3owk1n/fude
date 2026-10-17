@@ -551,7 +551,7 @@ func (c *client) view(v editor.View, left int, sel vim.Selection, visual bool) (
 		// A line wraps onto as many rows as it needs (B37).
 		starts := []int{pos}
 		if v.Wrap {
-			starts = vim.Rows(t, pos, v.W)
+			starts = vim.Rows(t, pos, v.W, v.Tab)
 		}
 		starts = starts[:min(len(starts), v.H-1-row)]
 		// The gutter draws in every frame, as relative numbers change with
@@ -573,7 +573,7 @@ func (c *client) view(v editor.View, left int, sel vim.Selection, visual bool) (
 		shade := v.CursorLine && line == cur
 		lead := -1
 		if v.Guides && !v.List {
-			lead = indentOf(t, pos)
+			lead = indentOf(t, pos, v.Tab)
 		}
 		text := t.Slice(pos, end)
 		// A tag starts each part of the sig, so two different lines never
@@ -630,8 +630,8 @@ func (c *client) view(v editor.View, left int, sel vim.Selection, visual bool) (
 				// into the line, after blanks for a wide one cut by the edge.
 				x := 0
 				if !v.Wrap {
-					start = vim.ColumnStart(t, pos, v.Left)
-					col = vim.Column(t, pos, start)
+					start = vim.ColumnStart(t, pos, v.Left, v.Tab)
+					col = vim.Column(t, pos, start, v.Tab)
 					x = col - v.Left
 				}
 				for rest := t.Slice(start, stop); ; {
@@ -651,7 +651,7 @@ func (c *client) view(v editor.View, left int, sel vim.Selection, visual bool) (
 						switch {
 						case rest == "":
 						case rest[0] == '\t':
-							width, next = vim.Tabstop-col%vim.Tabstop, rest[1:]
+							width, next = v.Tab-col%v.Tab, rest[1:]
 						default:
 							next, width = c.s.Put(v.X+x, y, rest, base)
 						}
@@ -689,7 +689,7 @@ func (c *client) view(v editor.View, left int, sel vim.Selection, visual bool) (
 						style = base.Background(th.selection)
 					}
 					if rest[0] == '\t' {
-						w := vim.Tabstop - col%vim.Tabstop
+						w := v.Tab - col%v.Tab
 						c.s.FillArea(v.X+x, y, min(w, v.W-x), 1, ' ', style)
 						if v.List {
 							c.s.Put(v.X+x, y, ">", style.Foreground(th.faint))
@@ -796,7 +796,7 @@ func (c *client) pin(v editor.View, numbers, cur int) {
 				style = style.Background(th.surface)
 			}
 			if rest[0] == '\t' {
-				w := vim.Tabstop - col%vim.Tabstop
+				w := v.Tab - col%v.Tab
 				x, col, rest = x+w, col+w, rest[1:]
 				continue
 			}
@@ -837,14 +837,14 @@ func (c *client) colorColumn(v editor.View, y int) {
 // indentOf returns the columns of the leading blanks of the line at start.
 // A blank line takes the indent of the next line with text, so the guides
 // run through it (B153).
-func indentOf(t kernel.Snapshot, start int) int {
+func indentOf(t kernel.Snapshot, start, tab int) int {
 	lead := 0
 	// A long run of blank lines looks 200 lines ahead at most.
 	for p, n := start, 0; n < 200; n++ {
 		end := vim.LineEnd(t, p)
 		text := t.Slice(p, end)
 		if rest := strings.TrimLeft(text, " \t"); rest != "" {
-			lead = vim.Column(t, p, p+len(text)-len(rest))
+			lead = vim.Column(t, p, p+len(text)-len(rest), tab)
 			break
 		}
 		if end == t.Len() {

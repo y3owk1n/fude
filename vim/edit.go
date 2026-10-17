@@ -290,6 +290,7 @@ func findNumber(line string, col int) (int, int, int) {
 
 // changeCase applies g~, gu or gU to r and puts the cursor at its start.
 func (m *Machine) changeCase(op, label string, r region) error {
+	tab := m.h.TabWidth()
 	t := m.h.Text()
 	f := swapCase
 	switch op {
@@ -298,7 +299,7 @@ func (m *Machine) changeCase(op, label string, r region) error {
 	case "gU":
 		f = strings.ToUpper
 	}
-	ranges := lineRanges(t, r)
+	ranges := lineRanges(t, r, tab)
 	var edits []Edit
 	for _, rg := range ranges {
 		if rg[0] < rg[1] {
@@ -318,13 +319,14 @@ func (m *Machine) changeCase(op, label string, r region) error {
 // them for <, rebuilding the indent from tabs and spaces. Empty lines stay
 // empty.
 func (m *Machine) shift(op, label string, r region, col, times int) error {
+	tab := m.h.TabWidth()
 	t := m.h.Text()
 	var edits []Edit
 	for ls := LineStart(t, r.start); ; {
 		le := LineEnd(t, ls)
 		if ls < le {
 			ind := firstNonBlank(t, ls, le)
-			w := column(t, ls, ind)
+			w := column(t, ls, ind, tab)
 			if op == ">" {
 				w += m.h.IndentWidth() * times
 			} else {
@@ -343,7 +345,7 @@ func (m *Machine) shift(op, label string, r region, col, times int) error {
 		}
 	}
 	t = m.h.Text()
-	m.h.SetCursor(clamp(t, atColumn(t, LineStart(t, r.start), col)))
+	m.h.SetCursor(clamp(t, atColumn(t, LineStart(t, r.start), col, tab)))
 	return nil
 }
 
@@ -353,7 +355,8 @@ func (m *Machine) indentText(w int) string {
 	if m.expandTab {
 		return strings.Repeat(" ", w)
 	}
-	return strings.Repeat("\t", w/Tabstop) + strings.Repeat(" ", w%Tabstop)
+	tab := m.h.TabWidth()
+	return strings.Repeat("\t", w/tab) + strings.Repeat(" ", w%tab)
 }
 
 // ExpandTab sets whether indents are spaces only, and <Tab> in insert mode

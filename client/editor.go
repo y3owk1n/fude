@@ -221,5 +221,8 @@ func (h host) Step(n int) (int, bool) {
 // IndentWidth is the buffer's setting in the server's config.toml (B94).
 func (h host) IndentWidth() int { return cmp.Or(h.e.r.indent, vim.Tabstop) }
 
+// TabWidth is the buffer's setting in the server's config.toml.
+func (h host) TabWidth() int { return cmp.Or(h.e.r.tab, vim.Tabstop) }
+
 // Fold reports no folds, as a client's replica keeps no view of its own.
 func (h host) Fold(line int) (int, int) { return line, line }

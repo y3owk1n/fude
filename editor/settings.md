@@ -6,9 +6,20 @@ name `:h` finds it by.
 ## indent_width
 
 How many columns one indent level is, for `>`, `<`, insert mode's `<C-t>`
-and `<C-d>`, and the indent guides. 0 means the width of a tab, 8. With
+and `<C-d>`, and the indent guides. 0, the default, means `tab_width`. With
 `expand_tab` on, indents are spaces, and otherwise tabs as far as they go. A
 `[filetype.<name>]` table sets it for one filetype.
+
+## tab_width
+
+How many columns a tab shows as, 8 unless set. Indents count tabs at this
+width, so with `tab_width = 4` and `indent_width = 2`, two `>>` make one
+tab. A `[filetype.<name>]` table sets it for one filetype.
+
+```toml
+[filetype.go]
+tab_width = 4
+```
 
 ## key_timeout
 
@@ -293,6 +304,11 @@ extensions fude knows, such as `["*.toml.tmpl"]` in `[filetype.toml]`.
 ## filetype.indent_width
 
 `indent_width` for files of this filetype, over the one at the top of
+config.toml.
+
+## filetype.tab_width
+
+`tab_width` for files of this filetype, over the one at the top of
 config.toml.
 
 ## filetype.expand_tab

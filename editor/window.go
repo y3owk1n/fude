@@ -107,11 +107,11 @@ func (w *window) nextLine(t kernel.Snapshot, start int) (int, bool) {
 	return t.LineStart(last + 1), true
 }
 
-func (w *window) rows(t kernel.Snapshot, start int) int {
+func (w *window) rows(t kernel.Snapshot, start, tab int) int {
 	if !w.opts.Wrap {
 		return 1
 	}
-	return len(vim.Rows(t, start, w.cols()))
+	return len(vim.Rows(t, start, w.cols(), tab))
 }
 
 // show switches the window to b, at the place b was last left.

@@ -31,6 +31,7 @@ func (m *Machine) Selection() (Selection, bool) {
 // selection returns the text visual mode covers. Charwise it includes the
 // cluster under each end, and the line break after $ or on an empty line.
 func (m *Machine) selection() region {
+	tab := m.h.TabWidth()
 	t, c := m.h.Text(), m.h.Cursor()
 	s, e := min(m.anchor, c), max(m.anchor, c)
 	toEnd := m.wantSet && m.want == math.MaxInt
@@ -38,9 +39,9 @@ func (m *Machine) selection() region {
 	case "V":
 		return m.folded(t, region{start: LineStart(t, s), end: LineEnd(t, e), lines: true})
 	case "<C-v>":
-		ca, cc := column(t, LineStart(t, m.anchor), m.anchor), column(t, LineStart(t, c), c)
-		wa := max(textWidth(t.Slice(m.anchor, next(t, m.anchor, LineEnd(t, m.anchor))), ca), 1)
-		wc := max(textWidth(t.Slice(c, next(t, c, LineEnd(t, c))), cc), 1)
+		ca, cc := column(t, LineStart(t, m.anchor), m.anchor, tab), column(t, LineStart(t, c), c, tab)
+		wa := max(textWidth(t.Slice(m.anchor, next(t, m.anchor, LineEnd(t, m.anchor))), ca, tab), 1)
+		wc := max(textWidth(t.Slice(c, next(t, c, LineEnd(t, c))), cc, tab), 1)
 		r := region{start: LineStart(t, s), end: LineEnd(t, e), block: true, left: min(ca, cc), right: max(ca+wa, cc+wc) - 1}
 		if toEnd {
 			r.right = math.MaxInt
@@ -82,6 +83,7 @@ func (m *Machine) reselect() {
 // it for I or after it for A. Leaving insert mode copies the typed text to
 // the other lines, padding short ones for A.
 func (m *Machine) blockInsertStart(after bool) error {
+	tab := m.h.TabWidth()
 	t := m.h.Text()
 	r := m.selection()
 	toEnd := after && r.right == math.MaxInt
@@ -90,7 +92,7 @@ func (m *Machine) blockInsertStart(after bool) error {
 	if after && !toEnd {
 		col = r.right + 1
 	}
-	pos := colStart(t, r.start, col)
+	pos := colStart(t, r.start, col, tab)
 	if toEnd {
 		pos = LineEnd(t, r.start)
 	}
@@ -99,14 +101,14 @@ func (m *Machine) blockInsertStart(after bool) error {
 		label = "<C-v>A"
 	}
 	m.startInsert(Key(label), pos)
-	if w := column(t, r.start, pos); after && !toEnd && w < col {
+	if w := column(t, r.start, pos, tab); after && !toEnd && w < col {
 		if err := m.insertText(strings.Repeat(" ", col-w)); err != nil {
 			return err
 		}
 	}
 	m.blockInsert = &blockInsert{
 		start: m.h.Cursor(), col: col, lines: t.LineOf(r.end) - t.LineOf(r.start),
-		toEnd: toEnd, pad: after, home: colStart(t, r.start, r.left),
+		toEnd: toEnd, pad: after, home: colStart(t, r.start, r.left, tab),
 	}
 	return nil
 }
@@ -137,10 +139,11 @@ var visualOps = map[string]visualOp{
 // replaceSelection replaces every character of the selection with k,
 // keeping its line breaks.
 func (m *Machine) replaceSelection(k Key) error {
+	tab := m.h.TabWidth()
 	r := m.selection()
 	m.leaveVisual()
 	t := m.h.Text()
-	ranges := lineRanges(t, r)
+	ranges := lineRanges(t, r, tab)
 	var edits []Edit
 	for _, rg := range ranges {
 		n := 0
@@ -165,6 +168,7 @@ func (m *Machine) replaceSelection(k Key) error {
 // delete's does. A line register goes on lines of its own, and lines take
 // other text as a line.
 func (m *Machine) putOver(reg rune, keep bool, n int) error {
+	tab := m.h.TabWidth()
 	reg, put, ok, err := m.fetchPut(reg)
 	switch {
 	case err != nil:
@@ -176,7 +180,7 @@ func (m *Machine) putOver(reg rune, keep bool, n int) error {
 	m.leaveVisual()
 	t := m.h.Text()
 	text := strings.Repeat(put.text, n)
-	ranges := lineRanges(t, r)
+	ranges := lineRanges(t, r, tab)
 	var edits []Edit
 	var old []string
 	switch {

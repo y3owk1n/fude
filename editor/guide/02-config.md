@@ -36,7 +36,7 @@ by pattern.
 
 ```toml
 [filetype.go]
-indent_width = 8
+tab_width = 4
 lsp = ["gopls"]
 format = ["goimports", "gofumpt"]
 

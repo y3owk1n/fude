@@ -597,6 +597,7 @@ type View struct {
 	List              bool           // show tabs, trailing spaces and no-break spaces (B118)
 	Left              int            // the first column shown without wrap
 	Indent            int            // the columns of an indent level, where guides go
+	Tab               int            // the columns a tab shows as
 	Guides            bool           // draw indent guides (B153)
 	ColorColumn       int            // the column of the text to shade, from 1, or 0 (B200)
 	Colours           []Colour       // text that names a colour, shown on it (B208, B209)
@@ -645,14 +646,14 @@ func (e *Session) Views() []View {
 	_, _, centered := e.area()
 	for _, w := range e.root.windows() {
 		e.fit(w)
-		t, top := w.buf.text.Snapshot(), e.topOf(w)
+		t, top, tab := w.buf.text.Snapshot(), e.topOf(w), e.tabWidth(w.buf)
 		v := View{
 			Text: t, Top: top, Cursor: w.pos(),
 			X: w.x, Y: w.y, W: w.w, H: w.h,
 			Name: w.buf.name(), Modified: w.buf.modified(), Current: w == e.win || w == e.under,
 			Gutter: w.gutter(), SignCols: w.signCols(), Number: w.numberCols() > 0 && w.opts.Number, Relative: w.numberCols() > 0 && w.opts.RelativeNumber,
 			Wrap: w.opts.Wrap, Left: w.left, CursorLine: w.opts.CursorLine, List: w.opts.List,
-			Indent: e.indentWidth(w.buf), Guides: w.opts.IndentGuides, ColorColumn: w.opts.ColorColumn,
+			Indent: e.indentWidth(w.buf), Tab: tab, Guides: w.opts.IndentGuides, ColorColumn: w.opts.ColorColumn,
 		}
 		// Centered, the colour column is the windows' edge, so it shows none.
 		if centered {
@@ -739,7 +740,7 @@ func (e *Session) Views() []View {
 			}
 		}
 		v.Pair = e.pair(w, t, top, last)
-		v.Ruler = ruler(t, w.pos(), top, max(w.h-1, 1), func(p int) int { return w.rows(t, p) })
+		v.Ruler = ruler(t, w.pos(), top, max(w.h-1, 1), tab, func(p int) int { return w.rows(t, p, tab) })
 		for _, p := range e.plugins {
 			if s := e.segments[p][w.buf]; s != "" {
 				v.Segments = append(v.Segments, s)
@@ -927,9 +928,9 @@ func (e *Session) signs(b *buffer, top, last int) map[int]Sign {
 // top, whose lines take rowsOf rows each. It is line,col, then -screen
 // column when that differs, then All, Top, Bot or how far down the view is
 // (B38).
-func ruler(t kernel.Snapshot, c, top, rows int, rowsOf func(int) int) string {
+func ruler(t kernel.Snapshot, c, top, rows, tab int, rowsOf func(int) int) string {
 	line, ls := t.LineOf(c), vim.LineStart(t, c)
-	col, vcol := c-ls+1, vim.Column(t, ls, c)+1
+	col, vcol := c-ls+1, vim.Column(t, ls, c, tab)+1
 	if ls == vim.LineEnd(t, ls) {
 		col = 0
 	}
@@ -994,10 +995,11 @@ func (e *Session) reveal() {
 	}
 	// low is the earliest top that still shows below, found walking back
 	// from it, so a far jump looks at one window of lines.
-	low, rows := below, w.rows(t, below)
+	tab := e.tabWidth(w.buf)
+	low, rows := below, w.rows(t, below, tab)
 	for low > 0 {
 		prev := w.prevLine(t, low)
-		if rows += w.rows(t, prev); rows > e.rows() {
+		if rows += w.rows(t, prev, tab); rows > e.rows() {
 			break
 		}
 		low = prev
@@ -1007,7 +1009,7 @@ func (e *Session) reveal() {
 	w.buf.text.MoveMark(w.top, min(max(t.LineStart(first), low), above))
 	// Without wrap the view scrolls sideways the least it must to show the
 	// cursor's column (B37).
-	if col := vim.Column(t, line, c); !w.opts.Wrap {
+	if col := vim.Column(t, line, c, tab); !w.opts.Wrap {
 		w.left = min(max(w.left, col-w.cols()+1), col)
 	}
 }
@@ -1649,6 +1651,7 @@ func (h host) Step(n int) (int, bool) { return h.e.step(n) }
 // IndentWidth is the setting for the buffer's filetype, else the top-level
 // one.
 func (h host) IndentWidth() int { return h.e.indentWidth(h.e.win.buf) }
+func (h host) TabWidth() int    { return h.e.tabWidth(h.e.win.buf) }
 
 // Fold returns the closed fold of the current window that holds line
 // (B224).
@@ -1662,9 +1665,19 @@ func (ed *Editor) indentWidth(b *buffer) int {
 		w = ft.IndentWidth
 	}
 	if w == 0 {
-		return vim.Tabstop
+		return ed.tabWidth(b)
 	}
 	return int(w)
+}
+
+// tabWidth is the columns a tab shows as in b, from its filetype's
+// tab_width, or else the global one, or else vim's.
+func (ed *Editor) tabWidth(b *buffer) int {
+	w := ed.cfg.TabWidth
+	if ft, ok := ed.cfg.Filetype[ed.filetype(b)]; ok && ft.TabWidth > 0 {
+		w = ft.TabWidth
+	}
+	return cmp.Or(int(w), vim.Tabstop)
 }
 
 // Undo reverts the session's newest change. When another origin changed the

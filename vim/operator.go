@@ -115,6 +115,7 @@ func (m *Machine) hostOp(op, label string, r region) error {
 
 // act applies d, c or y to r.
 func (m *Machine) act(op string, reg rune, label string, r region) error {
+	tab := m.h.TabWidth()
 	if op == "ys" {
 		m.wait = &charWait{n: 1, run: func(ch []string) error { return m.surroundRegion(r, ch[0], label+ch[0]) }}
 		return nil
@@ -123,7 +124,7 @@ func (m *Machine) act(op string, reg rune, label string, r region) error {
 		return m.hostOp(op, label, r)
 	}
 	t, c := m.h.Text(), m.h.Cursor()
-	col := column(t, LineStart(t, c), c)
+	col := column(t, LineStart(t, c), c, tab)
 	if m.wantSet {
 		col = m.want
 	}
@@ -154,7 +155,7 @@ func (m *Machine) act(op string, reg rune, label string, r region) error {
 	switch {
 	case op == "y" && lines:
 		if s := LineStart(t, start); s != LineStart(t, c) {
-			m.h.SetCursor(atColumn(t, s, column(t, LineStart(t, c), c)))
+			m.h.SetCursor(atColumn(t, s, column(t, LineStart(t, c), c, tab), tab))
 		}
 		return nil
 	case op == "y":
@@ -190,7 +191,7 @@ func (m *Machine) act(op string, reg rune, label string, r region) error {
 	case lines && r.adjusted:
 		m.h.SetCursor(firstNonBlank(t, s, LineEnd(t, s)))
 	case lines:
-		m.h.SetCursor(atColumn(t, s, col))
+		m.h.SetCursor(atColumn(t, s, col, tab))
 	default:
 		m.h.SetCursor(clamp(t, start))
 	}
@@ -382,15 +383,15 @@ func (m *Machine) put(reg rune, after bool, n int) error {
 
 // lineRanges returns the text r covers on each of its lines, without line
 // breaks: a block's columns, or else from its start to its end.
-func lineRanges(t Text, r region) [][2]int {
+func lineRanges(t Text, r region, tab int) [][2]int {
 	var out [][2]int
 	for a := r.start; ; {
 		le := LineEnd(t, a)
 		rg := [2]int{a, min(le, r.end)}
 		if r.block {
-			rg = [2]int{colStart(t, a, r.left), le}
+			rg = [2]int{colStart(t, a, r.left, tab), le}
 			if r.right != math.MaxInt {
-				rg[1] = colStart(t, a, r.right+1)
+				rg[1] = colStart(t, a, r.right+1, tab)
 			}
 		}
 		out = append(out, rg)
@@ -404,17 +405,18 @@ func lineRanges(t Text, r region) [][2]int {
 // actBlock applies d, c or y to the columns of a block. c inserts on the
 // first line, and leaving insert mode copies the text to the other lines.
 func (m *Machine) actBlock(op string, reg rune, label string, r region) error {
+	tab := m.h.TabWidth()
 	t := m.h.Text()
 	var texts []string
 	var edits []Edit
-	for _, rg := range lineRanges(t, r) {
+	for _, rg := range lineRanges(t, r, tab) {
 		texts = append(texts, t.Slice(rg[0], rg[1]))
 		if rg[0] < rg[1] {
 			edits = append(edits, Edit{Start: rg[0], End: rg[1]})
 		}
 	}
 	m.store(reg, op, register{text: strings.Join(texts, "\n"), block: true})
-	top := colStart(t, r.start, r.left)
+	top := colStart(t, r.start, r.left, tab)
 	switch op {
 	case "y":
 		m.h.SetCursor(top)
@@ -445,6 +447,7 @@ type blockInsert struct {
 // finishBlock copies text typed on the first line of a block c to the same
 // column of the block's other lines, skipping lines too short to reach it.
 func (m *Machine) finishBlock(b *blockInsert) error {
+	tab := m.h.TabWidth()
 	t, c := m.h.Text(), m.h.Cursor()
 	if c <= b.start || LineStart(t, c) != LineStart(t, b.start) {
 		return nil
@@ -457,8 +460,8 @@ func (m *Machine) finishBlock(b *blockInsert) error {
 			break
 		}
 		ls = LineEnd(t, ls) + 1
-		p := colStart(t, ls, b.col)
-		w := column(t, ls, p)
+		p := colStart(t, ls, b.col, tab)
+		w := column(t, ls, p, tab)
 		switch {
 		case b.toEnd:
 			p = LineEnd(t, ls)
@@ -479,15 +482,16 @@ func (m *Machine) finishBlock(b *blockInsert) error {
 // It pads short lines with spaces, pads the block to a rectangle when text
 // follows it, and adds missing lines at the end.
 func (m *Machine) putBlock(text string, after bool, n int, label string) error {
+	tab := m.h.TabWidth()
 	t, c := m.h.Text(), m.h.Cursor()
-	col := column(t, LineStart(t, c), c)
+	col := column(t, LineStart(t, c), c, tab)
 	if after && c < LineEnd(t, c) {
-		col += textWidth(t.Slice(c, next(t, c, LineEnd(t, c))), col)
+		col += textWidth(t.Slice(c, next(t, c, LineEnd(t, c))), col, tab)
 	}
 	lines := strings.Split(text, "\n")
 	w := 0
 	for _, l := range lines {
-		w = max(w, textWidth(strings.Repeat(l, n), 0))
+		w = max(w, textWidth(strings.Repeat(l, n), 0, tab))
 	}
 	var edits []Edit
 	tail, top := "", 0
@@ -501,14 +505,14 @@ func (m *Machine) putBlock(text string, after bool, n int, label string) error {
 			}
 			ls = LineEnd(t, ls) + 1
 		}
-		p := colStart(t, ls, col)
-		pad := strings.Repeat(" ", col-column(t, ls, p))
+		p := colStart(t, ls, col, tab)
+		pad := strings.Repeat(" ", col-column(t, ls, p, tab))
 		if i == 0 {
 			top = p + len(pad)
 		}
 		s := pad + l
 		if p < LineEnd(t, ls) {
-			s += strings.Repeat(" ", w-textWidth(l, 0))
+			s += strings.Repeat(" ", w-textWidth(l, 0, tab))
 		}
 		edits = append(edits, Edit{Start: p, End: p, Text: s})
 	}

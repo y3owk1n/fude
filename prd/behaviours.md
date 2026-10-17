@@ -108,6 +108,10 @@ Where fude departs, the line says so and cites the departure in
 - B122 [2] With `expand_tab`, `>`, `<`, `<C-t>` and `<C-d>` indent with
   spaces only, and `<Tab>` in insert mode types spaces to the next
   `indent_width` column (N10).
+- B237 [2] A tab shows as `tab_width` columns, 8 unless set, and a
+  `[filetype.<name>]` table sets it for one filetype. Indents made of tabs
+  then spaces count each tab at that width, and `j` and `k` keep the
+  column it gives. `indent_width` is the tab width unless set.
 - B123 [2] A file in a git repository shows in the sign column how it
   differs from git's index, as gitsigns does: `┃` on added and changed
   lines, `▁` under the line before deleted ones, and `~` on a change that

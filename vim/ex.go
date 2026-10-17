@@ -247,6 +247,7 @@ func btoi(b bool) int {
 // :retab does (B156): as spaces with expand_tab, or with force as tabs and
 // then spaces without it.
 func (m *Machine) retab(first, last int, force bool) error {
+	tab := m.h.TabWidth()
 	if !m.expandTab && !force {
 		return nil
 	}
@@ -254,10 +255,10 @@ func (m *Machine) retab(first, last int, force bool) error {
 	var edits []Edit
 	for ls := first; ; ls = LineEnd(t, ls) + 1 {
 		end := firstNonBlank(t, ls, LineEnd(t, ls))
-		if w := column(t, ls, end); w > 0 {
+		if w := column(t, ls, end, tab); w > 0 {
 			blanks := strings.Repeat(" ", w)
 			if !m.expandTab {
-				blanks = strings.Repeat("\t", w/Tabstop) + strings.Repeat(" ", w%Tabstop)
+				blanks = strings.Repeat("\t", w/tab) + strings.Repeat(" ", w%tab)
 			}
 			if blanks != t.Slice(ls, end) {
 				edits = append(edits, Edit{Start: ls, End: end, Text: blanks})

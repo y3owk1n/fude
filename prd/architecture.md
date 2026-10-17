@@ -144,6 +144,7 @@ type Host interface {
     Jump(n int) bool
     Change(n int) bool
     IndentWidth() int // the buffer's setting, so filetypes can differ
+    TabWidth() int    // the columns a tab shows as, the buffer's setting (B237)
     Clipboard() (string, error) // the system clipboard, "+ and "* (B36)
     SetClipboard(text string) error
     Fold(line int) (first, last int) // the closed fold holding line (B223)
@@ -806,7 +807,8 @@ $XDG_DATA_HOME/fude/grammars/       grammars and their queries, loaded at runtim
 `editor.Start` reads `config.toml` once (D27, D31). It holds:
 
 ```toml
-indent_width = 8     # columns >, <, <C-t> and <C-d> shift by, 0 for the tab width
+indent_width = 0     # columns >, <, <C-t> and <C-d> shift by, 0 for the tab width
+tab_width = 8        # columns a tab shows as (B237)
 key_timeout = 1000   # milliseconds a mapping prefix waits (B84)
 large_file = 2       # megabytes over which syntax and LSP stay off (B83)
 center = false       # start with the windows centered, as :center toggles (B199)

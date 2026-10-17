@@ -103,3 +103,26 @@ func TestB94FiletypeSettings(t *testing.T) {
 		t.Errorf(">> in b.txt gave %q with wrap %v and number %v, want a tab with both", text(e), v.Wrap, v.Number)
 	}
 }
+
+// B237
+func TestB237TabWidth(t *testing.T) {
+	config(t, "tab_width = 4\nindent_width = 2\n")
+	path := filepath.Join(t.TempDir(), "a.txt")
+	if err := os.WriteFile(path, []byte("x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	e := start(t, path)
+	// Two indents of 2 columns make one tab of 4.
+	if feed(e, ">>"); text(e) != "  x" {
+		t.Errorf(">> gave %q, want two spaces", text(e))
+	}
+	if feed(e, ">>"); text(e) != "\tx" {
+		t.Errorf(">>>> gave %q, want a tab", text(e))
+	}
+	// k keeps the column, which the tab's width decides.
+	change(t, path, "\tx\nabcdefgh\n")
+	e = start(t, path)
+	if feed(e, "j4lk"); e.Cursor() != 1 {
+		t.Errorf("k from column 4 went to %d, want the x after the tab", e.Cursor())
+	}
+}
