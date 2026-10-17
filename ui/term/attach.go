@@ -19,6 +19,7 @@ import (
 	"github.com/y3owk1n/fude/internal/clipboard"
 	"github.com/y3owk1n/fude/internal/relay"
 	"github.com/y3owk1n/fude/vim"
+	"github.com/y3owk1n/fude/wire"
 )
 
 // Attached is a session of another fude. The terminal client draws it from
@@ -27,7 +28,7 @@ type Attached struct {
 	c     net.Conn
 	enc   *json.Encoder
 	queue chan func()
-	f     editor.Frame
+	f     wire.Frame
 	texts map[int]*kernel.Buffer // each buffer's text, as the frames bring it
 	w, h  int                    // the size last sent
 	clip  *string                // for the terminal's clipboard, once
@@ -136,8 +137,8 @@ func begin(c net.Conn, hello any) (*Attached, error) {
 func (a *Attached) read(in *bufio.Scanner) {
 	for in.Scan() {
 		var n struct {
-			Method string       `json:"method"`
-			Params editor.Frame `json:"params"`
+			Method string     `json:"method"`
+			Params wire.Frame `json:"params"`
 		}
 		if json.Unmarshal(in.Bytes(), &n) != nil || n.Method != "frame" {
 			continue
@@ -153,7 +154,7 @@ func (a *Attached) read(in *bufio.Scanner) {
 }
 
 // apply brings the texts up to date with f and draws from it.
-func (a *Attached) apply(f editor.Frame) {
+func (a *Attached) apply(f wire.Frame) {
 	for _, t := range f.Texts {
 		if t.Whole != nil {
 			a.texts[t.Buffer] = kernel.New(*t.Whole, nil)
@@ -240,16 +241,16 @@ func wait(d *time.Duration) (time.Duration, bool) {
 	return *d, true
 }
 
-func (a *Attached) Views() []editor.View  { return a.f.Views }
-func (a *Attached) Buffers() []editor.Tab { return a.f.Buffers }
+func (a *Attached) Views() []wire.View  { return a.f.Views }
+func (a *Attached) Buffers() []wire.Tab { return a.f.Buffers }
 
-func (a *Attached) Float() (editor.Float, bool)     { return orZero(a.f.Float) }
-func (a *Attached) Signature() (editor.Float, bool) { return orZero(a.f.Signature) }
+func (a *Attached) Float() (wire.Float, bool)     { return orZero(a.f.Float) }
+func (a *Attached) Signature() (wire.Float, bool) { return orZero(a.f.Signature) }
 
 // orZero reads a frame's float, which it leaves out when none shows.
-func orZero(f *editor.Float) (editor.Float, bool) {
+func orZero(f *wire.Float) (wire.Float, bool) {
 	if f == nil {
-		return editor.Float{}, false
+		return wire.Float{}, false
 	}
 	return *f, true
 }

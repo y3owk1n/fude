@@ -14,6 +14,7 @@ import (
 
 	"github.com/y3owk1n/fude/protocol/lsp"
 	"github.com/y3owk1n/fude/vim"
+	"github.com/y3owk1n/fude/wire"
 )
 
 // pickSources are the sources :pick finds in, by name.
@@ -200,7 +201,7 @@ func (e *Session) diagnosticPlaces() []string {
 		t := b.text.Snapshot()
 		ds := slices.Clone(e.diagnostics(b))
 		worst := func(d decoration) int {
-			return slices.IndexFunc(diagnosticSigns, func(s Sign) bool { return s.Name == d.style })
+			return slices.IndexFunc(diagnosticSigns, func(s wire.Sign) bool { return s.Name == d.style })
 		}
 		slices.SortStableFunc(ds, func(x, y decoration) int {
 			return cmp.Or(cmp.Compare(worst(x), worst(y)), cmp.Compare(b.text.Mark(x.start), b.text.Mark(y.start)))

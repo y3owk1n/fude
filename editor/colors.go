@@ -9,13 +9,8 @@ import (
 
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/protocol/lsp"
+	"github.com/y3owk1n/fude/wire"
 )
-
-// Colour is text a window shows on the colour it names (B208, B209).
-type Colour struct {
-	Start, End int
-	RGB        int32 // 0xRRGGBB
-}
 
 // coloured names the colours a server reported for a buffer.
 type coloured struct {
@@ -26,8 +21,8 @@ type coloured struct {
 // textColours returns the colours text names as #rgb, #rgba, #rrggbb or
 // #rrggbbaa, or with rgb(), rgba(), hsl() or hsla(), text starting at base
 // (B208).
-func textColours(text string, base int) []Colour {
-	var out []Colour
+func textColours(text string, base int) []wire.Colour {
+	var out []wire.Colour
 	for i := 0; i < len(text); i++ {
 		if i > 0 && isWord(text[i-1]) {
 			continue
@@ -38,7 +33,7 @@ func textColours(text string, base int) []Colour {
 				j++
 			}
 			if n := j - i - 1; (n == 3 || n == 4 || n == 6 || n == 8) && (j == len(text) || !isWord(text[j])) {
-				out = append(out, Colour{base + i, base + j, hexRGB(text[i+1 : j])})
+				out = append(out, wire.Colour{Start: base + i, End: base + j, RGB: hexRGB(text[i+1 : j])})
 				i = j - 1
 			}
 			continue
@@ -52,7 +47,7 @@ func textColours(text string, base int) []Colour {
 				break
 			}
 			if rgb, ok := funcRGB(fn[:3], text[i+len(fn):i+end]); ok {
-				out = append(out, Colour{base + i, base + i + end + 1, rgb})
+				out = append(out, wire.Colour{Start: base + i, End: base + i + end + 1, RGB: rgb})
 				i += end
 			}
 			break

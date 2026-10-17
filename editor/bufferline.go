@@ -3,18 +3,13 @@ package editor
 import (
 	"path/filepath"
 	"slices"
-)
 
-// Tab is a buffer as the buffer line shows it (B258).
-type Tab struct {
-	Number            int
-	Name              string
-	Current, Modified bool
-}
+	"github.com/y3owk1n/fude/wire"
+)
 
 // Buffers returns what the buffer line shows: the open buffers that have
 // files, once two or more are, else nothing (B258).
-func (e *Session) Buffers() []Tab {
+func (e *Session) Buffers() []wire.Tab {
 	if !e.cfg.BufferLine {
 		return nil
 	}
@@ -35,13 +30,13 @@ func (e *Session) Buffers() []Tab {
 	if !slices.Contains(e.root.windows(), current) && e.under != nil {
 		current = e.under
 	}
-	tabs := make([]Tab, len(bufs))
+	tabs := make([]wire.Tab, len(bufs))
 	for i, b := range bufs {
 		name := filepath.Base(b.file.path)
 		if bases[name] > 1 {
 			name = filepath.Join(filepath.Base(filepath.Dir(b.file.path)), name)
 		}
-		tabs[i] = Tab{b.id, name, b == current.buf, b.modified()}
+		tabs[i] = wire.Tab{Number: b.id, Name: name, Current: b == current.buf, Modified: b.modified()}
 	}
 	return tabs
 }

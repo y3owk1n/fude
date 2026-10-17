@@ -11,6 +11,7 @@ import (
 
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/vim"
+	"github.com/y3owk1n/fude/wire"
 )
 
 // readListing returns dir's entries, one name a line in the order the
@@ -200,11 +201,11 @@ func (b *buffer) notes(t kernel.Snapshot, top, last int) map[int]string {
 }
 
 // icons returns the icon of each line of listing b from top to last.
-func (b *buffer) icons(t kernel.Snapshot, top, last int) map[int]Sign {
+func (b *buffer) icons(t kernel.Snapshot, top, last int) map[int]wire.Sign {
 	if b.listed == "" {
 		return nil
 	}
-	out := map[int]Sign{}
+	out := map[int]wire.Sign{}
 	for line := t.LineOf(top); line <= t.LineOf(last); line++ {
 		start := t.LineStart(line)
 		if name := t.Slice(start, vim.LineEnd(t, start)); name != "" {

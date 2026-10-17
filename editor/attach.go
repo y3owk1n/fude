@@ -10,50 +10,14 @@ import (
 
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/vim"
+	"github.com/y3owk1n/fude/wire"
 )
-
-// Frame is what an attached session's client draws. The server sends one
-// whenever it changes (D39). Its views leave out their text, which Texts
-// brings up to date.
-type Frame struct {
-	Views        []View
-	Buffers      []Tab          `json:",omitempty"` // what the buffer line shows (B258)
-	Texts        []Text         `json:",omitempty"`
-	Float        *Float         `json:",omitempty"`
-	Signature    *Float         `json:",omitempty"`
-	Line         string         `json:",omitempty"`
-	LineCursor   int            `json:",omitempty"`
-	Mode         vim.Mode       `json:",omitempty"`
-	Message      string         `json:",omitempty"`
-	Selection    *vim.Selection `json:",omitempty"`
-	Cursors      []int          `json:",omitempty"`
-	Recording    rune           `json:",omitempty"`
-	Substituting bool           `json:",omitempty"`
-	Terminal     bool           `json:",omitempty"`
-	Shown        string         `json:",omitempty"`
-	Theme        string
-	Base16       *[16]int32     `json:",omitempty"`
-	Clipboard    *string        `json:",omitempty"` // to put on the client's clipboard (B241)
-	Wait         *time.Duration `json:",omitempty"` // until a key typed now times out
-	Hints        *time.Duration `json:",omitempty"` // until the key hints show
-	Done         bool           `json:",omitempty"` // the session ended, as Message says when fude quit
-	Input        int            // the client's notices fude has handled, so a frame follows each
-}
-
-// Text is a buffer's text as a frame brings it: the edits since the version
-// the client has, or else the whole text.
-type Text struct {
-	Buffer  int
-	Version kernel.Version
-	Edits   [][]kernel.Edit `json:",omitempty"`
-	Whole   *string         `json:",omitempty"`
-}
 
 // frame returns what e's client draws. It brings the text of each shown
 // buffer that changed since sent, the versions the client has, and moves
 // sent on.
-func (e *Session) frame(sent map[int]kernel.Version) Frame {
-	f := Frame{
+func (e *Session) frame(sent map[int]kernel.Version) wire.Frame {
+	f := wire.Frame{
 		Views: e.Views(), Buffers: e.Buffers(), Line: e.Line(), LineCursor: e.LineCursor(), Mode: e.Mode(), Message: e.Message(),
 		Cursors: e.Cursors(), Recording: e.Recording(), Substituting: e.Substituting(), Terminal: e.Terminal(), Shown: e.Shown(),
 	}
@@ -91,7 +55,7 @@ func (e *Session) frame(sent map[int]kernel.Version) Frame {
 		if known && have == t.Version() {
 			continue
 		}
-		text := Text{Buffer: b.id, Version: t.Version()}
+		text := wire.Text{Buffer: b.id, Version: t.Version()}
 		// A client with no copy, or one older than the edits the kernel
 		// keeps, takes the whole text.
 		if edits, ok := b.text.Since(have); known && ok {

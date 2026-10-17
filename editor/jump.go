@@ -20,13 +20,6 @@ type jump struct {
 	labels  map[string][2]int
 }
 
-// Label is the label of a jump's match, drawn over the character at Pos,
-// the one after the match (B218).
-type Label struct {
-	Pos  int
-	Text string
-}
-
 // jumpKey takes a key while a jump is typed. A label goes to its match,
 // <CR> to the nearest, <BS> drops the last character typed and <Esc>
 // cancels. Any other character adds to the text to find.

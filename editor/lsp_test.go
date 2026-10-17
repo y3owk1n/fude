@@ -17,6 +17,7 @@ import (
 
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/protocol/lsp"
+	"github.com/y3owk1n/fude/wire"
 )
 
 // TestFakeServer is a language server when FUDE_FAKE_LSP is set, which tests
@@ -295,7 +296,7 @@ func TestB209ServerColours(t *testing.T) {
 	e, _ := withServer(t, "x teal\n", "utf-8")
 	teal := func(at int) func() bool {
 		return func() bool {
-			return slices.Contains(e.Views()[0].Colours, editor.Colour{Start: at, End: at + 4, RGB: 0x008080})
+			return slices.Contains(e.Views()[0].Colours, wire.Colour{Start: at, End: at + 4, RGB: 0x008080})
 		}
 	}
 	settle(t, e, teal(2))
@@ -309,7 +310,7 @@ func TestB216InlayHints(t *testing.T) {
 	e, _ := withServer(t, "x f(1)\n", "utf-8")
 	hint := func(at int) func() bool {
 		return func() bool {
-			return slices.Contains(e.Views()[0].Ghosts, editor.Ghost{Pos: at, Text: "n: ", Style: "inlay"})
+			return slices.Contains(e.Views()[0].Ghosts, wire.Ghost{Pos: at, Text: "n: ", Style: "inlay"})
 		}
 	}
 	settle(t, e, hint(4))
@@ -320,7 +321,7 @@ func TestB216InlayHints(t *testing.T) {
 	// show, so those of a deleted line go.
 	feed(e, "ox f(2)<Esc>ggdd")
 	settle(t, e, func() bool {
-		return slices.Equal(e.Views()[0].Ghosts, []editor.Ghost{{Pos: 4, Text: "n: ", Style: "inlay"}})
+		return slices.Equal(e.Views()[0].Ghosts, []wire.Ghost{{Pos: 4, Text: "n: ", Style: "inlay"}})
 	})
 }
 
@@ -475,7 +476,7 @@ func TestB160LspStopAndDisable(t *testing.T) {
 func TestB161Progress(t *testing.T) {
 	e, log := withServer(t, "x\n", "utf-8")
 	heard(t, log, `"method":"initialized"`, 1)
-	view := func() editor.View { return e.Views()[0] }
+	view := func() wire.View { return e.Views()[0] }
 	settle(t, e, func() bool { return view().Progress == "indexing 50%" })
 	if feed(e, "a~<Esc>"); view().Server == "" {
 		t.Fatal("the view names no server")
@@ -513,7 +514,7 @@ func TestB119SignColumn(t *testing.T) {
 	}
 	settle(t, e, func() bool { return len(decorations(e)) == 2 })
 	v := e.Views()[0]
-	if v.SignCols != 2 || v.Gutter != 2 || len(v.Signs) != 1 || v.Signs[1] != (editor.Sign{Text: "E", Name: "diagnostic.error"}) {
+	if v.SignCols != 2 || v.Gutter != 2 || len(v.Signs) != 1 || v.Signs[1] != (wire.Sign{Text: "E", Name: "diagnostic.error"}) {
 		t.Fatalf("with two errors on line 2 the view has %d sign columns and signs %v", v.SignCols, v.Signs)
 	}
 }
@@ -522,7 +523,7 @@ func TestB119SignColumn(t *testing.T) {
 func TestB128Icons(t *testing.T) {
 	e, _ := withServer(t, "ok\nbad x bad\n", "utf-8")
 	settle(t, e, func() bool { return len(decorations(e)) == 2 })
-	if feed(e, ":set icons<CR>"); e.Views()[0].Signs[1] != (editor.Sign{Text: "\uf057", Name: "diagnostic.error"}) {
+	if feed(e, ":set icons<CR>"); e.Views()[0].Signs[1] != (wire.Sign{Text: "\uf057", Name: "diagnostic.error"}) {
 		t.Fatalf("with icons the error sign is %v", e.Views()[0].Signs[1])
 	}
 
@@ -535,7 +536,7 @@ func TestB128Icons(t *testing.T) {
 	change(t, filepath.Join(dir, "notes"), "")
 	feed(e, ":e "+dir+"<CR>")
 	v := e.Views()[0]
-	want := map[int]editor.Sign{0: {Text: "\U000f07d3", Name: "icon.azure"}, 1: {Text: "\U000f0214", Name: "icon.grey"}, 2: {Text: "\U000f024b", Name: "icon.azure"}}
+	want := map[int]wire.Sign{0: {Text: "\U000f07d3", Name: "icon.azure"}, 1: {Text: "\U000f0214", Name: "icon.grey"}, 2: {Text: "\U000f024b", Name: "icon.azure"}}
 	if v.Gutter != v.SignCols+2 || !maps.Equal(v.Icons, want) {
 		t.Fatalf("the listing has gutter %d and icons %v", v.Gutter, v.Icons)
 	}

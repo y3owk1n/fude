@@ -3,8 +3,8 @@ package term
 import (
 	"time"
 
-	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/vim"
+	"github.com/y3owk1n/fude/wire"
 )
 
 // Session is what the terminal client draws and types into: a session of
@@ -28,10 +28,10 @@ type Session interface {
 	Done() bool
 
 	// What the client draws.
-	Views() []editor.View
-	Buffers() []editor.Tab
-	Float() (editor.Float, bool)
-	Signature() (editor.Float, bool)
+	Views() []wire.View
+	Buffers() []wire.Tab
+	Float() (wire.Float, bool)
+	Signature() (wire.Float, bool)
 	Line() string
 	LineCursor() int
 	Mode() vim.Mode
@@ -45,5 +45,3 @@ type Session interface {
 	Theme() (string, *[16]int32)
 	TerminalClipboard() (string, bool)
 }
-
-var _ Session = (*editor.Session)(nil)

@@ -9,8 +9,8 @@ import (
 	"github.com/clipperhouse/displaywidth"
 	"github.com/gdamore/tcell/v3"
 	"github.com/gdamore/tcell/v3/color"
-	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/vim"
+	"github.com/y3owk1n/fude/wire"
 )
 
 // part is a run of a status line, in its style.
@@ -24,7 +24,7 @@ type part struct {
 // directory, dim, a dot while it is modified, the git branch and the
 // diagnostics. On the right: plugins' segments, the keys being typed, the
 // filetype and the ruler. The right goes first when the line is too narrow.
-func (c *client) status(v editor.View, x, w int) {
+func (c *client) status(v wire.View, x, w int) {
 	y := v.Y + v.H - 1
 	// Every status line has the surface ground. Another window's has muted
 	// text, and no mode.
@@ -182,7 +182,7 @@ func width(ps []part) int {
 
 // bufferLine draws tabs on the top row, the part around the current one
 // when they do not fit, with ‹ or › where it is cut (B258).
-func (c *client) bufferLine(tabs []editor.Tab, w int) {
+func (c *client) bufferLine(tabs []wire.Tab, w int) {
 	if len(tabs) == 0 {
 		return
 	}

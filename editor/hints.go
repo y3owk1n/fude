@@ -10,6 +10,7 @@ import (
 
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
+	"github.com/y3owk1n/fude/wire"
 )
 
 // keyGroups name the keys that fude's own keys start with (B172).
@@ -72,7 +73,7 @@ func (e *Session) hintPieces(h vim.Hint) []piece {
 
 // hintsFloat is the panel across the bottom that lists the hints in
 // columns, groups first, above the status line.
-func (e *Session) hintsFloat() Float {
+func (e *Session) hintsFloat() wire.Float {
 	// It spans the windows, which :center may narrow.
 	x, w, _ := e.area()
 	inner := max(w-4, hintWidth)
@@ -144,5 +145,5 @@ func (e *Session) hintsFloat() Float {
 	}
 	text := strings.TrimRight(s.String(), " ")
 	h := rows + 2
-	return Float{Text: text, Spans: spans, Cursor: -1, Title: vim.Notation(e.vim.Shown()), Lit: true, X: x, Y: max(e.height-1-h, 0), W: w, H: h}
+	return wire.Float{Text: text, Spans: spans, Cursor: -1, Title: vim.Notation(e.vim.Shown()), Lit: true, X: x, Y: max(e.height-1-h, 0), W: w, H: h}
 }

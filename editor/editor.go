@@ -23,6 +23,7 @@ import (
 	"github.com/y3owk1n/fude/protocol/lsp"
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
+	"github.com/y3owk1n/fude/wire"
 )
 
 // Editor is the open files and what works on them: plugins, language
@@ -86,7 +87,7 @@ type Session struct {
 	ask        func(yes bool) // takes the answer to the question in the message
 	jumpTo     *jumpTo        // where a plugin's call asked to move the cursor, after the key
 	lastList   *places        // the last list of places a window showed
-	sig        *Float         // the signature help showing in insert mode (B203)
+	sig        *wire.Float    // the signature help showing in insert mode (B203)
 	snip       *snippet       // the snippet being filled in (B207)
 	float      string         // text shown over the windows at the cursor, such as hover
 	floatSpans []syntax.Span  // the styles of the float's text
@@ -703,28 +704,11 @@ func (e *Session) setCursor(pos int) { e.win.buf.text.MoveMark(e.win.cursor, pos
 // Mode returns the vim mode.
 func (e *Session) Mode() vim.Mode { return e.vim.Mode() }
 
-// Float is text a client draws over the windows at the cursor, styled by
-// Spans. While it has the cursor, Top is the start of the first line it
-// shows and Cursor is where the cursor is in it, else -1.
-type Float struct {
-	Text        string
-	Spans       []syntax.Span
-	Top, Cursor int
-	Title       string // drawn in the top of its border
-	Doc         string // drawn beside it, styled by DocSpans
-	DocSpans    []syntax.Span
-	Lit         bool // the windows under it stay lit, as under the key hints (B151)
-	// Where a box in a place of its own goes, its border included. W is 0
-	// for a box at the cursor. DocW is the width of the documentation's box
-	// right of it.
-	X, Y, W, H, DocW int
-}
-
 // Signature returns the signature help to draw above the cursor's line, or
 // false when none shows (B203).
-func (e *Session) Signature() (Float, bool) {
+func (e *Session) Signature() (wire.Float, bool) {
 	if e.sig == nil {
-		return Float{}, false
+		return wire.Float{}, false
 	}
 	return *e.sig, true
 }
@@ -737,7 +721,7 @@ func (e *Session) Terminal() bool {
 }
 
 // Float returns the float to draw, or false when there is none.
-func (e *Session) Float() (Float, bool) {
+func (e *Session) Float() (wire.Float, bool) {
 	if e.hints != nil {
 		return e.hintsFloat(), true
 	}
@@ -754,9 +738,9 @@ func (e *Session) Float() (Float, bool) {
 			return e.lspFloat(), true
 		}
 		t := e.Text()
-		return Float{Text: t.Slice(0, t.Len()), Spans: e.floatSpans, Top: e.Top(), Cursor: e.Cursor()}, true
+		return wire.Float{Text: t.Slice(0, t.Len()), Spans: e.floatSpans, Top: e.Top(), Cursor: e.Cursor()}, true
 	}
-	return Float{Text: e.float, Spans: e.floatSpans, Cursor: -1, Doc: e.doc, DocSpans: e.docSpans}, e.float != ""
+	return wire.Float{Text: e.float, Spans: e.floatSpans, Cursor: -1, Doc: e.doc, DocSpans: e.docSpans}, e.float != ""
 }
 
 // floatKeys are a focused float's own keys, which [keymap.float] changes

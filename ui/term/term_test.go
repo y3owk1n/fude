@@ -18,7 +18,11 @@ import (
 	"github.com/y3owk1n/fude/internal/relay"
 	"github.com/y3owk1n/fude/syntax/syntaxtest"
 	"github.com/y3owk1n/fude/vim"
+	"github.com/y3owk1n/fude/wire"
 )
+
+// An in-process session is one the terminal client draws (D39).
+var _ Session = (*editor.Session)(nil)
 
 // start opens args in an editor drawn on a mock terminal, with its config
 // and timeline logs in temp directories.
@@ -1225,7 +1229,7 @@ func TestB252Names(t *testing.T) {
 	defer a.Close()
 	// A session that sends no name is named by its origin.
 	on(func() { host.Attach("agent", editor.Host) })
-	names := func(v []editor.View) (out []string) {
+	names := func(v []wire.View) (out []string) {
 		for _, o := range v[0].Others {
 			out = append(out, fmt.Sprintf("%s %d", o.Name, o.Colour))
 		}

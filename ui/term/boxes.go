@@ -7,8 +7,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/clipperhouse/displaywidth"
-	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/syntax"
+	"github.com/y3owk1n/fude/wire"
 )
 
 // panel draws a box with a rounded border around w columns and h rows
@@ -130,7 +130,7 @@ func (c *client) toast(msg string, left, right, h int) {
 // Its documentation goes in a box beside it. w and h are the space the
 // windows have. While f has the cursor, its rows scroll to show it, and
 // float reports where it is.
-func (c *client) float(f editor.Float, cx, cy, w, h int) (int, int, bool) {
+func (c *client) float(f wire.Float, cx, cy, w, h int) (int, int, bool) {
 	if f.W > 2 && f.H > 2 {
 		if f.DocW > 2 {
 			// The documentation box is as tall as the box beside it.
@@ -176,7 +176,7 @@ func (c *client) float(f editor.Float, cx, cy, w, h int) (int, int, bool) {
 // above draws f in a box above the cursor's line at cx and cy, at most 80
 // columns and 10 rows. When it does not fit there and there is more room
 // below, it goes below. w and h are the space the windows have.
-func (c *client) above(f editor.Float, cx, cy, w, h int) {
+func (c *client) above(f wire.Float, cx, cy, w, h int) {
 	rows, width := wrap(f.Text, f.Spans, min(80, w-4))
 	want, up, down := min(len(rows), 10), cy-2, h-cy-3
 	n, y := min(want, up), cy-min(want, up)-2
@@ -192,7 +192,7 @@ func (c *client) above(f editor.Float, cx, cy, w, h int) {
 // scroll returns the first of rows to show in a box n rows tall. It is f's
 // top row, moved so the cursor's row shows when f has the cursor. A menu
 // without the cursor shows its selected item (B64).
-func scroll(rows []row, f editor.Float, n int) int {
+func scroll(rows []row, f wire.Float, n int) int {
 	// rowOf is the row that shows the byte at p.
 	rowOf := func(p int) int {
 		i, _ := slices.BinarySearchFunc(rows, p, func(r row, p int) int { return cmp.Compare(r.start, p+1) })

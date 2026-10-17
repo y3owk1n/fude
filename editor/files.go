@@ -22,6 +22,7 @@ import (
 	"github.com/y3owk1n/fude/protocol/lsp"
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
+	"github.com/y3owk1n/fude/wire"
 )
 
 // finder is the fuzzy file finder :pick files opens, or the live grep
@@ -290,7 +291,7 @@ func (e *Session) seek(f *finder) {
 // float shows the finder in the middle of the screen, at most 20 rows tall,
 // with the cursor in the query. On a screen of 60 columns or more, the
 // selected file's first lines show in a box right of the list (B130).
-func (f *finder) float(query string, cursor, width, height int) Float {
+func (f *finder) float(query string, cursor, width, height int) wire.Float {
 	// A margin of two columns and a row keeps the box off the screen's edges.
 	total, h := min(162, width-4), min(22, height-2)
 	w, docW := total, 0
@@ -421,7 +422,7 @@ func (f *finder) float(query string, cursor, width, height int) Float {
 			docSpans = append(slices.Clip(docSpans), syntax.Span{Start: start, End: start + end, Name: "menu.selected"})
 		}
 	}
-	return Float{Text: s.String(), Spans: spans, Title: f.title, Cursor: cursor + len(prompt), Doc: doc, DocSpans: docSpans, X: (width - total) / 2, Y: (height - h) / 2, W: w, H: h, DocW: docW}
+	return wire.Float{Text: s.String(), Spans: spans, Title: f.title, Cursor: cursor + len(prompt), Doc: doc, DocSpans: docSpans, X: (width - total) / 2, Y: (height - h) / 2, W: w, H: h, DocW: docW}
 }
 
 // writePath writes path in at most width columns: its name, in style when

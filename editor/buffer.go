@@ -8,6 +8,7 @@ import (
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
+	"github.com/y3owk1n/fude/wire"
 )
 
 // buffer is one open file: its text, and what the vim machine needs to undo
@@ -33,26 +34,26 @@ type buffer struct {
 
 	saves []kernel.NodeID // the node at each write, oldest first
 
-	log      *history          // the timeline on disk, nil for a buffer with no file
-	syntax   *syntax.Buffer    // nil without a grammar for the filetype
-	servers  []*server         // the language servers attached to it, in its filetype's order
-	signed   bool              // it has diagnostics, so windows show a sign column
-	signs    int               // plugins' signs on it, which show a sign column too
-	listed   string            // the directory a listing lists, "" for any other buffer
-	entries  []entry           // a listing's names as it read them
-	noted    map[string]string // a listing's note of each name it has shown
-	base     *string           // the text git's index has, nil outside a repository
-	git      map[int]Sign      // the git sign of each changed line
-	touched  [2]int            // the text the last change made, as it is after it
-	status   map[string]Sign   // a listing's git status sign of each name
-	branch   string            // the git branch of its repository, "" outside one
-	gitStale bool              // the text changed since the last diff
-	gitBusy  bool              // a diff runs
-	ask      bool              // its text changed, so the next frame asks servers again for colours and hints
-	blamed   blamed            // git blame of the cursor's line, for :blame (B220)
-	unsaved  kernel.NodeID     // the newest unsaved change from a session that did not close
-	ec       editorconfig      // what its .editorconfig files set (B238)
-	term     *terminal         // the program a terminal buffer shows, nil for any other (B205)
+	log      *history             // the timeline on disk, nil for a buffer with no file
+	syntax   *syntax.Buffer       // nil without a grammar for the filetype
+	servers  []*server            // the language servers attached to it, in its filetype's order
+	signed   bool                 // it has diagnostics, so windows show a sign column
+	signs    int                  // plugins' signs on it, which show a sign column too
+	listed   string               // the directory a listing lists, "" for any other buffer
+	entries  []entry              // a listing's names as it read them
+	noted    map[string]string    // a listing's note of each name it has shown
+	base     *string              // the text git's index has, nil outside a repository
+	git      map[int]wire.Sign    // the git sign of each changed line
+	touched  [2]int               // the text the last change made, as it is after it
+	status   map[string]wire.Sign // a listing's git status sign of each name
+	branch   string               // the git branch of its repository, "" outside one
+	gitStale bool                 // the text changed since the last diff
+	gitBusy  bool                 // a diff runs
+	ask      bool                 // its text changed, so the next frame asks servers again for colours and hints
+	blamed   blamed               // git blame of the cursor's line, for :blame (B220)
+	unsaved  kernel.NodeID        // the newest unsaved change from a session that did not close
+	ec       editorconfig         // what its .editorconfig files set (B238)
+	term     *terminal            // the program a terminal buffer shows, nil for any other (B205)
 	// A scratch buffer shows something about another buffer, such as its
 	// timeline, under a title instead of a file name.
 	title   string

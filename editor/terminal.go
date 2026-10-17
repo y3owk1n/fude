@@ -4,7 +4,6 @@ import (
 	"cmp"
 	"errors"
 	"fmt"
-	"image/color"
 	"io"
 	"os"
 	"os/exec"
@@ -17,6 +16,7 @@ import (
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/internal/pty"
 	"github.com/y3owk1n/fude/vim"
+	"github.com/y3owk1n/fude/wire"
 )
 
 // terminal is a program running in a pseudo-terminal, which its buffer
@@ -33,15 +33,6 @@ type terminal struct {
 	exited     bool
 	task       string    // the task it runs, "" for :terminal (B228)
 	started    time.Time // when the task started
-}
-
-// Cell is a character of a terminal window's screen with its look. A nil
-// colour is the theme's.
-type Cell struct {
-	Text                                            string
-	Width                                           int
-	Fg, Bg                                          color.Color
-	Bold, Faint, Italic, Underline, Reverse, Strike bool
 }
 
 // terminalKeys are a terminal window's own keys in normal mode, which
@@ -310,18 +301,18 @@ func textRow(cols int, cell func(x int) *uv.Cell) string {
 // screen returns the cells of t's screen, row by row, for a window in
 // terminal mode, and where the program's cursor is, or -1, -1 when the
 // program hides it.
-func (t *terminal) screen() ([][]Cell, int, int) {
-	rows := make([][]Cell, t.rows)
+func (t *terminal) screen() ([][]wire.Cell, int, int) {
+	rows := make([][]wire.Cell, t.rows)
 	for y := range rows {
-		rows[y] = make([]Cell, t.cols)
+		rows[y] = make([]wire.Cell, t.cols)
 		for x := range rows[y] {
 			c := t.em.CellAt(x, y)
 			if c == nil {
-				rows[y][x] = Cell{Text: " ", Width: 1}
+				rows[y][x] = wire.Cell{Text: " ", Width: 1}
 				continue
 			}
 			a := c.Style.Attrs
-			rows[y][x] = Cell{
+			rows[y][x] = wire.Cell{
 				Text: c.Content, Width: c.Width, Fg: c.Style.Fg, Bg: c.Style.Bg,
 				Bold: a&uv.AttrBold != 0, Faint: a&uv.AttrFaint != 0, Italic: a&uv.AttrItalic != 0,
 				Underline: c.Style.Underline != 0, Reverse: a&uv.AttrReverse != 0, Strike: a&uv.AttrStrikethrough != 0,

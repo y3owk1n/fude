@@ -11,6 +11,7 @@ import (
 
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/syntax"
+	"github.com/y3owk1n/fude/wire"
 )
 
 // disabled is why a server :lsp disable turned off is down. It alone keeps
@@ -158,7 +159,7 @@ func (e *Session) lspMove(n int) {
 // frame. Each server config.toml sets has a card with its state, version,
 // roots and files. The card with the cursor is raised, and the keys go
 // below the cards. The cursor stays on a card's first row.
-func (e *Session) lspFloat() Float {
+func (e *Session) lspFloat() wire.Float {
 	w := min(64, max(e.width-4, 24))
 	inner := w - 4
 	var s strings.Builder
@@ -278,5 +279,5 @@ func (e *Session) lspFloat() Float {
 	// for that.
 	h := min(strings.Count(text, "\n")+3, e.height-2)
 	y := max(min(e.height/5, e.height-1-h), 0)
-	return Float{Text: text, Spans: spans, Cursor: e.Cursor(), Title: "language servers", X: (e.width - w) / 2, Y: y, W: w, H: h}
+	return wire.Float{Text: text, Spans: spans, Cursor: e.Cursor(), Title: "language servers", X: (e.width - w) / 2, Y: y, W: w, H: h}
 }

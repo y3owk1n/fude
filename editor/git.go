@@ -10,6 +10,7 @@ import (
 
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
+	"github.com/y3owk1n/fude/wire"
 )
 
 // hasGit reports whether git is installed. Without it, files show no git
@@ -21,23 +22,23 @@ func hasGit() bool {
 
 // The signs of git changes, by kind.
 var (
-	gitAdd          = Sign{"┃", "git.add"}
-	gitChange       = Sign{"┃", "git.change"}
-	gitDelete       = Sign{"▁", "git.delete"} // under the line before deleted ones
-	gitTopDelete    = Sign{"▔", "git.delete"} // over the first line when the first lines went
-	gitChangeDelete = Sign{"~", "git.change"} // a change that also deleted lines
+	gitAdd          = wire.Sign{Text: "┃", Name: "git.add"}
+	gitChange       = wire.Sign{Text: "┃", Name: "git.change"}
+	gitDelete       = wire.Sign{Text: "▁", Name: "git.delete"} // under the line before deleted ones
+	gitTopDelete    = wire.Sign{Text: "▔", Name: "git.delete"} // over the first line when the first lines went
+	gitChangeDelete = wire.Sign{Text: "~", Name: "git.change"} // a change that also deleted lines
 )
 
 // The signs of a listing entry's git status, by status code (B126).
-var statusSigns = map[string]Sign{
-	" M": {"✹", "git.change"}, "M ": {"•", "git.change"}, "MM": {"≠", "git.change"}, "R ": {"→", "git.change"},
-	"A ": {"+", "git.add"}, "??": {"?", "git.delete"}, "D ": {"-", "git.delete"},
+var statusSigns = map[string]wire.Sign{
+	" M": {Text: "✹", Name: "git.change"}, "M ": {Text: "•", Name: "git.change"}, "MM": {Text: "≠", Name: "git.change"}, "R ": {Text: "→", Name: "git.change"},
+	"A ": {Text: "+", Name: "git.add"}, "??": {Text: "?", Name: "git.delete"}, "D ": {Text: "-", Name: "git.delete"},
 }
 
 // gitStatus returns the git status sign of each name in dir, or false
 // outside a repository. A directory takes the status of the first change
 // below it, and a name whose status has no sign maps to the zero Sign.
-func gitStatus(dir string) (map[string]Sign, bool) {
+func gitStatus(dir string) (map[string]wire.Sign, bool) {
 	// git names paths from the repository's root, so each starts with dir's
 	// prefix.
 	prefix, err := exec.Command("git", "-C", dir, "rev-parse", "--show-prefix").Output()
@@ -48,7 +49,7 @@ func gitStatus(dir string) (map[string]Sign, bool) {
 	if err != nil {
 		return nil, false
 	}
-	signs, pre := map[string]Sign{}, strings.TrimSuffix(string(prefix), "\n")
+	signs, pre := map[string]wire.Sign{}, strings.TrimSuffix(string(prefix), "\n")
 	fields := strings.Split(string(out), "\x00")
 	for i := 0; i < len(fields); i++ {
 		if len(fields[i]) < 4 {
@@ -238,8 +239,8 @@ func common(a, b string, back bool) int {
 }
 
 // gitSigns returns the sign of each line of now that differs from base.
-func gitSigns(base, now string) map[int]Sign {
-	out := map[int]Sign{}
+func gitSigns(base, now string) map[int]wire.Sign {
+	out := map[int]wire.Sign{}
 	for _, h := range hunks(base, now) {
 		add, del := h.count, len(h.old)
 		for j := range add {

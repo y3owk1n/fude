@@ -11,78 +11,11 @@ import (
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
+	"github.com/y3owk1n/fude/wire"
 )
 
-// Other is another session as a view shows it (B252, B253).
-type Other struct {
-	Name      string
-	Colour    int // which of six colours
-	Cursor    int
-	Selection *vim.Selection `json:",omitempty"`
-}
-
-// View is one window as a client draws it.
-type View struct {
-	Buffer            int             // the buffer's number, which a frame's Texts name
-	Text              kernel.Snapshot `json:"-"`
-	Top, Cursor       int
-	X, Y, W, H        int // H counts the status line on the bottom row
-	Name              string
-	Modified, Current bool
-	Highlights        []syntax.Span // in paint order, later ones drawing over earlier ones
-	Decorations       []syntax.Span // plugins' styles, drawn over highlights
-	Ghosts            []Ghost
-	Matches           [][2]int       // of the search, shown in every window
-	Segments          []string       // plugins' statusline segments, in the order they loaded
-	Ruler             string         // the cursor's line and column, and where the view is (B38)
-	Branch            string         // the git branch of the buffer's repository, "" outside one (B147)
-	Errors, Warnings  int            // the buffer's diagnostics of each severity (B147)
-	Filetype          string         // the buffer's filetype, "" for none (B164)
-	Server            string         // the buffer's language servers, "" for none (B161, B169)
-	Progress          string         // what the server is doing, "" once it is ready (B161)
-	Gutter            int            // the columns the sign column and line numbers take on the left
-	SignCols          int            // the columns of the sign column, at the gutter's left
-	Signs             map[int]Sign   // by line, the sign each one shows (B119)
-	Notes             map[int]string // by line, dim text after its end (B127)
-	Icons             map[int]Sign   // by line, a listing's icon at the gutter's right (B128)
-	Number, Relative  bool           // show line numbers, and relative ones (B39)
-	Wrap              bool           // long lines go on the rows below
-	CursorLine        bool           // shade the cursor's line (B117)
-	Pair              []int          // the bracket at the cursor and its match, shown bold (B121)
-	List              bool           // show tabs, trailing spaces and no-break spaces (B118)
-	Left              int            // the first column shown without wrap
-	Indent            int            // the columns of an indent level, where guides go
-	Tab               int            // the columns a tab shows as
-	Guides            bool           // draw indent guides (B153)
-	ColorColumn       int            // the column of the text to shade, from 1, or 0 (B200)
-	Colours           []Colour       // text that names a colour, shown on it (B208, B209)
-	Labels            []Label        // a jump's labels, drawn over the text (B218)
-	Folds             map[int]int    // by the first line of each closed fold shown, the lines it hides (B224)
-	Tasks             []string       // the tasks running, on the current window's status line (B231)
-	Others            []Other        // the other sessions whose current window shows the buffer (B253)
-	Sharing           string         // on the current window, whether fude shares or the session is a guest (B269)
-	// Context is the start of each line pinned over the window's first rows,
-	// the functions and classes the text under them is in, with their
-	// highlights (B217).
-	Context           []int
-	ContextHighlights []syntax.Span
-	// A terminal window in terminal mode shows its program's screen, with
-	// the program's cursor at CellX and CellY, or -1 when it hides it (B205).
-	Cells        [][]Cell
-	CellX, CellY int
-}
-
-// Ghost is a proposal's text, drawn before the byte at Pos but not in the
-// text (B71).
-type Ghost struct {
-	Pos   int
-	Text  string
-	Stale bool
-	Style string // how it shows: "" for a proposal's text, sub.new for :s's (B154) or inlay for an inlay hint (B216)
-}
-
 // Views returns every window from the top left.
-func (e *Session) Views() []View {
+func (e *Session) Views() []wire.View {
 	e.follow()
 	// Opening or closing a buffer may show or hide the buffer line.
 	if (len(e.Buffers()) > 0) != e.lined {
@@ -105,12 +38,12 @@ func (e *Session) Views() []View {
 			b.syntax.Keep(ws)
 		}
 	}
-	var out []View
+	var out []wire.View
 	_, _, centered := e.area()
 	for _, w := range e.root.windows() {
 		e.fit(w)
 		t, top, tab := w.buf.text.Snapshot(), e.topOf(w), e.tabWidth(w.buf)
-		v := View{
+		v := wire.View{
 			Buffer: w.buf.id, Text: t, Top: top, Cursor: w.pos(),
 			X: w.x, Y: w.y, W: w.w, H: w.h,
 			Name: w.buf.name(), Modified: w.buf.modified(), Current: w == e.win || w == e.under,
@@ -200,7 +133,7 @@ func (e *Session) Views() []View {
 			v.Icons = w.buf.icons(t, top, last)
 			for line, s := range v.Signs {
 				if icon, ok := diagnosticIcons[s.Name]; ok {
-					v.Signs[line] = Sign{icon, s.Name}
+					v.Signs[line] = wire.Sign{Text: icon, Name: s.Name}
 				}
 			}
 		}
@@ -236,7 +169,7 @@ func (e *Session) Views() []View {
 					continue
 				}
 				v.Decorations = append(v.Decorations, syntax.Span{Start: ed.Start, End: ed.End, Name: "sub.old"})
-				v.Ghosts = append(v.Ghosts, Ghost{Pos: ed.End, Text: ed.Text, Style: "sub.new"})
+				v.Ghosts = append(v.Ghosts, wire.Ghost{Pos: ed.End, Text: ed.Text, Style: "sub.new"})
 			}
 		}
 		// The words spell finds in what shows (B259).
@@ -256,7 +189,7 @@ func (e *Session) Views() []View {
 					v.Decorations = append(v.Decorations, syntax.Span{Start: m[0], End: m[1], Name: "jump.match"})
 				}
 				for l, m := range j.labels {
-					v.Labels = append(v.Labels, Label{Pos: m[1], Text: l})
+					v.Labels = append(v.Labels, wire.Label{Pos: m[1], Text: l})
 				}
 			}
 		}
@@ -268,13 +201,13 @@ func (e *Session) Views() []View {
 				s, end := w.buf.text.Mark(d.start), w.buf.text.Mark(d.end)
 				if hex, ok := strings.CutPrefix(d.style, "colour #"); ok {
 					if rgb, err := strconv.ParseInt(hex, 16, 32); err == nil && s < end && end > top && s < last {
-						v.Colours = append(v.Colours, Colour{s, end, int32(rgb)})
+						v.Colours = append(v.Colours, wire.Colour{Start: s, End: end, RGB: int32(rgb)})
 					}
 					continue
 				}
 				if d.style == "inlay" {
 					if s >= top && s <= last {
-						v.Ghosts = append(v.Ghosts, Ghost{Pos: s, Text: d.note, Style: "inlay"})
+						v.Ghosts = append(v.Ghosts, wire.Ghost{Pos: s, Text: d.note, Style: "inlay"})
 					}
 					continue
 				}
@@ -282,7 +215,7 @@ func (e *Session) Views() []View {
 					v.Decorations = append(v.Decorations, syntax.Span{Start: s, End: end, Name: d.style})
 				}
 				if strings.HasPrefix(d.style, "proposal") && d.note != "" && end >= top && end <= last {
-					v.Ghosts = append(v.Ghosts, Ghost{Pos: end, Text: d.note, Stale: d.style == "proposal.stale"})
+					v.Ghosts = append(v.Ghosts, wire.Ghost{Pos: end, Text: d.note, Stale: d.style == "proposal.stale"})
 				}
 			}
 		}
@@ -349,39 +282,33 @@ func (e *Session) pair(w *window, t kernel.Snapshot, top, last int) []int {
 	return nil
 }
 
-// Sign is a letter in the sign column and the style it takes its colour
-// from, such as diagnostic.error.
-type Sign struct {
-	Text, Name string
-}
-
 // diagnosticSigns are the diagnostic letters by severity, the worst first.
-var diagnosticSigns = []Sign{{"E", "diagnostic.error"}, {"W", "diagnostic.warn"}, {"I", "diagnostic.info"}, {"H", "diagnostic.hint"}}
+var diagnosticSigns = []wire.Sign{{Text: "E", Name: "diagnostic.error"}, {Text: "W", Name: "diagnostic.warn"}, {Text: "I", Name: "diagnostic.info"}, {Text: "H", Name: "diagnostic.hint"}}
 
 // signs returns each line of b's sign: the letter of its worst diagnostic,
 // or else its git sign. A
 // listing's lines from top to last show the git status of their names.
-func (e *Session) signs(b *buffer, top, last int) map[int]Sign {
+func (e *Session) signs(b *buffer, top, last int) map[int]wire.Sign {
 	if !b.signed && b.signs == 0 && len(b.git) == 0 && len(b.status) == 0 && len(b.breaks) == 0 && !b.stopped {
 		return nil
 	}
 	t := b.text.Snapshot()
 	out := maps.Clone(b.git)
 	if out == nil {
-		out = map[int]Sign{}
+		out = map[int]wire.Sign{}
 	}
 	// A plugin's sign wins over git's, and a diagnostic over a plugin's
 	// (B184).
 	for _, p := range e.plugins {
 		for _, d := range e.decos[p] {
 			if d.buf == b && d.sign != "" {
-				out[t.LineOf(b.text.Mark(d.start))] = Sign{d.sign, d.style}
+				out[t.LineOf(b.text.Mark(d.start))] = wire.Sign{Text: d.sign, Name: d.style}
 			}
 		}
 	}
 	for _, d := range e.diagnostics(b) {
 		line := t.LineOf(b.text.Mark(d.start))
-		i := slices.IndexFunc(diagnosticSigns, func(s Sign) bool { return s.Name == d.style })
+		i := slices.IndexFunc(diagnosticSigns, func(s wire.Sign) bool { return s.Name == d.style })
 		if old, ok := out[line]; i >= 0 && (!ok || !slices.Contains(diagnosticSigns, old) || i < slices.Index(diagnosticSigns, old)) {
 			out[line] = diagnosticSigns[i]
 		}
@@ -389,11 +316,11 @@ func (e *Session) signs(b *buffer, top, last int) map[int]Sign {
 	// A breakpoint wins over a diagnostic, and the stopped line over all
 	// (B262).
 	for _, br := range b.breaks {
-		out[t.LineOf(b.text.Mark(br.mark))] = map[bool]Sign{true: {"●", "debug.break"}, false: {"○", "debug.pending"}}[br.verified]
+		out[t.LineOf(b.text.Mark(br.mark))] = map[bool]wire.Sign{true: {Text: "●", Name: "debug.break"}, false: {Text: "○", Name: "debug.pending"}}[br.verified]
 	}
 	for _, d := range e.decos[stoppedLine{}] {
 		if d.buf == b {
-			out[t.LineOf(b.text.Mark(d.start))] = Sign{"→", "debug.stopped"}
+			out[t.LineOf(b.text.Mark(d.start))] = wire.Sign{Text: "→", Name: "debug.stopped"}
 		}
 	}
 	for line := t.LineOf(top); len(b.status) > 0 && line <= t.LineOf(last); line++ {
@@ -445,13 +372,13 @@ func ruler(t kernel.Snapshot, c, top, rows, tab int, rowsOf func(int) int) strin
 
 // others returns the other sessions whose current window shows b, with
 // their cursors and selections (B253).
-func (e *Session) others(b *buffer) []Other {
-	var out []Other
+func (e *Session) others(b *buffer) []wire.Other {
+	var out []wire.Other
 	for _, s := range e.sessions {
 		if s == e || s.win.buf != b {
 			continue
 		}
-		o := Other{Name: s.label(), Colour: s.colour, Cursor: s.win.pos()}
+		o := wire.Other{Name: s.label(), Colour: s.colour, Cursor: s.win.pos()}
 		if sel, ok := s.Selection(); ok {
 			o.Selection = &sel
 		}

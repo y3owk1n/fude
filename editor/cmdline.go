@@ -12,6 +12,7 @@ import (
 
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
+	"github.com/y3owk1n/fude/wire"
 )
 
 // cmenu is the completions of the word being typed in a command line, which
@@ -289,7 +290,7 @@ func readEntries(dir string) []string {
 
 // float shows the menu, at most 10 rows tall, for the client to put under
 // the command line (B148).
-func (m *cmenu) float() Float {
+func (m *cmenu) float() wire.Float {
 	rows := min(len(m.items), 10)
 	// The rows start at the top until an item is selected, then follow it.
 	first := 0
@@ -323,5 +324,5 @@ func (m *cmenu) float() Float {
 			s.WriteString(m.notes[i])
 		}
 	}
-	return Float{Text: s.String(), Spans: spans, Cursor: -1}
+	return wire.Float{Text: s.String(), Spans: spans, Cursor: -1}
 }

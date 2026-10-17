@@ -15,9 +15,9 @@ import (
 	"github.com/gdamore/tcell/v3/color"
 
 	"github.com/y3owk1n/fude/api"
-	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
+	"github.com/y3owk1n/fude/wire"
 )
 
 // Run shows e in the terminal until the user quits.
@@ -273,7 +273,7 @@ func (c *client) draw() {
 	case c.e.Mode() == vim.Cmdline:
 		// The completion menu is part of the command line's box.
 		if !floats {
-			f = editor.Float{}
+			f = wire.Float{}
 		}
 		cx, cy = c.commandLine(w, h, f.Text, f.Spans)
 	case floats:
@@ -305,7 +305,7 @@ func (c *client) draw() {
 // column the windows start at, which has none. A line keeps its
 // rows when the last frame drew it from the same, unless it holds the
 // cursor. For the current window it reports where the cursor is.
-func (c *client) view(v editor.View, left int, sel vim.Selection, visual bool) (int, int, bool) {
+func (c *client) view(v wire.View, left int, sel vim.Selection, visual bool) (int, int, bool) {
 	if v.Cells != nil {
 		return c.cells(v, left)
 	}
@@ -474,7 +474,7 @@ func (c *client) view(v editor.View, left int, sel vim.Selection, visual bool) (
 					}
 					// A jump's label takes the place of the character after its
 					// match, or the column after the line (B218).
-					if i := slices.IndexFunc(v.Labels, func(l editor.Label) bool { return l.Pos == at }); i >= 0 && x < v.W && (rest != "" || stop == end) {
+					if i := slices.IndexFunc(v.Labels, func(l wire.Label) bool { return l.Pos == at }); i >= 0 && x < v.W && (rest != "" || stop == end) {
 						width, next := 1, rest
 						switch {
 						case rest == "":
@@ -608,7 +608,7 @@ func (c *client) view(v editor.View, left int, sel vim.Selection, visual bool) (
 // pin draws the lines of v.Context over v's first rows on the surface
 // colour, each with its number and highlights, cut at the window's edge
 // (B217). numbers is where the gutter starts.
-func (c *client) pin(v editor.View, numbers, cur int) {
+func (c *client) pin(v wire.View, numbers, cur int) {
 	t := v.Text
 	for i, start := range v.Context {
 		y, end := v.Y+i, vim.LineEnd(t, start)
@@ -644,7 +644,7 @@ func (c *client) pin(v editor.View, numbers, cur int) {
 
 // edge draws v's status line on its bottom row, and a separator on its
 // left unless the windows start there, at left.
-func (c *client) edge(v editor.View, left int) {
+func (c *client) edge(v wire.View, left int) {
 	if v.X > left {
 		for y := v.Y; y < v.Y+v.H; y++ {
 			c.s.Put(v.X-1, y, "│", base.Foreground(th.border))
@@ -656,7 +656,7 @@ func (c *client) edge(v editor.View, left int) {
 // colorColumn shades the colour column on row y of v's text, where the
 // row's cell keeps the ground, so the cursor's line, a selection and a
 // match keep theirs (B200).
-func (c *client) colorColumn(v editor.View, y int) {
+func (c *client) colorColumn(v wire.View, y int) {
 	x := v.ColorColumn - 1
 	if !v.Wrap {
 		x -= v.Left
@@ -692,7 +692,7 @@ func indentOf(t vim.Text, start, tab int) int {
 
 // guides draws a faint line at each indent level in the first lead columns
 // of a line, on row y.
-func (c *client) guides(v editor.View, lead, y int) {
+func (c *client) guides(v wire.View, lead, y int) {
 	left := 0
 	if !v.Wrap {
 		left = v.Left
@@ -711,7 +711,7 @@ func (c *client) guides(v editor.View, lead, y int) {
 // number draws line's number in the gutter at x, y: from the cursor's
 // line cur with relative numbers, and its own on that line when numbers are
 // on too, put on the left (B39).
-func (c *client) number(line, rel int, onCursor bool, x, y int, v editor.View) {
+func (c *client) number(line, rel int, onCursor bool, x, y int, v wire.View) {
 	n := line + 1
 	if v.Relative {
 		n = rel
@@ -748,7 +748,7 @@ var ghostText = strings.NewReplacer("\n", "⏎", "\t", " ")
 
 // ghost draws g's text from column x of a window at left that is w wide,
 // and returns the column after it.
-func (c *client) ghost(g editor.Ghost, left, x, y, w int) int {
+func (c *client) ghost(g wire.Ghost, left, x, y, w int) int {
 	style := base.Foreground(th.faint).Italic(true)
 	switch {
 	case g.Style != "":

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/y3owk1n/fude/editor"
+	"github.com/y3owk1n/fude/wire"
 )
 
 // withPlugin writes a config that loads the test plugin name with caps, and
@@ -491,7 +492,7 @@ func TestB184PluginSignsAndNotes(t *testing.T) {
 	feed(e, "jix<Esc>")
 	settle(t, e, func() bool {
 		v := e.Views()[0]
-		return v.Signs[1] == editor.Sign{Text: "+", Name: "git.add"} && v.Notes[1] == "changed"
+		return v.Signs[1] == wire.Sign{Text: "+", Name: "git.add"} && v.Notes[1] == "changed"
 	})
 	// A new change moves them, and the line they left shows none.
 	feed(e, "kix<Esc>")
@@ -511,7 +512,7 @@ func TestB186PluginWindows(t *testing.T) {
 	e.SetSize(80, 20)
 	feed(e, ":Show one<CR>:Show two<CR>")
 	vs := e.Views()
-	i := slices.IndexFunc(vs, func(v editor.View) bool { return v.Name == "[shown]" })
+	i := slices.IndexFunc(vs, func(v wire.View) bool { return v.Name == "[shown]" })
 	if len(vs) != 2 || i < 0 || vs[i].Text.Slice(0, vs[i].Text.Len()) != "two" || vs[i].Filetype != "go" {
 		t.Fatalf("after two :Show, the windows are %d and [shown] is %d", len(vs), i)
 	}

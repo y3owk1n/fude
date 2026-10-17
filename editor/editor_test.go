@@ -17,6 +17,7 @@ import (
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/syntax/syntaxtest"
 	"github.com/y3owk1n/fude/vim"
+	"github.com/y3owk1n/fude/wire"
 )
 
 // TestMain keeps every test's timeline logs, config and caches in a
@@ -1261,7 +1262,7 @@ func TestB123GitSigns(t *testing.T) {
 	e.SetSize(40, 10)
 	// a becomes xa and b goes, a change that also deleted, and new is added.
 	feed(e, "ix<Esc>jddGonew<Esc>")
-	want := map[int]editor.Sign{0: {Text: "~", Name: "git.change"}, 2: {Text: "┃", Name: "git.add"}}
+	want := map[int]wire.Sign{0: {Text: "~", Name: "git.change"}, 2: {Text: "┃", Name: "git.add"}}
 	settle(t, e, func() bool { return maps.Equal(e.Views()[0].Signs, want) })
 
 	// Without git installed, the file shows no git signs.
@@ -1376,7 +1377,7 @@ func TestB126ListingGitStatus(t *testing.T) {
 	e := open(t, top)
 	e.SetSize(40, 10)
 	// A listing below the repository's root, with an untracked file below sub/.
-	want := map[int]editor.Sign{0: {Text: "+", Name: "git.add"}, 1: {Text: "✹", Name: "git.change"}, 3: {Text: "?", Name: "git.delete"}}
+	want := map[int]wire.Sign{0: {Text: "+", Name: "git.add"}, 1: {Text: "✹", Name: "git.change"}, 3: {Text: "?", Name: "git.delete"}}
 	settle(t, e, func() bool { return maps.Equal(e.Views()[0].Signs, want) })
 
 	// Without git installed, the listing shows no git signs.
@@ -2196,7 +2197,7 @@ func TestB154SubstitutePreview(t *testing.T) {
 	// and the text stays as it is.
 	feed(e, "/x")
 	v := e.Views()[0]
-	if len(v.Ghosts) != 1 || v.Ghosts[0] != (editor.Ghost{Pos: 3, Text: "x", Style: "sub.new"}) || text(e) != "foo bar foo\nfoo" {
+	if len(v.Ghosts) != 1 || v.Ghosts[0] != (wire.Ghost{Pos: 3, Text: "x", Style: "sub.new"}) || text(e) != "foo bar foo\nfoo" {
 		t.Fatalf("typing :s/foo/x shows %v over %q", v.Ghosts, text(e))
 	}
 	if feed(e, "<Esc>:%s/foo/y/g"); len(e.Views()[0].Ghosts) != 3 {
@@ -2768,10 +2769,10 @@ func TestB218Jump(t *testing.T) {
 	// continue one, and the label goes to its match.
 	feed(e, "sba")
 	labels := e.Views()[0].Labels
-	if len(labels) != 3 || slices.ContainsFunc(labels, func(l editor.Label) bool { return strings.Contains("rzt", l.Text) }) {
+	if len(labels) != 3 || slices.ContainsFunc(labels, func(l wire.Label) bool { return strings.Contains("rzt", l.Text) }) {
 		t.Fatalf("sba labels %v", labels)
 	}
-	i := slices.IndexFunc(labels, func(l editor.Label) bool { return l.Pos == 10 })
+	i := slices.IndexFunc(labels, func(l wire.Label) bool { return l.Pos == 10 })
 	if feed(e, labels[i].Text); e.Cursor() != 8 || e.Views()[0].Labels != nil {
 		t.Errorf("the label of baz went to %d", e.Cursor())
 	}

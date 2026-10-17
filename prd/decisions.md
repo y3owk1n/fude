@@ -482,10 +482,15 @@ such program.
 ## D47. One package holds what goes over the socket
 
 `wire/` holds the types fude and its clients send each other: a replica's
-edits, pulls and pushes. `editor/` and `client/` both use it. Why: each
-side had its own copy of the replica types, and two copies of one
-protocol can disagree with nothing to catch it. `wire/` stays in the root
-module until a client outside it needs the types.
+edits, pulls and pushes, and the frames an attached client draws. `editor/`,
+`client/` and `ui/term/` use it. A guest's hello stays in `editor/`, since
+it carries the guest's own keymaps and options. Why: each side had its
+own copy of the replica types, and two copies of one protocol can
+disagree with nothing to catch it. A client that draws frames needs
+them without the editor. `wire/` stays in the root module until a client
+outside it needs the types. It takes `Span` from `syntax/`, and a view
+carries its `kernel.Snapshot` for a client in the same process, so it
+imports both.
 
 ## Departures from Neovim
 
