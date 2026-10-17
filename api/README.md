@@ -22,14 +22,10 @@ func (upper) Registered() []api.Registration {
 	return []api.Registration{{Kind: api.Command, Name: "Upper", Help: "upper-cases the cursor's line", ID: 1}}
 }
 
-func (upper) Init(_ context.Context, s api.Scope) (api.Result, error) {
-	s.Done()
-	return api.Result{}, nil
-}
+func (upper) Init(context.Context, api.Scope) (api.Result, error) { return api.Result{}, nil }
 
 // Call gets the cursor and the count, as a command's call does.
 func (upper) Call(_ context.Context, _ uint32, s api.Scope, args ...int) (api.Result, error) {
-	defer s.Done()
 	t := s.Text
 	line := t.LineOf(args[0])
 	start, end := t.LineStart(line), t.Len()
@@ -40,7 +36,7 @@ func (upper) Call(_ context.Context, _ uint32, s api.Scope, args ...int) (api.Re
 }
 ```
 
-Its other four methods do nothing here. `Event` and `Callback` free the scope and return an empty `Result`, `Work` returns `""`, and `Close` returns `nil`. A distribution adds the module before it loads, with `e.Use(upper{})` on the `*editor.Session` it starts. fude's `cmd/fude` lists its own in `modules()`.
+Its other four methods do nothing here. `Event` and `Callback` return an empty `Result`, `Work` returns `""`, and `Close` returns `nil`. A distribution adds the module before it loads, with `e.Use(upper{})` on the `*editor.Session` it starts. fude's `cmd/fude` lists its own in `modules()`.
 
 [`modules/blame`](../modules/blame) is a fuller one. It hears the cursor move, runs git in the background and shows a note.
 
@@ -51,7 +47,6 @@ Its other four methods do nothing here. `Event` and `Callback` free the scope an
 - **Events.** `Subscribed` names the events the module hears, such as `buffer.opened`, `buffer.changed`, `buffer.saved`, `buffer.closed`, `mode.changed`, `view.moved`, `syntax.updated`, `lsp.diagnostics`, and `owner.event` for one another module emits. `Event` runs off the editor loop, and gets what the event carries after its name, such as the cursor and the view's top for `view.moved`.
 - **Callbacks.** A `Timer`, `Job`, `Pick` or language server `Request` carries an id, and `Callback` runs with it later. Its scope's `About` adds what came back: `output` and `error` for a job or request, `server` for a request, and `picked`, `text` and `ok` for a pick.
 - **Background work.** A `Job` asks for a program to run, with `Input` on its stdin, or a URL to get. fude runs `Work` off the loop, then the callback.
-- **Freeing a scope.** Every method that takes a `Scope` calls its `Done` once the call is done, which frees the syntax nodes it reads.
 - **Budgets.** fude stops a plugin's call that runs past its budget, but it can only time a Go module's. Keep calls on the input path short.
 
 ## What a call reads and asks for

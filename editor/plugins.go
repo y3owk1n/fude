@@ -49,7 +49,9 @@ func (e *Session) Load() {
 // (D49). Call it before Load. :plugin reload leaves it as it is.
 func (e *Session) Use(m api.Module) {
 	b, t := e.win.buf, e.Text()
-	res, err := m.Init(context.Background(), e.scope(b, t))
+	scope := e.scope(b, t)
+	res, err := m.Init(context.Background(), scope)
+	scope.Done()
 	e.loaded(m, err, b, t, res)
 }
 
@@ -73,10 +75,10 @@ func (e *Session) loadPlugins() {
 		}
 		b, t, scope := e.win.buf, e.Text(), e.scope(e.win.buf, e.Text())
 		go func() {
+			defer scope.Done()
 			ctx := context.Background()
 			p, err := plugin.Load(ctx, path, plugin.Grants{Capabilities: s.Capabilities, Programs: s.Programs, Hosts: s.Hosts, Settings: settings}, filepath.Join(cache, "fude", "wasm"), logLine)
 			if err != nil {
-				scope.Done()
 				e.queue <- func() { e.message = err.Error() }
 				return
 			}
@@ -498,14 +500,13 @@ func (e *Session) about(b *buffer) api.Context {
 // returns its edits, sorted, and what an object's call selected. A call that
 // fails unloads p, and calls into an unloaded module do nothing.
 func (e *Session) run(p api.Module, id uint32, scope api.Scope, args ...int) ([]vim.Edit, *[2]int, bool) {
+	defer scope.Done()
 	// A guest may not call a plugin granted process, net or fs.read (B246).
 	if w, ok := p.(*plugin.Plugin); ok && e.power != Host && slices.ContainsFunc(w.Capabilities, func(c string) bool { return c == "process" || c == "net" || c == "fs.read" }) {
-		scope.Done()
 		e.message = "a guest may not use plugin " + p.Name()
 		return nil, nil, false
 	}
 	if !slices.Contains(e.modules, p) {
-		scope.Done()
 		e.message = fmt.Sprintf("plugin %s is unloaded", p.Name())
 		return nil, nil, false
 	}

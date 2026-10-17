@@ -149,7 +149,6 @@ func (p *Plugin) Subscribed() []string { return p.subscribed }
 // setup, then its init, each when it exports one, together under
 // InitBudget. Both may register and subscribe.
 func (p *Plugin) Init(ctx context.Context, s fude.Scope) (fude.Result, error) {
-	defer s.Done()
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	ctx, cancel := context.WithTimeout(ctx, InitBudget)
@@ -184,7 +183,6 @@ func (p *Plugin) Close(ctx context.Context) error {
 // already running. A call that traps or runs past its budget returns an
 // error, and nothing it asked for happens.
 func (p *Plugin) Call(ctx context.Context, id uint32, s fude.Scope, args ...int) (fude.Result, error) {
-	defer s.Done()
 	if !p.mu.TryLock() {
 		return fude.Result{}, fmt.Errorf("plugin %s %w", p.name, fude.ErrBusy)
 	}
@@ -204,7 +202,6 @@ func (p *Plugin) Call(ctx context.Context, id uint32, s fude.Scope, args ...int)
 // Callback runs the plugin's callback export with id, reading s, under
 // EventBudget. It waits for a call already running.
 func (p *Plugin) Callback(ctx context.Context, id uint32, s fude.Scope) (fude.Result, error) {
-	defer s.Done()
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	res, _, err := p.run(ctx, "callback", s, EventBudget, uint64(id))
@@ -214,7 +211,6 @@ func (p *Plugin) Callback(ctx context.Context, id uint32, s fude.Scope) (fude.Re
 // Event runs the plugin's on_event with the event's name, written into its
 // memory, reading s, under EventBudget (B57).
 func (p *Plugin) Event(ctx context.Context, name string, s fude.Scope) (fude.Result, error) {
-	defer s.Done()
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	ctx, cancel := context.WithTimeout(ctx, EventBudget)

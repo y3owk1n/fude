@@ -179,6 +179,7 @@ func (e *Session) listen(p api.Module) *listener {
 					res, err = p.Event(context.Background(), name, scope)
 					trace.Record("plugin", p.Name()+" heard "+name, time.Since(at))
 				}
+				scope.Done()
 				if !on(func() { e.handled(p, err, ev.buf, t, res) }) {
 					return
 				}

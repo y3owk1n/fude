@@ -105,8 +105,8 @@ type Buffer struct {
 // given a range.
 type Context map[string]string
 
-// Done frees what s holds, once the call reading it is done. The calls
-// that take s call it.
+// Done frees what s holds. fude calls it once the call that read s
+// returns, so a module never does.
 func (s Scope) Done() {
 	if s.Free != nil {
 		s.Free()

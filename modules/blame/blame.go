@@ -41,14 +41,10 @@ func (m *Module) Registered() []api.Registration {
 
 func (m *Module) Subscribed() []string { return []string{"view.moved", "buffer.changed"} }
 
-func (m *Module) Init(_ context.Context, s api.Scope) (api.Result, error) {
-	s.Done()
-	return api.Result{}, nil
-}
+func (m *Module) Init(context.Context, api.Scope) (api.Result, error) { return api.Result{}, nil }
 
 // Call runs :blame, which turns the note on or off.
 func (m *Module) Call(_ context.Context, _ uint32, s api.Scope, args ...int) (api.Result, error) {
-	defer s.Done()
 	if !m.mu.TryLock() {
 		return api.Result{}, fmt.Errorf("blame %w", api.ErrBusy)
 	}
@@ -62,7 +58,6 @@ func (m *Module) Call(_ context.Context, _ uint32, s api.Scope, args ...int) (ap
 
 // Event hears where the cursor went, and that the text changed under it.
 func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result, error) {
-	defer s.Done()
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	event, detail, _ := strings.Cut(name, " ")
@@ -82,7 +77,6 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 // Callback takes git's answer and shows it after the line it was about.
 // The answer to a question since replaced is dropped.
 func (m *Module) Callback(_ context.Context, id uint32, s api.Scope) (api.Result, error) {
-	defer s.Done()
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if !m.on || id != m.asked {
