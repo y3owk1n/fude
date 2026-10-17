@@ -4,7 +4,6 @@ package lsp
 
 import (
 	"bufio"
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,6 +17,7 @@ import (
 	"time"
 
 	"github.com/y3owk1n/fude/api"
+	"github.com/y3owk1n/fude/framing"
 )
 
 // Client is one running language server.
@@ -65,7 +65,7 @@ func Start(name string, command []string, root string, options any, queue chan<-
 	cmd := exec.Command(command[0], command[1:]...)
 	// Wait returns once stderr is read to its end, or a moment after the
 	// server exits when a child it left keeps it open.
-	stderr := &lines{log: log, name: name}
+	stderr := &framing.Lines{Log: log, Name: name}
 	cmd.Dir, cmd.Stderr, cmd.WaitDelay = root, stderr, time.Second
 	stdin, err1 := cmd.StdinPipe()
 	stdout, err2 := cmd.StdoutPipe()
@@ -84,7 +84,7 @@ func Start(name string, command []string, root string, options any, queue chan<-
 	go c.read(stdout, initialized, notify, serve)
 	go func() {
 		err := cmd.Wait()
-		stderr.flush()
+		stderr.Flush()
 		close(c.done)
 		c.queue <- func() {
 			// The server exited, so no answer to these will come.
@@ -96,37 +96,6 @@ func Start(name string, command []string, root string, options any, queue chan<-
 		}
 	}()
 	return c, nil
-}
-
-// lines logs what a server writes to stderr, a line at a time after its
-// name. A line over 64KB is logged in parts.
-type lines struct {
-	log  func(string)
-	name string
-	rest []byte
-}
-
-func (l *lines) Write(p []byte) (int, error) {
-	l.rest = append(l.rest, p...)
-	for {
-		i := bytes.IndexByte(l.rest, '\n')
-		if i < 0 && len(l.rest) < 64<<10 {
-			return len(p), nil
-		}
-		if i < 0 {
-			i = len(l.rest)
-		}
-		l.log(l.name + ": " + string(l.rest[:i]))
-		l.rest = l.rest[min(i+1, len(l.rest)):]
-	}
-}
-
-// flush logs a last line that has no line break.
-func (l *lines) flush() {
-	if len(l.rest) > 0 {
-		l.log(l.name + ": " + string(l.rest))
-		l.rest = nil
-	}
 }
 
 // Close asks the server to shut down and exit.
@@ -402,7 +371,7 @@ func (c *Client) frame(v any) error {
 	body, err := json.Marshal(v)
 	if err == nil {
 		api.Trace("lsp", fmt.Sprintf("sent %s %s, %d bytes", c.name, what, len(body)), 0)
-		_, err = fmt.Fprintf(c.stdin, "Content-Length: %d\r\n\r\n%s", len(body), body)
+		err = framing.Write(c.stdin, body)
 	}
 	select {
 	case <-c.done:
@@ -421,7 +390,7 @@ func (c *Client) frame(v any) error {
 func (c *Client) read(r io.Reader, initialized chan<- answer, notify func(string, json.RawMessage), serve func(string, json.RawMessage) any) {
 	br := bufio.NewReader(r)
 	for {
-		body, err := readFrame(br)
+		body, err := framing.Read(br)
 		if err != nil {
 			if !errors.Is(err, io.EOF) {
 				c.log(fmt.Sprintf("%s: read: %v", c.name, err))
@@ -512,30 +481,4 @@ type pending struct {
 	answer func(json.RawMessage)
 	method string
 	at     time.Time
-}
-
-// readFrame reads one message body after its headers.
-func readFrame(r *bufio.Reader) ([]byte, error) {
-	n := -1
-	for {
-		line, err := r.ReadString('\n')
-		if err != nil {
-			return nil, err
-		}
-		line = strings.TrimSpace(line)
-		if line == "" {
-			break
-		}
-		if v, ok := strings.CutPrefix(line, "Content-Length:"); ok {
-			if n, err = strconv.Atoi(strings.TrimSpace(v)); err != nil {
-				return nil, fmt.Errorf("bad Content-Length %q", v)
-			}
-		}
-	}
-	if n < 0 {
-		return nil, errors.New("a message with no Content-Length")
-	}
-	body := make([]byte, n)
-	_, err := io.ReadFull(r, body)
-	return body, err
 }
