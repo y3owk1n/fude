@@ -101,7 +101,6 @@ type Session struct {
 	pick       *pick                   // the code actions shown to choose from
 	finder     *finder                 // the file finder, while it shows
 	jumping    *jump                   // the jump being typed after s (B218)
-	blame      bool                    // :blame shows the cursor's line's commit (B220)
 	lastTask   *task                   // the task :task runs again (B228)
 	cmenu      *cmenu                  // the completions of the command line being typed
 	dirs       map[string][]string     // entries of directories the command line has completed in

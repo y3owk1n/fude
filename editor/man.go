@@ -7,14 +7,19 @@ import (
 	"runtime/debug"
 	"slices"
 	"strings"
+
+	"github.com/y3owk1n/fude/api"
 )
 
 // Man returns the man page that page names in roff, from help with fude's
-// defaults, for fude --man (B163).
-func Man(page string) (string, error) {
+// defaults and the modules the distribution adds, for fude --man (B163).
+func Man(page string, modules ...api.Module) (string, error) {
 	e, err := open(defaults, nil)
 	if err != nil {
 		return "", fmt.Errorf("man page: %w", err)
+	}
+	for _, m := range modules {
+		e.Use(m)
 	}
 	// The date of the commit fude was built from, when the build knows it.
 	date := ""

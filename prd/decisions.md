@@ -504,6 +504,17 @@ module of its own (D45), which cannot import a package of the root.
 It translates the ABI to those types. The cost is an eighth tag on every
 release (D37).
 
+## D49. Built-in features are modules over api, added in cmd/fude
+
+A built-in feature can be a package in `modules/` that imports only
+`api/`. It is an `api.Module`, and `cmd/fude` adds it with `editor.Use`.
+`:blame` was the first to move out of `editor/`. Why: a feature that
+works through the API a plugin gets proves the API is enough (D21), and
+where it does not, the API grows for plugins too, as jobs got stdin for
+blame. A distribution leaves a feature out by not adding it. A module is
+one for every session, so `:blame` is one switch for the host and its
+guests. The editor cannot stop a Go module's call, so it only times it.
+
 ## Departures from Neovim
 
 Each entry: what differs, then why.

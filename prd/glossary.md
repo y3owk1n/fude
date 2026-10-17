@@ -9,9 +9,9 @@
   `editor/`.
 - **Machine**: the vim grammar's state machine in `vim/`. Keys go in,
   commands come out and are applied through its host.
-- **Module**: a Go package built on the `api/` package. The statusline,
-  the file picker, syntax and lsp are modules. The vim grammar is a library
-  that `editor/` hosts.
+- **Module**: a Go package built on the `api/` package, in `modules/`,
+  which a distribution adds with `editor.Use`. `:blame` is one. The vim
+  grammar is a library that `editor/` hosts.
 - **Plugin**: a wasm file loaded at runtime. It gets the same API as a
   module, through the ABI, gated by capabilities.
 - **Distribution**: the set of modules and default config fude ships. A user

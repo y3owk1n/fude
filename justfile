@@ -59,6 +59,10 @@ perf:
 cgo:
     test -z "$(for m in {{ modules }}; do (cd $m && go list -f '{{{{if .CgoFiles}}{{{{.ImportPath}}{{{{end}}' ./...); done | grep -vx github.com/y3owk1n/fude/syntax)"
 
+# Fail if a package in modules/ imports a fude package other than api/.
+module-imports:
+    test -z "$(go list -f '{{{{join .Imports "\n"}}' ./modules/... | grep '^github.com/y3owk1n/fude/' | grep -vx github.com/y3owk1n/fude/api)"
+
 # Fail if core/ grows past 10k lines of Go, tests excluded.
 kernel-size:
     test $(find core -name '*.go' ! -name '*_test.go' -exec cat {} + | wc -l) -le 10000
@@ -77,7 +81,7 @@ loc:
     done <<'EOF'
     editor editor
     vim vim
-    modules syntax plugin protocol/lsp sdk api
+    modules syntax plugin protocol/lsp sdk api modules/blame
     clients ui/term client
     kernel core/kernel core/rope
     glue cmd/fude internal/pty internal/clipboard internal/trace
@@ -85,4 +89,4 @@ loc:
     printf '%-12s %6d\n' total "$total"
 
 # Run everything a commit needs.
-check: fmt-check vet standalone cgo test kernel-size perf
+check: fmt-check vet standalone cgo module-imports test kernel-size perf

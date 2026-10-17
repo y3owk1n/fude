@@ -93,7 +93,6 @@ func init() {
 			e.format(e.win.buf, x.first, x.last)
 		}, nil},
 		{vim.Command{Name: "gitdiff", Help: "shows the lines that differ from git's index"}, func(e *Session, _ call) { e.gitDiff() }, nil},
-		{vim.Command{Name: "blame", Help: "shows who last changed the cursor's line, and when, after it, or stops showing it"}, func(e *Session, _ call) { e.blame = !e.blame }, nil},
 		{vim.Command{Name: "pick", Args: "[source] [text]", Help: "opens the finder on a source, or on the sources: files, grep [text], buffers, recent, diagnostics, symbols, help or keymaps"}, func(e *Session, x call) { e.openPick(x.arg) }, func(e *Session, _ string, start int, arg string, _ bool) (int, []string) {
 			return start, match(pickSources, arg)
 		}},

@@ -45,6 +45,14 @@ func (e *Session) Load() {
 	e.loadPlugins()
 }
 
+// Use runs m, a module built into the distribution, as it runs a plugin
+// (D49). Call it before Load. :plugin reload leaves it as it is.
+func (e *Session) Use(m api.Module) {
+	b, t := e.win.buf, e.Text()
+	res, err := m.Init(context.Background(), e.scope(b, t))
+	e.loaded(m, err, b, t, res)
+}
+
 // loadPlugins starts the plugins config.toml lists.
 func (e *Session) loadPlugins() {
 	config, err1 := xdgDir("XDG_CONFIG_HOME", ".config")
@@ -338,12 +346,13 @@ func (e *Session) reloadPlugins() {
 		return
 	}
 	for _, p := range slices.Clone(e.modules) {
-		e.unregister(p)
-		e.drop(p)
+		if _, ok := p.(*plugin.Plugin); ok {
+			e.unregister(p)
+			e.drop(p)
+		}
 	}
 	e.cfg.Plugin = cfg.Plugin
 	e.setup = e.setup[:e.plugged]
-	e.pluginBindings, e.pluginHelp = nil, nil
 	e.message = fmt.Sprintf("reloading %d plugins", len(cfg.Plugin))
 	e.loadPlugins()
 }
@@ -352,8 +361,18 @@ func (e *Session) reloadPlugins() {
 // added, so a reload that leaves p out leaves nothing of it.
 func (e *Session) unregister(p api.Module) {
 	for _, r := range p.Registered() {
-		if r.Kind == api.Command {
+		switch r.Kind {
+		case api.Command:
 			delete(e.commands, r.Name)
+			delete(e.pluginHelp, ":"+r.Name)
+		case api.Operator, api.Object:
+			e.pluginBindings = slices.DeleteFunc(e.pluginBindings, func(b vim.Binding) bool {
+				return b.Kind == "operator" && b.Keys == r.Name+"{motion}" || b.Kind == "object" && b.Keys == r.Name
+			})
+		case api.Key:
+			delete(e.pluginHelp, "<Plug>("+p.Name()+"."+r.Name+")")
+		case api.Insert:
+			delete(e.pluginHelp, "<Plug>("+p.Name()+".insert."+r.Name+")")
 		}
 		for _, s := range e.sessions {
 			switch r.Kind {

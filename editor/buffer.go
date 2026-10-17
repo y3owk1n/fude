@@ -50,7 +50,6 @@ type buffer struct {
 	gitStale bool                 // the text changed since the last diff
 	gitBusy  bool                 // a diff runs
 	ask      bool                 // its text changed, so the next frame asks servers again for colours and hints
-	blamed   blamed               // git blame of the cursor's line, for :blame (B220)
 	unsaved  kernel.NodeID        // the newest unsaved change from a session that did not close
 	ec       editorconfig         // what its .editorconfig files set (B238)
 	term     *terminal            // the program a terminal buffer shows, nil for any other (B205)

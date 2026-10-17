@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/y3owk1n/fude/editor"
+	"github.com/y3owk1n/fude/modules/blame"
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/syntax/syntaxtest"
 	"github.com/y3owk1n/fude/vim"
@@ -1337,6 +1338,7 @@ func TestB220Blame(t *testing.T) {
 	git("add", ".")
 	git("commit", "-qm", "first words")
 	e := open(t, path)
+	e.Use(blame.New())
 	e.SetSize(80, 10)
 	note := func(want string) func() bool {
 		return func() bool { return strings.Contains(e.Views()[0].Notes[e.Text().LineOf(e.Cursor())], want) }

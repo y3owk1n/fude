@@ -10,8 +10,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/internal/relay"
+	"github.com/y3owk1n/fude/modules/blame"
 	"github.com/y3owk1n/fude/plugin"
 	"github.com/y3owk1n/fude/ui/term"
 )
@@ -145,6 +147,9 @@ func main() {
 	}
 }
 
+// modules returns the modules this distribution adds to the editor (D49).
+func modules() []api.Module { return []api.Module{blame.New()} }
+
 // run prints a man page for --man, fude(1) or the one named after it,
 // writes or builds a plugin for plugin new and plugin build, prints what a
 // running fude does for --tail, or opens args in the terminal. After
@@ -154,7 +159,7 @@ func run(args []string) error {
 		return pluginCommand(args[1], args[2:])
 	}
 	if len(args) > 0 && len(args) <= 2 && args[0] == "--man" {
-		page, err := editor.Man(strings.Join(args[1:], ""))
+		page, err := editor.Man(strings.Join(args[1:], ""), modules()...)
 		if err != nil {
 			return err
 		}
@@ -208,6 +213,9 @@ func run(args []string) error {
 	e, err := editor.Start(args)
 	if err != nil {
 		return err
+	}
+	for _, m := range modules() {
+		e.Use(m)
 	}
 	e.SetName(name)
 	if len(args) == 0 && !restarted {

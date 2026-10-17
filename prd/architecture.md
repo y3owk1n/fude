@@ -50,6 +50,8 @@ internal/        packages only fude's own packages may import
   pty/           a program in a pseudo-terminal, for :terminal
   relay/         passes a share's connections between its host and guests
   trace/         what fude did, for fude --tail
+modules/         Go packages over api/ that cmd/fude adds with editor.Use
+  blame/         :blame
 cmd/fude/        main, distribution wiring
 ```
 
@@ -213,6 +215,12 @@ A module is a Go package compiled into a distribution. A plugin is a wasm
 file loaded at runtime. Both get the same API: what a built-in module can
 do, a plugin can do through the ABI, gated by capability.
 
+Both are an `api.Module`. `cmd/fude` passes each built-in module to
+`editor.Use` before `Load`, and the editor runs it as it runs a plugin. A
+call reads a `Scope` and returns a `Result`, and its events and callbacks
+run off the loop. Built-in modules live in `modules/` and import only
+`api/` (D49). `:blame` is the first (B220).
+
 | Extension point | Adds | Runs |
 |---|---|---|
 | Operator | a verb, composes with every target | input path, budgeted |
@@ -230,6 +238,8 @@ the plugin, and tells the user (B51). The keystroke never waits longer than
 the budget. A plugin runs one call at a time, and a key whose plugin is
 busy with an event handler says the plugin is busy instead of waiting
 (B57).
+The editor times a Go module's calls and traces them. It cannot stop one
+as it stops a plugin, so a module keeps its calls on the input path short.
 
 A user who wants a different grammar builds a distribution without
 `vim/`. A plugin cannot replace the grammar, because the input path

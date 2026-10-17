@@ -108,14 +108,6 @@ func (e *Session) Views() []wire.View {
 		}
 		v.Signs = e.signs(w.buf, top, last)
 		v.Notes = w.buf.notes(t, top, last)
-		if e.blame && w == e.win {
-			if note := e.blameNote(w); note != "" {
-				if v.Notes == nil {
-					v.Notes = map[int]string{}
-				}
-				v.Notes[t.LineOf(w.pos())] = "   " + note
-			}
-		}
 		for _, p := range e.modules {
 			for _, d := range e.decos[p] {
 				if d.buf != w.buf || d.note == "" {
