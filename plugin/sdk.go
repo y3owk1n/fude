@@ -11,6 +11,9 @@ import (
 	"strings"
 )
 
+// fudeModule is the Go module fude is built from.
+const fudeModule = "github.com/y3owk1n/fude"
+
 // sdkModule is the Go module plugins are written with.
 const sdkModule = "github.com/y3owk1n/fude/sdk"
 
@@ -72,9 +75,10 @@ func New(dir string) error {
 	if err := os.WriteFile(filepath.Join(dir, "main.go"), []byte(main), 0o644); err != nil {
 		return fmt.Errorf("plugin new: %w", err)
 	}
-	// A build of fude that is not a release takes the newest sdk.
+	// A build of fude that is not a release, or another program, takes the
+	// newest sdk.
 	version := "latest"
-	if info, ok := debug.ReadBuildInfo(); ok && release.MatchString(info.Main.Version) {
+	if info, ok := debug.ReadBuildInfo(); ok && info.Main.Path == fudeModule && release.MatchString(info.Main.Version) {
 		version = info.Main.Version
 	}
 	// go get marks the sdk indirect, and tidy marks it direct once it reads

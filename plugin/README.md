@@ -56,7 +56,7 @@ fude's [architecture spec](../prd/architecture.md#plugin-abi) describes the ABI 
 
 ## Building plugins
 
-`New` writes a new plugin folder, with a `go.mod` that requires the sdk and a `main.go` that adds one command. `Build` builds a folder with TinyGo into a `.wasm` named after it. They are what `fude plugin new` and `fude plugin build` run. `New` requires the sdk at the running binary's release version, or the newest sdk when the binary is not a release.
+`New` writes a new plugin folder, with a `go.mod` that requires the sdk and a `main.go` that adds one command. `Build` builds a folder with TinyGo into a `.wasm` named after it. They are what `fude plugin new` and `fude plugin build` run. `New` requires the sdk of the running fude's release, or the newest sdk in any other build or program.
 
 ## License
 
