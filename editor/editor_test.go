@@ -1180,6 +1180,13 @@ func TestB213Pick(t *testing.T) {
 		return at("a.txt") >= 0 && at("a.txt") < at("o.txt")
 	})
 	feed(e, "<Esc>")
+	// A name that starts with .. is still under the working directory.
+	change(t, filepath.Join(dir, "..dots"), "d\n")
+	feed(e, ":e ..dots<CR>:e b.txt<CR>")
+	recent("..dots")
+	feed(e, ":pick recent<CR>")
+	settle(t, e, func() bool { return slices.Contains(rows(), "..dots") })
+	feed(e, "<Esc>")
 	// Files and grep are sources too.
 	feed(e, ":pick grep b<CR>")
 	settle(t, e, func() bool { return slices.Contains(rows(), "b.txt") })

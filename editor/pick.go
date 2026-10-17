@@ -82,7 +82,7 @@ func recentFiles(current string) (here, elsewhere []string, err error) {
 		if _, err := os.Stat(p); err != nil || p == cur {
 			continue
 		}
-		if rel, err := filepath.Rel(wd, p); err == nil && !strings.HasPrefix(rel, "..") {
+		if rel, ok := under(wd, p); ok {
 			here = append(here, rel)
 		} else {
 			elsewhere = append(elsewhere, p)
@@ -215,7 +215,7 @@ func symbolPlaces(res json.RawMessage) ([]string, error) {
 			continue
 		}
 		path := u.Path
-		if rel, err := filepath.Rel(wd, path); err == nil && !strings.HasPrefix(rel, "..") {
+		if rel, ok := under(wd, path); ok {
 			path = rel
 		}
 		kind := ""

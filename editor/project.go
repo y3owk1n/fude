@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strings"
 )
 
 // projectPath returns where the session of the working directory is kept
@@ -96,7 +95,7 @@ func (e *Session) restoreProject() {
 			// A file under the working directory opens by its relative path,
 			// as typed.
 			path := sb.Path
-			if rel, err := filepath.Rel(wd, path); err == nil && !strings.HasPrefix(rel, "..") {
+			if rel, ok := under(wd, path); ok {
 				path = rel
 			}
 			if _, err := e.add(path); err != nil {

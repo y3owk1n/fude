@@ -479,7 +479,7 @@ func (e *Session) moved(from, to string) {
 		if b.file.path == "" || err != nil {
 			continue
 		}
-		if rel, err := filepath.Rel(from, abs); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		if rel, ok := under(from, abs); ok {
 			b.file.path = filepath.Join(to, rel)
 		}
 	}

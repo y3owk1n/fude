@@ -123,3 +123,12 @@ func (f *file) changed() bool {
 	fi, err := os.Stat(f.path)
 	return f.path != "" && err == nil && (!fi.ModTime().Equal(f.mod) || fi.Size() != f.size)
 }
+
+// under returns path from dir, and whether path is inside dir.
+func under(dir, path string) (string, bool) {
+	rel, err := filepath.Rel(dir, path)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", false
+	}
+	return rel, true
+}

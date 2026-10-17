@@ -1192,7 +1192,7 @@ func (e *Session) locate(name string, rs []reply) {
 		lines := make([]string, len(spots))
 		for i, sp := range spots {
 			path := sp.path
-			if rel, err := filepath.Rel(wd, path); err == nil && !strings.HasPrefix(rel, "..") {
+			if rel, ok := under(wd, path); ok {
 				path = rel
 			}
 			lines[i] = fmt.Sprintf("%s:%d:%d: %s", path, sp.pos.Line+1, sp.pos.Character+1, e.lineAt(sp))

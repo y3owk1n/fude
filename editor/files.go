@@ -3,8 +3,8 @@ package editor
 import (
 	"bufio"
 	"bytes"
-	"errors"
 	"cmp"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
