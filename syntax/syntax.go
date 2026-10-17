@@ -18,8 +18,6 @@ import (
 	"time"
 
 	ts "github.com/tree-sitter/go-tree-sitter"
-
-	"github.com/y3owk1n/fude/api"
 )
 
 // language is a grammar and its queries.
@@ -57,6 +55,22 @@ var Objects = map[string]Object{
 // chunk is the most text a parse reads at once.
 const chunk = 64 << 10
 
+// Text is the text of a buffer as syntax reads it. Lines count from 0.
+// core's Snapshot satisfies it as is.
+type Text interface {
+	Len() int
+	Slice(start, end int) string
+	Lines() int
+	LineStart(line int) int
+	LineOf(pos int) int
+}
+
+// Edit replaces the bytes from Start to End with Text.
+type Edit struct {
+	Start, End int
+	Text       string
+}
+
 // Span is the range a highlight capture covers, named as the query names it,
 // such as keyword or function.builtin.
 type Span struct {
@@ -84,6 +98,7 @@ type Buffer struct {
 	closed  bool
 	asked   request
 	missing func(filetype string, err error) // told once of each injected language that did not load
+	trace   func(text string, took time.Duration)
 	wanted  map[string]bool
 	// climb is where an last climbed to and the nodes it climbed from, so in
 	// can go back down. It lasts until the text changes.
@@ -103,7 +118,7 @@ type Buffer struct {
 
 type change struct {
 	seq   int
-	edits []api.Edit
+	edits []Edit
 	tree  []ts.InputEdit // the same edits, last first, for a tree
 }
 
@@ -112,13 +127,13 @@ type change struct {
 type pending struct {
 	seq  int
 	tree ts.InputEdit
-	text api.Edit
+	text Edit
 }
 
 // request asks for the spans of the parts of text that views show, each
 // with a margin, by view.
 type request struct {
-	text   api.Text
+	text   Text
 	seq    int
 	ranges map[any]span
 }
@@ -127,8 +142,10 @@ type request struct {
 // queue, or false when fude has no grammar for it. parsed runs on the loop
 // after each new parse lands, and missing once for each language the buffer
 // injects that has no grammar fude could build, or with why it failed to
-// load. A query in dir/<filetype>/ replaces the shipped one of the same name.
-func New(filetype, dir string, queue chan<- func(), parsed func(), missing func(filetype string, err error)) (*Buffer, bool, error) {
+// load. trace hears each parse and highlight and how long it took, on the
+// buffer's goroutine. A query in dir/<filetype>/ replaces the shipped one of
+// the same name.
+func New(filetype, dir string, queue chan<- func(), parsed func(), missing func(filetype string, err error), trace func(text string, took time.Duration)) (*Buffer, bool, error) {
 	l, ok, err := lookup(filetype)
 	if !ok || err != nil {
 		return nil, false, err
@@ -157,7 +174,7 @@ func New(filetype, dir string, queue chan<- func(), parsed func(), missing func(
 		return nil, false, fmt.Errorf("grammar for %s: %w", filetype, err)
 	}
 	h := &Buffer{
-		queue: queue, parsed: parsed, missing: missing, wanted: map[string]bool{}, lang: l.lang, objects: objects, cursor: ts.NewQueryCursor(),
+		queue: queue, parsed: parsed, missing: missing, trace: trace, wanted: map[string]bool{}, lang: l.lang, objects: objects, cursor: ts.NewQueryCursor(),
 		wake: make(chan struct{}, 1), quit: make(chan struct{}),
 	}
 	go h.run(filetype, p, q, inj, newInjector(dir))
@@ -286,7 +303,7 @@ func (h *Buffer) Close() {
 }
 
 // Changed takes a change to the text, with the text from before it.
-func (h *Buffer) Changed(before api.Text, edits []api.Edit) {
+func (h *Buffer) Changed(before Text, edits []Edit) {
 	h.seq++
 	c := change{seq: h.seq, edits: edits}
 	h.mu.Lock()
@@ -310,7 +327,7 @@ func (h *Buffer) Changed(before api.Text, edits []api.Edit) {
 // request, it asks the worker for new spans. The request holds view's range
 // and those of the other views that showed t since. Until the spans come,
 // it returns the old ones moved through the edits made since.
-func (h *Buffer) Show(t api.Text, view any, from, to int) []Span {
+func (h *Buffer) Show(t Text, view any, from, to int) []Span {
 	a := &h.asked
 	if a.text == nil || a.seq != h.seq {
 		*a = request{t, h.seq, map[any]span{}}
@@ -464,7 +481,7 @@ func (h *Buffer) run(filetype string, p *ts.Parser, q, inj *ts.Query, in *inject
 				tree.Close()
 			}
 			tree, parsed = next, r.seq
-			api.Trace("syntax", fmt.Sprintf("parsed %s, %d bytes after %d edits", filetype, len(text), len(edits)), time.Since(at))
+			h.trace(fmt.Sprintf("parsed %s, %d bytes after %d edits", filetype, len(text), len(edits)), time.Since(at))
 		}
 		at := time.Now()
 		var spans []Span
@@ -475,7 +492,7 @@ func (h *Buffer) run(filetype string, p *ts.Parser, q, inj *ts.Query, in *inject
 			inner, rs := in.spans(inj, tree, text, rg.start, rg.end, injectionLevels)
 			spans, regions = append(spans, inner...), append(regions, rs...)
 		}
-		api.Trace("syntax", fmt.Sprintf("highlighted %d ranges of %s, %d spans", len(ranges), filetype, len(spans)), time.Since(at))
+		h.trace(fmt.Sprintf("highlighted %d ranges of %s, %d spans", len(ranges), filetype, len(spans)), time.Since(at))
 		missing := in.missing
 		in.missing = nil
 		clone := tree.Clone()
@@ -493,7 +510,7 @@ func (h *Buffer) run(filetype string, p *ts.Parser, q, inj *ts.Query, in *inject
 // cursor. It queries the last parse, moved through the edits made since. It
 // is false before the first parse, or when there is no such object. name is
 // a key of Objects.
-func (h *Buffer) Object(t api.Text, name string, start, end int) (int, int, bool) {
+func (h *Buffer) Object(t Text, name string, start, end int) (int, int, bool) {
 	if h.tree == nil {
 		return 0, 0, false
 	}
@@ -569,7 +586,7 @@ func (h *Buffer) Context(pos int) []int {
 // Select returns the range of every node a capture of the query src names
 // within [start, end) of t, the text now. It queries the last parse, moved
 // through the edits made since.
-func (h *Buffer) Select(t api.Text, src string, start, end int) ([][2]int, error) {
+func (h *Buffer) Select(t Text, src string, start, end int) ([][2]int, error) {
 	if h.tree == nil {
 		return nil, errors.New("the file is not parsed yet")
 	}
@@ -659,7 +676,7 @@ func merge(ranges map[any]span) []span {
 }
 
 // trim drops the blanks and newline a grammar may end a node with.
-func trim(t api.Text, s span) span {
+func trim(t Text, s span) span {
 	for s.end > s.start && strings.Contains(" \t\n", t.Slice(s.end-1, s.end)) {
 		s.end--
 	}
@@ -870,7 +887,7 @@ func highlight(c *ts.QueryCursor, q *ts.Query, tree *ts.Tree, text []byte, from,
 }
 
 // point returns pos as a tree-sitter row and byte column in t.
-func point(t api.Text, pos int) ts.Point {
+func point(t Text, pos int) ts.Point {
 	row := t.LineOf(pos)
 	return ts.Point{Row: uint(row), Column: uint(pos - t.LineStart(row))}
 }
@@ -885,7 +902,7 @@ func after(start ts.Point, text string) ts.Point {
 
 // through moves pos through a change's sorted edits. Text inserted at pos
 // goes before it when right is set.
-func through(edits []api.Edit, pos int, right bool) int {
+func through(edits []Edit, pos int, right bool) int {
 	for i := len(edits) - 1; i >= 0; i-- {
 		e := edits[i]
 		switch {

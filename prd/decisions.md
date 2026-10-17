@@ -341,10 +341,11 @@ functions anyway.
 
 ## D37. The modules are released together, and the first release brings go install
 
-fude's modules are the root, `core/`, `vim/` and `sdk/`. They take one
-version together, tagged `vX.Y.Z`, `core/vX.Y.Z`, `vim/vX.Y.Z` and
-`sdk/vX.Y.Z` on one commit. Until the first release, the root's `go.mod` points at
-`core/` and `vim/` through `replace` lines, so `go install` refuses it and
+fude's modules are the root, `core/`, `vim/`, `syntax/` and `sdk/`. They
+take one version together, tagged `vX.Y.Z`, `core/vX.Y.Z`, `vim/vX.Y.Z`,
+`syntax/vX.Y.Z` and `sdk/vX.Y.Z` on one commit. Until the first release,
+the root's `go.mod` points at `core/`, `vim/` and `syntax/` through
+`replace` lines, so `go install` refuses it and
 fude builds from a clone. A release drops the `replace` lines and requires
 the tags, which makes `go install github.com/y3owk1n/fude/cmd/fude@vX.Y.Z`
 work. `just standalone` builds every module outside the workspace, so a
@@ -437,6 +438,15 @@ requests, responses and events. No Go DAP library is worth a
 dependency for that. The user chose the core of nvim-dap and dap-ui on
 2026-10-17: breakpoints, launch and attach, stepping, the stack,
 variables and evaluation.
+
+## D43. syntax is a Go module that imports no fude package
+
+`syntax/` has its own `go.mod`. It reads text through its own `Text` and
+`Edit`, as `vim/` does. Its host passes `New` a trace func that hears each
+parse and highlight, since `api.Trace` belongs to the editor. Why: a
+program that wants tree-sitter highlights, tree targets and grammars
+built on first use imports it without the editor, wazero or a terminal.
+The cost is a fifth tag on every release (D37).
 
 ## Departures from Neovim
 

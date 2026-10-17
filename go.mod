@@ -10,9 +10,8 @@ require (
 	github.com/gdamore/tcell/v3 v3.6.0
 	github.com/pelletier/go-toml/v2 v2.4.3
 	github.com/tetratelabs/wazero v1.12.0
-	github.com/tree-sitter/go-tree-sitter v0.25.0
-	github.com/tree-sitter/tree-sitter-go v0.25.0
 	github.com/y3owk1n/fude/core v0.0.0
+	github.com/y3owk1n/fude/syntax v0.0.0
 	github.com/y3owk1n/fude/vim v0.0.0
 	golang.org/x/sys v0.48.0
 )
@@ -30,6 +29,8 @@ require (
 	github.com/mattn/go-runewidth v0.0.23 // indirect
 	github.com/muesli/cancelreader v0.2.2 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
+	github.com/tree-sitter/go-tree-sitter v0.25.0 // indirect
+	github.com/tree-sitter/tree-sitter-go v0.25.0 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	golang.org/x/sync v0.23.0 // indirect
 	golang.org/x/term v0.46.0 // indirect
@@ -38,5 +39,6 @@ require (
 
 replace (
 	github.com/y3owk1n/fude/core => ./core
+	github.com/y3owk1n/fude/syntax => ./syntax
 	github.com/y3owk1n/fude/vim => ./vim
 )

@@ -1,5 +1,5 @@
 # The Go modules in this repo.
-modules := "core vim ."
+modules := "core vim syntax ."
 
 # List the recipes.
 default:

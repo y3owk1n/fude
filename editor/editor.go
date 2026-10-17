@@ -448,7 +448,11 @@ func (l heard) Changed(before kernel.Snapshot, edits []kernel.Edit) {
 		out[i] = api.Edit(e)
 	}
 	if l.b.syntax != nil {
-		l.b.syntax.Changed(before, out)
+		changed := make([]syntax.Edit, len(edits))
+		for i, e := range edits {
+			changed[i] = syntax.Edit(e)
+		}
+		l.b.syntax.Changed(before, changed)
 	}
 	for _, s := range l.b.servers {
 		s.versions[l.b]++

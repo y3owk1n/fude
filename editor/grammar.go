@@ -19,7 +19,7 @@ func (e *Session) attachSyntax(b *buffer) (bool, error) {
 		case e.cfg.AutoInstall:
 			e.buildGrammar(ft, false)
 		}
-	})
+	}, func(text string, took time.Duration) { api.Trace("syntax", text, took) })
 	if ok {
 		b.syntax = h
 	}

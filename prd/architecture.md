@@ -33,7 +33,8 @@ vim/             Go module: the vim grammar, no dependency on core/
                  built-in operators and targets, ex parsing, regex
 api/             fude's module API: events, decorations, UI, registration
 editor/          the editor loop, config, event queues, budgets, the vim host
-syntax/          tree-sitter parsing, highlights, tree targets
+syntax/          Go module: tree-sitter parsing, highlights, tree targets,
+                 the only cgo, no dependency on fude's other packages
 plugin/          wazero host, the ABI that mirrors api/
 lsp/             language server client
 ui/term/         terminal client
@@ -1074,8 +1075,9 @@ sits beside the source, so tests never need TinyGo.
 ## Syntax
 
 tree-sitter through cgo, with the official `go-tree-sitter` binding (D32).
-`syntax/` reads text through `api.Text` and never imports `core/`. Until
-modules are wired through `api/` in step 4, `editor/` imports it directly.
+`syntax/` is a Go module of its own (D43). It reads text through its own
+`Text` and `Edit`, which core's snapshot and edits satisfy, and imports no
+fude package. `editor/` imports it directly.
 
 Each highlighted buffer has one goroutine that owns its parser, its tree
 and a copy of its text. The kernel's listener hands every change to the
@@ -1422,6 +1424,8 @@ client's call, and a line of fude's log. `api.Trace` is safe on any
 goroutine. It takes a mutex, stamps the time and a sequence number, and
 keeps the event in a ring of the last 4096. With no tail watching that is
 all it does. It does no I/O, and it adds about 40µs to key latency at p99.
+A library in a module of its own, such as `syntax/`, takes a trace func
+from its host instead.
 
 A client's `tail` call gets an empty reply, then the kept events and each
 new one as `{"method": "event", "params": {"seq", "at", "src", "text",

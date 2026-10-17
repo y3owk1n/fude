@@ -4,5 +4,6 @@ use (
 	.
 	./core
 	./sdk
+	./syntax
 	./vim
 )
