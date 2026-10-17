@@ -47,6 +47,7 @@ type Editor struct {
 	building       map[string]bool                 // the filetypes whose grammar builds now
 	failed         map[string]string               // by filetype, why its grammar did not build this session
 	started        bool                            // Load ran, so new buffers attach to servers at once
+	project        string                          // the directory fude started in, symlinks resolved (B243)
 	sessions       []*Session                      // the first is the one that opened the editor
 	setup          []func(*Session)                // what every session's machine gets, such as keymaps
 	proposed       int                             // the id of the newest proposal
@@ -139,6 +140,14 @@ func open(cfg config, paths []string) (*Session, error) {
 		// through it.
 		syntax.Use(filepath.Join(dir, "fude", "grammars"), func(name string) string { return ed.filetypeOf("code." + name) })
 	}
+	wd, err := os.Getwd()
+	if err == nil {
+		wd, err = filepath.EvalSymlinks(wd)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("find the project: %w", err)
+	}
+	ed.project = wd
 	ed.setup = []func(*Session){builtins}
 	e := &Session{Editor: ed, origin: "user"}
 	for i, p := range paths {
@@ -181,6 +190,12 @@ func (e *Session) join() {
 	e.root = &node{win: e.win}
 	e.sessions = append(e.sessions, e)
 	e.layout()
+	// A guest starts on a buffer it may show, a new empty one if no other
+	// (B245).
+	if shown := e.mayShow(b); shown != b {
+		e.win.show(shown)
+		e.win.alt = nil
+	}
 }
 
 // each gives every session, and every later one, f.
@@ -784,6 +799,10 @@ func (e *Session) Recording() rune { return e.vim.Recording() }
 
 // show switches the current window to b. Leaving a buffer is a jump.
 func (e *Session) show(b *buffer) {
+	if err := e.outside(cmp.Or(b.file.path, b.listed)); err != nil {
+		e.message = err.Error()
+		return
+	}
 	if b != e.win.buf {
 		e.pushJump(e.Cursor())
 		e.win.show(b)
@@ -911,6 +930,10 @@ func (e *Session) ex(line string) {
 				e.message = err.Error()
 				return
 			}
+			if err := e.outside(arg); err != nil {
+				e.message = err.Error()
+				return
+			}
 		}
 		c.run(e, call{name, arg, force, first, last, ranged})
 		return
@@ -932,6 +955,10 @@ func (e *Session) edit(path string) {
 		if b := e.find(path); b != nil {
 			e.show(b)
 		}
+		return
+	}
+	if err := e.outside(path); err != nil {
+		e.message = err.Error()
 		return
 	}
 	for _, b := range e.bufs {
@@ -1039,7 +1066,7 @@ func (e *Session) close(b *buffer, force bool) {
 				w.alt = nil
 			}
 			if w.buf == b {
-				w.show(e.bufs[min(i, len(e.bufs)-1)])
+				w.show(s.mayShow(e.bufs[min(i, len(e.bufs)-1)]))
 			}
 		}
 	}

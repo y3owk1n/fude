@@ -124,11 +124,15 @@ func (e *Session) symbols(b *buffer, rs []reply) {
 // the file when no buffer has it.
 func (e *Session) lineAt(sp spot) string {
 	text := ""
-	if i := slices.IndexFunc(e.bufs, func(b *buffer) bool { return b.is(sp.path) }); i >= 0 {
+	switch i := slices.IndexFunc(e.bufs, func(b *buffer) bool { return b.is(sp.path) }); {
+	case e.outside(sp.path) != nil:
+	case i >= 0:
 		t := e.bufs[i].text.Snapshot()
 		text = t.Slice(0, t.Len())
-	} else if data, err := os.ReadFile(sp.path); err == nil {
-		text = string(data)
+	default:
+		if data, err := os.ReadFile(sp.path); err == nil {
+			text = string(data)
+		}
 	}
 	if lines := strings.Split(text, "\n"); sp.pos.Line < len(lines) {
 		return strings.TrimSpace(lines[sp.pos.Line])

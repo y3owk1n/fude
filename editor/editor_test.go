@@ -701,7 +701,9 @@ func TestB240AttachedLeaves(t *testing.T) {
 
 // B244
 func TestB244GuestRefuses(t *testing.T) {
-	e, log := withServer(t, "b\na\n", "utf-8")
+	project := t.TempDir()
+	t.Chdir(project)
+	e, log := withServerAt(t, filepath.Join(project, "a.go"), "b\na\n", "utf-8")
 	heard(t, log, `"method":"textDocument/didOpen"`, 1)
 	guest := e.Attach("guest", editor.Guest)
 	wd, err := os.Getwd()
@@ -745,6 +747,76 @@ func TestB244GuestRefuses(t *testing.T) {
 			t.Errorf("%s in a guest said %q", keys, guest.Message())
 		}
 	}
+}
+
+// B245
+func TestB245GuestProject(t *testing.T) {
+	project, away := t.TempDir(), t.TempDir()
+	t.Chdir(project)
+	change(t, "a.txt", "a\n")
+	change(t, filepath.Join(away, "out.txt"), "out\n")
+	out := filepath.Join(away, "out.txt")
+	for link, to := range map[string]string{"link": away, "outlink": out} {
+		if err := os.Symlink(to, link); err != nil {
+			t.Fatal(err)
+		}
+	}
+	e := open(t, "a.txt")
+	// A guest that joins while the host shows a file outside starts on one
+	// inside.
+	feed(e, ":e "+out+"<CR>")
+	guest := e.Attach("guest", editor.Guest)
+	guest.SetSize(80, 24)
+	if name := guest.Views()[0].Name; name != "a.txt" {
+		t.Fatalf("a guest joined showing %s", name)
+	}
+	r := editor.Request{Buffer: e.Views()[0].Buffer, Command: editor.Command{Op: "delete", Target: editor.Target{Name: "lines"}}}
+	if err := guest.Request(r); err == nil || err.Error() != out+" is outside the project" {
+		t.Errorf("a guest's request naming a buffer outside said %v", err)
+	}
+	feed(e, ":ls<CR>")
+	buffers := e.Message()
+	for _, keys := range []string{
+		":e " + out + "<CR>", ":e link/out.txt<CR>", ":b out<CR>", ":split " + out + "<CR>",
+		":r " + out + "<CR>", ":w " + filepath.Join(away, "new.txt") + "<CR>",
+		":e .<CR>/^outlink<CR><CR>", ":e .<CR>Go../made.txt<Esc>:w<CR>", "-",
+	} {
+		if feed(guest, keys); !strings.HasSuffix(guest.Message(), "is outside the project") {
+			t.Errorf("%s in a guest said %q", keys, guest.Message())
+		}
+	}
+	feed(guest, "u:b a.txt<CR>")
+	if v := guest.Views(); len(v) != 1 || v[0].Name != "a.txt" || text(guest) != "a" {
+		t.Errorf("a guest's paths outside left %d windows, on %q holding %q", len(v), v[0].Name, text(guest))
+	}
+	// The only buffer the guest's paths opened is the project's listing.
+	if feed(e, ":ls<CR>"); !strings.HasPrefix(e.Message(), buffers+"  ") || strings.Count(e.Message(), "  ") != strings.Count(buffers, "  ")+1 {
+		t.Errorf("a guest's paths outside left the buffers %s, from %s", e.Message(), buffers)
+	}
+	for _, path := range []string{filepath.Join(away, "new.txt"), filepath.Join(project, "..", "made.txt")} {
+		if _, err := os.Stat(path); err == nil {
+			t.Errorf("a guest made %s", path)
+		}
+	}
+	// A file not made yet in the project opens.
+	if feed(guest, ":e sub/new.txt<CR>"); guest.Views()[0].Name != filepath.Join("sub", "new.txt") {
+		t.Errorf(":e sub/new.txt in a guest said %q", guest.Message())
+	}
+	// The finder previews only files in the project.
+	feed(guest, ":pick buffers<CR>out")
+	settle(t, guest, func() bool {
+		f, _ := guest.Float()
+		return strings.HasSuffix(f.Doc, "\n\n"+out+" is outside the project")
+	})
+	feed(guest, "<Esc>")
+	// The finder and grep find only in the project.
+	feed(e, ":cd "+away+"<CR>")
+	for _, keys := range []string{":pick files<CR>", ":pick grep out<CR>"} {
+		if feed(guest, keys); guest.Message() != "the working directory is outside the project" {
+			t.Errorf("%s in a guest, with the working directory outside, said %q", keys, guest.Message())
+		}
+	}
+	feed(e, ":cd "+project+"<CR>")
 }
 
 // B37

@@ -22,6 +22,14 @@ var pickSources = []string{"files", "grep", "buffers", "recent", "diagnostics", 
 // without one. grep takes the text after it as its query (B213).
 func (e *Session) openPick(arg string) {
 	source, rest, _ := strings.Cut(arg, " ")
+	// A guest's finder and grep work only while the working directory is
+	// in the project (B245).
+	if source == "files" || source == "grep" {
+		if err := e.outside("."); err != nil {
+			e.message = "the working directory is outside the project"
+			return
+		}
+	}
 	switch source {
 	case "":
 		e.pickFrom("pick", pickSources, func(i int) { e.openPick(pickSources[i]) })

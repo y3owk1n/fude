@@ -47,6 +47,9 @@ func listingBuffer(id int, dir string) (*buffer, error) {
 // listed shows its buffer as it was left.
 func (e *Session) openListing(dir, at string) {
 	abs, err := filepath.Abs(dir)
+	if err == nil {
+		err = e.outside(abs)
+	}
 	if err != nil {
 		e.message = err.Error()
 		return
@@ -442,6 +445,16 @@ func (e *Session) save(b *buffer, then func()) {
 	if err != nil {
 		e.message = err.Error()
 		return
+	}
+	names := slices.Concat(c.deletes, c.creates)
+	for _, r := range c.renames {
+		names = append(names, r[:]...)
+	}
+	for _, name := range names {
+		if err := e.outside(filepath.Join(b.listed, name)); err != nil {
+			e.message = err.Error()
+			return
+		}
 	}
 	if len(c.renames)+len(c.deletes)+len(c.creates) == 0 {
 		e.reload(b)

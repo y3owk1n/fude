@@ -1,6 +1,12 @@
 package editor
 
-import "strings"
+import (
+	"cmp"
+	"fmt"
+	"path/filepath"
+	"slices"
+	"strings"
+)
 
 // Power is how much a session may do, fixed when it is made (B243).
 type Power int
@@ -32,4 +38,51 @@ func refuses(name, arg string) bool {
 var refusedPlugs = map[string]bool{
 	"restart": true, "listing.cwd": true,
 	"lsp.restart": true, "lsp.stop": true, "lsp.disable": true, "lsp.enable": true,
+}
+
+// inside says whether path, once symlinks resolve, is under project. A
+// path that does not exist yet resolves through its nearest existing
+// directory (B245).
+func inside(project, path string) bool {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return false
+	}
+	rest := ""
+	for {
+		if real, err := filepath.EvalSymlinks(abs); err == nil {
+			_, ok := under(project, filepath.Join(real, rest))
+			return ok
+		}
+		up := filepath.Dir(abs)
+		if up == abs {
+			return false
+		}
+		rest, abs = filepath.Join(filepath.Base(abs), rest), up
+	}
+}
+
+// outside returns an error when e is a guest and path is outside the
+// project (B245).
+func (e *Session) outside(path string) error {
+	if e.power == Host || path == "" || inside(e.project, path) {
+		return nil
+	}
+	return fmt.Errorf("%s is outside the project", path)
+}
+
+// mayShow returns b if e may show it. Otherwise it returns the first
+// buffer e may show, or a new empty one (B245).
+func (e *Session) mayShow(b *buffer) *buffer {
+	ok := func(b *buffer) bool { return e.outside(cmp.Or(b.file.path, b.listed)) == nil }
+	if ok(b) {
+		return b
+	}
+	if i := slices.IndexFunc(e.bufs, ok); i >= 0 {
+		return e.bufs[i]
+	}
+	if _, err := e.add(""); err != nil {
+		e.message = err.Error()
+	}
+	return e.bufs[len(e.bufs)-1]
 }

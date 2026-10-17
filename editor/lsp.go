@@ -608,6 +608,10 @@ func (e *Session) workspaceEdit(s *server, from *buffer, t kernel.Snapshot, res 
 			problems = append(problems, err.Error())
 			continue
 		}
+		if err := e.outside(u.Path); err != nil {
+			problems = append(problems, err.Error())
+			continue
+		}
 		i := slices.IndexFunc(e.bufs, func(b *buffer) bool { return b.is(u.Path) })
 		if i < 0 {
 			if _, err := e.add(u.Path); err != nil {

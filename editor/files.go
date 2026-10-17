@@ -53,6 +53,7 @@ type finder struct {
 	list     bool                // <Plug>(finder.list) ran
 	queries  string              // where highlight queries are, for the preview
 	filetype func(string) string // the filetype of a path, which config.toml does not change while fude runs
+	project  string              // for a guest, the project outside which nothing previews (B245)
 	queue    chan<- func()       // the editor loop's, for the preview
 	// prompt and chose are a plugin's list or question (B185). chose runs
 	// instead of opening a file. It gets the index in paths of the item
@@ -65,6 +66,9 @@ type finder struct {
 // openFinder opens f in a box with query typed.
 func (e *Session) openFinder(f *finder, query string) {
 	f.queries, f.queue, f.filetype = e.queries, e.queue, e.filetypeOf
+	if e.power != Host {
+		f.project = e.project
+	}
 	b := &buffer{text: kernel.New(query, nil), before: map[kernel.NodeID]int{}, marks: map[rune]kernel.MarkID{}, title: "[find]"}
 	e.finder, e.under, e.win = f, e.win, newWindow(b, 0, 0)
 	e.later = append(e.later, "A")
@@ -496,7 +500,10 @@ const finderPrompt = "› "
 // highlight takes over a millisecond (B130).
 func (f *finder) read(m string, rows, cols int) {
 	path, line, _, _ := grepSpot(m)
-	text, at := preview(path, max(line-1, 0), rows, cols)
+	text, at := path+" is outside the project", -1
+	if f.project == "" || inside(f.project, path) {
+		text, at = preview(path, max(line-1, 0), rows, cols)
+	}
 	var spans []syntax.Span
 	if at >= 0 {
 		var err error

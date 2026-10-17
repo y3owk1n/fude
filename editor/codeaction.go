@@ -234,6 +234,9 @@ func (e *Session) editPreview(s *server, p *pick, edit json.RawMessage) (string,
 		case i >= 0:
 			before = e.bufs[i].text.Snapshot()
 		default:
+			if e.outside(u.Path) != nil {
+				continue
+			}
 			data, err := os.ReadFile(u.Path)
 			if err != nil {
 				continue
