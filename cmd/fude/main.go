@@ -53,6 +53,37 @@ func tail(args []string) error {
 	return errors.New("usage: fude --tail [--json] [socket]")
 }
 
+// attach runs fude --attach [socket], a terminal client on a session of a
+// running fude, and says why the session ended once the screen is gone
+// (B239, B242).
+func attach(args []string) error {
+	var socket string
+	switch len(args) {
+	case 0:
+		found, err := editor.FindSocket()
+		if err != nil {
+			return err
+		}
+		socket = found
+	case 1:
+		socket = args[0]
+	default:
+		return errors.New("usage: fude --attach [socket]")
+	}
+	a, err := term.Attach(socket)
+	if err != nil {
+		return err
+	}
+	defer a.Close()
+	if err := term.Run(a); err != nil {
+		return err
+	}
+	if why := a.Ended(); why != "" {
+		fmt.Println("fude:", why)
+	}
+	return nil
+}
+
 func main() {
 	if err := run(os.Args[1:]); err != nil {
 		fmt.Fprintln(os.Stderr, "fude:", err)
@@ -78,6 +109,9 @@ func run(args []string) error {
 	}
 	if len(args) > 0 && args[0] == "--tail" {
 		return tail(args[1:])
+	}
+	if len(args) > 0 && args[0] == "--attach" {
+		return attach(args[1:])
 	}
 	e, err := editor.Start(args)
 	if err != nil {

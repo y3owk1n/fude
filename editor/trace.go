@@ -31,7 +31,7 @@ func traced(src, what string, at time.Time, err error) {
 func Tail(w io.Writer, socket string, asJSON bool) error {
 	if socket == "" {
 		var err error
-		if socket, err = findSocket(); err != nil {
+		if socket, err = FindSocket(); err != nil {
 			return err
 		}
 	}
@@ -83,9 +83,9 @@ func Tail(w io.Writer, socket string, asJSON bool) error {
 	return nil
 }
 
-// findSocket returns the socket setting, or else the socket of the one
+// FindSocket returns the socket setting, or else the socket of the one
 // fude that answers in the directory fude listens in without it.
-func findSocket() (string, error) {
+func FindSocket() (string, error) {
 	cfg, err := loadConfig()
 	if err != nil {
 		return "", err

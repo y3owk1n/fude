@@ -51,6 +51,9 @@ func startWith(t *testing.T, config string, args ...string) *client {
 	// Quitting when the test ends stops what the editor started before its
 	// temp directories go.
 	t.Cleanup(func() {
+		if e.Done() {
+			return
+		}
 		for _, k := range vim.Keys("<Esc><Esc>:qa!<CR>") {
 			e.Feed(k)
 		}
@@ -682,5 +685,126 @@ func TestB159LspPanelScrolls(t *testing.T) {
 	}
 	if !shows("server19") {
 		t.Fatal("the panel does not scroll to its last card")
+	}
+}
+
+// serve serves e on a socket, running its loop off the test's goroutine,
+// and returns the socket and a way to run a func on that loop. The loop
+// stops before the test's other cleanups run.
+func serve(t *testing.T, e *editor.Session) (string, func(func())) {
+	t.Helper()
+	// A socket path must be short, so it goes in a directory of its own.
+	dir, err := os.MkdirTemp("", "fude")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	path := filepath.Join(dir, "s")
+	t.Cleanup(e.Serve(path))
+	do, stop, stopped := make(chan func()), make(chan struct{}), make(chan struct{})
+	t.Cleanup(func() { close(stop); <-stopped })
+	go func() {
+		defer close(stopped)
+		for {
+			select {
+			case f := <-e.Queue():
+				f()
+			case f := <-do:
+				f()
+			case <-stop:
+				return
+			}
+		}
+	}()
+	return path, func(f func()) {
+		ran := make(chan struct{})
+		do <- func() { f(); close(ran) }
+		<-ran
+	}
+}
+
+// B239, B242
+func TestB239Attach(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.txt")
+	if err := os.WriteFile(path, []byte("hello\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	host := startWith(t, "", path).e.(*editor.Session)
+	socket, on := serve(t, host)
+	a, err := Attach(socket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer a.Close()
+	c := &client{s: mock(t), e: a}
+	// shows runs what the frames bring and draws, until the screen shows
+	// want on row y.
+	shows := func(y int, want string) {
+		t.Helper()
+		deadline := time.After(5 * time.Second)
+		for {
+			c.draw()
+			var b strings.Builder
+			for x := range 120 {
+				s, _, _ := c.s.Get(x, y)
+				b.WriteString(s)
+			}
+			if strings.Contains(b.String(), want) {
+				return
+			}
+			select {
+			case f := <-a.Queue():
+				f()
+			case <-deadline:
+				t.Fatalf("row %d is %q, want %q in it", y, b.String(), want)
+			}
+		}
+	}
+	// It draws the session as fude's own terminal does, and its keys edit
+	// fude's buffer.
+	shows(0, "hello")
+	shows(39, "a.txt")
+	for _, k := range vim.Keys("A!<Esc>") {
+		a.Feed(k)
+	}
+	shows(0, "hello!")
+	var text string
+	on(func() { s := host.Text(); text = s.Slice(0, s.Len()) })
+	if text != "hello!" {
+		t.Errorf("the attached client's keys left fude's buffer %q", text)
+	}
+	// A client whose connection breaks ends, and says why.
+	broken, err := Attach(socket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	broken.Close()
+	for deadline := time.After(5 * time.Second); !broken.Done(); {
+		select {
+		case f := <-broken.Queue():
+			f()
+		case <-deadline:
+			t.Fatal("a client whose connection broke never ended")
+		}
+	}
+	if !strings.Contains(broken.Ended(), "the connection to fude broke") {
+		t.Errorf("a client whose connection broke said %q", broken.Ended())
+	}
+	// When fude quits, it says so.
+	on(func() {
+		for _, k := range vim.Keys(":qa!<CR>") {
+			host.Feed(k)
+		}
+	})
+	for deadline := time.After(5 * time.Second); !a.Done(); {
+		select {
+		case f := <-a.Queue():
+			f()
+		case <-deadline:
+			t.Fatal("the attached client never ended")
+		}
+	}
+	if a.Ended() != "fude quit" {
+		t.Errorf("when fude quit, the client said %q", a.Ended())
 	}
 }

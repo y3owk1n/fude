@@ -20,6 +20,21 @@ ssh -L /tmp/fude.sock:/home/me/.local/state/fude/fude.sock host
 
 A second fude finds the socket taken and listens at one of its own.
 
+## Attaching
+
+`fude --attach` opens a terminal on a session of a running fude, with
+its own windows, cursor and undo, editing the same buffers. Without a
+socket it finds the one fude running, as `fude --tail` does.
+
+```sh
+fude --attach
+fude --attach /tmp/fude.sock
+```
+
+`:q` on its last window closes the attached terminal, and the other fude
+keeps running. `"+y` copies to the clipboard of the machine the attached
+terminal runs on.
+
 ## Clients
 
 Go programs attach through fude's `client` package. A client may keep a
