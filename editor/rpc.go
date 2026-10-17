@@ -131,9 +131,10 @@ func (e *Session) Request(r Request) error {
 	if err != nil {
 		return err
 	}
-	if shown := e.win.buf; b != shown {
+	if shown, alt := e.win.buf, e.win.alt; b != shown {
+		// The request leaves the window as it was, its # too.
 		e.win.show(b)
-		defer e.win.show(shown)
+		defer func() { e.win.show(shown); e.win.alt = alt }()
 	}
 	at := e.Cursor()
 	if r.At != nil {

@@ -977,7 +977,8 @@ Where fude departs, the line says so and cites the departure in
 - B74 [6] A proposal follows edits made after it. If an edit overlaps it,
   the proposal is marked stale and cannot be accepted.
 - B75 [6] A request with a position edits there and leaves every view's
-  cursor where it was.
+  cursor where it was. A request on another buffer leaves the window's
+  `#` as it was.
 - B76 [6] A request made against an older version applies at the position
   it meant, mapped through the edits since. If those edits overlap it, it
   is refused and the client is told.

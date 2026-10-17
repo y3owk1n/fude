@@ -174,6 +174,16 @@ func TestB75RequestAtLeavesCursors(t *testing.T) {
 	if got := text(e); got != "one three" || e.Cursor() != 0 || agent.Cursor() != 8 {
 		t.Fatalf("got %q with cursors at %d and %d, want %q with 0 and 8", got, e.Cursor(), agent.Cursor(), "one three")
 	}
+	// A request on another buffer leaves the window's # as it was.
+	other := filepath.Join(t.TempDir(), "other")
+	change(t, other, "x\n")
+	feed(e, ":e "+other+"<CR>:b 1<CR>")
+	if err := agent.Request(editor.Request{Buffer: 2, Command: editor.Command{Op: "delete", Target: editor.Target{Name: "word"}}}); err != nil {
+		t.Fatal(err)
+	}
+	if feed(agent, "<C-^>"); agent.Views()[0].Name == other {
+		t.Errorf("after a request on %s, <C-^> went to it", other)
+	}
 }
 
 // B76
