@@ -1489,9 +1489,11 @@ a stream each way. The client sends `keys`, `paste`, `size` and `focus`
 notices, the keys as a list in key notation. One goroutine per connection
 makes a frame on the loop after each notice, and every 50ms to catch other
 sessions' edits, new parses and servers' answers. It sends the frame as a
-`frame` notice when it differs from the last one sent. Because one
-goroutine sends, each frame's edits arrive in order. Closing the
-connection makes the session leave (B240).
+`frame` notice when it differs from the last one sent. Each frame counts
+the notices fude has handled, so a frame follows every notice and the
+client knows which of its keys it shows. Because one goroutine sends,
+each frame's edits arrive in order. Closing the connection makes the
+session leave (B240).
 
 A frame holds what `ui/term` reads of a session: the views without their
 text, the float, the command line and its cursor, the mode, message,

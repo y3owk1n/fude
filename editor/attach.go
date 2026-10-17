@@ -36,6 +36,7 @@ type Frame struct {
 	Wait         *time.Duration `json:",omitempty"` // until a key typed now times out
 	Hints        *time.Duration `json:",omitempty"` // until the key hints show
 	Done         bool           `json:",omitempty"` // the session ended, as Message says when fude quit
+	Input        int            // the client's notices fude has handled, so a frame follows each
 }
 
 // Text is a buffer's text as a frame brings it: the edits since the version
@@ -110,6 +111,7 @@ func (e *Session) frame(sent map[int]kernel.Version) Frame {
 // client.
 func (e *Session) attached(s *Session, in *bufio.Scanner, out func(any) error, on func(func())) {
 	kick, gone := make(chan struct{}, 1), make(chan struct{})
+	handled := 0 // on the loop, as the frames read it there
 	defer close(gone)
 	go func() {
 		// One goroutine makes and sends the frames, so the edits of each
@@ -123,6 +125,7 @@ func (e *Session) attached(s *Session, in *bufio.Scanner, out func(any) error, o
 			var err error
 			on(func() {
 				f := s.frame(sent)
+				f.Input = handled
 				done = f.Done
 				b, err = json.Marshal(f)
 			})
@@ -157,6 +160,7 @@ func (e *Session) attached(s *Session, in *bufio.Scanner, out func(any) error, o
 			continue
 		}
 		on(func() {
+			handled++
 			if err := s.input(n.Method, n.Params); err != nil {
 				logLine(fmt.Sprintf("attached client: %v", err))
 			}

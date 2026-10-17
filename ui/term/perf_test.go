@@ -23,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/vim"
 )
 
@@ -134,6 +135,63 @@ func TestPromiseKeyLatency(t *testing.T) {
 	t.Logf("p50 %v, p99 %v, worst %v over %d keys", p50, p99, worst, len(times))
 	if p99 > time.Millisecond {
 		t.Errorf("p99 is %v, want under 1ms", p99)
+	}
+}
+
+// Key read to frame drawn under 5ms at p99 through fude --attach on the
+// local socket, on the file and keys of TestPromiseKeyLatency. fude runs its
+// loop on a goroutine of its own, as a fude in another terminal does, and
+// the attached client draws each key's frame once it comes.
+func TestPromiseAttachLatency(t *testing.T) {
+	host := startWith(t, "large_file = 20", realCode(t, 10<<20)).e.(*editor.Session)
+	socket, _ := serve(t, host)
+	a, err := Attach(socket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer a.Close()
+	c := &client{s: mock(t), e: a}
+	// upTo runs the frames that come, drawing after each, until fude has
+	// handled n of the client's notices.
+	upTo := func(n int) {
+		for deadline := time.After(5 * time.Second); a.f.Input < n; {
+			select {
+			case f := <-a.Queue():
+				f()
+				c.draw()
+			case <-deadline:
+				t.Fatalf("fude handled %d notices of %d", a.f.Input, n)
+			}
+		}
+	}
+	c.draw()
+	upTo(1) // the screen's size
+	session := "jjjjkkwwbbeeWB}}{{50%ggG90000G/func<CR>nnN*#xu.uddpyyPuuciwbar<Esc>u" +
+		"ihello world<Esc>uoreturn nil<Esc>uA;<Esc>u<C-d><C-u><C-f><C-b>zzHML%:s/err/e/<CR>u"
+	var times []time.Duration
+	for len(times) < 1000 {
+		for _, k := range vim.Keys(session) {
+			// Frames of fude's own work, such as a new syntax tree, come
+			// between keys and the test draws them. It spins, as press does.
+			for gap := time.Now().Add(10 * time.Millisecond); time.Now().Before(gap); {
+				select {
+				case f := <-a.Queue():
+					f()
+					c.draw()
+				default:
+				}
+			}
+			at := time.Now()
+			a.Feed(k)
+			upTo(a.f.Input + 1)
+			times = append(times, time.Since(at))
+		}
+	}
+	slices.Sort(times)
+	p50, p99, worst := times[len(times)/2], times[len(times)*99/100], times[len(times)-1]
+	t.Logf("p50 %v, p99 %v, worst %v over %d keys", p50, p99, worst, len(times))
+	if p99 > 5*time.Millisecond {
+		t.Errorf("p99 is %v, want under 5ms", p99)
 	}
 }
 
