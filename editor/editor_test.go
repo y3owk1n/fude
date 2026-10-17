@@ -1705,6 +1705,25 @@ func TestB213Pick(t *testing.T) {
 	settle(t, e, func() bool { return slices.Contains(rows(), "b.txt") })
 }
 
+// B266
+func TestB266PickCommands(t *testing.T) {
+	e := start(t)
+	e.SetSize(100, 30)
+	shows := func(want string) bool { f, _ := e.Float(); return strings.Contains(f.Text, want) }
+	// Typing what a command does finds it, and the one picked runs.
+	feed(e, ":pick commands<CR>opens a window below with a new empty")
+	settle(t, e, func() bool { return shows(":new") })
+	if feed(e, "<CR>"); len(e.Views()) != 2 {
+		t.Fatalf("picking :new left %d windows", len(e.Views()))
+	}
+	// One that needs an argument waits on the command line.
+	feed(e, ":pick commands<CR>:cdo")
+	settle(t, e, func() bool { return shows(":cdo") })
+	if feed(e, "<CR>"); e.Line() != ":cdo " {
+		t.Errorf("picking :cdo left the line %q", e.Line())
+	}
+}
+
 // B215
 func TestB215PickLists(t *testing.T) {
 	config(t, "[keymap.normal]\n\"zq\" = \":set number<CR>\"\n")

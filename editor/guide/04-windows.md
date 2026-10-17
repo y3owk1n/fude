@@ -60,7 +60,9 @@ with text typed, and `<CR>` opens the file at the match.
 `:pick buffers` finds an open buffer, and `:pick recent` one of the last
 100 files you opened. `:pick help` finds a help topic, and `:pick keymaps`
 any key by what it does, such as `delete` or `fold`. A normal mode key
-runs when picked. `:pick` alone lists every source.
+runs when picked. `:pick commands` finds an ex command the same way, and
+runs it, or puts it on the command line when it needs an argument.
+`:pick` alone lists every source.
 
 ## Tasks
 

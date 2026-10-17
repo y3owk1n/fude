@@ -636,8 +636,9 @@ Where fude departs, the line says so and cites the departure in
   B134's finders. `buffers` lists the open buffers that have a file.
   `recent` lists the last 100 files a window showed, newest first, and
   keeps them across sessions. Those under the working directory come
-  before the others. Neither lists the current file. B196, B214, B228 and
-  B215 add `diagnostics`, `symbols`, `tasks`, `help` and `keymaps`. A
+  before the others. Neither lists the current file. B196, B214, B228,
+  B215 and B266 add `diagnostics`, `symbols`, `tasks`, `help`, `keymaps`
+  and `commands`. A
   `<CR>` typed before the list narrows picks from what was typed. `<CR>` opens
   the file picked, and B130's preview shows it. The finder's border names
   the source (N11).
@@ -656,6 +657,10 @@ Where fude departs, the line says so and cites the departure in
   typed, up to the character or target it waits for. Any other says what
   it does and in which mode. These lists, and a plugin's list
   (B185), show each item as text with no preview.
+- B266 [2] `:pick commands` lists every ex command, fude's, the vim
+  machine's and plugins', each by its name and what it does, so typing
+  narrows by either. The one picked runs. One that needs an argument
+  goes on the command line, which waits for it.
 - B214 [5] `:pick symbols` opens the finder on the symbols the current
   buffer's language server finds for the query, asking again as it is
   typed. They show under their file, each as its line, name and kind, and

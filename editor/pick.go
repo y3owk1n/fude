@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -16,7 +17,7 @@ import (
 )
 
 // pickSources are the sources :pick finds in, by name.
-var pickSources = []string{"files", "grep", "buffers", "recent", "diagnostics", "symbols", "tasks", "help", "keymaps"}
+var pickSources = []string{"files", "grep", "buffers", "recent", "diagnostics", "symbols", "tasks", "help", "keymaps", "commands"}
 
 // openPick opens the finder on the items of source, or on the sources
 // without one. grep takes the text after it as its query (B213).
@@ -38,6 +39,8 @@ func (e *Session) openPick(arg string) {
 		e.pickFrom("help", tags, func(i int) { e.help(tags[i]) })
 	case "keymaps":
 		e.pickKeys()
+	case "commands":
+		e.pickCommands()
 	case "files":
 		e.files()
 	case "grep":
@@ -97,6 +100,38 @@ func recentFiles(current string) (here, elsewhere []string, err error) {
 		}
 	}
 	return here, elsewhere, nil
+}
+
+// pickCommands opens the finder on every ex command, each by what it does,
+// as :pick commands does. The one chosen runs, or waits on the command line
+// for the argument it needs (B266).
+func (e *Session) pickCommands() {
+	type command struct{ name, args, help string }
+	var all []command
+	for _, c := range slices.Concat(vim.Commands(), helpCommands()) {
+		all = append(all, command{c.Name, c.Args, c.Help})
+	}
+	for _, name := range slices.Sorted(maps.Keys(e.commands)) {
+		all = append(all, command{name, "", cmp.Or(e.pluginHelp[":"+name], "a plugin's command")})
+	}
+	nameW := 0
+	for _, c := range all {
+		nameW = max(nameW, len(c.name))
+	}
+	items := make([]string, len(all))
+	for i, c := range all {
+		items[i] = fmt.Sprintf(":%-*s  %s", nameW, c.name, c.help)
+	}
+	e.pickFrom("commands", items, func(i int) {
+		c := all[i]
+		// A command that needs an argument, whose arguments are not all in
+		// brackets, waits on the command line for it.
+		line := ":" + c.name + "<CR>"
+		if c.args != "" && !strings.HasPrefix(c.args, "[") {
+			line = ":" + c.name + " "
+		}
+		e.later = append(e.later, vim.Keys(line)...)
+	})
 }
 
 // pickKeys opens the finder on every key: the mappings of normal, visual
