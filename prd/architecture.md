@@ -32,6 +32,7 @@ vim/             Go module: the vim grammar, no dependency on core/
                  Command, keys, keymap trie, modes, registers, resolution,
                  built-in operators and targets, ex parsing, regex
 api/             Go module: fude's module API, stdlib only
+  diff/          line diffs, for the editor and its modules
 editor/          the editor loop, config, event queues, budgets, the vim host
 syntax/          Go module: tree-sitter parsing, highlights, tree targets,
                  the only cgo, no dependency on fude's other packages

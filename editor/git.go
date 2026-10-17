@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/y3owk1n/fude/api/diff"
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
 	"github.com/y3owk1n/fude/wire"
@@ -189,18 +190,18 @@ func hunks(base, now string) []hunk {
 		end--
 	}
 	a, b := base[pre:len(base)-end], now[pre:len(now)-end]
-	ops := lineDiff(strings.Split(a, "\n"), strings.Split(b, "\n"))
+	ops := diff.Lines(strings.Split(a, "\n"), strings.Split(b, "\n"))
 	var out []hunk
 	line := strings.Count(base[:pre], "\n") // the line of now the next op is at
 	for i := 0; i < len(ops); {
-		if ops[i].kind == ' ' {
+		if ops[i].Kind == ' ' {
 			line, i = line+1, i+1
 			continue
 		}
 		h := hunk{line: line}
-		for ; i < len(ops) && ops[i].kind != ' '; i++ {
-			if ops[i].kind == '-' {
-				h.old = append(h.old, ops[i].line)
+		for ; i < len(ops) && ops[i].Kind != ' '; i++ {
+			if ops[i].Kind == '-' {
+				h.old = append(h.old, ops[i].Line)
 			} else {
 				h.count++
 			}
@@ -334,7 +335,7 @@ func (e *Session) resetHunks(t vim.Text, start, end int, _ bool) []vim.Edit {
 		}
 	}
 	var edits []vim.Edit
-	for _, ed := range lineEdits(now, strings.Join(lines, "\n")) {
+	for _, ed := range diff.Edits(now, strings.Join(lines, "\n")) {
 		edits = append(edits, vim.Edit(ed))
 	}
 	return edits
@@ -348,12 +349,12 @@ func (e *Session) gitDiff() {
 		return
 	}
 	t := b.text.Snapshot()
-	ops := lineDiff(strings.Split(*b.base, "\n"), strings.Split(t.Slice(0, t.Len()), "\n"))
-	if !slices.ContainsFunc(ops, func(o op) bool { return o.kind != ' ' }) {
+	ops := diff.Lines(strings.Split(*b.base, "\n"), strings.Split(t.Slice(0, t.Len()), "\n"))
+	if !slices.ContainsFunc(ops, func(o diff.Op) bool { return o.Kind != ' ' }) {
 		e.message = "no changes from git's index"
 		return
 	}
-	e.scratch("[git diff "+b.name()+"]", unified(ops, 3), b, nil)
+	e.scratch("[git diff "+b.name()+"]", diff.Unified(ops, 3), b, nil)
 	e.colourDiff(e.win.buf)
 }
 

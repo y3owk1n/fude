@@ -56,7 +56,7 @@ attribution of any kind.
 - cgo lives only in `syntax/`.
 
 In `just check`, the `go.mod` files of `core/` and `vim/` enforce their
-imports, `just module-imports` that `modules/` imports only `api/`, and
+imports, `just module-imports` that `modules/` imports only the `api/` module, and
 `just cgo` the cgo rule. Nothing checks that `core/` starts no goroutines
 and does no I/O, so a review must.
 

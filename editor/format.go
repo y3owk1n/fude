@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/y3owk1n/fude/api"
+	"github.com/y3owk1n/fude/api/diff"
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/protocol/lsp"
 	"github.com/y3owk1n/fude/vim"
@@ -168,7 +170,7 @@ func (e *Session) formatWith(b *buffer, start, end int, runs []run, done func(fa
 					finish(t, nil, err.Error())
 					return
 				}
-				edits := slices.DeleteFunc(lineEdits(old, strings.TrimSuffix(out, "\n")), func(ed kernel.Edit) bool {
+				edits := slices.DeleteFunc(fromDiff(diff.Edits(old, strings.TrimSuffix(out, "\n"))), func(ed kernel.Edit) bool {
 					return ed.Start < from || ed.End > to
 				})
 				finish(t, edits, "")
@@ -207,46 +209,13 @@ func runFormatters(runs []run, text, path string, timeout time.Duration) (string
 	return text, nil
 }
 
-// lineEdits returns the edits that turn old into new, one for each run of
-// changed lines, so marks on the lines that stay keep their place. When a
-// run has as many new lines as old ones, each line changes on its own and
-// keeps its line break, so a mark on it stays on its line.
-func lineEdits(old, new string) []kernel.Edit {
-	var edits []kernel.Edit
-	pos := 0 // where the next op's line starts in old
-	ops := lineDiff(strings.SplitAfter(old, "\n"), strings.SplitAfter(new, "\n"))
-	for i := 0; i < len(ops); {
-		if ops[i].kind == ' ' {
-			pos, i = pos+len(ops[i].line), i+1
-			continue
-		}
-		var gone, added []string
-		for ; i < len(ops) && ops[i].kind != ' '; i++ {
-			if ops[i].kind == '-' {
-				gone = append(gone, ops[i].line)
-			} else {
-				added = append(added, ops[i].line)
-			}
-		}
-		if len(gone) == len(added) {
-			for k, line := range gone {
-				e := kernel.Edit{Start: pos, End: pos + len(line), Text: added[k]}
-				if strings.HasSuffix(line, "\n") && strings.HasSuffix(e.Text, "\n") {
-					e.End, e.Text = e.End-1, strings.TrimSuffix(e.Text, "\n")
-				}
-				edits = append(edits, e)
-				pos += len(line)
-			}
-			continue
-		}
-		e := kernel.Edit{Start: pos, Text: strings.Join(added, "")}
-		for _, line := range gone {
-			pos += len(line)
-		}
-		e.End = pos
-		edits = append(edits, e)
+// fromDiff converts a diff's edits for the kernel.
+func fromDiff(edits []api.Edit) []kernel.Edit {
+	out := make([]kernel.Edit, len(edits))
+	for i, e := range edits {
+		out[i] = kernel.Edit(e)
 	}
-	return edits
+	return out
 }
 
 // formatter returns the first of b's servers that formats, or nil (N22).
@@ -317,7 +286,7 @@ func (e *Session) formatting(b *buffer, s *server, start, end int, answer func(k
 			at = ed.End
 		}
 		formatted.WriteString(old[at:])
-		answer(t, lineEdits(old, formatted.String()))
+		answer(t, fromDiff(diff.Edits(old, formatted.String())))
 	})
 }
 

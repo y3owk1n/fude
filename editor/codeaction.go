@@ -12,6 +12,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/y3owk1n/fude/api/diff"
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/protocol/lsp"
 	"github.com/y3owk1n/fude/syntax"
@@ -255,7 +256,7 @@ func (e *Session) editPreview(s *server, p *pick, edit json.RawMessage) (string,
 		}
 		// A run of changes after the first shows after ⋯, and none says
 		// where it is.
-		for i, l := range strings.Split(unified(lineDiff(strings.Split(before.Slice(0, before.Len()), "\n"), strings.Split(after, "\n")), 1), "\n") {
+		for i, l := range strings.Split(diff.Unified(diff.Lines(strings.Split(before.Slice(0, before.Len()), "\n"), strings.Split(after, "\n")), 1), "\n") {
 			switch {
 			case l == "" || strings.HasPrefix(l, "@@") && i == 0:
 				continue

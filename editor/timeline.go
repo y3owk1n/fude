@@ -8,6 +8,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/y3owk1n/fude/api/diff"
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
@@ -326,8 +327,8 @@ func (e *Session) diff(arg string) {
 	}
 	x, _ := b.text.At(states(b)[i])
 	y, _ := b.text.At(states(b)[j])
-	ops := lineDiff(strings.Split(x.Slice(0, x.Len()), "\n"), strings.Split(y.Slice(0, y.Len()), "\n"))
-	e.scratch(fmt.Sprintf("[diff %d %d]", i, j), unified(ops, 3), b, nil)
+	ops := diff.Lines(strings.Split(x.Slice(0, x.Len()), "\n"), strings.Split(y.Slice(0, y.Len()), "\n"))
+	e.scratch(fmt.Sprintf("[diff %d %d]", i, j), diff.Unified(ops, 3), b, nil)
 	e.colourDiff(e.win.buf)
 }
 
@@ -426,124 +427,4 @@ func (e *Session) colourDiff(b *buffer) {
 		}
 	}
 	e.decos[diffColours{b}] = ds
-}
-
-// op is one line of a diff: kept, removed or added.
-type op struct {
-	kind byte // ' ', '-' or '+'
-	line string
-}
-
-// lineDiff returns the shortest edit script turning lines a into lines b,
-// by Myers' algorithm. The lines both start and end with are kept, and only
-// those between are searched, so a small change to a long text is cheap.
-func lineDiff(a, b []string) []op {
-	pre := 0
-	for pre < len(a) && pre < len(b) && a[pre] == b[pre] {
-		pre++
-	}
-	suf := 0
-	for suf < len(a)-pre && suf < len(b)-pre && a[len(a)-1-suf] == b[len(b)-1-suf] {
-		suf++
-	}
-	ops := make([]op, 0, len(a)+len(b)-pre-suf)
-	for _, l := range a[:pre] {
-		ops = append(ops, op{' ', l})
-	}
-	ops = append(ops, myers(a[pre:len(a)-suf], b[pre:len(b)-suf])...)
-	for _, l := range a[len(a)-suf:] {
-		ops = append(ops, op{' ', l})
-	}
-	return ops
-}
-
-// myers returns the shortest edit script turning lines a into lines b.
-func myers(a, b []string) []op {
-	n, m := len(a), len(b)
-	off := n + m + 1
-	v := make([]int, 2*off+1)
-	var trace [][]int
-	for d := 0; d <= n+m; d++ {
-		trace = append(trace, slices.Clone(v))
-		for k := -d; k <= d; k += 2 {
-			x := v[off+k-1] + 1
-			if k == -d || k != d && v[off+k-1] < v[off+k+1] {
-				x = v[off+k+1]
-			}
-			y := x - k
-			for x < n && y < m && a[x] == b[y] {
-				x, y = x+1, y+1
-			}
-			v[off+k] = x
-			if x >= n && y >= m {
-				return backtrack(trace, a, b, off)
-			}
-		}
-	}
-	return nil
-}
-
-// backtrack walks lineDiff's trace back from the end to list the ops.
-func backtrack(trace [][]int, a, b []string, off int) []op {
-	var ops []op
-	x, y := len(a), len(b)
-	for d := len(trace) - 1; d > 0; d-- {
-		v, k := trace[d], x-y
-		pk := k - 1
-		if k == -d || k != d && v[off+k-1] < v[off+k+1] {
-			pk = k + 1
-		}
-		px := v[off+pk]
-		py := px - pk
-		for x > px && y > py {
-			ops = append(ops, op{' ', a[x-1]})
-			x, y = x-1, y-1
-		}
-		if x == px {
-			ops = append(ops, op{'+', b[y-1]})
-			y--
-		} else {
-			ops = append(ops, op{'-', a[x-1]})
-			x--
-		}
-	}
-	for x > 0 && y > 0 {
-		ops = append(ops, op{' ', a[x-1]})
-		x, y = x-1, y-1
-	}
-	slices.Reverse(ops)
-	return ops
-}
-
-// unified renders ops as hunks of changed lines with context lines around
-// them, each under a @@ header giving its first line on each side.
-func unified(ops []op, context int) string {
-	near := make([]bool, len(ops))
-	for i, o := range ops {
-		if o.kind != ' ' {
-			for j := max(0, i-context); j <= min(len(ops)-1, i+context); j++ {
-				near[j] = true
-			}
-		}
-	}
-	var out []string
-	la, lb := 1, 1
-	for i, o := range ops {
-		if near[i] && (i == 0 || !near[i-1]) {
-			out = append(out, fmt.Sprintf("@@ -%d +%d @@", la, lb))
-		}
-		if near[i] {
-			out = append(out, string(o.kind)+o.line)
-		}
-		if o.kind != '+' {
-			la++
-		}
-		if o.kind != '-' {
-			lb++
-		}
-	}
-	if len(out) == 0 {
-		return "no difference"
-	}
-	return strings.Join(out, "\n")
 }
