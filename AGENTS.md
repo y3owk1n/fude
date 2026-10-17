@@ -47,13 +47,17 @@ This repo is production grade, and the way to get there is less code.
 Commit straight to `main` with conventional, atomic commits. Never add AI
 attribution of any kind.
 
-## Boundaries that CI enforces
+## Boundaries
 
 - `core/` imports only the standard library, starts no goroutines and does
   no I/O.
 - `vim/` never imports `core/`, and `core/` never imports `vim/`.
 - Modules import `api/`, never `core/` or `vim/`.
 - cgo lives only in `syntax/`.
+
+In `just check`, the `go.mod` files of `core/` and `vim/` enforce their
+imports, and `just cgo` enforces the cgo rule. Nothing checks the rest yet,
+so a review must.
 
 ## Tests
 

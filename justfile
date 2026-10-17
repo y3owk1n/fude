@@ -55,6 +55,10 @@ demo:
 perf:
     go test -count=1 -v -run Promise ./ui/term/
 
+# Fail if a package outside syntax/ uses cgo.
+cgo:
+    test -z "$(for m in {{ modules }}; do (cd $m && go list -f '{{{{if .CgoFiles}}{{{{.ImportPath}}{{{{end}}' ./...); done | grep -vx github.com/y3owk1n/fude/syntax)"
+
 # Fail if core/ grows past 10k lines of Go, tests excluded.
 kernel-size:
     test $(find core -name '*.go' ! -name '*_test.go' -exec cat {} + | wc -l) -le 10000
@@ -81,4 +85,4 @@ loc:
     printf '%-12s %6d\n' total "$total"
 
 # Run everything a commit needs.
-check: fmt-check vet standalone test kernel-size perf
+check: fmt-check vet standalone cgo test kernel-size perf
