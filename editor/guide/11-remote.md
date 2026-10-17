@@ -35,6 +35,27 @@ fude --attach /tmp/fude.sock
 keeps running. `"+y` copies to the clipboard of the machine the attached
 terminal runs on.
 
+## Sharing
+
+`fude --share` lets someone on another machine edit with you, without a
+shell on yours. It listens with TLS, and its first message is a share
+string to send them. They run:
+
+```sh
+fude --join 192.168.1.5:41234/<fingerprint>/<secret>
+```
+
+fude asks whether to let them in. On `y` they get a guest session, with
+their own windows on your buffers. A guest sees only the project's files,
+the directory fude started in, and runs no program of its own choosing.
+An address after `--share` listens there, such as a VPN's.
+
+```sh
+fude --share 100.64.0.2:7000 main.go
+```
+
+Quitting fude ends the share.
+
 ## Clients
 
 Go programs attach through fude's `client` package. A client may keep a

@@ -3,11 +3,16 @@ package term
 import (
 	"bufio"
 	"cmp"
+	"crypto/sha256"
+	"crypto/tls"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/y3owk1n/fude/clipboard"
@@ -39,12 +44,50 @@ func Attach(socket string) (*Attached, error) {
 	if err != nil {
 		return nil, fmt.Errorf("attach: %w", err)
 	}
+	a, err := begin(c, map[string]any{"id": 1, "method": "attach"})
+	if err != nil {
+		return nil, fmt.Errorf("attach %s: %w", socket, err)
+	}
+	return a, nil
+}
+
+// Join makes a guest session of the fude a share string names, once its
+// host lets the guest in, and returns it once its first frame has come
+// (B248).
+func Join(share string) (*Attached, error) {
+	i := strings.LastIndexByte(share, '/')
+	j := strings.LastIndexByte(share[:max(i, 0)], '/')
+	if j < 0 {
+		return nil, fmt.Errorf("join: %q is not a share string", share)
+	}
+	addr, print, secret := share[:j], share[j+1:i], share[i+1:]
+	c, err := tls.Dial("tcp", addr, &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS13, VerifyConnection: func(cs tls.ConnectionState) error {
+		// The share string's fingerprint is the certificate to trust.
+		sum := sha256.Sum256(cs.PeerCertificates[0].Raw)
+		if base64.RawURLEncoding.EncodeToString(sum[:]) != print {
+			return errors.New("its certificate is not the one the share string names")
+		}
+		return nil
+	}})
+	if err != nil {
+		return nil, fmt.Errorf("join %s: %w", addr, err)
+	}
+	a, err := begin(c, editor.Hello{Secret: secret, Name: os.Getenv("USER")})
+	if err != nil {
+		return nil, fmt.Errorf("join %s: %w", addr, err)
+	}
+	return a, nil
+}
+
+// begin sends hello on c and, once fude answers, reads its frames and
+// returns the session when the first has come. It closes c on an error.
+func begin(c net.Conn, hello any) (*Attached, error) {
 	a := &Attached{c: c, enc: json.NewEncoder(c), queue: make(chan func(), 64), texts: map[int]*kernel.Buffer{}}
 	in := bufio.NewScanner(c)
 	in.Buffer(nil, 1<<26)
-	if err := a.enc.Encode(map[string]any{"id": 1, "method": "attach"}); err != nil {
+	if err := a.enc.Encode(hello); err != nil {
 		c.Close()
-		return nil, fmt.Errorf("attach %s: %w", socket, err)
+		return nil, err
 	}
 	var reply struct {
 		Error string `json:"error"`
@@ -52,13 +95,13 @@ func Attach(socket string) (*Attached, error) {
 	switch {
 	case !in.Scan():
 		c.Close()
-		return nil, fmt.Errorf("attach %s: %w", socket, cmp.Or(in.Err(), io.EOF))
+		return nil, cmp.Or(in.Err(), io.EOF)
 	case json.Unmarshal(in.Bytes(), &reply) != nil:
 		c.Close()
-		return nil, fmt.Errorf("attach %s: fude answered %s", socket, in.Text())
+		return nil, fmt.Errorf("fude answered %s", in.Text())
 	case reply.Error != "":
 		c.Close()
-		return nil, fmt.Errorf("attach %s: %s", socket, reply.Error)
+		return nil, errors.New(reply.Error)
 	}
 	go a.read(in)
 	(<-a.queue)()

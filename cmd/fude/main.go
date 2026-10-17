@@ -4,6 +4,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"strings"
 	"syscall"
@@ -84,6 +85,28 @@ func attach(args []string) error {
 	return nil
 }
 
+// join runs fude --join string, a terminal client on a guest session of
+// the fude that shares with string, and says why the session ended once
+// the screen is gone (B248, B249).
+func join(args []string) error {
+	if len(args) != 1 {
+		return errors.New("usage: fude --join string")
+	}
+	fmt.Println("waiting for the host to let you in")
+	a, err := term.Join(args[0])
+	if err != nil {
+		return err
+	}
+	defer a.Close()
+	if err := term.Run(a); err != nil {
+		return err
+	}
+	if why := a.Ended(); why != "" {
+		fmt.Println("fude:", why)
+	}
+	return nil
+}
+
 func main() {
 	if err := run(os.Args[1:]); err != nil {
 		fmt.Fprintln(os.Stderr, "fude:", err)
@@ -113,6 +136,19 @@ func run(args []string) error {
 	if len(args) > 0 && args[0] == "--attach" {
 		return attach(args[1:])
 	}
+	if len(args) > 0 && args[0] == "--join" {
+		return join(args[1:])
+	}
+	// --share takes an address when the word after it is one (B248).
+	sharing, address := len(args) > 0 && args[0] == "--share", ":0"
+	if sharing {
+		args = args[1:]
+		if len(args) > 0 {
+			if _, _, err := net.SplitHostPort(args[0]); err == nil {
+				address, args = args[0], args[1:]
+			}
+		}
+	}
 	e, err := editor.Start(args)
 	if err != nil {
 		return err
@@ -121,6 +157,14 @@ func run(args []string) error {
 		e.Welcome()
 	}
 	stop := e.Serve(e.SocketPath())
+	if sharing {
+		unshare, err := e.Share(address)
+		if err != nil {
+			stop()
+			return err
+		}
+		defer unshare()
+	}
 	err = term.Run(e)
 	stop()
 	if path := e.Restart(); err == nil && path != "" {

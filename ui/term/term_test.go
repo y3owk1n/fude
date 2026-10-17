@@ -723,6 +723,30 @@ func serve(t *testing.T, e *editor.Session) (string, func(func())) {
 	}
 }
 
+// shows runs what the frames bring and draws, until the screen shows want
+// on row y.
+func (c *client) shows(t *testing.T, y int, want string) {
+	t.Helper()
+	deadline := time.After(5 * time.Second)
+	for {
+		c.draw()
+		var b strings.Builder
+		for x := range 120 {
+			s, _, _ := c.s.Get(x, y)
+			b.WriteString(s)
+		}
+		if strings.Contains(b.String(), want) {
+			return
+		}
+		select {
+		case f := <-c.e.Queue():
+			f()
+		case <-deadline:
+			t.Fatalf("row %d is %q, want %q in it", y, b.String(), want)
+		}
+	}
+}
+
 // B239, B242
 func TestB239Attach(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "a.txt")
@@ -737,37 +761,14 @@ func TestB239Attach(t *testing.T) {
 	}
 	defer a.Close()
 	c := &client{s: mock(t), e: a}
-	// shows runs what the frames bring and draws, until the screen shows
-	// want on row y.
-	shows := func(y int, want string) {
-		t.Helper()
-		deadline := time.After(5 * time.Second)
-		for {
-			c.draw()
-			var b strings.Builder
-			for x := range 120 {
-				s, _, _ := c.s.Get(x, y)
-				b.WriteString(s)
-			}
-			if strings.Contains(b.String(), want) {
-				return
-			}
-			select {
-			case f := <-a.Queue():
-				f()
-			case <-deadline:
-				t.Fatalf("row %d is %q, want %q in it", y, b.String(), want)
-			}
-		}
-	}
 	// It draws the session as fude's own terminal does, and its keys edit
 	// fude's buffer.
-	shows(0, "hello")
-	shows(39, "a.txt")
+	c.shows(t, 0, "hello")
+	c.shows(t, 39, "a.txt")
 	for _, k := range vim.Keys("A!<Esc>") {
 		a.Feed(k)
 	}
-	shows(0, "hello!")
+	c.shows(t, 0, "hello!")
 	var text string
 	on(func() { s := host.Text(); text = s.Slice(0, s.Len()) })
 	if text != "hello!" {
@@ -806,5 +807,107 @@ func TestB239Attach(t *testing.T) {
 	}
 	if a.Ended() != "fude quit" {
 		t.Errorf("when fude quit, the client said %q", a.Ended())
+	}
+}
+
+// share makes host share on a port of the loopback, and returns its share
+// string.
+func share(t *testing.T, host *editor.Session, on func(func())) string {
+	t.Helper()
+	var unshare func()
+	var err error
+	var msg string
+	on(func() { unshare, err = host.Share("127.0.0.1:0"); msg = host.Message() })
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(unshare)
+	s, ok := strings.CutPrefix(msg, "guests join with: fude --join ")
+	if !ok || strings.ContainsAny(s, " '\"#&;?*$") {
+		t.Fatalf("sharing said %q, want the share string as one word", msg)
+	}
+	return s
+}
+
+// asked waits until the host's fude asks to let a guest in.
+func asked(t *testing.T, host *editor.Session, on func(func()), name string) {
+	t.Helper()
+	for deadline := time.Now().Add(5 * time.Second); ; time.Sleep(time.Millisecond) {
+		var msg string
+		on(func() { msg = host.Message() })
+		if msg == name+" wants to join, let them in? (y/n)" {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("the host said %q, want it to ask about %s", msg, name)
+		}
+	}
+}
+
+// joining joins with share off the test's goroutine, as the join waits
+// for the host's answer.
+func joining(share string) <-chan joined {
+	ch := make(chan joined, 1)
+	go func() {
+		a, err := Join(share)
+		ch <- joined{a, err}
+	}()
+	return ch
+}
+
+type joined struct {
+	a   *Attached
+	err error
+}
+
+// B248
+func TestB248Share(t *testing.T) {
+	// The guest sees only the project's files (B245).
+	t.Chdir(t.TempDir())
+	path := "a.txt"
+	if err := os.WriteFile(path, []byte("hello\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("USER", "kyle")
+	host := startWith(t, "", path).e.(*editor.Session)
+	_, on := serve(t, host)
+	join := joining(share(t, host, on))
+	// The host is asked, and y lets the guest in to a guest's session.
+	asked(t, host, on, "kyle")
+	on(func() { host.Feed("y") })
+	j := <-join
+	if j.err != nil {
+		t.Fatal(j.err)
+	}
+	defer j.a.Close()
+	c := &client{s: mock(t), e: j.a}
+	c.shows(t, 0, "hello")
+	for _, k := range vim.Keys(":terminal<CR>") {
+		j.a.Feed(k)
+	}
+	for deadline := time.After(5 * time.Second); j.a.Message() != "a guest may not run :terminal"; {
+		select {
+		case f := <-j.a.Queue():
+			f()
+		case <-deadline:
+			t.Fatalf(":terminal in the guest said %q", j.a.Message())
+		}
+	}
+	// Quitting fude ends the guest's session.
+	on(func() {
+		for _, k := range vim.Keys(":qa!<CR>") {
+			host.Feed(k)
+		}
+	})
+	for deadline := time.After(5 * time.Second); !j.a.Done(); {
+		select {
+		case f := <-j.a.Queue():
+			f()
+		case <-deadline:
+			t.Fatal("the guest's client never ended")
+		}
+	}
+	if j.a.Ended() != "fude quit" {
+		t.Errorf("when fude quit, the guest's client said %q", j.a.Ended())
 	}
 }

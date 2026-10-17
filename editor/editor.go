@@ -48,6 +48,7 @@ type Editor struct {
 	failed         map[string]string               // by filetype, why its grammar did not build this session
 	started        bool                            // Load ran, so new buffers attach to servers at once
 	project        string                          // the directory fude started in, symlinks resolved (B243)
+	share          *share                          // the guests' listener, while fude shares (B248)
 	sessions       []*Session                      // the first is the one that opened the editor
 	setup          []func(*Session)                // what every session's machine gets, such as keymaps
 	proposed       int                             // the id of the newest proposal
