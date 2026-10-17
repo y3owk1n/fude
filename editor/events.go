@@ -164,7 +164,7 @@ func (e *Session) listen(p api.Module) *listener {
 					if more = len(l.pending) > 0; more {
 						ev, l.pending = l.pending[0], l.pending[1:]
 						t = ev.buf.text.Snapshot()
-						scope = e.scope(ev.buf, t)
+						scope = e.scope(p, ev.buf, t)
 						maps.Copy(scope.About, ev.extra)
 					}
 				}) {

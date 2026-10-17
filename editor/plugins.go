@@ -50,7 +50,7 @@ func (e *Session) Load() {
 // (D49). Call it before Load. :plugin reload leaves it as it is.
 func (e *Session) Use(m api.Module) {
 	b, t := e.win.buf, e.Text()
-	scope := e.scope(b, t)
+	scope := e.scope(m, b, t)
 	res, err := m.Init(context.Background(), scope)
 	scope.Done()
 	e.loaded(m, err, b, t, res)
@@ -74,7 +74,7 @@ func (e *Session) loadPlugins() {
 			e.message = fmt.Sprintf("load plugin %s: %v", s.Path, err)
 			continue
 		}
-		b, t, scope := e.win.buf, e.Text(), e.scope(e.win.buf, e.Text())
+		b, t, scope := e.win.buf, e.Text(), e.scope(nil, e.win.buf, e.Text())
 		go func() {
 			defer scope.Done()
 			ctx := context.Background()
@@ -179,6 +179,7 @@ type decoration struct {
 	note       string          // a diagnostic's message, or a plugin's text after the end of the line
 	sign       string          // a plugin's text for the sign column
 	under      bool            // any other sign on the line shows over it (B184)
+	fold       bool            // a closed fold over its lines (B288)
 	raw        json.RawMessage // a diagnostic as the server sent it, for code actions
 }
 
@@ -186,6 +187,9 @@ type decoration struct {
 func (d decoration) remove() {
 	d.buf.text.DeleteMark(d.start)
 	d.buf.text.DeleteMark(d.end)
+	if d.fold {
+		d.buf.folds = slices.DeleteFunc(d.buf.folds, func(f decoration) bool { return f.start == d.start })
+	}
 	if d.sign != "" {
 		d.buf.signs--
 	}
@@ -364,7 +368,17 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 		// A sign shows its first two characters, as the column is two wide.
 		sign := []rune(d.Sign)
 		sign = sign[:min(len(sign), 2)]
-		e.decos[p] = append(e.decos[p], decoration{id: d.ID, buf: b, start: b.text.SetMark(d.Start, kernel.Right), end: b.text.SetMark(d.End, kernel.Left), style: d.Style, note: d.Note, sign: string(sign), under: d.Under})
+		deco := decoration{id: d.ID, buf: b, style: d.Style, note: d.Note, sign: string(sign), under: d.Under, fold: d.Fold}
+		// A fold's marks stay at their lines' starts through an insert there.
+		gravity := kernel.Right
+		if d.Fold {
+			gravity = kernel.Left
+		}
+		deco.start, deco.end = b.text.SetMark(d.Start, gravity), b.text.SetMark(d.End, kernel.Left)
+		e.decos[p] = append(e.decos[p], deco)
+		if d.Fold {
+			b.folds = append(b.folds, deco)
+		}
 		if len(sign) > 0 {
 			b.signs++
 		}
@@ -478,7 +492,7 @@ func (e *Session) register(p api.Module, r api.Registration) {
 	case api.Command:
 		e.pluginHelp[":"+r.Name] = r.Help
 		e.commands[r.Name] = func(s *Session, c call) {
-			scope := s.scope(s.win.buf, s.Text())
+			scope := s.scope(p, s.win.buf, s.Text())
 			scope.About["args"], scope.About["bang"] = c.arg, strconv.FormatBool(c.force)
 			scope.About["first"], scope.About["last"], scope.About["ranged"] = strconv.Itoa(c.first), strconv.Itoa(c.last), strconv.FormatBool(c.ranged)
 			if edits, _, ok := s.run(p, r.ID, scope, s.Cursor(), 0); ok && len(edits) > 0 {
@@ -492,7 +506,7 @@ func (e *Session) register(p api.Module, r api.Registration) {
 	case api.Source:
 		e.pluginHelp[":pick "+r.Name] = r.Help
 		e.sources[r.Name] = func(s *Session, text string) {
-			scope := s.scope(s.win.buf, s.Text())
+			scope := s.scope(p, s.win.buf, s.Text())
 			scope.About["args"] = text
 			s.run(p, r.ID, scope, s.Cursor(), 0)
 		}
@@ -504,7 +518,7 @@ func (e *Session) register(p api.Module, r api.Registration) {
 				if lines {
 					linewise = 1
 				}
-				edits, _, _ := s.run(p, r.ID, s.scope(s.win.buf, t), start, end, linewise)
+				edits, _, _ := s.run(p, r.ID, s.scope(p, s.win.buf, t), start, end, linewise)
 				return edits
 			})
 		})
@@ -512,7 +526,7 @@ func (e *Session) register(p api.Module, r api.Registration) {
 		e.pluginBindings = append(e.pluginBindings, vim.Binding{Kind: "object", Keys: r.Name, Help: r.Help})
 		e.each(func(s *Session) {
 			s.vim.Object(r.Name, func(t vim.Text, start, end int) (int, int, bool) {
-				_, sel, ok := s.run(p, r.ID, s.scope(s.win.buf, t), start, end)
+				_, sel, ok := s.run(p, r.ID, s.scope(p, s.win.buf, t), start, end)
 				if !ok || sel == nil {
 					return 0, 0, false
 				}
@@ -524,7 +538,7 @@ func (e *Session) register(p api.Module, r api.Registration) {
 		e.pluginHelp["<Plug>("+name+")"] = r.Help
 		e.each(func(s *Session) {
 			s.vim.Command(name, func(t vim.Text, pos, count int) []vim.Edit {
-				edits, _, _ := s.run(p, r.ID, s.scope(s.win.buf, t), pos, count)
+				edits, _, _ := s.run(p, r.ID, s.scope(p, s.win.buf, t), pos, count)
 				return edits
 			})
 			if r.Kind == api.Key {
@@ -536,7 +550,7 @@ func (e *Session) register(p api.Module, r api.Registration) {
 		e.pluginHelp["<Plug>("+name+")"] = r.Help
 		e.each(func(s *Session) {
 			s.vim.Command(name, func(t vim.Text, pos, _ int) []vim.Edit {
-				edits, _, _ := s.run(p, r.ID, s.scope(s.win.buf, t), pos)
+				edits, _, _ := s.run(p, r.ID, s.scope(p, s.win.buf, t), pos)
 				return edits
 			})
 			s.vim.Map(vim.Insert, r.Name, "<Plug>("+name+")")
@@ -544,9 +558,10 @@ func (e *Session) register(p api.Module, r api.Registration) {
 	}
 }
 
-// scope is what a call about b reads: the text t, what the call is about,
-// every open buffer (B188), and b's syntax nodes (B189).
-func (e *Session) scope(b *buffer, t api.Text) api.Scope {
+// scope is what a call of p about b reads: the text t, what the call is
+// about, every open buffer (B188), b's syntax nodes (B189) and p's own
+// decorations on b (B289).
+func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 	bufs := map[int]api.Buffer{}
 	for _, o := range e.bufs {
 		bufs[o.id] = api.Buffer{Path: o.file.path, Filetype: e.filetype(o), Text: o.text.Snapshot()}
@@ -577,6 +592,15 @@ func (e *Session) scope(b *buffer, t api.Text) api.Scope {
 	}
 	language := s.Language
 	s.Comment = func(pos int) (string, bool) { return syntax.Comment(language(pos)) }
+	s.Decorations = func() []api.Decoration {
+		var out []api.Decoration
+		for _, d := range e.decos[p] {
+			if d.buf == b {
+				out = append(out, api.Decoration{ID: d.id, Start: b.text.Mark(d.start), End: b.text.Mark(d.end), Style: d.style, Sign: d.sign, Note: d.note, Under: d.under, Fold: d.fold})
+			}
+		}
+		return out
+	}
 	return s
 }
 

@@ -281,6 +281,8 @@ func (p *Plugin) host(ctx context.Context) error {
 		NewFunctionBuilder().WithFunc(p.runProgram).Export("run").
 		NewFunctionBuilder().WithFunc(p.httpGet).Export("http_get").
 		NewFunctionBuilder().WithFunc(p.decorate).Export("decorate").
+		NewFunctionBuilder().WithFunc(p.fold).Export("fold").
+		NewFunctionBuilder().WithFunc(p.decorations).Export("decorations").
 		NewFunctionBuilder().WithFunc(p.undecorate).Export("undecorate").
 		NewFunctionBuilder().WithFunc(p.sign).Export("sign").
 		NewFunctionBuilder().WithFunc(p.note).Export("note").
@@ -1012,6 +1014,36 @@ func (p *Plugin) float(_ context.Context, m api.Module, ptr, n uint32) int32 {
 	s := string(text)
 	p.call.Float = &s
 	return 0
+}
+
+// fold closes a fold over the lines from start's through end's, and
+// returns its id, which undecorate opens (B288).
+func (p *Plugin) fold(_ context.Context, m api.Module, start, end uint32) int32 {
+	if p.call == nil || !p.allowed("ui", "fold") {
+		return errDenied
+	}
+	if start > end || int(end) > p.call.Text.Len() {
+		return errRange
+	}
+	p.next++
+	p.call.Decorate = append(p.call.Decorate, fude.Decoration{ID: p.next, Start: int(start), End: int(end), Fold: true})
+	return int32(p.next)
+}
+
+// decorations writes the plugin's decorations on the buffer, each its id,
+// start, end, style, sign, note, under and fold, each followed by a NUL,
+// into memory the plugin allocates (B289).
+func (p *Plugin) decorations(ctx context.Context, m api.Module) int64 {
+	if p.call == nil || !p.allowed("ui", "decorations") {
+		return errDenied
+	}
+	var b strings.Builder
+	if p.call.Decorations != nil {
+		for _, d := range p.call.Decorations() {
+			fmt.Fprintf(&b, "%d\x00%d\x00%d\x00%s\x00%s\x00%s\x00%t\x00%t\x00", d.ID, d.Start, d.End, d.Style, d.Sign, d.Note, d.Under, d.Fold)
+		}
+	}
+	return give(ctx, m, b.String())
 }
 
 // undecorate asks to remove the decoration id.

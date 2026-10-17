@@ -72,6 +72,7 @@ type buffer struct {
 	branch  string               // the git branch of its repository, "" outside one
 	unsaved kernel.NodeID        // the newest unsaved change from a session that did not close
 	set     map[string]string    // the options modules set on it, by name (B283)
+	folds   []decoration         // the closed folds on it, modules' decorations (B224)
 	term    *terminal            // the program a terminal buffer shows, nil for any other (B205)
 	// A scratch buffer shows something about another buffer, such as its
 	// timeline, under a title instead of a file name.

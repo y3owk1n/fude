@@ -17,7 +17,8 @@
 // parent. :Lang types the language at the cursor, the names of the
 // captures over it and its comment syntax. :Hover asks the language server
 // for hover at the cursor and types its answer, or the error, at the
-// start. Needs buffer.read, buffer.write, ui and lsp.
+// start. :Fold first last closes a fold over those lines, and :Decos types
+// the plugin's decorations, each id:start-end:fold, and a |. Needs buffer.read, buffer.write, ui and lsp.
 package main
 
 import (
@@ -117,6 +118,22 @@ func init() {
 		}
 		cs, _ := sdk.Comment(c.Cursor)
 		sdk.Edit(c.Cursor, c.Cursor, lang+"|"+strings.Join(names, ",")+"|"+cs+"|")
+	})
+	sdk.Command("Fold", "closes a fold over the lines its args name", func(c sdk.Call) {
+		first, last, _ := strings.Cut(c.Args, " ")
+		s, _ := strconv.Atoi(first)
+		e, _ := strconv.Atoi(last)
+		start, _ := sdk.LineStart(s)
+		end, _ := sdk.LineStart(e)
+		sdk.Fold(start, end)
+	})
+	sdk.Command("Decos", "types the plugin's decorations", func(c sdk.Call) {
+		ds, _ := sdk.Decorations()
+		var out []string
+		for _, d := range ds {
+			out = append(out, strconv.Itoa(d.ID)+":"+strconv.Itoa(d.Start)+"-"+strconv.Itoa(d.End)+":"+strconv.FormatBool(d.Fold))
+		}
+		sdk.Edit(c.Cursor, c.Cursor, strings.Join(out, ",")+"|")
 	})
 	sdk.Command("Range", "asks the server to format the cursor's byte, and types its answer", func(c sdk.Call) {
 		sdk.RequestRange("textDocument/formatting", c.Cursor, c.Cursor+1, "", func(out string, err error) {

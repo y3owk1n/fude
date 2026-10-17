@@ -59,7 +59,7 @@ func (e *Session) Views() []wire.View {
 		}
 		// The last line shown, a closed fold counting as one (B224).
 		lastStart := t.LineStart(min(t.LineOf(top)+max(w.h-2, 0), t.Lines()-1))
-		if len(w.folds) > 0 {
+		if len(w.buf.folds) > 0 {
 			lastStart = top
 			for range max(w.h-2, 0) {
 				next, ok := w.nextLine(t, lastStart)
@@ -70,8 +70,8 @@ func (e *Session) Views() []wire.View {
 			}
 		}
 		last := vim.LineEnd(t, lastStart)
-		for _, f := range w.folds {
-			first, end := w.fold(t, t.LineOf(w.buf.text.Mark(f.first)))
+		for _, f := range w.buf.folds {
+			first, end := w.fold(t, t.LineOf(w.buf.text.Mark(f.start)))
 			if s := t.LineStart(first); s >= top && s <= last {
 				if v.Folds == nil {
 					v.Folds = map[int]int{}

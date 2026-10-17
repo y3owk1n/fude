@@ -10,6 +10,7 @@ type Decoration struct {
 	Style      string
 	Sign, Note string // what shows on Start's line, in the sign column or after its end (B184)
 	Under      bool   // any other sign on the line shows over Sign (B184)
+	Fold       bool   // a closed fold: the lines after Start's through End's hide behind the first and a count (B288)
 }
 
 // Result is what one call asked fude to do.
@@ -122,6 +123,9 @@ type Scope struct {
 	// filetype.go.format or formatter.gofmt.command, as JSON, or false for
 	// none. A table's key follows its name in the path (B279).
 	Config func(path string) (string, bool)
+	// Decorations returns the owner's decorations on the buffer, where they
+	// are now (B289).
+	Decorations func() []Decoration
 	// Node finds a syntax node in Text, as syntax.Buffer.Nodes does. Free
 	// frees what it reads once the call is done (B189).
 	Node func(pos, up int) (kind string, start, end int, ok bool)

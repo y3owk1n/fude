@@ -708,16 +708,17 @@ Where fude departs, the line says so and cites the departure in
   first line, and a linewise command, such as `dd`, `dj` or `V`, takes
   every line of the folds its ends are in, as Neovim does. A host with
   `vim.Defaults` has no folds.
-- B224 [2] A window folds by indent (N34). A fold starts on a line
-  followed by lines indented more, and holds them and the blank lines
-  among them, up to the last line indented more. `zc` closes the fold the
+- B224 [2] The fold module folds a buffer by indent (N34). A fold starts
+  on a line followed by lines indented more, and holds them and the blank
+  lines among them, up to the last line indented more. `zc` closes the fold the
   cursor's line starts, or else the innermost one it is in. `zo` opens the
   closed fold it is on, and `za` does one or the other. `zR` opens every
   fold, and `zM` closes every outermost one. A closed fold shows its first
   line, then how many lines it hides. `j` and `k` pass over it as B223
   says, relative numbers count it as one line, and any other move that
   lands the cursor inside it, such as a search, `G` or a mark, opens it.
-  Folds belong to the window, and edits move them.
+  Folds belong to the buffer, so every window on it shows them, and
+  edits move them.
 - B232 [2] `gn` selects in visual mode the match of the last search
   under the cursor, or else the next one, and `gN` the one before, going
   round the text. After an operator they are its target, so `cgn` changes
@@ -961,6 +962,11 @@ Where fude departs, the line says so and cites the departure in
   says.
 - B287 [4] A plugin adds a source to `:pick`, which `:pick name text`
   runs with text, `:pick` alone lists and `<Tab>` completes.
+- B288 [4] A plugin with `ui` closes a fold over a range of lines of the
+  buffer its call is about. The fold shows and opens as B224 says, moves
+  with edits, and opens when the plugin removes it by its id.
+- B289 [4] A plugin with `ui` reads its own decorations on the buffer its
+  call is about, each with its id, where it is now and what it shows.
 - B283 [4] A plugin sets `expand_tab`, `indent_width` or `tab_width` on the
   buffer its call is about, over config.toml's, until the buffer closes,
   as .editorconfig does.

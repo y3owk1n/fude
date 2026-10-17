@@ -479,10 +479,10 @@ func (e *Session) Feed(k vim.Key) {
 	}
 	// A cursor that lands inside a closed fold, past its first line, opens
 	// it, as search, G and marks do (B224).
-	if t := e.Text(); len(e.win.folds) > 0 {
+	if t, b := e.Text(), e.win.buf; len(b.folds) > 0 {
 		line := t.LineOf(e.Cursor())
 		if first, _ := e.win.fold(t, line); first != line {
-			e.win.openFold(t, line)
+			e.openFoldAt(b, t, line)
 		}
 	}
 	if e.hints != nil {

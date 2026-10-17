@@ -155,6 +155,12 @@ func hostSetOption(ptr *byte, n uint32) int32
 //go:wasmimport fude decorate
 func hostDecorate(start, end uint32, ptr *byte, n uint32) int32
 
+//go:wasmimport fude fold
+func hostFold(start, end uint32) int32
+
+//go:wasmimport fude decorations
+func hostDecorations() int64
+
 //go:wasmimport fude sign
 func hostSign(pos uint32, ptr *byte, n uint32, under uint32) int32
 
@@ -737,6 +743,41 @@ func ShowStyled(title, filetype, text string, spans []Span) error {
 	}
 	sp, sn := ptr(b.String())
 	return fail(int64(hostShow(p, n, sp, sn)))
+}
+
+// Fold closes a fold over the lines from start's through end's. They hide
+// behind the first line and a count. The fold moves with edits, and
+// Undecorate opens it by the id Fold returns. It needs ui.
+func Fold(start, end int) (int, error) {
+	id := hostFold(uint32(start), uint32(end))
+	return int(id), fail(int64(id))
+}
+
+// Decoration is one the plugin put on the buffer, where it is now.
+type Decoration struct {
+	ID          int
+	Start, End  int
+	Style       string
+	Sign, Note  string
+	Under, Fold bool
+}
+
+// Decorations returns the plugin's decorations on the buffer the call is
+// about, where they are now. It needs ui.
+func Decorations() ([]Decoration, error) {
+	s, err := answer(hostDecorations())
+	if err != nil {
+		return nil, err
+	}
+	f := strings.Split(s, "\x00")
+	var out []Decoration
+	for i := 0; i+7 < len(f); i += 8 {
+		id, _ := strconv.Atoi(f[i])
+		start, _ := strconv.Atoi(f[i+1])
+		end, _ := strconv.Atoi(f[i+2])
+		out = append(out, Decoration{id, start, end, f[i+3], f[i+4], f[i+5], f[i+6] == "true", f[i+7] == "true"})
+	}
+	return out, nil
 }
 
 // Undecorate removes the decoration id. It needs ui.

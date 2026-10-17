@@ -3,6 +3,7 @@ package editor_test
 import (
 	"context"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -1022,4 +1023,29 @@ func TestB246GuestPlugins(t *testing.T) {
 			}
 		})
 	}
+}
+
+// B288
+func TestB288PluginFolds(t *testing.T) {
+	e := loaded(t, "ctx", "f", "a\n b\n c\nd\n", "buffer.read", "buffer.write", "ui")
+	e.SetSize(80, 20)
+	feed(e, ":Fold 0 2<CR>")
+	settle(t, e, func() bool { return maps.Equal(e.Views()[0].Folds, map[int]int{0: 2}) })
+	// j passes over the fold, and a search into it opens it.
+	if feed(e, "j"); e.Text().LineOf(e.Cursor()) != 3 {
+		t.Errorf("j over the fold went to line %d", e.Text().LineOf(e.Cursor()))
+	}
+	if feed(e, "gg/c<CR>"); e.Views()[0].Folds != nil {
+		t.Errorf("searching into the fold left %v", e.Views()[0].Folds)
+	}
+}
+
+// B289
+func TestB289PluginReadsItsDecorations(t *testing.T) {
+	e := loaded(t, "ctx", "f", "a\n b\n c\nd\n", "buffer.read", "buffer.write", "ui")
+	e.SetSize(80, 20)
+	feed(e, ":Fold 0 2<CR>")
+	settle(t, e, func() bool { return e.Views()[0].Folds != nil })
+	feed(e, "G:Decos<CR>")
+	settle(t, e, func() bool { return strings.Contains(text(e), "1:0-5:true|") })
 }

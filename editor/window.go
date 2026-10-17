@@ -26,7 +26,6 @@ type window struct {
 	jumpAt int // the jump <C-o> last moved to, or len(jumps)
 	opts   options
 	left   int      // the first screen column shown, without wrap
-	folds  []fold   // its closed folds (B224)
 	saved  *options // its options while the start screen shows (B225)
 	own    *options // its options under those its buffer's filetype sets (B94)
 	fitted *buffer  // the buffer its filetype's options were last fitted for

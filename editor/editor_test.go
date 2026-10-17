@@ -16,6 +16,7 @@ import (
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/modules/blame"
 	"github.com/y3owk1n/fude/modules/comment"
+	"github.com/y3owk1n/fude/modules/fold"
 	"github.com/y3owk1n/fude/modules/format"
 	gitmod "github.com/y3owk1n/fude/modules/git"
 	"github.com/y3owk1n/fude/modules/grep"
@@ -2777,6 +2778,7 @@ func TestB224Folds(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "a.go")
 	change(t, path, "func a() {\n\tx\n\ty\n}\nfunc b() {\n\tz\n}\n")
 	e := start(t, path)
+	e.Use(fold.New())
 	e.SetSize(80, 20)
 	folds := func() map[int]int { return e.Views()[0].Folds }
 	// zc in a body closes the fold of the line above it with less indent,

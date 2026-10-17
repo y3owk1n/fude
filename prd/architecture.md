@@ -57,6 +57,7 @@ modules/         Go packages over api/ and protocol/ that cmd/fude adds with
   colours/       text that names a colour, and a server's colours
   comment/       gc
   editorconfig/  .editorconfig files set a file's indentation
+  fold/          zc, zo, za, zR and zM, folds by indent
   format/        gq, :format and format_on_save
   git/           git signs, hunks, gh, gH and :gitdiff
   grep/          :pick grep, a live search of the files' lines
@@ -1020,6 +1021,8 @@ host it may not reach or a request that failed.
 | `set_option(ptr, len) -> i32` | none | sets the option named before a NUL to the value after it, on the buffer the call is about: `expand_tab`, `indent_width` or `tab_width` (B283) |
 | `decorate(start, end, ptr, len) -> i32` | `ui` | puts a style, such as `keyword`, on `[start, end)`, and returns its id |
 | `undecorate(id) -> i32` | `ui` | removes a decoration, sign or note |
+| `fold(start, end) -> i32` | `ui` | closes a fold over the lines from `start`'s through `end`'s, and returns its id, which `undecorate` opens (B288) |
+| `decorations() -> i64` | `ui` | the plugin's decorations on the buffer the call is about, each its id, start, end, style, sign, note, under and fold, each followed by a NUL, where they are now (B289) |
 | `sign(pos, ptr, len, under) -> i32` | `ui` | shows the text, then a NUL and its style, in the sign column on `pos`'s line, and returns its id. With `under` set, any other sign on the line shows over it (B184) |
 | `note(pos, ptr, len) -> i32` | `ui` | shows the text dim after the end of `pos`'s line, and returns its id (B184) |
 | `read_file(ptr, len) -> i64` | `fs.read` | the file at the path, relative to the project, the directory fude started in. fude refuses a path that leads outside it, through `..` or a link (B47) |

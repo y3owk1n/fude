@@ -51,14 +51,14 @@ Its other four methods do nothing here. `Event` and `Callback` return an empty `
 
 ## What a call reads and asks for
 
-A `Scope` holds the text of the buffer the call is about, `About` (its `buffer`, `path`, `filetype`, `mode`, `indent` and `tab`, and a command's `args`, `bang`, `first`, `last` and `ranged`), every open buffer by id, and funcs over the syntax: `Language` for the language at a position, `Comment` for how that language comments a line, `Spans` for the highlight captures over a range, and `Node`, which finds syntax nodes. `Option` reads an option, such as `spell`, as the window has it, or a config.toml setting, such as `spell_words`, and `Config` reads any value of config.toml by its dotted path, as JSON. `About` also carries the buffer's `indent` and `tab` widths. A `Text` has `Len`, `Slice`, `Lines`, `LineStart` and `LineOf`, with byte offsets and lines counted from 0.
+A `Scope` holds the text of the buffer the call is about, `About` (its `buffer`, `path`, `filetype`, `mode`, `indent` and `tab`, and a command's `args`, `bang`, `first`, `last` and `ranged`), every open buffer by id, and funcs over the syntax: `Language` for the language at a position, `Comment` for how that language comments a line, `Spans` for the highlight captures over a range, and `Node`, which finds syntax nodes. `Decorations` lists the module's own decorations on the buffer, where they are now. `Option` reads an option, such as `spell`, as the window has it, or a config.toml setting, such as `spell_words`, and `Config` reads any value of config.toml by its dotted path, as JSON. `About` also carries the buffer's `indent` and `tab` widths. A `Text` has `Len`, `Slice`, `Lines`, `LineStart` and `LineOf`, with byte offsets and lines counted from 0.
 
 A `Result` asks for any of these, and fude applies them together once the call returns:
 
 | Field | Asks for |
 |---|---|
 | `Edits` | edits to the text, applied as one change |
-| `Decorate`, `Undecorate` | styles, signs and notes on ranges, which move with edits, by the ids the module gives them. The style `inlay` draws the note among the text at the start, and `colour #rrggbb` draws the range on that colour |
+| `Decorate`, `Undecorate` | styles, signs and notes on ranges, which move with edits, by the ids the module gives them. The style `inlay` draws the note among the text at the start, and `colour #rrggbb` draws the range on that colour. A decoration with `Fold` set closes a fold over its lines |
 | `Emit` | events for other modules and plugins |
 | `Status` | the module's segment on the statusline |
 | `Message` | a line in the message area |
