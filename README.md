@@ -177,7 +177,7 @@ root = ["go.work", "go.mod", ".git"]
 
 ## Plugins
 
-You write a plugin in Go with fude's `sdk` and build it into a `.wasm` file with TinyGo. There is no plugin manager. A plugin is a file and a table in `config.toml`.
+You write a plugin in Go with fude's [`sdk`](sdk) and build it into a `.wasm` file with TinyGo. There is no plugin manager. A plugin is a file and a table in `config.toml`.
 
 ```sh
 fude plugin new upper && cd upper && fude plugin build
@@ -230,7 +230,7 @@ storage   persistent rope with structural sharing
 
 **Clients and agents.** fude listens on a unix socket. A client sees the buffers and sends keys, commands or proposals on the same timeline as the terminal. Two clients editing one buffer converge to the same text. Go programs attach through the [`client`](client) package, and `:h guide-remote` has the protocol.
 
-**The kernel and the grammar.** `core/` and `vim/` are Go modules of their own. Use the kernel for a text buffer with a branching history, or the vim machine for Vim's grammar over your own text, such as a text field in a TUI or a REPL.
+**The kernel and the grammar.** [`core/`](core) and [`vim/`](vim) are Go modules of their own. Use the kernel for a text buffer with a branching history, or the vim machine for Vim's grammar over your own text, such as a text field in a TUI or a REPL.
 
 ```sh
 go get github.com/y3owk1n/fude/core github.com/y3owk1n/fude/vim
@@ -275,6 +275,8 @@ func (h *host) Undo() (int, int, error) {
 `Redo` has the shape of `Undo`. `SetMark` and `Mark` keep each name's `kernel.MarkID` in `marks`, and `Viewport` and `SetTop` come from the program's own view. `vim.New(&host{...})` then takes keys with `Feed`. The examples in each package's documentation run as tests.
 
 </details>
+
+**Syntax.** [`syntax/`](syntax) is a Go module for tree-sitter highlighting and syntax text objects, with grammars that build on first use.
 
 **Language servers and debug adapters.** [`protocol/`](protocol) is a Go module with fude's LSP and DAP clients, built on the standard library alone.
 
