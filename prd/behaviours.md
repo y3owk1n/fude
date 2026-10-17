@@ -484,8 +484,8 @@ Where fude departs, the line says so and cites the departure in
   and the line commands `X D Y C S R` apply to the selection as in Neovim,
   and `.` repeats them.
 - B235 [2] `>` and `<` in visual mode shift the selected lines and keep
-  them selected, so `V>>>` shifts them three times (N36). `<Esc>` ends the
-  selection.
+  them selected, so `V>>>` shifts them three times (N36). A count shifts
+  that many levels at once, as `V3>` does. `<Esc>` ends the selection.
 - B19 [2] An operator in operator-pending state waits for a target. `<Esc>`
   cancels and changes nothing.
 - B20 [2] `m{a-z}` sets a mark, and `` `x `` and `'x` jump to it. Marks

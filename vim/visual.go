@@ -362,15 +362,19 @@ func (m *Machine) visualKey(cmd string, count int, reg rune) error {
 			r = region{start: LineStart(t, r.start), end: LineEnd(t, last), lines: true}
 		}
 		m.leaveVisual()
+		if v.op == ">" || v.op == "<" {
+			if err := m.shift(v.op, string(m.visual)+cmd, r, 0, max(count, 1)); err != nil {
+				return err
+			}
+			// The selection stays, so the next > or < shifts it again.
+			m.reselect()
+			return nil
+		}
 		if err := m.act(v.op, reg, string(m.visual)+cmd, r); err != nil {
 			return err
 		}
-		switch {
-		case v.op == "y" && r.lines:
+		if v.op == "y" && r.lines {
 			m.h.SetCursor(r.start)
-		case v.op == ">" || v.op == "<":
-			// The selection stays, so the next > or < shifts it again.
-			m.reselect()
 		}
 		return nil
 	}

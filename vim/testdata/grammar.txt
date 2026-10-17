@@ -322,6 +322,7 @@
 # B235
 "|abcd\n  efgh" "Vj>><Esc>" "\t\tabcd\n|\t\t  efgh"
 "|\t\tab\n\tcd" "Vj<<<Esc>" "ab\n|cd"
+"|ab\ncd" "Vj2><Esc>" "\t\tab\n\t\t|cd"
 
 # B86
 "a\n|b\n  c\nd" ":d<CR>" "a\n  |c\nd"
