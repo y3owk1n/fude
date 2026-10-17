@@ -257,6 +257,12 @@ func Load(ctx context.Context, path string, g Grants, cacheDir string, log func(
 		p.Close(ctx)
 		return nil, fmt.Errorf("plugin %s: %w", p.Name, err)
 	}
+	// The host writes events and answers into the plugin's memory through
+	// its alloc, so a plugin without them cannot run.
+	if p.mod.ExportedFunction("alloc") == nil || p.mod.ExportedMemory("memory") == nil {
+		p.Close(ctx)
+		return nil, fmt.Errorf("plugin %s exports no alloc or no memory", p.Name)
+	}
 	return p, nil
 }
 

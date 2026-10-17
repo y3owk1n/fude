@@ -256,6 +256,20 @@ func TestB53PluginTraps(t *testing.T) {
 	if text(e) != "abc" {
 		t.Errorf("a trap left %q, want no change", text(e))
 	}
+	// A module that exports no alloc or memory does not load.
+	wasm := filepath.Join(t.TempDir(), "bare.wasm")
+	if err := os.WriteFile(wasm, []byte("\x00asm\x01\x00\x00\x00"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	config(t, fmt.Sprintf("[[plugin]]\npath = %q\ncapabilities = [\"buffer.read\"]\n", wasm))
+	path := filepath.Join(t.TempDir(), "f")
+	change(t, path, "abc\n")
+	e = start(t, path)
+	e.Load()
+	settle(t, e, func() bool { return e.Message() != "" })
+	if !strings.Contains(e.Message(), "plugin bare exports no alloc or no memory") {
+		t.Errorf("a bare module said %q, want that it exports no alloc", e.Message())
+	}
 }
 
 // withKit starts an editor on "ab cd\nef" with the kit plugin loaded.
