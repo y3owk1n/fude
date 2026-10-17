@@ -44,29 +44,27 @@ func (ed *Editor) emit(name, detail string, b *buffer) {
 		if !slices.Contains(l.p.Subscribed, name) {
 			continue
 		}
-		ev := event{name: name, detail: detail, buf: b}
-		l.mu.Lock()
-		if i := slices.IndexFunc(l.pending, func(o event) bool { return o.name == name && o.buf == b }); i >= 0 {
-			l.pending[i] = ev
-		} else {
-			l.pending = append(l.pending, ev)
-		}
-		l.mu.Unlock()
-		select {
-		case l.wake <- struct{}{}:
-		default: // it is already awake
-		}
+		l.put(event{name: name, detail: detail, buf: b}, func(ev, _ event) event { return ev })
 	}
 }
 
 // add puts ev last in what l hands its plugin, as a callback is.
-func (l *listener) add(ev event) {
+func (l *listener) add(ev event) { l.put(ev, nil) }
+
+// put adds ev to what l hands its plugin, and wakes l. With merge, a
+// waiting event of the same name about the same buffer is replaced by what
+// merge returns for ev and it.
+func (l *listener) put(ev event, merge func(ev, old event) event) {
 	l.mu.Lock()
-	l.pending = append(l.pending, ev)
+	if i := slices.IndexFunc(l.pending, func(o event) bool { return o.name == ev.name && o.buf == ev.buf }); merge != nil && i >= 0 {
+		l.pending[i] = merge(ev, l.pending[i])
+	} else {
+		l.pending = append(l.pending, ev)
+	}
 	l.mu.Unlock()
 	select {
 	case l.wake <- struct{}{}:
-	default:
+	default: // it is already awake
 	}
 }
 
@@ -83,20 +81,10 @@ func (ed *Editor) changed(b *buffer, edits []kernel.Edit) {
 		if !slices.Contains(l.p.Subscribed, "buffer.changed") {
 			continue
 		}
-		ev := event{name: "buffer.changed", buf: b, start: start, end: end}
-		l.mu.Lock()
-		if i := slices.IndexFunc(l.pending, func(o event) bool { return o.name == ev.name && o.buf == b }); i >= 0 {
-			o := l.pending[i]
-			ev.start, ev.end = min(ev.start, moved(edits, o.start)), max(ev.end, moved(edits, o.end))
-			l.pending[i] = ev
-		} else {
-			l.pending = append(l.pending, ev)
-		}
-		l.mu.Unlock()
-		select {
-		case l.wake <- struct{}{}:
-		default:
-		}
+		l.put(event{name: "buffer.changed", buf: b, start: start, end: end}, func(ev, old event) event {
+			ev.start, ev.end = min(ev.start, moved(edits, old.start)), max(ev.end, moved(edits, old.end))
+			return ev
+		})
 	}
 }
 

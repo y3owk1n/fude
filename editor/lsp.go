@@ -598,33 +598,9 @@ func (e *Session) rename(name string) {
 // Another buffer's must apply to the version the server names, when it
 // names one.
 func (e *Session) workspaceEdit(s *server, from *buffer, t kernel.Snapshot, res json.RawMessage, label string) (int, []string) {
-	type textEdit struct {
-		Range   lsp.Range `json:"range"`
-		NewText string    `json:"newText"`
-	}
-	var w struct {
-		Changes         map[string][]textEdit `json:"changes"`
-		DocumentChanges []struct {
-			TextDocument struct {
-				URI     string `json:"uri"`
-				Version *int   `json:"version"`
-			} `json:"textDocument"`
-			Edits []textEdit `json:"edits"`
-		} `json:"documentChanges"`
-	}
-	if err := json.Unmarshal(res, &w); err != nil {
-		return 0, []string{fmt.Sprintf("workspace edit: %v", err)}
-	}
-	type file struct {
-		edits   []textEdit
-		version *int
-	}
-	files := map[string]file{}
-	for uri, edits := range w.Changes {
-		files[uri] = file{edits: edits}
-	}
-	for _, d := range w.DocumentChanges {
-		files[d.TextDocument.URI] = file{d.Edits, d.TextDocument.Version}
+	files, err := workspaceFiles(res)
+	if err != nil {
+		return 0, []string{err.Error()}
 	}
 	enc, changed := s.client.Encoding(), 0
 	var problems []string
@@ -652,11 +628,7 @@ func (e *Session) workspaceEdit(s *server, from *buffer, t kernel.Snapshot, res 
 			problems = append(problems, stale)
 			continue
 		}
-		tx := kernel.Transaction{Base: base.Version(), Origin: e.origin, Label: label, Time: e.now()}
-		for _, ed := range f.edits {
-			tx.Edits = append(tx.Edits, kernel.Edit{Start: lsp.Offset(base, ed.Range.Start, enc), End: lsp.Offset(base, ed.Range.End, enc), Text: ed.NewText})
-		}
-		slices.SortStableFunc(tx.Edits, func(x, y kernel.Edit) int { return cmp.Compare(x.Start, y.Start) })
+		tx := kernel.Transaction{Base: base.Version(), Origin: e.origin, Label: label, Time: e.now(), Edits: kernelEdits(base, f.edits, enc)}
 		if err := b.text.Apply(tx); err != nil {
 			if errors.Is(err, kernel.ErrStale) {
 				err = errors.New(stale)
@@ -914,29 +886,62 @@ func resolvable(s *server) bool {
 	return p.ResolveProvider
 }
 
-// editPreview returns the lines a workspace edit changes, file by file as
-// a diff, under each file's name when it changes another file than p's.
-func (e *Session) editPreview(s *server, p *pick, edit json.RawMessage) (string, []syntax.Span) {
-	type textEdit struct {
-		Range   lsp.Range `json:"range"`
-		NewText string    `json:"newText"`
-	}
+// textEdit is an edit as the protocol sends it.
+type textEdit struct {
+	Range   lsp.Range `json:"range"`
+	NewText string    `json:"newText"`
+}
+
+// fileEdits are a workspace edit's edits of one file, and the version of
+// the file they are for when the server names one.
+type fileEdits struct {
+	edits   []textEdit
+	version *int
+}
+
+// workspaceFiles reads a workspace edit's changes and document changes, by
+// the URI of the file each edits.
+func workspaceFiles(raw json.RawMessage) (map[string]fileEdits, error) {
 	var w struct {
 		Changes         map[string][]textEdit `json:"changes"`
 		DocumentChanges []struct {
 			TextDocument struct {
-				URI string `json:"uri"`
+				URI     string `json:"uri"`
+				Version *int   `json:"version"`
 			} `json:"textDocument"`
 			Edits []textEdit `json:"edits"`
 		} `json:"documentChanges"`
 	}
-	json.Unmarshal(edit, &w)
-	files := maps.Clone(w.Changes)
-	if files == nil {
-		files = map[string][]textEdit{}
+	if err := json.Unmarshal(raw, &w); err != nil {
+		return nil, fmt.Errorf("workspace edit: %w", err)
+	}
+	files := map[string]fileEdits{}
+	for uri, edits := range w.Changes {
+		files[uri] = fileEdits{edits: edits}
 	}
 	for _, d := range w.DocumentChanges {
-		files[d.TextDocument.URI] = d.Edits
+		files[d.TextDocument.URI] = fileEdits{d.Edits, d.TextDocument.Version}
+	}
+	return files, nil
+}
+
+// kernelEdits turns es, counted in encoding enc, into edits of t sorted by
+// where they start.
+func kernelEdits(t kernel.Snapshot, es []textEdit, enc string) []kernel.Edit {
+	out := make([]kernel.Edit, 0, len(es))
+	for _, ed := range es {
+		out = append(out, kernel.Edit{Start: lsp.Offset(t, ed.Range.Start, enc), End: lsp.Offset(t, ed.Range.End, enc), Text: ed.NewText})
+	}
+	slices.SortStableFunc(out, func(x, y kernel.Edit) int { return cmp.Compare(x.Start, y.Start) })
+	return out
+}
+
+// editPreview returns the lines a workspace edit changes, file by file as
+// a diff, under each file's name when it changes another file than p's.
+func (e *Session) editPreview(s *server, p *pick, edit json.RawMessage) (string, []syntax.Span) {
+	files, err := workspaceFiles(edit)
+	if err != nil {
+		return err.Error(), nil
 	}
 	var out strings.Builder
 	var spans []syntax.Span
@@ -958,12 +963,7 @@ func (e *Session) editPreview(s *server, p *pick, edit json.RawMessage) (string,
 			}
 			before = kernel.New(strings.TrimSuffix(string(data), "\n"), nil).Snapshot()
 		}
-		enc := s.client.Encoding()
-		var edits []kernel.Edit
-		for _, ed := range files[uri] {
-			edits = append(edits, kernel.Edit{Start: lsp.Offset(before, ed.Range.Start, enc), End: lsp.Offset(before, ed.Range.End, enc), Text: ed.NewText})
-		}
-		slices.SortStableFunc(edits, func(x, y kernel.Edit) int { return cmp.Compare(x.Start, y.Start) })
+		edits := kernelEdits(before, files[uri].edits, s.client.Encoding())
 		after := before.Slice(0, before.Len())
 		for _, ed := range slices.Backward(edits) {
 			after = after[:ed.Start] + ed.Text + after[ed.End:]
@@ -1466,10 +1466,7 @@ func (e *Session) formatting(b *buffer, s *server, start, end int, answer func(k
 		}
 		return p
 	}, func(res json.RawMessage) {
-		var answers []struct {
-			Range   lsp.Range `json:"range"`
-			NewText string    `json:"newText"`
-		}
+		var answers []textEdit
 		json.Unmarshal(res, &answers)
 		enc := s.client.Encoding()
 		var edits []kernel.Edit

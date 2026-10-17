@@ -178,49 +178,41 @@ func query(lang *ts.Language, dir, filetype, name, shipped string) (*ts.Query, e
 			return nil, fmt.Errorf("read query: %w", err)
 		}
 	}
-	compiler := compile
+	// A grammar's repo may write its highlights and injections for another
+	// editor, and those only add colour, so a pattern of theirs fude cannot
+	// evaluate is left out (B46, B166). Any other query refuses it.
+	settings, strict := []string{"priority"}, true
 	switch name {
 	case "injections":
-		compiler = compileInjections
+		settings, strict = injectionSettings, false
 	case "highlights":
-		compiler = compileHighlights
+		strict = false
 	}
-	q, err := compiler(lang, src)
+	q, err := compileQuery(lang, src, settings, strict)
 	if err != nil {
 		return nil, fmt.Errorf("%s %w", path, err)
 	}
 	return q, nil
 }
 
-// compile compiles the query src. It refuses a predicate fude does not
-// evaluate, which is any outside the eq?, match? and any-of? families. Its
-// errors name the line in src.
-func compile(lang *ts.Language, src string) (*ts.Query, error) {
+// compileQuery compiles the query src, which may make the settings named.
+// A predicate fude does not evaluate, which is any outside the eq?, match?
+// and any-of? families, fails the query when strict, and else leaves its
+// pattern out. Its errors name the line in src.
+func compileQuery(lang *ts.Language, src string, settings []string, strict bool) (*ts.Query, error) {
 	q, qerr := ts.NewQuery(lang, plainLuaMatches(src))
 	if qerr != nil {
 		return nil, fmt.Errorf("line %d: %s", qerr.Row+1, qerr.Message)
 	}
 	for i := range q.PatternCount() {
-		if unknown := unknownPredicate(q, i, []string{"priority"}); unknown != "" {
+		unknown := unknownPredicate(q, i, settings)
+		switch {
+		case unknown == "":
+		case strict:
 			line := strings.Count(src[:q.StartByteForPattern(i)], "\n") + 1
 			q.Close()
 			return nil, fmt.Errorf("line %d: fude does not evaluate #%s", line, unknown)
-		}
-	}
-	return q, nil
-}
-
-// compileHighlights compiles the highlights query src, leaving out each
-// pattern with a predicate fude does not evaluate, as a grammar's repo may
-// write its queries for another editor (B46). Its errors name the line in
-// src.
-func compileHighlights(lang *ts.Language, src string) (*ts.Query, error) {
-	q, qerr := ts.NewQuery(lang, plainLuaMatches(src))
-	if qerr != nil {
-		return nil, fmt.Errorf("line %d: %s", qerr.Row+1, qerr.Message)
-	}
-	for i := range q.PatternCount() {
-		if unknownPredicate(q, i, []string{"priority"}) != "" {
+		default:
 			q.DisablePattern(i)
 		}
 	}
@@ -581,7 +573,7 @@ func (h *Buffer) Select(t api.Text, src string, start, end int) ([][2]int, error
 	if h.tree == nil {
 		return nil, errors.New("the file is not parsed yet")
 	}
-	q, err := compile(h.lang, src)
+	q, err := compileQuery(h.lang, src, []string{"priority"}, true)
 	if err != nil {
 		return nil, fmt.Errorf("query %w", err)
 	}

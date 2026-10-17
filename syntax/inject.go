@@ -209,19 +209,3 @@ func nodeRanges(n *ts.Node, children bool) []ts.Range {
 
 // injectionSettings are the settings an injections query may make.
 var injectionSettings = []string{"injection.language", "injection.combined", "injection.include-children", "priority"}
-
-// compileInjections compiles an injections query. A pattern with a predicate
-// fude does not evaluate is left out rather than failing the query, as an
-// injection only adds colour (B166).
-func compileInjections(lang *ts.Language, src string) (*ts.Query, error) {
-	q, qerr := ts.NewQuery(lang, plainLuaMatches(src))
-	if qerr != nil {
-		return nil, fmt.Errorf("line %d: %s", qerr.Row+1, qerr.Message)
-	}
-	for i := range q.PatternCount() {
-		if unknownPredicate(q, i, injectionSettings) != "" {
-			q.DisablePattern(i)
-		}
-	}
-	return q, nil
-}

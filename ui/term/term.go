@@ -16,7 +16,6 @@ import (
 	"github.com/gdamore/tcell/v3/color"
 
 	"github.com/y3owk1n/fude/api"
-	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
@@ -716,22 +715,14 @@ func (c *client) view(v editor.View, left int, sel vim.Selection, visual bool) (
 					if n == 1 {
 						s = "  ⋯ 1 line "
 					}
-					for s != "" && x < v.W {
-						var width int
-						s, width = c.s.Put(v.X+x, y, s, base.Foreground(th.muted).Background(th.surface))
-						x += width
-					}
+					x = c.putClipped(v.X+x, y, v.X+v.W, part{s, base.Foreground(th.muted).Background(th.surface)}) - v.X
 				}
 				if n := v.Notes[line]; i == len(starts)-1 && x >= 0 {
 					style := base.Foreground(th.faint)
 					if shade {
 						style = style.Background(th.cursorLine)
 					}
-					for n != "" && x < v.W {
-						var width int
-						n, width = c.s.Put(v.X+x, y, n, style)
-						x += width
-					}
+					x = c.putClipped(v.X+x, y, v.X+v.W, part{n, style}) - v.X
 				}
 				if shade && x < v.W {
 					c.s.FillArea(v.X+x, y, v.W-x, 1, ' ', base.Background(th.cursorLine))
@@ -837,7 +828,7 @@ func (c *client) colorColumn(v editor.View, y int) {
 // indentOf returns the columns of the leading blanks of the line at start.
 // A blank line takes the indent of the next line with text, so the guides
 // run through it (B153).
-func indentOf(t kernel.Snapshot, start, tab int) int {
+func indentOf(t vim.Text, start, tab int) int {
 	lead := 0
 	// A long run of blank lines looks 200 lines ahead at most.
 	for p, n := start, 0; n < 200; n++ {
@@ -921,12 +912,7 @@ func (c *client) ghost(g editor.Ghost, left, x, y, w int) int {
 	case g.Stale:
 		style = style.Foreground(th.err)
 	}
-	for s := ghostText.Replace(g.Text); s != "" && x < w; {
-		var width int
-		s, width = c.s.Put(left+x, y, s, style)
-		x += width
-	}
-	return x
+	return c.putClipped(left+x, y, left+w, part{ghostText.Replace(g.Text), style}) - left
 }
 
 // keys returns ev in Vim notation, or nothing for a key fude does not use
