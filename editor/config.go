@@ -138,24 +138,30 @@ func loadConfig() (config, error) {
 	}
 	d := toml.NewDecoder(bytes.NewReader(src))
 	d.DisallowUnknownFields()
-	err = d.Decode(&c)
+	if err := d.Decode(&c); err != nil {
+		return c, decodeError(path, err)
+	}
+	if err := aliasFiletypes(&c); err != nil {
+		return c, fmt.Errorf("%s: %w", path, err)
+	}
+	if err := badPattern(c); err != nil {
+		return c, fmt.Errorf("%s: %w", path, err)
+	}
+	for _, s := range c.Sources {
+		if !slices.Contains(defaults.Sources, s) {
+			return c, fmt.Errorf("%s: completion_sources has no source %q", path, s)
+		}
+	}
+	return c, nil
+}
+
+// decodeError says where in the TOML file at path err happened: the line,
+// and the key that is unknown or holds a bad value.
+func decodeError(path string, err error) error {
 	var strict *toml.StrictMissingError
 	var de *toml.DecodeError
 	var msg string
 	switch {
-	case err == nil:
-		if err := aliasFiletypes(&c); err != nil {
-			return c, fmt.Errorf("%s: %w", path, err)
-		}
-		if err := badPattern(c); err != nil {
-			return c, fmt.Errorf("%s: %w", path, err)
-		}
-		for _, s := range c.Sources {
-			if !slices.Contains(defaults.Sources, s) {
-				return c, fmt.Errorf("%s: completion_sources has no source %q", path, s)
-			}
-		}
-		return c, nil
 	case errors.As(err, &strict):
 		de = &strict.Errors[0]
 		msg = "unknown key " + strings.Join(de.Key(), ".")
@@ -164,10 +170,10 @@ func loadConfig() (config, error) {
 	case errors.As(err, &de):
 		msg = strings.TrimPrefix(de.Error(), "toml: ")
 	default:
-		return c, fmt.Errorf("%s: %w", path, err)
+		return fmt.Errorf("%s: %w", path, err)
 	}
 	line, _ := de.Position()
-	return c, fmt.Errorf("%s line %d: %s", path, line, msg)
+	return fmt.Errorf("%s line %d: %s", path, line, msg)
 }
 
 // xdgDir returns the directory the XDG variable env names, or else fallback

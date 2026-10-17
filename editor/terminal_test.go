@@ -114,6 +114,10 @@ func TestB228Tasks(t *testing.T) {
 	if feed(e, "q"); len(e.Views()) != 1 {
 		t.Errorf("q left %d windows", len(e.Views()))
 	}
+	// An unknown key in the project's tasks says where it is (B233).
+	change(t, filepath.Join(dir, ".fude", "tasks.toml"), "[task.lint]\ncmd = \"echo l\"\n")
+	feed(e, ":pick tasks<CR>")
+	settle(t, e, func() bool { return e.Message() == ".fude/tasks.toml line 2: unknown key task.lint.cmd" })
 }
 
 // B230

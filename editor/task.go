@@ -91,7 +91,7 @@ func projectTasks() ([]task, error) {
 	d := toml.NewDecoder(bytes.NewReader(src))
 	d.DisallowUnknownFields()
 	if err := d.Decode(&f); err != nil {
-		return nil, fmt.Errorf(".fude/tasks.toml: %w", err)
+		return nil, decodeError(".fude/tasks.toml", err)
 	}
 	var out []task
 	for _, name := range slices.Sorted(maps.Keys(f.Task)) {
