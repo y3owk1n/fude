@@ -92,6 +92,15 @@ func (e *Session) formatOnSave(b *buffer, write func()) {
 	}
 }
 
+// formatsOnSave reports whether a write formats b, as its filetype's
+// format_on_save says or else the one at the top of config.toml (B136).
+func (e *Session) formatsOnSave(b *buffer) bool {
+	if on := e.cfg.Filetype[e.filetype(b)].FormatOnSave; on != nil {
+		return *on
+	}
+	return e.cfg.FormatOnSave
+}
+
 // format formats b's lines from start to end as a write would, without
 // writing them, for gq and :format (B65, B234).
 func (e *Session) format(b *buffer, start, end int) {

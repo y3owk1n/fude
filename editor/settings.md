@@ -348,6 +348,19 @@ Runs only the first formatter of `format` whose program is on PATH and whose
 required root is found, such as biome where a project has its config and
 prettierd elsewhere.
 
+## filetype.format_on_save
+
+`format_on_save` for files of this filetype, over the one at the top of
+config.toml. With it on at the top, `false` here writes these files as
+they are.
+
+```toml
+format_on_save = true
+
+[filetype.markdown]
+format_on_save = false
+```
+
 ## lsp.command
 
 The server's program and arguments, found on PATH. Unset, it is the table's

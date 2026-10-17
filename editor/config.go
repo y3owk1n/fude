@@ -58,14 +58,15 @@ type config struct {
 		Groups   map[string]string `toml:"groups" help:"names of the keys mappings start with, which key hints show"`
 	} `toml:"keymap"`
 	Filetype map[string]struct {
-		Files       []string `toml:"files" help:"the names of the files of the type, as patterns such as *.toml.tmpl"`
-		IndentWidth uint     `toml:"indent_width" help:"the columns of an indent level in files of the type"`
-		LSP         []string `toml:"lsp" help:"the language servers of files of the type, by the names of their [lsp.{name}] tables"`
-		Format      []string `toml:"format" help:"the formatters of files of the type, by the names of their [formatter.{name}] tables, run in turn"`
-		FormatFirst bool     `toml:"format_first" help:"only the first formatter that is installed runs"`
-		ExpandTab   *bool    `toml:"expand_tab" help:"files of the type indent with spaces only"`
-		Wrap        *bool    `toml:"wrap" help:"long lines in files of the type go on the rows below"`
-		ColorColumn *int     `toml:"color_column" help:"the column shaded in files of the type, 0 for none"`
+		Files        []string `toml:"files" help:"the names of the files of the type, as patterns such as *.toml.tmpl"`
+		IndentWidth  uint     `toml:"indent_width" help:"the columns of an indent level in files of the type"`
+		LSP          []string `toml:"lsp" help:"the language servers of files of the type, by the names of their [lsp.{name}] tables"`
+		Format       []string `toml:"format" help:"the formatters of files of the type, by the names of their [formatter.{name}] tables, run in turn"`
+		FormatFirst  bool     `toml:"format_first" help:"only the first formatter that is installed runs"`
+		FormatOnSave *bool    `toml:"format_on_save" help:"a write formats files of the type first"`
+		ExpandTab    *bool    `toml:"expand_tab" help:"files of the type indent with spaces only"`
+		Wrap         *bool    `toml:"wrap" help:"long lines in files of the type go on the rows below"`
+		ColorColumn  *int     `toml:"color_column" help:"the column shaded in files of the type, 0 for none"`
 	} `toml:"filetype" key:"type"`
 	LSP map[string]struct {
 		Command     []string       `toml:"command" help:"the server's command, its name when unset"`

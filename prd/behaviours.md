@@ -253,7 +253,8 @@ Where fude departs, the line says so and cites the departure in
   formatting is one timeline node, and the cursor stays on a line it keeps.
   A formatter that fails or takes over `format_timeout` milliseconds leaves
   the text, which is written anyway, and says why. The write's message
-  names the formatters that are not installed.
+  names the formatters that are not installed. A `[filetype.<name>]`
+  table's `format_on_save` wins over the top-level one for that filetype.
 - B171 [2] With `format_first`, only the first of a filetype's formatters
   that applies runs. A formatter applies when its program is on PATH and,
   with `workspace_required`, when one of its `root` files is found above

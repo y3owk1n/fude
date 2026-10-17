@@ -1503,7 +1503,7 @@ func (e *Session) write(b *buffer, force bool, then func()) {
 		}
 		return
 	}
-	if e.cfg.FormatOnSave {
+	if e.formatsOnSave(b) {
 		e.formatOnSave(b, func() { e.writeOut(b, then) })
 		return
 	}

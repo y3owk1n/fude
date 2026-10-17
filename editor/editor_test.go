@@ -1243,6 +1243,11 @@ func TestB136FormatOnSave(t *testing.T) {
 	e = start(t, path)
 	feed(e, "x:w<CR>")
 	settle(t, e, func() bool { return disk(t, path) == "eep\ny there\n" })
+	// A filetype's format_on_save wins over the one at the top.
+	config(t, "format_on_save = true\n[filetype.txt]\nformat_on_save = false\nformat = [\"y\"]\n[formatter.y]\ncommand = [\"sed\", \"s/y/z/\"]\n")
+	e = start(t, path)
+	feed(e, "x:w<CR>")
+	settle(t, e, func() bool { return disk(t, path) == "ep\ny there\n" })
 }
 
 // B234

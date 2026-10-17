@@ -852,6 +852,7 @@ indent_width = 4
 expand_tab = false   # and wrap, color_column, while a window shows its files (B94)
 format = ["goimports", "gofumpt"]   # formatters, run in turn by format_on_save (B136)
 format_first = false # true runs only the first that applies (B171)
+format_on_save = true # over the top-level one, for this filetype (B136)
 lsp = ["gopls", "golangci_lint_ls"]   # its language servers, by name, in order (B167, B169)
 
 [formatter.prettierd]   # a formatter, all optional (B136, B171)

@@ -31,7 +31,9 @@ command = ["prettierd", "{path}"]
 ```
 
 A filetype's `format` names its formatters, which run in turn, each on the
-output of the one before. With `format_first = true`, only the first that
+output of the one before. A filetype's own `format_on_save` wins over the
+top-level one, so `format_on_save = false` in `[filetype.markdown]` writes
+markdown files as they are. With `format_first = true`, only the first that
 applies runs.
 
 Each `[formatter.<name>]` table is optional. `command` is the program and
