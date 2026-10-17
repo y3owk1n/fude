@@ -87,12 +87,11 @@ func init() {
 			e.edit(x.arg)
 		}, completePath},
 		{vim.Command{Name: "enew", Help: "shows a new empty buffer"}, func(e *Session, _ call) { e.empty() }, nil},
-		{vim.Command{Name: "format", Help: "formats the buffer as a write with format_on_save does, without writing it"}, func(e *Session, x call) {
-			if x.ranged {
-				e.message = "format takes no range, gq formats lines"
-				return
+		{vim.Command{Name: "format", Help: "formats the buffer, or the lines of a range, as a write with format_on_save does, without writing it"}, func(e *Session, x call) {
+			if !x.ranged {
+				x.first, x.last = 0, e.win.buf.text.Snapshot().Len()
 			}
-			e.formatBuffer(e.win.buf)
+			e.format(e.win.buf, x.first, x.last)
 		}, nil},
 		{vim.Command{Name: "gitdiff", Help: "shows the lines that differ from git's index"}, func(e *Session, _ call) { e.gitDiff() }, nil},
 		{vim.Command{Name: "blame", Help: "shows who last changed the cursor's line, and when, after it, or stops showing it"}, func(e *Session, _ call) { e.blame = !e.blame }, nil},

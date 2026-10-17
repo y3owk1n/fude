@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/y3owk1n/fude/core/kernel"
+	"github.com/y3owk1n/fude/vim"
 )
 
 // run is a formatter's command and the folder it runs in.
@@ -85,13 +87,14 @@ func (e *Session) formatOnSave(b *buffer, write func()) {
 	switch {
 	case err != nil:
 		written(err.Error())
-	case !e.formatWith(b, runs, written):
+	case !e.formatWith(b, 0, b.text.Snapshot().Len(), runs, written):
 		written("")
 	}
 }
 
-// formatBuffer formats b as a write would, without writing it (B234).
-func (e *Session) formatBuffer(b *buffer) {
+// format formats b's lines from start to end as a write would, without
+// writing them, for gq and :format (B65, B234).
+func (e *Session) format(b *buffer, start, end int) {
 	if b.file.readonly {
 		e.message = "cannot make changes, the file is read-only"
 		return
@@ -108,20 +111,22 @@ func (e *Session) formatBuffer(b *buffer) {
 			e.message = strings.Join(missing, ", ") + " not installed"
 		}
 	}
-	if !e.formatWith(b, runs, said) {
+	if !e.formatWith(b, start, end, runs, said) {
 		e.message = "nothing formats this file"
 		said("")
 	}
 }
 
-// formatWith formats b through runs in turn, or else through its language
-// server when runs is empty. The formatting is one timeline node. It then
-// passes done why it failed, or "" when it did not. A formatter that fails,
-// or takes longer than format_timeout, leaves the text as it is. It returns
-// false, without calling done, when nothing formats b.
-func (e *Session) formatWith(b *buffer, runs []run, done func(failed string)) bool {
+// formatWith formats b's lines from start to end through runs in turn, or
+// else through its language server when runs is empty. A formatter sees the
+// whole text, and only its edits inside the lines apply. The formatting is
+// one timeline node. It then passes done why it failed, or "" when it did
+// not. A formatter that fails, or takes longer than format_timeout, leaves
+// the text as it is. It returns false, without calling done, when nothing
+// formats b.
+func (e *Session) formatWith(b *buffer, start, end int, runs []run, done func(failed string)) bool {
 	s := formatter(b)
-	if len(runs) == 0 && (s == nil || !s.client.Supports("documentFormattingProvider")) {
+	if len(runs) == 0 && s == nil {
 		return false
 	}
 	t := b.text.Snapshot()
@@ -142,6 +147,7 @@ func (e *Session) formatWith(b *buffer, runs []run, done func(failed string)) bo
 	})
 	if len(runs) > 0 {
 		old, path := t.Slice(0, t.Len()), b.file.path
+		from, to := vim.LineStart(t, start), vim.LineEnd(t, end)
 		go func() {
 			// A buffer holds no last line break, and a formatter wants one.
 			out, err := runFormatters(runs, old+"\n", path, timeout)
@@ -150,12 +156,15 @@ func (e *Session) formatWith(b *buffer, runs []run, done func(failed string)) bo
 					finish(t, nil, err.Error())
 					return
 				}
-				finish(t, lineEdits(old, strings.TrimSuffix(out, "\n")), "")
+				edits := slices.DeleteFunc(lineEdits(old, strings.TrimSuffix(out, "\n")), func(ed kernel.Edit) bool {
+					return ed.Start < from || ed.End > to
+				})
+				finish(t, edits, "")
 			}
 		}()
 		return true
 	}
-	e.formatting(b, 0, t.Len(), func(t kernel.Snapshot, edits []kernel.Edit) { finish(t, edits, "") })
+	e.formatting(b, s, start, end, func(t kernel.Snapshot, edits []kernel.Edit) { finish(t, edits, "") })
 	return true
 }
 

@@ -719,12 +719,12 @@ a formatter whose program is not on PATH or whose required root is
 missing. With `format_first`, only the first one left runs (B171). Their output
 becomes one edit for each run of changed lines, from the line diff the
 timeline uses, so marks on the lines kept stay. When no formatter is left, fude asks the
-first language server that offers `textDocument/formatting`. `gq` and saving
-share the request and `reformat`, which applies the edits as one node and
+first language server that formats. `gq`, `:format` and saving
+share `formatWith` and `reformat`, which applies the edits as one node and
 drops them when the text changed meanwhile. A timer writes the text as it
 is after `format_timeout`, so a formatter or server that hangs cannot hold
-the write (B136). `:format` runs the same formatting without the write
-(B234).
+the write (B136). `:format` and `gq` run the same formatting without the
+write, and keep only the edits inside their lines (B65, B234).
 
 ## Command line completion
 
@@ -1272,8 +1272,8 @@ next typed key closes it and asks again. fude drops an answer for text that
 changed after the request. The items come from the language
 server only, not from the buffer's words (N8).
 
-`gq` is an operator `editor/` adds. It asks for `rangeFormatting` of the
-target's lines when the server offers it. Otherwise it asks for
+`gq` is an operator `editor/` adds. With no formatter that applies, it
+asks for `rangeFormatting` of the target's lines when the server offers it. Otherwise it asks for
 `formatting` of the document, as gopls offers only that, and keeps the
 edits that fall inside the lines. The answer applies as one transaction on
 the text the request saw, so it is one timeline node. fude drops an answer

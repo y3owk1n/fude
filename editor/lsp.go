@@ -1431,19 +1431,10 @@ func markupText(raw json.RawMessage) string {
 	return markup.Value
 }
 
-// format asks b's server to format the lines from start to end, as gq does,
-// and applies the answer as one timeline node (B65).
-func (e *Session) format(b *buffer, start, end int) {
-	e.formatting(b, start, end, func(t kernel.Snapshot, edits []kernel.Edit) {
-		e.reformat(b, t, edits, "gq")
-	})
-}
-
-// formatter returns the first of b's servers that formats, or may once it
-// has started, or nil (N22).
+// formatter returns the first of b's servers that formats, or nil (N22).
 func formatter(b *buffer) *server {
 	i := slices.IndexFunc(b.servers, func(s *server) bool {
-		return s.client.Encoding() == "" || s.client.Supports("documentFormattingProvider") || s.client.Supports("documentRangeFormattingProvider")
+		return s.client.Supports("documentFormattingProvider") || s.client.Supports("documentRangeFormattingProvider")
 	})
 	if i < 0 {
 		return nil
@@ -1451,20 +1442,11 @@ func formatter(b *buffer) *server {
 	return b.servers[i]
 }
 
-// formatting asks b's formatter for the edits that format the lines from
-// start to end, and passes them to answer with the text they are for. For a
-// server that formats only whole documents, fude asks for that and keeps
-// the edits inside the lines.
-func (e *Session) formatting(b *buffer, start, end int, answer func(kernel.Snapshot, []kernel.Edit)) {
-	s := formatter(b)
-	switch {
-	case s == nil:
-		e.message = "no language server formats this file"
-		return
-	case b.file.readonly:
-		e.message = "cannot make changes, the file is read-only"
-		return
-	}
+// formatting asks s for the edits that format b's lines from start to end,
+// and passes them to answer with the text they are for. For a server that
+// formats only whole documents, fude asks for that and keeps the edits
+// inside the lines.
+func (e *Session) formatting(b *buffer, s *server, start, end int, answer func(kernel.Snapshot, []kernel.Edit)) {
 	t, uri := b.text.Snapshot(), lsp.URI(b.file.path)
 	from, to := vim.LineStart(t, start), vim.LineEnd(t, end)
 	ranged := s.client.Supports("documentRangeFormattingProvider")

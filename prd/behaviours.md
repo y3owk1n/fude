@@ -261,6 +261,7 @@ Where fude departs, the line says so and cites the departure in
   without writing it, and says which formatters are not installed. A
   formatter that fails or takes over `format_timeout` milliseconds leaves
   the text and says why. With nothing to format the file, it says so.
+  With a range, it formats only those lines, as `gq` does.
 - B137 [2] With `clipboard` on, a yank, delete or change without a
   register also copies to the system clipboard, and `"_` still copies
   nothing. A put without a register takes the clipboard when something
@@ -848,8 +849,10 @@ Where fude departs, the line says so and cites the departure in
   `<C-n>` and `<C-p>` select, `<C-y>` accepts, and the accepted text is part
   of the insert's undo step. A menu longer than its box scrolls to keep the
   selected item in view.
-- B65 [5] `gq{target}` formats that range through the server, as one
-  timeline node.
+- B65 [5] `gq{target}` formats the lines it covers as `:format` does,
+  through the filetype's formatters or else the server. The formatting is
+  one timeline node. A formatter formats the whole file, and fude applies
+  only its changes inside the lines.
 - B66 [5] `grn` renames, `gra` lists code actions, `grr` references, `gri`
   implementations, `grt` the type definition, `gO` document symbols, and
   insert `<C-s>` shows signature help. They exist only while a server is

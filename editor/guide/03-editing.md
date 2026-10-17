@@ -8,7 +8,7 @@ object, and a count may come before either. `2d3w` deletes six words.
 - `d` deletes, `c` deletes and enters insert mode, and `y` copies.
 - `>` and `<` indent and dedent, `gu`, `gU` and `g~` change case.
 - `gc` comments lines, or uncomments them, in the language at the cursor.
-- `gq` formats lines through the language server.
+- `gq` formats lines through the filetype's formatters or the language server.
 
 An operator typed twice acts on the line, so `yy` copies it and `>>`
 indents it. `D`, `C` and `Y` act to the end of the line.

@@ -57,8 +57,9 @@ The formatting is one change on the timeline, so `u` undoes it.
 else its language server, and does not write it. It works whether
 `format_on_save` is on or off.
 
-`gq` and a motion format those lines through the language server, such as
-`gqip` for a paragraph or `gggqG` for the file.
+`gq` and a motion format the lines the motion covers the same way, such
+as `gqip` for a paragraph. A formatter formats the whole file, and fude
+applies only its changes to those lines.
 
 ## Next
 
