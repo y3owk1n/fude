@@ -15,9 +15,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/internal/trace"
-	"github.com/y3owk1n/fude/plugin"
 	"github.com/y3owk1n/fude/vim"
 	"github.com/y3owk1n/fude/wire"
 )
@@ -83,13 +83,13 @@ type change struct {
 func (e *Session) commandKeys(c Command) (string, error) {
 	op, ok := ops[c.Op]
 	if !ok {
-		if op, ok = e.registered(c.Op, plugin.Operator); !ok {
+		if op, ok = e.registered(c.Op, api.Operator); !ok {
 			return "", fmt.Errorf("no operator named %q", c.Op)
 		}
 	}
 	target, ok := targets[c.Target.Name]
 	if !ok {
-		target, ok = e.registered(c.Target.Name, plugin.Object)
+		target, ok = e.registered(c.Target.Name, api.Object)
 	}
 	switch {
 	case c.Target.Name == "lines" && op != "":
@@ -110,11 +110,11 @@ func (e *Session) commandKeys(c Command) (string, error) {
 
 // registered returns the keys of what a plugin registered of kind, named as
 // plugin.key.
-func (e *Session) registered(name string, kind plugin.Kind) (string, bool) {
+func (e *Session) registered(name string, kind api.Kind) (string, bool) {
 	pname, key, _ := strings.Cut(name, ".")
-	for _, p := range e.plugins {
-		for _, r := range p.Registered {
-			if p.Name == pname && r.Kind == kind && r.Name == key {
+	for _, p := range e.modules {
+		for _, r := range p.Registered() {
+			if p.Name() == pname && r.Kind == kind && r.Name == key {
 				return key, true
 			}
 		}

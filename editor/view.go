@@ -116,7 +116,7 @@ func (e *Session) Views() []wire.View {
 				v.Notes[t.LineOf(w.pos())] = "   " + note
 			}
 		}
-		for _, p := range e.plugins {
+		for _, p := range e.modules {
 			for _, d := range e.decos[p] {
 				if d.buf != w.buf || d.note == "" {
 					continue
@@ -139,7 +139,7 @@ func (e *Session) Views() []wire.View {
 		}
 		v.Pair = e.pair(w, t, top, last)
 		v.Ruler = ruler(t, w.pos(), top, max(w.h-1, 1), tab, func(p int) int { return w.rows(t, p, tab) })
-		for _, p := range e.plugins {
+		for _, p := range e.modules {
 			if s := e.segments[p][w.buf]; s != "" {
 				v.Segments = append(v.Segments, s)
 			}
@@ -299,7 +299,7 @@ func (e *Session) signs(b *buffer, top, last int) map[int]wire.Sign {
 	}
 	// A plugin's sign wins over git's, and a diagnostic over a plugin's
 	// (B184).
-	for _, p := range e.plugins {
+	for _, p := range e.modules {
 		for _, d := range e.decos[p] {
 			if d.buf == b && d.sign != "" {
 				out[t.LineOf(b.text.Mark(d.start))] = wire.Sign{Text: d.sign, Name: d.style}

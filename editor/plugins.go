@@ -97,21 +97,21 @@ func texts(settings map[string]any) (map[string]string, error) {
 // loaded keeps a plugin whose init returned, adds what it registered, and
 // does what it asked for to b, whose text it saw as t. A plugin whose init
 // failed is unloaded.
-func (e *Session) loaded(p *plugin.Plugin, err error, b *buffer, t kernel.Snapshot, res plugin.Result) {
+func (e *Session) loaded(p api.Module, err error, b *buffer, t kernel.Snapshot, res api.Result) {
 	if err != nil {
 		e.unload(p, err)
 		return
 	}
-	trace.Record("plugin", "loaded "+p.Name, 0)
-	e.plugins = append(e.plugins, p)
-	for _, r := range p.Registered {
+	trace.Record("plugin", "loaded "+p.Name(), 0)
+	e.modules = append(e.modules, p)
+	for _, r := range p.Registered() {
 		e.register(p, r)
 	}
-	if len(p.Subscribed) > 0 {
+	if len(p.Subscribed()) > 0 {
 		e.listen(p)
 	}
 	if b.text.Snapshot().Version() != t.Version() {
-		e.message = fmt.Sprintf("plugin %s: the text changed while it loaded", p.Name)
+		e.message = fmt.Sprintf("plugin %s: the text changed while it loaded", p.Name())
 		return
 	}
 	e.result(p, b, t, res)
@@ -119,18 +119,18 @@ func (e *Session) loaded(p *plugin.Plugin, err error, b *buffer, t kernel.Snapsh
 
 // result applies the decorations and edits a call into p asked for on b,
 // which read t.
-func (e *Session) result(p *plugin.Plugin, b *buffer, t kernel.Snapshot, res plugin.Result) {
+func (e *Session) result(p api.Module, b *buffer, t kernel.Snapshot, res api.Result) {
 	defer e.went()
 	edits := e.decorate(p, b, res)
 	if len(edits) == 0 {
 		return
 	}
-	tx := kernel.Transaction{Base: t.Version(), Origin: e.origin, Label: "plugin " + p.Name, Time: e.now()}
+	tx := kernel.Transaction{Base: t.Version(), Origin: e.origin, Label: "plugin " + p.Name(), Time: e.now()}
 	for _, ed := range edits {
 		tx.Edits = append(tx.Edits, kernel.Edit(ed))
 	}
 	if err := b.text.Apply(tx); err != nil {
-		e.message = fmt.Sprintf("plugin %s: %v", p.Name, err)
+		e.message = fmt.Sprintf("plugin %s: %v", p.Name(), err)
 		return
 	}
 	b.head = b.text.Head()
@@ -161,10 +161,10 @@ func (d decoration) remove() {
 // pluginRequest sends a plugin's request to those of b's servers that offer it,
 // every one for a method outside textDocument/, and hands the plugin the
 // first answer that is not null, as a job's output (B190).
-func (e *Session) pluginRequest(p *plugin.Plugin, b *buffer, rq api.Request) {
+func (e *Session) pluginRequest(p api.Module, b *buffer, rq api.Request) {
 	l := e.listen(p)
 	reply := func(extra api.Context) {
-		if slices.Contains(e.plugins, p) {
+		if slices.Contains(e.modules, p) {
 			l.add(event{buf: b, id: rq.ID, extra: extra})
 		}
 	}
@@ -235,7 +235,7 @@ func (e *Session) went() {
 // events about b, arms its timers and starts its jobs, whose callbacks are
 // about b. It returns res's edits, sorted, for the caller to apply next, so
 // they move the new decorations.
-func (e *Session) decorate(p *plugin.Plugin, b *buffer, res plugin.Result) []vim.Edit {
+func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 	for _, name := range res.Emit {
 		e.emit(name, "", b)
 	}
@@ -251,7 +251,7 @@ func (e *Session) decorate(p *plugin.Plugin, b *buffer, res plugin.Result) []vim
 				extra["error"] = err.Error()
 			}
 			e.queue <- func() {
-				if slices.Contains(e.plugins, p) {
+				if slices.Contains(e.modules, p) {
 					l.add(event{buf: b, id: j.ID, extra: extra})
 				}
 			}
@@ -260,7 +260,7 @@ func (e *Session) decorate(p *plugin.Plugin, b *buffer, res plugin.Result) []vim
 	for _, tm := range res.Timers {
 		time.AfterFunc(tm.After, func() {
 			e.queue <- func() {
-				if slices.Contains(e.plugins, p) {
+				if slices.Contains(e.modules, p) {
 					e.listen(p).add(event{buf: b, id: tm.ID})
 				}
 			}
@@ -277,7 +277,7 @@ func (e *Session) decorate(p *plugin.Plugin, b *buffer, res plugin.Result) []vim
 	}
 	if pk := res.Pick; pk != nil {
 		answer := func(picked int, query string, ok bool) {
-			if slices.Contains(e.plugins, p) {
+			if slices.Contains(e.modules, p) {
 				e.listen(p).add(event{buf: b, id: pk.ID, extra: api.Context{"picked": strconv.Itoa(picked), "text": query, "ok": strconv.FormatBool(ok)}})
 			}
 		}
@@ -319,7 +319,7 @@ func (e *Session) decorate(p *plugin.Plugin, b *buffer, res plugin.Result) []vim
 }
 
 // unload closes p after err, removes its decorations and tells the user.
-func (e *Session) unload(p *plugin.Plugin, err error) {
+func (e *Session) unload(p api.Module, err error) {
 	e.drop(p)
 	e.message = fmt.Sprintf("%v, so it was unloaded", err)
 	logLine(e.message)
@@ -337,7 +337,7 @@ func (e *Session) reloadPlugins() {
 		e.message = err.Error()
 		return
 	}
-	for _, p := range slices.Clone(e.plugins) {
+	for _, p := range slices.Clone(e.modules) {
 		e.unregister(p)
 		e.drop(p)
 	}
@@ -350,36 +350,36 @@ func (e *Session) reloadPlugins() {
 
 // unregister removes the commands, operators, objects and mappings p
 // added, so a reload that leaves p out leaves nothing of it.
-func (e *Session) unregister(p *plugin.Plugin) {
-	for _, r := range p.Registered {
-		if r.Kind == plugin.Command {
+func (e *Session) unregister(p api.Module) {
+	for _, r := range p.Registered() {
+		if r.Kind == api.Command {
 			delete(e.commands, r.Name)
 		}
 		for _, s := range e.sessions {
 			switch r.Kind {
-			case plugin.Operator:
+			case api.Operator:
 				s.vim.Operator(r.Name, nil)
-			case plugin.Object:
+			case api.Object:
 				s.vim.Object(r.Name, nil)
-			case plugin.Key:
+			case api.Key:
 				s.vim.Unmap(vim.Normal, withLeader(r.Name, s.leader))
-				s.vim.Command(p.Name+"."+r.Name, nil)
-			case plugin.Insert:
+				s.vim.Command(p.Name()+"."+r.Name, nil)
+			case api.Insert:
 				s.vim.Unmap(vim.Insert, r.Name)
-				s.vim.Command(p.Name+".insert."+r.Name, nil)
+				s.vim.Command(p.Name()+".insert."+r.Name, nil)
 			}
 		}
 	}
 }
 
 // drop closes p and removes its listener, decorations and segments.
-func (e *Session) drop(p *plugin.Plugin) {
+func (e *Session) drop(p api.Module) {
 	if l := e.listeners[p]; l != nil {
 		l.stop()
 		delete(e.listeners, p)
 	}
 	p.Close(context.Background())
-	e.plugins = slices.DeleteFunc(e.plugins, func(q *plugin.Plugin) bool { return q == p })
+	e.modules = slices.DeleteFunc(e.modules, func(q api.Module) bool { return q == p })
 	for _, d := range e.decos[p] {
 		d.remove()
 	}
@@ -389,18 +389,18 @@ func (e *Session) drop(p *plugin.Plugin) {
 
 // register adds a command, operator, object or key a plugin registered, as
 // the machine's own, so it composes with every built-in (B52, B54).
-func (e *Session) register(p *plugin.Plugin, r plugin.Registration) {
+func (e *Session) register(p api.Module, r api.Registration) {
 	if e.pluginHelp == nil {
 		e.pluginHelp = map[string]string{}
 	}
 	switch r.Kind {
-	case plugin.Command:
+	case api.Command:
 		e.pluginHelp[":"+r.Name] = r.Help
 		e.commands[r.Name] = func(s *Session, c call) {
 			scope := s.scope(s.win.buf, s.Text())
 			scope.About["args"], scope.About["bang"] = c.arg, strconv.FormatBool(c.force)
 			scope.About["first"], scope.About["last"], scope.About["ranged"] = strconv.Itoa(c.first), strconv.Itoa(c.last), strconv.FormatBool(c.ranged)
-			if edits, _, ok := s.run(p, r.ID, scope, uint64(s.Cursor()), 0); ok && len(edits) > 0 {
+			if edits, _, ok := s.run(p, r.ID, scope, s.Cursor(), 0); ok && len(edits) > 0 {
 				if err := (host{s}).Apply(edits, ":"+r.Name); err != nil {
 					s.message = err.Error()
 					return
@@ -408,45 +408,45 @@ func (e *Session) register(p *plugin.Plugin, r plugin.Registration) {
 				s.setCursor(edits[0].Start)
 			}
 		}
-	case plugin.Operator:
+	case api.Operator:
 		e.pluginBindings = append(e.pluginBindings, vim.Binding{Kind: "operator", Keys: r.Name + "{motion}", Help: r.Help})
 		e.each(func(s *Session) {
 			s.vim.Operator(r.Name, func(t vim.Text, start, end int, lines bool) []vim.Edit {
-				linewise := uint64(0)
+				linewise := 0
 				if lines {
 					linewise = 1
 				}
-				edits, _, _ := s.run(p, r.ID, s.scope(s.win.buf, t), uint64(start), uint64(end), linewise)
+				edits, _, _ := s.run(p, r.ID, s.scope(s.win.buf, t), start, end, linewise)
 				return edits
 			})
 		})
-	case plugin.Object:
+	case api.Object:
 		e.pluginBindings = append(e.pluginBindings, vim.Binding{Kind: "object", Keys: r.Name, Help: r.Help})
 		e.each(func(s *Session) {
 			s.vim.Object(r.Name, func(t vim.Text, start, end int) (int, int, bool) {
-				_, out, ok := s.run(p, r.ID, s.scope(s.win.buf, t), uint64(start), uint64(end))
-				if !ok || len(out) == 0 || int64(out[0]) < 0 {
+				_, sel, ok := s.run(p, r.ID, s.scope(s.win.buf, t), start, end)
+				if !ok || sel == nil {
 					return 0, 0, false
 				}
-				return int(out[0] >> 32), int(uint32(out[0])), true
+				return sel[0], sel[1], true
 			})
 		})
-	case plugin.Key:
-		name := p.Name + "." + r.Name
+	case api.Key:
+		name := p.Name() + "." + r.Name
 		e.pluginHelp["<Plug>("+name+")"] = r.Help
 		e.each(func(s *Session) {
 			s.vim.Command(name, func(t vim.Text, pos, count int) []vim.Edit {
-				edits, _, _ := s.run(p, r.ID, s.scope(s.win.buf, t), uint64(pos), uint64(count))
+				edits, _, _ := s.run(p, r.ID, s.scope(s.win.buf, t), pos, count)
 				return edits
 			})
 			s.vim.Map(vim.Normal, withLeader(r.Name, s.leader), "<Plug>("+name+")")
 		})
-	case plugin.Insert:
-		name := p.Name + ".insert." + r.Name
+	case api.Insert:
+		name := p.Name() + ".insert." + r.Name
 		e.pluginHelp["<Plug>("+name+")"] = r.Help
 		e.each(func(s *Session) {
 			s.vim.Command(name, func(t vim.Text, pos, _ int) []vim.Edit {
-				edits, _, _ := s.run(p, r.ID, s.scope(s.win.buf, t), uint64(pos), 0)
+				edits, _, _ := s.run(p, r.ID, s.scope(s.win.buf, t), pos)
 				return edits
 			})
 			s.vim.Map(vim.Insert, r.Name, "<Plug>("+name+")")
@@ -474,46 +474,40 @@ func (e *Session) about(b *buffer) api.Context {
 	return api.Context{"buffer": strconv.Itoa(b.id), "path": b.file.path, "filetype": e.filetype(b), "mode": modes[e.vim.Mode()]}
 }
 
-// run calls what p registered as id, through its call export, on the input
-// path, under its budget, against the current buffer, reading scope. It adds the
-// decorations the call asks for, and returns its edits, sorted, and what it
-// returned. A call that fails unloads p, and calls into an unloaded plugin
-// do nothing.
-func (e *Session) run(p *plugin.Plugin, id uint32, scope api.Scope, args ...uint64) ([]vim.Edit, []uint64, bool) {
+// run calls what p registered as id, on the input path, against the current
+// buffer, reading scope. It adds the decorations the call asks for, and
+// returns its edits, sorted, and what an object's call selected. A call that
+// fails unloads p, and calls into an unloaded module do nothing.
+func (e *Session) run(p api.Module, id uint32, scope api.Scope, args ...int) ([]vim.Edit, *[2]int, bool) {
 	// A guest may not call a plugin granted process, net or fs.read (B246).
-	if e.power != Host && slices.ContainsFunc(p.Capabilities, func(c string) bool { return c == "process" || c == "net" || c == "fs.read" }) {
+	if w, ok := p.(*plugin.Plugin); ok && e.power != Host && slices.ContainsFunc(w.Capabilities, func(c string) bool { return c == "process" || c == "net" || c == "fs.read" }) {
 		scope.Done()
-		e.message = "a guest may not use plugin " + p.Name
+		e.message = "a guest may not use plugin " + p.Name()
 		return nil, nil, false
 	}
-	if !slices.Contains(e.plugins, p) {
+	if !slices.Contains(e.modules, p) {
 		scope.Done()
-		e.message = fmt.Sprintf("plugin %s is unloaded", p.Name)
+		e.message = fmt.Sprintf("plugin %s is unloaded", p.Name())
 		return nil, nil, false
 	}
-	// call takes the id and three arguments, and the ones a kind does not
-	// use are 0.
-	full := make([]uint64, 4)
-	full[0] = uint64(id)
-	copy(full[1:], args)
 	at := time.Now()
-	res, err := p.CallNow(context.Background(), "call", scope, plugin.InputBudget, full...)
+	res, err := p.Call(context.Background(), id, scope, args...)
 	name := strconv.Itoa(int(id))
-	for _, r := range p.Registered {
+	for _, r := range p.Registered() {
 		if r.ID == id {
 			name = r.Name
 		}
 	}
-	trace.Record("plugin", p.Name+" ran "+name, time.Since(at))
+	trace.Record("plugin", p.Name()+" ran "+name, time.Since(at))
 	switch {
-	case errors.Is(err, plugin.ErrBusy):
+	case errors.Is(err, api.ErrBusy):
 		e.message = err.Error()
 		return nil, nil, false
 	case err != nil:
 		e.unload(p, err)
 		return nil, nil, false
 	}
-	return e.decorate(p, e.win.buf, res), res.Out, true
+	return e.decorate(p, e.win.buf, res), res.Selected, true
 }
 
 // logLine appends a line to fude's log, which is where a plugin's own log

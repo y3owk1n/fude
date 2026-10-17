@@ -27,9 +27,11 @@ func TestCount(t *testing.T) {
 }
 ```
 
-The text is the only open buffer. `Command`, `Key` and `Event` run what the plugin registered against it, and return the call's `plugin.Result`. `plugintest.Apply` makes the edits a result asks for. A timer, job, request or pick stays in the result, and the test runs its callback with `Callback`. `Log` returns what the plugin logged, and the calls it was denied.
+The text is the only open buffer. `Command`, `Key` and `Event` run what the plugin registered against it, and return the call's `api.Result`. `plugintest.Apply` makes the edits a result asks for. A timer, job, request or pick stays in the result, and the test runs its callback with `Callback`. `Log` returns what the plugin logged, and the calls it was denied.
 
 ## Hosting plugins
+
+A `*plugin.Plugin` is an `api.Module`, so a host runs plugins and its own Go modules through one interface.
 
 ```go
 p, err := plugin.Load(ctx, "upper.wasm", plugin.Grants{Capabilities: []string{"buffer.read", "buffer.write"}}, cacheDir, logLine)
@@ -40,14 +42,14 @@ defer p.Close(ctx)
 if _, err := p.Init(ctx, scope); err != nil {
 	return err
 }
-for _, r := range p.Registered {
+for _, r := range p.Registered() {
 	// r.Kind, r.Name, r.Help: bind each to your own command or key
 }
 ```
 
 - **A call reads an `api.Scope`.** It holds the text of the buffer the call is about, what the call is about by name (buffer, path, filetype, mode, a command's args), and every open buffer. A `Text` is anything with `Len`, `Slice`, `Lines`, `LineStart` and `LineOf`, and a `kernel.Snapshot` from [`core`](../core) is one as it is.
-- **A call returns a `Result`.** It embeds an `api.Result`, with the values the export returned in `Out`. It lists what the plugin asked for, and the host decides how to apply each: edits, decorations, a statusline segment, a float, a panel, a jump, a pick, timers, background jobs and language server requests.
-- **Calls take turns.** `CallNow` runs a registration through the plugin's `call` export, with its `ID` and arguments, under a budget such as `InputBudget`. It returns `ErrBusy` instead of waiting when another call is running. `Event` and `Callback` wait their turn, under `EventBudget`.
+- **A call returns an `api.Result`.** It lists what the plugin asked for, and the host decides how to apply each: edits, decorations, a statusline segment, a float, a panel, a jump, a pick, timers, background jobs and language server requests.
+- **Calls take turns.** `Call` runs a registration by its `ID`, with the arguments its kind takes, under `InputBudget`. It returns `api.ErrBusy` instead of waiting when another call is running. `Event` and `Callback` wait their turn, under `EventBudget`.
 - **Budgets.** A call that traps or runs past its budget returns an error, and nothing it asked for applies.
 - **Capabilities.** `Grants` lists the capabilities, the programs a plugin may run and the hosts it may fetch from. A call outside them returns an error to the plugin, and the log func gets a line about it.
 - **Background work.** `Work` runs a job a result asked for, a program or an HTTP get, with no budget. Then the host runs the plugin's callback with the output.

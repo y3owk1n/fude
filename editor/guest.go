@@ -8,7 +8,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/y3owk1n/fude/plugin"
+	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/vim"
 )
 
@@ -146,11 +146,11 @@ func OwnConfig() (Own, error) {
 func (e *Session) use(own Own) {
 	e.useKeys(own.Keymap, own.Leader)
 	if own.Leader != "" {
-		for _, p := range e.plugins {
-			for _, r := range p.Registered {
-				if r.Kind == plugin.Key {
+		for _, p := range e.modules {
+			for _, r := range p.Registered() {
+				if r.Kind == api.Key {
 					e.vim.Unmap(vim.Normal, withLeader(r.Name, e.leader))
-					e.vim.Map(vim.Normal, withLeader(r.Name, own.Leader), "<Plug>("+p.Name+"."+r.Name+")")
+					e.vim.Map(vim.Normal, withLeader(r.Name, own.Leader), "<Plug>("+p.Name()+"."+r.Name+")")
 				}
 			}
 		}

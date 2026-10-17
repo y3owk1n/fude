@@ -11,7 +11,6 @@ import (
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/internal/trace"
-	"github.com/y3owk1n/fude/plugin"
 )
 
 // event is something a plugin may subscribe to, about a buffer. detail is
@@ -30,7 +29,7 @@ type event struct {
 // the older one, so a plugin that falls behind hears the newest state only
 // (B57).
 type listener struct {
-	p       *plugin.Plugin
+	p       api.Module
 	mu      sync.Mutex
 	pending []event
 	wake    chan struct{}
@@ -42,7 +41,7 @@ type listener struct {
 // emit tells every plugin subscribed to name of b.
 func (ed *Editor) emit(name, detail string, b *buffer) {
 	for _, l := range ed.listeners {
-		if !slices.Contains(l.p.Subscribed, name) {
+		if !slices.Contains(l.p.Subscribed(), name) {
 			continue
 		}
 		l.put(event{name: name, detail: detail, buf: b}, func(ev, _ event) event { return ev })
@@ -79,7 +78,7 @@ func (ed *Editor) changed(b *buffer, edits []kernel.Edit) {
 	}
 	start, end := edits[0].Start, moved(edits, edits[len(edits)-1].End)
 	for _, l := range ed.listeners {
-		if !slices.Contains(l.p.Subscribed, "buffer.changed") {
+		if !slices.Contains(l.p.Subscribed(), "buffer.changed") {
 			continue
 		}
 		l.put(event{name: "buffer.changed", buf: b, start: start, end: end}, func(ev, old event) event {
@@ -107,7 +106,7 @@ func moved(edits []kernel.Edit, pos int) int {
 
 // listen returns p's listener, starting it the first time, which hands p
 // the events it subscribed to and the callbacks it asked for.
-func (e *Session) listen(p *plugin.Plugin) *listener {
+func (e *Session) listen(p api.Module) *listener {
 	if l := e.listeners[p]; l != nil {
 		return l
 	}
@@ -171,14 +170,14 @@ func (e *Session) listen(p *plugin.Plugin) *listener {
 					name += fmt.Sprintf(" %d %d", ev.start, ev.end)
 				}
 				at := time.Now()
-				var res plugin.Result
+				var res api.Result
 				var err error
 				if ev.name == "" {
 					res, err = p.Callback(context.Background(), ev.id, scope)
-					trace.Record("plugin", p.Name+" ran a callback", time.Since(at))
+					trace.Record("plugin", p.Name()+" ran a callback", time.Since(at))
 				} else {
 					res, err = p.Event(context.Background(), name, scope)
-					trace.Record("plugin", p.Name+" heard "+name, time.Since(at))
+					trace.Record("plugin", p.Name()+" heard "+name, time.Since(at))
 				}
 				if !on(func() { e.handled(p, err, ev.buf, t, res) }) {
 					return
@@ -192,9 +191,9 @@ func (e *Session) listen(p *plugin.Plugin) *listener {
 // handled does what p asked for when it heard of b at t. Its edits and
 // decorations apply only to the text it read, and an event about the newer
 // text follows when it changed since. Nothing applies to a closed buffer.
-func (e *Session) handled(p *plugin.Plugin, err error, b *buffer, t kernel.Snapshot, res plugin.Result) {
+func (e *Session) handled(p api.Module, err error, b *buffer, t kernel.Snapshot, res api.Result) {
 	switch {
-	case !slices.Contains(e.plugins, p):
+	case !slices.Contains(e.modules, p):
 	case err != nil:
 		e.unload(p, err)
 	case !slices.Contains(e.bufs, b):

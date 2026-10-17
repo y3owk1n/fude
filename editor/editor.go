@@ -17,9 +17,9 @@ import (
 
 	uv "github.com/charmbracelet/ultraviolet"
 
+	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/internal/trace"
-	"github.com/y3owk1n/fude/plugin"
 	"github.com/y3owk1n/fude/protocol/lsp"
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
@@ -35,8 +35,8 @@ type Editor struct {
 	theme   string     // the theme clients draw in, which :theme changes
 	base16  *[16]int32 // the colours of the base16 scheme it names
 	queue   chan func()
-	queries string // the directory of query files that replace shipped ones
-	plugins []*plugin.Plugin
+	queries string       // the directory of query files that replace shipped ones
+	modules []api.Module // the plugins that loaded, in the order they did
 	// What plugins add, for help and the key hints: what each command and
 	// key does, by :name and <Plug>(name), and their operators and objects.
 	pluginHelp     map[string]string
@@ -59,8 +59,8 @@ type Editor struct {
 	sessions       []*Session                      // the first is the one that opened the editor
 	setup          []func(*Session)                // what every session's machine gets, such as keymaps
 	proposed       int                             // the id of the newest proposal
-	listeners      map[*plugin.Plugin]*listener
-	segments       map[*plugin.Plugin]map[*buffer]string // what each plugin shows on the statusline of each buffer
+	listeners      map[api.Module]*listener
+	segments       map[api.Module]map[*buffer]string // what each plugin shows on the statusline of each buffer
 
 	now      func() time.Time       // the clock edits are stamped with
 	snippets map[string]snippetFile // each snippets file read, by path (B207)
@@ -141,7 +141,7 @@ func open(cfg config, paths []string) (*Session, error) {
 	if len(paths) == 0 {
 		paths = []string{""}
 	}
-	ed := &Editor{next: 1, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(*Session, call){}, decos: map[any][]decoration{}, servers: map[string]*server{}, down: map[string]string{}, building: map[string]bool{}, failed: map[string]string{}, listeners: map[*plugin.Plugin]*listener{}, segments: map[*plugin.Plugin]map[*buffer]string{}}
+	ed := &Editor{next: 1, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(*Session, call){}, decos: map[any][]decoration{}, servers: map[string]*server{}, down: map[string]string{}, building: map[string]bool{}, failed: map[string]string{}, listeners: map[api.Module]*listener{}, segments: map[api.Module]map[*buffer]string{}}
 	// Without a config directory there are no overrides, and loadConfig
 	// reports why.
 	if dir, err := xdgDir("XDG_CONFIG_HOME", ".config"); err == nil {
@@ -908,7 +908,7 @@ func (e *Session) quitAll(force bool) {
 		l.stop()
 		delete(e.listeners, p)
 	}
-	for _, p := range e.plugins {
+	for _, p := range e.modules {
 		p.Close(context.Background())
 	}
 	for _, s := range e.servers {

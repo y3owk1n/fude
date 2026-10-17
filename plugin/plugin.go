@@ -32,30 +32,8 @@ const (
 	EventBudget = 100 * time.Millisecond // on_event, off the input path
 )
 
-// Kind is what a plugin registers.
-type Kind int32
-
-// What a plugin registers during init. fude runs each through the plugin's
-// export call(id, a, b, c) i64, with the id it registered and these
-// arguments.
-const (
-	Command  Kind = iota // an ex command, called with (cursor, count)
-	Operator             // called with (start, end, linewise)
-	Object               // called with (start, end), returns start<<32|end or negative for none
-	Key                  // keys in normal mode, called with (cursor, count)
-	Insert               // keys in insert mode, called with (cursor, 0)
-)
-
 // maxJobs is how many of a plugin's jobs run at once. One more waits.
 const maxJobs = 8
-
-// Registration is one thing a plugin's init registered: its name, what it
-// does, and the id call runs it by.
-type Registration struct {
-	Kind       Kind
-	Name, Help string
-	ID         uint32
-}
 
 // memoryPages is the most memory a plugin may grow to, 64MB.
 const memoryPages = 1024
@@ -73,15 +51,11 @@ const (
 	errNet    = -6 // a host the plugin did not declare, or a request that failed
 )
 
-// ErrBusy is what a call on the input path returns while another call
-// runs, such as an event handler. The input path never waits for one.
-var ErrBusy = errors.New("is busy")
-
 // Plugin is one loaded wasm plugin. Calls into it take turns.
 type Plugin struct {
-	Name       string
-	Registered []Registration // what its init registered
-	Subscribed []string       // the events its init subscribed to
+	name       string
+	registered []fude.Registration // what its init registered
+	subscribed []string            // the events its init subscribed to
 	Grants
 	log  func(string)
 	root string // the project: the directory fude started in
@@ -99,14 +73,7 @@ type Plugin struct {
 type call struct {
 	name string
 	fude.Scope
-	Result
-}
-
-// Result is what one call into a plugin asked for, and the values its
-// export returned.
-type Result struct {
 	fude.Result
-	Out []uint64
 }
 
 // errBudget is a call that ran past its budget. The plugin is closed.
@@ -139,7 +106,7 @@ func Load(ctx context.Context, path string, g Grants, cacheDir string, log func(
 	if err != nil {
 		return nil, fmt.Errorf("load plugin: %w", err)
 	}
-	p := &Plugin{Name: strings.TrimSuffix(filepath.Base(path), ".wasm"), Grants: g, log: log, root: root, jobs: make(chan struct{}, maxJobs)}
+	p := &Plugin{name: strings.TrimSuffix(filepath.Base(path), ".wasm"), Grants: g, log: log, root: root, jobs: make(chan struct{}, maxJobs)}
 	if p.cache, err = wazero.NewCompilationCacheWithDir(cacheDir); err != nil {
 		return nil, fmt.Errorf("plugin cache: %w", err)
 	}
@@ -156,23 +123,32 @@ func Load(ctx context.Context, path string, g Grants, cacheDir string, log func(
 	if p.mod, err = p.runtime.InstantiateWithConfig(ictx, wasm, wazero.NewModuleConfig().WithStartFunctions()); err != nil {
 		p.Close(ctx)
 		if errors.Is(err, context.DeadlineExceeded) {
-			return nil, fmt.Errorf("plugin %s %w", p.Name, errBudget)
+			return nil, fmt.Errorf("plugin %s %w", p.name, errBudget)
 		}
-		return nil, fmt.Errorf("plugin %s: %w", p.Name, err)
+		return nil, fmt.Errorf("plugin %s: %w", p.name, err)
 	}
 	// The host writes events and answers into the plugin's memory through
 	// its alloc, so a plugin without them cannot run.
 	if p.mod.ExportedFunction("alloc") == nil || p.mod.ExportedMemory("memory") == nil {
 		p.Close(ctx)
-		return nil, fmt.Errorf("plugin %s exports no alloc or no memory", p.Name)
+		return nil, fmt.Errorf("plugin %s exports no alloc or no memory", p.name)
 	}
 	return p, nil
 }
 
+// Name is the plugin's file name without .wasm.
+func (p *Plugin) Name() string { return p.name }
+
+// Registered is what its init registered.
+func (p *Plugin) Registered() []fude.Registration { return p.registered }
+
+// Subscribed is the events its init subscribed to.
+func (p *Plugin) Subscribed() []string { return p.subscribed }
+
 // Init runs the plugin's _initialize, where a compiler puts its program's
 // setup, then its init, each when it exports one, together under
 // InitBudget. Both may register and subscribe.
-func (p *Plugin) Init(ctx context.Context, s fude.Scope) (Result, error) {
+func (p *Plugin) Init(ctx context.Context, s fude.Scope) (fude.Result, error) {
 	defer s.Done()
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -188,9 +164,9 @@ func (p *Plugin) Init(ctx context.Context, s fude.Scope) (Result, error) {
 		_, err := f.Call(ctx)
 		switch {
 		case errors.Is(err, context.DeadlineExceeded):
-			return Result{}, fmt.Errorf("plugin %s %w", p.Name, errBudget)
+			return fude.Result{}, fmt.Errorf("plugin %s %w", p.name, errBudget)
 		case err != nil:
-			return Result{}, fmt.Errorf("plugin %s: %s: %w", p.Name, name, err)
+			return fude.Result{}, fmt.Errorf("plugin %s: %s: %w", p.name, name, err)
 		}
 	}
 	return p.call.Result, nil
@@ -201,32 +177,43 @@ func (p *Plugin) Close(ctx context.Context) error {
 	return errors.Join(p.runtime.Close(ctx), p.cache.Close(ctx))
 }
 
-// CallNow runs the plugin's export name with args under budget, on the
-// input path, reading s. It returns what the call
-// asked for and returned, or ErrBusy instead of waiting for a call already
-// running. A call that traps or runs past its budget returns an error, and
-// nothing it asked for happens.
-func (p *Plugin) CallNow(ctx context.Context, name string, s fude.Scope, budget time.Duration, args ...uint64) (Result, error) {
+// Call runs what the plugin registered as id through its export call(id,
+// a, b, c) i64, under InputBudget, reading s. The arguments a kind does not
+// take are 0, and an object's export returns start<<32|end, or a negative
+// number for none. It returns api.ErrBusy instead of waiting for a call
+// already running. A call that traps or runs past its budget returns an
+// error, and nothing it asked for happens.
+func (p *Plugin) Call(ctx context.Context, id uint32, s fude.Scope, args ...int) (fude.Result, error) {
 	defer s.Done()
 	if !p.mu.TryLock() {
-		return Result{}, fmt.Errorf("plugin %s %w", p.Name, ErrBusy)
+		return fude.Result{}, fmt.Errorf("plugin %s %w", p.name, fude.ErrBusy)
 	}
 	defer p.mu.Unlock()
-	return p.run(ctx, name, s, budget, args...)
+	full := make([]uint64, 4)
+	full[0] = uint64(id)
+	for i, a := range args {
+		full[i+1] = uint64(a)
+	}
+	res, out, err := p.run(ctx, "call", s, InputBudget, full...)
+	if err == nil && len(out) > 0 && int64(out[0]) >= 0 && slices.ContainsFunc(p.registered, func(r fude.Registration) bool { return r.ID == id && r.Kind == fude.Object }) {
+		res.Selected = &[2]int{int(out[0] >> 32), int(uint32(out[0]))}
+	}
+	return res, err
 }
 
 // Callback runs the plugin's callback export with id, reading s, under
 // EventBudget. It waits for a call already running.
-func (p *Plugin) Callback(ctx context.Context, id uint32, s fude.Scope) (Result, error) {
+func (p *Plugin) Callback(ctx context.Context, id uint32, s fude.Scope) (fude.Result, error) {
 	defer s.Done()
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	return p.run(ctx, "callback", s, EventBudget, uint64(id))
+	res, _, err := p.run(ctx, "callback", s, EventBudget, uint64(id))
+	return res, err
 }
 
 // Event runs the plugin's on_event with the event's name, written into its
 // memory, reading s, under EventBudget (B57).
-func (p *Plugin) Event(ctx context.Context, name string, s fude.Scope) (Result, error) {
+func (p *Plugin) Event(ctx context.Context, name string, s fude.Scope) (fude.Result, error) {
 	defer s.Done()
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -234,16 +221,18 @@ func (p *Plugin) Event(ctx context.Context, name string, s fude.Scope) (Result, 
 	defer cancel()
 	out, err := p.mod.ExportedFunction("alloc").Call(ctx, uint64(len(name)))
 	if err != nil || len(out) == 0 || !p.mod.Memory().WriteString(uint32(out[0]), name) {
-		return Result{}, fmt.Errorf("plugin %s: write the event's name: %w", p.Name, cmp.Or(err, errors.New("no memory for it")))
+		return fude.Result{}, fmt.Errorf("plugin %s: write the event's name: %w", p.name, cmp.Or(err, errors.New("no memory for it")))
 	}
-	return p.run(ctx, "on_event", s, EventBudget, out[0], uint64(len(name)))
+	res, _, err := p.run(ctx, "on_event", s, EventBudget, out[0], uint64(len(name)))
+	return res, err
 }
 
-// run makes one call while p.mu is held.
-func (p *Plugin) run(ctx context.Context, name string, s fude.Scope, budget time.Duration, args ...uint64) (Result, error) {
+// run makes one call while p.mu is held, and returns what the call asked
+// for and what the export returned.
+func (p *Plugin) run(ctx context.Context, name string, s fude.Scope, budget time.Duration, args ...uint64) (fude.Result, []uint64, error) {
 	f := p.mod.ExportedFunction(name)
 	if f == nil {
-		return Result{}, fmt.Errorf("plugin %s has no %s", p.Name, name)
+		return fude.Result{}, nil, fmt.Errorf("plugin %s has no %s", p.name, name)
 	}
 	ctx, cancel := context.WithTimeout(ctx, budget)
 	defer cancel()
@@ -252,12 +241,11 @@ func (p *Plugin) run(ctx context.Context, name string, s fude.Scope, budget time
 	out, err := f.Call(ctx, args...)
 	switch {
 	case errors.Is(err, context.DeadlineExceeded):
-		return Result{}, fmt.Errorf("plugin %s %w", p.Name, errBudget)
+		return fude.Result{}, nil, fmt.Errorf("plugin %s %w", p.name, errBudget)
 	case err != nil:
-		return Result{}, fmt.Errorf("plugin %s: %w", p.Name, err)
+		return fude.Result{}, nil, fmt.Errorf("plugin %s: %w", p.name, err)
 	}
-	p.call.Out = out
-	return p.call.Result, nil
+	return p.call.Result, out, nil
 }
 
 // host adds the functions a plugin imports from "fude".
@@ -298,7 +286,7 @@ func (p *Plugin) host(ctx context.Context) error {
 		NewFunctionBuilder().WithFunc(p.open).Export("open").
 		Instantiate(ctx)
 	if err != nil {
-		return fmt.Errorf("plugin %s: %w", p.Name, err)
+		return fmt.Errorf("plugin %s: %w", p.name, err)
 	}
 	return nil
 }
@@ -309,13 +297,13 @@ func (p *Plugin) allowed(c, fn string) bool {
 	if slices.Contains(p.Capabilities, c) {
 		return true
 	}
-	p.log(fmt.Sprintf("%s: %s needs %s, which it did not declare", p.Name, fn, c))
+	p.log(fmt.Sprintf("%s: %s needs %s, which it did not declare", p.name, fn, c))
 	return false
 }
 
 func (p *Plugin) logText(_ context.Context, m api.Module, ptr, n uint32) {
 	if b, ok := m.Memory().Read(ptr, n); ok {
-		p.log(p.Name + ": " + string(b))
+		p.log(p.name + ": " + string(b))
 	}
 }
 
@@ -488,7 +476,7 @@ func (p *Plugin) readFile(ctx context.Context, m api.Module, ptr, n uint32) int6
 	}
 	data, err := p.read(string(name))
 	if err != nil {
-		p.log(fmt.Sprintf("%s: read_file: %v", p.Name, err))
+		p.log(fmt.Sprintf("%s: read_file: %v", p.name, err))
 		return errFile
 	}
 	return give(ctx, m, string(data))
@@ -508,7 +496,7 @@ func (p *Plugin) runProgram(ctx context.Context, m api.Module, ptr, n uint32) in
 	}
 	out, err := p.program(ctx, strings.Split(string(b), "\x00"), "")
 	if err != nil {
-		p.log(fmt.Sprintf("%s: %v", p.Name, err))
+		p.log(fmt.Sprintf("%s: %v", p.name, err))
 		return errRun
 	}
 	return give(ctx, m, out)
@@ -547,7 +535,7 @@ func (p *Plugin) start(_ context.Context, m api.Module, ptr, n, inPtr, inN, id u
 	}
 	argv := strings.Split(string(b), "\x00")
 	if !slices.Contains(p.Programs, argv[0]) {
-		p.log(fmt.Sprintf("%s: start %s, which it did not declare", p.Name, argv[0]))
+		p.log(fmt.Sprintf("%s: start %s, which it did not declare", p.name, argv[0]))
 		return errRun
 	}
 	p.call.Jobs = append(p.call.Jobs, fude.Job{ID: id, Argv: argv, Input: string(input)})
@@ -617,7 +605,7 @@ func (p *Plugin) httpGet(ctx context.Context, m api.Module, ptr, n uint32) int64
 	}
 	body, err := p.get(ctx, string(b))
 	if err != nil {
-		p.log(fmt.Sprintf("%s: http_get: %v", p.Name, err))
+		p.log(fmt.Sprintf("%s: http_get: %v", p.name, err))
 		return errNet
 	}
 	return give(ctx, m, string(body))
@@ -700,12 +688,12 @@ func (p *Plugin) register(_ context.Context, m api.Module, kind, nptr, nn, hptr,
 	name, ok1 := m.Memory().Read(nptr, nn)
 	help, ok2 := m.Memory().Read(hptr, hn)
 	switch {
-	case p.call == nil || p.call.name != "init" || Kind(kind) > Insert:
+	case p.call == nil || p.call.name != "init" || fude.Kind(kind) > fude.Insert:
 		return errDenied
 	case !ok1 || !ok2:
 		return errRange
 	}
-	p.Registered = append(p.Registered, Registration{Kind(kind), string(name), string(help), id})
+	p.registered = append(p.registered, fude.Registration{Kind: fude.Kind(kind), Name: string(name), Help: string(help), ID: id})
 	return 0
 }
 
@@ -719,7 +707,7 @@ func (p *Plugin) subscribe(_ context.Context, m api.Module, ptr, n uint32) int32
 	case !ok:
 		return errRange
 	}
-	p.Subscribed = append(p.Subscribed, string(name))
+	p.subscribed = append(p.subscribed, string(name))
 	return 0
 }
 
@@ -732,7 +720,7 @@ func (p *Plugin) emit(_ context.Context, m api.Module, ptr, n uint32) int32 {
 	case !ok:
 		return errRange
 	}
-	p.call.Emit = append(p.call.Emit, p.Name+"."+string(name))
+	p.call.Emit = append(p.call.Emit, p.name+"."+string(name))
 	return 0
 }
 
@@ -826,7 +814,7 @@ func (p *Plugin) open(_ context.Context, m api.Module, pos, ptr, n uint32) int32
 	}
 	path, err := p.inside(string(name))
 	if err != nil {
-		p.log(fmt.Sprintf("%s: open: %v", p.Name, err))
+		p.log(fmt.Sprintf("%s: open: %v", p.name, err))
 		return errFile
 	}
 	p.call.Jump = &fude.Jump{Path: path, Pos: int(pos)}

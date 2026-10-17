@@ -499,9 +499,10 @@ imports both.
 `internal/trace/`, since it is the editor's and holds process-wide state.
 Why: Go modules and wasm plugins share one API (D21), and `plugin/` is a
 module of its own (D45), which cannot import a package of the root.
-`Scope`, `Result` and what a `Result` asks for are in `api/`, and
-`plugin/` translates the ABI to them, adding only the values a wasm
-export returns. The cost is an eighth tag on every release (D37).
+`Scope`, `Result` and what a `Result` asks for are in `api/`, and so is
+`Module`, what fude makes calls into. A `*plugin.Plugin` is a `Module`.
+It translates the ABI to those types. The cost is an eighth tag on every
+release (D37).
 
 ## Departures from Neovim
 

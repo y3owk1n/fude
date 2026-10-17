@@ -25,6 +25,7 @@ type Result struct {
 	Timers     []Timer   // the callbacks to run later
 	Jobs       []Job     // the work to do in the background
 	Requests   []Request // the requests to send the buffer's language servers
+	Selected   *[2]int   // what an object's call selects, nil for none
 }
 
 // Job is a program to run or a URL to get in the background. Once it ends,

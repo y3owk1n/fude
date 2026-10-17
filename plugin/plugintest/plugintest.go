@@ -2,7 +2,7 @@
 // without fude. A test loads the plugin with the capabilities its
 // [[plugin]] table would give it, runs a command, a key or an event against
 // a text, and reads what the call asked for: its edits, decorations, status
-// and the rest of plugin.Result (B192).
+// and the rest of api.Result (B192).
 package plugintest
 
 import (
@@ -58,24 +58,24 @@ func (p *Plugin) Log() []string {
 
 // Command runs the plugin's ex command name with args against text, with
 // the cursor at cursor, and returns what it asked for.
-func (p *Plugin) Command(name, args, text string, cursor int) plugin.Result {
+func (p *Plugin) Command(name, args, text string, cursor int) api.Result {
 	p.t.Helper()
-	id := p.id(plugin.Command, name)
-	return p.call(scope(text, api.Context{"args": args, "bang": "false", "first": "0", "last": "0", "ranged": "false"}), uint64(id), uint64(cursor), 0)
+	id := p.id(api.Command, name)
+	return p.call(id, scope(text, api.Context{"args": args, "bang": "false", "first": "0", "last": "0", "ranged": "false"}), cursor, 0)
 }
 
 // Key runs the plugin's normal mode key keys against text, with the cursor
 // at cursor and count typed before it, and returns what it asked for.
-func (p *Plugin) Key(keys, text string, cursor, count int) plugin.Result {
+func (p *Plugin) Key(keys, text string, cursor, count int) api.Result {
 	p.t.Helper()
-	id := p.id(plugin.Key, keys)
-	return p.call(scope(text, nil), uint64(id), uint64(cursor), uint64(count))
+	id := p.id(api.Key, keys)
+	return p.call(id, scope(text, nil), cursor, count)
 }
 
 // Event tells the plugin of the event name, such as buffer.changed, about
 // text, and returns what it asked for. The name may carry its detail after
 // a space, as fude sends it, such as "buffer.changed 0 3".
-func (p *Plugin) Event(name, text string) plugin.Result {
+func (p *Plugin) Event(name, text string) api.Result {
 	p.t.Helper()
 	res, err := p.p.Event(context.Background(), name, scope(text, nil))
 	if err != nil {
@@ -86,7 +86,7 @@ func (p *Plugin) Event(name, text string) plugin.Result {
 
 // Callback runs the callback a timer, job, request or pick asked for by id,
 // against text, with what its context adds, such as a job's output.
-func (p *Plugin) Callback(id uint32, text string, extra api.Context) plugin.Result {
+func (p *Plugin) Callback(id uint32, text string, extra api.Context) api.Result {
 	p.t.Helper()
 	res, err := p.p.Callback(context.Background(), id, scope(text, extra))
 	if err != nil {
@@ -96,21 +96,19 @@ func (p *Plugin) Callback(id uint32, text string, extra api.Context) plugin.Resu
 }
 
 // id returns the id the plugin registered name of kind under, or fails.
-func (p *Plugin) id(kind plugin.Kind, name string) uint32 {
+func (p *Plugin) id(kind api.Kind, name string) uint32 {
 	p.t.Helper()
-	i := slices.IndexFunc(p.p.Registered, func(r plugin.Registration) bool { return r.Kind == kind && r.Name == name })
+	i := slices.IndexFunc(p.p.Registered(), func(r api.Registration) bool { return r.Kind == kind && r.Name == name })
 	if i < 0 {
 		p.t.Fatalf("the plugin registered no %s", name)
 	}
-	return p.p.Registered[i].ID
+	return p.p.Registered()[i].ID
 }
 
-// call runs the plugin's call export with args.
-func (p *Plugin) call(s api.Scope, args ...uint64) plugin.Result {
+// call runs what the plugin registered as id with args.
+func (p *Plugin) call(id uint32, s api.Scope, args ...int) api.Result {
 	p.t.Helper()
-	full := make([]uint64, 4)
-	copy(full, args)
-	res, err := p.p.CallNow(context.Background(), "call", s, plugin.InputBudget, full...)
+	res, err := p.p.Call(context.Background(), id, s, args...)
 	if err != nil {
 		p.t.Fatalf("call: %v", err)
 	}
@@ -118,7 +116,7 @@ func (p *Plugin) call(s api.Scope, args ...uint64) plugin.Result {
 }
 
 // Apply returns text with the edits res asks for made.
-func Apply(text string, res plugin.Result) string {
+func Apply(text string, res api.Result) string {
 	edits := slices.Clone(res.Edits)
 	slices.SortStableFunc(edits, func(a, b api.Edit) int { return b.Start - a.Start })
 	for _, e := range edits {

@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/y3owk1n/fude/plugin"
+	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
 )
@@ -425,10 +425,10 @@ func (e *Session) plugNames() []string {
 	for _, p := range plugs {
 		names = append(names, p.name)
 	}
-	for _, p := range e.plugins {
-		for _, r := range p.Registered {
-			if r.Kind == plugin.Key {
-				names = append(names, p.Name+"."+r.Name)
+	for _, p := range e.modules {
+		for _, r := range p.Registered() {
+			if r.Kind == api.Key {
+				names = append(names, p.Name()+"."+r.Name)
 			}
 		}
 	}
