@@ -3,6 +3,7 @@ package term
 import (
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"path/filepath"
 	"slices"
@@ -14,6 +15,7 @@ import (
 	"github.com/gdamore/tcell/v3/color"
 	"github.com/gdamore/tcell/v3/vt"
 	"github.com/y3owk1n/fude/editor"
+	"github.com/y3owk1n/fude/relay"
 	"github.com/y3owk1n/fude/syntax/syntaxtest"
 	"github.com/y3owk1n/fude/vim"
 )
@@ -810,9 +812,9 @@ func TestB239Attach(t *testing.T) {
 	}
 }
 
-// share makes host share on a port of the loopback, with a clipboard of
-// its own, and returns its share string.
-func share(t *testing.T, host *editor.Session, on func(func())) string {
+// share makes host share on a port of the loopback, or through the relay
+// at via, with a clipboard of its own, and returns its share string.
+func share(t *testing.T, host *editor.Session, on func(func()), via string) string {
 	t.Helper()
 	bin := t.TempDir()
 	board := filepath.Join(bin, "board")
@@ -826,7 +828,14 @@ func share(t *testing.T, host *editor.Session, on func(func())) string {
 	var unshare func()
 	var err error
 	var msg string
-	on(func() { unshare, err = host.Share("127.0.0.1:0"); msg = host.Message() })
+	on(func() {
+		if via == "" {
+			unshare, err = host.Share("127.0.0.1:0")
+		} else {
+			unshare, err = host.ShareRelay(via)
+		}
+		msg = host.Message()
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -874,6 +883,19 @@ func joining(share string) <-chan joined {
 	return ch
 }
 
+// refused joins with s and wants the join to end saying why.
+func refused(t *testing.T, s, why string) {
+	t.Helper()
+	select {
+	case j := <-joining(s):
+		if j.err == nil || !strings.HasSuffix(j.err.Error(), why) {
+			t.Errorf("a join said %v, want it to end with %q", j.err, why)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatalf("a join waited for the host, want it to end with %q", why)
+	}
+}
+
 type joined struct {
 	a   *Attached
 	err error
@@ -890,7 +912,7 @@ func TestB248Share(t *testing.T) {
 	t.Setenv("USER", "kyle")
 	host := startWith(t, "", path).e.(*editor.Session)
 	_, on := serve(t, host)
-	join := joining(share(t, host, on))
+	join := joining(share(t, host, on, ""))
 	// The host is asked, and y lets the guest in to a guest's session.
 	asked(t, host, on, "kyle")
 	on(func() { host.Feed("y") })
@@ -940,18 +962,8 @@ func TestB249ShareOnce(t *testing.T) {
 	t.Setenv("USER", "kyle")
 	host := startWith(t, "", "a.txt").e.(*editor.Session)
 	_, on := serve(t, host)
-	str := share(t, host, on)
-	refused := func(s, why string) {
-		t.Helper()
-		select {
-		case j := <-joining(s):
-			if j.err == nil || !strings.HasSuffix(j.err.Error(), why) {
-				t.Errorf("a join said %v, want it to end with %q", j.err, why)
-			}
-		case <-time.After(5 * time.Second):
-			t.Fatalf("a join waited for the host, want it to end with %q", why)
-		}
-	}
+	str := share(t, host, on, "")
+	refused := func(s, why string) { refused(t, s, why) }
 	feed := func(keys string) {
 		on(func() {
 			for _, k := range vim.Keys(keys) {
@@ -1041,7 +1053,7 @@ func TestB250WhoAndKick(t *testing.T) {
 		return msg
 	}
 	// Two guests called kyle are kyle and kyle2.
-	str := share(t, host, on)
+	str := share(t, host, on, "")
 	var guests []*Attached
 	for range 2 {
 		waiting := joining(str)
@@ -1074,5 +1086,111 @@ func TestB250WhoAndKick(t *testing.T) {
 	}
 	if who := ex("who"); who != "kyle" {
 		t.Errorf(":who after :kick said %q", who)
+	}
+}
+
+// relaying runs a relay on addr until the test ends, and returns its
+// address and a func that stops it.
+func relaying(t *testing.T, addr string) (string, func()) {
+	t.Helper()
+	l, err := net.Listen("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	served := make(chan struct{})
+	go func() {
+		relay.Serve(l)
+		close(served)
+	}()
+	stop := func() {
+		l.Close()
+		<-served
+	}
+	t.Cleanup(func() { l.Close() })
+	return l.Addr().String(), stop
+}
+
+// B251
+func TestB251Relay(t *testing.T) {
+	t.Chdir(t.TempDir())
+	if err := os.WriteFile("a.txt", []byte("hello\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("USER", "kyle")
+	host := startWith(t, "", "a.txt").e.(*editor.Session)
+	_, on := serve(t, host)
+	ex := func(line string) string {
+		var msg string
+		on(func() {
+			for _, k := range vim.Keys(":" + line + "<CR>") {
+				host.Feed(k)
+			}
+			msg = host.Message()
+		})
+		return msg
+	}
+	let := func(str string) {
+		t.Helper()
+		waiting := joining(str)
+		asked(t, host, on, "kyle")
+		on(func() { host.Feed("y") })
+		j := <-waiting
+		if j.err != nil {
+			t.Fatal(j.err)
+		}
+		t.Cleanup(func() { j.a.Close() })
+		c := &client{s: mock(t), e: j.a}
+		c.shows(t, 0, "hello")
+	}
+	// A relay that cannot be reached is an error.
+	dead, stopDead := relaying(t, "127.0.0.1:0")
+	stopDead()
+	var err error
+	on(func() { _, err = host.ShareRelay(dead) })
+	if err == nil {
+		t.Error("sharing through a relay no one runs gave no error")
+	}
+	// The share string names the relay and a room, and a guest joins
+	// through it, the TLS end to end.
+	addr, stop := relaying(t, "127.0.0.1:0")
+	str := share(t, host, on, addr)
+	if !strings.HasPrefix(str, addr+"/") || strings.Count(str, "/") != 3 {
+		t.Fatalf("the share string %q does not name the relay and a room", str)
+	}
+	printAt := strings.LastIndexByte(str[:strings.LastIndexByte(str, '/')], '/') + 1
+	flipped := str[:printAt] + string("AB"[strings.IndexByte("A", str[printAt])+1]) + str[printAt+1:]
+	refused(t, flipped, "its certificate is not the one the share string names")
+	let(str)
+	// The host holds a new place for the next guest.
+	let(shareString(t, ex("share")))
+	room := str[len(addr)+1 : printAt-1]
+	refused(t, strings.Replace(str, room, "nobody", 1), "no one shares in that room")
+	// When the relay goes away the host says so, and :share holds a new
+	// place once it is back.
+	stop()
+	for deadline := time.Now().Add(5 * time.Second); ; time.Sleep(time.Millisecond) {
+		var msg string
+		on(func() { msg = host.Message() })
+		if strings.HasPrefix(msg, "lost the relay at "+addr) {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("the host said %q when the relay went away", msg)
+		}
+	}
+	relaying(t, addr)
+	if msg := ex("share"); msg != "holding a new place at the relay" {
+		t.Fatalf(":share after the relay went away said %q", msg)
+	}
+	for deadline := time.Now().Add(5 * time.Second); ; time.Sleep(time.Millisecond) {
+		var msg string
+		on(func() { msg = host.Message() })
+		if strings.HasPrefix(msg, "copied") {
+			let(shareString(t, msg))
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf(":share after the relay came back said %q", msg)
+		}
 	}
 }

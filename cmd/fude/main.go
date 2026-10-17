@@ -11,6 +11,7 @@ import (
 
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/plugin"
+	"github.com/y3owk1n/fude/relay"
 	"github.com/y3owk1n/fude/ui/term"
 )
 
@@ -107,6 +108,24 @@ func join(args []string) error {
 	return nil
 }
 
+// relays runs fude relay [address], which passes shares through until the
+// process ends (B251).
+func relays(args []string) error {
+	if len(args) > 1 {
+		return errors.New("usage: fude relay [address]")
+	}
+	addr := ""
+	if len(args) == 1 {
+		addr = args[0]
+	}
+	l, err := net.Listen("tcp", relay.WithPort(addr))
+	if err != nil {
+		return fmt.Errorf("relay: %w", err)
+	}
+	fmt.Println("fude relays on", l.Addr())
+	return relay.Serve(l)
+}
+
 func main() {
 	if err := run(os.Args[1:]); err != nil {
 		fmt.Fprintln(os.Stderr, "fude:", err)
@@ -139,11 +158,18 @@ func run(args []string) error {
 	if len(args) > 0 && args[0] == "--join" {
 		return join(args[1:])
 	}
-	// --share takes an address when the word after it is one (B248).
-	sharing, address := len(args) > 0 && args[0] == "--share", ":0"
+	if len(args) > 0 && args[0] == "relay" {
+		return relays(args[1:])
+	}
+	// --share takes an address when the word after it is one (B248), or
+	// --relay and the relay's (B251).
+	sharing, address, via := len(args) > 0 && args[0] == "--share", ":0", ""
 	if sharing {
 		args = args[1:]
-		if len(args) > 0 {
+		switch {
+		case len(args) > 1 && args[0] == "--relay":
+			via, args = args[1], args[2:]
+		case len(args) > 0:
 			if _, _, err := net.SplitHostPort(args[0]); err == nil {
 				address, args = args[0], args[1:]
 			}
@@ -158,7 +184,11 @@ func run(args []string) error {
 	}
 	stop := e.Serve(e.SocketPath())
 	if sharing {
-		unshare, err := e.Share(address)
+		share := e.Share
+		if via != "" {
+			address, share = via, e.ShareRelay
+		}
+		unshare, err := share(address)
 		if err != nil {
 			stop()
 			return err

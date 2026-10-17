@@ -18,6 +18,7 @@ import (
 	"github.com/y3owk1n/fude/clipboard"
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/editor"
+	"github.com/y3owk1n/fude/relay"
 	"github.com/y3owk1n/fude/vim"
 )
 
@@ -61,14 +62,15 @@ func Join(share string) (*Attached, error) {
 		return nil, fmt.Errorf("join: %q is not a share string", share)
 	}
 	addr, print, secret := share[:j], share[j+1:i], share[i+1:]
-	c, err := tls.Dial("tcp", addr, &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS13, VerifyConnection: func(cs tls.ConnectionState) error {
+	cfg := &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS13, VerifyConnection: func(cs tls.ConnectionState) error {
 		// The share string's fingerprint is the certificate to trust.
 		sum := sha256.Sum256(cs.PeerCertificates[0].Raw)
 		if base64.RawURLEncoding.EncodeToString(sum[:]) != print {
 			return errors.New("its certificate is not the one the share string names")
 		}
 		return nil
-	}})
+	}}
+	c, err := dialShare(addr, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("join %s: %w", addr, err)
 	}
@@ -77,6 +79,25 @@ func Join(share string) (*Attached, error) {
 		return nil, fmt.Errorf("join %s: %w", addr, err)
 	}
 	return a, nil
+}
+
+// dialShare dials the host at addr with TLS, or through the relay and room
+// that addr names as relay/room (B251).
+func dialShare(addr string, cfg *tls.Config) (net.Conn, error) {
+	via, room, ok := strings.Cut(addr, "/")
+	if !ok {
+		return tls.Dial("tcp", addr, cfg)
+	}
+	raw, err := relay.Join(via, room)
+	if err != nil {
+		return nil, err
+	}
+	c := tls.Client(raw, cfg)
+	if err := c.Handshake(); err != nil {
+		c.Close()
+		return nil, err
+	}
+	return c, nil
 }
 
 // begin sends hello on c and, once fude answers, reads its frames and

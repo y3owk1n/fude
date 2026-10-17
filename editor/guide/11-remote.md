@@ -54,6 +54,15 @@ An address after `--share` listens there, such as a VPN's.
 fude --share 100.64.0.2:7000 main.go
 ```
 
+When neither machine can reach the other, such as across the internet,
+run a relay on a machine both reach, and share through it. The relay
+passes the encrypted bytes and cannot read them.
+
+```sh
+fude relay               # on the server, port 7418
+fude --share --relay my.server.com main.go
+```
+
 A share string lets one guest in, and `:share` shows a new one for the
 next. `:who` lists the guests, and `:kick name` ends one's session.
 Quitting fude ends the share.

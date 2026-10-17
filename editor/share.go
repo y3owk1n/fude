@@ -23,14 +23,25 @@ import (
 	"time"
 
 	"github.com/y3owk1n/fude/core/kernel"
+	"github.com/y3owk1n/fude/relay"
 )
 
-// share is fude listening for guests (B248).
+// share is fude listening for guests (B248), or holding places for them
+// at a relay (B251).
 type share struct {
-	addr    string // where guests reach fude
+	addr    string // where guests reach fude, or the relay and room
 	print   string // the certificate's SHA-256 fingerprint, base64url
 	secret  string // the next guest's secret, "" once used
 	waiting bool   // a join waits for the host's answer
+
+	cfg     *tls.Config
+	stopped chan struct{} // closed when the share ends
+	via     string        // the relay's address, "" without one
+	room    string
+	lost    bool // the relay went away, until :share holds a new place
+
+	mu    sync.Mutex // over place, which the share's end closes
+	place *relay.Place
 }
 
 // Hello is the first line a joining guest sends.
@@ -43,42 +54,140 @@ type Hello struct {
 // share string as invite does (B248). It returns a func that stops
 // listening and ends each join still waiting.
 func (e *Session) Share(address string) (func(), error) {
-	cert, print, err := certificate()
+	sh, err := newShare()
 	if err != nil {
 		return nil, fmt.Errorf("share: %w", err)
 	}
-	l, err := tls.Listen("tcp", address, &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS13})
+	l, err := tls.Listen("tcp", address, sh.cfg)
 	if err != nil {
 		return nil, fmt.Errorf("share: %w", err)
 	}
-	addr, err := reachable(l.Addr().(*net.TCPAddr), address)
-	if err != nil {
+	if sh.addr, err = reachable(l.Addr().(*net.TCPAddr), address); err != nil {
 		l.Close()
 		return nil, fmt.Errorf("share: %w", err)
 	}
-	e.share = &share{addr: addr, print: print}
+	e.share = sh
 	e.invite()
-	stopped := make(chan struct{})
 	go func() {
 		for {
 			c, err := l.Accept()
 			if err != nil {
 				return
 			}
-			go e.admit(c, stopped)
+			go e.admit(c, sh.stopped)
 		}
 	}()
 	var once sync.Once
-	return func() { once.Do(func() { close(stopped); l.Close() }) }, nil
+	return func() { once.Do(func() { close(sh.stopped); l.Close() }) }, nil
 }
 
-// reshare shows a new share string, as :share does (B249).
-func (e *Session) reshare() {
-	if e.share == nil {
-		e.message = "fude is not sharing, so start it with fude --share"
-		return
+// ShareRelay shares through the relay at addr, holding a place in a new
+// room for guests to take, and offers the share string as invite does
+// (B251). It returns a func that ends the share.
+func (e *Session) ShareRelay(addr string) (func(), error) {
+	sh, err := newShare()
+	if err != nil {
+		return nil, fmt.Errorf("share: %w", err)
 	}
+	room := make([]byte, 16)
+	rand.Read(room)
+	sh.via, sh.room = addr, base64.RawURLEncoding.EncodeToString(room)
+	sh.addr = relay.WithPort(addr) + "/" + sh.room
+	p, err := relay.Offer(addr, sh.room)
+	if err != nil {
+		return nil, fmt.Errorf("share through %s: %w", addr, err)
+	}
+	e.share = sh
 	e.invite()
+	e.hold(p)
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			close(sh.stopped)
+			sh.mu.Lock()
+			defer sh.mu.Unlock()
+			if sh.place != nil {
+				sh.place.Close()
+			}
+		})
+	}, nil
+}
+
+// hold waits off the loop for a guest to take p, and holds a new place
+// each time one does. When the relay goes away it says so (B251).
+func (e *Session) hold(p *relay.Place) {
+	sh := e.share
+	sh.mu.Lock()
+	sh.place = p
+	sh.mu.Unlock()
+	go func() {
+		for {
+			c, err := p.Take()
+			if err == nil {
+				go e.admit(tls.Server(c, sh.cfg), sh.stopped)
+				p, err = relay.Offer(sh.via, sh.room)
+			}
+			sh.mu.Lock()
+			select {
+			case <-sh.stopped:
+				if err == nil {
+					p.Close()
+				}
+				sh.mu.Unlock()
+				return
+			default:
+			}
+			if err != nil {
+				sh.place = nil
+				sh.mu.Unlock()
+				e.queue <- func() {
+					sh.lost = true
+					e.sessions[0].message = fmt.Sprintf("lost the relay at %s: %v, so guests cannot join until :share", sh.via, err)
+				}
+				return
+			}
+			sh.place = p
+			sh.mu.Unlock()
+		}
+	}()
+}
+
+// newShare makes a share's certificate and the TLS that serves it.
+func newShare() (*share, error) {
+	cert, print, err := certificate()
+	if err != nil {
+		return nil, err
+	}
+	cfg := &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS13}
+	return &share{print: print, cfg: cfg, stopped: make(chan struct{})}, nil
+}
+
+// reshare shows a new share string, as :share does (B249). After the relay
+// went away it holds a new place there first (B251).
+func (e *Session) reshare() {
+	sh := e.share
+	switch {
+	case sh == nil:
+		e.message = "fude is not sharing, so start it with fude --share"
+	case sh.lost:
+		// A second :share while this one waits finds the place being held.
+		sh.lost = false
+		e.message = "holding a new place at the relay"
+		go func() {
+			p, err := relay.Offer(sh.via, sh.room)
+			e.queue <- func() {
+				if err != nil {
+					sh.lost = true
+					e.message = fmt.Sprintf("the relay at %s: %v", sh.via, err)
+					return
+				}
+				e.hold(p)
+				e.invite()
+			}
+		}()
+	default:
+		e.invite()
+	}
 }
 
 // invite shows a new share string, and puts the command that joins with it
