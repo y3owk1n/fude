@@ -1582,10 +1582,17 @@ session takes in place of the host's (B254). The client keeps the theme
 and draws in it. It reads a base16 file on its own machine, so nothing
 of the theme reaches the host.
 
+### Read-only joins and following
+
+`fude --join --read-only` sets `read_only` in its first line, the host's
+question names it, and the session is `ReadOnly` (B247, B255). `:follow
+name` stores the session's current window and the session it follows.
+`Views` first moves that window to the other's buffer, top and cursor,
+so each frame and draw shows where the other is. `Feed` and `Paste` end
+following, since keys typed at the other's cursor would edit there
+(B256).
+
 ### Later phases
 
-- `fude --join --read-only`, which asks for a read-only guest (B247),
-  and `:follow name`, which keeps a window on the other session's buffer
-  and view.
 - Attaching through a replica, so keys need no round trip on a slow link
   (D24, B98).
