@@ -158,6 +158,7 @@ func build(t theme) styles {
 	}
 	s.underlines = map[string]color.Color{
 		"diagnostic.error": t.err, "diagnostic.warn": t.warn, "diagnostic.info": t.info, "diagnostic.hint": t.hint,
+		"spell.bad": t.hint,
 	}
 	s.signColours = map[string]color.Color{
 		"diagnostic.error": t.err, "diagnostic.warn": t.warn, "diagnostic.info": t.info, "diagnostic.hint": t.hint,

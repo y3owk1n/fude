@@ -776,6 +776,22 @@ Where fude departs, the line says so and cites the departure in
   pattern with a predicate it does not evaluate, such as Objective-C's
   `#has-ancestor?`, and applies the rest of the query. Edited text keeps
   its colour until the next parse.
+- B259 [3] With `spell` on, a window underlines the words its word list
+  lacks. The list is the file `spell_words` names, or
+  `/usr/share/dict/words` without it, and `words.txt` in fude's config
+  directory. In Markdown, text, git commit and files of no filetype,
+  spell checks all the text but code and links. Elsewhere it checks the
+  comments and strings. A word passes when the
+  list has it, in lower case too, or has it without an ending of a
+  plural or a contraction, which lists such as macOS's leave out. A word
+  with a capital after its first letter, or a digit or one of `_ . / @ \`
+  beside it, is a name or a path and passes. A list that fails to read
+  says so once, and spell then finds nothing. `spell` is an option, and
+  a filetype table may set it.
+- B260 [3] `]s` and `[s` go to the next and previous word spell finds,
+  wrapping at the ends. `z=` lists the words of the list closest to the
+  one under the cursor, and the one chosen replaces it. `zg` adds the
+  word under the cursor to `words.txt`, so spell passes it.
 
 ## Plugins
 

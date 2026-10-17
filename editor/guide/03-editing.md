@@ -92,6 +92,20 @@ In insert mode, `<C-w>` deletes the word before the cursor and `<C-u>`
 the line before it. `<C-r>a` types register `a`, `<C-t>` and `<C-d>`
 indent and dedent the line, and `<C-o>` runs one normal mode command.
 
+## Spelling
+
+`:set spell` underlines words the word list lacks: all of a Markdown,
+text or git commit file but its code, and the comments and strings of
+code. `]s` and `[s` go to them, `z=` lists words for the one under the
+cursor, and `zg` adds it to your own words. `:set nospell` turns it
+off, and `:set spell!` flips it. The list is `/usr/share/dict/words`,
+or the file `spell_words` names.
+
+```toml
+[filetype.markdown]
+spell = true
+```
+
 ## Next
 
 - `guide-windows` works with several files.

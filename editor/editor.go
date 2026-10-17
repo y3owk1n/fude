@@ -52,6 +52,8 @@ type Editor struct {
 	share          *share                          // the guests' listener, while fude shares (B248)
 	clients        atomic.Int64                    // the attached clients yet to have their last frame (B242)
 	began          int                             // how many sessions began, for the next one's colour (B252)
+	dict           map[string]bool                 // the words spell knows, once read (B259)
+	reading        bool                            // the words are being read, or failed to
 	sessions       []*Session                      // the first is the one that opened the editor
 	setup          []func(*Session)                // what every session's machine gets, such as keymaps
 	proposed       int                             // the id of the newest proposal

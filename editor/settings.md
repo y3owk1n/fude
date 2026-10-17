@@ -176,12 +176,27 @@ name, the current one lit and a modified one marked ●. `:b 3` shows
 buffer 3. With it off, the windows take the top row and only `:ls` and
 `:pick buffers` list the buffers.
 
+## spell_words
+
+The word list spell checks against, one word a line, and
+`/usr/share/dict/words` when unset, which macOS ships and Linux has with
+the `words` package. Words `zg` adds go in `words.txt` in fude's config
+directory, which spell reads too.
+
 ## theme
 
 `dark`, `light`, or the path of a base16 scheme, such as stylix's
 `palette.json` or a Tinted Theming scheme, whose sixteen colours fude draws
 in. A path may start with `~/`. `:theme` switches the theme until fude
 quits.
+
+## spell
+
+Underlines the words the word list lacks: all the text of Markdown, text
+and git commit files but their code and links, and the comments and
+strings of other files. `]s` and `[s` go to them, `z=` lists words for
+the one under the cursor, and `zg` adds it to your words. A filetype
+table may turn it on, as `[filetype.markdown] spell = true`.
 
 ## number
 
@@ -378,6 +393,12 @@ shows one of them, as `expand_tab` does.
 [filetype.gitcommit]
 color_column = 73
 ```
+
+## filetype.spell
+
+Turns `spell` on or off in a file of the type, over the setting outside
+the table. `[filetype.markdown] spell = true` checks the prose you write
+and leaves code alone.
 
 ## filetype.lsp
 

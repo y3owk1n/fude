@@ -301,6 +301,10 @@ func init() {
 		{"git.first", "goes to the first hunk", func(e *Session, count int) { e.jumpHunk("first", max(count, 1)) }},
 		{"git.last", "goes to the last hunk", func(e *Session, count int) { e.jumpHunk("last", max(count, 1)) }},
 		{"git.preview", "shows the hunk under the cursor as git's index has it", func(e *Session, _ int) { e.previewHunk() }},
+		{"spell.next", "goes to the next misspelled word", func(e *Session, _ int) { e.stepTypo(false) }},
+		{"spell.prev", "goes to the misspelled word before", func(e *Session, _ int) { e.stepTypo(true) }},
+		{"spell.suggest", "lists words for the one under the cursor, and the one chosen replaces it", func(e *Session, _ int) { e.suggest() }},
+		{"spell.good", "adds the word under the cursor to your words", func(e *Session, _ int) { e.good() }},
 		{"window.left", "goes to the window, or tmux pane, to the left", func(e *Session, _ int) { e.navigate('h') }},
 		{"window.down", "goes to the window, or tmux pane, below", func(e *Session, _ int) { e.navigate('j') }},
 		{"window.up", "goes to the window, or tmux pane, above", func(e *Session, _ int) { e.navigate('k') }},
@@ -411,6 +415,7 @@ var defaultMaps = map[string]string{
 	"<C-]>": "<Plug>(lsp.definition)", "K": "<Plug>(lsp.hover)",
 	"]d": "<Plug>(diagnostic]d)", "[d": "<Plug>(diagnostic[d)",
 	"s":  "<Plug>(jump)",
+	"]s": "<Plug>(spell.next)", "[s": "<Plug>(spell.prev)", "z=": "<Plug>(spell.suggest)", "zg": "<Plug>(spell.good)",
 	"za": "<Plug>(fold.toggle)", "zc": "<Plug>(fold.close)", "zo": "<Plug>(fold.open)", "zR": "<Plug>(fold.openAll)", "zM": "<Plug>(fold.closeAll)",
 }
 

@@ -47,6 +47,7 @@ type config struct {
 	Leader          string   `toml:"leader" help:"what <Leader> in a mapping stands for"` // N18
 	Theme           string   `toml:"theme" help:"the colours: dark, light or a base16 scheme file"`
 	BufferLine      bool     `toml:"buffer_line" help:"the top row lists the open buffers once two or more are"`
+	SpellWords      string   `toml:"spell_words" help:"the word list spell checks against, one word a line"`
 	options
 	Keymap   keymap `toml:"keymap"`
 	Filetype map[string]struct {
@@ -60,6 +61,7 @@ type config struct {
 		ExpandTab    *bool    `toml:"expand_tab" help:"files of the type indent with spaces only"`
 		Wrap         *bool    `toml:"wrap" help:"long lines in files of the type go on the rows below"`
 		ColorColumn  *int     `toml:"color_column" help:"the column shaded in files of the type, 0 for none"`
+		Spell        *bool    `toml:"spell" help:"spell checks files of the type"`
 	} `toml:"filetype" key:"type"`
 	LSP map[string]struct {
 		Command     []string       `toml:"command" help:"the server's command, its name when unset"`
@@ -103,7 +105,7 @@ type keymap struct {
 	Groups   map[string]string `toml:"groups" help:"names of the keys mappings start with, which key hints show"`
 }
 
-var defaults = config{TabWidth: 8, Editorconfig: true, KeyTimeout: 1000, KeyHints: 300, FlashTime: 300, FormatTimeout: 1000, LargeFile: 2, TerminalHeight: 33, SplitBelow: true, SplitRight: true, HighlightColors: true, InlayHints: true, StickyContext: true, Autopairs: true, Sources: []string{"lsp", "snippet", "path", "buffer"}, AutoInstall: true, BufferLine: true, Leader: "<Space>", Theme: "dark", options: options{Wrap: true, IndentGuides: true}}
+var defaults = config{TabWidth: 8, Editorconfig: true, KeyTimeout: 1000, KeyHints: 300, FlashTime: 300, FormatTimeout: 1000, LargeFile: 2, TerminalHeight: 33, SplitBelow: true, SplitRight: true, HighlightColors: true, InlayHints: true, StickyContext: true, Autopairs: true, Sources: []string{"lsp", "snippet", "path", "buffer"}, AutoInstall: true, BufferLine: true, SpellWords: "/usr/share/dict/words", Leader: "<Space>", Theme: "dark", options: options{Wrap: true, IndentGuides: true}}
 
 // options are the settings each window has, which :set changes for the
 // current window and the windows opened after it (B39). :set takes each by
@@ -123,6 +125,7 @@ type options struct {
 	IndentGuides   bool `toml:"indent_guides" help:"draws a faint line at each indent level"`
 	ColorColumn    int  `toml:"color_column" help:"shades this column of the text, and is how wide :center makes it, 0 for none"`
 	Icons          bool `toml:"icons" help:"shows nerd font icons in listings and signs"`
+	Spell          bool `toml:"spell" help:"underlines words the word list lacks, in prose and in comments and strings"`
 }
 
 // loadConfig reads config.toml. A missing file is no error. After an error
