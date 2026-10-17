@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/y3owk1n/fude/core/kernel"
-	"github.com/y3owk1n/fude/lsp"
+	"github.com/y3owk1n/fude/protocol/lsp"
 )
 
 // hinted names the inlay hints a server sent for a buffer.

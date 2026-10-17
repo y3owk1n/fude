@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/y3owk1n/fude/editor"
-	"github.com/y3owk1n/fude/lsp"
+	"github.com/y3owk1n/fude/protocol/lsp"
 )
 
 // TestFakeServer is a language server when FUDE_FAKE_LSP is set, which tests

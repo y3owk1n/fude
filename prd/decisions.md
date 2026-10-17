@@ -341,11 +341,11 @@ functions anyway.
 
 ## D37. The modules are released together, and the first release brings go install
 
-fude's modules are the root, `core/`, `vim/`, `syntax/` and `sdk/`. They
-take one version together, tagged `vX.Y.Z`, `core/vX.Y.Z`, `vim/vX.Y.Z`,
-`syntax/vX.Y.Z` and `sdk/vX.Y.Z` on one commit. Until the first release,
-the root's `go.mod` points at `core/`, `vim/` and `syntax/` through
-`replace` lines, so `go install` refuses it and
+fude's modules are the root, `core/`, `vim/`, `syntax/`, `protocol/` and
+`sdk/`. They take one version together, tagged `vX.Y.Z`, `core/vX.Y.Z`,
+`vim/vX.Y.Z`, `syntax/vX.Y.Z`, `protocol/vX.Y.Z` and `sdk/vX.Y.Z` on one
+commit. Until the first release, the root's `go.mod` points at `core/`,
+`vim/`, `syntax/` and `protocol/` through `replace` lines, so `go install` refuses it and
 fude builds from a clone. A release drops the `replace` lines and requires
 the tags, which makes `go install github.com/y3owk1n/fude/cmd/fude@vX.Y.Z`
 work. `just standalone` builds every module outside the workspace, so a
@@ -428,12 +428,12 @@ third party's account.
 ## D42. fude's own debug adapter client
 
 fude speaks the Debug Adapter Protocol to adapters such as Delve and
-debugpy through `dap/`, its own client, built on the standard library
+debugpy through `protocol/dap/`, its own client, built on the standard library
 alone. The adapter, the launch settings and the keys are the user's
 choice: config.toml names adapters per filetype, as it names language
 servers, `.fude/launch.toml` holds a project's launch settings, as
 `.fude/tasks.toml` holds its tasks, and leader keys drive it. Why: DAP
-frames messages as LSP does, so `framing/` serves both, and the rest is
+frames messages as LSP does, so `protocol/framing/` serves both, and the rest is
 requests, responses and events. No Go DAP library is worth a
 dependency for that. The user chose the core of nvim-dap and dap-ui on
 2026-10-17: breakpoints, launch and attach, stepping, the stack,
@@ -447,6 +447,17 @@ parse and highlight, since `api.Trace` belongs to the editor. Why: a
 program that wants tree-sitter highlights, tree targets and grammars
 built on first use imports it without the editor, wazero or a terminal.
 The cost is a fifth tag on every release (D37).
+
+## D44. lsp, dap and framing are one Go module, protocol
+
+`protocol/` has its own `go.mod` and holds `lsp/`, `dap/` and `framing/`.
+It imports only the standard library. `lsp/` reads text through its own
+`Text` and `Edit`, and both clients take a trace func from their host, as
+`syntax/` does (D43). Why: a program that talks to language servers or
+debug adapters imports them without the editor, cgo, wazero or a
+terminal. The two clients share `framing/`, so one module holds all three
+rather than three modules that require each other. The cost is a sixth
+tag on every release (D37).
 
 ## Departures from Neovim
 

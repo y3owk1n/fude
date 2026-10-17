@@ -36,7 +36,10 @@ editor/          the editor loop, config, event queues, budgets, the vim host
 syntax/          Go module: tree-sitter parsing, highlights, tree targets,
                  the only cgo, no dependency on fude's other packages
 plugin/          wazero host, the ABI that mirrors api/
-lsp/             language server client
+protocol/        Go module: stdlib only, no dependency on fude's other packages
+  lsp/           language server client
+  dap/           debug adapter client
+  framing/       the Content-Length frames both use
 ui/term/         terminal client
 client/          a client over the socket, with replicas of buffers
 clipboard/       the system clipboard, through pbcopy, wl-copy or xclip
@@ -1216,8 +1219,8 @@ server exits before it answers, fude counts its answer as empty (B169). The root
 folder above the file holding the
 first marker found, or else the file's folder. fude sends it as the
 server's `rootUri` and its only workspace folder (B167). It talks to it over stdio with JSON-RPC
-from the standard library, through `lsp/`, which reads text through
-`api.Text`.
+from the standard library, through `protocol/lsp/`. It reads text through
+its own `Text` and `Edit`, and `protocol/` is a Go module of its own (D44).
 
 fude offers the server `utf-8`, then `utf-16`, in `positionEncodings`.
 rust-analyzer and clangd take `utf-8`. gopls and most others answer
@@ -1424,7 +1427,7 @@ client's call, and a line of fude's log. `api.Trace` is safe on any
 goroutine. It takes a mutex, stamps the time and a sequence number, and
 keeps the event in a ring of the last 4096. With no tail watching that is
 all it does. It does no I/O, and it adds about 40µs to key latency at p99.
-A library in a module of its own, such as `syntax/`, takes a trace func
+A library in a module of its own, such as `syntax/` or `protocol/`, takes a trace func
 from its host instead.
 
 A client's `tail` call gets an empty reply, then the kept events and each
@@ -1605,10 +1608,10 @@ typed at the other's cursor would edit there (B256).
 
 ## Debugging (step 8)
 
-`dap/` is the client, shaped as `lsp/` is: an outbox a goroutine writes,
+`protocol/dap/` is the client, shaped as `protocol/lsp/` is: an outbox a goroutine writes,
 a reader that queues each response and event on the loop, and a pending
 map only the loop touches. Both read and write frames through
-`framing/`. A command with `{port}` listens on that port, which fude
+`protocol/framing/`. A command with `{port}` listens on that port, which fude
 dials until the process ends or five seconds pass. Others speak on
 stdio.
 

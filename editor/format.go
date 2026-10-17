@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/y3owk1n/fude/core/kernel"
-	"github.com/y3owk1n/fude/lsp"
+	"github.com/y3owk1n/fude/protocol/lsp"
 	"github.com/y3owk1n/fude/vim"
 )
 

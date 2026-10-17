@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/y3owk1n/fude/core/kernel"
-	"github.com/y3owk1n/fude/lsp"
+	"github.com/y3owk1n/fude/protocol/lsp"
 )
 
 // Colour is text a window shows on the colour it names (B208, B209).

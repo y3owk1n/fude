@@ -17,8 +17,9 @@ import (
 
 	"github.com/pelletier/go-toml/v2"
 
+	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/core/kernel"
-	"github.com/y3owk1n/fude/dap"
+	"github.com/y3owk1n/fude/protocol/dap"
 	"github.com/y3owk1n/fude/vim"
 )
 
@@ -190,6 +191,7 @@ func (e *Session) launch(name string, l launch) {
 	args := expandVars(l.Args, map[string]string{"{file}": file, "{dir}": filepath.Dir(file), "{project}": e.project})
 	d := &debugging{s: e, name: name, members: map[int][]variable{}, open: map[int]bool{}}
 	c, err := dap.Start(adapter, cfg.Command, e.project, e.queue, logLine,
+		func(text string) { api.Trace("dap", text, 0) },
 		func(event string, body json.RawMessage) { e.debugEvent(d, event, body) },
 		func(error) { e.debugEnd(d, "the debug adapter "+adapter+" ended") })
 	if err != nil {

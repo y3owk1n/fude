@@ -1,5 +1,5 @@
 # The Go modules in this repo.
-modules := "core vim syntax ."
+modules := "core vim syntax protocol ."
 
 # List the recipes.
 default:
@@ -73,7 +73,7 @@ loc:
     done <<'EOF'
     editor editor
     vim vim
-    modules syntax plugin lsp sdk api
+    modules syntax plugin protocol/lsp sdk api
     clients ui/term client
     kernel core/kernel core/rope
     glue cmd/fude pty clipboard

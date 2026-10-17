@@ -19,8 +19,8 @@ import (
 
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/core/kernel"
-	"github.com/y3owk1n/fude/lsp"
 	"github.com/y3owk1n/fude/plugin"
+	"github.com/y3owk1n/fude/protocol/lsp"
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
 )
@@ -443,16 +443,16 @@ func (l heard) Changed(before kernel.Snapshot, edits []kernel.Edit) {
 			}
 		}
 	}
-	out := make([]api.Edit, len(edits))
-	for i, e := range edits {
-		out[i] = api.Edit(e)
-	}
 	if l.b.syntax != nil {
 		changed := make([]syntax.Edit, len(edits))
 		for i, e := range edits {
 			changed[i] = syntax.Edit(e)
 		}
 		l.b.syntax.Changed(before, changed)
+	}
+	out := make([]lsp.Edit, len(edits))
+	for i, e := range edits {
+		out[i] = lsp.Edit(e)
 	}
 	for _, s := range l.b.servers {
 		s.versions[l.b]++

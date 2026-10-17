@@ -18,14 +18,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/y3owk1n/fude/api"
-	"github.com/y3owk1n/fude/framing"
+	"github.com/y3owk1n/fude/protocol/framing"
 )
 
 // Client is one running debug adapter.
 type Client struct {
 	queue chan<- func()
 	log   func(string)
+	trace func(string)
 	name  string
 	cmd   *exec.Cmd
 
@@ -56,8 +56,9 @@ type message struct {
 // command becomes a free port, which Start dials until the process ends or
 // five seconds pass, and without one the adapter talks on stdio. event gets
 // each event and exited the end of the process, both on the editor loop
-// through queue. log takes what the adapter writes to stderr.
-func Start(name string, command []string, dir string, queue chan<- func(), log func(string), event func(name string, body json.RawMessage), exited func(error)) (*Client, error) {
+// through queue. log takes what the adapter writes to stderr, and trace
+// each message sent.
+func Start(name string, command []string, dir string, queue chan<- func(), log, trace func(string), event func(name string, body json.RawMessage), exited func(error)) (*Client, error) {
 	if len(command) == 0 {
 		return nil, fmt.Errorf("debug adapter %s has no command", name)
 	}
@@ -94,7 +95,7 @@ func Start(name string, command []string, dir string, queue chan<- func(), log f
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("start %s: %w", name, err)
 	}
-	c := &Client{queue: queue, log: log, name: name, cmd: cmd, pending: map[int]func(json.RawMessage, error){}, wake: make(chan struct{}, 1), done: make(chan struct{})}
+	c := &Client{queue: queue, log: log, trace: trace, name: name, cmd: cmd, pending: map[int]func(json.RawMessage, error){}, wake: make(chan struct{}, 1), done: make(chan struct{})}
 	go func() {
 		err := cmd.Wait()
 		stderr.Flush()
@@ -165,7 +166,7 @@ func (c *Client) send(m message) {
 		c.log(fmt.Sprintf("%s: send %s: %v", c.name, m.Command, err))
 		return
 	}
-	api.Trace("dap", fmt.Sprintf("sent %s %s", c.name, cmp.Or(m.Command, m.Type)), 0)
+	c.trace(fmt.Sprintf("sent %s %s", c.name, cmp.Or(m.Command, m.Type)))
 	c.mu.Lock()
 	c.outbox = append(c.outbox, body)
 	c.mu.Unlock()

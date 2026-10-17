@@ -14,7 +14,7 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/fude/editor"
-	"github.com/y3owk1n/fude/framing"
+	"github.com/y3owk1n/fude/protocol/framing"
 	"github.com/y3owk1n/fude/syntax"
 )
 

@@ -11,6 +11,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.4.3
 	github.com/tetratelabs/wazero v1.12.0
 	github.com/y3owk1n/fude/core v0.0.0
+	github.com/y3owk1n/fude/protocol v0.0.0
 	github.com/y3owk1n/fude/syntax v0.0.0
 	github.com/y3owk1n/fude/vim v0.0.0
 	golang.org/x/sys v0.48.0
@@ -39,6 +40,7 @@ require (
 
 replace (
 	github.com/y3owk1n/fude/core => ./core
+	github.com/y3owk1n/fude/protocol => ./protocol
 	github.com/y3owk1n/fude/syntax => ./syntax
 	github.com/y3owk1n/fude/vim => ./vim
 )

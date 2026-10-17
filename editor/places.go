@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/y3owk1n/fude/core/kernel"
-	"github.com/y3owk1n/fude/lsp"
+	"github.com/y3owk1n/fude/protocol/lsp"
 )
 
 // spot is a place in a file that a server named.

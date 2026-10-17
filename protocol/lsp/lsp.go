@@ -16,8 +16,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/y3owk1n/fude/api"
-	"github.com/y3owk1n/fude/framing"
+	"github.com/y3owk1n/fude/protocol/framing"
 )
 
 // Client is one running language server.
@@ -25,6 +24,7 @@ type Client struct {
 	queue chan<- func()
 	stdin io.WriteCloser
 	log   func(string)
+	trace func(text string, took time.Duration)
 	name  string
 
 	// Requests the editor loop sent and the server has yet to answer, which
@@ -41,6 +41,22 @@ type Client struct {
 	version  string                     // the server's version, if it gave one
 	wake     chan struct{}
 	done     chan struct{}
+}
+
+// Text is a document as the client reads it. Lines count from 0. core's
+// Snapshot satisfies it as is.
+type Text interface {
+	Len() int
+	Slice(start, end int) string
+	Lines() int
+	LineStart(line int) int
+	LineOf(pos int) int
+}
+
+// Edit replaces the bytes from Start to End with Text.
+type Edit struct {
+	Start, End int
+	Text       string
 }
 
 // Position is a place in a text as the protocol counts it.
@@ -60,8 +76,9 @@ type Range struct {
 // through queue. notify gets each notification the server sends. serve gets
 // each request, and its result goes back as the answer. exited runs once
 // the server exits, with why. Lines the server writes to stderr go to log,
-// after its name.
-func Start(name string, command []string, root string, options any, queue chan<- func(), log func(string), notify func(method string, params json.RawMessage), serve func(method string, params json.RawMessage) any, exited func(error)) (*Client, error) {
+// after its name. trace hears each message sent and received, and how long
+// an answer took.
+func Start(name string, command []string, root string, options any, queue chan<- func(), log func(string), trace func(text string, took time.Duration), notify func(method string, params json.RawMessage), serve func(method string, params json.RawMessage) any, exited func(error)) (*Client, error) {
 	cmd := exec.Command(command[0], command[1:]...)
 	// Wait returns once stderr is read to its end, or a moment after the
 	// server exits when a child it left keeps it open.
@@ -76,7 +93,7 @@ func Start(name string, command []string, root string, options any, queue chan<-
 		return nil, fmt.Errorf("start %s: %w", command[0], err)
 	}
 	c := &Client{
-		queue: queue, stdin: stdin, log: log, name: name, pending: map[int]pending{},
+		queue: queue, stdin: stdin, log: log, trace: trace, name: name, pending: map[int]pending{},
 		wake: make(chan struct{}, 1), done: make(chan struct{}),
 	}
 	initialized := make(chan answer, 1)
@@ -114,7 +131,7 @@ func URI(path string) string {
 }
 
 // Open tells the server about a document and its text.
-func (c *Client) Open(uri, language string, t api.Text) {
+func (c *Client) Open(uri, language string, t Text) {
 	text := t.Slice(0, t.Len())
 	c.send(func(string) any {
 		return message{Method: "textDocument/didOpen", Params: map[string]any{
@@ -127,7 +144,7 @@ func (c *Client) Open(uri, language string, t api.Text) {
 // document's change number version. The protocol applies changes in order.
 // Sending the last first keeps each range a range of before. A server that
 // asks for whole texts gets the text after the edits (B60).
-func (c *Client) Change(uri string, version int, before api.Text, edits []api.Edit) {
+func (c *Client) Change(uri string, version int, before Text, edits []Edit) {
 	c.send(func(enc string) any {
 		doc := map[string]any{"uri": uri, "version": version}
 		if c.wholeText() {
@@ -218,7 +235,7 @@ func (c *Client) Encoding() string {
 }
 
 // Offset returns where p is in t, p being counted in encoding enc.
-func Offset(t api.Text, p Position, enc string) int {
+func Offset(t Text, p Position, enc string) int {
 	if p.Line >= t.Lines() {
 		return t.Len()
 	}
@@ -244,7 +261,7 @@ func Offset(t api.Text, p Position, enc string) int {
 }
 
 // Point returns pos in t as the protocol counts it in encoding enc.
-func Point(t api.Text, pos int, enc string) Position {
+func Point(t Text, pos int, enc string) Position {
 	line := t.LineOf(pos)
 	ls := t.LineStart(line)
 	col := pos - ls
@@ -370,7 +387,7 @@ func (c *Client) frame(v any) error {
 	}
 	body, err := json.Marshal(v)
 	if err == nil {
-		api.Trace("lsp", fmt.Sprintf("sent %s %s, %d bytes", c.name, what, len(body)), 0)
+		c.trace(fmt.Sprintf("sent %s %s, %d bytes", c.name, what, len(body)), 0)
 		err = framing.Write(c.stdin, body)
 	}
 	select {
@@ -399,11 +416,11 @@ func (c *Client) read(r io.Reader, initialized chan<- answer, notify func(string
 		}
 		var m incoming
 		if err := json.Unmarshal(body, &m); err != nil {
-			api.Trace("lsp", fmt.Sprintf("%s sent a message fude cannot read: %v", c.name, err), 0)
+			c.trace(fmt.Sprintf("%s sent a message fude cannot read: %v", c.name, err), 0)
 			continue
 		}
 		if m.Method != "" {
-			api.Trace("lsp", fmt.Sprintf("%s sent %s, %d bytes", c.name, m.Method, len(body)), 0)
+			c.trace(fmt.Sprintf("%s sent %s, %d bytes", c.name, m.Method, len(body)), 0)
 			method, params := m.Method, m.Params
 			f := func() { notify(method, params) }
 			if m.ID != nil {
@@ -455,7 +472,7 @@ func (c *Client) read(r io.Reader, initialized chan<- answer, notify func(string
 		if enc != "utf-8" {
 			enc = "utf-16"
 		}
-		api.Trace("lsp", fmt.Sprintf("%s answered initialize, %d bytes", c.name, len(body)), 0)
+		c.trace(fmt.Sprintf("%s answered initialize, %d bytes", c.name, len(body)), 0)
 		initialized <- answer{enc, res.Capabilities, version}
 	}
 }
@@ -465,7 +482,7 @@ func (c *Client) answered(id int, result json.RawMessage, failed *responseError)
 	p, ok := c.pending[id]
 	delete(c.pending, id)
 	if ok {
-		api.Trace("lsp", fmt.Sprintf("%s answered #%d, %d bytes", c.name, id, len(result)), time.Since(p.at))
+		c.trace(fmt.Sprintf("%s answered #%d, %d bytes", c.name, id, len(result)), time.Since(p.at))
 	}
 	if failed != nil {
 		c.log(fmt.Sprintf("%s: %s: %s", c.name, p.method, failed.Message))

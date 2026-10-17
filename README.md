@@ -276,6 +276,8 @@ func (h *host) Undo() (int, int, error) {
 
 </details>
 
+**Language servers and debug adapters.** [`protocol/`](protocol) is a Go module with fude's LSP and DAP clients, built on the standard library alone.
+
 ---
 
 ## How fude compares
