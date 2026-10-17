@@ -1,5 +1,6 @@
-# One pass through fude on its own source: key hints, the finder, live grep,
-# hover, a tree-sitter edit and its undo, completion and the timeline.
+# One pass through fude on its own source: the start screen, the finder,
+# key hints, live grep, hover, a tree-sitter edit and its undo, completion,
+# code actions, folds, a jump and the timeline.
 Output demos/fude.gif
 Output demos/out/fude.mp4
 Source demos/style.tape
@@ -8,10 +9,30 @@ Hide
 Type "source demos/setup.sh"
 Enter
 Wait
+# Go's grammar builds before the clip, as it would on first use.
+Type "fude"
+Enter
+Sleep 1s
+Type ":grammar install go"
+Enter
+Wait+Screen@180s /built the go grammar|up to date|is built/
+Type ":qa!"
+Enter
+Wait
+Type "clear"
+Enter
+Wait
 Show
 Sleep 500ms
 
-Type "fude editor/files.go"
+# The start screen, then the finder.
+Type "fude"
+Enter
+Sleep 2s
+Type "f"
+Sleep 700ms
+Type@120ms "files.go"
+Sleep 1.2s
 Enter
 # gopls loads the workspace.
 Sleep 3s
@@ -19,15 +40,7 @@ Sleep 3s
 # <Space> waits, and key hints show what may follow.
 Type " "
 Sleep 1.5s
-Type " "
-Sleep 700ms
-Type@120ms "termthm"
-Sleep 1.5s
-Enter
-Sleep 1.5s
-
-# Live grep, grouped by file.
-Type " sg"
+Type "sg"
 Sleep 400ms
 Type@100ms "writePath("
 Sleep 1.5s
@@ -59,7 +72,7 @@ Sleep 1.2s
 Type "u"
 Sleep 1.5s
 
-# Completion, signature help and autopairs.
+# Completion, signature help, autopairs and inlay hints.
 Type "/Cut("
 Enter
 Sleep 300ms
@@ -70,7 +83,25 @@ Sleep 1s
 Type@120ms `"-", 3`
 Sleep 1.5s
 Escape
+Sleep 800ms
+
+# Code actions, each with what it would change.
+Type "gra"
+Sleep 2s
+Type "j"
+Sleep 1.2s
+Escape
 Sleep 500ms
+
+# Folds by indent, then a jump to a label.
+Type "zM"
+Sleep 1.8s
+Type "zR"
+Sleep 800ms
+Type "sma"
+Sleep 1.5s
+Enter
+Sleep 800ms
 
 # Every state, on a branching timeline. d diffs one against now.
 Type ":timeline"

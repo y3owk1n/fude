@@ -17,12 +17,14 @@ mkdir -p $root/bin $root/run $root/.config/fude
 go build -o $root/bin/fude ./cmd/fude || return 1
 ln -s $go $root/bin/go
 ln -s $gopls $root/bin/gopls
+ln -s $(command -v tree-sitter) $root/bin/tree-sitter
 git clone -q $repo $root/fude
 git -C $repo diff --no-ext-diff --no-color --binary HEAD | git -C $root/fude apply || return 1
 cp $repo/demos/config.toml $root/.config/fude/config.toml
-# Your built grammars, so the clip shows colours from its first frame.
+# A copy of your built grammars, so a build the tape starts writes to the
+# copy, and the clip shows colours from its first frame.
 mkdir -p $root/.local/share/fude
-[ -d $grammars ] && ln -s $grammars $root/.local/share/fude/grammars
+[ -d $grammars ] && cp -R $grammars $root/.local/share/fude/grammars
 
 export HOME=$root
 export XDG_CONFIG_HOME=$root/.config

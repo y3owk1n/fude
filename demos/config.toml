@@ -15,3 +15,7 @@ scroll_off = 6
 
 [filetype.go]
 lsp = ["gopls"]
+
+[lsp.gopls.settings.gopls.hints]
+parameterNames = true
+assignVariableTypes = true
