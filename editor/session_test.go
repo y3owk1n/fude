@@ -1,11 +1,15 @@
 package editor_test
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/y3owk1n/fude/editor"
+)
 
 // B73
 func TestB73SessionsConverge(t *testing.T) {
 	e := open(t, "")
-	agent := e.Attach("agent")
+	agent := e.Attach("agent", editor.Host)
 	feed(e, "ione")
 	feed(agent, "0itwo <Esc>")
 	feed(e, " three<Esc>")
@@ -17,7 +21,7 @@ func TestB73SessionsConverge(t *testing.T) {
 // B77
 func TestB77UndoOwnChanges(t *testing.T) {
 	e := open(t, "")
-	agent := e.Attach("agent")
+	agent := e.Attach("agent", editor.Host)
 	// The agent's change lands while the first session is still typing.
 	feed(e, "ihello")
 	feed(agent, "A world<Esc>")

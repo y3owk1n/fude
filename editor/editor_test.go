@@ -664,7 +664,7 @@ func TestB241AttachedClipboard(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "f")
 	change(t, path, "ab cd\n")
 	e := open(t, path)
-	agent := e.Attach("agent")
+	agent := e.Attach("agent", editor.Host)
 	// Its copy goes to its client, and leaves the host's clipboard alone.
 	feed(agent, `"+yiw`)
 	if text, ok := agent.TerminalClipboard(); !ok || text != "ab" || disk(t, board) != "host" {
@@ -682,20 +682,68 @@ func TestB240AttachedLeaves(t *testing.T) {
 	change(t, path, "abc\n")
 	e := open(t, path)
 	// :qa leaves, and the change it made stays, unsaved, for the host.
-	agent := e.Attach("agent")
+	agent := e.Attach("agent", editor.Host)
 	feed(agent, "x:qa<CR>")
 	if !agent.Done() || e.Done() || text(e) != "bc" || !e.Views()[0].Modified {
 		t.Fatalf(":qa in an attached session: it done %v, fude done %v, text %q", agent.Done(), e.Done(), text(e))
 	}
 	for _, keys := range []string{":q<CR>", "ZZ"} {
-		agent = e.Attach("agent")
+		agent = e.Attach("agent", editor.Host)
 		if feed(agent, keys); !agent.Done() || e.Done() {
 			t.Errorf("%s in an attached session: it done %v, fude done %v", keys, agent.Done(), e.Done())
 		}
 	}
-	agent = e.Attach("agent")
+	agent = e.Attach("agent", editor.Host)
 	if feed(agent, ":restart<CR>"); agent.Done() || !strings.Contains(agent.Message(), "only the terminal") {
 		t.Errorf(":restart in an attached session said %q", agent.Message())
+	}
+}
+
+// B244
+func TestB244GuestRefuses(t *testing.T) {
+	e, log := withServer(t, "b\na\n", "utf-8")
+	heard(t, log, `"method":"textDocument/didOpen"`, 1)
+	guest := e.Attach("guest", editor.Guest)
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	theme, _ := e.Theme()
+	ran := filepath.Join(t.TempDir(), "ran")
+	for _, keys := range []string{
+		":!touch " + ran + "<CR>", ":r !touch " + ran + "<CR>", ":%!sort<CR>", ":terminal<CR>", ":task<CR>",
+		":pick tasks<CR>", ":restart<CR>", ":cd /<CR>", ":plugin reload<CR>", ":grammar install go<CR>",
+		":grammar update<CR>", ":lsp stop<CR>", ":theme light<CR>", "ZR",
+	} {
+		if feed(guest, keys); !strings.HasPrefix(guest.Message(), "a guest may not") {
+			t.Errorf("%s in a guest said %q", keys, guest.Message())
+		}
+	}
+	now, _ := os.Getwd()
+	if name, _ := e.Theme(); now != wd || name != theme || text(e) != "b\na" || guest.Done() || len(guest.Views()) != 1 {
+		t.Errorf("a guest's refused commands left the directory %s, the theme %s, the text %q, it done %v, %d windows", now, name, text(e), guest.Done(), len(guest.Views()))
+	}
+	if _, err := os.Stat(ran); err == nil {
+		t.Error("a guest ran a program")
+	}
+	// The guest takes a code action that edits, and not one that runs a
+	// command.
+	feed(guest, "gra")
+	settle(t, guest, func() bool { _, ok := guest.Float(); return ok })
+	if feed(guest, "2"); guest.Message() != "a guest may not take a code action that runs a command" || text(e) != "b\na" {
+		t.Errorf("a guest's code action that runs a command said %q and left %q", guest.Message(), text(e))
+	}
+	feed(guest, "gra")
+	settle(t, guest, func() bool { _, ok := guest.Float(); return ok })
+	feed(guest, "1")
+	settle(t, guest, func() bool { return text(e) != "b\na" })
+	if text(e) != "hi b\na" {
+		t.Errorf("a guest's code action that edits left %q", text(e))
+	}
+	for _, keys := range []string{":pick files<CR><Esc>", ":lsp<CR>"} {
+		if feed(guest, keys); strings.Contains(guest.Message(), "guest") {
+			t.Errorf("%s in a guest said %q", keys, guest.Message())
+		}
 	}
 }
 

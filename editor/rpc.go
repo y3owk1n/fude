@@ -280,7 +280,7 @@ func (e *Session) serve(c net.Conn, o kernel.Origin) {
 	}
 	changed := make(chan change, 1)
 	on(func() {
-		s = e.Attach(o)
+		s = e.Attach(o, Host)
 		s.changed = changed
 	})
 	api.Trace("rpc", string(o)+" attached", 0)

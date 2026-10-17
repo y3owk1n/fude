@@ -19,7 +19,7 @@ func proposeQuote(t *testing.T, agent *editor.Session, at int, text string) {
 func TestB71ProposalIsGhostText(t *testing.T) {
 	e := open(t, "")
 	feed(e, `isay "hi" now<Esc>0`)
-	agent := e.Attach("agent")
+	agent := e.Attach("agent", editor.Host)
 	proposeQuote(t, agent, 5, "hello")
 	v := e.Views()[0]
 	if text(e) != `say "hi" now` || e.Cursor() != 0 || len(v.Ghosts) != 1 || v.Ghosts[0] != (editor.Ghost{Pos: 7, Text: "ello"}) {
@@ -31,7 +31,7 @@ func TestB71ProposalIsGhostText(t *testing.T) {
 func TestB72AcceptIsOneNode(t *testing.T) {
 	e := open(t, "")
 	feed(e, `isay "hi" now<Esc>`)
-	agent := e.Attach("agent")
+	agent := e.Attach("agent", editor.Host)
 	proposeQuote(t, agent, 5, "hello")
 	feed(e, ":accept<CR>")
 	if got := text(e); got != `say "hello" now` {
@@ -55,7 +55,7 @@ func TestB72AcceptIsOneNode(t *testing.T) {
 func TestB74ProposalFollowsEdits(t *testing.T) {
 	e := open(t, "")
 	feed(e, `isay "hi" now<Esc>`)
-	agent := e.Attach("agent")
+	agent := e.Attach("agent", editor.Host)
 	proposeQuote(t, agent, 5, "hello")
 	feed(e, "0iwe <Esc>:accept<CR>")
 	if got := text(e); got != `we say "hello" now` {

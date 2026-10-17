@@ -319,6 +319,10 @@ func (e *Session) act(p *pick, a reply) {
 		})
 		return
 	}
+	if action.Command != nil && e.power != Host {
+		e.message = "a guest may not take a code action that runs a command"
+		return
+	}
 	if action.Edit != nil {
 		if _, problems := e.workspaceEdit(s, p.b, p.t, action.Edit, "code action"); len(problems) > 0 {
 			e.message = strings.Join(problems, "  ")

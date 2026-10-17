@@ -62,6 +62,7 @@ type Editor struct {
 type Session struct {
 	*Editor
 	origin     kernel.Origin
+	power      Power // how much the session may do (B243)
 	root       *node
 	win        *window // the current window
 	vim        *vim.Machine
@@ -153,10 +154,10 @@ func open(cfg config, paths []string) (*Session, error) {
 	return e, nil
 }
 
-// Attach starts a session of origin o on the editor, showing the first
-// session's buffer.
-func (ed *Editor) Attach(o kernel.Origin) *Session {
-	s := &Session{Editor: ed, origin: o}
+// Attach starts a session of origin o and power p on the editor, showing
+// the first session's buffer.
+func (ed *Editor) Attach(o kernel.Origin, p Power) *Session {
+	s := &Session{Editor: ed, origin: o, power: p}
 	s.join()
 	return s
 }
@@ -208,6 +209,10 @@ func builtins(e *Session) {
 	}
 	for _, p := range plugs {
 		e.vim.Command(p.name, func(_ vim.Text, _, count int) []vim.Edit {
+			if e.power != Host && refusedPlugs[p.name] {
+				e.message = "a guest may not run <Plug>(" + p.name + ")"
+				return nil
+			}
 			p.run(e, count)
 			return nil
 		})
@@ -897,6 +902,10 @@ func (e *Session) ex(line string) {
 	}
 	arg = strings.TrimSpace(arg)
 	if c, ok := commandsByName[name]; ok {
+		if e.power != Host && refuses(c.Name, arg) {
+			e.message = "a guest may not run :" + c.Name
+			return
+		}
 		if takesPath(c) {
 			if arg, err = e.expand(arg); err != nil {
 				e.message = err.Error()

@@ -247,7 +247,7 @@ func TestB97SocketSetting(t *testing.T) {
 func TestB75RequestAtLeavesCursors(t *testing.T) {
 	e := open(t, "")
 	feed(e, "ione two three<Esc>0")
-	agent := e.Attach("agent")
+	agent := e.Attach("agent", editor.Host)
 	feed(agent, "$")
 	at := 4
 	if err := agent.Request(editor.Request{At: &at, Base: e.Text().Version(), Command: editor.Command{Op: "delete", Target: editor.Target{Name: "word"}}}); err != nil {
@@ -272,7 +272,7 @@ func TestB75RequestAtLeavesCursors(t *testing.T) {
 func TestB76RequestMapsOldPosition(t *testing.T) {
 	e := open(t, "")
 	feed(e, "ione two<Esc>")
-	agent := e.Attach("agent")
+	agent := e.Attach("agent", editor.Host)
 	deleteWord := func(at int, base kernel.Version) error {
 		return agent.Request(editor.Request{At: &at, Base: base, Command: editor.Command{Op: "delete", Target: editor.Target{Name: "word"}}})
 	}
