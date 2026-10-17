@@ -143,6 +143,9 @@ func loadConfig() (config, error) {
 	var msg string
 	switch {
 	case err == nil:
+		if err := aliasFiletypes(&c); err != nil {
+			return c, fmt.Errorf("%s: %w", path, err)
+		}
 		if err := badPattern(c); err != nil {
 			return c, fmt.Errorf("%s: %w", path, err)
 		}

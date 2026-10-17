@@ -67,6 +67,23 @@ func (ed *Editor) filetype(b *buffer) string {
 	return ed.filetypeOf(b.file.path)
 }
 
+// aliasFiletypes renames each [filetype.<ext>] table of c to the filetype
+// its extension has, such as [filetype.yml] to [filetype.yaml] (B164).
+func aliasFiletypes(c *config) error {
+	for _, ext := range slices.Sorted(maps.Keys(c.Filetype)) {
+		ft, ok := extFiletypes[ext]
+		if !ok || ft == ext {
+			continue
+		}
+		if _, both := c.Filetype[ft]; both {
+			return fmt.Errorf("[filetype.%s] and [filetype.%s] are the same filetype", ext, ft)
+		}
+		c.Filetype[ft] = c.Filetype[ext]
+		delete(c.Filetype, ext)
+	}
+	return nil
+}
+
 // badPattern returns an error naming the first files pattern in c that is
 // not a pattern, or nil.
 func badPattern(c config) error {

@@ -2453,6 +2453,14 @@ func TestB164Filetypes(t *testing.T) {
 			t.Errorf("%s has filetype %q, want %q", name, got, want)
 		}
 	}
+	// A table named after an extension applies to that extension's filetype.
+	config(t, "[filetype.yml]\nindent_width = 3\n")
+	path := filepath.Join(dir, "a.yaml")
+	change(t, path, "x\n")
+	e := start(t, path)
+	if feed(e, ">>"); text(e) != "   x" {
+		t.Errorf("[filetype.yml] gave >> in a.yaml %q, want three spaces", text(e))
+	}
 }
 
 // B165, through a grammar built by hand: Go's, as the filetype gotest.
