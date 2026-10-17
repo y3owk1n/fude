@@ -87,12 +87,16 @@ func attach(args []string, name string) error {
 	return nil
 }
 
-// join runs fude --join string, a terminal client on a guest session
-// called name of the fude that shares with string, and says why the
-// session ended once the screen is gone (B248, B249).
+// join runs fude --join [--read-only] string, a terminal client on a guest
+// session called name of the fude that shares with string, and says why
+// the session ended once the screen is gone (B248, B249, B255).
 func join(args []string, name string) error {
+	readOnly := len(args) == 2 && args[0] == "--read-only"
+	if readOnly {
+		args = args[1:]
+	}
 	if len(args) != 1 {
-		return errors.New("usage: fude --join string")
+		return errors.New("usage: fude --join [--read-only] string")
 	}
 	// A guest still joins with what it read of a config that fails (B254).
 	own, err := editor.OwnConfig()
@@ -100,7 +104,7 @@ func join(args []string, name string) error {
 		fmt.Println("fude:", err)
 	}
 	fmt.Println("waiting for the host to let you in")
-	a, err := term.Join(args[0], name, own)
+	a, err := term.Join(args[0], name, own, readOnly)
 	if err != nil {
 		return err
 	}

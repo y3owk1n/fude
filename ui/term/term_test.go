@@ -890,7 +890,7 @@ func asked(t *testing.T, host *editor.Session, on func(func()), name string) {
 func joining(share string) <-chan joined {
 	ch := make(chan joined, 1)
 	go func() {
-		a, err := Join(share, os.Getenv("USER"), editor.Own{})
+		a, err := Join(share, os.Getenv("USER"), editor.Own{}, false)
 		ch <- joined{a, err}
 	}()
 	return ch
@@ -1309,7 +1309,7 @@ func TestB254OwnConfig(t *testing.T) {
 	}
 	waiting := make(chan joined, 1)
 	go func() {
-		a, err := Join(str, "kyle", own)
+		a, err := Join(str, "kyle", own, false)
 		waiting <- joined{a, err}
 	}()
 	asked(t, host, on, "kyle")
@@ -1346,5 +1346,52 @@ func TestB254OwnConfig(t *testing.T) {
 	on(func() { hostNumber = host.Views()[0].Number })
 	if name, _ := j.a.Theme(); name != "light" || hostNumber {
 		t.Errorf("the guest draws in %q, and the host shows numbers %v", name, hostNumber)
+	}
+}
+
+// B255
+func TestB255JoinReadOnly(t *testing.T) {
+	t.Chdir(t.TempDir())
+	if err := os.WriteFile("a.txt", []byte("hello\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	host := startWith(t, "", "a.txt").e.(*editor.Session)
+	_, on, _ := serve(t, host)
+	str := share(t, host, on, "")
+	waiting := make(chan joined, 1)
+	go func() {
+		a, err := Join(str, "kyle", editor.Own{}, true)
+		waiting <- joined{a, err}
+	}()
+	// The host's question says the guest asks to be read-only.
+	for deadline := time.Now().Add(5 * time.Second); ; time.Sleep(time.Millisecond) {
+		var msg string
+		on(func() { msg = host.Message() })
+		if msg == "kyle wants to join read-only, let them in? (y/n)" {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("the host was asked %q", msg)
+		}
+	}
+	on(func() { host.Feed("y") })
+	j := <-waiting
+	if j.err != nil {
+		t.Fatal(j.err)
+	}
+	defer j.a.Close()
+	j.a.Feed("x")
+	for deadline := time.After(5 * time.Second); j.a.Message() != "cannot make changes, the session is read-only"; {
+		select {
+		case f := <-j.a.Queue():
+			f()
+		case <-deadline:
+			t.Fatalf("x in a read-only guest said %q", j.a.Message())
+		}
+	}
+	var text string
+	on(func() { s := host.Text(); text = s.Slice(0, s.Len()) })
+	if text != "hello" {
+		t.Errorf("a read-only guest's x left %q", text)
 	}
 }

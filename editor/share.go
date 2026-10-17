@@ -49,6 +49,8 @@ type Hello struct {
 	Secret string `json:"secret"`
 	Name   string `json:"name"`
 	Own    Own    `json:"own"`
+	// ReadOnly asks for a read-only guest's session (B255).
+	ReadOnly bool `json:"read_only,omitempty"`
 }
 
 // Share listens on address with TLS for guests to join, and offers the
@@ -282,7 +284,7 @@ func (e *Session) admit(c net.Conn, stopped <-chan struct{}) {
 	admitted := make(chan *Session, 1)
 	var s *Session
 	var err error
-	on(func() { err = e.letIn(name, hello.Secret, hello.Own, admitted) })
+	on(func() { err = e.letIn(name, hello, admitted) })
 	if err == nil {
 		select {
 		case s = <-admitted:
@@ -304,11 +306,12 @@ func (e *Session) admit(c net.Conn, stopped <-chan struct{}) {
 	e.attached(s, in, out, on)
 }
 
-// letIn asks the host whether to let the guest called name in, when its
-// secret is the share's. It sends the guest's new session, which takes
-// own, on admitted, or nil when the host says no, and returns why it did
-// not ask.
-func (e *Session) letIn(name, secret string, own Own, admitted chan<- *Session) error {
+// letIn asks the host whether to let the guest called name in, when the
+// secret it says hello with is the share's. It sends the guest's new
+// session, which takes what the hello asks, on admitted, or nil when the
+// host says no, and returns why it did not ask.
+func (e *Session) letIn(name string, hello Hello, admitted chan<- *Session) error {
+	secret := hello.Secret
 	host, sh := e.sessions[0], e.share
 	switch {
 	case sh.secret == "" || subtle.ConstantTimeCompare([]byte(secret), []byte(sh.secret)) != 1:
@@ -319,7 +322,11 @@ func (e *Session) letIn(name, secret string, own Own, admitted chan<- *Session) 
 		return errors.New("the host is answering another question, so try again soon")
 	}
 	sh.waiting = true
-	host.message = name + " wants to join, let them in? (y/n)"
+	power, as := Guest, ""
+	if hello.ReadOnly {
+		power, as = ReadOnly, " read-only"
+	}
+	host.message = name + " wants to join" + as + ", let them in? (y/n)"
 	host.ask = func(yes bool) {
 		sh.waiting = false
 		if !yes {
@@ -331,9 +338,9 @@ func (e *Session) letIn(name, secret string, own Own, admitted chan<- *Session) 
 		if sh.secret == secret {
 			sh.secret = ""
 		}
-		s := e.Attach(kernel.Origin("guest "+name), Guest)
+		s := e.Attach(kernel.Origin("guest "+name), power)
 		s.name = e.guestName(name)
-		s.use(own)
+		s.use(hello.Own)
 		host.message = s.name + " joined"
 		admitted <- s
 	}

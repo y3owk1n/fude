@@ -53,9 +53,10 @@ func Attach(socket, name string) (*Attached, error) {
 }
 
 // Join makes a guest session called name of the fude a share string
-// names, which takes own, once its host lets the guest in. It returns the
-// session once its first frame has come (B248, B254).
-func Join(share, name string, own editor.Own) (*Attached, error) {
+// names, which takes own and is read-only when readOnly says, once its host
+// lets the guest in. It returns the session once its first frame has come
+// (B248, B254, B255).
+func Join(share, name string, own editor.Own, readOnly bool) (*Attached, error) {
 	i := strings.LastIndexByte(share, '/')
 	j := strings.LastIndexByte(share[:max(i, 0)], '/')
 	if j < 0 {
@@ -74,7 +75,7 @@ func Join(share, name string, own editor.Own) (*Attached, error) {
 	if err != nil {
 		return nil, fmt.Errorf("join %s: %w", addr, err)
 	}
-	a, err := begin(c, editor.Hello{Secret: secret, Name: name, Own: own})
+	a, err := begin(c, editor.Hello{Secret: secret, Name: name, Own: own, ReadOnly: readOnly})
 	if err != nil {
 		return nil, fmt.Errorf("join %s: %w", addr, err)
 	}
