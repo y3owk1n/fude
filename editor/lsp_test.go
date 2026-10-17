@@ -238,6 +238,7 @@ func TestFakeServer(t *testing.T) {
 			fmt.Fprintf(os.Stdout, "Content-Length: %d\r\n\r\n%s", len(body), body)
 		case "textDocument/didChange":
 			if strings.Contains(string(body), `"text":"#"`) {
+				fmt.Fprint(os.Stderr, "crashed on #")
 				os.Exit(3)
 			}
 			if strings.Contains(string(body), `"text":"~"`) {
@@ -345,10 +346,15 @@ func TestB60ServerAndEncodings(t *testing.T) {
 
 // B63
 func TestB63ServerCrash(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	e, log := withServer(t, "x\n", "utf-8")
 	heard(t, log, `"method":"textDocument/didOpen"`, 1)
 	feed(e, "i#<Esc>")
 	settle(t, e, func() bool { return strings.Contains(e.Message(), "was restarted") })
+	// What it wrote last, with no line break, is in the log.
+	if !strings.Contains(fudeLog(), "fake: crashed on #") {
+		t.Errorf("the log has %q, want the server's last words", fudeLog())
+	}
 	// The restarted server opens the document again.
 	heard(t, log, `"method":"textDocument/didOpen"`, 2)
 	feed(e, "a#<Esc>")

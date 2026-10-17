@@ -4,6 +4,7 @@ package lsp
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -62,11 +63,13 @@ type Range struct {
 // after its name.
 func Start(name string, command []string, root string, options any, queue chan<- func(), log func(string), notify func(method string, params json.RawMessage), serve func(method string, params json.RawMessage) any, exited func(error)) (*Client, error) {
 	cmd := exec.Command(command[0], command[1:]...)
-	cmd.Dir = root
+	// Wait returns once stderr is read to its end, or a moment after the
+	// server exits when a child it left keeps it open.
+	stderr := &lines{log: log, name: name}
+	cmd.Dir, cmd.Stderr, cmd.WaitDelay = root, stderr, time.Second
 	stdin, err1 := cmd.StdinPipe()
 	stdout, err2 := cmd.StdoutPipe()
-	stderr, err3 := cmd.StderrPipe()
-	if err := errors.Join(err1, err2, err3); err != nil {
+	if err := errors.Join(err1, err2); err != nil {
 		return nil, fmt.Errorf("start %s: %w", command[0], err)
 	}
 	if err := cmd.Start(); err != nil {
@@ -80,13 +83,8 @@ func Start(name string, command []string, root string, options any, queue chan<-
 	go c.write(root, options, initialized, notify)
 	go c.read(stdout, initialized, notify, serve)
 	go func() {
-		s := bufio.NewScanner(stderr)
-		for s.Scan() {
-			log(c.name + ": " + s.Text())
-		}
-	}()
-	go func() {
 		err := cmd.Wait()
+		stderr.flush()
 		close(c.done)
 		c.queue <- func() {
 			// The server exited, so no answer to these will come.
@@ -98,6 +96,37 @@ func Start(name string, command []string, root string, options any, queue chan<-
 		}
 	}()
 	return c, nil
+}
+
+// lines logs what a server writes to stderr, a line at a time after its
+// name. A line over 64KB is logged in parts.
+type lines struct {
+	log  func(string)
+	name string
+	rest []byte
+}
+
+func (l *lines) Write(p []byte) (int, error) {
+	l.rest = append(l.rest, p...)
+	for {
+		i := bytes.IndexByte(l.rest, '\n')
+		if i < 0 && len(l.rest) < 64<<10 {
+			return len(p), nil
+		}
+		if i < 0 {
+			i = len(l.rest)
+		}
+		l.log(l.name + ": " + string(l.rest[:i]))
+		l.rest = l.rest[min(i+1, len(l.rest)):]
+	}
+}
+
+// flush logs a last line that has no line break.
+func (l *lines) flush() {
+	if len(l.rest) > 0 {
+		l.log(l.name + ": " + string(l.rest))
+		l.rest = nil
+	}
 }
 
 // Close asks the server to shut down and exit.

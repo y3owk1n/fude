@@ -124,7 +124,9 @@ func (e *Session) openTerminal(arg, task string) {
 		}
 	}()
 	// What the program writes reaches the emulator on the editor loop.
+	drained := make(chan struct{})
 	go func() {
+		defer close(drained)
 		buf := make([]byte, 32<<10)
 		for {
 			n, err := f.Read(buf)
@@ -139,6 +141,12 @@ func (e *Session) openTerminal(arg, task string) {
 	}()
 	go func() {
 		err := t.cmd.Wait()
+		// Its last output reaches the emulator before its end, unless a
+		// child it left keeps the terminal open.
+		select {
+		case <-drained:
+		case <-time.After(100 * time.Millisecond):
+		}
 		e.queue <- func() { e.terminalExited(b, err) }
 	}()
 	if task != "" {

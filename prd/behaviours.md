@@ -871,7 +871,8 @@ Where fude departs, the line says so and cites the departure in
 - B62 [5] `<C-]>` jumps to the definition and `K` shows hover, as in
   Neovim with a server attached.
 - B63 [5] A server that crashes is reported and restarted once. Editing never
-  blocks on a server.
+  blocks on a server. The log keeps what it wrote to stderr, to its last
+  line.
 - B64 [5] `<C-x><C-o>` in insert mode lists the server's completions.
   `<C-n>` and `<C-p>` select, `<C-y>` accepts, and the accepted text is part
   of the insert's undo step. A menu longer than its box scrolls to keep the
