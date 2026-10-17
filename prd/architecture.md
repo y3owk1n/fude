@@ -849,6 +849,7 @@ theme = "dark"       # dark, light, or a base16 scheme such as "~/.config/stylix
 
 [filetype.go]        # overrides for buffers of that filetype (B94)
 indent_width = 4
+expand_tab = false   # and wrap, color_column, while a window shows its files (B94)
 format = ["goimports", "gofumpt"]   # formatters, run in turn by format_on_save (B136)
 format_first = false # true runs only the first that applies (B171)
 lsp = ["gopls", "golangci_lint_ls"]   # its language servers, by name, in order (B167, B169)

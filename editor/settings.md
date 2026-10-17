@@ -295,6 +295,32 @@ extensions fude knows, such as `["*.toml.tmpl"]` in `[filetype.toml]`.
 `indent_width` for files of this filetype, over the one at the top of
 config.toml.
 
+## filetype.expand_tab
+
+`expand_tab` for files of this filetype. While a window shows one of its
+files, the window indents with spaces only, or with tabs when `false`. It
+gets its own `expand_tab` back when it shows another file.
+
+```toml
+[filetype.yaml]
+expand_tab = true
+```
+
+## filetype.wrap
+
+`wrap` for files of this filetype, which a window takes while it shows one
+of them, as `expand_tab` does.
+
+## filetype.color_column
+
+`color_column` for files of this filetype, which a window takes while it
+shows one of them, as `expand_tab` does.
+
+```toml
+[filetype.gitcommit]
+color_column = 73
+```
+
 ## filetype.lsp
 
 The language servers of this filetype, by the names of their `[lsp.<name>]`

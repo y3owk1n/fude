@@ -50,7 +50,7 @@ func (n *node) save() (savedNode, bool) {
 		if !restorable(w.buf) || err != nil {
 			return savedNode{}, false
 		}
-		return savedNode{Path: abs, Cursor: w.pos(), Top: w.buf.text.Mark(w.top), Options: w.opts}, true
+		return savedNode{Path: abs, Cursor: w.pos(), Top: w.buf.text.Mark(w.top), Options: w.ownOptions()}, true
 	}
 	s := savedNode{Across: n.across}
 	for _, k := range n.kids {

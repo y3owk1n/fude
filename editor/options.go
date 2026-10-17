@@ -33,6 +33,7 @@ func fields[T any](o *options) map[string]*T {
 // With no arguments it shows every option. It changes the current window
 // and the default for the session's windows opened later (B39).
 func (e *Session) set(args string) {
+	was := e.win.opts
 	switches, numbers := e.win.opts.switches(), e.win.opts.numbers()
 	if args == "" {
 		names := slices.Sorted(maps.Keys(switches))
@@ -77,7 +78,8 @@ func (e *Session) set(args string) {
 			*on = turn
 		}
 	}
-	e.opts = e.win.opts
+	e.win.keep(was)
+	e.opts = e.win.ownOptions()
 	e.message = strings.Join(shown, "  ")
 	// A colour column changes how wide centering makes the windows.
 	e.layout()

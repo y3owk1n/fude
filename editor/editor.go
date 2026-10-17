@@ -445,6 +445,7 @@ func (e *Session) Feed(k vim.Key) {
 
 // feed handles one key, typed or queued by a command for after it.
 func (e *Session) feed(k vim.Key) {
+	e.fit(e.win)
 	e.message = ""
 	if e.jumping != nil {
 		e.jumpKey(k)
@@ -643,6 +644,7 @@ func (e *Session) Views() []View {
 	var out []View
 	_, _, centered := e.area()
 	for _, w := range e.root.windows() {
+		e.fit(w)
 		t, top := w.buf.text.Snapshot(), e.topOf(w)
 		v := View{
 			Text: t, Top: top, Cursor: w.pos(),

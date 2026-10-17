@@ -42,7 +42,15 @@ format = ["goimports", "gofumpt"]
 
 [filetype.toml]
 files = ["*.toml.tmpl"]
+
+[filetype.markdown]
+wrap = true
+expand_tab = true
 ```
+
+`expand_tab`, `wrap` and `color_column` hold in a window while it shows a
+file of the filetype, and the window gets its own values back when it
+shows another file.
 
 `lsp` names the filetype's language servers, and `format` its
 formatters. Each server has an `[lsp.<name>]` table, and each formatter

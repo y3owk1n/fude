@@ -86,4 +86,20 @@ func TestB94FiletypeSettings(t *testing.T) {
 	if text(e) != "  x" {
 		t.Errorf(">> in b.txt gave %q, want two spaces", text(e))
 	}
+	// A filetype's options hold while a window shows its file, and the
+	// window gets its own back after. A :set in that window stays.
+	config(t, "[filetype.yaml]\nexpand_tab = true\nwrap = false\n")
+	a = filepath.Join(dir, "a.yaml")
+	if err := os.WriteFile(a, []byte("x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	e = start(t, a, b)
+	feed(e, ">>:set number<CR>")
+	if v := e.Views()[0]; text(e) != "        x" || v.Wrap {
+		t.Errorf(">> in a.yaml gave %q with wrap %v, want spaces without wrap", text(e), v.Wrap)
+	}
+	feed(e, ":bn<CR>>>")
+	if v := e.Views()[0]; text(e) != "\tx" || !v.Wrap || !v.Number {
+		t.Errorf(">> in b.txt gave %q with wrap %v and number %v, want a tab with both", text(e), v.Wrap, v.Number)
+	}
 }

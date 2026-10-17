@@ -28,6 +28,8 @@ type window struct {
 	left   int      // the first screen column shown, without wrap
 	folds  []fold   // its closed folds (B224)
 	saved  *options // its options while the start screen shows (B225)
+	own    *options // its options under those its buffer's filetype sets (B94)
+	fitted *buffer  // the buffer its filetype's options were last fitted for
 	// pinned is the last sticky context worked out, with the text's version,
 	// the top, cursor and parse it was for, so a frame that changes none of
 	// them asks no tree.
@@ -125,6 +127,61 @@ func (w *window) show(b *buffer) {
 	noteRecent(b.file.path)
 	w.cursor = b.text.SetMark(b.last, kernel.Right)
 	w.top = b.text.SetMark(b.lastTop, kernel.Left)
+}
+
+// ownOptions returns w's options without those its buffer's filetype sets.
+func (w *window) ownOptions() options {
+	if w.own != nil {
+		return *w.own
+	}
+	return w.opts
+}
+
+// keep copies into w's own options those :set changed from was, so they
+// stay when w shows another buffer.
+func (w *window) keep(was options) {
+	if w.own == nil {
+		return
+	}
+	wasOn, on, ownOn := was.switches(), w.opts.switches(), w.own.switches()
+	for name, p := range on {
+		if *p != *wasOn[name] {
+			*ownOn[name] = *p
+		}
+	}
+	wasN, n, ownN := was.numbers(), w.opts.numbers(), w.own.numbers()
+	for name, p := range n {
+		if *p != *wasN[name] {
+			*ownN[name] = *p
+		}
+	}
+}
+
+// fit puts back w's own options, then applies over them the options w's
+// buffer's filetype sets, once each time w shows another buffer (B94).
+func (e *Session) fit(w *window) {
+	if w.fitted == w.buf || w.saved != nil {
+		return
+	}
+	if w.own != nil {
+		w.opts, w.own = *w.own, nil
+	}
+	w.fitted = w.buf
+	ft := e.cfg.Filetype[e.filetype(w.buf)]
+	if ft.ExpandTab == nil && ft.Wrap == nil && ft.ColorColumn == nil {
+		return
+	}
+	own := w.opts
+	w.own = &own
+	if ft.ExpandTab != nil {
+		w.opts.ExpandTab = *ft.ExpandTab
+	}
+	if ft.Wrap != nil {
+		w.opts.Wrap = *ft.Wrap
+	}
+	if ft.ColorColumn != nil {
+		w.opts.ColorColumn = *ft.ColorColumn
+	}
 }
 
 // node is one part of the layout: a window, or splits side by side when
@@ -274,7 +331,11 @@ func (n *node) even() {
 func (e *Session) split(across bool) {
 	old := e.win
 	nw := newWindow(old.buf, old.pos(), old.buf.text.Mark(old.top))
-	nw.opts = old.opts
+	nw.opts, nw.fitted = old.opts, old.fitted
+	if old.own != nil {
+		own := *old.own
+		nw.own = &own
+	}
 	nw.alt = old.alt
 	l := e.root.leaf(old)
 	add := &node{win: nw}

@@ -39,7 +39,10 @@ Where fude departs, the line says so and cites the departure in
 - B93 [1] An error in `config.toml` is shown with its line, and fude starts
   with the defaults for what failed to load.
 - B94 [2] Settings in a `[filetype.<name>]` table apply to buffers of that
-  filetype and override the top-level ones (D27).
+  filetype and override the top-level ones (D27). Its `expand_tab`, `wrap`
+  and `color_column` hold in a window while it shows a buffer of that
+  filetype, and the window gets its own back when it shows another. A
+  `:set` typed in that window stays when it shows another buffer.
 
 ## Modes and insert
 
