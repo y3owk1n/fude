@@ -327,8 +327,19 @@ func (n *node) even() {
 }
 
 // split opens a new window on the shown buffer below the current one, or
-// right of it when across is set, and moves to it (N16).
+// right of it when across is set, and moves to it. split_below and
+// split_right off put it above or left (N16).
 func (e *Session) split(across bool) {
+	after := e.cfg.SplitBelow
+	if across {
+		after = e.cfg.SplitRight
+	}
+	e.splitBeside(across, after)
+}
+
+// splitBeside opens a new window on the shown buffer beside the current
+// one, after it when after is set, and moves to it.
+func (e *Session) splitBeside(across, after bool) {
 	old := e.win
 	nw := newWindow(old.buf, old.pos(), old.buf.text.Mark(old.top))
 	nw.opts, nw.fitted = old.opts, old.fitted
@@ -341,13 +352,19 @@ func (e *Session) split(across bool) {
 	add := &node{win: nw}
 	if p := l.parent; p != nil && p.across == across {
 		i := index(p.kids, l)
+		if after {
+			i++
+		}
 		add.parent = p
-		p.kids = slices.Insert(p.kids, i+1, add)
+		p.kids = slices.Insert(p.kids, i, add)
 	} else {
 		// l becomes a split holding the new window and the old one.
 		keep := &node{win: old, parent: l}
 		add.parent = l
 		l.win, l.across, l.kids = nil, across, []*node{keep, add}
+		if !after {
+			l.kids = []*node{add, keep}
+		}
 	}
 	e.win = nw
 	e.layout()

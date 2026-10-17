@@ -190,7 +190,7 @@ func (e *Session) runTask(t task) {
 			e.message = "the " + t.name + " task is running"
 			if !slices.ContainsFunc(e.root.windows(), func(w *window) bool { return w.buf == b }) {
 				from := e.win
-				e.split(false)
+				e.splitBeside(false, true)
 				e.root.leaf(e.win).size = max(e.height/3, 3)
 				e.show(b)
 				e.win.opts = options{}

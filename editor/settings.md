@@ -62,6 +62,17 @@ How tall a window from `:terminal` or a task opens, in percent of the
 screen's rows, 33 unless set. It is never under 3 rows, and `:resize`
 changes it after.
 
+## split_below
+
+`:split`, `:new`, `<C-w>s` and a listing's `<C-h>` open the new window
+below the current one, or above it when off. A terminal, a task and a
+timeline open below either way. On unless set.
+
+## split_right
+
+`:vsplit`, `:vnew`, `<C-w>v` and a listing's `<C-s>` open the new window
+right of the current one, or left of it when off. On unless set.
+
 ## autocomplete
 
 In insert mode, the language server's completions show as a word or a

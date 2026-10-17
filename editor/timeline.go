@@ -392,7 +392,7 @@ func (e *Session) scratch(title, text string, src *buffer, lines []kernel.NodeID
 	b.saved = b.text.Head()
 	b.title, b.source, b.lines, b.file.readonly, b.shown = title, src, lines, true, true
 	e.bufs = append(e.bufs, b)
-	e.split(false)
+	e.splitBeside(false, true)
 	e.win.show(b)
 }
 

@@ -516,6 +516,19 @@ func TestB23Splits(t *testing.T) {
 	if e.Cursor() != 9 {
 		t.Errorf("after x below it, the other window is at %d, want 9", e.Cursor())
 	}
+	// split_below and split_right off put a new window above or left.
+	config(t, "split_below = false\nsplit_right = false\n")
+	for _, c := range []struct{ keys, want string }{
+		{"<C-w>s", "*0,0 80x12 0,12 80x11"},
+		{"<C-w>v", "*0,0 40x23 41,0 39x23"},
+	} {
+		e := start(t, path)
+		e.SetSize(80, 23)
+		feed(e, c.keys)
+		if got := windows(e); got != c.want {
+			t.Errorf("%q with split_below and split_right off: windows %q, want %q", c.keys, got, c.want)
+		}
+	}
 }
 
 // B91

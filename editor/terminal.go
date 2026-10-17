@@ -91,7 +91,7 @@ func (e *Session) openTerminal(arg, task string) {
 	if task != "" {
 		b.title = "[task " + task + "]"
 	}
-	e.split(false)
+	e.splitBeside(false, true)
 	e.root.leaf(e.win).size = max((e.height*int(e.cfg.TerminalHeight)+50)/100, 3)
 	e.show(b)
 	e.win.opts = options{Wrap: false}

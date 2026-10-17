@@ -490,8 +490,9 @@ runs undo-glow.nvim for it.
 A new window goes below the current one for `:split` and right of it for
 `:vsplit`, and takes the cursor (B23), as Neovim does with `splitbelow`
 and `splitright` set. Neovim's defaults put it above and left. Why: the
-user sets both, as many configs do, and asked for it on 2026-10-16. An
-option to choose waits for someone who wants the other way.
+user sets both, as many configs do, and asked for it on 2026-10-16.
+`split_below` and `split_right` turn each off, which the user asked for on
+2026-10-17. A terminal, a task and a timeline still open below.
 
 ### N17. A buffer's keys do not wait
 

@@ -178,7 +178,7 @@ func init() {
 		}},
 		{vim.Command{Name: "marks", Help: "lists the buffer's marks"}, func(e *Session, _ call) { e.marks() }, nil},
 		{vim.Command{Name: "messages", Short: []string{"mes"}, Help: "lists the messages shown, oldest first"}, func(e *Session, _ call) { e.messages() }, nil},
-		{vim.Command{Name: "new", Help: "opens a window below with a new empty buffer"}, func(e *Session, _ call) {
+		{vim.Command{Name: "new", Help: "opens a window below with a new empty buffer, or above with split_below off"}, func(e *Session, _ call) {
 			e.split(false)
 			e.empty()
 		}, nil},
@@ -219,7 +219,7 @@ func init() {
 				e.write(e.win.buf, x.force, nil)
 			}
 		}, nil},
-		{vim.Command{Name: "vnew", Short: []string{"vne"}, Help: "opens a window to the right with a new empty buffer"}, func(e *Session, _ call) {
+		{vim.Command{Name: "vnew", Short: []string{"vne"}, Help: "opens a window to the right with a new empty buffer, or left with split_right off"}, func(e *Session, _ call) {
 			e.split(true)
 			e.empty()
 		}, nil},

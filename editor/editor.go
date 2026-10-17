@@ -1222,8 +1222,8 @@ type windowKey struct {
 
 // windowKeys are the <C-w> commands (B91).
 var windowKeys = []windowKey{
-	{[]string{"s", "S", "<C-s>"}, "splits the window, the new one below", func(e *Session, _ int) error { e.split(false); return nil }},
-	{[]string{"v", "<C-v>"}, "splits the window, the new one right", func(e *Session, _ int) error { e.split(true); return nil }},
+	{[]string{"s", "S", "<C-s>"}, "splits the window, the new one below, or above with split_below off", func(e *Session, _ int) error { e.split(false); return nil }},
+	{[]string{"v", "<C-v>"}, "splits the window, the new one right, or left with split_right off", func(e *Session, _ int) error { e.split(true); return nil }},
 	{[]string{"h", "<C-h>"}, "moves to the window left", func(e *Session, _ int) error { e.moveTo('h'); return nil }},
 	{[]string{"j", "<C-j>"}, "moves to the window below", func(e *Session, _ int) error { e.moveTo('j'); return nil }},
 	{[]string{"k", "<C-k>"}, "moves to the window above", func(e *Session, _ int) error { e.moveTo('k'); return nil }},
