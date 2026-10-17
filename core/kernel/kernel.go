@@ -134,6 +134,7 @@ type Buffer struct {
 	depth   map[Origin]int    // the groups each origin has open
 	group   *Node             // the node being made, of one origin
 	redo    map[NodeID]NodeID // the child each node was last undone from
+	pos     map[NodeID]int    // where each node is in nodes
 
 	log      []logged        // the newest edits, for Map
 	reverted map[NodeID]bool // nodes UndoOrigin reverted, and the nodes that reverted them
@@ -141,7 +142,7 @@ type Buffer struct {
 
 // New returns a buffer holding text. store may be nil.
 func New(text string, store Store) *Buffer {
-	return &Buffer{text: rope.New(text), store: store, seq: map[Origin]uint64{}, depth: map[Origin]int{}}
+	return &Buffer{text: rope.New(text), store: store, seq: map[Origin]uint64{}, depth: map[Origin]int{}, pos: map[NodeID]int{}}
 }
 
 // Load returns a buffer whose text is the text at node head. nodes must be in
@@ -149,11 +150,12 @@ func New(text string, store Store) *Buffer {
 func Load(text string, head NodeID, nodes []Node, store Store) (*Buffer, error) {
 	b := New(text, store)
 	seen := map[NodeID]bool{{}: true}
-	for _, n := range nodes {
+	for i, n := range nodes {
 		if !seen[n.Parent] {
 			return nil, fmt.Errorf("kernel: load node %v: parent %v not loaded before it", n.ID, n.Parent)
 		}
 		seen[n.ID] = true
+		b.pos[n.ID] = i
 		b.seq[n.ID.Origin] = max(b.seq[n.ID.Origin], n.ID.Seq)
 		b.noteReverts(n)
 	}
@@ -404,12 +406,8 @@ func inverse(c Change) []Edit {
 }
 
 func (b *Buffer) index(id NodeID) (int, bool) {
-	for i := len(b.nodes) - 1; i >= 0; i-- {
-		if b.nodes[i].ID == id {
-			return i, true
-		}
-	}
-	return 0, false
+	i, ok := b.pos[id]
+	return i, ok
 }
 
 // BeginGroup starts a group of o's transactions that becomes one node.
@@ -479,6 +477,7 @@ func (b *Buffer) close() {
 func (b *Buffer) commit() {
 	n := *b.group
 	b.group = nil
+	b.pos[n.ID] = len(b.nodes)
 	b.nodes = append(b.nodes, n)
 	b.head = n.ID
 	b.noteReverts(n)
