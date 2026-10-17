@@ -189,6 +189,11 @@ func (h host) Apply(edits []vim.Edit, label string) error {
 	if b.file.readonly {
 		return errors.New("cannot make changes, the file is read-only")
 	}
+	// A read-only session may still edit its own buffers, such as the
+	// finder's query and a proposal's copy.
+	if err := h.e.mayEdit(); err != nil && slices.Contains(h.e.bufs, b) {
+		return err
+	}
 	t := kernel.Transaction{Base: b.text.Snapshot().Version(), Origin: h.e.origin, Label: label, Time: h.e.now()}
 	for _, ed := range edits {
 		t.Edits = append(t.Edits, kernel.Edit(ed))

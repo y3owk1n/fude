@@ -45,6 +45,10 @@ func (e *Session) propose(b *buffer, pos int, keys, text string) error {
 // current buffer. Accepting applies it as one node of its proposer's
 // origin (B72), and a stale one cannot be accepted (B74).
 func (e *Session) decide(arg string, accept bool) {
+	if err := e.mayEdit(); accept && err != nil {
+		e.message = err.Error()
+		return
+	}
 	var owner *Session
 	i := -1
 	for o, ds := range e.decos {

@@ -819,6 +819,50 @@ func TestB245GuestProject(t *testing.T) {
 	feed(e, ":cd "+project+"<CR>")
 }
 
+// B247
+func TestB247ReadOnlyGuest(t *testing.T) {
+	project := t.TempDir()
+	t.Chdir(project)
+	e, log := withServerAt(t, filepath.Join(project, "a.go"), `say "hi" target`+"\n", "utf-8")
+	heard(t, log, `"method":"textDocument/didOpen"`, 1)
+	agent := e.Attach("agent", editor.Host)
+	viewer := e.Attach("viewer", editor.ReadOnly)
+	proposeQuote(t, agent, 5, "hello")
+	feed(e, "A!<Esc>")
+	want := text(e)
+	readOnly := func() bool {
+		return strings.Contains(viewer.Message(), "cannot make changes, the session is read-only")
+	}
+	// The server answers formatting and rename off the loop.
+	for _, keys := range []string{"gqq", "$bgrn<BS><BS><BS><BS><BS><BS>goal<CR>"} {
+		feed(viewer, keys)
+		settle(t, viewer, readOnly)
+		feed(viewer, ":<Esc>")
+	}
+	for _, keys := range []string{"x", "<Esc>ihello", "<Esc>dd", ":accept<CR>", ":e!<CR>", ":restore 0<CR>"} {
+		if feed(viewer, keys); !readOnly() {
+			t.Errorf("%s in a read-only guest said %q", keys, viewer.Message())
+		}
+	}
+	feed(viewer, "<Esc>")
+	r := editor.Request{Command: editor.Command{Op: "delete", Target: editor.Target{Name: "lines"}}}
+	if err := viewer.Request(r); err == nil || err.Error() != "cannot make changes, the session is read-only" {
+		t.Errorf("a read-only guest's request said %v", err)
+	}
+	if text(e) != want {
+		t.Errorf("a read-only guest left %q, want %q", text(e), want)
+	}
+	// It still moves, searches, yanks and proposes.
+	feed(viewer, "0/hi<CR>yiw:reg 0<CR>")
+	if viewer.Cursor() != 5 || !strings.Contains(viewer.Message(), "hi") {
+		t.Errorf("a read-only guest's search and yank left the cursor at %d and said %q", viewer.Cursor(), viewer.Message())
+	}
+	proposeQuote(t, viewer, 5, "bye")
+	if g := e.Views()[0].Ghosts; len(g) != 2 {
+		t.Errorf("a read-only guest's proposal left the ghosts %v", g)
+	}
+}
+
 // B37
 func TestB37Wrap(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "f")

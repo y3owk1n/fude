@@ -268,6 +268,10 @@ func (e *Session) relist(line int) {
 // state is lost. In a timeline window, N defaults to the line under the
 // cursor.
 func (e *Session) restore(arg string) {
+	if err := e.mayEdit(); err != nil {
+		e.message = err.Error()
+		return
+	}
 	b, i := e.state(arg)
 	if b == nil {
 		return

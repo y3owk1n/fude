@@ -2,6 +2,7 @@ package editor
 
 import (
 	"cmp"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"slices"
@@ -12,9 +13,18 @@ import (
 type Power int
 
 const (
-	Host  Power = iota // all a session may do
-	Guest              // limited as B244 to B246 say
+	Host     Power = iota // all a session may do
+	Guest                 // limited as B244 to B246 say
+	ReadOnly              // a guest that changes no text either (B247)
 )
+
+// mayEdit returns an error when e may not change text (B247).
+func (e *Session) mayEdit() error {
+	if e.power == ReadOnly {
+		return errors.New("cannot make changes, the session is read-only")
+	}
+	return nil
+}
 
 // refuses says whether a guest may not run the ex command name with arg,
 // because it runs a program or changes what every session shares (B244).

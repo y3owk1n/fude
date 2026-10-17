@@ -146,6 +146,12 @@ func (e *Session) Request(r Request) error {
 			return fmt.Errorf("the text at %d changed since version %d", *r.At, r.Base)
 		}
 	}
+	// A read-only session may move, yank and propose (B247).
+	if !r.Proposal && r.Command.Op != "" && r.Command.Op != "yank" {
+		if err := e.mayEdit(); err != nil {
+			return err
+		}
+	}
 	if r.Proposal {
 		if r.Command.Op == "format" {
 			return errors.New("formatting waits for the language server, so it cannot be proposed")

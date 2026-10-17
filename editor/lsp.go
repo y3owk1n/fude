@@ -596,6 +596,9 @@ func (e *Session) rename(name string) {
 // Another buffer's must apply to the version the server names, when it
 // names one.
 func (e *Session) workspaceEdit(s *server, from *buffer, t kernel.Snapshot, res json.RawMessage, label string) (int, []string) {
+	if err := e.mayEdit(); err != nil {
+		return 0, []string{err.Error()}
+	}
 	files, err := workspaceFiles(res)
 	if err != nil {
 		return 0, []string{err.Error()}

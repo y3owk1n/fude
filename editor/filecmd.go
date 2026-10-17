@@ -12,6 +12,9 @@ import (
 
 // revert puts the text of b's file on disk in b, as one undo step.
 func (e *Session) revert(b *buffer) error {
+	if err := e.mayEdit(); err != nil {
+		return err
+	}
 	f, text, err := read(b.file.path)
 	if err != nil {
 		return err

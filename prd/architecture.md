@@ -1530,9 +1530,11 @@ the session is made. The server checks each limit in one place:
   buffer whose path fails that check, even one already open.
 - Plugins: a plugin's key, command, operator or object checks the
   plugin's grants before it runs for a guest (B246).
-- Read-only: `host.Apply` refuses the session's origin, and `push`,
-  requests and `:accept` go through it, so one check covers every edit
-  (B247).
+- Read-only: each place a session changes a shared buffer's text calls
+  `mayEdit` first. Those places are `host.Apply`, `:accept`, `:e!`,
+  formatting, a language server's edits, `:restore` and requests. Keys,
+  completion, snippets and plugins' commands go through `host.Apply`.
+  Replica pushes will call it once a guest can push (B247).
 
 ### Share and join
 

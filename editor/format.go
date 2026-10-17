@@ -327,6 +327,10 @@ func (e *Session) reformat(b *buffer, t kernel.Snapshot, edits []kernel.Edit, la
 	if len(edits) == 0 || !slices.Contains(e.bufs, b) {
 		return
 	}
+	if err := e.mayEdit(); err != nil {
+		e.message = err.Error()
+		return
+	}
 	if err := b.text.Apply(kernel.Transaction{Base: t.Version(), Origin: e.origin, Label: label, Time: e.now(), Edits: edits}); err != nil {
 		if errors.Is(err, kernel.ErrStale) {
 			err = errors.New("the text changed while it was formatted")
