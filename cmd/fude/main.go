@@ -192,12 +192,14 @@ func run(args []string) error {
 			}
 		}
 	}
+	// Start reads RestartEnv and unsets it.
+	restarted := os.Getenv(editor.RestartEnv) != ""
 	e, err := editor.Start(args)
 	if err != nil {
 		return err
 	}
 	e.SetName(name)
-	if len(args) == 0 && os.Getenv(editor.RestartEnv) == "" {
+	if len(args) == 0 && !restarted {
 		e.Welcome()
 	}
 	stop := e.Serve(e.SocketPath())
