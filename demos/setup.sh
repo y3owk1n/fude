@@ -18,6 +18,7 @@ go build -o $root/bin/fude ./cmd/fude || return 1
 ln -s $go $root/bin/go
 ln -s $gopls $root/bin/gopls
 ln -s $(command -v tree-sitter) $root/bin/tree-sitter
+ln -s $(command -v just) $root/bin/just
 git clone -q $repo $root/fude
 git -C $repo diff --no-ext-diff --no-color --binary HEAD | git -C $root/fude apply || return 1
 cp $repo/demos/config.toml $root/.config/fude/config.toml

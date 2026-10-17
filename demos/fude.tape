@@ -1,6 +1,7 @@
 # One pass through fude on its own source: the start screen, the finder,
 # key hints, live grep, hover, a tree-sitter edit and its undo, completion,
-# code actions, folds, a jump and the timeline.
+# code actions, editing every match at once, folds, a jump, a task and the
+# timeline.
 Output demos/fude.gif
 Output demos/out/fude.mp4
 Source demos/style.tape
@@ -93,6 +94,23 @@ Sleep 1.2s
 Escape
 Sleep 500ms
 
+# <C-n> selects each match of the word, and one change edits them all.
+Type "/room :="
+Enter
+Sleep 400ms
+Ctrl+N
+Sleep 300ms
+Ctrl+N
+Sleep 300ms
+Ctrl+N
+Sleep 1.2s
+Type@120ms "cspace"
+Sleep 1.2s
+Escape
+Sleep 800ms
+Type "u"
+Sleep 600ms
+
 # Folds by indent, then a jump to a label.
 Type "zM"
 Sleep 1.8s
@@ -102,6 +120,15 @@ Type "sma"
 Sleep 1.5s
 Enter
 Sleep 800ms
+
+# A task from the justfile runs in a split below.
+Type ":pick tasks"
+Enter
+Sleep 800ms
+Type@120ms "loc"
+Sleep 800ms
+Enter
+Sleep 2.5s
 
 # Every state, on a branching timeline. d diffs one against now.
 Type ":timeline"
