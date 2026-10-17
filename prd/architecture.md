@@ -993,6 +993,7 @@ host it may not reach or a request that failed.
 | `spans(start, end) -> i64` | `buffer.read` | the start, end and name of each highlight capture over `[start, end)`, each followed by a NUL (B273) |
 | `comment(pos) -> i64` | `buffer.read` | how the language at `pos` comments a line, such as `// %s`, or -2 for none (B275) |
 | `option(ptr, len) -> i64` | none | the option or config.toml setting called the name at `ptr`, as text, as the window has it, or -2 for none (B274) |
+| `config(ptr, len) -> i64` | none | the value at the dotted config.toml path at `ptr`, as JSON, or -2 for none (B279) |
 | `buffers() -> i64` | `buffer.read` | each open buffer's id, path and filetype, each followed by a NUL (B188) |
 | `len_of(id) -> i32` | `buffer.read` | the length of the text of the buffer `id` |
 | `text_of(id, start, end) -> i64` | `buffer.read` | the text of the buffer `id` in `[start, end)` |

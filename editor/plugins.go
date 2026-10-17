@@ -497,6 +497,7 @@ func (e *Session) scope(b *buffer, t api.Text) api.Scope {
 	}
 	s := api.Scope{Text: t, About: e.about(b), Buffers: bufs, Language: func(int) string { return ft }}
 	s.Option = func(name string) (string, bool) { return option(opts, cfg, name) }
+	s.Config = func(path string) (string, bool) { return configNode(cfg, path) }
 	if b.syntax != nil {
 		s.Node, s.Free = b.syntax.Nodes()
 		regions := b.syntax.Regions()
@@ -520,9 +521,13 @@ func (e *Session) scope(b *buffer, t api.Text) api.Scope {
 }
 
 // about is what a call about b tells the plugin through context: the
-// buffer's id, path and filetype, and the mode (B176).
+// buffer's id, path and filetype, the mode (B176), and its indent and tab
+// widths (B280).
 func (e *Session) about(b *buffer) api.Context {
-	return api.Context{"buffer": strconv.Itoa(b.id), "path": b.file.path, "filetype": e.filetype(b), "mode": modes[e.vim.Mode()]}
+	return api.Context{
+		"buffer": strconv.Itoa(b.id), "path": b.file.path, "filetype": e.filetype(b), "mode": modes[e.vim.Mode()],
+		"indent": strconv.Itoa(e.indentWidth(b)), "tab": strconv.Itoa(e.tabWidth(b)),
+	}
 }
 
 // run calls what p registered as id, on the input path, against the current

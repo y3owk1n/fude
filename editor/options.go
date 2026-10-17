@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"encoding/json"
 	"fmt"
 	"maps"
 	"reflect"
@@ -104,4 +105,44 @@ func option(opts options, cfg *config, name string) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// configNode returns the value at a dotted path of config.toml, such as
+// filetype.go.format, as JSON, or false for none. A table's key follows
+// its name in the path (B279).
+func configNode(cfg *config, path string) (string, bool) {
+	v := reflect.ValueOf(cfg).Elem()
+	for _, name := range strings.Split(path, ".") {
+		for v.Kind() == reflect.Pointer {
+			if v.IsNil() {
+				return "", false
+			}
+			v = v.Elem()
+		}
+		switch v.Kind() {
+		case reflect.Map:
+			if v = v.MapIndex(reflect.ValueOf(name)); !v.IsValid() {
+				return "", false
+			}
+		case reflect.Struct:
+			i := slices.IndexFunc(reflect.VisibleFields(v.Type()), func(f reflect.StructField) bool { return f.Tag.Get("toml") == name })
+			if i < 0 {
+				return "", false
+			}
+			v = v.FieldByIndex(reflect.VisibleFields(v.Type())[i].Index)
+		default:
+			return "", false
+		}
+	}
+	if v.Kind() == reflect.Pointer && v.IsNil() {
+		return "", false
+	}
+	// The encoder leaves < and > alone, so a key such as <Space> reads as written.
+	var b strings.Builder
+	enc := json.NewEncoder(&b)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(v.Interface()); err != nil {
+		return "", false
+	}
+	return strings.TrimSuffix(b.String(), "\n"), true
 }

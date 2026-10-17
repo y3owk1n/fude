@@ -252,6 +252,7 @@ func (p *Plugin) host(ctx context.Context) error {
 		NewFunctionBuilder().WithFunc(p.context).Export("context").
 		NewFunctionBuilder().WithFunc(p.setting).Export("setting").
 		NewFunctionBuilder().WithFunc(p.option).Export("option").
+		NewFunctionBuilder().WithFunc(p.config).Export("config").
 		NewFunctionBuilder().WithFunc(p.after).Export("after").
 		NewFunctionBuilder().WithFunc(p.start).Export("start").
 		NewFunctionBuilder().WithFunc(p.fetch).Export("fetch").
@@ -345,6 +346,23 @@ func (p *Plugin) option(ctx context.Context, m api.Module, ptr, n uint32) int64 
 		return errRange
 	}
 	v, has := p.call.Option(string(name))
+	if !has {
+		return errRange
+	}
+	return give(ctx, m, v)
+}
+
+// config writes the value at the dotted config.toml path at (ptr, n) into
+// memory the plugin allocates, as JSON, or returns errRange for none (B279).
+func (p *Plugin) config(ctx context.Context, m api.Module, ptr, n uint32) int64 {
+	if p.call == nil {
+		return errDenied
+	}
+	path, ok := m.Memory().Read(ptr, n)
+	if !ok || p.call.Config == nil {
+		return errRange
+	}
+	v, has := p.call.Config(string(path))
 	if !has {
 		return errRange
 	}

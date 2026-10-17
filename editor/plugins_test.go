@@ -679,6 +679,25 @@ func TestB278PluginPlug(t *testing.T) {
 	}
 }
 
+// B279
+func TestB279PluginReadsConfig(t *testing.T) {
+	useTable(t, "ctx", "\n[filetype.txt]\nformat = [\"y\"]\n[formatter.y]\ncommand = [\"sed\", \"s/x/y/\"]\n", "buffer.write")
+	e := opened(t, "f.txt", "a\n")
+	feed(e, ":Cfg filetype.txt.format<CR>:Cfg formatter.y.command<CR>:Cfg filetype.txt.format_on_save<CR>:Cfg leader<CR>:Cfg nothing.here<CR>")
+	if got := text(e); got != `none|"<Space>"|none|["sed","s/x/y/"]|["y"]|a` {
+		t.Errorf("the config values typed %q", got)
+	}
+}
+
+// B280
+func TestB280PluginHearsIndentWidths(t *testing.T) {
+	useTable(t, "ctx", "\n[filetype.txt]\nindent_width = 2\n", "buffer.write")
+	e := opened(t, "f.txt", "a\n")
+	if feed(e, ":Indent<CR>"); text(e) != "2|8|a" {
+		t.Errorf(":Indent typed %q, want 2|8|a", text(e))
+	}
+}
+
 // B190
 func TestB190PluginAsksTheServer(t *testing.T) {
 	wasm, err := filepath.Abs(filepath.Join("..", "plugin", "testdata", "ctx", "ctx.wasm"))

@@ -101,6 +101,10 @@ type Scope struct {
 	// Option returns the option or config.toml setting called name there, as
 	// text, such as spell or spell_words, or false for none (B274).
 	Option func(name string) (string, bool)
+	// Config returns the value at a dotted path of config.toml, such as
+	// filetype.go.format or formatter.gofmt.command, as JSON, or false for
+	// none. A table's key follows its name in the path (B279).
+	Config func(path string) (string, bool)
 	// Node finds a syntax node in Text, as syntax.Buffer.Nodes does. Free
 	// frees what it reads once the call is done (B189).
 	Node func(pos, up int) (kind string, start, end int, ok bool)

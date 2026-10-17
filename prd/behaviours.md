@@ -908,6 +908,11 @@ Where fude departs, the line says so and cites the departure in
   the highlight captures over a range, as their names and ranges.
 - B274 [4] A plugin reads an option by its name in config.toml, as the
   window has it, or a top-level setting of config.toml.
+- B279 [4] A plugin reads any value of config.toml by its dotted path, such
+  as `filetype.go.format` or `formatter.gofmt.command`, as JSON.
+- B280 [4] Every call into a plugin tells it the indent width and the tab
+  width of the buffer it is about, as the file's .editorconfig, its
+  filetype and config.toml settle them.
 - B275 [4] A plugin with `buffer.read` reads how the language at a
   position comments a line, the syntax `gc` uses.
 - B190 [4] A plugin with `lsp` sends a request to the language servers of

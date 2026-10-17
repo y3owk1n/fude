@@ -97,6 +97,9 @@ func hostSetting(ptr *byte, n uint32) int64
 //go:wasmimport fude option
 func hostOption(ptr *byte, n uint32) int64
 
+//go:wasmimport fude config
+func hostConfig(ptr *byte, n uint32) int64
+
 //go:wasmimport fude text_len
 func hostTextLen() int32
 
@@ -451,6 +454,15 @@ func Option(name string) (string, bool) {
 	return v, err == nil
 }
 
+// Config returns the value at a dotted path of config.toml, such as
+// filetype.go.format or formatter.gofmt.command, as JSON, or false for
+// none. A table's key follows its name in the path.
+func Config(path string) (string, bool) {
+	p, n := ptr(path)
+	v, err := answer(hostConfig(p, n))
+	return v, err == nil
+}
+
 // Node is a syntax node: its kind, such as function_declaration, and where
 // it starts and ends.
 type Node struct {
@@ -538,6 +550,13 @@ func TextOf(id, start, end int) (string, error) {
 
 // Mode returns the mode, such as normal or insert.
 func Mode() string { return about("mode") }
+
+// IndentWidth returns the columns of an indent level in the buffer the call
+// is about, as its .editorconfig, filetype and config.toml settle it, and
+// TabWidth the columns a tab shows as (B280).
+func IndentWidth() int { n, _ := strconv.Atoi(about("indent")); return n }
+
+func TabWidth() int { n, _ := strconv.Atoi(about("tab")); return n }
 
 // Lines returns how many lines the text has. It needs buffer.read.
 func Lines() (int, error) {
