@@ -307,12 +307,14 @@ func Build(filetype string) error {
 		}
 	}
 	// Build writes the library last, through a rename, so a library there
-	// means the rest of the build is there too.
+	// means the rest of the build is there too. The name it writes first is
+	// its own, as two fude processes may build one grammar at once.
 	lib := Library(grammars, filetype)
-	if err := run(src, "tree-sitter", "build", "-o", lib+".new", filepath.Join(src, g.src)); err != nil {
+	tmp := fmt.Sprintf("%s.%d.new", lib, os.Getpid())
+	if err := run(src, "tree-sitter", "build", "-o", tmp, filepath.Join(src, g.src)); err != nil {
 		return err
 	}
-	if err := os.Rename(lib+".new", lib); err != nil {
+	if err := os.Rename(tmp, lib); err != nil {
 		return fmt.Errorf("build the %s grammar: %w", filetype, err)
 	}
 	// Libraries of older pins go, as nothing loads them now.

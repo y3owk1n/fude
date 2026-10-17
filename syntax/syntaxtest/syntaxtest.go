@@ -67,11 +67,14 @@ func build(dir string) error {
 	if err := os.WriteFile(filepath.Join(queries, "highlights.scm"), b, 0o644); err != nil {
 		return fmt.Errorf("go grammar: %w", err)
 	}
+	// Test packages may build it at the same time, so each writes a name of
+	// its own.
 	lib := syntax.Library(dir, "go")
-	if out, err := exec.Command("tree-sitter", "build", "-o", lib+".new", work).CombinedOutput(); err != nil {
+	tmp := fmt.Sprintf("%s.%d.new", lib, os.Getpid())
+	if out, err := exec.Command("tree-sitter", "build", "-o", tmp, work).CombinedOutput(); err != nil {
 		return fmt.Errorf("go grammar: tree-sitter build: %w: %s", err, out)
 	}
-	if err := os.Rename(lib+".new", lib); err != nil {
+	if err := os.Rename(tmp, lib); err != nil {
 		return fmt.Errorf("go grammar: %w", err)
 	}
 	return nil
