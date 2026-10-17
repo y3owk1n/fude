@@ -1356,6 +1356,12 @@ func TestB139Flash(t *testing.T) {
 	}
 	// It goes after a moment.
 	settle(t, e, func() bool { return flashed() == nil })
+	// flash_time = 0 turns it off.
+	config(t, "flash_time = 0\n")
+	e = start(t, path)
+	if feed(e, "yiw"); flashed() != nil {
+		t.Errorf("with flash_time = 0 the flash is %v, want none", flashed())
+	}
 }
 
 // B140

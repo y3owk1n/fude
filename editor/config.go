@@ -27,6 +27,7 @@ type config struct {
 	TabWidth        uint     `toml:"tab_width" help:"the columns a tab shows as"`
 	KeyTimeout      uint     `toml:"key_timeout" help:"the milliseconds a mapping waits for its next key"`
 	KeyHints        uint     `toml:"key_hints" help:"the milliseconds a command being typed waits before the keys that may follow it show, 0 for never"`
+	FlashTime       uint     `toml:"flash_time" help:"the milliseconds text just yanked, put, undone or redone shows highlighted, 0 for never"`
 	LargeFile       uint     `toml:"large_file" help:"the megabytes over which a file opens with syntax and language servers off"`
 	Center          bool     `toml:"center" help:"the windows start centered on a wide screen, as :center toggles"`
 	Autocomplete    bool     `toml:"autocomplete" help:"completions show while typing, not only on <C-x><C-o>"`
@@ -93,7 +94,7 @@ type config struct {
 	} `toml:"plugin"`
 }
 
-var defaults = config{TabWidth: 8, KeyTimeout: 1000, KeyHints: 300, FormatTimeout: 1000, LargeFile: 2, HighlightColors: true, InlayHints: true, StickyContext: true, Autopairs: true, Sources: []string{"lsp", "snippet", "path", "buffer"}, AutoInstall: true, Leader: "<Space>", Theme: "dark", options: options{Wrap: true, IndentGuides: true}}
+var defaults = config{TabWidth: 8, KeyTimeout: 1000, KeyHints: 300, FlashTime: 300, FormatTimeout: 1000, LargeFile: 2, HighlightColors: true, InlayHints: true, StickyContext: true, Autopairs: true, Sources: []string{"lsp", "snippet", "path", "buffer"}, AutoInstall: true, Leader: "<Space>", Theme: "dark", options: options{Wrap: true, IndentGuides: true}}
 
 // options are the settings each window has, which :set changes for the
 // current window and the windows opened after it (B39). :set takes each by

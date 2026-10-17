@@ -6,9 +6,6 @@ import (
 	"github.com/y3owk1n/fude/core/kernel"
 )
 
-// flashTime is how long a flash shows.
-const flashTime = 300 * time.Millisecond
-
 // flash is text of b shown for a moment, as the last yank, put, undo or
 // redo left it (B139).
 type flash struct {
@@ -16,14 +13,14 @@ type flash struct {
 	start, end int
 }
 
-// flashOn shows start to end of b for flashTime.
+// flashOn shows start to end of b for flash_time milliseconds.
 func (e *Session) flashOn(b *buffer, start, end int) {
-	if start >= end {
+	if start >= end || e.cfg.FlashTime == 0 {
 		return
 	}
 	f := &flash{b, start, end}
 	e.flash = f
-	time.AfterFunc(flashTime, func() {
+	time.AfterFunc(time.Duration(e.cfg.FlashTime)*time.Millisecond, func() {
 		e.queue <- func() {
 			if e.flash == f {
 				e.flash = nil

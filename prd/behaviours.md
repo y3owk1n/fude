@@ -298,8 +298,9 @@ Where fude departs, the line says so and cites the departure in
   since. git reads the buffer's text, so lines changed since the last
   write still line up. `:blame` again stops it.
 - B139 [2] Text just yanked, put, undone or redone shows highlighted for
-  300ms, as undo-glow.nvim shows it, and a change to the buffer clears it
-  sooner (N15).
+  `flash_time` milliseconds, 300 unless set, as undo-glow.nvim shows it,
+  and a change to the buffer clears it sooner (N15). `flash_time = 0`
+  turns it off.
 - B140 [2] `<Plug>(window.left)`, `<Plug>(window.down)`,
   `<Plug>(window.up)` and `<Plug>(window.right)` move to the window that
   way. Inside tmux, with no window that way, they move to tmux's pane

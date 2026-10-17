@@ -34,6 +34,11 @@ How long a command being typed waits before a panel lists the keys that may
 follow it. 0 turns the panel off. Keep it below `key_timeout`, or a
 mapping's keys run before its hints show.
 
+## flash_time
+
+How long text just yanked, put, undone or redone shows highlighted, in
+milliseconds. A change to the buffer clears it sooner. 0 turns it off.
+
 ## large_file
 
 A file larger than this many megabytes opens with syntax colours and
