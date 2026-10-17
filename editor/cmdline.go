@@ -27,9 +27,9 @@ type cmenu struct {
 	lit int
 }
 
-// commandKey takes a key while a command line is typed: <Tab> and <C-n>
-// put the next completion in the line, <S-Tab> and <C-p> the one before,
-// <C-y> keeps it and <C-e> puts back what was typed. It reports whether it
+// commandKey takes a key while a command line is typed: <Tab> puts the lit
+// completion in the line, or else the next, <C-n> the next, <S-Tab> and
+// <C-p> the one before, <C-y> keeps it and <C-e> puts back what was typed. It reports whether it
 // took the key, and other keys close the menu.
 func (e *Session) commandKey(k vim.Key) bool {
 	line, ok := strings.CutPrefix(e.vim.Line(), ":")
@@ -40,17 +40,29 @@ func (e *Session) commandKey(k vim.Key) bool {
 	}
 	switch k {
 	case "\t", "<C-n>", "<S-Tab>", "<C-p>":
-		if m == nil {
+		fresh := m == nil
+		if fresh {
 			if m = e.menuOf(line, true); m == nil {
 				return true
 			}
 			e.cmenu = m
 		}
-		step := 1
-		if k == "<S-Tab>" || k == "<C-p>" {
-			step = len(m.items)
+		n, back := len(m.items), k == "<S-Tab>" || k == "<C-p>"
+		lit := !fresh && m.sel == n && m.lit >= 0
+		switch {
+		case lit && k == "\t":
+			// <Tab> takes the lit item of a menu already shown.
+			m.sel = m.lit
+		case lit && back:
+			m.sel = (m.lit + n - 1) % n
+		case lit:
+			m.sel = (m.lit + 1) % n
+		case back:
+			// The typed word comes after the last item.
+			m.sel = (m.sel + n) % (n + 1)
+		default:
+			m.sel = (m.sel + 1) % (n + 1)
 		}
-		m.sel = (m.sel + step) % (len(m.items) + 1)
 		word := m.typed
 		if m.sel < len(m.items) {
 			word = m.items[m.sel]

@@ -1504,7 +1504,7 @@ func TestB131CommandCompletion(t *testing.T) {
 		// A path completes in the directory typed so far.
 		{"<Esc>:e ed<Tab>", ":e editor/"},
 		{"f<Tab>", ":e editor/files.go"},
-		// <S-Tab> goes back from the typed word to the last match.
+		// <S-Tab> goes back from the lit first match to the last.
 		{"<Esc>:set case<S-Tab>", ":set ignore_case"},
 	} {
 		if feed(e, c.keys); e.Line() != c.line {
@@ -1578,12 +1578,16 @@ func TestB131CommandCompletion(t *testing.T) {
 	if f, ok := e.Float(); !ok || !strings.HasPrefix(f.Text, "buffer") {
 		t.Fatalf("typing :bu shows the menu %q", f.Text)
 	}
-	// A long menu shows its best matches first, and <C-n> takes the first.
+	// A long menu shows its best matches first, lighting the first, and
+	// <C-n> goes on to the second.
 	feed(e, "<Esc>:h plug")
 	f, _ := e.Float()
-	best, _, _ := strings.Cut(f.Text, "\n")
-	if feed(e, "<C-n>"); e.Line() != ":h "+best {
-		t.Errorf("the menu starts with %q, and <C-n> put %q in the line", best, e.Line())
+	items := strings.Split(f.Text, "\n")
+	if !lit(items[0]) {
+		t.Errorf("the menu %q lights none of its first", items[:2])
+	}
+	if feed(e, "<C-n>"); e.Line() != ":h "+items[1] {
+		t.Errorf("the menu starts with %q, and <C-n> put %q in the line", items[:2], e.Line())
 	}
 	// A path's menu shows once its directory is read.
 	feed(e, "<Esc>:e ed")
