@@ -87,3 +87,21 @@ func (e *Session) set(args string) {
 	// A colour column changes how wide centering makes the windows.
 	e.layout()
 }
+
+// option returns the option or config.toml setting called name there, as
+// text. An option comes from opts, which a filetype table may have set, and
+// a setting from config.toml. A list or a table is neither (B274).
+func option(opts options, cfg *config, name string) (string, bool) {
+	for _, v := range []reflect.Value{reflect.ValueOf(opts), reflect.ValueOf(cfg).Elem()} {
+		for _, f := range reflect.VisibleFields(v.Type()) {
+			if f.Tag.Get("toml") != name {
+				continue
+			}
+			switch fv := v.FieldByIndex(f.Index); fv.Kind() {
+			case reflect.Bool, reflect.Int, reflect.Uint, reflect.String:
+				return fmt.Sprint(fv), true
+			}
+		}
+	}
+	return "", false
+}

@@ -250,6 +250,7 @@ func (p *Plugin) host(ctx context.Context) error {
 		NewFunctionBuilder().WithFunc(p.logText).Export("log").
 		NewFunctionBuilder().WithFunc(p.context).Export("context").
 		NewFunctionBuilder().WithFunc(p.setting).Export("setting").
+		NewFunctionBuilder().WithFunc(p.option).Export("option").
 		NewFunctionBuilder().WithFunc(p.after).Export("after").
 		NewFunctionBuilder().WithFunc(p.start).Export("start").
 		NewFunctionBuilder().WithFunc(p.fetch).Export("fetch").
@@ -329,6 +330,23 @@ func (p *Plugin) after(ms, id uint32) int32 {
 	}
 	p.call.Timers = append(p.call.Timers, fude.Timer{ID: id, After: time.Duration(ms) * time.Millisecond})
 	return 0
+}
+
+// option writes the option or config.toml setting named at (ptr, n) into
+// memory the plugin allocates, or returns errRange for none (B274).
+func (p *Plugin) option(ctx context.Context, m api.Module, ptr, n uint32) int64 {
+	if p.call == nil {
+		return errDenied
+	}
+	name, ok := m.Memory().Read(ptr, n)
+	if !ok || p.call.Option == nil {
+		return errRange
+	}
+	v, has := p.call.Option(string(name))
+	if !has {
+		return errRange
+	}
+	return give(ctx, m, v)
 }
 
 // setting writes the value of the plugin's setting named at (ptr, n) into

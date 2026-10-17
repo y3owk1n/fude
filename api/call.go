@@ -93,6 +93,9 @@ type Scope struct {
 	// Spans returns the highlight captures over [start, end) of Text, in
 	// paint order, or none without a grammar (B273).
 	Spans func(start, end int) []Span
+	// Option returns the option or config.toml setting called name there, as
+	// text, such as spell or spell_words, or false for none (B274).
+	Option func(name string) (string, bool)
 	// Node finds a syntax node in Text, as syntax.Buffer.Nodes does. Free
 	// frees what it reads once the call is done (B189).
 	Node func(pos, up int) (kind string, start, end int, ok bool)

@@ -4,12 +4,13 @@
 // types the buffer's id, path and filetype, the mode, how many lines the
 // text has, the cursor's line and where the last line starts. The insert
 // mode key <C-j> types the mode it ran in, in brackets. :Set name types
-// the setting name, or none. :Show text shows text in a window titled
-// [shown], as Go, and :Say text shows it in the message area. :Go pos
-// moves the cursor to pos, and :Open path opens the file at path with the
-// cursor at 2. :Bufs types the id and text of every open buffer, and :Node
-// the kinds of the syntax node at the cursor and its parent. :Lang types
-// the language at the cursor and the names of the captures over it.
+// the setting name, or none, and :Opt name the option name and a |. :Show
+// text shows text in a window titled [shown], as Go, and :Say text shows it
+// in the message area. :Go pos moves the cursor to pos, and :Open path
+// opens the file at path with the cursor at 2. :Bufs types the id and text
+// of every open buffer, and :Node the kinds of the syntax node at the cursor
+// and its parent. :Lang types the language at the cursor and the names of
+// the captures over it.
 // :Hover asks the language server for hover at the cursor and types its
 // answer, or the error, at the start. Needs buffer.read, buffer.write, ui
 // and lsp.
@@ -36,6 +37,13 @@ func init() {
 			v = "none"
 		}
 		sdk.Edit(c.Cursor, c.Cursor, v)
+	})
+	sdk.Command("Opt", "types an option", func(c sdk.Call) {
+		v, ok := sdk.Option(c.Args)
+		if !ok {
+			v = "none"
+		}
+		sdk.Edit(c.Cursor, c.Cursor, v+"|")
 	})
 	sdk.Command("Show", "shows its args in a window", func(c sdk.Call) {
 		sdk.Show("[shown]", "go", c.Args)

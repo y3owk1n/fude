@@ -51,7 +51,7 @@ Its other four methods do nothing here. `Event` and `Callback` return an empty `
 
 ## What a call reads and asks for
 
-A `Scope` holds the text of the buffer the call is about, `About` (its `buffer`, `path`, `filetype` and the `mode`, and a command's `args`, `bang`, `first`, `last` and `ranged`), every open buffer by id, and three funcs over the syntax: `Language` for the language at a position, `Spans` for the highlight captures over a range, and `Node`, which finds syntax nodes. A `Text` has `Len`, `Slice`, `Lines`, `LineStart` and `LineOf`, with byte offsets and lines counted from 0.
+A `Scope` holds the text of the buffer the call is about, `About` (its `buffer`, `path`, `filetype` and the `mode`, and a command's `args`, `bang`, `first`, `last` and `ranged`), every open buffer by id, and three funcs over the syntax: `Language` for the language at a position, `Spans` for the highlight captures over a range, and `Node`, which finds syntax nodes. `Option` reads an option, such as `spell`, as the window has it, or a config.toml setting, such as `spell_words`. A `Text` has `Len`, `Slice`, `Lines`, `LineStart` and `LineOf`, with byte offsets and lines counted from 0.
 
 A `Result` asks for any of these, and fude applies them together once the call returns:
 

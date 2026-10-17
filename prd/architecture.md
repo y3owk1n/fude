@@ -982,6 +982,7 @@ host it may not reach or a request that failed.
 | `node(pos, up) -> i64` | `buffer.read` | the kind, start and end, NUL-separated, of the named syntax node that holds `pos`, or of its `up`'th named parent, or -2 for none (B189) |
 | `language(pos) -> i64` | `buffer.read` | the filetype of the text at `pos`, the buffer's or that of an injected region holding it (B273) |
 | `spans(start, end) -> i64` | `buffer.read` | the start, end and name of each highlight capture over `[start, end)`, each followed by a NUL (B273) |
+| `option(ptr, len) -> i64` | none | the option or config.toml setting called the name at `ptr`, as text, as the window has it, or -2 for none (B274) |
 | `buffers() -> i64` | `buffer.read` | each open buffer's id, path and filetype, each followed by a NUL (B188) |
 | `len_of(id) -> i32` | `buffer.read` | the length of the text of the buffer `id` |
 | `text_of(id, start, end) -> i64` | `buffer.read` | the text of the buffer `id` in `[start, end)` |

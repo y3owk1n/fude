@@ -486,8 +486,12 @@ func (e *Session) scope(b *buffer, t api.Text) api.Scope {
 	for _, o := range e.bufs {
 		bufs[o.id] = api.Buffer{Path: o.file.path, Filetype: e.filetype(o), Text: o.text.Snapshot()}
 	}
-	ft := e.filetype(b)
+	ft, opts, cfg := e.filetype(b), e.opts, &e.cfg
+	if e.win.buf == b {
+		opts = e.win.opts
+	}
 	s := api.Scope{Text: t, About: e.about(b), Buffers: bufs, Language: func(int) string { return ft }}
+	s.Option = func(name string) (string, bool) { return option(opts, cfg, name) }
 	if b.syntax != nil {
 		s.Node, s.Free = b.syntax.Nodes()
 		regions := b.syntax.Regions()

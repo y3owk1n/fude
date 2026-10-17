@@ -93,6 +93,9 @@ func hostRequest(ptr *byte, n uint32, pos, id uint32) int32
 //go:wasmimport fude setting
 func hostSetting(ptr *byte, n uint32) int64
 
+//go:wasmimport fude option
+func hostOption(ptr *byte, n uint32) int64
+
 //go:wasmimport fude text_len
 func hostTextLen() int32
 
@@ -423,6 +426,15 @@ func Current() Buffer {
 func Setting(name string) (string, bool) {
 	p, n := ptr(name)
 	v, err := answer(hostSetting(p, n))
+	return v, err == nil
+}
+
+// Option returns the option or config.toml setting called name there, as
+// text, such as spell or spell_words, or false for none. An option is the
+// window's, as a filetype table may set it.
+func Option(name string) (string, bool) {
+	p, n := ptr(name)
+	v, err := answer(hostOption(p, n))
 	return v, err == nil
 }
 
