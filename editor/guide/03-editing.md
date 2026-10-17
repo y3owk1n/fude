@@ -29,6 +29,14 @@ around it.
 `ci"` changes the text inside the quotes around the cursor, wherever the
 cursor is in them.
 
+## Several places at once
+
+`<C-n>` selects the word under the cursor, and each `<C-n>` after adds its
+next match, so `<C-n><C-n><C-n>c` changes three of them as you type.
+`/word<CR>` then `cgn` changes one match, and `.` the next. In visual mode
+`:select` takes every node of a tree-sitter query, and `<C-v>` with `I`
+or `A` types on every line of a block.
+
 ## Surrounding
 
 `ys` puts brackets or quotes around what a motion or object covers, and

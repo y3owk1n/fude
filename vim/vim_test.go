@@ -177,6 +177,27 @@ func TestB202AutoPairs(t *testing.T) {
 	}
 }
 
+// B232
+func TestB232Multi(t *testing.T) {
+	for _, c := range []struct{ start, keys, want string }{
+		// cgn changes the match under or after the cursor, and . the next.
+		{"|foo bar foo", "/foo<CR>0cgnX<Esc>", "|X bar foo"},
+		{"|foo bar foo", "/foo<CR>0cgnX<Esc>.", "X bar |X"},
+		// <C-n> selects the word, and each <C-n> after adds its next match
+		// as a whole word, which c then changes everywhere.
+		{"|ab abc ab y ab", "<C-n><C-n>cZ<Esc>", "|Z abc Z y ab"},
+		// A <C-n> with no match left keeps the regions there are.
+		{"|ab x ab", "<C-n><C-n><C-n>d", "| x "},
+		// In visual mode it starts from the selected text.
+		{"|a.b a.b", "vll<C-n>d", "| "},
+	} {
+		got, _, _ := run(t, c.start, c.keys)
+		if got != c.want {
+			t.Errorf("%q on %q made %q, want %q", c.keys, c.start, got, c.want)
+		}
+	}
+}
+
 // B229
 func TestB229TypeAhead(t *testing.T) {
 	h := &host{}

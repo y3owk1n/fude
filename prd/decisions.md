@@ -662,6 +662,14 @@ offers indent, syntax, markers and expressions. fude has no `zf`,
 file, with or without a grammar, and grammar repos ship no fold queries
 (D28). The user asked for folding on 2026-10-17.
 
+### N35. <C-n> adds a region
+
+`<C-n>` in normal mode selects the word under the cursor, and in visual
+mode adds its next match as another region (B232), as VS Code's `<C-d>`
+and vim-visual-multi's `<C-n>` do. Neovim's `<C-n>` in normal mode moves
+down a line, as `j` does. Why: `j` does that already, and the user asked
+on 2026-10-17 for a way to edit every match of a word at once.
+
 ## Open
 
 None.

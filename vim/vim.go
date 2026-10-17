@@ -210,7 +210,9 @@ type Machine struct {
 
 	// :select.
 	selector func(Text, string, int, int) ([][2]int, error)
-	regions  []region // in visual mode, every region :select chose, lowest first
+	regions  []region // in visual mode, every region :select or <C-n> chose, lowest first
+	multi    string   // the pattern <C-n> adds regions of (B232)
+	multiAt  int      // where the region <C-n> added last ends
 	cursors  []rune   // in insert mode, the marks of the cursors after the first
 }
 
@@ -708,6 +710,9 @@ func init() {
 			m.hl = false
 			return nil
 		}},
+		"gn":    {"selects the next match of the last search", func(m *Machine, _ normalCall) error { return m.selectMatch(false) }},
+		"gN":    {"selects the match of the last search before the cursor", func(m *Machine, _ normalCall) error { return m.selectMatch(true) }},
+		"<C-n>": {"selects the word under the cursor, for <C-n> in visual mode to add its next match", func(m *Machine, _ normalCall) error { return m.addRegion() }},
 		"gv": {"selects the last selection again", func(m *Machine, _ normalCall) error {
 			m.reselect()
 			return nil

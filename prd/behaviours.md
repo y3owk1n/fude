@@ -647,6 +647,15 @@ Where fude departs, the line says so and cites the departure in
   says, relative numbers count it as one line, and any other move that
   lands the cursor inside it, such as a search, `G` or a mark, opens it.
   Folds belong to the window, and edits move them.
+- B232 [2] `gn` selects in visual mode the match of the last search
+  under the cursor, or else the next one, and `gN` the one before, going
+  round the text. After an operator they are its target, so `cgn` changes
+  a match and `.` changes the next. `<C-n>` in normal mode selects the
+  word under the cursor as a region, and in visual mode the selection.
+  Each `<C-n>` after adds the next match of that text as another region,
+  the word as a whole word, going round the text, until none is left.
+  `c`, `d`, `x`, `y` and host operators then act on every region, as on
+  `:select`'s (B42), so `c` types into all of them at once (N35).
 - B90 [2] `<C-o>` and `<C-i>` move through the jumplist, and `g;` and `g,`
   through the changelist, as in Neovim.
 - B91 [2] `<C-w>c`, `<C-w>o`, `<C-w>q`, `<C-w>=` and `:q` in a split close

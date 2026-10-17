@@ -204,6 +204,14 @@ func (m *Machine) span(t Text, c int, op, cmd string, count int) (region, bool) 
 		s := LineStart(t, c)
 		return m.folded(t, region{start: s, end: LineEnd(t, m.foldDown(t, s, n-1)), lines: true}), true
 	}
+	if cmd == "gn" || cmd == "gN" {
+		s, e, err := m.searchMatch(t, c, cmd == "gN")
+		if err != nil {
+			m.msg = err.Error()
+			return region{}, false
+		}
+		return region{start: s, end: e}, true
+	}
 	if r, ok := m.object(t, c, count, cmd); ok {
 		return r, true
 	}

@@ -119,7 +119,7 @@ Each language's grammar builds in the background the first time you open one of 
 
 | Area                 | What you get                                                                                                       |
 | :------------------- | :----------------------------------------------------------------------------------------------------------------- |
-| **Editing**          | `s` to jump anywhere in view by a label, `zc` and `za` to fold by indent, `ys`, `ds` and `cs` to surround, counts on both sides of an operator, registers and the clipboard, macros as editable text, `:s` with a live preview, `:g`, `:normal` |
+| **Editing**          | `s` to jump anywhere in view by a label, `<C-n>` to edit every match of a word at once, `zc` and `za` to fold by indent, `ys`, `ds` and `cs` to surround, counts on both sides of an operator, registers and the clipboard, macros as editable text, `:s` with a live preview, `:g`, `:normal` |
 | **Timeline**         | `u` and `<C-r>` along a branch, `g-` and `g+` across every state, `:earlier 10m`, `:timeline` to diff and restore, `:recover` after a crash |
 | **Syntax**           | tree-sitter for 48 languages, each built on first use, code inside markdown coloured, `daf`, `cic` and `dia`, the enclosing function pinned at the top |
 | **Language servers** | Several per file, merged diagnostics, hover, definitions, references, code actions with a preview of their edits, signature help, inlay hints, a `:lsp` panel |

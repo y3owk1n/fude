@@ -320,6 +320,9 @@ func joinSelection(m *Machine, x visualCall) error {
 
 // visualKey handles a command in visual mode.
 func (m *Machine) visualKey(cmd string, count int, reg rune) error {
+	if cmd == "<C-n>" {
+		return m.addRegion()
+	}
 	if len(m.regions) > 0 {
 		if ok, err := m.regionKey(cmd, reg); ok {
 			return err
