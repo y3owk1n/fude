@@ -82,7 +82,7 @@ func hostContext(ptr *byte, n uint32) int64
 func hostAfter(ms, id uint32) int32
 
 //go:wasmimport fude start
-func hostStart(ptr *byte, n uint32, id uint32) int32
+func hostStart(ptr *byte, n uint32, in *byte, inN uint32, id uint32) int32
 
 //go:wasmimport fude fetch
 func hostFetch(ptr *byte, n uint32, id uint32) int32
@@ -241,8 +241,15 @@ func After(ms int, f func()) error {
 // with no budget, and then f with what it printed, off the input path, as
 // an event runs. It needs process, and name in the plugin's programs.
 func Start(f func(output string, err error), name string, args ...string) error {
+	return Pipe("", f, name, args...)
+}
+
+// Pipe runs the program name with args as Start does, with input on its
+// stdin.
+func Pipe(input string, f func(output string, err error), name string, args ...string) error {
 	p, n := ptr(strings.Join(append([]string{name}, args...), "\x00"))
-	return schedule(done(f), func(id uint32) int32 { return hostStart(p, n, id) })
+	in, inN := ptr(input)
+	return schedule(done(f), func(id uint32) int32 { return hostStart(p, n, in, inN, id) })
 }
 
 // Fetch gets the http or https URL in the background, with no budget, and

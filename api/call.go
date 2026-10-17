@@ -31,9 +31,10 @@ type Result struct {
 // fude runs the owner's callback with its id, with the output and any
 // error in its context (B181).
 type Job struct {
-	ID   uint32
-	Argv []string
-	URL  string
+	ID    uint32
+	Argv  []string
+	Input string // what the program reads on its stdin
+	URL   string
 }
 
 // Request is a request a call sends the language servers of the buffer it

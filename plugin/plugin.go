@@ -506,7 +506,7 @@ func (p *Plugin) runProgram(ctx context.Context, m api.Module, ptr, n uint32) in
 	if !ok || n == 0 {
 		return errRange
 	}
-	out, err := p.program(ctx, strings.Split(string(b), "\x00"))
+	out, err := p.program(ctx, strings.Split(string(b), "\x00"), "")
 	if err != nil {
 		p.log(fmt.Sprintf("%s: %v", p.Name, err))
 		return errRun
@@ -516,13 +516,16 @@ func (p *Plugin) runProgram(ctx context.Context, m api.Module, ptr, n uint32) in
 
 // program runs argv in the project and returns what it prints, if the
 // plugin declared the program.
-func (p *Plugin) program(ctx context.Context, argv []string) (string, error) {
+func (p *Plugin) program(ctx context.Context, argv []string, input string) (string, error) {
 	if !slices.Contains(p.Programs, argv[0]) {
 		return "", fmt.Errorf("run %s, which it did not declare", argv[0])
 	}
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
 	// A child the program leaves holding its output does not hold the call.
 	cmd.Dir, cmd.WaitDelay = p.root, 10*time.Millisecond
+	if input != "" {
+		cmd.Stdin = strings.NewReader(input)
+	}
 	out, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("run %s: %w", argv[0], err)
@@ -531,14 +534,15 @@ func (p *Plugin) program(ctx context.Context, argv []string) (string, error) {
 }
 
 // start asks fude to run the program and arguments at (ptr, n), NUL
-// separated, in the background, and to run the plugin's callback with id
-// once it exits (B181).
-func (p *Plugin) start(_ context.Context, m api.Module, ptr, n, id uint32) int32 {
+// separated, in the background with the text at (inPtr, inN) on its stdin,
+// and to run the plugin's callback with id once it exits (B181).
+func (p *Plugin) start(_ context.Context, m api.Module, ptr, n, inPtr, inN, id uint32) int32 {
 	if p.call == nil || !p.allowed("process", "start") {
 		return errDenied
 	}
 	b, ok := m.Memory().Read(ptr, n)
-	if !ok || n == 0 {
+	input, inOK := m.Memory().Read(inPtr, inN)
+	if !ok || !inOK || n == 0 {
 		return errRange
 	}
 	argv := strings.Split(string(b), "\x00")
@@ -546,7 +550,7 @@ func (p *Plugin) start(_ context.Context, m api.Module, ptr, n, id uint32) int32
 		p.log(fmt.Sprintf("%s: start %s, which it did not declare", p.Name, argv[0]))
 		return errRun
 	}
-	p.call.Jobs = append(p.call.Jobs, fude.Job{ID: id, Argv: argv})
+	p.call.Jobs = append(p.call.Jobs, fude.Job{ID: id, Argv: argv, Input: string(input)})
 	return 0
 }
 
@@ -594,7 +598,7 @@ func (p *Plugin) Work(ctx context.Context, j fude.Job) (string, error) {
 		body, err := p.get(ctx, j.URL)
 		return string(body), err
 	}
-	return p.program(ctx, j.Argv)
+	return p.program(ctx, j.Argv, j.Input)
 }
 
 // maxBody is the most of a response http_get reads, 16MB.

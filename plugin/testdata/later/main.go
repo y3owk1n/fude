@@ -1,7 +1,8 @@
 // Package main is a test plugin written with the sdk.
 // init registers the command :Twice, which arms two timers that each type
-// t at the start of the text. :Jobs runs sleep 0.1 and echo hi in the
-// background, and types slept and what echo printed when each ends. :Fetch
+// t at the start of the text. :Jobs runs sleep 0.1, echo hi and cat with
+// piped on its stdin in the background, and types slept and what echo and
+// cat printed when each ends. :Fetch
 // url gets the URL in the background and types its body. :Pick asks to
 // pick a fruit and types it, or none, and :Ask asks a name and types it, or
 // none. Needs buffer.write, process, net and ui.
@@ -26,6 +27,7 @@ func init() {
 	sdk.Command("Jobs", "runs two programs in the background", func(sdk.Call) {
 		sdk.Start(func(out string, err error) { typed("slept"+out, err) }, "sleep", "0.1")
 		sdk.Start(typed, "echo", "hi")
+		sdk.Pipe("piped", typed, "cat")
 	})
 	sdk.Command("Fetch", "gets a URL in the background", func(c sdk.Call) {
 		sdk.Fetch(c.Args, typed)
