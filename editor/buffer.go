@@ -72,7 +72,6 @@ type buffer struct {
 	branch  string               // the git branch of its repository, "" outside one
 	ask     bool                 // its text changed, so the next frame asks servers again for colours and hints
 	unsaved kernel.NodeID        // the newest unsaved change from a session that did not close
-	ec      editorconfig         // what its .editorconfig files set (B238)
 	set     map[string]string    // the options modules set on it, by name (B283)
 	term    *terminal            // the program a terminal buffer shows, nil for any other (B205)
 	// A scratch buffer shows something about another buffer, such as its

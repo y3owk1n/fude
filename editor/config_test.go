@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/y3owk1n/fude/editor"
+	"github.com/y3owk1n/fude/modules/editorconfig"
 )
 
 // config writes src as config.toml in a new config directory, with no
@@ -152,6 +153,24 @@ func TestB237TabWidth(t *testing.T) {
 	}
 }
 
+// indented adds editorconfig to e and checks that >> indents its one line to
+// want. The module's options land through the loop, so it tries until they
+// do, undoing each try.
+func indented(t *testing.T, e *editor.Session, want, name string) {
+	t.Helper()
+	e.Use(editorconfig.New())
+	got := ""
+	settle(t, e, func() bool {
+		feed(e, ">>")
+		got = text(e)
+		feed(e, "u")
+		return got == want
+	})
+	if got != want {
+		t.Errorf(">> in %s gave %q, want %q", name, got, want)
+	}
+}
+
 // B238
 func TestB238Editorconfig(t *testing.T) {
 	base := t.TempDir()
@@ -180,14 +199,10 @@ func TestB238Editorconfig(t *testing.T) {
 	config(t, "[filetype.txt]\nindent_width = 3\n")
 	for name, want := range map[string]string{"a.txt": "    x", "a.go": "\tx", "sub/b.txt": "  x"} {
 		e := start(t, filepath.Join(proj, name))
-		if feed(e, ">>"); text(e) != want {
-			t.Errorf(">> in %s gave %q, want %q", name, text(e), want)
-		}
+		indented(t, e, want, name)
 	}
 	// editorconfig = false leaves config.toml's.
 	config(t, "editorconfig = false\n[filetype.txt]\nindent_width = 3\nexpand_tab = true\n")
 	e := start(t, filepath.Join(proj, "a.txt"))
-	if feed(e, ">>"); text(e) != "   x" {
-		t.Errorf("with editorconfig = false, >> in a.txt gave %q, want three spaces", text(e))
-	}
+	indented(t, e, "   x", "a.txt with editorconfig = false")
 }

@@ -119,7 +119,14 @@ func (e *Session) loaded(p api.Module, err error, b *buffer, t kernel.Snapshot, 
 		e.register(p, r)
 	}
 	if len(p.Subscribed()) > 0 {
-		e.listen(p)
+		l := e.listen(p)
+		// p hears of the buffers that opened before it loaded. A module added
+		// after the files opened then sees them as a later module does.
+		if slices.Contains(p.Subscribed(), "buffer.opened") {
+			for _, b := range e.bufs {
+				l.put(event{name: "buffer.opened", buf: b}, func(ev, _ event) event { return ev })
+			}
+		}
 	}
 	if b.text.Snapshot().Version() != t.Version() {
 		e.message = fmt.Sprintf("plugin %s: the text changed while it loaded", p.Name())
@@ -228,6 +235,28 @@ func (e *Session) pluginRequest(p api.Module, b *buffer, rq api.Request, save *s
 	}
 }
 
+// setOptions sets the options a result asks for on b (B283).
+func (e *Session) setOptions(b *buffer, set map[string]string) {
+	for name, value := range set {
+		if name != "expand_tab" && name != "indent_width" && name != "tab_width" {
+			e.message = "no option named " + name + " to set"
+			continue
+		}
+		if b.set == nil {
+			b.set = map[string]string{}
+		}
+		b.set[name] = value
+		// Every window on b fits its options again at the next frame.
+		for _, s := range e.sessions {
+			for _, w := range s.root.windows() {
+				if w.buf == b {
+					w.fitted = nil
+				}
+			}
+		}
+	}
+}
+
 // jumpTo is where a plugin's call about b asked to move the cursor.
 type jumpTo struct {
 	b *buffer
@@ -327,24 +356,7 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 			e.openFinder(&finder{paths: pk.Items, stale: true, prompt: pk.Prompt + " ", chose: answer}, "")
 		}
 	}
-	for name, value := range res.Set {
-		if name != "expand_tab" && name != "indent_width" && name != "tab_width" {
-			e.message = "no option named " + name + " to set"
-			continue
-		}
-		if b.set == nil {
-			b.set = map[string]string{}
-		}
-		b.set[name] = value
-		// Every window on b fits its options again at the next frame.
-		for _, s := range e.sessions {
-			for _, w := range s.root.windows() {
-				if w.buf == b {
-					w.fitted = nil
-				}
-			}
-		}
-	}
+	e.setOptions(b, res.Set)
 	if res.Status != nil {
 		if e.segments[p] == nil {
 			e.segments[p] = map[*buffer]string{}

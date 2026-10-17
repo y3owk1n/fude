@@ -368,11 +368,6 @@ func (e *Session) add(path string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if path != "" && e.cfg.Editorconfig {
-		if b.ec, err = readEditorconfig(path); err != nil {
-			msg = cmp.Or(msg, err.Error())
-		}
-	}
 	e.next++
 	e.bufs = append(e.bufs, b)
 	b.text.Listen(heard{e.Editor, b})

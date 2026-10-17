@@ -55,6 +55,7 @@ modules/         Go packages over api/ and protocol/ that cmd/fude adds with
                  editor.Use
   blame/         :blame
   comment/       gc
+  editorconfig/  .editorconfig files set a file's indentation
   format/        gq, :format and format_on_save
   git/           git signs, hunks, gh, gH and :gitdiff
   spell/         spell, ]s, [s, z= and zg
@@ -750,12 +751,13 @@ names and extensions in `editor/icons.go`, from mini.icons (B128).
 
 ## EditorConfig
 
-`add` reads a file's `.editorconfig` files once, in `editorconfig.go`,
-from its folder up to the first with `root = true`. Each section's glob
-becomes a regular expression, with a group for each `{n1..n2}` checked
-after the match. The buffer keeps what they set. `indentWidth` and
-`tabWidth` look there before config.toml, and `fit` applies `expand_tab`
-over the window's options as it applies a filetype's (B238).
+The editorconfig module reads a file's `.editorconfig` files once, as it
+opens, from its folder up to the first with `root = true`. Each section's
+glob becomes a regular expression, with a group for each `{n1..n2}`
+checked after the match. It sets what they give on the buffer (B283). The
+buffer keeps what modules set, `indentWidth` and `tabWidth` look there
+before config.toml, and `fit` applies `expand_tab` over the window's
+options as it applies a filetype's (B238).
 
 ## Formatting on save
 

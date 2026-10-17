@@ -16,6 +16,7 @@ import (
 	"github.com/y3owk1n/fude/internal/relay"
 	"github.com/y3owk1n/fude/modules/blame"
 	"github.com/y3owk1n/fude/modules/comment"
+	"github.com/y3owk1n/fude/modules/editorconfig"
 	"github.com/y3owk1n/fude/modules/format"
 	"github.com/y3owk1n/fude/modules/git"
 	"github.com/y3owk1n/fude/modules/spell"
@@ -158,7 +159,7 @@ func modules() []api.Module {
 	if dir, err := editor.ConfigDir(); err == nil {
 		words = filepath.Join(dir, "words.txt")
 	}
-	return []api.Module{blame.New(), comment.New(), format.New(), git.New(), spell.New(words)}
+	return []api.Module{blame.New(), comment.New(), editorconfig.New(), format.New(), git.New(), spell.New(words)}
 }
 
 // run prints a man page for --man, fude(1) or the one named after it,

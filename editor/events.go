@@ -228,5 +228,8 @@ func (e *Session) handled(p api.Module, ev event, err error, t kernel.Snapshot, 
 	case !slices.Contains(e.bufs, b):
 	case b.text.Snapshot().Version() == t.Version():
 		e.result(p, b, t, res)
+	default:
+		// Options are about the buffer, not its text, so they apply anyway.
+		e.setOptions(b, res.Set)
 	}
 }

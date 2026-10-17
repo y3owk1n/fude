@@ -96,7 +96,7 @@ func (h host) TabWidth() int    { return h.e.tabWidth(h.e.win.buf) }
 // (B224).
 func (h host) Fold(line int) (int, int) { return h.e.win.fold(h.e.Text(), line) }
 
-// indentWidth is the columns an indent takes in b, from its .editorconfig,
+// indentWidth is the columns an indent takes in b, as a module set it,
 // or else its filetype's indent_width, or else the global one, or else the
 // tab width (B238).
 func (ed *Editor) indentWidth(b *buffer) int {
@@ -104,11 +104,6 @@ func (ed *Editor) indentWidth(b *buffer) int {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
 			return n
 		}
-		return ed.tabWidth(b)
-	}
-	if n := b.ec.indent; n != nil && *n > 0 {
-		return *n
-	} else if n != nil {
 		return ed.tabWidth(b)
 	}
 	w := ed.cfg.IndentWidth
@@ -121,15 +116,12 @@ func (ed *Editor) indentWidth(b *buffer) int {
 	return int(w)
 }
 
-// tabWidth is the columns a tab shows as in b, from its .editorconfig, or
+// tabWidth is the columns a tab shows as in b, as a module set it, or
 // else its filetype's tab_width, or else the global one, or else vim's
 // (B238).
 func (ed *Editor) tabWidth(b *buffer) int {
 	if n, err := strconv.Atoi(b.set["tab_width"]); err == nil && n > 0 {
 		return n
-	}
-	if n := b.ec.tab; n != nil {
-		return *n
 	}
 	w := ed.cfg.TabWidth
 	if ft, ok := ed.cfg.Filetype[ed.filetype(b)]; ok && ft.TabWidth > 0 {

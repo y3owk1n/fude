@@ -159,7 +159,7 @@ func (w *window) keep(was options) {
 }
 
 // expandTab reports whether b indents with spaces only. A window that
-// shows it decides, or else its .editorconfig, its filetype or the session.
+// shows it decides, or else what a module set, its filetype or the session.
 func (e *Session) expandTab(b *buffer) bool {
 	for _, w := range e.root.windows() {
 		if w.buf == b {
@@ -169,9 +169,6 @@ func (e *Session) expandTab(b *buffer) bool {
 	}
 	if on, ok := b.set["expand_tab"]; ok {
 		return on == "true"
-	}
-	if on := b.ec.expandTab; on != nil {
-		return *on
 	}
 	if on := e.cfg.Filetype[e.filetype(b)].ExpandTab; on != nil {
 		return *on
@@ -189,9 +186,9 @@ func (e *Session) fit(w *window) {
 		w.opts, w.own = *w.own, nil
 	}
 	w.fitted = w.buf
-	ft, ec := e.cfg.Filetype[e.filetype(w.buf)], w.buf.ec
+	ft := e.cfg.Filetype[e.filetype(w.buf)]
 	set, isSet := w.buf.set["expand_tab"]
-	if ft.ExpandTab == nil && ft.Wrap == nil && ft.ColorColumn == nil && ft.Spell == nil && ec.expandTab == nil && !isSet {
+	if ft.ExpandTab == nil && ft.Wrap == nil && ft.ColorColumn == nil && ft.Spell == nil && !isSet {
 		return
 	}
 	own := w.opts
@@ -207,9 +204,6 @@ func (e *Session) fit(w *window) {
 	}
 	if ft.ColorColumn != nil {
 		w.opts.ColorColumn = *ft.ColorColumn
-	}
-	if ec.expandTab != nil {
-		w.opts.ExpandTab = *ec.expandTab
 	}
 	if isSet {
 		w.opts.ExpandTab = set == "true"

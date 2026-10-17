@@ -1,6 +1,9 @@
-package editor
+// Package editorconfig sets a file's indentation from its .editorconfig
+// files, as editorconfig.org's spec says (B238).
+package editorconfig
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -11,10 +14,58 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/y3owk1n/fude/api"
 )
 
+// Module is editorconfig.
+type Module struct{}
+
+// New returns editorconfig.
+func New() Module { return Module{} }
+
+func (Module) Name() string                   { return "editorconfig" }
+func (Module) Subscribed() []string           { return []string{"buffer.opened"} }
+func (Module) Registered() []api.Registration { return nil }
+
+func (Module) Init(context.Context, api.Scope) (api.Result, error) { return api.Result{}, nil }
+
+func (Module) Call(context.Context, uint32, api.Scope, ...int) (api.Result, error) {
+	return api.Result{}, nil
+}
+
+// Event sets the options a file's .editorconfig files give it as it opens,
+// unless editorconfig is off in config.toml.
+func (Module) Event(_ context.Context, _ string, s api.Scope) (api.Result, error) {
+	path := s.About["path"]
+	if on, _ := s.Option("editorconfig"); on != "true" || path == "" {
+		return api.Result{}, nil
+	}
+	ec, err := readEditorconfig(path)
+	if err != nil {
+		return api.Result{Message: err.Error()}, nil
+	}
+	set := map[string]string{}
+	if ec.expandTab != nil {
+		set["expand_tab"] = strconv.FormatBool(*ec.expandTab)
+	}
+	if ec.indent != nil {
+		set["indent_width"] = strconv.Itoa(*ec.indent)
+	}
+	if ec.tab != nil {
+		set["tab_width"] = strconv.Itoa(*ec.tab)
+	}
+	return api.Result{Set: set}, nil
+}
+
+func (Module) Callback(context.Context, uint32, api.Scope) (api.Result, error) {
+	return api.Result{}, nil
+}
+func (Module) Work(context.Context, api.Job) (string, error) { return "", nil }
+func (Module) Close(context.Context) error                   { return nil }
+
 // editorconfig is the indentation .editorconfig files set for a file, nil
-// where they set none (B238).
+// where they set none. An indent of 0 is the tab width.
 type editorconfig struct {
 	expandTab *bool
 	indent    *int // 0 for the tab width
