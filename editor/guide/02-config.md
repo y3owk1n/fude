@@ -57,6 +57,13 @@ formatters. Each server has an `[lsp.<name>]` table, and each formatter
 a `[formatter.<name>]` table. `lsp.command` and `formatter.command`
 describe them.
 
+## EditorConfig
+
+A project's `.editorconfig` sets the indentation of its files. Its
+`indent_style`, `indent_size` and `tab_width` win over config.toml's, and
+`~/.editorconfig` works for every file under your home folder.
+`editorconfig = false` turns this off.
+
 ## Keymaps
 
 A `[keymap.<mode>]` table maps keys to the keys they type, written as

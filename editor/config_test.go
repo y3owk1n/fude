@@ -126,3 +126,43 @@ func TestB237TabWidth(t *testing.T) {
 		t.Errorf("k from column 4 went to %d, want the x after the tab", e.Cursor())
 	}
 }
+
+// B238
+func TestB238Editorconfig(t *testing.T) {
+	base := t.TempDir()
+	proj := filepath.Join(base, "proj")
+	files := map[string]string{
+		// Above a file with root = true, so it is not read.
+		".editorconfig": "[*]\nindent_size = 7\n",
+		"proj/.editorconfig": "# the project\nroot = true\n[*]\nindent_style = space\n[*.txt]\nindent_size = 4\n" +
+			"[*.{go,mk}]\nindent_style = tab\ntab_width = 2\n",
+		"proj/sub/.editorconfig": "[*.txt]\nindent_size = 2\n",
+		"proj/a.txt":             "x\n",
+		"proj/a.go":              "x\n",
+		"proj/sub/b.txt":         "x\n",
+	}
+	for name, text := range files {
+		path := filepath.Join(base, name)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(text), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// .editorconfig wins over config.toml, a later section over an earlier
+	// one, and a nearer file over one above it.
+	config(t, "[filetype.txt]\nindent_width = 3\n")
+	for name, want := range map[string]string{"a.txt": "    x", "a.go": "\tx", "sub/b.txt": "  x"} {
+		e := start(t, filepath.Join(proj, name))
+		if feed(e, ">>"); text(e) != want {
+			t.Errorf(">> in %s gave %q, want %q", name, text(e), want)
+		}
+	}
+	// editorconfig = false leaves config.toml's.
+	config(t, "editorconfig = false\n[filetype.txt]\nindent_width = 3\nexpand_tab = true\n")
+	e := start(t, filepath.Join(proj, "a.txt"))
+	if feed(e, ">>"); text(e) != "   x" {
+		t.Errorf("with editorconfig = false, >> in a.txt gave %q, want three spaces", text(e))
+	}
+}

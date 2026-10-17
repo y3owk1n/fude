@@ -53,6 +53,7 @@ type buffer struct {
 	ask      bool              // its text changed, so the next frame asks servers again for colours and hints
 	blamed   blamed            // git blame of the cursor's line, for :blame (B220)
 	unsaved  kernel.NodeID     // the newest unsaved change from a session that did not close
+	ec       editorconfig      // what its .editorconfig files set (B238)
 	term     *terminal         // the program a terminal buffer shows, nil for any other (B205)
 	// A scratch buffer shows something about another buffer, such as its
 	// timeline, under a title instead of a file name.

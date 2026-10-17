@@ -21,6 +21,19 @@ tab. A `[filetype.<name>]` table sets it for one filetype.
 tab_width = 4
 ```
 
+## editorconfig
+
+Opening a file reads the `.editorconfig` files in its folder and each one
+above it, up to the first that sets `root = true`. Their `indent_style`,
+`indent_size` and `tab_width` set the file's `expand_tab`, `indent_width`
+and `tab_width`, over config.toml's. `~/.editorconfig` applies to every
+file under the home folder, unless a project's `.editorconfig` above the
+file sets `root = true`. On unless set.
+
+```toml
+editorconfig = false
+```
+
 ## key_timeout
 
 When the keys typed start a longer mapping, such as `<Leader>` with

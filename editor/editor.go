@@ -323,6 +323,11 @@ func (e *Session) add(path string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if path != "" && e.cfg.Editorconfig {
+		if b.ec, err = readEditorconfig(path); err != nil {
+			msg = cmp.Or(msg, err.Error())
+		}
+	}
 	e.next++
 	e.bufs = append(e.bufs, b)
 	b.text.Listen(heard{e.Editor, b})
@@ -1660,6 +1665,11 @@ func (h host) Fold(line int) (int, int) { return h.e.win.fold(h.e.Text(), line) 
 // indentWidth is the columns an indent takes in b: its filetype's
 // indent_width, or else the global one, or else the tab width.
 func (ed *Editor) indentWidth(b *buffer) int {
+	if n := b.ec.indent; n != nil && *n > 0 {
+		return *n
+	} else if n != nil {
+		return ed.tabWidth(b)
+	}
 	w := ed.cfg.IndentWidth
 	if ft, ok := ed.cfg.Filetype[ed.filetype(b)]; ok && ft.IndentWidth > 0 {
 		w = ft.IndentWidth
@@ -1673,6 +1683,9 @@ func (ed *Editor) indentWidth(b *buffer) int {
 // tabWidth is the columns a tab shows as in b, from its filetype's
 // tab_width, or else the global one, or else vim's.
 func (ed *Editor) tabWidth(b *buffer) int {
+	if n := b.ec.tab; n != nil {
+		return *n
+	}
 	w := ed.cfg.TabWidth
 	if ft, ok := ed.cfg.Filetype[ed.filetype(b)]; ok && ft.TabWidth > 0 {
 		w = ft.TabWidth

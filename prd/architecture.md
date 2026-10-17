@@ -711,6 +711,15 @@ The text then starts at the same column on every row, so the cursor,
 wrapping and sideways scrolling need no change. The icons are a table of
 names and extensions in `editor/icons.go`, from mini.icons (B128).
 
+## EditorConfig
+
+`add` reads a file's `.editorconfig` files once, in `editorconfig.go`,
+from its folder up to the first with `root = true`. Each section's glob
+becomes a regular expression, with a group for each `{n1..n2}` checked
+after the match. The buffer keeps what they set. `indentWidth` and
+`tabWidth` look there before config.toml, and `fit` applies `expand_tab`
+over the window's options as it applies a filetype's (B238).
+
 ## Formatting on save
 
 With `format_on_save`, `write` formats before `writeOut` writes. A
@@ -809,6 +818,7 @@ $XDG_DATA_HOME/fude/grammars/       grammars and their queries, loaded at runtim
 ```toml
 indent_width = 0     # columns >, <, <C-t> and <C-d> shift by, 0 for the tab width
 tab_width = 8        # columns a tab shows as (B237)
+editorconfig = true  # .editorconfig sets a file's indentation, over these (B238)
 key_timeout = 1000   # milliseconds a mapping prefix waits (B84)
 large_file = 2       # megabytes over which syntax and LSP stay off (B83)
 center = false       # start with the windows centered, as :center toggles (B199)

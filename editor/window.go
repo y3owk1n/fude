@@ -167,8 +167,8 @@ func (e *Session) fit(w *window) {
 		w.opts, w.own = *w.own, nil
 	}
 	w.fitted = w.buf
-	ft := e.cfg.Filetype[e.filetype(w.buf)]
-	if ft.ExpandTab == nil && ft.Wrap == nil && ft.ColorColumn == nil {
+	ft, ec := e.cfg.Filetype[e.filetype(w.buf)], w.buf.ec
+	if ft.ExpandTab == nil && ft.Wrap == nil && ft.ColorColumn == nil && ec.expandTab == nil {
 		return
 	}
 	own := w.opts
@@ -181,6 +181,9 @@ func (e *Session) fit(w *window) {
 	}
 	if ft.ColorColumn != nil {
 		w.opts.ColorColumn = *ft.ColorColumn
+	}
+	if ec.expandTab != nil {
+		w.opts.ExpandTab = *ec.expandTab
 	}
 }
 

@@ -43,6 +43,12 @@ Where fude departs, the line says so and cites the departure in
   and `color_column` hold in a window while it shows a buffer of that
   filetype, and the window gets its own back when it shows another. A
   `:set` typed in that window stays when it shows another buffer.
+- B238 [2] Opening a file reads the `.editorconfig` files in its folder and
+  each one above, up to the first that sets `root = true`, as
+  editorconfig.org's spec says. Their `indent_style`, `indent_size` and
+  `tab_width` set the file's `expand_tab`, `indent_width` and `tab_width`,
+  over config.toml's. A nearer file wins over one above it, and a later
+  section over an earlier one. `editorconfig = false` reads none.
 
 ## Modes and insert
 
