@@ -54,7 +54,8 @@ An address after `--share` listens there, such as a VPN's.
 fude --share 100.64.0.2:7000 main.go
 ```
 
-Quitting fude ends the share.
+A share string lets one guest in, and `:share` shows a new one for the
+next. Quitting fude ends the share.
 
 ## Clients
 

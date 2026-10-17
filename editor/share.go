@@ -68,6 +68,15 @@ func (e *Session) Share(address string) (func(), error) {
 	return func() { once.Do(func() { close(stopped); l.Close() }) }, nil
 }
 
+// reshare shows a new share string, as :share does (B249).
+func (e *Session) reshare() {
+	if e.share == nil {
+		e.message = "fude is not sharing, so start it with fude --share"
+		return
+	}
+	e.message = "guests join with: fude --join " + e.shareString()
+}
+
 // shareString makes a new secret and returns the string that lets one
 // guest in with it (B249).
 func (e *Session) shareString() string {
@@ -190,7 +199,10 @@ func (e *Session) letIn(name, secret string, answered chan<- error) error {
 			answered <- errors.New("the host said no")
 			return
 		}
-		sh.secret = ""
+		// :share may have made a new secret since.
+		if sh.secret == secret {
+			sh.secret = ""
+		}
 		host.message = name + " joined"
 		answered <- nil
 	}

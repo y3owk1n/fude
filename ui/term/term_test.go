@@ -911,3 +911,93 @@ func TestB248Share(t *testing.T) {
 		t.Errorf("when fude quit, the guest's client said %q", j.a.Ended())
 	}
 }
+
+// B249
+func TestB249ShareOnce(t *testing.T) {
+	t.Chdir(t.TempDir())
+	if err := os.WriteFile("a.txt", []byte("hello\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("USER", "kyle")
+	host := startWith(t, "", "a.txt").e.(*editor.Session)
+	_, on := serve(t, host)
+	str := share(t, host, on)
+	refused := func(s, why string) {
+		t.Helper()
+		select {
+		case j := <-joining(s):
+			if j.err == nil || !strings.HasSuffix(j.err.Error(), why) {
+				t.Errorf("a join said %v, want it to end with %q", j.err, why)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatalf("a join waited for the host, want it to end with %q", why)
+		}
+	}
+	feed := func(keys string) {
+		on(func() {
+			for _, k := range vim.Keys(keys) {
+				host.Feed(k)
+			}
+		})
+	}
+	// A string whose fingerprint or secret is not the share's lets no one
+	// in, and the host is never asked.
+	secretAt := strings.LastIndexByte(str, '/') + 1
+	printAt := strings.LastIndexByte(str[:secretAt-1], '/') + 1
+	flip := func(at int) string {
+		c := byte('A')
+		if str[at] == c {
+			c = 'B'
+		}
+		return str[:at] + string(c) + str[at+1:]
+	}
+	refused(flip(printAt), "its certificate is not the one the share string names")
+	refused(flip(secretAt), "the share string is wrong or was used, so ask the host for a new one")
+	// n keeps the guest out.
+	waiting := joining(str)
+	asked(t, host, on, "kyle")
+	// One join waits for the host at a time.
+	refused(str, "another guest is waiting for the host, so try again soon")
+	feed("n")
+	if j := <-waiting; j.err == nil || !strings.HasSuffix(j.err.Error(), "the host said no") {
+		t.Errorf("a join the host said no to said %v", j.err)
+	}
+	// A join while the host answers another question waits for neither.
+	if err := os.WriteFile("a.txt", []byte("changed\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	later := time.Now().Add(time.Hour)
+	if err := os.Chtimes("a.txt", later, later); err != nil {
+		t.Fatal(err)
+	}
+	feed("x:w<CR>")
+	refused(str, "the host is answering another question, so try again soon")
+	feed("n")
+	// y lets one guest in, and the string then works no more.
+	waiting = joining(str)
+	asked(t, host, on, "kyle")
+	feed("y")
+	if j := <-waiting; j.err != nil {
+		t.Fatal(j.err)
+	} else {
+		defer j.a.Close()
+	}
+	refused(str, "the share string is wrong or was used, so ask the host for a new one")
+	// :share makes a new string, which lets one more guest in.
+	var msg string
+	on(func() {
+		for _, k := range vim.Keys(":share<CR>") {
+			host.Feed(k)
+		}
+		msg = host.Message()
+	})
+	again, _ := strings.CutPrefix(msg, "guests join with: fude --join ")
+	waiting = joining(again)
+	asked(t, host, on, "kyle")
+	feed("y")
+	if j := <-waiting; j.err != nil {
+		t.Errorf("the string :share made said %v", j.err)
+	} else {
+		j.a.Close()
+	}
+}

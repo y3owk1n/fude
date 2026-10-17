@@ -30,7 +30,7 @@ func (e *Session) mayEdit() error {
 // because it runs a program or changes what every session shares (B244).
 func refuses(name, arg string) bool {
 	switch name {
-	case "!", "terminal", "task", "restart", "cd", "theme":
+	case "!", "terminal", "task", "restart", "cd", "theme", "share":
 		return true
 	case "read":
 		return strings.HasPrefix(arg, "!")
