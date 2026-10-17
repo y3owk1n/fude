@@ -15,6 +15,7 @@ import (
 
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/modules/blame"
+	"github.com/y3owk1n/fude/modules/comment"
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/syntax/syntaxtest"
 	"github.com/y3owk1n/fude/vim"
@@ -2940,6 +2941,7 @@ func TestB44Comments(t *testing.T) {
 		path := filepath.Join(t.TempDir(), "a.go")
 		change(t, path, c[0])
 		e := open(t, path)
+		e.Use(comment.New())
 		feed(e, c[1])
 		if got := text(e)[:e.Cursor()] + "|" + text(e)[e.Cursor():]; got != c[2] {
 			t.Errorf("%s on %q: got %q, want %q", c[1], c[0], got, c[2])

@@ -471,7 +471,6 @@ type hostOperator struct {
 
 // hostOperators are the operators fude adds.
 var hostOperators = []hostOperator{
-	{"gc", "comments the lines a motion or object covers, or uncomments them", (*Session).comment},
 	{"gq", "formats the lines a motion or object covers", func(e *Session, _ vim.Text, start, end int, _ bool) []vim.Edit {
 		e.format(e.win.buf, start, end)
 		return nil

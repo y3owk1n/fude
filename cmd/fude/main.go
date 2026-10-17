@@ -14,6 +14,7 @@ import (
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/internal/relay"
 	"github.com/y3owk1n/fude/modules/blame"
+	"github.com/y3owk1n/fude/modules/comment"
 	"github.com/y3owk1n/fude/plugin"
 	"github.com/y3owk1n/fude/ui/term"
 )
@@ -148,7 +149,7 @@ func main() {
 }
 
 // modules returns the modules this distribution adds to the editor (D49).
-func modules() []api.Module { return []api.Module{blame.New()} }
+func modules() []api.Module { return []api.Module{blame.New(), comment.New()} }
 
 // run prints a man page for --man, fude(1) or the one named after it,
 // writes or builds a plugin for plugin new and plugin build, prints what a

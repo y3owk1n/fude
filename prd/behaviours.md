@@ -793,7 +793,7 @@ Where fude departs, the line says so and cites the departure in
 - B43 [3] A keystroke never waits for a reparse. Highlighting may lag by a
   frame, editing does not.
 - B44 [3] `gc{target}` and `gcc` toggle comments, using the comment syntax
-  of the language at the cursor, including injected languages.
+  of the language where the target starts, including injected languages.
 - B45 [3] In visual mode, `an` and `in` select the enclosing syntax node,
   and `]n` and `[n` move to the next and previous node, as in Neovim.
 - B46 [3] With a grammar for the buffer's filetype, text shows in the colour

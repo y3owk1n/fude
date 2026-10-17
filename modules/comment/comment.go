@@ -1,19 +1,36 @@
-package editor
+// Package comment is gc, which comments the lines a motion or object
+// covers, or uncomments them (B44).
+package comment
 
 import (
+	"context"
 	"strings"
 
-	"github.com/y3owk1n/fude/syntax"
-	"github.com/y3owk1n/fude/vim"
+	"github.com/y3owk1n/fude/api"
 )
 
-// comment is the gc operator. It toggles comments on every line of the
-// target in the comment syntax of the current buffer's language.
-func (e *Session) comment(t vim.Text, start, end int, linewise bool) []vim.Edit {
-	cs, ok := syntax.Comment(e.languageAt(e.win.buf, e.Cursor()))
+// Module is gc.
+type Module struct{}
+
+// New returns gc.
+func New() Module { return Module{} }
+
+func (Module) Name() string         { return "comment" }
+func (Module) Subscribed() []string { return nil }
+
+func (Module) Registered() []api.Registration {
+	return []api.Registration{{Kind: api.Operator, Name: "gc", Help: "comments the lines a motion or object covers, or uncomments them", ID: 1}}
+}
+
+func (Module) Init(context.Context, api.Scope) (api.Result, error) { return api.Result{}, nil }
+
+// Call toggles comments on every line of [start, end), in the comment
+// syntax of the language where it starts.
+func (Module) Call(_ context.Context, _ uint32, s api.Scope, args ...int) (api.Result, error) {
+	t, start, end, linewise := s.Text, args[0], args[1], args[2] == 1
+	cs, ok := s.Comment(start)
 	if !ok {
-		e.message = "no comment syntax for this file"
-		return nil
+		return api.Result{Message: "no comment syntax for this file"}, nil
 	}
 	last := t.LineOf(end)
 	if !linewise && end > start {
@@ -23,19 +40,43 @@ func (e *Session) comment(t vim.Text, start, end int, linewise bool) []vim.Edit 
 	}
 	var lines []string
 	for n := t.LineOf(start); n <= last; n++ {
-		ls := t.LineStart(n)
-		lines = append(lines, t.Slice(ls, vim.LineEnd(t, ls)))
+		ls, le := t.LineStart(n), t.Len()
+		if n+1 < t.Lines() {
+			le = t.LineStart(n+1) - 1
+		}
+		lines = append(lines, t.Slice(ls, le))
 	}
-	var edits []vim.Edit
-	pos := vim.LineStart(t, start)
+	var res api.Result
+	pos := t.LineStart(t.LineOf(start))
 	for i, line := range toggle(lines, cs) {
 		if line != lines[i] {
 			ed := replace(lines[i], line)
-			edits = append(edits, vim.Edit{Start: pos + ed.Start, End: pos + ed.End, Text: ed.Text})
+			res.Edits = append(res.Edits, api.Edit{Start: pos + ed.Start, End: pos + ed.End, Text: ed.Text})
 		}
 		pos += len(lines[i]) + 1
 	}
-	return edits
+	return res, nil
+}
+
+func (Module) Event(context.Context, string, api.Scope) (api.Result, error) { return api.Result{}, nil }
+
+func (Module) Callback(context.Context, uint32, api.Scope) (api.Result, error) {
+	return api.Result{}, nil
+}
+func (Module) Work(context.Context, api.Job) (string, error) { return "", nil }
+func (Module) Close(context.Context) error                   { return nil }
+
+// replace returns the edit that makes old into new, keeping what they
+// share at either end.
+func replace(old, new string) api.Edit {
+	pre, suf := 0, 0
+	for pre < len(old) && pre < len(new) && old[pre] == new[pre] {
+		pre++
+	}
+	for suf < len(old)-pre && suf < len(new)-pre && old[len(old)-1-suf] == new[len(new)-1-suf] {
+		suf++
+	}
+	return api.Edit{Start: pre, End: len(old) - suf, Text: new[pre : len(new)-suf]}
 }
 
 // toggle comments lines with cs, at the least indent of those not blank, or

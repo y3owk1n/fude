@@ -52,6 +52,7 @@ internal/        packages only fude's own packages may import
   trace/         what fude did, for fude --tail
 modules/         Go packages over api/ that cmd/fude adds with editor.Use
   blame/         :blame
+  comment/       gc
 cmd/fude/        main, distribution wiring
 ```
 
