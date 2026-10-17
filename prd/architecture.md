@@ -1022,8 +1022,9 @@ at all once that buffer closes. Unloading the plugin cancels its
 listener's context, which stops its jobs (B180, B181).
 
 Each plugin gets its own wazero runtime, so each has its own memory limit,
-64MB (`WithMemoryLimitPages` is per runtime). All runtimes share one
-compilation cache, in `$XDG_CACHE_HOME/fude/wasm`. Plugins compile and run
+64MB (`WithMemoryLimitPages` is per runtime). Each runtime's compilation
+cache uses the same folder, `$XDG_CACHE_HOME/fude/wasm`, so a plugin
+compiles once across runs. Plugins compile and run
 `init` on their own goroutines, started after the first frame (B56).
 
 Calls into one plugin take turns. Every call carries a context with its
