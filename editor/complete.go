@@ -108,7 +108,7 @@ func (e *Session) complete(auto bool) {
 		local["buffer"] = e.words(t.Slice(start, c), start)
 	}
 	if slices.Contains(e.cfg.Sources, "snippet") {
-		snips, err := userSnippets(e.filetype(b), t.Slice(start, c))
+		snips, err := e.userSnippets(e.filetype(b), t.Slice(start, c))
 		if err != nil {
 			e.message = err.Error()
 		}

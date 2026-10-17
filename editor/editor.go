@@ -55,7 +55,8 @@ type Editor struct {
 	listeners      map[*plugin.Plugin]*listener
 	segments       map[*plugin.Plugin]map[*buffer]string // what each plugin shows on the statusline of each buffer
 
-	now func() time.Time // the clock edits are stamped with
+	now      func() time.Time       // the clock edits are stamped with
+	snippets map[string]snippetFile // each snippets file read, by path (B207)
 }
 
 // Session is one client's windows and vim machine on the shared editor. Its
