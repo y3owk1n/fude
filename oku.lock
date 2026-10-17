@@ -35,6 +35,63 @@ sha256 = '89c07ea56faf38d0fbecf36ca8ec0721756716185f265b568e133d427f299bf8'
 verified = 'checksum-file'
 
 [[package]]
+name = 'dlv'
+ref = 'go:github.com/go-delve/delve/cmd/dlv'
+manifest_sha256 = '881ba8c71b4987a18239b935e4a3ce7af104fec6befa53b12989276652065e04'
+version = '1.27.2'
+inferred = true
+manifest = "[package]\nname = \"dlv\"\nhomepage = \"https://pkg.go.dev/github.com/go-delve/delve/cmd/dlv\"\n\n[version]\nfrom = \"go\"\nrepo = \"github.com/go-delve/delve\"\n\n[build]\ndeps = [{ ref = \"./.oku/go.toml\", version = \"1.26\" }]\n\n[[build.step]]\nvendor = \"go\"\npackage = \"github.com/go-delve/delve/cmd/dlv\"\n"
+
+[package.platform]
+[package.platform.darwin-amd64]
+strategy = 'build'
+vendor_sha256 = '974aa64d1b3d1c41390425670163ae96bde8eddb84fe4ca6d0500fb188861f87'
+
+[package.platform.darwin-arm64]
+strategy = 'build'
+vendor_sha256 = '974aa64d1b3d1c41390425670163ae96bde8eddb84fe4ca6d0500fb188861f87'
+
+[package.platform.linux-amd64-glibc]
+strategy = 'build'
+vendor_sha256 = '974aa64d1b3d1c41390425670163ae96bde8eddb84fe4ca6d0500fb188861f87'
+
+[package.platform.linux-arm64-glibc]
+strategy = 'build'
+vendor_sha256 = '974aa64d1b3d1c41390425670163ae96bde8eddb84fe4ca6d0500fb188861f87'
+
+[[package.dep]]
+name = 'go'
+ref = './.oku/go.toml'
+manifest_sha256 = '850dfc0af428be9b5da144c08de9d6c247b2bd41a401c160d99a076a8ce62691'
+version = '1.26.9'
+tag = 'go1.26.9'
+
+[package.dep.platform]
+[package.dep.platform.darwin-amd64]
+strategy = 'artifact'
+url = 'https://dl.google.com/go/go1.26.9.darwin-amd64.tar.gz'
+sha256 = '00c29e3d4c8562f547410daa18d2959b641bd691ab00c4a525ea817a0253d4bd'
+verified = 'checksum-file'
+
+[package.dep.platform.darwin-arm64]
+strategy = 'artifact'
+url = 'https://dl.google.com/go/go1.26.9.darwin-arm64.tar.gz'
+sha256 = 'f9bb7c0a02506c5d9bf0d1eb1f7ee6c7684f844ae49558308a0427b830e022cc'
+verified = 'checksum-file'
+
+[package.dep.platform.linux-amd64-glibc]
+strategy = 'artifact'
+url = 'https://dl.google.com/go/go1.26.9.linux-amd64.tar.gz'
+sha256 = '42d158b4d8f7b61ac0a830567c940a86098fb7aac52e467a5ebec03ef5cc2f8d'
+verified = 'checksum-file'
+
+[package.dep.platform.linux-arm64-glibc]
+strategy = 'artifact'
+url = 'https://dl.google.com/go/go1.26.9.linux-arm64.tar.gz'
+sha256 = '4a97373d49fcacdcf3694fea368a500b00ee3e963974f3e7514132717632f052'
+verified = 'checksum-file'
+
+[[package]]
 name = 'go'
 ref = './.oku/go.toml'
 manifest_sha256 = '850dfc0af428be9b5da144c08de9d6c247b2bd41a401c160d99a076a8ce62691'
