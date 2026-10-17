@@ -55,13 +55,15 @@ type buffer struct {
 	term     *terminal         // the program a terminal buffer shows, nil for any other (B205)
 	// A scratch buffer shows something about another buffer, such as its
 	// timeline, under a title instead of a file name.
-	title  string
-	ft     string // the filetype of a buffer with no file, such as help's markdown
-	source *buffer
-	lines  []kernel.NodeID // the timeline node on each line, for :restore
-	shown  bool            // fude wrote it to show something, such as :messages or a diff
-	recent []string        // the recent files the start screen lists (B225)
-	spots  []spot          // the place each line of a list names, for <CR>
+	title   string
+	ft      string // the filetype of a buffer with no file, such as help's markdown
+	source  *buffer
+	lines   []kernel.NodeID // the timeline node on each line, for :restore
+	shown   bool            // fude wrote it to show something, such as :messages or a diff
+	recent  []string        // the recent files the start screen lists (B225)
+	spots   []spot          // the place each line of a list names, for <CR>
+	breaks  []breakpoint    // where a debug session stops (B262)
+	stopped bool            // the line a debug session stopped on is in it
 }
 
 // pushChange records an edit at pos, replacing the newest entry when it is

@@ -62,7 +62,11 @@ type config struct {
 		Wrap         *bool    `toml:"wrap" help:"long lines in files of the type go on the rows below"`
 		ColorColumn  *int     `toml:"color_column" help:"the column shaded in files of the type, 0 for none"`
 		Spell        *bool    `toml:"spell" help:"spell checks files of the type"`
+		Debug        []string `toml:"debug" help:"the debug adapters of files of the type, by the names of their [debug.{name}] tables"`
 	} `toml:"filetype" key:"type"`
+	Debug map[string]struct {
+		Command []string `toml:"command" help:"the debug adapter's command, with {port} where it listens if it does not talk on stdio"`
+	} `toml:"debug" key:"name"`
 	LSP map[string]struct {
 		Command     []string       `toml:"command" help:"the server's command, its name when unset"`
 		Root        []string       `toml:"root" help:"the files that mark a project's root, most wanted first, looked for from the file's folder up"`

@@ -155,6 +155,8 @@ func build(t theme) styles {
 		"lsp.running": fg(t.insert), "lsp.starting": fg(t.warn), "lsp.error": fg(t.err),
 		// What a proposal would replace.
 		"proposal": fg(t.faint).StrikeThrough(true), "proposal.stale": fg(t.err).StrikeThrough(true),
+		// The line a debug session stopped on (B262).
+		"debug.line": base.Background(t.selection),
 	}
 	s.underlines = map[string]color.Color{
 		"diagnostic.error": t.err, "diagnostic.warn": t.warn, "diagnostic.info": t.info, "diagnostic.hint": t.hint,
@@ -163,6 +165,7 @@ func build(t theme) styles {
 	s.signColours = map[string]color.Color{
 		"diagnostic.error": t.err, "diagnostic.warn": t.warn, "diagnostic.info": t.info, "diagnostic.hint": t.hint,
 		"git.add": t.insert, "git.change": t.normal, "git.delete": t.err,
+		"debug.break": t.err, "debug.pending": t.muted, "debug.stopped": t.warn,
 		"icon.azure": t.function, "icon.blue": t.normal, "icon.cyan": t.hint, "icon.green": t.str,
 		"icon.grey": t.muted, "icon.orange": t.number, "icon.purple": t.keyword, "icon.red": t.err,
 		"icon.yellow": t.warn,

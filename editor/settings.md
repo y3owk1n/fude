@@ -400,6 +400,12 @@ Turns `spell` on or off in a file of the type, over the setting outside
 the table. `[filetype.markdown] spell = true` checks the prose you write
 and leaves code alone.
 
+## filetype.debug
+
+The debug adapters of files of the type, by the names of their
+`[debug.{name}]` tables. `:debug start` uses the first, unless the
+launch settings name another.
+
 ## filetype.lsp
 
 The language servers of this filetype, by the names of their `[lsp.<name>]`
@@ -439,6 +445,35 @@ format_on_save = true
 [filetype.markdown]
 format_on_save = false
 ```
+
+## debug.command
+
+The debug adapter's program and arguments, found on PATH. One that
+listens on a port, as Delve does, takes `{port}` where the port goes, and
+fude picks a free one and dials it. Any other talks on stdin and stdout.
+
+```toml
+[debug.delve]
+command = ["dlv", "dap", "--listen", "127.0.0.1:{port}"]
+
+[debug.debugpy]
+command = ["python3", "-m", "debugpy.adapter"]
+
+[filetype.go]
+debug = ["delve"]
+```
+
+`.fude/launch.toml` in the project holds what to debug, a table each:
+
+```toml
+[launch.tests]
+args = { mode = "test", program = "{dir}" }
+```
+
+`adapter` names one other than the filetype's first, and `request =
+"attach"` attaches to a running program. `{file}`, `{dir}` and
+`{project}` in `args` become the current file, its folder and the
+project.
 
 ## lsp.command
 

@@ -1,0 +1,260 @@
+package editor_test
+
+import (
+	"bufio"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net"
+	"os"
+	"path/filepath"
+	"slices"
+	"strconv"
+	"strings"
+	"testing"
+
+	"github.com/y3owk1n/fude/editor"
+	"github.com/y3owk1n/fude/framing"
+	"github.com/y3owk1n/fude/syntax"
+)
+
+// TestFakeAdapter is a debug adapter when FUDE_FAKE_DAP is set, which tests
+// run as a process of its own. It talks on stdio, or on the port -port=
+// names. It appends each message it gets to FUDE_FAKE_DAP_LOG. It sends
+// initialized on launch and answers launch only after configurationDone,
+// as some adapters do, and asks to runInTerminal. The program stops at
+// each breakpoint in turn, next and the steps go to the line after, and
+// continue past the last breakpoint ends it.
+func TestFakeAdapter(t *testing.T) {
+	if os.Getenv("FUDE_FAKE_DAP") == "" {
+		return
+	}
+	log, err := os.OpenFile(os.Getenv("FUDE_FAKE_DAP_LOG"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+	if err != nil {
+		os.Exit(2)
+	}
+	var r io.Reader = os.Stdin
+	var w io.Writer = os.Stdout
+	for _, a := range os.Args {
+		if port, ok := strings.CutPrefix(a, "-port="); ok {
+			l, err := net.Listen("tcp", "127.0.0.1:"+port)
+			if err != nil {
+				os.Exit(3)
+			}
+			conn, err := l.Accept()
+			if err != nil {
+				os.Exit(3)
+			}
+			r, w = conn, conn
+		}
+	}
+	seq := 0
+	send := func(m map[string]any) {
+		seq++
+		m["seq"] = seq
+		body, _ := json.Marshal(m)
+		framing.Write(w, body)
+	}
+	respond := func(req int, command string, body any) {
+		send(map[string]any{"type": "response", "request_seq": req, "command": command, "success": true, "body": body})
+	}
+	var path string
+	var breaks []int
+	line, launchSeq := 0, 0
+	stop := func(reason string) {
+		send(map[string]any{"type": "event", "event": "stopped", "body": map[string]any{"reason": reason, "threadId": 1}})
+	}
+	br := bufio.NewReader(r)
+	for {
+		body, err := framing.Read(br)
+		if err != nil {
+			os.Exit(0)
+		}
+		fmt.Fprintf(log, "%s\n", body)
+		var m struct {
+			Seq       int             `json:"seq"`
+			Type      string          `json:"type"`
+			Command   string          `json:"command"`
+			Arguments json.RawMessage `json:"arguments"`
+		}
+		json.Unmarshal(body, &m)
+		if m.Type != "request" {
+			continue
+		}
+		switch m.Command {
+		case "initialize":
+			respond(m.Seq, m.Command, map[string]any{"supportsConfigurationDoneRequest": true})
+		case "launch":
+			launchSeq = m.Seq
+			send(map[string]any{"type": "request", "command": "runInTerminal", "arguments": map[string]any{"args": []string{"sh"}}})
+			send(map[string]any{"type": "event", "event": "initialized"})
+		case "setBreakpoints":
+			var a struct {
+				Source struct {
+					Path string `json:"path"`
+				} `json:"source"`
+				Breakpoints []struct {
+					Line int `json:"line"`
+				} `json:"breakpoints"`
+			}
+			json.Unmarshal(m.Arguments, &a)
+			path, breaks = a.Source.Path, nil
+			var verified []any
+			for _, b := range a.Breakpoints {
+				breaks = append(breaks, b.Line)
+				verified = append(verified, map[string]any{"verified": true, "line": b.Line})
+			}
+			slices.Sort(breaks)
+			respond(m.Seq, m.Command, map[string]any{"breakpoints": verified})
+		case "setExceptionBreakpoints":
+			respond(m.Seq, m.Command, nil)
+		case "configurationDone":
+			respond(m.Seq, m.Command, nil)
+			respond(launchSeq, "launch", nil)
+			if len(breaks) > 0 {
+				line = breaks[0]
+				stop("breakpoint")
+			}
+		case "stackTrace":
+			respond(m.Seq, m.Command, map[string]any{"stackFrames": []any{
+				map[string]any{"id": 1, "name": "main.main", "line": line, "column": 1, "source": map[string]any{"path": path}},
+			}})
+		case "next", "stepIn", "stepOut":
+			respond(m.Seq, m.Command, nil)
+			line++
+			stop("step")
+		case "continue":
+			respond(m.Seq, m.Command, nil)
+			i := slices.IndexFunc(breaks, func(b int) bool { return b > line })
+			if i < 0 {
+				send(map[string]any{"type": "event", "event": "terminated"})
+				continue
+			}
+			line = breaks[i]
+			stop("breakpoint")
+		case "disconnect":
+			respond(m.Seq, m.Command, nil)
+			os.Exit(0)
+		}
+	}
+}
+
+// withAdapter starts fude on main.go in a project whose launch settings,
+// run, debug it with the fake adapter, on a port when port says, and
+// returns the adapter's log.
+func withAdapter(t *testing.T, port bool) (*editor.Session, string) {
+	t.Helper()
+	dir := t.TempDir()
+	t.Chdir(dir)
+	change(t, "main.go", "package main\n\nfunc main() {\n\ta := 1\n\tb := 2\n\t_ = a + b\n}\n")
+	if err := os.MkdirAll(".fude", 0o755); err != nil {
+		t.Fatal(err)
+	}
+	change(t, filepath.Join(".fude", "launch.toml"), "[launch.run]\nargs = { program = \"{file}\" }\n")
+	log := filepath.Join(t.TempDir(), "dap.log")
+	t.Setenv("FUDE_FAKE_DAP", "1")
+	t.Setenv("FUDE_FAKE_DAP_LOG", log)
+	command := fmt.Sprintf("[%q, \"-test.run=^TestFakeAdapter$\"]", os.Args[0])
+	if port {
+		command = fmt.Sprintf("[%q, \"-test.run=^TestFakeAdapter$\", \"--\", \"-port={port}\"]", os.Args[0])
+	}
+	config(t, "[debug.fake]\ncommand = "+command+"\n[filetype.go]\ndebug = [\"fake\"]\n")
+	e := start(t, "main.go")
+	e.SetSize(80, 20)
+	t.Cleanup(func() { feed(e, ":debug stop<CR>") })
+	return e, log
+}
+
+// signAt returns the sign the first window shows on line, from 0.
+func signAt(e *editor.Session, line int) string {
+	return e.Views()[0].Signs[line].Text
+}
+
+// B261, B262
+func TestB262Breakpoints(t *testing.T) {
+	for _, port := range []bool{false, true} {
+		t.Run("port "+strconv.FormatBool(port), func(t *testing.T) {
+			e, log := withAdapter(t, port)
+			// A breakpoint shows hollow until the adapter takes it, and stays on
+			// its line as a line goes in above it.
+			feed(e, "4G<Space>db6G:debug break<CR>")
+			if signAt(e, 3) != "○" || signAt(e, 5) != "○" {
+				t.Fatalf("the breakpoints show %q and %q", signAt(e, 3), signAt(e, 5))
+			}
+			if feed(e, "ggOx<Esc>"); signAt(e, 4) != "○" {
+				t.Errorf("after a line went in above, line 5 shows %q", signAt(e, 4))
+			}
+			feed(e, "u")
+			// The command line completes the subcommand, then the launch's name.
+			feed(e, ":debug sta<Tab>")
+			if e.Line() != ":debug start" {
+				t.Errorf(":debug sta<Tab> made %q", e.Line())
+			}
+			feed(e, " <Tab>")
+			settle(t, e, func() bool { return e.Line() == ":debug start run" })
+			feed(e, "<Esc>")
+			// The program stops at the first, its line lit with → beside it.
+			feed(e, ":debug start<CR>")
+			settle(t, e, func() bool { return e.Message() == "run stopped: breakpoint" })
+			if signAt(e, 3) != "→" || signAt(e, 5) != "●" || e.Text().LineOf(e.Cursor()) != 3 {
+				t.Errorf("stopped, the window shows %q and %q with the cursor on line %d", signAt(e, 3), signAt(e, 5), e.Text().LineOf(e.Cursor())+1)
+			}
+			if !slices.ContainsFunc(e.Views()[0].Decorations, func(s syntax.Span) bool { return s.Name == "debug.line" }) {
+				t.Error("the stopped line is not lit")
+			}
+			// The launch settings' args reach the adapter with {file} made the
+			// file, breakpoints go before configurationDone, and the adapter's
+			// request to run a terminal is refused.
+			got := disk(t, log)
+			abs, _ := filepath.Abs("main.go")
+			if !strings.Contains(got, `"program":"`+abs+`"`) {
+				t.Errorf("the adapter got no program %s in:\n%s", abs, got)
+			}
+			refused := func(l string) bool {
+				return strings.Contains(l, `"type":"response","command":"runInTerminal"`) && strings.Contains(l, `"success":false`)
+			}
+			if !slices.ContainsFunc(strings.Split(got, "\n"), refused) {
+				t.Errorf("the adapter's runInTerminal got no refusal in:\n%s", got)
+			}
+			if strings.Index(got, `"setBreakpoints"`) > strings.Index(got, `"configurationDone"`) {
+				t.Error("the breakpoints went after configurationDone")
+			}
+			// :debug stop ends the session and takes the light off.
+			if feed(e, ":debug stop<CR>"); e.Message() != "stopped debugging run" || signAt(e, 3) != "○" {
+				t.Errorf(":debug stop said %q and left %q", e.Message(), signAt(e, 3))
+			}
+			settle(t, e, func() bool { return strings.Contains(disk(t, log), `"disconnect"`) })
+		})
+	}
+}
+
+// B263
+func TestB263Stepping(t *testing.T) {
+	e, _ := withAdapter(t, false)
+	if feed(e, ":debug next<CR>"); e.Message() != "no debug session runs" {
+		t.Errorf(":debug next with no session said %q", e.Message())
+	}
+	// <Leader>dc starts a session, and the program stops at the breakpoint.
+	feed(e, "4G<Space>db6G<Space>db<Space>dc")
+	settle(t, e, func() bool { return e.Message() == "run stopped: breakpoint" })
+	line := func() int { return e.Text().LineOf(e.Cursor()) + 1 }
+	for _, c := range []struct {
+		keys, why string
+		line      int
+	}{
+		{"<Space>dn", "run stopped: step", 5},
+		{"<Space>dc", "run stopped: breakpoint", 6},
+	} {
+		feed(e, c.keys)
+		settle(t, e, func() bool { return e.Message() == c.why })
+		if line() != c.line {
+			t.Errorf("%s stopped on line %d, want %d", c.keys, line(), c.line)
+		}
+	}
+	// Going on past the last breakpoint ends the program.
+	feed(e, ":debug continue<CR>")
+	settle(t, e, func() bool { return e.Message() == "run ended" })
+	if feed(e, ":debug next<CR>"); e.Message() != "no debug session runs" {
+		t.Errorf(":debug next after the end said %q", e.Message())
+	}
+}

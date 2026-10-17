@@ -30,7 +30,7 @@ func (e *Session) mayEdit() error {
 // because it runs a program or changes what every session shares (B244).
 func refuses(name, arg string) bool {
 	switch name {
-	case "!", "terminal", "task", "restart", "cd", "theme", "share", "kick":
+	case "!", "terminal", "task", "restart", "cd", "theme", "share", "kick", "debug":
 		return true
 	case "read":
 		return strings.HasPrefix(arg, "!")
@@ -48,6 +48,7 @@ func refuses(name, arg string) bool {
 var refusedPlugs = map[string]bool{
 	"restart": true, "listing.cwd": true,
 	"lsp.restart": true, "lsp.stop": true, "lsp.disable": true, "lsp.enable": true,
+	"debug.break": true, "debug.continue": true, "debug.next": true, "debug.in": true, "debug.out": true, "debug.stop": true,
 }
 
 // refusedOperators are the operators a guest may not run, because they

@@ -65,6 +65,32 @@ and its state, roots and files. In the panel, `r` restarts the server
 under the cursor, `s` stops it, `d` keeps it off and `e` lets it start
 again. `:lsp restart` restarts the current file's servers.
 
+## Debugging
+
+fude debugs a program through a debug adapter, the way it reads code
+through a language server. Name the adapter in `config.toml`, and what to debug in
+`.fude/launch.toml` in the project.
+
+```toml
+# config.toml
+[debug.delve]
+command = ["dlv", "dap", "--listen", "127.0.0.1:{port}"]
+
+[filetype.go]
+debug = ["delve"]
+```
+
+```toml
+# .fude/launch.toml
+[launch.tests]
+args = { mode = "test", program = "{dir}" }
+```
+
+`<Leader>db` puts a breakpoint on the line, and `<Leader>dc` starts the
+session, or lets it go on once it stops. `<Leader>dn`, `<Leader>di` and
+`<Leader>do` step over, into and out, and `<Leader>dq` ends it. Each is
+a `:debug` command too, such as `:debug next`.
+
 ## Next
 
 - `guide-format` formats files when they are written.

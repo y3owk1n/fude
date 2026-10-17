@@ -53,6 +53,7 @@ type Editor struct {
 	clients        atomic.Int64                    // the attached clients yet to have their last frame (B242)
 	began          int                             // how many sessions began, for the next one's colour (B252)
 	dict           map[string]bool                 // the words spell knows, once read (B259)
+	debug          *debugging                      // the debug session, while one runs (B262)
 	reading        bool                            // the words are being read, or failed to
 	sessions       []*Session                      // the first is the one that opened the editor
 	setup          []func(*Session)                // what every session's machine gets, such as keymaps
@@ -248,8 +249,9 @@ func builtins(e *Session) {
 			return nil
 		})
 	}
+	// The host's leader stands for <Leader> in every session's defaults.
 	for keys, to := range defaultMaps {
-		e.vim.Map(vim.Normal, keys, to)
+		e.vim.Map(vim.Normal, withLeader(keys, e.cfg.Leader), to)
 	}
 	e.vim.Map(vim.Visual, "s", "<Plug>(jump)")
 	e.locals = map[string]*vim.Keymaps{}

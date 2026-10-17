@@ -360,7 +360,7 @@ var diagnosticSigns = []Sign{{"E", "diagnostic.error"}, {"W", "diagnostic.warn"}
 // or else its git sign. A
 // listing's lines from top to last show the git status of their names.
 func (e *Session) signs(b *buffer, top, last int) map[int]Sign {
-	if !b.signed && b.signs == 0 && len(b.git) == 0 && len(b.status) == 0 {
+	if !b.signed && b.signs == 0 && len(b.git) == 0 && len(b.status) == 0 && len(b.breaks) == 0 && !b.stopped {
 		return nil
 	}
 	t := b.text.Snapshot()
@@ -382,6 +382,16 @@ func (e *Session) signs(b *buffer, top, last int) map[int]Sign {
 		i := slices.IndexFunc(diagnosticSigns, func(s Sign) bool { return s.Name == d.style })
 		if old, ok := out[line]; i >= 0 && (!ok || !slices.Contains(diagnosticSigns, old) || i < slices.Index(diagnosticSigns, old)) {
 			out[line] = diagnosticSigns[i]
+		}
+	}
+	// A breakpoint wins over a diagnostic, and the stopped line over all
+	// (B262).
+	for _, br := range b.breaks {
+		out[t.LineOf(b.text.Mark(br.mark))] = map[bool]Sign{true: {"●", "debug.break"}, false: {"○", "debug.pending"}}[br.verified]
+	}
+	for _, d := range e.decos[stoppedLine{}] {
+		if d.buf == b {
+			out[t.LineOf(b.text.Mark(d.start))] = Sign{"→", "debug.stopped"}
 		}
 	}
 	for line := t.LineOf(top); len(b.status) > 0 && line <= t.LineOf(last); line++ {

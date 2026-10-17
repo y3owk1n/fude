@@ -1018,12 +1018,13 @@ Where fude departs, the line says so and cites the departure in
   or the only ones, or else lists them to choose from. `:debug break`
   and `<Leader>db` put a breakpoint on the cursor's line, or take one
   off. The sign column shows one as ● once the adapter takes it, and ○
-  before or when it does not. A breakpoint stays on its line as the
-  text around it changes. `:debug stop` and `<Leader>dq` end the
-  session. When the program stops, the window shows its line, lit and
-  with → in the sign column, and the message says why it stopped. When
-  the session ends, by the program or the adapter or `:debug stop`, the
-  message says so and the line is no longer lit.
+  before or when it does not. A breakpoint stays on its line as the text
+  around it changes. `:debug stop` and `<Leader>dq` end the session. A
+  `:debug` line completes its subcommands, and after `start` the names
+  of the launch settings. When the program stops, the window shows its
+  line, lit and with → in the sign column, and the message says why it
+  stopped. When the session ends, by the program or the adapter or
+  `:debug stop`, the message says so and the line is no longer lit.
 - B263 [8] `:debug continue`, `next`, `in` and `out`, and `<Leader>dc`,
   `dn`, `di` and `do`, let the stopped thread run on, or step over, into
   or out of its line. `<Leader>dc` starts a session when none runs. Each

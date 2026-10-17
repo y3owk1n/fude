@@ -727,7 +727,7 @@ func TestB244GuestRefuses(t *testing.T) {
 	for _, keys := range []string{
 		":!touch " + ran + "<CR>", ":r !touch " + ran + "<CR>", ":%!sort<CR>", ":terminal<CR>", ":task<CR>",
 		":pick tasks<CR>", ":restart<CR>", ":cd /<CR>", ":plugin reload<CR>", ":grammar install go<CR>",
-		":grammar update<CR>", ":lsp stop<CR>", ":theme light<CR>", ":share<CR>", ":kick x<CR>", "ZR", "ghj", "gHj",
+		":grammar update<CR>", ":lsp stop<CR>", ":theme light<CR>", ":share<CR>", ":kick x<CR>", ":debug start<CR>", "ZR", "ghj", "gHj", "<Space>db",
 	} {
 		if feed(guest, keys); !strings.HasPrefix(guest.Message(), "a guest may not") {
 			t.Errorf("%s in a guest said %q", keys, guest.Message())
@@ -1990,8 +1990,8 @@ func TestB144Leader(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "f")
 	for _, c := range []struct{ config, keys string }{
 		// <Space> by default, and leader changes it.
-		{"[keymap.normal]\n\"<Leader>d\" = \"dd\"", " d"},
-		{"leader = \",\"\n[keymap.normal]\n\"<leader>d\" = \"dd\"", ",d"},
+		{"[keymap.normal]\n\"<Leader>x\" = \"dd\"", " x"},
+		{"leader = \",\"\n[keymap.normal]\n\"<leader>x\" = \"dd\"", ",x"},
 	} {
 		change(t, path, "a\nb\n")
 		config(t, c.config)
