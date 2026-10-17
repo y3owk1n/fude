@@ -1486,9 +1486,12 @@ and follow, and attaching through a replica.
 `fude --attach` dials the socket and calls `attach`. The server makes a
 session for the connection with `Attach`, and the connection then carries
 a stream each way. The client sends `keys`, `paste`, `size` and `focus`
-notices. The server sends a `frame` notice after the loop runs anything
-that changes what the session draws, and only when it differs from the
-last one sent. Closing the connection makes the session leave (B240).
+notices, the keys as a list in key notation. One goroutine per connection
+makes a frame on the loop after each notice, and every 50ms to catch other
+sessions' edits, new parses and servers' answers. It sends the frame as a
+`frame` notice when it differs from the last one sent. Because one
+goroutine sends, each frame's edits arrive in order. Closing the
+connection makes the session leave (B240).
 
 A frame holds what `ui/term` reads of a session: the views without their
 text, the float, the command line and its cursor, the mode, message,

@@ -7,8 +7,11 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
+
+	"github.com/y3owk1n/fude/vim"
 
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/core/kernel"
@@ -94,6 +97,85 @@ func TestB70CommandOverSocket(t *testing.T) {
 	if want := text(typed); got.Text != want {
 		t.Fatalf("the command made %q, the keys %q", got.Text, want)
 	}
+}
+
+// frames reads an attached client's frames, keeping its copy of each
+// buffer's text from them, until done reports true of the newest.
+func (cl *client) frames(texts map[int]string, done func(editor.Frame) bool) editor.Frame {
+	cl.t.Helper()
+	for cl.in.Scan() {
+		var n struct {
+			Method string       `json:"method"`
+			Params editor.Frame `json:"params"`
+		}
+		if json.Unmarshal(cl.in.Bytes(), &n) != nil || n.Method != "frame" {
+			continue
+		}
+		for _, tx := range n.Params.Texts {
+			switch {
+			case tx.Whole != nil:
+				texts[tx.Buffer] = *tx.Whole
+			default:
+				for _, edits := range tx.Edits {
+					t := texts[tx.Buffer]
+					for _, ed := range slices.Backward(edits) {
+						t = t[:ed.Start] + ed.Text + t[ed.End:]
+					}
+					texts[tx.Buffer] = t
+				}
+			}
+		}
+		if done(n.Params) {
+			return n.Params
+		}
+	}
+	cl.t.Fatal("the frames ended")
+	return editor.Frame{}
+}
+
+// B239, the frames an attached client gets
+func TestB239AttachFrames(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "f")
+	change(t, path, "one\n")
+	e := open(t, path)
+	cl := dial(t, e)
+	fmt.Fprintln(cl.c, `{"id":1,"method":"attach"}`)
+	fmt.Fprintln(cl.c, `{"method":"size","params":[80,24]}`)
+	texts := map[int]string{}
+	// The first frame brings the whole text, and later ones its edits.
+	f := cl.frames(texts, func(f editor.Frame) bool { return len(f.Views) == 1 && f.Views[0].H == 24 })
+	if b := f.Views[0].Buffer; texts[b] != "one" {
+		t.Fatalf("the first frame gave the text %q", texts[b])
+	}
+	fmt.Fprintln(cl.c, `{"method":"keys","params":["A","!","<Esc>"]}`)
+	f = cl.frames(texts, func(f editor.Frame) bool {
+		for _, tx := range f.Texts {
+			if tx.Whole != nil {
+				t.Errorf("a frame after the first sent the whole text again")
+			}
+		}
+		return texts[f.Views[0].Buffer] == "one!" && f.Mode == vim.Normal
+	})
+	cl.do <- func() {}
+	if got := text(e); got != "one!" {
+		t.Errorf("the attached session's edit left fude's buffer %q", got)
+	}
+	// :q leaves, and the last frame says the session is done.
+	fmt.Fprintln(cl.c, `{"method":"keys","params":[":","q","<CR>"]}`)
+	if f = cl.frames(texts, func(f editor.Frame) bool { return f.Done }); f.Message != "" {
+		t.Errorf("leaving said %q", f.Message)
+	}
+	// When fude quits, an attached client's last frame says so.
+	e = open(t, path)
+	cl = dial(t, e)
+	fmt.Fprintln(cl.c, `{"id":1,"method":"attach"}`)
+	cl.frames(texts, func(editor.Frame) bool { return true })
+	cl.do <- func() { feed(e, ":qa!<CR>") }
+	if f = cl.frames(texts, func(f editor.Frame) bool { return f.Done }); f.Message != "fude quit" {
+		t.Errorf("when fude quit, the last frame said %q", f.Message)
+	}
+	// The loop is done with the quit before the test reads the session.
+	cl.do <- func() {}
 }
 
 // B78

@@ -15,7 +15,8 @@ import (
 
 // View is one window as a client draws it.
 type View struct {
-	Text              kernel.Snapshot
+	Buffer            int             // the buffer's number, which a frame's Texts name
+	Text              kernel.Snapshot `json:"-"`
 	Top, Cursor       int
 	X, Y, W, H        int // H counts the status line on the bottom row
 	Name              string
@@ -94,7 +95,7 @@ func (e *Session) Views() []View {
 		e.fit(w)
 		t, top, tab := w.buf.text.Snapshot(), e.topOf(w), e.tabWidth(w.buf)
 		v := View{
-			Text: t, Top: top, Cursor: w.pos(),
+			Buffer: w.buf.id, Text: t, Top: top, Cursor: w.pos(),
 			X: w.x, Y: w.y, W: w.w, H: w.h,
 			Name: w.buf.name(), Modified: w.buf.modified(), Current: w == e.win || w == e.under,
 			Gutter: w.gutter(), SignCols: w.signCols(), Number: w.numberCols() > 0 && w.opts.Number, Relative: w.numberCols() > 0 && w.opts.RelativeNumber,

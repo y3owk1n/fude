@@ -317,6 +317,14 @@ func (e *Session) serve(c net.Conn, o kernel.Origin) {
 		reply, quit := map[string]any{}, false
 		if err := json.Unmarshal(in.Bytes(), &call); err != nil {
 			reply["error"] = fmt.Sprintf("read call: %v", err)
+		} else if call.Method == "attach" {
+			// From here the client sends input, and fude sends it frames
+			// (D39).
+			if out(map[string]any{"id": call.ID}) != nil {
+				return
+			}
+			e.attached(s, in, out, on)
+			return
 		} else if call.Method == "tail" {
 			// This writes the events off the loop, as they come, until the
 			// client leaves.
