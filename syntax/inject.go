@@ -36,7 +36,7 @@ type injector struct {
 	parser  *ts.Parser
 	cursor  *ts.QueryCursor
 	langs   map[string]*injected // by filetype, nil for one without a grammar
-	missing []string             // filetypes with no grammar fude could build, met since the loop heard
+	missing []problem            // injected languages that could not load, met since the loop heard
 }
 
 // injectionLevels is how deep injections nest. Markdown's inline text inside
@@ -58,8 +58,15 @@ func (in *injector) close() {
 	}
 }
 
+// problem is an injected language that did not load. err is nil when it
+// only lacks a grammar fude could build, and else says why it failed.
+type problem struct {
+	filetype string
+	err      error
+}
+
 // get returns ft's language and queries, or nil when it has no grammar or
-// they do not load. A grammar fude could build goes in missing, and is
+// they do not load. Either goes in missing. A grammar fude could build is
 // looked for again next time, as it may have built since.
 func (in *injector) get(ft string) *injected {
 	if l, ok := in.langs[ft]; ok {
@@ -67,20 +74,25 @@ func (in *injector) get(ft string) *injected {
 	}
 	l, ok, err := lookup(ft)
 	if err == nil && !ok && Buildable(ft) {
-		in.missing = append(in.missing, ft)
+		in.missing = append(in.missing, problem{ft, nil})
 		return nil
 	}
 	in.langs[ft] = nil
 	if err != nil || !ok {
+		if err != nil {
+			in.missing = append(in.missing, problem{ft, err})
+		}
 		return nil
 	}
 	hq, err := query(l.lang, in.dir, ft, "highlights", l.highlights)
 	if err != nil {
+		in.missing = append(in.missing, problem{ft, err})
 		return nil
 	}
 	iq, err := query(l.lang, in.dir, ft, "injections", l.injections)
 	if err != nil {
 		hq.Close()
+		in.missing = append(in.missing, problem{ft, err})
 		return nil
 	}
 	in.langs[ft] = &injected{l.lang, hq, iq}

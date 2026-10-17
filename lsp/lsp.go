@@ -222,7 +222,7 @@ func (c *Client) CloseDocument(uri string) {
 func (c *Client) Request(method string, build func(enc string) any, answer func(json.RawMessage)) {
 	c.next++
 	id := c.next
-	c.pending[id] = pending{answer, time.Now()}
+	c.pending[id] = pending{answer, method, time.Now()}
 	c.send(func(enc string) any { return request{ID: id, Method: method, Params: build(enc)} })
 }
 
@@ -407,11 +407,18 @@ func (c *Client) frame(v any) error {
 		v = m
 	}
 	body, err := json.Marshal(v)
-	if err != nil {
-		return err
+	if err == nil {
+		api.Trace("lsp", fmt.Sprintf("sent %s %s, %d bytes", c.name, what, len(body)), 0)
+		_, err = fmt.Fprintf(c.stdin, "Content-Length: %d\r\n\r\n%s", len(body), body)
 	}
-	api.Trace("lsp", fmt.Sprintf("sent %s %s, %d bytes", c.name, what, len(body)), 0)
-	_, err = fmt.Fprintf(c.stdin, "Content-Length: %d\r\n\r\n%s", len(body), body)
+	select {
+	case <-c.done:
+		// A send to a server that has exited fails, and is not logged.
+	default:
+		if err != nil {
+			c.log(fmt.Sprintf("%s: send %s: %v", c.name, what, err))
+		}
+	}
 	return err
 }
 
@@ -423,6 +430,9 @@ func (c *Client) read(r io.Reader, initialized chan<- answer, notify func(string
 	for {
 		body, err := readFrame(br)
 		if err != nil {
+			if !errors.Is(err, io.EOF) {
+				c.log(fmt.Sprintf("%s: read: %v", c.name, err))
+			}
 			return
 		}
 		var m incoming
@@ -461,6 +471,10 @@ func (c *Client) read(r io.Reader, initialized chan<- answer, notify func(string
 			}
 			continue
 		}
+		if m.Error != nil {
+			// It goes on with no capabilities, as a server that offers none.
+			c.log(fmt.Sprintf("%s: initialize: %s", c.name, m.Error.Message))
+		}
 		var res struct {
 			Capabilities map[string]json.RawMessage `json:"capabilities"`
 			ServerInfo   struct{ Version string }   `json:"serverInfo"`
@@ -492,7 +506,7 @@ func (c *Client) answered(id int, result json.RawMessage, failed *responseError)
 		api.Trace("lsp", fmt.Sprintf("%s answered #%d, %d bytes", c.name, id, len(result)), time.Since(p.at))
 	}
 	if failed != nil {
-		c.log(failed.Message)
+		c.log(fmt.Sprintf("%s: %s: %s", c.name, p.method, failed.Message))
 		result = nil
 	}
 	if ok {
@@ -503,6 +517,7 @@ func (c *Client) answered(id int, result json.RawMessage, failed *responseError)
 // pending is a request waiting for its answer, and when it was asked.
 type pending struct {
 	answer func(json.RawMessage)
+	method string
 	at     time.Time
 }
 

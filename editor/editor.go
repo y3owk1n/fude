@@ -1493,7 +1493,11 @@ func (e *Session) close(b *buffer, force bool) {
 func (e *Session) registers(names string) {
 	var shown []string
 	for _, r := range names {
-		if text, ok := e.vim.Register(r); ok {
+		text, ok, err := e.vim.Register(r)
+		switch {
+		case err != nil:
+			shown = append(shown, fmt.Sprintf("\"%c   %v", r, err))
+		case ok:
 			shown = append(shown, fmt.Sprintf("\"%c   %s", r, strings.ReplaceAll(text, "\n", "^J")))
 		}
 	}

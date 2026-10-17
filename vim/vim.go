@@ -254,10 +254,11 @@ func (m *Machine) Message() string { return m.msg }
 // Recording returns the register a macro is being recorded into, or 0.
 func (m *Machine) Recording() rune { return m.recording }
 
-// Register returns the text in register name.
-func (m *Machine) Register(name rune) (string, bool) {
+// Register returns the text in register name, or false when it is empty,
+// and the error reading the clipboard for "+ and "*.
+func (m *Machine) Register(name rune) (string, bool, error) {
 	r, ok, err := m.fetch(name)
-	return r.text, ok && err == nil
+	return r.text, ok && err == nil, err
 }
 
 // fetch returns register name, or false when it is empty. "+ and "* are the

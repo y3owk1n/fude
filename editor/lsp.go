@@ -631,6 +631,7 @@ func (e *Session) workspaceEdit(s *server, from *buffer, t kernel.Snapshot, res 
 	for uri, f := range files {
 		u, err := url.Parse(uri)
 		if err != nil {
+			problems = append(problems, err.Error())
 			continue
 		}
 		i := slices.IndexFunc(e.bufs, func(b *buffer) bool { return b.is(u.Path) })

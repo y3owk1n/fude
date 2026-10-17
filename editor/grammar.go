@@ -12,8 +12,11 @@ import (
 // attachSyntax gives b the syntax of its filetype's grammar, and reports
 // whether there is one (B46).
 func (e *Session) attachSyntax(b *buffer) (bool, error) {
-	h, ok, err := syntax.New(e.filetype(b), e.queries, e.queue, func() { e.emit("syntax.updated", "", b) }, func(ft string) {
-		if e.cfg.AutoInstall {
+	h, ok, err := syntax.New(e.filetype(b), e.queries, e.queue, func() { e.emit("syntax.updated", "", b) }, func(ft string, err error) {
+		switch {
+		case err != nil:
+			e.message = err.Error()
+		case e.cfg.AutoInstall:
 			e.buildGrammar(ft, false)
 		}
 	})

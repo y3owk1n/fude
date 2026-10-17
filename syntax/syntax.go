@@ -83,7 +83,7 @@ type Buffer struct {
 	cursor  *ts.QueryCursor
 	closed  bool
 	asked   request
-	missing func(filetype string) // told once of each injected language with no grammar fude could build
+	missing func(filetype string, err error) // told once of each injected language that did not load
 	wanted  map[string]bool
 	// climb is where an last climbed to and the nodes it climbed from, so in
 	// can go back down. It lasts until the text changes.
@@ -126,9 +126,9 @@ type request struct {
 // New returns the syntax of a buffer of filetype, which sends its results to
 // queue, or false when fude has no grammar for it. parsed runs on the loop
 // after each new parse lands, and missing once for each language the buffer
-// injects that has no grammar fude could build. A query in dir/<filetype>/
-// replaces the shipped one of the same name.
-func New(filetype, dir string, queue chan<- func(), parsed func(), missing func(filetype string)) (*Buffer, bool, error) {
+// injects that has no grammar fude could build, or with why it failed to
+// load. A query in dir/<filetype>/ replaces the shipped one of the same name.
+func New(filetype, dir string, queue chan<- func(), parsed func(), missing func(filetype string, err error)) (*Buffer, bool, error) {
 	l, ok, err := lookup(filetype)
 	if !ok || err != nil {
 		return nil, false, err
@@ -377,15 +377,15 @@ func (h *Buffer) LanguageAt(pos int) string {
 
 // take keeps the spans, regions and tree found for the text after change
 // seq, and tells of the injected languages with no grammar.
-func (h *Buffer) take(seq int, spans []Span, regions []Region, missing []string, tree *ts.Tree) {
+func (h *Buffer) take(seq int, spans []Span, regions []Region, missing []problem, tree *ts.Tree) {
 	if h.closed {
 		tree.Close()
 		return
 	}
-	for _, ft := range missing {
-		if !h.wanted[ft] && h.missing != nil {
-			h.wanted[ft] = true
-			h.missing(ft)
+	for _, p := range missing {
+		if !h.wanted[p.filetype] && h.missing != nil {
+			h.wanted[p.filetype] = true
+			h.missing(p.filetype, p.err)
 		}
 	}
 	// Freeing the old tree of a large file takes up to half a millisecond,

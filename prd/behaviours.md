@@ -490,7 +490,8 @@ Where fude departs, the line says so and cites the departure in
   language's colours, as its grammar's `injections.scm` marks it: the code
   in a markdown fenced block, markdown's inline text, a `<script>` or
   `<style>` in HTML. An injected language whose grammar is not built
-  builds on first use, and its colours show once it is.
+  builds on first use, and its colours show once it is. One whose grammar
+  or queries fail to load says why.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays

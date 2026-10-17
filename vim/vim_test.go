@@ -427,7 +427,7 @@ func TestB17Macros(t *testing.T) {
 	// A macro is text in a register, so putting it, editing it and yanking it
 	// back changes what @ runs.
 	_, h, m := run(t, "|a b", "qadwq")
-	if text, _ := m.Register('a'); text != "dw" {
+	if text, _, _ := m.Register('a'); text != "dw" {
 		t.Fatalf("recorded %q, want %q", text, "dw")
 	}
 	for _, k := range vim.Keys("o2dw<Esc>0\"ay$dd@a") {
@@ -779,7 +779,7 @@ func TestB42SelectRegions(t *testing.T) {
 			t.Errorf("%q on %q: got %q, want %q", c[1], c[0], got, c[2])
 		}
 		if c[1] == "V:select x<CR>y" {
-			if r, _ := m.Register('"'); r != "1\n22\n333" {
+			if r, _, _ := m.Register('"'); r != "1\n22\n333" {
 				t.Errorf("y on regions yanked %q, want them joined by newlines", r)
 			}
 		}
