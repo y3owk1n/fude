@@ -1463,3 +1463,40 @@ func TestB258BufferLine(t *testing.T) {
 		t.Errorf("a guest's buffer line lists %v, want the two files in the project", tabs)
 	}
 }
+
+// B269
+func TestB269ShareStatus(t *testing.T) {
+	t.Chdir(t.TempDir())
+	if err := os.WriteFile("a.txt", []byte("hello\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("USER", "kyle")
+	c := startWith(t, "", "a.txt")
+	host := c.e.(*editor.Session)
+	_, on, _ := serve(t, host)
+	status := func() string {
+		var row string
+		on(func() { c.draw(); row = c.row(39) })
+		return row
+	}
+	if strings.Contains(status(), "sharing") {
+		t.Errorf("before sharing the status line is %q", status())
+	}
+	str := share(t, host, on, "")
+	if !strings.Contains(status(), "sharing  ") {
+		t.Errorf("sharing, the status line is %q", status())
+	}
+	waiting := joining(str)
+	asked(t, host, on, "kyle")
+	on(func() { host.Feed("y") })
+	j := <-waiting
+	if j.err != nil {
+		t.Fatal(j.err)
+	}
+	defer j.a.Close()
+	if !strings.Contains(status(), "sharing with 1") {
+		t.Errorf("with a guest in, the status line is %q", status())
+	}
+	g := &client{s: mock(t), e: j.a}
+	g.shows(t, 39, "guest")
+}

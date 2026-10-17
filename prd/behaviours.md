@@ -1203,6 +1203,9 @@ Where fude departs, the line says so and cites the departure in
   stay as they are. So does that session leaving, and the message says
   so. A guest's window keeps its buffer when the other's is one the
   guest may not show (B244, B245).
+- B269 [7] The current window's status line says when fude shares,
+  `sharing`, or `sharing with 2` once two guests are in. A guest's says
+  `guest`, or `read-only guest`.
 
 ## Kernel library
 

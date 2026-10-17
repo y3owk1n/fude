@@ -56,6 +56,9 @@ func (c *client) status(v editor.View, x, w int) {
 		left = append(left, part{"   " + strconv.Itoa(v.Warnings), ground.Foreground(th.warn)})
 	}
 	muted := ground.Foreground(th.muted)
+	if v.Sharing != "" {
+		right = append(right, part{v.Sharing + "  ", ground.Foreground(th.cmd)})
+	}
 	// The other sessions in the buffer, each in its colour (B253).
 	for _, o := range v.Others {
 		right = append(right, part{o.Name + "  ", ground.Foreground(presence(o.Colour))})

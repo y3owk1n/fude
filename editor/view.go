@@ -60,6 +60,7 @@ type View struct {
 	Folds             map[int]int    // by the first line of each closed fold shown, the lines it hides (B224)
 	Tasks             []string       // the tasks running, on the current window's status line (B231)
 	Others            []Other        // the other sessions whose current window shows the buffer (B253)
+	Sharing           string         // on the current window, whether fude shares or the session is a guest (B269)
 	// Context is the start of each line pinned over the window's first rows,
 	// the functions and classes the text under them is in, with their
 	// highlights (B217).
@@ -162,6 +163,7 @@ func (e *Session) Views() []View {
 		e.diffGit(w.buf)
 		if v.Current {
 			v.Tasks = e.runningTasks()
+			v.Sharing = e.sharing()
 		}
 		v.Others = e.others(w.buf)
 		if b := w.buf; b.ask {

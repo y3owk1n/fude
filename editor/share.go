@@ -394,3 +394,26 @@ func completeKick(e *Session, _ string, start int, arg string, _ bool) (int, []s
 	}
 	return start, match(names, arg)
 }
+
+// sharing says, for the status line, whether fude shares and with how many
+// guests, or that the session is a guest (B269).
+func (e *Session) sharing() string {
+	switch {
+	case e.power == Guest:
+		return "guest"
+	case e.power == ReadOnly:
+		return "read-only guest"
+	case e.share == nil:
+		return ""
+	}
+	guests := 0
+	for _, s := range e.sessions {
+		if s.power != Host {
+			guests++
+		}
+	}
+	if guests == 0 {
+		return "sharing"
+	}
+	return fmt.Sprintf("sharing with %d", guests)
+}

@@ -73,7 +73,8 @@ guest's keymaps, leader, window options and theme come from
 `config.toml` on its own machine. `fude --join --read-only` asks to only
 watch, so the guest's session changes no text. `:follow name` keeps your
 windows on what the session called name shows, its splits too, until you
-type. Quitting fude ends the share.
+type. While fude shares, its status line says so and counts the guests.
+A guest's status line says it is a guest. Quitting fude ends the share.
 
 ## Clients
 
