@@ -899,8 +899,10 @@ func TestB256Follow(t *testing.T) {
 	t.Chdir(project)
 	change(t, "a.txt", "a\n")
 	change(t, "b.txt", strings.Repeat("b\n", 100))
+	change(t, "c.txt", strings.Repeat("c", 300)+"\n")
 	change(t, filepath.Join(away, "out.txt"), "out\n")
-	e := open(t, "a.txt")
+	config(t, "wrap = false\n")
+	e := start(t, "a.txt")
 	e.SetName("host")
 	e.SetSize(80, 20)
 	pat := e.Attach("pat", editor.Host)
@@ -917,6 +919,30 @@ func TestB256Follow(t *testing.T) {
 	if feed(pat, "90G"); !same() {
 		t.Errorf("after pat moved, the follower is at %d, want %d", e.Views()[0].Cursor, pat.Views()[0].Cursor)
 	}
+	// It copies the layout, which window is current, and each window's left
+	// column.
+	feed(pat, ":vsplit c.txt<CR>$10h")
+	vs, ws := e.Views(), pat.Views()
+	if len(vs) != len(ws) {
+		t.Fatalf("the follower has %d windows, pat %d", len(vs), len(ws))
+	}
+	for i := range vs {
+		if vs[i].Name != ws[i].Name || vs[i].Current != ws[i].Current || vs[i].Left != ws[i].Left || vs[i].Cursor != ws[i].Cursor {
+			t.Errorf("window %d of the follower is %s at %d, left %d, current %v, want pat's %s at %d, left %d, current %v", i, vs[i].Name, vs[i].Cursor, vs[i].Left, vs[i].Current, ws[i].Name, ws[i].Cursor, ws[i].Left, ws[i].Current)
+		}
+	}
+	if ws[1].Left == 0 {
+		t.Fatal("pat's window on the long line does not scroll, so the test proves nothing")
+	}
+	// A window too short for pat's top line scrolls to show the cursor.
+	feed(pat, "<C-w>w95G")
+	e.SetSize(80, 8)
+	for _, v := range e.Views() {
+		if v.Name == "b.txt" && (v.Cursor/2 < v.Top/2 || v.Cursor/2 >= v.Top/2+v.H-1) {
+			t.Errorf("the follower's short window shows lines %d on, the cursor on %d", v.Top/2, v.Cursor/2)
+		}
+	}
+	e.SetSize(80, 20)
 	// A key typed stops following.
 	feed(e, "k")
 	if feed(pat, "10G"); same() || e.Message() != "stopped following pat" {
@@ -929,7 +955,7 @@ func TestB256Follow(t *testing.T) {
 	}
 	// pat leaving stops it too.
 	feed(e, ":follow pat<CR>")
-	feed(pat, ":q<CR>")
+	feed(pat, ":qa<CR>")
 	if e.Views(); e.Message() != "pat left, so following stopped" {
 		t.Errorf("when pat left, the follower said %q", e.Message())
 	}

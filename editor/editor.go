@@ -67,11 +67,11 @@ type Editor struct {
 type Session struct {
 	*Editor
 	origin     kernel.Origin
-	power      Power    // how much the session may do (B243)
-	name       string   // who uses the session, "" for a client that sent none (B252)
-	following  *Session // the session :follow keeps follower on (B256)
-	follower   *window
-	colour     int // which of six colours shows the session to others (B252)
+	power      Power               // how much the session may do (B243)
+	name       string              // who uses the session, "" for a client that sent none (B252)
+	following  *Session            // the session whose windows :follow copies (B256)
+	mirrors    map[*window]*window // by the other's window, the window that copies it
+	colour     int                 // which of six colours shows the session to others (B252)
 	root       *node
 	win        *window // the current window
 	vim        *vim.Machine
