@@ -253,8 +253,15 @@ func Load(ctx context.Context, path string, g Grants, cacheDir string, log func(
 		p.Close(ctx)
 		return nil, err
 	}
-	if p.mod, err = p.runtime.Instantiate(ctx, wasm); err != nil {
+	// A start function would run with no budget, so _start does not run,
+	// and a start section runs under the one init has.
+	ictx, cancel := context.WithTimeout(ctx, InitBudget)
+	defer cancel()
+	if p.mod, err = p.runtime.InstantiateWithConfig(ictx, wasm, wazero.NewModuleConfig().WithStartFunctions()); err != nil {
 		p.Close(ctx)
+		if errors.Is(err, context.DeadlineExceeded) {
+			return nil, fmt.Errorf("plugin %s %w", p.Name, errBudget)
+		}
 		return nil, fmt.Errorf("plugin %s: %w", p.Name, err)
 	}
 	// The host writes events and answers into the plugin's memory through
@@ -618,7 +625,8 @@ func (p *Plugin) program(ctx context.Context, argv []string) (string, error) {
 		return "", fmt.Errorf("run %s, which it did not declare", argv[0])
 	}
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
-	cmd.Dir = p.root
+	// A child the program leaves holding its output does not hold the call.
+	cmd.Dir, cmd.WaitDelay = p.root, 10*time.Millisecond
 	out, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("run %s: %w", argv[0], err)
@@ -731,9 +739,12 @@ func (p *Plugin) get(ctx context.Context, rawURL string) ([]byte, error) {
 		return nil, fmt.Errorf("get %s: %w", rawURL, err)
 	}
 	// A redirect may not lead to a host the plugin did not declare.
-	client := &http.Client{CheckRedirect: func(r *http.Request, _ []*http.Request) error {
-		if !slices.Contains(p.Hosts, r.URL.Hostname()) {
+	client := &http.Client{CheckRedirect: func(r *http.Request, via []*http.Request) error {
+		switch {
+		case !slices.Contains(p.Hosts, r.URL.Hostname()):
 			return fmt.Errorf("redirect to %s, which it did not declare", r.URL.Hostname())
+		case len(via) >= 10:
+			return errors.New("stopped after 10 redirects")
 		}
 		return nil
 	}}

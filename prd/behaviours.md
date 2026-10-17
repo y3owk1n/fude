@@ -758,7 +758,8 @@ Where fude departs, the line says so and cites the departure in
 - B50 [4] A plugin call outside its declared capabilities returns an error
   to the plugin, is logged, and changes nothing.
 - B51 [4] A plugin that exceeds its budget is unloaded, the user is told
-  which plugin, and editing continues.
+  which plugin, and editing continues. Loading it runs under the budget
+  its init has.
 - B52 [4] An operator or target a plugin registers composes with every
   built-in target or operator.
 - B53 [4] A plugin that traps or panics is unloaded and no buffer changes.
@@ -777,9 +778,11 @@ Where fude departs, the line says so and cites the departure in
   directory fude started in, and no file outside it.
 - B48 [4] A plugin with `process` runs the programs its `[[plugin]]` table
   lists, and no others, in the project and within its call's budget, and
-  reads what they print.
+  reads what they print. A child a program leaves running does not hold the
+  call.
 - B49 [4] A plugin with `net` gets http and https URLs on the hosts its
-  `[[plugin]]` table lists, and no others, even through a redirect.
+  `[[plugin]]` table lists, and no others, even through a redirect. It
+  follows at most 10 redirects.
 - B173 [4] `fude plugin new <name>` writes a plugin in a new folder, in Go
   with fude's sdk, and `fude plugin build [dir]` builds it with TinyGo into
   `<name>.wasm`. Its commands, keys, operators, objects and event handlers

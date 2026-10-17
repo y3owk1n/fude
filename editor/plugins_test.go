@@ -173,13 +173,30 @@ func TestB48RunPrograms(t *testing.T) {
 	if log := fudeLog(); !strings.Contains(log, "proc: hi\n") || !strings.Contains(log, "proc: refused") {
 		t.Fatalf("the plugin logged:\n%s", log)
 	}
+	// A program that leaves a child holding its output ends with it.
+	bin := t.TempDir()
+	if err := os.WriteFile(filepath.Join(bin, "sleep"), []byte("#!/bin/sh\n/bin/sleep 5 &\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	e = start(t, "")
+	e.Load()
+	began = time.Now()
+	(<-e.Queue())()
+	if took := time.Since(began); took > 2*time.Second {
+		t.Fatalf("a program whose child kept its output ran %v, want it to end with the program", took)
+	}
 }
 
 // B49
 func TestB49HTTPGet(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/away" {
+		switch r.URL.Path {
+		case "/away":
 			http.Redirect(w, r, "http://example.invalid/", http.StatusFound)
+			return
+		case "/loop":
+			http.Redirect(w, r, "/loop", http.StatusFound)
 			return
 		}
 		fmt.Fprint(w, "pong")
@@ -190,7 +207,7 @@ func TestB49HTTPGet(t *testing.T) {
 		t.Fatal(err)
 	}
 	config(t, fmt.Sprintf("[[plugin]]\npath = %q\ncapabilities = [\"buffer.read\", \"net\"]\nhosts = [\"127.0.0.1\"]\n", wasm))
-	for url, want := range map[string]string{srv.URL: "net: pong", srv.URL + "/away": "redirect to example.invalid"} {
+	for url, want := range map[string]string{srv.URL: "net: pong", srv.URL + "/away": "redirect to example.invalid", srv.URL + "/loop": "stopped after 10 redirects"} {
 		t.Setenv("XDG_STATE_HOME", t.TempDir())
 		path := filepath.Join(t.TempDir(), "url")
 		change(t, path, url)
@@ -242,6 +259,25 @@ func TestB51PluginOverBudget(t *testing.T) {
 	feed(e, "x")
 	if text(e) != "abc" {
 		t.Errorf("editing after the unload left %q", text(e))
+	}
+	// A start section that never returns runs under the budget too.
+	wasm := filepath.Join(t.TempDir(), "loop.wasm")
+	module := "\x00asm\x01\x00\x00\x00" + // header
+		"\x01\x04\x01\x60\x00\x00" + // a func type of no params or results
+		"\x03\x02\x01\x00" + // one func of it
+		"\x08\x01\x00" + // which is the start function
+		"\x0a\x09\x01\x07\x00\x03\x40\x0c\x00\x0b\x0b" // loop br 0 end end
+	if err := os.WriteFile(wasm, []byte(module), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	config(t, fmt.Sprintf("[[plugin]]\npath = %q\n", wasm))
+	path := filepath.Join(t.TempDir(), "f")
+	change(t, path, "abc\n")
+	e = start(t, path)
+	e.Load()
+	settle(t, e, func() bool { return e.Message() != "" })
+	if !strings.Contains(e.Message(), "plugin loop ran past its budget") {
+		t.Errorf("a start section that loops said %q, want its budget to stop it", e.Message())
 	}
 }
 
