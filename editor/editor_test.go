@@ -1741,6 +1741,19 @@ func TestB125EditListing(t *testing.T) {
 	if feed(e, ":b 1<CR>"); e.Views()[0].Name != filepath.Join(dir, "z.txt") {
 		t.Errorf("the buffer of a.txt is named %q", e.Views()[0].Name)
 	}
+	// A rename that fails, into a folder that is a file, leaves the name.
+	dir = t.TempDir()
+	change(t, filepath.Join(dir, "a"), "a\n")
+	change(t, filepath.Join(dir, "sub"), "sub\n")
+	e = open(t, filepath.Join(dir, "a"))
+	feed(e, "-Csub/a<Esc>:w<CR>y")
+	names, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(names) != 2 || disk(t, filepath.Join(dir, "a")) != "a\n" || !strings.Contains(e.Message(), "rename a") {
+		t.Errorf("a failed rename left %v and said %q", names, e.Message())
+	}
 }
 
 // B118

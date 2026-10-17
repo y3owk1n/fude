@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -382,18 +383,28 @@ func (c changes) apply(dir string) error {
 			return fmt.Errorf("%s exists", name)
 		}
 	}
+	// Renames go through a name of their own, so two can swap names. One
+	// that fails puts the names not yet moved back.
+	temp := func(i int) string { return join(c.renames[i][0]) + fmt.Sprintf(".fude-rename-%d", i) }
+	back := func(from, to int) error {
+		var errs []error
+		for j := from; j < to; j++ {
+			errs = append(errs, os.Rename(temp(j), join(c.renames[j][0])))
+		}
+		return errors.Join(errs...)
+	}
 	for i, r := range c.renames {
-		if err := os.Rename(join(r[0]), join(r[0])+fmt.Sprintf(".fude-rename-%d", i)); err != nil {
-			return fmt.Errorf("rename %s: %w", r[0], err)
+		if err := os.Rename(join(r[0]), temp(i)); err != nil {
+			return errors.Join(fmt.Errorf("rename %s: %w", r[0], err), back(0, i))
 		}
 	}
 	for i, r := range c.renames {
 		to := join(r[1])
 		if err := os.MkdirAll(filepath.Dir(to), 0o755); err != nil {
-			return fmt.Errorf("rename %s: %w", r[0], err)
+			return errors.Join(fmt.Errorf("rename %s: %w", r[0], err), back(i, len(c.renames)))
 		}
-		if err := os.Rename(join(r[0])+fmt.Sprintf(".fude-rename-%d", i), to); err != nil {
-			return fmt.Errorf("rename %s to %s: %w", r[0], r[1], err)
+		if err := os.Rename(temp(i), to); err != nil {
+			return errors.Join(fmt.Errorf("rename %s to %s: %w", r[0], r[1], err), back(i, len(c.renames)))
 		}
 	}
 	for _, name := range c.deletes {
