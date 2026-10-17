@@ -706,6 +706,13 @@ Where fude departs, the line says so and cites the departure in
   cmd edits around it, and the buffers stay unwritten until `:wall`. The
   message says how many places or files cmd ran in. If cmd fails, the
   run stops there and the message says why.
+- B258 [2] Once two or more buffers with files are open, the top row of
+  the screen lists them, each by its number and file name, with the
+  folder too when two names are the same. The current window's buffer
+  shows lit and bold, and a modified one shows ●. When they do not fit, the row
+  shows the part around the current one, with ‹ or › where it is cut.
+  `buffer_line = false` hides it. A guest's row lists only the buffers
+  it may show (B244, B245).
 
 ## Timeline
 

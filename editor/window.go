@@ -473,7 +473,12 @@ func (e *Session) moveTo(d byte) {
 // layout places every window in the space the editor has.
 func (e *Session) layout() {
 	x, w, _ := e.area()
-	e.root.place(x, 0, w, max(e.height, 2))
+	// The buffer line takes the top row while it shows (B258).
+	top := 0
+	if e.lined = len(e.Buffers()) > 0; e.lined {
+		top = 1
+	}
+	e.root.place(x, top, w, max(e.height-top, 2))
 	// A terminal is as big as the window showing it, its status line aside.
 	for _, win := range e.root.windows() {
 		if t := win.buf.term; t != nil {

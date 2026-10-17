@@ -259,6 +259,7 @@ func (c *client) draw() {
 			cx, cy = x, y
 		}
 	}
+	c.bufferLine(c.e.Buffers(), w)
 	if modal {
 		apply(lit)
 		base = base.Background(dimmed.th.bg)

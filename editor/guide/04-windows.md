@@ -11,6 +11,10 @@ and previous buffer, and `:bd` closes one. `<C-^>` goes back to the
 buffer the window showed before. A buffer with changes stays loaded when
 the window shows another.
 
+Once two or more files are open, the top row lists them by number, the
+current one lit and a modified one marked ●. `buffer_line = false` hides
+it.
+
 ## Windows
 
 `<C-w>s` splits the window with the new one below, and `<C-w>v` with the

@@ -240,7 +240,8 @@ func wait(d *time.Duration) (time.Duration, bool) {
 	return *d, true
 }
 
-func (a *Attached) Views() []editor.View { return a.f.Views }
+func (a *Attached) Views() []editor.View  { return a.f.Views }
+func (a *Attached) Buffers() []editor.Tab { return a.f.Buffers }
 
 func (a *Attached) Float() (editor.Float, bool)     { return orZero(a.f.Float) }
 func (a *Attached) Signature() (editor.Float, bool) { return orZero(a.f.Signature) }

@@ -117,6 +117,7 @@ type Session struct {
 	pending    int                     // the cursor when the group being made began
 
 	width, height int  // the space the windows share
+	lined         bool // the buffer line took the top row at the last layout (B258)
 	centered      bool // the windows sit in the middle of the screen (B199)
 }
 

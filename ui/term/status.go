@@ -176,3 +176,42 @@ func width(ps []part) int {
 	}
 	return n
 }
+
+// bufferLine draws tabs on the top row, the part around the current one
+// when they do not fit, with ‹ or › where it is cut (B258).
+func (c *client) bufferLine(tabs []editor.Tab, w int) {
+	if len(tabs) == 0 {
+		return
+	}
+	ground := base.Background(th.surface)
+	c.s.FillArea(0, 0, w, 1, ' ', ground)
+	parts := make([]part, len(tabs))
+	current := 0
+	for i, t := range tabs {
+		text, style := " "+strconv.Itoa(t.Number)+" "+t.Name+" ", ground.Foreground(th.muted)
+		if t.Modified {
+			text += "● "
+		}
+		if t.Current {
+			current, style = i, ground.Background(th.raised).Foreground(th.text).Bold(true)
+		}
+		parts[i] = part{text, style}
+	}
+	// first is the first tab shown, the least that keeps the current one in
+	// view with room for the marks at the cuts.
+	first := 0
+	for first < current && width(parts[first:current+1])+2 > w {
+		first++
+	}
+	x := 0
+	if first > 0 {
+		x = c.putClipped(x, 0, w, part{"‹", ground.Foreground(th.faint)})
+	}
+	for i, p := range parts[first:] {
+		if i > 0 && x+width(parts[first+i:first+i+1])+1 > w {
+			c.putClipped(w-1, 0, w, part{"›", ground.Foreground(th.faint)})
+			return
+		}
+		x = c.putClipped(x, 0, w, p)
+	}
+}

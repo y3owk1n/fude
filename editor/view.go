@@ -83,6 +83,11 @@ type Ghost struct {
 // Views returns every window from the top left.
 func (e *Session) Views() []View {
 	e.follow()
+	// Opening or closing a buffer may show or hide the buffer line.
+	if (len(e.Buffers()) > 0) != e.lined {
+		e.layout()
+		e.reveal()
+	}
 	shown := map[*buffer][]any{}
 	for _, s := range e.sessions {
 		for _, w := range s.root.windows() {

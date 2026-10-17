@@ -169,6 +169,13 @@ What `<Leader>` stands for in a mapping, from config or a plugin, when the
 mapping is made. Write it as a mapping writes keys, such as `"<Space>"` or
 `","`.
 
+## buffer_line
+
+Once two or more files are open, the top row lists them by number and
+name, the current one lit and a modified one marked ●. `:b 3` shows
+buffer 3. With it off, the windows take the top row and only `:ls` and
+`:pick buffers` list the buffers.
+
 ## theme
 
 `dark`, `light`, or the path of a base16 scheme, such as stylix's

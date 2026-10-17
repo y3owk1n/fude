@@ -1395,3 +1395,71 @@ func TestB255JoinReadOnly(t *testing.T) {
 		t.Errorf("a read-only guest's x left %q", text)
 	}
 }
+
+// B258
+func TestB258BufferLine(t *testing.T) {
+	t.Chdir(t.TempDir())
+	for _, f := range []string{"a.txt", "b.txt", "one/x.txt", "two/x.txt"} {
+		if err := os.MkdirAll(filepath.Dir(f), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(f, []byte(f+"\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// One file shows no line, and the windows keep the top row.
+	c := startWith(t, "", "a.txt")
+	if c.draw(); !strings.HasPrefix(c.row(0), "a.txt") {
+		t.Errorf("with one file the top row is %q", c.row(0))
+	}
+	// Two show it, the current one lit and a modified one marked.
+	c = startWith(t, "", "a.txt", "b.txt")
+	for _, k := range vim.Keys("x") {
+		c.e.Feed(k)
+	}
+	c.draw()
+	if row := c.row(0); !strings.HasPrefix(row, " 1 a.txt ● ") || !strings.Contains(row, " 2 b.txt ") {
+		t.Errorf("the buffer line is %q", row)
+	}
+	if _, s, _ := c.s.Get(3, 0); s.GetAttributes()&tcell.AttrBold == 0 {
+		t.Error("the current buffer does not stand out")
+	}
+	if !strings.HasPrefix(c.row(1), ".txt") {
+		t.Errorf("the window starts with %q, want its text below the line", c.row(1))
+	}
+	// Two files of one name show their folders.
+	c = startWith(t, "", "one/x.txt", "two/x.txt")
+	if c.draw(); !strings.Contains(c.row(0), "one/x.txt") || !strings.Contains(c.row(0), "two/x.txt") {
+		t.Errorf("files of one name show as %q", c.row(0))
+	}
+	// buffer_line = false hides it.
+	c = startWith(t, "buffer_line = false\n", "a.txt", "b.txt")
+	if c.draw(); !strings.HasPrefix(c.row(0), "a.txt") {
+		t.Errorf("with buffer_line off the top row is %q", c.row(0))
+	}
+	// Too many to fit shows the part around the current one, cut with marks.
+	var names []string
+	for i := range 30 {
+		name := fmt.Sprintf("file-with-a-long-name-%02d.txt", i)
+		if err := os.WriteFile(name, nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		names = append(names, name)
+	}
+	c = startWith(t, "", names...)
+	for _, k := range vim.Keys(":b 15<CR>") {
+		c.e.Feed(k)
+	}
+	if c.draw(); !strings.HasPrefix(c.row(0), "‹") || !strings.Contains(c.row(0), "15 file-with-a-long-name-14.txt") || !strings.HasSuffix(strings.TrimRight(c.row(0), " "), "›") {
+		t.Errorf("thirty files show as %q", c.row(0))
+	}
+	// A guest's line lists only the buffers it may show.
+	away := filepath.Join(t.TempDir(), "away.txt")
+	if err := os.WriteFile(away, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	c = startWith(t, "", "a.txt", "b.txt", away)
+	if tabs := c.e.(*editor.Session).Attach("guest", editor.Guest).Buffers(); len(tabs) != 2 {
+		t.Errorf("a guest's buffer line lists %v, want the two files in the project", tabs)
+	}
+}

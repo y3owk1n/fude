@@ -17,6 +17,7 @@ import (
 // brings up to date.
 type Frame struct {
 	Views        []View
+	Buffers      []Tab          `json:",omitempty"` // what the buffer line shows (B258)
 	Texts        []Text         `json:",omitempty"`
 	Float        *Float         `json:",omitempty"`
 	Signature    *Float         `json:",omitempty"`
@@ -53,7 +54,7 @@ type Text struct {
 // sent on.
 func (e *Session) frame(sent map[int]kernel.Version) Frame {
 	f := Frame{
-		Views: e.Views(), Line: e.Line(), LineCursor: e.LineCursor(), Mode: e.Mode(), Message: e.Message(),
+		Views: e.Views(), Buffers: e.Buffers(), Line: e.Line(), LineCursor: e.LineCursor(), Mode: e.Mode(), Message: e.Message(),
 		Cursors: e.Cursors(), Recording: e.Recording(), Substituting: e.Substituting(), Terminal: e.Terminal(), Shown: e.Shown(),
 	}
 	if fl, ok := e.Float(); ok {

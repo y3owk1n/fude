@@ -29,6 +29,7 @@ type Session interface {
 
 	// What the client draws.
 	Views() []editor.View
+	Buffers() []editor.Tab
 	Float() (editor.Float, bool)
 	Signature() (editor.Float, bool)
 	Line() string

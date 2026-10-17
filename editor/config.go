@@ -46,6 +46,7 @@ type config struct {
 	FormatTimeout   uint     `toml:"format_timeout" help:"the milliseconds formatting may take"`
 	Leader          string   `toml:"leader" help:"what <Leader> in a mapping stands for"` // N18
 	Theme           string   `toml:"theme" help:"the colours: dark, light or a base16 scheme file"`
+	BufferLine      bool     `toml:"buffer_line" help:"the top row lists the open buffers once two or more are"`
 	options
 	Keymap   keymap `toml:"keymap"`
 	Filetype map[string]struct {
@@ -102,7 +103,7 @@ type keymap struct {
 	Groups   map[string]string `toml:"groups" help:"names of the keys mappings start with, which key hints show"`
 }
 
-var defaults = config{TabWidth: 8, Editorconfig: true, KeyTimeout: 1000, KeyHints: 300, FlashTime: 300, FormatTimeout: 1000, LargeFile: 2, TerminalHeight: 33, SplitBelow: true, SplitRight: true, HighlightColors: true, InlayHints: true, StickyContext: true, Autopairs: true, Sources: []string{"lsp", "snippet", "path", "buffer"}, AutoInstall: true, Leader: "<Space>", Theme: "dark", options: options{Wrap: true, IndentGuides: true}}
+var defaults = config{TabWidth: 8, Editorconfig: true, KeyTimeout: 1000, KeyHints: 300, FlashTime: 300, FormatTimeout: 1000, LargeFile: 2, TerminalHeight: 33, SplitBelow: true, SplitRight: true, HighlightColors: true, InlayHints: true, StickyContext: true, Autopairs: true, Sources: []string{"lsp", "snippet", "path", "buffer"}, AutoInstall: true, BufferLine: true, Leader: "<Space>", Theme: "dark", options: options{Wrap: true, IndentGuides: true}}
 
 // options are the settings each window has, which :set changes for the
 // current window and the windows opened after it (B39). :set takes each by
