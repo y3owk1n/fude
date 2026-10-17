@@ -15,7 +15,7 @@ The package uses cgo, through tree-sitter's official Go binding, so it needs a C
 The package knows each grammar it supports by its repo and a pinned commit. `Build` clones the repo at that commit and builds the grammar with the queries the repo ships. The package fetches nothing until you call `Build`.
 
 ```go
-syntax.Use("/abs/path/grammars", nil) // where grammars are built and loaded from
+syntax.Use("grammars", nil) // where grammars are built and loaded from
 if err := syntax.Build("go"); err != nil {
 	return err
 }
@@ -23,7 +23,7 @@ spans, err := syntax.Highlight("go", "", "package main\n\nfunc main() {}\n")
 // [{0 7 keyword} {14 18 keyword} {19 23 variable}]
 ```
 
-Give `Use` an absolute directory. `Grammars` lists the grammars the package knows and whether each is built. `Buildable` says whether it can build one.
+`Grammars` lists the grammars the package knows and whether each is built. `Buildable` says whether it can build one.
 
 The second argument to `Use` turns the language an injection names, such as `py` in a Markdown code fence, into a filetype. A nil func takes the name as it is.
 

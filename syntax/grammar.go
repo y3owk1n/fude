@@ -310,7 +310,11 @@ func Build(filetype string) error {
 	// means the rest of the build is there too. The name it writes first is
 	// its own, as two fude processes may build one grammar at once.
 	lib := Library(grammars, filetype)
-	tmp := fmt.Sprintf("%s.%d.new", lib, os.Getpid())
+	// tree-sitter runs in src, and would resolve a relative dir from Use there.
+	tmp, err := filepath.Abs(fmt.Sprintf("%s.%d.new", lib, os.Getpid()))
+	if err != nil {
+		return fmt.Errorf("build the %s grammar: %w", filetype, err)
+	}
 	if err := run(src, "tree-sitter", "build", "-o", tmp, filepath.Join(src, g.src)); err != nil {
 		return err
 	}
