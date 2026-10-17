@@ -674,8 +674,10 @@ Where fude departs, the line says so and cites the departure in
   of its highlight capture. When captures overlap, fude picks one the way
   tree-sitter's own highlighter does. A capture that colours nothing in
   fude, such as `@spell`, `@nospell`, `@conceal` or one whose name starts
-  with `_`, never hides one that does. Edited text keeps its colour until
-  the next parse.
+  with `_`, never hides one that does. fude leaves out a highlight
+  pattern with a predicate it does not evaluate, such as Objective-C's
+  `#has-ancestor?`, and applies the rest of the query. Edited text keeps
+  its colour until the next parse.
 
 ## Plugins
 

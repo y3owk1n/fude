@@ -241,7 +241,7 @@ patterns match, so a local that shadows a built-in name takes the
 built-in's colour. Zig's highlights, written for Neovim, use `#lua-match?`
 and `#set! "priority"`. A Lua pattern with no `%` item and no `-` outside
 a set means the same as a regular expression, so fude reads it as
-`#match?`, and refuses any other Lua pattern. A priority orders highlights in Neovim,
+`#match?`, and leaves out a pattern with any other Lua pattern. A priority orders highlights in Neovim,
 and fude ignores it. A language's highlight files combine in the order its
 repo's `tree-sitter.json` lists them. Some come from another grammar's
 repo, as most of TypeScript's come from JavaScript's.

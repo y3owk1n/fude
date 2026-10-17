@@ -1149,9 +1149,10 @@ deep. A language name such as `py` becomes a filetype as a file's
 extension would. The worker hands the loop the regions with the spans, so
 `gc` finds the language at the cursor. An injected language with no
 grammar fude could build starts a build, and every buffer asks for its
-spans again once it is built. An injections query is lenient: a pattern
-with a predicate fude does not evaluate, such as JavaScript's `#offset!`,
-drops out, and the rest of the query stays (B166).
+spans again once it is built. Highlights and injections queries are lenient: a
+pattern with a predicate fude does not evaluate, such as JavaScript's
+`#offset!` or Objective-C's `#has-ancestor?`, drops out, and the rest of
+the query stays (B46, B166). A query `:select` takes is strict.
 
 Queries use only the predicates the binding evaluates: the `eq?`,
 `match?` and `any-of?` families. A query that uses any other fails to load

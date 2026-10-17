@@ -2114,9 +2114,11 @@ func TestB41QueryOverrides(t *testing.T) {
 		t.Fatal(err)
 	}
 	// A plain #lua-match? is a #match?, and #set! "priority" and @spell
-	// change nothing.
+	// change nothing. fude leaves out a pattern with a predicate it does not
+	// evaluate (B46).
 	src := "((comment) @keyword @spell (#set! \"priority\" 95))\n" +
-		"((package_identifier) @type (#lua-match? @type \"^p$\"))\n((package_identifier) @string (#lua-match? @string \"^q\"))\n"
+		"((package_identifier) @type (#lua-match? @type \"^p$\"))\n((package_identifier) @string (#lua-match? @string \"^q\"))\n" +
+		"((package_identifier) @function (#has-ancestor? @function source_file))\n"
 	if err := os.WriteFile(filepath.Join(dir, "highlights.scm"), []byte(src), 0o600); err != nil {
 		t.Fatal(err)
 	}

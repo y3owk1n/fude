@@ -179,8 +179,11 @@ func query(lang *ts.Language, dir, filetype, name, shipped string) (*ts.Query, e
 		}
 	}
 	compiler := compile
-	if name == "injections" {
+	switch name {
+	case "injections":
 		compiler = compileInjections
+	case "highlights":
+		compiler = compileHighlights
 	}
 	q, err := compiler(lang, src)
 	if err != nil {
@@ -202,6 +205,23 @@ func compile(lang *ts.Language, src string) (*ts.Query, error) {
 			line := strings.Count(src[:q.StartByteForPattern(i)], "\n") + 1
 			q.Close()
 			return nil, fmt.Errorf("line %d: fude does not evaluate #%s", line, unknown)
+		}
+	}
+	return q, nil
+}
+
+// compileHighlights compiles the highlights query src, leaving out each
+// pattern with a predicate fude does not evaluate, as a grammar's repo may
+// write its queries for another editor (B46). Its errors name the line in
+// src.
+func compileHighlights(lang *ts.Language, src string) (*ts.Query, error) {
+	q, qerr := ts.NewQuery(lang, plainLuaMatches(src))
+	if qerr != nil {
+		return nil, fmt.Errorf("line %d: %s", qerr.Row+1, qerr.Message)
+	}
+	for i := range q.PatternCount() {
+		if unknownPredicate(q, i, []string{"priority"}) != "" {
+			q.DisablePattern(i)
 		}
 	}
 	return q, nil
