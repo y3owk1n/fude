@@ -102,6 +102,12 @@ func hostLines() int32
 //go:wasmimport fude node
 func hostNode(pos, up uint32) int64
 
+//go:wasmimport fude language
+func hostLanguage(pos uint32) int64
+
+//go:wasmimport fude spans
+func hostSpans(start, end uint32) int64
+
 //go:wasmimport fude buffers
 func hostBuffers() int64
 
@@ -439,6 +445,35 @@ func NodeAt(pos, up int) (Node, bool) {
 	start, _ := strconv.Atoi(f[1])
 	end, _ := strconv.Atoi(f[2])
 	return Node{f[0], start, end}, true
+}
+
+// Language returns the filetype of the text at pos, the buffer's or that
+// of an injected region holding it, such as a code block. It needs
+// buffer.read.
+func Language(pos int) (string, error) { return answer(hostLanguage(uint32(pos))) }
+
+// Span is a highlight capture over [Start, End), named as the query names
+// it, such as comment or string.
+type Span struct {
+	Start, End int
+	Name       string
+}
+
+// Spans returns the highlight captures over [start, end) of the text, in
+// paint order, or none without a grammar. It needs buffer.read.
+func Spans(start, end int) ([]Span, error) {
+	s, err := answer(hostSpans(uint32(start), uint32(end)))
+	if err != nil {
+		return nil, err
+	}
+	f := strings.Split(s, "\x00")
+	var out []Span
+	for i := 0; i+2 < len(f); i += 3 {
+		start, _ := strconv.Atoi(f[i])
+		end, _ := strconv.Atoi(f[i+1])
+		out = append(out, Span{start, end, f[i+2]})
+	}
+	return out, nil
 }
 
 // Buffers returns every open buffer, by id. It needs buffer.read.

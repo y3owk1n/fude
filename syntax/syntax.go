@@ -371,12 +371,25 @@ func (h *Buffer) Refresh() { h.asked = request{} }
 
 // LanguageAt returns the filetype of the injected region at pos in the text
 // now, the innermost when they nest, or "" outside them (B44, B166).
-func (h *Buffer) LanguageAt(pos int) string {
-	lang := ""
-	for _, r := range h.regions {
+func (h *Buffer) LanguageAt(pos int) string { return LanguageIn(h.Regions(), pos) }
+
+// Regions returns where text of other languages sits in the text now, inner
+// regions after the regions holding them. The copy is safe on any goroutine.
+func (h *Buffer) Regions() []Region {
+	out := slices.Clone(h.regions)
+	for i := range out {
 		for _, c := range h.log {
-			r.Start, r.End = through(c.edits, r.Start, true), through(c.edits, r.End, false)
+			out[i].Start, out[i].End = through(c.edits, out[i].Start, true), through(c.edits, out[i].End, false)
 		}
+	}
+	return out
+}
+
+// LanguageIn returns the filetype of the innermost of regions that holds
+// pos, or "" for none.
+func LanguageIn(regions []Region, pos int) string {
+	lang := ""
+	for _, r := range regions {
 		if r.Start <= pos && pos < r.End {
 			lang = r.Lang
 		}

@@ -3,6 +3,7 @@ package editor
 import (
 	"fmt"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/y3owk1n/fude/core/kernel"
@@ -11,6 +12,29 @@ import (
 	"github.com/y3owk1n/fude/wire"
 )
 
+// highlights keeps the highlight captures of one version of a buffer's
+// whole text, for calls that read them off the loop.
+type highlights struct {
+	mu      sync.Mutex
+	version kernel.Version
+	spans   []syntax.Span
+	ok      bool
+}
+
+// of returns the captures of t in filetype ft, parsing t once per version.
+func (h *highlights) of(t kernel.Snapshot, ft, queries string) []syntax.Span {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if !h.ok || h.version != t.Version() {
+		spans, err := syntax.Highlight(ft, queries, t.Slice(0, t.Len()))
+		if err != nil {
+			logLine(err.Error())
+		}
+		h.version, h.spans, h.ok = t.Version(), spans, true
+	}
+	return h.spans
+}
+
 // buffer is one open file: its text, and what the vim machine needs to undo
 // and mark it.
 type buffer struct {
@@ -18,6 +42,7 @@ type buffer struct {
 	file  file
 	text  *kernel.Buffer
 	saved kernel.NodeID
+	hl    highlights // for calls that read its captures (B273)
 
 	// Where the cursor and the top line were when the buffer was last left,
 	// for the next window to show it.

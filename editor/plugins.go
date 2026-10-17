@@ -20,6 +20,7 @@ import (
 	"github.com/y3owk1n/fude/internal/trace"
 	"github.com/y3owk1n/fude/plugin"
 	"github.com/y3owk1n/fude/protocol/lsp"
+	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
 )
 
@@ -485,9 +486,24 @@ func (e *Session) scope(b *buffer, t api.Text) api.Scope {
 	for _, o := range e.bufs {
 		bufs[o.id] = api.Buffer{Path: o.file.path, Filetype: e.filetype(o), Text: o.text.Snapshot()}
 	}
-	s := api.Scope{Text: t, About: e.about(b), Buffers: bufs}
+	ft := e.filetype(b)
+	s := api.Scope{Text: t, About: e.about(b), Buffers: bufs, Language: func(int) string { return ft }}
 	if b.syntax != nil {
 		s.Node, s.Free = b.syntax.Nodes()
+		regions := b.syntax.Regions()
+		s.Language = func(pos int) string { return cmp.Or(syntax.LanguageIn(regions, pos), ft) }
+		if snap, ok := t.(kernel.Snapshot); ok {
+			queries := e.queries
+			s.Spans = func(start, end int) []api.Span {
+				var out []api.Span
+				for _, sp := range b.hl.of(snap, ft, queries) {
+					if sp.End > start && sp.Start < end {
+						out = append(out, api.Span(sp))
+					}
+				}
+				return out
+			}
+		}
 	}
 	return s
 }

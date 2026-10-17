@@ -257,6 +257,8 @@ func (p *Plugin) host(ctx context.Context) error {
 		NewFunctionBuilder().WithFunc(p.textLen).Export("text_len").
 		NewFunctionBuilder().WithFunc(p.lines).Export("lines").
 		NewFunctionBuilder().WithFunc(p.node).Export("node").
+		NewFunctionBuilder().WithFunc(p.language).Export("language").
+		NewFunctionBuilder().WithFunc(p.spans).Export("spans").
 		NewFunctionBuilder().WithFunc(p.buffers).Export("buffers").
 		NewFunctionBuilder().WithFunc(p.lenOf).Export("len_of").
 		NewFunctionBuilder().WithFunc(p.textOf).Export("text_of").
@@ -366,6 +368,37 @@ func (p *Plugin) node(ctx context.Context, m api.Module, pos, up uint32) int64 {
 		return errRange
 	}
 	return give(ctx, m, fmt.Sprintf("%s\x00%d\x00%d", kind, start, end))
+}
+
+// language writes the filetype of the text at pos into memory the plugin
+// allocates (B273).
+func (p *Plugin) language(ctx context.Context, m api.Module, pos uint32) int64 {
+	if p.call == nil || !p.allowed("buffer.read", "language") {
+		return errDenied
+	}
+	if p.call.Language == nil || int(pos) > p.call.Text.Len() {
+		return errRange
+	}
+	return give(ctx, m, p.call.Language(int(pos)))
+}
+
+// spans writes the start, end and name of each highlight capture over
+// [start, end), each followed by a NUL, into memory the plugin allocates
+// (B273).
+func (p *Plugin) spans(ctx context.Context, m api.Module, start, end uint32) int64 {
+	if p.call == nil || !p.allowed("buffer.read", "spans") {
+		return errDenied
+	}
+	if start > end || int(end) > p.call.Text.Len() {
+		return errRange
+	}
+	var b strings.Builder
+	if p.call.Spans != nil {
+		for _, s := range p.call.Spans(int(start), int(end)) {
+			fmt.Fprintf(&b, "%d\x00%d\x00%s\x00", s.Start, s.End, s.Name)
+		}
+	}
+	return give(ctx, m, b.String())
 }
 
 // buffers writes the id, path and filetype of each open buffer, each

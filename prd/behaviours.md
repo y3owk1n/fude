@@ -902,6 +902,9 @@ Where fude departs, the line says so and cites the departure in
 - B189 [4] A plugin with `buffer.read` reads the kind, start and end of
   the named syntax node at a position in the buffer its call is about,
   and of that node's named parents.
+- B273 [4] A plugin with `buffer.read` reads the language of the text at a
+  position, the buffer's or that of an injected region holding it, and
+  the highlight captures over a range, as their names and ranges.
 - B190 [4] A plugin with `lsp` sends a request to the language servers of
   the buffer its call is about. fude fills in the document, and the
   position in each server's encoding when the plugin gives one. A function

@@ -87,10 +87,23 @@ type Scope struct {
 	Text    Text
 	About   Context
 	Buffers map[int]Buffer
+	// Language returns the filetype of the text at pos, the buffer's or that
+	// of an injected region holding it, such as a code block (B273).
+	Language func(pos int) string
+	// Spans returns the highlight captures over [start, end) of Text, in
+	// paint order, or none without a grammar (B273).
+	Spans func(start, end int) []Span
 	// Node finds a syntax node in Text, as syntax.Buffer.Nodes does. Free
 	// frees what it reads once the call is done (B189).
 	Node func(pos, up int) (kind string, start, end int, ok bool)
 	Free func()
+}
+
+// Span is a highlight capture over [Start, End), named as the query names
+// it, such as comment or string.
+type Span struct {
+	Start, End int
+	Name       string
 }
 
 // Buffer is an open buffer as a call reads it.

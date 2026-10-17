@@ -585,6 +585,16 @@ func TestB189PluginReadsSyntaxNodes(t *testing.T) {
 	}
 }
 
+// B273
+func TestB273PluginReadsLanguageAndCaptures(t *testing.T) {
+	e := loaded(t, "ctx", "a.go", "package p\n", "buffer.read", "buffer.write")
+	e.SetSize(80, 20)
+	captures(t, e)
+	if feed(e, ":Lang<CR>"); !strings.HasPrefix(text(e), "go|keyword|package") {
+		t.Errorf(":Lang typed %q, want go and the keyword capture", text(e))
+	}
+}
+
 // B190
 func TestB190PluginAsksTheServer(t *testing.T) {
 	wasm, err := filepath.Abs(filepath.Join("..", "plugin", "testdata", "ctx", "ctx.wasm"))
