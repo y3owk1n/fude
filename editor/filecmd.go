@@ -200,11 +200,14 @@ func (e *Session) write(b *buffer, force bool, then func()) {
 		}
 		return
 	}
-	if e.formatsOnSave(b) {
-		e.formatOnSave(b, func() { e.writeOut(b, then) })
-		return
-	}
-	e.writeOut(b, then)
+	// The modules that hear buffer.saving change the text first (B282).
+	e.saving(b, func() {
+		if e.formatsOnSave(b) {
+			e.formatOnSave(b, func() { e.writeOut(b, then) })
+			return
+		}
+		e.writeOut(b, then)
+	})
 }
 
 // writeOut writes b's text to its file, then runs then.

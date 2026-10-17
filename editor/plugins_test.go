@@ -754,6 +754,79 @@ func TestB281ModuleHearsTheEncoding(t *testing.T) {
 	settle(t, e, func() bool { return e.Message() == "encoding utf-8" })
 }
 
+// saver is a module that puts ! at the start of the text as it is saved.
+type saver struct{ idle }
+
+func (saver) Subscribed() []string { return []string{"buffer.saving"} }
+
+func (saver) Event(context.Context, string, api.Scope) (api.Result, error) {
+	return api.Result{Edits: []api.Edit{{Text: "!"}}, Message: "saved with !"}, nil
+}
+
+// slow is a module whose job on saving takes longer than the write waits,
+// and then asks for an edit.
+type slow struct{ idle }
+
+func (slow) Subscribed() []string { return []string{"buffer.saving"} }
+
+func (slow) Event(context.Context, string, api.Scope) (api.Result, error) {
+	return api.Result{Jobs: []api.Job{{ID: 1, Argv: []string{"sleep"}}}}, nil
+}
+
+func (slow) Work(context.Context, api.Job) (string, error) {
+	time.Sleep(300 * time.Millisecond)
+	return "", nil
+}
+
+func (slow) Callback(context.Context, uint32, api.Scope) (api.Result, error) {
+	return api.Result{Edits: []api.Edit{{Text: "late"}}}, nil
+}
+
+// B282
+func TestB282WriteWaitsForModules(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "f")
+	change(t, path, "a\n")
+	e := start(t, path)
+	e.Use(saver{})
+	feed(e, ":w<CR>")
+	settle(t, e, func() bool { return disk(t, path) == "!a\n" })
+	if m := e.Message(); !strings.HasSuffix(m, ", saved with !") {
+		t.Errorf("the write said %q, want the module's message after its own", m)
+	}
+	// A module that takes too long leaves the text, which is written anyway,
+	// and its late edit is dropped.
+	config(t, "format_timeout = 50\n")
+	change(t, path, "b\n")
+	e = start(t, path)
+	e.Use(slow{})
+	feed(e, ":w<CR>")
+	settle(t, e, func() bool { return strings.Contains(e.Message(), "written as it was") })
+	if disk(t, path) != "b\n" {
+		t.Errorf("the file holds %q, want it written as it was", disk(t, path))
+	}
+	for end := time.After(400 * time.Millisecond); ; {
+		select {
+		case f := <-e.Queue():
+			f()
+			continue
+		case <-time.After(10 * time.Millisecond):
+			continue
+		case <-end:
+		}
+		break
+	}
+	if text(e) != "b" {
+		t.Errorf("the late edit left %q, want it dropped", text(e))
+	}
+}
+
+// B282, a plugin hears it
+func TestB282PluginHearsSaving(t *testing.T) {
+	e := loaded(t, "listen", "f", "a\n", "buffer.read", "ui")
+	feed(e, ":w<CR>")
+	settle(t, e, func() bool { return strings.Contains(fudeLog(), "listen: buffer.saving") && !e.Views()[0].Modified })
+}
+
 // B191
 func TestB191PluginReload(t *testing.T) {
 	e := loaded(t, "ctx", "f", "a\n", "buffer.write")

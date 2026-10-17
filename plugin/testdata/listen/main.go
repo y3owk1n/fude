@@ -1,9 +1,10 @@
 // Package main is a test plugin written with the sdk.
-// init subscribes to buffer.changed, editor.focused and its own listen.ping,
-// and registers the key gZ, which emits ping. Each event logs its name and
-// puts the style keyword on the whole text in place of the one before, so
-// a test sees which text it heard of. Once the text is over 8 bytes, it
-// loops until its budget runs out. Needs buffer.read and ui.
+// init subscribes to buffer.changed, buffer.saving, editor.focused and its
+// own listen.ping, and registers the key gZ, which emits ping. Each event
+// logs its name and puts the style keyword on the whole text in place of
+// the one before, so a test sees which text it heard of. Once the text is
+// over 8 bytes, it loops until its budget runs out. Needs buffer.read and
+// ui.
 package main
 
 import "github.com/y3owk1n/fude/sdk"
@@ -26,6 +27,7 @@ func init() {
 	sdk.On("buffer.changed", heard)
 	sdk.On("listen.ping", heard)
 	sdk.On("editor.focused", heard)
+	sdk.On("buffer.saving", heard)
 	sdk.Key("gZ", "emits listen.ping", func(sdk.Call) {
 		sdk.Emit("ping")
 	})

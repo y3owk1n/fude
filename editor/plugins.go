@@ -173,11 +173,11 @@ func (d decoration) remove() {
 // pluginRequest sends a plugin's request to those of b's servers that offer it,
 // every one for a method outside textDocument/, and hands the plugin the
 // first answer that is not null, as a job's output (B190).
-func (e *Session) pluginRequest(p api.Module, b *buffer, rq api.Request) {
+func (e *Session) pluginRequest(p api.Module, b *buffer, rq api.Request, save *saving) {
 	l := e.listen(p)
 	reply := func(extra api.Context) {
 		if slices.Contains(e.modules, p) {
-			l.add(event{buf: b, id: rq.ID, extra: extra})
+			l.add(event{buf: b, id: rq.ID, extra: extra, save: save})
 		}
 	}
 	var to []*server
@@ -251,13 +251,22 @@ func (e *Session) went() {
 // about b. It returns res's edits, sorted, for the caller to apply next, so
 // they move the new decorations.
 func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
+	// A write that waits for this result waits for its callbacks too (B282).
+	save := e.inSave
+	wait := func() {
+		if save != nil {
+			save.pending++
+		}
+	}
 	for _, name := range res.Emit {
 		e.emit(name, "", b)
 	}
 	for _, rq := range res.Requests {
-		e.pluginRequest(p, b, rq)
+		wait()
+		e.pluginRequest(p, b, rq, save)
 	}
 	for _, j := range res.Jobs {
+		wait()
 		l := e.listen(p)
 		go func() {
 			out, err := p.Work(l.ctx, j)
@@ -267,21 +276,26 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 			}
 			e.queue <- func() {
 				if slices.Contains(e.modules, p) {
-					l.add(event{buf: b, id: j.ID, extra: extra})
+					l.add(event{buf: b, id: j.ID, extra: extra, save: save})
 				}
 			}
 		}()
 	}
 	for _, tm := range res.Timers {
+		wait()
 		time.AfterFunc(tm.After, func() {
 			e.queue <- func() {
 				if slices.Contains(e.modules, p) {
-					e.listen(p).add(event{buf: b, id: tm.ID})
+					e.listen(p).add(event{buf: b, id: tm.ID, save: save})
 				}
 			}
 		})
 	}
-	if res.Message != "" {
+	switch {
+	case res.Message == "":
+	case save != nil:
+		save.notes = append(save.notes, res.Message)
+	default:
 		e.message = res.Message
 	}
 	if res.Float != nil {
@@ -294,9 +308,10 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 		e.jumpTo = &jumpTo{b, *j}
 	}
 	if pk := res.Pick; pk != nil {
+		wait()
 		answer := func(picked int, query string, ok bool) {
 			if slices.Contains(e.modules, p) {
-				e.listen(p).add(event{buf: b, id: pk.ID, extra: api.Context{"picked": strconv.Itoa(picked), "text": query, "ok": strconv.FormatBool(ok)}})
+				e.listen(p).add(event{buf: b, id: pk.ID, extra: api.Context{"picked": strconv.Itoa(picked), "text": query, "ok": strconv.FormatBool(ok)}, save: save})
 			}
 		}
 		// One list shows at a time, so a second is cancelled.

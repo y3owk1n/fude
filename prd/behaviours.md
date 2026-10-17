@@ -943,6 +943,11 @@ Where fude departs, the line says so and cites the departure in
   window, such as a line in `diff.plus`, over what the filetype colours.
 - B277 [4] A plugin hears `editor.focused` when the terminal gets the
   focus back, as git's index may have changed while fude was away.
+- B282 [4] A plugin hears `buffer.saving` before a write. The write waits
+  for what the plugin asks for, edits included, and for the callbacks its
+  answer asks for. After `format_timeout` fude writes the text as it is,
+  says so, and drops what comes late. The plugin's message follows the
+  write's.
 - B187 [4] A plugin with `ui` moves the cursor in the window that shows
   the buffer its call was about, once the call and its edits are done. It
   also opens a file of the project at a position, in the current window.

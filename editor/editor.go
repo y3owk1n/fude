@@ -115,6 +115,8 @@ type Session struct {
 	toTerminal bool                    // the client has yet to put clip on its terminal's clipboard
 	mode       vim.Mode                // the mode as plugins last heard it
 	seen       view                    // the current window as plugins last heard it
+	saves      map[*buffer]*saving     // the writes waiting for modules (B282)
+	inSave     *saving                 // the write the result being applied is for, or nil
 	depth      int                     // the undo groups the machine has open
 	pending    int                     // the cursor when the group being made began
 
@@ -160,7 +162,7 @@ func open(cfg config, paths []string) (*Session, error) {
 	}
 	ed.project = wd
 	ed.setup = []func(*Session){builtins}
-	e := &Session{Editor: ed, origin: "user", name: os.Getenv("USER")}
+	e := &Session{Editor: ed, origin: "user", name: os.Getenv("USER"), saves: map[*buffer]*saving{}}
 	for i, p := range paths {
 		msg, err := e.add(p)
 		if err != nil {
@@ -177,7 +179,7 @@ func open(cfg config, paths []string) (*Session, error) {
 // Attach starts a session of origin o and power p on the editor, showing
 // the first session's buffer.
 func (ed *Editor) Attach(o kernel.Origin, p Power) *Session {
-	s := &Session{Editor: ed, origin: o, power: p}
+	s := &Session{Editor: ed, origin: o, power: p, saves: map[*buffer]*saving{}}
 	s.join()
 	return s
 }

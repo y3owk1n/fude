@@ -22,6 +22,7 @@ type event struct {
 	id           uint32
 	extra        api.Context // what a callback's context adds, such as a job's output
 	start, end   int         // the range buffer.changed covers, in the text after it
+	save         *saving     // the write that waits for this event, or nil (B282)
 }
 
 // listener hands one plugin the events it subscribed to, one at a time, off
@@ -40,12 +41,21 @@ type listener struct {
 
 // emit tells every plugin subscribed to name of b.
 func (ed *Editor) emit(name, detail string, b *buffer) {
+	ed.emitTo(event{name: name, detail: detail, buf: b})
+}
+
+// emitTo tells every plugin subscribed to ev's name of it, and returns how
+// many it told.
+func (ed *Editor) emitTo(ev event) int {
+	told := 0
 	for _, l := range ed.listeners {
-		if !slices.Contains(l.p.Subscribed(), name) {
+		if !slices.Contains(l.p.Subscribed(), ev.name) {
 			continue
 		}
-		l.put(event{name: name, detail: detail, buf: b}, func(ev, _ event) event { return ev })
+		l.put(ev, func(ev, _ event) event { return ev })
+		told++
 	}
+	return told
 }
 
 // add puts ev last in what l hands its plugin, as a callback is.
@@ -180,7 +190,7 @@ func (e *Session) listen(p api.Module) *listener {
 					trace.Record("plugin", p.Name()+" heard "+name, time.Since(at))
 				}
 				scope.Done()
-				if !on(func() { e.handled(p, err, ev.buf, t, res) }) {
+				if !on(func() { e.handled(p, ev, err, t, res) }) {
 					return
 				}
 			}
@@ -189,10 +199,22 @@ func (e *Session) listen(p api.Module) *listener {
 	return l
 }
 
-// handled does what p asked for when it heard of b at t. Its edits and
+// handled does what p asked for when it heard ev at t. Its edits and
 // decorations apply only to the text it read, and an event about the newer
 // text follows when it changed since. Nothing applies to a closed buffer.
-func (e *Session) handled(p api.Module, err error, b *buffer, t kernel.Snapshot, res api.Result) {
+// A result for a write that ran out of waiting is dropped (B282).
+func (e *Session) handled(p api.Module, ev event, err error, t kernel.Snapshot, res api.Result) {
+	b := ev.buf
+	if s := ev.save; s != nil {
+		if s.done {
+			return
+		}
+		e.inSave = s
+		defer func() {
+			e.inSave = nil
+			s.handledOne(e)
+		}()
+	}
 	switch {
 	case !slices.Contains(e.modules, p):
 	case err != nil:

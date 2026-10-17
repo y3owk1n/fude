@@ -501,8 +501,9 @@ that into `buffer.changed` and emits the rest by name: `buffer.opened`,
 `buffer.saved`, `buffer.closed`, `view.moved` when a key moves the cursor
 or the view, `mode.changed`, `syntax.updated` when a parse lands,
 `lsp.diagnostics`, `editor.focused` when the terminal gets the focus back
-(B277), and a plugin's own events, named `plugin.event`, which it emits
-with `emit`.
+(B277), `buffer.saving` before a write, which waits for its handlers and
+their callbacks or `format_timeout` (B282), and a plugin's own events,
+named `plugin.event`, which it emits with `emit`.
 
 Each plugin that subscribes has its own goroutine and its own list of
 events to hear, and emitting only adds to that list, so it never blocks.
