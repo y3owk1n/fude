@@ -58,6 +58,7 @@ modules/         Go packages over api/ and protocol/ that cmd/fude adds with
   editorconfig/  .editorconfig files set a file's indentation
   format/        gq, :format and format_on_save
   git/           git signs, hunks, gh, gH and :gitdiff
+  inlay/         a language server's inlay hints
   spell/         spell, ]s, [s, z= and zg
 cmd/fude/        main, distribution wiring
 ```
@@ -502,7 +503,8 @@ The kernel reports only changes, through its listener. `editor/` turns
 that into `buffer.changed` and emits the rest by name: `buffer.opened`,
 `buffer.saved`, `buffer.closed`, `view.moved` when a key moves the cursor
 or the view, `mode.changed`, `syntax.updated` when a parse lands,
-`lsp.diagnostics`, `editor.focused` when the terminal gets the focus back
+`lsp.diagnostics`, `lsp.attached` once a server is ready for a buffer
+(B284), `editor.focused` when the terminal gets the focus back
 (B277), `buffer.saving` before a write, which waits for its handlers and
 their callbacks or `format_timeout` (B282), and a plugin's own events,
 named `plugin.event`, which it emits with `emit`.
@@ -523,6 +525,11 @@ diagnostics, or by a session for its proposals, carrying a style.
 It moves with edits like any mark, and goes when its owner unloads (B55).
 Clients render them and know nothing about where they came from. Virtual
 text and signs come with the behaviours that need them.
+
+Two styles draw as something other than a highlight. A decoration styled
+`inlay` draws its note at its start, among the text, as an inlay hint
+(B216). One styled `colour #rrggbb` draws its range on that colour (B208,
+B209). A module's decoration of either style draws the same way.
 
 Marks live in a slice, which the kernel walks on every edit, and a deleted
 mark frees its slot for the next one. Syntax highlights are not marks. The

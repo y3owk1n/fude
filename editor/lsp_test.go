@@ -17,6 +17,7 @@ import (
 
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/modules/format"
+	"github.com/y3owk1n/fude/modules/inlay"
 	"github.com/y3owk1n/fude/protocol/lsp"
 	"github.com/y3owk1n/fude/wire"
 )
@@ -309,6 +310,7 @@ func TestB209ServerColours(t *testing.T) {
 // B216
 func TestB216InlayHints(t *testing.T) {
 	e, _ := withServer(t, "x f(1)\n", "utf-8")
+	e.Use(inlay.New())
 	hint := func(at int) func() bool {
 		return func() bool {
 			return slices.Contains(e.Views()[0].Ghosts, wire.Ghost{Pos: at, Text: "n: ", Style: "inlay"})

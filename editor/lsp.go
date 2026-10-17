@@ -150,7 +150,6 @@ func (e *Session) attachTo(b *buffer, name string) error {
 	})
 	s.client.Open(lsp.URI(b.file.path), languageID(e.filetype(b)), b.text.Snapshot())
 	e.askColours(s, b)
-	e.askHints(s, b)
 	return nil
 }
 
@@ -219,9 +218,9 @@ func (e *Editor) diagnostics(b *buffer) []decoration {
 	return out
 }
 
-// forget drops the diagnostics, colours and inlay hints s sent for b.
+// forget drops the diagnostics and colours s sent for b.
 func (e *Editor) forget(s *server, b *buffer) {
-	for _, owner := range []any{diagnosed{s, b}, coloured{s, b}, hinted{s, b}} {
+	for _, owner := range []any{diagnosed{s, b}, coloured{s, b}} {
 		for _, d := range e.decos[owner] {
 			d.remove()
 		}
@@ -307,7 +306,7 @@ func (e *Session) notified(s *server, method string, params json.RawMessage) {
 	case "initialized":
 		for _, b := range s.bufs {
 			e.askColours(s, b)
-			e.askHints(s, b)
+			e.emit("lsp.attached", s.name, b)
 		}
 		return
 	}

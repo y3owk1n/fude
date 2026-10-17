@@ -70,7 +70,7 @@ type buffer struct {
 	touched [2]int               // the text the last change made, as it is after it
 	status  map[string]wire.Sign // a listing's git status sign of each name
 	branch  string               // the git branch of its repository, "" outside one
-	ask     bool                 // its text changed, so the next frame asks servers again for colours and hints
+	ask     bool                 // its text changed, so the next frame asks servers again for colours
 	unsaved kernel.NodeID        // the newest unsaved change from a session that did not close
 	set     map[string]string    // the options modules set on it, by name (B283)
 	term    *terminal            // the program a terminal buffer shows, nil for any other (B205)

@@ -948,6 +948,8 @@ Where fude departs, the line says so and cites the departure in
   answer asks for. After `format_timeout` fude writes the text as it is,
   says so, and drops what comes late. The plugin's message follows the
   write's.
+- B284 [4] A plugin hears `lsp.attached` once a language server is ready
+  for a buffer, with the server's name.
 - B283 [4] A plugin sets `expand_tab`, `indent_width` or `tab_width` on the
   buffer its call is about, over config.toml's, until the buffer closes,
   as .editorconfig does.

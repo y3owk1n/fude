@@ -127,6 +127,15 @@ func (e *Session) loaded(p api.Module, err error, b *buffer, t kernel.Snapshot, 
 				l.put(event{name: "buffer.opened", buf: b}, func(ev, _ event) event { return ev })
 			}
 		}
+		if slices.Contains(p.Subscribed(), "lsp.attached") {
+			for _, b := range e.bufs {
+				for _, s := range b.servers {
+					if s.client.Encoding() != "" {
+						l.put(event{name: "lsp.attached", detail: s.name, buf: b}, func(ev, _ event) event { return ev })
+					}
+				}
+			}
+		}
 	}
 	if b.text.Snapshot().Version() != t.Version() {
 		e.message = fmt.Sprintf("plugin %s: the text changed while it loaded", p.Name())

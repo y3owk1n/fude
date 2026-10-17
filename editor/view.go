@@ -101,7 +101,6 @@ func (e *Session) Views() []wire.View {
 			b.ask = false
 			for _, s := range b.servers {
 				e.askColours(s, b)
-				e.askHints(s, b)
 			}
 		}
 		v.Signs = e.signs(w.buf, top, last)

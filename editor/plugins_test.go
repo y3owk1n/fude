@@ -839,6 +839,17 @@ func TestB282PluginHearsSaving(t *testing.T) {
 	settle(t, e, func() bool { return strings.Contains(fudeLog(), "listen: buffer.saving") && !e.Views()[0].Modified })
 }
 
+// B284
+func TestB284PluginHearsAServerAttach(t *testing.T) {
+	wasm, err := filepath.Abs(filepath.Join("..", "plugin", "testdata", "listen", "listen.wasm"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	e, _ := withServer(t, "a\n", "utf-8", fmt.Sprintf("[[plugin]]\npath = %q\ncapabilities = [\"buffer.read\", \"ui\"]", wasm))
+	settle(t, e, func() bool { return strings.Contains(fudeLog(), "listen: lsp.attached") })
+}
+
 // B191
 func TestB191PluginReload(t *testing.T) {
 	e := loaded(t, "ctx", "f", "a\n", "buffer.write")
