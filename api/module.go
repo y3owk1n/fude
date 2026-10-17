@@ -46,6 +46,7 @@ const (
 	Object               // called with (start, end), and sets Result.Selected
 	Key                  // keys in normal mode, called with (cursor, count)
 	Insert               // keys in insert mode, called with (cursor)
+	Plug                 // a command keys reach only as <Plug>(owner.name), called with (cursor, count)
 )
 
 // Registration is one thing a module's init registered: its name, what it

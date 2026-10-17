@@ -928,6 +928,9 @@ Where fude departs, the line says so and cites the departure in
   title, coloured as a filetype it names. Showing text under a title
   already open replaces what that window shows. `:q` closes it without
   asking to save.
+- B278 [4] A plugin adds a command that keys reach only as
+  `<Plug>(plugin.name)`, which `:plug` and a mapping run, with the help
+  `:h` shows.
 - B276 [4] A plugin with `ui` styles ranges of the text it shows in a
   window, such as a line in `diff.plus`, over what the filetype colours.
 - B277 [4] A plugin hears `editor.focused` when the terminal gets the

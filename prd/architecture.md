@@ -998,7 +998,7 @@ host it may not reach or a request that failed.
 | `line_of(pos) -> i32` | `buffer.read` | the line that holds `pos`, from 0 |
 | `line_start(line) -> i32` | `buffer.read` | where `line` starts |
 | `edit(start, end, ptr, len) -> i32` | `buffer.write` | asks to replace `[start, end)` |
-| `register(kind, name, nlen, help, hlen, id) -> i32` | none, in init only | adds a command, operator, object or key that `call` runs by id, with the help `:h` and the key hints show |
+| `register(kind, name, nlen, help, hlen, id) -> i32` | none, in init only | adds a command, operator, object, key or plug that `call` runs by id, with the help `:h` and the key hints show |
 | `subscribe(ptr, len) -> i32` | none, in `init` only | hears the event named through `on_event` |
 | `emit(ptr, len) -> i32` | none | emits the event `plugin.name` about the buffer the call read |
 | `decorate(start, end, ptr, len) -> i32` | `ui` | puts a style, such as `keyword`, on `[start, end)`, and returns its id |

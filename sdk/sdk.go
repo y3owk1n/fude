@@ -68,6 +68,7 @@ const (
 	kindObject
 	kindKey
 	kindInsert
+	kindPlug
 )
 
 // The functions fude gives a plugin.
@@ -361,6 +362,15 @@ func Key(keys, help string, f func(Call)) {
 func Insert(keys, help string, f func(Call)) {
 	add(kindInsert, keys, help, func(a, _, _ int64) int64 {
 		f(Call{Cursor: int(a)})
+		return 0
+	})
+}
+
+// Plug adds a command keys reach only as <Plug>(plugin.name), which runs
+// f, as :plug does. help says what it does, for :h.
+func Plug(name, help string, f func(Call)) {
+	add(kindPlug, name, help, func(a, b, _ int64) int64 {
+		f(Call{Cursor: int(a), Count: int(b)})
 		return 0
 	})
 }

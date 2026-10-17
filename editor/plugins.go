@@ -376,7 +376,7 @@ func (e *Session) unregister(p api.Module) {
 			e.pluginBindings = slices.DeleteFunc(e.pluginBindings, func(b vim.Binding) bool {
 				return b.Kind == "operator" && b.Keys == r.Name+"{motion}" || b.Kind == "object" && b.Keys == r.Name
 			})
-		case api.Key:
+		case api.Key, api.Plug:
 			delete(e.pluginHelp, "<Plug>("+p.Name()+"."+r.Name+")")
 		case api.Insert:
 			delete(e.pluginHelp, "<Plug>("+p.Name()+".insert."+r.Name+")")
@@ -389,6 +389,8 @@ func (e *Session) unregister(p api.Module) {
 				s.vim.Object(r.Name, nil)
 			case api.Key:
 				s.vim.Unmap(vim.Normal, withLeader(r.Name, s.leader))
+				s.vim.Command(p.Name()+"."+r.Name, nil)
+			case api.Plug:
 				s.vim.Command(p.Name()+"."+r.Name, nil)
 			case api.Insert:
 				s.vim.Unmap(vim.Insert, r.Name)
@@ -457,7 +459,7 @@ func (e *Session) register(p api.Module, r api.Registration) {
 				return sel[0], sel[1], true
 			})
 		})
-	case api.Key:
+	case api.Key, api.Plug:
 		name := p.Name() + "." + r.Name
 		e.pluginHelp["<Plug>("+name+")"] = r.Help
 		e.each(func(s *Session) {
@@ -465,7 +467,9 @@ func (e *Session) register(p api.Module, r api.Registration) {
 				edits, _, _ := s.run(p, r.ID, s.scope(s.win.buf, t), pos, count)
 				return edits
 			})
-			s.vim.Map(vim.Normal, withLeader(r.Name, s.leader), "<Plug>("+name+")")
+			if r.Kind == api.Key {
+				s.vim.Map(vim.Normal, withLeader(r.Name, s.leader), "<Plug>("+name+")")
+			}
 		})
 	case api.Insert:
 		name := p.Name() + ".insert." + r.Name

@@ -754,7 +754,7 @@ func (p *Plugin) register(_ context.Context, m api.Module, kind, nptr, nn, hptr,
 	name, ok1 := m.Memory().Read(nptr, nn)
 	help, ok2 := m.Memory().Read(hptr, hn)
 	switch {
-	case p.call == nil || p.call.name != "init" || fude.Kind(kind) > fude.Insert:
+	case p.call == nil || p.call.name != "init" || fude.Kind(kind) > fude.Plug:
 		return errDenied
 	case !ok1 || !ok2:
 		return errRange

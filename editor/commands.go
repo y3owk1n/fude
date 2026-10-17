@@ -422,7 +422,7 @@ func (e *Session) plugNames() []string {
 	}
 	for _, p := range e.modules {
 		for _, r := range p.Registered() {
-			if r.Kind == api.Key {
+			if r.Kind == api.Key || r.Kind == api.Plug {
 				names = append(names, p.Name()+"."+r.Name)
 			}
 		}

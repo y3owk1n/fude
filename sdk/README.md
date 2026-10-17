@@ -51,6 +51,7 @@ Call these from an `init` function.
 |---|---|
 | `Command` | the ex command `:name` |
 | `Key`, `Insert` | a key in normal or insert mode |
+| `Plug` | a command keys reach only as `<Plug>(plugin.name)` |
 | `Operator` | an operator that composes with every motion and text object |
 | `Object` | a text object that composes with every operator |
 | `On` | a handler for an event, such as `buffer.saved` or `mode.changed` |
