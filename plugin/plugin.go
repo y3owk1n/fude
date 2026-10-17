@@ -823,8 +823,9 @@ func (p *Plugin) decorate(_ context.Context, m api.Module, start, end, ptr, n ui
 }
 
 // sign puts the text at (ptr, n) in the sign column on pos's line, in the
-// style after a NUL, and returns its id, which undecorate removes (B184).
-func (p *Plugin) sign(_ context.Context, m api.Module, pos, ptr, n uint32) int32 {
+// style after a NUL, and returns its id, which undecorate removes. With
+// under set, any other sign on the line shows over it (B184).
+func (p *Plugin) sign(_ context.Context, m api.Module, pos, ptr, n, under uint32) int32 {
 	if p.call == nil || !p.allowed("ui", "sign") {
 		return errDenied
 	}
@@ -834,7 +835,7 @@ func (p *Plugin) sign(_ context.Context, m api.Module, pos, ptr, n uint32) int32
 	}
 	text, style, _ := strings.Cut(string(b), "\x00")
 	p.next++
-	p.call.Decorate = append(p.call.Decorate, fude.Decoration{ID: p.next, Start: int(pos), End: int(pos), Style: style, Sign: text})
+	p.call.Decorate = append(p.call.Decorate, fude.Decoration{ID: p.next, Start: int(pos), End: int(pos), Style: style, Sign: text, Under: under != 0})
 	return int32(p.next)
 }
 

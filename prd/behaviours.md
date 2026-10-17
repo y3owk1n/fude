@@ -889,7 +889,8 @@ Where fude departs, the line says so and cites the departure in
 - B184 [4] A plugin with `ui` shows text in the sign column of a line, its
   first two characters, and dim text after the end of a line. Both move
   with edits and go when the plugin removes them or unloads. On one line,
-  a diagnostic's sign wins over a plugin's, and a plugin's over git's.
+  a diagnostic's sign wins over a plugin's, and a sign the plugin puts
+  under loses to any other, as git's signs do.
 - B185 [4] A plugin with `ui` asks the user to pick from a list it gives,
   or to type an answer to a question. The list narrows as they type, as
   the file finder's does. A function of the plugin's then runs, as a

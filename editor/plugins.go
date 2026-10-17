@@ -157,6 +157,7 @@ type decoration struct {
 	style      string
 	note       string          // a diagnostic's message, or a plugin's text after the end of the line
 	sign       string          // a plugin's text for the sign column
+	under      bool            // any other sign on the line shows over it (B184)
 	raw        json.RawMessage // a diagnostic as the server sent it, for code actions
 }
 
@@ -313,7 +314,7 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 		// A sign shows its first two characters, as the column is two wide.
 		sign := []rune(d.Sign)
 		sign = sign[:min(len(sign), 2)]
-		e.decos[p] = append(e.decos[p], decoration{d.ID, b, b.text.SetMark(d.Start, kernel.Right), b.text.SetMark(d.End, kernel.Left), d.Style, d.Note, string(sign), nil})
+		e.decos[p] = append(e.decos[p], decoration{id: d.ID, buf: b, start: b.text.SetMark(d.Start, kernel.Right), end: b.text.SetMark(d.End, kernel.Left), style: d.Style, note: d.Note, sign: string(sign), under: d.Under})
 		if len(sign) > 0 {
 			b.signs++
 		}

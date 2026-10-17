@@ -9,6 +9,7 @@ type Decoration struct {
 	Start, End int
 	Style      string
 	Sign, Note string // what shows on Start's line, in the sign column or after its end (B184)
+	Under      bool   // any other sign on the line shows over Sign (B184)
 }
 
 // Result is what one call asked fude to do.

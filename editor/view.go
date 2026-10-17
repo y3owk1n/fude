@@ -279,19 +279,21 @@ func (e *Session) signs(b *buffer, top, last int) map[int]wire.Sign {
 		return nil
 	}
 	t := b.text.Snapshot()
-	out := maps.Clone(b.git)
-	if out == nil {
-		out = map[int]wire.Sign{}
-	}
-	// A plugin's sign wins over git's, and a diagnostic over a plugin's
-	// (B184).
-	for _, p := range e.modules {
-		for _, d := range e.decos[p] {
-			if d.buf == b && d.sign != "" {
-				out[t.LineOf(b.text.Mark(d.start))] = wire.Sign{Text: d.sign, Name: d.style}
+	out := map[int]wire.Sign{}
+	// A sign a module puts under loses to any other. git's signs lose to the
+	// rest of a module's, and a plugin's to a diagnostic's (B184).
+	put := func(under bool) {
+		for _, p := range e.modules {
+			for _, d := range e.decos[p] {
+				if d.buf == b && d.sign != "" && d.under == under {
+					out[t.LineOf(b.text.Mark(d.start))] = wire.Sign{Text: d.sign, Name: d.style}
+				}
 			}
 		}
 	}
+	put(true)
+	maps.Copy(out, b.git)
+	put(false)
 	for _, d := range e.diagnostics(b) {
 		line := t.LineOf(b.text.Mark(d.start))
 		i := slices.IndexFunc(diagnosticSigns, func(s wire.Sign) bool { return s.Name == d.style })
