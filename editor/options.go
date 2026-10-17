@@ -48,11 +48,13 @@ func (e *Session) set(args string) {
 			case isNumber:
 				v, err := strconv.Atoi(value)
 				if err != nil || v < 0 {
+					// A :set with a bad argument changes nothing.
+					e.win.opts = was
 					e.message = fmt.Sprintf("%s takes a number of 0 or more, not %q", name, value)
 					return
 				}
 				*n = v
-			case strings.HasSuffix(arg, "?") || !isNumber:
+			default:
 				shown = append(shown, fmt.Sprintf("%s=%d", name, *n))
 			}
 			continue
@@ -61,6 +63,7 @@ func (e *Session) set(args string) {
 		turn := true
 		if !ok {
 			if on, ok = switches[strings.TrimPrefix(name, "no")]; !ok || isNumber {
+				e.win.opts = was
 				e.message = "no option named " + name
 				return
 			}

@@ -97,7 +97,8 @@ Where fude departs, the line says so and cites the departure in
   way with `name!` and shows them with `name?`, or every one with no
   arguments, as Neovim does with fude's option names (N4). `number` shows
   line numbers and `relative_number` numbers lines from the cursor's. Each
-  is also a setting in `config.toml`.
+  is also a setting in `config.toml`. A `:set` with a name or value it
+  does not know changes nothing.
 - B116 [2] `scroll_off`, set with `:set scroll_off=n` or in `config.toml`,
   keeps n lines in view above and below the cursor's, at most half the
   window, as Neovim's `scrolloff` does.

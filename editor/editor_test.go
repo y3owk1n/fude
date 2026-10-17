@@ -701,6 +701,10 @@ func TestB39Set(t *testing.T) {
 	if feed(e, ":set number?<CR>"); e.Message() != "nonumber" {
 		t.Errorf(":set number? said %q", e.Message())
 	}
+	// A :set with a bad argument changes nothing.
+	if feed(e, ":set number bogus<CR>"); e.Views()[1].Number || e.Message() != "no option named bogus" {
+		t.Errorf(":set number bogus left number %v and said %q", e.Views()[1].Number, e.Message())
+	}
 	if feed(e, ":set wide<CR>"); e.Message() != "no option named wide" {
 		t.Errorf(":set wide said %q", e.Message())
 	}
