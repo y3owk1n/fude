@@ -1539,15 +1539,18 @@ the session is made. The server checks each limit in one place:
 
 ### Share and join
 
-`fude --share [address]` makes a self-signed certificate for the share,
-listens with TLS, and prints the share string: the address, the
-certificate's SHA-256 fingerprint and a 128-bit secret. `fude --join
-string` dials it with `InsecureSkipVerify` and a `VerifyConnection` that
-compares the fingerprint, then sends the secret as its first line. The
-host's fude asks whether to let the guest in, and on yes the connection
-goes on as an attach does, to a guest session. The secret then no
-longer works. `:who` lists the guests and `:kick name` ends one. Ending
-the share ends every guest session.
+`fude --share [address]` makes a self-signed certificate for the share
+and listens with TLS 1.3. Its first message is the share string. The
+string is the address, the certificate's SHA-256 fingerprint and a
+128-bit secret, joined by `/`, the last two in unpadded base64url.
+`fude --join string` dials it with `InsecureSkipVerify` and a
+`VerifyConnection` that compares the fingerprint, then sends the secret
+and `$USER` as its first line. The host's fude asks whether to let the
+guest in, and on yes the connection goes on as an attach does, to a
+guest session. The secret then no longer works, and `:share` makes a new
+one. One join waits for the host's answer at a time. `:who` lists the
+guests and `:kick name` ends one. Quitting fude ends the share and every
+guest session, and `:restart` starts fude again without `--share`.
 
 ### Relay
 

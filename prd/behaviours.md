@@ -1045,8 +1045,8 @@ Where fude departs, the line says so and cites the departure in
   run for it as the host's config says (D40). `:!`, `:r !`, `:{range}!`,
   `:terminal`, `:task`, `:pick tasks`, `:restart`, `:cd`,
   `:plugin reload`, `:grammar install` and `update`, `:lsp` with a
-  subcommand, `:theme`, `gh`, `gH` and a code action that runs a command
-  each say a guest may not, and change nothing. So do keys mapped
+  subcommand, `:theme`, `:share`, `:kick`, `gh`, `gH` and a code action
+  that runs a command each say a guest may not, and change nothing. So do keys mapped
   to them, such as `ZR`. A guest's `:q` on its last window and `:qa` leave
   fude, as B240 says.
 - B245 [7] A guest opens, shows, writes, creates, renames and deletes only
@@ -1063,6 +1063,23 @@ Where fude departs, the line says so and cites the departure in
   replica's pushes and its `:accept` each say it is read-only, whichever
   edit they would make, and the buffer stays as it was. It still moves,
   searches, yanks and proposes.
+- B248 [7] `fude --share [address] [file...]` opens fude as usual and
+  listens on address with TLS, or on a free port of every interface
+  without one. Its first message is the share string. The string is one
+  word that needs no quoting, and it names where to reach fude, its
+  certificate's fingerprint and a secret. `fude --join string` on another machine
+  dials it, and the host's fude asks whether to let the guest in, naming
+  them by `$USER`. On y the guest's terminal draws a guest session of the
+  host's fude, as `--attach` does (B239, B243). Quitting fude ends the
+  share and every guest session (B242), and so does `:restart`.
+- B249 [7] A share string lets one guest in, and `:share` shows a new
+  one. A join ends the guest's client, saying why, when the host's
+  certificate does not match the string's fingerprint, when its secret
+  is wrong or used, when the host answers n, when another join waits for
+  the host's answer, and when the host is answering another question.
+- B250 [7] `:who` lists the guests by name, and `:kick name` ends that
+  guest's session, whose client says the host ended it. A second guest
+  with a name already taken gets a number after it.
 
 ## Kernel library
 
