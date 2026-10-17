@@ -590,8 +590,13 @@ Where fude departs, the line says so and cites the departure in
   preview shows its line.
 - B215 [2] `:pick` alone lists the sources, and picking one opens its
   finder. `:pick help` lists help's names and opens help at the one
-  picked. `:pick keymaps` lists the normal mode mappings, each with what
-  it maps to, and runs the one picked. These lists, and a plugin's list
+  picked. `:pick keymaps` lists every key. The mappings of normal, visual
+  and insert mode come first, then the keys of every mode and fude's
+  operators, objects and window commands. Each shows its kind and what it
+  does, as `:h` describes it. Typing narrows by keys, kind or description. A key
+  normal mode runs, such as a mapping, a motion or an operator, runs as if
+  typed, up to the character or target it waits for. Any other says what
+  it does and in which mode. These lists, and a plugin's list
   (B185), show each item as text with no preview.
 - B214 [5] `:pick symbols` opens the finder on the symbols the current
   buffer's language server finds for the query, asking again as it is

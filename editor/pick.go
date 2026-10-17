@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/y3owk1n/fude/lsp"
 	"github.com/y3owk1n/fude/vim"
@@ -28,12 +29,7 @@ func (e *Session) openPick(arg string) {
 		tags := e.helpTags()
 		e.pickFrom("help", tags, func(i int) { e.help(tags[i]) })
 	case "keymaps":
-		var items, keys []string
-		e.vim.Each(vim.Normal, func(from, to string) {
-			items, keys = append(items, from+"  "+to), append(keys, from)
-		})
-		// The keys picked run as if typed, once the finder closes.
-		e.pickFrom("keymaps", items, func(i int) { e.later = append(e.later, vim.Keys(keys[i])...) })
+		e.pickKeys()
 	case "files":
 		e.files()
 	case "grep":
@@ -93,6 +89,49 @@ func recentFiles(current string) (here, elsewhere []string, err error) {
 		}
 	}
 	return here, elsewhere, nil
+}
+
+// pickKeys opens the finder on every key: the mappings of normal, visual
+// and insert mode, each by what it does, then the machine's keys and
+// fude's, each with its help and kind. Picking a key normal mode runs, such
+// as a mapping, a motion or an operator, runs it as if typed, up to the
+// argument it waits for. Picking any other says what it does and where
+// (B215).
+func (e *Session) pickKeys() {
+	type key struct{ keys, help, kind string }
+	var all []key
+	for _, mode := range []struct {
+		m    vim.Mode
+		name string
+	}{{vim.Normal, "normal"}, {vim.Visual, "visual"}, {vim.Insert, "insert"}} {
+		e.vim.Each(mode.m, func(from, to string) {
+			all = append(all, key{from, e.mappingText(to), mode.name + " mapping"})
+		})
+	}
+	for _, b := range slices.Concat(vim.Bindings(), hostBindings()) {
+		all = append(all, key{b.Keys, b.Help, b.Kind})
+	}
+	keysW, kindW := 0, 0
+	for _, k := range all {
+		keysW, kindW = max(keysW, utf8.RuneCountInString(k.keys)), max(kindW, len(k.kind))
+	}
+	items := make([]string, len(all))
+	for i, k := range all {
+		items[i] = fmt.Sprintf("%-*s  %-*s  %s", keysW, k.keys, kindW, k.kind, k.help)
+	}
+	e.pickFrom("keymaps", items, func(i int) {
+		k := all[i]
+		typed, _, _ := strings.Cut(k.keys, "{")
+		switch k.kind {
+		case "normal mapping", "normal", "motion", "operator":
+			if typed != "" {
+				// The keys run as if typed once the finder closes.
+				e.later = append(e.later, vim.Keys(typed)...)
+				return
+			}
+		}
+		e.message = k.keys + " " + k.help + ", in " + strings.TrimSuffix(k.kind, " mapping")
+	})
 }
 
 // pickFrom opens the finder on items with no preview, and runs picked with

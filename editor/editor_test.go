@@ -1154,10 +1154,17 @@ func TestB215PickLists(t *testing.T) {
 	feed(e, ":pick<CR>")
 	settle(t, e, func() bool { return shows("keymaps") })
 	feed(e, "keymaps<CR>zq")
-	settle(t, e, func() bool { return shows("zq  :set<Space>number<CR>") })
+	settle(t, e, func() bool { return shows("normal mapping  types :set<Space>number<CR>") })
 	// A mapping picked runs.
 	if feed(e, "<CR>"); !e.Views()[0].Number {
 		t.Error("picking zq did not run it")
+	}
+	// It lists the machine's keys too, each with its kind and help, and a
+	// motion picked runs, j here after insert mode's <Down>.
+	feed(e, "ggix<CR>y<Esc>gg:pick keymaps<CR>moves down a line")
+	settle(t, e, func() bool { return shows("motion          moves down a line") })
+	if feed(e, "<C-n><CR>"); e.Text().LineOf(e.Cursor()) != 1 {
+		t.Errorf("picking j left the cursor on line %d", e.Text().LineOf(e.Cursor()))
 	}
 	if feed(e, ":pick help<CR>guide-start<CR>"); !strings.HasPrefix(text(e), "# fude help") {
 		t.Errorf("picking guide-start opened %q", e.Views()[len(e.Views())-1].Name)
