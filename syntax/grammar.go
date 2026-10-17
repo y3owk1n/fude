@@ -187,6 +187,7 @@ func load(path, filetype string) (*language, error) {
 	}
 	f := C.dlsym(h, csym)
 	if f == nil {
+		C.dlclose(h)
 		return nil, fmt.Errorf("load the %s grammar: %s has no tree_sitter_%s", filetype, path, filetype)
 	}
 	l := &language{lang: ts.NewLanguage(unsafe.Pointer(C.language(f))), comment: registry[filetype].comment}

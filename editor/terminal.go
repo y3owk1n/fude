@@ -108,10 +108,11 @@ func (e *Session) openTerminal(arg, task string) {
 	t.cmd.Env = append(os.Environ(), "TERM=xterm-256color")
 	f, err := pty.Start(t.cmd, t.cols, t.rows)
 	if err != nil {
-		// The window goes, so no terminal shows without a program.
+		// The window and buffer go, so no terminal shows without a program.
 		if cerr := e.closeWindow(e.win); cerr != nil {
 			err = errors.Join(err, cerr)
 		}
+		e.close(b, true)
 		e.message = err.Error()
 		return
 	}

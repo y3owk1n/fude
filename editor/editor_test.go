@@ -981,6 +981,8 @@ func TestB130FilesPreview(t *testing.T) {
 	change(t, filepath.Join(dir, "a"), "one\ntwo\n")
 	change(t, filepath.Join(dir, "b"), "three\n")
 	change(t, filepath.Join(dir, "c.go"), "package c\n")
+	change(t, filepath.Join(dir, "d"), strings.Repeat("x", 10<<10)+"\x00")
+	change(t, filepath.Join(dir, "e"), strings.Repeat("y", 1<<20)+"\n")
 	t.Chdir(dir)
 	e := open(t, "a")
 	e.SetSize(100, 24)
@@ -995,6 +997,12 @@ func TestB130FilesPreview(t *testing.T) {
 		f, _ := e.Float()
 		return f.Doc == "c.go\n\npackage c" && slices.ContainsFunc(f.DocSpans, func(s syntax.Span) bool { return s.Name == "keyword" })
 	})
+	// A zero byte in the first 16KB makes a binary file, and a long line
+	// shows its start.
+	feed(e, "<C-n>")
+	settle(t, e, func() bool { return doc() == "d\n\nbinary file" })
+	feed(e, "<C-n>")
+	settle(t, e, func() bool { return strings.HasPrefix(doc(), "e\n\nyyyy") && len(doc()) < 1000 })
 	// A narrow screen has no room for it.
 	if e.SetSize(50, 24); doc() != "" {
 		t.Fatalf("on 50 columns the preview is %q", doc())

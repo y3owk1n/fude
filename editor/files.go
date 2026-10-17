@@ -3,6 +3,7 @@ package editor
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"cmp"
 	"fmt"
 	"io"
@@ -518,14 +519,19 @@ func preview(path string, line, rows, cols int) (string, int) {
 		return err.Error(), -1
 	}
 	defer f.Close()
-	r := bufio.NewReader(f)
+	r := bufio.NewReaderSize(f, 16<<10)
 	if head, _ := r.Peek(16 << 10); bytes.IndexByte(head, 0) >= 0 {
 		return "binary file", -1
 	}
 	first := max(line-rows/3, 0)
 	var lines []string
 	for i := 0; len(lines) < rows; i++ {
-		l, err := r.ReadString('\n')
+		b, err := r.ReadSlice('\n')
+		l := string(b)
+		// A long line shows its start, and the rest is never read in.
+		for errors.Is(err, bufio.ErrBufferFull) {
+			_, err = r.ReadSlice('\n')
+		}
 		if i >= first && (l != "" || err == nil) {
 			c := []rune(strings.ReplaceAll(strings.TrimSuffix(l, "\n"), "\t", "    "))
 			lines = append(lines, string(c[:min(len(c), cols)]))
