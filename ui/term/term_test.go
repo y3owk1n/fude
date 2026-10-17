@@ -252,7 +252,7 @@ func TestB199Center(t *testing.T) {
 	for _, k := range vim.Keys(":only<CR>:set color_column=60<CR>ZR") {
 		c.e.Feed(k)
 	}
-	t.Setenv(editor.RestartEnv, c.e.Restart())
+	t.Setenv(editor.RestartEnv, c.e.(*editor.Session).Restart())
 	c = startWith(t, "")
 	c.draw()
 	if s, _, _ := c.s.Get(30, 0); s != "t" {
@@ -310,7 +310,7 @@ func TestB64MenuScrolls(t *testing.T) {
 		c.e.Feed(k)
 	}
 	c.draw()
-	buf := c.e.Text()
+	buf := c.e.(*editor.Session).Text()
 	chosen := strings.TrimSpace(buf.Slice(buf.LineStart(1), buf.Len()))
 	for y := range 40 {
 		var row strings.Builder

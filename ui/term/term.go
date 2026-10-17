@@ -21,7 +21,7 @@ import (
 )
 
 // Run shows e in the terminal until the user quits.
-func Run(e *editor.Session) error {
+func Run(e Session) error {
 	tty, err := tcell.NewDevTty()
 	if err != nil {
 		return fmt.Errorf("open terminal: %w", err)
@@ -113,7 +113,7 @@ func Run(e *editor.Session) error {
 // drain runs the work queued for the loop that is waiting now, so a burst
 // of it, such as a server's answers, draws one frame. It stops when a key
 // is waiting, which goes first.
-func drain(e *editor.Session, key func() bool) {
+func drain(e Session, key func() bool) {
 	for !key() {
 		select {
 		case f := <-e.Queue():
@@ -168,7 +168,7 @@ func paint(out []tcell.Style, spans []syntax.Span, top, end int) []tcell.Style {
 
 type client struct {
 	s        tcell.Screen
-	e        *editor.Session
+	e        Session
 	theme    string            // the theme drawn in, as e names it
 	colours  *[16]int32        // its base16 scheme's colours, if it is one
 	spinning bool              // the last frame shows a spinner
