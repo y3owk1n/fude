@@ -589,6 +589,17 @@ func TestB191PluginReload(t *testing.T) {
 	if feed(e, ":Ctx<CR>"); !strings.Contains(e.Message(), "not a command") {
 		t.Errorf("after the reload, :Ctx said %q", e.Message())
 	}
+	// A dropped plugin's operator and object go with it.
+	e = withKit(t)
+	settle(t, e, func() bool { feed(e, "gsiw"); return text(e) == "AB cd\nef" })
+	usePlugin(t, "later", "buffer.write")
+	feed(e, ":plugin reload<CR>")
+	settle(t, e, func() bool { feed(e, ":Twice<CR>"); return e.Message() == "" })
+	for _, keys := range []string{"wgsiw", "yaL"} {
+		if feed(e, keys); strings.Contains(e.Message(), "unloaded") {
+			t.Errorf("after the reload, %s said %q", keys, e.Message())
+		}
+	}
 }
 
 // decorations returns what the current window shows of plugins'

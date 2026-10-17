@@ -45,8 +45,12 @@ func (m *Machine) operate(op string, reg rune, cmd string, count int, label stri
 // apply gets the target's range and whether it is linewise. A linewise range
 // runs from the start of its first line to the end of its last. apply returns
 // the edits it makes, and the cursor then goes where it goes after the
-// built-in operators.
+// built-in operators. A nil apply removes the operator.
 func (m *Machine) Operator(name string, apply func(t Text, start, end int, lines bool) []Edit) {
+	if apply == nil {
+		delete(m.ops, name)
+		return
+	}
 	if m.ops == nil {
 		m.ops = map[string]func(Text, int, int, bool) []Edit{}
 	}
@@ -55,8 +59,12 @@ func (m *Machine) Operator(name string, apply func(t Text, start, end int, lines
 
 // Command adds a normal mode command, run by the key <Plug>(name), for the
 // host to map keys to. run gets the cursor and the count, and returns the
-// edits it makes. Dot repeats it like any change.
+// edits it makes. Dot repeats it like any change. A nil run removes it.
 func (m *Machine) Command(name string, run func(t Text, pos, count int) []Edit) {
+	if run == nil {
+		delete(m.cmds, name)
+		return
+	}
 	if m.cmds == nil {
 		m.cmds = map[string]func(Text, int, int) []Edit{}
 	}

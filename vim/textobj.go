@@ -74,8 +74,12 @@ var textObjects = map[string]textObjectKey{
 // in visual mode. Its name starts with i, a, [ or ]. In visual mode find gets
 // the selection, and after an operator the character under the cursor. It
 // returns the text the object selects from there, or false when there is
-// none. A count runs find again on what it returned.
+// none. A count runs find again on what it returned. A nil find removes it.
 func (m *Machine) Object(name string, find func(t Text, start, end int) (int, int, bool)) {
+	if find == nil {
+		delete(m.objects, name)
+		return
+	}
 	if m.objects == nil {
 		m.objects = map[string]func(Text, int, int) (int, int, bool){}
 	}

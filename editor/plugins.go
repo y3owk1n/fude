@@ -347,18 +347,25 @@ func (e *Session) reloadPlugins() {
 	e.loadPlugins()
 }
 
-// unregister removes the commands and mappings p added, so a reload that
-// leaves p out leaves nothing of it.
+// unregister removes the commands, operators, objects and mappings p
+// added, so a reload that leaves p out leaves nothing of it.
 func (e *Session) unregister(p *plugin.Plugin) {
 	for _, r := range p.Registered {
+		if r.Kind == plugin.Command {
+			delete(e.commands, r.Name)
+		}
 		for _, s := range e.sessions {
 			switch r.Kind {
-			case plugin.Command:
-				delete(e.commands, r.Name)
+			case plugin.Operator:
+				s.vim.Operator(r.Name, nil)
+			case plugin.Object:
+				s.vim.Object(r.Name, nil)
 			case plugin.Key:
 				s.vim.Unmap(vim.Normal, withLeader(r.Name, e.cfg.Leader))
+				s.vim.Command(p.Name+"."+r.Name, nil)
 			case plugin.Insert:
 				s.vim.Unmap(vim.Insert, r.Name)
+				s.vim.Command(p.Name+".insert."+r.Name, nil)
 			}
 		}
 	}

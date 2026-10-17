@@ -169,6 +169,9 @@ func (m *Machine) Command(name string, run func(t Text, pos, count int) []Edit) 
 func (m *Machine) Cursors() []int // the other cursors while c types into several regions
 ```
 
+`Object`, `Operator` and `Command` with a nil function remove what they
+added under name, as a plugin reload does for a plugin it drops (B191).
+
 `:select` asks the host's selector for regions, and of two that overlap the
 earlier stays. The next `d`, `x`, `y` or host operator acts on every region
 as one undo step, and any other key keeps only the first region. `c`
