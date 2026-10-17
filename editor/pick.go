@@ -50,12 +50,12 @@ func (e *Session) openPick(arg string) {
 		f, current := &finder{title: "recent files"}, e.win.buf.file.path
 		e.openFinder(f, "")
 		go func() {
-			paths, err := recentFiles(current)
+			here, elsewhere, err := recentFiles(current)
 			e.queue <- func() {
 				if err != nil {
 					e.message = err.Error()
 				}
-				f.paths, f.stale = paths, true
+				f.paths, f.stale = append(here, elsewhere...), true
 			}
 		}()
 	case "diagnostics":
@@ -67,29 +67,30 @@ func (e *Session) openPick(arg string) {
 	}
 }
 
-// recentFiles returns the recent files that still exist, but current, each
-// relative to the working directory when it is under it.
-func recentFiles(current string) ([]string, error) {
+// recentFiles returns the recent files that still exist, but current,
+// newest first: those under the working directory, relative to it, and the
+// others (B213).
+func recentFiles(current string) (here, elsewhere []string, err error) {
 	paths, err := readRecent()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	wd, err := os.Getwd()
 	if err != nil {
-		return nil, fmt.Errorf("recent files: %w", err)
+		return nil, nil, fmt.Errorf("recent files: %w", err)
 	}
 	cur, _ := filepath.Abs(current)
-	var out []string
 	for _, p := range paths {
 		if _, err := os.Stat(p); err != nil || p == cur {
 			continue
 		}
 		if rel, err := filepath.Rel(wd, p); err == nil && !strings.HasPrefix(rel, "..") {
-			p = rel
+			here = append(here, rel)
+		} else {
+			elsewhere = append(elsewhere, p)
 		}
-		out = append(out, p)
 	}
-	return out, nil
+	return here, elsewhere, nil
 }
 
 // pickFrom opens the finder on items with no preview, and runs picked with

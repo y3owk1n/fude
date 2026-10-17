@@ -122,8 +122,9 @@ Where fude departs, the line says so and cites the departure in
   in place of the empty buffer. Under fude's name, a line for each key
   says what it does. `f` runs `:pick files`, `g` runs `:pick grep`, `r`
   runs `:pick recent`, `e` opens an empty buffer, `c` opens config.toml
-  and `q` quits. The 9 newest recent files follow, numbered, with `~` for
-  the home directory. A digit opens its recent file, and `<CR>` runs the
+  and `q` quits. The 9 newest recent files under the working directory
+  follow, numbered, or the 9 newest anywhere when it has none, with `~`
+  for the home directory. A digit opens its recent file, and `<CR>` runs the
   line under the cursor. The screen shows no line numbers or guides, and
   the window gets its options back when it shows another buffer.
 - B226 [2] Quitting fude keeps the working directory's session: its
@@ -560,7 +561,8 @@ Where fude departs, the line says so and cites the departure in
   `<Tab>` completes the source's name. `files` and `grep` are B129's and
   B134's finders. `buffers` lists the open buffers that have a file.
   `recent` lists the last 100 files a window showed, newest first, and
-  keeps them across sessions. Neither lists the current file. B196,
+  keeps them across sessions. Those under the working directory come
+  before the others. Neither lists the current file. B196,
   B214 and B215 add `diagnostics`, `symbols`, `help` and `keymaps`. A
   `<CR>` typed before the list narrows picks from what was typed. `<CR>` opens
   the file picked, and B130's preview shows it. The finder's border names

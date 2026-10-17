@@ -54,7 +54,12 @@ func (e *Session) Welcome() {
 	e.win.saved, e.win.opts = &opts, options{}
 	e.fillStart(b, nil, false)
 	go func() {
-		paths, err := recentFiles("")
+		// The working directory's recent files, or the others when it has
+		// none.
+		paths, elsewhere, err := recentFiles("")
+		if len(paths) == 0 {
+			paths = elsewhere
+		}
 		session := hasProject()
 		e.queue <- func() {
 			if err != nil {
