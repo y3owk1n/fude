@@ -1001,3 +1001,59 @@ func TestB249ShareOnce(t *testing.T) {
 		j.a.Close()
 	}
 }
+
+// B250
+func TestB250WhoAndKick(t *testing.T) {
+	t.Chdir(t.TempDir())
+	if err := os.WriteFile("a.txt", []byte("hello\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("USER", "kyle")
+	host := startWith(t, "", "a.txt").e.(*editor.Session)
+	_, on := serve(t, host)
+	ex := func(line string) string {
+		var msg string
+		on(func() {
+			for _, k := range vim.Keys(":" + line + "<CR>") {
+				host.Feed(k)
+			}
+			msg = host.Message()
+		})
+		return msg
+	}
+	// Two guests called kyle are kyle and kyle2.
+	str := share(t, host, on)
+	var guests []*Attached
+	for range 2 {
+		waiting := joining(str)
+		asked(t, host, on, "kyle")
+		on(func() { host.Feed("y") })
+		j := <-waiting
+		if j.err != nil {
+			t.Fatal(j.err)
+		}
+		defer j.a.Close()
+		guests = append(guests, j.a)
+		str, _ = strings.CutPrefix(ex("share"), "guests join with: fude --join ")
+	}
+	if who := ex("who"); who != "kyle  kyle2" {
+		t.Errorf(":who said %q", who)
+	}
+	// :kick ends the one guest's session, and its client says the host
+	// ended it.
+	ex("kick kyle2")
+	for deadline := time.After(5 * time.Second); !guests[1].Done(); {
+		select {
+		case f := <-guests[1].Queue():
+			f()
+		case <-deadline:
+			t.Fatal("the kicked guest's client never ended")
+		}
+	}
+	if guests[1].Ended() != "the host ended your session" || guests[0].Done() {
+		t.Errorf("the kicked guest said %q, and the other ended %v", guests[1].Ended(), guests[0].Done())
+	}
+	if who := ex("who"); who != "kyle" {
+		t.Errorf(":who after :kick said %q", who)
+	}
+}

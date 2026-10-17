@@ -64,7 +64,8 @@ type Editor struct {
 type Session struct {
 	*Editor
 	origin     kernel.Origin
-	power      Power // how much the session may do (B243)
+	power      Power  // how much the session may do (B243)
+	name       string // a guest's name, for :who and :kick (B250)
 	root       *node
 	win        *window // the current window
 	vim        *vim.Machine

@@ -715,7 +715,7 @@ func TestB244GuestRefuses(t *testing.T) {
 	for _, keys := range []string{
 		":!touch " + ran + "<CR>", ":r !touch " + ran + "<CR>", ":%!sort<CR>", ":terminal<CR>", ":task<CR>",
 		":pick tasks<CR>", ":restart<CR>", ":cd /<CR>", ":plugin reload<CR>", ":grammar install go<CR>",
-		":grammar update<CR>", ":lsp stop<CR>", ":theme light<CR>", ":share<CR>", "ZR", "ghj", "gHj",
+		":grammar update<CR>", ":lsp stop<CR>", ":theme light<CR>", ":share<CR>", ":kick x<CR>", "ZR", "ghj", "gHj",
 	} {
 		if feed(guest, keys); !strings.HasPrefix(guest.Message(), "a guest may not") {
 			t.Errorf("%s in a guest said %q", keys, guest.Message())

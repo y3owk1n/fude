@@ -2,6 +2,7 @@ package editor
 
 import (
 	"bufio"
+	"cmp"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -15,6 +16,9 @@ import (
 	"fmt"
 	"math/big"
 	"net"
+	"slices"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -154,22 +158,24 @@ func (e *Session) admit(c net.Conn, stopped <-chan struct{}) {
 	if name == "" {
 		name = c.RemoteAddr().String()
 	}
-	answered := make(chan error, 1)
+	admitted := make(chan *Session, 1)
+	var s *Session
 	var err error
-	on(func() { err = e.letIn(name, hello.Secret, answered) })
+	on(func() { err = e.letIn(name, hello.Secret, admitted) })
 	if err == nil {
 		select {
-		case err = <-answered:
+		case s = <-admitted:
 		case <-stopped:
 			return
+		}
+		if s == nil {
+			err = errors.New("the host said no")
 		}
 	}
 	if err != nil {
 		out(map[string]string{"error": err.Error()})
 		return
 	}
-	var s *Session
-	on(func() { s = e.Attach(kernel.Origin("guest "+name), Guest) })
 	defer on(func() { s.leave() })
 	if out(map[string]string{}) != nil {
 		return
@@ -178,9 +184,9 @@ func (e *Session) admit(c net.Conn, stopped <-chan struct{}) {
 }
 
 // letIn asks the host whether to let the guest called name in, when its
-// secret is the share's, and sends the answer on answered, nil for yes. It
-// returns why it did not ask.
-func (e *Session) letIn(name, secret string, answered chan<- error) error {
+// secret is the share's. It sends the guest's new session on admitted, or
+// nil when the host says no, and returns why it did not ask.
+func (e *Session) letIn(name, secret string, admitted chan<- *Session) error {
 	host, sh := e.sessions[0], e.share
 	switch {
 	case sh.secret == "" || subtle.ConstantTimeCompare([]byte(secret), []byte(sh.secret)) != 1:
@@ -196,15 +202,54 @@ func (e *Session) letIn(name, secret string, answered chan<- error) error {
 		sh.waiting = false
 		if !yes {
 			host.message = ""
-			answered <- errors.New("the host said no")
+			admitted <- nil
 			return
 		}
 		// :share may have made a new secret since.
 		if sh.secret == secret {
 			sh.secret = ""
 		}
-		host.message = name + " joined"
-		answered <- nil
+		s := e.Attach(kernel.Origin("guest "+name), Guest)
+		s.name = e.guestName(name)
+		host.message = s.name + " joined"
+		admitted <- s
 	}
 	return nil
+}
+
+// guestName returns name, or name with a number after it when a guest
+// has it (B250).
+func (e *Session) guestName(name string) string {
+	taken := func(n string) bool {
+		return slices.ContainsFunc(e.sessions, func(s *Session) bool { return s.name == n })
+	}
+	unique := name
+	for i := 2; taken(unique); i++ {
+		unique = name + strconv.Itoa(i)
+	}
+	return unique
+}
+
+// who shows the guests' names, as :who does (B250).
+func (e *Session) who() {
+	var names []string
+	for _, s := range e.sessions {
+		if s.name != "" {
+			names = append(names, s.name)
+		}
+	}
+	e.message = cmp.Or(strings.Join(names, "  "), "no guests")
+}
+
+// kick ends the session of the guest called name, as :kick does (B250).
+func (e *Session) kick(name string) {
+	i := slices.IndexFunc(e.sessions, func(s *Session) bool { return s.name != "" && s.name == name })
+	if i < 0 {
+		e.message = "no guest is called " + name
+		return
+	}
+	s := e.sessions[i]
+	s.message = "the host ended your session"
+	s.leave()
+	e.message = "ended " + name + "'s session"
 }

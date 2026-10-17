@@ -55,7 +55,8 @@ fude --share 100.64.0.2:7000 main.go
 ```
 
 A share string lets one guest in, and `:share` shows a new one for the
-next. Quitting fude ends the share.
+next. `:who` lists the guests, and `:kick name` ends one's session.
+Quitting fude ends the share.
 
 ## Clients
 

@@ -156,6 +156,7 @@ func init() {
 			return start, match(e.helpTags(), arg)
 		}},
 		{vim.Command{Name: "jumps", Short: []string{"ju"}, Help: "lists the window's jumps"}, func(e *Session, _ call) { e.jumps() }, nil},
+		{vim.Command{Name: "kick", Args: "{name}", Help: "ends the session of the guest called name"}, func(e *Session, x call) { e.kick(x.arg) }, nil},
 		{vim.Command{Name: "later", Args: "{n}", Help: "goes n states forward. n may be a time such as 5m, or a count of writes such as 1f"}, func(e *Session, x call) { e.travel(x.arg, true) }, nil},
 		{vim.Command{Name: "lsp", Args: "[restart|stop|disable|enable]", Help: "opens the panel of language servers, or acts on the file's servers"}, func(e *Session, x call) {
 			if x.arg == "" {
@@ -226,6 +227,7 @@ func init() {
 		}, nil},
 		{vim.Command{Name: "vsplit", Short: []string{"vs"}, Args: "[file]", Help: "opens a window to the right, then opens file in it"}, splitAndEdit, completePath},
 		{vim.Command{Name: "wall", Short: []string{"wa"}, Help: "writes every modified buffer"}, func(e *Session, x call) { e.writeAll(e.bufs, x.force, nil) }, nil},
+		{vim.Command{Name: "who", Help: "lists the guests"}, func(e *Session, _ call) { e.who() }, nil},
 		{vim.Command{Name: "wq", Help: "writes the buffer and closes the window"}, func(e *Session, x call) {
 			e.write(e.win.buf, x.force, func() { e.quit(x.force) })
 		}, nil},
