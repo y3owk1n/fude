@@ -166,7 +166,7 @@
 "|abcd\n  efgh" "vlu" "|abcd\n  efgh"
 "|abcd\n  efgh" "vlU" "|ABcd\n  efgh"
 "|abcd\n  efgh" "vlgU" "|ABcd\n  efgh"
-"|abcd\n  efgh" "Vj>" "|\tabcd\n\t  efgh"
+"|abcd\n  efgh" "Vj><Esc>" "\tabcd\n|\t  efgh"
 "|abcd\n  efgh" "vJ" "abcd| efgh"
 "|abcd\n  efgh" "vjgJ" "abcd|  efgh"
 "|abcd\n  efgh" "vlrx" "|xxcd\n  efgh"
@@ -318,6 +318,10 @@
 "a|bcd\nefgh" "<C-v>jlAX<Esc>" "a|bcXd\nefgXh"
 "a|bcd\nef\nijkl" "<C-v>jj$AX<Esc>" "a|bcdX\nefX\nijklX"
 "a|bcd\ne\nijkl" "<C-v>jjlIX<Esc>" "a|Xbcd\neX\niXjkl"
+
+# B235
+"|abcd\n  efgh" "Vj>><Esc>" "\t\tabcd\n|\t\t  efgh"
+"|\t\tab\n\tcd" "Vj<<<Esc>" "ab\n|cd"
 
 # B86
 "a\n|b\n  c\nd" ":d<CR>" "a\n  |c\nd"

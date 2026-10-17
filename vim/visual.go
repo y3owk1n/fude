@@ -127,7 +127,7 @@ var visualOps = map[string]visualOp{
 	"~": {"g~", false, "switches the case of the selection"}, "g~": {"g~", false, "switches the case of the selection"},
 	"u": {"gu", false, "lowercases the selection"}, "gu": {"gu", false, "lowercases the selection"},
 	"U": {"gU", false, "uppercases the selection"}, "gU": {"gU", false, "uppercases the selection"},
-	">": {">", true, "indents the selected lines"}, "<": {"<", true, "outdents the selected lines"},
+	">": {">", true, "indents the selected lines and keeps them selected"}, "<": {"<", true, "outdents the selected lines and keeps them selected"},
 	"X": {"d", true, "deletes the selected lines"}, "D": {"d", true, "deletes the selected lines, or to the end of each line of a block"},
 	"Y": {"y", true, "yanks the selected lines"},
 	"C": {"c", true, "changes the selected lines, or to the end of each line of a block"},
@@ -365,8 +365,12 @@ func (m *Machine) visualKey(cmd string, count int, reg rune) error {
 		if err := m.act(v.op, reg, string(m.visual)+cmd, r); err != nil {
 			return err
 		}
-		if v.op == "y" && r.lines {
+		switch {
+		case v.op == "y" && r.lines:
 			m.h.SetCursor(r.start)
+		case v.op == ">" || v.op == "<":
+			// The selection stays, so the next > or < shifts it again.
+			m.reselect()
 		}
 		return nil
 	}

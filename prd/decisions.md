@@ -670,6 +670,15 @@ and vim-visual-multi's `<C-n>` do. Neovim's `<C-n>` in normal mode moves
 down a line, as `j` does. Why: `j` does that already, and the user asked
 on 2026-10-17 for a way to edit every match of a word at once.
 
+### N36. Visual > and < keep the selection
+
+In visual mode, `>` and `<` shift the selected lines and keep them
+selected (B235). In Neovim they end visual mode, so a second `>` shifts
+only the cursor's line. LazyVim maps `>` to `>gv` and `<` to `<gv` to
+fix that. Why: indenting a block by several levels takes one `>` per
+level, and the user asked on 2026-10-17 for `V>>>` to keep shifting the
+block. The other operators still end visual mode.
+
 ## Open
 
 None.

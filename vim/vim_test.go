@@ -562,6 +562,11 @@ func TestB85VisualExtras(t *testing.T) {
 	cases(t)
 }
 
+// B235
+func TestB235VisualShiftKeeps(t *testing.T) {
+	cases(t)
+}
+
 // B86
 func TestB86LineCommands(t *testing.T) {
 	cases(t)
