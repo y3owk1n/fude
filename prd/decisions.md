@@ -404,7 +404,10 @@ host's clipboard, so the limits belong to the server's session, never to
 a client. Formatters, language servers and git still run for a guest as
 the host's config says, as they act on the project's files. A guest
 cannot reach a `.git`, because fude runs git in the background and git
-runs programs its config names, such as `core.fsmonitor`. Go's
+runs programs its config names, such as `core.fsmonitor`. A guest who
+writes other project files, such as `.fude/tasks.toml`,
+`.fude/launch.toml` or a tool's config, changes what the host's tools do
+when the host next runs them, which comes with sharing a repository. Go's
 `crypto/tls` has no pre-shared keys, so the share string carries a
 fingerprint to pin instead, which needs only the standard library.
 
@@ -420,6 +423,20 @@ host's fingerprint, so the relay sees only ciphertext and needs no trust,
 and anyone can run one. A public relay would mean hosting it, and NAT
 traversal or a tunnelling service would bring a large dependency or a
 third party's account.
+
+## D42. fude's own debug adapter client
+
+fude speaks the Debug Adapter Protocol to adapters such as Delve and
+debugpy through `dap/`, its own client, built on the standard library
+alone. The adapter, the launch settings and the keys are the user's
+choice: config.toml names adapters per filetype, as it names language
+servers, `.fude/launch.toml` holds a project's launch settings, as
+`.fude/tasks.toml` holds its tasks, and leader keys drive it. Why: DAP
+frames messages as LSP does, so `framing/` serves both, and the rest is
+requests, responses and events. No Go DAP library is worth a
+dependency for that. The user chose the core of nvim-dap and dap-ui on
+2026-10-17: breakpoints, launch and attach, stepping, the stack,
+variables and evaluation.
 
 ## Departures from Neovim
 

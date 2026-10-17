@@ -1002,6 +1002,41 @@ Where fude departs, the line says so and cites the departure in
   path, such as `.github/workflows/*`. `workspace_required` keeps it to
   files under one of its root files.
 
+## Debugging
+
+- B261 [8] `[debug.{name}]` in config.toml names a debug adapter by its
+  `command`, and a filetype table's `debug` lists its adapters by those
+  names. A command with `{port}` in it listens there, so fude picks a
+  free port, runs it and dials it. Any other command talks on its stdin
+  and stdout. `.fude/launch.toml` in the project holds launch settings
+  as `[launch.{name}]` tables. Each uses the first adapter of the
+  current file's filetype, or the one `adapter` names. Its `request` is
+  `launch`, or `attach`. Its `args` go to the adapter as they are,
+  once `{file}`, `{dir}` and `{project}` in their strings become the
+  current file, its folder and the project.
+- B262 [8] `:debug start [name]` starts the launch settings called name,
+  or the only ones, or else lists them to choose from. `:debug break`
+  and `<Leader>db` put a breakpoint on the cursor's line, or take one
+  off. The sign column shows one as ● once the adapter takes it, and ○
+  before or when it does not. A breakpoint stays on its line as the
+  text around it changes. `:debug stop` and `<Leader>dq` end the
+  session. When the program stops, the window shows its line, lit and
+  with → in the sign column, and the message says why it stopped. When
+  the session ends, by the program or the adapter or `:debug stop`, the
+  message says so and the line is no longer lit.
+- B263 [8] `:debug continue`, `next`, `in` and `out`, and `<Leader>dc`,
+  `dn`, `di` and `do`, let the stopped thread run on, or step over, into
+  or out of its line. `<Leader>dc` starts a session when none runs. Each
+  says so when the program is not stopped.
+- B264 [8] `:debug panel` and `<Leader>dp` open a window of the stopped
+  thread's frames, the variables of the chosen frame and the program's
+  output. `<CR>` on a frame chooses it and shows its line. `<CR>` on a
+  variable with members shows or hides them. The panel shows anew each
+  time the program stops.
+- B265 [8] `:debug eval expr` shows the value of expr at the chosen
+  frame, and `<Leader>de` shows that of the word under the cursor, or of
+  the selection, in a float.
+
 ## Server and clients
 
 - B70 [6] A client attached over RPC that sends a `Command` gets the same
@@ -1078,8 +1113,9 @@ Where fude departs, the line says so and cites the departure in
   run for it as the host's config says (D40). `:!`, `:r !`, `:{range}!`,
   `:terminal`, `:task`, `:pick tasks`, `:restart`, `:cd`,
   `:plugin reload`, `:grammar install` and `update`, `:lsp` with a
-  subcommand, `:theme`, `:share`, `:kick`, `gh`, `gH` and a code action
-  that runs a command each say a guest may not, and change nothing. So
+  subcommand, `:theme`, `:share`, `:kick`, `:debug`, `gh`, `gH` and a
+  code action that runs a command each say a guest may not, and change
+  nothing. So
   do keys mapped to them, such as `ZR`. A guest's `:q` on its last
   window and `:qa` leave fude, as B240 says. A guest shows no terminal
   or task window's buffer, whose keys would go to a program on the host.

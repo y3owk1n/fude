@@ -121,5 +121,7 @@ The order is dependency order, not priority. Behaviours in
    `fude --join` over TLS, `fude relay`, then presence, a guest's own
    keymaps and options, read-only and follow, and attaching through a
    replica (D39, D40, D41).
+8. Debugging: a debug adapter client, breakpoints, stepping, the stack,
+   variables and evaluation (D42).
 
-Not scheduled: lenses, DAP, GPU and web clients.
+Not scheduled: lenses, GPU and web clients.

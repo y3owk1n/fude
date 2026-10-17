@@ -1598,3 +1598,29 @@ typed at the other's cursor would edit there (B256).
 
 - Attaching through a replica, so keys need no round trip on a slow link
   (D24, B98).
+
+## Debugging (step 8)
+
+`dap/` is the client, shaped as `lsp/` is: an outbox a goroutine writes,
+a reader that queues each response and event on the loop, and a pending
+map only the loop touches. Both read and write frames through
+`framing/`. A command with `{port}` listens on that port, which fude
+dials until the process ends or five seconds pass. Others speak on
+stdio.
+
+A session sends `initialize`, then `launch` or `attach`. It answers the
+`initialized` event, which Delve sends before it answers `launch`, with
+`setBreakpoints` for each file, `setExceptionBreakpoints` with no
+filters and `configurationDone`, so the launch's answer is never waited
+on. `stopped` names the thread that later commands act on, or `threads`
+gives the first. `runInTerminal` and `startDebugging` from the adapter
+get a refusal, so launch settings use the adapter's own console. A
+session ends on `terminated`, `exited` or the adapter's process ending,
+and each clears the stopped line, the thread and the panel. `:debug stop`
+sends `disconnect` and ends the process if it still runs a second later.
+
+Breakpoints are kernel marks in their buffers. The stopped line is a
+decoration with its own owner, and a sign. The panel is a scratch buffer
+of the kind `debug`, whose `<CR>` acts on the frame or variable of its
+line. `:debug` is refused for a guest (B244).
+
