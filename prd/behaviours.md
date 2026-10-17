@@ -674,6 +674,10 @@ Where fude departs, the line says so and cites the departure in
   machine's and plugins', each by its name and what it does, so typing
   narrows by either. The one picked runs. One that needs an argument
   goes on the command line, which waits for it.
+- B271 [2] `:plug name` runs `<Plug>(name)` as a key mapped to it does.
+  It takes fude's plugs and plugins' keys, and completes their names. For
+  a name that is no plug, fude says so. `:pick commands` lists each plug
+  as `:plug name` with what it does.
 - B214 [5] `:pick symbols` opens the finder on the symbols the current
   buffer's language server finds for the query, asking again as it is
   typed. They show under their file, each as its line, name and kind, and

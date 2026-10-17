@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/y3owk1n/fude/plugin"
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
 )
@@ -95,6 +96,9 @@ func init() {
 		{vim.Command{Name: "blame", Help: "shows who last changed the cursor's line, and when, after it, or stops showing it"}, func(e *Session, _ call) { e.blame = !e.blame }, nil},
 		{vim.Command{Name: "pick", Args: "[source] [text]", Help: "opens the finder on a source, or on the sources: files, grep [text], buffers, recent, diagnostics, symbols, help or keymaps"}, func(e *Session, x call) { e.openPick(x.arg) }, func(e *Session, _ string, start int, arg string, _ bool) (int, []string) {
 			return start, match(pickSources, arg)
+		}},
+		{vim.Command{Name: "plug", Args: "name", Help: "runs <Plug>(name) as a key mapped to it does"}, func(e *Session, x call) { e.runPlug(x.arg) }, func(e *Session, _ string, start int, arg string, _ bool) (int, []string) {
+			return start, match(e.plugNames(), arg)
 		}},
 		{vim.Command{Name: "cnext", Short: []string{"cn"}, Help: "goes to the next place of the last list of places"}, func(e *Session, _ call) {
 			e.stepPlace(func(at, _ int) int { return at + 1 })
@@ -412,6 +416,33 @@ func helpCommands() []vim.Command {
 type plug struct {
 	name, help string
 	run        func(e *Session, count int)
+}
+
+// plugNames returns the name of each <Plug>, fude's and those of plugins'
+// keys.
+func (e *Session) plugNames() []string {
+	var names []string
+	for _, p := range plugs {
+		names = append(names, p.name)
+	}
+	for _, p := range e.plugins {
+		for _, r := range p.Registered {
+			if r.Kind == plugin.Key {
+				names = append(names, p.Name+"."+r.Name)
+			}
+		}
+	}
+	return names
+}
+
+// runPlug runs <Plug>(name) once the command line closes, as :plug does
+// (B271).
+func (e *Session) runPlug(name string) {
+	if !slices.Contains(e.plugNames(), name) {
+		e.message = "no plug is called " + name
+		return
+	}
+	e.later = append(e.later, vim.Keys("<Plug>("+name+")")...)
 }
 
 // request is the plug that sends the language server request of name.

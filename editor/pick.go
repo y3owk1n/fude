@@ -102,8 +102,8 @@ func recentFiles(current string) (here, elsewhere []string, err error) {
 	return here, elsewhere, nil
 }
 
-// pickCommands opens the finder on every ex command, each by what it does,
-// as :pick commands does. The one chosen runs, or waits on the command line
+// pickCommands opens the finder on every ex command and :plug of each
+// <Plug>, each by what it does, as :pick commands does. The one chosen runs, or waits on the command line
 // for the argument it needs (B266).
 func (e *Session) pickCommands() {
 	type command struct{ name, args, help string }
@@ -113,6 +113,9 @@ func (e *Session) pickCommands() {
 	}
 	for _, name := range slices.Sorted(maps.Keys(e.commands)) {
 		all = append(all, command{name, "", cmp.Or(e.pluginHelp[":"+name], "a plugin's command")})
+	}
+	for _, name := range e.plugNames() {
+		all = append(all, command{"plug " + name, "", e.mappingText("<Plug>(" + name + ")")})
 	}
 	nameW := 0
 	for _, c := range all {

@@ -20,7 +20,7 @@ The left side is the keys typed and the right side the keys they run,
 written with names such as `<CR>`, `<Esc>`, `<Space>`, `<C-x>` for Ctrl+x
 and `<Leader>`. `<Leader>` stands for the `leader` setting, `<Space>`
 unless set. `<Plug>(name)` runs one of fude's commands, which
-`commands-for-keys` lists. A key mapped to `""` loses its mapping, fude's
+`commands-for-keys` lists, and `:plug name` runs one with no key. A key mapped to `""` loses its mapping, fude's
 own too, and `<Nop>` makes a key do nothing. The keys a mapping runs are
 never mapped again.
 

@@ -1792,6 +1792,30 @@ func TestB266PickCommands(t *testing.T) {
 	}
 }
 
+// B271
+func TestB271Plug(t *testing.T) {
+	e := withKit(t)
+	e.SetSize(100, 30)
+	// A plugin's key runs with no key typed.
+	feed(e, ":plug kit.gS<CR>")
+	settle(t, e, func() bool { return text(e) == "!ab cd\nef" })
+	// A name that is no plug says so.
+	if feed(e, ":plug nope<CR>"); e.Message() != "no plug is called nope" {
+		t.Errorf(":plug nope said %q", e.Message())
+	}
+	// :pick commands finds a plug by what it does.
+	shows := func(want string) bool { f, _ := e.Float(); return strings.Contains(f.Text, want) }
+	feed(e, ":pick commands<CR>lists the directory of the file")
+	settle(t, e, func() bool { return shows(":plug listing.up") })
+	feed(e, "<Esc><Esc>")
+	// Names complete, and fude's plugs run.
+	if feed(e, ":plug listing.u<Tab>"); e.Line() != ":plug listing.up" {
+		t.Errorf("<Tab> left the line %q", e.Line())
+	}
+	feed(e, "<CR>")
+	settle(t, e, func() bool { return strings.HasPrefix(text(e), "f") })
+}
+
 // B215
 func TestB215PickLists(t *testing.T) {
 	config(t, "[keymap.normal]\n\"zq\" = \":set number<CR>\"\n")
