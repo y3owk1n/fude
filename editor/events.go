@@ -202,12 +202,13 @@ func (e *Session) listen(p *plugin.Plugin) *listener {
 
 // handled does what p asked for when it heard of b at t. Its edits and
 // decorations apply only to the text it read, and an event about the newer
-// text follows when it changed since.
+// text follows when it changed since. Nothing applies to a closed buffer.
 func (e *Session) handled(p *plugin.Plugin, err error, b *buffer, t kernel.Snapshot, res plugin.Result) {
 	switch {
 	case !slices.Contains(e.plugins, p):
 	case err != nil:
 		e.unload(p, err)
+	case !slices.Contains(e.bufs, b):
 	case b.text.Snapshot().Version() == t.Version():
 		e.result(p, b, t, res)
 	}

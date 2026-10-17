@@ -1507,9 +1507,9 @@ func (e *Session) formatting(b *buffer, s *server, start, end int, answer func(k
 }
 
 // reformat applies edits for text t to b as one timeline node, and drops
-// them when b has changed since t.
+// them when b has changed since t or has closed.
 func (e *Session) reformat(b *buffer, t kernel.Snapshot, edits []kernel.Edit, label string) {
-	if len(edits) == 0 {
+	if len(edits) == 0 || !slices.Contains(e.bufs, b) {
 		return
 	}
 	if err := b.text.Apply(kernel.Transaction{Base: t.Version(), Origin: e.origin, Label: label, Time: e.now(), Edits: edits}); err != nil {

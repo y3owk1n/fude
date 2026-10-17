@@ -711,7 +711,8 @@ Where fude departs, the line says so and cites the departure in
   timeline that is left persists as B33 says.
 - B34 [2] After a crash, opening the file offers to recover every edit made
   since the last save, and `:recover` brings them back. Declining keeps them
-  on the timeline as a branch.
+  on the timeline as a branch. A formatter's or plugin's answer that comes
+  after its buffer closed is dropped, so it leaves nothing to recover.
 - B35 [2] `g-` and `g+` move through every node in time order across
   branches. `:earlier` and `:later` take a count, a time (`10m`) or saves
   (`1f`).

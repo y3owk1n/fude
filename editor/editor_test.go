@@ -1915,6 +1915,28 @@ func TestB34Recovery(t *testing.T) {
 	if lines := strings.Split(text(e), "\n"); len(lines) != 3 || !strings.HasPrefix(lines[1], "* 1") {
 		t.Errorf("without :recover, :timeline listed %q, want the unsaved state kept", lines)
 	}
+
+	// A formatter that answers after its buffer closed changes nothing, so
+	// there is nothing to recover.
+	dir := t.TempDir()
+	path, done := filepath.Join(dir, "g.txt"), filepath.Join(dir, "done")
+	change(t, path, "one\n")
+	config(t, fmt.Sprintf("[filetype.txt]\nformat = [\"up\"]\n[formatter.up]\ncommand = [\"sh\", \"-c\", \"sed s/one/ONE/; touch %s\"]\n", done))
+	e = start(t, path)
+	feed(e, ":format<CR>:bd!<CR>")
+	settle(t, e, func() bool { _, err := os.Stat(done); return err == nil })
+	for end := time.After(100 * time.Millisecond); ; {
+		select {
+		case f := <-e.Queue():
+			f()
+			continue
+		case <-end:
+		}
+		break
+	}
+	if e = start(t, path); strings.Contains(e.Message(), ":recover") {
+		t.Errorf("after a formatter answered a closed buffer, opening said %q", e.Message())
+	}
 }
 
 // run opens a file holding each case's text, feeds its keys and compares the
