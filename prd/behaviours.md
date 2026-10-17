@@ -799,6 +799,18 @@ Where fude departs, the line says so and cites the departure in
   insert `<C-s>` shows signature help. They exist only while a server is
   attached (N3). In a list they open, `<CR>` jumps to the place on its
   line. B142 changes this key.
+- B227 [5] `gra` shows the code actions in a menu at the cursor, or for
+  the selection in visual mode. Each row has its number, title and kind's
+  family, such as `quickfix` or `source`. Preferred actions come first,
+  then fixes, refactors and the rest. Disabled ones come last, dim. Beside
+  the menu, the selected action shows what it does. For an edit, that is
+  the lines it changes, removed after `-` and added after `+`, under each
+  file's name when it changes another file. Otherwise it is the command it
+  runs, or why it is disabled. fude resolves an action that needs it to
+  show it. `<C-n>`, `<C-p>`, `j`, `k` and
+  the arrows move the selection, `<CR>` takes it, a digit takes the action
+  it numbers, and any other key closes the menu. The edits of an action
+  undo as one step labelled code action.
 - B209 [5] With `highlight_colors` on, the colours a language server
   reports for a buffer show as B208's do, and the server is asked again
   after each change.

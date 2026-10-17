@@ -822,12 +822,12 @@ func TestB66Rename(t *testing.T) {
 
 // B66, for gra and insert <C-s>
 func TestB66ActionsAndSignature(t *testing.T) {
-	for _, c := range [][2]string{{"1<CR>", "hi x"}, {"2<CR>", "cmd x"}} {
+	for _, c := range [][2]string{{"1", "hi x"}, {"<C-n><CR>", "cmd x"}} {
 		e, log := withServer(t, "x\n", "utf-8")
 		heard(t, log, `"method":"textDocument/didOpen"`, 1)
 		feed(e, "gra")
 		settle(t, e, func() bool { _, ok := e.Float(); return ok })
-		if f, _ := e.Float(); f.Text != "1. Add hi\n2. Run cmd" {
+		if f, _ := e.Float(); f.Text != "1  Add hi\n2  Run cmd" {
 			t.Errorf("gra showed %q", f.Text)
 		}
 		feed(e, c[0])
@@ -843,6 +843,29 @@ func TestB66ActionsAndSignature(t *testing.T) {
 	settle(t, e, func() bool { _, ok := e.Signature(); return ok })
 	if s, _ := e.Signature(); !strings.HasPrefix(s.Text, "f(a int, b string)\n") || s.Text[s.Spans[0].Start:s.Spans[0].End] != "b string" {
 		t.Errorf("<C-s> showed %q with %v, want the signature with b string bold", s.Text, s.Spans)
+	}
+}
+
+// B227
+func TestB227ActionMenu(t *testing.T) {
+	e, log := withServer(t, "x\n", "utf-8")
+	heard(t, log, `"method":"textDocument/didOpen"`, 1)
+	// The selected action shows what it changes, and the next what it runs.
+	feed(e, "gra")
+	settle(t, e, func() bool { f, _ := e.Float(); return f.Doc != "" })
+	if f, _ := e.Float(); !strings.Contains(f.Doc, "-x\n+hi x") {
+		t.Errorf("Add hi previews %q", f.Doc)
+	}
+	if feed(e, "j"); func() string { f, _ := e.Float(); return f.Doc }() != "runs fake.run" {
+		f, _ := e.Float()
+		t.Errorf("Run cmd previews %q", f.Doc)
+	}
+	// <Esc> closes the menu and changes nothing.
+	if feed(e, "<Esc>"); text(e) != "x" {
+		t.Errorf("<Esc> left %q", text(e))
+	}
+	if _, ok := e.Float(); ok {
+		t.Error("the menu still shows after <Esc>")
 	}
 }
 

@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/core/kernel"
@@ -438,10 +439,17 @@ var attached = map[string]string{
 func (e *Session) syncKeys() {
 	if want := len(e.win.buf.servers) > 0; want != e.lspKeys {
 		for keys, name := range attached {
-			if want {
-				e.vim.Map(vim.Normal, keys, "<Plug>("+name+")")
-			} else {
-				e.vim.Unmap(vim.Normal, keys)
+			// Code actions take the selection in visual mode too (B227).
+			modes := []vim.Mode{vim.Normal}
+			if keys == "gra" {
+				modes = append(modes, vim.Visual)
+			}
+			for _, mode := range modes {
+				if want {
+					e.vim.Map(mode, keys, "<Plug>("+name+")")
+				} else {
+					e.vim.Unmap(mode, keys)
+				}
 			}
 		}
 		e.lspKeys = want
@@ -575,7 +583,7 @@ func (e *Session) rename(name string) {
 		if res == nil {
 			return
 		}
-		changed, problems := e.workspaceEdit(s, b, t, res)
+		changed, problems := e.workspaceEdit(s, b, t, res, "rename")
 		e.message = fmt.Sprintf("renamed in %d files", changed)
 		if len(problems) > 0 {
 			e.message = strings.Join(problems, "  ")
@@ -589,7 +597,7 @@ func (e *Session) rename(name string) {
 // that asked, if any, whose edits must apply to t, the text it asked about.
 // Another buffer's must apply to the version the server names, when it
 // names one.
-func (e *Session) workspaceEdit(s *server, from *buffer, t kernel.Snapshot, res json.RawMessage) (int, []string) {
+func (e *Session) workspaceEdit(s *server, from *buffer, t kernel.Snapshot, res json.RawMessage, label string) (int, []string) {
 	type textEdit struct {
 		Range   lsp.Range `json:"range"`
 		NewText string    `json:"newText"`
@@ -643,7 +651,7 @@ func (e *Session) workspaceEdit(s *server, from *buffer, t kernel.Snapshot, res 
 			problems = append(problems, stale)
 			continue
 		}
-		tx := kernel.Transaction{Base: base.Version(), Origin: e.origin, Label: "rename", Time: e.now()}
+		tx := kernel.Transaction{Base: base.Version(), Origin: e.origin, Label: label, Time: e.now()}
 		for _, ed := range f.edits {
 			tx.Edits = append(tx.Edits, kernel.Edit{Start: lsp.Offset(base, ed.Range.Start, enc), End: lsp.Offset(base, ed.Range.End, enc), Text: ed.NewText})
 		}
@@ -686,7 +694,7 @@ func (e *Session) served(s *server, method string, params json.RawMessage) any {
 		Edit json.RawMessage `json:"edit"`
 	}
 	json.Unmarshal(params, &p)
-	_, problems := e.workspaceEdit(s, nil, kernel.Snapshot{}, p.Edit)
+	_, problems := e.workspaceEdit(s, nil, kernel.Snapshot{}, p.Edit, "code action")
 	if len(problems) > 0 {
 		e.message = strings.Join(problems, "  ")
 	}
@@ -710,91 +718,307 @@ func section(settings map[string]any, name string) any {
 	return v
 }
 
-// pick is a numbered list of code actions. Typing a number and <CR> picks
-// one.
+// pick is a code action menu: the actions, the best first, and the one
+// selected (B227).
 type pick struct {
 	b       *buffer
 	t       kernel.Snapshot
-	actions []reply // each action and the server it is from
-	typed   string
+	actions []action
+	sel     int
 }
 
-// codeActions asks each server for the code actions at the cursor, with
-// the diagnostics it published on the cursor's line, and shows them to pick
-// from. With several servers, each action names its own (B66, B169).
+// action is a code action from a server, as the menu shows it.
+type action struct {
+	reply
+	title, kind, disabled string
+	preferred             bool
+	preview               string // what it changes, as a diff
+	spans                 []syntax.Span
+	resolving             bool
+}
+
+// codeActions asks each server for the code actions at the cursor, or for
+// the selection in visual mode, with the diagnostics it published on those
+// lines, and shows them to pick from. With several servers, each action
+// names its own (B66, B169, B227).
 func (e *Session) codeActions() {
 	b := e.win.buf
 	t, c, uri := b.text.Snapshot(), e.Cursor(), lsp.URI(b.file.path)
+	start, end := c, c
+	if sel, ok := e.Selection(); ok {
+		start, end = sel.Start, sel.End
+		e.settle(e.vim.Feed("<Esc>"))
+	}
 	// build runs off the loop, so this gathers the diagnostics first.
 	diags := map[*server][]json.RawMessage{}
 	for _, s := range b.servers {
 		diags[s] = []json.RawMessage{}
 		for _, d := range e.decos[diagnosed{s, b}] {
-			if d.raw != nil && t.LineOf(b.text.Mark(d.start)) == t.LineOf(c) {
+			if l := t.LineOf(b.text.Mark(d.start)); d.raw != nil && l >= t.LineOf(start) && l <= t.LineOf(end) {
 				diags[s] = append(diags[s], d.raw)
 			}
 		}
 	}
 	asked := ask(b.servers, "textDocument/codeAction", func(s *server, enc string) any {
-		p := lsp.Point(t, c, enc)
 		return map[string]any{
-			"textDocument": map[string]any{"uri": uri}, "range": lsp.Range{Start: p, End: p},
+			"textDocument": map[string]any{"uri": uri}, "range": lsp.Range{Start: lsp.Point(t, start, enc), End: lsp.Point(t, end, enc)},
 			"context": map[string]any{"diagnostics": diags[s]},
 		}
 	}, func(rs []reply) {
-		var actions []reply
+		var actions []action
 		for _, r := range rs {
 			var raws []json.RawMessage
 			json.Unmarshal(r.res, &raws)
 			for _, raw := range raws {
-				actions = append(actions, reply{r.s, raw})
+				var a struct {
+					Title       string `json:"title"`
+					Kind        string `json:"kind"`
+					IsPreferred bool   `json:"isPreferred"`
+					Disabled    *struct {
+						Reason string `json:"reason"`
+					} `json:"disabled"`
+				}
+				json.Unmarshal(raw, &a)
+				// A kind such as source.organizeImports shows as its family, source.
+				kind, _, _ := strings.Cut(a.Kind, ".")
+				act := action{reply: reply{r.s, raw}, title: a.Title, kind: kind, preferred: a.IsPreferred}
+				if a.Disabled != nil {
+					act.disabled = cmp.Or(a.Disabled.Reason, "disabled")
+				}
+				if len(rs) > 1 {
+					act.kind = strings.TrimSpace(act.kind + " " + r.s.name)
+				}
+				actions = append(actions, act)
 			}
 		}
 		if len(actions) == 0 {
 			e.message = "no code actions"
 			return
 		}
-		var lines []string
-		for i, a := range actions {
-			var title struct {
-				Title string `json:"title"`
+		// The preferred ones first, then fixes, refactors and the rest, each
+		// in the servers' order.
+		rank := func(a action) int {
+			switch {
+			case a.disabled != "":
+				return 4
+			case a.preferred:
+				return 0
+			case strings.HasPrefix(a.kind, "quickfix"):
+				return 1
+			case strings.HasPrefix(a.kind, "refactor"):
+				return 2
 			}
-			json.Unmarshal(a.res, &title)
-			line := fmt.Sprintf("%d. %s", i+1, title.Title)
-			if len(rs) > 1 {
-				line += " (" + a.s.name + ")"
-			}
-			lines = append(lines, line)
+			return 3
 		}
+		slices.SortStableFunc(actions, func(x, y action) int { return cmp.Compare(rank(x), rank(y)) })
 		e.pick = &pick{b: b, t: t, actions: actions}
-		e.float, e.floatSpans = strings.Join(lines, "\n"), nil
-		e.message = "type a number and <Enter>, or <Esc>"
+		e.showActions()
 	})
 	if !asked {
 		e.message = "no language server offers code actions"
 	}
 }
 
-// picking takes a key while code actions show: a digit, <BS>, <CR> to take
-// the action numbered, or anything else to cancel.
+// showActions draws the code action menu at the cursor, each action with
+// its number, title and kind, and the selected one's changes beside it.
+func (e *Session) showActions() {
+	p := e.pick
+	var s strings.Builder
+	var spans []syntax.Span
+	width := 0
+	for _, a := range p.actions {
+		width = max(width, utf8.RuneCountInString(a.title))
+	}
+	for i, a := range p.actions {
+		if i > 0 {
+			s.WriteByte('\n')
+		}
+		start := s.Len()
+		num := " "
+		if i < 9 {
+			num = strconv.Itoa(i + 1)
+		}
+		spans = append(spans, syntax.Span{Start: s.Len(), End: s.Len() + len(num), Name: "comment"})
+		s.WriteString(num + "  " + a.title)
+		if a.kind != "" {
+			s.WriteString(strings.Repeat(" ", width-utf8.RuneCountInString(a.title)+2))
+			spans = append(spans, syntax.Span{Start: s.Len(), End: s.Len() + len(a.kind), Name: "comment"})
+			s.WriteString(a.kind)
+		}
+		if a.disabled != "" {
+			spans = append(spans, syntax.Span{Start: start, End: s.Len(), Name: "comment"})
+		}
+		if i == p.sel {
+			spans = append(spans, syntax.Span{Start: start, End: s.Len(), Name: "menu.selected"})
+		}
+	}
+	e.float, e.floatSpans = s.String(), spans
+	e.doc, e.docSpans = e.actionPreview(p, p.sel)
+}
+
+// actionPreview returns what action i of p changes: each file's lines that
+// differ, with a line around them, or the command it runs, or why it is
+// disabled. An action that has neither edit nor command is resolved first,
+// when its server can, and shows once it is.
+func (e *Session) actionPreview(p *pick, i int) (string, []syntax.Span) {
+	a := &p.actions[i]
+	if a.disabled != "" {
+		return a.disabled, []syntax.Span{{Start: 0, End: len(a.disabled), Name: "comment"}}
+	}
+	if a.preview != "" {
+		return a.preview, a.spans
+	}
+	var raw struct {
+		Edit    json.RawMessage `json:"edit"`
+		Command json.RawMessage `json:"command"`
+		Data    json.RawMessage `json:"data"`
+	}
+	json.Unmarshal(a.res, &raw)
+	if raw.Edit == nil && raw.Command == nil && raw.Data != nil && resolvable(a.s) {
+		if !a.resolving {
+			a.resolving = true
+			a.s.client.Request("codeAction/resolve", func(string) any { return a.res }, func(res json.RawMessage) {
+				if res != nil && e.pick == p {
+					a.res = res
+					e.showActions()
+				}
+			})
+		}
+		return "", nil
+	}
+	if raw.Edit != nil {
+		a.preview, a.spans = e.editPreview(a.s, p, raw.Edit)
+	}
+	if a.preview == "" && raw.Command != nil {
+		// A command is an object, or a bare action's command is its name.
+		var c struct {
+			Title   string `json:"title"`
+			Command string `json:"command"`
+		}
+		if json.Unmarshal(raw.Command, &c) != nil {
+			json.Unmarshal(raw.Command, &c.Command)
+		}
+		a.preview = "runs " + cmp.Or(c.Title, c.Command)
+		a.spans = []syntax.Span{{Start: 0, End: len(a.preview), Name: "comment"}}
+	}
+	return a.preview, a.spans
+}
+
+// resolvable reports whether s resolves code actions.
+func resolvable(s *server) bool {
+	var p struct {
+		ResolveProvider bool `json:"resolveProvider"`
+	}
+	json.Unmarshal(s.client.Capability("codeActionProvider"), &p)
+	return p.ResolveProvider
+}
+
+// editPreview returns the lines a workspace edit changes, file by file as
+// a diff, under each file's name when it changes another file than p's.
+func (e *Session) editPreview(s *server, p *pick, edit json.RawMessage) (string, []syntax.Span) {
+	type textEdit struct {
+		Range   lsp.Range `json:"range"`
+		NewText string    `json:"newText"`
+	}
+	var w struct {
+		Changes         map[string][]textEdit `json:"changes"`
+		DocumentChanges []struct {
+			TextDocument struct {
+				URI string `json:"uri"`
+			} `json:"textDocument"`
+			Edits []textEdit `json:"edits"`
+		} `json:"documentChanges"`
+	}
+	json.Unmarshal(edit, &w)
+	files := maps.Clone(w.Changes)
+	if files == nil {
+		files = map[string][]textEdit{}
+	}
+	for _, d := range w.DocumentChanges {
+		files[d.TextDocument.URI] = d.Edits
+	}
+	var out strings.Builder
+	var spans []syntax.Span
+	for _, uri := range slices.Sorted(maps.Keys(files)) {
+		u, err := url.Parse(uri)
+		if err != nil {
+			continue
+		}
+		var before kernel.Snapshot
+		switch i := slices.IndexFunc(e.bufs, func(b *buffer) bool { return b.is(u.Path) }); {
+		case p.b.is(u.Path):
+			before = p.t
+		case i >= 0:
+			before = e.bufs[i].text.Snapshot()
+		default:
+			data, err := os.ReadFile(u.Path)
+			if err != nil {
+				continue
+			}
+			before = kernel.New(strings.TrimSuffix(string(data), "\n"), nil).Snapshot()
+		}
+		enc := s.client.Encoding()
+		var edits []kernel.Edit
+		for _, ed := range files[uri] {
+			edits = append(edits, kernel.Edit{Start: lsp.Offset(before, ed.Range.Start, enc), End: lsp.Offset(before, ed.Range.End, enc), Text: ed.NewText})
+		}
+		slices.SortStableFunc(edits, func(x, y kernel.Edit) int { return cmp.Compare(x.Start, y.Start) })
+		after := before.Slice(0, before.Len())
+		for _, ed := range slices.Backward(edits) {
+			after = after[:ed.Start] + ed.Text + after[ed.End:]
+		}
+		if !p.b.is(u.Path) || len(files) > 1 {
+			name := filepath.Base(u.Path)
+			spans = append(spans, syntax.Span{Start: out.Len(), End: out.Len() + len(name), Name: "markup.heading"})
+			out.WriteString(name + "\n")
+		}
+		// A run of changes after the first shows after ⋯, and none says
+		// where it is.
+		for i, l := range strings.Split(unified(lineDiff(strings.Split(before.Slice(0, before.Len()), "\n"), strings.Split(after, "\n")), 1), "\n") {
+			switch {
+			case l == "" || strings.HasPrefix(l, "@@") && i == 0:
+				continue
+			case strings.HasPrefix(l, "@@"):
+				l = "⋯"
+			}
+			if style := map[byte]string{'-': "diff.minus", '+': "diff.plus"}[l[0]]; style != "" {
+				spans = append(spans, syntax.Span{Start: out.Len(), End: out.Len() + len(l), Name: style})
+			}
+			out.WriteString(l + "\n")
+		}
+	}
+	return strings.TrimSuffix(out.String(), "\n"), spans
+}
+
+// picking takes a key while code actions show. <C-n>, <C-p>, j, k and the
+// arrows move the selection, <CR> takes the selected action and a digit the
+// one it numbers, and any other key closes the menu.
 func (e *Session) picking(k vim.Key) {
 	p := e.pick
-	switch {
-	case len(k) == 1 && k[0] >= '0' && k[0] <= '9':
-		p.typed += string(k)
-	case k == "<BS>" && p.typed != "":
-		p.typed = p.typed[:len(p.typed)-1]
-	case k == "<CR>":
-		e.pick, e.float = nil, ""
-		if n, err := strconv.Atoi(p.typed); err == nil && n >= 1 && n <= len(p.actions) {
-			e.act(p, p.actions[n-1])
+	switch k {
+	case "<C-n>", "<Down>", "j", "\t":
+		p.sel = (p.sel + 1) % len(p.actions)
+	case "<C-p>", "<Up>", "k", "<S-Tab>":
+		p.sel = (p.sel + len(p.actions) - 1) % len(p.actions)
+	case "<CR>", "1", "2", "3", "4", "5", "6", "7", "8", "9":
+		i := p.sel
+		if k != "<CR>" {
+			i = int(k[0] - '1')
+		}
+		e.pick, e.float, e.doc, e.docSpans = nil, "", "", nil
+		switch {
+		case i >= len(p.actions):
+		case p.actions[i].disabled != "":
+			e.message = p.actions[i].title + ": " + p.actions[i].disabled
+		default:
+			e.act(p, p.actions[i].reply)
 		}
 		return
 	default:
-		e.pick, e.float = nil, ""
+		e.pick, e.float, e.doc, e.docSpans = nil, "", "", nil
 		return
 	}
-	e.message = "type a number and <Enter>, or <Esc>: " + p.typed
+	e.showActions()
 }
 
 // act takes a code action from its server: it applies its edit and runs its
@@ -809,11 +1033,7 @@ func (e *Session) act(p *pick, a reply) {
 		Data      json.RawMessage `json:"data"`
 	}
 	json.Unmarshal(raw, &action)
-	var resolve struct {
-		ResolveProvider bool `json:"resolveProvider"`
-	}
-	json.Unmarshal(s.client.Capability("codeActionProvider"), &resolve)
-	if action.Edit == nil && action.Command == nil && action.Data != nil && resolve.ResolveProvider {
+	if action.Edit == nil && action.Command == nil && action.Data != nil && resolvable(s) {
 		s.client.Request("codeAction/resolve", func(string) any { return raw }, func(res json.RawMessage) {
 			if res != nil {
 				e.act(p, reply{s, res})
@@ -822,7 +1042,7 @@ func (e *Session) act(p *pick, a reply) {
 		return
 	}
 	if action.Edit != nil {
-		if _, problems := e.workspaceEdit(s, p.b, p.t, action.Edit); len(problems) > 0 {
+		if _, problems := e.workspaceEdit(s, p.b, p.t, action.Edit, "code action"); len(problems) > 0 {
 			e.message = strings.Join(problems, "  ")
 			return
 		}
