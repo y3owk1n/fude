@@ -35,13 +35,19 @@ func (m *Machine) searchMatch(t Text, c int, back bool) (int, int, error) {
 	if !ok {
 		return 0, 0, errors.New("pattern not found: " + m.search.pattern)
 	}
-	ls = LineStart(t, at)
+	return at, p.endAt(t, at), nil
+}
+
+// endAt returns where the match of p that starts at at ends, or the end of
+// the character at at when none starts there.
+func (p *pattern) endAt(t Text, at int) int {
+	ls := LineStart(t, at)
 	for _, mt := range p.all(t.Slice(ls, LineEnd(t, at))) {
 		if s, e := p.span(mt); ls+s == at {
-			return at, ls + e, nil
+			return ls + e
 		}
 	}
-	return at, next(t, at, LineEnd(t, at)), nil
+	return next(t, at, LineEnd(t, at))
 }
 
 // selectMatch selects the match gn or gN finds in visual mode.
@@ -108,13 +114,7 @@ func (m *Machine) addRegion() error {
 			pos, wrapped = 0, true
 			continue
 		}
-		end := at + 1
-		ls := LineStart(t, at)
-		for _, mt := range p.all(t.Slice(ls, LineEnd(t, at))) {
-			if s, e := p.span(mt); ls+s == at {
-				end = ls + e
-			}
-		}
+		end := p.endAt(t, at)
 		if !slices.ContainsFunc(m.regions, func(r region) bool { return at < r.end && r.start < end }) {
 			m.regions = append(m.regions, region{start: at, end: end})
 			slices.SortFunc(m.regions, func(a, b region) int { return a.start - b.start })

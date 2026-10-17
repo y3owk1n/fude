@@ -391,12 +391,13 @@ func (m *Machine) put(reg rune, after bool, n int) error {
 
 // lineRanges returns the text r covers on each of its lines, without line
 // breaks: a block's columns, or else from its start to its end.
-func lineRanges(t Text, r region, tab int) [][2]int {
+func (m *Machine) lineRanges(t Text, r region) [][2]int {
 	var out [][2]int
 	for a := r.start; ; {
 		le := LineEnd(t, a)
 		rg := [2]int{a, min(le, r.end)}
 		if r.block {
+			tab := m.h.TabWidth()
 			rg = [2]int{colStart(t, a, r.left, tab), le}
 			if r.right != math.MaxInt {
 				rg[1] = colStart(t, a, r.right+1, tab)
@@ -413,18 +414,17 @@ func lineRanges(t Text, r region, tab int) [][2]int {
 // actBlock applies d, c or y to the columns of a block. c inserts on the
 // first line, and leaving insert mode copies the text to the other lines.
 func (m *Machine) actBlock(op string, reg rune, label string, r region) error {
-	tab := m.h.TabWidth()
 	t := m.h.Text()
 	var texts []string
 	var edits []Edit
-	for _, rg := range lineRanges(t, r, tab) {
+	for _, rg := range m.lineRanges(t, r) {
 		texts = append(texts, t.Slice(rg[0], rg[1]))
 		if rg[0] < rg[1] {
 			edits = append(edits, Edit{Start: rg[0], End: rg[1]})
 		}
 	}
 	m.store(reg, op, register{text: strings.Join(texts, "\n"), block: true})
-	top := colStart(t, r.start, r.left, tab)
+	top := colStart(t, r.start, r.left, m.h.TabWidth())
 	switch op {
 	case "y":
 		m.h.SetCursor(top)

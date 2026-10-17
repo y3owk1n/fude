@@ -371,21 +371,7 @@ func block(t Text, c, n int, open, close byte, around bool) (region, bool) {
 		}
 		o = c + i
 	}
-	cl, depth := -1, 0
-	for p := o + 1; p < t.Len(); p++ {
-		switch at(t, p) {
-		case open:
-			depth++
-		case close:
-			if depth == 0 {
-				cl = p
-			}
-			depth--
-		}
-		if cl >= 0 {
-			break
-		}
-	}
+	cl := closer(t, o, open, close)
 	if cl < 0 {
 		return region{}, false
 	}
@@ -397,6 +383,23 @@ func block(t Text, c, n int, open, close byte, around bool) (region, bool) {
 		return region{start: o + 2, end: end, lines: true}, end >= o+2
 	}
 	return region{start: o + 1, end: cl}, true
+}
+
+// closer returns the close that pairs with the open at o, or -1.
+func closer(t Text, o int, open, close byte) int {
+	depth := 0
+	for p := o + 1; p < t.Len(); p++ {
+		switch at(t, p) {
+		case open:
+			depth++
+		case close:
+			if depth == 0 {
+				return p
+			}
+			depth--
+		}
+	}
+	return -1
 }
 
 // outer returns the n-th unmatched open before c, or -1.

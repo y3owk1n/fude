@@ -6,7 +6,6 @@ import (
 )
 
 func (m *Machine) insert(k Key) error {
-	tab := m.h.TabWidth()
 	t, c := m.h.Text(), m.h.Cursor()
 	if k != "<Up>" && k != "<Down>" {
 		m.wantSet = false
@@ -32,7 +31,7 @@ func (m *Machine) insert(k Key) error {
 	}
 	if k == "\t" && m.expandTab {
 		iw := m.h.IndentWidth()
-		return m.typeText(strings.Repeat(" ", iw-column(t, LineStart(t, c), c, tab)%iw))
+		return m.typeText(strings.Repeat(" ", iw-column(t, LineStart(t, c), c, m.h.TabWidth())%iw))
 	}
 	if k.isChar() {
 		if err := m.closeIndent(t, c, string(k)); err != nil {
@@ -199,7 +198,6 @@ func moveKey(m *Machine, t Text, c int, k Key) error {
 // from c in insert mode. <Up> and <Down> keep the column, or go to the end
 // of a shorter line.
 func (m *Machine) insertMove(t Text, c int, k Key) int {
-	tab := m.h.TabWidth()
 	start := LineStart(t, c)
 	switch k {
 	case "<Left>":
@@ -218,7 +216,7 @@ func (m *Machine) insertMove(t Text, c int, k Key) int {
 	if line == start {
 		return c
 	}
-	if p := m.toLine(t, c, line); column(t, line, LineEnd(t, line), tab) > m.want {
+	if p := m.toLine(t, c, line); column(t, line, LineEnd(t, line), m.h.TabWidth()) > m.want {
 		return p
 	}
 	return LineEnd(t, line)
@@ -424,11 +422,10 @@ func (m *Machine) dropIndent() error {
 // indentLine shifts the cursor's line one indent width in for <C-t>, or out for
 // <C-d>, keeping the cursor on the same text.
 func (m *Machine) indentLine(in bool) error {
-	tab := m.h.TabWidth()
 	t, c := m.h.Text(), m.h.Cursor()
 	ls := LineStart(t, c)
 	ind := firstNonBlank(t, ls, LineEnd(t, ls))
-	w := column(t, ls, ind, tab)
+	w := column(t, ls, ind, m.h.TabWidth())
 	if in {
 		w += m.h.IndentWidth()
 	} else {

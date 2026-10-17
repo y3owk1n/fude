@@ -290,7 +290,6 @@ func findNumber(line string, col int) (int, int, int) {
 
 // changeCase applies g~, gu or gU to r and puts the cursor at its start.
 func (m *Machine) changeCase(op, label string, r region) error {
-	tab := m.h.TabWidth()
 	t := m.h.Text()
 	f := swapCase
 	switch op {
@@ -299,7 +298,7 @@ func (m *Machine) changeCase(op, label string, r region) error {
 	case "gU":
 		f = strings.ToUpper
 	}
-	ranges := lineRanges(t, r, tab)
+	ranges := m.lineRanges(t, r)
 	var edits []Edit
 	for _, rg := range ranges {
 		if rg[0] < rg[1] {

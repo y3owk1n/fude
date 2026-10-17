@@ -139,11 +139,10 @@ var visualOps = map[string]visualOp{
 // replaceSelection replaces every character of the selection with k,
 // keeping its line breaks.
 func (m *Machine) replaceSelection(k Key) error {
-	tab := m.h.TabWidth()
 	r := m.selection()
 	m.leaveVisual()
 	t := m.h.Text()
-	ranges := lineRanges(t, r, tab)
+	ranges := m.lineRanges(t, r)
 	var edits []Edit
 	for _, rg := range ranges {
 		n := 0
@@ -168,7 +167,6 @@ func (m *Machine) replaceSelection(k Key) error {
 // delete's does. A line register goes on lines of its own, and lines take
 // other text as a line.
 func (m *Machine) putOver(reg rune, keep bool, n int) error {
-	tab := m.h.TabWidth()
 	reg, put, ok, err := m.fetchPut(reg)
 	switch {
 	case err != nil:
@@ -180,7 +178,7 @@ func (m *Machine) putOver(reg rune, keep bool, n int) error {
 	m.leaveVisual()
 	t := m.h.Text()
 	text := strings.Repeat(put.text, n)
-	ranges := lineRanges(t, r, tab)
+	ranges := m.lineRanges(t, r)
 	var edits []Edit
 	var old []string
 	switch {

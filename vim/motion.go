@@ -318,17 +318,8 @@ func match(t Text, c int) (int, bool) {
 		q := outer(t, p, 1, open, close)
 		return q, q >= 0
 	}
-	depth := 0
-	for q := p + 1; q < t.Len(); q++ {
-		switch at(t, q) {
-		case open:
-			depth++
-		case close:
-			if depth == 0 {
-				return q, true
-			}
-			depth--
-		}
+	if q := closer(t, p, open, close); q >= 0 {
+		return q, true
 	}
 	return c, false
 }
