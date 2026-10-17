@@ -85,7 +85,6 @@ func (w *window) numberCols() int {
 // cols is how many columns of text the window shows on a row.
 func (w *window) cols() int { return max(w.w-w.gutter(), 1) }
 
-// rows is how many rows the line at start takes in the window.
 // prevLine returns the start of the line shown before the one at start,
 // over a closed fold, or 0.
 func (w *window) prevLine(t kernel.Snapshot, start int) int {
@@ -107,6 +106,8 @@ func (w *window) nextLine(t kernel.Snapshot, start int) (int, bool) {
 	return t.LineStart(last + 1), true
 }
 
+// rows is how many rows the line at start takes in the window, with tabs
+// tab columns wide.
 func (w *window) rows(t kernel.Snapshot, start, tab int) int {
 	if !w.opts.Wrap {
 		return 1
@@ -425,8 +426,6 @@ func (e *Session) only() {
 	e.layout()
 }
 
-// moveTo moves to the window next to the current one in direction d, one of
-// h, j, k and l, on the cursor's row or column.
 // navigate moves to the window in direction d, h, j, k or l, or inside
 // tmux to the pane there when there is no window (B140).
 func (e *Session) navigate(d byte) {
@@ -443,6 +442,8 @@ func (e *Session) navigate(d byte) {
 	}
 }
 
+// moveTo moves to the window next to the current one in direction d, one of
+// h, j, k and l, on the cursor's row or column.
 func (e *Session) moveTo(d byte) {
 	w := e.win
 	t := w.buf.text.Snapshot()

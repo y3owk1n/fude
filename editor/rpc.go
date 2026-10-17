@@ -434,8 +434,8 @@ type pulled struct {
 	Version kernel.Version `json:"version"`
 	Edits   [][]wireEdit   `json:"edits,omitempty"`
 	Text    *string        `json:"text,omitempty"`
-	Indent  int            `json:"indent"` // the columns > and < shift by, from config.toml
-	Tab     int            `json:"tab"`    // the columns a tab shows as, from config.toml
+	Indent  int            `json:"indent"` // the columns > and < shift by in the buffer
+	Tab     int            `json:"tab"`    // the columns a tab shows as in the buffer
 }
 
 // pull returns buffer id's edits since version, and shows the buffer in the

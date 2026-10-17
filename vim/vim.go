@@ -93,9 +93,8 @@ type Host interface {
 // Defaults is the part of a Host a host may leave out by embedding it. It
 // has no undo history, jumps, changes or system clipboard, ignores what
 // reaches Unhandled, shows a tab as Tabstop columns, indents by as many and
-// has no folds. A host
-// then writes
-// Text, Cursor, SetCursor, Apply, SetMark, Mark, Viewport and SetTop.
+// has no folds. A host then writes Text, Cursor, SetCursor, Apply, SetMark,
+// Mark, Viewport and SetTop.
 type Defaults struct{}
 
 func (Defaults) BeginGroup()                {}

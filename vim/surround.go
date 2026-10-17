@@ -4,7 +4,7 @@ import "strings"
 
 // Surround makes ys{motion}{char}, yss{char}, S{char} in visual mode,
 // ds{char} and cs{old}{new} add, delete and change the brackets or quotes
-// around text, as vim-surround does (B219).
+// around text (B219).
 func (m *Machine) Surround(on bool) { m.surround = on }
 
 // charWait is a command waiting for the characters typed after it.

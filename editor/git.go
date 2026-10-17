@@ -19,7 +19,7 @@ func hasGit() bool {
 	return err == nil
 }
 
-// The signs of git changes, as gitsigns shows them, by kind.
+// The signs of git changes, by kind.
 var (
 	gitAdd          = Sign{"┃", "git.add"}
 	gitChange       = Sign{"┃", "git.change"}
@@ -79,7 +79,7 @@ func gitBranch(dir string) string {
 	return strings.TrimSpace(string(out))
 }
 
-// gitBase reads path as git's index has it, the text gitsigns compares
+// gitBase reads path as git's index has it, the text the signs compare
 // with, or false when the file is not in a repository's index.
 func gitBase(path string) (string, bool) {
 	abs, err := filepath.Abs(path)

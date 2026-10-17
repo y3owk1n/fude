@@ -571,7 +571,7 @@ func match(paths []string, query string) []string {
 	return out
 }
 
-// The scores of fzy's algorithm, which ranks as matchfuzzy() does.
+// The scores of fzy's algorithm, which ranks the finder's matches (B129).
 const (
 	gapLeading   = -0.005
 	gapTrailing  = -0.005

@@ -6,8 +6,8 @@ import (
 )
 
 // With the icons option, a listing shows a nerd font icon left of each
-// name, in mini.icons' glyphs and colours. Diagnostic signs show icons in
-// place of letters (B128).
+// name, in its file kind's colour. Diagnostic signs show icons in place of
+// letters (B128).
 var (
 	dirIcon  = Sign{"\U000f024b", "icon.azure"}
 	fileIcon = Sign{"\U000f0214", "icon.grey"}

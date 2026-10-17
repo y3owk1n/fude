@@ -82,13 +82,12 @@ func (e *Session) completing(k vim.Key) bool {
 	return true
 }
 
-// complete asks the current buffer's servers what may go at the cursor, and
-// shows their answers as one menu with its first item in the text, or with
-// complete lists completions for the word before the cursor from the
-// sources completion_sources names, in its order, each text once: a
-// language server's, the entries of the directory a path before the
-// cursor names, and words of the open buffers. With auto it only shows
-// them, and says nothing when there are none (B64, B206).
+// complete lists completions for the word before the cursor as one menu,
+// with its first item in the text, from the sources completion_sources
+// names, in its order, each text once: the current buffer's servers, the
+// entries of the directory a path before the cursor names, snippets and
+// the words of the open buffers. With auto it only shows them, and says
+// nothing when there are none (B64, B206).
 func (e *Session) complete(auto bool) {
 	b := e.win.buf
 	t, c := b.text.Snapshot(), e.Cursor()

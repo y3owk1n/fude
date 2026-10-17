@@ -67,7 +67,7 @@ type styles struct {
 	underlines map[string]color.Color
 	// signColours are the colours of signs and icons: diagnostics' as they
 	// underline, git's in its add, change and delete colours, and icons' by
-	// the names mini.icons gives them.
+	// colour name.
 	signColours map[string]color.Color
 }
 

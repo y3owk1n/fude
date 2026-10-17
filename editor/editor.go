@@ -437,7 +437,7 @@ func (e *Session) Feed(k vim.Key) {
 		e.feed(k)
 	}
 	// A cursor that lands inside a closed fold, past its first line, opens
-	// it, as search, G and marks do in Neovim (B224).
+	// it, as search, G and marks do (B224).
 	if t := e.Text(); len(e.win.folds) > 0 {
 		line := t.LineOf(e.Cursor())
 		if first, _ := e.win.fold(t, line); first != line {
@@ -1304,7 +1304,7 @@ func (e *Session) quitAll(force bool) {
 	}
 	for _, b := range e.bufs {
 		if b.modified() && !force {
-			e.message = fmt.Sprintf("no write since the last change to \"%s\" (add ! to override)", b.name())
+			e.message = fmt.Sprintf("\"%s\" has unsaved changes, ! drops them", b.name())
 			return
 		}
 	}
@@ -1447,7 +1447,7 @@ func (e *Session) find(s string) *buffer {
 // it move to the next buffer, or to a new empty buffer if none is left.
 func (e *Session) close(b *buffer, force bool) {
 	if b.modified() && !force {
-		e.message = fmt.Sprintf("no write since the last change to \"%s\" (add ! to override)", b.name())
+		e.message = fmt.Sprintf("\"%s\" has unsaved changes, :bd! drops them", b.name())
 		return
 	}
 	e.detach(b)
@@ -1671,8 +1671,7 @@ func (h host) Change(n int) bool {
 
 func (h host) Step(n int) (int, bool) { return h.e.step(n) }
 
-// IndentWidth is the setting for the buffer's filetype, else the top-level
-// one.
+// IndentWidth and TabWidth are the current buffer's.
 func (h host) IndentWidth() int { return h.e.indentWidth(h.e.win.buf) }
 func (h host) TabWidth() int    { return h.e.tabWidth(h.e.win.buf) }
 
@@ -1680,8 +1679,9 @@ func (h host) TabWidth() int    { return h.e.tabWidth(h.e.win.buf) }
 // (B224).
 func (h host) Fold(line int) (int, int) { return h.e.win.fold(h.e.Text(), line) }
 
-// indentWidth is the columns an indent takes in b: its filetype's
-// indent_width, or else the global one, or else the tab width.
+// indentWidth is the columns an indent takes in b, from its .editorconfig,
+// or else its filetype's indent_width, or else the global one, or else the
+// tab width (B238).
 func (ed *Editor) indentWidth(b *buffer) int {
 	if n := b.ec.indent; n != nil && *n > 0 {
 		return *n
@@ -1698,8 +1698,9 @@ func (ed *Editor) indentWidth(b *buffer) int {
 	return int(w)
 }
 
-// tabWidth is the columns a tab shows as in b, from its filetype's
-// tab_width, or else the global one, or else vim's.
+// tabWidth is the columns a tab shows as in b, from its .editorconfig, or
+// else its filetype's tab_width, or else the global one, or else vim's
+// (B238).
 func (ed *Editor) tabWidth(b *buffer) int {
 	if n := b.ec.tab; n != nil {
 		return *n
