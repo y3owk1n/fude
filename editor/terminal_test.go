@@ -1,6 +1,7 @@
 package editor_test
 
 import (
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -70,16 +71,21 @@ func TestB228Tasks(t *testing.T) {
 	t.Setenv("SHELL", "/bin/sh")
 	dir := t.TempDir()
 	change(t, filepath.Join(dir, "Makefile"), "build:\n\techo b\n")
+	if err := os.MkdirAll(filepath.Join(dir, ".fude"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	change(t, filepath.Join(dir, ".fude", "tasks.toml"), "[task.lint]\ncommand = \"echo l\"\n")
 	change(t, filepath.Join(dir, "a.txt"), "one\ntwo\n")
 	t.Chdir(dir)
 	config(t, "[task.say]\ncommand = \"echo said {line}\"\n")
 	e := start(t, "a.txt")
 	e.SetSize(80, 24)
-	// :pick tasks lists config.toml's tasks and the Makefile's targets.
+	// :pick tasks lists config.toml's tasks, the project's and the
+	// Makefile's targets (B233).
 	feed(e, ":pick tasks<CR>")
 	settle(t, e, func() bool {
 		f, _ := e.Float()
-		return strings.Contains(f.Text, "say  config") && strings.Contains(f.Text, "build  make")
+		return strings.Contains(f.Text, "say  config") && strings.Contains(f.Text, "lint  project") && strings.Contains(f.Text, "build  make")
 	})
 	feed(e, "<Esc>")
 	// A task runs below, the cursor staying where it ran from, and its

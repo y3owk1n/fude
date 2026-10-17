@@ -2,6 +2,7 @@ package editor
 
 import (
 	"bufio"
+	"bytes"
 	"cmp"
 	"encoding/json"
 	"errors"
@@ -15,6 +16,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/pelletier/go-toml/v2"
 
 	"github.com/y3owk1n/fude/lsp"
 	"github.com/y3owk1n/fude/vim"
@@ -38,6 +41,8 @@ func findTasks(config map[string]taskConfig) ([]task, error) {
 		out = append(out, task{name: name, source: "config", command: config[name].Command})
 	}
 	var problems []error
+	project, err := projectTasks()
+	out, problems = append(out, project...), append(problems, err)
 	if _, err := os.Stat("justfile"); err == nil {
 		if _, err := exec.LookPath("just"); err == nil {
 			ts, err := justTasks()
@@ -68,6 +73,31 @@ func findTasks(config map[string]taskConfig) ([]task, error) {
 		problems = append(problems, fmt.Errorf("package.json: %w", err))
 	}
 	return out, errors.Join(problems...)
+}
+
+// projectTasks returns the [task.<name>] tables of the working directory's
+// .fude/tasks.toml, which holds tasks alone (B233).
+func projectTasks() ([]task, error) {
+	src, err := os.ReadFile(filepath.Join(".fude", "tasks.toml"))
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf(".fude/tasks.toml: %w", err)
+	}
+	var f struct {
+		Task map[string]taskConfig `toml:"task"`
+	}
+	d := toml.NewDecoder(bytes.NewReader(src))
+	d.DisallowUnknownFields()
+	if err := d.Decode(&f); err != nil {
+		return nil, fmt.Errorf(".fude/tasks.toml: %w", err)
+	}
+	var out []task
+	for _, name := range slices.Sorted(maps.Keys(f.Task)) {
+		out = append(out, task{name: name, source: "project", command: f.Task[name].Command})
+	}
+	return out, nil
 }
 
 // justTasks returns the justfile's public recipes, each with its doc

@@ -403,6 +403,9 @@ word under the cursor.
 command = "go test {dir}"
 ```
 
+A project's own tasks go in `.fude/tasks.toml` in its folder, as the same
+`[task.<name>]` tables and nothing else.
+
 ## plugin.path
 
 The plugin's WebAssembly file, from the folder of config.toml, such as

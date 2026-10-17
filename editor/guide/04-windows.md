@@ -61,8 +61,9 @@ runs when picked. `:pick` alone lists every source.
 ## Tasks
 
 `:pick tasks` lists the tasks of the working directory: those
-`config.toml` names under `[task.<name>]`, the justfile's recipes, the
-Makefile's targets and package.json's scripts. The one picked runs in a
+`config.toml` names under `[task.<name>]`, the project's in
+`.fude/tasks.toml`, the justfile's recipes, the Makefile's targets and
+package.json's scripts. The one picked runs in a
 terminal window below, while the cursor stays where it was, and the
 window's name says ✓ or ✗ and how long it took. `:task name` runs one
 directly, and `:task` alone runs the last one again. In its window, `q`

@@ -160,6 +160,11 @@ Where fude departs, the line says so and cites the departure in
   it, shows its window again instead of running it twice. When a task
   ends, the message says it ended and how long it took, or that it failed
   with its exit code, followed by B230's places.
+- B233 [2] A project's own tasks are the `[task.<name>]` tables of
+  `.fude/tasks.toml` in the working directory, listed as `project` beside
+  config.toml's. The file holds tasks alone, and an unknown key in it
+  says where. A task in it runs only when you pick or name it, as any
+  other does.
 - B201 [2] `fude dir`, with no other file, makes `dir` the working
   directory, so the finder, grep and relative paths start there. Helix's
   `hx dir` does the same.
