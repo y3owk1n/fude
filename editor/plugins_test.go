@@ -590,8 +590,16 @@ func TestB273PluginReadsLanguageAndCaptures(t *testing.T) {
 	e := loaded(t, "ctx", "a.go", "package p\n", "buffer.read", "buffer.write")
 	e.SetSize(80, 20)
 	captures(t, e)
-	if feed(e, ":Lang<CR>"); !strings.HasPrefix(text(e), "go|keyword|package") {
+	if feed(e, ":Lang<CR>"); !strings.HasPrefix(text(e), "go|keyword|") {
 		t.Errorf(":Lang typed %q, want go and the keyword capture", text(e))
+	}
+}
+
+// B275
+func TestB275PluginReadsCommentSyntax(t *testing.T) {
+	e := loaded(t, "ctx", "a.go", "package p\n", "buffer.read", "buffer.write")
+	if feed(e, ":Lang<CR>"); !strings.Contains(text(e), "|// %s|") {
+		t.Errorf(":Lang typed %q, want Go's comment syntax", text(e))
 	}
 }
 

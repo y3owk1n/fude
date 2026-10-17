@@ -260,6 +260,7 @@ func (p *Plugin) host(ctx context.Context) error {
 		NewFunctionBuilder().WithFunc(p.node).Export("node").
 		NewFunctionBuilder().WithFunc(p.language).Export("language").
 		NewFunctionBuilder().WithFunc(p.spans).Export("spans").
+		NewFunctionBuilder().WithFunc(p.comment).Export("comment").
 		NewFunctionBuilder().WithFunc(p.buffers).Export("buffers").
 		NewFunctionBuilder().WithFunc(p.lenOf).Export("len_of").
 		NewFunctionBuilder().WithFunc(p.textOf).Export("text_of").
@@ -398,6 +399,22 @@ func (p *Plugin) language(ctx context.Context, m api.Module, pos uint32) int64 {
 		return errRange
 	}
 	return give(ctx, m, p.call.Language(int(pos)))
+}
+
+// comment writes how the language at pos comments a line into memory the
+// plugin allocates, or returns errRange when fude knows none (B275).
+func (p *Plugin) comment(ctx context.Context, m api.Module, pos uint32) int64 {
+	if p.call == nil || !p.allowed("buffer.read", "comment") {
+		return errDenied
+	}
+	if p.call.Comment == nil || int(pos) > p.call.Text.Len() {
+		return errRange
+	}
+	cs, ok := p.call.Comment(int(pos))
+	if !ok {
+		return errRange
+	}
+	return give(ctx, m, cs)
 }
 
 // spans writes the start, end and name of each highlight capture over

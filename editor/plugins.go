@@ -509,6 +509,8 @@ func (e *Session) scope(b *buffer, t api.Text) api.Scope {
 			}
 		}
 	}
+	language := s.Language
+	s.Comment = func(pos int) (string, bool) { return syntax.Comment(language(pos)) }
 	return s
 }
 

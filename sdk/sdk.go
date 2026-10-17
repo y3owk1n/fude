@@ -111,6 +111,9 @@ func hostLanguage(pos uint32) int64
 //go:wasmimport fude spans
 func hostSpans(start, end uint32) int64
 
+//go:wasmimport fude comment
+func hostComment(pos uint32) int64
+
 //go:wasmimport fude buffers
 func hostBuffers() int64
 
@@ -463,6 +466,13 @@ func NodeAt(pos, up int) (Node, bool) {
 // of an injected region holding it, such as a code block. It needs
 // buffer.read.
 func Language(pos int) (string, error) { return answer(hostLanguage(uint32(pos))) }
+
+// Comment returns how the language at pos comments a line, such as
+// "// %s", or false when fude knows none. It needs buffer.read.
+func Comment(pos int) (string, bool) {
+	cs, err := answer(hostComment(uint32(pos)))
+	return cs, err == nil
+}
 
 // Span is a highlight capture over [Start, End), named as the query names
 // it, such as comment or string.

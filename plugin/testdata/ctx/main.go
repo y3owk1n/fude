@@ -9,8 +9,8 @@
 // in the message area. :Go pos moves the cursor to pos, and :Open path
 // opens the file at path with the cursor at 2. :Bufs types the id and text
 // of every open buffer, and :Node the kinds of the syntax node at the cursor
-// and its parent. :Lang types the language at the cursor and the names of
-// the captures over it.
+// and its parent. :Lang types the language at the cursor, the names of the
+// captures over it and its comment syntax.
 // :Hover asks the language server for hover at the cursor and types its
 // answer, or the error, at the start. Needs buffer.read, buffer.write, ui
 // and lsp.
@@ -73,14 +73,15 @@ func init() {
 		up, _ := sdk.NodeAt(c.Cursor, 1)
 		sdk.Edit(c.Cursor, c.Cursor, n.Kind+"|"+up.Kind+"|")
 	})
-	sdk.Command("Lang", "types the language at the cursor and the captures over its byte", func(c sdk.Call) {
+	sdk.Command("Lang", "types the language at the cursor, the captures over its byte and its comment syntax", func(c sdk.Call) {
 		lang, _ := sdk.Language(c.Cursor)
 		spans, _ := sdk.Spans(c.Cursor, c.Cursor+1)
 		var names []string
 		for _, s := range spans {
 			names = append(names, s.Name)
 		}
-		sdk.Edit(c.Cursor, c.Cursor, lang+"|"+strings.Join(names, ",")+"|")
+		cs, _ := sdk.Comment(c.Cursor)
+		sdk.Edit(c.Cursor, c.Cursor, lang+"|"+strings.Join(names, ",")+"|"+cs+"|")
 	})
 	sdk.Command("Hover", "types the server's hover", func(c sdk.Call) {
 		sdk.Request("textDocument/hover", c.Cursor, "", func(out string, err error) {

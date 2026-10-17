@@ -907,6 +907,8 @@ Where fude departs, the line says so and cites the departure in
   the highlight captures over a range, as their names and ranges.
 - B274 [4] A plugin reads an option by its name in config.toml, as the
   window has it, or a top-level setting of config.toml.
+- B275 [4] A plugin with `buffer.read` reads how the language at a
+  position comments a line, the syntax `gc` uses.
 - B190 [4] A plugin with `lsp` sends a request to the language servers of
   the buffer its call is about. fude fills in the document, and the
   position in each server's encoding when the plugin gives one. A function

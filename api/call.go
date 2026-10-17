@@ -93,6 +93,9 @@ type Scope struct {
 	// Spans returns the highlight captures over [start, end) of Text, in
 	// paint order, or none without a grammar (B273).
 	Spans func(start, end int) []Span
+	// Comment returns how the language at pos comments a line, such as
+	// "// %s", or false when fude knows none (B275).
+	Comment func(pos int) (string, bool)
 	// Option returns the option or config.toml setting called name there, as
 	// text, such as spell or spell_words, or false for none (B274).
 	Option func(name string) (string, bool)
