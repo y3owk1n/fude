@@ -82,6 +82,7 @@ type Ghost struct {
 
 // Views returns every window from the top left.
 func (e *Session) Views() []View {
+	e.follow()
 	shown := map[*buffer][]any{}
 	for _, s := range e.sessions {
 		for _, w := range s.root.windows() {

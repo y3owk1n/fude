@@ -87,6 +87,7 @@ func init() {
 			e.edit(x.arg)
 		}, completePath},
 		{vim.Command{Name: "enew", Help: "shows a new empty buffer"}, func(e *Session, _ call) { e.empty() }, nil},
+		{vim.Command{Name: "follow", Args: "{name}", Help: "keeps the window on what the session called name shows, until a key is typed"}, func(e *Session, x call) { e.startFollow(x.arg) }, nil},
 		{vim.Command{Name: "format", Help: "formats the buffer, or the lines of a range, as a write with format_on_save does, without writing it"}, func(e *Session, x call) {
 			if !x.ranged {
 				x.first, x.last = 0, e.win.buf.text.Snapshot().Len()

@@ -885,6 +885,61 @@ func TestB247ReadOnlyGuest(t *testing.T) {
 	}
 }
 
+// B256
+func TestB256Follow(t *testing.T) {
+	project, away := t.TempDir(), t.TempDir()
+	t.Chdir(project)
+	change(t, "a.txt", "a\n")
+	change(t, "b.txt", strings.Repeat("b\n", 100))
+	change(t, filepath.Join(away, "out.txt"), "out\n")
+	e := open(t, "a.txt")
+	e.SetName("host")
+	e.SetSize(80, 20)
+	pat := e.Attach("pat", editor.Host)
+	pat.SetSize(80, 20)
+	feed(pat, ":e b.txt<CR>50G")
+	// The window shows what pat's shows, and keeps up as pat moves.
+	same := func() bool {
+		v, w := e.Views()[0], pat.Views()[0]
+		return v.Name == w.Name && v.Cursor == w.Cursor && v.Top == w.Top
+	}
+	if feed(e, ":follow pat<CR>"); !same() {
+		t.Fatalf(":follow pat shows %s at %d, want pat's %s at %d", e.Views()[0].Name, e.Views()[0].Cursor, pat.Views()[0].Name, pat.Views()[0].Cursor)
+	}
+	if feed(pat, "90G"); !same() {
+		t.Errorf("after pat moved, the follower is at %d, want %d", e.Views()[0].Cursor, pat.Views()[0].Cursor)
+	}
+	// A key typed stops following.
+	feed(e, "k")
+	if feed(pat, "10G"); same() || e.Message() != "stopped following pat" {
+		t.Errorf("a key typed left the follower following, saying %q", e.Message())
+	}
+	// So does a paste.
+	feed(e, ":follow pat<CR>")
+	if e.Paste("x"); e.Message() != "stopped following pat" {
+		t.Errorf("a paste left the follower saying %q", e.Message())
+	}
+	// pat leaving stops it too.
+	feed(e, ":follow pat<CR>")
+	feed(pat, ":q<CR>")
+	if e.Views(); e.Message() != "pat left, so following stopped" {
+		t.Errorf("when pat left, the follower said %q", e.Message())
+	}
+	// A key's own message shows over that of following's end.
+	reader := e.Attach("reader", editor.ReadOnly)
+	feed(reader, ":follow host<CR>")
+	if feed(reader, "x"); reader.Message() != "cannot make changes, the session is read-only" {
+		t.Errorf("x in a following read-only session said %q", reader.Message())
+	}
+	// A guest follows only into files it may show.
+	guest := e.Attach("guest", editor.Guest)
+	feed(guest, ":follow host<CR>")
+	feed(e, ":e "+filepath.Join(away, "out.txt")+"<CR>")
+	if name := guest.Views()[0].Name; name != "b.txt" {
+		t.Errorf("a guest followed the host to %s", name)
+	}
+}
+
 // B37
 func TestB37Wrap(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "f")

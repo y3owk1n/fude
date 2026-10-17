@@ -71,8 +71,9 @@ cursor of each other session on its file as a cell in that session's
 colour, with its selection underlined, and its status line names them. A
 guest's keymaps, leader, window options and theme come from
 `config.toml` on its own machine. `fude --join --read-only` asks to only
-watch, so the guest's session changes no text. Quitting fude ends the
-share.
+watch, so the guest's session changes no text. `:follow name` keeps the
+window on what the session called name shows, until you type. Quitting
+fude ends the share.
 
 ## Clients
 

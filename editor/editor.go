@@ -67,9 +67,11 @@ type Editor struct {
 type Session struct {
 	*Editor
 	origin     kernel.Origin
-	power      Power  // how much the session may do (B243)
-	name       string // who uses the session, "" for a client that sent none (B252)
-	colour     int    // which of six colours shows the session to others (B252)
+	power      Power    // how much the session may do (B243)
+	name       string   // who uses the session, "" for a client that sent none (B252)
+	following  *Session // the session :follow keeps follower on (B256)
+	follower   *window
+	colour     int // which of six colours shows the session to others (B252)
 	root       *node
 	win        *window // the current window
 	vim        *vim.Machine
@@ -455,6 +457,7 @@ func (e *Session) Queue() <-chan func() { return e.queue }
 
 // Feed handles one key. An error becomes the message.
 func (e *Session) Feed(k vim.Key) {
+	defer e.unfollow()()
 	at, mode := time.Now(), e.vim.Mode()
 	defer func() { api.Trace("key", fmt.Sprintf("%q in %s", k, modes[mode]), time.Since(at)) }()
 	// While hints show, <Esc> drops the command being typed, held keys too,
@@ -665,6 +668,7 @@ func (e *Session) reveal() {
 
 // Paste inserts text as typed, with no key mapping applied (B8).
 func (e *Session) Paste(text string) {
+	defer e.unfollow()()
 	e.message = ""
 	if t := e.win.buf.term; t != nil && t.typing {
 		t.em.Paste(text)
