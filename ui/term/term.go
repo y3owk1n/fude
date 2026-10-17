@@ -528,7 +528,7 @@ func (c *client) view(v editor.View, left int, sel vim.Selection, visual bool) (
 		cursors = c.e.Cursors()
 	}
 	// win holds what every line of the window draws from.
-	win := sig(nil).int(v.X).int(v.Y).int(v.W).int(v.Left).flag(v.Wrap).flag(v.List).int(v.ColorColumn)
+	win := sig(nil).int(v.X).int(v.Y).int(v.W).int(v.Left).flag(v.Wrap).flag(v.List).int(v.ColorColumn).int(v.Tab).int(v.Indent)
 	// Pinned lines cover rows, so a change to them draws every row again.
 	for _, p := range v.Context {
 		win = win.int(p)

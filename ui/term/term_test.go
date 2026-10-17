@@ -126,7 +126,7 @@ func TestB197FrameAfterFrame(t *testing.T) {
 	if err := os.WriteFile(path, []byte(text), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	c := startWith(t, "number = true\nrelative_number = true\ncursor_line = true\n", path)
+	c := startWith(t, "number = true\nrelative_number = true\ncursor_line = true\n[filetype.txt]\ntab_width = 4\n", path)
 	// step feeds keys, draws, and compares each cell with a first frame's.
 	step := func(keys string) {
 		t.Helper()
@@ -182,6 +182,14 @@ func TestB197FrameAfterFrame(t *testing.T) {
 	step("ggO/*<Esc>")
 	step("Go*/<Esc>")
 	parsed(func() bool { return !keyword(1) })
+	// Renaming a file in a listing beside it changes its tab width, and its
+	// lines draw again.
+	if err := os.WriteFile(filepath.Join(filepath.Dir(path), "b.txt"), []byte("x\ty\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, keys := range []string{":w<CR>", ":only<CR>", ":e " + filepath.Join(filepath.Dir(path), "b.txt") + "<CR>", ":vsplit<CR>", "-", "Cb.text<Esc>", ":w<CR>", "y"} {
+		step(keys)
+	}
 }
 
 // B199
