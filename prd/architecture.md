@@ -1013,7 +1013,7 @@ host it may not reach or a request that failed.
 | `line_of(pos) -> i32` | `buffer.read` | the line that holds `pos`, from 0 |
 | `line_start(line) -> i32` | `buffer.read` | where `line` starts |
 | `edit(start, end, ptr, len) -> i32` | `buffer.write` | asks to replace `[start, end)` |
-| `register(kind, name, nlen, help, hlen, id) -> i32` | none, in init only | adds a command, operator, object, key or plug that `call` runs by id, with the help `:h` and the key hints show |
+| `register(kind, name, nlen, help, hlen, id) -> i32` | none, in init only | adds a command, operator, object, key, plug or :pick source that `call` runs by id, with the help `:h` and the key hints show |
 | `subscribe(ptr, len) -> i32` | none, in `init` only | hears the event named through `on_event` |
 | `emit(ptr, len) -> i32` | none | emits the event `plugin.name` about the buffer the call read |
 | `set_option(ptr, len) -> i32` | none | sets the option named before a NUL to the value after it, on the buffer the call is about: `expand_tab`, `indent_width` or `tab_width` (B283) |
@@ -1025,7 +1025,7 @@ host it may not reach or a request that failed.
 | `run(ptr, len) -> i64` | `process` | what the program prints, run with its arguments, NUL-separated, in the project. It must be in the plugin's `programs`, and the call's budget stops it (B48) |
 | `http_get(ptr, len) -> i64` | `net` | the body of the http or https URL, up to 16MB. Its host, and any host a redirect leads to, must be in the plugin's `hosts`, and the call's budget stops the request (B49) |
 | `show(ptr, len, sptr, slen) -> i32` | `ui` | shows the title, filetype and text, NUL-separated, in a read-only window, or in place of what the window of that title shows, styled by the spans at `sptr`, each a start, end and style followed by a NUL (B186, B276) |
-| `pick(ptr, len, id) -> i32` | `ui` | shows a prompt and the items after it, NUL-separated, in the finder. With no items it asks the prompt as a question. Then it runs `callback(id)`, whose `context` has `picked`, the item's index or -1, `text`, what was typed, and `ok`, false when cancelled (B185) |
+| `pick(ptr, len, flags, id) -> i32` | `ui` | shows a prompt, title, hint and query, then the items, all NUL-separated, in the finder. With no items it asks the prompt as a question. `flags` holds live as its first bit and places as its second. Then it runs `callback(id)`, whose `context` has `picked`, the item's index or -1, `item`, `text`, what was typed, and `ok`, false when cancelled. A live list runs it with `query` and `all` at each change, and a `pick` with the same `id` then gives the items (B185, B285, B286) |
 | `jump(pos) -> i32` | `ui` | moves the cursor to `pos` once the call and its edits are done, when the current window shows the buffer the call was about (B187) |
 | `open(pos, ptr, len) -> i32` | `ui` | opens the file at the path, relative to the project, in the current window with the cursor at `pos`. It refuses a path that leads outside the project, as `read_file` does (B187) |
 | `float(ptr, len) -> i32` | `ui` | shows the markdown in a float at the cursor, or closes it for "" (B59) |

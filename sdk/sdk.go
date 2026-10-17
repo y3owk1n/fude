@@ -69,6 +69,7 @@ const (
 	kindKey
 	kindInsert
 	kindPlug
+	kindSource
 )
 
 // The functions fude gives a plugin.
@@ -167,7 +168,7 @@ func hostShow(ptr *byte, n uint32, sptr *byte, sn uint32) int32
 func hostJump(pos uint32) int32
 
 //go:wasmimport fude pick
-func hostPick(ptr *byte, n uint32, id uint32) int32
+func hostPick(ptr *byte, n uint32, flags, id uint32) int32
 
 //go:wasmimport fude open
 func hostOpen(pos uint32, ptr *byte, n uint32) int32
@@ -374,6 +375,16 @@ func Key(keys, help string, f func(Call)) {
 func Insert(keys, help string, f func(Call)) {
 	add(kindInsert, keys, help, func(a, _, _ int64) int64 {
 		f(Call{Cursor: int(a)})
+		return 0
+	})
+}
+
+// Source adds the source name to :pick, which runs f with the text typed
+// after the name as its args, for f to show a list with Picker or Pick.
+// help says what it does, for :h.
+func Source(name, help string, f func(Call)) {
+	add(kindSource, name, help, func(a, b, _ int64) int64 {
+		f(Call{Cursor: int(a), Count: int(b), Args: about("args")})
 		return 0
 	})
 }
@@ -652,18 +663,49 @@ func Note(pos int, text string) (int, error) {
 // cancelled or no item matched. A list asked for while one shows is
 // cancelled. It needs ui.
 func Pick(prompt string, items []string, f func(i int, ok bool)) error {
-	p, n := ptr(strings.Join(append([]string{prompt}, items...), "\x00"))
+	p, n := ptr(strings.Join(append([]string{prompt, "", "", ""}, items...), "\x00"))
 	return schedule(func() {
 		i, _ := strconv.Atoi(about("picked"))
 		f(i, about("ok") == "true" && i >= 0)
-	}, func(id uint32) int32 { return hostPick(p, n, id) })
+	}, func(id uint32) int32 { return hostPick(p, n, 0, id) })
+}
+
+// Picker shows a live list in the finder, titled title, with hint shown
+// before a query is typed and query typed at the start. find runs, as an
+// event does, with each query typed and whether <C-g> asked for the files
+// git ignores too, and returns the items for it. With places, an item is
+// path:line:column:text, shown under its file, and picking one opens the
+// place. chose then runs with the item picked, or false when they
+// cancelled. It needs ui.
+func Picker(title, hint, query string, places bool, find func(query string, all bool) []string, chose func(item string, ok bool)) error {
+	flags := uint32(1)
+	if places {
+		flags |= 2
+	}
+	head := "\x00" + title + "\x00" + hint + "\x00" + query
+	p, n := ptr(head)
+	var id uint32
+	var handle func()
+	handle = func() {
+		if picked := about("picked"); picked != "" {
+			i, _ := strconv.Atoi(picked)
+			chose(about("item"), about("ok") == "true" && i >= 0)
+			return
+		}
+		// A query, which the next callback follows, so the handler stays.
+		later[id] = handle
+		items := find(about("query"), about("all") == "true")
+		ap, an := ptr(strings.Join(append([]string{head}, items...), "\x00"))
+		hostPick(ap, an, flags, id)
+	}
+	return schedule(handle, func(i uint32) int32 { id = i; return hostPick(p, n, flags, i) })
 }
 
 // Ask asks the user prompt once the call returns, and runs f, as an event
 // does, with what they typed, or false when they cancelled. It needs ui.
 func Ask(prompt string, f func(text string, ok bool)) error {
-	p, n := ptr(prompt)
-	return schedule(func() { f(about("text"), about("ok") == "true") }, func(id uint32) int32 { return hostPick(p, n, id) })
+	p, n := ptr(prompt + "\x00\x00\x00")
+	return schedule(func() { f(about("text"), about("ok") == "true") }, func(id uint32) int32 { return hostPick(p, n, 0, id) })
 }
 
 // Jump moves the cursor to pos once the call returns, after its edits, when

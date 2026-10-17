@@ -850,6 +850,91 @@ func TestB284PluginHearsAServerAttach(t *testing.T) {
 	settle(t, e, func() bool { return strings.Contains(fudeLog(), "listen: lsp.attached") })
 }
 
+// letters is a source whose live list is the query with 1 and 2 after it,
+// and which says what was picked.
+type letters struct{ idle }
+
+func (letters) Registered() []api.Registration {
+	return []api.Registration{{Kind: api.Source, Name: "letters", Help: "lists the query with a digit after it", ID: 1}}
+}
+
+func (letters) Call(_ context.Context, _ uint32, s api.Scope, _ ...int) (api.Result, error) {
+	return api.Result{Pick: &api.Pick{ID: 7, Title: "letters", Hint: "type a letter", Query: s.About["args"], Live: true}}, nil
+}
+
+func (letters) Callback(_ context.Context, _ uint32, s api.Scope) (api.Result, error) {
+	if q, live := s.About["query"]; live {
+		return api.Result{Pick: &api.Pick{ID: 7, Items: []string{q + "1", q + "2"}}}, nil
+	}
+	return api.Result{Message: "picked " + s.About["item"] + " " + s.About["ok"]}, nil
+}
+
+// B285, B287
+func TestB285LivePick(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "f")
+	change(t, path, "x\n")
+	e := start(t, path)
+	e.SetSize(80, 20)
+	e.Use(letters{})
+	feed(e, ":pick letters a<CR>")
+	settle(t, e, func() bool {
+		f, _ := e.Float()
+		return strings.Contains(f.Text, "a1") && strings.Contains(f.Text, "a2")
+	})
+	feed(e, "b")
+	settle(t, e, func() bool { f, _ := e.Float(); return strings.Contains(f.Text, "ab2") })
+	feed(e, "<C-n><CR>")
+	settle(t, e, func() bool { return e.Message() == "picked ab2 true" })
+}
+
+// spots is a source whose places are the second line of the file.
+type spots struct {
+	idle
+	path string
+}
+
+func (spots) Registered() []api.Registration {
+	return []api.Registration{{Kind: api.Source, Name: "spots", Help: "lists a place", ID: 1}}
+}
+
+func (m spots) Call(context.Context, uint32, api.Scope, ...int) (api.Result, error) {
+	return api.Result{Pick: &api.Pick{ID: 9, Title: "spots", Items: []string{m.path + ":2:1:second"}, Places: true}}, nil
+}
+
+// B286
+func TestB286PlacesPick(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "f")
+	change(t, path, "first\nsecond\n")
+	e := start(t, path)
+	e.SetSize(80, 20)
+	e.Use(spots{path: path})
+	feed(e, ":pick spots<CR>")
+	settle(t, e, func() bool { f, _ := e.Float(); return strings.Contains(f.Text, "second") })
+	feed(e, "<CR>")
+	if line := e.Text().LineOf(e.Cursor()); line != 1 || e.Views()[0].Name != path {
+		t.Errorf("picking the place put the cursor on line %d of %s, want line 2 of the file", line+1, e.Views()[0].Name)
+	}
+	// <C-q> lists the places.
+	feed(e, ":pick spots<CR>")
+	settle(t, e, func() bool { f, _ := e.Float(); return strings.Contains(f.Text, "second") })
+	feed(e, "<C-q>")
+	if !slices.ContainsFunc(e.Views(), func(v wire.View) bool { return v.Name == "[spots]" }) {
+		t.Errorf("<C-q> opened %v, want a [spots] list", e.Views())
+	}
+}
+
+// B287, a plugin's source
+func TestB287PluginSource(t *testing.T) {
+	e := loaded(t, "ctx", "f", "x\n", "buffer.write", "ui")
+	e.SetSize(80, 20)
+	feed(e, ":pick letters a<CR>")
+	settle(t, e, func() bool { f, _ := e.Float(); return strings.Contains(f.Text, "a2") })
+	feed(e, "<C-n><CR>")
+	settle(t, e, func() bool { return strings.HasPrefix(text(e), "a2") })
+	feed(e, "<Esc>:pick<CR>")
+	settle(t, e, func() bool { f, _ := e.Float(); return strings.Contains(f.Text, "letters") })
+}
+
 // B191
 func TestB191PluginReload(t *testing.T) {
 	e := loaded(t, "ctx", "f", "a\n", "buffer.write")

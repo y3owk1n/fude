@@ -950,6 +950,17 @@ Where fude departs, the line says so and cites the departure in
   write's.
 - B284 [4] A plugin hears `lsp.attached` once a language server is ready
   for a buffer, with the server's name.
+- B285 [4] A plugin shows a live list in the finder, with a title in its
+  border, a hint before a query is typed and a query typed at the start.
+  Each change to the query runs a function of the plugin's with the
+  query, and with whether `<C-g>` asked for the files git ignores too. The
+  items it returns replace the list.
+- B286 [4] A plugin's list may be of places, each path:line:column:text,
+  shown under their file with the line previewed. `<CR>` opens the place
+  picked, after the plugin hears which, and `<C-q>` lists them as B195
+  says.
+- B287 [4] A plugin adds a source to `:pick`, which `:pick name text`
+  runs with text, `:pick` alone lists and `<Tab>` completes.
 - B283 [4] A plugin sets `expand_tab`, `indent_width` or `tab_width` on the
   buffer its call is about, over config.toml's, until the buffer closes,
   as .editorconfig does.

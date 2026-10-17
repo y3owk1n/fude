@@ -34,7 +34,8 @@ func (e *Session) openPick(arg string) {
 	}
 	switch source {
 	case "":
-		e.pickFrom("pick", pickSources, func(i int) { e.openPick(pickSources[i]) })
+		names := e.pickNames()
+		e.pickFrom("pick", names, func(i int) { e.openPick(names[i]) })
 	case "help":
 		tags := e.helpTags()
 		e.pickFrom("help", tags, func(i int) { e.help(tags[i]) })
@@ -73,8 +74,17 @@ func (e *Session) openPick(arg string) {
 	case "tasks":
 		e.pickTasks()
 	default:
-		e.message = fmt.Sprintf("no source named %q, only %s", source, strings.Join(pickSources, ", "))
+		if src := e.sources[source]; src != nil {
+			src(e, strings.TrimSpace(rest))
+			return
+		}
+		e.message = fmt.Sprintf("no source named %q, only %s", source, strings.Join(e.pickNames(), ", "))
 	}
+}
+
+// pickNames returns the sources of :pick, fude's then the modules' (B287).
+func (e *Session) pickNames() []string {
+	return append(slices.Clone(pickSources), slices.Sorted(maps.Keys(e.sources))...)
 }
 
 // recentFiles returns the recent files that still exist, but current,
@@ -184,7 +194,7 @@ func (e *Session) pickKeys() {
 // pickFrom opens the finder on items with no preview, and runs picked with
 // the index of the one picked (B215).
 func (e *Session) pickFrom(title string, items []string, picked func(int)) {
-	e.openFinder(&finder{paths: items, stale: true, title: title, chose: func(i int, _ string, ok bool) {
+	e.openFinder(&finder{paths: items, stale: true, title: title, chose: func(i int, _, _ string, ok bool) {
 		if ok && i >= 0 {
 			picked(i)
 		}

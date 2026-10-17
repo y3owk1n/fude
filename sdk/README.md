@@ -52,6 +52,7 @@ Call these from an `init` function.
 | `Command` | the ex command `:name` |
 | `Key`, `Insert` | a key in normal or insert mode |
 | `Plug` | a command keys reach only as `<Plug>(plugin.name)` |
+| `Source` | a source of `:pick`, which shows a list with `Picker` or `Pick` |
 | `Operator` | an operator that composes with every motion and text object |
 | `Object` | a text object that composes with every operator |
 | `On` | a handler for an event, such as `buffer.saved` or `mode.changed` |
@@ -67,7 +68,7 @@ A call outside the plugin's capabilities fails with an error, and fude logs it.
 | none | `Log`, `Current`, `Mode`, `Setting`, `Option`, `Config`, `IndentWidth`, `TabWidth`, `SetOption`, `Emit`, `After` |
 | `buffer.read` | `Len`, `Lines`, `LineOf`, `LineStart`, `Text`, `NodeAt`, `Language`, `Spans`, `Comment`, `Buffers`, `LenOf`, `TextOf` |
 | `buffer.write` | `Edit` |
-| `ui` | `Decorate`, `Undecorate`, `Sign`, `SignUnder`, `Note`, `Status`, `Message`, `Float`, `Show`, `ShowStyled`, `Pick`, `Ask`, `Jump`, `Open` |
+| `ui` | `Decorate`, `Undecorate`, `Sign`, `SignUnder`, `Note`, `Status`, `Message`, `Float`, `Show`, `ShowStyled`, `Pick`, `Picker`, `Ask`, `Jump`, `Open` |
 | `fs.read` | `ReadFile`, inside the folder fude started in |
 | `process` | `Run`, `Start`, `Pipe`, for the programs the plugin's table lists |
 | `net` | `Get`, `Fetch`, for the hosts the plugin's table lists |

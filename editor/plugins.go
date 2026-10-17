@@ -351,19 +351,7 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 		e.jumpTo = &jumpTo{b, *j}
 	}
 	if pk := res.Pick; pk != nil {
-		wait()
-		answer := func(picked int, query string, ok bool) {
-			if slices.Contains(e.modules, p) {
-				e.listen(p).add(event{buf: b, id: pk.ID, extra: api.Context{"picked": strconv.Itoa(picked), "text": query, "ok": strconv.FormatBool(ok)}, save: save, from: e})
-			}
-		}
-		// One list shows at a time, so a second is cancelled.
-		if e.finder != nil {
-			answer(-1, "", false)
-		} else {
-			// stale, so the first frame matches the items, which are all here.
-			e.openFinder(&finder{paths: pk.Items, stale: true, prompt: pk.Prompt + " ", chose: answer}, "")
-		}
+		e.showPick(p, b, pk, save)
 	}
 	e.setOptions(b, res.Set)
 	if res.Status != nil {
@@ -434,6 +422,9 @@ func (e *Session) unregister(p api.Module) {
 		case api.Command:
 			delete(e.commands, r.Name)
 			delete(e.pluginHelp, ":"+r.Name)
+		case api.Source:
+			delete(e.sources, r.Name)
+			delete(e.pluginHelp, ":pick "+r.Name)
 		case api.Operator, api.Object:
 			e.pluginBindings = slices.DeleteFunc(e.pluginBindings, func(b vim.Binding) bool {
 				return b.Kind == "operator" && b.Keys == r.Name+"{motion}" || b.Kind == "object" && b.Keys == r.Name
@@ -497,6 +488,13 @@ func (e *Session) register(p api.Module, r api.Registration) {
 				}
 				s.setCursor(edits[0].Start)
 			}
+		}
+	case api.Source:
+		e.pluginHelp[":pick "+r.Name] = r.Help
+		e.sources[r.Name] = func(s *Session, text string) {
+			scope := s.scope(s.win.buf, s.Text())
+			scope.About["args"] = text
+			s.run(p, r.ID, scope, s.Cursor(), 0)
 		}
 	case api.Operator:
 		e.pluginBindings = append(e.pluginBindings, vim.Binding{Kind: "operator", Keys: r.Name + "{motion}", Help: r.Help})
@@ -651,4 +649,44 @@ func logLine(line string) {
 	}
 	defer f.Close()
 	fmt.Fprintf(f, "%s %s\n", time.Now().Format(time.DateTime), line)
+}
+
+// showPick shows pk, a list or question of p about b, in the finder, or gives
+// the live pick showing the items pk answers a query with (B185, B285).
+func (e *Session) showPick(p api.Module, b *buffer, pk *api.Pick, save *saving) {
+	if f := e.finder; f != nil && f.owner == p && f.pick == pk.ID && f.found != nil {
+		found := f.found
+		f.found = nil
+		found(pk.Items, nil)
+		return
+	}
+	if save != nil {
+		save.pending++
+	}
+	tell := func(extra api.Context) {
+		if slices.Contains(e.modules, p) {
+			e.listen(p).add(event{buf: b, id: pk.ID, extra: extra, save: save, from: e})
+		}
+	}
+	answer := func(picked int, item, query string, ok bool) {
+		tell(api.Context{"picked": strconv.Itoa(picked), "item": item, "text": query, "ok": strconv.FormatBool(ok)})
+	}
+	// One list shows at a time, so a second is cancelled.
+	if e.finder != nil {
+		answer(-1, "", "", false)
+		return
+	}
+	prompt := ""
+	if pk.Prompt != "" {
+		prompt = pk.Prompt + " "
+	}
+	// stale, so the first frame matches the items, which are all here.
+	f := &finder{paths: pk.Items, stale: true, prompt: prompt, title: pk.Title, hint: pk.Hint, places: pk.Places, chose: answer, owner: p, pick: pk.ID}
+	if pk.Live {
+		f.lookup = func(q string, found func([]string, error)) {
+			f.found = found
+			tell(api.Context{"query": q, "all": strconv.FormatBool(f.all)})
+		}
+	}
+	e.openFinder(f, pk.Query)
 }

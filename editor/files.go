@@ -18,6 +18,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/protocol/lsp"
 	"github.com/y3owk1n/fude/syntax"
@@ -58,10 +59,16 @@ type finder struct {
 	queue    chan<- func()       // the editor loop's, for the preview
 	// prompt and chose are a plugin's list or question (B185). chose runs
 	// instead of opening a file. It gets the index in paths of the item
-	// picked, or -1, the query, and false when cancelled.
+	// picked, or in the matches of a live list, or -1, the item, the query,
+	// and false when cancelled.
 	prompt string
 	title  string // drawn in the box's border, such as :pick's source
-	chose  func(picked int, query string, ok bool)
+	chose  func(picked int, item, query string, ok bool)
+	// A module's live pick: the module and pick its items come from, and
+	// found takes the items it answers a query with (B285).
+	owner api.Module
+	pick  uint32
+	found func([]string, error)
 }
 
 // openFinder opens f in a box with query typed.
@@ -154,12 +161,12 @@ func (e *Session) finderAct(act string) {
 	case "prev":
 		f.sel = max(f.sel-1, 0)
 	case "all":
-		if !f.files && !f.grep {
-			// Only the files and grep finders have files to add.
+		if !f.files && !f.grep && f.owner == nil {
+			// Only the files, grep and live finders have files to add.
 			return
 		}
 		f.all, f.stale = !f.all, true
-		if !f.grep {
+		if f.files {
 			f.paths = nil
 			e.readPaths(f)
 		}
@@ -182,19 +189,23 @@ func (e *Session) finding(k vim.Key) {
 		f.query, f.matches, f.sel = query, match(f.paths, query), 0
 	}
 	switch {
-	case f.list && f.chose == nil:
+	case f.list && (f.chose == nil || f.places):
 		e.closeFinder()
 		e.listMatches(f)
-	case f.open && f.chose != nil:
-		e.closeFinder()
-		picked := -1
-		if f.sel < len(f.matches) {
-			picked = slices.Index(f.paths, f.matches[f.sel])
-		}
-		f.chose(picked, query, true)
 	case f.open:
 		e.closeFinder()
-		if f.sel < len(f.matches) {
+		if f.chose != nil {
+			picked, item := -1, ""
+			if f.sel < len(f.matches) {
+				item = f.matches[f.sel]
+				if picked = slices.Index(f.paths, item); picked < 0 && f.lookup != nil {
+					picked = f.sel
+				}
+			}
+			f.chose(picked, item, query, true)
+		}
+		// A place opens as the finder's own do, after the module hears of it.
+		if (f.chose == nil || f.places) && f.sel < len(f.matches) {
 			path, line, col, _ := grepSpot(f.matches[f.sel])
 			if e.edit(path); line > 0 && e.win.buf.is(path) {
 				t := e.Text()
@@ -209,7 +220,7 @@ func (e *Session) finding(k vim.Key) {
 	case e.vim.Mode() != vim.Insert:
 		e.closeFinder()
 		if f.chose != nil {
-			f.chose(-1, query, false)
+			f.chose(-1, "", query, false)
 		}
 	}
 }
@@ -295,7 +306,7 @@ func (f *finder) float(query string, cursor, width, height int) wire.Float {
 	// A margin of two columns and a row keeps the box off the screen's edges.
 	total, h := min(162, width-4), min(22, height-2)
 	w, docW := total, 0
-	if total >= 60 && f.chose == nil {
+	if total >= 60 && (f.chose == nil || f.places) {
 		w = total / 2
 		docW = total - w
 	}

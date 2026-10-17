@@ -60,10 +60,21 @@ type Request struct {
 // Pick is a list of items a call asks the user to pick from with Prompt,
 // or with none a question whose answer is what they type. fude runs the
 // owner's callback with ID once they answer or cancel (B185).
+//
+// Title names the list in its border, Hint shows before a query is typed,
+// and Query is typed at the start. With Live, each change to the query
+// runs the callback with the query as query and the finder's all flag as
+// all. A Pick of the same ID in the answer gives the list's items for
+// that query. With Places, an item is path:line:column:text, shown under its
+// file with its line previewed, and picking one opens the place (B285,
+// B286).
 type Pick struct {
-	ID     uint32
-	Prompt string
-	Items  []string
+	ID           uint32
+	Prompt       string
+	Items        []string
+	Title, Hint  string
+	Query        string
+	Live, Places bool
 }
 
 // Jump is where a call moves the cursor: Pos in the buffer the call was

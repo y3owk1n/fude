@@ -9,7 +9,9 @@
 // the option, and :Indent types the indent and tab widths. :Show
 // text shows text in a window titled [shown], as Go, :Styled text shows it
 // there in the diff.plus style, and :Say text shows it in the message
-// area. <Plug>(ctx.hi) types hi at the cursor. :Go pos moves the cursor to
+// area. <Plug>(ctx.hi) types hi at the cursor. :pick letters lists the
+// query typed with 1 and 2 after it, and types the one picked at the
+// start. :Go pos moves the cursor to
 // pos, and :Open path opens the file at path with the cursor at 2. :Bufs types the id and text of every open
 // buffer, and :Node the kinds of the syntax node at the cursor and its
 // parent. :Lang types the language at the cursor, the names of the
@@ -71,6 +73,15 @@ func init() {
 	})
 	sdk.Plug("hi", "types hi at the cursor", func(c sdk.Call) {
 		sdk.Edit(c.Cursor, c.Cursor, "hi")
+	})
+	sdk.Source("letters", "lists the query with a digit after it", func(c sdk.Call) {
+		sdk.Picker("letters", "type a letter", c.Args, false, func(q string, _ bool) []string {
+			return []string{q + "1", q + "2"}
+		}, func(item string, ok bool) {
+			if ok {
+				sdk.Edit(0, 0, item)
+			}
+		})
 	})
 	sdk.Command("Say", "shows its args in the message area", func(c sdk.Call) {
 		sdk.Message(c.Args)

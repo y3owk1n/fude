@@ -774,7 +774,7 @@ func (p *Plugin) register(_ context.Context, m api.Module, kind, nptr, nn, hptr,
 	name, ok1 := m.Memory().Read(nptr, nn)
 	help, ok2 := m.Memory().Read(hptr, hn)
 	switch {
-	case p.call == nil || p.call.name != "init" || fude.Kind(kind) > fude.Plug:
+	case p.call == nil || p.call.name != "init" || fude.Kind(kind) > fude.Source:
 		return errDenied
 	case !ok1 || !ok2:
 		return errRange
@@ -879,18 +879,20 @@ func (p *Plugin) sign(_ context.Context, m api.Module, pos, ptr, n, under uint32
 }
 
 // pick asks the user to pick from the items at (ptr, n), after a prompt,
-// all NUL-separated, or with no items to answer the prompt, once the call
-// returns. The plugin's callback with id runs with the answer (B185).
-func (p *Plugin) pick(_ context.Context, m api.Module, ptr, n, id uint32) int32 {
+// title, hint and query, all NUL-separated, or with no items to answer
+// the prompt, once the call returns. flags holds live as its first bit
+// and places as its second. The plugin's callback with id runs with the
+// answer (B185, B285, B286).
+func (p *Plugin) pick(_ context.Context, m api.Module, ptr, n, flags, id uint32) int32 {
 	if p.call == nil || !p.allowed("ui", "pick") {
 		return errDenied
 	}
 	b, ok := m.Memory().Read(ptr, n)
-	if !ok {
+	parts := strings.Split(string(b), "\x00")
+	if !ok || len(parts) < 4 {
 		return errRange
 	}
-	parts := strings.Split(string(b), "\x00")
-	p.call.Pick = &fude.Pick{ID: id, Prompt: parts[0], Items: parts[1:]}
+	p.call.Pick = &fude.Pick{ID: id, Prompt: parts[0], Title: parts[1], Hint: parts[2], Query: parts[3], Items: parts[4:], Live: flags&1 != 0, Places: flags&2 != 0}
 	return 0
 }
 

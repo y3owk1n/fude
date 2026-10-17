@@ -129,7 +129,7 @@ func justTasks() ([]task, error) {
 // what it does, once they are read, and runs the one picked (B228).
 func (e *Session) pickTasks() {
 	var ts []task
-	f := &finder{title: "tasks", chose: func(i int, _ string, ok bool) {
+	f := &finder{title: "tasks", chose: func(i int, _, _ string, ok bool) {
 		if ok && i >= 0 {
 			e.runTask(ts[i])
 		}

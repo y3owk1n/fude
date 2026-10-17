@@ -47,6 +47,7 @@ const (
 	Key                  // keys in normal mode, called with (cursor, count)
 	Insert               // keys in insert mode, called with (cursor)
 	Plug                 // a command keys reach only as <Plug>(owner.name), called with (cursor, count)
+	Source               // a source of :pick, called with (cursor, count) and the text after its name as args (B287)
 )
 
 // Registration is one thing a module's init registered: its name, what it

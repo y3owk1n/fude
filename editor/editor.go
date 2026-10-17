@@ -41,22 +41,23 @@ type Editor struct {
 	// key does, by :name and <Plug>(name), and their operators and objects.
 	pluginHelp     map[string]string
 	pluginBindings []vim.Binding
-	plugged        int                             // how many of setup come before the plugins' own
-	commands       map[string]func(*Session, call) // ex commands plugins registered
-	decos          map[any][]decoration            // by owner: a plugin, or a buffer for its diagnostics
-	servers        map[string]*server              // by command and root
-	down           map[string]string               // by name, why a configured language server is not running
-	building       map[string]bool                 // the filetypes whose grammar builds now
-	failed         map[string]string               // by filetype, why its grammar did not build this session
-	started        bool                            // Load ran, so new buffers attach to servers at once
-	project        string                          // the directory fude started in, symlinks resolved (B243)
-	share          *share                          // the guests' listener, while fude shares (B248)
-	clients        atomic.Int64                    // the attached clients yet to have their last frame (B242)
-	began          int                             // how many sessions began, for the next one's colour (B252)
-	debug          *debugging                      // the debug session, while one runs (B262)
-	sessions       []*Session                      // the first is the one that opened the editor
-	setup          []func(*Session)                // what every session's machine gets, such as keymaps
-	proposed       int                             // the id of the newest proposal
+	plugged        int                               // how many of setup come before the plugins' own
+	commands       map[string]func(*Session, call)   // ex commands plugins registered
+	sources        map[string]func(*Session, string) // :pick sources modules registered, by name (B287)
+	decos          map[any][]decoration              // by owner: a plugin, or a buffer for its diagnostics
+	servers        map[string]*server                // by command and root
+	down           map[string]string                 // by name, why a configured language server is not running
+	building       map[string]bool                   // the filetypes whose grammar builds now
+	failed         map[string]string                 // by filetype, why its grammar did not build this session
+	started        bool                              // Load ran, so new buffers attach to servers at once
+	project        string                            // the directory fude started in, symlinks resolved (B243)
+	share          *share                            // the guests' listener, while fude shares (B248)
+	clients        atomic.Int64                      // the attached clients yet to have their last frame (B242)
+	began          int                               // how many sessions began, for the next one's colour (B252)
+	debug          *debugging                        // the debug session, while one runs (B262)
+	sessions       []*Session                        // the first is the one that opened the editor
+	setup          []func(*Session)                  // what every session's machine gets, such as keymaps
+	proposed       int                               // the id of the newest proposal
 	listeners      map[api.Module]*listener
 	segments       map[api.Module]map[*buffer]string // what each plugin shows on the statusline of each buffer
 
@@ -140,7 +141,7 @@ func open(cfg config, paths []string) (*Session, error) {
 	if len(paths) == 0 {
 		paths = []string{""}
 	}
-	ed := &Editor{next: 1, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(*Session, call){}, decos: map[any][]decoration{}, servers: map[string]*server{}, down: map[string]string{}, building: map[string]bool{}, failed: map[string]string{}, listeners: map[api.Module]*listener{}, segments: map[api.Module]map[*buffer]string{}}
+	ed := &Editor{next: 1, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(*Session, call){}, sources: map[string]func(*Session, string){}, decos: map[any][]decoration{}, servers: map[string]*server{}, down: map[string]string{}, building: map[string]bool{}, failed: map[string]string{}, listeners: map[api.Module]*listener{}, segments: map[api.Module]map[*buffer]string{}}
 	// Without a config directory there are no overrides, and loadConfig
 	// reports why.
 	if dir, err := xdgDir("XDG_CONFIG_HOME", ".config"); err == nil {

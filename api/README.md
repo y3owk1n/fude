@@ -42,7 +42,7 @@ Its other four methods do nothing here. `Event` and `Callback` return an empty `
 
 ## How fude calls a module
 
-- **Registration.** `Registered` lists what the module adds: commands, operators, text objects, keys in normal or insert mode, and plugs that only `<Plug>(owner.name)` reaches, each with the id `Call` runs it by. `Kind`'s comments say which arguments each one's call gets. An operator composes with every motion, and an object with every operator, as fude's own do.
+- **Registration.** `Registered` lists what the module adds: commands, operators, text objects, keys in normal or insert mode, plugs that only `<Plug>(owner.name)` reaches, and sources of `:pick`, each with the id `Call` runs it by. `Kind`'s comments say which arguments each one's call gets. An operator composes with every motion, and an object with every operator, as fude's own do.
 - **Calls.** `Call` runs on the input path, which never waits. While another call into the module runs, `Call` returns `ErrBusy` instead of waiting for it. An object's call sets `Result.Selected` to the range it selects.
 - **Events.** `Subscribed` names the events the module hears, such as `buffer.opened`, `buffer.changed`, `buffer.saved`, `buffer.closed`, `mode.changed`, `view.moved`, `syntax.updated`, `lsp.diagnostics`, `lsp.attached` once a server is ready for a buffer, `editor.focused` when the terminal gets the focus back, `buffer.saving` before a write, which waits for the handler and its callbacks or `format_timeout`, and `owner.event` for one another module emits. `Event` runs off the editor loop, and gets what the event carries after its name, such as the cursor and the view's top for `view.moved`.
 - **Callbacks.** A `Timer`, `Job`, `Pick` or language server `Request` carries an id, and `Callback` runs with it later. Its scope's `About` adds what came back: `output` and `error` for a job or request, `server` and `encoding` for a request, and `picked`, `text` and `ok` for a pick.
@@ -65,7 +65,7 @@ A `Result` asks for any of these, and fude applies them together once the call r
 | `Float` | markdown at the cursor |
 | `Show` | text in a read-only window of its own, with styles over it |
 | `Jump` | where the cursor goes, in this buffer or in a file |
-| `Pick` | a list to pick from, or a question |
+| `Pick` | a list to pick from, live or of places, or a question |
 | `Timers`, `Jobs`, `Requests` | work whose callback runs later |
 | `Selected` | the range an object's call selects |
 | `Set` | `expand_tab`, `indent_width` or `tab_width` on the buffer, over config.toml |
