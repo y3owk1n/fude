@@ -100,3 +100,27 @@ func TestB228Tasks(t *testing.T) {
 		t.Errorf("q left %d windows", len(e.Views()))
 	}
 }
+
+// B230
+func TestB230TaskPlaces(t *testing.T) {
+	t.Setenv("SHELL", "/bin/sh")
+	dir := t.TempDir()
+	change(t, filepath.Join(dir, "a.txt"), "one\ntwo\n")
+	t.Chdir(dir)
+	config(t, "[task.check]\ncommand = \"printf 'ok\\\\na.txt:2:3: bad thing\\\\nnope.txt:1: gone\\\\n'; exit 1\"\n")
+	e := start(t, "a.txt")
+	e.SetSize(80, 24)
+	// The places in a task's output that name a file there become the last
+	// list, and ]q goes to the first.
+	feed(e, ":task check<CR>")
+	settle(t, e, func() bool {
+		vs := e.Views()
+		return len(vs) == 2 && strings.HasPrefix(vs[1].Name, "[task check ✗ 1")
+	})
+	if feed(e, "]q"); e.Views()[0].Name != "a.txt" || e.Cursor() != 6 {
+		t.Errorf("]q went to %q at %d, want a.txt at 6", e.Views()[0].Name, e.Cursor())
+	}
+	if !strings.Contains(e.Message(), "(1 of 1) a.txt:2:3: bad thing") {
+		t.Errorf("]q said %q", e.Message())
+	}
+}

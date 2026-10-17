@@ -171,6 +171,9 @@ func (e *Session) terminalExited(b *buffer, err error) {
 		t.typing = false
 		e.freeze(b)
 	}
+	if t.task != "" {
+		e.taskPlaces(b, t.task)
+	}
 }
 
 // terminalKey sends k to the program of the current window's terminal.

@@ -2,6 +2,7 @@ package editor
 
 import (
 	"bufio"
+	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,6 +15,9 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/y3owk1n/fude/lsp"
+	"github.com/y3owk1n/fude/vim"
 )
 
 // task is a command a project or config.toml names, which :task and
@@ -172,4 +176,36 @@ func (e *Session) runTask(t task) {
 	).Replace(t.command)
 	e.lastTask = &t
 	e.openTerminal(command, t.name)
+}
+
+// outputPlace is a line of a program's output that names a place, as
+// path:line: or path:line:column:, or after Rust's -->, and what it says.
+var outputPlace = regexp.MustCompile(`^\s*(?:-->\s*)?([^\s:]+):(\d+)(?::(\d+))?:?\s*(.*)$`)
+
+// taskPlaces makes the places task's output in b names, of files that are
+// there, the last list of places, without a window, so ]q goes to the first
+// (B230).
+func (e *Session) taskPlaces(b *buffer, task string) {
+	t := b.text.Snapshot()
+	var lines []string
+	var spots []spot
+	for line := range t.Lines() {
+		start := t.LineStart(line)
+		m := outputPlace.FindStringSubmatch(t.Slice(start, vim.LineEnd(t, start)))
+		if m == nil {
+			continue
+		}
+		if info, err := os.Stat(m[1]); err != nil || info.IsDir() {
+			continue
+		}
+		row, _ := strconv.Atoi(m[2])
+		col, _ := strconv.Atoi(cmp.Or(m[3], "1"))
+		lines = append(lines, fmt.Sprintf("%s:%d:%d: %s", m[1], row, col, m[4]))
+		spots = append(spots, spot{m[1], lsp.Position{Line: max(row-1, 0), Character: max(col-1, 0)}, "utf-8"})
+	}
+	if len(spots) == 0 {
+		return
+	}
+	e.lastList = &places{title: "[task " + task + "]", lines: lines, spots: spots, at: -1}
+	e.message = fmt.Sprintf("the %s task named %d places, and ]q goes to the first", task, len(spots))
 }

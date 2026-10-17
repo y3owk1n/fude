@@ -149,6 +149,11 @@ Where fude departs, the line says so and cites the departure in
   leaves the window. `{file}`, `{dir}`, `{line}` and `{word}` in a command stand
   for the current buffer's file, its folder, the cursor's line and the
   word under it.
+- B230 [2] When a task ends, each line of its output that names a place
+  in a file that exists, as `path:line: message` or `path:line:column:
+  message`, or after Rust's `-->`, becomes the last list of places (N25),
+  without a window of its own. The message says how many, and `]q` goes
+  to the first, as after `:cnext`. `:copen` shows the list.
 - B201 [2] `fude dir`, with no other file, makes `dir` the working
   directory, so the finder, grep and relative paths start there. Helix's
   `hx dir` does the same.
