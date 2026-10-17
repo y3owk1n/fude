@@ -208,13 +208,6 @@ func (c *Client) Notify(method string, params any) {
 	c.send(func(string) any { return message{Method: method, Params: params} })
 }
 
-// CloseDocument tells the server a document closed.
-func (c *Client) CloseDocument(uri string) {
-	c.send(func(string) any {
-		return message{Method: "textDocument/didClose", Params: map[string]any{"textDocument": map[string]any{"uri": uri}}}
-	})
-}
-
 // Request sends method with the params build makes in the server's encoding,
 // and runs answer on the editor loop with the server's result. An error
 // answer goes to the log, and answer gets nil, as it does when the server

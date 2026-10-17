@@ -57,16 +57,16 @@ func hasUpper(src string) bool {
 
 // seek returns the n-th match of src after the cursor, or before it when
 // searching back, wrapping around the ends of the text.
-func (m *Machine) seek(src string, forward bool, n int) (int, kind, bool) {
+func (m *Machine) seek(src string, forward bool, n int) (int, kind) {
 	t, c := m.h.Text(), m.h.Cursor()
 	if src == "" {
 		m.msg = "no previous search"
-		return c, failed, true
+		return c, failed
 	}
 	p, err := m.compile(src)
 	if err != nil {
 		m.msg = err.Error()
-		return c, failed, true
+		return c, failed
 	}
 	pos := c
 	for range n {
@@ -83,12 +83,12 @@ func (m *Machine) seek(src string, forward bool, n int) (int, kind, bool) {
 		}
 		if !ok {
 			m.msg = "pattern not found: " + src
-			return c, failed, true
+			return c, failed
 		}
 		pos = at
 	}
 	m.hl = true
-	return pos, exclusive, true
+	return pos, exclusive
 }
 
 // searchWindow is how many bytes a search reads first. It doubles until it

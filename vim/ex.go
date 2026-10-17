@@ -543,7 +543,7 @@ func (m *Machine) address(t Text, c int, s string) (int, string, bool, error) {
 			from = LineEnd(t, c)
 		}
 		m.h.SetCursor(from)
-		p, k, _ := m.seek(parts[0], s[0] == '/', 1)
+		p, k := m.seek(parts[0], s[0] == '/', 1)
 		m.h.SetCursor(c)
 		if k == failed {
 			return 0, s, false, errors.New(m.msg)

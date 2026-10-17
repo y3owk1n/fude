@@ -309,7 +309,7 @@ func searchSelection(m *Machine, x visualCall) error {
 	m.leaveVisual()
 	pat := strings.ReplaceAll(strings.ReplaceAll(x.t.Slice(r.start, r.end), `\`, `\\`), "\n", `\n`)
 	m.search.pattern, m.search.forward = `\V`+pat, x.cmd == "*"
-	p, k, _ := m.seek(m.search.pattern, m.search.forward, max(x.count, 1))
+	p, k := m.seek(m.search.pattern, m.search.forward, max(x.count, 1))
 	if k != failed {
 		m.h.SetCursor(clamp(x.t, p))
 	}

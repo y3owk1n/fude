@@ -92,7 +92,7 @@ func windowMotion(m *Machine, x motionCall) (int, kind) {
 
 // searchMotion is n and N.
 func searchMotion(m *Machine, x motionCall) (int, kind) {
-	p, k, _ := m.seek(m.search.pattern, m.search.forward == (x.cmd == "n"), x.n)
+	p, k := m.seek(m.search.pattern, m.search.forward == (x.cmd == "n"), x.n)
 	return p, k
 }
 
@@ -104,7 +104,7 @@ func starMotion(m *Machine, x motionCall) (int, kind) {
 		return x.c, failed
 	}
 	m.search.pattern, m.search.forward = `\<`+word+`\>`, x.cmd == "*"
-	p, k, _ := m.seek(m.search.pattern, m.search.forward, x.n)
+	p, k := m.seek(m.search.pattern, m.search.forward, x.n)
 	return p, k
 }
 
@@ -138,7 +138,7 @@ func markMotion(m *Machine, x motionCall) (int, kind) {
 // searchForMotion is / and ? with a pattern.
 func searchForMotion(m *Machine, x motionCall) (int, kind) {
 	m.search.pattern, m.search.forward = x.cmd[1:], x.cmd[0] == '/'
-	p, k, _ := m.seek(m.search.pattern, m.search.forward, x.n)
+	p, k := m.seek(m.search.pattern, m.search.forward, x.n)
 	return p, k
 }
 

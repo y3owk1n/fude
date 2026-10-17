@@ -1463,7 +1463,7 @@ func (e *Session) close(b *buffer, force bool) {
 			delete(e.decos, owner)
 		}
 	}
-	i := index(e.bufs, b)
+	i := slices.Index(e.bufs, b)
 	e.bufs = append(e.bufs[:i], e.bufs[i+1:]...)
 	if len(e.bufs) == 0 {
 		if _, err := e.add(""); err != nil {

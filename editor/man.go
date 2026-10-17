@@ -9,10 +9,6 @@ import (
 	"strings"
 )
 
-// ManPages are the man pages Man writes, by the name fude --man takes: ""
-// for fude(1), "config" for fude-config(5) and "guide" for fude-guide(7).
-var ManPages = []string{"", "config", "guide"}
-
 // Man returns the man page that page names in roff, from help with fude's
 // defaults, for fude --man (B163).
 func Man(page string) (string, error) {

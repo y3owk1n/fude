@@ -196,7 +196,7 @@ func languageID(ft string) string {
 // detach disconnects b from its language servers.
 func (e *Session) detach(b *buffer) {
 	for _, s := range b.servers {
-		s.client.CloseDocument(lsp.URI(b.file.path))
+		s.client.Notify("textDocument/didClose", map[string]any{"textDocument": map[string]any{"uri": lsp.URI(b.file.path)}})
 		s.bufs = slices.DeleteFunc(s.bufs, func(o *buffer) bool { return o == b })
 		delete(s.versions, b)
 		e.forget(s, b)

@@ -373,7 +373,7 @@ func (e *Session) splitBeside(across, after bool) {
 	l := e.root.leaf(old)
 	add := &node{win: nw}
 	if p := l.parent; p != nil && p.across == across {
-		i := index(p.kids, l)
+		i := slices.Index(p.kids, l)
 		if after {
 			i++
 		}
@@ -401,7 +401,7 @@ func (e *Session) closeWindow(w *window) error {
 		return errors.New("cannot close the last window")
 	}
 	w.buf.last, w.buf.lastTop = w.pos(), w.buf.text.Mark(w.top)
-	i := index(p.kids, l)
+	i := slices.Index(p.kids, l)
 	p.kids = append(p.kids[:i], p.kids[i+1:]...)
 	next := p.kids[max(i-1, 0)]
 	if len(p.kids) == 1 {
@@ -535,13 +535,4 @@ func (e *Session) center() {
 	if _, _, ok := e.area(); e.centered && !ok {
 		e.message = fmt.Sprintf("the screen is too narrow to center %d columns", e.root.needs(cmp.Or(e.opts.ColorColumn, centerWidth)))
 	}
-}
-
-func index[T comparable](s []T, x T) int {
-	for i, y := range s {
-		if y == x {
-			return i
-		}
-	}
-	return -1
 }

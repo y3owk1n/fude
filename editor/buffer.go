@@ -23,10 +23,8 @@ type buffer struct {
 	last, lastTop int
 
 	// The cursor from before each undo step, for the vim machine's undo.
-	before  map[kernel.NodeID]int
-	pending int // the cursor when the step being made began
-	depth   int
-	head    kernel.NodeID
+	before map[kernel.NodeID]int
+	head   kernel.NodeID
 
 	marks map[rune]kernel.MarkID
 
