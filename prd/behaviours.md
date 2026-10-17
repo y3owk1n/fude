@@ -928,6 +928,8 @@ Where fude departs, the line says so and cites the departure in
   title, coloured as a filetype it names. Showing text under a title
   already open replaces what that window shows. `:q` closes it without
   asking to save.
+- B276 [4] A plugin with `ui` styles ranges of the text it shows in a
+  window, such as a line in `diff.plus`, over what the filetype colours.
 - B187 [4] A plugin with `ui` moves the cursor in the window that shows
   the buffer its call was about, once the call and its edits are done. It
   also opens a file of the project at a position, in the current window.

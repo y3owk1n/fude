@@ -612,6 +612,15 @@ func TestB274PluginReadsOptions(t *testing.T) {
 	}
 }
 
+// B276
+func TestB276PluginStylesAWindow(t *testing.T) {
+	e := loaded(t, "ctx", "f", "a\n", "ui")
+	e.SetSize(80, 20)
+	if feed(e, ":Styled abc<CR>"); !slices.Contains(decorations(e), "abc diff.plus") {
+		t.Errorf(":Styled abc decorated %q, want abc in diff.plus", decorations(e))
+	}
+}
+
 // B190
 func TestB190PluginAsksTheServer(t *testing.T) {
 	wasm, err := filepath.Abs(filepath.Join("..", "plugin", "testdata", "ctx", "ctx.wasm"))

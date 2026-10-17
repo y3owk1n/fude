@@ -154,7 +154,7 @@ func hostSign(pos uint32, ptr *byte, n uint32, under uint32) int32
 func hostNote(pos uint32, ptr *byte, n uint32) int32
 
 //go:wasmimport fude show
-func hostShow(ptr *byte, n uint32) int32
+func hostShow(ptr *byte, n uint32, sptr *byte, sn uint32) int32
 
 //go:wasmimport fude jump
 func hostJump(pos uint32) int32
@@ -637,9 +637,18 @@ func Open(path string, pos int) error {
 // Show shows text in a read-only window titled title, coloured as
 // filetype, "" for none. A window of that title already open shows text in
 // place of what it showed. It needs ui.
-func Show(title, filetype, text string) error {
+func Show(title, filetype, text string) error { return ShowStyled(title, filetype, text, nil) }
+
+// ShowStyled is Show with spans styling the text, such as diff.plus on a
+// line, over what the filetype colours.
+func ShowStyled(title, filetype, text string, spans []Span) error {
 	p, n := ptr(title + "\x00" + filetype + "\x00" + text)
-	return fail(int64(hostShow(p, n)))
+	var b strings.Builder
+	for _, s := range spans {
+		b.WriteString(strconv.Itoa(s.Start) + "\x00" + strconv.Itoa(s.End) + "\x00" + s.Name + "\x00")
+	}
+	sp, sn := ptr(b.String())
+	return fail(int64(hostShow(p, n, sp, sn)))
 }
 
 // Undecorate removes the decoration id. It needs ui.

@@ -8,6 +8,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/api/diff"
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/syntax"
@@ -358,7 +359,7 @@ func (e *Session) state(arg string) (*buffer, int) {
 // filetype once its grammar is built. It opens the window unless one of
 // that title is open. It reports whether it could, and says why not when it
 // could not.
-func (e *Session) panel(title, filetype, text string) bool {
+func (e *Session) panel(title, filetype, text string, spans []api.Span) bool {
 	if i := slices.IndexFunc(e.root.windows(), func(w *window) bool { return w.buf.title == title }); i >= 0 {
 		e.win = e.root.windows()[i]
 		t := e.win.buf.text.Snapshot()
@@ -367,10 +368,12 @@ func (e *Session) panel(title, filetype, text string) bool {
 			return false
 		}
 		e.win.buf.saved = e.win.buf.text.Head()
+		e.style(e.win.buf, spans)
 		return true
 	}
 	e.scratch(title, text, nil, nil)
 	b := e.win.buf
+	e.style(b, spans)
 	if b.ft = filetype; b.ft == "" {
 		return true
 	}
@@ -401,8 +404,25 @@ func (e *Session) scratch(title, text string, src *buffer, lines []kernel.NodeID
 	e.win.show(b)
 }
 
-// diffColours names the decorations that colour a diff window's lines.
-type diffColours struct{ b *buffer }
+// panelStyles names the decorations that style a panel's text.
+type panelStyles struct{ b *buffer }
+
+// style puts spans on b, a panel, in place of the styles it had (B276).
+func (e *Session) style(b *buffer, spans []api.Span) {
+	for _, d := range e.decos[panelStyles{b}] {
+		d.remove()
+	}
+	delete(e.decos, panelStyles{b})
+	var ds []decoration
+	for _, s := range spans {
+		if s.Start < s.End {
+			ds = append(ds, decoration{buf: b, start: b.text.SetMark(s.Start, kernel.Left), end: b.text.SetMark(s.End, kernel.Right), style: s.Name})
+		}
+	}
+	if len(ds) > 0 {
+		e.decos[panelStyles{b}] = ds
+	}
+}
 
 // colourDiff colours the lines of b, a diff window: a removed line in the
 // diff.minus style, an added one in diff.plus and a hunk's header dim
@@ -426,5 +446,5 @@ func (e *Session) colourDiff(b *buffer) {
 			ds = append(ds, decoration{buf: b, start: b.text.SetMark(start, kernel.Left), end: b.text.SetMark(end, kernel.Right), style: style})
 		}
 	}
-	e.decos[diffColours{b}] = ds
+	e.decos[panelStyles{b}] = ds
 }

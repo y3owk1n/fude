@@ -5,15 +5,15 @@
 // text has, the cursor's line and where the last line starts. The insert
 // mode key <C-j> types the mode it ran in, in brackets. :Set name types
 // the setting name, or none, and :Opt name the option name and a |. :Show
-// text shows text in a window titled [shown], as Go, and :Say text shows it
-// in the message area. :Go pos moves the cursor to pos, and :Open path
-// opens the file at path with the cursor at 2. :Bufs types the id and text
-// of every open buffer, and :Node the kinds of the syntax node at the cursor
-// and its parent. :Lang types the language at the cursor, the names of the
-// captures over it and its comment syntax.
-// :Hover asks the language server for hover at the cursor and types its
-// answer, or the error, at the start. Needs buffer.read, buffer.write, ui
-// and lsp.
+// text shows text in a window titled [shown], as Go, :Styled text shows it
+// there in the diff.plus style, and :Say text shows it in the message
+// area. :Go pos moves the cursor to pos, and :Open path opens the file at
+// path with the cursor at 2. :Bufs types the id and text of every open
+// buffer, and :Node the kinds of the syntax node at the cursor and its
+// parent. :Lang types the language at the cursor, the names of the
+// captures over it and its comment syntax. :Hover asks the language server
+// for hover at the cursor and types its answer, or the error, at the
+// start. Needs buffer.read, buffer.write, ui and lsp.
 package main
 
 import (
@@ -47,6 +47,9 @@ func init() {
 	})
 	sdk.Command("Show", "shows its args in a window", func(c sdk.Call) {
 		sdk.Show("[shown]", "go", c.Args)
+	})
+	sdk.Command("Styled", "shows its args in a window, in the diff.plus style", func(c sdk.Call) {
+		sdk.ShowStyled("[shown]", "", c.Args, []sdk.Span{{Start: 0, End: len(c.Args), Name: "diff.plus"}})
 	})
 	sdk.Command("Say", "shows its args in the message area", func(c sdk.Call) {
 		sdk.Message(c.Args)

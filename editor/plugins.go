@@ -285,7 +285,7 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 		e.float, e.floatSpans = e.markdown(*res.Float)
 	}
 	if s := res.Show; s != nil {
-		e.panel(s.Title, s.Filetype, s.Text)
+		e.panel(s.Title, s.Filetype, s.Text, s.Spans)
 	}
 	if j := res.Jump; j != nil {
 		e.jumpTo = &jumpTo{b, *j}

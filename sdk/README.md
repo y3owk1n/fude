@@ -66,7 +66,7 @@ A call outside the plugin's capabilities fails with an error, and fude logs it.
 | none | `Log`, `Current`, `Mode`, `Setting`, `Option`, `Emit`, `After` |
 | `buffer.read` | `Len`, `Lines`, `LineOf`, `LineStart`, `Text`, `NodeAt`, `Language`, `Spans`, `Comment`, `Buffers`, `LenOf`, `TextOf` |
 | `buffer.write` | `Edit` |
-| `ui` | `Decorate`, `Undecorate`, `Sign`, `SignUnder`, `Note`, `Status`, `Message`, `Float`, `Show`, `Pick`, `Ask`, `Jump`, `Open` |
+| `ui` | `Decorate`, `Undecorate`, `Sign`, `SignUnder`, `Note`, `Status`, `Message`, `Float`, `Show`, `ShowStyled`, `Pick`, `Ask`, `Jump`, `Open` |
 | `fs.read` | `ReadFile`, inside the folder fude started in |
 | `process` | `Run`, `Start`, `Pipe`, for the programs the plugin's table lists |
 | `net` | `Get`, `Fetch`, for the hosts the plugin's table lists |

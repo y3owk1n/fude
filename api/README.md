@@ -63,7 +63,7 @@ A `Result` asks for any of these, and fude applies them together once the call r
 | `Status` | the module's segment on the statusline |
 | `Message` | a line in the message area |
 | `Float` | markdown at the cursor |
-| `Show` | text in a read-only window of its own |
+| `Show` | text in a read-only window of its own, with styles over it |
 | `Jump` | where the cursor goes, in this buffer or in a file |
 | `Pick` | a list to pick from, or a question |
 | `Timers`, `Jobs`, `Requests` | work whose callback runs later |

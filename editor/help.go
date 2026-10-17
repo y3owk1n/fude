@@ -422,7 +422,7 @@ func (e *Session) help(topic string) {
 		}
 	}
 	// Help is markdown, coloured as such once its grammar is built.
-	if !e.panel("[help]", "markdown", text) {
+	if !e.panel("[help]", "markdown", text, nil) {
 		return
 	}
 	// The entry goes at the top of the window, its text below it.

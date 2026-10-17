@@ -73,6 +73,7 @@ type Jump struct {
 // (B186).
 type Panel struct {
 	Title, Filetype, Text string
+	Spans                 []Span // styles over Text, such as diff.plus on a line (B276)
 }
 
 // Timer is a callback a call asks fude to run after a while, by the id it

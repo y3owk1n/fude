@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -888,17 +889,29 @@ func (p *Plugin) open(_ context.Context, m api.Module, pos, ptr, n uint32) int32
 }
 
 // show shows, in a window of its own, the title, filetype and text at
-// (ptr, n), separated by NULs (B186).
-func (p *Plugin) show(_ context.Context, m api.Module, ptr, n uint32) int32 {
+// (ptr, n), separated by NULs, styled by the spans at (sptr, sn), each a
+// start, end and style name followed by a NUL (B186, B276).
+func (p *Plugin) show(_ context.Context, m api.Module, ptr, n, sptr, sn uint32) int32 {
 	if p.call == nil || !p.allowed("ui", "show") {
 		return errDenied
 	}
 	b, ok := m.Memory().Read(ptr, n)
+	sb, sok := m.Memory().Read(sptr, sn)
 	parts := strings.SplitN(string(b), "\x00", 3)
-	if !ok || len(parts) != 3 || parts[0] == "" {
+	if !ok || !sok || len(parts) != 3 || parts[0] == "" {
 		return errRange
 	}
-	p.call.Show = &fude.Panel{Title: parts[0], Filetype: parts[1], Text: parts[2]}
+	panel := &fude.Panel{Title: parts[0], Filetype: parts[1], Text: parts[2]}
+	f := strings.Split(string(sb), "\x00")
+	for i := 0; i+2 < len(f); i += 3 {
+		start, err1 := strconv.Atoi(f[i])
+		end, err2 := strconv.Atoi(f[i+1])
+		if err1 != nil || err2 != nil {
+			return errRange
+		}
+		panel.Spans = append(panel.Spans, fude.Span{Start: start, End: end, Name: f[i+2]})
+	}
+	p.call.Show = panel
 	return 0
 }
 
