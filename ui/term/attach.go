@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"os"
 	"strings"
 	"time"
 
@@ -38,24 +37,24 @@ type Attached struct {
 
 var _ Session = (*Attached)(nil)
 
-// Attach makes a session of the fude at socket and returns it once its
-// first frame has come.
-func Attach(socket string) (*Attached, error) {
+// Attach makes a session called name of the fude at socket and returns it
+// once its first frame has come.
+func Attach(socket, name string) (*Attached, error) {
 	c, err := net.Dial("unix", socket)
 	if err != nil {
 		return nil, fmt.Errorf("attach: %w", err)
 	}
-	a, err := begin(c, map[string]any{"id": 1, "method": "attach"})
+	a, err := begin(c, map[string]any{"id": 1, "method": "attach", "params": map[string]string{"name": name}})
 	if err != nil {
 		return nil, fmt.Errorf("attach %s: %w", socket, err)
 	}
 	return a, nil
 }
 
-// Join makes a guest session of the fude a share string names, once its
-// host lets the guest in, and returns it once its first frame has come
-// (B248).
-func Join(share string) (*Attached, error) {
+// Join makes a guest session called name of the fude a share string
+// names, once its host lets the guest in, and returns it once its first
+// frame has come (B248).
+func Join(share, name string) (*Attached, error) {
 	i := strings.LastIndexByte(share, '/')
 	j := strings.LastIndexByte(share[:max(i, 0)], '/')
 	if j < 0 {
@@ -74,7 +73,7 @@ func Join(share string) (*Attached, error) {
 	if err != nil {
 		return nil, fmt.Errorf("join %s: %w", addr, err)
 	}
-	a, err := begin(c, editor.Hello{Secret: secret, Name: os.Getenv("USER")})
+	a, err := begin(c, editor.Hello{Secret: secret, Name: name})
 	if err != nil {
 		return nil, fmt.Errorf("join %s: %w", addr, err)
 	}

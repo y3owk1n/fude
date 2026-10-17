@@ -51,6 +51,7 @@ type Editor struct {
 	project        string                          // the directory fude started in, symlinks resolved (B243)
 	share          *share                          // the guests' listener, while fude shares (B248)
 	clients        atomic.Int64                    // the attached clients yet to have their last frame (B242)
+	began          int                             // how many sessions began, for the next one's colour (B252)
 	sessions       []*Session                      // the first is the one that opened the editor
 	setup          []func(*Session)                // what every session's machine gets, such as keymaps
 	proposed       int                             // the id of the newest proposal
@@ -67,7 +68,8 @@ type Session struct {
 	*Editor
 	origin     kernel.Origin
 	power      Power  // how much the session may do (B243)
-	name       string // a guest's name, for :who and :kick (B250)
+	name       string // who uses the session, "" for a client that sent none (B252)
+	colour     int    // which of six colours shows the session to others (B252)
 	root       *node
 	win        *window // the current window
 	vim        *vim.Machine
@@ -153,7 +155,7 @@ func open(cfg config, paths []string) (*Session, error) {
 	}
 	ed.project = wd
 	ed.setup = []func(*Session){builtins}
-	e := &Session{Editor: ed, origin: "user"}
+	e := &Session{Editor: ed, origin: "user", name: os.Getenv("USER")}
 	for i, p := range paths {
 		msg, err := e.add(p)
 		if err != nil {
@@ -192,6 +194,7 @@ func (e *Session) join() {
 	e.win = newWindow(b, 0, 0)
 	e.win.opts = e.opts
 	e.root = &node{win: e.win}
+	e.colour, e.began = e.began%6, e.began+1
 	e.sessions = append(e.sessions, e)
 	e.layout()
 	// A guest starts on a buffer it may show, a new empty one if no other
@@ -908,6 +911,13 @@ func (e *Session) quitAll(force bool) {
 		s.done = true
 	}
 }
+
+// SetName names the session, as --name does (B252).
+func (e *Session) SetName(name string) { e.name = name }
+
+// label is the name others see the session by: its name, or else its
+// origin (B252).
+func (e *Session) label() string { return cmp.Or(e.name, string(e.origin)) }
 
 // leave ends a session other than the first. Its proposals stay until a
 // user decides them.

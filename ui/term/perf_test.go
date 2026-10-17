@@ -145,7 +145,7 @@ func TestPromiseKeyLatency(t *testing.T) {
 func TestPromiseAttachLatency(t *testing.T) {
 	host := startWith(t, "large_file = 20", realCode(t, 10<<20)).e.(*editor.Session)
 	socket, _, _ := serve(t, host)
-	a, err := Attach(socket)
+	a, err := Attach(socket, "pat")
 	if err != nil {
 		t.Fatal(err)
 	}

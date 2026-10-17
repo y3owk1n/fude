@@ -65,6 +65,8 @@ fude --share --relay my.server.com main.go
 
 A share string lets one guest in, and `:share` shows a new one for the
 next. `:who` lists the guests, and `:kick name` ends one's session.
+Others see you by `$USER`, or by the name `--name` gives before the rest,
+as in `fude --name kyle --join <string>`.
 Quitting fude ends the share.
 
 ## Clients

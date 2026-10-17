@@ -764,7 +764,7 @@ func TestB239Attach(t *testing.T) {
 	}
 	host := startWith(t, "", path).e.(*editor.Session)
 	socket, on, halt := serve(t, host)
-	a, err := Attach(socket)
+	a, err := Attach(socket, "pat")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -784,7 +784,7 @@ func TestB239Attach(t *testing.T) {
 		t.Errorf("the attached client's keys left fude's buffer %q", text)
 	}
 	// A client whose connection breaks ends, and says why.
-	broken, err := Attach(socket)
+	broken, err := Attach(socket, "pat")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -885,7 +885,7 @@ func asked(t *testing.T, host *editor.Session, on func(func()), name string) {
 func joining(share string) <-chan joined {
 	ch := make(chan joined, 1)
 	go func() {
-		a, err := Join(share)
+		a, err := Join(share, os.Getenv("USER"))
 		ch <- joined{a, err}
 	}()
 	return ch
@@ -1049,6 +1049,7 @@ func TestB250WhoAndKick(t *testing.T) {
 	}
 	t.Setenv("USER", "kyle")
 	host := startWith(t, "", "a.txt").e.(*editor.Session)
+	host.SetName("host")
 	_, on, _ := serve(t, host)
 	ex := func(line string) string {
 		var msg string
@@ -1199,6 +1200,44 @@ func TestB251Relay(t *testing.T) {
 		}
 		if time.Now().After(deadline) {
 			t.Fatalf(":share after the relay came back said %q", msg)
+		}
+	}
+}
+
+// B252
+func TestB252Names(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.txt")
+	if err := os.WriteFile(path, []byte("hello\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("USER", "kyle")
+	host := startWith(t, "", path).e.(*editor.Session)
+	socket, on, _ := serve(t, host)
+	a, err := Attach(socket, "pat")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer a.Close()
+	// A session that sends no name is named by its origin.
+	on(func() { host.Attach("agent", editor.Host) })
+	names := func(v []editor.View) (out []string) {
+		for _, o := range v[0].Others {
+			out = append(out, fmt.Sprintf("%s %d", o.Name, o.Colour))
+		}
+		return out
+	}
+	var seen []string
+	on(func() { seen = names(host.Views()) })
+	if want := []string{"pat 1", "agent 2"}; !slices.Equal(seen, want) {
+		t.Errorf("the host sees %q, want %q", seen, want)
+	}
+	// The attached client sees the host by $USER.
+	for deadline := time.After(5 * time.Second); !slices.Equal(names(a.Views()), []string{"kyle 0", "agent 2"}); {
+		select {
+		case f := <-a.Queue():
+			f()
+		case <-deadline:
+			t.Fatalf("the attached client sees %q", names(a.Views()))
 		}
 	}
 }

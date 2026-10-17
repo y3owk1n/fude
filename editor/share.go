@@ -337,7 +337,7 @@ func (e *Session) letIn(name, secret string, admitted chan<- *Session) error {
 	return nil
 }
 
-// guestName returns name, or name with a number after it when a guest
+// guestName returns name, or name with a number after it when a session
 // has it (B250).
 func (e *Session) guestName(name string) string {
 	taken := func(n string) bool {
@@ -354,7 +354,7 @@ func (e *Session) guestName(name string) string {
 func (e *Session) who() {
 	var names []string
 	for _, s := range e.sessions {
-		if s.name != "" {
+		if s.power != Host {
 			names = append(names, s.name)
 		}
 	}
@@ -363,7 +363,7 @@ func (e *Session) who() {
 
 // kick ends the session of the guest called name, as :kick does (B250).
 func (e *Session) kick(name string) {
-	i := slices.IndexFunc(e.sessions, func(s *Session) bool { return s.name != "" && s.name == name })
+	i := slices.IndexFunc(e.sessions, func(s *Session) bool { return s.power != Host && s.name == name })
 	if i < 0 {
 		e.message = "no guest is called " + name
 		return

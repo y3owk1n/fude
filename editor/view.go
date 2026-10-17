@@ -13,6 +13,14 @@ import (
 	"github.com/y3owk1n/fude/vim"
 )
 
+// Other is another session as a view shows it (B252, B253).
+type Other struct {
+	Name      string
+	Colour    int // which of six colours
+	Cursor    int
+	Selection *vim.Selection `json:",omitempty"`
+}
+
 // View is one window as a client draws it.
 type View struct {
 	Buffer            int             // the buffer's number, which a frame's Texts name
@@ -51,6 +59,7 @@ type View struct {
 	Labels            []Label        // a jump's labels, drawn over the text (B218)
 	Folds             map[int]int    // by the first line of each closed fold shown, the lines it hides (B224)
 	Tasks             []string       // the tasks running, on the current window's status line (B231)
+	Others            []Other        // the other sessions whose current window shows the buffer (B253)
 	// Context is the start of each line pinned over the window's first rows,
 	// the functions and classes the text under them is in, with their
 	// highlights (B217).
@@ -148,6 +157,7 @@ func (e *Session) Views() []View {
 		if v.Current {
 			v.Tasks = e.runningTasks()
 		}
+		v.Others = e.others(w.buf)
 		if b := w.buf; b.ask {
 			b.ask = false
 			for _, s := range b.servers {
@@ -407,4 +417,21 @@ func ruler(t kernel.Snapshot, c, top, rows, tab int, rowsOf func(int) int) strin
 		where = "Bot"
 	}
 	return fmt.Sprintf("%-*s %s", 17-len(where), at, where)
+}
+
+// others returns the other sessions whose current window shows b, with
+// their cursors and selections (B253).
+func (e *Session) others(b *buffer) []Other {
+	var out []Other
+	for _, s := range e.sessions {
+		if s == e || s.win.buf != b {
+			continue
+		}
+		o := Other{Name: s.label(), Colour: s.colour, Cursor: s.win.pos()}
+		if sel, ok := s.Selection(); ok {
+			o.Selection = &sel
+		}
+		out = append(out, o)
+	}
+	return out
 }

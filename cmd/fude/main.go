@@ -56,10 +56,10 @@ func tail(args []string) error {
 	return errors.New("usage: fude --tail [--json] [socket]")
 }
 
-// attach runs fude --attach [socket], a terminal client on a session of a
-// running fude, and says why the session ended once the screen is gone
-// (B239, B242).
-func attach(args []string) error {
+// attach runs fude --attach [socket], a terminal client on a session
+// called name of a running fude, and says why the session ended once the
+// screen is gone (B239, B242).
+func attach(args []string, name string) error {
 	var socket string
 	switch len(args) {
 	case 0:
@@ -73,7 +73,7 @@ func attach(args []string) error {
 	default:
 		return errors.New("usage: fude --attach [socket]")
 	}
-	a, err := term.Attach(socket)
+	a, err := term.Attach(socket, name)
 	if err != nil {
 		return err
 	}
@@ -87,15 +87,15 @@ func attach(args []string) error {
 	return nil
 }
 
-// join runs fude --join string, a terminal client on a guest session of
-// the fude that shares with string, and says why the session ended once
-// the screen is gone (B248, B249).
-func join(args []string) error {
+// join runs fude --join string, a terminal client on a guest session
+// called name of the fude that shares with string, and says why the
+// session ended once the screen is gone (B248, B249).
+func join(args []string, name string) error {
 	if len(args) != 1 {
 		return errors.New("usage: fude --join string")
 	}
 	fmt.Println("waiting for the host to let you in")
-	a, err := term.Join(args[0])
+	a, err := term.Join(args[0], name)
 	if err != nil {
 		return err
 	}
@@ -153,11 +153,16 @@ func run(args []string) error {
 	if len(args) > 0 && args[0] == "--tail" {
 		return tail(args[1:])
 	}
+	// --name names this machine's session, or else $USER does (B252).
+	name := os.Getenv("USER")
+	if len(args) > 1 && args[0] == "--name" {
+		name, args = args[1], args[2:]
+	}
 	if len(args) > 0 && args[0] == "--attach" {
-		return attach(args[1:])
+		return attach(args[1:], name)
 	}
 	if len(args) > 0 && args[0] == "--join" {
-		return join(args[1:])
+		return join(args[1:], name)
 	}
 	if len(args) > 0 && args[0] == "relay" {
 		return relays(args[1:])
@@ -180,6 +185,7 @@ func run(args []string) error {
 	if err != nil {
 		return err
 	}
+	e.SetName(name)
 	if len(args) == 0 && os.Getenv(editor.RestartEnv) == "" {
 		e.Welcome()
 	}

@@ -328,7 +328,17 @@ func (e *Session) serve(c net.Conn, o kernel.Origin) {
 			reply["error"] = fmt.Sprintf("read call: %v", err)
 		} else if call.Method == "attach" {
 			// From here the client sends input, and fude sends it frames
-			// (D39).
+			// (D39). The client names the session (B252).
+			var p struct {
+				Name string `json:"name"`
+			}
+			if len(call.Params) > 0 {
+				if err := json.Unmarshal(call.Params, &p); err != nil {
+					out(map[string]any{"id": call.ID, "error": fmt.Sprintf("read attach: %v", err)})
+					return
+				}
+			}
+			on(func() { s.name = p.Name })
 			if out(map[string]any{"id": call.ID}) != nil {
 				return
 			}
