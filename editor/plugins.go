@@ -327,6 +327,24 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 			e.openFinder(&finder{paths: pk.Items, stale: true, prompt: pk.Prompt + " ", chose: answer}, "")
 		}
 	}
+	for name, value := range res.Set {
+		if name != "expand_tab" && name != "indent_width" && name != "tab_width" {
+			e.message = "no option named " + name + " to set"
+			continue
+		}
+		if b.set == nil {
+			b.set = map[string]string{}
+		}
+		b.set[name] = value
+		// Every window on b fits its options again at the next frame.
+		for _, s := range e.sessions {
+			for _, w := range s.root.windows() {
+				if w.buf == b {
+					w.fitted = nil
+				}
+			}
+		}
+	}
 	if res.Status != nil {
 		if e.segments[p] == nil {
 			e.segments[p] = map[*buffer]string{}

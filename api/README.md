@@ -68,6 +68,7 @@ A `Result` asks for any of these, and fude applies them together once the call r
 | `Pick` | a list to pick from, or a question |
 | `Timers`, `Jobs`, `Requests` | work whose callback runs later |
 | `Selected` | the range an object's call selects |
+| `Set` | `expand_tab`, `indent_width` or `tab_width` on the buffer, over config.toml |
 
 ## License
 

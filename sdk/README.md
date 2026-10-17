@@ -64,7 +64,7 @@ A call outside the plugin's capabilities fails with an error, and fude logs it.
 
 | Capability | Funcs |
 |---|---|
-| none | `Log`, `Current`, `Mode`, `Setting`, `Option`, `Config`, `IndentWidth`, `TabWidth`, `Emit`, `After` |
+| none | `Log`, `Current`, `Mode`, `Setting`, `Option`, `Config`, `IndentWidth`, `TabWidth`, `SetOption`, `Emit`, `After` |
 | `buffer.read` | `Len`, `Lines`, `LineOf`, `LineStart`, `Text`, `NodeAt`, `Language`, `Spans`, `Comment`, `Buffers`, `LenOf`, `TextOf` |
 | `buffer.write` | `Edit` |
 | `ui` | `Decorate`, `Undecorate`, `Sign`, `SignUnder`, `Note`, `Status`, `Message`, `Float`, `Show`, `ShowStyled`, `Pick`, `Ask`, `Jump`, `Open` |

@@ -1006,6 +1006,7 @@ host it may not reach or a request that failed.
 | `register(kind, name, nlen, help, hlen, id) -> i32` | none, in init only | adds a command, operator, object, key or plug that `call` runs by id, with the help `:h` and the key hints show |
 | `subscribe(ptr, len) -> i32` | none, in `init` only | hears the event named through `on_event` |
 | `emit(ptr, len) -> i32` | none | emits the event `plugin.name` about the buffer the call read |
+| `set_option(ptr, len) -> i32` | none | sets the option named before a NUL to the value after it, on the buffer the call is about: `expand_tab`, `indent_width` or `tab_width` (B283) |
 | `decorate(start, end, ptr, len) -> i32` | `ui` | puts a style, such as `keyword`, on `[start, end)`, and returns its id |
 | `undecorate(id) -> i32` | `ui` | removes a decoration, sign or note |
 | `sign(pos, ptr, len, under) -> i32` | `ui` | shows the text, then a NUL and its style, in the sign column on `pos`'s line, and returns its id. With `under` set, any other sign on the line shows over it (B184) |

@@ -100,6 +100,12 @@ func (h host) Fold(line int) (int, int) { return h.e.win.fold(h.e.Text(), line) 
 // or else its filetype's indent_width, or else the global one, or else the
 // tab width (B238).
 func (ed *Editor) indentWidth(b *buffer) int {
+	if v, ok := b.set["indent_width"]; ok {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			return n
+		}
+		return ed.tabWidth(b)
+	}
 	if n := b.ec.indent; n != nil && *n > 0 {
 		return *n
 	} else if n != nil {
@@ -119,6 +125,9 @@ func (ed *Editor) indentWidth(b *buffer) int {
 // else its filetype's tab_width, or else the global one, or else vim's
 // (B238).
 func (ed *Editor) tabWidth(b *buffer) int {
+	if n, err := strconv.Atoi(b.set["tab_width"]); err == nil && n > 0 {
+		return n
+	}
 	if n := b.ec.tab; n != nil {
 		return *n
 	}

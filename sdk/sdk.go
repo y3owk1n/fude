@@ -148,6 +148,9 @@ func hostSubscribe(ptr *byte, n uint32) int32
 //go:wasmimport fude emit
 func hostEmit(ptr *byte, n uint32) int32
 
+//go:wasmimport fude set_option
+func hostSetOption(ptr *byte, n uint32) int32
+
 //go:wasmimport fude decorate
 func hostDecorate(start, end uint32, ptr *byte, n uint32) int32
 
@@ -594,6 +597,14 @@ func Text(start, end int) (string, error) {
 func Edit(start, end int, text string) error {
 	p, n := ptr(text)
 	return fail(int64(hostEdit(uint32(start), uint32(end), p, n)))
+}
+
+// SetOption sets the option name, expand_tab, indent_width or tab_width,
+// to value on the buffer the call is about, over config.toml's, until the
+// buffer closes.
+func SetOption(name, value string) error {
+	p, n := ptr(name + "\x00" + value)
+	return fail(int64(hostSetOption(p, n)))
 }
 
 // Emit asks fude to emit the event plugin.name about the text the call

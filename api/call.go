@@ -28,6 +28,10 @@ type Result struct {
 	Jobs       []Job     // the work to do in the background
 	Requests   []Request // the requests to send the buffer's language servers
 	Selected   *[2]int   // what an object's call selects, nil for none
+	// Set holds options to set on the buffer the call is about, by their
+	// config.toml names: expand_tab, indent_width and tab_width. fude uses
+	// them in place of config.toml's until the buffer closes (B283).
+	Set map[string]string
 }
 
 // Job is a program to run or a URL to get in the background. Once it ends,

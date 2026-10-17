@@ -167,6 +167,9 @@ func (e *Session) expandTab(b *buffer) bool {
 			return w.opts.ExpandTab
 		}
 	}
+	if on, ok := b.set["expand_tab"]; ok {
+		return on == "true"
+	}
 	if on := b.ec.expandTab; on != nil {
 		return *on
 	}
@@ -187,7 +190,8 @@ func (e *Session) fit(w *window) {
 	}
 	w.fitted = w.buf
 	ft, ec := e.cfg.Filetype[e.filetype(w.buf)], w.buf.ec
-	if ft.ExpandTab == nil && ft.Wrap == nil && ft.ColorColumn == nil && ft.Spell == nil && ec.expandTab == nil {
+	set, isSet := w.buf.set["expand_tab"]
+	if ft.ExpandTab == nil && ft.Wrap == nil && ft.ColorColumn == nil && ft.Spell == nil && ec.expandTab == nil && !isSet {
 		return
 	}
 	own := w.opts
@@ -206,6 +210,9 @@ func (e *Session) fit(w *window) {
 	}
 	if ec.expandTab != nil {
 		w.opts.ExpandTab = *ec.expandTab
+	}
+	if isSet {
+		w.opts.ExpandTab = set == "true"
 	}
 }
 

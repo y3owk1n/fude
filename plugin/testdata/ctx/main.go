@@ -5,8 +5,8 @@
 // text has, the cursor's line and where the last line starts. The insert
 // mode key <C-j> types the mode it ran in, in brackets. :Set name types
 // the setting name, or none, :Opt name the option name and a |, :Cfg path
-// the config.toml value at path as JSON and a |, and :Indent the indent
-// and tab widths. :Show
+// the config.toml value at path as JSON and a |, :SetOpt name value sets
+// the option, and :Indent types the indent and tab widths. :Show
 // text shows text in a window titled [shown], as Go, :Styled text shows it
 // there in the diff.plus style, and :Say text shows it in the message
 // area. <Plug>(ctx.hi) types hi at the cursor. :Go pos moves the cursor to
@@ -53,6 +53,12 @@ func init() {
 			v = "none"
 		}
 		sdk.Edit(c.Cursor, c.Cursor, v+"|")
+	})
+	sdk.Command("SetOpt", "sets the option its first arg names to its second", func(c sdk.Call) {
+		name, value, _ := strings.Cut(c.Args, " ")
+		if err := sdk.SetOption(name, value); err != nil {
+			sdk.Log(err.Error())
+		}
 	})
 	sdk.Command("Indent", "types the indent and tab widths", func(c sdk.Call) {
 		sdk.Edit(c.Cursor, c.Cursor, strconv.Itoa(sdk.IndentWidth())+"|"+strconv.Itoa(sdk.TabWidth())+"|")

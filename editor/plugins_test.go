@@ -698,6 +698,18 @@ func TestB280PluginHearsIndentWidths(t *testing.T) {
 	}
 }
 
+// B283
+func TestB283PluginSetsOptions(t *testing.T) {
+	e := loaded(t, "ctx", "f", "x\n", "buffer.write")
+	feed(e, ":SetOpt expand_tab true<CR>:SetOpt indent_width 3<CR>:SetOpt tab_width 5<CR>>>")
+	if text(e) != "   x" {
+		t.Errorf(">> after the plugin set the options gave %q, want three spaces", text(e))
+	}
+	if feed(e, "u:Indent<CR>"); text(e) != "3|5|x" {
+		t.Errorf(":Indent typed %q, want 3|5|x", text(e))
+	}
+}
+
 // B190
 func TestB190PluginAsksTheServer(t *testing.T) {
 	wasm, err := filepath.Abs(filepath.Join("..", "plugin", "testdata", "ctx", "ctx.wasm"))

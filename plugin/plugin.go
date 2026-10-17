@@ -273,6 +273,7 @@ func (p *Plugin) host(ctx context.Context) error {
 		NewFunctionBuilder().WithFunc(p.register).Export("register").
 		NewFunctionBuilder().WithFunc(p.subscribe).Export("subscribe").
 		NewFunctionBuilder().WithFunc(p.emit).Export("emit").
+		NewFunctionBuilder().WithFunc(p.setOption).Export("set_option").
 		NewFunctionBuilder().WithFunc(p.status).Export("status").
 		NewFunctionBuilder().WithFunc(p.message).Export("message").
 		NewFunctionBuilder().WithFunc(p.float).Export("float").
@@ -806,6 +807,24 @@ func (p *Plugin) emit(_ context.Context, m api.Module, ptr, n uint32) int32 {
 		return errRange
 	}
 	p.call.Emit = append(p.call.Emit, p.name+"."+string(name))
+	return 0
+}
+
+// setOption asks to set the option named at (ptr, n), before a NUL, to the
+// value after it, on the buffer the call is about (B283).
+func (p *Plugin) setOption(_ context.Context, m api.Module, ptr, n uint32) int32 {
+	b, ok := m.Memory().Read(ptr, n)
+	name, value, found := strings.Cut(string(b), "\x00")
+	switch {
+	case p.call == nil:
+		return errDenied
+	case !ok || !found || name == "":
+		return errRange
+	}
+	if p.call.Set == nil {
+		p.call.Set = map[string]string{}
+	}
+	p.call.Set[name] = value
 	return 0
 }
 

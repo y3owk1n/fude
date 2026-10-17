@@ -948,6 +948,9 @@ Where fude departs, the line says so and cites the departure in
   answer asks for. After `format_timeout` fude writes the text as it is,
   says so, and drops what comes late. The plugin's message follows the
   write's.
+- B283 [4] A plugin sets `expand_tab`, `indent_width` or `tab_width` on the
+  buffer its call is about, over config.toml's, until the buffer closes,
+  as .editorconfig does.
 - B187 [4] A plugin with `ui` moves the cursor in the window that shows
   the buffer its call was about, once the call and its edits are done. It
   also opens a file of the project at a position, in the current window.
