@@ -190,7 +190,7 @@ func matchEnd(pattern, abs string) bool {
 // languageID is the protocol's name for filetype ft. It is ft except for
 // these two.
 func languageID(ft string) string {
-	return cmp.Or(map[string]string{"bash": "shellscript", "tsx": "typescriptreact"}[ft], ft)
+	return cmp.Or(map[string]string{"bash": "shellscript", "tsx": "typescriptreact", "objc": "objective-c"}[ft], ft)
 }
 
 // detach disconnects b from its language servers.

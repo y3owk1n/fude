@@ -53,6 +53,7 @@ var registry = map[string]grammar{
 	"go":              {"https://github.com/tree-sitter/tree-sitter-go", "1547678a9da59885853f5f5cc8a99cc203fa2e2c", ".", []string{"queries/highlights.scm"}, nil, "// %s"},
 	"c":               {"https://github.com/tree-sitter/tree-sitter-c", "b780e47fc780ddc8da13afa35a3f4ed5c157823d", ".", []string{"queries/highlights.scm"}, nil, "// %s"},
 	"cpp":             {"https://github.com/tree-sitter/tree-sitter-cpp", "f41e1a044c8a84ea9fa8577fdd2eab92ec96de02", ".", []string{"c:queries/highlights.scm", "queries/highlights.scm"}, []string{"queries/injections.scm"}, "// %s"},
+	"objc":            {"https://github.com/tree-sitter-grammars/tree-sitter-objc", "18802acf31d0b5c1c1d50bdbc9eb0e1636cab9ed", ".", []string{"c:queries/highlights.scm", "queries/highlights.scm"}, nil, "// %s"},
 	"rust":            {"https://github.com/tree-sitter/tree-sitter-rust", "77a3747266f4d621d0757825e6b11edcbf991ca5", ".", []string{"queries/highlights.scm"}, []string{"queries/injections.scm"}, "// %s"},
 	"bash":            {"https://github.com/tree-sitter/tree-sitter-bash", "a06c2e4415e9bc0346c6b86d401879ffb44058f7", ".", []string{"queries/highlights.scm"}, nil, "# %s"},
 	"css":             {"https://github.com/tree-sitter/tree-sitter-css", "dda5cfc5722c429eaba1c910ca32c2c0c5bb1a3f", ".", []string{"queries/highlights.scm"}, nil, "/* %s */"},

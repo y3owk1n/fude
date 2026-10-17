@@ -15,7 +15,7 @@ var extFiletypes = map[string]string{
 	"yml": "yaml", "md": "markdown", "sh": "bash", "py": "python",
 	"js": "javascript", "mjs": "javascript", "cjs": "javascript", "jsx": "javascript",
 	"ts": "typescript", "mts": "typescript", "cts": "typescript",
-	"rs": "rust", "h": "c", "cc": "cpp", "cxx": "cpp", "hpp": "cpp", "hh": "cpp", "htm": "html",
+	"rs": "rust", "m": "objc", "h": "c", "cc": "cpp", "cxx": "cpp", "hpp": "cpp", "hh": "cpp", "htm": "html",
 	"just": "just", "dockerfile": "dockerfile", "containerfile": "dockerfile", "patch": "diff", "mk": "make",
 	"rb": "ruby", "rake": "ruby", "gemspec": "ruby", "ru": "ruby", "kt": "kotlin", "kts": "kotlin", "phtml": "php",
 	"ex": "elixir", "exs": "elixir", "hs": "haskell", "sc": "scala", "sbt": "scala",
