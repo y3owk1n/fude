@@ -245,7 +245,8 @@ Where fude departs, the line says so and cites the departure in
   that differ from git's index, unsaved changes too. Each removed line
   comes after `-` and each added one after `+`, with 3 lines around each
   run, as `:diff` shows two states. Without changes, it says so, and `q`
-  closes it.
+  closes it. Both windows colour removed lines in the theme's error
+  colour, added ones in its insert colour and each run's header dim.
 - B220 [2] `:blame` shows, dim after the cursor's line, who changed it
   last, how long ago and the commit's summary, as gitsigns'
   `current_line_blame` does, or "not committed yet" for a line changed

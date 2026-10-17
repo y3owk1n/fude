@@ -324,6 +324,7 @@ func (e *Session) diff(arg string) {
 	y, _ := b.text.At(states(b)[j])
 	ops := lineDiff(strings.Split(x.Slice(0, x.Len()), "\n"), strings.Split(y.Slice(0, y.Len()), "\n"))
 	e.scratch(fmt.Sprintf("[diff %d %d]", i, j), unified(ops, 3), b, nil)
+	e.colourDiff(e.win.buf)
 }
 
 // state resolves a state number for :restore and :diff, from arg or from the
@@ -393,6 +394,34 @@ func (e *Session) scratch(title, text string, src *buffer, lines []kernel.NodeID
 	e.bufs = append(e.bufs, b)
 	e.split(false)
 	e.win.show(b)
+}
+
+// diffColours names the decorations that colour a diff window's lines.
+type diffColours struct{ b *buffer }
+
+// colourDiff colours the lines of b, a diff window: a removed line in the
+// diff.minus style, an added one in diff.plus and a hunk's header dim
+// (B222).
+func (e *Session) colourDiff(b *buffer) {
+	t := b.text.Snapshot()
+	var ds []decoration
+	for line := range t.Lines() {
+		start := t.LineStart(line)
+		end := vim.LineEnd(t, start)
+		style := ""
+		switch text := t.Slice(start, end); {
+		case strings.HasPrefix(text, "@@"):
+			style = "comment"
+		case strings.HasPrefix(text, "-"):
+			style = "diff.minus"
+		case strings.HasPrefix(text, "+"):
+			style = "diff.plus"
+		}
+		if style != "" && end > start {
+			ds = append(ds, decoration{buf: b, start: b.text.SetMark(start, kernel.Left), end: b.text.SetMark(end, kernel.Right), style: style})
+		}
+	}
+	e.decos[diffColours{b}] = ds
 }
 
 // op is one line of a diff: kept, removed or added.

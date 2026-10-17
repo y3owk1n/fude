@@ -353,6 +353,7 @@ func (e *Session) gitDiff() {
 		return
 	}
 	e.scratch("[git diff "+b.name()+"]", unified(ops, 3), b, nil)
+	e.colourDiff(e.win.buf)
 }
 
 // stageHunks writes the hunks meeting the lines from start to end to git's

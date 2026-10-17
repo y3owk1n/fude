@@ -819,6 +819,10 @@ func TestB222GitDiff(t *testing.T) {
 	if got := text(e); !strings.Contains(got, "-b\n+B") {
 		t.Errorf(":gitdiff shows %q", got)
 	}
+	// Removed lines show in the diff.minus colour and added ones in diff.plus.
+	if got := decorations(e); !slices.Contains(got, "-b diff.minus") || !slices.Contains(got, "+B diff.plus") {
+		t.Errorf(":gitdiff colours %q", got)
+	}
 }
 
 // B220
