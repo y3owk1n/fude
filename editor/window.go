@@ -536,3 +536,60 @@ func (e *Session) center() {
 		e.message = fmt.Sprintf("the screen is too narrow to center %d columns", e.root.needs(cmp.Or(e.opts.ColorColumn, centerWidth)))
 	}
 }
+
+// windowKey is a <C-w> command: its keys after <C-w>, what it does, and
+// how.
+type windowKey struct {
+	keys []string
+	help string
+	run  func(e *Session, count int) error // count is 0 when none was typed
+}
+
+// windowKeys are the <C-w> commands (B91).
+var windowKeys = []windowKey{
+	{[]string{"s", "S", "<C-s>"}, "splits the window, the new one below, or above with split_below off", func(e *Session, _ int) error { e.split(false); return nil }},
+	{[]string{"v", "<C-v>"}, "splits the window, the new one right, or left with split_right off", func(e *Session, _ int) error { e.split(true); return nil }},
+	{[]string{"h", "<C-h>"}, "moves to the window left", func(e *Session, _ int) error { e.moveTo('h'); return nil }},
+	{[]string{"j", "<C-j>"}, "moves to the window below", func(e *Session, _ int) error { e.moveTo('j'); return nil }},
+	{[]string{"k", "<C-k>"}, "moves to the window above", func(e *Session, _ int) error { e.moveTo('k'); return nil }},
+	{[]string{"l", "<C-l>"}, "moves to the window right", func(e *Session, _ int) error { e.moveTo('l'); return nil }},
+	{[]string{"c", "<C-c>"}, "closes the window", func(e *Session, _ int) error { return e.closeWindow(e.win) }},
+	{[]string{"q", "<C-q>"}, "closes the window, and quits with the last", func(e *Session, _ int) error { e.quit(false); return nil }},
+	{[]string{"o", "<C-o>"}, "closes every other window", func(e *Session, _ int) error { e.only(); return nil }},
+	{[]string{"="}, "makes the windows the same size", func(e *Session, _ int) error { e.root.even(); e.layout(); return nil }},
+	{[]string{"+"}, "makes the window taller, by the count", func(e *Session, n int) error {
+		e.resize(false, func(now, _ int) int { return now + max(n, 1) })
+		return nil
+	}},
+	{[]string{"-"}, "makes the window shorter, by the count", func(e *Session, n int) error {
+		e.resize(false, func(now, _ int) int { return now - max(n, 1) })
+		return nil
+	}},
+	{[]string{">"}, "makes the window wider, by the count", func(e *Session, n int) error {
+		e.resize(true, func(now, _ int) int { return now + max(n, 1) })
+		return nil
+	}},
+	{[]string{"<"}, "makes the window narrower, by the count", func(e *Session, n int) error {
+		e.resize(true, func(now, _ int) int { return now - max(n, 1) })
+		return nil
+	}},
+	{[]string{"_", "<C-_>"}, "makes the window the count tall, or as tall as it can be", func(e *Session, n int) error {
+		e.resize(false, func(_, room int) int { return cmp.Or(n, room) })
+		return nil
+	}},
+	{[]string{"|"}, "makes the window the count wide, or as wide as it can be", func(e *Session, n int) error {
+		e.resize(true, func(_, room int) int { return cmp.Or(n, room) })
+		return nil
+	}},
+}
+
+// window runs a <C-w> command, typed after count.
+func (e *Session) window(k string, count int) {
+	i := slices.IndexFunc(windowKeys, func(w windowKey) bool { return slices.Contains(w.keys, k) })
+	if i < 0 {
+		return
+	}
+	if err := windowKeys[i].run(e, count); err != nil {
+		e.message = err.Error()
+	}
+}

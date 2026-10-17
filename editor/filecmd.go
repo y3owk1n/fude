@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/y3owk1n/fude/core/kernel"
 )
@@ -171,4 +172,94 @@ func modify(path string, m byte) (string, error) {
 		return strings.TrimSuffix(path, filepath.Ext(path)), nil
 	}
 	return strings.TrimPrefix(filepath.Ext(path), "."), nil
+}
+
+// write writes b to its file, then runs then. Without force it asks first
+// when the file changed on disk since fude read it.
+func (e *Session) write(b *buffer, force bool, then func()) {
+	if b.listed != "" {
+		e.save(b, then)
+		return
+	}
+	switch {
+	case b.file.path == "":
+		e.message = "no file name"
+		return
+	case b.file.readonly:
+		e.message = fmt.Sprintf("\"%s\" is read-only", b.file.path)
+		return
+	case !force && b.file.changed():
+		e.message = fmt.Sprintf("\"%s\" changed on disk since fude read it, write anyway? (y/n)", b.file.path)
+		e.ask = func(yes bool) {
+			if yes {
+				e.write(b, true, then)
+			}
+		}
+		return
+	}
+	if e.formatsOnSave(b) {
+		e.formatOnSave(b, func() { e.writeOut(b, then) })
+		return
+	}
+	e.writeOut(b, then)
+}
+
+// writeOut writes b's text to its file, then runs then.
+func (e *Session) writeOut(b *buffer, then func()) {
+	s, at := b.text.Snapshot(), time.Now()
+	text := s.Slice(0, s.Len())
+	n, err := b.file.write(text)
+	traced("file", fmt.Sprintf("wrote %q, %d bytes", b.file.path, n), at, err)
+	if err != nil {
+		e.message = err.Error()
+		return
+	}
+	tag := ""
+	if b.file.isNew {
+		tag = "[New] "
+	}
+	b.file.isNew = false
+	b.markSaved(text)
+	e.emit("buffer.saved", "", b)
+	e.message = fmt.Sprintf("\"%s\" %s%dB written", b.file.path, tag, n)
+	if then != nil {
+		then()
+	}
+}
+
+// writeAll writes each modified buffer in bs, then runs then. It stops at
+// the first buffer that fails to write.
+func (e *Session) writeAll(bs []*buffer, force bool, then func()) {
+	for i, b := range bs {
+		if b.modified() {
+			e.write(b, force, func() { e.writeAll(bs[i+1:], force, then) })
+			return
+		}
+	}
+	if then != nil {
+		then()
+	}
+}
+
+// Focus reloads each unmodified buffer whose file changed on disk, as one
+// undo step. A modified one keeps its text, and fude warns once.
+func (e *Session) Focus() {
+	for _, b := range e.bufs {
+		// git's index may have changed while fude was away.
+		e.loadGit(b)
+		if b.title != "" || b.file.warned || !b.file.changed() {
+			continue
+		}
+		if b.modified() {
+			e.message = fmt.Sprintf("\"%s\" changed on disk and in fude, keeping fude's text", b.file.path)
+			b.file.warned = true
+			continue
+		}
+		if err := e.revert(b); err != nil {
+			e.message = err.Error()
+			continue
+		}
+		e.message = fmt.Sprintf("\"%s\" changed on disk, reloaded", b.file.path)
+	}
+	e.reveal()
 }
