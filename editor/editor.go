@@ -398,9 +398,10 @@ func (l heard) Changed(before kernel.Snapshot, edits []kernel.Edit) {
 	for _, s := range l.b.servers {
 		s.versions[l.b]++
 		s.client.Change(lsp.URI(l.b.file.path), s.versions[l.b], before, out)
-		l.ed.askColours(s, l.b)
-		l.ed.askHints(s, l.b)
 	}
+	// The kernel tells of a change before making it, so the next frame asks
+	// the servers for colours and hints, about the text after it.
+	l.b.ask = true
 }
 
 // Queue returns the work other goroutines hand the editor loop, such as new
@@ -692,6 +693,13 @@ func (e *Session) Views() []View {
 			v.Colours = textColours(t.Slice(top, last), top)
 		}
 		e.diffGit(w.buf)
+		if b := w.buf; b.ask {
+			b.ask = false
+			for _, s := range b.servers {
+				e.askColours(s, b)
+				e.askHints(s, b)
+			}
+		}
 		v.Signs = e.signs(w.buf, top, last)
 		v.Notes = w.buf.notes(t, top, last)
 		if e.blame && w == e.win {

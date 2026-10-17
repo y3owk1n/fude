@@ -315,6 +315,12 @@ func TestB216InlayHints(t *testing.T) {
 	// The hint moves with the text, as the server says again.
 	feed(e, "Ia<Esc>")
 	settle(t, e, hint(5))
+	// Once the server answers for the text after a change, only its hints
+	// show, so those of a deleted line go.
+	feed(e, "ox f(2)<Esc>ggdd")
+	settle(t, e, func() bool {
+		return slices.Equal(e.Views()[0].Ghosts, []editor.Ghost{{Pos: 4, Text: "n: ", Style: "inlay"}})
+	})
 }
 
 // B60
