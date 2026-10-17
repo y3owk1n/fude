@@ -34,7 +34,7 @@ Helix and Kakoune are lean because they started over, and they changed the gramm
 
 ## What fude believes
 
-**Neovim is the reference.** Where fude's spec says nothing, a key does what it does in Neovim. fude departs only where the departure is better, and each of its 30 departures is written down with its reason in [`prd/decisions.md`](prd/decisions.md).
+**Neovim is the reference.** Where fude's spec says nothing, a key does what it does in Neovim. fude departs only where the departure is better, and each departure is written down with its reason in [`prd/decisions.md`](prd/decisions.md).
 
 **Configuration is data.** `config.toml` holds settings, keymaps and per-language tables. A keymap maps keys to keys, an ex line or a plugin's function. Nothing in the config runs later, because a config that registers callbacks is a plugin without a sandbox or a time limit, and that is the problem fude exists to avoid.
 
@@ -137,7 +137,7 @@ Each language's grammar builds in the background the first time you open one of 
 
 ### Where it differs from Neovim
 
-A few of the 30 departures, each with its reason in [`prd/decisions.md`](prd/decisions.md):
+A few of the departures, each with its reason in [`prd/decisions.md`](prd/decisions.md):
 
 - **No vimscript, no Lua, no Ex mode, no Select mode, no modelines and no swap files.** The timeline does what swap files did, and more.
 - **Search uses Vim's pattern syntax on Go's linear-time engine.** No pattern can hang the editor on a large file. fude refuses the few atoms that need backtracking, such as backreferences in a pattern, with a message naming them.

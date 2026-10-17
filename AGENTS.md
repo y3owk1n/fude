@@ -57,6 +57,9 @@ attribution of any kind.
 
 ## Tests
 
+The test plugins in `plugin/testdata` are checked-in `.wasm` files. After
+changing `sdk/` or a test plugin's source, run `just wasm` to rebuild them.
+
 Test only what `prd/behaviours.md` promises, through a public boundary:
 keys into a headless buffer, the CLI, a file on disk, the exported API of
 `core/` and `vim/`, the plugin ABI or the RPC protocol. Name the B-number

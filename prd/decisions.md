@@ -366,6 +366,9 @@ has no alternate screen, so `less`, `htop` or `vim` in a terminal would
 leave its screen garbled, and it keeps its cells to itself, so fude
 cannot add one. An emulator of fude's own would be about 1,500 lines of terminal
 quirks. The cost is 14 modules more and a v0.1.0 API, pinned by `go.sum`.
+x/vt's API brings two of them in as direct dependencies:
+`charmbracelet/ultraviolet` for the key names fude sends it, and
+`charmbracelet/x/ansi` for the colours it returns.
 
 ## Departures from Neovim
 
