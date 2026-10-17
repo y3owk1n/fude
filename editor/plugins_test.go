@@ -136,6 +136,14 @@ func TestB58StatuslineSegments(t *testing.T) {
 	}
 }
 
+// B272
+func TestB272PluginMessage(t *testing.T) {
+	e := loaded(t, "ctx", "f", "a\n", "ui")
+	if feed(e, ":Say hello there<CR>"); e.Message() != "hello there" {
+		t.Errorf(":Say hello there shows %q", e.Message())
+	}
+}
+
 // B59
 func TestB59PluginFloat(t *testing.T) {
 	e := withPlugin(t, "pop", "ui")

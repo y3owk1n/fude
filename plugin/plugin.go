@@ -268,6 +268,7 @@ func (p *Plugin) host(ctx context.Context) error {
 		NewFunctionBuilder().WithFunc(p.subscribe).Export("subscribe").
 		NewFunctionBuilder().WithFunc(p.emit).Export("emit").
 		NewFunctionBuilder().WithFunc(p.status).Export("status").
+		NewFunctionBuilder().WithFunc(p.message).Export("message").
 		NewFunctionBuilder().WithFunc(p.float).Export("float").
 		NewFunctionBuilder().WithFunc(p.readFile).Export("read_file").
 		NewFunctionBuilder().WithFunc(p.runProgram).Export("run").
@@ -859,6 +860,20 @@ func (p *Plugin) status(_ context.Context, m api.Module, ptr, n uint32) int32 {
 	}
 	s := string(text)
 	p.call.Status = &s
+	return 0
+}
+
+// message asks to show the text at (ptr, n) in the message area once the
+// call returns (B272).
+func (p *Plugin) message(_ context.Context, m api.Module, ptr, n uint32) int32 {
+	if p.call == nil || !p.allowed("ui", "message") {
+		return errDenied
+	}
+	text, ok := m.Memory().Read(ptr, n)
+	if !ok {
+		return errRange
+	}
+	p.call.Message = string(text)
 	return 0
 }
 

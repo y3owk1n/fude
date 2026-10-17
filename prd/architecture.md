@@ -1002,6 +1002,7 @@ host it may not reach or a request that failed.
 | `open(pos, ptr, len) -> i32` | `ui` | opens the file at the path, relative to the project, in the current window with the cursor at `pos`. It refuses a path that leads outside the project, as `read_file` does (B187) |
 | `float(ptr, len) -> i32` | `ui` | shows the markdown in a float at the cursor, or closes it for "" (B59) |
 | `status(ptr, len) -> i32` | `ui` | shows the text on the statusline of the buffer the call read, or none for "" (B58) |
+| `message(ptr, len) -> i32` | `ui` | shows the text in the message area once the call returns (B272) |
 
 `register` gives what it adds an id, and fude runs it through
 `call(id, a, b, c)`. Kind 0 is an ex command and kind 3 a key in normal

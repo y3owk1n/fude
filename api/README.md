@@ -61,6 +61,7 @@ A `Result` asks for any of these, and fude applies them together once the call r
 | `Decorate`, `Undecorate` | styles, signs and notes on ranges, which move with edits, by the ids the module gives them |
 | `Emit` | events for other modules and plugins |
 | `Status` | the module's segment on the statusline |
+| `Message` | a line in the message area |
 | `Float` | markdown at the cursor |
 | `Show` | text in a read-only window of its own |
 | `Jump` | where the cursor goes, in this buffer or in a file |

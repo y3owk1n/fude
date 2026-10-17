@@ -159,6 +159,9 @@ func hostUndecorate(id uint32) int32
 //go:wasmimport fude status
 func hostStatus(ptr *byte, n uint32) int32
 
+//go:wasmimport fude message
+func hostMessage(ptr *byte, n uint32) int32
+
 //go:wasmimport fude float
 func hostFloat(ptr *byte, n uint32) int32
 
@@ -587,6 +590,13 @@ func Undecorate(id int) error {
 func Status(text string) error {
 	p, n := ptr(text)
 	return fail(int64(hostStatus(p, n)))
+}
+
+// Message shows text in the message area once the call returns. It needs
+// ui.
+func Message(text string) error {
+	p, n := ptr(text)
+	return fail(int64(hostMessage(p, n)))
 }
 
 // Float shows markdown in a float at the cursor, or closes it for "". It

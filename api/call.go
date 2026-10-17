@@ -18,6 +18,7 @@ type Result struct {
 	Undecorate []int     // the ids of decorations to remove
 	Emit       []string  // the events to emit, named owner.event
 	Status     *string   // the owner's statusline segment for the text it read, "" for none
+	Message    string    // a line for the message area, "" for none
 	Float      *string   // markdown to show at the cursor, "" to close it
 	Show       *Panel    // text to show in a window of its own
 	Jump       *Jump     // where to move the cursor

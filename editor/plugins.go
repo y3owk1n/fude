@@ -276,6 +276,9 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 			}
 		})
 	}
+	if res.Message != "" {
+		e.message = res.Message
+	}
 	if res.Float != nil {
 		e.float, e.floatSpans = e.markdown(*res.Float)
 	}

@@ -858,6 +858,7 @@ Where fude departs, the line says so and cites the departure in
   plugin's do.
 - B58 [4] A plugin with `ui` shows a segment on the statusline of the
   buffer it read.
+- B272 [4] A plugin with `ui` shows a line in the message area.
 - B175 [4] A plugin's ex command gets what was typed after its name,
   whether `!` followed the name, and its range, as a built-in command
   does. Without a range, the range is the cursor's line.

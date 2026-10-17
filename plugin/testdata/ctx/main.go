@@ -5,12 +5,12 @@
 // text has, the cursor's line and where the last line starts. The insert
 // mode key <C-j> types the mode it ran in, in brackets. :Set name types
 // the setting name, or none. :Show text shows text in a window titled
-// [shown], as Go. :Go pos moves the cursor to pos, and :Open path opens
-// the file at path with the cursor at 2. :Bufs types the id and text of
-// every open buffer, and :Node the kinds of the syntax node at the cursor
-// and its parent. :Hover asks the language server for hover at the cursor
-// and types its answer, or the error, at the start. Needs buffer.read,
-// buffer.write, ui and lsp.
+// [shown], as Go, and :Say text shows it in the message area. :Go pos
+// moves the cursor to pos, and :Open path opens the file at path with the
+// cursor at 2. :Bufs types the id and text of every open buffer, and :Node
+// the kinds of the syntax node at the cursor and its parent. :Hover asks
+// the language server for hover at the cursor and types its answer, or the
+// error, at the start. Needs buffer.read, buffer.write, ui and lsp.
 package main
 
 import (
@@ -37,6 +37,9 @@ func init() {
 	})
 	sdk.Command("Show", "shows its args in a window", func(c sdk.Call) {
 		sdk.Show("[shown]", "go", c.Args)
+	})
+	sdk.Command("Say", "shows its args in the message area", func(c sdk.Call) {
+		sdk.Message(c.Args)
 	})
 	sdk.Command("Go", "moves the cursor", func(c sdk.Call) {
 		pos, _ := strconv.Atoi(c.Args)
