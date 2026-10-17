@@ -809,6 +809,11 @@ func TestB196PickPlaces(t *testing.T) {
 	if feed(e, "<CR>"); e.Cursor() != 18 {
 		t.Errorf("the symbol is at %d, want 18", e.Cursor())
 	}
+	// Without a server that finds symbols, it says so.
+	e = start(t)
+	if feed(e, ":pick symbols<CR>"); e.Message() != "no language server offers workspace symbols" {
+		t.Errorf(":pick symbols without a server said %q", e.Message())
+	}
 }
 
 // N3
