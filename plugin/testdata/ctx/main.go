@@ -101,6 +101,14 @@ func init() {
 		cs, _ := sdk.Comment(c.Cursor)
 		sdk.Edit(c.Cursor, c.Cursor, lang+"|"+strings.Join(names, ",")+"|"+cs+"|")
 	})
+	sdk.Command("Range", "asks the server to format the cursor's byte, and types its answer", func(c sdk.Call) {
+		sdk.RequestRange("textDocument/formatting", c.Cursor, c.Cursor+1, "", func(out string, err error) {
+			if err != nil {
+				out = err.Error()
+			}
+			sdk.Edit(0, 0, out)
+		})
+	})
 	sdk.Command("Hover", "types the server's hover", func(c sdk.Call) {
 		sdk.Request("textDocument/hover", c.Cursor, "", func(out string, err error) {
 			if err != nil {

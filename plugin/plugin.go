@@ -642,18 +642,19 @@ func (p *Plugin) fetch(_ context.Context, m api.Module, ptr, n, id uint32) int32
 
 // request asks fude to send the method and params at (ptr, n), NUL
 // separated, to the language servers of the buffer the call is about, at
-// pos, or with no position for a negative pos, and to run the plugin's
-// callback with id with the answer (B190).
-func (p *Plugin) request(_ context.Context, m api.Module, ptr, n, pos, id uint32) int32 {
+// pos, or about the range from pos to end, or with no position for a
+// negative pos, and to run the plugin's callback with id with the answer
+// (B190, B281).
+func (p *Plugin) request(_ context.Context, m api.Module, ptr, n, pos, end, id uint32) int32 {
 	if p.call == nil || !p.allowed("lsp", "request") {
 		return errDenied
 	}
 	b, ok := m.Memory().Read(ptr, n)
 	method, params, _ := strings.Cut(string(b), "\x00")
-	if !ok || method == "" || int(int32(pos)) > p.call.Text.Len() {
+	if !ok || method == "" || int(int32(pos)) > p.call.Text.Len() || int(int32(end)) > p.call.Text.Len() {
 		return errRange
 	}
-	p.call.Requests = append(p.call.Requests, fude.Request{ID: id, Method: method, Pos: int(int32(pos)), Params: params})
+	p.call.Requests = append(p.call.Requests, fude.Request{ID: id, Method: method, Pos: int(int32(pos)), End: int(int32(end)), Params: params})
 	return 0
 }
 

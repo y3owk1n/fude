@@ -713,6 +713,47 @@ func TestB190PluginAsksTheServer(t *testing.T) {
 	settle(t, e, func() bool { return strings.Contains(text(e), "**hover** at 1:2") })
 }
 
+// B281
+func TestB281PluginAsksAboutARange(t *testing.T) {
+	wasm, err := filepath.Abs(filepath.Join("..", "plugin", "testdata", "ctx", "ctx.wasm"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	e, log := withServer(t, "a\nbc\n", "utf-8", fmt.Sprintf("[[plugin]]\npath = %q\ncapabilities = [\"buffer.write\", \"lsp\"]", wasm))
+	heard(t, log, `"method":"textDocument/didOpen"`, 1)
+	feed(e, "jl")
+	settle(t, e, func() bool { feed(e, ":Range<CR>"); return e.Message() == "" })
+	// The server hears the range in its encoding, and the plugin gets its
+	// answer.
+	heard(t, log, `"range":{"start":{"line":1,"character":1},"end":{"line":1,"character":2}}`, 1)
+	settle(t, e, func() bool { return strings.HasPrefix(text(e), "[{") })
+}
+
+// asker is a module that asks the server for hover at the cursor on gA and
+// shows the answer's encoding in the message area.
+type asker struct{ idle }
+
+func (asker) Registered() []api.Registration {
+	return []api.Registration{{Kind: api.Key, Name: "gA", Help: "asks the server for hover", ID: 1}}
+}
+
+func (asker) Call(_ context.Context, _ uint32, s api.Scope, args ...int) (api.Result, error) {
+	return api.Result{Requests: []api.Request{{ID: 1, Method: "textDocument/hover", Pos: args[0], End: -1}}}, nil
+}
+
+func (asker) Callback(_ context.Context, _ uint32, s api.Scope) (api.Result, error) {
+	return api.Result{Message: "encoding " + s.About["encoding"]}, nil
+}
+
+// B281, the encoding an answer comes with
+func TestB281ModuleHearsTheEncoding(t *testing.T) {
+	e, log := withServer(t, "a\n", "utf-8")
+	heard(t, log, `"method":"textDocument/didOpen"`, 1)
+	e.Use(asker{})
+	feed(e, "gA")
+	settle(t, e, func() bool { return e.Message() == "encoding utf-8" })
+}
+
 // B191
 func TestB191PluginReload(t *testing.T) {
 	e := loaded(t, "ctx", "f", "a\n", "buffer.write")

@@ -526,8 +526,16 @@ type reply struct {
 // server that has not started yet may.
 func (s *server) offers(method string) bool {
 	provider := strings.TrimPrefix(method, "textDocument/") + "Provider"
-	if method == "workspace/symbol" {
+	// The capabilities that are not named after their methods.
+	switch method {
+	case "workspace/symbol":
 		provider = "workspaceSymbolProvider"
+	case "textDocument/formatting":
+		provider = "documentFormattingProvider"
+	case "textDocument/rangeFormatting":
+		provider = "documentRangeFormattingProvider"
+	case "textDocument/documentColor":
+		provider = "colorProvider"
 	}
 	return s.client.Encoding() == "" || s.client.Supports(provider)
 }

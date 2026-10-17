@@ -41,14 +41,16 @@ type Job struct {
 }
 
 // Request is a request a call sends the language servers of the buffer it
-// was about. fude fills in its textDocument, and its position at
-// Pos unless Pos is negative, and adds Params, a JSON object. The owner's
-// callback with ID gets the first answer that is not null (B190).
+// was about. fude fills in its textDocument and adds Params, a JSON
+// object. With Pos and End it fills in the range between them, with Pos
+// alone the position there, and with neither no position. The owner's
+// callback with ID gets the first answer that is not null as output, and
+// the server's position encoding as encoding (B190, B281).
 type Request struct {
-	ID     uint32
-	Method string
-	Pos    int
-	Params string
+	ID       uint32
+	Method   string
+	Pos, End int
+	Params   string
 }
 
 // Pick is a list of items a call asks the user to pick from with Prompt,

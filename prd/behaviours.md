@@ -920,6 +920,9 @@ Where fude departs, the line says so and cites the departure in
   position in each server's encoding when the plugin gives one. A function
   of the plugin's then runs, as a job's does (B181), with the first answer
   that is not null.
+- B281 [4] A plugin sends a request about a range of the buffer, as
+  `textDocument/rangeFormatting` takes, and hears the server's position
+  encoding with the answer, so it can read the positions in it.
 - B191 [4] `:plugin reload` reads the `[[plugin]]` tables of config.toml
   again and loads every plugin anew, a rebuilt one from its new file. What
   a plugin it no longer lists added goes with it, its operators and

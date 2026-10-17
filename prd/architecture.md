@@ -51,7 +51,8 @@ internal/        packages only fude's own packages may import
   pty/           a program in a pseudo-terminal, for :terminal
   relay/         passes a share's connections between its host and guests
   trace/         what fude did, for fude --tail
-modules/         Go packages over api/ that cmd/fude adds with editor.Use
+modules/         Go packages over api/ and protocol/ that cmd/fude adds with
+                 editor.Use
   blame/         :blame
   comment/       gc
   git/           git signs, hunks, gh, gH and :gitdiff
@@ -223,7 +224,7 @@ Both are an `api.Module`. `cmd/fude` passes each built-in module to
 `editor.Use` before `Load`, and the editor runs it as it runs a plugin. A
 call reads a `Scope` and returns a `Result`, and its events and callbacks
 run off the loop. Built-in modules live in `modules/` and import only
-`api/` (D49). `:blame` is the first (B220).
+`api/` and `protocol/` (D49). `:blame` is the first (B220).
 
 | Extension point | Adds | Runs |
 |---|---|---|
@@ -981,7 +982,7 @@ host it may not reach or a request that failed.
 | `log(ptr, len)` | none | adds a line to fude's log |
 | `after(ms, id) -> i32` | none | runs `callback(id)` once, `ms` milliseconds after the call returns, under the event budget, about the buffer the call was about (B180) |
 | `start(ptr, len, in_ptr, in_len, id) -> i32` | `process` | runs the program with its arguments, NUL-separated, in the background with the text at `in_ptr` on its stdin, then `callback(id)`. The program must be in the plugin's `programs` (B181) |
-| `request(ptr, len, pos, id) -> i32` | `lsp` | sends the method, then a NUL and its params as a JSON object or nothing, to the language servers of the buffer the call is about, then `callback(id)` with the first answer that is not null as `output`. fude adds `textDocument`, and `position` at `pos` in each server's encoding unless `pos` is negative. A method outside `textDocument/` goes to every server, and one inside it to those that offer it (B190) |
+| `request(ptr, len, pos, end, id) -> i32` | `lsp` | sends the method, then a NUL and its params as a JSON object or nothing, to the language servers of the buffer the call is about, then `callback(id)` with the first answer that is not null as `output`. fude adds `textDocument`, and `position` at `pos` in each server's encoding unless `pos` is negative, or `range` from `pos` to `end` unless `end` is. The callback's context has the server's encoding as `encoding`. A method outside `textDocument/` goes to every server, and one inside it to those that offer it (B190, B281) |
 | `fetch(ptr, len, id) -> i32` | `net` | gets the http or https URL in the background, as `http_get` does, then `callback(id)` (B181) |
 | `setting(ptr, len) -> i64` | none | the value of the plugin's setting by its name, as text, or -2 for a name it has none of (B178) |
 | `context(ptr, len) -> i64` | none | the value of what the call is about by its name, or -2 for a name it has none of. Every call has `buffer`, `path` and `filetype`, of the buffer it is about, and `mode` (B176) |

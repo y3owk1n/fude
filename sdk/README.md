@@ -71,7 +71,7 @@ A call outside the plugin's capabilities fails with an error, and fude logs it.
 | `fs.read` | `ReadFile`, inside the folder fude started in |
 | `process` | `Run`, `Start`, `Pipe`, for the programs the plugin's table lists |
 | `net` | `Get`, `Fetch`, for the hosts the plugin's table lists |
-| `lsp` | `Request`, to the buffer's language servers |
+| `lsp` | `Request`, `RequestRange`, to the buffer's language servers |
 
 Edits, decorations and windows a call asks for apply together once it returns. `After`, `Start`, `Pipe`, `Fetch`, `Request`, `Pick` and `Ask` run their func later, off the input path, as an event runs.
 

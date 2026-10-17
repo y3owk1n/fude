@@ -89,7 +89,7 @@ func hostStart(ptr *byte, n uint32, in *byte, inN uint32, id uint32) int32
 func hostFetch(ptr *byte, n uint32, id uint32) int32
 
 //go:wasmimport fude request
-func hostRequest(ptr *byte, n uint32, pos, id uint32) int32
+func hostRequest(ptr *byte, n uint32, pos, end, id uint32) int32
 
 //go:wasmimport fude setting
 func hostSetting(ptr *byte, n uint32) int64
@@ -284,8 +284,14 @@ func Fetch(url string, f func(body string, err error)) error {
 // params, a JSON object or "". Then f runs, as Start's does, with the first
 // answer that is not null, as JSON. It needs lsp.
 func Request(method string, pos int, params string, f func(result string, err error)) error {
+	return RequestRange(method, pos, -1, params, f)
+}
+
+// RequestRange is Request with the range from start to end in place of a
+// position, as textDocument/rangeFormatting takes (B281).
+func RequestRange(method string, start, end int, params string, f func(result string, err error)) error {
 	p, n := ptr(method + "\x00" + params)
-	return schedule(done(f), func(id uint32) int32 { return hostRequest(p, n, uint32(pos), id) })
+	return schedule(done(f), func(id uint32) int32 { return hostRequest(p, n, uint32(start), uint32(end), id) })
 }
 
 // done is the callback that runs f with a job's output and error.

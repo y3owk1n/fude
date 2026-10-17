@@ -202,7 +202,10 @@ func (e *Session) pluginRequest(p api.Module, b *buffer, rq api.Request) {
 	for _, s := range to {
 		s.client.Request(rq.Method, func(enc string) any {
 			out := map[string]any{"textDocument": map[string]any{"uri": uri}}
-			if rq.Pos >= 0 {
+			switch {
+			case rq.Pos >= 0 && rq.End >= 0:
+				out["range"] = lsp.Range{Start: lsp.Point(t, rq.Pos, enc), End: lsp.Point(t, rq.End, enc)}
+			case rq.Pos >= 0:
 				out["position"] = lsp.Point(t, rq.Pos, enc)
 			}
 			maps.Copy(out, params)
@@ -212,7 +215,7 @@ func (e *Session) pluginRequest(p api.Module, b *buffer, rq api.Request) {
 			case done:
 			case len(res) > 0 && string(res) != "null":
 				done = true
-				reply(api.Context{"output": string(res), "server": s.name})
+				reply(api.Context{"output": string(res), "server": s.name, "encoding": s.client.Encoding()})
 			case left == 0:
 				reply(api.Context{"error": "no language server answered " + rq.Method})
 			}

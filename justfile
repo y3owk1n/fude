@@ -61,7 +61,7 @@ cgo:
 
 # Fail if a package in modules/ imports a fude package other than api/.
 module-imports:
-    test -z "$(go list -f '{{{{join .Imports "\n"}}' ./modules/... | grep '^github.com/y3owk1n/fude/' | grep -v '^github.com/y3owk1n/fude/api')"
+    test -z "$(go list -f '{{{{join .Imports "\n"}}' ./modules/... | grep '^github.com/y3owk1n/fude/' | grep -vE '^github.com/y3owk1n/fude/(api|protocol)')"
 
 # Fail if core/ grows past 10k lines of Go, tests excluded.
 kernel-size:

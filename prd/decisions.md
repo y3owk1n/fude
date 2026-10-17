@@ -507,7 +507,8 @@ release (D37).
 ## D49. Built-in features are modules over api, added in cmd/fude
 
 A built-in feature can be a package in `modules/` that imports only
-`api/`. It is an `api.Module`, and `cmd/fude` adds it with `editor.Use`.
+`api/` and `protocol/`, which hold no editor state. It is an `api.Module`,
+and `cmd/fude` adds it with `editor.Use`.
 `:blame` was the first to move out of `editor/`. Why: a feature that
 works through the API a plugin gets proves the API is enough (D21), and
 where it does not, the API grows for plugins too, as jobs got stdin for
