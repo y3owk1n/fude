@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -1487,6 +1488,45 @@ func TestB131CommandCompletion(t *testing.T) {
 			t.Fatalf("after %q the line is %q, want %q", c.keys, e.Line(), c.line)
 		}
 	}
+	lit := func(want string) bool {
+		f, _ := e.Float()
+		return slices.ContainsFunc(f.Spans, func(s syntax.Span) bool { return s.Name == "menu.selected" && f.Text[s.Start:s.End] == want })
+	}
+	// <CR> on a name that is no command runs the menu's first, and on one
+	// that is a command runs it as typed.
+	if feed(e, "<Esc>:timel<CR>"); len(e.Views()) != 2 {
+		t.Fatalf(":timel<CR> left %d windows, want the timeline's too", len(e.Views()))
+	}
+	feed(e, ":q<CR>")
+	if feed(e, ":ls<CR>"); !strings.Contains(e.Message(), `"readme"`) {
+		t.Errorf(":ls<CR> said %q, want :ls to list the buffers, not :lsp", e.Message())
+	}
+	// A command typed whole, or by a short name, shows its own item lit.
+	if feed(e, ":w"); !lit("write") {
+		t.Errorf(":w lights none of the menu, want write")
+	}
+	// An argument takes the menu's lit item too, and <C-e> keeps what is
+	// typed, as for a new file.
+	if feed(e, "<Esc>:debug sta<CR>"); !strings.HasPrefix(e.Message(), "no launch settings") {
+		t.Errorf(":debug sta<CR> said %q, want :debug start to run", e.Message())
+	}
+	feed(e, ":e rea")
+	settle(t, e, func() bool { return lit("readme") })
+	if feed(e, "<CR>"); e.Views()[0].Name != "readme" {
+		t.Errorf(":e rea<CR> opened %s, want readme", e.Views()[0].Name)
+	}
+	feed(e, ":e rea")
+	settle(t, e, func() bool { return lit("readme") })
+	if feed(e, "<C-e><CR>"); e.Views()[0].Name != "rea" {
+		t.Errorf(":e rea<C-e><CR> opened %s, want the new file rea", e.Views()[0].Name)
+	}
+	feed(e, ":b readme<CR>")
+	// A short name matches as its command, which shows its short names.
+	feed(e, "<Esc>:ls")
+	if f, _ := e.Float(); !regexp.MustCompile(`(?m)^buffers +ls$`).MatchString(f.Text) || !lit("buffers") {
+		t.Errorf(":ls shows %q, want buffers lit with ls beside it", f.Text)
+	}
+	feed(e, "<Esc>")
 	// Other sessions complete for :follow and guests for :kick.
 	e.Attach("pat", editor.Host)
 	e.Attach("guest", editor.Guest).SetName("sam")
@@ -1505,6 +1545,11 @@ func TestB131CommandCompletion(t *testing.T) {
 	change(t, filepath.Join(".fude", "tasks.toml"), "[task.build]\ncommand = \"true\"\n")
 	feed(e, "<Esc>:task b")
 	settle(t, e, func() bool { f, _ := e.Float(); return strings.HasPrefix(f.Text, "build") })
+	// A menu that comes later lights its item too.
+	if !lit("build") {
+		t.Error(":task b lights none of its menu, want build")
+	}
+
 	// With autocomplete, the menu shows as the line is typed.
 	feed(e, "<Esc>:bu")
 	if f, ok := e.Float(); !ok || !strings.HasPrefix(f.Text, "buffer") {

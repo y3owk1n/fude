@@ -231,8 +231,13 @@ Where fude departs, the line says so and cites the departure in
   `:bdelete`, a subcommand and launch settings for `:debug`, another
   session for `:follow`, a guest for `:kick` or a task for `:task`.
   Completions that need a file read or a program run, such as tasks,
-  show in the menu once found, and typing goes on meanwhile. With
-  `autocomplete` on, the menu shows as the line is typed (N12).
+  show in the menu once found, and typing goes on meanwhile. A command's
+  short names match as it does, and show dim beside it. The menu lights
+  the item the word is, a command by its short names too, or else its
+  first, and `<CR>` takes the one lit. So `:bde` runs `:bdelete`, `:w`
+  stays `:write` and `:e rea` opens `readme`. `<C-e>` puts back the word
+  as typed, such as the name of a new file. With `autocomplete` on, the
+  menu shows as the line is typed (N12).
 - B132 [2] In normal and visual mode `<Up>`, `<Down>`, `<Home>`, `<End>`,
   `<PageUp>`, `<PageDown>` and `<Del>` are `k`, `j`, `0`, `$`, `<C-b>`,
   `<C-f>` and `x`. In insert mode the arrows, `<Home>` and `<End>` move
