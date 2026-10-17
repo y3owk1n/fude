@@ -423,7 +423,8 @@ that change is the head node, it is a plain `Undo`, so redo keeps working.
 Otherwise it reverts the change as one edit, from the text after it back to
 the text before it. It moves that edit through the changes others made since
 and applies it as a new node of `o`'s. It refuses when one of those changes
-overlaps it (B109).
+overlaps it (B109). The new node's `Reverts` names the change it undid, so
+a timeline loaded again passes over both.
 
 The kernel keeps a transaction log beside the timeline. A command such as
 `dw` resolves to different edits at a different version, so the log stores

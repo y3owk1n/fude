@@ -1026,7 +1026,7 @@ Tested through `core/`'s exported API, with no editor around it.
 - B109 [6] Undoing one origin reverts only its newest change, moved through
   the changes others made after it, as a new node. It refuses when one of
   those overlaps it, and when the change is the newest node it is a plain
-  undo.
+  undo. A change it undid stays undone after the timeline loads again.
 - B115 [6] A buffer gives the edits made since an older version, in order,
   or says it no longer has them.
 

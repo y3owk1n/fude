@@ -111,14 +111,22 @@ func (b *Buffer) UndoOrigin(o Origin, label string, at time.Time) (int, error) {
 			}
 		}
 	}
-	if err := b.Apply(Transaction{Base: b.version, Origin: o, Label: label, Time: at, Edits: []Edit{inv}}); err != nil {
+	if err := b.Apply(Transaction{Base: b.version, Origin: o, Label: label, Time: at, Edits: []Edit{inv}, Reverts: target.ID}); err != nil {
 		return 0, err
+	}
+	return inv.Start, nil
+}
+
+// noteReverts marks n and the node it reverted as reverted, so UndoOrigin
+// passes over both.
+func (b *Buffer) noteReverts(n Node) {
+	if n.Reverts == (NodeID{}) {
+		return
 	}
 	if b.reverted == nil {
 		b.reverted = map[NodeID]bool{}
 	}
-	b.reverted[target.ID], b.reverted[b.head] = true, true
-	return inv.Start, nil
+	b.reverted[n.ID], b.reverted[n.Reverts] = true, true
 }
 
 // diff returns one edit that turns old into new, keeping the text they start

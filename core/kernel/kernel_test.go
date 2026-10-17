@@ -306,9 +306,16 @@ func TestB109UndoOrigin(t *testing.T) {
 		t.Fatalf("undoing a left %q in %d nodes: %v", text(b), len(b.Nodes()), err)
 	}
 	// Undoing a again finds nothing, as its change and the undo of it are
-	// both reverted.
+	// both reverted, and so it is after the timeline loads again.
 	if _, err := b.UndoOrigin("a", "undo", time.Time{}); !errors.Is(err, kernel.ErrNothing) {
 		t.Errorf("undoing a twice gave %v, want ErrNothing", err)
+	}
+	loaded, err := kernel.Load(text(b), b.Head(), b.Nodes(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := loaded.UndoOrigin("a", "undo", time.Time{}); !errors.Is(err, kernel.ErrNothing) || text(loaded) != "2abc" {
+		t.Errorf("undoing a after a load gave %v and %q, want ErrNothing", err, text(loaded))
 	}
 	if _, err := b.UndoOrigin("b", "undo", time.Time{}); err != nil || text(b) != "abc" {
 		t.Errorf("undoing b left %q: %v", text(b), err)

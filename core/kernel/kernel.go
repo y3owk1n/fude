@@ -41,11 +41,12 @@ type Edit struct {
 
 // Transaction is an atomic set of sorted, non-overlapping edits.
 type Transaction struct {
-	Base   Version
-	Origin Origin
-	Label  string
-	Time   time.Time // the host's clock, since the kernel reads none
-	Edits  []Edit
+	Base    Version
+	Origin  Origin
+	Label   string
+	Time    time.Time // the host's clock, since the kernel reads none
+	Edits   []Edit
+	Reverts NodeID // the node this undoes, for UndoOrigin
 }
 
 // Change is an applied transaction's edits and the text each replaced.
@@ -62,6 +63,7 @@ type Node struct {
 	Label   string
 	Time    time.Time // when its first transaction was made
 	Changes []Change
+	Reverts NodeID `json:",omitzero"` // the node UndoOrigin undid with it
 }
 
 // Store receives every node as it is created.
@@ -153,6 +155,7 @@ func Load(text string, head NodeID, nodes []Node, store Store) (*Buffer, error) 
 		}
 		seen[n.ID] = true
 		b.seq[n.ID.Origin] = max(b.seq[n.ID.Origin], n.ID.Seq)
+		b.noteReverts(n)
 	}
 	if !seen[head] {
 		return nil, fmt.Errorf("kernel: load: head %v is not a loaded node", head)
@@ -192,6 +195,9 @@ func (b *Buffer) Apply(t Transaction) error {
 
 	if b.group == nil {
 		b.group = &Node{ID: b.next(t.Origin), Parent: b.head, Label: t.Label, Time: t.Time}
+	}
+	if t.Reverts != (NodeID{}) {
+		b.group.Reverts = t.Reverts
 	}
 	b.group.Changes = append(b.group.Changes, c)
 	if b.depth[t.Origin] == 0 {
@@ -475,6 +481,7 @@ func (b *Buffer) commit() {
 	b.group = nil
 	b.nodes = append(b.nodes, n)
 	b.head = n.ID
+	b.noteReverts(n)
 	if b.store != nil {
 		b.store.Append(n)
 	}
