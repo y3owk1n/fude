@@ -53,6 +53,7 @@ internal/        packages only fude's own packages may import
 modules/         Go packages over api/ that cmd/fude adds with editor.Use
   blame/         :blame
   comment/       gc
+  spell/         spell, ]s, [s, z= and zg
 cmd/fude/        main, distribution wiring
 ```
 

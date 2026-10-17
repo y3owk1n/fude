@@ -316,10 +316,6 @@ func init() {
 		{"debug.panel", "shows the debug session's frames, variables and output", func(e *Session, _ int) { e.debugPanel() }},
 		{"debug.eval", "shows the value of the selection, or the name under the cursor, at the chosen frame", func(e *Session, _ int) { e.evalHere() }},
 		{"debug.open", "chooses the debug panel's frame under the cursor, or shows or hides its variable's members", func(e *Session, _ int) { e.debugOpen() }},
-		{"spell.next", "goes to the next misspelled word", func(e *Session, _ int) { e.stepTypo(false) }},
-		{"spell.prev", "goes to the misspelled word before", func(e *Session, _ int) { e.stepTypo(true) }},
-		{"spell.suggest", "lists words for the one under the cursor, and the one chosen replaces it", func(e *Session, _ int) { e.suggest() }},
-		{"spell.good", "adds the word under the cursor to your words", func(e *Session, _ int) { e.good() }},
 		{"window.left", "goes to the window, or tmux pane, to the left", func(e *Session, _ int) { e.navigate('h') }},
 		{"window.down", "goes to the window, or tmux pane, below", func(e *Session, _ int) { e.navigate('j') }},
 		{"window.up", "goes to the window, or tmux pane, above", func(e *Session, _ int) { e.navigate('k') }},
@@ -459,7 +455,6 @@ var defaultMaps = map[string]string{
 	"s":          "<Plug>(jump)",
 	"<Leader>db": "<Plug>(debug.break)", "<Leader>dc": "<Plug>(debug.continue)", "<Leader>dn": "<Plug>(debug.next)",
 	"<Leader>di": "<Plug>(debug.in)", "<Leader>do": "<Plug>(debug.out)", "<Leader>dq": "<Plug>(debug.stop)", "<Leader>dp": "<Plug>(debug.panel)", "<Leader>de": "<Plug>(debug.eval)",
-	"]s": "<Plug>(spell.next)", "[s": "<Plug>(spell.prev)", "z=": "<Plug>(spell.suggest)", "zg": "<Plug>(spell.good)",
 	"za": "<Plug>(fold.toggle)", "zc": "<Plug>(fold.close)", "zo": "<Plug>(fold.open)", "zR": "<Plug>(fold.openAll)", "zM": "<Plug>(fold.closeAll)",
 }
 

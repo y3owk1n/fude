@@ -207,6 +207,16 @@ func Clean() (remove func(), err error) {
 	}, nil
 }
 
+// ConfigDir returns fude's config directory, the empty one with --clean
+// (B270).
+func ConfigDir() (string, error) {
+	dir, err := xdgDir("XDG_CONFIG_HOME", ".config")
+	if err != nil {
+		return "", fmt.Errorf("find the config directory: %w", err)
+	}
+	return filepath.Join(dir, "fude"), nil
+}
+
 // xdgDir returns the directory the XDG variable env names, or else fallback
 // in the home directory. With --clean, config gets the empty directory.
 func xdgDir(env, fallback string) (string, error) {

@@ -164,12 +164,6 @@ func (e *Session) Views() []wire.View {
 				v.Ghosts = append(v.Ghosts, wire.Ghost{Pos: ed.End, Text: ed.Text, Style: "sub.new"})
 			}
 		}
-		// The words spell finds in what shows (B259).
-		if w.opts.Spell {
-			if known := e.dictionary(); known != nil {
-				v.Decorations = append(v.Decorations, typos(t, top, last, e.filetype(w.buf), v.Highlights, known)...)
-			}
-		}
 		if f := e.flash; f != nil && f.b == w.buf && f.end > top && f.start < last {
 			// Only what shows, as an undo can touch the whole text.
 			v.Decorations = append(v.Decorations, syntax.Span{Start: max(f.start, top), End: min(f.end, last), Name: "flash"})

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -15,6 +16,7 @@ import (
 	"github.com/y3owk1n/fude/internal/relay"
 	"github.com/y3owk1n/fude/modules/blame"
 	"github.com/y3owk1n/fude/modules/comment"
+	"github.com/y3owk1n/fude/modules/spell"
 	"github.com/y3owk1n/fude/plugin"
 	"github.com/y3owk1n/fude/ui/term"
 )
@@ -149,7 +151,13 @@ func main() {
 }
 
 // modules returns the modules this distribution adds to the editor (D49).
-func modules() []api.Module { return []api.Module{blame.New(), comment.New()} }
+func modules() []api.Module {
+	words := ""
+	if dir, err := editor.ConfigDir(); err == nil {
+		words = filepath.Join(dir, "words.txt")
+	}
+	return []api.Module{blame.New(), comment.New(), spell.New(words)}
+}
 
 // run prints a man page for --man, fude(1) or the one named after it,
 // writes or builds a plugin for plugin new and plugin build, prints what a
