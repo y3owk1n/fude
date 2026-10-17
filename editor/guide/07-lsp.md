@@ -95,6 +95,9 @@ a `:debug` command too, such as `:debug next`.
 frame's variables and the program's output. `<CR>` on a frame chooses it,
 and on a variable shows or hides its members.
 
+`<Leader>de` shows the value of the name under the cursor, or of the
+selection, in a float, and `:debug eval expr` shows that of expr.
+
 ## Next
 
 - `guide-format` formats files when they are written.

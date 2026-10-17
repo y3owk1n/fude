@@ -153,6 +153,12 @@ func TestFakeAdapter(t *testing.T) {
 			}
 			line = breaks[i]
 			stop("breakpoint")
+		case "evaluate":
+			var a struct {
+				Expression string `json:"expression"`
+			}
+			json.Unmarshal(m.Arguments, &a)
+			respond(m.Seq, m.Command, map[string]any{"result": "the value of " + a.Expression})
 		case "disconnect":
 			respond(m.Seq, m.Command, nil)
 			os.Exit(0)
@@ -326,5 +332,27 @@ func TestB264Panel(t *testing.T) {
 	}
 	if shown != "main.go" || e.Text().LineOf(e.Cursor()) != 0 {
 		t.Errorf("choosing main.caller shows %s with the cursor on line %d", shown, e.Text().LineOf(e.Cursor())+1)
+	}
+}
+
+// B265
+func TestB265Eval(t *testing.T) {
+	e, log := withAdapter(t, false)
+	feed(e, "4G<Space>db<Space>dc")
+	settle(t, e, func() bool { return e.Message() == "run stopped: breakpoint" })
+	// :debug eval puts the value in the message.
+	feed(e, ":debug eval a + b<CR>")
+	settle(t, e, func() bool { return e.Message() == "a + b = the value of a + b" })
+	// <Leader>de shows the value of the name under the cursor, or of the
+	// selection, in a float.
+	for _, c := range []struct{ keys, want string }{
+		{"0w<Space>de", "the value of a"},
+		{"0wv$<Space>de", "the value of a := 1"},
+	} {
+		feed(e, "<Esc>"+c.keys)
+		settle(t, e, func() bool { f, _ := e.Float(); return strings.Contains(f.Text, c.want) })
+	}
+	if got := disk(t, log); !strings.Contains(got, `"context":"repl"`) || !strings.Contains(got, `"context":"hover"`) {
+		t.Errorf("the adapter's evaluates were not asked as repl and hover:\n%s", got)
 	}
 }

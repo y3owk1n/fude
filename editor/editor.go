@@ -254,6 +254,7 @@ func builtins(e *Session) {
 		e.vim.Map(vim.Normal, withLeader(keys, e.cfg.Leader), to)
 	}
 	e.vim.Map(vim.Visual, "s", "<Plug>(jump)")
+	e.vim.Map(vim.Visual, withLeader("<Leader>de", e.cfg.Leader), "<Plug>(debug.eval)")
 	e.locals = map[string]*vim.Keymaps{}
 	for kind, keys := range map[string]map[string]string{"listing": listingKeys, "list": listKeys, "timeline": timelineKeys, "finder": finderKeys, "float": floatKeys, "lsp": lspKeys, "help": helpKeys, "scratch": scratchKeys, "start": startKeys, "terminal": terminalKeys, "debug": debugKeys} {
 		mode := vim.Normal

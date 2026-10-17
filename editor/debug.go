@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/pelletier/go-toml/v2"
 
@@ -90,7 +91,7 @@ type stackFrame struct {
 type stoppedLine struct{}
 
 // debugCommands are :debug's subcommands.
-var debugCommands = []string{"start", "stop", "break", "continue", "next", "in", "out", "panel"}
+var debugCommands = []string{"start", "stop", "break", "continue", "next", "in", "out", "panel", "eval"}
 
 // completeDebug completes :debug's subcommand, and after start the names of
 // the launch settings, which it reads off the loop (B262).
@@ -127,6 +128,8 @@ func (e *Session) debugCommand(arg string) {
 		e.debugStep(sub)
 	case "panel":
 		e.debugPanel()
+	case "eval":
+		e.debugEval(strings.TrimSpace(rest), false)
 	default:
 		e.message = "debug what? " + strings.Join(debugCommands, ", ")
 	}
@@ -495,4 +498,58 @@ func (e *Session) sendBreaks(b *buffer) {
 			}
 		}
 	})
+}
+
+// debugEval shows the value of expr at the chosen frame, in the message, or
+// with float in a float at the cursor, as :debug eval and <Leader>de do
+// (B265).
+func (e *Session) debugEval(expr string, float bool) {
+	d := e.debug
+	switch {
+	case d == nil:
+		e.message = "no debug session runs"
+		return
+	case expr == "":
+		e.message = "evaluate what? :debug eval expr"
+		return
+	}
+	args := map[string]any{"expression": expr, "context": map[bool]string{true: "hover", false: "repl"}[float]}
+	if d.frame < len(d.frames) {
+		args["frameId"] = d.frames[d.frame].ID
+	}
+	d.client.Request("evaluate", args, func(body json.RawMessage, err error) {
+		var r struct {
+			Result string `json:"result"`
+		}
+		if err == nil {
+			err = json.Unmarshal(body, &r)
+		}
+		switch {
+		case err != nil:
+			e.message = expr + ": " + err.Error()
+		case float:
+			e.float, e.floatSpans = r.Result, nil
+		default:
+			e.message = expr + " = " + r.Result
+		}
+	})
+}
+
+// evalHere shows the value of the selection, or of the name under the
+// cursor with its dots, in a float, as <Leader>de does (B265).
+func (e *Session) evalHere() {
+	t := e.Text()
+	if sel, ok := e.Selection(); ok {
+		e.debugEval(t.Slice(sel.Start, min(sel.End, t.Len())), true)
+		return
+	}
+	name := func(r rune) bool { return unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_' || r == '.' }
+	start, end := vim.LineStart(t, e.Cursor()), vim.LineEnd(t, e.Cursor())
+	line, at := t.Slice(start, end), e.Cursor()-start
+	from := strings.LastIndexFunc(line[:at], func(r rune) bool { return !name(r) }) + 1
+	to := strings.IndexFunc(line[at:], func(r rune) bool { return !name(r) })
+	if to < 0 {
+		to = len(line) - at
+	}
+	e.debugEval(line[from:at+to], true)
 }
