@@ -15,7 +15,7 @@ import (
 	"github.com/charmbracelet/x/vt"
 
 	"github.com/y3owk1n/fude/core/kernel"
-	"github.com/y3owk1n/fude/pty"
+	"github.com/y3owk1n/fude/internal/pty"
 	"github.com/y3owk1n/fude/vim"
 )
 

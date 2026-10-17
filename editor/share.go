@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/y3owk1n/fude/core/kernel"
-	"github.com/y3owk1n/fude/relay"
+	"github.com/y3owk1n/fude/internal/relay"
 )
 
 // share is fude listening for guests (B248), or holding places for them

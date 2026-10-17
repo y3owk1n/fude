@@ -76,7 +76,7 @@ loc:
     modules syntax plugin protocol/lsp sdk api
     clients ui/term client
     kernel core/kernel core/rope
-    glue cmd/fude pty clipboard
+    glue cmd/fude internal/pty internal/clipboard
     EOF
     printf '%-12s %6d\n' total "$total"
 

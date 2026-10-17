@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/y3owk1n/fude/clipboard"
+	"github.com/y3owk1n/fude/internal/clipboard"
 )
 
 // Clipboard reads the system clipboard. Without a clipboard program, and

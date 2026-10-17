@@ -43,7 +43,10 @@ protocol/        Go module: stdlib only, no dependency on fude's other packages
   framing/       the Content-Length frames both use
 ui/term/         terminal client
 client/          a client over the socket, with replicas of buffers
-clipboard/       the system clipboard, through pbcopy, wl-copy or xclip
+internal/        packages only fude's own packages may import
+  clipboard/     the system clipboard, through pbcopy, wl-copy or xclip
+  pty/           a program in a pseudo-terminal, for :terminal
+  relay/         passes a share's connections between its host and guests
 cmd/fude/        main, distribution wiring
 ```
 

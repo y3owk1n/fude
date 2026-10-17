@@ -472,6 +472,13 @@ could not require it, since the root's `go.mod` requires `core/` and
 runs fude plugins imports the host without the editor, cgo or a terminal.
 The cost is a seventh tag on every release (D37).
 
+## D46. Packages no other program needs are internal
+
+`internal/` holds `clipboard/`, `pty/` and `relay/`. Each is small, and only
+fude uses it. Why: a program may import any package outside `internal/`,
+and fude would have to keep that package's API for it. These have no
+such program.
+
 ## Departures from Neovim
 
 Each entry: what differs, then why.

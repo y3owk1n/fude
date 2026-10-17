@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/y3owk1n/fude/editor"
+	"github.com/y3owk1n/fude/internal/relay"
 	"github.com/y3owk1n/fude/plugin"
-	"github.com/y3owk1n/fude/relay"
 	"github.com/y3owk1n/fude/ui/term"
 )
 

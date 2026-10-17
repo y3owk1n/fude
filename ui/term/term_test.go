@@ -15,7 +15,7 @@ import (
 	"github.com/gdamore/tcell/v3/color"
 	"github.com/gdamore/tcell/v3/vt"
 	"github.com/y3owk1n/fude/editor"
-	"github.com/y3owk1n/fude/relay"
+	"github.com/y3owk1n/fude/internal/relay"
 	"github.com/y3owk1n/fude/syntax/syntaxtest"
 	"github.com/y3owk1n/fude/vim"
 )

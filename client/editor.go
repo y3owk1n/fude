@@ -6,8 +6,8 @@ import (
 	"slices"
 	"strconv"
 
-	"github.com/y3owk1n/fude/clipboard"
 	"github.com/y3owk1n/fude/core/kernel"
+	"github.com/y3owk1n/fude/internal/clipboard"
 	"github.com/y3owk1n/fude/vim"
 )
 
