@@ -39,8 +39,8 @@ type Hello struct {
 	Name   string `json:"name"`
 }
 
-// Share listens on address with TLS for guests to join, and shows the
-// share string as e's message (B248). It returns a func that stops
+// Share listens on address with TLS for guests to join, and offers the
+// share string as invite does (B248). It returns a func that stops
 // listening and ends each join still waiting.
 func (e *Session) Share(address string) (func(), error) {
 	cert, print, err := certificate()
@@ -57,7 +57,7 @@ func (e *Session) Share(address string) (func(), error) {
 		return nil, fmt.Errorf("share: %w", err)
 	}
 	e.share = &share{addr: addr, print: print}
-	e.message = "guests join with: fude --join " + e.shareString()
+	e.invite()
 	stopped := make(chan struct{})
 	go func() {
 		for {
@@ -78,7 +78,18 @@ func (e *Session) reshare() {
 		e.message = "fude is not sharing, so start it with fude --share"
 		return
 	}
-	e.message = "guests join with: fude --join " + e.shareString()
+	e.invite()
+}
+
+// invite shows a new share string, and puts the command that joins with it
+// on the clipboard, since the host sends it to the guest (B248).
+func (e *Session) invite() {
+	join := "fude --join " + e.shareString()
+	if err := (host{e}).SetClipboard(join); err != nil {
+		e.message = fmt.Sprintf("copying failed with %v, so guests join with: %s", err, join)
+		return
+	}
+	e.message = "copied, guests join with: " + join
 }
 
 // shareString makes a new secret and returns the string that lets one

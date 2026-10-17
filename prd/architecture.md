@@ -1540,9 +1540,10 @@ the session is made. The server checks each limit in one place:
 ### Share and join
 
 `fude --share [address]` makes a self-signed certificate for the share
-and listens with TLS 1.3. Its first message is the share string. The
-string is the address, the certificate's SHA-256 fingerprint and a
-128-bit secret, joined by `/`, the last two in unpadded base64url.
+and listens with TLS 1.3. Its first message is the share string, and it
+puts `fude --join` and the string on the clipboard. The string is the
+address, the certificate's SHA-256 fingerprint and a 128-bit secret,
+joined by `/`, the last two in unpadded base64url.
 `fude --join string` dials it with `InsecureSkipVerify` and a
 `VerifyConnection` that compares the fingerprint, then sends the secret
 and `$USER` as its first line. The host's fude asks whether to let the

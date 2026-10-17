@@ -38,8 +38,8 @@ terminal runs on.
 ## Sharing
 
 `fude --share` lets someone on another machine edit with you, without a
-shell on yours. It listens with TLS, and its first message is a share
-string to send them. They run:
+shell on yours. It listens with TLS, shows a share string to send them
+as its first message, and copies it. They run:
 
 ```sh
 fude --join 192.168.1.5:41234/<fingerprint>/<secret>

@@ -810,10 +810,19 @@ func TestB239Attach(t *testing.T) {
 	}
 }
 
-// share makes host share on a port of the loopback, and returns its share
-// string.
+// share makes host share on a port of the loopback, with a clipboard of
+// its own, and returns its share string.
 func share(t *testing.T, host *editor.Session, on func(func())) string {
 	t.Helper()
+	bin := t.TempDir()
+	board := filepath.Join(bin, "board")
+	for _, name := range []string{"pbcopy", "wl-copy"} {
+		if err := os.WriteFile(filepath.Join(bin, name), []byte("#!/bin/sh\ncat > "+board+"\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("PATH", bin+":/bin:/usr/bin")
+	t.Setenv("WAYLAND_DISPLAY", "fude-test")
 	var unshare func()
 	var err error
 	var msg string
@@ -822,7 +831,17 @@ func share(t *testing.T, host *editor.Session, on func(func())) string {
 		t.Fatal(err)
 	}
 	t.Cleanup(unshare)
-	s, ok := strings.CutPrefix(msg, "guests join with: fude --join ")
+	s := shareString(t, msg)
+	if copied, _ := os.ReadFile(board); string(copied) != "fude --join "+s {
+		t.Errorf("sharing put %q on the clipboard, want the command that joins", copied)
+	}
+	return s
+}
+
+// shareString returns the share string a message of sharing shows.
+func shareString(t *testing.T, msg string) string {
+	t.Helper()
+	s, ok := strings.CutPrefix(msg, "copied, guests join with: fude --join ")
 	if !ok || strings.ContainsAny(s, " '\"#&;?*$") {
 		t.Fatalf("sharing said %q, want the share string as one word", msg)
 	}
@@ -991,7 +1010,7 @@ func TestB249ShareOnce(t *testing.T) {
 		}
 		msg = host.Message()
 	})
-	again, _ := strings.CutPrefix(msg, "guests join with: fude --join ")
+	again := shareString(t, msg)
 	waiting = joining(again)
 	asked(t, host, on, "kyle")
 	feed("y")
@@ -1034,7 +1053,7 @@ func TestB250WhoAndKick(t *testing.T) {
 		}
 		defer j.a.Close()
 		guests = append(guests, j.a)
-		str, _ = strings.CutPrefix(ex("share"), "guests join with: fude --join ")
+		str = shareString(t, ex("share"))
 	}
 	if who := ex("who"); who != "kyle  kyle2" {
 		t.Errorf(":who said %q", who)
