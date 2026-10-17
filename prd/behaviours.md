@@ -143,10 +143,9 @@ Where fude departs, the line says so and cites the departure in
   tall, as `:terminal` does (B205), while the cursor stays in the window it
   ran from. The window is named after the task, then also with ✓ or ✗,
   the exit code when it failed, and how long it took. Running a task again
-  closes the window of its last run first, and a task still running says
-  so instead. In a terminal or task window in normal mode, `q` closes it
-  once its program has ended. While the program runs, `q` says so and
-  leaves the window. `{file}`, `{dir}`, `{line}` and `{word}` in a command stand
+  closes the window of its last run first. In a terminal window in normal
+  mode, `q` closes it once its program has ended, and while it runs says
+  so and leaves the window. B231 says how a running task's window hides. `{file}`, `{dir}`, `{line}` and `{word}` in a command stand
   for the current buffer's file, its folder, the cursor's line and the
   word under it.
 - B230 [2] When a task ends, each line of its output that names a place
@@ -154,6 +153,13 @@ Where fude departs, the line says so and cites the departure in
   message`, or after Rust's `-->`, becomes the last list of places (N25),
   without a window of its own. The message says how many, and `]q` goes
   to the first, as after `:cnext`. `:copen` shows the list.
+- B231 [2] While tasks run, the current window's status line shows a
+  turning spinner and their names. `q` in a running task's window in
+  normal mode, or closing it, hides the window, and the task goes on.
+  `:pick tasks` marks a running task, and picking it, or `:task` naming
+  it, shows its window again instead of running it twice. When a task
+  ends, the message says it ended and how long it took, or that it failed
+  with its exit code, followed by B230's places.
 - B201 [2] `fude dir`, with no other file, makes `dir` the working
   directory, so the finder, grep and relative paths start there. Helix's
   `hx dir` does the same.

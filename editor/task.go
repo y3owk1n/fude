@@ -112,8 +112,13 @@ func (e *Session) pickTasks() {
 				e.message = err.Error()
 			}
 			items := make([]string, len(found))
+			running := e.runningTasks()
 			for i, t := range found {
-				items[i] = strings.TrimSpace(t.name + "  " + t.source + "  " + t.doc)
+				source := t.source
+				if slices.Contains(running, t.name) {
+					source += ", running"
+				}
+				items[i] = strings.TrimSpace(t.name + "  " + source + "  " + t.doc)
 			}
 			ts, f.paths, f.stale = found, items, true
 		}
@@ -147,14 +152,26 @@ func (e *Session) task(name string) {
 
 // runTask runs t in a terminal window below, with {file}, {dir}, {line} and
 // {word} in its command standing for the current buffer's. A task already
-// running says so, and the window of its last run closes first.
+// running shows its window again, and the window of its last run closes
+// first (B228, B231).
 func (e *Session) runTask(t task) {
+	for _, b := range e.bufs {
+		if term := b.term; term != nil && term.task == t.name && !term.exited {
+			e.message = "the " + t.name + " task is running"
+			if !slices.ContainsFunc(e.root.windows(), func(w *window) bool { return w.buf == b }) {
+				from := e.win
+				e.split(false)
+				e.root.leaf(e.win).size = max(e.height/3, 3)
+				e.show(b)
+				e.win.opts = options{}
+				e.layout()
+				e.win = from
+			}
+			return
+		}
+	}
 	for _, w := range e.root.windows() {
 		if term := w.buf.term; term != nil && term.task == t.name {
-			if !term.exited {
-				e.message = "the " + t.name + " task is running"
-				return
-			}
 			if err := e.closeWindow(w); err != nil {
 				e.message = err.Error()
 				return
@@ -207,5 +224,16 @@ func (e *Session) taskPlaces(b *buffer, task string) {
 		return
 	}
 	e.lastList = &places{title: "[task " + task + "]", lines: lines, spots: spots, at: -1}
-	e.message = fmt.Sprintf("the %s task named %d places, and ]q goes to the first", task, len(spots))
+	e.message += fmt.Sprintf(". It named %d places, and ]q goes to the first", len(spots))
+}
+
+// runningTasks returns the names of the tasks whose programs run.
+func (e *Session) runningTasks() []string {
+	var out []string
+	for _, b := range e.bufs {
+		if t := b.term; t != nil && t.task != "" && !t.exited {
+			out = append(out, t.task)
+		}
+	}
+	return out
 }

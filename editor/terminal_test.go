@@ -2,6 +2,7 @@ package editor_test
 
 import (
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -123,4 +124,32 @@ func TestB230TaskPlaces(t *testing.T) {
 	if !strings.Contains(e.Message(), "(1 of 1) a.txt:2:3: bad thing") {
 		t.Errorf("]q said %q", e.Message())
 	}
+}
+
+// B231
+func TestB231BackgroundTasks(t *testing.T) {
+	t.Setenv("SHELL", "/bin/sh")
+	dir := t.TempDir()
+	change(t, filepath.Join(dir, "a.txt"), "a\n")
+	t.Chdir(dir)
+	config(t, "[task.wait]\ncommand = \"sleep 0.5\"\n")
+	e := start(t, "a.txt")
+	e.SetSize(80, 24)
+	// A running task shows on the status line, and q in its window hides
+	// the window while the task goes on.
+	feed(e, ":task wait<CR>")
+	settle(t, e, func() bool { return slices.Equal(e.Views()[0].Tasks, []string{"wait"}) })
+	if feed(e, "<C-w>j<C-\\><C-n>q"); len(e.Views()) != 1 || !slices.Equal(e.Views()[0].Tasks, []string{"wait"}) {
+		t.Fatalf("q left %d windows and the tasks %v", len(e.Views()), e.Views()[0].Tasks)
+	}
+	// :pick tasks marks it, and picking it shows its window again.
+	feed(e, ":pick tasks<CR>")
+	settle(t, e, func() bool { f, _ := e.Float(); return strings.Contains(f.Text, "wait  config, running") })
+	if feed(e, "<CR>"); len(e.Views()) != 2 {
+		t.Fatalf("picking the running task shows %d windows", len(e.Views()))
+	}
+	// Once it ends, the message says so and the status line drops it.
+	settle(t, e, func() bool {
+		return strings.HasPrefix(e.Message(), "the wait task ended in") && e.Views()[0].Tasks == nil
+	})
 }

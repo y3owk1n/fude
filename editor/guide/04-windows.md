@@ -66,7 +66,9 @@ Makefile's targets and package.json's scripts. The one picked runs in a
 terminal window below, while the cursor stays where it was, and the
 window's name says ✓ or ✗ and how long it took. `:task name` runs one
 directly, and `:task` alone runs the last one again. In its window, `q`
-closes it once the task is done. The places a task's output names, as
+closes it once the task is done, and while it runs, hides it, as the task
+goes on with a spinner on the status line. Picking it again shows it. The
+places a task's output names, as
 `file.go:12:3: message`, become the last list of places, so `]q` goes
 through a build's errors.
 

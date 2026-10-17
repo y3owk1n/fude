@@ -601,6 +601,7 @@ type View struct {
 	Colours           []Colour       // text that names a colour, shown on it (B208, B209)
 	Labels            []Label        // a jump's labels, drawn over the text (B218)
 	Folds             map[int]int    // by the first line of each closed fold shown, the lines it hides (B224)
+	Tasks             []string       // the tasks running, on the current window's status line (B231)
 	// Context is the start of each line pinned over the window's first rows,
 	// the functions and classes the text under them is in, with their
 	// highlights (B217).
@@ -694,6 +695,9 @@ func (e *Session) Views() []View {
 			v.Colours = textColours(t.Slice(top, last), top)
 		}
 		e.diffGit(w.buf)
+		if v.Current {
+			v.Tasks = e.runningTasks()
+		}
 		if b := w.buf; b.ask {
 			b.ask = false
 			for _, s := range b.servers {

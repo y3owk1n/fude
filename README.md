@@ -129,7 +129,7 @@ Each language's grammar builds in the background the first time you open one of 
 | **Folders**          | Edit a listing and `:w` to rename, delete and create files                                                         |
 | **Git**              | Signs, `]h` and `[h` between hunks, a hunk preview, `gh` to stage a hunk and `gH` to put one back as the index has it, `:gitdiff`, `:blame` for the cursor's line                  |
 | **Terminal**         | `:terminal` in a split, and `<Esc><Esc>` to move through its output in normal mode                                |
-| **Tasks**            | `:pick tasks` and `:task` run config.toml's tasks, just recipes, make targets and npm scripts in a split, and `]q` walks their errors |
+| **Tasks**            | `:pick tasks` and `:task` run config.toml's tasks, just recipes, make targets and npm scripts in a split or in the background, and `]q` walks their errors |
 | **Discovery**        | Key hints for a half-typed command, `:h` with a written guide and a full reference, man pages                    |
 | **Typing**           | Autopairs, and `#hex`, `rgb()` and `hsl()` text shown on the colour it names                                       |
 | **Sessions**         | A start screen with your recent files and the last session in the directory, `:restart` reloads config and plugins and keeps every window, cursor and unsaved change                          |

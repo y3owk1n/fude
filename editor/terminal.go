@@ -48,9 +48,9 @@ type Cell struct {
 var terminalKeys = map[string]string{"q": "<Plug>(terminal.close)"}
 
 // closeTerminal closes the current terminal window once its program has
-// ended.
+// ended. A task's closes while it runs too, and the task goes on (B231).
 func (e *Session) closeTerminal() {
-	if t := e.win.buf.term; t != nil && !t.exited {
+	if t := e.win.buf.term; t != nil && !t.exited && t.task == "" {
 		e.message = "the program is still running, and :q stops it"
 		return
 	}
@@ -163,8 +163,10 @@ func (e *Session) terminalExited(b *buffer, err error) {
 	if t.task != "" {
 		took := time.Since(t.started).Round(100 * time.Millisecond)
 		b.title = fmt.Sprintf("[task %s ✓ %s]", t.task, took)
+		e.message = fmt.Sprintf("the %s task ended in %s", t.task, took)
 		if status != 0 {
 			b.title = fmt.Sprintf("[task %s ✗ %d, %s]", t.task, status, took)
+			e.message = fmt.Sprintf("the %s task failed with %d after %s", t.task, status, took)
 		}
 	}
 	if t.typing {

@@ -62,6 +62,12 @@ func (c *client) status(v editor.View, x, w int) {
 		if shown := c.e.Shown(); shown != "" {
 			right = append(right, part{shown + "  ", muted})
 		}
+		// Tasks that run turn a spinner before their names (B231).
+		if len(v.Tasks) > 0 {
+			frame := spinner[time.Now().UnixMilli()/spinnerFrame.Milliseconds()%int64(len(spinner))]
+			right = append(right, part{string(frame) + " ", ground.Foreground(th.normal)}, part{strings.Join(v.Tasks, ", ") + "  ", muted})
+			c.spinning = true
+		}
 	}
 	// The buffer's language server goes before the filetype. While it
 	// works, a spinner and what it is doing go with it (B161).
