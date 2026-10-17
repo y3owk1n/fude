@@ -246,6 +246,10 @@ func (r *Replica) Sync() ([]kernel.Edit, error) {
 // pending nodes over them, and returns those it drops and the server's
 // edits.
 func (r *Replica) pull() ([]kernel.Edit, [][]kernel.Edit, error) {
+	// A group is not a node yet, so the pending nodes miss its edits.
+	if r.open > 0 {
+		return nil, nil, errors.New("cannot take the server's edits inside a group")
+	}
 	var p pulled
 	if err := r.c.call("pull", map[string]any{"buffer": r.buf, "version": r.confirmed}, &p); err != nil {
 		return nil, nil, err

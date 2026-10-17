@@ -984,7 +984,8 @@ Where fude departs, the line says so and cites the departure in
   without the setting, and shows no message.
 - B98 [6] A client may run the grammar on its copy. Its keys edit the copy
   at once as they do in fude, an insert reaches the server as one node, and
-  `u` from the client reverts that insert whole.
+  `u` from the client reverts that insert whole. A `u` inside `:normal`
+  runs on the server, and the copy takes it at the next sync.
 - B99 [6] A client running the grammar keeps its own jumplist and
   changelist, and its `g-` and `g+` move the server's timeline.
 - B174 [6] `fude --tail` prints what a running fude does as it happens,

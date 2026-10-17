@@ -163,6 +163,19 @@ func TestB98EditorOnReplica(t *testing.T) {
 	if feed(t, ed, "u"); ed.Text() != "one two!" || typed("") != ed.Text() {
 		t.Fatalf("u from the client left %q, and the server %q", ed.Text(), typed(""))
 	}
+	// A u inside :normal runs on the server while the copy's group is open,
+	// and the copy takes it at the next sync.
+	feed(t, ed, "0x")
+	if _, err := ed.Sync(); err != nil {
+		t.Fatal(err)
+	}
+	typed("A?<Esc>")
+	for _, k := range vim.Keys(":normal u<CR>") {
+		ed.Feed(k)
+	}
+	if _, err := ed.Sync(); err != nil || ed.Text() != "one two!?" || typed("") != ed.Text() {
+		t.Fatalf(":normal u left the copy %q and the server %q: %v", ed.Text(), typed(""), err)
+	}
 }
 
 // B110, through a client running the grammar on a replica
