@@ -86,6 +86,15 @@ becomes the last list. `:pick diagnostics` finds the open buffers'
 diagnostics, and `:pick symbols` the language server's symbols as you
 type their name.
 
+`:cdo cmd` runs an ex command at each place of the last list, and
+`:cfdo cmd` once in each of its files. To replace across the project,
+find the text with `:pick grep`, send it to the list, then:
+
+```
+:cdo s/old/new/
+:wall
+```
+
 ## Jumping back
 
 A jump, such as `gg`, a search or opening a file, goes on the window's

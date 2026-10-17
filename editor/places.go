@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/lsp"
 )
 
@@ -256,4 +257,52 @@ func (e *Session) visit(sp spot) {
 		e.setCursor(lsp.Offset(e.Text(), sp.pos, sp.enc))
 		e.reveal()
 	}
+}
+
+// cdo runs cmd at each place of the last list, or with perFile once in
+// each of its files, as :cdo and :cfdo do (B257). Marks keep the places on
+// their text as cmd edits around them.
+func (e *Session) cdo(cmd string, perFile bool) {
+	l := e.lastList
+	switch {
+	case l == nil:
+		e.message = "no list of places"
+		return
+	case cmd == "":
+		e.message = "run what? :cdo cmd"
+		return
+	}
+	type stop struct {
+		b    *buffer
+		mark kernel.MarkID
+	}
+	var stops []stop
+	files := map[string]bool{}
+	for _, sp := range l.spots {
+		if perFile && files[sp.path] {
+			continue
+		}
+		e.leaveList()
+		// A place that visit refuses, such as one outside a guest's
+		// project, is skipped.
+		if e.visit(sp); !e.win.buf.is(sp.path) {
+			continue
+		}
+		files[sp.path] = true
+		stops = append(stops, stop{e.win.buf, e.win.buf.text.SetMark(e.Cursor(), kernel.Right)})
+	}
+	for _, st := range stops {
+		e.show(st.b)
+		e.setCursor(st.b.text.Mark(st.mark))
+		st.b.text.DeleteMark(st.mark)
+		if err := e.vim.Ex(cmd); err != nil {
+			e.message = err.Error()
+			return
+		}
+	}
+	if perFile {
+		e.message = fmt.Sprintf("ran :%s in %d files", cmd, len(files))
+		return
+	}
+	e.message = fmt.Sprintf("ran :%s at %d places in %d files", cmd, len(stops), len(files))
 }

@@ -700,6 +700,12 @@ Where fude departs, the line says so and cites the departure in
 - B91 [2] `<C-w>c`, `<C-w>o`, `<C-w>q`, `<C-w>=` and `:q` in a split close
   or arrange splits as in Neovim, and `:sp`, `:vs`, `:on` and `:clo` split,
   keep only, or close the current window.
+- B257 [2] `:cdo cmd` runs the ex command cmd at each place of the last
+  list of places (N25), and `:cfdo cmd` runs it once in each file the
+  list names, at its first place there. Each place stays on its text as
+  cmd edits around it, and the buffers stay unwritten until `:wall`. The
+  message says how many places or files cmd ran in. If cmd fails, the
+  run stops there and the message says why.
 
 ## Timeline
 

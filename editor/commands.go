@@ -111,6 +111,8 @@ func init() {
 		{vim.Command{Name: "clast", Short: []string{"cla"}, Help: "goes to the last place of the last list of places"}, func(e *Session, _ call) {
 			e.stepPlace(func(_, n int) int { return n - 1 })
 		}, nil},
+		{vim.Command{Name: "cdo", Args: "{cmd}", Help: "runs cmd at each place of the last list of places"}, func(e *Session, x call) { e.cdo(x.arg, false) }, nil},
+		{vim.Command{Name: "cfdo", Args: "{cmd}", Help: "runs cmd once in each file of the last list of places"}, func(e *Session, x call) { e.cdo(x.arg, true) }, nil},
 		{vim.Command{Name: "cc", Args: "[n]", Help: "goes to place n of the last list of places, or the one last gone to"}, func(e *Session, x call) {
 			n, err := strconv.Atoi(x.arg)
 			if x.arg != "" && err != nil {

@@ -109,6 +109,9 @@ func Commands() []Command {
 	return out
 }
 
+// Ex runs line as a command line typed after :, such as s/a/b/.
+func (m *Machine) Ex(line string) error { return m.ex(line) }
+
 // ex runs a command line. The machine runs the commands that edit text and
 // :noh, and hands anything else to the host.
 func (m *Machine) ex(line string) error {

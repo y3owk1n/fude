@@ -1389,6 +1389,49 @@ func TestB131CommandCompletion(t *testing.T) {
 	settle(t, e, func() bool { f, ok := e.Float(); return ok && strings.HasPrefix(f.Text, "editor/\n") })
 }
 
+// B257
+func TestB257Cdo(t *testing.T) {
+	dir := t.TempDir()
+	change(t, filepath.Join(dir, "a.txt"), "foo one\nfoo two\nkeep\n")
+	change(t, filepath.Join(dir, "b.txt"), "foo three\n")
+	if out, err := exec.Command("git", "-C", dir, "init", "-q").CombinedOutput(); err != nil {
+		t.Skipf("git init: %v: %s", err, out)
+	}
+	t.Chdir(dir)
+	e := open(t, "a.txt")
+	e.SetSize(100, 24)
+	feed(e, ":pick grep foo<CR>")
+	// The query and three matches.
+	settle(t, e, func() bool { f, _ := e.Float(); return strings.Count(f.Text, "foo") == 4 })
+	feed(e, "<C-q>:cclose<CR>")
+	texts := func() (out []string) {
+		for _, name := range []string{"a.txt", "b.txt"} {
+			feed(e, ":b "+name+"<CR>")
+			out = append(out, text(e))
+		}
+		return out
+	}
+	// :cfdo runs once in each file, at its first place.
+	if feed(e, ":cfdo normal Ix<CR>"); e.Message() != "ran :normal Ix in 2 files" {
+		t.Errorf(":cfdo said %q", e.Message())
+	}
+	if got := texts(); !slices.Equal(got, []string{"xfoo one\nfoo two\nkeep", "xfoo three"}) {
+		t.Errorf(":cfdo left %q", got)
+	}
+	// A command that fails stops there and says why.
+	if feed(e, ":cdo s/nowhere/x/<CR>"); strings.HasPrefix(e.Message(), "ran") {
+		t.Errorf(":cdo with a failing command said %q", e.Message())
+	}
+	// :cdo runs at each place, which stays on its text as the lines before
+	// it go.
+	if feed(e, ":cdo d<CR>"); e.Message() != "ran :d at 3 places in 2 files" {
+		t.Errorf(":cdo said %q", e.Message())
+	}
+	if got := texts(); !slices.Equal(got, []string{"keep", ""}) {
+		t.Errorf(":cdo d left %q", got)
+	}
+}
+
 // B134
 func TestB134Grep(t *testing.T) {
 	dir := t.TempDir()
