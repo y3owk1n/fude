@@ -560,7 +560,8 @@ Where fude departs, the line says so and cites the departure in
   - Emphasis and code spans lose their marks, a link shows its text
     alone, and an image its description.
   - A table's pipes show as `│`, padded so its columns line up as their
-    cells show, and its delimiter row as `├─┼─┤`.
+    cells show, and its delimiter row as `├─┼─┤`. A column the delimiter
+    row aligns with `-:` or `:-:` lines up on the right or in the middle.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays

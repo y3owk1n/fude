@@ -198,8 +198,10 @@ type replacement struct {
 	text       string
 }
 
-// table shows a table's pipes as │, each padded so its column lines up,
-// and its delimiter row as ├─┼─┤. A table with a row that does not start
+// table shows a table's pipes as │ and its delimiter row as ├─┼─┤. The
+// pipes take blanks so the columns line up. A cell's blanks go after it,
+// before it in a column the delimiter row aligns right with -:, and on both
+// sides in one it centres with :-:. A table with a row that does not start
 // with a pipe stays as it is.
 func table(t api.Text, rows []api.Span, replaced []replacement, show func(start, end int, text, style string)) {
 	pipes := make([][]int, len(rows))
@@ -221,6 +223,31 @@ func table(t api.Text, rows []api.Span, replaced []replacement, show func(start,
 			widths[j-1] = max(widths[j-1], width(t, pipes[i][j-1]+1, pipes[i][j], replaced))
 		}
 	}
+	aligns := make([]string, len(widths))
+	// pads returns the blanks before and after cell j of row i.
+	pads := func(i, j int) (int, int) {
+		if j < 0 || j+1 >= len(pipes[i]) || j >= len(widths) {
+			return 0, 0
+		}
+		pad := max(widths[j]-width(t, pipes[i][j]+1, pipes[i][j+1], replaced), 0)
+		switch aligns[j] {
+		case "right":
+			return pad, 0
+		case "centre":
+			return pad / 2, pad - pad/2
+		}
+		return 0, pad
+	}
+	for i, r := range rows {
+		for j := 0; r.Name == "delimiter" && j+1 < len(pipes[i]) && j < len(aligns); j++ {
+			switch cell := strings.TrimSpace(t.Slice(pipes[i][j]+1, pipes[i][j+1])); {
+			case strings.HasPrefix(cell, ":") && strings.HasSuffix(cell, ":") && len(cell) > 1:
+				aligns[j] = "centre"
+			case strings.HasSuffix(cell, ":"):
+				aligns[j] = "right"
+			}
+		}
+	}
 	for i, r := range rows {
 		ps := pipes[i]
 		for j, p := range ps {
@@ -238,11 +265,9 @@ func table(t api.Text, rows []api.Span, replaced []replacement, show func(start,
 				}
 				continue
 			}
-			pad := 0
-			if j > 0 && j <= len(widths) {
-				pad = widths[j-1] - width(t, ps[j-1]+1, p, replaced)
-			}
-			show(p, p+1, strings.Repeat(" ", max(pad, 0))+"│", "markdown.table")
+			_, after := pads(i, j-1)
+			before, _ := pads(i, j)
+			show(p, p+1, strings.Repeat(" ", after)+"│"+strings.Repeat(" ", before), "markdown.table")
 		}
 	}
 }

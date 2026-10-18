@@ -17,7 +17,7 @@ func TestMain(m *testing.M) { os.Exit(editortest.Main(m, "markdown", "markdown_i
 // B298
 func TestB298Render(t *testing.T) {
 	// The cursor starts on the blank first line, which shows as it is.
-	src := "\n# Title\n- a\n  - b\n- [ ] todo\n> quote\n---\n```go\nx := 1\n```\nSome *em* and [link](http://x.y).\n\n| a | bb |\n|---|----|\n| *ccc* | d |\n"
+	src := "\n# Title\n- a\n  - b\n- [ ] todo\n> quote\n---\n```go\nx := 1\n```\nSome *em* and [link](http://x.y).\n\n| a | bb |\n|---|---:|\n| *ccc* | d |\n"
 	path := filepath.Join(t.TempDir(), "notes.md")
 	editortest.Change(t, path, src)
 	e := editortest.Open(t, path)
@@ -36,12 +36,12 @@ func TestB298Render(t *testing.T) {
 		{Pos: at("[link"), End: at("[link") + 1},
 		{Pos: at("http"), End: at("http") + len("http://x.y")},
 		// The first column is as wide as *ccc* shows, five columns, so a's
-		// pipe pads by two and d's by none.
+		// pipe pads by two. The second aligns right, so d pads on its left.
 		{Pos: at("| bb"), End: at("| bb") + 1, Text: "  │", Style: "markdown.table"},
 		{Pos: at("|---"), End: at("|---") + 1, Text: "├", Style: "markdown.table"},
 		{Pos: at("---|"), End: at("---|") + 3, Text: "─────", Style: "markdown.table"},
-		{Pos: at("| d"), End: at("| d") + 1, Text: "│", Style: "markdown.table"},
-		{Pos: at("| d") + 4, End: at("| d") + 5, Text: " │", Style: "markdown.table"},
+		{Pos: at("| d"), End: at("| d") + 1, Text: "│ ", Style: "markdown.table"},
+		{Pos: at("| d") + 4, End: at("| d") + 5, Text: "│", Style: "markdown.table"},
 	}
 	shown := func() bool {
 		v := e.Views()[0]
