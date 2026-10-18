@@ -272,7 +272,7 @@ func (e *Session) handled(p api.Module, ev event, err error, t kernel.Snapshot, 
 func stale(res api.Result) api.Result {
 	res.Edits, res.Selected, res.Apply = nil, nil, nil
 	res.Decorate = slices.DeleteFunc(slices.Clone(res.Decorate), func(d api.Decoration) bool { return d.Buffer == 0 })
-	if res.Jump != nil && res.Jump.Path == "" {
+	if res.Jump != nil && res.Jump.Path == "" && res.Jump.Buffer == 0 {
 		res.Jump = nil
 	}
 	return res

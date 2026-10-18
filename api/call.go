@@ -91,6 +91,14 @@ type Result struct {
 	Follow     string         // the session whose windows the call's session follows, by name (B256, B332)
 	Build      []string       // the filetypes whose grammars build again, which only the host may ask (B165, B333)
 	Kick       string         // the guest whose session ends, by name, which only the host may ask (B250, B332)
+	// Close closes the buffers by id, as :bd does, and keeps a modified
+	// one open. Write writes the buffers by id, as :w does. Windows does
+	// each action to its window, and Scratch opens a buffer with no file
+	// to edit. fude runs them after the call's edits, in that order (B343).
+	Close   []int
+	Write   []int
+	Windows []WindowAction
+	Scratch *Scratch
 	// Set holds options to set on the buffer the call is about, by their
 	// config.toml names: expand_tab, indent_width and tab_width. fude uses
 	// them in place of config.toml's until the buffer closes (B283).
@@ -243,10 +251,29 @@ type MenuItem struct {
 // Column, counted from 1, instead of Pos (B187, B291).
 type Jump struct {
 	Path         string
+	Buffer       int    // the buffer to show by id, in place of Path (B343)
 	Split        string // below or right opens Path in a new window there (B327)
 	Pos          int
 	Line, Column int
 	Encoding     string // what Column counts in, utf-8 or utf-16, utf-8 by default
+}
+
+// WindowAction does Do to the window by its ID, as Scope.Windows lists it,
+// or to the current one for 0. close closes it, only closes every other,
+// focus makes it current, height and width make it Size rows or columns,
+// cursor moves its cursor to Pos and top makes the line holding Pos its
+// top line (B343).
+type WindowAction struct {
+	ID        int
+	Do        string
+	Size, Pos int
+}
+
+// Scratch is a new buffer with no file, holding Text and coloured as
+// Filetype, for the user to edit. It shows in the current window, or in a
+// new one Split below or right (B343).
+type Scratch struct {
+	Text, Filetype, Split string
 }
 
 // Panel is text a call shows in a read-only window titled Title, coloured

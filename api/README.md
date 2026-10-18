@@ -77,7 +77,10 @@ A `Result` asks for any of these, and fude applies them together once the call r
 | `Tabs` | what the buffer line lists, each buffer with the name it shows |
 | `Follow`, `Kick` | the session to follow, or the guest whose session ends, by name |
 | `Build` | the filetypes whose grammars build again |
-| `Jump` | where the cursor goes, in this buffer, or at a line and column of a file, in a window that shows a file, or with `Split` in a new one |
+| `Jump` | where the cursor goes, in this buffer, or at a line and column of a file or of another buffer by its `Buffer` id, in a window that shows a file, or with `Split` in a new one |
+| `Close`, `Write` | the buffers to close, as `:bd` does, and to write, as `:w` does, by id |
+| `Windows` | what to do to windows by id: `close`, `only`, `focus`, `height` or `width` to a `Size`, or move the `cursor` or the `top` line to `Pos` |
+| `Scratch` | a new buffer with no file, holding text to edit, in the window or a split |
 | `Pick` | a list to pick from, live or of places, or a question. With `Update` it fills the open list of its ID, as items read off the loop do. `<C-g>` in a list that is not live tells the callback `all` |
 | `Menu` | a numbered menu at the cursor, each item with what it does beside it, whose choice runs the callback |
 | `Timers`, `Jobs`, `Requests` | work whose callback runs later. A `Request` goes to the buffer's servers, or to the one it names. A `Stream` job is the module's own long work, whose callback runs for each line it emits |

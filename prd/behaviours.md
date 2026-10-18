@@ -1065,6 +1065,10 @@ Where fude departs, the line says so and cites the departure in
 - B342 [4] A module's result edits any open buffer, each buffer's edits as
   one change. fude drops an event's edits to another buffer that changed
   after the event read it.
+- B343 [4] A module's result shows a buffer by its id, in the window or a
+  split, closes and writes buffers, closes, focuses and resizes windows,
+  moves a window's cursor and top line, and opens a buffer with no file
+  holding text to edit. fude does these after it makes the call's edits.
 - B337 [4] A module's decoration may show its sign in a listing's icon
   column while `icons` is on, instead of in the sign column. A listing's
   notes and icons are a module's decorations (B127, B128).

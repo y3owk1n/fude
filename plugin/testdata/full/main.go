@@ -5,7 +5,10 @@
 // and how many windows there are, and gW in visual mode types the
 // selection's kind and ends. :State types the last search, the registers,
 // the last search typed and the macro being recorded. :Other types x at
-// the start of every other buffer. Needs keys, and buffer.read and buffer.write
+// the start of every other buffer. :Act split, close, write, scratch or
+// drop splits the window on the buffer, closes the window, writes the
+// buffer, opens a scratch buffer holding hi, or closes the buffer. Needs
+// keys, and buffer.read and buffer.write
 // for the others.
 package main
 
@@ -60,6 +63,25 @@ func init() {
 			}
 		}
 		if err := sdk.Do(api.Result{Edits: edits}); err != nil {
+			sdk.Log(err.Error())
+		}
+	})
+	sdk.Command("Act", "acts on the buffer or the window", func(c sdk.Call) {
+		id := sdk.Current().ID
+		var r api.Result
+		switch c.Args {
+		case "split":
+			r.Jump = &api.Jump{Buffer: id, Split: "right"}
+		case "close":
+			r.Windows = []api.WindowAction{{Do: "close"}}
+		case "write":
+			r.Write = []int{id}
+		case "scratch":
+			r.Scratch = &api.Scratch{Text: "hi"}
+		case "drop":
+			r.Close = []int{id}
+		}
+		if err := sdk.Do(r); err != nil {
 			sdk.Log(err.Error())
 		}
 	})

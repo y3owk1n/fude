@@ -329,9 +329,119 @@ func (e *Session) went() {
 			e.setCursor(e.jumpPos(g))
 			e.reveal()
 		}
+	case g.Buffer != 0:
+		to, err := e.buffer(g.Buffer)
+		if err != nil {
+			e.message = err.Error()
+			break
+		}
+		if g.Split != "" {
+			e.split(g.Split == "right")
+		}
+		e.show(to)
+		if e.win.buf == to {
+			e.setCursor(e.jumpPos(g))
+			e.reveal()
+		}
 	case e.win.buf == g.b:
 		e.pushJump(e.Cursor())
 		e.setCursor(e.jumpPos(g))
+	}
+	actions := e.actions
+	e.actions = nil
+	for _, f := range actions {
+		f()
+	}
+}
+
+// act closes and writes the buffers res names, does its window actions
+// and opens its scratch buffer (B343).
+func (e *Session) act(res api.Result) {
+	for _, id := range res.Close {
+		if b, err := e.buffer(id); err != nil {
+			e.message = err.Error()
+		} else {
+			e.close(b, false)
+		}
+	}
+	for _, id := range res.Write {
+		if b, err := e.buffer(id); err != nil {
+			e.message = err.Error()
+		} else {
+			e.write(b, false, nil)
+		}
+	}
+	for _, a := range res.Windows {
+		if err := e.windowAction(a); err != nil {
+			e.message = err.Error()
+		}
+	}
+	if s := res.Scratch; s != nil {
+		e.openScratch(*s)
+	}
+}
+
+// windowAction does a to its window (B343).
+func (e *Session) windowAction(a api.WindowAction) error {
+	w := e.win
+	if a.ID != 0 {
+		i := slices.IndexFunc(e.root.windows(), func(w *window) bool { return w.id == a.ID })
+		if i < 0 {
+			return fmt.Errorf("no window %d", a.ID)
+		}
+		w = e.root.windows()[i]
+	}
+	t := w.buf.text.Snapshot()
+	switch a.Do {
+	case "close":
+		return e.closeWindow(w)
+	case "only":
+		e.win = w
+		e.only()
+	case "focus":
+		e.win = w
+	case "height", "width":
+		cur := e.win
+		e.win = w
+		e.resize(a.Do == "width", func(int, int) int { return a.Size })
+		e.win = cur
+	case "cursor", "top":
+		if a.Pos < 0 || a.Pos > t.Len() {
+			return fmt.Errorf("%d is outside window %d's text", a.Pos, w.id)
+		}
+		if a.Do == "top" {
+			w.buf.text.MoveMark(w.top, t.LineStart(t.LineOf(a.Pos)))
+		} else {
+			w.buf.text.MoveMark(w.cursor, a.Pos)
+		}
+	default:
+		return fmt.Errorf("no window action %q", a.Do)
+	}
+	return nil
+}
+
+// openScratch shows a new buffer with no file holding s's text, coloured
+// as its filetype, for the user to edit (B343).
+func (e *Session) openScratch(s api.Scratch) {
+	if _, err := e.add(""); err != nil {
+		e.message = err.Error()
+		return
+	}
+	b := e.bufs[len(e.bufs)-1]
+	if err := b.text.Apply(kernel.Transaction{Edits: []kernel.Edit{{Text: s.Text}}}); err != nil {
+		e.message = err.Error()
+		return
+	}
+	b.head, b.saved = b.text.Head(), b.text.Head()
+	if s.Split != "" {
+		e.split(s.Split == "right")
+	}
+	e.show(b)
+	if b.ft = s.Filetype; b.ft == "" {
+		return
+	}
+	if _, err := e.attachSyntax(b); err != nil {
+		e.message = err.Error()
 	}
 }
 
@@ -497,6 +607,9 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 	e.later = append(e.later, vim.Keys(res.Keys)...)
 	if j := res.Jump; j != nil {
 		e.jumpTo = &jumpTo{b, *j}
+	}
+	if len(res.Close)+len(res.Write)+len(res.Windows) > 0 || res.Scratch != nil {
+		e.actions = append(e.actions, func() { e.act(res) })
 	}
 	if pk := res.Pick; pk != nil {
 		e.showPick(p, b, pk, save)

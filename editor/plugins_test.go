@@ -504,6 +504,26 @@ func TestB342PluginEditsAnotherBuffer(t *testing.T) {
 	}
 }
 
+// B343
+func TestB343PluginActsOnBuffersAndWindows(t *testing.T) {
+	e := loaded(t, "full", "f", "a\n", "buffer.read", "buffer.write", "ui")
+	if feed(e, ":Act split<CR>"); len(e.Views()) != 2 {
+		t.Fatalf(":Act split left %d windows", len(e.Views()))
+	}
+	if feed(e, ":Act close<CR>"); len(e.Views()) != 1 {
+		t.Fatalf(":Act close left %d windows", len(e.Views()))
+	}
+	if feed(e, "ix<Esc>:Act write<CR>"); e.Views()[0].Modified {
+		t.Errorf(":Act write left the buffer modified")
+	}
+	if feed(e, ":Act scratch<CR>"); text(e) != "hi" {
+		t.Errorf(":Act scratch shows %q, want hi", text(e))
+	}
+	if feed(e, ":Act drop<CR>"); text(e) != "xa" {
+		t.Errorf(":Act drop shows %q, want xa", text(e))
+	}
+}
+
 // B182
 func TestB182PluginHearsTheCursor(t *testing.T) {
 	e := loaded(t, "watch", "f", "a\nb\nc\n", "ui")
