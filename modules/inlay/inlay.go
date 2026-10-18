@@ -32,7 +32,7 @@ func New() *Module {
 func (m *Module) Name() string { return "inlay" }
 
 func (m *Module) Subscribed() []string {
-	return []string{"buffer.opened", "buffer.changed", "lsp.attached"}
+	return []string{"buffer.opened", "buffer.changed", "lsp.attached", "option.set", "config.reloaded"}
 }
 
 func (m *Module) Registered() []api.Registration { return nil }
@@ -43,16 +43,24 @@ func (m *Module) Call(context.Context, uint32, api.Scope, ...int) (api.Result, e
 	return api.Result{}, nil
 }
 
-// Event asks the server again after each change, and once a server
-// attaches.
+// Event asks the server again after each change, once a server attaches
+// and once inlay_hints turns on. Turning it off takes the hints away.
 func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	buf := s.About["buffer"]
-	if event, _, _ := strings.Cut(name, " "); event == "lsp.attached" {
+	switch event, detail, _ := strings.Cut(name, " "); {
+	case event == "option.set" && detail != "inlay_hints":
+		return api.Result{}, nil
+	case event == "lsp.attached":
 		delete(m.without, buf)
 	}
-	if on, _ := s.Option("inlay_hints"); on != "true" || m.without[buf] {
+	if on, _ := s.Option("inlay_hints"); on != "true" {
+		res := api.Result{Undecorate: m.shown[buf]}
+		delete(m.shown, buf)
+		return res, nil
+	}
+	if m.without[buf] {
 		return api.Result{}, nil
 	}
 	if _, waiting := m.asked[buf]; waiting {

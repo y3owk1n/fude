@@ -84,7 +84,7 @@ func New(own string) *Module {
 func (m *Module) Name() string { return "spell" }
 
 func (m *Module) Subscribed() []string {
-	return []string{"buffer.opened", "view.moved", "buffer.changed"}
+	return []string{"buffer.opened", "view.moved", "buffer.changed", "option.set", "config.reloaded"}
 }
 
 func (m *Module) Registered() []api.Registration {
@@ -136,6 +136,9 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	buf := s.About["buffer"]
+	if event, detail, _ := strings.Cut(name, " "); event == "option.set" && detail != "spell" && detail != "spell_words" {
+		return api.Result{}, nil
+	}
 	if on, _ := s.Option("spell"); on != "true" {
 		return m.clear(buf), nil
 	}

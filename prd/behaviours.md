@@ -824,8 +824,8 @@ Where fude departs, the line says so and cites the departure in
   cmd edits around it, and the buffers stay unwritten until `:wall`. The
   message says how many places or files cmd ran in. If cmd fails, the
   run stops there and the message says why.
-- B258 [2] Once two or more buffers with files are open, the top row of
-  the screen lists them, each by its number and file name, with the
+- B258 [2] While a buffer with a file is open, the top row of the screen
+  lists those buffers, each by its number and file name, with the
   folder too when two names are the same. The current window's buffer
   shows lit and bold, and a modified one shows ●. When they do not fit, the row
   shows the part around the current one, with ‹ or › where it is cut.
@@ -1039,6 +1039,11 @@ Where fude departs, the line says so and cites the departure in
   window, such as a line in `diff.plus`, over what the filetype colours.
 - B277 [4] A plugin hears `editor.focused` when the terminal gets the
   focus back, as git's index may have changed while fude was away.
+- B331 [4] A module says what the buffer line lists, each buffer by the
+  name it shows, and the editor lights the current window's, marks a
+  modified one, and leaves out what a guest may not show. A module hears
+  `buffer.closed` when a buffer closes, `config.reloaded` after
+  `:config reload`, and `option.set` with the name `:set` set (B258).
 - B330 [4] A module's call reads whether a window is next to the
   current one each way, and its result may move to that window, as
   `<Plug>(window.left)` and the others do (B140).

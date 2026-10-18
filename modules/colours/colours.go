@@ -41,7 +41,7 @@ func New() *Module {
 func (m *Module) Name() string { return "colours" }
 
 func (m *Module) Subscribed() []string {
-	return []string{"buffer.opened", "buffer.changed", "view.moved", "lsp.attached"}
+	return []string{"buffer.opened", "buffer.changed", "view.moved", "lsp.attached", "option.set", "config.reloaded"}
 }
 
 func (m *Module) Registered() []api.Registration { return nil }
@@ -59,7 +59,10 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 	defer m.mu.Unlock()
 	buf := s.About["buffer"]
 	event, detail, _ := strings.Cut(name, " ")
-	if event == "lsp.attached" {
+	switch {
+	case event == "option.set" && detail != "highlight_colors":
+		return api.Result{}, nil
+	case event == "lsp.attached":
 		delete(m.without, buf)
 	}
 	if on, _ := s.Option("highlight_colors"); on != "true" {

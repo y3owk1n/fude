@@ -1,42 +1,26 @@
 package editor
 
 import (
-	"path/filepath"
 	"slices"
 
 	"github.com/y3owk1n/fude/wire"
 )
 
-// Buffers returns what the buffer line shows: the open buffers that have
-// files, once two or more are, else nothing (B258).
+// Buffers returns what the buffer line shows: the buffers a module lists,
+// but those a guest may not show, with the current window's lit (B258,
+// B331).
 func (e *Session) Buffers() []wire.Tab {
-	if !e.cfg.BufferLine {
-		return nil
-	}
-	var bufs []*buffer
-	bases := map[string]int{}
-	for _, b := range e.listed() {
-		if b.file.path != "" {
-			bufs = append(bufs, b)
-			bases[filepath.Base(b.file.path)]++
-		}
-	}
-	if len(bufs) < 2 {
-		return nil
-	}
 	// While a float or the finder is open, the window under it is the
 	// current one.
 	current := e.win
 	if !slices.Contains(e.root.windows(), current) && e.under != nil {
 		current = e.under
 	}
-	tabs := make([]wire.Tab, len(bufs))
-	for i, b := range bufs {
-		name := filepath.Base(b.file.path)
-		if bases[name] > 1 {
-			name = filepath.Join(filepath.Base(filepath.Dir(b.file.path)), name)
+	var tabs []wire.Tab
+	for _, t := range e.tabs {
+		if b, err := e.buffer(t.Buffer); err == nil && t.Buffer != 0 && e.barred(b) == nil {
+			tabs = append(tabs, wire.Tab{Number: t.Buffer, Name: t.Name, Current: b == current.buf, Modified: b.modified()})
 		}
-		tabs[i] = wire.Tab{Number: b.id, Name: name, Current: b == current.buf, Modified: b.modified()}
 	}
 	return tabs
 }

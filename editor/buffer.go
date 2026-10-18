@@ -211,8 +211,11 @@ func (b *buffer) close() {
 		// The log keeps a crash's changes while :recover offers them.
 		b.log.Close(b.text, b.saves, b.unsaved == kernel.NodeID{})
 	}
+	// A closed buffer's syntax is gone, so what reads b after, such as the
+	// scope of buffer.closed, reads none (B331).
 	if b.syntax != nil {
 		b.syntax.Close()
+		b.syntax = nil
 	}
 	if b.term != nil {
 		b.term.stop()

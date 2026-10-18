@@ -158,8 +158,9 @@ func (e *Session) listen(p api.Module) *listener {
 				if !on(func() {
 					l.mu.Lock()
 					defer l.mu.Unlock()
-					// Drop what is about a buffer closed since.
-					for len(l.pending) > 0 && !slices.Contains(e.bufs, l.pending[0].buf) {
+					// Drop what is about a buffer closed since, but that it
+					// closed (B331).
+					for len(l.pending) > 0 && !slices.Contains(e.bufs, l.pending[0].buf) && l.pending[0].name != "buffer.closed" {
 						l.pending = l.pending[1:]
 					}
 					if more = len(l.pending) > 0; more {
@@ -233,6 +234,9 @@ func (e *Session) handled(p api.Module, ev event, err error, t kernel.Snapshot, 
 	case err != nil:
 		e.unload(p, err)
 	case !slices.Contains(e.bufs, b):
+		// Of what a closed buffer's event asks, only what is not about the
+		// buffer applies (B331).
+		e.decorate(p, b, api.Result{Tabs: res.Tabs, Log: res.Log, Message: res.Message})
 	case b.text.Snapshot().Version() == t.Version():
 		e.result(p, b, t, res)
 		// The keys it queued, such as the finder's, keep its message.

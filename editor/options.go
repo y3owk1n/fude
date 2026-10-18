@@ -38,12 +38,13 @@ func fields[T any](o *options) map[string]*T {
 // default for the session's windows opened later, and never config.toml
 // (B39).
 func (e *Session) set(args string) {
-	// Clearing seen sends view.moved after the keys, so the modules read
-	// the new value at once.
-	e.seen = view{}
 	switches, numbers := e.win.opts.switches(), e.win.opts.numbers()
 	name, value, given := strings.Cut(strings.TrimSpace(args), " ")
 	value = strings.TrimSpace(value)
+	// The modules hear what changed once it has (B331).
+	if given {
+		defer e.emit("option.set", name, e.win.buf)
+	}
 	if _, ok := e.cfg.settings()[name]; ok {
 		e.setSetting(name, value, given)
 		return

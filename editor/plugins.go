@@ -448,6 +448,9 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 	for _, m := range res.Moved {
 		e.moved(m[0], m[1])
 	}
+	if res.Tabs != nil {
+		e.tabs = *res.Tabs
+	}
 	if len(res.Window) == 1 {
 		e.moveTo(res.Window[0])
 	}
@@ -870,7 +873,7 @@ func keyModes(r api.Registration) []vim.Mode {
 func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 	bufs := map[int]api.Buffer{}
 	for _, o := range e.bufs {
-		bufs[o.id] = api.Buffer{Path: o.file.path, Filetype: e.filetype(o), Name: o.name(), Modified: o.modified(), Text: o.text.Snapshot()}
+		bufs[o.id] = api.Buffer{Path: o.file.path, Filetype: e.filetype(o), Name: o.name(), Modified: o.modified(), Kind: o.kind(), Text: o.text.Snapshot()}
 	}
 	ft, opts, cfg := e.filetype(b), e.opts, &e.cfg
 	if e.win.buf == b {

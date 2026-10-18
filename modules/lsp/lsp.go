@@ -102,7 +102,7 @@ func New() *Module {
 func (m *Module) Name() string { return "lsp" }
 
 func (m *Module) Subscribed() []string {
-	return []string{"lsp.published", "lsp.detached", "lsp.changed", "buffer.closed", "view.moved"}
+	return []string{"lsp.published", "lsp.detached", "lsp.changed", "buffer.closed", "view.moved", "option.set", "config.reloaded"}
 }
 
 func (m *Module) Registered() []api.Registration {
@@ -216,8 +216,8 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 		delete(m.diags, s.About["buffer"])
 		delete(m.renameAt, s.About["buffer"])
 		delete(m.notes, s.About["buffer"])
-	case "view.moved":
-		// diagnostic_notes turned on or off.
+	case "view.moved", "option.set", "config.reloaded":
+		// diagnostic_notes turned on or off, here or in the window moved to.
 		if buf := s.About["buffer"]; m.diags[buf] != nil {
 			if on, _ := s.Option("diagnostic_notes"); m.notes[buf] != (on == "true") {
 				m.redraw(&res, s, buf)

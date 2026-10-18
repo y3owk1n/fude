@@ -50,7 +50,7 @@ type config struct {
 	FormatTimeout   uint     `toml:"format_timeout" help:"the milliseconds formatting may take"`
 	Leader          string   `toml:"leader" help:"what <Leader> in a mapping stands for"` // N18
 	Theme           string   `toml:"theme" help:"the colours: dark, light or a base16 scheme file"`
-	BufferLine      bool     `toml:"buffer_line" help:"the top row lists the open buffers once two or more are"`
+	BufferLine      bool     `toml:"buffer_line" help:"the top row lists the open buffers that have files"`
 	SpellWords      string   `toml:"spell_words" help:"the word list spell checks against, one word a line"`
 	options
 	Colors   wire.Colors `toml:"colors" help:"colours by role, each as #rrggbb, that replace the theme's"`
@@ -292,7 +292,7 @@ func (e *Session) reloadConfig() {
 		e.reloadPlugins()
 	}
 	e.layout()
-	e.seen = view{} // sends view.moved, as :set does
+	e.emit("config.reloaded", "", e.win.buf)
 	e.message = "reloaded config.toml"
 }
 

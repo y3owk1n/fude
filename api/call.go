@@ -83,6 +83,7 @@ type Result struct {
 	Travel     *Travel        // a move of a buffer's text to one of its states (B328)
 	Copy       string         // text to put on the clipboard (B329)
 	Window     string         // h, j, k or l: the window next to the current one that way becomes current (B330)
+	Tabs       *[]Tab         // what the buffer line lists, none for no row (B331)
 	// Set holds options to set on the buffer the call is about, by their
 	// config.toml names: expand_tab, indent_width and tab_width. fude uses
 	// them in place of config.toml's until the buffer closes (B283).
@@ -282,6 +283,13 @@ type ExCommand struct {
 	Name, Args, Help string
 }
 
+// Tab is a buffer the buffer line lists, by its id, with the name it shows.
+// The line marks a modified one itself (B258, B331).
+type Tab struct {
+	Buffer int
+	Name   string
+}
+
 // Mark is a place in the buffer by its id, as :marks, :jumps and :changes
 // list them. Name is a mark's letter (B329).
 type Mark struct {
@@ -453,6 +461,7 @@ type Buffer struct {
 	Path, Filetype string
 	Name           string // what :buffers calls it, its path or its title (B329)
 	Modified       bool
+	Kind           string // its kind of buffer, such as listing or help, or "" for one a user edits (B331)
 	Text           Text
 }
 

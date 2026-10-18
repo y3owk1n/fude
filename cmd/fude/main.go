@@ -16,6 +16,7 @@ import (
 	"github.com/y3owk1n/fude/internal/relay"
 	"github.com/y3owk1n/fude/modules/autopairs"
 	"github.com/y3owk1n/fude/modules/blame"
+	"github.com/y3owk1n/fude/modules/bufferline"
 	"github.com/y3owk1n/fude/modules/colours"
 	"github.com/y3owk1n/fude/modules/comment"
 	"github.com/y3owk1n/fude/modules/debug"
@@ -183,7 +184,7 @@ func modules() []api.Module {
 	if dir, err := editor.ConfigDir(); err == nil {
 		words = filepath.Join(dir, "words.txt")
 	}
-	return []api.Module{autopairs.New(), blame.New(), colours.New(), comment.New(), debug.New(), editorconfig.New(), files.New(), flash.New(), fold.New(), format.New(), git.New(), grep.New(), hints.New(), inlay.New(), jump.New(), links.New(), listingmod.New(), lists.New(), lspmod.New(), markdown.New(), pickmod.New(), recent.New(), sessionmod.New(), shell.New(), spell.New(words), startmod.New(), surround.New(), task.New(), timeline.New(), window.New()}
+	return []api.Module{autopairs.New(), blame.New(), bufferline.New(), colours.New(), comment.New(), debug.New(), editorconfig.New(), files.New(), flash.New(), fold.New(), format.New(), git.New(), grep.New(), hints.New(), inlay.New(), jump.New(), links.New(), listingmod.New(), lists.New(), lspmod.New(), markdown.New(), pickmod.New(), recent.New(), sessionmod.New(), shell.New(), spell.New(words), startmod.New(), surround.New(), task.New(), timeline.New(), window.New()}
 }
 
 // run prints a man page for --man, fude(1) or the one named after it,

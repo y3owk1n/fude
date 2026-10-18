@@ -23,6 +23,7 @@ import (
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/internal/relay"
+	bufferlinemod "github.com/y3owk1n/fude/modules/bufferline"
 	colourmod "github.com/y3owk1n/fude/modules/colours"
 	filesmod "github.com/y3owk1n/fude/modules/files"
 	hintsmod "github.com/y3owk1n/fude/modules/hints"
@@ -1916,13 +1917,18 @@ func TestB258BufferLine(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	// One file shows no line, and the windows keep the top row.
-	c := startWith(t, "", "a.txt")
-	if c.draw(); !strings.HasPrefix(c.row(0), "a.txt") {
+	// lined is a client with the buffer line's module.
+	lined := func(c *client) *client {
+		c.e.(*editor.Session).Use(bufferlinemod.New())
+		return c
+	}
+	// One file shows the line too.
+	c := lined(startWith(t, "", "a.txt"))
+	if c.draw(); !strings.HasPrefix(c.row(0), " 1 a.txt ") {
 		t.Errorf("with one file the top row is %q", c.row(0))
 	}
 	// Two show it, the current one lit and a modified one marked.
-	c = startWith(t, "", "a.txt", "b.txt")
+	c = lined(startWith(t, "", "a.txt", "b.txt"))
 	for _, k := range vim.Keys("x") {
 		c.e.Feed(k)
 	}
@@ -1937,12 +1943,12 @@ func TestB258BufferLine(t *testing.T) {
 		t.Errorf("the window starts with %q, want its text below the line", c.row(1))
 	}
 	// Two files of one name show their folders.
-	c = startWith(t, "", "one/x.txt", "two/x.txt")
+	c = lined(startWith(t, "", "one/x.txt", "two/x.txt"))
 	if c.draw(); !strings.Contains(c.row(0), "one/x.txt") || !strings.Contains(c.row(0), "two/x.txt") {
 		t.Errorf("files of one name show as %q", c.row(0))
 	}
 	// buffer_line = false hides it.
-	c = startWith(t, "buffer_line = false\n", "a.txt", "b.txt")
+	c = lined(startWith(t, "buffer_line = false\n", "a.txt", "b.txt"))
 	if c.draw(); !strings.HasPrefix(c.row(0), "a.txt") {
 		t.Errorf("with buffer_line off the top row is %q", c.row(0))
 	}
@@ -1955,7 +1961,7 @@ func TestB258BufferLine(t *testing.T) {
 		}
 		names = append(names, name)
 	}
-	c = startWith(t, "", names...)
+	c = lined(startWith(t, "", names...))
 	for _, k := range vim.Keys(":b 15<CR>") {
 		c.e.Feed(k)
 	}
@@ -1967,7 +1973,7 @@ func TestB258BufferLine(t *testing.T) {
 	if err := os.WriteFile(away, nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	c = startWith(t, "", "a.txt", "b.txt", away)
+	c = lined(startWith(t, "", "a.txt", "b.txt", away))
 	if tabs := c.e.(*editor.Session).Attach("guest", editor.Guest).Buffers(); len(tabs) != 2 {
 		t.Errorf("a guest's buffer line lists %v, want the two files in the project", tabs)
 	}

@@ -462,6 +462,13 @@ the text typed between the view's `top` and `bottom`, highlights each
 match, and covers the character after it with its label (B315). A label
 or `<CR>` returns a `Jump`, and the editor adds it to the jumplist.
 
+`modules/bufferline` says what the top row lists (B258). It hears the
+buffers open, close and change names, and on `config.reloaded` and
+`option.set`, and
+returns `Tabs`, each a buffer and the name it shows. The editor draws the
+row from them each frame. It lights the current window's buffer, marks a
+modified one, and leaves out what a guest may not show (B331).
+
 `modules/window` is `<Plug>(window.*)`. `Scope.Window` says whether a
 window is next to the current one that way, and the result's `Window`
 moves to it, as `<C-w>h`, `<C-w>j`, `<C-w>k` and `<C-w>l` do. With no
@@ -582,7 +589,8 @@ or the view, `mode.changed`, `syntax.updated` when a parse lands,
 (B284), `editor.focused` when the terminal gets the focus back
 (B277), `buffer.shown` when the current window shows another buffer
 (B314), `lsp.changed` when a language server's state changes (B317),
-`editor.started` when fude starts with no file (B319), `keys.pending`
+`editor.started` when fude starts with no file (B319), `config.reloaded`
+after `:config reload` and `option.set` with the name `:set` set (B331), `keys.pending`
 when the command being typed changes (B326), `editor.quitting`
 as it quits, on the loop (B325),
 `listing.read` when a listing reads its directory, as it opens,

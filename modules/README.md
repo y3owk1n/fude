@@ -8,6 +8,7 @@ and a program that embeds the editor does the same.
 |---|---|
 | [`autopairs`](autopairs) | a bracket or quote typed comes with its closing one |
 | [`blame`](blame) | `:blame` shows who changed the cursor's line |
+| [`bufferline`](bufferline) | what the top row lists, the open buffers with files |
 | [`colours`](colours) | text that names a colour shows on it, and a server's colours |
 | [`comment`](comment) | `gc` comments and uncomments |
 | [`debug`](debug) | `:debug`, breakpoints, stepping, the panel and evaluation |

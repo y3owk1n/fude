@@ -47,6 +47,7 @@ type Editor struct {
 	sources        map[string]func(*Session, string) // :pick sources modules registered, by name (B287)
 	writers        map[string]writer                 // what writes each kind of buffer modules write, by kind (B327)
 	shortOf        map[string]string                 // the modules' command each short name stands for (B329)
+	tabs           []api.Tab                         // what a module says the buffer line lists (B331)
 	kindMaps       map[string]map[string]string      // the modules' keys of each kind of buffer, by kind (B327)
 	completers     map[string]func(*Session, string) // by command, what asks a module to complete its argument (B290)
 	decos          map[any][]decoration              // by owner: a plugin, or a buffer for its diagnostics

@@ -71,7 +71,7 @@ func New() *Module {
 func (m *Module) Name() string { return "markdown" }
 
 func (m *Module) Subscribed() []string {
-	return []string{"buffer.opened", "buffer.changed", "view.moved"}
+	return []string{"buffer.opened", "buffer.changed", "view.moved", "option.set", "config.reloaded"}
 }
 
 func (m *Module) Registered() []api.Registration { return nil }
@@ -93,7 +93,13 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	buf := s.About["buffer"]
-	switch event, _, _ := strings.Cut(name, " "); event {
+	switch event, detail, _ := strings.Cut(name, " "); event {
+	case "option.set", "config.reloaded":
+		// render or icons changed.
+		if detail == "render" || detail == "icons" || event == "config.reloaded" {
+			return m.draw(s), nil
+		}
+		return api.Result{}, nil
 	case "view.moved":
 		if on, _ := s.Option("render"); m.off[buf] == (on == "true") {
 			return m.draw(s), nil

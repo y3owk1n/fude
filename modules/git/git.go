@@ -70,7 +70,7 @@ func New() *Module {
 func (m *Module) Name() string { return "git" }
 
 func (m *Module) Subscribed() []string {
-	return []string{"buffer.opened", "buffer.changed", "view.moved", "editor.focused", "listing.read"}
+	return []string{"buffer.opened", "buffer.changed", "view.moved", "editor.focused", "listing.read", "option.set", "config.reloaded"}
 }
 
 func (m *Module) Registered() []api.Registration {
@@ -140,10 +140,11 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 			m.stale[b] = true
 		}
 		return m.branch(s, m.read(s)), nil
-	case "view.moved":
+	case "view.moved", "option.set", "config.reloaded":
 		if m.stale[buf] {
 			return m.read(s), nil
 		}
+		// git_signs turned on or off, here or in the window moved to.
 		if on, _ := s.Option("git_signs"); m.off[buf] == (on == "true") {
 			return m.sign(s), nil
 		}
