@@ -42,6 +42,7 @@ type finder struct {
 	query    string   // the query matches are for
 	matches  []string // paths, or grep's path:line:column:text
 	sel      int
+	first    int                 // the list's first row shown
 	stale    bool                // paths came after matches were found
 	busy     bool                // a match runs
 	shown    string              // the match previewed
@@ -296,8 +297,15 @@ func (f *finder) float(query string, cursor, width, height int) wire.Float {
 		}
 		list = append(list, listRow{i, false})
 	}
-	first := min(max(selRow-rows+1, 0), len(list))
-	for _, r := range list[first:min(first+rows, len(list))] {
+	// The rows move only when the selection would leave them, and the
+	// selection's file name stays above it.
+	top := selRow
+	if top > 0 && list[top-1].header {
+		top--
+	}
+	f.first = max(min(f.first, top), selRow-rows+1)
+	f.first = max(min(f.first, len(list)-rows), 0)
+	for _, r := range list[f.first:min(f.first+rows, len(list))] {
 		s.WriteByte('\n')
 		start := s.Len()
 		m := f.matches[r.match]

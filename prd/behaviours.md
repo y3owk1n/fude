@@ -1338,8 +1338,9 @@ Where fude departs, the line says so and cites the departure in
   line.
 - B64 [5] `<C-x><C-o>` in insert mode lists the server's completions.
   `<C-n>` and `<C-p>` select, `<C-y>` accepts, and the accepted text is part
-  of the insert's undo step. A menu longer than its box scrolls to keep the
-  selected item in view.
+  of the insert's undo step. A menu longer than its box scrolls only when
+  the selection would leave the rows shown, and then only as far as it
+  must. The finder's list and the command line's menu scroll the same way.
 - B65 [5] `gq{target}` formats the lines it covers as `:format` does,
   through the filetype's formatters or else the server, which hears the
   file's indent width and whether it indents with spaces. The formatting is

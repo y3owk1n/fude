@@ -2,6 +2,7 @@ package editor_test
 
 import (
 	"bytes"
+	"fmt"
 	"image"
 	"image/png"
 	"os"
@@ -218,5 +219,39 @@ func TestB210FinderIgnored(t *testing.T) {
 		feed(e, "<C-g>")
 		settle(t, e, func() bool { return slices.Equal(shown(), c.without) })
 		feed(e, "<Esc>")
+	}
+}
+
+// B64, for the finder's list
+func TestB64FinderScrolls(t *testing.T) {
+	dir := t.TempDir()
+	for i := range 30 {
+		change(t, filepath.Join(dir, fmt.Sprintf("f%02d", i)), "x\n")
+	}
+	t.Chdir(dir)
+	e := open(t, "f00")
+	e.Use(filesmod.New())
+	e.SetSize(40, 24)
+	// shown is the finder's rows and the selected one's index.
+	shown := func() ([]string, int) {
+		f, _ := e.Float()
+		for _, s := range f.Spans {
+			if s.Name == "menu.selected" {
+				return strings.Split(f.Text, "\n")[2:], strings.Count(f.Text[:s.Start], "\n") - 2
+			}
+		}
+		return nil, -1
+	}
+	feed(e, ":pick files<CR>")
+	settle(t, e, func() bool { rows, _ := shown(); return len(rows) == 18 })
+	feed(e, strings.Repeat("<C-n>", 20))
+	rows, sel := shown()
+	if sel != len(rows)-1 {
+		t.Fatalf("after 20 <C-n> the selection is row %d of %d", sel, len(rows))
+	}
+	// Going back up moves the selection, not the rows.
+	feed(e, "<C-p>")
+	if up, at := shown(); !slices.Equal(up, rows) || at != sel-1 {
+		t.Errorf("after <C-p> the rows are %q with row %d selected, want %q with row %d", up, at, rows, sel-1)
 	}
 }

@@ -34,6 +34,7 @@ type cmenu struct {
 	items []string
 	notes []string // dim beside each item: a command's short names
 	sel   int      // the item in the line, or len(items) for typed
+	first int      // the first item shown
 	// lit is the item that shows lit, which <CR> takes while the typed word
 	// is in the line, or -1 for none.
 	lit int
@@ -346,11 +347,11 @@ func readEntries(dir string) []string {
 // the command line (B148).
 func (m *cmenu) float() wire.Float {
 	rows := min(len(m.items), 10)
-	// The rows start at the top until an item is selected, then follow it.
-	first := 0
+	// The rows move only when the selection would leave them.
 	if m.sel < len(m.items) {
-		first = max(m.sel-rows+1, 0)
+		m.first = min(max(m.first, m.sel-rows+1), m.sel)
 	}
+	first := m.first
 	var s strings.Builder
 	var spans []syntax.Span
 	width := 0

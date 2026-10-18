@@ -162,7 +162,7 @@ func (c *client) float(f wire.Float, cx, cy, lo, hi, h int) (int, int, bool) {
 			}
 			n = max(n-len(foot), 1)
 		}
-		first := scroll(all, f, n)
+		first := c.scroll(all, f, n)
 		rows := slices.Clone(all[first:min(first+n, len(all))])
 		for len(foot) > 0 && len(rows) < n {
 			rows = append(rows, row{start: len(f.Text), end: len(f.Text)})
@@ -189,7 +189,7 @@ func (c *client) float(f wire.Float, cx, cy, lo, hi, h int) (int, int, bool) {
 	if width < 1 || n < 1 {
 		return 0, 0, false
 	}
-	first := scroll(rows, f, n)
+	first := c.scroll(rows, f, n)
 	y := cy + 1
 	if below < n+2 && above > below {
 		y = cy - n - 2
@@ -256,8 +256,9 @@ func (c *client) above(f wire.Float, cx, cy, lo, hi, h int) {
 
 // scroll returns the first of rows to show in a box n rows tall. It is f's
 // top row, moved so the cursor's row shows when f has the cursor. A menu
-// without the cursor shows its selected item (B64).
-func scroll(rows []row, f wire.Float, n int) int {
+// without the cursor starts where the last frame showed it, and moves only
+// as far as it must to show its selected item (B64).
+func (c *client) scroll(rows []row, f wire.Float, n int) int {
 	// rowOf is the row that shows the byte at p.
 	rowOf := func(p int) int {
 		i, _ := slices.BinarySearchFunc(rows, p, func(r row, p int) int { return cmp.Compare(r.start, p+1) })
@@ -266,9 +267,12 @@ func scroll(rows []row, f wire.Float, n int) int {
 	if f.Cursor < 0 {
 		i := slices.IndexFunc(f.Spans, func(s syntax.Span) bool { return s.Name == "menu.selected" })
 		if i < 0 {
+			c.menuTop = 0
 			return 0
 		}
-		return max(rowOf(f.Spans[i].Start)-n+1, 0)
+		sel := rowOf(f.Spans[i].Start)
+		c.menuTop = max(min(max(c.menuTop, sel-n+1), sel, len(rows)-n), 0)
+		return c.menuTop
 	}
 	cur := rowOf(f.Cursor)
 	return min(max(rowOf(f.Top), cur-n+1), cur)

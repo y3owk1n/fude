@@ -343,20 +343,33 @@ func TestB64MenuScrolls(t *testing.T) {
 	for _, k := range vim.Keys("o w<C-x><C-o>" + strings.Repeat("<C-n>", 24)) {
 		c.e.Feed(k)
 	}
-	c.draw()
-	buf := c.e.(*editor.Session).Text()
-	chosen := strings.TrimSpace(buf.Slice(buf.LineStart(1), buf.Len()))
-	for y := range 40 {
-		var row strings.Builder
-		for x := range 120 {
-			s, _, _ := c.s.Get(x, y)
-			row.WriteString(s)
+	// selected draws a frame and returns the item in the text and the
+	// screen row that shows it, or -1.
+	selected := func() (string, int) {
+		c.draw()
+		buf := c.e.(*editor.Session).Text()
+		chosen := strings.TrimSpace(buf.Slice(buf.LineStart(1), buf.Len()))
+		for y := range 40 {
+			var row strings.Builder
+			for x := range 120 {
+				s, _, _ := c.s.Get(x, y)
+				row.WriteString(s)
+			}
+			if strings.Contains(row.String(), chosen+"  [buffer]") {
+				return chosen, y
+			}
 		}
-		if strings.Contains(row.String(), chosen+"  [buffer]") {
-			return
-		}
+		return chosen, -1
 	}
-	t.Errorf("the 25th item, %s, is not in the menu on screen", chosen)
+	chosen, y := selected()
+	if y < 0 {
+		t.Fatalf("the 25th item, %s, is not in the menu on screen", chosen)
+	}
+	// Going back up moves the selection, not the rows.
+	c.e.Feed(vim.Keys("<C-p>")[0])
+	if up, at := selected(); at != y-1 {
+		t.Errorf("after <C-p> the 24th item, %s, is on row %d, want %d", up, at, y-1)
+	}
 }
 
 // B345

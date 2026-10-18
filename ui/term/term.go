@@ -178,6 +178,7 @@ type client struct {
 	size     [4]int            // the screen's size, and where the windows started and ended, in the last frame
 	sig      sig               // reused to build each line's sig
 	img      images            // how the client shows images (B303)
+	menuTop  int               // the first row of the cursor's menu in the last frame
 }
 
 // shown is what a frame drew a window's line from. When the next frame
