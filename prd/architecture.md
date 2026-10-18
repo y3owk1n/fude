@@ -1258,6 +1258,13 @@ pattern with a predicate fude does not evaluate, such as JavaScript's
 `#offset!` or Objective-C's `#has-ancestor?`, drops out, and the rest of
 the query stays (B46, B166). A query `:select` takes is strict.
 
+A module passes `Scope.Query` one query for each language it reads, by
+filetype, such as one for `markdown` and one for `markdown_inline` (B297). `syntax.Query` parses the whole text on the
+module's goroutine, runs the buffer's language's query on its tree, and
+walks the injected regions as the worker does, running each region's
+language's query on that region's tree. Its queries are strict, as
+`:select`'s are.
+
 Queries use only the predicates the binding evaluates: the `eq?`,
 `match?` and `any-of?` families. A query that uses any other fails to load
 with its file and line, with three exceptions. `#is-not? local` always holds,

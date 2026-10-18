@@ -863,6 +863,83 @@ func Highlight(filetype, dir, text string) ([]Span, error) {
 	return append(spans, inner...), nil
 }
 
+// Query parses text as filetype and returns what queries capture. queries
+// has one query for each language, by filetype. The query of filetype runs
+// on the text's tree, and that of an injected region's language on the
+// region's tree, as for markdown's inline text. The captures come in order
+// of their starts, the longer first. There are none when fude has no
+// grammar for filetype (B297).
+func Query(filetype, dir, text string, queries map[string]string) ([]Span, error) {
+	l, ok, err := lookup(filetype)
+	if !ok || err != nil {
+		return nil, err
+	}
+	compiled := map[string]*ts.Query{}
+	defer func() {
+		for _, q := range compiled {
+			q.Close()
+		}
+	}()
+	compile := func(lang *ts.Language, ft string) (*ts.Query, error) {
+		src, ok := queries[ft]
+		if !ok {
+			return nil, nil
+		}
+		q, err := compileQuery(lang, src, []string{"priority"}, true)
+		if err != nil {
+			return nil, fmt.Errorf("query for %s: %w", ft, err)
+		}
+		compiled[ft] = q
+		return q, nil
+	}
+	p := ts.NewParser()
+	defer p.Close()
+	if err := p.SetLanguage(l.lang); err != nil {
+		return nil, fmt.Errorf("grammar for %s: %w", filetype, err)
+	}
+	inj, err := query(l.lang, dir, filetype, "injections", l.injections)
+	if err != nil {
+		return nil, err
+	}
+	defer inj.Close()
+	src := []byte(text)
+	tree := p.Parse(src, nil)
+	defer tree.Close()
+	in := newInjector(dir)
+	defer in.close()
+	var out []Span
+	run := func(q *ts.Query, t *ts.Tree) {
+		names := q.CaptureNames()
+		in.cursor.SetByteRange(0, uint(len(src)))
+		caps := in.cursor.Captures(q, t.RootNode(), src)
+		for m, i := caps.Next(); m != nil; m, i = caps.Next() {
+			n := m.Captures[i].Node
+			out = append(out, Span{int(n.StartByte()), int(n.EndByte()), names[m.Captures[i].Index]})
+		}
+	}
+	q, err := compile(l.lang, filetype)
+	if err != nil {
+		return nil, err
+	}
+	if q != nil {
+		run(q, tree)
+	}
+	in.each(inj, tree, src, 0, len(src), injectionLevels, func(r region, il *injected, t *ts.Tree) {
+		q, ok := compiled[r.lang]
+		if !ok && err == nil {
+			q, err = compile(il.lang, r.lang)
+		}
+		if q != nil {
+			run(q, t)
+		}
+	})
+	if err != nil {
+		return nil, err
+	}
+	slices.SortStableFunc(out, func(a, b Span) int { return cmp.Or(cmp.Compare(a.Start, b.Start), cmp.Compare(b.End, a.End)) })
+	return out, nil
+}
+
 // highlight returns the captures in [from, to) in paint order, as
 // tree-sitter's own highlighter picks them. A capture on a node inside
 // another paints after it, and of the captures on one node only the last

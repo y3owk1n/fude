@@ -1,6 +1,7 @@
 package editor_test
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -8,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/modules/comment"
 	"github.com/y3owk1n/fude/syntax"
 )
@@ -286,4 +288,46 @@ func TestB166Injections(t *testing.T) {
 	if e.Message() != "" {
 		t.Errorf("the injections said %q", e.Message())
 	}
+}
+
+// querier is a module whose :Q says what the Go query typed after it
+// captures.
+type querier struct{ idle }
+
+func (querier) Registered() []api.Registration {
+	return []api.Registration{{Kind: api.Command, Name: "Q", Help: "runs a query", ID: 1}}
+}
+
+func (querier) Call(_ context.Context, _ uint32, s api.Scope, _ ...int) (api.Result, error) {
+	spans, err := s.Query(map[string]string{"go": s.About["args"]})
+	if err != nil {
+		return api.Result{Message: err.Error()}, nil
+	}
+	var got []string
+	for _, sp := range spans {
+		got = append(got, s.Text.Slice(sp.Start, sp.End)+":"+sp.Name)
+	}
+	return api.Result{Message: strings.Join(got, " ")}, nil
+}
+
+// B297, with Go inside a Go raw string as the injected language
+func TestB297Query(t *testing.T) {
+	config(t, "")
+	dir := filepath.Join(os.Getenv("XDG_CONFIG_HOME"), "fude", "queries", "go")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	src := "((raw_string_literal_content) @injection.content (#set! injection.language \"go\"))\n"
+	if err := os.WriteFile(filepath.Join(dir, "injections.scm"), []byte(src), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "a.go")
+	change(t, path, "package p\n\nfunc g() {}\n\nvar s = `func f() {}`\n")
+	e := start(t, path)
+	e.Use(querier{})
+	feed(e, ":Q (function_declaration name: (identifier) @fn)<CR>")
+	settle(t, e, func() bool { return e.Message() == "g:fn f:fn" })
+	// A query that does not compile says so.
+	feed(e, ":Q (nope) @x<CR>")
+	settle(t, e, func() bool { return strings.HasPrefix(e.Message(), "query for go") })
 }

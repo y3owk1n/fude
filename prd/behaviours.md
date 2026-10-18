@@ -947,6 +947,11 @@ Where fude departs, the line says so and cites the departure in
 - B273 [4] A plugin with `buffer.read` reads the language of the text at a
   position, the buffer's or that of an injected region holding it, and
   the highlight captures over a range, as their names and ranges.
+- B297 [4] A module runs tree-sitter queries of its own over its buffer,
+  one for each language, by filetype. Each runs on the buffer's tree and
+  on the trees of the regions injected in it, so a markdown file's
+  inline text answers the `markdown_inline` query. It gets each capture's
+  range and name. A query that does not compile says so.
 - B274 [4] A plugin reads an option by its name in config.toml, as the
   window has it, or a top-level setting of config.toml.
 - B279 [4] A plugin reads any value of config.toml by its dotted path, such

@@ -763,7 +763,18 @@ func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 				}
 				return out
 			}
+			s.Query = func(qs map[string]string) ([]api.Span, error) {
+				spans, err := syntax.Query(ft, queries, snap.Slice(0, snap.Len()), qs)
+				out := make([]api.Span, len(spans))
+				for i, sp := range spans {
+					out[i] = api.Span(sp)
+				}
+				return out, err
+			}
 		}
+	}
+	if s.Query == nil {
+		s.Query = func(map[string]string) ([]api.Span, error) { return nil, nil }
 	}
 	language := s.Language
 	s.Comment = func(pos int) (string, bool) { return syntax.Comment(language(pos)) }
@@ -774,7 +785,7 @@ func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 	// scope off it.
 	var decos []api.Decoration
 	for _, d := range e.decos[p] {
-		decos = append(decos, api.Decoration{ID: d.id, Start: d.buf.text.Mark(d.start), End: d.buf.text.Mark(d.end), Style: d.style, Sign: d.sign, Note: d.note, Layer: d.layer, Fold: d.fold, Buffer: d.buf.id})
+		decos = append(decos, api.Decoration{ID: d.id, Start: d.buf.text.Mark(d.start), End: d.buf.text.Mark(d.end), Style: d.style, Sign: d.sign, Note: d.note, Layer: d.layer, Fold: d.fold, Replace: d.replace, Line: d.line, Buffer: d.buf.id})
 	}
 	s.Decorations = func() []api.Decoration { return decos }
 	return s

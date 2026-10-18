@@ -102,11 +102,24 @@ func (in *injector) get(ft string) *injected {
 // spans returns the spans of the regions q marks in tree within [from, to),
 // to paint over tree's own, and the regions, levels deep.
 func (in *injector) spans(q *ts.Query, tree *ts.Tree, text []byte, from, to, levels int) ([]Span, []Region) {
-	if levels == 0 {
-		return nil, nil
-	}
 	var spans []Span
 	var regions []Region
+	in.each(q, tree, text, from, to, levels, func(r region, l *injected, t *ts.Tree) {
+		for _, rg := range r.ranges {
+			regions = append(regions, Region{r.lang, int(rg.StartByte), int(rg.EndByte)})
+		}
+		spans = append(spans, highlight(in.cursor, l.highlights, t, text, from, to)...)
+	})
+	return spans, regions
+}
+
+// each parses the regions q marks in tree within [from, to), and the
+// regions those mark in turn, levels deep. It calls f with each region,
+// its language and its tree. f must not keep the tree.
+func (in *injector) each(q *ts.Query, tree *ts.Tree, text []byte, from, to, levels int, f func(region, *injected, *ts.Tree)) {
+	if levels == 0 {
+		return
+	}
 	for _, r := range in.regions(q, tree, text, from, to) {
 		l := in.get(r.lang)
 		if l == nil {
@@ -122,15 +135,10 @@ func (in *injector) spans(q *ts.Query, tree *ts.Tree, text []byte, from, to, lev
 		if t == nil {
 			continue
 		}
-		for _, rg := range r.ranges {
-			regions = append(regions, Region{r.lang, int(rg.StartByte), int(rg.EndByte)})
-		}
-		spans = append(spans, highlight(in.cursor, l.highlights, t, text, from, to)...)
-		s, rs := in.spans(l.injections, t, text, from, to, levels-1)
-		spans, regions = append(spans, s...), append(regions, rs...)
+		f(r, l, t)
+		in.each(l.injections, t, text, from, to, levels-1, f)
 		t.Close()
 	}
-	return spans, regions
 }
 
 // regions returns the regions q marks in tree within [from, to). A combined

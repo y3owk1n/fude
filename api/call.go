@@ -204,6 +204,13 @@ type Scope struct {
 	// Spans returns the highlight captures over [start, end) of Text, in
 	// paint order, or none without a grammar (B273).
 	Spans func(start, end int) []Span
+	// Query runs one tree-sitter query for each language, by filetype in
+	// queries. The buffer's language's query runs on the buffer's tree, and
+	// another language's on the trees of the regions injected in it. It
+	// returns the captures over Text in order of their starts, the longer
+	// first, or none without a grammar. A query that does not compile is an
+	// error (B297).
+	Query func(queries map[string]string) ([]Span, error)
 	// Comment returns how the language at pos comments a line, such as
 	// "// %s", or false when fude knows none (B275).
 	Comment func(pos int) (string, bool)
