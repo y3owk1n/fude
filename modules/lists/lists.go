@@ -75,6 +75,12 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, _ ...int) (api.
 		return places(s, "changes", cs, func(i int, _ api.Mark) string { return fmt.Sprintf("%d  ", len(cs)-i) }), nil
 	case registers:
 		var shown []string
+		if arg == "" {
+			for _, r := range s.Registers() {
+				shown = append(shown, fmt.Sprintf("\"%s   %s", r.Name, strings.ReplaceAll(r.Text, "\n", "^J")))
+			}
+			return api.Result{Message: strings.Join(shown, "  ")}, nil
+		}
 		for _, r := range arg {
 			text, ok, err := s.Register(r)
 			switch {

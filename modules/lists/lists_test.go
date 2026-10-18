@@ -53,6 +53,10 @@ func TestB157InfoViews(t *testing.T) {
 	if editortest.Feed(e, ":q<CR>:changes<CR>"); editortest.Text(e) != "1  3:1  hree" {
 		t.Fatalf(":changes listed %q", editortest.Text(e))
 	}
+	// :registers with no name lists every register that holds text.
+	if editortest.Feed(e, ":q<CR>ggyiw:registers<CR>"); e.Message() != `""   one  "-   t  "0   one` {
+		t.Fatalf(":registers listed %q", e.Message())
+	}
 }
 
 // B268

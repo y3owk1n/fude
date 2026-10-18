@@ -1112,7 +1112,8 @@ Where fude departs, the line says so and cites the departure in
   Its list of places may say what each line shows. Its result may put
   text on the clipboard. Its command may answer to short names too.
   `:buffers`, `:marks`, `:jumps`, `:changes`, `:registers` and
-  `:messages` work this way (B89, B157, B268).
+  `:messages` work this way, and `:registers` with no name lists every
+  register that holds text (B89, B157, B268, B341).
 - B328 [4] A module's call reads the states of a buffer's text, each
   with its time, the command that made it, the state it follows, and
   whether it is current, written, or a change a crashed session left
