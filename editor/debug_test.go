@@ -16,7 +16,6 @@ import (
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/modules/debug"
 	"github.com/y3owk1n/fude/protocol/framing"
-	"github.com/y3owk1n/fude/syntax"
 )
 
 // TestFakeAdapter is a debug adapter when FUDE_FAKE_DAP is set, which tests
@@ -228,7 +227,7 @@ func TestB262Breakpoints(t *testing.T) {
 			if signAt(e, 3) != "→" || signAt(e, 5) != "●" || e.Text().LineOf(e.Cursor()) != 3 {
 				t.Errorf("stopped, the window shows %q and %q with the cursor on line %d", signAt(e, 3), signAt(e, 5), e.Text().LineOf(e.Cursor())+1)
 			}
-			if !slices.ContainsFunc(e.Views()[0].Decorations, func(s syntax.Span) bool { return s.Name == "debug.line" }) {
+			if e.Views()[0].Grounds[3] != "debug.line" {
 				t.Error("the stopped line is not lit")
 			}
 			// The launch settings' args reach the adapter with {file} made the

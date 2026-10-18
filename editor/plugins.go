@@ -182,6 +182,7 @@ type decoration struct {
 	layer      int    // orders its sign among a line's, the highest showing (B184)
 	fold       bool   // a closed fold over its lines (B288)
 	replace    bool   // note shows in place of its text (B295)
+	line       bool   // its style's ground shades its lines' rows (B296)
 }
 
 // inline reports whether d shows text in the line: an inlay hint, a
@@ -462,7 +463,7 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 		// A sign shows its first two characters, as the column is two wide.
 		sign := []rune(d.Sign)
 		sign = sign[:min(len(sign), 2)]
-		deco := decoration{id: d.ID, buf: on, style: d.Style, note: d.Note, sign: string(sign), layer: d.Layer, fold: d.Fold, replace: d.Replace}
+		deco := decoration{id: d.ID, buf: on, style: d.Style, note: d.Note, sign: string(sign), layer: d.Layer, fold: d.Fold, replace: d.Replace, line: d.Line}
 		// A fold's marks stay at their lines' starts through an insert there.
 		gravity := kernel.Right
 		if d.Fold {

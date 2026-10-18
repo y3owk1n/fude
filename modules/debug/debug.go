@@ -645,7 +645,7 @@ func (m *Module) relight(res *api.Result, s api.Scope) bool {
 			end = t.LineStart(l+1) - 1
 		}
 		m.ids++
-		res.Decorate = append(res.Decorate, api.Decoration{ID: m.ids, Buffer: id, Start: start, End: end, Style: "debug.line", Sign: "→", Layer: 2})
+		res.Decorate = append(res.Decorate, api.Decoration{ID: m.ids, Buffer: id, Start: start, End: end, Style: "debug.line", Sign: "→", Layer: 2, Line: true})
 		d.lit = &lit{m.ids, id}
 		return true
 	}

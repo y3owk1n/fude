@@ -428,6 +428,34 @@ func TestB295DrawReplace(t *testing.T) {
 	}
 }
 
+// stopped is a module that shades the second line as a debugger's stop.
+type stopped struct{ heading }
+
+func (stopped) Init(_ context.Context, s api.Scope) (api.Result, error) {
+	p := s.Text.LineStart(1)
+	return api.Result{Decorate: []api.Decoration{{ID: 1, Start: p, End: p + 1, Style: "debug.line", Line: true}}}, nil
+}
+
+// B296
+func TestB296LineGround(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.txt")
+	if err := os.WriteFile(path, []byte("a\nbc\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	c := startWith(t, "", path)
+	c.e.(*editor.Session).Use(stopped{})
+	c.draw()
+	// The ground is under the text and reaches the window's edge.
+	for _, x := range []int{0, 100} {
+		if _, style, _ := c.s.Get(x, 1); style.GetBackground() != th.selection {
+			t.Errorf("column %d of the shaded line is on %v", x, style.GetBackground())
+		}
+	}
+	if _, style, _ := c.s.Get(100, 0); style.GetBackground() != th.bg {
+		t.Errorf("the line above is on %v", style.GetBackground())
+	}
+}
+
 // B145
 func TestB145Theme(t *testing.T) {
 	for _, c := range []struct{ config, theme string }{{"", "dark"}, {`theme = "light"`, "light"}} {

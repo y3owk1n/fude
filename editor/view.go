@@ -195,6 +195,15 @@ func (e *Session) Views() []wire.View {
 					}
 					continue
 				}
+				if d.line && end >= top && s <= last {
+					if v.Grounds == nil {
+						v.Grounds = map[int]string{}
+					}
+					for l := t.LineOf(max(s, top)); l <= t.LineOf(min(end, last)); l++ {
+						v.Grounds[l] = d.style
+					}
+					continue
+				}
 				if d.style != "inlay" && !d.replace && s < end && end > top && s < last {
 					v.Decorations = append(v.Decorations, syntax.Span{Start: s, End: end, Name: d.style})
 				}

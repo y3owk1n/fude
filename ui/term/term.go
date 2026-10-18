@@ -405,6 +405,12 @@ func (c *client) view(v wire.View, left int, sel vim.Selection, visual bool) (in
 			c.number(line, rel, line == cur, numbers+v.SignCols, v.Y+row, v)
 		}
 		shade := v.CursorLine && line == cur
+		// A line decoration's ground shades the line's rows, in place of the
+		// cursor line's (B296).
+		ground := base
+		if name, ok := v.Grounds[line]; ok {
+			ground, shade = base.Background(colours[name].GetBackground()), false
+		}
 		lead := -1
 		if v.Guides && !v.List {
 			lead = indentOf(t, pos, v.Tab)
@@ -413,7 +419,7 @@ func (c *client) view(v wire.View, left int, sel vim.Selection, visual bool) (in
 		// A tag starts each part of the sig, so two different lines never
 		// read the same. Its positions count from the line's start, so a
 		// line keeps its sig when text above it changes.
-		k := append(c.sig[:0], win...).int(row).int(len(starts)).str(text).flag(shade).int(lead).str(v.Notes[line].Text).str(v.Notes[line].Name).int(v.Folds[line])
+		k := append(c.sig[:0], win...).int(row).int(len(starts)).str(text).flag(shade).int(lead).str(v.Notes[line].Text).str(v.Notes[line].Name).int(v.Folds[line]).str(v.Grounds[line])
 		for _, p := range v.Pair {
 			if p >= pos && p <= end {
 				k = k.int(1).int(p - pos)
@@ -453,7 +459,7 @@ func (c *client) view(v wire.View, left int, sel vim.Selection, visual bool) (in
 				c.lines[at] = last
 			}
 			last.frame, last.sig, last.styles = c.frame, append(last.sig[:0], k...), append(last.styles[:0], styles...)
-			c.s.FillArea(v.X, v.Y+row, v.W, len(starts), ' ', base)
+			c.s.FillArea(v.X, v.Y+row, v.W, len(starts), ' ', ground)
 			// trail is where the line's trailing spaces start. col is the column
 			// in the line, which tabs are measured from.
 			trail := pos + len(strings.TrimRight(text, " "))
@@ -517,6 +523,9 @@ func (c *client) view(v wire.View, left int, sel vim.Selection, visual bool) (in
 					style := base
 					if i := at - v.Top; i < len(paint) {
 						style = paint[i]
+					}
+					if style.GetBackground() == base.GetBackground() {
+						style = style.Background(ground.GetBackground())
 					}
 					// The cursor's line shades only what has no ground of its own.
 					if shade && style.GetBackground() == base.GetBackground() {
@@ -585,6 +594,9 @@ func (c *client) view(v wire.View, left int, sel vim.Selection, visual bool) (in
 				}
 				if shade && x < v.W {
 					c.s.FillArea(v.X+x, y, v.W-x, 1, ' ', base.Background(th.cursorLine))
+				}
+				if ground != base && x < v.W {
+					c.s.FillArea(v.X+x, y, v.W-x, 1, ' ', ground)
 				}
 				if i == 0 && lead > 0 {
 					c.guides(v, lead, y)

@@ -553,6 +553,11 @@ scrolling, `gj` and `gk` through `Host.Shown`, and the client's drawing
 count the same columns. The text's own columns, for indents, tabs and
 block selections, leave it out.
 
+A decoration marked `Line` shades its lines' rows to the window's edge in
+its style's ground, as `View.Grounds` gives them by line (B296). It
+draws under the text's colours, and in place of the cursor line's shade.
+The debugger's stopped line uses it.
+
 Marks live in a slice, which the kernel walks on every edit, and a deleted
 mark frees its slot for the next one. Syntax highlights are not marks. The
 syntax goroutine sends spans, and the frame moves them through the edits
