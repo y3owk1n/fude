@@ -6,6 +6,7 @@ and a program that embeds the editor does the same.
 
 | Module | What it does |
 |---|---|
+| [`autopairs`](autopairs) | a bracket or quote typed comes with its closing one |
 | [`blame`](blame) | `:blame` shows who changed the cursor's line |
 | [`colours`](colours) | text that names a colour shows on it, and a server's colours |
 | [`comment`](comment) | `gc` comments and uncomments |

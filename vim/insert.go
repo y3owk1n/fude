@@ -26,6 +26,15 @@ func (m *Machine) insert(k Key) error {
 		// A host's command, as a mapping in insert mode runs it.
 		return m.plug(strings.TrimSuffix(name, ")"), 0, true)
 	}
+	// A key the host added runs before the key's own work, and with no
+	// edits lets the key do it (B323).
+	kc, hooked := m.keyed[Insert][string(k)]
+	hooked = hooked && m.mode == Insert && !m.asTyped
+	if hooked && !k.isChar() {
+		if done, err := m.typedKeyed(kc, t, c); done {
+			return err
+		}
+	}
 	if ik, ok := inserts[string(k)]; ok {
 		return ik.run(m, t, c, k)
 	}
@@ -37,9 +46,8 @@ func (m *Machine) insert(k Key) error {
 		if err := m.closeIndent(t, c, string(k)); err != nil {
 			return err
 		}
-		t, c = m.h.Text(), m.h.Cursor()
-		if m.autoPairs && m.mode == Insert {
-			if paired, err := m.pair(t, c, string(k)); paired {
+		if hooked {
+			if done, err := m.typedKeyed(kc, m.h.Text(), m.h.Cursor()); done {
 				return err
 			}
 		}
@@ -48,42 +56,20 @@ func (m *Machine) insert(k Key) error {
 	return nil
 }
 
-// pairs are the brackets and quotes autopairs closes, by their opening one.
-var pairs = map[string]string{"(": ")", "[": "]", "{": "}", `"`: `"`, "'": "'", "`": "`"}
-
-// pair types s and its closing character when s opens a pair. When s is a
-// closing character that comes next, it steps over it instead. It pairs
-// only before a blank, a line end or a closing bracket. A quote after a
-// word's character stays single, so don't keeps one quote. It reports
-// whether it did either (B202).
-func (m *Machine) pair(t Text, c int, s string) (bool, error) {
-	after := t.Slice(c, min(c+1, t.Len()))
-	if after == s && strings.Contains(")]}\"'`", s) {
-		m.h.SetCursor(c + 1)
-		return true, nil
-	}
-	closing, ok := pairs[s]
-	if !ok || after != "" && !strings.Contains(" \t\n)]}", after) {
+// typedKeyed runs the host's command for a key typed at c. Its edits go in
+// as typed text does, with the cursor after the first one's text. It
+// reports whether there were any.
+func (m *Machine) typedKeyed(kc keyedCommand, t Text, c int) (bool, error) {
+	edits := kc.run(t, c, c, false, nil)
+	if len(edits) == 0 {
 		return false, nil
 	}
-	if s == closing && c > 0 && class(t, prev(t, LineStart(t, c), c), false) == 2 {
-		return false, nil
-	}
-	if err := m.typeText(s + closing); err != nil {
+	m.autoIndent = false
+	if err := m.apply(edits, m.label); err != nil {
 		return true, err
 	}
-	m.h.SetCursor(c + len(s))
+	m.h.SetCursor(edits[0].Start + len(edits[0].Text))
 	return true, nil
-}
-
-// inPair reports whether the cursor c is between an opening bracket or
-// quote and its closing one, with nothing between them.
-func inPair(t Text, c int) bool {
-	if c == 0 || c >= t.Len() {
-		return false
-	}
-	closing, ok := pairs[t.Slice(c-1, c)]
-	return ok && t.Slice(c, c+1) == closing
 }
 
 // insertKey is an insert mode key that does more than type itself.
@@ -153,14 +139,6 @@ var inserts = map[string]insertKey{
 func backspaceKey(m *Machine, t Text, c int, _ Key) error {
 	if m.mode == Replace {
 		return m.unreplace()
-	}
-	// In an empty pair, <BS> deletes both of it (B202).
-	if m.autoPairs && inPair(t, c) {
-		if err := m.apply([]Edit{{Start: c - 1, End: c + 1}}, m.label); err != nil {
-			return err
-		}
-		m.h.SetCursor(c - 1)
-		return nil
 	}
 	return m.erase(m.backspace(t, c))
 }

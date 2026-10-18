@@ -14,6 +14,7 @@ import (
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/internal/relay"
+	"github.com/y3owk1n/fude/modules/autopairs"
 	"github.com/y3owk1n/fude/modules/blame"
 	"github.com/y3owk1n/fude/modules/colours"
 	"github.com/y3owk1n/fude/modules/comment"
@@ -175,7 +176,7 @@ func modules() []api.Module {
 	if dir, err := editor.ConfigDir(); err == nil {
 		words = filepath.Join(dir, "words.txt")
 	}
-	return []api.Module{blame.New(), colours.New(), comment.New(), debug.New(), editorconfig.New(), files.New(), flash.New(), fold.New(), format.New(), git.New(), grep.New(), inlay.New(), jump.New(), links.New(), lspmod.New(), markdown.New(), recent.New(), shell.New(), spell.New(words), startmod.New(), surround.New(), task.New()}
+	return []api.Module{autopairs.New(), blame.New(), colours.New(), comment.New(), debug.New(), editorconfig.New(), files.New(), flash.New(), fold.New(), format.New(), git.New(), grep.New(), inlay.New(), jump.New(), links.New(), lspmod.New(), markdown.New(), recent.New(), shell.New(), spell.New(words), startmod.New(), surround.New(), task.New()}
 }
 
 // run prints a man page for --man, fude(1) or the one named after it,

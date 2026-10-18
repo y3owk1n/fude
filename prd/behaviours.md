@@ -1036,6 +1036,10 @@ Where fude departs, the line says so and cites the departure in
   window, such as a line in `diff.plus`, over what the filetype colours.
 - B277 [4] A plugin hears `editor.focused` when the terminal gets the
   focus back, as git's index may have changed while fude was away.
+- B323 [4] A module's key typed in insert mode runs before the key does
+  its own work. Its edits go in as typed text does, and dot repeats
+  them. With none the key does what it does, as `<BS>` deletes outside a
+  pair. A finder's query and a paste never run it (B202).
 - B322 [4] A module's operator or key may wait for characters typed
   after it, which its call gets, and dot repeats it with them. Such a key
   in normal mode follows an operator's key, as `ds` does, and `d` does

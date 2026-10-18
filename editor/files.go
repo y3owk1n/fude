@@ -129,9 +129,9 @@ func (f *finder) key(e *Session, k vim.Key) bool {
 	defer e.reveal()
 	e.vim.UseLocal(e.locals["finder"])
 	// A query matches what is typed, so a bracket in it comes alone (B202).
-	e.vim.AutoPairs(false)
+	e.vim.Prompt(true)
 	e.settle(e.vim.Feed(k))
-	e.vim.AutoPairs(e.cfg.Autopairs)
+	e.vim.Prompt(false)
 	t := e.Text()
 	query := t.Slice(0, t.Len())
 	if (f.open || f.list) && query != f.query && f.lookup == nil && f.paths != nil {

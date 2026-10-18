@@ -197,7 +197,7 @@ type Machine struct {
 	flash                 [2]int // what the last key yanked or put, empty when nothing
 	flashPut              bool   // the last key put it, not yanked it
 	expandTab             bool   // indents are spaces only
-	autoPairs             bool   // brackets and quotes typed come with their closing one
+	asTyped               bool   // insert mode types each key as it is (B323)
 	wait                  *charWait
 	lastRep               string // the previous replacement, for ~
 	lastSub               struct{ pattern, rep, flags string }

@@ -48,6 +48,12 @@ const (
 	Insert               // keys in insert mode, called with (cursor)
 	Plug                 // a command keys reach only as <Plug>(owner.name), called with (cursor, count)
 	Source               // a source of :pick, called with (cursor, count) and the text after its name as args (B287)
+	// Typed is a key typed in insert mode, which the vim machine reads as
+	// its own, called with (cursor) before the key does its own work. The
+	// call's edits go in as typed text does, with the cursor after the first
+	// one's text, and none lets the key do what it does. A finder's query
+	// never calls it (B323).
+	Typed
 )
 
 // Registration is one thing a module's init registered: its name, what it

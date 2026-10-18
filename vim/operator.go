@@ -75,7 +75,11 @@ type hostOperator struct {
 // or the cursor as both ends, whether the range is linewise, and the
 // characters. It returns the edits it makes, and the cursor goes to the
 // start of the first.
-// Dot repeats it with its characters. A nil run removes it.
+// Dot repeats it with its characters. In insert mode it runs when its key
+// is typed, before the key's own work, at the cursor and with no
+// characters. Its edits go in as typed text does, with the cursor after
+// the first one's text. With no edits the key does what it does, as
+// autopairs needs. A nil run removes it.
 func (m *Machine) Keyed(mode Mode, keys string, chars int, run func(t Text, start, end int, lines bool, chars []string) []Edit) {
 	if run == nil {
 		delete(m.keyed[mode], keys)

@@ -610,6 +610,8 @@ func (e *Session) unregister(p api.Module) {
 		case api.Key, api.Plug:
 			delete(e.pluginHelp, "<Plug>("+p.Name()+"."+r.Name+")")
 			e.pluginBindings = slices.DeleteFunc(e.pluginBindings, func(b vim.Binding) bool { return r.Chars > 0 && b.Keys == bindingKeys(r) })
+		case api.Typed:
+			e.pluginBindings = slices.DeleteFunc(e.pluginBindings, func(b vim.Binding) bool { return b.Kind == "insert" && b.Keys == r.Name })
 		case api.Insert:
 			delete(e.pluginHelp, "<Plug>("+p.Name()+".insert."+r.Name+")")
 		}
@@ -630,6 +632,8 @@ func (e *Session) unregister(p api.Module) {
 				s.vim.Command(p.Name()+"."+r.Name, nil)
 			case api.Plug:
 				s.vim.Command(p.Name()+"."+r.Name, nil)
+			case api.Typed:
+				s.vim.Keyed(vim.Insert, r.Name, 0, nil)
 			case api.Insert:
 				s.vim.Unmap(vim.Insert, r.Name)
 				s.vim.Command(p.Name()+".insert."+r.Name, nil)
@@ -742,6 +746,14 @@ func (e *Session) register(p api.Module, r api.Registration) {
 					s.vim.Map(mode, withLeader(r.Name, s.leader), "<Plug>("+name+")")
 				}
 			}
+		})
+	case api.Typed:
+		e.pluginBindings = append(e.pluginBindings, vim.Binding{Kind: "insert", Keys: r.Name, Help: r.Help})
+		e.each(func(s *Session) {
+			s.vim.Keyed(vim.Insert, r.Name, 0, func(t vim.Text, pos, _ int, _ bool, _ []string) []vim.Edit {
+				edits, _, _ := s.run(p, r.ID, s.scope(p, s.win.buf, t), pos)
+				return edits
+			})
 		})
 	case api.Insert:
 		name := p.Name() + ".insert." + r.Name

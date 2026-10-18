@@ -187,7 +187,6 @@ func (ed *Editor) Attach(o kernel.Origin, p Power) *Session {
 func (e *Session) join() {
 	e.leader = e.cfg.Leader
 	e.vim = vim.New(host{e})
-	e.vim.AutoPairs(e.cfg.Autopairs)
 	for _, f := range e.setup {
 		f(e)
 	}

@@ -262,12 +262,10 @@ func (e *Session) setSetting(name, value string, given bool) {
 	}
 	v.Set(set)
 	for _, s := range e.sessions {
-		// Windows fit their widths again, and the machine pairs brackets as
-		// autopairs says.
+		// Windows fit their widths again.
 		for _, w := range s.root.windows() {
 			w.fitted = nil
 		}
-		s.vim.AutoPairs(e.cfg.Autopairs)
 		s.layout()
 	}
 }

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/y3owk1n/fude/modules/autopairs"
 	filesmod "github.com/y3owk1n/fude/modules/files"
 	"github.com/y3owk1n/fude/modules/grep"
 	"github.com/y3owk1n/fude/syntax"
@@ -115,6 +116,7 @@ func TestB195FinderLists(t *testing.T) {
 // B202, for the finder's query
 func TestB202FinderQuery(t *testing.T) {
 	e := open(t, "")
+	e.Use(autopairs.New())
 	e.Use(grep.New())
 	e.SetSize(100, 24)
 	feed(e, ":pick grep<CR>f(")
