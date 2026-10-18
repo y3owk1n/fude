@@ -16,6 +16,7 @@ import (
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/modules/blame"
 	"github.com/y3owk1n/fude/modules/comment"
+	"github.com/y3owk1n/fude/modules/debug"
 	"github.com/y3owk1n/fude/modules/fold"
 	"github.com/y3owk1n/fude/modules/format"
 	gitmod "github.com/y3owk1n/fude/modules/git"
@@ -726,6 +727,7 @@ func TestB244GuestRefuses(t *testing.T) {
 	project := t.TempDir()
 	t.Chdir(project)
 	e, log := withServerAt(t, filepath.Join(project, "a.go"), "b\na\n", "utf-8")
+	e.Use(debug.New())
 	e.Use(task.New())
 	e.Use(gitmod.New())
 	heard(t, log, `"method":"textDocument/didOpen"`, 1)
@@ -1530,6 +1532,7 @@ func TestB131CommandCompletion(t *testing.T) {
 	config(t, "autocomplete = true")
 	e := start(t, "readme")
 	e.Use(task.New())
+	e.Use(debug.New())
 	e.SetSize(80, 24)
 	for _, c := range []struct{ keys, line string }{
 		// <Tab> puts the best match in the line, and <C-e> takes it back.

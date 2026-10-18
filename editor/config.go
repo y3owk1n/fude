@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
-	"strings"
 
 	"github.com/pelletier/go-toml/v2"
+	"github.com/y3owk1n/fude/internal/tomlerr"
 	"github.com/y3owk1n/fude/vim"
 )
 
@@ -152,7 +152,7 @@ func loadConfig() (config, error) {
 	d := toml.NewDecoder(bytes.NewReader(src))
 	d.DisallowUnknownFields()
 	if err := d.Decode(&c); err != nil {
-		return c, decodeError(path, err)
+		return c, tomlerr.Where(path, err)
 	}
 	if err := aliasFiletypes(&c); err != nil {
 		return c, fmt.Errorf("%s: %w", path, err)
@@ -166,27 +166,6 @@ func loadConfig() (config, error) {
 		}
 	}
 	return c, nil
-}
-
-// decodeError says where in the TOML file at path err happened: the line,
-// and the key that is unknown or holds a bad value.
-func decodeError(path string, err error) error {
-	var strict *toml.StrictMissingError
-	var de *toml.DecodeError
-	var msg string
-	switch {
-	case errors.As(err, &strict):
-		de = &strict.Errors[0]
-		msg = "unknown key " + strings.Join(de.Key(), ".")
-	case errors.As(err, &de) && len(de.Key()) > 0:
-		msg = "bad value for " + strings.Join(de.Key(), ".")
-	case errors.As(err, &de):
-		msg = strings.TrimPrefix(de.Error(), "toml: ")
-	default:
-		return fmt.Errorf("%s: %w", path, err)
-	}
-	line, _ := de.Position()
-	return fmt.Errorf("%s line %d: %s", path, line, msg)
 }
 
 // cleanDir is the empty directory fude reads as its config directory with

@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/fude/editor"
+	"github.com/y3owk1n/fude/modules/debug"
 	"github.com/y3owk1n/fude/protocol/framing"
 	"github.com/y3owk1n/fude/syntax"
 )
@@ -188,6 +189,7 @@ func withAdapter(t *testing.T, port bool) (*editor.Session, string) {
 	config(t, "[debug.fake]\ncommand = "+command+"\n[filetype.go]\ndebug = [\"fake\"]\n")
 	e := start(t, "main.go")
 	e.SetSize(80, 20)
+	e.Use(debug.New())
 	t.Cleanup(func() { feed(e, ":debug stop<CR>") })
 	return e, log
 }

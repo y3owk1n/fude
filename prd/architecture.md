@@ -56,6 +56,7 @@ modules/         Go packages over api/ and protocol/ that cmd/fude adds with
   blame/         :blame
   colours/       text that names a colour, and a server's colours
   comment/       gc
+  debug/         :debug, breakpoints, stepping and the debug panel
   editorconfig/  .editorconfig files set a file's indentation
   fold/          zc, zo, za, zR and zM, folds by indent
   format/        gq, :format and format_on_save

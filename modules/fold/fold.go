@@ -105,9 +105,10 @@ func (m *Module) fold(t api.Text, first, last int) api.Decoration {
 
 // closed returns the closed folds on the buffer.
 func closed(s api.Scope) []api.Decoration {
+	id, _ := strconv.Atoi(s.About["buffer"])
 	var out []api.Decoration
 	for _, d := range s.Decorations() {
-		if d.Fold {
+		if d.Fold && d.Buffer == id {
 			out = append(out, d)
 		}
 	}

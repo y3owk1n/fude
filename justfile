@@ -61,7 +61,7 @@ cgo:
 
 # Fail if a package in modules/ imports a fude package other than api/.
 module-imports:
-    test -z "$(go list -f '{{{{join .Imports "\n"}}' ./modules/... | grep '^github.com/y3owk1n/fude/' | grep -vE '^github.com/y3owk1n/fude/(api|protocol)')"
+    test -z "$(go list -f '{{{{join .Imports "\n"}}' ./modules/... | grep '^github.com/y3owk1n/fude/' | grep -vE '^github.com/y3owk1n/fude/(api|protocol|internal)')"
 
 # Fail if core/ grows past 10k lines of Go, tests excluded.
 kernel-size:
@@ -81,7 +81,7 @@ loc:
     done <<'EOF'
     editor editor
     vim vim
-    modules syntax plugin protocol/lsp sdk api api/diff modules/blame modules/colours modules/comment modules/editorconfig modules/fold modules/format modules/git modules/grep modules/inlay modules/spell modules/task
+    modules syntax plugin protocol/lsp sdk api api/diff modules/blame modules/colours modules/comment modules/debug modules/editorconfig modules/fold modules/format modules/git modules/grep modules/inlay modules/spell modules/task
     clients ui/term client
     kernel core/kernel core/rope
     glue cmd/fude internal/pty internal/clipboard internal/trace

@@ -52,12 +52,13 @@ attribution of any kind.
 - `core/` imports only the standard library, starts no goroutines and does
   no I/O.
 - `vim/` never imports `core/`, and `core/` never imports `vim/`.
-- Modules import `api/` and `protocol/`, never `core/` or `vim/`.
+- Modules import `api/`, `protocol/` and `internal/`, never `core/` or
+  `vim/`.
 - cgo lives only in `syntax/`.
 
 In `just check`, the `go.mod` files of `core/` and `vim/` enforce their
-imports, `just module-imports` that `modules/` imports only the `api/` and
-`protocol/` modules, and
+imports, `just module-imports` that `modules/` imports only `api/`, `protocol/` and
+`internal/`, and
 `just cgo` the cgo rule. Nothing checks that `core/` starts no goroutines
 and does no I/O, so a review must.
 

@@ -11,6 +11,10 @@ type Decoration struct {
 	Sign, Note string // what shows on Start's line, in the sign column or after its end (B184)
 	Under      bool   // any other sign on the line shows over Sign (B184)
 	Fold       bool   // a closed fold: the lines after Start's through End's hide behind the first and a count (B288)
+	Over       bool   // Sign shows over any other sign on the line, a diagnostic's too (B262)
+	// Buffer is the buffer it is on, one of Scope.Buffers, or 0 for the
+	// buffer the call is about (B291).
+	Buffer int
 }
 
 // Result is what one call asked fude to do.
@@ -32,6 +36,7 @@ type Result struct {
 	Terminal   *Terminal // a program to run in a terminal window below
 	Places     *Places   // the last list of places, which ]q steps through
 	Complete   []string  // what the argument being typed completes with
+	Log        []string  // lines for fude's log, where a plugin's own go (B50)
 	// Set holds options to set on the buffer the call is about, by their
 	// config.toml names: expand_tab, indent_width and tab_width. fude uses
 	// them in place of config.toml's until the buffer closes (B283).
@@ -41,11 +46,18 @@ type Result struct {
 // Job is a program to run or a URL to get in the background. Once it ends,
 // fude runs the owner's callback with its id, with the output and any
 // error in its context (B181).
+//
+// A Stream job is the owner's own work, which Work does until it ends or
+// ctx does. Each line Work hands Emit runs the callback with the line as
+// output, about the buffer current then, and Work's return runs it once
+// more with done true (B291).
 type Job struct {
-	ID    uint32
-	Argv  []string
-	Input string // what the program reads on its stdin
-	URL   string
+	ID     uint32
+	Argv   []string
+	Input  string // what the program reads on its stdin
+	URL    string
+	Stream bool
+	Emit   func(line string) // what fude gives a Stream job before Work
 }
 
 // Request is a request a call sends the language servers of the buffer it
@@ -100,19 +112,22 @@ type Places struct {
 }
 
 // Jump is where a call moves the cursor: Pos in the buffer the call was
-// about, or in the file at Path when it is not "", which fude opens
-// (B187).
+// about, or in the file at Path when it is not "", which fude opens in a
+// window that shows a file. With Line set, the cursor goes to Line and
+// Column, counted from 1, instead of Pos (B187, B291).
 type Jump struct {
-	Path string
-	Pos  int
+	Path         string
+	Pos          int
+	Line, Column int
 }
 
 // Panel is text a call shows in a read-only window titled Title, coloured
-// as Filetype. It replaces the text of a window open under that title
-// (B186).
+// as Filetype. It replaces the text of a window open under that title,
+// which keeps the cursor's line and the focus where they are (B186).
 type Panel struct {
 	Title, Filetype, Text string
-	Spans                 []Span // styles over Text, such as diff.plus on a line (B276)
+	Spans                 []Span            // styles over Text, such as diff.plus on a line (B276)
+	Keys                  map[string]string // its own keys in normal mode, such as <CR> to a plug of the owner's (B291)
 }
 
 // Timer is a callback a call asks fude to run after a while, by the id it
@@ -170,7 +185,7 @@ type Buffer struct {
 // about, and mode. In a command's call, args is the text typed after its
 // name, and bang is true when ! followed the name. first and last are where
 // its range's first and last lines start, and ranged is true when it was
-// given a range.
+// given a range. A buffer with a title, such as a panel, has title.
 type Context map[string]string
 
 // Done frees what s holds. fude calls it once the call that read s

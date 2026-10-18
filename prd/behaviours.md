@@ -971,6 +971,17 @@ Where fude departs, the line says so and cites the departure in
   module, as B131 says of a task for `:task`. The menu shows once the
   module answers, ranked against the word typed, unless the command line
   changed meanwhile.
+- B291 [4] A module runs its own long work as a stream job. Each line
+  it hands fude runs its callback, about the buffer current then, and
+  the end of the work runs it once more. A module decorates any open
+  buffer by id and reads its decorations on every buffer. A sign it puts
+  over shows over a diagnostic's. It jumps to a line and column of a
+  file, in a window that shows a file. A window it shows has keys of its
+  own, and showing it again keeps the cursor's line and the focus. It
+  may map a key in visual mode too, called with the selection. When the
+  text a callback read has changed since, its message, window, file jump
+  and decorations on other buffers still apply. Its edits, and its
+  decorations and jump on that text, wait for a newer event.
 - B283 [4] A plugin sets `expand_tab`, `indent_width` or `tab_width` on the
   buffer its call is about, over config.toml's, until the buffer closes,
   as .editorconfig does.
@@ -1087,7 +1098,8 @@ Where fude departs, the line says so and cites the departure in
 
 ## Debugging
 
-- B261 [8] `[debug.{name}]` in config.toml names a debug adapter by its
+- B261 [8] The debug module runs debug adapters (B291). `[debug.{name}]`
+  in config.toml names one by its
   `command`, and a filetype table's `debug` lists its adapters by those
   names. A command with `{port}` in it listens there, so fude picks a
   free port, runs it and dials it. Any other command talks on its stdin

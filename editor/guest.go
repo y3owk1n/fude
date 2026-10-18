@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/y3owk1n/fude/api"
-	"github.com/y3owk1n/fude/vim"
 )
 
 // Power is how much a session may do, fixed when it is made (B243).
@@ -33,7 +32,7 @@ func (e *Session) mayEdit() error {
 // because it runs a program or changes what every session shares (B244).
 func refuses(name, arg string) bool {
 	switch name {
-	case "!", "terminal", "restart", "cd", "theme", "share", "kick", "debug":
+	case "!", "terminal", "restart", "cd", "theme", "share", "kick":
 		return true
 	case "read":
 		return strings.HasPrefix(arg, "!")
@@ -48,7 +47,6 @@ func refuses(name, arg string) bool {
 var refusedPlugs = map[string]bool{
 	"restart": true, "listing.cwd": true,
 	"lsp.restart": true, "lsp.stop": true, "lsp.disable": true, "lsp.enable": true,
-	"debug.break": true, "debug.continue": true, "debug.next": true, "debug.in": true, "debug.out": true, "debug.stop": true, "debug.panel": true, "debug.open": true, "debug.eval": true,
 }
 
 // inside says whether path, once symlinks resolve, is under project and
@@ -142,8 +140,10 @@ func (e *Session) use(own Own) {
 		for _, p := range e.modules {
 			for _, r := range p.Registered() {
 				if r.Kind == api.Key {
-					e.vim.Unmap(vim.Normal, withLeader(r.Name, e.leader))
-					e.vim.Map(vim.Normal, withLeader(r.Name, own.Leader), "<Plug>("+p.Name()+"."+r.Name+")")
+					for _, mode := range keyModes(r) {
+						e.vim.Unmap(mode, withLeader(r.Name, e.leader))
+						e.vim.Map(mode, withLeader(r.Name, own.Leader), "<Plug>("+p.Name()+"."+r.Name+")")
+					}
 				}
 			}
 		}

@@ -25,6 +25,7 @@ import (
 	"github.com/pelletier/go-toml/v2"
 
 	"github.com/y3owk1n/fude/api"
+	"github.com/y3owk1n/fude/internal/tomlerr"
 )
 
 // The command and source task registers, by the ids Call runs them by.
@@ -301,33 +302,13 @@ func projectTasks() ([]task, error) {
 	d := toml.NewDecoder(bytes.NewReader(src))
 	d.DisallowUnknownFields()
 	if err := d.Decode(&f); err != nil {
-		return nil, decodeError(err)
+		return nil, tomlerr.Where(".fude/tasks.toml", err)
 	}
 	var out []task
 	for _, name := range slices.Sorted(maps.Keys(f.Task)) {
 		out = append(out, task{Name: name, Source: "project", Command: f.Task[name].Command})
 	}
 	return out, nil
-}
-
-// decodeError says where in .fude/tasks.toml err is.
-func decodeError(err error) error {
-	var strict *toml.StrictMissingError
-	var de *toml.DecodeError
-	var msg string
-	switch {
-	case errors.As(err, &strict):
-		de = &strict.Errors[0]
-		msg = "unknown key " + strings.Join(de.Key(), ".")
-	case errors.As(err, &de) && len(de.Key()) > 0:
-		msg = "bad value for " + strings.Join(de.Key(), ".")
-	case errors.As(err, &de):
-		msg = strings.TrimPrefix(de.Error(), "toml: ")
-	default:
-		return fmt.Errorf(".fude/tasks.toml: %w", err)
-	}
-	line, _ := de.Position()
-	return fmt.Errorf(".fude/tasks.toml line %d: %s", line, msg)
 }
 
 // justTasks returns the justfile's public recipes, each with its doc

@@ -55,7 +55,6 @@ type Editor struct {
 	share          *share                            // the guests' listener, while fude shares (B248)
 	clients        atomic.Int64                      // the attached clients yet to have their last frame (B242)
 	began          int                               // how many sessions began, for the next one's colour (B252)
-	debug          *debugging                        // the debug session, while one runs (B262)
 	sessions       []*Session                        // the first is the one that opened the editor
 	setup          []func(*Session)                  // what every session's machine gets, such as keymaps
 	proposed       int                               // the id of the newest proposal
@@ -254,9 +253,8 @@ func builtins(e *Session) {
 		e.vim.Map(vim.Normal, withLeader(keys, e.cfg.Leader), to)
 	}
 	e.vim.Map(vim.Visual, "s", "<Plug>(jump)")
-	e.vim.Map(vim.Visual, withLeader("<Leader>de", e.cfg.Leader), "<Plug>(debug.eval)")
 	e.locals = map[string]*vim.Keymaps{}
-	for kind, keys := range map[string]map[string]string{"listing": listingKeys, "list": listKeys, "timeline": timelineKeys, "finder": finderKeys, "float": floatKeys, "lsp": lspKeys, "help": helpKeys, "scratch": scratchKeys, "start": startKeys, "terminal": terminalKeys, "debug": debugKeys} {
+	for kind, keys := range map[string]map[string]string{"listing": listingKeys, "list": listKeys, "timeline": timelineKeys, "finder": finderKeys, "float": floatKeys, "lsp": lspKeys, "help": helpKeys, "scratch": scratchKeys, "start": startKeys, "terminal": terminalKeys, "debug": nil} {
 		mode := vim.Normal
 		if kind == "finder" {
 			mode = vim.Insert
@@ -549,7 +547,7 @@ func (e *Session) feed(k vim.Key) {
 	e.vim.IgnoreCase(e.win.opts.IgnoreCase, e.win.opts.SmartCase)
 	e.vim.ExpandTab(e.win.opts.ExpandTab)
 	e.vim.UseClipboard(e.win.opts.Clipboard)
-	e.vim.UseLocal(e.locals[e.win.buf.kind()])
+	e.vim.UseLocal(e.localKeys(e.win.buf))
 	e.settle(e.vim.Feed(k))
 	if start, end, ok := e.vim.Flash(); ok {
 		e.flashOn(e.win.buf, start, end)

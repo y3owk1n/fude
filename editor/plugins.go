@@ -179,6 +179,7 @@ type decoration struct {
 	note       string          // a diagnostic's message, or a plugin's text after the end of the line
 	sign       string          // a plugin's text for the sign column
 	under      bool            // any other sign on the line shows over it (B184)
+	over       bool            // its sign shows over any other on the line (B262)
 	fold       bool            // a closed fold over its lines (B288)
 	raw        json.RawMessage // a diagnostic as the server sent it, for code actions
 }
@@ -285,12 +286,30 @@ func (e *Session) went() {
 	switch {
 	case g == nil:
 	case g.Path != "":
+		// A file shows in a window that shows a file, not in a panel's.
+		if e.win.buf.title != "" {
+			if i := slices.IndexFunc(e.root.windows(), func(w *window) bool { return w.buf.title == "" }); i >= 0 {
+				e.win = e.root.windows()[i]
+			}
+		}
 		if e.edit(g.Path); e.win.buf.is(g.Path) {
-			e.setCursor(g.Pos)
+			e.setCursor(e.jumpPos(g))
+			e.reveal()
 		}
 	case e.win.buf == g.b:
-		e.setCursor(g.Pos)
+		e.setCursor(e.jumpPos(g))
 	}
+}
+
+// jumpPos is where g moves the cursor in the current buffer: its line and
+// column when it has them, or its position.
+func (e *Session) jumpPos(g *jumpTo) int {
+	if g.Line == 0 {
+		return g.Pos
+	}
+	t := e.Text()
+	start := t.LineStart(min(max(g.Line-1, 0), t.Lines()-1))
+	return min(start+max(g.Column-1, 0), vim.LineEnd(t, start))
 }
 
 // decorate adds and removes the decorations res asks for on b, emits its
@@ -315,18 +334,39 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 	for _, j := range res.Jobs {
 		wait()
 		l := e.listen(p)
+		// A stream's callbacks are about the buffer current as each line
+		// comes, and only its end counts for a write that waits (B291).
+		if j.Stream {
+			j.Emit = func(line string) {
+				e.queue <- func() {
+					if slices.Contains(e.modules, p) {
+						l.add(event{buf: e.win.buf, id: j.ID, extra: api.Context{"output": line}, from: e})
+					}
+				}
+			}
+		}
 		go func() {
 			out, err := p.Work(l.ctx, j)
 			extra := api.Context{"output": out}
 			if err != nil {
 				extra["error"] = err.Error()
 			}
+			if j.Stream {
+				extra["done"] = "true"
+			}
 			e.queue <- func() {
+				about := b
+				if j.Stream {
+					about = e.win.buf
+				}
 				if slices.Contains(e.modules, p) {
-					l.add(event{buf: b, id: j.ID, extra: extra, save: save, from: e})
+					l.add(event{buf: about, id: j.ID, extra: extra, save: save, from: e})
 				}
 			}
 		}()
+	}
+	for _, line := range res.Log {
+		logLine(line)
 	}
 	for _, tm := range res.Timers {
 		wait()
@@ -349,7 +389,7 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 		e.float, e.floatSpans = e.markdown(*res.Float)
 	}
 	if s := res.Show; s != nil {
-		e.panel(s.Title, s.Filetype, s.Text, s.Spans)
+		e.panel(*s)
 	}
 	if j := res.Jump; j != nil {
 		e.jumpTo = &jumpTo{b, *j}
@@ -374,22 +414,27 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 		e.segments[p][b] = *res.Status
 	}
 	for _, d := range res.Decorate {
+		on, err := e.bufferFor(b, d)
+		if err != nil {
+			e.message = err.Error()
+			continue
+		}
 		// A sign shows its first two characters, as the column is two wide.
 		sign := []rune(d.Sign)
 		sign = sign[:min(len(sign), 2)]
-		deco := decoration{id: d.ID, buf: b, style: d.Style, note: d.Note, sign: string(sign), under: d.Under, fold: d.Fold}
+		deco := decoration{id: d.ID, buf: on, style: d.Style, note: d.Note, sign: string(sign), under: d.Under, over: d.Over, fold: d.Fold}
 		// A fold's marks stay at their lines' starts through an insert there.
 		gravity := kernel.Right
 		if d.Fold {
 			gravity = kernel.Left
 		}
-		deco.start, deco.end = b.text.SetMark(d.Start, gravity), b.text.SetMark(d.End, kernel.Left)
+		deco.start, deco.end = on.text.SetMark(d.Start, gravity), on.text.SetMark(d.End, kernel.Left)
 		e.decos[p] = append(e.decos[p], deco)
 		if d.Fold {
-			b.folds = append(b.folds, deco)
+			on.folds = append(on.folds, deco)
 		}
 		if len(sign) > 0 {
-			b.signs++
+			on.signs++
 		}
 	}
 	for _, id := range res.Undecorate {
@@ -404,6 +449,18 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 		edits[i] = vim.Edit(ed)
 	}
 	return edits
+}
+
+// bufferFor returns the buffer d goes on: the one its Buffer names, or
+// else b (B291).
+func (e *Session) bufferFor(b *buffer, d api.Decoration) (*buffer, error) {
+	if d.Buffer == 0 {
+		return b, nil
+	}
+	if i := slices.IndexFunc(e.bufs, func(o *buffer) bool { return o.id == d.Buffer }); i >= 0 {
+		return e.bufs[i], nil
+	}
+	return nil, fmt.Errorf("no buffer %d to decorate", d.Buffer)
 }
 
 // unload closes p after err, removes its decorations and tells the user.
@@ -465,7 +522,9 @@ func (e *Session) unregister(p api.Module) {
 			case api.Object:
 				s.vim.Object(r.Name, nil)
 			case api.Key:
-				s.vim.Unmap(vim.Normal, withLeader(r.Name, s.leader))
+				for _, mode := range keyModes(r) {
+					s.vim.Unmap(mode, withLeader(r.Name, s.leader))
+				}
 				s.vim.Command(p.Name()+"."+r.Name, nil)
 			case api.Plug:
 				s.vim.Command(p.Name()+"."+r.Name, nil)
@@ -558,11 +617,17 @@ func (e *Session) register(p api.Module, r api.Registration) {
 		e.pluginHelp["<Plug>("+name+")"] = r.Help
 		e.each(func(s *Session) {
 			s.vim.Command(name, func(t vim.Text, pos, count int) []vim.Edit {
-				edits, _, _ := s.run(p, r.ID, s.scope(p, s.win.buf, t), pos, count)
+				args := []int{pos, count}
+				if sel, ok := s.Selection(); r.Visual && ok {
+					args = []int{sel.Start, min(sel.End, t.Len())}
+				}
+				edits, _, _ := s.run(p, r.ID, s.scope(p, s.win.buf, t), args...)
 				return edits
 			})
 			if r.Kind == api.Key {
-				s.vim.Map(vim.Normal, withLeader(r.Name, s.leader), "<Plug>("+name+")")
+				for _, mode := range keyModes(r) {
+					s.vim.Map(mode, withLeader(r.Name, s.leader), "<Plug>("+name+")")
+				}
 			}
 		})
 	case api.Insert:
@@ -576,6 +641,14 @@ func (e *Session) register(p api.Module, r api.Registration) {
 			s.vim.Map(vim.Insert, r.Name, "<Plug>("+name+")")
 		})
 	}
+}
+
+// keyModes are the modes a Key registration is mapped in (B291).
+func keyModes(r api.Registration) []vim.Mode {
+	if r.Visual {
+		return []vim.Mode{vim.Normal, vim.Visual}
+	}
+	return []vim.Mode{vim.Normal}
 }
 
 // scope is what a call of p about b reads: the text t, what the call is
@@ -612,12 +685,13 @@ func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 	}
 	language := s.Language
 	s.Comment = func(pos int) (string, bool) { return syntax.Comment(language(pos)) }
+	if b.title != "" {
+		s.About["title"] = b.title
+	}
 	s.Decorations = func() []api.Decoration {
 		var out []api.Decoration
 		for _, d := range e.decos[p] {
-			if d.buf == b {
-				out = append(out, api.Decoration{ID: d.id, Start: b.text.Mark(d.start), End: b.text.Mark(d.end), Style: d.style, Sign: d.sign, Note: d.note, Under: d.under, Fold: d.fold})
-			}
+			out = append(out, api.Decoration{ID: d.id, Start: d.buf.text.Mark(d.start), End: d.buf.text.Mark(d.end), Style: d.style, Sign: d.sign, Note: d.note, Under: d.under, Over: d.over, Fold: d.fold, Buffer: d.buf.id})
 		}
 		return out
 	}

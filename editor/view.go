@@ -263,24 +263,26 @@ var diagnosticSigns = []wire.Sign{{Text: "E", Name: "diagnostic.error"}, {Text: 
 // or else its git sign. A
 // listing's lines from top to last show the git status of their names.
 func (e *Session) signs(b *buffer, top, last int) map[int]wire.Sign {
-	if !b.signed && b.signs == 0 && len(b.status) == 0 && len(b.breaks) == 0 && !b.stopped {
+	if !b.signed && b.signs == 0 && len(b.status) == 0 {
 		return nil
 	}
 	t := b.text.Snapshot()
 	out := map[int]wire.Sign{}
-	// A sign a module puts under loses to any other. git's signs lose to the
-	// rest of a module's, and a plugin's to a diagnostic's (B184).
-	put := func(under bool) {
+	// A sign a module puts under loses to any other, as git's do, a
+	// diagnostic's beats the rest of a module's, and one a module puts over
+	// wins over all, as a breakpoint does. Among equals the later wins
+	// (B184, B262).
+	put := func(tier func(d decoration) bool) {
 		for _, p := range e.modules {
 			for _, d := range e.decos[p] {
-				if d.buf == b && d.sign != "" && d.under == under {
+				if d.buf == b && d.sign != "" && tier(d) {
 					out[t.LineOf(b.text.Mark(d.start))] = wire.Sign{Text: d.sign, Name: d.style}
 				}
 			}
 		}
 	}
-	put(true)
-	put(false)
+	put(func(d decoration) bool { return d.under })
+	put(func(d decoration) bool { return !d.under && !d.over })
 	for _, d := range e.diagnostics(b) {
 		line := t.LineOf(b.text.Mark(d.start))
 		i := slices.IndexFunc(diagnosticSigns, func(s wire.Sign) bool { return s.Name == d.style })
@@ -288,16 +290,7 @@ func (e *Session) signs(b *buffer, top, last int) map[int]wire.Sign {
 			out[line] = diagnosticSigns[i]
 		}
 	}
-	// A breakpoint wins over a diagnostic, and the stopped line over all
-	// (B262).
-	for _, br := range b.breaks {
-		out[t.LineOf(b.text.Mark(br.mark))] = map[bool]wire.Sign{true: {Text: "●", Name: "debug.break"}, false: {Text: "○", Name: "debug.pending"}}[br.verified]
-	}
-	for _, d := range e.decos[stoppedLine{}] {
-		if d.buf == b {
-			out[t.LineOf(b.text.Mark(d.start))] = wire.Sign{Text: "→", Name: "debug.stopped"}
-		}
-	}
+	put(func(d decoration) bool { return d.over })
 	for line := t.LineOf(top); len(b.status) > 0 && line <= t.LineOf(last); line++ {
 		start := t.LineStart(line)
 		if s := b.status[t.Slice(start, vim.LineEnd(t, start))]; s.Text != "" {

@@ -359,22 +359,28 @@ func (e *Session) state(arg string) (*buffer, int) {
 // filetype once its grammar is built. It opens the window unless one of
 // that title is open. It reports whether it could, and says why not when it
 // could not.
-func (e *Session) panel(title, filetype, text string, spans []api.Span) bool {
-	if i := slices.IndexFunc(e.root.windows(), func(w *window) bool { return w.buf.title == title }); i >= 0 {
-		e.win = e.root.windows()[i]
-		t := e.win.buf.text.Snapshot()
-		if err := e.win.buf.text.Apply(kernel.Transaction{Base: t.Version(), Edits: []kernel.Edit{{End: t.Len(), Text: text}}}); err != nil {
-			e.message = err.Error()
-			return false
+// panel shows p in a read-only window titled p.Title, or in place of what
+// the window of that title shows, keeping its cursor's line and the focus
+// where they are. It reports whether it did (B186).
+func (e *Session) panel(p api.Panel) bool {
+	if i := slices.IndexFunc(e.root.windows(), func(w *window) bool { return w.buf.title == p.Title }); i >= 0 {
+		b := e.root.windows()[i].buf
+		t := b.text.Snapshot()
+		if old := t.Slice(0, t.Len()); old != p.Text {
+			if err := b.text.Apply(kernel.Transaction{Base: t.Version(), Edits: []kernel.Edit{replace(old, p.Text)}}); err != nil {
+				e.message = err.Error()
+				return false
+			}
+			b.saved = b.text.Head()
 		}
-		e.win.buf.saved = e.win.buf.text.Head()
-		e.style(e.win.buf, spans)
+		e.style(b, p.Spans)
 		return true
 	}
-	e.scratch(title, text, nil, nil)
+	e.scratch(p.Title, p.Text, nil, nil)
 	b := e.win.buf
-	e.style(b, spans)
-	if b.ft = filetype; b.ft == "" {
+	b.keys = e.panelKeys(b, p.Keys)
+	e.style(b, p.Spans)
+	if b.ft = p.Filetype; b.ft == "" {
 		return true
 	}
 	if ok, err := e.attachSyntax(b); err != nil {
@@ -383,6 +389,31 @@ func (e *Session) panel(title, filetype, text string, spans []api.Span) bool {
 		e.message = "building the " + b.ft + " grammar"
 	}
 	return true
+}
+
+// panelKeys are a panel's own keys, under those config.toml sets for its
+// kind, or nil for a panel with none (B291).
+func (e *Session) panelKeys(b *buffer, keys map[string]string) *vim.Keymaps {
+	if len(keys) == 0 {
+		return nil
+	}
+	km := &vim.Keymaps{}
+	for from, to := range keys {
+		km.Map(vim.Normal, from, to)
+	}
+	if l := e.locals[b.kind()]; l != nil {
+		l.Each(vim.Normal, func(from, to string) { km.Map(vim.Normal, from, to) })
+	}
+	return km
+}
+
+// localKeys are b's own keys when it is a panel with some, or else those
+// of its kind.
+func (e *Session) localKeys(b *buffer) *vim.Keymaps {
+	if b.keys != nil {
+		return b.keys
+	}
+	return e.locals[b.kind()]
 }
 
 // scratch shows text in a new read-only window titled title, about src.

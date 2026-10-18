@@ -60,4 +60,7 @@ type Registration struct {
 	// Complete makes Call complete a command's argument too. The word typed
 	// is complete in About, and a Result's Complete answers (B290).
 	Complete bool
+	// Visual maps a Key in visual mode too, where its call gets the
+	// selection's start and end instead of the cursor and count (B291).
+	Visual bool
 }

@@ -431,9 +431,10 @@ func (e *Session) help(topic string) {
 		}
 	}
 	// Help is markdown, coloured as such once its grammar is built.
-	if !e.panel("[help]", "markdown", text, nil) {
+	if !e.panel(api.Panel{Title: "[help]", Filetype: "markdown", Text: text}) {
 		return
 	}
+	e.win = e.root.windows()[slices.IndexFunc(e.root.windows(), func(w *window) bool { return w.buf.title == "[help]" })]
 	// The entry goes at the top of the window, its text below it.
 	at := e.win.buf.text.Snapshot().LineStart(line)
 	e.setCursor(at)

@@ -65,7 +65,7 @@ func (w *window) iconCols() int {
 // signCols is 2 when the buffer has signs, or always with sign_column, and
 // 0 otherwise (B119, B143).
 func (w *window) signCols() int {
-	if w.opts.SignColumn || w.buf.signed || w.buf.signs > 0 || w.buf.listed != "" || len(w.buf.breaks) > 0 || w.buf.stopped {
+	if w.opts.SignColumn || w.buf.signed || w.buf.signs > 0 || w.buf.listed != "" {
 		return 2
 	}
 	return 0

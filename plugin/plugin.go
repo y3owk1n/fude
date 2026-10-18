@@ -1040,6 +1040,9 @@ func (p *Plugin) decorations(ctx context.Context, m api.Module) int64 {
 	var b strings.Builder
 	if p.call.Decorations != nil {
 		for _, d := range p.call.Decorations() {
+			if strconv.Itoa(d.Buffer) != p.call.About["buffer"] {
+				continue
+			}
 			fmt.Fprintf(&b, "%d\x00%d\x00%d\x00%s\x00%s\x00%s\x00%t\x00%t\x00", d.ID, d.Start, d.End, d.Style, d.Sign, d.Note, d.Under, d.Fold)
 		}
 	}

@@ -198,8 +198,12 @@ func (e *Session) completions(line string, wait bool) (int, []string) {
 		return c.complete(e, line, start, arg, wait)
 	}
 	if complete, ok := e.completers[name]; ok {
-		e.asked = &moduleMenu{line, start}
+		// A module may answer in the call itself, or later.
+		a := &moduleMenu{line: line, start: start, sync: true}
+		e.asked = a
 		complete(e, arg)
+		a.sync = false
+		return start, a.items
 	}
 	return 0, nil
 }
@@ -282,12 +286,18 @@ func (e *Session) completeOff(line string, start int, find func() []string) {
 type moduleMenu struct {
 	line  string
 	start int
+	items []string // what came in the call that asked
+	sync  bool     // the call that asked is running
 }
 
 // answered shows the completions a module gave for a, when the command
 // line is still a's, ranked against the word typed.
 func (e *Session) answered(a *moduleMenu, items []string) {
 	e.asked = nil
+	if a.sync {
+		a.items = match(items, a.line[a.start:])
+		return
+	}
 	if now, _ := strings.CutPrefix(e.vim.Line(), ":"); e.vim.Mode() != vim.Cmdline || now != a.line {
 		return
 	}
