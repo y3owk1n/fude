@@ -153,8 +153,8 @@ func (e *Session) showActions() {
 			spans = append(spans, syntax.Span{Start: start, End: s.Len(), Name: "menu.selected"})
 		}
 	}
-	e.float, e.floatSpans = s.String(), spans
-	e.doc, e.docSpans = e.actionPreview(p, p.sel)
+	e.float.text, e.float.spans = s.String(), spans
+	e.float.doc, e.float.docSpans = e.actionPreview(p, p.sel)
 }
 
 // actionPreview returns what action i of p changes: each file's lines that
@@ -275,8 +275,11 @@ func (e *Session) editPreview(s *server, p *pick, edit json.RawMessage) (string,
 // picking takes a key while code actions show. <C-n>, <C-p>, j, k and the
 // arrows move the selection, <CR> takes the selected action and a digit the
 // one it numbers, and any other key closes the menu.
-func (e *Session) picking(k vim.Key) {
-	p := e.pick
+func (p *pick) key(e *Session, k vim.Key) bool {
+	if p == nil {
+		return false
+	}
+	defer e.reveal()
 	switch k {
 	case "<C-n>", "<Down>", "j", "\t":
 		p.sel = (p.sel + 1) % len(p.actions)
@@ -287,7 +290,7 @@ func (e *Session) picking(k vim.Key) {
 		if k != "<CR>" {
 			i = int(k[0] - '1')
 		}
-		e.pick, e.float, e.doc, e.docSpans = nil, "", "", nil
+		e.pick, e.float.text, e.float.doc, e.float.docSpans = nil, "", "", nil
 		switch {
 		case i >= len(p.actions):
 		case p.actions[i].disabled != "":
@@ -295,12 +298,13 @@ func (e *Session) picking(k vim.Key) {
 		default:
 			e.act(p, p.actions[i].reply)
 		}
-		return
+		return true
 	default:
-		e.pick, e.float, e.doc, e.docSpans = nil, "", "", nil
-		return
+		e.pick, e.float.text, e.float.doc, e.float.docSpans = nil, "", "", nil
+		return true
 	}
 	e.showActions()
+	return true
 }
 
 // act takes a code action from its server: it applies its edit and runs its

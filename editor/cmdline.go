@@ -15,6 +15,15 @@ import (
 	"github.com/y3owk1n/fude/wire"
 )
 
+// cmdline is what completes a command line: the menu showing, the entries
+// of the directories it completed in, and the module asked to complete,
+// until it answers (B290).
+type cmdline struct {
+	menu  *cmenu
+	dirs  map[string][]string
+	asked *moduleMenu
+}
+
 // cmenu is the completions of the word being typed in a command line, which
 // <Tab> and <S-Tab> step through, each replacing the word (B131).
 type cmenu struct {
@@ -32,11 +41,11 @@ type cmenu struct {
 // completion in the line, or else the next, <C-n> the next, <S-Tab> and
 // <C-p> the one before, <C-y> keeps it and <C-e> puts back what was typed. It reports whether it
 // took the key, and other keys close the menu.
-func (e *Session) commandKey(k vim.Key) bool {
+func (c *cmdline) key(e *Session, k vim.Key) bool {
 	line, ok := strings.CutPrefix(e.vim.Line(), ":")
-	m := e.cmenu
+	m := c.menu
 	if e.vim.Mode() != vim.Cmdline || !ok {
-		e.cmenu, e.dirs = nil, nil
+		c.menu, c.dirs = nil, nil
 		return false
 	}
 	switch k {
@@ -46,7 +55,7 @@ func (e *Session) commandKey(k vim.Key) bool {
 			if m = e.menuOf(line, true); m == nil {
 				return true
 			}
-			e.cmenu = m
+			c.menu = m
 		}
 		n, back := len(m.items), k == "<S-Tab>" || k == "<C-p>"
 		lit := !fresh && m.sel == n && m.lit >= 0
@@ -74,17 +83,17 @@ func (e *Session) commandKey(k vim.Key) bool {
 		if m != nil {
 			e.vim.SetLine(line[:m.start] + m.typed)
 		}
-		e.cmenu = nil
+		c.menu = nil
 		return m != nil
 	case "<C-y>":
-		e.cmenu = nil
+		c.menu = nil
 		return m != nil
 	case "<CR>":
 		if m != nil && m.lit >= 0 && m.sel == len(m.items) {
 			e.vim.SetLine(line[:m.start] + m.items[m.lit])
 		}
 	}
-	e.cmenu = nil
+	c.menu = nil
 	return false
 }
 
@@ -95,7 +104,7 @@ func (e *Session) autocommand() {
 	if !e.cfg.Autocomplete || e.vim.Mode() != vim.Cmdline || !ok || line == "" {
 		return
 	}
-	e.cmenu = e.menuOf(line, false)
+	e.cmdline.menu = e.menuOf(line, false)
 }
 
 // menuOf returns the completions of line's last word as a menu with none
@@ -200,7 +209,7 @@ func (e *Session) completions(line string, wait bool) (int, []string) {
 	if complete, ok := e.completers[name]; ok {
 		// A module may answer in the call itself, or later.
 		a := &moduleMenu{line: line, start: start, sync: true}
-		e.asked = a
+		e.cmdline.asked = a
 		complete(e, arg)
 		a.sync = false
 		return start, a.items
@@ -229,7 +238,7 @@ func pathMatches(arg string, all []string) []string {
 // entries returns the names in dir, directories with a trailing slash, read
 // once for each command line.
 func (e *Session) entries(dir string) []string {
-	names, ok := e.dirs[dir]
+	names, ok := e.cmdline.dirs[dir]
 	if !ok {
 		names = readEntries(dir)
 		e.keep(dir, names)
@@ -239,10 +248,10 @@ func (e *Session) entries(dir string) []string {
 
 // keep notes dir's entries for the rest of the command line.
 func (e *Session) keep(dir string, names []string) {
-	if e.dirs == nil {
-		e.dirs = map[string][]string{}
+	if e.cmdline.dirs == nil {
+		e.cmdline.dirs = map[string][]string{}
 	}
-	e.dirs[dir] = names
+	e.cmdline.dirs[dir] = names
 }
 
 // completeLater completes the path arg at start of line off the loop, as
@@ -250,7 +259,7 @@ func (e *Session) keep(dir string, names []string) {
 // shows the menu if the line is still line then.
 func (e *Session) completeLater(line string, start int, arg string) {
 	dir, _ := filepath.Split(arg)
-	names, ok := e.dirs[dir]
+	names, ok := e.cmdline.dirs[dir]
 	go func() {
 		if !ok {
 			names = readEntries(dir)
@@ -261,8 +270,8 @@ func (e *Session) completeLater(line string, start int, arg string) {
 				return
 			}
 			e.keep(dir, names)
-			e.cmenu = newMenu(line, start, items)
-			e.light(e.cmenu, line)
+			e.cmdline.menu = newMenu(line, start, items)
+			e.light(e.cmdline.menu, line)
 		}
 	}()
 }
@@ -274,8 +283,8 @@ func (e *Session) completeOff(line string, start int, find func() []string) {
 		items := find()
 		e.queue <- func() {
 			if now, _ := strings.CutPrefix(e.vim.Line(), ":"); e.vim.Mode() == vim.Cmdline && now == line {
-				e.cmenu = newMenu(line, start, items)
-				e.light(e.cmenu, line)
+				e.cmdline.menu = newMenu(line, start, items)
+				e.light(e.cmdline.menu, line)
 			}
 		}
 	}()
@@ -293,7 +302,7 @@ type moduleMenu struct {
 // answered shows the completions a module gave for a, when the command
 // line is still a's, ranked against the word typed.
 func (e *Session) answered(a *moduleMenu, items []string) {
-	e.asked = nil
+	e.cmdline.asked = nil
 	if a.sync {
 		a.items = match(items, a.line[a.start:])
 		return
@@ -301,8 +310,8 @@ func (e *Session) answered(a *moduleMenu, items []string) {
 	if now, _ := strings.CutPrefix(e.vim.Line(), ":"); e.vim.Mode() != vim.Cmdline || now != a.line {
 		return
 	}
-	e.cmenu = newMenu(a.line, a.start, match(items, a.line[a.start:]))
-	e.light(e.cmenu, a.line)
+	e.cmdline.menu = newMenu(a.line, a.start, match(items, a.line[a.start:]))
+	e.light(e.cmdline.menu, a.line)
 }
 
 // readEntries returns the names in dir, directories with a trailing slash,

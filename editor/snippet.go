@@ -185,15 +185,15 @@ func (sn *snippet) place(i, j int) (int, int) {
 	return sn.b.text.Mark(p[0]), sn.b.text.Mark(p[1])
 }
 
-// snippetKey handles k for the snippet being filled in, before the vim
-// machine sees it, and reports whether it took it. <Tab> and <S-Tab> go to
+// key handles k for the snippet being filled in, before the vim machine
+// sees it, and reports whether it took it. <Tab> and <S-Tab> go to
 // the next and the stop before, and a key that types replaces a fresh
 // placeholder.
-func (e *Session) snippetKey(k vim.Key) bool {
-	sn := e.snip
+func (sn *snippet) key(e *Session, k vim.Key) bool {
 	if sn == nil || e.vim.Mode() != vim.Insert || e.win.buf != sn.b {
 		return false
 	}
+	defer e.reveal()
 	switch k {
 	case "\t":
 		return e.snipJump(1)

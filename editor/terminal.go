@@ -43,6 +43,26 @@ type terminal struct {
 // [keymap.terminal] changes (B142, B205).
 var terminalKeys = map[string]string{"q": "<Plug>(terminal.close)"}
 
+// terminalMode is the overlay of a terminal window. In terminal mode every key
+// goes to the program, and in normal mode i and a go back to terminal mode
+// (B205).
+type terminalMode struct{}
+
+func (terminalMode) key(e *Session, k vim.Key) bool {
+	t := e.win.buf.term
+	switch {
+	case t == nil:
+		return false
+	case t.typing:
+		e.terminalKey(k)
+	case (k == "i" || k == "a") && e.vim.Idle():
+		e.enterTerminal()
+	default:
+		return false
+	}
+	return true
+}
+
 // closeTerminal closes the current terminal window once its program has
 // ended. A module's closes while it runs too, and the program goes on
 // (B231).

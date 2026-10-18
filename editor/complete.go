@@ -13,7 +13,16 @@ import (
 	"github.com/y3owk1n/fude/protocol/lsp"
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
+	"github.com/y3owk1n/fude/wire"
 )
+
+// completion is what completes in insert mode: the menu showing, whether
+// <C-x> began a completion key, and the signature help showing (B203).
+type completion struct {
+	menu  *menu
+	ctrlX bool
+	sig   *wire.Float
+}
 
 // menu is the completions shown while typing, which <C-n> and <C-p> step
 // through, each replacing the word before the cursor (B64).
@@ -30,38 +39,38 @@ type menu struct {
 	sel    int    // the item in the text, or len(items) for typed
 }
 
-// completing handles a key while completing in insert mode, and reports
-// whether it took it. <C-x><C-o> asks the server, and while the menu shows,
+// key handles a key while completing in insert mode, and reports whether
+// it took it. <C-x><C-o> asks the server, and while the menu shows,
 // <C-n>, <C-p>, <C-y> and <C-e> work it. Any other key keeps the item and
 // goes on to type.
-func (e *Session) completing(k vim.Key) bool {
+func (c *completion) key(e *Session, k vim.Key) bool {
 	if e.vim.Mode() != vim.Insert {
-		e.ctrlX = false
-		if e.menu != nil {
+		c.ctrlX = false
+		if c.menu != nil {
 			e.closeMenu()
 		}
 		return false
 	}
 	if k == "<C-s>" && len(e.win.buf.servers) > 0 {
-		if e.sig != nil {
-			e.sig = nil
+		if c.sig != nil {
+			c.sig = nil
 		} else {
 			e.signature(false)
 		}
 		return true
 	}
-	if e.ctrlX {
-		e.ctrlX = false
+	if c.ctrlX {
+		c.ctrlX = false
 		if k == "<C-o>" {
 			e.complete(false)
 			return true
 		}
 	}
 	if k == "<C-x>" {
-		e.ctrlX = true
+		c.ctrlX = true
 		return true
 	}
-	m := e.menu
+	m := c.menu
 	if m == nil {
 		return false
 	}
@@ -188,11 +197,11 @@ func (e *Session) offer(auto bool, t kernel.Snapshot, start int, items map[strin
 		}
 		return
 	}
-	if e.menu != nil {
+	if e.completion.menu != nil {
 		e.closeMenu()
 	}
 	m.start, m.sel = b.text.SetMark(start, kernel.Left), len(m.items)
-	e.menu = m
+	e.completion.menu = m
 	if auto {
 		e.showMenu()
 		return
@@ -291,7 +300,7 @@ func abs(n int) int { return max(n, -n) }
 // choose puts item i of the menu in the text, or the typed word for the
 // menu's last stop, and shows the menu with it selected.
 func (e *Session) choose(i int) {
-	m := e.menu
+	m := e.completion.menu
 	b := e.win.buf
 	start := b.text.Mark(m.start)
 	old := m.typed
@@ -345,10 +354,10 @@ func readItem(raw json.RawMessage, filetype string) item {
 // showMenu shows the menu's labels in a float, the item in the text
 // selected, with its documentation beside it (B68).
 func (e *Session) showMenu() {
-	m := e.menu
-	e.doc, e.docSpans = "", nil
+	m := e.completion.menu
+	e.float.doc, e.float.docSpans = "", nil
 	if i := m.sel; i < len(m.items) && m.docs[i] != "" {
-		e.doc, e.docSpans = e.markdown(m.docs[i])
+		e.float.doc, e.float.docSpans = e.markdown(m.docs[i])
 	} else if i < len(m.items) {
 		e.resolve(m, i)
 	}
@@ -360,7 +369,7 @@ func (e *Session) showMenu() {
 		}
 		shown.WriteString(l + "\n")
 	}
-	e.float, e.floatSpans = strings.TrimSuffix(shown.String(), "\n"), spans
+	e.float.text, e.float.spans = strings.TrimSuffix(shown.String(), "\n"), spans
 }
 
 // resolve asks the server once for the documentation of item i of m, which
@@ -379,7 +388,7 @@ func (e *Session) resolve(m *menu, i int) {
 		if res == nil {
 			return
 		}
-		if m.docs[i] = readItem(res, ft).doc; e.menu == m && m.sel == i {
+		if m.docs[i] = readItem(res, ft).doc; e.completion.menu == m && m.sel == i {
 			e.showMenu()
 		}
 	})
@@ -407,10 +416,10 @@ func (e *Session) autocomplete(k vim.Key) {
 // shows. Out of insert mode, no signature shows (B203).
 func (e *Session) signatureHelp(k vim.Key) {
 	if e.vim.Mode() != vim.Insert {
-		e.sig = nil
+		e.completion.sig = nil
 		return
 	}
-	if e.sig != nil || slices.ContainsFunc(e.win.buf.servers, func(s *server) bool {
+	if e.completion.sig != nil || slices.ContainsFunc(e.win.buf.servers, func(s *server) bool {
 		var p struct {
 			TriggerCharacters   []string `json:"triggerCharacters"`
 			RetriggerCharacters []string `json:"retriggerCharacters"`
@@ -423,25 +432,25 @@ func (e *Session) signatureHelp(k vim.Key) {
 }
 
 // completion is what a server says of its completion.
-type completion struct {
+type completionOpts struct {
 	TriggerCharacters []string `json:"triggerCharacters"`
 	ResolveProvider   bool     `json:"resolveProvider"`
 }
 
 // completionOptions returns what s said of its completion, or false when it
 // offers none.
-func completionOptions(s *server) (completion, bool) {
-	var p completion
+func completionOptions(s *server) (completionOpts, bool) {
+	var p completionOpts
 	return p, json.Unmarshal(s.client.Capability("completionProvider"), &p) == nil
 }
 
 // closeMenu stops completing and keeps what is in the text. A snippet
 // kept starts, and closeMenu reports that it did (B207).
 func (e *Session) closeMenu() bool {
-	m := e.menu
+	m := e.completion.menu
 	start := e.win.buf.text.Mark(m.start)
 	e.win.buf.text.DeleteMark(m.start)
-	e.menu, e.float, e.floatSpans, e.doc, e.docSpans = nil, "", nil, "", nil
+	e.completion.menu, e.float.text, e.float.spans, e.float.doc, e.float.docSpans = nil, "", nil, "", nil
 	if m.sel < len(m.items) && m.stops[m.sel] != nil {
 		e.startSnippet(start, m.items[m.sel], m.stops[m.sel])
 		return true

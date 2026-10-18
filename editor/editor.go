@@ -81,31 +81,23 @@ type Session struct {
 	vim        *vim.Machine
 	message    string
 	done       bool
-	restarting string         // the session file :restart saved, for main (B170)
-	hints      []vim.Hint     // the keys that may follow the command being typed, while they show (B172)
-	ask        func(yes bool) // takes the answer to the question in the message
-	jumpTo     *jumpTo        // where a plugin's call asked to move the cursor, after the key
-	lastList   *places        // the last list of places a window showed
-	sig        *wire.Float    // the signature help showing in insert mode (B203)
-	snip       *snippet       // the snippet being filled in (B207)
-	float      string         // text shown over the windows at the cursor, such as hover
-	floatSpans []syntax.Span  // the styles of the float's text
-	doc        string         // the selected completion's documentation, beside the menu
-	docSpans   []syntax.Span
-	menu       *menu                   // the completions shown while typing
-	ctrlX      bool                    // <C-x> began a completion key in insert mode
+	restarting string                  // the session file :restart saved, for main (B170)
+	hints      []vim.Hint              // the keys that may follow the command being typed, while they show (B172)
+	ask        question                // takes the answer to the question in the message
+	jumpTo     *jumpTo                 // where a plugin's call asked to move the cursor, after the key
+	lastList   *places                 // the last list of places a window showed
+	snip       *snippet                // the snippet being filled in (B207)
+	float      floating                // text shown over the windows at the cursor, such as hover
+	completion completion              // the completions shown while typing, and the signature help
 	lspKeys    bool                    // the attached keys are mapped
 	later      []vim.Key               // keys to feed once the key being fed is done
 	renameAt   int                     // where grn was pressed
 	pick       *pick                   // the code actions shown to choose from
 	finder     *finder                 // the file finder, while it shows
 	jumping    *jump                   // the jump being typed after s (B218)
-	asked      *moduleMenu             // the module completing the command line, until it answers (B290)
-	cmenu      *cmenu                  // the completions of the command line being typed
-	dirs       map[string][]string     // entries of directories the command line has completed in
+	cmdline    cmdline                 // the completions of the command line being typed
 	flash      *flash                  // text shown for a moment after a yank, put, undo or redo
 	locals     map[string]*vim.Keymaps // the keymaps of kinds of buffer, by kind, over the machine's (B142)
-	left       string                  // the float the key being handled closed, which hover enters
 	lspCards   []lspCard               // the cards of the :lsp panel, in order
 	history    []string                // the messages shown, oldest first, at most 200 (B157)
 	logged     string                  // the message last put in history
@@ -499,50 +491,14 @@ func (e *Session) Feed(k vim.Key) {
 func (e *Session) feed(k vim.Key) {
 	e.fit(e.win)
 	e.message = ""
-	if e.jumping != nil {
-		e.jumpKey(k)
-		return
-	}
-	if e.finder != nil {
-		e.finding(k)
-		e.reveal()
-		return
-	}
-	// In terminal mode every key goes to the program, and in normal mode in
-	// a terminal i and a go back to terminal mode (B205).
-	if t := e.win.buf.term; t != nil {
-		switch {
-		case t.typing:
-			e.terminalKey(k)
-			return
-		case (k == "i" || k == "a") && e.vim.Idle():
-			e.enterTerminal()
-			return
-		}
-	}
-	if e.completing(k) || e.snippetKey(k) {
-		e.reveal()
-		return
-	}
-	if e.pick != nil {
-		e.picking(k)
-		e.reveal()
-		return
-	}
-	// Any key closes the float, and hover again moves the cursor into it.
-	e.left, e.float = e.float, ""
-	if ask := e.ask; ask != nil {
-		e.ask = nil
-		ask(k == "y")
-		e.reveal()
-		return
-	}
 	if e.vim.Mode() == vim.Cmdline && k == "<CR>" {
 		at, line := time.Now(), e.vim.Line()
 		defer func() { trace.Record("cmd", line, time.Since(at)) }()
 	}
-	if e.commandKey(k) {
-		return
+	for _, o := range e.overlays() {
+		if o.key(e, k) {
+			return
+		}
 	}
 	e.vim.IgnoreCase(e.win.opts.IgnoreCase, e.win.opts.SmartCase)
 	e.vim.ExpandTab(e.win.opts.ExpandTab)
@@ -699,10 +655,10 @@ func (e *Session) Mode() vim.Mode { return e.vim.Mode() }
 // Signature returns the signature help to draw above the cursor's line, or
 // false when none shows (B203).
 func (e *Session) Signature() (wire.Float, bool) {
-	if e.sig == nil {
+	if e.completion.sig == nil {
 		return wire.Float{}, false
 	}
-	return *e.sig, true
+	return *e.completion.sig, true
 }
 
 // Terminal reports whether the current window is a terminal in terminal
@@ -717,7 +673,7 @@ func (e *Session) Float() (wire.Float, bool) {
 	if e.hints != nil {
 		return e.hintsFloat(), true
 	}
-	if m := e.cmenu; m != nil {
+	if m := e.cmdline.menu; m != nil {
 		return m.float(), true
 	}
 	if f := e.finder; f != nil {
@@ -730,9 +686,9 @@ func (e *Session) Float() (wire.Float, bool) {
 			return e.lspFloat(), true
 		}
 		t := e.Text()
-		return wire.Float{Text: t.Slice(0, t.Len()), Spans: e.floatSpans, Top: e.Top(), Cursor: e.Cursor()}, true
+		return wire.Float{Text: t.Slice(0, t.Len()), Spans: e.float.spans, Top: e.Top(), Cursor: e.Cursor()}, true
 	}
-	return wire.Float{Text: e.float, Spans: e.floatSpans, Cursor: -1, Doc: e.doc, DocSpans: e.docSpans}, e.float != ""
+	return wire.Float{Text: e.float.text, Spans: e.float.spans, Cursor: -1, Doc: e.float.doc, DocSpans: e.float.docSpans}, e.float.text != ""
 }
 
 // floatKeys are a focused float's own keys, which [keymap.float] changes
@@ -751,7 +707,7 @@ func (e *Session) focus(text string) {
 
 // unfocus closes the float that has the cursor.
 func (e *Session) unfocus() {
-	e.win, e.under, e.floatSpans = e.under, nil, nil
+	e.win, e.under, e.float.spans = e.under, nil, nil
 }
 
 // Cursors returns the cursors after the first while a change on several
@@ -1104,4 +1060,48 @@ func (e *Session) registers(names string) {
 		}
 	}
 	e.message = strings.Join(shown, "  ")
+}
+
+// overlay is what may take a key before the vim machine sees it: the jump
+// labels, the finder, a terminal, the completion menu, a snippet, a code
+// action pick, the float, a question and the command line's menu. One
+// that is not up takes nothing.
+type overlay interface {
+	key(e *Session, k vim.Key) bool
+}
+
+// overlays are what may take a key, in the order they get it.
+func (e *Session) overlays() []overlay {
+	return []overlay{e.jumping, e.finder, terminalMode{}, &e.completion, e.snip, e.pick, &e.float, e.ask, &e.cmdline}
+}
+
+// floating is text shown over the windows at the cursor, such as hover,
+// and the documentation shown beside a menu.
+type floating struct {
+	text     string
+	spans    []syntax.Span
+	doc      string // the selected completion's documentation, beside the menu
+	docSpans []syntax.Span
+	left     string // the float the key being handled closed, which hover enters
+}
+
+// key closes the float, which any key does, and keeps its text so that
+// hover again moves the cursor into it.
+func (f *floating) key(*Session, vim.Key) bool {
+	f.left, f.text = f.text, ""
+	return false
+}
+
+// question is what takes the answer to a question in the message area.
+type question func(yes bool)
+
+// key answers the question with k, y for yes.
+func (q question) key(e *Session, k vim.Key) bool {
+	if q == nil {
+		return false
+	}
+	e.ask = nil
+	q(k == "y")
+	e.reveal()
+	return true
 }

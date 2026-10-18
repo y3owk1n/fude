@@ -410,7 +410,7 @@ func (e *Session) diagnosticFloat(b *buffer, p int) {
 			text.WriteString("  " + source)
 		}
 	}
-	e.float, e.floatSpans = text.String(), spans
+	e.float.text, e.float.spans = text.String(), spans
 }
 
 // requests are the language server requests that commands send, by name.
@@ -458,9 +458,9 @@ func (e *Session) syncKeys() {
 // cursor's place in the current buffer, and handles the answer on the editor
 // loop when it comes (B62, B66).
 func (e *Session) request(name string) {
-	if name == "lsp.hover" && e.left != "" {
+	if name == "lsp.hover" && e.float.left != "" {
 		// Hover while a float shows moves the cursor into it.
-		e.focus(e.left)
+		e.focus(e.float.left)
 		return
 	}
 	b := e.win.buf
@@ -791,7 +791,7 @@ func (e *Session) signature(typed bool) {
 		}
 		json.Unmarshal(res, &help)
 		if len(help.Signatures) == 0 {
-			e.sig = nil
+			e.completion.sig = nil
 			if !typed {
 				e.message = "no signature help"
 			}
@@ -834,7 +834,7 @@ func (e *Session) signature(typed bool) {
 			}
 			text += "\n" + md
 		}
-		e.sig = &wire.Float{Text: text, Spans: spans, Cursor: -1}
+		e.completion.sig = &wire.Float{Text: text, Spans: spans, Cursor: -1}
 	})
 }
 
@@ -862,7 +862,7 @@ func (e *Session) hover(rs []reply) {
 		e.message = "no hover information"
 		return
 	}
-	e.float, e.floatSpans = e.markdown(strings.TrimSpace(strings.Join(texts, "\n\n")))
+	e.float.text, e.float.spans = e.markdown(strings.TrimSpace(strings.Join(texts, "\n\n")))
 }
 
 // markupText is the text of markup with a value or of a plain string, as

@@ -121,7 +121,9 @@ The order is dependency order, not priority. Behaviours in
    `fude --join` over TLS, `fude relay`, then presence, a guest's own
    keymaps and options, read-only and follow, and attaching through a
    replica (D39, D40, D41).
-8. Debugging: a debug adapter client, breakpoints, stepping, the stack,
-   variables and evaluation (D42).
+9. Libraries: the editor's overlays, its pure parts as internal
+   packages, the LSP features as a module, tests beside the libraries
+   and a README for every package, so each part is readable alone and
+   the libraries can be published (architecture, step 9).
 
 Not scheduled: lenses, GPU and web clients.

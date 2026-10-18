@@ -172,10 +172,13 @@ func (e *Session) finderAct(act string) {
 	}
 }
 
-// finding takes a key while the finder shows. Its keymap runs its actions,
+// key takes a key while the finder shows. Its keymap runs its actions,
 // other keys edit the query, and leaving insert mode closes it.
-func (e *Session) finding(k vim.Key) {
-	f := e.finder
+func (f *finder) key(e *Session, k vim.Key) bool {
+	if f == nil {
+		return false
+	}
+	defer e.reveal()
 	e.vim.UseLocal(e.locals["finder"])
 	// A query matches what is typed, so a bracket in it comes alone (B202).
 	e.vim.AutoPairs(false)
@@ -222,6 +225,7 @@ func (e *Session) finding(k vim.Key) {
 			f.chose(-1, "", query, false)
 		}
 	}
+	return true
 }
 
 // listMatches shows the finder's matches in a list of places, which

@@ -386,7 +386,7 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 		e.message = res.Message
 	}
 	if res.Float != nil {
-		e.float, e.floatSpans = e.markdown(*res.Float)
+		e.float.text, e.float.spans = e.markdown(*res.Float)
 	}
 	if s := res.Show; s != nil {
 		e.panel(*s)
@@ -403,7 +403,7 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 	if pl := res.Places; pl != nil {
 		e.lastList = placesOf(pl)
 	}
-	if a := e.asked; a != nil && len(res.Complete) > 0 {
+	if a := e.cmdline.asked; a != nil && len(res.Complete) > 0 {
 		e.answered(a, res.Complete)
 	}
 	e.setOptions(b, res.Set)

@@ -20,11 +20,13 @@ type jump struct {
 	labels  map[string][2]int
 }
 
-// jumpKey takes a key while a jump is typed. A label goes to its match,
-// <CR> to the nearest, <BS> drops the last character typed and <Esc>
-// cancels. Any other character adds to the text to find.
-func (e *Session) jumpKey(k vim.Key) {
-	j := e.jumping
+// key takes a key while the jump is typed. A label goes to its match, <CR>
+// to the nearest, <BS> drops the last character typed and <Esc> cancels.
+// Any other character adds to the text to find.
+func (j *jump) key(e *Session, k vim.Key) bool {
+	if j == nil {
+		return false
+	}
 	s := string(k)
 	switch {
 	case k == "<Esc>":
@@ -37,7 +39,7 @@ func (e *Session) jumpKey(k vim.Key) {
 	case k == "<BS>":
 		if j.query == "" {
 			e.jumping = nil
-			return
+			return true
 		}
 		_, size := utf8.DecodeLastRuneInString(j.query)
 		j.query = j.query[:len(j.query)-size]
@@ -47,11 +49,12 @@ func (e *Session) jumpKey(k vim.Key) {
 		if m, ok := j.labels[s]; ok {
 			e.jumping = nil
 			e.leapTo(m[0])
-			return
+			return true
 		}
 		j.query += s
 		e.findJumps()
 	}
+	return true
 }
 
 // findJumps finds the jump's text in the current window's view, ignoring

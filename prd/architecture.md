@@ -1685,3 +1685,38 @@ decoration with its own owner, and a sign. The panel is a scratch buffer
 of the kind `debug`, whose `<CR>` acts on the frame or variable of its
 line. `:debug` is refused for a guest (B244).
 
+
+## Libraries (step 9)
+
+Step 9 makes each part readable alone and the libraries publishable. The
+libraries already stand alone: `core`, `vim`, `syntax`, `protocol`,
+`plugin`, `sdk` and `api` import nothing above them. The work is in
+`editor/`, which stays one package, since splitting it would make
+`Session` export an API the size of the package. It comes in three
+phases, each unit a commit that keeps every behaviour.
+
+1. The editor's internals. An overlay is what takes a key before the vim
+   machine: the finder, the command line's menu, the completion menu, a
+   code action pick, the jump labels, a question and a snippet session.
+   One interface and a fixed priority list spell out the order `feed`
+   had by hand, and each overlay owns its state. The pure parts leave the
+   editor: `internal/share` holds certificates, tokens and the TLS
+   config, `internal/timeline` the log's record format and
+   `internal/state` the session and recent files, each with tests. The
+   editor's tests split by feature.
+2. The LSP features as a module. `Registration.Attached` maps a key only
+   while a language server is attached to the buffer, as the editor's own
+   LSP keys are, so vim's `gd` keeps working without one. `Result.Apply`
+   applies a workspace edit across files with the editor's version
+   checks. `modules/lsp` then holds hover, the goto family, references,
+   symbols, rename, code actions, the diagnostics display and the `:lsp`
+   panel. The editor keeps the server lifecycle, document sync and
+   completion. Completion stays because a module's `Call` is busy while
+   it handles `buffer.changed`, which is when completion fires.
+3. Tests beside the libraries. The tests that use only `syntax`,
+   `protocol`, `plugin` or `api` move beside them, so `go test` in each
+   proves its behaviours. One headless test per module moves beside
+   it. `editor`, `ui/term`, `client`, `wire` and `modules` get READMEs.
+
+Not in step 9: rewriting `vim` or `core`, replacing tcell or wazero, or
+splitting `editor` into packages for its own sake.
