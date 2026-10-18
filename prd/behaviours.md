@@ -32,6 +32,14 @@ Where fude departs, the line says so and cites the departure in
   regains focus. If it is modified in fude, fude warns and keeps its text.
 - B83 [1] A file over the `large_file` setting (2MB by default) opens with
   syntax and LSP off and says so. Editing and scrolling behave as for any file.
+- B301 [2] `gx` opens the link or file under the cursor with the system's
+  opener, `open` on macOS and `xdg-open` elsewhere, and `gf` opens the
+  file in fude, at line 12 when `:12` follows it. fude looks for a path
+  beside the current file, then in the working directory. In markdown,
+  either takes a link's destination from anywhere on the link. Elsewhere
+  either leaves out the brackets and marks around a link or path. Only the host runs
+  `gx`, as a guest's would open on the host's machine. With nothing under
+  the cursor, or no such file, the message says so.
 
 ## Config
 

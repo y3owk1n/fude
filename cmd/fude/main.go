@@ -24,6 +24,7 @@ import (
 	"github.com/y3owk1n/fude/modules/git"
 	"github.com/y3owk1n/fude/modules/grep"
 	"github.com/y3owk1n/fude/modules/inlay"
+	"github.com/y3owk1n/fude/modules/links"
 	lspmod "github.com/y3owk1n/fude/modules/lsp"
 	"github.com/y3owk1n/fude/modules/markdown"
 	"github.com/y3owk1n/fude/modules/spell"
@@ -167,7 +168,7 @@ func modules() []api.Module {
 	if dir, err := editor.ConfigDir(); err == nil {
 		words = filepath.Join(dir, "words.txt")
 	}
-	return []api.Module{blame.New(), colours.New(), comment.New(), debug.New(), editorconfig.New(), fold.New(), format.New(), git.New(), grep.New(), inlay.New(), lspmod.New(), markdown.New(), spell.New(words), task.New()}
+	return []api.Module{blame.New(), colours.New(), comment.New(), debug.New(), editorconfig.New(), fold.New(), format.New(), git.New(), grep.New(), inlay.New(), links.New(), lspmod.New(), markdown.New(), spell.New(words), task.New()}
 }
 
 // run prints a man page for --man, fude(1) or the one named after it,
