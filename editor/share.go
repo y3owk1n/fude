@@ -3,18 +3,11 @@ package editor
 import (
 	"bufio"
 	"cmp"
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
-	"crypto/sha256"
 	"crypto/subtle"
 	"crypto/tls"
-	"crypto/x509"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/big"
 	"net"
 	"slices"
 	"strconv"
@@ -24,6 +17,7 @@ import (
 
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/internal/relay"
+	tlsshare "github.com/y3owk1n/fude/internal/share"
 )
 
 // share is fude listening for guests (B248), or holding places for them
@@ -65,7 +59,7 @@ func (e *Session) Share(address string) (func(), error) {
 	if err != nil {
 		return nil, fmt.Errorf("share: %w", err)
 	}
-	if sh.addr, err = reachable(l.Addr().(*net.TCPAddr), address); err != nil {
+	if sh.addr, err = tlsshare.Reachable(l.Addr().(*net.TCPAddr), address); err != nil {
 		l.Close()
 		return nil, fmt.Errorf("share: %w", err)
 	}
@@ -92,9 +86,7 @@ func (e *Session) ShareRelay(addr string) (func(), error) {
 	if err != nil {
 		return nil, fmt.Errorf("share: %w", err)
 	}
-	room := make([]byte, 16)
-	rand.Read(room)
-	sh.via, sh.room = addr, base64.RawURLEncoding.EncodeToString(room)
+	sh.via, sh.room = addr, tlsshare.Secret()
 	sh.addr = relay.WithPort(addr) + "/" + sh.room
 	p, err := relay.Offer(addr, sh.room)
 	if err != nil {
@@ -157,11 +149,10 @@ func (e *Session) hold(p *relay.Place) {
 
 // newShare makes a share's certificate and the TLS that serves it.
 func newShare() (*share, error) {
-	cert, print, err := certificate()
+	cfg, print, err := tlsshare.Server()
 	if err != nil {
 		return nil, err
 	}
-	cfg := &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS13}
 	return &share{print: print, cfg: cfg, stopped: make(chan struct{})}, nil
 }
 
@@ -207,50 +198,8 @@ func (e *Session) invite() {
 // shareString makes a new secret and returns the string that lets one
 // guest in with it (B249).
 func (e *Session) shareString() string {
-	secret := make([]byte, 16)
-	rand.Read(secret)
-	e.share.secret = base64.RawURLEncoding.EncodeToString(secret)
-	return e.share.addr + "/" + e.share.print + "/" + e.share.secret
-}
-
-// certificate makes a self-signed certificate for a share, and returns it
-// with its fingerprint.
-func certificate() (tls.Certificate, string, error) {
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		return tls.Certificate{}, "", err
-	}
-	serial, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
-	if err != nil {
-		return tls.Certificate{}, "", err
-	}
-	template := &x509.Certificate{SerialNumber: serial, NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().AddDate(1, 0, 0)}
-	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
-	if err != nil {
-		return tls.Certificate{}, "", err
-	}
-	sum := sha256.Sum256(der)
-	return tls.Certificate{Certificate: [][]byte{der}, PrivateKey: key}, base64.RawURLEncoding.EncodeToString(sum[:]), nil
-}
-
-// reachable returns where a guest reaches the listener at a, which listens
-// on address: its host, or else this machine's first address that is not a
-// loopback.
-func reachable(a *net.TCPAddr, address string) (string, error) {
-	port := fmt.Sprint(a.Port)
-	if host, _, err := net.SplitHostPort(address); err == nil && host != "" && !net.ParseIP(host).IsUnspecified() {
-		return net.JoinHostPort(host, port), nil
-	}
-	addrs, err := net.InterfaceAddrs()
-	if err != nil {
-		return "", err
-	}
-	for _, ad := range addrs {
-		if ip, ok := ad.(*net.IPNet); ok && !ip.IP.IsLoopback() && ip.IP.To4() != nil {
-			return net.JoinHostPort(ip.IP.String(), port), nil
-		}
-	}
-	return "", errors.New("this machine has no address but loopback, so name one")
+	e.share.secret = tlsshare.Secret()
+	return tlsshare.Invite{Addr: e.share.addr, Print: e.share.print, Secret: e.share.secret}.String()
 }
 
 // admit lets the guest on c in once its secret is right and the host says

@@ -17,6 +17,7 @@ import (
 
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/core/kernel"
+	"github.com/y3owk1n/fude/internal/keep"
 	"github.com/y3owk1n/fude/internal/trace"
 	"github.com/y3owk1n/fude/plugin"
 	"github.com/y3owk1n/fude/protocol/lsp"
@@ -58,8 +59,8 @@ func (e *Session) Use(m api.Module) {
 
 // loadPlugins starts the plugins config.toml lists.
 func (e *Session) loadPlugins() {
-	config, err1 := xdgDir("XDG_CONFIG_HOME", ".config")
-	cache, err2 := xdgDir("XDG_CACHE_HOME", ".cache")
+	config, err1 := keep.Dir("XDG_CONFIG_HOME", ".config")
+	cache, err2 := keep.Dir("XDG_CACHE_HOME", ".cache")
 	if err := errors.Join(err1, err2); err != nil {
 		e.message = fmt.Sprintf("load plugins: %v", err)
 		return
@@ -752,7 +753,7 @@ func (e *Session) run(p api.Module, id uint32, scope api.Scope, args ...int) ([]
 // is dropped, as the log is where it would have been reported.
 func logLine(line string) {
 	trace.Record("log", line, 0)
-	dir, err := xdgDir("XDG_STATE_HOME", filepath.Join(".local", "state"))
+	dir, err := keep.Dir("XDG_STATE_HOME", filepath.Join(".local", "state"))
 	if err != nil {
 		return
 	}

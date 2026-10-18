@@ -87,7 +87,7 @@ func (e *Session) pickNames() []string {
 // newest first: those under the working directory, relative to it, and the
 // others (B213).
 func recentFiles(current string) (here, elsewhere []string, err error) {
-	paths, err := readRecent()
+	paths, err := recent().Read()
 	if err != nil {
 		return nil, nil, err
 	}

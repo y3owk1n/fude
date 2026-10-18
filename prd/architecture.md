@@ -48,8 +48,12 @@ ui/term/         terminal client
 client/          a client over the socket, with replicas of buffers
 internal/        packages only fude's own packages may import
   clipboard/     the system clipboard, through pbcopy, wl-copy or xclip
+  keep/          the XDG directories, files written whole and the recent files
   pty/           a program in a pseudo-terminal, for :terminal
   relay/         passes a share's connections between its host and guests
+  share/         a share's certificate, share string and address
+  timeline/      a buffer's timeline log on disk
+  tomlerr/       where in a TOML file a decoding error is
   trace/         what fude did, for fude --tail
 modules/         Go packages over api/ and protocol/ that cmd/fude adds with
                  editor.Use
@@ -1702,7 +1706,7 @@ phases, each unit a commit that keeps every behaviour.
    had by hand, and each overlay owns its state. The pure parts leave the
    editor: `internal/share` holds certificates, tokens and the TLS
    config, `internal/timeline` the log's record format and
-   `internal/state` the session and recent files, each with tests. The
+   `internal/keep` the recent files and writing a file whole, each with tests. The
    editor's tests split by feature.
 2. The LSP features as a module. `Registration.Attached` maps a key only
    while a language server is attached to the buffer, as the editor's own

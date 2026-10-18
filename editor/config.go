@@ -11,6 +11,7 @@ import (
 	"slices"
 
 	"github.com/pelletier/go-toml/v2"
+	"github.com/y3owk1n/fude/internal/keep"
 	"github.com/y3owk1n/fude/internal/tomlerr"
 	"github.com/y3owk1n/fude/vim"
 )
@@ -137,7 +138,7 @@ type options struct {
 // it returns what it read before the error and the defaults for the rest.
 func loadConfig() (config, error) {
 	c := defaults
-	dir, err := xdgDir("XDG_CONFIG_HOME", ".config")
+	dir, err := keep.Dir("XDG_CONFIG_HOME", ".config")
 	if err != nil {
 		return c, fmt.Errorf("find config: %w", err)
 	}
@@ -168,10 +169,6 @@ func loadConfig() (config, error) {
 	return c, nil
 }
 
-// cleanDir is the empty directory fude reads as its config directory with
-// --clean, or "" (B270).
-var cleanDir string
-
 // Clean makes fude read no config, as --clean asks, until the caller runs
 // remove (B270).
 func Clean() (remove func(), err error) {
@@ -179,9 +176,9 @@ func Clean() (remove func(), err error) {
 	if err != nil {
 		return nil, fmt.Errorf("clean: %w", err)
 	}
-	cleanDir = dir
+	keep.Clean = dir
 	return func() {
-		cleanDir = ""
+		keep.Clean = ""
 		os.RemoveAll(dir)
 	}, nil
 }
@@ -189,27 +186,11 @@ func Clean() (remove func(), err error) {
 // ConfigDir returns fude's config directory, the empty one with --clean
 // (B270).
 func ConfigDir() (string, error) {
-	dir, err := xdgDir("XDG_CONFIG_HOME", ".config")
+	dir, err := keep.Dir("XDG_CONFIG_HOME", ".config")
 	if err != nil {
 		return "", fmt.Errorf("find the config directory: %w", err)
 	}
 	return filepath.Join(dir, "fude"), nil
-}
-
-// xdgDir returns the directory the XDG variable env names, or else fallback
-// in the home directory. With --clean, config gets the empty directory.
-func xdgDir(env, fallback string) (string, error) {
-	if env == "XDG_CONFIG_HOME" && cleanDir != "" {
-		return cleanDir, nil
-	}
-	if dir := os.Getenv(env); dir != "" {
-		return dir, nil
-	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(home, fallback), nil
 }
 
 // mapper is what keymaps go into: a machine, or a kind of buffer's keymaps.

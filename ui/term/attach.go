@@ -3,9 +3,7 @@ package term
 import (
 	"bufio"
 	"cmp"
-	"crypto/sha256"
 	"crypto/tls"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,6 +16,7 @@ import (
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/internal/clipboard"
 	"github.com/y3owk1n/fude/internal/relay"
+	tlsshare "github.com/y3owk1n/fude/internal/share"
 	"github.com/y3owk1n/fude/vim"
 	"github.com/y3owk1n/fude/wire"
 )
@@ -58,27 +57,17 @@ func Attach(socket, name string) (*Attached, error) {
 // lets the guest in. It returns the session once its first frame has come
 // (B248, B254, B255).
 func Join(share, name string, own editor.Own, readOnly bool) (*Attached, error) {
-	i := strings.LastIndexByte(share, '/')
-	j := strings.LastIndexByte(share[:max(i, 0)], '/')
-	if j < 0 {
-		return nil, fmt.Errorf("join: %q is not a share string", share)
-	}
-	addr, print, secret := share[:j], share[j+1:i], share[i+1:]
-	cfg := &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS13, VerifyConnection: func(cs tls.ConnectionState) error {
-		// The share string's fingerprint is the certificate to trust.
-		sum := sha256.Sum256(cs.PeerCertificates[0].Raw)
-		if base64.RawURLEncoding.EncodeToString(sum[:]) != print {
-			return errors.New("its certificate is not the one the share string names")
-		}
-		return nil
-	}}
-	c, err := dialShare(addr, cfg)
+	inv, err := tlsshare.Parse(share)
 	if err != nil {
-		return nil, fmt.Errorf("join %s: %w", addr, err)
+		return nil, fmt.Errorf("join: %w", err)
 	}
-	a, err := begin(c, editor.Hello{Secret: secret, Name: name, Own: own, ReadOnly: readOnly})
+	c, err := dialShare(inv.Addr, tlsshare.Client(inv.Print))
 	if err != nil {
-		return nil, fmt.Errorf("join %s: %w", addr, err)
+		return nil, fmt.Errorf("join %s: %w", inv.Addr, err)
+	}
+	a, err := begin(c, editor.Hello{Secret: inv.Secret, Name: name, Own: own, ReadOnly: readOnly})
+	if err != nil {
+		return nil, fmt.Errorf("join %s: %w", inv.Addr, err)
 	}
 	a.own = own
 	return a, nil

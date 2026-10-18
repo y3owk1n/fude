@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/y3owk1n/fude/core/kernel"
+	"github.com/y3owk1n/fude/internal/keep"
 	"github.com/y3owk1n/fude/vim"
 )
 
@@ -149,7 +150,7 @@ func (e *Session) startOpen() {
 
 // startConfig opens config.toml.
 func (e *Session) startConfig() {
-	dir, err := xdgDir("XDG_CONFIG_HOME", ".config")
+	dir, err := keep.Dir("XDG_CONFIG_HOME", ".config")
 	if err != nil {
 		e.message = fmt.Sprintf("config.toml: %v", err)
 		return

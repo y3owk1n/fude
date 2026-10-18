@@ -1,12 +1,16 @@
 package editor
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"path/filepath"
 	"sync"
 	"time"
 
 	"github.com/y3owk1n/fude/core/kernel"
+	"github.com/y3owk1n/fude/internal/keep"
+	"github.com/y3owk1n/fude/internal/timeline"
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
 	"github.com/y3owk1n/fude/wire"
@@ -59,7 +63,7 @@ type buffer struct {
 
 	saves []kernel.NodeID // the node at each write, oldest first
 
-	log     *history             // the timeline on disk, nil for a buffer with no file
+	log     *timeline.Log        // the timeline on disk, nil for a buffer with no file
 	syntax  *syntax.Buffer       // nil without a grammar for the filetype
 	servers []*server            // the language servers attached to it, in its filetype's order
 	signed  bool                 // it has diagnostics, so windows show a sign column
@@ -131,18 +135,36 @@ func openBuffer(id int, path string) (*buffer, string, error) {
 		b.text = kernel.New(text, nil)
 		return b, msg, nil
 	}
-	log, l, err := openHistory(path, text)
+	logPath, err := historyPath(path)
 	if err != nil {
 		return nil, "", err
 	}
-	if b.text, err = kernel.Load(text, l.head, l.nodes, log); err != nil {
+	log, l, err := timeline.Open(logPath, text)
+	if err != nil {
+		return nil, "", err
+	}
+	if b.text, err = kernel.Load(text, l.Head, l.Nodes, log); err != nil {
 		return nil, "", fmt.Errorf("timeline of %s: %w", path, err)
 	}
-	b.log, b.saved, b.head, b.saves, b.unsaved = log, l.head, l.head, l.saves, l.unsaved
-	if l.unsaved != (kernel.NodeID{}) {
+	b.log, b.saved, b.head, b.saves, b.unsaved = log, l.Head, l.Head, l.Saves, l.Unsaved
+	if l.Unsaved != (kernel.NodeID{}) {
 		msg = fmt.Sprintf("\"%s\" has changes a session did not save, :recover brings them back", path)
 	}
 	return b, msg, nil
+}
+
+// historyPath returns where the timeline log of the file at path lives.
+func historyPath(path string) (string, error) {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return "", fmt.Errorf("timeline of %s: %w", path, err)
+	}
+	dir, err := keep.Dir("XDG_STATE_HOME", filepath.Join(".local", "state"))
+	if err != nil {
+		return "", fmt.Errorf("timeline of %s: %w", path, err)
+	}
+	sum := sha256.Sum256([]byte(abs))
+	return filepath.Join(dir, "fude", "timeline", hex.EncodeToString(sum[:16])+".log"), nil
 }
 
 func (b *buffer) modified() bool { return b.text.Head() != b.saved }
@@ -170,7 +192,7 @@ func (b *buffer) markSaved(text string) {
 	b.saved = b.text.Head()
 	b.saves = append(b.saves, b.saved)
 	if b.log != nil {
-		b.log.write(record{Kind: "save", Head: b.saved, Hash: hash(text)})
+		b.log.Saved(b.saved, text)
 	}
 }
 
@@ -179,7 +201,7 @@ func (b *buffer) markSaved(text string) {
 func (b *buffer) close() {
 	if b.log != nil {
 		// The log keeps a crash's changes while :recover offers them.
-		b.log.close(b.text, b.saves, b.unsaved == kernel.NodeID{})
+		b.log.Close(b.text, b.saves, b.unsaved == kernel.NodeID{})
 	}
 	if b.syntax != nil {
 		b.syntax.Close()

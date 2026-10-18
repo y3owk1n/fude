@@ -8,6 +8,7 @@ import (
 	"slices"
 
 	"github.com/y3owk1n/fude/core/kernel"
+	"github.com/y3owk1n/fude/internal/keep"
 )
 
 // RestartEnv names the file of the session a restarting fude saved, which
@@ -107,7 +108,7 @@ func (e *Session) session() saved {
 // writeSession writes s to a file of its own in fude's state directory and
 // returns its path.
 func writeSession(s saved) (string, error) {
-	state, err := xdgDir("XDG_STATE_HOME", filepath.Join(".local", "state"))
+	state, err := keep.Dir("XDG_STATE_HOME", filepath.Join(".local", "state"))
 	if err != nil {
 		return "", fmt.Errorf("restart: %w", err)
 	}

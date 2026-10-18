@@ -10,6 +10,8 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+
+	"github.com/y3owk1n/fude/internal/keep"
 )
 
 // projectPath returns where the session of the working directory is kept
@@ -19,7 +21,7 @@ func projectPath() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("session: %w", err)
 	}
-	state, err := xdgDir("XDG_STATE_HOME", filepath.Join(".local", "state"))
+	state, err := keep.Dir("XDG_STATE_HOME", filepath.Join(".local", "state"))
 	if err != nil {
 		return "", fmt.Errorf("session: %w", err)
 	}
@@ -43,13 +45,7 @@ func (e *Session) saveProject() error {
 	if err != nil {
 		return fmt.Errorf("session: %w", err)
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return fmt.Errorf("session: %w", err)
-	}
-	if err := os.WriteFile(path+".new", data, 0o600); err != nil {
-		return fmt.Errorf("session: %w", err)
-	}
-	if err := os.Rename(path+".new", path); err != nil {
+	if err := keep.Write(path, data); err != nil {
 		return fmt.Errorf("session: %w", err)
 	}
 	return nil

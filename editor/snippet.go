@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/y3owk1n/fude/core/kernel"
+	"github.com/y3owk1n/fude/internal/keep"
 	"github.com/y3owk1n/fude/protocol/lsp"
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
@@ -56,7 +57,7 @@ type snippetFile struct {
 // in fude's snippets directory, in VS Code's format, whose prefix starts
 // with typed, as completion items of their body (B207).
 func (ed *Editor) userSnippets(ft, typed string) ([]item, error) {
-	dir, err := xdgDir("XDG_CONFIG_HOME", ".config")
+	dir, err := keep.Dir("XDG_CONFIG_HOME", ".config")
 	if err != nil {
 		return nil, fmt.Errorf("find snippets: %w", err)
 	}

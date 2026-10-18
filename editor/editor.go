@@ -19,6 +19,7 @@ import (
 
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/core/kernel"
+	"github.com/y3owk1n/fude/internal/keep"
 	"github.com/y3owk1n/fude/internal/trace"
 	"github.com/y3owk1n/fude/protocol/lsp"
 	"github.com/y3owk1n/fude/syntax"
@@ -136,12 +137,12 @@ func open(cfg config, paths []string) (*Session, error) {
 	ed := &Editor{next: 1, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(*Session, call){}, sources: map[string]func(*Session, string){}, completers: map[string]func(*Session, string){}, decos: map[any][]decoration{}, servers: map[string]*server{}, down: map[string]string{}, building: map[string]bool{}, failed: map[string]string{}, listeners: map[api.Module]*listener{}, segments: map[api.Module]map[*buffer]string{}}
 	// Without a config directory there are no overrides, and loadConfig
 	// reports why.
-	if dir, err := xdgDir("XDG_CONFIG_HOME", ".config"); err == nil {
+	if dir, err := keep.Dir("XDG_CONFIG_HOME", ".config"); err == nil {
 		ed.queries = filepath.Join(dir, "fude", "queries")
 	}
 	// Without a data directory no grammar builds or loads, and a build says
 	// why.
-	if dir, err := xdgDir("XDG_DATA_HOME", filepath.Join(".local", "share")); err == nil {
+	if dir, err := keep.Dir("XDG_DATA_HOME", filepath.Join(".local", "share")); err == nil {
 		// config.toml does not change while fude runs, so workers may resolve
 		// through it.
 		syntax.Use(filepath.Join(dir, "fude", "grammars"), func(name string) string { return ed.filetypeOf("code." + name) })
@@ -546,7 +547,7 @@ func (e *Session) settle(err error) {
 	}
 	e.syncKeys()
 	if log := e.win.buf.log; log != nil {
-		if err := log.failed(); err != nil {
+		if err := log.Failed(); err != nil {
 			e.message = err.Error()
 		}
 	}
@@ -863,7 +864,7 @@ func (e *Session) quitAll(force bool) {
 		s.closing = true
 		s.client.Close()
 	}
-	flushRecent()
+	recent().Flush()
 	for _, s := range e.sessions {
 		s.done = true
 	}
