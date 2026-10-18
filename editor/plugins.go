@@ -448,6 +448,9 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 	for _, m := range res.Moved {
 		e.moved(m[0], m[1])
 	}
+	if len(res.Window) == 1 {
+		e.moveTo(res.Window[0])
+	}
 	if res.Copy != "" {
 		if err := (host{e}).SetClipboard(res.Copy); err != nil {
 			e.message = err.Error()
@@ -896,6 +899,7 @@ func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 	s.Entries = func() []api.Entry { return nil }
 	s.States = func(int) []api.State { return nil }
 	s.Marks, s.Jumps, s.Changes = none, none, none
+	s.Window = func(string) bool { return false }
 	s.Messages = func() []string { return nil }
 	s.Register = func(rune) (string, bool, error) { return "", false, nil }
 	s.StateText = func(int, int) (string, bool) { return "", false }

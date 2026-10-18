@@ -82,6 +82,7 @@ type Result struct {
 	Moved      [][2]string    // paths renamed, from and to, whose open buffers follow them (B327)
 	Travel     *Travel        // a move of a buffer's text to one of its states (B328)
 	Copy       string         // text to put on the clipboard (B329)
+	Window     string         // h, j, k or l: the window next to the current one that way becomes current (B330)
 	// Set holds options to set on the buffer the call is about, by their
 	// config.toml names: expand_tab, indent_width and tab_width. fude uses
 	// them in place of config.toml's until the buffer closes (B283).
@@ -415,6 +416,9 @@ type Scope struct {
 	Marks, Jumps, Changes func() []Mark
 	Messages              func() []string
 	Register              func(name rune) (string, bool, error)
+	// Window reports whether a window is next to the current one that way,
+	// h, j, k or l, on the cursor's row or column (B330).
+	Window func(dir string) bool
 	// Entries returns the entries of the listing a Write's call writes
 	// (B327).
 	Entries func() []Entry

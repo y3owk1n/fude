@@ -462,9 +462,12 @@ the text typed between the view's `top` and `bottom`, highlights each
 match, and covers the character after it with its label (B315). A label
 or `<CR>` returns a `Jump`, and the editor adds it to the jumplist.
 
-`<Plug>(window.*)` move as `<C-w>h`, `<C-w>j`, `<C-w>k` and `<C-w>l` do.
-When the window stays the same and `$TMUX` is set, they run
-`tmux select-pane -t $TMUX_PANE` with `-L`, `-D`, `-U` or `-R`. tmux's own
+`modules/window` is `<Plug>(window.*)`. `Scope.Window` says whether a
+window is next to the current one that way, and the result's `Window`
+moves to it, as `<C-w>h`, `<C-w>j`, `<C-w>k` and `<C-w>l` do. With no
+window that way and `$TMUX` set, a job runs
+`tmux select-pane -t $TMUX_PANE` with `-L`, `-D`, `-U` or `-R`, and a
+guest's call runs none (B244, B330). tmux's own
 bindings decide which keys reach fude, so its `vim-tmux-navigator` pattern
 has to name `fude` (B140).
 

@@ -12,6 +12,7 @@ import (
 	"github.com/y3owk1n/fude/editor"
 	filesmod "github.com/y3owk1n/fude/modules/files"
 	listingmod "github.com/y3owk1n/fude/modules/listing"
+	windowmod "github.com/y3owk1n/fude/modules/window"
 )
 
 // B27
@@ -335,31 +336,6 @@ func TestB121MatchParen(t *testing.T) {
 	}
 }
 
-// B140
-func TestB140Navigate(t *testing.T) {
-	bin, log := t.TempDir(), filepath.Join(t.TempDir(), "tmux.log")
-	script := "#!/bin/sh\necho \"$@\" >> " + log + "\n"
-	if err := os.WriteFile(filepath.Join(bin, "tmux"), []byte(script), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
-	t.Setenv("TMUX", "/tmp/tmux-1/default,1,0")
-	t.Setenv("TMUX_PANE", "%3")
-	path := filepath.Join(t.TempDir(), "f")
-	change(t, path, "a\n")
-	e := open(t, path)
-	e.SetSize(80, 24)
-	// :vsplit leaves the cursor in the right window, so left moves within
-	// fude, and left again goes to tmux's pane.
-	feed(e, ":vsplit<CR><Plug>(window.left)")
-	if v := e.Views(); !v[0].Current || v[1].Current {
-		t.Fatal("<Plug>(window.left) did not move to the left window")
-	}
-	if feed(e, "<Plug>(window.left)"); disk(t, log) != "select-pane -t %3 -L\n" {
-		t.Fatalf("tmux heard %q", disk(t, log))
-	}
-}
-
 // B142
 func TestB142LocalKeymaps(t *testing.T) {
 	dir := t.TempDir()
@@ -380,6 +356,7 @@ x = "<Nop>"
 	e := start(t, filepath.Join(dir, "a"))
 	e.Use(listingmod.New())
 	e.Use(filesmod.New())
+	e.Use(windowmod.New())
 	e.SetSize(80, 24)
 	feed(e, ":vsplit<CR>-")
 	// A key the listing's table drops falls through to [keymap.normal].

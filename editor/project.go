@@ -69,6 +69,7 @@ func (e *Session) onLoop(scope *api.Scope) {
 		return nil
 	}
 	e.lists(scope)
+	scope.Window = func(dir string) bool { return len(dir) == 1 && e.beside(dir[0]) != nil }
 	scope.StateText = func(id, i int) (string, bool) {
 		if b, err := e.buffer(id); err == nil {
 			return b.stateText(i)

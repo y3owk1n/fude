@@ -4,12 +4,8 @@ import (
 	"cmp"
 	"errors"
 	"fmt"
-	"os"
-	"os/exec"
 	"slices"
 	"strconv"
-	"strings"
-	"time"
 
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/vim"
@@ -429,24 +425,17 @@ func (e *Session) only() {
 }
 
 // navigate moves to the window in direction d, h, j, k or l, or inside
-// tmux to the pane there when there is no window (B140).
-func (e *Session) navigate(d byte) {
-	w := e.win
-	if e.moveTo(d); e.win != w || os.Getenv("TMUX") == "" {
-		return
-	}
-	flag := map[byte]string{'h': "-L", 'j': "-D", 'k': "-U", 'l': "-R"}[d]
-	at := time.Now()
-	out, err := exec.Command("tmux", "select-pane", "-t", os.Getenv("TMUX_PANE"), flag).CombinedOutput()
-	traced("file", "moved to the tmux pane "+flag, at, err)
-	if err != nil {
-		e.message = fmt.Sprintf("tmux select-pane %s: %v: %s", flag, err, strings.TrimSpace(string(out)))
-	}
-}
-
 // moveTo moves to the window next to the current one in direction d, one of
 // h, j, k and l, on the cursor's row or column.
 func (e *Session) moveTo(d byte) {
+	if o := e.beside(d); o != nil {
+		e.win = o
+	}
+}
+
+// beside returns the window next to the current one in direction d, on the
+// cursor's row or column, or nil (B330).
+func (e *Session) beside(d byte) *window {
 	w := e.win
 	t := w.buf.text.Snapshot()
 	row, col := w.y, w.x
@@ -466,10 +455,10 @@ func (e *Session) moveTo(d byte) {
 	}
 	for _, o := range e.root.windows() {
 		if col >= o.x && col < o.x+o.w && row >= o.y && row < o.y+o.h {
-			e.win = o
-			return
+			return o
 		}
 	}
+	return nil
 }
 
 // layout places every window in the space the editor has.
