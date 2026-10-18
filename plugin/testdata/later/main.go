@@ -5,7 +5,8 @@
 // cat printed when each ends. :Fetch
 // url gets the URL in the background and types its body. :Pick asks to
 // pick a fruit and types it, or none, and :Ask asks a name and types it, or
-// none. Needs buffer.write, process, net and ui.
+// none. :Lines streams what printf prints, typing each line as it comes
+// and end once printf ends. Needs buffer.write, process, net and ui.
 package main
 
 import "github.com/y3owk1n/fude/sdk"
@@ -23,6 +24,15 @@ func init() {
 		for range 2 {
 			sdk.After(10, func() { sdk.Edit(0, 0, "t") })
 		}
+	})
+	sdk.Command("Lines", "types each line printf prints as it comes", func(sdk.Call) {
+		sdk.Stream(func(line string, done bool, err error) {
+			if done {
+				typed("end|", err)
+				return
+			}
+			sdk.Edit(0, 0, line+"|")
+		}, "printf", "a\nb\n")
 	})
 	sdk.Command("Jobs", "runs two programs in the background", func(sdk.Call) {
 		sdk.Start(func(out string, err error) { typed("slept"+out, err) }, "sleep", "0.1")

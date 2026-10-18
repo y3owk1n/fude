@@ -556,9 +556,10 @@ plugin that asks for anything is about 200KB, and a cold load of one took 112ms 
 was cached, against 2.4ms after. A plugin now compiles before its init
 budget starts. A result of 500 decorations takes 2.7ms in the plugin and
 0.9ms for fude to read. Keys a result runs may run any command, so they
-need a capability of their own, `keys`. A plugin's job may not stream, as
-a stream job is its owner's own work, which a plugin's calls, taking
-turns, cannot run. Until the first release, the sdk on the module proxy
+need a capability of their own, `keys`. A module's stream job runs the
+module's own Go code. A plugin's calls take turns, so its own code cannot
+run as a job while it answers calls. A plugin's stream job runs a program
+instead, and each line the program prints comes as a callback. Until the first release, the sdk on the module proxy
 requires an `api` the proxy does not have, so `fude plugin new` in a build
 that is not a release fails, and B173's test skips (D37).
 

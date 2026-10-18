@@ -1199,7 +1199,9 @@ Timers and jobs come back through the plugin's listener, the goroutine
 that hands it events, so one call into it runs at a time. A timer's
 callback runs once, after its delay. A job is a program or a get with no
 budget, which `Plugin.Work` runs through the same checks as `run` and
-`http_get`, at most 8 at once for a plugin. Its callback reads `output`,
+`http_get`, at most 8 at once for a plugin. fude runs a stream job's
+callback with each line its program prints, as it prints it, and once more
+at its end with `done` true (B339). Its callback reads `output`,
 and `error` when it failed, from its `context`. Each callback runs under
 the event budget, about the buffer the call that asked was about, and not
 at all once that buffer closes. Unloading the plugin cancels its
@@ -1212,8 +1214,9 @@ job's program must be in `programs` and a URL's host in `hosts`. A
 terminal runs through the shell, so the shell must be in `programs`. An
 image decoration's file must be in the project and its address on a
 declared host. A `Jump`'s path must be in the project. Each name in `Emit`
-is the plugin's own event, which fude names after it. A job may not
-stream, as a plugin's calls take turns (D51).
+is the plugin's own event, which fude names after it. A plugin's stream job
+runs a program, since a plugin's calls take turns and its own code cannot
+run as a job (D51).
 
 Each plugin gets its own wazero runtime, so each has its own memory limit,
 64MB (`WithMemoryLimitPages` is per runtime). Each runtime's compilation

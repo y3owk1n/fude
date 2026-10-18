@@ -468,6 +468,14 @@ func TestB181PluginJobs(t *testing.T) {
 	})
 }
 
+// B339
+func TestB339PluginStreams(t *testing.T) {
+	useTable(t, "later", "programs = [\"printf\"]\n", "buffer.write", "process")
+	e := opened(t, "f", "a\n")
+	feed(e, ":Lines<CR>")
+	settle(t, e, func() bool { return text(e) == "end|b|a|a" })
+}
+
 // B182
 func TestB182PluginHearsTheCursor(t *testing.T) {
 	e := loaded(t, "watch", "f", "a\nb\nc\n", "ui")

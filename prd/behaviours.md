@@ -1052,6 +1052,9 @@ Where fude departs, the line says so and cites the departure in
   with every field, reads what a module's scope has, and its result asks
   for what a module's asks for, within its capabilities. Keys a result
   runs need `keys`.
+- B339 [4] A plugin's job may stream a program's output. Its callback
+  runs with each line as the program prints it, then once more when the
+  program ends, with any error.
 - B337 [4] A module's decoration may show its sign in a listing's icon
   column while `icons` is on, instead of in the sign column. A listing's
   notes and icons are a module's decorations (B127, B128).

@@ -204,20 +204,28 @@ func call(id uint32, a, b, c int64) int64 {
 	return handlers[id](a, b, c)
 }
 
-// later are the functions After, Start and Fetch run once, by the id fude calls them back
-// with, and last is the id given last.
+// later are the funcs callbacks run, by the id fude calls them back with,
+// each kept until it returns false, and last is the id given last.
 var (
-	later = map[uint32]func(){}
+	later = map[uint32]func() bool{}
 	last  uint32
 )
 
 //go:wasmexport callback
 func callback(id uint32) {
-	f := later[id]
-	delete(later, id)
-	if f != nil {
-		f()
+	if f := later[id]; f != nil && !f() {
+		delete(later, id)
 	}
+}
+
+// Callback returns a new id for a callback a Result asks for, such as a
+// timer's, a job's, a request's, a pick's or a menu's. Each callback with
+// that id runs f, as an event runs, until f returns false. f reads the
+// callback's context, such as a job's output, with About.
+func Callback(f func() bool) uint32 {
+	last++
+	later[last] = f
+	return last
 }
 
 // After runs f once, ms milliseconds after the call that asks for it
@@ -271,23 +279,48 @@ func RequestRange(method string, start, end int, params string, f func(result st
 func done(f func(string, error)) func() {
 	return func() {
 		var err error
-		if e := about("error"); e != "" {
+		if e := About("error"); e != "" {
 			err = errors.New(e)
 		}
-		f(about("output"), err)
+		f(About("output"), err)
 	}
 }
 
 // schedule keeps f under a new id and asks fude for it with ask, or forgets
 // it when fude refuses.
 func schedule(f func(), ask func(id uint32) error) error {
-	last++
-	later[last] = f
-	if err := ask(last); err != nil {
-		delete(later, last)
+	return keep(func() bool { f(); return false }, ask)
+}
+
+// keep is schedule for f that runs until it returns false.
+func keep(f func() bool, ask func(id uint32) error) error {
+	id := Callback(f)
+	if err := ask(id); err != nil {
+		delete(later, id)
 		return err
 	}
 	return nil
+}
+
+// Stream runs the program name with args as Start does, and runs f, as an
+// event runs, with each line it prints as it prints it. When it ends, f
+// runs once more with done and the error it ended with. It needs process,
+// and name in the plugin's programs (B339).
+func Stream(f func(line string, done bool, err error), name string, args ...string) error {
+	return keep(func() bool {
+		if About("done") != "true" {
+			f(About("output"), false, nil)
+			return true
+		}
+		var err error
+		if e := About("error"); e != "" {
+			err = errors.New(e)
+		}
+		f("", true, err)
+		return false
+	}, func(id uint32) error {
+		return Do(api.Result{Jobs: []api.Job{{ID: id, Argv: append([]string{name}, args...), Stream: true}}})
+	})
 }
 
 // listeners are the functions On added, by event.
@@ -315,15 +348,16 @@ func onEvent(p *byte, n uint32) {
 // for :h. Call it from an init function.
 func Command(name, help string, f func(Call)) {
 	add(api.Registration{Kind: api.Command, Name: name, Help: help}, func(a, b, _ int64) int64 {
-		first, _ := strconv.Atoi(about("first"))
-		last, _ := strconv.Atoi(about("last"))
-		f(Call{int(a), int(b), about("args"), about("bang") == "true", first, last, about("ranged") == "true"})
+		first, _ := strconv.Atoi(About("first"))
+		last, _ := strconv.Atoi(About("last"))
+		f(Call{int(a), int(b), About("args"), About("bang") == "true", first, last, About("ranged") == "true"})
 		return 0
 	})
 }
 
-// about returns what the call running is about by name, or "".
-func about(name string) string {
+// About returns what the call running is about by name, or "", such as
+// path, or a callback's output.
+func About(name string) string {
 	p, n := ptr(name)
 	v, _ := answer(hostContext(p, n))
 	return v
@@ -353,7 +387,7 @@ func Insert(keys, help string, f func(Call)) {
 // help says what it does, for :h.
 func Source(name, help string, f func(Call)) {
 	add(api.Registration{Kind: api.Source, Name: name, Help: help}, func(a, b, _ int64) int64 {
-		f(Call{Cursor: int(a), Count: int(b), Args: about("args")})
+		f(Call{Cursor: int(a), Count: int(b), Args: About("args")})
 		return 0
 	})
 }
@@ -426,8 +460,8 @@ type Buffer struct {
 
 // Current returns the buffer the call running is about.
 func Current() Buffer {
-	id, _ := strconv.Atoi(about("buffer"))
-	return Buffer{ID: id, Path: about("path"), Filetype: about("filetype")}
+	id, _ := strconv.Atoi(About("buffer"))
+	return Buffer{ID: id, Path: About("path"), Filetype: About("filetype")}
 }
 
 // Setting returns the value of the setting name in the plugin's settings
@@ -561,14 +595,14 @@ func TextOf(id, start, end int) (string, error) {
 }
 
 // Mode returns the mode, such as normal or insert.
-func Mode() string { return about("mode") }
+func Mode() string { return About("mode") }
 
 // IndentWidth returns the columns of an indent level in the buffer the call
 // is about, as its .editorconfig, filetype and config.toml settle it, and
 // TabWidth the columns a tab shows as (B280).
-func IndentWidth() int { n, _ := strconv.Atoi(about("indent")); return n }
+func IndentWidth() int { n, _ := strconv.Atoi(About("indent")); return n }
 
-func TabWidth() int { n, _ := strconv.Atoi(about("tab")); return n }
+func TabWidth() int { n, _ := strconv.Atoi(About("tab")); return n }
 
 // Lines returns how many lines the text has. It needs buffer.read.
 func Lines() (int, error) {
@@ -643,8 +677,8 @@ func Note(pos int, text string) (int, error) {
 // cancelled. It needs ui.
 func Pick(prompt string, items []string, f func(i int, ok bool)) error {
 	return schedule(func() {
-		i, _ := strconv.Atoi(about("picked"))
-		f(i, about("ok") == "true" && i >= 0)
+		i, _ := strconv.Atoi(About("picked"))
+		f(i, About("ok") == "true" && i >= 0)
 	}, func(id uint32) error { return Do(api.Result{Pick: &api.Pick{ID: id, Prompt: prompt, Items: items}}) })
 }
 
@@ -657,20 +691,18 @@ func Pick(prompt string, items []string, f func(i int, ok bool)) error {
 // cancelled. It needs ui.
 func Picker(title, hint, query string, places bool, find func(query string, all bool) []string, chose func(item string, ok bool)) error {
 	pick := api.Pick{Title: title, Hint: hint, Query: query, Live: true, Places: places}
-	var handle func()
-	handle = func() {
-		if picked := about("picked"); picked != "" {
+	return keep(func() bool {
+		if picked := About("picked"); picked != "" {
 			i, _ := strconv.Atoi(picked)
-			chose(about("item"), about("ok") == "true" && i >= 0)
-			return
+			chose(About("item"), About("ok") == "true" && i >= 0)
+			return false
 		}
-		// A query, which the next callback follows, so the handler stays.
-		later[pick.ID] = handle
+		// A query, which the next callback follows.
 		items := pick
-		items.Items = find(about("query"), about("all") == "true")
+		items.Items = find(About("query"), About("all") == "true")
 		Do(api.Result{Pick: &items})
-	}
-	return schedule(handle, func(id uint32) error {
+		return true
+	}, func(id uint32) error {
 		pick.ID = id
 		return Do(api.Result{Pick: &pick})
 	})
@@ -679,7 +711,7 @@ func Picker(title, hint, query string, places bool, find func(query string, all 
 // Ask asks the user prompt once the call returns, and runs f, as an event
 // does, with what they typed, or false when they cancelled. It needs ui.
 func Ask(prompt string, f func(text string, ok bool)) error {
-	return schedule(func() { f(about("text"), about("ok") == "true") }, func(id uint32) error {
+	return schedule(func() { f(About("text"), About("ok") == "true") }, func(id uint32) error {
 		return Do(api.Result{Pick: &api.Pick{ID: id, Prompt: prompt}})
 	})
 }

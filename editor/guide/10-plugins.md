@@ -97,7 +97,8 @@ plugin's own settings, which its table in `config.toml` gives as
 `settings = { depth = 3 }`. `sdk.After` runs a function once, a number
 of milliseconds later, as an event runs. `sdk.Start` and `sdk.Fetch` run
 a program or get a URL in the background, with no budget, then run a
-function with the output. `sdk.Request` asks the buffer's language
+function with the output. `sdk.Stream` runs a program and runs a
+function with each line it prints, as it prints it. `sdk.Request` asks the buffer's language
 servers, at a position, and runs a function with the answer.
 
 The rest of the sdk reaches fude, each function behind its capability.
@@ -118,7 +119,8 @@ outside the plugin's capabilities returns `sdk.ErrDenied`.
 any field. `sdk.Do` asks for what an `api.Result` holds, as a built-in
 module's call returns it, and `sdk.Read` reads any field of an
 `api.Scope`, as a built-in module's call reads it, each field behind its
-capability.
+capability. `sdk.Callback` gives the id of a callback a result asks for,
+such as a menu's, and `sdk.About` reads the callback's context, such as a job's output.
 
 ## Testing a plugin
 

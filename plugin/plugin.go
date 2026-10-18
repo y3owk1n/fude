@@ -3,6 +3,7 @@
 package plugin
 
 import (
+	"bufio"
 	"cmp"
 	"context"
 	"errors"
@@ -448,14 +449,9 @@ func (p *Plugin) runProgram(ctx context.Context, m api.Module, ptr, n uint32) in
 // program runs argv in the project and returns what it prints, if the
 // plugin declared the program.
 func (p *Plugin) program(ctx context.Context, argv []string, input string) (string, error) {
-	if !slices.Contains(p.Programs, argv[0]) {
-		return "", fmt.Errorf("run %s, which it did not declare", argv[0])
-	}
-	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
-	// A child the program leaves holding its output does not hold the call.
-	cmd.Dir, cmd.WaitDelay = p.root, 10*time.Millisecond
-	if input != "" {
-		cmd.Stdin = strings.NewReader(input)
+	cmd, err := p.command(ctx, argv, input)
+	if err != nil {
+		return "", err
 	}
 	out, err := cmd.Output()
 	if err != nil {
@@ -464,8 +460,49 @@ func (p *Plugin) program(ctx context.Context, argv []string, input string) (stri
 	return string(out), nil
 }
 
+// stream runs argv as program does, and hands emit each line it prints as
+// it prints it (B339).
+func (p *Plugin) stream(ctx context.Context, argv []string, input string, emit func(string)) error {
+	cmd, err := p.command(ctx, argv, input)
+	if err != nil {
+		return err
+	}
+	out, err := cmd.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("run %s: %w", argv[0], err)
+	}
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("run %s: %w", argv[0], err)
+	}
+	lines := bufio.NewScanner(out)
+	lines.Buffer(nil, maxBody)
+	for lines.Scan() {
+		emit(lines.Text())
+	}
+	if err := errors.Join(lines.Err(), cmd.Wait()); err != nil {
+		return fmt.Errorf("run %s: %w", argv[0], err)
+	}
+	return nil
+}
+
+// command is argv to run in the project, if the plugin declared the
+// program, with input on its stdin.
+func (p *Plugin) command(ctx context.Context, argv []string, input string) (*exec.Cmd, error) {
+	if !slices.Contains(p.Programs, argv[0]) {
+		return nil, fmt.Errorf("run %s, which it did not declare", argv[0])
+	}
+	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
+	// A child the program leaves holding its output does not hold the call.
+	cmd.Dir, cmd.WaitDelay = p.root, 10*time.Millisecond
+	if input != "" {
+		cmd.Stdin = strings.NewReader(input)
+	}
+	return cmd, nil
+}
+
 // Work does j, a program or a get, as run and http_get do but with no
-// budget, until it ends or ctx does. At most maxJobs run at once.
+// budget, until it ends or ctx does. It calls j.Emit with each line a
+// stream's program prints. At most maxJobs run at once.
 func (p *Plugin) Work(ctx context.Context, j fude.Job) (string, error) {
 	select {
 	case p.jobs <- struct{}{}:
@@ -473,7 +510,10 @@ func (p *Plugin) Work(ctx context.Context, j fude.Job) (string, error) {
 		return "", ctx.Err()
 	}
 	defer func() { <-p.jobs }()
-	if j.URL != "" {
+	switch {
+	case j.Stream:
+		return "", p.stream(ctx, j.Argv, j.Input, j.Emit)
+	case j.URL != "":
 		body, err := p.get(ctx, j.URL)
 		return string(body), err
 	}

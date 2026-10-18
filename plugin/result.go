@@ -113,10 +113,7 @@ func (p *Plugin) check(r *fude.Result) int32 {
 	}
 	for _, j := range r.Jobs {
 		switch {
-		case j.Stream:
-			p.log(fmt.Sprintf("%s: a plugin's job may not stream", p.name))
-			return errDenied
-		case j.URL != "":
+		case j.URL != "" && !j.Stream:
 			if !p.allowed("net", "Jobs") {
 				return errDenied
 			}
