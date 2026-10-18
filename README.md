@@ -280,7 +280,9 @@ func (h *host) Undo() (int, int, error) {
 
 **Language servers and debug adapters.** [`protocol/`](protocol) is a Go module with fude's LSP and DAP clients, built on the standard library alone.
 
-**Modules.** [`api/`](api) is the API that built-in modules and plugins share. A module is an `api.Module` that a distribution adds with `editor.Use`, and [`modules/blame`](modules/blame) is one.
+**Modules.** [`api/`](api) is the API that built-in modules and plugins share. A module is an `api.Module` that a distribution adds with `editor.Use`. [`modules/`](modules) holds the thirteen fude ships, from `blame` to `task`, each tested on its own through [`editor/editortest`](editor/editortest).
+
+**The editor itself.** [`editor/`](editor) runs under any client that feeds it keys and draws its views, and [`ui/term`](ui/term) is the one fude ships.
 
 ---
 
