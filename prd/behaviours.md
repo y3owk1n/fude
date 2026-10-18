@@ -612,8 +612,9 @@ Where fude departs, the line says so and cites the departure in
   separator between them, and a stack takes its widest window's columns.
   The windows sit in the middle of a wider screen, with blank margins on
   either side, and a lone window's text stays put as its gutter grows.
-  Each status line spans its own window, and messages and key hints show
-  within the windows. When the windows need more than the screen, they
+  Each status line spans its own window, and messages, key hints and the
+  boxes at the cursor, such as hover and code actions, show within the
+  windows. When the windows need more than the screen, they
   take its whole width, and `:center` says so. They center again once
   they fit.
   `center = true` starts with the windows centered, and `:restart` keeps
@@ -1017,7 +1018,9 @@ Where fude departs, the line says so and cites the departure in
   offers `utf-8` then `utf-16` positions, and sends incremental changes in
   the encoding the server chose, or the whole text to a server that syncs
   whole texts.
-- B61 [5] Diagnostics show inline and `]d` and `[d` move between them.
+- B61 [5] Diagnostics show inline, and `]d` and `[d` move between them.
+  After a line with a diagnostic, two columns on, its message shows in its
+  severity's colour on a tint of that colour.
   Each move shows the diagnostics that start at the cursor in a float
   there, in their severity's colour, with their source and code, until the
   next key.
@@ -1044,7 +1047,8 @@ Where fude departs, the line says so and cites the departure in
   the selection in visual mode, from the first server that answers. Each row has its number, title and kind's
   family, such as `quickfix` or `source`. Preferred actions come first,
   then fixes, refactors and the rest. Disabled ones come last, dim. Beside
-  the menu, the selected action shows what it does. For an edit, that is
+  the menu, on whichever side has room, or else under it, the selected
+  action shows what it does. For an edit, that is
   the lines it changes, removed after `-` and added after `+`, under each
   file's name when it changes another file. Otherwise it is the command it
   runs, or why it is disabled. fude resolves an action that needs it to

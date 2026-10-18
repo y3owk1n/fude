@@ -60,7 +60,7 @@ func TestB127ListingNotes(t *testing.T) {
 	}
 	e := open(t, dir)
 	e.SetSize(40, 10)
-	want := map[int]string{0: " -> plain", 2: "*"}
+	want := map[int]wire.Note{0: {Text: " -> plain"}, 2: {Text: "*"}}
 	if got := e.Views()[0].Notes; !maps.Equal(got, want) {
 		t.Fatalf("the notes are %v, want %v", got, want)
 	}

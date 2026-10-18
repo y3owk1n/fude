@@ -137,6 +137,9 @@ func build(t theme) styles {
 		"markup.strong": base.Bold(true), "markup.italic": base.Italic(true), "markup.heading": base.Bold(true),
 		"markup.raw": fg(t.typ), "markup.link": base.Underline(true), "markup.rule": fg(t.faint),
 		"diagnostic.error.text": fg(t.err), "diagnostic.warn.text": fg(t.warn), "diagnostic.info.text": fg(t.info), "diagnostic.hint.text": fg(t.hint),
+		// A diagnostic's note after its line, in its colour on a tint of it.
+		"diagnostic.error.note": fg(t.err).Background(mix(t.err, t.bg, 0.85)), "diagnostic.warn.note": fg(t.warn).Background(mix(t.warn, t.bg, 0.85)),
+		"diagnostic.info.note": fg(t.info).Background(mix(t.info, t.bg, 0.85)), "diagnostic.hint.note": fg(t.hint).Background(mix(t.hint, t.bg, 0.85)),
 		"menu.selected": base.Background(t.raised), "inlay": fg(t.muted).Background(t.surface),
 		"jump.match": base.Background(t.selection), "jump.label": base.Background(t.cmd).Foreground(t.bg).Bold(true), "finder.dir": fg(t.muted), "finder.file": base.Bold(true), "snippet.placeholder": base.Background(t.selection),
 		// The letters of an item that match what was typed.

@@ -95,7 +95,12 @@ func (e *Session) Views() []wire.View {
 		}
 		v.Others = e.others(w.buf)
 		v.Signs = e.signs(w.buf, top, last)
-		v.Notes = w.buf.notes(t, top, last)
+		for line, n := range w.buf.notes(t, top, last) {
+			if v.Notes == nil {
+				v.Notes = map[int]wire.Note{}
+			}
+			v.Notes[line] = wire.Note{Text: n}
+		}
 		for _, p := range e.modules {
 			for _, d := range e.decos[p] {
 				if d.buf != w.buf || d.note == "" {
@@ -103,9 +108,9 @@ func (e *Session) Views() []wire.View {
 				}
 				if at := w.buf.text.Mark(d.start); at >= top && at <= last {
 					if v.Notes == nil {
-						v.Notes = map[int]string{}
+						v.Notes = map[int]wire.Note{}
 					}
-					v.Notes[t.LineOf(at)] = d.note
+					v.Notes[t.LineOf(at)] = wire.Note{Text: d.note, Name: d.style}
 				}
 			}
 		}

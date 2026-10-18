@@ -488,16 +488,16 @@ func TestB184PluginSignsAndNotes(t *testing.T) {
 	feed(e, "jix<Esc>")
 	settle(t, e, func() bool {
 		v := e.Views()[0]
-		return v.Signs[1] == wire.Sign{Text: "+", Name: "git.add"} && v.Notes[1] == "changed"
+		return v.Signs[1] == wire.Sign{Text: "+", Name: "git.add"} && v.Notes[1].Text == "changed"
 	})
 	// A new change moves them, and the line they left shows none.
 	feed(e, "kix<Esc>")
 	settle(t, e, func() bool {
 		v := e.Views()[0]
-		return v.Notes[0] == "changed" && v.Notes[1] == "" && v.Signs[1].Text == ""
+		return v.Notes[0].Text == "changed" && v.Notes[1].Text == "" && v.Signs[1].Text == ""
 	})
 	// A window on another buffer shows none of them.
-	if feed(e, ":vnew<CR>"); len(e.Views()) != 2 || e.Views()[1].Notes[0] != "" || e.Views()[1].Signs[0].Text != "" {
+	if feed(e, ":vnew<CR>"); len(e.Views()) != 2 || e.Views()[1].Notes[0].Text != "" || e.Views()[1].Signs[0].Text != "" {
 		t.Errorf("a window on a new buffer shows another buffer's notes or signs")
 	}
 }

@@ -127,10 +127,11 @@ func (c *client) toast(msg string, left, right, h int) {
 
 // float draws f in a bordered box at the cursor, cx and cy, below its line,
 // or above it when there is more room there, at most 80 columns and 20 rows.
-// Its documentation goes in a box beside it. w and h are the space the
-// windows have. While f has the cursor, its rows scroll to show it, and
+// Its documentation goes in a box beside it. The windows cover the columns
+// from lo to hi, which :center narrows, and h rows (B199). While f has
+// the cursor, its rows scroll to show it, and
 // float reports where it is.
-func (c *client) float(f wire.Float, cx, cy, w, h int) (int, int, bool) {
+func (c *client) float(f wire.Float, cx, cy, lo, hi, h int) (int, int, bool) {
 	if f.W > 2 && f.H > 2 {
 		if f.DocW > 2 {
 			// The documentation box is as tall as the box beside it.
@@ -146,7 +147,7 @@ func (c *client) float(f wire.Float, cx, cy, w, h int) (int, int, bool) {
 		}
 		return x, y, ok
 	}
-	rows, width := wrap(f.Text, f.Spans, min(80, w-4))
+	rows, width := wrap(f.Text, f.Spans, min(80, hi-lo-4))
 	below, above := h-cy-1, cy
 	n := min(len(rows), max(below, above)-2, 20)
 	if width < 1 || n < 1 {
@@ -157,27 +158,52 @@ func (c *client) float(f wire.Float, cx, cy, w, h int) (int, int, bool) {
 	if below < n+2 && above > below {
 		y = cy - n - 2
 	}
-	x := min(cx, max(w-width-4, 0))
+	x := max(min(cx, hi-width-4), lo)
 	fx, fy, found := c.box(f.Text, f.Spans, rows[first:min(first+n, len(rows))], x, y, width, f.Cursor)
-	// The documentation goes right of the box, or left of it when there is
-	// more room there.
-	right, left := w-x-width-4, x
-	if room := max(right, left) - 4; f.Doc != "" && room >= 10 {
-		rows, dw := wrap(f.Doc, f.DocSpans, min(80, room))
-		dx := x + width + 4
-		if right < left {
-			dx = x - dw - 4
+	if f.Doc == "" {
+		return fx, fy, found
+	}
+	// The documentation goes right of the box, or left of it, when one side
+	// has room for its widest line or 40 columns. Otherwise it goes under
+	// the box, or over it when there is more room there, as wide as the
+	// windows (B227).
+	_, natural := wrap(f.Doc, f.DocSpans, 80)
+	need := min(natural, 40)
+	right, left := hi-x-width-8, x-lo-4
+	switch {
+	case right >= need:
+		rows, dw := wrap(f.Doc, f.DocSpans, min(80, right))
+		c.box(f.Doc, f.DocSpans, rows[:min(len(rows), h-y-2, 20)], x+width+4, y, dw, -1)
+	case left >= need:
+		rows, dw := wrap(f.Doc, f.DocSpans, min(80, left))
+		c.box(f.Doc, f.DocSpans, rows[:min(len(rows), h-y-2, 20)], x-dw-4, y, dw, -1)
+	default:
+		rows, dw := wrap(f.Doc, f.DocSpans, min(80, hi-lo-4))
+		dx := max(min(x, hi-dw-4), lo)
+		// It leaves the cursor's line in view, whichever side of it the box
+		// is on.
+		top, bottom := cy, y+n+2
+		if y < cy {
+			top, bottom = y, cy+1
 		}
-		c.box(f.Doc, f.DocSpans, rows[:min(len(rows), h-y-2, 20)], dx, y, dw, -1)
+		dy, fit := bottom, h-bottom-2
+		if top > h-bottom {
+			fit = top - 2
+			dy = top - min(len(rows), fit, 20) - 2
+		}
+		if fit >= 1 {
+			c.box(f.Doc, f.DocSpans, rows[:min(len(rows), fit, 20)], dx, dy, dw, -1)
+		}
 	}
 	return fx, fy, found
 }
 
 // above draws f in a box above the cursor's line at cx and cy, at most 80
 // columns and 10 rows. When it does not fit there and there is more room
-// below, it goes below. w and h are the space the windows have.
-func (c *client) above(f wire.Float, cx, cy, w, h int) {
-	rows, width := wrap(f.Text, f.Spans, min(80, w-4))
+// below, it goes below. The windows cover the columns from lo to hi, and h
+// rows.
+func (c *client) above(f wire.Float, cx, cy, lo, hi, h int) {
+	rows, width := wrap(f.Text, f.Spans, min(80, hi-lo-4))
 	want, up, down := min(len(rows), 10), cy-2, h-cy-3
 	n, y := min(want, up), cy-min(want, up)-2
 	if up < want && down > up {
@@ -186,7 +212,7 @@ func (c *client) above(f wire.Float, cx, cy, w, h int) {
 	if width < 1 || n < 1 {
 		return
 	}
-	c.box(f.Text, f.Spans, rows[:n], min(cx, max(w-width-4, 0)), y, width, -1)
+	c.box(f.Text, f.Spans, rows[:n], max(min(cx, hi-width-4), lo), y, width, -1)
 }
 
 // scroll returns the first of rows to show in a box n rows tall. It is f's

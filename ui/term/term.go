@@ -267,7 +267,7 @@ func (c *client) draw() {
 	// The signature goes above the cursor's line, and a completion menu below
 	// it draws over it if they meet (B203).
 	if signs {
-		c.above(sig, cx, cy, w, h)
+		c.above(sig, cx, cy, left, right, h)
 	}
 	switch {
 	case c.e.Mode() == vim.Cmdline:
@@ -277,7 +277,7 @@ func (c *client) draw() {
 		}
 		cx, cy = c.commandLine(w, h, f.Text, f.Spans)
 	case floats:
-		if x, y, ok := c.float(f, cx, cy, w, h); ok {
+		if x, y, ok := c.float(f, cx, cy, left, right, h); ok {
 			cx, cy = x, y
 		}
 	}
@@ -407,7 +407,7 @@ func (c *client) view(v wire.View, left int, sel vim.Selection, visual bool) (in
 		// A tag starts each part of the sig, so two different lines never
 		// read the same. Its positions count from the line's start, so a
 		// line keeps its sig when text above it changes.
-		k := append(c.sig[:0], win...).int(row).int(len(starts)).str(text).flag(shade).int(lead).str(v.Notes[line]).int(v.Folds[line])
+		k := append(c.sig[:0], win...).int(row).int(len(starts)).str(text).flag(shade).int(lead).str(v.Notes[line].Text).str(v.Notes[line].Name).int(v.Folds[line])
 		for _, p := range v.Pair {
 			if p >= pos && p <= end {
 				k = k.int(1).int(p - pos)
@@ -556,12 +556,8 @@ func (c *client) view(v wire.View, left int, sel vim.Selection, visual bool) (in
 					}
 					x = c.putClipped(v.X+x, y, v.X+v.W, part{s, base.Foreground(th.muted).Background(th.surface)}) - v.X
 				}
-				if n := v.Notes[line]; i == len(starts)-1 && x >= 0 {
-					style := base.Foreground(th.faint)
-					if shade {
-						style = style.Background(th.cursorLine)
-					}
-					x = c.putClipped(v.X+x, y, v.X+v.W, part{n, style}) - v.X
+				if n := v.Notes[line]; i == len(starts)-1 && x >= 0 && n.Text != "" {
+					x = c.note(v, x, y, n, shade)
 				}
 				if shade && x < v.W {
 					c.s.FillArea(v.X+x, y, v.W-x, 1, ' ', base.Background(th.cursorLine))
@@ -757,4 +753,20 @@ func (c *client) ghost(g wire.Ghost, left, x, y, w int) int {
 		style = style.Foreground(th.err)
 	}
 	return c.putClipped(left+x, y, left+w, part{ghostText.Replace(g.Text), style}) - left
+}
+
+// note draws n after the end of a line of v, at column x of row y, and
+// returns the column after it. A diagnostic's shows after a gap, on its
+// severity's tint in its colour, as a label of its own. Any other is dim
+// (B61, B184).
+func (c *client) note(v wire.View, x, y int, n wire.Note, shade bool) int {
+	gap := base
+	if shade {
+		gap = gap.Background(th.cursorLine)
+	}
+	if style, ok := colours[n.Name+".note"]; ok {
+		x = c.putClipped(v.X+x, y, v.X+v.W, part{"  ", gap}) - v.X
+		return c.putClipped(v.X+x, y, v.X+v.W, part{" " + n.Text + " ", style}) - v.X
+	}
+	return c.putClipped(v.X+x, y, v.X+v.W, part{n.Text, gap.Foreground(th.faint)}) - v.X
 }

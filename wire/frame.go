@@ -57,35 +57,35 @@ type View struct {
 	Highlights        []syntax.Span // in paint order, later ones drawing over earlier ones
 	Decorations       []syntax.Span // plugins' styles, drawn over highlights
 	Ghosts            []Ghost
-	Matches           [][2]int       // of the search, shown in every window
-	Segments          []string       // plugins' statusline segments, in the order they loaded
-	Ruler             string         // the cursor's line and column, and where the view is (B38)
-	Branch            string         // the git branch of the buffer's repository, "" outside one (B147)
-	Errors, Warnings  int            // the buffer's diagnostics of each severity (B147)
-	Filetype          string         // the buffer's filetype, "" for none (B164)
-	Server            string         // the buffer's language servers, "" for none (B161, B169)
-	Progress          string         // what the server is doing, "" once it is ready (B161)
-	Gutter            int            // the columns the sign column and line numbers take on the left
-	SignCols          int            // the columns of the sign column, at the gutter's left
-	Signs             map[int]Sign   // by line, the sign each one shows (B119)
-	Notes             map[int]string // by line, dim text after its end (B127)
-	Icons             map[int]Sign   // by line, a listing's icon at the gutter's right (B128)
-	Number, Relative  bool           // show line numbers, and relative ones (B39)
-	Wrap              bool           // long lines go on the rows below
-	CursorLine        bool           // shade the cursor's line (B117)
-	Pair              []int          // the bracket at the cursor and its match, shown bold (B121)
-	List              bool           // show tabs, trailing spaces and no-break spaces (B118)
-	Left              int            // the first column shown without wrap
-	Indent            int            // the columns of an indent level, where guides go
-	Tab               int            // the columns a tab shows as
-	Guides            bool           // draw indent guides (B153)
-	ColorColumn       int            // the column of the text to shade, from 1, or 0 (B200)
-	Colours           []Colour       // text that names a colour, shown on it (B208, B209)
-	Labels            []Label        // a jump's labels, drawn over the text (B218)
-	Folds             map[int]int    // by the first line of each closed fold shown, the lines it hides (B224)
-	Tasks             []string       // the tasks running, on the current window's status line (B231)
-	Others            []Other        // the other sessions whose current window shows the buffer (B253)
-	Sharing           string         // on the current window, whether fude shares or the session is a guest (B269)
+	Matches           [][2]int     // of the search, shown in every window
+	Segments          []string     // plugins' statusline segments, in the order they loaded
+	Ruler             string       // the cursor's line and column, and where the view is (B38)
+	Branch            string       // the git branch of the buffer's repository, "" outside one (B147)
+	Errors, Warnings  int          // the buffer's diagnostics of each severity (B147)
+	Filetype          string       // the buffer's filetype, "" for none (B164)
+	Server            string       // the buffer's language servers, "" for none (B161, B169)
+	Progress          string       // what the server is doing, "" once it is ready (B161)
+	Gutter            int          // the columns the sign column and line numbers take on the left
+	SignCols          int          // the columns of the sign column, at the gutter's left
+	Signs             map[int]Sign // by line, the sign each one shows (B119)
+	Notes             map[int]Note // by line, text after its end (B127, B184)
+	Icons             map[int]Sign // by line, a listing's icon at the gutter's right (B128)
+	Number, Relative  bool         // show line numbers, and relative ones (B39)
+	Wrap              bool         // long lines go on the rows below
+	CursorLine        bool         // shade the cursor's line (B117)
+	Pair              []int        // the bracket at the cursor and its match, shown bold (B121)
+	List              bool         // show tabs, trailing spaces and no-break spaces (B118)
+	Left              int          // the first column shown without wrap
+	Indent            int          // the columns of an indent level, where guides go
+	Tab               int          // the columns a tab shows as
+	Guides            bool         // draw indent guides (B153)
+	ColorColumn       int          // the column of the text to shade, from 1, or 0 (B200)
+	Colours           []Colour     // text that names a colour, shown on it (B208, B209)
+	Labels            []Label      // a jump's labels, drawn over the text (B218)
+	Folds             map[int]int  // by the first line of each closed fold shown, the lines it hides (B224)
+	Tasks             []string     // the tasks running, on the current window's status line (B231)
+	Others            []Other      // the other sessions whose current window shows the buffer (B253)
+	Sharing           string       // on the current window, whether fude shares or the session is a guest (B269)
 	// Context is the start of each line pinned over the window's first rows,
 	// the functions and classes the text under them is in, with their
 	// highlights (B217).
@@ -104,6 +104,12 @@ type Ghost struct {
 	Text  string
 	Stale bool
 	Style string // how it shows: "" for a proposal's text, sub.new for :s's (B154) or inlay for an inlay hint (B216)
+}
+
+// Note is text after the end of a line. Name is its style, a diagnostic's
+// severity, and a note with none shows dim (B61, B127, B184).
+type Note struct {
+	Text, Name string
 }
 
 // Sign is a letter in the sign column and the style it takes its colour

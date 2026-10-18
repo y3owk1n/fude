@@ -42,10 +42,15 @@ func (e *Session) drawMenu() {
 	p := e.pick
 	var s strings.Builder
 	var spans []syntax.Span
-	width := 0
+	width, kinds := 0, 0
 	for _, it := range p.items {
-		width = max(width, utf8.RuneCountInString(it.Title))
+		width, kinds = max(width, utf8.RuneCountInString(it.Title)), max(kinds, utf8.RuneCountInString(it.Kind))
 	}
+	// A title too long for the windows ends in an ellipsis, so each row
+	// keeps to one line. The box's border and padding, the number and the
+	// kind take the rest of the room (B227).
+	_, room, _ := e.area()
+	width = max(min(width, room-4-3-2-kinds), 1)
 	for i, it := range p.items {
 		if i > 0 {
 			s.WriteByte('\n')
@@ -55,10 +60,14 @@ func (e *Session) drawMenu() {
 		if i < 9 {
 			num = strconv.Itoa(i + 1)
 		}
+		title := it.Title
+		if r := []rune(title); len(r) > width {
+			title = string(r[:width-1]) + "…"
+		}
 		spans = append(spans, syntax.Span{Start: s.Len(), End: s.Len() + len(num), Name: "comment"})
-		s.WriteString(num + "  " + it.Title)
+		s.WriteString(num + "  " + title)
 		if it.Kind != "" {
-			s.WriteString(strings.Repeat(" ", width-utf8.RuneCountInString(it.Title)+2))
+			s.WriteString(strings.Repeat(" ", width-utf8.RuneCountInString(title)+2))
 			spans = append(spans, syntax.Span{Start: s.Len(), End: s.Len() + len(it.Kind), Name: "comment"})
 			s.WriteString(it.Kind)
 		}
