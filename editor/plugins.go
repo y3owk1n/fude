@@ -1228,11 +1228,15 @@ func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 	s.History = func(string) []string { return nil }
 	servers := e.serverList()
 	s.Servers = func() []api.Server { return servers }
-	// The theme is the one :theme switched to, not config.toml's.
-	theme := e.theme
+	// The theme and center are as :theme and :center left them, not as
+	// config.toml set them.
+	theme, centered := e.theme, e.centered
 	s.Option = func(name string) (string, bool) {
-		if name == "theme" {
+		switch name {
+		case "theme":
 			return theme, true
+		case "center":
+			return strconv.FormatBool(centered), true
 		}
 		return option(opts, cfg, name)
 	}

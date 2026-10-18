@@ -92,20 +92,12 @@ func init() {
 		{vim.Command{Name: "quit", Short: []string{"q"}, Help: "closes the window, and quits with the last. ! drops changes"}, func(e *Session, x call) { e.quit(x.force) }, nil},
 		{vim.Command{Name: "quitall", Short: []string{"qa", "qall", "quita"}, Help: "quits. ! drops every change"}, func(e *Session, x call) { e.quitAll(x.force) }, nil},
 		{vim.Command{Name: "read", Short: []string{"r"}, Args: "{file} | !{cmd}", Help: "puts a file, or what cmd writes, below the line"}, func(e *Session, x call) { e.readIn(x.arg, x.last) }, completePath},
-		{vim.Command{Name: "center", Help: "centers the windows on a wide screen, as wide as the colour column, or stops"}, func(e *Session, _ call) { e.center() }, nil},
 		{vim.Command{Name: "restart", Help: "starts fude again on the same files, windows and unsaved changes, with config, plugins and servers loaded afresh"}, func(e *Session, _ call) { e.restart() }, nil},
 		{vim.Command{Name: "reject", Args: "[n]", Help: "drops proposal n, or the buffer's newest"}, func(e *Session, x call) {
 			e.decide(x.arg, false)
 		}, nil},
 		{vim.Command{Name: "set", Short: []string{"se"}, Args: "[name [value]]", Help: "sets an option to a value, as config.toml would, shows one, or lists them all"}, func(e *Session, x call) { e.set(x.arg) }, completeOption},
 		{vim.Command{Name: "share", Help: "shows a new share string, which lets one more guest join"}, func(e *Session, _ call) { e.reshare() }, nil},
-		{vim.Command{Name: "theme", Args: "[dark|light|{file}]", Help: "switches the theme of every client, or shows the one in use"}, func(e *Session, x call) {
-			if x.arg == "" {
-				e.message = e.theme
-			} else if err := e.setTheme(x.arg); err != nil {
-				e.message = err.Error()
-			}
-		}, completeTheme},
 		{vim.Command{Name: "update", Short: []string{"up"}, Help: "writes the buffer if it is modified"}, func(e *Session, x call) {
 			if e.win.buf.modified() {
 				e.write(e.win.buf, x.force, nil)
@@ -134,7 +126,6 @@ func init() {
 	}
 	plugs = []plug{
 		{"restart", "starts fude again on the same session", func(e *Session, _ int) { e.restart() }},
-		{"center", "centers the windows on a wide screen, or stops", func(e *Session, _ int) { e.center() }},
 		{"finder.open", "opens the selected match", func(e *Session, _ int) { e.finderAct("open") }},
 		{"finder.list", "lists every match as places, the last list", func(e *Session, _ int) { e.finderAct("list") }},
 		{"finder.next", "selects the next match", func(e *Session, _ int) { e.finderAct("next") }},

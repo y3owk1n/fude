@@ -43,6 +43,7 @@ and a program that embeds the editor does the same.
 | [`surround`](surround) | `ys`, `yss`, `ds`, `cs` and `S` in visual mode surround text |
 | [`window`](window) | `<Plug>(window.*)` move to the window that way, or to tmux's pane, and `:split`, `:vsplit`, `:new`, `:vnew`, `:only`, `:resize` and `:vertical resize` |
 | [`terminal`](terminal) | `:terminal` runs a command, or the shell, in a window below |
+| [`theme`](theme) | `:theme` switches the colours, and `:center` centers the windows |
 | [`timeline`](timeline) | `:timeline`, `:earlier`, `:later`, `:restore`, `:diff` and `:recover` |
 | [`task`](task) | `:task` and `:pick tasks` run a project's tasks in a terminal |
 

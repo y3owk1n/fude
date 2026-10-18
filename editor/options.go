@@ -248,10 +248,12 @@ func (e *Session) setSetting(name, value string, given bool) {
 	}
 	switch name {
 	case "theme":
+		// config.toml's theme stays, so :theme's <Tab> offers it to switch
+		// back to (B158).
 		if err := e.setTheme(value); err != nil {
 			e.message = err.Error()
-			return
 		}
+		return
 	case "leader":
 		e.moveLeader(e.cfg.Leader, value)
 	case "center":

@@ -693,7 +693,7 @@ Where fude departs, the line says so and cites the departure in
   `:resize` and `:vertical resize` take a size, or a change of it with `+`
   or `-`. Every other window keeps at least a row and its status line, or
   a column.
-- B199 [2] `:center` and `<Plug>(center)` toggle the windows centered
+- B199 [2] `:center` and `<Plug>(theme.center)` toggle the windows centered
   (N27). Centered, each window gets `color_column` columns of text, or
   100 without one, and its gutter. Windows side by side add up, with a
   separator between them, and a stack takes its widest window's columns.

@@ -32,6 +32,7 @@ import (
 	lspmod "github.com/y3owk1n/fude/modules/lsp"
 	sessionsmod "github.com/y3owk1n/fude/modules/sessions"
 	terminalmod "github.com/y3owk1n/fude/modules/terminal"
+	thememod "github.com/y3owk1n/fude/modules/theme"
 	timelinemod "github.com/y3owk1n/fude/modules/timeline"
 	windowmod "github.com/y3owk1n/fude/modules/window"
 	"github.com/y3owk1n/fude/syntax/syntaxtest"
@@ -234,6 +235,7 @@ func TestB199Center(t *testing.T) {
 	}
 	c := startWith(t, "center = true\n", path)
 	c.e.(*editor.Session).Use(windowmod.New())
+	c.e.(*editor.Session).Use(thememod.New())
 	// On the 120 columns of the mock terminal, 100 columns of text start at
 	// 10. With a colour column of 50 they start at 35, and stay there as
 	// line numbers of 4 columns come and a message shows. Two windows side
@@ -283,6 +285,7 @@ func TestB199Center(t *testing.T) {
 	t.Setenv(editor.RestartEnv, c.e.(*editor.Session).Restart())
 	c = startWith(t, "")
 	c.e.(*editor.Session).Use(windowmod.New())
+	c.e.(*editor.Session).Use(thememod.New())
 	c.draw()
 	if s, _, _ := c.s.Get(30, 0); s != "t" {
 		t.Errorf("after :restart the text starts with %q at column 30", s)
@@ -1127,6 +1130,7 @@ func TestB153IndentGuides(t *testing.T) {
 // B158
 func TestB158SwitchTheme(t *testing.T) {
 	cl := start(t)
+	cl.e.(*editor.Session).Use(thememod.New())
 	ground := func() color.Color {
 		cl.draw()
 		_, style, _ := cl.s.Get(0, 0)

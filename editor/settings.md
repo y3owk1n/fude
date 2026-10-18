@@ -64,7 +64,7 @@ language servers off, and fude says so when it opens one. The default is
 
 ## center
 
-Starts with the windows centered, as `:center` and `<Plug>(center)`
+Starts with the windows centered, as `:center` and `<Plug>(theme.center)`
 toggle them. On a wide screen, the windows then sit in its middle, with
 blank margins on either side, so the text is in front of you on a wide
 monitor. Each window gets `color_column` columns of text, or 100 without
