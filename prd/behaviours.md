@@ -186,9 +186,10 @@ Where fude departs, the line says so and cites the departure in
   line under the cursor. The screen shows no line numbers or guides, and
   the window gets its options back when it shows another buffer.
 - B226 [2] Quitting fude keeps the working directory's session: its
-  windows on files, each with its cursor, top line and options, and which
-  is current, kept across fude's runs in its state directory. A quit with
-  no window on a file keeps the last one. The start screen of fude
+  windows on files and listings, each with its cursor, top line and
+  options, and which is current, kept across fude's runs in its state
+  directory. A quit with no window on a file or listing keeps the last
+  one. The start screen of fude
   started in that directory then has an `s` line first, and `s` opens the
   session's files and builds its windows. A file that no longer opens is
   left out, and the message says why.

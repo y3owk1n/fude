@@ -19,6 +19,7 @@ const RestartEnv = "FUDE_RESTART"
 type saved struct {
 	Buffers  []savedBuffer
 	Layout   savedNode
+	Windows  bool `json:"-"` // Layout has a window on a file or listing
 	Current  int  // the current window, counted from the top left
 	Centered bool // :center is on (B199)
 }
@@ -29,10 +30,11 @@ type savedBuffer struct {
 	Head kernel.NodeID
 }
 
-// savedNode is a window, with its file, cursor, top line and options, or a
-// split of them.
+// savedNode is a window, with its file or listing's directory, cursor,
+// top line and options, or a split of them.
 type savedNode struct {
 	Path        string
+	Listing     bool // Path is a listing's directory (B226)
 	Cursor, Top int
 	Options     options
 	Across      bool
@@ -44,14 +46,20 @@ func restorable(b *buffer) bool {
 	return b.file.path != "" && b.title == "" && b.listed == ""
 }
 
-// save returns n's windows on files, or false when it has none.
+// save returns n's windows on files and listings, or false when it has
+// none.
 func (n *node) save() (savedNode, bool) {
 	if w := n.win; w != nil {
+		s := savedNode{Path: w.buf.listed, Listing: w.buf.listed != "", Cursor: w.pos(), Top: w.buf.text.Mark(w.top), Options: w.ownOptions()}
+		if s.Listing {
+			return s, true
+		}
 		abs, err := filepath.Abs(w.buf.file.path)
 		if !restorable(w.buf) || err != nil {
 			return savedNode{}, false
 		}
-		return savedNode{Path: abs, Cursor: w.pos(), Top: w.buf.text.Mark(w.top), Options: w.ownOptions()}, true
+		s.Path = abs
+		return s, true
 	}
 	s := savedNode{Across: n.across}
 	for _, k := range n.kids {
@@ -93,12 +101,12 @@ func (e *Session) session() saved {
 			s.Buffers = append(s.Buffers, savedBuffer{abs, b.text.Head()})
 		}
 	}
-	s.Layout, _ = e.root.save()
+	s.Layout, s.Windows = e.root.save()
 	for _, w := range e.root.windows() {
 		if w == e.win {
 			break
 		}
-		if restorable(w.buf) {
+		if restorable(w.buf) || w.buf.listed != "" {
 			s.Current++
 		}
 	}
@@ -175,11 +183,10 @@ func (e *Session) restoreLayout(s saved) {
 	var build func(sn savedNode) *node
 	build = func(sn savedNode) *node {
 		if sn.Kids == nil {
-			i := slices.IndexFunc(e.bufs, func(b *buffer) bool { return b.is(sn.Path) })
-			if i < 0 {
+			b := e.savedBuffer(sn)
+			if b == nil {
 				return nil
 			}
-			b := e.bufs[i]
 			t := b.text.Snapshot()
 			w := newWindow(b, min(sn.Cursor, t.Len()), min(sn.Top, t.Len()))
 			w.opts = sn.Options
@@ -212,4 +219,27 @@ func (e *Session) restoreLayout(s saved) {
 	// New windows start with the current one's options, as after :set.
 	e.opts = e.win.opts
 	e.layout()
+}
+
+// savedBuffer is the open buffer sn's window shows: its file's, or its
+// directory's listing, which it lists again when none is open (B226).
+func (e *Session) savedBuffer(sn savedNode) *buffer {
+	if !sn.Listing {
+		if i := slices.IndexFunc(e.bufs, func(b *buffer) bool { return b.is(sn.Path) }); i >= 0 {
+			return e.bufs[i]
+		}
+		return nil
+	}
+	if i := slices.IndexFunc(e.bufs, func(b *buffer) bool { return b.listed == sn.Path }); i >= 0 {
+		return e.bufs[i]
+	}
+	b, err := listingBuffer(e.next, sn.Path)
+	if err != nil {
+		e.message = err.Error()
+		return nil
+	}
+	e.next++
+	e.bufs = append(e.bufs, b)
+	e.emit("listing.read", "", b)
+	return b
 }

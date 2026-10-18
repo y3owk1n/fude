@@ -11,11 +11,12 @@ import (
 	"github.com/y3owk1n/fude/api"
 )
 
-// sessionJSON is the windows on files, their cursors and options, and
-// which is current, as JSON, or "" with no window on a file (B325).
+// sessionJSON is the windows on files and listings, their cursors and
+// options, and which is current, as JSON, or "" with no such window (B226,
+// B325).
 func (e *Session) sessionJSON() string {
 	s := e.session()
-	if len(s.Buffers) == 0 {
+	if !s.Windows {
 		return ""
 	}
 	data, err := json.Marshal(s)
