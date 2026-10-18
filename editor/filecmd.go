@@ -37,6 +37,11 @@ func (e *Session) revert(b *buffer) error {
 func (e *Session) reread(force bool) {
 	b := e.win.buf
 	switch {
+	case b.listed != "" && b.modified() && !force:
+		e.message = fmt.Sprintf("\"%s\" has unsaved changes, :e! drops them", b.title)
+	case b.listed != "":
+		// A listing reads its directory again (B124).
+		e.reload(b)
 	case b.file.path == "" || b.title != "":
 		e.message = "no file name"
 	case b.modified() && !force:
@@ -181,7 +186,7 @@ func modify(path string, m byte) (string, error) {
 // when the file changed on disk since fude read it.
 func (e *Session) write(b *buffer, force bool, then func()) {
 	if b.listed != "" {
-		e.save(b, then)
+		e.writeKind(b, then)
 		return
 	}
 	switch {

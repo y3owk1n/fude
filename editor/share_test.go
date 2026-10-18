@@ -12,6 +12,7 @@ import (
 	filesmod "github.com/y3owk1n/fude/modules/files"
 	"github.com/y3owk1n/fude/modules/format"
 	gitmod "github.com/y3owk1n/fude/modules/git"
+	listingmod "github.com/y3owk1n/fude/modules/listing"
 	shellmod "github.com/y3owk1n/fude/modules/shell"
 	"github.com/y3owk1n/fude/modules/task"
 )
@@ -170,6 +171,7 @@ func TestB245GuestProject(t *testing.T) {
 		}
 	}
 	e := open(t, "a.txt")
+	e.Use(listingmod.New())
 	e.Use(filesmod.New())
 	// A guest that joins while the host shows a file outside starts on one
 	// inside.

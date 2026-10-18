@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -233,7 +234,7 @@ func withLeader(keys, leader string) string {
 // kindKeys are fude's own keys of each kind of buffer, which
 // [keymap.<kind>] changes (B142).
 func kindKeys() map[string]map[string]string {
-	return map[string]map[string]string{"listing": listingKeys, "list": listKeys, "timeline": timelineKeys, "finder": finderKeys, "float": floatKeys, "lsp": nil, "help": helpKeys, "scratch": scratchKeys, "start": nil, "terminal": terminalKeys, "debug": nil}
+	return map[string]map[string]string{"listing": nil, "list": listKeys, "timeline": timelineKeys, "finder": finderKeys, "float": floatKeys, "lsp": nil, "help": helpKeys, "scratch": scratchKeys, "start": nil, "terminal": terminalKeys, "debug": nil}
 }
 
 // kinds returns the tables of km by kind of buffer. The finder's table maps
@@ -325,10 +326,13 @@ func (e *Session) rekey(was, now keymap) {
 		}
 		mapAll(m, mode, new, e.leader)
 	}
-	revert(e.vim, vim.Normal, was.Normal, now.Normal, defaultMaps)
+	revert(e.vim, vim.Normal, was.Normal, now.Normal, merged(defaultMaps, e.kindMaps[""]))
 	revert(e.vim, vim.Visual, was.Visual, now.Visual, map[string]string{"s": "<Plug>(jump.start)"})
 	revert(e.vim, vim.Insert, was.Insert, now.Insert, nil)
 	own, olds, news := kindKeys(), was.kinds(), now.kinds()
+	for kind, keys := range e.kindMaps {
+		own[kind] = merged(own[kind], keys)
+	}
 	for kind, m := range e.locals {
 		mode := vim.Normal
 		if kind == "finder" {
@@ -336,4 +340,14 @@ func (e *Session) rekey(was, now keymap) {
 		}
 		revert(m, mode, olds[kind], news[kind], own[kind])
 	}
+}
+
+// merged is fude's own keys with the modules' over them (B327).
+func merged(own, modules map[string]string) map[string]string {
+	out := maps.Clone(own)
+	if out == nil {
+		out = map[string]string{}
+	}
+	maps.Copy(out, modules)
+	return out
 }

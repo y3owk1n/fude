@@ -11,6 +11,7 @@ import (
 
 	"github.com/y3owk1n/fude/editor"
 	filesmod "github.com/y3owk1n/fude/modules/files"
+	listingmod "github.com/y3owk1n/fude/modules/listing"
 )
 
 // B27
@@ -400,6 +401,7 @@ x = "<Nop>"
 `)
 	t.Chdir(dir)
 	e := start(t, filepath.Join(dir, "a"))
+	e.Use(listingmod.New())
 	e.Use(filesmod.New())
 	e.SetSize(80, 24)
 	feed(e, ":vsplit<CR>-")

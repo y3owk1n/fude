@@ -189,9 +189,12 @@ func (b *buffer) name() string {
 
 // is reports whether the buffer holds the file at path.
 func (b *buffer) is(path string) bool {
+	y, err := filepath.Abs(path)
+	if b.listed != "" {
+		return err == nil && y == b.listed
+	}
 	x, err1 := filepath.Abs(b.file.path)
-	y, err2 := filepath.Abs(path)
-	return b.file.path != "" && err1 == nil && err2 == nil && x == y
+	return b.file.path != "" && err1 == nil && err == nil && x == y
 }
 
 // markSaved notes that the file on disk holds text, the buffer's text.

@@ -232,14 +232,8 @@ func init() {
 		}, nil},
 	}
 	plugs = []plug{
-		{"listing.open", "opens the entry under the cursor", func(e *Session, _ int) { e.listingAct("open") }},
-		{"listing.split", "opens the entry under the cursor in a window below", func(e *Session, _ int) { e.listingAct("split") }},
-		{"listing.vsplit", "opens the entry under the cursor in a window to the right", func(e *Session, _ int) { e.listingAct("vsplit") }},
-		{"listing.cwd", "makes the listing's directory the working directory", func(e *Session, _ int) { e.listingAct("cwd") }},
-		{"listing.reload", "reads the listing's directory again", func(e *Session, _ int) { e.listingAct("reload") }},
 		{"restart", "starts fude again on the same session", func(e *Session, _ int) { e.restart() }},
 		{"center", "centers the windows on a wide screen, or stops", func(e *Session, _ int) { e.center() }},
-		{"listing.up", "lists the directory of the file or listing, n levels up", func(e *Session, count int) { e.up(count) }},
 		{"timeline.earlier", "moves the text a state back", func(e *Session, _ int) { e.timelineAct("earlier") }},
 		{"timeline.later", "moves the text a state forward", func(e *Session, _ int) { e.timelineAct("later") }},
 		{"timeline.diff", "shows how the state under the cursor differs from now", func(e *Session, _ int) { e.timelineAct("diff") }},
@@ -394,7 +388,7 @@ func (e *Session) runPlug(name string) {
 
 // defaultMaps are the normal mode keys fude maps to its commands.
 var defaultMaps = map[string]string{
-	"-": "<Plug>(listing.up)", "ZR": "<Plug>(restart)",
+	"ZR": "<Plug>(restart)",
 	"]q": "<Plug>(list.next)", "[q": "<Plug>(list.prev)", "[Q": "<Plug>(list.first)", "]Q": "<Plug>(list.last)",
 	"s": "<Plug>(jump.start)",
 }

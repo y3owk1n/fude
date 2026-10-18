@@ -45,6 +45,8 @@ type Editor struct {
 	plugged        int                               // how many of setup come before the plugins' own
 	commands       map[string]func(*Session, call)   // ex commands plugins registered
 	sources        map[string]func(*Session, string) // :pick sources modules registered, by name (B287)
+	writers        map[string]writer                 // what writes each kind of buffer modules write, by kind (B327)
+	kindMaps       map[string]map[string]string      // the modules' keys of each kind of buffer, by kind (B327)
 	completers     map[string]func(*Session, string) // by command, what asks a module to complete its argument (B290)
 	decos          map[any][]decoration              // by owner: a plugin, or a buffer for its diagnostics
 	servers        map[string]*server                // by command and root
@@ -139,7 +141,7 @@ func open(cfg config, paths []string) (*Session, error) {
 	if len(paths) == 0 {
 		paths = []string{""}
 	}
-	ed := &Editor{next: 1, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(*Session, call){}, sources: map[string]func(*Session, string){}, completers: map[string]func(*Session, string){}, decos: map[any][]decoration{}, servers: map[string]*server{}, down: map[string]string{}, building: map[string]bool{}, failed: map[string]string{}, listeners: map[api.Module]*listener{}, segments: map[api.Module]map[*buffer]string{}, leftSegments: map[api.Module]map[*buffer]string{}}
+	ed := &Editor{next: 1, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(*Session, call){}, sources: map[string]func(*Session, string){}, writers: map[string]writer{}, kindMaps: map[string]map[string]string{}, completers: map[string]func(*Session, string){}, decos: map[any][]decoration{}, servers: map[string]*server{}, down: map[string]string{}, building: map[string]bool{}, failed: map[string]string{}, listeners: map[api.Module]*listener{}, segments: map[api.Module]map[*buffer]string{}, leftSegments: map[api.Module]map[*buffer]string{}}
 	// Without a config directory there are no overrides, and loadConfig
 	// reports why.
 	if dir, err := keep.Dir("XDG_CONFIG_HOME", ".config"); err == nil {

@@ -54,6 +54,13 @@ const (
 	// one's text, and none lets the key do what it does. A finder's query
 	// never calls it (B323).
 	Typed
+	// Write writes the buffers of the kind Name, such as listing, in place
+	// of a file, as :w does. It is called with (cursor), and its scope has
+	// Entries. Its result's Confirm asks first, and the call comes again with
+	// confirmed in About once the answer is yes. A message from that call
+	// says the write failed, and what was to run after it, such as :wq's
+	// quit, does not. A listing reads its directory again after (B327).
+	Write
 )
 
 // Registration is one thing a module's init registered: its name, what it
@@ -83,4 +90,8 @@ type Registration struct {
 	// for a mapping. With Visual it is a key of visual mode alone, as S is,
 	// and its call gets the selection (B322).
 	Chars int
+	// Keys are the keys a Plug is mapped to, in normal mode, or with In
+	// among the own keys of that kind of buffer, such as listing, which
+	// [keymap.<kind>] changes (B327).
+	Keys, In string
 }

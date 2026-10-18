@@ -307,11 +307,16 @@ func (e *Session) went() {
 	switch {
 	case g == nil:
 	case g.Path != "":
-		// A file shows in a window that shows a file, not in a panel's.
-		if e.win.buf.title != "" {
-			if i := slices.IndexFunc(e.root.windows(), func(w *window) bool { return w.buf.title == "" }); i >= 0 {
+		// A file shows in a window that shows a file or a listing, not in a
+		// panel's.
+		onFile := func(w *window) bool { return w.buf.title == "" || w.buf.listed != "" }
+		if !onFile(e.win) {
+			if i := slices.IndexFunc(e.root.windows(), onFile); i >= 0 {
 				e.win = e.root.windows()[i]
 			}
+		}
+		if g.Split != "" {
+			e.split(g.Split == "right")
 		}
 		// Moving to another buffer is a jump of its own.
 		if e.win.buf.is(g.Path) {
@@ -440,6 +445,9 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 		}
 	}
 	e.serverActions(res.Servers)
+	for _, m := range res.Moved {
+		e.moved(m[0], m[1])
+	}
 	if res.Restore != "" {
 		e.restoreFrom(res.Restore)
 	}
@@ -620,6 +628,8 @@ func (e *Session) unregister(p api.Module) {
 			e.pluginBindings = slices.DeleteFunc(e.pluginBindings, func(b vim.Binding) bool { return r.Chars > 0 && b.Keys == bindingKeys(r) })
 		case api.Typed:
 			e.pluginBindings = slices.DeleteFunc(e.pluginBindings, func(b vim.Binding) bool { return b.Kind == "insert" && b.Keys == r.Name })
+		case api.Write:
+			delete(e.writers, r.Name)
 		case api.Insert:
 			delete(e.pluginHelp, "<Plug>("+p.Name()+".insert."+r.Name+")")
 		}
@@ -639,6 +649,9 @@ func (e *Session) unregister(p api.Module) {
 				}
 				s.vim.Command(p.Name()+"."+r.Name, nil)
 			case api.Plug:
+				if r.Keys != "" {
+					s.kindKey(r.In, r.Keys, "")
+				}
 				s.vim.Command(p.Name()+"."+r.Name, nil)
 			case api.Typed:
 				s.vim.Keyed(vim.Insert, r.Name, 0, nil)
@@ -717,13 +730,16 @@ func (e *Session) register(p api.Module, r api.Registration) {
 		e.pluginBindings = append(e.pluginBindings, vim.Binding{Kind: "object", Keys: r.Name, Help: r.Help})
 		e.each(func(s *Session) {
 			s.vim.Object(r.Name, func(t vim.Text, start, end int) (int, int, bool) {
-				_, sel, ok := s.run(p, r.ID, s.scope(p, s.win.buf, t), start, end)
+				_, res, ok := s.run(p, r.ID, s.scope(p, s.win.buf, t), start, end)
+				sel := res.Selected
 				if !ok || sel == nil {
 					return 0, 0, false
 				}
 				return sel[0], sel[1], true
 			})
 		})
+	case api.Write:
+		e.writers[r.Name] = writer{p, r.ID}
 	case api.Key, api.Plug:
 		if r.Kind == api.Key && r.Chars > 0 {
 			e.pluginBindings = append(e.pluginBindings, vim.Binding{Kind: modes[keyedMode(r)], Keys: bindingKeys(r), Help: r.Help})
@@ -749,6 +765,9 @@ func (e *Session) register(p api.Module, r api.Registration) {
 				edits, _, _ := s.run(p, r.ID, s.scope(p, s.win.buf, t), args...)
 				return edits
 			})
+			if r.Kind == api.Plug && r.Keys != "" {
+				s.kindKey(r.In, r.Keys, "<Plug>("+name+")")
+			}
 			if r.Kind == api.Key && (!r.Attached || s.lspKeys) {
 				for _, mode := range keyModes(r) {
 					s.vim.Map(mode, withLeader(r.Name, s.leader), "<Plug>("+name+")")
@@ -848,6 +867,7 @@ func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 	s.Commands = func() []api.ExCommand { return nil }
 	s.HelpTags = func() []string { return nil }
 	s.Session = func() string { return "" }
+	s.Entries = func() []api.Entry { return nil }
 	servers := e.serverList()
 	s.Servers = func() []api.Server { return servers }
 	s.Option = func(name string) (string, bool) { return option(opts, cfg, name) }
@@ -914,16 +934,16 @@ func (e *Session) about(b *buffer) api.Context {
 // buffer, reading scope. It adds the decorations the call asks for, and
 // returns its edits, sorted, and what an object's call selected. A call that
 // fails unloads p, and calls into an unloaded module do nothing.
-func (e *Session) run(p api.Module, id uint32, scope api.Scope, args ...int) ([]vim.Edit, *[2]int, bool) {
+func (e *Session) run(p api.Module, id uint32, scope api.Scope, args ...int) ([]vim.Edit, api.Result, bool) {
 	defer scope.Done()
 	// A guest may not call a plugin granted process, net or fs.read (B246).
 	if w, ok := p.(*plugin.Plugin); ok && e.power != Host && slices.ContainsFunc(w.Capabilities, func(c string) bool { return c == "process" || c == "net" || c == "fs.read" }) {
 		e.message = "a guest may not use plugin " + p.Name()
-		return nil, nil, false
+		return nil, api.Result{}, false
 	}
 	if !slices.Contains(e.modules, p) {
 		e.message = fmt.Sprintf("plugin %s is unloaded", p.Name())
-		return nil, nil, false
+		return nil, api.Result{}, false
 	}
 	name := strconv.Itoa(int(id))
 	for _, r := range p.Registered() {
@@ -931,7 +951,7 @@ func (e *Session) run(p api.Module, id uint32, scope api.Scope, args ...int) ([]
 			name = r.Name
 			if r.Host && e.power != Host {
 				e.message = "a guest may not run " + name
-				return nil, nil, false
+				return nil, api.Result{}, false
 			}
 		}
 	}
@@ -943,10 +963,10 @@ func (e *Session) run(p api.Module, id uint32, scope api.Scope, args ...int) ([]
 	switch {
 	case errors.Is(err, api.ErrBusy):
 		e.message = err.Error()
-		return nil, nil, false
+		return nil, api.Result{}, false
 	case err != nil:
 		e.unload(p, err)
-		return nil, nil, false
+		return nil, api.Result{}, false
 	}
 	// A result that captures keys takes those typed next, and one without
 	// it lets them go (B316).
@@ -956,7 +976,7 @@ func (e *Session) run(p api.Module, id uint32, scope api.Scope, args ...int) ([]
 	case e.capture != nil && e.capture.p == p && e.capture.id == id:
 		e.capture = nil
 	}
-	return e.decorate(p, e.win.buf, res), res.Selected, true
+	return e.decorate(p, e.win.buf, res), res, true
 }
 
 // captured is the module call the keys typed next go to (B316).
@@ -1057,4 +1077,34 @@ func (e *Session) showPick(p api.Module, b *buffer, pk *api.Pick, save *saving) 
 		}
 	}
 	e.openFinder(f, pk.Query)
+}
+
+// kindKey maps keys to to, a module's plug, among the own keys of kind, or
+// in normal mode for kind "". With to "" it takes the module's mapping
+// away. A key config.toml maps there stays as config.toml has it (B327).
+func (s *Session) kindKey(kind, keys, to string) {
+	if s.kindMaps[kind] == nil {
+		s.kindMaps[kind] = map[string]string{}
+	}
+	if to == "" {
+		delete(s.kindMaps[kind], keys)
+	} else {
+		s.kindMaps[kind][keys] = to
+	}
+	var m mapper = s.vim
+	own := s.cfg.Keymap.Normal
+	if kind != "" {
+		if s.locals[kind] == nil {
+			s.locals[kind] = &vim.Keymaps{}
+		}
+		m, own = s.locals[kind], s.cfg.Keymap.kinds()[kind]
+	}
+	if _, ok := own[keys]; ok {
+		return
+	}
+	if to == "" {
+		m.Unmap(vim.Normal, withLeader(keys, s.leader))
+		return
+	}
+	m.Map(vim.Normal, withLeader(keys, s.leader), to)
 }

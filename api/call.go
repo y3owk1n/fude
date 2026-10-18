@@ -78,6 +78,8 @@ type Result struct {
 	Servers    []ServerAction // what to do to language servers, which only the host may ask (B317)
 	Keys       string         // keys to run once the call is done, as typed, such as f to run what a panel maps it to (B320)
 	Restore    string         // a session Scope.Session gave, whose files open and whose windows build again (B325)
+	Confirm    *Confirm       // a question a Write's call asks before it writes (B327)
+	Moved      [][2]string    // paths renamed, from and to, whose open buffers follow them (B327)
 	// Set holds options to set on the buffer the call is about, by their
 	// config.toml names: expand_tab, indent_width and tab_width. fude uses
 	// them in place of config.toml's until the buffer closes (B283).
@@ -226,6 +228,7 @@ type MenuItem struct {
 // Column, counted from 1, instead of Pos (B187, B291).
 type Jump struct {
 	Path         string
+	Split        string // below or right opens Path in a new window there (B327)
 	Pos          int
 	Line, Column int
 	Encoding     string // what Column counts in, utf-8 or utf-16, utf-8 by default
@@ -273,6 +276,23 @@ type Binding struct {
 // arguments it takes, in brackets when it may go without (B324).
 type ExCommand struct {
 	Name, Args, Help string
+}
+
+// Confirm is a yes or no question a Write's call asks. Paths are the
+// files and directories the write will change, which a guest may change
+// only under the project (B245, B327).
+type Confirm struct {
+	Question string
+	Paths    []string
+}
+
+// Entry is a name a listing showed when it was read, and where its line's
+// text is now. Text inserted at Start goes before the entry, and at End
+// after it, so lines added around it stay outside. An entry whose ends
+// met was deleted or changed (B327).
+type Entry struct {
+	Name       string
+	Start, End int
 }
 
 // Server is a language server config.toml sets, as :lsp shows it (B317).
@@ -350,6 +370,9 @@ type Scope struct {
 	Commands func() []ExCommand
 	// HelpTags returns what :h opens help at (B324).
 	HelpTags func() []string
+	// Entries returns the entries of the listing a Write's call writes
+	// (B327).
+	Entries func() []Entry
 	// Hints returns the keys that may follow the command being typed, for a
 	// module that hears keys.pending (B326).
 	Hints func() []Hint

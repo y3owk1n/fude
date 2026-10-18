@@ -1036,6 +1036,15 @@ Where fude departs, the line says so and cites the departure in
   window, such as a line in `diff.plus`, over what the filetype colours.
 - B277 [4] A plugin hears `editor.focused` when the terminal gets the
   focus back, as git's index may have changed while fude was away.
+- B327 [4] A module writes a kind of buffer in place of a file, as
+  `modules/listing` writes a listing. It reads where each entry the
+  buffer showed is now. Its write may ask a yes or no question first,
+  naming the paths it would change, which a guest may change only under
+  the project. What follows the write, such as `:wq`'s quit, runs once it
+  is done. The write may say which paths it renamed, and their open
+  buffers follow. A module's plug may come with its keys, in normal mode
+  or among a kind of buffer's own keys, which config.toml's mappings
+  override. A jump may open its file in a split.
 - B326 [4] A module hears `keys.pending` when the command being typed
   changes, with its keys, and reads the keys that may follow it, each with
   what it does or its group's name. It may show them as the key hints,

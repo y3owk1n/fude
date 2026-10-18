@@ -50,7 +50,7 @@ func refuses(name, arg string) bool {
 // refusedPlugs are the <Plug> commands a guest may not run, as refuses
 // says of ex commands (B244).
 var refusedPlugs = map[string]bool{
-	"restart": true, "listing.cwd": true,
+	"restart": true,
 }
 
 // inside says whether path, once symlinks resolve, is under project and

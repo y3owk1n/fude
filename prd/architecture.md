@@ -817,6 +817,14 @@ show no line numbers and always keep a sign column, as Neovim's directory
 ftplugin sets them. A directory already listed shows its buffer as it was
 left, and `<C-l>` reads it again.
 
+The editor reads a directory into a listing, as it reads a file into a
+buffer, and draws its notes and icons. What a listing does is
+`modules/listing`'s. Its plugs come with their keys as `Keys`, and the
+listing's own with `In` set to `listing`, under `[keymap.listing]`. An
+entry opens through a `Jump`, which may `Split` the window, and a listing
+counts as a window on a file there. `<C-l>` is `:e!`, which reads a
+listing's directory again (B327).
+
 `-` is mapped in normal mode to `<Plug>(listing.up)`, in place of the `-`
 motion, as Neovim does by default: it lists the directory holding the
 current file or listing with the cursor on what it came from, `N-` goes up
@@ -844,6 +852,15 @@ renames each entry to a temporary name and then to its new one, so two
 entries can swap names. Then it deletes, with what a directory holds, and
 creates. Open buffers of renamed files follow them, and fude reads the
 listing again (B125).
+
+`modules/listing` registers a `Write` for the kind `listing`, which the
+editor calls on the loop for `:w`. The call reads the entries' marks
+through `Scope.Entries` and returns a `Confirm` with the question and the
+paths it would change. The editor checks those paths for a guest (B245)
+and asks. On `y` it calls again with `confirmed` in `About`. The module
+changes the directory and returns the renames as `Moved`. The editor then
+reads the listing again and runs what follows the write, such as `:wq`'s
+quit (B327).
 
 A listing in a git repository shows each entry's git status as a sign,
 which `modules/git` puts there. A call about a listing names its

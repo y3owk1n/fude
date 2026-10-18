@@ -14,6 +14,7 @@ import (
 	"github.com/y3owk1n/fude/modules/autopairs"
 	filesmod "github.com/y3owk1n/fude/modules/files"
 	"github.com/y3owk1n/fude/modules/grep"
+	listingmod "github.com/y3owk1n/fude/modules/listing"
 	pickmod "github.com/y3owk1n/fude/modules/pick"
 	"github.com/y3owk1n/fude/syntax"
 )
@@ -129,6 +130,7 @@ func TestB202FinderQuery(t *testing.T) {
 // B271
 func TestB271Plug(t *testing.T) {
 	e := withKit(t)
+	e.Use(listingmod.New())
 	e.Use(pickmod.New())
 	e.SetSize(100, 30)
 	// A plugin's key runs with no key typed.

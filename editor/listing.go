@@ -1,14 +1,13 @@
 package editor
 
 import (
-	"errors"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 
+	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/vim"
 	"github.com/y3owk1n/fude/wire"
@@ -76,82 +75,6 @@ func (e *Session) openListing(dir, at string) {
 		if start := t.LineStart(line); at != "" && t.Slice(start, vim.LineEnd(t, start)) == at {
 			e.setCursor(start)
 		}
-	}
-}
-
-// up lists the directory holding the current file or listing, with the
-// cursor on what it came from. count goes up that many
-// levels, and 1 lists the working directory instead.
-func (e *Session) up(count int) {
-	from := e.win.buf.listed
-	if from == "" {
-		from = e.win.buf.file.path
-	}
-	if count == 1 || from == "" {
-		cwd, err := os.Getwd()
-		if err != nil {
-			e.message = err.Error()
-			return
-		}
-		e.openListing(cwd, "")
-		return
-	}
-	from, err := filepath.Abs(from)
-	if err != nil {
-		e.message = err.Error()
-		return
-	}
-	at, isListing := "", e.win.buf.listed != ""
-	for range max(count, 1) {
-		at = filepath.Base(from)
-		if isListing {
-			at += "/"
-		}
-		from, isListing = filepath.Dir(from), true
-	}
-	e.openListing(from, at)
-}
-
-// listingKeys are a listing's own keys: <CR> opens the
-// entry under the cursor, <C-s> and <C-h> open it in a split beside or
-// below, _ lists the working directory and <C-l> reads the listing again.
-// [keymap.listing] changes them (B142).
-var listingKeys = map[string]string{
-	"<CR>": "<Plug>(listing.open)", "<C-s>": "<Plug>(listing.vsplit)", "<C-h>": "<Plug>(listing.split)",
-	"_": "<Plug>(listing.cwd)", "<C-l>": "<Plug>(listing.reload)",
-}
-
-// listingAct runs act, a listing's action, on the entry under the cursor.
-func (e *Session) listingAct(act string) {
-	b := e.win.buf
-	if b.listed == "" {
-		e.message = "not in a listing"
-		return
-	}
-	t, c := b.text.Snapshot(), e.Cursor()
-	name := t.Slice(vim.LineStart(t, c), vim.LineEnd(t, c))
-	switch act {
-	case "open":
-		e.openEntry(b.listed, name)
-	case "split", "vsplit":
-		e.split(act == "vsplit")
-		e.openEntry(b.listed, name)
-	case "cwd":
-		e.up(1)
-	case "reload":
-		e.reload(b)
-	}
-}
-
-// openEntry opens the entry name of dir: a listing for a directory, the
-// file otherwise.
-func (e *Session) openEntry(dir, name string) {
-	switch {
-	case name == "":
-	case strings.HasSuffix(name, "/"):
-		e.openListing(filepath.Join(dir, name), "")
-	default:
-		e.edit(filepath.Join(dir, name))
 	}
 }
 
@@ -271,220 +194,6 @@ func (b *buffer) mark() {
 	}
 }
 
-// changes are what saving a listing does to its directory.
-type changes struct {
-	renames [][2]string // old and new names
-	deletes []string
-	creates []string // a trailing slash makes a directory
-}
-
-// plan reads the edits to b's listing as changes (B125). Each entry's line
-// is the one its marks are on. An entry whose marks met is gone, unless
-// they are still on one line no other entry has. A line no entry has is a
-// new entry. A name both gone and new is a line that moved, which changes
-// nothing.
-func (b *buffer) plan() (changes, error) {
-	t := b.text.Snapshot()
-	owner := map[int]string{} // line to the entry name on it
-	var met []entry
-	for _, en := range b.entries {
-		s, e := b.text.Mark(en.start), b.text.Mark(en.end)
-		if s >= e {
-			met = append(met, en)
-			continue
-		}
-		line := t.LineOf(s)
-		if _, ok := owner[line]; ok {
-			return changes{}, fmt.Errorf("%s and another entry are on one line", en.name)
-		}
-		owner[line] = en.name
-	}
-	var gone []string
-	for _, en := range met {
-		// cc leaves the marks met on one line, and the name there replaces
-		// the entry's. Lines inserted where dd left them spread them apart,
-		// and those lines are new.
-		line := t.LineOf(b.text.Mark(en.end))
-		if t.LineOf(b.text.Mark(en.start)) == line && owner[line] == "" {
-			owner[line] = en.name
-		} else {
-			gone = append(gone, en.name)
-		}
-	}
-	var c changes
-	var made []string
-	for line := range t.Lines() {
-		start := t.LineStart(line)
-		now := strings.TrimSpace(t.Slice(start, vim.LineEnd(t, start)))
-		was, ok := owner[line]
-		switch {
-		case !ok && now != "":
-			made = append(made, now)
-		case ok && now == "":
-			gone = append(gone, was)
-		case ok && now != was:
-			c.renames = append(c.renames, [2]string{was, now})
-		}
-	}
-	for _, name := range gone {
-		if i := slices.Index(made, name); i >= 0 {
-			made = slices.Delete(made, i, i+1)
-		} else {
-			c.deletes = append(c.deletes, name)
-		}
-	}
-	c.creates = made
-	return c, nil
-}
-
-// ask is the question that lists the changes. It counts the files in each
-// directory to delete.
-func (c changes) ask(dir string) string {
-	var parts []string
-	for _, r := range c.renames {
-		parts = append(parts, fmt.Sprintf("rename %s to %s", r[0], r[1]))
-	}
-	for _, name := range c.deletes {
-		part := "delete " + name
-		if strings.HasSuffix(name, "/") {
-			if n := files(filepath.Join(dir, name)); n > 0 {
-				part += fmt.Sprintf(" and its %d files", n)
-			}
-		}
-		parts = append(parts, part)
-	}
-	for _, name := range c.creates {
-		parts = append(parts, "create "+name)
-	}
-	return strings.Join(parts, ", ") + "? (y/n)"
-}
-
-// files counts the files below dir.
-func files(dir string) int {
-	n := 0
-	filepath.WalkDir(dir, func(_ string, d fs.DirEntry, err error) error {
-		if err == nil && !d.IsDir() {
-			n++
-		}
-		return nil
-	})
-	return n
-}
-
-// apply makes the changes in dir. Renames go through names of their own
-// first, so two entries can swap names.
-func (c changes) apply(dir string) error {
-	join := func(name string) string { return filepath.Join(dir, strings.TrimSuffix(name, "/")) }
-	// Nothing changes unless every new name is free, or one a rename frees.
-	freed := map[string]bool{}
-	names := slices.Clone(c.creates)
-	for _, r := range c.renames {
-		freed[r[0]] = true
-		names = append(names, r[1])
-	}
-	for _, name := range names {
-		if _, err := os.Lstat(join(name)); err == nil && !freed[name] {
-			return fmt.Errorf("%s exists", name)
-		}
-	}
-	// Renames go through a name of their own, so two can swap names. One
-	// that fails puts the names not yet moved back.
-	temp := func(i int) string { return join(c.renames[i][0]) + fmt.Sprintf(".fude-rename-%d", i) }
-	back := func(from, to int) error {
-		var errs []error
-		for j := from; j < to; j++ {
-			errs = append(errs, os.Rename(temp(j), join(c.renames[j][0])))
-		}
-		return errors.Join(errs...)
-	}
-	for i, r := range c.renames {
-		if err := os.Rename(join(r[0]), temp(i)); err != nil {
-			return errors.Join(fmt.Errorf("rename %s: %w", r[0], err), back(0, i))
-		}
-	}
-	for i, r := range c.renames {
-		to := join(r[1])
-		if err := os.MkdirAll(filepath.Dir(to), 0o755); err != nil {
-			return errors.Join(fmt.Errorf("rename %s: %w", r[0], err), back(i, len(c.renames)))
-		}
-		if err := os.Rename(temp(i), to); err != nil {
-			return errors.Join(fmt.Errorf("rename %s to %s: %w", r[0], r[1], err), back(i, len(c.renames)))
-		}
-	}
-	for _, name := range c.deletes {
-		if err := os.RemoveAll(join(name)); err != nil {
-			return fmt.Errorf("delete %s: %w", name, err)
-		}
-	}
-	for _, name := range c.creates {
-		path := join(name)
-		if strings.HasSuffix(name, "/") {
-			if err := os.MkdirAll(path, 0o755); err != nil {
-				return fmt.Errorf("create %s: %w", name, err)
-			}
-			continue
-		}
-		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-			return fmt.Errorf("create %s: %w", name, err)
-		}
-		f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
-		if err != nil {
-			return fmt.Errorf("create %s: %w", name, err)
-		}
-		if err := f.Close(); err != nil {
-			return fmt.Errorf("create %s: %w", name, err)
-		}
-	}
-	return nil
-}
-
-// save asks, then makes the edits to listing b in its directory. It moves
-// open buffers of renamed files, reads the listing again and runs then
-// (B125).
-func (e *Session) save(b *buffer, then func()) {
-	c, err := b.plan()
-	if err != nil {
-		e.message = err.Error()
-		return
-	}
-	names := slices.Concat(c.deletes, c.creates)
-	for _, r := range c.renames {
-		names = append(names, r[:]...)
-	}
-	for _, name := range names {
-		if err := e.outside(filepath.Join(b.listed, name)); err != nil {
-			e.message = err.Error()
-			return
-		}
-	}
-	if len(c.renames)+len(c.deletes)+len(c.creates) == 0 {
-		e.reload(b)
-		if then != nil {
-			then()
-		}
-		return
-	}
-	e.message = c.ask(b.listed)
-	e.ask = func(yes bool) {
-		if !yes {
-			e.message = ""
-			return
-		}
-		err := c.apply(b.listed)
-		for _, r := range c.renames {
-			e.moved(filepath.Join(b.listed, r[0]), filepath.Join(b.listed, r[1]))
-		}
-		e.reload(b)
-		if err != nil {
-			e.message = err.Error()
-			return
-		}
-		if then != nil {
-			then()
-		}
-	}
-}
-
 // moved points the buffers of files at or below from to where they are
 // now, below to.
 func (e *Session) moved(from, to string) {
@@ -497,4 +206,79 @@ func (e *Session) moved(from, to string) {
 			b.file.path = filepath.Join(to, rel)
 		}
 	}
+}
+
+// writer is what a module registered to write a kind of buffer (B327).
+type writer struct {
+	p  api.Module
+	id uint32
+}
+
+// writeKind has the module that writes b's kind write it, asking first
+// when it asks to, then reads a listing again and runs then. A guest's
+// write changes nothing outside the project (B245, B327).
+func (e *Session) writeKind(b *buffer, then func()) {
+	w, ok := e.writers[b.kind()]
+	if !ok {
+		e.message = "nothing writes a " + b.kind()
+		return
+	}
+	call := func(confirmed bool) (api.Result, bool) {
+		scope := e.scope(w.p, b, b.text.Snapshot())
+		scope.Entries = func() []api.Entry { return b.entryList() }
+		if confirmed {
+			scope.About["confirmed"] = "true"
+		}
+		_, res, ok := e.run(w.p, w.id, scope, e.Cursor())
+		return res, ok
+	}
+	done := func(res api.Result) {
+		if b.listed != "" {
+			e.reload(b)
+		}
+		if res.Message != "" {
+			e.message = res.Message
+			return
+		}
+		if then != nil {
+			then()
+		}
+	}
+	res, ok := call(false)
+	switch {
+	case !ok:
+		return
+	case res.Message != "":
+		// The edits stay, for the user to fix.
+		e.message = res.Message
+		return
+	case res.Confirm == nil:
+		done(res)
+		return
+	}
+	for _, path := range res.Confirm.Paths {
+		if err := e.outside(path); err != nil {
+			e.message = err.Error()
+			return
+		}
+	}
+	e.message = res.Confirm.Question
+	e.ask = func(yes bool) {
+		if !yes {
+			e.message = ""
+			return
+		}
+		if res, ok := call(true); ok {
+			done(res)
+		}
+	}
+}
+
+// entryList is where b's entries are now (B327).
+func (b *buffer) entryList() []api.Entry {
+	out := make([]api.Entry, len(b.entries))
+	for i, en := range b.entries {
+		out[i] = api.Entry{Name: en.name, Start: b.text.Mark(en.start), End: b.text.Mark(en.end)}
+	}
+	return out
 }
