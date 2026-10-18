@@ -21,6 +21,7 @@ var reads = map[string]string{
 	"Comment": "buffer.read", "Object": "buffer.read", "Node": "buffer.read", "States": "buffer.read",
 	"StateText": "buffer.read", "Marks": "buffer.read", "Jumps": "buffer.read", "Changes": "buffer.read",
 	"Register": "buffer.read", "Entries": "buffer.read", "Selection": "buffer.read", "Cursors": "buffer.read",
+	"Registers": "buffer.read", "Search": "buffer.read", "History": "buffer.read", "Places": "ui", "Recording": "",
 	"Decorations": "ui", "Hints": "ui", "Window": "ui", "Messages": "ui", "Session": "ui",
 	"Servers": "lsp",
 }

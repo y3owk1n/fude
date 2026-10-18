@@ -357,6 +357,13 @@ type CompletionItem struct {
 	Snippet          bool
 }
 
+// RegisterText is what the register Name holds. Linewise text is whole
+// lines, and Block text is one line for each line of a block (B341).
+type RegisterText struct {
+	Name, Text      string
+	Linewise, Block bool
+}
+
 // Mark is a place in the buffer by its id, as :marks, :jumps and :changes
 // list them. Name is a mark's letter (B329).
 type Mark struct {
@@ -491,6 +498,18 @@ type Scope struct {
 	Marks, Jumps, Changes func() []Mark
 	Messages              func() []string
 	Register              func(name rune) (string, bool, error)
+	// Registers returns what every register holds but the clipboard's, which
+	// Register reads. Search returns the last search's pattern, "" before
+	// any, and whether it went forward. Recording returns the register a
+	// macro is recorded into, or "". History returns the lines entered with
+	// : or /, oldest first. Places returns the last list of places, which ]q
+	// steps through, and the item it last went to, -1 before the first, or
+	// false with none. Only a call has them (B341).
+	Registers func() []RegisterText
+	Search    func() (pattern string, forward bool)
+	Recording func() string
+	History   func(prompt string) []string
+	Places    func() (Places, int, bool)
 	// HelpAt returns help's text and the line, from 0, of the entry topic
 	// names, or of the start for "", or false when it names none. Only a
 	// call has it (B334).

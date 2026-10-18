@@ -1059,6 +1059,9 @@ Where fude departs, the line says so and cites the departure in
   buffer, its cursor, its top line and where it is on the screen, and
   what visual mode selects. Every call and event says where the cursor is
   in its buffer, the working directory and the project.
+- B341 [4] A module reads what every register holds, the last search and
+  its direction, the register a macro is recorded into, the lines entered
+  with `:` and `/`, and the last list of places and where `]q` is in it.
 - B337 [4] A module's decoration may show its sign in a listing's icon
   column while `icons` is on, instead of in the sign column. A listing's
   notes and icons are a module's decorations (B127, B128).

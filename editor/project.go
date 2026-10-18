@@ -134,4 +134,32 @@ func (e *Session) lists(scope *api.Scope) {
 	}
 	scope.Messages = func() []string { return slices.Clone(e.history) }
 	scope.Register = e.vim.Register
+	scope.Registers = func() []api.RegisterText {
+		regs := e.vim.Registers()
+		var out []api.RegisterText
+		for _, name := range slices.Sorted(maps.Keys(regs)) {
+			r := regs[name]
+			out = append(out, api.RegisterText{Name: string(name), Text: r.Text, Linewise: r.Linewise, Block: r.Block})
+		}
+		return out
+	}
+	scope.Search, scope.History = e.vim.Search, e.vim.History
+	scope.Recording = func() string {
+		if r := e.vim.Recording(); r != 0 {
+			return string(r)
+		}
+		return ""
+	}
+	scope.Places = func() (api.Places, int, bool) {
+		l := e.lastList
+		if l == nil {
+			return api.Places{}, 0, false
+		}
+		out := api.Places{Title: l.title, Lines: slices.Clone(l.lines)}
+		for _, sp := range l.spots {
+			out.Items = append(out.Items, fmt.Sprintf("%s:%d:%d:", sp.path, sp.pos.Line+1, sp.pos.Character+1))
+			out.Encoding = sp.enc // a list's places all count in one encoding
+		}
+		return out, l.at, true
+	}
 }

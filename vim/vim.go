@@ -263,6 +263,30 @@ func (m *Machine) Message() string { return m.msg }
 // Recording returns the register a macro is being recorded into, or 0.
 func (m *Machine) Recording() rune { return m.recording }
 
+// Saved is the text a register holds, and whether it is whole lines or one
+// line for each line of a block.
+type Saved struct {
+	Text            string
+	Linewise, Block bool
+}
+
+// Registers returns what every register holds, by name, but the
+// clipboard's, which Register reads.
+func (m *Machine) Registers() map[rune]Saved {
+	out := make(map[rune]Saved, len(m.regs))
+	for name, r := range m.regs {
+		out[name] = Saved{r.text, r.linewise, r.block}
+	}
+	return out
+}
+
+// Search returns the last search's pattern, "" before any, and whether it
+// went forward.
+func (m *Machine) Search() (string, bool) { return m.search.pattern, m.search.forward }
+
+// History returns the lines entered with prompt, : or /, oldest first.
+func (m *Machine) History(prompt string) []string { return slices.Clone(m.history[prompt]) }
+
 // Register returns the text in register name, or false when it is empty,
 // and the error reading the clipboard for "+ and "*.
 func (m *Machine) Register(name rune) (string, bool, error) {

@@ -487,6 +487,15 @@ func TestB340PluginReadsWindowsAndSelection(t *testing.T) {
 	}
 }
 
+// B341
+func TestB341PluginReadsTheMachine(t *testing.T) {
+	e := loaded(t, "full", "f", "abc\n", "buffer.read", "buffer.write")
+	feed(e, "\"ayiw/c<CR>qq:State<CR>q")
+	if want := "ctrue|\":abc,a:abc,|c|q|abc"; text(e) != want {
+		t.Errorf(":State typed %q, want %q", text(e), want)
+	}
+}
+
 // B182
 func TestB182PluginHearsTheCursor(t *testing.T) {
 	e := loaded(t, "watch", "f", "a\nb\nc\n", "ui")
@@ -618,8 +627,8 @@ func TestB275PluginReadsCommentSyntax(t *testing.T) {
 // B274
 func TestB274PluginReadsOptions(t *testing.T) {
 	e := loaded(t, "ctx", "f", "a\n", "buffer.write")
-	feed(e, ":Opt wrap<CR>:set wrap false<CR>:Opt wrap<CR>:Opt leader<CR>:Opt filetype<CR>")
-	if got := text(e); got != "none|<Space>|false|true|a" {
+	feed(e, ":Opt wrap<CR>:set wrap false<CR>:Opt wrap<CR>:Opt leader<CR>:Opt filetype<CR>:theme light<CR>:Opt theme<CR>")
+	if got := text(e); got != "light|none|<Space>|false|true|a" {
 		t.Errorf("the options typed %q", got)
 	}
 }

@@ -928,9 +928,21 @@ func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 	s.Messages = func() []string { return nil }
 	s.Register = func(rune) (string, bool, error) { return "", false, nil }
 	s.StateText = func(int, int) (string, bool) { return "", false }
+	s.Registers = func() []api.RegisterText { return nil }
+	s.Search = func() (string, bool) { return "", true }
+	s.Recording = func() string { return "" }
+	s.History = func(string) []string { return nil }
+	s.Places = func() (api.Places, int, bool) { return api.Places{}, 0, false }
 	servers := e.serverList()
 	s.Servers = func() []api.Server { return servers }
-	s.Option = func(name string) (string, bool) { return option(opts, cfg, name) }
+	// The theme is the one :theme switched to, not config.toml's.
+	theme := e.theme
+	s.Option = func(name string) (string, bool) {
+		if name == "theme" {
+			return theme, true
+		}
+		return option(opts, cfg, name)
+	}
 	s.Config = func(path string) (string, bool) { return configNode(cfg, path) }
 	if b.syntax != nil {
 		s.Node, s.Free = b.syntax.Nodes()
