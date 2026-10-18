@@ -81,12 +81,14 @@ A `Result` asks for any of these, and fude applies them together once the call r
 | `Close`, `Write` | the buffers to close, as `:bd` does, and to write, as `:w` does, by id |
 | `Windows` | what to do to windows by id: `close`, `only`, `focus`, `height` or `width` to a `Size`, or move the `cursor` or the `top` line to `Pos` |
 | `Scratch` | a new buffer with no file, holding text to edit, in the window or a split |
+| `Marks`, `Registers`, `Search` | marks to set, text to put in registers, and the pattern `n` finds |
+| `Ex` | command lines to run, without their colon, as typed |
 | `Pick` | a list to pick from, live or of places, or a question. With `Update` it fills the open list of its ID, as items read off the loop do. `<C-g>` in a list that is not live tells the callback `all` |
 | `Menu` | a numbered menu at the cursor, each item with what it does beside it, whose choice runs the callback |
 | `Timers`, `Jobs`, `Requests` | work whose callback runs later. A `Request` goes to the buffer's servers, or to the one it names. A `Stream` job is the module's own long work, whose callback runs for each line it emits |
 | `Log` | lines for fude's log |
 | `Selected` | the range an object's call selects |
-| `Set` | `expand_tab`, `indent_width` or `tab_width` on the buffer, over config.toml |
+| `Set` | `expand_tab`, `indent_width` or `tab_width` on the buffer, over config.toml, and any other option as `:set` sets it |
 | `Terminal` | a program in a terminal window below, which the status line names while it runs. With no `Name` it opens as `:terminal` does, focused and not named |
 | `Places` | the last list of places, which `]q` steps through, each `path:line:column:text`, or `line:column:text` in `File`, in a window with `Show`, with columns in `Encoding` |
 | `Apply` | a language server's workspace edit, applied with the editor's version checks |

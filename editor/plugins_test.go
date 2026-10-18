@@ -524,6 +524,20 @@ func TestB343PluginActsOnBuffersAndWindows(t *testing.T) {
 	}
 }
 
+// B344
+func TestB344PluginSetsTheMachine(t *testing.T) {
+	e := loaded(t, "full", "f", "aba\n", "buffer.read", "buffer.write", "ui", "keys")
+	feed(e, "l:Mach<CR>")
+	if text(e) != "zba" {
+		t.Fatalf(":Mach's :s left %q, want zba", text(e))
+	}
+	// n finds the search the plugin set, `b goes to its mark, and "rp puts
+	// its register.
+	if feed(e, "0n`b\"rp:Wrap<CR>"); text(e) != "false|zbhia" {
+		t.Errorf("after :Mach the keys left %q, want false|zbhia", text(e))
+	}
+}
+
 // B182
 func TestB182PluginHearsTheCursor(t *testing.T) {
 	e := loaded(t, "watch", "f", "a\nb\nc\n", "ui")

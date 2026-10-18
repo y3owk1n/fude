@@ -1213,7 +1213,9 @@ need more than their capability. A
 job's program must be in `programs` and a URL's host in `hosts`. A
 terminal runs through the shell, so the shell must be in `programs`. An
 image decoration's file must be in the project and its address on a
-declared host. A `Jump`'s path must be in the project. Each name in `Emit`
+declared host. A `Jump`'s path must be in the project. `Set` of an option
+that is not a buffer's own needs `keys`, as `Ex` does, because a plugin
+could set any setting with it, as typing `:set` does. Each name in `Emit`
 is the plugin's own event, which fude names after it. A plugin's stream job
 runs a program, since a plugin's calls take turns and its own code cannot
 run as a job (D51).

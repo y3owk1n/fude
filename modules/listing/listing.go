@@ -79,7 +79,7 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 		}
 		return api.Result{Jump: list(s, wd)}, nil
 	case reload:
-		return api.Result{Keys: ":e!<CR>"}, nil
+		return api.Result{Ex: []string{"e!"}}, nil
 	case write:
 		return save(s, dir), nil
 	}

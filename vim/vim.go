@@ -280,6 +280,25 @@ func (m *Machine) Registers() map[rune]Saved {
 	return out
 }
 
+// SetRegister puts s in register name, as a yank into it would. "+ and
+// "* are the host's clipboard.
+func (m *Machine) SetRegister(name rune, s Saved) error {
+	if name == '+' || name == '*' {
+		return m.h.SetClipboard(s.Text)
+	}
+	if m.regs == nil {
+		m.regs = map[rune]register{}
+	}
+	m.regs[unicode.ToLower(name)] = register{s.Text, s.Linewise, s.Block}
+	return nil
+}
+
+// SetSearch makes pattern the last search, which n finds, going forward or
+// back, and highlights its matches.
+func (m *Machine) SetSearch(pattern string, forward bool) {
+	m.search.pattern, m.search.forward, m.hl = pattern, forward, true
+}
+
 // Search returns the last search's pattern, "" before any, and whether it
 // went forward.
 func (m *Machine) Search() (string, bool) { return m.search.pattern, m.search.forward }

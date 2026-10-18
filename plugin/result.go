@@ -26,6 +26,7 @@ var needs = map[string]string{
 	"Places": "ui", "Complete": "ui", "Cmdline": "ui", "Confirm": "ui", "Moved": "ui",
 	"Completion": "ui", "Copy": "ui", "Window": "ui", "Tabs": "ui", "Follow": "ui", "Kick": "ui",
 	"Close": "ui", "Windows": "ui", "Scratch": "ui", "Write": "buffer.write",
+	"Marks": "ui", "Registers": "ui", "Search": "ui", "Ex": "keys",
 	"Emit": "", "Timers": "", "Set": "", "Log": "", "Selected": "",
 	"Jobs": "", "Terminal": "process", "Build": "process",
 	"Requests": "lsp", "Apply": "lsp", "Servers": "lsp",
@@ -83,6 +84,13 @@ func (p *Plugin) check(r *fude.Result) int32 {
 	for i := range v.NumField() {
 		name := v.Type().Field(i).Name
 		if c := needs[name]; c != "" && !v.Field(i).IsZero() && !p.allowed(c, name) {
+			return errDenied
+		}
+	}
+	// fude sets an option other than a buffer's own as a typed :set does,
+	// so it needs keys.
+	for name := range r.Set {
+		if name != "expand_tab" && name != "indent_width" && name != "tab_width" && !p.allowed("keys", "Set "+name) {
 			return errDenied
 		}
 	}

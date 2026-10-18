@@ -275,7 +275,7 @@ func (e *Session) pluginRequest(p api.Module, b *buffer, rq api.Request, save *s
 func (e *Session) setOptions(b *buffer, set map[string]string) {
 	for name, value := range set {
 		if name != "expand_tab" && name != "indent_width" && name != "tab_width" {
-			e.message = "no option named " + name + " to set"
+			e.set(name + " " + value)
 			continue
 		}
 		if b.set == nil {
@@ -379,6 +379,49 @@ func (e *Session) act(res api.Result) {
 	if s := res.Scratch; s != nil {
 		e.openScratch(*s)
 	}
+	for _, m := range res.Marks {
+		if err := e.setMark(m); err != nil {
+			e.message = err.Error()
+		}
+	}
+	for _, r := range res.Registers {
+		name := []rune(r.Name)
+		if len(name) != 1 {
+			e.message = "no register named " + r.Name
+			continue
+		}
+		if err := e.vim.SetRegister(name[0], vim.Saved{Text: r.Text, Linewise: r.Linewise, Block: r.Block}); err != nil {
+			e.message = err.Error()
+		}
+	}
+	if s := res.Search; s != nil {
+		e.vim.SetSearch(s.Pattern, s.Forward)
+	}
+	for _, line := range res.Ex {
+		if err := e.vim.Ex(line); err != nil {
+			e.message = err.Error()
+		}
+	}
+}
+
+// setMark sets the mark m names in its buffer (B344).
+func (e *Session) setMark(m api.Mark) error {
+	b, err := e.buffer(m.Buffer)
+	name := []rune(m.Name)
+	switch {
+	case err != nil:
+		return err
+	case len(name) != 1:
+		return fmt.Errorf("no mark named %q", m.Name)
+	case m.Pos < 0 || m.Pos > b.text.Snapshot().Len():
+		return fmt.Errorf("%d is outside buffer %d", m.Pos, b.id)
+	}
+	if id, ok := b.marks[name[0]]; ok {
+		b.text.MoveMark(id, m.Pos)
+	} else {
+		b.marks[name[0]] = b.text.SetMark(m.Pos, kernel.Right)
+	}
+	return nil
 }
 
 // windowAction does a to its window (B343).
@@ -608,7 +651,7 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 	if j := res.Jump; j != nil {
 		e.jumpTo = &jumpTo{b, *j}
 	}
-	if len(res.Close)+len(res.Write)+len(res.Windows) > 0 || res.Scratch != nil {
+	if len(res.Close)+len(res.Write)+len(res.Windows)+len(res.Marks)+len(res.Registers)+len(res.Ex) > 0 || res.Scratch != nil || res.Search != nil {
 		e.actions = append(e.actions, func() { e.act(res) })
 	}
 	if pk := res.Pick; pk != nil {

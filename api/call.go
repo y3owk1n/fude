@@ -99,9 +99,18 @@ type Result struct {
 	Write   []int
 	Windows []WindowAction
 	Scratch *Scratch
-	// Set holds options to set on the buffer the call is about, by their
-	// config.toml names: expand_tab, indent_width and tab_width. fude uses
-	// them in place of config.toml's until the buffer closes (B283).
+	// Marks sets each mark by its letter at its place, Registers puts the
+	// text in each register, and Search makes a pattern the last search,
+	// which n finds. Ex runs each command line, without its colon, as
+	// typed. fude runs them after Scratch, in that order (B344).
+	Marks     []Mark
+	Registers []RegisterText
+	Search    *Search
+	Ex        []string
+	// Set holds options to set, by their config.toml names. expand_tab,
+	// indent_width and tab_width are the buffer's the call is about, which
+	// fude uses in place of config.toml's until the buffer closes (B283).
+	// fude sets any other option as :set does (B344).
 	Set map[string]string
 }
 
@@ -267,6 +276,12 @@ type WindowAction struct {
 	ID        int
 	Do        string
 	Size, Pos int
+}
+
+// Search is a search's pattern, and whether n finds it forward (B344).
+type Search struct {
+	Pattern string
+	Forward bool
 }
 
 // Scratch is a new buffer with no file, holding Text and coloured as

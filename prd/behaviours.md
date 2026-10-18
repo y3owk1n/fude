@@ -1069,6 +1069,10 @@ Where fude departs, the line says so and cites the departure in
   split, closes and writes buffers, closes, focuses and resizes windows,
   moves a window's cursor and top line, and opens a buffer with no file
   holding text to edit. fude does these after it makes the call's edits.
+- B344 [4] A module's result sets marks, puts text in registers, makes a
+  pattern the last search, sets any option as `:set` does, and runs ex
+  command lines. A plugin needs `keys` for the command lines and for an
+  option that is not a buffer's own.
 - B337 [4] A module's decoration may show its sign in a listing's icon
   column while `icons` is on, instead of in the sign column. A listing's
   notes and icons are a module's decorations (B127, B128).

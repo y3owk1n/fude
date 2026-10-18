@@ -96,7 +96,7 @@ func (m *Module) Callback(_ context.Context, id uint32, s api.Scope) (api.Result
 	}
 	switch {
 	case id == help && i < len(m.tags):
-		return api.Result{Cmdline: "help " + m.tags[i], Keys: "<CR>"}, nil
+		return api.Result{Ex: []string{"help " + m.tags[i]}}, nil
 	case id == keymaps && i < len(m.keys):
 		k := m.keys[i]
 		typed, _, _ := strings.Cut(k.Keys, "{")

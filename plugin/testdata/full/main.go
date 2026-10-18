@@ -7,8 +7,9 @@
 // the last search typed and the macro being recorded. :Other types x at
 // the start of every other buffer. :Act split, close, write, scratch or
 // drop splits the window on the buffer, closes the window, writes the
-// buffer, opens a scratch buffer holding hi, or closes the buffer. Needs
-// keys, and buffer.read and buffer.write
+// buffer, opens a scratch buffer holding hi, or closes the buffer. :Mach
+// sets mark b at the cursor, register r to hi, the search to a and wrap
+// off, and runs :s/a/z/, and :Wrap types the wrap option. Needs keys, and buffer.read and buffer.write
 // for the others.
 package main
 
@@ -84,6 +85,22 @@ func init() {
 		if err := sdk.Do(r); err != nil {
 			sdk.Log(err.Error())
 		}
+	})
+	sdk.Command("Mach", "sets a mark, a register, the search and an option, and runs :s", func(c sdk.Call) {
+		err := sdk.Do(api.Result{
+			Marks:     []api.Mark{{Name: "b", Pos: c.Cursor}},
+			Registers: []api.RegisterText{{Name: "r", Text: "hi"}},
+			Search:    &api.Search{Pattern: "a", Forward: true},
+			Set:       map[string]string{"wrap": "false"},
+			Ex:        []string{"s/a/z/"},
+		})
+		if err != nil {
+			sdk.Log(err.Error())
+		}
+	})
+	sdk.Command("Wrap", "types the wrap option", func(sdk.Call) {
+		v, _ := sdk.Option("wrap")
+		sdk.Edit(0, 0, v+"|")
 	})
 	sdk.Command("Marked", "types the buffer's marks", func(c sdk.Call) {
 		var marks []api.Mark
