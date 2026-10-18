@@ -289,7 +289,8 @@ the innermost ones pin.
 
 After a line with a diagnostic, its message shows in the severity's colour.
 The default is on, and `:set diagnostic_notes false` turns the messages off
-in the window. The signs stay, and `]d` and `<C-w>d` still show each one.
+in every window of the buffer. The signs stay, and `]d` and `<C-w>d` still
+show each one.
 
 ## render
 

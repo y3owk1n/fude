@@ -510,10 +510,10 @@ func TestB61Diagnostics(t *testing.T) {
 	if n := e.Views()[0].Notes[1]; n != (wire.Note{Text: "bad word", Name: "diagnostic.error"}) {
 		t.Errorf("the line with errors has the note %+v", n)
 	}
-	if feed(e, ":set diagnostic_notes false<CR>"); len(e.Views()[0].Notes) != 0 {
-		t.Errorf("with diagnostic_notes off, the notes are %v", e.Views()[0].Notes)
-	}
+	feed(e, ":set diagnostic_notes false<CR>")
+	settle(t, e, func() bool { return len(e.Views()[0].Notes) == 0 })
 	feed(e, ":set diagnostic_notes true<CR>")
+	settle(t, e, func() bool { return len(e.Views()[0].Notes) == 1 })
 	for _, c := range []struct {
 		keys string
 		at   int

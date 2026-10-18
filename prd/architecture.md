@@ -542,10 +542,9 @@ It moves with edits like any mark, and goes when its owner unloads (B55).
 Clients render them and know nothing about where they came from. Virtual
 text and signs come with the behaviours that need them.
 
-Two styles draw as something other than a highlight. A decoration styled
-`inlay` draws its note at its start, among the text, as an inlay hint
-(B216). One styled `colour #rrggbb` draws its range on that colour (B208,
-B209). A module's decoration of either style draws the same way.
+A decoration marked `Insert` draws its note in its style at its start,
+among the text, as an inlay hint does (B216). One styled `colour
+#rrggbb` draws its range on that colour (B208, B209).
 
 A module's decoration marked `Replace`, or a plugin's from `replace`,
 draws its note in place of its range, which stays in the text (B295). The editor builds each window's

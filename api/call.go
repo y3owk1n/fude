@@ -14,6 +14,9 @@ type Decoration struct {
 	// which must be on one line, and an empty Note hides it. The cursor's
 	// line and a selection's show their text as it is (B295).
 	Replace bool
+	// Insert shows Note in Style among the text at Start, on the cursor's
+	// line too, as an inlay hint does (B216).
+	Insert bool
 	// Line shades the whole rows of the lines from Start's to End's in
 	// Style's ground, to the window's edge, under the text's colours (B296).
 	Line bool

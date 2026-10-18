@@ -109,7 +109,7 @@ func (m *Module) Callback(_ context.Context, id uint32, s api.Scope) (api.Result
 		}
 		m.ids++
 		at := lsp.Offset(s.Text, h.Position, s.About["encoding"])
-		res.Decorate = append(res.Decorate, api.Decoration{ID: m.ids, Start: at, End: at, Style: "inlay", Note: label})
+		res.Decorate = append(res.Decorate, api.Decoration{ID: m.ids, Start: at, End: at, Style: "inlay", Note: label, Insert: true})
 		m.shown[buf] = append(m.shown[buf], m.ids)
 	}
 	return res, nil

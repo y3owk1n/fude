@@ -94,10 +94,17 @@ func (m *Module) redraw(res *api.Result, s api.Scope, buf string) {
 		}
 	}
 	slices.SortStableFunc(all, func(x, y *diagnostic) int { return cmp.Compare(y.severity, x.severity) })
+	// With diagnostic_notes off, the messages do not show after their lines.
+	on, _ := s.Option("diagnostic_notes")
+	m.notes[buf] = on == "true"
 	for _, d := range all {
 		m.ids++
 		d.id = m.ids
-		res.Decorate = append(res.Decorate, api.Decoration{ID: d.id, Buffer: id, Start: d.start, End: d.end, Style: severities[d.severity], Sign: letters[d.severity], Note: d.message, Layer: 1})
+		note := d.message
+		if !m.notes[buf] {
+			note = ""
+		}
+		res.Decorate = append(res.Decorate, api.Decoration{ID: d.id, Buffer: id, Start: d.start, End: d.end, Style: severities[d.severity], Sign: letters[d.severity], Note: note, Layer: 1})
 	}
 	res.Emit = append(res.Emit, "diagnostics")
 }

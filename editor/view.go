@@ -108,7 +108,7 @@ func (e *Session) Views() []wire.View {
 		}
 		for _, p := range e.modules {
 			for _, d := range e.decos[p] {
-				if d.buf != w.buf || d.note == "" || d.inline() || !w.opts.DiagnosticNotes && strings.HasPrefix(d.style, "diagnostic.") {
+				if d.buf != w.buf || d.note == "" || d.inline() {
 					continue
 				}
 				if at := w.buf.text.Mark(d.start); at >= top && at <= last {
@@ -215,7 +215,7 @@ func (e *Session) Views() []wire.View {
 					}
 					continue
 				}
-				if d.style != "inlay" && !d.replace && !d.block && s < end && end > top && s < last {
+				if !d.insert && !d.replace && !d.block && s < end && end > top && s < last {
 					v.Decorations = append(v.Decorations, syntax.Span{Start: s, End: end, Name: d.style})
 				}
 			}

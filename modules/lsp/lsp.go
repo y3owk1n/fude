@@ -79,6 +79,7 @@ type Module struct {
 	renameAt map[string]int                     // by buffer, where grn was pressed
 	search   uint32                             // the newest workspace symbol search
 	diags    map[string]map[string][]diagnostic // by buffer, by server, its diagnostics
+	notes    map[string]bool                    // by buffer, diagnostic_notes was on when it last drew
 	ids      int                                // the last decoration id given
 	menu     []action                           // the code actions the menu shows
 	showing  bool                               // the menu is up
@@ -87,13 +88,13 @@ type Module struct {
 
 // New returns lsp.
 func New() *Module {
-	return &Module{renameAt: map[string]int{}, diags: map[string]map[string][]diagnostic{}}
+	return &Module{renameAt: map[string]int{}, diags: map[string]map[string][]diagnostic{}, notes: map[string]bool{}}
 }
 
 func (m *Module) Name() string { return "lsp" }
 
 func (m *Module) Subscribed() []string {
-	return []string{"lsp.published", "lsp.detached", "buffer.closed"}
+	return []string{"lsp.published", "lsp.detached", "buffer.closed", "view.moved"}
 }
 
 func (m *Module) Registered() []api.Registration {
@@ -192,6 +193,14 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 	case "buffer.closed":
 		delete(m.diags, s.About["buffer"])
 		delete(m.renameAt, s.About["buffer"])
+		delete(m.notes, s.About["buffer"])
+	case "view.moved":
+		// diagnostic_notes turned on or off.
+		if buf := s.About["buffer"]; m.diags[buf] != nil {
+			if on, _ := s.Option("diagnostic_notes"); m.notes[buf] != (on == "true") {
+				m.redraw(&res, s, buf)
+			}
+		}
 	}
 	return res, nil
 }

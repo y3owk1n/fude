@@ -73,9 +73,9 @@ func (e *Session) shown(w *window, start, end int) drawn {
 				}
 			case d.replace && (line < first || line > last) && s < en && t.LineOf(en) == line && s >= start && s <= end:
 				out.ghosts = append(out.ghosts, wire.Ghost{Pos: s, End: en, Text: d.note, Style: d.style})
-			case d.style == "inlay" && s >= start && s <= end:
-				out.ghosts = append(out.ghosts, wire.Ghost{Pos: s, Text: d.note, Style: "inlay"})
-			case !d.replace && d.style != "inlay" && len(d.lines) == 0 && d.image == "" && en >= start && en <= end:
+			case d.insert && s >= start && s <= end:
+				out.ghosts = append(out.ghosts, wire.Ghost{Pos: s, Text: d.note, Style: d.style})
+			case !d.replace && !d.insert && len(d.lines) == 0 && d.image == "" && en >= start && en <= end:
 				out.ghosts = append(out.ghosts, wire.Ghost{Pos: en, Text: d.note, Stale: d.style == "proposal.stale"})
 			}
 		}
