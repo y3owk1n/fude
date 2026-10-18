@@ -1076,6 +1076,11 @@ Where fude departs, the line says so and cites the departure in
 - B345 [4] A module's result defines styles by name, with a colour for
   the text and one for its ground, bold, italic, underline or strike, over
   the theme's styles. Its decorations and spans name them.
+- B346 [4] A module hears when a window opens, closes or becomes current,
+  with the window's id. It hears when the search, the selection, the theme
+  or the working directory changes, when a macro's recording ends, with
+  its register, and when a listing renames a buffer's file, with the old
+  path.
 - B337 [4] A module's decoration may show its sign in a listing's icon
   column while `icons` is on, instead of in the sign column. A listing's
   notes and icons are a module's decorations (B127, B128).

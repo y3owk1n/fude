@@ -10,11 +10,15 @@
 // buffer, opens a scratch buffer holding hi, or closes the buffer. :Mach
 // sets mark b at the cursor, register r to hi, the search to a and wrap
 // off, and runs :s/a/z/, and :Wrap types the wrap option. :Paint defines
-// the style full.hot and colours the first byte in it. Needs keys, and buffer.read and buffer.write
+// the style full.hot and colours the first byte in it. :Heard types the
+// names of the window, search, macro, selection and theme events it heard.
+// Needs keys, and buffer.read and buffer.write
 // for the others.
 package main
 
 import (
+	"maps"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -22,7 +26,16 @@ import (
 	"github.com/y3owk1n/fude/sdk"
 )
 
+// heard are the events the plugin heard, by name.
+var heard = map[string]bool{}
+
 func init() {
+	for _, name := range []string{"window.opened", "window.closed", "window.focused", "search.changed", "macro.recorded", "selection.changed", "theme.changed"} {
+		sdk.On(name, func(ev sdk.Event) { heard[ev.Name] = true })
+	}
+	sdk.Command("Heard", "types the events heard", func(sdk.Call) {
+		sdk.Edit(0, 0, strings.Join(slices.Sorted(maps.Keys(heard)), ",")+"|")
+	})
 	sdk.Register(api.Registration{Kind: api.Command, Name: "Whole", Help: "types x at the start of the line", Short: []string{"wh"}}, func(_, _, _ int) int {
 		if err := sdk.Do(api.Result{Keys: "0ix<Esc>"}); err != nil {
 			sdk.Log(err.Error())

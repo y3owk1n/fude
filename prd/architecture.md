@@ -596,8 +596,15 @@ as it quits, on the loop (B325),
 `listing.read` when a listing reads its directory, as it opens,
 reads it again or the terminal gets the focus back (B126), `buffer.saving`
 before a write, which waits for its handlers and
-their callbacks or `format_timeout` (B282), and a plugin's own events,
-named `plugin.event`, which it emits with `emit`.
+their callbacks or `format_timeout` (B282), `cwd.changed` after `:cd`,
+`buffer.renamed` with the old path after a listing renames a buffer's
+file, and a plugin's own events, named `plugin.event`, which it emits with
+`emit`. After each key and each module's result, the editor compares the
+windows, the current window, the search, the macro being recorded, the
+selection and the theme with what the modules last heard. It emits
+`window.opened`, `window.closed`, `window.focused`, `search.changed`,
+`macro.recorded`, `selection.changed` and `theme.changed` for what
+changed (B346).
 
 Each plugin that subscribes has its own goroutine and its own list of
 events to hear, and emitting only adds to that list, so it never blocks.

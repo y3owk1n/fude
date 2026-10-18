@@ -291,6 +291,7 @@ func (e *Session) setOptions(b *buffer, set map[string]string) {
 				}
 			}
 		}
+		e.emit("option.set", name, b)
 	}
 }
 
@@ -353,6 +354,62 @@ func (e *Session) went() {
 	for _, f := range actions {
 		f()
 	}
+	e.notice()
+}
+
+// noticed is what the modules last heard of the session's windows, the
+// search, the macro, the selection and the theme.
+type noticed struct {
+	started   bool
+	wins      map[int]*buffer // by id, each window's buffer
+	win       int
+	search    string
+	recording rune
+	selection string
+	theme     string
+}
+
+// notice tells the modules what changed of the windows, the search, the
+// macro being recorded, the selection and the theme (B346).
+func (e *Session) notice() {
+	n := &e.noticed
+	wins := map[int]*buffer{}
+	for _, w := range e.root.windows() {
+		wins[w.id] = w.buf
+	}
+	search, _ := e.vim.Search()
+	selection := ""
+	if s, ok := e.vim.Selection(); ok {
+		selection = fmt.Sprintf("%d %d", s.Start, s.End)
+	}
+	if n.started {
+		for _, id := range slices.Sorted(maps.Keys(wins)) {
+			if _, ok := n.wins[id]; !ok {
+				e.emit("window.opened", strconv.Itoa(id), wins[id])
+			}
+		}
+		for _, id := range slices.Sorted(maps.Keys(n.wins)) {
+			if _, ok := wins[id]; !ok {
+				e.emit("window.closed", strconv.Itoa(id), n.wins[id])
+			}
+		}
+		if e.win.id != n.win {
+			e.emit("window.focused", strconv.Itoa(e.win.id), e.win.buf)
+		}
+		if search != n.search {
+			e.emit("search.changed", search, e.win.buf)
+		}
+		if r := e.vim.Recording(); r == 0 && n.recording != 0 {
+			e.emit("macro.recorded", string(n.recording), e.win.buf)
+		}
+		if selection != n.selection {
+			e.emit("selection.changed", selection, e.win.buf)
+		}
+		if e.theme != n.theme {
+			e.emit("theme.changed", e.theme, e.win.buf)
+		}
+	}
+	*n = noticed{true, wins, e.win.id, search, e.vim.Recording(), selection, e.theme}
 }
 
 // act does what res asks of buffers, windows and the vim machine, once the

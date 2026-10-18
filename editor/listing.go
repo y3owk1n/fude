@@ -131,7 +131,9 @@ func (e *Session) moved(from, to string) {
 			continue
 		}
 		if rel, ok := under(from, abs); ok {
+			old := b.file.path
 			b.file.path = filepath.Join(to, rel)
+			e.emit("buffer.renamed", old, b)
 		}
 	}
 }

@@ -114,6 +114,7 @@ func (e *Session) cd(dir string) {
 		return
 	}
 	e.message = wd
+	e.emit("cwd.changed", wd, e.win.buf)
 }
 
 // takesPath reports whether c's argument is a file or a directory, which

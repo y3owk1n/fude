@@ -121,6 +121,7 @@ type Session struct {
 	toTerminal  bool                    // the client has yet to put clip on its terminal's clipboard
 	mode        vim.Mode                // the mode as plugins last heard it
 	seen        view                    // the current window as plugins last heard it
+	noticed     noticed                 // the windows and the rest as modules last heard of them (B346)
 	saves       map[*buffer]*saving     // the writes waiting for modules (B282)
 	inSave      *saving                 // the write the result being applied is for, or nil
 	depth       int                     // the undo groups the machine has open

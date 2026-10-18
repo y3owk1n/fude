@@ -538,6 +538,17 @@ func TestB344PluginSetsTheMachine(t *testing.T) {
 	}
 }
 
+// B346
+func TestB346PluginHearsWindowsAndTheMachine(t *testing.T) {
+	e := loaded(t, "full", "f", "abc\n", "buffer.write")
+	feed(e, "<C-w>v<C-w>w<C-w>c/a<CR>qqqvl<Esc>:theme light<CR>")
+	want := "macro.recorded,search.changed,selection.changed,theme.changed,window.closed,window.focused,window.opened|"
+	settle(t, e, func() bool {
+		feed(e, ":Heard<CR>")
+		return strings.HasPrefix(text(e), want)
+	})
+}
+
 // B182
 func TestB182PluginHearsTheCursor(t *testing.T) {
 	e := loaded(t, "watch", "f", "a\nb\nc\n", "ui")
