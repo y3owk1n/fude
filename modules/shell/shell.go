@@ -1,6 +1,6 @@
 // Package shell runs commands in the user's shell: :!cmd shows what one
 // writes, :{range}!cmd puts the range's lines through it, and :r !cmd puts
-// what it writes below the line (B156).
+// what it writes below the line, as :r file puts a file's text (B156).
 package shell
 
 import (
@@ -15,6 +15,12 @@ import (
 	"sync"
 
 	"github.com/y3owk1n/fude/api"
+)
+
+// What shell registers, by the ids Call runs them by.
+const (
+	shell uint32 = iota + 1
+	read
 )
 
 // Module is shell. It keeps what each command that runs is for.
@@ -41,28 +47,72 @@ func (m *Module) Name() string { return "shell" }
 func (m *Module) Subscribed() []string { return nil }
 
 func (m *Module) Registered() []api.Registration {
-	return []api.Registration{{Kind: api.Command, Name: "!", Help: "runs cmd in the shell, or with a range puts the lines through it", ID: 1, Host: true}}
+	return []api.Registration{
+		{Kind: api.Command, Name: "!", Help: "runs cmd in the shell, or with a range puts the lines through it", ID: shell, Host: true},
+		{Kind: api.Command, Name: "read", Short: []string{"r"}, Args: "{file} | !{cmd}", Paths: true, Help: "puts a file, or what cmd writes, below the line", ID: read},
+	}
 }
 
 func (m *Module) Init(context.Context, api.Scope) (api.Result, error) { return api.Result{}, nil }
 
-// Call starts the command typed after :!, off the loop. With a range it
-// reads those lines. With a bang, as :r !cmd runs it, what it writes goes
-// below the range's last line.
-func (m *Module) Call(_ context.Context, _ uint32, s api.Scope, _ ...int) (api.Result, error) {
+// Call runs :! or :r.
+func (m *Module) Call(_ context.Context, id uint32, s api.Scope, _ ...int) (api.Result, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if id == read {
+		return m.read(s), nil
+	}
+	return m.shell(s), nil
+}
+
+// read puts the text of the file :r names below the range's last line.
+// With !cmd it puts what the command writes there, as :! with a bang
+// does, which a guest may not run (B156, B244).
+func (m *Module) read(s api.Scope) api.Result {
+	arg := strings.TrimSpace(s.About["args"])
+	last, _ := strconv.Atoi(s.About["last"])
+	t := s.Text
+	switch cmd, run := strings.CutPrefix(arg, "!"); {
+	case arg == "":
+		return api.Result{Message: "no file name"}
+	case run && s.About["power"] != "host":
+		return api.Result{Message: "a guest may not run :!"}
+	case run:
+		s.About["args"], s.About["bang"] = cmd, "true"
+		s.About["first"] = strconv.Itoa(t.LineStart(t.LineOf(last)))
+		return m.shell(s)
+	}
+	text, err := os.ReadFile(arg)
+	if err != nil {
+		return api.Result{Message: err.Error()}
+	}
+	if out := strings.TrimSuffix(string(text), "\n"); out != "" {
+		at := lineEnd(t, last)
+		return api.Result{Edits: []api.Edit{{Start: at, End: at, Text: "\n" + out}}}
+	}
+	return api.Result{}
+}
+
+// lineEnd is where the line holding pos ends, before its line break.
+func lineEnd(t api.Text, pos int) int {
+	if l := t.LineOf(pos); l+1 < t.Lines() {
+		return t.LineStart(l+1) - 1
+	}
+	return t.Len()
+}
+
+// shell starts the command typed after :!, off the loop. With a range it
+// reads those lines. With a bang, as :r !cmd runs it, what it writes goes
+// below the range's last line.
+func (m *Module) shell(s api.Scope) api.Result {
 	cmd := strings.TrimSpace(s.About["args"])
 	if cmd == "" {
-		return api.Result{Message: "no command"}, nil
+		return api.Result{Message: "no command"}
 	}
 	t := s.Text
 	first, _ := strconv.Atoi(s.About["first"])
 	last, _ := strconv.Atoi(s.About["last"])
-	end := t.Len()
-	if l := t.LineOf(last); l+1 < t.Lines() {
-		end = t.LineStart(l+1) - 1
-	}
+	end := lineEnd(t, last)
 	r := run{buf: s.About["buffer"], cmd: cmd, start: first, end: end}
 	input := ""
 	switch {
@@ -74,7 +124,7 @@ func (m *Module) Call(_ context.Context, _ uint32, s api.Scope, _ ...int) (api.R
 	}
 	m.jobs++
 	m.runs[m.jobs] = r
-	return api.Result{Jobs: []api.Job{{ID: m.jobs, Argv: []string{cmd}, Input: input}}}, nil
+	return api.Result{Jobs: []api.Job{{ID: m.jobs, Argv: []string{cmd}, Input: input}}}
 }
 
 func (m *Module) Event(context.Context, string, api.Scope) (api.Result, error) {

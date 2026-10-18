@@ -186,6 +186,7 @@ func TestB245GuestProject(t *testing.T) {
 	e.Use(listsmod.New())
 	e.Use(listingmod.New())
 	e.Use(filesmod.New())
+	e.Use(shellmod.New())
 	// A guest that joins while the host shows a file outside starts on one
 	// inside.
 	feed(e, ":e "+out+"<CR>")

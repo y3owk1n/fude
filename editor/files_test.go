@@ -14,6 +14,7 @@ import (
 	"github.com/y3owk1n/fude/editor"
 	buffersmod "github.com/y3owk1n/fude/modules/buffers"
 	listingmod "github.com/y3owk1n/fude/modules/listing"
+	shellmod "github.com/y3owk1n/fude/modules/shell"
 	"github.com/y3owk1n/fude/vim"
 )
 
@@ -433,6 +434,7 @@ func TestB156Read(t *testing.T) {
 	change(t, filepath.Join(dir, "in.txt"), "read\n")
 	t.Chdir(dir)
 	e := open(t, "")
+	e.Use(shellmod.New())
 	feed(e, "ia<CR>b<Esc>")
 	// :r puts a file's text below the line.
 	if feed(e, "gg:r in.txt<CR>"); text(e) != "a\nread\nb" {

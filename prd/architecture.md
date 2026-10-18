@@ -824,8 +824,10 @@ with its ranges. `:r` reads files, so the editor runs it, and
 `modules/shell` registers `:!`. It runs the command in `$SHELL -c` as a
 job, with the range's lines on stdin when it has one, and keeps those
 lines' text. Its output replaces them only while they are as it read
-them. `:r !cmd` calls `:!` with a bang, which puts the output below the
-line (B156).
+them. `:r !cmd` runs `:!` with a bang, which puts the output below the
+line. `:r file` is `modules/shell`'s too. Its `Paths` makes the editor
+expand the file's name and refuse a guest's outside the project, and the
+module reads the file and puts its text below the line (B156).
 
 Every message reaches a client through `Message`, so `Message` puts each
 one into the session's history the first time it returns it. Code that

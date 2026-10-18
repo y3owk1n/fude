@@ -37,7 +37,7 @@ and a program that embeds the editor does the same.
 | [`recent`](recent) | keeps the files windows show, for `:pick recent` and the start screen |
 | [`session`](session) | keeps the working directory's session as fude quits, and restores it |
 | [`sessions`](sessions) | `:who`, `:kick` and `:follow` |
-| [`shell`](shell) | `:!`, `:{range}!` and `:r !` run a command in the shell |
+| [`shell`](shell) | `:!`, `:{range}!` and `:r !` run a command in the shell, and `:r file` puts a file's text below the line |
 | [`spell`](spell) | `spell`, `]s`, `[s`, `z=` and `zg` |
 | [`start`](start) | the start screen of fude started with no file |
 | [`surround`](surround) | `ys`, `yss`, `ds`, `cs` and `S` in visual mode surround text |
