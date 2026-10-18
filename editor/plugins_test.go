@@ -1016,6 +1016,56 @@ func TestB288PluginFolds(t *testing.T) {
 	}
 }
 
+// hider is a module that shows each "# " starting a line as "§" (B295).
+type hider struct{ idle }
+
+func (hider) Init(_ context.Context, s api.Scope) (api.Result, error) {
+	var res api.Result
+	for line := range s.Text.Lines() {
+		if p := s.Text.LineStart(line); s.Text.Slice(p, min(p+2, s.Text.Len())) == "# " {
+			res.Decorate = append(res.Decorate, api.Decoration{ID: line + 1, Start: p, End: p + 2, Style: "markup.heading", Note: "§", Replace: true})
+		}
+	}
+	return res, nil
+}
+
+// B295
+func TestB295Replace(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "f")
+	// At 10 columns the line of 15 x's draws on two rows either way, but
+	// they break at other places. Each line of 9 x's draws on one row, not
+	// two.
+	change(t, path, "# a\n# b\nab\n# "+strings.Repeat("x", 15)+"\n"+strings.Repeat("# "+strings.Repeat("x", 9)+"\n", 4))
+	e := start(t, path)
+	e.SetSize(10, 5)
+	e.Use(hider{})
+	heading := func(p int) wire.Ghost { return wire.Ghost{Pos: p, End: p + 2, Text: "§", Style: "markup.heading"} }
+	// The cursor's line shows its text as it is, and the others the
+	// replacement.
+	shows := func(p int) bool { return slices.Contains(e.Views()[0].Ghosts, heading(p)) }
+	settle(t, e, func() bool { return shows(4) })
+	if shows(0) {
+		t.Errorf("the cursor's line shows %v", e.Views()[0].Ghosts)
+	}
+	if feed(e, "j"); !shows(0) || shows(4) {
+		t.Errorf("with the cursor on the second line the ghosts are %v", e.Views()[0].Ghosts)
+	}
+	// A selection's lines show their text.
+	if feed(e, "ggVj"); shows(0) || shows(4) {
+		t.Errorf("with both lines selected the ghosts are %v", e.Views()[0].Ghosts)
+	}
+	// 2gj counts the rows of the line below as the window draws them, where
+	// its second row starts after the 9 x's beside §.
+	if feed(e, "<Esc>j2gj"); e.Cursor() != 11+2+9 {
+		t.Errorf("2gj went to %d, want the second drawn row's start", e.Cursor())
+	}
+	// The view scrolls by the rows the lines draw: the cursor's takes two,
+	// and each one above it takes one.
+	if feed(e, "G"); e.Text().LineOf(e.Views()[0].Top) != e.Text().LineOf(e.Cursor())-2 {
+		t.Errorf("at the last line the view starts at line %d", e.Text().LineOf(e.Views()[0].Top))
+	}
+}
+
 // B289
 func TestB289PluginReadsItsDecorations(t *testing.T) {
 	e := loaded(t, "ctx", "f", "a\n b\n c\nd\n", "buffer.read", "buffer.write", "ui")

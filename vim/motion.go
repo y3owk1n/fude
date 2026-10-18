@@ -670,81 +670,60 @@ func atColumn(t Text, start, col, tab int) int {
 // screenLine returns where n rows below the cursor, or above it when down
 // is false, the cursor goes on lines that wrap at the view's width, at the
 // cursor's column in its row, or false when there is no row to move to.
+// The rows are as the host shows them, inlines included (B295).
 func (m *Machine) screenLine(t Text, c, n int, down bool) (int, bool) {
 	tab := m.h.TabWidth()
 	_, _, cols := m.h.Viewport()
 	ls := LineStart(t, c)
-	rows := Rows(t, ls, cols, tab)
-	r := len(rows) - 1
-	for r > 0 && rows[r] > c {
+	rows := func(ls int) ([]int, []Inline) {
+		in := m.h.Shown(ls, LineEnd(t, ls))
+		return Rows(t, ls, cols, tab, in), in
+	}
+	starts, in := rows(ls)
+	r := len(starts) - 1
+	for r > 0 && starts[r] > c {
 		r--
 	}
-	at := column(t, ls, c, tab) - column(t, ls, rows[r], tab)
+	at := Column(t, ls, c, tab, in) - Column(t, ls, starts[r], tab, in)
 	// A count past the last row stops there, and no row to move to fails.
 moves:
 	for i := range n {
 		switch {
-		case down && r+1 < len(rows):
+		case down && r+1 < len(starts):
 			r++
 		case down && LineEnd(t, ls) < t.Len():
 			ls = LineEnd(t, ls) + 1
-			rows, r = Rows(t, ls, cols, tab), 0
+			starts, in = rows(ls)
+			r = 0
 		case !down && r > 0:
 			r--
 		case !down && ls > 0:
 			ls = LineStart(t, ls-1)
-			rows = Rows(t, ls, cols, tab)
-			r = len(rows) - 1
+			starts, in = rows(ls)
+			r = len(starts) - 1
 		case i == 0:
 			return 0, false
 		default:
 			break moves
 		}
 	}
-	// The cluster at the same column of the row, or the row's last.
+	// The place at the same column of the row, or the row's last.
 	end := LineEnd(t, ls)
-	if r+1 < len(rows) {
-		end = rows[r+1]
+	if r+1 < len(starts) {
+		end = starts[r+1]
 	}
-	p, x := rows[r], 0
-	base := column(t, ls, rows[r], tab)
-	for g := graphemes.FromString(t.Slice(rows[r], end)); g.Next(); {
-		p = rows[r] + g.Start()
-		if x += width(g.Value(), base+x, tab); x > at {
-			break
+	to, base := starts[r], Column(t, ls, starts[r], tab, in)
+	walk(t, ls, tab, in, func(p, x, w int) bool {
+		if p < starts[r] {
+			return true
 		}
-	}
-	return clamp(t, p), true
-}
-
-// Column returns the screen column of pos in the line at start, counting
-// from 0, with each tab running to the next multiple of tab columns.
-func Column(t Text, start, pos, tab int) int { return column(t, start, pos, tab) }
-
-// ColumnStart returns the first cluster on the line at start that begins
-// at or after screen column col, or the line's end.
-func ColumnStart(t Text, start, col, tab int) int { return colStart(t, start, col, tab) }
-
-// Rows returns where each screen row of the line at start begins when it
-// wraps at cols columns: start, then each cluster that does not fit on the
-// row before it. A tab is as wide as it is at its column in the line.
-func Rows(t Text, start, cols, tab int) []int {
-	rows := []int{start}
-	line := t.Slice(start, LineEnd(t, start))
-	// No cluster is wider than its bytes, and no tab wider than tab, so a
-	// line this short fits on one row.
-	if len(line)+(tab-1)*strings.Count(line, "\t") <= cols {
-		return rows
-	}
-	x, col := 0, 0
-	for g := graphemes.FromString(line); g.Next(); {
-		w := width(g.Value(), col, tab)
-		if x > 0 && x+w > cols {
-			rows, x = append(rows, start+g.Start()), 0
+		if p >= end && p > starts[r] {
+			return false
 		}
-		x, col = x+w, col+w
-	}
-	return rows
+		to = p
+		return x-base+w <= at
+	})
+	return clamp(t, to), true
 }
 
 func width(cluster string, col, tab int) int {

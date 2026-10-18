@@ -372,6 +372,7 @@ func (c *client) view(v wire.View, left int, sel vim.Selection, visual bool) (in
 			}
 		}
 	}
+	in := wire.Inlines(v.Ghosts)
 	row := 0
 	for row < v.H-1 {
 		end, line := vim.LineEnd(t, pos), t.LineOf(pos)
@@ -384,7 +385,7 @@ func (c *client) view(v wire.View, left int, sel vim.Selection, visual bool) (in
 		// A line wraps onto as many rows as it needs (B37).
 		starts := []int{pos}
 		if v.Wrap {
-			starts = vim.Rows(t, pos, v.W, v.Tab)
+			starts = vim.Rows(t, pos, v.W, v.Tab, in)
 		}
 		starts = starts[:min(len(starts), v.H-1-row)]
 		// The gutter draws in every frame, as relative numbers change with
@@ -431,7 +432,7 @@ func (c *client) view(v wire.View, left int, sel vim.Selection, visual bool) (in
 		}
 		for _, g := range v.Ghosts {
 			if g.Pos >= pos && g.Pos <= end {
-				k = k.int(4).int(g.Pos - pos).str(g.Text).str(g.Style).flag(g.Stale)
+				k = k.int(6).int(g.Pos - pos).int(g.End - pos).str(g.Text).str(g.Style).flag(g.Stale)
 			}
 		}
 		for _, l := range v.Labels {
@@ -466,16 +467,27 @@ func (c *client) view(v wire.View, left int, sel vim.Selection, visual bool) (in
 				// into the line, after blanks for a wide one cut by the edge.
 				x := 0
 				if !v.Wrap {
-					start = vim.ColumnStart(t, pos, v.Left, v.Tab)
-					col = vim.Column(t, pos, start, v.Tab)
-					x = col - v.Left
+					start = vim.ColumnStart(t, pos, v.Left, v.Tab, in)
+					col = vim.Column(t, pos, start, v.Tab, nil)
+					x = vim.Column(t, pos, start, v.Tab, in) - v.Left
 				}
 				for rest := t.Slice(start, stop); ; {
 					at := stop - len(rest)
+					// A ghost at a row's end draws at the next row's start, where
+					// vim.Rows puts it. At the line's end it draws after the text.
+					hidden := at
 					for _, g := range v.Ghosts {
-						if g.Pos == at {
+						if g.Pos == at && (rest != "" || stop == end) {
 							x = c.ghost(g, v.X, x, y, v.W)
+							hidden = max(hidden, min(g.End, stop))
 						}
+					}
+					if hidden > at {
+						// A replacement's text shows in place of the text it hides
+						// (B295).
+						col = vim.Column(t, pos, hidden, v.Tab, nil)
+						rest = t.Slice(hidden, stop)
+						continue
 					}
 					if v.Current && at == v.Cursor && (rest != "" || stop == end) {
 						cx, cy, found = v.X+min(x, v.W-1), y, true
@@ -687,7 +699,7 @@ func indentOf(t vim.Text, start, tab int) int {
 		end := vim.LineEnd(t, p)
 		text := t.Slice(p, end)
 		if rest := strings.TrimLeft(text, " \t"); rest != "" {
-			lead = vim.Column(t, p, p+len(text)-len(rest), tab)
+			lead = vim.Column(t, p, p+len(text)-len(rest), tab, nil)
 			break
 		}
 		if end == t.Len() {
@@ -750,10 +762,6 @@ func listChar(rest string, trailing bool) (string, bool) {
 	return "", false
 }
 
-// ghostText shows a line break and a tab in a proposal's text as one cell
-// each.
-var ghostText = strings.NewReplacer("\n", "⏎", "\t", " ")
-
 // ghost draws g's text from column x of a window at left that is w wide,
 // and returns the column after it.
 func (c *client) ghost(g wire.Ghost, left, x, y, w int) int {
@@ -764,7 +772,7 @@ func (c *client) ghost(g wire.Ghost, left, x, y, w int) int {
 	case g.Stale:
 		style = style.Foreground(th.err)
 	}
-	return c.putClipped(left+x, y, left+w, part{ghostText.Replace(g.Text), style}) - left
+	return c.putClipped(left+x, y, left+w, part{vim.InlineText(g.Text), style}) - left
 }
 
 // note draws n after the end of a line of v, at column x of row y, and

@@ -10,6 +10,10 @@ type Decoration struct {
 	Style      string
 	Sign, Note string // what shows on Start's line, in the sign column or after its end (B184)
 	Fold       bool   // a closed fold: the lines after Start's through End's hide behind the first and a count (B288)
+	// Replace shows Note in Style in place of the text from Start to End,
+	// which must be on one line, and an empty Note hides it. The cursor's
+	// line and a selection's show their text as it is (B295).
+	Replace bool
 	// Layer orders the signs on one line, and the highest shows. git's signs
 	// are at -1, most at 0, diagnostics at 1 and a breakpoint at 2 (B184,
 	// B262).

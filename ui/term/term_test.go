@@ -1,6 +1,7 @@
 package term
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -14,6 +15,7 @@ import (
 	"github.com/gdamore/tcell/v3"
 	"github.com/gdamore/tcell/v3/color"
 	"github.com/gdamore/tcell/v3/vt"
+	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/internal/relay"
 	colourmod "github.com/y3owk1n/fude/modules/colours"
@@ -373,6 +375,56 @@ func TestB208Colours(t *testing.T) {
 	c.draw()
 	if _, style, _ := c.s.Get(2, 0); style.GetBackground() != themes["dark"].bg {
 		t.Errorf("with highlight_colors off, #ff0000 is drawn on %v", style.GetBackground())
+	}
+}
+
+// heading is a module that shows "# " starting the second line as "§".
+type heading struct{}
+
+func (heading) Name() string                   { return "heading" }
+func (heading) Registered() []api.Registration { return nil }
+func (heading) Subscribed() []string           { return nil }
+func (heading) Init(_ context.Context, s api.Scope) (api.Result, error) {
+	p := s.Text.LineStart(1)
+	return api.Result{Decorate: []api.Decoration{{ID: 1, Start: p, End: p + 2, Style: "markup.heading", Note: "§", Replace: true}}}, nil
+}
+
+func (heading) Call(context.Context, uint32, api.Scope, ...int) (api.Result, error) {
+	return api.Result{}, nil
+}
+
+func (heading) Event(context.Context, string, api.Scope) (api.Result, error) {
+	return api.Result{}, nil
+}
+
+func (heading) Callback(context.Context, uint32, api.Scope) (api.Result, error) {
+	return api.Result{}, nil
+}
+
+func (heading) Work(context.Context, api.Job) (string, error) { return "", nil }
+func (heading) Close(context.Context) error                   { return nil }
+
+// B295, drawn
+func TestB295DrawReplace(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.md")
+	if err := os.WriteFile(path, []byte("a\n# "+strings.Repeat("x", 125)+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	c := startWith(t, "", path)
+	c.e.(*editor.Session).Use(heading{})
+	c.draw()
+	row := func(y int) string {
+		var b strings.Builder
+		for x := range 120 {
+			s, _, _ := c.s.Get(x, y)
+			b.WriteString(s)
+		}
+		return strings.TrimRight(b.String(), " ")
+	}
+	// § takes the place of "# ", and the line wraps where § and 119 x's
+	// fill the first row.
+	if first, second := row(1), row(2); first != "§"+strings.Repeat("x", 119) || second != strings.Repeat("x", 6) {
+		t.Errorf("the line draws as %q and %q", first, second)
 	}
 }
 

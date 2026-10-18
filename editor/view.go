@@ -70,6 +70,8 @@ func (e *Session) Views() []wire.View {
 			}
 		}
 		last := vim.LineEnd(t, lastStart)
+		ghosts := e.shown(w, top, last)
+		inlines := wire.Inlines(ghosts)
 		for _, f := range w.buf.folds {
 			first, end := w.fold(t, t.LineOf(w.buf.text.Mark(f.start)))
 			if s := t.LineStart(first); s >= top && s <= last {
@@ -106,7 +108,7 @@ func (e *Session) Views() []wire.View {
 		}
 		for _, p := range e.modules {
 			for _, d := range e.decos[p] {
-				if d.buf != w.buf || d.note == "" || !w.opts.DiagnosticNotes && strings.HasPrefix(d.style, "diagnostic.") {
+				if d.buf != w.buf || d.note == "" || d.inline() || !w.opts.DiagnosticNotes && strings.HasPrefix(d.style, "diagnostic.") {
 					continue
 				}
 				if at := w.buf.text.Mark(d.start); at >= top && at <= last {
@@ -126,7 +128,7 @@ func (e *Session) Views() []wire.View {
 			}
 		}
 		v.Pair = e.pair(w, t, top, last)
-		v.Ruler = ruler(t, w.pos(), top, max(w.h-1, 1), tab, func(p int) int { return w.rows(t, p, tab) })
+		v.Ruler = ruler(t, w.pos(), top, max(w.h-1, 1), tab, func(p int) int { return w.rows(t, p, tab, inlines) })
 		for _, p := range e.modules {
 			if s := e.segments[p][w.buf]; s != "" {
 				v.Segments = append(v.Segments, s)
@@ -193,20 +195,13 @@ func (e *Session) Views() []wire.View {
 					}
 					continue
 				}
-				if d.style == "inlay" {
-					if s >= top && s <= last {
-						v.Ghosts = append(v.Ghosts, wire.Ghost{Pos: s, Text: d.note, Style: "inlay"})
-					}
-					continue
-				}
-				if s < end && end > top && s < last {
+				if d.style != "inlay" && !d.replace && s < end && end > top && s < last {
 					v.Decorations = append(v.Decorations, syntax.Span{Start: s, End: end, Name: d.style})
-				}
-				if strings.HasPrefix(d.style, "proposal") && d.note != "" && end >= top && end <= last {
-					v.Ghosts = append(v.Ghosts, wire.Ghost{Pos: end, Text: d.note, Stale: d.style == "proposal.stale"})
 				}
 			}
 		}
+		v.Ghosts = append(v.Ghosts, ghosts...)
+		slices.SortStableFunc(v.Ghosts, func(a, b wire.Ghost) int { return cmp.Compare(a.Pos, b.Pos) })
 		out = append(out, v)
 	}
 	return out
@@ -310,7 +305,7 @@ func (e *Session) signs(b *buffer, top, last int) map[int]wire.Sign {
 // (B38).
 func ruler(t kernel.Snapshot, c, top, rows, tab int, rowsOf func(int) int) string {
 	line, ls := t.LineOf(c), vim.LineStart(t, c)
-	col, vcol := c-ls+1, vim.Column(t, ls, c, tab)+1
+	col, vcol := c-ls+1, vim.Column(t, ls, c, tab, nil)+1
 	if ls == vim.LineEnd(t, ls) {
 		col = 0
 	}

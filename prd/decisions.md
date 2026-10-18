@@ -841,6 +841,16 @@ then the key, which is what a terminal without the kitty protocol sends.
 So fude has no Alt keys to map. `]` and `[` already start fude's other pairs, such as
 `]h` and `]q`.
 
+### N38. Replacements show live, not by a conceal level
+
+A module's decoration may draw other text in place of its range (B295),
+and the cursor's line and a selection's always show their text. Neovim
+hides text with `conceal` and decides how much shows with `conceallevel`
+and `concealcursor`. Why: what you edit is always what you see, as
+Obsidian's live preview does, and one rule replaces four levels and a
+mode list. A window option to turn rendering off comes with the module
+that renders.
+
 ## Open
 
 None.

@@ -99,13 +99,24 @@ type View struct {
 	CellX, CellY int
 }
 
-// Ghost is a proposal's text, drawn before the byte at Pos but not in the
-// text (B71).
+// Ghost is text a window draws that the text does not hold, before the
+// byte at Pos: a proposal's, an inlay hint or a replacement (B71, B216,
+// B295).
 type Ghost struct {
 	Pos   int
+	End   int // past Pos, the text from Pos to End shows as Text in its place (B295)
 	Text  string
 	Stale bool
 	Style string // how it shows: "" for a proposal's text, sub.new for :s's (B154) or inlay for an inlay hint (B216)
+}
+
+// Inlines returns gs as the inlines the window's rows and columns count.
+func Inlines(gs []Ghost) []vim.Inline {
+	out := make([]vim.Inline, len(gs))
+	for i, g := range gs {
+		out[i] = vim.Inline{Start: g.Pos, End: max(g.End, g.Pos), Text: g.Text}
+	}
+	return out
 }
 
 // Note is text after the end of a line. Name is its style, a diagnostic's

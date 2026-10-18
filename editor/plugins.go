@@ -181,6 +181,13 @@ type decoration struct {
 	sign       string // a plugin's text for the sign column
 	layer      int    // orders its sign among a line's, the highest showing (B184)
 	fold       bool   // a closed fold over its lines (B288)
+	replace    bool   // note shows in place of its text (B295)
+}
+
+// inline reports whether d shows text in the line: an inlay hint, a
+// proposal's text or a replacement (B71, B216, B295).
+func (d decoration) inline() bool {
+	return d.replace || d.style == "inlay" || strings.HasPrefix(d.style, "proposal") && d.note != ""
 }
 
 // remove deletes the decoration's marks.
@@ -192,6 +199,9 @@ func (d decoration) remove() {
 	}
 	if d.sign != "" {
 		d.buf.signs--
+	}
+	if d.inline() {
+		d.buf.inlines--
 	}
 }
 
@@ -452,7 +462,7 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 		// A sign shows its first two characters, as the column is two wide.
 		sign := []rune(d.Sign)
 		sign = sign[:min(len(sign), 2)]
-		deco := decoration{id: d.ID, buf: on, style: d.Style, note: d.Note, sign: string(sign), layer: d.Layer, fold: d.Fold}
+		deco := decoration{id: d.ID, buf: on, style: d.Style, note: d.Note, sign: string(sign), layer: d.Layer, fold: d.Fold, replace: d.Replace}
 		// A fold's marks stay at their lines' starts through an insert there.
 		gravity := kernel.Right
 		if d.Fold {
@@ -465,6 +475,9 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 		}
 		if len(sign) > 0 {
 			on.signs++
+		}
+		if deco.inline() {
+			on.inlines++
 		}
 	}
 	for _, id := range res.Undecorate {

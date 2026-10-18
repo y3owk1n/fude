@@ -106,12 +106,12 @@ func (w *window) nextLine(t kernel.Snapshot, start int) (int, bool) {
 }
 
 // rows is how many rows the line at start takes in the window, with tabs
-// tab columns wide.
-func (w *window) rows(t kernel.Snapshot, start, tab int) int {
+// tab columns wide and the inlines in shown.
+func (w *window) rows(t kernel.Snapshot, start, tab int, in []vim.Inline) int {
 	if !w.opts.Wrap {
 		return 1
 	}
-	return len(vim.Rows(t, start, w.cols(), tab))
+	return len(vim.Rows(t, start, w.cols(), tab, in))
 }
 
 // show switches the window to b, at the place b was last left.

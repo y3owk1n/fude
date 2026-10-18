@@ -67,6 +67,7 @@ type buffer struct {
 	syntax  *syntax.Buffer       // nil without a grammar for the filetype
 	servers []*server            // the language servers attached to it, in its filetype's order
 	signs   int                  // plugins' signs on it, which show a sign column too
+	inlines int                  // decorations that show text in its lines
 	listed  string               // the directory a listing lists, "" for any other buffer
 	entries []entry              // a listing's names as it read them
 	noted   map[string]string    // a listing's note of each name it has shown

@@ -88,6 +88,9 @@ type Host interface {
 	// line, or line twice outside one. j and k pass over a closed fold as
 	// one line, and a linewise command takes all of it (B223).
 	Fold(line int) (first, last int)
+	// Shown returns the inlines the window shows on the text from start to
+	// end, which gj and gk count as the window draws them (B295).
+	Shown(start, end int) []Inline
 }
 
 // Defaults is the part of a Host a host may leave out by embedding it. It
@@ -109,6 +112,7 @@ func (Defaults) Change(int) bool            { return false }
 func (Defaults) IndentWidth() int           { return Tabstop }
 func (Defaults) TabWidth() int              { return Tabstop }
 func (Defaults) Fold(line int) (int, int)   { return line, line }
+func (Defaults) Shown(int, int) []Inline    { return nil }
 func (Defaults) Clipboard() (string, error) { return "", errNoClipboard }
 func (Defaults) SetClipboard(string) error  { return errNoClipboard }
 

@@ -37,7 +37,11 @@ func (e *Session) propose(b *buffer, pos int, keys, text string) error {
 		gravity = kernel.Right
 	}
 	e.proposed++
-	e.decos[e] = append(e.decos[e], decoration{id: e.proposed, buf: b, start: b.text.SetMark(ed.Start, kernel.Right), end: b.text.SetMark(ed.End, gravity), style: "proposal", note: ed.Text})
+	d := decoration{id: e.proposed, buf: b, start: b.text.SetMark(ed.Start, kernel.Right), end: b.text.SetMark(ed.End, gravity), style: "proposal", note: ed.Text}
+	e.decos[e] = append(e.decos[e], d)
+	if d.inline() {
+		b.inlines++
+	}
 	return nil
 }
 

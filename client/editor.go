@@ -248,3 +248,6 @@ func (h host) TabWidth() int { return cmp.Or(h.e.r.tab, vim.Tabstop) }
 
 // Fold reports no folds, as a client's replica keeps no view of its own.
 func (h host) Fold(line int) (int, int) { return line, line }
+
+// Shown reports no inlines, for the same reason.
+func (h host) Shown(int, int) []vim.Inline { return nil }

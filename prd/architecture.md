@@ -543,6 +543,16 @@ Two styles draw as something other than a highlight. A decoration styled
 (B216). One styled `colour #rrggbb` draws its range on that colour (B208,
 B209). A module's decoration of either style draws the same way.
 
+A module's decoration marked `Replace` draws its note in place of its
+range, which stays in the text (B295). The editor builds each window's
+list of what draws in its lines and is not text: inlay hints, proposals'
+text and replacements, leaving out replacements on the cursor's line and
+a selection's. That list is `View.Ghosts`. `vim.Rows`, `vim.Column` and
+`vim.ColumnStart` take it as `[]vim.Inline`, so the editor's wrap and
+scrolling, `gj` and `gk` through `Host.Shown`, and the client's drawing
+count the same columns. The text's own columns, for indents, tabs and
+block selections, leave it out.
+
 Marks live in a slice, which the kernel walks on every edit, and a deleted
 mark frees its slot for the next one. Syntax highlights are not marks. The
 syntax goroutine sends spans, and the frame moves them through the edits
