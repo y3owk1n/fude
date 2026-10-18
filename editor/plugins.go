@@ -913,7 +913,7 @@ func (e *Session) showPick(p api.Module, b *buffer, pk *api.Pick, save *saving) 
 		prompt = pk.Prompt + " "
 	}
 	// stale, so the first frame matches the items, which are all here.
-	f := &finder{paths: pk.Items, stale: true, prompt: prompt, title: pk.Title, hint: pk.Hint, places: pk.Places, enc: pk.Encoding, chose: answer, owner: p, pick: pk.ID}
+	f := &finder{paths: pk.Items, stale: true, prompt: prompt, title: pk.Title, hint: pk.Hint, places: pk.Places, asFiles: pk.Files, enc: pk.Encoding, chose: answer, owner: p, pick: pk.ID}
 	if pk.Live {
 		f.lookup = func(q string, found func([]string, error)) {
 			f.found = found

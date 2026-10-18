@@ -519,7 +519,8 @@ that into `buffer.changed` and emits the rest by name: `buffer.opened`,
 or the view, `mode.changed`, `syntax.updated` when a parse lands,
 `lsp.diagnostics`, `lsp.attached` once a server is ready for a buffer
 (B284), `editor.focused` when the terminal gets the focus back
-(B277), `listing.read` when a listing reads its directory, as it opens,
+(B277), `buffer.shown` when the current window shows another buffer
+(B314), `listing.read` when a listing reads its directory, as it opens,
 reads it again or the terminal gets the focus back (B126), `buffer.saving`
 before a write, which waits for its handlers and
 their callbacks or `format_timeout` (B282), and a plugin's own events,

@@ -156,3 +156,34 @@ func (r *Recent) Read() ([]string, error) {
 	}
 	return paths, nil
 }
+
+// RecentPath is where the recent files are kept (B213).
+func RecentPath() (string, error) {
+	dir, err := Dir("XDG_STATE_HOME", filepath.Join(".local", "state"))
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "fude", "recent"), nil
+}
+
+// Files returns the recent files that still exist, but current, newest
+// first: those under dir, relative to it, and the others (B213).
+func (r *Recent) Files(current, dir string) (here, elsewhere []string, err error) {
+	paths, err := r.Read()
+	if err != nil {
+		return nil, nil, err
+	}
+	cur, _ := filepath.Abs(current)
+	for _, p := range paths {
+		if _, err := os.Stat(p); err != nil || p == cur {
+			continue
+		}
+		rel, err := filepath.Rel(dir, p)
+		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			elsewhere = append(elsewhere, p)
+			continue
+		}
+		here = append(here, rel)
+	}
+	return here, elsewhere, nil
+}

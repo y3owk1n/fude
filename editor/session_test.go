@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	recentmod "github.com/y3owk1n/fude/modules/recent"
+
 	"github.com/y3owk1n/fude/editor"
 )
 
@@ -67,6 +69,7 @@ func TestB225StartScreen(t *testing.T) {
 	change(t, path, "a\n")
 	t.Chdir(dir)
 	e := start(t, "a.txt")
+	e.Use(recentmod.New())
 	e.SetSize(80, 24)
 	abs, err := filepath.Abs("a.txt")
 	if err != nil {

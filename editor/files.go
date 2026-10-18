@@ -32,10 +32,11 @@ import (
 // mode, with the files or lines that match it below, the best first (B129,
 // B134).
 type finder struct {
-	files  bool   // it finds the working directory's files by name
-	places bool   // its items are places, path:line:column:text, shown under their file
-	enc    string // the encoding of places' columns, "" for bytes
-	hint   string // what an empty query of a live search shows
+	files   bool   // it finds the working directory's files by name
+	places  bool   // its items are places, path:line:column:text, shown under their file
+	asFiles bool   // its items are file paths, shown and opened as the finder's files are
+	enc     string // the encoding of places' columns, "" for bytes
+	hint    string // what an empty query of a live search shows
 	// lookup asks for the query's items on the loop and passes them to
 	// found, for a search a language server answers.
 	lookup   func(q string, found func([]string, error))
@@ -195,7 +196,7 @@ func (f *finder) key(e *Session, k vim.Key) bool {
 		f.query, f.matches, f.sel = query, match(f.paths, query), 0
 	}
 	switch {
-	case f.list && (f.chose == nil || f.places):
+	case f.list && (f.chose == nil || f.places || f.asFiles):
 		e.closeFinder()
 		e.listMatches(f)
 	case f.open:
@@ -210,8 +211,9 @@ func (f *finder) key(e *Session, k vim.Key) bool {
 			}
 			f.chose(picked, item, query, true)
 		}
-		// A place opens as the finder's own do, after the module hears of it.
-		if (f.chose == nil || f.places) && f.sel < len(f.matches) {
+		// A place or file opens as the finder's own do, after the module hears
+		// of it.
+		if (f.chose == nil || f.places || f.asFiles) && f.sel < len(f.matches) {
 			path, line, col, _ := grepSpot(f.matches[f.sel])
 			if e.edit(path); line > 0 && e.win.buf.is(path) {
 				t := e.Text()
@@ -304,7 +306,7 @@ func (f *finder) float(query string, cursor, width, height int) wire.Float {
 	// A margin of two columns and a row keeps the box off the screen's edges.
 	total, h := min(162, width-4), min(22, height-2)
 	w, docW := total, 0
-	if total >= 60 && (f.chose == nil || f.places) {
+	if total >= 60 && (f.chose == nil || f.places || f.asFiles) {
 		w = total / 2
 		docW = total - w
 	}
@@ -373,7 +375,7 @@ func (f *finder) float(query string, cursor, width, height int) wire.Float {
 				spans = append(spans, syntax.Span{Start: s.Len() + at, End: s.Len() + at + 1, Name: "match"})
 			}
 			s.WriteString(text)
-		case f.chose != nil:
+		case f.chose != nil && !f.asFiles:
 			// An item of a list is text, not a path.
 			if r := []rune(m); len(r) > w-4 {
 				m = string(r[:max(w-4, 0)])

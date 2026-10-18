@@ -4,8 +4,6 @@ import (
 	"cmp"
 	"fmt"
 	"maps"
-	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 	"unicode/utf8"
@@ -14,7 +12,7 @@ import (
 )
 
 // pickSources are the sources :pick finds in, by name.
-var pickSources = []string{"files", "buffers", "recent", "help", "keymaps", "commands"}
+var pickSources = []string{"files", "buffers", "help", "keymaps", "commands"}
 
 // openPick opens the finder on the items of source, or on the sources
 // without one. grep takes the text after it as its query (B213).
@@ -49,18 +47,6 @@ func (e *Session) openPick(arg string) {
 			}
 		}
 		e.openFinder(&finder{paths: paths, stale: true, title: "buffers"}, "")
-	case "recent":
-		f, current := &finder{title: "recent files"}, e.win.buf.file.path
-		e.openFinder(f, "")
-		go func() {
-			here, elsewhere, err := recentFiles(current)
-			e.queue <- func() {
-				if err != nil {
-					e.message = err.Error()
-				}
-				f.paths, f.stale = append(here, elsewhere...), true
-			}
-		}()
 	default:
 		if src := e.sources[source]; src != nil {
 			src(e, strings.TrimSpace(rest))
@@ -73,32 +59,6 @@ func (e *Session) openPick(arg string) {
 // pickNames returns the sources of :pick, fude's then the modules' (B287).
 func (e *Session) pickNames() []string {
 	return append(slices.Clone(pickSources), slices.Sorted(maps.Keys(e.sources))...)
-}
-
-// recentFiles returns the recent files that still exist, but current,
-// newest first: those under the working directory, relative to it, and the
-// others (B213).
-func recentFiles(current string) (here, elsewhere []string, err error) {
-	paths, err := recent().Read()
-	if err != nil {
-		return nil, nil, err
-	}
-	wd, err := os.Getwd()
-	if err != nil {
-		return nil, nil, fmt.Errorf("recent files: %w", err)
-	}
-	cur, _ := filepath.Abs(current)
-	for _, p := range paths {
-		if _, err := os.Stat(p); err != nil || p == cur {
-			continue
-		}
-		if rel, ok := under(wd, p); ok {
-			here = append(here, rel)
-		} else {
-			elsewhere = append(elsewhere, p)
-		}
-	}
-	return here, elsewhere, nil
 }
 
 // pickCommands opens the finder on every ex command and :plug of each

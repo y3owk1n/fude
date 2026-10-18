@@ -57,7 +57,11 @@ func (e *Session) Welcome() {
 	go func() {
 		// The working directory's recent files, or the others when it has
 		// none.
-		paths, elsewhere, err := recentFiles("")
+		wd, err := os.Getwd()
+		var paths, elsewhere []string
+		if err == nil {
+			paths, elsewhere, err = recent().Files("", wd)
+		}
 		if len(paths) == 0 {
 			paths = elsewhere
 		}

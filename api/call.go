@@ -123,7 +123,10 @@ type Pick struct {
 	Title, Hint  string
 	Query        string
 	Live, Places bool
-	Encoding     string // what the places' columns count in, utf-8 by default
+	// Files makes the items file paths, which show, preview and open as
+	// :pick files's do. The owner still hears which was picked (B314).
+	Files    bool
+	Encoding string // what the places' columns count in, utf-8 by default
 }
 
 // Terminal is a program a call runs through the shell in a terminal window

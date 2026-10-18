@@ -100,6 +100,7 @@ type Session struct {
 	pick       *pick                   // the code actions shown to choose from
 	finder     *finder                 // the file finder, while it shows
 	jumping    *jump                   // the jump being typed after s (B218)
+	shownBuf   *buffer                 // the buffer the current window showed when the modules last heard (B314)
 	cmdline    cmdline                 // the completions of the command line being typed
 	searching  *[2]int                 // the top and cursor of the window a search is typed in, to put back (B21)
 	locals     map[string]*vim.Keymaps // the keymaps of kinds of buffer, by kind, over the machine's (B142)
@@ -565,6 +566,12 @@ func (e *Session) settle(err error) {
 		e.mode = m
 		e.emit("mode.changed", modes[m], e.win.buf)
 	}
+	// When the current window shows another buffer, the modules hear of it,
+	// as recent keeps the files shown (B213, B314).
+	if e.win.buf != e.shownBuf {
+		e.shownBuf = e.win.buf
+		e.emit("buffer.shown", "", e.win.buf)
+	}
 	if v := (view{e.win.buf, e.Cursor(), e.Top()}); v != e.seen {
 		e.seen = v
 		e.emit("view.moved", fmt.Sprintf("%d %d", v.cursor, v.top), v.buf)
@@ -907,7 +914,6 @@ func (e *Session) quitAll(force bool) {
 		s.closing = true
 		s.client.Close()
 	}
-	recent().Flush()
 	for _, s := range e.sessions {
 		s.done = true
 	}

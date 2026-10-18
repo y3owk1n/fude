@@ -180,51 +180,13 @@ func TestB213Pick(t *testing.T) {
 		f, _ := e.Float()
 		return slices.DeleteFunc(strings.Split(f.Text, "\n")[1:], func(l string) bool { return l == "" })
 	}
-	// recent waits for the recent files to name each of paths.
-	recent := func(paths ...string) {
-		settle(t, e, func() bool {
-			r, _ := os.ReadFile(filepath.Join(os.Getenv("XDG_STATE_HOME"), "fude", "recent"))
-			for _, p := range paths {
-				if abs, _ := filepath.Abs(p); !strings.Contains(string(r), abs) {
-					return false
-				}
-			}
-			return true
-		})
+	// Buffers lists the files but the current one, and <CR> opens the one
+	// picked.
+	feed(e, ":pick buffers<CR>")
+	settle(t, e, func() bool { return slices.Contains(rows(), "a.txt") && !slices.Contains(rows(), "b.txt") })
+	if feed(e, "a.txt<CR>"); e.Views()[0].Name != "a.txt" {
+		t.Fatalf("<CR> in :pick buffers opened %q", e.Views()[0].Name)
 	}
-	recent("a.txt", "b.txt")
-	// Buffers and recent files list the files but the current one, and
-	// <CR> opens the one picked.
-	for _, source := range []string{"buffers", "recent"} {
-		feed(e, ":pick "+source+"<CR>")
-		settle(t, e, func() bool { return slices.Contains(rows(), "a.txt") && !slices.Contains(rows(), "b.txt") })
-		if feed(e, "a.txt<CR>"); e.Views()[0].Name != "a.txt" {
-			t.Fatalf("<CR> in :pick %s opened %q", source, e.Views()[0].Name)
-		}
-		feed(e, ":e b.txt<CR>")
-	}
-	// A recent file outside the working directory comes after its own, even
-	// when it is newer.
-	out := filepath.Join(t.TempDir(), "o.txt")
-	change(t, out, "o\n")
-	feed(e, ":e "+out+"<CR>:e b.txt<CR>")
-	recent(out)
-	feed(e, ":pick recent<CR>")
-	settle(t, e, func() bool {
-		r := rows()
-		at := func(name string) int {
-			return slices.IndexFunc(r, func(l string) bool { return strings.HasPrefix(l, name) })
-		}
-		return at("a.txt") >= 0 && at("a.txt") < at("o.txt")
-	})
-	feed(e, "<Esc>")
-	// A name that starts with .. is still under the working directory.
-	change(t, filepath.Join(dir, "..dots"), "d\n")
-	feed(e, ":e ..dots<CR>:e b.txt<CR>")
-	recent("..dots")
-	feed(e, ":pick recent<CR>")
-	settle(t, e, func() bool { return slices.Contains(rows(), "..dots") })
-	feed(e, "<Esc>")
 	// Files and grep are sources too.
 	feed(e, ":pick grep b<CR>")
 	settle(t, e, func() bool { return slices.Contains(rows(), "b.txt") })

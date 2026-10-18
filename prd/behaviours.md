@@ -1036,6 +1036,10 @@ Where fude departs, the line says so and cites the departure in
   window, such as a line in `diff.plus`, over what the filetype colours.
 - B277 [4] A plugin hears `editor.focused` when the terminal gets the
   focus back, as git's index may have changed while fude was away.
+- B314 [4] A module hears `buffer.shown` when the current window shows
+  another buffer, as recent files keep what windows show (B213). A
+  module's list may be of file paths, which show, preview and open as
+  `:pick files`'s do.
 - B313 [4] A module hears `text.touched` when a key yanks, puts, undoes or
   redoes text, with what it did, `yank`, `put`, `undo` or `redo`, and
   where the text is, as flash shows it (B139).
