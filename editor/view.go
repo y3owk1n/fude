@@ -195,12 +195,20 @@ func (e *Session) Views() []wire.View {
 					}
 					continue
 				}
-				if d.line && end >= top && s <= last {
+				if d.line {
 					if v.Grounds == nil {
 						v.Grounds = map[int]string{}
 					}
-					for l := t.LineOf(max(s, top)); l <= t.LineOf(min(end, last)); l++ {
-						v.Grounds[l] = d.style
+					if end >= top && s <= last {
+						for l := t.LineOf(max(s, top)); l <= t.LineOf(min(end, last)); l++ {
+							v.Grounds[l] = d.style
+						}
+					}
+					// A pinned line keeps its ground (B217).
+					for _, p := range v.Context {
+						if l := t.LineOf(p); l >= t.LineOf(s) && l <= t.LineOf(end) {
+							v.Grounds[l] = d.style
+						}
 					}
 					continue
 				}
@@ -210,6 +218,10 @@ func (e *Session) Views() []wire.View {
 			}
 		}
 		v.Ghosts = append(v.Ghosts, ghosts...)
+		// A pinned line shows as it draws in the window (B217, B295).
+		for _, p := range v.Context {
+			v.Ghosts = append(v.Ghosts, e.shown(w, p, vim.LineEnd(t, p))...)
+		}
 		slices.SortStableFunc(v.Ghosts, func(a, b wire.Ghost) int { return cmp.Compare(a.Pos, b.Pos) })
 		out = append(out, v)
 	}

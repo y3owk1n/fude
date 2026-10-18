@@ -436,6 +436,40 @@ func (stopped) Init(_ context.Context, s api.Scope) (api.Result, error) {
 	return api.Result{Decorate: []api.Decoration{{ID: 1, Start: p, End: p + 1, Style: "debug.line", Line: true}}}, nil
 }
 
+// B217, B295: a pinned line shows its replacements.
+func TestB217PinnedReplace(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.go")
+	if err := os.WriteFile(path, []byte("package p\nfunc F() {\n"+strings.Repeat("\tx()\n", 100)+"}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	c := startWith(t, "", path)
+	c.e.(*editor.Session).Use(heading{})
+	// The client sizes the window as it draws, which zt needs first.
+	c.draw()
+	for _, k := range vim.Keys("60Gzt3j") {
+		c.e.Feed(k)
+	}
+	// The pinned line shows once the parse arrives through the loop.
+	for deadline := time.After(5 * time.Second); ; {
+		c.draw()
+		var row strings.Builder
+		for x := range 10 {
+			s, _, _ := c.s.Get(x, 0)
+			row.WriteString(s)
+		}
+		if row.String() == "§nc F() { " {
+			break
+		}
+		select {
+		case f := <-c.e.Queue():
+			f()
+		case <-time.After(10 * time.Millisecond):
+		case <-deadline:
+			t.Fatalf("the pinned row shows %q", row.String())
+		}
+	}
+}
+
 // B296
 func TestB296LineGround(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "a.txt")

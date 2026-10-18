@@ -482,11 +482,8 @@ func (c *client) view(v wire.View, left int, sel vim.Selection, visual bool) (in
 					// A ghost at a row's end draws at the next row's start, where
 					// vim.Rows puts it. At the line's end it draws after the text.
 					hidden := at
-					for _, g := range v.Ghosts {
-						if g.Pos == at && (rest != "" || stop == end) {
-							x = c.ghost(g, v.X, x, y, v.W)
-							hidden = max(hidden, min(g.End, stop))
-						}
+					if rest != "" || stop == end {
+						x, hidden = c.ghosts(v, at, stop, x, y, ground.GetBackground())
 					}
 					if hidden > at {
 						// A replacement's text shows in place of the text it hides
@@ -645,6 +642,9 @@ func (c *client) pin(v wire.View, numbers, cur int) {
 	for i, start := range v.Context {
 		y, end := v.Y+i, vim.LineEnd(t, start)
 		ground := base.Background(th.surface)
+		if name, ok := v.Grounds[t.LineOf(start)]; ok {
+			ground = base.Background(colours[name].GetBackground())
+		}
 		c.s.FillArea(numbers, y, v.Gutter+v.W, 1, ' ', ground)
 		if v.Number || v.Relative {
 			line := t.LineOf(start)
@@ -657,10 +657,20 @@ func (c *client) pin(v wire.View, numbers, cur int) {
 		}
 		styles := paint(nil, v.ContextHighlights, start, end)
 		x, col := 0, 0
-		for rest := t.Slice(start, end); rest != "" && x < v.W; {
+		for rest := t.Slice(start, end); x < v.W; {
+			at := end - len(rest)
+			var hidden int
+			if x, hidden = c.ghosts(v, at, end, x, y, ground.GetBackground()); hidden > at {
+				col = vim.Column(t, start, hidden, v.Tab, nil)
+				rest = t.Slice(hidden, end)
+				continue
+			}
+			if rest == "" {
+				break
+			}
 			style := styles[len(styles)-len(rest)]
 			if style.GetBackground() == base.GetBackground() {
-				style = style.Background(th.surface)
+				style = style.Background(ground.GetBackground())
 			}
 			if rest[0] == '\t' {
 				w := v.Tab - col%v.Tab
@@ -774,15 +784,33 @@ func listChar(rest string, trailing bool) (string, bool) {
 	return "", false
 }
 
+// ghosts draws v's ghosts at position at, from column x of row y, on bg.
+// It returns the column after them and the end of the text they hide, at
+// least at and at most to.
+func (c *client) ghosts(v wire.View, at, to, x, y int, bg color.Color) (int, int) {
+	hidden := at
+	for _, g := range v.Ghosts {
+		if g.Pos == at {
+			x = c.ghost(g, v.X, x, y, v.W, bg)
+			hidden = max(hidden, min(g.End, to))
+		}
+	}
+	return x, hidden
+}
+
 // ghost draws g's text from column x of a window at left that is w wide,
-// and returns the column after it.
-func (c *client) ghost(g wire.Ghost, left, x, y, w int) int {
+// on bg where its style has no ground of its own, and returns the column
+// after it.
+func (c *client) ghost(g wire.Ghost, left, x, y, w int, bg color.Color) int {
 	style := base.Foreground(th.faint).Italic(true)
 	switch {
 	case g.Style != "":
 		style = colours[g.Style]
 	case g.Stale:
 		style = style.Foreground(th.err)
+	}
+	if style.GetBackground() == base.GetBackground() {
+		style = style.Background(bg)
 	}
 	return c.putClipped(left+x, y, left+w, part{vim.InlineText(g.Text), style}) - left
 }

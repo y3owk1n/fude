@@ -834,7 +834,9 @@ Where fude departs, the line says so and cites the departure in
   when the top is inside more than that, the innermost ones pin. Each has
   its number and highlights on the surface colour. The grammar's text objects say what a function or class
   is, and the first line left in view under the pinned ones decides which
-  pin. They never cover the cursor's line.
+  pin. They never cover the cursor's line. A pinned line shows as it
+  would in the window, with its replacements and its line's ground (B295,
+  B296), such as a rendered markdown heading.
 - B41 [3] A query file in the config `queries/` directory overrides the
   shipped one for that language. A query with a predicate fude does not
   know fails to load and names the file and line. `#lua-match?` with a
