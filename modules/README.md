@@ -32,6 +32,7 @@ and a program that embeds the editor does the same.
 | [`spell`](spell) | `spell`, `]s`, `[s`, `z=` and `zg` |
 | [`start`](start) | the start screen of fude started with no file |
 | [`surround`](surround) | `ys`, `yss`, `ds`, `cs` and `S` in visual mode surround text |
+| [`timeline`](timeline) | `:timeline`, `:earlier`, `:later`, `:restore`, `:diff` and `:recover` |
 | [`task`](task) | `:task` and `:pick tasks` run a project's tasks in a terminal |
 
 A module imports `api`, `protocol` and `internal`, never the editor, and

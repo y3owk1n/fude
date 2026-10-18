@@ -41,6 +41,7 @@ import (
 	startmod "github.com/y3owk1n/fude/modules/start"
 	"github.com/y3owk1n/fude/modules/surround"
 	"github.com/y3owk1n/fude/modules/task"
+	"github.com/y3owk1n/fude/modules/timeline"
 	"github.com/y3owk1n/fude/plugin"
 	"github.com/y3owk1n/fude/ui/term"
 )
@@ -180,7 +181,7 @@ func modules() []api.Module {
 	if dir, err := editor.ConfigDir(); err == nil {
 		words = filepath.Join(dir, "words.txt")
 	}
-	return []api.Module{autopairs.New(), blame.New(), colours.New(), comment.New(), debug.New(), editorconfig.New(), files.New(), flash.New(), fold.New(), format.New(), git.New(), grep.New(), hints.New(), inlay.New(), jump.New(), links.New(), listingmod.New(), lspmod.New(), markdown.New(), pickmod.New(), recent.New(), sessionmod.New(), shell.New(), spell.New(words), startmod.New(), surround.New(), task.New()}
+	return []api.Module{autopairs.New(), blame.New(), colours.New(), comment.New(), debug.New(), editorconfig.New(), files.New(), flash.New(), fold.New(), format.New(), git.New(), grep.New(), hints.New(), inlay.New(), jump.New(), links.New(), listingmod.New(), lspmod.New(), markdown.New(), pickmod.New(), recent.New(), sessionmod.New(), shell.New(), spell.New(words), startmod.New(), surround.New(), task.New(), timeline.New()}
 }
 
 // run prints a man page for --man, fude(1) or the one named after it,

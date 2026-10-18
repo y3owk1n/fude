@@ -43,7 +43,7 @@ func (e *Session) lineAt(sp spot) string {
 // showList opens a window of lines, each naming a spot, where <CR> jumps to the
 // spot on the cursor's line in another window.
 func (e *Session) showList(title string, lines []string, spots []spot) {
-	e.scratch(title, strings.Join(lines, "\n"), nil, nil)
+	e.scratch(title, strings.Join(lines, "\n"))
 	e.win.buf.spots = spots
 	e.lastList = &places{e.win.buf, title, lines, spots, -1}
 }

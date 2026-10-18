@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/y3owk1n/fude/modules/format"
+	timelinemod "github.com/y3owk1n/fude/modules/timeline"
 )
 
 // B30
@@ -25,71 +26,6 @@ func TestB30UndoRedoBranches(t *testing.T) {
 	run(t, cases)
 }
 
-// B31
-func TestB31Timeline(t *testing.T) {
-	e := open(t, filepath.Join(t.TempDir(), "f"))
-	feed(e, "ione<Esc>uitwo<Esc>:timeline<CR>")
-	lines := strings.Split(text(e), "\n")
-	if len(lines) != 3 || !strings.HasPrefix(lines[0], "  0") || !strings.HasPrefix(lines[1], "  1") ||
-		!strings.HasPrefix(lines[2], "* 2") || !strings.HasSuffix(lines[2], "(from 0)") {
-		t.Fatalf(":timeline listed %q", lines)
-	}
-	feed(e, ":q<CR>:restore 1<CR>")
-	if text(e) != "one" {
-		t.Fatalf(":restore 1 left %q, want one", text(e))
-	}
-	feed(e, ":timeline<CR>")
-	lines = strings.Split(text(e), "\n")
-	if len(lines) != 4 || !strings.HasPrefix(lines[3], "* 3") || !strings.HasSuffix(lines[3], "restore 1") {
-		t.Errorf("after :restore, :timeline listed %q, want a new state 3 and state 2 kept", lines)
-	}
-	// In a timeline window, :restore takes the state on the cursor's line.
-	feed(e, "3G:restore<CR>:q<CR>")
-	if text(e) != "two" {
-		t.Errorf(":restore on the line of state 2 left %q, want two", text(e))
-	}
-	// A command that stands for an operator, as x for dl, shows as typed.
-	feed(e, "x:timeline<CR>")
-	if lines = strings.Split(text(e), "\n"); !strings.HasSuffix(lines[len(lines)-1], " x") {
-		t.Errorf("after x, :timeline listed %q", lines)
-	}
-
-	// In the window, ] moves the text a state later, <CR> restores the
-	// state on top of the newest, and d diffs it against now.
-	path := filepath.Join(t.TempDir(), "g")
-	e = open(t, path)
-	source := func() string {
-		for _, v := range e.Views() {
-			if v.Name == path {
-				return v.Text.Slice(0, v.Text.Len())
-			}
-		}
-		return ""
-	}
-	feed(e, "ione<Esc>uitwo<Esc>:timeline<CR>]")
-	if source() != "one" {
-		t.Fatalf("] left %q, want state 1", source())
-	}
-	feed(e, "<CR>")
-	lines = strings.Split(text(e), "\n")
-	if source() != "one" || len(lines) != 4 || !strings.HasPrefix(lines[3], "* 3") {
-		t.Fatalf("<CR> left %q and listed %q, want state 1 restored as state 3", source(), lines)
-	}
-	feed(e, "ggd")
-	if want := "@@ -1 +1 @@\n-\n+one"; text(e) != want {
-		t.Errorf("d on state 0 showed %q, want %q", text(e), want)
-	}
-}
-
-// B32
-func TestB32Diff(t *testing.T) {
-	e := open(t, filepath.Join(t.TempDir(), "f"))
-	feed(e, "ia<CR>one<CR>c<Esc>uia<CR>two<CR>c<Esc>:diff 1<CR>")
-	if want := "@@ -1 +1 @@\n a\n-one\n+two\n c"; text(e) != want {
-		t.Errorf(":diff 1 showed %q, want %q", text(e), want)
-	}
-}
-
 // B35
 func TestB35TimeOrder(t *testing.T) {
 	run(t, [][3]string{
@@ -97,14 +33,6 @@ func TestB35TimeOrder(t *testing.T) {
 		{"x", "A1<Esc>uA2<Esc>g-g-", "|x"},
 		{"x", "A1<Esc>uA2<Esc>g-g-g+", "x|1"},
 		{"x", "A1<Esc>uA2<Esc>g-g-g+g+", "x|2"},
-		{"x", "A1<Esc>A2<Esc>A3<Esc>:earlier 2<CR>", "x|1"},
-		{"x", "A1<Esc>A2<Esc>A3<Esc>:earlier 2<CR>:later<CR>", "x1|2"},
-		{"x", "A1<Esc>A2<Esc>A3<Esc>:earlier 2<CR>uA9<Esc>g-", "x12|3"},
-		{"x", "A1<Esc>A2<Esc>A3<Esc>:earlier 2<CR>uA9<Esc>g-g-", "x1|2"},
-		{"x", "A1<Esc>:w<CR>A2<Esc>:earlier 1f<CR>", "x|1"},
-		{"x", "A1<Esc>:w<CR>A2<Esc>:earlier 1f<CR>:earlier 1f<CR>", "|x"},
-		{"x", "A1<Esc>:w<CR>A2<Esc>:earlier 2f<CR>:later 1f<CR>", "x|1"},
-		{"x", "A1<Esc>:w<CR>A2<Esc>:earlier 2f<CR>:later 2f<CR>", "x1|2"},
 	})
 	e := open(t, filepath.Join(t.TempDir(), "f"))
 	feed(e, "g-")
@@ -122,6 +50,7 @@ func TestB33TimelineAcrossSessions(t *testing.T) {
 	feed(open(t, path), "A two<Esc>:w<CR>A three<Esc>u:q<CR>")
 
 	e := open(t, path)
+	e.Use(timelinemod.New())
 	feed(e, ":timeline<CR>")
 	if lines := strings.Split(text(e), "\n"); len(lines) != 3 || !strings.HasPrefix(lines[1], "* 1") {
 		t.Fatalf("the next session's :timeline listed %q, want three states at 1", lines)
@@ -191,6 +120,7 @@ func TestB34Recovery(t *testing.T) {
 	feed(open(t, path), "A two<Esc>:w<CR>A three<Esc>")
 
 	e := open(t, path)
+	e.Use(timelinemod.New())
 	if !strings.Contains(e.Message(), ":recover") || text(e) != "one two" {
 		t.Fatalf("after a crash, opening said %q with %q", e.Message(), text(e))
 	}
@@ -201,6 +131,7 @@ func TestB34Recovery(t *testing.T) {
 
 	// Declining keeps the change on the timeline as a branch.
 	e = open(t, path)
+	e.Use(timelinemod.New())
 	feed(e, ":timeline<CR>")
 	if lines := strings.Split(text(e), "\n"); len(lines) != 3 || !strings.HasPrefix(lines[1], "* 1") {
 		t.Errorf("without :recover, :timeline listed %q, want the unsaved state kept", lines)

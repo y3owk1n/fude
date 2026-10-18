@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	timelinemod "github.com/y3owk1n/fude/modules/timeline"
+
 	"github.com/y3owk1n/fude/vim"
 )
 
@@ -19,6 +21,7 @@ func TestB35EarlierLaterByTime(t *testing.T) {
 	}
 	// Quitting writes what it noted before the temp directories go.
 	t.Cleanup(func() { e.quitAll(true) })
+	e.Use(timelinemod.New())
 	clock := time.Unix(0, 0)
 	e.now = func() time.Time { return clock }
 	type step struct {

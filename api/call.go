@@ -80,6 +80,7 @@ type Result struct {
 	Restore    string         // a session Scope.Session gave, whose files open and whose windows build again (B325)
 	Confirm    *Confirm       // a question a Write's call asks before it writes (B327)
 	Moved      [][2]string    // paths renamed, from and to, whose open buffers follow them (B327)
+	Travel     *Travel        // a move of a buffer's text to one of its states (B328)
 	// Set holds options to set on the buffer the call is about, by their
 	// config.toml names: expand_tab, indent_width and tab_width. fude uses
 	// them in place of config.toml's until the buffer closes (B283).
@@ -278,6 +279,27 @@ type ExCommand struct {
 	Name, Args, Help string
 }
 
+// State is a state of a buffer's text, as :timeline lists it. Parent is
+// the state it follows, by its place in States (B328).
+type State struct {
+	Time    time.Time // zero for the text before any change
+	Label   string    // the command that made it
+	Parent  int
+	Current bool // the text is at it
+	Saved   bool // a write wrote it
+	Unsaved bool // the newest change from a session that did not close, which :recover brings back (B34)
+}
+
+// Travel moves the text of the buffer by its id, or of the one the call is
+// about for 0, to the state To, by its place in States. Each window on the
+// buffer moves its cursor to where the state's last change starts. New
+// makes that state's text the newest state, as a new state on top of the
+// newest, so no state is lost (B31, B328).
+type Travel struct {
+	Buffer, To int
+	New        bool
+}
+
 // Confirm is a yes or no question a Write's call asks. Paths are the
 // files and directories the write will change, which a guest may change
 // only under the project (B245, B327).
@@ -370,6 +392,12 @@ type Scope struct {
 	Commands func() []ExCommand
 	// HelpTags returns what :h opens help at (B324).
 	HelpTags func() []string
+	// States returns the states of the text of the buffer by its id, the
+	// text before any change first, then each in the order it was made.
+	// StateText returns the text of one of them, by its place in States.
+	// Only a call has them (B328).
+	States    func(buffer int) []State
+	StateText func(buffer, state int) (string, bool)
 	// Entries returns the entries of the listing a Write's call writes
 	// (B327).
 	Entries func() []Entry

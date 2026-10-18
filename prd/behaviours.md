@@ -1039,6 +1039,14 @@ Where fude departs, the line says so and cites the departure in
   window, such as a line in `diff.plus`, over what the filetype colours.
 - B277 [4] A plugin hears `editor.focused` when the terminal gets the
   focus back, as git's index may have changed while fude was away.
+- B328 [4] A module's call reads the states of a buffer's text, each
+  with its time, the command that made it, the state it follows, and
+  whether it is current, written, or a change a crashed session left
+  unsaved. It reads any state's text. Its result may move the text to a
+  state, and each window on the buffer moves its cursor there. Or it may
+  make a state's text the newest, as a new state. `:timeline`,
+  `:earlier`, `:later`, `:restore`, `:diff` and `:recover` work this way
+  (B31, B32, B34, B35).
 - B327 [4] A module writes a kind of buffer in place of a file, as
   `modules/listing` writes a listing. It reads where each entry the
   buffer showed is now. Its write may ask a yes or no question first,

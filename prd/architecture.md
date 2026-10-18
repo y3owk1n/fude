@@ -509,7 +509,13 @@ is the client the edit came from, such as the terminal client or an agent.
 A plugin's edit carries the origin of the client whose action or buffer ran
 it, so a plugin's `gsip` undoes with plain `u`. The label names the author
 (keys, a plugin, an agent) and the command's key text, which `:timeline`
-shows (B31). The ids and the base
+shows (B31). `modules/timeline` is `:timeline`, `:earlier`, `:later`,
+`:restore`, `:diff` and `:recover`. It reads a buffer's states through
+`Scope.States` and their text through `Scope.StateText`. Its result's
+`Travel` moves the text to a state, or with `New` restores one on top of
+the newest, and the editor moves the windows' cursors. The timeline
+window's keys travel, then list it again through `<Plug>(timeline.list)`.
+`g-` and `g+` stay the vim machine's, through `Host.Step` (B328). The ids and the base
 version are what step 6 and any later CRDT build on, so they exist from
 step 1 even with one client.
 

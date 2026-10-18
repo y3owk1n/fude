@@ -57,9 +57,22 @@ func (e *Session) restoreFrom(data string) {
 }
 
 // onLoop gives scope what a module reads only while its call runs on the
-// loop: the registry and the session (B324, B325).
+// loop: the registry, the session and the states of the text (B324, B325,
+// B328).
 func (e *Session) onLoop(scope *api.Scope) {
 	scope.Keys, scope.Commands, scope.HelpTags, scope.Session = e.keyList, e.commandList, e.helpTags, e.sessionJSON
+	scope.States = func(id int) []api.State {
+		if b, err := e.buffer(id); err == nil {
+			return b.stateList()
+		}
+		return nil
+	}
+	scope.StateText = func(id, i int) (string, bool) {
+		if b, err := e.buffer(id); err == nil {
+			return b.stateText(i)
+		}
+		return "", false
+	}
 }
 
 // quitting tells the modules that fude quits. It runs on the loop, before

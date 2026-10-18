@@ -448,6 +448,17 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 	for _, m := range res.Moved {
 		e.moved(m[0], m[1])
 	}
+	if tr := res.Travel; tr != nil {
+		on, err := e.buffer(tr.Buffer)
+		if tr.Buffer == 0 {
+			on = b
+		}
+		if err != nil {
+			e.message = err.Error()
+		} else {
+			e.travel(on, *tr)
+		}
+	}
 	if res.Restore != "" {
 		e.restoreFrom(res.Restore)
 	}
@@ -868,6 +879,8 @@ func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 	s.HelpTags = func() []string { return nil }
 	s.Session = func() string { return "" }
 	s.Entries = func() []api.Entry { return nil }
+	s.States = func(int) []api.State { return nil }
+	s.StateText = func(int, int) (string, bool) { return "", false }
 	servers := e.serverList()
 	s.Servers = func() []api.Server { return servers }
 	s.Option = func(name string) (string, bool) { return option(opts, cfg, name) }

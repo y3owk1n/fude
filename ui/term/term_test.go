@@ -27,6 +27,7 @@ import (
 	filesmod "github.com/y3owk1n/fude/modules/files"
 	hintsmod "github.com/y3owk1n/fude/modules/hints"
 	lspmod "github.com/y3owk1n/fude/modules/lsp"
+	timelinemod "github.com/y3owk1n/fude/modules/timeline"
 	"github.com/y3owk1n/fude/syntax/syntaxtest"
 	"github.com/y3owk1n/fude/vim"
 	"github.com/y3owk1n/fude/wire"
@@ -932,6 +933,7 @@ func TestB147StatusLine(t *testing.T) {
 // B148, B149
 func TestB148CommandLine(t *testing.T) {
 	cl := start(t)
+	cl.e.(*editor.Session).Use(timelinemod.New())
 	screen := func() string {
 		cl.draw()
 		var b strings.Builder

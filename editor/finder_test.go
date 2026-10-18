@@ -16,6 +16,7 @@ import (
 	"github.com/y3owk1n/fude/modules/grep"
 	listingmod "github.com/y3owk1n/fude/modules/listing"
 	pickmod "github.com/y3owk1n/fude/modules/pick"
+	timelinemod "github.com/y3owk1n/fude/modules/timeline"
 	"github.com/y3owk1n/fude/syntax"
 )
 
@@ -159,6 +160,7 @@ func TestB212QCloses(t *testing.T) {
 	change(t, filepath.Join(dir, "a.txt"), "a\n")
 	t.Chdir(dir)
 	e := open(t, "a.txt")
+	e.Use(timelinemod.New())
 	e.Use(filesmod.New())
 	e.SetSize(100, 30)
 	feed(e, "ix<Esc>")

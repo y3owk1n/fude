@@ -27,7 +27,7 @@ func (e *Session) messages(arg string) {
 	case arg != "":
 		e.message = "messages takes yank or nothing"
 	default:
-		e.scratch("[messages]", strings.Join(e.history, "\n"), nil, nil)
+		e.scratch("[messages]", strings.Join(e.history, "\n"))
 	}
 }
 

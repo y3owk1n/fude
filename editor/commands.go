@@ -72,8 +72,6 @@ func init() {
 				e.message = err.Error()
 			}
 		}, nil},
-		{vim.Command{Name: "diff", Args: "{n} [m]", Help: "shows the lines that differ between states n and m, or n and now"}, func(e *Session, x call) { e.diff(x.arg) }, nil},
-		{vim.Command{Name: "earlier", Args: "{n}", Help: "goes n states back. n may be a time such as 5m, or a count of writes such as 1f"}, func(e *Session, x call) { e.travel(x.arg, false) }, nil},
 		{vim.Command{Name: "edit", Short: []string{"e"}, Args: "[file]", Help: "opens file, or reads the buffer's file again. ! drops changes"}, func(e *Session, x call) {
 			if x.arg == "" {
 				e.reread(x.force)
@@ -159,7 +157,6 @@ func init() {
 		}},
 		{vim.Command{Name: "jumps", Short: []string{"ju"}, Help: "lists the window's jumps"}, func(e *Session, _ call) { e.jumps() }, nil},
 		{vim.Command{Name: "kick", Args: "{name}", Help: "ends the session of the guest called name"}, func(e *Session, x call) { e.kick(x.arg) }, completeKick},
-		{vim.Command{Name: "later", Args: "{n}", Help: "goes n states forward. n may be a time such as 5m, or a count of writes such as 1f"}, func(e *Session, x call) { e.travel(x.arg, true) }, nil},
 		{vim.Command{Name: "marks", Help: "lists the buffer's marks"}, func(e *Session, _ call) { e.marks() }, nil},
 		{vim.Command{Name: "messages", Short: []string{"mes"}, Args: "[yank]", Help: "lists the messages shown, oldest first, or with yank puts the last on the clipboard"}, func(e *Session, x call) { e.messages(x.arg) }, func(_ *Session, _ string, start int, arg string, _ bool) (int, []string) {
 			return start, match([]string{"yank"}, arg)
@@ -181,12 +178,10 @@ func init() {
 		{vim.Command{Name: "read", Short: []string{"r"}, Args: "{file} | !{cmd}", Help: "puts a file, or what cmd writes, below the line"}, func(e *Session, x call) { e.readIn(x.arg, x.last) }, completePath},
 		{vim.Command{Name: "center", Help: "centers the windows on a wide screen, as wide as the colour column, or stops"}, func(e *Session, _ call) { e.center() }, nil},
 		{vim.Command{Name: "restart", Help: "starts fude again on the same files, windows and unsaved changes, with config, plugins and servers loaded afresh"}, func(e *Session, _ call) { e.restart() }, nil},
-		{vim.Command{Name: "recover", Help: "goes to the newest unsaved change from a session that did not close"}, func(e *Session, _ call) { e.recover() }, nil},
 		{vim.Command{Name: "registers", Short: []string{"reg"}, Args: "[names]", Help: "lists the registers, or those named"}, func(e *Session, x call) { e.registers(x.arg) }, nil},
 		{vim.Command{Name: "reject", Args: "[n]", Help: "drops proposal n, or the buffer's newest"}, func(e *Session, x call) {
 			e.decide(x.arg, false)
 		}, nil},
-		{vim.Command{Name: "restore", Args: "[n]", Help: "makes the text of state n the newest. In a timeline, n is the state under the cursor"}, func(e *Session, x call) { e.restore(x.arg) }, nil},
 		{vim.Command{Name: "set", Short: []string{"se"}, Args: "[name [value]]", Help: "sets an option to a value, as config.toml would, shows one, or lists them all"}, func(e *Session, x call) { e.set(x.arg) }, completeOption},
 		{vim.Command{Name: "share", Help: "shows a new share string, which lets one more guest join"}, func(e *Session, _ call) { e.reshare() }, nil},
 		{vim.Command{Name: "split", Short: []string{"sp"}, Args: "[file]", Help: "opens a window below, then opens file in it"}, splitAndEdit, completePath},
@@ -198,7 +193,6 @@ func init() {
 				e.message = err.Error()
 			}
 		}, completeTheme},
-		{vim.Command{Name: "timeline", Help: "lists every state of the buffer's text"}, func(e *Session, _ call) { e.timeline() }, nil},
 		{vim.Command{Name: "update", Short: []string{"up"}, Help: "writes the buffer if it is modified"}, func(e *Session, x call) {
 			if e.win.buf.modified() {
 				e.write(e.win.buf, x.force, nil)
@@ -234,10 +228,6 @@ func init() {
 	plugs = []plug{
 		{"restart", "starts fude again on the same session", func(e *Session, _ int) { e.restart() }},
 		{"center", "centers the windows on a wide screen, or stops", func(e *Session, _ int) { e.center() }},
-		{"timeline.earlier", "moves the text a state back", func(e *Session, _ int) { e.timelineAct("earlier") }},
-		{"timeline.later", "moves the text a state forward", func(e *Session, _ int) { e.timelineAct("later") }},
-		{"timeline.diff", "shows how the state under the cursor differs from now", func(e *Session, _ int) { e.timelineAct("diff") }},
-		{"timeline.restore", "makes the state under the cursor the newest", func(e *Session, _ int) { e.timelineAct("restore") }},
 		{"finder.open", "opens the selected match", func(e *Session, _ int) { e.finderAct("open") }},
 		{"finder.list", "lists every match as places, the last list", func(e *Session, _ int) { e.finderAct("list") }},
 		{"finder.next", "selects the next match", func(e *Session, _ int) { e.finderAct("next") }},

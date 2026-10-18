@@ -15,6 +15,7 @@ import (
 	listingmod "github.com/y3owk1n/fude/modules/listing"
 	shellmod "github.com/y3owk1n/fude/modules/shell"
 	"github.com/y3owk1n/fude/modules/task"
+	timelinemod "github.com/y3owk1n/fude/modules/timeline"
 )
 
 // B36, in a terminal with no clipboard command
@@ -254,6 +255,7 @@ func TestB247ReadOnlyGuest(t *testing.T) {
 	t.Chdir(project)
 	e, log := withServerAt(t, filepath.Join(project, "a.go"), `say "hi" target`+"\n", "utf-8")
 	e.Use(format.New())
+	e.Use(timelinemod.New())
 	heard(t, log, `"method":"textDocument/didOpen"`, 1)
 	agent := e.Attach("agent", editor.Host)
 	viewer := e.Attach("viewer", editor.ReadOnly)

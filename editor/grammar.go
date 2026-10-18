@@ -113,7 +113,7 @@ func (e *Session) grammar(arg string) {
 		}
 		lines = append(lines, fmt.Sprintf("%-12s %s", g.Filetype, state))
 	}
-	e.scratch("[grammars]", strings.Join(lines, "\n"), nil, nil)
+	e.scratch("[grammars]", strings.Join(lines, "\n"))
 }
 
 // languageAt returns the filetype of the text at pos in b: an injected
