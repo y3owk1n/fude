@@ -22,7 +22,6 @@ type Module struct {
 	mu     sync.Mutex
 	on     bool
 	buffer string // the buffer the cursor is in, as a call's context names it
-	cursor int
 	asked  uint32 // the job of the newest question
 	line   int    // the line it asked about
 	jobs   uint32
@@ -44,7 +43,7 @@ func (m *Module) Subscribed() []string { return []string{"view.moved", "buffer.c
 func (m *Module) Init(context.Context, api.Scope) (api.Result, error) { return api.Result{}, nil }
 
 // Call runs :blame, which turns the note on or off.
-func (m *Module) Call(_ context.Context, _ uint32, s api.Scope, args ...int) (api.Result, error) {
+func (m *Module) Call(_ context.Context, _ uint32, s api.Scope, _ ...int) (api.Result, error) {
 	if !m.mu.TryLock() {
 		return api.Result{}, fmt.Errorf("blame %w", api.ErrBusy)
 	}
@@ -52,7 +51,7 @@ func (m *Module) Call(_ context.Context, _ uint32, s api.Scope, args ...int) (ap
 	if m.on = !m.on; !m.on {
 		return api.Result{Undecorate: m.hide()}, nil
 	}
-	m.buffer, m.cursor = s.About["buffer"], args[0]
+	m.buffer = s.About["buffer"]
 	return m.ask(s), nil
 }
 
@@ -60,14 +59,12 @@ func (m *Module) Call(_ context.Context, _ uint32, s api.Scope, args ...int) (ap
 func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	event, detail, _ := strings.Cut(name, " ")
+	event, _, _ := strings.Cut(name, " ")
 	switch {
 	case !m.on:
 		return api.Result{}, nil
 	case event == "view.moved":
-		cursor, _, _ := strings.Cut(detail, " ")
 		m.buffer = s.About["buffer"]
-		m.cursor, _ = strconv.Atoi(cursor)
 	case s.About["buffer"] != m.buffer:
 		return api.Result{}, nil
 	}
@@ -110,7 +107,8 @@ func (m *Module) Close(context.Context) error { return nil }
 func (m *Module) ask(s api.Scope) api.Result {
 	res := api.Result{Undecorate: m.hide()}
 	path := s.About["path"]
-	if s.About["buffer"] != m.buffer || path == "" {
+	cursor, err := strconv.Atoi(s.About["cursor"])
+	if s.About["buffer"] != m.buffer || path == "" || err != nil {
 		return res
 	}
 	abs, err := filepath.Abs(path)
@@ -118,7 +116,7 @@ func (m *Module) ask(s api.Scope) api.Result {
 		return res
 	}
 	m.jobs++
-	m.asked, m.line = m.jobs, s.Text.LineOf(min(m.cursor, s.Text.Len()))
+	m.asked, m.line = m.jobs, s.Text.LineOf(min(cursor, s.Text.Len()))
 	n := strconv.Itoa(m.line + 1)
 	// git reads the text, so lines changed since the last write line up.
 	argv := []string{"git", "-C", filepath.Dir(abs), "blame", "--porcelain", "-L", n + "," + n, "--contents", "-", "--", filepath.Base(abs)}
