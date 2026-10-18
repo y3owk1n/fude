@@ -1045,7 +1045,8 @@ Where fude departs, the line says so and cites the departure in
   whole texts.
 - B61 [5] Diagnostics show inline, and `]d` and `[d` move between them.
   After a line with a diagnostic, two columns on, its message shows in its
-  severity's colour on a tint of that colour.
+  severity's colour on a tint of that colour, unless `diagnostic_notes` is
+  off.
   Each move shows the diagnostics that start at the cursor in a float
   there, in their severity's colour, with their source and code, until the
   next key. `<C-w>d` shows those on the cursor's line in the same float,

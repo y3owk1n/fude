@@ -106,7 +106,7 @@ func (e *Session) Views() []wire.View {
 		}
 		for _, p := range e.modules {
 			for _, d := range e.decos[p] {
-				if d.buf != w.buf || d.note == "" {
+				if d.buf != w.buf || d.note == "" || !w.opts.DiagnosticNotes && strings.HasPrefix(d.style, "diagnostic.") {
 					continue
 				}
 				if at := w.buf.text.Mark(d.start); at >= top && at <= last {

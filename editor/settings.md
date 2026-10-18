@@ -254,6 +254,12 @@ Sticky context pins at most this many lines over a window's top. The
 default is 3. When the top is inside more functions and classes than that,
 the innermost ones pin.
 
+## diagnostic_notes
+
+After a line with a diagnostic, its message shows in the severity's colour.
+The default is on, and `:set diagnostic_notes false` turns the messages off
+in the window. The signs stay, and `]d` and `<C-w>d` still show each one.
+
 ## expand_tab
 
 Indents with spaces only. `<Tab>` in insert mode types spaces to the next
