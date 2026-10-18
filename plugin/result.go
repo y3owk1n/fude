@@ -33,9 +33,23 @@ var needs = map[string]string{
 	"Restore": "fs.read", "Keys": "keys",
 }
 
-// init panics on a Result field with no entry in needs, which no plugin
-// could set.
+// kinds is the capability each kind of registration needs, "" for none.
+// A Typed key hears each key typed before the key does its own work, and a
+// Completer hears each word character typed. So they need buffer.read, and
+// so does a Write, which reads what it writes.
+var kinds = map[fude.Kind]string{
+	fude.Command: "", fude.Operator: "", fude.Object: "", fude.Key: "", fude.Insert: "", fude.Plug: "", fude.Source: "",
+	fude.Typed: "buffer.read", fude.Completer: "buffer.read", fude.Write: "buffer.read",
+}
+
+// init panics on a Result field with no entry in needs, or a kind with no
+// entry in kinds, which no plugin could set or register.
 func init() {
+	for k := fude.Command; k <= fude.Write; k++ {
+		if _, ok := kinds[k]; !ok {
+			panic(fmt.Sprintf("plugin: no capability for kind %d", k))
+		}
+	}
 	t := reflect.TypeFor[fude.Result]()
 	for i := range t.NumField() {
 		if _, ok := needs[t.Field(i).Name]; !ok {
@@ -54,6 +68,9 @@ func (p *Plugin) register(_ context.Context, m api.Module, ptr, n uint32) int32 
 	var r fude.Registration
 	if !ok || json.Unmarshal(b, &r) != nil || r.Kind < fude.Command || r.Kind > fude.Write || r.Name == "" {
 		return errRange
+	}
+	if c := kinds[r.Kind]; c != "" && !p.allowed(c, "register "+r.Name) {
+		return errDenied
 	}
 	p.registered = append(p.registered, r)
 	return 0

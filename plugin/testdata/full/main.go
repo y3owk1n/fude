@@ -12,7 +12,7 @@
 // off, and runs :s/a/z/, and :Wrap types the wrap option. :Paint defines
 // the style full.hot and colours the first byte in it. :Heard types the
 // names of the window, search, macro, selection and theme events it heard.
-// Needs keys, and buffer.read and buffer.write
+// It registers § as a Typed key, which needs buffer.read. Needs keys, and buffer.read and buffer.write
 // for the others.
 package main
 
@@ -33,6 +33,7 @@ func init() {
 	for _, name := range []string{"window.opened", "window.closed", "window.focused", "search.changed", "macro.recorded", "selection.changed", "theme.changed"} {
 		sdk.On(name, func(ev sdk.Event) { heard[ev.Name] = true })
 	}
+	sdk.Register(api.Registration{Kind: api.Typed, Name: "§", Help: "lets § type itself"}, func(_, _, _ int) int { return 0 })
 	sdk.Command("Heard", "types the events heard", func(sdk.Call) {
 		sdk.Edit(0, 0, strings.Join(slices.Sorted(maps.Keys(heard)), ",")+"|")
 	})

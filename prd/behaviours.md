@@ -1051,7 +1051,8 @@ Where fude departs, the line says so and cites the departure in
 - B338 [4] A plugin registers what a module registers, of every kind and
   with every field, reads what a module's scope has, and its result asks
   for what a module's asks for, within its capabilities. Keys a result
-  runs need `keys`.
+  runs need `keys`, and a `Typed` key, a `Completer` or a `Write` needs
+  `buffer.read`, as each hears the text being typed or written.
 - B339 [4] A plugin's job may stream a program's output. Its callback
   runs with each line as the program prints it, then once more when the
   program ends, with any error.
