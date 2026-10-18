@@ -1066,6 +1066,17 @@ func TestB295Replace(t *testing.T) {
 	}
 }
 
+// B295, B296, from a plugin
+func TestB295PluginReplaceAndShade(t *testing.T) {
+	e := loaded(t, "ctx", "f", "a\nbcd\n", "buffer.read", "buffer.write", "ui")
+	e.SetSize(80, 20)
+	feed(e, ":Replace 1<CR>:Shade 1<CR>")
+	settle(t, e, func() bool {
+		v := e.Views()[0]
+		return slices.Contains(v.Ghosts, wire.Ghost{Pos: 2, End: 4, Text: "§", Style: "markdown.h1"}) && v.Grounds[1] == "markdown.code"
+	})
+}
+
 // B289
 func TestB289PluginReadsItsDecorations(t *testing.T) {
 	e := loaded(t, "ctx", "f", "a\n b\n c\nd\n", "buffer.read", "buffer.write", "ui")

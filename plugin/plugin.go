@@ -282,6 +282,8 @@ func (p *Plugin) host(ctx context.Context) error {
 		NewFunctionBuilder().WithFunc(p.httpGet).Export("http_get").
 		NewFunctionBuilder().WithFunc(p.decorate).Export("decorate").
 		NewFunctionBuilder().WithFunc(p.fold).Export("fold").
+		NewFunctionBuilder().WithFunc(p.replace).Export("replace").
+		NewFunctionBuilder().WithFunc(p.shade).Export("shade").
 		NewFunctionBuilder().WithFunc(p.decorations).Export("decorations").
 		NewFunctionBuilder().WithFunc(p.undecorate).Export("undecorate").
 		NewFunctionBuilder().WithFunc(p.sign).Export("sign").
@@ -1034,9 +1036,42 @@ func (p *Plugin) fold(_ context.Context, m api.Module, start, end uint32) int32 
 	return int32(p.next)
 }
 
+// replace shows the text before the NUL at (ptr, n) in place of [start,
+// end), which is on one line, in the style after it, and returns its id,
+// which undecorate removes (B295).
+func (p *Plugin) replace(_ context.Context, m api.Module, start, end, ptr, n uint32) int32 {
+	if p.call == nil || !p.allowed("ui", "replace") {
+		return errDenied
+	}
+	b, ok := m.Memory().Read(ptr, n)
+	if start > end || int(end) > p.call.Text.Len() || !ok {
+		return errRange
+	}
+	text, style, _ := strings.Cut(string(b), "\x00")
+	p.next++
+	p.call.Decorate = append(p.call.Decorate, fude.Decoration{ID: p.next, Start: int(start), End: int(end), Style: style, Note: text, Replace: true})
+	return int32(p.next)
+}
+
+// shade shades the whole rows of the lines from start's through end's in
+// the ground of the style at (ptr, n), and returns its id, which undecorate
+// removes (B296).
+func (p *Plugin) shade(_ context.Context, m api.Module, start, end, ptr, n uint32) int32 {
+	if p.call == nil || !p.allowed("ui", "shade") {
+		return errDenied
+	}
+	style, ok := m.Memory().Read(ptr, n)
+	if start > end || int(end) > p.call.Text.Len() || !ok {
+		return errRange
+	}
+	p.next++
+	p.call.Decorate = append(p.call.Decorate, fude.Decoration{ID: p.next, Start: int(start), End: int(end), Style: string(style), Line: true})
+	return int32(p.next)
+}
+
 // decorations writes the plugin's decorations on the buffer, each its id,
-// start, end, style, sign, note, under and fold, each followed by a NUL,
-// into memory the plugin allocates (B289).
+// start, end, style, sign, note, under, fold, replace and line, each
+// followed by a NUL, into memory the plugin allocates (B289).
 func (p *Plugin) decorations(ctx context.Context, m api.Module) int64 {
 	if p.call == nil || !p.allowed("ui", "decorations") {
 		return errDenied
@@ -1047,7 +1082,7 @@ func (p *Plugin) decorations(ctx context.Context, m api.Module) int64 {
 			if strconv.Itoa(d.Buffer) != p.call.About["buffer"] {
 				continue
 			}
-			fmt.Fprintf(&b, "%d\x00%d\x00%d\x00%s\x00%s\x00%s\x00%t\x00%t\x00", d.ID, d.Start, d.End, d.Style, d.Sign, d.Note, d.Layer < 0, d.Fold)
+			fmt.Fprintf(&b, "%d\x00%d\x00%d\x00%s\x00%s\x00%s\x00%t\x00%t\x00%t\x00%t\x00", d.ID, d.Start, d.End, d.Style, d.Sign, d.Note, d.Layer < 0, d.Fold, d.Replace, d.Line)
 		}
 	}
 	return give(ctx, m, b.String())

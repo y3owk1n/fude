@@ -158,6 +158,12 @@ func hostDecorate(start, end uint32, ptr *byte, n uint32) int32
 //go:wasmimport fude fold
 func hostFold(start, end uint32) int32
 
+//go:wasmimport fude replace
+func hostReplace(start, end uint32, ptr *byte, n uint32) int32
+
+//go:wasmimport fude shade
+func hostShade(start, end uint32, ptr *byte, n uint32) int32
+
 //go:wasmimport fude decorations
 func hostDecorations() int64
 
@@ -753,13 +759,33 @@ func Fold(start, end int) (int, error) {
 	return int(id), fail(int64(id))
 }
 
+// Replace shows text in style in place of [start, end), which must be on
+// one line, and empty text hides it. The text stays, and the cursor's line
+// shows it as it is. It returns an id for Undecorate, and moves with edits.
+// It needs ui.
+func Replace(start, end int, text, style string) (int, error) {
+	p, n := ptr(text + "\x00" + style)
+	id := hostReplace(uint32(start), uint32(end), p, n)
+	return int(id), fail(int64(id))
+}
+
+// Shade shades the whole rows of the lines from start's through end's, to
+// the window's edge, in the ground of style, such as markdown.code. The
+// text keeps its own colours on it. It returns an id for Undecorate, and
+// moves with edits. It needs ui.
+func Shade(start, end int, style string) (int, error) {
+	p, n := ptr(style)
+	id := hostShade(uint32(start), uint32(end), p, n)
+	return int(id), fail(int64(id))
+}
+
 // Decoration is one the plugin put on the buffer, where it is now.
 type Decoration struct {
-	ID          int
-	Start, End  int
-	Style       string
-	Sign, Note  string
-	Under, Fold bool
+	ID                         int
+	Start, End                 int
+	Style                      string
+	Sign, Note                 string
+	Under, Fold, Replace, Line bool
 }
 
 // Decorations returns the plugin's decorations on the buffer the call is
@@ -771,11 +797,11 @@ func Decorations() ([]Decoration, error) {
 	}
 	f := strings.Split(s, "\x00")
 	var out []Decoration
-	for i := 0; i+7 < len(f); i += 8 {
+	for i := 0; i+9 < len(f); i += 10 {
 		id, _ := strconv.Atoi(f[i])
 		start, _ := strconv.Atoi(f[i+1])
 		end, _ := strconv.Atoi(f[i+2])
-		out = append(out, Decoration{id, start, end, f[i+3], f[i+4], f[i+5], f[i+6] == "true", f[i+7] == "true"})
+		out = append(out, Decoration{id, start, end, f[i+3], f[i+4], f[i+5], f[i+6] == "true", f[i+7] == "true", f[i+8] == "true", f[i+9] == "true"})
 	}
 	return out, nil
 }

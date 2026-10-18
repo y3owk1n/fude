@@ -543,8 +543,8 @@ Two styles draw as something other than a highlight. A decoration styled
 (B216). One styled `colour #rrggbb` draws its range on that colour (B208,
 B209). A module's decoration of either style draws the same way.
 
-A module's decoration marked `Replace` draws its note in place of its
-range, which stays in the text (B295). The editor builds each window's
+A module's decoration marked `Replace`, or a plugin's from `replace`,
+draws its note in place of its range, which stays in the text (B295). The editor builds each window's
 list of what draws in its lines and is not text: inlay hints, proposals'
 text and replacements, leaving out replacements on the cursor's line and
 a selection's. That list is `View.Ghosts`. `vim.Rows`, `vim.Column` and
@@ -553,9 +553,10 @@ scrolling, `gj` and `gk` through `Host.Shown`, and the client's drawing
 count the same columns. The text's own columns, for indents, tabs and
 block selections, leave it out.
 
-A decoration marked `Line` shades its lines' rows to the window's edge in
-its style's ground, as `View.Grounds` gives them by line (B296). It
-draws under the text's colours, and in place of the cursor line's shade.
+A decoration marked `Line`, or a plugin's from `shade`, shades its lines'
+rows to the window's edge in its style's ground, as `View.Grounds` gives
+them by line (B296). It draws under the text's colours, and in place of
+the cursor line's shade.
 The debugger's stopped line uses it.
 
 Marks live in a slice, which the kernel walks on every edit, and a deleted
@@ -1046,7 +1047,9 @@ host it may not reach or a request that failed.
 | `decorate(start, end, ptr, len) -> i32` | `ui` | puts a style, such as `keyword`, on `[start, end)`, and returns its id |
 | `undecorate(id) -> i32` | `ui` | removes a decoration, sign or note |
 | `fold(start, end) -> i32` | `ui` | closes a fold over the lines from `start`'s through `end`'s, and returns its id, which `undecorate` opens (B288) |
-| `decorations() -> i64` | `ui` | the plugin's decorations on the buffer the call is about, each its id, start, end, style, sign, note, under and fold, each followed by a NUL, where they are now (B289) |
+| `replace(start, end, ptr, len) -> i32` | `ui` | shows the text before the NUL in place of `[start, end)`, on one line, in the style after it, and returns its id (B295) |
+| `shade(start, end, ptr, len) -> i32` | `ui` | shades the whole rows of the lines from `start`'s through `end`'s in the ground of the style, and returns its id (B296) |
+| `decorations() -> i64` | `ui` | the plugin's decorations on the buffer the call is about, each its id, start, end, style, sign, note, under, fold, replace and line, each followed by a NUL, where they are now (B289) |
 | `sign(pos, ptr, len, under) -> i32` | `ui` | shows the text, then a NUL and its style, in the sign column on `pos`'s line, and returns its id. With `under` set, any other sign on the line shows over it (B184) |
 | `note(pos, ptr, len) -> i32` | `ui` | shows the text dim after the end of `pos`'s line, and returns its id (B184) |
 | `read_file(ptr, len) -> i64` | `fs.read` | the file at the path, relative to the project, the directory fude started in. fude refuses a path that leads outside it, through `..` or a link (B47) |

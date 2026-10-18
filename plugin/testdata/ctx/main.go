@@ -18,7 +18,10 @@
 // captures over it and its comment syntax. :Hover asks the language server
 // for hover at the cursor and types its answer, or the error, at the
 // start. :Fold first last closes a fold over those lines, and :Decos types
-// the plugin's decorations, each id:start-end:fold, and a |. Needs buffer.read, buffer.write, ui and lsp.
+// the plugin's decorations, each id:start-end:fold, and a |. :Replace line
+// shows the first two bytes of that line as § in markdown.h1, and :Shade
+// line shades it in markdown.code. Needs buffer.read, buffer.write, ui and
+// lsp.
 package main
 
 import (
@@ -126,6 +129,16 @@ func init() {
 		start, _ := sdk.LineStart(s)
 		end, _ := sdk.LineStart(e)
 		sdk.Fold(start, end)
+	})
+	sdk.Command("Replace", "shows the first two bytes of the line its arg names as §", func(c sdk.Call) {
+		line, _ := strconv.Atoi(c.Args)
+		start, _ := sdk.LineStart(line)
+		sdk.Replace(start, start+2, "§", "markdown.h1")
+	})
+	sdk.Command("Shade", "shades the line its arg names", func(c sdk.Call) {
+		line, _ := strconv.Atoi(c.Args)
+		start, _ := sdk.LineStart(line)
+		sdk.Shade(start, start, "markdown.code")
 	})
 	sdk.Command("Decos", "types the plugin's decorations", func(c sdk.Call) {
 		ds, _ := sdk.Decorations()

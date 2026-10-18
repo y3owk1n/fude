@@ -1029,14 +1029,15 @@ Where fude departs, the line says so and cites the departure in
 - B288 [4] A plugin with `ui` closes a fold over a range of lines of the
   buffer its call is about. The fold shows and opens as B224 says, moves
   with edits, and opens when the plugin removes it by its id.
-- B295 [4] A module's decoration may replace its range, on one line, with
-  its note in its style, and an empty note hides the range. The text is
+- B295 [4] A module's decoration, or a plugin's with `ui`, may replace its
+  range, on one line, with its note in its style, and an empty note hides
+  the range. The text is
   unchanged, so search, motions and edits act on it. The cursor's line,
   and the lines a selection covers, show their text as it is. Wrap,
   scrolling sideways and down, `gj` and `gk` count a line's rows and
   columns as it draws, inlay hints included.
-- B296 [4] A module's decoration may shade the whole rows of its lines in
-  its style's ground, to the window's edge. The text keeps its own
+- B296 [4] A module's decoration, or a plugin's with `ui`, may shade the
+  whole rows of its lines in its style's ground, to the window's edge. The text keeps its own
   colours on that ground.
 - B289 [4] A plugin with `ui` reads its own decorations on the buffer its
   call is about, each with its id, where it is now and what it shows.
