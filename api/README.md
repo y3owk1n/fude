@@ -83,7 +83,7 @@ A `Result` asks for any of these, and fude applies them together once the call r
 | `Log` | lines for fude's log |
 | `Selected` | the range an object's call selects |
 | `Set` | `expand_tab`, `indent_width` or `tab_width` on the buffer, over config.toml |
-| `Terminal` | a program in a terminal window below, which the status line names while it runs |
+| `Terminal` | a program in a terminal window below, which the status line names while it runs. With no `Name` it opens as `:terminal` does, focused and not named |
 | `Places` | the last list of places, which `]q` steps through, each `path:line:column:text`, or `line:column:text` in `File`, in a window with `Show`, with columns in `Encoding` |
 | `Apply` | a language server's workspace edit, applied with the editor's version checks |
 | `Cmdline` | a command line started with that text typed, which runs nothing |

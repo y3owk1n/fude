@@ -379,6 +379,11 @@ func (t *terminal) stop() {
 // of t's name still runs, its window shows again instead. The window of
 // one that ended closes first (B228, B231).
 func (e *Session) moduleTerminal(p api.Module, t api.Terminal) {
+	// One with no name is a terminal of its own, as :terminal opens (B335).
+	if t.Name == "" {
+		e.openTerminal(t.Command, nil, "")
+		return
+	}
 	for _, b := range e.bufs {
 		if term := b.term; term != nil && term.owner == p && term.task == t.Name && !term.exited {
 			if !slices.ContainsFunc(e.root.windows(), func(w *window) bool { return w.buf == b }) {

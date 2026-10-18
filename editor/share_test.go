@@ -18,6 +18,7 @@ import (
 	sessionsmod "github.com/y3owk1n/fude/modules/sessions"
 	shellmod "github.com/y3owk1n/fude/modules/shell"
 	"github.com/y3owk1n/fude/modules/task"
+	terminalmod "github.com/y3owk1n/fude/modules/terminal"
 	timelinemod "github.com/y3owk1n/fude/modules/timeline"
 )
 
@@ -105,6 +106,7 @@ func TestB244GuestRefuses(t *testing.T) {
 	e.Use(shellmod.New())
 	e.Use(sessionsmod.New())
 	e.Use(grammarsmod.New())
+	e.Use(terminalmod.New())
 	heard(t, log, `"method":"textDocument/didOpen"`, 1)
 	guest := e.Attach("guest", editor.Guest)
 	wd, err := os.Getwd()

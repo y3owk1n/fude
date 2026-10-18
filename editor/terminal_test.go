@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/fude/editor"
+	terminalmod "github.com/y3owk1n/fude/modules/terminal"
 )
 
 // screen returns the text of the terminal window's screen, or "" when no
@@ -34,6 +35,7 @@ func TestB205Terminal(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "a.txt")
 	change(t, path, "file\n")
 	e := open(t, path)
+	e.Use(terminalmod.New())
 	e.SetSize(80, 24)
 	feed(e, ":terminal cat<CR>")
 	vs := e.Views()
@@ -65,6 +67,7 @@ func TestB205Terminal(t *testing.T) {
 	// terminal_height sets how tall the window opens.
 	config(t, "terminal_height = 50\n")
 	e = start(t, path)
+	e.Use(terminalmod.New())
 	e.SetSize(80, 24)
 	feed(e, ":terminal cat<CR>")
 	if vs := e.Views(); len(vs) != 2 || vs[1].H != 12 {

@@ -999,6 +999,9 @@ func (e *Session) run(p api.Module, id uint32, scope api.Scope, args ...int) ([]
 	for _, r := range p.Registered() {
 		if r.ID == id {
 			name = r.Name
+			if r.Kind == api.Command {
+				name = ":" + name
+			}
 			if r.Host && e.power != Host {
 				e.message = "a guest may not run " + name
 				return nil, api.Result{}, false

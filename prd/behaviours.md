@@ -1042,6 +1042,9 @@ Where fude departs, the line says so and cites the departure in
   window, such as a line in `diff.plus`, over what the filetype colours.
 - B277 [4] A plugin hears `editor.focused` when the terminal gets the
   focus back, as git's index may have changed while fude was away.
+- B335 [4] A module's terminal with no name opens anew each time and
+  takes the focus to type into. The status line does not name it as a
+  task. `:terminal` opens one this way (B205).
 - B334 [4] A module's call reads help's text and the line of the entry a
   name has. Its panel may put a line at the top of its window, with the
   cursor and the focus there, each time it shows, as `:help` does (B162).

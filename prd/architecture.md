@@ -1561,7 +1561,8 @@ it (B66).
 ## Terminal
 
 A terminal is a buffer whose `term` holds a program running in a
-pseudo-terminal (D38). Three goroutines serve it. One reads the program's
+pseudo-terminal (D38). `modules/terminal` is `:terminal`, a `Terminal`
+with no name, which the editor opens as a terminal of its own (B335). Three goroutines serve it. One reads the program's
 output and hands each chunk to the editor loop, which writes it into the
 emulator, so the emulator and the screen it keeps are only ever touched
 on the loop. One copies what the emulator answers and encodes, such as

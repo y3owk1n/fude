@@ -29,6 +29,7 @@ import (
 	hintsmod "github.com/y3owk1n/fude/modules/hints"
 	lspmod "github.com/y3owk1n/fude/modules/lsp"
 	sessionsmod "github.com/y3owk1n/fude/modules/sessions"
+	terminalmod "github.com/y3owk1n/fude/modules/terminal"
 	timelinemod "github.com/y3owk1n/fude/modules/timeline"
 	"github.com/y3owk1n/fude/syntax/syntaxtest"
 	"github.com/y3owk1n/fude/vim"
@@ -1403,6 +1404,7 @@ func TestB248Share(t *testing.T) {
 	}
 	t.Setenv("USER", "kyle")
 	host := startWith(t, "", path).e.(*editor.Session)
+	host.Use(terminalmod.New())
 	_, on, _ := serve(t, host)
 	join := joining(share(t, host, on, ""))
 	// The host is asked, and y lets the guest in to a guest's session.

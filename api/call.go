@@ -162,6 +162,9 @@ type Pick struct {
 // again instead. The window of one that ended closes first. When the
 // program ends, the owner hears terminal.exited with Name. The event is
 // about the terminal's buffer, with status and took in About (B228, B231).
+// With no Name it is a terminal of its own, as :terminal opens: a new one
+// each time, which takes the focus to type into and the status line does
+// not name. With no Command it runs the shell (B335).
 type Terminal struct {
 	Name, Command string
 }
