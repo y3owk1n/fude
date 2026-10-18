@@ -45,9 +45,6 @@ var (
 
 func init() {
 	commands = []command{
-		{vim.Command{Name: "!", Args: "{cmd}", Help: "runs cmd in the shell, or with a range puts the lines through it"}, func(e *Session, x call) {
-			e.shell(x.arg, x.first, x.last, x.ranged)
-		}, nil},
 		{vim.Command{Name: "accept", Args: "[n]", Help: "applies proposal n, or the buffer's newest"}, func(e *Session, x call) {
 			e.decide(x.arg, true)
 		}, nil},

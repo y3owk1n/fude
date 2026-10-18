@@ -726,10 +726,13 @@ share `revert`, which puts the file's text in as one `reload` node, so `u`
 brings the changes back (B155).
 
 `:sort`, `:join` and `:retab` change only text, so the machine runs them
-with its ranges. `:!` and `:r` run programs or read files, so the editor
-runs them, and `Machine.LineRange` gives it the range its own commands
-start with. A command runs in `$SHELL -c` off the loop, and its output goes
-in through `reformat`, so text that changed meanwhile drops it (B156).
+with its ranges. `:r` reads files, so the editor runs it, and
+`Machine.LineRange` gives it the range its own commands start with.
+`modules/shell` registers `:!`. It runs the command in `$SHELL -c` as a
+job, with the range's lines on stdin when it has one, and keeps those
+lines' text. Its output replaces them only while they are as it read
+them. `:r !cmd` calls `:!` with a bang, which puts the output below the
+line (B156).
 
 Every message reaches a client through `Message`, so `Message` puts each
 one into the session's history the first time it returns it. Code that

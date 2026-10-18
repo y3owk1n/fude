@@ -473,7 +473,8 @@ Where fude departs, the line says so and cites the departure in
   blanks as `expand_tab` says, as tabs only with `!`. `:!cmd` shows what a
   shell command writes, `:{range}!cmd` puts its lines through the command,
   and `:r file` and `:r !cmd` put a file or a command's output below the
-  line.
+  line. A range that changes while its command runs keeps the change, and
+  the message says so.
 - B157 [2] `:messages` lists the session's last 200 messages in a window,
   oldest first, since a toast goes away with the next key. `:marks`,
   `:jumps` and `:changes` list the buffer's marks, the window's jumps and

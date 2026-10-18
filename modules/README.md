@@ -16,7 +16,10 @@ and a program that embeds the editor does the same.
 | [`git`](git) | git signs, hunks, `gh`, `gH`, `:gitdiff`, a listing's git status and the branch on the status line |
 | [`grep`](grep) | `:pick grep`, a live search of the files' lines |
 | [`inlay`](inlay) | a language server's inlay hints |
+| [`links`](links) | `gx` opens the link or file under the cursor, `gf` the file |
 | [`lsp`](lsp) | diagnostics, hover, definitions, references, symbols, rename and code actions |
+| [`markdown`](markdown) | a markdown file draws as it reads, with `render` on |
+| [`shell`](shell) | `:!`, `:{range}!` and `:r !` run a command in the shell |
 | [`spell`](spell) | `spell`, `]s`, `[s`, `z=` and `zg` |
 | [`task`](task) | `:task` and `:pick tasks` run a project's tasks in a terminal |
 

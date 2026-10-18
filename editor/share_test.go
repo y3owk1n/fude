@@ -11,6 +11,7 @@ import (
 	"github.com/y3owk1n/fude/modules/debug"
 	"github.com/y3owk1n/fude/modules/format"
 	gitmod "github.com/y3owk1n/fude/modules/git"
+	shellmod "github.com/y3owk1n/fude/modules/shell"
 	"github.com/y3owk1n/fude/modules/task"
 )
 
@@ -95,6 +96,7 @@ func TestB244GuestRefuses(t *testing.T) {
 	e.Use(debug.New())
 	e.Use(task.New())
 	e.Use(gitmod.New())
+	e.Use(shellmod.New())
 	heard(t, log, `"method":"textDocument/didOpen"`, 1)
 	guest := e.Attach("guest", editor.Guest)
 	wd, err := os.Getwd()
