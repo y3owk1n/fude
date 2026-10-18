@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"cmp"
 	"slices"
 
 	"github.com/y3owk1n/fude/wire"
@@ -53,13 +54,20 @@ func (e *Session) stepBuffer(n int) {
 }
 
 // after returns the first listed buffer at or after index i of the
-// buffers, wrapping, or the buffer at i when none is listed (B89).
+// buffers, wrapping, past an empty buffer with no file while another is
+// listed, or the buffer at i when none is listed (B89).
 func (e *Session) after(i int) *buffer {
 	i = min(i, len(e.bufs)-1)
+	var empty *buffer
 	for k := range e.bufs {
-		if b := e.bufs[(i+k)%len(e.bufs)]; b.kind() == "" && e.barred(b) == nil {
+		b := e.bufs[(i+k)%len(e.bufs)]
+		switch {
+		case b.kind() != "" || e.barred(b) != nil:
+		case b.blank():
+			empty = cmp.Or(empty, b)
+		default:
 			return b
 		}
 	}
-	return e.bufs[i]
+	return cmp.Or(empty, e.bufs[i])
 }

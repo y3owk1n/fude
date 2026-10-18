@@ -673,7 +673,10 @@ Where fude departs, the line says so and cites the departure in
   `:bn` and `:bp` go through the buffers being edited, wrapping at
   either end, and pass help, lists, listings, terminals and the windows
   fude writes. After `:bd`, a window that showed the buffer shows the
-  next buffer being edited.
+  one it showed before, or else the next buffer being edited. Neither is
+  an empty buffer with no file while another is open. A buffer's
+  argument completes as its number, then its path from the working
+  directory, or from `~`.
 - B170 [2] `:restart` and `ZR` replace fude's process with a new fude,
   which loads config.toml, plugins, grammars and language servers again.
   The new process opens the same files and splits, with each window's cursor,

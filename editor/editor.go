@@ -1002,6 +1002,12 @@ func (e *Session) edit(path string) {
 // find returns the buffer numbered s or the one whose name contains s. #
 // names the buffer the window showed before.
 func (e *Session) find(s string) *buffer {
+	// A completion names a buffer by its number, then its path.
+	if n, _, ok := strings.Cut(s, " "); ok {
+		if _, err := strconv.Atoi(n); err == nil {
+			s = n
+		}
+	}
 	if s == "#" {
 		if e.win.alt == nil {
 			e.message = "no alternate buffer"
@@ -1078,7 +1084,16 @@ func (e *Session) close(b *buffer, force bool) {
 				w.alt = nil
 			}
 			if w.buf == b {
-				w.show(s.mayShow(s.after(i)))
+				// The window shows the buffer it showed before, as Neovim
+				// does, or else the next being edited (B89).
+				next := s.after(i)
+				if a := w.alt; a != nil && a.kind() == "" && s.barred(a) == nil && !a.blank() {
+					next = a
+				}
+				w.show(s.mayShow(next))
+				if w.alt == b {
+					w.alt = nil
+				}
 			}
 		}
 	}

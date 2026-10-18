@@ -222,6 +222,12 @@ func (b *buffer) close() {
 	}
 }
 
+// blank reports whether b is an empty buffer with no file, as fude starts
+// with, which :bd passes while another is open (B89).
+func (b *buffer) blank() bool {
+	return b.file.path == "" && b.title == "" && !b.modified() && b.text.Snapshot().Len() == 0
+}
+
 // kind names the buffer's own keymap, or is "" for a buffer with none.
 func (b *buffer) kind() string {
 	switch {

@@ -362,6 +362,36 @@ func TestB89Buffers(t *testing.T) {
 			t.Errorf("%s showed %s, want %s", c.keys, name(), c.want)
 		}
 	}
+	// A buffer completes as its number, then its path from the working
+	// directory, and that names the buffer.
+	t.Chdir(dir)
+	e = open(t, a)
+	e.SetSize(80, 24)
+	feed(e, ":e "+b+"<CR>:b <Tab>")
+	if e.Line() != ":b 1 a" {
+		t.Errorf(":b <Tab> made the line %q, want :b 1 a", e.Line())
+	}
+	if feed(e, "<CR>"); filepath.Base(e.Views()[0].Name) != "a" {
+		t.Errorf(":b 1 a showed %s", e.Views()[0].Name)
+	}
+	// :bd of the buffer showing goes back to the one shown before, not to
+	// an empty buffer opened after it.
+	e = open(t, a)
+	e.SetSize(80, 24)
+	feed(e, ":e "+b+"<CR>:vnew<CR><C-w>h:bd<CR>")
+	if v := e.Views(); len(v) != 2 || filepath.Base(v[0].Name) != "a" {
+		t.Errorf(":bd from b showed %v, want a", v)
+	}
+	// A window with no buffer shown before, as a new split, passes an empty
+	// buffer too.
+	e = open(t, a)
+	e.SetSize(80, 24)
+	feed(e, ":e "+b+"<CR>:enew<CR>:b 2<CR>:vsplit<CR>:bd<CR>")
+	for _, v := range e.Views() {
+		if filepath.Base(v.Name) != "a" {
+			t.Errorf(":bd in a new split showed %s, want a", v.Name)
+		}
+	}
 }
 
 // B201

@@ -316,10 +316,30 @@ func completeBuffer(e *Session, _ string, start int, arg string, _ bool) (int, [
 	var names []string
 	for _, b := range e.bufs {
 		if b.file.path != "" {
-			names = append(names, b.file.path)
+			names = append(names, strconv.Itoa(b.id)+" "+shortPath(b.file.path))
 		}
 	}
 	return start, match(names, arg)
+}
+
+// shortPath is path as a buffer's completion shows it: under the working
+// directory relative to it, under the home directory with ~, or else whole.
+func shortPath(path string) string {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return path
+	}
+	if wd, err := os.Getwd(); err == nil {
+		if rel, ok := under(wd, abs); ok {
+			return rel
+		}
+	}
+	if home, err := os.UserHomeDir(); err == nil {
+		if rel, ok := under(home, abs); ok {
+			return filepath.Join("~", rel)
+		}
+	}
+	return abs
 }
 
 // helpCommands returns the editor's commands as help shows them.
