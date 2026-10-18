@@ -22,6 +22,10 @@ type Decoration struct {
 	// and a row too long for the window is cut at its edge (B299).
 	Lines []string
 	Above bool
+	// Block makes the lines from Start's to End's one block. While the
+	// cursor or a selection is on any of them, they all show their text as
+	// it is, without replacements or rows of their own (B300).
+	Block bool
 	// Layer orders the signs on one line, and the highest shows. git's signs
 	// are at -1, most at 0, diagnostics at 1 and a breakpoint at 2 (B184,
 	// B262).

@@ -212,7 +212,7 @@ func (e *Session) Views() []wire.View {
 					}
 					continue
 				}
-				if d.style != "inlay" && !d.replace && s < end && end > top && s < last {
+				if d.style != "inlay" && !d.replace && !d.block && s < end && end > top && s < last {
 					v.Decorations = append(v.Decorations, syntax.Span{Start: s, End: end, Name: d.style})
 				}
 			}

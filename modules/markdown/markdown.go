@@ -230,7 +230,8 @@ type replacement struct {
 }
 
 // table shows a table's pipes as │ and its delimiter row as ├─┼─┤, with
-// ┌─┬─┐ above it and └─┴─┘ below it. The pipes take blanks so the columns
+// ┌─┬─┐ above it and └─┴─┘ below it, unless the cursor is in it. The pipes
+// take blanks so the columns
 // line up. A cell's blanks go after it, before it in a column the
 // delimiter row aligns right with -:, and on both sides in one it centres
 // with :-:. A table with a row that does not start with a pipe stays as it
@@ -320,6 +321,8 @@ func table(t api.Text, rows []api.Span, replaced []replacement, add func(api.Dec
 	}
 	add(api.Decoration{Start: first, End: first, Style: "markdown.table", Lines: []string{border("┌", "┬", "┐")}, Above: true})
 	add(api.Decoration{Start: last, End: last, Style: "markdown.table", Lines: []string{border("└", "┴", "┘")}})
+	// With the cursor in it, the whole table shows its text as it is.
+	add(api.Decoration{Start: first, End: last, Block: true})
 }
 
 // width is how many columns [start, end) of t takes as it shows, with the

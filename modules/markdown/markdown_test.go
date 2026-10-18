@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -60,6 +61,19 @@ func TestB298Render(t *testing.T) {
 		return v.Grounds[1] == "markdown.h1" && v.Grounds[line] == "markdown.code"
 	}
 	editortest.Settle(t, e, shown)
+	// With the cursor on one of its rows, the whole table shows its text,
+	// without its borders.
+	table := e.Text().LineOf(at("| a"))
+	editortest.Feed(e, strconv.Itoa(table+3)+"G")
+	for _, g := range e.Views()[0].Ghosts {
+		if g.Pos >= at("| a") && g.Style == "markdown.table" {
+			t.Errorf("with the cursor in the table, it shows %+v", g)
+		}
+	}
+	if v := e.Views()[0]; len(v.Virtual[table]) != 0 || len(v.Virtual[table+2]) != 0 {
+		t.Errorf("with the cursor in the table, its borders show: %v", v.Virtual)
+	}
+	editortest.Feed(e, "gg")
 	// A new bullet draws a moment after it is typed, once the cursor leaves
 	// its line.
 	editortest.Feed(e, "Go- new<Esc>gg")

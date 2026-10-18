@@ -20,7 +20,8 @@ type drawn struct {
 // does not hold: inlay hints, proposals' text and the replacements modules
 // put, by position, and the rows decorations draw between lines. The cursor's
 // line, and in the current window a selection's lines, show their text as
-// it is (B71, B216, B295, B299).
+// it is, without replacements or rows of their own. So do all the lines of
+// a block that holds one of them (B71, B216, B295, B299, B300).
 func (e *Session) shown(w *window, start, end int) drawn {
 	b := w.buf
 	if b.inlines == 0 {
@@ -31,6 +32,15 @@ func (e *Session) shown(w *window, start, end int) drawn {
 	if sel, ok := e.Selection(); ok && w == e.win {
 		first, last = min(first, t.LineOf(sel.Start)), max(last, t.LineOf(sel.End))
 	}
+	for _, ds := range e.decos {
+		for _, d := range ds {
+			if d.buf == b && d.block {
+				if s, en := t.LineOf(b.text.Mark(d.start)), t.LineOf(b.text.Mark(d.end)); s <= last && en >= first {
+					first, last = min(first, s), max(last, en)
+				}
+			}
+		}
+	}
 	var out drawn
 	for _, ds := range e.decos {
 		for _, d := range ds {
@@ -39,7 +49,8 @@ func (e *Session) shown(w *window, start, end int) drawn {
 			}
 			s, en := b.text.Mark(d.start), b.text.Mark(d.end)
 			switch line := t.LineOf(s); {
-			case len(d.lines) > 0 && s >= start && s <= end:
+			case d.block:
+			case len(d.lines) > 0 && (line < first || line > last) && s >= start && s <= end:
 				if out.virtual == nil {
 					out.virtual = map[int][]wire.Virtual{}
 				}

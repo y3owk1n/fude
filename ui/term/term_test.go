@@ -470,24 +470,25 @@ func TestB217PinnedReplace(t *testing.T) {
 	}
 }
 
-// spaced is a module that draws a row of its own below the first line.
+// spaced is a module that draws a row of its own below the second line.
 type spaced struct{ heading }
 
-func (spaced) Init(context.Context, api.Scope) (api.Result, error) {
-	return api.Result{Decorate: []api.Decoration{{ID: 1, Style: "markdown.rule", Lines: []string{"──"}}}}, nil
+func (spaced) Init(_ context.Context, s api.Scope) (api.Result, error) {
+	p := s.Text.LineStart(1)
+	return api.Result{Decorate: []api.Decoration{{ID: 1, Start: p, End: p, Style: "markdown.rule", Lines: []string{"──"}}}}, nil
 }
 
 // B299, drawn
 func TestB299DrawVirtualRows(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "a.txt")
-	if err := os.WriteFile(path, []byte("a\nb\n"), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte("a\nb\nc\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	c := startWith(t, "", path)
 	c.e.(*editor.Session).Use(spaced{})
 	c.draw()
-	// The row draws between the lines, and the second line goes down one.
-	for y, want := range []string{"a", "──", "b"} {
+	// The row draws between the lines, and the third line goes down one.
+	for y, want := range []string{"a", "b", "──", "c"} {
 		var row strings.Builder
 		for x := range 2 {
 			s, _, _ := c.s.Get(x, y)
