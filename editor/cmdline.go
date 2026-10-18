@@ -213,6 +213,12 @@ func (e *Session) completions(line string, wait bool) (int, []string) {
 		}
 		return c.complete(e, line, start, arg, wait)
 	}
+	if e.pathArgs[name] {
+		if full, err := e.expand(arg); err == nil {
+			arg = full
+		}
+		return completePath(e, line, start, arg, wait)
+	}
 	if complete, ok := e.completers[name]; ok {
 		// A module may answer in the call itself, or later.
 		a := &moduleMenu{line: line, start: start, sync: true}

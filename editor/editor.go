@@ -44,6 +44,7 @@ type Editor struct {
 	// key does, by :name and <Plug>(name), and their operators and objects.
 	pluginHelp        map[string]string
 	pluginArgs        map[string]string // the arguments of a module's command, by its name (B324)
+	pathArgs          map[string]bool   // the modules' commands whose argument completes as a path (B290)
 	pluginBindings    []vim.Binding
 	plugged           int                               // how many of setup come before the plugins' own
 	commands          map[string]func(*Session, call)   // ex commands plugins registered
@@ -954,24 +955,35 @@ func (e *Session) ex(line string) {
 			e.message = "a guest may not run :" + c.Name
 			return
 		}
-		if takesPath(c) {
-			if arg, err = e.expand(arg); err != nil {
-				e.message = err.Error()
-				return
-			}
-			if err := e.outside(arg); err != nil {
-				e.message = err.Error()
-				return
-			}
+		if takesPath(c) && !e.mayTake(&arg) {
+			return
 		}
 		c.run(e, call{name, arg, force, first, last, ranged})
 		return
 	}
 	if run, ok := e.commands[name]; ok {
+		if e.pathArgs[name] && !e.mayTake(&arg) {
+			return
+		}
 		run(e, call{name, arg, force, first, last, ranged})
 		return
 	}
 	e.message = "not a command: " + line
+}
+
+// mayTake expands the path arg names, as %, # and ~, and reports whether
+// the session may use it, saying why not (B204, B245).
+func (e *Session) mayTake(arg *string) bool {
+	full, err := e.expand(*arg)
+	if err == nil {
+		err = e.outside(full)
+	}
+	if err != nil {
+		e.message = err.Error()
+		return false
+	}
+	*arg = full
+	return true
 }
 
 // edit shows the file at path, opening it if no buffer holds it.

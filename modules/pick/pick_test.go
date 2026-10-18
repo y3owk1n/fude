@@ -8,6 +8,7 @@ import (
 	"github.com/y3owk1n/fude/editor/editortest"
 	"github.com/y3owk1n/fude/modules/help"
 	"github.com/y3owk1n/fude/modules/pick"
+	"github.com/y3owk1n/fude/modules/window"
 )
 
 func TestMain(m *testing.M) { os.Exit(editortest.Main(m)) }
@@ -17,6 +18,7 @@ func TestB266PickCommands(t *testing.T) {
 	e := editortest.Start(t)
 	e.Use(pick.New())
 	e.Use(help.New())
+	e.Use(window.New())
 	e.SetSize(100, 30)
 	shows := func(want string) bool { f, _ := e.Float(); return strings.Contains(f.Text, want) }
 	// Typing what a command does finds it, and the one picked runs.

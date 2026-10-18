@@ -323,26 +323,6 @@ func (e *Session) resize(across bool, to func(now, room int) int) {
 	e.layout()
 }
 
-// resizeTo runs :resize, or :vertical resize when across, with arg: n
-// sets the size, +n and -n change it, and none makes it as large as it can
-// be (B193).
-func (e *Session) resizeTo(across bool, arg string) {
-	n, err := strconv.Atoi(arg)
-	if arg != "" && err != nil {
-		e.message = "not a size: " + arg
-		return
-	}
-	e.resize(across, func(now, room int) int {
-		switch {
-		case arg == "":
-			return room
-		case arg[0] == '+' || arg[0] == '-':
-			return now + n
-		}
-		return n
-	})
-}
-
 // even makes every split share its space equally again.
 func (n *node) even() {
 	n.size = 0

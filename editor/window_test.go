@@ -147,7 +147,7 @@ func TestB91WindowCommands(t *testing.T) {
 
 // B193
 func TestB193WindowSizes(t *testing.T) {
-	e := open(t, "")
+	e := withCommands(open(t, ""))
 	e.SetSize(80, 20)
 	heights := func() []int {
 		var out []int
@@ -236,7 +236,7 @@ func TestB38Ruler(t *testing.T) {
 
 // B39
 func TestB39Set(t *testing.T) {
-	e := open(t, "")
+	e := withCommands(open(t, ""))
 	feed(e, ":set number true<CR>:set relative_number true<CR>")
 	if v := e.Views()[0]; !v.Number || !v.Relative || v.Gutter != 4 {
 		t.Fatalf("after :set number true and relative_number true the view is %+v", v)

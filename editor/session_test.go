@@ -42,7 +42,7 @@ func TestB170Restart(t *testing.T) {
 	a, b := filepath.Join(dir, "a.txt"), filepath.Join(dir, "b.txt")
 	change(t, a, "one\ntwo\n")
 	change(t, b, "three\n")
-	e := buffered(start(t, a, b))
+	e := withCommands(start(t, a, b))
 	e.SetSize(80, 20)
 	feed(e, "j:vsplit<CR>:b 2<CR>ix<Esc>:set number true<CR>:restart<CR>")
 	if !e.Done() || e.Restart() == "" {

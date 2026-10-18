@@ -9,6 +9,7 @@ import (
 	"github.com/y3owk1n/fude/editor/editortest"
 	"github.com/y3owk1n/fude/modules/session"
 	"github.com/y3owk1n/fude/modules/start"
+	"github.com/y3owk1n/fude/modules/window"
 )
 
 func TestMain(m *testing.M) { os.Exit(editortest.Main(m)) }
@@ -21,6 +22,7 @@ func TestB226ProjectSession(t *testing.T) {
 	t.Chdir(dir)
 	e := editortest.Start(t, "a.txt")
 	e.Use(session.New())
+	e.Use(window.New())
 	e.SetSize(80, 24)
 	editortest.Feed(e, "j$:vsplit<CR>:e b.txt<CR>:qa<CR>")
 	// fude started again with no file offers the session, and s restores
@@ -29,6 +31,7 @@ func TestB226ProjectSession(t *testing.T) {
 	e.SetSize(80, 24)
 	e.Use(start.New())
 	e.Use(session.New())
+	e.Use(window.New())
 	e.Welcome()
 	editortest.Settle(t, e, func() bool { return strings.Contains(editortest.Text(e), "s  restore the last session here") })
 	editortest.Feed(e, "s")
@@ -41,6 +44,7 @@ func TestB226ProjectSession(t *testing.T) {
 	e = editortest.Start(t)
 	e.Use(start.New())
 	e.Use(session.New())
+	e.Use(window.New())
 	e.Welcome()
 	editortest.Settle(t, e, func() bool { return strings.Contains(editortest.Text(e), "s  restore the last session here") })
 	editortest.Feed(e, "s")

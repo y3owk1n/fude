@@ -102,6 +102,11 @@ type Registration struct {
 	// Short are other names a Command answers to, such as ls for buffers
 	// (B329).
 	Short []string
+	// Paths makes a Command's argument a path, as :e's is. It completes as
+	// one instead of in Call, and the call gets it with %, # and ~
+	// expanded, which a guest may not name outside the project (B204,
+	// B245, B290).
+	Paths bool
 	// Args are the arguments a Command takes, as :h and :pick commands show
 	// them, in brackets when it may go without, such as [file] (B324).
 	Args string

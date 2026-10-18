@@ -97,17 +97,6 @@ func init() {
 		}, nil},
 		{vim.Command{Name: "copen", Short: []string{"cope"}, Help: "shows the last list of places in a window"}, func(e *Session, _ call) { e.openList() }, nil},
 		{vim.Command{Name: "cclose", Short: []string{"ccl"}, Help: "closes the window of the last list of places"}, func(e *Session, _ call) { e.closeList() }, nil},
-		{vim.Command{Name: "resize", Short: []string{"res"}, Args: "[+-]{n}", Help: "makes the window n rows tall, or n taller or shorter, or as tall as it can be"}, func(e *Session, x call) {
-			e.resizeTo(false, x.arg)
-		}, nil},
-		{vim.Command{Name: "vertical", Short: []string{"vert"}, Args: "resize [+-]{n}", Help: "makes the window n columns wide, or n wider or narrower, or as wide as it can be"}, func(e *Session, x call) {
-			name, arg, _ := strings.Cut(x.arg, " ")
-			if name != "resize" && name != "res" {
-				e.message = "usage: :vertical resize [+-]{n}"
-				return
-			}
-			e.resizeTo(true, strings.TrimSpace(arg))
-		}, nil},
 		{vim.Command{Name: "config", Args: "reload", Help: "reads config.toml again, without writing it"}, func(e *Session, x call) {
 			if x.arg != "reload" {
 				e.message = "config what? reload"
@@ -126,11 +115,6 @@ func init() {
 		}, func(_ *Session, _ string, start int, arg string, _ bool) (int, []string) {
 			return start, fuzzy.Match([]string{"reload"}, arg)
 		}},
-		{vim.Command{Name: "new", Help: "opens a window below with a new empty buffer, or above with split_below off"}, func(e *Session, _ call) {
-			e.split(false)
-			e.empty()
-		}, nil},
-		{vim.Command{Name: "only", Short: []string{"on"}, Help: "closes every other window"}, func(e *Session, _ call) { e.only() }, nil},
 		{vim.Command{Name: "pwd", Help: "shows the working directory"}, func(e *Session, _ call) {
 			if dir, err := os.Getwd(); err != nil {
 				e.message = err.Error()
@@ -148,7 +132,6 @@ func init() {
 		}, nil},
 		{vim.Command{Name: "set", Short: []string{"se"}, Args: "[name [value]]", Help: "sets an option to a value, as config.toml would, shows one, or lists them all"}, func(e *Session, x call) { e.set(x.arg) }, completeOption},
 		{vim.Command{Name: "share", Help: "shows a new share string, which lets one more guest join"}, func(e *Session, _ call) { e.reshare() }, nil},
-		{vim.Command{Name: "split", Short: []string{"sp"}, Args: "[file]", Help: "opens a window below, then opens file in it"}, splitAndEdit, completePath},
 		{vim.Command{Name: "theme", Args: "[dark|light|{file}]", Help: "switches the theme of every client, or shows the one in use"}, func(e *Session, x call) {
 			if x.arg == "" {
 				e.message = e.theme
@@ -161,11 +144,6 @@ func init() {
 				e.write(e.win.buf, x.force, nil)
 			}
 		}, nil},
-		{vim.Command{Name: "vnew", Short: []string{"vne"}, Help: "opens a window to the right with a new empty buffer, or left with split_right off"}, func(e *Session, _ call) {
-			e.split(true)
-			e.empty()
-		}, nil},
-		{vim.Command{Name: "vsplit", Short: []string{"vs"}, Args: "[file]", Help: "opens a window to the right, then opens file in it"}, splitAndEdit, completePath},
 		{vim.Command{Name: "wall", Short: []string{"wa"}, Help: "writes every modified buffer"}, func(e *Session, x call) { e.writeAll(e.bufs, x.force, nil) }, nil},
 		{vim.Command{Name: "wq", Help: "writes the buffer and closes the window"}, func(e *Session, x call) {
 			e.write(e.win.buf, x.force, func() { e.quit(x.force) })
@@ -219,14 +197,6 @@ func byName(cs []command) map[string]*command {
 		}
 	}
 	return out
-}
-
-// splitAndEdit is :split and :vsplit.
-func splitAndEdit(e *Session, x call) {
-	e.split(x.name[0] == 'v')
-	if x.arg != "" {
-		e.edit(x.arg)
-	}
 }
 
 // writeAllAndQuit is :wqall and :xall.

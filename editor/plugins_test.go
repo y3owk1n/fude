@@ -589,7 +589,7 @@ func TestB184PluginSignsAndNotes(t *testing.T) {
 		return v.Notes[0].Text == "changed" && v.Notes[1].Text == "" && v.Signs[1].Text == ""
 	})
 	// A window on another buffer shows none of them.
-	if feed(e, ":vnew<CR>"); len(e.Views()) != 2 || e.Views()[1].Notes[0].Text != "" || e.Views()[1].Signs[0].Text != "" {
+	if feed(e, "<C-w>v:e "+filepath.Join(t.TempDir(), "g")+"<CR>"); len(e.Views()) != 2 || e.Views()[1].Notes[0].Text != "" || e.Views()[1].Signs[0].Text != "" {
 		t.Errorf("a window on a new buffer shows another buffer's notes or signs")
 	}
 }
@@ -1262,7 +1262,7 @@ func TestB306FreeImages(t *testing.T) {
 	}
 	path := filepath.Join(dir, "f")
 	change(t, path, "a\n")
-	e := buffered(start(t, path))
+	e := withCommands(start(t, path))
 	e.SetSize(80, 20)
 	e.SetCell(8, 16)
 	e.Use(pictured{path: pic})

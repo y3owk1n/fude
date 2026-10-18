@@ -496,6 +496,16 @@ the split keeps its least. The rest share what is left, so a terminal that
 shrinks shrinks the windows without a size first. `<C-w>=` drops every
 size.
 
+`modules/window` is `:split`, `:vsplit`, `:new`, `:vnew`, `:only`,
+`:resize` and `:vertical resize`. `:split file` asks for a `Jump` of the
+current buffer with `Split`, then `Ex` of `edit file`. Its `Paths` makes
+the editor expand the file and refuse a guest's outside the project before
+the call, as for `:e`. `:new` is a `Scratch` with `Split`. `:resize` asks
+for a `WindowAction`: `height` for n, `taller` for +n or -n, and `height`
+of 0 for as tall as it can be. `:close` stays in the editor, as `:quit`
+does, because every panel's `q` runs it. The `<C-w>` keys stay there too
+(B91, B193).
+
 The window layout (splits) is outside the kernel. Until step 6 it lives in
 `editor/`, and the terminal client draws what `Editor.Views` returns. With
 remote clients, each client gets its own views (D16).

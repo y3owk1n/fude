@@ -39,7 +39,7 @@ and a program that embeds the editor does the same.
 | [`spell`](spell) | `spell`, `]s`, `[s`, `z=` and `zg` |
 | [`start`](start) | the start screen of fude started with no file |
 | [`surround`](surround) | `ys`, `yss`, `ds`, `cs` and `S` in visual mode surround text |
-| [`window`](window) | `<Plug>(window.*)` move to the window that way, or to tmux's pane |
+| [`window`](window) | `<Plug>(window.*)` move to the window that way, or to tmux's pane, and `:split`, `:vsplit`, `:new`, `:vnew`, `:only`, `:resize` and `:vertical resize` |
 | [`terminal`](terminal) | `:terminal` runs a command, or the shell, in a window below |
 | [`timeline`](timeline) | `:timeline`, `:earlier`, `:later`, `:restore`, `:diff` and `:recover` |
 | [`task`](task) | `:task` and `:pick tasks` run a project's tasks in a terminal |

@@ -276,7 +276,7 @@ func TestB95WriteAndQuit(t *testing.T) {
 	} {
 		change(t, a, "one\n")
 		change(t, b, "two\n")
-		e := buffered(start(t, a, b))
+		e := withCommands(start(t, a, b))
 		feed(e, c.keys)
 		if disk(t, a) != c.a || disk(t, b) != c.b || e.Done() != c.done {
 			t.Errorf("%s left %q and %q, done %v, want %q and %q, done %v", c.keys, disk(t, a), disk(t, b), e.Done(), c.a, c.b, c.done)
@@ -297,7 +297,7 @@ func TestB96AlternateBuffer(t *testing.T) {
 	a, b := filepath.Join(dir, "a"), filepath.Join(dir, "b")
 	change(t, a, "one\n")
 	change(t, b, "two\n")
-	e := buffered(start(t, a, b))
+	e := withCommands(start(t, a, b))
 	feed(e, "<C-^>")
 	if e.Message() != "no alternate buffer" {
 		t.Errorf("<C-^> with no alternate said %q", e.Message())
@@ -336,7 +336,7 @@ func TestB204PathExpansion(t *testing.T) {
 	change(t, b, "B\n")
 	change(t, c, "C\n")
 	change(t, filepath.Join(dir, "d.txt"), "D\n")
-	e := buffered(open(t, b))
+	e := withCommands(open(t, b))
 	for _, step := range []struct{ keys, want string }{
 		{":e %:h/c.txt<CR>", "C"},
 		{":e #<CR>", "B"},
@@ -382,7 +382,7 @@ func TestB155WritingAndFiles(t *testing.T) {
 	path := filepath.Join(dir, "a")
 	change(t, path, "one\n")
 	t.Chdir(dir)
-	e := open(t, "a")
+	e := withCommands(open(t, "a"))
 	// :w with a name writes a copy, and the buffer stays on its own file.
 	feed(e, "x:w b<CR>")
 	if disk(t, filepath.Join(dir, "b")) != "ne\n" || disk(t, path) != "one\n" || e.Views()[0].Name != "a" {

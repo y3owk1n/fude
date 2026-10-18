@@ -520,10 +520,18 @@ func (e *Session) windowAction(a api.WindowAction) error {
 		e.only()
 	case "focus":
 		e.win = w
-	case "height", "width":
+	case "height", "width", "taller", "wider":
 		cur := e.win
 		e.win = w
-		e.resize(a.Do == "width", func(int, int) int { return a.Size })
+		e.resize(a.Do == "width" || a.Do == "wider", func(now, room int) int {
+			switch {
+			case a.Do == "taller" || a.Do == "wider":
+				return now + a.Size
+			case a.Size == 0:
+				return room
+			}
+			return a.Size
+		})
 		e.win = cur
 	case "cursor", "top":
 		if a.Pos < 0 || a.Pos > t.Len() {
@@ -927,6 +935,7 @@ func (e *Session) unregister(p api.Module) {
 				delete(e.completers, name)
 				delete(e.shortOf, name)
 				delete(e.pluginArgs, name)
+				delete(e.pathArgs, name)
 			}
 			delete(e.pluginHelp, ":"+r.Name)
 		case api.Source:
@@ -1008,8 +1017,11 @@ func (e *Session) register(p api.Module, r api.Registration) {
 		if e.pluginArgs == nil {
 			e.pluginArgs = map[string]string{}
 		}
+		if e.pathArgs == nil {
+			e.pathArgs = map[string]bool{}
+		}
 		for _, name := range append([]string{r.Name}, r.Short...) {
-			e.pluginArgs[name] = r.Args
+			e.pluginArgs[name], e.pathArgs[name] = r.Args, r.Paths
 		}
 		run := func(s *Session, c call) {
 			scope := s.scope(p, s.win.buf, s.Text())

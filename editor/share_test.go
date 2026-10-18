@@ -180,7 +180,7 @@ func TestB245GuestProject(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	e := buffered(open(t, "a.txt"))
+	e := withCommands(open(t, "a.txt"))
 	e.Use(listsmod.New())
 	e.Use(listingmod.New())
 	e.Use(filesmod.New())
@@ -315,7 +315,7 @@ func TestB256Follow(t *testing.T) {
 	change(t, "c.txt", strings.Repeat("c", 300)+"\n")
 	change(t, filepath.Join(away, "out.txt"), "out\n")
 	config(t, "wrap = false\n")
-	e := start(t, "a.txt")
+	e := withCommands(start(t, "a.txt"))
 	e.Use(sessionsmod.New())
 	e.SetName("host")
 	e.SetSize(80, 20)

@@ -143,7 +143,7 @@ func TestB34Recovery(t *testing.T) {
 	path, done := filepath.Join(dir, "g.txt"), filepath.Join(dir, "done")
 	change(t, path, "one\n")
 	config(t, fmt.Sprintf("[filetype.txt]\nformat = [\"up\"]\n[formatter.up]\ncommand = [\"sh\", \"-c\", \"sed s/one/ONE/; touch %s\"]\n", done))
-	e = buffered(start(t, path))
+	e = withCommands(start(t, path))
 	e.Use(format.New())
 	feed(e, ":format<CR>:bd!<CR>")
 	settle(t, e, func() bool { _, err := os.Stat(done); return err == nil })

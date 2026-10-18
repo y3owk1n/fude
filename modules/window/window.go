@@ -1,6 +1,7 @@
 // Package window moves to the window that way, or inside tmux, with no
 // window that way, to tmux's pane there, as nvim-tmux-navigation does
-// (B140).
+// (B140). It is also :split, :vsplit, :new, :vnew, :only, :resize and
+// :vertical resize (B91, B193).
 package window
 
 import (
@@ -9,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 
 	"github.com/y3owk1n/fude/api"
@@ -22,6 +24,17 @@ var dirs = []struct{ name, dir, flag, help string }{
 	{"up", "k", "-U", "goes to the window, or tmux pane, above"},
 	{"right", "l", "-R", "goes to the window, or tmux pane, to the right"},
 }
+
+// What window registers besides its moves, by the ids Call runs them by.
+const (
+	split uint32 = iota + 100
+	vsplit
+	below
+	right
+	only
+	resize
+	vertical
+)
 
 // Module is window.
 type Module struct{}
@@ -38,7 +51,15 @@ func (m *Module) Registered() []api.Registration {
 	for i, d := range dirs {
 		regs[i] = api.Registration{Kind: api.Plug, Name: d.name, Help: d.help, ID: uint32(i + 1)}
 	}
-	return regs
+	return append(regs,
+		api.Registration{Kind: api.Command, Name: "split", Short: []string{"sp"}, Args: "[file]", Paths: true, Help: "opens a window below, then opens file in it", ID: split},
+		api.Registration{Kind: api.Command, Name: "vsplit", Short: []string{"vs"}, Args: "[file]", Paths: true, Help: "opens a window to the right, then opens file in it", ID: vsplit},
+		api.Registration{Kind: api.Command, Name: "new", Help: "opens a window below with a new empty buffer, or above with split_below off", ID: below},
+		api.Registration{Kind: api.Command, Name: "vnew", Short: []string{"vne"}, Help: "opens a window to the right with a new empty buffer, or left with split_right off", ID: right},
+		api.Registration{Kind: api.Command, Name: "only", Short: []string{"on"}, Help: "closes every other window", ID: only},
+		api.Registration{Kind: api.Command, Name: "resize", Short: []string{"res"}, Args: "[+-]{n}", Help: "makes the window n rows tall, or n taller or shorter, or as tall as it can be", ID: resize},
+		api.Registration{Kind: api.Command, Name: "vertical", Short: []string{"vert"}, Args: "resize [+-]{n}", Help: "makes the window n columns wide, or n wider or narrower, or as wide as it can be", ID: vertical},
+	)
 }
 
 func (m *Module) Init(context.Context, api.Scope) (api.Result, error) { return api.Result{}, nil }
@@ -46,6 +67,9 @@ func (m *Module) Init(context.Context, api.Scope) (api.Result, error) { return a
 // Call moves to the window that way, or else to tmux's pane there. A
 // guest's call runs no program on the host (B244).
 func (m *Module) Call(_ context.Context, id uint32, s api.Scope, _ ...int) (api.Result, error) {
+	if id >= split {
+		return command(id, s), nil
+	}
 	if int(id) > len(dirs) || id == 0 {
 		return api.Result{}, nil
 	}
@@ -57,6 +81,55 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, _ ...int) (api.
 		return api.Result{}, nil
 	}
 	return api.Result{Jobs: []api.Job{{ID: id, Argv: []string{"tmux", "select-pane", "-t", os.Getenv("TMUX_PANE"), d.flag}}}}, nil
+}
+
+// command splits or sizes the current window, or closes the others, as its
+// command does.
+// A split goes below or right, or above or left with split_below or
+// split_right off, which the editor reads (B91, B193).
+func command(id uint32, s api.Scope) api.Result {
+	arg := strings.TrimSpace(s.About["args"])
+	way := "below"
+	if id == vsplit || id == right {
+		way = "right"
+	}
+	switch id {
+	case split, vsplit:
+		current, _ := strconv.Atoi(s.About["buffer"])
+		res := api.Result{Jump: &api.Jump{Buffer: current, Split: way}}
+		if arg != "" {
+			res.Ex = []string{"edit " + arg}
+		}
+		return res
+	case below, right:
+		return api.Result{Scratch: &api.Scratch{Split: way}}
+	case only:
+		return api.Result{Windows: []api.WindowAction{{Do: "only"}}}
+	case vertical:
+		name, rest, _ := strings.Cut(arg, " ")
+		if name != "resize" && name != "res" {
+			return api.Result{Message: "usage: :vertical resize [+-]{n}"}
+		}
+		return sized(strings.TrimSpace(rest), true)
+	}
+	return sized(arg, false)
+}
+
+// sized makes the window n rows tall, or n columns wide when across, n
+// more or fewer for +n and -n, or as large as it can be for none (B193).
+func sized(arg string, across bool) api.Result {
+	n, err := strconv.Atoi(arg)
+	if arg != "" && err != nil {
+		return api.Result{Message: "not a size: " + arg}
+	}
+	do := "height"
+	if arg != "" && (arg[0] == '+' || arg[0] == '-') {
+		do = "taller"
+	}
+	if across {
+		do = map[string]string{"height": "width", "taller": "wider"}[do]
+	}
+	return api.Result{Windows: []api.WindowAction{{Do: do, Size: n}}}
 }
 
 func (m *Module) Event(context.Context, string, api.Scope) (api.Result, error) {

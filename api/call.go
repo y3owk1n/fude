@@ -274,8 +274,9 @@ type Jump struct {
 // WindowAction does Do to the window by its ID, as Scope.Windows lists it,
 // or to the current one for 0. close closes it, only closes every other,
 // focus makes it current, height and width make it Size rows or columns,
-// cursor moves its cursor to Pos and top makes the line holding Pos its
-// top line (B343).
+// or as many as it can take for 0, taller and wider make it Size more, or
+// fewer for a negative Size, cursor moves its cursor to Pos and top makes
+// the line holding Pos its top line (B343).
 type WindowAction struct {
 	ID        int
 	Do        string

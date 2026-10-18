@@ -11,6 +11,7 @@ import (
 	"github.com/y3owk1n/fude/modules/buffers"
 	"github.com/y3owk1n/fude/modules/help"
 	"github.com/y3owk1n/fude/modules/lists"
+	"github.com/y3owk1n/fude/modules/window"
 )
 
 func TestMain(m *testing.M) { os.Exit(editortest.Main(m)) }
@@ -20,12 +21,14 @@ var (
 	text = editortest.Text
 )
 
-// open opens path with the modules the tests need.
+// open opens path with the modules the tests need: buffers, help for :h,
+// and window for :vnew, :vsplit and :only.
 func open(t *testing.T, path string) *editor.Session {
 	t.Helper()
 	e := editortest.Open(t, path)
 	e.Use(buffers.New())
 	e.Use(help.New())
+	e.Use(window.New())
 	return e
 }
 
