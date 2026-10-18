@@ -428,24 +428,9 @@ func (e *Session) diagnosticFloat(b *buffer, p int) {
 	e.float.text, e.float.spans = text.String(), spans
 }
 
-// requests are the language server requests that commands send, by name.
-var requests = map[string]string{
-	"lsp.definition":     "textDocument/definition",
-	"lsp.typeDefinition": "textDocument/typeDefinition",
-	"lsp.implementation": "textDocument/implementation",
-	"lsp.references":     "textDocument/references",
-	"lsp.symbols":        "textDocument/documentSymbol",
-	"lsp.hover":          "textDocument/hover",
-	"lsp.rename":         "textDocument/rename",
-	"lsp.codeAction":     "textDocument/codeAction",
-}
-
 // attached are the keys that exist only while the current buffer has a
 // language server, and the commands they run (N3).
-var attached = map[string]string{
-	"grr": "lsp.references", "gri": "lsp.implementation", "grt": "lsp.typeDefinition", "gO": "lsp.symbols",
-	"grn": "lsp.rename", "gra": "lsp.codeAction",
-}
+var attached = map[string]string{"gra": "lsp.codeAction"}
 
 // syncKeys maps the attached keys while the current buffer has a language
 // server and removes them otherwise, so gr waits for nothing without one.
@@ -479,64 +464,6 @@ func (e *Session) syncKeys() {
 		}
 	}
 	e.lspKeys = want
-}
-
-// request sends the request named, such as lsp.definition, about the
-// cursor's place in the current buffer, and handles the answer on the editor
-// loop when it comes (B62, B66).
-func (e *Session) request(name string) {
-	if name == "lsp.hover" && e.float.left != "" {
-		// Hover while a float shows moves the cursor into it.
-		e.focus(e.float.left)
-		return
-	}
-	b := e.win.buf
-	if len(b.servers) == 0 {
-		e.message = "no language server"
-		return
-	}
-	if name == "lsp.codeAction" {
-		e.codeActions()
-		return
-	}
-	if name == "lsp.rename" {
-		// grn asks for the new name on the command line, starting from the
-		// word under the cursor, and :rename sends it.
-		t, c := e.Text(), e.Cursor()
-		start, end := c, c
-		for start > 0 && isWord(t.Slice(start-1, start)[0]) {
-			start--
-		}
-		for end < t.Len() && isWord(t.Slice(end, end+1)[0]) {
-			end++
-		}
-		e.later = append(e.later, vim.Keys(":rename "+t.Slice(start, end))...)
-		e.renameAt = c
-		return
-	}
-	t, c, uri := b.text.Snapshot(), e.Cursor(), lsp.URI(b.file.path)
-	asked := ask(b.servers, requests[name], func(_ *server, enc string) any {
-		p := map[string]any{"textDocument": map[string]any{"uri": uri}}
-		if name != "lsp.symbols" {
-			p["position"] = lsp.Point(t, c, enc)
-		}
-		if name == "lsp.references" {
-			p["context"] = map[string]any{"includeDeclaration": true}
-		}
-		return p
-	}, func(rs []reply) {
-		switch name {
-		case "lsp.hover":
-			e.hover(rs)
-		case "lsp.symbols":
-			e.symbols(b, rs)
-		default:
-			e.locate(name, rs)
-		}
-	})
-	if !asked {
-		e.message = "no language server offers " + strings.TrimPrefix(name, "lsp.")
-	}
 }
 
 // reply is a server's answer to a request, nil when it answered with an
@@ -593,35 +520,6 @@ func first(servers []*server, method string) *server {
 		return servers[i]
 	}
 	return nil
-}
-
-// rename asks the current buffer's server to rename the symbol where grn
-// was pressed to name, and applies the edits it answers with, in every file
-// they name (B66).
-func (e *Session) rename(name string) {
-	b := e.win.buf
-	s := first(b.servers, requests["lsp.rename"])
-	if s == nil {
-		e.message = "no language server offers rename"
-		return
-	}
-	if name == "" {
-		e.message = "no new name"
-		return
-	}
-	t, c, uri := b.text.Snapshot(), min(e.renameAt, b.text.Snapshot().Len()), lsp.URI(b.file.path)
-	s.client.Request(requests["lsp.rename"], func(enc string) any {
-		return map[string]any{"textDocument": map[string]any{"uri": uri}, "position": lsp.Point(t, c, enc), "newName": name}
-	}, func(res json.RawMessage) {
-		if res == nil {
-			return
-		}
-		changed, problems := e.workspaceEdit(s, b, t, res, "rename")
-		e.message = fmt.Sprintf("renamed in %d files", changed)
-		if len(problems) > 0 {
-			e.message = strings.Join(problems, "  ")
-		}
-	})
 }
 
 // workspaceEdit applies a server's workspace edit, each file's edits as one
@@ -863,33 +761,6 @@ func (e *Session) signature(typed bool) {
 		}
 		e.completion.sig = &wire.Float{Text: text, Spans: spans, Cursor: -1}
 	})
-}
-
-// hover shows the hover replies' text in a float at the cursor, rendered
-// from markdown.
-func (e *Session) hover(rs []reply) {
-	var texts []string
-	for _, r := range rs {
-		var h struct {
-			Contents json.RawMessage `json:"contents"`
-		}
-		json.Unmarshal(r.res, &h)
-		// Contents is markup with a value, a string, or a list of either.
-		var parts []json.RawMessage
-		if json.Unmarshal(h.Contents, &parts) != nil {
-			parts = []json.RawMessage{h.Contents}
-		}
-		for _, p := range parts {
-			if text := markupText(p); text != "" {
-				texts = append(texts, text)
-			}
-		}
-	}
-	if len(texts) == 0 {
-		e.message = "no hover information"
-		return
-	}
-	e.float.text, e.float.spans = e.markdown(strings.TrimSpace(strings.Join(texts, "\n\n")))
 }
 
 // markupText is the text of markup with a value or of a plain string, as

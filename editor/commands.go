@@ -198,7 +198,6 @@ func init() {
 		{vim.Command{Name: "reject", Args: "[n]", Help: "drops proposal n, or the buffer's newest"}, func(e *Session, x call) {
 			e.decide(x.arg, false)
 		}, nil},
-		{vim.Command{Name: "rename", Args: "{name}", Help: "renames the symbol under the cursor in every file, through the language server"}, func(e *Session, x call) { e.rename(x.arg) }, nil},
 		{vim.Command{Name: "restore", Args: "[n]", Help: "makes the text of state n the newest. In a timeline, n is the state under the cursor"}, func(e *Session, x call) { e.restore(x.arg) }, nil},
 		{vim.Command{Name: "set", Short: []string{"se"}, Args: "[option...]", Help: "sets options, or shows them all. name? shows one, noname turns one off and name! flips it"}, func(e *Session, x call) { e.set(x.arg) }, completeOption},
 		{vim.Command{Name: "share", Help: "shows a new share string, which lets one more guest join"}, func(e *Session, _ call) { e.reshare() }, nil},
@@ -245,14 +244,7 @@ func init() {
 		}, nil},
 	}
 	plugs = []plug{
-		request("lsp.definition", "goes to the definition of the symbol under the cursor"),
-		request("lsp.typeDefinition", "goes to the definition of the type of the symbol under the cursor"),
-		request("lsp.implementation", "lists the implementations of the symbol under the cursor"),
-		request("lsp.references", "lists the references to the symbol under the cursor"),
-		request("lsp.symbols", "lists the file's symbols"),
-		request("lsp.hover", "shows what the language server says of the symbol under the cursor"),
-		request("lsp.rename", "renames the symbol under the cursor in every file"),
-		request("lsp.codeAction", "lists the language server's actions for the cursor's place"),
+		{"lsp.codeAction", "lists the language server's actions for the cursor's place", func(e *Session, _ int) { e.codeActions() }},
 		{"listing.open", "opens the entry under the cursor", func(e *Session, _ int) { e.listingAct("open") }},
 		{"listing.split", "opens the entry under the cursor in a window below", func(e *Session, _ int) { e.listingAct("split") }},
 		{"listing.vsplit", "opens the entry under the cursor in a window to the right", func(e *Session, _ int) { e.listingAct("vsplit") }},
@@ -412,16 +404,10 @@ func (e *Session) runPlug(name string) {
 	e.later = append(e.later, vim.Keys("<Plug>("+name+")")...)
 }
 
-// request is the plug that sends the language server request of name.
-func request(name, help string) plug {
-	return plug{name, help, func(e *Session, _ int) { e.request(name) }}
-}
-
 // defaultMaps are the normal mode keys fude maps to its commands.
 var defaultMaps = map[string]string{
 	"-": "<Plug>(listing.up)", "ZR": "<Plug>(restart)",
 	"]q": "<Plug>(list.next)", "[q": "<Plug>(list.prev)", "[Q": "<Plug>(list.first)", "]Q": "<Plug>(list.last)",
-	"<C-]>": "<Plug>(lsp.definition)", "K": "<Plug>(lsp.hover)",
 	"]d": "<Plug>(diagnostic]d)", "[d": "<Plug>(diagnostic[d)",
 	"s": "<Plug>(jump)",
 }

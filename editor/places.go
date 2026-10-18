@@ -2,9 +2,7 @@ package editor
 
 import (
 	"cmp"
-	"encoding/json"
 	"fmt"
-	"net/url"
 	"os"
 	"slices"
 	"strconv"
@@ -20,108 +18,6 @@ type spot struct {
 	path string
 	pos  lsp.Position
 	enc  string // the encoding pos counts in
-}
-
-// locate jumps to the one place the replies name, or lists them in a
-// window when they name several, as references always are.
-func (e *Session) locate(name string, rs []reply) {
-	type location struct {
-		URI       string    `json:"uri"`
-		Range     lsp.Range `json:"range"`
-		TargetURI string    `json:"targetUri"`
-		Target    lsp.Range `json:"targetSelectionRange"`
-	}
-	var spots []spot
-	for _, r := range rs {
-		var locs []location
-		if json.Unmarshal(r.res, &locs) != nil {
-			var one location
-			if json.Unmarshal(r.res, &one) == nil && (one.URI != "" || one.TargetURI != "") {
-				locs = []location{one}
-			}
-		}
-		for _, l := range locs {
-			if l.TargetURI != "" {
-				l.URI, l.Range = l.TargetURI, l.Target
-			}
-			if u, err := url.Parse(l.URI); err == nil && u.Path != "" {
-				spots = append(spots, spot{u.Path, l.Range.Start, r.s.client.Encoding()})
-			}
-		}
-	}
-	what := strings.TrimPrefix(name, "lsp.")
-	switch {
-	case len(spots) == 0:
-		e.message = "no " + what + " found"
-	case len(spots) == 1 && name != "lsp.references":
-		e.visit(spots[0])
-	default:
-		// Paths under the working directory show relative to it.
-		wd, _ := os.Getwd()
-		lines := make([]string, len(spots))
-		for i, sp := range spots {
-			path := sp.path
-			if rel, ok := under(wd, path); ok {
-				path = rel
-			}
-			lines[i] = fmt.Sprintf("%s:%d:%d: %s", path, sp.pos.Line+1, sp.pos.Character+1, e.lineAt(sp))
-		}
-		e.showList("["+what+"]", lines, spots)
-	}
-}
-
-// kinds are the names of the protocol's symbol kinds.
-var kinds = []string{
-	"", "File", "Module", "Namespace", "Package", "Class", "Method", "Property", "Field",
-	"Constructor", "Enum", "Interface", "Function", "Variable", "Constant", "String", "Number", "Boolean",
-	"Array", "Object", "Key", "Null", "EnumMember", "Struct", "Event", "Operator", "TypeParameter",
-}
-
-// symbols lists the symbols of b that the documentSymbol replies name, in a
-// window where <CR> jumps to one. Nested symbols are indented under theirs.
-func (e *Session) symbols(b *buffer, rs []reply) {
-	type symbol struct {
-		Name           string    `json:"name"`
-		Kind           int       `json:"kind"`
-		SelectionRange lsp.Range `json:"selectionRange"`
-		Location       struct {
-			Range lsp.Range `json:"range"`
-		} `json:"location"`
-		Children []json.RawMessage `json:"children"`
-	}
-	var lines []string
-	var spots []spot
-	var add func(s *server, raw []json.RawMessage, depth int)
-	add = func(s *server, raw []json.RawMessage, depth int) {
-		for _, r := range raw {
-			var sym symbol
-			if json.Unmarshal(r, &sym) != nil {
-				continue
-			}
-			// A symbol has a selectionRange, or a location when the answer is flat.
-			pos := sym.SelectionRange.Start
-			if sym.SelectionRange == (lsp.Range{}) {
-				pos = sym.Location.Range.Start
-			}
-			kind := ""
-			if sym.Kind > 0 && sym.Kind < len(kinds) {
-				kind = kinds[sym.Kind]
-			}
-			lines = append(lines, fmt.Sprintf("%d:%d: %s[%s] %s", pos.Line+1, pos.Character+1, strings.Repeat("  ", depth), kind, sym.Name))
-			spots = append(spots, spot{b.file.path, pos, s.client.Encoding()})
-			add(s, sym.Children, depth+1)
-		}
-	}
-	for _, r := range rs {
-		var raw []json.RawMessage
-		json.Unmarshal(r.res, &raw)
-		add(r.s, raw, 0)
-	}
-	if len(lines) == 0 {
-		e.message = "no symbols found"
-		return
-	}
-	e.showList("[symbols]", lines, spots)
 }
 
 // lineAt returns the text of the line sp is on, from its buffer, or from

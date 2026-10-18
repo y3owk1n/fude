@@ -92,7 +92,6 @@ type Session struct {
 	completion completion              // the completions shown while typing, and the signature help
 	lspKeys    bool                    // the attached keys are mapped
 	later      []vim.Key               // keys to feed once the key being fed is done
-	renameAt   int                     // where grn was pressed
 	pick       *pick                   // the code actions shown to choose from
 	finder     *finder                 // the file finder, while it shows
 	jumping    *jump                   // the jump being typed after s (B218)

@@ -81,7 +81,7 @@ loc:
     done <<'EOF'
     editor editor
     vim vim
-    modules syntax plugin protocol/lsp sdk api api/diff modules/blame modules/colours modules/comment modules/debug modules/editorconfig modules/fold modules/format modules/git modules/grep modules/inlay modules/spell modules/task
+    modules syntax plugin protocol/lsp sdk api api/diff modules/blame modules/colours modules/comment modules/debug modules/editorconfig modules/fold modules/format modules/git modules/grep modules/inlay modules/lsp modules/spell modules/task
     clients ui/term client
     kernel core/kernel core/rope
     glue cmd/fude internal/pty internal/clipboard internal/trace

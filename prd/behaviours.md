@@ -993,7 +993,8 @@ Where fude departs, the line says so and cites the departure in
   styled by its own spans. It lists places in a window, in one file, or
   in a server's column encoding. It starts a command line with text
   typed, which runs nothing. The layer of its sign orders it on a line
-  with the others.
+  with the others. `servers` in its scope names the servers attached to
+  the buffer.
 - B283 [4] A plugin sets `expand_tab`, `indent_width` or `tab_width` on the
   buffer its call is about, over config.toml's, until the buffer closes,
   as .editorconfig does.

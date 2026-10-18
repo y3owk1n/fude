@@ -292,7 +292,13 @@ func (e *Session) went() {
 				e.win = e.root.windows()[i]
 			}
 		}
-		if e.edit(g.Path); e.win.buf.is(g.Path) {
+		// Moving to another buffer is a jump of its own.
+		if e.win.buf.is(g.Path) {
+			e.pushJump(e.Cursor())
+		} else {
+			e.edit(g.Path)
+		}
+		if e.win.buf.is(g.Path) {
 			e.setCursor(e.jumpPos(g))
 			e.reveal()
 		}
@@ -491,6 +497,15 @@ func styled(in []api.Span) []syntax.Span {
 		out[i] = syntax.Span(sp)
 	}
 	return out
+}
+
+// serverNames are the names of servers.
+func serverNames(servers []*server) []string {
+	names := make([]string, len(servers))
+	for i, s := range servers {
+		names[i] = s.name
+	}
+	return names
 }
 
 // bufferFor returns the buffer d goes on: the one its Buffer names, or
@@ -750,8 +765,9 @@ func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 func (e *Session) about(b *buffer) api.Context {
 	return api.Context{
 		"buffer": strconv.Itoa(b.id), "path": b.file.path, "filetype": e.filetype(b), "mode": modes[e.vim.Mode()],
-		"power":  powers[e.power],
-		"indent": strconv.Itoa(e.indentWidth(b)), "tab": strconv.Itoa(e.tabWidth(b)),
+		"power":   powers[e.power],
+		"servers": strings.Join(serverNames(b.servers), ","),
+		"indent":  strconv.Itoa(e.indentWidth(b)), "tab": strconv.Itoa(e.tabWidth(b)),
 	}
 }
 
@@ -820,6 +836,9 @@ func logLine(line string) {
 // the live pick showing the items pk answers a query with (B185, B285).
 func (e *Session) showPick(p api.Module, b *buffer, pk *api.Pick, save *saving) {
 	if f := e.finder; f != nil && f.owner == p && f.pick == pk.ID && f.found != nil {
+		if pk.Encoding != "" {
+			f.enc = pk.Encoding
+		}
 		found := f.found
 		f.found = nil
 		found(pk.Items, nil)

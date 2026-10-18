@@ -19,6 +19,7 @@ import (
 	"github.com/y3owk1n/fude/modules/colours"
 	"github.com/y3owk1n/fude/modules/format"
 	"github.com/y3owk1n/fude/modules/inlay"
+	lspmod "github.com/y3owk1n/fude/modules/lsp"
 	"github.com/y3owk1n/fude/protocol/lsp"
 	"github.com/y3owk1n/fude/wire"
 )
@@ -275,6 +276,7 @@ func withServerAt(t *testing.T, path, text, encoding string, settings ...string)
 	change(t, path, text)
 	e := start(t, path)
 	e.SetSize(80, 20)
+	e.Use(lspmod.New())
 	t.Cleanup(func() { feed(e, ":qa!<CR>") })
 	e.Load()
 	return e, log
@@ -417,6 +419,7 @@ func TestB169SeveralServers(t *testing.T) {
 	change(t, path, "bad\n")
 	e := start(t, path)
 	e.SetSize(80, 20)
+	e.Use(lspmod.New())
 	t.Cleanup(func() { feed(e, ":qa!<CR>") })
 	e.Load()
 	// Each server's diagnostics show beside the other's.
@@ -823,6 +826,7 @@ func TestB196PickPlaces(t *testing.T) {
 	}
 	// Without a server that finds symbols, it says so.
 	e = start(t)
+	e.Use(lspmod.New())
 	if feed(e, ":pick symbols<CR>"); e.Message() != "no language server offers workspace symbols" {
 		t.Errorf(":pick symbols without a server said %q", e.Message())
 	}
@@ -852,7 +856,7 @@ func TestB66Rename(t *testing.T) {
 	}
 	feed(e, "<BS><BS><BS><BS><BS><BS>goal<CR>")
 	settle(t, e, func() bool { return text(e) != "a target\nb target\nc" })
-	if text(e) != "a goal\nb goal\nc" || e.Message() != "renamed in 2 files" {
+	if text(e) != "a goal\nb goal\nc" || e.Message() != "rename changed 2 files" {
 		t.Errorf("rename left %q saying %q", text(e), e.Message())
 	}
 	if disk(t, other) != "package p\n" {

@@ -2,10 +2,8 @@ package editor
 
 import (
 	"cmp"
-	"encoding/json"
 	"fmt"
 	"maps"
-	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -18,7 +16,7 @@ import (
 )
 
 // pickSources are the sources :pick finds in, by name.
-var pickSources = []string{"files", "buffers", "recent", "diagnostics", "symbols", "help", "keymaps", "commands"}
+var pickSources = []string{"files", "buffers", "recent", "diagnostics", "help", "keymaps", "commands"}
 
 // openPick opens the finder on the items of source, or on the sources
 // without one. grep takes the text after it as its query (B213).
@@ -67,8 +65,6 @@ func (e *Session) openPick(arg string) {
 		}()
 	case "diagnostics":
 		e.openFinder(&finder{paths: e.diagnosticPlaces(), stale: true, places: true, title: "diagnostics"}, "")
-	case "symbols":
-		e.pickSymbols()
 	default:
 		if src := e.sources[source]; src != nil {
 			src(e, strings.TrimSpace(rest))
@@ -219,70 +215,4 @@ func (e *Session) diagnosticPlaces() []string {
 		}
 	}
 	return out
-}
-
-// pickSymbols opens the finder on workspace symbols. The first of the
-// current buffer's language servers that offers them finds them as the
-// query is typed (B214).
-func (e *Session) pickSymbols() {
-	s := first(e.win.buf.servers, "workspace/symbol")
-	if s == nil {
-		e.message = "no language server offers workspace symbols"
-		return
-	}
-	f := &finder{places: true, enc: s.client.Encoding(), title: "symbols", hint: "type to search the symbols"}
-	f.lookup = func(q string, found func([]string, error)) {
-		if q == "" {
-			found(nil, nil)
-			return
-		}
-		s.client.Request("workspace/symbol", func(string) any { return map[string]any{"query": q} }, func(res json.RawMessage) {
-			found(symbolPlaces(res))
-		})
-	}
-	e.openFinder(f, "")
-}
-
-// symbolPlaces returns the symbols of a workspace/symbol answer as places,
-// each its name and kind, grouped by file, at most grepLimit of them.
-func symbolPlaces(res json.RawMessage) ([]string, error) {
-	var found []struct {
-		Name     string `json:"name"`
-		Kind     int    `json:"kind"`
-		Location struct {
-			URI   string    `json:"uri"`
-			Range lsp.Range `json:"range"`
-		} `json:"location"`
-	}
-	if err := json.Unmarshal(res, &found); err != nil {
-		return nil, fmt.Errorf("workspace symbols: %w", err)
-	}
-	wd, err := os.Getwd()
-	if err != nil {
-		return nil, fmt.Errorf("workspace symbols: %w", err)
-	}
-	var out []string
-	for _, sym := range found[:min(len(found), grepLimit)] {
-		u, err := url.Parse(sym.Location.URI)
-		if err != nil || u.Path == "" {
-			continue
-		}
-		path := u.Path
-		if rel, ok := under(wd, path); ok {
-			path = rel
-		}
-		kind := ""
-		if sym.Kind > 0 && sym.Kind < len(kinds) {
-			kind = "  " + kinds[sym.Kind]
-		}
-		p := sym.Location.Range.Start
-		out = append(out, fmt.Sprintf("%s:%d:%d:%s%s", path, p.Line+1, p.Character+1, sym.Name, kind))
-	}
-	// Places show under their file, so a file's come together.
-	slices.SortStableFunc(out, func(a, b string) int {
-		pa, _, _, _ := grepSpot(a)
-		pb, _, _, _ := grepSpot(b)
-		return strings.Compare(pa, pb)
-	})
-	return out, nil
 }
