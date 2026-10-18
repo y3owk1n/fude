@@ -98,11 +98,6 @@ func init() {
 		}, nil},
 		{vim.Command{Name: "set", Short: []string{"se"}, Args: "[name [value]]", Help: "sets an option to a value, as config.toml would, shows one, or lists them all"}, func(e *Session, x call) { e.set(x.arg) }, completeOption},
 		{vim.Command{Name: "share", Help: "shows a new share string, which lets one more guest join"}, func(e *Session, _ call) { e.reshare() }, nil},
-		{vim.Command{Name: "update", Short: []string{"up"}, Help: "writes the buffer if it is modified"}, func(e *Session, x call) {
-			if e.win.buf.modified() {
-				e.write(e.win.buf, x.force, nil)
-			}
-		}, nil},
 		{vim.Command{Name: "wall", Short: []string{"wa"}, Help: "writes every modified buffer"}, func(e *Session, x call) { e.writeAll(e.bufs, x.force, nil) }, nil},
 		{vim.Command{Name: "wq", Help: "writes the buffer and closes the window"}, func(e *Session, x call) {
 			e.write(e.win.buf, x.force, func() { e.quit(x.force) })

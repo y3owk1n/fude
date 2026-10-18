@@ -1,5 +1,5 @@
-// Package buffers shows, steps through and closes buffers: :buffer,
-// :bnext, :bprevious, :bdelete and :enew (B89).
+// Package buffers shows, steps through, writes and closes buffers:
+// :buffer, :bnext, :bprevious, :update, :bdelete and :enew (B89, B155).
 package buffers
 
 import (
@@ -21,6 +21,7 @@ const (
 	prev
 	drop
 	empty
+	update
 )
 
 // Module is buffers.
@@ -40,6 +41,7 @@ func (m *Module) Registered() []api.Registration {
 		{Kind: api.Command, Name: "bprevious", Short: []string{"bp", "bN", "bNext"}, Help: "shows the buffer before", ID: prev},
 		{Kind: api.Command, Name: "bdelete", Short: []string{"bd"}, Help: "closes the buffer. ! drops its changes", ID: drop, Complete: true, Args: "[buffer]"},
 		{Kind: api.Command, Name: "enew", Help: "shows a new empty buffer", ID: empty},
+		{Kind: api.Command, Name: "update", Short: []string{"up"}, Help: "writes the buffer if it is modified", ID: update},
 	}
 }
 
@@ -60,6 +62,16 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, _ ...int) (api.
 		return api.Result{}, nil
 	case empty:
 		return api.Result{Scratch: &api.Scratch{}}, nil
+	case update:
+		if !s.Buffers[current].Modified {
+			return api.Result{}, nil
+		}
+		// :w! writes over a file changed on disk, which Result.Write does not.
+		write := "write"
+		if s.About["bang"] == "true" {
+			write += "!"
+		}
+		return api.Result{Ex: []string{write}}, nil
 	}
 	b := current
 	if arg != "" || id == show {

@@ -856,7 +856,8 @@ name holds, or as `#`, the current window's `Alt`, and shows it with a
 the session may show. `:bd` asks for `Close`, and `:bd!` for `Drop`. When
 a buffer closes, the editor moves each window on it to the buffer it
 showed before, or else to the next being edited. `:enew` is an empty
-`Scratch`. `<C-^>` is `:b #` (B89).
+`Scratch`. `:update` runs `:write`, or `:write!` with a bang, when the
+buffer is modified. `<C-^>` is `:b #` (B89, B155).
 
 The client keeps a cell grid, diffs it against the previous frame, and
 writes only the changed cells in one write. It wraps each frame in
