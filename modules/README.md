@@ -27,7 +27,7 @@ and a program that embeds the editor does the same.
 | [`inlay`](inlay) | a language server's inlay hints |
 | [`jump`](jump) | `s` jumps to text in view by its label |
 | [`links`](links) | `gx` opens the link or file under the cursor, `gf` the file |
-| [`listing`](listing) | `-`, a listing's keys, its notes and icons, and `:w` renaming, deleting and creating its entries |
+| [`listing`](listing) | `-`, a listing's keys, its notes and icons, `:w` renaming, deleting and creating its entries, and `:pwd` |
 | [`lists`](lists) | `:buffers`, `:marks`, `:jumps`, `:changes`, `:registers` and `:messages` |
 | [`lsp`](lsp) | diagnostics, hover, definitions, references, symbols, rename, code actions and the `:lsp` panel |
 | [`markdown`](markdown) | a markdown file draws as it reads, with `render` on |

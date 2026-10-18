@@ -2,7 +2,6 @@ package editor
 
 import (
 	"maps"
-	"os"
 	"path/filepath"
 	"reflect"
 	"slices"
@@ -82,13 +81,6 @@ func init() {
 		}, func(_ *Session, _ string, start int, arg string, _ bool) (int, []string) {
 			return start, fuzzy.Match([]string{"reload"}, arg)
 		}},
-		{vim.Command{Name: "pwd", Help: "shows the working directory"}, func(e *Session, _ call) {
-			if dir, err := os.Getwd(); err != nil {
-				e.message = err.Error()
-			} else {
-				e.message = dir
-			}
-		}, nil},
 		{vim.Command{Name: "quit", Short: []string{"q"}, Help: "closes the window, and quits with the last. ! drops changes"}, func(e *Session, x call) { e.quit(x.force) }, nil},
 		{vim.Command{Name: "quitall", Short: []string{"qa", "qall", "quita"}, Help: "quits. ! drops every change"}, func(e *Session, x call) { e.quitAll(x.force) }, nil},
 		{vim.Command{Name: "read", Short: []string{"r"}, Args: "{file} | !{cmd}", Help: "puts a file, or what cmd writes, below the line"}, func(e *Session, x call) { e.readIn(x.arg, x.last) }, completePath},

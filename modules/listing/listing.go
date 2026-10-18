@@ -1,7 +1,7 @@
 // Package listing is what a listing of a directory does, as oil.nvim
 // does: - lists the current file's directory, a listing's keys open its
-// entries, and editing it and :w renames, deletes and creates them (B124,
-// B125).
+// entries, and editing it and :w renames, deletes and creates them. :pwd
+// shows the working directory (B124, B125, B155).
 package listing
 
 import (
@@ -29,6 +29,7 @@ const (
 	cwd
 	reload
 	write
+	pwd
 )
 
 // Module is listing. It keeps the note of each name each listing showed.
@@ -56,6 +57,7 @@ func (m *Module) Registered() []api.Registration {
 		{Kind: api.Plug, Name: "cwd", Keys: "_", In: "listing", Help: "lists the working directory", ID: cwd, Host: true},
 		{Kind: api.Plug, Name: "reload", Keys: "<C-l>", In: "listing", Help: "reads the listing's directory again", ID: reload},
 		{Kind: api.Write, Name: "listing", Help: "renames, deletes and creates what the listing's edits say", ID: write},
+		{Kind: api.Command, Name: "pwd", Help: "shows the working directory", ID: pwd},
 	}
 }
 
@@ -65,11 +67,13 @@ func (m *Module) Init(ctx context.Context, s api.Scope) (api.Result, error) {
 	return m.Event(ctx, "listing.read", s)
 }
 
-// Call lists a directory, opens the entry under the cursor, or writes a
-// listing's edits to its directory.
+// Call lists a directory, opens the entry under the cursor, writes a
+// listing's edits to its directory, or shows the working directory.
 func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (api.Result, error) {
 	dir := s.About["listing"]
 	switch id {
+	case pwd:
+		return api.Result{Message: s.About["cwd"]}, nil
 	case up:
 		return listUp(s, args[1]), nil
 	case cwd:
