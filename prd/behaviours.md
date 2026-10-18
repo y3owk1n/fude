@@ -1084,9 +1084,10 @@ Where fude departs, the line says so and cites the departure in
   on the cursor's line too, so passing it moves no text. fude reads the
   file once, off the loop, and an image that does not load takes no rows.
   The terminal client shows images in kitty and Ghostty, through tmux
-  too, when the terminal shows true colour and says its cells' pixels.
-  It sends each image to the terminal once, and an attached client gets
-  it in a frame once. Elsewhere images take no rows.
+  too, when the terminal shows true colour and says its cells' pixels, and
+  in WezTerm and iTerm2 as B310 says. It sends each image to the terminal
+  once, and an attached client gets it in a frame once. Elsewhere images
+  take no rows.
 - B306 [4] An image leaves fude's memory once nothing shows it, when the
   buffer that showed it closes or the finder that previewed it closes.
   Every client then has the terminal drop it.
@@ -1094,6 +1095,12 @@ Where fude departs, the line says so and cites the departure in
   `remote_images` on, as it is unless set off, fude fetches it off the
   loop, in at most 10 seconds and 16MB, and shows it as it would a file.
   With it off, no new one loads.
+- B310 [4] In WezTerm and iTerm2, outside tmux, when the terminal says its
+  cells' pixels, the client paints each image over its cells after the
+  frame shows, once all its rows show, and keeps tcell off those cells
+  until the image moves or goes. A box drawn over it, such as a float, takes its place
+  until the box closes. WezTerm gets each image once, iTerm2 each time it
+  paints, at the size it shows.
 - B289 [4] A plugin with `ui` reads its own decorations on the buffer its
   call is about, each with its id, where it is now and what it shows.
 - B290 [4] A module's command completes its argument through the

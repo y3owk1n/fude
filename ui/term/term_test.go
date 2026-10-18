@@ -539,7 +539,7 @@ func TestB303DrawImage(t *testing.T) {
 	}
 	c := startWith(t, "", path)
 	var sent bytes.Buffer
-	c.img = images{tty: pixels{}, out: &sent}
+	c.img = images{tty: pixels{}, out: &sent, mode: placeholders}
 	c.e.(*editor.Session).Use(framed{path: pic})
 	// The image loads off the loop, and its rows show once it lands.
 	cell := func(x, y int) (string, tcell.Style) { s, style, _ := c.s.Get(x, y); return s, style }
@@ -599,7 +599,7 @@ func TestB305DrawPreviewImage(t *testing.T) {
 	}
 	t.Chdir(dir)
 	c := startWith(t, "", "a.png")
-	c.img = images{tty: pixels{}, out: new(bytes.Buffer)}
+	c.img = images{tty: pixels{}, out: new(bytes.Buffer), mode: placeholders}
 	c.draw()
 	for _, k := range vim.Keys(":pick files<CR>") {
 		c.e.Feed(k)
@@ -650,7 +650,7 @@ func TestB309DrawFloatImage(t *testing.T) {
 		t.Fatal(err)
 	}
 	c := startWith(t, "", path)
-	c.img = images{tty: pixels{}, out: new(bytes.Buffer)}
+	c.img = images{tty: pixels{}, out: new(bytes.Buffer), mode: placeholders}
 	c.e.(*editor.Session).Use(hovered{})
 	c.draw()
 	for _, k := range vim.Keys(":Hover<CR>") {
@@ -674,6 +674,71 @@ func TestB309DrawFloatImage(t *testing.T) {
 				row.WriteString(s)
 			}
 			t.Fatalf("under the float's text the row shows %q", row.String())
+		}
+	}
+}
+
+// B310
+func TestB310PaintImage(t *testing.T) {
+	dir := t.TempDir()
+	pic := filepath.Join(dir, "a.png")
+	var b bytes.Buffer
+	if err := png.Encode(&b, image.NewRGBA(image.Rect(0, 0, 80, 32))); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(pic, b.Bytes(), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "a.txt")
+	if err := os.WriteFile(path, []byte("a\nb\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		mode       int
+		sent, show string
+	}{
+		{inline, "", "\x1b]1337;File=inline=1;"},
+		{placements, "a=t,f=100", "\x1b_Ga=p,i="},
+	} {
+		cl := startWith(t, "", path)
+		var out bytes.Buffer
+		cl.img = images{tty: pixels{}, out: &out, mode: c.mode}
+		cl.e.(*editor.Session).Use(framed{path: pic})
+		// The image paints at its first cell, under line a, once its rows
+		// show, and the frames after leave it.
+		for deadline := time.After(5 * time.Second); !strings.Contains(out.String(), c.show); {
+			cl.draw()
+			select {
+			case f := <-cl.e.Queue():
+				f()
+			case <-time.After(10 * time.Millisecond):
+			case <-deadline:
+				t.Fatalf("in mode %d the image never painted: %q", c.mode, out.String()[:min(out.Len(), 120)])
+			}
+		}
+		got := out.String()
+		at := strings.Index(got, c.show)
+		if !strings.HasSuffix(got[:at], "\x1b7\x1b[2;1H") || !strings.Contains(got[at:], "2") || !strings.Contains(got, c.sent) {
+			t.Errorf("in mode %d the terminal got %q", c.mode, got[:min(len(got), 200)])
+		}
+		if cl.draw(); strings.Count(out.String(), c.show) != 1 {
+			t.Errorf("in mode %d the next frame painted the image again", c.mode)
+		}
+		// A float over the image unlocks its cells, so the float draws over
+		// it.
+		cl.e.(*editor.Session).Use(hovered{})
+		for _, k := range vim.Keys(":Hover<CR>") {
+			cl.e.Feed(k)
+		}
+		for deadline := time.After(5 * time.Second); slices.ContainsFunc(cl.img.painted, func(o overlay) bool { return o.x == 0 && o.y == 1 }); {
+			cl.draw()
+			select {
+			case f := <-cl.e.Queue():
+				f()
+			case <-time.After(10 * time.Millisecond):
+			case <-deadline:
+				t.Fatalf("in mode %d the image stayed painted under the float", c.mode)
+			}
 		}
 	}
 }

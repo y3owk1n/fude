@@ -16,6 +16,7 @@ import (
 // sits in the middle of its cells, so a coloured inside would show a seam
 // between the line and the fill (B150).
 func (c *client) panel(x, y, w, h int) {
+	c.img.box(x, y, w+2, h+2)
 	edge := base.Foreground(th.border)
 	c.s.FillArea(x+1, y+1, w, h, ' ', base)
 	c.s.PutStrStyled(x, y, "╭"+strings.Repeat("─", w)+"╮", edge)

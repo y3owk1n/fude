@@ -527,9 +527,16 @@ it with no code of its own, and tmux passes it on. Sixel and iTerm2's
 protocol paint over cells the screen then redraws, so each frame would
 have to lock the image's cells and paint it again. kitty and Ghostty draw
 placeholders, and `charmbracelet/x/ansi`, already a dependency, has the
-protocol's pieces. A terminal without them shows no images. fude reads
-from the environment whether it is one, as asking the terminal would
-slow the first frame (D26).
+protocol's pieces. fude reads from the environment which terminal it is,
+as asking the terminal would slow the first frame (D26).
+
+WezTerm, which has kitty's protocol but not its placeholders, and iTerm2,
+which has its own, get images painted over cells after each frame, with
+those cells locked so tcell leaves them (B310). This is second best: an
+image shows only when all its rows do and no box covers it, it paints
+again whenever it moves, and iTerm2 gets the image each time, so fude
+scales it to the size it shows first. tmux redraws over painted images,
+so these terminals show none inside it.
 
 ## Departures from Neovim
 

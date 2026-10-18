@@ -232,6 +232,10 @@ func (c *client) draw() {
 	// are toasts (B148, B149).
 	w, h := c.s.Size()
 	c.e.SetSize(w, h)
+	// A new size draws every cell again, over the images painted.
+	if c.img.screen != [2]int{w, h} {
+		c.img.screen, c.img.painted = [2]int{w, h}, nil
+	}
 	if cell := c.img.size(); cell != c.img.shown {
 		c.img.shown = cell
 		c.e.SetCell(cell[0], cell[1])
@@ -310,11 +314,16 @@ func (c *client) draw() {
 	for _, id := range c.e.Freed() {
 		c.img.free(id)
 	}
-	// The images go before the frame whose cells show them.
+	now := c.img.release(c.s)
+	// The images go before the frame whose cells show them, and painted ones
+	// after it, over its cells.
 	if err := c.img.flush(); err != nil {
 		trace.Record("image", err.Error(), 0)
 	}
 	c.s.Show()
+	if err := c.img.paint(c.s, now); err != nil {
+		trace.Record("image", err.Error(), 0)
+	}
 }
 
 // view draws one window: its text, a status line on its bottom row, and a
