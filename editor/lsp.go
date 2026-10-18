@@ -198,36 +198,9 @@ func (e *Session) detach(b *buffer) {
 		s.client.Notify("textDocument/didClose", map[string]any{"textDocument": map[string]any{"uri": lsp.URI(b.file.path)}})
 		s.bufs = slices.DeleteFunc(s.bufs, func(o *buffer) bool { return o == b })
 		delete(s.versions, b)
-		e.forget(s, b)
 		e.emit("lsp.detached", s.name, b)
 	}
 	b.servers = nil
-}
-
-// diagnosed owns the diagnostics a server published for a buffer.
-type diagnosed struct {
-	s *server
-	b *buffer
-}
-
-// diagnostics are b's diagnostics from each of its servers.
-func (e *Editor) diagnostics(b *buffer) []decoration {
-	var out []decoration
-	for _, s := range b.servers {
-		out = append(out, e.decos[diagnosed{s, b}]...)
-	}
-	return out
-}
-
-// forget drops the diagnostics s sent for b.
-func (e *Editor) forget(s *server, b *buffer) {
-	for _, owner := range []any{diagnosed{s, b}} {
-		for _, d := range e.decos[owner] {
-			d.remove()
-		}
-		delete(e.decos, owner)
-	}
-	b.signed = len(e.diagnostics(b)) > 0
 }
 
 func (e *Session) start(s *server) error {
@@ -283,7 +256,6 @@ func (e *Session) exited(s *server, err error) {
 func (e *Session) stop(s *server) {
 	for _, b := range s.bufs {
 		b.servers = slices.DeleteFunc(b.servers, func(o *server) bool { return o == s })
-		e.forget(s, b)
 		e.emit("lsp.detached", s.name, b)
 	}
 	e.syncKeys()
@@ -294,12 +266,8 @@ func (e *Session) stop(s *server) {
 	}
 }
 
-// severities are the styles of diagnostics, by the protocol's severity.
-var severities = map[int]string{1: "diagnostic.error", 2: "diagnostic.warn", 3: "diagnostic.info", 4: "diagnostic.hint"}
-
-// notified handles a notification from s. Diagnostics replace those of the
-// buffer they are for, as decorations it owns, so they move with edits until
-// the next ones come (B61).
+// notified handles a notification from s. The modules hear the diagnostics
+// it publishes for a buffer (B61, B292).
 func (e *Session) notified(s *server, method string, params json.RawMessage) {
 	switch method {
 	case "$/progress":
@@ -315,43 +283,15 @@ func (e *Session) notified(s *server, method string, params json.RawMessage) {
 		return
 	}
 	var p struct {
-		URI         string            `json:"uri"`
-		Diagnostics []json.RawMessage `json:"diagnostics"`
+		URI string `json:"uri"`
 	}
 	if err := json.Unmarshal(params, &p); err != nil {
 		logLine(fmt.Sprintf("diagnostics from %s: %v", s.name, err))
 		return
 	}
-	i := slices.IndexFunc(s.bufs, func(b *buffer) bool { return lsp.URI(b.file.path) == p.URI })
-	if i < 0 {
-		return
+	if i := slices.IndexFunc(s.bufs, func(b *buffer) bool { return lsp.URI(b.file.path) == p.URI }); i >= 0 {
+		e.published(s, s.bufs[i], params)
 	}
-	b := s.bufs[i]
-	for _, d := range e.decos[diagnosed{s, b}] {
-		d.remove()
-	}
-	t, enc := b.text.Snapshot(), s.client.Encoding()
-	var ds []decoration
-	for _, raw := range p.Diagnostics {
-		var d struct {
-			Range    lsp.Range `json:"range"`
-			Severity int       `json:"severity"`
-			Message  string    `json:"message"`
-		}
-		if json.Unmarshal(raw, &d) != nil {
-			continue
-		}
-		style := severities[d.Severity]
-		if style == "" {
-			style = severities[1]
-		}
-		start, end := lsp.Offset(t, d.Range.Start, enc), lsp.Offset(t, d.Range.End, enc)
-		ds = append(ds, decoration{buf: b, start: b.text.SetMark(start, kernel.Right), end: b.text.SetMark(end, kernel.Left), style: style, note: d.Message, raw: raw})
-	}
-	e.decos[diagnosed{s, b}] = ds
-	b.signed = len(e.diagnostics(b)) > 0
-	e.emit("lsp.diagnostics", "", b)
-	e.published(s, b, params)
 }
 
 // published tells every module subscribed to lsp.published of the
@@ -364,73 +304,6 @@ func (e *Editor) published(s *server, b *buffer, params json.RawMessage) {
 		}
 	}
 }
-
-// diagnostic moves the cursor to the nth diagnostic after it, or before it
-// when n is negative, going round the ends, and shows it in a float.
-func (e *Session) diagnostic(n int) {
-	b := e.win.buf
-	var at []int
-	for _, d := range e.diagnostics(b) {
-		at = append(at, b.text.Mark(d.start))
-	}
-	if len(at) == 0 {
-		e.message = "no diagnostics"
-		return
-	}
-	slices.Sort(at)
-	at = slices.Compact(at)
-	c := e.Cursor()
-	i, found := slices.BinarySearch(at, c)
-	if n > 0 {
-		if found {
-			i++
-		}
-		i += n - 1
-	} else {
-		i += n
-	}
-	p := at[((i%len(at))+len(at))%len(at)]
-	e.pushJump(c)
-	e.setCursor(p)
-	e.diagnosticFloat(b, p)
-}
-
-// diagnosticFloat shows the diagnostics that start at p in a float at the
-// cursor, each message in its severity's colour with the source and code
-// its server gives after it (B61).
-func (e *Session) diagnosticFloat(b *buffer, p int) {
-	var text strings.Builder
-	var spans []syntax.Span
-	for _, d := range e.diagnostics(b) {
-		if b.text.Mark(d.start) != p {
-			continue
-		}
-		var from struct {
-			Source string          `json:"source"`
-			Code   json.RawMessage `json:"code"`
-		}
-		json.Unmarshal(d.raw, &from)
-		if text.Len() > 0 {
-			text.WriteByte('\n')
-		}
-		spans = append(spans, syntax.Span{Start: text.Len(), End: text.Len() + len(d.note), Name: d.style + ".text"})
-		text.WriteString(d.note)
-		// A code is a number or a string.
-		source := from.Source
-		if code := strings.Trim(string(from.Code), `"`); code != "" {
-			source += "(" + code + ")"
-		}
-		if source != "" {
-			spans = append(spans, syntax.Span{Start: text.Len() + 2, End: text.Len() + 2 + len(source), Name: "comment"})
-			text.WriteString("  " + source)
-		}
-	}
-	e.float.text, e.float.spans = text.String(), spans
-}
-
-// attached are the keys that exist only while the current buffer has a
-// language server, and the commands they run (N3).
-var attached = map[string]string{"gra": "lsp.codeAction"}
 
 // syncKeys maps the attached keys while the current buffer has a language
 // server and removes them otherwise, so gr waits for nothing without one.
@@ -446,14 +319,6 @@ func (e *Session) syncKeys() {
 			e.vim.Unmap(mode, keys)
 		}
 	}
-	for keys, name := range attached {
-		// Code actions take the selection in visual mode too (B227).
-		sync(vim.Normal, keys, "<Plug>("+name+")")
-		if keys == "gra" {
-			sync(vim.Visual, keys, "<Plug>("+name+")")
-		}
-	}
-	// A module's attached keys come and go with the editor's (B292).
 	for _, p := range e.modules {
 		for _, r := range p.Registered() {
 			if r.Kind == api.Key && r.Attached {

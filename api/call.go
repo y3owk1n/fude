@@ -31,6 +31,7 @@ type Result struct {
 	Show       *Panel         // text to show in a window of its own
 	Jump       *Jump          // where to move the cursor
 	Pick       *Pick          // a list to pick from, or a question to answer
+	Menu       *Menu          // a menu at the cursor, numbered, with what each item does beside it
 	Timers     []Timer        // the callbacks to run later
 	Jobs       []Job          // the work to do in the background
 	Requests   []Request      // the requests to send the buffer's language servers
@@ -65,16 +66,18 @@ type Job struct {
 }
 
 // Request is a request a call sends the language servers of the buffer it
-// was about. fude fills in its textDocument and adds Params, a JSON
-// object. With Pos and End it fills in the range between them, with Pos
-// alone the position there, and with neither no position. The owner's
-// callback with ID gets the first answer that is not null as output, and
-// the server's position encoding as encoding (B190, B281).
+// was about, or to the one named Server. For a textDocument method fude
+// fills in its textDocument, and with Pos and End the range between them,
+// with Pos alone the position there, and with neither no position. Params,
+// a JSON object, adds to them. The owner's callback with ID gets the first
+// answer that is not null as output, and the server's position encoding as
+// encoding (B190, B281, B293).
 type Request struct {
 	ID       uint32
 	Method   string
 	Pos, End int
 	Params   string
+	Server   string
 }
 
 // Pick is a list of items a call asks the user to pick from with Prompt,
@@ -138,6 +141,23 @@ type WorkspaceEdit struct {
 	Label  string
 }
 
+// Menu is a numbered menu at the cursor, as code actions show: each item's
+// title, its kind dim after it, why it is disabled, and Doc, what it
+// does, shown beside the menu while it is selected. A Menu of the same ID
+// while one shows replaces its items and keeps the selection. fude runs
+// the owner's callback with ID once an item is picked, with picked and
+// ok as a Pick does (B227, B293).
+type Menu struct {
+	ID    uint32
+	Items []MenuItem
+}
+
+// MenuItem is one row of a Menu.
+type MenuItem struct {
+	Title, Kind, Disabled string
+	Doc                   *Float
+}
+
 // Jump is where a call moves the cursor: Pos in the buffer the call was
 // about, or in the file at Path when it is not "", which fude opens in a
 // window that shows a file. With Line set, the cursor goes to Line and
@@ -187,8 +207,8 @@ type Scope struct {
 	// filetype.go.format or formatter.gofmt.command, as JSON, or false for
 	// none. A table's key follows its name in the path (B279).
 	Config func(path string) (string, bool)
-	// Decorations returns the owner's decorations on the buffer, where they
-	// are now (B289).
+	// Decorations returns the owner's decorations on every open buffer, by
+	// Buffer, where they were when the call began (B289, B291).
 	Decorations func() []Decoration
 	// Node finds a syntax node in Text, as syntax.Buffer.Nodes does. Free
 	// frees what it reads once the call is done (B189).

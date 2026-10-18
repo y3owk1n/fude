@@ -244,7 +244,6 @@ func init() {
 		}, nil},
 	}
 	plugs = []plug{
-		{"lsp.codeAction", "lists the language server's actions for the cursor's place", func(e *Session, _ int) { e.codeActions() }},
 		{"listing.open", "opens the entry under the cursor", func(e *Session, _ int) { e.listingAct("open") }},
 		{"listing.split", "opens the entry under the cursor in a window below", func(e *Session, _ int) { e.listingAct("split") }},
 		{"listing.vsplit", "opens the entry under the cursor in a window to the right", func(e *Session, _ int) { e.listingAct("vsplit") }},
@@ -284,8 +283,6 @@ func init() {
 		{"window.down", "goes to the window, or tmux pane, below", func(e *Session, _ int) { e.navigate('j') }},
 		{"window.up", "goes to the window, or tmux pane, above", func(e *Session, _ int) { e.navigate('k') }},
 		{"window.right", "goes to the window, or tmux pane, to the right", func(e *Session, _ int) { e.navigate('l') }},
-		{"diagnostic]d", "goes to the next diagnostic", func(e *Session, count int) { e.diagnostic(max(count, 1)) }},
-		{"diagnostic[d", "goes to the diagnostic before", func(e *Session, count int) { e.diagnostic(-max(count, 1)) }},
 		{"terminal.close", "closes the terminal or task window once its program has ended", func(e *Session, _ int) { e.closeTerminal() }},
 		{"start.open", "runs the start screen's line under the cursor", func(e *Session, _ int) { e.startOpen() }},
 		{"start.config", "opens config.toml", func(e *Session, _ int) { e.startConfig() }},
@@ -408,7 +405,6 @@ func (e *Session) runPlug(name string) {
 var defaultMaps = map[string]string{
 	"-": "<Plug>(listing.up)", "ZR": "<Plug>(restart)",
 	"]q": "<Plug>(list.next)", "[q": "<Plug>(list.prev)", "[Q": "<Plug>(list.first)", "]Q": "<Plug>(list.last)",
-	"]d": "<Plug>(diagnostic]d)", "[d": "<Plug>(diagnostic[d)",
 	"s": "<Plug>(jump)",
 }
 

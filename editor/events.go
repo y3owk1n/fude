@@ -165,7 +165,8 @@ func (e *Session) listen(p api.Module) *listener {
 					if more = len(l.pending) > 0; more {
 						ev, l.pending = l.pending[0], l.pending[1:]
 						t = ev.buf.text.Snapshot()
-						scope = e.scope(p, ev.buf, t)
+						// A callback reads as the session that asked for it (B247).
+						scope = e.asker(ev).scope(p, ev.buf, t)
 						maps.Copy(scope.About, ev.extra)
 					}
 				}) {
@@ -192,18 +193,22 @@ func (e *Session) listen(p api.Module) *listener {
 					trace.Record("plugin", p.Name()+" heard "+name, time.Since(at))
 				}
 				scope.Done()
-				// A callback runs as the session that asked for it (B247).
-				s := e
-				if ev.from != nil && slices.Contains(e.sessions, ev.from) {
-					s = ev.from
-				}
-				if !on(func() { s.handled(p, ev, err, t, res) }) {
+				if !on(func() { e.asker(ev).handled(p, ev, err, t, res) }) {
 					return
 				}
 			}
 		}
 	}()
 	return l
+}
+
+// asker is the session that asked for the callback ev, while it is still
+// here, or else e (B247).
+func (e *Session) asker(ev event) *Session {
+	if ev.from != nil && slices.Contains(e.sessions, ev.from) {
+		return ev.from
+	}
+	return e
 }
 
 // handled does what p asked for when it heard ev at t. Its edits and

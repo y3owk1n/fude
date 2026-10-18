@@ -3,7 +3,6 @@ package editor
 import (
 	"cmp"
 	"fmt"
-	"math"
 	"slices"
 	"strconv"
 	"strings"
@@ -132,12 +131,18 @@ func (e *Session) Views() []wire.View {
 			v.Progress = cmp.Or(v.Progress, s.doing())
 		}
 		v.Server = strings.Join(names, ", ")
-		for _, d := range e.diagnostics(w.buf) {
-			switch d.style {
-			case "diagnostic.error":
-				v.Errors++
-			case "diagnostic.warn":
-				v.Warnings++
+		// The modules' diagnostics count, by their styles (B147).
+		for _, p := range e.modules {
+			for _, d := range e.decos[p] {
+				if d.buf != w.buf {
+					continue
+				}
+				switch d.style {
+				case "diagnostic.error":
+					v.Errors++
+				case "diagnostic.warn":
+					v.Warnings++
+				}
 			}
 		}
 		if w == e.win {
@@ -257,21 +262,16 @@ func (e *Session) pair(w *window, t kernel.Snapshot, top, last int) []int {
 	return nil
 }
 
-// diagnosticSigns are the diagnostic letters by severity, the worst first.
-var diagnosticSigns = []wire.Sign{{Text: "E", Name: "diagnostic.error"}, {Text: "W", Name: "diagnostic.warn"}, {Text: "I", Name: "diagnostic.info"}, {Text: "H", Name: "diagnostic.hint"}}
-
-// signs returns each line of b's sign: the letter of its worst diagnostic,
-// or else its git sign. A
+// signs returns each line of b's sign, from the modules' decorations. A
 // listing's lines from top to last show the git status of their names.
 func (e *Session) signs(b *buffer, top, last int) map[int]wire.Sign {
-	if !b.signed && b.signs == 0 && len(b.status) == 0 {
+	if b.signs == 0 && len(b.status) == 0 {
 		return nil
 	}
 	t := b.text.Snapshot()
 	out := map[int]wire.Sign{}
-	// The highest layer's sign shows, and among a layer's the latest. The
-	// editor's diagnostics sit at layer 1, over git's at -1 and most at 0,
-	// and under a breakpoint at 2 (B184, B262).
+	// The highest layer's sign shows, and among a layer's the latest: git's
+	// at -1, most at 0, diagnostics at 1 and a breakpoint at 2 (B184, B262).
 	var signed []decoration
 	for _, p := range e.modules {
 		for _, d := range e.decos[p] {
@@ -281,22 +281,9 @@ func (e *Session) signs(b *buffer, top, last int) map[int]wire.Sign {
 		}
 	}
 	slices.SortStableFunc(signed, func(x, y decoration) int { return cmp.Compare(x.layer, y.layer) })
-	put := func(from, to int) {
-		for _, d := range signed {
-			if d.layer >= from && d.layer < to {
-				out[t.LineOf(b.text.Mark(d.start))] = wire.Sign{Text: d.sign, Name: d.style}
-			}
-		}
+	for _, d := range signed {
+		out[t.LineOf(b.text.Mark(d.start))] = wire.Sign{Text: d.sign, Name: d.style}
 	}
-	put(math.MinInt, 1)
-	for _, d := range e.diagnostics(b) {
-		line := t.LineOf(b.text.Mark(d.start))
-		i := slices.IndexFunc(diagnosticSigns, func(s wire.Sign) bool { return s.Name == d.style })
-		if old, ok := out[line]; i >= 0 && (!ok || !slices.Contains(diagnosticSigns, old) || i < slices.Index(diagnosticSigns, old)) {
-			out[line] = diagnosticSigns[i]
-		}
-	}
-	put(1, math.MaxInt)
 	for line := t.LineOf(top); len(b.status) > 0 && line <= t.LineOf(last); line++ {
 		start := t.LineStart(line)
 		if s := b.status[t.Slice(start, vim.LineEnd(t, start))]; s.Text != "" {

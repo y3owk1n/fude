@@ -51,7 +51,7 @@ Its other four methods do nothing here. `Event` and `Callback` return an empty `
 
 ## What a call reads and asks for
 
-A `Scope` holds the text of the buffer the call is about, `About` (its `buffer`, `path`, `filetype`, `mode`, `power`, `servers`, the language servers attached to it, `indent` and `tab`, and a command's `args`, `bang`, `first`, `last` and `ranged`), every open buffer by id, and funcs over the syntax: `Language` for the language at a position, `Comment` for how that language comments a line, `Spans` for the highlight captures over a range, and `Node`, which finds syntax nodes. `Decorations` lists the module's own decorations on every open buffer, each with its `Buffer`, where they are now. A buffer with a title, such as a panel, has `title` in `About`. `Option` reads an option, such as `spell`, as the window has it, or a config.toml setting, such as `spell_words`, and `Config` reads any value of config.toml by its dotted path, as JSON. `About` also carries the buffer's `indent` and `tab` widths. A `Text` has `Len`, `Slice`, `Lines`, `LineStart` and `LineOf`, with byte offsets and lines counted from 0.
+A `Scope` holds the text of the buffer the call is about, `About` (its `buffer`, `path`, `filetype`, `mode`, `power`, `servers`, the language servers attached to it, `indent` and `tab`, and a command's `args`, `bang`, `first`, `last` and `ranged`), every open buffer by id, and funcs over the syntax: `Language` for the language at a position, `Comment` for how that language comments a line, `Spans` for the highlight captures over a range, and `Node`, which finds syntax nodes. `Decorations` lists the module's own decorations on every open buffer, each with its `Buffer`, where they were when the call began. A buffer with a title, such as a panel, has `title` in `About`. `Option` reads an option, such as `spell`, as the window has it, or a config.toml setting, such as `spell_words`, and `Config` reads any value of config.toml by its dotted path, as JSON. `About` also carries the buffer's `indent` and `tab` widths. A `Text` has `Len`, `Slice`, `Lines`, `LineStart` and `LineOf`, with byte offsets and lines counted from 0.
 
 A `Result` asks for any of these, and fude applies them together once the call returns:
 
@@ -66,7 +66,8 @@ A `Result` asks for any of these, and fude applies them together once the call r
 | `Show` | text in a read-only window of its own, with styles over it and keys of its own. Showing it again keeps the cursor's line and the focus |
 | `Jump` | where the cursor goes, in this buffer, or at a line and column of a file, in a window that shows a file |
 | `Pick` | a list to pick from, live or of places, or a question |
-| `Timers`, `Jobs`, `Requests` | work whose callback runs later. A `Stream` job is the module's own long work, whose callback runs for each line it emits |
+| `Menu` | a numbered menu at the cursor, each item with what it does beside it, whose choice runs the callback |
+| `Timers`, `Jobs`, `Requests` | work whose callback runs later. A `Request` goes to the buffer's servers, or to the one it names. A `Stream` job is the module's own long work, whose callback runs for each line it emits |
 | `Log` | lines for fude's log |
 | `Selected` | the range an object's call selects |
 | `Set` | `expand_tab`, `indent_width` or `tab_width` on the buffer, over config.toml |

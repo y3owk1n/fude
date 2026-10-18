@@ -177,11 +177,10 @@ type decoration struct {
 	buf        *buffer
 	start, end kernel.MarkID
 	style      string
-	note       string          // a diagnostic's message, or a plugin's text after the end of the line
-	sign       string          // a plugin's text for the sign column
-	layer      int             // orders its sign among a line's, the highest showing (B184)
-	fold       bool            // a closed fold over its lines (B288)
-	raw        json.RawMessage // a diagnostic as the server sent it, for code actions
+	note       string // a module's text after the end of the line
+	sign       string // a plugin's text for the sign column
+	layer      int    // orders its sign among a line's, the highest showing (B184)
+	fold       bool   // a closed fold over its lines (B288)
 }
 
 // remove deletes the decoration's marks.
@@ -206,9 +205,10 @@ func (e *Session) pluginRequest(p api.Module, b *buffer, rq api.Request, save *s
 			l.add(event{buf: b, id: rq.ID, extra: extra, save: save, from: e})
 		}
 	}
+	document := strings.HasPrefix(rq.Method, "textDocument/")
 	var to []*server
 	for _, s := range b.servers {
-		if !strings.HasPrefix(rq.Method, "textDocument/") || s.offers(rq.Method) {
+		if (rq.Server == "" || s.name == rq.Server) && (!document || s.offers(rq.Method)) {
 			to = append(to, s)
 		}
 	}
@@ -227,7 +227,10 @@ func (e *Session) pluginRequest(p api.Module, b *buffer, rq api.Request, save *s
 	left, done := len(to), false
 	for _, s := range to {
 		s.client.Request(rq.Method, func(enc string) any {
-			out := map[string]any{"textDocument": map[string]any{"uri": uri}}
+			out := map[string]any{}
+			if document {
+				out["textDocument"] = map[string]any{"uri": uri}
+			}
 			switch {
 			case rq.Pos >= 0 && rq.End >= 0:
 				out["range"] = lsp.Range{Start: lsp.Point(t, rq.Pos, enc), End: lsp.Point(t, rq.End, enc)}
@@ -303,6 +306,7 @@ func (e *Session) went() {
 			e.reveal()
 		}
 	case e.win.buf == g.b:
+		e.pushJump(e.Cursor())
 		e.setCursor(e.jumpPos(g))
 	}
 }
@@ -419,6 +423,9 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 	}
 	if pk := res.Pick; pk != nil {
 		e.showPick(p, b, pk, save)
+	}
+	if m := res.Menu; m != nil {
+		e.offerMenu(p, b, m)
 	}
 	if t := res.Terminal; t != nil {
 		e.moduleTerminal(p, *t)
@@ -749,13 +756,13 @@ func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 	if b.title != "" {
 		s.About["title"] = b.title
 	}
-	s.Decorations = func() []api.Decoration {
-		var out []api.Decoration
-		for _, d := range e.decos[p] {
-			out = append(out, api.Decoration{ID: d.id, Start: d.buf.text.Mark(d.start), End: d.buf.text.Mark(d.end), Style: d.style, Sign: d.sign, Note: d.note, Layer: d.layer, Fold: d.fold, Buffer: d.buf.id})
-		}
-		return out
+	// The decorations are listed now, on the loop, as a module reads its
+	// scope off it.
+	var decos []api.Decoration
+	for _, d := range e.decos[p] {
+		decos = append(decos, api.Decoration{ID: d.id, Start: d.buf.text.Mark(d.start), End: d.buf.text.Mark(d.end), Style: d.style, Sign: d.sign, Note: d.note, Layer: d.layer, Fold: d.fold, Buffer: d.buf.id})
 	}
+	s.Decorations = func() []api.Decoration { return decos }
 	return s
 }
 

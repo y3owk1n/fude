@@ -30,13 +30,24 @@ const (
 	renameKey
 	renameCmd
 	workspace
+	nextDiag
+	prevDiag
+	codeActions
+	diagnosticsSrc
 )
 
-// The callbacks lsp asks for. A request's id is the id of the call it
-// answers, and a workspace symbol search has an id from searches up.
+// The callbacks lsp asks for, by id. A request's id is the id of the call
+// it answers, apart from these, and a workspace symbol search has an id
+// from searches up.
 const (
-	picked   uint32 = iota + 100 // the symbols list
-	searches                     // the first search's request
+	picked     uint32 = iota + 100 // the symbols list
+	diagPick                       // the diagnostics list
+	menuID                         // the code action menu
+	actionsReq                     // the code actions asked for
+	ranReq                         // a code action's command
+	resolveReq uint32 = 200        // a menu item being resolved, plus its index
+	actReq     uint32 = 300        // an action being resolved to act on, plus its index
+	searches   uint32 = 1000
 )
 
 // methods are the requests of each call.
@@ -64,15 +75,25 @@ const limit = 1000
 // Module is lsp.
 type Module struct {
 	mu       sync.Mutex
-	renameAt map[string]int // by buffer, where grn was pressed
-	search   uint32         // the newest workspace symbol search
+	renameAt map[string]int                     // by buffer, where grn was pressed
+	search   uint32                             // the newest workspace symbol search
+	diags    map[string]map[string][]diagnostic // by buffer, by server, its diagnostics
+	ids      int                                // the last decoration id given
+	menu     []action                           // the code actions the menu shows
+	showing  bool                               // the menu is up
+	encoding string                             // the encoding of the menu's server
 }
 
 // New returns lsp.
-func New() *Module { return &Module{renameAt: map[string]int{}} }
+func New() *Module {
+	return &Module{renameAt: map[string]int{}, diags: map[string]map[string][]diagnostic{}}
+}
 
-func (m *Module) Name() string         { return "lsp" }
-func (m *Module) Subscribed() []string { return []string{"buffer.closed"} }
+func (m *Module) Name() string { return "lsp" }
+
+func (m *Module) Subscribed() []string {
+	return []string{"lsp.published", "lsp.detached", "buffer.closed"}
+}
 
 func (m *Module) Registered() []api.Registration {
 	return []api.Registration{
@@ -85,6 +106,10 @@ func (m *Module) Registered() []api.Registration {
 		{Kind: api.Key, Name: "grn", Help: "renames the symbol under the cursor in every file", ID: renameKey, Attached: true},
 		{Kind: api.Command, Name: "rename", Help: "renames the symbol under the cursor in every file, through the language server", ID: renameCmd},
 		{Kind: api.Source, Name: "symbols", Help: "the symbols the language server finds for the query, asked again as it is typed", ID: workspace},
+		{Kind: api.Key, Name: "]d", Help: "goes to the next diagnostic", ID: nextDiag},
+		{Kind: api.Key, Name: "[d", Help: "goes to the diagnostic before", ID: prevDiag},
+		{Kind: api.Key, Name: "gra", Help: "lists the language server's actions for the cursor's place", ID: codeActions, Attached: true, Visual: true},
+		{Kind: api.Source, Name: "diagnostics", Help: "the diagnostics of every open buffer, the current buffer's first", ID: diagnosticsSrc},
 	}
 }
 
@@ -96,6 +121,24 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	buf, cursor := s.About["buffer"], args[0]
+	var res api.Result
+	switch id {
+	case nextDiag:
+		m.step(&res, s, cursor, max(args[1], 1))
+		return res, nil
+	case prevDiag:
+		m.step(&res, s, cursor, -max(args[1], 1))
+		return res, nil
+	case diagnosticsSrc:
+		return api.Result{Pick: &api.Pick{ID: diagPick, Title: "diagnostics", Items: m.places(s), Places: true}}, nil
+	case codeActions:
+		start, end := cursor, cursor
+		if s.About["mode"] == "visual" {
+			start, end = args[0], args[1]
+		}
+		m.actions(&res, s, start, end)
+		return res, nil
+	}
 	if s.About["servers"] == "" {
 		if id == workspace {
 			return api.Result{Message: "no language server offers workspace symbols"}, nil
@@ -129,12 +172,23 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 	return api.Result{Requests: []api.Request{rq}}, nil
 }
 
-// Event forgets a closed buffer.
-func (m *Module) Event(_ context.Context, _ string, s api.Scope) (api.Result, error) {
+// Event takes the diagnostics a server publishes, drops a server's when it
+// leaves a buffer, and forgets a closed buffer.
+func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	delete(m.renameAt, s.About["buffer"])
-	return api.Result{}, nil
+	var res api.Result
+	event, server, _ := strings.Cut(name, " ")
+	switch event {
+	case "lsp.published":
+		m.published(&res, s)
+	case "lsp.detached":
+		m.detached(&res, s, server)
+	case "buffer.closed":
+		delete(m.diags, s.About["buffer"])
+		delete(m.renameAt, s.About["buffer"])
+	}
+	return res, nil
 }
 
 // Callback shows what a server answered: hover in a float, one place as a
@@ -142,6 +196,37 @@ func (m *Module) Event(_ context.Context, _ string, s api.Scope) (api.Result, er
 func (m *Module) Callback(_ context.Context, id uint32, s api.Scope) (api.Result, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	var res api.Result
+	switch {
+	case id == diagPick || id == ranReq:
+		res.Message = s.About["error"]
+		return res, nil
+	case id == menuID:
+		m.picked(&res, s)
+		return res, nil
+	case id == actionsReq:
+		switch err := s.About["error"]; {
+		case strings.HasPrefix(err, "no language server answered"):
+			res.Message = "no code actions"
+		case err != "":
+			res.Message = offers(err, "code actions")
+		default:
+			m.offered(&res, s)
+		}
+		return res, nil
+	case id >= resolveReq && id < actReq:
+		m.resolved(&res, s, int(id-resolveReq))
+		return res, nil
+	case id >= actReq && id < searches:
+		if i := int(id - actReq); s.About["output"] != "" && i < len(m.menu) {
+			a := m.menu[i]
+			a.raw = json.RawMessage(s.About["output"])
+			m.act(&res, s, a, 0)
+		} else if err := s.About["error"]; err != "" {
+			res.Message = err
+		}
+		return res, nil
+	}
 	if id == picked {
 		if query, live := s.About["query"]; live {
 			if query == "" {

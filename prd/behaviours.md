@@ -995,13 +995,19 @@ Where fude departs, the line says so and cites the departure in
   typed, which runs nothing. The layer of its sign orders it on a line
   with the others. `servers` in its scope names the servers attached to
   the buffer.
+- B293 [4] A module shows a numbered menu at the cursor, as code actions
+  show, each item with its kind and what it does beside it, and hears
+  which was picked. A menu of the same id while one shows replaces its
+  items. A module asks one language server by name, as resolving a code
+  action needs.
 - B283 [4] A plugin sets `expand_tab`, `indent_width` or `tab_width` on the
   buffer its call is about, over config.toml's, until the buffer closes,
   as .editorconfig does.
 - B187 [4] A plugin with `ui` moves the cursor in the window that shows
   the buffer its call was about, once the call and its edits are done. It
   also opens a file of the project at a position, in the current window.
-  A path that leads outside the project opens nothing.
+  A path that leads outside the project opens nothing. The move joins the
+  jumplist, so `<C-o>` goes back.
 - B59 [4] A plugin with `ui` shows markdown in a float at the cursor, as
   hover does.
 
@@ -1035,7 +1041,7 @@ Where fude departs, the line says so and cites the departure in
   attached (N3). In a list they open, `<CR>` jumps to the place on its
   line. B142 changes this key.
 - B227 [5] `gra` shows the code actions in a menu at the cursor, or for
-  the selection in visual mode. Each row has its number, title and kind's
+  the selection in visual mode, from the first server that answers. Each row has its number, title and kind's
   family, such as `quickfix` or `source`. Preferred actions come first,
   then fixes, refactors and the rest. Disabled ones come last, dim. Beside
   the menu, the selected action shows what it does. For an edit, that is

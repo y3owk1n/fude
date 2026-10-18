@@ -10,13 +10,11 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/y3owk1n/fude/protocol/lsp"
 	"github.com/y3owk1n/fude/vim"
-	"github.com/y3owk1n/fude/wire"
 )
 
 // pickSources are the sources :pick finds in, by name.
-var pickSources = []string{"files", "buffers", "recent", "diagnostics", "help", "keymaps", "commands"}
+var pickSources = []string{"files", "buffers", "recent", "help", "keymaps", "commands"}
 
 // openPick opens the finder on the items of source, or on the sources
 // without one. grep takes the text after it as its query (B213).
@@ -63,8 +61,6 @@ func (e *Session) openPick(arg string) {
 				f.paths, f.stale = append(here, elsewhere...), true
 			}
 		}()
-	case "diagnostics":
-		e.openFinder(&finder{paths: e.diagnosticPlaces(), stale: true, places: true, title: "diagnostics"}, "")
 	default:
 		if src := e.sources[source]; src != nil {
 			src(e, strings.TrimSpace(rest))
@@ -191,28 +187,4 @@ func (e *Session) pickFrom(title string, items []string, picked func(int)) {
 			picked(i)
 		}
 	}}, "")
-}
-
-// diagnosticPlaces returns the diagnostics of every buffer as places, the
-// current buffer's first, each buffer's worst first and then in the order
-// of its text (B196).
-func (e *Session) diagnosticPlaces() []string {
-	bufs := slices.Concat([]*buffer{e.win.buf}, slices.DeleteFunc(slices.Clone(e.bufs), func(b *buffer) bool { return b == e.win.buf }))
-	var out []string
-	for _, b := range bufs {
-		t := b.text.Snapshot()
-		ds := slices.Clone(e.diagnostics(b))
-		worst := func(d decoration) int {
-			return slices.IndexFunc(diagnosticSigns, func(s wire.Sign) bool { return s.Name == d.style })
-		}
-		slices.SortStableFunc(ds, func(x, y decoration) int {
-			return cmp.Or(cmp.Compare(worst(x), worst(y)), cmp.Compare(b.text.Mark(x.start), b.text.Mark(y.start)))
-		})
-		for _, d := range ds {
-			p := lsp.Point(t, b.text.Mark(d.start), "utf-8")
-			note, _, _ := strings.Cut(d.note, "\n")
-			out = append(out, fmt.Sprintf("%s:%d:%d:%s  %s", b.file.path, p.Line+1, p.Character+1, strings.TrimPrefix(d.style, "diagnostic."), note))
-		}
-	}
-	return out
 }

@@ -123,7 +123,9 @@ func TestB244GuestRefuses(t *testing.T) {
 	// command.
 	feed(guest, "gra")
 	settle(t, guest, func() bool { _, ok := guest.Float(); return ok })
-	if feed(guest, "2"); guest.Message() != "a guest may not take a code action that runs a command" || text(e) != "b\na" {
+	feed(guest, "2")
+	settle(t, guest, func() bool { return guest.Message() != "" })
+	if guest.Message() != "a guest may not take a code action that runs a command" || text(e) != "b\na" {
 		t.Errorf("a guest's code action that runs a command said %q and left %q", guest.Message(), text(e))
 	}
 	feed(guest, "gra")
