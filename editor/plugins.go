@@ -435,6 +435,9 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 		}
 	}
 	e.serverActions(res.Servers)
+	if res.Restore != "" {
+		e.restoreFrom(res.Restore)
+	}
 	switch s := res.Show; {
 	case s != nil && s.Screen:
 		e.screenPanel(b, *s)
@@ -834,10 +837,12 @@ func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 		count, _ := strconv.Atoi(keys[:len(keys)-len(obj)])
 		return vim.TextObject(t, pos, count, obj)
 	}
-	// Only a call reads the registry, on the loop, so run sets these.
+	// Only a call reads the registry and the session, on the loop, so run
+	// sets these.
 	s.Keys = func() []api.Binding { return nil }
 	s.Commands = func() []api.ExCommand { return nil }
 	s.HelpTags = func() []string { return nil }
+	s.Session = func() string { return "" }
 	servers := e.serverList()
 	s.Servers = func() []api.Server { return servers }
 	s.Option = func(name string) (string, bool) { return option(opts, cfg, name) }
@@ -926,7 +931,7 @@ func (e *Session) run(p api.Module, id uint32, scope api.Scope, args ...int) ([]
 		}
 	}
 	// What the registry holds is read on the loop, as a call runs (B324).
-	scope.Keys, scope.Commands, scope.HelpTags = e.keyList, e.commandList, e.helpTags
+	e.onLoop(&scope)
 	at := time.Now()
 	res, err := p.Call(context.Background(), id, scope, args...)
 	trace.Record("plugin", p.Name()+" ran "+name, time.Since(at))

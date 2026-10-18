@@ -77,6 +77,7 @@ type Result struct {
 	Cmdline    string         // a command line to start typing, without its colon, such as rename name
 	Servers    []ServerAction // what to do to language servers, which only the host may ask (B317)
 	Keys       string         // keys to run once the call is done, as typed, such as f to run what a panel maps it to (B320)
+	Restore    string         // a session Scope.Session gave, whose files open and whose windows build again (B325)
 	// Set holds options to set on the buffer the call is about, by their
 	// config.toml names: expand_tab, indent_width and tab_width. fude uses
 	// them in place of config.toml's until the buffer closes (B283).
@@ -332,6 +333,11 @@ type Scope struct {
 	Commands func() []ExCommand
 	// HelpTags returns what :h opens help at (B324).
 	HelpTags func() []string
+	// Session returns the windows on files, their cursors, top lines and
+	// options, and which is current, for Result.Restore to build again, or
+	// "" with no window on a file. Only a call and editor.quitting have it
+	// (B325).
+	Session func() string
 	// Servers returns the language servers config.toml sets, by name (B317).
 	Servers func() []Server
 	// Decorations returns the owner's decorations on every open buffer, by

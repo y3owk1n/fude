@@ -265,7 +265,6 @@ func init() {
 		{"window.up", "goes to the window, or tmux pane, above", func(e *Session, _ int) { e.navigate('k') }},
 		{"window.right", "goes to the window, or tmux pane, to the right", func(e *Session, _ int) { e.navigate('l') }},
 		{"terminal.close", "closes the terminal or task window once its program has ended", func(e *Session, _ int) { e.closeTerminal() }},
-		{"session.restore", "restores the last session of the working directory", func(e *Session, _ int) { e.restoreProject() }},
 	}
 	commandsByName = byName(commands)
 }

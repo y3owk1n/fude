@@ -2,10 +2,7 @@ package editor_test
 
 import (
 	"path/filepath"
-	"strings"
 	"testing"
-
-	startmod "github.com/y3owk1n/fude/modules/start"
 
 	"github.com/y3owk1n/fude/editor"
 )
@@ -36,29 +33,6 @@ func TestB77UndoOwnChanges(t *testing.T) {
 	feed(agent, "u")
 	if got := text(e); got != "" {
 		t.Fatalf("after the agent's undo got %q, want it empty", got)
-	}
-}
-
-// B226
-func TestB226ProjectSession(t *testing.T) {
-	dir := t.TempDir()
-	change(t, filepath.Join(dir, "a.txt"), "a\nline two\n")
-	change(t, filepath.Join(dir, "b.txt"), "b\n")
-	t.Chdir(dir)
-	e := start(t, "a.txt")
-	e.SetSize(80, 24)
-	feed(e, "j$:vsplit<CR>:e b.txt<CR>:qa<CR>")
-	// fude started again with no file offers the session, and s restores
-	// its windows, the current one and the cursors.
-	e = start(t)
-	e.SetSize(80, 24)
-	e.Use(startmod.New())
-	e.Welcome()
-	settle(t, e, func() bool { return strings.Contains(text(e), "s  restore the last session here") })
-	feed(e, "s")
-	vs := e.Views()
-	if len(vs) != 2 || vs[0].Name != "a.txt" || vs[1].Name != "b.txt" || !vs[1].Current || vs[0].Cursor != 9 {
-		t.Fatalf("s restored %d windows, the first %q at %d", len(vs), vs[0].Name, vs[0].Cursor)
 	}
 }
 

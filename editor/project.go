@@ -1,58 +1,36 @@
 package editor
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"slices"
 
-	"github.com/y3owk1n/fude/internal/keep"
+	"github.com/y3owk1n/fude/api"
 )
 
-// saveProject keeps the windows on files, their cursors and options, for
-// the start screen to restore in this directory. With no window on a file,
-// it keeps the last session (B226).
-func (e *Session) saveProject() error {
+// sessionJSON is the windows on files, their cursors and options, and
+// which is current, as JSON, or "" with no window on a file (B325).
+func (e *Session) sessionJSON() string {
 	s := e.session()
 	if len(s.Buffers) == 0 {
-		return nil
-	}
-	path, err := keep.SessionPath()
-	if err != nil {
-		return err
+		return ""
 	}
 	data, err := json.Marshal(s)
 	if err != nil {
-		return fmt.Errorf("session: %w", err)
+		return ""
 	}
-	if err := keep.Write(path, data); err != nil {
-		return fmt.Errorf("session: %w", err)
-	}
-	return nil
+	return string(data)
 }
 
-// restoreProject opens the files of this directory's session and builds its
+// restoreFrom opens the files of the session data holds and builds its
 // windows, each with its cursor and options. A file that no longer opens is
-// left out, and the message says why.
-func (e *Session) restoreProject() {
-	path, err := keep.SessionPath()
-	if err != nil {
-		e.message = err.Error()
-		return
-	}
-	data, err := os.ReadFile(path)
-	if errors.Is(err, fs.ErrNotExist) {
-		e.message = "no session here"
-		return
-	}
-	if err != nil {
-		e.message = fmt.Sprintf("session: %v", err)
-		return
-	}
+// left out, and the message says why (B226, B325).
+func (e *Session) restoreFrom(data string) {
 	var s saved
-	if err := json.Unmarshal(data, &s); err != nil {
+	if err := json.Unmarshal([]byte(data), &s); err != nil {
 		e.message = fmt.Sprintf("session: %v", err)
 		return
 	}
@@ -74,5 +52,32 @@ func (e *Session) restoreProject() {
 	e.restoreLayout(s)
 	if err := errors.Join(problems...); err != nil {
 		e.message = err.Error()
+	}
+}
+
+// onLoop gives scope what a module reads only while its call runs on the
+// loop: the registry and the session (B324, B325).
+func (e *Session) onLoop(scope *api.Scope) {
+	scope.Keys, scope.Commands, scope.HelpTags, scope.Session = e.keyList, e.commandList, e.helpTags, e.sessionJSON
+}
+
+// quitting tells the modules that fude quits. It runs on the loop, before
+// their listeners stop, so a module can keep the session then. What they
+// log goes to the log (B325).
+func (e *Session) quitting() {
+	for _, p := range e.modules {
+		if !slices.Contains(p.Subscribed(), "editor.quitting") {
+			continue
+		}
+		scope := e.scope(p, e.win.buf, e.Text())
+		scope.Session = e.sessionJSON
+		res, err := p.Event(context.Background(), "editor.quitting", scope)
+		scope.Done()
+		if err != nil {
+			logLine(fmt.Sprintf("%s: %v", p.Name(), err))
+		}
+		for _, line := range res.Log {
+			logLine(line)
+		}
 	}
 }

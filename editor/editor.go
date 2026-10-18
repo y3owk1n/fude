@@ -889,9 +889,7 @@ func (e *Session) quitAll(force bool) {
 			return
 		}
 	}
-	if err := e.saveProject(); err != nil {
-		logLine(err.Error())
-	}
+	e.quitting()
 	for _, b := range e.bufs {
 		b.close()
 	}

@@ -25,6 +25,7 @@ and a program that embeds the editor does the same.
 | [`markdown`](markdown) | a markdown file draws as it reads, with `render` on |
 | [`pick`](pick) | `:pick help`, `:pick keymaps` and `:pick commands` |
 | [`recent`](recent) | keeps the files windows show, for `:pick recent` and the start screen |
+| [`session`](session) | keeps the working directory's session as fude quits, and restores it |
 | [`shell`](shell) | `:!`, `:{range}!` and `:r !` run a command in the shell |
 | [`spell`](spell) | `spell`, `]s`, `[s`, `z=` and `zg` |
 | [`start`](start) | the start screen of fude started with no file |

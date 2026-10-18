@@ -416,8 +416,8 @@ for fude started with no file, which emits `editor.started` (B319). The
 module reads the recent files and whether a session is kept through
 `internal/keep`, and shows a `Screen` panel in place of the empty buffer.
 `<CR>` returns the key its line starts with as `Keys`, which run as
-typed (B320). Restoring the session stays the editor's, as
-`<Plug>(session.restore)` (B226).
+typed (B320). Its `s` runs `modules/session`'s `<Plug>(session.restore)`
+(B226).
 
 `modules/surround` is `ys`, `yss`, `ds`, `cs` and `S` in visual mode
 (B219). `ys` is an operator with `Chars` 1. Its name starts with `y`, so
@@ -432,6 +432,12 @@ the machine's own `a(` and `2i"` (B322).
 machine runs each before the typed key's own work. A call with no edits
 lets the key do what it does, so `<BS>` outside a pair deletes as usual. The finder
 feeds its query with `Machine.Prompt` on, which runs none of them (B323).
+
+`modules/session` keeps the working directory's session (B226). The
+editor sends `editor.quitting` on the loop, before the listeners stop. The
+module reads `Scope.Session` then and writes it through `internal/keep`. The session is JSON in the
+format `:restart` keeps. `<Plug>(session.restore)` reads it back, and its
+result's `Restore` opens the files and builds the windows (B325).
 
 `modules/pick` is `:pick help`, `:pick keymaps` and `:pick commands`
 (B215, B266). A call reads the registry through `Scope.Keys`,
@@ -558,7 +564,8 @@ or the view, `mode.changed`, `syntax.updated` when a parse lands,
 (B284), `editor.focused` when the terminal gets the focus back
 (B277), `buffer.shown` when the current window shows another buffer
 (B314), `lsp.changed` when a language server's state changes (B317),
-`editor.started` when fude starts with no file (B319),
+`editor.started` when fude starts with no file (B319), `editor.quitting`
+as it quits, on the loop (B325),
 `listing.read` when a listing reads its directory, as it opens,
 reads it again or the terminal gets the focus back (B126), `buffer.saving`
 before a write, which waits for its handlers and

@@ -1036,6 +1036,11 @@ Where fude departs, the line says so and cites the departure in
   window, such as a line in `diff.plus`, over what the filetype colours.
 - B277 [4] A plugin hears `editor.focused` when the terminal gets the
   focus back, as git's index may have changed while fude was away.
+- B325 [4] A module hears `editor.quitting` as fude quits, before its
+  events stop, and reads the session then: the windows on files, each
+  with its cursor, top line and options, and which is current. A call
+  reads it too, and its result may open a session's files and build its
+  windows again, as B226 keeps the working directory's.
 - B324 [4] A module's call lists every key fude knows, each with its kind
   and help, every ex command with its arguments and help, and the tags
   help opens at, as `:pick keymaps`, `:pick commands` and `:pick help`
