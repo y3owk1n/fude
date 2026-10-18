@@ -35,9 +35,9 @@ build:
 # Write fude's man pages to share/man, for packaging.
 man: build
     mkdir -p share/man/man1 share/man/man5 share/man/man7
-    bin/fude --man > share/man/man1/fude.1
-    bin/fude --man config > share/man/man5/fude-config.5
-    bin/fude --man guide > share/man/man7/fude-guide.7
+    bin/fude man > share/man/man1/fude.1
+    bin/fude man config > share/man/man5/fude-config.5
+    bin/fude man guide > share/man/man7/fude-guide.7
 
 # Build fude and open the files or directories given, or an empty buffer.
 run *args: build

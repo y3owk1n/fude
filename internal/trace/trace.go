@@ -1,4 +1,4 @@
-// Package trace keeps what fude did, for fude --tail (B174).
+// Package trace keeps what fude did, for fude tail (B174).
 package trace
 
 import (
@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// Event is something fude did, as fude --tail shows it (B174).
+// Event is something fude did, as fude tail shows it (B174).
 type Event struct {
 	// Seq counts events from 1, so a gap is events a tail missed.
 	Seq int       `json:"seq"`

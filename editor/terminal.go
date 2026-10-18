@@ -124,6 +124,10 @@ func (e *Session) openTerminal(arg string, owner api.Module, task string) {
 	t.em = vt.NewEmulator(t.cols, t.rows)
 	t.cmd = exec.Command(argv[0], argv[1:]...)
 	t.cmd.Env = append(os.Environ(), "TERM=xterm-256color")
+	// fude open, keys and state in the terminal act on this session (B355).
+	if e.socket != "" {
+		t.cmd.Env = append(t.cmd.Env, "FUDE_SOCKET="+e.socket, "FUDE_SESSION="+string(e.origin))
+	}
 	f, err := pty.Start(t.cmd, t.cols, t.rows)
 	if err != nil {
 		// The window and buffer go, so no terminal shows without a program.

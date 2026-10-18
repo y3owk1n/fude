@@ -160,7 +160,7 @@ func (e *Session) reshare() {
 	sh := e.share
 	switch {
 	case sh == nil:
-		e.message = "fude is not sharing, so start it with fude --share"
+		e.message = "fude is not sharing, so start it with fude share"
 	case sh.lost:
 		// A second :share while this one waits finds the place being held.
 		sh.lost = false
@@ -185,7 +185,7 @@ func (e *Session) reshare() {
 // invite shows a new share string, and puts the command that joins with it
 // on the clipboard, since the host sends it to the guest (B248).
 func (e *Session) invite() {
-	join := "fude --join " + e.shareString()
+	join := "fude join " + e.shareString()
 	if err := (host{e}).SetClipboard(join); err != nil {
 		e.message = fmt.Sprintf("copying failed with %v, so guests join with: %s", err, join)
 		return

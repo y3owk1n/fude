@@ -289,3 +289,42 @@ func TestB76RequestMapsOldPosition(t *testing.T) {
 		t.Fatalf("a request inside deleted text made %q: %v", text(e), err)
 	}
 }
+
+// fails sends line and returns its reply's error, "" for none.
+func (cl *client) fails(line string) string {
+	cl.t.Helper()
+	fmt.Fprintln(cl.c, line)
+	for cl.in.Scan() {
+		var reply struct{ Method, Error string }
+		if json.Unmarshal(cl.in.Bytes(), &reply) == nil && reply.Method == "" {
+			return reply.Error
+		}
+	}
+	cl.t.Fatalf("call %s got no reply", line)
+	return ""
+}
+
+// B352, a client's session call
+func TestB352Session(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a")
+	change(t, path, "one\n")
+	// The terminal's session is the first, its origin user and its name kyle.
+	for _, name := range []string{"", "user", "kyle"} {
+		e := open(t, "")
+		e.SetName("kyle")
+		cl := dial(t, e)
+		if err := cl.fails(fmt.Sprintf(`{"id":1,"method":"session","params":{"name":%q}}`, name)); err != "" {
+			t.Fatalf("session %q failed with %s", name, err)
+		}
+		cl.call(fmt.Sprintf(`{"id":2,"method":"open","params":{"paths":[%q]}}`, path))
+		shown := make(chan string)
+		cl.do <- func() { shown <- text(e) }
+		if got := <-shown; got != "one" {
+			t.Errorf("after session %q and open, the terminal's session shows %q", name, got)
+		}
+	}
+	cl := dial(t, open(t, ""))
+	if err := cl.fails(`{"id":1,"method":"session","params":{"name":"nobody"}}`); err != "no session is called nobody" {
+		t.Errorf("a session call for no session failed with %q", err)
+	}
+}

@@ -70,9 +70,9 @@ run = """
 set -eu
 go build -mod=vendor -trimpath -ldflags="-s -w" -o fude ./cmd/fude
 mkdir -p man
-./fude --man > man/fude.1
-./fude --man config > man/fude-config.5
-./fude --man guide > man/fude-guide.7
+./fude man > man/fude.1
+./fude man config > man/fude-config.5
+./fude man guide > man/fude-guide.7
 """
 shell = "sh"
 env = { CGO_ENABLED = "1", GOTOOLCHAIN = "local", GOFLAGS = "-buildvcs=false" }

@@ -111,7 +111,7 @@ The first frame shows in under 5ms, with no config file and nothing asking for o
 - **Go back in time.** After twenty minutes of refactoring, `:timeline` lists every state of the file. `[` and `]` scrub through them, `d` diffs one against now, and `<CR>` restores it as a new state, so even the restore can be undone.
 - **Ask.** Type the start of a command and wait, and a panel shows every key that may follow. `:h guide-start` opens the written guide.
 
-Each language's grammar builds in the background the first time you open one of its files, and its colours appear when the build ends. `fude --tail` in another terminal prints what a running fude does, as it happens.
+Each language's grammar builds in the background the first time you open one of its files, and its colours appear when the build ends. `fude tail` in another terminal prints what a running fude does, as it happens.
 
 ---
 
@@ -228,7 +228,7 @@ storage   persistent rope with structural sharing
 
 ## Build on fude
 
-**Clients and agents.** fude listens on a unix socket. A client sees the buffers and sends keys, commands or proposals on the same timeline as the terminal. Two clients editing one buffer converge to the same text. Go programs attach through the [`client`](client) package, and `:h guide-remote` has the protocol.
+**Clients and agents.** fude listens on a unix socket. A client sees the buffers and sends keys, commands or proposals on the same timeline as the terminal. Two clients editing one buffer converge to the same text. From a shell, `fude open`, `fude keys` and `fude state` open files, type keys and read the state of a running fude. Go programs attach through the [`client`](client) package, and `:h guide-remote` has the protocol.
 
 **The kernel and the grammar.** [`core/`](core) and [`vim/`](vim) are Go modules of their own. Use the kernel for a text buffer with a branching history, or the vim machine for Vim's grammar over your own text, such as a text field in a TUI or a REPL.
 
@@ -319,7 +319,8 @@ Not here yet: debugging through DAP, and GPU or web clients. Never here: vimscri
 | `:h settings`        | Every setting in `config.toml`                     |
 | `:h guide-plugins`   | Writing, building and loading a plugin             |
 | `:h guide-remote`    | Attaching a client over the socket                 |
-| `fude --man`         | fude(1), and with `config` or `guide`, fude-config(5) and fude-guide(7) |
+| `fude help`          | Every way to run fude from a shell                 |
+| `fude man`           | fude(1), and with `config` or `guide`, fude-config(5) and fude-guide(7) |
 
 ## Contributing
 

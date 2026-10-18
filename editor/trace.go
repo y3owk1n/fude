@@ -23,18 +23,10 @@ func traced(src, what string, at time.Time, err error) {
 	trace.Record(src, what, time.Since(at))
 }
 
-// Tail prints what the fude listening at socket does, as fude --tail does
+// Tail prints what the fude listening at socket does, as fude tail does
 // (B174): the events it kept, then each one as it happens, until it quits.
-// Each is a line of text, or of JSON with asJSON. Without a socket it
-// watches the fude at the socket setting, or else the one fude listening in
-// XDG_RUNTIME_DIR or the temporary directory.
+// Each is a line of text, or of JSON with asJSON.
 func Tail(w io.Writer, socket string, asJSON bool) error {
-	if socket == "" {
-		var err error
-		if socket, err = FindSocket(); err != nil {
-			return err
-		}
-	}
 	c, err := net.Dial("unix", socket)
 	if err != nil {
 		return fmt.Errorf("tail: %w", err)
@@ -110,5 +102,5 @@ func FindSocket() (string, error) {
 	case 1:
 		return live[0], nil
 	}
-	return "", fmt.Errorf("%d fudes are running, so name the socket of one: %s", len(live), strings.Join(live, " "))
+	return "", fmt.Errorf("%d fudes are running, so name one with --socket: %s", len(live), strings.Join(live, " "))
 }

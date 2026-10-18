@@ -2,16 +2,23 @@
 package main
 
 import (
+	"cmp"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"os"
 	"path/filepath"
+	"runtime/debug"
+	"slices"
 	"strings"
 	"syscall"
+	"text/tabwriter"
 	"time"
 
 	"github.com/y3owk1n/fude/api"
+	"github.com/y3owk1n/fude/client"
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/internal/relay"
 	"github.com/y3owk1n/fude/modules/autopairs"
@@ -21,7 +28,7 @@ import (
 	"github.com/y3owk1n/fude/modules/colours"
 	"github.com/y3owk1n/fude/modules/comment"
 	"github.com/y3owk1n/fude/modules/completion"
-	"github.com/y3owk1n/fude/modules/debug"
+	debugmod "github.com/y3owk1n/fude/modules/debug"
 	"github.com/y3owk1n/fude/modules/editorconfig"
 	"github.com/y3owk1n/fude/modules/files"
 	"github.com/y3owk1n/fude/modules/flash"
@@ -58,20 +65,280 @@ import (
 	"github.com/y3owk1n/fude/ui/term"
 )
 
-// pluginCommand runs fude plugin new <name> or fude plugin build [dir]
-// (B173).
-func pluginCommand(sub string, args []string) error {
-	switch {
-	case sub == "new" && len(args) == 1:
-		if err := plugin.New(args[0]); err != nil {
+func main() {
+	if err := run(os.Args[1:]); err != nil {
+		fmt.Fprintln(os.Stderr, "fude:", err)
+		os.Exit(1)
+	}
+}
+
+// modules returns the modules this distribution adds to the editor (D49).
+func modules() []api.Module {
+	words := ""
+	if dir, err := editor.ConfigDir(); err == nil {
+		words = filepath.Join(dir, "words.txt")
+	}
+	return []api.Module{autopairs.New(), blame.New(), bufferline.New(), buffers.New(), colours.New(), comment.New(), completion.New(), debugmod.New(), editorconfig.New(), files.New(), flash.New(), fold.New(), format.New(), git.New(), grammars.New(), grep.New(), helpmod.New(), hints.New(), inlay.New(), jump.New(), links.New(), listingmod.New(), lists.New(), lspmod.New(), markdown.New(), pickmod.New(), places.New(), plug.New(), recent.New(), sessionmod.New(), sessions.New(), shell.New(), spell.New(words), startmod.New(), surround.New(), task.New(), terminalmod.New(), thememod.New(), timeline.New(), window.New()}
+}
+
+// run runs the subcommand args name, or else opens the files they name.
+func run(args []string) error {
+	cmd, words, flags, err := parse(args)
+	if err != nil {
+		return err
+	}
+	// --clean reads no config (B270).
+	remove := func() {}
+	if _, ok := flags["--clean"]; ok {
+		if remove, err = editor.Clean(); err != nil {
 			return err
 		}
-		fmt.Printf("wrote %s, and fude plugin build in it builds the plugin\n", args[0])
+	}
+	defer remove()
+	switch cmd {
+	case "help", "version":
+		if len(words) > 0 {
+			return usage(cmd)
+		}
+		if cmd == "version" {
+			fmt.Println(version())
+			return nil
+		}
+		help()
+	case "man":
+		if len(words) > 1 {
+			return usage(cmd)
+		}
+		page, err := editor.Man(strings.Join(words, ""), modules()...)
+		if err != nil {
+			return err
+		}
+		fmt.Print(page)
+	case "plugin":
+		return pluginCommand(words)
+	case "relay":
+		return relays(words)
+	case "tail":
+		if len(words) > 0 {
+			return usage(cmd)
+		}
+		path, err := socket(flags)
+		if err != nil {
+			return err
+		}
+		_, asJSON := flags["--json"]
+		return editor.Tail(os.Stdout, path, asJSON)
+	case "attach":
+		if len(words) > 0 {
+			return usage(cmd)
+		}
+		return attach(flags)
+	case "join":
+		return join(words, flags)
+	case "open", "keys", "state":
+		return remote(cmd, words, flags)
+	default:
+		return edit(cmd == "share", words, flags, remove)
+	}
+	return nil
+}
+
+// parse returns the subcommand args name, "" for none, the words after it
+// and the flags they set, each with its value. -h and --help anywhere ask
+// for help, and -v and --version for the version (B350).
+func parse(args []string) (string, []string, map[string]string, error) {
+	subcommands := map[string]bool{}
+	for _, c := range editor.Subcommands {
+		subcommands[strings.Fields(c.Name)[0]] = true
+	}
+	cmd, flags, ended := "", map[string]string{}, false
+	var words []string
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		switch {
+		case ended || a == "-" || !strings.HasPrefix(a, "-"):
+			if cmd == "" && len(words) == 0 && !ended && subcommands[a] {
+				cmd = a
+				continue
+			}
+			words = append(words, a)
+		case a == "--":
+			ended = true
+		case a == "-h" || a == "--help":
+			return "help", nil, nil, nil
+		case a == "-v" || a == "--version":
+			return "version", nil, nil, nil
+		case takesValue(a):
+			if i++; i == len(args) {
+				return "", nil, nil, fmt.Errorf("%s needs a value", a)
+			}
+			flags[a] = args[i]
+		default:
+			flags[a] = ""
+		}
+	}
+	for _, f := range slices.Sorted(maps.Keys(flags)) {
+		if slices.ContainsFunc(flagsOf(cmd), func(spelled string) bool { return strings.Fields(spelled)[0] == f }) {
+			continue
+		}
+		if cmd == "" {
+			return "", nil, nil, fmt.Errorf("no flag %s, and fude help lists them", f)
+		}
+		return "", nil, nil, fmt.Errorf("%s takes no %s, and fude help lists its flags", cmd, f)
+	}
+	return cmd, words, flags, nil
+}
+
+// takesValue reports whether flag is one that a value follows.
+func takesValue(flag string) bool {
+	return slices.ContainsFunc(editor.Flags, func(f editor.Flag) bool { return strings.HasPrefix(f.Flag, flag+" <") })
+}
+
+// flagsOf returns the flags subcommand cmd takes, as they are spelled in
+// editor.Flags, such as --name <name>.
+func flagsOf(cmd string) []string {
+	var flags []string
+	for _, f := range editor.Flags {
+		if slices.Contains(f.For, cmp.Or(cmd, "fude")) {
+			flags = append(flags, f.Flag)
+		}
+	}
+	return flags
+}
+
+// usage is the error for words cmd does not take, with how to run it.
+func usage(cmd string) error {
+	var lines []string
+	for _, c := range editor.Subcommands {
+		if strings.Fields(c.Name)[0] == cmd {
+			line := "fude " + c.Name
+			for _, f := range flagsOf(cmd) {
+				line += " [" + f + "]"
+			}
+			lines = append(lines, strings.TrimSpace(line+" "+c.Args))
+		}
+	}
+	return errors.New("usage: " + strings.Join(lines, ", or "))
+}
+
+// help prints each way to run fude (B348).
+func help() {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
+	fmt.Fprint(w, `fude is a modal text editor.
+
+usage:
+  fude [flags] [+<line>] [<file>...]
+  fude <command> [flags] [<args>]
+
+commands:
+`)
+	for _, c := range editor.Subcommands {
+		fmt.Fprintf(w, "  %s\t%s\n", strings.TrimSpace(c.Name+" "+c.Args), c.Help)
+	}
+	fmt.Fprint(w, "\nflags:\n")
+	for _, f := range editor.Flags {
+		fmt.Fprintf(w, "  %s\t%s", f.Flag, f.Help)
+		if f.For != nil {
+			fmt.Fprintf(w, "\t(%s)", strings.Join(f.For, ", "))
+		}
+		fmt.Fprintln(w)
+	}
+	fmt.Fprint(w, `
+open, keys, state, attach and tail reach the one fude running, or the one
+--socket names. In a fude's :terminal they reach that fude without
+--socket, so fude open notes.md there opens notes.md in it.
+`)
+	w.Flush()
+}
+
+// version is the date and commit fude was built from (B349).
+func version() string {
+	vcs := map[string]string{}
+	if info, ok := debug.ReadBuildInfo(); ok {
+		for _, s := range info.Settings {
+			vcs[s.Key] = s.Value
+		}
+	}
+	rev, at := vcs["vcs.revision"], vcs["vcs.time"]
+	if len(rev) < 7 || len(at) < 10 {
+		return "fude (devel)"
+	}
+	v := "fude " + strings.ReplaceAll(at[:10], "-", ".") + " (" + rev[:7]
+	if vcs["vcs.modified"] == "true" {
+		v += ", modified"
+	}
+	return v + ")"
+}
+
+// name is the session's name others see (B252).
+func name(flags map[string]string) string {
+	return cmp.Or(flags["--name"], os.Getenv("USER"))
+}
+
+// socket is the socket of the fude a subcommand reaches (B352).
+func socket(flags map[string]string) (string, error) {
+	if path := cmp.Or(flags["--socket"], os.Getenv("FUDE_SOCKET")); path != "" {
+		return path, nil
+	}
+	return editor.FindSocket()
+}
+
+// remote runs fude open, keys or state on the session B352 finds.
+func remote(cmd string, words []string, flags map[string]string) error {
+	var params any
+	switch {
+	case cmd == "open" && len(words) > 0:
+		// The paths are from here, not from where fude runs (B351).
+		paths := make([]string, len(words))
+		for i, w := range words {
+			abs, err := filepath.Abs(w)
+			if err != nil {
+				return fmt.Errorf("open %s: %w", w, err)
+			}
+			paths[i] = abs
+		}
+		params = map[string]any{"paths": paths}
+	case cmd == "keys" && len(words) == 1:
+		params = map[string]any{"keys": words[0]}
+	case cmd != "state" || len(words) > 0:
+		return usage(cmd)
+	}
+	path, err := socket(flags)
+	if err != nil {
+		return err
+	}
+	c, err := client.Dial(path)
+	if err != nil {
+		return err
+	}
+	defer c.Close()
+	if err := c.Call("session", map[string]string{"name": cmp.Or(flags["--session"], os.Getenv("FUDE_SESSION"))}, nil); err != nil {
+		return err
+	}
+	var state json.RawMessage
+	if err := c.Call(cmd, params, &state); err != nil {
+		return err
+	}
+	if cmd == "state" {
+		fmt.Printf("%s\n", state)
+	}
+	return nil
+}
+
+// pluginCommand runs fude plugin new <name> or fude plugin build [dir]
+// (B173).
+func pluginCommand(words []string) error {
+	switch {
+	case len(words) == 2 && words[0] == "new":
+		if err := plugin.New(words[1]); err != nil {
+			return err
+		}
+		fmt.Printf("wrote %s, and fude plugin build in it builds the plugin\n", words[1])
 		return nil
-	case sub == "build" && len(args) <= 1:
+	case len(words) >= 1 && len(words) <= 2 && words[0] == "build":
 		dir := "."
-		if len(args) == 1 {
-			dir = args[0]
+		if len(words) == 2 {
+			dir = words[1]
 		}
 		wasm, err := plugin.Build(dir)
 		if err != nil {
@@ -80,42 +347,18 @@ func pluginCommand(sub string, args []string) error {
 		fmt.Printf("built %s\n", wasm)
 		return nil
 	}
-	return errors.New("usage: fude plugin new <name>, or fude plugin build [dir]")
+	return usage("plugin")
 }
 
-// tail runs fude --tail [--json] [socket] (B174).
-func tail(args []string) error {
-	asJSON := len(args) > 0 && args[0] == "--json"
-	if asJSON {
-		args = args[1:]
+// attach runs fude attach, a terminal client on a session of a running
+// fude, and says why the session ended once the screen is gone (B239,
+// B242).
+func attach(flags map[string]string) error {
+	path, err := socket(flags)
+	if err != nil {
+		return err
 	}
-	switch len(args) {
-	case 0:
-		return editor.Tail(os.Stdout, "", asJSON)
-	case 1:
-		return editor.Tail(os.Stdout, args[0], asJSON)
-	}
-	return errors.New("usage: fude --tail [--json] [socket]")
-}
-
-// attach runs fude --attach [socket], a terminal client on a session
-// called name of a running fude, and says why the session ended once the
-// screen is gone (B239, B242).
-func attach(args []string, name string) error {
-	var socket string
-	switch len(args) {
-	case 0:
-		found, err := editor.FindSocket()
-		if err != nil {
-			return err
-		}
-		socket = found
-	case 1:
-		socket = args[0]
-	default:
-		return errors.New("usage: fude --attach [socket]")
-	}
-	a, err := term.Attach(socket, name)
+	a, err := term.Attach(path, name(flags))
 	if err != nil {
 		return err
 	}
@@ -130,16 +373,12 @@ func attach(args []string, name string) error {
 	return nil
 }
 
-// join runs fude --join [--read-only] string, a terminal client on a guest
-// session called name of the fude that shares with string, and says why
-// the session ended once the screen is gone (B248, B249, B255).
-func join(args []string, name string) error {
-	readOnly := len(args) == 2 && args[0] == "--read-only"
-	if readOnly {
-		args = args[1:]
-	}
-	if len(args) != 1 {
-		return errors.New("usage: fude --join [--read-only] string")
+// join runs fude join, a terminal client on a guest session of the fude
+// that shares with the string, and says why the session ended once the
+// screen is gone (B248, B249, B255).
+func join(words []string, flags map[string]string) error {
+	if len(words) != 1 {
+		return usage("join")
 	}
 	// A guest still joins with what it read of a config that fails (B254).
 	own, err := editor.OwnConfig()
@@ -147,7 +386,8 @@ func join(args []string, name string) error {
 		fmt.Println("fude:", err)
 	}
 	fmt.Println("waiting for the host to let you in")
-	a, err := term.Join(args[0], name, own, readOnly)
+	_, readOnly := flags["--read-only"]
+	a, err := term.Join(words[0], name(flags), own, readOnly)
 	if err != nil {
 		return err
 	}
@@ -164,15 +404,11 @@ func join(args []string, name string) error {
 
 // relays runs fude relay [address], which passes shares through until the
 // process ends (B251).
-func relays(args []string) error {
-	if len(args) > 1 {
-		return errors.New("usage: fude relay [address]")
+func relays(words []string) error {
+	if len(words) > 1 {
+		return usage("relay")
 	}
-	addr := ""
-	if len(args) == 1 {
-		addr = args[0]
-	}
-	l, err := net.Listen("tcp", relay.WithPort(addr))
+	l, err := net.Listen("tcp", relay.WithPort(strings.Join(words, "")))
 	if err != nil {
 		return fmt.Errorf("relay: %w", err)
 	}
@@ -180,91 +416,29 @@ func relays(args []string) error {
 	return relay.Serve(l)
 }
 
-func main() {
-	if err := run(os.Args[1:]); err != nil {
-		fmt.Fprintln(os.Stderr, "fude:", err)
-		os.Exit(1)
-	}
-}
-
-// modules returns the modules this distribution adds to the editor (D49).
-func modules() []api.Module {
-	words := ""
-	if dir, err := editor.ConfigDir(); err == nil {
-		words = filepath.Join(dir, "words.txt")
-	}
-	return []api.Module{autopairs.New(), blame.New(), bufferline.New(), buffers.New(), colours.New(), comment.New(), completion.New(), debug.New(), editorconfig.New(), files.New(), flash.New(), fold.New(), format.New(), git.New(), grammars.New(), grep.New(), helpmod.New(), hints.New(), inlay.New(), jump.New(), links.New(), listingmod.New(), lists.New(), lspmod.New(), markdown.New(), pickmod.New(), places.New(), plug.New(), recent.New(), sessionmod.New(), sessions.New(), shell.New(), spell.New(words), startmod.New(), surround.New(), task.New(), terminalmod.New(), thememod.New(), timeline.New(), window.New()}
-}
-
-// run prints a man page for --man, fude(1) or the one named after it,
-// writes or builds a plugin for plugin new and plugin build, prints what a
-// running fude does for --tail, or opens args in the terminal. After
-// :restart it runs fude again in its place, on the saved session (B170).
-func run(args []string) error {
-	if len(args) >= 2 && args[0] == "plugin" && (args[1] == "new" || args[1] == "build") {
-		return pluginCommand(args[1], args[2:])
-	}
-	if len(args) > 0 && len(args) <= 2 && args[0] == "--man" {
-		page, err := editor.Man(strings.Join(args[1:], ""), modules()...)
-		if err != nil {
-			return err
-		}
-		fmt.Print(page)
-		return nil
-	}
-	if len(args) > 0 && args[0] == "--tail" {
-		return tail(args[1:])
-	}
-	// --clean reads no config (B270).
-	clean := len(args) > 0 && args[0] == "--clean"
-	remove := func() {}
-	if clean {
-		var err error
-		if remove, err = editor.Clean(); err != nil {
-			return err
-		}
-		args = args[1:]
-	}
-	defer remove()
-	// --name names this machine's session, or else $USER does (B252).
-	name := os.Getenv("USER")
-	if len(args) > 1 && args[0] == "--name" {
-		name, args = args[1], args[2:]
-	}
-	if len(args) > 0 && args[0] == "--attach" {
-		return attach(args[1:], name)
-	}
-	if len(args) > 0 && args[0] == "--join" {
-		return join(args[1:], name)
-	}
-	if len(args) > 0 && args[0] == "relay" {
-		return relays(args[1:])
-	}
-	// --share takes an address when the word after it is one (B248), or
-	// --relay and the relay's (B251).
-	sharing, address, via := len(args) > 0 && args[0] == "--share", ":0", ""
-	if sharing {
-		args = args[1:]
-		switch {
-		case len(args) > 1 && args[0] == "--relay":
-			via, args = args[1], args[2:]
-		case len(args) > 0:
-			if _, _, err := net.SplitHostPort(args[0]); err == nil {
-				address, args = args[0], args[1:]
-			}
+// edit opens the files in words in the terminal, and with sharing lets
+// guests join (B248, B251). After :restart it runs fude again in its place,
+// on the saved session (B170), and calls remove first.
+func edit(sharing bool, words []string, flags map[string]string, remove func()) error {
+	// A share's first word is where it listens when it is an address
+	// (B248), unless it goes through a relay (B251).
+	address, via := ":0", flags["--relay"]
+	if sharing && via == "" && len(words) > 0 {
+		if _, _, err := net.SplitHostPort(words[0]); err == nil {
+			address, words = words[0], words[1:]
 		}
 	}
 	// Start reads RestartEnv and unsets it.
 	restarted := os.Getenv(editor.RestartEnv) != ""
-	e, err := editor.Start(args)
+	e, err := editor.Start(words)
 	if err != nil {
 		return err
 	}
 	for _, m := range modules() {
 		e.Use(m)
 	}
-	e.SetName(name)
-	if len(args) == 0 && !restarted {
+	e.SetName(name(flags))
+	if len(words) == 0 && !restarted {
 		e.Welcome()
 	}
 	stop := e.Serve(e.SocketPath())
@@ -289,7 +463,7 @@ func run(args []string) error {
 			return fmt.Errorf("restart: %w", err)
 		}
 		argv := os.Args[:1]
-		if clean {
+		if _, clean := flags["--clean"]; clean {
 			argv = []string{os.Args[0], "--clean"}
 		}
 		// Exec replaces the process, so deferred calls never run.

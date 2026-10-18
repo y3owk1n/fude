@@ -139,7 +139,7 @@ func TestPromiseKeyLatency(t *testing.T) {
 	}
 }
 
-// Key read to frame drawn under 5ms at p99 through fude --attach on the
+// Key read to frame drawn under 5ms at p99 through fude attach on the
 // local socket, on the file and keys of TestPromiseKeyLatency. fude runs its
 // loop on a goroutine of its own, as a fude in another terminal does, and
 // the attached client draws each key's frame once it comes.

@@ -55,7 +55,7 @@ internal/        packages only fude's own packages may import
   share/         a share's certificate, share string and address
   timeline/      a buffer's timeline log on disk
   tomlerr/       where in a TOML file a decoding error is
-  trace/         what fude did, for fude --tail
+  trace/         what fude did, for fude tail
 modules/         Go packages over api/ and protocol/ that cmd/fude adds with
                  editor.Use
   blame/         :blame
@@ -1380,7 +1380,7 @@ the code instead of in a table (B162). The editor builds help's text, and
 `modules/help` shows it. `:help` reads it and the entry's line through
 `Scope.HelpAt`, and shows a panel with `Line` set, which puts the entry at
 the top of the window with the focus there. `<Plug>(help.follow)` does the
-same for the name under the cursor (B334). `fude --man` renders help as
+same for the name under the cursor (B334). `fude man` renders help as
 three man pages: the reference in fude(1), the options and settings in
 fude-config(5), and the guide in fude-guide(7). It renders them from an
 editor with the default config, so they do not depend on whoever builds
@@ -1632,7 +1632,7 @@ clients' edits and `u` reverts only the session's own changes with
 
 Clients attach over a unix socket: the `socket` setting, or else
 `fude.<pid>.sock` in `XDG_RUNTIME_DIR` or the temporary directory. fude
-listens on no network address unless `fude --share` asks it to (D40). A client on another machine forwards the
+listens on no network address unless `fude share` asks it to (D40). A client on another machine forwards the
 socket over SSH, as `ssh -L /tmp/fude.sock:/run/user/1000/fude.sock host`,
 and dials the local end, so SSH encrypts and authenticates it (B97). fude
 leaves alone a socket that another fude answers and listens at the socket
@@ -1642,8 +1642,12 @@ a crashed fude left. Each call is a line of JSON,
 `{"id", "method", "params"}`, and each reply is a line with the `id` and a
 `result` or an `error`. `keys` types keys as one complete input, so keys
 held for a longer mapping run at once. `request` runs a request, and
-`state` changes nothing. `pull` and `push` are a replica's, below, and
-return results of their own. Every other result is the session's state: its buffer,
+`state` changes nothing. `open` takes `paths` and edits each, the
+first one last so that it shows (B351). `session` takes a `name`. The
+connection's later calls then act on the session with that origin, or
+else that name, or on the first session when the name is empty. The
+connection's own session still ends when the connection closes (B352). `pull` and `push` are a
+replica's, below, and return results of their own. Every other result is the session's state: its buffer,
 the buffer's name, version and text, the cursor, the mode, the message and
 the session's proposals on the buffer.
 Between replies the server sends
@@ -1676,7 +1680,7 @@ and goes when its buffer closes.
 
 ### Trace
 
-`fude --tail` shows what a running fude does, as it happens (B174). Code
+`fude tail` shows what a running fude does, as it happens (B174). Code
 in any package of the root module records an event with
 `trace.Record(src, text, took)`, from `internal/trace/`. The
 sources are a key and its mode, a command line, a message the user saw,
@@ -1693,9 +1697,8 @@ A client's `tail` call gets an empty reply, then the kept events and each
 new one as `{"method": "event", "params": {"seq", "at", "src", "text",
 "took"}}`. The server writes them off the editor loop until the client
 leaves. A tail that falls 4096 events behind loses events instead of
-slowing fude, and the gap in `seq` says how many. `fude --tail [--json] [socket]` dials the
-socket, or else the `socket` setting, or else the one fude that answers in
-`XDG_RUNTIME_DIR` or the temporary directory. It prints each event as the
+slowing fude, and the gap in `seq` says how many. `fude tail [--json]` dials the
+socket B352 finds. It prints each event as the
 time, the source, what happened and how long it took, or as JSON.
 
 ### Replicas
@@ -1743,13 +1746,13 @@ width for the buffer (B94). The grammar's cases in
 ## Sharing (step 7)
 
 Step 7 lets another person edit in a running fude. It comes in phases,
-each usable on its own: attach (D39), guests and `--share` (D40), the
+each usable on its own: attach (D39), guests and `fude share` (D40), the
 relay (D41), then presence, a guest's own keymaps and options, read-only
 and follow, and attaching through a replica.
 
 ### Attach
 
-`fude --attach` dials the socket and calls `attach`. The server makes a
+`fude attach` dials the socket and calls `attach`. The server makes a
 session for the connection with `Attach`, and the connection then carries
 a stream each way. The client sends `keys`, `paste`, `size` and `focus`
 notices, the keys as a list in key notation. One goroutine per connection
@@ -1805,12 +1808,12 @@ the session is made. The server checks each limit in one place:
 
 ### Share and join
 
-`fude --share [address]` makes a self-signed certificate for the share
+`fude share [address]` makes a self-signed certificate for the share
 and listens with TLS 1.3. Its first message is the share string, and it
-puts `fude --join` and the string on the clipboard. The string is the
+puts `fude join` and the string on the clipboard. The string is the
 address, the certificate's SHA-256 fingerprint and a 128-bit secret,
 joined by `/`, the last two in unpadded base64url.
-`fude --join string` dials it with `InsecureSkipVerify` and a
+`fude join string` dials it with `InsecureSkipVerify` and a
 `VerifyConnection` that compares the fingerprint, then sends the secret
 and `$USER` as its first line. The host's fude asks whether to let the
 guest in, and on yes the connection goes on as an attach does, to a
@@ -1820,7 +1823,7 @@ is `:who`, `:kick` and `:follow`. It reads the sessions through
 `Scope.Sessions`, and its result's `Kick` and `Follow` name one, which the
 editor ends or follows. The editor refuses a guest's `Kick` (B332).
 `:who` lists the guests and `:kick name` ends one. Quitting fude ends the share and every
-guest session, and `:restart` starts fude again without `--share`.
+guest session, and `:restart` starts fude again without sharing.
 
 ### Relay
 
@@ -1832,7 +1835,7 @@ sends the share a second `{}`, and the relay copies bytes between the
 two until either closes. It never terminates the TLS, so it cannot read
 what it copies. The host holds a new place each time a guest takes one.
 A share string names the relay and a random room instead of an address,
-as `relay/room/fingerprint/secret`, when `--share --relay host` made it.
+as `relay/room/fingerprint/secret`, when `fude share --relay host` made it.
 
 ### Presence
 
@@ -1845,7 +1848,7 @@ line carry the client's name.
 
 ### A guest's own config
 
-`fude --join` reads `config.toml` on its own machine. Its first line
+`fude join` reads `config.toml` on its own machine. Its first line
 carries the file's keymaps, leader and window options, which the guest's
 session takes in place of the host's (B254). The client keeps the theme
 and draws in it. It reads a base16 file on its own machine, so nothing
@@ -1853,7 +1856,7 @@ of the theme reaches the host.
 
 ### Read-only joins and following
 
-`fude --join --read-only` sets `read_only` in its first line, the host's
+`fude join --read-only` sets `read_only` in its first line, the host's
 question names it, and the session is `ReadOnly` (B247, B255). `:follow
 name` stores the session it follows. `Views` first rebuilds the
 session's window tree as a copy of the other's. It keeps each window

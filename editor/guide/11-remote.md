@@ -22,13 +22,14 @@ A second fude finds the socket taken and listens at one of its own.
 
 ## Attaching
 
-`fude --attach` opens a terminal on a session of a running fude, with
-its own windows, cursor and undo, editing the same buffers. Without a
-socket it finds the one fude running, as `fude --tail` does.
+`fude attach` opens a terminal on a session of a running fude, with
+its own windows, cursor and undo, editing the same buffers. Without
+`--socket` it reaches the fude `$FUDE_SOCKET` names, or else the one
+fude running.
 
 ```sh
-fude --attach
-fude --attach /tmp/fude.sock
+fude attach
+fude attach --socket /tmp/fude.sock
 ```
 
 `:q` on its last window closes the attached terminal, and the other fude
@@ -37,21 +38,21 @@ terminal runs on.
 
 ## Sharing
 
-`fude --share` lets someone on another machine edit with you, without a
+`fude share` lets someone on another machine edit with you, without a
 shell on yours. It listens with TLS, shows a share string to send them
 as its first message, and copies it. They run:
 
 ```sh
-fude --join 192.168.1.5:41234/<fingerprint>/<secret>
+fude join 192.168.1.5:41234/<fingerprint>/<secret>
 ```
 
 fude asks whether to let them in. On `y` they get a guest session, with
 their own windows on your buffers. A guest sees only the project's files,
 the directory fude started in, and runs no program of its own choosing.
-An address after `--share` listens there, such as a VPN's.
+An address after `fude share` listens there, such as a VPN's.
 
 ```sh
-fude --share 100.64.0.2:7000 main.go
+fude share 100.64.0.2:7000 main.go
 ```
 
 When neither machine can reach the other, such as across the internet,
@@ -60,21 +61,37 @@ passes the encrypted bytes and cannot read them.
 
 ```sh
 fude relay               # on the server, port 7418
-fude --share --relay my.server.com main.go
+fude share --relay my.server.com main.go
 ```
 
 A share string lets one guest in, and `:share` shows a new one for the
 next. `:who` lists the guests, and `:kick name` ends one's session.
-Others see you by `$USER`, or by the name `--name` gives before the
-rest, as in `fude --name kyle --join <string>`. A window shows the
+Others see you by `$USER`, or by the name `--name` gives, as in
+`fude join --name kyle <string>`. A window shows the
 cursor of each other session on its file as a cell in that session's
 colour, with its selection underlined, and its status line names them. A
 guest's keymaps, leader, window options and theme come from
-`config.toml` on its own machine. `fude --join --read-only` asks to only
+`config.toml` on its own machine. `fude join --read-only` asks to only
 watch, so the guest's session changes no text. `:follow name` keeps your
 windows on what the session called name shows, its splits too, until you
 type. While fude shares, its status line says so and counts the guests.
 A guest's status line says it is a guest. Quitting fude ends the share.
+
+## From the shell
+
+`fude open`, `fude keys` and `fude state` open files in a running fude,
+type keys into it and print its state. A relative path is from the
+shell's directory.
+
+```sh
+fude open main.go util.go   # opens them, as :e does
+fude keys ':w<CR>'          # types the keys, as if typed in fude
+fude state | jq .mode       # the buffer, cursor and mode as JSON
+```
+
+They act on the session of fude's own terminal, or on the one
+`--session name` names. In a `:terminal`, fude sets `FUDE_SOCKET` and
+`FUDE_SESSION`, so they act on the session the terminal belongs to.
 
 ## Clients
 
@@ -97,7 +114,7 @@ is marked stale and cannot be accepted.
 
 ## Watching fude
 
-`fude --tail` in another terminal prints what a running fude does, as it
+`fude tail` in another terminal prints what a running fude does, as it
 happens. Each line has the time, the source, what happened and how long
 it took.
 
@@ -110,7 +127,7 @@ it took.
 It starts with the last 4096 events, so a tail started after something
 went wrong shows what led to it. `--json` prints each event as a line of
 JSON, for `jq`. With several fudes running, name the socket of one, as
-`fude --tail $XDG_RUNTIME_DIR/fude.1234.sock`.
+`fude tail --socket $XDG_RUNTIME_DIR/fude.1234.sock`.
 
 ## Next
 

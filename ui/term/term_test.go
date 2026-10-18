@@ -1383,7 +1383,7 @@ func share(t *testing.T, host *editor.Session, on func(func()), via string) stri
 	}
 	t.Cleanup(unshare)
 	s := shareString(t, msg)
-	if copied, _ := os.ReadFile(board); string(copied) != "fude --join "+s {
+	if copied, _ := os.ReadFile(board); string(copied) != "fude join "+s {
 		t.Errorf("sharing put %q on the clipboard, want the command that joins", copied)
 	}
 	return s
@@ -1392,7 +1392,7 @@ func share(t *testing.T, host *editor.Session, on func(func()), via string) stri
 // shareString returns the share string a message of sharing shows.
 func shareString(t *testing.T, msg string) string {
 	t.Helper()
-	s, ok := strings.CutPrefix(msg, "copied, guests join with: fude --join ")
+	s, ok := strings.CutPrefix(msg, "copied, guests join with: fude join ")
 	if !ok || strings.ContainsAny(s, " '\"#&;?*$") {
 		t.Fatalf("sharing said %q, want the share string as one word", msg)
 	}

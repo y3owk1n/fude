@@ -1,6 +1,7 @@
 package editor_test
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -72,5 +73,36 @@ func TestB205Terminal(t *testing.T) {
 	feed(e, ":terminal cat<CR>")
 	if vs := e.Views(); len(vs) != 2 || vs[1].H != 12 {
 		t.Errorf("with terminal_height = 50 the terminal is %d rows tall, want 12", vs[len(vs)-1].H)
+	}
+}
+
+// B355
+func TestB355TerminalEnv(t *testing.T) {
+	t.Setenv("SHELL", "/bin/sh")
+	t.Setenv("FUDE_SOCKET", "")
+	t.Setenv("FUDE_SESSION", "")
+	e := open(t, "")
+	e.Use(terminalmod.New())
+	e.SetSize(80, 24)
+	echoed := func() string {
+		feed(e, ":terminal echo [$FUDE_SOCKET $FUDE_SESSION]<CR>")
+		settle(t, e, func() bool { return strings.HasSuffix(e.Views()[len(e.Views())-1].Name, "exited 0]") })
+		got := strings.TrimSpace(text(e))
+		feed(e, ":q<CR>")
+		return got
+	}
+	if got := echoed(); got != "[ ]" {
+		t.Errorf("without a socket, a terminal's program has %s", got)
+	}
+	// A socket path must be short, so it goes in a directory of its own.
+	dir, err := os.MkdirTemp("", "fude")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+	path := filepath.Join(dir, "s")
+	defer e.Serve(path)()
+	if got, want := echoed(), "["+path+" user]"; got != want {
+		t.Errorf("a terminal's program has %s, want %s", got, want)
 	}
 }

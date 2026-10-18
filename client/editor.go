@@ -84,7 +84,7 @@ func (e *Editor) server(keys string) ([][]kernel.Edit, error) {
 	var st struct {
 		Message string `json:"message"`
 	}
-	if err := e.r.c.call("keys", map[string]any{"keys": keys}, &st); err != nil {
+	if err := e.r.c.Call("keys", map[string]any{"keys": keys}, &st); err != nil {
 		return nil, err
 	}
 	e.message = st.Message

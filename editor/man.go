@@ -11,8 +11,63 @@ import (
 	"github.com/y3owk1n/fude/api"
 )
 
+// Subcommand is one of fude's subcommands, as fude help and fude(1) list
+// it (B348, D52).
+type Subcommand struct{ Name, Args, Help string }
+
+// Subcommands are fude's subcommands.
+var Subcommands = []Subcommand{
+	{"open", "<file>...", "open the files in a running fude, as :e does"},
+	{"keys", "<keys>", "type keys into a running fude, as if typed there"},
+	{"state", "", "print a running fude's buffer, cursor and mode as JSON"},
+	{"attach", "", "open a terminal on a new session of a running fude"},
+	{"tail", "", "print what a running fude does, as it happens"},
+	{"share", "[<address>] [<file>...]", "open the files and let a guest join"},
+	{"join", "<string>", "join the fude that shared string"},
+	{"relay", "[<address>]", "pass shares through, on port 7418 without an address"},
+	{"plugin new", "<name>", "write a plugin in Go in a new folder"},
+	{"plugin build", "[<dir>]", "build the plugin in dir with TinyGo"},
+	{"man", "[config|guide]", "print fude(1), fude-config(5) or fude-guide(7)"},
+	{"help", "", "print this help"},
+	{"version", "", "print the date and commit fude was built from"},
+}
+
+// Flag is one of fude's flags, with the subcommands that take it, fude for
+// opening files. A flag followed by <word> takes a value.
+type Flag struct {
+	Flag, Help string
+	For        []string
+}
+
+// Flags are fude's flags.
+var Flags = []Flag{
+	{"--clean", "read no config", []string{"fude", "share", "join"}},
+	{"--name <name>", "the name others see you by", []string{"fude", "attach", "share", "join"}},
+	{"--socket <path>", "the fude to reach", []string{"open", "keys", "state", "attach", "tail"}},
+	{"--session <name>", "the session to act on", []string{"open", "keys", "state"}},
+	{"--relay <host>", "share through the relay at host", []string{"share"}},
+	{"--read-only", "join only to watch", []string{"join"}},
+	{"--json", "print each event as JSON", []string{"tail"}},
+	{"-h, --help", "print this help", nil},
+	{"-v, --version", "print the version", nil},
+}
+
+// usageWord is a word of a usage line: a <word> to fill in, or one typed
+// as it is.
+var usageWord = regexp.MustCompile(`<[^>]+>|[^\s\[\]|<>.,]+`)
+
+// usageRoff is a usage line in roff, its <words> italic and the rest bold.
+func usageRoff(line string) string {
+	return usageWord.ReplaceAllStringFunc(escape(line), func(w string) string {
+		if fill, ok := strings.CutPrefix(w, "<"); ok {
+			return `\fI` + strings.TrimSuffix(fill, ">") + `\fR`
+		}
+		return `\fB` + w + `\fR`
+	})
+}
+
 // Man returns the man page that page names in roff, from help with fude's
-// defaults and the modules the distribution adds, for fude --man (B163).
+// defaults and the modules the distribution adds, for fude man (B163).
 func Man(page string, modules ...api.Module) (string, error) {
 	e, err := open(defaults, nil)
 	if err != nil {
@@ -57,43 +112,47 @@ func Man(page string, modules ...api.Module) (string, error) {
 	switch page {
 	case "":
 		fmt.Fprintf(&b, ".TH FUDE 1 %q fude \"User Commands\"\n", date)
+		// The subcommands and flags are fude help's (B348).
+		commands := ""
+		for _, c := range Subcommands {
+			commands += ".TP\n" + usageRoff("fude "+c.Name+" "+c.Args) + "\n" + roff(c.Help) + "\n"
+		}
+		commands += ".SH FLAGS\n"
+		for _, f := range Flags {
+			commands += ".TP\n" + usageRoff(f.Flag) + "\n" + roff(f.Help)
+			if f.For != nil {
+				commands += roff(", for " + strings.Join(f.For, ", "))
+			}
+			commands += "\n"
+		}
 		b.WriteString(`.SH NAME
 fude \- a modal text editor
 .SH SYNOPSIS
-.B fude
-[\fB\-\-clean\fR] [\fB+\fIline\fR] [\fIfile\fR ...]
+` + usageRoff("fude [<flags>] [+<line>] [<file>...]") + `
 .br
-.B fude \-\-man
-[\fBconfig\fR|\fBguide\fR]
-.br
-.B fude \-\-tail
-[\fB\-\-json\fR] [\fIsocket\fR]
-.br
-.B fude plugin new
-\fIname\fR
-.br
-.B fude plugin build
-[\fIdir\fR]
+` + usageRoff("fude <command> [<flags>] [<args>]") + `
 .SH DESCRIPTION
 fude opens each file in a buffer, or an empty buffer when none is given.
 A folder opens as a listing of its entries.
 With \fB+\fR\fIline\fR, the cursor starts on that line of the first file.
-With \fB\-\-clean\fR, fude reads nothing in its config folder and
-starts with the defaults.
-\fB\-\-man\fR prints this page, \fB\-\-man config\fR prints fude\-config(5)
-and \fB\-\-man guide\fR prints fude\-guide(7).
-\fB\-\-tail\fR prints what a running fude does as it happens, a line
-per event, or JSON with \fB\-\-json\fR. It watches the fude at
-\fIsocket\fR, or else at the socket setting, or else the one fude
-running.
-\fBplugin new\fR writes a plugin in Go in a new folder, and
-\fBplugin build\fR builds the one in \fIdir\fR with TinyGo, as
-fude\-guide(7) describes.
 Inside fude, \fB:h\fR shows this reference, the settings, the mappings
 config.toml adds and the guide.
-`)
+.SH SUBCOMMANDS
+` + commands)
 		reference(func(s helpSection) bool { return !config(s) })
-		b.WriteString(`.SH FILES
+		b.WriteString(`.SH ENVIRONMENT
+.TP
+\fBFUDE_SOCKET\fR
+The socket that \fBopen\fR, \fBkeys\fR, \fBstate\fR, \fBattach\fR and
+\fBtail\fR reach without \fB\-\-socket\fR. Without it they reach the socket
+setting's, or else the one fude running. \fB:terminal\fR sets it to where
+fude listens.
+.TP
+\fBFUDE_SESSION\fR
+The session that \fBopen\fR, \fBkeys\fR and \fBstate\fR act on without
+\fB\-\-session\fR. Without it they act on the session of fude's own
+terminal. \fB:terminal\fR sets it to the session it runs in.
+.SH FILES
 .TP
 \fI$XDG_CONFIG_HOME/fude/config.toml\fR
 The settings, options and mappings, in \fI~/.config\fR without

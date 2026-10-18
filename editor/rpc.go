@@ -265,6 +265,7 @@ func (e *Session) Serve(path string) func() {
 		e.message = fmt.Sprintf("clients cannot attach: %v", err)
 		return func() {}
 	}
+	e.socket = path
 	go func() {
 		for n := 1; ; n++ {
 			c, err := l.Accept()
@@ -282,7 +283,9 @@ func (e *Session) Serve(path string) func() {
 // text of the buffer it shows changes (B78).
 func (e *Session) serve(c net.Conn, o kernel.Origin) {
 	defer c.Close()
-	var s *Session
+	// s is the session calls act on, the connection's own or the one a
+	// session call names (B352).
+	var own, s *Session
 	on := func(f func()) {
 		done := make(chan struct{})
 		e.queue <- func() { f(); close(done) }
@@ -290,12 +293,13 @@ func (e *Session) serve(c net.Conn, o kernel.Origin) {
 	}
 	changed := make(chan change, 1)
 	on(func() {
-		s = e.Attach(o, Host)
-		s.changed = changed
+		own = e.Attach(o, Host)
+		own.changed = changed
+		s = own
 	})
 	trace.Record("rpc", string(o)+" attached", 0)
 	defer trace.Record("rpc", string(o)+" left", 0)
-	defer on(func() { s.leave() })
+	defer on(func() { own.leave() })
 	in, enc := bufio.NewScanner(c), json.NewEncoder(c)
 	in.Buffer(nil, 1<<26)
 	var mu sync.Mutex
@@ -345,6 +349,22 @@ func (e *Session) serve(c net.Conn, o kernel.Origin) {
 			}
 			e.attached(s, in, out, on)
 			return
+		} else if call.Method == "session" {
+			var p struct {
+				Name string `json:"name"`
+			}
+			reply["id"] = call.ID
+			if err := json.Unmarshal(call.Params, &p); err != nil {
+				reply["error"] = fmt.Sprintf("read session: %v", err)
+			} else {
+				on(func() {
+					if found := own.named(p.Name); found != nil {
+						s = found
+					} else {
+						reply["error"] = "no session is called " + p.Name
+					}
+				})
+			}
 		} else if call.Method == "tail" {
 			// This writes the events off the loop, as they come, until the
 			// client leaves.
@@ -402,8 +422,8 @@ func (e *Session) serve(c net.Conn, o kernel.Origin) {
 	}
 }
 
-// call runs one call of a client's: keys to type, a request, state to
-// read, or a replica's pull or push. It returns the result of a call that
+// call runs one call of a client's: keys to type, files to open, a
+// request, state to read, or a replica's pull or push. It returns the result of a call that
 // has one of its own, and nil for those whose result is the state.
 func (e *Session) call(method string, params json.RawMessage) (any, error) {
 	switch method {
@@ -415,6 +435,17 @@ func (e *Session) call(method string, params json.RawMessage) (any, error) {
 			return nil, fmt.Errorf("read keys: %w", err)
 		}
 		e.keys(p.Keys)
+	case "open":
+		var p struct {
+			Paths []string `json:"paths"`
+		}
+		if err := json.Unmarshal(params, &p); err != nil {
+			return nil, fmt.Errorf("read open: %w", err)
+		}
+		// The first is edited last, so it shows (B351).
+		for _, path := range slices.Backward(p.Paths) {
+			e.edit(path)
+		}
 	case "request":
 		var r Request
 		if err := json.Unmarshal(params, &r); err != nil {
@@ -445,6 +476,22 @@ func (e *Session) call(method string, params json.RawMessage) (any, error) {
 		return nil, errors.New("no method " + method)
 	}
 	return nil, nil
+}
+
+// named returns the session whose origin is name, or else the first one
+// called name, or the first session for "", and nil when none is (B352).
+func (e *Session) named(name string) *Session {
+	if name == "" {
+		return e.sessions[0]
+	}
+	i := slices.IndexFunc(e.sessions, func(s *Session) bool { return string(s.origin) == name })
+	if i < 0 {
+		i = slices.IndexFunc(e.sessions, func(s *Session) bool { return s.label() == name })
+	}
+	if i < 0 {
+		return nil
+	}
+	return e.sessions[i]
 }
 
 // pull returns buffer id's edits since version, and shows the buffer in the

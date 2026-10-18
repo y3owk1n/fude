@@ -563,6 +563,28 @@ instead, and each line the program prints comes as a callback. Until the first r
 requires an `api` the proxy does not have, so `fude plugin new` in a build
 that is not a release fails, and B173's test skips (D37).
 
+## D52. fude's modes are subcommands, parsed by hand
+
+`fude attach`, `tail`, `share`, `join`, `man`, `open`, `keys`, `state`,
+`help` and `version` are subcommands, as `relay` and `plugin` were, and
+flags only modify them (B350). A word that names a subcommand is never a
+file, so `--` or `./` reaches a file with that name. `editor/` has two
+tables, one of the subcommands and one of the flags, each flag with the
+subcommands that take it. `fude help` prints them, fude(1) renders them,
+and the parser reads from them which flags a subcommand takes. Every
+subcommand that dials a fude takes `--socket` (B352). Each connection is
+a session of its own, so a call must name the session it acts on. A
+session's name is not unique, so `:terminal` sets `FUDE_SESSION` to the
+session's origin, along with `FUDE_SOCKET`. `fude version` prints the
+commit's date and short hash from Go's build info until fude has
+releases (B349). Why: the user chose subcommands on 2026-10-19, so modes
+read as verbs. Neovim and Helix spell their modes as flags, and both
+parse their arguments by hand. The standard `flag` package cannot take
+an optional value, as `share [address]` does, and a library would print
+help and errors in its own words. This reopens the flag spellings of D39
+to D41 and of B163, B174, B239, B248, B251, B255 and B270, and the
+socket `fude --tail` and `fude --attach` took as a word.
+
 ## Departures from Neovim
 
 Each entry: what differs, then why.

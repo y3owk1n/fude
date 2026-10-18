@@ -22,6 +22,18 @@ Where fude departs, the line says so and cites the departure in
   so, unless it is an image (B304).
 - B5 [1] `:q` on a modified buffer refuses and names the buffer. `:q!` quits.
 - B80 [1] `fude a b` opens both as buffers. `fude +N path` opens at line N.
+- B348 [1] `fude help`, `fude -h` and `fude --help` print fude's
+  subcommands and flags, one line each with what it does. Each flag names
+  the subcommands that take it. fude(1) lists the same (B163).
+- B349 [1] `fude version`, `fude -v` and `fude --version` print the date
+  and commit fude was built from, as `fude 2026.10.18 (eda0e6e)`, with
+  `, modified` after the commit when it had uncommitted changes, or
+  `fude (devel)` when the build does not know them (D52).
+- B350 [1] The first word after `fude` that is not a flag names a
+  subcommand, or else a file to open. Flags may come before or after the
+  words, and `--` ends them, so `fude -- tail` opens the file `tail`. A
+  flag fude does not know, or one its subcommand does not take, is an
+  error that names it, and fude opens nothing.
 - B95 [1] `:wq` writes and quits. `:x` and `ZZ` do the same but write only a
   modified buffer, and `ZQ` is `:q!`. `:wa` writes every modified buffer.
   `:qa` refuses while a buffer is modified, and `:qa!` quits anyway. `:wqa`
@@ -72,7 +84,7 @@ Where fude departs, the line says so and cites the departure in
   fude's config directory. It loads no `config.toml`, so no plugins, and
   no snippets, queries or own words. It still keeps files' timelines,
   recent files and sessions. fude is still clean after `:restart`, and
-  `fude --clean --join` joins with the default keys.
+  `fude join --clean` joins with the default keys.
 
 ## Modes and insert
 
@@ -544,10 +556,10 @@ Where fude departs, the line says so and cites the departure in
   `key_timeout`. `<BS>` drops the last key typed, and `<Esc>` drops the
   command without running any of its keys (N24). `key_hints = 0` turns the
   panel off.
-- B163 [2] `fude --man` prints fude(1): the commands, keys and mappings of
+- B163 [2] `fude man` prints fude(1): the commands, keys and mappings of
   `:h` with fude's defaults, and where fude keeps its config, state and
-  socket. `fude --man config` prints fude-config(5), the guide's page on
-  config with the options and settings, and `fude --man guide` prints
+  socket. `fude man config` prints fude-config(5), the guide's page on
+  config with the options and settings, and `fude man guide` prints
   fude-guide(7), the guide. `just man` writes the three to `share/man`.
 - B164 [5] A file's filetype is its language's name: from its whole name,
   such as `.bashrc` for bash, else from its extension, such as `.yml` for
@@ -1490,7 +1502,7 @@ Where fude departs, the line says so and cites the departure in
   is dropped and reported.
 - B97 [6] The `socket` setting is where fude listens, so a client on
   another machine reaches it through `ssh -L`. fude listens on no network
-  address unless `fude --share` asks it to (D40). A second fude leaves a socket
+  address unless `fude share` asks it to (D40). A second fude leaves a socket
   another one answers alone. It listens at a socket of its own, as it would
   without the setting, and shows no message.
 - B98 [6] A client may run the grammar on its copy. Its keys edit the copy
@@ -1499,7 +1511,7 @@ Where fude departs, the line says so and cites the departure in
   runs on the server, and the copy takes it at the next sync.
 - B99 [6] A client running the grammar keeps its own jumplist and
   changelist, and its `g-` and `g+` move the server's timeline.
-- B174 [6] `fude --tail` prints what a running fude does as it happens,
+- B174 [6] `fude tail` prints what a running fude does as it happens,
   one line per event with how long it took. Events cover keys and the
   mode each ran in, command lines and messages. They also cover frames,
   parses, language server messages and answers, and plugin calls. Files,
@@ -1507,12 +1519,34 @@ Where fude departs, the line says so and cites the departure in
   first prints the last 4096 events, so a tail started after a problem
   shows what led to it. `--json` prints each event as JSON. While nothing
   tails, fude keeps events in memory and writes nothing.
+- B351 [6] `fude open file...` opens the files in the session B352
+  finds, as `:e` does in its current window. The first one shows, and
+  the others are buffers. A relative path is from the directory `fude
+  open` runs in.
+- B352 [6] `fude open`, `keys`, `state`, `attach` and `tail` reach the
+  fude at `--socket path`. Without it they reach the fude at
+  `$FUDE_SOCKET`, or else at the socket setting, or else the one fude
+  that answers in `XDG_RUNTIME_DIR` or the temporary directory. When
+  several answer, they name each and do nothing. `open`, `keys` and
+  `state` act on the session `--session` names, or else the one
+  `$FUDE_SESSION` names, or else the session of fude's own terminal. They
+  fail when no session has the name. Over the socket, a `session` call
+  makes a client's later calls act on the session it names instead of
+  the client's own. It names a session as B252 does, or by the id in
+  `$FUDE_SESSION`.
+- B353 [6] `fude keys keys` types keys into the session, as typing them
+  there does, so in a terminal window they go to its program (B70).
+- B354 [6] `fude state` prints the session's buffer, name, version, text,
+  cursor, mode and message as a line of JSON.
+- B355 [6] `:terminal` sets `FUDE_SOCKET` to where fude listens and
+  `FUDE_SESSION` to the id of its session, in the program it runs. So
+  `fude open`, `keys` and `state` in that program act on that session.
+  When fude has no socket, it sets neither.
 
 ## Sharing
 
-- B239 [7] `fude --attach [socket]` opens a terminal client on a new
-  session of the fude at socket, or of the one fude that answers in
-  `XDG_RUNTIME_DIR` or the temporary directory, as `fude --tail` finds it.
+- B239 [7] `fude attach` opens a terminal client on a new session of the
+  fude B352 finds.
   It draws what fude's own terminal draws for that session: its windows,
   highlights, decorations, floats, command line, key hints and status
   line, in the server's theme. Its keys, pastes, size and focus go to that
@@ -1532,7 +1566,7 @@ Where fude departs, the line says so and cites the departure in
   client whose connection breaks exits and says why.
 - B243 [7] A guest is a session with less power than the host's, as B244
   to B247 say. The project is the directory fude started in. A session
-  from `fude --share` is always a guest, and one from the local socket
+  from `fude share` is always a guest, and one from the local socket
   never is (D40).
 - B244 [7] A guest runs no program of its choosing and changes nothing
   every session shares, such as the working directory, git's index, the
@@ -1561,15 +1595,15 @@ Where fude departs, the line says so and cites the departure in
   replica's pushes and its `:accept` each say it is read-only, whichever
   edit they would make, and the buffer stays as it was. It still moves,
   searches, yanks and proposes.
-- B248 [7] `fude --share [address] [file...]` opens fude as usual and
+- B248 [7] `fude share [address] [file...]` opens fude as usual and
   listens on address with TLS, or on a free port of every interface
   without one. Its first message is the share string. The string is one
   word that needs no quoting, and it names where to reach fude, its
-  certificate's fingerprint and a secret. fude puts `fude --join` and the
-  string on the clipboard (B36). `fude --join string` on another machine
+  certificate's fingerprint and a secret. fude puts `fude join` and the
+  string on the clipboard (B36). `fude join string` on another machine
   dials it, and the host's fude asks whether to let the guest in, naming
   them by `$USER`. On y the guest's terminal draws a guest session of the
-  host's fude, as `--attach` does (B239, B243). Quitting fude ends the
+  host's fude, as `fude attach` does (B239, B243). Quitting fude ends the
   share and every guest session (B242), and so does `:restart`.
 - B249 [7] A share string lets one guest in, and `:share` shows a new
   one and puts it on the clipboard as B248 does. A join ends the guest's client, saying why, when the host's
@@ -1580,7 +1614,7 @@ Where fude departs, the line says so and cites the departure in
   guest's session, whose client says the host ended it. A second guest
   with a name already taken gets a number after it.
 - B251 [7] `fude relay [address]` passes shares through, on port 7418 of
-  every interface without an address. `fude --share --relay host
+  every interface without an address. `fude share --relay host
   [file...]` shares through the relay at host, port 7418 unless host
   names one, and its share string names the relay and a room in place
   of an address. A join with it works as B248 and B249 say. The TLS runs
@@ -1589,8 +1623,8 @@ Where fude departs, the line says so and cites the departure in
   fude starts is an error. When the relay goes away the host says so,
   and `:share` holds a new place at it.
 - B252 [7] Each session has a name and a colour. The terminal fude
-  started in takes `--name`, or else `$USER`, and `--attach` and `--join`
-  send the name the same way, from the machine they run on. A client over
+  started in takes `--name`, or else `$USER`, and `fude attach` and
+  `fude join` take and send the name the same way, from the machine they run on. A client over
   the socket that sends none takes its origin as its name. Sessions take
   six colours in turn, in the order they began.
 - B253 [7] A window shows the cursor of each other session whose current
@@ -1602,7 +1636,7 @@ Where fude departs, the line says so and cites the departure in
   its leader stands for `<Leader>` in plugins' keys too. The guest's
   terminal draws in that file's theme. Filetypes, language servers,
   formatters, plugins and every other setting stay the host's.
-- B255 [7] `fude --join --read-only string` asks to join as a read-only
+- B255 [7] `fude join --read-only string` asks to join as a read-only
   guest (B247). The host's question says so, and on y the guest's
   session is read-only.
 - B256 [7] `:follow name` makes the session's windows show what the

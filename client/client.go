@@ -72,8 +72,9 @@ func (c *Conn) Close() error { return c.c.Close() }
 // Changed is told when a buffer the session shows changes on the server.
 func (c *Conn) Changed() <-chan struct{} { return c.changed }
 
-// call sends method with params and reads its result into result.
-func (c *Conn) call(method string, params, result any) error {
+// Call sends method with params and reads its result into result, unless
+// result is nil.
+func (c *Conn) Call(method string, params, result any) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.next++
@@ -93,6 +94,9 @@ func (c *Conn) call(method string, params, result any) error {
 	}
 	if reply.Error != "" {
 		return fmt.Errorf("%s: %s", method, reply.Error)
+	}
+	if result == nil {
+		return nil
 	}
 	if err := json.Unmarshal(reply.Result, result); err != nil {
 		return fmt.Errorf("%s: %w", method, err)
@@ -127,7 +131,7 @@ type change struct {
 // Open copies buffer, or the session's current one for 0.
 func (c *Conn) Open(buffer int) (*Replica, error) {
 	var p wire.Pulled
-	if err := c.call("pull", map[string]any{"buffer": buffer}, &p); err != nil {
+	if err := c.Call("pull", map[string]any{"buffer": buffer}, &p); err != nil {
 		return nil, err
 	}
 	if p.Text == nil {
@@ -203,7 +207,7 @@ func (r *Replica) Sync() ([]kernel.Edit, error) {
 				changes[i] = append(changes[i], wire.Edit(e))
 			}
 		}
-		if err := r.c.call("push", map[string]any{"buffer": r.buf, "version": r.confirmed, "changes": changes}, &res); err != nil {
+		if err := r.c.Call("push", map[string]any{"buffer": r.buf, "version": r.confirmed, "changes": changes}, &res); err != nil {
 			return dropped, err
 		}
 		if res.Applied {
@@ -229,7 +233,7 @@ func (r *Replica) pull() ([]kernel.Edit, [][]kernel.Edit, error) {
 		return nil, nil, errors.New("cannot take the server's edits inside a group")
 	}
 	var p wire.Pulled
-	if err := r.c.call("pull", map[string]any{"buffer": r.buf, "version": r.confirmed}, &p); err != nil {
+	if err := r.c.Call("pull", map[string]any{"buffer": r.buf, "version": r.confirmed}, &p); err != nil {
 		return nil, nil, err
 	}
 	if p.Version == r.confirmed {
