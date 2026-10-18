@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	filesmod "github.com/y3owk1n/fude/modules/files"
 	"github.com/y3owk1n/fude/modules/grep"
 )
 
@@ -99,6 +100,7 @@ func TestB152Marks(t *testing.T) {
 	change(t, filepath.Join(dir, "editor", "flash.go"), "")
 	t.Chdir(dir)
 	e := open(t, "")
+	e.Use(filesmod.New())
 	e.Use(grep.New())
 	e.SetSize(100, 24)
 	// marked is the letters a float marks as matching, in order.

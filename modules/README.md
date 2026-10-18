@@ -11,6 +11,7 @@ and a program that embeds the editor does the same.
 | [`comment`](comment) | `gc` comments and uncomments |
 | [`debug`](debug) | `:debug`, breakpoints, stepping, the panel and evaluation |
 | [`editorconfig`](editorconfig) | `.editorconfig` files set a file's indentation |
+| [`files`](files) | `:pick files` and `:pick buffers` |
 | [`flash`](flash) | text just yanked, put, undone or redone shows for a moment |
 | [`fold`](fold) | `zc`, `zo`, `za`, `zR` and `zM` fold by indent |
 | [`format`](format) | `gq`, `:format` and `format_on_save` |

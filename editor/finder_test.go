@@ -11,56 +11,10 @@ import (
 	"strings"
 	"testing"
 
+	filesmod "github.com/y3owk1n/fude/modules/files"
 	"github.com/y3owk1n/fude/modules/grep"
 	"github.com/y3owk1n/fude/syntax"
-	"github.com/y3owk1n/fude/vim"
 )
-
-// B129
-func TestB129Files(t *testing.T) {
-	dir := t.TempDir()
-	for _, f := range []string{"editor/editor.go", "editor/git.go", "editor/editor_test.go", "prd/decisions.md", "skip.go"} {
-		if err := os.MkdirAll(filepath.Dir(filepath.Join(dir, f)), 0o755); err != nil {
-			t.Fatal(err)
-		}
-		change(t, filepath.Join(dir, f), f+"\n")
-	}
-	change(t, filepath.Join(dir, ".gitignore"), "skip.go\n")
-	if out, err := exec.Command("git", "-C", dir, "init", "-q").CombinedOutput(); err != nil {
-		t.Skipf("git init: %v: %s", err, out)
-	}
-	t.Chdir(dir)
-	e := open(t, "prd/decisions.md")
-	e.SetSize(80, 24)
-	results := func() []string {
-		f, _ := e.Float()
-		return slices.DeleteFunc(strings.Split(f.Text, "\n")[1:], func(l string) bool { return l == "" })
-	}
-	// The finder lists the files git does not ignore, each by its name and
-	// then its directory.
-	feed(e, ":pick files<CR>")
-	settle(t, e, func() bool { return len(results()) == 5 })
-	feed(e, "edgo")
-	settle(t, e, func() bool {
-		return slices.Equal(results(), []string{"editor.go  editor", "git.go  editor", "editor_test.go  editor"})
-	})
-	if feed(e, "<C-n><CR>"); e.Views()[0].Name != "editor/git.go" || e.Mode() != vim.Normal {
-		t.Fatalf("<C-n><CR> opened %q in %v mode", e.Views()[0].Name, e.Mode())
-	}
-	// A screen too short for a row of matches still shows the query.
-	e.SetSize(80, 5)
-	feed(e, ":pick files<CR>zzz")
-	if f, _ := e.Float(); !strings.HasPrefix(f.Text, "› zzz") {
-		t.Errorf("on a short screen the finder shows %q", f.Text)
-	}
-	feed(e, "<Esc>")
-	e.SetSize(80, 24)
-	// <Esc> closes the finder and opens nothing.
-	feed(e, ":pick files<CR>x<Esc>")
-	if _, ok := e.Float(); ok || e.Views()[0].Name != "editor/git.go" || text(e) != "editor/git.go" {
-		t.Fatalf("after <Esc> the finder shows %v and the window has %q", ok, e.Views()[0].Name)
-	}
-}
 
 // B305
 func TestB305PreviewImage(t *testing.T) {
@@ -74,6 +28,7 @@ func TestB305PreviewImage(t *testing.T) {
 	}
 	t.Chdir(dir)
 	e := open(t, "a.png")
+	e.Use(filesmod.New())
 	e.SetSize(100, 24)
 	e.SetCell(8, 16)
 	feed(e, ":pick files<CR>")
@@ -95,6 +50,7 @@ func TestB130FilesPreview(t *testing.T) {
 	change(t, filepath.Join(dir, "e"), strings.Repeat("y", 1<<20)+"\n")
 	t.Chdir(dir)
 	e := open(t, "a")
+	e.Use(filesmod.New())
 	e.SetSize(100, 24)
 	feed(e, ":pick files<CR>")
 	doc := func() string { f, _ := e.Float(); return f.Doc }
@@ -129,6 +85,7 @@ func TestB195FinderLists(t *testing.T) {
 	}
 	t.Chdir(dir)
 	e := open(t, "b.txt")
+	e.Use(filesmod.New())
 	e.Use(grep.New())
 	e.SetSize(100, 24)
 	shown := func() int {
@@ -164,32 +121,6 @@ func TestB202FinderQuery(t *testing.T) {
 	if f, _ := e.Float(); !strings.HasPrefix(f.Text, "› f( ") {
 		t.Fatalf("typing f( in the finder makes the line %q", strings.SplitN(f.Text, "\n", 2)[0])
 	}
-}
-
-// B213
-func TestB213Pick(t *testing.T) {
-	dir := t.TempDir()
-	change(t, filepath.Join(dir, "a.txt"), "a\n")
-	change(t, filepath.Join(dir, "b.txt"), "b\n")
-	t.Chdir(dir)
-	e := open(t, "a.txt")
-	e.Use(grep.New())
-	e.SetSize(100, 30)
-	feed(e, ":e b.txt<CR>")
-	rows := func() []string {
-		f, _ := e.Float()
-		return slices.DeleteFunc(strings.Split(f.Text, "\n")[1:], func(l string) bool { return l == "" })
-	}
-	// Buffers lists the files but the current one, and <CR> opens the one
-	// picked.
-	feed(e, ":pick buffers<CR>")
-	settle(t, e, func() bool { return slices.Contains(rows(), "a.txt") && !slices.Contains(rows(), "b.txt") })
-	if feed(e, "a.txt<CR>"); e.Views()[0].Name != "a.txt" {
-		t.Fatalf("<CR> in :pick buffers opened %q", e.Views()[0].Name)
-	}
-	// Files and grep are sources too.
-	feed(e, ":pick grep b<CR>")
-	settle(t, e, func() bool { return slices.Contains(rows(), "b.txt") })
 }
 
 // B266
@@ -268,6 +199,7 @@ func TestB212QCloses(t *testing.T) {
 	change(t, filepath.Join(dir, "a.txt"), "a\n")
 	t.Chdir(dir)
 	e := open(t, "a.txt")
+	e.Use(filesmod.New())
 	e.SetSize(100, 30)
 	feed(e, "ix<Esc>")
 	// A list of places, a timeline and a window fude wrote each close.
@@ -294,6 +226,7 @@ func TestB210FinderIgnored(t *testing.T) {
 	}
 	t.Chdir(dir)
 	e := open(t, "a.go")
+	e.Use(filesmod.New())
 	e.Use(grep.New())
 	e.SetSize(100, 24)
 	// shown is the finder's rows, sorted, as the search's order may vary.

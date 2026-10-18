@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/fude/editor/editortest"
+	"github.com/y3owk1n/fude/modules/files"
 	"github.com/y3owk1n/fude/modules/recent"
 	"github.com/y3owk1n/fude/modules/start"
 )
@@ -21,6 +22,7 @@ func TestB225StartScreen(t *testing.T) {
 	e := editortest.Open(t, "a.txt")
 	e.Use(recent.New())
 	e.Use(start.New())
+	e.Use(files.New())
 	e.SetSize(80, 24)
 	abs, err := filepath.Abs("a.txt")
 	if err != nil {

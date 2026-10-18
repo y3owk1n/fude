@@ -880,10 +880,13 @@ it, the finder closes. The editor places the box in the middle of the
 screen, at most 80 columns and 20 rows, through `Float`'s `X`, `Y`, `W`
 and `H`, and the terminal draws it there.
 
-The files come from `git ls-files -z --cached --others --exclude-standard`
-when the working directory is in a repository, and from a walk of it that
-skips `.git` and unreadable directories when it is not. fude reads them off
-the loop when the finder opens.
+`modules/files` is `:pick files` and `:pick buffers`. The files come from
+`git ls-files -z --cached --others --exclude-standard` when the working
+directory is in a repository, and from a walk of it that skips `.git` and
+unreadable directories when it is not. The module opens the finder with no
+items and lists the files in a job, off the loop. Its callback fills the
+finder with a `Pick` marked `Update`. `<C-g>` tells the pick's callback
+`all`, and the module lists the files again (B321).
 
 Matching uses fzy's algorithm, as `matchfuzzy()` does, so the ranking is
 the same. A dynamic program over the query and the path scores each

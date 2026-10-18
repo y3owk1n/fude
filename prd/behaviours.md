@@ -1036,6 +1036,10 @@ Where fude departs, the line says so and cites the departure in
   window, such as a line in `diff.plus`, over what the filetype colours.
 - B277 [4] A plugin hears `editor.focused` when the terminal gets the
   focus back, as git's index may have changed while fude was away.
+- B321 [4] A module's list may fill the finder that shows it after it
+  opens, keeping the query, and fills none once the finder is closed.
+  `<C-g>` in a module's list that is not live tells the module whether
+  to list the files git ignores too, as `:pick files` does (B129, B210).
 - B320 [4] A module's panel may show in the current window in place of
   the buffer its call is about, as the start screen does (B225). It
   shows no line numbers, guides or wrap. The window gets its options

@@ -938,7 +938,14 @@ func logLine(line string) {
 // showPick shows pk, a list or question of p about b, in the finder, or gives
 // the live pick showing the items pk answers a query with (B185, B285).
 func (e *Session) showPick(p api.Module, b *buffer, pk *api.Pick, save *saving) {
-	if f := e.finder; f != nil && f.owner == p && f.pick == pk.ID && f.found != nil {
+	f := e.finder
+	if pk.Update {
+		if f != nil && f.owner == p && f.pick == pk.ID {
+			f.paths, f.stale = append([]string{}, pk.Items...), true
+		}
+		return
+	}
+	if f != nil && f.owner == p && f.pick == pk.ID && f.found != nil {
 		if pk.Encoding != "" {
 			f.enc = pk.Encoding
 		}
@@ -968,7 +975,7 @@ func (e *Session) showPick(p api.Module, b *buffer, pk *api.Pick, save *saving) 
 		prompt = pk.Prompt + " "
 	}
 	// stale, so the first frame matches the items, which are all here.
-	f := &finder{paths: pk.Items, stale: true, prompt: prompt, title: pk.Title, hint: pk.Hint, places: pk.Places, asFiles: pk.Files, enc: pk.Encoding, chose: answer, owner: p, pick: pk.ID}
+	f = &finder{paths: pk.Items, stale: true, prompt: prompt, title: pk.Title, hint: pk.Hint, places: pk.Places, asFiles: pk.Files, enc: pk.Encoding, chose: answer, owner: p, pick: pk.ID, tell: tell}
 	if pk.Live {
 		f.lookup = func(q string, found func([]string, error)) {
 			f.found = found

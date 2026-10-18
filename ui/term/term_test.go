@@ -24,6 +24,7 @@ import (
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/internal/relay"
 	colourmod "github.com/y3owk1n/fude/modules/colours"
+	filesmod "github.com/y3owk1n/fude/modules/files"
 	lspmod "github.com/y3owk1n/fude/modules/lsp"
 	"github.com/y3owk1n/fude/syntax/syntaxtest"
 	"github.com/y3owk1n/fude/vim"
@@ -600,6 +601,7 @@ func TestB305DrawPreviewImage(t *testing.T) {
 	}
 	t.Chdir(dir)
 	c := startWith(t, "", "a.png")
+	c.e.(*editor.Session).Use(filesmod.New())
 	c.img = images{tty: pixels{}, out: new(bytes.Buffer), mode: placeholders}
 	c.draw()
 	for _, k := range vim.Keys(":pick files<CR>") {

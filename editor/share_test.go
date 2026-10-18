@@ -9,6 +9,7 @@ import (
 
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/modules/debug"
+	filesmod "github.com/y3owk1n/fude/modules/files"
 	"github.com/y3owk1n/fude/modules/format"
 	gitmod "github.com/y3owk1n/fude/modules/git"
 	shellmod "github.com/y3owk1n/fude/modules/shell"
@@ -169,6 +170,7 @@ func TestB245GuestProject(t *testing.T) {
 		}
 	}
 	e := open(t, "a.txt")
+	e.Use(filesmod.New())
 	// A guest that joins while the host shows a file outside starts on one
 	// inside.
 	feed(e, ":e "+out+"<CR>")

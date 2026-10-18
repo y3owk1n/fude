@@ -8,15 +8,12 @@ import (
 	"fmt"
 	"image"
 	"io"
-	"io/fs"
 	"math"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
-	"time"
 	"unicode/utf8"
 
 	"github.com/y3owk1n/fude/api"
@@ -32,7 +29,6 @@ import (
 // mode, with the files or lines that match it below, the best first (B129,
 // B134).
 type finder struct {
-	files   bool   // it finds the working directory's files by name
 	places  bool   // its items are places, path:line:column:text, shown under their file
 	asFiles bool   // its items are file paths, shown and opened as the finder's files are
 	enc     string // the encoding of places' columns, "" for bytes
@@ -72,6 +68,7 @@ type finder struct {
 	owner api.Module
 	pick  uint32
 	found func([]string, error)
+	tell  func(api.Context) // what the owner's pick hears, such as all (B321)
 }
 
 // openFinder opens f in a box with query typed.
@@ -83,59 +80,6 @@ func (e *Session) openFinder(f *finder, query string) {
 	b := &buffer{text: kernel.New(query, nil), before: map[kernel.NodeID]int{}, marks: map[rune]kernel.MarkID{}, title: "[find]"}
 	e.finder, e.under, e.win = f, e.win, newWindow(b, 0, 0)
 	e.later = append(e.later, "A")
-}
-
-// files opens the file finder.
-func (e *Session) files() {
-	f := &finder{files: true}
-	e.openFinder(f, "")
-	e.readPaths(f)
-}
-
-// readPaths reads the working directory's files for f off the loop. It
-// drops a list read before f.all changed.
-func (e *Session) readPaths(f *finder) {
-	all := f.all
-	go func() {
-		at := time.Now()
-		paths, err := listFiles(".", all)
-		traced("file", fmt.Sprintf("listed %d files", len(paths)), at, err)
-		e.queue <- func() {
-			if err != nil {
-				e.message = err.Error()
-			}
-			if f.all == all {
-				f.paths, f.stale = paths, true
-			}
-		}
-	}()
-}
-
-// listFiles returns the files below dir. In a repository they are those git
-// tracks and the untracked ones it does not ignore. Elsewhere, or with all,
-// they are every file outside .git and unreadable directories.
-func listFiles(dir string, all bool) ([]string, error) {
-	if !all {
-		// Outside a repository, or without git, git fails and the walk lists
-		// the files.
-		out, err := exec.Command("git", "-C", dir, "ls-files", "-z", "--cached", "--others", "--exclude-standard").Output()
-		if err == nil {
-			return strings.FieldsFunc(string(out), func(r rune) bool { return r == 0 }), nil
-		}
-	}
-	var paths []string
-	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
-		switch {
-		case err != nil && path == dir:
-			return err
-		case err != nil || d.IsDir() && d.Name() == ".git":
-			return fs.SkipDir
-		case !d.IsDir():
-			paths = append(paths, path)
-		}
-		return nil
-	})
-	return paths, err
 }
 
 // finderKeys are the finder's own keys, in insert mode: <CR> opens the
@@ -165,14 +109,13 @@ func (e *Session) finderAct(act string) {
 	case "prev":
 		f.sel = max(f.sel-1, 0)
 	case "all":
-		if !f.files && f.owner == nil {
-			// Only the files and live finders have files to add.
+		// Only a module's pick has files to add.
+		if f.owner == nil {
 			return
 		}
 		f.all, f.stale = !f.all, true
-		if f.files {
-			f.paths = nil
-			e.readPaths(f)
+		if f.lookup == nil {
+			f.tell(api.Context{"all": strconv.FormatBool(f.all)})
 		}
 	}
 }

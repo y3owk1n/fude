@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/fude/editor"
+	filesmod "github.com/y3owk1n/fude/modules/files"
 )
 
 // B27
@@ -399,6 +400,7 @@ x = "<Nop>"
 `)
 	t.Chdir(dir)
 	e := start(t, filepath.Join(dir, "a"))
+	e.Use(filesmod.New())
 	e.SetSize(80, 24)
 	feed(e, ":vsplit<CR>-")
 	// A key the listing's table drops falls through to [keymap.normal].

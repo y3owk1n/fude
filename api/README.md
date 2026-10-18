@@ -68,7 +68,7 @@ A `Result` asks for any of these, and fude applies them together once the call r
 | `Servers` | restarts, stops, disables or enables language servers, which a guest may not |
 | `Keys` | keys to run once the call is done, as typed |
 | `Jump` | where the cursor goes, in this buffer, or at a line and column of a file, in a window that shows a file |
-| `Pick` | a list to pick from, live or of places, or a question |
+| `Pick` | a list to pick from, live or of places, or a question. With `Update` it fills the open list of its ID, as items read off the loop do. `<C-g>` in a list that is not live tells the callback `all` |
 | `Menu` | a numbered menu at the cursor, each item with what it does beside it, whose choice runs the callback |
 | `Timers`, `Jobs`, `Requests` | work whose callback runs later. A `Request` goes to the buffer's servers, or to the one it names. A `Stream` job is the module's own long work, whose callback runs for each line it emits |
 | `Log` | lines for fude's log |

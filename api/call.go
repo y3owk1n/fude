@@ -137,6 +137,12 @@ type Pick struct {
 	// :pick files's do. The owner still hears which was picked (B314).
 	Files    bool
 	Encoding string // what the places' columns count in, utf-8 by default
+	// Update replaces the items of the owner's open pick of this ID and
+	// keeps its query. It shows nothing once that pick is closed. A list
+	// read off the loop fills the finder this way. <C-g> in a pick that is
+	// not Live tells its callback all, true or false, and the owner sends
+	// the items again (B321).
+	Update bool
 }
 
 // Terminal is a program a call runs through the shell in a terminal window
