@@ -81,6 +81,7 @@ type Result struct {
 	Confirm    *Confirm       // a question a Write's call asks before it writes (B327)
 	Moved      [][2]string    // paths renamed, from and to, whose open buffers follow them (B327)
 	Travel     *Travel        // a move of a buffer's text to one of its states (B328)
+	Copy       string         // text to put on the clipboard (B329)
 	// Set holds options to set on the buffer the call is about, by their
 	// config.toml names: expand_tab, indent_width and tab_width. fude uses
 	// them in place of config.toml's until the buffer closes (B283).
@@ -168,6 +169,7 @@ type Terminal struct {
 type Places struct {
 	Title    string
 	Items    []string
+	Lines    []string // what each item's line shows, in place of its place and text (B329)
 	Show     bool
 	File     string
 	Encoding string
@@ -277,6 +279,13 @@ type Binding struct {
 // arguments it takes, in brackets when it may go without (B324).
 type ExCommand struct {
 	Name, Args, Help string
+}
+
+// Mark is a place in the buffer by its id, as :marks, :jumps and :changes
+// list them. Name is a mark's letter (B329).
+type Mark struct {
+	Name        string
+	Buffer, Pos int
 }
 
 // State is a state of a buffer's text, as :timeline lists it. Parent is
@@ -398,6 +407,14 @@ type Scope struct {
 	// Only a call has them (B328).
 	States    func(buffer int) []State
 	StateText func(buffer, state int) (string, bool)
+	// Marks returns the current buffer's marks, Jumps the current window's
+	// jumps, oldest first, and Changes where the current buffer changed,
+	// oldest first. Messages returns the messages shown, oldest first, and
+	// Register a register's text, or false when it is empty. Only a call has
+	// them (B329).
+	Marks, Jumps, Changes func() []Mark
+	Messages              func() []string
+	Register              func(name rune) (string, bool, error)
 	// Entries returns the entries of the listing a Write's call writes
 	// (B327).
 	Entries func() []Entry
@@ -430,6 +447,8 @@ type Span struct {
 // Buffer is an open buffer as a call reads it.
 type Buffer struct {
 	Path, Filetype string
+	Name           string // what :buffers calls it, its path or its title (B329)
+	Modified       bool
 	Text           Text
 }
 

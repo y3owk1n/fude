@@ -448,6 +448,11 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 	for _, m := range res.Moved {
 		e.moved(m[0], m[1])
 	}
+	if res.Copy != "" {
+		if err := (host{e}).SetClipboard(res.Copy); err != nil {
+			e.message = err.Error()
+		}
+	}
 	if tr := res.Travel; tr != nil {
 		on, err := e.buffer(tr.Buffer)
 		if tr.Buffer == 0 {
@@ -624,8 +629,11 @@ func (e *Session) unregister(p api.Module) {
 	for _, r := range p.Registered() {
 		switch r.Kind {
 		case api.Command:
-			delete(e.commands, r.Name)
-			delete(e.completers, r.Name)
+			for _, name := range append([]string{r.Name}, r.Short...) {
+				delete(e.commands, name)
+				delete(e.completers, name)
+				delete(e.shortOf, name)
+			}
 			delete(e.pluginHelp, ":"+r.Name)
 		case api.Source:
 			delete(e.sources, r.Name)
@@ -701,7 +709,7 @@ func (e *Session) register(p api.Module, r api.Registration) {
 	switch r.Kind {
 	case api.Command:
 		e.pluginHelp[":"+r.Name] = r.Help
-		e.commands[r.Name] = func(s *Session, c call) {
+		run := func(s *Session, c call) {
 			scope := s.scope(p, s.win.buf, s.Text())
 			scope.About["args"], scope.About["bang"] = c.arg, strconv.FormatBool(c.force)
 			scope.About["first"], scope.About["last"], scope.About["ranged"] = strconv.Itoa(c.first), strconv.Itoa(c.last), strconv.FormatBool(c.ranged)
@@ -713,15 +721,22 @@ func (e *Session) register(p api.Module, r api.Registration) {
 				s.setCursor(edits[0].Start)
 			}
 		}
-		if r.Complete {
-			e.completers[r.Name] = func(s *Session, arg string) {
-				if r.Host && s.power != Host {
-					return
-				}
-				scope := s.scope(p, s.win.buf, s.Text())
-				scope.About["complete"] = arg
-				s.run(p, r.ID, scope, s.Cursor(), 0)
+		complete := func(s *Session, arg string) {
+			if r.Host && s.power != Host {
+				return
 			}
+			scope := s.scope(p, s.win.buf, s.Text())
+			scope.About["complete"] = arg
+			s.run(p, r.ID, scope, s.Cursor(), 0)
+		}
+		for _, name := range append([]string{r.Name}, r.Short...) {
+			e.commands[name] = run
+			if r.Complete {
+				e.completers[name] = complete
+			}
+		}
+		for _, short := range r.Short {
+			e.shortOf[short] = r.Name
 		}
 	case api.Source:
 		e.pluginHelp[":pick "+r.Name] = r.Help
@@ -852,7 +867,7 @@ func keyModes(r api.Registration) []vim.Mode {
 func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 	bufs := map[int]api.Buffer{}
 	for _, o := range e.bufs {
-		bufs[o.id] = api.Buffer{Path: o.file.path, Filetype: e.filetype(o), Text: o.text.Snapshot()}
+		bufs[o.id] = api.Buffer{Path: o.file.path, Filetype: e.filetype(o), Name: o.name(), Modified: o.modified(), Text: o.text.Snapshot()}
 	}
 	ft, opts, cfg := e.filetype(b), e.opts, &e.cfg
 	if e.win.buf == b {
@@ -880,6 +895,9 @@ func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 	s.Session = func() string { return "" }
 	s.Entries = func() []api.Entry { return nil }
 	s.States = func(int) []api.State { return nil }
+	s.Marks, s.Jumps, s.Changes = none, none, none
+	s.Messages = func() []string { return nil }
+	s.Register = func(rune) (string, bool, error) { return "", false, nil }
 	s.StateText = func(int, int) (string, bool) { return "", false }
 	servers := e.serverList()
 	s.Servers = func() []api.Server { return servers }
@@ -1121,3 +1139,6 @@ func (s *Session) kindKey(kind, keys, to string) {
 	}
 	m.Map(vim.Normal, withLeader(keys, s.leader), to)
 }
+
+// none is no marks, as a scope off the loop has (B329).
+func none() []api.Mark { return nil }

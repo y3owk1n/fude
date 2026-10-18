@@ -11,6 +11,7 @@ import (
 
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/modules/comment"
+	listsmod "github.com/y3owk1n/fude/modules/lists"
 	"github.com/y3owk1n/fude/syntax"
 )
 
@@ -115,6 +116,7 @@ func TestB45SyntaxNodes(t *testing.T) {
 		{"anananany", "x := g(a, b)^J\treturn nil^J"},
 	} {
 		e := start(t, path)
+		e.Use(listsmod.New())
 		e.SetSize(80, 20)
 		captures(t, e)
 		feed(e, "4Gf(lv"+c[0]+`:reg "<CR>`)

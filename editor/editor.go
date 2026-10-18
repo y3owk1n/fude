@@ -46,6 +46,7 @@ type Editor struct {
 	commands       map[string]func(*Session, call)   // ex commands plugins registered
 	sources        map[string]func(*Session, string) // :pick sources modules registered, by name (B287)
 	writers        map[string]writer                 // what writes each kind of buffer modules write, by kind (B327)
+	shortOf        map[string]string                 // the modules' command each short name stands for (B329)
 	kindMaps       map[string]map[string]string      // the modules' keys of each kind of buffer, by kind (B327)
 	completers     map[string]func(*Session, string) // by command, what asks a module to complete its argument (B290)
 	decos          map[any][]decoration              // by owner: a plugin, or a buffer for its diagnostics
@@ -141,7 +142,7 @@ func open(cfg config, paths []string) (*Session, error) {
 	if len(paths) == 0 {
 		paths = []string{""}
 	}
-	ed := &Editor{next: 1, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(*Session, call){}, sources: map[string]func(*Session, string){}, writers: map[string]writer{}, kindMaps: map[string]map[string]string{}, completers: map[string]func(*Session, string){}, decos: map[any][]decoration{}, servers: map[string]*server{}, down: map[string]string{}, building: map[string]bool{}, failed: map[string]string{}, listeners: map[api.Module]*listener{}, segments: map[api.Module]map[*buffer]string{}, leftSegments: map[api.Module]map[*buffer]string{}}
+	ed := &Editor{next: 1, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(*Session, call){}, sources: map[string]func(*Session, string){}, writers: map[string]writer{}, shortOf: map[string]string{}, kindMaps: map[string]map[string]string{}, completers: map[string]func(*Session, string){}, decos: map[any][]decoration{}, servers: map[string]*server{}, down: map[string]string{}, building: map[string]bool{}, failed: map[string]string{}, listeners: map[api.Module]*listener{}, segments: map[api.Module]map[*buffer]string{}, leftSegments: map[api.Module]map[*buffer]string{}}
 	// Without a config directory there are no overrides, and loadConfig
 	// reports why.
 	if dir, err := keep.Dir("XDG_CONFIG_HOME", ".config"); err == nil {
@@ -997,22 +998,6 @@ func (e *Session) edit(path string) {
 }
 
 // list shows every buffer with its number, % for the current window's and +
-// for a modified one, as :ls does.
-func (e *Session) list() {
-	var shown []string
-	for _, b := range e.bufs {
-		flags := ""
-		if b == e.win.buf {
-			flags += "%"
-		}
-		if b.modified() {
-			flags += "+"
-		}
-		shown = append(shown, fmt.Sprintf("%d%s \"%s\"", b.id, flags, b.name()))
-	}
-	e.message = strings.Join(shown, "  ")
-}
-
 // find returns the buffer numbered s or the one whose name contains s. #
 // names the buffer the window showed before.
 func (e *Session) find(s string) *buffer {
@@ -1096,21 +1081,6 @@ func (e *Session) close(b *buffer, force bool) {
 			}
 		}
 	}
-}
-
-// registers shows each named register, as :reg does.
-func (e *Session) registers(names string) {
-	var shown []string
-	for _, r := range names {
-		text, ok, err := e.vim.Register(r)
-		switch {
-		case err != nil:
-			shown = append(shown, fmt.Sprintf("\"%c   %v", r, err))
-		case ok:
-			shown = append(shown, fmt.Sprintf("\"%c   %s", r, strings.ReplaceAll(text, "\n", "^J")))
-		}
-	}
-	e.message = strings.Join(shown, "  ")
 }
 
 // overlay is what may take a key before the vim machine sees it: a module

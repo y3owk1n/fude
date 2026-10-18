@@ -800,8 +800,11 @@ line (B156).
 
 Every message reaches a client through `Message`, so `Message` puts each
 one into the session's history the first time it returns it. Code that
-sets a message does nothing more. `:marks`, `:jumps` and `:changes` open
-list windows of places, like the one `grr` opens (B157). The newest one
+sets a message does nothing more. `modules/lists` is `:buffers`,
+`:marks`, `:jumps`, `:changes`, `:registers` and `:messages`. It reads them
+through `Scope`, in a call. `:marks`, `:jumps` and `:changes` return
+`Places` with `Lines` of their own, which open list windows of places,
+like the one `grr` opens (B157, B329). The newest one
 is the editor's last list, which keeps its places, its buffer and the
 place last gone to, so `]q` and the `:c` commands go through it after
 its window closes (B194, N25). `<C-q>` in a finder sends its matches to

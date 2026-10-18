@@ -193,29 +193,6 @@ func TestB21MatchesInEveryWindow(t *testing.T) {
 	}
 }
 
-// B268
-func TestB268YankMessage(t *testing.T) {
-	bin := t.TempDir()
-	board := filepath.Join(bin, "board")
-	for _, name := range []string{"pbcopy", "wl-copy"} {
-		if err := os.WriteFile(filepath.Join(bin, name), []byte("#!/bin/sh\ncat > "+board+"\n"), 0o755); err != nil {
-			t.Fatal(err)
-		}
-	}
-	t.Setenv("PATH", bin+":/bin:/usr/bin")
-	t.Setenv("WAYLAND_DISPLAY", "fude-test")
-	e := open(t, "")
-	if feed(e, ":messages yank<CR>"); e.Message() != "no messages" {
-		t.Errorf(":messages yank with none said %q", e.Message())
-	}
-	long := strings.Repeat("word ", 40) + "end"
-	feed(e, ":"+long+"<CR>")
-	shown := e.Message()
-	if feed(e, ":messages yank<CR>"); e.Message() != "copied the last message" || disk(t, board) != shown {
-		t.Errorf(":messages yank said %q and put %q on the clipboard, want %q", e.Message(), disk(t, board), shown)
-	}
-}
-
 // B37
 func TestB37Wrap(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "f")

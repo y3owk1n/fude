@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/y3owk1n/fude/editor"
+	listsmod "github.com/y3owk1n/fude/modules/lists"
 	"github.com/y3owk1n/fude/vim"
 )
 
@@ -320,6 +321,7 @@ func TestB89Buffers(t *testing.T) {
 		t.Fatal(err)
 	}
 	e := open(t, a)
+	e.Use(listsmod.New())
 	feed(e, "x:e "+b+"<CR>")
 	if text(e) != "bbb" {
 		t.Fatalf(":e showed %q", text(e))

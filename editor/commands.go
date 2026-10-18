@@ -64,9 +64,7 @@ func init() {
 				e.show(b)
 			}
 		}, completeBuffer},
-		{vim.Command{Name: "buffers", Short: []string{"ls"}, Help: "lists the buffers"}, func(e *Session, _ call) { e.list() }, nil},
 		{vim.Command{Name: "cd", Args: "[dir]", Help: "changes the working directory, to home without dir"}, func(e *Session, x call) { e.cd(x.arg) }, completePath},
-		{vim.Command{Name: "changes", Help: "lists where the buffer changed"}, func(e *Session, _ call) { e.changeList() }, nil},
 		{vim.Command{Name: "close", Short: []string{"clo"}, Help: "closes the window"}, func(e *Session, _ call) {
 			if err := e.closeWindow(e.win); err != nil {
 				e.message = err.Error()
@@ -155,12 +153,7 @@ func init() {
 		{vim.Command{Name: "help", Short: []string{"h"}, Args: "[name]", Help: "opens help, at the entry for a command, key, option or setting"}, func(e *Session, x call) { e.help(x.arg) }, func(e *Session, _ string, start int, arg string, _ bool) (int, []string) {
 			return start, match(e.helpTags(), arg)
 		}},
-		{vim.Command{Name: "jumps", Short: []string{"ju"}, Help: "lists the window's jumps"}, func(e *Session, _ call) { e.jumps() }, nil},
 		{vim.Command{Name: "kick", Args: "{name}", Help: "ends the session of the guest called name"}, func(e *Session, x call) { e.kick(x.arg) }, completeKick},
-		{vim.Command{Name: "marks", Help: "lists the buffer's marks"}, func(e *Session, _ call) { e.marks() }, nil},
-		{vim.Command{Name: "messages", Short: []string{"mes"}, Args: "[yank]", Help: "lists the messages shown, oldest first, or with yank puts the last on the clipboard"}, func(e *Session, x call) { e.messages(x.arg) }, func(_ *Session, _ string, start int, arg string, _ bool) (int, []string) {
-			return start, match([]string{"yank"}, arg)
-		}},
 		{vim.Command{Name: "new", Help: "opens a window below with a new empty buffer, or above with split_below off"}, func(e *Session, _ call) {
 			e.split(false)
 			e.empty()
@@ -178,7 +171,6 @@ func init() {
 		{vim.Command{Name: "read", Short: []string{"r"}, Args: "{file} | !{cmd}", Help: "puts a file, or what cmd writes, below the line"}, func(e *Session, x call) { e.readIn(x.arg, x.last) }, completePath},
 		{vim.Command{Name: "center", Help: "centers the windows on a wide screen, as wide as the colour column, or stops"}, func(e *Session, _ call) { e.center() }, nil},
 		{vim.Command{Name: "restart", Help: "starts fude again on the same files, windows and unsaved changes, with config, plugins and servers loaded afresh"}, func(e *Session, _ call) { e.restart() }, nil},
-		{vim.Command{Name: "registers", Short: []string{"reg"}, Args: "[names]", Help: "lists the registers, or those named"}, func(e *Session, x call) { e.registers(x.arg) }, nil},
 		{vim.Command{Name: "reject", Args: "[n]", Help: "drops proposal n, or the buffer's newest"}, func(e *Session, x call) {
 			e.decide(x.arg, false)
 		}, nil},

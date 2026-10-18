@@ -94,4 +94,7 @@ type Registration struct {
 	// among the own keys of that kind of buffer, such as listing, which
 	// [keymap.<kind>] changes (B327).
 	Keys, In string
+	// Short are other names a Command answers to, such as ls for buffers
+	// (B329).
+	Short []string
 }

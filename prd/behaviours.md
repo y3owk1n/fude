@@ -1039,6 +1039,13 @@ Where fude departs, the line says so and cites the departure in
   window, such as a line in `diff.plus`, over what the filetype colours.
 - B277 [4] A plugin hears `editor.focused` when the terminal gets the
   focus back, as git's index may have changed while fude was away.
+- B329 [4] A module's call reads the current buffer's marks and the
+  places it changed, the current window's jumps, the messages shown and
+  any register, and each open buffer's name and whether it is modified.
+  Its list of places may say what each line shows. Its result may put
+  text on the clipboard. Its command may answer to short names too.
+  `:buffers`, `:marks`, `:jumps`, `:changes`, `:registers` and
+  `:messages` work this way (B89, B157, B268).
 - B328 [4] A module's call reads the states of a buffer's text, each
   with its time, the command that made it, the state it follows, and
   whether it is current, written, or a change a crashed session left

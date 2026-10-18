@@ -211,7 +211,7 @@ func (e *Session) cdo(cmd string, perFile bool) {
 func (e *Session) showPlaces(pl *api.Places) {
 	var lines []string
 	var spots []spot
-	for _, item := range pl.Items {
+	for i, item := range pl.Items {
 		path, line, col, text := grepSpot(item)
 		place := fmt.Sprintf("%s:%d:%d:", path, line, col)
 		if pl.File != "" {
@@ -227,11 +227,24 @@ func (e *Session) showPlaces(pl *api.Places) {
 		if strings.TrimSpace(text) == "" {
 			text = e.lineAt(sp)
 		}
-		lines, spots = append(lines, place+" "+text), append(spots, sp)
+		shown := place + " " + text
+		if i < len(pl.Lines) {
+			shown = pl.Lines[i]
+		}
+		lines, spots = append(lines, shown), append(spots, sp)
 	}
 	if pl.Show {
 		e.showList("["+pl.Title+"]", lines, spots)
 		return
 	}
 	e.lastList = &places{title: "[" + pl.Title + "]", lines: lines, spots: spots, at: -1}
+}
+
+// places shows lines in a list window titled what, or says there are none.
+func (e *Session) places(what string, lines []string, spots []spot) {
+	if len(lines) == 0 {
+		e.message = "no " + what
+		return
+	}
+	e.showList("["+what+"]", lines, spots)
 }

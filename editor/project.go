@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"slices"
 
@@ -67,6 +68,7 @@ func (e *Session) onLoop(scope *api.Scope) {
 		}
 		return nil
 	}
+	e.lists(scope)
 	scope.StateText = func(id, i int) (string, bool) {
 		if b, err := e.buffer(id); err == nil {
 			return b.stateText(i)
@@ -94,4 +96,33 @@ func (e *Session) quitting() {
 			logLine(line)
 		}
 	}
+}
+
+// lists gives scope the current buffer's marks and changes, the window's
+// jumps, the messages and the registers, on the loop (B329).
+func (e *Session) lists(scope *api.Scope) {
+	b, w := e.win.buf, e.win
+	scope.Marks = func() []api.Mark {
+		var out []api.Mark
+		for _, name := range slices.Sorted(maps.Keys(b.marks)) {
+			out = append(out, api.Mark{Name: string(name), Buffer: b.id, Pos: b.text.Mark(b.marks[name])})
+		}
+		return out
+	}
+	scope.Jumps = func() []api.Mark {
+		var out []api.Mark
+		for _, j := range w.jumps {
+			out = append(out, api.Mark{Buffer: j.buf.id, Pos: j.buf.text.Mark(j.mark)})
+		}
+		return out
+	}
+	scope.Changes = func() []api.Mark {
+		var out []api.Mark
+		for _, id := range b.changes {
+			out = append(out, api.Mark{Buffer: b.id, Pos: b.text.Mark(id)})
+		}
+		return out
+	}
+	scope.Messages = func() []string { return slices.Clone(e.history) }
+	scope.Register = e.vim.Register
 }

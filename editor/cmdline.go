@@ -133,6 +133,8 @@ func (e *Session) light(m *cmenu, line string) {
 		for i, it := range m.items {
 			if c, ok := commandsByName[it]; ok {
 				m.notes[i] = strings.Join(c.Short, " ")
+			} else if shorts := e.shortsOf(it); len(shorts) > 0 {
+				m.notes[i] = strings.Join(shorts, " ")
 			} else if j := slices.IndexFunc(vim.Commands(), func(c vim.Command) bool { return c.Name == it }); j >= 0 {
 				m.notes[i] = strings.Join(vim.Commands()[j].Short, " ")
 			}
@@ -147,6 +149,9 @@ func (e *Session) light(m *cmenu, line string) {
 func (e *Session) fullName(name string) (string, bool) {
 	if c, ok := commandsByName[name]; ok {
 		return c.Name, true
+	}
+	if full, ok := e.shortOf[name]; ok {
+		return full, true
 	}
 	if _, ok := e.commands[name]; ok {
 		return name, true
@@ -179,7 +184,7 @@ func (e *Session) completions(line string, wait bool) (int, []string) {
 			return 0, nil
 		}
 		// A short name matches as its command, which comes once.
-		names, of := slices.Collect(maps.Keys(e.commands)), map[string]string{}
+		names, of := slices.Collect(maps.Keys(e.commands)), maps.Clone(e.shortOf)
 		for _, c := range slices.Concat(vim.Commands(), helpCommands()) {
 			names = append(names, c.Name)
 			for _, s := range c.Short {
@@ -392,4 +397,16 @@ func (e *Session) incSearch(top, at int) {
 		e.searching = nil
 		e.reveal()
 	}
+}
+
+// shortsOf returns the short names of the modules' command name (B329).
+func (e *Session) shortsOf(name string) []string {
+	var out []string
+	for short, full := range e.shortOf {
+		if full == name {
+			out = append(out, short)
+		}
+	}
+	slices.Sort(out)
+	return out
 }
