@@ -573,7 +573,9 @@ Where fude departs, the line says so and cites the departure in
     `[ ]` as `☐` and `[x]` as `☑`.
   - A quote's `>` shows as `▌`, and a rule as a line of `─`.
   - Emphasis and code spans lose their marks, a link shows its text
-    alone, and an image its description.
+    alone, and an image its description. An image whose path names a
+    file shows below its line (B303). A relative path is looked up beside
+    the markdown file.
   - A table's pipes show as `│`, padded so its columns line up as their
     cells show, and its delimiter row as `├─┼─┤`. A column the delimiter
     row aligns with `-:` or `:-:` lines up on the right or in the middle.

@@ -1,6 +1,9 @@
 package markdown_test
 
 import (
+	"bytes"
+	"image"
+	"image/png"
 	"os"
 	"path/filepath"
 	"slices"
@@ -18,11 +21,21 @@ func TestMain(m *testing.M) { os.Exit(editortest.Main(m, "markdown", "markdown_i
 // B298
 func TestB298Render(t *testing.T) {
 	// The cursor starts on the blank first line, which shows as it is.
-	src := "\n# Title\n- a\n  - b\n- [ ] todo\n> quote\n---\n```go\nx := 1\n```\nSome *em* and [link](http://x.y).\n\n| a | bb |\n|---|---:|\n| *ccc* | d |\n"
-	path := filepath.Join(t.TempDir(), "notes.md")
+	src := "\n# Title\n- a\n  - b\n- [ ] todo\n> quote\n---\n```go\nx := 1\n```\nSome *em* and [link](http://x.y).\n\n| a | bb |\n|---|---:|\n| *ccc* | d |\n\n![pic](pic.png)\n"
+	dir := t.TempDir()
+	path := filepath.Join(dir, "notes.md")
 	editortest.Change(t, path, src)
+	// The image beside the file is 80 by 32 pixels.
+	var pic bytes.Buffer
+	if err := png.Encode(&pic, image.NewRGBA(image.Rect(0, 0, 80, 32))); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "pic.png"), pic.Bytes(), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	e := editortest.Open(t, path)
-	e.SetSize(80, 20)
+	e.SetSize(80, 40)
+	e.SetCell(8, 16)
 	e.Use(markdown.New())
 	at := func(s string) int { return strings.Index(src, s) }
 	want := []wire.Ghost{
@@ -55,6 +68,10 @@ func TestB298Render(t *testing.T) {
 		top := wire.Virtual{Text: "┌─────┬────┐", Style: "markdown.table", Above: true}
 		bottom := wire.Virtual{Text: "└─────┴────┘", Style: "markdown.table"}
 		if !slices.Contains(v.Virtual[e.Text().LineOf(at("| a"))], top) || !slices.Contains(v.Virtual[e.Text().LineOf(at("| *ccc"))], bottom) {
+			return false
+		}
+		// The image shows below its line, two rows of 10 columns.
+		if rows := v.Virtual[e.Text().LineOf(at("![pic"))]; len(rows) != 2 || rows[0].Image == 0 || rows[0].Cols != 10 {
 			return false
 		}
 		line := e.Text().LineOf(at("x := 1"))

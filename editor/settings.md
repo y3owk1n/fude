@@ -289,8 +289,9 @@ in the window. The signs stay, and `]d` and `<C-w>d` still show each one.
 A markdown file draws as it reads. A heading's `#`s go and its line is on
 its level's colour, a code block is on the surface colour without its
 fences, bullets, checkboxes, quotes and rules show as marks, and a
-table's columns line up between box lines. Emphasis
-loses its marks, and a link shows its text alone. The cursor's line, and
+table's columns line up between box lines. Emphasis loses its marks, a
+link shows its text alone, and an image file shows below its line where
+the terminal shows images. The cursor's line, and
 a selection's, show their text as it is. The default is on, and
 `:set render false` shows the text as it is everywhere.
 

@@ -7,6 +7,7 @@ package markdown
 
 import (
 	"context"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -38,7 +39,8 @@ var queries = map[string]string{
 (inline_link ["[" "]" "(" ")"] @hide)
 (inline_link [(link_destination) (link_title)] @hide)
 (image ["!" "[" "]" "(" ")"] @hide)
-(image [(link_destination) (link_title)] @hide)`,
+(image [(link_destination) (link_title)] @hide)
+(image (link_destination) @picture)`,
 }
 
 // bullets are what a list's marker shows as, by how deep the list is.
@@ -203,6 +205,15 @@ func (m *Module) draw(s api.Scope) api.Result {
 				if r == '>' {
 					show(sp.Start+i, sp.Start+i+1, "▌", "markdown.quote")
 				}
+			}
+		case "picture":
+			// An image on disk shows below its line. A relative path is
+			// beside the markdown file (B303).
+			if src := t.Slice(sp.Start, sp.End); !strings.Contains(src, "://") {
+				if !filepath.IsAbs(src) {
+					src = filepath.Join(filepath.Dir(s.About["path"]), src)
+				}
+				add(api.Decoration{Start: sp.Start, End: sp.Start, Image: src})
 			}
 		case "rule":
 			// Its range ends after its line's break.
