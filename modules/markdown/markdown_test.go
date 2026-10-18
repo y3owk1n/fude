@@ -54,6 +54,13 @@ func TestB298Render(t *testing.T) {
 		return v.Grounds[1] == "markdown.h1" && v.Grounds[line] == "markdown.code"
 	}
 	editortest.Settle(t, e, shown)
+	// A new bullet draws a moment after it is typed, once the cursor leaves
+	// its line.
+	editortest.Feed(e, "Go- new<Esc>gg")
+	editortest.Settle(t, e, func() bool {
+		at := strings.Index(editortest.Text(e), "- new")
+		return slices.Contains(e.Views()[0].Ghosts, wire.Ghost{Pos: at, End: at + 1, Text: "•", Style: "markdown.bullet"})
+	})
 	// render false shows the text as it is.
 	editortest.Feed(e, ":set render false<CR>")
 	editortest.Settle(t, e, func() bool { v := e.Views()[0]; return len(v.Ghosts) == 0 && len(v.Grounds) == 0 })

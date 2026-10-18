@@ -9,6 +9,7 @@ import (
 	"context"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/clipperhouse/displaywidth"
 
@@ -46,16 +47,24 @@ var bullets = []string{"•", "◦", "▪"}
 // headings are what a heading's #s show as with icons on, by its level.
 var headings = []string{"󰲡 ", "󰲣 ", "󰲥 ", "󰲧 ", "󰲩 ", "󰲫 "}
 
+// redraw is how long after a change the module draws again, so typing
+// parses the file at most once each redraw, not once each key.
+const redraw = 50 * time.Millisecond
+
 // Module is markdown. It keeps what it shows on each buffer.
 type Module struct {
-	mu    sync.Mutex
-	shown map[string][]int // by buffer, the ids of its decorations
-	off   map[string]bool  // by buffer, render was off when it last drew
-	ids   int
+	mu     sync.Mutex
+	shown  map[string][]int  // by buffer, the ids of its decorations
+	off    map[string]bool   // by buffer, render was off when it last drew
+	due    map[uint32]string // by timer, the buffer it draws again
+	timers uint32
+	ids    int
 }
 
 // New returns markdown.
-func New() *Module { return &Module{shown: map[string][]int{}, off: map[string]bool{}} }
+func New() *Module {
+	return &Module{shown: map[string][]int{}, off: map[string]bool{}, due: map[uint32]string{}}
+}
 
 func (m *Module) Name() string { return "markdown" }
 
@@ -76,22 +85,44 @@ func (m *Module) Call(context.Context, uint32, api.Scope, ...int) (api.Result, e
 	return api.Result{}, nil
 }
 
-// Event draws a buffer as it opens and changes, and again when render
-// turns on or off.
+// Event draws a buffer as it opens, again when render turns on or off,
+// and redraw after a change, once for however many changes come meanwhile.
 func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if event, _, _ := strings.Cut(name, " "); event == "view.moved" {
-		if on, _ := s.Option("render"); m.off[s.About["buffer"]] == (on == "true") {
+	buf := s.About["buffer"]
+	switch event, _, _ := strings.Cut(name, " "); event {
+	case "view.moved":
+		if on, _ := s.Option("render"); m.off[buf] == (on == "true") {
 			return m.draw(s), nil
 		}
 		return api.Result{}, nil
+	case "buffer.changed":
+		if s.About["filetype"] != "markdown" && len(m.shown[buf]) == 0 {
+			return api.Result{}, nil
+		}
+		for _, b := range m.due {
+			if b == buf {
+				return api.Result{}, nil
+			}
+		}
+		m.timers++
+		m.due[m.timers] = buf
+		return api.Result{Timers: []api.Timer{{ID: m.timers, After: redraw}}}, nil
 	}
 	return m.draw(s), nil
 }
 
-func (m *Module) Callback(context.Context, uint32, api.Scope) (api.Result, error) {
-	return api.Result{}, nil
+// Callback draws the buffer a change's timer is about.
+func (m *Module) Callback(_ context.Context, id uint32, s api.Scope) (api.Result, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	buf, ok := m.due[id]
+	delete(m.due, id)
+	if !ok || buf != s.About["buffer"] {
+		return api.Result{}, nil
+	}
+	return m.draw(s), nil
 }
 
 func (m *Module) Work(context.Context, api.Job) (string, error) { return "", nil }

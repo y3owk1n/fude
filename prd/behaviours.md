@@ -550,6 +550,8 @@ Where fude departs, the line says so and cites the departure in
   or queries fail to load says why.
 - B298 [3] With `render` on, as it is unless set off, a markdown file draws
   as it reads, and the cursor's line shows its text as it is (B295).
+  After a change it draws again 50 milliseconds later, once for however
+  many changes come meanwhile.
   - A heading's `#`s go, and its line is on a ground of its level's
     colour (B296). With `icons` on, an icon of its level shows in their
     place.
