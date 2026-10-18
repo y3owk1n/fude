@@ -1048,6 +1048,9 @@ Where fude departs, the line says so and cites the departure in
   It names the characters besides word characters after which
   autocomplete asks it. The editor expands a snippet's items. Buffer
   words, paths and user snippets complete this way (B206, B207).
+- B337 [4] A module's decoration may show its sign in a listing's icon
+  column while `icons` is on, instead of in the sign column. A listing's
+  notes and icons are a module's decorations (B127, B128).
 - B335 [4] A module's terminal with no name opens anew each time and
   takes the focus to type into. The status line does not name it as a
   task. `:terminal` opens one this way (B205).

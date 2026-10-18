@@ -838,8 +838,7 @@ ftplugin sets them. A directory already listed shows its buffer as it was
 left, and `<C-l>` reads it again.
 
 The editor reads a directory into a listing, as it reads a file into a
-buffer, and draws its notes and icons. What a listing does is
-`modules/listing`'s. Its plugs come with their keys as `Keys`, and the
+buffer. What a listing does is `modules/listing`'s. Its plugs come with their keys as `Keys`, and the
 listing's own with `In` set to `listing`, under `[keymap.listing]`. An
 entry opens through a `Jump`, which may `Split` the window, and a listing
 counts as a window on a file there. `<C-l>` is `:e!`, which reads a
@@ -894,17 +893,22 @@ git command run in a terminal at the same time does not fail. A change
 below a directory marks the directory. The module signs each entry's line
 with a decoration, so a sign moves with its line (B126).
 
-A listing's windows show a note after some names: where a symlink points,
-or a mark for an executable or special file. fude reads a name's note with
-`lstat` the first time a window shows it, and forgets the notes when it
-reads the listing again. A directory of thousands of entries costs one
-`lstat` for each visible line, not one for each entry (B127).
+A listing shows a note after some names: where a symlink points, or a
+mark for an executable or special file. `modules/listing` puts each note
+there as a decoration. On `listing.read` it reads every entry's note with
+`lstat`, off the loop, and decorates every line. It keeps the notes by
+name until the listing is read again. After an edit it decorates only
+the lines the edit changed, from the notes it kept. A directory of 5000 entries shows its
+notes and icons 17ms after it opens (B127).
 
 With `icons` on, a listing's icons take two columns at the right of the
 gutter, not inline before the name as Neovim's virtual text puts them.
 The text then starts at the same column on every row, so the cursor,
-wrapping and sideways scrolling need no change. The icons are a table of
-names and extensions in `editor/icons.go`, from mini.icons (B128).
+wrapping and sideways scrolling need no change. The module decorates
+each line with an `Icon` decoration, whose sign the editor draws in that
+column. The icons are a table of names and extensions in
+`modules/listing`, from mini.icons. The module decorates the lines again
+when `icons` is set or the config is read again (B128, B337).
 
 ## EditorConfig
 

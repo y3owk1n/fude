@@ -17,6 +17,9 @@ type Decoration struct {
 	// Insert shows Note in Style among the text at Start, on the cursor's
 	// line too, as an inlay hint does (B216).
 	Insert bool
+	// Icon shows Sign in Style in a listing's icon column, left of Start's
+	// line, while icons is on. It does not show in the sign column (B337).
+	Icon bool
 	// Cover shows Note in Style over the text from Start to End, which
 	// must be on one line. The note is padded to the text's width and
 	// shows on the cursor's line too, as a jump's labels do (B315).

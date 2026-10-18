@@ -15,6 +15,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/y3owk1n/fude/api"
 )
@@ -30,15 +31,21 @@ const (
 	write
 )
 
-// Module is listing.
-type Module struct{}
+// Module is listing. It keeps the note of each name each listing showed.
+type Module struct {
+	mu    sync.Mutex
+	notes map[string]map[string]string // by buffer, by name
+	ids   int
+}
 
 // New returns listing.
-func New() *Module { return &Module{} }
+func New() *Module { return &Module{notes: map[string]map[string]string{}} }
 
 func (m *Module) Name() string { return "listing" }
 
-func (m *Module) Subscribed() []string { return nil }
+func (m *Module) Subscribed() []string {
+	return []string{"listing.read", "buffer.changed", "buffer.closed", "option.set", "config.reloaded"}
+}
 
 func (m *Module) Registered() []api.Registration {
 	return []api.Registration{
@@ -52,7 +59,11 @@ func (m *Module) Registered() []api.Registration {
 	}
 }
 
-func (m *Module) Init(context.Context, api.Scope) (api.Result, error) { return api.Result{}, nil }
+// Init decorates a listing that opened before the module loaded, as the
+// one fude dir opens does.
+func (m *Module) Init(ctx context.Context, s api.Scope) (api.Result, error) {
+	return m.Event(ctx, "listing.read", s)
+}
 
 // Call lists a directory, opens the entry under the cursor, or writes a
 // listing's edits to its directory.
@@ -348,10 +359,6 @@ func (c changes) apply(dir string) error {
 		}
 	}
 	return nil
-}
-
-func (m *Module) Event(context.Context, string, api.Scope) (api.Result, error) {
-	return api.Result{}, nil
 }
 
 func (m *Module) Callback(context.Context, uint32, api.Scope) (api.Result, error) {

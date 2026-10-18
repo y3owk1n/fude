@@ -1,6 +1,7 @@
 package listing_test
 
 import (
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,6 +10,7 @@ import (
 	"github.com/y3owk1n/fude/editor/editortest"
 	"github.com/y3owk1n/fude/modules/listing"
 	"github.com/y3owk1n/fude/vim"
+	"github.com/y3owk1n/fude/wire"
 )
 
 func TestMain(m *testing.M) { os.Exit(editortest.Main(m)) }
@@ -122,4 +124,22 @@ func TestB125EditListing(t *testing.T) {
 	if len(names) != 2 || disk(t, filepath.Join(dir, "a")) != "a\n" || !strings.Contains(e.Message(), "rename a") {
 		t.Errorf("a failed rename left %v and said %q", names, e.Message())
 	}
+}
+
+// B127
+func TestB127ListingNotes(t *testing.T) {
+	dir := t.TempDir()
+	editortest.Change(t, filepath.Join(dir, "plain"), "")
+	editortest.Change(t, filepath.Join(dir, "run"), "")
+	if err := os.Chmod(filepath.Join(dir, "run"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("plain", filepath.Join(dir, "link")); err != nil {
+		t.Fatal(err)
+	}
+	e := editortest.Open(t, dir)
+	e.Use(listing.New())
+	e.SetSize(40, 10)
+	want := map[int]wire.Note{0: {Text: " -> plain"}, 2: {Text: "*"}}
+	editortest.Settle(t, e, func() bool { return maps.Equal(e.Views()[0].Notes, want) })
 }

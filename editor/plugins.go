@@ -184,6 +184,7 @@ type decoration struct {
 	replace    bool     // note shows in place of its text (B295)
 	insert     bool     // note shows among the text at its start (B216)
 	cover      bool     // note shows over its text, on the cursor's line too (B315)
+	icon       bool     // sign shows in the icon column (B337)
 	line       bool     // its style's ground shades its lines' rows (B296)
 	lines      []string // rows drawn below its line, or above it (B299)
 	above      bool
@@ -205,7 +206,7 @@ func (d decoration) remove() {
 	if d.fold {
 		d.buf.folds = slices.DeleteFunc(d.buf.folds, func(f decoration) bool { return f.start == d.start })
 	}
-	if d.sign != "" {
+	if d.sign != "" && !d.icon {
 		d.buf.signs--
 	}
 	if d.inline() {
@@ -534,7 +535,7 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 		// A sign shows its first two characters, as the column is two wide.
 		sign := []rune(d.Sign)
 		sign = sign[:min(len(sign), 2)]
-		deco := decoration{id: d.ID, buf: on, style: d.Style, note: d.Note, sign: string(sign), layer: d.Layer, fold: d.Fold, replace: d.Replace, insert: d.Insert, cover: d.Cover, line: d.Line, lines: d.Lines, above: d.Above, block: d.Block, image: d.Image}
+		deco := decoration{id: d.ID, buf: on, style: d.Style, note: d.Note, sign: string(sign), layer: d.Layer, fold: d.Fold, replace: d.Replace, insert: d.Insert, cover: d.Cover, icon: d.Icon, line: d.Line, lines: d.Lines, above: d.Above, block: d.Block, image: d.Image}
 		// A fold's marks stay at their lines' starts through an insert there.
 		gravity := kernel.Right
 		if d.Fold {
@@ -545,7 +546,7 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 		if d.Fold {
 			on.folds = append(on.folds, deco)
 		}
-		if len(sign) > 0 {
+		if len(sign) > 0 && !d.Icon {
 			on.signs++
 		}
 		if deco.inline() {
@@ -971,7 +972,7 @@ func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 	// scope off it.
 	var decos []api.Decoration
 	for _, d := range e.decos[p] {
-		decos = append(decos, api.Decoration{ID: d.id, Start: d.buf.text.Mark(d.start), End: d.buf.text.Mark(d.end), Style: d.style, Sign: d.sign, Note: d.note, Layer: d.layer, Fold: d.fold, Replace: d.replace, Insert: d.insert, Cover: d.cover, Line: d.line, Lines: d.lines, Above: d.above, Block: d.block, Image: d.image, Buffer: d.buf.id})
+		decos = append(decos, api.Decoration{ID: d.id, Start: d.buf.text.Mark(d.start), End: d.buf.text.Mark(d.end), Style: d.style, Sign: d.sign, Note: d.note, Layer: d.layer, Fold: d.fold, Replace: d.replace, Insert: d.insert, Cover: d.cover, Icon: d.icon, Line: d.line, Lines: d.lines, Above: d.above, Block: d.block, Image: d.image, Buffer: d.buf.id})
 	}
 	s.Decorations = func() []api.Decoration { return decos }
 	return s

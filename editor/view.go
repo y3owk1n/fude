@@ -100,12 +100,6 @@ func (e *Session) Views() []wire.View {
 		}
 		v.Others = e.others(w.buf)
 		v.Signs = e.signs(w.buf, top, last)
-		for line, n := range w.buf.notes(t, top, last) {
-			if v.Notes == nil {
-				v.Notes = map[int]wire.Note{}
-			}
-			v.Notes[line] = wire.Note{Text: n}
-		}
 		for _, p := range e.modules {
 			for _, d := range e.decos[p] {
 				if d.buf != w.buf || d.note == "" || d.inline() {
@@ -120,7 +114,7 @@ func (e *Session) Views() []wire.View {
 			}
 		}
 		if w.opts.Icons {
-			v.Icons = w.buf.icons(t, top, last)
+			v.Icons = e.icons(w.buf, top, last)
 			for line, s := range v.Signs {
 				if icon, ok := diagnosticIcons[s.Name]; ok {
 					v.Signs[line] = wire.Sign{Text: icon, Name: s.Name}
@@ -292,7 +286,7 @@ func (e *Session) signs(b *buffer, top, last int) map[int]wire.Sign {
 	var signed []decoration
 	for _, p := range e.modules {
 		for _, d := range e.decos[p] {
-			if d.buf == b && d.sign != "" {
+			if d.buf == b && d.sign != "" && !d.icon {
 				signed = append(signed, d)
 			}
 		}
@@ -301,6 +295,27 @@ func (e *Session) signs(b *buffer, top, last int) map[int]wire.Sign {
 	for _, d := range signed {
 		if at := b.text.Mark(d.start); at >= top && at <= last {
 			out[t.LineOf(at)] = wire.Sign{Text: d.sign, Name: d.style}
+		}
+	}
+	return out
+}
+
+// icons returns the icon of each line of b from top to last that a
+// module's decoration gives one (B128, B337).
+func (e *Session) icons(b *buffer, top, last int) map[int]wire.Sign {
+	t := b.text.Snapshot()
+	var out map[int]wire.Sign
+	for _, p := range e.modules {
+		for _, d := range e.decos[p] {
+			if d.buf != b || !d.icon {
+				continue
+			}
+			if at := b.text.Mark(d.start); at >= top && at <= last {
+				if out == nil {
+					out = map[int]wire.Sign{}
+				}
+				out[t.LineOf(at)] = wire.Sign{Text: d.sign, Name: d.style}
+			}
 		}
 	}
 	return out

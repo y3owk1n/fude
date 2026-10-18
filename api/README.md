@@ -58,7 +58,7 @@ A `Result` asks for any of these, and fude applies them together once the call r
 | Field | Asks for |
 |---|---|
 | `Edits` | edits to the text, applied as one change |
-| `Decorate`, `Undecorate` | styles, signs and notes on ranges, which move with edits, by the ids the module gives them, on this buffer or on another by its `Buffer` id. On one line the sign at the highest `Layer` shows: git's are at -1, most at 0, a diagnostic's at 1 and a breakpoint at 2. The style `inlay` draws the note among the text at the start, and `colour #rrggbb` draws the range on that colour. A decoration with `Fold` set closes a fold over its lines, and one with `Cover` draws its note over its range |
+| `Decorate`, `Undecorate` | styles, signs and notes on ranges, which move with edits, by the ids the module gives them, on this buffer or on another by its `Buffer` id. On one line the sign at the highest `Layer` shows: git's are at -1, most at 0, a diagnostic's at 1 and a breakpoint at 2. The style `inlay` draws the note among the text at the start, and `colour #rrggbb` draws the range on that colour. A decoration with `Fold` set closes a fold over its lines, one with `Cover` draws its note over its range, and one with `Icon` draws its sign in a listing's icon column while `icons` is on |
 | `Emit` | events for other modules and plugins |
 | `Status` | the module's segment on the statusline |
 | `Capture` | the keys typed next, each sent to the same call with `key` in `About`, until a result without it |

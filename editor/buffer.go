@@ -70,7 +70,6 @@ type buffer struct {
 	inlines int               // decorations that show text in its lines
 	listed  string            // the directory a listing lists, "" for any other buffer
 	entries []entry           // a listing's names as it read them
-	noted   map[string]string // a listing's note of each name it has shown
 	touched [2]int            // the text the last change made, as it is after it
 	unsaved kernel.NodeID     // the newest unsaved change from a session that did not close
 	set     map[string]string // the options modules set on it, by name (B283)

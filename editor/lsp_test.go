@@ -19,6 +19,7 @@ import (
 	"github.com/y3owk1n/fude/modules/colours"
 	"github.com/y3owk1n/fude/modules/format"
 	"github.com/y3owk1n/fude/modules/inlay"
+	listingmod "github.com/y3owk1n/fude/modules/listing"
 	lspmod "github.com/y3owk1n/fude/modules/lsp"
 	"github.com/y3owk1n/fude/protocol/lsp"
 	"github.com/y3owk1n/fude/vim"
@@ -567,11 +568,12 @@ func TestB128Icons(t *testing.T) {
 	}
 	change(t, filepath.Join(dir, "main.go"), "")
 	change(t, filepath.Join(dir, "notes"), "")
+	e.Use(listingmod.New())
 	feed(e, ":e "+dir+"<CR>")
-	v := e.Views()[0]
 	want := map[int]wire.Sign{0: {Text: "\U000f07d3", Name: "icon.azure"}, 1: {Text: "\U000f0214", Name: "icon.grey"}, 2: {Text: "\U000f024b", Name: "icon.azure"}}
-	if v.Gutter != v.SignCols+2 || !maps.Equal(v.Icons, want) {
-		t.Fatalf("the listing has gutter %d and icons %v", v.Gutter, v.Icons)
+	settle(t, e, func() bool { return maps.Equal(e.Views()[0].Icons, want) })
+	if v := e.Views()[0]; v.Gutter != v.SignCols+2 {
+		t.Fatalf("the listing has gutter %d", v.Gutter)
 	}
 }
 
