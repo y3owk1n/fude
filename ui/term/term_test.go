@@ -539,7 +539,7 @@ func TestB303DrawImage(t *testing.T) {
 	}
 	c := startWith(t, "", path)
 	var sent bytes.Buffer
-	c.img = images{tty: pixels{}, out: &sent, sent: map[int]bool{}}
+	c.img = images{tty: pixels{}, out: &sent}
 	c.e.(*editor.Session).Use(framed{path: pic})
 	// The image loads off the loop, and its rows show once it lands.
 	cell := func(x, y int) (string, tcell.Style) { s, style, _ := c.s.Get(x, y); return s, style }
@@ -557,7 +557,7 @@ func TestB303DrawImage(t *testing.T) {
 	}
 	// Its 80 by 32 pixels take 10 columns and two rows of placeholders, in
 	// the colour of its id, and the terminal got it once, sized so.
-	id := c.e.Views()[0].Virtual[0][0].Image
+	id := c.img.ids[[3]int{c.e.Views()[0].Virtual[0][0].Image, 2, 10}]
 	ink := color.NewRGBColor(int32(id>>16&0xff), int32(id>>8&0xff), int32(id&0xff))
 	for _, at := range []struct{ x, y, row, col int }{{0, 1, 0, 0}, {9, 2, 1, 9}} {
 		want := string([]rune{kitty.Placeholder, kitty.Diacritic(at.row), kitty.Diacritic(at.col)})
@@ -577,6 +577,41 @@ func TestB303DrawImage(t *testing.T) {
 	// Line b shows under the image's rows.
 	if s, _ := cell(0, 3); s != "b" {
 		t.Errorf("under the image the row shows %q", s)
+	}
+}
+
+// B305, drawn
+func TestB305DrawPreviewImage(t *testing.T) {
+	dir := t.TempDir()
+	var b bytes.Buffer
+	if err := png.Encode(&b, image.NewRGBA(image.Rect(0, 0, 80, 32))); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "a.png"), b.Bytes(), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(dir)
+	c := startWith(t, "", "a.png")
+	c.img = images{tty: pixels{}, out: new(bytes.Buffer)}
+	c.draw()
+	for _, k := range vim.Keys(":pick files<CR>") {
+		c.e.Feed(k)
+	}
+	// The image's first cell is two columns into the preview's box, four
+	// rows down, under the path, its rule and the line naming the image.
+	for deadline := time.After(5 * time.Second); ; {
+		c.draw()
+		f, _ := c.e.Float()
+		if s, _, _ := c.s.Get(f.X+f.W+2, f.Y+4); f.DocImage != nil && strings.HasPrefix(s, string(kitty.Placeholder)) {
+			break
+		}
+		select {
+		case fn := <-c.e.Queue():
+			fn()
+		case <-time.After(10 * time.Millisecond):
+		case <-deadline:
+			t.Fatal("the preview never showed the image")
+		}
 	}
 }
 

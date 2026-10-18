@@ -1,6 +1,9 @@
 package editor_test
 
 import (
+	"bytes"
+	"image"
+	"image/png"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -57,6 +60,29 @@ func TestB129Files(t *testing.T) {
 	if _, ok := e.Float(); ok || e.Views()[0].Name != "editor/git.go" || text(e) != "editor/git.go" {
 		t.Fatalf("after <Esc> the finder shows %v and the window has %q", ok, e.Views()[0].Name)
 	}
+}
+
+// B305
+func TestB305PreviewImage(t *testing.T) {
+	dir := t.TempDir()
+	var b bytes.Buffer
+	if err := png.Encode(&b, image.NewRGBA(image.Rect(0, 0, 80, 32))); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "a.png"), b.Bytes(), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(dir)
+	e := open(t, "a.png")
+	e.SetSize(100, 24)
+	e.SetCell(8, 16)
+	feed(e, ":pick files<CR>")
+	// The preview names the image, and the image shows under that, in two
+	// rows of 10 columns.
+	settle(t, e, func() bool {
+		f, _ := e.Float()
+		return f.Doc == "a.png\n\nPNG, 80 by 32 pixels" && f.DocImage != nil && f.DocImage.Row == 3 && f.DocImage.Rows == 2 && f.DocImage.Cols == 10
+	})
 }
 
 // B130

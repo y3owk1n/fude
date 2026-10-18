@@ -695,7 +695,14 @@ func (e *Session) Float() (wire.Float, bool) {
 	if f := e.finder; f != nil {
 		e.seek(f)
 		t := e.Text()
-		return f.float(t.Slice(0, t.Len()), e.Cursor(), e.width, e.height), true
+		fl := f.float(t.Slice(0, t.Len()), e.Cursor(), e.width, e.height)
+		// An image previewed shows below the line that names it, under the
+		// path and its rule (B305).
+		if p := e.previewed(f); p != nil && fl.DocW > 4 && fl.H > 6 {
+			rows, cols := e.fitImage(p, fl.DocW-4, fl.H-5)
+			fl.DocImage = &wire.Picture{ID: p.id, Row: 3, Rows: rows, Cols: cols}
+		}
+		return fl, true
 	}
 	// A command line typed in a float shows alone, as the client draws one
 	// box at the cursor, which would take the float for the line's menu.

@@ -259,6 +259,9 @@ Where fude departs, the line says so and cites the departure in
   A file with a zero byte in its first 16KB shows "binary file". When
   nothing matches, the list says "no matches". Before a query is typed,
   `:pick grep` says "type to search the files' lines".
+- B305 [2] The finder previews a PNG, JPEG or GIF as a line that says its
+  format and size, with the image below it, fit to the box, where the
+  terminal shows images (B303).
 - B131 [2] In a `:` command line, `<Tab>` and `<C-n>` put the next
   completion of the word being typed in the line, and `<S-Tab>` and
   `<C-p>` the one before. After the last comes the word as typed.

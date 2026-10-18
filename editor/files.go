@@ -6,6 +6,7 @@ import (
 	"cmp"
 	"errors"
 	"fmt"
+	"image"
 	"io"
 	"io/fs"
 	"math"
@@ -50,6 +51,7 @@ type finder struct {
 	spans    []syntax.Span       // their highlights
 	at       int                 // the row of the preview its line is on
 	reading  bool                // a preview is read off the loop
+	image    string              // the image file previewed, when it is one (B305)
 	open     bool                // <Plug>(finder.open) ran, for finding to act on after the key
 	list     bool                // <Plug>(finder.list) ran
 	queries  string              // where highlight queries are, for the preview
@@ -502,9 +504,13 @@ const finderPrompt = "› "
 // highlight takes over a millisecond (B130).
 func (f *finder) read(m string, rows, cols int) {
 	path, line, _, _ := grepSpot(m)
-	text, at := path+" is outside the project", -1
+	text, at, image := path+" is outside the project", -1, ""
 	if f.project == "" || inside(f.project, path) {
-		text, at = preview(path, max(line-1, 0), rows, cols)
+		if cfg, format, err := imageFile(path); err == nil {
+			text, image = fmt.Sprintf("%s, %d by %d pixels", strings.ToUpper(format), cfg.Width, cfg.Height), path
+		} else {
+			text, at = preview(path, max(line-1, 0), rows, cols)
+		}
 	}
 	var spans []syntax.Span
 	if at >= 0 {
@@ -514,8 +520,19 @@ func (f *finder) read(m string, rows, cols int) {
 		}
 	}
 	f.queue <- func() {
-		f.shown, f.preview, f.spans, f.at, f.reading = m, text, spans, at, false
+		f.shown, f.preview, f.spans, f.at, f.reading, f.image = m, text, spans, at, false, image
 	}
+}
+
+// imageFile returns the size and format of the image file at path, or an
+// error when it is not a PNG, JPEG or GIF.
+func imageFile(path string) (image.Config, string, error) {
+	r, err := os.Open(path)
+	if err != nil {
+		return image.Config{}, "", fmt.Errorf("image: %w", err)
+	}
+	defer r.Close()
+	return image.DecodeConfig(r)
 }
 
 // preview returns rows lines of the file at path from a third of them

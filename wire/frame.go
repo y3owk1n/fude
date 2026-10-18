@@ -122,6 +122,12 @@ func Inlines(gs []Ghost) []vim.Inline {
 	return out
 }
 
+// Picture is an image drawn in a box. It takes Rows by Cols cells, from
+// the box's row Row (B305).
+type Picture struct {
+	ID, Row, Rows, Cols int
+}
+
 // Virtual is a row a window draws below a line, or above it, that holds no
 // text (B299).
 type Virtual struct {
@@ -162,7 +168,8 @@ type Float struct {
 	Title       string // drawn in the top of its border
 	Doc         string // drawn beside it, styled by DocSpans
 	DocSpans    []syntax.Span
-	Lit         bool // the windows under it stay lit, as under the key hints (B151)
+	Lit         bool     // the windows under it stay lit, as under the key hints (B151)
+	DocImage    *Picture // an image in the documentation's box, as the finder previews one (B305)
 	// Foot shows under a rule at the bottom of a box in a place of its own,
 	// styled by FootSpans, and stays there as the text scrolls, as a
 	// panel's keys do (B159).

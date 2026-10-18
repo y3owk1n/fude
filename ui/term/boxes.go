@@ -138,6 +138,9 @@ func (c *client) float(f wire.Float, cx, cy, lo, hi, h int) (int, int, bool) {
 			doc := f.Doc + strings.Repeat("\n", max(f.H-3-strings.Count(f.Doc, "\n"), 0))
 			rows, _ := wrap(doc, f.DocSpans, f.DocW-4)
 			c.box(doc, f.DocSpans, rows[:min(len(rows), f.H-2)], f.X+f.W, f.Y, f.DocW-4, -1)
+			if p := f.DocImage; p != nil {
+				c.picture(*p, f.X+f.W+2, f.Y+1, f.DocW-4)
+			}
 		}
 		text, spans, n := f.Text, f.Spans, f.H-2
 		all, _ := wrap(f.Text, f.Spans, f.W-4)

@@ -83,6 +83,14 @@ func loadPicture(path string) (*picture, error) {
 	return &picture{png: b, w: cfg.Width, h: cfg.Height}, nil
 }
 
+// previewed returns the image f previews once it has loaded, or nil.
+func (e *Session) previewed(f *finder) *picture {
+	if f.image == "" || e.cell[0] == 0 || e.cell[1] == 0 {
+		return nil
+	}
+	return e.picture(f.image)
+}
+
 // Image returns the PNG of the image numbered id (B303).
 func (e *Session) Image(id int) ([]byte, bool) {
 	if p := e.pictures.byID[id]; p != nil {
@@ -96,15 +104,20 @@ func (e *Session) Image(id int) ([]byte, bool) {
 // it is set (B303).
 func (e *Session) SetCell(w, h int) { e.cell = [2]int{w, h} }
 
-// imageRows returns the rows and columns p takes in w: as many columns as
-// its pixels fill, at most the window's, and the rows that keep its shape,
-// at most all but two of the window's.
+// imageRows returns the rows and columns p takes in w, at most all but two
+// of its rows.
 func (e *Session) imageRows(w *window, p *picture) (rows, cols int) {
+	return e.fitImage(p, w.cols(), max(w.h-2, 1))
+}
+
+// fitImage returns the rows and columns p takes: as many columns as its pixels
+// fill, at most wide, and the rows that keep its shape, at most high.
+func (e *Session) fitImage(p *picture, wide, high int) (rows, cols int) {
 	cw, ch := e.cell[0], e.cell[1]
-	cols = min((p.w+cw-1)/cw, w.cols())
+	cols = min((p.w+cw-1)/cw, wide)
 	rows = (p.h*cols*cw/p.w + ch - 1) / ch
-	if most := max(w.h-2, 1); rows > most {
-		rows, cols = most, max(most*ch*p.w/(p.h*cw), 1)
+	if rows > high {
+		rows, cols = high, max(high*ch*p.w/(p.h*cw), 1)
 	}
 	return max(rows, 1), cols
 }
