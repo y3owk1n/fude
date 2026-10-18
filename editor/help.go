@@ -108,7 +108,8 @@ func (e *Session) helpSections() []helpSection {
 		commands.entries = append(commands.entries, helpEntry{tags, head, c.Help})
 	}
 	for _, name := range slices.Sorted(maps.Keys(e.commands)) {
-		commands.entries = append(commands.entries, helpEntry{[]string{":" + name}, ":" + name, cmp.Or(e.pluginHelp[":"+name], "a plugin's command")})
+		head := strings.TrimSpace(":" + name + " " + e.pluginArgs[name])
+		commands.entries = append(commands.entries, helpEntry{[]string{":" + name}, head, cmp.Or(e.pluginHelp[":"+name], "a plugin's command")})
 	}
 	out = append(out, commands)
 

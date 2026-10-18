@@ -498,9 +498,15 @@ func TestB341PluginReadsTheMachine(t *testing.T) {
 
 // B342
 func TestB342PluginEditsAnotherBuffer(t *testing.T) {
-	e := loaded(t, "full", "f", "a\n", "buffer.read", "buffer.write")
-	if feed(e, ":enew<CR>:Other<CR><C-^>"); text(e) != "xa" {
-		t.Errorf(":Other left %q in the other buffer, want xa", text(e))
+	e := loaded(t, "full", "f", "a\n", "buffer.read", "buffer.write", "ui")
+	// The window beside keeps showing f while a scratch buffer is current.
+	feed(e, ":Act split<CR>:Act scratch<CR>:Other<CR>")
+	for _, v := range e.Views() {
+		if !v.Current {
+			if got := v.Text.Slice(0, v.Text.Len()); got != "xa" {
+				t.Errorf(":Other left %q in the other buffer, want xa", got)
+			}
+		}
 	}
 }
 
@@ -1256,7 +1262,7 @@ func TestB306FreeImages(t *testing.T) {
 	}
 	path := filepath.Join(dir, "f")
 	change(t, path, "a\n")
-	e := start(t, path)
+	e := buffered(start(t, path))
 	e.SetSize(80, 20)
 	e.SetCell(8, 16)
 	e.Use(pictured{path: pic})

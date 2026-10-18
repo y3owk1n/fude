@@ -10,6 +10,7 @@ import (
 
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/editor/editortest"
+	buffersmod "github.com/y3owk1n/fude/modules/buffers"
 )
 
 func TestMain(m *testing.M) { os.Exit(editortest.Main(m)) }
@@ -25,6 +26,13 @@ var (
 	config = editortest.Config
 	settle = editortest.Settle
 )
+
+// buffered is e with the module that holds :b, :bn, :bp, :bd and :enew,
+// as fude has it.
+func buffered(e *editor.Session) *editor.Session {
+	e.Use(buffersmod.New())
+	return e
+}
 
 func windows(e *editor.Session) string {
 	var out []string

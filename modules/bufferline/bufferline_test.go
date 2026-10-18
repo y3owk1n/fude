@@ -8,6 +8,7 @@ import (
 
 	"github.com/y3owk1n/fude/editor/editortest"
 	"github.com/y3owk1n/fude/modules/bufferline"
+	"github.com/y3owk1n/fude/modules/buffers"
 )
 
 func TestMain(m *testing.M) { os.Exit(editortest.Main(m)) }
@@ -24,6 +25,7 @@ func TestB331BufferLineFollows(t *testing.T) {
 	t.Chdir(dir)
 	e := editortest.Open(t, "a.txt")
 	e.Use(bufferline.New())
+	e.Use(buffers.New())
 	names := func() []string {
 		var out []string
 		for _, tab := range e.Buffers() {

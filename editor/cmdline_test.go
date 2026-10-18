@@ -150,7 +150,7 @@ func TestB257Cdo(t *testing.T) {
 		t.Skipf("git init: %v: %s", err, out)
 	}
 	t.Chdir(dir)
-	e := open(t, "a.txt")
+	e := buffered(open(t, "a.txt"))
 	e.Use(grep.New())
 	e.SetSize(100, 24)
 	feed(e, ":pick grep foo<CR>")

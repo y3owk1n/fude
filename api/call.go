@@ -96,6 +96,7 @@ type Result struct {
 	// each action to its window, and Scratch opens a buffer with no file
 	// to edit. fude runs them after the call's edits, in that order (B343).
 	Close   []int
+	Drop    []int // the buffers to close by id, their changes dropped, as :bd! does (B89)
 	Write   []int
 	Windows []WindowAction
 	Scratch *Scratch
@@ -263,7 +264,7 @@ type MenuItem struct {
 // Column, counted from 1, instead of Pos (B187, B291).
 type Jump struct {
 	Path         string
-	Buffer       int    // the buffer to show by id, in place of Path (B343)
+	Buffer       int    // the buffer to show by id, in place of Path, its cursor where it was unless Line is set (B343)
 	Split        string // below or right opens Path in a new window there (B327)
 	Pos          int
 	Line, Column int
@@ -367,6 +368,7 @@ type Peer struct {
 // buffer, and where it is on the screen, its status line included (B340).
 type Window struct {
 	ID, Buffer    int
+	Alt           int // the buffer it showed before, which # names, or 0
 	Cursor, Top   int
 	Row, Column   int
 	Width, Height int
@@ -619,6 +621,7 @@ type Buffer struct {
 	Name           string // what :buffers calls it, its path or its title (B329)
 	Modified       bool
 	Kind           string // its kind of buffer, such as listing or help, or "" for one a user edits (B331)
+	Barred         bool   // the session may not show it, as a guest may not a file outside the project (B245)
 	Text           Text   `json:"-"`
 }
 

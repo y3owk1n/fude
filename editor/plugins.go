@@ -341,7 +341,7 @@ func (e *Session) went() {
 			e.split(g.Split == "right")
 		}
 		e.show(to)
-		if e.win.buf == to {
+		if e.win.buf == to && g.Line != 0 {
 			e.setCursor(e.jumpPos(g))
 			e.reveal()
 		}
@@ -415,11 +415,11 @@ func (e *Session) notice() {
 // act does what res asks of buffers, windows and the vim machine, once the
 // call's edits are made (B343, B344, B345).
 func (e *Session) act(res api.Result) {
-	for _, id := range res.Close {
+	for i, id := range slices.Concat(res.Close, res.Drop) {
 		if b, err := e.buffer(id); err != nil {
 			e.message = err.Error()
 		} else {
-			e.close(b, false)
+			e.close(b, i >= len(res.Close))
 		}
 	}
 	for _, id := range res.Write {
@@ -548,11 +548,13 @@ func (e *Session) openScratch(s api.Scratch) {
 		return
 	}
 	b := e.bufs[len(e.bufs)-1]
-	if err := b.text.Apply(kernel.Transaction{Edits: []kernel.Edit{{Text: s.Text}}}); err != nil {
-		e.message = err.Error()
-		return
+	if s.Text != "" {
+		if err := b.text.Apply(kernel.Transaction{Edits: []kernel.Edit{{Text: s.Text}}}); err != nil {
+			e.message = err.Error()
+			return
+		}
+		b.head, b.saved = b.text.Head(), b.text.Head()
 	}
-	b.head, b.saved = b.text.Head(), b.text.Head()
 	if s.Split != "" {
 		e.split(s.Split == "right")
 	}
@@ -924,6 +926,7 @@ func (e *Session) unregister(p api.Module) {
 				delete(e.commands, name)
 				delete(e.completers, name)
 				delete(e.shortOf, name)
+				delete(e.pluginArgs, name)
 			}
 			delete(e.pluginHelp, ":"+r.Name)
 		case api.Source:
@@ -1002,6 +1005,12 @@ func (e *Session) register(p api.Module, r api.Registration) {
 	switch r.Kind {
 	case api.Command:
 		e.pluginHelp[":"+r.Name] = r.Help
+		if e.pluginArgs == nil {
+			e.pluginArgs = map[string]string{}
+		}
+		for _, name := range append([]string{r.Name}, r.Short...) {
+			e.pluginArgs[name] = r.Args
+		}
 		run := func(s *Session, c call) {
 			scope := s.scope(p, s.win.buf, s.Text())
 			scope.About["args"], scope.About["bang"] = c.arg, strconv.FormatBool(c.force)
@@ -1162,7 +1171,7 @@ func keyModes(r api.Registration) []vim.Mode {
 func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 	bufs := map[int]api.Buffer{}
 	for _, o := range e.bufs {
-		bufs[o.id] = api.Buffer{Path: o.file.path, Filetype: e.filetype(o), Name: o.name(), Modified: o.modified(), Kind: o.kind(), Text: o.text.Snapshot()}
+		bufs[o.id] = api.Buffer{Barred: e.barred(o) != nil, Path: o.file.path, Filetype: e.filetype(o), Name: o.name(), Modified: o.modified(), Kind: o.kind(), Text: o.text.Snapshot()}
 	}
 	ft, opts, cfg := e.filetype(b), e.opts, &e.cfg
 	if e.win.buf == b {
@@ -1261,7 +1270,11 @@ func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 	// reason.
 	var wins []api.Window
 	for _, w := range e.root.windows() {
-		wins = append(wins, api.Window{ID: w.id, Buffer: w.buf.id, Cursor: w.pos(), Top: w.buf.text.Mark(w.top), Row: w.y, Column: w.x, Width: w.w, Height: w.h, Current: w == e.win})
+		alt := 0
+		if w.alt != nil {
+			alt = w.alt.id
+		}
+		wins = append(wins, api.Window{ID: w.id, Buffer: w.buf.id, Alt: alt, Cursor: w.pos(), Top: w.buf.text.Mark(w.top), Row: w.y, Column: w.x, Width: w.w, Height: w.h, Current: w == e.win})
 		if w.buf == b && (w == e.win || s.About["cursor"] == "") {
 			s.About["cursor"] = strconv.Itoa(w.pos())
 		}

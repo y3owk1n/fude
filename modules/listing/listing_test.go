@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/fude/editor/editortest"
+	"github.com/y3owk1n/fude/modules/buffers"
 	"github.com/y3owk1n/fude/modules/listing"
 	"github.com/y3owk1n/fude/vim"
 	"github.com/y3owk1n/fude/wire"
@@ -81,6 +82,7 @@ func TestB125EditListing(t *testing.T) {
 	}
 	e := editortest.Open(t, filepath.Join(dir, "a.txt"))
 	e.Use(listing.New())
+	e.Use(buffers.New())
 	// a.txt becomes z.txt, b.txt and old/ go, and new.txt and new/ come.
 	editortest.Feed(e, "-ggcwz<Esc>jddjjddOnew.txt<CR>new/<Esc>:w<CR>")
 	if want := "rename a.txt to z.txt, delete b.txt, delete old/ and its 2 files, create new.txt, create new/? (y/n)"; e.Message() != want {

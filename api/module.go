@@ -102,4 +102,7 @@ type Registration struct {
 	// Short are other names a Command answers to, such as ls for buffers
 	// (B329).
 	Short []string
+	// Args are the arguments a Command takes, as :h and :pick commands show
+	// them, in brackets when it may go without, such as [file] (B324).
+	Args string
 }

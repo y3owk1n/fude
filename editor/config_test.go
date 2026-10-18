@@ -69,7 +69,7 @@ func TestB94FiletypeSettings(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	e := start(t, a, b)
+	e := buffered(start(t, a, b))
 	feed(e, ">>")
 	if text(e) != "    x" {
 		t.Errorf(">> in a.go gave %q, want four spaces", text(e))
@@ -85,7 +85,7 @@ func TestB94FiletypeSettings(t *testing.T) {
 	if err := os.WriteFile(a, []byte("x\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	e = start(t, a, b)
+	e = buffered(start(t, a, b))
 	feed(e, ">>:set number true<CR>")
 	if v := e.Views()[0]; text(e) != "        x" || v.Wrap {
 		t.Errorf(">> in a.yaml gave %q with wrap %v, want spaces without wrap", text(e), v.Wrap)

@@ -43,6 +43,7 @@ type Editor struct {
 	// What plugins add, for help and the key hints: what each command and
 	// key does, by :name and <Plug>(name), and their operators and objects.
 	pluginHelp        map[string]string
+	pluginArgs        map[string]string // the arguments of a module's command, by its name (B324)
 	pluginBindings    []vim.Binding
 	plugged           int                               // how many of setup come before the plugins' own
 	commands          map[string]func(*Session, call)   // ex commands plugins registered

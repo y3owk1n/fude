@@ -24,6 +24,7 @@ import (
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/internal/relay"
 	bufferlinemod "github.com/y3owk1n/fude/modules/bufferline"
+	buffersmod "github.com/y3owk1n/fude/modules/buffers"
 	colourmod "github.com/y3owk1n/fude/modules/colours"
 	completionmod "github.com/y3owk1n/fude/modules/completion"
 	filesmod "github.com/y3owk1n/fude/modules/files"
@@ -573,6 +574,7 @@ func TestB303DrawImage(t *testing.T) {
 	var sent bytes.Buffer
 	c.img = images{tty: pixels{}, out: &sent, mode: placeholders}
 	c.e.(*editor.Session).Use(framed{path: pic})
+	c.e.(*editor.Session).Use(buffersmod.New())
 	// The image loads off the loop, and its rows show once it lands.
 	cell := func(x, y int) (string, tcell.Style) { s, style, _ := c.s.Get(x, y); return s, style }
 	for deadline := time.After(5 * time.Second); ; {
@@ -1946,9 +1948,10 @@ func TestB258BufferLine(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	// lined is a client with the buffer line's module.
+	// lined is a client with the buffer line's module, and the one :b is in.
 	lined := func(c *client) *client {
 		c.e.(*editor.Session).Use(bufferlinemod.New())
+		c.e.(*editor.Session).Use(buffersmod.New())
 		return c
 	}
 	// One file shows the line too.

@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/y3owk1n/fude/editor"
-	listsmod "github.com/y3owk1n/fude/modules/lists"
+	buffersmod "github.com/y3owk1n/fude/modules/buffers"
 	"github.com/y3owk1n/fude/vim"
 )
 
@@ -191,6 +191,7 @@ func TestB80StartWithFiles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	e.Use(buffersmod.New())
 	if text(e) != "one\n  two" || e.Cursor() != 6 {
 		t.Fatalf("started on %q at %d, want line 2 of a at 6", text(e), e.Cursor())
 	}
@@ -275,7 +276,7 @@ func TestB95WriteAndQuit(t *testing.T) {
 	} {
 		change(t, a, "one\n")
 		change(t, b, "two\n")
-		e := start(t, a, b)
+		e := buffered(start(t, a, b))
 		feed(e, c.keys)
 		if disk(t, a) != c.a || disk(t, b) != c.b || e.Done() != c.done {
 			t.Errorf("%s left %q and %q, done %v, want %q and %q, done %v", c.keys, disk(t, a), disk(t, b), e.Done(), c.a, c.b, c.done)
@@ -296,7 +297,7 @@ func TestB96AlternateBuffer(t *testing.T) {
 	a, b := filepath.Join(dir, "a"), filepath.Join(dir, "b")
 	change(t, a, "one\n")
 	change(t, b, "two\n")
-	e := start(t, a, b)
+	e := buffered(start(t, a, b))
 	feed(e, "<C-^>")
 	if e.Message() != "no alternate buffer" {
 		t.Errorf("<C-^> with no alternate said %q", e.Message())
@@ -306,90 +307,6 @@ func TestB96AlternateBuffer(t *testing.T) {
 	} {
 		if feed(e, c[0]); text(e) != c[1] {
 			t.Errorf("%s showed %q, want %q", c[0], text(e), c[1])
-		}
-	}
-}
-
-// B89
-func TestB89Buffers(t *testing.T) {
-	dir := t.TempDir()
-	a, b := filepath.Join(dir, "a"), filepath.Join(dir, "b")
-	if err := os.WriteFile(a, []byte("aaa"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(b, []byte("bbb"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	e := open(t, a)
-	e.Use(listsmod.New())
-	feed(e, "x:e "+b+"<CR>")
-	if text(e) != "bbb" {
-		t.Fatalf(":e showed %q", text(e))
-	}
-	feed(e, ":ls<CR>")
-	if want := `1+ "` + a + `"  2% "` + b + `"`; e.Message() != want {
-		t.Errorf(":ls said %q, want %q", e.Message(), want)
-	}
-	feed(e, ":b 1<CR>")
-	if text(e) != "aa" {
-		t.Fatalf(":b 1 showed %q, want the modified a", text(e))
-	}
-	feed(e, ":bp<CR>")
-	if text(e) != "bbb" {
-		t.Fatalf(":bp showed %q", text(e))
-	}
-	feed(e, ":bd 1<CR>")
-	if !strings.Contains(e.Message(), a) {
-		t.Errorf(":bd of a modified buffer said %q, want it refused", e.Message())
-	}
-	feed(e, ":q<CR>")
-	if e.Done() || !strings.Contains(e.Message(), a) {
-		t.Errorf(":q with a modified hidden buffer: done %v, message %q", e.Done(), e.Message())
-	}
-	feed(e, ":bd! 1<CR>:ls<CR>")
-	if want := `2% "` + b + `"`; e.Message() != want {
-		t.Errorf("after :bd! 1, :ls said %q, want %q", e.Message(), want)
-	}
-	// :bn and :bp go through the buffers being edited, past help, wrapping
-	// at either end, and :bd moves the window to one of them.
-	e = open(t, a)
-	feed(e, ":e "+b+"<CR>:h<CR>:only<CR>")
-	name := func() string { return filepath.Base(e.Views()[0].Name) }
-	for _, c := range []struct{ keys, want string }{
-		{":bn<CR>", "a"}, {":bn<CR>", "b"}, {":bn<CR>", "a"}, {":bp<CR>", "b"}, {":bp<CR>", "a"}, {":bn<CR>", "b"}, {":bd<CR>", "a"},
-	} {
-		if feed(e, c.keys); name() != c.want {
-			t.Errorf("%s showed %s, want %s", c.keys, name(), c.want)
-		}
-	}
-	// A buffer completes as its number, then its path from the working
-	// directory, and that names the buffer.
-	t.Chdir(dir)
-	e = open(t, a)
-	e.SetSize(80, 24)
-	feed(e, ":e "+b+"<CR>:b <Tab>")
-	if e.Line() != ":b 1 a" {
-		t.Errorf(":b <Tab> made the line %q, want :b 1 a", e.Line())
-	}
-	if feed(e, "<CR>"); filepath.Base(e.Views()[0].Name) != "a" {
-		t.Errorf(":b 1 a showed %s", e.Views()[0].Name)
-	}
-	// :bd of the buffer showing goes back to the one shown before, not to
-	// an empty buffer opened after it.
-	e = open(t, a)
-	e.SetSize(80, 24)
-	feed(e, ":e "+b+"<CR>:vnew<CR><C-w>h:bd<CR>")
-	if v := e.Views(); len(v) != 2 || filepath.Base(v[0].Name) != "a" {
-		t.Errorf(":bd from b showed %v, want a", v)
-	}
-	// A window with no buffer shown before, as a new split, passes an empty
-	// buffer too.
-	e = open(t, a)
-	e.SetSize(80, 24)
-	feed(e, ":e "+b+"<CR>:enew<CR>:b 2<CR>:vsplit<CR>:bd<CR>")
-	for _, v := range e.Views() {
-		if filepath.Base(v.Name) != "a" {
-			t.Errorf(":bd in a new split showed %s, want a", v.Name)
 		}
 	}
 }
@@ -419,7 +336,7 @@ func TestB204PathExpansion(t *testing.T) {
 	change(t, b, "B\n")
 	change(t, c, "C\n")
 	change(t, filepath.Join(dir, "d.txt"), "D\n")
-	e := open(t, b)
+	e := buffered(open(t, b))
 	for _, step := range []struct{ keys, want string }{
 		{":e %:h/c.txt<CR>", "C"},
 		{":e #<CR>", "B"},

@@ -49,22 +49,6 @@ func init() {
 		{vim.Command{Name: "accept", Args: "[n]", Help: "applies proposal n, or the buffer's newest"}, func(e *Session, x call) {
 			e.decide(x.arg, true)
 		}, nil},
-		{vim.Command{Name: "bdelete", Short: []string{"bd"}, Args: "[buffer]", Help: "closes the buffer. ! drops its changes"}, func(e *Session, x call) {
-			b := e.win.buf
-			if x.arg != "" {
-				b = e.find(x.arg)
-			}
-			if b != nil {
-				e.close(b, x.force)
-			}
-		}, completeBuffer},
-		{vim.Command{Name: "bnext", Short: []string{"bn"}, Help: "shows the next buffer"}, func(e *Session, _ call) { e.stepBuffer(1) }, nil},
-		{vim.Command{Name: "bprevious", Short: []string{"bp", "bN", "bNext"}, Help: "shows the buffer before"}, func(e *Session, _ call) { e.stepBuffer(-1) }, nil},
-		{vim.Command{Name: "buffer", Short: []string{"b"}, Args: "{buffer}", Help: "shows the buffer with that number, or whose name holds it. # is the one shown before"}, func(e *Session, x call) {
-			if b := e.find(x.arg); b != nil {
-				e.show(b)
-			}
-		}, completeBuffer},
 		{vim.Command{Name: "cd", Args: "[dir]", Help: "changes the working directory, to home without dir"}, func(e *Session, x call) { e.cd(x.arg) }, completePath},
 		{vim.Command{Name: "close", Short: []string{"clo"}, Help: "closes the window"}, func(e *Session, _ call) {
 			if err := e.closeWindow(e.win); err != nil {
@@ -78,7 +62,6 @@ func init() {
 			}
 			e.edit(x.arg)
 		}, completePath},
-		{vim.Command{Name: "enew", Help: "shows a new empty buffer"}, func(e *Session, _ call) { e.empty() }, nil},
 		{vim.Command{Name: "pick", Args: "[source] [text]", Help: "opens the finder on a source, or on the sources: files, grep [text], buffers, recent, diagnostics, symbols, help or keymaps"}, func(e *Session, x call) { e.openPick(x.arg) }, func(e *Session, _ string, start int, arg string, _ bool) (int, []string) {
 			return start, fuzzy.Match(e.pickNames(), arg)
 		}},
@@ -295,37 +278,6 @@ func completeTheme(e *Session, _ string, start int, arg string, _ bool) (int, []
 		names = append(names, e.cfg.Theme)
 	}
 	return start, fuzzy.Match(names, arg)
-}
-
-// completeBuffer offers the paths of the buffers that have files.
-func completeBuffer(e *Session, _ string, start int, arg string, _ bool) (int, []string) {
-	var names []string
-	for _, b := range e.bufs {
-		if b.file.path != "" {
-			names = append(names, strconv.Itoa(b.id)+" "+shortPath(b.file.path))
-		}
-	}
-	return start, fuzzy.Match(names, arg)
-}
-
-// shortPath is path as a buffer's completion shows it: under the working
-// directory relative to it, under the home directory with ~, or else whole.
-func shortPath(path string) string {
-	abs, err := filepath.Abs(path)
-	if err != nil {
-		return path
-	}
-	if wd, err := os.Getwd(); err == nil {
-		if rel, ok := under(wd, abs); ok {
-			return rel
-		}
-	}
-	if home, err := os.UserHomeDir(); err == nil {
-		if rel, ok := under(home, abs); ok {
-			return filepath.Join("~", rel)
-		}
-	}
-	return abs
 }
 
 // helpCommands returns the editor's commands as help shows them.

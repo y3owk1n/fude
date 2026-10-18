@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/fude/editor"
+	buffersmod "github.com/y3owk1n/fude/modules/buffers"
 	"github.com/y3owk1n/fude/modules/debug"
 	filesmod "github.com/y3owk1n/fude/modules/files"
 	"github.com/y3owk1n/fude/modules/format"
@@ -107,6 +108,7 @@ func TestB244GuestRefuses(t *testing.T) {
 	e.Use(sessionsmod.New())
 	e.Use(grammarsmod.New())
 	e.Use(terminalmod.New())
+	e.Use(buffersmod.New())
 	heard(t, log, `"method":"textDocument/didOpen"`, 1)
 	guest := e.Attach("guest", editor.Guest)
 	wd, err := os.Getwd()
@@ -178,7 +180,7 @@ func TestB245GuestProject(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	e := open(t, "a.txt")
+	e := buffered(open(t, "a.txt"))
 	e.Use(listsmod.New())
 	e.Use(listingmod.New())
 	e.Use(filesmod.New())

@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/y3owk1n/fude/editor"
+	buffersmod "github.com/y3owk1n/fude/modules/buffers"
 	"github.com/y3owk1n/fude/modules/colours"
 	"github.com/y3owk1n/fude/modules/format"
 	"github.com/y3owk1n/fude/modules/inlay"
@@ -886,6 +887,7 @@ func TestB66KeysOnlyWhileAttached(t *testing.T) {
 // B66, for grn
 func TestB66Rename(t *testing.T) {
 	e, log := withServer(t, "a target\nb target\nc\n", "utf-8")
+	e.Use(buffersmod.New())
 	heard(t, log, `"method":"textDocument/didOpen"`, 1)
 	other := filepath.Join(filepath.Dir(e.Views()[0].Name), "other.go")
 	change(t, other, "package p\n")

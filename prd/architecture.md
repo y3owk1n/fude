@@ -830,6 +830,15 @@ a list, a grep match as a place at its line and column, a file at its
 start (B195). The places of `:pick diagnostics` and `:pick symbols` go
 the same way (B196, B214).
 
+`modules/buffers` is `:buffer`, `:bnext`, `:bprevious`, `:bdelete` and
+`:enew`. `:b` finds a buffer in `Scope.Buffers` by its number, by text its
+name holds, or as `#`, the current window's `Alt`, and shows it with a
+`Jump` by `Buffer`. `:bn` and `:bp` step through the buffers of no kind
+the session may show. `:bd` asks for `Close`, and `:bd!` for `Drop`. When
+a buffer closes, the editor moves each window on it to the buffer it
+showed before, or else to the next being edited. `:enew` is an empty
+`Scratch`. `<C-^>` is `:b #` (B89).
+
 The client keeps a cell grid, diffs it against the previous frame, and
 writes only the changed cells in one write. It wraps each frame in
 synchronized output where the terminal supports it.
