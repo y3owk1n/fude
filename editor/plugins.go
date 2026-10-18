@@ -434,6 +434,7 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 			e.later = append(e.later, vim.Key(string(r)))
 		}
 	}
+	e.serverActions(res.Servers)
 	if s := res.Show; s != nil {
 		e.panel(*s)
 	}
@@ -770,6 +771,9 @@ func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 		s.About["top"] = strconv.Itoa(top)
 		s.About["bottom"] = strconv.Itoa(vim.LineEnd(t, t.LineStart(min(t.LineOf(top)+max(e.win.h-2, 0), t.Lines()-1))))
 	}
+	s.About["columns"] = strconv.Itoa(e.width)
+	servers := e.serverList()
+	s.Servers = func() []api.Server { return servers }
 	s.Option = func(name string) (string, bool) { return option(opts, cfg, name) }
 	s.Config = func(path string) (string, bool) { return configNode(cfg, path) }
 	if b.syntax != nil {

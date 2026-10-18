@@ -452,9 +452,7 @@ func TestB159LspPanel(t *testing.T) {
 	// s stops the server under the cursor, and r starts it again.
 	feed(e, "s")
 	heard(t, log, `"method":"shutdown"`, 1)
-	if !strings.Contains(panel(), "stopped") {
-		t.Fatalf("after s the panel showed %q", panel())
-	}
+	settle(t, e, func() bool { return strings.Contains(panel(), "stopped") })
 	feed(e, "r")
 	heard(t, log, `"method":"textDocument/didOpen"`, 2)
 	if feed(e, "q"); panel() != "" {

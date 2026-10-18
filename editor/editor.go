@@ -104,7 +104,6 @@ type Session struct {
 	cmdline    cmdline                 // the completions of the command line being typed
 	searching  *[2]int                 // the top and cursor of the window a search is typed in, to put back (B21)
 	locals     map[string]*vim.Keymaps // the keymaps of kinds of buffer, by kind, over the machine's (B142)
-	lspCards   []lspCard               // the cards of the :lsp panel, in order
 	history    []string                // the messages shown, oldest first, at most 200 (B157)
 	logged     string                  // the message last put in history
 	under      *window                 // the window a focused float was opened from
@@ -712,8 +711,8 @@ func (e *Session) Float() (wire.Float, bool) {
 		return wire.Float{}, false
 	}
 	if e.under != nil {
-		if e.win.buf.title == "[lsp]" {
-			return e.lspFloat(), true
+		if bx := e.win.buf.box; bx != nil {
+			return e.boxFloat(bx), true
 		}
 		t := e.Text()
 		return wire.Float{Text: t.Slice(0, t.Len()), Spans: e.float.spans, Top: e.Top(), Cursor: e.Cursor()}, true
@@ -1127,7 +1126,7 @@ type overlay interface {
 
 // overlays are what may take a key, in the order they get it.
 func (e *Session) overlays() []overlay {
-	return []overlay{e.capture, e.finder, terminalMode{}, &e.completion, e.snip, e.pick, &e.float, e.ask, lspPanel{}, &e.cmdline}
+	return []overlay{e.capture, e.finder, terminalMode{}, &e.completion, e.snip, e.pick, &e.float, e.ask, boxKeys{}, &e.cmdline}
 }
 
 // floating is text shown over the windows at the cursor, such as hover,

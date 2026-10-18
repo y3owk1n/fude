@@ -76,6 +76,7 @@ type buffer struct {
 	set     map[string]string // the options modules set on it, by name (B283)
 	folds   []decoration      // the closed folds on it, modules' decorations (B224)
 	keys    *vim.Keymaps      // a panel's own keys, nil for its kind's (B291)
+	box     *box              // how a panel in a box of its own draws, nil for any other (B159)
 	term    *terminal         // the program a terminal buffer shows, nil for any other (B205)
 	// A scratch buffer shows something about another buffer, such as its
 	// timeline, under a title instead of a file name.
@@ -230,7 +231,7 @@ func (b *buffer) kind() string {
 		return "timeline"
 	case b.title == "[float]":
 		return "float"
-	case b.title == "[lsp]":
+	case b.title == "[language servers]":
 		return "lsp"
 	case b.title == "[help]":
 		return "help"

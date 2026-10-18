@@ -1,7 +1,8 @@
 // Package lsp is what a language server tells about the symbol under the
 // cursor: hover, its definition, type definition, implementations and
 // references, the file's symbols, the workspace's, and renaming it (B62,
-// B66, B214).
+// B66, B214). Its :lsp panel shows the language servers and restarts,
+// stops, disables or enables them (B159).
 package lsp
 
 import (
@@ -35,6 +36,13 @@ const (
 	showDiag
 	codeActions
 	diagnosticsSrc
+	lspCmd
+	restartKey
+	stopKey
+	disableKey
+	enableKey
+	nextCard
+	prevCard
 )
 
 // The callbacks lsp asks for, by id. A request's id is the id of the call
@@ -94,7 +102,7 @@ func New() *Module {
 func (m *Module) Name() string { return "lsp" }
 
 func (m *Module) Subscribed() []string {
-	return []string{"lsp.published", "lsp.detached", "buffer.closed", "view.moved"}
+	return []string{"lsp.published", "lsp.detached", "lsp.changed", "buffer.closed", "view.moved"}
 }
 
 func (m *Module) Registered() []api.Registration {
@@ -113,6 +121,13 @@ func (m *Module) Registered() []api.Registration {
 		{Kind: api.Key, Name: "<C-w>d", Help: "shows the diagnostics on the cursor's line in full", ID: showDiag},
 		{Kind: api.Key, Name: "gra", Help: "lists the language server's actions for the cursor's place", ID: codeActions, Attached: true, Visual: true},
 		{Kind: api.Source, Name: "diagnostics", Help: "the diagnostics of every open buffer, the current buffer's first", ID: diagnosticsSrc},
+		{Kind: api.Command, Name: "lsp", Help: "opens the panel of language servers, or acts on the file's servers: restart, stop, disable or enable", ID: lspCmd, Complete: true},
+		{Kind: api.Plug, Name: "restart", Help: "restarts the language server under the cursor", ID: restartKey},
+		{Kind: api.Plug, Name: "stop", Help: "stops the language server under the cursor", ID: stopKey},
+		{Kind: api.Plug, Name: "disable", Help: "keeps the language server under the cursor off", ID: disableKey},
+		{Kind: api.Plug, Name: "enable", Help: "lets the language server under the cursor start again", ID: enableKey},
+		{Kind: api.Plug, Name: "next", Help: "moves n servers down", ID: nextCard},
+		{Kind: api.Plug, Name: "prev", Help: "moves n servers up", ID: prevCard},
 	}
 }
 
@@ -137,6 +152,9 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 		return res, nil
 	case diagnosticsSrc:
 		return api.Result{Pick: &api.Pick{ID: diagPick, Title: "diagnostics", Items: m.places(s), Places: true}}, nil
+	case lspCmd, restartKey, stopKey, disableKey, enableKey, nextCard, prevCard:
+		m.serverCall(&res, s, id, cursor, args[1])
+		return res, nil
 	case codeActions:
 		start, end := cursor, cursor
 		if s.About["mode"] == "visual" {
@@ -190,6 +208,10 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 		m.published(&res, s)
 	case "lsp.detached":
 		m.detached(&res, s, server)
+	case "lsp.changed":
+		// The panel of language servers shows the new state, while it is open.
+		res.Show, _ = panel(s)
+		res.Show.Update = true
 	case "buffer.closed":
 		delete(m.diags, s.About["buffer"])
 		delete(m.renameAt, s.About["buffer"])

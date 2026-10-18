@@ -1036,6 +1036,16 @@ Where fude departs, the line says so and cites the departure in
   window, such as a line in `diff.plus`, over what the filetype colours.
 - B277 [4] A plugin hears `editor.focused` when the terminal gets the
   focus back, as git's index may have changed while fude was away.
+- B318 [4] A module's panel may show in a box of its own in the middle
+  of the screen, which takes the focus. Its parts may be cards, which
+  the cursor moves between, and its keys may stay at its foot as it
+  scrolls, as the `:lsp` panel's do (B159). A panel shown only to update
+  replaces the text of the one open, and opens none once it is closed.
+- B317 [4] A module hears `lsp.changed` when a language server starts,
+  is ready, stops, fails to start, or is disabled or enabled. A call
+  lists the language servers `config.toml` sets, each with its state,
+  version, filetypes, roots and files, and asks to restart, stop,
+  disable or enable one, which a guest may not (B159, B160).
 - B316 [4] A module's call may take the keys typed next. Each key goes
   to that call before any other key handling, until a result lets them
   go. A jump reads its characters and labels this way (B218). A call

@@ -160,25 +160,6 @@ func init() {
 		{vim.Command{Name: "jumps", Short: []string{"ju"}, Help: "lists the window's jumps"}, func(e *Session, _ call) { e.jumps() }, nil},
 		{vim.Command{Name: "kick", Args: "{name}", Help: "ends the session of the guest called name"}, func(e *Session, x call) { e.kick(x.arg) }, completeKick},
 		{vim.Command{Name: "later", Args: "{n}", Help: "goes n states forward. n may be a time such as 5m, or a count of writes such as 1f"}, func(e *Session, x call) { e.travel(x.arg, true) }, nil},
-		{vim.Command{Name: "lsp", Args: "[restart|stop|disable|enable]", Help: "opens the panel of language servers, or acts on the file's servers"}, func(e *Session, x call) {
-			if x.arg == "" {
-				e.lspPanel()
-				return
-			}
-			names := e.serverNames(e.win.buf)
-			if len(names) == 0 {
-				e.lspCommand(x.arg, "")
-				return
-			}
-			var said []string
-			for _, name := range names {
-				e.lspCommand(x.arg, name)
-				said = append(said, e.message)
-			}
-			e.message = strings.Join(slices.Compact(said), "  ")
-		}, func(_ *Session, _ string, start int, arg string, _ bool) (int, []string) {
-			return start, match(lspCommands, arg)
-		}},
 		{vim.Command{Name: "marks", Help: "lists the buffer's marks"}, func(e *Session, _ call) { e.marks() }, nil},
 		{vim.Command{Name: "messages", Short: []string{"mes"}, Args: "[yank]", Help: "lists the messages shown, oldest first, or with yank puts the last on the clipboard"}, func(e *Session, x call) { e.messages(x.arg) }, func(_ *Session, _ string, start int, arg string, _ bool) (int, []string) {
 			return start, match([]string{"yank"}, arg)
@@ -275,12 +256,6 @@ func init() {
 		}},
 		{"list.open", "goes to the place under the cursor", func(e *Session, _ int) { e.openSpot() }},
 		{"help.follow", "goes to the help entry of the name under the cursor", func(e *Session, _ int) { e.followHelp() }},
-		{"lsp.restart", "restarts the language server under the cursor", func(e *Session, _ int) { e.lspCommand("restart", e.lspCardName()) }},
-		{"lsp.stop", "stops the language server under the cursor", func(e *Session, _ int) { e.lspCommand("stop", e.lspCardName()) }},
-		{"lsp.disable", "keeps the language server under the cursor off", func(e *Session, _ int) { e.lspCommand("disable", e.lspCardName()) }},
-		{"lsp.enable", "lets the language server under the cursor start again", func(e *Session, _ int) { e.lspCommand("enable", e.lspCardName()) }},
-		{"lsp.next", "moves n servers down", func(e *Session, count int) { e.lspMove(max(count, 1)) }},
-		{"lsp.prev", "moves n servers up", func(e *Session, count int) { e.lspMove(-max(count, 1)) }},
 		{"list.next", "goes to the next place of the last list", func(e *Session, n int) { e.stepPlace(func(at, _ int) int { return at + max(n, 1) }) }},
 		{"list.prev", "goes to the place before in the last list", func(e *Session, n int) { e.stepPlace(func(at, _ int) int { return max(at, 0) - max(n, 1) }) }},
 		{"list.first", "goes to the first place of the last list", func(e *Session, _ int) { e.stepPlace(func(int, int) int { return 0 }) }},

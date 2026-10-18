@@ -75,6 +75,7 @@ type Result struct {
 	Log        []string       // lines for fude's log, where a plugin's own go (B50)
 	Apply      *WorkspaceEdit // a language server's edit of any files, applied with its version checks
 	Cmdline    string         // a command line to start typing, without its colon, such as rename name
+	Servers    []ServerAction // what to do to language servers, which only the host may ask (B317)
 	// Set holds options to set on the buffer the call is about, by their
 	// config.toml names: expand_tab, indent_width and tab_width. fude uses
 	// them in place of config.toml's until the buffer closes (B283).
@@ -212,6 +213,47 @@ type Panel struct {
 	Title, Filetype, Text string
 	Spans                 []Span            // styles over Text, such as diff.plus on a line (B276)
 	Keys                  map[string]string // its own keys in normal mode, such as <CR> to a plug of the owner's (B291)
+	// Float shows it in a box of its own in the middle of the screen, which
+	// takes the focus and names it by Title without its brackets (B318).
+	Float bool
+	// Update only replaces the text of the panel open under Title, and
+	// opens none when it is closed, as an event's result does (B318).
+	Update bool
+	// Cards are the lines of the first rows of the parts of a Float panel.
+	// The cursor stays on a card's first row, which shows raised, and the
+	// box scrolls to show all of the card. Such a panel takes its own keys
+	// and : alone (B318).
+	Cards []int
+	// Foot shows under a rule at the foot of a Float panel, styled by
+	// FootSpans, and stays there as the text scrolls.
+	Foot      string
+	FootSpans []Span
+}
+
+// Server is a language server config.toml sets, as :lsp shows it (B317).
+type Server struct {
+	Name string
+	// State is running, starting, stopped, disabled, not installed, failed,
+	// or no files when none of the files it serves is open.
+	State     string
+	Why       string // why a failed server is down
+	Version   string
+	Filetypes []string
+	Roots     []Root // where it runs
+}
+
+// Root is a project root a language server runs in, with the paths of the
+// files open in it.
+type Root struct {
+	Path  string
+	Files []string
+}
+
+// ServerAction asks to restart, stop, disable or enable the language
+// server Name, as Do says. A disabled server stays off for every file
+// until enabled (B317).
+type ServerAction struct {
+	Name, Do string
 }
 
 // Timer is a callback a call asks fude to run after a while, by the id it
@@ -250,6 +292,8 @@ type Scope struct {
 	// filetype.go.format or formatter.gofmt.command, as JSON, or false for
 	// none. A table's key follows its name in the path (B279).
 	Config func(path string) (string, bool)
+	// Servers returns the language servers config.toml sets, by name (B317).
+	Servers func() []Server
 	// Decorations returns the owner's decorations on every open buffer, by
 	// Buffer, where they were when the call began (B289, B291).
 	Decorations func() []Decoration

@@ -19,7 +19,7 @@ and a program that embeds the editor does the same.
 | [`inlay`](inlay) | a language server's inlay hints |
 | [`jump`](jump) | `s` jumps to text in view by its label |
 | [`links`](links) | `gx` opens the link or file under the cursor, `gf` the file |
-| [`lsp`](lsp) | diagnostics, hover, definitions, references, symbols, rename and code actions |
+| [`lsp`](lsp) | diagnostics, hover, definitions, references, symbols, rename, code actions and the `:lsp` panel |
 | [`markdown`](markdown) | a markdown file draws as it reads, with `render` on |
 | [`recent`](recent) | keeps the files windows show, for `:pick recent` and the start screen |
 | [`shell`](shell) | `:!`, `:{range}!` and `:r !` run a command in the shell |
@@ -29,8 +29,8 @@ and a program that embeds the editor does the same.
 A module imports `api`, `protocol` and `internal`, never the editor, and
 `just module-imports` checks that. What a module may ask of the editor is
 in `api`'s README, and the editor keeps what the modules build on: the
-language server lifecycle and document sync, completion, signature help and
-the `:lsp` panel.
+language server lifecycle and document sync, completion and signature
+help.
 
 Each module's tests sit beside it and drive a headless editor through
 [`editor/editortest`](../editor/editortest), so `go test ./modules/spell`

@@ -363,6 +363,9 @@ func (e *Session) state(arg string) (*buffer, int) {
 // the window of that title shows, keeping its cursor's line and the focus
 // where they are. It reports whether it did (B186).
 func (e *Session) panel(p api.Panel) bool {
+	if p.Float {
+		return e.boxPanel(p)
+	}
 	if i := slices.IndexFunc(e.root.windows(), func(w *window) bool { return w.buf.title == p.Title }); i >= 0 {
 		b := e.root.windows()[i].buf
 		t := b.text.Snapshot()
@@ -375,6 +378,9 @@ func (e *Session) panel(p api.Panel) bool {
 		}
 		e.style(b, p.Spans)
 		return true
+	}
+	if p.Update {
+		return false
 	}
 	e.scratch(p.Title, p.Text, nil, nil)
 	b := e.win.buf

@@ -233,7 +233,7 @@ func withLeader(keys, leader string) string {
 // kindKeys are fude's own keys of each kind of buffer, which
 // [keymap.<kind>] changes (B142).
 func kindKeys() map[string]map[string]string {
-	return map[string]map[string]string{"listing": listingKeys, "list": listKeys, "timeline": timelineKeys, "finder": finderKeys, "float": floatKeys, "lsp": lspKeys, "help": helpKeys, "scratch": scratchKeys, "start": startKeys, "terminal": terminalKeys, "debug": nil}
+	return map[string]map[string]string{"listing": listingKeys, "list": listKeys, "timeline": timelineKeys, "finder": finderKeys, "float": floatKeys, "lsp": nil, "help": helpKeys, "scratch": scratchKeys, "start": startKeys, "terminal": terminalKeys, "debug": nil}
 }
 
 // kinds returns the tables of km by kind of buffer. The finder's table maps

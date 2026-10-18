@@ -24,6 +24,7 @@ import (
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/internal/relay"
 	colourmod "github.com/y3owk1n/fude/modules/colours"
+	lspmod "github.com/y3owk1n/fude/modules/lsp"
 	"github.com/y3owk1n/fude/syntax/syntaxtest"
 	"github.com/y3owk1n/fude/vim"
 	"github.com/y3owk1n/fude/wire"
@@ -1119,6 +1120,7 @@ func TestB159LspPanelScrolls(t *testing.T) {
 		fmt.Fprintf(&config, "[filetype.t%02d]\nlsp = [\"server%02d\"]\n", i, i)
 	}
 	cl := startWith(t, config.String())
+	cl.e.(*editor.Session).Use(lspmod.New())
 	shows := func(name string) bool {
 		cl.draw()
 		w, h := cl.s.Size()

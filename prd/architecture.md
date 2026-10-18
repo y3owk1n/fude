@@ -527,7 +527,8 @@ or the view, `mode.changed`, `syntax.updated` when a parse lands,
 `lsp.diagnostics`, `lsp.attached` once a server is ready for a buffer
 (B284), `editor.focused` when the terminal gets the focus back
 (B277), `buffer.shown` when the current window shows another buffer
-(B314), `listing.read` when a listing reads its directory, as it opens,
+(B314), `lsp.changed` when a language server's state changes (B317),
+`listing.read` when a listing reads its directory, as it opens,
 reads it again or the terminal gets the focus back (B126), `buffer.saving`
 before a write, which waits for its handlers and
 their callbacks or `format_timeout` (B282), and a plugin's own events,
@@ -1779,9 +1780,13 @@ phases, each unit a commit that keeps every behaviour.
    applies a workspace edit across files with the editor's version
    checks. `modules/lsp` then holds hover, the goto family, references,
    symbols, rename, code actions and the diagnostics display. The editor
-   keeps the server lifecycle, document sync, completion and the `:lsp`
-   panel, which reads the servers' state and restarts, stops and disables
-   them. Completion stays
+   keeps the server lifecycle, document sync and completion. The `:lsp`
+   panel is the module's. `Scope.Servers` reads the servers' state, and
+   `Result.Servers` restarts, stops, disables or enables one. On
+   `lsp.changed` the module shows the panel again with `Update`, so a
+   closed panel stays closed. The panel is a `Float` panel with `Cards`
+   and a `Foot`. The editor keeps the cursor on a card's first row and
+   scrolls the box to show all of the card (B317, B318). Completion stays
    because a module's `Call` is busy while it handles `buffer.changed`,
    which is when completion fires.
 3. Tests beside the libraries. The tests that use only `syntax`,

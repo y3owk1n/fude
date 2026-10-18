@@ -41,7 +41,7 @@ func refuses(name, arg string) bool {
 		return true
 	case "read":
 		return strings.HasPrefix(arg, "!")
-	case "grammar", "lsp", "plugin":
+	case "grammar", "plugin":
 		return arg != ""
 	}
 	return false
@@ -51,7 +51,6 @@ func refuses(name, arg string) bool {
 // says of ex commands (B244).
 var refusedPlugs = map[string]bool{
 	"restart": true, "listing.cwd": true,
-	"lsp.restart": true, "lsp.stop": true, "lsp.disable": true, "lsp.enable": true,
 }
 
 // inside says whether path, once symlinks resolve, is under project and

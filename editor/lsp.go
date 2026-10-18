@@ -131,6 +131,7 @@ func (e *Session) attachTo(b *buffer, name string) error {
 		}
 		s = &server{name: name, command: command, root: root, versions: map[*buffer]int{}}
 		if err := e.start(s); err != nil {
+			e.serversChanged(name)
 			e.down[name] = err.Error()
 			// A program missing from PATH stays missing, so files opened
 			// later do not try again.
@@ -214,6 +215,7 @@ func (e *Session) start(s *server) error {
 		return err
 	}
 	trace.Record("lsp", "started "+s.name+" in "+s.root, 0)
+	e.serversChanged(s.name)
 	// A restarted server starts with none of its old process's work.
 	s.client, s.work = c, map[string]*work{}
 	if len(cfg.Settings) > 0 {
@@ -254,6 +256,7 @@ func (e *Session) exited(s *server, err error) {
 
 // stop detaches every buffer from s and forgets it.
 func (e *Session) stop(s *server) {
+	e.serversChanged(s.name)
 	for _, b := range s.bufs {
 		b.servers = slices.DeleteFunc(b.servers, func(o *server) bool { return o == s })
 		e.emit("lsp.detached", s.name, b)
@@ -274,6 +277,7 @@ func (e *Session) notified(s *server, method string, params json.RawMessage) {
 		s.progressed(params)
 		return
 	case "initialized":
+		e.serversChanged(s.name)
 		for _, b := range s.bufs {
 			e.emit("lsp.attached", s.name, b)
 		}
