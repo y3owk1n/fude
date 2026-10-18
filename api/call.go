@@ -244,6 +244,19 @@ type Panel struct {
 	FootSpans []Span
 }
 
+// Binding is a key fude knows, as :pick keymaps lists it. Kind is a mode's
+// mapping, such as normal mapping, the mode a key works in, or motion,
+// operator or object (B324).
+type Binding struct {
+	Keys, Help, Kind string
+}
+
+// ExCommand is an ex command, as :pick commands lists it. Args are the
+// arguments it takes, in brackets when it may go without (B324).
+type ExCommand struct {
+	Name, Args, Help string
+}
+
 // Server is a language server config.toml sets, as :lsp shows it (B317).
 type Server struct {
 	Name string
@@ -310,6 +323,15 @@ type Scope struct {
 	// such as iw, a( or 2i", selects at pos, or false when nothing matches
 	// (B322).
 	Object func(keys string, pos int) (start, end int, ok bool)
+	// Keys returns every key fude knows: the mappings of normal, visual and
+	// insert mode, each with what it runs, then the vim machine's keys,
+	// fude's and the modules', each with its help and kind (B324).
+	Keys func() []Binding
+	// Commands returns every ex command, the modules' too, and :plug of each
+	// <Plug>, with the arguments each takes and its help (B324).
+	Commands func() []ExCommand
+	// HelpTags returns what :h opens help at (B324).
+	HelpTags func() []string
 	// Servers returns the language servers config.toml sets, by name (B317).
 	Servers func() []Server
 	// Decorations returns the owner's decorations on every open buffer, by

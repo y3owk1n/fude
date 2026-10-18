@@ -1036,6 +1036,10 @@ Where fude departs, the line says so and cites the departure in
   window, such as a line in `diff.plus`, over what the filetype colours.
 - B277 [4] A plugin hears `editor.focused` when the terminal gets the
   focus back, as git's index may have changed while fude was away.
+- B324 [4] A module's call lists every key fude knows, each with its kind
+  and help, every ex command with its arguments and help, and the tags
+  help opens at, as `:pick keymaps`, `:pick commands` and `:pick help`
+  do (B215, B266).
 - B323 [4] A module's key typed in insert mode runs before the key does
   its own work. Its edits go in as typed text does, and dot repeats
   them. With none the key does what it does, as `<BS>` deletes outside a

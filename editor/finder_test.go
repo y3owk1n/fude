@@ -14,6 +14,7 @@ import (
 	"github.com/y3owk1n/fude/modules/autopairs"
 	filesmod "github.com/y3owk1n/fude/modules/files"
 	"github.com/y3owk1n/fude/modules/grep"
+	pickmod "github.com/y3owk1n/fude/modules/pick"
 	"github.com/y3owk1n/fude/syntax"
 )
 
@@ -125,28 +126,10 @@ func TestB202FinderQuery(t *testing.T) {
 	}
 }
 
-// B266
-func TestB266PickCommands(t *testing.T) {
-	e := start(t)
-	e.SetSize(100, 30)
-	shows := func(want string) bool { f, _ := e.Float(); return strings.Contains(f.Text, want) }
-	// Typing what a command does finds it, and the one picked runs.
-	feed(e, ":pick commands<CR>opens a window below with a new empty")
-	settle(t, e, func() bool { return shows(":new") })
-	if feed(e, "<CR>"); len(e.Views()) != 2 {
-		t.Fatalf("picking :new left %d windows", len(e.Views()))
-	}
-	// One that needs an argument waits on the command line.
-	feed(e, ":pick commands<CR>:cdo")
-	settle(t, e, func() bool { return shows(":cdo") })
-	if feed(e, "<CR>"); e.Line() != ":cdo " {
-		t.Errorf("picking :cdo left the line %q", e.Line())
-	}
-}
-
 // B271
 func TestB271Plug(t *testing.T) {
 	e := withKit(t)
+	e.Use(pickmod.New())
 	e.SetSize(100, 30)
 	// A plugin's key runs with no key typed.
 	feed(e, ":plug kit.gS<CR>")
@@ -166,33 +149,6 @@ func TestB271Plug(t *testing.T) {
 	}
 	feed(e, "<CR>")
 	settle(t, e, func() bool { return strings.HasPrefix(text(e), "f") })
-}
-
-// B215
-func TestB215PickLists(t *testing.T) {
-	config(t, "[keymap.normal]\n\"z9\" = \":set number true<CR>\"\n")
-	e := start(t)
-	e.SetSize(100, 30)
-	shows := func(want string) bool { f, _ := e.Float(); return strings.Contains(f.Text, want) }
-	// :pick alone lists the sources, and picking one opens its finder.
-	feed(e, ":pick<CR>")
-	settle(t, e, func() bool { return shows("keymaps") })
-	feed(e, "keymaps<CR>z9")
-	settle(t, e, func() bool { return shows("normal mapping  types :set<Space>number<Space>true<CR>") })
-	// A mapping picked runs.
-	if feed(e, "<CR>"); !e.Views()[0].Number {
-		t.Error("picking z9 did not run it")
-	}
-	// It lists the machine's keys too, each with its kind and help, and a
-	// motion picked runs, j here after insert mode's <Down>.
-	feed(e, "ggix<CR>y<Esc>gg:pick keymaps<CR>moves down a line")
-	settle(t, e, func() bool { return shows("motion          moves down a line") })
-	if feed(e, "<C-n><CR>"); e.Text().LineOf(e.Cursor()) != 1 {
-		t.Errorf("picking j left the cursor on line %d", e.Text().LineOf(e.Cursor()))
-	}
-	if feed(e, ":pick help<CR>guide-start<CR>"); !strings.HasPrefix(text(e), "# fude help") {
-		t.Errorf("picking guide-start opened %q", e.Views()[len(e.Views())-1].Name)
-	}
 }
 
 // B212

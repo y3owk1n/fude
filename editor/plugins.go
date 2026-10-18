@@ -834,6 +834,10 @@ func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 		count, _ := strconv.Atoi(keys[:len(keys)-len(obj)])
 		return vim.TextObject(t, pos, count, obj)
 	}
+	// Only a call reads the registry, on the loop, so run sets these.
+	s.Keys = func() []api.Binding { return nil }
+	s.Commands = func() []api.ExCommand { return nil }
+	s.HelpTags = func() []string { return nil }
 	servers := e.serverList()
 	s.Servers = func() []api.Server { return servers }
 	s.Option = func(name string) (string, bool) { return option(opts, cfg, name) }
@@ -921,6 +925,8 @@ func (e *Session) run(p api.Module, id uint32, scope api.Scope, args ...int) ([]
 			}
 		}
 	}
+	// What the registry holds is read on the loop, as a call runs (B324).
+	scope.Keys, scope.Commands, scope.HelpTags = e.keyList, e.commandList, e.helpTags
 	at := time.Now()
 	res, err := p.Call(context.Background(), id, scope, args...)
 	trace.Record("plugin", p.Name()+" ran "+name, time.Since(at))

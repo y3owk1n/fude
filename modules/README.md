@@ -23,6 +23,7 @@ and a program that embeds the editor does the same.
 | [`links`](links) | `gx` opens the link or file under the cursor, `gf` the file |
 | [`lsp`](lsp) | diagnostics, hover, definitions, references, symbols, rename, code actions and the `:lsp` panel |
 | [`markdown`](markdown) | a markdown file draws as it reads, with `render` on |
+| [`pick`](pick) | `:pick help`, `:pick keymaps` and `:pick commands` |
 | [`recent`](recent) | keeps the files windows show, for `:pick recent` and the start screen |
 | [`shell`](shell) | `:!`, `:{range}!` and `:r !` run a command in the shell |
 | [`spell`](spell) | `spell`, `]s`, `[s`, `z=` and `zg` |

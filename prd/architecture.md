@@ -433,6 +433,13 @@ machine runs each before the typed key's own work. A call with no edits
 lets the key do what it does, so `<BS>` outside a pair deletes as usual. The finder
 feeds its query with `Machine.Prompt` on, which runs none of them (B323).
 
+`modules/pick` is `:pick help`, `:pick keymaps` and `:pick commands`
+(B215, B266). A call reads the registry through `Scope.Keys`,
+`Scope.Commands` and `Scope.HelpTags`. Only a call has them, since the
+registry changes on the loop. A picked command or tag goes back as a
+`Cmdline`, which types it as it is, with `<CR>` in `Keys` to run it. A
+picked key goes back in `Keys` (B324).
+
 `modules/jump` runs `s` (B218). Its `<Plug>(jump.start)` returns a result
 with `Capture`, so each key typed next goes to its call with `key` in
 `About`, before any overlay, until a result without it (B316). It finds
