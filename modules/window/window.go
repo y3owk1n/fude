@@ -1,7 +1,7 @@
 // Package window moves to the window that way, or inside tmux, with no
 // window that way, to tmux's pane there, as nvim-tmux-navigation does
 // (B140). It is also :split, :vsplit, :new, :vnew, :only, :resize and
-// :vertical resize (B91, B193).
+// :vertical resize, and the <C-w> keys that size a window (B91, B193).
 package window
 
 import (
@@ -34,7 +34,33 @@ const (
 	only
 	resize
 	vertical
+	taller
+	shorter
+	wider
+	narrower
+	tallest
+	tallestToo
+	widest
 )
+
+// sizes are the <C-w> keys that size the current window, by their ids:
+// each changes its rows or columns by the count, or makes it the count
+// tall or wide, or as large as it can be with none (B193).
+var sizes = []struct {
+	id         uint32
+	name, keys string
+	do         string
+	by         int // the count's sign for a change, 0 for a size
+	help       string
+}{
+	{taller, "taller", "<C-w>+", "taller", 1, "makes the window taller, by the count"},
+	{shorter, "shorter", "<C-w>-", "taller", -1, "makes the window shorter, by the count"},
+	{wider, "wider", "<C-w>>", "wider", 1, "makes the window wider, by the count"},
+	{narrower, "narrower", "<C-w><", "wider", -1, "makes the window narrower, by the count"},
+	{tallest, "tallest", "<C-w>_", "height", 0, "makes the window the count tall, or as tall as it can be"},
+	{tallestToo, "tallest.ctrl", "<C-w><C-_>", "height", 0, "makes the window the count tall, or as tall as it can be"},
+	{widest, "widest", "<C-w>|", "width", 0, "makes the window the count wide, or as wide as it can be"},
+}
 
 // Module is window.
 type Module struct{}
@@ -51,7 +77,7 @@ func (m *Module) Registered() []api.Registration {
 	for i, d := range dirs {
 		regs[i] = api.Registration{Kind: api.Plug, Name: d.name, Help: d.help, ID: uint32(i + 1)}
 	}
-	return append(regs,
+	regs = append(regs,
 		api.Registration{Kind: api.Command, Name: "split", Short: []string{"sp"}, Args: "[file]", Paths: true, Help: "opens a window below, then opens file in it", ID: split},
 		api.Registration{Kind: api.Command, Name: "vsplit", Short: []string{"vs"}, Args: "[file]", Paths: true, Help: "opens a window to the right, then opens file in it", ID: vsplit},
 		api.Registration{Kind: api.Command, Name: "new", Help: "opens a window below with a new empty buffer, or above with split_below off", ID: below},
@@ -60,13 +86,26 @@ func (m *Module) Registered() []api.Registration {
 		api.Registration{Kind: api.Command, Name: "resize", Short: []string{"res"}, Args: "[+-]{n}", Help: "makes the window n rows tall, or n taller or shorter, or as tall as it can be", ID: resize},
 		api.Registration{Kind: api.Command, Name: "vertical", Short: []string{"vert"}, Args: "resize [+-]{n}", Help: "makes the window n columns wide, or n wider or narrower, or as wide as it can be", ID: vertical},
 	)
+	for _, sz := range sizes {
+		regs = append(regs, api.Registration{Kind: api.Plug, Name: sz.name, Keys: sz.keys, Help: sz.help, ID: sz.id})
+	}
+	return regs
 }
 
 func (m *Module) Init(context.Context, api.Scope) (api.Result, error) { return api.Result{}, nil }
 
 // Call moves to the window that way, or else to tmux's pane there. A
 // guest's call runs no program on the host (B244).
-func (m *Module) Call(_ context.Context, id uint32, s api.Scope, _ ...int) (api.Result, error) {
+func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (api.Result, error) {
+	for _, sz := range sizes {
+		if sz.id == id {
+			n := args[1]
+			if sz.by != 0 {
+				n = sz.by * max(n, 1)
+			}
+			return api.Result{Windows: []api.WindowAction{{Do: sz.do, Size: n}}}, nil
+		}
+	}
 	if id >= split {
 		return command(id, s), nil
 	}

@@ -538,30 +538,6 @@ var windowKeys = []windowKey{
 	{[]string{"q", "<C-q>"}, "closes the window, and quits with the last", func(e *Session, _ int) error { e.quit(false); return nil }},
 	{[]string{"o", "<C-o>"}, "closes every other window", func(e *Session, _ int) error { e.only(); return nil }},
 	{[]string{"="}, "makes the windows the same size", func(e *Session, _ int) error { e.root.even(); e.layout(); return nil }},
-	{[]string{"+"}, "makes the window taller, by the count", func(e *Session, n int) error {
-		e.resize(false, func(now, _ int) int { return now + max(n, 1) })
-		return nil
-	}},
-	{[]string{"-"}, "makes the window shorter, by the count", func(e *Session, n int) error {
-		e.resize(false, func(now, _ int) int { return now - max(n, 1) })
-		return nil
-	}},
-	{[]string{">"}, "makes the window wider, by the count", func(e *Session, n int) error {
-		e.resize(true, func(now, _ int) int { return now + max(n, 1) })
-		return nil
-	}},
-	{[]string{"<"}, "makes the window narrower, by the count", func(e *Session, n int) error {
-		e.resize(true, func(now, _ int) int { return now - max(n, 1) })
-		return nil
-	}},
-	{[]string{"_", "<C-_>"}, "makes the window the count tall, or as tall as it can be", func(e *Session, n int) error {
-		e.resize(false, func(_, room int) int { return cmp.Or(n, room) })
-		return nil
-	}},
-	{[]string{"|"}, "makes the window the count wide, or as wide as it can be", func(e *Session, n int) error {
-		e.resize(true, func(_, room int) int { return cmp.Or(n, room) })
-		return nil
-	}},
 }
 
 // window runs a <C-w> command, typed after count.

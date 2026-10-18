@@ -506,6 +506,10 @@ func (e *Session) setMark(m api.Mark) error {
 
 // windowAction does a to its window (B343).
 func (e *Session) windowAction(a api.WindowAction) error {
+	// A float takes no window action, so the window under it does.
+	if !slices.Contains(e.root.windows(), e.win) && e.under != nil {
+		e.unfocus()
+	}
 	w := e.win
 	if a.ID != 0 {
 		i := slices.IndexFunc(e.root.windows(), func(w *window) bool { return w.id == a.ID })
