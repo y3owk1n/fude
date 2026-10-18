@@ -108,6 +108,14 @@ func (m *Machine) object(t Text, c, count int, cmd string) (region, bool) {
 	return r, found
 }
 
+// TextObject returns the range one of the machine's own text objects, such
+// as iw, a( or i", selects at pos with count, or false when keys is not one
+// or nothing matches.
+func TextObject(t Text, pos, count int, keys string) (start, end int, ok bool) {
+	r, ok := textObject(t, pos, count, keys)
+	return r.start, r.end, ok
+}
+
 // textObject returns the text an object such as iw or a( selects, or false
 // if cmd is not one or nothing matches.
 func textObject(t Text, c, count int, cmd string) (region, bool) {

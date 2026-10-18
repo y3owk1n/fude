@@ -1036,6 +1036,12 @@ Where fude departs, the line says so and cites the departure in
   window, such as a line in `diff.plus`, over what the filetype colours.
 - B277 [4] A plugin hears `editor.focused` when the terminal gets the
   focus back, as git's index may have changed while fude was away.
+- B322 [4] A module's operator or key may wait for characters typed
+  after it, which its call gets, and dot repeats it with them. Such a key
+  in normal mode follows an operator's key, as `ds` does, and `d` does
+  not wait to see whether it comes. In visual mode it acts on the
+  selection, as `S` does. A call finds the range of one of the vim
+  machine's own text objects, such as `a(` or `2i"`, at a place (B219).
 - B321 [4] A module's list may fill the finder that shows it after it
   opens, keeping the query, and fills none once the finder is closed.
   `<C-g>` in a module's list that is not live tells the module whether

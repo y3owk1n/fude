@@ -198,7 +198,6 @@ type Machine struct {
 	flashPut              bool   // the last key put it, not yanked it
 	expandTab             bool   // indents are spaces only
 	autoPairs             bool   // brackets and quotes typed come with their closing one
-	surround              bool   // ys, ds, cs and visual S surround text (B219)
 	wait                  *charWait
 	lastRep               string // the previous replacement, for ~
 	lastSub               struct{ pattern, rep, flags string }
@@ -217,8 +216,9 @@ type Machine struct {
 	ahead int      // how many of held insert mode typed already (B229)
 
 	objects map[string]func(Text, int, int) (int, int, bool) // text objects the host added
-	ops     map[string]func(Text, int, int, bool) []Edit     // operators the host added
+	ops     map[string]hostOperator                          // operators the host added
 	cmds    map[string]func(Text, int, int) []Edit           // commands the host added
+	keyed   map[Mode]map[string]keyedCommand                 // commands the host added by their keys
 
 	// :select.
 	selector func(Text, string, int, int) ([][2]int, error)
@@ -509,21 +509,18 @@ func (m *Machine) normal(k Key) error {
 		m.counted = true
 		return nil
 	}
-	if m.surround && cmd == "s" && (m.op == "y" || m.op == "d" || m.op == "c") {
-		// ys waits for a motion like any operator, and ds and cs for the
-		// characters that name the brackets (B219).
-		if m.op == "y" {
-			m.op = "ys"
+	if m.op != "" {
+		// A host's operator or command whose keys start with the pending
+		// operator's, such as ys or ds, takes the key after it.
+		if _, ok := m.ops[m.op+cmd]; ok {
+			m.op += cmd
 			return nil
 		}
-		op := m.op
-		m.op, m.opCount, m.count, m.reg = "", 0, 0, 0
-		if op == "d" {
-			m.wait = &charWait{n: 1, run: func(ch []string) error { return m.resurround(ch[0], "", "ds"+ch[0]) }}
-		} else {
-			m.wait = &charWait{n: 2, run: func(ch []string) error { return m.resurround(ch[0], ch[1], "cs"+ch[0]+ch[1]) }}
+		if kc, ok := m.keyed[Normal][m.op+cmd]; ok {
+			keys, c := m.op+cmd, m.h.Cursor()
+			m.op, m.opCount, m.count, m.reg = "", 0, 0, 0
+			return m.runKeyed(kc, keys, region{start: c, end: c})
 		}
-		return nil
 	}
 	if len(m.op) == 2 && cmd == m.op[1:] {
 		// A doubled operator such as gqq, whose last key would otherwise
@@ -592,7 +589,7 @@ func (m *Machine) command(cmd string) error {
 		m.dotCount, m.dotReg = count, reg
 		return m.visualKey(cmd, count, reg)
 	}
-	if _, op := operators[cmd]; m.op == "" && (op || m.ops[cmd] != nil) {
+	if _, host := m.ops[cmd]; m.op == "" && (operators[cmd] != "" || host) {
 		m.op, m.opCount, m.count = cmd, m.count, 0
 		return nil
 	}

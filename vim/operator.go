@@ -42,19 +42,83 @@ func (m *Machine) operate(op string, reg rune, cmd string, count int, label stri
 
 // Operator adds an operator such as gc, which works with every motion and
 // text object, in visual mode, and doubled for the current line, as gcc.
-// apply gets the target's range and whether it is linewise. A linewise range
-// runs from the start of its first line to the end of its last. apply returns
-// the edits it makes, and the cursor then goes where it goes after the
-// built-in operators. A nil apply removes the operator.
-func (m *Machine) Operator(name string, apply func(t Text, start, end int, lines bool) []Edit) {
+// Its name may start with a built-in operator's, as ys starts with y. It
+// waits for chars characters typed after the motion and passes them to
+// apply, as ys{motion}) does. apply gets the target's range and whether it is
+// linewise. A linewise range runs from the start of its first line to the
+// end of its last. apply returns the edits it makes, and the cursor then
+// goes where it goes after the built-in operators. Dot repeats it with its
+// characters. A nil apply removes the operator.
+func (m *Machine) Operator(name string, chars int, apply func(t Text, start, end int, lines bool, chars []string) []Edit) {
 	if apply == nil {
 		delete(m.ops, name)
 		return
 	}
 	if m.ops == nil {
-		m.ops = map[string]func(Text, int, int, bool) []Edit{}
+		m.ops = map[string]hostOperator{}
 	}
-	m.ops[name] = apply
+	m.ops[name] = hostOperator{chars, apply}
+}
+
+// hostOperator is an operator the host added: how many characters it waits
+// for after its motion, and what it does.
+type hostOperator struct {
+	chars int
+	apply func(Text, int, int, bool, []string) []Edit
+}
+
+// Keyed adds a command the machine reads as it reads its own, by its keys
+// in mode, which waits for chars characters typed after them. In normal
+// mode its keys are an operator's followed by one more, as ds is, so the
+// operator does not wait to see whether a mapping follows. In visual mode
+// its key acts on the selection, as S does. run gets the selection's range,
+// or the cursor as both ends, whether the range is linewise, and the
+// characters. It returns the edits it makes, and the cursor goes to the
+// start of the first.
+// Dot repeats it with its characters. A nil run removes it.
+func (m *Machine) Keyed(mode Mode, keys string, chars int, run func(t Text, start, end int, lines bool, chars []string) []Edit) {
+	if run == nil {
+		delete(m.keyed[mode], keys)
+		return
+	}
+	if m.keyed == nil {
+		m.keyed = map[Mode]map[string]keyedCommand{}
+	}
+	if m.keyed[mode] == nil {
+		m.keyed[mode] = map[string]keyedCommand{}
+	}
+	m.keyed[mode][keys] = keyedCommand{chars, run}
+}
+
+// keyedCommand is a command the host added by its keys.
+type keyedCommand struct {
+	chars int
+	run   func(Text, int, int, bool, []string) []Edit
+}
+
+// runKeyed runs kc on r once its characters are typed.
+func (m *Machine) runKeyed(kc keyedCommand, keys string, r region) error {
+	run := func(chars []string) error {
+		edits := kc.run(m.h.Text(), r.start, r.end, r.lines, chars)
+		if len(edits) == 0 {
+			return nil
+		}
+		if err := m.apply(edits, keys+strings.Join(chars, "")); err != nil {
+			return err
+		}
+		m.h.SetCursor(clamp(m.h.Text(), edits[0].Start))
+		return nil
+	}
+	return m.waitFor(kc.chars, run)
+}
+
+// waitFor runs run with the n characters typed next, or at once for none.
+func (m *Machine) waitFor(n int, run func(chars []string) error) error {
+	if n == 0 {
+		return run(nil)
+	}
+	m.wait = &charWait{n: n, run: run}
+	return nil
 }
 
 // Command adds a normal mode command, run by the key <Plug>(name), for the
@@ -99,7 +163,7 @@ func (m *Machine) plug(name string, count int, typed bool) error {
 // doubled, at the cursor's column when the cursor was on that line and r is
 // linewise, and at r's own column otherwise. The column is a number of bytes
 // and does not move with the edits.
-func (m *Machine) hostOp(op, label string, r region) error {
+func (m *Machine) hostOp(op, label string, r region, chars []string) error {
 	t, c := m.h.Text(), m.h.Cursor()
 	line := t.LineOf(r.start)
 	ls := t.LineStart(line)
@@ -110,8 +174,8 @@ func (m *Machine) hostOp(op, label string, r region) error {
 	case r.lines && LineStart(t, c) == ls:
 		col = c - ls
 	}
-	if edits := m.ops[op](t, r.start, r.end, r.lines); len(edits) > 0 {
-		if err := m.apply(edits, label); err != nil {
+	if edits := m.ops[op].apply(t, r.start, r.end, r.lines, chars); len(edits) > 0 {
+		if err := m.apply(edits, label+strings.Join(chars, "")); err != nil {
 			return err
 		}
 	}
@@ -124,12 +188,8 @@ func (m *Machine) hostOp(op, label string, r region) error {
 // act applies d, c or y to r.
 func (m *Machine) act(op string, reg rune, label string, r region) error {
 	tab := m.h.TabWidth()
-	if op == "ys" {
-		m.wait = &charWait{n: 1, run: func(ch []string) error { return m.surroundRegion(r, ch[0], label+ch[0]) }}
-		return nil
-	}
-	if m.ops[op] != nil {
-		return m.hostOp(op, label, r)
+	if o, ok := m.ops[op]; ok {
+		return m.waitFor(o.chars, func(chars []string) error { return m.hostOp(op, label, r, chars) })
 	}
 	t, c := m.h.Text(), m.h.Cursor()
 	col := column(t, LineStart(t, c), c, tab)
@@ -539,4 +599,26 @@ func (m *Machine) putBlock(text string, after bool, n int, label string) error {
 	}
 	m.h.SetCursor(top)
 	return nil
+}
+
+// charWait is a command waiting for the characters typed after it.
+type charWait struct {
+	n   int
+	got []string
+	run func(chars []string) error
+}
+
+// takeChar gives k to the command that waits for characters. A key that
+// is not a character, such as <Esc>, cancels it.
+func (m *Machine) takeChar(k Key) error {
+	w := m.wait
+	if !k.isChar() {
+		m.wait = nil
+		return nil
+	}
+	if w.got = append(w.got, string(k)); len(w.got) < w.n {
+		return nil
+	}
+	m.wait = nil
+	return w.run(w.got)
 }

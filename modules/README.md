@@ -26,6 +26,7 @@ and a program that embeds the editor does the same.
 | [`shell`](shell) | `:!`, `:{range}!` and `:r !` run a command in the shell |
 | [`spell`](spell) | `spell`, `]s`, `[s`, `z=` and `zg` |
 | [`start`](start) | the start screen of fude started with no file |
+| [`surround`](surround) | `ys`, `yss`, `ds`, `cs` and `S` in visual mode surround text |
 | [`task`](task) | `:task` and `:pick tasks` run a project's tasks in a terminal |
 
 A module imports `api`, `protocol` and `internal`, never the editor, and

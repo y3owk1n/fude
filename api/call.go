@@ -306,6 +306,10 @@ type Scope struct {
 	// filetype.go.format or formatter.gofmt.command, as JSON, or false for
 	// none. A table's key follows its name in the path (B279).
 	Config func(path string) (string, bool)
+	// Object returns the range one of the vim machine's own text objects,
+	// such as iw, a( or 2i", selects at pos, or false when nothing matches
+	// (B322).
+	Object func(keys string, pos int) (start, end int, ok bool)
 	// Servers returns the language servers config.toml sets, by name (B317).
 	Servers func() []Server
 	// Decorations returns the owner's decorations on every open buffer, by

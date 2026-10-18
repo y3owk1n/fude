@@ -69,4 +69,12 @@ type Registration struct {
 	// Enters makes a Key pressed while a float shows move the cursor into
 	// the float instead, as K does on hover (B62).
 	Enters bool
+	// Chars makes an Operator wait for that many characters typed after its
+	// motion, and a Key for that many after its keys. The call gets them as
+	// chars in About, and dot repeats it with them. A Key with Chars is read by
+	// the vim machine as its own keys are. In normal mode its Name is an
+	// operator's key and one more, as ds is, so the operator does not wait
+	// for a mapping. With Visual it is a key of visual mode alone, as S is,
+	// and its call gets the selection (B322).
+	Chars int
 }

@@ -138,7 +138,9 @@ func (m *Machine) Timeout() error {
 func (m *Machine) keymaps() (local, own *keymap) {
 	var mode Mode
 	switch {
-	case m.pending != "":
+	case m.pending != "" || m.wait != nil:
+		// A key a command waits for, such as f's or ds's character, is
+		// never mapped.
 		return nil, nil
 	case m.mode == Normal && m.op == "":
 		mode = Normal

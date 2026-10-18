@@ -61,18 +61,19 @@ func (m *Machine) selectQuery(query string, start, end int) error {
 func (m *Machine) regionKey(cmd string, reg rune) (bool, error) {
 	rs := m.regions
 	m.regions = nil
-	if cmd != "d" && cmd != "x" && cmd != "y" && cmd != "c" && m.ops[cmd] == nil {
+	hop, host := m.ops[cmd]
+	if cmd != "d" && cmd != "x" && cmd != "y" && cmd != "c" && !host {
 		return false, nil
 	}
 	m.leaveVisual()
 	t := m.h.Text()
 	label := "v" + cmd
-	if m.ops[cmd] != nil {
+	if host {
 		// Last first, so each region's offsets hold when it is reached.
 		m.h.BeginGroup()
 		defer m.h.EndGroup()
 		for i := len(rs) - 1; i >= 0; i-- {
-			if edits := m.ops[cmd](m.h.Text(), rs[i].start, rs[i].end, false); len(edits) > 0 {
+			if edits := hop.apply(m.h.Text(), rs[i].start, rs[i].end, false, nil); len(edits) > 0 {
 				if err := m.apply(edits, label); err != nil {
 					return true, err
 				}

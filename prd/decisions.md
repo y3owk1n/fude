@@ -824,8 +824,8 @@ and quotes around text (B219), as vim-surround does. Neovim has none of
 them, and its `S` in visual mode changes the selected lines. Why: the user
 asked for surround on 2026-10-17, and `R` in visual mode still changes the
 selected lines. `ys`, `ds` and `cs` have no meaning in Neovim, so they take
-nothing away. The vim module offers it through `Surround`, off until a
-host turns it on.
+nothing away. `modules/surround` offers it, through the vim machine's
+operators and keyed commands that wait for characters (B322).
 
 ### N34. Folds come from indent, through zc, zo, za, zR and zM
 

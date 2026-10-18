@@ -188,7 +188,6 @@ func (e *Session) join() {
 	e.leader = e.cfg.Leader
 	e.vim = vim.New(host{e})
 	e.vim.AutoPairs(e.cfg.Autopairs)
-	e.vim.Surround(true)
 	for _, f := range e.setup {
 		f(e)
 	}
@@ -231,7 +230,7 @@ func builtins(e *Session) {
 		})
 	}
 	for _, op := range hostOperators {
-		e.vim.Operator(op.keys, func(t vim.Text, start, end int, lines bool) []vim.Edit {
+		e.vim.Operator(op.keys, 0, func(t vim.Text, start, end int, lines bool, _ []string) []vim.Edit {
 			return op.run(e, t, start, end, lines)
 		})
 	}

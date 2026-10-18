@@ -344,7 +344,7 @@ func (m *Machine) visualKey(cmd string, count int, reg rune) error {
 		// visual mode runs it.
 		return m.plug(strings.TrimSuffix(name, ")"), count, false)
 	}
-	if m.ops[cmd] != nil {
+	if _, ok := m.ops[cmd]; ok {
 		r := m.selection()
 		m.leaveVisual()
 		return m.act(cmd, reg, string(m.visual)+cmd, r)
@@ -352,11 +352,10 @@ func (m *Machine) visualKey(cmd string, count int, reg rune) error {
 	if vk, ok := visuals[cmd]; ok {
 		return vk.run(m, visualCall{t, c, cmd, count, reg})
 	}
-	if m.surround && cmd == "S" {
-		r := m.selection()
+	if kc, ok := m.keyed[Visual][cmd]; ok {
+		r, keys := m.selection(), string(m.visual)+cmd
 		m.leaveVisual()
-		m.wait = &charWait{n: 1, run: func(ch []string) error { return m.surroundRegion(r, ch[0], "vS"+ch[0]) }}
-		return nil
+		return m.runKeyed(kc, keys, r)
 	}
 	if v, ok := visualOps[cmd]; ok {
 		r := m.selection()

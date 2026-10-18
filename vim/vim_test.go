@@ -234,40 +234,6 @@ func TestB229TypeAhead(t *testing.T) {
 	}
 }
 
-// B219
-func TestB219Surround(t *testing.T) {
-	for _, c := range []struct{ start, keys, want string }{
-		{"say |hi there", "ysiw)", "say |(hi) there"},
-		{"say |hi there", "ysiw(", "say |( hi ) there"},
-		{"say |hi there", `ysiw"`, `say |"hi" there`},
-		{"  |say hi", "yss]", "  |[say hi]"},
-		{"f(|a, b)", "ds(", "f|a, b"},
-		{"f( |a )", "ds(", "f|a"},
-		{`x = "|a"`, `cs"'`, "x = |'a'"},
-		{"f(|a)", "cs)}", "f|{a}"},
-		{"|ab cd", "vlS]", "|[ab] cd"},
-		// Dot repeats a surround with its character.
-		{"|a b", "ysiw)W.", "(a) |(b)"},
-		// <Esc> cancels one waiting for its character.
-		{"|ab", "ysiw<Esc>", "|ab"},
-		// A blank names no pair.
-		{"(|a)", "ds<Space>", "(|a)"},
-		{"(|a)", "cs<Space>x", "(|a)"},
-	} {
-		h := &host{text: strings.Replace(c.start, "|", "", 1), cursor: strings.Index(c.start, "|")}
-		m := vim.New(h)
-		m.Surround(true)
-		for _, k := range vim.Keys(c.keys) {
-			if err := m.Feed(k); err != nil {
-				t.Fatal(err)
-			}
-		}
-		if got := h.text[:h.cursor] + "|" + h.text[h.cursor:]; got != c.want {
-			t.Errorf("%q on %q made %q, want %q", c.keys, c.start, got, c.want)
-		}
-	}
-}
-
 // B223
 func TestB223Folds(t *testing.T) {
 	// Lines 1 to 3 are a closed fold.
@@ -719,7 +685,7 @@ func TestB113HostObject(t *testing.T) {
 // B113, for an operator
 func TestB113HostOperator(t *testing.T) {
 	// gx puts brackets around its target.
-	brackets := func(_ vim.Text, start, end int, _ bool) []vim.Edit {
+	brackets := func(_ vim.Text, start, end int, _ bool, _ []string) []vim.Edit {
 		return []vim.Edit{{Start: start, End: start, Text: "["}, {Start: end, End: end, Text: "]"}}
 	}
 	for _, c := range [][3]string{
@@ -733,8 +699,8 @@ func TestB113HostOperator(t *testing.T) {
 	} {
 		h := &host{text: strings.Replace(c[0], "|", "", 1), cursor: strings.Index(c[0], "|")}
 		m := vim.New(h)
-		m.Operator("gx", brackets)
-		m.Operator("gq", brackets)
+		m.Operator("gx", 0, brackets)
+		m.Operator("gq", 0, brackets)
 		for _, k := range vim.Keys(c[1]) {
 			if err := m.Feed(k); err != nil {
 				t.Fatal(err)

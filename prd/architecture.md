@@ -367,7 +367,8 @@ output and the RPC `keys` call.
 The machine keeps a keymap trie for each of normal, visual and insert mode.
 A mapping runs keys, so an ex line is keys ending in `<CR>`. Plugin
 functions come with plugins. The machine never maps the keys a mapping
-runs, and an operator waiting for its target takes keys unmapped. While typed keys
+runs. An operator waiting for its target, and a command waiting for its
+characters, such as `f`'s or `ds`'s, take keys unmapped. While typed keys
 start a longer mapping, `Feed` holds them and `Waiting` reports true. The
 machine reads no clock, so the host waits its key timeout and calls
 `Timeout` if no key comes first. A macro replays its keys through the
@@ -417,6 +418,14 @@ module reads the recent files and whether a session is kept through
 `<CR>` returns the key its line starts with as `Keys`, which run as
 typed (B320). Restoring the session stays the editor's, as
 `<Plug>(session.restore)` (B226).
+
+`modules/surround` is `ys`, `yss`, `ds`, `cs` and `S` in visual mode
+(B219). `ys` is an operator with `Chars` 1. Its name starts with `y`, so
+the machine reads it after `y`. `ds`, `cs` and `S` are keys with `Chars`.
+The machine reads them as its own commands, so `d` and `c` never wait for
+a mapping. The machine collects the characters,
+so dot repeats them. The module finds the pair through `Scope.Object`,
+the machine's own `a(` and `2i"` (B322).
 
 `modules/jump` runs `s` (B218). Its `<Plug>(jump.start)` returns a result
 with `Capture`, so each key typed next goes to its call with `key` in

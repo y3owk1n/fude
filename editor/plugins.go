@@ -605,20 +605,25 @@ func (e *Session) unregister(p api.Module) {
 			delete(e.pluginHelp, ":pick "+r.Name)
 		case api.Operator, api.Object:
 			e.pluginBindings = slices.DeleteFunc(e.pluginBindings, func(b vim.Binding) bool {
-				return b.Kind == "operator" && b.Keys == r.Name+"{motion}" || b.Kind == "object" && b.Keys == r.Name
+				return b.Kind == "operator" && b.Keys == bindingKeys(r) || b.Kind == "object" && b.Keys == r.Name
 			})
 		case api.Key, api.Plug:
 			delete(e.pluginHelp, "<Plug>("+p.Name()+"."+r.Name+")")
+			e.pluginBindings = slices.DeleteFunc(e.pluginBindings, func(b vim.Binding) bool { return r.Chars > 0 && b.Keys == bindingKeys(r) })
 		case api.Insert:
 			delete(e.pluginHelp, "<Plug>("+p.Name()+".insert."+r.Name+")")
 		}
 		for _, s := range e.sessions {
 			switch r.Kind {
 			case api.Operator:
-				s.vim.Operator(r.Name, nil)
+				s.vim.Operator(r.Name, 0, nil)
 			case api.Object:
 				s.vim.Object(r.Name, nil)
 			case api.Key:
+				if r.Chars > 0 {
+					s.vim.Keyed(keyedMode(r), r.Name, 0, nil)
+					break
+				}
 				for _, mode := range keyModes(r) {
 					s.vim.Unmap(mode, withLeader(r.Name, s.leader))
 				}
@@ -690,15 +695,10 @@ func (e *Session) register(p api.Module, r api.Registration) {
 			s.run(p, r.ID, scope, s.Cursor(), 0)
 		}
 	case api.Operator:
-		e.pluginBindings = append(e.pluginBindings, vim.Binding{Kind: "operator", Keys: r.Name + "{motion}", Help: r.Help})
+		e.pluginBindings = append(e.pluginBindings, vim.Binding{Kind: "operator", Keys: bindingKeys(r), Help: r.Help})
 		e.each(func(s *Session) {
-			s.vim.Operator(r.Name, func(t vim.Text, start, end int, lines bool) []vim.Edit {
-				linewise := 0
-				if lines {
-					linewise = 1
-				}
-				edits, _, _ := s.run(p, r.ID, s.scope(p, s.win.buf, t), start, end, linewise)
-				return edits
+			s.vim.Operator(r.Name, r.Chars, func(t vim.Text, start, end int, lines bool, chars []string) []vim.Edit {
+				return s.runChars(p, r, t, start, end, lines, chars)
 			})
 		})
 	case api.Object:
@@ -713,6 +713,15 @@ func (e *Session) register(p api.Module, r api.Registration) {
 			})
 		})
 	case api.Key, api.Plug:
+		if r.Kind == api.Key && r.Chars > 0 {
+			e.pluginBindings = append(e.pluginBindings, vim.Binding{Kind: modes[keyedMode(r)], Keys: bindingKeys(r), Help: r.Help})
+			e.each(func(s *Session) {
+				s.vim.Keyed(keyedMode(r), r.Name, r.Chars, func(t vim.Text, start, end int, lines bool, chars []string) []vim.Edit {
+					return s.runChars(p, r, t, start, end, lines, chars)
+				})
+			})
+			return
+		}
 		name := p.Name() + "." + r.Name
 		e.pluginHelp["<Plug>("+name+")"] = r.Help
 		e.each(func(s *Session) {
@@ -747,6 +756,38 @@ func (e *Session) register(p api.Module, r api.Registration) {
 	}
 }
 
+// runChars calls what p registered as r on the range from start to end,
+// linewise or not, with the characters typed after its keys (B322).
+func (s *Session) runChars(p api.Module, r api.Registration, t vim.Text, start, end int, lines bool, chars []string) []vim.Edit {
+	linewise := 0
+	if lines {
+		linewise = 1
+	}
+	scope := s.scope(p, s.win.buf, t)
+	if len(chars) > 0 {
+		scope.About["chars"] = strings.Join(chars, "")
+	}
+	edits, _, _ := s.run(p, r.ID, scope, start, end, linewise)
+	return edits
+}
+
+// keyedMode is the mode a Key with Chars is read in (B322).
+func keyedMode(r api.Registration) vim.Mode {
+	if r.Visual {
+		return vim.Visual
+	}
+	return vim.Normal
+}
+
+// bindingKeys are r's keys as help shows them, with what follows them.
+func bindingKeys(r api.Registration) string {
+	keys := r.Name
+	if r.Kind == api.Operator {
+		keys += "{motion}"
+	}
+	return keys + strings.Repeat("{char}", r.Chars)
+}
+
 // keyModes are the modes a Key registration is mapped in (B291).
 func keyModes(r api.Registration) []vim.Mode {
 	if r.Visual {
@@ -776,6 +817,11 @@ func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 		s.About["bottom"] = strconv.Itoa(vim.LineEnd(t, t.LineStart(min(t.LineOf(top)+max(e.win.h-2, 0), t.Lines()-1))))
 	}
 	s.About["columns"] = strconv.Itoa(e.width)
+	s.Object = func(keys string, pos int) (int, int, bool) {
+		obj := strings.TrimLeft(keys, "0123456789")
+		count, _ := strconv.Atoi(keys[:len(keys)-len(obj)])
+		return vim.TextObject(t, pos, count, obj)
+	}
 	servers := e.serverList()
 	s.Servers = func() []api.Server { return servers }
 	s.Option = func(name string) (string, bool) { return option(opts, cfg, name) }
