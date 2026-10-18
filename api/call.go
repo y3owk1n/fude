@@ -17,6 +17,11 @@ type Decoration struct {
 	// Line shades the whole rows of the lines from Start's to End's in
 	// Style's ground, to the window's edge, under the text's colours (B296).
 	Line bool
+	// Lines draw as rows of their own below Start's line, or above it when
+	// Above, in Style. They hold no text, so the cursor passes over them,
+	// and a row too long for the window is cut at its edge (B299).
+	Lines []string
+	Above bool
 	// Layer orders the signs on one line, and the highest shows. git's signs
 	// are at -1, most at 0, diagnostics at 1 and a breakpoint at 2 (B184,
 	// B262).

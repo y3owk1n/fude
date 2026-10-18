@@ -218,7 +218,7 @@ func (m *Module) draw(s api.Scope) api.Result {
 				in = append(in, r)
 			}
 		}
-		table(t, in, replaced, show)
+		table(t, in, replaced, add)
 	}
 	return res
 }
@@ -229,12 +229,16 @@ type replacement struct {
 	text       string
 }
 
-// table shows a table's pipes as │ and its delimiter row as ├─┼─┤. The
-// pipes take blanks so the columns line up. A cell's blanks go after it,
-// before it in a column the delimiter row aligns right with -:, and on both
-// sides in one it centres with :-:. A table with a row that does not start
-// with a pipe stays as it is.
-func table(t api.Text, rows []api.Span, replaced []replacement, show func(start, end int, text, style string)) {
+// table shows a table's pipes as │ and its delimiter row as ├─┼─┤, with
+// ┌─┬─┐ above it and └─┴─┘ below it. The pipes take blanks so the columns
+// line up. A cell's blanks go after it, before it in a column the
+// delimiter row aligns right with -:, and on both sides in one it centres
+// with :-:. A table with a row that does not start with a pipe stays as it
+// is.
+func table(t api.Text, rows []api.Span, replaced []replacement, add func(api.Decoration)) {
+	show := func(start, end int, text, style string) {
+		add(api.Decoration{Start: start, End: end, Style: style, Note: text, Replace: true})
+	}
 	pipes := make([][]int, len(rows))
 	var widths []int
 	for i, r := range rows {
@@ -301,6 +305,21 @@ func table(t api.Text, rows []api.Span, replaced []replacement, show func(start,
 			show(p, p+1, strings.Repeat(" ", after)+"│"+strings.Repeat(" ", before), "markdown.table")
 		}
 	}
+	if len(rows) == 0 || len(pipes[0]) == 0 {
+		return
+	}
+	// The borders start where the first row's first pipe shows.
+	first, last := pipes[0][0], rows[len(rows)-1].Start
+	lead := strings.Repeat(" ", width(t, t.LineStart(t.LineOf(first)), first, replaced))
+	border := func(left, mid, right string) string {
+		cells := make([]string, len(widths))
+		for i, w := range widths {
+			cells[i] = strings.Repeat("─", w)
+		}
+		return lead + left + strings.Join(cells, mid) + right
+	}
+	add(api.Decoration{Start: first, End: first, Style: "markdown.table", Lines: []string{border("┌", "┬", "┐")}, Above: true})
+	add(api.Decoration{Start: last, End: last, Style: "markdown.table", Lines: []string{border("└", "┴", "┘")}})
 }
 
 // width is how many columns [start, end) of t takes as it shows, with the

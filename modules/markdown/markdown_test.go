@@ -50,6 +50,12 @@ func TestB298Render(t *testing.T) {
 				return false
 			}
 		}
+		// The borders above and below the table take the columns' widths.
+		top := wire.Virtual{Text: "┌─────┬────┐", Style: "markdown.table", Above: true}
+		bottom := wire.Virtual{Text: "└─────┴────┘", Style: "markdown.table"}
+		if !slices.Contains(v.Virtual[e.Text().LineOf(at("| a"))], top) || !slices.Contains(v.Virtual[e.Text().LineOf(at("| *ccc"))], bottom) {
+			return false
+		}
 		line := e.Text().LineOf(at("x := 1"))
 		return v.Grounds[1] == "markdown.h1" && v.Grounds[line] == "markdown.code"
 	}

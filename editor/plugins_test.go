@@ -1077,6 +1077,31 @@ func TestB295PluginReplaceAndShade(t *testing.T) {
 	})
 }
 
+// ruled is a module that draws a row of its own above the last line.
+type ruled struct{ idle }
+
+func (ruled) Init(_ context.Context, s api.Scope) (api.Result, error) {
+	p := s.Text.LineStart(s.Text.Lines() - 1)
+	return api.Result{Decorate: []api.Decoration{{ID: 1, Start: p, End: p, Style: "markdown.rule", Lines: []string{"──"}, Above: true}}}, nil
+}
+
+// B299
+func TestB299VirtualRows(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "f")
+	change(t, path, strings.Repeat("a\n", 9)+"z\n")
+	e := start(t, path)
+	e.SetSize(10, 5)
+	e.Use(ruled{})
+	// The row shows once the last line is in view.
+	feed(e, "G")
+	settle(t, e, func() bool { return len(e.Views()[0].Virtual[9]) == 1 })
+	// The window shows four rows, and the row above the last line takes one,
+	// so G shows three lines.
+	if feed(e, "ggG"); e.Text().LineOf(e.Views()[0].Top) != 7 {
+		t.Errorf("at the last line the view starts at line %d", e.Text().LineOf(e.Views()[0].Top))
+	}
+}
+
 // B289
 func TestB289PluginReadsItsDecorations(t *testing.T) {
 	e := loaded(t, "ctx", "f", "a\n b\n c\nd\n", "buffer.read", "buffer.write", "ui")

@@ -624,11 +624,11 @@ func (e *Session) reveal() {
 	// low is the earliest top that still shows below, found walking back
 	// from it, so a far jump looks at one window of lines.
 	tab := e.tabWidth(w.buf)
-	in := wire.Inlines(e.shown(w, t.LineStart(max(t.LineOf(below)-e.rows(), 0)), vim.LineEnd(t, below)))
-	low, rows := below, w.rows(t, below, tab, in)
+	d := e.shown(w, t.LineStart(max(t.LineOf(below)-e.rows(), 0)), vim.LineEnd(t, below))
+	low, rows := below, w.rows(t, below, tab, d)
 	for low > 0 {
 		prev := w.prevLine(t, low)
-		if rows += w.rows(t, prev, tab, in); rows > e.rows() {
+		if rows += w.rows(t, prev, tab, d); rows > e.rows() {
 			break
 		}
 		low = prev
@@ -638,7 +638,7 @@ func (e *Session) reveal() {
 	w.buf.text.MoveMark(w.top, min(max(t.LineStart(first), low), above))
 	// Without wrap the view scrolls sideways the least it must to show the
 	// cursor's column (B37).
-	if col := vim.Column(t, line, c, tab, in); !w.opts.Wrap {
+	if col := vim.Column(t, line, c, tab, d.inlines); !w.opts.Wrap {
 		w.left = min(max(w.left, col-w.cols()+1), col)
 	}
 }

@@ -564,6 +564,7 @@ Where fude departs, the line says so and cites the departure in
   - A table's pipes show as `│`, padded so its columns line up as their
     cells show, and its delimiter row as `├─┼─┤`. A column the delimiter
     row aligns with `-:` or `:-:` lines up on the right or in the middle.
+    A row of `┌─┬─┐` shows above the table and `└─┴─┘` below it (B299).
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays
@@ -1039,6 +1040,11 @@ Where fude departs, the line says so and cites the departure in
 - B296 [4] A module's decoration, or a plugin's with `ui`, may shade the
   whole rows of its lines in its style's ground, to the window's edge. The text keeps its own
   colours on that ground.
+- B299 [4] A module's decoration may draw rows of its own below its line,
+  or above it, which hold no text, so the cursor passes over them. Each
+  is cut at the window's edge. They count as rows when the window
+  scrolls, so `G` shows the last line with the rows above it, and a
+  line's rows above it show when it is the window's top line.
 - B289 [4] A plugin with `ui` reads its own decorations on the buffer its
   call is about, each with its id, where it is now and what it shows.
 - B290 [4] A module's command completes its argument through the

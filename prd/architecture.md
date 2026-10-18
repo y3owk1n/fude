@@ -553,6 +553,12 @@ scrolling, `gj` and `gk` through `Host.Shown`, and the client's drawing
 count the same columns. The text's own columns, for indents, tabs and
 block selections, leave it out.
 
+A module's decoration with `Lines` draws them as rows of their own below
+its line, or above it with `Above` (B299). The editor's list for a window
+holds them by line as `View.Virtual`, and its row count for a line adds
+them, so scrolling and the client's drawing count the same rows. They
+hold no text, so `gj` and `gk` pass over them.
+
 A decoration marked `Line`, or a plugin's from `shade`, shades its lines'
 rows to the window's edge in its style's ground, as `View.Grounds` gives
 them by line (B296). It draws under the text's colours, and in place of

@@ -70,8 +70,8 @@ func (e *Session) Views() []wire.View {
 			}
 		}
 		last := vim.LineEnd(t, lastStart)
-		ghosts := e.shown(w, top, last)
-		inlines := wire.Inlines(ghosts)
+		d := e.shown(w, top, last)
+		v.Virtual = d.virtual
 		for _, f := range w.buf.folds {
 			first, end := w.fold(t, t.LineOf(w.buf.text.Mark(f.start)))
 			if s := t.LineStart(first); s >= top && s <= last {
@@ -128,7 +128,7 @@ func (e *Session) Views() []wire.View {
 			}
 		}
 		v.Pair = e.pair(w, t, top, last)
-		v.Ruler = ruler(t, w.pos(), top, max(w.h-1, 1), tab, func(p int) int { return w.rows(t, p, tab, inlines) })
+		v.Ruler = ruler(t, w.pos(), top, max(w.h-1, 1), tab, func(p int) int { return w.rows(t, p, tab, d) })
 		for _, p := range e.modules {
 			if s := e.segments[p][w.buf]; s != "" {
 				v.Segments = append(v.Segments, s)
@@ -217,10 +217,10 @@ func (e *Session) Views() []wire.View {
 				}
 			}
 		}
-		v.Ghosts = append(v.Ghosts, ghosts...)
+		v.Ghosts = append(v.Ghosts, d.ghosts...)
 		// A pinned line shows as it draws in the window (B217, B295).
 		for _, p := range v.Context {
-			v.Ghosts = append(v.Ghosts, e.shown(w, p, vim.LineEnd(t, p))...)
+			v.Ghosts = append(v.Ghosts, e.shown(w, p, vim.LineEnd(t, p)).ghosts...)
 		}
 		slices.SortStableFunc(v.Ghosts, func(a, b wire.Ghost) int { return cmp.Compare(a.Pos, b.Pos) })
 		out = append(out, v)

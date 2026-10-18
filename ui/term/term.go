@@ -376,6 +376,11 @@ func (c *client) view(v wire.View, left int, sel vim.Selection, visual bool) (in
 	row := 0
 	for row < v.H-1 {
 		end, line := vim.LineEnd(t, pos), t.LineOf(pos)
+		// The rows a decoration draws above a line come before it, and those
+		// below after it (B299).
+		if row = c.virtual(v, line, true, numbers, row); row >= v.H-1 {
+			break
+		}
 		var matches [][2]int
 		for _, mt := range v.Matches {
 			if mt[1] > pos && mt[0] <= end {
@@ -609,7 +614,7 @@ func (c *client) view(v wire.View, left int, sel vim.Selection, visual bool) (in
 				}
 			}
 		}
-		row += len(starts)
+		row = c.virtual(v, line, false, numbers, row+len(starts))
 		// A closed fold's other lines do not show.
 		if n := v.Folds[line]; n > 0 {
 			if line+n+1 >= t.Lines() {
@@ -632,6 +637,21 @@ func (c *client) view(v wire.View, left int, sel vim.Selection, visual bool) (in
 	v.X, v.W = numbers, v.W+v.Gutter
 	c.edge(v, left)
 	return cx, cy, found
+}
+
+// virtual draws the rows v draws above line, or below it, from row, each
+// cut at the window's edge, and returns the row after them.
+func (c *client) virtual(v wire.View, line int, above bool, numbers, row int) int {
+	for _, r := range v.Virtual[line] {
+		if r.Above != above || row >= v.H-1 {
+			continue
+		}
+		y := v.Y + row
+		c.s.FillArea(numbers, y, v.Gutter+v.W, 1, ' ', base)
+		c.putClipped(v.X, y, v.X+v.W, part{r.Text, colours[r.Style]})
+		row++
+	}
+	return row
 }
 
 // pin draws the lines of v.Context over v's first rows on the surface

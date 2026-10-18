@@ -4,24 +4,34 @@ import (
 	"cmp"
 	"slices"
 
+	"github.com/y3owk1n/fude/vim"
 	"github.com/y3owk1n/fude/wire"
 )
 
-// shown returns what w shows in its lines from start to end that the text
-// does not hold, by position: inlay hints, proposals' text and the
-// replacements modules put. The cursor's line, and in the current window
-// a selection's lines, show their text as it is (B71, B216, B295).
-func (e *Session) shown(w *window, start, end int) []wire.Ghost {
+// drawn is what a window draws in a range of its lines that the text does
+// not hold.
+type drawn struct {
+	ghosts  []wire.Ghost
+	inlines []vim.Inline           // the ghosts, as the rows and columns count them
+	virtual map[int][]wire.Virtual // by line, the rows drawn above and below it (B299)
+}
+
+// shown returns what w draws in its lines from start to end that the text
+// does not hold: inlay hints, proposals' text and the replacements modules
+// put, by position, and the rows decorations draw between lines. The cursor's
+// line, and in the current window a selection's lines, show their text as
+// it is (B71, B216, B295, B299).
+func (e *Session) shown(w *window, start, end int) drawn {
 	b := w.buf
 	if b.inlines == 0 {
-		return nil
+		return drawn{}
 	}
 	t := b.text.Snapshot()
 	first, last := t.LineOf(w.pos()), t.LineOf(w.pos())
 	if sel, ok := e.Selection(); ok && w == e.win {
 		first, last = min(first, t.LineOf(sel.Start)), max(last, t.LineOf(sel.End))
 	}
-	var out []wire.Ghost
+	var out drawn
 	for _, ds := range e.decos {
 		for _, d := range ds {
 			if d.buf != b || !d.inline() {
@@ -29,15 +39,26 @@ func (e *Session) shown(w *window, start, end int) []wire.Ghost {
 			}
 			s, en := b.text.Mark(d.start), b.text.Mark(d.end)
 			switch line := t.LineOf(s); {
+			case len(d.lines) > 0 && s >= start && s <= end:
+				if out.virtual == nil {
+					out.virtual = map[int][]wire.Virtual{}
+				}
+				for _, text := range d.lines {
+					out.virtual[line] = append(out.virtual[line], wire.Virtual{Text: text, Style: d.style, Above: d.above})
+				}
 			case d.replace && (line < first || line > last) && s < en && t.LineOf(en) == line && s >= start && s <= end:
-				out = append(out, wire.Ghost{Pos: s, End: en, Text: d.note, Style: d.style})
+				out.ghosts = append(out.ghosts, wire.Ghost{Pos: s, End: en, Text: d.note, Style: d.style})
 			case d.style == "inlay" && s >= start && s <= end:
-				out = append(out, wire.Ghost{Pos: s, Text: d.note, Style: "inlay"})
-			case !d.replace && d.style != "inlay" && en >= start && en <= end:
-				out = append(out, wire.Ghost{Pos: en, Text: d.note, Stale: d.style == "proposal.stale"})
+				out.ghosts = append(out.ghosts, wire.Ghost{Pos: s, Text: d.note, Style: "inlay"})
+			case !d.replace && d.style != "inlay" && len(d.lines) == 0 && en >= start && en <= end:
+				out.ghosts = append(out.ghosts, wire.Ghost{Pos: en, Text: d.note, Stale: d.style == "proposal.stale"})
 			}
 		}
 	}
-	slices.SortStableFunc(out, func(a, b wire.Ghost) int { return cmp.Compare(a.Pos, b.Pos) })
+	slices.SortStableFunc(out.ghosts, func(a, b wire.Ghost) int { return cmp.Compare(a.Pos, b.Pos) })
+	out.inlines = wire.Inlines(out.ghosts)
 	return out
 }
+
+// rows is how many rows d draws above and below line.
+func (d drawn) rows(line int) int { return len(d.virtual[line]) }

@@ -106,12 +106,13 @@ func (w *window) nextLine(t kernel.Snapshot, start int) (int, bool) {
 }
 
 // rows is how many rows the line at start takes in the window, with tabs
-// tab columns wide and the inlines in shown.
-func (w *window) rows(t kernel.Snapshot, start, tab int, in []vim.Inline) int {
-	if !w.opts.Wrap {
-		return 1
+// tab columns wide and what d draws there that the text does not hold.
+func (w *window) rows(t kernel.Snapshot, start, tab int, d drawn) int {
+	n := 1
+	if w.opts.Wrap {
+		n = len(vim.Rows(t, start, w.cols(), tab, d.inlines))
 	}
-	return len(vim.Rows(t, start, w.cols(), tab, in))
+	return n + d.rows(t.LineOf(start))
 }
 
 // show switches the window to b, at the place b was last left.

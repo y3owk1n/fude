@@ -10,7 +10,6 @@ import (
 
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/vim"
-	"github.com/y3owk1n/fude/wire"
 )
 
 // host implements vim.Host for an Editor, acting on the current window.
@@ -100,7 +99,7 @@ func (h host) Fold(line int) (int, int) { return h.e.win.fold(h.e.Text(), line) 
 // Shown returns what the current window shows in its lines from start to
 // end that the text does not hold (B295).
 func (h host) Shown(start, end int) []vim.Inline {
-	return wire.Inlines(h.e.shown(h.e.win, start, end))
+	return h.e.shown(h.e.win, start, end).inlines
 }
 
 // indentWidth is the columns an indent takes in b, as a module set it,
