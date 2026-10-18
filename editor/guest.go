@@ -14,6 +14,9 @@ import (
 // Power is how much a session may do, fixed when it is made (B243).
 type Power int
 
+// powers name each Power, as a call's About has it (B292).
+var powers = map[Power]string{Host: "host", Guest: "guest", ReadOnly: "read-only"}
+
 const (
 	Host     Power = iota // all a session may do
 	Guest                 // limited as B244 to B246 say

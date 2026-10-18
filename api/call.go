@@ -9,9 +9,11 @@ type Decoration struct {
 	Start, End int
 	Style      string
 	Sign, Note string // what shows on Start's line, in the sign column or after its end (B184)
-	Under      bool   // any other sign on the line shows over Sign (B184)
 	Fold       bool   // a closed fold: the lines after Start's through End's hide behind the first and a count (B288)
-	Over       bool   // Sign shows over any other sign on the line, a diagnostic's too (B262)
+	// Layer orders the signs on one line, and the highest shows. git's signs
+	// are at -1, most at 0, diagnostics at 1 and a breakpoint at 2 (B184,
+	// B262).
+	Layer int
 	// Buffer is the buffer it is on, one of Scope.Buffers, or 0 for the
 	// buffer the call is about (B291).
 	Buffer int
@@ -21,22 +23,24 @@ type Decoration struct {
 type Result struct {
 	Edits      []Edit
 	Decorate   []Decoration
-	Undecorate []int     // the ids of decorations to remove
-	Emit       []string  // the events to emit, named owner.event
-	Status     *string   // the owner's statusline segment for the text it read, "" for none
-	Message    string    // a line for the message area, "" for none
-	Float      *string   // markdown to show at the cursor, "" to close it
-	Show       *Panel    // text to show in a window of its own
-	Jump       *Jump     // where to move the cursor
-	Pick       *Pick     // a list to pick from, or a question to answer
-	Timers     []Timer   // the callbacks to run later
-	Jobs       []Job     // the work to do in the background
-	Requests   []Request // the requests to send the buffer's language servers
-	Selected   *[2]int   // what an object's call selects, nil for none
-	Terminal   *Terminal // a program to run in a terminal window below
-	Places     *Places   // the last list of places, which ]q steps through
-	Complete   []string  // what the argument being typed completes with
-	Log        []string  // lines for fude's log, where a plugin's own go (B50)
+	Undecorate []int          // the ids of decorations to remove
+	Emit       []string       // the events to emit, named owner.event
+	Status     *string        // the owner's statusline segment for the text it read, "" for none
+	Message    string         // a line for the message area, "" for none
+	Float      *Float         // text to show at the cursor, empty to close it
+	Show       *Panel         // text to show in a window of its own
+	Jump       *Jump          // where to move the cursor
+	Pick       *Pick          // a list to pick from, or a question to answer
+	Timers     []Timer        // the callbacks to run later
+	Jobs       []Job          // the work to do in the background
+	Requests   []Request      // the requests to send the buffer's language servers
+	Selected   *[2]int        // what an object's call selects, nil for none
+	Terminal   *Terminal      // a program to run in a terminal window below
+	Places     *Places        // the last list of places, which ]q steps through
+	Complete   []string       // what the argument being typed completes with
+	Log        []string       // lines for fude's log, where a plugin's own go (B50)
+	Apply      *WorkspaceEdit // a language server's edit of any files, applied with its version checks
+	Cmdline    string         // a command line to start typing, without its colon, such as rename name
 	// Set holds options to set on the buffer the call is about, by their
 	// config.toml names: expand_tab, indent_width and tab_width. fude uses
 	// them in place of config.toml's until the buffer closes (B283).
@@ -91,6 +95,7 @@ type Pick struct {
 	Title, Hint  string
 	Query        string
 	Live, Places bool
+	Encoding     string // what the places' columns count in, utf-8 by default
 }
 
 // Terminal is a program a call runs through the shell in a terminal window
@@ -104,11 +109,33 @@ type Terminal struct {
 	Name, Command string
 }
 
-// Places is the last list of places, without a window, so ]q goes to the
-// first. Each item is path:line:column:text (B230).
+// Places is the last list of places, so ]q goes to the first, in a window
+// of its own with Show. Each item is path:line:column:text, or
+// line:column:text in File when it is set. An item with no text shows its
+// line. Columns count in Encoding, utf-8 or utf-16, utf-8 by default
+// (B230, B292).
 type Places struct {
-	Title string
-	Items []string
+	Title    string
+	Items    []string
+	Show     bool
+	File     string
+	Encoding string
+}
+
+// Float is text a call shows at the cursor. Without Spans it is markdown,
+// rendered. With them it shows as it is, styled by them (B292).
+type Float struct {
+	Text  string
+	Spans []Span
+}
+
+// WorkspaceEdit is a language server's edit of any files, as the server
+// named Server sent it, which fude applies as one change of each file
+// under Label, when each file is at the version the edit names (B292).
+type WorkspaceEdit struct {
+	Server string
+	Edit   string
+	Label  string
 }
 
 // Jump is where a call moves the cursor: Pos in the buffer the call was
@@ -119,6 +146,7 @@ type Jump struct {
 	Path         string
 	Pos          int
 	Line, Column int
+	Encoding     string // what Column counts in, utf-8 or utf-16, utf-8 by default
 }
 
 // Panel is text a call shows in a read-only window titled Title, coloured

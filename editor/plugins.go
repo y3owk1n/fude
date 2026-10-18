@@ -179,8 +179,7 @@ type decoration struct {
 	style      string
 	note       string          // a diagnostic's message, or a plugin's text after the end of the line
 	sign       string          // a plugin's text for the sign column
-	under      bool            // any other sign on the line shows over it (B184)
-	over       bool            // its sign shows over any other on the line (B262)
+	layer      int             // orders its sign among a line's, the highest showing (B184)
 	fold       bool            // a closed fold over its lines (B288)
 	raw        json.RawMessage // a diagnostic as the server sent it, for code actions
 }
@@ -309,6 +308,9 @@ func (e *Session) jumpPos(g *jumpTo) int {
 		return g.Pos
 	}
 	t := e.Text()
+	if g.Encoding != "" {
+		return lsp.Offset(t, lsp.Position{Line: g.Line - 1, Character: g.Column - 1}, g.Encoding)
+	}
 	start := t.LineStart(min(max(g.Line-1, 0), t.Lines()-1))
 	return min(start+max(g.Column-1, 0), vim.LineEnd(t, start))
 }
@@ -386,8 +388,22 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 	default:
 		e.message = res.Message
 	}
-	if res.Float != nil {
-		e.float.text, e.float.spans = e.markdown(*res.Float)
+	if f := res.Float; f != nil {
+		if f.Spans == nil {
+			e.float.text, e.float.spans = e.markdown(f.Text)
+		} else {
+			e.float.text, e.float.spans = f.Text, styled(f.Spans)
+		}
+	}
+	if a := res.Apply; a != nil {
+		e.applyWorkspace(b, a)
+	}
+	// A command line starts with its text typed, nothing run (B292).
+	if res.Cmdline != "" {
+		e.later = append(e.later, ":")
+		for _, r := range strings.ReplaceAll(res.Cmdline, "\n", "") {
+			e.later = append(e.later, vim.Key(string(r)))
+		}
 	}
 	if s := res.Show; s != nil {
 		e.panel(*s)
@@ -402,7 +418,7 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 		e.moduleTerminal(p, *t)
 	}
 	if pl := res.Places; pl != nil {
-		e.lastList = placesOf(pl)
+		e.showPlaces(pl)
 	}
 	if a := e.cmdline.asked; a != nil && len(res.Complete) > 0 {
 		e.answered(a, res.Complete)
@@ -423,7 +439,7 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 		// A sign shows its first two characters, as the column is two wide.
 		sign := []rune(d.Sign)
 		sign = sign[:min(len(sign), 2)]
-		deco := decoration{id: d.ID, buf: on, style: d.Style, note: d.Note, sign: string(sign), under: d.Under, over: d.Over, fold: d.Fold}
+		deco := decoration{id: d.ID, buf: on, style: d.Style, note: d.Note, sign: string(sign), layer: d.Layer, fold: d.Fold}
 		// A fold's marks stay at their lines' starts through an insert there.
 		gravity := kernel.Right
 		if d.Fold {
@@ -450,6 +466,31 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 		edits[i] = vim.Edit(ed)
 	}
 	return edits
+}
+
+// applyWorkspace applies a module's workspace edit from the server it
+// names, about b, and says how many files changed or what went wrong
+// (B292).
+func (e *Session) applyWorkspace(b *buffer, a *api.WorkspaceEdit) {
+	i := slices.IndexFunc(b.servers, func(s *server) bool { return s.name == a.Server })
+	if i < 0 {
+		e.message = "no language server named " + a.Server + " is attached"
+		return
+	}
+	changed, problems := e.workspaceEdit(b.servers[i], b, b.text.Snapshot(), json.RawMessage(a.Edit), a.Label)
+	e.message = fmt.Sprintf("%s changed %d files", a.Label, changed)
+	if len(problems) > 0 {
+		e.message = strings.Join(problems, "  ")
+	}
+}
+
+// styled turns a module's spans into the editor's.
+func styled(in []api.Span) []syntax.Span {
+	out := make([]syntax.Span, len(in))
+	for i, sp := range in {
+		out[i] = syntax.Span(sp)
+	}
+	return out
 }
 
 // bufferFor returns the buffer d goes on: the one its Buffer names, or
@@ -618,6 +659,10 @@ func (e *Session) register(p api.Module, r api.Registration) {
 		e.pluginHelp["<Plug>("+name+")"] = r.Help
 		e.each(func(s *Session) {
 			s.vim.Command(name, func(t vim.Text, pos, count int) []vim.Edit {
+				if r.Enters && s.float.left != "" {
+					s.focus(s.float.left)
+					return nil
+				}
 				args := []int{pos, count}
 				if sel, ok := s.Selection(); r.Visual && ok {
 					args = []int{sel.Start, min(sel.End, t.Len())}
@@ -625,7 +670,7 @@ func (e *Session) register(p api.Module, r api.Registration) {
 				edits, _, _ := s.run(p, r.ID, s.scope(p, s.win.buf, t), args...)
 				return edits
 			})
-			if r.Kind == api.Key {
+			if r.Kind == api.Key && (!r.Attached || s.lspKeys) {
 				for _, mode := range keyModes(r) {
 					s.vim.Map(mode, withLeader(r.Name, s.leader), "<Plug>("+name+")")
 				}
@@ -692,7 +737,7 @@ func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 	s.Decorations = func() []api.Decoration {
 		var out []api.Decoration
 		for _, d := range e.decos[p] {
-			out = append(out, api.Decoration{ID: d.id, Start: d.buf.text.Mark(d.start), End: d.buf.text.Mark(d.end), Style: d.style, Sign: d.sign, Note: d.note, Under: d.under, Over: d.over, Fold: d.fold, Buffer: d.buf.id})
+			out = append(out, api.Decoration{ID: d.id, Start: d.buf.text.Mark(d.start), End: d.buf.text.Mark(d.end), Style: d.style, Sign: d.sign, Note: d.note, Layer: d.layer, Fold: d.fold, Buffer: d.buf.id})
 		}
 		return out
 	}
@@ -705,6 +750,7 @@ func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 func (e *Session) about(b *buffer) api.Context {
 	return api.Context{
 		"buffer": strconv.Itoa(b.id), "path": b.file.path, "filetype": e.filetype(b), "mode": modes[e.vim.Mode()],
+		"power":  powers[e.power],
 		"indent": strconv.Itoa(e.indentWidth(b)), "tab": strconv.Itoa(e.tabWidth(b)),
 	}
 }
@@ -800,7 +846,7 @@ func (e *Session) showPick(p api.Module, b *buffer, pk *api.Pick, save *saving) 
 		prompt = pk.Prompt + " "
 	}
 	// stale, so the first frame matches the items, which are all here.
-	f := &finder{paths: pk.Items, stale: true, prompt: prompt, title: pk.Title, hint: pk.Hint, places: pk.Places, chose: answer, owner: p, pick: pk.ID}
+	f := &finder{paths: pk.Items, stale: true, prompt: prompt, title: pk.Title, hint: pk.Hint, places: pk.Places, enc: pk.Encoding, chose: answer, owner: p, pick: pk.ID}
 	if pk.Live {
 		f.lookup = func(q string, found func([]string, error)) {
 			f.found = found

@@ -63,4 +63,10 @@ type Registration struct {
 	// Visual maps a Key in visual mode too, where its call gets the
 	// selection's start and end instead of the cursor and count (B291).
 	Visual bool
+	// Attached maps a Key only while a language server is attached to the
+	// buffer, so the key is free without one (N3).
+	Attached bool
+	// Enters makes a Key pressed while a float shows move the cursor into
+	// the float instead, as K does on hover (B62).
+	Enters bool
 }

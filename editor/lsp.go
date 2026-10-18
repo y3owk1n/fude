@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/internal/trace"
 	"github.com/y3owk1n/fude/protocol/lsp"
@@ -198,6 +199,7 @@ func (e *Session) detach(b *buffer) {
 		s.bufs = slices.DeleteFunc(s.bufs, func(o *buffer) bool { return o == b })
 		delete(s.versions, b)
 		e.forget(s, b)
+		e.emit("lsp.detached", s.name, b)
 	}
 	b.servers = nil
 }
@@ -282,6 +284,7 @@ func (e *Session) stop(s *server) {
 	for _, b := range s.bufs {
 		b.servers = slices.DeleteFunc(b.servers, func(o *server) bool { return o == s })
 		e.forget(s, b)
+		e.emit("lsp.detached", s.name, b)
 	}
 	e.syncKeys()
 	for k, o := range e.servers {
@@ -348,6 +351,18 @@ func (e *Session) notified(s *server, method string, params json.RawMessage) {
 	e.decos[diagnosed{s, b}] = ds
 	b.signed = len(e.diagnostics(b)) > 0
 	e.emit("lsp.diagnostics", "", b)
+	e.published(s, b, params)
+}
+
+// published tells every module subscribed to lsp.published of the
+// diagnostics s published for b, as the server sent them, each publish an
+// event of its own (B292).
+func (e *Editor) published(s *server, b *buffer, params json.RawMessage) {
+	for _, l := range e.listeners {
+		if slices.Contains(l.p.Subscribed(), "lsp.published") {
+			l.put(event{name: "lsp.published", detail: s.name, buf: b, extra: api.Context{"server": s.name, "encoding": s.client.Encoding(), "params": string(params)}}, nil)
+		}
+	}
 }
 
 // diagnostic moves the cursor to the nth diagnostic after it, or before it
@@ -435,23 +450,35 @@ var attached = map[string]string{
 // syncKeys maps the attached keys while the current buffer has a language
 // server and removes them otherwise, so gr waits for nothing without one.
 func (e *Session) syncKeys() {
-	if want := len(e.win.buf.servers) > 0; want != e.lspKeys {
-		for keys, name := range attached {
-			// Code actions take the selection in visual mode too (B227).
-			modes := []vim.Mode{vim.Normal}
-			if keys == "gra" {
-				modes = append(modes, vim.Visual)
-			}
-			for _, mode := range modes {
-				if want {
-					e.vim.Map(mode, keys, "<Plug>("+name+")")
-				} else {
-					e.vim.Unmap(mode, keys)
+	want := len(e.win.buf.servers) > 0
+	if want == e.lspKeys {
+		return
+	}
+	sync := func(mode vim.Mode, keys, plug string) {
+		if want {
+			e.vim.Map(mode, keys, plug)
+		} else {
+			e.vim.Unmap(mode, keys)
+		}
+	}
+	for keys, name := range attached {
+		// Code actions take the selection in visual mode too (B227).
+		sync(vim.Normal, keys, "<Plug>("+name+")")
+		if keys == "gra" {
+			sync(vim.Visual, keys, "<Plug>("+name+")")
+		}
+	}
+	// A module's attached keys come and go with the editor's (B292).
+	for _, p := range e.modules {
+		for _, r := range p.Registered() {
+			if r.Kind == api.Key && r.Attached {
+				for _, mode := range keyModes(r) {
+					sync(mode, withLeader(r.Name, e.leader), "<Plug>("+p.Name()+"."+r.Name+")")
 				}
 			}
 		}
-		e.lspKeys = want
 	}
+	e.lspKeys = want
 }
 
 // request sends the request named, such as lsp.definition, about the

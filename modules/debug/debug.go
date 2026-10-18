@@ -645,7 +645,7 @@ func (m *Module) relight(res *api.Result, s api.Scope) bool {
 			end = t.LineStart(l+1) - 1
 		}
 		m.ids++
-		res.Decorate = append(res.Decorate, api.Decoration{ID: m.ids, Buffer: id, Start: start, End: end, Style: "debug.line", Sign: "→", Over: true})
+		res.Decorate = append(res.Decorate, api.Decoration{ID: m.ids, Buffer: id, Start: start, End: end, Style: "debug.line", Sign: "→", Layer: 2})
 		d.lit = &lit{m.ids, id}
 		return true
 	}
@@ -751,7 +751,7 @@ func (m *Module) toggle(res *api.Result, s api.Scope, cursor int) {
 	}
 	m.ids++
 	m.breaks[m.ids] = &brk{buffer: buffer}
-	res.Decorate = append(res.Decorate, api.Decoration{ID: m.ids, Buffer: buffer, Start: s.Text.LineStart(line), End: s.Text.LineStart(line), Style: "debug.pending", Sign: "○", Over: true})
+	res.Decorate = append(res.Decorate, api.Decoration{ID: m.ids, Buffer: buffer, Start: s.Text.LineStart(line), End: s.Text.LineStart(line), Style: "debug.pending", Sign: "○", Layer: 2})
 	m.sendBreaks(s, buffer)
 }
 
@@ -771,7 +771,7 @@ func (m *Module) redraw(res *api.Result, s api.Scope, id int) {
 	if b.verified {
 		sign, style = "●", "debug.break"
 	}
-	res.Decorate = append(res.Decorate, api.Decoration{ID: m.ids, Buffer: b.buffer, Start: at, End: at, Style: style, Sign: sign, Over: true})
+	res.Decorate = append(res.Decorate, api.Decoration{ID: m.ids, Buffer: b.buffer, Start: at, End: at, Style: style, Sign: sign, Layer: 2})
 }
 
 // sendBreaks gives a running session the breakpoints of buffer, and marks
@@ -849,7 +849,7 @@ func (m *Module) eval(res *api.Result, expr string, float bool) {
 		case err != nil:
 			res.Message = expr + ": " + err.Error()
 		case float:
-			res.Float = &r.Result
+			res.Float = &api.Float{Text: r.Result}
 		default:
 			res.Message = expr + " = " + r.Result
 		}

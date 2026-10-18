@@ -235,7 +235,7 @@ func (m *Module) sign(s api.Scope) api.Result {
 			}
 			m.ids++
 			at := t.LineStart(line)
-			res.Decorate = append(res.Decorate, api.Decoration{ID: m.ids, Start: at, End: at, Style: signs[line].style, Sign: signs[line].text, Under: true})
+			res.Decorate = append(res.Decorate, api.Decoration{ID: m.ids, Start: at, End: at, Style: signs[line].style, Sign: signs[line].text, Layer: -1})
 			m.signs[buf] = append(m.signs[buf], m.ids)
 		}
 	}
@@ -380,7 +380,7 @@ func previewHunk(t api.Text, hs []hunk, cursor int) api.Result {
 			lines = append(lines, "+"+line(t, i))
 		}
 		md := "```diff\n" + strings.Join(lines, "\n") + "\n```"
-		return api.Result{Float: &md}
+		return api.Result{Float: &api.Float{Text: md}}
 	}
 	return api.Result{Message: "no hunk on this line"}
 }

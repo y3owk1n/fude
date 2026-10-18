@@ -3,6 +3,7 @@ package editor
 import (
 	"cmp"
 	"fmt"
+	"math"
 	"slices"
 	"strconv"
 	"strings"
@@ -268,21 +269,26 @@ func (e *Session) signs(b *buffer, top, last int) map[int]wire.Sign {
 	}
 	t := b.text.Snapshot()
 	out := map[int]wire.Sign{}
-	// A sign a module puts under loses to any other, as git's do, a
-	// diagnostic's beats the rest of a module's, and one a module puts over
-	// wins over all, as a breakpoint does. Among equals the later wins
-	// (B184, B262).
-	put := func(tier func(d decoration) bool) {
-		for _, p := range e.modules {
-			for _, d := range e.decos[p] {
-				if d.buf == b && d.sign != "" && tier(d) {
-					out[t.LineOf(b.text.Mark(d.start))] = wire.Sign{Text: d.sign, Name: d.style}
-				}
+	// The highest layer's sign shows, and among a layer's the latest. The
+	// editor's diagnostics sit at layer 1, over git's at -1 and most at 0,
+	// and under a breakpoint at 2 (B184, B262).
+	var signed []decoration
+	for _, p := range e.modules {
+		for _, d := range e.decos[p] {
+			if d.buf == b && d.sign != "" {
+				signed = append(signed, d)
 			}
 		}
 	}
-	put(func(d decoration) bool { return d.under })
-	put(func(d decoration) bool { return !d.under && !d.over })
+	slices.SortStableFunc(signed, func(x, y decoration) int { return cmp.Compare(x.layer, y.layer) })
+	put := func(from, to int) {
+		for _, d := range signed {
+			if d.layer >= from && d.layer < to {
+				out[t.LineOf(b.text.Mark(d.start))] = wire.Sign{Text: d.sign, Name: d.style}
+			}
+		}
+	}
+	put(math.MinInt, 1)
 	for _, d := range e.diagnostics(b) {
 		line := t.LineOf(b.text.Mark(d.start))
 		i := slices.IndexFunc(diagnosticSigns, func(s wire.Sign) bool { return s.Name == d.style })
@@ -290,7 +296,7 @@ func (e *Session) signs(b *buffer, top, last int) map[int]wire.Sign {
 			out[line] = diagnosticSigns[i]
 		}
 	}
-	put(func(d decoration) bool { return d.over })
+	put(1, math.MaxInt)
 	for line := t.LineOf(top); len(b.status) > 0 && line <= t.LineOf(last); line++ {
 		start := t.LineStart(line)
 		if s := b.status[t.Slice(start, vim.LineEnd(t, start))]; s.Text != "" {

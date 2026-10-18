@@ -242,7 +242,7 @@ func (e *Session) handled(p api.Module, ev event, err error, t kernel.Snapshot, 
 // everything but its edits, what it selected, and its decorations and a
 // jump on that text (B291).
 func stale(res api.Result) api.Result {
-	res.Edits, res.Selected = nil, nil
+	res.Edits, res.Selected, res.Apply = nil, nil, nil
 	res.Decorate = slices.DeleteFunc(slices.Clone(res.Decorate), func(d api.Decoration) bool { return d.Buffer == 0 })
 	if res.Jump != nil && res.Jump.Path == "" {
 		res.Jump = nil

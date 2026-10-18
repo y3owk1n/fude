@@ -1,11 +1,13 @@
 package editor
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"net/url"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/y3owk1n/fude/api"
@@ -308,13 +310,32 @@ func (e *Session) cdo(cmd string, perFile bool) {
 	e.message = fmt.Sprintf("ran :%s at %d places in %d files", cmd, len(stops), len(files))
 }
 
-// placesOf is the list of places a module gave, without a window (B230).
-func placesOf(pl *api.Places) *places {
-	list := &places{title: "[" + pl.Title + "]", at: -1}
+// showPlaces makes the places a module gave the last list, in a window of
+// its own when it asks. An item with no text shows its line (B230, B292).
+func (e *Session) showPlaces(pl *api.Places) {
+	var lines []string
+	var spots []spot
 	for _, item := range pl.Items {
 		path, line, col, text := grepSpot(item)
-		list.lines = append(list.lines, fmt.Sprintf("%s:%d:%d: %s", path, line, col, strings.TrimSpace(text)))
-		list.spots = append(list.spots, spot{path, lsp.Position{Line: max(line-1, 0), Character: max(col-1, 0)}, "utf-8"})
+		place := fmt.Sprintf("%s:%d:%d:", path, line, col)
+		if pl.File != "" {
+			parts := strings.SplitN(item, ":", 3)
+			if len(parts) < 3 {
+				continue
+			}
+			line, _ = strconv.Atoi(parts[0])
+			col, _ = strconv.Atoi(parts[1])
+			path, text, place = pl.File, parts[2], fmt.Sprintf("%d:%d:", line, col)
+		}
+		sp := spot{path, lsp.Position{Line: max(line-1, 0), Character: max(col-1, 0)}, cmp.Or(pl.Encoding, "utf-8")}
+		if strings.TrimSpace(text) == "" {
+			text = e.lineAt(sp)
+		}
+		lines, spots = append(lines, place+" "+text), append(spots, sp)
 	}
-	return list
+	if pl.Show {
+		e.showList("["+pl.Title+"]", lines, spots)
+		return
+	}
+	e.lastList = &places{title: "[" + pl.Title + "]", lines: lines, spots: spots, at: -1}
 }

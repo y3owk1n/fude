@@ -890,8 +890,9 @@ Where fude departs, the line says so and cites the departure in
 - B184 [4] A plugin with `ui` shows text in the sign column of a line, its
   first two characters, and dim text after the end of a line. Both move
   with edits and go when the plugin removes them or unloads. On one line,
-  a diagnostic's sign wins over a plugin's, and a sign the plugin puts
-  under loses to any other, as git's signs do.
+  the sign at the highest layer shows. A plugin's signs are at layer 0,
+  a diagnostic's at 1, and a sign the plugin puts under at -1, as git's
+  are, so it loses to any other.
 - B185 [4] A plugin with `ui` asks the user to pick from a list it gives,
   or to type an answer to a question. The list narrows as they type, as
   the file finder's does. A function of the plugin's then runs, as a
@@ -982,6 +983,17 @@ Where fude departs, the line says so and cites the departure in
   text a callback read has changed since, its message, window, file jump
   and decorations on other buffers still apply. Its edits, and its
   decorations and jump on that text, wait for a newer event.
+- B292 [4] A module works with the language servers the editor runs. A
+  key it marks attached is mapped only while a server is attached to the
+  buffer, as B66's are. A key it marks as entering moves the cursor into
+  a float that shows, as `K` does. It hears `lsp.published`, each
+  diagnostics a server publishes for a buffer, as sent, and
+  `lsp.detached` when a server leaves a buffer. It applies a server's
+  workspace edit with the editor's version checks. It shows a float
+  styled by its own spans. It lists places in a window, in one file, or
+  in a server's column encoding. It starts a command line with text
+  typed, which runs nothing. The layer of its sign orders it on a line
+  with the others.
 - B283 [4] A plugin sets `expand_tab`, `indent_width` or `tab_width` on the
   buffer its call is about, over config.toml's, until the buffer closes,
   as .editorconfig does.

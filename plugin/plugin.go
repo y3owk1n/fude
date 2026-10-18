@@ -876,7 +876,11 @@ func (p *Plugin) sign(_ context.Context, m api.Module, pos, ptr, n, under uint32
 	}
 	text, style, _ := strings.Cut(string(b), "\x00")
 	p.next++
-	p.call.Decorate = append(p.call.Decorate, fude.Decoration{ID: p.next, Start: int(pos), End: int(pos), Style: style, Sign: text, Under: under != 0})
+	layer := 0
+	if under != 0 {
+		layer = -1
+	}
+	p.call.Decorate = append(p.call.Decorate, fude.Decoration{ID: p.next, Start: int(pos), End: int(pos), Style: style, Sign: text, Layer: layer})
 	return int32(p.next)
 }
 
@@ -1012,7 +1016,7 @@ func (p *Plugin) float(_ context.Context, m api.Module, ptr, n uint32) int32 {
 		return errRange
 	}
 	s := string(text)
-	p.call.Float = &s
+	p.call.Float = &fude.Float{Text: s}
 	return 0
 }
 
@@ -1043,7 +1047,7 @@ func (p *Plugin) decorations(ctx context.Context, m api.Module) int64 {
 			if strconv.Itoa(d.Buffer) != p.call.About["buffer"] {
 				continue
 			}
-			fmt.Fprintf(&b, "%d\x00%d\x00%d\x00%s\x00%s\x00%s\x00%t\x00%t\x00", d.ID, d.Start, d.End, d.Style, d.Sign, d.Note, d.Under, d.Fold)
+			fmt.Fprintf(&b, "%d\x00%d\x00%d\x00%s\x00%s\x00%s\x00%t\x00%t\x00", d.ID, d.Start, d.End, d.Style, d.Sign, d.Note, d.Layer < 0, d.Fold)
 		}
 	}
 	return give(ctx, m, b.String())
