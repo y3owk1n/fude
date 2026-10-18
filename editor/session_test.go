@@ -1,12 +1,11 @@
 package editor_test
 
 import (
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	recentmod "github.com/y3owk1n/fude/modules/recent"
+	startmod "github.com/y3owk1n/fude/modules/start"
 
 	"github.com/y3owk1n/fude/editor"
 )
@@ -53,46 +52,13 @@ func TestB226ProjectSession(t *testing.T) {
 	// its windows, the current one and the cursors.
 	e = start(t)
 	e.SetSize(80, 24)
+	e.Use(startmod.New())
 	e.Welcome()
 	settle(t, e, func() bool { return strings.Contains(text(e), "s  restore the last session here") })
 	feed(e, "s")
 	vs := e.Views()
 	if len(vs) != 2 || vs[0].Name != "a.txt" || vs[1].Name != "b.txt" || !vs[1].Current || vs[0].Cursor != 9 {
 		t.Fatalf("s restored %d windows, the first %q at %d", len(vs), vs[0].Name, vs[0].Cursor)
-	}
-}
-
-// B225
-func TestB225StartScreen(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "a.txt")
-	change(t, path, "a\n")
-	t.Chdir(dir)
-	e := start(t, "a.txt")
-	e.Use(recentmod.New())
-	e.SetSize(80, 24)
-	abs, err := filepath.Abs("a.txt")
-	if err != nil {
-		t.Fatal(err)
-	}
-	settle(t, e, func() bool {
-		b, _ := os.ReadFile(filepath.Join(os.Getenv("XDG_STATE_HOME"), "fude", "recent"))
-		return strings.Contains(string(b), abs)
-	})
-	// The start screen lists the actions, then the recent files once read.
-	e.Welcome()
-	if got := text(e); !strings.Contains(got, "f  find a file") || !strings.Contains(got, "q  quit") {
-		t.Fatalf("the start screen shows %q", got)
-	}
-	settle(t, e, func() bool { return strings.Contains(text(e), "1  a.txt") })
-	// A digit opens its recent file, and the window shows numbers again.
-	if feed(e, "1"); e.Views()[0].Name != "a.txt" {
-		t.Errorf("1 opened %q", e.Views()[0].Name)
-	}
-	// <CR> runs the line's key, as f opens the finder.
-	e.Welcome()
-	if feed(e, "<CR>"); func() bool { _, ok := e.Float(); return !ok }() {
-		t.Error("<CR> on f did not open the finder")
 	}
 }
 

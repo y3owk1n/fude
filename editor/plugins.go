@@ -435,9 +435,13 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 		}
 	}
 	e.serverActions(res.Servers)
-	if s := res.Show; s != nil {
+	switch s := res.Show; {
+	case s != nil && s.Screen:
+		e.screenPanel(b, *s)
+	case s != nil:
 		e.panel(*s)
 	}
+	e.later = append(e.later, vim.Keys(res.Keys)...)
 	if j := res.Jump; j != nil {
 		e.jumpTo = &jumpTo{b, *j}
 	}

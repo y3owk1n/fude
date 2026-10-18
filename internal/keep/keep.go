@@ -1,9 +1,12 @@
 // Package keep is what fude keeps between runs, under the XDG directories:
-// where they are, writing a file whole, and the recent files.
+// where they are, writing a file whole, the recent files and where a
+// session is kept.
 package keep
 
 import (
 	"bufio"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -155,6 +158,21 @@ func (r *Recent) Read() ([]string, error) {
 		return nil, fmt.Errorf("recent files: %w", err)
 	}
 	return paths, nil
+}
+
+// SessionPath returns where the session of the working directory is kept
+// (B226).
+func SessionPath() (string, error) {
+	wd, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("session: %w", err)
+	}
+	state, err := Dir("XDG_STATE_HOME", filepath.Join(".local", "state"))
+	if err != nil {
+		return "", fmt.Errorf("session: %w", err)
+	}
+	sum := sha256.Sum256([]byte(wd))
+	return filepath.Join(state, "fude", "sessions", hex.EncodeToString(sum[:16])+".json"), nil
 }
 
 // RecentPath is where the recent files are kept (B213).

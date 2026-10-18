@@ -1036,6 +1036,14 @@ Where fude departs, the line says so and cites the departure in
   window, such as a line in `diff.plus`, over what the filetype colours.
 - B277 [4] A plugin hears `editor.focused` when the terminal gets the
   focus back, as git's index may have changed while fude was away.
+- B320 [4] A module's panel may show in the current window in place of
+  the buffer its call is about, as the start screen does (B225). It
+  shows no line numbers, guides or wrap. The window gets its options
+  back once it shows another buffer. The panel may say where its cursor
+  starts. A call's result may run keys once the call is done, as typed,
+  so a panel's own keys and `[keymap.*]` apply to them.
+- B319 [4] A module hears `editor.started` when fude starts with no file
+  to open and is not restarting. The start screen shows then (B225).
 - B318 [4] A module's panel may show in a box of its own in the middle
   of the screen, which takes the focus. Its parts may be cards, which
   the cursor moves between, and its keys may stay at its foot as it

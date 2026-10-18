@@ -1,172 +1,44 @@
 package editor
 
 import (
-	"fmt"
-	"os"
-	"path/filepath"
-	"strconv"
-	"strings"
+	"slices"
 
+	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/core/kernel"
-	"github.com/y3owk1n/fude/internal/keep"
-	"github.com/y3owk1n/fude/vim"
 )
 
-// startKeys are the start screen's keys, which [keymap.start] changes. A
-// digit opens that recent file, and <CR> runs the key its line starts with
-// (B225).
-var startKeys = map[string]string{
-	"f": ":pick files<CR>", "g": ":pick grep<CR>", "r": ":pick recent<CR>", "e": ":enew<CR>",
-	"c": "<Plug>(start.config)", "q": ":qa<CR>", "<CR>": "<Plug>(start.open)", "s": "<Plug>(start.session)",
-	"1": "<Plug>(start.1)", "2": "<Plug>(start.2)", "3": "<Plug>(start.3)", "4": "<Plug>(start.4)", "5": "<Plug>(start.5)",
-	"6": "<Plug>(start.6)", "7": "<Plug>(start.7)", "8": "<Plug>(start.8)", "9": "<Plug>(start.9)",
-}
+// Welcome tells the modules that fude started with no file to open, not
+// restarting, as the start screen shows (B225, B319).
+func (e *Session) Welcome() { e.emit("editor.started", "", e.win.buf) }
 
-// startActions are the start screen's first lines, each a key and what it
-// does.
-var startActions = [][2]string{
-	{"f", "find a file"},
-	{"g", "search the files' text"},
-	{"r", "recent files"},
-	{"e", "new buffer"},
-	{"c", "open config.toml"},
-	{"q", "quit"},
-}
-
-// startOwner names the start screen's decorations.
-type startOwner struct{}
-
-// Welcome shows the start screen in place of the empty buffer, for fude
-// started with no file, and lists the newest recent files on it once they
-// are read (B225).
-func (e *Session) Welcome() {
-	b, _, err := openBuffer(e.next, "")
+// screenPanel shows p in the current window in place of b, while the
+// window shows b. The window shows no line numbers, guides or wrap, and
+// gets its options back once it shows another buffer (B320).
+func (e *Session) screenPanel(b *buffer, p api.Panel) {
+	if slices.ContainsFunc(e.root.windows(), func(w *window) bool { return w.buf.title == p.Title }) {
+		e.panel(p)
+		return
+	}
+	if p.Update || e.win.buf != b {
+		return
+	}
+	s, _, err := openBuffer(e.next, "")
+	if err == nil {
+		t := s.text.Snapshot()
+		err = s.text.Apply(kernel.Transaction{Base: t.Version(), Edits: []kernel.Edit{{Text: p.Text}}})
+	}
 	if err != nil {
 		e.message = err.Error()
 		return
 	}
 	e.next++
-	b.title, b.file.readonly = "[start]", true
-	e.bufs = append(e.bufs, b)
-	e.win.show(b)
-	// The screen shows no numbers, guides or wrapped lines, and the window
-	// gets its options back when it shows another buffer.
+	s.title, s.file.readonly, s.screen = p.Title, true, true
+	s.saved = s.text.Head()
+	e.bufs = append(e.bufs, s)
+	e.win.show(s)
 	opts := e.win.opts
 	e.win.saved, e.win.opts = &opts, options{}
-	e.fillStart(b, nil, false)
-	go func() {
-		// The working directory's recent files, or the others when it has
-		// none.
-		wd, err := os.Getwd()
-		var paths, elsewhere []string
-		if err == nil {
-			paths, elsewhere, err = recent().Files("", wd)
-		}
-		if len(paths) == 0 {
-			paths = elsewhere
-		}
-		session := hasProject()
-		e.queue <- func() {
-			if err != nil {
-				e.message = err.Error()
-			}
-			e.fillStart(b, paths[:min(len(paths), 9)], session)
-		}
-	}()
-}
-
-// fillStart writes the start screen into b, with a line to restore the
-// directory's session when it has one and recent, and styles its keys and
-// title.
-func (e *Session) fillStart(b *buffer, recent []string, session bool) {
-	var s strings.Builder
-	type span struct {
-		start, end int
-		style      string
-	}
-	var spans []span
-	mark := func(text, style string) {
-		spans = append(spans, span{s.Len(), s.Len() + len(text), style})
-		s.WriteString(text)
-	}
-	s.WriteString("\n   ")
-	mark("fude 筆", "markup.heading")
-	s.WriteString("\n\n")
-	actions := startActions
-	if session {
-		actions = append([][2]string{{"s", "restore the last session here"}}, actions...)
-	}
-	for _, a := range actions {
-		s.WriteString("   ")
-		mark(a[0], "keyword")
-		s.WriteString("  " + a[1] + "\n")
-	}
-	if len(recent) > 0 {
-		s.WriteString("\n   ")
-		mark("recent files", "markup.heading")
-		s.WriteString("\n\n")
-		for i, p := range recent {
-			s.WriteString("   ")
-			mark(strconv.Itoa(i+1), "keyword")
-			if home, err := os.UserHomeDir(); err == nil && strings.HasPrefix(p, home+"/") {
-				p = "~" + p[len(home):]
-			}
-			dir, name := filepath.Split(p)
-			s.WriteString("  " + name)
-			if dir != "" {
-				s.WriteString("  ")
-				mark(strings.TrimSuffix(dir, "/"), "comment")
-			}
-			s.WriteString("\n")
-		}
-	}
-	t := b.text.Snapshot()
-	text := strings.TrimSuffix(s.String(), "\n")
-	if err := b.text.Apply(kernel.Transaction{Base: t.Version(), Edits: []kernel.Edit{{Start: 0, End: t.Len(), Text: text}}}); err != nil {
-		e.message = err.Error()
-		return
-	}
-	b.saved = b.text.Head()
-	for _, d := range e.decos[startOwner{}] {
-		d.remove()
-	}
-	var ds []decoration
-	for _, sp := range spans {
-		ds = append(ds, decoration{buf: b, start: b.text.SetMark(sp.start, kernel.Left), end: b.text.SetMark(sp.end, kernel.Right), style: sp.style})
-	}
-	e.decos[startOwner{}] = ds
-	b.recent = recent
-	if e.win.buf == b {
-		e.setCursor(strings.Index(text, "   "+actions[0][0]+"  ") + 3)
-	}
-}
-
-// startOpen runs the start screen's line under the cursor: the key it
-// starts with.
-func (e *Session) startOpen() {
-	t := e.Text()
-	ls := t.LineStart(t.LineOf(e.Cursor()))
-	key, _, _ := strings.Cut(strings.TrimSpace(t.Slice(ls, vim.LineEnd(t, ls))), " ")
-	if _, ok := startKeys[key]; ok {
-		e.later = append(e.later, vim.Keys(key)...)
-	}
-}
-
-// startConfig opens config.toml.
-func (e *Session) startConfig() {
-	dir, err := keep.Dir("XDG_CONFIG_HOME", ".config")
-	if err != nil {
-		e.message = fmt.Sprintf("config.toml: %v", err)
-		return
-	}
-	e.edit(filepath.Join(dir, "fude", "config.toml"))
-}
-
-// startRecent opens the start screen's n'th recent file.
-func (e *Session) startRecent(n int) {
-	if r := e.win.buf.recent; n <= len(r) {
-		e.edit(r[n-1])
-		return
-	}
-	e.message = fmt.Sprintf("no recent file %d", n)
+	s.keys = e.panelKeys(s, p.Keys)
+	e.style(s, p.Spans)
+	e.setCursor(min(max(p.Cursor, 0), s.text.Snapshot().Len()))
 }

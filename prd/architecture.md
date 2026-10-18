@@ -410,6 +410,14 @@ last heard changed, as the text is after it. The editor emits each as
 text as a decoration for `flash_time` milliseconds, through a timer, and
 a change to its buffer clears it at once (B139).
 
+`modules/start` is the start screen (B225). `cmd/fude` calls `Welcome`
+for fude started with no file, which emits `editor.started` (B319). The
+module reads the recent files and whether a session is kept through
+`internal/keep`, and shows a `Screen` panel in place of the empty buffer.
+`<CR>` returns the key its line starts with as `Keys`, which run as
+typed (B320). Restoring the session stays the editor's, as
+`<Plug>(session.restore)` (B226).
+
 `modules/jump` runs `s` (B218). Its `<Plug>(jump.start)` returns a result
 with `Capture`, so each key typed next goes to its call with `key` in
 `About`, before any overlay, until a result without it (B316). It finds
@@ -528,6 +536,7 @@ or the view, `mode.changed`, `syntax.updated` when a parse lands,
 (B284), `editor.focused` when the terminal gets the focus back
 (B277), `buffer.shown` when the current window shows another buffer
 (B314), `lsp.changed` when a language server's state changes (B317),
+`editor.started` when fude starts with no file (B319),
 `listing.read` when a listing reads its directory, as it opens,
 reads it again or the terminal gets the focus back (B126), `buffer.saving`
 before a write, which waits for its handlers and

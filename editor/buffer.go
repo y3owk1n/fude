@@ -77,6 +77,7 @@ type buffer struct {
 	folds   []decoration      // the closed folds on it, modules' decorations (B224)
 	keys    *vim.Keymaps      // a panel's own keys, nil for its kind's (B291)
 	box     *box              // how a panel in a box of its own draws, nil for any other (B159)
+	screen  bool              // a panel in place of a window's buffer, which shows it bare (B320)
 	term    *terminal         // the program a terminal buffer shows, nil for any other (B205)
 	// A scratch buffer shows something about another buffer, such as its
 	// timeline, under a title instead of a file name.
@@ -85,7 +86,6 @@ type buffer struct {
 	source *buffer
 	lines  []kernel.NodeID // the timeline node on each line, for :restore
 	shown  bool            // fude wrote it to show something, such as :messages or a diff
-	recent []string        // the recent files the start screen lists (B225)
 	spots  []spot          // the place each line of a list names, for <CR>
 }
 

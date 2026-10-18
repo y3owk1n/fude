@@ -24,6 +24,7 @@ and a program that embeds the editor does the same.
 | [`recent`](recent) | keeps the files windows show, for `:pick recent` and the start screen |
 | [`shell`](shell) | `:!`, `:{range}!` and `:r !` run a command in the shell |
 | [`spell`](spell) | `spell`, `]s`, `[s`, `z=` and `zg` |
+| [`start`](start) | the start screen of fude started with no file |
 | [`task`](task) | `:task` and `:pick tasks` run a project's tasks in a terminal |
 
 A module imports `api`, `protocol` and `internal`, never the editor, and

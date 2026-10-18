@@ -121,7 +121,7 @@ func (w *window) show(b *buffer) {
 		w.alt = w.buf
 	}
 	w.buf = b
-	if w.saved != nil && b.title != "[start]" {
+	if w.saved != nil && !b.screen {
 		w.opts, w.saved = *w.saved, nil
 	}
 	w.cursor = b.text.SetMark(b.last, kernel.Right)

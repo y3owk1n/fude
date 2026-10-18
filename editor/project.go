@@ -1,33 +1,15 @@
 package editor
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
 	"os"
-	"path/filepath"
 	"slices"
 
 	"github.com/y3owk1n/fude/internal/keep"
 )
-
-// projectPath returns where the session of the working directory is kept
-// (B226).
-func projectPath() (string, error) {
-	wd, err := os.Getwd()
-	if err != nil {
-		return "", fmt.Errorf("session: %w", err)
-	}
-	state, err := keep.Dir("XDG_STATE_HOME", filepath.Join(".local", "state"))
-	if err != nil {
-		return "", fmt.Errorf("session: %w", err)
-	}
-	sum := sha256.Sum256([]byte(wd))
-	return filepath.Join(state, "fude", "sessions", hex.EncodeToString(sum[:16])+".json"), nil
-}
 
 // saveProject keeps the windows on files, their cursors and options, for
 // the start screen to restore in this directory. With no window on a file,
@@ -37,7 +19,7 @@ func (e *Session) saveProject() error {
 	if len(s.Buffers) == 0 {
 		return nil
 	}
-	path, err := projectPath()
+	path, err := keep.SessionPath()
 	if err != nil {
 		return err
 	}
@@ -51,21 +33,11 @@ func (e *Session) saveProject() error {
 	return nil
 }
 
-// hasProject reports whether this directory has a session kept.
-func hasProject() bool {
-	path, err := projectPath()
-	if err != nil {
-		return false
-	}
-	_, err = os.Stat(path)
-	return err == nil
-}
-
 // restoreProject opens the files of this directory's session and builds its
 // windows, each with its cursor and options. A file that no longer opens is
 // left out, and the message says why.
 func (e *Session) restoreProject() {
-	path, err := projectPath()
+	path, err := keep.SessionPath()
 	if err != nil {
 		e.message = err.Error()
 		return

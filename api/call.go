@@ -76,6 +76,7 @@ type Result struct {
 	Apply      *WorkspaceEdit // a language server's edit of any files, applied with its version checks
 	Cmdline    string         // a command line to start typing, without its colon, such as rename name
 	Servers    []ServerAction // what to do to language servers, which only the host may ask (B317)
+	Keys       string         // keys to run once the call is done, as typed, such as f to run what a panel maps it to (B320)
 	// Set holds options to set on the buffer the call is about, by their
 	// config.toml names: expand_tab, indent_width and tab_width. fude uses
 	// them in place of config.toml's until the buffer closes (B283).
@@ -216,6 +217,13 @@ type Panel struct {
 	// Float shows it in a box of its own in the middle of the screen, which
 	// takes the focus and names it by Title without its brackets (B318).
 	Float bool
+	// Screen shows it in the current window in place of the buffer the call
+	// is about, while the window still shows that buffer. The window shows
+	// no line numbers, guides or wrap until it shows another buffer, as
+	// the start screen does (B320).
+	Screen bool
+	// Cursor is where the cursor goes when the panel opens.
+	Cursor int
 	// Update only replaces the text of the panel open under Title, and
 	// opens none when it is closed, as an event's result does (B318).
 	Update bool
