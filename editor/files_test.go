@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/fude/editor"
+	"github.com/y3owk1n/fude/vim"
 )
 
 // B1
@@ -89,6 +90,26 @@ func TestB4InvalidUTF8IsReadOnly(t *testing.T) {
 	feed(e, "ix<Esc>:w<CR>")
 	if text(e) != "a\xffb" || disk(t, path) != "a\xffb" {
 		t.Fatal("read-only file changed")
+	}
+}
+
+// B302
+func TestB302ReadOnlyTakesNoTyping(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "bin")
+	if err := os.WriteFile(path, []byte("alpha beta\xff\nalways\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	e := open(t, path)
+	// No key that would type starts insert or replace mode, nor moves the
+	// cursor or opens a menu.
+	for _, keys := range []string{"i", "a", "A", "I", "o", "O", "cw", "cc", "R", "<C-v>I"} {
+		feed(e, "<Esc>gg")
+		if feed(e, keys); e.Mode() != vim.Normal && e.Mode() != vim.Visual || e.Cursor() != 0 || e.Message() != "cannot make changes, the file is read-only" {
+			t.Errorf("%s left mode %v, the cursor at %d, saying %q", keys, e.Mode(), e.Cursor(), e.Message())
+		}
+		if _, ok := e.Float(); ok {
+			t.Errorf("%s opened a float", keys)
+		}
 	}
 }
 

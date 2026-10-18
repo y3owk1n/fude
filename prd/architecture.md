@@ -181,6 +181,8 @@ type Host interface {
     Clipboard() (string, error) // the system clipboard, "+ and "* (B36)
     SetClipboard(text string) error
     Fold(line int) (first, last int) // the closed fold holding line (B223)
+    Shown(start, end int) []Inline   // what draws there that is not text, for gj and gk (B295)
+    Editable() error                 // why the text may not change, before insert mode (B302)
 }
 
 // Defaults is the part of Host a host may leave out: no history, jumps,

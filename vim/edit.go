@@ -54,7 +54,9 @@ var edits = map[string]editKey{
 		return m.increment(-n)
 	}},
 	"R": {"types over the text until <Esc>", func(m *Machine, _ string, _, _ int) error {
-		m.startInsert("R", m.h.Cursor())
+		if err := m.startInsert("R", m.h.Cursor()); err != nil {
+			return err
+		}
 		m.mode, m.replaced = Replace, nil
 		return nil
 	}},

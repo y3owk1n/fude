@@ -251,3 +251,6 @@ func (h host) Fold(line int) (int, int) { return line, line }
 
 // Shown reports no inlines, for the same reason.
 func (h host) Shown(int, int) []vim.Inline { return nil }
+
+// Editable lets the replica change, as fude says whether the change holds.
+func (h host) Editable() error { return nil }

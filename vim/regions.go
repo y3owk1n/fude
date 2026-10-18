@@ -100,7 +100,9 @@ func (m *Machine) regionKey(cmd string, reg rune) (bool, error) {
 	// repeated at them.
 	var cursors []rune
 	if op == "c" {
-		m.startInsert(Key(label), rs[0].start)
+		if err := m.startInsert(Key(label), rs[0].start); err != nil {
+			return true, err
+		}
 		for i, r := range rs[1:] {
 			mk := rune(regionMark + i)
 			m.h.SetMark(mk, r.start)

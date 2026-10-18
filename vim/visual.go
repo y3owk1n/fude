@@ -100,7 +100,9 @@ func (m *Machine) blockInsertStart(after bool) error {
 	if after {
 		label = "<C-v>A"
 	}
-	m.startInsert(Key(label), pos)
+	if err := m.startInsert(Key(label), pos); err != nil {
+		return err
+	}
 	if w := column(t, r.start, pos, tab); after && !toEnd && w < col {
 		if err := m.insertText(strings.Repeat(" ", col-w)); err != nil {
 			return err

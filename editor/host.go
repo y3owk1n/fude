@@ -191,8 +191,15 @@ func (h host) Unhandled(k string) {
 	h.e.ex(strings.TrimPrefix(k, ":"))
 }
 
-func (h host) Apply(edits []vim.Edit, label string) error {
+// Editable returns why the current buffer's text may not change, or nil
+// (B4, B247, B302).
+func (h host) Editable() error {
 	b := h.e.win.buf
+	// A window fude writes, such as a float, help or a list, is text to read
+	// (B142).
+	if b.written() {
+		return errors.New("this window takes no typing, and q closes it")
+	}
 	if b.file.readonly {
 		return errors.New("cannot make changes, the file is read-only")
 	}
@@ -201,6 +208,14 @@ func (h host) Apply(edits []vim.Edit, label string) error {
 	if err := h.e.mayEdit(); err != nil && slices.Contains(h.e.bufs, b) {
 		return err
 	}
+	return nil
+}
+
+func (h host) Apply(edits []vim.Edit, label string) error {
+	if err := h.Editable(); err != nil {
+		return err
+	}
+	b := h.e.win.buf
 	t := kernel.Transaction{Base: b.text.Snapshot().Version(), Origin: h.e.origin, Label: label, Time: h.e.now()}
 	for _, ed := range edits {
 		t.Edits = append(t.Edits, kernel.Edit(ed))

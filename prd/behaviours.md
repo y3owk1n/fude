@@ -28,6 +28,11 @@ Where fude departs, the line says so and cites the departure in
   and `:xa` write every modified buffer, then quit.
 - B81 [1] `:w` on a file changed on disk since fude read it asks before
   overwriting. `:w!` overwrites without asking.
+- B302 [1] In a buffer whose text may not change, such as a read-only file
+  (B4), a window fude writes (B142) or a read-only guest's (B247), a key
+  that would start insert or replace mode, such as `i`, `A`, `o`, `cw` or
+  `R`, says why and stays in normal mode. The cursor stays where it was,
+  and no completion menu opens.
 - B82 [1] A file changed on disk while unmodified in fude reloads when fude
   regains focus. If it is modified in fude, fude warns and keeps its text.
 - B83 [1] A file over the `large_file` setting (2MB by default) opens with

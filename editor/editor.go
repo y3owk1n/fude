@@ -507,13 +507,6 @@ func (e *Session) feed(k vim.Key) {
 	e.vim.UseLocal(e.localKeys(e.win.buf))
 	at, top := e.Cursor(), e.topOf(e.win)
 	e.settle(e.vim.Feed(k))
-	// A window fude writes, such as a float, help or a list, is text to
-	// read, so a key that would start typing in it does nothing (B142).
-	if m := e.vim.Mode(); e.win.buf.written() && (m == vim.Insert || m == vim.Replace) {
-		e.settle(e.vim.Feed("<Esc>"))
-		e.setCursor(at)
-		e.message = "this window takes no typing, and q closes it"
-	}
 	e.incSearch(top, at)
 	if start, end, ok := e.vim.Flash(); ok {
 		e.flashOn(e.win.buf, start, end)

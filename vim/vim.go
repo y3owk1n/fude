@@ -91,6 +91,10 @@ type Host interface {
 	// Shown returns the inlines the window shows on the text from start to
 	// end, which gj and gk count as the window draws them (B295).
 	Shown(start, end int) []Inline
+	// Editable returns why the text may not change, or nil. A key that
+	// would start insert or replace mode returns that reason and stays in
+	// normal mode (B302).
+	Editable() error
 }
 
 // Defaults is the part of a Host a host may leave out by embedding it. It
@@ -113,6 +117,7 @@ func (Defaults) IndentWidth() int           { return Tabstop }
 func (Defaults) TabWidth() int              { return Tabstop }
 func (Defaults) Fold(line int) (int, int)   { return line, line }
 func (Defaults) Shown(int, int) []Inline    { return nil }
+func (Defaults) Editable() error            { return nil }
 func (Defaults) Clipboard() (string, error) { return "", errNoClipboard }
 func (Defaults) SetClipboard(string) error  { return errNoClipboard }
 
@@ -667,8 +672,7 @@ type normalKey struct {
 // insertAt starts insert mode at where returns.
 func insertAt(where func(x normalCall) int) func(m *Machine, x normalCall) error {
 	return func(m *Machine, x normalCall) error {
-		m.startInsert(x.k, where(x))
-		return nil
+		return m.startInsert(x.k, where(x))
 	}
 }
 
@@ -781,11 +785,15 @@ func init() {
 		"I":     {"inserts before the line's first non-blank", insertAt(func(x normalCall) int { return firstNonBlank(x.t, x.start, x.end) })},
 		"A":     {"inserts at the end of the line", insertAt(func(x normalCall) int { return x.end })},
 		"o": {"opens a line below and inserts", func(m *Machine, x normalCall) error {
-			m.startInsert(x.k, x.end)
+			if err := m.startInsert(x.k, x.end); err != nil {
+				return err
+			}
 			return m.newline()
 		}},
 		"O": {"opens a line above and inserts", func(m *Machine, x normalCall) error {
-			m.startInsert(x.k, x.start)
+			if err := m.startInsert(x.k, x.start); err != nil {
+				return err
+			}
 			return m.openAbove()
 		}},
 	}

@@ -146,7 +146,7 @@ func (m *Machine) act(op string, reg rune, label string, r region) error {
 		return m.actBlock(op, reg, label, r)
 	case r.start == r.end && !r.lines:
 		if op == "c" {
-			m.startInsert(Key(label), r.start)
+			return m.startInsert(Key(label), r.start)
 		}
 		return nil
 	}
@@ -171,14 +171,18 @@ func (m *Machine) act(op string, reg rune, label string, r region) error {
 		return nil
 	case op == "c" && lines:
 		indent := t.Slice(start, firstNonBlank(t, start, LineEnd(t, start)))
-		m.startInsert(Key(label), start)
+		if err := m.startInsert(Key(label), start); err != nil {
+			return err
+		}
 		if err := m.apply([]Edit{{Start: start, End: end, Text: indent}}, label); err != nil {
 			return err
 		}
 		m.h.SetCursor(start + len(indent))
 		return nil
 	case op == "c":
-		m.startInsert(Key(label), start)
+		if err := m.startInsert(Key(label), start); err != nil {
+			return err
+		}
 		return m.apply([]Edit{{Start: start, End: end}}, label)
 	}
 
@@ -430,7 +434,9 @@ func (m *Machine) actBlock(op string, reg rune, label string, r region) error {
 		m.h.SetCursor(top)
 		return nil
 	case "c":
-		m.startInsert(Key(label), top)
+		if err := m.startInsert(Key(label), top); err != nil {
+			return err
+		}
 		m.blockInsert = &blockInsert{start: top, col: r.left, lines: len(texts) - 1, home: top}
 	}
 	if len(edits) > 0 {

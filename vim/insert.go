@@ -222,12 +222,18 @@ func (m *Machine) insertMove(t Text, c int, k Key) int {
 	return LineEnd(t, line)
 }
 
-func (m *Machine) startInsert(k Key, pos int) {
+// startInsert starts insert mode at pos for the key k, or returns why the
+// text may not change (B302).
+func (m *Machine) startInsert(k Key, pos int) error {
+	if err := m.h.Editable(); err != nil {
+		return err
+	}
 	m.mode = Insert
 	m.label = string(k)
 	m.h.BeginGroup()
 	m.h.SetCursor(pos)
 	m.insStart, m.autoIndent = pos, false
+	return nil
 }
 
 // typeText inserts text the user typed or pasted.
