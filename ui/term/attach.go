@@ -32,6 +32,7 @@ type Attached struct {
 	w, h  int                    // the size last sent
 	cell  [2]int                 // the cell's pixels last sent (B303)
 	pics  map[int][]byte         // the images the frames brought, by id
+	freed []int                  // the images frames dropped since Freed was called
 	clip  *string                // for the terminal's clipboard, once
 	done  bool
 	ended string     // why the session ended, for after the screen is gone
@@ -182,6 +183,10 @@ func (a *Attached) apply(f wire.Frame) {
 		}
 		a.pics[id] = b
 	}
+	for _, id := range f.Freed {
+		delete(a.pics, id)
+	}
+	a.freed = append(a.freed, f.Freed...)
 	a.f = f
 	if f.Done {
 		a.end(f.Message)
@@ -229,6 +234,13 @@ func (a *Attached) SetCell(w, h int) {
 		a.cell = [2]int{w, h}
 		a.send("cell", a.cell)
 	}
+}
+
+// Freed returns the images frames dropped since it was last called.
+func (a *Attached) Freed() []int {
+	out := a.freed
+	a.freed = nil
+	return out
 }
 
 // Image returns the PNG of an image a frame brought.

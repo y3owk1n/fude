@@ -32,6 +32,7 @@ type Frame struct {
 	Base16       *[16]int32     `json:",omitempty"`
 	Colors       *Colors        `json:",omitempty"`
 	Images       map[int][]byte `json:",omitempty"` // by id, the PNG of each image a view shows that the client lacks (B303)
+	Freed        []int          `json:",omitempty"` // the images dropped since the last frame, for the client to free (B306)
 	Clipboard    *string        `json:",omitempty"` // to put on the client's clipboard (B241)
 	Wait         *time.Duration `json:",omitempty"` // until a key typed now times out
 	Hints        *time.Duration `json:",omitempty"` // until the key hints show

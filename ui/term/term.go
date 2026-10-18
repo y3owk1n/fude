@@ -307,6 +307,9 @@ func (c *client) draw() {
 	}
 	c.s.SetCursorStyle(shape)
 	c.s.ShowCursor(cx, cy)
+	for _, id := range c.e.Freed() {
+		c.img.free(id)
+	}
 	// The images go before the frame whose cells show them.
 	if err := c.img.flush(); err != nil {
 		trace.Record("image", err.Error(), 0)

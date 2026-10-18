@@ -85,6 +85,7 @@ type Session struct {
 	done       bool
 	cell       [2]int                  // the client's cell in pixels, 0 when it shows no images (B303)
 	sentImages map[int]bool            // the images an attached client has (B303)
+	freed      []int                   // the images dropped, for the client to free (B306)
 	restarting string                  // the session file :restart saved, for main (B170)
 	hints      []vim.Hint              // the keys that may follow the command being typed, while they show (B172)
 	ask        question                // takes the answer to the question in the message
@@ -1048,13 +1049,20 @@ func (e *Session) close(b *buffer, force bool) {
 	for _, segs := range e.segments {
 		delete(segs, b)
 	}
+	var images []string
 	for owner, ds := range e.decos {
+		for _, d := range ds {
+			if d.buf == b && d.image != "" {
+				images = append(images, d.image)
+			}
+		}
 		// An owner with no decorations left, such as a closed diff's colours,
 		// is deleted.
 		if e.decos[owner] = slices.DeleteFunc(ds, func(d decoration) bool { return d.buf == b }); len(e.decos[owner]) == 0 {
 			delete(e.decos, owner)
 		}
 	}
+	e.release(images)
 	i := slices.Index(e.bufs, b)
 	e.bufs = append(e.bufs[:i], e.bufs[i+1:]...)
 	if len(e.bufs) == 0 {

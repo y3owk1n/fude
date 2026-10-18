@@ -1160,6 +1160,31 @@ func TestB303ImageRows(t *testing.T) {
 	}
 }
 
+// B306
+func TestB306FreeImages(t *testing.T) {
+	dir := t.TempDir()
+	pic := filepath.Join(dir, "a.png")
+	var b bytes.Buffer
+	if err := png.Encode(&b, image.NewRGBA(image.Rect(0, 0, 80, 32))); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(pic, b.Bytes(), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "f")
+	change(t, path, "a\n")
+	e := start(t, path)
+	e.SetSize(80, 20)
+	e.SetCell(8, 16)
+	e.Use(pictured{path: pic})
+	settle(t, e, func() bool { return len(e.Views()[0].Virtual[0]) == 2 })
+	id := e.Views()[0].Virtual[0][0].Image
+	// Closing the buffer drops the image it showed, once.
+	if feed(e, ":bd<CR>"); !slices.Equal(e.Freed(), []int{id}) || e.Freed() != nil {
+		t.Errorf("after :bd the images freed are not %d once", id)
+	}
+}
+
 // B289
 func TestB289PluginReadsItsDecorations(t *testing.T) {
 	e := loaded(t, "ctx", "f", "a\n b\n c\nd\n", "buffer.read", "buffer.write", "ui")

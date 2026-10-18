@@ -46,4 +46,5 @@ type Session interface {
 	Theme() (string, *[16]int32, *wire.Colors)
 	TerminalClipboard() (string, bool)
 	Image(id int) ([]byte, bool) // the PNG an image's rows show (B303)
+	Freed() []int                // the images dropped since it was last called (B306)
 }

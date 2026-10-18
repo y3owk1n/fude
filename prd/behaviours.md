@@ -1084,6 +1084,9 @@ Where fude departs, the line says so and cites the departure in
   too, when the terminal shows true colour and says its cells' pixels.
   It sends each image to the terminal once, and an attached client gets
   it in a frame once. Elsewhere images take no rows.
+- B306 [4] An image leaves fude's memory once nothing shows it, when the
+  buffer that showed it closes or the finder that previewed it closes.
+  Every client then has the terminal drop it.
 - B289 [4] A plugin with `ui` reads its own decorations on the buffer its
   call is about, each with its id, where it is now and what it shows.
 - B290 [4] A module's command completes its argument through the

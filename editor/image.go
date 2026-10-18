@@ -9,6 +9,7 @@ import (
 	_ "image/jpeg"
 	"image/png"
 	"os"
+	"slices"
 )
 
 // picture is an image file a decoration shows, as PNG, which is what a
@@ -81,6 +82,42 @@ func loadPicture(path string) (*picture, error) {
 		b = out.Bytes()
 	}
 	return &picture{png: b, w: cfg.Width, h: cfg.Height}, nil
+}
+
+// release drops each image at paths that nothing shows any more, and has
+// every session's client free it (B306).
+func (e *Editor) release(paths []string) {
+	for _, path := range paths {
+		p := e.pictures.byPath[path]
+		if p == nil || e.showsImage(path) {
+			continue
+		}
+		delete(e.pictures.byPath, path)
+		delete(e.pictures.byID, p.id)
+		for _, s := range e.sessions {
+			s.freed = append(s.freed, p.id)
+			delete(s.sentImages, p.id)
+		}
+	}
+}
+
+// showsImage reports whether a decoration or a finder shows the image at
+// path.
+func (e *Editor) showsImage(path string) bool {
+	for _, ds := range e.decos {
+		if slices.ContainsFunc(ds, func(d decoration) bool { return d.image == path }) {
+			return true
+		}
+	}
+	return slices.ContainsFunc(e.sessions, func(s *Session) bool { return s.finder != nil && s.finder.image == path })
+}
+
+// Freed returns the images dropped since it was last called, by id, for
+// the client to free (B306).
+func (e *Session) Freed() []int {
+	out := e.freed
+	e.freed = nil
+	return out
 }
 
 // previewed returns the image f previews once it has loaded, or nil.

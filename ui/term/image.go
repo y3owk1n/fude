@@ -83,6 +83,25 @@ func (im *images) place(id, rows, cols int, png func(id int) ([]byte, bool)) (in
 	return tid, true
 }
 
+// free queues a delete of image id at every size, which frees its data in
+// the terminal (B306).
+func (im *images) free(id int) {
+	for at, tid := range im.ids {
+		if at[0] == id {
+			delete(im.ids, at)
+			im.write(ansi.KittyGraphics(nil, "a=d", "d=I", fmt.Sprintf("i=%d", tid), "q=2"))
+		}
+	}
+}
+
+// write queues seq for the terminal, wrapped for tmux to pass on.
+func (im *images) write(seq string) {
+	if im.tmux {
+		seq = "\x1bPtmux;" + strings.ReplaceAll(seq, "\x1b", "\x1b\x1b") + "\x1b\\"
+	}
+	im.pending.WriteString(seq)
+}
+
 // send queues the image id for the terminal, as rows by cols cells of
 // placeholders.
 func (im *images) send(id, rows, cols int, png []byte) {
@@ -96,11 +115,7 @@ func (im *images) send(id, rows, cols int, png []byte) {
 		if at == 0 {
 			opts = append([]string{"a=T", "U=1", "f=100", "q=2", fmt.Sprintf("i=%d", id), fmt.Sprintf("c=%d", cols), fmt.Sprintf("r=%d", rows)}, opts...)
 		}
-		seq := ansi.KittyGraphics([]byte(chunk), opts...)
-		if im.tmux {
-			seq = "\x1bPtmux;" + strings.ReplaceAll(seq, "\x1b", "\x1b\x1b") + "\x1b\\"
-		}
-		im.pending.WriteString(seq)
+		im.write(ansi.KittyGraphics([]byte(chunk), opts...))
 	}
 }
 

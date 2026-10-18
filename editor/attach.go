@@ -67,6 +67,7 @@ func (e *Session) frame(sent map[int]kernel.Version) wire.Frame {
 	if f.Float != nil && f.Float.DocImage != nil {
 		give(f.Float.DocImage.ID)
 	}
+	f.Freed = e.Freed()
 	for _, v := range f.Views {
 		b, err := e.buffer(v.Buffer)
 		if err != nil {

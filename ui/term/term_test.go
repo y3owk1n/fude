@@ -578,6 +578,13 @@ func TestB303DrawImage(t *testing.T) {
 	if s, _ := cell(0, 3); s != "b" {
 		t.Errorf("under the image the row shows %q", s)
 	}
+	// Closing the buffer has the terminal drop the image (B306).
+	for _, k := range vim.Keys(":bd<CR>") {
+		c.e.Feed(k)
+	}
+	if c.draw(); !strings.Contains(sent.String(), fmt.Sprintf("a=d,d=I,i=%d", id)) {
+		t.Error("after :bd the terminal did not drop the image")
+	}
 }
 
 // B305, drawn

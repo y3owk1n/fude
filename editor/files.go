@@ -52,6 +52,7 @@ type finder struct {
 	at       int                 // the row of the preview its line is on
 	reading  bool                // a preview is read off the loop
 	image    string              // the image file previewed, when it is one (B305)
+	seen     []string            // the image files it previewed, to release as it closes (B306)
 	open     bool                // <Plug>(finder.open) ran, for finding to act on after the key
 	list     bool                // <Plug>(finder.list) ran
 	queries  string              // where highlight queries are, for the preview
@@ -256,7 +257,12 @@ func (e *Session) closeFinder() {
 	if e.vim.Mode() == vim.Insert {
 		e.settle(e.vim.Feed("<Esc>"))
 	}
+	var seen []string
+	if e.finder != nil {
+		seen = e.finder.seen
+	}
 	e.finder = nil
+	e.release(seen)
 	e.unfocus()
 }
 
@@ -521,6 +527,9 @@ func (f *finder) read(m string, rows, cols int) {
 	}
 	f.queue <- func() {
 		f.shown, f.preview, f.spans, f.at, f.reading, f.image = m, text, spans, at, false, image
+		if image != "" {
+			f.seen = append(f.seen, image)
+		}
 	}
 }
 
