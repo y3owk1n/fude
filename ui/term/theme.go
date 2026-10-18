@@ -181,6 +181,14 @@ func build(t theme) styles {
 		"proposal": fg(t.faint).StrikeThrough(true), "proposal.stale": fg(t.err).StrikeThrough(true),
 		// The line a debug session stopped on (B262).
 		"debug.line": base.Background(t.selection),
+		// The styles a rendered markdown file draws in: each heading level's
+		// ground and icon, code blocks' ground, and the marks shown in place
+		// of the text's (B298).
+		"markdown.h1": fg(t.function).Background(mix(t.function, t.bg, 0.82)), "markdown.h2": fg(t.keyword).Background(mix(t.keyword, t.bg, 0.82)),
+		"markdown.h3": fg(t.str).Background(mix(t.str, t.bg, 0.82)), "markdown.h4": fg(t.typ).Background(mix(t.typ, t.bg, 0.82)),
+		"markdown.h5": fg(t.number).Background(mix(t.number, t.bg, 0.82)), "markdown.h6": fg(t.hint).Background(mix(t.hint, t.bg, 0.82)),
+		"markdown.code": base.Background(t.surface), "markdown.bullet": fg(t.normal), "markdown.quote": fg(t.muted), "markdown.rule": fg(t.faint),
+		"markdown.checked": fg(t.insert), "markdown.unchecked": fg(t.muted),
 	}
 	s.underlines = map[string]color.Color{
 		"diagnostic.error": t.err, "diagnostic.warn": t.warn, "diagnostic.info": t.info, "diagnostic.hint": t.hint,

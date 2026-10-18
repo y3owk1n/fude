@@ -284,6 +284,15 @@ After a line with a diagnostic, its message shows in the severity's colour.
 The default is on, and `:set diagnostic_notes false` turns the messages off
 in the window. The signs stay, and `]d` and `<C-w>d` still show each one.
 
+## render
+
+A markdown file draws as it reads. A heading's `#`s go and its line is on
+its level's colour, a code block is on the surface colour without its
+fences, and bullets, checkboxes, quotes and rules show as marks. Emphasis
+loses its marks, and a link shows its text alone. The cursor's line, and
+a selection's, show their text as it is. The default is on, and
+`:set render false` shows the text as it is everywhere.
+
 ## expand_tab
 
 Indents with spaces only. `<Tab>` in insert mode types spaces to the next

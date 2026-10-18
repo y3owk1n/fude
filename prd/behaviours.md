@@ -547,6 +547,17 @@ Where fude departs, the line says so and cites the departure in
   `<style>` in HTML. An injected language whose grammar is not built
   builds on first use, and its colours show once it is. One whose grammar
   or queries fail to load says why.
+- B298 [3] With `render` on, as it is unless set off, a markdown file draws
+  as it reads, and the cursor's line shows its text as it is (B295).
+  - A heading's `#`s go, and its line is on a ground of its level's
+    colour (B296). With `icons` on, an icon of its level shows in their
+    place.
+  - A fenced code block is on the surface colour, without its fences.
+  - A bullet shows as `•`, `◦` or `▪` by how deep its list is, a task's
+    `[ ]` as `☐` and `[x]` as `☑`.
+  - A quote's `>` shows as `▌`, and a rule as a line of `─`.
+  - Emphasis and code spans lose their marks, a link shows its text
+    alone, and an image its description.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays

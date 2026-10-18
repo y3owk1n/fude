@@ -15,9 +15,10 @@ import (
 )
 
 // Main runs the tests with the timeline logs, config and caches in a
-// directory of their own, Go's grammar built and no other fetched, and
-// returns the exit code for os.Exit. A test file's TestMain calls it.
-func Main(m *testing.M) int {
+// directory of their own. Go's grammar and the ones grammars names are
+// built, and no other is fetched. It returns the exit code for os.Exit, and
+// a test file's TestMain calls it.
+func Main(m *testing.M, grammars ...string) int {
 	dir, err := os.MkdirTemp("", "fude-test")
 	if err != nil {
 		panic(err)
@@ -25,6 +26,9 @@ func Main(m *testing.M) int {
 	// Go's grammar builds once into the user's cache, before the cache
 	// directory moves.
 	if err := syntaxtest.InstallGo(filepath.Join(dir, "data")); err != nil {
+		panic(err)
+	}
+	if err := syntaxtest.Install(filepath.Join(dir, "data"), grammars...); err != nil {
 		panic(err)
 	}
 	os.Setenv("XDG_STATE_HOME", filepath.Join(dir, "state"))

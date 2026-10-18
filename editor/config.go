@@ -113,7 +113,7 @@ type keymap struct {
 	Groups   map[string]string `toml:"groups" help:"names of the keys mappings start with, which key hints show"`
 }
 
-var defaults = config{TabWidth: 8, Editorconfig: true, KeyTimeout: 1000, KeyHints: 300, FlashTime: 300, FormatTimeout: 1000, LargeFile: 2, TerminalHeight: 33, SplitBelow: true, SplitRight: true, HighlightColors: true, GitSigns: true, InlayHints: true, Autopairs: true, Sources: []string{"lsp", "snippet", "path", "buffer"}, AutoInstall: true, BufferLine: true, SpellWords: "/usr/share/dict/words", Leader: "<Space>", Theme: "dark", options: options{Wrap: true, IndentGuides: true, IncSearch: true, StickyContext: true, StickyContextLines: 3, DiagnosticNotes: true}}
+var defaults = config{TabWidth: 8, Editorconfig: true, KeyTimeout: 1000, KeyHints: 300, FlashTime: 300, FormatTimeout: 1000, LargeFile: 2, TerminalHeight: 33, SplitBelow: true, SplitRight: true, HighlightColors: true, GitSigns: true, InlayHints: true, Autopairs: true, Sources: []string{"lsp", "snippet", "path", "buffer"}, AutoInstall: true, BufferLine: true, SpellWords: "/usr/share/dict/words", Leader: "<Space>", Theme: "dark", options: options{Wrap: true, IndentGuides: true, IncSearch: true, StickyContext: true, StickyContextLines: 3, DiagnosticNotes: true, Render: true}}
 
 // options are the settings each window has, which :set changes for the
 // current window and the windows opened after it (B39). :set takes each by
@@ -138,6 +138,7 @@ type options struct {
 	StickyContext      bool `toml:"sticky_context" help:"the first lines of the functions and classes the top of a window is in stay pinned over it"`
 	StickyContextLines int  `toml:"sticky_context_lines" help:"the most lines sticky context pins"`
 	DiagnosticNotes    bool `toml:"diagnostic_notes" help:"a diagnostic's message shows after its line"`
+	Render             bool `toml:"render" help:"markdown files draw as they read, but for the cursor's line"`
 }
 
 // loadConfig reads config.toml. A missing file is no error. After an error

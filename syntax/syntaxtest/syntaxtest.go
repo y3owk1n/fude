@@ -40,6 +40,34 @@ func InstallGo(data string) error {
 	return nil
 }
 
+// Install puts the grammars of filetypes where fude started with data as
+// its XDG_DATA_HOME loads them, as InstallGo does Go's. syntax.Build builds
+// each from its pinned repo once, into the user's cache, so the first run
+// needs git, tree-sitter and the network.
+func Install(data string, filetypes ...string) error {
+	cache, err := os.UserCacheDir()
+	if err != nil {
+		return fmt.Errorf("grammars: %w", err)
+	}
+	built := filepath.Join(cache, "fude-test", "grammars")
+	dir := filepath.Join(data, "fude", "grammars")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("grammars: %w", err)
+	}
+	for _, ft := range filetypes {
+		if _, err := os.Stat(syntax.Library(built, ft)); err != nil {
+			syntax.Use(built, nil)
+			if err := syntax.Build(ft); err != nil {
+				return err
+			}
+		}
+		if err := os.Symlink(filepath.Join(built, ft), filepath.Join(dir, ft)); err != nil && !os.IsExist(err) {
+			return fmt.Errorf("%s grammar: %w", ft, err)
+		}
+	}
+	return nil
+}
+
 // build builds Go's grammar and its highlights into dir, from a copy of the
 // module, as the module cache is read-only.
 func build(dir string) error {
