@@ -3,6 +3,7 @@ package editor
 import (
 	"errors"
 	"fmt"
+	"image"
 	"io"
 	"io/fs"
 	"os"
@@ -19,6 +20,7 @@ type file struct {
 	eol      bool // the text ended in a newline
 	isNew    bool
 	readonly bool // not valid UTF-8
+	image    bool // a PNG, JPEG or GIF, whose text is a line naming it (B304)
 
 	// The file's modification time and size when fude last read or wrote it.
 	mod    time.Time
@@ -41,6 +43,12 @@ func read(path string) (file, string, error) {
 	f.note()
 	if !utf8.ValidString(text) {
 		f.readonly = true
+		// An image file reads as a line that names it, and shows the image
+		// below (B304).
+		if cfg, format, err := image.DecodeConfig(strings.NewReader(text)); err == nil {
+			f.image = true
+			text = fmt.Sprintf("%s, %d by %d pixels", strings.ToUpper(format), cfg.Width, cfg.Height)
+		}
 		return f, text, nil
 	}
 	if n := strings.Count(text, "\n"); n > 0 && strings.Count(text, "\r\n") == n {

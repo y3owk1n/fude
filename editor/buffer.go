@@ -4,9 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"image"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
@@ -127,13 +125,8 @@ func openBuffer(id int, path string) (*buffer, string, error) {
 		return nil, "", err
 	}
 	b := &buffer{id: id, file: f, before: map[kernel.NodeID]int{}, marks: map[rune]kernel.MarkID{}}
-	// An image file opens as a line that names it, with the image below
-	// (B304).
-	if f.readonly {
-		if cfg, format, err := image.DecodeConfig(strings.NewReader(text)); err == nil {
-			b.picture = path
-			text = fmt.Sprintf("%s, %d by %d pixels", strings.ToUpper(format), cfg.Width, cfg.Height)
-		}
+	if f.image {
+		b.picture = path
 	}
 	msg := ""
 	switch {

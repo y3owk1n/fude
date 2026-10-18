@@ -10,6 +10,7 @@ import (
 	"image/png"
 	"os"
 	"slices"
+	"time"
 )
 
 // picture is an image file a decoration shows, as PNG, which is what a
@@ -17,7 +18,9 @@ import (
 type picture struct {
 	id   int
 	png  []byte
-	w, h int // its size in pixels
+	w, h int       // its size in pixels
+	mod  time.Time // the file's modification time and size when read
+	size int64
 }
 
 // pictures are the images decorations show, loaded once each.
@@ -59,6 +62,10 @@ func (e *Editor) picture(path string) *picture {
 // loadPicture reads the image at path, a PNG, JPEG or GIF, and makes it a
 // PNG.
 func loadPicture(path string) (*picture, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, fmt.Errorf("image: %w", err)
+	}
 	b, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("image: %w", err)
@@ -81,7 +88,39 @@ func loadPicture(path string) (*picture, error) {
 		}
 		b = out.Bytes()
 	}
-	return &picture{png: b, w: cfg.Width, h: cfg.Height}, nil
+	return &picture{png: b, w: cfg.Width, h: cfg.Height, mod: info.ModTime(), size: info.Size()}, nil
+}
+
+// recheck loads again, off the loop, each image whose file changed since
+// it was read. The new one takes a new id, and every client frees the old
+// (B307).
+func (e *Editor) recheck() {
+	for path, p := range e.pictures.byPath {
+		if p == nil {
+			continue
+		}
+		go func() {
+			if info, err := os.Stat(path); err != nil || info.ModTime().Equal(p.mod) && info.Size() == p.size {
+				return
+			}
+			q, err := loadPicture(path)
+			e.queue <- func() {
+				switch {
+				case err != nil:
+					logLine(err.Error())
+				case e.pictures.byPath[path] == p:
+					e.pictures.next++
+					q.id = pictureBase + e.pictures.next
+					e.pictures.byPath[path], e.pictures.byID[q.id] = q, q
+					delete(e.pictures.byID, p.id)
+					for _, s := range e.sessions {
+						s.freed = append(s.freed, p.id)
+						delete(s.sentImages, p.id)
+					}
+				}
+			}
+		}()
+	}
 }
 
 // release drops each image at paths that nothing shows any more, and has

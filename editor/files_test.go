@@ -6,8 +6,10 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/vim"
@@ -137,6 +139,40 @@ func TestB304ImageFile(t *testing.T) {
 	settle(t, e, func() bool { return len(e.Views()[0].Virtual[0]) == 2 })
 	if feed(e, "i"); e.Mode() != vim.Normal {
 		t.Error("i in the image started insert mode")
+	}
+}
+
+// B307
+func TestB307ReloadImage(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.png")
+	write := func(w int, when time.Time) {
+		var b bytes.Buffer
+		if err := png.Encode(&b, image.NewRGBA(image.Rect(0, 0, w, 32))); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, b.Bytes(), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chtimes(path, when, when); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write(80, time.Now().Add(-time.Hour))
+	e := open(t, path)
+	e.SetSize(80, 20)
+	e.SetCell(8, 16)
+	settle(t, e, func() bool { return len(e.Views()[0].Virtual[0]) == 2 })
+	old := e.Views()[0].Virtual[0][0].Image
+	// Coming back to fude after the file grew shows the new image, under a
+	// line that says so, and frees the old one.
+	write(160, time.Now())
+	e.Focus()
+	settle(t, e, func() bool {
+		v := e.Views()[0].Virtual[0]
+		return text(e) == "PNG, 160 by 32 pixels" && len(v) > 0 && v[0].Image != old && v[0].Cols == 20
+	})
+	if !slices.Contains(e.Freed(), old) {
+		t.Error("the old image was not freed")
 	}
 }
 

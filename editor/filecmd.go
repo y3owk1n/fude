@@ -245,6 +245,7 @@ func (e *Session) writeAll(bs []*buffer, force bool, then func()) {
 // undo step. A modified one keeps its text, and fude warns once.
 func (e *Session) Focus() {
 	e.emit("editor.focused", "", e.win.buf)
+	e.recheck()
 	for _, b := range e.bufs {
 		// git's index may have changed while fude was away.
 		e.loadGit(b)

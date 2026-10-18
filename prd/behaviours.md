@@ -38,6 +38,9 @@ Where fude departs, the line says so and cites the departure in
   and no completion menu opens.
 - B82 [1] A file changed on disk while unmodified in fude reloads when fude
   regains focus. If it is modified in fude, fude warns and keeps its text.
+- B307 [1] When fude regains focus, an image whose file changed since fude
+  read it loads again, and shows as it is now. An image file's buffer
+  reloads too, so its line gives the new size.
 - B83 [1] A file over the `large_file` setting (2MB by default) opens with
   syntax and LSP off and says so. Editing and scrolling behave as for any file.
 - B301 [2] `gx` opens the link or file under the cursor with the system's
