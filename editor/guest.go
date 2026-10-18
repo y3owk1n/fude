@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/y3owk1n/fude/api"
+	"github.com/y3owk1n/fude/vim"
 )
 
 // Power is how much a session may do, fixed when it is made (B243).
@@ -140,20 +141,62 @@ func OwnConfig() (Own, error) {
 func (e *Session) use(own Own) {
 	e.useKeys(own.Keymap, own.Leader)
 	if own.Leader != "" {
-		for _, p := range e.modules {
-			for _, r := range p.Registered() {
-				if r.Kind == api.Key {
-					for _, mode := range keyModes(r) {
-						e.vim.Unmap(mode, withLeader(r.Name, e.leader))
-						e.vim.Map(mode, withLeader(r.Name, own.Leader), "<Plug>("+p.Name()+"."+r.Name+")")
-					}
-				}
-			}
-		}
+		e.moveModuleKeys(e.leader, own.Leader)
 		e.leader = own.Leader
 	}
 	e.opts = own.Options
 	for _, w := range e.root.windows() {
 		w.opts = own.Options
+	}
+}
+
+// moveModuleKeys maps the modules' keys that hold <Leader> with the leader
+// to, in place of the leader from. An attached key moves only while it is mapped
+// (B254, B292).
+func (e *Session) moveModuleKeys(from, to string) {
+	for _, p := range e.modules {
+		for _, r := range p.Registered() {
+			if r.Kind != api.Key || r.Attached && !e.lspKeys {
+				continue
+			}
+			for _, mode := range keyModes(r) {
+				e.vim.Unmap(mode, withLeader(r.Name, from))
+				e.vim.Map(mode, withLeader(r.Name, to), "<Plug>("+p.Name()+"."+r.Name+")")
+			}
+		}
+	}
+}
+
+// moveLeader makes to the leader of every session whose leader is from.
+// The host's keys from config.toml, fude's own and the modules' then map
+// with to in place of from. A guest with a leader of its own keeps it (B39, B254).
+func (ed *Editor) moveLeader(from, to string) {
+	for _, s := range ed.sessions {
+		if s.leader != from {
+			continue
+		}
+		if s.power == Host {
+			move := func(m mapper, mode vim.Mode, maps map[string]string) {
+				moved := map[string]string{}
+				for keys, then := range maps {
+					if strings.Contains(keys+then, "<Leader>") {
+						m.Unmap(mode, withLeader(keys, from))
+						moved[keys] = then
+					}
+				}
+				mapAll(m, mode, moved, to)
+			}
+			move(s.vim, vim.Normal, defaultMaps)
+			km := ed.cfg.Keymap
+			for mode, maps := range map[vim.Mode]map[string]string{vim.Normal: km.Normal, vim.Visual: km.Visual, vim.Insert: km.Insert} {
+				move(s.vim, mode, maps)
+			}
+			for kind, maps := range map[string]map[string]string{"listing": km.Listing, "list": km.List, "timeline": km.Timeline, "float": km.Float, "lsp": km.Lsp, "help": km.Help, "scratch": km.Scratch, "start": km.Start, "terminal": km.Terminal, "debug": km.Debug} {
+				move(s.locals[kind], vim.Normal, maps)
+			}
+			move(s.locals["finder"], vim.Insert, km.Finder)
+		}
+		s.moveModuleKeys(from, to)
+		s.leader = to
 	}
 }

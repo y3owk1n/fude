@@ -39,14 +39,22 @@ func (e *Session) set(args string) {
 	switches, numbers := e.win.opts.switches(), e.win.opts.numbers()
 	name, value, given := strings.Cut(strings.TrimSpace(args), " ")
 	value = strings.TrimSpace(value)
+	if _, ok := e.cfg.settings()[name]; ok {
+		e.setSetting(name, value, given)
+		return
+	}
 	switch _, number := numbers[name]; {
 	case name == "":
 		var lines []string
 		for _, n := range slices.Sorted(maps.Keys(switches)) {
-			lines = append(lines, fmt.Sprintf("%-16s %t", n, *switches[n]))
+			lines = append(lines, fmt.Sprintf("%-18s %t", n, *switches[n]))
 		}
 		for _, n := range slices.Sorted(maps.Keys(numbers)) {
-			lines = append(lines, fmt.Sprintf("%-16s %d", n, *numbers[n]))
+			lines = append(lines, fmt.Sprintf("%-18s %d", n, *numbers[n]))
+		}
+		settings := e.cfg.settings()
+		for _, n := range slices.Sorted(maps.Keys(settings)) {
+			lines = append(lines, fmt.Sprintf("%-18s %s", n, settingText(settings[n])))
 		}
 		e.scratch("[set]", strings.Join(lines, "\n"), nil, nil)
 		return
@@ -137,4 +145,109 @@ func configNode(cfg *config, path string) (string, bool) {
 		return "", false
 	}
 	return strings.TrimSuffix(b.String(), "\n"), true
+}
+
+// settings are config.toml's settings of the editor, not of a window, that
+// :set changes, by their names. They are its switches, numbers, words and
+// lists (B39).
+func (c *config) settings() map[string]reflect.Value {
+	out := map[string]reflect.Value{}
+	v := reflect.ValueOf(c).Elem()
+	for _, f := range reflect.VisibleFields(v.Type()) {
+		if f.Anonymous || len(f.Index) > 1 {
+			continue
+		}
+		switch f.Type.Kind() {
+		case reflect.Bool, reflect.Uint, reflect.String:
+		case reflect.Slice:
+			if f.Type.Elem().Kind() != reflect.String {
+				continue
+			}
+		default:
+			continue
+		}
+		out[f.Tag.Get("toml")] = v.FieldByIndex(f.Index)
+	}
+	return out
+}
+
+// settingText is a setting's value as :set takes it, with a list's items
+// apart by commas.
+func settingText(v reflect.Value) string {
+	if v.Kind() == reflect.Slice {
+		return strings.Join(v.Interface().([]string), ",")
+	}
+	return fmt.Sprint(v.Interface())
+}
+
+// setSetting runs :set on a setting of the editor, which every session
+// shares, so a guest may not. theme, leader and center act at once, as
+// :theme, a new leader and :center would (B39).
+func (e *Session) setSetting(name, value string, given bool) {
+	v := e.cfg.settings()[name]
+	switch {
+	case !given && name == "theme":
+		// :theme and :center change these too, so they show as they are now.
+		e.message = name + " " + e.theme
+		return
+	case !given && name == "center":
+		e.message = fmt.Sprintf("%s %t", name, e.centered)
+		return
+	case !given:
+		e.message = name + " " + settingText(v)
+		return
+	case e.power != Host:
+		e.message = "a guest may not change " + name + ", which every session shares"
+		return
+	}
+	var set reflect.Value
+	switch v.Kind() {
+	case reflect.Bool:
+		if value != "true" && value != "false" {
+			e.message = fmt.Sprintf("%s takes true or false, not %q", name, value)
+			return
+		}
+		set = reflect.ValueOf(value == "true")
+	case reflect.Uint:
+		n, err := strconv.ParseUint(value, 10, 0)
+		if err != nil {
+			e.message = fmt.Sprintf("%s takes a number of 0 or more, not %q", name, value)
+			return
+		}
+		set = reflect.ValueOf(uint(n))
+	case reflect.Slice:
+		items := strings.Split(value, ",")
+		if bad := slices.IndexFunc(items, func(s string) bool { return !slices.Contains(defaults.Sources, s) }); name == "completion_sources" && bad >= 0 {
+			e.message = fmt.Sprintf("%s takes %s, not %q", name, strings.Join(defaults.Sources, ","), items[bad])
+			return
+		}
+		set = reflect.ValueOf(items)
+	default:
+		set = reflect.ValueOf(value)
+	}
+	switch name {
+	case "theme":
+		if err := e.setTheme(value); err != nil {
+			e.message = err.Error()
+			return
+		}
+	case "leader":
+		e.moveLeader(e.cfg.Leader, value)
+	case "center":
+		if on := value == "true"; on != e.centered {
+			e.center()
+		}
+	case "socket":
+		e.message = "socket takes effect when fude starts"
+	}
+	v.Set(set)
+	for _, s := range e.sessions {
+		// Windows fit their widths again, and the machine pairs brackets as
+		// autopairs says.
+		for _, w := range s.root.windows() {
+			w.fitted = nil
+		}
+		s.vim.AutoPairs(e.cfg.Autopairs)
+		s.layout()
+	}
 }

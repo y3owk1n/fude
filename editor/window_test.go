@@ -273,7 +273,8 @@ func TestB39Set(t *testing.T) {
 	if feed(e, ":set number<CR>"); e.Message() != "number false" {
 		t.Errorf(":set number said %q", e.Message())
 	}
-	if feed(e, ":set<CR>"); e.Views()[2].Name != "[set]" || !strings.Contains(text(e), "relative_number  false") || !strings.Contains(text(e), "scroll_off       0") {
+	feed(e, ":set<CR>")
+	if listed := strings.Join(strings.Fields(text(e)), " "); e.Views()[2].Name != "[set]" || !strings.Contains(listed, "relative_number false") || !strings.Contains(listed, "scroll_off 0") || !strings.Contains(listed, "key_timeout 1000") {
 		t.Errorf(":set listed %q", text(e))
 	}
 	feed(e, "q")

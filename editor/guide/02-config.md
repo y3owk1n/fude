@@ -27,7 +27,10 @@ scroll_off = 8
 
 `:set number true` sets an option as config.toml does, and `:set
 scroll_off 4` sets a number. `:set number` shows an option, and `:set`
-alone lists them all. `:set` changes the running fude, never config.toml.
+alone lists them all. The settings that are not a window's take `:set`
+too, such as `:set theme light` or `:set completion_sources lsp,buffer`,
+and change every session. `:set` changes the running fude, never
+config.toml.
 
 ## Filetypes
 

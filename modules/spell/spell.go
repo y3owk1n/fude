@@ -56,15 +56,15 @@ const (
 
 // Module is spell.
 type Module struct {
-	mu      sync.Mutex
-	own     string           // the file of the user's own words
-	known   map[string]bool  // the words of the list and the user's, nil until read
-	reading bool             // the list is being read, or failed to be
-	tops    map[string]int   // by buffer, where the view starts, as last heard
-	shown   map[string][]int // by buffer, the ids of the words underlined
-	ids     int
-	asked   question // the word z= asked about
-	picks   uint32
+	mu    sync.Mutex
+	own   string           // the file of the user's own words
+	known map[string]bool  // the words of the list and the user's, nil until read
+	list  string           // the word list read, being read, or failed to be
+	tops  map[string]int   // by buffer, where the view starts, as last heard
+	shown map[string][]int // by buffer, the ids of the words underlined
+	ids   int
+	asked question // the word z= asked about
+	picks uint32
 }
 
 // question is a word z= lists others for, where it was and what it listed.
@@ -139,16 +139,19 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 	if on, _ := s.Option("spell"); on != "true" {
 		return m.clear(buf), nil
 	}
+	// still is a view.moved that did not scroll, which underlines nothing new.
+	still := false
 	if event, detail, _ := strings.Cut(name, " "); event == "view.moved" {
 		_, top, _ := strings.Cut(detail, " ")
 		at, _ := strconv.Atoi(top)
-		if at == m.tops[buf] && m.shown[buf] != nil {
-			return api.Result{}, nil
-		}
+		still = at == m.tops[buf] && m.shown[buf] != nil
 		m.tops[buf] = at
 	}
-	if m.known == nil {
+	switch path, _ := s.Option("spell_words"); {
+	case m.known == nil || path != m.list:
 		return m.read(s), nil
+	case still:
+		return api.Result{}, nil
 	}
 	return m.underline(s), nil
 }
@@ -189,13 +192,14 @@ func (m *Module) Work(_ context.Context, j api.Job) (string, error) {
 
 func (m *Module) Close(context.Context) error { return nil }
 
-// read starts reading the word list spell_words names, once.
+// read starts reading the word list spell_words names, once for each
+// list it names, so :set spell_words reads the new one (B39).
 func (m *Module) read(s api.Scope) api.Result {
-	if m.reading {
+	path, _ := s.Option("spell_words")
+	if path == m.list {
 		return api.Result{}
 	}
-	m.reading = true
-	path, _ := s.Option("spell_words")
+	m.list = path
 	return api.Result{Jobs: []api.Job{{ID: read, Argv: []string{"read", path}}}}
 }
 

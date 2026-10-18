@@ -117,3 +117,41 @@ func TestB237TabWidth(t *testing.T) {
 		t.Errorf("k from column 4 went to %d, want the x after the tab", e.Cursor())
 	}
 }
+
+// B39, for the settings of config.toml
+func TestB39SetSettings(t *testing.T) {
+	config(t, "[keymap.normal]\n\"<Leader>x\" = \":set number true<CR>\"\n")
+	file := filepath.Join(os.Getenv("XDG_CONFIG_HOME"), "fude", "config.toml")
+	before := disk(t, file)
+	e := start(t)
+	e.SetSize(80, 20)
+	// A setting shows, and takes a value as config.toml would.
+	if feed(e, ":set key_timeout<CR>"); e.Message() != "key_timeout 1000" {
+		t.Errorf(":set key_timeout said %q", e.Message())
+	}
+	feed(e, ":set completion_sources buffer,lsp<CR>")
+	if feed(e, ":set completion_sources<CR>"); e.Message() != "completion_sources buffer,lsp" {
+		t.Errorf("after setting it, :set completion_sources said %q", e.Message())
+	}
+	if feed(e, ":set completion_sources words<CR>"); !strings.Contains(e.Message(), `not "words"`) {
+		t.Errorf("an unknown source said %q", e.Message())
+	}
+	// tab_width changes the windows at once, and theme acts as :theme does.
+	if feed(e, ":set tab_width 4<CR>"); e.Views()[0].Tab != 4 {
+		t.Errorf("after :set tab_width 4 the view's tab is %d", e.Views()[0].Tab)
+	}
+	if feed(e, ":set theme light<CR>"); func() string { name, _ := e.Theme(); return name }() != "light" {
+		t.Errorf(":set theme light left the theme %q", e.Message())
+	}
+	// A new leader moves the keys that hold it, and the old one maps none.
+	if feed(e, ":set leader ,<CR>,x"); !e.Views()[0].Number {
+		t.Fatal("after :set leader , the key ,x did not run")
+	}
+	if feed(e, ":set number false<CR><Space>x"); e.Views()[0].Number {
+		t.Error("after :set leader , the key <Space>x still ran")
+	}
+	// :set never writes config.toml.
+	if disk(t, file) != before {
+		t.Errorf(":set changed config.toml to %q", disk(t, file))
+	}
+}

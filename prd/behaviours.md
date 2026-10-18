@@ -106,6 +106,13 @@ Where fude departs, the line says so and cites the departure in
   `number` shows line numbers and `relative_number` numbers lines from the
   cursor's. A `:set` with a name or value it does not know changes
   nothing and says why.
+  A setting of `config.toml` that is not a window's, such as `theme` or
+  `key_timeout`, takes `:set` the same way and changes every session. A
+  list takes its items apart by commas, as `:set completion_sources
+  lsp,buffer`. `theme`, `leader` and `center` act at once, as `:theme`, a
+  new leader and `:center` would. `socket` takes effect when fude starts.
+  A guest may not change a setting. `keymap` and the other tables change
+  in `config.toml` alone.
 - B116 [2] `scroll_off`, set with `:set scroll_off n` or in `config.toml`,
   keeps n lines in view above and below the cursor's, at most half the
   window, as Neovim's `scrolloff` does.

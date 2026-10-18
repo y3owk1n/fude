@@ -133,3 +133,21 @@ func TestB260SpellKeys(t *testing.T) {
 		t.Errorf("after zg, words.txt holds %q and spell finds %q", editortest.Disk(t, path), typosIn(e))
 	}
 }
+
+// B39, B259: :set spell_words reads the list it names.
+func TestSetSpellWords(t *testing.T) {
+	dir := t.TempDir()
+	first, second := filepath.Join(dir, "first"), filepath.Join(dir, "second")
+	editortest.Change(t, first, "the\ncat\n")
+	editortest.Change(t, second, "the\ncat\nsat\n")
+	editortest.Config(t, fmt.Sprintf("spell = true\nspell_words = %q\n", first))
+	notes := filepath.Join(dir, "notes")
+	editortest.Change(t, notes, "the cat sat\n")
+	e := editortest.Start(t, notes)
+	spelling(t, e)
+	e.SetSize(80, 20)
+	editortest.Settle(t, e, func() bool { return slices.Equal(typosIn(e), []string{"sat"}) })
+	// The new list is read when spell next hears of the view, here a move.
+	editortest.Feed(e, fmt.Sprintf(":set spell_words %s<CR>w", second))
+	editortest.Settle(t, e, func() bool { return len(typosIn(e)) == 0 })
+}
