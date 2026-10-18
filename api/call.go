@@ -84,6 +84,8 @@ type Result struct {
 	Copy       string         // text to put on the clipboard (B329)
 	Window     string         // h, j, k or l: the window next to the current one that way becomes current (B330)
 	Tabs       *[]Tab         // what the buffer line lists, none for no row (B331)
+	Follow     string         // the session whose windows the call's session follows, by name (B256, B332)
+	Kick       string         // the guest whose session ends, by name, which only the host may ask (B250, B332)
 	// Set holds options to set on the buffer the call is about, by their
 	// config.toml names: expand_tab, indent_width and tab_width. fude uses
 	// them in place of config.toml's until the buffer closes (B283).
@@ -283,6 +285,13 @@ type ExCommand struct {
 	Name, Args, Help string
 }
 
+// Peer is a session on this fude, as :who lists it. Power is host, guest
+// or read-only, and You is the session the call is about (B332).
+type Peer struct {
+	Name, Power string
+	You         bool
+}
+
 // Tab is a buffer the buffer line lists, by its id, with the name it shows.
 // The line marks a modified one itself (B258, B331).
 type Tab struct {
@@ -424,6 +433,9 @@ type Scope struct {
 	Marks, Jumps, Changes func() []Mark
 	Messages              func() []string
 	Register              func(name rune) (string, bool, error)
+	// Sessions returns the sessions on this fude: the host's, each guest's
+	// and each agent's. Only a call has them (B332).
+	Sessions func() []Peer
 	// Window reports whether a window is next to the current one that way,
 	// h, j, k or l, on the cursor's row or column (B330).
 	Window func(dir string) bool

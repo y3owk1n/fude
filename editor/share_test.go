@@ -14,6 +14,7 @@ import (
 	gitmod "github.com/y3owk1n/fude/modules/git"
 	listingmod "github.com/y3owk1n/fude/modules/listing"
 	listsmod "github.com/y3owk1n/fude/modules/lists"
+	sessionsmod "github.com/y3owk1n/fude/modules/sessions"
 	shellmod "github.com/y3owk1n/fude/modules/shell"
 	"github.com/y3owk1n/fude/modules/task"
 	timelinemod "github.com/y3owk1n/fude/modules/timeline"
@@ -101,6 +102,7 @@ func TestB244GuestRefuses(t *testing.T) {
 	e.Use(task.New())
 	e.Use(gitmod.New())
 	e.Use(shellmod.New())
+	e.Use(sessionsmod.New())
 	heard(t, log, `"method":"textDocument/didOpen"`, 1)
 	guest := e.Attach("guest", editor.Guest)
 	wd, err := os.Getwd()
@@ -308,6 +310,7 @@ func TestB256Follow(t *testing.T) {
 	change(t, filepath.Join(away, "out.txt"), "out\n")
 	config(t, "wrap = false\n")
 	e := start(t, "a.txt")
+	e.Use(sessionsmod.New())
 	e.SetName("host")
 	e.SetSize(80, 20)
 	pat := e.Attach("pat", editor.Host)

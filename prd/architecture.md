@@ -1769,8 +1769,11 @@ joined by `/`, the last two in unpadded base64url.
 and `$USER` as its first line. The host's fude asks whether to let the
 guest in, and on yes the connection goes on as an attach does, to a
 guest session. The secret then no longer works, and `:share` makes a new
-one. One join waits for the host's answer at a time. `:who` lists the
-guests and `:kick name` ends one. Quitting fude ends the share and every
+one. One join waits for the host's answer at a time. `modules/sessions`
+is `:who`, `:kick` and `:follow`. It reads the sessions through
+`Scope.Sessions`, and its result's `Kick` and `Follow` name one, which the
+editor ends or follows. The editor refuses a guest's `Kick` (B332).
+`:who` lists the guests and `:kick name` ends one. Quitting fude ends the share and every
 guest session, and `:restart` starts fude again without `--share`.
 
 ### Relay

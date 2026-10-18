@@ -451,6 +451,12 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 	if res.Tabs != nil {
 		e.tabs = *res.Tabs
 	}
+	if res.Follow != "" {
+		e.startFollow(res.Follow)
+	}
+	if res.Kick != "" {
+		e.kick(res.Kick)
+	}
 	if len(res.Window) == 1 {
 		e.moveTo(res.Window[0])
 	}
@@ -903,6 +909,7 @@ func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 	s.States = func(int) []api.State { return nil }
 	s.Marks, s.Jumps, s.Changes = none, none, none
 	s.Window = func(string) bool { return false }
+	s.Sessions = func() []api.Peer { return nil }
 	s.Messages = func() []string { return nil }
 	s.Register = func(rune) (string, bool, error) { return "", false, nil }
 	s.StateText = func(int, int) (string, bool) { return "", false }

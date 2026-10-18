@@ -13,6 +13,7 @@ import (
 	"github.com/y3owk1n/fude/modules/debug"
 	"github.com/y3owk1n/fude/modules/grep"
 	listsmod "github.com/y3owk1n/fude/modules/lists"
+	sessionsmod "github.com/y3owk1n/fude/modules/sessions"
 	"github.com/y3owk1n/fude/modules/task"
 	timelinemod "github.com/y3owk1n/fude/modules/timeline"
 	"github.com/y3owk1n/fude/syntax"
@@ -31,6 +32,7 @@ func TestB131CommandCompletion(t *testing.T) {
 	config(t, "autocomplete = true")
 	e := start(t, "readme")
 	e.Use(listsmod.New())
+	e.Use(sessionsmod.New())
 	e.Use(timelinemod.New())
 	e.Use(task.New())
 	e.Use(debug.New())

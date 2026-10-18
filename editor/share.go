@@ -2,7 +2,6 @@ package editor
 
 import (
 	"bufio"
-	"cmp"
 	"crypto/subtle"
 	"crypto/tls"
 	"encoding/json"
@@ -11,7 +10,6 @@ import (
 	"net"
 	"slices"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -309,20 +307,14 @@ func (e *Session) guestName(name string) string {
 	return unique
 }
 
-// who shows the guests' names, as :who does (B250).
-func (e *Session) who() {
-	var names []string
-	for _, s := range e.sessions {
-		if s.power != Host {
-			names = append(names, s.name)
-		}
-	}
-	e.message = cmp.Or(strings.Join(names, "  "), "no guests")
-}
-
-// kick ends the session of the guest called name, as :kick does (B250).
+// kick ends the session of the guest called name, as :kick does. A guest
+// may not (B244, B250).
 func (e *Session) kick(name string) {
-	i := slices.IndexFunc(e.sessions, func(s *Session) bool { return s.power != Host && s.name == name })
+	if e.power != Host {
+		e.message = "a guest may not run :kick"
+		return
+	}
+	i := slices.IndexFunc(e.sessions, func(s *Session) bool { return s.power != Host && s.label() == name })
 	if i < 0 {
 		e.message = "no guest is called " + name
 		return
@@ -331,17 +323,6 @@ func (e *Session) kick(name string) {
 	s.message = "the host ended your session"
 	s.leave()
 	e.message = "ended " + name + "'s session"
-}
-
-// completeKick completes the names of the guests.
-func completeKick(e *Session, _ string, start int, arg string, _ bool) (int, []string) {
-	var names []string
-	for _, s := range e.sessions {
-		if s.power != Host {
-			names = append(names, s.name)
-		}
-	}
-	return start, match(names, arg)
 }
 
 // sharing says, for the status line, whether fude shares and with how many

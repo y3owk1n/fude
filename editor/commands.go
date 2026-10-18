@@ -78,7 +78,6 @@ func init() {
 			e.edit(x.arg)
 		}, completePath},
 		{vim.Command{Name: "enew", Help: "shows a new empty buffer"}, func(e *Session, _ call) { e.empty() }, nil},
-		{vim.Command{Name: "follow", Args: "{name}", Help: "keeps the window on what the session called name shows, until a key is typed"}, func(e *Session, x call) { e.startFollow(x.arg) }, completeFollow},
 		{vim.Command{Name: "pick", Args: "[source] [text]", Help: "opens the finder on a source, or on the sources: files, grep [text], buffers, recent, diagnostics, symbols, help or keymaps"}, func(e *Session, x call) { e.openPick(x.arg) }, func(e *Session, _ string, start int, arg string, _ bool) (int, []string) {
 			return start, match(e.pickNames(), arg)
 		}},
@@ -153,7 +152,6 @@ func init() {
 		{vim.Command{Name: "help", Short: []string{"h"}, Args: "[name]", Help: "opens help, at the entry for a command, key, option or setting"}, func(e *Session, x call) { e.help(x.arg) }, func(e *Session, _ string, start int, arg string, _ bool) (int, []string) {
 			return start, match(e.helpTags(), arg)
 		}},
-		{vim.Command{Name: "kick", Args: "{name}", Help: "ends the session of the guest called name"}, func(e *Session, x call) { e.kick(x.arg) }, completeKick},
 		{vim.Command{Name: "new", Help: "opens a window below with a new empty buffer, or above with split_below off"}, func(e *Session, _ call) {
 			e.split(false)
 			e.empty()
@@ -196,7 +194,6 @@ func init() {
 		}, nil},
 		{vim.Command{Name: "vsplit", Short: []string{"vs"}, Args: "[file]", Help: "opens a window to the right, then opens file in it"}, splitAndEdit, completePath},
 		{vim.Command{Name: "wall", Short: []string{"wa"}, Help: "writes every modified buffer"}, func(e *Session, x call) { e.writeAll(e.bufs, x.force, nil) }, nil},
-		{vim.Command{Name: "who", Help: "lists the guests"}, func(e *Session, _ call) { e.who() }, nil},
 		{vim.Command{Name: "wq", Help: "writes the buffer and closes the window"}, func(e *Session, x call) {
 			e.write(e.win.buf, x.force, func() { e.quit(x.force) })
 		}, nil},

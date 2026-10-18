@@ -28,6 +28,7 @@ import (
 	filesmod "github.com/y3owk1n/fude/modules/files"
 	hintsmod "github.com/y3owk1n/fude/modules/hints"
 	lspmod "github.com/y3owk1n/fude/modules/lsp"
+	sessionsmod "github.com/y3owk1n/fude/modules/sessions"
 	timelinemod "github.com/y3owk1n/fude/modules/timeline"
 	"github.com/y3owk1n/fude/syntax/syntaxtest"
 	"github.com/y3owk1n/fude/vim"
@@ -1532,6 +1533,7 @@ func TestB250WhoAndKick(t *testing.T) {
 	}
 	t.Setenv("USER", "kyle")
 	host := startWith(t, "", "a.txt").e.(*editor.Session)
+	host.Use(sessionsmod.New())
 	host.SetName("host")
 	_, on, _ := serve(t, host)
 	ex := func(line string) string {

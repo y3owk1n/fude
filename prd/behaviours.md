@@ -1042,6 +1042,10 @@ Where fude departs, the line says so and cites the departure in
   window, such as a line in `diff.plus`, over what the filetype colours.
 - B277 [4] A plugin hears `editor.focused` when the terminal gets the
   focus back, as git's index may have changed while fude was away.
+- B332 [4] A module's call lists the sessions on this fude, each with
+  its name and power and whether it is the call's own. Its result may
+  end a guest's session, which only the host may ask, or follow a
+  session, as `:who`, `:kick` and `:follow` do (B250, B256).
 - B331 [4] A module says what the buffer line lists, each buffer by the
   name it shows, and the editor lights the current window's, marks a
   modified one, and leaves out what a guest may not show. A module hears

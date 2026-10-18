@@ -69,6 +69,13 @@ func (e *Session) onLoop(scope *api.Scope) {
 		return nil
 	}
 	e.lists(scope)
+	scope.Sessions = func() []api.Peer {
+		var out []api.Peer
+		for _, s := range e.sessions {
+			out = append(out, api.Peer{Name: s.label(), Power: powers[s.power], You: s == e})
+		}
+		return out
+	}
 	scope.Window = func(dir string) bool { return len(dir) == 1 && e.beside(dir[0]) != nil }
 	scope.StateText = func(id, i int) (string, bool) {
 		if b, err := e.buffer(id); err == nil {
