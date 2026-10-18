@@ -1411,7 +1411,7 @@ next typed key closes it and asks again. fude drops an answer for text that
 changed after the request. The items come from the language
 server only, not from the buffer's words (N8).
 
-`gq` is an operator `editor/` adds. With no formatter that applies, it
+`gq` is an operator `modules/format` registers. With no formatter that applies, it
 asks for `rangeFormatting` of the target's lines when the server offers it. Otherwise it asks for
 `formatting` of the document, as gopls offers only that, and keeps the
 edits that fall inside the lines. The answer applies as one transaction on
@@ -1767,10 +1767,12 @@ phases, each unit a commit that keeps every behaviour.
    LSP keys are, so vim's `gd` keeps working without one. `Result.Apply`
    applies a workspace edit across files with the editor's version
    checks. `modules/lsp` then holds hover, the goto family, references,
-   symbols, rename, code actions, the diagnostics display and the `:lsp`
-   panel. The editor keeps the server lifecycle, document sync and
-   completion. Completion stays because a module's `Call` is busy while
-   it handles `buffer.changed`, which is when completion fires.
+   symbols, rename, code actions and the diagnostics display. The editor
+   keeps the server lifecycle, document sync, completion and the `:lsp`
+   panel, which reads the servers' state and restarts, stops and disables
+   them. Completion stays
+   because a module's `Call` is busy while it handles `buffer.changed`,
+   which is when completion fires.
 3. Tests beside the libraries. The tests that use only `syntax`,
    `protocol`, `plugin` or `api` move beside them, so `go test` in each
    proves its behaviours. One headless test per module moves beside
