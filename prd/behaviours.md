@@ -1065,6 +1065,13 @@ Where fude departs, the line says so and cites the departure in
   lines one block. While the
   cursor or a selection is on any of them, every line of the block shows
   its text as it is, without replacements or rows of its own.
+- B303 [4] A module's decoration may name an image file, a PNG, JPEG or
+  GIF, to show in rows of its own below its line (B299). Once the client
+  says how many pixels a cell of its terminal takes, the image takes as
+  many columns as its pixels fill, at most the window's, and the rows
+  that keep its shape, at most all but two of the window's. It takes them
+  on the cursor's line too, so passing it moves no text. fude reads the
+  file once, off the loop, and an image that does not load takes no rows.
 - B289 [4] A plugin with `ui` reads its own decorations on the buffer its
   call is about, each with its id, where it is now and what it shows.
 - B290 [4] A module's command completes its argument through the

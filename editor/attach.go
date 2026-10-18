@@ -176,6 +176,12 @@ func (e *Session) input(method string, params json.RawMessage) error {
 			return fmt.Errorf("read size: %w", err)
 		}
 		e.SetSize(size[0], size[1])
+	case "cell":
+		var cell [2]int
+		if err := json.Unmarshal(params, &cell); err != nil {
+			return fmt.Errorf("read cell: %w", err)
+		}
+		e.SetCell(cell[0], cell[1])
 	case "focus":
 		e.Focus()
 	case "timeout":

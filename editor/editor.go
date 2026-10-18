@@ -64,6 +64,7 @@ type Editor struct {
 
 	now      func() time.Time       // the clock edits are stamped with
 	snippets map[string]snippetFile // each snippets file read, by path (B207)
+	pictures pictures               // the images decorations show (B303)
 }
 
 // Session is one client's windows and vim machine on the shared editor. Its
@@ -82,6 +83,7 @@ type Session struct {
 	vim        *vim.Machine
 	message    string
 	done       bool
+	cell       [2]int                  // the client's cell in pixels, 0 when it shows no images (B303)
 	restarting string                  // the session file :restart saved, for main (B170)
 	hints      []vim.Hint              // the keys that may follow the command being typed, while they show (B172)
 	ask        question                // takes the answer to the question in the message

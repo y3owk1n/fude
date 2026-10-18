@@ -564,6 +564,14 @@ as it is draws none. A decoration marked `Block` makes its lines show
 their text together. While the cursor or a selection is on one, the list
 leaves out the replacements and rows of them all (B300).
 
+A module's decoration with `Image` names an image file (B303). The
+editor loads it once, on a goroutine of its own, decodes it with the
+standard library and keeps it as PNG with an id. The id starts from the
+process id, so two fude processes in one terminal window do not share
+ids. A client tells its session the pixels of a cell with `SetCell`, and
+the image's rows are virtual rows that carry its id, the row and its
+columns.
+
 A decoration marked `Line`, or a plugin's from `shade`, shades its lines'
 rows to the window's edge in its style's ground, as `View.Grounds` gives
 them by line (B296). It draws under the text's colours, and in place of

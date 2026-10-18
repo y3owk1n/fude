@@ -1,8 +1,11 @@
 package editor_test
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"image"
+	"image/png"
 	"maps"
 	"net/http"
 	"net/http/httptest"
@@ -1114,6 +1117,46 @@ func TestB299PluginRowsAndBlock(t *testing.T) {
 	// With the cursor on the block's other line, its row goes.
 	if feed(e, "3G"); len(e.Views()[0].Virtual[1]) != 0 {
 		t.Errorf("with the cursor in the block, line 2 draws %v", e.Views()[0].Virtual[1])
+	}
+}
+
+// pictured is a module that shows the image at path below the first line.
+type pictured struct {
+	idle
+	path string
+}
+
+func (m pictured) Init(context.Context, api.Scope) (api.Result, error) {
+	return api.Result{Decorate: []api.Decoration{{ID: 1, Image: m.path}}}, nil
+}
+
+// B303
+func TestB303ImageRows(t *testing.T) {
+	dir := t.TempDir()
+	pic := filepath.Join(dir, "a.png")
+	var b bytes.Buffer
+	if err := png.Encode(&b, image.NewRGBA(image.Rect(0, 0, 80, 32))); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(pic, b.Bytes(), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "f")
+	change(t, path, "a\nb\n")
+	e := start(t, path)
+	e.SetSize(80, 20)
+	e.Use(pictured{path: pic})
+	// With no cell size from the client, the image takes no rows.
+	if len(e.Views()[0].Virtual[0]) != 0 {
+		t.Fatalf("with no cell size, line 1 draws %v", e.Views()[0].Virtual[0])
+	}
+	// With 8 by 16 pixel cells, 80 by 32 pixels take 10 columns and two
+	// rows, on the cursor's line too.
+	e.SetCell(8, 16)
+	settle(t, e, func() bool { return len(e.Views()[0].Virtual[0]) == 2 })
+	v := e.Views()[0].Virtual[0]
+	if v[0].Image == 0 || v[1].Image != v[0].Image || v[0].Row != 0 || v[1].Row != 1 || v[0].Cols != 10 {
+		t.Errorf("the image's rows are %+v", v)
 	}
 }
 

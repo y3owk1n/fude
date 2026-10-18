@@ -50,6 +50,20 @@ func (e *Session) shown(w *window, start, end int) drawn {
 			s, en := b.text.Mark(d.start), b.text.Mark(d.end)
 			switch line := t.LineOf(s); {
 			case d.block:
+			case d.image != "" && s >= start && s <= end:
+				// An image shows on the cursor's line too, so passing it moves
+				// no text.
+				p := e.picture(d.image)
+				if p == nil || e.cell[0] == 0 || e.cell[1] == 0 {
+					continue
+				}
+				if out.virtual == nil {
+					out.virtual = map[int][]wire.Virtual{}
+				}
+				rows, cols := e.imageRows(w, p)
+				for r := range rows {
+					out.virtual[line] = append(out.virtual[line], wire.Virtual{Image: p.id, Row: r, Cols: cols})
+				}
 			case len(d.lines) > 0 && (line < first || line > last) && s >= start && s <= end:
 				if out.virtual == nil {
 					out.virtual = map[int][]wire.Virtual{}
@@ -61,7 +75,7 @@ func (e *Session) shown(w *window, start, end int) drawn {
 				out.ghosts = append(out.ghosts, wire.Ghost{Pos: s, End: en, Text: d.note, Style: d.style})
 			case d.style == "inlay" && s >= start && s <= end:
 				out.ghosts = append(out.ghosts, wire.Ghost{Pos: s, Text: d.note, Style: "inlay"})
-			case !d.replace && d.style != "inlay" && len(d.lines) == 0 && en >= start && en <= end:
+			case !d.replace && d.style != "inlay" && len(d.lines) == 0 && d.image == "" && en >= start && en <= end:
 				out.ghosts = append(out.ghosts, wire.Ghost{Pos: en, Text: d.note, Stale: d.style == "proposal.stale"})
 			}
 		}

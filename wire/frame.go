@@ -126,6 +126,9 @@ func Inlines(gs []Ghost) []vim.Inline {
 type Virtual struct {
 	Text, Style string
 	Above       bool
+	// Image is the id of the image the row shows row Row of, Cols columns
+	// wide, or 0 (B303).
+	Image, Row, Cols int
 }
 
 // Note is text after the end of a line. Name is its style, a diagnostic's
