@@ -594,7 +594,7 @@ func TestB275PluginReadsCommentSyntax(t *testing.T) {
 // B274
 func TestB274PluginReadsOptions(t *testing.T) {
 	e := loaded(t, "ctx", "f", "a\n", "buffer.write")
-	feed(e, ":Opt wrap<CR>:set nowrap<CR>:Opt wrap<CR>:Opt leader<CR>:Opt filetype<CR>")
+	feed(e, ":Opt wrap<CR>:set wrap false<CR>:Opt wrap<CR>:Opt leader<CR>:Opt filetype<CR>")
 	if got := text(e); got != "none|<Space>|false|true|a" {
 		t.Errorf("the options typed %q", got)
 	}

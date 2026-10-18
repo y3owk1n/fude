@@ -134,11 +134,11 @@ func TestB157InfoViews(t *testing.T) {
 	e := open(t, path)
 	e.SetSize(80, 24)
 	// :messages lists the messages shown so far.
-	for _, keys := range []string{":set number?<CR>", ":set wrap?<CR>"} {
+	for _, keys := range []string{":set number<CR>", ":set wrap<CR>"} {
 		feed(e, keys)
 		e.Message()
 	}
-	if feed(e, ":messages<CR>"); text(e) != "nonumber\nwrap" {
+	if feed(e, ":messages<CR>"); text(e) != "number false\nwrap true" {
 		t.Fatalf(":messages listed %q", text(e))
 	}
 	// :marks lists the marks, and <CR> jumps to one.

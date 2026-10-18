@@ -29,62 +29,54 @@ func fields[T any](o *options) map[string]*T {
 	return out
 }
 
-// set runs :set on its arguments: name turns a switch on, noname off,
-// name! the other way, name=n gives a number, and name? shows an option.
-// With no arguments it shows every option. It changes the current window
-// and the default for the session's windows opened later (B39).
+// set runs :set. With a name and a value it sets the option, as
+// config.toml would: true or false for a switch, and a number of 0 or more
+// for a number. With a name alone it shows the option, and with neither
+// it lists every one in a window. It changes the current window and the
+// default for the session's windows opened later, and never config.toml
+// (B39).
 func (e *Session) set(args string) {
-	was := e.win.opts
 	switches, numbers := e.win.opts.switches(), e.win.opts.numbers()
-	if args == "" {
-		names := slices.Sorted(maps.Keys(switches))
-		names = append(names, slices.Sorted(maps.Keys(numbers))...)
-		args = strings.Join(names, "? ") + "?"
+	name, value, given := strings.Cut(strings.TrimSpace(args), " ")
+	value = strings.TrimSpace(value)
+	switch _, number := numbers[name]; {
+	case name == "":
+		var lines []string
+		for _, n := range slices.Sorted(maps.Keys(switches)) {
+			lines = append(lines, fmt.Sprintf("%-16s %t", n, *switches[n]))
+		}
+		for _, n := range slices.Sorted(maps.Keys(numbers)) {
+			lines = append(lines, fmt.Sprintf("%-16s %d", n, *numbers[n]))
+		}
+		e.scratch("[set]", strings.Join(lines, "\n"), nil, nil)
+		return
+	case switches[name] == nil && !number:
+		e.message = "no option named " + name
+		return
+	case !given && number:
+		e.message = fmt.Sprintf("%s %d", name, *numbers[name])
+		return
+	case !given:
+		e.message = fmt.Sprintf("%s %t", name, *switches[name])
+		return
 	}
-	var shown []string
-	for _, arg := range strings.Fields(args) {
-		name, value, isNumber := strings.Cut(strings.TrimRight(arg, "?!"), "=")
-		if n, ok := numbers[name]; ok {
-			switch {
-			case isNumber:
-				v, err := strconv.Atoi(value)
-				if err != nil || v < 0 {
-					// A :set with a bad argument changes nothing.
-					e.win.opts = was
-					e.message = fmt.Sprintf("%s takes a number of 0 or more, not %q", name, value)
-					return
-				}
-				*n = v
-			default:
-				shown = append(shown, fmt.Sprintf("%s=%d", name, *n))
-			}
-			continue
+	was := e.win.opts
+	if n, ok := numbers[name]; ok {
+		v, err := strconv.Atoi(value)
+		if err != nil || v < 0 {
+			e.message = fmt.Sprintf("%s takes a number of 0 or more, not %q", name, value)
+			return
 		}
-		on, ok := switches[name]
-		turn := true
-		if !ok {
-			if on, ok = switches[strings.TrimPrefix(name, "no")]; !ok || isNumber {
-				e.win.opts = was
-				e.message = "no option named " + name
-				return
-			}
-			name, turn = strings.TrimPrefix(name, "no"), false
+		*n = v
+	} else {
+		if value != "true" && value != "false" {
+			e.message = fmt.Sprintf("%s takes true or false, not %q", name, value)
+			return
 		}
-		switch {
-		case strings.HasSuffix(arg, "?"):
-			if !*on {
-				name = "no" + name
-			}
-			shown = append(shown, name)
-		case strings.HasSuffix(arg, "!"):
-			*on = !*on
-		default:
-			*on = turn
-		}
+		*switches[name] = value == "true"
 	}
 	e.win.keep(was)
 	e.opts = e.win.ownOptions()
-	e.message = strings.Join(shown, "  ")
 	// A colour column changes how wide centering makes the windows.
 	e.layout()
 }

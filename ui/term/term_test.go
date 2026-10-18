@@ -189,8 +189,8 @@ func TestB197FrameAfterFrame(t *testing.T) {
 	for _, keys := range []string{
 		"jj", "f{", "%", "*", "j", "*", "ggjj", "Vjj", "y", "<C-v>jjl", "y",
 		"jjjihello<Esc>", "dd", "u", "Gk", "J", "u", "ggjA" + strings.Repeat(" more", 30) + "<Esc>", "u",
-		"/return<CR>", "<<", "k", ":vsplit<CR>", "/that<CR>", "b", "rq", "<C-w>w", ":set list<CR>",
-		":set nowrap<CR>", "/wraps<CR>", "j", "k", "$", "0", "x", "gg", ":w<CR>", "j", ":set nonumber<CR>",
+		"/return<CR>", "<<", "k", ":vsplit<CR>", "/that<CR>", "b", "rq", "<C-w>w", ":set list true<CR>",
+		":set wrap false<CR>", "/wraps<CR>", "j", "k", "$", "0", "x", "gg", ":w<CR>", "j", ":set number false<CR>",
 	} {
 		step(keys)
 	}
@@ -225,9 +225,9 @@ func TestB199Center(t *testing.T) {
 		text, right int
 	}{
 		{"", 10, 110},
-		{":set color_column=50<CR>", 35, 85},
+		{":set color_column 50<CR>", 35, 85},
+		{":set number true<CR>", 35, 85},
 		{":set number<CR>", 35, 85},
-		{":set number?<CR>", 35, 85},
 		{":vsplit<CR>", 9, 114},
 		{":vsplit<CR>", 4, 120},
 		{":center<CR>", 4, 120},
@@ -252,14 +252,14 @@ func TestB199Center(t *testing.T) {
 			t.Errorf("after %q the centered window shades its colour column", step.keys)
 		}
 	}
-	for _, k := range vim.Keys(":set color_column=200<CR>:center<CR>") {
+	for _, k := range vim.Keys(":set color_column 200<CR>:center<CR>") {
 		c.e.Feed(k)
 	}
 	if !strings.Contains(c.e.Message(), "too narrow") {
 		t.Errorf("centering 200 columns on 120 said %q", c.e.Message())
 	}
 	// :restart keeps the windows centered.
-	for _, k := range vim.Keys(":only<CR>:set color_column=60<CR>ZR") {
+	for _, k := range vim.Keys(":only<CR>:set color_column 60<CR>ZR") {
 		c.e.Feed(k)
 	}
 	t.Setenv(editor.RestartEnv, c.e.(*editor.Session).Restart())
@@ -520,8 +520,8 @@ func TestB148CommandLine(t *testing.T) {
 		t.Fatalf("the command line is on row %d of:\n%s", at, strings.Join(rows, "\n"))
 	}
 	// A message is a toast in the top right corner.
-	feed("<Esc>:set number?<CR>")
-	if rows = strings.Split(screen(), "\n"); !strings.HasSuffix(strings.TrimRight(rows[1], " │"), "nonumber") || len(rows[1]) < w {
+	feed("<Esc>:set number<CR>")
+	if rows = strings.Split(screen(), "\n"); !strings.HasSuffix(strings.TrimRight(rows[1], " │"), "number false") || len(rows[1]) < w {
 		t.Fatalf("the toast is not in the top right:\n%s", strings.Join(rows[:3], "\n"))
 	}
 	// A long message wraps onto more lines instead of being cut.
@@ -628,11 +628,11 @@ func TestB153IndentGuides(t *testing.T) {
 	if cell(0, 1) != "│" || cell(0, 2) != "│" || cell(0, 0) != "a" {
 		t.Fatalf("the first column reads %q %q %q", cell(0, 0), cell(0, 1), cell(0, 2))
 	}
-	for _, k := range vim.Keys(":set noindent_guides<CR>") {
+	for _, k := range vim.Keys(":set indent_guides false<CR>") {
 		cl.e.Feed(k)
 	}
 	if cl.draw(); cell(0, 1) != " " {
-		t.Fatalf("with noindent_guides the first column has %q", cell(0, 1))
+		t.Fatalf("with indent_guides false the first column has %q", cell(0, 1))
 	}
 }
 

@@ -230,7 +230,7 @@ func TestB37Wrap(t *testing.T) {
 		t.Fatalf("on line 3 the window starts at %d, want line 2 at 21", e.Top())
 	}
 	// Without wrap the view scrolls sideways to the cursor's column.
-	feed(e, "gg:set nowrap<CR>$")
+	feed(e, "gg:set wrap false<CR>$")
 	if v := e.Views()[0]; v.Top != 0 || v.Left != 10 {
 		t.Fatalf("on the last of 20 columns in 10 the view starts at %d, column %d, want 0 and 10", v.Top, v.Left)
 	}
@@ -259,22 +259,29 @@ func TestB38Ruler(t *testing.T) {
 // B39
 func TestB39Set(t *testing.T) {
 	e := open(t, "")
-	feed(e, ":set number relative_number<CR>")
+	feed(e, ":set number true<CR>:set relative_number true<CR>")
 	if v := e.Views()[0]; !v.Number || !v.Relative || v.Gutter != 4 {
-		t.Fatalf("after :set number relative_number the view is %+v", v)
+		t.Fatalf("after :set number true and relative_number true the view is %+v", v)
 	}
 	// A window split from it starts the same, and :set changes only the
 	// current one.
-	feed(e, ":sp<CR>:set nonumber relative_number!<CR>")
+	feed(e, ":sp<CR>:set number false<CR>:set relative_number false<CR>")
 	if vs := e.Views(); vs[1].Number || vs[1].Relative || vs[1].Gutter != 0 || !vs[0].Number {
-		t.Fatalf("after :set nonumber relative_number! in a split the views are %+v", vs)
+		t.Fatalf("after :set number false and relative_number false in a split the views are %+v", vs)
 	}
-	if feed(e, ":set number?<CR>"); e.Message() != "nonumber" {
-		t.Errorf(":set number? said %q", e.Message())
+	// A name alone shows the option, and :set alone lists them in a window.
+	if feed(e, ":set number<CR>"); e.Message() != "number false" {
+		t.Errorf(":set number said %q", e.Message())
 	}
-	// A :set with a bad argument changes nothing.
-	if feed(e, ":set number bogus<CR>"); e.Views()[1].Number || e.Message() != "no option named bogus" {
-		t.Errorf(":set number bogus left number %v and said %q", e.Views()[1].Number, e.Message())
+	if feed(e, ":set<CR>"); e.Views()[2].Name != "[set]" || !strings.Contains(text(e), "relative_number  false") || !strings.Contains(text(e), "scroll_off       0") {
+		t.Errorf(":set listed %q", text(e))
+	}
+	feed(e, "q")
+	// A :set with a bad value changes nothing.
+	for keys, want := range map[string]string{":set number bogus<CR>": `number takes true or false, not "bogus"`, ":set number on<CR>": `number takes true or false, not "on"`} {
+		if feed(e, keys); e.Views()[1].Number || e.Message() != want {
+			t.Errorf("%s left number %v and said %q", keys, e.Views()[1].Number, e.Message())
+		}
 	}
 	if feed(e, ":set wide<CR>"); e.Message() != "no option named wide" {
 		t.Errorf(":set wide said %q", e.Message())
@@ -297,33 +304,33 @@ func TestB116ScrollOff(t *testing.T) {
 	e := open(t, path)
 	// Seven rows, and two lines kept below the cursor's.
 	e.SetSize(40, 8)
-	feed(e, ":set scroll_off=2<CR>")
+	feed(e, ":set scroll_off 2<CR>")
 	if feed(e, "4j"); e.Top() != 0 {
 		t.Fatalf("on line 5 the view starts at %d, want 0", e.Top())
 	}
 	if feed(e, "j"); e.Top() != 2 {
 		t.Fatalf("on line 6 the view starts at %d, want line 2 at 2", e.Top())
 	}
-	if feed(e, ":set scroll_off?<CR>"); e.Message() != "scroll_off=2" {
-		t.Errorf(":set scroll_off? said %q", e.Message())
+	if feed(e, ":set scroll_off<CR>"); e.Message() != "scroll_off 2" {
+		t.Errorf(":set scroll_off said %q", e.Message())
 	}
-	if feed(e, ":set scroll_off=x<CR>"); !strings.Contains(e.Message(), "takes a number") {
-		t.Errorf(":set scroll_off=x said %q", e.Message())
+	if feed(e, ":set scroll_off x<CR>"); !strings.Contains(e.Message(), "takes a number") {
+		t.Errorf(":set scroll_off x said %q", e.Message())
 	}
 }
 
 // B117
 func TestB117CursorLine(t *testing.T) {
 	e := open(t, "")
-	if feed(e, ":set cursor_line<CR>"); !e.Views()[0].CursorLine {
-		t.Fatal(":set cursor_line left the window without it")
+	if feed(e, ":set cursor_line true<CR>"); !e.Views()[0].CursorLine {
+		t.Fatal(":set cursor_line true left the window without it")
 	}
 }
 
 // B120, through :set
 func TestB120SetIgnoreCase(t *testing.T) {
 	e := open(t, "")
-	feed(e, "ix ABC abc<Esc>0:set ignore_case<CR>/abc<CR>")
+	feed(e, "ix ABC abc<Esc>0:set ignore_case true<CR>/abc<CR>")
 	if e.Cursor() != 2 {
 		t.Fatalf("/abc with ignore_case went to %d, want 2", e.Cursor())
 	}
@@ -460,8 +467,8 @@ func TestB143SignColumn(t *testing.T) {
 	if v := e.Views()[0]; v.SignCols != 2 || v.Gutter != 2 {
 		t.Fatalf("with sign_column a file with no signs has %d sign columns", v.SignCols)
 	}
-	if feed(e, ":set nosign_column<CR>"); e.Views()[0].SignCols != 0 {
-		t.Fatal(":set nosign_column kept the sign column")
+	if feed(e, ":set sign_column false<CR>"); e.Views()[0].SignCols != 0 {
+		t.Fatal(":set sign_column false kept the sign column")
 	}
 }
 
@@ -540,11 +547,11 @@ func TestB217StickyContext(t *testing.T) {
 	if feed(e, "zt"); len(e.Views()[0].Context) != 0 {
 		t.Errorf("with the cursor on the top line, %v is pinned", e.Views()[0].Context)
 	}
-	// :set nosticky_context turns it off in the window.
+	// :set sticky_context false turns it off in the window.
 	if feed(e, "3j"); len(e.Views()[0].Context) == 0 {
 		t.Fatal("with the cursor below the top again, nothing is pinned")
 	}
-	if feed(e, ":set nosticky_context<CR>"); len(e.Views()[0].Context) != 0 {
+	if feed(e, ":set sticky_context false<CR>"); len(e.Views()[0].Context) != 0 {
 		t.Errorf("with sticky_context off, %v is pinned", e.Views()[0].Context)
 	}
 }
@@ -618,7 +625,7 @@ func TestB21IncrementalSearch(t *testing.T) {
 		t.Errorf("the search went to line %d with the view at line %d", e.Text().LineOf(e.Cursor()), top())
 	}
 	// With inc_search off the view stays put while a search is typed.
-	feed(e, "gg:set noinc_search<CR>/need")
+	feed(e, "gg:set inc_search false<CR>/need")
 	if top() != 0 || e.Views()[0].Searched != [2]int{} {
 		t.Errorf("with inc_search off, /need moved the view to line %d and lit %v", top(), e.Views()[0].Searched)
 	}

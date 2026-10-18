@@ -101,7 +101,7 @@ func TestB170Restart(t *testing.T) {
 	change(t, b, "three\n")
 	e := start(t, a, b)
 	e.SetSize(80, 20)
-	feed(e, "j:vsplit<CR>:b 2<CR>ix<Esc>:set number<CR>:restart<CR>")
+	feed(e, "j:vsplit<CR>:b 2<CR>ix<Esc>:set number true<CR>:restart<CR>")
 	if !e.Done() || e.Restart() == "" {
 		t.Fatal(":restart did not quit with a saved session")
 	}

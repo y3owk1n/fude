@@ -249,18 +249,18 @@ func TestB271Plug(t *testing.T) {
 
 // B215
 func TestB215PickLists(t *testing.T) {
-	config(t, "[keymap.normal]\n\"zq\" = \":set number<CR>\"\n")
+	config(t, "[keymap.normal]\n\"z9\" = \":set number true<CR>\"\n")
 	e := start(t)
 	e.SetSize(100, 30)
 	shows := func(want string) bool { f, _ := e.Float(); return strings.Contains(f.Text, want) }
 	// :pick alone lists the sources, and picking one opens its finder.
 	feed(e, ":pick<CR>")
 	settle(t, e, func() bool { return shows("keymaps") })
-	feed(e, "keymaps<CR>zq")
-	settle(t, e, func() bool { return shows("normal mapping  types :set<Space>number<CR>") })
+	feed(e, "keymaps<CR>z9")
+	settle(t, e, func() bool { return shows("normal mapping  types :set<Space>number<Space>true<CR>") })
 	// A mapping picked runs.
 	if feed(e, "<CR>"); !e.Views()[0].Number {
-		t.Error("picking zq did not run it")
+		t.Error("picking z9 did not run it")
 	}
 	// It lists the machine's keys too, each with its kind and help, and a
 	// motion picked runs, j here after insert mode's <Down>.

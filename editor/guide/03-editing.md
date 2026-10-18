@@ -95,12 +95,12 @@ indent and dedent the line, and `<C-o>` runs one normal mode command.
 
 ## Spelling
 
-`:set spell` underlines words the word list lacks: all of a Markdown,
+`:set spell true` underlines words the word list lacks: all of a Markdown,
 text or git commit file but its code, and the comments and strings of
 code. `]s` and `[s` go to them, `z=` lists words for the one under the
-cursor, and `zg` adds it to your own words. `:set nospell` turns it
-off, and `:set spell!` flips it. The list is `/usr/share/dict/words`,
-or the file `spell_words` names.
+cursor, and `zg` adds it to your own words. `:set spell false` turns it
+off. The list is `/usr/share/dict/words`, or the file `spell_words`
+names.
 
 ```toml
 [filetype.markdown]

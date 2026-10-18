@@ -199,7 +199,7 @@ func init() {
 			e.decide(x.arg, false)
 		}, nil},
 		{vim.Command{Name: "restore", Args: "[n]", Help: "makes the text of state n the newest. In a timeline, n is the state under the cursor"}, func(e *Session, x call) { e.restore(x.arg) }, nil},
-		{vim.Command{Name: "set", Short: []string{"se"}, Args: "[option...]", Help: "sets options, or shows them all. name? shows one, noname turns one off and name! flips it"}, func(e *Session, x call) { e.set(x.arg) }, completeOption},
+		{vim.Command{Name: "set", Short: []string{"se"}, Args: "[name [value]]", Help: "sets an option to a value, as config.toml would, shows one, or lists them all"}, func(e *Session, x call) { e.set(x.arg) }, completeOption},
 		{vim.Command{Name: "share", Help: "shows a new share string, which lets one more guest join"}, func(e *Session, _ call) { e.reshare() }, nil},
 		{vim.Command{Name: "split", Short: []string{"sp"}, Args: "[file]", Help: "opens a window below, then opens file in it"}, splitAndEdit, completePath},
 		{vim.Command{Name: "terminal", Short: []string{"ter", "term"}, Args: "[cmd]", Help: "runs cmd, or the shell, in a terminal window below. <C-\\><C-n> or <Esc><Esc> leaves terminal mode, and i goes back"}, func(e *Session, x call) { e.openTerminal(x.arg, nil, "") }, nil},
@@ -331,11 +331,18 @@ func completePath(e *Session, line string, start int, arg string, wait bool) (in
 
 // completeOption completes the last option of :set.
 func completeOption(e *Session, _ string, start int, arg string, _ bool) (int, []string) {
-	i := strings.LastIndexByte(arg, ' ') + 1
 	opts := e.win.opts
+	name, value, given := strings.Cut(arg, " ")
+	if given {
+		// A switch takes true or false.
+		if _, ok := opts.switches()[name]; ok {
+			return start + len(name) + 1, match([]string{"false", "true"}, value)
+		}
+		return 0, nil
+	}
 	names := slices.Concat(slices.Collect(maps.Keys(opts.switches())), slices.Collect(maps.Keys(opts.numbers())))
 	slices.Sort(names)
-	return start + i, match(names, arg[i:])
+	return start, match(names, name)
 }
 
 // completeTheme offers the themes, and the scheme config.toml names so

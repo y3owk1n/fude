@@ -98,13 +98,15 @@ Where fude departs, the line says so and cites the departure in
   line and column, its screen column when that differs, and `All`, `Top`,
   `Bot` or how far down the view is. The current window's also shows the
   keys of a command being typed, as `showcmd` does.
-- B39 [2] `:set` turns options on with `name`, off with `noname`, the other
-  way with `name!` and shows them with `name?`, or every one with no
-  arguments, as Neovim does with fude's option names (N4). `number` shows
-  line numbers and `relative_number` numbers lines from the cursor's. Each
-  is also a setting in `config.toml`. A `:set` with a name or value it
-  does not know changes nothing.
-- B116 [2] `scroll_off`, set with `:set scroll_off=n` or in `config.toml`,
+- B39 [2] `:set name value` sets an option as `config.toml` would, with
+  fude's option names (N4): `true` or `false` for a switch and a number of
+  0 or more for a number. `:set name` shows its value, and `:set` alone
+  lists every option and its value in a window. It changes the current
+  window and the windows opened after it, and never `config.toml`.
+  `number` shows line numbers and `relative_number` numbers lines from the
+  cursor's. A `:set` with a name or value it does not know changes
+  nothing and says why.
+- B116 [2] `scroll_off`, set with `:set scroll_off n` or in `config.toml`,
   keeps n lines in view above and below the cursor's, at most half the
   window, as Neovim's `scrolloff` does.
 - B117 [2] `cursor_line` shades the cursor's line and shows its number in
@@ -354,7 +356,7 @@ Where fude departs, the line says so and cites the departure in
 - B143 [2] With `sign_column` on, every window keeps its sign column, so
   the text does not move when a git or diagnostic sign comes, as with
   Neovim's `signcolumn=yes`. Off, the column shows while the buffer has
-  signs. `:set sign_column` changes it for one window.
+  signs. `:set sign_column true` changes it for one window.
 - B144 [2] `<Leader>` in a mapping, from config or a plugin, stands for
   the `leader` setting, `<Space>` unless set, as Neovim's `mapleader` does
   when the mapping is made (N18).

@@ -550,7 +550,7 @@ func TestB119SignColumn(t *testing.T) {
 func TestB128Icons(t *testing.T) {
 	e, _ := withServer(t, "ok\nbad x bad\n", "utf-8")
 	settle(t, e, func() bool { return len(decorations(e)) == 2 })
-	if feed(e, ":set icons<CR>"); e.Views()[0].Signs[1] != (wire.Sign{Text: "\uf057", Name: "diagnostic.error"}) {
+	if feed(e, ":set icons true<CR>"); e.Views()[0].Signs[1] != (wire.Sign{Text: "\uf057", Name: "diagnostic.error"}) {
 		t.Fatalf("with icons the error sign is %v", e.Views()[0].Signs[1])
 	}
 

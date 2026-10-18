@@ -25,9 +25,9 @@ relative_number = true
 scroll_off = 8
 ```
 
-`:set number` turns an option on, `:set nonumber` off, `:set number!`
-the other way, and `:set number?` shows it. `:set scroll_off=4` sets a
-number. `:set` alone shows every option.
+`:set number true` sets an option as config.toml does, and `:set
+scroll_off 4` sets a number. `:set number` shows an option, and `:set`
+alone lists them all. `:set` changes the running fude, never config.toml.
 
 ## Filetypes
 

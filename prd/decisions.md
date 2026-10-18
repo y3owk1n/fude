@@ -547,8 +547,10 @@ exist from startup, show an error without a server, and make the built-in
 ### N4. Options have fude's own names
 
 `:set` takes fude's option names, not Vim's, with Neovim's defaults where
-the option exists in both. Why: there is no Vim option compatibility
-(product.md boundaries).
+the option exists in both, and their values as `config.toml` writes them:
+`:set wrap false`, not `:set nowrap`. Why: there is no Vim option
+compatibility (product.md boundaries), and one form for an option in both
+places is less to learn. The user asked for it on 2026-10-18.
 
 ### N5. A missing final newline stays missing
 

@@ -243,7 +243,7 @@ has scrolled out of view, that first line stays pinned over the window's
 top row, on the surface colour, as nvim-treesitter-context does. Nested
 ones pin too, the outermost first, at most 3, and never over the cursor's
 line. It needs the file's grammar. The default is on, and
-`:set nosticky_context` turns it off in the window.
+`:set sticky_context false` turns it off in the window.
 
 ## expand_tab
 
