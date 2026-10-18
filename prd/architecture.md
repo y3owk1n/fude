@@ -433,6 +433,15 @@ machine runs each before the typed key's own work. A call with no edits
 lets the key do what it does, so `<BS>` outside a pair deletes as usual. The finder
 feeds its query with `Machine.Prompt` on, which runs none of them (B323).
 
+`modules/hints` is the key hints (B172). The editor emits `keys.pending`
+with the command being typed whenever it changes. A module that hears it
+gets the hints in `Scope.Hints`, with each mapping's text and each group's
+name. The editor reads them on the loop as it builds the event's scope. The module waits
+`key_hints` with a timer and shows a `Float` marked `Keys`. While that
+float shows, the editor keeps the command waiting for its next key instead
+of `key_timeout`, and `<Esc>` and `<BS>` act on it. The editor closes it
+itself once no command is being typed (B326).
+
 `modules/session` keeps the working directory's session (B226). The
 editor sends `editor.quitting` on the loop, before the listeners stop. The
 module reads `Scope.Session` then and writes it through `internal/keep`. The session is JSON in the
@@ -564,7 +573,8 @@ or the view, `mode.changed`, `syntax.updated` when a parse lands,
 (B284), `editor.focused` when the terminal gets the focus back
 (B277), `buffer.shown` when the current window shows another buffer
 (B314), `lsp.changed` when a language server's state changes (B317),
-`editor.started` when fude starts with no file (B319), `editor.quitting`
+`editor.started` when fude starts with no file (B319), `keys.pending`
+when the command being typed changes (B326), `editor.quitting`
 as it quits, on the loop (B325),
 `listing.read` when a listing reads its directory, as it opens,
 reads it again or the terminal gets the focus back (B126), `buffer.saving`
@@ -1668,7 +1678,7 @@ session leave (B240).
 
 A frame holds what `ui/term` reads of a session: the views without their
 text, the float, the command line and its cursor, the mode, message,
-selection, other cursors, theme, key hints, signature help, `:s` preview,
+selection, other cursors, theme, signature help, `:s` preview,
 the macro being recorded and the text to put on the client's clipboard.
 Each view names its buffer and version. A buffer's text comes once, then
 as the edits since the version the client holds, the lists `Since` gives

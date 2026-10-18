@@ -167,6 +167,7 @@ func (e *Session) listen(p api.Module) *listener {
 						t = ev.buf.text.Snapshot()
 						// A callback reads as the session that asked for it (B247).
 						scope = e.asker(ev).scope(p, ev.buf, t)
+						e.asker(ev).hinted(p, &scope)
 						maps.Copy(scope.About, ev.extra)
 					}
 				}) {

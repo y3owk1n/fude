@@ -18,6 +18,7 @@ and a program that embeds the editor does the same.
 | [`format`](format) | `gq`, `:format` and `format_on_save` |
 | [`git`](git) | git signs, hunks, `gh`, `gH`, `:gitdiff`, a listing's git status and the branch on the status line |
 | [`grep`](grep) | `:pick grep`, a live search of the files' lines |
+| [`hints`](hints) | the keys that may follow the command being typed, after `key_hints` |
 | [`inlay`](inlay) | a language server's inlay hints |
 | [`jump`](jump) | `s` jumps to text in view by its label |
 | [`links`](links) | `gx` opens the link or file under the cursor, `gf` the file |

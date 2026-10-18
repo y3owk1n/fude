@@ -35,7 +35,6 @@ type Frame struct {
 	Freed        []int          `json:",omitempty"` // the images dropped since the last frame, for the client to free (B306)
 	Clipboard    *string        `json:",omitempty"` // to put on the client's clipboard (B241)
 	Wait         *time.Duration `json:",omitempty"` // until a key typed now times out
-	Hints        *time.Duration `json:",omitempty"` // until the key hints show
 	Done         bool           `json:",omitempty"` // the session ended, as Message says when fude quit
 	Input        int            // the client's notices fude has handled, so a frame follows each
 }

@@ -1036,6 +1036,10 @@ Where fude departs, the line says so and cites the departure in
   window, such as a line in `diff.plus`, over what the filetype colours.
 - B277 [4] A plugin hears `editor.focused` when the terminal gets the
   focus back, as git's index may have changed while fude was away.
+- B326 [4] A module hears `keys.pending` when the command being typed
+  changes, with its keys, and reads the keys that may follow it, each with
+  what it does or its group's name. It may show them as the key hints,
+  which keep the command waiting for its next key, as B172 does.
 - B325 [4] A module hears `editor.quitting` as fude quits, before its
   events stop, and reads the session then: the windows on files, each
   with its cursor, top line and options, and which is current. A call

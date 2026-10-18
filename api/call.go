@@ -175,6 +175,23 @@ type Places struct {
 type Float struct {
 	Text  string
 	Spans []Span
+	// Keys makes it the key hints of the command being typed. It shows
+	// across the bottom of the windows, titled with the keys typed, and
+	// keeps the windows lit. While it shows, the command waits for its next key
+	// instead of key_timeout, <Esc> drops it and <BS> its last key. It
+	// closes once no command is being typed, and an empty Text closes it
+	// sooner (B172, B326).
+	Keys bool
+}
+
+// Hint is a key that may follow the command being typed, as the key hints
+// show it (B326).
+type Hint struct {
+	Key   string // the key that follows what was typed
+	Help  string // what it does, or the keys a mapping types when Typed
+	Typed bool
+	Group string // the name of the keys a group starts, [keymap.groups]'s or fude's
+	More  int    // how many keys start with it, or 0 for one that runs
 }
 
 // WorkspaceEdit is a language server's edit of any files, as the server
@@ -333,6 +350,9 @@ type Scope struct {
 	Commands func() []ExCommand
 	// HelpTags returns what :h opens help at (B324).
 	HelpTags func() []string
+	// Hints returns the keys that may follow the command being typed, for a
+	// module that hears keys.pending (B326).
+	Hints func() []Hint
 	// Session returns the windows on files, their cursors, top lines and
 	// options, and which is current, for Result.Restore to build again, or
 	// "" with no window on a file. Only a call and editor.quitting have it

@@ -72,51 +72,52 @@ type Editor struct {
 // edits carry its origin, so its undo reverts only them (B77).
 type Session struct {
 	*Editor
-	origin     kernel.Origin
-	power      Power               // how much the session may do (B243)
-	name       string              // who uses the session, "" for a client that sent none (B252)
-	leader     string              // what <Leader> in a plugin's keys stands for, a guest's own (B254)
-	following  *Session            // the session whose windows :follow copies (B256)
-	mirrors    map[*window]*window // by the other's window, the window that copies it
-	colour     int                 // which of six colours shows the session to others (B252)
-	root       *node
-	win        *window // the current window
-	vim        *vim.Machine
-	message    string
-	done       bool
-	cell       [2]int                  // the client's cell in pixels, 0 when it shows no images (B303)
-	sentImages map[int]bool            // the images an attached client has (B303)
-	freed      []int                   // the images dropped, for the client to free (B306)
-	restarting string                  // the session file :restart saved, for main (B170)
-	hints      []vim.Hint              // the keys that may follow the command being typed, while they show (B172)
-	ask        question                // takes the answer to the question in the message
-	jumpTo     *jumpTo                 // where a plugin's call asked to move the cursor, after the key
-	lastList   *places                 // the last list of places a window showed
-	snip       *snippet                // the snippet being filled in (B207)
-	float      floating                // text shown over the windows at the cursor, such as hover
-	completion completion              // the completions shown while typing, and the signature help
-	lspKeys    bool                    // the attached keys are mapped
-	later      []vim.Key               // keys to feed once the key being fed is done
-	pick       *pick                   // the code actions shown to choose from
-	finder     *finder                 // the file finder, while it shows
-	capture    *captured               // the module call the keys typed next go to (B316)
-	shownBuf   *buffer                 // the buffer the current window showed when the modules last heard (B314)
-	cmdline    cmdline                 // the completions of the command line being typed
-	searching  *[2]int                 // the top and cursor of the window a search is typed in, to put back (B21)
-	locals     map[string]*vim.Keymaps // the keymaps of kinds of buffer, by kind, over the machine's (B142)
-	history    []string                // the messages shown, oldest first, at most 200 (B157)
-	logged     string                  // the message last put in history
-	under      *window                 // the window a focused float was opened from
-	opts       options                 // what the session's new windows start with
-	changed    chan change             // told when the shown text changes, for a client over the socket
-	clip       string                  // the text last copied, when no clipboard command runs
-	toTerminal bool                    // the client has yet to put clip on its terminal's clipboard
-	mode       vim.Mode                // the mode as plugins last heard it
-	seen       view                    // the current window as plugins last heard it
-	saves      map[*buffer]*saving     // the writes waiting for modules (B282)
-	inSave     *saving                 // the write the result being applied is for, or nil
-	depth      int                     // the undo groups the machine has open
-	pending    int                     // the cursor when the group being made began
+	origin      kernel.Origin
+	power       Power               // how much the session may do (B243)
+	name        string              // who uses the session, "" for a client that sent none (B252)
+	leader      string              // what <Leader> in a plugin's keys stands for, a guest's own (B254)
+	following   *Session            // the session whose windows :follow copies (B256)
+	mirrors     map[*window]*window // by the other's window, the window that copies it
+	colour      int                 // which of six colours shows the session to others (B252)
+	root        *node
+	win         *window // the current window
+	vim         *vim.Machine
+	message     string
+	done        bool
+	cell        [2]int                  // the client's cell in pixels, 0 when it shows no images (B303)
+	sentImages  map[int]bool            // the images an attached client has (B303)
+	freed       []int                   // the images dropped, for the client to free (B306)
+	restarting  string                  // the session file :restart saved, for main (B170)
+	keyFloat    *api.Float              // the key hints a module shows, while they show (B172, B326)
+	pendingKeys string                  // the command being typed the modules last heard of (B326)
+	ask         question                // takes the answer to the question in the message
+	jumpTo      *jumpTo                 // where a plugin's call asked to move the cursor, after the key
+	lastList    *places                 // the last list of places a window showed
+	snip        *snippet                // the snippet being filled in (B207)
+	float       floating                // text shown over the windows at the cursor, such as hover
+	completion  completion              // the completions shown while typing, and the signature help
+	lspKeys     bool                    // the attached keys are mapped
+	later       []vim.Key               // keys to feed once the key being fed is done
+	pick        *pick                   // the code actions shown to choose from
+	finder      *finder                 // the file finder, while it shows
+	capture     *captured               // the module call the keys typed next go to (B316)
+	shownBuf    *buffer                 // the buffer the current window showed when the modules last heard (B314)
+	cmdline     cmdline                 // the completions of the command line being typed
+	searching   *[2]int                 // the top and cursor of the window a search is typed in, to put back (B21)
+	locals      map[string]*vim.Keymaps // the keymaps of kinds of buffer, by kind, over the machine's (B142)
+	history     []string                // the messages shown, oldest first, at most 200 (B157)
+	logged      string                  // the message last put in history
+	under       *window                 // the window a focused float was opened from
+	opts        options                 // what the session's new windows start with
+	changed     chan change             // told when the shown text changes, for a client over the socket
+	clip        string                  // the text last copied, when no clipboard command runs
+	toTerminal  bool                    // the client has yet to put clip on its terminal's clipboard
+	mode        vim.Mode                // the mode as plugins last heard it
+	seen        view                    // the current window as plugins last heard it
+	saves       map[*buffer]*saving     // the writes waiting for modules (B282)
+	inSave      *saving                 // the write the result being applied is for, or nil
+	depth       int                     // the undo groups the machine has open
+	pending     int                     // the cursor when the group being made began
 
 	width, height int  // the space the windows share
 	lined         bool // the buffer line took the top row at the last layout (B258)
@@ -465,13 +466,13 @@ func (e *Session) Feed(k vim.Key) {
 	defer func() { trace.Record("key", fmt.Sprintf("%q in %s", k, modes[mode]), time.Since(at)) }()
 	// While hints show, <Esc> drops the command being typed, held keys too,
 	// and <BS> its last key.
-	if e.hints != nil && (k == "<Esc>" || k == "<BS>") {
+	if e.keyFloat != nil && (k == "<Esc>" || k == "<BS>") {
 		if k == "<Esc>" {
 			e.vim.Cancel()
 		} else {
 			e.vim.Back()
 		}
-		e.ShowHints()
+		e.typing()
 		return
 	}
 	e.feed(k)
@@ -483,9 +484,6 @@ func (e *Session) Feed(k vim.Key) {
 		if first, _ := e.win.fold(t, line); first != line {
 			e.openFoldAt(b, t, line)
 		}
-	}
-	if e.hints != nil {
-		e.ShowHints()
 	}
 }
 
@@ -528,7 +526,7 @@ func (e *Session) Wait() (time.Duration, bool) {
 	if t := e.win.buf.term; t != nil && t.esc {
 		return escTwice, true
 	}
-	return time.Duration(e.cfg.KeyTimeout) * time.Millisecond, e.vim.Waiting() && e.hints == nil
+	return time.Duration(e.cfg.KeyTimeout) * time.Millisecond, e.vim.Waiting() && e.keyFloat == nil
 }
 
 // Timeout runs the keys held for a longer mapping when no key came in time,
@@ -547,6 +545,7 @@ func (e *Session) Timeout() {
 // the cursor.
 func (e *Session) settle(err error) {
 	e.went()
+	defer e.typing()
 	if err != nil {
 		e.message = err.Error()
 	} else if msg := e.vim.Message(); msg != "" && e.message == "" {
@@ -685,8 +684,8 @@ func (e *Session) Terminal() bool {
 
 // Float returns the float to draw, or false when there is none.
 func (e *Session) Float() (wire.Float, bool) {
-	if e.hints != nil {
-		return e.hintsFloat(), true
+	if e.keyFloat != nil {
+		return e.keysFloat(), true
 	}
 	if m := e.cmdline.menu; m != nil {
 		return m.float(), true

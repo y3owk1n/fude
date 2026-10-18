@@ -40,7 +40,7 @@ func Run(e Session) error {
 	e.Load()
 	var paste strings.Builder
 	pasting := false
-	var timeout, hints <-chan time.Time
+	var timeout <-chan time.Time
 	for {
 		// While a frame shows a spinner, draw again a frame later to turn it.
 		var tick <-chan time.Time
@@ -54,9 +54,6 @@ func Run(e Session) error {
 		case <-timeout:
 			timeout = nil
 			e.Timeout()
-		case <-hints:
-			hints = nil
-			e.ShowHints()
 		case f := <-e.Queue():
 			f()
 			drain(e, func() bool { return len(s.EventQ()) > 0 })
@@ -96,11 +93,6 @@ func Run(e Session) error {
 			timeout = nil
 		} else if timeout == nil || key {
 			timeout = time.After(d)
-		}
-		if d, ok := e.HintsIn(); !ok {
-			hints = nil
-		} else if hints == nil || key {
-			hints = time.After(d)
 		}
 		// A key waiting draws its own frame, which shows this too.
 		if len(s.EventQ()) > 0 {

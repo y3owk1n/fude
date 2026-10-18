@@ -18,14 +18,12 @@ type Session interface {
 	SetCell(w, h int) // a cell's pixels, 0 when the terminal shows no images (B303)
 	Focus()
 	Timeout()
-	ShowHints()
 
 	// The loop. Queue holds work for the loop to run. Wait says how long
 	// until a typed key times out, and Done whether the session has ended.
 	Queue() <-chan func()
 	Load()
 	Wait() (time.Duration, bool)
-	HintsIn() (time.Duration, bool)
 	Done() bool
 
 	// What the client draws.

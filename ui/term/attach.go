@@ -217,7 +217,6 @@ func (a *Attached) Feed(k vim.Key)    { a.send("keys", []vim.Key{k}) }
 func (a *Attached) Paste(text string) { a.send("paste", text) }
 func (a *Attached) Focus()            { a.send("focus", nil) }
 func (a *Attached) Timeout()          { a.send("timeout", nil) }
-func (a *Attached) ShowHints()        { a.send("hints", nil) }
 
 // SetSize tells fude the screen's size only when it changes, because the
 // client calls it on every frame.
@@ -253,8 +252,7 @@ func (a *Attached) Queue() <-chan func() { return a.queue }
 func (a *Attached) Load()                {}
 func (a *Attached) Done() bool           { return a.done }
 
-func (a *Attached) Wait() (time.Duration, bool)    { return wait(a.f.Wait) }
-func (a *Attached) HintsIn() (time.Duration, bool) { return wait(a.f.Hints) }
+func (a *Attached) Wait() (time.Duration, bool) { return wait(a.f.Wait) }
 
 // wait reads a frame's wait, which it leaves out when nothing waits.
 func wait(d *time.Duration) (time.Duration, bool) {

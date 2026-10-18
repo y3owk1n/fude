@@ -25,6 +25,7 @@ import (
 	"github.com/y3owk1n/fude/internal/relay"
 	colourmod "github.com/y3owk1n/fude/modules/colours"
 	filesmod "github.com/y3owk1n/fude/modules/files"
+	hintsmod "github.com/y3owk1n/fude/modules/hints"
 	lspmod "github.com/y3owk1n/fude/modules/lsp"
 	"github.com/y3owk1n/fude/syntax/syntaxtest"
 	"github.com/y3owk1n/fude/vim"
@@ -1019,12 +1020,23 @@ func TestB150Panels(t *testing.T) {
 
 // B151
 func TestB151Tint(t *testing.T) {
-	cl := start(t)
+	cl := startWith(t, "key_hints = 1\n")
+	cl.e.(*editor.Session).Use(hintsmod.New())
 	cl.draw()
 	_, before, _ := cl.s.Get(0, 0)
 	// The key hints leave the windows lit.
 	cl.e.Feed("g")
-	cl.e.ShowHints()
+	for deadline := time.After(5 * time.Second); ; {
+		if _, ok := cl.e.Float(); ok {
+			break
+		}
+		select {
+		case f := <-cl.e.Queue():
+			f()
+		case <-deadline:
+			t.Fatal("no key hints after g")
+		}
+	}
 	cl.draw()
 	if _, under, _ := cl.s.Get(0, 0); under.GetBackground() != before.GetBackground() {
 		t.Fatalf("under the key hints the ground is %v", under.GetBackground())

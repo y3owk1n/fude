@@ -482,47 +482,6 @@ func TestB217StickyContext(t *testing.T) {
 	}
 }
 
-// B172
-func TestB172KeyHints(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "a.txt")
-	change(t, path, "ab\n")
-	config(t, "[keymap.normal]\n\"<Leader>w\" = \":w<CR>\"\n\"<Leader>sg\" = \":pick grep<CR>\"\n[keymap.groups]\n\"<Leader>s\" = \"search\"\n")
-	e := start(t, path)
-	e.SetSize(100, 30)
-	// After a mapping's first key, the hints say what may follow, and the key
-	// waits for the next one instead of key_timeout.
-	feed(e, "<Space>")
-	if _, due := e.HintsIn(); !due {
-		t.Fatal("no hints are due after <Space>")
-	}
-	e.ShowHints()
-	// A key that starts longer ones shows its group's name.
-	if f, ok := e.Float(); !ok || f.Title != "<Space>" || !strings.Contains(f.Text, "w  :w<CR>") || !strings.Contains(f.Text, "s  +search 1") {
-		t.Fatalf("the hints show %q titled %q", f.Text, f.Title)
-	}
-	if _, waiting := e.Wait(); waiting {
-		t.Error("key_timeout runs while the hints show")
-	}
-	// <BS> goes back a key.
-	feed(e, "s<BS>")
-	if f, _ := e.Float(); f.Title != "<Space>" {
-		t.Errorf("after s<BS> the hints are titled %q", f.Title)
-	}
-	// <Esc> drops the held key, so the cursor stays.
-	if feed(e, "<Esc>"); e.Cursor() != 0 {
-		t.Errorf("<Esc> ran the held <Space>, the cursor is at %d", e.Cursor())
-	}
-	if _, ok := e.Float(); ok {
-		t.Error("the hints stay after <Esc>")
-	}
-	// The machine's own keys follow g.
-	feed(e, "g")
-	e.ShowHints()
-	if f, _ := e.Float(); !strings.Contains(f.Text, "g  goes to the first line") {
-		t.Errorf("the hints after g show %q", f.Text)
-	}
-}
-
 // B21, while the search is typed
 func TestB21IncrementalSearch(t *testing.T) {
 	var src strings.Builder

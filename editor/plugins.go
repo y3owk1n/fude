@@ -416,7 +416,12 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 	default:
 		e.message = res.Message
 	}
-	if f := res.Float; f != nil {
+	if f := res.Float; f != nil && f.Keys {
+		// Key hints for a command no longer typed are too late.
+		if e.keyFloat = f; f.Text == "" || e.vim.Shown() == "" {
+			e.keyFloat = nil
+		}
+	} else if f != nil {
 		if f.Spans == nil {
 			e.float.text, e.float.spans = e.markdown(f.Text)
 			e.float.image = markdownImage(f.Text, b.file.path)
