@@ -13,8 +13,11 @@ type Text interface {
 	LineOf(pos int) int
 }
 
-// Edit replaces [Start, End) with Text.
+// Edit replaces [Start, End) with Text, in the buffer by its id, one of
+// Scope.Buffers, or in the buffer the call is about for 0. A buffer's
+// edits apply together, as one change (B342).
 type Edit struct {
 	Start, End int
 	Text       string
+	Buffer     int
 }

@@ -1062,6 +1062,9 @@ Where fude departs, the line says so and cites the departure in
 - B341 [4] A module reads what every register holds, the last search and
   its direction, the register a macro is recorded into, the lines entered
   with `:` and `/`, and the last list of places and where `]q` is in it.
+- B342 [4] A module's result edits any open buffer, each buffer's edits as
+  one change. fude drops an event's edits to another buffer that changed
+  after the event read it.
 - B337 [4] A module's decoration may show its sign in a listing's icon
   column while `icons` is on, instead of in the sign column. A listing's
   notes and icons are a module's decorations (B127, B128).

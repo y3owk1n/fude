@@ -4,7 +4,8 @@
 // which types the buffer's marks as name:place. :Where types the cursor
 // and how many windows there are, and gW in visual mode types the
 // selection's kind and ends. :State types the last search, the registers,
-// the last search typed and the macro being recorded. Needs keys, and buffer.read and buffer.write
+// the last search typed and the macro being recorded. :Other types x at
+// the start of every other buffer. Needs keys, and buffer.read and buffer.write
 // for the others.
 package main
 
@@ -49,6 +50,18 @@ func init() {
 			out += r.Name + ":" + r.Text + ","
 		}
 		sdk.Edit(0, 0, out+"|"+strings.Join(searches, ",")+"|"+recording+"|")
+	})
+	sdk.Command("Other", "types x at the start of every other buffer", func(sdk.Call) {
+		bufs, _ := sdk.Buffers()
+		var edits []api.Edit
+		for _, b := range bufs {
+			if b.ID != sdk.Current().ID {
+				edits = append(edits, api.Edit{Text: "x", Buffer: b.ID})
+			}
+		}
+		if err := sdk.Do(api.Result{Edits: edits}); err != nil {
+			sdk.Log(err.Error())
+		}
 	})
 	sdk.Command("Marked", "types the buffer's marks", func(c sdk.Call) {
 		var marks []api.Mark

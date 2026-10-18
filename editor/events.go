@@ -154,6 +154,7 @@ func (e *Session) listen(p api.Module) *listener {
 				var ev event
 				var t kernel.Snapshot
 				var scope api.Scope
+				var seen map[int]kernel.Version
 				more := false
 				if !on(func() {
 					l.mu.Lock()
@@ -170,6 +171,7 @@ func (e *Session) listen(p api.Module) *listener {
 						scope = e.asker(ev).scope(p, ev.buf, t)
 						e.asker(ev).hinted(p, &scope)
 						maps.Copy(scope.About, ev.extra)
+						seen = e.versions()
 					}
 				}) {
 					return
@@ -195,13 +197,22 @@ func (e *Session) listen(p api.Module) *listener {
 					trace.Record("plugin", p.Name()+" heard "+name, time.Since(at))
 				}
 				scope.Done()
-				if !on(func() { e.asker(ev).handled(p, ev, err, t, res) }) {
+				if !on(func() { e.asker(ev).handled(p, ev, err, t, seen, res) }) {
 					return
 				}
 			}
 		}
 	}()
 	return l
+}
+
+// versions is the version of each open buffer's text, by id.
+func (e *Session) versions() map[int]kernel.Version {
+	out := make(map[int]kernel.Version, len(e.bufs))
+	for _, b := range e.bufs {
+		out[b.id] = b.text.Snapshot().Version()
+	}
+	return out
 }
 
 // asker is the session that asked for the callback ev, while it is still
@@ -213,12 +224,19 @@ func (e *Session) asker(ev event) *Session {
 	return e
 }
 
-// handled does what p asked for when it heard ev at t. Its edits and
-// decorations apply only to the text it read, and an event about the newer
-// text follows when it changed since. Nothing applies to a closed buffer.
-// A result for a write that ran out of waiting is dropped (B282).
-func (e *Session) handled(p api.Module, ev event, err error, t kernel.Snapshot, res api.Result) {
+// handled does what p asked for when it heard ev at t, with the other
+// buffers at the versions seen. Its edits and decorations apply only to
+// the text it read, and an event about the newer text follows when it
+// changed since. Nothing applies to a closed buffer. A result for a write
+// that ran out of waiting is dropped (B282).
+func (e *Session) handled(p api.Module, ev event, err error, t kernel.Snapshot, seen map[int]kernel.Version, res api.Result) {
 	b := ev.buf
+	// Drop the edits to another buffer that changed after the event read it
+	// (B342).
+	res.Edits = slices.DeleteFunc(slices.Clone(res.Edits), func(ed api.Edit) bool {
+		o := slices.IndexFunc(e.bufs, func(o *buffer) bool { return o.id == ed.Buffer && o != b })
+		return o >= 0 && e.bufs[o].text.Snapshot().Version() != seen[ed.Buffer]
+	})
 	if s := ev.save; s != nil {
 		if s.done {
 			return

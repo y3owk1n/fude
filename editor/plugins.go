@@ -560,11 +560,50 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 		}
 	}
 	slices.SortStableFunc(res.Edits, func(x, y api.Edit) int { return cmp.Compare(x.Start, y.Start) })
-	edits := make([]vim.Edit, len(res.Edits))
-	for i, ed := range res.Edits {
-		edits[i] = vim.Edit(ed)
+	var edits []vim.Edit
+	others := map[int][]kernel.Edit{}
+	for _, ed := range res.Edits {
+		if ed.Buffer == 0 || ed.Buffer == b.id {
+			edits = append(edits, vim.Edit{Start: ed.Start, End: ed.End, Text: ed.Text})
+		} else {
+			others[ed.Buffer] = append(others[ed.Buffer], kernel.Edit{Start: ed.Start, End: ed.End, Text: ed.Text})
+		}
+	}
+	for _, id := range slices.Sorted(maps.Keys(others)) {
+		if err := e.editBuffer(p, id, others[id]); err != nil {
+			e.message = fmt.Sprintf("plugin %s: %v", p.Name(), err)
+		}
 	}
 	return edits
+}
+
+// editBuffer makes p's edits to the buffer id, other than the one its call
+// was about, as one change (B342).
+func (e *Session) editBuffer(p api.Module, id int, edits []kernel.Edit) error {
+	if err := e.mayEdit(); err != nil {
+		return err
+	}
+	b, err := e.buffer(id)
+	switch {
+	case err != nil:
+		return err
+	case b.written():
+		return fmt.Errorf("buffer %d is text fude writes", id)
+	case b.file.readonly:
+		return fmt.Errorf("buffer %d is read-only", id)
+	}
+	t := b.text.Snapshot()
+	for _, ed := range edits {
+		if ed.Start < 0 || ed.Start > ed.End || ed.End > t.Len() {
+			return fmt.Errorf("edit %d-%d is outside buffer %d", ed.Start, ed.End, id)
+		}
+	}
+	tx := kernel.Transaction{Base: t.Version(), Origin: e.origin, Label: "plugin " + p.Name(), Time: e.now(), Edits: edits}
+	if err := b.text.Apply(tx); err != nil {
+		return fmt.Errorf("edit buffer %d: %w", id, err)
+	}
+	b.head = b.text.Head()
+	return nil
 }
 
 // applyWorkspace applies a module's workspace edit from the server it

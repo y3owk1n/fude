@@ -86,20 +86,12 @@ func (p *Plugin) check(r *fude.Result) int32 {
 		}
 	}
 	for _, e := range r.Edits {
-		if !within(p.call.Text, e.Start, e.End) {
+		if t, ok := p.textOfBuffer(e.Buffer); !ok || !within(t, e.Start, e.End) {
 			return errRange
 		}
 	}
 	for _, d := range r.Decorate {
-		t := p.call.Text
-		if d.Buffer != 0 {
-			o, ok := p.call.Buffers[d.Buffer]
-			if !ok {
-				return errRange
-			}
-			t = o.Text
-		}
-		if !within(t, d.Start, d.End) {
+		if t, ok := p.textOfBuffer(d.Buffer); !ok || !within(t, d.Start, d.End) {
 			return errRange
 		}
 		if code := p.image(d.Image); code != 0 {
@@ -168,6 +160,16 @@ func (p *Plugin) image(path string) int32 {
 		return errFile
 	}
 	return 0
+}
+
+// textOfBuffer is the text of the buffer id, or of the one the call is
+// about for 0, or false for no open buffer of that id.
+func (p *Plugin) textOfBuffer(id int) (fude.Text, bool) {
+	if id == 0 {
+		return p.call.Text, true
+	}
+	o, ok := p.call.Buffers[id]
+	return o.Text, ok
 }
 
 // within reports whether [start, end) is in t.

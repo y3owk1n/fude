@@ -496,6 +496,14 @@ func TestB341PluginReadsTheMachine(t *testing.T) {
 	}
 }
 
+// B342
+func TestB342PluginEditsAnotherBuffer(t *testing.T) {
+	e := loaded(t, "full", "f", "a\n", "buffer.read", "buffer.write")
+	if feed(e, ":enew<CR>:Other<CR><C-^>"); text(e) != "xa" {
+		t.Errorf(":Other left %q in the other buffer, want xa", text(e))
+	}
+}
+
 // B182
 func TestB182PluginHearsTheCursor(t *testing.T) {
 	e := loaded(t, "watch", "f", "a\nb\nc\n", "ui")
