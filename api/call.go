@@ -29,6 +29,9 @@ type Result struct {
 	Jobs       []Job     // the work to do in the background
 	Requests   []Request // the requests to send the buffer's language servers
 	Selected   *[2]int   // what an object's call selects, nil for none
+	Terminal   *Terminal // a program to run in a terminal window below
+	Places     *Places   // the last list of places, which ]q steps through
+	Complete   []string  // what the argument being typed completes with
 	// Set holds options to set on the buffer the call is about, by their
 	// config.toml names: expand_tab, indent_width and tab_width. fude uses
 	// them in place of config.toml's until the buffer closes (B283).
@@ -76,6 +79,24 @@ type Pick struct {
 	Title, Hint  string
 	Query        string
 	Live, Places bool
+}
+
+// Terminal is a program a call runs through the shell in a terminal window
+// below, as :terminal does, while the cursor stays where it was. The
+// window's title is the owner's name and Name, and the status line names it
+// while it runs. If a Terminal of that Name still runs, its window shows
+// again instead. The window of one that ended closes first. When the
+// program ends, the owner hears terminal.exited with Name. The event is
+// about the terminal's buffer, with status and took in About (B228, B231).
+type Terminal struct {
+	Name, Command string
+}
+
+// Places is the last list of places, without a window, so ]q goes to the
+// first. Each item is path:line:column:text (B230).
+type Places struct {
+	Title string
+	Items []string
 }
 
 // Jump is where a call moves the cursor: Pos in the buffer the call was

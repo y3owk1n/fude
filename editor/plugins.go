@@ -357,6 +357,15 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 	if pk := res.Pick; pk != nil {
 		e.showPick(p, b, pk, save)
 	}
+	if t := res.Terminal; t != nil {
+		e.moduleTerminal(p, *t)
+	}
+	if pl := res.Places; pl != nil {
+		e.lastList = placesOf(pl)
+	}
+	if a := e.asked; a != nil && len(res.Complete) > 0 {
+		e.answered(a, res.Complete)
+	}
 	e.setOptions(b, res.Set)
 	if res.Status != nil {
 		if e.segments[p] == nil {
@@ -435,6 +444,7 @@ func (e *Session) unregister(p api.Module) {
 		switch r.Kind {
 		case api.Command:
 			delete(e.commands, r.Name)
+			delete(e.completers, r.Name)
 			delete(e.pluginHelp, ":"+r.Name)
 		case api.Source:
 			delete(e.sources, r.Name)
@@ -501,6 +511,16 @@ func (e *Session) register(p api.Module, r api.Registration) {
 					return
 				}
 				s.setCursor(edits[0].Start)
+			}
+		}
+		if r.Complete {
+			e.completers[r.Name] = func(s *Session, arg string) {
+				if r.Host && s.power != Host {
+					return
+				}
+				scope := s.scope(p, s.win.buf, s.Text())
+				scope.About["complete"] = arg
+				s.run(p, r.ID, scope, s.Cursor(), 0)
 			}
 		}
 	case api.Source:

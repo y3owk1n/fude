@@ -57,4 +57,7 @@ type Registration struct {
 	Name, Help string
 	ID         uint32
 	Host       bool // only the host's session may run it, as gh is (B244)
+	// Complete makes Call complete a command's argument too. The word typed
+	// is complete in About, and a Result's Complete answers (B290).
+	Complete bool
 }

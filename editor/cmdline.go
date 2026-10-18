@@ -197,6 +197,10 @@ func (e *Session) completions(line string, wait bool) (int, []string) {
 		}
 		return c.complete(e, line, start, arg, wait)
 	}
+	if complete, ok := e.completers[name]; ok {
+		e.asked = &moduleMenu{line, start}
+		complete(e, arg)
+	}
 	return 0, nil
 }
 
@@ -271,6 +275,24 @@ func (e *Session) completeOff(line string, start int, find func() []string) {
 			}
 		}
 	}()
+}
+
+// moduleMenu is the completion of a command line a module was asked for
+// (B290).
+type moduleMenu struct {
+	line  string
+	start int
+}
+
+// answered shows the completions a module gave for a, when the command
+// line is still a's, ranked against the word typed.
+func (e *Session) answered(a *moduleMenu, items []string) {
+	e.asked = nil
+	if now, _ := strings.CutPrefix(e.vim.Line(), ":"); e.vim.Mode() != vim.Cmdline || now != a.line {
+		return
+	}
+	e.cmenu = newMenu(a.line, a.start, match(items, a.line[a.start:]))
+	e.light(e.cmenu, a.line)
 }
 
 // readEntries returns the names in dir, directories with a trailing slash,

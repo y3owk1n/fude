@@ -63,6 +63,7 @@ modules/         Go packages over api/ and protocol/ that cmd/fude adds with
   grep/          :pick grep, a live search of the files' lines
   inlay/         a language server's inlay hints
   spell/         spell, ]s, [s, z= and zg
+  task/          :task and :pick tasks, a project's tasks in a terminal
 cmd/fude/        main, distribution wiring
 ```
 

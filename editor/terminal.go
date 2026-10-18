@@ -7,12 +7,15 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"slices"
+	"strconv"
 	"strings"
 	"time"
 
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/vt"
 
+	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/internal/pty"
 	"github.com/y3owk1n/fude/vim"
@@ -31,8 +34,9 @@ type terminal struct {
 	esc        bool   // an <Esc> waits for a second one, which leaves terminal mode
 	cols, rows int
 	exited     bool
-	task       string    // the task it runs, "" for :terminal (B228)
-	started    time.Time // when the task started
+	owner      api.Module // the module that ran it, nil for :terminal (B228)
+	task       string     // the name its module ran it under
+	started    time.Time  // when it started
 }
 
 // terminalKeys are a terminal window's own keys in normal mode, which
@@ -40,9 +44,10 @@ type terminal struct {
 var terminalKeys = map[string]string{"q": "<Plug>(terminal.close)"}
 
 // closeTerminal closes the current terminal window once its program has
-// ended. A task's closes while it runs too, and the task goes on (B231).
+// ended. A module's closes while it runs too, and the program goes on
+// (B231).
 func (e *Session) closeTerminal() {
-	if t := e.win.buf.term; t != nil && !t.exited && t.task == "" {
+	if t := e.win.buf.term; t != nil && !t.exited && t.owner == nil {
 		e.message = "the program is still running, and :q stops it"
 		return
 	}
@@ -74,9 +79,10 @@ func (e *Session) terminalWindow(b *buffer) {
 }
 
 // openTerminal runs arg through the shell, or the shell alone, in a window
-// below terminal_height percent of the screen tall, in terminal mode. A task's window keeps
-// the cursor in the window it ran from, and its name says the task.
-func (e *Session) openTerminal(arg, task string) {
+// below terminal_height percent of the screen tall, in terminal mode. A
+// module's terminal leaves the cursor in the window it ran from, and its
+// title is the module's name and task.
+func (e *Session) openTerminal(arg string, owner api.Module, task string) {
 	from := e.win
 	shell := cmp.Or(os.Getenv("SHELL"), "/bin/sh")
 	argv := []string{shell}
@@ -90,11 +96,11 @@ func (e *Session) openTerminal(arg, task string) {
 	b := e.bufs[len(e.bufs)-1]
 	b.file.readonly = true
 	b.title = "[terminal " + cmp.Or(arg, shell) + "]"
-	if task != "" {
-		b.title = "[task " + task + "]"
+	if owner != nil {
+		b.title = "[" + owner.Name() + " " + task + "]"
 	}
 	e.terminalWindow(b)
-	t := &terminal{name: cmp.Or(arg, shell), typing: true, cols: max(e.win.w, 1), rows: max(e.win.h-1, 1), task: task, started: time.Now()}
+	t := &terminal{name: cmp.Or(arg, shell), typing: true, cols: max(e.win.w, 1), rows: max(e.win.h-1, 1), owner: owner, task: task, started: time.Now()}
 	t.em = vt.NewEmulator(t.cols, t.rows)
 	t.cmd = exec.Command(argv[0], argv[1:]...)
 	t.cmd.Env = append(os.Environ(), "TERM=xterm-256color")
@@ -148,13 +154,14 @@ func (e *Session) openTerminal(arg, task string) {
 		}
 		e.queue <- func() { e.terminalExited(b, err) }
 	}()
-	if task != "" {
+	if owner != nil {
 		e.win = from
 	}
 }
 
 // terminalExited notes that b's program ended, and shows its last screen
-// as text in normal mode, with how it ended in the buffer's name.
+// as text in normal mode, with how it ended in the buffer's name. The
+// module that ran it hears terminal.exited about b (B230, B231).
 func (e *Session) terminalExited(b *buffer, err error) {
 	t := b.term
 	if t == nil || t.exited {
@@ -167,21 +174,17 @@ func (e *Session) terminalExited(b *buffer, err error) {
 		status = exit.ExitCode()
 	}
 	b.title = fmt.Sprintf("[terminal %s, exited %d]", t.name, status)
-	if t.task != "" {
-		took := time.Since(t.started).Round(100 * time.Millisecond)
-		b.title = fmt.Sprintf("[task %s ✓ %s]", t.task, took)
-		e.message = fmt.Sprintf("the %s task ended in %s", t.task, took)
-		if status != 0 {
-			b.title = fmt.Sprintf("[task %s ✗ %d, %s]", t.task, status, took)
-			e.message = fmt.Sprintf("the %s task failed with %d after %s", t.task, status, took)
-		}
-	}
 	if t.typing {
 		t.typing = false
 		e.freeze(b)
 	}
-	if t.task != "" {
-		e.taskPlaces(b, t.task)
+	if p := t.owner; p != nil && slices.Contains(e.modules, p) {
+		took := time.Since(t.started).Round(100 * time.Millisecond)
+		b.title = fmt.Sprintf("[%s %s ✓ %s]", p.Name(), t.task, took)
+		if status != 0 {
+			b.title = fmt.Sprintf("[%s %s ✗ %d, %s]", p.Name(), t.task, status, took)
+		}
+		e.listen(p).add(event{name: "terminal.exited", detail: t.task, buf: b, extra: api.Context{"status": strconv.Itoa(status), "took": took.String()}, from: e})
 	}
 }
 
@@ -350,4 +353,41 @@ func (t *terminal) stop() {
 		return
 	}
 	t.em.Close()
+}
+
+// moduleTerminal runs t for p in a terminal window below. If p's terminal
+// of t's name still runs, its window shows again instead. The window of
+// one that ended closes first (B228, B231).
+func (e *Session) moduleTerminal(p api.Module, t api.Terminal) {
+	for _, b := range e.bufs {
+		if term := b.term; term != nil && term.owner == p && term.task == t.Name && !term.exited {
+			if !slices.ContainsFunc(e.root.windows(), func(w *window) bool { return w.buf == b }) {
+				from := e.win
+				e.terminalWindow(b)
+				e.win = from
+			}
+			return
+		}
+	}
+	for _, w := range e.root.windows() {
+		if term := w.buf.term; term != nil && term.owner == p && term.task == t.Name {
+			if err := e.closeWindow(w); err != nil {
+				e.message = err.Error()
+				return
+			}
+		}
+	}
+	e.openTerminal(t.Command, p, t.Name)
+}
+
+// runningTasks returns the names of the modules' terminals whose programs
+// run, for the status line (B231).
+func (e *Session) runningTasks() []string {
+	var out []string
+	for _, b := range e.bufs {
+		if t := b.term; t != nil && t.owner != nil && !t.exited {
+			out = append(out, t.task)
+		}
+	}
+	return out
 }

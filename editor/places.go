@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/protocol/lsp"
 )
@@ -305,4 +306,15 @@ func (e *Session) cdo(cmd string, perFile bool) {
 		return
 	}
 	e.message = fmt.Sprintf("ran :%s at %d places in %d files", cmd, len(stops), len(files))
+}
+
+// placesOf is the list of places a module gave, without a window (B230).
+func placesOf(pl *api.Places) *places {
+	list := &places{title: "[" + pl.Title + "]", at: -1}
+	for _, item := range pl.Items {
+		path, line, col, text := grepSpot(item)
+		list.lines = append(list.lines, fmt.Sprintf("%s:%d:%d: %s", path, line, col, strings.TrimSpace(text)))
+		list.spots = append(list.spots, spot{path, lsp.Position{Line: max(line-1, 0), Character: max(col-1, 0)}, "utf-8"})
+	}
+	return list
 }

@@ -44,6 +44,7 @@ type Editor struct {
 	plugged        int                               // how many of setup come before the plugins' own
 	commands       map[string]func(*Session, call)   // ex commands plugins registered
 	sources        map[string]func(*Session, string) // :pick sources modules registered, by name (B287)
+	completers     map[string]func(*Session, string) // by command, what asks a module to complete its argument (B290)
 	decos          map[any][]decoration              // by owner: a plugin, or a buffer for its diagnostics
 	servers        map[string]*server                // by command and root
 	down           map[string]string                 // by name, why a configured language server is not running
@@ -100,7 +101,7 @@ type Session struct {
 	pick       *pick                   // the code actions shown to choose from
 	finder     *finder                 // the file finder, while it shows
 	jumping    *jump                   // the jump being typed after s (B218)
-	lastTask   *task                   // the task :task runs again (B228)
+	asked      *moduleMenu             // the module completing the command line, until it answers (B290)
 	cmenu      *cmenu                  // the completions of the command line being typed
 	dirs       map[string][]string     // entries of directories the command line has completed in
 	flash      *flash                  // text shown for a moment after a yank, put, undo or redo
@@ -141,7 +142,7 @@ func open(cfg config, paths []string) (*Session, error) {
 	if len(paths) == 0 {
 		paths = []string{""}
 	}
-	ed := &Editor{next: 1, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(*Session, call){}, sources: map[string]func(*Session, string){}, decos: map[any][]decoration{}, servers: map[string]*server{}, down: map[string]string{}, building: map[string]bool{}, failed: map[string]string{}, listeners: map[api.Module]*listener{}, segments: map[api.Module]map[*buffer]string{}}
+	ed := &Editor{next: 1, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(*Session, call){}, sources: map[string]func(*Session, string){}, completers: map[string]func(*Session, string){}, decos: map[any][]decoration{}, servers: map[string]*server{}, down: map[string]string{}, building: map[string]bool{}, failed: map[string]string{}, listeners: map[api.Module]*listener{}, segments: map[api.Module]map[*buffer]string{}}
 	// Without a config directory there are no overrides, and loadConfig
 	// reports why.
 	if dir, err := xdgDir("XDG_CONFIG_HOME", ".config"); err == nil {
@@ -451,6 +452,16 @@ func (l heard) Changed(before kernel.Snapshot, edits []kernel.Edit) {
 	}
 }
 
+// feedLater feeds the keys queued while a key or a module's result was
+// handled, such as the A that starts the finder's query.
+func (e *Session) feedLater() {
+	for len(e.later) > 0 {
+		k := e.later[0]
+		e.later = e.later[1:]
+		e.feed(k)
+	}
+}
+
 // Queue returns the work other goroutines hand the editor loop, such as new
 // highlights. The loop runs each func it receives, then draws.
 func (e *Session) Queue() <-chan func() { return e.queue }
@@ -472,11 +483,7 @@ func (e *Session) Feed(k vim.Key) {
 		return
 	}
 	e.feed(k)
-	for len(e.later) > 0 {
-		k := e.later[0]
-		e.later = e.later[1:]
-		e.feed(k)
-	}
+	e.feedLater()
 	// A cursor that lands inside a closed fold, past its first line, opens
 	// it, as search, G and marks do (B224).
 	if t, b := e.Text(), e.win.buf; len(b.folds) > 0 {

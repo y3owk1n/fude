@@ -21,6 +21,7 @@ import (
 	gitmod "github.com/y3owk1n/fude/modules/git"
 	"github.com/y3owk1n/fude/modules/grep"
 	"github.com/y3owk1n/fude/modules/spell"
+	"github.com/y3owk1n/fude/modules/task"
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/syntax/syntaxtest"
 	"github.com/y3owk1n/fude/vim"
@@ -725,6 +726,7 @@ func TestB244GuestRefuses(t *testing.T) {
 	project := t.TempDir()
 	t.Chdir(project)
 	e, log := withServerAt(t, filepath.Join(project, "a.go"), "b\na\n", "utf-8")
+	e.Use(task.New())
 	e.Use(gitmod.New())
 	heard(t, log, `"method":"textDocument/didOpen"`, 1)
 	guest := e.Attach("guest", editor.Guest)
@@ -1516,7 +1518,7 @@ func TestB130FilesPreview(t *testing.T) {
 	}
 }
 
-// B131
+// B131, B290
 func TestB131CommandCompletion(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.Mkdir(filepath.Join(dir, "editor"), 0o755); err != nil {
@@ -1527,6 +1529,7 @@ func TestB131CommandCompletion(t *testing.T) {
 	t.Chdir(dir)
 	config(t, "autocomplete = true")
 	e := start(t, "readme")
+	e.Use(task.New())
 	e.SetSize(80, 24)
 	for _, c := range []struct{ keys, line string }{
 		// <Tab> puts the best match in the line, and <C-e> takes it back.

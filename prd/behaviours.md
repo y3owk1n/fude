@@ -967,6 +967,10 @@ Where fude departs, the line says so and cites the departure in
   with edits, and opens when the plugin removes it by its id.
 - B289 [4] A plugin with `ui` reads its own decorations on the buffer its
   call is about, each with its id, where it is now and what it shows.
+- B290 [4] A module's command completes its argument through the
+  module, as B131 says of a task for `:task`. The menu shows once the
+  module answers, ranked against the word typed, unless the command line
+  changed meanwhile.
 - B283 [4] A plugin sets `expand_tab`, `indent_width` or `tab_width` on the
   buffer its call is about, over config.toml's, until the buffer closes,
   as .editorconfig does.

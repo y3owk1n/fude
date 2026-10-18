@@ -18,7 +18,7 @@ import (
 )
 
 // pickSources are the sources :pick finds in, by name.
-var pickSources = []string{"files", "buffers", "recent", "diagnostics", "symbols", "tasks", "help", "keymaps", "commands"}
+var pickSources = []string{"files", "buffers", "recent", "diagnostics", "symbols", "help", "keymaps", "commands"}
 
 // openPick opens the finder on the items of source, or on the sources
 // without one. grep takes the text after it as its query (B213).
@@ -69,8 +69,6 @@ func (e *Session) openPick(arg string) {
 		e.openFinder(&finder{paths: e.diagnosticPlaces(), stale: true, places: true, title: "diagnostics"}, "")
 	case "symbols":
 		e.pickSymbols()
-	case "tasks":
-		e.pickTasks()
 	default:
 		if src := e.sources[source]; src != nil {
 			src(e, strings.TrimSpace(rest))

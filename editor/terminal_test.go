@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/fude/editor"
+	"github.com/y3owk1n/fude/modules/task"
 )
 
 // screen returns the text of the terminal window's screen, or "" when no
@@ -88,6 +89,7 @@ func TestB228Tasks(t *testing.T) {
 	config(t, "[task.say]\ncommand = \"echo said {line}\"\n")
 	e := start(t, "a.txt")
 	e.SetSize(80, 24)
+	e.Use(task.New())
 	// :pick tasks lists config.toml's tasks, the project's and the
 	// Makefile's targets (B233).
 	feed(e, ":pick tasks<CR>")
@@ -129,6 +131,7 @@ func TestB230TaskPlaces(t *testing.T) {
 	config(t, "[task.check]\ncommand = \"printf 'ok\\\\na.txt:2:3: bad thing\\\\nnope.txt:1: gone\\\\n'; exit 1\"\n")
 	e := start(t, "a.txt")
 	e.SetSize(80, 24)
+	e.Use(task.New())
 	// The places in a task's output that name a file there become the last
 	// list, and ]q goes to the first.
 	feed(e, ":task check<CR>")
@@ -136,6 +139,7 @@ func TestB230TaskPlaces(t *testing.T) {
 		vs := e.Views()
 		return len(vs) == 2 && strings.HasPrefix(vs[1].Name, "[task check ✗ 1")
 	})
+	settle(t, e, func() bool { return strings.Contains(e.Message(), "It named 1 places") })
 	if feed(e, "]q"); e.Views()[0].Name != "a.txt" || e.Cursor() != 6 {
 		t.Errorf("]q went to %q at %d, want a.txt at 6", e.Views()[0].Name, e.Cursor())
 	}
@@ -153,6 +157,7 @@ func TestB231BackgroundTasks(t *testing.T) {
 	config(t, "terminal_height = 50\n[task.wait]\ncommand = \"sleep 0.5\"\n")
 	e := start(t, "a.txt")
 	e.SetSize(80, 24)
+	e.Use(task.New())
 	// A running task shows on the status line, and q in its window hides
 	// the window while the task goes on.
 	feed(e, ":task wait<CR>")
@@ -163,7 +168,9 @@ func TestB231BackgroundTasks(t *testing.T) {
 	// :pick tasks marks it, and picking it shows its window again.
 	feed(e, ":pick tasks<CR>")
 	settle(t, e, func() bool { f, _ := e.Float(); return strings.Contains(f.Text, "wait  config, running") })
-	if feed(e, "<CR>"); len(e.Views()) != 2 || e.Views()[1].H != 12 {
+	feed(e, "<CR>")
+	settle(t, e, func() bool { return len(e.Views()) == 2 })
+	if e.Views()[1].H != 12 {
 		t.Fatalf("picking the running task shows %d windows, the last %d rows tall, want 12", len(e.Views()), e.Views()[len(e.Views())-1].H)
 	}
 	// Once it ends, the message says so and the status line drops it.
