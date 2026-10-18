@@ -343,6 +343,10 @@ Where fude departs, the line says so and cites the departure in
   `:messages`, `:grammar` and a diff (B212), `start` (B225), and
   `terminal` for a terminal or task window in normal mode (B228). Hover while a float shows moves the
   cursor into it, whichever key runs hover.
+  Nothing types in a window fude writes, such as a float, help, a list, a
+  timeline, a panel or an ended terminal. A key that would start insert or
+  replace mode there does nothing and says so. A command line typed in a
+  float shows on its own, and the float shows again once it is done.
 - B212 [2] `q` closes a list of places, a timeline, help, the `lsp`
   panel, a float the cursor is in and every window fude writes, such as
   `:messages` and a diff, instead of recording a macro (N31). A listing
@@ -448,9 +452,11 @@ Where fude departs, the line says so and cites the departure in
   failed with why, not installed, or no files), its version, and its
   roots and files
   (N20). `j` and `k` move between cards, and a panel taller than the
-  screen scrolls to show the card under the cursor. `r`, `s`, `d` and `e`
+  screen scrolls to show all of the card under the cursor, while its keys
+  stay at its foot. `r`, `s`, `d` and `e`
   restart, stop, disable or enable that server, as `[keymap.lsp]` maps
-  them. `:lsp restart` restarts each of the current file's servers, or
+  them. The panel takes those keys and `:` alone, and any other key,
+  such as `/`, `?` or `i`, does nothing there. `:lsp restart` restarts each of the current file's servers, or
   starts one again after it stayed off (B63), and opens its files in the
   new one.
 - B160 [5] `:lsp stop` stops each of the current file's servers, and

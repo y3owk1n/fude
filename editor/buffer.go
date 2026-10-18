@@ -166,6 +166,10 @@ func historyPath(path string) (string, error) {
 	return filepath.Join(dir, "fude", "timeline", hex.EncodeToString(sum[:16])+".log"), nil
 }
 
+// written reports whether fude writes b's text, as it does a float, help, a
+// list or a panel, so nothing types in it. A read-only file is not one.
+func (b *buffer) written() bool { return b.file.readonly && b.title != "" }
+
 func (b *buffer) modified() bool { return b.text.Head() != b.saved }
 
 // name is the buffer's path, or [No Name] for a buffer with no file.

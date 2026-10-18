@@ -21,6 +21,7 @@ import (
 	"github.com/y3owk1n/fude/modules/inlay"
 	lspmod "github.com/y3owk1n/fude/modules/lsp"
 	"github.com/y3owk1n/fude/protocol/lsp"
+	"github.com/y3owk1n/fude/vim"
 	"github.com/y3owk1n/fude/wire"
 )
 
@@ -442,6 +443,12 @@ func TestB159LspPanel(t *testing.T) {
 	if !strings.Contains(panel(), "a.go") {
 		t.Fatalf("the panel showed %q", panel())
 	}
+	// The panel takes its own keys and : alone, so /, ? and i do nothing.
+	for _, k := range []string{"/", "?", "i", "v"} {
+		if feed(e, k); e.Mode() != vim.Normal || e.Line() != ":lsp" || !strings.Contains(panel(), "running") {
+			t.Errorf("%s in the panel left mode %v with the line %q", k, e.Mode(), e.Line())
+		}
+	}
 	// s stops the server under the cursor, and r starts it again.
 	feed(e, "s")
 	heard(t, log, `"method":"shutdown"`, 1)
@@ -733,7 +740,7 @@ func TestB136FormatOnSaveServer(t *testing.T) {
 	}
 }
 
-// B142, for a float the cursor is in
+// B142, for a float the cursor is in, which takes no typing
 func TestB142FloatKeymap(t *testing.T) {
 	e, log := withServer(t, "a\nb target\n", "utf-8", "[keymap.float]\n\"<Esc>\" = \"<Plug>(float.close)\"")
 	heard(t, log, `"method":"textDocument/didOpen"`, 1)
@@ -744,6 +751,19 @@ func TestB142FloatKeymap(t *testing.T) {
 	if feed(e, "K"); !strings.Contains(text(e), "hover at") {
 		t.Fatalf("after K the cursor is in %q, want the float", text(e))
 	}
+	// A key that would type in the float does nothing, and a command line
+	// shows alone while it is typed.
+	float := text(e)
+	if feed(e, "i"); text(e) != float || e.Mode() != vim.Normal || e.Message() != "this window takes no typing, and q closes it" {
+		t.Errorf("i in the float left %q in mode %v saying %q", text(e), e.Mode(), e.Message())
+	}
+	if feed(e, "/"); e.Line() != "/" {
+		t.Fatalf("/ in the float typed %q", e.Line())
+	}
+	if f, ok := e.Float(); ok {
+		t.Errorf("while / is typed the float shows %q as the line's menu", f.Text)
+	}
+	feed(e, "<Esc>")
 	if feed(e, "<Esc>"); text(e) != "a\nb target" {
 		t.Fatalf("after <Esc> the cursor is in %q, want the file", text(e))
 	}

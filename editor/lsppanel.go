@@ -11,6 +11,7 @@ import (
 
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/syntax"
+	"github.com/y3owk1n/fude/vim"
 	"github.com/y3owk1n/fude/wire"
 )
 
@@ -251,19 +252,18 @@ func (e *Session) lspFloat() wire.Float {
 			field("files", strings.Join(files, "  "))
 		}
 	}
-	// The keys go under a rule.
-	s.WriteString("\n\n")
-	spans = append(spans, syntax.Span{Start: s.Len(), End: s.Len(), Name: "markup.rule"})
-	s.WriteString("\n")
+	text := s.String()
+	// The keys stay at the foot of the panel as the cards scroll.
+	var foot strings.Builder
+	var footSpans []syntax.Span
 	for i, k := range []string{"r", "restart", "s", "stop", "d", "disable", "e", "enable", "q", "close"} {
-		if i%2 == 0 {
-			add(k, "markup.strong")
-			s.WriteString(" ")
-		} else {
-			add(k+"  ", "comment")
+		style, word := "markup.strong", k+" "
+		if i%2 == 1 {
+			style, word = "comment", k+"  "
 		}
+		footSpans = append(footSpans, syntax.Span{Start: foot.Len(), End: foot.Len() + len(strings.TrimSpace(word)), Name: style})
+		foot.WriteString(word)
 	}
-	text := strings.TrimRight(s.String(), " ")
 	at := e.lspAt()
 	if text != t.Slice(0, t.Len()) {
 		if err := b.text.Apply(kernel.Transaction{Base: t.Version(), Edits: []kernel.Edit{{End: t.Len(), Text: text}}}); err != nil {
@@ -276,8 +276,32 @@ func (e *Session) lspFloat() wire.Float {
 	end := heads[at] + strings.IndexByte(text[heads[at]:], '\n')
 	spans = append(spans, syntax.Span{Start: heads[at], End: end + 1, Name: "menu.selected"})
 	// The panel sits a fifth of the way down, or higher when it is too tall
-	// for that.
-	h := min(strings.Count(text, "\n")+3, e.height-2)
+	// for that. Its border, the rule and the keys take four rows.
+	h := min(strings.Count(text, "\n")+5, e.height-2)
 	y := max(min(e.height/5, e.height-1-h), 0)
-	return wire.Float{Text: text, Spans: spans, Cursor: e.Cursor(), Title: "language servers", X: (e.width - w) / 2, Y: y, W: w, H: h}
+	// The panel scrolls to show all of the card with the cursor, as the
+	// cursor stays on its first row.
+	t = b.text.Snapshot()
+	last := t.Lines() - 1
+	if at+1 < len(e.lspCards) {
+		last = e.lspCards[at+1].line - 2
+	}
+	top := t.LineStart(max(last-(h-4)+1, 0))
+	return wire.Float{Text: text, Spans: spans, Foot: strings.TrimRight(foot.String(), " "), FootSpans: footSpans, Top: top, Cursor: e.Cursor(), Title: "language servers", X: (e.width - w) / 2, Y: y, W: w, H: h}
+}
+
+// lspPanel is the overlay of the :lsp panel, which takes its own keys and
+// : alone. It is cards, not text, so no other key, such as / or v, does
+// anything there (B159).
+type lspPanel struct{}
+
+func (lspPanel) key(e *Session, k vim.Key) bool {
+	if e.win.buf.title != "[lsp]" || e.vim.Mode() != vim.Normal || !e.vim.Idle() || k == ":" {
+		return false
+	}
+	own := false
+	e.localKeys(e.win.buf).Each(vim.Normal, func(from, _ string) {
+		own = own || vim.Keys(from)[0] == k
+	})
+	return !own
 }

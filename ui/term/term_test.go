@@ -707,6 +707,10 @@ func TestB159LspPanelScrolls(t *testing.T) {
 	if !shows("server19") {
 		t.Fatal("the panel does not scroll to its last card")
 	}
+	// The last card shows whole, and the keys stay at the panel's foot.
+	if !shows("t19 files") || !shows("q close") {
+		t.Error("the panel does not show all of its last card and the keys")
+	}
 }
 
 // serve serves e on a socket, running its loop off the test's goroutine.

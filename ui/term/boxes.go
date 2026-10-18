@@ -139,9 +139,32 @@ func (c *client) float(f wire.Float, cx, cy, lo, hi, h int) (int, int, bool) {
 			rows, _ := wrap(doc, f.DocSpans, f.DocW-4)
 			c.box(doc, f.DocSpans, rows[:min(len(rows), f.H-2)], f.X+f.W, f.Y, f.DocW-4, -1)
 		}
-		rows, _ := wrap(f.Text, f.Spans, f.W-4)
-		first := scroll(rows, f, f.H-2)
-		x, y, ok := c.box(f.Text, f.Spans, rows[first:min(first+f.H-2, len(rows))], f.X, f.Y, f.W-4, f.Cursor)
+		text, spans, n := f.Text, f.Spans, f.H-2
+		all, _ := wrap(f.Text, f.Spans, f.W-4)
+		var foot []row
+		if f.Foot != "" {
+			// The foot comes after the text, its rows and spans moved past it,
+			// and keeps the box's last rows under a rule.
+			off := len(f.Text) + 1
+			text = f.Text + "\n" + f.Foot
+			spans = slices.Clone(f.Spans)
+			for _, s := range f.FootSpans {
+				spans = append(spans, syntax.Span{Start: s.Start + off, End: s.End + off, Name: s.Name})
+			}
+			footRows, _ := wrap(f.Foot, f.FootSpans, f.W-4)
+			foot = append(foot, row{start: off, end: off, rule: true})
+			for _, r := range footRows {
+				foot = append(foot, row{start: r.start + off, end: r.end + off, rule: r.rule})
+			}
+			n = max(n-len(foot), 1)
+		}
+		first := scroll(all, f, n)
+		rows := slices.Clone(all[first:min(first+n, len(all))])
+		for len(foot) > 0 && len(rows) < n {
+			rows = append(rows, row{start: len(f.Text), end: len(f.Text)})
+		}
+		rows = append(rows, foot...)
+		x, y, ok := c.box(text, spans, rows, f.X, f.Y, f.W-4, f.Cursor)
 		if f.Title != "" {
 			c.s.PutStrStyled(f.X+2, f.Y, " "+f.Title+" ", base.Foreground(th.muted))
 		}

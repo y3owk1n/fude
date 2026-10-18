@@ -504,7 +504,15 @@ func (e *Session) feed(k vim.Key) {
 	e.vim.ExpandTab(e.win.opts.ExpandTab)
 	e.vim.UseClipboard(e.win.opts.Clipboard)
 	e.vim.UseLocal(e.localKeys(e.win.buf))
+	at := e.Cursor()
 	e.settle(e.vim.Feed(k))
+	// A window fude writes, such as a float, help or a list, is text to
+	// read, so a key that would start typing in it does nothing (B142).
+	if m := e.vim.Mode(); e.win.buf.written() && (m == vim.Insert || m == vim.Replace) {
+		e.settle(e.vim.Feed("<Esc>"))
+		e.setCursor(at)
+		e.message = "this window takes no typing, and q closes it"
+	}
 	if start, end, ok := e.vim.Flash(); ok {
 		e.flashOn(e.win.buf, start, end)
 	}
@@ -680,6 +688,11 @@ func (e *Session) Float() (wire.Float, bool) {
 		e.seek(f)
 		t := e.Text()
 		return f.float(t.Slice(0, t.Len()), e.Cursor(), e.width, e.height), true
+	}
+	// A command line typed in a float shows alone, as the client draws one
+	// box at the cursor, which would take the float for the line's menu.
+	if e.vim.Mode() == vim.Cmdline {
+		return wire.Float{}, false
 	}
 	if e.under != nil {
 		if e.win.buf.title == "[lsp]" {
@@ -1064,15 +1077,15 @@ func (e *Session) registers(names string) {
 
 // overlay is what may take a key before the vim machine sees it: the jump
 // labels, the finder, a terminal, the completion menu, a snippet, a code
-// action pick, the float, a question and the command line's menu. One
-// that is not up takes nothing.
+// action pick, the float, a question, the :lsp panel and the command
+// line's menu. One that is not up takes nothing.
 type overlay interface {
 	key(e *Session, k vim.Key) bool
 }
 
 // overlays are what may take a key, in the order they get it.
 func (e *Session) overlays() []overlay {
-	return []overlay{e.jumping, e.finder, terminalMode{}, &e.completion, e.snip, e.pick, &e.float, e.ask, &e.cmdline}
+	return []overlay{e.jumping, e.finder, terminalMode{}, &e.completion, e.snip, e.pick, &e.float, e.ask, lspPanel{}, &e.cmdline}
 }
 
 // floating is text shown over the windows at the cursor, such as hover,

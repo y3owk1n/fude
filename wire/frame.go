@@ -137,6 +137,11 @@ type Float struct {
 	Doc         string // drawn beside it, styled by DocSpans
 	DocSpans    []syntax.Span
 	Lit         bool // the windows under it stay lit, as under the key hints (B151)
+	// Foot shows under a rule at the bottom of a box in a place of its own,
+	// styled by FootSpans, and stays there as the text scrolls, as a
+	// panel's keys do (B159).
+	Foot      string
+	FootSpans []syntax.Span
 	// Where a box in a place of its own goes, its border included. W is 0
 	// for a box at the cursor. DocW is the width of the documentation's box
 	// right of it.
