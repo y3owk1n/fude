@@ -175,6 +175,15 @@ func (c *client) float(f wire.Float, cx, cy, lo, hi, h int) (int, int, bool) {
 	}
 	rows, width := wrap(f.Text, f.Spans, min(80, hi-lo-4))
 	below, above := h-cy-1, cy
+	// An image goes under the text when the text and the image both fit.
+	// The box widens to the image, up to the windows' width (B309).
+	text := len(rows)
+	if p := f.Image; p != nil && text+p.Rows <= min(max(below, above)-2, 20) {
+		width = max(width, min(p.Cols, hi-lo-4))
+		for range p.Rows {
+			rows = append(rows, row{start: len(f.Text), end: len(f.Text)})
+		}
+	}
 	n := min(len(rows), max(below, above)-2, 20)
 	if width < 1 || n < 1 {
 		return 0, 0, false
@@ -186,6 +195,9 @@ func (c *client) float(f wire.Float, cx, cy, lo, hi, h int) (int, int, bool) {
 	}
 	x := max(min(cx, hi-width-4), lo)
 	fx, fy, found := c.box(f.Text, f.Spans, rows[first:min(first+n, len(rows))], x, y, width, f.Cursor)
+	if p := f.Image; p != nil && len(rows) > text {
+		c.picture(*p, x+2, y+1+text, width)
+	}
 	if f.Doc == "" {
 		return fx, fy, found
 	}

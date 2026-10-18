@@ -1138,6 +1138,10 @@ Where fude departs, the line says so and cites the departure in
   jumplist, so `<C-o>` goes back.
 - B59 [4] A plugin with `ui` shows markdown in a float at the cursor, as
   hover does.
+- B309 [4] An image in a float's markdown, such as hover's, shows its
+  description in the text, and the first one fude can load shows under
+  the text where the terminal shows images, when both fit. A relative
+  path is looked up beside the buffer's file.
 
 ## LSP
 

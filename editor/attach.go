@@ -64,8 +64,12 @@ func (e *Session) frame(sent map[int]kernel.Version) wire.Frame {
 			}
 		}
 	}
-	if f.Float != nil && f.Float.DocImage != nil {
-		give(f.Float.DocImage.ID)
+	if f.Float != nil {
+		for _, p := range []*wire.Picture{f.Float.DocImage, f.Float.Image} {
+			if p != nil {
+				give(p.ID)
+			}
+		}
 	}
 	f.Freed = e.Freed()
 	for _, v := range f.Views {

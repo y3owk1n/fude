@@ -1208,6 +1208,42 @@ func TestB308RemoteImage(t *testing.T) {
 	settle(t, e, func() bool { return len(e.Views()[0].Virtual[0]) == 2 })
 }
 
+// floater is a module whose :Float shows markdown with an image in a float.
+type floater struct{ idle }
+
+func (floater) Registered() []api.Registration {
+	return []api.Registration{{Kind: api.Command, Name: "Float", Help: "shows an image in a float", ID: 1}}
+}
+
+func (floater) Call(context.Context, uint32, api.Scope, ...int) (api.Result, error) {
+	return api.Result{Float: &api.Float{Text: "see ![pic](a.png) here"}}, nil
+}
+
+// B309
+func TestB309FloatImage(t *testing.T) {
+	dir := t.TempDir()
+	var b bytes.Buffer
+	if err := png.Encode(&b, image.NewRGBA(image.Rect(0, 0, 80, 32))); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "a.png"), b.Bytes(), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "f")
+	change(t, path, "a\n")
+	e := start(t, path)
+	e.SetSize(80, 20)
+	e.SetCell(8, 16)
+	e.Use(floater{})
+	// The image beside the file shows under the float's text, which gives
+	// its description.
+	feed(e, ":Float<CR>")
+	settle(t, e, func() bool {
+		f, ok := e.Float()
+		return ok && f.Text == "see pic here" && f.Image != nil && f.Image.Rows == 2 && f.Image.Cols == 10
+	})
+}
+
 // B289
 func TestB289PluginReadsItsDecorations(t *testing.T) {
 	e := loaded(t, "ctx", "f", "a\n b\n c\nd\n", "buffer.read", "buffer.write", "ui")

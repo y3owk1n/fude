@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"path/filepath"
 	"strings"
 
 	"github.com/y3owk1n/fude/syntax"
@@ -84,6 +85,10 @@ func inline(b *strings.Builder, spans []syntax.Span, l string) []syntax.Span {
 				i += j + 1
 				continue
 			}
+		case strings.HasPrefix(rest, "![") && strings.Contains(rest, "]("):
+			// An image shows its description, as a link shows its text. The
+			// float shows the image itself (B309).
+			continue
 		case rest[0] == '[':
 			if close := strings.Index(rest, "]("); close > 0 {
 				if end := strings.IndexByte(rest[close:], ')'); end > 0 {
@@ -103,4 +108,36 @@ func inline(b *strings.Builder, spans []syntax.Span, l string) []syntax.Span {
 
 func isWord(c byte) bool {
 	return c == '_' || c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
+}
+
+// markdownImage returns the first image src shows that fude can load: an
+// http or https address, or a file, beside the file at from when its path
+// is relative. It returns "" for none (B309).
+func markdownImage(src, from string) string {
+	for rest := src; ; {
+		i := strings.Index(rest, "![")
+		if i < 0 {
+			return ""
+		}
+		rest = rest[i+2:]
+		close := strings.Index(rest, "](")
+		end := strings.IndexByte(rest, ')')
+		if close < 0 || end < close {
+			continue
+		}
+		// The path may have a title after it.
+		fields := strings.Fields(rest[close+2 : end])
+		if len(fields) == 0 {
+			continue
+		}
+		switch path := fields[0]; {
+		case remote(path):
+			return path
+		case strings.Contains(path, "://"):
+		case filepath.IsAbs(path):
+			return path
+		case from != "":
+			return filepath.Join(filepath.Dir(from), path)
+		}
+	}
 }

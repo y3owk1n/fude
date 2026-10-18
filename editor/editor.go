@@ -717,7 +717,16 @@ func (e *Session) Float() (wire.Float, bool) {
 		t := e.Text()
 		return wire.Float{Text: t.Slice(0, t.Len()), Spans: e.float.spans, Top: e.Top(), Cursor: e.Cursor()}, true
 	}
-	return wire.Float{Text: e.float.text, Spans: e.float.spans, Cursor: -1, Doc: e.float.doc, DocSpans: e.float.docSpans}, e.float.text != ""
+	fl := wire.Float{Text: e.float.text, Spans: e.float.spans, Cursor: -1, Doc: e.float.doc, DocSpans: e.float.docSpans}
+	if e.float.image != "" && e.cell[0] > 0 && e.cell[1] > 0 {
+		if p := e.picture(e.float.image); p != nil {
+			// A float at the cursor is at most 80 columns and 20 rows, its
+			// border and a row of text included.
+			rows, cols := e.fitImage(p, 76, 12)
+			fl.Image = &wire.Picture{ID: p.id, Rows: rows, Cols: cols}
+		}
+	}
+	return fl, e.float.text != ""
 }
 
 // floatKeys are a focused float's own keys, which [keymap.float] changes
@@ -1126,6 +1135,7 @@ type floating struct {
 	doc      string // the selected completion's documentation, beside the menu
 	docSpans []syntax.Span
 	left     string // the float the key being handled closed, which hover enters
+	image    string // the image its markdown shows, below its text (B309)
 }
 
 // key closes the float, which any key does, and keeps its text so that

@@ -622,6 +622,62 @@ func TestB305DrawPreviewImage(t *testing.T) {
 	}
 }
 
+// hovered is a module whose :Hover shows markdown with an image in a float.
+type hovered struct{ heading }
+
+func (hovered) Registered() []api.Registration {
+	return []api.Registration{{Kind: api.Command, Name: "Hover", Help: "shows an image in a float", ID: 1}}
+}
+
+func (hovered) Init(context.Context, api.Scope) (api.Result, error) { return api.Result{}, nil }
+
+func (hovered) Call(context.Context, uint32, api.Scope, ...int) (api.Result, error) {
+	return api.Result{Float: &api.Float{Text: "see ![pic](a.png)"}}, nil
+}
+
+// B309, drawn
+func TestB309DrawFloatImage(t *testing.T) {
+	dir := t.TempDir()
+	var b bytes.Buffer
+	if err := png.Encode(&b, image.NewRGBA(image.Rect(0, 0, 80, 32))); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "a.png"), b.Bytes(), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "a.txt")
+	if err := os.WriteFile(path, []byte("a\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	c := startWith(t, "", path)
+	c.img = images{tty: pixels{}, out: new(bytes.Buffer)}
+	c.e.(*editor.Session).Use(hovered{})
+	c.draw()
+	for _, k := range vim.Keys(":Hover<CR>") {
+		c.e.Feed(k)
+	}
+	// The float opens under the cursor's line, its text on its first row
+	// and the image's first cell under it, two columns in.
+	for deadline := time.After(5 * time.Second); ; {
+		c.draw()
+		if s, _, _ := c.s.Get(2, 3); strings.HasPrefix(s, string(kitty.Placeholder)) {
+			break
+		}
+		select {
+		case fn := <-c.e.Queue():
+			fn()
+		case <-time.After(10 * time.Millisecond):
+		case <-deadline:
+			var row strings.Builder
+			for x := range 20 {
+				s, _, _ := c.s.Get(x, 3)
+				row.WriteString(s)
+			}
+			t.Fatalf("under the float's text the row shows %q", row.String())
+		}
+	}
+}
+
 // B296
 func TestB296LineGround(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "a.txt")

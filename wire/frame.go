@@ -171,6 +171,7 @@ type Float struct {
 	DocSpans    []syntax.Span
 	Lit         bool     // the windows under it stay lit, as under the key hints (B151)
 	DocImage    *Picture // an image in the documentation's box, as the finder previews one (B305)
+	Image       *Picture // an image below the text of a float at the cursor, as hover's markdown shows one (B309)
 	// Foot shows under a rule at the bottom of a box in a place of its own,
 	// styled by FootSpans, and stays there as the text scrolls, as a
 	// panel's keys do (B159).

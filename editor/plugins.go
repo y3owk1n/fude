@@ -417,6 +417,7 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 	if f := res.Float; f != nil {
 		if f.Spans == nil {
 			e.float.text, e.float.spans = e.markdown(f.Text)
+			e.float.image = markdownImage(f.Text, b.file.path)
 		} else {
 			e.float.text, e.float.spans = f.Text, styled(f.Spans)
 		}
