@@ -802,8 +802,9 @@ Where fude departs, the line says so and cites the departure in
   sets it off, a window
   whose top is inside a function or class pins that one's first line over
   its top row when the line is above it. Nested ones pin too, the
-  outermost first, at most 3, each with its number and highlights on the
-  surface colour. The grammar's text objects say what a function or class
+  outermost first. At most `sticky_context_lines` pin, 3 by default, and
+  when the top is inside more than that, the innermost ones pin. Each has
+  its number and highlights on the surface colour. The grammar's text objects say what a function or class
   is, and the first line left in view under the pinned ones decides which
   pin. They never cover the cursor's line.
 - B41 [3] A query file in the config `queries/` directory overrides the

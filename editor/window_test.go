@@ -535,15 +535,19 @@ func TestB218Jump(t *testing.T) {
 // B217
 func TestB217StickyContext(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "a.go")
-	change(t, path, "package p\n\nfunc F() {\n"+strings.Repeat("\tx()\n", 30)+"}\n")
+	change(t, path, "package p\n\nfunc F() {\n\tg := func() {\n"+strings.Repeat("\t\tx()\n", 30)+"\t}\n}\n")
 	e := start(t, path)
 	e.SetSize(80, 10)
-	// Scrolled into F, its first line is pinned, with its highlights.
+	// Scrolled into g in F, both first lines are pinned, with their highlights.
 	feed(e, "20Gzt3j")
 	settle(t, e, func() bool {
 		v := e.Views()[0]
-		return slices.Equal(v.Context, []int{11}) && len(v.ContextHighlights) > 0
+		return slices.Equal(v.Context, []int{11, 22}) && len(v.ContextHighlights) > 0
 	})
+	// With sticky_context_lines 1, only the innermost line pins.
+	if feed(e, ":set sticky_context_lines 1<CR>"); !slices.Equal(e.Views()[0].Context, []int{22}) {
+		t.Errorf("with sticky_context_lines 1, %v is pinned", e.Views()[0].Context)
+	}
 	// With the cursor on the top line, nothing covers it.
 	if feed(e, "zt"); len(e.Views()[0].Context) != 0 {
 		t.Errorf("with the cursor on the top line, %v is pinned", e.Views()[0].Context)

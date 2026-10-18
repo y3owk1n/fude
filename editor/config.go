@@ -110,29 +110,30 @@ type keymap struct {
 	Groups   map[string]string `toml:"groups" help:"names of the keys mappings start with, which key hints show"`
 }
 
-var defaults = config{TabWidth: 8, Editorconfig: true, KeyTimeout: 1000, KeyHints: 300, FlashTime: 300, FormatTimeout: 1000, LargeFile: 2, TerminalHeight: 33, SplitBelow: true, SplitRight: true, HighlightColors: true, InlayHints: true, Autopairs: true, Sources: []string{"lsp", "snippet", "path", "buffer"}, AutoInstall: true, BufferLine: true, SpellWords: "/usr/share/dict/words", Leader: "<Space>", Theme: "dark", options: options{Wrap: true, IndentGuides: true, IncSearch: true, StickyContext: true}}
+var defaults = config{TabWidth: 8, Editorconfig: true, KeyTimeout: 1000, KeyHints: 300, FlashTime: 300, FormatTimeout: 1000, LargeFile: 2, TerminalHeight: 33, SplitBelow: true, SplitRight: true, HighlightColors: true, InlayHints: true, Autopairs: true, Sources: []string{"lsp", "snippet", "path", "buffer"}, AutoInstall: true, BufferLine: true, SpellWords: "/usr/share/dict/words", Leader: "<Space>", Theme: "dark", options: options{Wrap: true, IndentGuides: true, IncSearch: true, StickyContext: true, StickyContextLines: 3}}
 
 // options are the settings each window has, which :set changes for the
 // current window and the windows opened after it (B39). :set takes each by
 // its toml name, a bool as a switch and an int as a number.
 type options struct {
-	Number         bool `toml:"number" help:"shows line numbers"`
-	RelativeNumber bool `toml:"relative_number" help:"numbers lines from the cursor's"`
-	Wrap           bool `toml:"wrap" help:"long lines go on the rows below, else the view scrolls sideways"`
-	ScrollOff      int  `toml:"scroll_off" help:"the lines kept in view above and below the cursor's"`
-	CursorLine     bool `toml:"cursor_line" help:"shades the cursor's line"`
-	List           bool `toml:"list" help:"shows tabs, trailing spaces and no-break spaces"`
-	IgnoreCase     bool `toml:"ignore_case" help:"searches ignore case"`
-	SmartCase      bool `toml:"smart_case" help:"a pattern with an uppercase letter matches case"`
-	ExpandTab      bool `toml:"expand_tab" help:"indents with spaces only"`
-	Clipboard      bool `toml:"clipboard" help:"yanks, deletes and puts use the system clipboard"`
-	SignColumn     bool `toml:"sign_column" help:"keeps the sign column when there are no signs"`
-	IndentGuides   bool `toml:"indent_guides" help:"draws a faint line at each indent level"`
-	ColorColumn    int  `toml:"color_column" help:"shades this column of the text, and is how wide :center makes it, 0 for none"`
-	Icons          bool `toml:"icons" help:"shows nerd font icons in listings and signs"`
-	Spell          bool `toml:"spell" help:"underlines words the word list lacks, in prose and in comments and strings"`
-	IncSearch      bool `toml:"inc_search" help:"while a search is typed, the window shows the match it goes to, lit apart from the rest"`
-	StickyContext  bool `toml:"sticky_context" help:"the first lines of the functions and classes the top of a window is in stay pinned over it"`
+	Number             bool `toml:"number" help:"shows line numbers"`
+	RelativeNumber     bool `toml:"relative_number" help:"numbers lines from the cursor's"`
+	Wrap               bool `toml:"wrap" help:"long lines go on the rows below, else the view scrolls sideways"`
+	ScrollOff          int  `toml:"scroll_off" help:"the lines kept in view above and below the cursor's"`
+	CursorLine         bool `toml:"cursor_line" help:"shades the cursor's line"`
+	List               bool `toml:"list" help:"shows tabs, trailing spaces and no-break spaces"`
+	IgnoreCase         bool `toml:"ignore_case" help:"searches ignore case"`
+	SmartCase          bool `toml:"smart_case" help:"a pattern with an uppercase letter matches case"`
+	ExpandTab          bool `toml:"expand_tab" help:"indents with spaces only"`
+	Clipboard          bool `toml:"clipboard" help:"yanks, deletes and puts use the system clipboard"`
+	SignColumn         bool `toml:"sign_column" help:"keeps the sign column when there are no signs"`
+	IndentGuides       bool `toml:"indent_guides" help:"draws a faint line at each indent level"`
+	ColorColumn        int  `toml:"color_column" help:"shades this column of the text, and is how wide :center makes it, 0 for none"`
+	Icons              bool `toml:"icons" help:"shows nerd font icons in listings and signs"`
+	Spell              bool `toml:"spell" help:"underlines words the word list lacks, in prose and in comments and strings"`
+	IncSearch          bool `toml:"inc_search" help:"while a search is typed, the window shows the match it goes to, lit apart from the rest"`
+	StickyContext      bool `toml:"sticky_context" help:"the first lines of the functions and classes the top of a window is in stay pinned over it"`
+	StickyContextLines int  `toml:"sticky_context_lines" help:"the most lines sticky context pins"`
 }
 
 // loadConfig reads config.toml. A missing file is no error. After an error

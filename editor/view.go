@@ -30,7 +30,7 @@ func (e *Session) Views() []wire.View {
 	for b, ws := range shown {
 		if b.syntax != nil {
 			for _, w := range slices.Clone(ws) {
-				for i := range maxContext {
+				for i := range w.(*window).opts.StickyContextLines {
 					ws = append(ws, contextRow{w.(*window), i})
 				}
 			}
@@ -212,9 +212,6 @@ func (e *Session) Views() []wire.View {
 	return out
 }
 
-// maxContext is the most lines sticky context pins (B217).
-const maxContext = 3
-
 // contextRow names a line sticky context pins over w's rows, for the
 // highlights of a line above what w shows.
 type contextRow struct {
@@ -225,10 +222,10 @@ type contextRow struct {
 // pinned returns the starts of the lines pinned over w's first rows: those
 // of the functions and classes that hold the first line they leave in view
 // and start above it, the outermost first. They never cover the cursor's
-// line (B217).
+// line, and are at most sticky_context_lines (B217).
 func (e *Session) pinned(w *window, t kernel.Snapshot, top int) []int {
 	p, h := &w.pinned, w.buf.syntax
-	if p.version == t.Version() && p.top == top && p.cursor == w.pos() && p.parses == h.Parses() {
+	if p.version == t.Version() && p.top == top && p.cursor == w.pos() && p.parses == h.Parses() && p.lines == w.opts.StickyContextLines {
 		return p.starts
 	}
 	var starts []int
@@ -237,12 +234,12 @@ func (e *Session) pinned(w *window, t kernel.Snapshot, top int) []int {
 	// has no line here to keep uncovered.
 	below := t.LineOf(w.pos()) - first
 	if below < 0 {
-		below = maxContext
+		below = w.opts.StickyContextLines
 	}
-	room := min(maxContext, below, max(w.h-3, 0))
+	room := min(w.opts.StickyContextLines, below, max(w.h-3, 0))
 	// Each pinned line covers one more line of text, so the loop asks again
 	// about the line under them until the answer stops changing.
-	for range maxContext {
+	for range w.opts.StickyContextLines {
 		under := first + len(starts)
 		var found []int
 		for _, s := range h.Context(t.LineStart(min(under, t.Lines()-1))) {
@@ -256,7 +253,7 @@ func (e *Session) pinned(w *window, t kernel.Snapshot, top int) []int {
 		}
 		starts = found
 	}
-	p.version, p.top, p.cursor, p.parses, p.starts = t.Version(), top, w.pos(), h.Parses(), starts
+	p.version, p.top, p.cursor, p.parses, p.lines, p.starts = t.Version(), top, w.pos(), h.Parses(), w.opts.StickyContextLines, starts
 	return starts
 }
 

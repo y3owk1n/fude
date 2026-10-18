@@ -244,9 +244,15 @@ set off.
 When the top of a window is inside a function or a class whose first line
 has scrolled out of view, that first line stays pinned over the window's
 top row, on the surface colour, as nvim-treesitter-context does. Nested
-ones pin too, the outermost first, at most 3, and never over the cursor's
-line. It needs the file's grammar. The default is on, and
-`:set sticky_context false` turns it off in the window.
+ones pin too, the outermost first, at most `sticky_context_lines`, and
+never over the cursor's line. It needs the file's grammar. The default is
+on, and `:set sticky_context false` turns it off in the window.
+
+## sticky_context_lines
+
+Sticky context pins at most this many lines over a window's top. The
+default is 3. When the top is inside more functions and classes than that,
+the innermost ones pin.
 
 ## expand_tab
 
