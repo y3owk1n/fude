@@ -110,14 +110,6 @@ the cursor and edits pass over them. The default is on. Some servers send
 hints only when their settings ask for them, such as gopls with
 `[lsp.gopls.settings.gopls.hints]`.
 
-## sticky_context
-
-When the top of a window is inside a function or a class whose first line
-has scrolled out of view, that first line stays pinned over the window's
-top row, on the surface colour, as nvim-treesitter-context does. Nested
-ones pin too, the outermost first, at most 3, and never over the cursor's
-line. It needs the file's grammar. The default is on.
-
 ## autopairs
 
 An opening bracket or quote typed in insert mode comes with its closing
@@ -243,6 +235,15 @@ a pattern ignores case anyway.
 While a search is typed, the window shows the match it goes to, lit apart
 from the other matches, and `<Esc>` puts the view back. It is on unless
 set off.
+
+## sticky_context
+
+When the top of a window is inside a function or a class whose first line
+has scrolled out of view, that first line stays pinned over the window's
+top row, on the surface colour, as nvim-treesitter-context does. Nested
+ones pin too, the outermost first, at most 3, and never over the cursor's
+line. It needs the file's grammar. The default is on, and
+`:set nosticky_context` turns it off in the window.
 
 ## expand_tab
 

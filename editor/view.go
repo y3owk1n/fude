@@ -81,7 +81,7 @@ func (e *Session) Views() []wire.View {
 		}
 		if h := w.buf.syntax; h != nil {
 			v.Highlights = h.Show(t, w, top, last)
-			if e.cfg.StickyContext {
+			if w.opts.StickyContext {
 				v.Context = e.pinned(w, t, top)
 				for i, start := range v.Context {
 					v.ContextHighlights = append(v.ContextHighlights, h.Show(t, contextRow{w, i}, start, vim.LineEnd(t, start))...)

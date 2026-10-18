@@ -783,7 +783,8 @@ Where fude departs, the line says so and cites the departure in
 
 - B40 [3] With a grammar installed, `if af ia aa ic ac` select function,
   argument and class through tree-sitter queries.
-- B217 [3] With `sticky_context` on, as it is unless set off, a window
+- B217 [3] With `sticky_context` on, as it is unless `:set` or config.toml
+  sets it off, a window
   whose top is inside a function or class pins that one's first line over
   its top row when the line is above it. Nested ones pin too, the
   outermost first, at most 3, each with its number and highlights on the

@@ -540,6 +540,13 @@ func TestB217StickyContext(t *testing.T) {
 	if feed(e, "zt"); len(e.Views()[0].Context) != 0 {
 		t.Errorf("with the cursor on the top line, %v is pinned", e.Views()[0].Context)
 	}
+	// :set nosticky_context turns it off in the window.
+	if feed(e, "3j"); len(e.Views()[0].Context) == 0 {
+		t.Fatal("with the cursor below the top again, nothing is pinned")
+	}
+	if feed(e, ":set nosticky_context<CR>"); len(e.Views()[0].Context) != 0 {
+		t.Errorf("with sticky_context off, %v is pinned", e.Views()[0].Context)
+	}
 }
 
 // B172
