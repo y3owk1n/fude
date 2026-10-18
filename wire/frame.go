@@ -85,7 +85,6 @@ type View struct {
 	Guides            bool              // draw indent guides (B153)
 	ColorColumn       int               // the column of the text to shade, from 1, or 0 (B200)
 	Colours           []Colour          // text that names a colour, shown on it (B208, B209)
-	Labels            []Label           // a jump's labels, drawn over the text (B218)
 	Folds             map[int]int       // by the first line of each closed fold shown, the lines it hides (B224)
 	Grounds           map[int]string    // by line, the style whose ground shades its rows (B296)
 	Virtual           map[int][]Virtual // by line, the rows drawn above and below it (B299)
@@ -197,13 +196,6 @@ type Cell struct {
 	Width                                           int
 	Fg, Bg                                          color.Color
 	Bold, Faint, Italic, Underline, Reverse, Strike bool
-}
-
-// Label is the label of a jump's match, drawn over the character at Pos,
-// the one after the match (B218).
-type Label struct {
-	Pos  int
-	Text string
 }
 
 // Colour is text a window shows on the colour it names (B208, B209).

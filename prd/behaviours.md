@@ -1036,6 +1036,15 @@ Where fude departs, the line says so and cites the departure in
   window, such as a line in `diff.plus`, over what the filetype colours.
 - B277 [4] A plugin hears `editor.focused` when the terminal gets the
   focus back, as git's index may have changed while fude was away.
+- B316 [4] A module's call may take the keys typed next. Each key goes
+  to that call before any other key handling, until a result lets them
+  go. A jump reads its characters and labels this way (B218). A call
+  about the current window names where its view starts, and the end of
+  the line one window height below it.
+- B315 [4] A module's decoration covers a range on one line with its
+  note, padded to the range's width. It shows on the cursor's line too,
+  as a jump's labels cover the character after each match (B218). An
+  empty range at the line's end draws the note after the line.
 - B314 [4] A module hears `buffer.shown` when the current window shows
   another buffer, as recent files keep what windows show (B213). A
   module's list may be of file paths, which show, preview and open as

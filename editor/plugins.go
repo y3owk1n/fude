@@ -183,6 +183,7 @@ type decoration struct {
 	fold       bool     // a closed fold over its lines (B288)
 	replace    bool     // note shows in place of its text (B295)
 	insert     bool     // note shows among the text at its start (B216)
+	cover      bool     // note shows over its text, on the cursor's line too (B315)
 	line       bool     // its style's ground shades its lines' rows (B296)
 	lines      []string // rows drawn below its line, or above it (B299)
 	above      bool
@@ -194,7 +195,7 @@ type decoration struct {
 // which lines show theirs as it is: an inlay hint, a proposal's text, a
 // replacement, rows of its own or a block (B71, B216, B295, B299, B300).
 func (d decoration) inline() bool {
-	return d.replace || d.insert || len(d.lines) > 0 || d.block || d.image != "" || strings.HasPrefix(d.style, "proposal") && d.note != ""
+	return d.replace || d.insert || d.cover || len(d.lines) > 0 || d.block || d.image != "" || strings.HasPrefix(d.style, "proposal") && d.note != ""
 }
 
 // remove deletes the decoration's marks.
@@ -476,7 +477,7 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 		// A sign shows its first two characters, as the column is two wide.
 		sign := []rune(d.Sign)
 		sign = sign[:min(len(sign), 2)]
-		deco := decoration{id: d.ID, buf: on, style: d.Style, note: d.Note, sign: string(sign), layer: d.Layer, fold: d.Fold, replace: d.Replace, insert: d.Insert, line: d.Line, lines: d.Lines, above: d.Above, block: d.Block, image: d.Image}
+		deco := decoration{id: d.ID, buf: on, style: d.Style, note: d.Note, sign: string(sign), layer: d.Layer, fold: d.Fold, replace: d.Replace, insert: d.Insert, cover: d.Cover, line: d.Line, lines: d.Lines, above: d.Above, block: d.Block, image: d.Image}
 		// A fold's marks stay at their lines' starts through an insert there.
 		gravity := kernel.Right
 		if d.Fold {
@@ -634,6 +635,9 @@ func (e *Session) drop(p api.Module) {
 		delete(e.listeners, p)
 	}
 	p.Close(context.Background())
+	if e.capture != nil && e.capture.p == p {
+		e.capture = nil
+	}
 	e.modules = slices.DeleteFunc(e.modules, func(q api.Module) bool { return q == p })
 	for _, d := range e.decos[p] {
 		d.remove()
@@ -759,6 +763,13 @@ func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 		opts = e.win.opts
 	}
 	s := api.Scope{Text: t, About: e.about(b), Buffers: bufs, Language: func(int) string { return ft }}
+	if e.win.buf == b {
+		// Where the current window's view starts, and the end of the line a
+		// window's height below, as wrap may show less (B316).
+		top := e.Top()
+		s.About["top"] = strconv.Itoa(top)
+		s.About["bottom"] = strconv.Itoa(vim.LineEnd(t, t.LineStart(min(t.LineOf(top)+max(e.win.h-2, 0), t.Lines()-1))))
+	}
 	s.Option = func(name string) (string, bool) { return option(opts, cfg, name) }
 	s.Config = func(path string) (string, bool) { return configNode(cfg, path) }
 	if b.syntax != nil {
@@ -801,7 +812,7 @@ func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 	// scope off it.
 	var decos []api.Decoration
 	for _, d := range e.decos[p] {
-		decos = append(decos, api.Decoration{ID: d.id, Start: d.buf.text.Mark(d.start), End: d.buf.text.Mark(d.end), Style: d.style, Sign: d.sign, Note: d.note, Layer: d.layer, Fold: d.fold, Replace: d.replace, Insert: d.insert, Line: d.line, Lines: d.lines, Above: d.above, Block: d.block, Image: d.image, Buffer: d.buf.id})
+		decos = append(decos, api.Decoration{ID: d.id, Start: d.buf.text.Mark(d.start), End: d.buf.text.Mark(d.end), Style: d.style, Sign: d.sign, Note: d.note, Layer: d.layer, Fold: d.fold, Replace: d.replace, Insert: d.insert, Cover: d.cover, Line: d.line, Lines: d.lines, Above: d.above, Block: d.block, Image: d.image, Buffer: d.buf.id})
 	}
 	s.Decorations = func() []api.Decoration { return decos }
 	return s
@@ -855,7 +866,43 @@ func (e *Session) run(p api.Module, id uint32, scope api.Scope, args ...int) ([]
 		e.unload(p, err)
 		return nil, nil, false
 	}
+	// A result that captures keys takes those typed next, and one without
+	// it lets them go (B316).
+	switch {
+	case res.Capture:
+		e.capture = &captured{p, id}
+	case e.capture != nil && e.capture.p == p && e.capture.id == id:
+		e.capture = nil
+	}
 	return e.decorate(p, e.win.buf, res), res.Selected, true
+}
+
+// captured is the module call the keys typed next go to (B316).
+type captured struct {
+	p  api.Module
+	id uint32
+}
+
+// key sends k to the module call that captured the keys, and applies what
+// it asks, as the vim machine does after a key.
+func (c *captured) key(e *Session, k vim.Key) bool {
+	if c == nil {
+		return false
+	}
+	scope := e.scope(c.p, e.win.buf, e.Text())
+	scope.About["key"] = string(k)
+	edits, _, ok := e.run(c.p, c.id, scope, e.Cursor(), 1)
+	if !ok {
+		// A call that failed, or a module gone, lets the keys go.
+		e.capture = nil
+	}
+	if len(edits) > 0 {
+		if err := (host{e}).Apply(edits, string(k)); err != nil {
+			e.message = err.Error()
+		}
+	}
+	e.settle(nil)
+	return true
 }
 
 // logLine appends a line to fude's log, which is where a plugin's own log

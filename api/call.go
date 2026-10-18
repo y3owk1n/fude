@@ -17,6 +17,10 @@ type Decoration struct {
 	// Insert shows Note in Style among the text at Start, on the cursor's
 	// line too, as an inlay hint does (B216).
 	Insert bool
+	// Cover shows Note in Style over the text from Start to End, which
+	// must be on one line. The note is padded to the text's width and
+	// shows on the cursor's line too, as a jump's labels do (B315).
+	Cover bool
 	// Line shades the whole rows of the lines from Start's to End's in
 	// Style's ground, to the window's edge, under the text's colours (B296).
 	Line bool
@@ -47,9 +51,13 @@ type Decoration struct {
 type Result struct {
 	Edits      []Edit
 	Decorate   []Decoration
-	Undecorate []int          // the ids of decorations to remove
-	Emit       []string       // the events to emit, named owner.event
-	Status     *string        // the owner's statusline segment for the text it read, "" for none
+	Undecorate []int    // the ids of decorations to remove
+	Emit       []string // the events to emit, named owner.event
+	Status     *string  // the owner's statusline segment for the text it read, "" for none
+	// Capture sends the next keys to the owner's Call of the same id, each
+	// as key in About, before the vim machine or a menu takes them, until
+	// a result without it (B316).
+	Capture    bool
 	StatusLeft *string        // its segment on the statusline's left, after the buffer's name, as git's branch is (B147)
 	Message    string         // a line for the message area, "" for none
 	Float      *Float         // text to show at the cursor, empty to close it

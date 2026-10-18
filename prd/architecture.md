@@ -410,6 +410,13 @@ last heard changed, as the text is after it. The editor emits each as
 text as a decoration for `flash_time` milliseconds, through a timer, and
 a change to its buffer clears it at once (B139).
 
+`modules/jump` runs `s` (B218). Its `<Plug>(jump.start)` returns a result
+with `Capture`, so each key typed next goes to its call with `key` in
+`About`, before any overlay, until a result without it (B316). It finds
+the text typed between the view's `top` and `bottom`, highlights each
+match, and covers the character after it with its label (B315). A label
+or `<CR>` returns a `Jump`, and the editor adds it to the jumplist.
+
 `<Plug>(window.*)` move as `<C-w>h`, `<C-w>j`, `<C-w>k` and `<C-w>l` do.
 When the window stays the same and `$TMUX` is set, they run
 `tmux select-pane -t $TMUX_PANE` with `-L`, `-D`, `-U` or `-R`. tmux's own
@@ -544,7 +551,9 @@ Clients render them and know nothing about where they came from. Virtual
 text and signs come with the behaviours that need them.
 
 A decoration marked `Insert` draws its note in its style at its start,
-among the text, as an inlay hint does (B216). One styled `colour
+among the text, as an inlay hint does (B216). One marked `Cover` draws its
+note over its range, on the cursor's line too, padded to the range's
+columns (B315). One styled `colour
 #rrggbb` draws its range on that colour (B208, B209).
 
 A module's decoration marked `Replace`, or a plugin's from `replace`,
@@ -1756,7 +1765,8 @@ phases, each unit a commit that keeps every behaviour.
 
 1. The editor's internals. An overlay is what takes a key before the vim
    machine: the finder, the command line's menu, the completion menu, a
-   code action pick, the jump labels, a question and a snippet session.
+   code action pick, a module's call that captured the keys, a question
+   and a snippet session.
    One interface and a fixed priority list spell out the order `feed`
    had by hand, and each overlay owns its state. The pure parts leave the
    editor: `internal/share` holds certificates, tokens and the TLS

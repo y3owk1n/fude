@@ -326,7 +326,7 @@ func (e *Session) rekey(was, now keymap) {
 		mapAll(m, mode, new, e.leader)
 	}
 	revert(e.vim, vim.Normal, was.Normal, now.Normal, defaultMaps)
-	revert(e.vim, vim.Visual, was.Visual, now.Visual, map[string]string{"s": "<Plug>(jump)"})
+	revert(e.vim, vim.Visual, was.Visual, now.Visual, map[string]string{"s": "<Plug>(jump.start)"})
 	revert(e.vim, vim.Insert, was.Insert, now.Insert, nil)
 	own, olds, news := kindKeys(), was.kinds(), now.kinds()
 	for kind, m := range e.locals {

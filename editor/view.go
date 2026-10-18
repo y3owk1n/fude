@@ -173,14 +173,6 @@ func (e *Session) Views() []wire.View {
 		}
 		if w == e.win {
 			v.Decorations = append(v.Decorations, e.snippetSpan(w.buf)...)
-			if j := e.jumping; j != nil {
-				for _, m := range j.matches {
-					v.Decorations = append(v.Decorations, syntax.Span{Start: m[0], End: m[1], Name: "jump.match"})
-				}
-				for l, m := range j.labels {
-					v.Labels = append(v.Labels, wire.Label{Pos: m[1], Text: l})
-				}
-			}
 		}
 		for _, ds := range e.decos {
 			for _, d := range ds {
@@ -211,7 +203,7 @@ func (e *Session) Views() []wire.View {
 					}
 					continue
 				}
-				if !d.insert && !d.replace && !d.block && s < end && end > top && s < last {
+				if !d.insert && !d.replace && !d.cover && !d.block && s < end && end > top && s < last {
 					v.Decorations = append(v.Decorations, syntax.Span{Start: s, End: end, Name: d.style})
 				}
 			}

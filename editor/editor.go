@@ -99,7 +99,7 @@ type Session struct {
 	later      []vim.Key               // keys to feed once the key being fed is done
 	pick       *pick                   // the code actions shown to choose from
 	finder     *finder                 // the file finder, while it shows
-	jumping    *jump                   // the jump being typed after s (B218)
+	capture    *captured               // the module call the keys typed next go to (B316)
 	shownBuf   *buffer                 // the buffer the current window showed when the modules last heard (B314)
 	cmdline    cmdline                 // the completions of the command line being typed
 	searching  *[2]int                 // the top and cursor of the window a search is typed in, to put back (B21)
@@ -250,7 +250,7 @@ func builtins(e *Session) {
 	for keys, to := range defaultMaps {
 		e.vim.Map(vim.Normal, withLeader(keys, e.cfg.Leader), to)
 	}
-	e.vim.Map(vim.Visual, "s", "<Plug>(jump)")
+	e.vim.Map(vim.Visual, "s", "<Plug>(jump.start)")
 	e.locals = map[string]*vim.Keymaps{}
 	for kind, keys := range kindKeys() {
 		mode := vim.Normal
@@ -593,12 +593,7 @@ func (e *Session) SetSize(w, h int) {
 }
 
 // Shown returns the keys of the command being typed, or "".
-func (e *Session) Shown() string {
-	if e.jumping != nil {
-		return "s" + e.jumping.query
-	}
-	return e.vim.Shown()
-}
+func (e *Session) Shown() string { return e.vim.Shown() }
 
 // Top returns the start of the current window's first line shown.
 func (e *Session) Top() int { return e.topOf(e.win) }
@@ -1122,17 +1117,17 @@ func (e *Session) registers(names string) {
 	e.message = strings.Join(shown, "  ")
 }
 
-// overlay is what may take a key before the vim machine sees it: the jump
-// labels, the finder, a terminal, the completion menu, a snippet, a code
-// action pick, the float, a question, the :lsp panel and the command
-// line's menu. One that is not up takes nothing.
+// overlay is what may take a key before the vim machine sees it: a module
+// call that captured the keys, the finder, a terminal, the completion
+// menu, a snippet, a code action pick, the float, a question, the :lsp
+// panel and the command line's menu. One that is not up takes nothing.
 type overlay interface {
 	key(e *Session, k vim.Key) bool
 }
 
 // overlays are what may take a key, in the order they get it.
 func (e *Session) overlays() []overlay {
-	return []overlay{e.jumping, e.finder, terminalMode{}, &e.completion, e.snip, e.pick, &e.float, e.ask, lspPanel{}, &e.cmdline}
+	return []overlay{e.capture, e.finder, terminalMode{}, &e.completion, e.snip, e.pick, &e.float, e.ask, lspPanel{}, &e.cmdline}
 }
 
 // floating is text shown over the windows at the cursor, such as hover,

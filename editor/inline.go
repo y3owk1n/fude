@@ -3,6 +3,9 @@ package editor
 import (
 	"cmp"
 	"slices"
+	"strings"
+
+	"github.com/clipperhouse/displaywidth"
 
 	"github.com/y3owk1n/fude/vim"
 	"github.com/y3owk1n/fude/wire"
@@ -73,9 +76,17 @@ func (e *Session) shown(w *window, start, end int) drawn {
 				}
 			case d.replace && (line < first || line > last) && s < en && t.LineOf(en) == line && s >= start && s <= end:
 				out.ghosts = append(out.ghosts, wire.Ghost{Pos: s, End: en, Text: d.note, Style: d.style})
+			case d.cover && s >= start && s <= end && t.LineOf(en) == line:
+				// The note takes the cells of the text it covers.
+				ls, tab := t.LineStart(line), e.tabWidth(b)
+				text := d.note
+				if pad := vim.Column(t, ls, en, tab, nil) - vim.Column(t, ls, s, tab, nil) - displaywidth.String(text); pad > 0 {
+					text += strings.Repeat(" ", pad)
+				}
+				out.ghosts = append(out.ghosts, wire.Ghost{Pos: s, End: en, Text: text, Style: d.style})
 			case d.insert && s >= start && s <= end:
 				out.ghosts = append(out.ghosts, wire.Ghost{Pos: s, Text: d.note, Style: d.style})
-			case !d.replace && !d.insert && len(d.lines) == 0 && d.image == "" && en >= start && en <= end:
+			case !d.replace && !d.insert && !d.cover && len(d.lines) == 0 && d.image == "" && en >= start && en <= end:
 				out.ghosts = append(out.ghosts, wire.Ghost{Pos: en, Text: d.note, Stale: d.style == "proposal.stale"})
 			}
 		}
