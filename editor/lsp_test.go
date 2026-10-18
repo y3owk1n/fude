@@ -512,6 +512,18 @@ func TestB61Diagnostics(t *testing.T) {
 	if e.Cursor() != 5 {
 		t.Errorf("after a line above it, ]d went to %d, want 5", e.Cursor())
 	}
+	// <C-w>d shows the cursor's line's diagnostics in full where it is, and
+	// <C-w> still starts the window keys.
+	if feed(e, "<Esc>0<C-w>d"); e.Cursor() != 5 || func() string { f, _ := e.Float(); return f.Text }() != "bad word  fake(7)\nbad word  fake(7)" {
+		f, _ := e.Float()
+		t.Errorf("<C-w>d at %d showed %q, want both of the line's diagnostics", e.Cursor(), f.Text)
+	}
+	if feed(e, "k<C-w>d"); e.Message() != "no diagnostics on this line" {
+		t.Errorf("<C-w>d on a line with none said %q", e.Message())
+	}
+	if feed(e, "<C-w>v<C-w>l"); len(e.Views()) != 2 || !e.Views()[1].Current {
+		t.Errorf("<C-w>v<C-w>l left %d windows, the second current %v", len(e.Views()), len(e.Views()) > 1 && e.Views()[1].Current)
+	}
 }
 
 // B119

@@ -1023,7 +1023,8 @@ Where fude departs, the line says so and cites the departure in
   severity's colour on a tint of that colour.
   Each move shows the diagnostics that start at the cursor in a float
   there, in their severity's colour, with their source and code, until the
-  next key.
+  next key. `<C-w>d` shows those on the cursor's line in the same float,
+  in full, without moving.
 - B62 [5] `<C-]>` jumps to the definition and `K` shows hover, as in
   Neovim with a server attached.
 - B63 [5] A server that crashes is reported and restarted once. Editing never

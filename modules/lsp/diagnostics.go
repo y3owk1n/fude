@@ -131,8 +131,8 @@ func (m *Module) at(s api.Scope, buf string) map[int][]*diagnostic {
 }
 
 // step moves the cursor to the nth diagnostic after it, or before it when
-// n is negative, going round the ends, and shows those there in a float,
-// each in its severity's colour with its source and code (B61).
+// n is negative, going round the ends, and shows those there in a float
+// (B61).
 func (m *Module) step(res *api.Result, s api.Scope, cursor, n int) {
 	at := m.at(s, s.About["buffer"])
 	if len(at) == 0 {
@@ -151,9 +151,33 @@ func (m *Module) step(res *api.Result, s api.Scope, cursor, n int) {
 	}
 	p := starts[((i%len(starts))+len(starts))%len(starts)]
 	res.Jump = &api.Jump{Pos: p}
+	res.Float = float(at[p])
+}
+
+// show shows the diagnostics on the cursor's line in a float, as <C-w>d
+// does, or says there are none (B61).
+func (m *Module) show(res *api.Result, s api.Scope, cursor int) {
+	line := s.Text.LineOf(cursor)
+	at := m.at(s, s.About["buffer"])
+	var here []*diagnostic
+	for _, p := range slices.Sorted(maps.Keys(at)) {
+		if s.Text.LineOf(p) == line {
+			here = append(here, at[p]...)
+		}
+	}
+	if len(here) == 0 {
+		res.Message = "no diagnostics on this line"
+		return
+	}
+	res.Float = float(here)
+}
+
+// float returns the float that shows ds, each in its severity's colour with
+// its source and code.
+func float(ds []*diagnostic) *api.Float {
 	f := &api.Float{Spans: []api.Span{}}
 	var text strings.Builder
-	for _, d := range at[p] {
+	for _, d := range ds {
 		if text.Len() > 0 {
 			text.WriteByte('\n')
 		}
@@ -169,7 +193,7 @@ func (m *Module) step(res *api.Result, s api.Scope, cursor, n int) {
 		}
 	}
 	f.Text = text.String()
-	res.Float = f
+	return f
 }
 
 // places returns the diagnostics of every buffer as places, the current

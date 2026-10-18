@@ -32,6 +32,7 @@ const (
 	workspace
 	nextDiag
 	prevDiag
+	showDiag
 	codeActions
 	diagnosticsSrc
 )
@@ -108,6 +109,7 @@ func (m *Module) Registered() []api.Registration {
 		{Kind: api.Source, Name: "symbols", Help: "the symbols the language server finds for the query, asked again as it is typed", ID: workspace},
 		{Kind: api.Key, Name: "]d", Help: "goes to the next diagnostic", ID: nextDiag},
 		{Kind: api.Key, Name: "[d", Help: "goes to the diagnostic before", ID: prevDiag},
+		{Kind: api.Key, Name: "<C-w>d", Help: "shows the diagnostics on the cursor's line in full", ID: showDiag},
 		{Kind: api.Key, Name: "gra", Help: "lists the language server's actions for the cursor's place", ID: codeActions, Attached: true, Visual: true},
 		{Kind: api.Source, Name: "diagnostics", Help: "the diagnostics of every open buffer, the current buffer's first", ID: diagnosticsSrc},
 	}
@@ -128,6 +130,9 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 		return res, nil
 	case prevDiag:
 		m.step(&res, s, cursor, -max(args[1], 1))
+		return res, nil
+	case showDiag:
+		m.show(&res, s, cursor)
 		return res, nil
 	case diagnosticsSrc:
 		return api.Result{Pick: &api.Pick{ID: diagPick, Title: "diagnostics", Items: m.places(s), Places: true}}, nil
