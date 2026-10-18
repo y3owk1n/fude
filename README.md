@@ -2,7 +2,9 @@
 
 # fude
 
-A modal text editor with Vim's grammar, rebuilt from the kernel up. Language servers, tree-sitter, a finder and git come built in, and one TOML file sets them all.
+A modal text editor with Vim's grammar, and the Go libraries it is built from.
+
+Use it as your editor, with language servers, tree-sitter, a finder, git, a debugger and editing with others built in. Or take its kernel, its Vim grammar, its syntax or its LSP and DAP clients into a Go program of your own.
 
 [![License](https://img.shields.io/github/license/y3owk1n/fude?style=flat-square)](LICENSE)
 [![Status](https://img.shields.io/badge/status-alpha-orange?style=flat-square)](#status)
@@ -12,7 +14,7 @@ A modal text editor with Vim's grammar, rebuilt from the kernel up. Language ser
 | :------------: | :---------------------: | :-------------: |
 | Daily driver   | Builds, less tested     | Not supported   |
 
-[Why](#why-fude-exists) · [Principles](#what-fude-believes) · [Install](#install) · [Tour](#a-first-session) · [Built in](#whats-built-in) · [How it works](#how-it-works) · [Compare](#how-fude-compares)
+[Why](#why-fude-exists) · [Principles](#what-fude-believes) · [Install](#install) · [Tour](#a-first-session) · [Built in](#whats-built-in) · [Together](#editing-together) · [Libraries](#build-on-fude) · [Compare](#how-fude-compares)
 
 </div>
 
@@ -20,21 +22,27 @@ A modal text editor with Vim's grammar, rebuilt from the kernel up. Language ser
 
 ![fude on its own source: key hints, the file finder, live grep, hover, deleting and restoring a function, completion and the timeline](demos/fude.gif)
 
-fude (筆) is a writing brush. It is a terminal editor for people who already know Vim's keys. `ciw`, `dap`, `3j`, `.`, `q`, `"a`, `:s` and `<C-w>v` do what they do in Neovim. Underneath, everything is new: a small kernel with a branching history on disk, a vim machine that every edit goes through, plugins in a sandbox, and an editor that runs headless with the terminal as one of its clients.
+fude (筆) is a writing brush. It is one codebase you can use two ways.
+
+- **An editor.** A terminal editor for people who already know Vim's keys. `ciw`, `dap`, `3j`, `.`, `q`, `"a`, `:s` and `<C-w>v` do what they do in Neovim. One TOML file sets it up, and it has no scripting language to learn.
+- **A set of libraries.** The editor is built from Go modules with small public APIs: a text kernel with a branching history, Vim's grammar as a state machine, tree-sitter syntax, LSP and DAP clients, a sandboxed plugin host and a client for a running fude. The kernel, the grammar, the syntax and the protocol clients work without the rest, and the editor uses every part through the same API you would.
 
 ## Why fude exists
 
-Neovim is the editor whose behaviour fude copies, and it carries three costs.
+Neovim is the editor whose behaviour fude copies, and it carries four costs.
 
 - **Thirty years of compatibility.** Vimscript, Ex mode, Select mode, modelines, swap files and hundreds of option names stay so that old scripts keep working.
 - **Plugins run inside the editor.** A Lua plugin runs on the same thread as your typing. One slow autocommand or a loop in a status line plugin freezes every keystroke, and finding which plugin did it takes a profiler.
 - **A config that never stops growing.** Language servers, completion, a finder, git signs, formatting and key hints each come from a plugin you choose, wire up and keep updated. The config is code, and it runs on every event.
+- **Its parts come only as the whole program.** To use Neovim's editing in another program, you run Neovim as a process and talk to it over RPC. You cannot import its grammar, its undo tree or its LSP client as a library.
 
-Helix and Kakoune are lean because they started over, and they changed the grammar too, so you select first and act second. A Vim user has to relearn every edit. fude keeps Vim's grammar exactly and rebuilds everything under it.
+Helix and Kakoune are lean because they started over, and they changed the grammar too, so you select first and act second. A Vim user has to relearn every edit. fude keeps Vim's grammar exactly and rebuilds everything under it as separate Go modules.
 
 ## What fude believes
 
 **Neovim is the reference.** Where fude's spec says nothing, a key does what it does in Neovim. fude departs only where the departure is better, and each departure is written down with its reason in [`prd/decisions.md`](prd/decisions.md).
+
+**Every layer is a library.** The kernel, the grammar, the syntax and the protocol clients are Go modules of their own, and their `go.mod` files enforce the edges. The kernel imports only the standard library and cannot reach the terminal. The grammar never sees the kernel. A built-in feature cannot reach into the editor. The compiler checks these edges on every build, so no layer takes on another's work. That is how the kernel stays under 900 lines, and why each part has tests with no editor around it.
 
 **Configuration is data.** `config.toml` holds settings, keymaps and per-language tables. A keymap maps keys to keys, an ex line or a plugin's function. Nothing in the config runs later, because a config that registers callbacks is a plugin without a sandbox or a time limit, and that is the problem fude exists to avoid.
 
@@ -44,17 +52,19 @@ Helix and Kakoune are lean because they started over, and they changed the gramm
 
 **Nothing you typed is lost.** Text lives in a persistent rope, so every edit is a cheap snapshot on a branching timeline. Undo never throws a branch away, `:timeline` diffs any two states, and `:earlier 10m` goes back by time. fude appends the timeline to disk as you type, which replaces both swap files and undo files. A crash loses no edit, `:recover` brings back what was unsaved, and closing a file keeps the newest megabyte of its history for next time.
 
-**The editor is a server.** The editor runs without a terminal. The terminal is one client, other programs attach over a socket, and the tests drive it with no terminal at all. A client can send an edit as a proposal, which shows as ghost text and changes nothing until you `:accept` it. That is how an AI agent should edit your code. It never moves your cursor, its change follows your edits, and accepting it is one step you can undo.
+**The editor is a server.** The editor runs without a terminal. The terminal is one client, other people and programs attach over a socket, and the tests drive it with no terminal at all. That one design gives fude [editing together](#editing-together), scripting from a shell and a safe way for an AI agent to edit your code.
 
 **Speed is tested.** Each speed promise below is a test, and `just check` fails when one regresses. Nothing on the input path waits for a language server, a grammar build or a plugin.
 
-**Standards before inventions.** Language servers speak LSP, highlighting uses each tree-sitter grammar's own queries, snippets are VS Code's snippet files, and themes are base16 schemes. So the language servers, grammars, snippet files and themes that exist today work in fude.
+**Standards before inventions.** Language servers speak LSP, debuggers speak DAP, highlighting uses each tree-sitter grammar's own queries, snippets are VS Code's snippet files, and themes are base16 schemes. So the servers, adapters, grammars, snippet files and themes that exist today work in fude.
 
 ## Who fude is for
 
-fude fits if you think in Vim's grammar, want language servers, a finder and git without assembling them from plugins, and want one config file with no code in it.
+**If you edit.** fude fits if you think in Vim's grammar, want language servers, a finder, git and a debugger without assembling them from plugins, and want one config file with no code in it. It does not fit if you depend on Neovim's Lua plugins, which fude will never run, or need a mouse or a GUI, which fude does not have.
 
-It does not fit if you depend on Neovim's Lua plugins, which fude will never run, or need a mouse, a GUI or a debugger, which fude does not have. See [Status](#status) before you trust it with work.
+**If you build.** fude fits if you are writing a Go program that edits text, highlights code, talks to a language server or wants Vim keys, and you would rather import tested parts than write them. [Build on fude](#build-on-fude) lists each part, what it is for and what it needs.
+
+Either way, read [Status](#status) before you trust it with work.
 
 ---
 
@@ -119,21 +129,23 @@ Each language's grammar builds in the background the first time you open one of 
 
 | Area                 | What you get                                                                                                       |
 | :------------------- | :----------------------------------------------------------------------------------------------------------------- |
-| **Editing**          | `s` to jump anywhere in view by a label, `<C-n>` to edit every match of a word at once, `zc` and `za` to fold by indent, `ys`, `ds` and `cs` to surround, counts on both sides of an operator, registers and the clipboard, macros as editable text, `:s` with a live preview, `:g`, `:normal` |
+| **Editing**          | `s` to jump anywhere in view by a label, `<C-n>` to edit every match of a word at once, `zc` and `za` to fold by indent, `ys`, `ds` and `cs` to surround, counts on both sides of an operator, registers and the clipboard, macros as editable text, `:s` with a live preview, `:g`, `:normal`, `:!` and `:r !` |
 | **Timeline**         | `u` and `<C-r>` along a branch, `g-` and `g+` across every state, `:earlier 10m`, `:timeline` to diff and restore, `:recover` after a crash |
-| **Syntax**           | tree-sitter for 48 languages, each built on first use, code inside markdown coloured, `daf`, `cic` and `dia`, the enclosing function pinned at the top |
+| **Syntax**           | tree-sitter with 49 grammars, each built on first use, code inside markdown coloured, `daf`, `cic` and `dia`, the enclosing function pinned at the top |
 | **Language servers** | Several per file, merged diagnostics, hover, definitions, references, code actions with a preview of their edits, signature help, inlay hints, a `:lsp` panel |
 | **Completion**       | From language servers, snippets, paths and the buffer, with VS Code snippet files                                  |
 | **Formatting**       | Formatters by name, run in turn or the first that applies, with the language server as the fallback              |
-| **Finder**           | `:pick` for files, grep, buffers, recent files, diagnostics, symbols, help and keymaps, with a preview, `<C-g>` to search ignored files, `<C-q>` to a list                           |
+| **Debugging**        | Debug adapters over DAP, launch settings in `.fude/launch.toml`, breakpoints that stay on their line as you edit, stepping, a panel of frames, variables and output, `:debug eval` |
+| **Finder**           | `:pick` for files, grep, buffers, recent files, diagnostics, symbols, help and keymaps, with a preview, `<C-g>` to search ignored files, `<C-q>` to a list |
 | **Folders**          | Edit a listing and `:w` to rename, delete and create files                                                         |
-| **Git**              | Signs, `]h` and `[h` between hunks, a hunk preview, `gh` to stage a hunk and `gH` to put one back as the index has it, `:gitdiff`, `:blame` for the cursor's line                  |
+| **Git**              | Signs, `]h` and `[h` between hunks, a hunk preview, `gh` to stage a hunk and `gH` to put one back as the index has it, `:gitdiff`, `:blame` for the cursor's line |
+| **Together**         | `fude attach` for a second session, `fude share` and `fude join` over TLS, everyone's cursor in their own colour, `:follow`, proposals from agents |
 | **Terminal**         | `:terminal` in a split, and `<Esc><Esc>` to move through its output in normal mode                                |
 | **Tasks**            | `:pick tasks` and `:task` run config.toml's tasks, just recipes, make targets and npm scripts in a split or in the background, and `]q` walks their errors |
 | **Discovery**        | Key hints for a half-typed command, `:h` with a written guide and a full reference, man pages                    |
-| **Typing**           | Autopairs, and `#hex`, `rgb()` and `hsl()` text shown on the colour it names                                       |
-| **Sessions**         | A start screen with your recent files and the last session in the directory, `:restart` reloads config and plugins and keeps every window, cursor and unsaved change                          |
-| **Look**             | Dark and light themes in true colour, any base16 scheme such as stylix's `palette.json`, `:center` for prose      |
+| **Typing**           | Autopairs, spelling with `]s` and `z=`, and `#hex`, `rgb()` and `hsl()` text shown on the colour it names         |
+| **Sessions**         | A start screen with your recent files and the last session in the directory, `:restart` reloads config and plugins and keeps every window, cursor and unsaved change |
+| **Look**             | Dark and light themes in true colour, any base16 scheme such as stylix's `palette.json`, markdown drawn as it reads, images in kitty, Ghostty, WezTerm and iTerm2, `:center` for prose |
 
 ### Where it differs from Neovim
 
@@ -145,6 +157,27 @@ A few of the departures, each with its reason in [`prd/decisions.md`](prd/decisi
 - **Splits open below and right, and the leader is space,** as most Neovim configs set them.
 - **`:restart` keeps unsaved changes** instead of refusing, because the timeline already holds them.
 - **No mouse.** fude is for the keyboard.
+
+---
+
+## Editing together
+
+One fude holds the buffers, and any number of sessions edit them. Each session has its own windows, cursor, mode, name and undo.
+
+```sh
+fude attach               # a second session of the fude running here
+fude share                # let someone in over TLS, the share string goes to the clipboard
+fude join <string>        # on their machine
+```
+
+- **Attach.** `fude attach` opens another session of the running fude in a second terminal or pane. Its `:q` leaves, and the editor and the other sessions go on.
+- **Share.** `fude share` shows a share string that names the address, the certificate's fingerprint and a secret that works once. `fude join` dials it, and the host answers y or n to the guest, who is named by `$USER`. When the guest cannot reach the host, `fude share --relay host` has both sides dial out to a `fude relay` instead. The TLS still runs end to end, so the relay copies only ciphertext.
+- **Guests have less power.** A guest opens and writes files under the project only, runs no program of its choosing, and changes nothing every session shares, such as the theme, git's index or the language servers. `fude join --read-only` watches without editing. A guest brings their own keymaps, leader and theme.
+- **You see each other.** Each session has a colour. Its cursor and selection show in that colour on any window of the same buffer, and the status line names who is there. `:follow name` keeps your windows on what theirs show, `:who` lists the guests and `:kick name` ends one.
+- **Undo is yours.** `u` reverts only your own change, moved through what others typed since.
+- **Agents propose.** A program attaches over the socket the same way. It can send its edit as a proposal, which shows as ghost text, follows your edits and changes nothing until you `:accept` it or `:reject` it. Accepting is one step you can undo. From a shell, `fude open`, `fude keys` and `fude state` open files, type keys and read the state of a running fude.
+
+The host's fude must be running, since it holds the text. There is no peer to peer mode and no offline merge. A test fails when an attached session takes more than 5ms to draw a key, as [Performance](#performance) shows.
 
 ---
 
@@ -206,38 +239,31 @@ capabilities = ["buffer.read", "buffer.write"]
 
 ---
 
-## How it works
-
-```
-clients   terminal | socket clients | agents
-            | keys, commands             ^ state, edits
-editor    one loop: config, windows, LSP, syntax, plugins (wasm), git
-            | keys --> vim machine --> edits             (vim/, embeddable)
-            | transactions               ^ changes
-kernel    buffers | marks | transactions | timeline      (core/, embeddable)
-storage   persistent rope with structural sharing
-```
-
-- **One goroutine owns every change.** Keys, the vim machine and edits run on one loop with no locks. Language servers, grammar builds and the finder work on snapshots of the text, which the persistent rope makes free, and post their results back. That is why nothing on the input path waits.
-- **The vim machine never sees the kernel.** It reads text through a small interface and returns edits. The editor applies them as transactions, which carry their origin, so each client's `u` undoes only its own edits.
-- **The kernel is mechanism only.** `core/` has no goroutines, no I/O and no dependencies, and `just check` fails if it grows past 10k lines. The editor gives it a store, and the store appends each change to the timeline log on disk.
-- **Syntax comes from the grammars' own repos.** fude builds each grammar on first use at a pinned commit, with the queries its repo ships, and `:grammar update` rebuilds the ones built at an older pin.
-- **The spec comes first.** [`prd/`](prd) holds what fude is for, how it works, why it is shaped this way, and every behaviour it promises, each numbered and each with a test.
-
-`core/` imports only the standard library, `vim/` never imports `core/`, and cgo lives only in the syntax package.
-
 ## Build on fude
 
-**Clients and agents.** fude listens on a unix socket. A client sees the buffers and sends keys, commands or proposals on the same timeline as the terminal. Two clients editing one buffer converge to the same text. From a shell, `fude open`, `fude keys` and `fude state` open files, type keys and read the state of a running fude. Go programs attach through the [`client`](client) package, and `:h guide-remote` has the protocol.
+Each layer of fude is a Go module or package with a small public API, tests through that API and a README of its own. The editor uses each layer through that API, as another program would. fude needs this shape for itself. The kernel holds no policy, so it stays small. The grammar's tests run against a small host in memory. The built-in features that are modules use the plugin API, which proves the API is enough. The same shape lets you take one part and leave the rest.
 
-**The kernel and the grammar.** [`core/`](core) and [`vim/`](vim) are Go modules of their own. Use the kernel for a text buffer with a branching history, or the vim machine for Vim's grammar over your own text, such as a text field in a TUI or a REPL.
+| Part | What it is | What you can build with it | Needs |
+| :--- | :--------- | :------------------------- | :---- |
+| [`core`](core) | A text buffer with marks, transactions and a branching timeline, on a persistent rope | Undo that never drops a branch, snapshots read on any goroutine, history saved through a `Store` you write, edits from several sources each undone on its own | The standard library |
+| [`vim`](vim) | Vim's grammar as a state machine over a `Text` and a `Host` you write | Vim keys in a TUI text field, a REPL, a SQL shell or another editor, with your own operators and text objects that compose with every motion | Two Unicode packages |
+| [`syntax`](syntax) | tree-sitter highlighting and syntax text objects, with grammars built on first use from their own repos | Highlighting in a pager, a diff viewer or a code review tool, function and class bounds for a refactoring tool | cgo, `git` and the `tree-sitter` CLI |
+| [`protocol`](protocol) | LSP and DAP clients that never block your loop | A tool that asks a language server for hover, references or diagnostics, or one that drives a debugger | The standard library |
+| [`api`](api) | What every built-in feature and plugin is written against | A feature for fude as a Go module | The standard library |
+| [`plugin`](plugin), [`sdk`](sdk) | The wasm plugin host, with capabilities and time budgets, and the Go SDK plugins are written with | Plugins for fude, tested in `go test` with `plugintest`, or fude's plugins run inside your own program | wazero, and TinyGo to build a plugin |
+| [`client`](client) | A client of a running fude, with a copy of a buffer that converges with the server | An agent or a script that edits a live buffer with Vim's grammar from another process | fude's root module |
+| [`editor`](editor), [`modules`](modules), [`ui/term`](ui/term) | The whole editor headless, its 40 built-in modules, and the terminal client | A fude with the features you pick and your own beside them, or another client that draws the same frames | fude's root module |
+
+`core`, `vim`, `syntax`, `protocol` and `api` import nothing else from fude, so they are the parts to depend on today:
 
 ```sh
 go get github.com/y3owk1n/fude/core github.com/y3owk1n/fude/vim
 ```
 
+fude has no release yet. `go get` takes the newest commit, and every API here can change until the first release.
+
 <details>
-<summary>A vim host over the kernel</summary>
+<summary>Vim's keys over the kernel</summary>
 
 A host embeds `vim.Defaults` for what it has no use for, such as jump lists, and writes the rest, about one line per method:
 
@@ -276,23 +302,34 @@ func (h *host) Undo() (int, int, error) {
 
 </details>
 
-**Syntax.** [`syntax/`](syntax) is a Go module for tree-sitter highlighting and syntax text objects, with grammars that build on first use.
+**A distribution of your own.** fude's `cmd/fude` is a list of modules handed to `editor.Use`, and a built-in feature is a module like any other. A program can start the editor with the modules it wants, add its own, and run it under [`ui/term`](ui/term) or a client of its own. [`editor/editortest`](editor/editortest) drives that editor headless in `go test`, which is how each of fude's modules is tested.
 
-**Language servers and debug adapters.** [`protocol/`](protocol) is a Go module with fude's LSP and DAP clients, built on the standard library alone.
+## How it works
 
-**Modules.** [`api/`](api) is the API that built-in modules and plugins share. A module is an `api.Module` that a distribution adds with `editor.Use`. [`modules/`](modules) holds the thirteen fude ships, from `blame` to `task`, each tested on its own through [`editor/editortest`](editor/editortest).
+```
+clients   terminal | attached and shared sessions | agents
+            | keys, commands                       ^ frames, state, edits
+editor    one loop: config, windows, LSP, DAP, syntax, modules, plugins (wasm)
+            | keys --> vim machine --> edits             (vim/, a library)
+            | transactions               ^ changes
+kernel    buffers | marks | transactions | timeline      (core/, a library)
+storage   persistent rope with structural sharing
+```
 
-**The editor itself.** [`editor/`](editor) runs under any client that feeds it keys and draws its views, and [`ui/term`](ui/term) is the one fude ships.
-
----
+- **One goroutine owns every change.** Keys, the vim machine and edits run on one loop with no locks. Language servers, grammar builds and the finder work on snapshots of the text, which the persistent rope makes free, and post their results back. That is why nothing on the input path waits.
+- **The vim machine never sees the kernel.** It reads text through a small interface and returns edits. The editor applies them as transactions, which carry their origin, so each session's `u` undoes only its own edits.
+- **The kernel is mechanism only.** `core/` has no goroutines, no I/O, no clock and no dependencies. It is under 900 lines, and `just check` fails if it grows past 10k. The editor gives it a store, and the store appends each change to the timeline log on disk.
+- **Features are modules.** Each of the 40 built-in modules imports only `api/`, `protocol/` and fude's internal packages, never the editor, and `just check` enforces that.
+- **Syntax comes from the grammars' own repos.** fude builds each grammar on first use at a pinned commit, with the queries its repo ships, and `:grammar update` rebuilds the ones built at an older pin.
+- **The spec comes first.** [`prd/`](prd) holds what fude is for, how it works, why it is shaped this way, and every behaviour it promises, each numbered and each with a test.
 
 ## How fude compares
 
-| Editor                            | Editing model               | Built in                                                            | Extended with                        | Configured with |
-| :-------------------------------- | :-------------------------- | :------------------------------------------------------------------ | :----------------------------------- | :-------------- |
-| **fude**                          | Vim's grammar               | LSP, tree-sitter, finder, grep, git hunks, folder editing, terminal | Sandboxed wasm with a time budget    | TOML            |
-| [Neovim](https://neovim.io)       | Vim's grammar               | LSP client, tree-sitter, terminal                                   | Lua and vimscript, in process        | Lua             |
-| [Helix](https://helix-editor.com) | Select first, as Kakoune    | LSP, tree-sitter, file and grep pickers                             | None in its releases yet             | TOML            |
+| Editor                            | Editing model               | Built in                                                                       | Extended with                        | Configured with |
+| :-------------------------------- | :-------------------------- | :----------------------------------------------------------------------------- | :----------------------------------- | :-------------- |
+| **fude**                          | Vim's grammar               | LSP, DAP, tree-sitter, finder, grep, git hunks, folder editing, terminal, sharing | Sandboxed wasm with a time budget    | TOML            |
+| [Neovim](https://neovim.io)       | Vim's grammar               | LSP client, tree-sitter, terminal                                              | Lua and vimscript, in process        | Lua             |
+| [Helix](https://helix-editor.com) | Select first, as Kakoune    | LSP, tree-sitter, file and grep pickers                                        | A Scheme plugin system, in progress  | TOML            |
 
 ## Performance
 
@@ -302,14 +339,15 @@ Measured on an Apple M-series Mac. `just check` fails when one of these regresse
 | :----------------------------------------------------------------------- | :---: | :----------: |
 | Cold start to the first frame                                            | 5ms   | about 3ms    |
 | A key read to its frame written, p99, on 10MB of real Go with syntax on  | 1ms   | about 0.75ms |
-| The same in git and two windows, with a language server and a plugin     | 2ms   | about 0.9ms  |
-| A 1GB file's first frame                                                 | 1s    | about 0.6s   |
+| The same in git and two windows, with a language server and a plugin     | 2ms   | about 1.1ms  |
+| The same through `fude attach` on the local socket                       | 5ms   | about 0.8ms  |
+| A 1GB file's first frame                                                 | 1s    | about 0.55s  |
 
 ## Status
 
-fude is alpha. It has no releases or version numbers yet, and the config format, the plugin ABI, the socket protocol and the timeline log on disk may change between commits. Its author uses it daily on macOS. Keep backups of work you care about.
+fude is alpha. It has no releases or version numbers yet, and the config format, the plugin ABI, the socket protocol, the timeline log on disk and every library's API may change between commits. Its author uses it daily on macOS, and Linux gets less use. Keep backups of work you care about.
 
-Not here yet: debugging through DAP, and GPU or web clients. Never here: vimscript, Lua, the mouse, and plugins without a sandbox.
+Not here yet: releases, and GPU or web clients. Never here: vimscript, Lua, the mouse, and plugins without a sandbox.
 
 ## Documentation
 
