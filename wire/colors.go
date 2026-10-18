@@ -6,6 +6,13 @@ import (
 	"strings"
 )
 
+// Style is a style a module defines by name: its text's and its ground's
+// colours, either unset to keep the theme's, and how its text draws (B345).
+type Style struct {
+	Fg, Bg                          Hex
+	Bold, Italic, Underline, Strike bool
+}
+
 // Colors are the colours config.toml's [colors] puts in place of the
 // theme's, by role. A role it leaves out keeps the theme's colour (B294).
 type Colors struct {

@@ -103,12 +103,30 @@ var (
 	lit, dimmed styles
 )
 
-func init() { useTheme(themes["dark"]) }
+func init() { useTheme(themes["dark"], nil) }
 
-// useTheme draws with t from then on.
-func useTheme(t theme) {
+// useTheme draws with t, and the styles modules defined over its own,
+// from then on.
+func useTheme(t theme, own map[string]wire.Style) {
 	lit, dimmed = build(t), build(tint(t))
+	restyle(lit, own, func(c color.Color) color.Color { return c })
+	restyle(dimmed, own, func(c color.Color) color.Color { return mix(c, dimmed.th.bg, 0.55) })
 	apply(lit)
+}
+
+// restyle puts the styles modules defined in s, over its own, each colour
+// through fade (B345).
+func restyle(s styles, own map[string]wire.Style, fade func(color.Color) color.Color) {
+	for name, st := range own {
+		out := s.base
+		if rgb, ok := st.Fg.RGB(); ok {
+			out = out.Foreground(fade(color.NewHexColor(rgb)))
+		}
+		if rgb, ok := st.Bg.RGB(); ok {
+			out = out.Background(fade(color.NewHexColor(rgb)))
+		}
+		s.colours[name] = out.Bold(st.Bold).Italic(st.Italic).Underline(st.Underline).StrikeThrough(st.Strike)
+	}
 }
 
 // apply makes drawing take s.

@@ -1319,7 +1319,11 @@ keywords. `editor/` reads the scheme, as config, with one pattern that
 takes both stylix's JSON and Tinted Theming's YAML, so no YAML parser comes
 in (B146). `:theme` sets the editor's theme for every client. Each client
 compares the theme with the one it draws in before each frame and builds
-the new styles when they differ (B158).
+the new styles when they differ (B158). The editor keeps the styles
+modules define, for every client. A frame carries them with a count of the
+times they changed. A client builds its styles again when the count
+changes, and a module's style replaces the theme's of the same name
+(B345).
 
 Help is markdown in one buffer: an index, the guide, then the reference
 (D34). The guide's pages are files in `editor/guide`, embedded in the

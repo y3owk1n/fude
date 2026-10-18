@@ -23,6 +23,7 @@ import (
 	"github.com/y3owk1n/fude/protocol/lsp"
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
+	"github.com/y3owk1n/fude/wire"
 )
 
 // logMu keeps lines that plugin goroutines log whole.
@@ -354,8 +355,8 @@ func (e *Session) went() {
 	}
 }
 
-// act closes and writes the buffers res names, does its window actions
-// and opens its scratch buffer (B343).
+// act does what res asks of buffers, windows and the vim machine, once the
+// call's edits are made (B343, B344, B345).
 func (e *Session) act(res api.Result) {
 	for _, id := range res.Close {
 		if b, err := e.buffer(id); err != nil {
@@ -394,6 +395,9 @@ func (e *Session) act(res api.Result) {
 			e.message = err.Error()
 		}
 	}
+	if len(res.Styles) > 0 {
+		e.restyle(res.Styles)
+	}
 	if s := res.Search; s != nil {
 		e.vim.SetSearch(s.Pattern, s.Forward)
 	}
@@ -402,6 +406,22 @@ func (e *Session) act(res api.Result) {
 			e.message = err.Error()
 		}
 	}
+}
+
+// restyle defines the styles a module's result names (B345).
+func (e *Session) restyle(styles map[string]api.Style) {
+	if e.styles == nil {
+		e.styles = map[string]wire.Style{}
+	}
+	for name, s := range styles {
+		out := wire.Style{Bold: s.Bold, Italic: s.Italic, Underline: s.Underline, Strike: s.Strike}
+		if err := errors.Join(out.Fg.UnmarshalText([]byte(s.Fg)), out.Bg.UnmarshalText([]byte(s.Bg))); err != nil {
+			e.message = fmt.Sprintf("style %s: %v", name, err)
+			continue
+		}
+		e.styles[name] = out
+	}
+	e.restyled++
 }
 
 // setMark sets the mark m names in its buffer (B344).
@@ -651,9 +671,7 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 	if j := res.Jump; j != nil {
 		e.jumpTo = &jumpTo{b, *j}
 	}
-	if len(res.Close)+len(res.Write)+len(res.Windows)+len(res.Marks)+len(res.Registers)+len(res.Ex) > 0 || res.Scratch != nil || res.Search != nil {
-		e.actions = append(e.actions, func() { e.act(res) })
-	}
+	e.actions = append(e.actions, func() { e.act(res) })
 	if pk := res.Pick; pk != nil {
 		e.showPick(p, b, pk, save)
 	}

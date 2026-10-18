@@ -83,6 +83,7 @@ A `Result` asks for any of these, and fude applies them together once the call r
 | `Scratch` | a new buffer with no file, holding text to edit, in the window or a split |
 | `Marks`, `Registers`, `Search` | marks to set, text to put in registers, and the pattern `n` finds |
 | `Ex` | command lines to run, without their colon, as typed |
+| `Styles` | styles by name, each with colours for its text and ground and how its text draws, over the theme's, which decorations and spans name |
 | `Pick` | a list to pick from, live or of places, or a question. With `Update` it fills the open list of its ID, as items read off the loop do. `<C-g>` in a list that is not live tells the callback `all` |
 | `Menu` | a numbered menu at the cursor, each item with what it does beside it, whose choice runs the callback |
 | `Timers`, `Jobs`, `Requests` | work whose callback runs later. A `Request` goes to the buffer's servers, or to the one it names. A `Stream` job is the module's own long work, whose callback runs for each line it emits |

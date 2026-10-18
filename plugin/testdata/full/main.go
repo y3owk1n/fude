@@ -9,7 +9,8 @@
 // drop splits the window on the buffer, closes the window, writes the
 // buffer, opens a scratch buffer holding hi, or closes the buffer. :Mach
 // sets mark b at the cursor, register r to hi, the search to a and wrap
-// off, and runs :s/a/z/, and :Wrap types the wrap option. Needs keys, and buffer.read and buffer.write
+// off, and runs :s/a/z/, and :Wrap types the wrap option. :Paint defines
+// the style full.hot and colours the first byte in it. Needs keys, and buffer.read and buffer.write
 // for the others.
 package main
 
@@ -101,6 +102,15 @@ func init() {
 	sdk.Command("Wrap", "types the wrap option", func(sdk.Call) {
 		v, _ := sdk.Option("wrap")
 		sdk.Edit(0, 0, v+"|")
+	})
+	sdk.Command("Paint", "colours the first byte in a style of its own", func(sdk.Call) {
+		err := sdk.Do(api.Result{
+			Styles:   map[string]api.Style{"full.hot": {Fg: "#ff0000", Bold: true}},
+			Decorate: []api.Decoration{{ID: sdk.ID(), Start: 0, End: 1, Style: "full.hot"}},
+		})
+		if err != nil {
+			sdk.Log(err.Error())
+		}
 	})
 	sdk.Command("Marked", "types the buffer's marks", func(c sdk.Call) {
 		var marks []api.Mark

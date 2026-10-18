@@ -29,14 +29,16 @@ type Frame struct {
 	Terminal     bool           `json:",omitempty"`
 	Shown        string         `json:",omitempty"`
 	Theme        string
-	Base16       *[16]int32     `json:",omitempty"`
-	Colors       *Colors        `json:",omitempty"`
-	Images       map[int][]byte `json:",omitempty"` // by id, the PNG of each image a view shows that the client lacks (B303)
-	Freed        []int          `json:",omitempty"` // the images dropped since the last frame, for the client to free (B306)
-	Clipboard    *string        `json:",omitempty"` // to put on the client's clipboard (B241)
-	Wait         *time.Duration `json:",omitempty"` // until a key typed now times out
-	Done         bool           `json:",omitempty"` // the session ended, as Message says when fude quit
-	Input        int            // the client's notices fude has handled, so a frame follows each
+	Base16       *[16]int32       `json:",omitempty"`
+	Colors       *Colors          `json:",omitempty"`
+	Styles       map[string]Style `json:",omitempty"` // the styles modules defined (B345)
+	Restyled     int              `json:",omitempty"` // how many times they changed
+	Images       map[int][]byte   `json:",omitempty"` // by id, the PNG of each image a view shows that the client lacks (B303)
+	Freed        []int            `json:",omitempty"` // the images dropped since the last frame, for the client to free (B306)
+	Clipboard    *string          `json:",omitempty"` // to put on the client's clipboard (B241)
+	Wait         *time.Duration   `json:",omitempty"` // until a key typed now times out
+	Done         bool             `json:",omitempty"` // the session ended, as Message says when fude quit
+	Input        int              // the client's notices fude has handled, so a frame follows each
 }
 
 // Text is a buffer's text as a frame brings it: the edits since the version

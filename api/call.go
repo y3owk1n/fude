@@ -107,6 +107,9 @@ type Result struct {
 	Registers []RegisterText
 	Search    *Search
 	Ex        []string
+	// Styles defines styles by name, which a decoration's or a span's Style
+	// names, over the theme's own and those defined before (B345).
+	Styles map[string]Style
 	// Set holds options to set, by their config.toml names. expand_tab,
 	// indent_width and tab_width are the buffer's the call is about, which
 	// fude uses in place of config.toml's until the buffer closes (B283).
@@ -276,6 +279,13 @@ type WindowAction struct {
 	ID        int
 	Do        string
 	Size, Pos int
+}
+
+// Style is a style a module defines: its text's colour and its ground's,
+// as #rrggbb or "" to keep the theme's, and how its text draws (B345).
+type Style struct {
+	Fg, Bg                          string
+	Bold, Italic, Underline, Strike bool
 }
 
 // Search is a search's pattern, and whether n finds it forward (B344).

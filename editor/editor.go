@@ -30,14 +30,16 @@ import (
 // Editor is the open files and what works on them: plugins, language
 // servers and decorations. Every client's session shares it.
 type Editor struct {
-	bufs    []*buffer
-	next    int // the id the next buffer gets
-	cfg     config
-	theme   string     // the theme clients draw in, which :theme changes
-	base16  *[16]int32 // the colours of the base16 scheme it names
-	queue   chan func()
-	queries string       // the directory of query files that replace shipped ones
-	modules []api.Module // the plugins that loaded, in the order they did
+	bufs     []*buffer
+	next     int // the id the next buffer gets
+	cfg      config
+	styles   map[string]wire.Style // the styles modules defined, by name (B345)
+	restyled int                   // how many times they changed
+	theme    string                // the theme clients draw in, which :theme changes
+	base16   *[16]int32            // the colours of the base16 scheme it names
+	queue    chan func()
+	queries  string       // the directory of query files that replace shipped ones
+	modules  []api.Module // the plugins that loaded, in the order they did
 	// What plugins add, for help and the key hints: what each command and
 	// key does, by :name and <Plug>(name), and their operators and objects.
 	pluginHelp        map[string]string
@@ -790,6 +792,10 @@ func (e *Session) Theme() (string, *[16]int32, *wire.Colors) {
 	over := e.cfg.Colors
 	return e.theme, e.base16, &over
 }
+
+// Styles returns the styles modules defined, by name, and how many times
+// they changed (B345).
+func (e *Session) Styles() (map[string]wire.Style, int) { return e.styles, e.restyled }
 
 // LineCursor returns where the cursor is in Line, in bytes.
 func (e *Session) LineCursor() int { return e.vim.LineCursor() }

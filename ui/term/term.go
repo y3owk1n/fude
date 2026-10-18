@@ -169,6 +169,7 @@ type client struct {
 	theme    string            // the theme drawn in, as e names it
 	colours  *[16]int32        // its base16 scheme's colours, if it is one
 	over     wire.Colors       // the colours [colors] puts in place of its own
+	restyled int               // how many times the modules' styles had changed (B345)
 	spinning bool              // the last frame shows a spinner
 	styles   []tcell.Style     // a view's, kept between frames so painting them allocates nothing
 	frame    int               // counts the frames drawn
@@ -211,14 +212,15 @@ func (c *client) draw() {
 	if given == nil {
 		given = &wire.Colors{}
 	}
-	if name != c.theme || colours != c.colours || *given != c.over {
+	own, restyled := c.e.Styles()
+	if name != c.theme || colours != c.colours || *given != c.over || restyled != c.restyled {
 		fresh = true
-		c.theme, c.colours, c.over = name, colours, *given
+		c.theme, c.colours, c.over, c.restyled = name, colours, *given, restyled
 		t := themes[name]
 		if colours != nil {
 			t = fromBase16(*colours)
 		}
-		useTheme(t.with(*given))
+		useTheme(t.with(*given), own)
 	}
 	// The windows take every row: the command line floats and messages
 	// are toasts (B148, B149).

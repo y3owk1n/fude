@@ -294,6 +294,8 @@ func (a *Attached) Terminal() bool     { return a.f.Terminal }
 func (a *Attached) Shown() string      { return a.f.Shown }
 
 // Theme returns a guest's own theme, or else the one fude draws in.
+func (a *Attached) Styles() (map[string]wire.Style, int) { return a.f.Styles, a.f.Restyled }
+
 func (a *Attached) Theme() (string, *[16]int32, *wire.Colors) {
 	if a.own.Theme != "" {
 		return a.own.Theme, a.own.Base16, a.own.Colors

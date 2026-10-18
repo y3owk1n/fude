@@ -351,6 +351,29 @@ func TestB64MenuScrolls(t *testing.T) {
 	t.Errorf("the 25th item, %s, is not in the menu on screen", chosen)
 }
 
+// B345
+func TestB345ModuleStyles(t *testing.T) {
+	full, err := filepath.Abs("../../plugin/testdata/full/full.wasm")
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := startWith(t, fmt.Sprintf("[[plugin]]\npath = %q\ncapabilities = [\"ui\"]\n", full), "a.txt")
+	c.e.Load()
+	select {
+	case f := <-c.e.Queue():
+		f()
+	case <-time.After(5 * time.Second):
+		t.Fatal("the plugin never loaded")
+	}
+	for _, k := range vim.Keys("ia<Esc>:Paint<CR>") {
+		c.e.Feed(k)
+	}
+	c.draw()
+	if _, style, _ := c.s.Get(0, 0); style.GetForeground() != color.NewHexColor(0xff0000) || !style.HasBold() {
+		t.Errorf("the byte in full.hot is drawn in %v, bold %t, want #ff0000 and bold", style.GetForeground(), style.HasBold())
+	}
+}
+
 // B208
 func TestB208Colours(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "a.txt")
