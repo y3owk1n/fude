@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/fude/editor/editortest"
+	"github.com/y3owk1n/fude/modules/places"
 	"github.com/y3owk1n/fude/modules/task"
 )
 
@@ -28,6 +29,7 @@ func TestB228Tasks(t *testing.T) {
 	e := editortest.Start(t, "a.txt")
 	e.SetSize(80, 24)
 	e.Use(task.New())
+	e.Use(places.New())
 	// :pick tasks lists config.toml's tasks, the project's and the
 	// Makefile's targets (B233).
 	editortest.Feed(e, ":pick tasks<CR>")
@@ -70,6 +72,7 @@ func TestB230TaskPlaces(t *testing.T) {
 	e := editortest.Start(t, "a.txt")
 	e.SetSize(80, 24)
 	e.Use(task.New())
+	e.Use(places.New())
 	// The places in a task's output that name a file there become the last
 	// list, and ]q goes to the first.
 	editortest.Feed(e, ":task check<CR>")
@@ -96,6 +99,7 @@ func TestB231BackgroundTasks(t *testing.T) {
 	e := editortest.Start(t, "a.txt")
 	e.SetSize(80, 24)
 	e.Use(task.New())
+	e.Use(places.New())
 	// A running task shows on the status line, and q in its window hides
 	// the window while the task goes on.
 	editortest.Feed(e, ":task wait<CR>")

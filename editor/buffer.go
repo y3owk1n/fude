@@ -80,10 +80,10 @@ type buffer struct {
 	term    *terminal         // the program a terminal buffer shows, nil for any other (B205)
 	// A scratch buffer shows something about another buffer, such as its
 	// timeline, under a title instead of a file name.
-	title string
-	ft    string // the filetype of a buffer with no file, such as help's markdown
-	shown bool   // fude wrote it to show something, such as :messages or a diff
-	spots []spot // the place each line of a list names, for <CR>
+	title     string
+	ft        string // the filetype of a buffer with no file, such as help's markdown
+	shown     bool   // fude wrote it to show something, such as :messages or a diff
+	panelKind string // its kind as a module's panel names it, such as list (B347)
 }
 
 // pushChange records an edit at pos, replacing the newest entry when it is
@@ -234,8 +234,8 @@ func (b *buffer) kind() string {
 		return "terminal"
 	case b.listed != "":
 		return "listing"
-	case b.spots != nil:
-		return "list"
+	case b.panelKind != "":
+		return b.panelKind
 	case b.title == "[timeline]":
 		return "timeline"
 	case b.title == "[float]":

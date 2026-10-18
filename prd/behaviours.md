@@ -1082,6 +1082,10 @@ Where fude departs, the line says so and cites the departure in
   or the working directory changes, when a macro's recording ends, with
   its register, and when a listing renames a buffer's file, with the old
   path.
+- B347 [4] The editor keeps the last list of places a module or the
+  finder gives, with the place last gone to. A module shows the list in a
+  window, steps through it and runs a command at its places. A module's panel may be of a kind, such as list, whose
+  `[keymap.<kind>]` keys change its own.
 - B337 [4] A module's decoration may show its sign in a listing's icon
   column while `icons` is on, instead of in the sign column. A listing's
   notes and icons are a module's decorations (B127, B128).

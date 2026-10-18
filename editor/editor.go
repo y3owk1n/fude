@@ -102,7 +102,7 @@ type Session struct {
 	ask         question                // takes the answer to the question in the message
 	jumpTo      *jumpTo                 // where a plugin's call asked to move the cursor, after the key
 	actions     []func()                // what modules' results asked of buffers and windows, after the key (B343)
-	lastList    *places                 // the last list of places a window showed
+	lastList    *api.Places             // the last list of places, which modules/places shows (B347)
 	snip        *snippet                // the snippet being filled in (B207)
 	float       floating                // text shown over the windows at the cursor, such as hover
 	completion  completion              // the completions shown while typing, and the signature help

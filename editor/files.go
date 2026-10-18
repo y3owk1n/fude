@@ -178,25 +178,26 @@ func (f *finder) key(e *Session, k vim.Key) bool {
 	return true
 }
 
-// listMatches shows the finder's matches in a list of places, which
-// becomes the last list (B195).
+// listMatches makes the finder's matches the last list of places, shown in
+// a window of its own (B195).
 func (e *Session) listMatches(f *finder) {
-	var lines []string
-	var spots []spot
-	for _, m := range f.matches {
-		path, line, col, text := grepSpot(m)
-		sp := spot{path: path, enc: cmp.Or(f.enc, "utf-8")}
-		if line > 0 {
-			sp.pos = lsp.Position{Line: line - 1, Character: col - 1}
-			m = fmt.Sprintf("%s:%d:%d: %s", path, line, col, strings.TrimSpace(text))
-		}
-		lines, spots = append(lines, m), append(spots, sp)
-	}
 	what := "files"
 	if f.places {
 		what = cmp.Or(f.title, "matches")
 	}
-	e.places(what, lines, spots)
+	if len(f.matches) == 0 {
+		e.message = "no " + what
+		return
+	}
+	// A match shows its text without the indent around it.
+	items := make([]string, len(f.matches))
+	for i, m := range f.matches {
+		items[i] = m
+		if path, line, col, text := grepSpot(m); line > 0 {
+			items[i] = fmt.Sprintf("%s:%d:%d:%s", path, line, col, strings.TrimSpace(text))
+		}
+	}
+	e.setPlaces(&api.Places{Title: what, Items: items, Show: true, Encoding: f.enc})
 }
 
 // closeFinder leaves insert mode in the query and closes the finder.

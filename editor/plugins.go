@@ -455,6 +455,9 @@ func (e *Session) act(res api.Result) {
 	if len(res.Styles) > 0 {
 		e.restyle(res.Styles)
 	}
+	if a := res.Each; a != nil {
+		e.runAt(*a)
+	}
 	if s := res.Search; s != nil {
 		e.vim.SetSearch(s.Pattern, s.Forward)
 	}
@@ -749,7 +752,7 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 		e.moduleTerminal(p, *t)
 	}
 	if pl := res.Places; pl != nil {
-		e.showPlaces(pl)
+		e.setPlaces(pl)
 	}
 	if a := e.cmdline.asked; a != nil && len(res.Complete) > 0 {
 		e.answered(a, res.Complete)
@@ -1223,7 +1226,6 @@ func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 	s.Search = func() (string, bool) { return "", true }
 	s.Recording = func() string { return "" }
 	s.History = func(string) []string { return nil }
-	s.Places = func() (api.Places, int, bool) { return api.Places{}, 0, false }
 	servers := e.serverList()
 	s.Servers = func() []api.Server { return servers }
 	// The theme is the one :theme switched to, not config.toml's.
@@ -1298,6 +1300,13 @@ func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 	}
 	cursors := e.vim.Cursors()
 	s.Cursors = func() []int { return cursors }
+	last := e.lastList
+	s.Places = func() (api.Places, bool) {
+		if last == nil {
+			return api.Places{}, false
+		}
+		return *last, true
+	}
 	return s
 }
 

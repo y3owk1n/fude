@@ -833,9 +833,18 @@ sets a message does nothing more. `modules/lists` is `:buffers`,
 through `Scope`, in a call. `:marks`, `:jumps` and `:changes` return
 `Places` with `Lines` of their own, which open list windows of places,
 like the one `grr` opens (B157, B329). The newest one
-is the editor's last list, which keeps its places, its buffer and the
-place last gone to, so `]q` and the `:c` commands go through it after
-its window closes (B194, N25). `<C-q>` in a finder sends its matches to
+is the editor's last list, an `api.Places` with the place last gone to in
+`At`, which `Scope.Places` reads, in an event too. A result's `Places`,
+or the finder's `<C-q>`, replaces it, and the editor emits `places.set`,
+with `show` when the list asks for a window. `modules/places` reads each
+list's places and shows the list in a panel of kind `list`. It keeps the
+places of each list it showed by the panel's title, so `<CR>` in an older
+list goes to its own. Its name is `list`, so its plugs stay
+`<Plug>(list.next)` and the others. `]q` and the `:c` commands step
+through the last list after its window closes. Each answers with a `Jump`
+to the place and the list again with its new `At`. `:cdo` and `:cfdo` ask for `Each`, which the editor runs: it
+marks every place first, so the marks keep them as the command edits,
+then visits each and runs the command there (B194, B257, B347, N25). `<C-q>` in a finder sends its matches to
 a list, a grep match as a place at its line and column, a file at its
 start (B195). The places of `:pick diagnostics` and `:pick symbols` go
 the same way (B196, B214).

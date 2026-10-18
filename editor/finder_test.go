@@ -89,7 +89,7 @@ func TestB195FinderLists(t *testing.T) {
 		t.Skipf("git init: %v: %s", err, out)
 	}
 	t.Chdir(dir)
-	e := open(t, "b.txt")
+	e := withCommands(open(t, "b.txt"))
 	e.Use(filesmod.New())
 	e.Use(grep.New())
 	e.SetSize(100, 24)
@@ -108,7 +108,9 @@ func TestB195FinderLists(t *testing.T) {
 		feed(e, find)
 		settle(t, e, func() bool { return shown() == rows })
 		// <C-q> sends both matches to a list, which is the last list.
-		if feed(e, "<C-q>"); len(e.Views()) != 2 {
+		feed(e, "<C-q>")
+		settle(t, e, func() bool { return len(e.Views()) == 2 })
+		if len(e.Views()) != 2 {
 			t.Fatalf("<C-q> after %s left %d windows", find, len(e.Views()))
 		}
 		if got := visited(); !slices.Contains(got, "a.go") || !slices.Contains(got, "b.txt") {
@@ -160,7 +162,7 @@ func TestB212QCloses(t *testing.T) {
 	dir := t.TempDir()
 	change(t, filepath.Join(dir, "a.txt"), "a\n")
 	t.Chdir(dir)
-	e := open(t, "a.txt")
+	e := withCommands(open(t, "a.txt"))
 	e.Use(timelinemod.New())
 	e.Use(grammarsmod.New())
 	e.Use(filesmod.New())
@@ -170,7 +172,9 @@ func TestB212QCloses(t *testing.T) {
 	feed(e, ":pick files<CR>")
 	settle(t, e, func() bool { f, _ := e.Float(); return strings.Contains(f.Text, "a.txt") })
 	for _, keys := range []string{"<C-q>", ":timeline<CR>", ":grammar<CR>"} {
-		if feed(e, keys); len(e.Views()) != 2 {
+		feed(e, keys)
+		settle(t, e, func() bool { return len(e.Views()) == 2 })
+		if len(e.Views()) != 2 {
 			t.Fatalf("%s made %d windows", keys, len(e.Views()))
 		}
 		if feed(e, "q"); len(e.Views()) != 1 || e.Recording() != 0 {

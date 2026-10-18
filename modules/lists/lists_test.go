@@ -8,6 +8,8 @@ import (
 
 	"github.com/y3owk1n/fude/editor/editortest"
 	"github.com/y3owk1n/fude/modules/lists"
+	"github.com/y3owk1n/fude/modules/places"
+	"github.com/y3owk1n/fude/modules/window"
 )
 
 func TestMain(m *testing.M) { os.Exit(editortest.Main(m)) }
@@ -28,6 +30,8 @@ func TestB157InfoViews(t *testing.T) {
 	editortest.Change(t, path, "one\ntwo\nthree\n")
 	e := editortest.Open(t, path)
 	e.Use(lists.New())
+	e.Use(places.New())
+	e.Use(window.New())
 	e.SetSize(80, 24)
 	// :messages lists the messages shown so far.
 	for _, keys := range []string{":set number<CR>", ":set wrap<CR>"} {
@@ -38,7 +42,9 @@ func TestB157InfoViews(t *testing.T) {
 		t.Fatalf(":messages listed %q", editortest.Text(e))
 	}
 	// :marks lists the marks, and <CR> jumps to one.
+	// The list shows once modules/places hears of it.
 	editortest.Feed(e, ":q<CR>majjmb:marks<CR>")
+	editortest.Settle(t, e, func() bool { return editortest.Text(e) == "a  1:1  one\nb  3:1  three" })
 	if editortest.Text(e) != "a  1:1  one\nb  3:1  three" {
 		t.Fatalf(":marks listed %q", editortest.Text(e))
 	}
@@ -47,10 +53,13 @@ func TestB157InfoViews(t *testing.T) {
 	}
 	// :jumps and :changes list where the cursor jumped and the text changed.
 	editortest.Feed(e, ":only<CR>ggGx:jumps<CR>")
+	editortest.Settle(t, e, func() bool { return strings.Contains(editortest.Text(e), "1:1  one") })
 	if !strings.Contains(editortest.Text(e), "1:1  one") {
 		t.Fatalf(":jumps listed %q", editortest.Text(e))
 	}
-	if editortest.Feed(e, ":q<CR>:changes<CR>"); editortest.Text(e) != "1  3:1  hree" {
+	editortest.Feed(e, ":q<CR>:changes<CR>")
+	editortest.Settle(t, e, func() bool { return editortest.Text(e) == "1  3:1  hree" })
+	if editortest.Text(e) != "1  3:1  hree" {
 		t.Fatalf(":changes listed %q", editortest.Text(e))
 	}
 	// :registers with no name lists every register that holds text.

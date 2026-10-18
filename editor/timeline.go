@@ -108,8 +108,10 @@ func (e *Session) panel(p api.Panel) bool {
 	}
 	e.scratch(p.Title, p.Text)
 	b := e.win.buf
+	b.panelKind = p.Kind
 	b.keys = e.panelKeys(b, p.Keys)
 	e.style(b, p.Spans)
+	e.setCursor(min(max(p.Cursor, 0), b.text.Snapshot().Len()))
 	if b.ft = p.Filetype; b.ft == "" {
 		return true
 	}

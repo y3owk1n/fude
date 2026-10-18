@@ -108,6 +108,7 @@ type Result struct {
 	Registers []RegisterText
 	Search    *Search
 	Ex        []string
+	Each      *Each
 	// Styles defines styles by name, which a decoration's or a span's Style
 	// names, over the theme's own and those defined before (B345).
 	Styles map[string]Style
@@ -196,9 +197,11 @@ type Terminal struct {
 
 // Places is the last list of places, so ]q goes to the first, in a window
 // of its own with Show. Each item is path:line:column:text, or
-// line:column:text in File when it is set. An item with no text shows its
-// line. Columns count in Encoding, utf-8 or utf-16, utf-8 by default
-// (B230, B292).
+// line:column:text in File when it is set, or a path alone for its start.
+// An item with no text shows its line. Columns count in Encoding, utf-8 or
+// utf-16, utf-8 by default. The editor keeps it and emits places.set,
+// with show when it asks for a window, and modules/places shows and steps
+// through it (B230, B292, B347).
 type Places struct {
 	Title    string
 	Items    []string
@@ -206,6 +209,17 @@ type Places struct {
 	Show     bool
 	File     string
 	Encoding string
+	At       int // the item last gone to, from 1, or 0 before the first (B341)
+}
+
+// Each runs Ex, a command line without its colon, at each of Items, each
+// path:line:column in Encoding, or with PerFile once in each file, as :cdo
+// and :cfdo do. Marks keep the places on their text as Ex edits around
+// them (B257, B347).
+type Each struct {
+	Items        []string
+	Encoding, Ex string
+	PerFile      bool
 }
 
 // Float is text a call shows at the cursor. Without Spans it is markdown,
@@ -307,6 +321,9 @@ type Scratch struct {
 // as Filetype. It replaces the text of a window open under that title,
 // which keeps the cursor's line and the focus where they are (B186).
 type Panel struct {
+	// Kind names its kind of buffer, such as list, whose [keymap.<kind>]
+	// keys go over Keys (B347).
+	Kind                  string
 	Title, Filetype, Text string
 	Spans                 []Span            // styles over Text, such as diff.plus on a line (B276)
 	Keys                  map[string]string // its own keys in normal mode, such as <CR> to a plug of the owner's (B291)
@@ -558,13 +575,13 @@ type Scope struct {
 	// any, and whether it went forward. Recording returns the register a
 	// macro is recorded into, or "". History returns the lines entered with
 	// : or /, oldest first. Places returns the last list of places, which ]q
-	// steps through, and the item it last went to, -1 before the first, or
-	// false with none. Only a call has them (B341).
+	// steps through, or false with none, in an event too. Only a call has
+	// the others (B341).
 	Registers func() []RegisterText
 	Search    func() (pattern string, forward bool)
 	Recording func() string
 	History   func(prompt string) []string
-	Places    func() (Places, int, bool)
+	Places    func() (Places, bool)
 	// HelpAt returns help's text and the line, from 0, of the entry topic
 	// names, or of the start for "", or false when it names none. Only a
 	// call has it (B334).

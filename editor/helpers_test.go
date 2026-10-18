@@ -11,6 +11,7 @@ import (
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/editor/editortest"
 	buffersmod "github.com/y3owk1n/fude/modules/buffers"
+	placesmod "github.com/y3owk1n/fude/modules/places"
 	windowmod "github.com/y3owk1n/fude/modules/window"
 )
 
@@ -28,11 +29,12 @@ var (
 	settle = editortest.Settle
 )
 
-// withCommands is e with the modules that hold :b, :bn, :bp, :bd, :enew
-// and the window commands, as fude has them.
+// withCommands is e with the modules that hold :b, :bn, :bp, :bd, :enew,
+// the window commands and the lists of places, as fude has them.
 func withCommands(e *editor.Session) *editor.Session {
 	e.Use(buffersmod.New())
 	e.Use(windowmod.New())
+	e.Use(placesmod.New())
 	return e
 }
 

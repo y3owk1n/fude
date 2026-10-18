@@ -790,6 +790,7 @@ func TestB147Diagnostics(t *testing.T) {
 // B66, for the keys that list or jump to places, and N3
 func TestB66Places(t *testing.T) {
 	e, log := withServer(t, "a target\nb target\nc\n", "utf-8")
+	withCommands(e)
 	heard(t, log, `"method":"textDocument/didOpen"`, 1)
 	path := e.Views()[0].Name
 
@@ -818,6 +819,7 @@ func TestB66Places(t *testing.T) {
 // B194
 func TestB194LastList(t *testing.T) {
 	e, log := withServer(t, "target\nb target\ntarget\n", "utf-8")
+	withCommands(e)
 	heard(t, log, `"method":"textDocument/didOpen"`, 1)
 	feed(e, "grr")
 	settle(t, e, func() bool { return len(e.Views()) == 2 })

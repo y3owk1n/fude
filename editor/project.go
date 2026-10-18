@@ -150,16 +150,4 @@ func (e *Session) lists(scope *api.Scope) {
 		}
 		return ""
 	}
-	scope.Places = func() (api.Places, int, bool) {
-		l := e.lastList
-		if l == nil {
-			return api.Places{}, 0, false
-		}
-		out := api.Places{Title: l.title, Lines: slices.Clone(l.lines)}
-		for _, sp := range l.spots {
-			out.Items = append(out.Items, fmt.Sprintf("%s:%d:%d:", sp.path, sp.pos.Line+1, sp.pos.Character+1))
-			out.Encoding = sp.enc // a list's places all count in one encoding
-		}
-		return out, l.at, true
-	}
 }

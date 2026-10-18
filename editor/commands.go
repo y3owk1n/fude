@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/y3owk1n/fude/internal/fuzzy"
@@ -68,35 +67,6 @@ func init() {
 		{vim.Command{Name: "plug", Args: "name", Help: "runs <Plug>(name) as a key mapped to it does"}, func(e *Session, x call) { e.runPlug(x.arg) }, func(e *Session, _ string, start int, arg string, _ bool) (int, []string) {
 			return start, fuzzy.Match(e.plugNames(), arg)
 		}},
-		{vim.Command{Name: "cnext", Short: []string{"cn"}, Help: "goes to the next place of the last list of places"}, func(e *Session, _ call) {
-			e.stepPlace(func(at, _ int) int { return at + 1 })
-		}, nil},
-		{vim.Command{Name: "cprevious", Short: []string{"cp", "cN", "cNext"}, Help: "goes to the place before in the last list of places"}, func(e *Session, _ call) {
-			e.stepPlace(func(at, _ int) int { return max(at, 0) - 1 })
-		}, nil},
-		{vim.Command{Name: "cfirst", Short: []string{"cfir", "crewind", "cr"}, Help: "goes to the first place of the last list of places"}, func(e *Session, _ call) {
-			e.stepPlace(func(int, int) int { return 0 })
-		}, nil},
-		{vim.Command{Name: "clast", Short: []string{"cla"}, Help: "goes to the last place of the last list of places"}, func(e *Session, _ call) {
-			e.stepPlace(func(_, n int) int { return n - 1 })
-		}, nil},
-		{vim.Command{Name: "cdo", Args: "{cmd}", Help: "runs cmd at each place of the last list of places"}, func(e *Session, x call) { e.cdo(x.arg, false) }, nil},
-		{vim.Command{Name: "cfdo", Args: "{cmd}", Help: "runs cmd once in each file of the last list of places"}, func(e *Session, x call) { e.cdo(x.arg, true) }, nil},
-		{vim.Command{Name: "cc", Args: "[n]", Help: "goes to place n of the last list of places, or the one last gone to"}, func(e *Session, x call) {
-			n, err := strconv.Atoi(x.arg)
-			if x.arg != "" && err != nil {
-				e.message = "not a number: " + x.arg
-				return
-			}
-			e.stepPlace(func(at, _ int) int {
-				if x.arg == "" {
-					return max(at, 0)
-				}
-				return n - 1
-			})
-		}, nil},
-		{vim.Command{Name: "copen", Short: []string{"cope"}, Help: "shows the last list of places in a window"}, func(e *Session, _ call) { e.openList() }, nil},
-		{vim.Command{Name: "cclose", Short: []string{"ccl"}, Help: "closes the window of the last list of places"}, func(e *Session, _ call) { e.closeList() }, nil},
 		{vim.Command{Name: "config", Args: "reload", Help: "reads config.toml again, without writing it"}, func(e *Session, x call) {
 			if x.arg != "reload" {
 				e.message = "config what? reload"
@@ -178,11 +148,6 @@ func init() {
 				e.unfocus()
 			}
 		}},
-		{"list.open", "goes to the place under the cursor", func(e *Session, _ int) { e.openSpot() }},
-		{"list.next", "goes to the next place of the last list", func(e *Session, n int) { e.stepPlace(func(at, _ int) int { return at + max(n, 1) }) }},
-		{"list.prev", "goes to the place before in the last list", func(e *Session, n int) { e.stepPlace(func(at, _ int) int { return max(at, 0) - max(n, 1) }) }},
-		{"list.first", "goes to the first place of the last list", func(e *Session, _ int) { e.stepPlace(func(int, int) int { return 0 }) }},
-		{"list.last", "goes to the last place of the last list", func(e *Session, _ int) { e.stepPlace(func(_, n int) int { return n - 1 }) }},
 		{"terminal.close", "closes the terminal or task window once its program has ended", func(e *Session, _ int) { e.closeTerminal() }},
 	}
 	commandsByName = byName(commands)
@@ -295,8 +260,7 @@ func (e *Session) runPlug(name string) {
 // defaultMaps are the normal mode keys fude maps to its commands.
 var defaultMaps = map[string]string{
 	"ZR": "<Plug>(restart)",
-	"]q": "<Plug>(list.next)", "[q": "<Plug>(list.prev)", "[Q": "<Plug>(list.first)", "]Q": "<Plug>(list.last)",
-	"s": "<Plug>(jump.start)",
+	"s":  "<Plug>(jump.start)",
 }
 
 // hostOperator is an operator fude adds, and what it does.

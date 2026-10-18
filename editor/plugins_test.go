@@ -983,7 +983,7 @@ func (m spots) Call(context.Context, uint32, api.Scope, ...int) (api.Result, err
 func TestB286PlacesPick(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "f")
 	change(t, path, "first\nsecond\n")
-	e := start(t, path)
+	e := withCommands(start(t, path))
 	e.SetSize(80, 20)
 	e.Use(spots{path: path})
 	feed(e, ":pick spots<CR>")
@@ -996,6 +996,9 @@ func TestB286PlacesPick(t *testing.T) {
 	feed(e, ":pick spots<CR>")
 	settle(t, e, func() bool { f, _ := e.Float(); return strings.Contains(f.Text, "second") })
 	feed(e, "<C-q>")
+	settle(t, e, func() bool {
+		return slices.ContainsFunc(e.Views(), func(v wire.View) bool { return v.Name == "[spots]" })
+	})
 	if !slices.ContainsFunc(e.Views(), func(v wire.View) bool { return v.Name == "[spots]" }) {
 		t.Errorf("<C-q> opened %v, want a [spots] list", e.Views())
 	}
