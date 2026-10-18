@@ -1269,4 +1269,8 @@ func TestB338PluginDoesWhatAModuleDoes(t *testing.T) {
 	if want := "full: Keys needs keys, which it did not declare"; !strings.Contains(fudeLog(), want) {
 		t.Errorf("the log has %q, want %q", fudeLog(), want)
 	}
+	e = loaded(t, "full", "f", "ab\n", "buffer.read", "buffer.write")
+	if feed(e, "lma:Marked<CR>"); text(e) != "a:1|ab" {
+		t.Errorf(":Marked typed %q, want a:1|ab", text(e))
+	}
 }

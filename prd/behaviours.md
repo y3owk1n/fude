@@ -1049,8 +1049,9 @@ Where fude departs, the line says so and cites the departure in
   autocomplete asks it. The editor expands a snippet's items. Buffer
   words, paths and user snippets complete this way (B206, B207).
 - B338 [4] A plugin registers what a module registers, of every kind and
-  with every field, and its result asks for what a module's asks for,
-  within its capabilities. Keys a result runs need `keys`.
+  with every field, reads what a module's scope has, and its result asks
+  for what a module's asks for, within its capabilities. Keys a result
+  runs need `keys`.
 - B337 [4] A module's decoration may show its sign in a listing's icon
   column while `icons` is on, instead of in the sign column. A listing's
   notes and icons are a module's decorations (B127, B128).

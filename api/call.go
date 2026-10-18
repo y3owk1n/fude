@@ -517,7 +517,7 @@ type Buffer struct {
 	Name           string // what :buffers calls it, its path or its title (B329)
 	Modified       bool
 	Kind           string // its kind of buffer, such as listing or help, or "" for one a user edits (B331)
-	Text           Text
+	Text           Text   `json:"-"`
 }
 
 // Context is what a call is about, by name. Every call has buffer, path and filetype, of the buffer it is

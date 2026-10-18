@@ -541,14 +541,17 @@ so these terminals show none inside it.
 ## D51. A plugin registers and returns api's own types, as JSON
 
 `register` takes an `api.Registration` and `result` an `api.Result`, each
-as JSON, and the sdk imports `api` and sends them with `encoding/json`.
+as JSON. `read` answers with any field of the call's `api.Scope`, and
+calls a func field with the arguments the plugin sends. The sdk imports
+`api` and sends them with `encoding/json`. The text reads stay host
+functions of their own, because keys use them most.
 Before, the ABI had a host function for each thing a result could ask for,
 about twenty, and `register` took a kind, a name and a help. Why: modules
 and plugins share one API (D21). Each field added to `api` needed a host
 function of its own, and about 25 never got one, so a plugin could not do
 what a module did. With the types themselves, a plugin can set a field as
-soon as `api` has it. A table in `plugin/` names the capability each field
-needs, and every field must be in it. It costs size and load time. A
+soon as `api` has it. Tables in `plugin/` name the capability each field
+needs, and every field must be in them. It costs size and load time. A
 plugin that asks for anything is about 200KB, and a cold load of one took 112ms before its compiled code
 was cached, against 2.4ms after. A plugin now compiles before its init
 budget starts. A result of 500 decorations takes 2.7ms in the plugin and

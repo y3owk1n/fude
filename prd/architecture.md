@@ -1135,7 +1135,7 @@ Each call reads a `plugin.Scope` that the editor loop builds before the
 call. It holds the text of the buffer the call is about, its `context`,
 and a snapshot of every open buffer. A call off the loop reads text that
 does not change under it. When the buffer has syntax, the scope also has a
-copy of its last tree, moved through the edits since, for `node`. Each
+copy of its last tree, moved through the edits since, for `Node`. Each
 call that takes a scope frees the copy when it ends, since the original
 may be freed off the loop once a newer parse lands (B189).
 The plugin passes text as a pointer and length into its memory. The host returns text by calling the
@@ -1154,21 +1154,14 @@ host it may not reach or a request that failed.
 | `text_len() -> i32` | `buffer.read` | the length of the text |
 | `text(start, end) -> i64` | `buffer.read` | the text in `[start, end)` |
 | `lines() -> i32` | `buffer.read` | how many lines the text has |
-| `node(pos, up) -> i64` | `buffer.read` | the kind, start and end, NUL-separated, of the named syntax node that holds `pos`, or of its `up`'th named parent, or -2 for none (B189) |
-| `language(pos) -> i64` | `buffer.read` | the filetype of the text at `pos`, the buffer's or that of an injected region holding it (B273) |
-| `spans(start, end) -> i64` | `buffer.read` | the start, end and name of each highlight capture over `[start, end)`, each followed by a NUL (B273) |
-| `comment(pos) -> i64` | `buffer.read` | how the language at `pos` comments a line, such as `// %s`, or -2 for none (B275) |
-| `option(ptr, len) -> i64` | none | the option or config.toml setting called the name at `ptr`, as text, as the window has it, or -2 for none (B274) |
-| `config(ptr, len) -> i64` | none | the value at the dotted config.toml path at `ptr`, as JSON, or -2 for none (B279) |
-| `buffers() -> i64` | `buffer.read` | each open buffer's id, path and filetype, each followed by a NUL (B188) |
 | `len_of(id) -> i32` | `buffer.read` | the length of the text of the buffer `id` |
 | `text_of(id, start, end) -> i64` | `buffer.read` | the text of the buffer `id` in `[start, end)` |
 | `line_of(pos) -> i32` | `buffer.read` | the line that holds `pos`, from 0 |
 | `line_start(line) -> i32` | `buffer.read` | where `line` starts |
 | `register(ptr, len) -> i32` | none, in init only | adds the JSON `api.Registration` at `ptr`, of any kind and with any field a module's has, which `call` runs by its `ID` (D51) |
 | `subscribe(ptr, len) -> i32` | none, in `init` only | hears the event named through `on_event` |
+| `read(ptr, len) -> i64` | each field's | reads the field of the call's `api.Scope` that the JSON `{"Name": name, "Args": [...]}` at `ptr` names, and returns a JSON list. For a func, the list holds what it returns when called with `Args`, an error as its text. For any other field, the list holds the field. It returns -2 for a name the scope does not have, or for arguments the func does not take or fails on. A plugin reads `Text` through `text` and the other text functions, and never reads `Free` (D51) |
 | `result(ptr, len) -> i32` | each field's | asks for what the JSON `api.Result` at `ptr` holds, as a module's call returns it. fude applies it once the call returns. Its lists add to those the call asked for before, and its other fields replace theirs. fude takes none of it when a field needs a capability the plugin did not declare (D51) |
-| `decorations() -> i64` | `ui` | the plugin's decorations on the buffer the call is about, each its id, start, end, style, sign, note, under, fold, replace, line, rows apart by line breaks, above and block, each followed by a NUL, where they are now (B289) |
 | `read_file(ptr, len) -> i64` | `fs.read` | the file at the path, relative to the project, the directory fude started in. fude refuses a path that leads outside it, through `..` or a link (B47) |
 | `run(ptr, len) -> i64` | `process` | what the program prints, run with its arguments, NUL-separated, in the project. It must be in the plugin's `programs`, and the call's budget stops it (B48) |
 | `http_get(ptr, len) -> i64` | `net` | the body of the http or https URL, up to 16MB. Its host, and any host a redirect leads to, must be in the plugin's `hosts`, and the call's budget stops the request (B49) |
@@ -1212,8 +1205,8 @@ the event budget, about the buffer the call that asked was about, and not
 at all once that buffer closes. Unloading the plugin cancels its
 listener's context, which stops its jobs (B180, B181).
 
-A table in `plugin/` names the capability each field of `api.Result`
-needs, and fude panics at start when a field has no entry. Some fields
+Tables in `plugin/` name the capability each field of `api.Result` and
+`api.Scope` needs, and fude panics at start when a field has no entry. Some fields
 need more than their capability. A
 job's program must be in `programs` and a URL's host in `hosts`. A
 terminal runs through the shell, so the shell must be in `programs`. An

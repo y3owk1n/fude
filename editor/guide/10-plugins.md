@@ -116,7 +116,9 @@ outside the plugin's capabilities returns `sdk.ErrDenied`.
 `sdk.Register` and `sdk.Do` give a plugin all a built-in module has. `sdk.Register` takes an
 `api.Registration`, as a built-in module registers, of any kind and with
 any field. `sdk.Do` asks for what an `api.Result` holds, as a built-in
-module's call returns it, each field behind its capability.
+module's call returns it, and `sdk.Read` reads any field of an
+`api.Scope`, as a built-in module's call reads it, each field behind its
+capability.
 
 ## Testing a plugin
 

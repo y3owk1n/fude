@@ -8,6 +8,8 @@ package sdk
 import (
 	"encoding/json"
 	"errors"
+	"maps"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -76,32 +78,11 @@ func hostContext(ptr *byte, n uint32) int64
 //go:wasmimport fude setting
 func hostSetting(ptr *byte, n uint32) int64
 
-//go:wasmimport fude option
-func hostOption(ptr *byte, n uint32) int64
-
-//go:wasmimport fude config
-func hostConfig(ptr *byte, n uint32) int64
-
 //go:wasmimport fude text_len
 func hostTextLen() int32
 
 //go:wasmimport fude lines
 func hostLines() int32
-
-//go:wasmimport fude node
-func hostNode(pos, up uint32) int64
-
-//go:wasmimport fude language
-func hostLanguage(pos uint32) int64
-
-//go:wasmimport fude spans
-func hostSpans(start, end uint32) int64
-
-//go:wasmimport fude comment
-func hostComment(pos uint32) int64
-
-//go:wasmimport fude buffers
-func hostBuffers() int64
 
 //go:wasmimport fude len_of
 func hostLenOf(id uint32) int32
@@ -121,11 +102,11 @@ func hostText(start, end uint32) int64
 //go:wasmimport fude subscribe
 func hostSubscribe(ptr *byte, n uint32) int32
 
-//go:wasmimport fude decorations
-func hostDecorations() int64
-
 //go:wasmimport fude register
 func hostRegister(ptr *byte, n uint32) int32
+
+//go:wasmimport fude read
+func hostRead(ptr *byte, n uint32) int64
 
 //go:wasmimport fude result
 func hostResult(ptr *byte, n uint32) int32
@@ -433,16 +414,20 @@ func Len() (int, error) {
 }
 
 // Buffer is the buffer a call or event is about: its id, its file's path,
-// "" for none, and its filetype, "" for none.
+// "" for none, and its filetype, "" for none. Buffers also fills in Name,
+// Modified and Kind.
 type Buffer struct {
 	ID             int
 	Path, Filetype string
+	Name           string
+	Modified       bool
+	Kind           string
 }
 
 // Current returns the buffer the call running is about.
 func Current() Buffer {
 	id, _ := strconv.Atoi(about("buffer"))
-	return Buffer{id, about("path"), about("filetype")}
+	return Buffer{ID: id, Path: about("path"), Filetype: about("filetype")}
 }
 
 // Setting returns the value of the setting name in the plugin's settings
@@ -457,18 +442,48 @@ func Setting(name string) (string, bool) {
 // text, such as spell or spell_words, or false for none. An option is the
 // window's, as a filetype table may set it.
 func Option(name string) (string, bool) {
-	p, n := ptr(name)
-	v, err := answer(hostOption(p, n))
-	return v, err == nil
+	var v string
+	var ok bool
+	err := Read("Option", []any{name}, &v, &ok)
+	return v, err == nil && ok
+}
+
+// Read reads the field name of the call's api.Scope, as a module's call
+// reads it. It needs the capability that field needs. For a func, Read
+// calls it with args and puts each value it returns into one of out, in
+// order, an error as its text. Any other field goes into out[0].
+func Read(name string, args []any, out ...any) error {
+	b, err := json.Marshal(struct {
+		Name string
+		Args []any
+	}{name, args})
+	if err != nil {
+		return err
+	}
+	s, err := answer(hostRead(&b[0], uint32(len(b))))
+	if err != nil {
+		return err
+	}
+	var vals []json.RawMessage
+	if err := json.Unmarshal([]byte(s), &vals); err != nil {
+		return err
+	}
+	for i := range min(len(vals), len(out)) {
+		if err := json.Unmarshal(vals[i], out[i]); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Config returns the value at a dotted path of config.toml, such as
 // filetype.go.format or formatter.gofmt.command, as JSON, or false for
 // none. A table's key follows its name in the path.
 func Config(path string) (string, bool) {
-	p, n := ptr(path)
-	v, err := answer(hostConfig(p, n))
-	return v, err == nil
+	var v string
+	var ok bool
+	err := Read("Config", []any{path}, &v, &ok)
+	return v, err == nil && ok
 }
 
 // Node is a syntax node: its kind, such as function_declaration, and where
@@ -482,26 +497,28 @@ type Node struct {
 // its up'th named parent, in the buffer the call is about. It is false
 // without a grammar or a parse, or above the root. It needs buffer.read.
 func NodeAt(pos, up int) (Node, bool) {
-	s, err := answer(hostNode(uint32(pos), uint32(up)))
-	if err != nil {
-		return Node{}, false
-	}
-	f := strings.Split(s, "\x00")
-	start, _ := strconv.Atoi(f[1])
-	end, _ := strconv.Atoi(f[2])
-	return Node{f[0], start, end}, true
+	var n Node
+	var ok bool
+	err := Read("Node", []any{pos, up}, &n.Kind, &n.Start, &n.End, &ok)
+	return n, err == nil && ok
 }
 
 // Language returns the filetype of the text at pos, the buffer's or that
 // of an injected region holding it, such as a code block. It needs
 // buffer.read.
-func Language(pos int) (string, error) { return answer(hostLanguage(uint32(pos))) }
+func Language(pos int) (string, error) {
+	var lang string
+	err := Read("Language", []any{pos}, &lang)
+	return lang, err
+}
 
 // Comment returns how the language at pos comments a line, such as
 // "// %s", or false when fude knows none. It needs buffer.read.
 func Comment(pos int) (string, bool) {
-	cs, err := answer(hostComment(uint32(pos)))
-	return cs, err == nil
+	var cs string
+	var ok bool
+	err := Read("Comment", []any{pos}, &cs, &ok)
+	return cs, err == nil && ok
 }
 
 // Span is a highlight capture over [Start, End), named as the query names
@@ -511,31 +528,21 @@ type Span = api.Span
 // Spans returns the highlight captures over [start, end) of the text, in
 // paint order, or none without a grammar. It needs buffer.read.
 func Spans(start, end int) ([]Span, error) {
-	s, err := answer(hostSpans(uint32(start), uint32(end)))
-	if err != nil {
-		return nil, err
-	}
-	f := strings.Split(s, "\x00")
 	var out []Span
-	for i := 0; i+2 < len(f); i += 3 {
-		start, _ := strconv.Atoi(f[i])
-		end, _ := strconv.Atoi(f[i+1])
-		out = append(out, Span{Start: start, End: end, Name: f[i+2]})
-	}
-	return out, nil
+	err := Read("Spans", []any{start, end}, &out)
+	return out, err
 }
 
 // Buffers returns every open buffer, by id. It needs buffer.read.
 func Buffers() ([]Buffer, error) {
-	s, err := answer(hostBuffers())
-	if err != nil {
+	var all map[int]api.Buffer
+	if err := Read("Buffers", nil, &all); err != nil {
 		return nil, err
 	}
 	var out []Buffer
-	f := strings.Split(s, "\x00")
-	for i := 0; i+2 < len(f); i += 3 {
-		id, _ := strconv.Atoi(f[i])
-		out = append(out, Buffer{id, f[i+1], f[i+2]})
+	for _, id := range slices.Sorted(maps.Keys(all)) {
+		b := all[id]
+		out = append(out, Buffer{ID: id, Path: b.Path, Filetype: b.Filetype, Name: b.Name, Modified: b.Modified, Kind: b.Kind})
 	}
 	return out, nil
 }
@@ -736,41 +743,12 @@ func Block(start, end int) (int, error) {
 	return decorate(api.Decoration{Start: start, End: end, Block: true})
 }
 
-// Decoration is one the plugin put on the buffer, where it is now.
-type Decoration struct {
-	ID                         int
-	Start, End                 int
-	Style                      string
-	Sign, Note                 string
-	Under, Fold, Replace, Line bool
-	Rows                       []string // its rows, from Rows
-	Above, Block               bool
-}
-
-// Decorations returns the plugin's decorations on the buffer the call is
-// about, where they are now. It needs ui.
-func Decorations() ([]Decoration, error) {
-	s, err := answer(hostDecorations())
-	if err != nil {
-		return nil, err
-	}
-	f := strings.Split(s, "\x00")
-	var out []Decoration
-	for i := 0; i+12 < len(f); i += 13 {
-		id, _ := strconv.Atoi(f[i])
-		start, _ := strconv.Atoi(f[i+1])
-		end, _ := strconv.Atoi(f[i+2])
-		var rows []string
-		if f[i+10] != "" {
-			rows = strings.Split(f[i+10], "\n")
-		}
-		out = append(out, Decoration{
-			ID: id, Start: start, End: end, Style: f[i+3], Sign: f[i+4], Note: f[i+5],
-			Under: f[i+6] == "true", Fold: f[i+7] == "true", Replace: f[i+8] == "true", Line: f[i+9] == "true",
-			Rows: rows, Above: f[i+11] == "true", Block: f[i+12] == "true",
-		})
-	}
-	return out, nil
+// Decorations returns the plugin's decorations on every open buffer, each
+// with its Buffer, where they are now. It needs ui.
+func Decorations() ([]api.Decoration, error) {
+	var out []api.Decoration
+	err := Read("Decorations", nil, &out)
+	return out, err
 }
 
 // Undecorate removes the decoration id. It needs ui.

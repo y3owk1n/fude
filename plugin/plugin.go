@@ -8,14 +8,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"maps"
 	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"slices"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -256,15 +254,8 @@ func (p *Plugin) host(ctx context.Context) error {
 		NewFunctionBuilder().WithFunc(p.logText).Export("log").
 		NewFunctionBuilder().WithFunc(p.context).Export("context").
 		NewFunctionBuilder().WithFunc(p.setting).Export("setting").
-		NewFunctionBuilder().WithFunc(p.option).Export("option").
-		NewFunctionBuilder().WithFunc(p.config).Export("config").
 		NewFunctionBuilder().WithFunc(p.textLen).Export("text_len").
 		NewFunctionBuilder().WithFunc(p.lines).Export("lines").
-		NewFunctionBuilder().WithFunc(p.node).Export("node").
-		NewFunctionBuilder().WithFunc(p.language).Export("language").
-		NewFunctionBuilder().WithFunc(p.spans).Export("spans").
-		NewFunctionBuilder().WithFunc(p.comment).Export("comment").
-		NewFunctionBuilder().WithFunc(p.buffers).Export("buffers").
 		NewFunctionBuilder().WithFunc(p.lenOf).Export("len_of").
 		NewFunctionBuilder().WithFunc(p.textOf).Export("text_of").
 		NewFunctionBuilder().WithFunc(p.lineOf).Export("line_of").
@@ -273,10 +264,10 @@ func (p *Plugin) host(ctx context.Context) error {
 		NewFunctionBuilder().WithFunc(p.readFile).Export("read_file").
 		NewFunctionBuilder().WithFunc(p.runProgram).Export("run").
 		NewFunctionBuilder().WithFunc(p.httpGet).Export("http_get").
-		NewFunctionBuilder().WithFunc(p.decorations).Export("decorations").
 		NewFunctionBuilder().WithFunc(p.register).Export("register").
 		NewFunctionBuilder().WithFunc(p.subscribe).Export("subscribe").
 		NewFunctionBuilder().WithFunc(p.result).Export("result").
+		NewFunctionBuilder().WithFunc(p.readScope).Export("read").
 		Instantiate(ctx)
 	if err != nil {
 		return fmt.Errorf("plugin %s: %w", p.name, err)
@@ -315,40 +306,6 @@ func (p *Plugin) context(ctx context.Context, m api.Module, ptr, n uint32) int64
 	return give(ctx, m, v)
 }
 
-// option writes the option or config.toml setting named at (ptr, n) into
-// memory the plugin allocates, or returns errRange for none (B274).
-func (p *Plugin) option(ctx context.Context, m api.Module, ptr, n uint32) int64 {
-	if p.call == nil {
-		return errDenied
-	}
-	name, ok := m.Memory().Read(ptr, n)
-	if !ok || p.call.Option == nil {
-		return errRange
-	}
-	v, has := p.call.Option(string(name))
-	if !has {
-		return errRange
-	}
-	return give(ctx, m, v)
-}
-
-// config writes the value at the dotted config.toml path at (ptr, n) into
-// memory the plugin allocates, as JSON, or returns errRange for none (B279).
-func (p *Plugin) config(ctx context.Context, m api.Module, ptr, n uint32) int64 {
-	if p.call == nil {
-		return errDenied
-	}
-	path, ok := m.Memory().Read(ptr, n)
-	if !ok || p.call.Config == nil {
-		return errRange
-	}
-	v, has := p.call.Config(string(path))
-	if !has {
-		return errRange
-	}
-	return give(ctx, m, v)
-}
-
 // setting writes the value of the plugin's setting named at (ptr, n) into
 // memory the plugin allocates, or returns errRange for one it has none of
 // (B178).
@@ -369,84 +326,6 @@ func (p *Plugin) textLen() int32 {
 		return errDenied
 	}
 	return int32(p.call.Text.Len())
-}
-
-// node writes the kind, start and end of the named syntax node that holds
-// pos, or its up'th named parent, NUL-separated, into memory the plugin
-// allocates, or returns errRange for none (B189).
-func (p *Plugin) node(ctx context.Context, m api.Module, pos, up uint32) int64 {
-	if p.call == nil || !p.allowed("buffer.read", "node") {
-		return errDenied
-	}
-	if p.call.Node == nil || int(pos) > p.call.Text.Len() {
-		return errRange
-	}
-	kind, start, end, ok := p.call.Node(int(pos), int(up))
-	if !ok {
-		return errRange
-	}
-	return give(ctx, m, fmt.Sprintf("%s\x00%d\x00%d", kind, start, end))
-}
-
-// language writes the filetype of the text at pos into memory the plugin
-// allocates (B273).
-func (p *Plugin) language(ctx context.Context, m api.Module, pos uint32) int64 {
-	if p.call == nil || !p.allowed("buffer.read", "language") {
-		return errDenied
-	}
-	if p.call.Language == nil || int(pos) > p.call.Text.Len() {
-		return errRange
-	}
-	return give(ctx, m, p.call.Language(int(pos)))
-}
-
-// comment writes how the language at pos comments a line into memory the
-// plugin allocates, or returns errRange when fude knows none (B275).
-func (p *Plugin) comment(ctx context.Context, m api.Module, pos uint32) int64 {
-	if p.call == nil || !p.allowed("buffer.read", "comment") {
-		return errDenied
-	}
-	if p.call.Comment == nil || int(pos) > p.call.Text.Len() {
-		return errRange
-	}
-	cs, ok := p.call.Comment(int(pos))
-	if !ok {
-		return errRange
-	}
-	return give(ctx, m, cs)
-}
-
-// spans writes the start, end and name of each highlight capture over
-// [start, end), each followed by a NUL, into memory the plugin allocates
-// (B273).
-func (p *Plugin) spans(ctx context.Context, m api.Module, start, end uint32) int64 {
-	if p.call == nil || !p.allowed("buffer.read", "spans") {
-		return errDenied
-	}
-	if start > end || int(end) > p.call.Text.Len() {
-		return errRange
-	}
-	var b strings.Builder
-	if p.call.Spans != nil {
-		for _, s := range p.call.Spans(int(start), int(end)) {
-			fmt.Fprintf(&b, "%d\x00%d\x00%s\x00", s.Start, s.End, s.Name)
-		}
-	}
-	return give(ctx, m, b.String())
-}
-
-// buffers writes the id, path and filetype of each open buffer, each
-// followed by a NUL, into memory the plugin allocates (B188).
-func (p *Plugin) buffers(ctx context.Context, m api.Module) int64 {
-	if p.call == nil || !p.allowed("buffer.read", "buffers") {
-		return errDenied
-	}
-	var b strings.Builder
-	for _, id := range slices.Sorted(maps.Keys(p.call.Buffers)) {
-		o := p.call.Buffers[id]
-		fmt.Fprintf(&b, "%d\x00%s\x00%s\x00", id, o.Path, o.Filetype)
-	}
-	return give(ctx, m, b.String())
 }
 
 // lenOf returns the length of the text of the buffer id.
@@ -709,24 +588,4 @@ func (p *Plugin) subscribe(_ context.Context, m api.Module, ptr, n uint32) int32
 	}
 	p.subscribed = append(p.subscribed, string(name))
 	return 0
-}
-
-// decorations writes the plugin's decorations on the buffer, each its id,
-// start, end, style, sign, note, under, fold, replace, line, rows apart by
-// line breaks, above and block, each followed by a NUL, into memory the
-// plugin allocates (B289).
-func (p *Plugin) decorations(ctx context.Context, m api.Module) int64 {
-	if p.call == nil || !p.allowed("ui", "decorations") {
-		return errDenied
-	}
-	var b strings.Builder
-	if p.call.Decorations != nil {
-		for _, d := range p.call.Decorations() {
-			if strconv.Itoa(d.Buffer) != p.call.About["buffer"] {
-				continue
-			}
-			fmt.Fprintf(&b, "%d\x00%d\x00%d\x00%s\x00%s\x00%s\x00%t\x00%t\x00%t\x00%t\x00%s\x00%t\x00%t\x00", d.ID, d.Start, d.End, d.Style, d.Sign, d.Note, d.Layer < 0, d.Fold, d.Replace, d.Line, strings.Join(d.Lines, "\n"), d.Above, d.Block)
-		}
-	}
-	return give(ctx, m, b.String())
 }
