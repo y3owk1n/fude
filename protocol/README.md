@@ -53,6 +53,7 @@ for !done {
 - **Changes go as edits.** `Change` takes the text before the edits and the edits themselves. It sends ranges, or the whole new text to a server that asked for that.
 - **Capabilities.** `Supports` and `Capability` read what the server offered in its answer to `initialize`.
 - **Errors.** An error answer goes to the log func, and the answer func gets `nil`, as it does when the server exits before it answers.
+- **Snippets.** `ExpandSnippet` expands a completion's snippet, in the LSP syntax, into the text to insert and where its tab stops are. It puts in each placeholder's text, the first of each choice, and each variable's value from `vars`, or else its default. Lines after the first start with `indent`, and a tab becomes `unit`.
 
 ## dap
 

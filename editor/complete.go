@@ -21,7 +21,7 @@ type menu struct {
 	items  []string          // what each puts in the text
 	labels []string          // what the menu shows of each
 	docs   []string          // each one's detail and documentation, as markdown
-	stops  [][]tabStop       // each one's snippet stops, nil for plain text
+	stops  [][]lsp.Stop      // each one's snippet stops, nil for plain text
 	raws   []json.RawMessage // each as its server sent it, to resolve
 	from   []*server         // the server each came from, nil for the other sources
 	asked  map[int]bool      // the items resolve was asked for
@@ -166,9 +166,9 @@ func (e *Session) offer(auto bool, t kernel.Snapshot, start int, items map[strin
 	vars := e.snippetVars(b, start)
 	for _, source := range e.cfg.Sources {
 		for _, it := range items[source] {
-			var stops []tabStop
+			var stops []lsp.Stop
 			if it.snippet {
-				it.text, stops = expandSnippet(it.text, indent, unit, vars)
+				it.text, stops = lsp.ExpandSnippet(it.text, indent, unit, vars)
 			}
 			if seen[it.text] || it.text == m.typed {
 				continue
