@@ -11,6 +11,7 @@ import (
 
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/modules/comment"
+	grammarsmod "github.com/y3owk1n/fude/modules/grammars"
 	listsmod "github.com/y3owk1n/fude/modules/lists"
 	"github.com/y3owk1n/fude/syntax"
 )
@@ -241,6 +242,7 @@ func TestB165BuiltGrammar(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "a.gotest")
 	change(t, path, "package p\n")
 	e := start(t, path)
+	e.Use(grammarsmod.New())
 	e.SetSize(80, 20)
 	settle(t, e, func() bool {
 		return slices.ContainsFunc(e.Views()[0].Highlights, func(s syntax.Span) bool { return s.Name == "keyword" })
@@ -257,7 +259,7 @@ func TestB165BuiltGrammar(t *testing.T) {
 		t.Fatalf(":grammar listed %q, want toml outdated", text(e))
 	}
 	t.Setenv("PATH", "")
-	if feed(e, ":q<CR>:grammar update<CR>"); e.Message() != "updating the toml grammars" {
+	if feed(e, ":q<CR>:grammar update<CR>"); e.Message() != "building the toml grammar" {
 		t.Fatalf(":grammar update said %q", e.Message())
 	}
 	settle(t, e, func() bool { return strings.Contains(e.Message(), "git is not installed") })

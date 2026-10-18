@@ -1418,6 +1418,9 @@ because the finder's preview highlights off the loop. The text objects of a buil
 grammar are fude's, embedded beside Go's. Every buffer of the language
 gets its syntax when the build ends, and a failed build is not tried
 again that session except by `:grammar install` (D29, B165).
+`modules/grammars` is `:grammar`. It lists `Scope.Grammars` and returns
+`Build` with the filetypes to build. The editor builds them off the loop,
+since only it may use `syntax`'s cgo, and refuses a guest's build (B333).
 
 ## LSP
 

@@ -12,6 +12,7 @@ import (
 	filesmod "github.com/y3owk1n/fude/modules/files"
 	"github.com/y3owk1n/fude/modules/format"
 	gitmod "github.com/y3owk1n/fude/modules/git"
+	grammarsmod "github.com/y3owk1n/fude/modules/grammars"
 	listingmod "github.com/y3owk1n/fude/modules/listing"
 	listsmod "github.com/y3owk1n/fude/modules/lists"
 	sessionsmod "github.com/y3owk1n/fude/modules/sessions"
@@ -103,6 +104,7 @@ func TestB244GuestRefuses(t *testing.T) {
 	e.Use(gitmod.New())
 	e.Use(shellmod.New())
 	e.Use(sessionsmod.New())
+	e.Use(grammarsmod.New())
 	heard(t, log, `"method":"textDocument/didOpen"`, 1)
 	guest := e.Attach("guest", editor.Guest)
 	wd, err := os.Getwd()

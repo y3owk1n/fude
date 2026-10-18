@@ -85,6 +85,7 @@ type Result struct {
 	Window     string         // h, j, k or l: the window next to the current one that way becomes current (B330)
 	Tabs       *[]Tab         // what the buffer line lists, none for no row (B331)
 	Follow     string         // the session whose windows the call's session follows, by name (B256, B332)
+	Build      []string       // the filetypes whose grammars build again, which only the host may ask (B165, B333)
 	Kick       string         // the guest whose session ends, by name, which only the host may ask (B250, B332)
 	// Set holds options to set on the buffer the call is about, by their
 	// config.toml names: expand_tab, indent_width and tab_width. fude uses
@@ -285,6 +286,12 @@ type ExCommand struct {
 	Name, Args, Help string
 }
 
+// Grammar is a grammar fude builds, by its filetype, as :grammar lists it
+// (B333).
+type Grammar struct {
+	Filetype, State string
+}
+
 // Peer is a session on this fude, as :who lists it. Power is host, guest
 // or read-only, and You is the session the call is about (B332).
 type Peer struct {
@@ -433,6 +440,10 @@ type Scope struct {
 	Marks, Jumps, Changes func() []Mark
 	Messages              func() []string
 	Register              func(name rune) (string, bool, error)
+	// Grammars returns the grammars fude builds, each with its state: built,
+	// missing, outdated, building, or failed with why. Only a call has them
+	// (B333).
+	Grammars func() []Grammar
 	// Sessions returns the sessions on this fude: the host's, each guest's
 	// and each agent's. Only a call has them (B332).
 	Sessions func() []Peer

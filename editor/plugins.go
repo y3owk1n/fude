@@ -454,6 +454,9 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 	if res.Follow != "" {
 		e.startFollow(res.Follow)
 	}
+	if len(res.Build) > 0 {
+		e.build(res.Build)
+	}
 	if res.Kick != "" {
 		e.kick(res.Kick)
 	}
@@ -910,6 +913,7 @@ func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 	s.Marks, s.Jumps, s.Changes = none, none, none
 	s.Window = func(string) bool { return false }
 	s.Sessions = func() []api.Peer { return nil }
+	s.Grammars = func() []api.Grammar { return nil }
 	s.Messages = func() []string { return nil }
 	s.Register = func(rune) (string, bool, error) { return "", false, nil }
 	s.StateText = func(int, int) (string, bool) { return "", false }

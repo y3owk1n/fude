@@ -41,7 +41,7 @@ func refuses(name, arg string) bool {
 		return true
 	case "read":
 		return strings.HasPrefix(arg, "!")
-	case "grammar", "plugin":
+	case "plugin":
 		return arg != ""
 	}
 	return false

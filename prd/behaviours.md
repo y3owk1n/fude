@@ -1042,6 +1042,9 @@ Where fude departs, the line says so and cites the departure in
   window, such as a line in `diff.plus`, over what the filetype colours.
 - B277 [4] A plugin hears `editor.focused` when the terminal gets the
   focus back, as git's index may have changed while fude was away.
+- B333 [4] A module's call lists the grammars fude builds, each with its
+  state, and its result may build grammars again, which only the host
+  may ask, as `:grammar` does (B165).
 - B332 [4] A module's call lists the sessions on this fude, each with
   its name and power and whether it is the call's own. Its result may
   end a guest's session, which only the host may ask, or follow a

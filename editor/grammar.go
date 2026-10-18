@@ -1,10 +1,10 @@
 package editor
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
+	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/internal/trace"
 	"github.com/y3owk1n/fude/syntax"
 )
@@ -70,39 +70,10 @@ func (e *Session) buildGrammar(ft string, force bool) bool {
 	return true
 }
 
-// grammar runs :grammar, which lists the grammars and their states, and
-// :grammar install, which builds one again (B165).
-func (e *Session) grammar(arg string) {
-	if ft, ok := strings.CutPrefix(arg, "install "); ok {
-		ft = strings.TrimSpace(ft)
-		switch {
-		case !syntax.Buildable(ft):
-			e.message = "fude cannot build a grammar for " + ft
-		case e.buildGrammar(ft, true):
-			e.message = "building the " + ft + " grammar"
-		default:
-			e.message = "the " + ft + " grammar is building"
-		}
-		return
-	}
-	if arg == "update" {
-		var started []string
-		for _, g := range syntax.Grammars() {
-			if g.State == "outdated" && e.buildGrammar(g.Filetype, true) {
-				started = append(started, g.Filetype)
-			}
-		}
-		e.message = "every grammar built is up to date"
-		if len(started) > 0 {
-			e.message = "updating the " + strings.Join(started, ", ") + " grammars"
-		}
-		return
-	}
-	if arg != "" {
-		e.message = "not a grammar command: " + arg
-		return
-	}
-	var lines []string
+// grammarList is the grammars fude builds, each with its state, building
+// or failed this session too (B165, B333).
+func (e *Session) grammarList() []api.Grammar {
+	var out []api.Grammar
 	for _, g := range syntax.Grammars() {
 		state := g.State
 		switch {
@@ -111,9 +82,36 @@ func (e *Session) grammar(arg string) {
 		case e.failed[g.Filetype] != "":
 			state = "failed: " + e.failed[g.Filetype]
 		}
-		lines = append(lines, fmt.Sprintf("%-12s %s", g.Filetype, state))
+		out = append(out, api.Grammar{Filetype: g.Filetype, State: state})
 	}
-	e.scratch("[grammars]", strings.Join(lines, "\n"))
+	return out
+}
+
+// build builds the grammars of fts again and says which started. A guest
+// may not (B165, B244, B333).
+func (e *Session) build(fts []string) {
+	if e.power != Host {
+		e.message = "a guest may not build grammars"
+		return
+	}
+	var started []string
+	for _, ft := range fts {
+		switch {
+		case !syntax.Buildable(ft):
+			e.message = "fude cannot build a grammar for " + ft
+			return
+		case e.buildGrammar(ft, true):
+			started = append(started, ft)
+		}
+	}
+	switch len(started) {
+	case 0:
+		e.message = "the " + strings.Join(fts, ", ") + " grammar is already building"
+	case 1:
+		e.message = "building the " + started[0] + " grammar"
+	default:
+		e.message = "building the " + strings.Join(started, ", ") + " grammars"
+	}
 }
 
 // languageAt returns the filetype of the text at pos in b: an injected

@@ -13,6 +13,7 @@ import (
 
 	"github.com/y3owk1n/fude/modules/autopairs"
 	filesmod "github.com/y3owk1n/fude/modules/files"
+	grammarsmod "github.com/y3owk1n/fude/modules/grammars"
 	"github.com/y3owk1n/fude/modules/grep"
 	listingmod "github.com/y3owk1n/fude/modules/listing"
 	pickmod "github.com/y3owk1n/fude/modules/pick"
@@ -161,6 +162,7 @@ func TestB212QCloses(t *testing.T) {
 	t.Chdir(dir)
 	e := open(t, "a.txt")
 	e.Use(timelinemod.New())
+	e.Use(grammarsmod.New())
 	e.Use(filesmod.New())
 	e.SetSize(100, 30)
 	feed(e, "ix<Esc>")
