@@ -460,6 +460,12 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 		}
 		e.segments[p][b] = *res.Status
 	}
+	if res.StatusLeft != nil {
+		if e.leftSegments[p] == nil {
+			e.leftSegments[p] = map[*buffer]string{}
+		}
+		e.leftSegments[p][b] = *res.StatusLeft
+	}
 	for _, d := range res.Decorate {
 		on, err := e.bufferFor(b, d)
 		if err != nil {
@@ -786,6 +792,9 @@ func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 	s.Comment = func(pos int) (string, bool) { return syntax.Comment(language(pos)) }
 	if b.title != "" {
 		s.About["title"] = b.title
+	}
+	if b.listed != "" {
+		s.About["listing"] = b.listed
 	}
 	// The decorations are listed now, on the loop, as a module reads its
 	// scope off it.

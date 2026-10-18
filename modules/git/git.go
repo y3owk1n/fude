@@ -1,5 +1,6 @@
 // Package git shows how a file differs from git's index, as signs, hunks to
-// jump to, reset and stage, a preview and :gitdiff (B123, B138, B221,
+// jump to, reset and stage, a preview and :gitdiff, a listing's entries'
+// status and the branch on the status line (B123, B126, B138, B147, B221,
 // B222).
 package git
 
@@ -48,6 +49,7 @@ type Module struct {
 	base  map[string]*string // by buffer, the index's text, nil outside a repository
 	stale map[string]bool    // by buffer, the index may have changed since base was read
 	signs map[string][]int   // by buffer, the ids of the signs showing
+	list  map[string][]int   // by listing, the ids of its entries' signs
 	off   map[string]bool    // by buffer, git_signs was off when it was last signed
 	ids   int
 	jobs  uint32
@@ -62,13 +64,13 @@ type job struct {
 
 // New returns git.
 func New() *Module {
-	return &Module{base: map[string]*string{}, stale: map[string]bool{}, signs: map[string][]int{}, off: map[string]bool{}, about: map[uint32]job{}}
+	return &Module{base: map[string]*string{}, stale: map[string]bool{}, signs: map[string][]int{}, list: map[string][]int{}, off: map[string]bool{}, about: map[uint32]job{}}
 }
 
 func (m *Module) Name() string { return "git" }
 
 func (m *Module) Subscribed() []string {
-	return []string{"buffer.opened", "buffer.changed", "view.moved", "editor.focused"}
+	return []string{"buffer.opened", "buffer.changed", "view.moved", "editor.focused", "listing.read"}
 }
 
 func (m *Module) Registered() []api.Registration {
@@ -84,11 +86,15 @@ func (m *Module) Registered() []api.Registration {
 	}
 }
 
-// Init reads the base of the buffer open at the start.
+// Init reads the base and branch of the buffer open at the start, or a
+// listing's status.
 func (m *Module) Init(_ context.Context, s api.Scope) (api.Result, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return m.read(s), nil
+	if s.About["listing"] != "" {
+		return m.status(s), nil
+	}
+	return m.branch(s, m.read(s)), nil
 }
 
 // Call runs a key, the preview, gH, gh or :gitdiff.
@@ -124,14 +130,16 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 	defer m.mu.Unlock()
 	buf := s.About["buffer"]
 	switch event, _, _ := strings.Cut(name, " "); event {
+	case "listing.read":
+		return m.status(s), nil
 	case "buffer.opened":
-		return m.read(s), nil
+		return m.branch(s, m.read(s)), nil
 	case "editor.focused":
 		// git's index may have changed while fude was away.
 		for b := range m.base {
 			m.stale[b] = true
 		}
-		return m.read(s), nil
+		return m.branch(s, m.read(s)), nil
 	case "view.moved":
 		if m.stale[buf] {
 			return m.read(s), nil
@@ -153,11 +161,21 @@ func (m *Module) Callback(_ context.Context, id uint32, s api.Scope) (api.Result
 	if !ok || j.buf != s.About["buffer"] {
 		return api.Result{}, nil
 	}
-	if j.kind == "stage" {
+	switch j.kind {
+	case "stage":
 		if err := s.About["error"]; err != "" {
 			return api.Result{Message: err}, nil
 		}
 		return m.read(s), nil
+	case "branch":
+		// Outside a repository or on a detached head, there is none.
+		segment := ""
+		if s.About["error"] == "" {
+			segment = strings.TrimSpace(s.About["output"])
+		}
+		return api.Result{StatusLeft: &segment}, nil
+	case "status":
+		return m.signStatus(s), nil
 	}
 	if s.About["error"] != "" {
 		m.base[j.buf] = nil
@@ -173,8 +191,17 @@ func (m *Module) Callback(_ context.Context, id uint32, s api.Scope) (api.Result
 // the file.
 func (m *Module) Work(ctx context.Context, j api.Job) (string, error) {
 	path := j.Argv[1]
-	if j.Argv[0] == "stage" {
+	switch j.Argv[0] {
+	case "stage":
 		return "", stageText(ctx, path, j.Input)
+	case "branch":
+		out, err := exec.CommandContext(ctx, "git", "-C", path, "branch", "--show-current").Output()
+		if err != nil {
+			return "", fmt.Errorf("git: %s is not in a repository", path)
+		}
+		return string(out), nil
+	case "status":
+		return listStatus(ctx, path)
 	}
 	abs, err := filepath.Abs(path)
 	if err != nil {
@@ -188,6 +215,106 @@ func (m *Module) Work(ctx context.Context, j api.Job) (string, error) {
 }
 
 func (m *Module) Close(context.Context) error { return nil }
+
+// The signs of a listing entry's git status, by status code (B126).
+var statusSigns = map[string]sign{
+	" M": {"✹", "git.change"}, "M ": {"•", "git.change"}, "MM": {"≠", "git.change"}, "R ": {"→", "git.change"},
+	"A ": {"+", "git.add"}, "??": {"?", "git.delete"}, "D ": {"-", "git.delete"},
+}
+
+// branch adds to res a job that asks git for the branch of the repository
+// the buffer s is about is in, its file's or a listing's directory's
+// (B147).
+func (m *Module) branch(s api.Scope, res api.Result) api.Result {
+	dir := s.About["listing"]
+	if path := s.About["path"]; path != "" {
+		dir = filepath.Dir(path)
+	}
+	if dir == "" {
+		return res
+	}
+	m.jobs++
+	m.about[m.jobs] = job{"branch", s.About["buffer"]}
+	res.Jobs = append(res.Jobs, api.Job{ID: m.jobs, Argv: []string{"branch", dir}})
+	return res
+}
+
+// status asks git for the status of a listing's entries, and its branch.
+func (m *Module) status(s api.Scope) api.Result {
+	dir := s.About["listing"]
+	if dir == "" {
+		return api.Result{}
+	}
+	m.jobs++
+	m.about[m.jobs] = job{"status", s.About["buffer"]}
+	return m.branch(s, api.Result{Jobs: []api.Job{{ID: m.jobs, Argv: []string{"status", dir}}}})
+}
+
+// listStatus returns each changed name in dir and its status code, each
+// followed by a NUL. A directory takes the status of the first
+// change below it.
+func listStatus(ctx context.Context, dir string) (string, error) {
+	// git names paths from the repository's root, so each starts with dir's
+	// prefix.
+	prefix, err := exec.CommandContext(ctx, "git", "-C", dir, "rev-parse", "--show-prefix").Output()
+	if err != nil {
+		return "", fmt.Errorf("git: %s is not in a repository", dir)
+	}
+	out, err := exec.CommandContext(ctx, "git", "-C", dir, "--no-optional-locks", "status", "--porcelain", "-z", "--", ".").Output()
+	if err != nil {
+		return "", fmt.Errorf("git status in %s: %w", dir, err)
+	}
+	pre, seen := strings.TrimSuffix(string(prefix), "\n"), map[string]bool{}
+	var b strings.Builder
+	fields := strings.Split(string(out), "\x00")
+	for i := 0; i < len(fields); i++ {
+		if len(fields[i]) < 4 {
+			continue
+		}
+		code, path := fields[i][:2], fields[i][3:]
+		if code[0] == 'R' || code[0] == 'C' {
+			i++ // the old name
+		}
+		name := strings.TrimPrefix(path, pre)
+		if top, _, below := strings.Cut(name, "/"); below {
+			name = top + "/"
+		}
+		if !seen[name] {
+			seen[name] = true
+			b.WriteString(name + "\x00" + code + "\x00")
+		}
+	}
+	return b.String(), nil
+}
+
+// signStatus shows the status git gave a listing's entries in the sign
+// column, in place of the signs it had (B126).
+func (m *Module) signStatus(s api.Scope) api.Result {
+	buf := s.About["buffer"]
+	res := api.Result{Undecorate: m.list[buf]}
+	delete(m.list, buf)
+	if s.About["error"] != "" {
+		return res
+	}
+	codes := map[string]string{}
+	fields := strings.Split(s.About["output"], "\x00")
+	for i := 0; i+1 < len(fields); i += 2 {
+		codes[fields[i]] = fields[i+1]
+	}
+	t := s.Text
+	for line := range t.Lines() {
+		start, end := t.LineStart(line), t.Len()
+		if line+1 < t.Lines() {
+			end = t.LineStart(line+1) - 1
+		}
+		if sg, ok := statusSigns[codes[t.Slice(start, end)]]; ok {
+			m.ids++
+			res.Decorate = append(res.Decorate, api.Decoration{ID: m.ids, Start: start, End: start, Style: sg.style, Sign: sg.text, Layer: -1})
+			m.list[buf] = append(m.list[buf], m.ids)
+		}
+	}
+	return res
+}
 
 // read asks git for the base of the buffer s is about, when it is a file.
 func (m *Module) read(s api.Scope) api.Result {

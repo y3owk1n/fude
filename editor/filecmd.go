@@ -247,8 +247,10 @@ func (e *Session) Focus() {
 	e.emit("editor.focused", "", e.win.buf)
 	e.recheck()
 	for _, b := range e.bufs {
-		// git's index may have changed while fude was away.
-		e.loadGit(b)
+		// A directory may have changed while fude was away.
+		if b.listed != "" {
+			e.emit("listing.read", "", b)
+		}
 		if b.title != "" || b.file.warned || !b.file.changed() {
 			continue
 		}

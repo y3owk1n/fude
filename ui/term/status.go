@@ -46,8 +46,8 @@ func (c *client) status(v wire.View, x, w int) {
 	if v.Modified {
 		left = append(left, part{" ●", ground.Foreground(th.cmd)})
 	}
-	if v.Branch != "" {
-		left = append(left, part{"   " + v.Branch, ground.Foreground(th.muted)})
+	for _, s := range v.LeftSegments {
+		left = append(left, part{"   " + s, ground.Foreground(th.muted)})
 	}
 	if v.Errors > 0 {
 		left = append(left, part{"   " + strconv.Itoa(v.Errors), ground.Foreground(th.err)})

@@ -68,7 +68,7 @@ func (e *Session) openListing(dir, at string) {
 		}
 		e.next++
 		e.bufs = append(e.bufs, b)
-		e.loadGit(b)
+		e.emit("listing.read", "", b)
 	}
 	e.show(b)
 	t := b.text.Snapshot()
@@ -172,7 +172,7 @@ func (e *Session) reload(b *buffer) {
 	}
 	b.head, b.saved, b.noted = b.text.Head(), b.text.Head(), nil
 	b.mark()
-	e.loadGit(b)
+	e.emit("listing.read", "", b)
 }
 
 // notes returns the note of each line of listing b from top to last,

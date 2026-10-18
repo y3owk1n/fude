@@ -133,8 +133,11 @@ func (e *Session) Views() []wire.View {
 			if s := e.segments[p][w.buf]; s != "" {
 				v.Segments = append(v.Segments, s)
 			}
+			if s := e.leftSegments[p][w.buf]; s != "" {
+				v.LeftSegments = append(v.LeftSegments, s)
+			}
 		}
-		v.Branch, v.Filetype = w.buf.branch, e.filetype(w.buf)
+		v.Filetype = e.filetype(w.buf)
 		var names []string
 		for _, s := range w.buf.servers {
 			names = append(names, s.name)
@@ -289,10 +292,9 @@ func (e *Session) pair(w *window, t kernel.Snapshot, top, last int) []int {
 	return nil
 }
 
-// signs returns each line of b's sign, from the modules' decorations. A
-// listing's lines from top to last show the git status of their names.
+// signs returns each line of b's sign, from the modules' decorations.
 func (e *Session) signs(b *buffer, top, last int) map[int]wire.Sign {
-	if b.signs == 0 && len(b.status) == 0 {
+	if b.signs == 0 {
 		return nil
 	}
 	t := b.text.Snapshot()
@@ -309,12 +311,8 @@ func (e *Session) signs(b *buffer, top, last int) map[int]wire.Sign {
 	}
 	slices.SortStableFunc(signed, func(x, y decoration) int { return cmp.Compare(x.layer, y.layer) })
 	for _, d := range signed {
-		out[t.LineOf(b.text.Mark(d.start))] = wire.Sign{Text: d.sign, Name: d.style}
-	}
-	for line := t.LineOf(top); len(b.status) > 0 && line <= t.LineOf(last); line++ {
-		start := t.LineStart(line)
-		if s := b.status[t.Slice(start, vim.LineEnd(t, start))]; s.Text != "" {
-			out[line] = s
+		if at := b.text.Mark(d.start); at >= top && at <= last {
+			out[t.LineOf(at)] = wire.Sign{Text: d.sign, Name: d.style}
 		}
 	}
 	return out

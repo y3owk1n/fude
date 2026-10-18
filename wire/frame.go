@@ -64,7 +64,7 @@ type View struct {
 	Searched          [2]int            // the match the search being typed goes to, lit apart from the rest (B21)
 	Segments          []string          // plugins' statusline segments, in the order they loaded
 	Ruler             string            // the cursor's line and column, and where the view is (B38)
-	Branch            string            // the git branch of the buffer's repository, "" outside one (B147)
+	LeftSegments      []string          // the modules' statusline segments after the buffer's name, such as git's branch (B147)
 	Errors, Warnings  int               // the buffer's diagnostics of each severity (B147)
 	Filetype          string            // the buffer's filetype, "" for none (B164)
 	Server            string            // the buffer's language servers, "" for none (B161, B169)

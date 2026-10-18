@@ -47,6 +47,7 @@ type Result struct {
 	Undecorate []int          // the ids of decorations to remove
 	Emit       []string       // the events to emit, named owner.event
 	Status     *string        // the owner's statusline segment for the text it read, "" for none
+	StatusLeft *string        // its segment on the statusline's left, after the buffer's name, as git's branch is (B147)
 	Message    string         // a line for the message area, "" for none
 	Float      *Float         // text to show at the cursor, empty to close it
 	Show       *Panel         // text to show in a window of its own

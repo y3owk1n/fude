@@ -3,7 +3,6 @@ package editor_test
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -488,18 +487,6 @@ func TestB144Leader(t *testing.T) {
 			t.Errorf("%q with %q left %q", c.keys, c.config, text(e))
 		}
 	}
-}
-
-// B147
-func TestB147Branch(t *testing.T) {
-	dir := t.TempDir()
-	if out, err := exec.Command("git", "-C", dir, "init", "-q", "-b", "trunk").CombinedOutput(); err != nil {
-		t.Skipf("git init: %v: %s", err, out)
-	}
-	path := filepath.Join(dir, "f")
-	change(t, path, "a\n")
-	e := open(t, path)
-	settle(t, e, func() bool { return e.Views()[0].Branch == "trunk" })
 }
 
 // B218

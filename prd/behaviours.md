@@ -1035,6 +1035,12 @@ Where fude departs, the line says so and cites the departure in
   window, such as a line in `diff.plus`, over what the filetype colours.
 - B277 [4] A plugin hears `editor.focused` when the terminal gets the
   focus back, as git's index may have changed while fude was away.
+- B311 [4] A module hears `listing.read` when a listing reads its
+  directory: as it opens, as it reads it again, and when the terminal gets
+  the focus back. A call about a listing names its directory, which git's
+  status signs need (B126).
+- B312 [4] A module shows a segment on the left of the status line, after
+  the buffer's name, as git's branch is (B147).
 - B282 [4] A plugin hears `buffer.saving` before a write. The write waits
   for what the plugin asks for, edits included, and for the callbacks its
   answer asks for. After `format_timeout` fude writes the text as it is,

@@ -519,7 +519,9 @@ that into `buffer.changed` and emits the rest by name: `buffer.opened`,
 or the view, `mode.changed`, `syntax.updated` when a parse lands,
 `lsp.diagnostics`, `lsp.attached` once a server is ready for a buffer
 (B284), `editor.focused` when the terminal gets the focus back
-(B277), `buffer.saving` before a write, which waits for its handlers and
+(B277), `listing.read` when a listing reads its directory, as it opens,
+reads it again or the terminal gets the focus back (B126), `buffer.saving`
+before a write, which waits for its handlers and
 their callbacks or `format_timeout` (B282), and a plugin's own events,
 named `plugin.event`, which it emits with `emit`.
 
@@ -671,7 +673,8 @@ its colour, then the buffer's name with its directory dim, a dot when it
 is modified, the git branch and the counts of errors and warnings. On the
 right are the plugins' segments, the keys of a command being typed, the
 filetype and the ruler, which the line drops first when it is too narrow.
-`View` carries the branch and the counts. The editor keeps `View.Ruler` in
+`View` carries the counts, and the modules' segments for the left, such
+as the branch `modules/git` sets with `StatusLeft`. The editor keeps `View.Ruler` in
 Neovim's form, `line,col`, then `-vcol` when the screen column differs,
 then `All`, `Top`, `Bot` or how far down the view is (B38), and the
 client shows it as `line:col` with the screen column (B147).
@@ -781,15 +784,15 @@ entries can swap names. Then it deletes, with what a directory holds, and
 creates. Open buffers of renamed files follow them, and fude reads the
 listing again (B125).
 
-A listing in a git repository shows each entry's git status as a sign.
-Off the loop, fude runs `git rev-parse --show-prefix` in the directory,
-because git names paths from the repository's root. Then it runs `git
---no-optional-locks status --porcelain -z -- .`. That flag stops git from
-taking the index lock, so a git command run in a terminal at the same
-time does not fail. A change below a directory marks the directory. fude
-keeps the signs by name and matches them to the visible lines each frame,
-so a sign moves with its line. fude reads the status when it opens a
-listing, when it reads the listing again, and when it gains focus (B126).
+A listing in a git repository shows each entry's git status as a sign,
+which `modules/git` puts there. A call about a listing names its
+directory as `listing`. On `listing.read`, the module runs, as a job,
+`git rev-parse --show-prefix` in the directory, because git names paths
+from the repository's root. Then it runs `git --no-optional-locks status
+--porcelain -z -- .`. That flag stops git from taking the index lock, so a
+git command run in a terminal at the same time does not fail. A change
+below a directory marks the directory. The module signs each entry's line
+with a decoration, so a sign moves with its line (B126).
 
 A listing's windows show a note after some names: where a symlink points,
 or a mark for an executable or special file. fude reads a name's note with

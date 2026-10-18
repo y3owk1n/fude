@@ -13,7 +13,6 @@ import (
 	"github.com/y3owk1n/fude/internal/timeline"
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
-	"github.com/y3owk1n/fude/wire"
 )
 
 // highlights keeps the highlight captures of one version of a buffer's
@@ -63,23 +62,21 @@ type buffer struct {
 
 	saves []kernel.NodeID // the node at each write, oldest first
 
-	log     *timeline.Log        // the timeline on disk, nil for a buffer with no file
-	syntax  *syntax.Buffer       // nil without a grammar for the filetype
-	servers []*server            // the language servers attached to it, in its filetype's order
-	signs   int                  // plugins' signs on it, which show a sign column too
-	picture string               // the image file it shows, when it is one (B304)
-	inlines int                  // decorations that show text in its lines
-	listed  string               // the directory a listing lists, "" for any other buffer
-	entries []entry              // a listing's names as it read them
-	noted   map[string]string    // a listing's note of each name it has shown
-	touched [2]int               // the text the last change made, as it is after it
-	status  map[string]wire.Sign // a listing's git status sign of each name
-	branch  string               // the git branch of its repository, "" outside one
-	unsaved kernel.NodeID        // the newest unsaved change from a session that did not close
-	set     map[string]string    // the options modules set on it, by name (B283)
-	folds   []decoration         // the closed folds on it, modules' decorations (B224)
-	keys    *vim.Keymaps         // a panel's own keys, nil for its kind's (B291)
-	term    *terminal            // the program a terminal buffer shows, nil for any other (B205)
+	log     *timeline.Log     // the timeline on disk, nil for a buffer with no file
+	syntax  *syntax.Buffer    // nil without a grammar for the filetype
+	servers []*server         // the language servers attached to it, in its filetype's order
+	signs   int               // plugins' signs on it, which show a sign column too
+	picture string            // the image file it shows, when it is one (B304)
+	inlines int               // decorations that show text in its lines
+	listed  string            // the directory a listing lists, "" for any other buffer
+	entries []entry           // a listing's names as it read them
+	noted   map[string]string // a listing's note of each name it has shown
+	touched [2]int            // the text the last change made, as it is after it
+	unsaved kernel.NodeID     // the newest unsaved change from a session that did not close
+	set     map[string]string // the options modules set on it, by name (B283)
+	folds   []decoration      // the closed folds on it, modules' decorations (B224)
+	keys    *vim.Keymaps      // a panel's own keys, nil for its kind's (B291)
+	term    *terminal         // the program a terminal buffer shows, nil for any other (B205)
 	// A scratch buffer shows something about another buffer, such as its
 	// timeline, under a title instead of a file name.
 	title  string

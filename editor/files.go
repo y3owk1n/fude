@@ -114,8 +114,9 @@ func (e *Session) readPaths(f *finder) {
 // tracks and the untracked ones it does not ignore. Elsewhere, or with all,
 // they are every file outside .git and unreadable directories.
 func listFiles(dir string, all bool) ([]string, error) {
-	if !all && hasGit() {
-		// Outside a repository git fails, and the walk lists the files.
+	if !all {
+		// Outside a repository, or without git, git fails and the walk lists
+		// the files.
 		out, err := exec.Command("git", "-C", dir, "ls-files", "-z", "--cached", "--others", "--exclude-standard").Output()
 		if err == nil {
 			return strings.FieldsFunc(string(out), func(r rune) bool { return r == 0 }), nil

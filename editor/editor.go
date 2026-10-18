@@ -61,6 +61,7 @@ type Editor struct {
 	proposed       int                               // the id of the newest proposal
 	listeners      map[api.Module]*listener
 	segments       map[api.Module]map[*buffer]string // what each plugin shows on the statusline of each buffer
+	leftSegments   map[api.Module]map[*buffer]string // what each shows on its left, after the buffer's name (B147)
 
 	now      func() time.Time       // the clock edits are stamped with
 	snippets map[string]snippetFile // each snippets file read, by path (B207)
@@ -138,7 +139,7 @@ func open(cfg config, paths []string) (*Session, error) {
 	if len(paths) == 0 {
 		paths = []string{""}
 	}
-	ed := &Editor{next: 1, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(*Session, call){}, sources: map[string]func(*Session, string){}, completers: map[string]func(*Session, string){}, decos: map[any][]decoration{}, servers: map[string]*server{}, down: map[string]string{}, building: map[string]bool{}, failed: map[string]string{}, listeners: map[api.Module]*listener{}, segments: map[api.Module]map[*buffer]string{}}
+	ed := &Editor{next: 1, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(*Session, call){}, sources: map[string]func(*Session, string){}, completers: map[string]func(*Session, string){}, decos: map[any][]decoration{}, servers: map[string]*server{}, down: map[string]string{}, building: map[string]bool{}, failed: map[string]string{}, listeners: map[api.Module]*listener{}, segments: map[api.Module]map[*buffer]string{}, leftSegments: map[api.Module]map[*buffer]string{}}
 	// Without a config directory there are no overrides, and loadConfig
 	// reports why.
 	if dir, err := keep.Dir("XDG_CONFIG_HOME", ".config"); err == nil {
@@ -358,7 +359,7 @@ func (e *Session) add(path string) (string, error) {
 		}
 		e.next++
 		e.bufs = append(e.bufs, b)
-		e.loadGit(b)
+		e.emit("listing.read", "", b)
 		return "", nil
 	}
 	b, msg, err := openBuffer(e.next, path)
@@ -389,7 +390,6 @@ func (e *Session) add(path string) (string, error) {
 			msg = strings.TrimSpace(msg + "  " + err.Error())
 		}
 	}
-	e.loadGit(b)
 	return msg, nil
 }
 
@@ -1056,6 +1056,9 @@ func (e *Session) close(b *buffer, force bool) {
 	b.close()
 	e.emit("buffer.closed", "", b)
 	for _, segs := range e.segments {
+		delete(segs, b)
+	}
+	for _, segs := range e.leftSegments {
 		delete(segs, b)
 	}
 	var images []string

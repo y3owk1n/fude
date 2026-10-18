@@ -48,6 +48,56 @@ func TestB123GitSigns(t *testing.T) {
 	}
 }
 
+// B126, B311
+func TestB126ListingGitStatus(t *testing.T) {
+	dir := t.TempDir()
+	top := filepath.Join(dir, "top")
+	if err := os.MkdirAll(filepath.Join(top, "sub"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range []string{"mod", "same"} {
+		editortest.Change(t, filepath.Join(top, f), f+"\n")
+	}
+	git := func(args ...string) {
+		if out, err := exec.Command("git", append([]string{"-C", dir, "-c", "user.name=t", "-c", "user.email=t@t"}, args...)...).CombinedOutput(); err != nil {
+			t.Skipf("git %v: %v: %s", args, err, out)
+		}
+	}
+	git("init", "-q")
+	git("add", ".")
+	git("commit", "-qm", "init")
+	editortest.Change(t, filepath.Join(top, "mod"), "changed\n")
+	editortest.Change(t, filepath.Join(top, "added"), "added\n")
+	git("add", "top/added")
+	editortest.Change(t, filepath.Join(top, "sub", "new"), "new\n")
+	e := editortest.Open(t, top)
+	e.SetSize(40, 10)
+	e.Use(gitmod.New())
+	// A listing below the repository's root, with an untracked file below sub/.
+	want := map[int]wire.Sign{0: {Text: "+", Name: "git.add"}, 1: {Text: "✹", Name: "git.change"}, 3: {Text: "?", Name: "git.delete"}}
+	editortest.Settle(t, e, func() bool { return maps.Equal(e.Views()[0].Signs, want) })
+
+	// Without git installed, the listing shows no git signs.
+	t.Setenv("PATH", "")
+	e = editortest.Open(t, top)
+	if e.Use(gitmod.New()); len(e.Views()[0].Signs) != 0 {
+		t.Fatalf("without git the signs are %v", e.Views()[0].Signs)
+	}
+}
+
+// B147, B312
+func TestB147Branch(t *testing.T) {
+	dir := t.TempDir()
+	if out, err := exec.Command("git", "-C", dir, "init", "-q", "-b", "trunk").CombinedOutput(); err != nil {
+		t.Skipf("git init: %v: %s", err, out)
+	}
+	path := filepath.Join(dir, "f")
+	editortest.Change(t, path, "a\n")
+	e := editortest.Open(t, path)
+	e.Use(gitmod.New())
+	editortest.Settle(t, e, func() bool { return slices.Equal(e.Views()[0].LeftSegments, []string{"trunk"}) })
+}
+
 // B221
 func TestB221StageHunk(t *testing.T) {
 	dir := t.TempDir()

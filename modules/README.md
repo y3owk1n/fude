@@ -13,7 +13,7 @@ and a program that embeds the editor does the same.
 | [`editorconfig`](editorconfig) | `.editorconfig` files set a file's indentation |
 | [`fold`](fold) | `zc`, `zo`, `za`, `zR` and `zM` fold by indent |
 | [`format`](format) | `gq`, `:format` and `format_on_save` |
-| [`git`](git) | git signs, hunks, `gh`, `gH` and `:gitdiff` |
+| [`git`](git) | git signs, hunks, `gh`, `gH`, `:gitdiff`, a listing's git status and the branch on the status line |
 | [`grep`](grep) | `:pick grep`, a live search of the files' lines |
 | [`inlay`](inlay) | a language server's inlay hints |
 | [`lsp`](lsp) | diagnostics, hover, definitions, references, symbols, rename and code actions |
