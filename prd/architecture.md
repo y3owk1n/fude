@@ -1058,7 +1058,9 @@ host it may not reach or a request that failed.
 | `fold(start, end) -> i32` | `ui` | closes a fold over the lines from `start`'s through `end`'s, and returns its id, which `undecorate` opens (B288) |
 | `replace(start, end, ptr, len) -> i32` | `ui` | shows the text before the NUL in place of `[start, end)`, on one line, in the style after it, and returns its id (B295) |
 | `shade(start, end, ptr, len) -> i32` | `ui` | shades the whole rows of the lines from `start`'s through `end`'s in the ground of the style, and returns its id (B296) |
-| `decorations() -> i64` | `ui` | the plugin's decorations on the buffer the call is about, each its id, start, end, style, sign, note, under, fold, replace and line, each followed by a NUL, where they are now (B289) |
+| `rows(pos, ptr, len, above) -> i32` | `ui` | draws rows below `pos`'s line, or above it when `above` is 1. The text is a style, then each row after a NUL. It returns their id (B299) |
+| `block(start, end) -> i32` | `ui` | makes the lines from `start`'s through `end`'s one block, which shows its text as it is while the cursor is on any of them, and returns its id (B300) |
+| `decorations() -> i64` | `ui` | the plugin's decorations on the buffer the call is about, each its id, start, end, style, sign, note, under, fold, replace, line, rows apart by line breaks, above and block, each followed by a NUL, where they are now (B289) |
 | `sign(pos, ptr, len, under) -> i32` | `ui` | shows the text, then a NUL and its style, in the sign column on `pos`'s line, and returns its id. With `under` set, any other sign on the line shows over it (B184) |
 | `note(pos, ptr, len) -> i32` | `ui` | shows the text dim after the end of `pos`'s line, and returns its id (B184) |
 | `read_file(ptr, len) -> i64` | `fs.read` | the file at the path, relative to the project, the directory fude started in. fude refuses a path that leads outside it, through `..` or a link (B47) |

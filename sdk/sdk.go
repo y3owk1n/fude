@@ -164,6 +164,12 @@ func hostReplace(start, end uint32, ptr *byte, n uint32) int32
 //go:wasmimport fude shade
 func hostShade(start, end uint32, ptr *byte, n uint32) int32
 
+//go:wasmimport fude rows
+func hostRows(pos uint32, ptr *byte, n uint32, above uint32) int32
+
+//go:wasmimport fude block
+func hostBlock(start, end uint32) int32
+
 //go:wasmimport fude decorations
 func hostDecorations() int64
 
@@ -779,6 +785,29 @@ func Shade(start, end int, style string) (int, error) {
 	return int(id), fail(int64(id))
 }
 
+// Rows draws rows of their own below the line that holds pos, or above
+// it when above, in style. They hold no text, so the cursor passes over
+// them, and the line under the cursor draws none. It returns an id for
+// Undecorate, and moves with edits. It needs ui.
+func Rows(pos int, rows []string, style string, above bool) (int, error) {
+	p, n := ptr(style + "\x00" + strings.Join(rows, "\x00"))
+	up := uint32(0)
+	if above {
+		up = 1
+	}
+	id := hostRows(uint32(pos), p, n, up)
+	return int(id), fail(int64(id))
+}
+
+// Block makes the lines from start's through end's one block. While the
+// cursor or a selection is on any of them, they all show their text as it
+// is, without replacements or rows of their own. It returns an id for
+// Undecorate, and moves with edits. It needs ui.
+func Block(start, end int) (int, error) {
+	id := hostBlock(uint32(start), uint32(end))
+	return int(id), fail(int64(id))
+}
+
 // Decoration is one the plugin put on the buffer, where it is now.
 type Decoration struct {
 	ID                         int
@@ -786,6 +815,8 @@ type Decoration struct {
 	Style                      string
 	Sign, Note                 string
 	Under, Fold, Replace, Line bool
+	Rows                       []string // its rows, from Rows
+	Above, Block               bool
 }
 
 // Decorations returns the plugin's decorations on the buffer the call is
@@ -797,11 +828,19 @@ func Decorations() ([]Decoration, error) {
 	}
 	f := strings.Split(s, "\x00")
 	var out []Decoration
-	for i := 0; i+9 < len(f); i += 10 {
+	for i := 0; i+12 < len(f); i += 13 {
 		id, _ := strconv.Atoi(f[i])
 		start, _ := strconv.Atoi(f[i+1])
 		end, _ := strconv.Atoi(f[i+2])
-		out = append(out, Decoration{id, start, end, f[i+3], f[i+4], f[i+5], f[i+6] == "true", f[i+7] == "true", f[i+8] == "true", f[i+9] == "true"})
+		var rows []string
+		if f[i+10] != "" {
+			rows = strings.Split(f[i+10], "\n")
+		}
+		out = append(out, Decoration{
+			ID: id, Start: start, End: end, Style: f[i+3], Sign: f[i+4], Note: f[i+5],
+			Under: f[i+6] == "true", Fold: f[i+7] == "true", Replace: f[i+8] == "true", Line: f[i+9] == "true",
+			Rows: rows, Above: f[i+11] == "true", Block: f[i+12] == "true",
+		})
 	}
 	return out, nil
 }

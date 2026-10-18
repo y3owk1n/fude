@@ -1042,13 +1042,14 @@ Where fude departs, the line says so and cites the departure in
 - B296 [4] A module's decoration, or a plugin's with `ui`, may shade the
   whole rows of its lines in its style's ground, to the window's edge. The text keeps its own
   colours on that ground.
-- B299 [4] A module's decoration may draw rows of its own below its line,
-  or above it, which hold no text, so the cursor passes over them. Each
+- B299 [4] A module's decoration, or a plugin's with `ui`, may draw rows
+  of its own below its line, or above it, which hold no text, so the cursor passes over them. Each
   is cut at the window's edge. They count as rows when the window
   scrolls, and a line's rows above it show when it is the window's top
   line. A line that shows its text as it is, as the cursor's does (B295),
   draws none.
-- B300 [4] A module's decoration may make its lines one block. While the
+- B300 [4] A module's decoration, or a plugin's with `ui`, may make its
+  lines one block. While the
   cursor or a selection is on any of them, every line of the block shows
   its text as it is, without replacements or rows of its own.
 - B289 [4] A plugin with `ui` reads its own decorations on the buffer its

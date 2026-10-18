@@ -20,8 +20,9 @@
 // start. :Fold first last closes a fold over those lines, and :Decos types
 // the plugin's decorations, each id:start-end:fold, and a |. :Replace line
 // shows the first two bytes of that line as § in markdown.h1, and :Shade
-// line shades it in markdown.code. Needs buffer.read, buffer.write, ui and
-// lsp.
+// line shades it in markdown.code. :Rows line draws a row of ── below it,
+// and :Block first last makes those lines one block. Needs buffer.read,
+// buffer.write, ui and lsp.
 package main
 
 import (
@@ -139,6 +140,19 @@ func init() {
 		line, _ := strconv.Atoi(c.Args)
 		start, _ := sdk.LineStart(line)
 		sdk.Shade(start, start, "markdown.code")
+	})
+	sdk.Command("Rows", "draws a row below the line its arg names", func(c sdk.Call) {
+		line, _ := strconv.Atoi(c.Args)
+		start, _ := sdk.LineStart(line)
+		sdk.Rows(start, []string{"──"}, "markdown.rule", false)
+	})
+	sdk.Command("Block", "makes the lines its args name one block", func(c sdk.Call) {
+		first, last, _ := strings.Cut(c.Args, " ")
+		s, _ := strconv.Atoi(first)
+		e, _ := strconv.Atoi(last)
+		start, _ := sdk.LineStart(s)
+		end, _ := sdk.LineStart(e)
+		sdk.Block(start, end)
 	})
 	sdk.Command("Decos", "types the plugin's decorations", func(c sdk.Call) {
 		ds, _ := sdk.Decorations()

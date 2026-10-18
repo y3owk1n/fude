@@ -1103,6 +1103,20 @@ func TestB299VirtualRows(t *testing.T) {
 	}
 }
 
+// B299, B300, from a plugin
+func TestB299PluginRowsAndBlock(t *testing.T) {
+	e := loaded(t, "ctx", "f", "a\nbcd\nef\n", "buffer.read", "buffer.write", "ui")
+	e.SetSize(80, 20)
+	feed(e, ":Rows 1<CR>:Block 1 2<CR>")
+	settle(t, e, func() bool {
+		return slices.Equal(e.Views()[0].Virtual[1], []wire.Virtual{{Text: "──", Style: "markdown.rule"}})
+	})
+	// With the cursor on the block's other line, its row goes.
+	if feed(e, "3G"); len(e.Views()[0].Virtual[1]) != 0 {
+		t.Errorf("with the cursor in the block, line 2 draws %v", e.Views()[0].Virtual[1])
+	}
+}
+
 // B289
 func TestB289PluginReadsItsDecorations(t *testing.T) {
 	e := loaded(t, "ctx", "f", "a\n b\n c\nd\n", "buffer.read", "buffer.write", "ui")
