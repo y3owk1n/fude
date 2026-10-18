@@ -1285,14 +1285,8 @@ func (e *Session) about(b *buffer) api.Context {
 		"power":   powers[e.power],
 		"servers": strings.Join(serverNames(b.servers), ","),
 		"indent":  strconv.Itoa(e.indentWidth(b)), "tab": strconv.Itoa(e.tabWidth(b)),
-		"cwd": cwd(), "project": e.project,
+		"cwd": e.wd, "project": e.project,
 	}
-}
-
-// cwd is the working directory, or "" when it is gone.
-func cwd() string {
-	wd, _ := os.Getwd()
-	return wd
 }
 
 // run calls what p registered as id, on the input path, against the current

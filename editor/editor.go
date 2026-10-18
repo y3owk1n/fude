@@ -60,6 +60,7 @@ type Editor struct {
 	failed            map[string]string                 // by filetype, why its grammar did not build this session
 	started           bool                              // Load ran, so new buffers attach to servers at once
 	project           string                            // the directory fude started in, symlinks resolved (B243)
+	wd                string                            // the working directory, which :cd changes (B340)
 	share             *share                            // the guests' listener, while fude shares (B248)
 	clients           atomic.Int64                      // the attached clients yet to have their last frame (B242)
 	began             int                               // how many sessions began, for the next one's colour (B252)
@@ -161,6 +162,7 @@ func open(cfg config, paths []string) (*Session, error) {
 		syntax.Use(filepath.Join(dir, "fude", "grammars"), func(name string) string { return ed.filetypeOf("code." + name) })
 	}
 	wd, err := os.Getwd()
+	ed.wd = wd
 	if err == nil {
 		wd, err = filepath.EvalSymlinks(wd)
 	}

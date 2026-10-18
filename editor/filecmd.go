@@ -113,7 +113,7 @@ func (e *Session) cd(dir string) {
 		e.message = err.Error()
 		return
 	}
-	e.message = wd
+	e.message, e.wd = wd, wd
 	e.emit("cwd.changed", wd, e.win.buf)
 }
 
