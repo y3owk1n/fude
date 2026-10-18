@@ -1042,6 +1042,12 @@ Where fude departs, the line says so and cites the departure in
   window, such as a line in `diff.plus`, over what the filetype colours.
 - B277 [4] A plugin hears `editor.focused` when the terminal gets the
   focus back, as git's index may have changed while fude was away.
+- B336 [4] A module is a source of insert mode completion by a name
+  `completion_sources` orders. It offers items that replace the text
+  from a place. They may be the menu's alone, and they may come later.
+  It names the characters besides word characters after which
+  autocomplete asks it. The editor expands a snippet's items. Buffer
+  words, paths and user snippets complete this way (B206, B207).
 - B335 [4] A module's terminal with no name opens anew each time and
   takes the focus to type into. The status line does not name it as a
   task. `:terminal` opens one this way (B205).

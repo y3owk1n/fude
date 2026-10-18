@@ -81,6 +81,7 @@ type Result struct {
 	Confirm    *Confirm       // a question a Write's call asks before it writes (B327)
 	Moved      [][2]string    // paths renamed, from and to, whose open buffers follow them (B327)
 	Travel     *Travel        // a move of a buffer's text to one of its states (B328)
+	Completion *Completion    // what a Completer offers (B336)
 	Copy       string         // text to put on the clipboard (B329)
 	Window     string         // h, j, k or l: the window next to the current one that way becomes current (B330)
 	Tabs       *[]Tab         // what the buffer line lists, none for no row (B331)
@@ -311,6 +312,23 @@ type Peer struct {
 type Tab struct {
 	Buffer int
 	Name   string
+}
+
+// Completion is what a Completer offers for the text before the cursor:
+// items that replace the text from Start. Only makes them the menu's
+// alone, as a path's entries are. With Later they come in a callback, and
+// the menu waits for them (B336).
+type Completion struct {
+	Start       int
+	Items       []CompletionItem
+	Only, Later bool
+}
+
+// CompletionItem is an item of a completion menu. With Snippet, Text is a
+// snippet's body, which the editor expands as it goes in (B207, B336).
+type CompletionItem struct {
+	Label, Text, Doc string
+	Snippet          bool
 }
 
 // Mark is a place in the buffer by its id, as :marks, :jumps and :changes

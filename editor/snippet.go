@@ -2,20 +2,12 @@ package editor
 
 import (
 	"cmp"
-	"encoding/json"
-	"errors"
-	"fmt"
-	"io/fs"
-	"maps"
-	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/y3owk1n/fude/core/kernel"
-	"github.com/y3owk1n/fude/internal/keep"
 	"github.com/y3owk1n/fude/protocol/lsp"
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
@@ -39,81 +31,6 @@ func (e *Session) snippetVars(b *buffer, c int) map[string]string {
 		"CURRENT_DAY_NAME": now.Weekday().String(), "CURRENT_MONTH_NAME": now.Month().String(),
 		"CURRENT_SECONDS_UNIX": strconv.FormatInt(now.Unix(), 10),
 	}
-}
-
-// snippetFile is a parsed snippets file with the modification time and
-// size it had, so fude reads it again only after it changes.
-type snippetFile struct {
-	mod      time.Time
-	size     int64
-	snippets map[string]struct {
-		Prefix      json.RawMessage `json:"prefix"`
-		Body        json.RawMessage `json:"body"`
-		Description string          `json:"description"`
-	}
-}
-
-// userSnippets returns the snippets of filetype ft and of all filetypes
-// in fude's snippets directory, in VS Code's format, whose prefix starts
-// with typed, as completion items of their body (B207).
-func (ed *Editor) userSnippets(ft, typed string) ([]item, error) {
-	dir, err := keep.Dir("XDG_CONFIG_HOME", ".config")
-	if err != nil {
-		return nil, fmt.Errorf("find snippets: %w", err)
-	}
-	var out []item
-	for _, name := range []string{ft, "all"} {
-		if name == "" {
-			continue
-		}
-		path := filepath.Join(dir, "fude", "snippets", name+".json")
-		info, err := os.Stat(path)
-		if errors.Is(err, fs.ErrNotExist) {
-			continue
-		}
-		if err != nil {
-			return nil, fmt.Errorf("read snippets: %w", err)
-		}
-		f, ok := ed.snippets[path]
-		if !ok || !f.mod.Equal(info.ModTime()) || f.size != info.Size() {
-			src, err := os.ReadFile(path)
-			if err != nil {
-				return nil, fmt.Errorf("read snippets: %w", err)
-			}
-			f = snippetFile{mod: info.ModTime(), size: info.Size()}
-			if err := json.Unmarshal(src, &f.snippets); err != nil {
-				return nil, fmt.Errorf("read snippets %s: %w", path, err)
-			}
-			if ed.snippets == nil {
-				ed.snippets = map[string]snippetFile{}
-			}
-			ed.snippets[path] = f
-		}
-		file := f.snippets
-		for _, title := range slices.Sorted(maps.Keys(file)) {
-			s := file[title]
-			body := strings.Join(oneOrMany(s.Body), "\n")
-			for _, prefix := range oneOrMany(s.Prefix) {
-				if typed != "" && strings.HasPrefix(prefix, typed) {
-					doc := strings.TrimSpace(s.Description + "\n```" + ft + "\n" + body + "\n```")
-					out = append(out, item{label: prefix, text: body, doc: doc, snippet: true})
-				}
-			}
-		}
-	}
-	return out, nil
-}
-
-// oneOrMany reads a string or a list of strings, as a snippet's prefix and
-// body may be.
-func oneOrMany(raw json.RawMessage) []string {
-	var one string
-	if json.Unmarshal(raw, &one) == nil {
-		return []string{one}
-	}
-	var many []string
-	json.Unmarshal(raw, &many)
-	return many
 }
 
 // snippet is a snippet being filled in: each of its stops, in the order

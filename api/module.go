@@ -54,6 +54,11 @@ const (
 	// one's text, and none lets the key do what it does. A finder's query
 	// never calls it (B323).
 	Typed
+	// Completer is a source of insert mode completion by its Name, which
+	// completion_sources orders, called with (cursor). Its result's
+	// Completion has what it offers. Autocomplete asks it after a word
+	// character, and after each character of its Keys (B336).
+	Completer
 	// Write writes the buffers of the kind Name, such as listing, in place
 	// of a file, as :w does. It is called with (cursor), and its scope has
 	// Entries. Its result's Confirm asks first, and the call comes again with

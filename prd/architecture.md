@@ -1887,9 +1887,17 @@ phases, each unit a commit that keeps every behaviour.
    `lsp.changed` the module shows the panel again with `Update`, so a
    closed panel stays closed. The panel is a `Float` panel with `Cards`
    and a `Foot`. The editor keeps the cursor on a card's first row and
-   scrolls the box to show all of the card (B317, B318). Completion stays
-   because a module's `Call` is busy while it handles `buffer.changed`,
-   which is when completion fires.
+   scrolls the box to show all of the card (B317, B318). The completion
+   engine and its language server source stay, because a module's `Call`
+   is busy while it handles `buffer.changed`, which is when completion
+   fires. `modules/completion` is the other sources, buffer words, paths
+   and user snippets. It hears no events, so its calls are never busy.
+   Each source is a `Completer`, which the editor asks in the order
+   `completion_sources` gives, on the loop. One call costs about 3µs, so
+   the three add under 10µs to a key. A path's source answers `Only` and
+   `Later` and reads the directory as a job, and the menu waits for its
+   callback. The editor expands snippets and merges, orders and dedupes the
+   items. The fzy matcher moved to `internal/fuzzy` for it (B336).
 3. Tests beside the libraries. The tests that use only `syntax`,
    `protocol`, `plugin` or `api` move beside them, so `go test` in each
    proves its behaviours. One headless test per module moves beside

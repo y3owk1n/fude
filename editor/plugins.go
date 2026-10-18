@@ -468,6 +468,11 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 			e.message = err.Error()
 		}
 	}
+	// A Completer's items that came later fill the menu it held (B336).
+	if w := e.completion.waiting; w != nil && w.p == p && res.Completion != nil {
+		e.completion.waiting = nil
+		e.offer(w.auto, b.text.Snapshot(), res.Completion.Start, map[string][]item{w.name: items(res.Completion.Items)})
+	}
 	if tr := res.Travel; tr != nil {
 		on, err := e.buffer(tr.Buffer)
 		if tr.Buffer == 0 {
@@ -664,6 +669,8 @@ func (e *Session) unregister(p api.Module) {
 			e.pluginBindings = slices.DeleteFunc(e.pluginBindings, func(b vim.Binding) bool { return b.Kind == "insert" && b.Keys == r.Name })
 		case api.Write:
 			delete(e.writers, r.Name)
+		case api.Completer:
+			delete(e.completionSources, r.Name)
 		case api.Insert:
 			delete(e.pluginHelp, "<Plug>("+p.Name()+".insert."+r.Name+")")
 		}
@@ -781,6 +788,8 @@ func (e *Session) register(p api.Module, r api.Registration) {
 		})
 	case api.Write:
 		e.writers[r.Name] = writer{p, r.ID}
+	case api.Completer:
+		e.completionSources[r.Name] = completer{p, r.ID, r.Keys}
 	case api.Key, api.Plug:
 		if r.Kind == api.Key && r.Chars > 0 {
 			e.pluginBindings = append(e.pluginBindings, vim.Binding{Kind: modes[keyedMode(r)], Keys: bindingKeys(r), Help: r.Help})

@@ -10,6 +10,8 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/y3owk1n/fude/internal/fuzzy"
+
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
 	"github.com/y3owk1n/fude/wire"
@@ -193,7 +195,7 @@ func (e *Session) completions(line string, wait bool) (int, []string) {
 		}
 		slices.Sort(names)
 		var items []string
-		for _, n := range match(names, line[start:]) {
+		for _, n := range fuzzy.Match(names, line[start:]) {
 			if full := cmp.Or(of[n], n); !slices.Contains(items, full) {
 				items = append(items, full)
 			}
@@ -233,7 +235,7 @@ func pathMatches(arg string, all []string) []string {
 			names = append(names, n)
 		}
 	}
-	out := match(names, part)
+	out := fuzzy.Match(names, part)
 	for i, n := range out {
 		out[i] = dir + n
 	}
@@ -309,13 +311,13 @@ type moduleMenu struct {
 func (e *Session) answered(a *moduleMenu, items []string) {
 	e.cmdline.asked = nil
 	if a.sync {
-		a.items = match(items, a.line[a.start:])
+		a.items = fuzzy.Match(items, a.line[a.start:])
 		return
 	}
 	if now, _ := strings.CutPrefix(e.vim.Line(), ":"); e.vim.Mode() != vim.Cmdline || now != a.line {
 		return
 	}
-	e.cmdline.menu = newMenu(a.line, a.start, match(items, a.line[a.start:]))
+	e.cmdline.menu = newMenu(a.line, a.start, fuzzy.Match(items, a.line[a.start:]))
 	e.light(e.cmdline.menu, a.line)
 }
 
@@ -360,7 +362,7 @@ func (m *cmenu) float() wire.Float {
 		// A path marks the letters of its last part that the typed part
 		// matches (B152).
 		dir := strings.LastIndexByte(m.typed, '/') + 1
-		for _, at := range positions(lower(m.typed[dir:]), it[dir:]) {
+		for _, at := range fuzzy.Positions(fuzzy.Lower(m.typed[dir:]), it[dir:]) {
 			spans = append(spans, syntax.Span{Start: s.Len() + dir + at, End: s.Len() + dir + at + 1, Name: "match"})
 		}
 		s.WriteString(it)

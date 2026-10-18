@@ -11,6 +11,7 @@ and a program that embeds the editor does the same.
 | [`bufferline`](bufferline) | what the top row lists, the open buffers with files |
 | [`colours`](colours) | text that names a colour shows on it, and a server's colours |
 | [`comment`](comment) | `gc` comments and uncomments |
+| [`completion`](completion) | buffer words, paths and user snippets complete in insert mode |
 | [`debug`](debug) | `:debug`, breakpoints, stepping, the panel and evaluation |
 | [`editorconfig`](editorconfig) | `.editorconfig` files set a file's indentation |
 | [`files`](files) | `:pick files` and `:pick buffers` |

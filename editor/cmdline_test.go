@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/fude/editor"
+	completionmod "github.com/y3owk1n/fude/modules/completion"
 	"github.com/y3owk1n/fude/modules/debug"
 	"github.com/y3owk1n/fude/modules/grep"
 	helpmod "github.com/y3owk1n/fude/modules/help"
@@ -215,6 +216,7 @@ func TestB206CompletionSources(t *testing.T) {
 	change(t, path, "apple apricot\n")
 	change(t, filepath.Join(dir, "notes.md"), "")
 	e := open(t, path)
+	e.Use(completionmod.New())
 	// The nearest word comes first, and the menu names where it came from.
 	feed(e, "o ap<C-x><C-o>")
 	if f, _ := e.Float(); text(e) != "apple apricot\n apricot" || !strings.Contains(f.Text, "apple  [buffer]") {
@@ -225,6 +227,7 @@ func TestB206CompletionSources(t *testing.T) {
 
 	config(t, `completion_sources = ["buffer"]`)
 	e = start(t, path)
+	e.Use(completionmod.New())
 	if feed(e, "o./no<C-x><C-o>"); e.Message() != "no completions" {
 		t.Errorf("with only buffer words, a path completed to %q", text(e))
 	}
@@ -246,6 +249,7 @@ func TestB207Snippets(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "a.txt")
 	change(t, path, "x\n")
 	e := start(t, path)
+	e.Use(completionmod.New())
 	feed(e, "ofor<C-x><C-o>")
 	if text(e) != "x\nfor i := 0; i < n; i++ {\n\t\n}" {
 		t.Fatalf("the snippet went in as %q", text(e))

@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/y3owk1n/fude/editor"
+	completionmod "github.com/y3owk1n/fude/modules/completion"
 	"github.com/y3owk1n/fude/vim"
 )
 
@@ -222,6 +223,8 @@ lsp = ["busy"]
 path = %q
 capabilities = ["buffer.read", "ui"]
 `, os.Args[0], count), path)
+	// The words, paths and snippets complete through their module, as in fude.
+	c.e.(*editor.Session).Use(completionmod.New())
 	c.draw()
 	c.e.Load()
 	c.press("<C-w>v", 0)

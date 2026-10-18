@@ -3,12 +3,11 @@ package editor
 import (
 	"cmp"
 	"encoding/json"
-	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 	"unicode/utf8"
 
+	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/protocol/lsp"
 	"github.com/y3owk1n/fude/syntax"
@@ -19,9 +18,25 @@ import (
 // completion is what completes in insert mode: the menu showing, whether
 // <C-x> began a completion key, and the signature help showing (B203).
 type completion struct {
-	menu  *menu
-	ctrlX bool
-	sig   *wire.Float
+	menu    *menu
+	ctrlX   bool
+	sig     *wire.Float
+	waiting *waiting // the source whose items come later (B336)
+}
+
+// waiting is a Completer whose items come in a callback, and how the menu
+// was asked for (B336).
+type waiting struct {
+	p    api.Module
+	name string
+	auto bool
+}
+
+// completer is what a module registered as a source of completion (B336).
+type completer struct {
+	p    api.Module
+	id   uint32
+	keys string
 }
 
 // menu is the completions shown while typing, which <C-n> and <C-p> step
@@ -100,27 +115,30 @@ func (c *completion) key(e *Session, k vim.Key) bool {
 func (e *Session) complete(auto bool) {
 	b := e.win.buf
 	t, c := b.text.Snapshot(), e.Cursor()
-	if dir, start, ok := e.pathBefore(t, c); ok && slices.Contains(e.cfg.Sources, "path") {
-		go func() {
-			names := readEntries(dir)
-			e.queue <- func() { e.offer(auto, t, start, map[string][]item{"path": pathItems(names, t.Slice(start, c))}) }
-		}()
-		return
-	}
 	start := c
 	for start > 0 && isWord(t.Slice(start-1, start)[0]) {
 		start--
 	}
+	e.completion.waiting = nil
 	local := map[string][]item{}
-	if slices.Contains(e.cfg.Sources, "buffer") {
-		local["buffer"] = e.words(t.Slice(start, c), start)
-	}
-	if slices.Contains(e.cfg.Sources, "snippet") {
-		snips, err := e.userSnippets(e.filetype(b), t.Slice(start, c))
-		if err != nil {
-			e.message = err.Error()
+	for _, name := range e.cfg.Sources {
+		cp, ok := e.completionSources[name]
+		if !ok {
+			continue
 		}
-		local["snippet"] = snips
+		_, res, ok := e.run(cp.p, cp.id, e.scope(cp.p, b, t), c)
+		got := res.Completion
+		switch {
+		case !ok || got == nil:
+		case got.Only && got.Later:
+			e.completion.waiting = &waiting{cp.p, name, auto}
+			return
+		case got.Only:
+			e.offer(auto, t, got.Start, map[string][]item{name: items(got.Items)})
+			return
+		default:
+			local[name] = items(got.Items)
+		}
 	}
 	if !slices.Contains(e.cfg.Sources, "lsp") || len(b.servers) == 0 {
 		e.offer(auto, t, start, local)
@@ -209,93 +227,14 @@ func (e *Session) offer(auto bool, t kernel.Snapshot, start int, items map[strin
 	e.choose(0)
 }
 
-// pathBefore reports whether the text before c, back to a blank or a
-// quote, is a path, and returns the directory it names and where its last
-// part starts. A relative path is from the current file's directory, and ~/
-// is the home directory.
-func (e *Session) pathBefore(t kernel.Snapshot, c int) (string, int, bool) {
-	ls := vim.LineStart(t, c)
-	line := t.Slice(ls, c)
-	path := line[strings.LastIndexAny(line, " \t\"'`(<=,;")+1:]
-	slash := strings.LastIndexByte(path, '/')
-	if slash < 0 {
-		return "", 0, false
-	}
-	dir := path[:slash+1]
-	switch {
-	case strings.HasPrefix(dir, "~/"):
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", 0, false
-		}
-		dir = filepath.Join(home, dir[2:]) + "/"
-	case !filepath.IsAbs(dir) && e.win.buf.file.path != "":
-		dir = filepath.Join(filepath.Dir(e.win.buf.file.path), dir) + "/"
-	}
-	return dir, c - (len(path) - slash - 1), true
-}
-
-// pathItems returns the entries of a directory that start with part, the
-// hidden ones only for a part that starts with a dot.
-func pathItems(names []string, part string) []item {
-	var out []item
-	for _, n := range pathMatches(part, names) {
-		out = append(out, item{label: n, text: n})
+// items are a Completer's items as the menu takes them (B336).
+func items(in []api.CompletionItem) []item {
+	out := make([]item, len(in))
+	for i, it := range in {
+		out[i] = item{label: it.Label, text: it.Text, doc: it.Doc, snippet: it.Snippet}
 	}
 	return out
 }
-
-// wordWindow is how many bytes around the cursor, and from the start of
-// each other buffer, words come from, so a large file does not slow a key.
-const wordWindow = 64 << 10
-
-// words returns the words longer than prefix that start with it, from the
-// current buffer nearest c first, then from the other open buffers (B206).
-func (e *Session) words(prefix string, c int) []item {
-	if prefix == "" {
-		return nil
-	}
-	cur := e.win.buf.text.Snapshot()
-	lo, hi := max(c-wordWindow, 0), min(c+wordWindow, cur.Len())
-	type found struct {
-		word string
-		far  int
-	}
-	var all []found
-	seen := map[string]bool{}
-	scan := func(text string, at, base int) {
-		for i := 0; i < len(text); {
-			if !isWord(text[i]) {
-				i++
-				continue
-			}
-			j := i
-			for j < len(text) && isWord(text[j]) {
-				j++
-			}
-			if w := text[i:j]; len(w) > len(prefix) && strings.HasPrefix(w, prefix) && !seen[w] {
-				seen[w] = true
-				all = append(all, found{w, base + abs(at-i)})
-			}
-			i = j
-		}
-	}
-	scan(cur.Slice(lo, hi), c-lo, 0)
-	for _, b := range e.bufs {
-		if b != e.win.buf && b.term == nil {
-			t := b.text.Snapshot()
-			scan(t.Slice(0, min(t.Len(), wordWindow)), 0, cur.Len())
-		}
-	}
-	slices.SortStableFunc(all, func(a, b found) int { return cmp.Compare(a.far, b.far) })
-	out := make([]item, len(all))
-	for i, f := range all {
-		out[i] = item{label: f.word, text: f.word}
-	}
-	return out
-}
-
-func abs(n int) int { return max(n, -n) }
 
 // choose puts item i of the menu in the text, or the typed word for the
 // menu's last stop, and shows the menu with it selected.
@@ -394,9 +333,9 @@ func (e *Session) resolve(m *menu, i int) {
 	})
 }
 
-// autocomplete asks for completions after k typed a word character, a /
-// for paths, or a character one of the servers names as a trigger, while
-// autocomplete is on (B67, B206).
+// autocomplete asks for completions after k typed a word character, a
+// character a Completer names in its keys, as / for paths, or one a server
+// names as a trigger, while autocomplete is on (B67, B206, B336).
 func (e *Session) autocomplete(k vim.Key) {
 	if !e.cfg.Autocomplete || e.vim.Mode() != vim.Insert || utf8.RuneCountInString(string(k)) != 1 || k == "<" {
 		return
@@ -405,7 +344,12 @@ func (e *Session) autocomplete(k vim.Key) {
 		p, ok := completionOptions(s)
 		return ok && (isWord(k[0]) || slices.Contains(p.TriggerCharacters, string(k)))
 	})
-	local := isWord(k[0]) && slices.Contains(e.cfg.Sources, "buffer") || k == "/" && slices.Contains(e.cfg.Sources, "path")
+	local := false
+	for _, name := range e.cfg.Sources {
+		if cp, ok := e.completionSources[name]; ok && (isWord(k[0]) || strings.Contains(cp.keys, string(k))) {
+			local = true
+		}
+	}
 	if server || local {
 		e.complete(true)
 	}

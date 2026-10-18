@@ -25,6 +25,7 @@ import (
 	"github.com/y3owk1n/fude/internal/relay"
 	bufferlinemod "github.com/y3owk1n/fude/modules/bufferline"
 	colourmod "github.com/y3owk1n/fude/modules/colours"
+	completionmod "github.com/y3owk1n/fude/modules/completion"
 	filesmod "github.com/y3owk1n/fude/modules/files"
 	hintsmod "github.com/y3owk1n/fude/modules/hints"
 	lspmod "github.com/y3owk1n/fude/modules/lsp"
@@ -330,6 +331,7 @@ func TestB64MenuScrolls(t *testing.T) {
 		t.Fatal(err)
 	}
 	c := startWith(t, "", path)
+	c.e.(*editor.Session).Use(completionmod.New())
 	for _, k := range vim.Keys("o w<C-x><C-o>" + strings.Repeat("<C-n>", 24)) {
 		c.e.Feed(k)
 	}

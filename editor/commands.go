@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/y3owk1n/fude/internal/fuzzy"
+
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/vim"
 )
@@ -78,10 +80,10 @@ func init() {
 		}, completePath},
 		{vim.Command{Name: "enew", Help: "shows a new empty buffer"}, func(e *Session, _ call) { e.empty() }, nil},
 		{vim.Command{Name: "pick", Args: "[source] [text]", Help: "opens the finder on a source, or on the sources: files, grep [text], buffers, recent, diagnostics, symbols, help or keymaps"}, func(e *Session, x call) { e.openPick(x.arg) }, func(e *Session, _ string, start int, arg string, _ bool) (int, []string) {
-			return start, match(e.pickNames(), arg)
+			return start, fuzzy.Match(e.pickNames(), arg)
 		}},
 		{vim.Command{Name: "plug", Args: "name", Help: "runs <Plug>(name) as a key mapped to it does"}, func(e *Session, x call) { e.runPlug(x.arg) }, func(e *Session, _ string, start int, arg string, _ bool) (int, []string) {
-			return start, match(e.plugNames(), arg)
+			return start, fuzzy.Match(e.plugNames(), arg)
 		}},
 		{vim.Command{Name: "cnext", Short: []string{"cn"}, Help: "goes to the next place of the last list of places"}, func(e *Session, _ call) {
 			e.stepPlace(func(at, _ int) int { return at + 1 })
@@ -130,7 +132,7 @@ func init() {
 			}
 			e.reloadConfig()
 		}, func(_ *Session, _ string, start int, arg string, _ bool) (int, []string) {
-			return start, match([]string{"reload"}, arg)
+			return start, fuzzy.Match([]string{"reload"}, arg)
 		}},
 		{vim.Command{Name: "plugin", Args: "reload", Help: "reads config.toml's plugins again and loads them anew"}, func(e *Session, x call) {
 			if x.arg != "reload" {
@@ -139,7 +141,7 @@ func init() {
 			}
 			e.reloadPlugins()
 		}, func(_ *Session, _ string, start int, arg string, _ bool) (int, []string) {
-			return start, match([]string{"reload"}, arg)
+			return start, fuzzy.Match([]string{"reload"}, arg)
 		}},
 		{vim.Command{Name: "new", Help: "opens a window below with a new empty buffer, or above with split_below off"}, func(e *Session, _ call) {
 			e.split(false)
@@ -267,7 +269,7 @@ func completeOption(e *Session, line string, start int, arg string, wait bool) (
 	if !given {
 		names := slices.Concat(slices.Collect(maps.Keys(opts.switches())), slices.Collect(maps.Keys(opts.numbers())), slices.Collect(maps.Keys(settings)))
 		slices.Sort(names)
-		return start, match(names, name)
+		return start, fuzzy.Match(names, name)
 	}
 	// A switch takes true or false, theme a theme, and completion_sources
 	// its sources.
@@ -275,12 +277,12 @@ func completeOption(e *Session, line string, start int, arg string, wait bool) (
 	_, isSwitch := opts.switches()[name]
 	switch {
 	case isSwitch || settings[name].IsValid() && settings[name].Kind() == reflect.Bool:
-		return at, match([]string{"false", "true"}, value)
+		return at, fuzzy.Match([]string{"false", "true"}, value)
 	case name == "theme":
 		return completeTheme(e, line, at, value, wait)
 	case name == "completion_sources":
 		done := value[:strings.LastIndexByte(value, ',')+1]
-		return at + len(done), match(defaults.Sources, value[len(done):])
+		return at + len(done), fuzzy.Match(defaults.Sources, value[len(done):])
 	}
 	return 0, nil
 }
@@ -292,7 +294,7 @@ func completeTheme(e *Session, _ string, start int, arg string, _ bool) (int, []
 	if !slices.Contains(names, e.cfg.Theme) {
 		names = append(names, e.cfg.Theme)
 	}
-	return start, match(names, arg)
+	return start, fuzzy.Match(names, arg)
 }
 
 // completeBuffer offers the paths of the buffers that have files.
@@ -303,7 +305,7 @@ func completeBuffer(e *Session, _ string, start int, arg string, _ bool) (int, [
 			names = append(names, strconv.Itoa(b.id)+" "+shortPath(b.file.path))
 		}
 	}
-	return start, match(names, arg)
+	return start, fuzzy.Match(names, arg)
 }
 
 // shortPath is path as a buffer's completion shows it: under the working
