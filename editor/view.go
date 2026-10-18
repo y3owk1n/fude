@@ -89,6 +89,9 @@ func (e *Session) Views() []wire.View {
 			}
 		}
 		v.Matches = e.vim.Matches(t, top, last)
+		if s, end, ok := e.vim.Incremental(); ok && w == e.win && w.opts.IncSearch {
+			v.Searched = [2]int{s, end}
+		}
 		if v.Current {
 			v.Tasks = e.runningTasks()
 			v.Sharing = e.sharing()
@@ -230,7 +233,13 @@ func (e *Session) pinned(w *window, t kernel.Snapshot, top int) []int {
 	}
 	var starts []int
 	first := t.LineOf(top)
-	room := min(maxContext, t.LineOf(w.pos())-first, max(w.h-3, 0))
+	// A cursor above the view, as while a search shows its match (B21),
+	// has no line here to keep uncovered.
+	below := t.LineOf(w.pos()) - first
+	if below < 0 {
+		below = maxContext
+	}
+	room := min(maxContext, below, max(w.h-3, 0))
 	// Each pinned line covers one more line of text, so the loop asks again
 	// about the line under them until the answer stops changing.
 	for range maxContext {

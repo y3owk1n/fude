@@ -111,7 +111,7 @@ type keymap struct {
 	Groups   map[string]string `toml:"groups" help:"names of the keys mappings start with, which key hints show"`
 }
 
-var defaults = config{TabWidth: 8, Editorconfig: true, KeyTimeout: 1000, KeyHints: 300, FlashTime: 300, FormatTimeout: 1000, LargeFile: 2, TerminalHeight: 33, SplitBelow: true, SplitRight: true, HighlightColors: true, InlayHints: true, StickyContext: true, Autopairs: true, Sources: []string{"lsp", "snippet", "path", "buffer"}, AutoInstall: true, BufferLine: true, SpellWords: "/usr/share/dict/words", Leader: "<Space>", Theme: "dark", options: options{Wrap: true, IndentGuides: true}}
+var defaults = config{TabWidth: 8, Editorconfig: true, KeyTimeout: 1000, KeyHints: 300, FlashTime: 300, FormatTimeout: 1000, LargeFile: 2, TerminalHeight: 33, SplitBelow: true, SplitRight: true, HighlightColors: true, InlayHints: true, StickyContext: true, Autopairs: true, Sources: []string{"lsp", "snippet", "path", "buffer"}, AutoInstall: true, BufferLine: true, SpellWords: "/usr/share/dict/words", Leader: "<Space>", Theme: "dark", options: options{Wrap: true, IndentGuides: true, IncSearch: true}}
 
 // options are the settings each window has, which :set changes for the
 // current window and the windows opened after it (B39). :set takes each by
@@ -132,6 +132,7 @@ type options struct {
 	ColorColumn    int  `toml:"color_column" help:"shades this column of the text, and is how wide :center makes it, 0 for none"`
 	Icons          bool `toml:"icons" help:"shows nerd font icons in listings and signs"`
 	Spell          bool `toml:"spell" help:"underlines words the word list lacks, in prose and in comments and strings"`
+	IncSearch      bool `toml:"inc_search" help:"while a search is typed, the window shows the match it goes to, lit apart from the rest"`
 }
 
 // loadConfig reads config.toml. A missing file is no error. After an error

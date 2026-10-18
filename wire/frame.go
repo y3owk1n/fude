@@ -58,6 +58,7 @@ type View struct {
 	Decorations       []syntax.Span // plugins' styles, drawn over highlights
 	Ghosts            []Ghost
 	Matches           [][2]int     // of the search, shown in every window
+	Searched          [2]int       // the match the search being typed goes to, lit apart from the rest (B21)
 	Segments          []string     // plugins' statusline segments, in the order they loaded
 	Ruler             string       // the cursor's line and column, and where the view is (B38)
 	Branch            string       // the git branch of the buffer's repository, "" outside one (B147)

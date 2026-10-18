@@ -520,3 +520,30 @@ func (p *pattern) expand(rep, text string, mt []int) string {
 	}
 	return b.String()
 }
+
+// Incremental returns where the match the search being typed after / or ?
+// goes to starts and ends: the first after the cursor, or before it for ?,
+// wrapping around the text, for a host to bring into view and light. It is
+// false when no search is typed or nothing matches (B21).
+func (m *Machine) Incremental() (int, int, bool) {
+	if m.mode != Cmdline || m.prompt == ":" || m.line == "" {
+		return 0, 0, false
+	}
+	p, err := m.compile(m.line)
+	if err != nil {
+		return 0, 0, false
+	}
+	t, c := m.h.Text(), m.h.Cursor()
+	at, ok := 0, false
+	if m.prompt == "/" {
+		if at, ok = p.first(t, c+1, t.Len()+1); !ok {
+			at, ok = p.first(t, 0, c+1)
+		}
+	} else if at, ok = p.last(t, 0, c); !ok {
+		at, ok = p.last(t, c, t.Len()+1)
+	}
+	if !ok {
+		return 0, 0, false
+	}
+	return at, p.endAt(t, at), true
+}

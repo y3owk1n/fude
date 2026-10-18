@@ -582,3 +582,58 @@ func TestB172KeyHints(t *testing.T) {
 		t.Errorf("the hints after g show %q", f.Text)
 	}
 }
+
+// B21, while the search is typed
+func TestB21IncrementalSearch(t *testing.T) {
+	var src strings.Builder
+	for i := range 100 {
+		fmt.Fprintf(&src, "line %d\n", i)
+	}
+	src.WriteString("needle\n")
+	path := filepath.Join(t.TempDir(), "a")
+	change(t, path, src.String())
+	e := open(t, path)
+	e.SetSize(80, 20)
+	// A client sizes the editor before each frame, which reveals the cursor.
+	top := func() int { e.SetSize(80, 20); return e.Text().LineOf(e.Views()[0].Top) }
+	// The match out of view comes into it, lit apart, while the cursor stays.
+	feed(e, "/need")
+	line := top()
+	v := e.Views()[0]
+	if at := strings.Index(text(e), "needle"); v.Searched != [2]int{at, at + 4} || line == 0 || e.Cursor() != 0 {
+		t.Fatalf("typing /need lit %v with the view at line %d and the cursor at %d", v.Searched, line, e.Cursor())
+	}
+	// <Esc> puts the view back, and a search that runs keeps it.
+	if feed(e, "<Esc>"); top() != 0 || e.Views()[0].Searched != [2]int{} {
+		t.Errorf("after <Esc> the view is at line %d, lighting %v", top(), e.Views()[0].Searched)
+	}
+	if feed(e, "/needle<CR>"); top() == 0 || e.Text().LineOf(e.Cursor()) != 100 {
+		t.Errorf("the search went to line %d with the view at line %d", e.Text().LineOf(e.Cursor()), top())
+	}
+	// With inc_search off the view stays put while a search is typed.
+	feed(e, "gg:set noinc_search<CR>/need")
+	if top() != 0 || e.Views()[0].Searched != [2]int{} {
+		t.Errorf("with inc_search off, /need moved the view to line %d and lit %v", top(), e.Views()[0].Searched)
+	}
+}
+
+// B21, B217: a search that shows its match deep in a function, with the
+// cursor above the view, pins the function's line.
+func TestB21IncrementalSearchPinsContext(t *testing.T) {
+	var src strings.Builder
+	src.WriteString("package p\n\nfunc f() {\n")
+	for i := range 100 {
+		fmt.Fprintf(&src, "\tx%d := 1\n", i)
+	}
+	src.WriteString("\tneedle := 2\n}\n")
+	path := filepath.Join(t.TempDir(), "a.go")
+	change(t, path, src.String())
+	e := open(t, path)
+	e.SetSize(80, 20)
+	captures(t, e)
+	feed(e, "/needle")
+	e.SetSize(80, 20)
+	if v := e.Views()[0]; len(v.Context) != 1 || v.Text.Slice(v.Context[0], v.Context[0]+4) != "func" {
+		t.Errorf("with the match in view, the context is %v", v.Context)
+	}
+}

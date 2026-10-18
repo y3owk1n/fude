@@ -416,6 +416,9 @@ func (c *client) view(v wire.View, left int, sel vim.Selection, visual bool) (in
 		for _, mt := range matches {
 			k = k.int(2).int(mt[0] - pos).int(mt[1] - pos)
 		}
+		if s := v.Searched; s[1] > pos && s[0] <= end {
+			k = k.int(4).int(s[0] - pos).int(s[1] - pos)
+		}
 		for _, p := range cursors {
 			if p >= pos && p <= end {
 				k = k.int(3).int(p - pos)
@@ -510,6 +513,10 @@ func (c *client) view(v wire.View, left int, sel vim.Selection, visual bool) (in
 						if at >= mt[0] && at < mt[1] {
 							style = style.Background(th.warn).Foreground(th.bg)
 						}
+					}
+					// The match the search being typed goes to stands out (B21).
+					if s := v.Searched; at >= s[0] && at < s[1] {
+						style = style.Background(th.number).Foreground(th.bg)
 					}
 					if visual && selected(sel, at, col) || slices.Contains(cursors, at) {
 						// Reversing syntax colours would stripe the selection, so it

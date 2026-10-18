@@ -96,6 +96,7 @@ type Session struct {
 	finder     *finder                 // the file finder, while it shows
 	jumping    *jump                   // the jump being typed after s (B218)
 	cmdline    cmdline                 // the completions of the command line being typed
+	searching  *[2]int                 // the top and cursor of the window a search is typed in, to put back (B21)
 	flash      *flash                  // text shown for a moment after a yank, put, undo or redo
 	locals     map[string]*vim.Keymaps // the keymaps of kinds of buffer, by kind, over the machine's (B142)
 	lspCards   []lspCard               // the cards of the :lsp panel, in order
@@ -504,7 +505,7 @@ func (e *Session) feed(k vim.Key) {
 	e.vim.ExpandTab(e.win.opts.ExpandTab)
 	e.vim.UseClipboard(e.win.opts.Clipboard)
 	e.vim.UseLocal(e.localKeys(e.win.buf))
-	at := e.Cursor()
+	at, top := e.Cursor(), e.topOf(e.win)
 	e.settle(e.vim.Feed(k))
 	// A window fude writes, such as a float, help or a list, is text to
 	// read, so a key that would start typing in it does nothing (B142).
@@ -513,6 +514,7 @@ func (e *Session) feed(k vim.Key) {
 		e.setCursor(at)
 		e.message = "this window takes no typing, and q closes it"
 	}
+	e.incSearch(top, at)
 	if start, end, ok := e.vim.Flash(); ok {
 		e.flashOn(e.win.buf, start, end)
 	}
@@ -602,10 +604,15 @@ func (e *Session) topOf(w *window) int {
 func (e *Session) rows() int { return max(e.win.h-1, 1) }
 
 // reveal scrolls the current window the least it must to show the cursor's
-// line, which takes as many rows as it wraps to (B37).
+// line, which takes as many rows as it wraps to (B37). While a search is
+// typed, it shows the match the search goes to instead.
 func (e *Session) reveal() {
 	w := e.win
 	t, c := w.buf.text.Snapshot(), w.pos()
+	// While a search is typed, the match it goes to shows instead (B21).
+	if s, _, ok := e.vim.Incremental(); ok && w.opts.IncSearch {
+		c = s
+	}
 	line := vim.LineStart(t, c)
 	// scroll_off lines stay in view above and below the cursor's, at most
 	// half the window (B116).

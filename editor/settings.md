@@ -238,6 +238,12 @@ case anyway.
 With `ignore_case` on, a pattern with a capital letter matches case. `\c` in
 a pattern ignores case anyway.
 
+## inc_search
+
+While a search is typed, the window shows the match it goes to, lit apart
+from the other matches, and `<Esc>` puts the view back. It is on unless
+set off.
+
 ## expand_tab
 
 Indents with spaces only. `<Tab>` in insert mode types spaces to the next

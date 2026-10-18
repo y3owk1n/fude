@@ -367,3 +367,29 @@ func (m *cmenu) float() wire.Float {
 	}
 	return wire.Float{Text: s.String(), Spans: spans, Cursor: -1}
 }
+
+// incSearch remembers top and at, the view and the cursor before a search
+// first matched, since reveal shows the match while the search is typed.
+// It puts the view back when the pattern stops matching or the search is
+// cancelled. A search that runs keeps the view, which shows where it went
+// (B21).
+func (e *Session) incSearch(top, at int) {
+	w := e.win
+	if _, _, ok := e.vim.Incremental(); ok && w.opts.IncSearch {
+		if e.searching == nil {
+			e.searching = &[2]int{top, at}
+		}
+		return
+	}
+	if e.searching == nil {
+		return
+	}
+	typing := e.vim.Mode() == vim.Cmdline
+	if typing || e.Cursor() == e.searching[1] {
+		w.buf.text.MoveMark(w.top, e.searching[0])
+	}
+	if !typing {
+		e.searching = nil
+		e.reveal()
+	}
+}
