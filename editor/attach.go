@@ -45,6 +45,22 @@ func (e *Session) frame(sent map[int]kernel.Version) wire.Frame {
 	if f.Done = e.done; f.Done && slices.Contains(e.sessions, e) {
 		f.Message = "fude quit"
 	}
+	// An image goes to each client once.
+	for _, v := range f.Views {
+		for _, rows := range v.Virtual {
+			for _, r := range rows {
+				if p := e.pictures.byID[r.Image]; p != nil && !e.sentImages[r.Image] {
+					if f.Images == nil {
+						f.Images = map[int][]byte{}
+					}
+					if e.sentImages == nil {
+						e.sentImages = map[int]bool{}
+					}
+					f.Images[r.Image], e.sentImages[r.Image] = p.png, true
+				}
+			}
+		}
+	}
 	for _, v := range f.Views {
 		b, err := e.buffer(v.Buffer)
 		if err != nil {

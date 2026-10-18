@@ -15,6 +15,7 @@ type Session interface {
 	Feed(k vim.Key)
 	Paste(text string)
 	SetSize(w, h int)
+	SetCell(w, h int) // a cell's pixels, 0 when the terminal shows no images (B303)
 	Focus()
 	Timeout()
 	ShowHints()
@@ -44,4 +45,5 @@ type Session interface {
 	Shown() string
 	Theme() (string, *[16]int32, *wire.Colors)
 	TerminalClipboard() (string, bool)
+	Image(id int) ([]byte, bool) // the PNG an image's rows show (B303)
 }

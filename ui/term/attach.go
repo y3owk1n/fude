@@ -30,6 +30,8 @@ type Attached struct {
 	f     wire.Frame
 	texts map[int]*kernel.Buffer // each buffer's text, as the frames bring it
 	w, h  int                    // the size last sent
+	cell  [2]int                 // the cell's pixels last sent (B303)
+	pics  map[int][]byte         // the images the frames brought, by id
 	clip  *string                // for the terminal's clipboard, once
 	done  bool
 	ended string     // why the session ended, for after the screen is gone
@@ -174,6 +176,12 @@ func (a *Attached) apply(f wire.Frame) {
 	if f.Base16 != nil && a.f.Base16 != nil && *f.Base16 == *a.f.Base16 {
 		f.Base16 = a.f.Base16
 	}
+	for id, b := range f.Images {
+		if a.pics == nil {
+			a.pics = map[int][]byte{}
+		}
+		a.pics[id] = b
+	}
 	a.f = f
 	if f.Done {
 		a.end(f.Message)
@@ -213,6 +221,20 @@ func (a *Attached) SetSize(w, h int) {
 		a.w, a.h = w, h
 		a.send("size", [2]int{w, h})
 	}
+}
+
+// SetCell tells fude a cell's pixels when they change.
+func (a *Attached) SetCell(w, h int) {
+	if [2]int{w, h} != a.cell {
+		a.cell = [2]int{w, h}
+		a.send("cell", a.cell)
+	}
+}
+
+// Image returns the PNG of an image a frame brought.
+func (a *Attached) Image(id int) ([]byte, bool) {
+	b, ok := a.pics[id]
+	return b, ok
 }
 
 func (a *Attached) Queue() <-chan func() { return a.queue }

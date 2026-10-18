@@ -83,6 +83,14 @@ func loadPicture(path string) (*picture, error) {
 	return &picture{png: b, w: cfg.Width, h: cfg.Height}, nil
 }
 
+// Image returns the PNG of the image numbered id (B303).
+func (e *Session) Image(id int) ([]byte, bool) {
+	if p := e.pictures.byID[id]; p != nil {
+		return p.png, true
+	}
+	return nil, false
+}
+
 // SetCell sets how many pixels wide and high a cell of the client's
 // terminal is, or 0 when it shows no images. Images take rows only once
 // it is set (B303).

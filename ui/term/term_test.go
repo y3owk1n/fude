@@ -1,8 +1,11 @@
 package term
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"image"
+	"image/png"
 	"io"
 	"net"
 	"os"
@@ -11,6 +14,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/charmbracelet/x/ansi/kitty"
 
 	"github.com/gdamore/tcell/v3"
 	"github.com/gdamore/tcell/v3/color"
@@ -497,6 +502,81 @@ func TestB299DrawVirtualRows(t *testing.T) {
 		if strings.TrimSpace(row.String()) != want {
 			t.Errorf("row %d shows %q, want %q", y, row.String(), want)
 		}
+	}
+}
+
+// pixels is a terminal with cells of 8 by 16 pixels.
+type pixels struct{ tcell.Tty }
+
+func (pixels) WindowSize() (tcell.WindowSize, error) {
+	return tcell.WindowSize{Width: 120, Height: 40, PixelWidth: 960, PixelHeight: 640}, nil
+}
+
+// framed is a module that shows the image at path below the first line.
+type framed struct {
+	heading
+	path string
+}
+
+func (m framed) Init(context.Context, api.Scope) (api.Result, error) {
+	return api.Result{Decorate: []api.Decoration{{ID: 1, Image: m.path}}}, nil
+}
+
+// B303, drawn
+func TestB303DrawImage(t *testing.T) {
+	dir := t.TempDir()
+	pic := filepath.Join(dir, "a.png")
+	var b bytes.Buffer
+	if err := png.Encode(&b, image.NewRGBA(image.Rect(0, 0, 80, 32))); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(pic, b.Bytes(), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "a.txt")
+	if err := os.WriteFile(path, []byte("a\nb\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	c := startWith(t, "", path)
+	var sent bytes.Buffer
+	c.img = images{tty: pixels{}, out: &sent, sent: map[int]bool{}}
+	c.e.(*editor.Session).Use(framed{path: pic})
+	// The image loads off the loop, and its rows show once it lands.
+	cell := func(x, y int) (string, tcell.Style) { s, style, _ := c.s.Get(x, y); return s, style }
+	for deadline := time.After(5 * time.Second); ; {
+		if c.draw(); strings.HasPrefix(func() string { s, _ := cell(0, 1); return s }(), string(kitty.Placeholder)) {
+			break
+		}
+		select {
+		case f := <-c.e.Queue():
+			f()
+		case <-time.After(10 * time.Millisecond):
+		case <-deadline:
+			t.Fatal("the image never showed")
+		}
+	}
+	// Its 80 by 32 pixels take 10 columns and two rows of placeholders, in
+	// the colour of its id, and the terminal got it once, sized so.
+	id := c.e.Views()[0].Virtual[0][0].Image
+	ink := color.NewRGBColor(int32(id>>16&0xff), int32(id>>8&0xff), int32(id&0xff))
+	for _, at := range []struct{ x, y, row, col int }{{0, 1, 0, 0}, {9, 2, 1, 9}} {
+		want := string([]rune{kitty.Placeholder, kitty.Diacritic(at.row), kitty.Diacritic(at.col)})
+		if s, style := cell(at.x, at.y); s != want || style.GetForeground() != ink {
+			t.Errorf("the cell at %d,%d holds %q in %v", at.x, at.y, s, style.GetForeground())
+		}
+	}
+	if s, _ := cell(10, 1); strings.HasPrefix(s, string(kitty.Placeholder)) {
+		t.Error("the image is wider than 10 columns")
+	}
+	if got := sent.String(); strings.Count(got, "a=T") != 1 || !strings.Contains(got, fmt.Sprintf("i=%d,c=10,r=2", id)) || !strings.Contains(got, "U=1") {
+		t.Errorf("the terminal got %q", got[:min(len(got), 120)])
+	}
+	if c.draw(); strings.Count(sent.String(), "a=T") != 1 {
+		t.Error("the next frame sent the image again")
+	}
+	// Line b shows under the image's rows.
+	if s, _ := cell(0, 3); s != "b" {
+		t.Errorf("under the image the row shows %q", s)
 	}
 }
 

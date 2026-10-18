@@ -1072,6 +1072,10 @@ Where fude departs, the line says so and cites the departure in
   that keep its shape, at most all but two of the window's. It takes them
   on the cursor's line too, so passing it moves no text. fude reads the
   file once, off the loop, and an image that does not load takes no rows.
+  The terminal client shows images in kitty and Ghostty, through tmux
+  too, when the terminal shows true colour and says its cells' pixels.
+  It sends each image to the terminal once, and an attached client gets
+  it in a frame once. Elsewhere images take no rows.
 - B289 [4] A plugin with `ui` reads its own decorations on the buffer its
   call is about, each with its id, where it is now and what it shows.
 - B290 [4] A module's command completes its argument through the

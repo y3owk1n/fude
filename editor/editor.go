@@ -84,6 +84,7 @@ type Session struct {
 	message    string
 	done       bool
 	cell       [2]int                  // the client's cell in pixels, 0 when it shows no images (B303)
+	sentImages map[int]bool            // the images an attached client has (B303)
 	restarting string                  // the session file :restart saved, for main (B170)
 	hints      []vim.Hint              // the keys that may follow the command being typed, while they show (B172)
 	ask        question                // takes the answer to the question in the message

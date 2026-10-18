@@ -34,7 +34,7 @@ func Run(e Session) error {
 	s.EnablePaste()
 	s.EnableFocus()
 
-	c := &client{s: s, e: e}
+	c := &client{s: s, e: e, img: newImages(tty, s.Colors())}
 	c.draw()
 	// Plugins load after the first frame, so they never delay it (B56).
 	e.Load()
@@ -184,6 +184,7 @@ type client struct {
 	overlaid bool              // the last frame drew a box, the command line or a message over the windows
 	size     [4]int            // the screen's size, and where the windows started and ended, in the last frame
 	sig      sig               // reused to build each line's sig
+	img      images            // how the client shows images (B303)
 }
 
 // shown is what a frame drew a window's line from. When the next frame
@@ -231,6 +232,10 @@ func (c *client) draw() {
 	// are toasts (B148, B149).
 	w, h := c.s.Size()
 	c.e.SetSize(w, h)
+	if cell := c.img.size(); cell != c.img.shown {
+		c.img.shown = cell
+		c.e.SetCell(cell[0], cell[1])
+	}
 	sel, visual := c.e.Selection()
 
 	// A modal box, the command line or the finder, has the windows under it
@@ -302,6 +307,10 @@ func (c *client) draw() {
 	}
 	c.s.SetCursorStyle(shape)
 	c.s.ShowCursor(cx, cy)
+	// The images go before the frame whose cells show them.
+	if err := c.img.flush(); err != nil {
+		trace.Record("image", err.Error(), 0)
+	}
 	c.s.Show()
 }
 
@@ -648,7 +657,11 @@ func (c *client) virtual(v wire.View, line int, above bool, numbers, row int) in
 		}
 		y := v.Y + row
 		c.s.FillArea(numbers, y, v.Gutter+v.W, 1, ' ', base)
-		c.putClipped(v.X, y, v.X+v.W, part{r.Text, colours[r.Style]})
+		if r.Image != 0 {
+			c.image(v, line, r, y)
+		} else {
+			c.putClipped(v.X, y, v.X+v.W, part{r.Text, colours[r.Style]})
+		}
 		row++
 	}
 	return row

@@ -516,6 +516,21 @@ blame. A distribution leaves a feature out by not adding it. A module is
 one for every session, so `:blame` is one switch for the host and its
 guests. The editor cannot stop a Go module's call, so it only times it.
 
+## D50. Images are kitty's Unicode placeholders
+
+The terminal client shows an image by kitty's graphics protocol: it sends
+the image once with a virtual placement, then draws the image's rows as
+cells of U+10EEEE with a diacritic for the row and one for the column, in
+a colour that is the image's id (B303). Why: those cells are text to tcell
+and to fude, so an image scrolls, splits, clips and has floats drawn over
+it with no code of its own, and tmux passes it on. Sixel and iTerm2's
+protocol paint over cells the screen then redraws, so each frame would
+have to lock the image's cells and paint it again. kitty and Ghostty draw
+placeholders, and `charmbracelet/x/ansi`, already a dependency, has the
+protocol's pieces. A terminal without them shows no images. fude reads
+from the environment whether it is one, as asking the terminal would
+slow the first frame (D26).
+
 ## Departures from Neovim
 
 Each entry: what differs, then why.
