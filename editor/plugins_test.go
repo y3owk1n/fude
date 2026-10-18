@@ -15,6 +15,7 @@ import (
 
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/editor"
+	"github.com/y3owk1n/fude/editor/editortest"
 	"github.com/y3owk1n/fude/wire"
 )
 
@@ -48,22 +49,6 @@ func useTable(t *testing.T, name, more string, caps ...string) {
 	}
 	config(t, fmt.Sprintf("[[plugin]]\npath = %q\ncapabilities = [%s]\n%s", wasm, strings.Join(quoted, ", "), more))
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
-}
-
-// settle runs the work queued for the editor loop until done reports true.
-func settle(t *testing.T, e *editor.Session, done func() bool) {
-	t.Helper()
-	deadline := time.After(5 * time.Second)
-	for !done() {
-		select {
-		case f := <-e.Queue():
-			f()
-		case <-time.After(10 * time.Millisecond):
-			// done may wait on something other than the loop, such as a log.
-		case <-deadline:
-			t.Fatal("still waiting after 5s")
-		}
-	}
 }
 
 // next runs the next thing the editor queues, or fails after 5s.
@@ -960,17 +945,8 @@ func TestB191PluginReload(t *testing.T) {
 	}
 }
 
-// decorations returns what the current window shows of plugins'
-// decorations, as text and style.
-func decorations(e *editor.Session) []string {
-	var out []string
-	for _, v := range e.Views() {
-		for _, d := range v.Decorations {
-			out = append(out, v.Text.Slice(d.Start, d.End)+" "+d.Name)
-		}
-	}
-	return out
-}
+// decorations is editortest.Decorations, by the short name the tests use.
+var decorations = editortest.Decorations
 
 // B55
 func TestB55PluginDecorations(t *testing.T) {

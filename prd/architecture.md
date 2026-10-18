@@ -34,6 +34,7 @@ vim/             Go module: the vim grammar, no dependency on core/
 api/             Go module: fude's module API, stdlib only
   diff/          line diffs, for the editor and its modules
 editor/          the editor loop, config, event queues, budgets, the vim host
+  editortest/    drives a headless editor in tests, a module's or any program's
 syntax/          Go module: tree-sitter parsing, highlights, tree targets,
                  the only cgo, no dependency on fude's other packages
 plugin/          Go module: the wazero host and its ABI, plugintest for

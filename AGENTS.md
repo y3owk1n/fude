@@ -70,7 +70,8 @@ changing `sdk/` or a test plugin's source, run `just wasm` to rebuild them.
 Test only what `prd/behaviours.md` promises, through a public boundary:
 keys into a headless buffer, the CLI, a file on disk, the exported API of
 `core/` and `vim/`, the plugin ABI or the RPC protocol. Name the B-number
-the test covers. Mock only at system boundaries.
+the test covers. Mock only at system boundaries. A module's tests live
+beside it and drive the editor through `editor/editortest`.
 
 Avoid over testing. Write one test per behaviour, for what would break. No tests for helpers, internals, getters or the toolchain, and no
 second test that proves the same thing.

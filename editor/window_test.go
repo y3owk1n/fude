@@ -2,7 +2,6 @@ package editor_test
 
 import (
 	"fmt"
-	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/fude/editor"
-	"github.com/y3owk1n/fude/modules/fold"
 	"github.com/y3owk1n/fude/wire"
 )
 
@@ -494,38 +492,6 @@ func TestB147Branch(t *testing.T) {
 	change(t, path, "a\n")
 	e := open(t, path)
 	settle(t, e, func() bool { return e.Views()[0].Branch == "trunk" })
-}
-
-// B224
-func TestB224Folds(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "a.go")
-	change(t, path, "func a() {\n\tx\n\ty\n}\nfunc b() {\n\tz\n}\n")
-	e := start(t, path)
-	e.Use(fold.New())
-	e.SetSize(80, 20)
-	folds := func() map[int]int { return e.Views()[0].Folds }
-	// zc in a body closes the fold of the line above it with less indent,
-	// and j passes over it.
-	if feed(e, "jzc"); !maps.Equal(folds(), map[int]int{0: 2}) || e.Cursor() != 0 {
-		t.Fatalf("zc made folds %v with the cursor at %d", folds(), e.Cursor())
-	}
-	if feed(e, "j"); e.Text().LineOf(e.Cursor()) != 3 {
-		t.Errorf("j over the fold went to line %d", e.Text().LineOf(e.Cursor()))
-	}
-	// A search into a closed fold opens it.
-	if feed(e, "gg/y<CR>"); folds() != nil {
-		t.Errorf("searching into the fold left %v", folds())
-	}
-	// zM closes every outermost fold, za opens one, and zR all.
-	if feed(e, "zM"); !maps.Equal(folds(), map[int]int{0: 2, 4: 1}) {
-		t.Errorf("zM made %v", folds())
-	}
-	if feed(e, "za"); !maps.Equal(folds(), map[int]int{4: 1}) {
-		t.Errorf("za made %v", folds())
-	}
-	if feed(e, "zR"); folds() != nil {
-		t.Errorf("zR left %v", folds())
-	}
 }
 
 // B218

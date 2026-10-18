@@ -9,78 +9,22 @@ import (
 	"time"
 
 	"github.com/y3owk1n/fude/editor"
-	"github.com/y3owk1n/fude/syntax/syntaxtest"
-	"github.com/y3owk1n/fude/vim"
+	"github.com/y3owk1n/fude/editor/editortest"
 )
 
-// TestMain keeps every test's timeline logs, config and caches in a
-// directory of its own.
-func TestMain(m *testing.M) {
-	dir, err := os.MkdirTemp("", "fude-test")
-	if err != nil {
-		panic(err)
-	}
-	// Go's grammar builds once into the user's cache, before the cache
-	// directory moves.
-	if err := syntaxtest.InstallGo(filepath.Join(dir, "data")); err != nil {
-		panic(err)
-	}
-	os.Setenv("XDG_STATE_HOME", filepath.Join(dir, "state"))
-	os.Setenv("XDG_CONFIG_HOME", filepath.Join(dir, "config"))
-	os.Setenv("XDG_CACHE_HOME", filepath.Join(dir, "cache"))
-	os.Setenv("XDG_DATA_HOME", filepath.Join(dir, "data"))
-	// No test fetches a grammar.
-	if err := os.MkdirAll(filepath.Join(dir, "config", "fude"), 0o700); err != nil {
-		panic(err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "config", "fude", "config.toml"), []byte("auto_install = false\n"), 0o600); err != nil {
-		panic(err)
-	}
-	code := m.Run()
-	os.RemoveAll(dir)
-	os.Exit(code)
-}
+func TestMain(m *testing.M) { os.Exit(editortest.Main(m)) }
 
-func open(t *testing.T, path string) *editor.Session {
-	t.Helper()
-	e, err := editor.Open(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	quitAtEnd(t, e)
-	return e
-}
-
-func feed(e *editor.Session, keys string) {
-	for _, k := range vim.Keys(keys) {
-		e.Feed(k)
-	}
-}
-
-func text(e *editor.Session) string {
-	s := e.Text()
-	return s.Slice(0, s.Len())
-}
-
-func disk(t *testing.T, path string) string {
-	t.Helper()
-	b, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return string(b)
-}
-
-func change(t *testing.T, path, text string) {
-	t.Helper()
-	if err := os.WriteFile(path, []byte(text), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	later := time.Now().Add(time.Hour)
-	if err := os.Chtimes(path, later, later); err != nil {
-		t.Fatal(err)
-	}
-}
+// The helpers of editortest, by the short names the tests use.
+var (
+	open   = editortest.Open
+	feed   = editortest.Feed
+	text   = editortest.Text
+	disk   = editortest.Disk
+	change = editortest.Change
+	start  = editortest.Start
+	config = editortest.Config
+	settle = editortest.Settle
+)
 
 func windows(e *editor.Session) string {
 	var out []string
