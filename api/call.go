@@ -310,6 +310,29 @@ type Peer struct {
 	You         bool
 }
 
+// Window is a window of the session, as Scope.Windows lists it: its id,
+// the buffer it shows, its cursor and the start of its top line in that
+// buffer, and where it is on the screen, its status line included (B340).
+type Window struct {
+	ID, Buffer    int
+	Cursor, Top   int
+	Row, Column   int
+	Width, Height int
+	Current       bool
+}
+
+// Selection is what visual mode selects: its Kind, v, V or <C-v>, the
+// bytes from Start to End, or every line a block spans, a block's display
+// columns from Left to Right, and each region :select chose when it chose
+// several (B340).
+type Selection struct {
+	Kind        string
+	Start, End  int
+	Block       bool
+	Left, Right int
+	Regions     [][2]int
+}
+
 // Tab is a buffer the buffer line lists, by its id, with the name it shows.
 // The line marks a modified one itself (B258, B331).
 type Tab struct {
@@ -495,6 +518,14 @@ type Scope struct {
 	Session func() string
 	// Servers returns the language servers config.toml sets, by name (B317).
 	Servers func() []Server
+	// Windows returns the session's windows, in the order of the layout
+	// (B340).
+	Windows func() []Window
+	// Selection returns what visual mode selects in the current window, or
+	// false outside it, and Cursors the other cursors there while a change
+	// types into several regions (B340).
+	Selection func() (Selection, bool)
+	Cursors   func() []int
 	// Decorations returns the owner's decorations on every open buffer, by
 	// Buffer, where they were when the call began (B289, B291).
 	Decorations func() []Decoration
@@ -521,7 +552,10 @@ type Buffer struct {
 }
 
 // Context is what a call is about, by name. Every call has buffer, path and filetype, of the buffer it is
-// about, and mode. In a command's call, args is the text typed after its
+// about, and mode. It also has cwd, the working directory, and project,
+// the directory fude started in. cursor is where the cursor is in that
+// buffer, in the current window or else in the first window that shows
+// it. A call about a buffer no window shows has no cursor (B340). In a command's call, args is the text typed after its
 // name, and bang is true when ! followed the name. first and last are where
 // its range's first and last lines start, and ranged is true when it was
 // given a range. A buffer with a title, such as a panel, has title.

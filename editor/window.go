@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
+	"sync/atomic"
 
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/vim"
@@ -14,6 +15,7 @@ import (
 // window shows one buffer. Its cursor and top line are marks in the buffer,
 // so edits made in another window move them.
 type window struct {
+	id     int // what a module names it by (B340)
 	buf    *buffer
 	alt    *buffer // the buffer shown before, for <C-^> and #
 	cursor kernel.MarkID
@@ -37,9 +39,12 @@ type window struct {
 	x, y, w, h int // where the layout puts it, its status line included
 }
 
+// windowIDs is the id the last window got.
+var windowIDs atomic.Int64
+
 // newWindow shows b with the cursor at pos and top as the first line.
 func newWindow(b *buffer, pos, top int) *window {
-	return &window{buf: b, cursor: b.text.SetMark(pos, kernel.Right), top: b.text.SetMark(top, kernel.Left)}
+	return &window{id: int(windowIDs.Add(1)), buf: b, cursor: b.text.SetMark(pos, kernel.Right), top: b.text.SetMark(top, kernel.Left)}
 }
 
 func (w *window) pos() int { return w.buf.text.Mark(w.cursor) }

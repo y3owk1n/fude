@@ -975,6 +975,22 @@ func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 		decos = append(decos, api.Decoration{ID: d.id, Start: d.buf.text.Mark(d.start), End: d.buf.text.Mark(d.end), Style: d.style, Sign: d.sign, Note: d.note, Layer: d.layer, Fold: d.fold, Replace: d.replace, Insert: d.insert, Cover: d.cover, Icon: d.icon, Line: d.line, Lines: d.lines, Above: d.above, Block: d.block, Image: d.image, Buffer: d.buf.id})
 	}
 	s.Decorations = func() []api.Decoration { return decos }
+	// The windows and the selection are listed now too, for the same
+	// reason.
+	var wins []api.Window
+	for _, w := range e.root.windows() {
+		wins = append(wins, api.Window{ID: w.id, Buffer: w.buf.id, Cursor: w.pos(), Top: w.buf.text.Mark(w.top), Row: w.y, Column: w.x, Width: w.w, Height: w.h, Current: w == e.win})
+		if w.buf == b && (w == e.win || s.About["cursor"] == "") {
+			s.About["cursor"] = strconv.Itoa(w.pos())
+		}
+	}
+	s.Windows = func() []api.Window { return wins }
+	sel, selected := e.vim.Selection()
+	s.Selection = func() (api.Selection, bool) {
+		return api.Selection{Kind: string(sel.Kind), Start: sel.Start, End: sel.End, Block: sel.Block, Left: sel.Left, Right: sel.Right, Regions: sel.Regions}, selected
+	}
+	cursors := e.vim.Cursors()
+	s.Cursors = func() []int { return cursors }
 	return s
 }
 
@@ -987,7 +1003,14 @@ func (e *Session) about(b *buffer) api.Context {
 		"power":   powers[e.power],
 		"servers": strings.Join(serverNames(b.servers), ","),
 		"indent":  strconv.Itoa(e.indentWidth(b)), "tab": strconv.Itoa(e.tabWidth(b)),
+		"cwd": cwd(), "project": e.project,
 	}
+}
+
+// cwd is the working directory, or "" when it is gone.
+func cwd() string {
+	wd, _ := os.Getwd()
+	return wd
 }
 
 // run calls what p registered as id, on the input path, against the current

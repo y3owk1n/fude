@@ -1,8 +1,10 @@
 // Package main is a test plugin written with the sdk.
 // init registers the command :Whole, which :wh runs too, and which types x
 // at the start of the line through the keys its result runs, and :Marked,
-// which types the buffer's marks as name:place. Needs keys, and
-// buffer.read and buffer.write for :Marked.
+// which types the buffer's marks as name:place. :Where types the cursor
+// and how many windows there are, and gW in visual mode types the
+// selection's kind and ends. Needs keys, and buffer.read and buffer.write
+// for the others.
 package main
 
 import (
@@ -17,6 +19,18 @@ func init() {
 		if err := sdk.Do(api.Result{Keys: "0ix<Esc>"}); err != nil {
 			sdk.Log(err.Error())
 		}
+		return 0
+	})
+	sdk.Command("Where", "types the cursor and how many windows there are", func(c sdk.Call) {
+		var wins []api.Window
+		sdk.Read("Windows", nil, &wins)
+		sdk.Edit(0, 0, sdk.About("cursor")+":"+strconv.Itoa(len(wins))+"|")
+	})
+	sdk.Register(api.Registration{Kind: api.Key, Name: "gW", Help: "types the selection", Visual: true}, func(_, _, _ int) int {
+		var sel api.Selection
+		var ok bool
+		sdk.Read("Selection", nil, &sel, &ok)
+		sdk.Edit(0, 0, sel.Kind+strconv.Itoa(sel.Start)+"-"+strconv.Itoa(sel.End)+strconv.FormatBool(ok)+"|")
 		return 0
 	})
 	sdk.Command("Marked", "types the buffer's marks", func(c sdk.Call) {

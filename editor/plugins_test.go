@@ -476,6 +476,17 @@ func TestB339PluginStreams(t *testing.T) {
 	settle(t, e, func() bool { return text(e) == "end|b|a|a" })
 }
 
+// B340
+func TestB340PluginReadsWindowsAndSelection(t *testing.T) {
+	e := loaded(t, "full", "f", "abc\n", "buffer.read", "buffer.write")
+	if feed(e, "l<C-w>v:Where<CR>"); text(e) != "1:2|abc" {
+		t.Errorf(":Where typed %q, want 1:2|abc", text(e))
+	}
+	if feed(e, "u0vlgW"); text(e) != "v0-2true|abc" {
+		t.Errorf("gW typed %q, want v0-2true|abc", text(e))
+	}
+}
+
 // B182
 func TestB182PluginHearsTheCursor(t *testing.T) {
 	e := loaded(t, "watch", "f", "a\nb\nc\n", "ui")

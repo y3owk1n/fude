@@ -16,11 +16,11 @@ import (
 // (D51).
 var reads = map[string]string{
 	"About": "", "Option": "", "Config": "", "Keys": "", "Commands": "", "HelpTags": "",
-	"HelpAt": "", "Grammars": "", "Sessions": "",
+	"HelpAt": "", "Grammars": "", "Sessions": "", "Windows": "",
 	"Buffers": "buffer.read", "Language": "buffer.read", "Spans": "buffer.read", "Query": "buffer.read",
 	"Comment": "buffer.read", "Object": "buffer.read", "Node": "buffer.read", "States": "buffer.read",
 	"StateText": "buffer.read", "Marks": "buffer.read", "Jumps": "buffer.read", "Changes": "buffer.read",
-	"Register": "buffer.read", "Entries": "buffer.read",
+	"Register": "buffer.read", "Entries": "buffer.read", "Selection": "buffer.read", "Cursors": "buffer.read",
 	"Decorations": "ui", "Hints": "ui", "Window": "ui", "Messages": "ui", "Session": "ui",
 	"Servers": "lsp",
 }

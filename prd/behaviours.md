@@ -1055,6 +1055,10 @@ Where fude departs, the line says so and cites the departure in
 - B339 [4] A plugin's job may stream a program's output. Its callback
   runs with each line as the program prints it, then once more when the
   program ends, with any error.
+- B340 [4] A module reads the session's windows, each with its id, its
+  buffer, its cursor, its top line and where it is on the screen, and
+  what visual mode selects. Every call and event says where the cursor is
+  in its buffer, the working directory and the project.
 - B337 [4] A module's decoration may show its sign in a listing's icon
   column while `icons` is on, instead of in the sign column. A listing's
   notes and icons are a module's decorations (B127, B128).
