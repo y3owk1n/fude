@@ -149,7 +149,7 @@ func (e *Session) helpSections() []helpSection {
 	}
 	out = append(out, plugsSection)
 
-	options := helpSection{title: "OPTIONS", note: ":set changes them in the window. name turns one on, noname off, name! flips it, name=n sets a number and name? shows it. config.toml sets their starting values."}
+	options := helpSection{title: "OPTIONS", note: ":set name value changes one in the window. A switch takes true or false. :set name shows its value. config.toml sets their starting values."}
 	for _, f := range helpFields(reflect.ValueOf(defaults.options)) {
 		head := f.name
 		switch v := f.value.Interface().(type) {

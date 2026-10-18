@@ -585,9 +585,9 @@ it, every line draws (B197).
 
 `:set` changes the options of the current window, and the ones the
 session's next windows start with, as Neovim's `:set` sets both the local
-and the global value. It takes the names `config.toml` uses (N4): `name`,
-`noname` and `name!` for a switch, `name=n` for a number, and `name?` for
-either, and shows every option with no arguments. `scroll_off` keeps that
+and the global value. It takes the names and values `config.toml` uses
+(N4). `:set name value` sets one, `:set name` shows it, and `:set` alone
+lists every option and setting. It never writes `config.toml`. `scroll_off` keeps that
 many lines in view above and below the cursor's, at most half the window
 (B116). `cursor_line` shades the cursor's line in a dark grey and shows
 its number in bold (B117). `list` shows a tab as `>` and blanks, a
