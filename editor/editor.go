@@ -366,6 +366,10 @@ func (e *Session) add(path string) (string, error) {
 	}
 	e.next++
 	e.bufs = append(e.bufs, b)
+	if b.picture != "" {
+		e.decos[b] = append(e.decos[b], decoration{buf: b, start: b.text.SetMark(0, kernel.Left), end: b.text.SetMark(0, kernel.Left), image: b.picture})
+		b.inlines++
+	}
 	b.text.Listen(heard{e.Editor, b})
 	e.emit("buffer.opened", "", b)
 	if limit := e.cfg.LargeFile; b.text.Snapshot().Len() > int(limit)<<20 {

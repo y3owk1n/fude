@@ -1,6 +1,9 @@
 package editor_test
 
 import (
+	"bytes"
+	"image"
+	"image/png"
 	"os"
 	"path/filepath"
 	"strings"
@@ -110,6 +113,30 @@ func TestB302ReadOnlyTakesNoTyping(t *testing.T) {
 		if _, ok := e.Float(); ok {
 			t.Errorf("%s opened a float", keys)
 		}
+	}
+}
+
+// B304
+func TestB304ImageFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.png")
+	var b bytes.Buffer
+	if err := png.Encode(&b, image.NewRGBA(image.Rect(0, 0, 80, 32))); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, b.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	e := open(t, path)
+	e.SetSize(80, 20)
+	e.SetCell(8, 16)
+	// The file shows as what it is, with the image under it, and takes no
+	// typing.
+	if text(e) != "PNG, 80 by 32 pixels" || e.Message() != "" {
+		t.Fatalf("the image opened as %q, saying %q", text(e), e.Message())
+	}
+	settle(t, e, func() bool { return len(e.Views()[0].Virtual[0]) == 2 })
+	if feed(e, "i"); e.Mode() != vim.Normal {
+		t.Error("i in the image started insert mode")
 	}
 }
 

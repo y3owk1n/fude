@@ -19,7 +19,7 @@ Where fude departs, the line says so and cites the departure in
 - B3 [1] fude keeps the file's line endings and final newline as it found
   them.
 - B4 [1] A file that is not valid UTF-8 opens read-only with a message saying
-  so.
+  so, unless it is an image (B304).
 - B5 [1] `:q` on a modified buffer refuses and names the buffer. `:q!` quits.
 - B80 [1] `fude a b` opens both as buffers. `fude +N path` opens at line N.
 - B95 [1] `:wq` writes and quits. `:x` and `ZZ` do the same but write only a
@@ -28,6 +28,9 @@ Where fude departs, the line says so and cites the departure in
   and `:xa` write every modified buffer, then quit.
 - B81 [1] `:w` on a file changed on disk since fude read it asks before
   overwriting. `:w!` overwrites without asking.
+- B304 [1] A PNG, JPEG or GIF file opens read-only as one line that says
+  its format and size, such as `PNG, 80 by 32 pixels`, with the image
+  below it where the terminal shows images (B303).
 - B302 [1] In a buffer whose text may not change, such as a read-only file
   (B4), a window fude writes (B142) or a read-only guest's (B247), a key
   that would start insert or replace mode, such as `i`, `A`, `o`, `cw` or

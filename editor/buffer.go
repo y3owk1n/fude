@@ -4,7 +4,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"image"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -67,6 +69,7 @@ type buffer struct {
 	syntax  *syntax.Buffer       // nil without a grammar for the filetype
 	servers []*server            // the language servers attached to it, in its filetype's order
 	signs   int                  // plugins' signs on it, which show a sign column too
+	picture string               // the image file it shows, when it is one (B304)
 	inlines int                  // decorations that show text in its lines
 	listed  string               // the directory a listing lists, "" for any other buffer
 	entries []entry              // a listing's names as it read them
@@ -124,8 +127,17 @@ func openBuffer(id int, path string) (*buffer, string, error) {
 		return nil, "", err
 	}
 	b := &buffer{id: id, file: f, before: map[kernel.NodeID]int{}, marks: map[rune]kernel.MarkID{}}
+	// An image file opens as a line that names it, with the image below
+	// (B304).
+	if f.readonly {
+		if cfg, format, err := image.DecodeConfig(strings.NewReader(text)); err == nil {
+			b.picture = path
+			text = fmt.Sprintf("%s, %d by %d pixels", strings.ToUpper(format), cfg.Width, cfg.Height)
+		}
+	}
 	msg := ""
 	switch {
+	case b.picture != "":
 	case f.readonly:
 		msg = fmt.Sprintf("\"%s\" is not valid UTF-8, opened read-only", path)
 	case f.isNew && path != "":
