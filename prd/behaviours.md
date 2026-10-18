@@ -110,7 +110,9 @@ Where fude departs, the line says so and cites the departure in
   `key_timeout`, takes `:set` the same way and changes every session. A
   list takes its items apart by commas, as `:set completion_sources
   lsp,buffer`. `theme`, `leader` and `center` act at once, as `:theme`, a
-  new leader and `:center` would. `socket` takes effect when fude starts.
+  new leader and `:center` would. A module's setting, such as
+  `highlight_colors` or `git_signs`, applies to the current window at once.
+  `socket` takes effect when fude starts.
   A guest may not change a setting. `keymap` and the other tables change
   in `config.toml`, and `:config reload` reads it again, never writing
   it. A setting the file changed applies as `:set` would. An option it
@@ -143,7 +145,8 @@ Where fude departs, the line says so and cites the departure in
   differs from git's index, as gitsigns does: `┃` on added and changed
   lines, `▁` under the line before deleted ones, and `~` on a change that
   also deleted lines. A diagnostic's sign wins on its line. Without git
-  installed, there are no git signs.
+  installed, there are no git signs. With `git_signs` off there are none
+  either, and the hunk keys still work.
 - B124 [2] `:e dir`, `fude dir` and `-` open a directory as a listing: a
   buffer of its entries' names, directories with a trailing `/`, with no
   line numbers. `-` lists the current file's directory with the cursor on

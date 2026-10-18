@@ -96,6 +96,12 @@ trigger character such as `.` is typed, with none put in the text until
 `<C-n>` or `<C-p>`. On the command line, the completion menu shows as the
 line is typed. Off, `<C-x><C-o>` and `<Tab>` ask for them.
 
+## git_signs
+
+A file in a git repository shows in the sign column which lines differ
+from git's index. The default is on. When it is off, the sign column shows no git signs,
+and `]h`, `[h`, `gh` and `gH` still act on the hunks.
+
 ## highlight_colors
 
 Text that names a colour shows on that colour, in black or white text,

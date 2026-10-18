@@ -48,6 +48,7 @@ type Module struct {
 	base  map[string]*string // by buffer, the index's text, nil outside a repository
 	stale map[string]bool    // by buffer, the index may have changed since base was read
 	signs map[string][]int   // by buffer, the ids of the signs showing
+	off   map[string]bool    // by buffer, git_signs was off when it was last signed
 	ids   int
 	jobs  uint32
 	about map[uint32]job // by id, what each job that runs does
@@ -61,7 +62,7 @@ type job struct {
 
 // New returns git.
 func New() *Module {
-	return &Module{base: map[string]*string{}, stale: map[string]bool{}, signs: map[string][]int{}, about: map[uint32]job{}}
+	return &Module{base: map[string]*string{}, stale: map[string]bool{}, signs: map[string][]int{}, off: map[string]bool{}, about: map[uint32]job{}}
 }
 
 func (m *Module) Name() string { return "git" }
@@ -116,7 +117,8 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 }
 
 // Event reads a buffer's base as it opens, or once the index may have
-// changed, and signs its changes as the text changes.
+// changed, and signs its changes as the text changes or git_signs turns on
+// or off.
 func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -133,6 +135,9 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 	case "view.moved":
 		if m.stale[buf] {
 			return m.read(s), nil
+		}
+		if on, _ := s.Option("git_signs"); m.off[buf] == (on == "true") {
+			return m.sign(s), nil
 		}
 		return api.Result{}, nil
 	}
@@ -204,12 +209,14 @@ func (m *Module) hide(buf string) api.Result {
 }
 
 // sign puts the sign of each line that differs from the base on the buffer
-// s is about, in place of the signs it had (B123).
+// s is about, in place of the signs it had, unless git_signs is off (B123).
 func (m *Module) sign(s api.Scope) api.Result {
 	buf, t := s.About["buffer"], s.Text
 	res := m.hide(buf)
+	on, _ := s.Option("git_signs")
+	m.off[buf] = on != "true"
 	base := m.base[buf]
-	if base == nil {
+	if base == nil || m.off[buf] {
 		return res
 	}
 	for _, h := range hunks(*base, t.Slice(0, t.Len())) {
