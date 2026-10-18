@@ -19,6 +19,7 @@ import (
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/editor/editortest"
+	helpmod "github.com/y3owk1n/fude/modules/help"
 	"github.com/y3owk1n/fude/wire"
 )
 
@@ -394,6 +395,7 @@ func TestB54PluginCommandsAndKeys(t *testing.T) {
 	}
 	// Help says what a plugin's command does, as the plugin describes it.
 	e := withKit(t)
+	e.Use(helpmod.New())
 	if feed(e, ":h :Shout<CR>"); !strings.Contains(text(e), "`:Shout`\n  types ! at the cursor") {
 		t.Error("help does not describe :Shout")
 	}

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/fude/editor/editortest"
+	"github.com/y3owk1n/fude/modules/help"
 	"github.com/y3owk1n/fude/modules/pick"
 )
 
@@ -15,6 +16,7 @@ func TestMain(m *testing.M) { os.Exit(editortest.Main(m)) }
 func TestB266PickCommands(t *testing.T) {
 	e := editortest.Start(t)
 	e.Use(pick.New())
+	e.Use(help.New())
 	e.SetSize(100, 30)
 	shows := func(want string) bool { f, _ := e.Float(); return strings.Contains(f.Text, want) }
 	// Typing what a command does finds it, and the one picked runs.
@@ -34,6 +36,7 @@ func TestB215PickLists(t *testing.T) {
 	editortest.Config(t, "[keymap.normal]\n\"z9\" = \":set number true<CR>\"\n")
 	e := editortest.Start(t)
 	e.Use(pick.New())
+	e.Use(help.New())
 	e.SetSize(100, 30)
 	shows := func(want string) bool { f, _ := e.Float(); return strings.Contains(f.Text, want) }
 	// :pick alone lists the sources, and picking one opens its finder.

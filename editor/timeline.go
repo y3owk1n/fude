@@ -121,6 +121,20 @@ func (e *Session) panel(p api.Panel) bool {
 	return true
 }
 
+// panelAt moves the focus to the window of the panel titled title, with
+// line at its top and the cursor on it (B334).
+func (e *Session) panelAt(title string, line int) {
+	i := slices.IndexFunc(e.root.windows(), func(w *window) bool { return w.buf.title == title })
+	if i < 0 {
+		return
+	}
+	e.win = e.root.windows()[i]
+	t := e.win.buf.text.Snapshot()
+	at := t.LineStart(min(line, t.Lines()-1))
+	e.setCursor(at)
+	e.win.buf.text.MoveMark(e.win.top, at)
+}
+
 // panelKeys are a panel's own keys, under those config.toml sets for its
 // kind, or nil for a panel with none (B291).
 func (e *Session) panelKeys(b *buffer, keys map[string]string) *vim.Keymaps {

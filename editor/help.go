@@ -74,9 +74,6 @@ func details() map[string]string {
 	return out
 }
 
-// helpKeys are help's own keys, which [keymap.help] changes (B162).
-var helpKeys = map[string]string{"<CR>": "<Plug>(help.follow)", "<C-]>": "<Plug>(help.follow)", "q": ":close<CR>"}
-
 // keyKinds are the kinds of vim.Bindings in the order help shows them, with
 // their titles and notes.
 var keyKinds = []struct{ kind, title, note string }{
@@ -421,45 +418,15 @@ func helpLine(tags map[string]int, topic, leader string) (int, bool) {
 	return 0, false
 }
 
-// help shows help in its window, opening one when none shows it, with the
-// cursor on the entry topic names, or at the top for none (B162).
-func (e *Session) help(topic string) {
+// helpAt returns help's text and the line of the entry topic names, or of
+// the start for "" (B162, B334).
+func (e *Session) helpAt(topic string) (string, int, bool) {
 	text, tags := e.helpText()
-	line := 0
-	if topic != "" {
-		var ok bool
-		if line, ok = helpLine(tags, topic, e.cfg.Leader); !ok {
-			e.message = "no help for " + topic
-			return
-		}
+	if topic == "" {
+		return text, 0, true
 	}
-	// Help is markdown, coloured as such once its grammar is built.
-	if !e.panel(api.Panel{Title: "[help]", Filetype: "markdown", Text: text}) {
-		return
-	}
-	e.win = e.root.windows()[slices.IndexFunc(e.root.windows(), func(w *window) bool { return w.buf.title == "[help]" })]
-	// The entry goes at the top of the window, its text below it.
-	at := e.win.buf.text.Snapshot().LineStart(line)
-	e.setCursor(at)
-	e.win.buf.text.MoveMark(e.win.top, at)
-}
-
-// followHelp goes to the entry of the name under the cursor in help.
-func (e *Session) followHelp() {
-	t, c := e.Text(), e.Cursor()
-	ls, le := t.LineStart(t.LineOf(c)), vim.LineEnd(t, c)
-	line := t.Slice(ls, le)
-	at := c - ls
-	start := strings.LastIndexAny(line[:at], " \t") + 1
-	end := len(line)
-	if i := strings.IndexAny(line[at:], " \t"); i >= 0 {
-		end = at + i
-	}
-	word := strings.Trim(line[start:end], ".,`()")
-	if word == "" {
-		return
-	}
-	e.help(word)
+	line, ok := helpLine(tags, topic, e.cfg.Leader)
+	return text, line, ok
 }
 
 // helpTags returns every name :h takes, for its completion: the names of

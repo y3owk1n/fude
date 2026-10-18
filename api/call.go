@@ -249,6 +249,10 @@ type Panel struct {
 	Title, Filetype, Text string
 	Spans                 []Span            // styles over Text, such as diff.plus on a line (B276)
 	Keys                  map[string]string // its own keys in normal mode, such as <CR> to a plug of the owner's (B291)
+	// Line, from 1, is the line that shows at the top of the panel's window
+	// each time it shows, with the cursor on it and the focus there, as
+	// help's entry does (B334).
+	Line int
 	// Float shows it in a box of its own in the middle of the screen, which
 	// takes the focus and names it by Title without its brackets (B318).
 	Float bool
@@ -440,6 +444,10 @@ type Scope struct {
 	Marks, Jumps, Changes func() []Mark
 	Messages              func() []string
 	Register              func(name rune) (string, bool, error)
+	// HelpAt returns help's text and the line, from 0, of the entry topic
+	// names, or of the start for "", or false when it names none. Only a
+	// call has it (B334).
+	HelpAt func(topic string) (text string, line int, ok bool)
 	// Grammars returns the grammars fude builds, each with its state: built,
 	// missing, outdated, building, or failed with why. Only a call has them
 	// (B333).

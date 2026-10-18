@@ -485,8 +485,8 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 	switch s := res.Show; {
 	case s != nil && s.Screen:
 		e.screenPanel(b, *s)
-	case s != nil:
-		e.panel(*s)
+	case s != nil && e.panel(*s) && s.Line > 0:
+		e.panelAt(s.Title, s.Line-1)
 	}
 	e.later = append(e.later, vim.Keys(res.Keys)...)
 	if j := res.Jump; j != nil {
@@ -914,6 +914,7 @@ func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 	s.Window = func(string) bool { return false }
 	s.Sessions = func() []api.Peer { return nil }
 	s.Grammars = func() []api.Grammar { return nil }
+	s.HelpAt = func(string) (string, int, bool) { return "", 0, false }
 	s.Messages = func() []string { return nil }
 	s.Register = func(rune) (string, bool, error) { return "", false, nil }
 	s.StateText = func(int, int) (string, bool) { return "", false }

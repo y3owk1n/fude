@@ -12,6 +12,7 @@ import (
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/modules/debug"
 	"github.com/y3owk1n/fude/modules/grep"
+	helpmod "github.com/y3owk1n/fude/modules/help"
 	listsmod "github.com/y3owk1n/fude/modules/lists"
 	sessionsmod "github.com/y3owk1n/fude/modules/sessions"
 	"github.com/y3owk1n/fude/modules/task"
@@ -33,6 +34,7 @@ func TestB131CommandCompletion(t *testing.T) {
 	e := start(t, "readme")
 	e.Use(listsmod.New())
 	e.Use(sessionsmod.New())
+	e.Use(helpmod.New())
 	e.Use(timelinemod.New())
 	e.Use(task.New())
 	e.Use(debug.New())

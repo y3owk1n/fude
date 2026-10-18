@@ -1338,7 +1338,11 @@ and `syntax.Objects` for the editor's. Options and settings carry their
 help in a `help` tag beside their `toml` tag. The mappings come from the
 keymaps in use, so the user's own show too. The keys `normal` reads
 itself, such as `"{reg}` and `m{a-z}`, are the one list written beside
-the code instead of in a table (B162). `fude --man` renders help as
+the code instead of in a table (B162). The editor builds help's text, and
+`modules/help` shows it. `:help` reads it and the entry's line through
+`Scope.HelpAt`, and shows a panel with `Line` set, which puts the entry at
+the top of the window with the focus there. `<Plug>(help.follow)` does the
+same for the name under the cursor (B334). `fude --man` renders help as
 three man pages: the reference in fude(1), the options and settings in
 fude-config(5), and the guide in fude-guide(7). It renders them from an
 editor with the default config, so they do not depend on whoever builds

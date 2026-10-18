@@ -69,7 +69,7 @@ func (e *Session) onLoop(scope *api.Scope) {
 		return nil
 	}
 	e.lists(scope)
-	scope.Grammars = e.grammarList
+	scope.Grammars, scope.HelpAt = e.grammarList, e.helpAt
 	scope.Sessions = func() []api.Peer {
 		var out []api.Peer
 		for _, s := range e.sessions {

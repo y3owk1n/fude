@@ -141,9 +141,6 @@ func init() {
 		}, func(_ *Session, _ string, start int, arg string, _ bool) (int, []string) {
 			return start, match([]string{"reload"}, arg)
 		}},
-		{vim.Command{Name: "help", Short: []string{"h"}, Args: "[name]", Help: "opens help, at the entry for a command, key, option or setting"}, func(e *Session, x call) { e.help(x.arg) }, func(e *Session, _ string, start int, arg string, _ bool) (int, []string) {
-			return start, match(e.helpTags(), arg)
-		}},
 		{vim.Command{Name: "new", Help: "opens a window below with a new empty buffer, or above with split_below off"}, func(e *Session, _ call) {
 			e.split(false)
 			e.empty()
@@ -220,7 +217,6 @@ func init() {
 			}
 		}},
 		{"list.open", "goes to the place under the cursor", func(e *Session, _ int) { e.openSpot() }},
-		{"help.follow", "goes to the help entry of the name under the cursor", func(e *Session, _ int) { e.followHelp() }},
 		{"list.next", "goes to the next place of the last list", func(e *Session, n int) { e.stepPlace(func(at, _ int) int { return at + max(n, 1) }) }},
 		{"list.prev", "goes to the place before in the last list", func(e *Session, n int) { e.stepPlace(func(at, _ int) int { return max(at, 0) - max(n, 1) }) }},
 		{"list.first", "goes to the first place of the last list", func(e *Session, _ int) { e.stepPlace(func(int, int) int { return 0 }) }},
