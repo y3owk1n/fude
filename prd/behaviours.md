@@ -583,8 +583,8 @@ Where fude departs, the line says so and cites the departure in
   - A quote's `>` shows as `▌`, and a rule as a line of `─`.
   - Emphasis and code spans lose their marks, a link shows its text
     alone, and an image its description. An image whose path names a
-    file shows below its line (B303). A relative path is looked up beside
-    the markdown file.
+    file, or an http or https address, shows below its line (B303, B308).
+    A relative path is looked up beside the markdown file.
   - A table's pipes show as `│`, padded so its columns line up as their
     cells show, and its delimiter row as `├─┼─┤`. A column the delimiter
     row aligns with `-:` or `:-:` lines up on the right or in the middle.
@@ -1090,6 +1090,10 @@ Where fude departs, the line says so and cites the departure in
 - B306 [4] An image leaves fude's memory once nothing shows it, when the
   buffer that showed it closes or the finder that previewed it closes.
   Every client then has the terminal drop it.
+- B308 [4] An image decoration may name an http or https address. With
+  `remote_images` on, as it is unless set off, fude fetches it off the
+  loop, in at most 10 seconds and 16MB, and shows it as it would a file.
+  With it off, no new one loads.
 - B289 [4] A plugin with `ui` reads its own decorations on the buffer its
   call is about, each with its id, where it is now and what it shows.
 - B290 [4] A module's command completes its argument through the

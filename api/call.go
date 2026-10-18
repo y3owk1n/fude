@@ -26,10 +26,10 @@ type Decoration struct {
 	// cursor or a selection is on any of them, they all show their text as
 	// it is, without replacements or rows of their own (B300).
 	Block bool
-	// Image shows the image file at the path, a PNG, JPEG or GIF, in rows
-	// of its own below Start's line, as wide as its pixels or the window,
-	// in a terminal that shows images. It shows on the cursor's line too
-	// (B303).
+	// Image shows the image at the path, a PNG, JPEG or GIF file or an http
+	// or https address, in rows of its own below Start's line, as wide as
+	// its pixels or the window, in a terminal that shows images. It shows on
+	// the cursor's line too (B303, B308).
 	Image string
 	// Layer orders the signs on one line, and the highest shows. git's signs
 	// are at -1, most at 0, diagnostics at 1 and a breakpoint at 2 (B184,

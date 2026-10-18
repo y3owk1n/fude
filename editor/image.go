@@ -8,8 +8,11 @@ import (
 	_ "image/gif"
 	_ "image/jpeg"
 	"image/png"
+	"io"
+	"net/http"
 	"os"
 	"slices"
+	"strings"
 	"time"
 )
 
@@ -40,6 +43,9 @@ func (e *Editor) picture(path string) *picture {
 	if p, asked := e.pictures.byPath[path]; asked {
 		return p
 	}
+	if remote(path) && !e.cfg.RemoteImages {
+		return nil
+	}
 	if e.pictures.byPath == nil {
 		e.pictures.byPath, e.pictures.byID = map[string]*picture{}, map[int]*picture{}
 	}
@@ -59,16 +65,53 @@ func (e *Editor) picture(path string) *picture {
 	return nil
 }
 
-// loadPicture reads the image at path, a PNG, JPEG or GIF, and makes it a
-// PNG.
-func loadPicture(path string) (*picture, error) {
-	info, err := os.Stat(path)
+// remote reports whether path is an http or https address (B308).
+func remote(path string) bool {
+	return strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://")
+}
+
+// maxImage is the most bytes fude reads of an image at an address.
+const maxImage = 16 << 20
+
+// fetchImage gets the image at an http or https address, in at most 10
+// seconds and maxImage bytes (B308).
+func fetchImage(url string) ([]byte, error) {
+	client := http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("image: %w", err)
 	}
-	b, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("image: %w", err)
+	defer resp.Body.Close()
+	if resp.StatusCode/100 != 2 {
+		return nil, fmt.Errorf("image %s: %s", url, resp.Status)
+	}
+	b, err := io.ReadAll(io.LimitReader(resp.Body, maxImage+1))
+	switch {
+	case err != nil:
+		return nil, fmt.Errorf("image %s: %w", url, err)
+	case len(b) > maxImage:
+		return nil, fmt.Errorf("image %s: over %dMB", url, maxImage>>20)
+	}
+	return b, nil
+}
+
+// loadPicture reads the PNG, JPEG or GIF at path, a file or an address,
+// and makes it a PNG.
+func loadPicture(path string) (*picture, error) {
+	var b []byte
+	var info os.FileInfo
+	var err error
+	if remote(path) {
+		if b, err = fetchImage(path); err != nil {
+			return nil, err
+		}
+	} else {
+		if info, err = os.Stat(path); err == nil {
+			b, err = os.ReadFile(path)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("image: %w", err)
+		}
 	}
 	cfg, format, err := image.DecodeConfig(bytes.NewReader(b))
 	switch {
@@ -88,7 +131,11 @@ func loadPicture(path string) (*picture, error) {
 		}
 		b = out.Bytes()
 	}
-	return &picture{png: b, w: cfg.Width, h: cfg.Height, mod: info.ModTime(), size: info.Size()}, nil
+	p := &picture{png: b, w: cfg.Width, h: cfg.Height}
+	if info != nil {
+		p.mod, p.size = info.ModTime(), info.Size()
+	}
+	return p, nil
 }
 
 // recheck loads again, off the loop, each image whose file changed since
@@ -96,7 +143,7 @@ func loadPicture(path string) (*picture, error) {
 // (B307).
 func (e *Editor) recheck() {
 	for path, p := range e.pictures.byPath {
-		if p == nil {
+		if p == nil || remote(path) {
 			continue
 		}
 		go func() {

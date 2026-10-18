@@ -38,6 +38,7 @@ type config struct {
 	SplitRight      bool     `toml:"split_right" help:"a vertical split opens right of the window, else left of it"`
 	Autocomplete    bool     `toml:"autocomplete" help:"completions show while typing, not only on <C-x><C-o>"`
 	GitSigns        bool     `toml:"git_signs" help:"the sign column shows how a file differs from git's index"`
+	RemoteImages    bool     `toml:"remote_images" help:"images at http and https addresses load from the network"`
 	HighlightColors bool     `toml:"highlight_colors" help:"text that names a colour, such as #ff8800 or rgb(255, 136, 0), shows on that colour"`
 	InlayHints      bool     `toml:"inlay_hints" help:"language servers' inlay hints, such as parameter names and types, show in the text"`
 	Autopairs       bool     `toml:"autopairs" help:"an opening bracket or quote typed comes with its closing one"`
@@ -113,7 +114,7 @@ type keymap struct {
 	Groups   map[string]string `toml:"groups" help:"names of the keys mappings start with, which key hints show"`
 }
 
-var defaults = config{TabWidth: 8, Editorconfig: true, KeyTimeout: 1000, KeyHints: 300, FlashTime: 300, FormatTimeout: 1000, LargeFile: 2, TerminalHeight: 33, SplitBelow: true, SplitRight: true, HighlightColors: true, GitSigns: true, InlayHints: true, Autopairs: true, Sources: []string{"lsp", "snippet", "path", "buffer"}, AutoInstall: true, BufferLine: true, SpellWords: "/usr/share/dict/words", Leader: "<Space>", Theme: "dark", options: options{Wrap: true, IndentGuides: true, IncSearch: true, StickyContext: true, StickyContextLines: 3, DiagnosticNotes: true, Render: true}}
+var defaults = config{TabWidth: 8, Editorconfig: true, KeyTimeout: 1000, KeyHints: 300, FlashTime: 300, FormatTimeout: 1000, LargeFile: 2, TerminalHeight: 33, SplitBelow: true, SplitRight: true, HighlightColors: true, GitSigns: true, RemoteImages: true, InlayHints: true, Autopairs: true, Sources: []string{"lsp", "snippet", "path", "buffer"}, AutoInstall: true, BufferLine: true, SpellWords: "/usr/share/dict/words", Leader: "<Space>", Theme: "dark", options: options{Wrap: true, IndentGuides: true, IncSearch: true, StickyContext: true, StickyContextLines: 3, DiagnosticNotes: true, Render: true}}
 
 // options are the settings each window has, which :set changes for the
 // current window and the windows opened after it (B39). :set takes each by

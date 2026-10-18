@@ -207,9 +207,13 @@ func (m *Module) draw(s api.Scope) api.Result {
 				}
 			}
 		case "picture":
-			// An image on disk shows below its line. A relative path is
-			// beside the markdown file (B303).
-			if src := t.Slice(sp.Start, sp.End); !strings.Contains(src, "://") {
+			// An image on disk or at an http or https address shows below
+			// its line. A relative path is beside the markdown file (B303,
+			// B308).
+			switch src := t.Slice(sp.Start, sp.End); {
+			case strings.HasPrefix(src, "http://") || strings.HasPrefix(src, "https://"):
+				add(api.Decoration{Start: sp.Start, End: sp.Start, Image: src})
+			case !strings.Contains(src, "://"):
 				if !filepath.IsAbs(src) {
 					src = filepath.Join(filepath.Dir(s.About["path"]), src)
 				}

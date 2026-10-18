@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"image"
 	"image/png"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"slices"
@@ -22,6 +24,14 @@ func TestMain(m *testing.M) { os.Exit(editortest.Main(m, "markdown", "markdown_i
 func TestB298Render(t *testing.T) {
 	// The cursor starts on the blank first line, which shows as it is.
 	src := "\n# Title\n- a\n  - b\n- [ ] todo\n> quote\n---\n```go\nx := 1\n```\nSome *em* and [link](http://x.y).\n\n| a | bb |\n|---|---:|\n| *ccc* | d |\n\n![pic](pic.png)\n"
+	// An image at an address shows too.
+	var web bytes.Buffer
+	if err := png.Encode(&web, image.NewRGBA(image.Rect(0, 0, 80, 32))); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.Write(web.Bytes()) }))
+	defer srv.Close()
+	src += "\n![web](" + srv.URL + "/w.png)\n"
 	dir := t.TempDir()
 	path := filepath.Join(dir, "notes.md")
 	editortest.Change(t, path, src)
@@ -71,8 +81,10 @@ func TestB298Render(t *testing.T) {
 			return false
 		}
 		// The image shows below its line, two rows of 10 columns.
-		if rows := v.Virtual[e.Text().LineOf(at("![pic"))]; len(rows) != 2 || rows[0].Image == 0 || rows[0].Cols != 10 {
-			return false
+		for _, img := range []string{"![pic", "![web"} {
+			if rows := v.Virtual[e.Text().LineOf(at(img))]; len(rows) != 2 || rows[0].Image == 0 || rows[0].Cols != 10 {
+				return false
+			}
 		}
 		line := e.Text().LineOf(at("x := 1"))
 		return v.Grounds[1] == "markdown.h1" && v.Grounds[line] == "markdown.code"

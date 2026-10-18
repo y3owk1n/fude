@@ -102,6 +102,13 @@ A file in a git repository shows in the sign column which lines differ
 from git's index. The default is on. When it is off, the sign column shows no git signs,
 and `]h`, `[h`, `gh` and `gH` still act on the hunks.
 
+## remote_images
+
+An image at an http or https address, such as one a markdown file shows,
+loads from the network, in at most 10 seconds and 16MB. The default is
+on. `:set remote_images false` stops new ones loading, so opening a file
+contacts no server it names.
+
 ## highlight_colors
 
 Text that names a colour shows on that colour, in black or white text,

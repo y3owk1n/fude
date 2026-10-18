@@ -1185,6 +1185,29 @@ func TestB306FreeImages(t *testing.T) {
 	}
 }
 
+// B308
+func TestB308RemoteImage(t *testing.T) {
+	var b bytes.Buffer
+	if err := png.Encode(&b, image.NewRGBA(image.Rect(0, 0, 80, 32))); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.Write(b.Bytes()) }))
+	defer srv.Close()
+	path := filepath.Join(t.TempDir(), "f")
+	change(t, path, "a\n")
+	e := start(t, path)
+	e.SetSize(80, 20)
+	e.SetCell(8, 16)
+	// With remote_images off, an image at an address does not load.
+	feed(e, ":set remote_images false<CR>")
+	e.Use(pictured{path: srv.URL + "/a.png"})
+	if len(e.Views()[0].Virtual[0]) != 0 {
+		t.Fatal("with remote_images off the image took rows")
+	}
+	feed(e, ":set remote_images true<CR>")
+	settle(t, e, func() bool { return len(e.Views()[0].Virtual[0]) == 2 })
+}
+
 // B289
 func TestB289PluginReadsItsDecorations(t *testing.T) {
 	e := loaded(t, "ctx", "f", "a\n b\n c\nd\n", "buffer.read", "buffer.write", "ui")
