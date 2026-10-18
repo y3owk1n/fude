@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -34,6 +35,11 @@ func TestB173PluginNewAndBuild(t *testing.T) {
 		if strings.Contains(out, "dial tcp") || strings.Contains(out, "no such host") {
 			t.Skipf("the module proxy is out of reach: %s", out)
 		}
+		// Until the first release, the sdk the proxy has requires an api
+		// it does not have (D51).
+		if strings.Contains(out, "fude/api@v0.0.0") {
+			t.Skipf("the published sdk needs an api with no release: %s", out)
+		}
 		t.Fatalf("fude plugin new words: %v: %s", err, out)
 	}
 	for _, name := range []string{"go.mod", "main.go"} {
@@ -46,6 +52,15 @@ func TestB173PluginNewAndBuild(t *testing.T) {
 	}
 	if out, err := fude("plugin", "build", "words"); err != nil {
 		t.Fatalf("fude plugin build words: %v: %s", err, out)
+	}
+	// Until the first release, the sdk the proxy has may be older than this
+	// fude's ABI (D51).
+	if p, err := plugin.Load(context.Background(), filepath.Join(dir, "words", "words.wasm"), plugin.Grants{}, t.TempDir(), func(string) {}); err != nil {
+		if strings.Contains(err.Error(), "import func[fude.") {
+			t.Skipf("the published sdk is older than this fude: %v", err)
+		}
+	} else {
+		p.Close(context.Background())
 	}
 	// The plugin it built runs :Words as any plugin's command runs.
 	words := plugintest.Load(t, filepath.Join(dir, "words", "words.wasm"), plugin.Grants{Capabilities: []string{"buffer.read", "ui"}}, "")

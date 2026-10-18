@@ -111,7 +111,7 @@ type Job struct {
 	Input  string // what the program reads on its stdin
 	URL    string
 	Stream bool
-	Emit   func(line string) // what fude gives a Stream job before Work
+	Emit   func(line string) `json:"-"` // what fude gives a Stream job before Work
 }
 
 // Request is a request a call sends the language servers of the buffer it

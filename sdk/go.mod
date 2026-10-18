@@ -1,3 +1,7 @@
 module github.com/y3owk1n/fude/sdk
 
 go 1.26.0
+
+require github.com/y3owk1n/fude/api v0.0.0
+
+replace github.com/y3owk1n/fude/api => ../api

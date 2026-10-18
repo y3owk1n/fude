@@ -6,10 +6,14 @@
 package sdk
 
 import (
+	"encoding/json"
 	"errors"
 	"strconv"
 	"strings"
+	"time"
 	"unsafe"
+
+	"github.com/y3owk1n/fude/api"
 )
 
 // Call is where a command or key ran: the cursor's byte offset and the
@@ -61,17 +65,6 @@ func fail(code int64) error {
 	return [...]error{ErrDenied, ErrRange, ErrMemory, ErrFile, ErrRun, ErrNet}[min(-code, 6)-1]
 }
 
-// What register adds, as fude numbers them.
-const (
-	kindCommand = iota
-	kindOperator
-	kindObject
-	kindKey
-	kindInsert
-	kindPlug
-	kindSource
-)
-
 // The functions fude gives a plugin.
 
 //go:wasmimport fude log
@@ -79,18 +72,6 @@ func hostLog(ptr *byte, n uint32)
 
 //go:wasmimport fude context
 func hostContext(ptr *byte, n uint32) int64
-
-//go:wasmimport fude after
-func hostAfter(ms, id uint32) int32
-
-//go:wasmimport fude start
-func hostStart(ptr *byte, n uint32, in *byte, inN uint32, id uint32) int32
-
-//go:wasmimport fude fetch
-func hostFetch(ptr *byte, n uint32, id uint32) int32
-
-//go:wasmimport fude request
-func hostRequest(ptr *byte, n uint32, pos, end, id uint32) int32
 
 //go:wasmimport fude setting
 func hostSetting(ptr *byte, n uint32) int64
@@ -137,71 +118,17 @@ func hostLineStart(line uint32) int32
 //go:wasmimport fude text
 func hostText(start, end uint32) int64
 
-//go:wasmimport fude edit
-func hostEdit(start, end uint32, ptr *byte, n uint32) int32
-
-//go:wasmimport fude register
-func hostRegister(kind uint32, nptr *byte, nn uint32, hptr *byte, hn uint32, id uint32) int32
-
 //go:wasmimport fude subscribe
 func hostSubscribe(ptr *byte, n uint32) int32
-
-//go:wasmimport fude emit
-func hostEmit(ptr *byte, n uint32) int32
-
-//go:wasmimport fude set_option
-func hostSetOption(ptr *byte, n uint32) int32
-
-//go:wasmimport fude decorate
-func hostDecorate(start, end uint32, ptr *byte, n uint32) int32
-
-//go:wasmimport fude fold
-func hostFold(start, end uint32) int32
-
-//go:wasmimport fude replace
-func hostReplace(start, end uint32, ptr *byte, n uint32) int32
-
-//go:wasmimport fude shade
-func hostShade(start, end uint32, ptr *byte, n uint32) int32
-
-//go:wasmimport fude rows
-func hostRows(pos uint32, ptr *byte, n uint32, above uint32) int32
-
-//go:wasmimport fude block
-func hostBlock(start, end uint32) int32
 
 //go:wasmimport fude decorations
 func hostDecorations() int64
 
-//go:wasmimport fude sign
-func hostSign(pos uint32, ptr *byte, n uint32, under uint32) int32
+//go:wasmimport fude register
+func hostRegister(ptr *byte, n uint32) int32
 
-//go:wasmimport fude note
-func hostNote(pos uint32, ptr *byte, n uint32) int32
-
-//go:wasmimport fude show
-func hostShow(ptr *byte, n uint32, sptr *byte, sn uint32) int32
-
-//go:wasmimport fude jump
-func hostJump(pos uint32) int32
-
-//go:wasmimport fude pick
-func hostPick(ptr *byte, n uint32, flags, id uint32) int32
-
-//go:wasmimport fude open
-func hostOpen(pos uint32, ptr *byte, n uint32) int32
-
-//go:wasmimport fude undecorate
-func hostUndecorate(id uint32) int32
-
-//go:wasmimport fude status
-func hostStatus(ptr *byte, n uint32) int32
-
-//go:wasmimport fude message
-func hostMessage(ptr *byte, n uint32) int32
-
-//go:wasmimport fude float
-func hostFloat(ptr *byte, n uint32) int32
+//go:wasmimport fude result
+func hostResult(ptr *byte, n uint32) int32
 
 //go:wasmimport fude read_file
 func hostReadFile(ptr *byte, n uint32) int64
@@ -239,15 +166,56 @@ func ptr(s string) (*byte, uint32) {
 // handlers are what call runs, by the id register gave each.
 var handlers []func(a, b, c int64) int64
 
-// add registers kind under name with help, run by run.
-func add(kind uint32, name, help string, run func(a, b, c int64) int64) {
-	np, nn := ptr(name)
-	hp, hn := ptr(help)
-	if err := fail(int64(hostRegister(kind, np, nn, hp, hn, uint32(len(handlers))))); err != nil {
-		Log("register " + name + ": " + err.Error())
+// add registers r, which call runs with run.
+func add(r api.Registration, run func(a, b, c int64) int64) {
+	r.ID = uint32(len(handlers))
+	b, err := json.Marshal(r)
+	if err == nil {
+		err = fail(int64(hostRegister(&b[0], uint32(len(b)))))
+	}
+	if err != nil {
+		Log("register " + r.Name + ": " + err.Error())
 		return
 	}
 	handlers = append(handlers, run)
+}
+
+// Register registers r, of any kind and with any field a module's
+// registration has, which f runs with the arguments its kind takes, 0 for
+// the others. What f returns is an Object's selection, as start<<32|end,
+// or a negative number for none. Call it from an init function.
+func Register(r api.Registration, f func(a, b, c int) int) {
+	add(r, func(a, b, c int64) int64 { return int64(f(int(a), int(b), int(c))) })
+}
+
+// Do asks for what r holds, as a module's call returns it. fude applies it
+// once the call returns, and none of it when a part needs a capability the
+// plugin did not declare. Emit names the plugin's events without its own
+// name, which fude puts before them.
+func Do(r api.Result) error {
+	b, err := json.Marshal(r)
+	if err != nil {
+		return err
+	}
+	return fail(int64(hostResult(&b[0], uint32(len(b)))))
+}
+
+// ids is the id ID gave last.
+var ids int
+
+// ID returns a new id for a decoration Do puts on the text.
+func ID() int {
+	ids++
+	return ids
+}
+
+// decorate puts d on the text under a new id, which it returns.
+func decorate(d api.Decoration) (int, error) {
+	d.ID = ID()
+	if err := Do(api.Result{Decorate: []api.Decoration{d}}); err != nil {
+		return 0, err
+	}
+	return d.ID, nil
 }
 
 //go:wasmexport call
@@ -275,7 +243,9 @@ func callback(id uint32) {
 // returns, off the input path, as an event runs. f reads the text of the
 // buffer that call was about. A call that fails asks for nothing.
 func After(ms int, f func()) error {
-	return schedule(f, func(id uint32) int32 { return hostAfter(uint32(ms), id) })
+	return schedule(f, func(id uint32) error {
+		return Do(api.Result{Timers: []api.Timer{{ID: id, After: time.Duration(ms) * time.Millisecond}}})
+	})
 }
 
 // Start runs the program name with args in the background, in the project,
@@ -288,17 +258,16 @@ func Start(f func(output string, err error), name string, args ...string) error 
 // Pipe runs the program name with args as Start does, with input on its
 // stdin.
 func Pipe(input string, f func(output string, err error), name string, args ...string) error {
-	p, n := ptr(strings.Join(append([]string{name}, args...), "\x00"))
-	in, inN := ptr(input)
-	return schedule(done(f), func(id uint32) int32 { return hostStart(p, n, in, inN, id) })
+	return schedule(done(f), func(id uint32) error {
+		return Do(api.Result{Jobs: []api.Job{{ID: id, Argv: append([]string{name}, args...), Input: input}}})
+	})
 }
 
 // Fetch gets the http or https URL in the background, with no budget, and
 // then runs f with the body, as Start does. It needs net, and the URL's
 // host in the plugin's hosts.
 func Fetch(url string, f func(body string, err error)) error {
-	p, n := ptr(url)
-	return schedule(done(f), func(id uint32) int32 { return hostFetch(p, n, id) })
+	return schedule(done(f), func(id uint32) error { return Do(api.Result{Jobs: []api.Job{{ID: id, URL: url}}}) })
 }
 
 // Request sends method to the language servers of the buffer the call is
@@ -312,8 +281,9 @@ func Request(method string, pos int, params string, f func(result string, err er
 // RequestRange is Request with the range from start to end in place of a
 // position, as textDocument/rangeFormatting takes (B281).
 func RequestRange(method string, start, end int, params string, f func(result string, err error)) error {
-	p, n := ptr(method + "\x00" + params)
-	return schedule(done(f), func(id uint32) int32 { return hostRequest(p, n, uint32(start), uint32(end), id) })
+	return schedule(done(f), func(id uint32) error {
+		return Do(api.Result{Requests: []api.Request{{ID: id, Method: method, Pos: start, End: end, Params: params}}})
+	})
 }
 
 // done is the callback that runs f with a job's output and error.
@@ -329,10 +299,10 @@ func done(f func(string, error)) func() {
 
 // schedule keeps f under a new id and asks fude for it with ask, or forgets
 // it when fude refuses.
-func schedule(f func(), ask func(id uint32) int32) error {
+func schedule(f func(), ask func(id uint32) error) error {
 	last++
 	later[last] = f
-	if err := fail(int64(ask(last))); err != nil {
+	if err := ask(last); err != nil {
 		delete(later, last)
 		return err
 	}
@@ -363,7 +333,7 @@ func onEvent(p *byte, n uint32) {
 // Command adds the ex command :name, which runs f. help says what it does,
 // for :h. Call it from an init function.
 func Command(name, help string, f func(Call)) {
-	add(kindCommand, name, help, func(a, b, _ int64) int64 {
+	add(api.Registration{Kind: api.Command, Name: name, Help: help}, func(a, b, _ int64) int64 {
 		first, _ := strconv.Atoi(about("first"))
 		last, _ := strconv.Atoi(about("last"))
 		f(Call{int(a), int(b), about("args"), about("bang") == "true", first, last, about("ranged") == "true"})
@@ -381,7 +351,7 @@ func about(name string) string {
 // Key maps keys in normal mode to f, as a mapping in config.toml does.
 // help says what it does, for :h and the key hints.
 func Key(keys, help string, f func(Call)) {
-	add(kindKey, keys, help, func(a, b, _ int64) int64 {
+	add(api.Registration{Kind: api.Key, Name: keys, Help: help}, func(a, b, _ int64) int64 {
 		f(Call{Cursor: int(a), Count: int(b)})
 		return 0
 	})
@@ -391,7 +361,7 @@ func Key(keys, help string, f func(Call)) {
 // The cursor goes after the text f's first edit puts in, as typing it
 // would leave it. help says what it does, for :h and the key hints.
 func Insert(keys, help string, f func(Call)) {
-	add(kindInsert, keys, help, func(a, _, _ int64) int64 {
+	add(api.Registration{Kind: api.Insert, Name: keys, Help: help}, func(a, _, _ int64) int64 {
 		f(Call{Cursor: int(a)})
 		return 0
 	})
@@ -401,7 +371,7 @@ func Insert(keys, help string, f func(Call)) {
 // after the name as its args, for f to show a list with Picker or Pick.
 // help says what it does, for :h.
 func Source(name, help string, f func(Call)) {
-	add(kindSource, name, help, func(a, b, _ int64) int64 {
+	add(api.Registration{Kind: api.Source, Name: name, Help: help}, func(a, b, _ int64) int64 {
 		f(Call{Cursor: int(a), Count: int(b), Args: about("args")})
 		return 0
 	})
@@ -410,7 +380,7 @@ func Source(name, help string, f func(Call)) {
 // Plug adds a command keys reach only as <Plug>(plugin.name), which runs
 // f, as :plug does. help says what it does, for :h.
 func Plug(name, help string, f func(Call)) {
-	add(kindPlug, name, help, func(a, b, _ int64) int64 {
+	add(api.Registration{Kind: api.Plug, Name: name, Help: help}, func(a, b, _ int64) int64 {
 		f(Call{Cursor: int(a), Count: int(b)})
 		return 0
 	})
@@ -419,7 +389,7 @@ func Plug(name, help string, f func(Call)) {
 // Operator adds the operator keys, which runs f on the text a motion or
 // object covers, in every way fude's own operators run.
 func Operator(keys, help string, f func(Range)) {
-	add(kindOperator, keys, help, func(a, b, c int64) int64 {
+	add(api.Registration{Kind: api.Operator, Name: keys, Help: help}, func(a, b, c int64) int64 {
 		f(Range{int(a), int(b), c != 0})
 		return 0
 	})
@@ -428,7 +398,7 @@ func Operator(keys, help string, f func(Range)) {
 // Object adds the text object keys. f gets the selection or the cursor as
 // [start, end) and returns the text it selects, or false for none.
 func Object(keys, help string, f func(start, end int) (int, int, bool)) {
-	add(kindObject, keys, help, func(a, b, _ int64) int64 {
+	add(api.Registration{Kind: api.Object, Name: keys, Help: help}, func(a, b, _ int64) int64 {
 		s, e, ok := f(int(a), int(b))
 		if !ok {
 			return -1
@@ -536,10 +506,7 @@ func Comment(pos int) (string, bool) {
 
 // Span is a highlight capture over [Start, End), named as the query names
 // it, such as comment or string.
-type Span struct {
-	Start, End int
-	Name       string
-}
+type Span = api.Span
 
 // Spans returns the highlight captures over [start, end) of the text, in
 // paint order, or none without a grammar. It needs buffer.read.
@@ -553,7 +520,7 @@ func Spans(start, end int) ([]Span, error) {
 	for i := 0; i+2 < len(f); i += 3 {
 		start, _ := strconv.Atoi(f[i])
 		end, _ := strconv.Atoi(f[i+1])
-		out = append(out, Span{start, end, f[i+2]})
+		out = append(out, Span{Start: start, End: end, Name: f[i+2]})
 	}
 	return out, nil
 }
@@ -624,31 +591,22 @@ func Text(start, end int) (string, error) {
 // Edit asks to replace [start, end) with text. The edits a call asks for
 // apply together once it returns. It needs buffer.write.
 func Edit(start, end int, text string) error {
-	p, n := ptr(text)
-	return fail(int64(hostEdit(uint32(start), uint32(end), p, n)))
+	return Do(api.Result{Edits: []api.Edit{{Start: start, End: end, Text: text}}})
 }
 
 // SetOption sets the option name, expand_tab, indent_width or tab_width,
 // to value on the buffer the call is about, over config.toml's, until the
 // buffer closes.
-func SetOption(name, value string) error {
-	p, n := ptr(name + "\x00" + value)
-	return fail(int64(hostSetOption(p, n)))
-}
+func SetOption(name, value string) error { return Do(api.Result{Set: map[string]string{name: value}}) }
 
 // Emit asks fude to emit the event plugin.name about the text the call
 // read.
-func Emit(name string) error {
-	p, n := ptr(name)
-	return fail(int64(hostEmit(p, n)))
-}
+func Emit(name string) error { return Do(api.Result{Emit: []string{name}}) }
 
 // Decorate puts a style, such as keyword, on [start, end), and returns its
 // id for Undecorate. It needs ui.
 func Decorate(start, end int, style string) (int, error) {
-	p, n := ptr(style)
-	id := hostDecorate(uint32(start), uint32(end), p, n)
-	return int(id), fail(int64(id))
+	return decorate(api.Decoration{Start: start, End: end, Style: style})
 }
 
 // Sign shows text in the sign column on the line that holds pos, in the
@@ -659,20 +617,16 @@ func Sign(pos int, text, style string) (int, error) { return sign(pos, text, sty
 
 // SignUnder is Sign for a sign any other sign on the line shows over, as
 // git's signs are.
-func SignUnder(pos int, text, style string) (int, error) { return sign(pos, text, style, 1) }
+func SignUnder(pos int, text, style string) (int, error) { return sign(pos, text, style, -1) }
 
-func sign(pos int, text, style string, under uint32) (int, error) {
-	p, n := ptr(text + "\x00" + style)
-	id := hostSign(uint32(pos), p, n, under)
-	return int(id), fail(int64(id))
+func sign(pos int, text, style string, layer int) (int, error) {
+	return decorate(api.Decoration{Start: pos, End: pos, Style: style, Sign: text, Layer: layer})
 }
 
 // Note shows text dim after the end of the line that holds pos. It returns
 // an id for Undecorate, and moves with edits. It needs ui.
 func Note(pos int, text string) (int, error) {
-	p, n := ptr(text)
-	id := hostNote(uint32(pos), p, n)
-	return int(id), fail(int64(id))
+	return decorate(api.Decoration{Start: pos, End: pos, Note: text})
 }
 
 // Pick shows items in a list, after prompt, once the call returns. The
@@ -681,11 +635,10 @@ func Note(pos int, text string) (int, error) {
 // cancelled or no item matched. A list asked for while one shows is
 // cancelled. It needs ui.
 func Pick(prompt string, items []string, f func(i int, ok bool)) error {
-	p, n := ptr(strings.Join(append([]string{prompt, "", "", ""}, items...), "\x00"))
 	return schedule(func() {
 		i, _ := strconv.Atoi(about("picked"))
 		f(i, about("ok") == "true" && i >= 0)
-	}, func(id uint32) int32 { return hostPick(p, n, 0, id) })
+	}, func(id uint32) error { return Do(api.Result{Pick: &api.Pick{ID: id, Prompt: prompt, Items: items}}) })
 }
 
 // Picker shows a live list in the finder, titled title, with hint shown
@@ -696,13 +649,7 @@ func Pick(prompt string, items []string, f func(i int, ok bool)) error {
 // place. chose then runs with the item picked, or false when they
 // cancelled. It needs ui.
 func Picker(title, hint, query string, places bool, find func(query string, all bool) []string, chose func(item string, ok bool)) error {
-	flags := uint32(1)
-	if places {
-		flags |= 2
-	}
-	head := "\x00" + title + "\x00" + hint + "\x00" + query
-	p, n := ptr(head)
-	var id uint32
+	pick := api.Pick{Title: title, Hint: hint, Query: query, Live: true, Places: places}
 	var handle func()
 	handle = func() {
 		if picked := about("picked"); picked != "" {
@@ -711,34 +658,33 @@ func Picker(title, hint, query string, places bool, find func(query string, all 
 			return
 		}
 		// A query, which the next callback follows, so the handler stays.
-		later[id] = handle
-		items := find(about("query"), about("all") == "true")
-		ap, an := ptr(strings.Join(append([]string{head}, items...), "\x00"))
-		hostPick(ap, an, flags, id)
+		later[pick.ID] = handle
+		items := pick
+		items.Items = find(about("query"), about("all") == "true")
+		Do(api.Result{Pick: &items})
 	}
-	return schedule(handle, func(i uint32) int32 { id = i; return hostPick(p, n, flags, i) })
+	return schedule(handle, func(id uint32) error {
+		pick.ID = id
+		return Do(api.Result{Pick: &pick})
+	})
 }
 
 // Ask asks the user prompt once the call returns, and runs f, as an event
 // does, with what they typed, or false when they cancelled. It needs ui.
 func Ask(prompt string, f func(text string, ok bool)) error {
-	p, n := ptr(prompt + "\x00\x00\x00")
-	return schedule(func() { f(about("text"), about("ok") == "true") }, func(id uint32) int32 { return hostPick(p, n, 0, id) })
+	return schedule(func() { f(about("text"), about("ok") == "true") }, func(id uint32) error {
+		return Do(api.Result{Pick: &api.Pick{ID: id, Prompt: prompt}})
+	})
 }
 
 // Jump moves the cursor to pos once the call returns, after its edits, when
 // the current window shows the buffer the call was about. It needs ui.
-func Jump(pos int) error {
-	return fail(int64(hostJump(uint32(pos))))
-}
+func Jump(pos int) error { return Do(api.Result{Jump: &api.Jump{Pos: pos}}) }
 
 // Open opens the file at path, relative to the project, in the current
 // window once the call returns, with the cursor at pos. It refuses a path
 // that leads outside the project. It needs ui.
-func Open(path string, pos int) error {
-	p, n := ptr(path)
-	return fail(int64(hostOpen(uint32(pos), p, n)))
-}
+func Open(path string, pos int) error { return Do(api.Result{Jump: &api.Jump{Path: path, Pos: pos}}) }
 
 // Show shows text in a read-only window titled title, coloured as
 // filetype, "" for none. A window of that title already open shows text in
@@ -748,21 +694,14 @@ func Show(title, filetype, text string) error { return ShowStyled(title, filetyp
 // ShowStyled is Show with spans styling the text, such as diff.plus on a
 // line, over what the filetype colours.
 func ShowStyled(title, filetype, text string, spans []Span) error {
-	p, n := ptr(title + "\x00" + filetype + "\x00" + text)
-	var b strings.Builder
-	for _, s := range spans {
-		b.WriteString(strconv.Itoa(s.Start) + "\x00" + strconv.Itoa(s.End) + "\x00" + s.Name + "\x00")
-	}
-	sp, sn := ptr(b.String())
-	return fail(int64(hostShow(p, n, sp, sn)))
+	return Do(api.Result{Show: &api.Panel{Title: title, Filetype: filetype, Text: text, Spans: spans}})
 }
 
 // Fold closes a fold over the lines from start's through end's. They hide
 // behind the first line and a count. The fold moves with edits, and
 // Undecorate opens it by the id Fold returns. It needs ui.
 func Fold(start, end int) (int, error) {
-	id := hostFold(uint32(start), uint32(end))
-	return int(id), fail(int64(id))
+	return decorate(api.Decoration{Start: start, End: end, Fold: true})
 }
 
 // Replace shows text in style in place of [start, end), which must be on
@@ -770,9 +709,7 @@ func Fold(start, end int) (int, error) {
 // shows it as it is. It returns an id for Undecorate, and moves with edits.
 // It needs ui.
 func Replace(start, end int, text, style string) (int, error) {
-	p, n := ptr(text + "\x00" + style)
-	id := hostReplace(uint32(start), uint32(end), p, n)
-	return int(id), fail(int64(id))
+	return decorate(api.Decoration{Start: start, End: end, Style: style, Note: text, Replace: true})
 }
 
 // Shade shades the whole rows of the lines from start's through end's, to
@@ -780,9 +717,7 @@ func Replace(start, end int, text, style string) (int, error) {
 // text keeps its own colours on it. It returns an id for Undecorate, and
 // moves with edits. It needs ui.
 func Shade(start, end int, style string) (int, error) {
-	p, n := ptr(style)
-	id := hostShade(uint32(start), uint32(end), p, n)
-	return int(id), fail(int64(id))
+	return decorate(api.Decoration{Start: start, End: end, Style: style, Line: true})
 }
 
 // Rows draws rows of their own below the line that holds pos, or above
@@ -790,13 +725,7 @@ func Shade(start, end int, style string) (int, error) {
 // them, and the line under the cursor draws none. It returns an id for
 // Undecorate, and moves with edits. It needs ui.
 func Rows(pos int, rows []string, style string, above bool) (int, error) {
-	p, n := ptr(style + "\x00" + strings.Join(rows, "\x00"))
-	up := uint32(0)
-	if above {
-		up = 1
-	}
-	id := hostRows(uint32(pos), p, n, up)
-	return int(id), fail(int64(id))
+	return decorate(api.Decoration{Start: pos, End: pos, Style: style, Lines: rows, Above: above})
 }
 
 // Block makes the lines from start's through end's one block. While the
@@ -804,8 +733,7 @@ func Rows(pos int, rows []string, style string, above bool) (int, error) {
 // is, without replacements or rows of their own. It returns an id for
 // Undecorate, and moves with edits. It needs ui.
 func Block(start, end int) (int, error) {
-	id := hostBlock(uint32(start), uint32(end))
-	return int(id), fail(int64(id))
+	return decorate(api.Decoration{Start: start, End: end, Block: true})
 }
 
 // Decoration is one the plugin put on the buffer, where it is now.
@@ -846,30 +774,19 @@ func Decorations() ([]Decoration, error) {
 }
 
 // Undecorate removes the decoration id. It needs ui.
-func Undecorate(id int) error {
-	return fail(int64(hostUndecorate(uint32(id))))
-}
+func Undecorate(id int) error { return Do(api.Result{Undecorate: []int{id}}) }
 
 // Status shows text on the statusline of the buffer the call read, or none
 // for "". It needs ui.
-func Status(text string) error {
-	p, n := ptr(text)
-	return fail(int64(hostStatus(p, n)))
-}
+func Status(text string) error { return Do(api.Result{Status: &text}) }
 
 // Message shows text in the message area once the call returns. It needs
 // ui.
-func Message(text string) error {
-	p, n := ptr(text)
-	return fail(int64(hostMessage(p, n)))
-}
+func Message(text string) error { return Do(api.Result{Message: text}) }
 
 // Float shows markdown in a float at the cursor, or closes it for "". It
 // needs ui.
-func Float(markdown string) error {
-	p, n := ptr(markdown)
-	return fail(int64(hostFloat(p, n)))
-}
+func Float(markdown string) error { return Do(api.Result{Float: &api.Float{Text: markdown}}) }
 
 // ReadFile returns the file at path, relative to the folder fude started
 // in, and refuses a path outside it. It needs fs.read.

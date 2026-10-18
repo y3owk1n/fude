@@ -40,7 +40,7 @@ const maxJobs = 8
 const memoryPages = 1024
 
 // capabilities are the ones a plugin may declare.
-var capabilities = []string{"buffer.read", "buffer.write", "ui", "fs.read", "process", "net", "lsp"}
+var capabilities = []string{"buffer.read", "buffer.write", "ui", "fs.read", "process", "net", "lsp", "keys"}
 
 // Errors a host function returns to the plugin.
 const (
@@ -62,7 +62,6 @@ type Plugin struct {
 	root string // the project: the directory fude started in
 
 	mu      sync.Mutex
-	next    int // the id the next decoration gets
 	cache   wazero.CompilationCache
 	runtime wazero.Runtime
 	mod     api.Module
@@ -117,11 +116,17 @@ func Load(ctx context.Context, path string, g Grants, cacheDir string, log func(
 		p.Close(ctx)
 		return nil, err
 	}
+	// The budget is for the plugin's code, so compiling runs before it.
+	compiled, err := p.runtime.CompileModule(ctx, wasm)
+	if err != nil {
+		p.Close(ctx)
+		return nil, fmt.Errorf("plugin %s: %w", p.name, err)
+	}
 	// A start function would run with no budget, so _start does not run,
 	// and a start section runs under the one init has.
 	ictx, cancel := context.WithTimeout(ctx, InitBudget)
 	defer cancel()
-	if p.mod, err = p.runtime.InstantiateWithConfig(ictx, wasm, wazero.NewModuleConfig().WithStartFunctions()); err != nil {
+	if p.mod, err = p.runtime.InstantiateModule(ictx, compiled, wazero.NewModuleConfig().WithStartFunctions()); err != nil {
 		p.Close(ctx)
 		if errors.Is(err, context.DeadlineExceeded) {
 			return nil, fmt.Errorf("plugin %s %w", p.name, errBudget)
@@ -253,10 +258,6 @@ func (p *Plugin) host(ctx context.Context) error {
 		NewFunctionBuilder().WithFunc(p.setting).Export("setting").
 		NewFunctionBuilder().WithFunc(p.option).Export("option").
 		NewFunctionBuilder().WithFunc(p.config).Export("config").
-		NewFunctionBuilder().WithFunc(p.after).Export("after").
-		NewFunctionBuilder().WithFunc(p.start).Export("start").
-		NewFunctionBuilder().WithFunc(p.fetch).Export("fetch").
-		NewFunctionBuilder().WithFunc(p.request).Export("request").
 		NewFunctionBuilder().WithFunc(p.textLen).Export("text_len").
 		NewFunctionBuilder().WithFunc(p.lines).Export("lines").
 		NewFunctionBuilder().WithFunc(p.node).Export("node").
@@ -269,31 +270,13 @@ func (p *Plugin) host(ctx context.Context) error {
 		NewFunctionBuilder().WithFunc(p.lineOf).Export("line_of").
 		NewFunctionBuilder().WithFunc(p.lineStart).Export("line_start").
 		NewFunctionBuilder().WithFunc(p.text).Export("text").
-		NewFunctionBuilder().WithFunc(p.edit).Export("edit").
-		NewFunctionBuilder().WithFunc(p.register).Export("register").
-		NewFunctionBuilder().WithFunc(p.subscribe).Export("subscribe").
-		NewFunctionBuilder().WithFunc(p.emit).Export("emit").
-		NewFunctionBuilder().WithFunc(p.setOption).Export("set_option").
-		NewFunctionBuilder().WithFunc(p.status).Export("status").
-		NewFunctionBuilder().WithFunc(p.message).Export("message").
-		NewFunctionBuilder().WithFunc(p.float).Export("float").
 		NewFunctionBuilder().WithFunc(p.readFile).Export("read_file").
 		NewFunctionBuilder().WithFunc(p.runProgram).Export("run").
 		NewFunctionBuilder().WithFunc(p.httpGet).Export("http_get").
-		NewFunctionBuilder().WithFunc(p.decorate).Export("decorate").
-		NewFunctionBuilder().WithFunc(p.fold).Export("fold").
-		NewFunctionBuilder().WithFunc(p.replace).Export("replace").
-		NewFunctionBuilder().WithFunc(p.shade).Export("shade").
-		NewFunctionBuilder().WithFunc(p.rows).Export("rows").
-		NewFunctionBuilder().WithFunc(p.block).Export("block").
 		NewFunctionBuilder().WithFunc(p.decorations).Export("decorations").
-		NewFunctionBuilder().WithFunc(p.undecorate).Export("undecorate").
-		NewFunctionBuilder().WithFunc(p.sign).Export("sign").
-		NewFunctionBuilder().WithFunc(p.note).Export("note").
-		NewFunctionBuilder().WithFunc(p.show).Export("show").
-		NewFunctionBuilder().WithFunc(p.jump).Export("jump").
-		NewFunctionBuilder().WithFunc(p.pick).Export("pick").
-		NewFunctionBuilder().WithFunc(p.open).Export("open").
+		NewFunctionBuilder().WithFunc(p.register).Export("register").
+		NewFunctionBuilder().WithFunc(p.subscribe).Export("subscribe").
+		NewFunctionBuilder().WithFunc(p.result).Export("result").
 		Instantiate(ctx)
 	if err != nil {
 		return fmt.Errorf("plugin %s: %w", p.name, err)
@@ -330,16 +313,6 @@ func (p *Plugin) context(ctx context.Context, m api.Module, ptr, n uint32) int64
 		return errRange
 	}
 	return give(ctx, m, v)
-}
-
-// after asks fude to run the plugin's callback with id, ms milliseconds
-// after the call returns.
-func (p *Plugin) after(ms, id uint32) int32 {
-	if p.call == nil {
-		return errDenied
-	}
-	p.call.Timers = append(p.call.Timers, fude.Timer{ID: id, After: time.Duration(ms) * time.Millisecond})
-	return 0
 }
 
 // option writes the option or config.toml setting named at (ptr, n) into
@@ -612,59 +585,6 @@ func (p *Plugin) program(ctx context.Context, argv []string, input string) (stri
 	return string(out), nil
 }
 
-// start asks fude to run the program and arguments at (ptr, n), NUL
-// separated, in the background with the text at (inPtr, inN) on its stdin,
-// and to run the plugin's callback with id once it exits (B181).
-func (p *Plugin) start(_ context.Context, m api.Module, ptr, n, inPtr, inN, id uint32) int32 {
-	if p.call == nil || !p.allowed("process", "start") {
-		return errDenied
-	}
-	b, ok := m.Memory().Read(ptr, n)
-	input, inOK := m.Memory().Read(inPtr, inN)
-	if !ok || !inOK || n == 0 {
-		return errRange
-	}
-	argv := strings.Split(string(b), "\x00")
-	if !slices.Contains(p.Programs, argv[0]) {
-		p.log(fmt.Sprintf("%s: start %s, which it did not declare", p.name, argv[0]))
-		return errRun
-	}
-	p.call.Jobs = append(p.call.Jobs, fude.Job{ID: id, Argv: argv, Input: string(input)})
-	return 0
-}
-
-// fetch asks fude to get the URL at (ptr, n) in the background, and to run
-// the plugin's callback with id once it has the body (B181).
-func (p *Plugin) fetch(_ context.Context, m api.Module, ptr, n, id uint32) int32 {
-	if p.call == nil || !p.allowed("net", "fetch") {
-		return errDenied
-	}
-	b, ok := m.Memory().Read(ptr, n)
-	if !ok {
-		return errRange
-	}
-	p.call.Jobs = append(p.call.Jobs, fude.Job{ID: id, URL: string(b)})
-	return 0
-}
-
-// request asks fude to send the method and params at (ptr, n), NUL
-// separated, to the language servers of the buffer the call is about, at
-// pos, or about the range from pos to end, or with no position for a
-// negative pos, and to run the plugin's callback with id with the answer
-// (B190, B281).
-func (p *Plugin) request(_ context.Context, m api.Module, ptr, n, pos, end, id uint32) int32 {
-	if p.call == nil || !p.allowed("lsp", "request") {
-		return errDenied
-	}
-	b, ok := m.Memory().Read(ptr, n)
-	method, params, _ := strings.Cut(string(b), "\x00")
-	if !ok || method == "" || int(int32(pos)) > p.call.Text.Len() || int(int32(end)) > p.call.Text.Len() {
-		return errRange
-	}
-	p.call.Requests = append(p.call.Requests, fude.Request{ID: id, Method: method, Pos: int(int32(pos)), End: int(int32(end)), Params: params})
-	return 0
-}
-
 // Work does j, a program or a get, as run and http_get do but with no
 // budget, until it ends or ctx does. At most maxJobs run at once.
 func (p *Plugin) Work(ctx context.Context, j fude.Job) (string, error) {
@@ -750,7 +670,11 @@ func (p *Plugin) inside(name string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("find the project: %w", err)
 	}
-	path, err := filepath.EvalSymlinks(filepath.Join(root, name))
+	path := name
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(root, name)
+	}
+	path, err = filepath.EvalSymlinks(path)
 	if err != nil {
 		return "", fmt.Errorf("find %s: %w", name, err)
 	}
@@ -773,22 +697,6 @@ func (p *Plugin) read(name string) ([]byte, error) {
 	return data, nil
 }
 
-// register records, during init, the command, operator, object or key of
-// kind named at (nptr, nn), with the help at (hptr, hn), which call runs by
-// id.
-func (p *Plugin) register(_ context.Context, m api.Module, kind, nptr, nn, hptr, hn, id uint32) int32 {
-	name, ok1 := m.Memory().Read(nptr, nn)
-	help, ok2 := m.Memory().Read(hptr, hn)
-	switch {
-	case p.call == nil || p.call.name != "init" || fude.Kind(kind) > fude.Source:
-		return errDenied
-	case !ok1 || !ok2:
-		return errRange
-	}
-	p.registered = append(p.registered, fude.Registration{Kind: fude.Kind(kind), Name: string(name), Help: string(help), ID: id})
-	return 0
-}
-
 // subscribe records, during init, that the plugin hears the event named at
 // (ptr, n) through on_event.
 func (p *Plugin) subscribe(_ context.Context, m api.Module, ptr, n uint32) int32 {
@@ -801,306 +709,6 @@ func (p *Plugin) subscribe(_ context.Context, m api.Module, ptr, n uint32) int32
 	}
 	p.subscribed = append(p.subscribed, string(name))
 	return 0
-}
-
-// emit asks to emit the event named at (ptr, n), under the plugin's name.
-func (p *Plugin) emit(_ context.Context, m api.Module, ptr, n uint32) int32 {
-	name, ok := m.Memory().Read(ptr, n)
-	switch {
-	case p.call == nil:
-		return errDenied
-	case !ok:
-		return errRange
-	}
-	p.call.Emit = append(p.call.Emit, p.name+"."+string(name))
-	return 0
-}
-
-// setOption asks to set the option named at (ptr, n), before a NUL, to the
-// value after it, on the buffer the call is about (B283).
-func (p *Plugin) setOption(_ context.Context, m api.Module, ptr, n uint32) int32 {
-	b, ok := m.Memory().Read(ptr, n)
-	name, value, found := strings.Cut(string(b), "\x00")
-	switch {
-	case p.call == nil:
-		return errDenied
-	case !ok || !found || name == "":
-		return errRange
-	}
-	if p.call.Set == nil {
-		p.call.Set = map[string]string{}
-	}
-	p.call.Set[name] = value
-	return 0
-}
-
-// edit asks to replace [start, end) with the text at ptr. The edits a call
-// asks for apply together once it returns.
-func (p *Plugin) edit(_ context.Context, m api.Module, start, end, ptr, n uint32) int32 {
-	if p.call == nil || !p.allowed("buffer.write", "edit") {
-		return errDenied
-	}
-	t := p.call.Text
-	if start > end || int(end) > t.Len() {
-		return errRange
-	}
-	b, ok := m.Memory().Read(ptr, n)
-	if !ok {
-		return errRange
-	}
-	p.call.Edits = append(p.call.Edits, fude.Edit{Start: int(start), End: int(end), Text: string(b)})
-	return 0
-}
-
-// decorate asks to put the style at (ptr, n) on [start, end), and returns
-// the decoration's id.
-func (p *Plugin) decorate(_ context.Context, m api.Module, start, end, ptr, n uint32) int32 {
-	if p.call == nil || !p.allowed("ui", "decorate") {
-		return errDenied
-	}
-	style, ok := m.Memory().Read(ptr, n)
-	if start > end || int(end) > p.call.Text.Len() || !ok {
-		return errRange
-	}
-	p.next++
-	p.call.Decorate = append(p.call.Decorate, fude.Decoration{ID: p.next, Start: int(start), End: int(end), Style: string(style)})
-	return int32(p.next)
-}
-
-// sign puts the text at (ptr, n) in the sign column on pos's line, in the
-// style after a NUL, and returns its id, which undecorate removes. With
-// under set, any other sign on the line shows over it (B184).
-func (p *Plugin) sign(_ context.Context, m api.Module, pos, ptr, n, under uint32) int32 {
-	if p.call == nil || !p.allowed("ui", "sign") {
-		return errDenied
-	}
-	b, ok := m.Memory().Read(ptr, n)
-	if int(pos) > p.call.Text.Len() || !ok {
-		return errRange
-	}
-	text, style, _ := strings.Cut(string(b), "\x00")
-	p.next++
-	layer := 0
-	if under != 0 {
-		layer = -1
-	}
-	p.call.Decorate = append(p.call.Decorate, fude.Decoration{ID: p.next, Start: int(pos), End: int(pos), Style: style, Sign: text, Layer: layer})
-	return int32(p.next)
-}
-
-// pick asks the user to pick from the items at (ptr, n), after a prompt,
-// title, hint and query, all NUL-separated, or with no items to answer
-// the prompt, once the call returns. flags holds live as its first bit
-// and places as its second. The plugin's callback with id runs with the
-// answer (B185, B285, B286).
-func (p *Plugin) pick(_ context.Context, m api.Module, ptr, n, flags, id uint32) int32 {
-	if p.call == nil || !p.allowed("ui", "pick") {
-		return errDenied
-	}
-	b, ok := m.Memory().Read(ptr, n)
-	parts := strings.Split(string(b), "\x00")
-	if !ok || len(parts) < 4 {
-		return errRange
-	}
-	p.call.Pick = &fude.Pick{ID: id, Prompt: parts[0], Title: parts[1], Hint: parts[2], Query: parts[3], Items: parts[4:], Live: flags&1 != 0, Places: flags&2 != 0}
-	return 0
-}
-
-// jump moves the cursor to pos once the call returns (B187).
-func (p *Plugin) jump(pos uint32) int32 {
-	if p.call == nil || !p.allowed("ui", "jump") {
-		return errDenied
-	}
-	if int(pos) > p.call.Text.Len() {
-		return errRange
-	}
-	p.call.Jump = &fude.Jump{Pos: int(pos)}
-	return 0
-}
-
-// open opens the file at the path at (ptr, n), relative to the project, and
-// puts the cursor at pos in it, once the call returns. A path that leads
-// outside the project is refused, as for read_file (B187).
-func (p *Plugin) open(_ context.Context, m api.Module, pos, ptr, n uint32) int32 {
-	if p.call == nil || !p.allowed("ui", "open") {
-		return errDenied
-	}
-	name, ok := m.Memory().Read(ptr, n)
-	if !ok {
-		return errRange
-	}
-	path, err := p.inside(string(name))
-	if err != nil {
-		p.log(fmt.Sprintf("%s: open: %v", p.name, err))
-		return errFile
-	}
-	p.call.Jump = &fude.Jump{Path: path, Pos: int(pos)}
-	return 0
-}
-
-// show shows, in a window of its own, the title, filetype and text at
-// (ptr, n), separated by NULs, styled by the spans at (sptr, sn), each a
-// start, end and style name followed by a NUL (B186, B276).
-func (p *Plugin) show(_ context.Context, m api.Module, ptr, n, sptr, sn uint32) int32 {
-	if p.call == nil || !p.allowed("ui", "show") {
-		return errDenied
-	}
-	b, ok := m.Memory().Read(ptr, n)
-	sb, sok := m.Memory().Read(sptr, sn)
-	parts := strings.SplitN(string(b), "\x00", 3)
-	if !ok || !sok || len(parts) != 3 || parts[0] == "" {
-		return errRange
-	}
-	panel := &fude.Panel{Title: parts[0], Filetype: parts[1], Text: parts[2]}
-	f := strings.Split(string(sb), "\x00")
-	for i := 0; i+2 < len(f); i += 3 {
-		start, err1 := strconv.Atoi(f[i])
-		end, err2 := strconv.Atoi(f[i+1])
-		if err1 != nil || err2 != nil {
-			return errRange
-		}
-		panel.Spans = append(panel.Spans, fude.Span{Start: start, End: end, Name: f[i+2]})
-	}
-	p.call.Show = panel
-	return 0
-}
-
-// note shows the text at (ptr, n) after the end of pos's line, and returns
-// its id, which undecorate removes (B184).
-func (p *Plugin) note(_ context.Context, m api.Module, pos, ptr, n uint32) int32 {
-	if p.call == nil || !p.allowed("ui", "note") {
-		return errDenied
-	}
-	text, ok := m.Memory().Read(ptr, n)
-	if int(pos) > p.call.Text.Len() || !ok {
-		return errRange
-	}
-	p.next++
-	p.call.Decorate = append(p.call.Decorate, fude.Decoration{ID: p.next, Start: int(pos), End: int(pos), Note: string(text)})
-	return int32(p.next)
-}
-
-// status asks to show the text at (ptr, n) as the plugin's statusline
-// segment for the buffer the call read, or none for "" (B58).
-func (p *Plugin) status(_ context.Context, m api.Module, ptr, n uint32) int32 {
-	if p.call == nil || !p.allowed("ui", "status") {
-		return errDenied
-	}
-	text, ok := m.Memory().Read(ptr, n)
-	if !ok {
-		return errRange
-	}
-	s := string(text)
-	p.call.Status = &s
-	return 0
-}
-
-// message asks to show the text at (ptr, n) in the message area once the
-// call returns (B272).
-func (p *Plugin) message(_ context.Context, m api.Module, ptr, n uint32) int32 {
-	if p.call == nil || !p.allowed("ui", "message") {
-		return errDenied
-	}
-	text, ok := m.Memory().Read(ptr, n)
-	if !ok {
-		return errRange
-	}
-	p.call.Message = string(text)
-	return 0
-}
-
-// float asks to show the markdown at (ptr, n) in a float at the cursor, or
-// to close it for "" (B59).
-func (p *Plugin) float(_ context.Context, m api.Module, ptr, n uint32) int32 {
-	if p.call == nil || !p.allowed("ui", "float") {
-		return errDenied
-	}
-	text, ok := m.Memory().Read(ptr, n)
-	if !ok {
-		return errRange
-	}
-	s := string(text)
-	p.call.Float = &fude.Float{Text: s}
-	return 0
-}
-
-// fold closes a fold over the lines from start's through end's, and
-// returns its id, which undecorate opens (B288).
-func (p *Plugin) fold(_ context.Context, m api.Module, start, end uint32) int32 {
-	if p.call == nil || !p.allowed("ui", "fold") {
-		return errDenied
-	}
-	if start > end || int(end) > p.call.Text.Len() {
-		return errRange
-	}
-	p.next++
-	p.call.Decorate = append(p.call.Decorate, fude.Decoration{ID: p.next, Start: int(start), End: int(end), Fold: true})
-	return int32(p.next)
-}
-
-// replace shows the text before the NUL at (ptr, n) in place of [start,
-// end), which is on one line, in the style after it, and returns its id,
-// which undecorate removes (B295).
-func (p *Plugin) replace(_ context.Context, m api.Module, start, end, ptr, n uint32) int32 {
-	if p.call == nil || !p.allowed("ui", "replace") {
-		return errDenied
-	}
-	b, ok := m.Memory().Read(ptr, n)
-	if start > end || int(end) > p.call.Text.Len() || !ok {
-		return errRange
-	}
-	text, style, _ := strings.Cut(string(b), "\x00")
-	p.next++
-	p.call.Decorate = append(p.call.Decorate, fude.Decoration{ID: p.next, Start: int(start), End: int(end), Style: style, Note: text, Replace: true})
-	return int32(p.next)
-}
-
-// shade shades the whole rows of the lines from start's through end's in
-// the ground of the style at (ptr, n), and returns its id, which undecorate
-// removes (B296).
-func (p *Plugin) shade(_ context.Context, m api.Module, start, end, ptr, n uint32) int32 {
-	if p.call == nil || !p.allowed("ui", "shade") {
-		return errDenied
-	}
-	style, ok := m.Memory().Read(ptr, n)
-	if start > end || int(end) > p.call.Text.Len() || !ok {
-		return errRange
-	}
-	p.next++
-	p.call.Decorate = append(p.call.Decorate, fude.Decoration{ID: p.next, Start: int(start), End: int(end), Style: string(style), Line: true})
-	return int32(p.next)
-}
-
-// rows draws rows below pos's line, or above it when above is 1. The text
-// at (ptr, n) is a style, then each row after a NUL. It returns their id,
-// which undecorate removes (B299).
-func (p *Plugin) rows(_ context.Context, m api.Module, pos, ptr, n, above uint32) int32 {
-	if p.call == nil || !p.allowed("ui", "rows") {
-		return errDenied
-	}
-	b, ok := m.Memory().Read(ptr, n)
-	if int(pos) > p.call.Text.Len() || !ok {
-		return errRange
-	}
-	style, rows, _ := strings.Cut(string(b), "\x00")
-	p.next++
-	p.call.Decorate = append(p.call.Decorate, fude.Decoration{ID: p.next, Start: int(pos), End: int(pos), Style: style, Lines: strings.Split(rows, "\x00"), Above: above == 1})
-	return int32(p.next)
-}
-
-// block makes the lines from start's through end's one block, which shows
-// its text as it is while the cursor is on any of them, and returns its id,
-// which undecorate removes (B300).
-func (p *Plugin) block(_ context.Context, m api.Module, start, end uint32) int32 {
-	if p.call == nil || !p.allowed("ui", "block") {
-		return errDenied
-	}
-	if start > end || int(end) > p.call.Text.Len() {
-		return errRange
-	}
-	p.next++
-	p.call.Decorate = append(p.call.Decorate, fude.Decoration{ID: p.next, Start: int(start), End: int(end), Block: true})
-	return int32(p.next)
 }
 
 // decorations writes the plugin's decorations on the buffer, each its id,
@@ -1121,13 +729,4 @@ func (p *Plugin) decorations(ctx context.Context, m api.Module) int64 {
 		}
 	}
 	return give(ctx, m, b.String())
-}
-
-// undecorate asks to remove the decoration id.
-func (p *Plugin) undecorate(id uint32) int32 {
-	if p.call == nil || !p.allowed("ui", "undecorate") {
-		return errDenied
-	}
-	p.call.Undecorate = append(p.call.Undecorate, int(id))
-	return 0
 }

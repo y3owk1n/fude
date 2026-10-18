@@ -332,8 +332,8 @@ plugin's keys do, as they do for fude's own.
 `wasm-unknown` target (B173). Why: the plugin ABI moves text through
 pointers into the plugin's memory, which nobody should write by hand.
 TinyGo's `wasm-unknown` modules import nothing, so the sandbox stays as the
-capabilities draw it, and they come out between a few kilobytes and a few
-tens of kilobytes, which compile and start well inside the init budget. Go's own `wasip1`
+capabilities draw it. A plugin that uses only `sdk`'s reads is about 30KB,
+and one that asks for anything is about 200KB, with `encoding/json` (D51). Go's own `wasip1`
 target would need WASI in the sandbox, builds modules of megabytes, and its
 runtime takes longer to start. TinyGo leaves out parts of the standard
 library, such as `os` and `net`, which a plugin reaches through fude's
@@ -537,6 +537,27 @@ image shows only when all its rows do and no box covers it, it paints
 again whenever it moves, and iTerm2 gets the image each time, so fude
 scales it to the size it shows first. tmux redraws over painted images,
 so these terminals show none inside it.
+
+## D51. A plugin registers and returns api's own types, as JSON
+
+`register` takes an `api.Registration` and `result` an `api.Result`, each
+as JSON, and the sdk imports `api` and sends them with `encoding/json`.
+Before, the ABI had a host function for each thing a result could ask for,
+about twenty, and `register` took a kind, a name and a help. Why: modules
+and plugins share one API (D21). Each field added to `api` needed a host
+function of its own, and about 25 never got one, so a plugin could not do
+what a module did. With the types themselves, a plugin can set a field as
+soon as `api` has it. A table in `plugin/` names the capability each field
+needs, and every field must be in it. It costs size and load time. A
+plugin that asks for anything is about 200KB, and a cold load of one took 112ms before its compiled code
+was cached, against 2.4ms after. A plugin now compiles before its init
+budget starts. A result of 500 decorations takes 2.7ms in the plugin and
+0.9ms for fude to read. Keys a result runs may run any command, so they
+need a capability of their own, `keys`. A plugin's job may not stream, as
+a stream job is its owner's own work, which a plugin's calls, taking
+turns, cannot run. Until the first release, the sdk on the module proxy
+requires an `api` the proxy does not have, so `fude plugin new` in a build
+that is not a release fails, and B173's test skips (D37).
 
 ## Departures from Neovim
 

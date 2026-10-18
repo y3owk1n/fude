@@ -1048,6 +1048,9 @@ Where fude departs, the line says so and cites the departure in
   It names the characters besides word characters after which
   autocomplete asks it. The editor expands a snippet's items. Buffer
   words, paths and user snippets complete this way (B206, B207).
+- B338 [4] A plugin registers what a module registers, of every kind and
+  with every field, and its result asks for what a module's asks for,
+  within its capabilities. Keys a result runs need `keys`.
 - B337 [4] A module's decoration may show its sign in a listing's icon
   column while `icons` is on, instead of in the sign column. A listing's
   notes and icons are a module's decorations (B127, B128).
@@ -1514,7 +1517,8 @@ Where fude departs, the line says so and cites the departure in
   what is under it count as outside. A path outside says so, and nothing
   happens.
 - B246 [7] A guest's key or command from a plugin that declared `process`,
-  `net` or `fs.read` says a guest may not, and the plugin is not called.
+  `net`, `fs.read` or `keys` says a guest may not, and the plugin is not
+  called.
   Those of other plugins run as they do for any session.
 - B247 [7] A read-only guest changes no text. Its keys, its requests, a
   replica's pushes and its `:accept` each say it is read-only, whichever

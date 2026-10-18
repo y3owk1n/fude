@@ -1129,6 +1129,7 @@ under a budget of 100ms. A plugin imports host functions from the module `fude`,
 | `process` | spawn a declared program |
 | `net` | get http and https URLs on declared hosts |
 | `lsp` | send requests to the buffer's language servers |
+| `keys` | run keys as typed, which may run any command |
 
 Each call reads a `plugin.Scope` that the editor loop builds before the
 call. It holds the text of the buffer the call is about, its `context`,
@@ -1148,10 +1149,6 @@ host it may not reach or a request that failed.
 | Function | Capability | Does |
 |---|---|---|
 | `log(ptr, len)` | none | adds a line to fude's log |
-| `after(ms, id) -> i32` | none | runs `callback(id)` once, `ms` milliseconds after the call returns, under the event budget, about the buffer the call was about (B180) |
-| `start(ptr, len, in_ptr, in_len, id) -> i32` | `process` | runs the program with its arguments, NUL-separated, in the background with the text at `in_ptr` on its stdin, then `callback(id)`. The program must be in the plugin's `programs` (B181) |
-| `request(ptr, len, pos, end, id) -> i32` | `lsp` | sends the method, then a NUL and its params as a JSON object or nothing, to the language servers of the buffer the call is about, then `callback(id)` with the first answer that is not null as `output`. fude adds `textDocument`, and `position` at `pos` in each server's encoding unless `pos` is negative, or `range` from `pos` to `end` unless `end` is. The callback's context has the server's encoding as `encoding`. A method outside `textDocument/` goes to every server, and one inside it to those that offer it (B190, B281) |
-| `fetch(ptr, len, id) -> i32` | `net` | gets the http or https URL in the background, as `http_get` does, then `callback(id)` (B181) |
 | `setting(ptr, len) -> i64` | none | the value of the plugin's setting by its name, as text, or -2 for a name it has none of (B178) |
 | `context(ptr, len) -> i64` | none | the value of what the call is about by its name, or -2 for a name it has none of. Every call has `buffer`, `path` and `filetype`, of the buffer it is about, and `mode` (B176) |
 | `text_len() -> i32` | `buffer.read` | the length of the text |
@@ -1168,33 +1165,15 @@ host it may not reach or a request that failed.
 | `text_of(id, start, end) -> i64` | `buffer.read` | the text of the buffer `id` in `[start, end)` |
 | `line_of(pos) -> i32` | `buffer.read` | the line that holds `pos`, from 0 |
 | `line_start(line) -> i32` | `buffer.read` | where `line` starts |
-| `edit(start, end, ptr, len) -> i32` | `buffer.write` | asks to replace `[start, end)` |
-| `register(kind, name, nlen, help, hlen, id) -> i32` | none, in init only | adds a command, operator, object, key, plug or :pick source that `call` runs by id, with the help `:h` and the key hints show |
+| `register(ptr, len) -> i32` | none, in init only | adds the JSON `api.Registration` at `ptr`, of any kind and with any field a module's has, which `call` runs by its `ID` (D51) |
 | `subscribe(ptr, len) -> i32` | none, in `init` only | hears the event named through `on_event` |
-| `emit(ptr, len) -> i32` | none | emits the event `plugin.name` about the buffer the call read |
-| `set_option(ptr, len) -> i32` | none | sets the option named before a NUL to the value after it, on the buffer the call is about: `expand_tab`, `indent_width` or `tab_width` (B283) |
-| `decorate(start, end, ptr, len) -> i32` | `ui` | puts a style, such as `keyword`, on `[start, end)`, and returns its id |
-| `undecorate(id) -> i32` | `ui` | removes a decoration, sign or note |
-| `fold(start, end) -> i32` | `ui` | closes a fold over the lines from `start`'s through `end`'s, and returns its id, which `undecorate` opens (B288) |
-| `replace(start, end, ptr, len) -> i32` | `ui` | shows the text before the NUL in place of `[start, end)`, on one line, in the style after it, and returns its id (B295) |
-| `shade(start, end, ptr, len) -> i32` | `ui` | shades the whole rows of the lines from `start`'s through `end`'s in the ground of the style, and returns its id (B296) |
-| `rows(pos, ptr, len, above) -> i32` | `ui` | draws rows below `pos`'s line, or above it when `above` is 1. The text is a style, then each row after a NUL. It returns their id (B299) |
-| `block(start, end) -> i32` | `ui` | makes the lines from `start`'s through `end`'s one block, which shows its text as it is while the cursor is on any of them, and returns its id (B300) |
+| `result(ptr, len) -> i32` | each field's | asks for what the JSON `api.Result` at `ptr` holds, as a module's call returns it. fude applies it once the call returns. Its lists add to those the call asked for before, and its other fields replace theirs. fude takes none of it when a field needs a capability the plugin did not declare (D51) |
 | `decorations() -> i64` | `ui` | the plugin's decorations on the buffer the call is about, each its id, start, end, style, sign, note, under, fold, replace, line, rows apart by line breaks, above and block, each followed by a NUL, where they are now (B289) |
-| `sign(pos, ptr, len, under) -> i32` | `ui` | shows the text, then a NUL and its style, in the sign column on `pos`'s line, and returns its id. With `under` set, any other sign on the line shows over it (B184) |
-| `note(pos, ptr, len) -> i32` | `ui` | shows the text dim after the end of `pos`'s line, and returns its id (B184) |
 | `read_file(ptr, len) -> i64` | `fs.read` | the file at the path, relative to the project, the directory fude started in. fude refuses a path that leads outside it, through `..` or a link (B47) |
 | `run(ptr, len) -> i64` | `process` | what the program prints, run with its arguments, NUL-separated, in the project. It must be in the plugin's `programs`, and the call's budget stops it (B48) |
 | `http_get(ptr, len) -> i64` | `net` | the body of the http or https URL, up to 16MB. Its host, and any host a redirect leads to, must be in the plugin's `hosts`, and the call's budget stops the request (B49) |
-| `show(ptr, len, sptr, slen) -> i32` | `ui` | shows the title, filetype and text, NUL-separated, in a read-only window, or in place of what the window of that title shows, styled by the spans at `sptr`, each a start, end and style followed by a NUL (B186, B276) |
-| `pick(ptr, len, flags, id) -> i32` | `ui` | shows a prompt, title, hint and query, then the items, all NUL-separated, in the finder. With no items it asks the prompt as a question. `flags` holds live as its first bit and places as its second. Then it runs `callback(id)`, whose `context` has `picked`, the item's index or -1, `item`, `text`, what was typed, and `ok`, false when cancelled. A live list runs it with `query` and `all` at each change, and a `pick` with the same `id` then gives the items (B185, B285, B286) |
-| `jump(pos) -> i32` | `ui` | moves the cursor to `pos` once the call and its edits are done, when the current window shows the buffer the call was about (B187) |
-| `open(pos, ptr, len) -> i32` | `ui` | opens the file at the path, relative to the project, in the current window with the cursor at `pos`. It refuses a path that leads outside the project, as `read_file` does (B187) |
-| `float(ptr, len) -> i32` | `ui` | shows the markdown in a float at the cursor, or closes it for "" (B59) |
-| `status(ptr, len) -> i32` | `ui` | shows the text on the statusline of the buffer the call read, or none for "" (B58) |
-| `message(ptr, len) -> i32` | `ui` | shows the text in the message area once the call returns (B272) |
 
-`register` gives what it adds an id, and fude runs it through
+`register` takes an `api.Registration`, whose id fude runs it by through
 `call(id, a, b, c)`. Kind 0 is an ex command and kind 3 a key in normal
 mode, both called with `(cursor, count)`. Kind 4 is a key in insert mode,
 called with `(cursor, 0)`. The cursor then goes after the text of its
@@ -1233,10 +1212,21 @@ the event budget, about the buffer the call that asked was about, and not
 at all once that buffer closes. Unloading the plugin cancels its
 listener's context, which stops its jobs (B180, B181).
 
+A table in `plugin/` names the capability each field of `api.Result`
+needs, and fude panics at start when a field has no entry. Some fields
+need more than their capability. A
+job's program must be in `programs` and a URL's host in `hosts`. A
+terminal runs through the shell, so the shell must be in `programs`. An
+image decoration's file must be in the project and its address on a
+declared host. A `Jump`'s path must be in the project. Each name in `Emit`
+is the plugin's own event, which fude names after it. A job may not
+stream, as a plugin's calls take turns (D51).
+
 Each plugin gets its own wazero runtime, so each has its own memory limit,
 64MB (`WithMemoryLimitPages` is per runtime). Each runtime's compilation
 cache uses the same folder, `$XDG_CACHE_HOME/fude/wasm`, so a plugin
-compiles once across runs. Plugins compile and run
+compiles once across runs. A plugin compiles before its init budget
+starts, which covers only its code. Plugins compile and run
 `init` on their own goroutines, started after the first frame (B56).
 
 Calls into one plugin take turns. Every call carries a context with its
@@ -1257,11 +1247,14 @@ plugins. A reload keeps that part, and the plugins add theirs again as
 they register (B191).
 
 Plugins are written in Go with `sdk/`, a module of its own that imports
-nothing of fude's (D36). The package registers Go functions from the
+only `api/` of fude's (D36, D51). The package registers Go functions from the
 plugin's `init` functions, which TinyGo runs in `_initialize`. It keeps
 them in a table, and its `call` export runs them by id. It also exports
 `on_event`, and `alloc`, which keeps the buffer it hands fude in a package
-variable until the plugin has read it. `sdk/fude.json` is the TinyGo target
+variable until the plugin has read it. `sdk.Register` and `sdk.Do` send an `api.Registration` and an
+`api.Result` as JSON through `register` and `result`. The sdk's other
+helpers, such as `Edit` and `Decorate`, call them.
+`sdk/fude.json` is the TinyGo target
 plugins build for. It is `wasm-unknown`, which imports no WASI, with the
 conservative collector and a 64KB stack, as the target's own collector
 never frees memory. `fude plugin

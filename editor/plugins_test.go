@@ -242,7 +242,7 @@ func TestB50Capabilities(t *testing.T) {
 	if text(e) != "abc" {
 		t.Errorf("a denied edit left %q", text(e))
 	}
-	if want := "write: edit needs buffer.write, which it did not declare"; !strings.Contains(fudeLog(), want) {
+	if want := "write: Edits needs buffer.write, which it did not declare"; !strings.Contains(fudeLog(), want) {
 		t.Errorf("the log has %q, want %q", fudeLog(), want)
 	}
 
@@ -1254,4 +1254,19 @@ func TestB289PluginReadsItsDecorations(t *testing.T) {
 	settle(t, e, func() bool { return e.Views()[0].Folds != nil })
 	feed(e, "G:Decos<CR>")
 	settle(t, e, func() bool { return strings.Contains(text(e), "1:0-5:true|") })
+}
+
+// B338
+func TestB338PluginDoesWhatAModuleDoes(t *testing.T) {
+	e := loaded(t, "full", "f", "a\n", "keys")
+	if feed(e, ":wh<CR>"); text(e) != "xa" {
+		t.Errorf(":wh left %q, want xa", text(e))
+	}
+	e = loaded(t, "full", "f", "a\n")
+	if feed(e, ":wh<CR>"); text(e) != "a" {
+		t.Errorf(":wh without keys left %q", text(e))
+	}
+	if want := "full: Keys needs keys, which it did not declare"; !strings.Contains(fudeLog(), want) {
+		t.Errorf("the log has %q, want %q", fudeLog(), want)
+	}
 }

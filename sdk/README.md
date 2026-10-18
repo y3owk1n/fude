@@ -56,6 +56,7 @@ Call these from an `init` function.
 | `Operator` | an operator that composes with every motion and text object |
 | `Object` | a text object that composes with every operator |
 | `On` | a handler for an event, such as `buffer.saved` or `mode.changed` |
+| `Register` | anything a module registers, an `api.Registration` of any kind and with any field |
 
 All but `On` take a help text, which `:h` and the key hints show.
 
@@ -65,7 +66,8 @@ A call outside the plugin's capabilities fails with an error, and fude logs it.
 
 | Capability | Funcs |
 |---|---|
-| none | `Log`, `Current`, `Mode`, `Setting`, `Option`, `Config`, `IndentWidth`, `TabWidth`, `SetOption`, `Emit`, `After` |
+| none | `Log`, `Current`, `Mode`, `Setting`, `Option`, `Config`, `IndentWidth`, `TabWidth`, `SetOption`, `Emit`, `After`, `ID` |
+| each field's | `Do`, which asks for anything a module's `api.Result` asks for |
 | `buffer.read` | `Len`, `Lines`, `LineOf`, `LineStart`, `Text`, `NodeAt`, `Language`, `Spans`, `Comment`, `Buffers`, `LenOf`, `TextOf` |
 | `buffer.write` | `Edit` |
 | `ui` | `Decorate`, `Undecorate`, `Fold`, `Replace`, `Shade`, `Rows`, `Block`, `Decorations`, `Sign`, `SignUnder`, `Note`, `Status`, `Message`, `Float`, `Show`, `ShowStyled`, `Pick`, `Picker`, `Ask`, `Jump`, `Open` |
@@ -73,6 +75,7 @@ A call outside the plugin's capabilities fails with an error, and fude logs it.
 | `process` | `Run`, `Start`, `Pipe`, for the programs the plugin's table lists |
 | `net` | `Get`, `Fetch`, for the hosts the plugin's table lists |
 | `lsp` | `Request`, `RequestRange`, to the buffer's language servers |
+| `keys` | `Do` with `Keys`, which runs keys as typed |
 
 Edits, decorations and windows a call asks for apply together once it returns. `After`, `Start`, `Pipe`, `Fetch`, `Request`, `Pick` and `Ask` run their func later, off the input path, as an event runs.
 

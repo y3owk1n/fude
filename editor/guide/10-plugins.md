@@ -22,6 +22,8 @@ programs = ["git"]
 - `fs.read` reads files in the folder fude started in.
 - `process` runs the programs `programs` lists.
 - `net` gets http and https URLs on the hosts `hosts` lists.
+- `lsp` asks the buffer's language servers.
+- `keys` runs keys as if typed, which may run any command.
 
 A call outside them gets an error and changes nothing, and fude writes it
 to its log in `$XDG_STATE_HOME/fude/log`.
@@ -110,6 +112,11 @@ from a list or to type an answer. `sdk.Jump` moves the cursor, and
 `sdk.Open` opens a file of the project. `sdk.ReadFile`, `sdk.Run` and `sdk.Get` reach
 files, programs and the web, and `sdk.Log` writes to fude's log. A call
 outside the plugin's capabilities returns `sdk.ErrDenied`.
+
+`sdk.Register` and `sdk.Do` give a plugin all a built-in module has. `sdk.Register` takes an
+`api.Registration`, as a built-in module registers, of any kind and with
+any field. `sdk.Do` asks for what an `api.Result` holds, as a built-in
+module's call returns it, each field behind its capability.
 
 ## Testing a plugin
 

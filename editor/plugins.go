@@ -996,8 +996,8 @@ func (e *Session) about(b *buffer) api.Context {
 // fails unloads p, and calls into an unloaded module do nothing.
 func (e *Session) run(p api.Module, id uint32, scope api.Scope, args ...int) ([]vim.Edit, api.Result, bool) {
 	defer scope.Done()
-	// A guest may not call a plugin granted process, net or fs.read (B246).
-	if w, ok := p.(*plugin.Plugin); ok && e.power != Host && slices.ContainsFunc(w.Capabilities, func(c string) bool { return c == "process" || c == "net" || c == "fs.read" }) {
+	// A guest may not call a plugin granted process, net, fs.read or keys (B246).
+	if w, ok := p.(*plugin.Plugin); ok && e.power != Host && slices.ContainsFunc(w.Capabilities, func(c string) bool { return c == "process" || c == "net" || c == "fs.read" || c == "keys" }) {
 		e.message = "a guest may not use plugin " + p.Name()
 		return nil, api.Result{}, false
 	}
