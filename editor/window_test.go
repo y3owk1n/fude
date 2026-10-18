@@ -1,0 +1,618 @@
+package editor_test
+
+import (
+	"fmt"
+	"maps"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"slices"
+	"strconv"
+	"strings"
+	"testing"
+
+	"github.com/y3owk1n/fude/editor"
+	"github.com/y3owk1n/fude/modules/fold"
+	"github.com/y3owk1n/fude/wire"
+)
+
+// B27
+func TestB27Scrolling(t *testing.T) {
+	var lines []string
+	for i := 1; i <= 30; i++ {
+		lines = append(lines, fmt.Sprintf("  %d", i))
+	}
+	path := filepath.Join(t.TempDir(), "f")
+	if err := os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	line := func(e *editor.Session, pos int) int { return strings.Count(text(e)[:pos], "\n") + 1 }
+	for _, c := range []struct {
+		keys      string
+		top, line int
+	}{
+		{"<C-e>", 2, 2},
+		{"3<C-e>", 4, 4},
+		{"10G<C-y>", 1, 10},
+		{"<C-d>", 9, 12},
+		{"<C-d><C-d>", 9, 23},
+		{"2<C-d>", 3, 3},
+		{"30G<C-u>", 1, 19},
+		{"<C-f>", 21, 21},
+		{"<C-f><C-f>", 30, 30},
+		{"30G<C-b>", 1, 22},
+		{"15Gzz", 5, 15},
+		{"15Gzt", 15, 15},
+		{"15Gzb", 1, 15},
+		{"M", 1, 11},
+		{"L", 1, 22},
+		{"3L", 1, 20},
+		{"2H", 1, 2},
+		{"30GH", 9, 9},
+		{"20Gzt5<C-e>", 25, 25},
+		{"G<C-d>", 9, 30},
+	} {
+		e := open(t, path)
+		e.SetSize(80, 23)
+		feed(e, c.keys)
+		if top, cur := line(e, e.Top()), line(e, e.Cursor()); top != c.top || cur != c.line {
+			t.Errorf("%q: top %d, cursor line %d, want %d and %d", c.keys, top, cur, c.top, c.line)
+		}
+	}
+}
+
+// B23
+func TestB23Splits(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "f")
+	if err := os.WriteFile(path, []byte("one\ntwo\nthree\nfour"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct{ keys, want string }{
+		// A new window goes below or right, and the cursor goes to it.
+		{"<C-w>s", "0,0 80x12 *0,12 80x11"},
+		{"<C-w>v", "0,0 40x23 *41,0 39x23"},
+		{"<C-w>s<C-w>v", "0,0 80x12 0,12 40x11 *41,12 39x11"},
+		{"<C-w>s<C-w>k", "*0,0 80x12 0,12 80x11"},
+		{"<C-w>v<C-w>h", "*0,0 40x23 41,0 39x23"},
+		{"<C-w>v<C-w>h<C-w>l", "0,0 40x23 *41,0 39x23"},
+	} {
+		e := open(t, path)
+		e.SetSize(80, 23)
+		feed(e, c.keys)
+		if got := windows(e); got != c.want {
+			t.Errorf("%q: windows %q, want %q", c.keys, got, c.want)
+		}
+	}
+
+	// Both windows show one buffer, so an edit in one moves the cursor in
+	// the other, and an edit after it leaves it where it was.
+	e := open(t, path)
+	e.SetSize(80, 23)
+	feed(e, "jjl<C-w>sggdd<C-w>k")
+	if text(e) != "two\nthree\nfour" || e.Cursor() != 5 {
+		t.Errorf("after dd above it, the other window is at %d in %q, want 5", e.Cursor(), text(e))
+	}
+	e = open(t, path)
+	e.SetSize(80, 23)
+	feed(e, "jjl<C-w>sjx<C-w>k")
+	if e.Cursor() != 9 {
+		t.Errorf("after x below it, the other window is at %d, want 9", e.Cursor())
+	}
+	// split_below and split_right off put a new window above or left.
+	config(t, "split_below = false\nsplit_right = false\n")
+	for _, c := range []struct{ keys, want string }{
+		{"<C-w>s", "*0,0 80x12 0,12 80x11"},
+		{"<C-w>v", "*0,0 40x23 41,0 39x23"},
+	} {
+		e := start(t, path)
+		e.SetSize(80, 23)
+		feed(e, c.keys)
+		if got := windows(e); got != c.want {
+			t.Errorf("%q with split_below and split_right off: windows %q, want %q", c.keys, got, c.want)
+		}
+	}
+}
+
+// B91
+func TestB91WindowCommands(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "f")
+	if err := os.WriteFile(path, []byte("one"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct{ keys, want string }{
+		{"<C-w>s<C-w>c", "*0,0 80x23"},
+		{"<C-w>s<C-w>s", "0,0 80x8 0,8 80x8 *0,16 80x7"},
+		{"<C-w>s<C-w>s<C-w>o", "*0,0 80x23"},
+		{"<C-w>s<C-w>s<C-w>=", "0,0 80x8 0,8 80x8 *0,16 80x7"},
+		{"<C-w>s:q<CR>", "*0,0 80x23"},
+		{"<C-w>v<C-w>q", "*0,0 80x23"},
+	} {
+		e := open(t, path)
+		e.SetSize(80, 23)
+		feed(e, c.keys)
+		if got := windows(e); got != c.want || e.Done() {
+			t.Errorf("%q: windows %q (done %v), want %q", c.keys, got, e.Done(), c.want)
+		}
+	}
+	e := open(t, path)
+	e.SetSize(80, 23)
+	feed(e, "<C-w>c")
+	if e.Message() != "cannot close the last window" {
+		t.Errorf("closing the last window said %q", e.Message())
+	}
+	feed(e, ":q<CR>")
+	if !e.Done() {
+		t.Error(":q in the last window did not quit")
+	}
+}
+
+// B193
+func TestB193WindowSizes(t *testing.T) {
+	e := open(t, "")
+	e.SetSize(80, 20)
+	heights := func() []int {
+		var out []int
+		for _, v := range e.Views() {
+			out = append(out, v.H)
+		}
+		return out
+	}
+	for _, c := range []struct {
+		keys string
+		want []int
+	}{
+		// The new window is below, and is the current one.
+		{"<C-w>s", []int{10, 10}},
+		{"3<C-w>+", []int{7, 13}},
+		{"<C-w>=", []int{10, 10}},
+		{":resize 5<CR>", []int{15, 5}},
+		{":resize +2<CR>", []int{13, 7}},
+		{"2<C-w>-", []int{15, 5}},
+		// The other window keeps a row and its status line.
+		{"<C-w>_", []int{2, 18}},
+	} {
+		if feed(e, c.keys); !slices.Equal(heights(), c.want) {
+			t.Errorf("%s left the windows %v rows tall, want %v", c.keys, heights(), c.want)
+		}
+	}
+	feed(e, "<C-w>o<C-w>v:vertical resize 30<CR>")
+	if vs := e.Views(); len(vs) != 2 || vs[0].W != 49 || vs[1].W != 30 {
+		t.Errorf(":vertical resize 30 left the windows %d and %d wide", vs[0].W, vs[1].W)
+	}
+}
+
+// B21, in every window
+func TestB21MatchesInEveryWindow(t *testing.T) {
+	dir := t.TempDir()
+	change(t, filepath.Join(dir, "a"), "xa\n")
+	change(t, filepath.Join(dir, "b"), "ax\n")
+	e := open(t, filepath.Join(dir, "a"))
+	feed(e, ":vs "+filepath.Join(dir, "b")+"<CR>/a<CR>")
+	for _, v := range e.Views() {
+		if want := strings.Index(v.Text.Slice(0, v.Text.Len()), "a"); len(v.Matches) != 1 || v.Matches[0] != [2]int{want, want + 1} {
+			t.Errorf("%s shows matches %v", v.Name, v.Matches)
+		}
+	}
+}
+
+// B268
+func TestB268YankMessage(t *testing.T) {
+	bin := t.TempDir()
+	board := filepath.Join(bin, "board")
+	for _, name := range []string{"pbcopy", "wl-copy"} {
+		if err := os.WriteFile(filepath.Join(bin, name), []byte("#!/bin/sh\ncat > "+board+"\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("PATH", bin+":/bin:/usr/bin")
+	t.Setenv("WAYLAND_DISPLAY", "fude-test")
+	e := open(t, "")
+	if feed(e, ":messages yank<CR>"); e.Message() != "no messages" {
+		t.Errorf(":messages yank with none said %q", e.Message())
+	}
+	long := strings.Repeat("word ", 40) + "end"
+	feed(e, ":"+long+"<CR>")
+	shown := e.Message()
+	if feed(e, ":messages yank<CR>"); e.Message() != "copied the last message" || disk(t, board) != shown {
+		t.Errorf(":messages yank said %q and put %q on the clipboard, want %q", e.Message(), disk(t, board), shown)
+	}
+}
+
+// B37
+func TestB37Wrap(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "f")
+	change(t, path, strings.Repeat("a", 20)+"\nb\nc\n")
+	e := open(t, path)
+	// Three rows of text, ten columns wide: the first line takes two.
+	e.SetSize(10, 4)
+	if feed(e, "j"); e.Top() != 0 {
+		t.Fatalf("on line 2 the window starts at %d, want 0", e.Top())
+	}
+	if feed(e, "j"); e.Top() != 21 {
+		t.Fatalf("on line 3 the window starts at %d, want line 2 at 21", e.Top())
+	}
+	// Without wrap the view scrolls sideways to the cursor's column.
+	feed(e, "gg:set nowrap<CR>$")
+	if v := e.Views()[0]; v.Top != 0 || v.Left != 10 {
+		t.Fatalf("on the last of 20 columns in 10 the view starts at %d, column %d, want 0 and 10", v.Top, v.Left)
+	}
+}
+
+// B38
+func TestB38Ruler(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "f")
+	change(t, path, "ab\n\tx\n\n4\n5\n6\n")
+	e := open(t, path)
+	e.SetSize(40, 4)
+	for _, c := range [][2]string{{"", "1,1 Top"}, {"j$", "2,2-9 Top"}, {"j", "3,0-1 Top"}, {"j", "4,1 33%"}, {"G", "6,1 Bot"}} {
+		feed(e, c[0])
+		if got := strings.Join(strings.Fields(e.Views()[0].Ruler), " "); got != c[1] {
+			t.Errorf("after %q the ruler is %q, want %q", c[0], got, c[1])
+		}
+	}
+	if feed(e, "2d"); e.Shown() != "2d" {
+		t.Errorf("2d shows %q", e.Shown())
+	}
+	if feed(e, "<Esc>"); e.Shown() != "" {
+		t.Errorf("after <Esc> it shows %q", e.Shown())
+	}
+}
+
+// B39
+func TestB39Set(t *testing.T) {
+	e := open(t, "")
+	feed(e, ":set number relative_number<CR>")
+	if v := e.Views()[0]; !v.Number || !v.Relative || v.Gutter != 4 {
+		t.Fatalf("after :set number relative_number the view is %+v", v)
+	}
+	// A window split from it starts the same, and :set changes only the
+	// current one.
+	feed(e, ":sp<CR>:set nonumber relative_number!<CR>")
+	if vs := e.Views(); vs[1].Number || vs[1].Relative || vs[1].Gutter != 0 || !vs[0].Number {
+		t.Fatalf("after :set nonumber relative_number! in a split the views are %+v", vs)
+	}
+	if feed(e, ":set number?<CR>"); e.Message() != "nonumber" {
+		t.Errorf(":set number? said %q", e.Message())
+	}
+	// A :set with a bad argument changes nothing.
+	if feed(e, ":set number bogus<CR>"); e.Views()[1].Number || e.Message() != "no option named bogus" {
+		t.Errorf(":set number bogus left number %v and said %q", e.Views()[1].Number, e.Message())
+	}
+	if feed(e, ":set wide<CR>"); e.Message() != "no option named wide" {
+		t.Errorf(":set wide said %q", e.Message())
+	}
+	// config.toml sets what windows start with.
+	config(t, "number = true\n")
+	if v := start(t).Views()[0]; !v.Number || v.Relative {
+		t.Errorf("with number = true a window starts as %+v", v)
+	}
+}
+
+// B116
+func TestB116ScrollOff(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "f")
+	var lines []string
+	for i := range 20 {
+		lines = append(lines, strconv.Itoa(i))
+	}
+	change(t, path, strings.Join(lines, "\n")+"\n")
+	e := open(t, path)
+	// Seven rows, and two lines kept below the cursor's.
+	e.SetSize(40, 8)
+	feed(e, ":set scroll_off=2<CR>")
+	if feed(e, "4j"); e.Top() != 0 {
+		t.Fatalf("on line 5 the view starts at %d, want 0", e.Top())
+	}
+	if feed(e, "j"); e.Top() != 2 {
+		t.Fatalf("on line 6 the view starts at %d, want line 2 at 2", e.Top())
+	}
+	if feed(e, ":set scroll_off?<CR>"); e.Message() != "scroll_off=2" {
+		t.Errorf(":set scroll_off? said %q", e.Message())
+	}
+	if feed(e, ":set scroll_off=x<CR>"); !strings.Contains(e.Message(), "takes a number") {
+		t.Errorf(":set scroll_off=x said %q", e.Message())
+	}
+}
+
+// B117
+func TestB117CursorLine(t *testing.T) {
+	e := open(t, "")
+	if feed(e, ":set cursor_line<CR>"); !e.Views()[0].CursorLine {
+		t.Fatal(":set cursor_line left the window without it")
+	}
+}
+
+// B120, through :set
+func TestB120SetIgnoreCase(t *testing.T) {
+	e := open(t, "")
+	feed(e, "ix ABC abc<Esc>0:set ignore_case<CR>/abc<CR>")
+	if e.Cursor() != 2 {
+		t.Fatalf("/abc with ignore_case went to %d, want 2", e.Cursor())
+	}
+}
+
+// B121
+func TestB121MatchParen(t *testing.T) {
+	e := open(t, "")
+	feed(e, "if(a, (b))<Esc>")
+	for _, c := range []struct {
+		keys string
+		want []int
+	}{
+		{"0", nil},
+		{"l", []int{1, 8}},
+		{"f(", []int{5, 7}},
+		{"$", []int{8, 1}},
+		// In insert mode the bracket before the cursor counts.
+		{"a", []int{8, 1}},
+	} {
+		if feed(e, c.keys); !slices.Equal(e.Views()[0].Pair, c.want) {
+			t.Errorf("after %q the pair is %v, want %v", c.keys, e.Views()[0].Pair, c.want)
+		}
+	}
+}
+
+// B139
+func TestB139Flash(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "f")
+	change(t, path, "ab cd\n")
+	e := open(t, path)
+	flashed := func() []int {
+		for _, d := range e.Views()[0].Decorations {
+			if d.Name == "flash" {
+				return []int{d.Start, d.End}
+			}
+		}
+		return nil
+	}
+	for _, c := range []struct {
+		keys string
+		want []int
+	}{
+		{"yiw", []int{0, 2}},
+		{"p", []int{1, 3}},
+		{"x", nil},
+		{"u", []int{2, 3}},
+		{"uu<C-r>", []int{1, 3}},
+	} {
+		if feed(e, c.keys); !slices.Equal(flashed(), c.want) {
+			t.Errorf("after %q the flash is %v, want %v", c.keys, flashed(), c.want)
+		}
+	}
+	// It goes after a moment.
+	settle(t, e, func() bool { return flashed() == nil })
+	// flash_time = 0 turns it off.
+	config(t, "flash_time = 0\n")
+	e = start(t, path)
+	if feed(e, "yiw"); flashed() != nil {
+		t.Errorf("with flash_time = 0 the flash is %v, want none", flashed())
+	}
+}
+
+// B140
+func TestB140Navigate(t *testing.T) {
+	bin, log := t.TempDir(), filepath.Join(t.TempDir(), "tmux.log")
+	script := "#!/bin/sh\necho \"$@\" >> " + log + "\n"
+	if err := os.WriteFile(filepath.Join(bin, "tmux"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("TMUX", "/tmp/tmux-1/default,1,0")
+	t.Setenv("TMUX_PANE", "%3")
+	path := filepath.Join(t.TempDir(), "f")
+	change(t, path, "a\n")
+	e := open(t, path)
+	e.SetSize(80, 24)
+	// :vsplit leaves the cursor in the right window, so left moves within
+	// fude, and left again goes to tmux's pane.
+	feed(e, ":vsplit<CR><Plug>(window.left)")
+	if v := e.Views(); !v[0].Current || v[1].Current {
+		t.Fatal("<Plug>(window.left) did not move to the left window")
+	}
+	if feed(e, "<Plug>(window.left)"); disk(t, log) != "select-pane -t %3 -L\n" {
+		t.Fatalf("tmux heard %q", disk(t, log))
+	}
+}
+
+// B142
+func TestB142LocalKeymaps(t *testing.T) {
+	dir := t.TempDir()
+	change(t, filepath.Join(dir, "a"), "A\n")
+	change(t, filepath.Join(dir, "b"), "B\n")
+	config(t, `[keymap.normal]
+"<C-h>" = "<Plug>(window.left)"
+
+[keymap.listing]
+"<C-h>" = ""
+"<C-v>" = "<Plug>(listing.vsplit)"
+x = "<Nop>"
+
+[keymap.finder]
+"<C-j>" = "<Plug>(finder.next)"
+`)
+	t.Chdir(dir)
+	e := start(t, filepath.Join(dir, "a"))
+	e.SetSize(80, 24)
+	feed(e, ":vsplit<CR>-")
+	// A key the listing's table drops falls through to [keymap.normal].
+	if feed(e, "<C-h>"); !e.Views()[0].Current {
+		t.Fatal("<C-h> in a listing did not move to the left window")
+	}
+	// A key mapped in it runs the listing's action, and <Nop> does nothing.
+	if feed(e, "<C-w>ljx<C-v>"); len(e.Views()) != 3 || text(e) != "B" {
+		t.Fatalf("<C-v> on b left %d windows showing %q", len(e.Views()), text(e))
+	}
+	// The finder's keys are an insert mode keymap.
+	feed(e, "<C-w>h:pick files<CR>")
+	settle(t, e, func() bool {
+		f, _ := e.Float()
+		return strings.Count(f.Text, "\n") > 0 && strings.Contains(f.Text, "\nb")
+	})
+	if feed(e, "<C-j><CR>"); text(e) != "B" {
+		t.Fatalf("<C-j><CR> in the finder opened %q", text(e))
+	}
+}
+
+// B143
+func TestB143SignColumn(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "f")
+	change(t, path, "a\n")
+	config(t, "sign_column = true")
+	e := start(t, path)
+	if v := e.Views()[0]; v.SignCols != 2 || v.Gutter != 2 {
+		t.Fatalf("with sign_column a file with no signs has %d sign columns", v.SignCols)
+	}
+	if feed(e, ":set nosign_column<CR>"); e.Views()[0].SignCols != 0 {
+		t.Fatal(":set nosign_column kept the sign column")
+	}
+}
+
+// B144
+func TestB144Leader(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "f")
+	for _, c := range []struct{ config, keys string }{
+		// <Space> by default, and leader changes it.
+		{"[keymap.normal]\n\"<Leader>x\" = \"dd\"", " x"},
+		{"leader = \",\"\n[keymap.normal]\n\"<leader>x\" = \"dd\"", ",x"},
+	} {
+		change(t, path, "a\nb\n")
+		config(t, c.config)
+		e := start(t, path)
+		if feed(e, c.keys); text(e) != "b" {
+			t.Errorf("%q with %q left %q", c.keys, c.config, text(e))
+		}
+	}
+}
+
+// B147
+func TestB147Branch(t *testing.T) {
+	dir := t.TempDir()
+	if out, err := exec.Command("git", "-C", dir, "init", "-q", "-b", "trunk").CombinedOutput(); err != nil {
+		t.Skipf("git init: %v: %s", err, out)
+	}
+	path := filepath.Join(dir, "f")
+	change(t, path, "a\n")
+	e := open(t, path)
+	settle(t, e, func() bool { return e.Views()[0].Branch == "trunk" })
+}
+
+// B224
+func TestB224Folds(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.go")
+	change(t, path, "func a() {\n\tx\n\ty\n}\nfunc b() {\n\tz\n}\n")
+	e := start(t, path)
+	e.Use(fold.New())
+	e.SetSize(80, 20)
+	folds := func() map[int]int { return e.Views()[0].Folds }
+	// zc in a body closes the fold of the line above it with less indent,
+	// and j passes over it.
+	if feed(e, "jzc"); !maps.Equal(folds(), map[int]int{0: 2}) || e.Cursor() != 0 {
+		t.Fatalf("zc made folds %v with the cursor at %d", folds(), e.Cursor())
+	}
+	if feed(e, "j"); e.Text().LineOf(e.Cursor()) != 3 {
+		t.Errorf("j over the fold went to line %d", e.Text().LineOf(e.Cursor()))
+	}
+	// A search into a closed fold opens it.
+	if feed(e, "gg/y<CR>"); folds() != nil {
+		t.Errorf("searching into the fold left %v", folds())
+	}
+	// zM closes every outermost fold, za opens one, and zR all.
+	if feed(e, "zM"); !maps.Equal(folds(), map[int]int{0: 2, 4: 1}) {
+		t.Errorf("zM made %v", folds())
+	}
+	if feed(e, "za"); !maps.Equal(folds(), map[int]int{4: 1}) {
+		t.Errorf("za made %v", folds())
+	}
+	if feed(e, "zR"); folds() != nil {
+		t.Errorf("zR left %v", folds())
+	}
+}
+
+// B218
+func TestB218Jump(t *testing.T) {
+	e := open(t, "")
+	e.SetSize(80, 10)
+	feed(e, "ifoo bar baz bat<Esc>0")
+	// Two characters label each match, never with a character that would
+	// continue one, and the label goes to its match.
+	feed(e, "sba")
+	labels := e.Views()[0].Labels
+	if len(labels) != 3 || slices.ContainsFunc(labels, func(l wire.Label) bool { return strings.Contains("rzt", l.Text) }) {
+		t.Fatalf("sba labels %v", labels)
+	}
+	i := slices.IndexFunc(labels, func(l wire.Label) bool { return l.Pos == 10 })
+	if feed(e, labels[i].Text); e.Cursor() != 8 || e.Views()[0].Labels != nil {
+		t.Errorf("the label of baz went to %d", e.Cursor())
+	}
+	// <CR> goes to the nearest, and <Esc> leaves the cursor where it was.
+	if feed(e, "0sb<CR>"); e.Cursor() != 4 {
+		t.Errorf("sb<CR> went to %d, want 4", e.Cursor())
+	}
+	if feed(e, "sfo<Esc>"); e.Cursor() != 4 {
+		t.Errorf("sfo<Esc> moved the cursor to %d", e.Cursor())
+	}
+	// In visual mode a jump moves the selection's end.
+	feed(e, "0vsbat<CR>")
+	if sel, ok := e.Selection(); !ok || sel.End != 13 {
+		t.Errorf("vsbat<CR> made the selection %+v", sel)
+	}
+}
+
+// B217
+func TestB217StickyContext(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.go")
+	change(t, path, "package p\n\nfunc F() {\n"+strings.Repeat("\tx()\n", 30)+"}\n")
+	e := start(t, path)
+	e.SetSize(80, 10)
+	// Scrolled into F, its first line is pinned, with its highlights.
+	feed(e, "20Gzt3j")
+	settle(t, e, func() bool {
+		v := e.Views()[0]
+		return slices.Equal(v.Context, []int{11}) && len(v.ContextHighlights) > 0
+	})
+	// With the cursor on the top line, nothing covers it.
+	if feed(e, "zt"); len(e.Views()[0].Context) != 0 {
+		t.Errorf("with the cursor on the top line, %v is pinned", e.Views()[0].Context)
+	}
+}
+
+// B172
+func TestB172KeyHints(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.txt")
+	change(t, path, "ab\n")
+	config(t, "[keymap.normal]\n\"<Leader>w\" = \":w<CR>\"\n\"<Leader>sg\" = \":pick grep<CR>\"\n[keymap.groups]\n\"<Leader>s\" = \"search\"\n")
+	e := start(t, path)
+	e.SetSize(100, 30)
+	// After a mapping's first key, the hints say what may follow, and the key
+	// waits for the next one instead of key_timeout.
+	feed(e, "<Space>")
+	if _, due := e.HintsIn(); !due {
+		t.Fatal("no hints are due after <Space>")
+	}
+	e.ShowHints()
+	// A key that starts longer ones shows its group's name.
+	if f, ok := e.Float(); !ok || f.Title != "<Space>" || !strings.Contains(f.Text, "w  :w<CR>") || !strings.Contains(f.Text, "s  +search 1") {
+		t.Fatalf("the hints show %q titled %q", f.Text, f.Title)
+	}
+	if _, waiting := e.Wait(); waiting {
+		t.Error("key_timeout runs while the hints show")
+	}
+	// <BS> goes back a key.
+	feed(e, "s<BS>")
+	if f, _ := e.Float(); f.Title != "<Space>" {
+		t.Errorf("after s<BS> the hints are titled %q", f.Title)
+	}
+	// <Esc> drops the held key, so the cursor stays.
+	if feed(e, "<Esc>"); e.Cursor() != 0 {
+		t.Errorf("<Esc> ran the held <Space>, the cursor is at %d", e.Cursor())
+	}
+	if _, ok := e.Float(); ok {
+		t.Error("the hints stay after <Esc>")
+	}
+	// The machine's own keys follow g.
+	feed(e, "g")
+	e.ShowHints()
+	if f, _ := e.Float(); !strings.Contains(f.Text, "g  goes to the first line") {
+		t.Errorf("the hints after g show %q", f.Text)
+	}
+}
