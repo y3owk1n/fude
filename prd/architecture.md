@@ -827,8 +827,10 @@ listing's directory again (B327).
 
 `-` is mapped in normal mode to `<Plug>(listing.up)`, in place of the `-`
 motion, as Neovim does by default: it lists the directory holding the
-current file or listing with the cursor on what it came from, `N-` goes up
-N levels, and `1-` lists the working directory. A listing takes oil.nvim's
+current file or listing, `N-` goes up N levels, and `1-` lists the working
+directory. The module opens each listing, by `-`, `_` or an entry, with
+the cursor on the entry that leads to the current file or listing. It sets
+the `Jump`'s line for that. A listing takes oil.nvim's
 keys, while the machine is between commands: `<CR>` opens the entry under
 the cursor, `<C-s>` and `<C-h>` open it in a split beside or below, and
 `_` lists the working directory. `R` stays replace mode, as a listing is

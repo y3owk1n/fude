@@ -168,9 +168,11 @@ Where fude departs, the line says so and cites the departure in
   either, and the hunk keys still work.
 - B124 [2] `:e dir`, `fude dir` and `-` open a directory as a listing: a
   buffer of its entries' names, directories with a trailing `/`, with no
-  line numbers. `-` lists the current file's directory with the cursor on
-  it, `N-` goes up N levels and `1-` lists the working directory, as
-  Neovim's built-in `-` does, in place of the `-` motion. In a listing,
+  line numbers. `-` lists the current file's directory, `N-` goes up N
+  levels and `1-` lists the working directory, as Neovim's built-in `-`
+  does, in place of the `-` motion. A listing opens with the cursor on the
+  entry that leads to the current file or listing, when its directory
+  holds it, and else on the first entry. In a listing,
   `<CR>` opens the entry, `<C-s>` and `<C-h>` open it in a split beside or
   below, `_` lists the working directory and `<C-l>` reads it again, as
   oil.nvim's keys do. B142 changes these keys.

@@ -53,10 +53,18 @@ func TestB124Listing(t *testing.T) {
 			t.Fatalf("after %q the text is %q on %q, want %q on %q", c.keys, editortest.Text(e), line(), c.text, c.line)
 		}
 	}
-	// 1- and _ list the working directory.
+	// 1- and _ list the working directory, with the cursor on the entry
+	// that leads to the file.
 	t.Chdir(filepath.Join(dir, "sub"))
 	if editortest.Feed(e, "1-"); editortest.Text(e) != "c" {
 		t.Fatalf("1- listed %q", editortest.Text(e))
+	}
+	t.Chdir(dir)
+	if editortest.Feed(e, "_"); editortest.Text(e) != "a.txt\nb.txt\nsub/" || line() != "sub/" {
+		t.Fatalf("_ from the listing of sub/ listed %q on %q", editortest.Text(e), line())
+	}
+	if editortest.Feed(e, "G<CR><CR>1-"); line() != "sub/" {
+		t.Fatalf("1- from sub/c left the cursor on %q", line())
 	}
 }
 

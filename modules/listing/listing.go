@@ -5,6 +5,7 @@
 package listing
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -65,7 +66,7 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 		if err != nil {
 			return api.Result{Message: err.Error()}, nil
 		}
-		return api.Result{Jump: &api.Jump{Path: wd}}, nil
+		return api.Result{Jump: list(s, wd)}, nil
 	case reload:
 		return api.Result{Keys: ":e!<CR>"}, nil
 	case write:
@@ -80,45 +81,63 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 	if name == "" {
 		return api.Result{}, nil
 	}
-	jump := &api.Jump{Path: filepath.Join(dir, name), Split: map[uint32]string{split: "below", vsplit: "right"}[id]}
+	jump := &api.Jump{Path: filepath.Join(dir, name)}
+	if strings.HasSuffix(name, "/") {
+		jump = list(s, jump.Path)
+	}
+	jump.Split = map[uint32]string{split: "below", vsplit: "right"}[id]
 	return api.Result{Jump: jump}, nil
+}
+
+// list lists dir with the cursor on the entry that leads to the current
+// file or listing, when dir holds it, or else on the first entry.
+func list(s api.Scope, dir string) *api.Jump {
+	jump := &api.Jump{Path: dir}
+	from := cmp.Or(s.About["listing"], s.About["path"])
+	if from == "" {
+		return jump
+	}
+	from, err := filepath.Abs(from)
+	if err != nil {
+		return jump
+	}
+	rel, err := filepath.Rel(dir, from)
+	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return jump
+	}
+	at, _, deeper := strings.Cut(rel, string(filepath.Separator))
+	if deeper || s.About["listing"] != "" {
+		at += "/"
+	}
+	// The directory lists its entries in the order it reads them.
+	if entries, err := os.ReadDir(dir); err == nil {
+		if i := slices.IndexFunc(entries, func(en fs.DirEntry) bool { return name(en) == at }); i >= 0 {
+			jump.Line = i + 1
+		}
+	}
+	return jump
 }
 
 // listUp lists the directory holding the current file or listing, with the
 // cursor on what it came from. count goes up that many levels, and 1 lists
 // the working directory instead.
 func listUp(s api.Scope, count int) api.Result {
-	from, isListing := s.About["listing"], s.About["listing"] != ""
-	if !isListing {
-		from = s.About["path"]
-	}
+	from := cmp.Or(s.About["listing"], s.About["path"])
 	if count == 1 || from == "" {
 		wd, err := os.Getwd()
 		if err != nil {
 			return api.Result{Message: err.Error()}
 		}
-		return api.Result{Jump: &api.Jump{Path: wd}}
+		return api.Result{Jump: list(s, wd)}
 	}
 	from, err := filepath.Abs(from)
 	if err != nil {
 		return api.Result{Message: err.Error()}
 	}
-	at := ""
 	for range max(count, 1) {
-		at = filepath.Base(from)
-		if isListing {
-			at += "/"
-		}
-		from, isListing = filepath.Dir(from), true
+		from = filepath.Dir(from)
 	}
-	// The directory lists its entries in the order it reads them.
-	jump := &api.Jump{Path: from}
-	if entries, err := os.ReadDir(from); err == nil {
-		if i := slices.IndexFunc(entries, func(en fs.DirEntry) bool { return name(en) == at }); i >= 0 {
-			jump.Line = i + 1
-		}
-	}
-	return api.Result{Jump: jump}
+	return api.Result{Jump: list(s, from)}
 }
 
 // name is how a listing shows en, a directory with a trailing slash.
