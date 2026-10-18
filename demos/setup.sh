@@ -19,6 +19,7 @@ ln -s $go $root/bin/go
 ln -s $gopls $root/bin/gopls
 ln -s $(command -v tree-sitter) $root/bin/tree-sitter
 ln -s $(command -v just) $root/bin/just
+ln -s $(command -v tmux) $root/bin/tmux
 git clone -q $repo $root/fude
 git -C $repo diff --no-ext-diff --no-color --binary HEAD | git -C $root/fude apply || return 1
 cp $repo/demos/config.toml $root/.config/fude/config.toml
@@ -35,6 +36,18 @@ export XDG_RUNTIME_DIR=$root/run
 export GOMODCACHE=$modcache GOCACHE=$gocache
 export PATH=$root/bin:/usr/bin:/bin:/usr/sbin:/sbin
 export TERM=xterm-256color COLORTERM=truecolor
+# A clipboard of its own, so a recording never takes or leaves yours.
+printf '#!/bin/sh\ncat > %s/clipboard\n' $root > $root/bin/pbcopy
+printf '#!/bin/sh\ncat %s/clipboard\n' $root > $root/bin/pbpaste
+chmod +x $root/bin/pbcopy $root/bin/pbpaste
+# Every shell in the sandbox, such as one in a tmux pane, gets the prompt,
+# and <C-v> types the clipboard as a paste would.
+cat > $root/.zshrc <<'EOF'
 PROMPT='%F{blue}%~%f %F{magenta}❯%f '
+put-clipboard() { LBUFFER+=$(pbpaste) }
+zle -N put-clipboard
+bindkey "^V" put-clipboard
+EOF
+. $root/.zshrc
 cd $root/fude
 printf '\033[2J\033[3J\033[H'

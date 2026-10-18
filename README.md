@@ -164,6 +164,8 @@ A few of the departures, each with its reason in [`prd/decisions.md`](prd/decisi
 
 One fude holds the buffers, and any number of sessions edit them. Each session has its own windows, cursor, mode, name and undo.
 
+![ana shares a file and lets ben in, they edit it at once, ben's u undoes only his edit, and ben follows ana down the file](demos/together.gif)
+
 ```sh
 fude attach               # a second session of the fude running here
 fude share                # let someone in over TLS, the share string goes to the clipboard

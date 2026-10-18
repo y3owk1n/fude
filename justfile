@@ -47,9 +47,9 @@ run *args: build
 wasm:
     for d in plugin/testdata/*/; do go run ./cmd/fude plugin build $d || exit 1; done
 
-# Record the README's demo with VHS (demos/README.md).
-demo:
-    vhs demos/fude.tape
+# Record a README demo with VHS, fude.tape unless tape names another (demos/README.md).
+demo tape="fude":
+    vhs demos/{{tape}}.tape
 
 # Check the speed promises, without the race detector.
 perf:
