@@ -171,10 +171,6 @@ func (e *Session) Views() []wire.View {
 				v.Ghosts = append(v.Ghosts, wire.Ghost{Pos: ed.End, Text: ed.Text, Style: "sub.new"})
 			}
 		}
-		if f := e.flash; f != nil && f.b == w.buf && f.end > top && f.start < last {
-			// Only what shows, as an undo can touch the whole text.
-			v.Decorations = append(v.Decorations, syntax.Span{Start: max(f.start, top), End: min(f.end, last), Name: "flash"})
-		}
 		if w == e.win {
 			v.Decorations = append(v.Decorations, e.snippetSpan(w.buf)...)
 			if j := e.jumping; j != nil {

@@ -195,6 +195,7 @@ type Machine struct {
 	ignoreCase, smartCase bool
 	clipboard             bool   // commands without a register use the host's clipboard too
 	flash                 [2]int // what the last key yanked or put, empty when nothing
+	flashPut              bool   // the last key put it, not yanked it
 	expandTab             bool   // indents are spaces only
 	autoPairs             bool   // brackets and quotes typed come with their closing one
 	surround              bool   // ys, ds, cs and visual S surround text (B219)
@@ -247,10 +248,10 @@ func (m *Machine) Line() string { return m.prompt + m.line }
 // completion does.
 func (m *Machine) SetLine(s string) { m.line, m.lineAt = s, len(s) }
 
-// Flash returns the text the last key yanked or put, for the host to show
-// for a moment, or false when it did neither (B139).
-func (m *Machine) Flash() (start, end int, ok bool) {
-	return m.flash[0], m.flash[1], m.flash[1] > m.flash[0]
+// Flash returns the text the last key yanked or put, and whether it put
+// it, or false when it did neither (B139).
+func (m *Machine) Flash() (start, end int, put, ok bool) {
+	return m.flash[0], m.flash[1], m.flashPut, m.flash[1] > m.flash[0]
 }
 
 // LineCursor returns where the cursor is in Line, in bytes.

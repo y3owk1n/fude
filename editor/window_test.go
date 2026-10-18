@@ -357,43 +357,6 @@ func TestB121MatchParen(t *testing.T) {
 	}
 }
 
-// B139
-func TestB139Flash(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "f")
-	change(t, path, "ab cd\n")
-	e := open(t, path)
-	flashed := func() []int {
-		for _, d := range e.Views()[0].Decorations {
-			if d.Name == "flash" {
-				return []int{d.Start, d.End}
-			}
-		}
-		return nil
-	}
-	for _, c := range []struct {
-		keys string
-		want []int
-	}{
-		{"yiw", []int{0, 2}},
-		{"p", []int{1, 3}},
-		{"x", nil},
-		{"u", []int{2, 3}},
-		{"uu<C-r>", []int{1, 3}},
-	} {
-		if feed(e, c.keys); !slices.Equal(flashed(), c.want) {
-			t.Errorf("after %q the flash is %v, want %v", c.keys, flashed(), c.want)
-		}
-	}
-	// It goes after a moment.
-	settle(t, e, func() bool { return flashed() == nil })
-	// flash_time = 0 turns it off.
-	config(t, "flash_time = 0\n")
-	e = start(t, path)
-	if feed(e, "yiw"); flashed() != nil {
-		t.Errorf("with flash_time = 0 the flash is %v, want none", flashed())
-	}
-}
-
 // B140
 func TestB140Navigate(t *testing.T) {
 	bin, log := t.TempDir(), filepath.Join(t.TempDir(), "tmux.log")

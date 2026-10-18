@@ -158,7 +158,7 @@ func (m *Machine) act(op string, reg rune, label string, r region) error {
 	}
 	m.store(reg, op, register{text: text, linewise: lines})
 	if op == "y" {
-		m.flash = [2]int{start, end}
+		m.flash, m.flashPut = [2]int{start, end}, false
 	}
 	switch {
 	case op == "y" && lines:
@@ -375,7 +375,7 @@ func (m *Machine) put(reg rune, after bool, n int) error {
 	if err := m.apply([]Edit{{Start: at, End: at, Text: text}}, label); err != nil {
 		return err
 	}
-	m.flash = [2]int{at, at + len(text)}
+	m.flash, m.flashPut = [2]int{at, at + len(text)}, true
 	if r.linewise && after {
 		m.flash[0]++ // after the line break put before the lines
 	}

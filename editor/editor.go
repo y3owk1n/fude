@@ -102,7 +102,6 @@ type Session struct {
 	jumping    *jump                   // the jump being typed after s (B218)
 	cmdline    cmdline                 // the completions of the command line being typed
 	searching  *[2]int                 // the top and cursor of the window a search is typed in, to put back (B21)
-	flash      *flash                  // text shown for a moment after a yank, put, undo or redo
 	locals     map[string]*vim.Keymaps // the keymaps of kinds of buffer, by kind, over the machine's (B142)
 	lspCards   []lspCard               // the cards of the :lsp panel, in order
 	history    []string                // the messages shown, oldest first, at most 200 (B157)
@@ -404,10 +403,6 @@ func (l heard) Changed(before kernel.Snapshot, edits []kernel.Edit) {
 	l.b.touched = touched(edits)
 	l.ed.changed(l.b, edits)
 	for _, s := range l.ed.sessions {
-		if s.flash != nil && s.flash.b == l.b {
-			// What it showed has moved.
-			s.flash = nil
-		}
 		if s.changed != nil && s.win.buf == l.b {
 			// This change replaces one the client has yet to hear of. The
 			// loop is the only sender, so the send never waits.
@@ -516,8 +511,12 @@ func (e *Session) feed(k vim.Key) {
 	at, top := e.Cursor(), e.topOf(e.win)
 	e.settle(e.vim.Feed(k))
 	e.incSearch(top, at)
-	if start, end, ok := e.vim.Flash(); ok {
-		e.flashOn(e.win.buf, start, end)
+	if start, end, put, ok := e.vim.Flash(); ok {
+		kind := "yank"
+		if put {
+			kind = "put"
+		}
+		e.touch(e.win.buf, kind, start, end)
 	}
 	e.snippetAfter()
 	e.autocomplete(k)

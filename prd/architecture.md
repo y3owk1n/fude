@@ -403,12 +403,12 @@ the host's clipboard after the default registers, and a put without a
 register reads the clipboard and compares it with the unnamed register
 (B137).
 
-`Machine.Flash` reports what the last key yanked or put. The editor's
-`Undo` and `Redo` take what the kernel's listener last heard changed, as
-the text is after it. The session keeps one flash, a decoration over that
-text cut to the window's visible lines, since undoing a `:s` can touch the
-whole file. A timer through the queue clears it after 300ms, and a change
-to its buffer clears it at once (B139).
+`Machine.Flash` reports what the last key yanked or put, and whether it
+put it. The editor's `Undo` and `Redo` take what the kernel's listener
+last heard changed, as the text is after it. The editor emits each as
+`text.touched` with its kind and range (B313). `modules/flash` shows that
+text as a decoration for `flash_time` milliseconds, through a timer, and
+a change to its buffer clears it at once (B139).
 
 `<Plug>(window.*)` move as `<C-w>h`, `<C-w>j`, `<C-w>k` and `<C-w>l` do.
 When the window stays the same and `$TMUX` is set, they run
