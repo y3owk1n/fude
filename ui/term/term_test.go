@@ -436,6 +436,55 @@ func TestB146Base16(t *testing.T) {
 	}
 }
 
+// B294
+func TestB294Colors(t *testing.T) {
+	cl := startWith(t, "[colors]\nbg = \"#123456\"\n")
+	ground := func() color.Color {
+		cl.draw()
+		_, style, _ := cl.s.Get(0, 0)
+		return style.GetBackground()
+	}
+	feed := func(keys string) {
+		for _, k := range vim.Keys(keys) {
+			cl.e.Feed(k)
+		}
+	}
+	if ground() != color.NewHexColor(0x123456) {
+		t.Fatalf("with bg set the ground is %v", ground())
+	}
+	// :config reload takes a new colour, and a value that is not one changes
+	// nothing and says where it is.
+	file := filepath.Join(os.Getenv("XDG_CONFIG_HOME"), "fude", "config.toml")
+	for _, c := range []struct {
+		src  string
+		want int32
+	}{{"[colors]\nbg = \"#654321\"\n", 0x654321}, {"[colors]\nbg = \"red\"\n", 0x654321}} {
+		if err := os.WriteFile(file, []byte(c.src), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if feed(":config reload<CR>"); ground() != color.NewHexColor(c.want) {
+			t.Errorf("after reloading %q the ground is %v, saying %q", c.src, ground(), cl.e.Message())
+		}
+	}
+	if msg := cl.e.Message(); !strings.Contains(msg, "line 2") || !strings.Contains(msg, "colors.bg") {
+		t.Errorf("a colour that is not one said %q", msg)
+	}
+	// :set takes a colour by its role too.
+	if feed(":set colors.bg #abcdef<CR>"); ground() != color.NewHexColor(0xabcdef) {
+		t.Errorf("after :set colors.bg #abcdef the ground is %v", ground())
+	}
+	if feed(":set colors.bg red<CR>"); cl.e.Message() != `colors.bg takes #rrggbb, not "red"` || ground() != color.NewHexColor(0xabcdef) {
+		t.Errorf(":set colors.bg red said %q, leaving the ground %v", cl.e.Message(), ground())
+	}
+	// A file that no longer sets it gives back the theme's.
+	if err := os.WriteFile(file, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if feed(":config reload<CR>"); ground() != themes["dark"].bg {
+		t.Errorf("after reloading a file without [colors] the ground is %v", ground())
+	}
+}
+
 // B147
 func TestB147StatusLine(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "notes.txt")
@@ -1399,7 +1448,7 @@ func TestB254OwnConfig(t *testing.T) {
 	}
 	var hostNumber bool
 	on(func() { hostNumber = host.Views()[0].Number })
-	if name, _ := j.a.Theme(); name != "light" || hostNumber {
+	if name, _, _ := j.a.Theme(); name != "light" || hostNumber {
 		t.Errorf("the guest draws in %q, and the host shows numbers %v", name, hostNumber)
 	}
 }

@@ -262,11 +262,11 @@ func (a *Attached) Terminal() bool     { return a.f.Terminal }
 func (a *Attached) Shown() string      { return a.f.Shown }
 
 // Theme returns a guest's own theme, or else the one fude draws in.
-func (a *Attached) Theme() (string, *[16]int32) {
+func (a *Attached) Theme() (string, *[16]int32, *wire.Colors) {
 	if a.own.Theme != "" {
-		return a.own.Theme, a.own.Base16
+		return a.own.Theme, a.own.Base16, a.own.Colors
 	}
-	return a.f.Theme, a.f.Base16
+	return a.f.Theme, a.f.Base16, a.f.Colors
 }
 
 // TerminalClipboard returns a copy for the terminal's clipboard once.

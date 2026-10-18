@@ -21,7 +21,7 @@ func TestB162Help(t *testing.T) {
 	if feed(e, ":h<CR>"); !strings.HasPrefix(text(e), "# fude help") || !strings.Contains(text(e), "`:write [file]  :w`\n  writes the buffer") {
 		t.Fatalf(":h opened %q", text(e)[:min(200, len(text(e)))])
 	}
-	for topic, want := range map[string]string{":w": "`:write [file]  :w`", "w": "`w`", "theme": "`theme = \"dark\"`", "guide-start": "# Getting started"} {
+	for topic, want := range map[string]string{":w": "`:write [file]  :w`", "w": "`w`", "theme": "`theme = \"dark\"`", "colors": "`[colors]`", "guide-start": "# Getting started"} {
 		if feed(e, ":h "+topic+"<CR>"); line() != want {
 			t.Errorf(":h %s went to %q, want %q", topic, line(), want)
 		}

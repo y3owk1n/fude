@@ -10,6 +10,7 @@ import (
 
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/vim"
+	"github.com/y3owk1n/fude/wire"
 )
 
 // Power is how much a session may do, fixed when it is made (B243).
@@ -116,8 +117,9 @@ type Own struct {
 	Leader  string
 	Keymap  keymap
 	Options options
-	Theme   string     `json:"-"`
-	Base16  *[16]int32 `json:"-"`
+	Theme   string       `json:"-"`
+	Base16  *[16]int32   `json:"-"`
+	Colors  *wire.Colors `json:"-"`
 }
 
 // OwnConfig reads what of config.toml on this machine a guest takes. After
@@ -125,6 +127,9 @@ type Own struct {
 func OwnConfig() (Own, error) {
 	cfg, err := loadConfig()
 	own := Own{Leader: cfg.Leader, Keymap: cfg.Keymap, Options: cfg.options, Theme: cfg.Theme}
+	if cfg.Colors != (wire.Colors{}) {
+		own.Colors = &cfg.Colors
+	}
 	if cfg.Theme != "dark" && cfg.Theme != "light" {
 		colours, berr := readBase16(cfg.Theme)
 		if berr != nil {

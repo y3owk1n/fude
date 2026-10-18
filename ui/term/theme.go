@@ -3,6 +3,8 @@ package term
 import (
 	"github.com/gdamore/tcell/v3"
 	"github.com/gdamore/tcell/v3/color"
+
+	"github.com/y3owk1n/fude/wire"
 )
 
 // theme is the colours the terminal client draws with, in true colour, as
@@ -11,6 +13,7 @@ type theme struct {
 	bg, surface, raised, border color.Color // grounds, from the text's to a float's edge
 	text, muted, faint          color.Color // text, from the most to the least prominent
 	cursorLine, selection       color.Color
+	search                      color.Color // search matches' ground
 	normal, insert, visual, cmd color.Color // each mode's colour
 	err, warn, info, hint       color.Color
 	keyword, str, function, typ color.Color
@@ -22,7 +25,7 @@ var themes = map[string]theme{
 	"dark": {
 		bg: color.NewHexColor(0x14161b), surface: color.NewHexColor(0x1a1d24), raised: color.NewHexColor(0x232733), border: color.NewHexColor(0x2c313c),
 		text: color.NewHexColor(0xd5d9e0), muted: color.NewHexColor(0x8f97a5), faint: color.NewHexColor(0x4b5263),
-		cursorLine: color.NewHexColor(0x1b1e25), selection: color.NewHexColor(0x2b3a55),
+		cursorLine: color.NewHexColor(0x1b1e25), selection: color.NewHexColor(0x2b3a55), search: color.NewHexColor(0xe3b341),
 		normal: color.NewHexColor(0x7aa7f5), insert: color.NewHexColor(0x86c58a), visual: color.NewHexColor(0xc49bf2), cmd: color.NewHexColor(0xe5a56b),
 		err: color.NewHexColor(0xe8787a), warn: color.NewHexColor(0xe3b341), info: color.NewHexColor(0x7aa7f5), hint: color.NewHexColor(0x6cc8bd),
 		keyword: color.NewHexColor(0xc49bf2), str: color.NewHexColor(0xa6d189), function: color.NewHexColor(0x7ab3f0), typ: color.NewHexColor(0x6cc8bd),
@@ -31,7 +34,7 @@ var themes = map[string]theme{
 	"light": {
 		bg: color.NewHexColor(0xf7f7f5), surface: color.NewHexColor(0xffffff), raised: color.NewHexColor(0xeceef1), border: color.NewHexColor(0xd6d9df),
 		text: color.NewHexColor(0x1f2328), muted: color.NewHexColor(0x5b6270), faint: color.NewHexColor(0x9aa1ad),
-		cursorLine: color.NewHexColor(0xeef0f3), selection: color.NewHexColor(0xcfe0fb),
+		cursorLine: color.NewHexColor(0xeef0f3), selection: color.NewHexColor(0xcfe0fb), search: color.NewHexColor(0xa66a00),
 		normal: color.NewHexColor(0x2f6fd6), insert: color.NewHexColor(0x2e8540), visual: color.NewHexColor(0x8a4fd6), cmd: color.NewHexColor(0xb85f12),
 		err: color.NewHexColor(0xc9363b), warn: color.NewHexColor(0xa66a00), info: color.NewHexColor(0x2f6fd6), hint: color.NewHexColor(0x1d8a7e),
 		keyword: color.NewHexColor(0x8a4fd6), str: color.NewHexColor(0x2e7d3a), function: color.NewHexColor(0x2f6fd6), typ: color.NewHexColor(0x1d7a70),
@@ -46,12 +49,30 @@ func fromBase16(b [16]int32) theme {
 	return theme{
 		bg: c(0x0), surface: c(0x1), raised: c(0x2), border: c(0x2),
 		text: c(0x5), muted: c(0x4), faint: c(0x3),
-		cursorLine: c(0x1), selection: c(0x2),
+		cursorLine: c(0x1), selection: c(0x2), search: c(0xA),
 		normal: c(0xD), insert: c(0xB), visual: c(0xE), cmd: c(0x9),
 		err: c(0x8), warn: c(0xA), info: c(0xD), hint: c(0xC),
 		keyword: c(0xE), str: c(0xB), function: c(0xD), typ: c(0xA),
 		number: c(0x9), comment: c(0x3), punct: c(0x4),
 	}
+}
+
+// with returns t with the colours over sets in place of its own (B294).
+func (t theme) with(over wire.Colors) theme {
+	for to, hex := range map[*color.Color]wire.Hex{
+		&t.bg: over.Bg, &t.surface: over.Surface, &t.raised: over.Raised, &t.border: over.Border,
+		&t.text: over.Text, &t.muted: over.Muted, &t.faint: over.Faint,
+		&t.cursorLine: over.CursorLine, &t.selection: over.Selection, &t.search: over.Search,
+		&t.normal: over.Normal, &t.insert: over.Insert, &t.visual: over.Visual, &t.cmd: over.Command,
+		&t.err: over.Error, &t.warn: over.Warn, &t.info: over.Info, &t.hint: over.Hint,
+		&t.keyword: over.Keyword, &t.str: over.String, &t.function: over.Function, &t.typ: over.Type,
+		&t.number: over.Number, &t.comment: over.Comment, &t.punct: over.Punctuation,
+	} {
+		if rgb, ok := hex.RGB(); ok {
+			*to = color.NewHexColor(rgb)
+		}
+	}
+	return t
 }
 
 // styles are what drawing takes from a theme.
@@ -105,7 +126,7 @@ func tint(t theme) theme {
 	return theme{
 		bg: bg, surface: g(t.surface), raised: g(t.raised), border: f(t.border),
 		text: f(t.text), muted: f(t.muted), faint: f(t.faint),
-		cursorLine: g(t.cursorLine), selection: g(t.selection),
+		cursorLine: g(t.cursorLine), selection: g(t.selection), search: f(t.search),
 		normal: f(t.normal), insert: f(t.insert), visual: f(t.visual), cmd: f(t.cmd),
 		err: f(t.err), warn: f(t.warn), info: f(t.info), hint: f(t.hint),
 		keyword: f(t.keyword), str: f(t.str), function: f(t.function), typ: f(t.typ),

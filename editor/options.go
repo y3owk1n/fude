@@ -8,6 +8,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/y3owk1n/fude/wire"
 )
 
 // switches are the options :set turns on and off, by their names in
@@ -152,7 +154,7 @@ func configNode(cfg *config, path string) (string, bool) {
 
 // settings are config.toml's settings of the editor, not of a window, that
 // :set changes, by their names. They are its switches, numbers, words and
-// lists (B39).
+// lists, and the colours of [colors] as colors.<role> (B39, B294).
 func (c *config) settings() map[string]reflect.Value {
 	out := map[string]reflect.Value{}
 	v := reflect.ValueOf(c).Elem()
@@ -171,14 +173,22 @@ func (c *config) settings() map[string]reflect.Value {
 		}
 		out[f.Tag.Get("toml")] = v.FieldByIndex(f.Index)
 	}
+	colors := reflect.ValueOf(&c.Colors).Elem()
+	for _, f := range reflect.VisibleFields(colors.Type()) {
+		out["colors."+f.Tag.Get("toml")] = colors.FieldByIndex(f.Index)
+	}
 	return out
 }
 
 // settingText is a setting's value as :set takes it, with a list's items
 // apart by commas.
 func settingText(v reflect.Value) string {
-	if v.Kind() == reflect.Slice {
-		return strings.Join(v.Interface().([]string), ",")
+	switch x := v.Interface().(type) {
+	case []string:
+		return strings.Join(x, ",")
+	case wire.Hex:
+		hex, _ := x.MarshalText()
+		return string(hex)
 	}
 	return fmt.Sprint(v.Interface())
 }
@@ -225,6 +235,13 @@ func (e *Session) setSetting(name, value string, given bool) {
 			return
 		}
 		set = reflect.ValueOf(items)
+	case reflect.Struct:
+		var hex wire.Hex
+		if err := hex.UnmarshalText([]byte(value)); err != nil {
+			e.message = fmt.Sprintf("%s takes #rrggbb, not %q", name, value)
+			return
+		}
+		set = reflect.ValueOf(hex)
 	default:
 		set = reflect.ValueOf(value)
 	}

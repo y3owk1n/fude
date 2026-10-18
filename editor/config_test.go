@@ -140,7 +140,7 @@ func TestB39SetSettings(t *testing.T) {
 	if feed(e, ":set tab_width 4<CR>"); e.Views()[0].Tab != 4 {
 		t.Errorf("after :set tab_width 4 the view's tab is %d", e.Views()[0].Tab)
 	}
-	if feed(e, ":set theme light<CR>"); func() string { name, _ := e.Theme(); return name }() != "light" {
+	if feed(e, ":set theme light<CR>"); func() string { name, _, _ := e.Theme(); return name }() != "light" {
 		t.Errorf(":set theme light left the theme %q", e.Message())
 	}
 	// A new leader moves the keys that hold it, and the old one maps none.

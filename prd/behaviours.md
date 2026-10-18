@@ -465,6 +465,16 @@ Where fude departs, the line says so and cites the departure in
   shows the theme in use, and `<Tab>` after it offers dark, light and the
   scheme `config.toml` names. A scheme that does not load says why and
   leaves the theme as it was.
+- B294 [2] A `[colors]` table in `config.toml` replaces theme colours by
+  role, each as `#rrggbb`, in `dark`, `light` or a base16 scheme. The roles are
+  `bg`, `surface`, `raised`, `border`, `text`, `muted`, `faint`,
+  `cursor_line`, `selection`, `search`, `normal`, `insert`, `visual`,
+  `command`, `error`, `warn`, `info`, `hint`, `keyword`, `string`,
+  `function`, `type`, `number`, `comment` and `punctuation`. Every style
+  drawn in a role's colour changes with it. `:set colors.<role> #rrggbb` sets
+  one until fude quits, as for any setting. `:config reload` applies a
+  change to the file. A value that is not `#rrggbb` changes nothing and
+  says where it is.
 - B159 [5] `:lsp` opens a panel with a card for each language server
   `config.toml` sets: its state (running, starting, stopped, disabled,
   failed with why, not installed, or no files), its version, and its

@@ -176,6 +176,7 @@ type client struct {
 	e        Session
 	theme    string            // the theme drawn in, as e names it
 	colours  *[16]int32        // its base16 scheme's colours, if it is one
+	over     wire.Colors       // the colours [colors] puts in place of its own
 	spinning bool              // the last frame shows a spinner
 	styles   []tcell.Style     // a view's, kept between frames so painting them allocates nothing
 	frame    int               // counts the frames drawn
@@ -213,14 +214,18 @@ func (c *client) draw() {
 	c.spinning = false
 	fresh := c.lines == nil
 	// The theme e names may change at any time with :theme (B158).
-	if name, colours := c.e.Theme(); name != c.theme || colours != c.colours {
+	name, colours, given := c.e.Theme()
+	if given == nil {
+		given = &wire.Colors{}
+	}
+	if name != c.theme || colours != c.colours || *given != c.over {
 		fresh = true
-		c.theme, c.colours = name, colours
+		c.theme, c.colours, c.over = name, colours, *given
 		t := themes[name]
 		if colours != nil {
 			t = fromBase16(*colours)
 		}
-		useTheme(t)
+		useTheme(t.with(*given))
 	}
 	// The windows take every row: the command line floats and messages
 	// are toasts (B148, B149).
@@ -511,7 +516,7 @@ func (c *client) view(v wire.View, left int, sel vim.Selection, visual bool) (in
 					}
 					for _, mt := range matches {
 						if at >= mt[0] && at < mt[1] {
-							style = style.Background(th.warn).Foreground(th.bg)
+							style = style.Background(th.search).Foreground(th.bg)
 						}
 					}
 					// The match the search being typed goes to stands out (B21).

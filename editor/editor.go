@@ -761,8 +761,15 @@ func (e *Editor) setTheme(name string) error {
 
 // Theme names the colours config.toml or :theme asks the client for, dark
 // or light, or returns the sixteen colours of the base16 scheme it names
-// (B146, B158).
-func (e *Session) Theme() (string, *[16]int32) { return e.theme, e.base16 }
+// (B146, B158). It also returns the colours [colors] puts in place of the
+// theme's, or nil (B294).
+func (e *Session) Theme() (string, *[16]int32, *wire.Colors) {
+	if e.cfg.Colors == (wire.Colors{}) {
+		return e.theme, e.base16, nil
+	}
+	over := e.cfg.Colors
+	return e.theme, e.base16, &over
+}
 
 // LineCursor returns where the cursor is in Line, in bytes.
 func (e *Session) LineCursor() int { return e.vim.LineCursor() }

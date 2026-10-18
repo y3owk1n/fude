@@ -42,6 +42,6 @@ type Session interface {
 	Substituting() bool
 	Terminal() bool
 	Shown() string
-	Theme() (string, *[16]int32)
+	Theme() (string, *[16]int32, *wire.Colors)
 	TerminalClipboard() (string, bool)
 }

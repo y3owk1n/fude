@@ -101,7 +101,7 @@ func TestB244GuestRefuses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	theme, _ := e.Theme()
+	theme, _, _ := e.Theme()
 	ran := filepath.Join(t.TempDir(), "ran")
 	for _, keys := range []string{
 		":!touch " + ran + "<CR>", ":r !touch " + ran + "<CR>", ":%!sort<CR>", ":terminal<CR>", ":task<CR>",
@@ -113,7 +113,7 @@ func TestB244GuestRefuses(t *testing.T) {
 		}
 	}
 	now, _ := os.Getwd()
-	if name, _ := e.Theme(); now != wd || name != theme || text(e) != "b\na" || guest.Done() || len(guest.Views()) != 1 {
+	if name, _, _ := e.Theme(); now != wd || name != theme || text(e) != "b\na" || guest.Done() || len(guest.Views()) != 1 {
 		t.Errorf("a guest's refused commands left the directory %s, the theme %s, the text %q, it done %v, %d windows", now, name, text(e), guest.Done(), len(guest.Views()))
 	}
 	if _, err := os.Stat(ran); err == nil {

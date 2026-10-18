@@ -191,6 +191,24 @@ directory, which spell reads too.
 in. A path may start with `~/`. `:theme` switches the theme until fude
 quits.
 
+## colors
+
+Replaces the theme's colour for a role, such as `bg = "#101418"` under
+`[colors]`. Every style drawn in that role's colour changes with it.
+`:set colors.bg #101418` sets one in the running fude. The roles:
+
+- `bg`, `surface` for floats and the bars, `raised` for the selected item,
+  and `border` are the grounds.
+- `text`, `muted` and `faint` are the text, from the most to the least
+  prominent.
+- `cursor_line` and `selection` shade those lines, and `search` is the
+  ground of search matches. The match a search being typed goes to is on
+  `number`.
+- `normal`, `insert`, `visual` and `command` are the modes' colours.
+- `error`, `warn`, `info` and `hint` are the diagnostics' colours.
+- `keyword`, `string`, `function`, `type`, `number`, `comment` and
+  `punctuation` are the syntax colours.
+
 ## spell
 
 Underlines the words the word list lacks: all the text of Markdown, text

@@ -14,6 +14,7 @@ import (
 	"github.com/y3owk1n/fude/internal/keep"
 	"github.com/y3owk1n/fude/internal/tomlerr"
 	"github.com/y3owk1n/fude/vim"
+	"github.com/y3owk1n/fude/wire"
 )
 
 // taskConfig is a task config.toml names (B228).
@@ -50,7 +51,8 @@ type config struct {
 	BufferLine      bool     `toml:"buffer_line" help:"the top row lists the open buffers once two or more are"`
 	SpellWords      string   `toml:"spell_words" help:"the word list spell checks against, one word a line"`
 	options
-	Keymap   keymap `toml:"keymap"`
+	Colors   wire.Colors `toml:"colors" help:"colours by role, each as #rrggbb, that replace the theme's"`
+	Keymap   keymap      `toml:"keymap"`
 	Filetype map[string]struct {
 		Files        []string `toml:"files" help:"the names of the files of the type, as patterns such as *.toml.tmpl"`
 		IndentWidth  uint     `toml:"indent_width" help:"the columns of an indent level in files of the type"`

@@ -39,7 +39,7 @@ func TestB131CommandCompletion(t *testing.T) {
 		{"<Esc>:e ed<Tab>", ":e editor/"},
 		{"f<Tab>", ":e editor/files.go"},
 		// <S-Tab> goes back from the lit first match to the last.
-		{"<Esc>:set case<S-Tab>", ":set ignore_case"},
+		{"<Esc>:set _case<S-Tab>", ":set ignore_case"},
 		// :set completes the settings too, and then their values.
 		{"<Esc>:set highlight_c<Tab>", ":set highlight_colors"},
 		{" f<Tab>", ":set highlight_colors false"},

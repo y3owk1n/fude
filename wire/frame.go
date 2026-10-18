@@ -30,6 +30,7 @@ type Frame struct {
 	Shown        string         `json:",omitempty"`
 	Theme        string
 	Base16       *[16]int32     `json:",omitempty"`
+	Colors       *Colors        `json:",omitempty"`
 	Clipboard    *string        `json:",omitempty"` // to put on the client's clipboard (B241)
 	Wait         *time.Duration `json:",omitempty"` // until a key typed now times out
 	Hints        *time.Duration `json:",omitempty"` // until the key hints show

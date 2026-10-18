@@ -169,6 +169,9 @@ func (e *Session) helpSections() []helpSection {
 		switch {
 		case f.Anonymous || len(f.Index) > 1:
 			// The options, which help shows above.
+		case v.Kind() == reflect.Struct && f.Tag.Get("help") != "":
+			// A table such as [colors], whose explanation lists its keys.
+			settings.entries = append(settings.entries, helpEntry{[]string{name}, "[" + name + "]", f.Tag.Get("help")})
 		case v.Kind() == reflect.Struct:
 			for _, k := range helpFields(v) {
 				settings.entries = append(settings.entries, helpEntry{[]string{name + "." + k.name}, "[" + name + "." + k.name + "]", k.help})

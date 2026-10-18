@@ -93,6 +93,22 @@ whose keys override the normal mode ones in that buffer. A key mapped to
 `""` loses its mapping, and `<Plug>(name)` runs one of fude's commands.
 `[keymap.groups]` names the keys mappings start with, for the key hints.
 
+## Colors
+
+A `[colors]` table replaces some of the theme's colours, each given as
+`#rrggbb`. It works with `dark`, `light` or a base16 scheme. Every style
+drawn in a replaced colour changes with it.
+
+```toml
+[colors]
+bg = "#101418"
+keyword = "#c792ea"
+search = "#ffcb6b"
+```
+
+`:h colors` lists the roles. `:set colors.keyword #c792ea` tries a colour
+in the running fude, and `:config reload` applies a change to the file.
+
 ## Next
 
 - `guide-keys`, `guide-lsp` and `guide-format` go further with keymaps,
