@@ -751,9 +751,10 @@ func TestB244GuestRefusesAModuleKey(t *testing.T) {
 
 // B278
 func TestB278PluginPlug(t *testing.T) {
-	e := loaded(t, "ctx", "f", "a\n", "buffer.write")
-	if feed(e, ":plug ctx.hi<CR>"); text(e) != "hia" {
-		t.Errorf(":plug ctx.hi left %q, want hia", text(e))
+	useTable(t, "ctx", "\n[keymap.normal]\nQ = \"<Plug>(ctx.hi)\"\n", "buffer.write")
+	e := opened(t, "f", "a\n")
+	if feed(e, "Q"); text(e) != "hia" {
+		t.Errorf("Q, mapped to <Plug>(ctx.hi), left %q, want hia", text(e))
 	}
 }
 

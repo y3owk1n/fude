@@ -64,9 +64,6 @@ func init() {
 		{vim.Command{Name: "pick", Args: "[source] [text]", Help: "opens the finder on a source, or on the sources: files, grep [text], buffers, recent, diagnostics, symbols, help or keymaps"}, func(e *Session, x call) { e.openPick(x.arg) }, func(e *Session, _ string, start int, arg string, _ bool) (int, []string) {
 			return start, fuzzy.Match(e.pickNames(), arg)
 		}},
-		{vim.Command{Name: "plug", Args: "name", Help: "runs <Plug>(name) as a key mapped to it does"}, func(e *Session, x call) { e.runPlug(x.arg) }, func(e *Session, _ string, start int, arg string, _ bool) (int, []string) {
-			return start, fuzzy.Match(e.plugNames(), arg)
-		}},
 		{vim.Command{Name: "config", Args: "reload", Help: "reads config.toml again, without writing it"}, func(e *Session, x call) {
 			if x.arg != "reload" {
 				e.message = "config what? reload"
@@ -245,16 +242,6 @@ func (e *Session) plugNames() []string {
 		}
 	}
 	return names
-}
-
-// runPlug runs <Plug>(name) once the command line closes, as :plug does
-// (B271).
-func (e *Session) runPlug(name string) {
-	if !slices.Contains(e.plugNames(), name) {
-		e.message = "no plug is called " + name
-		return
-	}
-	e.later = append(e.later, vim.Keys("<Plug>("+name+")")...)
 }
 
 // defaultMaps are the normal mode keys fude maps to its commands.

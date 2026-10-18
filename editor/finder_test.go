@@ -17,6 +17,7 @@ import (
 	"github.com/y3owk1n/fude/modules/grep"
 	listingmod "github.com/y3owk1n/fude/modules/listing"
 	pickmod "github.com/y3owk1n/fude/modules/pick"
+	plugmod "github.com/y3owk1n/fude/modules/plug"
 	timelinemod "github.com/y3owk1n/fude/modules/timeline"
 	"github.com/y3owk1n/fude/syntax"
 )
@@ -136,6 +137,7 @@ func TestB271Plug(t *testing.T) {
 	e := withKit(t)
 	e.Use(listingmod.New())
 	e.Use(pickmod.New())
+	e.Use(plugmod.New())
 	e.SetSize(100, 30)
 	// A plugin's key runs with no key typed.
 	feed(e, ":plug kit.gS<CR>")

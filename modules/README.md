@@ -33,6 +33,7 @@ and a program that embeds the editor does the same.
 | [`markdown`](markdown) | a markdown file draws as it reads, with `render` on |
 | [`pick`](pick) | `:pick help`, `:pick keymaps` and `:pick commands` |
 | [`places`](places) | the last list of places in a window, `]q` and the other steps, `:copen`, `:cclose`, `:cdo` and `:cfdo` |
+| [`plug`](plug) | `:plug name` runs `<Plug>(name)` |
 | [`recent`](recent) | keeps the files windows show, for `:pick recent` and the start screen |
 | [`session`](session) | keeps the working directory's session as fude quits, and restores it |
 | [`sessions`](sessions) | `:who`, `:kick` and `:follow` |
