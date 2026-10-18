@@ -102,7 +102,7 @@ var registry = map[string]grammar{
 }
 
 // shipped holds the text objects fude writes for the grammars it builds
-// (D28).
+// (D28), and the queries it adds to or puts in place of theirs.
 //
 //go:embed queries
 var shipped embed.FS
@@ -211,6 +211,10 @@ func load(path, filetype string) (*language, error) {
 	}
 	if l.injections, err = read("injections"); err != nil {
 		return nil, err
+	}
+	// fude's own injections add to the grammar's repo's.
+	if b, err := shipped.ReadFile("queries/" + filetype + "/injections.scm"); err == nil {
+		l.injections += "\n" + string(b)
 	}
 	// fude's own text objects come first, as the grammar's repo has none.
 	if b, err := shipped.ReadFile("queries/" + filetype + "/textobjects.scm"); err == nil {

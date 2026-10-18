@@ -543,7 +543,8 @@ Where fude departs, the line says so and cites the departure in
   `auto_install = false` turns the builds off.
 - B166 [3] Text of another language inside a file shows in that
   language's colours, as its grammar's `injections.scm` marks it: the code
-  in a markdown fenced block, markdown's inline text, a `<script>` or
+  in a markdown fenced block, markdown's inline text and its tables'
+  cells, a `<script>` or
   `<style>` in HTML. An injected language whose grammar is not built
   builds on first use, and its colours show once it is. One whose grammar
   or queries fail to load says why.
@@ -558,6 +559,8 @@ Where fude departs, the line says so and cites the departure in
   - A quote's `>` shows as `▌`, and a rule as a line of `─`.
   - Emphasis and code spans lose their marks, a link shows its text
     alone, and an image its description.
+  - A table's pipes show as `│`, padded so its columns line up as their
+    cells show, and its delimiter row as `├─┼─┤`.
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays

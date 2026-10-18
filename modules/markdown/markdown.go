@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/clipperhouse/displaywidth"
+
 	"github.com/y3owk1n/fude/api"
 )
 
@@ -26,7 +28,10 @@ var queries = map[string]string{
 (task_list_marker_unchecked) @unchecked
 (task_list_marker_checked) @checked
 [(block_quote_marker) (block_continuation)] @quote
-(thematic_break) @rule`,
+(thematic_break) @rule
+(pipe_table) @table
+[(pipe_table_header) (pipe_table_row)] @row
+(pipe_table_delimiter_row) @delimiter`,
 	"markdown_inline": `
 [(emphasis_delimiter) (code_span_delimiter)] @hide
 (inline_link ["[" "]" "(" ")"] @hide)
@@ -115,13 +120,22 @@ func (m *Module) draw(s api.Scope) api.Result {
 		res.Decorate = append(res.Decorate, d)
 		m.shown[buf] = append(m.shown[buf], m.ids)
 	}
+	// replaced is every replacement, for a table's cells to count their
+	// widths by.
+	var replaced []replacement
 	show := func(start, end int, text, style string) {
 		add(api.Decoration{Start: start, End: end, Style: style, Note: text, Replace: true})
+		replaced = append(replaced, replacement{start, end, text})
 	}
-	var lists []api.Span
+	var lists, tables, rows []api.Span
 	for _, sp := range spans {
-		if sp.Name == "list" {
+		switch sp.Name {
+		case "list":
 			lists = append(lists, sp)
+		case "table":
+			tables = append(tables, sp)
+		case "row", "delimiter":
+			rows = append(rows, sp)
 		}
 	}
 	for _, sp := range spans {
@@ -165,5 +179,82 @@ func (m *Module) draw(s api.Scope) api.Result {
 			show(sp.Start, end, strings.Repeat("─", end-sp.Start), "markdown.rule")
 		}
 	}
+	// A table's column widths count the marks the loop put in its cells.
+	for _, tb := range tables {
+		var in []api.Span
+		for _, r := range rows {
+			if r.Start >= tb.Start && r.End <= tb.End {
+				in = append(in, r)
+			}
+		}
+		table(t, in, replaced, show)
+	}
 	return res
+}
+
+// replacement is text shown in place of [start, end).
+type replacement struct {
+	start, end int
+	text       string
+}
+
+// table shows a table's pipes as │, each padded so its column lines up,
+// and its delimiter row as ├─┼─┤. A table with a row that does not start
+// with a pipe stays as it is.
+func table(t api.Text, rows []api.Span, replaced []replacement, show func(start, end int, text, style string)) {
+	pipes := make([][]int, len(rows))
+	var widths []int
+	for i, r := range rows {
+		line := t.Slice(r.Start, r.End)
+		if !strings.HasPrefix(strings.TrimSpace(line), "|") {
+			return
+		}
+		for j := range len(line) {
+			if line[j] == '|' && (j == 0 || line[j-1] != '\\') {
+				pipes[i] = append(pipes[i], r.Start+j)
+			}
+		}
+		for j := 1; r.Name == "row" && j < len(pipes[i]); j++ {
+			if j > len(widths) {
+				widths = append(widths, 0)
+			}
+			widths[j-1] = max(widths[j-1], width(t, pipes[i][j-1]+1, pipes[i][j], replaced))
+		}
+	}
+	for i, r := range rows {
+		ps := pipes[i]
+		for j, p := range ps {
+			if r.Name == "delimiter" {
+				edge := "┼"
+				switch j {
+				case 0:
+					edge = "├"
+				case len(ps) - 1:
+					edge = "┤"
+				}
+				show(p, p+1, edge, "markdown.table")
+				if j+1 < len(ps) && j < len(widths) {
+					show(p+1, ps[j+1], strings.Repeat("─", widths[j]), "markdown.table")
+				}
+				continue
+			}
+			pad := 0
+			if j > 0 && j <= len(widths) {
+				pad = widths[j-1] - width(t, ps[j-1]+1, p, replaced)
+			}
+			show(p, p+1, strings.Repeat(" ", max(pad, 0))+"│", "markdown.table")
+		}
+	}
+}
+
+// width is how many columns [start, end) of t takes as it shows, with the
+// replacements in it.
+func width(t api.Text, start, end int, replaced []replacement) int {
+	w := displaywidth.String(t.Slice(start, end))
+	for _, r := range replaced {
+		if r.start >= start && r.end <= end {
+			w += displaywidth.String(r.text) - displaywidth.String(t.Slice(r.start, r.end))
+		}
+	}
+	return w
 }
