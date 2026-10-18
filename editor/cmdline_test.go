@@ -40,6 +40,10 @@ func TestB131CommandCompletion(t *testing.T) {
 		{"f<Tab>", ":e editor/files.go"},
 		// <S-Tab> goes back from the lit first match to the last.
 		{"<Esc>:set case<S-Tab>", ":set ignore_case"},
+		// :set completes the settings too, and then their values.
+		{"<Esc>:set highlight_c<Tab>", ":set highlight_colors"},
+		{" f<Tab>", ":set highlight_colors false"},
+		{"<Esc>:set completion_sources lsp,b<Tab>", ":set completion_sources lsp,buffer"},
 	} {
 		if feed(e, c.keys); e.Line() != c.line {
 			t.Fatalf("after %q the line is %q, want %q", c.keys, e.Line(), c.line)

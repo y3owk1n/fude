@@ -112,7 +112,13 @@ Where fude departs, the line says so and cites the departure in
   lsp,buffer`. `theme`, `leader` and `center` act at once, as `:theme`, a
   new leader and `:center` would. `socket` takes effect when fude starts.
   A guest may not change a setting. `keymap` and the other tables change
-  in `config.toml` alone.
+  in `config.toml`, and `:config reload` reads it again, never writing
+  it. A setting the file changed applies as `:set` would. An option it
+  changed applies to every window, and an option it did not change keeps
+  what `:set` gave it. A key it no longer maps does what fude does by
+  default. Its tables replace the old ones, and its plugins load again. A
+  `config.toml` with an error changes nothing, and the message says
+  where.
 - B116 [2] `scroll_off`, set with `:set scroll_off n` or in `config.toml`,
   keeps n lines in view above and below the cursor's, at most half the
   window, as Neovim's `scrolloff` does.

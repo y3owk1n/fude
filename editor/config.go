@@ -222,3 +222,110 @@ var leaderKey = regexp.MustCompile(`(?i)<leader>`)
 func withLeader(keys, leader string) string {
 	return leaderKey.ReplaceAllLiteralString(keys, leader)
 }
+
+// kindKeys are fude's own keys of each kind of buffer, which
+// [keymap.<kind>] changes (B142).
+func kindKeys() map[string]map[string]string {
+	return map[string]map[string]string{"listing": listingKeys, "list": listKeys, "timeline": timelineKeys, "finder": finderKeys, "float": floatKeys, "lsp": lspKeys, "help": helpKeys, "scratch": scratchKeys, "start": startKeys, "terminal": terminalKeys, "debug": nil}
+}
+
+// kinds returns the tables of km by kind of buffer. The finder's table maps
+// insert mode keys.
+func (km keymap) kinds() map[string]map[string]string {
+	return map[string]map[string]string{"listing": km.Listing, "list": km.List, "timeline": km.Timeline, "finder": km.Finder, "float": km.Float, "lsp": km.Lsp, "help": km.Help, "scratch": km.Scratch, "start": km.Start, "terminal": km.Terminal, "debug": km.Debug}
+}
+
+// reloadConfig reads config.toml again, and never writes it. A setting the
+// file changed applies as :set would. An option it changed applies to every
+// window, and an option it did not change keeps what :set gave it. A key it
+// no longer maps does what fude does by default. Its tables replace the old
+// ones, and its plugins load again. A file with an error changes nothing
+// (B39).
+func (e *Session) reloadConfig() {
+	cfg, err := loadConfig()
+	if err != nil {
+		e.message = err.Error()
+		return
+	}
+	old := e.cfg
+	settings := cfg.settings()
+	for name, v := range old.settings() {
+		if now := settingText(settings[name]); now != settingText(v) {
+			e.setSetting(name, now, true)
+		}
+	}
+	// The options the file changed apply to every window.
+	was, now := old.options, cfg.options
+	changed := map[string]bool{}
+	for name, p := range now.switches() {
+		changed[name] = *p != *was.switches()[name]
+	}
+	for name, p := range now.numbers() {
+		changed[name] = *p != *was.numbers()[name]
+	}
+	for _, s := range e.sessions {
+		if s.power != Host {
+			continue
+		}
+		windows := s.root.windows()
+		for _, w := range windows {
+			apply(&w.opts, now, changed)
+			if w.own != nil {
+				apply(w.own, now, changed)
+			}
+			w.fitted = nil
+		}
+		apply(&s.opts, now, changed)
+		s.rekey(old.Keymap, cfg.Keymap)
+	}
+	e.cfg.options, e.cfg.Keymap = cfg.options, cfg.Keymap
+	e.cfg.Filetype, e.cfg.LSP, e.cfg.Formatter, e.cfg.Debug, e.cfg.Task = cfg.Filetype, cfg.LSP, cfg.Formatter, cfg.Debug, cfg.Task
+	if e.started {
+		e.reloadPlugins()
+	}
+	e.layout()
+	e.message = "reloaded config.toml"
+}
+
+// apply copies to o each option of from that changed names.
+func apply(o *options, from options, changed map[string]bool) {
+	for name, p := range from.switches() {
+		if changed[name] {
+			*o.switches()[name] = *p
+		}
+	}
+	for name, p := range from.numbers() {
+		if changed[name] {
+			*o.numbers()[name] = *p
+		}
+	}
+}
+
+// rekey replaces the keys of keymap was with those of now. A key that was
+// maps and now does not gets fude's own mapping back, or none.
+func (e *Session) rekey(was, now keymap) {
+	revert := func(m mapper, mode vim.Mode, old, new, own map[string]string) {
+		for keys := range old {
+			if _, ok := new[keys]; ok {
+				continue
+			}
+			if to, ok := own[keys]; ok {
+				m.Map(mode, withLeader(keys, e.leader), to)
+			} else {
+				m.Unmap(mode, withLeader(keys, e.leader))
+			}
+		}
+		mapAll(m, mode, new, e.leader)
+	}
+	revert(e.vim, vim.Normal, was.Normal, now.Normal, defaultMaps)
+	revert(e.vim, vim.Visual, was.Visual, now.Visual, map[string]string{"s": "<Plug>(jump)"})
+	revert(e.vim, vim.Insert, was.Insert, now.Insert, nil)
+	own, olds, news := kindKeys(), was.kinds(), now.kinds()
+	for kind, m := range e.locals {
+		mode := vim.Normal
+		if kind == "finder" {
+			mode = vim.Insert
+		}
+		revert(m, mode, olds[kind], news[kind], own[kind])
+	}
+}

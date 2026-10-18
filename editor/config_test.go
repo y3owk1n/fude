@@ -155,3 +155,44 @@ func TestB39SetSettings(t *testing.T) {
 		t.Errorf(":set changed config.toml to %q", disk(t, file))
 	}
 }
+
+// B39, for :config reload
+func TestConfigReload(t *testing.T) {
+	config(t, "key_timeout = 900\n[keymap.normal]\n\"-\" = \":set number true<CR>\"\n")
+	file := filepath.Join(os.Getenv("XDG_CONFIG_HOME"), "fude", "config.toml")
+	dir := t.TempDir()
+	change(t, filepath.Join(dir, "a.txt"), "a\n")
+	e := start(t, filepath.Join(dir, "a.txt"))
+	e.SetSize(80, 20)
+	feed(e, ":set wrap false<CR>")
+	// In the new file, - loses its mapping and z8 gets one. A setting and an
+	// option change too.
+	change(t, file, "auto_install = false\nkey_timeout = 500\ncursor_line = true\n[keymap.normal]\n\"z8\" = \":set number true<CR>\"\n")
+	if feed(e, ":config reload<CR>"); e.Message() != "reloaded config.toml" {
+		t.Fatalf(":config reload said %q", e.Message())
+	}
+	if feed(e, ":set key_timeout<CR>"); e.Message() != "key_timeout 500" {
+		t.Errorf("after the reload :set key_timeout said %q", e.Message())
+	}
+	// An option the file changed applies to the window, and one :set
+	// changed and the file did not stays.
+	if v := e.Views()[0]; !v.CursorLine || v.Wrap {
+		t.Errorf("after the reload cursor_line is %v and wrap %v", v.CursorLine, v.Wrap)
+	}
+	// A key the file no longer maps does what it does by default, and a new
+	// one maps.
+	if feed(e, "z8"); !e.Views()[0].Number {
+		t.Error("after the reload z8 did not run its mapping")
+	}
+	if feed(e, ":set number false<CR>-"); e.Views()[0].Number || !strings.HasSuffix(e.Views()[0].Name, string(filepath.Separator)) {
+		t.Errorf("after the reload - showed %q with number %v, want the folder's listing", e.Views()[0].Name, e.Views()[0].Number)
+	}
+	// A file with an error changes nothing and says where.
+	change(t, file, "key_timeout = \"soon\"\n")
+	if feed(e, ":config reload<CR>"); !strings.Contains(e.Message(), "line 1") {
+		t.Errorf("a bad config.toml said %q", e.Message())
+	}
+	if feed(e, ":set key_timeout<CR>"); e.Message() != "key_timeout 500" {
+		t.Errorf("after a bad reload :set key_timeout said %q", e.Message())
+	}
+}

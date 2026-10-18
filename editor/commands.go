@@ -4,6 +4,7 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -131,6 +132,15 @@ func init() {
 			}
 			e.resizeTo(true, strings.TrimSpace(arg))
 		}, nil},
+		{vim.Command{Name: "config", Args: "reload", Help: "reads config.toml again, without writing it"}, func(e *Session, x call) {
+			if x.arg != "reload" {
+				e.message = "config what? reload"
+				return
+			}
+			e.reloadConfig()
+		}, func(_ *Session, _ string, start int, arg string, _ bool) (int, []string) {
+			return start, match([]string{"reload"}, arg)
+		}},
 		{vim.Command{Name: "plugin", Args: "reload", Help: "reads config.toml's plugins again and loads them anew"}, func(e *Session, x call) {
 			if x.arg != "reload" {
 				e.message = "usage: :plugin reload"
@@ -330,19 +340,28 @@ func completePath(e *Session, line string, start int, arg string, wait bool) (in
 }
 
 // completeOption completes the last option of :set.
-func completeOption(e *Session, _ string, start int, arg string, _ bool) (int, []string) {
-	opts := e.win.opts
+func completeOption(e *Session, line string, start int, arg string, wait bool) (int, []string) {
+	opts, settings := e.win.opts, e.cfg.settings()
 	name, value, given := strings.Cut(arg, " ")
-	if given {
-		// A switch takes true or false.
-		if _, ok := opts.switches()[name]; ok {
-			return start + len(name) + 1, match([]string{"false", "true"}, value)
-		}
-		return 0, nil
+	if !given {
+		names := slices.Concat(slices.Collect(maps.Keys(opts.switches())), slices.Collect(maps.Keys(opts.numbers())), slices.Collect(maps.Keys(settings)))
+		slices.Sort(names)
+		return start, match(names, name)
 	}
-	names := slices.Concat(slices.Collect(maps.Keys(opts.switches())), slices.Collect(maps.Keys(opts.numbers())))
-	slices.Sort(names)
-	return start, match(names, name)
+	// A switch takes true or false, theme a theme, and completion_sources
+	// its sources.
+	at := start + len(name) + 1
+	_, isSwitch := opts.switches()[name]
+	switch {
+	case isSwitch || settings[name].IsValid() && settings[name].Kind() == reflect.Bool:
+		return at, match([]string{"false", "true"}, value)
+	case name == "theme":
+		return completeTheme(e, line, at, value, wait)
+	case name == "completion_sources":
+		done := value[:strings.LastIndexByte(value, ',')+1]
+		return at + len(done), match(defaults.Sources, value[len(done):])
+	}
+	return 0, nil
 }
 
 // completeTheme offers the themes, and the scheme config.toml names so

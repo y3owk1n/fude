@@ -247,7 +247,7 @@ func builtins(e *Session) {
 	}
 	e.vim.Map(vim.Visual, "s", "<Plug>(jump)")
 	e.locals = map[string]*vim.Keymaps{}
-	for kind, keys := range map[string]map[string]string{"listing": listingKeys, "list": listKeys, "timeline": timelineKeys, "finder": finderKeys, "float": floatKeys, "lsp": lspKeys, "help": helpKeys, "scratch": scratchKeys, "start": startKeys, "terminal": terminalKeys, "debug": nil} {
+	for kind, keys := range kindKeys() {
 		mode := vim.Normal
 		if kind == "finder" {
 			mode = vim.Insert
