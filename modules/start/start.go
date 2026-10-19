@@ -92,7 +92,12 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 		if err != nil {
 			return api.Result{Message: fmt.Sprintf("config.toml: %v", err)}, nil
 		}
-		return api.Result{Jump: &api.Jump{Path: filepath.Join(dir, "fude", "config.toml")}}, nil
+		// A new machine has no config directory, which :w needs.
+		dir = filepath.Join(dir, "fude")
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			return api.Result{Message: fmt.Sprintf("config.toml: %v", err)}, nil
+		}
+		return api.Result{Jump: &api.Jump{Path: filepath.Join(dir, "config.toml")}}, nil
 	}
 	if n := int(id - recentFile); n < len(m.recent) {
 		return api.Result{Jump: &api.Jump{Path: m.recent[n]}}, nil

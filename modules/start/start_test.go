@@ -54,4 +54,15 @@ func TestB225StartScreen(t *testing.T) {
 	if editortest.Feed(e, "<CR>"); func() bool { _, ok := e.Float(); return !ok }() {
 		t.Error("<CR> on f did not open the finder")
 	}
+	// c opens config.toml, so :w writes it on a machine with no config
+	// directory yet.
+	config := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", config)
+	editortest.Feed(e, "<Esc>:enew<CR>")
+	e.Welcome()
+	editortest.Settle(t, e, func() bool { return strings.Contains(editortest.Text(e), "c  open config.toml") })
+	editortest.Feed(e, "ci# mine<Esc>:w<CR>")
+	if b, err := os.ReadFile(filepath.Join(config, "fude", "config.toml")); err != nil || string(b) != "# mine\n" {
+		t.Errorf("c then :w wrote %q, %v, and said %q", b, err, e.Message())
+	}
 }
