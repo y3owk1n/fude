@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"maps"
-	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -293,7 +292,10 @@ func (e *Session) notified(s *server, method string, params json.RawMessage) {
 		logLine(fmt.Sprintf("diagnostics from %s: %v", s.name, err))
 		return
 	}
-	if i := slices.IndexFunc(s.bufs, func(b *buffer) bool { return lsp.URI(b.file.path) == p.URI }); i >= 0 {
+	// A server may write a URI differently, as file:///c%3A/x for
+	// file:///C:/x, so the paths are what match.
+	path, ok := lsp.Path(p.URI)
+	if i := slices.IndexFunc(s.bufs, func(b *buffer) bool { return ok && b.is(path) }); i >= 0 {
 		e.published(s, s.bufs[i], params)
 	}
 }
@@ -397,18 +399,18 @@ func (e *Session) workspaceEdit(s *server, from *buffer, t kernel.Snapshot, res 
 	enc, changed := s.client.Encoding(), 0
 	var problems []string
 	for uri, f := range files {
-		u, err := url.Parse(uri)
-		if err != nil {
+		path, ok := lsp.Path(uri)
+		if !ok {
+			problems = append(problems, uri+" names no file")
+			continue
+		}
+		if err := e.outside(path); err != nil {
 			problems = append(problems, err.Error())
 			continue
 		}
-		if err := e.outside(u.Path); err != nil {
-			problems = append(problems, err.Error())
-			continue
-		}
-		i := slices.IndexFunc(e.bufs, func(b *buffer) bool { return b.is(u.Path) })
+		i := slices.IndexFunc(e.bufs, func(b *buffer) bool { return b.is(path) })
 		if i < 0 {
-			if _, err := e.add(u.Path); err != nil {
+			if _, err := e.add(path); err != nil {
 				problems = append(problems, err.Error())
 				continue
 			}

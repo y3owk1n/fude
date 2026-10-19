@@ -121,13 +121,32 @@ func (c *Client) Close() {
 	c.send(func(string) any { return message{Method: "exit"} })
 }
 
-// URI is the file URI of path.
+// URI is the file URI of path. A Windows path's URI has a slash before its
+// drive, as in file:///C:/x.
 func URI(path string) string {
 	abs, err := filepath.Abs(path)
 	if err != nil {
 		abs = path
 	}
+	abs = filepath.ToSlash(abs)
+	if !strings.HasPrefix(abs, "/") {
+		abs = "/" + abs
+	}
 	return (&url.URL{Scheme: "file", Path: abs}).String()
+}
+
+// Path is the path of the file URI uri, as URI makes it, or false when uri
+// names no path.
+func Path(uri string) (string, bool) {
+	u, err := url.Parse(uri)
+	if err != nil || u.Path == "" {
+		return "", false
+	}
+	p := u.Path
+	if filepath.VolumeName(strings.TrimPrefix(p, "/")) != "" {
+		p = p[1:]
+	}
+	return filepath.FromSlash(p), true
 }
 
 // Open tells the server about a document and its text.

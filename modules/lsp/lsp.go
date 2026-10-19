@@ -9,7 +9,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -397,12 +396,12 @@ func located(id uint32, out, enc string) api.Result {
 		if l.TargetURI != "" {
 			l.URI, l.Range = l.TargetURI, l.Target
 		}
-		u, err := url.Parse(l.URI)
-		if err != nil || u.Path == "" {
+		path, ok := lsp.Path(l.URI)
+		if !ok {
 			continue
 		}
-		jump = &api.Jump{Path: u.Path, Line: l.Range.Start.Line + 1, Column: l.Range.Start.Character + 1, Encoding: enc}
-		items = append(items, fmt.Sprintf("%s:%d:%d:", relative(u.Path), jump.Line, jump.Column))
+		jump = &api.Jump{Path: path, Line: l.Range.Start.Line + 1, Column: l.Range.Start.Character + 1, Encoding: enc}
+		items = append(items, fmt.Sprintf("%s:%d:%d:", relative(path), jump.Line, jump.Column))
 	}
 	switch {
 	case len(items) == 0:
@@ -488,8 +487,8 @@ func symbolPlaces(out string) ([]string, error) {
 	}
 	var items []string
 	for _, sym := range found[:min(len(found), limit)] {
-		u, err := url.Parse(sym.Location.URI)
-		if err != nil || u.Path == "" {
+		path, ok := lsp.Path(sym.Location.URI)
+		if !ok {
 			continue
 		}
 		k := ""
@@ -497,7 +496,7 @@ func symbolPlaces(out string) ([]string, error) {
 			k = "  " + kind(sym.Kind)
 		}
 		p := sym.Location.Range.Start
-		items = append(items, fmt.Sprintf("%s:%d:%d:%s%s", relative(u.Path), p.Line+1, p.Character+1, sym.Name, k))
+		items = append(items, fmt.Sprintf("%s:%d:%d:%s%s", relative(path), p.Line+1, p.Character+1, sym.Name, k))
 	}
 	// Places show under their file, so a file's come together.
 	slices.SortStableFunc(items, func(a, b string) int {

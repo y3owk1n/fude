@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
-	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -166,13 +165,13 @@ func files(edit json.RawMessage) map[string][]textEdit {
 	json.Unmarshal(edit, &w)
 	out := map[string][]textEdit{}
 	for uri, edits := range w.Changes {
-		if u, err := url.Parse(uri); err == nil {
-			out[u.Path] = edits
+		if path, ok := lsp.Path(uri); ok {
+			out[path] = edits
 		}
 	}
 	for _, d := range w.DocumentChanges {
-		if u, err := url.Parse(d.TextDocument.URI); err == nil {
-			out[u.Path] = d.Edits
+		if path, ok := lsp.Path(d.TextDocument.URI); ok {
+			out[path] = d.Edits
 		}
 	}
 	return out
