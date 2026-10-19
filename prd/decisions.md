@@ -616,6 +616,28 @@ module loads. `:h` lists each kind's keys under its name, so the typo
 shows there. Keys that wait for
 characters, such as surround's `ds`, stay the vim machine's own.
 
+## D54. On Windows, fude does what Windows programs do
+
+fude runs on Windows 10 and 11, on amd64 and arm64, and CI runs every test
+there. Where Windows has its own way, fude takes it rather than a Unix
+layer. The shell is `SHELL` when Windows can run it, or else PowerShell,
+which runs `:!` without its profile and writes UTF-8 (B156, B205).
+`:terminal` runs in a ConPTY pseudo console. The clipboard is Windows' own
+calls, with `\r\n` line ends there. Config goes in `%APPDATA%\fude`, and
+state, grammars and caches in `%LOCALAPPDATA%\fude`, unless an `XDG_`
+variable says otherwise. Paths take `\` and compare without case. A
+grammar is a DLL that llvm-mingw's `gcc` compiles (D29), and oku installs
+llvm-mingw, as Windows has no C compiler of its own. `:restart` runs the
+new fude in the same console, as Windows cannot replace a process.
+
+Why, as of 2026-10-19: the user wanted fude on Windows, chose PowerShell
+over cmd.exe as the default shell, and chose Windows' folders over XDG's.
+A Unix layer such as Git Bash or MSYS would give fude Unix paths and a
+Unix shell, which other Windows programs do not use. The
+tests run `sh` and Unix programs from Git for Windows, which a Windows
+build needs for grammars anyway. Delve does not run on Windows on arm64,
+so oku skips `dlv` there.
+
 ## Departures from Neovim
 
 Each entry: what differs, then why.
