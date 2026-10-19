@@ -112,14 +112,7 @@ func build(dir string) error {
 	if err := os.WriteFile(filepath.Join(queries, "highlights.scm"), b, 0o644); err != nil {
 		return fmt.Errorf("go grammar: %w", err)
 	}
-	// Test packages may build it at the same time, so each writes a name of
-	// its own.
-	lib := syntax.Library(dir, "go")
-	tmp := fmt.Sprintf("%s.%d.new", lib, os.Getpid())
-	if err := syntax.Compile(work, tmp); err != nil {
-		return fmt.Errorf("go grammar: %w", err)
-	}
-	if err := os.Rename(tmp, lib); err != nil {
+	if err := syntax.Compile(work, syntax.Library(dir, "go")); err != nil {
 		return fmt.Errorf("go grammar: %w", err)
 	}
 	return nil

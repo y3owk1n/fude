@@ -153,13 +153,26 @@ func Library(dir, filetype string) string {
 }
 
 // Compile builds the grammar in dir, whose src folder holds its parser.c,
-// into the library out.
-func Compile(dir, out string) error {
-	cmd := compile(dir, out)
+// into the library lib. It writes a name of its own first and renames it to
+// lib, as two processes may build one grammar at once.
+func Compile(dir, lib string) error {
+	// The compiler may run in another folder, so the path is absolute.
+	tmp, err := filepath.Abs(fmt.Sprintf("%s.%d.new", lib, os.Getpid()))
+	if err != nil {
+		return err
+	}
+	cmd := compile(dir, tmp)
 	if b, err := cmd.CombinedOutput(); err != nil {
+		os.Remove(tmp)
 		return fmt.Errorf("%s: %w: %s", strings.Join(cmd.Args[:min(2, len(cmd.Args))], " "), err, strings.TrimSpace(string(b)))
 	}
-	return nil
+	// Another process may have built lib meanwhile and loaded it, which
+	// Windows will not replace. It is the same build, so tmp goes.
+	err = os.Rename(tmp, lib)
+	if _, serr := os.Stat(lib); err != nil && serr == nil {
+		return os.Remove(tmp)
+	}
+	return err
 }
 
 // lookup returns filetype's language, loaded from its built grammar, or
@@ -311,19 +324,10 @@ func Build(filetype string) error {
 			return fmt.Errorf("build the %s grammar: %w", filetype, err)
 		}
 	}
-	// Build writes the library last, through a rename, so a library there
-	// means the rest of the build is there too. The name it writes first is
-	// its own, as two fude processes may build one grammar at once.
+	// Build writes the library last, so a library there means the rest of
+	// the build is there too.
 	lib := Library(grammars, filetype)
-	// The compiler may run in another folder, so the path is absolute.
-	tmp, err := filepath.Abs(fmt.Sprintf("%s.%d.new", lib, os.Getpid()))
-	if err != nil {
-		return fmt.Errorf("build the %s grammar: %w", filetype, err)
-	}
-	if err := Compile(filepath.Join(src, g.src), tmp); err != nil {
-		return fmt.Errorf("build the %s grammar: %w", filetype, err)
-	}
-	if err := os.Rename(tmp, lib); err != nil {
+	if err := Compile(filepath.Join(src, g.src), lib); err != nil {
 		return fmt.Errorf("build the %s grammar: %w", filetype, err)
 	}
 	// Libraries of older pins go, as nothing loads them now.
