@@ -156,14 +156,15 @@ terminal. \fB:terminal\fR sets it to the session it runs in.
 .TP
 \fI$XDG_CONFIG_HOME/fude/config.toml\fR
 The settings, options and mappings, in \fI~/.config\fR without
-$XDG_CONFIG_HOME. See fude\-config(5).
+$XDG_CONFIG_HOME, or \fI%APPDATA%\fR on Windows. See fude\-config(5).
 .TP
 \fI$XDG_STATE_HOME/fude\fR
 Each file's timeline and fude's log, in \fI~/.local/state\fR without
-$XDG_STATE_HOME.
+$XDG_STATE_HOME, or \fI%LOCALAPPDATA%\fR on Windows.
 .TP
 \fI$XDG_DATA_HOME/fude/grammars\fR
-The grammars fude builds, in \fI~/.local/share\fR without $XDG_DATA_HOME.
+The grammars fude builds, in \fI~/.local/share\fR without $XDG_DATA_HOME,
+or \fI%LOCALAPPDATA%\fR on Windows.
 .TP
 \fI$XDG_RUNTIME_DIR/fude.\fIpid\fI.sock\fR
 The socket clients attach to, in the temporary directory without

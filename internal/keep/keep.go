@@ -12,6 +12,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -27,13 +28,21 @@ import (
 var Clean string
 
 // Dir returns the directory the XDG variable env names, or fallback under
-// the home directory. With Clean set, the config directory is Clean.
+// the home directory. Windows has its own: %AppData% for the config
+// directory, which roams with the user, and %LocalAppData% for the others.
+// With Clean set, the config directory is Clean.
 func Dir(env, fallback string) (string, error) {
 	if env == "XDG_CONFIG_HOME" && Clean != "" {
 		return Clean, nil
 	}
 	if dir := os.Getenv(env); dir != "" {
 		return dir, nil
+	}
+	if runtime.GOOS == "windows" {
+		if env == "XDG_CONFIG_HOME" {
+			return os.UserConfigDir()
+		}
+		return os.UserCacheDir()
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {

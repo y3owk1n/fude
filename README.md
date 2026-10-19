@@ -185,7 +185,7 @@ The host's fude must be running, since it holds the text. There is no peer to pe
 
 ## Configuration
 
-fude reads `~/.config/fude/config.toml`, or `$XDG_CONFIG_HOME/fude/config.toml`. Every setting is optional, fude never writes the file, and `:restart` loads a change.
+fude reads `~/.config/fude/config.toml`, or `$XDG_CONFIG_HOME/fude/config.toml`. On Windows it is `%APPDATA%\fude\config.toml`. Every setting is optional, fude never writes the file, and `:restart` loads a change.
 
 ```toml
 theme = "dark"

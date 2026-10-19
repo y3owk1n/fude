@@ -1072,6 +1072,11 @@ $XDG_STATE_HOME/fude/timeline/      timeline logs, keyed by file path
 $XDG_DATA_HOME/fude/grammars/       grammars and their queries, loaded at runtime
 ```
 
+Without the variables, these are `~/.config`, `~/.local/state`,
+`~/.local/share` and `~/.cache`. On Windows the config directory is
+`%APPDATA%`, which roams with the user, and the others are
+`%LOCALAPPDATA%`. A variable that is set wins on every system.
+
 ## Config
 
 `editor.Start` reads `config.toml` once (D27, D31). It holds:
