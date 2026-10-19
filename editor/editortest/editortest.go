@@ -119,7 +119,7 @@ func Settle(t testing.TB, e *editor.Session, done func() bool) {
 		case <-time.After(10 * time.Millisecond):
 			// done may wait on something other than the loop, such as a log.
 		case <-deadline:
-			t.Fatal("still waiting after 5s")
+			t.Fatalf("still waiting after 5s, with text %q and message %q", Text(e), e.Message())
 		}
 	}
 }
