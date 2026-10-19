@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/y3owk1n/fude/core/kernel"
+	"github.com/y3owk1n/fude/internal/fsys"
 	"github.com/y3owk1n/fude/internal/trace"
 )
 
@@ -111,7 +112,7 @@ func (l *Log) write(r record) {
 	line, err := json.Marshal(r)
 	if err == nil && l.f == nil {
 		if err = os.MkdirAll(filepath.Dir(l.path), 0o700); err == nil {
-			l.f, err = os.OpenFile(l.path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+			l.f, err = fsys.Append(l.path, 0o600)
 		}
 	}
 	if err == nil {
@@ -221,7 +222,7 @@ func (l *Log) Failed() error {
 // read parses the log at path, and reports whether its last write, or its
 // start, has the text hash want.
 func read(path, want string) (Loaded, bool, error) {
-	f, err := os.Open(path)
+	f, err := fsys.Open(path)
 	if errors.Is(err, fs.ErrNotExist) {
 		return Loaded{}, false, nil
 	}

@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/y3owk1n/fude/api"
+	"github.com/y3owk1n/fude/internal/fsys"
 	"github.com/y3owk1n/fude/internal/keep"
 	"github.com/y3owk1n/fude/internal/paths"
 	"github.com/y3owk1n/fude/internal/trace"
@@ -329,7 +330,7 @@ func load(wd string) ([]pin, error) {
 		return nil, fmt.Errorf("pins: %w", err)
 	}
 	at := time.Now()
-	data, err := os.ReadFile(path)
+	data, err := fsys.ReadFile(path)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
 	}

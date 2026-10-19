@@ -17,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/y3owk1n/fude/internal/fsys"
 	fspaths "github.com/y3owk1n/fude/internal/paths"
 	"github.com/y3owk1n/fude/internal/trace"
 )
@@ -147,7 +148,7 @@ func (r *Recent) Read() ([]string, error) {
 		return nil, fmt.Errorf("recent files: %w", err)
 	}
 	at := time.Now()
-	f, err := os.Open(file)
+	f, err := fsys.Open(file)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
 	}

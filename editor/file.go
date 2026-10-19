@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/y3owk1n/fude/internal/fsys"
 )
 
 // file is a path and the on-disk format of its text, which a write keeps.
@@ -109,7 +111,7 @@ func (f *file) write(text string) (int, error) {
 	}
 	err = errors.Join(err, tmp.Chmod(mode), tmp.Sync(), tmp.Close())
 	if err == nil {
-		err = os.Rename(tmp.Name(), path)
+		err = fsys.Replace(tmp.Name(), path)
 	}
 	if err != nil {
 		return 0, fmt.Errorf("write %s: %w", f.path, err)

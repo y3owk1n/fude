@@ -9,10 +9,10 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"os"
 	"time"
 
 	"github.com/y3owk1n/fude/api"
+	"github.com/y3owk1n/fude/internal/fsys"
 	"github.com/y3owk1n/fude/internal/keep"
 	"github.com/y3owk1n/fude/internal/trace"
 )
@@ -43,7 +43,7 @@ func (m *Module) Call(context.Context, uint32, api.Scope, ...int) (api.Result, e
 		return api.Result{Message: err.Error()}, nil
 	}
 	at := time.Now()
-	data, err := os.ReadFile(path)
+	data, err := fsys.ReadFile(path)
 	if !errors.Is(err, fs.ErrNotExist) {
 		trace.Since("file", fmt.Sprintf("read %q, %d bytes", path, len(data)), at, err)
 	}
