@@ -64,6 +64,16 @@ runs when picked. `:pick commands` finds an ex command the same way, and
 runs it, or puts it on the command line when it needs an argument.
 `:pick` alone lists every source.
 
+## Pins
+
+`<Leader>a` or `:pin` pins the current file, up to 9 for each working
+directory, and `<Leader>1` to `<Leader>9` go back to one with the cursor
+where you left it. The status line shows a pinned file's place, such as
+`2/4`. `<Leader>h` or `:pin list` shows the pins one to a line. Move,
+delete or type lines and `:w` keeps them, `<CR>` opens one and `q`
+closes the list. `:pin remove` takes the current file off, and a pin follows its
+file when a listing renames it.
+
 ## Tasks
 
 `:pick tasks` lists the tasks of the working directory: those

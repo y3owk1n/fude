@@ -1137,9 +1137,10 @@ Where fude departs, the line says so and cites the departure in
   state, and its result may build grammars again, which only the host
   may ask, as `:grammar` does (B165).
 - B332 [4] A module's call lists the sessions on this fude, each with
-  its name and power and whether it is the call's own. A call's or an
-  event's scope names the session it is about by an id no other session
-  on this fude has. Its result may
+  its name and power and whether it is the call's own. A call's scope,
+  and an event's that a session's keys or commands make, names that
+  session by an id no other session on this fude has. `buffer.changed`
+  may name another session, as an edit keeps no session. Its result may
   end a guest's session, which only the host may ask, or follow a
   session, as `:who`, `:kick` and `:follow` do (B250, B256).
 - B331 [4] A module says what the buffer line lists, each buffer by the
