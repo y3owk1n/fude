@@ -10,9 +10,7 @@ Use it as your editor, with language servers, tree-sitter, a finder, git, a debu
 [![Status](https://img.shields.io/badge/status-alpha-orange?style=flat-square)](#status)
 [![Sponsor](https://img.shields.io/badge/sponsor-%E2%9D%A4-30363D?style=flat-square)](https://github.com/sponsors/y3owk1n)
 
-|     macOS      |          Linux          |     Windows     |
-| :------------: | :---------------------: | :-------------: |
-| Daily driver   | Builds, less tested     | Not supported   |
+Runs on macOS, Linux and Windows.
 
 [Why](#why-fude-exists) · [Principles](#what-fude-believes) · [Install](#install) · [Tour](#a-first-session) · [Built in](#whats-built-in) · [Together](#editing-together) · [Libraries](#build-on-fude) · [Compare](#how-fude-compares)
 
@@ -81,7 +79,7 @@ oku add github:y3owk1n/fude
 <details>
 <summary>From source</summary>
 
-Needs Go 1.26 or later and a C compiler, as fude's tree-sitter binding uses cgo.
+Needs Go 1.26 or later and a C compiler, as fude's tree-sitter binding uses cgo. On Windows that is llvm-mingw's `gcc`, which the repository's `oku.toml` installs. Windows also needs Git for Windows.
 
 ```sh
 git clone https://github.com/y3owk1n/fude
@@ -96,13 +94,13 @@ Put `bin/fude` on your PATH. `go install` works from the first release on. Until
 <details>
 <summary>What fude uses when it is on PATH</summary>
 
-| Tool                                        | For                                                  |
-| :------------------------------------------ | :--------------------------------------------------- |
-| `git` and the `tree-sitter` CLI             | Building each language's grammar                     |
-| `rg`                                        | `:pick grep`, which falls back to `git grep`         |
-| `pbcopy`, `wl-copy` or `xclip`              | The system clipboard                                 |
-| TinyGo                                      | Building plugins                                     |
-| A nerd font                                 | Icons, which are off by default                      |
+| Tool                                                           | For                                          |
+| :------------------------------------------------------------- | :------------------------------------------- |
+| `git` and the `tree-sitter` CLI, or on Windows `git` and `gcc` | Building each language's grammar             |
+| `rg`                                                           | `:pick grep`, which falls back to `git grep` |
+| `pbcopy`, `wl-copy` or `xclip`, none on Windows                | The system clipboard                         |
+| TinyGo                                                         | Building plugins                             |
+| A nerd font                                                    | Icons, which are off by default              |
 
 fude needs a terminal with true colour.
 
@@ -347,7 +345,7 @@ Measured on an Apple M-series Mac. `just check` fails when one of these regresse
 
 ## Status
 
-fude is alpha. It has no releases or version numbers yet, and the config format, the plugin ABI, the socket protocol, the timeline log on disk and every library's API may change between commits. Its author uses it daily on macOS, and Linux gets less use. Keep backups of work you care about.
+fude is alpha. It has no releases or version numbers yet, and the config format, the plugin ABI, the socket protocol, the timeline log on disk and every library's API may change between commits. Keep backups of work you care about.
 
 Not here yet: releases, and GPU or web clients. Never here: vimscript, Lua, the mouse, and plugins without a sandbox.
 
