@@ -290,6 +290,9 @@
 "abc\nd|e" "gk" "a|bc\nde"
 "ab\n|cd" "3go" "a|b\ncd"
 "|ab\ncd" "4go" "ab\n|cd"
+"|a\nb\nc\nd" "v2<C-d>d" "|\nd"
+"a\nb\n|c\nd" "v2<C-u>d" "|\nd"
+"|a\nb\nc\nd" "V2<C-d>d" "|d"
 
 # B29
 "foo ba|r" "a baz<C-w>X<Esc>" "foo bar |X"

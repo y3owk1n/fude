@@ -407,6 +407,10 @@ func (m *Machine) visualKey(cmd string, count int, reg rune) error {
 		}
 		return nil
 	}
+	// A scroll moves the cursor, and the selection ends at the cursor.
+	if ok, err := m.scroll(cmd, count); ok {
+		return err
+	}
 	if p, k, ok := m.motion(cmd, count); ok {
 		if k == failed {
 			m.beep = true
