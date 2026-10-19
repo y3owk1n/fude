@@ -312,9 +312,10 @@ type Search struct {
 
 // Scratch is a new buffer with no file, holding Text and coloured as
 // Filetype, for the user to edit. It shows in the current window, or in a
-// new one Split below or right (B343).
+// new one Split below or right. When a module's Write writes its Kind, :w
+// writes it through that module (B327, B343).
 type Scratch struct {
-	Text, Filetype, Split string
+	Text, Filetype, Split, Kind string
 }
 
 // Panel is text a call shows in a read-only window titled Title, coloured

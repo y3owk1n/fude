@@ -186,7 +186,7 @@ func modify(path string, m byte) (string, error) {
 // write writes b to its file, then runs then. Without force it asks first
 // when the file changed on disk since fude read it.
 func (e *Session) write(b *buffer, force bool, then func()) {
-	if b.listed != "" {
+	if _, ok := e.writers[b.kind()]; ok || b.listed != "" {
 		e.writeKind(b, then)
 		return
 	}

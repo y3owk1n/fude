@@ -145,7 +145,8 @@ type writer struct {
 }
 
 // writeKind has the module that writes b's kind write it, asking first
-// when it asks to, then reads a listing again and runs then. A guest's
+// when it asks to, then reads a listing again, or marks another kind
+// written, and runs then. A guest's
 // write changes nothing outside the project (B245, B327).
 func (e *Session) writeKind(b *buffer, then func()) {
 	w, ok := e.writers[b.kind()]
@@ -165,6 +166,8 @@ func (e *Session) writeKind(b *buffer, then func()) {
 	done := func(res api.Result) {
 		if b.listed != "" {
 			e.reload(b)
+		} else {
+			b.saved = b.text.Head()
 		}
 		if res.Message != "" {
 			e.message = res.Message

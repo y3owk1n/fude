@@ -80,7 +80,7 @@ A `Result` asks for any of these, and fude applies them together once the call r
 | `Jump` | where the cursor goes, in this buffer, or at a line and column of a file or of another buffer by its `Buffer` id, in a window that shows a file, or with `Split` in a new one |
 | `Close`, `Drop`, `Write` | the buffers to close, as `:bd` does, to close dropping their changes, as `:bd!` does, and to write, as `:w` does, by id |
 | `Windows` | what to do to windows by id: `close`, `only`, `focus`, `height` or `width` to a `Size`, or as large as it can be for 0, `taller` or `wider` by `Size`, or move the `cursor` or the `top` line to `Pos` |
-| `Scratch` | a new buffer with no file, holding text to edit, in the window or a split |
+| `Scratch` | a new buffer with no file, holding text to edit, in the window or a split. Of a `Kind` a `Write` writes, `:w` writes it there |
 | `Marks`, `Registers`, `Search` | marks to set, text to put in registers, and the pattern `n` finds |
 | `Ex` | command lines to run, without their colon, as typed |
 | `Styles` | styles by name, each with colours for its text and ground and how its text draws, over the theme's, which decorations and spans name |

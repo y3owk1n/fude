@@ -570,6 +570,7 @@ func (e *Session) openScratch(s api.Scratch) {
 		}
 		b.head, b.saved = b.text.Head(), b.text.Head()
 	}
+	b.panelKind = s.Kind
 	if s.Split != "" {
 		e.split(s.Split == "right")
 	}
