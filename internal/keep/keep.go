@@ -1,6 +1,6 @@
 // Package keep is what fude keeps between runs, under the XDG directories:
 // where they are, writing a file whole, the recent files and where a
-// session is kept.
+// session and the pins are kept.
 package keep
 
 import (
@@ -167,12 +167,26 @@ func SessionPath() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("session: %w", err)
 	}
-	state, err := Dir("XDG_STATE_HOME", filepath.Join(".local", "state"))
+	path, err := byDir("sessions", wd)
 	if err != nil {
 		return "", fmt.Errorf("session: %w", err)
 	}
-	sum := sha256.Sum256([]byte(wd))
-	return filepath.Join(state, "fude", "sessions", hex.EncodeToString(sum[:16])+".json"), nil
+	return path, nil
+}
+
+// PinsPath returns where the pins of the working directory wd are kept
+// (B356).
+func PinsPath(wd string) (string, error) { return byDir("pins", wd) }
+
+// byDir returns the file of dir among what fude keeps in the state
+// directory's folder kind, named for a hash of dir.
+func byDir(kind, dir string) (string, error) {
+	state, err := Dir("XDG_STATE_HOME", filepath.Join(".local", "state"))
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256([]byte(dir))
+	return filepath.Join(state, "fude", kind, hex.EncodeToString(sum[:16])+".json"), nil
 }
 
 // RecentPath is where the recent files are kept (B213).

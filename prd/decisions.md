@@ -934,16 +934,15 @@ that renders.
 user chooses, and `<Leader>1` to `<Leader>9` go to them (B356, B357), as
 harpoon does. Neovim has no such list, and its file marks `A` to `Z` keep
 a place, not a file, in one set for every directory. fude departs from
-harpoon in six ways. Paths under the working directory are kept relative
-to it, so a project moved whole keeps its pins. A pin follows its file
-through a listing's rename (B360), where harpoon loses it. The list's
-window writes with `:w` (B358), as a listing does, where harpoon writes
-as the window closes. The status line shows a file's pin as `2/4` (B359),
-where harpoon's users add a tabline. fude maps the keys, so the hints
-show them, where harpoon maps none. Each session has its own pins
-(B361). Why: the user asked on 2026-10-19 for a list like harpoon's and
-chose each of these. `q` closes the list's window though its lines are
-edited, as harpoon's does, where a listing keeps `q` (N31).
+harpoon in five ways. A pin follows its file through a listing's rename
+(B360), where harpoon loses it. The list's window writes with `:w`
+(B358), as a listing does, where harpoon writes as the window closes.
+The status line shows a file's pin as `2/4` (B359), where harpoon's
+users add a tabline. fude maps the keys, so the hints show them, where
+harpoon maps none. Each session has its own pins (B361). Why: the user
+asked on 2026-10-19 for a list like harpoon's and chose each of these.
+`q` closes the list's window though its lines are edited, as harpoon's
+does, where a listing keeps `q` (N31).
 
 ## Open
 

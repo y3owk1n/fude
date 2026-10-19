@@ -47,6 +47,7 @@ import (
 	lspmod "github.com/y3owk1n/fude/modules/lsp"
 	"github.com/y3owk1n/fude/modules/markdown"
 	pickmod "github.com/y3owk1n/fude/modules/pick"
+	"github.com/y3owk1n/fude/modules/pins"
 	"github.com/y3owk1n/fude/modules/places"
 	"github.com/y3owk1n/fude/modules/plug"
 	"github.com/y3owk1n/fude/modules/recent"
@@ -78,7 +79,7 @@ func modules() []api.Module {
 	if dir, err := editor.ConfigDir(); err == nil {
 		words = filepath.Join(dir, "words.txt")
 	}
-	return []api.Module{autopairs.New(), blame.New(), bufferline.New(), buffers.New(), colours.New(), comment.New(), completion.New(), debugmod.New(), editorconfig.New(), files.New(), flash.New(), fold.New(), format.New(), git.New(), grammars.New(), grep.New(), helpmod.New(), hints.New(), inlay.New(), jump.New(), links.New(), listingmod.New(), lists.New(), lspmod.New(), markdown.New(), pickmod.New(), places.New(), plug.New(), recent.New(), sessionmod.New(), sessions.New(), shell.New(), spell.New(words), startmod.New(), surround.New(), task.New(), terminalmod.New(), thememod.New(), timeline.New(), window.New()}
+	return []api.Module{autopairs.New(), blame.New(), bufferline.New(), buffers.New(), colours.New(), comment.New(), completion.New(), debugmod.New(), editorconfig.New(), files.New(), flash.New(), fold.New(), format.New(), git.New(), grammars.New(), grep.New(), helpmod.New(), hints.New(), inlay.New(), jump.New(), links.New(), listingmod.New(), lists.New(), lspmod.New(), markdown.New(), pickmod.New(), places.New(), pins.New(), plug.New(), recent.New(), sessionmod.New(), sessions.New(), shell.New(), spell.New(words), startmod.New(), surround.New(), task.New(), terminalmod.New(), thememod.New(), timeline.New(), window.New()}
 }
 
 // run runs the subcommand args name, or else opens the files they name.

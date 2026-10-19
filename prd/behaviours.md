@@ -850,8 +850,7 @@ Where fude departs, the line says so and cites the departure in
   directory's other pins. A file pinned already says which pin it is, and
   a buffer with no file, or a tenth pin, says why it is not pinned.
   `:pin remove` takes the current file off. The pins are kept across
-  fude's runs in its state directory, each path relative to the working
-  directory when it is under it, so a project moved whole keeps them.
+  fude's runs in its state directory.
 - B357 [2] `:pin N` and `<Leader>N`, for N from 1 to 9, show pin N's file
   in the window, with the cursor where it last was in that file, even
   after fude quit. A pin whose file is gone says so and stays.
