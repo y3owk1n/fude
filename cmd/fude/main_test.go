@@ -198,11 +198,6 @@ func TestB173PluginNewAndBuild(t *testing.T) {
 		if strings.Contains(out, "dial tcp") || strings.Contains(out, "no such host") {
 			t.Skipf("the module proxy is out of reach: %s", out)
 		}
-		// Until the first release, the sdk the proxy has requires an api
-		// it does not have (D51). Go names it either way.
-		if strings.Contains(out, "fude/api@v0.0.0") || strings.Contains(out, "fude/api v0.0.0") {
-			t.Skipf("the published sdk needs an api with no release: %s", out)
-		}
 		t.Fatalf("fude plugin new words: %v: %s", err, out)
 	}
 	for _, name := range []string{"go.mod", "main.go"} {
@@ -216,8 +211,8 @@ func TestB173PluginNewAndBuild(t *testing.T) {
 	if out, err := fude(dir, "plugin", "build", "words"); err != nil {
 		t.Fatalf("fude plugin build words: %v: %s", err, out)
 	}
-	// Until the first release, the sdk the proxy has may be older than this
-	// fude's ABI (D51).
+	// A build that is not a release takes the newest sdk, which may be older
+	// than this fude's ABI (D51).
 	if p, err := plugin.Load(context.Background(), filepath.Join(dir, "words", "words.wasm"), plugin.Grants{}, t.TempDir(), func(string) {}, func(string, time.Duration) {}); err != nil {
 		if strings.Contains(err.Error(), "import func[fude.") {
 			t.Skipf("the published sdk is older than this fude: %v", err)
