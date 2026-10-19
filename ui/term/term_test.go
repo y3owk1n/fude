@@ -1399,6 +1399,17 @@ func shareString(t *testing.T, msg string) string {
 	return s
 }
 
+// closedPort returns an address of the loopback that refuses connections.
+func closedPort(t *testing.T) string {
+	t.Helper()
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	l.Close()
+	return l.Addr().String()
+}
+
 // asked waits until the host's fude asks to let a guest in.
 func asked(t *testing.T, host *editor.Session, on func(func()), name string) {
 	t.Helper()
@@ -1455,7 +1466,9 @@ func TestB248Share(t *testing.T) {
 	host := startWith(t, "", path).e.(*editor.Session)
 	host.Use(terminalmod.New())
 	_, on, _ := serve(t, host)
-	join := joining(share(t, host, on, ""))
+	// A guest races the string's addresses, so one that never answers and
+	// one that refuses do not keep it from the host.
+	join := joining("192.0.2.1:9," + closedPort(t) + "," + share(t, host, on, ""))
 	// The host is asked, and y lets the guest in to a guest's session.
 	asked(t, host, on, "kyle")
 	on(func() { host.Feed("y") })
@@ -1526,6 +1539,8 @@ func TestB249ShareOnce(t *testing.T) {
 		return str[:at] + string(c) + str[at+1:]
 	}
 	refused(flip(printAt), "its certificate is not the one the share string names")
+	dead := closedPort(t)
+	refused(dead+str[printAt-1:], "no address of the host answered, dial tcp "+dead+": connect: connection refused")
 	refused(flip(secretAt), "the share string is wrong or was used, so ask the host for a new one")
 	// n keeps the guest out.
 	waiting := joining(str)

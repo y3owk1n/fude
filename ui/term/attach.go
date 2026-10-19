@@ -3,6 +3,7 @@ package term
 import (
 	"bufio"
 	"cmp"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
@@ -81,7 +82,7 @@ func Join(share, name string, own editor.Own, readOnly bool) (*Attached, error) 
 func dialShare(addr string, cfg *tls.Config) (net.Conn, error) {
 	via, room, ok := strings.Cut(addr, "/")
 	if !ok {
-		return tls.Dial("tcp", addr, cfg)
+		return dialFirst(strings.Split(addr, ","), cfg)
 	}
 	raw, err := relay.Join(via, room)
 	if err != nil {
@@ -93,6 +94,52 @@ func dialShare(addr string, cfg *tls.Config) (net.Conn, error) {
 		return nil, err
 	}
 	return c, nil
+}
+
+// dialFirst dials every address at once and returns the first whose TLS
+// passes cfg, closing the rest, since an address from another network may
+// never answer (B248). When none does it says why each failed (B249).
+func dialFirst(addrs []string, cfg *tls.Config) (net.Conn, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	type dialed struct {
+		c   net.Conn
+		err error
+	}
+	results := make(chan dialed, len(addrs))
+	for _, addr := range addrs {
+		go func() {
+			raw, err := (&net.Dialer{}).DialContext(ctx, "tcp", addr)
+			if err != nil {
+				results <- dialed{nil, err}
+				return
+			}
+			c := tls.Client(raw, cfg)
+			if err := c.HandshakeContext(ctx); err != nil {
+				raw.Close()
+				results <- dialed{nil, fmt.Errorf("%s: %w", addr, err)}
+				return
+			}
+			results <- dialed{c, nil}
+		}()
+	}
+	var why []string
+	for left := len(addrs); left > 0; left-- {
+		d := <-results
+		if d.err != nil {
+			why = append(why, d.err.Error())
+			continue
+		}
+		go func() {
+			for range left - 1 {
+				if d := <-results; d.c != nil {
+					d.c.Close()
+				}
+			}
+		}()
+		return d.c, nil
+	}
+	return nil, fmt.Errorf("no address of the host answered, %s", strings.Join(why, ", "))
 }
 
 // begin sends hello on c and, once fude answers, reads its frames and

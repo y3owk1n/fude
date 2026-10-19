@@ -1811,11 +1811,13 @@ the session is made. The server checks each limit in one place:
 `fude share [address]` makes a self-signed certificate for the share
 and listens with TLS 1.3. Its first message is the share string, and it
 puts `fude join` and the string on the clipboard. The string is the
-address, the certificate's SHA-256 fingerprint and a 128-bit secret,
-joined by `/`, the last two in unpadded base64url.
-`fude join string` dials it with `InsecureSkipVerify` and a
-`VerifyConnection` that compares the fingerprint, then sends the secret
-and `$USER` as its first line. The host's fude asks whether to let the
+addresses joined by `,`, the certificate's SHA-256 fingerprint and a
+128-bit secret, joined by `/`, the last two in unpadded base64url.
+When the host names no address to listen on, the string lists every
+global unicast IPv4 address of the machine. `fude join string` dials them all at once,
+each with `InsecureSkipVerify` and a `VerifyConnection` that compares
+the fingerprint. It keeps the first whose handshake passes, closes the
+rest, then sends the secret and `$USER` as its first line. The host's fude asks whether to let the
 guest in, and on yes the connection goes on as an attach does, to a
 guest session. The secret then no longer works, and `:share` makes a new
 one. One join waits for the host's answer at a time. `modules/sessions`

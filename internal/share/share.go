@@ -84,8 +84,9 @@ func Parse(s string) (Invite, error) {
 }
 
 // Reachable returns where a guest reaches the listener at a, which listens
-// on address: its host, or else this machine's first address that is not a
-// loopback.
+// on address: its host, or else each IPv4 address of this machine that is
+// neither loopback nor link-local, joined by commas, for the guest to race
+// (B248).
 func Reachable(a *net.TCPAddr, address string) (string, error) {
 	port := fmt.Sprint(a.Port)
 	if host, _, err := net.SplitHostPort(address); err == nil && host != "" && !net.ParseIP(host).IsUnspecified() {
@@ -95,10 +96,14 @@ func Reachable(a *net.TCPAddr, address string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	var reach []string
 	for _, ad := range addrs {
-		if ip, ok := ad.(*net.IPNet); ok && !ip.IP.IsLoopback() && ip.IP.To4() != nil {
-			return net.JoinHostPort(ip.IP.String(), port), nil
+		if ip, ok := ad.(*net.IPNet); ok && ip.IP.To4() != nil && ip.IP.IsGlobalUnicast() {
+			reach = append(reach, net.JoinHostPort(ip.IP.String(), port))
 		}
 	}
-	return "", errors.New("this machine has no address but loopback, so name one")
+	if len(reach) == 0 {
+		return "", errors.New("this machine has no address but loopback, so name one")
+	}
+	return strings.Join(reach, ","), nil
 }

@@ -413,6 +413,14 @@ when the host next runs them, which comes with sharing a repository. Go's
 `crypto/tls` has no pre-shared keys, so the share string carries a
 fingerprint to pin instead, which needs only the standard library.
 
+The string names every address of the host, and the guest dials them at
+once and keeps the first whose certificate matches. Why: the host cannot
+tell which network it shares with the guest. It may be the LAN, a VPN
+such as Tailscale or a VM's bridge. An address from another network may
+never answer, so trying them in turn would stall the join. A wrong
+address costs nothing, since the guest sends the secret only after the
+certificate matches. The user chose this on 2026-10-19.
+
 ## D41. A relay is fude itself, passing ciphertext between two dial-outs
 
 `fude relay` runs on any machine both sides reach, such as a small server.

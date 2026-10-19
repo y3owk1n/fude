@@ -1598,15 +1598,20 @@ Where fude departs, the line says so and cites the departure in
 - B248 [7] `fude share [address] [file...]` opens fude as usual and
   listens on address with TLS, or on a free port of every interface
   without one. Its first message is the share string. The string is one
-  word that needs no quoting, and it names where to reach fude, its
-  certificate's fingerprint and a secret. fude puts `fude join` and the
-  string on the clipboard (B36). `fude join string` on another machine
-  dials it, and the host's fude asks whether to let the guest in, naming
+  word that needs no quoting, and it names every address of fude, its
+  certificate's fingerprint and a secret. Without an address, those are
+  the machine's IPv4 addresses except loopback and link-local ones. A
+  guest on its network, on a VPN such as Tailscale or on a VM's bridge
+  joins with the same string. fude puts `fude join` and
+  the string on the clipboard (B36). `fude join string` on another
+  machine dials every address at once and goes on with the first that
+  answers, and the host's fude asks whether to let the guest in, naming
   them by `$USER`. On y the guest's terminal draws a guest session of the
   host's fude, as `fude attach` does (B239, B243). Quitting fude ends the
   share and every guest session (B242), and so does `:restart`.
 - B249 [7] A share string lets one guest in, and `:share` shows a new
-  one and puts it on the clipboard as B248 does. A join ends the guest's client, saying why, when the host's
+  one and puts it on the clipboard as B248 does. A join ends the guest's client, saying why, when no
+  address of the host answers within five seconds, with each address's error, when the host's
   certificate does not match the string's fingerprint, when its secret
   is wrong or used, when the host answers n, when another join waits for
   the host's answer, and when the host is answering another question.
