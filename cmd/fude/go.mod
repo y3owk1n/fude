@@ -7,7 +7,7 @@ go 1.26.0
 // release together, which the release pull request sets. In the workspace
 // they come from the checkout.
 require (
-	github.com/y3owk1n/fude v0.0.0 // x-release-please-version
-	github.com/y3owk1n/fude/api v0.0.0 // x-release-please-version
-	github.com/y3owk1n/fude/plugin v0.0.0 // x-release-please-version
+	github.com/y3owk1n/fude v0.1.0 // x-release-please-version
+	github.com/y3owk1n/fude/api v0.1.0 // x-release-please-version
+	github.com/y3owk1n/fude/plugin v0.1.0 // x-release-please-version
 )
