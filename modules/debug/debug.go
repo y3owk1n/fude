@@ -578,7 +578,8 @@ func (m *Module) event(res *api.Result, s api.Scope, d *session, name string, bo
 		if !read(&o) || o.Category == "telemetry" {
 			return
 		}
-		d.output = append(d.output, strings.Split(strings.TrimSuffix(o.Output, "\n"), "\n")...)
+		// An adapter on Windows may end its lines with \r\n.
+		d.output = append(d.output, strings.Split(strings.TrimSuffix(strings.ReplaceAll(o.Output, "\r\n", "\n"), "\n"), "\n")...)
 		d.output = d.output[max(len(d.output)-100, 0):]
 		m.draw(res, s)
 	case "terminated":

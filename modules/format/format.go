@@ -132,8 +132,9 @@ func (m *Module) Callback(_ context.Context, id uint32, s api.Scope) (api.Result
 	}
 	var formatted string
 	if len(a.runs) > 0 {
-		// A buffer holds no last line break, and a formatter writes one.
-		formatted = strings.TrimSuffix(s.About["output"], "\n")
+		// A buffer holds no last line break, and a formatter writes one. A
+		// buffer's lines end in \n, where one on Windows may write \r\n.
+		formatted = strings.TrimSuffix(strings.ReplaceAll(s.About["output"], "\r\n", "\n"), "\n")
 	} else {
 		var err error
 		if formatted, err = applied(t, s.About["output"], s.About["encoding"], a.from, a.to); err != nil {

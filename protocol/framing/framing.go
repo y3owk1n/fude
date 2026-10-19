@@ -63,7 +63,8 @@ func (l *Lines) Write(p []byte) (int, error) {
 		if i < 0 {
 			i = len(l.rest)
 		}
-		l.Log(l.Name + ": " + string(l.rest[:i]))
+		// A server on Windows may end its lines with \r\n.
+		l.Log(l.Name + ": " + string(bytes.TrimSuffix(l.rest[:i], []byte("\r"))))
 		l.rest = l.rest[min(i+1, len(l.rest)):]
 	}
 }
