@@ -251,6 +251,8 @@ Where fude departs, the line says so and cites the departure in
   asks with each change and the number of files a deleted directory
   holds, and changes nothing on `n`. Open buffers of renamed files follow
   them. A rename that fails leaves the names not yet moved as they were.
+  A rename of only a name's case renames it, on a file system that ignores
+  case too.
 - B126 [2] An explorer in a git repository shows each entry's git status in
   the sign column: `✹` for modified, `•` staged, `≠` both, `+` added, `?`
   untracked, `-` deleted and `→` renamed. A directory shows the status of

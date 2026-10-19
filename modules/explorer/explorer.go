@@ -304,16 +304,26 @@ func files(dir string) int {
 func (c changes) apply(dir string) error {
 	join := func(name string) string { return filepath.Join(dir, strings.TrimSuffix(name, "/")) }
 	// Nothing changes unless every new name is free, or one a rename frees.
-	freed := map[string]bool{}
+	freed, from := map[string]bool{}, map[string]string{}
 	names := slices.Clone(c.creates)
 	for _, r := range c.renames {
 		freed[r[0]] = true
+		from[r[1]] = r[0]
 		names = append(names, r[1])
 	}
 	for _, name := range names {
-		if _, err := os.Lstat(join(name)); err == nil && !freed[name] {
-			return fmt.Errorf("%s exists", name)
+		fi, err := os.Lstat(join(name))
+		if err != nil || freed[name] {
+			continue
 		}
+		// On a file system that ignores case, Foo is foo itself, so
+		// renaming foo to Foo clashes with nothing.
+		if old, ok := from[name]; ok {
+			if ofi, err := os.Lstat(join(old)); err == nil && os.SameFile(fi, ofi) {
+				continue
+			}
+		}
+		return fmt.Errorf("%s exists", name)
 	}
 	// Renames go through a name of their own, so two can swap names. One
 	// that fails puts the names not yet moved back.

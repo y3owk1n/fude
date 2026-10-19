@@ -126,6 +126,19 @@ func TestB125EditExplorer(t *testing.T) {
 	if len(names) != 2 || disk(t, filepath.Join(dir, "a")) != "a\n" || !strings.Contains(e.Message(), "rename a") {
 		t.Errorf("a failed rename left %v and said %q", names, e.Message())
 	}
+	// A rename of only a name's case, which a file system that ignores case
+	// finds already there, renames it.
+	dir = t.TempDir()
+	editortest.Change(t, filepath.Join(dir, "a.txt"), "a\n")
+	e = editortest.Open(t, filepath.Join(dir, "a.txt"))
+	e.Use(explorer.New())
+	editortest.Feed(e, "-ggcwA<Esc>:w<CR>y")
+	if names, err = os.ReadDir(dir); err != nil {
+		t.Fatal(err)
+	}
+	if len(names) != 1 || names[0].Name() != "A.txt" {
+		t.Errorf("renaming a.txt to A.txt left %v and said %q", names, e.Message())
+	}
 }
 
 // B127
