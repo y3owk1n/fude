@@ -4,8 +4,10 @@ import (
 	"bufio"
 	"cmp"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"maps"
 	"os"
 	"path/filepath"
@@ -269,7 +271,7 @@ func withServer(t *testing.T, text, encoding string, settings ...string) (*edito
 // lsp.fake.root = ["go.mod"] adds to its table.
 func withServerAt(t *testing.T, path, text, encoding string, settings ...string) (*editor.Session, string) {
 	t.Helper()
-	log := filepath.Join(t.TempDir(), "server.log")
+	log := fakeLog(t, "server.log")
 	t.Setenv("FUDE_FAKE_LSP", "1")
 	t.Setenv("FUDE_FAKE_LOG", log)
 	t.Setenv("FUDE_FAKE_ENCODING", encoding)
@@ -283,6 +285,23 @@ func withServerAt(t *testing.T, path, text, encoding string, settings ...string)
 	t.Cleanup(func() { feed(e, ":qa!<CR>") })
 	e.Load()
 	return e, log
+}
+
+// fakeLog returns the path of a fake server's log, name, in a folder of its
+// own. The server may still be ending when the test does, and Windows will
+// not delete a file a process has open, so the log goes first, once the
+// server has closed it.
+func fakeLog(t *testing.T, name string) string {
+	t.Helper()
+	log := filepath.Join(t.TempDir(), name)
+	t.Cleanup(func() {
+		for end := time.Now().Add(5 * time.Second); time.Now().Before(end); time.Sleep(10 * time.Millisecond) {
+			if err := os.Remove(log); err == nil || errors.Is(err, fs.ErrNotExist) {
+				return
+			}
+		}
+	})
+	return log
 }
 
 // heard waits until the server's log has want at least times times.
@@ -406,7 +425,7 @@ func TestB168ServerSettings(t *testing.T) {
 
 // B169
 func TestB169SeveralServers(t *testing.T) {
-	log := filepath.Join(t.TempDir(), "server.log")
+	log := fakeLog(t, "server.log")
 	t.Setenv("FUDE_FAKE_LSP", "1")
 	t.Setenv("FUDE_FAKE_LOG", log)
 	t.Setenv("FUDE_FAKE_ENCODING", "utf-8")

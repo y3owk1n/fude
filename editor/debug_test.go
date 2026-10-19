@@ -178,7 +178,7 @@ func withAdapter(t *testing.T, port bool) (*editor.Session, string) {
 		t.Fatal(err)
 	}
 	change(t, filepath.Join(".fude", "launch.toml"), "[launch.run]\nargs = { program = \"{file}\" }\n")
-	log := filepath.Join(t.TempDir(), "dap.log")
+	log := fakeLog(t, "dap.log")
 	t.Setenv("FUDE_FAKE_DAP", "1")
 	t.Setenv("FUDE_FAKE_DAP_LOG", log)
 	command := fmt.Sprintf("[%q, \"-test.run=^TestFakeAdapter$\"]", os.Args[0])
