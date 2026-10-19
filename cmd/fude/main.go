@@ -272,7 +272,8 @@ func version() string {
 
 // name is the session's name others see (B252).
 func name(flags map[string]string) string {
-	return cmp.Or(flags["--name"], os.Getenv("USER"))
+	// Windows names the user in USERNAME.
+	return cmp.Or(flags["--name"], os.Getenv("USER"), os.Getenv("USERNAME"))
 }
 
 // socket is the socket of the fude a subcommand reaches (B352).

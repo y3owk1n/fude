@@ -179,7 +179,8 @@ func open(cfg config, paths []string) (*Session, error) {
 	}
 	ed.project = wd
 	ed.setup = []func(*Session){builtins}
-	e := &Session{Editor: ed, origin: "user", name: os.Getenv("USER"), saves: map[*buffer]*saving{}}
+	// Windows names the user in USERNAME.
+	e := &Session{Editor: ed, origin: "user", name: cmp.Or(os.Getenv("USER"), os.Getenv("USERNAME")), saves: map[*buffer]*saving{}}
 	for i, p := range paths {
 		msg, err := e.add(p)
 		if err != nil {
