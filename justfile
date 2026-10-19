@@ -57,6 +57,23 @@ demo tape="fude":
 perf:
     go test -count=1 -v -run Promise ./ui/term/
 
+# Tidy cmd/fude's go.mod against the checkout, and fail if that changed it.
+# go install of a release takes the versions go.mod lists, and the newest
+# version of any module it lacks (D37).
+cmd-tidy:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd cmd/fude
+    replace=(); drop=()
+    for m in "" /api /core /vim /syntax /protocol /plugin; do
+        replace+=("-replace=github.com/y3owk1n/fude$m=../..$m")
+        drop+=("-dropreplace=github.com/y3owk1n/fude$m")
+    done
+    go mod edit "${replace[@]}"
+    GOWORK=off go mod tidy
+    go mod edit "${drop[@]}"
+    git diff --exit-code -- go.mod go.sum
+
 # Fail if a package outside syntax/ uses cgo.
 cgo:
     test -z "$(for m in {{ modules }}; do (cd $m && go list -f '{{{{if .CgoFiles}}{{{{.ImportPath}}{{{{end}}' ./...); done | grep -vx github.com/y3owk1n/fude/syntax)"
@@ -94,4 +111,4 @@ loc:
 check: ci perf
 
 # Run every check but the speed promises, whose timings vary too much on shared CI runners.
-ci: fmt-check vet standalone cgo module-imports test kernel-size
+ci: fmt-check vet standalone cmd-tidy cgo module-imports test kernel-size
