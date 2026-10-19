@@ -40,12 +40,15 @@ func FakeProgram(t testing.TB, names ...string) string {
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	t.Setenv(fakeEnv, dir)
+	t.Setenv("FUDE_FAKE_ORIGIN", exe)
 	return filepath.Join(dir, "log")
 }
 
 // link makes to the file from, as a hard link where it can, else a copy.
+// Windows cannot delete a link to a running program, and the test binary
+// runs, so there it copies.
 func link(from, to string) error {
-	if os.Link(from, to) == nil {
+	if runtime.GOOS != "windows" && os.Link(from, to) == nil {
 		return nil
 	}
 	in, err := os.Open(from)
@@ -93,7 +96,9 @@ func fakeProgram() (int, bool) {
 		return 1, true
 	}
 	if d := os.Getenv("FUDE_FAKE_CHILD"); d != "" {
-		child := exec.Command(exe)
+		// The child runs from the test binary, as Windows cannot delete a
+		// program that runs.
+		child := exec.Command(os.Getenv("FUDE_FAKE_ORIGIN"))
 		child.Env = append(os.Environ(), "FUDE_FAKE_SLEEP="+d)
 		child.Stdout, child.Stderr = os.Stdout, os.Stderr
 		if err := child.Start(); err != nil {
