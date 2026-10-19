@@ -487,7 +487,8 @@ window that way and `$TMUX` set, a job runs
 `tmux select-pane -t $TMUX_PANE` with `-L`, `-D`, `-U` or `-R`, and a
 guest's call runs none (B244, B330). tmux's own
 bindings decide which keys reach fude, so its `vim-tmux-navigator` pattern
-has to name `fude` (B140).
+has to name `fude`, and its check has to leave out `fude tail` and `fude
+relay`, which share the name but read no keys (B140).
 
 tcell reads both 0x08 and 0x7f as backspace. A terminal sends 0x7f for
 backspace and 0x08 for `Ctrl+h`, and tmux passes both on as they are, so

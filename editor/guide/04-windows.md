@@ -35,6 +35,17 @@ windows too, and inside tmux they move to the next tmux pane when no
 window is that way. No key is mapped to them, so map them, such as
 `"<C-h>" = "<Plug>(window.left)"`.
 
+tmux decides which keys reach fude. With vim-tmux-navigator, add `fude`
+to the plugin's pattern. Otherwise tmux switches panes and fude never
+sees the key. `fude tail` and `fude relay` have the same process name
+but read no keys. Leave them out of the plugin's check, or `<C-h>` and
+the others stop in their panes. Set both before the plugin loads:
+
+```
+set -g @vim_navigator_pattern '(\S+/)?g?\.?(view|l?n?vim?x?|fzf|fude)(diff)?(-wrapped)?'
+set -g @vim_navigator_check 'ps -o state= -o comm= -t "#{pane_tty}" | grep -iqE "^[^TXZ ]+ +@vim_navigator_pattern$" && ! ps -o args= -t "#{pane_tty}" | grep -qE "(^|/)fude +(tail|relay)( |$)"'
+```
+
 ## Explorers
 
 `-` lists the current file's folder, as a buffer of its entries' names.
