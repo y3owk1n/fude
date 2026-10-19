@@ -29,8 +29,8 @@ func commands() (write, read []string, ok bool) {
 	return write, read, err1 == nil && err2 == nil
 }
 
-// Read returns the clipboard's text.
-func Read() (string, error) {
+// read returns the clipboard's text.
+func read() (string, error) {
 	_, read, ok := commands()
 	if !ok {
 		return "", ErrNone
@@ -42,8 +42,8 @@ func Read() (string, error) {
 	return string(out), nil
 }
 
-// Write puts text on the clipboard.
-func Write(text string) error {
+// write puts text on the clipboard.
+func write(text string) error {
 	write, _, ok := commands()
 	if !ok {
 		return ErrNone

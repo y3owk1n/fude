@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/fude/editor"
+	"github.com/y3owk1n/fude/internal/clipboard"
 	buffersmod "github.com/y3owk1n/fude/modules/buffers"
 	"github.com/y3owk1n/fude/modules/debug"
 	explorermod "github.com/y3owk1n/fude/modules/explorer"
@@ -24,11 +25,9 @@ import (
 	timelinemod "github.com/y3owk1n/fude/modules/timeline"
 )
 
-// B36, in a terminal with no clipboard command
+// B36, in a terminal with no clipboard
 func TestB36TerminalClipboard(t *testing.T) {
-	t.Setenv("PATH", "")
-	t.Setenv("WAYLAND_DISPLAY", "")
-	t.Setenv("DISPLAY", "")
+	t.Cleanup(clipboard.Fake(""))
 	path := filepath.Join(t.TempDir(), "f")
 	change(t, path, "ab cd\n")
 	e := open(t, path)
@@ -46,18 +45,8 @@ func TestB36TerminalClipboard(t *testing.T) {
 
 // B241
 func TestB241AttachedClipboard(t *testing.T) {
-	bin := t.TempDir()
-	board := filepath.Join(bin, "board")
-	for name, script := range map[string]string{
-		"pbcopy": "cat > " + board, "wl-copy": "cat > " + board,
-		"pbpaste": "cat " + board, "wl-paste": "cat " + board,
-	} {
-		if err := os.WriteFile(filepath.Join(bin, name), []byte("#!/bin/sh\n"+script+"\n"), 0o755); err != nil {
-			t.Fatal(err)
-		}
-	}
-	t.Setenv("PATH", bin+":/bin:/usr/bin")
-	t.Setenv("WAYLAND_DISPLAY", "fude-test")
+	board := filepath.Join(t.TempDir(), "board")
+	t.Cleanup(clipboard.Fake(board))
 	change(t, board, "host")
 	path := filepath.Join(t.TempDir(), "f")
 	change(t, path, "ab cd\n")

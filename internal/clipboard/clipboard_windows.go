@@ -49,8 +49,8 @@ func open() error {
 // that a plain conversion may point at Go memory that moves, which this is not.
 func pointer(p uintptr) unsafe.Pointer { return *(*unsafe.Pointer)(unsafe.Pointer(&p)) }
 
-// Read returns the clipboard's text, with Windows' \r\n as \n.
-func Read() (string, error) {
+// read returns the clipboard's text, with Windows' \r\n as \n.
+func read() (string, error) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 	if err := open(); err != nil {
@@ -72,8 +72,8 @@ func Read() (string, error) {
 	return strings.ReplaceAll(windows.UTF16PtrToString((*uint16)(pointer(p))), "\r\n", "\n"), nil
 }
 
-// Write puts text on the clipboard, with its \n as Windows' \r\n.
-func Write(text string) error {
+// write puts text on the clipboard, with its \n as Windows' \r\n.
+func write(text string) error {
 	u, err := windows.UTF16FromString(strings.ReplaceAll(text, "\n", "\r\n"))
 	if err != nil {
 		return fmt.Errorf("write the clipboard: %w", err)

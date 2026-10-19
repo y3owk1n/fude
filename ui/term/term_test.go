@@ -23,6 +23,7 @@ import (
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/editor/editortest"
+	"github.com/y3owk1n/fude/internal/clipboard"
 	"github.com/y3owk1n/fude/internal/relay"
 	bufferlinemod "github.com/y3owk1n/fude/modules/bufferline"
 	buffersmod "github.com/y3owk1n/fude/modules/buffers"
@@ -1395,18 +1396,8 @@ func TestB239Attach(t *testing.T) {
 // at via, with a clipboard of its own, and returns its share string.
 func share(t *testing.T, host *editor.Session, on func(func()), via string) string {
 	t.Helper()
-	bin := t.TempDir()
-	board := filepath.Join(bin, "board")
-	for name, script := range map[string]string{
-		"pbcopy": "cat > " + board, "wl-copy": "cat > " + board,
-		"pbpaste": "cat " + board, "wl-paste": "cat " + board,
-	} {
-		if err := os.WriteFile(filepath.Join(bin, name), []byte("#!/bin/sh\n"+script+"\n"), 0o755); err != nil {
-			t.Fatal(err)
-		}
-	}
-	t.Setenv("PATH", bin+":/bin:/usr/bin")
-	t.Setenv("WAYLAND_DISPLAY", "fude-test")
+	board := filepath.Join(t.TempDir(), "board")
+	t.Cleanup(clipboard.Fake(board))
 	var unshare func()
 	var err error
 	var msg string

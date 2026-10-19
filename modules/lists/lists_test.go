@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/fude/editor/editortest"
+	"github.com/y3owk1n/fude/internal/clipboard"
 	"github.com/y3owk1n/fude/modules/lists"
 	"github.com/y3owk1n/fude/modules/places"
 	"github.com/y3owk1n/fude/modules/window"
@@ -70,18 +71,8 @@ func TestB157InfoViews(t *testing.T) {
 
 // B268
 func TestB268YankMessage(t *testing.T) {
-	bin := t.TempDir()
-	board := filepath.Join(bin, "board")
-	for name, script := range map[string]string{
-		"pbcopy": "cat > " + board, "wl-copy": "cat > " + board,
-		"pbpaste": "cat " + board, "wl-paste": "cat " + board,
-	} {
-		if err := os.WriteFile(filepath.Join(bin, name), []byte("#!/bin/sh\n"+script+"\n"), 0o755); err != nil {
-			t.Fatal(err)
-		}
-	}
-	t.Setenv("PATH", bin+":/bin:/usr/bin")
-	t.Setenv("WAYLAND_DISPLAY", "fude-test")
+	board := filepath.Join(t.TempDir(), "board")
+	t.Cleanup(clipboard.Fake(board))
 	e := editortest.Open(t, "")
 	e.Use(lists.New())
 	if editortest.Feed(e, ":messages yank<CR>"); e.Message() != "no messages" {

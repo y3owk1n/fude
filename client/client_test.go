@@ -13,6 +13,7 @@ import (
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/editor/editortest"
+	"github.com/y3owk1n/fude/internal/clipboard"
 	"github.com/y3owk1n/fude/vim"
 )
 
@@ -290,18 +291,8 @@ func TestB99ClientJumpsChangesAndSteps(t *testing.T) {
 // B36, in a client, with fake clipboard programs that keep the clipboard
 // in a file
 func TestB36ClientClipboard(t *testing.T) {
-	bin := t.TempDir()
-	board := filepath.Join(bin, "board")
-	for name, script := range map[string]string{
-		"pbcopy": "cat > " + board, "wl-copy": "cat > " + board,
-		"pbpaste": "cat " + board, "wl-paste": "cat " + board,
-	} {
-		if err := os.WriteFile(filepath.Join(bin, name), []byte("#!/bin/sh\n"+script+"\n"), 0o755); err != nil {
-			t.Fatal(err)
-		}
-	}
-	t.Setenv("PATH", bin+":/bin:/usr/bin")
-	t.Setenv("WAYLAND_DISPLAY", "fude-test")
+	board := filepath.Join(t.TempDir(), "board")
+	t.Cleanup(clipboard.Fake(board))
 	typed, path := served(t)
 	typed("ione two<Esc>")
 	r, err := dial(t, path).Open(0)
