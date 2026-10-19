@@ -261,7 +261,12 @@ func (e *Session) Serve(path string) func() {
 	}
 	// No one answers this socket, so a fude that crashed left it.
 	os.Remove(path)
-	l, err := net.Listen("unix", path)
+	// The setting may name a folder that does not exist yet.
+	err := os.MkdirAll(filepath.Dir(path), 0o700)
+	var l net.Listener
+	if err == nil {
+		l, err = net.Listen("unix", path)
+	}
 	if err != nil {
 		e.message = fmt.Sprintf("clients cannot attach: %v", err)
 		return func() {}

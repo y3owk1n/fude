@@ -1549,7 +1549,8 @@ Where fude departs, the line says so and cites the departure in
   both edits. An edit of its own whose text another client changed first
   is dropped and reported.
 - B97 [6] The `socket` setting is where fude listens, so a client on
-  another machine reaches it through `ssh -L`. fude listens on no network
+  another machine reaches it through `ssh -L`. fude makes the folder it
+  names when that folder is missing. fude listens on no network
   address unless `fude share` asks it to (D40). A second fude leaves a socket
   another one answers alone. It listens at a socket of its own, as it would
   without the setting, and shows no message.

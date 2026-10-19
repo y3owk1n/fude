@@ -230,7 +230,8 @@ func TestB97SocketSetting(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(dir)
-	path := filepath.Join(dir, "s")
+	// Its folder may not exist yet, as on a new machine.
+	path := filepath.Join(dir, "state", "s")
 	config(t, fmt.Sprintf("socket = %q\n", path))
 	e := start(t)
 	defer e.Serve(e.SocketPath())()
