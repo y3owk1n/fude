@@ -13,7 +13,6 @@ import (
 	"runtime/debug"
 	"slices"
 	"strings"
-	"syscall"
 	"text/tabwriter"
 	"time"
 
@@ -467,9 +466,12 @@ func edit(sharing bool, words []string, flags map[string]string, remove func()) 
 		if _, clean := flags["--clean"]; clean {
 			argv = []string{os.Args[0], "--clean"}
 		}
-		// Exec replaces the process, so deferred calls never run.
+		// On Unix the new fude replaces this process, so deferred calls
+		// never run.
 		remove()
-		return fmt.Errorf("restart: %w", syscall.Exec(exe, argv, append(os.Environ(), editor.RestartEnv+"="+path)))
+		if err := restart(exe, argv, append(os.Environ(), editor.RestartEnv+"="+path)); err != nil {
+			return fmt.Errorf("restart: %w", err)
+		}
 	}
 	return err
 }
