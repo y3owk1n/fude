@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"slices"
 	"time"
 
@@ -122,7 +123,7 @@ var keymapTables = []struct{ name, help string }{
 	{"groups", "names of the keys mappings start with, which key hints show"},
 }
 
-var defaults = config{TabWidth: 8, Editorconfig: true, KeyTimeout: 1000, KeyHints: 300, FlashTime: 300, FormatTimeout: 1000, LargeFile: 2, TerminalHeight: 33, SplitBelow: true, SplitRight: true, HighlightColors: true, GitSigns: true, RemoteImages: true, InlayHints: true, Autopairs: true, Sources: []string{"lsp", "snippet", "path", "buffer"}, AutoInstall: true, BufferLine: true, SpellWords: "/usr/share/dict/words", Leader: "<Space>", Theme: "dark", options: options{Wrap: true, IndentGuides: true, IncSearch: true, StickyContext: true, StickyContextLines: 3, DiagnosticNotes: true, Render: true}}
+var defaults = config{TabWidth: 8, Editorconfig: true, KeyTimeout: 1000, KeyHints: 300, FlashTime: 300, FormatTimeout: 1000, LargeFile: 2, TerminalHeight: 33, SplitBelow: true, SplitRight: true, HighlightColors: true, GitSigns: true, RemoteImages: true, InlayHints: true, Autopairs: true, Sources: []string{"lsp", "snippet", "path", "buffer"}, AutoInstall: true, BufferLine: true, SpellWords: systemWords(), Leader: "<Space>", Theme: "dark", options: options{Wrap: true, IndentGuides: true, IncSearch: true, StickyContext: true, StickyContextLines: 3, DiagnosticNotes: true, Render: true}}
 
 // options are the settings each window has, which :set changes for the
 // current window and the windows opened after it (B39). :set takes each by
@@ -399,4 +400,12 @@ func (e *Session) ownKeys() keymap {
 		}
 	}
 	return own
+}
+
+// systemWords is the word list the system has, of which Windows has none.
+func systemWords() string {
+	if runtime.GOOS == "windows" {
+		return ""
+	}
+	return "/usr/share/dict/words"
 }

@@ -956,7 +956,8 @@ Where fude departs, the line says so and cites the departure in
 - B259 [3] With `spell` on, a window underlines the words its word list
   lacks. The list is the file `spell_words` names, or
   `/usr/share/dict/words` without it, and `words.txt` in fude's config
-  directory. In Markdown, text, git commit and files of no filetype,
+  directory. Windows has no system list, so there spell needs
+  `spell_words`. In Markdown, text, git commit and files of no filetype,
   spell checks all the text but code and links. Elsewhere it checks the
   comments and strings. A word passes when the
   list has it, in lower case too, or has it without an ending of a

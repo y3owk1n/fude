@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"cmp"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -478,6 +479,9 @@ func words(path, own string) (map[string]bool, error) {
 		}
 		trace.Since("file", fmt.Sprintf("read %q, %d words", path, n), at, lines.Err())
 		return lines.Err()
+	}
+	if path == "" {
+		return nil, errors.New("spell has no word list, so spell_words should name one")
 	}
 	if err := load(path); err != nil {
 		return nil, fmt.Errorf("spell has no word list, so spell_words should name one: %w", err)
