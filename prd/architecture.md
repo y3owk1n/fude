@@ -469,6 +469,17 @@ returns `Tabs`, each a buffer and the name it shows. The editor draws the
 row from them each frame. It lights the current window's buffer, marks a
 modified one, and leaves out what a guest may not show (B331).
 
+`modules/pins` is `:pin` and its keys (B356). It keeps the host's pins
+for each working directory in fude's state directory through
+`internal/keep`, under the hash of the directory a session uses. A
+guest's pins live in memory under its session's id, from `About` (B361). It
+hears `view.moved` and keeps a pinned file's cursor as a line and
+column, which a jump opens at (B357). Its status segments are its
+session's own, and a change to the pins sets them on every pinned buffer
+by id (B359). `:pin list` opens a `Scratch` of kind `pins`, and the
+module's `Write` reads the buffer's lines as the new list (B358). It
+hears `listing.moved` for files that are not open (B360).
+
 `modules/window` is `<Plug>(window.*)`. `Scope.Window` says whether a
 window is next to the current one that way, and the result's `Window`
 moves to it, as `<C-w>h`, `<C-w>j`, `<C-w>k` and `<C-w>l` do. With no

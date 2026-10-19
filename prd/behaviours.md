@@ -846,6 +846,31 @@ Where fude departs, the line says so and cites the departure in
   shows the part around the current one, with ‹ or › where it is cut.
   `buffer_line = false` hides it. A guest's row lists only the buffers
   it may show (B244, B245).
+- B356 [2] `:pin` and `<Leader>a` pin the current file, after the working
+  directory's other pins. A file pinned already says which pin it is, and
+  a buffer with no file, or a tenth pin, says why it is not pinned.
+  `:pin remove` takes the current file off. The pins are kept across
+  fude's runs in its state directory, each path relative to the working
+  directory when it is under it, so a project moved whole keeps them.
+- B357 [2] `:pin N` and `<Leader>N`, for N from 1 to 9, show pin N's file
+  in the window, with the cursor where it last was in that file, even
+  after fude quit. A pin whose file is gone says so and stays.
+  `<Plug>(pin.next)` and `<Plug>(pin.prev)` go to the pin after and
+  before the current file's, from the last to the first and back, or to
+  the first and the last from a file not pinned.
+- B358 [2] `:pin list` and `<Leader>h` open the pins in a window, pin N on
+  line N. The lines edit as text, and `:w` makes the pins what the lines
+  say, in their order. A line taken out unpins its file, and a path typed
+  in pins it. A line naming no file, a file named twice, or a tenth line
+  stops the write, and the message names the line. `<CR>` shows the file
+  on the cursor's line, and `q` closes the window, or says its changes are
+  not written and stays (N39).
+- B359 [2] A pinned file's status line shows its pin and how many pins
+  there are, such as `2/4`, on the left after the git branch. A file not
+  pinned shows none. Every window's count changes as soon as the pins do.
+- B360 [2] When a listing renames or moves a pinned file, or a directory
+  holding one, the pin follows it to its new path, whether or not the file
+  is open.
 
 ## Timeline
 
@@ -1081,7 +1106,8 @@ Where fude departs, the line says so and cites the departure in
 - B343 [4] A module's result shows a buffer by its id, in the window or a
   split, closes and writes buffers, closes, focuses and resizes windows,
   moves a window's cursor and top line, and opens a buffer with no file
-  holding text to edit. fude does these after it makes the call's edits.
+  holding text to edit, which may be of a kind the module writes (B327).
+  fude does these after it makes the call's edits.
 - B344 [4] A module's result sets marks, puts text in registers, makes a
   pattern the last search, sets any option as `:set` does, and runs ex
   command lines. A plugin needs `keys` for the command lines and for an
@@ -1093,7 +1119,8 @@ Where fude departs, the line says so and cites the departure in
   with the window's id. It hears when the search, the selection, the theme
   or the working directory changes, when a macro's recording ends, with
   its register, and when a listing renames a buffer's file, with the old
-  path.
+  path. It hears when a listing moves a file or directory, open or not,
+  with its old and new paths.
 - B347 [4] The editor keeps the last list of places a module or the
   finder gives, with the place last gone to. A module shows the list in a
   window, steps through it and runs a command at its places. A module's panel may be of a kind, such as list, whose
@@ -1111,7 +1138,9 @@ Where fude departs, the line says so and cites the departure in
   state, and its result may build grammars again, which only the host
   may ask, as `:grammar` does (B165).
 - B332 [4] A module's call lists the sessions on this fude, each with
-  its name and power and whether it is the call's own. Its result may
+  its name and power and whether it is the call's own. A call's or an
+  event's scope names the session it is about by an id no other session
+  on this fude has. Its result may
   end a guest's session, which only the host may ask, or follow a
   session, as `:who`, `:kick` and `:follow` do (B250, B256).
 - B331 [4] A module says what the buffer line lists, each buffer by the
@@ -1213,7 +1242,10 @@ Where fude departs, the line says so and cites the departure in
   the focus back. A call about a listing names its directory, which git's
   status signs need (B126).
 - B312 [4] A module shows a segment on the left of the status line, after
-  the buffer's name, as git's branch is (B147).
+  the buffer's name, as git's branch is (B147). Its result sets the
+  segment of the buffer it is about, or of any open buffer by id, and a
+  segment may be one session's own, which only that session's status
+  lines show.
 - B282 [4] A plugin hears `buffer.saving` before a write. The write waits
   for what the plugin asks for, edits included, and for the callbacks its
   answer asks for. After `format_timeout` fude writes the text as it is,
@@ -1587,6 +1619,10 @@ Where fude departs, the line says so and cites the departure in
   (B125), the finder, grep and a request naming a buffer. A `.git` and
   what is under it count as outside. A path outside says so, and nothing
   happens.
+- B361 [7] Each session has pins of its own (B356). A guest's start
+  empty, are never written, and end with its session, and the host's
+  status lines never show them. A guest pins and goes to only files it may
+  show (B245).
 - B246 [7] A guest's key or command from a plugin that declared `process`,
   `net`, `fs.read` or `keys` says a guest may not, and the plugin is not
   called.
