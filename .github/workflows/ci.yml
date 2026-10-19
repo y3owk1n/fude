@@ -10,6 +10,9 @@ permissions:
 
 jobs:
   check:
+    # The release pull request only moves versions and the changelog, and
+    # main runs every check once it merges.
+    if: ${{ !startsWith(github.head_ref, 'release-please--') }}
     strategy:
       fail-fast: false
       matrix:
