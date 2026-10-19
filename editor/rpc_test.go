@@ -205,17 +205,22 @@ func TestB174Tail(t *testing.T) {
 	done := make(chan struct{})
 	cl.do <- func() { feed(e, "ix<Esc>"); close(done) }
 	<-done
+	// A key from the client names the client, and a local key names no one.
+	fmt.Fprintln(cl.c, `{"id":2,"method":"keys","params":{"keys":"iy<Esc>"}}`)
+	want := map[string]bool{`"x" in insert`: true, `client1: "y" in insert`: true}
 	cl.c.SetReadDeadline(time.Now().Add(5 * time.Second))
-	for cl.in.Scan() {
+	for len(want) > 0 && cl.in.Scan() {
 		var line struct {
 			Method string
 			Params trace.Event
 		}
-		if json.Unmarshal(cl.in.Bytes(), &line) == nil && line.Method == "event" && line.Params.Src == "key" && line.Params.Text == `"x" in insert` {
-			return
+		if json.Unmarshal(cl.in.Bytes(), &line) == nil && line.Method == "event" && line.Params.Src == "key" {
+			delete(want, line.Params.Text)
 		}
 	}
-	t.Fatalf("a client tailing fude never heard of the key typed, and last heard %q", cl.in.Text())
+	if len(want) > 0 {
+		t.Fatalf("a client tailing fude never heard of the keys %v, and last heard %q", want, cl.in.Text())
+	}
 }
 
 // B97

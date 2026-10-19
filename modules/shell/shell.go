@@ -13,8 +13,10 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/y3owk1n/fude/api"
+	"github.com/y3owk1n/fude/internal/trace"
 )
 
 // What shell registers, by the ids Call runs them by.
@@ -82,7 +84,9 @@ func (m *Module) read(s api.Scope) api.Result {
 		s.About["first"] = strconv.Itoa(t.LineStart(t.LineOf(last)))
 		return m.shell(s)
 	}
+	at := time.Now()
 	text, err := os.ReadFile(arg)
+	trace.Since("file", fmt.Sprintf("read %q, %d bytes", arg, len(text)), at, err)
 	if err != nil {
 		return api.Result{Message: err.Error()}
 	}

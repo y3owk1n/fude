@@ -8,6 +8,9 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
+
+	"github.com/y3owk1n/fude/internal/trace"
 )
 
 // base16Line finds a base16 slot and its colour, as a stylix palette.json
@@ -36,7 +39,9 @@ func readBase16(path string) ([16]int32, error) {
 	if err != nil {
 		return colours, fmt.Errorf("theme: %w", err)
 	}
+	at := time.Now()
 	src, err := os.ReadFile(path)
+	trace.Since("file", fmt.Sprintf("read %q, %d bytes", path, len(src)), at, err)
 	if err != nil {
 		return colours, fmt.Errorf("theme: %w", err)
 	}

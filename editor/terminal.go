@@ -139,6 +139,7 @@ func (e *Session) openTerminal(arg string, owner api.Module, task string) {
 		return
 	}
 	t.pty, b.term = f, t
+	e.record("term", "started "+t.name, 0)
 	// The emulator's answers and the keys it encodes go to the program.
 	go func() {
 		buf := make([]byte, 32<<10)
@@ -198,6 +199,7 @@ func (e *Session) terminalExited(b *buffer, err error) {
 		status = exit.ExitCode()
 	}
 	b.title = fmt.Sprintf("[terminal %s, exited %d]", t.name, status)
+	e.record("term", fmt.Sprintf("%s exited %d", t.name, status), time.Since(t.started))
 	if t.typing {
 		t.typing = false
 		e.freeze(b)

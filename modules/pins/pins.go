@@ -17,9 +17,11 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/internal/keep"
+	"github.com/y3owk1n/fude/internal/trace"
 )
 
 // What pins registers, by the ids Call runs them by. slot+n-1 is
@@ -325,11 +327,13 @@ func load(wd string) ([]pin, error) {
 	if err != nil {
 		return nil, fmt.Errorf("pins: %w", err)
 	}
+	at := time.Now()
 	data, err := os.ReadFile(path)
-	switch {
-	case errors.Is(err, fs.ErrNotExist):
+	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
-	case err != nil:
+	}
+	trace.Since("file", fmt.Sprintf("read %q, %d bytes", path, len(data)), at, err)
+	if err != nil {
 		return nil, fmt.Errorf("pins: %w", err)
 	}
 	var pins []pin

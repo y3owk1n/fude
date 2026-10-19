@@ -3,6 +3,7 @@ package lsp
 import (
 	"cmp"
 	"encoding/json"
+	"fmt"
 	"maps"
 	"net/url"
 	"os"
@@ -10,9 +11,11 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/api/diff"
+	"github.com/y3owk1n/fude/internal/trace"
 	"github.com/y3owk1n/fude/protocol/lsp"
 )
 
@@ -234,7 +237,9 @@ func (m *Module) textOf(s api.Scope, path string) (api.Text, bool) {
 	if s.About["power"] != "host" {
 		return nil, false
 	}
+	at := time.Now()
 	data, err := os.ReadFile(path)
+	trace.Since("file", fmt.Sprintf("read %q, %d bytes", path, len(data)), at, err)
 	if err != nil {
 		return nil, false
 	}

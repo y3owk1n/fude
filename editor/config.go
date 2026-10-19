@@ -10,10 +10,12 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"time"
 
 	"github.com/pelletier/go-toml/v2"
 	"github.com/y3owk1n/fude/internal/keep"
 	"github.com/y3owk1n/fude/internal/tomlerr"
+	"github.com/y3owk1n/fude/internal/trace"
 	"github.com/y3owk1n/fude/vim"
 	"github.com/y3owk1n/fude/wire"
 )
@@ -157,10 +159,12 @@ func loadConfig() (config, error) {
 		return c, fmt.Errorf("find config: %w", err)
 	}
 	path := filepath.Join(dir, "fude", "config.toml")
+	at := time.Now()
 	src, err := os.ReadFile(path)
 	if errors.Is(err, fs.ErrNotExist) {
 		return c, nil
 	}
+	trace.Since("file", fmt.Sprintf("read %q, %d bytes", path, len(src)), at, err)
 	if err != nil {
 		return c, fmt.Errorf("read config: %w", err)
 	}

@@ -6,9 +6,11 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"time"
 
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/internal/keep"
+	"github.com/y3owk1n/fude/internal/trace"
 )
 
 // RestartEnv names the file of the session a restarting fude saved, which
@@ -137,6 +139,7 @@ func writeSession(s saved) (string, error) {
 		os.Remove(f.Name())
 		return "", fmt.Errorf("restart: %w", err)
 	}
+	trace.Record("file", fmt.Sprintf("wrote %q, %d bytes", f.Name(), len(data)), 0)
 	return f.Name(), f.Close()
 }
 
@@ -153,7 +156,9 @@ func restartSession() (*saved, error) {
 	}
 	// Language servers and the next restart must not see it.
 	os.Unsetenv(RestartEnv)
+	at := time.Now()
 	data, err := os.ReadFile(path)
+	trace.Since("file", fmt.Sprintf("read %q, %d bytes", path, len(data)), at, err)
 	if err != nil {
 		return nil, fmt.Errorf("restore the session: %w", err)
 	}

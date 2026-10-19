@@ -22,6 +22,7 @@ import (
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/internal/fuzzy"
 	"github.com/y3owk1n/fude/internal/keep"
+	"github.com/y3owk1n/fude/internal/trace"
 )
 
 // What completion registers, by the ids Call runs them by.
@@ -254,7 +255,9 @@ func (m *Module) userSnippets(ft, typed string) ([]api.CompletionItem, error) {
 		}
 		f, ok := m.snippets[path]
 		if !ok || !f.mod.Equal(info.ModTime()) || f.size != info.Size() {
+			at := time.Now()
 			src, err := os.ReadFile(path)
+			trace.Since("file", fmt.Sprintf("read %q, %d bytes", path, len(src)), at, err)
 			if err != nil {
 				return nil, fmt.Errorf("read snippets: %w", err)
 			}

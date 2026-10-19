@@ -14,6 +14,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/y3owk1n/fude/internal/trace"
 )
 
 // picture is an image file a decoration shows, as PNG, which is what a
@@ -51,7 +53,9 @@ func (e *Editor) picture(path string) *picture {
 	}
 	e.pictures.byPath[path] = nil
 	go func() {
+		at := time.Now()
 		p, err := loadPicture(path)
+		trace.Since("image", "loaded "+path, at, err)
 		e.queue <- func() {
 			if err != nil {
 				logLine(err.Error())
@@ -150,7 +154,9 @@ func (e *Editor) recheck() {
 			if info, err := os.Stat(path); err != nil || info.ModTime().Equal(p.mod) && info.Size() == p.size {
 				return
 			}
+			at := time.Now()
 			q, err := loadPicture(path)
+			trace.Since("image", "loaded "+path+" again", at, err)
 			e.queue <- func() {
 				switch {
 				case err != nil:

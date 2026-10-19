@@ -11,6 +11,7 @@ import (
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/internal/keep"
 	"github.com/y3owk1n/fude/internal/timeline"
+	"github.com/y3owk1n/fude/internal/trace"
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
 )
@@ -115,7 +116,7 @@ func sameLine(t kernel.Snapshot, p, q int) bool {
 func openBuffer(id int, path string) (*buffer, string, error) {
 	at := time.Now()
 	f, text, err := read(path)
-	traced("file", fmt.Sprintf("read %q, %d bytes", path, len(text)), at, err)
+	trace.Since("file", fmt.Sprintf("read %q, %d bytes", path, len(text)), at, err)
 	if err != nil {
 		return nil, "", err
 	}

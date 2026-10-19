@@ -11,8 +11,8 @@ type Event struct {
 	// Seq counts events from 1, so a gap is events a tail missed.
 	Seq int       `json:"seq"`
 	At  time.Time `json:"at"`
-	// Src is what did it: key, cmd, msg, frame, syntax, lsp, plugin, file,
-	// rpc or log.
+	// Src is what did it: key, cmd, msg, frame, image, syntax, lsp, dap,
+	// module, plugin, job, term, file, rpc, share or log.
 	Src  string        `json:"src"`
 	Text string        `json:"text"`
 	Took time.Duration `json:"took,omitempty"`
@@ -42,6 +42,15 @@ func Record(src, text string, took time.Duration) {
 		default: // the tail is behind, and the gap in Seq tells it
 		}
 	}
+}
+
+// Since records what as an event of src that took since at, with err when
+// it failed.
+func Since(src, what string, at time.Time, err error) {
+	if err != nil {
+		what += ": " + err.Error()
+	}
+	Record(src, what, time.Since(at))
 }
 
 // Watch returns the events kept, oldest first, and the events after them

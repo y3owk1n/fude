@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/y3owk1n/fude/core/kernel"
+	"github.com/y3owk1n/fude/internal/trace"
 )
 
 // revert puts the text of b's file on disk in b, as one undo step.
@@ -215,7 +216,7 @@ func (e *Session) writeOut(b *buffer, then func()) {
 	s, at := b.text.Snapshot(), time.Now()
 	text := s.Slice(0, s.Len())
 	n, err := b.file.write(text)
-	traced("file", fmt.Sprintf("wrote %q, %d bytes", b.file.path, n), at, err)
+	trace.Since("file", fmt.Sprintf("wrote %q, %d bytes", b.file.path, n), at, err)
 	if err != nil {
 		e.message = err.Error()
 		return

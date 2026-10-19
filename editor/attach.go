@@ -129,6 +129,7 @@ func (e *Session) attached(s *Session, in *bufio.Scanner, out func(any) error, o
 				if out(map[string]any{"method": "frame", "params": json.RawMessage(b)}) != nil {
 					return
 				}
+				s.record("frame", fmt.Sprintf("sent %d bytes", len(b)), 0)
 				last = b
 			}
 			if done {
@@ -153,8 +154,13 @@ func (e *Session) attached(s *Session, in *bufio.Scanner, out func(any) error, o
 		}
 		on(func() {
 			handled++
+			at := time.Now()
 			if err := s.input(n.Method, n.Params); err != nil {
 				logLine(fmt.Sprintf("attached client: %v", err))
+			}
+			// Feed already traces each key.
+			if n.Method != "keys" {
+				s.record("rpc", fmt.Sprintf("sent %s, %d bytes", n.Method, len(n.Params)), time.Since(at))
 			}
 		})
 		select {

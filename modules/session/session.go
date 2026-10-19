@@ -10,9 +10,11 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"time"
 
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/internal/keep"
+	"github.com/y3owk1n/fude/internal/trace"
 )
 
 // restore is the id of <Plug>(session.restore).
@@ -40,7 +42,11 @@ func (m *Module) Call(context.Context, uint32, api.Scope, ...int) (api.Result, e
 	if err != nil {
 		return api.Result{Message: err.Error()}, nil
 	}
+	at := time.Now()
 	data, err := os.ReadFile(path)
+	if !errors.Is(err, fs.ErrNotExist) {
+		trace.Since("file", fmt.Sprintf("read %q, %d bytes", path, len(data)), at, err)
+	}
 	switch {
 	case errors.Is(err, fs.ErrNotExist):
 		return api.Result{Message: "no session here"}, nil

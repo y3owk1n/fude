@@ -15,6 +15,9 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
+
+	"github.com/y3owk1n/fude/internal/trace"
 )
 
 // Clean is a directory read as the config directory instead of the user's,
@@ -40,13 +43,16 @@ func Dir(env, fallback string) (string, error) {
 // Write replaces the file at path with data, whole, so a reader never
 // sees half of it. It makes the directories on the way.
 func Write(path string, data []byte) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return err
+	at := time.Now()
+	err := os.MkdirAll(filepath.Dir(path), 0o700)
+	if err == nil {
+		err = os.WriteFile(path+".new", data, 0o600)
 	}
-	if err := os.WriteFile(path+".new", data, 0o600); err != nil {
-		return err
+	if err == nil {
+		err = os.Rename(path+".new", path)
 	}
-	return os.Rename(path+".new", path)
+	trace.Since("file", fmt.Sprintf("wrote %q, %d bytes", path, len(data)), at, err)
+	return err
 }
 
 // RecentCap is how many files Recent remembers (B213).
@@ -139,6 +145,7 @@ func (r *Recent) Read() ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("recent files: %w", err)
 	}
+	at := time.Now()
 	f, err := os.Open(file)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
@@ -154,6 +161,7 @@ func (r *Recent) Read() ([]string, error) {
 			paths = append(paths, line)
 		}
 	}
+	trace.Since("file", fmt.Sprintf("read %q, %d files", file, len(paths)), at, in.Err())
 	if err := in.Err(); err != nil {
 		return nil, fmt.Errorf("recent files: %w", err)
 	}

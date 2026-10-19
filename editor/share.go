@@ -16,6 +16,7 @@ import (
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/internal/relay"
 	tlsshare "github.com/y3owk1n/fude/internal/share"
+	"github.com/y3owk1n/fude/internal/trace"
 )
 
 // share is fude listening for guests (B248), or holding places for them
@@ -63,6 +64,7 @@ func (e *Session) Share(address string) (func(), error) {
 	}
 	e.share = sh
 	e.invite()
+	trace.Record("share", "listening at "+sh.addr, 0)
 	go func() {
 		for {
 			c, err := l.Accept()
@@ -92,6 +94,7 @@ func (e *Session) ShareRelay(addr string) (func(), error) {
 	}
 	e.share = sh
 	e.invite()
+	trace.Record("share", "holding a place at "+addr, 0)
 	e.hold(p)
 	var once sync.Once
 	return func() {
@@ -117,6 +120,7 @@ func (e *Session) hold(p *relay.Place) {
 		for {
 			c, err := p.Take()
 			if err == nil {
+				trace.Record("share", "a guest came through "+sh.via, 0)
 				go e.admit(tls.Server(c, sh.cfg), sh.stopped)
 				p, err = relay.Offer(sh.via, sh.room)
 			}
@@ -214,6 +218,7 @@ func (e *Session) admit(c net.Conn, stopped <-chan struct{}) {
 	c.SetReadDeadline(time.Now().Add(10 * time.Second))
 	var hello Hello
 	if !in.Scan() || json.Unmarshal(in.Bytes(), &hello) != nil {
+		trace.Record("share", c.RemoteAddr().String()+" sent no hello", 0)
 		return
 	}
 	c.SetReadDeadline(time.Time{})
@@ -243,10 +248,14 @@ func (e *Session) admit(c net.Conn, stopped <-chan struct{}) {
 		}
 	}
 	if err != nil {
+		trace.Record("share", name+" was turned away: "+err.Error(), 0)
 		out(map[string]string{"error": err.Error()})
 		return
 	}
-	defer on(func() { s.leave() })
+	defer on(func() {
+		trace.Record("share", s.name+" left", 0)
+		s.leave()
+	})
 	if out(map[string]string{}) != nil {
 		return
 	}
@@ -289,6 +298,7 @@ func (e *Session) letIn(name string, hello Hello, admitted chan<- *Session) erro
 		s.name = e.guestName(name)
 		s.use(hello.Own)
 		host.message = s.name + " joined"
+		trace.Record("share", s.name+" joined"+as, 0)
 		admitted <- s
 	}
 	return nil

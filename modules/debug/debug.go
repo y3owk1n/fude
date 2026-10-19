@@ -25,6 +25,7 @@ import (
 
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/internal/tomlerr"
+	"github.com/y3owk1n/fude/internal/trace"
 	"github.com/y3owk1n/fude/protocol/dap"
 )
 
@@ -337,10 +338,12 @@ func complete(arg string) []string {
 // launches reads .fude/launch.toml. A missing file has no launches.
 func launches() (map[string]launch, error) {
 	path := filepath.Join(".fude", "launch.toml")
+	at := time.Now()
 	src, err := os.ReadFile(path)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
 	}
+	trace.Since("file", fmt.Sprintf("read %q, %d bytes", path, len(src)), at, err)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}

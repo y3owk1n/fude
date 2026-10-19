@@ -13,10 +13,12 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 	"unicode"
 	"unicode/utf8"
 
 	"github.com/y3owk1n/fude/api"
+	"github.com/y3owk1n/fude/internal/trace"
 )
 
 // prose are the filetypes spell checks whole, but for their code and links
@@ -306,6 +308,7 @@ func (m *Module) add(s api.Scope, cursor int) api.Result {
 		return api.Result{Message: "no word under the cursor"}
 	}
 	word, path := s.Text.Slice(start, end), m.own
+	at := time.Now()
 	err := os.MkdirAll(filepath.Dir(path), 0o755)
 	var f *os.File
 	if err == nil {
@@ -317,6 +320,7 @@ func (m *Module) add(s api.Scope, cursor int) api.Result {
 			err = cerr
 		}
 	}
+	trace.Since("file", fmt.Sprintf("added %q to %q", word, path), at, err)
 	if err != nil {
 		return api.Result{Message: fmt.Sprintf("add %s to your words: %v", word, err)}
 	}
@@ -459,17 +463,20 @@ func distance(a, b string, most int) int {
 func words(path, own string) (map[string]bool, error) {
 	known := map[string]bool{}
 	load := func(path string) error {
+		at := time.Now()
 		f, err := os.Open(path)
 		if err != nil {
 			return err
 		}
 		defer f.Close()
-		lines := bufio.NewScanner(f)
+		lines, n := bufio.NewScanner(f), 0
 		for lines.Scan() {
 			if w := strings.TrimSpace(lines.Text()); w != "" {
 				known[w] = true
+				n++
 			}
 		}
+		trace.Since("file", fmt.Sprintf("read %q, %d words", path, n), at, lines.Err())
 		return lines.Err()
 	}
 	if err := load(path); err != nil {

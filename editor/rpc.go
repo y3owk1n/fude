@@ -266,6 +266,7 @@ func (e *Session) Serve(path string) func() {
 		return func() {}
 	}
 	e.socket = path
+	trace.Record("rpc", "listening at "+path, 0)
 	go func() {
 		for n := 1; ; n++ {
 			c, err := l.Accept()
@@ -396,7 +397,7 @@ func (e *Session) serve(c net.Conn, o kernel.Origin) {
 			on(func() {
 				at := time.Now()
 				res, err := s.call(call.Method, call.Params)
-				traced("rpc", string(o)+" called "+call.Method, at, err)
+				trace.Since("rpc", string(o)+" called "+call.Method, at, err)
 				switch {
 				case err != nil:
 					reply["error"] = err.Error()

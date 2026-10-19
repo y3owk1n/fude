@@ -1692,17 +1692,26 @@ and goes when its buffer closes.
 ### Trace
 
 `fude tail` shows what a running fude does, as it happens (B174). Code
-in any package of the root module records an event with
-`trace.Record(src, text, took)`, from `internal/trace/`. The
-sources are a key and its mode, a command line, a message the user saw,
-a frame, a parse or highlight, a language server's messages and answers,
-a plugin call or event, a file read or written, a program fude ran, a
-client's call, and a line of fude's log. `trace.Record` is safe on any
-goroutine. It takes a mutex, stamps the time and a sequence number, and
-keeps the event in a ring of the last 4096. With no tail watching that is
+in any package of the root module, modules included, records an event
+with `trace.Record(src, text, took)` from `internal/trace/`, or with
+`trace.Since(src, text, at, err)`, which times it and adds the error.
+The sources are a key and its mode, a command line, a message the user
+saw, a frame drawn or sent, an image loaded, a parse or highlight, and a
+grammar build. Language servers and debug adapters add their messages
+and answers. Modules and plugins add each call and event, and a plugin
+adds each file it read, program it ran and URL it got. Each file fude
+or a module reads, writes, renames, creates or deletes adds a line. Jobs
+add a line when they start and end, terminals when their program starts
+and ends, clients each call and notice, a share each guest that comes
+and goes, and fude's log each line. A job's text carries its id, and so
+does the callback it runs. The lines an attached session makes for keys,
+command lines, messages and terminals start with its origin, such as
+`client1:`. The local session's lines have none. `trace.Record` is safe
+on any goroutine. It takes a mutex, stamps the time and a sequence
+number, and keeps the event in a ring of the last 4096. With no tail watching that is
 all it does. It does no I/O, and it adds about 40µs to key latency at p99.
-A library in a module of its own, such as `syntax/` or `protocol/`, takes a trace func
-from its host instead.
+A library in a module of its own, such as `syntax/`, `plugin/` or
+`protocol/`, takes a trace func from its host instead.
 
 A client's `tail` call gets an empty reply, then the kept events and each
 new one as `{"method": "event", "params": {"seq", "at", "src", "text",

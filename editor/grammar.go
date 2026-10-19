@@ -37,6 +37,7 @@ func (e *Session) buildGrammar(ft string, force bool) bool {
 	e.building[ft] = true
 	go func() {
 		at := time.Now()
+		trace.Record("syntax", "building the "+ft+" grammar", 0)
 		err := syntax.Build(ft)
 		done := "built the " + ft + " grammar"
 		if err != nil {

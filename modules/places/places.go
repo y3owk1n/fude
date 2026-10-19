@@ -13,8 +13,10 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/y3owk1n/fude/api"
+	"github.com/y3owk1n/fude/internal/trace"
 )
 
 // What places registers, by the ids Call runs them by.
@@ -296,7 +298,9 @@ func lineOf(s api.Scope, path string, n int) string {
 		if rel, err := filepath.Rel(s.About["project"], abs); s.About["power"] != "host" && (err != nil || strings.HasPrefix(rel, "..")) {
 			return ""
 		}
+		at := time.Now()
 		data, err := os.ReadFile(abs)
+		trace.Since("file", fmt.Sprintf("read %q, %d bytes", abs, len(data)), at, err)
 		if err != nil {
 			return ""
 		}

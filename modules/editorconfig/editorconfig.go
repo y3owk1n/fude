@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/y3owk1n/fude/api"
+	"github.com/y3owk1n/fude/internal/trace"
 )
 
 // Module is editorconfig.
@@ -87,6 +88,7 @@ func readEditorconfig(path string) (editorconfig, error) {
 			return editorconfig{}, fmt.Errorf("read %s: %w", name, err)
 		}
 		if err == nil {
+			trace.Record("file", fmt.Sprintf("read %q, %d bytes", name, len(src)), 0)
 			rel, err := filepath.Rel(dir, abs)
 			if err != nil {
 				return editorconfig{}, err

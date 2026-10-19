@@ -482,7 +482,11 @@ func (c *Client) answered(id int, result json.RawMessage, failed *responseError)
 	p, ok := c.pending[id]
 	delete(c.pending, id)
 	if ok {
-		c.trace(fmt.Sprintf("%s answered #%d, %d bytes", c.name, id, len(result)), time.Since(p.at))
+		what := fmt.Sprintf("%s answered %s #%d, %d bytes", c.name, p.method, id, len(result))
+		if failed != nil {
+			what += ": " + failed.Message
+		}
+		c.trace(what, time.Since(p.at))
 	}
 	if failed != nil {
 		c.log(fmt.Sprintf("%s: %s: %s", c.name, p.method, failed.Message))

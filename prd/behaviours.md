@@ -1551,11 +1551,15 @@ Where fude departs, the line says so and cites the departure in
 - B174 [6] `fude tail` prints what a running fude does as it happens,
   one line per event with how long it took. Events cover keys and the
   mode each ran in, command lines and messages. They also cover frames,
-  parses, language server messages and answers, and plugin calls. Files,
-  the programs fude runs, client calls and log lines are events too. It
-  first prints the last 4096 events, so a tail started after a problem
-  shows what led to it. `--json` prints each event as JSON. While nothing
-  tails, fude keeps events in memory and writes nothing.
+  parses, language server and debug adapter messages and answers, and
+  module and plugin calls. Files read, written, renamed or deleted, the
+  programs fude runs and the URLs it gets, terminals, client calls, guests
+  joining and leaving, and log lines are events too. A job shows when it
+  starts and ends, with the id of the callback it runs. A line an
+  attached session made names that session. It first prints the last
+  4096 events, so a tail started after a problem shows what led to it.
+  `--json` prints each event as JSON. While nothing tails, fude keeps
+  events in memory and writes nothing.
 - B351 [6] `fude open file...` opens the files in the session B352
   finds, as `:e` does in its current window. The first one shows, and
   the others are buffers. A relative path is from the directory `fude

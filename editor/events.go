@@ -197,10 +197,10 @@ func (e *Session) listen(p api.Module) *listener {
 				var err error
 				if ev.name == "" {
 					res, err = p.Callback(context.Background(), ev.id, scope)
-					trace.Record("plugin", p.Name()+" ran a callback", time.Since(at))
+					trace.Since(kind(p), fmt.Sprintf("%s ran callback #%d", p.Name(), ev.id), at, err)
 				} else {
 					res, err = p.Event(context.Background(), name, scope)
-					trace.Record("plugin", p.Name()+" heard "+name, time.Since(at))
+					trace.Since(kind(p), p.Name()+" heard "+name, at, err)
 				}
 				scope.Done()
 				if !on(func() { e.asker(ev).handled(p, ev, err, t, seen, res) }) {

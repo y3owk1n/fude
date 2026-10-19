@@ -20,7 +20,6 @@ import (
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/internal/keep"
-	"github.com/y3owk1n/fude/internal/trace"
 	"github.com/y3owk1n/fude/protocol/lsp"
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
@@ -484,7 +483,7 @@ func (e *Session) Queue() <-chan func() { return e.queue }
 func (e *Session) Feed(k vim.Key) {
 	defer e.unfollow()()
 	at, mode := time.Now(), e.vim.Mode()
-	defer func() { trace.Record("key", fmt.Sprintf("%q in %s", k, modes[mode]), time.Since(at)) }()
+	defer func() { e.record("key", fmt.Sprintf("%q in %s", k, modes[mode]), time.Since(at)) }()
 	// While hints show, <Esc> drops the command being typed, held keys too,
 	// and <BS> its last key.
 	if e.keyFloat != nil && (k == "<Esc>" || k == "<BS>") {
@@ -514,7 +513,7 @@ func (e *Session) feed(k vim.Key) {
 	e.message = ""
 	if e.vim.Mode() == vim.Cmdline && k == "<CR>" {
 		at, line := time.Now(), e.vim.Line()
-		defer func() { trace.Record("cmd", line, time.Since(at)) }()
+		defer func() { e.record("cmd", line, time.Since(at)) }()
 	}
 	for _, o := range e.overlays() {
 		if o.key(e, k) {
@@ -818,7 +817,7 @@ func (e *Session) LineCursor() int { return e.vim.LineCursor() }
 // It puts each new message into the history that :messages lists.
 func (e *Session) Message() string {
 	if e.message != e.logged && e.message != "" {
-		trace.Record("msg", e.message, 0)
+		e.record("msg", e.message, 0)
 		e.history = append(e.history, e.message)
 		e.history = e.history[max(len(e.history)-200, 0):]
 	}

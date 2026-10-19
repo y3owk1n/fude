@@ -11,16 +11,26 @@ import (
 	"strings"
 	"time"
 
+	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/internal/trace"
+	"github.com/y3owk1n/fude/plugin"
 )
 
-// traced records what as an event of src that took since at, with err when
-// it failed.
-func traced(src, what string, at time.Time, err error) {
-	if err != nil {
-		what += ": " + err.Error()
+// record traces what e did. Unless e is the local session, the text starts
+// with e's origin, so a tail tells attached sessions apart.
+func (e *Session) record(src, text string, took time.Duration) {
+	if e.origin != "user" {
+		text = string(e.origin) + ": " + text
 	}
-	trace.Record(src, what, time.Since(at))
+	trace.Record(src, text, took)
+}
+
+// kind is the trace source of p: plugin for a wasm plugin, else module.
+func kind(p api.Module) string {
+	if _, ok := p.(*plugin.Plugin); ok {
+		return "plugin"
+	}
+	return "module"
 }
 
 // Tail prints what the fude listening at socket does, as fude tail does

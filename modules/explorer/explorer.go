@@ -18,6 +18,7 @@ import (
 	"sync"
 
 	"github.com/y3owk1n/fude/api"
+	"github.com/y3owk1n/fude/internal/trace"
 )
 
 // What explorer registers, by the ids Call runs them by.
@@ -337,11 +338,13 @@ func (c changes) apply(dir string) error {
 		if err := os.Rename(temp(i), to); err != nil {
 			return errors.Join(fmt.Errorf("rename %s to %s: %w", r[0], r[1], err), back(i, len(c.renames)))
 		}
+		trace.Record("file", fmt.Sprintf("renamed %q to %q", join(r[0]), to), 0)
 	}
 	for _, name := range c.deletes {
 		if err := os.RemoveAll(join(name)); err != nil {
 			return fmt.Errorf("delete %s: %w", name, err)
 		}
+		trace.Record("file", fmt.Sprintf("deleted %q", join(name)), 0)
 	}
 	for _, name := range c.creates {
 		path := join(name)
@@ -349,6 +352,7 @@ func (c changes) apply(dir string) error {
 			if err := os.MkdirAll(path, 0o755); err != nil {
 				return fmt.Errorf("create %s: %w", name, err)
 			}
+			trace.Record("file", fmt.Sprintf("created %q", path), 0)
 			continue
 		}
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -361,6 +365,7 @@ func (c changes) apply(dir string) error {
 		if err := f.Close(); err != nil {
 			return fmt.Errorf("create %s: %w", name, err)
 		}
+		trace.Record("file", fmt.Sprintf("created %q", path), 0)
 	}
 	return nil
 }

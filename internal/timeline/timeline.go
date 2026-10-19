@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/y3owk1n/fude/core/kernel"
+	"github.com/y3owk1n/fude/internal/trace"
 )
 
 // record is one line of a log. The log starts with a base record, then
@@ -57,17 +58,22 @@ type Loaded struct {
 func Open(path, text string) (*Log, Loaded, error) {
 	l := &Log{path: path}
 	sum := hash(text)
+	at := time.Now()
 	loaded, ok, err := read(path, sum)
 	if err != nil {
 		return nil, Loaded{}, err
 	}
 	if !ok {
-		if err := os.Rename(path, path+"."+strconv.FormatInt(time.Now().Unix(), 10)); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		switch err := os.Rename(path, path+"."+strconv.FormatInt(time.Now().Unix(), 10)); {
+		case err == nil:
+			trace.Record("file", fmt.Sprintf("set %q aside, as the text no longer matches it", path), 0)
+		case !errors.Is(err, fs.ErrNotExist):
 			return nil, Loaded{}, fmt.Errorf("set aside timeline log %s: %w", path, err)
 		}
 		l.write(record{Kind: "base", Hash: sum})
 		return l, Loaded{}, nil
 	}
+	trace.Record("file", fmt.Sprintf("read %q, %d nodes", path, len(loaded.Nodes)), time.Since(at))
 	l.saved = record{Kind: "base", Head: loaded.Head, Hash: sum}
 	if len(loaded.Saves) > 0 {
 		l.saved.Kind = "save"
@@ -131,7 +137,9 @@ func (l *Log) Close(t *kernel.Buffer, saves []kernel.NodeID, cut bool) {
 		return
 	}
 	if info.Size() > Cap {
+		at := time.Now()
 		l.err = l.cut(t.Nodes(), head, saves)
+		trace.Since("file", fmt.Sprintf("cut %q, %d bytes", l.path, info.Size()), at, l.err)
 	}
 }
 

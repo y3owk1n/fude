@@ -115,7 +115,7 @@ func (e *Session) loaded(p api.Module, err error, b *buffer, t kernel.Snapshot, 
 		e.unload(p, err)
 		return
 	}
-	trace.Record("plugin", "loaded "+p.Name(), 0)
+	trace.Record(kind(p), "loaded "+p.Name(), 0)
 	e.modules = append(e.modules, p)
 	for _, r := range p.Registered() {
 		e.register(p, r)
@@ -631,7 +631,19 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 			}
 		}
 		go func() {
+			// The start line shows a job that never ends. Its id is its callback's.
+			task := fmt.Sprintf("%s #%d", cmp.Or(j.URL, strings.Join(j.Argv, " ")), j.ID)
+			trace.Record("job", p.Name()+" started "+task, 0)
+			at := time.Now()
 			out, err := p.Work(l.ctx, j)
+			what := fmt.Sprintf("%s ran %s, %d bytes", p.Name(), task, len(out))
+			switch {
+			case j.URL != "":
+				what = fmt.Sprintf("%s got %s, %d bytes", p.Name(), task, len(out))
+			case j.Stream:
+				what = p.Name() + " streamed " + task
+			}
+			trace.Since("job", what, at, err)
 			extra := api.Context{"output": out}
 			if err != nil {
 				extra["error"] = err.Error()
@@ -1370,7 +1382,7 @@ func (e *Session) run(p api.Module, id uint32, scope api.Scope, args ...int) ([]
 	e.onLoop(&scope)
 	at := time.Now()
 	res, err := p.Call(context.Background(), id, scope, args...)
-	trace.Record("plugin", p.Name()+" ran "+name, time.Since(at))
+	trace.Since(kind(p), p.Name()+" ran "+name, at, err)
 	switch {
 	case errors.Is(err, api.ErrBusy):
 		e.message = err.Error()

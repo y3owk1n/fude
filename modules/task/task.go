@@ -21,11 +21,13 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/pelletier/go-toml/v2"
 
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/internal/tomlerr"
+	"github.com/y3owk1n/fude/internal/trace"
 )
 
 // The command and source task registers, by the ids Call runs them by.
@@ -259,6 +261,7 @@ func find(config map[string]struct{ Command string }) ([]task, error) {
 		}
 	}
 	if f, err := os.Open("Makefile"); err == nil {
+		trace.Record("file", `read "Makefile"`, 0)
 		in := bufio.NewScanner(f)
 		for in.Scan() {
 			if m := makeTarget.FindStringSubmatch(in.Text()); m != nil {
@@ -268,7 +271,12 @@ func find(config map[string]struct{ Command string }) ([]task, error) {
 		problems = append(problems, in.Err())
 		f.Close()
 	}
-	if b, err := os.ReadFile("package.json"); err == nil {
+	at := time.Now()
+	b, err := os.ReadFile("package.json")
+	if !errors.Is(err, fs.ErrNotExist) {
+		trace.Since("file", fmt.Sprintf(`read "package.json", %d bytes`, len(b)), at, err)
+	}
+	if err == nil {
 		var p struct {
 			Scripts map[string]string `json:"scripts"`
 		}
@@ -287,10 +295,12 @@ func find(config map[string]struct{ Command string }) ([]task, error) {
 // projectTasks returns the [task.<name>] tables of the working directory's
 // .fude/tasks.toml, which holds tasks alone (B233).
 func projectTasks() ([]task, error) {
+	at := time.Now()
 	src, err := os.ReadFile(filepath.Join(".fude", "tasks.toml"))
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
 	}
+	trace.Since("file", fmt.Sprintf(`read ".fude/tasks.toml", %d bytes`, len(src)), at, err)
 	if err != nil {
 		return nil, fmt.Errorf(".fude/tasks.toml: %w", err)
 	}
@@ -314,7 +324,9 @@ func projectTasks() ([]task, error) {
 // justTasks returns the justfile's public recipes, each with its doc
 // comment.
 func justTasks() ([]task, error) {
+	at := time.Now()
 	b, err := exec.Command("just", "--dump", "--dump-format", "json").Output()
+	trace.Since("module", fmt.Sprintf("task ran just --dump --dump-format json, %d bytes", len(b)), at, err)
 	if err != nil {
 		return nil, fmt.Errorf("just --dump: %w", err)
 	}

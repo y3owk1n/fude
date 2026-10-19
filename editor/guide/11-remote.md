@@ -121,8 +121,12 @@ it took.
 ```
 13:02:28.700 cmd    :set nu (0.036ms)
 13:02:28.701 msg    no option named nu
-13:02:29.759 lsp    gopls answered #1, 1019 bytes (38.513ms)
+13:02:29.759 lsp    gopls answered textDocument/hover #1, 1019 bytes (38.513ms)
 ```
+
+A background job and the callback it runs show the same id, such as
+`#3`. A line an attached client made starts with its name, such as
+`client1:`.
 
 It starts with the last 4096 events, so a tail started after something
 went wrong shows what led to it. `--json` prints each event as a line of

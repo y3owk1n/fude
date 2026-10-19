@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/y3owk1n/fude/internal/clipboard"
+	"github.com/y3owk1n/fude/internal/trace"
 )
 
 // Clipboard reads the system clipboard. Without a clipboard program, and
@@ -16,7 +17,7 @@ func (h host) Clipboard() (string, error) {
 	}
 	at := time.Now()
 	text, err := clipboard.Read()
-	traced("file", "read the clipboard", at, err)
+	trace.Since("file", "read the clipboard", at, err)
 	if !errors.Is(err, clipboard.ErrNone) {
 		return text, err
 	}
@@ -41,7 +42,7 @@ func (h host) SetClipboard(text string) error {
 	}
 	at := time.Now()
 	err := clipboard.Write(text)
-	traced("file", "wrote the clipboard", at, err)
+	trace.Since("file", "wrote the clipboard", at, err)
 	if errors.Is(err, clipboard.ErrNone) {
 		h.e.clip, h.e.toTerminal = text, true
 		return nil
