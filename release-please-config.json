@@ -6,7 +6,6 @@
 	"bump-patch-for-minor-pre-major": true,
 	"packages": {
 		".": {
-			"release-as": "0.1.0",
 			"extra-files": [
 				{ "type": "generic", "path": "go.mod" },
 				{ "type": "generic", "path": "go.work" },
