@@ -251,10 +251,16 @@ open, keys, state, attach and tail reach the one fude running, or the one
 	w.Flush()
 }
 
-// version is the date and commit fude was built from (B349).
+// version is the release fude was installed as, or else the date and
+// commit it was built from (B349).
 func version() string {
 	vcs := map[string]string{}
 	if info, ok := debug.ReadBuildInfo(); ok {
+		// A build by go install of a release, as the release workflow makes,
+		// knows its version.
+		if v := info.Main.Version; v != "" && v != "(devel)" {
+			return "fude " + v
+		}
 		for _, s := range info.Settings {
 			vcs[s.Key] = s.Value
 		}

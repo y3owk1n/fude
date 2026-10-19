@@ -25,10 +25,11 @@ Where fude departs, the line says so and cites the departure in
 - B348 [1] `fude help`, `fude -h` and `fude --help` print fude's
   subcommands and flags, one line each with what it does. Each flag names
   the subcommands that take it. fude(1) lists the same (B163).
-- B349 [1] `fude version`, `fude -v` and `fude --version` print the date
-  and commit fude was built from, as `fude 2026.10.18 (eda0e6e)`, with
-  `, modified` after the commit when it had uncommitted changes, or
-  `fude (devel)` when the build does not know them (D52).
+- B349 [1] `fude version`, `fude -v` and `fude --version` print the
+  release fude was installed as, as `fude v0.1.0`. A build from a checkout
+  prints the date and commit it was built from, as `fude 2026.10.18
+  (eda0e6e)`, with `, modified` after the commit when it had uncommitted
+  changes, or `fude (devel)` when the build does not know them (D52).
 - B350 [1] The first word after `fude` that is not a flag names a
   subcommand, or else a file to open. Flags may come before or after the
   words, and `--` ends them, so `fude -- tail` opens the file `tail`. A
