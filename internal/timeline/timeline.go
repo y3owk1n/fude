@@ -65,7 +65,9 @@ func Open(path, text string) (*Log, Loaded, error) {
 		return nil, Loaded{}, err
 	}
 	if !ok {
-		switch err := os.Rename(path, path+"."+strconv.FormatInt(time.Now().Unix(), 10)); {
+		// Nanoseconds keep two logs set aside in one second apart, as Windows
+		// will not replace one a fude still has open.
+		switch err := os.Rename(path, path+"."+strconv.FormatInt(time.Now().UnixNano(), 10)); {
 		case err == nil:
 			trace.Record("file", fmt.Sprintf("set %q aside, as the text no longer matches it", path), 0)
 		case !errors.Is(err, fs.ErrNotExist):
