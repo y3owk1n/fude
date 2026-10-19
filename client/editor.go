@@ -5,6 +5,7 @@ import (
 	"errors"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/internal/clipboard"
@@ -136,6 +137,10 @@ func (h host) Apply(edits []vim.Edit, _ string) error {
 }
 
 func (h host) Unhandled(keys string) {
+	// An ex line, such as ":w", runs on the server's command line.
+	if strings.HasPrefix(keys, ":") {
+		keys += "<CR>"
+	}
 	if _, err := h.e.server(keys); err != nil {
 		h.e.message = err.Error()
 	}
