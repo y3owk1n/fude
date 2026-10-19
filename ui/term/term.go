@@ -241,16 +241,16 @@ func (c *client) draw() {
 	// drawn in the tinted theme, and draws on the tinted ground (B151).
 	f, floats := c.e.Float()
 	sig, signs := c.e.Signature()
-	msg := c.e.Message()
+	msg, ask := c.e.Message(), c.e.Confirm()
 	// A :s being typed shows its preview in the windows, so they stay lit.
-	modal := c.e.Mode() == vim.Cmdline && !c.e.Substituting() || floats && f.W > 0 && !f.Lit
+	modal := c.e.Mode() == vim.Cmdline && !c.e.Substituting() || floats && f.W > 0 && !f.Lit || ask != ""
 	if modal {
 		apply(dimmed)
 		defer apply(lit)
 	}
 	// No line's sig holds what draws over the windows, so every line draws
 	// while something is over them and in the frame after.
-	over := c.e.Mode() == vim.Cmdline || floats || signs || msg != ""
+	over := c.e.Mode() == vim.Cmdline || floats || signs || msg != "" || ask != ""
 	// The windows cover from left to right, which changes when :center does.
 	views := c.e.Views()
 	left, right := w, 0
@@ -292,6 +292,11 @@ func (c *client) draw() {
 	}
 	if msg != "" {
 		c.toast(msg, left, right, h)
+	}
+	if ask != "" {
+		// The question takes every key, so no cursor shows.
+		c.confirm(ask, w, h)
+		cx, cy = -1, -1
 	}
 
 	shape := tcell.CursorStyleSteadyBlock

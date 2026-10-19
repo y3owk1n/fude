@@ -334,6 +334,7 @@ func (a *Attached) Line() string       { return a.f.Line }
 func (a *Attached) LineCursor() int    { return a.f.LineCursor }
 func (a *Attached) Mode() vim.Mode     { return a.f.Mode }
 func (a *Attached) Message() string    { return a.f.Message }
+func (a *Attached) Confirm() string    { return a.f.Confirm }
 func (a *Attached) Cursors() []int     { return a.f.Cursors }
 func (a *Attached) Recording() rune    { return a.f.Recording }
 func (a *Attached) Substituting() bool { return a.f.Substituting }

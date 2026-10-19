@@ -443,6 +443,10 @@ Where fude departs, the line says so and cites the departure in
   message taller than a third of the screen's rows ends in an ellipsis,
   and `:messages` keeps all of it. A macro being recorded shows in the
   status line.
+- B362 [2] Every yes or no question fude asks, such as B81's, B248's and
+  B327's, shows in a box in the middle of the screen over the darker
+  windows of B151, with `y` and `n` under a rule. Only `y` and `n` answer
+  it, and every other key does nothing until one does.
 - B150 [2] Floats, the command line, the finder and toasts are panels with
   a rounded border on the editor's ground, a column of room inside it, and
   rules joined to the border. A selected item takes the raised colour and
@@ -1550,9 +1554,9 @@ Where fude departs, the line says so and cites the departure in
   changelist, and its `g-` and `g+` move the server's timeline.
 - B174 [6] `fude tail` prints what a running fude does as it happens,
   one line per event with how long it took. Events cover keys and the
-  mode each ran in, command lines and messages. They also cover frames,
-  parses, language server and debug adapter messages and answers, and
-  module and plugin calls. Files read, written, renamed or deleted, the
+  mode each ran in, command lines, messages and questions. They also
+  cover frames, parses, language server and debug adapter messages and
+  answers, and module and plugin calls. Files read, written, renamed or deleted, the
   programs fude runs and the URLs it gets, terminals, client calls, guests
   joining and leaving, and log lines are events too. A job shows when it
   starts and ends, with the id of the callback it runs. A line an

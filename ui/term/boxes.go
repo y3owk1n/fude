@@ -126,6 +126,30 @@ func (c *client) toast(msg string, left, right, h int) {
 	}
 }
 
+// confirm draws q, a yes or no question, in a box in the middle of a
+// screen w columns by h rows, with the keys that answer it under a rule
+// (B362).
+func (c *client) confirm(q string, w, h int) {
+	longest := 0
+	for l := range strings.SplitSeq(q, "\n") {
+		longest = max(longest, displaywidth.String(l))
+	}
+	inner := max(min(max(longest, 30)+2, 60, w-4), 4)
+	rows, _ := wrap(q, nil, inner-2)
+	left, top := (w-inner-2)/2, max((h-len(rows)-4)/2, 0)
+	c.panel(left, top, inner, len(rows)+2)
+	for i, r := range rows {
+		c.putClipped(left+2, top+1+i, left+inner+1, part{q[r.start:r.end], base.Bold(true)})
+	}
+	y := top + 1 + len(rows)
+	c.rule(left, y, inner)
+	key, label := base.Foreground(th.cmd).Bold(true), base.Foreground(th.muted)
+	x := left + 2
+	for _, p := range []part{{"y", key}, {" yes   ", label}, {"n", key}, {" no", label}} {
+		x = c.putClipped(x, y+1, left+inner+1, p)
+	}
+}
+
 // float draws f in a bordered box at the cursor, cx and cy, below its line,
 // or above it when there is more room there, at most 80 columns and 20 rows.
 // Its documentation goes in a box beside it. The windows cover the columns

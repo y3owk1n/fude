@@ -35,6 +35,7 @@ type Session interface {
 	LineCursor() int
 	Mode() vim.Mode
 	Message() string
+	Confirm() string
 	Selection() (vim.Selection, bool)
 	Cursors() []int
 	Recording() rune

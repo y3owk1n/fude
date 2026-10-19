@@ -22,6 +22,7 @@ type Frame struct {
 	LineCursor   int            `json:",omitempty"`
 	Mode         vim.Mode       `json:",omitempty"`
 	Message      string         `json:",omitempty"`
+	Confirm      string         `json:",omitempty"` // the yes or no question showing (B362)
 	Selection    *vim.Selection `json:",omitempty"`
 	Cursors      []int          `json:",omitempty"`
 	Recording    rune           `json:",omitempty"`

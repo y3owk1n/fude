@@ -199,12 +199,11 @@ func (e *Session) write(b *buffer, force bool, then func()) {
 		e.message = fmt.Sprintf("\"%s\" is read-only", b.file.path)
 		return
 	case !force && b.file.changed():
-		e.message = fmt.Sprintf("\"%s\" changed on disk since fude read it, write anyway? (y/n)", b.file.path)
-		e.ask = func(yes bool) {
+		e.confirm(fmt.Sprintf("\"%s\" changed on disk since fude read it, write anyway?", b.file.path), func(yes bool) {
 			if yes {
 				e.write(b, true, then)
 			}
-		}
+		})
 		return
 	}
 	// The modules that hear buffer.saving change the text first (B282).

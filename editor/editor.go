@@ -100,7 +100,7 @@ type Session struct {
 	restarting  string                  // the session file :restart saved, for main (B170)
 	keyFloat    *api.Float              // the key hints a module shows, while they show (B172, B326)
 	pendingKeys string                  // the command being typed the modules last heard of (B326)
-	ask         question                // takes the answer to the question in the message
+	ask         *question               // the yes or no question showing until y or n answers it (B362)
 	jumpTo      *jumpTo                 // where a plugin's call asked to move the cursor, after the key
 	actions     []func()                // what modules' results asked of buffers and windows, after the key (B343)
 	lastList    *api.Places             // the last list of places, which modules/places shows (B347)
@@ -1145,7 +1145,7 @@ type overlay interface {
 
 // overlays are what may take a key, in the order they get it.
 func (e *Session) overlays() []overlay {
-	return []overlay{e.capture, e.finder, terminalMode{}, &e.completion, e.snip, e.pick, &e.float, e.ask, boxKeys{}, &e.cmdline}
+	return []overlay{e.capture, e.ask, e.finder, terminalMode{}, &e.completion, e.snip, e.pick, &e.float, boxKeys{}, &e.cmdline}
 }
 
 // floating is text shown over the windows at the cursor, such as hover,
@@ -1166,16 +1166,37 @@ func (f *floating) key(*Session, vim.Key) bool {
 	return false
 }
 
-// question is what takes the answer to a question in the message area.
-type question func(yes bool)
+// question is a yes or no question in a box in the middle of the screen,
+// which only y and n answer (B362).
+type question struct {
+	text   string
+	answer func(yes bool)
+}
 
-// key answers the question with k, y for yes.
-func (q question) key(e *Session, k vim.Key) bool {
+// confirm asks text, a yes or no question, and gives answer the reply.
+func (e *Session) confirm(text string, answer func(yes bool)) {
+	e.record("ask", text, 0)
+	e.ask = &question{text, answer}
+}
+
+// Confirm returns the yes or no question showing, or "" (B362).
+func (e *Session) Confirm() string {
+	if e.ask == nil {
+		return ""
+	}
+	return e.ask.text
+}
+
+// key answers q with y or n, and takes every other key so that it does
+// nothing.
+func (q *question) key(e *Session, k vim.Key) bool {
 	if q == nil {
 		return false
 	}
-	e.ask = nil
-	q(k == "y")
-	e.reveal()
+	if k == "y" || k == "n" {
+		e.ask = nil
+		q.answer(k == "y")
+		e.reveal()
+	}
 	return true
 }

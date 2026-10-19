@@ -797,7 +797,10 @@ of the way down the screen and at most 60 columns wide, and the
 completion menu under it, so the editor gives the menu's `Float` no place
 of its own (B148). The last message is a toast in the top right corner,
 drawn while `Message` returns it, so it goes with the next key as before
-(B149). With both off the last row, `SetSize` gives the windows the whole
+(B149). A yes or no question is not a message. The editor asks every one
+through `confirm`, and `Confirm` returns it until `y` or `n` answers. The
+client draws it in a box in the middle of the screen over dimmed windows
+(B362). With both off the last row, `SetSize` gives the windows the whole
 screen.
 
 Every box is a `panel`: a rounded border on the editor's ground, cleared

@@ -85,8 +85,8 @@ func TestB125EditExplorer(t *testing.T) {
 	e.Use(buffers.New())
 	// a.txt becomes z.txt, b.txt and old/ go, and new.txt and new/ come.
 	editortest.Feed(e, "-ggcwz<Esc>jddjjddOnew.txt<CR>new/<Esc>:w<CR>")
-	if want := "rename a.txt to z.txt, delete b.txt, delete old/ and its 2 files, create new.txt, create new/? (y/n)"; e.Message() != want {
-		t.Fatalf(":w asked %q, want %q", e.Message(), want)
+	if want := "rename a.txt to z.txt, delete b.txt, delete old/ and its 2 files, create new.txt, create new/?"; e.Confirm() != want {
+		t.Fatalf(":w asked %q, want %q", e.Confirm(), want)
 	}
 	if editortest.Feed(e, "n"); disk(t, filepath.Join(dir, "a.txt")) != "a.txt\n" {
 		t.Fatal("answering n changed the directory")

@@ -284,7 +284,7 @@ func (c changes) ask(dir string) string {
 	for _, name := range c.creates {
 		parts = append(parts, "create "+name)
 	}
-	return strings.Join(parts, ", ") + "? (y/n)"
+	return strings.Join(parts, ", ") + "?"
 }
 
 // files counts the files below dir.

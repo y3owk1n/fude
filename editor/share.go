@@ -282,11 +282,9 @@ func (e *Session) letIn(name string, hello Hello, admitted chan<- *Session) erro
 	if hello.ReadOnly {
 		power, as = ReadOnly, " read-only"
 	}
-	host.message = name + " wants to join" + as + ", let them in? (y/n)"
-	host.ask = func(yes bool) {
+	host.confirm(name+" wants to join"+as+", let them in?", func(yes bool) {
 		sh.waiting = false
 		if !yes {
-			host.message = ""
 			admitted <- nil
 			return
 		}
@@ -300,7 +298,7 @@ func (e *Session) letIn(name string, hello Hello, admitted chan<- *Session) erro
 		host.message = s.name + " joined"
 		trace.Record("share", s.name+" joined"+as, 0)
 		admitted <- s
-	}
+	})
 	return nil
 }
 

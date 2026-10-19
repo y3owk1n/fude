@@ -213,8 +213,8 @@ func TestB81WriteAsksWhenDiskChanged(t *testing.T) {
 	feed(e, "x")
 	change(t, path, "disk\n")
 	feed(e, ":w<CR>")
-	if !strings.Contains(e.Message(), "changed on disk") || disk(t, path) != "disk\n" {
-		t.Fatalf(":w said %q and left %q, want a question and the disk text", e.Message(), disk(t, path))
+	if !strings.Contains(e.Confirm(), "changed on disk") || disk(t, path) != "disk\n" {
+		t.Fatalf(":w asked %q and left %q, want a question and the disk text", e.Confirm(), disk(t, path))
 	}
 	feed(e, "n")
 	if disk(t, path) != "disk\n" {

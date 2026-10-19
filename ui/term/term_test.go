@@ -22,6 +22,7 @@ import (
 	"github.com/gdamore/tcell/v3/vt"
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/editor"
+	"github.com/y3owk1n/fude/editor/editortest"
 	"github.com/y3owk1n/fude/internal/relay"
 	bufferlinemod "github.com/y3owk1n/fude/modules/bufferline"
 	buffersmod "github.com/y3owk1n/fude/modules/buffers"
@@ -1119,6 +1120,42 @@ func TestB151Tint(t *testing.T) {
 	t.Fatal("the typed text is not on the screen")
 }
 
+// B362
+func TestB362Confirm(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "f")
+	editortest.Change(t, path, "one\n")
+	cl := start(t, path)
+	feed := func(keys string) {
+		for _, k := range vim.Keys(keys) {
+			cl.e.Feed(k)
+		}
+	}
+	feed("x")
+	editortest.Change(t, path, "disk\n")
+	feed(":w<CR>")
+	// The question is in a box in the middle of the screen, with its keys.
+	cl.draw()
+	w, h := cl.s.Size()
+	rows := make([]string, h)
+	for y := range h {
+		for x := range w {
+			s, _, _ := cl.s.Get(x, y)
+			rows[y] += s
+		}
+	}
+	at := slices.IndexFunc(rows, func(r string) bool { return strings.Contains(r, "write anyway?") })
+	if at < h/4 || at > h*3/4 || !strings.Contains(rows[at+2], "y yes   n no") {
+		t.Fatalf("the question is on row %d of:\n%s", at, strings.Join(rows, "\n"))
+	}
+	// Only y and n answer it.
+	if feed("x<Esc>:q<CR>"); cl.e.Confirm() == "" || cl.e.Done() {
+		t.Fatal("a key other than y or n answered the question")
+	}
+	if feed("n"); cl.e.Confirm() != "" {
+		t.Fatalf("n left the question %q up", cl.e.Confirm())
+	}
+}
+
 // B153
 func TestB153IndentGuides(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "f.txt")
@@ -1415,8 +1452,8 @@ func asked(t *testing.T, host *editor.Session, on func(func()), name string) {
 	t.Helper()
 	for deadline := time.Now().Add(5 * time.Second); ; time.Sleep(time.Millisecond) {
 		var msg string
-		on(func() { msg = host.Message() })
-		if msg == name+" wants to join, let them in? (y/n)" {
+		on(func() { msg = host.Confirm() })
+		if msg == name+" wants to join, let them in?" {
 			return
 		}
 		if time.Now().After(deadline) {
@@ -1944,8 +1981,8 @@ func TestB255JoinReadOnly(t *testing.T) {
 	// The host's question says the guest asks to be read-only.
 	for deadline := time.Now().Add(5 * time.Second); ; time.Sleep(time.Millisecond) {
 		var msg string
-		on(func() { msg = host.Message() })
-		if msg == "kyle wants to join read-only, let them in? (y/n)" {
+		on(func() { msg = host.Confirm() })
+		if msg == "kyle wants to join read-only, let them in?" {
 			break
 		}
 		if time.Now().After(deadline) {

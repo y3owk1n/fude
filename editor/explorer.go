@@ -195,16 +195,14 @@ func (e *Session) writeKind(b *buffer, then func()) {
 			return
 		}
 	}
-	e.message = res.Confirm.Question
-	e.ask = func(yes bool) {
+	e.confirm(res.Confirm.Question, func(yes bool) {
 		if !yes {
-			e.message = ""
 			return
 		}
 		if res, ok := call(true); ok {
 			done(res)
 		}
-	}
+	})
 }
 
 // entryList is where b's entries are now (B327).
