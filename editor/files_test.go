@@ -360,8 +360,9 @@ func TestB204PathExpansion(t *testing.T) {
 	if disk(t, filepath.Join(dir, "c.bak")) != "C\n" || disk(t, filepath.Join(dir, "x%y")) != "C\n" {
 		t.Errorf(":w %%:r.bak and :w %%:h/x\\%%y did not write c.bak and x%%y")
 	}
+	// Completion keeps the / typed after the folder, on Windows too.
 	feed(e, ":e %:h/c.t<Tab>")
-	settle(t, e, func() bool { return e.Line() == ":e "+c })
+	settle(t, e, func() bool { return e.Line() == ":e "+dir+"/c.txt" })
 	feed(e, "<Esc>:enew<CR>:e %<CR>")
 	if !strings.Contains(e.Message(), "no file for %") {
 		t.Errorf("an unnamed buffer's :e %% said %q", e.Message())

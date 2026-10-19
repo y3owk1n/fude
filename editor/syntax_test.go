@@ -230,7 +230,13 @@ func TestB165BuiltGrammar(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	data := t.TempDir()
+	// Windows will not delete the library fude loads, so the folder may
+	// outlive the test.
+	data, err := os.MkdirTemp("", "fude-grammar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(data) })
 	t.Setenv("XDG_DATA_HOME", data)
 	out := filepath.Join(data, "fude", "grammars", "gotest")
 	if err := os.CopyFS(filepath.Join(out, "queries"), os.DirFS(filepath.Join(strings.TrimSpace(string(mod)), "queries"))); err != nil {
@@ -254,7 +260,7 @@ func TestB165BuiltGrammar(t *testing.T) {
 	if err := os.MkdirAll(old, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	change(t, filepath.Join(old, "0000000-1.so"), "")
+	change(t, filepath.Join(old, "0000000-1"+filepath.Ext(syntax.Library("", "toml"))), "")
 	if feed(e, ":grammar<CR>"); !strings.Contains(text(e), "toml         outdated") {
 		t.Fatalf(":grammar listed %q, want toml outdated", text(e))
 	}
