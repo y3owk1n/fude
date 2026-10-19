@@ -501,10 +501,12 @@ Where fude departs, the line says so and cites the departure in
   keeping one of lines that sort the same. `:join` joins its range, or the
   line and the next, and `!` adds no spaces. `:retab` rewrites leading
   blanks as `expand_tab` says, as tabs only with `!`. `:!cmd` shows what a
-  shell command writes, `:{range}!cmd` puts its lines through the command,
-  and `:r file` and `:r !cmd` put a file or a command's output below the
-  line. A range that changes while its command runs keeps the change, and
-  the message says so.
+  shell command writes, in the shell `:terminal` runs (B205). PowerShell
+  runs it without its profile, as `sh -c` reads no startup file.
+  `:{range}!cmd` puts its lines through the command, and `:r file` and
+  `:r !cmd` put a file or a command's output below the line. A range that
+  changes while its command runs keeps the change, and the message says
+  so.
 - B157 [2] `:messages` lists the session's last 200 messages in a window,
   oldest first, since a toast goes away with the next key. `:marks`,
   `:jumps` and `:changes` list the buffer's marks, the window's jumps and
@@ -739,6 +741,9 @@ Where fude departs, the line says so and cites the departure in
   none, and neither do centered windows, since it is their edge (B199).
 - B205 [2] `:terminal` runs the shell, and `:terminal cmd` runs `cmd`
   through it, in a terminal window below, in terminal mode (N29). The
+  shell is `SHELL`, or `/bin/sh` without it. On Windows it is `SHELL` when
+  Windows can run it, which Git Bash's `/usr/bin/bash` is not, or else
+  `pwsh`, or else Windows PowerShell, in a pseudo console. The
   window opens `terminal_height` percent of the screen tall, 33 unless set. In terminal mode every key and paste goes to the
   program, the window shows its screen in its colours, and the status line
   says TERMINAL. The program's terminal is the window's size and follows

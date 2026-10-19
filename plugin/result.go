@@ -7,9 +7,12 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"slices"
+	"strings"
 
 	"github.com/tetratelabs/wazero/api"
 
@@ -147,7 +150,7 @@ func (p *Plugin) check(r *fude.Result) int32 {
 	// A terminal's command runs through the shell, so the shell is the
 	// program it runs.
 	if r.Terminal != nil {
-		if shell := filepath.Base(cmp.Or(os.Getenv("SHELL"), "/bin/sh")); !slices.Contains(p.Programs, shell) {
+		if shell := shellName(); !slices.Contains(p.Programs, shell) {
 			p.log(fmt.Sprintf("%s: a terminal runs %s, which it did not declare", p.name, shell))
 			return errRun
 		}
@@ -224,4 +227,19 @@ func add(dst *fude.Result, r fude.Result) {
 			to.Set(f)
 		}
 	}
+}
+
+// shellName is the name of the program a terminal runs, which fude's
+// internal/shell picks the same way: SHELL, or else sh, and on Windows SHELL
+// when Windows can run it, or else pwsh, or else powershell.
+func shellName() string {
+	if runtime.GOOS != "windows" {
+		return filepath.Base(cmp.Or(os.Getenv("SHELL"), "/bin/sh"))
+	}
+	for _, name := range []string{os.Getenv("SHELL"), "pwsh", "powershell"} {
+		if path, err := exec.LookPath(name); name != "" && err == nil {
+			return strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
+		}
+	}
+	return "powershell"
 }

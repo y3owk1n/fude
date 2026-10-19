@@ -5,7 +5,6 @@ package shell
 
 import (
 	"bytes"
-	"cmp"
 	"context"
 	"fmt"
 	"os"
@@ -16,6 +15,7 @@ import (
 	"time"
 
 	"github.com/y3owk1n/fude/api"
+	sh "github.com/y3owk1n/fude/internal/shell"
 	"github.com/y3owk1n/fude/internal/trace"
 )
 
@@ -166,7 +166,8 @@ func (m *Module) Callback(_ context.Context, id uint32, s api.Scope) (api.Result
 
 // Work runs the command in the user's shell, with its input on stdin.
 func (m *Module) Work(ctx context.Context, j api.Job) (string, error) {
-	c := exec.CommandContext(ctx, cmp.Or(os.Getenv("SHELL"), "sh"), "-c", j.Argv[0])
+	argv := sh.Command(j.Argv[0])
+	c := exec.CommandContext(ctx, argv[0], argv[1:]...)
 	c.Stdin = strings.NewReader(j.Input)
 	var stderr bytes.Buffer
 	c.Stderr = &stderr

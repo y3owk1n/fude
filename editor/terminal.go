@@ -18,6 +18,7 @@ import (
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/internal/pty"
+	"github.com/y3owk1n/fude/internal/shell"
 	"github.com/y3owk1n/fude/vim"
 	"github.com/y3owk1n/fude/wire"
 )
@@ -104,23 +105,19 @@ func (e *Session) terminalWindow(b *buffer) {
 // title is the module's name and task.
 func (e *Session) openTerminal(arg string, owner api.Module, task string) {
 	from := e.win
-	shell := cmp.Or(os.Getenv("SHELL"), "/bin/sh")
-	argv := []string{shell}
-	if arg != "" {
-		argv = append(argv, "-c", arg)
-	}
+	argv := shell.Command(arg)
 	if _, err := e.add(""); err != nil {
 		e.message = err.Error()
 		return
 	}
 	b := e.bufs[len(e.bufs)-1]
 	b.file.readonly = true
-	b.title = "[terminal " + cmp.Or(arg, shell) + "]"
+	b.title = "[terminal " + cmp.Or(arg, argv[0]) + "]"
 	if owner != nil {
 		b.title = "[" + owner.Name() + " " + task + "]"
 	}
 	e.terminalWindow(b)
-	t := &terminal{name: cmp.Or(arg, shell), typing: true, cols: max(e.win.w, 1), rows: max(e.win.h-1, 1), owner: owner, task: task, started: time.Now()}
+	t := &terminal{name: cmp.Or(arg, argv[0]), typing: true, cols: max(e.win.w, 1), rows: max(e.win.h-1, 1), owner: owner, task: task, started: time.Now()}
 	t.em = vt.NewEmulator(t.cols, t.rows)
 	t.cmd = exec.Command(argv[0], argv[1:]...)
 	t.cmd.Env = append(os.Environ(), "TERM=xterm-256color")
