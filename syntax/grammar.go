@@ -1,13 +1,12 @@
 package syntax
 
 /*
-#cgo linux LDFLAGS: -ldl
-#include <dlfcn.h>
+#include <stdint.h>
 #include <stdlib.h>
 
-// language calls the function a grammar's library exports, which returns
-// its language.
-static const void *language(void *f) { return ((const void *(*)(void))f)(); }
+// language calls the function a grammar's library exports, at f, which
+// returns its language.
+static const void *language(uintptr_t f) { return ((const void *(*)(void))f)(); }
 
 // ts_set_allocator is in the tree-sitter library the binding links in.
 void ts_set_allocator(void *(*)(size_t), void *(*)(size_t, size_t), void *(*)(void *, size_t), void (*)(void *));
@@ -143,13 +142,14 @@ const buildVersion = 2
 
 // Library is the file of filetype's grammar in dir: named for the commit
 // fude pins and the build version, so a new pin or version needs a new
-// build, or parser.so for a grammar fude does not know.
+// build, or parser.so for a grammar fude does not know. On Windows the
+// library ends in .dll.
 func Library(dir, filetype string) string {
 	name := "parser"
 	if g, ok := registry[filetype]; ok {
 		name = fmt.Sprintf("%s-%d", g.commit, buildVersion)
 	}
-	return filepath.Join(dir, filetype, name+".so")
+	return filepath.Join(dir, filetype, name+libExt)
 }
 
 // lookup returns filetype's language, loaded from its built grammar, or
@@ -178,19 +178,11 @@ func lookup(filetype string) (*language, bool, error) {
 // load opens the grammar library at path, which fude never closes, and
 // reads the queries beside it.
 func load(path, filetype string) (*language, error) {
-	cpath, csym := C.CString(path), C.CString("tree_sitter_"+filetype)
-	defer C.free(unsafe.Pointer(cpath))
-	defer C.free(unsafe.Pointer(csym))
-	h := C.dlopen(cpath, C.RTLD_NOW|C.RTLD_LOCAL)
-	if h == nil {
-		return nil, fmt.Errorf("load the %s grammar: %s", filetype, C.GoString(C.dlerror()))
+	f, err := openLibrary(path, "tree_sitter_"+filetype)
+	if err != nil {
+		return nil, fmt.Errorf("load the %s grammar: %w", filetype, err)
 	}
-	f := C.dlsym(h, csym)
-	if f == nil {
-		C.dlclose(h)
-		return nil, fmt.Errorf("load the %s grammar: %s has no tree_sitter_%s", filetype, path, filetype)
-	}
-	l := &language{lang: ts.NewLanguage(unsafe.Pointer(C.language(f))), comment: registry[filetype].comment}
+	l := &language{lang: ts.NewLanguage(unsafe.Pointer(C.language(C.uintptr_t(f)))), comment: registry[filetype].comment}
 	read := func(name string) (string, error) {
 		b, err := os.ReadFile(filepath.Join(filepath.Dir(path), "queries", name+".scm"))
 		if errors.Is(err, fs.ErrNotExist) {
@@ -201,7 +193,6 @@ func load(path, filetype string) (*language, error) {
 		}
 		return string(b), nil
 	}
-	var err error
 	if l.highlights, err = read("highlights"); err != nil {
 		return nil, err
 	}
@@ -326,7 +317,7 @@ func Build(filetype string) error {
 		return fmt.Errorf("build the %s grammar: %w", filetype, err)
 	}
 	// Libraries of older pins go, as nothing loads them now.
-	old, _ := filepath.Glob(filepath.Join(out, "*-*.so"))
+	old, _ := filepath.Glob(filepath.Join(out, "*-*"+libExt))
 	for _, p := range old {
 		if p != lib {
 			if err := os.Remove(p); err != nil {
@@ -353,7 +344,7 @@ func Grammars() []Grammar {
 		state := "not built"
 		if _, err := os.Stat(Library(dir, ft)); err == nil {
 			state = "built"
-		} else if old, _ := filepath.Glob(filepath.Join(dir, ft, "*-*.so")); len(old) > 0 {
+		} else if old, _ := filepath.Glob(filepath.Join(dir, ft, "*-*"+libExt)); len(old) > 0 {
 			// It was built at an older pin, or by an older fude.
 			state = "outdated"
 		}
