@@ -32,6 +32,7 @@ import (
 type Editor struct {
 	bufs     []*buffer
 	next     int // the id the next buffer gets
+	joined   int // how many sessions joined, which numbers the next (B332)
 	cfg      config
 	styles   map[string]wire.Style // the styles modules defined, by name (B345)
 	restyled int                   // how many times they changed
@@ -83,6 +84,7 @@ type Editor struct {
 type Session struct {
 	*Editor
 	origin      kernel.Origin
+	id          int                 // what modules know it by, which no other session of this fude has (B332)
 	power       Power               // how much the session may do (B243)
 	name        string              // who uses the session, "" for a client that sent none (B252)
 	leader      string              // what <Leader> in a plugin's keys stands for, a guest's own (B254)
@@ -199,6 +201,8 @@ func (ed *Editor) Attach(o kernel.Origin, p Power) *Session {
 // join gives the session a machine with everything sessions get, and one
 // window on the first session's buffer, or the first buffer.
 func (e *Session) join() {
+	e.joined++
+	e.id = e.joined
 	e.leader = e.cfg.Leader
 	e.vim = vim.New(host{e})
 	for _, f := range e.setup {

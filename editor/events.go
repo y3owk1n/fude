@@ -24,7 +24,7 @@ type event struct {
 	extra        api.Context // what a callback's context adds, such as a job's output
 	start, end   int         // the range buffer.changed covers, in the text after it
 	save         *saving     // the write that waits for this event, or nil (B282)
-	from         *Session    // the session whose call asked for this callback, or nil
+	from         *Session    // the session whose call asked for this callback or made this event, or nil
 }
 
 // listener hands one plugin the events it subscribed to, one at a time, off
@@ -44,6 +44,12 @@ type listener struct {
 // emit tells every plugin subscribed to name of b.
 func (ed *Editor) emit(name, detail string, b *buffer) {
 	ed.emitTo(event{name: name, detail: detail, buf: b})
+}
+
+// emit tells every plugin subscribed to name of b. The plugin hears it as
+// this session's (B332).
+func (e *Session) emit(name, detail string, b *buffer) {
+	e.emitTo(event{name: name, detail: detail, buf: b, from: e})
 }
 
 // emitTo tells every plugin subscribed to ev's name of it, and returns how
