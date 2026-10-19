@@ -10,11 +10,11 @@ import (
 	"github.com/y3owk1n/fude/editor"
 	buffersmod "github.com/y3owk1n/fude/modules/buffers"
 	"github.com/y3owk1n/fude/modules/debug"
+	explorermod "github.com/y3owk1n/fude/modules/explorer"
 	filesmod "github.com/y3owk1n/fude/modules/files"
 	"github.com/y3owk1n/fude/modules/format"
 	gitmod "github.com/y3owk1n/fude/modules/git"
 	grammarsmod "github.com/y3owk1n/fude/modules/grammars"
-	listingmod "github.com/y3owk1n/fude/modules/listing"
 	listsmod "github.com/y3owk1n/fude/modules/lists"
 	sessionsmod "github.com/y3owk1n/fude/modules/sessions"
 	shellmod "github.com/y3owk1n/fude/modules/shell"
@@ -184,7 +184,7 @@ func TestB245GuestProject(t *testing.T) {
 	}
 	e := withCommands(open(t, "a.txt"))
 	e.Use(listsmod.New())
-	e.Use(listingmod.New())
+	e.Use(explorermod.New())
 	e.Use(filesmod.New())
 	e.Use(shellmod.New())
 	// A guest that joins while the host shows a file outside starts on one
@@ -215,7 +215,7 @@ func TestB245GuestProject(t *testing.T) {
 	if v := guest.Views(); len(v) != 1 || v[0].Name != "a.txt" || text(guest) != "a" {
 		t.Errorf("a guest's paths outside left %d windows, on %q holding %q", len(v), v[0].Name, text(guest))
 	}
-	// The only buffer the guest's paths opened is the project's listing.
+	// The only buffer the guest's paths opened is the project's explorer.
 	if feed(e, ":ls<CR>"); !strings.HasPrefix(e.Message(), buffers+"  ") || strings.Count(e.Message(), "  ") != strings.Count(buffers, "  ")+1 {
 		t.Errorf("a guest's paths outside left the buffers %s, from %s", e.Message(), buffers)
 	}

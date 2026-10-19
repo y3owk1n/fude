@@ -310,7 +310,7 @@ func (e *Session) went() {
 	switch {
 	case g == nil:
 	case g.Path != "":
-		// A file shows in a window that shows a file or a listing, not in a
+		// A file shows in a window that shows a file or an explorer, not in a
 		// panel's.
 		onFile := func(w *window) bool { return w.buf.title == "" || w.buf.listed != "" }
 		if !onFile(e.win) {
@@ -698,8 +698,8 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 		e.moved(m[0], m[1])
 		// Each move is an event of its own, so a listener never merges two (B346).
 		for _, l := range e.listeners {
-			if slices.Contains(l.p.Subscribed(), "listing.moved") {
-				l.add(event{name: "listing.moved", buf: b, extra: api.Context{"from": m[0], "to": m[1]}, from: e})
+			if slices.Contains(l.p.Subscribed(), "explorer.moved") {
+				l.add(event{name: "explorer.moved", buf: b, extra: api.Context{"from": m[0], "to": m[1]}, from: e})
 			}
 		}
 	}
@@ -1282,7 +1282,7 @@ func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 		s.About["title"] = b.title
 	}
 	if b.listed != "" {
-		s.About["listing"] = b.listed
+		s.About["explorer"] = b.listed
 	}
 	// The decorations are listed now, on the loop, as a module reads its
 	// scope off it.

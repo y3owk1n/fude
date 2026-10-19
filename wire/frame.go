@@ -74,7 +74,7 @@ type View struct {
 	SignCols          int               // the columns of the sign column, at the gutter's left
 	Signs             map[int]Sign      // by line, the sign each one shows (B119)
 	Notes             map[int]Note      // by line, text after its end (B127, B184)
-	Icons             map[int]Sign      // by line, a listing's icon at the gutter's right (B128)
+	Icons             map[int]Sign      // by line, an explorer's icon at the gutter's right (B128)
 	Number, Relative  bool              // show line numbers, and relative ones (B39)
 	Wrap              bool              // long lines go on the rows below
 	CursorLine        bool              // shade the cursor's line (B117)

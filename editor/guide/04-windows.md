@@ -35,14 +35,14 @@ windows too, and inside tmux they move to the next tmux pane when no
 window is that way. No key is mapped to them, so map them, such as
 `"<C-h>" = "<Plug>(window.left)"`.
 
-## Listings
+## Explorers
 
 `-` lists the current file's folder, as a buffer of its entries' names.
 `<CR>` opens the entry under the cursor, `<C-s>` opens it in a split
 beside and `<C-h>` below, and `-` goes up a folder. `_` lists the working
 directory, and `<C-l>` reads the folder again.
 
-Editing a listing and writing it with `:w` changes the folder. A changed
+Editing an explorer and writing it with `:w` changes the folder. A changed
 name renames the entry, a deleted line deletes it, and a new line creates
 a file, or a folder when it ends in `/`. fude asks before each change.
 
@@ -72,7 +72,7 @@ where you left it. The status line shows a pinned file's place, such as
 `2/4`. `<Leader>h` or `:pin list` shows the pins one to a line. Move,
 delete or type lines and `:w` keeps them, `<CR>` opens one and `q`
 closes the list. `:pin remove` takes the current file off, and a pin follows its
-file when a listing renames it.
+file when an explorer renames it.
 
 ## Tasks
 

@@ -18,14 +18,14 @@ import (
 )
 
 // What files registers, by the ids Call runs them by, and the picks its
-// lists show in. A listing's job has an id from listings up.
+// lists show in. A walk's job has an id from walks up.
 const (
 	filesSrc uint32 = iota + 1
 	buffersSrc
-	listings uint32 = 100
+	walks uint32 = 100
 )
 
-// Module is files. It keeps the job of the newest listing asked for.
+// Module is files. It keeps the job of the newest walk asked for.
 type Module struct {
 	mu     sync.Mutex
 	newest uint32
@@ -55,7 +55,7 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, _ ...int) (api.
 	if id == buffersSrc {
 		var paths []string
 		for _, id := range slices.Sorted(maps.Keys(s.Buffers)) {
-			// A listing's path is its directory.
+			// An explorer's path is its directory.
 			if p := s.Buffers[id].Path; p != "" && strconv.Itoa(id) != s.About["buffer"] {
 				if info, err := os.Stat(p); err != nil || !info.IsDir() {
 					paths = append(paths, p)
@@ -70,9 +70,9 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, _ ...int) (api.
 }
 
 // list starts a job that lists the files, the ignored ones too with all.
-// Only the newest listing fills the finder.
+// Only the newest walk fills the finder.
 func (m *Module) list(all bool) api.Result {
-	m.newest = max(m.newest+1, listings)
+	m.newest = max(m.newest+1, walks)
 	return api.Result{Jobs: []api.Job{{ID: m.newest, Argv: []string{strconv.FormatBool(all)}}}}
 }
 
@@ -81,7 +81,7 @@ func (m *Module) Event(context.Context, string, api.Scope) (api.Result, error) {
 }
 
 // Callback lists the files again when <C-g> turns the ignored ones on or
-// off, and fills the finder with the newest listing.
+// off, and fills the finder with the newest walk.
 func (m *Module) Callback(_ context.Context, id uint32, s api.Scope) (api.Result, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

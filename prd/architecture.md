@@ -374,12 +374,12 @@ machine reads no clock, so the host waits its key timeout and calls
 `Timeout` if no key comes first. A macro replays its keys through the
 keymap, and dot repeat replays the keys the mapping ran.
 
-A kind of buffer, such as a listing, has a `vim.Keymaps` of its own, which
+A kind of buffer, such as an explorer, has a `vim.Keymaps` of its own, which
 the editor lays over the machine's with `Machine.UseLocal` before each key.
 The machine walks both tries: a local mapping runs as soon as its keys are
 typed (N17), and otherwise the longer mapping runs, the local one on a tie,
 as Neovim's `<buffer>` mappings win. A buffer's actions, such as a
-listing's open and split, are `<Plug>` commands its keymap maps keys to,
+explorer's open and split, are `<Plug>` commands its keymap maps keys to,
 so a config table can move or drop each one. `""` in a table unmaps, which
 for a local key lets the global mapping through, and `<Nop>` maps a key to
 nothing. The finder's keymap is an insert mode one, so the machine runs a
@@ -478,7 +478,7 @@ column, which a jump opens at (B357). Its status segments are its
 session's own, and a change to the pins sets them on every pinned buffer
 by id (B359). `:pin list` opens a `Scratch` of kind `pins`, and the
 module's `Write` reads the buffer's lines as the new list (B358). It
-hears `listing.moved` for files that are not open (B360).
+hears `explorer.moved` for files that are not open (B360).
 
 `modules/window` is `<Plug>(window.*)`. `Scope.Window` says whether a
 window is next to the current one that way, and the result's `Window`
@@ -615,11 +615,11 @@ or the view, `mode.changed`, `syntax.updated` when a parse lands,
 after `:config reload` and `option.set` with the name `:set` set (B331), `keys.pending`
 when the command being typed changes (B326), `editor.quitting`
 as it quits, on the loop (B325),
-`listing.read` when a listing reads its directory, as it opens,
+`explorer.read` when an explorer reads its directory, as it opens,
 reads it again or the terminal gets the focus back (B126), `buffer.saving`
 before a write, which waits for its handlers and
 their callbacks or `format_timeout` (B282), `cwd.changed` after `:cd`,
-`buffer.renamed` with the old path after a listing renames a buffer's
+`buffer.renamed` with the old path after an explorer renames a buffer's
 file, and a plugin's own events, named `plugin.event`, which it emits with
 `emit`. After each key and each module's result, the editor compares the
 windows, the current window, the search, the macro being recorded, the
@@ -877,9 +877,9 @@ The client keeps a cell grid, diffs it against the previous frame, and
 writes only the changed cells in one write. It wraps each frame in
 synchronized output where the terminal supports it.
 
-## Listings
+## Explorers
 
-`:e dir`, `fude dir` and `-` open a directory as a listing: a buffer of
+`:e dir`, `fude dir` and `-` open a directory as an explorer: a buffer of
 its entries' names in the order `os.ReadDir` gives them, directories with a
 trailing `/`, as Neovim's built-in `dir` plugin lists them. The buffer's
 name is the directory with a trailing `/`, and it has no file. Its windows
@@ -887,25 +887,25 @@ show no line numbers and always keep a sign column, as Neovim's directory
 ftplugin sets them. A directory already listed shows its buffer as it was
 left, and `<C-l>` reads it again.
 
-The editor reads a directory into a listing, as it reads a file into a
-buffer. What a listing does is `modules/listing`'s. Its plugs come with their keys as `Keys`, and the
-listing's own with `In` set to `listing`, under `[keymap.listing]`. An
-entry opens through a `Jump`, which may `Split` the window, and a listing
+The editor reads a directory into an explorer, as it reads a file into a
+buffer. What an explorer does is `modules/explorer`'s. Its plugs come with their keys as `Keys`, and the
+explorer's own with `In` set to `explorer`, under `[keymap.explorer]`. An
+entry opens through a `Jump`, which may `Split` the window, and an explorer
 counts as a window on a file there. `<C-l>` is `:e!`, which reads a
-listing's directory again (B327).
+explorer's directory again (B327).
 
-`-` is mapped in normal mode to `<Plug>(listing.up)`, in place of the `-`
+`-` is mapped in normal mode to `<Plug>(explorer.up)`, in place of the `-`
 motion, as Neovim does by default: it lists the directory holding the
-current file or listing, `N-` goes up N levels, and `1-` lists the working
-directory. The module opens each listing, by `-`, `_` or an entry, with
-the cursor on the entry that leads to the current file or listing. It sets
-the `Jump`'s line for that. A listing takes oil.nvim's
+current file or explorer, `N-` goes up N levels, and `1-` lists the working
+directory. The module opens each explorer, by `-`, `_` or an entry, with
+the cursor on the entry that leads to the current file or explorer. It sets
+the `Jump`'s line for that. An explorer takes oil.nvim's
 keys, while the machine is between commands: `<CR>` opens the entry under
 the cursor, `<C-s>` and `<C-h>` open it in a split beside or below, and
-`_` lists the working directory. `R` stays replace mode, as a listing is
+`_` lists the working directory. `R` stays replace mode, as an explorer is
 text to edit (B124).
 
-A listing is text to edit, as oil.nvim's buffers are. Reading a listing
+An explorer is text to edit, as oil.nvim's buffers are. Reading an explorer
 puts two marks on each entry. Text inserted at the start mark goes before
 it, and text inserted at the end mark goes after it. A line added beside
 an entry is then a line of its own. `:w` reads the edits as changes:
@@ -922,20 +922,20 @@ delete. If a new name exists already, it changes nothing. On `y` it
 renames each entry to a temporary name and then to its new one, so two
 entries can swap names. Then it deletes, with what a directory holds, and
 creates. Open buffers of renamed files follow them, and fude reads the
-listing again (B125).
+explorer again (B125).
 
-`modules/listing` registers a `Write` for the kind `listing`, which the
+`modules/explorer` registers a `Write` for the kind `explorer`, which the
 editor calls on the loop for `:w`. The call reads the entries' marks
 through `Scope.Entries` and returns a `Confirm` with the question and the
 paths it would change. The editor checks those paths for a guest (B245)
 and asks. On `y` it calls again with `confirmed` in `About`. The module
 changes the directory and returns the renames as `Moved`. The editor then
-reads the listing again and runs what follows the write, such as `:wq`'s
+reads the explorer again and runs what follows the write, such as `:wq`'s
 quit (B327).
 
-A listing in a git repository shows each entry's git status as a sign,
-which `modules/git` puts there. A call about a listing names its
-directory as `listing`. On `listing.read`, the module runs, as a job,
+An explorer in a git repository shows each entry's git status as a sign,
+which `modules/git` puts there. A call about an explorer names its
+directory as `explorer`. On `explorer.read`, the module runs, as a job,
 `git rev-parse --show-prefix` in the directory, because git names paths
 from the repository's root. Then it runs `git --no-optional-locks status
 --porcelain -z -- .`. That flag stops git from taking the index lock, so a
@@ -943,21 +943,21 @@ git command run in a terminal at the same time does not fail. A change
 below a directory marks the directory. The module signs each entry's line
 with a decoration, so a sign moves with its line (B126).
 
-A listing shows a note after some names: where a symlink points, or a
-mark for an executable or special file. `modules/listing` puts each note
-there as a decoration. On `listing.read` it reads every entry's note with
+An explorer shows a note after some names: where a symlink points, or a
+mark for an executable or special file. `modules/explorer` puts each note
+there as a decoration. On `explorer.read` it reads every entry's note with
 `lstat`, off the loop, and decorates every line. It keeps the notes by
-name until the listing is read again. After an edit it decorates only
+name until the explorer is read again. After an edit it decorates only
 the lines the edit changed, from the notes it kept. A directory of 5000 entries shows its
 notes and icons 17ms after it opens (B127).
 
-With `icons` on, a listing's icons take two columns at the right of the
+With `icons` on, an explorer's icons take two columns at the right of the
 gutter, not inline before the name as Neovim's virtual text puts them.
 The text then starts at the same column on every row, so the cursor,
 wrapping and sideways scrolling need no change. The module decorates
 each line with an `Icon` decoration, whose sign the editor draws in that
 column. The icons are a table of names and extensions in
-`modules/listing`, from mini.icons. The module decorates the lines again
+`modules/explorer`, from mini.icons. The module decorates the lines again
 when `icons` is set or the config is read again (B128, B337).
 
 ## EditorConfig
@@ -1100,7 +1100,7 @@ clipboard = false    # yanks, deletes and puts use the system clipboard (B137)
 sign_column = false  # keep the sign column when there are no signs (B143)
 indent_guides = true # a faint line at each indent level (B153)
 color_column = 0     # the column of the text to shade, and how wide :center is (B200)
-icons = false        # nerd font icons in listings and diagnostic signs (B128)
+icons = false        # nerd font icons in explorers and diagnostic signs (B128)
 
 leader = "<Space>"   # what <Leader> in a mapping stands for (B144)
 theme = "dark"       # dark, light, or a base16 scheme such as "~/.config/stylix/palette.json" (B145, B146)
@@ -1112,9 +1112,9 @@ theme = "dark"       # dark, light, or a base16 scheme such as "~/.config/stylix
 [keymap.groups]      # names of the keys mappings start with, for key hints (B172)
 "<Leader>s" = "search"
 
-[keymap.listing]     # or any kind of buffer's, fude's or a module's such as [keymap.pins]: its own keys (B142, D53)
+[keymap.explorer]     # or any kind of buffer's, fude's or a module's such as [keymap.pins]: its own keys (B142, D53)
 "<C-h>" = ""
-"<C-v>" = "<Plug>(listing.vsplit)"
+"<C-v>" = "<Plug>(explorer.vsplit)"
 
 [filetype.go]        # overrides for buffers of that filetype (B94)
 indent_width = 4
@@ -1807,7 +1807,7 @@ the session is made. The server checks each limit in one place:
   action that runs a command is refused where it is taken.
 - Paths: one check, under the project after `EvalSymlinks` with `under`,
   runs where a buffer opens, where a file is written, read or listed, and
-  where a listing applies its changes (B245). A guest cannot show a
+  where an explorer applies its changes (B245). A guest cannot show a
   buffer whose path fails that check, even one already open.
 - Plugins: a plugin's key, command, operator or object checks the
   plugin's grants before it runs for a guest (B246).

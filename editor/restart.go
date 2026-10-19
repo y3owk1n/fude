@@ -19,7 +19,7 @@ const RestartEnv = "FUDE_RESTART"
 type saved struct {
 	Buffers  []savedBuffer
 	Layout   savedNode
-	Windows  bool `json:"-"` // Layout has a window on a file or listing
+	Windows  bool `json:"-"` // Layout has a window on a file or explorer
 	Current  int  // the current window, counted from the top left
 	Centered bool // :center is on (B199)
 }
@@ -30,11 +30,11 @@ type savedBuffer struct {
 	Head kernel.NodeID
 }
 
-// savedNode is a window, with its file or listing's directory, cursor,
+// savedNode is a window, with its file or explorer's directory, cursor,
 // top line and options, or a split of them.
 type savedNode struct {
 	Path        string
-	Listing     bool // Path is a listing's directory (B226)
+	Explorer    bool // Path is an explorer's directory (B226)
 	Cursor, Top int
 	Options     options
 	Across      bool
@@ -46,12 +46,12 @@ func restorable(b *buffer) bool {
 	return b.file.path != "" && b.title == "" && b.listed == ""
 }
 
-// save returns n's windows on files and listings, or false when it has
+// save returns n's windows on files and explorers, or false when it has
 // none.
 func (n *node) save() (savedNode, bool) {
 	if w := n.win; w != nil {
-		s := savedNode{Path: w.buf.listed, Listing: w.buf.listed != "", Cursor: w.pos(), Top: w.buf.text.Mark(w.top), Options: w.ownOptions()}
-		if s.Listing {
+		s := savedNode{Path: w.buf.listed, Explorer: w.buf.listed != "", Cursor: w.pos(), Top: w.buf.text.Mark(w.top), Options: w.ownOptions()}
+		if s.Explorer {
 			return s, true
 		}
 		abs, err := filepath.Abs(w.buf.file.path)
@@ -222,9 +222,9 @@ func (e *Session) restoreLayout(s saved) {
 }
 
 // savedBuffer is the open buffer sn's window shows: its file's, or its
-// directory's listing, which it lists again when none is open (B226).
+// directory's explorer, which it lists again when none is open (B226).
 func (e *Session) savedBuffer(sn savedNode) *buffer {
-	if !sn.Listing {
+	if !sn.Explorer {
 		if i := slices.IndexFunc(e.bufs, func(b *buffer) bool { return b.is(sn.Path) }); i >= 0 {
 			return e.bufs[i]
 		}
@@ -233,13 +233,13 @@ func (e *Session) savedBuffer(sn savedNode) *buffer {
 	if i := slices.IndexFunc(e.bufs, func(b *buffer) bool { return b.listed == sn.Path }); i >= 0 {
 		return e.bufs[i]
 	}
-	b, err := listingBuffer(e.next, sn.Path)
+	b, err := explorerBuffer(e.next, sn.Path)
 	if err != nil {
 		e.message = err.Error()
 		return nil
 	}
 	e.next++
 	e.bufs = append(e.bufs, b)
-	e.emit("listing.read", "", b)
+	e.emit("explorer.read", "", b)
 	return b
 }

@@ -13,7 +13,7 @@ import (
 
 	"github.com/y3owk1n/fude/editor"
 	buffersmod "github.com/y3owk1n/fude/modules/buffers"
-	listingmod "github.com/y3owk1n/fude/modules/listing"
+	explorermod "github.com/y3owk1n/fude/modules/explorer"
 	shellmod "github.com/y3owk1n/fude/modules/shell"
 	"github.com/y3owk1n/fude/vim"
 )
@@ -385,7 +385,7 @@ func TestB155WritingAndFiles(t *testing.T) {
 	change(t, path, "one\n")
 	t.Chdir(dir)
 	e := withCommands(open(t, "a"))
-	e.Use(listingmod.New())
+	e.Use(explorermod.New())
 	// :w with a name writes a copy, and the buffer stays on its own file.
 	feed(e, "x:w b<CR>")
 	if disk(t, filepath.Join(dir, "b")) != "ne\n" || disk(t, path) != "one\n" || e.Views()[0].Name != "a" {

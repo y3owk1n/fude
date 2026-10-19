@@ -39,7 +39,7 @@ func TestB226ProjectSession(t *testing.T) {
 	if len(vs) != 2 || vs[0].Name != "a.txt" || vs[1].Name != "b.txt" || !vs[1].Current || vs[0].Cursor != 9 {
 		t.Fatalf("s restored %d windows, the first %q at %d", len(vs), vs[0].Name, vs[0].Cursor)
 	}
-	// A listing's window comes back too, with its cursor.
+	// An explorer's window comes back too, with its cursor.
 	editortest.Feed(e, ":only<CR>:e .<CR>j:qa<CR>")
 	e = editortest.Start(t)
 	e.Use(start.New())

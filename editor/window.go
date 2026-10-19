@@ -53,7 +53,7 @@ func (w *window) pos() int { return w.buf.text.Mark(w.cursor) }
 // take on the left.
 func (w *window) gutter() int { return w.signCols() + w.numberCols() + w.iconCols() }
 
-// iconCols is 2 for a listing's icons with the icons option, at the
+// iconCols is 2 for an explorer's icons with the icons option, at the
 // gutter's right, and 0 otherwise (B128).
 func (w *window) iconCols() int {
 	if w.opts.Icons && w.buf.listed != "" {
@@ -75,7 +75,7 @@ func (w *window) signCols() int {
 // least 4, else the last line's digits and a space.
 func (w *window) numberCols() int {
 	if !w.opts.Number && !w.opts.RelativeNumber || w.buf.listed != "" {
-		// A listing shows names only.
+		// An explorer shows names only.
 		return 0
 	}
 	return max(4, len(strconv.Itoa(w.buf.text.Snapshot().Lines()))+1)

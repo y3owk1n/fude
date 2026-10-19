@@ -137,7 +137,7 @@ Each language's grammar builds in the background the first time you open one of 
 | **Formatting**       | Formatters by name, run in turn or the first that applies, with the language server as the fallback              |
 | **Debugging**        | Debug adapters over DAP, launch settings in `.fude/launch.toml`, breakpoints that stay on their line as you edit, stepping, a panel of frames, variables and output, `:debug eval` |
 | **Finder**           | `:pick` for files, grep, buffers, recent files, diagnostics, symbols, help and keymaps, with a preview, `<C-g>` to search ignored files, `<C-q>` to a list, and `:pin` for up to 9 files a key away |
-| **Folders**          | Edit a listing and `:w` to rename, delete and create files                                                         |
+| **Folders**          | Edit an explorer and `:w` to rename, delete and create files                                                       |
 | **Git**              | Signs, `]h` and `[h` between hunks, a hunk preview, `gh` to stage a hunk and `gH` to put one back as the index has it, `:gitdiff`, `:blame` for the cursor's line |
 | **Together**         | `fude attach` for a second session, `fude share` and `fude join` over TLS, everyone's cursor in their own colour, `:follow`, proposals from agents |
 | **Terminal**         | `:terminal` in a split, and `<Esc><Esc>` to move through its output in normal mode                                |

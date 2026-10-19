@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/y3owk1n/fude/editor"
-	listingmod "github.com/y3owk1n/fude/modules/listing"
+	explorermod "github.com/y3owk1n/fude/modules/explorer"
 )
 
 // B92
@@ -164,7 +164,7 @@ func TestConfigReload(t *testing.T) {
 	dir := t.TempDir()
 	change(t, filepath.Join(dir, "a.txt"), "a\n")
 	e := start(t, filepath.Join(dir, "a.txt"))
-	e.Use(listingmod.New())
+	e.Use(explorermod.New())
 	e.SetSize(80, 20)
 	feed(e, ":set wrap false<CR>")
 	// In the new file, - loses its mapping and z8 gets one. A setting and an
@@ -187,7 +187,7 @@ func TestConfigReload(t *testing.T) {
 		t.Error("after the reload z8 did not run its mapping")
 	}
 	if feed(e, ":set number false<CR>-"); e.Views()[0].Number || !strings.HasSuffix(e.Views()[0].Name, string(filepath.Separator)) {
-		t.Errorf("after the reload - showed %q with number %v, want the folder's listing", e.Views()[0].Name, e.Views()[0].Number)
+		t.Errorf("after the reload - showed %q with number %v, want the folder's explorer", e.Views()[0].Name, e.Views()[0].Number)
 	}
 	// A file with an error changes nothing and says where.
 	change(t, file, "key_timeout = \"soon\"\n")

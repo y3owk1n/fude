@@ -11,9 +11,9 @@ import (
 	"github.com/y3owk1n/fude/vim"
 )
 
-// readListing returns dir's entries, one name a line in the order the
+// readDir returns dir's entries, one name a line in the order the
 // directory gives them, directories with a trailing slash (B124).
-func readListing(dir string) (string, error) {
+func readDir(dir string) (string, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return "", fmt.Errorf("list %s: %w", dir, err)
@@ -28,9 +28,9 @@ func readListing(dir string) (string, error) {
 	return strings.Join(names, "\n"), nil
 }
 
-// listingBuffer returns a listing of dir as a buffer numbered id.
-func listingBuffer(id int, dir string) (*buffer, error) {
-	text, err := readListing(dir)
+// explorerBuffer returns an explorer of dir as a buffer numbered id.
+func explorerBuffer(id int, dir string) (*buffer, error) {
+	text, err := readDir(dir)
 	if err != nil {
 		return nil, err
 	}
@@ -40,10 +40,10 @@ func listingBuffer(id int, dir string) (*buffer, error) {
 	return b, nil
 }
 
-// openListing shows the listing of dir in the current window, with the
+// openExplorer shows the explorer of dir in the current window, with the
 // cursor on the entry named at when there is one. A directory already
 // listed shows its buffer as it was left.
-func (e *Session) openListing(dir, at string) {
+func (e *Session) openExplorer(dir, at string) {
 	abs, err := filepath.Abs(dir)
 	if err == nil {
 		err = e.outside(abs)
@@ -59,13 +59,13 @@ func (e *Session) openListing(dir, at string) {
 		}
 	}
 	if b == nil {
-		if b, err = listingBuffer(e.next, abs); err != nil {
+		if b, err = explorerBuffer(e.next, abs); err != nil {
 			e.message = err.Error()
 			return
 		}
 		e.next++
 		e.bufs = append(e.bufs, b)
-		e.emit("listing.read", "", b)
+		e.emit("explorer.read", "", b)
 	}
 	e.show(b)
 	t := b.text.Snapshot()
@@ -77,9 +77,9 @@ func (e *Session) openListing(dir, at string) {
 }
 
 // reload reads b's directory again and puts its entries in place of the
-// listing.
+// explorer.
 func (e *Session) reload(b *buffer) {
-	text, err := readListing(b.listed)
+	text, err := readDir(b.listed)
 	if err != nil {
 		e.message = err.Error()
 		return
@@ -93,10 +93,10 @@ func (e *Session) reload(b *buffer) {
 	}
 	b.head, b.saved = b.text.Head(), b.text.Head()
 	b.mark()
-	e.emit("listing.read", "", b)
+	e.emit("explorer.read", "", b)
 }
 
-// entry is one name a listing showed when it was read. Text inserted at
+// entry is one name an explorer showed when it was read. Text inserted at
 // its start mark goes before it, and text inserted at its end mark goes
 // after it, so lines added around the entry stay outside it.
 type entry struct {
@@ -145,7 +145,7 @@ type writer struct {
 }
 
 // writeKind has the module that writes b's kind write it, asking first
-// when it asks to, then reads a listing again, or marks another kind
+// when it asks to, then reads an explorer again, or marks another kind
 // written, and runs then. A guest's
 // write changes nothing outside the project (B245, B327).
 func (e *Session) writeKind(b *buffer, then func()) {

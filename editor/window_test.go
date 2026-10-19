@@ -10,8 +10,8 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/fude/editor"
+	explorermod "github.com/y3owk1n/fude/modules/explorer"
 	filesmod "github.com/y3owk1n/fude/modules/files"
-	listingmod "github.com/y3owk1n/fude/modules/listing"
 	windowmod "github.com/y3owk1n/fude/modules/window"
 )
 
@@ -344,9 +344,9 @@ func TestB142LocalKeymaps(t *testing.T) {
 	config(t, `[keymap.normal]
 "<C-h>" = "<Plug>(window.left)"
 
-[keymap.listing]
+[keymap.explorer]
 "<C-h>" = ""
-"<C-v>" = "<Plug>(listing.vsplit)"
+"<C-v>" = "<Plug>(explorer.vsplit)"
 x = "<Nop>"
 
 [keymap.finder]
@@ -354,16 +354,16 @@ x = "<Nop>"
 `)
 	t.Chdir(dir)
 	e := start(t, filepath.Join(dir, "a"))
-	e.Use(listingmod.New())
+	e.Use(explorermod.New())
 	e.Use(filesmod.New())
 	e.Use(windowmod.New())
 	e.SetSize(80, 24)
 	feed(e, ":vsplit<CR>-")
-	// A key the listing's table drops falls through to [keymap.normal].
+	// A key the explorer's table drops falls through to [keymap.normal].
 	if feed(e, "<C-h>"); !e.Views()[0].Current {
-		t.Fatal("<C-h> in a listing did not move to the left window")
+		t.Fatal("<C-h> in an explorer did not move to the left window")
 	}
-	// A key mapped in it runs the listing's action, and <Nop> does nothing.
+	// A key mapped in it runs the explorer's action, and <Nop> does nothing.
 	if feed(e, "<C-w>ljx<C-v>"); len(e.Views()) != 3 || text(e) != "B" {
 		t.Fatalf("<C-v> on b left %d windows showing %q", len(e.Views()), text(e))
 	}

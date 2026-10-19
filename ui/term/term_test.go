@@ -217,7 +217,7 @@ func TestB197FrameAfterFrame(t *testing.T) {
 	step("ggO/*<Esc>")
 	step("Go*/<Esc>")
 	parsed(func() bool { return !keyword(1) })
-	// Renaming a file in a listing beside it changes its tab width, and its
+	// Renaming a file in an explorer beside it changes its tab width, and its
 	// lines draw again.
 	if err := os.WriteFile(filepath.Join(filepath.Dir(path), "b.txt"), []byte("x\ty\n"), 0o600); err != nil {
 		t.Fatal(err)

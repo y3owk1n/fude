@@ -1,4 +1,4 @@
-package listing_test
+package explorer_test
 
 import (
 	"maps"
@@ -9,7 +9,7 @@ import (
 
 	"github.com/y3owk1n/fude/editor/editortest"
 	"github.com/y3owk1n/fude/modules/buffers"
-	"github.com/y3owk1n/fude/modules/listing"
+	"github.com/y3owk1n/fude/modules/explorer"
 	"github.com/y3owk1n/fude/vim"
 	"github.com/y3owk1n/fude/wire"
 )
@@ -27,7 +27,7 @@ func disk(t *testing.T, path string) string {
 }
 
 // B124
-func TestB124Listing(t *testing.T) {
+func TestB124Explorer(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.Mkdir(filepath.Join(dir, "sub"), 0o755); err != nil {
 		t.Fatal(err)
@@ -36,7 +36,7 @@ func TestB124Listing(t *testing.T) {
 	editortest.Change(t, filepath.Join(dir, "b.txt"), "B\n")
 	editortest.Change(t, filepath.Join(dir, "sub", "c"), "C\n")
 	e := editortest.Open(t, filepath.Join(dir, "a.txt"))
-	e.Use(listing.New())
+	e.Use(explorer.New())
 	line := func() string {
 		s, c := e.Text(), e.Cursor()
 		return s.Slice(s.LineStart(s.LineOf(c)), vim.LineEnd(s, c))
@@ -64,7 +64,7 @@ func TestB124Listing(t *testing.T) {
 	}
 	t.Chdir(dir)
 	if editortest.Feed(e, "_"); editortest.Text(e) != "a.txt\nb.txt\nsub/" || line() != "sub/" {
-		t.Fatalf("_ from the listing of sub/ listed %q on %q", editortest.Text(e), line())
+		t.Fatalf("_ from the explorer of sub/ listed %q on %q", editortest.Text(e), line())
 	}
 	if editortest.Feed(e, "G<CR><CR>1-"); line() != "sub/" {
 		t.Fatalf("1- from sub/c left the cursor on %q", line())
@@ -72,7 +72,7 @@ func TestB124Listing(t *testing.T) {
 }
 
 // B125
-func TestB125EditListing(t *testing.T) {
+func TestB125EditExplorer(t *testing.T) {
 	dir := t.TempDir()
 	for _, f := range []string{"a.txt", "b.txt", "keep.txt", "old/x", "old/y"} {
 		if err := os.MkdirAll(filepath.Dir(filepath.Join(dir, f)), 0o755); err != nil {
@@ -81,7 +81,7 @@ func TestB125EditListing(t *testing.T) {
 		editortest.Change(t, filepath.Join(dir, f), f+"\n")
 	}
 	e := editortest.Open(t, filepath.Join(dir, "a.txt"))
-	e.Use(listing.New())
+	e.Use(explorer.New())
 	e.Use(buffers.New())
 	// a.txt becomes z.txt, b.txt and old/ go, and new.txt and new/ come.
 	editortest.Feed(e, "-ggcwz<Esc>jddjjddOnew.txt<CR>new/<Esc>:w<CR>")
@@ -106,7 +106,7 @@ func TestB125EditListing(t *testing.T) {
 		t.Errorf("new/ is not a directory: %v", err)
 	}
 	if editortest.Text(e) != "keep.txt\nnew/\nnew.txt\nz.txt" || e.Views()[0].Modified {
-		t.Errorf("after :w the listing is %q", editortest.Text(e))
+		t.Errorf("after :w the explorer is %q", editortest.Text(e))
 	}
 	// The renamed file's buffer follows it.
 	if editortest.Feed(e, ":b 1<CR>"); e.Views()[0].Name != filepath.Join(dir, "z.txt") {
@@ -117,7 +117,7 @@ func TestB125EditListing(t *testing.T) {
 	editortest.Change(t, filepath.Join(dir, "a"), "a\n")
 	editortest.Change(t, filepath.Join(dir, "sub"), "sub\n")
 	e = editortest.Open(t, filepath.Join(dir, "a"))
-	e.Use(listing.New())
+	e.Use(explorer.New())
 	editortest.Feed(e, "-Csub/a<Esc>:w<CR>y")
 	names, err := os.ReadDir(dir)
 	if err != nil {
@@ -129,7 +129,7 @@ func TestB125EditListing(t *testing.T) {
 }
 
 // B127
-func TestB127ListingNotes(t *testing.T) {
+func TestB127ExplorerNotes(t *testing.T) {
 	dir := t.TempDir()
 	editortest.Change(t, filepath.Join(dir, "plain"), "")
 	editortest.Change(t, filepath.Join(dir, "run"), "")
@@ -140,7 +140,7 @@ func TestB127ListingNotes(t *testing.T) {
 		t.Fatal(err)
 	}
 	e := editortest.Open(t, dir)
-	e.Use(listing.New())
+	e.Use(explorer.New())
 	e.SetSize(40, 10)
 	want := map[int]wire.Note{0: {Text: " -> plain"}, 2: {Text: "*"}}
 	editortest.Settle(t, e, func() bool { return maps.Equal(e.Views()[0].Notes, want) })

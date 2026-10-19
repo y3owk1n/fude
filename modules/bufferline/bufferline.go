@@ -23,7 +23,7 @@ func (m *Module) Name() string { return "bufferline" }
 // Subscribed are what opens, closes or renames a buffer, and what may
 // change buffer_line.
 func (m *Module) Subscribed() []string {
-	return []string{"buffer.opened", "buffer.closed", "buffer.renamed", "listing.read", "config.reloaded", "option.set"}
+	return []string{"buffer.opened", "buffer.closed", "buffer.renamed", "explorer.read", "config.reloaded", "option.set"}
 }
 
 func (m *Module) Registered() []api.Registration { return nil }

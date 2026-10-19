@@ -40,7 +40,7 @@ func (e *Session) reread(force bool) {
 	case b.listed != "" && b.modified() && !force:
 		e.message = fmt.Sprintf("\"%s\" has unsaved changes, :e! drops them", b.title)
 	case b.listed != "":
-		// A listing reads its directory again (B124).
+		// An explorer reads its directory again (B124).
 		e.reload(b)
 	case b.file.path == "" || b.title != "":
 		e.message = "no file name"
@@ -255,7 +255,7 @@ func (e *Session) Focus() {
 	for _, b := range e.bufs {
 		// A directory may have changed while fude was away.
 		if b.listed != "" {
-			e.emit("listing.read", "", b)
+			e.emit("explorer.read", "", b)
 		}
 		if b.title != "" || b.file.warned || !b.file.changed() {
 			continue

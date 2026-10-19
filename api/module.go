@@ -59,12 +59,12 @@ const (
 	// Completion has what it offers. Autocomplete asks it after a word
 	// character, and after each character of its Keys (B336).
 	Completer
-	// Write writes the buffers of the kind Name, such as listing, in place
+	// Write writes the buffers of the kind Name, such as explorer, in place
 	// of a file, as :w does. It is called with (cursor), and its scope has
 	// Entries. Its result's Confirm asks first, and the call comes again with
 	// confirmed in About once the answer is yes. A message from that call
 	// says the write failed, and what was to run after it, such as :wq's
-	// quit, does not. A listing reads its directory again after (B327).
+	// quit, does not. An explorer reads its directory again after (B327).
 	Write
 )
 
@@ -97,7 +97,7 @@ type Registration struct {
 	// and its call gets the selection (B322).
 	Chars int
 	// Keys are the keys a Plug is mapped to, in normal mode, or with In
-	// among the own keys of that kind of buffer, such as listing. A
+	// among the own keys of that kind of buffer, such as explorer. A
 	// config.toml mapping of them in that table wins (B327, D53).
 	Keys, In string
 	// Short are other names a Command answers to, such as ls for buffers

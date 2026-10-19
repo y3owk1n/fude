@@ -61,7 +61,7 @@ func New() *Module { return &Module{kept: map[string][]pin{}, guests: map[string
 func (m *Module) Name() string { return "pin" }
 
 func (m *Module) Subscribed() []string {
-	return []string{"view.moved", "listing.moved", "editor.quitting"}
+	return []string{"view.moved", "explorer.moved", "editor.quitting"}
 }
 
 func (m *Module) Registered() []api.Registration {
@@ -226,7 +226,7 @@ func (m *Module) changed(s api.Scope, pins []pin, msg string) api.Result {
 	return api.Result{Message: msg, SessionLeft: segments(s, pins)}
 }
 
-// Event keeps where a pinned file's cursor is, follows a listing's moves
+// Event keeps where a pinned file's cursor is, follows an explorer's moves
 // and keeps the host's pins as fude quits.
 func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result, error) {
 	m.mu.Lock()
@@ -247,7 +247,7 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 			pins[i].Line, pins[i].Column = lineColumn(s.Text, atoi(cursor))
 		}
 		return api.Result{SessionLeft: map[int]string{b: segment(pins, s.Buffers[b])}}, nil
-	case "listing.moved":
+	case "explorer.moved":
 		// This loads the host's pins of the directory, so the move reaches them.
 		if _, err := m.pins(s); err != nil {
 			return api.Result{Log: []string{err.Error()}}, nil

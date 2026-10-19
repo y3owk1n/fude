@@ -1,4 +1,4 @@
-package listing
+package explorer
 
 import (
 	"context"
@@ -14,7 +14,7 @@ import (
 // icon is a nerd font glyph and the style it shows in.
 type icon struct{ Text, Name string }
 
-// With the icons option, a listing shows a nerd font icon left of each
+// With the icons option, an explorer shows a nerd font icon left of each
 // name, in its file kind's colour (B128).
 var (
 	dirIcon  = icon{Text: "\U000f024b", Name: "icon.azure"}
@@ -49,7 +49,7 @@ var iconExts = map[string]icon{
 	"tar": {Text: "\U000f05c4", Name: "icon.cyan"},
 }
 
-// iconOf returns the icon of a listing's line name.
+// iconOf returns the icon of an explorer's line name.
 func iconOf(name string) icon {
 	if strings.HasSuffix(name, "/") {
 		return dirIcon
@@ -63,7 +63,7 @@ func iconOf(name string) icon {
 	return fileIcon
 }
 
-// note is what a listing shows after the entry at path: where a symlink
+// note is what an explorer shows after the entry at path: where a symlink
 // points, * for an executable, or a mark for a pipe, socket or device
 // (B127).
 func note(path string) string {
@@ -93,14 +93,14 @@ func note(path string) string {
 	return ""
 }
 
-// Event decorates a listing's lines with their icons and notes. It
-// decorates every line when the listing reads its directory, icons turns
+// Event decorates an explorer's lines with their icons and notes. It
+// decorates every line when the explorer reads its directory, icons turns
 // on or off, or the config is read again. After an edit it decorates only
 // the lines the edit changed (B127, B128, B337).
 func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	dir, buf := s.About["listing"], s.About["buffer"]
+	dir, buf := s.About["explorer"], s.About["buffer"]
 	if dir == "" || name == "buffer.closed" {
 		delete(m.notes, buf)
 		return api.Result{}, nil
@@ -108,7 +108,7 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 	t := s.Text
 	first, last := 0, t.Lines()-1
 	switch event, detail, _ := strings.Cut(name, " "); event {
-	case "listing.read":
+	case "explorer.read":
 		// The names' notes are read again.
 		delete(m.notes, buf)
 	case "option.set":

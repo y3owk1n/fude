@@ -133,7 +133,7 @@ fude \- a modal text editor
 ` + usageRoff("fude <command> [<flags>] [<args>]") + `
 .SH DESCRIPTION
 fude opens each file in a buffer, or an empty buffer when none is given.
-A folder opens as a listing of its entries.
+A folder opens in an explorer.
 With \fB+\fR\fIline\fR, the cursor starts on that line of the first file.
 Inside fude, \fB:h\fR shows this reference, the settings, the mappings
 config.toml adds and the guide.

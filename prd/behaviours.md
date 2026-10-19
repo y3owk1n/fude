@@ -178,13 +178,13 @@ Where fude departs, the line says so and cites the departure in
   also deleted lines. A diagnostic's sign wins on its line. Without git
   installed, there are no git signs. With `git_signs` off there are none
   either, and the hunk keys still work.
-- B124 [2] `:e dir`, `fude dir` and `-` open a directory as a listing: a
+- B124 [2] `:e dir`, `fude dir` and `-` open a directory as an explorer: a
   buffer of its entries' names, directories with a trailing `/`, with no
   line numbers. `-` lists the current file's directory, `N-` goes up N
   levels and `1-` lists the working directory, as Neovim's built-in `-`
-  does, in place of the `-` motion. A listing opens with the cursor on the
-  entry that leads to the current file or listing, when its directory
-  holds it, and else on the first entry. In a listing,
+  does, in place of the `-` motion. An explorer opens with the cursor on the
+  entry that leads to the current file or explorer, when its directory
+  holds it, and else on the first entry. In an explorer,
   `<CR>` opens the entry, `<C-s>` and `<C-h>` open it in a split beside or
   below, `_` lists the working directory and `<C-l>` reads it again, as
   oil.nvim's keys do. B142 changes these keys.
@@ -198,9 +198,9 @@ Where fude departs, the line says so and cites the departure in
   line under the cursor. The screen shows no line numbers or guides, and
   the window gets its options back when it shows another buffer.
 - B226 [2] Quitting fude keeps the working directory's session: its
-  windows on files and listings, each with its cursor, top line and
+  windows on files and explorers, each with its cursor, top line and
   options, and which is current, kept across fude's runs in its state
-  directory. A quit with no window on a file or listing keeps the last
+  directory. A quit with no window on a file or explorer keeps the last
   one. The start screen of fude
   started in that directory then has an `s` line first, and `s` opens the
   session's files and builds its windows. A file that no longer opens is
@@ -245,20 +245,20 @@ Where fude departs, the line says so and cites the departure in
   extension) after it, in turn. A `~` that starts a word is the home
   directory, and `\%` and `\#` are themselves. `<Tab>` completes from what
   the path expands to. Without such a file, the command says so.
-- B125 [2] Editing a listing and `:w` changes the directory, as oil.nvim
+- B125 [2] Editing an explorer and `:w` changes the directory, as oil.nvim
   does: a changed name renames the entry, a deleted line deletes it, and a
   new line creates a file, or a directory when it ends in `/`. fude first
   asks with each change and the number of files a deleted directory
   holds, and changes nothing on `n`. Open buffers of renamed files follow
   them. A rename that fails leaves the names not yet moved as they were.
-- B126 [2] A listing in a git repository shows each entry's git status in
+- B126 [2] An explorer in a git repository shows each entry's git status in
   the sign column: `✹` for modified, `•` staged, `≠` both, `+` added, `?`
   untracked, `-` deleted and `→` renamed. A directory shows the status of
   the first change below it. Without git installed, there are no signs.
-- B127 [2] A listing shows dim text after some names, as `ls -F` marks
+- B127 [2] An explorer shows dim text after some names, as `ls -F` marks
   them: `-> target` after a symlink, `*` after an executable file, and `|`,
   `=`, `%` or `#` after a pipe, socket, character device or block device.
-- B128 [2] With `icons` on, a listing shows a nerd font icon left of each
+- B128 [2] With `icons` on, an explorer shows a nerd font icon left of each
   name, in mini.icons' glyphs and colours. A file's icon goes by its name
   or extension, and a directory shows a folder. Diagnostic signs show
   icons in place of `E`, `W`, `I` and `H`. `icons` is off by default.
@@ -392,7 +392,7 @@ Where fude departs, the line says so and cites the departure in
   `[keymap.normal]`'s, at once, without waiting for a longer one (N17). In
   any keymap table, a key mapped to `""` loses its mapping, fude's own
   default too, and a key mapped to `<Nop>` does nothing. The kinds are
-  `listing`, `list` for the lists of places such as `grr`'s, `timeline`,
+  `explorer`, `list` for the lists of places such as `grr`'s, `timeline`,
   `finder`, whose keys are insert mode's, `float` for a float the cursor
   is in, `lsp`, `help`, `scratch` for the windows fude writes, such as
   `:messages`, `:grammar` and a diff (B212), `start` (B225),
@@ -405,7 +405,7 @@ Where fude departs, the line says so and cites the departure in
   float shows on its own, and the float shows again once it is done.
 - B212 [2] `q` closes a list of places, a timeline, help, the `lsp`
   panel, a float the cursor is in and every window fude writes, such as
-  `:messages` and a diff, instead of recording a macro (N31). A listing
+  `:messages` and a diff, instead of recording a macro (N31). An explorer
   keeps `q`, as its text is a directory to edit.
 - B143 [2] With `sign_column` on, every window keeps its sign column, so
   the text does not move when a git or diagnostic sign comes, as with
@@ -684,7 +684,7 @@ Where fude departs, the line says so and cites the departure in
   transaction.
 - B89 [2] `:e path`, `:ls`, `:b N`, `:bn`, `:bp` and `:bd` manage buffers.
   `:bn` and `:bp` go through the buffers being edited, wrapping at
-  either end, and pass help, lists, listings, terminals and the windows
+  either end, and pass help, lists, explorers, terminals and the windows
   fude writes. After `:bd`, a window that showed the buffer shows the
   one it showed before, or else the next buffer being edited. Neither is
   an empty buffer with no file while another is open. A buffer's
@@ -868,7 +868,7 @@ Where fude departs, the line says so and cites the departure in
 - B359 [2] A pinned file's status line shows its pin and how many pins
   there are, such as `2/4`, on the left after the git branch. A file not
   pinned shows none. Every window's count changes as soon as the pins do.
-- B360 [2] When a listing renames or moves a pinned file, or a directory
+- B360 [2] When an explorer renames or moves a pinned file, or a directory
   holding one, the pin follows it to its new path, whether or not the file
   is open.
 
@@ -1118,15 +1118,15 @@ Where fude departs, the line says so and cites the departure in
 - B346 [4] A module hears when a window opens, closes or becomes current,
   with the window's id. It hears when the search, the selection, the theme
   or the working directory changes, when a macro's recording ends, with
-  its register, and when a listing renames a buffer's file, with the old
-  path. It hears when a listing moves a file or directory, open or not,
+  its register, and when an explorer renames a buffer's file, with the old
+  path. It hears when an explorer moves a file or directory, open or not,
   with its old and new paths.
 - B347 [4] The editor keeps the last list of places a module or the
   finder gives, with the place last gone to. A module shows the list in a
   window, steps through it and runs a command at its places. A module's panel may be of a kind, such as list, whose
   `[keymap.<kind>]` keys change its own.
-- B337 [4] A module's decoration may show its sign in a listing's icon
-  column while `icons` is on, instead of in the sign column. A listing's
+- B337 [4] A module's decoration may show its sign in an explorer's icon
+  column while `icons` is on, instead of in the sign column. An explorer's
   notes and icons are a module's decorations (B127, B128).
 - B335 [4] A module's terminal with no name opens anew each time and
   takes the focus to type into. The status line does not name it as a
@@ -1169,7 +1169,7 @@ Where fude departs, the line says so and cites the departure in
   `:earlier`, `:later`, `:restore`, `:diff` and `:recover` work this way
   (B31, B32, B34, B35).
 - B327 [4] A module writes a kind of buffer in place of a file, as
-  `modules/listing` writes a listing. It reads where each entry the
+  `modules/explorer` writes an explorer. It reads where each entry the
   buffer showed is now. Its write may ask a yes or no question first,
   naming the paths it would change, which a guest may change only under
   the project. What follows the write, such as `:wq`'s quit, runs once it
@@ -1242,9 +1242,9 @@ Where fude departs, the line says so and cites the departure in
 - B313 [4] A module hears `text.touched` when a key yanks, puts, undoes or
   redoes text, with what it did, `yank`, `put`, `undo` or `redo`, and
   where the text is, as flash shows it (B139).
-- B311 [4] A module hears `listing.read` when a listing reads its
+- B311 [4] A module hears `explorer.read` when an explorer reads its
   directory: as it opens, as it reads it again, and when the terminal gets
-  the focus back. A call about a listing names its directory, which git's
+  the focus back. A call about an explorer names its directory, which git's
   status signs need (B126).
 - B312 [4] A module shows a segment on the left of the status line, after
   the buffer's name, as git's branch is (B147). Its result sets the
@@ -1620,7 +1620,7 @@ Where fude departs, the line says so and cites the departure in
 - B245 [7] A guest opens, shows, writes, creates, renames and deletes only
   files under the project, after symlinks resolve, as a plugin with
   `fs.read` reads (B47). That holds for `:e`, `:w file`, `:r file`, the
-  splits, `:b` on a buffer whose file is outside, a listing's changes
+  splits, `:b` on a buffer whose file is outside, an explorer's changes
   (B125), the finder, grep and a request naming a buffer. A `.git` and
   what is under it count as outside. A path outside says so, and nothing
   happens.

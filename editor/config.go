@@ -105,7 +105,7 @@ var keymapTables = []struct{ name, help string }{
 	{"normal", "normal mode mappings"},
 	{"visual", "visual mode mappings"},
 	{"insert", "insert mode mappings"},
-	{"listing", "a listing's keys, over the normal mode ones"},
+	{"explorer", "an explorer's keys, over the normal mode ones"},
 	{"list", "a list of places' keys, over the normal mode ones"},
 	{"timeline", "a timeline's keys, over the normal mode ones"},
 	{"finder", "the finder's keys, in insert mode"},
@@ -139,7 +139,7 @@ type options struct {
 	SignColumn         bool `toml:"sign_column" help:"keeps the sign column when there are no signs"`
 	IndentGuides       bool `toml:"indent_guides" help:"draws a faint line at each indent level"`
 	ColorColumn        int  `toml:"color_column" help:"shades this column of the text, and is how wide :center makes it, 0 for none"`
-	Icons              bool `toml:"icons" help:"shows nerd font icons in listings and signs"`
+	Icons              bool `toml:"icons" help:"shows nerd font icons in explorers and signs"`
 	Spell              bool `toml:"spell" help:"underlines words the word list lacks, in prose and in comments and strings"`
 	IncSearch          bool `toml:"inc_search" help:"while a search is typed, the window shows the match it goes to, lit apart from the rest"`
 	StickyContext      bool `toml:"sticky_context" help:"the first lines of the functions and classes the top of a window is in stay pinned over it"`
@@ -239,7 +239,7 @@ func withLeader(keys, leader string) string {
 // kindKeys are fude's own keys of each kind of buffer, which
 // [keymap.<kind>] changes (B142).
 func kindKeys() map[string]map[string]string {
-	return map[string]map[string]string{"listing": nil, "list": nil, "timeline": nil, "finder": finderKeys, "float": floatKeys, "lsp": nil, "help": nil, "scratch": scratchKeys, "start": nil, "terminal": terminalKeys, "debug": nil}
+	return map[string]map[string]string{"explorer": nil, "list": nil, "timeline": nil, "finder": finderKeys, "float": floatKeys, "lsp": nil, "help": nil, "scratch": scratchKeys, "start": nil, "terminal": terminalKeys, "debug": nil}
 }
 
 // table returns the keymap that the [keymap] table name changes, a mode's

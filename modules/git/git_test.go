@@ -49,7 +49,7 @@ func TestB123GitSigns(t *testing.T) {
 }
 
 // B126, B311
-func TestB126ListingGitStatus(t *testing.T) {
+func TestB126ExplorerGitStatus(t *testing.T) {
 	dir := t.TempDir()
 	top := filepath.Join(dir, "top")
 	if err := os.MkdirAll(filepath.Join(top, "sub"), 0o755); err != nil {
@@ -73,11 +73,11 @@ func TestB126ListingGitStatus(t *testing.T) {
 	e := editortest.Open(t, top)
 	e.SetSize(40, 10)
 	e.Use(gitmod.New())
-	// A listing below the repository's root, with an untracked file below sub/.
+	// An explorer below the repository's root, with an untracked file below sub/.
 	want := map[int]wire.Sign{0: {Text: "+", Name: "git.add"}, 1: {Text: "✹", Name: "git.change"}, 3: {Text: "?", Name: "git.delete"}}
 	editortest.Settle(t, e, func() bool { return maps.Equal(e.Views()[0].Signs, want) })
 
-	// Without git installed, the listing shows no git signs.
+	// Without git installed, the explorer shows no git signs.
 	t.Setenv("PATH", "")
 	e = editortest.Open(t, top)
 	if e.Use(gitmod.New()); len(e.Views()[0].Signs) != 0 {

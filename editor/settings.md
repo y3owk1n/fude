@@ -80,13 +80,13 @@ changes it after.
 
 ## split_below
 
-`:split`, `:new`, `<C-w>s` and a listing's `<C-h>` open the new window
+`:split`, `:new`, `<C-w>s` and an explorer's `<C-h>` open the new window
 below the current one, or above it when off. A terminal, a task and a
 timeline open below either way. On unless set.
 
 ## split_right
 
-`:vsplit`, `:vnew`, `<C-w>v` and a listing's `<C-s>` open the new window
+`:vsplit`, `:vnew`, `<C-w>v` and an explorer's `<C-s>` open the new window
 right of the current one, or left of it when off. On unless set.
 
 ## autocomplete
@@ -333,7 +333,7 @@ so they shade none. The default is 0, for none.
 
 ## icons
 
-Shows nerd font icons left of a listing's names, and in place of the letters
+Shows nerd font icons left of an explorer's names, and in place of the letters
 of diagnostic signs. Needs a terminal font with nerd font glyphs.
 
 ## keymap.normal
@@ -358,9 +358,9 @@ Maps keys in visual mode, as `[keymap.normal]` does in normal mode.
 Maps keys in insert mode, such as `jk = "<Esc>"`. A typed key that starts a
 mapping waits `key_timeout` before it shows.
 
-## keymap.listing
+## keymap.explorer
 
-Keys in a listing of a folder, run at once over the normal mode ones. fude's
+Keys in an explorer of a folder, run at once over the normal mode ones. fude's
 own are `<CR>`, `<C-s>`, `<C-h>`, `_` and `<C-l>`.
 
 ## keymap.list
@@ -416,7 +416,7 @@ or a diff, where `q` closes it.
 ## keymap.<kind>
 
 Keys in a kind of buffer a module or plugin adds, such as `pins` for
-`:pin list`, as `[keymap.listing]` is for a listing. `:h` lists each
+`:pin list`, as `[keymap.explorer]` is for an explorer. `:h` lists each
 kind's keys under its name.
 
 ## keymap.groups

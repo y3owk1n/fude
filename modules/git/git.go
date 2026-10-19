@@ -1,5 +1,5 @@
 // Package git shows how a file differs from git's index, as signs, hunks to
-// jump to, reset and stage, a preview and :gitdiff, a listing's entries'
+// jump to, reset and stage, a preview and :gitdiff, an explorer's entries'
 // status and the branch on the status line (B123, B126, B138, B147, B221,
 // B222).
 package git
@@ -49,7 +49,7 @@ type Module struct {
 	base  map[string]*string // by buffer, the index's text, nil outside a repository
 	stale map[string]bool    // by buffer, the index may have changed since base was read
 	signs map[string][]int   // by buffer, the ids of the signs showing
-	list  map[string][]int   // by listing, the ids of its entries' signs
+	list  map[string][]int   // by explorer, the ids of its entries' signs
 	off   map[string]bool    // by buffer, git_signs was off when it was last signed
 	ids   int
 	jobs  uint32
@@ -70,7 +70,7 @@ func New() *Module {
 func (m *Module) Name() string { return "git" }
 
 func (m *Module) Subscribed() []string {
-	return []string{"buffer.opened", "buffer.changed", "buffer.closed", "view.moved", "editor.focused", "listing.read", "option.set", "config.reloaded"}
+	return []string{"buffer.opened", "buffer.changed", "buffer.closed", "view.moved", "editor.focused", "explorer.read", "option.set", "config.reloaded"}
 }
 
 func (m *Module) Registered() []api.Registration {
@@ -87,11 +87,11 @@ func (m *Module) Registered() []api.Registration {
 }
 
 // Init reads the base and branch of the buffer open at the start, or a
-// listing's status.
+// explorer's status.
 func (m *Module) Init(_ context.Context, s api.Scope) (api.Result, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if s.About["listing"] != "" {
+	if s.About["explorer"] != "" {
 		return m.status(s), nil
 	}
 	return m.branch(s, m.read(s)), nil
@@ -130,7 +130,7 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 	defer m.mu.Unlock()
 	buf := s.About["buffer"]
 	switch event, _, _ := strings.Cut(name, " "); event {
-	case "listing.read":
+	case "explorer.read":
 		return m.status(s), nil
 	case "buffer.opened":
 		return m.branch(s, m.read(s)), nil
@@ -224,17 +224,17 @@ func (m *Module) Work(ctx context.Context, j api.Job) (string, error) {
 
 func (m *Module) Close(context.Context) error { return nil }
 
-// The signs of a listing entry's git status, by status code (B126).
+// The signs of an explorer entry's git status, by status code (B126).
 var statusSigns = map[string]sign{
 	" M": {"✹", "git.change"}, "M ": {"•", "git.change"}, "MM": {"≠", "git.change"}, "R ": {"→", "git.change"},
 	"A ": {"+", "git.add"}, "??": {"?", "git.delete"}, "D ": {"-", "git.delete"},
 }
 
 // branch adds to res a job that asks git for the branch of the repository
-// the buffer s is about is in, its file's or a listing's directory's
+// the buffer s is about is in, its file's or an explorer's directory's
 // (B147).
 func (m *Module) branch(s api.Scope, res api.Result) api.Result {
-	dir := s.About["listing"]
+	dir := s.About["explorer"]
 	if path := s.About["path"]; path != "" {
 		dir = filepath.Dir(path)
 	}
@@ -247,9 +247,9 @@ func (m *Module) branch(s api.Scope, res api.Result) api.Result {
 	return res
 }
 
-// status asks git for the status of a listing's entries, and its branch.
+// status asks git for the status of an explorer's entries, and its branch.
 func (m *Module) status(s api.Scope) api.Result {
-	dir := s.About["listing"]
+	dir := s.About["explorer"]
 	if dir == "" {
 		return api.Result{}
 	}
@@ -295,7 +295,7 @@ func listStatus(ctx context.Context, dir string) (string, error) {
 	return b.String(), nil
 }
 
-// signStatus shows the status git gave a listing's entries in the sign
+// signStatus shows the status git gave an explorer's entries in the sign
 // column, in place of the signs it had (B126).
 func (m *Module) signStatus(s api.Scope) api.Result {
 	buf := s.About["buffer"]

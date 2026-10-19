@@ -88,7 +88,7 @@ setting.
 ```
 
 `[keymap.normal]`, `[keymap.visual]` and `[keymap.insert]` map keys in
-those modes. A kind of buffer, such as a listing, has a table of its own
+those modes. A kind of buffer, such as an explorer, has a table of its own
 whose keys override the normal mode ones in that buffer. A key mapped to
 `""` loses its mapping, and `<Plug>(name)` runs one of fude's commands.
 `[keymap.groups]` names the keys mappings start with, for the key hints.

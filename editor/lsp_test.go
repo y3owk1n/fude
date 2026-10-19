@@ -18,9 +18,9 @@ import (
 	"github.com/y3owk1n/fude/editor"
 	buffersmod "github.com/y3owk1n/fude/modules/buffers"
 	"github.com/y3owk1n/fude/modules/colours"
+	explorermod "github.com/y3owk1n/fude/modules/explorer"
 	"github.com/y3owk1n/fude/modules/format"
 	"github.com/y3owk1n/fude/modules/inlay"
-	listingmod "github.com/y3owk1n/fude/modules/listing"
 	lspmod "github.com/y3owk1n/fude/modules/lsp"
 	"github.com/y3owk1n/fude/protocol/lsp"
 	"github.com/y3owk1n/fude/vim"
@@ -562,19 +562,19 @@ func TestB128Icons(t *testing.T) {
 		t.Fatalf("with icons the error sign is %v", e.Views()[0].Signs[1])
 	}
 
-	// A listing's icons take two columns at the gutter's right.
+	// An explorer's icons take two columns at the gutter's right.
 	dir := t.TempDir()
 	if err := os.Mkdir(filepath.Join(dir, "sub"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	change(t, filepath.Join(dir, "main.go"), "")
 	change(t, filepath.Join(dir, "notes"), "")
-	e.Use(listingmod.New())
+	e.Use(explorermod.New())
 	feed(e, ":e "+dir+"<CR>")
 	want := map[int]wire.Sign{0: {Text: "\U000f07d3", Name: "icon.azure"}, 1: {Text: "\U000f0214", Name: "icon.grey"}, 2: {Text: "\U000f024b", Name: "icon.azure"}}
 	settle(t, e, func() bool { return maps.Equal(e.Views()[0].Icons, want) })
 	if v := e.Views()[0]; v.Gutter != v.SignCols+2 {
-		t.Fatalf("the listing has gutter %d", v.Gutter)
+		t.Fatalf("the explorer has gutter %d", v.Gutter)
 	}
 }
 

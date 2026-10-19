@@ -13,10 +13,10 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/fude/modules/autopairs"
+	explorermod "github.com/y3owk1n/fude/modules/explorer"
 	filesmod "github.com/y3owk1n/fude/modules/files"
 	grammarsmod "github.com/y3owk1n/fude/modules/grammars"
 	"github.com/y3owk1n/fude/modules/grep"
-	listingmod "github.com/y3owk1n/fude/modules/listing"
 	pickmod "github.com/y3owk1n/fude/modules/pick"
 	plugmod "github.com/y3owk1n/fude/modules/plug"
 	timelinemod "github.com/y3owk1n/fude/modules/timeline"
@@ -136,7 +136,7 @@ func TestB202FinderQuery(t *testing.T) {
 // B271
 func TestB271Plug(t *testing.T) {
 	e := withKit(t)
-	e.Use(listingmod.New())
+	e.Use(explorermod.New())
 	e.Use(pickmod.New())
 	e.Use(plugmod.New())
 	e.SetSize(100, 30)
@@ -150,10 +150,10 @@ func TestB271Plug(t *testing.T) {
 	// :pick commands finds a plug by what it does.
 	shows := func(want string) bool { f, _ := e.Float(); return strings.Contains(f.Text, want) }
 	feed(e, ":pick commands<CR>lists the directory of the file")
-	settle(t, e, func() bool { return shows(":plug listing.up") })
+	settle(t, e, func() bool { return shows(":plug explorer.up") })
 	feed(e, "<Esc><Esc>")
 	// Names complete, and fude's plugs run.
-	if feed(e, ":plug listing.u<Tab>"); e.Line() != ":plug listing.up" {
+	if feed(e, ":plug explorer.u<Tab>"); e.Line() != ":plug explorer.up" {
 		t.Errorf("<Tab> left the line %q", e.Line())
 	}
 	feed(e, "<CR>")

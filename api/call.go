@@ -17,7 +17,7 @@ type Decoration struct {
 	// Insert shows Note in Style among the text at Start, on the cursor's
 	// line too, as an inlay hint does (B216).
 	Insert bool
-	// Icon shows Sign in Style in a listing's icon column, left of Start's
+	// Icon shows Sign in Style in an explorer's icon column, left of Start's
 	// line, while icons is on. It does not show in the sign column (B337).
 	Icon bool
 	// Cover shows Note in Style over the text from Start to End, which
@@ -476,7 +476,7 @@ type Confirm struct {
 	Paths    []string
 }
 
-// Entry is a name a listing showed when it was read, and where its line's
+// Entry is a name an explorer showed when it was read, and where its line's
 // text is now. Text inserted at Start goes before the entry, and at End
 // after it, so lines added around it stay outside. An entry whose ends
 // met was deleted or changed (B327).
@@ -600,7 +600,7 @@ type Scope struct {
 	// Window reports whether a window is next to the current one that way,
 	// h, j, k or l, on the cursor's row or column (B330).
 	Window func(dir string) bool
-	// Entries returns the entries of the listing a Write's call writes
+	// Entries returns the entries of the explorer a Write's call writes
 	// (B327).
 	Entries func() []Entry
 	// Hints returns the keys that may follow the command being typed, for a
@@ -642,7 +642,7 @@ type Buffer struct {
 	Path, Filetype string
 	Name           string // what :buffers calls it, its path or its title (B329)
 	Modified       bool
-	Kind           string // its kind of buffer, such as listing or help, or "" for one a user edits (B331)
+	Kind           string // its kind of buffer, such as explorer or help, or "" for one a user edits (B331)
 	Barred         bool   // the session may not show it, as a guest may not a file outside the project (B245)
 	Text           Text   `json:"-"`
 }

@@ -10,7 +10,7 @@ import (
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/editor/editortest"
 	"github.com/y3owk1n/fude/modules/buffers"
-	"github.com/y3owk1n/fude/modules/listing"
+	"github.com/y3owk1n/fude/modules/explorer"
 	"github.com/y3owk1n/fude/modules/pins"
 	"github.com/y3owk1n/fude/modules/window"
 	"github.com/y3owk1n/fude/wire"
@@ -203,7 +203,7 @@ func TestB327ConfigKeysWin(t *testing.T) {
 // B360, B346
 func TestB360PinFollowsRename(t *testing.T) {
 	e := project(t, "b.txt", "a.txt", "sub/x.txt")
-	e.Use(listing.New())
+	e.Use(explorer.New())
 	// a.txt and sub/x.txt are pinned and not open.
 	editortest.Feed(e, ":pin list<CR>ia.txt<CR>sub/x.txt<Esc>:w<CR>q")
 	// One write renames a.txt to z.txt and sub/ to new/.

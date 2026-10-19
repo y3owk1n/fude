@@ -15,11 +15,12 @@ and a program that embeds the editor does the same.
 | [`completion`](completion) | buffer words, paths and user snippets complete in insert mode |
 | [`debug`](debug) | `:debug`, breakpoints, stepping, the panel and evaluation |
 | [`editorconfig`](editorconfig) | `.editorconfig` files set a file's indentation |
+| [`explorer`](explorer) | `-`, an explorer's keys, its notes and icons, `:w` renaming, deleting and creating its entries, and `:pwd` |
 | [`files`](files) | `:pick files` and `:pick buffers` |
 | [`flash`](flash) | text just yanked, put, undone or redone shows for a moment |
 | [`fold`](fold) | `zc`, `zo`, `za`, `zR` and `zM` fold by indent |
 | [`format`](format) | `gq`, `:format` and `format_on_save` |
-| [`git`](git) | git signs, hunks, `gh`, `gH`, `:gitdiff`, a listing's git status and the branch on the status line |
+| [`git`](git) | git signs, hunks, `gh`, `gH`, `:gitdiff`, an explorer's git status and the branch on the status line |
 | [`grammars`](grammars) | `:grammar` lists, installs and updates the grammars |
 | [`grep`](grep) | `:pick grep`, a live search of the files' lines |
 | [`help`](help) | `:help` shows help at an entry, and `<CR>` follows a name |
@@ -27,7 +28,6 @@ and a program that embeds the editor does the same.
 | [`inlay`](inlay) | a language server's inlay hints |
 | [`jump`](jump) | `s` jumps to text in view by its label |
 | [`links`](links) | `gx` opens the link or file under the cursor, `gf` the file |
-| [`listing`](listing) | `-`, a listing's keys, its notes and icons, `:w` renaming, deleting and creating its entries, and `:pwd` |
 | [`lists`](lists) | `:buffers`, `:marks`, `:jumps`, `:changes`, `:registers` and `:messages` |
 | [`lsp`](lsp) | diagnostics, hover, definitions, references, symbols, rename, code actions and the `:lsp` panel |
 | [`markdown`](markdown) | a markdown file draws as it reads, with `render` on |

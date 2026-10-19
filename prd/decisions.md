@@ -879,7 +879,7 @@ In a list of places, a timeline, help, the `lsp` panel and the windows fude
 writes, such as `:messages` and a diff, `q` closes the window (B212).
 Neovim records a macro there. Why: these windows are read-only, so a macro
 in them has nothing to edit, and configs such as LazyVim map `q` to close
-them. A listing keeps `q`, as it is a directory you edit.
+them. An explorer keeps `q`, as it is a directory you edit.
 
 ### N32. s jumps
 
@@ -952,15 +952,15 @@ that renders.
 user chooses, and `<Leader>1` to `<Leader>9` go to them (B356, B357), as
 harpoon does. Neovim has no such list, and its file marks `A` to `Z` keep
 a place, not a file, in one set for every directory. fude departs from
-harpoon in five ways. A pin follows its file through a listing's rename
+harpoon in five ways. A pin follows its file through an explorer's rename
 (B360), where harpoon loses it. The list's window writes with `:w`
-(B358), as a listing does, where harpoon writes as the window closes.
+(B358), as an explorer does, where harpoon writes as the window closes.
 The status line shows a file's pin as `2/4` (B359), where harpoon's
 users add a tabline. fude maps the keys, so the hints show them, where
 harpoon maps none. Each session has its own pins (B361). Why: the user
 asked on 2026-10-19 for a list like harpoon's and chose each of these.
 `q` closes the list's window though its lines are edited, as harpoon's
-does, where a listing keeps `q` (N31).
+does, where an explorer keeps `q` (N31).
 
 ## Open
 

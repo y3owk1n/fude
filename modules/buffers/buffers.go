@@ -90,7 +90,7 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, _ ...int) (api.
 }
 
 // step returns the buffer being edited after the current one, or before
-// it, wrapping at either end. It passes help, lists, listings, terminals,
+// it, wrapping at either end. It passes help, lists, explorers, terminals,
 // the windows fude writes, and those the session may not show. From a
 // buffer not among them, the next is the first and the one before the
 // last (B89).

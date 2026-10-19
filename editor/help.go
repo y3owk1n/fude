@@ -277,7 +277,7 @@ func (e *Session) mappings() []helpSection {
 		section("MAPPINGS IN INSERT MODE", "insert", func(f func(string, string)) { e.vim.Each(vim.Insert, f) }),
 	}
 	titles := map[string]string{
-		"listing":  "KEYS IN A LISTING",
+		"explorer": "KEYS IN AN EXPLORER",
 		"list":     "KEYS IN A LIST OF PLACES",
 		"timeline": "KEYS IN A TIMELINE",
 		"finder":   "KEYS IN THE FINDER",

@@ -372,13 +372,13 @@ func (e *Session) add(path string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("list %s: %w", path, err)
 		}
-		b, err := listingBuffer(e.next, abs)
+		b, err := explorerBuffer(e.next, abs)
 		if err != nil {
 			return "", err
 		}
 		e.next++
 		e.bufs = append(e.bufs, b)
-		e.emit("listing.read", "", b)
+		e.emit("explorer.read", "", b)
 		return "", nil
 	}
 	b, msg, err := openBuffer(e.next, path)
@@ -1018,7 +1018,7 @@ func (e *Session) edit(path string) {
 		}
 	}
 	if info, err := os.Stat(path); err == nil && info.IsDir() {
-		e.openListing(path, "")
+		e.openExplorer(path, "")
 		return
 	}
 	msg, err := e.add(path)

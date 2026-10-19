@@ -145,7 +145,7 @@ func (c *client) putClipped(x, y, end int, p part) int {
 }
 
 // splitName splits a buffer's name into its directory, with a trailing
-// slash and the home directory as ~, and the rest. A listing's name keeps
+// slash and the home directory as ~, and the rest. An explorer's name keeps
 // its own trailing slash.
 func splitName(name string) (string, string) {
 	if home, err := os.UserHomeDir(); err == nil {

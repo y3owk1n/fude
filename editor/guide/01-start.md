@@ -11,7 +11,7 @@ together. This page covers enough to open, edit and save files.
 `f` finds a file, `r` lists the files you opened last, a digit opens one of
 them and `e` starts an empty buffer. When you quit, fude keeps the
 directory's windows and cursors, and `s` on the start screen brings them
-back. `fude src/` lists a folder. In a listing, `<CR>` opens the entry under the
+back. `fude src/` lists a folder. In an explorer, `<CR>` opens the entry under the
 cursor and `-` goes up a folder.
 
 ## Modes
