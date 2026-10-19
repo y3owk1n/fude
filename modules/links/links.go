@@ -71,7 +71,7 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 		}
 		m.jobs++
 		m.opened[m.jobs] = target
-		return api.Result{Jobs: []api.Job{{ID: m.jobs, Argv: []string{opener(), target}}}}, nil
+		return api.Result{Jobs: []api.Job{{ID: m.jobs, Argv: opener(target)}}}, nil
 	}
 	path, line := split(target)
 	found, ok := find(s, path)
@@ -108,19 +108,23 @@ func (m *Module) Callback(_ context.Context, id uint32, s api.Scope) (api.Result
 func (m *Module) Work(ctx context.Context, j api.Job) (string, error) {
 	out, err := exec.CommandContext(ctx, j.Argv[0], j.Argv[1:]...).CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("%s %s: %w: %s", j.Argv[0], j.Argv[1], err, strings.TrimSpace(string(out)))
+		return "", fmt.Errorf("%s: %w: %s", strings.Join(j.Argv, " "), err, strings.TrimSpace(string(out)))
 	}
 	return "", nil
 }
 
 func (m *Module) Close(context.Context) error { return nil }
 
-// opener is the program that opens a link or file as the system would.
-func opener() string {
-	if runtime.GOOS == "darwin" {
-		return "open"
+// opener is the command that opens target, a link or file, as the system
+// would.
+func opener(target string) []string {
+	switch runtime.GOOS {
+	case "darwin":
+		return []string{"open", target}
+	case "windows":
+		return []string{"rundll32", "url.dll,FileProtocolHandler", target}
 	}
-	return "xdg-open"
+	return []string{"xdg-open", target}
 }
 
 // under returns the link or path at pos. On a markdown link it is the
