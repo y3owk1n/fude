@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"iter"
 	"maps"
 	"os"
 	"path/filepath"
@@ -615,12 +616,9 @@ func (h *Buffer) Select(t Text, src string, start, end int) ([][2]int, error) {
 	defer done()
 	c := ts.NewQueryCursor()
 	defer c.Close()
-	c.SetByteRange(uint(start), uint(end))
 	var out [][2]int
-	caps := c.Captures(q, tree.RootNode(), []byte(t.Slice(0, t.Len())))
-	for m, i := caps.Next(); m != nil; m, i = caps.Next() {
-		n := m.Captures[i].Node
-		if s, e := int(n.StartByte()), int(n.EndByte()); start <= s && e <= end {
+	for hit := range captures(c, q, tree, []byte(t.Slice(0, t.Len())), start, end) {
+		if s, e := int(hit.Node.StartByte()), int(hit.Node.EndByte()); start <= s && e <= end {
 			out = append(out, [2]int{s, e})
 		}
 	}
@@ -909,13 +907,7 @@ func Query(filetype, dir, text string, queries map[string]string) ([]Span, error
 	defer in.close()
 	var out []Span
 	run := func(q *ts.Query, t *ts.Tree) {
-		names := q.CaptureNames()
-		in.cursor.SetByteRange(0, uint(len(src)))
-		caps := in.cursor.Captures(q, t.RootNode(), src)
-		for m, i := caps.Next(); m != nil; m, i = caps.Next() {
-			n := m.Captures[i].Node
-			out = append(out, Span{int(n.StartByte()), int(n.EndByte()), names[m.Captures[i].Index]})
-		}
+		out = append(out, highlight(in.cursor, q, t, src, 0, len(src))...)
 	}
 	q, err := compile(l.lang, filetype)
 	if err != nil {
@@ -940,6 +932,26 @@ func Query(filetype, dir, text string, queries map[string]string) ([]Span, error
 	return out, nil
 }
 
+// captures yields the captures of q in tree within [from, to), each with
+// its pattern's index, through the cursor c. It walks matches, since the
+// binding's capture iterator leaks a C allocation on every capture.
+func captures(c *ts.QueryCursor, q *ts.Query, tree *ts.Tree, text []byte, from, to int) iter.Seq2[ts.QueryCapture, uint] {
+	return func(yield func(ts.QueryCapture, uint) bool) {
+		c.SetByteRange(uint(from), uint(to))
+		ms := c.Matches(q, tree.RootNode(), text)
+		for m := ms.Next(); m != nil; m = ms.Next() {
+			for _, hit := range m.Captures {
+				if int(hit.Node.EndByte()) <= from || int(hit.Node.StartByte()) >= to {
+					continue
+				}
+				if !yield(hit, m.PatternIndex) {
+					return
+				}
+			}
+		}
+	}
+}
+
 // highlight returns the captures in [from, to) in paint order, as
 // tree-sitter's own highlighter picks them. A capture on a node inside
 // another paints after it, and of the captures on one node only the last
@@ -950,17 +962,15 @@ func highlight(c *ts.QueryCursor, q *ts.Query, tree *ts.Tree, text []byte, from,
 		pattern uint
 	}
 	names := q.CaptureNames()
-	c.SetByteRange(uint(from), uint(to))
 	var cs []capture
-	caps := c.Captures(q, tree.RootNode(), text)
-	for m, i := caps.Next(); m != nil; m, i = caps.Next() {
-		n, name := m.Captures[i].Node, names[m.Captures[i].Index]
+	for hit, pattern := range captures(c, q, tree, text, from, to) {
+		name := names[hit.Index]
 		// Other editors' spell and conceal captures, and the _ ones a
 		// predicate reads, colour nothing, so they never hide one that does.
 		if strings.HasPrefix(name, "_") || name == "spell" || name == "nospell" || name == "conceal" {
 			continue
 		}
-		cs = append(cs, capture{Span{int(n.StartByte()), int(n.EndByte()), name}, m.PatternIndex})
+		cs = append(cs, capture{Span{int(hit.Node.StartByte()), int(hit.Node.EndByte()), name}, pattern})
 	}
 	slices.SortStableFunc(cs, func(a, b capture) int {
 		return cmp.Or(cmp.Compare(a.Start, b.Start), cmp.Compare(b.End, a.End), cmp.Compare(a.pattern, b.pattern))
