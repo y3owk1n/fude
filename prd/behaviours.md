@@ -15,7 +15,7 @@ Where fude departs, the line says so and cites the departure in
   empty buffer and creates the file on first write.
 - B2 [1] `:w` writes the buffer to its path atomically, through a temp file
   and rename. A failed write leaves the original file unchanged and shows the
-  error with the path.
+  error with the path. A write into a folder that does not exist says so.
 - B3 [1] fude keeps the file's line endings and final newline as it found
   them.
 - B4 [1] A file that is not valid UTF-8 opens read-only with a message saying

@@ -65,6 +65,11 @@ func TestB2WriteIsAtomic(t *testing.T) {
 	if !strings.Contains(e.Message(), path) {
 		t.Fatalf("message %q does not name the path", e.Message())
 	}
+	// A write into a folder that does not exist says so.
+	missing := filepath.Join(t.TempDir(), "gone", "f")
+	if feed(e, ":w "+missing+"<CR>"); e.Message() != "write "+missing+": the folder "+filepath.Dir(missing)+" does not exist" {
+		t.Fatalf(":w into a missing folder said %q", e.Message())
+	}
 }
 
 // B3

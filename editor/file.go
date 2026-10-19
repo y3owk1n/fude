@@ -101,6 +101,9 @@ func (f *file) write(text string) (int, error) {
 		mode = fi.Mode().Perm()
 	}
 	tmp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".fude-*")
+	if _, serr := os.Stat(filepath.Dir(path)); err != nil && errors.Is(serr, fs.ErrNotExist) {
+		return 0, fmt.Errorf("write %s: the folder %s does not exist", f.path, filepath.Dir(path))
+	}
 	if err != nil {
 		return 0, fmt.Errorf("write %s: %w", f.path, err)
 	}
