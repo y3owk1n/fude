@@ -20,11 +20,10 @@ import (
 // XDG_DATA_HOME loads it. It builds the grammar with the tree-sitter CLI
 // once, into the user's cache, and links that build into data after.
 func InstallGo(data string) error {
-	cache, err := os.UserCacheDir()
+	built, err := grammars()
 	if err != nil {
 		return fmt.Errorf("go grammar: %w", err)
 	}
-	built := filepath.Join(cache, "fude-test", "grammars")
 	if _, err := os.Stat(syntax.Library(built, "go")); err != nil {
 		if err := build(built); err != nil {
 			return err
@@ -45,11 +44,10 @@ func InstallGo(data string) error {
 // each from its pinned repo once, into the user's cache, so the first run
 // needs git, tree-sitter and the network.
 func Install(data string, filetypes ...string) error {
-	cache, err := os.UserCacheDir()
+	built, err := grammars()
 	if err != nil {
 		return fmt.Errorf("grammars: %w", err)
 	}
-	built := filepath.Join(cache, "fude-test", "grammars")
 	dir := filepath.Join(data, "fude", "grammars")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("grammars: %w", err)
@@ -66,6 +64,25 @@ func Install(data string, filetypes ...string) error {
 		}
 	}
 	return nil
+}
+
+// grammarsEnv holds the grammars directory. Processes a test starts inherit
+// it, and it keeps its value when a test moves XDG_CACHE_HOME.
+const grammarsEnv = "FUDE_TEST_GRAMMARS"
+
+// grammars returns the directory tests build grammars in, under the user's
+// cache as the first call found it. On Linux the cache follows
+// XDG_CACHE_HOME, and tests move that.
+func grammars() (string, error) {
+	if dir := os.Getenv(grammarsEnv); dir != "" {
+		return dir, nil
+	}
+	cache, err := os.UserCacheDir()
+	if err != nil {
+		return "", err
+	}
+	dir := filepath.Join(cache, "fude-test", "grammars")
+	return dir, os.Setenv(grammarsEnv, dir)
 }
 
 // build builds Go's grammar and its highlights into dir, from a copy of the
