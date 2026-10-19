@@ -89,4 +89,7 @@ loc:
     printf '%-12s %6d\n' total "$total"
 
 # Run everything a commit needs.
-check: fmt-check vet standalone cgo module-imports test kernel-size perf
+check: ci perf
+
+# Run every check but the speed promises, whose timings vary too much on shared CI runners.
+ci: fmt-check vet standalone cgo module-imports test kernel-size
