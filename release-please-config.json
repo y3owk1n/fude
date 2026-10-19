@@ -1,0 +1,32 @@
+{
+	"$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+	"release-type": "go",
+	"bootstrap-sha": "40e4005390d5f1488dc261c80ec222663b9bd3ed",
+	"bump-minor-pre-major": true,
+	"bump-patch-for-minor-pre-major": true,
+	"packages": {
+		".": {
+			"release-as": "0.1.0",
+			"extra-files": [
+				{ "type": "generic", "path": "go.mod" },
+				{ "type": "generic", "path": "go.work" },
+				{ "type": "generic", "path": "cmd/fude/go.mod" },
+				{ "type": "generic", "path": "plugin/go.mod" },
+				{ "type": "generic", "path": "sdk/go.mod" }
+			]
+		}
+	},
+	"changelog-sections": [
+		{ "type": "feat", "section": "Features" },
+		{ "type": "fix", "section": "Bug Fixes" },
+		{ "type": "perf", "section": "Performance Improvements" },
+		{ "type": "revert", "section": "Reverts" },
+		{ "type": "docs", "section": "Documentation", "hidden": true },
+		{ "type": "refactor", "section": "Code Refactoring", "hidden": true },
+		{ "type": "test", "section": "Tests", "hidden": true },
+		{ "type": "chore", "section": "Miscellaneous", "hidden": true },
+		{ "type": "ci", "section": "CI", "hidden": true },
+		{ "type": "build", "section": "Build System", "hidden": true },
+		{ "type": "style", "section": "Styles", "hidden": true }
+	]
+}
