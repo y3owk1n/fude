@@ -499,7 +499,8 @@ func (p *Plugin) command(ctx context.Context, argv []string, input string) (*exe
 	}
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
 	// A child the program leaves holding its output does not hold the call.
-	cmd.Dir, cmd.WaitDelay = p.root, 10*time.Millisecond
+	// 10ms lost a program's own output on a loaded machine.
+	cmd.Dir, cmd.WaitDelay = p.root, 100*time.Millisecond
 	if input != "" {
 		cmd.Stdin = strings.NewReader(input)
 	}
