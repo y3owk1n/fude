@@ -6,7 +6,7 @@ This module is what fude gives the code that runs inside it. A module built into
 go get github.com/y3owk1n/fude/api
 ```
 
-fude has no release yet. Until the first one, `go get` takes the latest commit and the API can change.
+`go get` takes the newest release. While fude is 0.x, a release that breaks this API bumps the minor version.
 
 ## A module
 

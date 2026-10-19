@@ -68,13 +68,21 @@ Either way, read [Status](#status) before you trust it with work.
 
 ## Install
 
-With [oku](https://github.com/y3owk1n/oku), one line builds the newest commit of `main` and installs fude with its man pages:
+With [oku](https://github.com/y3owk1n/oku), one line installs the newest release with its man pages:
 
 ```sh
 oku add github:y3owk1n/fude
 ```
 
-`oku update fude` moves to the newest commit.
+`oku update fude` moves to the newest release. To build the newest commit of `main` instead:
+
+```sh
+oku add github:y3owk1n/fude#fude-main
+```
+
+On macOS and Linux, fude builds each language's grammar with the `tree-sitter` CLI. `oku add github:tree-sitter/tree-sitter` installs it.
+
+Each [release](https://github.com/y3owk1n/fude/releases) also has a zip for macOS, Linux and Windows on arm64 and amd64, with its build provenance.
 
 <details>
 <summary>From source</summary>
@@ -82,12 +90,16 @@ oku add github:y3owk1n/fude
 Needs Go 1.26 or later and a C compiler, as fude's tree-sitter binding uses cgo. On Windows that is llvm-mingw's `gcc`, which the repository's `oku.toml` installs. Windows also needs Git for Windows.
 
 ```sh
+go install github.com/y3owk1n/fude/cmd/fude@latest
+```
+
+Or build from a clone and put `bin/fude` on your PATH:
+
+```sh
 git clone https://github.com/y3owk1n/fude
 cd fude
 go build -o bin/fude ./cmd/fude
 ```
-
-Put `bin/fude` on your PATH. `go install` works from the first release on. Until then the repository's modules point at each other through local paths, which `go install` refuses.
 
 </details>
 
@@ -260,7 +272,7 @@ Each layer of fude is a Go module or package with a small public API, tests thro
 go get github.com/y3owk1n/fude/core github.com/y3owk1n/fude/vim
 ```
 
-fude has no release yet. `go get` takes the newest commit, and every API here can change until the first release.
+`go get` takes the newest release. While fude is 0.x, a release that breaks an API here bumps the minor version.
 
 <details>
 <summary>Vim's keys over the kernel</summary>
@@ -345,9 +357,9 @@ Measured on an Apple M-series Mac. `just check` fails when one of these regresse
 
 ## Status
 
-fude is alpha. It has no releases or version numbers yet, and the config format, the plugin ABI, the socket protocol, the timeline log on disk and every library's API may change between commits. Keep backups of work you care about.
+fude is alpha. Its releases are 0.x, and the config format, the plugin ABI, the socket protocol, the timeline log on disk and every library's API may change between them. Keep backups of work you care about.
 
-Not here yet: releases, and GPU or web clients. Never here: vimscript, Lua, the mouse, and plugins without a sandbox.
+Not here yet: GPU or web clients. Never here: vimscript, Lua, the mouse, and plugins without a sandbox.
 
 ## Documentation
 

@@ -11,7 +11,7 @@ This module holds the host that runs fude plugins, and `plugintest`, which runs 
 go get github.com/y3owk1n/fude/plugin
 ```
 
-fude has no release yet. This module requires `api` at a version only the first release tags, so until then it builds only inside a clone of fude.
+`go get` takes the newest release. While fude is 0.x, a release that breaks this API bumps the minor version.
 
 ## Testing a plugin
 

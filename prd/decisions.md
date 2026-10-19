@@ -485,10 +485,9 @@ tag on every release (D37).
 `plugintest`. It requires wazero and `api/`, whose `Scope` and `Result` it
 translates the ABI to (D48). Why: a plugin's tests run its `.wasm` with
 `plugintest`, and a plugin's own module can require it without the root,
-whose `go.mod` brings the editor's dependencies. Until the first release,
-`plugin/` requires `api/` through a `replace` line, which Go ignores in a
-dependency. So a plugin's module can require `plugintest` from the first
-release on, as with `go install` (D37). A program that
+whose `go.mod` brings the editor's dependencies. `plugin/` requires `api/`
+at the version they release together, so a plugin's module can require
+`plugintest` (D37). A program that
 runs fude plugins imports the host without the editor, cgo or a terminal.
 The cost is a seventh tag on every release (D37).
 
@@ -578,9 +577,9 @@ budget starts. A result of 500 decorations takes 2.7ms in the plugin and
 need a capability of their own, `keys`. A module's stream job runs the
 module's own Go code. A plugin's calls take turns, so its own code cannot
 run as a job while it answers calls. A plugin's stream job runs a program
-instead, and each line the program prints comes as a callback. Until the first release, the sdk on the module proxy
-requires an `api` the proxy does not have, so `fude plugin new` in a build
-that is not a release fails, and B173's test skips (D37).
+instead, and each line the program prints comes as a callback. A build of
+fude that is not a release takes the newest sdk, which may be older than its
+ABI, and B173's test then skips (D37).
 
 ## D52. fude's modes are subcommands, parsed by hand
 

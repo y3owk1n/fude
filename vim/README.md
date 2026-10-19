@@ -6,7 +6,7 @@ Vim's editing grammar as a state machine, for Go programs that keep their own te
 go get github.com/y3owk1n/fude/vim
 ```
 
-fude has no release yet. Until the first one, `go get` takes the latest commit and the API can change.
+`go get` takes the newest release. While fude is 0.x, a release that breaks this API bumps the minor version.
 
 ## How it works
 

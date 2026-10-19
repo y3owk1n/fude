@@ -6,7 +6,7 @@ tree-sitter highlighting and syntax-aware text objects for Go programs, with gra
 go get github.com/y3owk1n/fude/syntax
 ```
 
-fude has no release yet. Until the first one, `go get` takes the latest commit and the API can change.
+`go get` takes the newest release. While fude is 0.x, a release that breaks this API bumps the minor version.
 
 The package uses cgo, through tree-sitter's official Go binding, so it needs a C compiler. `Build` also needs `git` and the [tree-sitter CLI](https://tree-sitter.github.io/tree-sitter/cli/).
 

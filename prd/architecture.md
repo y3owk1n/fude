@@ -1331,8 +1331,7 @@ scope over a string, the only open buffer. A test gets the call's
 `plugin.Result`, and `Apply` makes the edits it asks for. Timers, jobs,
 requests and picks stay in the result, and the test runs their callback
 itself with `Callback`. `plugin/` is a Go module that requires wazero
-and `api/` (D45), so a plugin's own module can require it from fude's
-first release on (D37).
+and `api/` (D45), so a plugin's own module can require it (D37).
 
 Test plugins are written with the sdk, each a folder in `plugin/testdata`.
 `just wasm` builds each with `fude plugin build`, and the `.wasm` it builds

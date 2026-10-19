@@ -10,8 +10,8 @@ fude's editor under a client of its own, or to test a module.
 go get github.com/y3owk1n/fude
 ```
 
-fude has no release yet. Until the first one, `go get` takes the latest
-commit and the API can change.
+`go get` takes the newest release. While fude is 0.x, a release that breaks
+this API bumps the minor version.
 
 ## Running an editor
 
