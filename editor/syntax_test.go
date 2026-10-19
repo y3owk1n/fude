@@ -236,8 +236,8 @@ func TestB165BuiltGrammar(t *testing.T) {
 	if err := os.CopyFS(filepath.Join(out, "queries"), os.DirFS(filepath.Join(strings.TrimSpace(string(mod)), "queries"))); err != nil {
 		t.Fatal(err)
 	}
-	if b, err := exec.Command("tree-sitter", "build", "-o", filepath.Join(out, "parser.so"), filepath.Dir(src)).CombinedOutput(); err != nil {
-		t.Fatalf("tree-sitter build: %v: %s", err, b)
+	if err := syntax.Compile(filepath.Dir(src), syntax.Library(filepath.Dir(out), "gotest")); err != nil {
+		t.Fatal(err)
 	}
 	path := filepath.Join(t.TempDir(), "a.gotest")
 	change(t, path, "package p\n")

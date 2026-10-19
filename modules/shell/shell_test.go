@@ -12,7 +12,8 @@ func TestMain(m *testing.M) { os.Exit(editortest.Main(m)) }
 
 // B156
 func TestB156Shell(t *testing.T) {
-	t.Setenv("SHELL", "/bin/sh")
+	// sh from PATH, which on Windows comes with Git for Windows.
+	t.Setenv("SHELL", "sh")
 	e := editortest.Open(t, "")
 	e.Use(shell.New())
 	editortest.Feed(e, "ic<CR>a<CR>b<Esc>")

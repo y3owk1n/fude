@@ -16,7 +16,8 @@ func TestMain(m *testing.M) { os.Exit(editortest.Main(m)) }
 
 // B228
 func TestB228Tasks(t *testing.T) {
-	t.Setenv("SHELL", "/bin/sh")
+	// sh from PATH, which on Windows comes with Git for Windows.
+	t.Setenv("SHELL", "sh")
 	dir := t.TempDir()
 	editortest.Change(t, filepath.Join(dir, "Makefile"), "build:\n\techo b\n")
 	if err := os.MkdirAll(filepath.Join(dir, ".fude"), 0o755); err != nil {
@@ -64,7 +65,8 @@ func TestB228Tasks(t *testing.T) {
 
 // B230
 func TestB230TaskPlaces(t *testing.T) {
-	t.Setenv("SHELL", "/bin/sh")
+	// sh from PATH, which on Windows comes with Git for Windows.
+	t.Setenv("SHELL", "sh")
 	dir := t.TempDir()
 	editortest.Change(t, filepath.Join(dir, "a.txt"), "one\ntwo\n")
 	t.Chdir(dir)
@@ -91,7 +93,8 @@ func TestB230TaskPlaces(t *testing.T) {
 
 // B231
 func TestB231BackgroundTasks(t *testing.T) {
-	t.Setenv("SHELL", "/bin/sh")
+	// sh from PATH, which on Windows comes with Git for Windows.
+	t.Setenv("SHELL", "sh")
 	dir := t.TempDir()
 	editortest.Change(t, filepath.Join(dir, "a.txt"), "a\n")
 	t.Chdir(dir)

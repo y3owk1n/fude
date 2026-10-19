@@ -1123,7 +1123,10 @@ func TestB151Tint(t *testing.T) {
 
 // B362
 func TestB362Confirm(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "f")
+	// A short name keeps the question on one row, which a long temporary
+	// path, such as Windows', would wrap.
+	t.Chdir(t.TempDir())
+	path := "f"
 	editortest.Change(t, path, "one\n")
 	cl := start(t, path)
 	feed := func(keys string) {
@@ -1571,7 +1574,9 @@ func TestB249ShareOnce(t *testing.T) {
 	}
 	refused(flip(printAt), "its certificate is not the one the share string names")
 	dead := closedPort(t)
-	refused(dead+str[printAt-1:], "no address of the host answered, dial tcp "+dead+": connect: connection refused")
+	// Each system words a refused connection its own way.
+	_, err := net.Dial("tcp", dead)
+	refused(dead+str[printAt-1:], "no address of the host answered, "+err.Error())
 	refused(flip(secretAt), "the share string is wrong or was used, so ask the host for a new one")
 	// n keeps the guest out.
 	waiting := joining(str)

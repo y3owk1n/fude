@@ -235,7 +235,9 @@ func TestB262Breakpoints(t *testing.T) {
 			// request to run a terminal is refused.
 			got := disk(t, log)
 			abs, _ := filepath.Abs("main.go")
-			if !strings.Contains(got, `"program":"`+abs+`"`) {
+			// JSON writes a Windows path's backslashes doubled.
+			program, _ := json.Marshal(abs)
+			if !strings.Contains(got, `"program":`+string(program)) {
 				t.Errorf("the adapter got no program %s in:\n%s", abs, got)
 			}
 			refused := func(l string) bool {

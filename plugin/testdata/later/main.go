@@ -26,13 +26,15 @@ func init() {
 		}
 	})
 	sdk.Command("Lines", "types each line printf prints as it comes", func(sdk.Call) {
+		// printf turns \n into a line break itself. A line break in an
+		// argument does not reach a program whole on Windows.
 		sdk.Stream(func(line string, done bool, err error) {
 			if done {
 				typed("end|", err)
 				return
 			}
 			sdk.Edit(0, 0, line+"|")
-		}, "printf", "a\nb\n")
+		}, "printf", `a\nb\n`)
 	})
 	sdk.Command("Jobs", "runs two programs in the background", func(sdk.Call) {
 		sdk.Start(func(out string, err error) { typed("slept"+out, err) }, "sleep", "0.1")

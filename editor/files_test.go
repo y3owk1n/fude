@@ -338,7 +338,9 @@ func TestB201StartInDirectory(t *testing.T) {
 // B204
 func TestB204PathExpansion(t *testing.T) {
 	dir := t.TempDir()
+	// Windows finds the home folder in USERPROFILE.
 	t.Setenv("HOME", dir)
+	t.Setenv("USERPROFILE", dir)
 	b, c := filepath.Join(dir, "b.go"), filepath.Join(dir, "c.txt")
 	change(t, b, "B\n")
 	change(t, c, "C\n")
@@ -421,10 +423,10 @@ func TestB155WritingAndFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 	feed(e, ":cd sub<CR><C-w>k")
-	if wd, _ := os.Getwd(); wd != sub && !strings.HasSuffix(wd, "/sub") {
+	if wd, _ := os.Getwd(); wd != sub && !strings.HasSuffix(wd, string(filepath.Separator)+"sub") {
 		t.Fatalf(":cd sub left the working directory %s", wd)
 	}
-	if feed(e, ":pwd<CR>"); !strings.HasSuffix(e.Message(), "/sub") {
+	if feed(e, ":pwd<CR>"); !strings.HasSuffix(e.Message(), string(filepath.Separator)+"sub") {
 		t.Fatalf(":pwd said %q", e.Message())
 	}
 	// a changed on disk above, so :w! writes over it.

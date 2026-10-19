@@ -32,7 +32,8 @@ func screen(e *editor.Session) string {
 
 // B205
 func TestB205Terminal(t *testing.T) {
-	t.Setenv("SHELL", "/bin/sh")
+	// sh from PATH, which on Windows comes with Git for Windows.
+	t.Setenv("SHELL", "sh")
 	path := filepath.Join(t.TempDir(), "a.txt")
 	change(t, path, "file\n")
 	e := open(t, path)
@@ -78,7 +79,8 @@ func TestB205Terminal(t *testing.T) {
 
 // B355
 func TestB355TerminalEnv(t *testing.T) {
-	t.Setenv("SHELL", "/bin/sh")
+	// sh from PATH, which on Windows comes with Git for Windows.
+	t.Setenv("SHELL", "sh")
 	t.Setenv("FUDE_SOCKET", "")
 	t.Setenv("FUDE_SESSION", "")
 	e := open(t, "")

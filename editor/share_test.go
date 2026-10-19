@@ -146,7 +146,8 @@ func TestB244GuestRefuses(t *testing.T) {
 		}
 	}
 	// A guest shows no terminal, whose keys would run on the host.
-	t.Setenv("SHELL", "/bin/sh")
+	// sh from PATH, which on Windows comes with Git for Windows.
+	t.Setenv("SHELL", "sh")
 	feed(e, `:terminal cat<CR><C-\><C-n>`)
 	views := e.Views()
 	term := views[len(views)-1]
