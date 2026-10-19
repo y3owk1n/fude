@@ -145,8 +145,9 @@ func TestB125EditExplorer(t *testing.T) {
 func TestB127ExplorerNotes(t *testing.T) {
 	dir := t.TempDir()
 	editortest.Change(t, filepath.Join(dir, "plain"), "")
-	editortest.Change(t, filepath.Join(dir, "run"), "")
-	if err := os.Chmod(filepath.Join(dir, "run"), 0o755); err != nil {
+	// fude marks a program by its mode, or on Windows by its extension.
+	editortest.Change(t, filepath.Join(dir, "run.exe"), "")
+	if err := os.Chmod(filepath.Join(dir, "run.exe"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Symlink("plain", filepath.Join(dir, "link")); err != nil {

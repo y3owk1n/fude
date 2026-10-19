@@ -6,6 +6,7 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -50,15 +51,14 @@ func TestB2WriteIsAtomic(t *testing.T) {
 	if got := disk(t, path); got != "new old\n" {
 		t.Fatalf("write: %q", got)
 	}
-	if fi, _ := os.Stat(path); fi.Mode().Perm() != 0o600 {
+	// Windows gives files no mode, only a read-only flag.
+	if fi, _ := os.Stat(path); runtime.GOOS != "windows" && fi.Mode().Perm() != 0o600 {
 		t.Fatalf("write changed the mode to %v", fi.Mode().Perm())
 	}
 
-	if err := os.Chmod(dir, 0o500); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { os.Chmod(dir, 0o700) })
+	release := refuseWrite(t, path)
 	feed(e, "ix<Esc>:w<CR>")
+	release()
 	if got := disk(t, path); got != "new old\n" {
 		t.Fatalf("failed write changed the file to %q", got)
 	}

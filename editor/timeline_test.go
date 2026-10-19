@@ -142,7 +142,8 @@ func TestB34Recovery(t *testing.T) {
 	dir := t.TempDir()
 	path, done := filepath.Join(dir, "g.txt"), filepath.Join(dir, "done")
 	change(t, path, "one\n")
-	config(t, fmt.Sprintf("[filetype.txt]\nformat = [\"up\"]\n[formatter.up]\ncommand = [\"sh\", \"-c\", \"sed s/one/ONE/; touch %s\"]\n", done))
+	// sh and TOML both read a backslash as an escape, so the path has /.
+	config(t, fmt.Sprintf("[filetype.txt]\nformat = [\"up\"]\n[formatter.up]\ncommand = [\"sh\", \"-c\", \"sed s/one/ONE/; touch %s\"]\n", filepath.ToSlash(done)))
 	e = withCommands(start(t, path))
 	e.Use(format.New())
 	feed(e, ":format<CR>:bd!<CR>")
