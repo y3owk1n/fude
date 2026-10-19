@@ -251,9 +251,16 @@ open, keys, state, attach and tail reach the one fude running, or the one
 	w.Flush()
 }
 
-// version is the release fude was installed as, or else the date and
-// commit it was built from (B349).
+// build is the name of a build that knows neither its module version nor its
+// commit. oku's builds set it with -ldflags "-X main.build=...".
+var build string
+
+// version is build when set, else the release fude was installed as, else
+// the date and commit it was built from (B349).
 func version() string {
+	if build != "" {
+		return "fude " + build
+	}
 	vcs := map[string]string{}
 	if info, ok := debug.ReadBuildInfo(); ok {
 		// A build by go install of a release, as the release workflow makes,

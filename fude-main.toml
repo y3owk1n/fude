@@ -98,7 +98,10 @@ when = { os = "windows" }
 [[build.step]]
 run = """
 set -eu
-go build -mod=vendor -trimpath -ldflags="-s -w" -o fude ./cmd/fude
+# oku's version is <date>-<commit>, which fude prints as it prints a build
+# from a checkout.
+v='{{version}}'
+go build -mod=vendor -trimpath -ldflags="-s -w -X 'main.build=${v%-*} (${v#*-})'" -o fude ./cmd/fude
 mkdir -p man
 ./fude man > man/fude.1
 ./fude man config > man/fude-config.5
@@ -117,7 +120,8 @@ when = [{ os = "darwin" }, { os = "linux" }]
 [[build.step]]
 run = """
 $ErrorActionPreference = 'Stop'
-go build -mod=vendor -trimpath "-ldflags=-s -w" -o fude.exe ./cmd/fude
+$date, $commit = '{{version}}' -split '-', 2
+go build -mod=vendor -trimpath "-ldflags=-s -w -X 'main.build=$date ($commit)'" -o fude.exe ./cmd/fude
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 """
 shell = "pwsh"
