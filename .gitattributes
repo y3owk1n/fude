@@ -1,0 +1,2 @@
+# Every text file checks out with LF line ends. Git on Windows would write CRLF.
+* text=auto eol=lf

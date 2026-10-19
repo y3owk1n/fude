@@ -13,7 +13,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            run: just ci
+          - os: macos-latest
+            run: just ci
+          # Windows builds and vets until its tests pass there.
+          - os: windows-latest
+            run: just fmt-check vet standalone cgo module-imports kernel-size
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -21,4 +28,4 @@ jobs:
       - uses: y3owk1n/oku@v0.18.1
         env:
           GITHUB_TOKEN: ${{ github.token }}
-      - run: just ci
+      - run: ${{ matrix.run }}
