@@ -3,13 +3,12 @@ package editor
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"regexp"
 	"slices"
 	"strconv"
-	"strings"
 	"time"
 
+	"github.com/y3owk1n/fude/internal/home"
 	"github.com/y3owk1n/fude/internal/trace"
 )
 
@@ -20,15 +19,11 @@ var base16Line = regexp.MustCompile(`(?i)base0([0-9a-f])"?\s*:\s*"#?([0-9a-f]{6}
 
 // expandHome returns path with a leading ~/ made the home directory.
 func expandHome(path string) (string, error) {
-	rest, ok := strings.CutPrefix(path, "~/")
-	if !ok {
-		return path, nil
-	}
-	home, err := os.UserHomeDir()
+	full, err := home.Expand(path)
 	if err != nil {
 		return "", fmt.Errorf("%s: %w", path, err)
 	}
-	return filepath.Join(home, rest), nil
+	return full, nil
 }
 
 // readBase16 reads the colours base00 to base0F of the base16 scheme at

@@ -395,7 +395,7 @@ func (f *finder) float(query string, cursor, width, height int) wire.Float {
 func writePath(s *strings.Builder, spans *[]syntax.Span, path string, marks []int, width int, style string) {
 	dir, name := filepath.Split(path)
 	nameAt, at := len(dir), s.Len()
-	dir = strings.TrimSuffix(dir, "/")
+	dir = strings.TrimSuffix(dir, string(filepath.Separator))
 	if r := []rune(name); len(r) > width {
 		name = string(r[:max(width, 0)])
 	}
@@ -432,17 +432,18 @@ func shorten(dir string, room int) (shown string, place func(int) int) {
 	if utf8.RuneCountInString(dir) <= room {
 		return dir, func(i int) int { return i }
 	}
-	head, _, _ := strings.Cut(dir, "/")
-	for tail := dir; strings.Contains(tail, "/"); {
-		tail = tail[strings.IndexByte(tail, '/')+1:]
-		if shown := head + "/…/" + tail; utf8.RuneCountInString(shown) <= room {
+	sep := string(filepath.Separator)
+	head, _, _ := strings.Cut(dir, sep)
+	for tail := dir; strings.Contains(tail, sep); {
+		tail = tail[strings.Index(tail, sep)+1:]
+		if shown := head + sep + "…" + sep + tail; utf8.RuneCountInString(shown) <= room {
 			cut := len(dir) - len(tail)
 			return shown, func(i int) int {
 				switch {
 				case i < len(head):
 					return i
 				case i >= cut:
-					return len(head) + len("/…/") + i - cut
+					return len(head) + len(sep+"…"+sep) + i - cut
 				}
 				return -1
 			}

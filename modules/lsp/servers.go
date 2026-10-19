@@ -109,7 +109,7 @@ func panel(s api.Scope) (*api.Panel, []string) {
 			label = ""
 		}
 	}
-	home := os.Getenv("HOME")
+	home, _ := os.UserHomeDir()
 	p := &api.Panel{Title: panelTitle, Float: true, Keys: panelKeys}
 	var names []string
 	for i, sv := range s.Servers() {
@@ -145,8 +145,8 @@ func panel(s api.Scope) (*api.Panel, []string) {
 		}
 		for _, r := range sv.Roots {
 			root := r.Path
-			if rest, ok := strings.CutPrefix(root, home+"/"); home != "" && ok {
-				root = "~/" + rest
+			if rest, ok := strings.CutPrefix(root, home+string(filepath.Separator)); home != "" && ok {
+				root = "~" + string(filepath.Separator) + rest
 			}
 			// A long root keeps its end, where it names its folder.
 			if r := []rune(root); len(r) > room {

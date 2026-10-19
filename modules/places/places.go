@@ -248,7 +248,10 @@ func entries(s api.Scope, pl api.Places) []entry {
 			e.col, _ = strconv.Atoi(parts[1])
 			e.path, text, place = pl.File, parts[2], parts[0]+":"+parts[1]+":"
 		} else {
-			parts := strings.SplitN(item, ":", 4)
+			// The colon of a Windows path's drive, as in C:, splits nothing.
+			vol := filepath.VolumeName(item)
+			parts := strings.SplitN(item[len(vol):], ":", 4)
+			parts[0] = vol + parts[0]
 			line, err1 := strconv.Atoi(part(parts, 1))
 			col, err2 := strconv.Atoi(part(parts, 2))
 			if len(parts) < 4 || err1 != nil || err2 != nil {

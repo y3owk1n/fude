@@ -156,7 +156,7 @@ func (e *Session) expand(arg string) (string, error) {
 				i += 2
 			}
 			b.WriteString(path)
-		case ch == '~' && (i == 0 || arg[i-1] == ' ') && (i+1 == len(arg) || arg[i+1] == '/' || arg[i+1] == ' '):
+		case ch == '~' && (i == 0 || arg[i-1] == ' ') && (i+1 == len(arg) || arg[i+1] == '/' || arg[i+1] == filepath.Separator || arg[i+1] == ' '):
 			home, err := os.UserHomeDir()
 			if err != nil {
 				return "", fmt.Errorf("expand ~: %w", err)

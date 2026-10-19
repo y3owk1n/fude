@@ -2,6 +2,7 @@ package term
 
 import (
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -148,12 +149,13 @@ func (c *client) putClipped(x, y, end int, p part) int {
 // slash and the home directory as ~, and the rest. An explorer's name keeps
 // its own trailing slash.
 func splitName(name string) (string, string) {
+	sep := string(filepath.Separator)
 	if home, err := os.UserHomeDir(); err == nil {
-		if rest, ok := strings.CutPrefix(name, home+"/"); ok {
-			name = "~/" + rest
+		if rest, ok := strings.CutPrefix(name, home+sep); ok {
+			name = "~" + sep + rest
 		}
 	}
-	i := strings.LastIndexByte(strings.TrimSuffix(name, "/"), '/')
+	i := strings.LastIndex(strings.TrimSuffix(name, "/"), sep)
 	return name[:i+1], name[i+1:]
 }
 

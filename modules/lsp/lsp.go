@@ -419,7 +419,7 @@ func relative(path string) string {
 	if err != nil {
 		return path
 	}
-	if rel, err := filepath.Rel(wd, path); err == nil && rel != ".." && !strings.HasPrefix(rel, "../") {
+	if rel, err := filepath.Rel(wd, path); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 		return rel
 	}
 	return path
@@ -500,8 +500,8 @@ func symbolPlaces(out string) ([]string, error) {
 	}
 	// Places show under their file, so a file's come together.
 	slices.SortStableFunc(items, func(a, b string) int {
-		pa, _, _ := strings.Cut(a, ":")
-		pb, _, _ := strings.Cut(b, ":")
+		pa, _, _ := strings.Cut(a[len(filepath.VolumeName(a)):], ":")
+		pb, _, _ := strings.Cut(b[len(filepath.VolumeName(b)):], ":")
 		return strings.Compare(pa, pb)
 	})
 	return items, nil

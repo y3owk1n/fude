@@ -157,14 +157,14 @@ func (m *Module) screen(list [][2]string) *api.Panel {
 		for i, p := range m.recent {
 			b.WriteString("   ")
 			mark(strconv.Itoa(i+1), "keyword")
-			if home != "" && strings.HasPrefix(p, home+"/") {
+			if home != "" && strings.HasPrefix(p, home+string(filepath.Separator)) {
 				p = "~" + p[len(home):]
 			}
 			dir, name := filepath.Split(p)
 			b.WriteString("  " + name)
 			if dir != "" {
 				b.WriteString("  ")
-				mark(strings.TrimSuffix(dir, "/"), "comment")
+				mark(strings.TrimSuffix(dir, string(filepath.Separator)), "comment")
 			}
 			b.WriteString("\n")
 		}

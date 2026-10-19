@@ -21,6 +21,7 @@ import (
 
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/internal/fuzzy"
+	"github.com/y3owk1n/fude/internal/home"
 	"github.com/y3owk1n/fude/internal/keep"
 	"github.com/y3owk1n/fude/internal/trace"
 )
@@ -202,20 +203,21 @@ func pathBefore(t api.Text, c int, file string) (string, int, bool) {
 	ls := t.LineStart(t.LineOf(c))
 	line := t.Slice(ls, c)
 	p := line[strings.LastIndexAny(line, " \t\"'`(<=,;")+1:]
-	slash := strings.LastIndexByte(p, '/')
+	// Windows takes \ between folders as well as /.
+	sep := string(filepath.Separator)
+	slash := strings.LastIndexAny(p, "/"+sep)
 	if slash < 0 {
 		return "", 0, false
 	}
 	dir := p[:slash+1]
+	full, err := home.Expand(dir)
 	switch {
-	case strings.HasPrefix(dir, "~/"):
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", 0, false
-		}
-		dir = filepath.Join(home, dir[2:]) + "/"
+	case err != nil:
+		return "", 0, false
+	case full != dir:
+		dir = full + sep
 	case !filepath.IsAbs(dir) && file != "":
-		dir = filepath.Join(filepath.Dir(file), dir) + "/"
+		dir = filepath.Join(filepath.Dir(file), dir) + sep
 	}
 	return dir, c - (len(p) - slash - 1), true
 }

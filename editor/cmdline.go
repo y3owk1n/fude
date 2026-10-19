@@ -368,7 +368,7 @@ func (m *cmenu) float() wire.Float {
 		}
 		// A path marks the letters of its last part that the typed part
 		// matches (B152).
-		dir := strings.LastIndexByte(m.typed, '/') + 1
+		dir := strings.LastIndexAny(m.typed, "/"+string(filepath.Separator)) + 1
 		for _, at := range fuzzy.Positions(fuzzy.Lower(m.typed[dir:]), it[dir:]) {
 			spans = append(spans, syntax.Span{Start: s.Len() + dir + at, End: s.Len() + dir + at + 1, Name: "match"})
 		}

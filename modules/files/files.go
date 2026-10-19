@@ -109,8 +109,9 @@ func (m *Module) Work(_ context.Context, j api.Job) (string, error) {
 	if j.Argv[0] != "true" {
 		// Outside a repository, or without git, git fails and the walk lists
 		// the files.
+		// git writes / between folders on Windows too.
 		if out, err := exec.Command("git", "ls-files", "-z", "--cached", "--others", "--exclude-standard").Output(); err == nil {
-			return string(out), nil
+			return filepath.FromSlash(string(out)), nil
 		}
 	}
 	var paths []string

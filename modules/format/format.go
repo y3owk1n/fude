@@ -20,6 +20,7 @@ import (
 
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/api/diff"
+	"github.com/y3owk1n/fude/internal/home"
 	"github.com/y3owk1n/fude/protocol/lsp"
 )
 
@@ -290,16 +291,11 @@ func commandOf(name string, command []string) ([]string, error) {
 	}
 	out := make([]string, len(command))
 	for i, word := range command {
-		rest, ok := strings.CutPrefix(word, "~/")
-		if !ok {
-			out[i] = word
-			continue
-		}
-		home, err := os.UserHomeDir()
+		path, err := home.Expand(word)
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", word, err)
 		}
-		out[i] = filepath.Join(home, rest)
+		out[i] = path
 	}
 	return out, nil
 }

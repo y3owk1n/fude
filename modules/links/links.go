@@ -15,6 +15,7 @@ import (
 	"sync"
 
 	"github.com/y3owk1n/fude/api"
+	"github.com/y3owk1n/fude/internal/home"
 )
 
 // What links registers, by the ids its calls run them by.
@@ -168,10 +169,13 @@ func isBlank(c byte) bool { return c == ' ' || c == '\t' }
 // split cuts a :line off the end of target, and returns the path and the
 // line, or 0 for none.
 func split(target string) (string, int) {
-	path, rest, ok := strings.Cut(target, ":")
+	// The colon of a Windows path's drive, as in C:, splits nothing.
+	vol := filepath.VolumeName(target)
+	path, rest, ok := strings.Cut(target[len(vol):], ":")
 	if !ok {
 		return target, 0
 	}
+	path = vol + path
 	n, _, _ := strings.Cut(rest, ":")
 	line, err := strconv.Atoi(n)
 	if err != nil {
@@ -184,12 +188,9 @@ func split(target string) (string, int) {
 // under ~/, else in the folder of the buffer s is about, else in the
 // working directory.
 func find(s api.Scope, path string) (string, bool) {
-	if rest, ok := strings.CutPrefix(path, "~/"); ok {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", false
-		}
-		path = filepath.Join(home, rest)
+	path, err := home.Expand(path)
+	if err != nil {
+		return "", false
 	}
 	tries := []string{path}
 	if !filepath.IsAbs(path) {

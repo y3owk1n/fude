@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -123,7 +124,12 @@ func search(ctx context.Context, query string, all bool) ([]string, error) {
 		if line, more, err = in.ReadLine(); err != nil {
 			break
 		}
-		lines = append(lines, string(line))
+		l := string(line)
+		// git writes / between folders on Windows too, where rg writes \.
+		if p, rest, ok := strings.Cut(l, ":"); ok && cmd.Args[0] == "git" {
+			l = filepath.FromSlash(p) + ":" + rest
+		}
+		lines = append(lines, l)
 		// A line longer than the reader's buffer shows its start.
 		for more && err == nil {
 			_, more, err = in.ReadLine()

@@ -5,6 +5,7 @@ package fuzzy
 import (
 	"cmp"
 	"math"
+	"os"
 	"slices"
 	"strings"
 )
@@ -144,7 +145,7 @@ func bonuses(s string, bonus []float64) {
 	for j := range len(s) {
 		c := s[j]
 		switch {
-		case prev == '/':
+		case prev == '/' || prev == os.PathSeparator:
 			bonus[j] = matchSlash
 		case prev == '-' || prev == '_' || prev == ' ':
 			bonus[j] = matchWord
