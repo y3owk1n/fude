@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/plugin"
@@ -30,7 +31,7 @@ type Plugin struct {
 func Load(t testing.TB, path string, g plugin.Grants, text string) *Plugin {
 	t.Helper()
 	tp := &Plugin{t: t}
-	p, err := plugin.Load(context.Background(), path, g, t.TempDir(), tp.logged)
+	p, err := plugin.Load(context.Background(), path, g, t.TempDir(), tp.logged, func(string, time.Duration) {})
 	if err != nil {
 		t.Fatalf("load %s: %v", path, err)
 	}

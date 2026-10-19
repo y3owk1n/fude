@@ -292,13 +292,24 @@ func (m *Module) Work(ctx context.Context, j api.Job) (string, error) {
 	emit := d.emit
 	queue, exited := make(chan func(), 16), make(chan struct{})
 	c, err := dap.Start(d.adapter, d.cmd, d.dir, queue,
-		func(text string) { emit(line{Kind: "log", Name: text}) },
-		func(string) {},
+		func(text string) {
+			trace.Record("dap", text, 0)
+			emit(line{Kind: "log", Name: text})
+		},
+		func(text string, took time.Duration) { trace.Record("dap", text, took) },
 		func(name string, body json.RawMessage) { emit(line{Kind: "event", Name: name, Body: body}) },
-		func(error) { close(exited) })
+		func(err error) {
+			if err != nil {
+				trace.Record("dap", d.adapter+" exited: "+err.Error(), 0)
+			} else {
+				trace.Record("dap", d.adapter+" exited", 0)
+			}
+			close(exited)
+		})
 	if err != nil {
 		return "", err
 	}
+	trace.Record("dap", "started "+d.adapter+" in "+d.dir, 0)
 	for {
 		select {
 		case f := <-queue:

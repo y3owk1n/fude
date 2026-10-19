@@ -25,13 +25,13 @@ import (
 type Client struct {
 	queue chan<- func()
 	log   func(string)
-	trace func(string)
+	trace func(text string, took time.Duration)
 	name  string
 	cmd   *exec.Cmd
 
 	// seq and pending are the editor loop's alone.
 	seq     int
-	pending map[int]func(json.RawMessage, error)
+	pending map[int]waiting
 
 	mu     sync.Mutex // over outbox
 	outbox [][]byte
@@ -52,13 +52,19 @@ type message struct {
 	Body       json.RawMessage `json:"body,omitempty"`
 }
 
+// waiting is a request's answer, and when it was asked.
+type waiting struct {
+	answer func(json.RawMessage, error)
+	at     time.Time
+}
+
 // Start runs command in dir as the adapter called name. A {port} in the
 // command becomes a free port, which Start dials until the process ends or
 // five seconds pass, and without one the adapter talks on stdio. event gets
 // each event and exited the end of the process, both on the editor loop
 // through queue. log takes what the adapter writes to stderr, and trace
-// each message sent.
-func Start(name string, command []string, dir string, queue chan<- func(), log, trace func(string), event func(name string, body json.RawMessage), exited func(error)) (*Client, error) {
+// each message sent and received, with how long an answer took.
+func Start(name string, command []string, dir string, queue chan<- func(), log func(string), trace func(text string, took time.Duration), event func(name string, body json.RawMessage), exited func(error)) (*Client, error) {
 	if len(command) == 0 {
 		return nil, fmt.Errorf("debug adapter %s has no command", name)
 	}
@@ -95,15 +101,15 @@ func Start(name string, command []string, dir string, queue chan<- func(), log, 
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("start %s: %w", name, err)
 	}
-	c := &Client{queue: queue, log: log, trace: trace, name: name, cmd: cmd, pending: map[int]func(json.RawMessage, error){}, wake: make(chan struct{}, 1), done: make(chan struct{})}
+	c := &Client{queue: queue, log: log, trace: trace, name: name, cmd: cmd, pending: map[int]waiting{}, wake: make(chan struct{}, 1), done: make(chan struct{})}
 	go func() {
 		err := cmd.Wait()
 		stderr.Flush()
 		close(c.done)
 		c.queue <- func() {
-			for seq, answer := range c.pending {
+			for seq, w := range c.pending {
 				delete(c.pending, seq)
-				answer(nil, errors.New("the debug adapter ended"))
+				w.answer(nil, errors.New("the debug adapter ended"))
 			}
 			exited(err)
 		}
@@ -150,7 +156,7 @@ func (c *Client) dial(port string) (net.Conn, error) {
 // why it failed, on the loop. It must be called on the loop.
 func (c *Client) Request(command string, args any, answer func(json.RawMessage, error)) {
 	c.seq++
-	c.pending[c.seq] = answer
+	c.pending[c.seq] = waiting{answer, time.Now()}
 	c.send(message{Seq: c.seq, Type: "request", Command: command, Arguments: args})
 }
 
@@ -166,7 +172,11 @@ func (c *Client) send(m message) {
 		c.log(fmt.Sprintf("%s: send %s: %v", c.name, m.Command, err))
 		return
 	}
-	c.trace(fmt.Sprintf("sent %s %s", c.name, cmp.Or(m.Command, m.Type)))
+	what := fmt.Sprintf("sent %s %s #%d, %d bytes", c.name, m.Command, m.Seq, len(body))
+	if m.Type == "response" {
+		what = fmt.Sprintf("answered %s %s #%d, %d bytes", c.name, m.Command, m.RequestSeq, len(body))
+	}
+	c.trace(what, 0)
 	c.mu.Lock()
 	c.outbox = append(c.outbox, body)
 	c.mu.Unlock()
@@ -218,10 +228,12 @@ func (c *Client) read(r *bufio.Reader, event func(string, json.RawMessage)) {
 		var f func()
 		switch m.Type {
 		case "event":
+			c.trace(fmt.Sprintf("%s sent %s, %d bytes", c.name, m.Event, len(body)), 0)
 			f = func() { event(m.Event, m.Body) }
 		case "response":
-			f = func() { c.answered(m) }
+			f = func() { c.answered(m, len(body)) }
 		case "request":
+			c.trace(fmt.Sprintf("%s asked %s, %d bytes", c.name, m.Command, len(body)), 0)
 			f = func() {
 				c.seq++
 				c.send(message{Seq: c.seq, Type: "response", RequestSeq: m.Seq, Command: m.Command, Success: new(bool), Message: "fude does not run " + m.Command})
@@ -237,16 +249,20 @@ func (c *Client) read(r *bufio.Reader, event func(string, json.RawMessage)) {
 	}
 }
 
-// answered gives a response to the request it answers.
-func (c *Client) answered(m message) {
-	answer, ok := c.pending[m.RequestSeq]
+// answered gives a response of size bytes to the request it answers.
+func (c *Client) answered(m message, size int) {
+	w, ok := c.pending[m.RequestSeq]
 	if !ok {
 		return
 	}
 	delete(c.pending, m.RequestSeq)
+	what := fmt.Sprintf("%s answered %s #%d, %d bytes", c.name, m.Command, m.RequestSeq, size)
 	if m.Success == nil || !*m.Success {
-		answer(nil, errors.New(cmp.Or(m.Message, m.Command+" failed")))
+		err := errors.New(cmp.Or(m.Message, m.Command+" failed"))
+		c.trace(what+": "+err.Error(), time.Since(w.at))
+		w.answer(nil, err)
 		return
 	}
-	answer(m.Body, nil)
+	c.trace(what, time.Since(w.at))
+	w.answer(m.Body, nil)
 }

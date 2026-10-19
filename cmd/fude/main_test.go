@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/editor/editortest"
@@ -217,7 +218,7 @@ func TestB173PluginNewAndBuild(t *testing.T) {
 	}
 	// Until the first release, the sdk the proxy has may be older than this
 	// fude's ABI (D51).
-	if p, err := plugin.Load(context.Background(), filepath.Join(dir, "words", "words.wasm"), plugin.Grants{}, t.TempDir(), func(string) {}); err != nil {
+	if p, err := plugin.Load(context.Background(), filepath.Join(dir, "words", "words.wasm"), plugin.Grants{}, t.TempDir(), func(string) {}, func(string, time.Duration) {}); err != nil {
 		if strings.Contains(err.Error(), "import func[fude.") {
 			t.Skipf("the published sdk is older than this fude: %v", err)
 		}

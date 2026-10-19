@@ -105,7 +105,7 @@ func start(t *testing.T, port bool) *session {
 	}
 	s := &session{queue: make(chan func(), 16), events: make(chan string, 16), exited: make(chan error, 1)}
 	var err error
-	s.c, err = dap.Start("fake", command, t.TempDir(), s.queue, func(line string) { t.Log(line) }, func(string) {},
+	s.c, err = dap.Start("fake", command, t.TempDir(), s.queue, func(line string) { t.Log(line) }, func(string, time.Duration) {},
 		func(name string, body json.RawMessage) { s.events <- name + " " + string(body) },
 		func(err error) { s.exited <- err })
 	if err != nil {

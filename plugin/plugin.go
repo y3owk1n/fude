@@ -57,8 +57,9 @@ type Plugin struct {
 	registered []fude.Registration // what its init registered
 	subscribed []string            // the events its init subscribed to
 	Grants
-	log  func(string)
-	root string // the project: the directory fude started in
+	log   func(string)
+	trace func(text string, took time.Duration)
+	root  string // the project: the directory fude started in
 
 	mu      sync.Mutex
 	cache   wazero.CompilationCache
@@ -90,8 +91,9 @@ type Grants struct {
 
 // Load compiles the plugin at path and instantiates it with g. Compiled code
 // is kept in cacheDir between runs. log takes what the plugin logs and the
-// calls it was denied.
-func Load(ctx context.Context, path string, g Grants, cacheDir string, log func(string)) (*Plugin, error) {
+// calls it was denied, and trace each file it read, program it ran and URL
+// it got, with how long it took.
+func Load(ctx context.Context, path string, g Grants, cacheDir string, log func(string), trace func(text string, took time.Duration)) (*Plugin, error) {
 	for _, c := range g.Capabilities {
 		if !slices.Contains(capabilities, c) {
 			return nil, fmt.Errorf("plugin %s: no capability %q", path, c)
@@ -105,7 +107,7 @@ func Load(ctx context.Context, path string, g Grants, cacheDir string, log func(
 	if err != nil {
 		return nil, fmt.Errorf("load plugin: %w", err)
 	}
-	p := &Plugin{name: strings.TrimSuffix(filepath.Base(path), ".wasm"), Grants: g, log: log, root: root, jobs: make(chan struct{}, maxJobs)}
+	p := &Plugin{name: strings.TrimSuffix(filepath.Base(path), ".wasm"), Grants: g, log: log, trace: trace, root: root, jobs: make(chan struct{}, maxJobs)}
 	if p.cache, err = wazero.NewCompilationCacheWithDir(cacheDir); err != nil {
 		return nil, fmt.Errorf("plugin cache: %w", err)
 	}
@@ -418,7 +420,9 @@ func (p *Plugin) readFile(ctx context.Context, m api.Module, ptr, n uint32) int6
 	if !ok {
 		return errRange
 	}
+	at := time.Now()
 	data, err := p.read(string(name))
+	p.traced(fmt.Sprintf("%s read %s, %d bytes", p.name, name, len(data)), at, err)
 	if err != nil {
 		p.log(fmt.Sprintf("%s: read_file: %v", p.name, err))
 		return errFile
@@ -438,7 +442,9 @@ func (p *Plugin) runProgram(ctx context.Context, m api.Module, ptr, n uint32) in
 	if !ok || n == 0 {
 		return errRange
 	}
-	out, err := p.program(ctx, strings.Split(string(b), "\x00"), "")
+	argv, at := strings.Split(string(b), "\x00"), time.Now()
+	out, err := p.program(ctx, argv, "")
+	p.traced(fmt.Sprintf("%s ran %s, %d bytes", p.name, strings.Join(argv, " "), len(out)), at, err)
 	if err != nil {
 		p.log(fmt.Sprintf("%s: %v", p.name, err))
 		return errRun
@@ -534,7 +540,9 @@ func (p *Plugin) httpGet(ctx context.Context, m api.Module, ptr, n uint32) int64
 	if !ok {
 		return errRange
 	}
+	at := time.Now()
 	body, err := p.get(ctx, string(b))
+	p.traced(fmt.Sprintf("%s got %s, %d bytes", p.name, b, len(body)), at, err)
 	if err != nil {
 		p.log(fmt.Sprintf("%s: http_get: %v", p.name, err))
 		return errNet
@@ -601,6 +609,14 @@ func (p *Plugin) inside(name string) (string, error) {
 		return "", fmt.Errorf("%s is outside the project", name)
 	}
 	return path, nil
+}
+
+// traced traces what a host call did, the time since at and any err.
+func (p *Plugin) traced(what string, at time.Time, err error) {
+	if err != nil {
+		what += ": " + err.Error()
+	}
+	p.trace(what, time.Since(at))
 }
 
 // read reads the file at name, relative to the project, if it is in it.

@@ -79,13 +79,15 @@ func (e *Session) loadPlugins() {
 		b, t, scope := e.win.buf, e.Text(), e.scope(nil, e.win.buf, e.Text())
 		go func() {
 			defer scope.Done()
-			ctx := context.Background()
-			p, err := plugin.Load(ctx, path, plugin.Grants{Capabilities: s.Capabilities, Programs: s.Programs, Hosts: s.Hosts, Settings: settings}, filepath.Join(cache, "fude", "wasm"), logLine)
+			ctx, at := context.Background(), time.Now()
+			p, err := plugin.Load(ctx, path, plugin.Grants{Capabilities: s.Capabilities, Programs: s.Programs, Hosts: s.Hosts, Settings: settings}, filepath.Join(cache, "fude", "wasm"), logLine, func(text string, took time.Duration) { trace.Record("plugin", text, took) })
 			if err != nil {
+				trace.Since("plugin", "load "+path, at, err)
 				e.queue <- func() { e.message = err.Error() }
 				return
 			}
 			res, err := p.Init(ctx, scope)
+			trace.Since("plugin", "compiled and ran init of "+p.Name(), at, err)
 			e.queue <- func() { e.loaded(p, err, b, t, res) }
 		}()
 	}
