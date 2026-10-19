@@ -116,8 +116,8 @@ func build(dir string) error {
 	// its own.
 	lib := syntax.Library(dir, "go")
 	tmp := fmt.Sprintf("%s.%d.new", lib, os.Getpid())
-	if out, err := exec.Command("tree-sitter", "build", "-o", tmp, work).CombinedOutput(); err != nil {
-		return fmt.Errorf("go grammar: tree-sitter build: %w: %s", err, out)
+	if err := syntax.Compile(work, tmp); err != nil {
+		return fmt.Errorf("go grammar: %w", err)
 	}
 	if err := os.Rename(tmp, lib); err != nil {
 		return fmt.Errorf("go grammar: %w", err)

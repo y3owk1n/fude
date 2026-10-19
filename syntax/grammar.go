@@ -152,6 +152,16 @@ func Library(dir, filetype string) string {
 	return filepath.Join(dir, filetype, name+libExt)
 }
 
+// Compile builds the grammar in dir, whose src folder holds its parser.c,
+// into the library out.
+func Compile(dir, out string) error {
+	cmd := compile(dir, out)
+	if b, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("%s: %w: %s", strings.Join(cmd.Args[:min(2, len(cmd.Args))], " "), err, strings.TrimSpace(string(b)))
+	}
+	return nil
+}
+
 // lookup returns filetype's language, loaded from its built grammar, or
 // false when it has none.
 func lookup(filetype string) (*language, bool, error) {
@@ -236,7 +246,7 @@ func Build(filetype string) error {
 	if grammars == "" {
 		return fmt.Errorf("build the %s grammar: there is no data directory to build it in", filetype)
 	}
-	for _, tool := range []string{"git", "tree-sitter"} {
+	for _, tool := range []string{"git", compiler} {
 		if _, err := exec.LookPath(tool); err != nil {
 			return fmt.Errorf("build the %s grammar: %s is not installed", filetype, tool)
 		}
@@ -305,13 +315,13 @@ func Build(filetype string) error {
 	// means the rest of the build is there too. The name it writes first is
 	// its own, as two fude processes may build one grammar at once.
 	lib := Library(grammars, filetype)
-	// tree-sitter runs in src, and would resolve a relative dir from Use there.
+	// The compiler may run in another folder, so the path is absolute.
 	tmp, err := filepath.Abs(fmt.Sprintf("%s.%d.new", lib, os.Getpid()))
 	if err != nil {
 		return fmt.Errorf("build the %s grammar: %w", filetype, err)
 	}
-	if err := run(src, "tree-sitter", "build", "-o", tmp, filepath.Join(src, g.src)); err != nil {
-		return err
+	if err := Compile(filepath.Join(src, g.src), tmp); err != nil {
+		return fmt.Errorf("build the %s grammar: %w", filetype, err)
 	}
 	if err := os.Rename(tmp, lib); err != nil {
 		return fmt.Errorf("build the %s grammar: %w", filetype, err)

@@ -12,11 +12,19 @@ import "C"
 import (
 	"errors"
 	"fmt"
+	"os/exec"
 	"unsafe"
 )
 
 // libExt ends the name of a grammar's library.
 const libExt = ".so"
+
+// compiler is the program that builds a grammar.
+const compiler = "tree-sitter"
+
+// compile is the command that builds the grammar in dir into the library
+// out.
+func compile(dir, out string) *exec.Cmd { return exec.Command("tree-sitter", "build", "-o", out, dir) }
 
 // openLibrary loads the library at path, which fude never closes, and
 // returns the address of its function sym.

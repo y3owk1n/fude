@@ -259,6 +259,11 @@ one builds again on first use. A grammar built by hand into that
 directory as `parser.so` loads too. Wasm grammars are out, because
 tree-sitter's wasm store needs wasmtime and cannot run on wazero.
 
+On Windows fude runs llvm-mingw's `gcc` on the grammar's `parser.c` and
+`scanner.c` itself, into `parser.dll`, and loads it with LoadLibrary.
+`tree-sitter build` there compiles for Microsoft's C runtime, whose
+headers llvm-mingw lacks.
+
 Why, as of 2026-10-17: some grammars, markdown's among them, have no Go
 binding to link, and linking more would add to the binary for languages a
 user may never open. Go was linked in until then, which made it the one
