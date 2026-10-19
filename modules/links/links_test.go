@@ -14,15 +14,8 @@ func TestMain(m *testing.M) { os.Exit(editortest.Main(m, "markdown", "markdown_i
 
 // B301, gx
 func TestB301Open(t *testing.T) {
-	// A fake opener writes what it is asked to open to a file.
-	bin, got := t.TempDir(), filepath.Join(t.TempDir(), "opened")
-	for _, name := range []string{"open", "xdg-open"} {
-		script := "#!/bin/sh\nprintf '%s' \"$1\" > " + got + "\n"
-		if err := os.WriteFile(filepath.Join(bin, name), []byte(script), 0o755); err != nil {
-			t.Fatal(err)
-		}
-	}
-	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	// A fake opener of each system logs what it is asked to open.
+	got := editortest.FakeProgram(t, "open", "xdg-open", "rundll32")
 	dir := t.TempDir()
 	for _, c := range []struct{ name, text, keys, want string }{
 		// A markdown link opens its destination from its text.
@@ -37,7 +30,9 @@ func TestB301Open(t *testing.T) {
 		os.Remove(got)
 		editortest.Feed(e, c.keys+"gx")
 		editortest.Settle(t, e, func() bool { return e.Message() == "opened "+c.want })
-		if b, err := os.ReadFile(got); err != nil || string(b) != c.want {
+		// Its target comes last, after what Windows' rundll32 takes first.
+		b, err := os.ReadFile(got)
+		if words := strings.Fields(string(b)); err != nil || len(words) == 0 || words[len(words)-1] != c.want {
 			t.Errorf("gx in %s opened %q, %v, want %q", c.name, b, err, c.want)
 		}
 	}

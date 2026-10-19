@@ -15,10 +15,13 @@ import (
 )
 
 // Main runs the tests with the timeline logs, config and caches in a
-// directory of their own. Go's grammar and the ones grammars names are
-// built, and no other is fetched. It returns the exit code for os.Exit, and
-// a test file's TestMain calls it.
+// directory of their own, or runs as a program FakeProgram made. Go's
+// grammar and the ones grammars names are built, and no other is fetched.
+// It returns the exit code for os.Exit, and a test file's TestMain calls it.
 func Main(m *testing.M, grammars ...string) int {
+	if code, ok := fakeProgram(); ok {
+		return code
+	}
 	dir, err := os.MkdirTemp("", "fude-test")
 	if err != nil {
 		panic(err)

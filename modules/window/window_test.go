@@ -13,12 +13,7 @@ func TestMain(m *testing.M) { os.Exit(editortest.Main(m)) }
 
 // B140, B330
 func TestB140Navigate(t *testing.T) {
-	bin, log := t.TempDir(), filepath.Join(t.TempDir(), "tmux.log")
-	script := "#!/bin/sh\necho \"$@\" >> " + log + "\n"
-	if err := os.WriteFile(filepath.Join(bin, "tmux"), []byte(script), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	log := editortest.FakeProgram(t, "tmux")
 	t.Setenv("TMUX", "/tmp/tmux-1/default,1,0")
 	t.Setenv("TMUX_PANE", "%3")
 	path := filepath.Join(t.TempDir(), "f")

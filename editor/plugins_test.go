@@ -192,11 +192,8 @@ func TestB48RunPrograms(t *testing.T) {
 		t.Fatalf("the plugin logged:\n%s", log)
 	}
 	// A program that leaves a child holding its output ends with it.
-	bin := t.TempDir()
-	if err := os.WriteFile(filepath.Join(bin, "sleep"), []byte("#!/bin/sh\n/bin/sleep 5 &\n"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("FUDE_FAKE_CHILD", "5s")
+	editortest.FakeProgram(t, "sleep")
 	e = start(t, "")
 	e.Load()
 	began = time.Now()
