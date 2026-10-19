@@ -72,8 +72,11 @@ func TestB157InfoViews(t *testing.T) {
 func TestB268YankMessage(t *testing.T) {
 	bin := t.TempDir()
 	board := filepath.Join(bin, "board")
-	for _, name := range []string{"pbcopy", "wl-copy"} {
-		if err := os.WriteFile(filepath.Join(bin, name), []byte("#!/bin/sh\ncat > "+board+"\n"), 0o755); err != nil {
+	for name, script := range map[string]string{
+		"pbcopy": "cat > " + board, "wl-copy": "cat > " + board,
+		"pbpaste": "cat " + board, "wl-paste": "cat " + board,
+	} {
+		if err := os.WriteFile(filepath.Join(bin, name), []byte("#!/bin/sh\n"+script+"\n"), 0o755); err != nil {
 			t.Fatal(err)
 		}
 	}
