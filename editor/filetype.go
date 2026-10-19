@@ -55,7 +55,8 @@ func (ed *Editor) filetypeOf(path string) string {
 		return ft
 	}
 	ext := strings.TrimPrefix(filepath.Ext(name), ".")
-	return cmp.Or(extFiletypes[ext], ext)
+	// An extension in capitals has the filetype of its lower case.
+	return cmp.Or(extFiletypes[ext], extFiletypes[strings.ToLower(ext)], ext)
 }
 
 // filetype returns b's filetype. A buffer with no file has the one it was
