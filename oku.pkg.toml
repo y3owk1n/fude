@@ -1,27 +1,75 @@
-# The manifest `oku add github:y3owk1n/fude` reads. fude has no releases yet,
-# so oku builds the newest commit of main. Check a change with
+# The manifest `oku add github:y3owk1n/fude` reads. It installs a release's
+# zip, and builds the release from source where no zip fits. fude-main.toml
+# builds the newest commit of main instead. Check a change with
 # `oku manifest lint` and `oku manifest test`.
 [package]
 name = "fude"
 description = "A modal text editor that works the way Neovim does, without its weight"
 homepage = "https://github.com/y3owk1n/fude"
 license = "MIT"
+# publish-artifacts.yml attests every release zip.
+signer_workflow = "y3owk1n/fude/.github/workflows/publish-artifacts.yml"
+attestations = true
 
 [version]
-from = "git-branch"
-repo = "https://github.com/y3owk1n/fude"
-branch = "main"
+from = "github-releases"
+repo = "y3owk1n/fude"
+strip_prefix = "v"
+
+[[artifact]]
+match = { os = "darwin", arch = "arm64" }
+url = "https://github.com/y3owk1n/fude/releases/download/{{tag}}/fude-darwin-arm64.zip"
+sha256_url = "https://github.com/y3owk1n/fude/releases/download/{{tag}}/fude-darwin-arm64.zip.sha256"
+bin = ["bin/fude"]
+man = ["share/man/man1/fude.1", "share/man/man5/fude-config.5", "share/man/man7/fude-guide.7"]
+
+[[artifact]]
+match = { os = "darwin", arch = "amd64" }
+url = "https://github.com/y3owk1n/fude/releases/download/{{tag}}/fude-darwin-amd64.zip"
+sha256_url = "https://github.com/y3owk1n/fude/releases/download/{{tag}}/fude-darwin-amd64.zip.sha256"
+bin = ["bin/fude"]
+man = ["share/man/man1/fude.1", "share/man/man5/fude-config.5", "share/man/man7/fude-guide.7"]
+
+# The Linux binary links glibc, so a musl machine builds from source instead.
+[[artifact]]
+match = { os = "linux", arch = "arm64", libc = "glibc" }
+url = "https://github.com/y3owk1n/fude/releases/download/{{tag}}/fude-linux-arm64.zip"
+sha256_url = "https://github.com/y3owk1n/fude/releases/download/{{tag}}/fude-linux-arm64.zip.sha256"
+bin = ["bin/fude"]
+man = ["share/man/man1/fude.1", "share/man/man5/fude-config.5", "share/man/man7/fude-guide.7"]
+
+[[artifact]]
+match = { os = "linux", arch = "amd64", libc = "glibc" }
+url = "https://github.com/y3owk1n/fude/releases/download/{{tag}}/fude-linux-amd64.zip"
+sha256_url = "https://github.com/y3owk1n/fude/releases/download/{{tag}}/fude-linux-amd64.zip.sha256"
+bin = ["bin/fude"]
+man = ["share/man/man1/fude.1", "share/man/man5/fude-config.5", "share/man/man7/fude-guide.7"]
+
+[[artifact]]
+match = { os = "windows", arch = "arm64" }
+url = "https://github.com/y3owk1n/fude/releases/download/{{tag}}/fude-windows-arm64.zip"
+sha256_url = "https://github.com/y3owk1n/fude/releases/download/{{tag}}/fude-windows-arm64.zip.sha256"
+bin = ["bin/fude.exe"]
+
+[[artifact]]
+match = { os = "windows", arch = "amd64" }
+url = "https://github.com/y3owk1n/fude/releases/download/{{tag}}/fude-windows-amd64.zip"
+sha256_url = "https://github.com/y3owk1n/fude/releases/download/{{tag}}/fude-windows-amd64.zip.sha256"
+bin = ["bin/fude.exe"]
 
 # tree-sitter's binding builds through cgo, so the build needs a C compiler.
 # Windows has none of its own, so there llvm-mingw comes as a dep below.
+# fude itself builds each grammar with git and a C compiler, so an install
+# from a zip needs them too. On Windows that compiler is gcc.
 [host]
 xcode-clt = { path = "/Library/Developer/CommandLineTools/usr/bin/clang", install = "xcode-select --install", when = { os = "darwin" } }
 cc = { command = "cc", apt = "build-essential", dnf = "gcc", pacman = "base-devel", when = { os = "linux" } }
 git = { command = "git", apt = "git", dnf = "git", pacman = "git", install = "install Git for Windows from https://git-scm.com", when = [{ os = "linux" }, { os = "windows" }] }
+gcc = { command = "gcc", install = "install llvm-mingw from https://github.com/mstorsjo/llvm-mingw and put its bin on PATH", when = { os = "windows" } }
 
-# It builds as `just build` and `just man` do, with go and llvm-mingw from
-# the repo's own manifests at the same commit. Windows runs its steps in
-# PowerShell.
+# Where no zip fits, it builds as `just build` and `just man` do, with go and
+# llvm-mingw from the repo's own manifests at the same release. Windows runs
+# its steps in PowerShell.
 [build]
 needs = ["git"]
 deps = [
