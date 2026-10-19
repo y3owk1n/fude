@@ -120,6 +120,10 @@ func hostRun(ptr *byte, n uint32) int64
 //go:wasmimport fude http_get
 func hostHTTPGet(ptr *byte, n uint32) int64
 
+// init builds encoding/json's encoder for a Result under the init budget.
+// Built in a plugin's first call, it took most of that call's budget.
+func init() { json.Marshal(api.Result{}) }
+
 // held is the buffer alloc made for fude's last answer, kept here so the
 // collector does not free it before the plugin reads it.
 var held []byte
