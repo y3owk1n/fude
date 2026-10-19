@@ -27,9 +27,9 @@ import (
 
 // Budgets are how long one call into a plugin may run.
 const (
-	InitBudget  = 200 * time.Millisecond
-	InputBudget = 16 * time.Millisecond  // an operator, object or command, one frame
-	EventBudget = 100 * time.Millisecond // on_event, off the input path
+	InitBudget  = 200 * time.Millisecond * slowdown
+	InputBudget = 16 * time.Millisecond * slowdown  // an operator, object or command, one frame
+	EventBudget = 100 * time.Millisecond * slowdown // on_event, off the input path
 )
 
 // maxJobs is how many of a plugin's jobs run at once. One more waits.
