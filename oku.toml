@@ -19,8 +19,9 @@ gofumpt = "go:mvdan.cc/gofumpt"
 golines = "github:golangci/golines"
 # gopls 0.24 needs go 1.27, so it stays on 0.23 while fude builds with 1.26.
 gopls = { ref = "go:golang.org/x/tools/gopls", version = "~0.23" }
-# dlv is the Go debug adapter the debugger's smoke runs use (D42).
-dlv = "go:github.com/go-delve/delve/cmd/dlv"
+# dlv is the Go debug adapter the debugger's smoke runs use (D42). Delve
+# does not run on Windows on arm64.
+dlv = { ref = "go:github.com/go-delve/delve/cmd/dlv", when = [{ os = "darwin" }, { os = "linux" }, { os = "windows", arch = "amd64" }] }
 goimports = "go:golang.org/x/tools/cmd/goimports"
 golangci-lint-langserver = "github:nametake/golangci-lint-langserver"
 just-lsp = "github:terror/just-lsp"
