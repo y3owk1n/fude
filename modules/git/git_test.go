@@ -38,6 +38,19 @@ func TestB123GitSigns(t *testing.T) {
 	editortest.Settle(t, e, func() bool { return len(e.Views()[0].Signs) == 0 })
 	editortest.Feed(e, ":set git_signs true<CR>")
 	editortest.Settle(t, e, func() bool { return maps.Equal(e.Views()[0].Signs, want) })
+	// A file whose lines end in \r\n, in the index too, differs where it
+	// changed and nowhere else.
+	crlf := filepath.Join(dir, "crlf")
+	editortest.Change(t, crlf, "a\r\nb\r\n")
+	if out, err := exec.Command("git", "-C", dir, "-c", "core.autocrlf=false", "add", "crlf").CombinedOutput(); err != nil {
+		t.Skipf("git add: %v: %s", err, out)
+	}
+	e = editortest.Open(t, crlf)
+	e.Use(gitmod.New())
+	e.SetSize(40, 10)
+	editortest.Feed(e, "jix<Esc>")
+	want = map[int]wire.Sign{1: {Text: "┃", Name: "git.change"}}
+	editortest.Settle(t, e, func() bool { return maps.Equal(e.Views()[0].Signs, want) })
 
 	// Without git installed, the file shows no git signs.
 	t.Setenv("PATH", "")

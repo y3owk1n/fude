@@ -175,9 +175,10 @@ Where fude departs, the line says so and cites the departure in
 - B123 [2] A file in a git repository shows in the sign column how it
   differs from git's index, as gitsigns does: `┃` on added and changed
   lines, `▁` under the line before deleted ones, and `~` on a change that
-  also deleted lines. A diagnostic's sign wins on its line. Without git
-  installed, there are no git signs. With `git_signs` off there are none
-  either, and the hunk keys still work.
+  also deleted lines. A diagnostic's sign wins on its line. A file whose
+  lines end in `\r\n` shows only its changes, whichever line ends the
+  index holds. Without git installed, there are no git signs. With
+  `git_signs` off there are none either, and the hunk keys still work.
 - B124 [2] `:e dir`, `fude dir` and `-` open a directory as an explorer: a
   buffer of its entries' names, directories with a trailing `/`, with no
   line numbers. `-` lists the current file's directory, `N-` goes up N

@@ -189,8 +189,9 @@ func (m *Module) Callback(_ context.Context, id uint32, s api.Scope) (api.Result
 		m.base[j.buf] = nil
 		return m.hide(j.buf), nil
 	}
-	// A buffer holds no final line break, as it reads files (N5).
-	base := strings.TrimSuffix(s.About["output"], "\n")
+	// A buffer holds no final line break, as it reads files (N5), and holds
+	// a file's \r\n line ends as \n.
+	base := strings.TrimSuffix(strings.ReplaceAll(s.About["output"], "\r\n", "\n"), "\n")
 	m.base[j.buf] = &base
 	return m.sign(s), nil
 }
