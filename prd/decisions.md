@@ -344,22 +344,28 @@ runtime takes longer to start. TinyGo leaves out parts of the standard
 library, such as `os` and `net`, which a plugin reaches through fude's
 functions anyway.
 
-## D37. The modules are released together, and the first release brings go install
+## D37. The modules are released together, and the program is a module of its own
 
 fude's modules are the root, `api/`, `core/`, `vim/`, `syntax/`,
-`protocol/`, `plugin/` and `sdk/`. They take one version together, tagged
-`vX.Y.Z`, `api/vX.Y.Z`, `core/vX.Y.Z`, `vim/vX.Y.Z`, `syntax/vX.Y.Z`,
-`protocol/vX.Y.Z`, `plugin/vX.Y.Z` and `sdk/vX.Y.Z` on one commit. Until the
-first release, the root's `go.mod` points at `api/`, `core/`, `vim/`,
-`syntax/`, `protocol/` and `plugin/` through `replace` lines, so `go install` refuses it and
-fude builds from a clone. A release drops the `replace` lines and requires
-the tags, which makes `go install github.com/y3owk1n/fude/cmd/fude@vX.Y.Z`
-work. `just standalone` builds every module outside the workspace, so a
-module whose `go.mod` lacks a requirement fails before a release does. Why:
-`core/` and `vim/` stay modules of their own, for programs that embed them
-without fude's dependencies (D22, D23). Requiring each other by commit
-before there are releases would add a second commit and push to every
-change of `core/` or `vim/` the editor depends on.
+`protocol/`, `plugin/`, `sdk/` and `cmd/fude/`. They take one version
+together, tagged `vX.Y.Z` and `api/vX.Y.Z` through `cmd/fude/vX.Y.Z` on one
+commit, which release-please's pull request makes and the release workflow
+tags. The root, `plugin/` and `sdk/` point at the others through `replace`
+lines. A module's `replace` lines hold only when it is the module being
+built, so they never reach a user. `cmd/fude/` has none, as `go install`
+refuses a program whose module has them. Every module requires the others
+at the release's version, which the release pull request sets, and the
+workspace takes them from the checkout. So `go install
+github.com/y3owk1n/fude/cmd/fude@vX.Y.Z` works, and the release workflow
+builds each system's zip that way. `just standalone` builds every module
+but `cmd/fude/` outside the workspace, so a module whose `go.mod` lacks a
+requirement fails before a release does. Why: `core/` and `vim/` stay
+modules of their own, for programs that embed them without fude's
+dependencies (D22, D23). Requiring each other by commit would add a second
+commit and push to every change of `core/` or `vim/` the editor depends on.
+The program was a package of the root until 2026-10-19. A release then
+needed the root without `replace` lines, which development needs, so the
+user chose to make it a module of its own.
 
 ## D38. A terminal is charmbracelet/x/vt in a pseudo-terminal from x/sys
 

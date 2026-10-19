@@ -31,15 +31,16 @@ deps = [
 source = { git = "https://github.com/y3owk1n/fude", tag = "{{tag}}" }
 
 # go mod vendor refuses to run in a workspace. The root module's go.mod
-# brings in core and vim through its replace lines, so the build needs no
-# go.work.
+# brings in the other modules through its replace lines, so the build needs
+# no go.work. Without its own go.mod, cmd/fude builds as a package of the
+# root, as go install takes it from a release (D37).
 [[build.step]]
-run = "rm -f go.work go.work.sum"
+run = "rm -f go.work go.work.sum cmd/fude/go.mod"
 shell = "sh"
 when = [{ os = "darwin" }, { os = "linux" }]
 
 [[build.step]]
-run = "Remove-Item -Force -ErrorAction SilentlyContinue go.work, go.work.sum"
+run = "Remove-Item -Force -ErrorAction SilentlyContinue go.work, go.work.sum, cmd/fude/go.mod"
 shell = "pwsh"
 when = { os = "windows" }
 

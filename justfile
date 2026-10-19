@@ -1,5 +1,5 @@
 # The Go modules in this repo.
-modules := "api core vim syntax protocol plugin ."
+modules := "api core vim syntax protocol plugin . cmd/fude"
 
 # List the recipes.
 default:
@@ -17,7 +17,9 @@ vet:
 # Build every module on its own, outside the workspace, as go get and go
 # install build them, so a requirement the workspace hides fails here (D37).
 standalone:
-    for m in {{ modules }}; do (cd $m && GOWORK=off go build ./...) || exit 1; done
+    # cmd/fude would take the others at their last release, so the release
+    # workflow's go install checks it instead.
+    for m in {{ modules }}; do [ $m = cmd/fude ] || (cd $m && GOWORK=off go build ./...) || exit 1; done
     cd sdk && GOWORK=off GOOS=wasip1 GOARCH=wasm go build ./...
 
 # Format every Go file.

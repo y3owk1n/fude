@@ -11,8 +11,8 @@ import (
 	"strings"
 )
 
-// fudeModule is the Go module fude is built from.
-const fudeModule = "github.com/y3owk1n/fude"
+// fudeModule is the Go module of the fude program.
+const fudeModule = "github.com/y3owk1n/fude/cmd/fude"
 
 // sdkModule is the Go module plugins are written with.
 const sdkModule = "github.com/y3owk1n/fude/sdk"

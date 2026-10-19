@@ -3,6 +3,7 @@ go 1.26.0
 use (
 	.
 	./api
+	./cmd/fude
 	./core
 	./plugin
 	./protocol
@@ -10,3 +11,7 @@ use (
 	./syntax
 	./vim
 )
+
+// cmd/fude requires the root at the version the modules release together,
+// which the workspace takes from the checkout.
+replace github.com/y3owk1n/fude v0.0.0 => ./ // x-release-please-version
