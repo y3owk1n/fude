@@ -2044,7 +2044,7 @@ func TestB258BufferLine(t *testing.T) {
 	}
 	// Two files of one name show their folders.
 	c = lined(startWith(t, "", "one/x.txt", "two/x.txt"))
-	if c.draw(); !strings.Contains(c.row(0), "one/x.txt") || !strings.Contains(c.row(0), "two/x.txt") {
+	if c.draw(); !strings.Contains(c.row(0), filepath.Join("one", "x.txt")) || !strings.Contains(c.row(0), filepath.Join("two", "x.txt")) {
 		t.Errorf("files of one name show as %q", c.row(0))
 	}
 	// buffer_line = false hides it.

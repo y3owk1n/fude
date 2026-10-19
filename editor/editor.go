@@ -367,6 +367,8 @@ func (e *Session) useKeys(km keymap, leader string) {
 
 // add opens path as a new buffer at the end of the list.
 func (e *Session) add(path string) (string, error) {
+	// A typed path takes the system's separators, \ on Windows.
+	path = filepath.FromSlash(path)
 	if info, err := os.Stat(path); err == nil && info.IsDir() {
 		abs, err := filepath.Abs(path)
 		if err != nil {

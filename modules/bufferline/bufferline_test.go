@@ -36,7 +36,9 @@ func TestB331BufferLineFollows(t *testing.T) {
 	// Files opened add to the line, with folders for two of one name, and
 	// closing one names the other by its file alone.
 	editortest.Feed(e, ":e one/x.txt<CR>:e two/x.txt<CR>")
-	editortest.Settle(t, e, func() bool { return slices.Equal(names(), []string{"a.txt", "one/x.txt", "two/x.txt"}) })
+	editortest.Settle(t, e, func() bool {
+		return slices.Equal(names(), []string{"a.txt", filepath.Join("one", "x.txt"), filepath.Join("two", "x.txt")})
+	})
 	editortest.Feed(e, ":bd 2<CR>")
 	editortest.Settle(t, e, func() bool { return slices.Equal(names(), []string{"a.txt", "x.txt"}) })
 	// :set buffer_line turns the row off and on at once.

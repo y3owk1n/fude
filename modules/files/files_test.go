@@ -44,7 +44,7 @@ func TestB129Files(t *testing.T) {
 	editortest.Settle(t, e, func() bool {
 		return slices.Equal(results(), []string{"editor.go  editor", "git.go  editor", "editor_test.go  editor"})
 	})
-	if editortest.Feed(e, "<C-n><CR>"); e.Views()[0].Name != "editor/git.go" || e.Mode() != vim.Normal {
+	if editortest.Feed(e, "<C-n><CR>"); e.Views()[0].Name != filepath.Join("editor", "git.go") || e.Mode() != vim.Normal {
 		t.Fatalf("<C-n><CR> opened %q in %v mode", e.Views()[0].Name, e.Mode())
 	}
 	// A screen too short for a row of matches still shows the query.
@@ -57,7 +57,7 @@ func TestB129Files(t *testing.T) {
 	e.SetSize(80, 24)
 	// <Esc> closes the finder and opens nothing.
 	editortest.Feed(e, ":pick files<CR>x<Esc>")
-	if _, ok := e.Float(); ok || e.Views()[0].Name != "editor/git.go" || editortest.Text(e) != "editor/git.go" {
+	if _, ok := e.Float(); ok || e.Views()[0].Name != filepath.Join("editor", "git.go") || editortest.Text(e) != "editor/git.go" {
 		t.Fatalf("after <Esc> the finder shows %v and the window has %q", ok, e.Views()[0].Name)
 	}
 }

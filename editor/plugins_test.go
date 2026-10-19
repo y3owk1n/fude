@@ -622,7 +622,7 @@ func TestB187PluginMovesTheCursor(t *testing.T) {
 	if feed(e, ":Open ../go.mod<CR>"); e.Views()[0].Name != name {
 		t.Errorf("a file outside the project opened: %s", e.Views()[0].Name)
 	}
-	if feed(e, ":Open guide/01-start.md<CR>"); !strings.HasSuffix(e.Views()[0].Name, "guide/01-start.md") || e.Cursor() != 2 {
+	if feed(e, ":Open guide/01-start.md<CR>"); !strings.HasSuffix(e.Views()[0].Name, filepath.Join("guide", "01-start.md")) || e.Cursor() != 2 {
 		t.Errorf(":Open opened %s with the cursor at %d", e.Views()[0].Name, e.Cursor())
 	}
 }
