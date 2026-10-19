@@ -593,6 +593,24 @@ help and errors in its own words. This reopens the flag spellings of D39
 to D41 and of B163, B174, B239, B248, B251, B255 and B270, and the
 socket `fude --tail` and `fude --attach` took as a word.
 
+## D53. Keymap tables go by name, and a module's keys are plugs
+
+`[keymap]` is a table of tables by name: `normal`, `visual`, `insert`,
+`groups`, and one for each kind of buffer, fude's or a module's (B142).
+Each key a module or plugin adds is a plug named for what it does, with
+its default keys beside it, so `<Plug>(lsp.rename)` maps `grn` and any
+other key (B327). A config.toml mapping of those keys wins, in any table
+and after `:config reload`. `sdk.Key` adds a plug with its keys, and
+`sdk.Register` takes every field a module's registration has. Why: the
+user asked on 2026-10-19 that every module's keys remap, and that
+plugins and modules have the same power. A fixed list of kinds rejected
+`[keymap.pins]`, and a module's keys mapped after config.toml's and
+replaced them. A misspelled table such as `[keymap.listng]` now loads
+without an error, because fude learns a module's kinds only as the
+module loads. `:h` lists each kind's keys under its name, so the typo
+shows there. Keys that wait for
+characters, such as surround's `ds`, stay the vim machine's own.
+
 ## Departures from Neovim
 
 Each entry: what differs, then why.

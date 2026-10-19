@@ -316,23 +316,12 @@ func (e *Session) syncKeys() {
 	if want == e.lspKeys {
 		return
 	}
-	sync := func(mode vim.Mode, keys, plug string) {
-		if want {
-			e.vim.Map(mode, keys, plug)
-		} else {
-			e.vim.Unmap(mode, keys)
-		}
-	}
-	for _, p := range e.modules {
-		for _, r := range p.Registered() {
-			if r.Kind == api.Key && r.Attached {
-				for _, mode := range keyModes(r) {
-					sync(mode, withLeader(r.Name, e.leader), "<Plug>("+p.Name()+"."+r.Name+")")
-				}
-			}
-		}
-	}
 	e.lspKeys = want
+	for _, k := range e.moduleKeys() {
+		if k.attached {
+			e.mapKey(k, want)
+		}
+	}
 }
 
 // reply is a server's answer to a request, nil when it answered with an

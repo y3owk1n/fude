@@ -89,10 +89,10 @@ func (m *Module) Subscribed() []string {
 
 func (m *Module) Registered() []api.Registration {
 	return []api.Registration{
-		{Kind: api.Key, Name: "]s", Help: "goes to the next misspelled word", ID: next},
-		{Kind: api.Key, Name: "[s", Help: "goes to the misspelled word before", ID: prev},
-		{Kind: api.Key, Name: "z=", Help: "lists words for the one under the cursor, and the one chosen replaces it", ID: suggest},
-		{Kind: api.Key, Name: "zg", Help: "adds the word under the cursor to your words", ID: good},
+		{Kind: api.Plug, Name: "next", Keys: "]s", Help: "goes to the next misspelled word", ID: next},
+		{Kind: api.Plug, Name: "prev", Keys: "[s", Help: "goes to the misspelled word before", ID: prev},
+		{Kind: api.Plug, Name: "suggest", Keys: "z=", Help: "lists words for the one under the cursor, and the one chosen replaces it", ID: suggest},
+		{Kind: api.Plug, Name: "good", Keys: "zg", Help: "adds the word under the cursor to your words", ID: good},
 	}
 }
 

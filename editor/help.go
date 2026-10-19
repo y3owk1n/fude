@@ -139,7 +139,7 @@ func (e *Session) helpSections() []helpSection {
 	}
 	for _, m := range e.modules {
 		for _, r := range m.Registered() {
-			if r.Kind == api.Key || r.Kind == api.Plug {
+			if (r.Kind == api.Key || r.Kind == api.Plug) && r.Chars == 0 {
 				name := m.Name() + "." + r.Name
 				plugsSection.entries = append(plugsSection.entries, helpEntry{[]string{"<Plug>(" + name + ")", name}, "<Plug>(" + name + ")", r.Help})
 			}
@@ -167,6 +167,10 @@ func (e *Session) helpSections() []helpSection {
 		switch {
 		case f.Anonymous || len(f.Index) > 1:
 			// The options, which help shows above.
+		case name == "keymap":
+			for _, k := range keymapTables {
+				settings.entries = append(settings.entries, helpEntry{[]string{name + "." + k.name}, "[" + name + "." + k.name + "]", k.help})
+			}
 		case v.Kind() == reflect.Struct && f.Tag.Get("help") != "":
 			// A table such as [colors], whose explanation lists its keys.
 			settings.entries = append(settings.entries, helpEntry{[]string{name}, "[" + name + "]", f.Tag.Get("help")})
@@ -248,11 +252,7 @@ func (ed *Editor) mappingText(to string) string {
 // machine's in each mode and each kind of buffer's own, fude's and those
 // config.toml sets.
 func (e *Session) mappings() []helpSection {
-	mine := map[string]map[string]string{
-		"normal": e.cfg.Keymap.Normal, "visual": e.cfg.Keymap.Visual, "insert": e.cfg.Keymap.Insert,
-		"listing": e.cfg.Keymap.Listing, "list": e.cfg.Keymap.List, "timeline": e.cfg.Keymap.Timeline,
-		"finder": e.cfg.Keymap.Finder, "float": e.cfg.Keymap.Float, "lsp": e.cfg.Keymap.Lsp, "help": e.cfg.Keymap.Help, "debug": e.cfg.Keymap.Debug,
-	}
+	mine := e.keymap
 	leader := vim.Notation(e.cfg.Leader)
 	section := func(title, kind string, each func(func(from, to string))) helpSection {
 		s := helpSection{title: title}
@@ -276,23 +276,35 @@ func (e *Session) mappings() []helpSection {
 		section("MAPPINGS IN VISUAL MODE", "visual", func(f func(string, string)) { e.vim.Each(vim.Visual, f) }),
 		section("MAPPINGS IN INSERT MODE", "insert", func(f func(string, string)) { e.vim.Each(vim.Insert, f) }),
 	}
-	for _, k := range []struct{ kind, title string }{
-		{"listing", "KEYS IN A LISTING"},
-		{"list", "KEYS IN A LIST OF PLACES"},
-		{"timeline", "KEYS IN A TIMELINE"},
-		{"finder", "KEYS IN THE FINDER"},
-		{"float", "KEYS IN A FLOAT"},
-		{"lsp", "KEYS IN THE LANGUAGE SERVER PANEL"},
-		{"help", "KEYS IN HELP"},
-		{"scratch", "KEYS IN A WINDOW FUDE WROTE"},
-		{"start", "KEYS ON THE START SCREEN"},
-		{"terminal", "KEYS IN A TERMINAL IN NORMAL MODE"},
-	} {
-		mode := vim.Normal
-		if k.kind == "finder" {
-			mode = vim.Insert
+	titles := map[string]string{
+		"listing":  "KEYS IN A LISTING",
+		"list":     "KEYS IN A LIST OF PLACES",
+		"timeline": "KEYS IN A TIMELINE",
+		"finder":   "KEYS IN THE FINDER",
+		"float":    "KEYS IN A FLOAT",
+		"lsp":      "KEYS IN THE LANGUAGE SERVER PANEL",
+		"debug":    "KEYS IN THE DEBUG PANEL",
+		"help":     "KEYS IN HELP",
+		"scratch":  "KEYS IN A WINDOW FUDE WROTE",
+		"start":    "KEYS ON THE START SCREEN",
+		"terminal": "KEYS IN A TERMINAL IN NORMAL MODE",
+	}
+	// fude's own kinds come in keymapTables' order, then the modules'.
+	var kinds []string
+	for _, t := range keymapTables {
+		if _, ok := titles[t.name]; ok {
+			kinds = append(kinds, t.name)
 		}
-		out = append(out, section(k.title, k.kind, func(f func(string, string)) { e.locals[k.kind].Each(mode, f) }))
+	}
+	for _, kind := range slices.Sorted(maps.Keys(e.locals)) {
+		if _, ok := titles[kind]; !ok {
+			kinds = append(kinds, kind)
+			titles[kind] = "KEYS IN " + strings.ToUpper(kind)
+		}
+	}
+	for _, kind := range kinds {
+		_, mode := e.table(kind)
+		out = append(out, section(titles[kind], kind, func(f func(string, string)) { e.locals[kind].Each(mode, f) }))
 	}
 	out[0].note = "<Leader> is " + e.cfg.Leader + ". The keys language servers add show while the file has one."
 	return out

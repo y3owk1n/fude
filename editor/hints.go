@@ -19,7 +19,7 @@ var keyGroups = map[string]string{
 // groupName returns the name of the keys that longer ones start with:
 // [keymap.groups]'s, else fude's, or "".
 func (e *Session) groupName(keys string) string {
-	for from, name := range e.cfg.Keymap.Groups {
+	for from, name := range e.cfg.Keymap["groups"] {
 		if vim.Notation(withLeader(from, e.cfg.Leader)) == keys {
 			return name
 		}

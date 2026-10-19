@@ -54,7 +54,6 @@ type Editor struct {
 	completionSources map[string]completer              // the modules' sources of completion, by name (B336)
 	shortOf           map[string]string                 // the modules' command each short name stands for (B329)
 	tabs              []api.Tab                         // what a module says the buffer line lists (B331)
-	kindMaps          map[string]map[string]string      // the modules' keys of each kind of buffer, by kind (B327)
 	completers        map[string]func(*Session, string) // by command, what asks a module to complete its argument (B290)
 	decos             map[any][]decoration              // by owner: a plugin, or a buffer for its diagnostics
 	servers           map[string]*server                // by command and root
@@ -118,6 +117,7 @@ type Session struct {
 	cmdline     cmdline                 // the completions of the command line being typed
 	searching   *[2]int                 // the top and cursor of the window a search is typed in, to put back (B21)
 	locals      map[string]*vim.Keymaps // the keymaps of kinds of buffer, by kind, over the machine's (B142)
+	keymap      keymap                  // the [keymap] tables the session's keys come from, a guest's own (B254)
 	history     []string                // the messages shown, oldest first, at most 200 (B157)
 	logged      string                  // the message last put in history
 	under       *window                 // the window a focused float was opened from
@@ -157,7 +157,7 @@ func open(cfg config, paths []string) (*Session, error) {
 	if len(paths) == 0 {
 		paths = []string{""}
 	}
-	ed := &Editor{next: 1, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(*Session, call){}, sources: map[string]func(*Session, string){}, writers: map[string]writer{}, completionSources: map[string]completer{}, shortOf: map[string]string{}, kindMaps: map[string]map[string]string{}, completers: map[string]func(*Session, string){}, decos: map[any][]decoration{}, servers: map[string]*server{}, down: map[string]string{}, building: map[string]bool{}, failed: map[string]string{}, listeners: map[api.Module]*listener{}, segments: map[api.Module]map[*buffer]string{}, leftSegments: map[api.Module]map[*buffer]string{}}
+	ed := &Editor{next: 1, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(*Session, call){}, sources: map[string]func(*Session, string){}, writers: map[string]writer{}, completionSources: map[string]completer{}, shortOf: map[string]string{}, completers: map[string]func(*Session, string){}, decos: map[any][]decoration{}, servers: map[string]*server{}, down: map[string]string{}, building: map[string]bool{}, failed: map[string]string{}, listeners: map[api.Module]*listener{}, segments: map[api.Module]map[*buffer]string{}, leftSegments: map[api.Module]map[*buffer]string{}}
 	// Without a config directory there are no overrides, and loadConfig
 	// reports why.
 	if dir, err := keep.Dir("XDG_CONFIG_HOME", ".config"); err == nil {
@@ -356,13 +356,13 @@ func Start(args []string) (*Session, error) {
 // useKeys maps km's keys on e's machine and kinds of buffer, with leader as
 // <Leader>.
 func (e *Session) useKeys(km keymap, leader string) {
-	for mode, maps := range map[vim.Mode]map[string]string{vim.Normal: km.Normal, vim.Visual: km.Visual, vim.Insert: km.Insert} {
-		mapAll(e.vim, mode, maps, leader)
+	e.keymap = km
+	for name, maps := range km {
+		if name != "groups" {
+			m, mode := e.table(name)
+			mapAll(m, mode, maps, leader)
+		}
 	}
-	for kind, maps := range map[string]map[string]string{"listing": km.Listing, "list": km.List, "timeline": km.Timeline, "float": km.Float, "lsp": km.Lsp, "help": km.Help, "scratch": km.Scratch, "start": km.Start, "terminal": km.Terminal, "debug": km.Debug} {
-		mapAll(e.locals[kind], vim.Normal, maps, leader)
-	}
-	mapAll(e.locals["finder"], vim.Insert, km.Finder, leader)
 }
 
 // add opens path as a new buffer at the end of the list.

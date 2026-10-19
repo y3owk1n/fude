@@ -213,7 +213,8 @@ func (e *Session) plugNames() []string {
 	}
 	for _, p := range e.modules {
 		for _, r := range p.Registered() {
-			if r.Kind == api.Key || r.Kind == api.Plug {
+			// A key with Chars is the vim machine's own, with no plug.
+			if (r.Kind == api.Key || r.Kind == api.Plug) && r.Chars == 0 {
 				names = append(names, p.Name()+"."+r.Name)
 			}
 		}

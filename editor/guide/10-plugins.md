@@ -78,7 +78,8 @@ func main() {}
 ```
 
 A plugin registers what it adds from its `init` functions. `sdk.Command`
-adds an ex command, `sdk.Key` keys in normal mode, `sdk.Insert` keys in
+adds an ex command, `sdk.Key` a `<Plug>(plugin.name)` with its keys in
+normal mode, which config.toml can map elsewhere, `sdk.Insert` keys in
 insert mode, `sdk.Operator` an
 operator and `sdk.Object` a text object, each with a line of help that
 `:h` and the key hints show. A command's `sdk.Call` has what was typed

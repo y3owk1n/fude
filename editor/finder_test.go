@@ -141,7 +141,7 @@ func TestB271Plug(t *testing.T) {
 	e.Use(plugmod.New())
 	e.SetSize(100, 30)
 	// A plugin's key runs with no key typed.
-	feed(e, ":plug kit.gS<CR>")
+	feed(e, ":plug kit.shout<CR>")
 	settle(t, e, func() bool { return text(e) == "!ab cd\nef" })
 	// A name that is no plug says so.
 	if feed(e, ":plug nope<CR>"); e.Message() != "no plug is called nope" {

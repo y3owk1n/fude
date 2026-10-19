@@ -21,8 +21,8 @@ func init() {
 		return 0, n, err == nil
 	})
 	shout := func(c sdk.Call) { sdk.Edit(c.Cursor, c.Cursor, "!") }
-	sdk.Key("gS", "types ! at the cursor", shout)
-	sdk.Key("<Leader>!", "types ! at the cursor", shout)
+	sdk.Key("shout", "gS", "types ! at the cursor", shout)
+	sdk.Key("bang", "<Leader>!", "types ! at the cursor", shout)
 	sdk.Command("Shout", "types ! at the cursor", shout)
 }
 

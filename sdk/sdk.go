@@ -363,10 +363,13 @@ func About(name string) string {
 	return v
 }
 
-// Key maps keys in normal mode to f, as a mapping in config.toml does.
-// help says what it does, for :h and the key hints.
-func Key(keys, help string, f func(Call)) {
-	add(api.Registration{Kind: api.Key, Name: keys, Help: help}, func(a, b, _ int64) int64 {
+// Key adds <Plug>(plugin.name), which runs f, and maps keys in normal mode
+// to it, as a module's keys are. A mapping of those keys in config.toml
+// wins. help says what it does, for :h and the key hints. For keys in
+// visual mode, in a kind of buffer or only while a language server is
+// attached, use Register.
+func Key(name, keys, help string, f func(Call)) {
+	add(api.Registration{Kind: api.Plug, Name: name, Keys: keys, Help: help}, func(a, b, _ int64) int64 {
 		f(Call{Cursor: int(a), Count: int(b)})
 		return 0
 	})

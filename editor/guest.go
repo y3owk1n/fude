@@ -8,7 +8,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/vim"
 	"github.com/y3owk1n/fude/wire"
 )
@@ -158,16 +157,13 @@ func (e *Session) use(own Own) {
 // to, in place of the leader from. An attached key moves only while it is mapped
 // (B254, B292).
 func (e *Session) moveModuleKeys(from, to string) {
-	for _, p := range e.modules {
-		for _, r := range p.Registered() {
-			if r.Kind != api.Key || r.Attached && !e.lspKeys {
-				continue
-			}
-			for _, mode := range keyModes(r) {
-				e.vim.Unmap(mode, withLeader(r.Name, from))
-				e.vim.Map(mode, withLeader(r.Name, to), "<Plug>("+p.Name()+"."+r.Name+")")
-			}
+	for _, k := range e.moduleKeys() {
+		if !leaderKey.MatchString(k.keys) || e.configures(k.table, k.keys) || k.attached && !e.lspKeys {
+			continue
 		}
+		m, mode := e.table(k.table)
+		m.Unmap(mode, withLeader(k.keys, from))
+		m.Map(mode, withLeader(k.keys, to), k.plug)
 	}
 }
 
@@ -191,14 +187,12 @@ func (ed *Editor) moveLeader(from, to string) {
 				mapAll(m, mode, moved, to)
 			}
 			move(s.vim, vim.Normal, defaultMaps)
-			km := ed.cfg.Keymap
-			for mode, maps := range map[vim.Mode]map[string]string{vim.Normal: km.Normal, vim.Visual: km.Visual, vim.Insert: km.Insert} {
-				move(s.vim, mode, maps)
+			for name, maps := range s.keymap {
+				if name != "groups" {
+					m, mode := s.table(name)
+					move(m, mode, maps)
+				}
 			}
-			for kind, maps := range map[string]map[string]string{"listing": km.Listing, "list": km.List, "timeline": km.Timeline, "float": km.Float, "lsp": km.Lsp, "help": km.Help, "scratch": km.Scratch, "start": km.Start, "terminal": km.Terminal, "debug": km.Debug} {
-				move(s.locals[kind], vim.Normal, maps)
-			}
-			move(s.locals["finder"], vim.Insert, km.Finder)
 		}
 		s.moveModuleKeys(from, to)
 		s.leader = to

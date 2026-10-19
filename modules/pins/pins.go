@@ -67,8 +67,8 @@ func (m *Module) Subscribed() []string {
 func (m *Module) Registered() []api.Registration {
 	regs := []api.Registration{
 		{Kind: api.Command, Name: "pin", Args: "[remove|list|n]", Help: "pins the current file, takes it off, lists the pins or goes to pin n", ID: command},
-		{Kind: api.Key, Name: "<Leader>a", Help: "pins the current file", ID: add},
-		{Kind: api.Key, Name: "<Leader>h", Help: "lists the pins to edit", ID: list},
+		{Kind: api.Plug, Name: "add", Keys: "<Leader>a", Help: "pins the current file", ID: add},
+		{Kind: api.Plug, Name: "list", Keys: "<Leader>h", Help: "lists the pins to edit", ID: list},
 		{Kind: api.Plug, Name: "next", Help: "goes to the pin after the current file's", ID: next},
 		{Kind: api.Plug, Name: "prev", Help: "goes to the pin before the current file's", ID: prev},
 		{Kind: api.Plug, Name: "open", Keys: "<CR>", In: "pins", Help: "opens the pin on the cursor's line", ID: open},
@@ -76,7 +76,7 @@ func (m *Module) Registered() []api.Registration {
 		{Kind: api.Write, Name: "pins", Help: "makes the pins what the lines say", ID: write},
 	}
 	for n := range most {
-		regs = append(regs, api.Registration{Kind: api.Key, Name: fmt.Sprintf("<Leader>%d", n+1), Help: fmt.Sprintf("goes to pin %d", n+1), ID: slot + uint32(n)})
+		regs = append(regs, api.Registration{Kind: api.Plug, Name: strconv.Itoa(n + 1), Keys: fmt.Sprintf("<Leader>%d", n+1), Help: fmt.Sprintf("goes to pin %d", n+1), ID: slot + uint32(n)})
 	}
 	return regs
 }

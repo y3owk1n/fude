@@ -162,14 +162,14 @@ func (m *Module) Subscribed() []string { return []string{"buffer.closed"} }
 func (m *Module) Registered() []api.Registration {
 	return []api.Registration{
 		{Kind: api.Command, Name: "debug", Help: "debugs the program the launch settings name, or acts on the debug session: start [name], stop, break, continue, next, in, out, panel or eval expr", ID: command, Host: true, Complete: true},
-		{Kind: api.Key, Name: "<Leader>db", Help: "puts a breakpoint on the cursor's line, or takes it off", ID: keyBreak, Host: true},
-		{Kind: api.Key, Name: "<Leader>dc", Help: "lets the stopped program go on, or starts a debug session", ID: keyContinue, Host: true},
-		{Kind: api.Key, Name: "<Leader>dn", Help: "steps over the stopped program's line", ID: keyNext, Host: true},
-		{Kind: api.Key, Name: "<Leader>di", Help: "steps into the stopped program's line", ID: keyIn, Host: true},
-		{Kind: api.Key, Name: "<Leader>do", Help: "steps out of the stopped program's function", ID: keyOut, Host: true},
-		{Kind: api.Key, Name: "<Leader>dq", Help: "ends the debug session", ID: keyStop, Host: true},
-		{Kind: api.Key, Name: "<Leader>dp", Help: "shows the debug session's frames, variables and output", ID: keyPanel, Host: true},
-		{Kind: api.Key, Name: "<Leader>de", Help: "shows the value of the selection, or the name under the cursor, at the chosen frame", ID: keyEval, Host: true, Visual: true},
+		{Kind: api.Plug, Name: "break", Keys: "<Leader>db", Help: "puts a breakpoint on the cursor's line, or takes it off", ID: keyBreak, Host: true},
+		{Kind: api.Plug, Name: "continue", Keys: "<Leader>dc", Help: "lets the stopped program go on, or starts a debug session", ID: keyContinue, Host: true},
+		{Kind: api.Plug, Name: "next", Keys: "<Leader>dn", Help: "steps over the stopped program's line", ID: keyNext, Host: true},
+		{Kind: api.Plug, Name: "in", Keys: "<Leader>di", Help: "steps into the stopped program's line", ID: keyIn, Host: true},
+		{Kind: api.Plug, Name: "out", Keys: "<Leader>do", Help: "steps out of the stopped program's function", ID: keyOut, Host: true},
+		{Kind: api.Plug, Name: "stop", Keys: "<Leader>dq", Help: "ends the debug session", ID: keyStop, Host: true},
+		{Kind: api.Plug, Name: "panel", Keys: "<Leader>dp", Help: "shows the debug session's frames, variables and output", ID: keyPanel, Host: true},
+		{Kind: api.Plug, Name: "eval", Keys: "<Leader>de", Help: "shows the value of the selection, or the name under the cursor, at the chosen frame", ID: keyEval, Host: true, Visual: true},
 		{Kind: api.Plug, Name: "open", Help: "chooses the debug panel's frame under the cursor, or shows or hides its variable's members", ID: plugOpen, Host: true},
 	}
 }

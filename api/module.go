@@ -78,14 +78,15 @@ type Registration struct {
 	// Complete makes Call complete a command's argument too. The word typed
 	// is complete in About, and a Result's Complete answers (B290).
 	Complete bool
-	// Visual maps a Key in visual mode too, where its call gets the
-	// selection's start and end instead of the cursor and count (B291).
+	// Visual maps a Key, or a Plug's Keys, in visual mode too, where its
+	// call gets the selection's start and end instead of the cursor and
+	// count (B291).
 	Visual bool
-	// Attached maps a Key only while a language server is attached to the
-	// buffer, so the key is free without one (N3).
+	// Attached maps a Key, or a Plug's Keys, only while a language server
+	// is attached to the buffer, so the key is free without one (N3).
 	Attached bool
-	// Enters makes a Key pressed while a float shows move the cursor into
-	// the float instead, as K does on hover (B62).
+	// Enters makes a Key or a Plug run while a float shows move the cursor
+	// into the float instead, as K does on hover (B62).
 	Enters bool
 	// Chars makes an Operator wait for that many characters typed after its
 	// motion, and a Key for that many after its keys. The call gets them as
@@ -96,8 +97,8 @@ type Registration struct {
 	// and its call gets the selection (B322).
 	Chars int
 	// Keys are the keys a Plug is mapped to, in normal mode, or with In
-	// among the own keys of that kind of buffer, such as listing, which
-	// [keymap.<kind>] changes (B327).
+	// among the own keys of that kind of buffer, such as listing. A
+	// config.toml mapping of them in that table wins (B327, D53).
 	Keys, In string
 	// Short are other names a Command answers to, such as ls for buffers
 	// (B329).

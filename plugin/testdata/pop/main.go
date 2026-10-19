@@ -5,7 +5,7 @@ package main
 import "github.com/y3owk1n/fude/sdk"
 
 func init() {
-	sdk.Key("gP", "shows hi in a float", func(sdk.Call) {
+	sdk.Key("float", "gP", "shows hi in a float", func(sdk.Call) {
 		sdk.Float("**hi**")
 	})
 }

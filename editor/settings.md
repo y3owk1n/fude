@@ -413,6 +413,12 @@ window once its program has ended.
 Keys in a window fude writes to show something, such as `:messages`, `:grammar`
 or a diff, where `q` closes it.
 
+## keymap.<kind>
+
+Keys in a kind of buffer a module or plugin adds, such as `pins` for
+`:pin list`, as `[keymap.listing]` is for a listing. `:h` lists each
+kind's keys under its name.
+
 ## keymap.groups
 
 Names for the keys mappings start with, which the key hints show beside the

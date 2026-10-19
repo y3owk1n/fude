@@ -29,7 +29,7 @@ func init() {
 	sdk.On("editor.focused", heard)
 	sdk.On("buffer.saving", heard)
 	sdk.On("lsp.attached", heard)
-	sdk.Key("gZ", "emits listen.ping", func(sdk.Call) {
+	sdk.Key("ping", "gZ", "emits listen.ping", func(sdk.Call) {
 		sdk.Emit("ping")
 	})
 }

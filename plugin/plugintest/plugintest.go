@@ -64,12 +64,18 @@ func (p *Plugin) Command(name, args, text string, cursor int) api.Result {
 	return p.call(id, scope(text, api.Context{"args": args, "bang": "false", "first": "0", "last": "0", "ranged": "false"}), cursor, 0)
 }
 
-// Key runs the plugin's normal mode key keys against text, with the cursor
-// at cursor and count typed before it, and returns what it asked for.
+// Key runs what the plugin maps keys to in normal mode, a key or a plug's
+// keys, against text, with the cursor at cursor and count typed before it,
+// and returns what it asked for.
 func (p *Plugin) Key(keys, text string, cursor, count int) api.Result {
 	p.t.Helper()
-	id := p.id(api.Key, keys)
-	return p.call(id, scope(text, nil), cursor, count)
+	i := slices.IndexFunc(p.p.Registered(), func(r api.Registration) bool {
+		return r.Kind == api.Key && r.Name == keys || r.Kind == api.Plug && r.Keys == keys && r.In == ""
+	})
+	if i < 0 {
+		p.t.Fatalf("the plugin maps no %s", keys)
+	}
+	return p.call(p.p.Registered()[i].ID, scope(text, nil), cursor, count)
 }
 
 // Event tells the plugin of the event name, such as buffer.changed, about

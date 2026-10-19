@@ -75,10 +75,10 @@ func (m *Module) Subscribed() []string {
 
 func (m *Module) Registered() []api.Registration {
 	return []api.Registration{
-		{Kind: api.Key, Name: "]h", Help: "goes to the next hunk", ID: next},
-		{Kind: api.Key, Name: "[h", Help: "goes to the hunk before", ID: prev},
-		{Kind: api.Key, Name: "[H", Help: "goes to the first hunk", ID: first},
-		{Kind: api.Key, Name: "]H", Help: "goes to the last hunk", ID: last},
+		{Kind: api.Plug, Name: "next", Keys: "]h", Help: "goes to the next hunk", ID: next},
+		{Kind: api.Plug, Name: "prev", Keys: "[h", Help: "goes to the hunk before", ID: prev},
+		{Kind: api.Plug, Name: "first", Keys: "[H", Help: "goes to the first hunk", ID: first},
+		{Kind: api.Plug, Name: "last", Keys: "]H", Help: "goes to the last hunk", ID: last},
 		{Kind: api.Plug, Name: "preview", Help: "shows the hunk under the cursor as git's index has it", ID: preview},
 		{Kind: api.Operator, Name: "gH", Help: "puts the hunks a motion or object covers back as git's index has them", ID: reset, Host: true},
 		{Kind: api.Operator, Name: "gh", Help: "stages the hunks a motion or object covers in git's index", ID: stage, Host: true},

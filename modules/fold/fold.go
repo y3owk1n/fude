@@ -35,11 +35,11 @@ func (m *Module) Subscribed() []string { return nil }
 
 func (m *Module) Registered() []api.Registration {
 	return []api.Registration{
-		{Kind: api.Key, Name: "za", Help: "opens the closed fold at the cursor, or closes the one it is in", ID: toggle},
-		{Kind: api.Key, Name: "zc", Help: "closes the fold the cursor's line starts, or the one it is in", ID: closeOne},
-		{Kind: api.Key, Name: "zo", Help: "opens the closed fold at the cursor", ID: open},
-		{Kind: api.Key, Name: "zR", Help: "opens every fold", ID: openAll},
-		{Kind: api.Key, Name: "zM", Help: "closes every outermost fold", ID: closeAll},
+		{Kind: api.Plug, Name: "toggle", Keys: "za", Help: "opens the closed fold at the cursor, or closes the one it is in", ID: toggle},
+		{Kind: api.Plug, Name: "close", Keys: "zc", Help: "closes the fold the cursor's line starts, or the one it is in", ID: closeOne},
+		{Kind: api.Plug, Name: "open", Keys: "zo", Help: "opens the closed fold at the cursor", ID: open},
+		{Kind: api.Plug, Name: "open_all", Keys: "zR", Help: "opens every fold", ID: openAll},
+		{Kind: api.Plug, Name: "close_all", Keys: "zM", Help: "closes every outermost fold", ID: closeAll},
 	}
 }
 

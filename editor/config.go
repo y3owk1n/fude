@@ -95,24 +95,29 @@ type config struct {
 	} `toml:"plugin"`
 }
 
-// keymap is config.toml's [keymap] tables, a mode's or a kind of
-// buffer's mappings.
-type keymap struct {
-	Normal   map[string]string `toml:"normal" help:"normal mode mappings"`
-	Visual   map[string]string `toml:"visual" help:"visual mode mappings"`
-	Insert   map[string]string `toml:"insert" help:"insert mode mappings"`
-	Listing  map[string]string `toml:"listing" help:"a listing's keys, over the normal mode ones"`
-	List     map[string]string `toml:"list" help:"a list of places' keys, over the normal mode ones"`
-	Timeline map[string]string `toml:"timeline" help:"a timeline's keys, over the normal mode ones"`
-	Finder   map[string]string `toml:"finder" help:"the finder's keys, in insert mode"`
-	Float    map[string]string `toml:"float" help:"a float's keys while the cursor is in it"`
-	Lsp      map[string]string `toml:"lsp" help:"the language server panel's keys"`
-	Debug    map[string]string `toml:"debug" help:"the debug panel's keys"`
-	Help     map[string]string `toml:"help" help:"help's keys"`
-	Start    map[string]string `toml:"start" help:"the start screen's keys"`
-	Terminal map[string]string `toml:"terminal" help:"a terminal window's keys in normal mode"`
-	Scratch  map[string]string `toml:"scratch" help:"the keys of a window fude writes to show something, such as :messages or a diff"`
-	Groups   map[string]string `toml:"groups" help:"names of the keys mappings start with, which key hints show"`
+// keymap is config.toml's [keymap] tables by name: normal, visual and
+// insert mode's mappings, a kind of buffer's, fude's or a module's such as
+// pins, and groups, the names key hints show (B142, B172).
+type keymap map[string]map[string]string
+
+// keymapTables are the [keymap] tables help explains, in order.
+var keymapTables = []struct{ name, help string }{
+	{"normal", "normal mode mappings"},
+	{"visual", "visual mode mappings"},
+	{"insert", "insert mode mappings"},
+	{"listing", "a listing's keys, over the normal mode ones"},
+	{"list", "a list of places' keys, over the normal mode ones"},
+	{"timeline", "a timeline's keys, over the normal mode ones"},
+	{"finder", "the finder's keys, in insert mode"},
+	{"float", "a float's keys while the cursor is in it"},
+	{"lsp", "the language server panel's keys"},
+	{"debug", "the debug panel's keys"},
+	{"help", "help's keys"},
+	{"start", "the start screen's keys"},
+	{"terminal", "a terminal window's keys in normal mode"},
+	{"scratch", "the keys of a window fude writes to show something, such as :messages or a diff"},
+	{"<kind>", "the keys of a kind of buffer a module adds, such as pins, over the normal mode ones"},
+	{"groups", "names of the keys mappings start with, which key hints show"},
 }
 
 var defaults = config{TabWidth: 8, Editorconfig: true, KeyTimeout: 1000, KeyHints: 300, FlashTime: 300, FormatTimeout: 1000, LargeFile: 2, TerminalHeight: 33, SplitBelow: true, SplitRight: true, HighlightColors: true, GitSigns: true, RemoteImages: true, InlayHints: true, Autopairs: true, Sources: []string{"lsp", "snippet", "path", "buffer"}, AutoInstall: true, BufferLine: true, SpellWords: "/usr/share/dict/words", Leader: "<Space>", Theme: "dark", options: options{Wrap: true, IndentGuides: true, IncSearch: true, StickyContext: true, StickyContextLines: 3, DiagnosticNotes: true, Render: true}}
@@ -237,10 +242,37 @@ func kindKeys() map[string]map[string]string {
 	return map[string]map[string]string{"listing": nil, "list": nil, "timeline": nil, "finder": finderKeys, "float": floatKeys, "lsp": nil, "help": nil, "scratch": scratchKeys, "start": nil, "terminal": terminalKeys, "debug": nil}
 }
 
-// kinds returns the tables of km by kind of buffer. The finder's table maps
-// insert mode keys.
-func (km keymap) kinds() map[string]map[string]string {
-	return map[string]map[string]string{"listing": km.Listing, "list": km.List, "timeline": km.Timeline, "finder": km.Finder, "float": km.Float, "lsp": km.Lsp, "help": km.Help, "scratch": km.Scratch, "start": km.Start, "terminal": km.Terminal, "debug": km.Debug}
+// table returns the keymap that the [keymap] table name changes, a mode's
+// or a kind of buffer's, and the mode its keys map in. The finder's keys
+// map in insert mode (B142).
+func (e *Session) table(name string) (mapper, vim.Mode) {
+	switch name {
+	case "normal":
+		return e.vim, vim.Normal
+	case "visual":
+		return e.vim, vim.Visual
+	case "insert":
+		return e.vim, vim.Insert
+	}
+	if e.locals[name] == nil {
+		e.locals[name] = &vim.Keymaps{}
+	}
+	if name == "finder" {
+		return e.locals[name], vim.Insert
+	}
+	return e.locals[name], vim.Normal
+}
+
+// configures reports whether the session's [keymap] table maps keys,
+// which then wins over a module's key (B327).
+func (e *Session) configures(table, keys string) bool {
+	want := vim.Keys(withLeader(keys, e.leader))
+	for from := range e.keymap[table] {
+		if slices.Equal(vim.Keys(withLeader(from, e.leader)), want) {
+			return true
+		}
+	}
+	return false
 }
 
 // reloadConfig reads config.toml again, and never writes it. A setting the
@@ -311,43 +343,56 @@ func apply(o *options, from options, changed map[string]bool) {
 }
 
 // rekey replaces the keys of keymap was with those of now. A key that was
-// maps and now does not gets fude's own mapping back, or none.
+// maps and now does not gets fude's or a module's own mapping back, or
+// none.
 func (e *Session) rekey(was, now keymap) {
-	revert := func(m mapper, mode vim.Mode, old, new, own map[string]string) {
-		for keys := range old {
-			if _, ok := new[keys]; ok {
+	own := e.ownKeys()
+	e.keymap = now
+	names := map[string]bool{}
+	for name := range was {
+		names[name] = true
+	}
+	for name := range now {
+		names[name] = true
+	}
+	for name := range names {
+		if name == "groups" {
+			continue
+		}
+		m, mode := e.table(name)
+		for keys := range was[name] {
+			if _, ok := now[name][keys]; ok {
 				continue
 			}
-			if to, ok := own[keys]; ok {
+			if to, ok := own[name][keys]; ok {
 				m.Map(mode, withLeader(keys, e.leader), to)
 			} else {
 				m.Unmap(mode, withLeader(keys, e.leader))
 			}
 		}
-		mapAll(m, mode, new, e.leader)
-	}
-	revert(e.vim, vim.Normal, was.Normal, now.Normal, merged(defaultMaps, e.kindMaps[""]))
-	revert(e.vim, vim.Visual, was.Visual, now.Visual, map[string]string{"s": "<Plug>(jump.start)"})
-	revert(e.vim, vim.Insert, was.Insert, now.Insert, nil)
-	own, olds, news := kindKeys(), was.kinds(), now.kinds()
-	for kind, keys := range e.kindMaps {
-		own[kind] = merged(own[kind], keys)
-	}
-	for kind, m := range e.locals {
-		mode := vim.Normal
-		if kind == "finder" {
-			mode = vim.Insert
-		}
-		revert(m, mode, olds[kind], news[kind], own[kind])
+		mapAll(m, mode, now[name], e.leader)
 	}
 }
 
-// merged is fude's own keys with the modules' over them (B327).
-func merged(own, modules map[string]string) map[string]string {
-	out := maps.Clone(own)
-	if out == nil {
-		out = map[string]string{}
+// ownKeys are fude's and the modules' keys of each [keymap] table, those
+// that map in the session now (B142, B327).
+func (e *Session) ownKeys() keymap {
+	own := keymap{}
+	add := func(table string, keys map[string]string) {
+		if own[table] == nil {
+			own[table] = map[string]string{}
+		}
+		maps.Copy(own[table], keys)
 	}
-	maps.Copy(out, modules)
-	return out
+	for kind, keys := range kindKeys() {
+		add(kind, keys)
+	}
+	add("normal", defaultMaps)
+	add("visual", map[string]string{"s": "<Plug>(jump.start)"})
+	for _, k := range e.moduleKeys() {
+		if !k.attached || e.lspKeys {
+			add(k.table, map[string]string{k.keys: k.plug})
+		}
+	}
+	return own
 }

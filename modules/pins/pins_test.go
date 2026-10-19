@@ -180,6 +180,26 @@ func TestB359PinOnStatusLine(t *testing.T) {
 	}
 }
 
+// B327, B142
+func TestB327ConfigKeysWin(t *testing.T) {
+	editortest.Config(t, "[keymap.normal]\n\"<Leader>a\" = \"x\"\nQ = \"<Plug>(pin.add)\"\n[keymap.pins]\nZ = \"<Plug>(pin.close)\"\n")
+	e := project(t, "a.txt")
+	// config.toml's mapping of a module's key wins, and its plug runs from
+	// any key.
+	editortest.Feed(e, " a")
+	if got := editortest.Text(e); got != "irst line\nsecond line" {
+		t.Errorf("<Leader>a, mapped to x, left %q", got)
+	}
+	says(t, e, "Q", "pin 1")
+	// A module's kind of buffer takes a table of its own.
+	editortest.Feed(e, ":pin list<CR>Z")
+	shows(t, e, "a.txt")
+	// Without its mapping, :config reload gives the module's key back.
+	editortest.Config(t, "")
+	says(t, e, ":config reload<CR>", "reloaded config.toml")
+	says(t, e, " a", "already pin 1")
+}
+
 // B360, B346
 func TestB360PinFollowsRename(t *testing.T) {
 	e := project(t, "b.txt", "a.txt", "sub/x.txt")

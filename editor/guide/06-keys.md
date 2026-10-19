@@ -20,7 +20,11 @@ The left side is the keys typed and the right side the keys they run,
 written with names such as `<CR>`, `<Esc>`, `<Space>`, `<C-x>` for Ctrl+x
 and `<Leader>`. `<Leader>` stands for the `leader` setting, `<Space>`
 unless set. `<Plug>(name)` runs one of fude's commands, which
-`commands-for-keys` lists, and `:plug name` runs one with no key. A key mapped to `""` loses its mapping, fude's
+`commands-for-keys` lists, and `:plug name` runs one with no key. Every
+key a module or plugin adds runs a plug named for what it does, such as
+`<Plug>(lsp.rename)` for `grn`. `"<Leader>r" = "<Plug>(lsp.rename)"`
+gives rename another key, and a mapping of `grn` itself wins over the
+module's. A key mapped to `""` loses its mapping, fude's
 own too, and `<Nop>` makes a key do nothing. The keys a mapping runs are
 never mapped again.
 
@@ -30,7 +34,8 @@ Some buffers have keys of their own: `[keymap.listing]` for listings,
 `[keymap.list]` for lists of places, `[keymap.timeline]`,
 `[keymap.finder]`, `[keymap.float]`, `[keymap.lsp]` for the language
 server panel, `[keymap.help]` and `[keymap.scratch]` for the windows fude
-writes, such as `:messages` and a diff. A key mapped there runs in that
+writes, such as `:messages` and a diff. A module's kind takes a table by
+its name, as `[keymap.pins]` does for `:pin list`. A key mapped there runs in that
 kind of buffer at once, before the normal mode mappings. In each of them
 but a listing, `q` closes the window.
 

@@ -991,18 +991,13 @@ func (e *Session) unregister(p api.Module) {
 				s.vim.Operator(r.Name, 0, nil)
 			case api.Object:
 				s.vim.Object(r.Name, nil)
-			case api.Key:
+			case api.Key, api.Plug:
 				if r.Chars > 0 {
 					s.vim.Keyed(keyedMode(r), r.Name, 0, nil)
 					break
 				}
-				for _, mode := range keyModes(r) {
-					s.vim.Unmap(mode, withLeader(r.Name, s.leader))
-				}
-				s.vim.Command(p.Name()+"."+r.Name, nil)
-			case api.Plug:
-				if r.Keys != "" {
-					s.kindKey(r.In, r.Keys, "")
+				for _, k := range keysOf(p, r) {
+					s.mapKey(k, false)
 				}
 				s.vim.Command(p.Name()+"."+r.Name, nil)
 			case api.Typed:
@@ -1135,13 +1130,8 @@ func (e *Session) register(p api.Module, r api.Registration) {
 				edits, _, _ := s.run(p, r.ID, s.scope(p, s.win.buf, t), args...)
 				return edits
 			})
-			if r.Kind == api.Plug && r.Keys != "" {
-				s.kindKey(r.In, r.Keys, "<Plug>("+name+")")
-			}
-			if r.Kind == api.Key && (!r.Attached || s.lspKeys) {
-				for _, mode := range keyModes(r) {
-					s.vim.Map(mode, withLeader(r.Name, s.leader), "<Plug>("+name+")")
-				}
+			for _, k := range keysOf(p, r) {
+				s.mapKey(k, true)
 			}
 		})
 	case api.Typed:
@@ -1195,14 +1185,6 @@ func bindingKeys(r api.Registration) string {
 		keys += "{motion}"
 	}
 	return keys + strings.Repeat("{char}", r.Chars)
-}
-
-// keyModes are the modes a Key registration is mapped in (B291).
-func keyModes(r api.Registration) []vim.Mode {
-	if r.Visual {
-		return []vim.Mode{vim.Normal, vim.Visual}
-	}
-	return []vim.Mode{vim.Normal}
 }
 
 // scope is what a call of p about b reads: the text t, what the call is
@@ -1370,9 +1352,13 @@ func (e *Session) run(p api.Module, id uint32, scope api.Scope, args ...int) ([]
 	name := strconv.Itoa(int(id))
 	for _, r := range p.Registered() {
 		if r.ID == id {
-			name = r.Name
-			if r.Kind == api.Command {
-				name = ":" + name
+			switch {
+			case r.Kind == api.Command:
+				name = ":" + r.Name
+			case r.Kind == api.Plug && r.Keys != "":
+				name = r.Keys
+			default:
+				name = r.Name
 			}
 			if r.Host && e.power != Host {
 				e.message = "a guest may not run " + name
@@ -1504,34 +1490,61 @@ func (e *Session) showPick(p api.Module, b *buffer, pk *api.Pick, save *saving) 
 	e.openFinder(f, pk.Query)
 }
 
-// kindKey maps keys to to, a module's plug, among the own keys of kind, or
-// in normal mode for kind "". With to "" it takes the module's mapping
-// away. A key config.toml maps there stays as config.toml has it (B327).
-func (s *Session) kindKey(kind, keys, to string) {
-	if s.kindMaps[kind] == nil {
-		s.kindMaps[kind] = map[string]string{}
+// moduleKey is a key a module maps to one of its plugs, in a [keymap]
+// table: normal, visual or a kind of buffer's. An attached one maps only
+// while the current buffer has a language server (B327).
+type moduleKey struct {
+	table, keys, plug string
+	attached          bool
+}
+
+// keysOf are the keys r maps to p's plug, a Key's own or a Plug's Keys.
+// They map in normal mode, in visual mode too with Visual, or among a
+// kind's keys with In. A Key with Chars is the machine's own and has none.
+func keysOf(p api.Module, r api.Registration) []moduleKey {
+	keys := r.Keys
+	switch {
+	case r.Kind == api.Key && r.Chars == 0:
+		keys = r.Name
+	case r.Kind != api.Plug || keys == "":
+		return nil
 	}
-	if to == "" {
-		delete(s.kindMaps[kind], keys)
-	} else {
-		s.kindMaps[kind][keys] = to
+	plug := "<Plug>(" + p.Name() + "." + r.Name + ")"
+	if r.In != "" {
+		return []moduleKey{{r.In, keys, plug, r.Attached}}
 	}
-	var m mapper = s.vim
-	own := s.cfg.Keymap.Normal
-	if kind != "" {
-		if s.locals[kind] == nil {
-			s.locals[kind] = &vim.Keymaps{}
+	out := []moduleKey{{"normal", keys, plug, r.Attached}}
+	if r.Visual {
+		out = append(out, moduleKey{"visual", keys, plug, r.Attached})
+	}
+	return out
+}
+
+// moduleKeys are the keys every module maps (B327).
+func (e *Session) moduleKeys() []moduleKey {
+	var out []moduleKey
+	for _, p := range e.modules {
+		for _, r := range p.Registered() {
+			out = append(out, keysOf(p, r)...)
 		}
-		m, own = s.locals[kind], s.cfg.Keymap.kinds()[kind]
 	}
-	if _, ok := own[keys]; ok {
+	return out
+}
+
+// mapKey maps k, or takes it away with on false or while it is attached
+// and the buffer has no server. A key the session's [keymap] table maps
+// stays as the table has it (B327).
+func (e *Session) mapKey(k moduleKey, on bool) {
+	if e.configures(k.table, k.keys) {
 		return
 	}
-	if to == "" {
-		m.Unmap(vim.Normal, withLeader(keys, s.leader))
-		return
+	m, mode := e.table(k.table)
+	keys := withLeader(k.keys, e.leader)
+	if on && (!k.attached || e.lspKeys) {
+		m.Map(mode, keys, k.plug)
+	} else {
+		m.Unmap(mode, keys)
 	}
-	m.Map(vim.Normal, withLeader(keys, s.leader), to)
 }
 
 // none is no marks, as a scope off the loop has (B329).

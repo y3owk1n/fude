@@ -1112,7 +1112,7 @@ theme = "dark"       # dark, light, or a base16 scheme such as "~/.config/stylix
 [keymap.groups]      # names of the keys mappings start with, for key hints (B172)
 "<Leader>s" = "search"
 
-[keymap.listing]     # and [keymap.list], [keymap.timeline], [keymap.lsp], [keymap.help]: a kind of buffer's own keys (B142, B159, B162)
+[keymap.listing]     # or any kind of buffer's, fude's or a module's such as [keymap.pins]: its own keys (B142, D53)
 "<C-h>" = ""
 "<C-v>" = "<Plug>(listing.vsplit)"
 

@@ -7,7 +7,7 @@ import "github.com/y3owk1n/fude/sdk"
 
 func init() {
 	sdk.Decorate(0, 2, "keyword")
-	sdk.Key("gX", "panics", func(sdk.Call) {
+	sdk.Key("panic", "gX", "panics", func(sdk.Call) {
 		panic("gX")
 	})
 }

@@ -749,6 +749,18 @@ func TestB244GuestRefusesAModuleKey(t *testing.T) {
 	}
 }
 
+// B327, for a plugin's keys
+func TestB327PluginKeysYieldToConfig(t *testing.T) {
+	useTable(t, "kit", "\n[keymap.normal]\ngS = \"x\"\nQ = \"<Plug>(kit.shout)\"\n", "buffer.read", "buffer.write")
+	e := opened(t, "f", "ab cd\nef\n")
+	if feed(e, "gS"); text(e) != "b cd\nef" {
+		t.Errorf("gS, mapped to x, left %q", text(e))
+	}
+	if feed(e, "Q"); text(e) != "!b cd\nef" {
+		t.Errorf("Q, mapped to <Plug>(kit.shout), left %q", text(e))
+	}
+}
+
 // B278
 func TestB278PluginPlug(t *testing.T) {
 	useTable(t, "ctx", "\n[keymap.normal]\nQ = \"<Plug>(ctx.hi)\"\n", "buffer.write")

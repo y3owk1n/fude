@@ -395,8 +395,9 @@ Where fude departs, the line says so and cites the departure in
   `listing`, `list` for the lists of places such as `grr`'s, `timeline`,
   `finder`, whose keys are insert mode's, `float` for a float the cursor
   is in, `lsp`, `help`, `scratch` for the windows fude writes, such as
-  `:messages`, `:grammar` and a diff (B212), `start` (B225), and
-  `terminal` for a terminal or task window in normal mode (B228). Hover while a float shows moves the
+  `:messages`, `:grammar` and a diff (B212), `start` (B225),
+  `terminal` for a terminal or task window in normal mode (B228), and
+  any kind a module or plugin adds, such as `pins` (B358) (D53). Hover while a float shows moves the
   cursor into it, whichever key runs hover.
   Nothing types in a window fude writes, such as a float, help, a list, a
   timeline, a panel or an ended terminal. A key that would start insert or
@@ -1173,9 +1174,13 @@ Where fude departs, the line says so and cites the departure in
   naming the paths it would change, which a guest may change only under
   the project. What follows the write, such as `:wq`'s quit, runs once it
   is done. The write may say which paths it renamed, and their open
-  buffers follow. A module's plug may come with its keys, in normal mode
-  or among a kind of buffer's own keys, which config.toml's mappings
-  override. A jump may open its file in a split.
+  buffers follow. A module's or plugin's plug may come with its keys, in
+  normal mode, in visual mode too, only while a language server is
+  attached, or among a kind of buffer's own keys. A config.toml mapping of
+  the same keys wins over them, and `:config reload` without it gives them
+  back. Every key a module adds has a plug named for what it does, such
+  as `<Plug>(lsp.rename)` for `grn`, which any key may map (D53). A jump
+  may open its file in a split.
 - B326 [4] A module hears `keys.pending` when the command being typed
   changes, with its keys, and reads the keys that may follow it, each with
   what it does or its group's name. It may show them as the key hints,

@@ -45,8 +45,8 @@ func (m *Module) Subscribed() []string { return nil }
 
 func (m *Module) Registered() []api.Registration {
 	return []api.Registration{
-		{Kind: api.Key, Name: "gx", Help: "opens the link or file under the cursor with the system's opener", ID: open, Host: true},
-		{Kind: api.Key, Name: "gf", Help: "opens the file under the cursor, at the line after a colon", ID: edit},
+		{Kind: api.Plug, Name: "open", Keys: "gx", Help: "opens the link or file under the cursor with the system's opener", ID: open, Host: true},
+		{Kind: api.Plug, Name: "file", Keys: "gf", Help: "opens the file under the cursor, at the line after a colon", ID: edit},
 	}
 }
 
