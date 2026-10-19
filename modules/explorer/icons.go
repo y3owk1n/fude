@@ -5,6 +5,8 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -87,10 +89,23 @@ func note(path string) string {
 		return "%"
 	case m&fs.ModeDevice != 0:
 		return "#"
-	case m.IsRegular() && m&0o111 != 0:
+	case m.IsRegular() && executable(path, m):
 		return "*"
 	}
 	return ""
+}
+
+// executable reports whether the file at path, of mode m, runs as a
+// program: by its mode, or on Windows, which gives files none, by an
+// extension in PATHEXT, as cmd.exe finds programs.
+func executable(path string, m fs.FileMode) bool {
+	if runtime.GOOS != "windows" {
+		return m&0o111 != 0
+	}
+	ext := filepath.Ext(path)
+	return ext != "" && slices.ContainsFunc(strings.Split(os.Getenv("PATHEXT"), ";"), func(e string) bool {
+		return strings.EqualFold(e, ext)
+	})
 }
 
 // Event decorates an explorer's lines with their icons and notes. It
