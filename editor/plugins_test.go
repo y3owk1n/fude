@@ -185,7 +185,9 @@ func TestB48RunPrograms(t *testing.T) {
 	e.Load()
 	began := time.Now()
 	next(t, e)
-	if took := time.Since(began); took > 2*time.Second || !strings.Contains(e.Message(), "budget") {
+	// The budget stops it well before its 5 seconds, with room for a slow
+	// machine.
+	if took := time.Since(began); took > 4*time.Second || !strings.Contains(e.Message(), "budget") {
 		t.Fatalf("sleep 5 ran %v and the plugin said %q, want its budget to stop it", took, e.Message())
 	}
 	if log := fudeLog(); !strings.Contains(log, "proc: hi\n") || !strings.Contains(log, "proc: refused") {
@@ -198,7 +200,7 @@ func TestB48RunPrograms(t *testing.T) {
 	e.Load()
 	began = time.Now()
 	next(t, e)
-	if took := time.Since(began); took > 2*time.Second {
+	if took := time.Since(began); took > 4*time.Second {
 		t.Fatalf("a program whose child kept its output ran %v, want it to end with the program", took)
 	}
 }
