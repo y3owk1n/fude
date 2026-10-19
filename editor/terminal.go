@@ -26,8 +26,7 @@ import (
 // terminal is a program running in a pseudo-terminal, which its buffer
 // shows (B205).
 type terminal struct {
-	cmd        *exec.Cmd
-	pty        *os.File
+	pty        *pty.Terminal
 	em         *vt.Emulator
 	name       string // what runs, as the buffer names it
 	typing     bool   // keys go to the program, in terminal mode
@@ -119,13 +118,13 @@ func (e *Session) openTerminal(arg string, owner api.Module, task string) {
 	e.terminalWindow(b)
 	t := &terminal{name: cmp.Or(arg, argv[0]), typing: true, cols: max(e.win.w, 1), rows: max(e.win.h-1, 1), owner: owner, task: task, started: time.Now()}
 	t.em = vt.NewEmulator(t.cols, t.rows)
-	t.cmd = exec.Command(argv[0], argv[1:]...)
-	t.cmd.Env = append(os.Environ(), "TERM=xterm-256color")
+	cmd := exec.Command(argv[0], argv[1:]...)
+	cmd.Env = append(os.Environ(), "TERM=xterm-256color")
 	// fude open, keys and state in the terminal act on this session (B355).
 	if e.socket != "" {
-		t.cmd.Env = append(t.cmd.Env, "FUDE_SOCKET="+e.socket, "FUDE_SESSION="+string(e.origin))
+		cmd.Env = append(cmd.Env, "FUDE_SOCKET="+e.socket, "FUDE_SESSION="+string(e.origin))
 	}
-	f, err := pty.Start(t.cmd, t.cols, t.rows)
+	term, err := pty.Start(cmd, t.cols, t.rows)
 	if err != nil {
 		// The window and buffer go, so no terminal shows without a program.
 		if cerr := e.closeWindow(e.win); cerr != nil {
@@ -135,7 +134,7 @@ func (e *Session) openTerminal(arg string, owner api.Module, task string) {
 		e.message = err.Error()
 		return
 	}
-	t.pty, b.term = f, t
+	t.pty, b.term = term, t
 	e.record("term", "started "+t.name, 0)
 	// The emulator's answers and the keys it encodes go to the program.
 	go func() {
@@ -145,7 +144,7 @@ func (e *Session) openTerminal(arg string, owner api.Module, task string) {
 			if err != nil {
 				return
 			}
-			if _, err := f.Write(buf[:n]); err != nil {
+			if _, err := term.Write(buf[:n]); err != nil {
 				return
 			}
 		}
@@ -156,7 +155,7 @@ func (e *Session) openTerminal(arg string, owner api.Module, task string) {
 		defer close(drained)
 		buf := make([]byte, 32<<10)
 		for {
-			n, err := f.Read(buf)
+			n, err := term.Read(buf)
 			if n > 0 {
 				out := append([]byte(nil), buf[:n]...)
 				e.queue <- func() { t.em.Write(out) }
@@ -167,7 +166,7 @@ func (e *Session) openTerminal(arg string, owner api.Module, task string) {
 		}
 	}()
 	go func() {
-		err := t.cmd.Wait()
+		err := term.Wait()
 		// Its last output reaches the emulator before its end, unless a
 		// child it left keeps the terminal open.
 		select {
@@ -359,13 +358,13 @@ func (t *terminal) fit(cols, rows int) error {
 	}
 	t.cols, t.rows = cols, rows
 	t.em.Resize(cols, rows)
-	return pty.Resize(t.pty, cols, rows)
+	return t.pty.Resize(cols, rows)
 }
 
 // stop ends t's program and lets its pseudo-terminal go.
 func (t *terminal) stop() {
 	if !t.exited {
-		t.cmd.Process.Kill()
+		t.pty.Kill()
 	}
 	t.pty.Close()
 	// The emulator's Close races its Read, which the goroutine passing its
