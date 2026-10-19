@@ -696,6 +696,12 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 	e.serverActions(res.Servers)
 	for _, m := range res.Moved {
 		e.moved(m[0], m[1])
+		// Each move is an event of its own, so a listener never merges two (B346).
+		for _, l := range e.listeners {
+			if slices.Contains(l.p.Subscribed(), "listing.moved") {
+				l.add(event{name: "listing.moved", buf: b, extra: api.Context{"from": m[0], "to": m[1]}, from: e})
+			}
+		}
 	}
 	if res.Tabs != nil {
 		e.tabs = *res.Tabs
