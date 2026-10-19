@@ -31,9 +31,10 @@ tinygo = { ref = "./.oku/tinygo.toml", version = "^0.43" }
 binaryen = { ref = "./.oku/binaryen.toml" }
 # tree-sitter builds the grammars fude loads at runtime, in tests too (D29).
 tree-sitter = { ref = "./.oku/tree-sitter.toml", version = "^0.27" }
+# Windows has no C compiler of its own, which tree-sitter's binding needs.
+llvm-mingw = { ref = "./.oku/llvm-mingw.toml", when = { os = "windows" } }
 
 # tree-sitter grammars build through cgo, so builds need a C compiler.
 [host]
 xcode-clt = { path = "/Library/Developer/CommandLineTools/usr/bin/clang", install = "xcode-select --install", when = { os = "darwin" } }
 cc = { command = "cc", install = "install your distribution's C compiler, such as build-essential", when = { os = "linux" } }
-gcc = { command = "gcc", install = "install MinGW-w64 for your CPU, such as llvm-mingw", when = { os = "windows" } }

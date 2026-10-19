@@ -1,0 +1,22 @@
+[package]
+name = "llvm-mingw"
+description = "A C compiler for Windows, which the cgo of tree-sitter's binding needs"
+homepage = "https://github.com/mstorsjo/llvm-mingw"
+license = "ISC AND Apache-2.0 WITH LLVM-exception"
+
+[version]
+from = "github-releases"
+repo = "mstorsjo/llvm-mingw"
+
+# gcc.exe is clang building for the machine's own CPU, under the name cgo runs.
+[[artifact]]
+match = { os = "windows", arch = "arm64" }
+url = "https://github.com/mstorsjo/llvm-mingw/releases/download/{{tag}}/llvm-mingw-{{tag}}-ucrt-aarch64.zip"
+strip = 1
+bin = ["bin/gcc.exe"]
+
+[[artifact]]
+match = { os = "windows", arch = "amd64" }
+url = "https://github.com/mstorsjo/llvm-mingw/releases/download/{{tag}}/llvm-mingw-{{tag}}-ucrt-x86_64.zip"
+strip = 1
+bin = ["bin/gcc.exe"]

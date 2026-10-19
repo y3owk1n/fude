@@ -633,6 +633,25 @@ sha256 = 'cac7d639bb3f93ea36258545877ed750eb91589d6ba24422a1f25592bb636b9a'
 verified = 'checksum-file'
 
 [[package]]
+name = 'llvm-mingw'
+ref = './.oku/llvm-mingw.toml'
+manifest_sha256 = 'c80f86b93f5e30705dad6bcafa7e9c2104fabb82b687ee8604ba90ab93fe302c'
+version = '20261006'
+
+[package.platform]
+[package.platform.windows-amd64]
+strategy = 'artifact'
+url = 'https://github.com/mstorsjo/llvm-mingw/releases/download/20261006/llvm-mingw-20261006-ucrt-x86_64.zip'
+sha256 = '317492c456aa27ee607a5919f1d2d38dcdc1112516a24d0bf4b00d078f52d17a'
+verified = 'published'
+
+[package.platform.windows-arm64]
+strategy = 'artifact'
+url = 'https://github.com/mstorsjo/llvm-mingw/releases/download/20261006/llvm-mingw-20261006-ucrt-aarch64.zip'
+sha256 = '9a835d5179c9f3a5a783c11a7f14062a249b4765dd11add64a66786864e82ab2'
+verified = 'published'
+
+[[package]]
 name = 'tinygo'
 ref = './.oku/tinygo.toml'
 manifest_sha256 = '04dabcfad170880f2d1a5a020e7b9b89faa843fb46a4079ad3da5101c6a39542'
