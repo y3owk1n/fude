@@ -446,7 +446,9 @@ Where fude departs, the line says so and cites the departure in
 - B362 [2] Every yes or no question fude asks, such as B81's, B248's and
   B327's, shows in a box in the middle of the screen over the darker
   windows of B151, with `y` and `n` under a rule. Only `y` and `n` answer
-  it, and every other key does nothing until one does.
+  it, and every other key does nothing until one does. A client over RPC
+  reads the question in its state as `confirm`, and a client running the
+  grammar sends only `y` and `n` to the server while the question shows.
 - B150 [2] Floats, the command line, the finder and toasts are panels with
   a rounded border on the editor's ground, a column of room inside it, and
   rules joined to the border. A selected item takes the raised colour and

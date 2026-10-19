@@ -24,6 +24,7 @@ type Editor struct {
 	rows    int
 	cols    int
 	message string        // the server's message for the last command it ran
+	confirm string        // the server's yes or no question, which only y and n answer (B362)
 	dropped []kernel.Edit // edits a sync inside a key dropped, for Sync to return
 
 	jumps    []kernel.MarkID // where jumps left from, oldest first
@@ -40,9 +41,17 @@ func NewEditor(r *Replica, rows, cols int) *Editor {
 	return e
 }
 
-// Feed handles one key.
+// Feed handles one key. While the server asks a question, y and n go to
+// it and every other key does nothing (B362).
 func (e *Editor) Feed(k vim.Key) error {
 	e.message = ""
+	if e.confirm != "" {
+		if k == "y" || k == "n" {
+			_, err := e.server(string(k))
+			return err
+		}
+		return nil
+	}
 	return e.m.Feed(k)
 }
 
@@ -62,6 +71,9 @@ func (e *Editor) Message() string {
 	}
 	return e.message
 }
+
+// Confirm returns the server's yes or no question, or "".
+func (e *Editor) Confirm() string { return e.confirm }
 
 // Sync is the replica's Sync, between commands only, as an insert is one
 // node only once it ends.
@@ -84,11 +96,12 @@ func (e *Editor) server(keys string) ([][]kernel.Edit, error) {
 	}
 	var st struct {
 		Message string `json:"message"`
+		Confirm string `json:"confirm"`
 	}
 	if err := e.r.c.Call("keys", map[string]any{"keys": keys}, &st); err != nil {
 		return nil, err
 	}
-	e.message = st.Message
+	e.message, e.confirm = st.Message, st.Confirm
 	_, remote, err := e.r.pull()
 	return remote, err
 }

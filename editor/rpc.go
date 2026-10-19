@@ -235,6 +235,7 @@ type state struct {
 	Cursor    int            `json:"cursor"`
 	Mode      string         `json:"mode"`
 	Message   string         `json:"message,omitempty"`
+	Confirm   string         `json:"confirm,omitempty"`   // the yes or no question showing (B362)
 	Proposals []proposal     `json:"proposals,omitempty"` // the session's, on its buffer
 }
 
@@ -407,7 +408,7 @@ func (e *Session) serve(c net.Conn, o kernel.Origin) {
 					return
 				}
 				t := s.Text()
-				st := state{s.win.buf.id, s.win.buf.name(), t.Version(), t.Slice(0, t.Len()), s.Cursor(), modes[s.Mode()], s.message, nil}
+				st := state{s.win.buf.id, s.win.buf.name(), t.Version(), t.Slice(0, t.Len()), s.Cursor(), modes[s.Mode()], s.message, s.Confirm(), nil}
 				for _, d := range s.decos[s] {
 					if d.buf == s.win.buf {
 						st.Proposals = append(st.Proposals, proposal{d.id, d.buf.text.Mark(d.start), d.buf.text.Mark(d.end), d.note, d.style == "proposal.stale"})

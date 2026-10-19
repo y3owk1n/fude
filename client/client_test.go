@@ -12,6 +12,7 @@ import (
 	"github.com/y3owk1n/fude/client"
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/editor"
+	"github.com/y3owk1n/fude/editor/editortest"
 	"github.com/y3owk1n/fude/vim"
 )
 
@@ -196,6 +197,29 @@ func TestB98EditorOnReplica(t *testing.T) {
 	}
 	if _, err := ed.Sync(); err != nil || ed.Text() != "one two!?" || typed("") != ed.Text() {
 		t.Fatalf(":normal u left the copy %q and the server %q: %v", ed.Text(), typed(""), err)
+	}
+}
+
+// B362, through a client running the grammar on a replica
+func TestB362ClientConfirm(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "f")
+	editortest.Change(t, file, "one\n")
+	_, path := served(t, file)
+	r, err := dial(t, path).Open(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ed := client.NewEditor(r, 22, 80)
+	feed(t, ed, "x")
+	editortest.Change(t, file, "disk\n")
+	if feed(t, ed, ":w<CR>"); !strings.Contains(ed.Confirm(), "changed on disk") {
+		t.Fatalf(":w asked %q", ed.Confirm())
+	}
+	if feed(t, ed, "x"); ed.Text() != "ne" || ed.Confirm() == "" {
+		t.Fatalf("x while asked left %q and the question %q", ed.Text(), ed.Confirm())
+	}
+	if feed(t, ed, "y"); ed.Confirm() != "" || editortest.Disk(t, file) != "ne\n" {
+		t.Fatalf("y left the question %q and the file %q", ed.Confirm(), editortest.Disk(t, file))
 	}
 }
 
