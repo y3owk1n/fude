@@ -64,7 +64,10 @@ func inside(project, path string) bool {
 	for {
 		if real, err := filepath.EvalSymlinks(abs); err == nil {
 			rel, ok := under(project, filepath.Join(real, rest))
-			return ok && !slices.Contains(strings.Split(rel, string(filepath.Separator)), ".git")
+			// macOS and Windows find .git as .GIT too.
+			return ok && !slices.ContainsFunc(strings.Split(rel, string(filepath.Separator)), func(part string) bool {
+				return strings.EqualFold(part, ".git")
+			})
 		}
 		up := filepath.Dir(abs)
 		if up == abs {

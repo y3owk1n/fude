@@ -1638,7 +1638,8 @@ Where fude departs, the line says so and cites the departure in
   `fs.read` reads (B47). That holds for `:e`, `:w file`, `:r file`, the
   splits, `:b` on a buffer whose file is outside, an explorer's changes
   (B125), the finder, grep and a request naming a buffer. A `.git` and
-  what is under it count as outside. A path outside says so, and nothing
+  what is under it count as outside, in any case of its letters, as macOS
+  and Windows find `.git` as `.GIT`. A path outside says so, and nothing
   happens.
 - B361 [7] Each session has pins of its own (B356). A guest's start
   empty, are never written, and end with its session, and the host's

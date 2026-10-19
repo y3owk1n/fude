@@ -206,6 +206,9 @@ func TestB245GuestProject(t *testing.T) {
 		":r " + out + "<CR>", ":w " + filepath.Join(away, "new.txt") + "<CR>",
 		":e .<CR>/^outlink<CR><CR>", ":e .<CR>Go../made.txt<Esc>:w<CR>", "-",
 		":e .git/config<CR>", ":w .git/config<CR>",
+		// A file system that ignores case, as macOS's and Windows' do, reaches
+		// .git as .GIT too.
+		":w .GIT/config<CR>",
 	} {
 		if feed(guest, keys); !strings.HasSuffix(guest.Message(), "is outside the project") {
 			t.Errorf("%s in a guest said %q", keys, guest.Message())
