@@ -775,6 +775,20 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 		}
 		e.leftSegments[p][b] = *res.StatusLeft
 	}
+	for id, s := range res.SessionLeft {
+		on, err := e.buffer(id)
+		if err != nil {
+			e.message = err.Error()
+			continue
+		}
+		if e.ownLeft == nil {
+			e.ownLeft = map[api.Module]map[*buffer]string{}
+		}
+		if e.ownLeft[p] == nil {
+			e.ownLeft[p] = map[*buffer]string{}
+		}
+		e.ownLeft[p][on] = s
+	}
 	for _, d := range res.Decorate {
 		on, err := e.bufferFor(b, d)
 		if err != nil {

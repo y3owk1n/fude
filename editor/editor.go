@@ -136,6 +136,10 @@ type Session struct {
 	width, height int  // the space the windows share
 	lined         bool // the buffer line took the top row at the last layout (B258)
 	centered      bool // the windows sit in the middle of the screen (B199)
+
+	// ownLeft is what each module shows on the left of this session's status
+	// lines alone, by buffer (B312).
+	ownLeft map[api.Module]map[*buffer]string
 }
 
 // place is a position in a buffer, kept as a mark so it follows edits.
@@ -1076,6 +1080,11 @@ func (e *Session) close(b *buffer, force bool) {
 	}
 	for _, segs := range e.leftSegments {
 		delete(segs, b)
+	}
+	for _, s := range e.sessions {
+		for _, segs := range s.ownLeft {
+			delete(segs, b)
+		}
 	}
 	var images []string
 	for owner, ds := range e.decos {

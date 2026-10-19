@@ -117,6 +117,9 @@ type Result struct {
 	// fude uses in place of config.toml's until the buffer closes (B283).
 	// fude sets any other option as :set does (B344).
 	Set map[string]string
+	// SessionLeft sets its segments on the statusline's left by buffer id,
+	// which only the call's session shows, "" for none (B312).
+	SessionLeft map[int]string
 }
 
 // Job is a program to run or a URL to get in the background. Once it ends,

@@ -130,6 +130,9 @@ func (e *Session) Views() []wire.View {
 			if s := e.leftSegments[p][w.buf]; s != "" {
 				v.LeftSegments = append(v.LeftSegments, s)
 			}
+			if s := e.ownLeft[p][w.buf]; s != "" {
+				v.LeftSegments = append(v.LeftSegments, s)
+			}
 		}
 		v.Filetype = e.filetype(w.buf)
 		var names []string

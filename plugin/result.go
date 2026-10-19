@@ -21,7 +21,7 @@ import (
 // (D51).
 var needs = map[string]string{
 	"Edits": "buffer.write", "Travel": "buffer.write",
-	"Decorate": "ui", "Undecorate": "ui", "Status": "ui", "StatusLeft": "ui", "Capture": "ui",
+	"Decorate": "ui", "Undecorate": "ui", "Status": "ui", "StatusLeft": "ui", "SessionLeft": "ui", "Capture": "ui",
 	"Message": "ui", "Float": "ui", "Show": "ui", "Jump": "ui", "Pick": "ui", "Menu": "ui",
 	"Places": "ui", "Complete": "ui", "Cmdline": "ui", "Confirm": "ui", "Moved": "ui",
 	"Completion": "ui", "Copy": "ui", "Window": "ui", "Tabs": "ui", "Follow": "ui", "Kick": "ui",
