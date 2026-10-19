@@ -22,3 +22,11 @@ match = { os = "linux" }
 url = "https://github.com/tinygo-org/tinygo/releases/download/{{tag}}/tinygo{{version}}.linux-{{arch}}.tar.gz"
 strip = 1
 bin = ["bin/tinygo"]
+
+# TinyGo publishes Windows builds for amd64 only. Windows on arm64 runs them
+# through emulation.
+[[artifact]]
+match = { os = "windows" }
+url = "https://github.com/tinygo-org/tinygo/releases/download/{{tag}}/tinygo{{version}}.windows-amd64.zip"
+strip = 1
+bin = ["bin/tinygo.exe"]

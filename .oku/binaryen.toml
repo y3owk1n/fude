@@ -37,3 +37,17 @@ url = "https://github.com/WebAssembly/binaryen/releases/download/{{tag}}/binarye
 sha256_url = "https://github.com/WebAssembly/binaryen/releases/download/{{tag}}/binaryen-{{tag}}-x86_64-linux.tar.gz.sha256"
 strip = 1
 bin = ["bin/wasm-opt"]
+
+[[artifact]]
+match = { os = "windows", arch = "arm64" }
+url = "https://github.com/WebAssembly/binaryen/releases/download/{{tag}}/binaryen-{{tag}}-arm64-windows.tar.gz"
+sha256_url = "https://github.com/WebAssembly/binaryen/releases/download/{{tag}}/binaryen-{{tag}}-arm64-windows.tar.gz.sha256"
+strip = 1
+bin = ["bin/wasm-opt.exe"]
+
+[[artifact]]
+match = { os = "windows", arch = "amd64" }
+url = "https://github.com/WebAssembly/binaryen/releases/download/{{tag}}/binaryen-{{tag}}-x86_64-windows.tar.gz"
+sha256_url = "https://github.com/WebAssembly/binaryen/releases/download/{{tag}}/binaryen-{{tag}}-x86_64-windows.tar.gz.sha256"
+strip = 1
+bin = ["bin/wasm-opt.exe"]

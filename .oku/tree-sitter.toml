@@ -28,3 +28,13 @@ bin = ["tree-sitter"]
 match = { os = "darwin", arch = "amd64" }
 url = "https://github.com/tree-sitter/tree-sitter/releases/download/{{tag}}/tree-sitter-cli-macos-x64.zip"
 bin = ["tree-sitter"]
+
+[[artifact]]
+match = { os = "windows", arch = "amd64" }
+url = "https://github.com/tree-sitter/tree-sitter/releases/download/{{tag}}/tree-sitter-cli-windows-x64.zip"
+bin = ["tree-sitter.exe"]
+
+[[artifact]]
+match = { os = "windows", arch = "arm64" }
+url = "https://github.com/tree-sitter/tree-sitter/releases/download/{{tag}}/tree-sitter-cli-windows-arm64.zip"
+bin = ["tree-sitter.exe"]
