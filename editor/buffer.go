@@ -10,6 +10,7 @@ import (
 
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/internal/keep"
+	"github.com/y3owk1n/fude/internal/paths"
 	"github.com/y3owk1n/fude/internal/timeline"
 	"github.com/y3owk1n/fude/internal/trace"
 	"github.com/y3owk1n/fude/syntax"
@@ -164,7 +165,7 @@ func historyPath(path string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("timeline of %s: %w", path, err)
 	}
-	sum := sha256.Sum256([]byte(abs))
+	sum := sha256.Sum256([]byte(paths.Key(abs)))
 	return filepath.Join(dir, "fude", "timeline", hex.EncodeToString(sum[:16])+".log"), nil
 }
 
@@ -189,10 +190,10 @@ func (b *buffer) name() string {
 func (b *buffer) is(path string) bool {
 	y, err := filepath.Abs(path)
 	if b.listed != "" {
-		return err == nil && y == b.listed
+		return err == nil && paths.Same(y, b.listed)
 	}
 	x, err1 := filepath.Abs(b.file.path)
-	return b.file.path != "" && err1 == nil && err == nil && x == y
+	return b.file.path != "" && err1 == nil && err == nil && paths.Same(x, y)
 }
 
 // markSaved notes that the file on disk holds text, the buffer's text.

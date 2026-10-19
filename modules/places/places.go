@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/y3owk1n/fude/api"
+	"github.com/y3owk1n/fude/internal/paths"
 	"github.com/y3owk1n/fude/internal/trace"
 )
 
@@ -289,7 +290,7 @@ func lineOf(s api.Scope, path string, n int) string {
 	text := ""
 	found := false
 	for _, b := range s.Buffers {
-		if p, err := filepath.Abs(b.Path); err == nil && b.Path != "" && p == abs {
+		if p, err := filepath.Abs(b.Path); err == nil && b.Path != "" && paths.Same(p, abs) {
 			text, found = b.Text.Slice(0, b.Text.Len()), true
 			break
 		}

@@ -17,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	fspaths "github.com/y3owk1n/fude/internal/paths"
 	"github.com/y3owk1n/fude/internal/trace"
 )
 
@@ -119,7 +120,7 @@ func (r *Recent) write() {
 			r.log(fmt.Sprintf("recent files: %v", err))
 			continue
 		}
-		paths = slices.Insert(slices.DeleteFunc(paths, func(p string) bool { return p == abs }), 0, abs)
+		paths = slices.Insert(slices.DeleteFunc(paths, func(p string) bool { return fspaths.Same(p, abs) }), 0, abs)
 		paths = paths[:min(len(paths), RecentCap)]
 		if err := r.save(paths); err != nil {
 			r.log(err.Error())
@@ -193,7 +194,7 @@ func byDir(kind, dir string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	sum := sha256.Sum256([]byte(dir))
+	sum := sha256.Sum256([]byte(fspaths.Key(dir)))
 	return filepath.Join(state, "fude", kind, hex.EncodeToString(sum[:16])+".json"), nil
 }
 
@@ -215,7 +216,7 @@ func (r *Recent) Files(current, dir string) (here, elsewhere []string, err error
 	}
 	cur, _ := filepath.Abs(current)
 	for _, p := range paths {
-		if _, err := os.Stat(p); err != nil || p == cur {
+		if _, err := os.Stat(p); err != nil || fspaths.Same(p, cur) {
 			continue
 		}
 		rel, err := filepath.Rel(dir, p)

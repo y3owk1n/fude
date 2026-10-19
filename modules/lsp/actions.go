@@ -14,6 +14,7 @@ import (
 
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/api/diff"
+	"github.com/y3owk1n/fude/internal/paths"
 	"github.com/y3owk1n/fude/internal/trace"
 	"github.com/y3owk1n/fude/protocol/lsp"
 )
@@ -249,7 +250,7 @@ func (m *Module) textOf(s api.Scope, path string) (api.Text, bool) {
 func samePath(a, b string) bool {
 	x, _ := filepath.Abs(a)
 	y, _ := filepath.Abs(b)
-	return x == y
+	return paths.Same(x, y)
 }
 
 // picked applies the edit of the action picked from the menu and runs its

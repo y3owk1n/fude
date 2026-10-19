@@ -21,6 +21,7 @@ import (
 
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/internal/keep"
+	"github.com/y3owk1n/fude/internal/paths"
 	"github.com/y3owk1n/fude/internal/trace"
 )
 
@@ -417,7 +418,7 @@ func segment(pins []pin, b api.Buffer) string {
 // index is where the file at path is among pins, or -1.
 func index(pins []pin, path string) int {
 	path = abs(path)
-	return slices.IndexFunc(pins, func(p pin) bool { return p.Path == path })
+	return slices.IndexFunc(pins, func(p pin) bool { return paths.Same(p.Path, path) })
 }
 
 // resolve is the absolute path a list's line names, from the working

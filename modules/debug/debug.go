@@ -24,6 +24,7 @@ import (
 	"github.com/pelletier/go-toml/v2"
 
 	"github.com/y3owk1n/fude/api"
+	"github.com/y3owk1n/fude/internal/paths"
 	"github.com/y3owk1n/fude/internal/tomlerr"
 	"github.com/y3owk1n/fude/internal/trace"
 	"github.com/y3owk1n/fude/protocol/dap"
@@ -678,7 +679,7 @@ func (m *Module) unlight(res *api.Result, d *session) {
 func samePath(a, b string) bool {
 	x, _ := filepath.Abs(a)
 	y, _ := filepath.Abs(b)
-	return x == y
+	return paths.Same(x, y)
 }
 
 // running notes that d's program runs again.
