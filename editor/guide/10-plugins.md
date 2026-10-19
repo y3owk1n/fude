@@ -109,8 +109,8 @@ node at a position and its parents. `sdk.Buffers`, `sdk.LenOf` and
 `sdk.TextOf` read the other open buffers. `sdk.Edit` changes the
 text.
 `sdk.Decorate`, `sdk.Sign`, `sdk.Note`, `sdk.Status`, `sdk.Float` and
-`sdk.Show` show things, and `sdk.Pick` and `sdk.Ask` ask the user to pick
-from a list or to type an answer. `sdk.Jump` moves the cursor, and
+`sdk.Show` show things, and `sdk.Pick`, `sdk.Ask` and `sdk.Confirm` ask the
+user to pick from a list, to type an answer or to answer yes or no. `sdk.Jump` moves the cursor, and
 `sdk.Open` opens a file of the project. `sdk.ReadFile`, `sdk.Run` and `sdk.Get` reach
 files, programs and the web, and `sdk.Log` writes to fude's log. A call
 outside the plugin's capabilities returns `sdk.ErrDenied`.

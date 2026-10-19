@@ -719,6 +719,16 @@ func Ask(prompt string, f func(text string, ok bool)) error {
 	})
 }
 
+// Confirm asks the user question, a yes or no question, in a box in the
+// middle of the screen once the call returns, and runs f, as an event does,
+// with the answer. fude answers no at once to a question asked while
+// another shows. It needs ui.
+func Confirm(question string, f func(yes bool)) error {
+	return schedule(func() { f(About("yes") == "true") }, func(id uint32) error {
+		return Do(api.Result{Confirm: &api.Confirm{ID: id, Question: question}})
+	})
+}
+
 // Jump moves the cursor to pos once the call returns, after its edits, when
 // the current window shows the buffer the call was about. It needs ui.
 func Jump(pos int) error { return Do(api.Result{Jump: &api.Jump{Pos: pos}}) }

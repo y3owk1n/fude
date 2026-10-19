@@ -81,7 +81,7 @@ type Result struct {
 	Servers    []ServerAction // what to do to language servers, which only the host may ask (B317)
 	Keys       string         // keys to run once the call is done, as typed, such as f to run what a panel maps it to (B320)
 	Restore    string         // a session Scope.Session gave, whose files open and whose windows build again (B325)
-	Confirm    *Confirm       // a question a Write's call asks before it writes (B327)
+	Confirm    *Confirm       // a yes or no question to ask (B327, B363)
 	Moved      [][2]string    // paths renamed, from and to, whose open buffers follow them (B327)
 	Travel     *Travel        // a move of a buffer's text to one of its states (B328)
 	Completion *Completion    // what a Completer offers (B336)
@@ -468,10 +468,15 @@ type Travel struct {
 	New        bool
 }
 
-// Confirm is a yes or no question a Write's call asks. Paths are the
-// files and directories the write will change, which a guest may change
-// only under the project (B245, B327).
+// Confirm is a yes or no question a call asks. A Write's call asks it with
+// no ID before it writes. Its Paths are the files and directories the
+// write will change, which a guest may change only under the project
+// (B245, B327). Any other call gives it an ID, and fude runs the owner's
+// callback with that ID once the user answers, with yes in About true or
+// false. fude never asks such a question without an ID, and answers no at
+// once to one asked while another shows (B363).
 type Confirm struct {
+	ID       uint32
 	Question string
 	Paths    []string
 }

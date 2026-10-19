@@ -1379,3 +1379,65 @@ func TestB338PluginDoesWhatAModuleDoes(t *testing.T) {
 		t.Errorf(":Marked typed %q, want a:1|ab", text(e))
 	}
 }
+
+// confirmer is a module that asks go on? on gY, and on hearing a question
+// asks one of its own, telling heard what it hears.
+type confirmer struct {
+	idle
+	heard chan string
+}
+
+func (confirmer) Registered() []api.Registration {
+	return []api.Registration{{Kind: api.Key, Name: "gY", Help: "asks go on?", ID: 1}}
+}
+
+func (confirmer) Subscribed() []string { return []string{"confirm.asked", "confirm.answered"} }
+
+func (confirmer) Call(context.Context, uint32, api.Scope, ...int) (api.Result, error) {
+	return api.Result{Confirm: &api.Confirm{ID: 7, Question: "go on?"}}, nil
+}
+
+func (c confirmer) Event(_ context.Context, name string, _ api.Scope) (api.Result, error) {
+	c.heard <- name
+	if !strings.HasPrefix(name, "confirm.asked") {
+		return api.Result{}, nil
+	}
+	return api.Result{Confirm: &api.Confirm{ID: 8, Question: "again?"}}, nil
+}
+
+func (c confirmer) Callback(_ context.Context, id uint32, s api.Scope) (api.Result, error) {
+	c.heard <- fmt.Sprint(id, " ", s.About["yes"])
+	return api.Result{}, nil
+}
+
+// B363
+func TestB363ModuleConfirm(t *testing.T) {
+	e := open(t, "")
+	c := confirmer{heard: make(chan string, 8)}
+	e.Use(c)
+	next := func(want string) {
+		t.Helper()
+		var got string
+		settle(t, e, func() bool {
+			select {
+			case got = <-c.heard:
+				return true
+			default:
+				return false
+			}
+		})
+		if got != want {
+			t.Fatalf("the module heard %q, want %q", got, want)
+		}
+	}
+	feed(e, "gY")
+	if e.Confirm() != "go on?" {
+		t.Fatalf("gY asked %q", e.Confirm())
+	}
+	// fude answers no at once to the question it asks while go on? shows.
+	next("confirm.asked go on?")
+	next("8 false")
+	feed(e, "y")
+	next("confirm.answered yes")
+	next("7 true")
+}

@@ -800,7 +800,11 @@ drawn while `Message` returns it, so it goes with the next key as before
 (B149). A yes or no question is not a message. The editor asks every one
 through `confirm`, and `Confirm` returns it until `y` or `n` answers. The
 client draws it in a box in the middle of the screen over dimmed windows
-(B362). The RPC state carries it as `confirm`. With both off the last row, `SetSize` gives the windows the whole
+(B362). The RPC state carries it as `confirm`. `confirm` emits
+`confirm.asked`, and the answer emits `confirm.answered` before it runs. A
+module's `Confirm` with an ID goes through the same `confirm`, and its
+answer reaches the owner as a callback with `yes` in `About`, as a `Pick`'s
+does (B363). With both off the last row, `SetSize` gives the windows the whole
 screen.
 
 Every box is a `panel`: a rounded border on the editor's ground, cleared

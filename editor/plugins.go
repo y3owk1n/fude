@@ -770,6 +770,9 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 	if pk := res.Pick; pk != nil {
 		e.showPick(p, b, pk, save)
 	}
+	if c := res.Confirm; c != nil && c.ID != 0 {
+		e.moduleConfirm(p, b, c, save)
+	}
 	if m := res.Menu; m != nil {
 		e.offerMenu(p, b, m)
 	}
@@ -1452,6 +1455,24 @@ func logLine(line string) {
 	}
 	defer f.Close()
 	fmt.Fprintf(f, "%s %s\n", time.Now().Format(time.DateTime), line)
+}
+
+// moduleConfirm asks p's question c and runs its callback with the answer,
+// or with no while another question shows (B363).
+func (e *Session) moduleConfirm(p api.Module, b *buffer, c *api.Confirm, save *saving) {
+	if save != nil {
+		save.pending++
+	}
+	tell := func(yes bool) {
+		if slices.Contains(e.modules, p) {
+			e.listen(p).add(event{buf: b, id: c.ID, extra: api.Context{"yes": strconv.FormatBool(yes)}, save: save, from: e})
+		}
+	}
+	if e.ask != nil {
+		tell(false)
+		return
+	}
+	e.confirm(c.Question, tell)
 }
 
 // showPick shows pk, a list or question of p about b, in the finder, or gives

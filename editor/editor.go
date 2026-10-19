@@ -1174,9 +1174,11 @@ type question struct {
 }
 
 // confirm asks text, a yes or no question, and gives answer the reply.
+// Modules hear it asked and answered (B363).
 func (e *Session) confirm(text string, answer func(yes bool)) {
 	e.record("ask", text, 0)
 	e.ask = &question{text, answer}
+	e.emit("confirm.asked", text, e.win.buf)
 }
 
 // Confirm returns the yes or no question showing, or "" (B362).
@@ -1195,6 +1197,11 @@ func (q *question) key(e *Session, k vim.Key) bool {
 	}
 	if k == "y" || k == "n" {
 		e.ask = nil
+		answer := "no"
+		if k == "y" {
+			answer = "yes"
+		}
+		e.emit("confirm.answered", answer, e.win.buf)
 		q.answer(k == "y")
 		e.reveal()
 	}

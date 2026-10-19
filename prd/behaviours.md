@@ -449,6 +449,11 @@ Where fude departs, the line says so and cites the departure in
   it, and every other key does nothing until one does. A client over RPC
   reads the question in its state as `confirm`, and a client running the
   grammar sends only `y` and `n` to the server while the question shows.
+- B363 [4] A module's or plugin's call may ask a yes or no question as
+  B362 shows one, and its callback hears the answer. fude answers no at
+  once to a question asked while another shows. Modules hear
+  `confirm.asked` with each question fude asks, and `confirm.answered`
+  with `yes` or `no` when it is answered.
 - B150 [2] Floats, the command line, the finder and toasts are panels with
   a rounded border on the editor's ground, a column of room inside it, and
   rules joined to the border. A selected item takes the raised colour and
