@@ -104,11 +104,15 @@ func TestB57Events(t *testing.T) {
 	feed(e, "gZ")
 	settle(t, e, func() bool { return strings.Contains(fudeLog(), "listen: listen.ping") })
 	// While it handles an event, its key says it is busy instead of waiting.
-	// The loop hands it the event, and its log shows it began. It then loops
-	// until its budget runs out.
+	// The loop hands it the event once the work queued before it has run.
+	// Its log shows it began, and it then loops until its budget runs out.
 	feed(e, "A!<Esc>")
-	next(t, e)
-	for deadline := time.Now().Add(5 * time.Second); strings.Count(fudeLog(), "listen: buffer.changed") < 2; time.Sleep(time.Millisecond) {
+	for deadline := time.Now().Add(5 * time.Second); strings.Count(fudeLog(), "listen: buffer.changed") < 2; {
+		select {
+		case f := <-e.Queue():
+			f()
+		case <-time.After(time.Millisecond):
+		}
 		if time.Now().After(deadline) {
 			t.Fatal("the plugin never began the event")
 		}
