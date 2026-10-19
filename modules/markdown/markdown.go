@@ -7,6 +7,7 @@ package markdown
 
 import (
 	"context"
+	"maps"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -71,7 +72,7 @@ func New() *Module {
 func (m *Module) Name() string { return "markdown" }
 
 func (m *Module) Subscribed() []string {
-	return []string{"buffer.opened", "buffer.changed", "view.moved", "option.set", "config.reloaded"}
+	return []string{"buffer.opened", "buffer.changed", "buffer.closed", "view.moved", "option.set", "config.reloaded"}
 }
 
 func (m *Module) Registered() []api.Registration { return nil }
@@ -94,6 +95,11 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 	defer m.mu.Unlock()
 	buf := s.About["buffer"]
 	switch event, detail, _ := strings.Cut(name, " "); event {
+	case "buffer.closed":
+		maps.DeleteFunc(m.due, func(_ uint32, b string) bool { return b == buf })
+		delete(m.shown, buf)
+		delete(m.off, buf)
+		return api.Result{}, nil
 	case "option.set", "config.reloaded":
 		// render or icons changed.
 		if detail == "render" || detail == "icons" || event == "config.reloaded" {

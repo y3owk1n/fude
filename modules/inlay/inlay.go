@@ -32,7 +32,7 @@ func New() *Module {
 func (m *Module) Name() string { return "inlay" }
 
 func (m *Module) Subscribed() []string {
-	return []string{"buffer.opened", "buffer.changed", "lsp.attached", "option.set", "config.reloaded"}
+	return []string{"buffer.opened", "buffer.changed", "buffer.closed", "lsp.attached", "option.set", "config.reloaded"}
 }
 
 func (m *Module) Registered() []api.Registration { return nil }
@@ -54,6 +54,13 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 		return api.Result{}, nil
 	case event == "lsp.attached":
 		delete(m.without, buf)
+	case event == "buffer.closed":
+		delete(m.bufs, m.asked[buf])
+		delete(m.shown, buf)
+		delete(m.asked, buf)
+		delete(m.again, buf)
+		delete(m.without, buf)
+		return api.Result{}, nil
 	}
 	if on, _ := s.Option("inlay_hints"); on != "true" {
 		res := api.Result{Undecorate: m.shown[buf]}

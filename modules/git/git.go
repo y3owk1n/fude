@@ -70,7 +70,7 @@ func New() *Module {
 func (m *Module) Name() string { return "git" }
 
 func (m *Module) Subscribed() []string {
-	return []string{"buffer.opened", "buffer.changed", "view.moved", "editor.focused", "listing.read", "option.set", "config.reloaded"}
+	return []string{"buffer.opened", "buffer.changed", "buffer.closed", "view.moved", "editor.focused", "listing.read", "option.set", "config.reloaded"}
 }
 
 func (m *Module) Registered() []api.Registration {
@@ -134,6 +134,13 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 		return m.status(s), nil
 	case "buffer.opened":
 		return m.branch(s, m.read(s)), nil
+	case "buffer.closed":
+		maps.DeleteFunc(m.about, func(_ uint32, j job) bool { return j.buf == buf })
+		delete(m.base, buf)
+		delete(m.stale, buf)
+		delete(m.signs, buf)
+		delete(m.off, buf)
+		return api.Result{}, nil
 	case "editor.focused":
 		// git's index may have changed while fude was away.
 		for b := range m.base {

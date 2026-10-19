@@ -41,7 +41,7 @@ func New() *Module {
 func (m *Module) Name() string { return "colours" }
 
 func (m *Module) Subscribed() []string {
-	return []string{"buffer.opened", "buffer.changed", "view.moved", "lsp.attached", "option.set", "config.reloaded"}
+	return []string{"buffer.opened", "buffer.changed", "buffer.closed", "view.moved", "lsp.attached", "option.set", "config.reloaded"}
 }
 
 func (m *Module) Registered() []api.Registration { return nil }
@@ -64,6 +64,15 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 		return api.Result{}, nil
 	case event == "lsp.attached":
 		delete(m.without, buf)
+	case event == "buffer.closed":
+		delete(m.bufs, m.asked[buf])
+		delete(m.tops, buf)
+		delete(m.named, buf)
+		delete(m.given, buf)
+		delete(m.asked, buf)
+		delete(m.again, buf)
+		delete(m.without, buf)
+		return api.Result{}, nil
 	}
 	if on, _ := s.Option("highlight_colors"); on != "true" {
 		res := api.Result{Undecorate: append(m.named[buf], m.given[buf]...)}
