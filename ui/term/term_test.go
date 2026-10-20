@@ -1246,17 +1246,14 @@ func TestB159LspPanelScrolls(t *testing.T) {
 		cl.e.Feed(k)
 	}
 	if !shows("server00") {
-		t.Fatal("the panel does not show its first card")
+		t.Fatal("the panel does not show its first server")
 	}
-	for _, k := range vim.Keys(strings.Repeat("j", 19)) {
+	for _, k := range vim.Keys("G") {
 		cl.e.Feed(k)
 	}
-	if !shows("server19") {
-		t.Fatal("the panel does not scroll to its last card")
-	}
-	// The last card shows whole, and the keys stay at the panel's foot.
+	// It scrolls as any window does, and the keys stay at its foot.
 	if !shows("t19 files") || !shows("q close") {
-		t.Error("the panel does not show all of its last card and the keys")
+		t.Error("the panel does not scroll to its last server with the keys at its foot")
 	}
 }
 

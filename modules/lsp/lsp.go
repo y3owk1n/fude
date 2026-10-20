@@ -40,8 +40,6 @@ const (
 	stopKey
 	disableKey
 	enableKey
-	nextCard
-	prevCard
 )
 
 // The callbacks lsp asks for, by id. A request's id is the id of the call
@@ -125,8 +123,6 @@ func (m *Module) Registered() []api.Registration {
 		{Kind: api.Plug, Name: "stop", Help: "stops the language server under the cursor", ID: stopKey},
 		{Kind: api.Plug, Name: "disable", Help: "keeps the language server under the cursor off", ID: disableKey},
 		{Kind: api.Plug, Name: "enable", Help: "lets the language server under the cursor start again", ID: enableKey},
-		{Kind: api.Plug, Name: "next", Help: "moves n servers down", ID: nextCard},
-		{Kind: api.Plug, Name: "prev", Help: "moves n servers up", ID: prevCard},
 	}
 }
 
@@ -151,8 +147,8 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 		return res, nil
 	case diagnosticsSrc:
 		return api.Result{Pick: &api.Pick{ID: diagPick, Title: "diagnostics", Items: m.places(s), Places: true}}, nil
-	case lspCmd, restartKey, stopKey, disableKey, enableKey, nextCard, prevCard:
-		m.serverCall(&res, s, id, cursor, args[1])
+	case lspCmd, restartKey, stopKey, disableKey, enableKey:
+		m.serverCall(&res, s, id, cursor)
 		return res, nil
 	case codeActions:
 		start, end := cursor, cursor
@@ -209,7 +205,7 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 		m.detached(&res, s, server)
 	case "lsp.changed":
 		// The panel of language servers shows the new state, while it is open.
-		res.Show, _ = panel(s)
+		res.Show, _, _ = panel(s)
 		res.Show.Update = true
 	case "buffer.closed":
 		delete(m.diags, s.About["buffer"])

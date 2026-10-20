@@ -249,7 +249,6 @@ func (e *Session) place(f *window) {
 		outer := min(rows+2+foot, e.height-2)
 		f.h = max(outer-1-foot, 2)
 		f.x, f.y = (e.width-f.w-4)/2+2, max(min(e.height/5, e.height-1-outer), 0)+1
-		e.deal(f)
 		return
 	}
 	width, rows := measure(max(min(80, wide-4), 1))
@@ -289,29 +288,6 @@ func (e *Session) place(f *window) {
 	f.x, f.y = max(min(cx, hi-f.w-4), lo)+2, y+1
 }
 
-// deal keeps the cursor of a float panel with cards on the first row of a
-// card, and scrolls it to show all of that card (B159).
-func (e *Session) deal(f *window) {
-	cards := f.buf.cards
-	if len(cards) == 0 {
-		return
-	}
-	t := f.buf.text.Snapshot()
-	line, at := t.LineOf(f.pos()), 0
-	for i, c := range cards {
-		if c <= line {
-			at = i
-		}
-	}
-	head := t.LineStart(min(cards[at], t.Lines()-1))
-	f.buf.text.MoveMark(f.cursor, head)
-	last := t.Lines() - 1
-	if at+1 < len(cards) {
-		last = cards[at+1] - 1
-	}
-	f.buf.text.MoveMark(f.top, t.LineStart(min(max(last-(f.h-1)+1, 0), t.LineOf(head))))
-}
-
 // floatWindow is how a client draws f, a float e.place put on the screen.
 func (e *Session) floatWindow(f *window) wire.Window {
 	v := e.draw(f)
@@ -320,13 +296,9 @@ func (e *Session) floatWindow(f *window) wire.Window {
 	if f.anchor == middle {
 		v.Name = strings.Trim(f.buf.title, "[]")
 	}
-	t := f.buf.text.Snapshot()
-	if len(f.buf.cards) > 0 {
-		v.Grounds = map[int]string{t.LineOf(f.pos()): "menu.selected"}
-	}
 	if f.imageRows > 0 {
 		p := e.picture(f.image)
-		last := t.Lines() - 1
+		last := f.buf.text.Snapshot().Lines() - 1
 		if v.Virtual == nil {
 			v.Virtual = map[int][]wire.Virtual{}
 		}
@@ -335,21 +307,4 @@ func (e *Session) floatWindow(f *window) wire.Window {
 		}
 	}
 	return v
-}
-
-// cardKeys is the overlay of a panel with cards, which takes its own keys
-// and : alone. It is cards, not text, so no other key, such as / or v, does
-// anything there (B159).
-type cardKeys struct{}
-
-func (cardKeys) key(e *Session, k vim.Key) bool {
-	b := e.win.buf
-	if len(b.cards) == 0 || e.vim.Mode() != vim.Normal || !e.vim.Idle() || k == ":" {
-		return false
-	}
-	own := false
-	e.localKeys(b).Each(vim.Normal, func(from, _ string) {
-		own = own || vim.Keys(from)[0] == k
-	})
-	return !own
 }

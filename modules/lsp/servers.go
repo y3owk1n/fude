@@ -22,13 +22,12 @@ var serverActions = []string{"disable", "enable", "restart", "stop"}
 // [keymap.lsp] changes. Each acts on the server under the cursor (B159).
 var panelKeys = map[string]string{
 	"r": "<Plug>(lsp.restart)", "s": "<Plug>(lsp.stop)", "d": "<Plug>(lsp.disable)", "e": "<Plug>(lsp.enable)",
-	"j": "<Plug>(lsp.next)", "k": "<Plug>(lsp.prev)", "<Down>": "<Plug>(lsp.next)", "<Up>": "<Plug>(lsp.prev)",
 	"q": "<Plug>(float.close)", "<Esc>": "<Plug>(float.close)",
 }
 
 // serverCall runs :lsp, which opens the panel or acts on the current
 // file's servers, and the panel's keys (B159, B160).
-func (m *Module) serverCall(res *api.Result, s api.Scope, id uint32, cursor, count int) {
+func (m *Module) serverCall(res *api.Result, s api.Scope, id uint32, cursor int) {
 	switch id {
 	case lspCmd:
 		if arg, ok := s.About["complete"]; ok && !strings.Contains(arg, " ") {
@@ -37,8 +36,8 @@ func (m *Module) serverCall(res *api.Result, s api.Scope, id uint32, cursor, cou
 		}
 		do := strings.TrimSpace(s.About["args"])
 		if do == "" {
-			p, _ := panel(s)
-			if len(p.Cards) == 0 {
+			p, names, _ := panel(s)
+			if len(names) == 0 {
 				res.Message = "no language servers are set in config.toml"
 				return
 			}
@@ -53,41 +52,31 @@ func (m *Module) serverCall(res *api.Result, s api.Scope, id uint32, cursor, cou
 		if len(res.Servers) == 0 {
 			res.Message = "no language server is set for this file"
 		}
-	case nextCard, prevCard:
-		p, _ := panel(s)
-		if len(p.Cards) == 0 {
-			return
-		}
-		n := max(count, 1)
-		if id == prevCard {
-			n = -n
-		}
-		at := min(max(card(p, s.Text.LineOf(cursor))+n, 0), len(p.Cards)-1)
-		res.Jump = &api.Jump{Pos: s.Text.LineStart(p.Cards[at])}
 	default:
-		p, names := panel(s)
+		_, names, starts := panel(s)
 		if len(names) > 0 {
-			res.Servers = []api.ServerAction{{Name: names[card(p, s.Text.LineOf(cursor))], Do: map[uint32]string{restartKey: "restart", stopKey: "stop", disableKey: "disable", enableKey: "enable"}[id]}}
+			res.Servers = []api.ServerAction{{Name: names[serverAt(starts, s.Text.LineOf(cursor))], Do: map[uint32]string{restartKey: "restart", stopKey: "stop", disableKey: "disable", enableKey: "enable"}[id]}}
 		}
 	}
 }
 
-// card is the index of the card with line: the last that starts at or
-// above it.
-func card(p *api.Panel, line int) int {
+// serverAt is the index of the server whose part of the panel holds line:
+// the last that starts at or above it.
+func serverAt(starts []int, line int) int {
 	at := 0
-	for i, c := range p.Cards {
-		if c <= line {
+	for i, start := range starts {
+		if start <= line {
 			at = i
 		}
 	}
 	return at
 }
 
-// panel is the panel of the language servers config.toml sets, with a card
+// panel is the panel of the language servers config.toml sets, with a part
 // for each: its state, version, filetypes, roots and files, as wide as the
-// screen allows up to 64 columns. It returns the servers' names, by card.
-func panel(s api.Scope) (*api.Panel, []string) {
+// screen allows up to 64 columns. It returns the servers' names and the
+// line each part starts on.
+func panel(s api.Scope) (*api.Panel, []string, []int) {
 	columns, _ := strconv.Atoi(s.About["columns"])
 	inner := min(64, max(columns-4, 24)) - 4
 	var b strings.Builder
@@ -112,11 +101,12 @@ func panel(s api.Scope) (*api.Panel, []string) {
 	home, _ := os.UserHomeDir()
 	p := &api.Panel{Title: panelTitle, Where: "float", Keys: panelKeys}
 	var names []string
+	var starts []int
 	for i, sv := range s.Servers() {
 		if i > 0 {
 			b.WriteString("\n\n")
 		}
-		p.Cards = append(p.Cards, strings.Count(b.String(), "\n"))
+		starts = append(starts, strings.Count(b.String(), "\n"))
 		names = append(names, sv.Name)
 		style := map[string]string{"starting": "lsp.starting", "running": "lsp.running", "failed": "lsp.error"}[sv.State]
 		if style == "" {
@@ -166,7 +156,7 @@ func panel(s api.Scope) (*api.Panel, []string) {
 		}
 	}
 	p.Text, p.Spans = b.String(), spans
-	// The keys stay at the foot of the panel as the cards scroll.
+	// The keys stay at the foot of the panel as its text scrolls.
 	var foot strings.Builder
 	for i, k := range []string{"r", "restart", "s", "stop", "d", "disable", "e", "enable", "q", "close"} {
 		style, word := "markup.strong", k+" "
@@ -177,5 +167,5 @@ func panel(s api.Scope) (*api.Panel, []string) {
 		foot.WriteString(word)
 	}
 	p.Foot = strings.TrimRight(foot.String(), " ")
-	return p, names
+	return p, names, starts
 }

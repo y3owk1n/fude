@@ -630,7 +630,7 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 			}
 		}
 		if v.Float != "" {
-			c.floatRows(v, pos, row, len(starts))
+			c.floatRows(v, pos, row)
 		}
 		row = c.virtual(v, line, false, numbers, row+len(starts))
 		// A closed fold's other lines do not show.

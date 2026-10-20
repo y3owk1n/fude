@@ -464,12 +464,6 @@ func TestB159LspPanel(t *testing.T) {
 	if !strings.Contains(panel(), "a.go") {
 		t.Fatalf("the panel showed %q", panel())
 	}
-	// The panel takes its own keys and : alone, so /, ? and i do nothing.
-	for _, k := range []string{"/", "?", "i", "v"} {
-		if feed(e, k); e.Mode() != vim.Normal || e.Line() != ":lsp" || !strings.Contains(panel(), "running") {
-			t.Errorf("%s in the panel left mode %v with the line %q", k, e.Mode(), e.Line())
-		}
-	}
 	// s stops the server under the cursor, and r starts it again.
 	feed(e, "s")
 	heard(t, log, `"method":"shutdown"`, 1)

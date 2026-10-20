@@ -394,22 +394,11 @@ func (c *client) floating(v wire.Window, sel vim.Selection, visual bool) (int, i
 	return x, y, ok
 }
 
-// floatRows draws what a float draws over the n rows from row of the line
-// at pos: a rule across a markup.rule line, and the raised ground and the
-// accent bar of a selected card, over the room beside its text (B150).
-func (c *client) floatRows(v wire.Window, pos, row, n int) {
+// floatRows draws a rule across row of v, a float, when the line at pos is
+// a markup.rule one.
+func (c *client) floatRows(v wire.Window, pos, row int) {
 	if slices.ContainsFunc(v.Highlights, func(s syntax.Span) bool { return s.Name == "markup.rule" && s.Start == pos }) ||
 		slices.ContainsFunc(v.Decorations, func(s syntax.Span) bool { return s.Name == "markup.rule" && s.Start == pos }) {
 		c.rule(v.X-2, v.Y+row, v.W+2)
-		return
-	}
-	if v.Grounds[v.Text.LineOf(pos)] != "menu.selected" {
-		return
-	}
-	ground := base.Background(th.raised)
-	for y := v.Y + row; y < v.Y+row+n; y++ {
-		c.s.Put(v.X-1, y, " ", ground)
-		c.s.Put(v.X+v.W, y, " ", ground)
-		c.s.Put(v.X-2, y, "▌", base.Foreground(th.normal))
 	}
 }

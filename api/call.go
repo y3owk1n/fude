@@ -372,13 +372,8 @@ type Panel struct {
 	// Update only replaces the text of the panel open under Title, and
 	// opens none when it is closed, as an event's result does (B318).
 	Update bool
-	// Cards are the lines of the first rows of the parts of a Float panel.
-	// The cursor stays on a card's first row, which shows raised, and the
-	// box scrolls to show all of the card. Such a panel takes its own keys
-	// and : alone (B318).
-	Cards []int
-	// Foot shows under a rule at the foot of a Float panel, styled by
-	// FootSpans, and stays there as the text scrolls.
+	// Foot shows under a rule at the foot of a panel in a float, styled by
+	// FootSpans, and stays there as the text scrolls (B318).
 	Foot      string
 	FootSpans []Span
 }

@@ -533,16 +533,13 @@ Where fude departs, the line says so and cites the departure in
   one until fude quits, as for any setting. `:config reload` applies a
   change to the file. A value that is not `#rrggbb` changes nothing and
   says where it is.
-- B159 [5] `:lsp` opens a panel with a card for each language server
-  `config.toml` sets: its state (running, starting, stopped, disabled,
-  failed with why, not installed, or no files), its version, and its
-  roots and files
-  (N20). `j` and `k` move between cards, and a panel taller than the
-  screen scrolls to show all of the card under the cursor, while its keys
-  stay at its foot. `r`, `s`, `d` and `e`
-  restart, stop, disable or enable that server, as `[keymap.lsp]` maps
-  them. The panel takes those keys and `:` alone, and any other key,
-  such as `/`, `?` or `i`, does nothing there. `:lsp restart` restarts each of the current file's servers, or
+- B159 [5] `:lsp` opens a panel in a float with a part for each language
+  server `config.toml` sets: its state (running, starting, stopped,
+  disabled, failed with why, not installed, or no files), its version,
+  and its roots and files (N20). The cursor moves and the panel scrolls
+  as in any window, while its keys stay at its foot. `r`, `s`, `d` and
+  `e` restart, stop, disable or enable the server whose part holds the
+  cursor, as `[keymap.lsp]` maps them. `:lsp restart` restarts each of the current file's servers, or
   starts one again after it stayed off (B63), and opens its files in the
   new one.
 - B160 [5] `:lsp stop` stops each of the current file's servers, and
@@ -1275,9 +1272,8 @@ Where fude departs, the line says so and cites the departure in
 - B319 [4] A module hears `editor.started` when fude starts with no file
   to open and is not restarting. The start screen shows then (B225).
 - B318 [4] A module's panel may show in a float in the middle of the
-  screen, which takes the focus (B364). Its parts may be cards, which
-  the cursor moves between, and its keys may stay at its foot as it
-  scrolls, as the `:lsp` panel's do (B159). A panel shown only to update
+  screen, which takes the focus (B364). Its keys may stay at its foot as
+  it scrolls, as the `:lsp` panel's do (B159). A panel shown only to update
   replaces the text of the one open, and opens none once it is closed.
 - B367 [4] A module's result names where the window it opens goes:
   above, below, left or right, here in the current window, a float, or at

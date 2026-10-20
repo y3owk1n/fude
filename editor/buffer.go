@@ -77,7 +77,6 @@ type buffer struct {
 	set     map[string]string // the options modules set on it, by name (B283)
 	folds   []decoration      // the closed folds on it, modules' decorations (B224)
 	keys    *vim.Keymaps      // a panel's own keys, nil for its kind's (B291)
-	cards   []int             // the first lines of a panel's cards, which the cursor moves between (B159)
 	// foot is text a panel keeps under a rule at its window's foot as it
 	// scrolls, styled by footSpans (B159).
 	foot      string

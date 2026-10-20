@@ -672,8 +672,8 @@ from, not buffers, and a menu item's doc is part of its menu. They keep
 their own code and draw in the same bordered box a float does. `Where`
 and `Lock` replace `Panel.Float`, `Jump.Split`, `Scratch.Split` and a
 terminal's fixed place below. `Panel.Screen` stays, as it changes how a
-window draws, not where. The box a float panel was (B318) goes, and its
-`Cards` and `Foot` become options of a window in any placement. The wire
+window draws, not where. The box a float panel was (B318) goes, with its
+cards, and its `Foot` becomes an option of a panel in a float. The wire
 sends a float as a window with its rectangle.
 
 Why, as of 2026-10-20: the user asked that a module choose a split or a

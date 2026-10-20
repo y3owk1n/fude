@@ -1109,15 +1109,15 @@ func (e *Session) close(b *buffer, force bool) {
 // overlay is what may take a key before the vim machine sees it: a module
 // call that captured the keys, a question, the finder, a terminal, the
 // completion menu, a snippet, a code action pick, the menu and the float
-// at the cursor, a panel with cards and the command line's menu. One that
-// is not up takes nothing.
+// at the cursor, and the command line's menu. One that is not up takes
+// nothing.
 type overlay interface {
 	key(e *Session, k vim.Key) bool
 }
 
 // overlays are what may take a key, in the order they get it.
 func (e *Session) overlays() []overlay {
-	return []overlay{e.capture, e.ask, e.finder, terminalMode{}, &e.completion, e.snip, e.pick, &e.menu, cardKeys{}, &e.cmdline}
+	return []overlay{e.capture, e.ask, e.finder, terminalMode{}, &e.completion, e.snip, e.pick, &e.menu, &e.cmdline}
 }
 
 // cursorMenu is a menu at the cursor, such as code actions', and the

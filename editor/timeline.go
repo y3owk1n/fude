@@ -90,7 +90,7 @@ func (e *Session) panel(owner api.Module, p api.Panel) bool {
 			e.message = err.Error()
 			return false
 		}
-		b.cards, b.foot, b.footSpans = p.Cards, p.Foot, styled(p.FootSpans)
+		b.foot, b.footSpans = p.Foot, styled(p.FootSpans)
 		return true
 	}
 	if p.Update {
@@ -101,7 +101,7 @@ func (e *Session) panel(owner api.Module, p api.Panel) bool {
 	b := e.win.buf
 	b.panelKind = p.Kind
 	b.keys = e.panelKeys(b, p.Keys)
-	b.cards, b.foot, b.footSpans = p.Cards, p.Foot, styled(p.FootSpans)
+	b.foot, b.footSpans = p.Foot, styled(p.FootSpans)
 	e.style(b, styled(p.Spans))
 	e.setCursor(min(max(p.Cursor, 0), b.text.Snapshot().Len()))
 	if b.ft = p.Filetype; b.ft == "" {

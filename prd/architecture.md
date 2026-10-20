@@ -1990,9 +1990,9 @@ phases, each unit a commit that keeps every behaviour.
    panel is the module's. `Scope.Servers` reads the servers' state, and
    `Result.Servers` restarts, stops, disables or enables one. On
    `lsp.changed` the module shows the panel again with `Update`, so a
-   closed panel stays closed. The panel shows in a float with `Cards`
-   and a `Foot`. The editor keeps the cursor on a card's first row and
-   scrolls the float to show all of the card (B317, B318). The completion
+   closed panel stays closed. The panel shows in a float with a `Foot`
+   of its keys. The module finds the server under the cursor from the
+   line each server's part starts on (B317, B318). The completion
    engine and its language server source stay, because a module's `Call`
    is busy while it handles `buffer.changed`, which is when completion
    fires. `modules/completion` is the other sources, buffer words, paths
