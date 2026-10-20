@@ -12,8 +12,8 @@ An exclusive motion that ends at the start of a line stops at the end of
 the line before instead. If it began at or before the first non-blank of
 its own line, it then takes whole lines.
 
-A motion that cannot move, such as `j` on the last line, fails: the
-operator does nothing and a macro running it stops. A jump records where
+A motion that cannot move, such as `j` on the last line, fails. The
+operator does nothing, and a macro running it stops. A jump records where
 it left from, so `<C-o>` comes back and `''` goes there.
 
 ## h
@@ -499,8 +499,8 @@ does with words.
 
 ## n
 
-Goes to the next match of the last search, n times, the way it searched:
-forward after `/` or `*`, back after `?` or `#`. At an end of the text it
+Goes to the next match of the last search, n times, the way it searched,
+so forward after `/` or `*` and back after `?` or `#`. At an end of the text it
 goes on from the other, and it fails when there is no match. The matches
 show highlighted until `<C-l>`. Exclusive, and a jump.
 

@@ -1412,10 +1412,10 @@ Help is markdown in one buffer: an index, the guide, then the reference
 (D34). The guide's pages are files in `editor/guide`, embedded in the
 binary, whose names order them and give their tags. fude builds the
 reference from the tables that run it, so it cannot fall behind them.
-The files of `editor/reference` explain entries at length, each under a
-heading of the name `:h` finds the entry by. `settings.md` explains every
-option and setting, and each other file one kind of key, such as
-`motions.md`. Help puts
+The files of `editor/reference` explain entries at length, a file for each
+section of the reference with the section's title, such as `motions.md`
+and `options.md`, and each explanation under a heading of the name `:h`
+finds the entry by. Help puts
 each explanation under its entry. An explanation's examples are blocks
 fenced as `keys`, each line the text before, the keys and the text after,
 as `vim/testdata/grammar.txt` writes them, and a test runs every one in

@@ -30,16 +30,18 @@ func TestB162Examples(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, f := range files {
-		src, err := os.ReadFile(f)
-		if err != nil {
-			t.Fatal(err)
-		}
-		for _, block := range strings.Split(string(src), "```keys\n")[1:] {
-			block, _, _ = strings.Cut(block, "```")
-			for _, l := range strings.Split(strings.TrimSpace(block), "\n") {
-				grammarCase(t, l)
+		t.Run(filepath.Base(f), func(t *testing.T) {
+			src, err := os.ReadFile(f)
+			if err != nil {
+				t.Fatal(err)
 			}
-		}
+			for _, block := range strings.Split(string(src), "```keys\n")[1:] {
+				block, _, _ = strings.Cut(block, "```")
+				for _, l := range strings.Split(strings.TrimSpace(block), "\n") {
+					grammarCase(t, l)
+				}
+			}
+		})
 	}
 }
 

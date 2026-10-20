@@ -56,28 +56,30 @@ func guide() []guidePage {
 	return out
 }
 
-// referenceFiles hold the longer explanations of help's entries, each
-// under a heading of the name :h finds it by.
+// referenceFiles hold the longer explanations of help's entries, a file for
+// each section of the reference titled as it is, and each explanation under
+// a heading of the name :h finds its entry by.
 //
 //go:embed reference/*.md
 var referenceFiles embed.FS
 
-// details returns the longer explanations of help's entries, by the name :h
-// finds each by, and each file's opening text by its title in lower case,
-// which help shows under the section of that title (B162).
-func details() map[string]string {
-	out := map[string]string{}
+// details returns the longer explanations of help's entries, by the slug of
+// their section and the name :h finds each by. A section's own opening text
+// is under "" (B162).
+func details() map[string]map[string]string {
+	out := map[string]map[string]string{}
 	// The files are in the binary, so neither call fails.
 	names, _ := fs.Glob(referenceFiles, "reference/*.md")
 	for _, name := range names {
 		data, _ := referenceFiles.ReadFile(name)
 		parts := strings.Split(string(data), "\n## ")
 		title, intro, _ := strings.Cut(strings.TrimPrefix(parts[0], "# "), "\n")
-		out[strings.ToLower(title)] = strings.TrimSpace(intro)
+		section := map[string]string{"": strings.TrimSpace(intro)}
 		for _, p := range parts[1:] {
 			name, text, _ := strings.Cut(p, "\n")
-			out[name] = strings.TrimSpace(text)
+			section[name] = strings.TrimSpace(text)
 		}
+		out[slug(title)] = section
 	}
 	return out
 }
@@ -393,7 +395,8 @@ func (e *Session) helpText() (string, map[string]int) {
 		write("")
 		tag(slug(s.title))
 		write("## " + sentence(s.title))
-		if note := cmp.Or(more[slug(s.title)], s.note); note != "" {
+		own := more[slug(s.title)]
+		if note := cmp.Or(own[""], s.note); note != "" {
 			write("")
 			write(note)
 		}
@@ -404,7 +407,7 @@ func (e *Session) helpText() (string, map[string]int) {
 			}
 			write(code(en.head))
 			write("  " + en.text)
-			if d := more[en.tags[0]]; d != "" {
+			if d := own[en.tags[0]]; d != "" {
 				write("")
 				write("  " + strings.ReplaceAll(d, "\n", "\n  "))
 			}

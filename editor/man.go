@@ -96,13 +96,16 @@ func Man(page string, modules ...api.Module) (string, error) {
 				continue
 			}
 			fmt.Fprintf(&b, ".SH %s\n", roff(s.title))
-			if s.note != "" {
+			own := more[slug(s.title)]
+			if own[""] != "" {
+				b.WriteString(manText(own[""], ""))
+			} else if s.note != "" {
 				fmt.Fprintf(&b, "%s\n", roff(s.note))
 			}
 			for _, en := range s.entries {
 				fmt.Fprintf(&b, ".TP\n\\fB%s\\fR\n%s\n", roff(en.head), roff(en.text))
 				// The longer explanation's paragraphs stay under the entry.
-				if d := more[en.tags[0]]; d != "" {
+				if d := own[en.tags[0]]; d != "" {
 					b.WriteString(".RS\n.PP\n" + manText(d, "") + ".RE\n")
 				}
 			}
