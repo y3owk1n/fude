@@ -195,12 +195,16 @@ func (e *Session) style(b *buffer, spans []syntax.Span) {
 // stateList is b's states as a module reads them (B328).
 func (b *buffer) stateList() []api.State {
 	head := b.text.Head()
-	ids := []kernel.NodeID{{}}
+	index := map[kernel.NodeID]int{{}: 0}
 	out := []api.State{{Current: head == (kernel.NodeID{}), Label: "the text before any change"}}
 	for _, n := range b.text.Nodes() {
-		ids = append(ids, n.ID)
+		parent, ok := index[n.Parent]
+		if !ok {
+			parent = -1
+		}
+		index[n.ID] = len(out)
 		out = append(out, api.State{
-			Time: n.Time, Label: n.Label, Parent: slices.Index(ids, n.Parent), Current: n.ID == head,
+			Time: n.Time, Label: n.Label, Parent: parent, Current: n.ID == head,
 			Saved: slices.Contains(b.saves, n.ID), Unsaved: n.ID == b.unsaved && b.unsaved != (kernel.NodeID{}),
 		})
 	}
