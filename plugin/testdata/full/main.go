@@ -12,8 +12,9 @@
 // off, and runs :s/a/z/, and :Wrap types the wrap option. :Paint defines
 // the style full.hot and colours the first byte in it. :Heard types the
 // names of the window, search, macro, selection and theme events it heard.
-// It registers § as a Typed key, which needs buffer.read. Needs keys, and buffer.read and buffer.write
-// for the others.
+// It registers § as a Typed key, which needs buffer.read, explains :Whole
+// at length and adds the guide page guide-full. Needs keys, and buffer.read
+// and buffer.write for the others.
 package main
 
 import (
@@ -37,7 +38,8 @@ func init() {
 	sdk.Command("Heard", "types the events heard", func(sdk.Call) {
 		sdk.Edit(0, 0, strings.Join(slices.Sorted(maps.Keys(heard)), ",")+"|")
 	})
-	sdk.Register(api.Registration{Kind: api.Command, Name: "Whole", Help: "types x at the start of the line", Short: []string{"wh"}}, func(_, _, _ int) int {
+	sdk.Page("full", "# The full plugin\n\nIt tests what a plugin may do.")
+	sdk.Register(api.Registration{Kind: api.Command, Name: "Whole", Help: "types x at the start of the line", Doc: "Types x at the start of the cursor's line.", Short: []string{"wh"}}, func(_, _, _ int) int {
 		if err := sdk.Do(api.Result{Keys: "0ix<Esc>"}); err != nil {
 			sdk.Log(err.Error())
 		}

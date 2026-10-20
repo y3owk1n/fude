@@ -353,20 +353,72 @@ func helpFields(v reflect.Value) []helpField {
 	return out
 }
 
+// moduleDocs returns the longer explanations modules give their entries in
+// Registration.Doc, by the slug of the entry's section and the name :h
+// finds it by (B375).
+func (e *Session) moduleDocs() map[string]map[string]string {
+	out := map[string]map[string]string{}
+	for _, p := range e.modules {
+		for _, r := range p.Registered() {
+			if r.Doc == "" {
+				continue
+			}
+			var section, tag string
+			switch {
+			case r.Kind == api.Command:
+				section, tag = "commands", ":"+r.Name
+			case r.Kind == api.Plug, r.Kind == api.Key && r.Chars == 0:
+				section, tag = "commands-for-keys", "<Plug>("+p.Name()+"."+r.Name+")"
+			case r.Kind == api.Operator:
+				section, tag = "operators", bindingKeys(r)
+			case r.Kind == api.Object:
+				section, tag = "text-objects", r.Name
+			case r.Kind == api.Key:
+				section, tag = modes[keyedMode(r)]+"-mode", bindingKeys(r)
+			case r.Kind == api.Insert, r.Kind == api.Typed:
+				section, tag = "insert-mode", r.Name
+			default:
+				continue
+			}
+			if out[section] == nil {
+				out[section] = map[string]string{}
+			}
+			out[section][tag] = strings.TrimSpace(r.Doc)
+		}
+	}
+	return out
+}
+
+// pages returns the guide's pages: fude's, then those modules add (B376).
+func (e *Session) pages() []guidePage {
+	out := guide()
+	for _, p := range e.modules {
+		for _, r := range p.Registered() {
+			if r.Kind == api.Page {
+				text := strings.TrimSpace(r.Doc)
+				title, _, _ := strings.Cut(strings.TrimPrefix(text, "# "), "\n")
+				out = append(out, guidePage{"guide-" + r.Name, title, text})
+			}
+		}
+	}
+	return out
+}
+
 // HelpGaps returns what help lacks with fude's defaults and modules, for a
-// distribution's tests: each entry with no longer explanation in
-// editor/reference, each explanation there that names no entry of its
-// section, and each file there with no section (B162).
-func HelpGaps(modules ...api.Module) ([]string, error) {
+// distribution's tests. missing is each entry with no longer explanation,
+// in editor/reference or its module's Doc, and each guide page with no #
+// title. unused is each explanation in editor/reference that names no entry
+// of its section, and each file there with no section. It is empty only
+// with every module fude adds (B162, B375).
+func HelpGaps(modules ...api.Module) (missing, unused []string, err error) {
 	e, err := open(defaults, nil)
 	if err != nil {
-		return nil, fmt.Errorf("help: %w", err)
+		return nil, nil, fmt.Errorf("help: %w", err)
 	}
 	for _, m := range modules {
 		e.Use(m)
 	}
-	var gaps []string
-	more := details()
+	more, docs := details(), e.moduleDocs()
 	sections := map[string]bool{}
 	for _, s := range e.helpSections() {
 		own, ok := more[slug(s.title)]
@@ -377,23 +429,29 @@ func HelpGaps(modules ...api.Module) ([]string, error) {
 		sections[slug(s.title)] = true
 		named := map[string]bool{"": true}
 		for _, en := range s.entries {
-			if named[en.tags[0]] = true; own[en.tags[0]] == "" {
-				gaps = append(gaps, fmt.Sprintf("%s: %s has no explanation", slug(s.title), en.tags[0]))
+			if named[en.tags[0]] = true; own[en.tags[0]] == "" && docs[slug(s.title)][en.tags[0]] == "" {
+				missing = append(missing, fmt.Sprintf("%s: %s has no explanation", slug(s.title), en.tags[0]))
 			}
 		}
 		for name := range own {
 			if !named[name] {
-				gaps = append(gaps, fmt.Sprintf("%s: %s explains no entry", slug(s.title), name))
+				unused = append(unused, fmt.Sprintf("%s: %s explains no entry", slug(s.title), name))
 			}
 		}
 	}
 	for name := range more {
 		if !sections[name] {
-			gaps = append(gaps, fmt.Sprintf("%s.md is no section of the reference", name))
+			unused = append(unused, fmt.Sprintf("%s.md is no section of the reference", name))
 		}
 	}
-	slices.Sort(gaps)
-	return gaps, nil
+	for _, pg := range e.pages() {
+		if !strings.HasPrefix(pg.text, "# ") {
+			missing = append(missing, pg.tag+" has no # title")
+		}
+	}
+	slices.Sort(missing)
+	slices.Sort(unused)
+	return missing, unused, nil
 }
 
 // helpText returns help as markdown: an index, the guide's pages, then the
@@ -414,7 +472,7 @@ func (e *Session) helpText() (string, map[string]int) {
 			tags[t] = line
 		}
 	}
-	pages := guide()
+	pages := e.pages()
 	var sections []helpSection
 	for _, s := range e.helpSections() {
 		if len(s.entries) > 0 {
@@ -445,7 +503,7 @@ func (e *Session) helpText() (string, map[string]int) {
 		tag(p.tag)
 		write(p.text)
 	}
-	more := details()
+	more, docs := details(), e.moduleDocs()
 	for _, s := range sections {
 		write("")
 		tag(slug(s.title))
@@ -462,7 +520,7 @@ func (e *Session) helpText() (string, map[string]int) {
 			}
 			write(code(en.head))
 			write("  " + en.text)
-			if d := own[en.tags[0]]; d != "" {
+			if d := cmp.Or(own[en.tags[0]], docs[slug(s.title)][en.tags[0]]); d != "" {
 				write("")
 				write("  " + strings.ReplaceAll(d, "\n", "\n  "))
 			}

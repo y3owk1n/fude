@@ -173,6 +173,13 @@ func Register(r api.Registration, f func(a, b, c int) int) {
 	add(r, func(a, b, c int64) int64 { return int64(f(int(a), int(b), int(c))) })
 }
 
+// Page adds a page of the guide, whose tag is guide-name and whose
+// markdown text starts with a # title (B376). Call it from an init
+// function.
+func Page(name, text string) {
+	add(api.Registration{Kind: api.Page, Name: name, Doc: text}, nil)
+}
+
 // Do asks for what r holds, as a module's call returns it. fude applies it
 // once the call returns, and none of it when a part needs a capability the
 // plugin did not declare. Emit names the plugin's events without its own

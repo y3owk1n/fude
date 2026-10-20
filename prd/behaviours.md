@@ -1252,6 +1252,12 @@ Where fude departs, the line says so and cites the departure in
   message. A module's command that fails this way stops what ran it, such
   as `:cdo`, `:g` or a macro, as a failed command of fude's own does. A
   plugin needs no capability to say it (D57).
+- B375 [4] A module's command, key, `<Plug>` command, operator or object
+  may carry a longer explanation in markdown, which help shows under its
+  entry unless fude's reference explains it.
+- B376 [4] A module may add a page to help's guide, in markdown under a
+  `#` title. Its tag is `guide-` and the page's name, it shows after
+  fude's own pages in the index, and `fude man` prints it in the guide.
 - B345 [4] A module's result defines styles by name, with a colour for
   the text and one for its ground, bold, italic, underline or strike, over
   the theme's styles. Its decorations and spans name them.

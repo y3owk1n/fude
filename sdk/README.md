@@ -55,10 +55,11 @@ Call these from an `init` function.
 | `Source` | a source of `:pick`, which shows a list with `Picker` or `Pick` |
 | `Operator` | an operator that composes with every motion and text object |
 | `Object` | a text object that composes with every operator |
+| `Page` | a page of help's guide, `guide-name`, in markdown under a `#` title |
 | `On` | a handler for an event, such as `buffer.saved` or `mode.changed` |
 | `Register` | anything a module registers, an `api.Registration` of any kind and with any field |
 
-All but `On` take a help text, which `:h` and the key hints show.
+All but `On` and `Page` take a help text, which `:h` and the key hints show. `Register` may also set `Doc`, a longer explanation that `:h` shows under the entry.
 
 ## What a plugin may call
 

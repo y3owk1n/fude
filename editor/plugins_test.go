@@ -410,6 +410,18 @@ func TestB54PluginCommandsAndKeys(t *testing.T) {
 	}
 }
 
+// B375 and B376, as a plugin writes them
+func TestB375PluginWritesHelp(t *testing.T) {
+	e := loaded(t, "full", "f", "a\n")
+	e.Use(helpmod.New())
+	if feed(e, ":h :Whole<CR>"); !strings.Contains(text(e), "Types x at the start of the cursor's line.") {
+		t.Error("help does not show the Doc of :Whole")
+	}
+	if feed(e, ":h guide-full<CR>"); !strings.Contains(text(e), "# The full plugin") {
+		t.Error("help does not show the plugin's page")
+	}
+}
+
 // B175
 func TestB175PluginCommandArguments(t *testing.T) {
 	for _, c := range [][2]string{

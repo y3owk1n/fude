@@ -66,6 +66,10 @@ const (
 	// says the write failed, and what was to run after it, such as :wq's
 	// quit, does not. An explorer reads its directory again after (B327).
 	Write
+	// Page is a page of the guide, which help lists after fude's own and
+	// fude man guide prints. Name is its tag after guide-, and Doc is its
+	// markdown, starting with a # title. It is never called (B376).
+	Page
 )
 
 // Registration is one thing a module's init registered: its name, what it
@@ -73,8 +77,12 @@ const (
 type Registration struct {
 	Kind       Kind
 	Name, Help string
-	ID         uint32
-	Host       bool // only the host's session may run it, as gh is (B244)
+	// Doc is a longer explanation in markdown, which help shows under the
+	// entry of a Command, Key, Operator, Object or Plug, unless fude's own
+	// reference explains it (B375). A Page's Doc is the page.
+	Doc  string
+	ID   uint32
+	Host bool // only the host's session may run it, as gh is (B244)
 	// Complete makes Call complete a command's argument too. The word typed
 	// is complete in About, and a Result's Complete answers (B290).
 	Complete bool

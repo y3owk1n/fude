@@ -89,7 +89,7 @@ func Man(page string, modules ...api.Module) (string, error) {
 	// The options and settings are fude-config(5)'s, and the rest of the
 	// reference is fude(1)'s.
 	config := func(s helpSection) bool { return s.title == "OPTIONS" || s.title == "SETTINGS" }
-	more := details()
+	more, docs := details(), e.moduleDocs()
 	reference := func(keep func(helpSection) bool) {
 		for _, s := range e.helpSections() {
 			if len(s.entries) == 0 || !keep(s) {
@@ -105,13 +105,13 @@ func Man(page string, modules ...api.Module) (string, error) {
 			for _, en := range s.entries {
 				fmt.Fprintf(&b, ".TP\n\\fB%s\\fR\n%s\n", roff(en.head), roff(en.text))
 				// The longer explanation's paragraphs stay under the entry.
-				if d := own[en.tags[0]]; d != "" {
+				if d := cmp.Or(own[en.tags[0]], docs[slug(s.title)][en.tags[0]]); d != "" {
 					b.WriteString(".RS\n.PP\n" + manText(d, "") + ".RE\n")
 				}
 			}
 		}
 	}
-	pages := guide()
+	pages := e.pages()
 	switch page {
 	case "":
 		fmt.Fprintf(&b, ".TH FUDE 1 %q fude \"User Commands\"\n", date)

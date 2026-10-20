@@ -42,13 +42,13 @@ var needs = map[string]string{
 // so does a Write, which reads what it writes.
 var kinds = map[fude.Kind]string{
 	fude.Command: "", fude.Operator: "", fude.Object: "", fude.Key: "", fude.Insert: "", fude.Plug: "", fude.Source: "",
-	fude.Typed: "buffer.read", fude.Completer: "buffer.read", fude.Write: "buffer.read",
+	fude.Typed: "buffer.read", fude.Completer: "buffer.read", fude.Write: "buffer.read", fude.Page: "",
 }
 
 // init panics on a Result field with no entry in needs, or a kind with no
 // entry in kinds, which no plugin could set or register.
 func init() {
-	for k := fude.Command; k <= fude.Write; k++ {
+	for k := fude.Command; k <= fude.Page; k++ {
 		if _, ok := kinds[k]; !ok {
 			panic(fmt.Sprintf("plugin: no capability for kind %d", k))
 		}
@@ -69,7 +69,7 @@ func (p *Plugin) register(_ context.Context, m api.Module, ptr, n uint32) int32 
 	}
 	b, ok := m.Memory().Read(ptr, n)
 	var r fude.Registration
-	if !ok || json.Unmarshal(b, &r) != nil || r.Kind < fude.Command || r.Kind > fude.Write || r.Name == "" {
+	if !ok || json.Unmarshal(b, &r) != nil || r.Kind < fude.Command || r.Kind > fude.Page || r.Name == "" {
 		return errRange
 	}
 	if c := kinds[r.Kind]; c != "" && !p.allowed(c, "register "+r.Name) {
