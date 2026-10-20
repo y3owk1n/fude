@@ -706,7 +706,8 @@ Where fude departs, the line says so and cites the departure in
 - B29 [2] Insert-mode `<BS> <C-w> <C-u> <C-r>{reg} <C-o> <C-t> <C-d>` act as
   in Neovim. `<C-v>` types the next key as it is, or the character a
   number after it names, as `<C-v>065`, `<C-v>x41` and `<C-v>u20ac` do.
-  `<C-k>` types the digraph the next two keys name (D56). `<C-a>` types
+  `<C-k>` types the digraph the next two keys name (D56), and `<Esc>`
+  after it types none. `<C-a>` types
   the text last typed in insert mode, and `<C-@>` types it and leaves
   insert mode. `<C-e>` and `<C-y>` type the character below and above
   the cursor. `<Insert>` switches between insert and replace mode, and

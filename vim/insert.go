@@ -583,9 +583,13 @@ func keyText(k Key) string {
 
 // digraph takes a key after <C-k>: the first of two, or the second, which
 // types the character the two name in either order, or else itself.
+// <Esc> types nothing, and another named key its name.
 func (m *Machine) digraph(k Key) error {
 	if !k.isChar() {
 		m.pending, m.spell = "", ""
+		if k == "<Esc>" {
+			return nil
+		}
 		return m.typeText(string(k))
 	}
 	if m.spell == "" {

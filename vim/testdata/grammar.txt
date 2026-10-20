@@ -413,6 +413,8 @@
 "|" "i<C-k>'e<Esc>" "|é"
 "|" "i<C-k>Eu<Esc>" "|€"
 "|" "i<C-k>qz<Esc>" "|z"
+"|" "i<C-k><Esc>x<Esc>" "|x"
+"|" "i<C-k>e<Esc>x<Esc>" "|x"
 "|" "iab<Esc>A<C-a><Esc>" "aba|b"
 "|" "iab<Esc>A<C-@>" "aba|b"
 "ab|c\nxyz" "i<C-e><Esc>" "ab|zc\nxyz"
