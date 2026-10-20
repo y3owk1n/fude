@@ -280,8 +280,7 @@ func (c *client) draw() {
 	}
 	c.bufferLine(c.e.Buffers(), w)
 	if modal {
-		apply(lit)
-		base = base.Background(dimmed.th.bg)
+		apply(boxed)
 	}
 	// The floats draw over the layout, lit, and a completion menu draws over
 	// signature help if they meet (B203).

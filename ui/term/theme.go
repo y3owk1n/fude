@@ -101,6 +101,9 @@ var (
 	underlines  map[string]color.Color
 	signColours map[string]color.Color
 	lit, dimmed styles
+	// boxed is lit on dimmed's ground, for what draws over the windows
+	// dimmed under a modal box (B151).
+	boxed styles
 )
 
 func init() { useTheme(themes["dark"], nil) }
@@ -109,7 +112,12 @@ func init() { useTheme(themes["dark"], nil) }
 // from then on.
 func useTheme(t theme, own map[string]wire.Style) {
 	lit, dimmed = build(t), build(tint(t))
-	restyle(lit, own, func(c color.Color) color.Color { return c })
+	ground := t
+	ground.bg = dimmed.th.bg
+	boxed = build(ground)
+	same := func(c color.Color) color.Color { return c }
+	restyle(lit, own, same)
+	restyle(boxed, own, same)
 	restyle(dimmed, own, func(c color.Color) color.Color { return mix(c, dimmed.th.bg, 0.55) })
 	apply(lit)
 }
