@@ -1029,6 +1029,12 @@ Where fude departs, the line says so and cites the departure in
 - B382 [2] Opening a file whose text no longer matches its timeline log
   deletes the log and starts a new one. When fude starts, it deletes the
   timeline logs no session has written for 30 days (N41).
+- B383 [2] `fude storage` lists each place fude keeps files between runs,
+  with its path, its size and what it holds. `fude storage clean` deletes
+  what fude makes again or never reads back: the compiled plugins, the
+  built grammars and the log. With `--force` it also deletes the timelines,
+  sessions, pins and recent files, once it says what each loses and the
+  user answers y.
 - B34 [2] After a crash, opening the file offers to recover every edit made
   since the last save, and `:recover` brings them back. Declining keeps them
   on the timeline as a branch. A formatter's or plugin's answer that comes

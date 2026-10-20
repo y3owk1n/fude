@@ -27,6 +27,8 @@ var Subcommands = []Subcommand{
 	{"relay", "[<address>]", "pass shares through, on port 7418 without an address"},
 	{"plugin new", "<name>", "write a plugin in Go in a new folder"},
 	{"plugin build", "[<dir>]", "build the plugin in dir with TinyGo"},
+	{"storage", "", "print where fude keeps files between runs, and their sizes"},
+	{"storage clean", "", "delete what fude makes again, and with --force all it keeps"},
 	{"man", "[config|guide]", "print fude(1), fude-config(5) or fude-guide(7)"},
 	{"help", "", "print this help"},
 	{"version", "", "print the date and commit fude was built from"},
@@ -48,6 +50,7 @@ var Flags = []Flag{
 	{"--relay <host>", "share through the relay at host", []string{"share"}},
 	{"--read-only", "join only to watch", []string{"join"}},
 	{"--json", "print each event as JSON", []string{"tail"}},
+	{"--force", "also delete undo history, sessions, pins and recent files", []string{"storage"}},
 	{"-h, --help", "print this help", nil},
 	{"-v, --version", "print the version", nil},
 }

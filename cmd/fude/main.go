@@ -2,10 +2,12 @@
 package main
 
 import (
+	"bufio"
 	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"maps"
 	"net"
 	"os"
@@ -66,6 +68,9 @@ func run(args []string) error {
 		fmt.Print(page)
 	case "plugin":
 		return pluginCommand(words)
+	case "storage":
+		_, force := flags["--force"]
+		return storage(words, force)
 	case "relay":
 		return relays(words)
 	case "tail":
@@ -312,6 +317,107 @@ func pluginCommand(words []string) error {
 		return nil
 	}
 	return usage("plugin")
+}
+
+// storage prints where fude keeps files between runs and how much each
+// takes. With clean it deletes what fude makes again. With --force it also
+// deletes the user's history, after it says what that loses and the user
+// answers y (B383).
+func storage(words []string, force bool) error {
+	stores, err := editor.Stores()
+	if err != nil {
+		return err
+	}
+	switch {
+	case len(words) == 0 && !force:
+		w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
+		total := int64(0)
+		for _, s := range stores {
+			n, err := size(s.Path)
+			if err != nil {
+				return err
+			}
+			total += n
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", s.Name, bytes(n), s.Path, s.Holds)
+		}
+		fmt.Fprintf(w, "total\t%s\n", bytes(total))
+		return w.Flush()
+	case len(words) != 1 || words[0] != "clean":
+		return usage("storage")
+	}
+	if force {
+		for _, s := range stores {
+			if s.Loses == "" {
+				continue
+			}
+			n, err := size(s.Path)
+			if err != nil {
+				return err
+			}
+			fmt.Printf("%s, %s at %s\n  deleting it loses %s\n", s.Name, bytes(n), s.Path, s.Loses)
+		}
+		fmt.Print("A fude running now keeps writing what it has open. Delete these too? [y/N] ")
+		answer, _ := bufio.NewReader(os.Stdin).ReadString('\n')
+		if strings.TrimSpace(strings.ToLower(answer)) != "y" {
+			fmt.Println("deleted nothing")
+			return nil
+		}
+	}
+	freed := int64(0)
+	for _, s := range stores {
+		if s.Loses != "" && !force {
+			continue
+		}
+		n, err := size(s.Path)
+		if err != nil {
+			return err
+		}
+		if err := os.RemoveAll(s.Path); err != nil {
+			return fmt.Errorf("delete %s: %w", s.Name, err)
+		}
+		freed += n
+	}
+	fmt.Printf("freed %s\n", bytes(freed))
+	return nil
+}
+
+// size returns how many bytes the files under path take, 0 when there are
+// none.
+func size(path string) (int64, error) {
+	n := int64(0)
+	err := filepath.WalkDir(path, func(_ string, d fs.DirEntry, err error) error {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if d.Type().IsRegular() {
+			info, err := d.Info()
+			if err != nil {
+				return err
+			}
+			n += info.Size()
+		}
+		return nil
+	})
+	if err != nil {
+		return 0, fmt.Errorf("size of %s: %w", path, err)
+	}
+	return n, nil
+}
+
+// bytes is n in the largest unit that keeps it at least 1, as 1.4MB.
+func bytes(n int64) string {
+	f, units := float64(n), []string{"B", "KB", "MB", "GB"}
+	i := 0
+	for ; f >= 1024 && i < len(units)-1; i++ {
+		f /= 1024
+	}
+	if i == 0 {
+		return fmt.Sprintf("%dB", n)
+	}
+	return fmt.Sprintf("%.1f%s", f, units[i])
 }
 
 // attach runs fude attach, a terminal client on a session of a running

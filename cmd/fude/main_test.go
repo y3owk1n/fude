@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -120,6 +121,58 @@ func TestB348Help(t *testing.T) {
 		if out, err := fude(t.TempDir(), "tail", flag); err != nil || out != want {
 			t.Errorf("fude tail %s printed %q, %v", flag, out, err)
 		}
+	}
+}
+
+// B383
+func TestB383Storage(t *testing.T) {
+	home := t.TempDir()
+	for _, v := range []string{"XDG_STATE_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME"} {
+		t.Setenv(v, filepath.Join(home, v))
+	}
+	stores, err := editor.Stores()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, s := range stores {
+		if err := os.MkdirAll(filepath.Dir(s.Path), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(s.Path, []byte("12345"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if out, err := fude(home, "storage"); err != nil || !strings.Contains(out, "timeline   5B") || !strings.Contains(out, "total      35B") {
+		t.Fatalf("fude storage printed %q, %v", out, err)
+	}
+	// clean asks, and anything but y keeps them all, as does clean with
+	// --force.
+	kept := func() (out []string) {
+		for _, s := range stores {
+			if _, err := os.Stat(s.Path); err == nil {
+				out = append(out, s.Name)
+			}
+		}
+		return out
+	}
+	clean := func(answer string, args ...string) string {
+		cmd := exec.Command(os.Args[0], append([]string{"storage", "clean"}, args...)...)
+		cmd.Dir, cmd.Env, cmd.Stdin = home, append(os.Environ(), "FUDE_TEST_CLI=1"), strings.NewReader(answer)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("fude storage clean %v: %v: %s", args, err, out)
+		}
+		return string(out)
+	}
+	user := []string{"timeline", "sessions", "pins", "recent"}
+	if out := clean(""); !strings.Contains(out, "freed 15B") || !slices.Equal(kept(), user) {
+		t.Errorf("fude storage clean printed %q and kept %v, want %v", out, kept(), user)
+	}
+	if out := clean("n\n", "--force"); !strings.Contains(out, "deleting it loses undo") || !slices.Equal(kept(), user) {
+		t.Errorf("declining fude storage clean --force printed %q and kept %v", out, kept())
+	}
+	if out := clean("y\n", "--force"); !strings.Contains(out, "freed 20B") || len(kept()) > 0 {
+		t.Errorf("fude storage clean --force printed %q and kept %v", out, kept())
 	}
 }
 

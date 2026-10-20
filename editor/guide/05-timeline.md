@@ -34,6 +34,11 @@ The timeline of a file carries over from session to session while the
 file on disk is the one fude last wrote. fude deletes it when the file
 changes outside fude, and 30 days after the last change to it.
 
+`fude storage` in a shell lists where fude keeps timelines and its other
+files, and how much space each takes. `fude storage clean` deletes the
+ones fude makes again, and `fude storage clean --force` the timelines too,
+after it says what that loses.
+
 ## Restarting
 
 `:restart`, or `ZR`, starts fude again in its place, so changes to the
