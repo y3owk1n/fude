@@ -337,15 +337,19 @@ func (m *Machine) Matches(t Text, from, to int) [][2]int {
 
 // substitute replaces pat with rep on the lines from first to last, once per
 // line or every match with the g flag, in one transaction. i and I make the
-// pattern ignore or match case. The cursor goes to the start of the line
-// holding the last replacement.
+// pattern ignore or match case, and & first takes the last substitute's
+// flags. The cursor goes to the start of the line holding the last
+// replacement.
 func (m *Machine) substitute(first, last int, pat, rep, flags string) error {
 	if pat == "" {
 		return errors.New("no previous substitute")
 	}
+	if rest, ok := strings.CutPrefix(flags, "&"); ok {
+		flags = m.lastSub.flags + rest
+	}
 	rep = replaceTilde(rep, m.lastRep)
 	m.lastRep = rep
-	m.lastSub.pattern, m.lastSub.rep, m.lastSub.flags = pat, rep, strings.Trim(flags, "&")
+	m.lastSub.pattern, m.lastSub.rep, m.lastSub.flags = pat, rep, flags
 	m.search.pattern, m.search.forward, m.hl = pat, true, true
 	edits, err := m.subEdits(first, last, pat, rep, flags)
 	if err != nil {

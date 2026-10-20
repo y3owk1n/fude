@@ -143,6 +143,8 @@
 "|" "ixy<Esc>\".p" "xyx|y"
 "|a" ":s/a/b/<CR>\":p" "bs/a/b|/"
 "|ab" "/b<CR>\"/P" "a|bb"
+"|abcdefgh" "2\"a3x" "|gh"
+"|abcdefgh" "2\"ax" "|cdefgh"
 
 # B15
 "hello |world" "ywwp" "hello worldworl|d"
@@ -273,6 +275,7 @@
 "ab\n|cd\nef" "vj:s/./x/g<CR>" "ab\nxx\n|xx"
 "a|b\ncd" "v<Esc>j:'<,'>s/a/z/<CR>" "|zb\ncd"
 "|a a\na a" ":s/a/b/<CR>jg&" "b b\n|b a"
+"|a a\na a" ":s/a/b/g<CR>jg&" "b b\n|b b"
 
 # B28
 "|foo.x foo" "*" "foo.x |foo"
@@ -280,6 +283,8 @@
 "|foobar foo" "*" "|foobar foo"
 "|ab x ab" "vl*" "ab x |ab"
 "|a.b a.b" "vll*" "a.b |a.b"
+"a.b axb |a.b" "v2l#" "|a.b axb a.b"
+"|a.b axb a.b" "v2l*" "a.b axb |a.b"
 
 # B25
 "a|bcd" "2x" "a|d"

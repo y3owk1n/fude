@@ -271,6 +271,9 @@ func TestB7InsertIsOneUndoStep(t *testing.T) {
 	if got, h, _ := run(t, "|", "ihe<Left>llo<Esc>"); h.steps != 2 || got != "hll|oe" {
 		t.Errorf("<Left> should split the step: got %q in %d steps", got, h.steps)
 	}
+	if got, h, _ := run(t, "|", "ihe<C-g>ullo<Esc>"); h.steps != 2 || got != "hell|o" {
+		t.Errorf("<C-g>u should split the step: got %q in %d steps", got, h.steps)
+	}
 }
 
 // B8

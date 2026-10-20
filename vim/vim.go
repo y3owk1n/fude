@@ -161,6 +161,7 @@ type Machine struct {
 	op      string // d, c or y waiting for a motion
 	opCount int
 	reg     rune // the register named with ", or 0
+	before  int  // the count typed before ", which the one after multiplies
 	regs    map[rune]register
 	shown   []Key // the keys of the command being typed, for Shown
 	// pending is g, f, t, F, T, ", q, @ or a text object's i or a, or in
@@ -648,6 +649,7 @@ func (m *Machine) normal(k Key) error {
 	if cmd[0] == '"' {
 		if Key(cmd[1:]).isChar() {
 			m.reg, _ = utf8.DecodeRuneInString(cmd[1:])
+			m.before, m.count = m.count, 0
 		}
 		m.counted = true
 		return nil
@@ -696,6 +698,9 @@ func (m *Machine) normal(k Key) error {
 // command runs a complete normal or visual mode command.
 func (m *Machine) command(cmd string) error {
 	k := Key(cmd)
+	if m.before > 0 {
+		m.count, m.before = m.before*max(m.count, 1), 0
+	}
 	if m.mode == Visual {
 		count, reg := m.count, m.reg
 		m.count, m.reg = 0, 0

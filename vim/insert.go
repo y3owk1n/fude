@@ -17,6 +17,13 @@ func (m *Machine) insert(k Key) error {
 		return m.literal(k)
 	case "<C-k>":
 		return m.digraph(k)
+	case "<C-g>":
+		m.pending = ""
+		if k == "u" {
+			m.h.EndGroup()
+			m.h.BeginGroup()
+		}
+		return nil
 	}
 	if m.pending == "<C-r>" {
 		m.pending = ""
@@ -91,6 +98,7 @@ var inserts = map[string]insertKey{
 	"<Esc>": {"leaves insert mode", leaveInsert},
 	"<C-v>": {"types the next key as it is, or the character a number names", waitKey},
 	"<C-k>": {"types the character the next two keys name", waitKey},
+	"<C-g>": {"with u after it, starts a new undo step", waitKey},
 	"<C-a>": {"types the text last typed in insert mode", func(m *Machine, _ Text, _ int, _ Key) error {
 		return m.typeLast()
 	}},
