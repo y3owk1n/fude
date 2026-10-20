@@ -34,8 +34,8 @@ func TestB270Clean(t *testing.T) {
 	}
 	t.Cleanup(remove)
 	e := start(t)
-	if e.Views()[0].Number || e.Message() != "" {
-		t.Errorf("--clean started with number %v and %q, want the defaults", e.Views()[0].Number, e.Message())
+	if e.Windows()[0].Number || e.Message() != "" {
+		t.Errorf("--clean started with number %v and %q, want the defaults", e.Windows()[0].Number, e.Message())
 	}
 }
 
@@ -87,11 +87,11 @@ func TestB94FiletypeSettings(t *testing.T) {
 	}
 	e = withCommands(start(t, a, b))
 	feed(e, ">>:set number true<CR>")
-	if v := e.Views()[0]; text(e) != "        x" || v.Wrap {
+	if v := e.Windows()[0]; text(e) != "        x" || v.Wrap {
 		t.Errorf(">> in a.yaml gave %q with wrap %v, want spaces without wrap", text(e), v.Wrap)
 	}
 	feed(e, ":bn<CR>>>")
-	if v := e.Views()[0]; text(e) != "\tx" || !v.Wrap || !v.Number {
+	if v := e.Windows()[0]; text(e) != "\tx" || !v.Wrap || !v.Number {
 		t.Errorf(">> in b.txt gave %q with wrap %v and number %v, want a tab with both", text(e), v.Wrap, v.Number)
 	}
 }
@@ -138,17 +138,17 @@ func TestB39SetSettings(t *testing.T) {
 		t.Errorf("an unknown source said %q", e.Message())
 	}
 	// tab_width changes the windows at once, and theme acts as :theme does.
-	if feed(e, ":set tab_width 4<CR>"); e.Views()[0].Tab != 4 {
-		t.Errorf("after :set tab_width 4 the view's tab is %d", e.Views()[0].Tab)
+	if feed(e, ":set tab_width 4<CR>"); e.Windows()[0].Tab != 4 {
+		t.Errorf("after :set tab_width 4 the window's tab is %d", e.Windows()[0].Tab)
 	}
 	if feed(e, ":set theme light<CR>"); func() string { name, _, _ := e.Theme(); return name }() != "light" {
 		t.Errorf(":set theme light left the theme %q", e.Message())
 	}
 	// A new leader moves the keys that hold it, and the old one maps none.
-	if feed(e, ":set leader ,<CR>,x"); !e.Views()[0].Number {
+	if feed(e, ":set leader ,<CR>,x"); !e.Windows()[0].Number {
 		t.Fatal("after :set leader , the key ,x did not run")
 	}
-	if feed(e, ":set number false<CR><Space>x"); e.Views()[0].Number {
+	if feed(e, ":set number false<CR><Space>x"); e.Windows()[0].Number {
 		t.Error("after :set leader , the key <Space>x still ran")
 	}
 	// :set never writes config.toml.
@@ -178,16 +178,16 @@ func TestConfigReload(t *testing.T) {
 	}
 	// An option the file changed applies to the window, and one :set
 	// changed and the file did not stays.
-	if v := e.Views()[0]; !v.CursorLine || v.Wrap {
+	if v := e.Windows()[0]; !v.CursorLine || v.Wrap {
 		t.Errorf("after the reload cursor_line is %v and wrap %v", v.CursorLine, v.Wrap)
 	}
 	// A key the file no longer maps does what it does by default, and a new
 	// one maps.
-	if feed(e, "z8"); !e.Views()[0].Number {
+	if feed(e, "z8"); !e.Windows()[0].Number {
 		t.Error("after the reload z8 did not run its mapping")
 	}
-	if feed(e, ":set number false<CR>-"); e.Views()[0].Number || !strings.HasSuffix(e.Views()[0].Name, string(filepath.Separator)) {
-		t.Errorf("after the reload - showed %q with number %v, want the folder's explorer", e.Views()[0].Name, e.Views()[0].Number)
+	if feed(e, ":set number false<CR>-"); e.Windows()[0].Number || !strings.HasSuffix(e.Windows()[0].Name, string(filepath.Separator)) {
+		t.Errorf("after the reload - showed %q with number %v, want the folder's explorer", e.Windows()[0].Name, e.Windows()[0].Number)
 	}
 	// A file with an error changes nothing and says where.
 	change(t, file, "key_timeout = \"soon\"\n")

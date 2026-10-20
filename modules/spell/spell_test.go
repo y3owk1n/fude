@@ -19,7 +19,7 @@ func TestMain(m *testing.M) { os.Exit(editortest.Main(m)) }
 func typosIn(e *editor.Session) []string {
 	var out []string
 	t := e.Text()
-	for _, d := range e.Views()[0].Decorations {
+	for _, d := range e.Windows()[0].Decorations {
 		if d.Name == "spell.bad" {
 			out = append(out, t.Slice(d.Start, d.End))
 		}
@@ -89,7 +89,7 @@ func TestB259Spell(t *testing.T) {
 	editortest.Config(t, "spell = true\nspell_words = \"/nowhere/words\"\n")
 	e = editortest.Start(t, notes)
 	spelling(t, e)
-	e.Views()
+	e.Windows()
 	editortest.Settle(t, e, func() bool { return strings.HasPrefix(e.Message(), "spell has no word list") })
 	if got := typosIn(e); len(got) > 0 {
 		t.Errorf("without a word list spell found %q", got)
@@ -147,7 +147,7 @@ func TestSetSpellWords(t *testing.T) {
 	spelling(t, e)
 	e.SetSize(80, 20)
 	editortest.Settle(t, e, func() bool { return slices.Equal(typosIn(e), []string{"sat"}) })
-	// The new list is read when spell next hears of the view, here a move.
+	// The new list is read when spell next hears of the window, here a move.
 	editortest.Feed(e, fmt.Sprintf(":set spell_words %s<CR>w", second))
 	editortest.Settle(t, e, func() bool { return len(typosIn(e)) == 0 })
 }

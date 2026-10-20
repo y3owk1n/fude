@@ -38,7 +38,7 @@ func (m *Module) Registered() []api.Registration {
 	return []api.Registration{{Kind: api.Command, Name: "blame", Help: "shows who last changed the cursor's line, and when, after it, or stops showing it", ID: 1}}
 }
 
-func (m *Module) Subscribed() []string { return []string{"view.moved", "buffer.changed"} }
+func (m *Module) Subscribed() []string { return []string{"window.moved", "buffer.changed"} }
 
 func (m *Module) Init(context.Context, api.Scope) (api.Result, error) { return api.Result{}, nil }
 
@@ -63,7 +63,7 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 	switch {
 	case !m.on:
 		return api.Result{}, nil
-	case event == "view.moved":
+	case event == "window.moved":
 		m.buffer = s.About["buffer"]
 	case s.About["buffer"] != m.buffer:
 		return api.Result{}, nil

@@ -43,7 +43,7 @@ var endings = []struct{ cut, add string }{
 }
 
 // rows is more lines than a window shows. Spell underlines that many from
-// the top of the view.
+// the top of the window.
 const rows = 200
 
 // read is the id of the job that reads the word list.
@@ -63,7 +63,7 @@ type Module struct {
 	own   string           // the file of the user's own words
 	known map[string]bool  // the words of the list and the user's, nil until read
 	list  string           // the word list read, being read, or failed to be
-	tops  map[string]int   // by buffer, where the view starts, as last heard
+	tops  map[string]int   // by buffer, where the window's text starts, as last heard
 	shown map[string][]int // by buffer, the ids of the words underlined
 	ids   int
 	asked question // the word z= asked about
@@ -87,7 +87,7 @@ func New(own string) *Module {
 func (m *Module) Name() string { return "spell" }
 
 func (m *Module) Subscribed() []string {
-	return []string{"buffer.opened", "view.moved", "buffer.changed", "buffer.closed", "option.set", "config.reloaded"}
+	return []string{"buffer.opened", "window.moved", "buffer.changed", "buffer.closed", "option.set", "config.reloaded"}
 }
 
 func (m *Module) Registered() []api.Registration {
@@ -100,7 +100,7 @@ func (m *Module) Registered() []api.Registration {
 }
 
 // Init starts reading the word list when spell is on, and its callback
-// underlines what the view shows.
+// underlines what the window shows.
 func (m *Module) Init(_ context.Context, s api.Scope) (api.Result, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -133,7 +133,7 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 	return m.add(s, args[0]), nil
 }
 
-// Event underlines the typos the view shows when it moves or the text
+// Event underlines the typos the window shows when it moves or the text
 // changes.
 func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result, error) {
 	m.mu.Lock()
@@ -150,9 +150,9 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 	if on, _ := s.Option("spell"); on != "true" {
 		return m.clear(buf), nil
 	}
-	// still is a view.moved that did not scroll, which underlines nothing new.
+	// still is a window.moved that did not scroll, which underlines nothing new.
 	still := false
-	if event, detail, _ := strings.Cut(name, " "); event == "view.moved" {
+	if event, detail, _ := strings.Cut(name, " "); event == "window.moved" {
 		_, top, _ := strings.Cut(detail, " ")
 		at, _ := strconv.Atoi(top)
 		still = at == m.tops[buf] && m.shown[buf] != nil
@@ -221,7 +221,7 @@ func (m *Module) clear(buf string) api.Result {
 	return res
 }
 
-// underline underlines the typos in the lines of the view, from its top.
+// underline underlines the typos in the lines of the window, from its top.
 func (m *Module) underline(s api.Scope) api.Result {
 	buf, t := s.About["buffer"], s.Text
 	res := m.clear(buf)

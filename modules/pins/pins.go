@@ -65,7 +65,7 @@ func New() *Module { return &Module{kept: map[string][]pin{}, guests: map[string
 func (m *Module) Name() string { return "pin" }
 
 func (m *Module) Subscribed() []string {
-	return []string{"view.moved", "explorer.moved", "editor.quitting"}
+	return []string{"window.moved", "explorer.moved", "editor.quitting"}
 }
 
 func (m *Module) Registered() []api.Registration {
@@ -237,7 +237,7 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 	defer m.mu.Unlock()
 	event, detail, _ := strings.Cut(name, " ")
 	switch event {
-	case "view.moved":
+	case "window.moved":
 		pins, err := m.pins(s)
 		if err != nil {
 			return api.Result{Log: []string{err.Error()}}, nil

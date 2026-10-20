@@ -324,7 +324,7 @@ func TestB209ServerColours(t *testing.T) {
 	e.Use(colours.New())
 	teal := func(at int) func() bool {
 		return func() bool {
-			return slices.Contains(e.Views()[0].Colours, wire.Colour{Start: at, End: at + 4, RGB: 0x008080})
+			return slices.Contains(e.Windows()[0].Colours, wire.Colour{Start: at, End: at + 4, RGB: 0x008080})
 		}
 	}
 	settle(t, e, teal(2))
@@ -339,7 +339,7 @@ func TestB216InlayHints(t *testing.T) {
 	e.Use(inlay.New())
 	hint := func(at int) func() bool {
 		return func() bool {
-			return slices.Contains(e.Views()[0].Ghosts, wire.Ghost{Pos: at, Text: "n: ", Style: "inlay"})
+			return slices.Contains(e.Windows()[0].Ghosts, wire.Ghost{Pos: at, Text: "n: ", Style: "inlay"})
 		}
 	}
 	settle(t, e, hint(4))
@@ -350,7 +350,7 @@ func TestB216InlayHints(t *testing.T) {
 	// show, so those of a deleted line go.
 	feed(e, "ox f(2)<Esc>ggdd")
 	settle(t, e, func() bool {
-		return slices.Equal(e.Views()[0].Ghosts, []wire.Ghost{{Pos: 4, Text: "n: ", Style: "inlay"}})
+		return slices.Equal(e.Windows()[0].Ghosts, []wire.Ghost{{Pos: 4, Text: "n: ", Style: "inlay"}})
 	})
 }
 
@@ -445,8 +445,8 @@ func TestB169SeveralServers(t *testing.T) {
 	t.Cleanup(func() { feed(e, ":qa!<CR>") })
 	e.Load()
 	// Each server's diagnostics show beside the other's.
-	settle(t, e, func() bool { return e.Views()[0].Errors == 2 })
-	if v := e.Views()[0]; v.Server != "fake, again" {
+	settle(t, e, func() bool { return e.Windows()[0].Errors == 2 })
+	if v := e.Windows()[0]; v.Server != "fake, again" {
 		t.Errorf("the statusline names %q, want fake, again", v.Server)
 	}
 }
@@ -510,12 +510,12 @@ func TestB160LspStopAndDisable(t *testing.T) {
 func TestB161Progress(t *testing.T) {
 	e, log := withServer(t, "x\n", "utf-8")
 	heard(t, log, `"method":"initialized"`, 1)
-	view := func() wire.View { return e.Views()[0] }
-	settle(t, e, func() bool { return view().Progress == "indexing 50%" })
-	if feed(e, "a~<Esc>"); view().Server == "" {
-		t.Fatal("the view names no server")
+	win := func() wire.Window { return e.Windows()[0] }
+	settle(t, e, func() bool { return win().Progress == "indexing 50%" })
+	if feed(e, "a~<Esc>"); win().Server == "" {
+		t.Fatal("the window names no server")
 	}
-	settle(t, e, func() bool { return view().Progress == "" })
+	settle(t, e, func() bool { return win().Progress == "" })
 }
 
 // B61
@@ -526,13 +526,13 @@ func TestB61Diagnostics(t *testing.T) {
 		t.Errorf("decorations are %q, want two errors on bad", got)
 	}
 	// The message shows after its line until diagnostic_notes is off.
-	if n := e.Views()[0].Notes[1]; n != (wire.Note{Text: "bad word", Name: "diagnostic.error"}) {
+	if n := e.Windows()[0].Notes[1]; n != (wire.Note{Text: "bad word", Name: "diagnostic.error"}) {
 		t.Errorf("the line with errors has the note %+v", n)
 	}
 	feed(e, ":set diagnostic_notes false<CR>")
-	settle(t, e, func() bool { return len(e.Views()[0].Notes) == 0 })
+	settle(t, e, func() bool { return len(e.Windows()[0].Notes) == 0 })
 	feed(e, ":set diagnostic_notes true<CR>")
-	settle(t, e, func() bool { return len(e.Views()[0].Notes) == 1 })
+	settle(t, e, func() bool { return len(e.Windows()[0].Notes) == 1 })
 	for _, c := range []struct {
 		keys string
 		at   int
@@ -555,21 +555,21 @@ func TestB61Diagnostics(t *testing.T) {
 	if feed(e, "k<C-w>d"); e.Message() != "no diagnostics on this line" {
 		t.Errorf("<C-w>d on a line with none said %q", e.Message())
 	}
-	if feed(e, "<C-w>v<C-w>l"); len(e.Views()) != 2 || !e.Views()[1].Current {
-		t.Errorf("<C-w>v<C-w>l left %d windows, the second current %v", len(e.Views()), len(e.Views()) > 1 && e.Views()[1].Current)
+	if feed(e, "<C-w>v<C-w>l"); len(e.Windows()) != 2 || !e.Windows()[1].Current {
+		t.Errorf("<C-w>v<C-w>l left %d windows, the second current %v", len(e.Windows()), len(e.Windows()) > 1 && e.Windows()[1].Current)
 	}
 }
 
 // B119
 func TestB119SignColumn(t *testing.T) {
 	e, _ := withServer(t, "ok\nbad x bad\n", "utf-8")
-	if v := e.Views()[0]; v.SignCols != 0 {
+	if v := e.Windows()[0]; v.SignCols != 0 {
 		t.Fatalf("before any diagnostics the sign column takes %d columns", v.SignCols)
 	}
 	settle(t, e, func() bool { return len(decorations(e)) == 2 })
-	v := e.Views()[0]
+	v := e.Windows()[0]
 	if v.SignCols != 2 || v.Gutter != 2 || len(v.Signs) != 1 || v.Signs[1] != (wire.Sign{Text: "E", Name: "diagnostic.error"}) {
-		t.Fatalf("with two errors on line 2 the view has %d sign columns and signs %v", v.SignCols, v.Signs)
+		t.Fatalf("with two errors on line 2 the window has %d sign columns and signs %v", v.SignCols, v.Signs)
 	}
 }
 
@@ -577,8 +577,8 @@ func TestB119SignColumn(t *testing.T) {
 func TestB128Icons(t *testing.T) {
 	e, _ := withServer(t, "ok\nbad x bad\n", "utf-8")
 	settle(t, e, func() bool { return len(decorations(e)) == 2 })
-	if feed(e, ":set icons true<CR>"); e.Views()[0].Signs[1] != (wire.Sign{Text: "\uf057", Name: "diagnostic.error"}) {
-		t.Fatalf("with icons the error sign is %v", e.Views()[0].Signs[1])
+	if feed(e, ":set icons true<CR>"); e.Windows()[0].Signs[1] != (wire.Sign{Text: "\uf057", Name: "diagnostic.error"}) {
+		t.Fatalf("with icons the error sign is %v", e.Windows()[0].Signs[1])
 	}
 
 	// An explorer's icons take two columns at the gutter's right.
@@ -591,8 +591,8 @@ func TestB128Icons(t *testing.T) {
 	e.Use(explorermod.New())
 	feed(e, ":e "+dir+"<CR>")
 	want := map[int]wire.Sign{0: {Text: "\U000f07d3", Name: "icon.azure"}, 1: {Text: "\U000f0214", Name: "icon.grey"}, 2: {Text: "\U000f024b", Name: "icon.azure"}}
-	settle(t, e, func() bool { return maps.Equal(e.Views()[0].Icons, want) })
-	if v := e.Views()[0]; v.Gutter != v.SignCols+2 {
+	settle(t, e, func() bool { return maps.Equal(e.Windows()[0].Icons, want) })
+	if v := e.Windows()[0]; v.Gutter != v.SignCols+2 {
 		t.Fatalf("the explorer has gutter %d", v.Gutter)
 	}
 }
@@ -632,8 +632,8 @@ func TestB62DefinitionAndHover(t *testing.T) {
 	// leaves it.
 	feed(e, "K")
 	settle(t, e, func() bool { _, ok := e.Float(); return ok })
-	if feed(e, "Kj"); text(e) != "func target()\n---\nhover at 1:3" || e.Cursor() != 14 || len(e.Views()) != 1 {
-		t.Errorf("K, j on a shown hover left %q with the cursor at %d in %d windows", text(e), e.Cursor(), len(e.Views()))
+	if feed(e, "Kj"); text(e) != "func target()\n---\nhover at 1:3" || e.Cursor() != 14 || len(e.Windows()) != 1 {
+		t.Errorf("K, j on a shown hover left %q with the cursor at %d in %d windows", text(e), e.Cursor(), len(e.Windows()))
 	}
 	if feed(e, "q"); e.Cursor() != 5 {
 		t.Errorf("q in the float went to %d, want back to 5", e.Cursor())
@@ -747,8 +747,8 @@ func TestB136FormatOnSaveServer(t *testing.T) {
 	e.Use(format.New())
 	heard(t, log, `"method":"textDocument/didOpen"`, 1)
 	feed(e, ":w<CR>")
-	settle(t, e, func() bool { return !e.Views()[0].Modified && text(e) == "\ta\n\tb" })
-	if got := disk(t, e.Views()[0].Name); got != "\ta\n\tb" {
+	settle(t, e, func() bool { return !e.Windows()[0].Modified && text(e) == "\ta\n\tb" })
+	if got := disk(t, e.Windows()[0].Name); got != "\ta\n\tb" {
 		t.Fatalf(":w wrote %q", got)
 	}
 	// A server that sends the whole text, ending in a line break, adds no
@@ -759,8 +759,8 @@ func TestB136FormatOnSaveServer(t *testing.T) {
 	e.Use(format.New())
 	heard(t, log, `"method":"textDocument/didOpen"`, 1)
 	feed(e, "l:w<CR>")
-	settle(t, e, func() bool { return !e.Views()[0].Modified && text(e) != "ab\n\tb\nc" })
-	if got := disk(t, e.Views()[0].Name); got != "\tab\n\tb\n\tc\n" {
+	settle(t, e, func() bool { return !e.Windows()[0].Modified && text(e) != "ab\n\tb\nc" })
+	if got := disk(t, e.Windows()[0].Name); got != "\tab\n\tb\n\tc\n" {
 		t.Fatalf(":w wrote %q", got)
 	}
 	if line := e.Text().LineOf(e.Cursor()); line != 0 {
@@ -801,8 +801,8 @@ func TestB142FloatKeymap(t *testing.T) {
 func TestB147Diagnostics(t *testing.T) {
 	e, _ := withServer(t, "ok\nbad x bad\n", "utf-8")
 	settle(t, e, func() bool { return len(decorations(e)) == 2 })
-	if v := e.Views()[0]; v.Errors != 2 || v.Warnings != 0 {
-		t.Fatalf("the view counts %d errors and %d warnings, want 2 and 0", v.Errors, v.Warnings)
+	if v := e.Windows()[0]; v.Errors != 2 || v.Warnings != 0 {
+		t.Fatalf("the window counts %d errors and %d warnings, want 2 and 0", v.Errors, v.Warnings)
 	}
 }
 
@@ -811,14 +811,14 @@ func TestB66Places(t *testing.T) {
 	e, log := withServer(t, "a target\nb target\nc\n", "utf-8")
 	withCommands(e)
 	heard(t, log, `"method":"textDocument/didOpen"`, 1)
-	path := e.Views()[0].Name
+	path := e.Windows()[0].Name
 
 	feed(e, "grr")
 	settle(t, e, func() bool { return strings.HasPrefix(text(e), path) })
 	if want := path + ":1:3: a target\n" + path + ":2:3: b target"; text(e) != want {
 		t.Errorf("grr listed %q, want %q", text(e), want)
 	}
-	if feed(e, "j<CR>"); e.Views()[1].Name != "[references]" || text(e) != "a target\nb target\nc" || e.Cursor() != 11 {
+	if feed(e, "j<CR>"); e.Windows()[1].Name != "[references]" || text(e) != "a target\nb target\nc" || e.Cursor() != 11 {
 		t.Errorf("<CR> on the second reference left %q at %d", text(e), e.Cursor())
 	}
 	feed(e, "ggjgrt")
@@ -841,7 +841,7 @@ func TestB194LastList(t *testing.T) {
 	withCommands(e)
 	heard(t, log, `"method":"textDocument/didOpen"`, 1)
 	feed(e, "grr")
-	settle(t, e, func() bool { return len(e.Views()) == 2 })
+	settle(t, e, func() bool { return len(e.Windows()) == 2 })
 	// The list's window closes, and the list stays.
 	feed(e, ":cclose<CR>")
 	for _, c := range []struct {
@@ -860,8 +860,8 @@ func TestB194LastList(t *testing.T) {
 	if feed(e, "]q]q"); e.Message() != "no more places" {
 		t.Errorf("going past the last place said %q", e.Message())
 	}
-	if feed(e, ":copen<CR>"); len(e.Views()) != 2 || e.Cursor() != e.Text().LineStart(2) {
-		t.Errorf(":copen showed %d windows with the cursor at %d", len(e.Views()), e.Cursor())
+	if feed(e, ":copen<CR>"); len(e.Windows()) != 2 || e.Cursor() != e.Text().LineStart(2) {
+		t.Errorf(":copen showed %d windows with the cursor at %d", len(e.Windows()), e.Cursor())
 	}
 }
 
@@ -910,7 +910,7 @@ func TestB66Rename(t *testing.T) {
 	e, log := withServer(t, "a target\nb target\nc\n", "utf-8")
 	e.Use(buffersmod.New())
 	heard(t, log, `"method":"textDocument/didOpen"`, 1)
-	other := filepath.Join(filepath.Dir(e.Views()[0].Name), "other.go")
+	other := filepath.Join(filepath.Dir(e.Windows()[0].Name), "other.go")
 	change(t, other, "package p\n")
 
 	feed(e, "wgrn")

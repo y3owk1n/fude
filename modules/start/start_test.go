@@ -40,12 +40,12 @@ func TestB225StartScreen(t *testing.T) {
 		got := editortest.Text(e)
 		return strings.Contains(got, "f  find a file") && strings.Contains(got, "q  quit") && strings.Contains(got, "1  a.txt")
 	})
-	if e.Views()[0].Number {
+	if e.Windows()[0].Number {
 		t.Error("the start screen shows line numbers")
 	}
 	// A digit opens its recent file, and the window shows numbers again.
-	if editortest.Feed(e, "1"); e.Views()[0].Name != "a.txt" || !e.Views()[0].Number {
-		t.Errorf("1 opened %q", e.Views()[0].Name)
+	if editortest.Feed(e, "1"); e.Windows()[0].Name != "a.txt" || !e.Windows()[0].Number {
+		t.Errorf("1 opened %q", e.Windows()[0].Name)
 	}
 	// <CR> runs the line's key, as f opens the finder.
 	editortest.Feed(e, ":enew<CR>")

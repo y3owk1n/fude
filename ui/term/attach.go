@@ -207,9 +207,9 @@ func (a *Attached) apply(f wire.Frame) {
 			}
 		}
 	}
-	for i, v := range f.Views {
+	for i, v := range f.Windows {
 		if b := a.texts[v.Buffer]; b != nil {
-			f.Views[i].Text = b.Snapshot()
+			f.Windows[i].Text = b.Snapshot()
 		}
 	}
 	// A copy goes on this machine's clipboard, or else the terminal's
@@ -309,8 +309,8 @@ func wait(d *time.Duration) (time.Duration, bool) {
 	return *d, true
 }
 
-func (a *Attached) Views() []wire.View  { return a.f.Views }
-func (a *Attached) Buffers() []wire.Tab { return a.f.Buffers }
+func (a *Attached) Windows() []wire.Window { return a.f.Windows }
+func (a *Attached) Buffers() []wire.Tab    { return a.f.Buffers }
 
 func (a *Attached) Float() (wire.Float, bool)     { return orZero(a.f.Float) }
 func (a *Attached) Signature() (wire.Float, bool) { return orZero(a.f.Signature) }

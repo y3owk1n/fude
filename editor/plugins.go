@@ -1218,7 +1218,7 @@ func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 	}
 	s := api.Scope{Text: t, About: e.about(b), Buffers: bufs, Language: func(int) string { return ft }}
 	if e.win.buf == b {
-		// Where the current window's view starts, and the end of the line a
+		// Where the current window's text starts, and the end of the line a
 		// window's height below, as wrap may show less (B316).
 		top := e.Top()
 		s.About["top"] = strconv.Itoa(top)

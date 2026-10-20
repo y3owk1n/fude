@@ -144,7 +144,7 @@ func TestB304ImageFile(t *testing.T) {
 	if text(e) != "PNG, 80 by 32 pixels" || e.Message() != "" {
 		t.Fatalf("the image opened as %q, saying %q", text(e), e.Message())
 	}
-	settle(t, e, func() bool { return len(e.Views()[0].Virtual[0]) == 2 })
+	settle(t, e, func() bool { return len(e.Windows()[0].Virtual[0]) == 2 })
 	if feed(e, "i"); e.Mode() != vim.Normal {
 		t.Error("i in the image started insert mode")
 	}
@@ -169,14 +169,14 @@ func TestB307ReloadImage(t *testing.T) {
 	e := open(t, path)
 	e.SetSize(80, 20)
 	e.SetCell(8, 16)
-	settle(t, e, func() bool { return len(e.Views()[0].Virtual[0]) == 2 })
-	old := e.Views()[0].Virtual[0][0].Image
+	settle(t, e, func() bool { return len(e.Windows()[0].Virtual[0]) == 2 })
+	old := e.Windows()[0].Virtual[0][0].Image
 	// Coming back to fude after the file grew shows the new image, under a
 	// line that says so, and frees the old one.
 	write(160, time.Now())
 	e.Focus()
 	settle(t, e, func() bool {
-		v := e.Views()[0].Virtual[0]
+		v := e.Windows()[0].Virtual[0]
 		return text(e) == "PNG, 160 by 32 pixels" && len(v) > 0 && v[0].Image != old && v[0].Cols == 20
 	})
 	if !slices.Contains(e.Freed(), old) {
@@ -396,8 +396,8 @@ func TestB155WritingAndFiles(t *testing.T) {
 	e.Use(explorermod.New())
 	// :w with a name writes a copy, and the buffer stays on its own file.
 	feed(e, "x:w b<CR>")
-	if disk(t, filepath.Join(dir, "b")) != "ne\n" || disk(t, path) != "one\n" || e.Views()[0].Name != "a" {
-		t.Fatalf(":w b wrote %q, left a %q, and the window shows %q", disk(t, filepath.Join(dir, "b")), disk(t, path), e.Views()[0].Name)
+	if disk(t, filepath.Join(dir, "b")) != "ne\n" || disk(t, path) != "one\n" || e.Windows()[0].Name != "a" {
+		t.Fatalf(":w b wrote %q, left a %q, and the window shows %q", disk(t, filepath.Join(dir, "b")), disk(t, path), e.Windows()[0].Name)
 	}
 	if feed(e, ":w b<CR>"); !strings.Contains(e.Message(), "exists") {
 		t.Fatalf(":w over a file that exists said %q", e.Message())
@@ -406,7 +406,7 @@ func TestB155WritingAndFiles(t *testing.T) {
 	if feed(e, ":e<CR>"); text(e) != "ne" {
 		t.Fatalf(":e with changes left %q", text(e))
 	}
-	if feed(e, ":e!<CR>"); text(e) != "one" || e.Views()[0].Modified {
+	if feed(e, ":e!<CR>"); text(e) != "one" || e.Windows()[0].Modified {
 		t.Fatalf(":e! left %q", text(e))
 	}
 	// :update writes only a buffer with changes.
@@ -415,8 +415,8 @@ func TestB155WritingAndFiles(t *testing.T) {
 		t.Fatal(":update wrote a buffer with no changes")
 	}
 	// :new splits to a buffer with no file.
-	if feed(e, ":new<CR>"); len(e.Views()) != 2 || e.Views()[1].Name != "[No Name]" {
-		t.Fatalf(":new left windows %v", e.Views())
+	if feed(e, ":new<CR>"); len(e.Windows()) != 2 || e.Windows()[1].Name != "[No Name]" {
+		t.Fatalf(":new left windows %v", e.Windows())
 	}
 	// :cd moves the working directory, and the buffers keep their files.
 	sub := filepath.Join(dir, "sub")

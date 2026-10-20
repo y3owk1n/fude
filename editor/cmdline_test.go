@@ -64,8 +64,8 @@ func TestB131CommandCompletion(t *testing.T) {
 	}
 	// <CR> on a name that is no command runs the menu's first, and on one
 	// that is a command runs it as typed.
-	if feed(e, "<Esc>:timel<CR>"); len(e.Views()) != 2 {
-		t.Fatalf(":timel<CR> left %d windows, want the timeline's too", len(e.Views()))
+	if feed(e, "<Esc>:timel<CR>"); len(e.Windows()) != 2 {
+		t.Fatalf(":timel<CR> left %d windows, want the timeline's too", len(e.Windows()))
 	}
 	feed(e, ":q<CR>")
 	if feed(e, ":ls<CR>"); !strings.Contains(e.Message(), `"readme"`) {
@@ -82,13 +82,13 @@ func TestB131CommandCompletion(t *testing.T) {
 	}
 	feed(e, ":e rea")
 	settle(t, e, func() bool { return lit("readme") })
-	if feed(e, "<CR>"); e.Views()[0].Name != "readme" {
-		t.Errorf(":e rea<CR> opened %s, want readme", e.Views()[0].Name)
+	if feed(e, "<CR>"); e.Windows()[0].Name != "readme" {
+		t.Errorf(":e rea<CR> opened %s, want readme", e.Windows()[0].Name)
 	}
 	feed(e, ":e rea")
 	settle(t, e, func() bool { return lit("readme") })
-	if feed(e, "<C-e><CR>"); e.Views()[0].Name != "rea" {
-		t.Errorf(":e rea<C-e><CR> opened %s, want the new file rea", e.Views()[0].Name)
+	if feed(e, "<C-e><CR>"); e.Windows()[0].Name != "rea" {
+		t.Errorf(":e rea<C-e><CR> opened %s, want the new file rea", e.Windows()[0].Name)
 	}
 	feed(e, ":b readme<CR>")
 	// A short name matches as its command, which shows its short names.
@@ -191,21 +191,21 @@ func TestB154SubstitutePreview(t *testing.T) {
 	e.SetSize(80, 24)
 	feed(e, "ifoo bar foo<CR>foo<Esc>gg")
 	// While the pattern is typed, its match on the line shows.
-	if feed(e, ":s/foo"); !slices.Equal(e.Views()[0].Matches, [][2]int{{0, 3}}) {
-		t.Fatalf("typing :s/foo shows matches %v", e.Views()[0].Matches)
+	if feed(e, ":s/foo"); !slices.Equal(e.Windows()[0].Matches, [][2]int{{0, 3}}) {
+		t.Fatalf("typing :s/foo shows matches %v", e.Windows()[0].Matches)
 	}
 	// With a replacement, each match is struck out before what replaces it,
 	// and the text stays as it is.
 	feed(e, "/x")
-	v := e.Views()[0]
+	v := e.Windows()[0]
 	if len(v.Ghosts) != 1 || v.Ghosts[0] != (wire.Ghost{Pos: 3, Text: "x", Style: "sub.new"}) || text(e) != "foo bar foo\nfoo" {
 		t.Fatalf("typing :s/foo/x shows %v over %q", v.Ghosts, text(e))
 	}
-	if feed(e, "<Esc>:%s/foo/y/g"); len(e.Views()[0].Ghosts) != 3 {
-		t.Fatalf(":%%s/foo/y/g previews %d replacements, want 3", len(e.Views()[0].Ghosts))
+	if feed(e, "<Esc>:%s/foo/y/g"); len(e.Windows()[0].Ghosts) != 3 {
+		t.Fatalf(":%%s/foo/y/g previews %d replacements, want 3", len(e.Windows()[0].Ghosts))
 	}
-	if feed(e, "<Esc>"); len(e.Views()[0].Ghosts) != 0 || text(e) != "foo bar foo\nfoo" {
-		t.Fatalf("after <Esc> the preview left %v over %q", e.Views()[0].Ghosts, text(e))
+	if feed(e, "<Esc>"); len(e.Windows()[0].Ghosts) != 0 || text(e) != "foo bar foo\nfoo" {
+		t.Fatalf("after <Esc> the preview left %v over %q", e.Windows()[0].Ghosts, text(e))
 	}
 }
 

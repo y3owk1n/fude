@@ -126,8 +126,8 @@ func TestB57Events(t *testing.T) {
 func TestB58StatuslineSegments(t *testing.T) {
 	e := withPlugin(t, "seg", "ui")
 	e.Load()
-	settle(t, e, func() bool { return len(e.Views()[0].Segments) > 0 })
-	if got := e.Views()[0].Segments; len(got) != 1 || got[0] != "ready" {
+	settle(t, e, func() bool { return len(e.Windows()[0].Segments) > 0 })
+	if got := e.Windows()[0].Segments; len(got) != 1 || got[0] != "ready" {
 		t.Fatalf("the statusline shows %q, want ready", got)
 	}
 }
@@ -420,7 +420,7 @@ func TestB175PluginCommandArguments(t *testing.T) {
 // B176
 func TestB176PluginReadsWhereItRuns(t *testing.T) {
 	e := loaded(t, "ctx", "f.go", "a\nbc\nd\n", "buffer.read", "buffer.write")
-	path := e.Views()[0].Name
+	path := e.Windows()[0].Name
 	feed(e, "j:Where<CR>")
 	if want := "1|" + path + "|go|normal|3|1|5"; !strings.Contains(text(e), want) {
 		t.Errorf(":Where typed %q, want %q", text(e), want)
@@ -504,7 +504,7 @@ func TestB342PluginEditsAnotherBuffer(t *testing.T) {
 	e := loaded(t, "full", "f", "a\n", "buffer.read", "buffer.write", "ui")
 	// The window beside keeps showing f while a scratch buffer is current.
 	feed(e, ":Act split<CR>:Act scratch<CR>:Other<CR>")
-	for _, v := range e.Views() {
+	for _, v := range e.Windows() {
 		if !v.Current {
 			if got := v.Text.Slice(0, v.Text.Len()); got != "xa" {
 				t.Errorf(":Other left %q in the other buffer, want xa", got)
@@ -516,13 +516,13 @@ func TestB342PluginEditsAnotherBuffer(t *testing.T) {
 // B343
 func TestB343PluginActsOnBuffersAndWindows(t *testing.T) {
 	e := loaded(t, "full", "f", "a\n", "buffer.read", "buffer.write", "ui")
-	if feed(e, ":Act split<CR>"); len(e.Views()) != 2 {
-		t.Fatalf(":Act split left %d windows", len(e.Views()))
+	if feed(e, ":Act split<CR>"); len(e.Windows()) != 2 {
+		t.Fatalf(":Act split left %d windows", len(e.Windows()))
 	}
-	if feed(e, ":Act close<CR>"); len(e.Views()) != 1 {
-		t.Fatalf(":Act close left %d windows", len(e.Views()))
+	if feed(e, ":Act close<CR>"); len(e.Windows()) != 1 {
+		t.Fatalf(":Act close left %d windows", len(e.Windows()))
 	}
-	if feed(e, "ix<Esc>:Act write<CR>"); e.Views()[0].Modified {
+	if feed(e, "ix<Esc>:Act write<CR>"); e.Windows()[0].Modified {
 		t.Errorf(":Act write left the buffer modified")
 	}
 	if feed(e, ":Act scratch<CR>"); text(e) != "hi" {
@@ -563,7 +563,7 @@ func TestB182PluginHearsTheCursor(t *testing.T) {
 	e := loaded(t, "watch", "f", "a\nb\nc\n", "ui")
 	e.SetSize(80, 10)
 	feed(e, "jj")
-	settle(t, e, func() bool { s := e.Views()[0].Segments; return len(s) == 1 && s[0] == "4 0" })
+	settle(t, e, func() bool { s := e.Windows()[0].Segments; return len(s) == 1 && s[0] == "4 0" })
 }
 
 // B183
@@ -582,17 +582,17 @@ func TestB184PluginSignsAndNotes(t *testing.T) {
 	e.SetSize(80, 10)
 	feed(e, "jix<Esc>")
 	settle(t, e, func() bool {
-		v := e.Views()[0]
+		v := e.Windows()[0]
 		return v.Signs[1] == wire.Sign{Text: "+", Name: "git.add"} && v.Notes[1].Text == "changed"
 	})
 	// A new change moves them, and the line they left shows none.
 	feed(e, "kix<Esc>")
 	settle(t, e, func() bool {
-		v := e.Views()[0]
+		v := e.Windows()[0]
 		return v.Notes[0].Text == "changed" && v.Notes[1].Text == "" && v.Signs[1].Text == ""
 	})
 	// A window on another buffer shows none of them.
-	if feed(e, "<C-w>v:e "+filepath.Join(t.TempDir(), "g")+"<CR>"); len(e.Views()) != 2 || e.Views()[1].Notes[0].Text != "" || e.Views()[1].Signs[0].Text != "" {
+	if feed(e, "<C-w>v:e "+filepath.Join(t.TempDir(), "g")+"<CR>"); len(e.Windows()) != 2 || e.Windows()[1].Notes[0].Text != "" || e.Windows()[1].Signs[0].Text != "" {
 		t.Errorf("a window on a new buffer shows another buffer's notes or signs")
 	}
 }
@@ -602,13 +602,13 @@ func TestB186PluginWindows(t *testing.T) {
 	e := loaded(t, "ctx", "f", "a\n", "ui")
 	e.SetSize(80, 20)
 	feed(e, ":Show one<CR>:Show two<CR>")
-	vs := e.Views()
-	i := slices.IndexFunc(vs, func(v wire.View) bool { return v.Name == "[shown]" })
+	vs := e.Windows()
+	i := slices.IndexFunc(vs, func(v wire.Window) bool { return v.Name == "[shown]" })
 	if len(vs) != 2 || i < 0 || vs[i].Text.Slice(0, vs[i].Text.Len()) != "two" || vs[i].Filetype != "go" {
 		t.Fatalf("after two :Show, the windows are %d and [shown] is %d", len(vs), i)
 	}
 	// It closes without asking to save.
-	if feed(e, ":q<CR>"); len(e.Views()) != 1 {
+	if feed(e, ":q<CR>"); len(e.Windows()) != 1 {
 		t.Errorf(":q in [shown] said %q", e.Message())
 	}
 }
@@ -620,12 +620,12 @@ func TestB187PluginMovesTheCursor(t *testing.T) {
 		t.Errorf(":Go 2 left the cursor at %d", e.Cursor())
 	}
 	// The tests run in editor/, which is the project.
-	name := e.Views()[0].Name
-	if feed(e, ":Open ../go.mod<CR>"); e.Views()[0].Name != name {
-		t.Errorf("a file outside the project opened: %s", e.Views()[0].Name)
+	name := e.Windows()[0].Name
+	if feed(e, ":Open ../go.mod<CR>"); e.Windows()[0].Name != name {
+		t.Errorf("a file outside the project opened: %s", e.Windows()[0].Name)
 	}
-	if feed(e, ":Open guide/01-start.md<CR>"); !strings.HasSuffix(e.Views()[0].Name, filepath.Join("guide", "01-start.md")) || e.Cursor() != 2 {
-		t.Errorf(":Open opened %s with the cursor at %d", e.Views()[0].Name, e.Cursor())
+	if feed(e, ":Open guide/01-start.md<CR>"); !strings.HasSuffix(e.Windows()[0].Name, filepath.Join("guide", "01-start.md")) || e.Cursor() != 2 {
+		t.Errorf(":Open opened %s with the cursor at %d", e.Windows()[0].Name, e.Cursor())
 	}
 }
 
@@ -930,7 +930,7 @@ func TestB282WriteWaitsForModules(t *testing.T) {
 func TestB282PluginHearsSaving(t *testing.T) {
 	e := loaded(t, "listen", "f", "a\n", "buffer.read", "ui")
 	feed(e, ":w<CR>")
-	settle(t, e, func() bool { return strings.Contains(fudeLog(), "listen: buffer.saving") && !e.Views()[0].Modified })
+	settle(t, e, func() bool { return strings.Contains(fudeLog(), "listen: buffer.saving") && !e.Windows()[0].Modified })
 }
 
 // B284
@@ -1005,18 +1005,18 @@ func TestB286PlacesPick(t *testing.T) {
 	feed(e, ":pick spots<CR>")
 	settle(t, e, func() bool { f, _ := e.Float(); return strings.Contains(f.Text, "second") })
 	feed(e, "<CR>")
-	if line := e.Text().LineOf(e.Cursor()); line != 1 || e.Views()[0].Name != path {
-		t.Errorf("picking the place put the cursor on line %d of %s, want line 2 of the file", line+1, e.Views()[0].Name)
+	if line := e.Text().LineOf(e.Cursor()); line != 1 || e.Windows()[0].Name != path {
+		t.Errorf("picking the place put the cursor on line %d of %s, want line 2 of the file", line+1, e.Windows()[0].Name)
 	}
 	// <C-q> lists the places.
 	feed(e, ":pick spots<CR>")
 	settle(t, e, func() bool { f, _ := e.Float(); return strings.Contains(f.Text, "second") })
 	feed(e, "<C-q>")
 	settle(t, e, func() bool {
-		return slices.ContainsFunc(e.Views(), func(v wire.View) bool { return v.Name == "[spots]" })
+		return slices.ContainsFunc(e.Windows(), func(v wire.Window) bool { return v.Name == "[spots]" })
 	})
-	if !slices.ContainsFunc(e.Views(), func(v wire.View) bool { return v.Name == "[spots]" }) {
-		t.Errorf("<C-q> opened %v, want a [spots] list", e.Views())
+	if !slices.ContainsFunc(e.Windows(), func(v wire.Window) bool { return v.Name == "[spots]" }) {
+		t.Errorf("<C-q> opened %v, want a [spots] list", e.Windows())
 	}
 }
 
@@ -1117,13 +1117,13 @@ func TestB288PluginFolds(t *testing.T) {
 	e := loaded(t, "ctx", "f", "a\n b\n c\nd\n", "buffer.read", "buffer.write", "ui")
 	e.SetSize(80, 20)
 	feed(e, ":Fold 0 2<CR>")
-	settle(t, e, func() bool { return maps.Equal(e.Views()[0].Folds, map[int]int{0: 2}) })
+	settle(t, e, func() bool { return maps.Equal(e.Windows()[0].Folds, map[int]int{0: 2}) })
 	// j passes over the fold, and a search into it opens it.
 	if feed(e, "j"); e.Text().LineOf(e.Cursor()) != 3 {
 		t.Errorf("j over the fold went to line %d", e.Text().LineOf(e.Cursor()))
 	}
-	if feed(e, "gg/c<CR>"); e.Views()[0].Folds != nil {
-		t.Errorf("searching into the fold left %v", e.Views()[0].Folds)
+	if feed(e, "gg/c<CR>"); e.Windows()[0].Folds != nil {
+		t.Errorf("searching into the fold left %v", e.Windows()[0].Folds)
 	}
 }
 
@@ -1153,27 +1153,27 @@ func TestB295Replace(t *testing.T) {
 	heading := func(p int) wire.Ghost { return wire.Ghost{Pos: p, End: p + 2, Text: "§", Style: "markup.heading"} }
 	// The cursor's line shows its text as it is, and the others the
 	// replacement.
-	shows := func(p int) bool { return slices.Contains(e.Views()[0].Ghosts, heading(p)) }
+	shows := func(p int) bool { return slices.Contains(e.Windows()[0].Ghosts, heading(p)) }
 	settle(t, e, func() bool { return shows(4) })
 	if shows(0) {
-		t.Errorf("the cursor's line shows %v", e.Views()[0].Ghosts)
+		t.Errorf("the cursor's line shows %v", e.Windows()[0].Ghosts)
 	}
 	if feed(e, "j"); !shows(0) || shows(4) {
-		t.Errorf("with the cursor on the second line the ghosts are %v", e.Views()[0].Ghosts)
+		t.Errorf("with the cursor on the second line the ghosts are %v", e.Windows()[0].Ghosts)
 	}
 	// A selection's lines show their text.
 	if feed(e, "ggVj"); shows(0) || shows(4) {
-		t.Errorf("with both lines selected the ghosts are %v", e.Views()[0].Ghosts)
+		t.Errorf("with both lines selected the ghosts are %v", e.Windows()[0].Ghosts)
 	}
 	// 2gj counts the rows of the line below as the window draws them, where
 	// its second row starts after the 9 x's beside §.
 	if feed(e, "<Esc>j2gj"); e.Cursor() != 11+2+9 {
 		t.Errorf("2gj went to %d, want the second drawn row's start", e.Cursor())
 	}
-	// The view scrolls by the rows the lines draw: the cursor's takes two,
+	// The window scrolls by the rows the lines draw: the cursor's takes two,
 	// and each one above it takes one.
-	if feed(e, "G"); e.Text().LineOf(e.Views()[0].Top) != e.Text().LineOf(e.Cursor())-2 {
-		t.Errorf("at the last line the view starts at line %d", e.Text().LineOf(e.Views()[0].Top))
+	if feed(e, "G"); e.Text().LineOf(e.Windows()[0].Top) != e.Text().LineOf(e.Cursor())-2 {
+		t.Errorf("at the last line the window starts at line %d", e.Text().LineOf(e.Windows()[0].Top))
 	}
 }
 
@@ -1183,7 +1183,7 @@ func TestB295PluginReplaceAndShade(t *testing.T) {
 	e.SetSize(80, 20)
 	feed(e, ":Replace 1<CR>:Shade 1<CR>")
 	settle(t, e, func() bool {
-		v := e.Views()[0]
+		v := e.Windows()[0]
 		return slices.Contains(v.Ghosts, wire.Ghost{Pos: 2, End: 4, Text: "§", Style: "markdown.h1"}) && v.Grounds[1] == "markdown.code"
 	})
 }
@@ -1206,11 +1206,11 @@ func TestB299VirtualRows(t *testing.T) {
 	e.Use(ruled{})
 	// The row shows once its line is in view.
 	feed(e, "G")
-	settle(t, e, func() bool { return len(e.Views()[0].Virtual[8]) == 1 })
+	settle(t, e, func() bool { return len(e.Windows()[0].Virtual[8]) == 1 })
 	// The window shows four rows, and the row above the line before the
 	// last takes one, so G shows three lines.
-	if feed(e, "ggG"); e.Text().LineOf(e.Views()[0].Top) != 7 {
-		t.Errorf("at the last line the view starts at line %d", e.Text().LineOf(e.Views()[0].Top))
+	if feed(e, "ggG"); e.Text().LineOf(e.Windows()[0].Top) != 7 {
+		t.Errorf("at the last line the window starts at line %d", e.Text().LineOf(e.Windows()[0].Top))
 	}
 }
 
@@ -1220,11 +1220,11 @@ func TestB299PluginRowsAndBlock(t *testing.T) {
 	e.SetSize(80, 20)
 	feed(e, ":Rows 1<CR>:Block 1 2<CR>")
 	settle(t, e, func() bool {
-		return slices.Equal(e.Views()[0].Virtual[1], []wire.Virtual{{Text: "──", Style: "markdown.rule"}})
+		return slices.Equal(e.Windows()[0].Virtual[1], []wire.Virtual{{Text: "──", Style: "markdown.rule"}})
 	})
 	// With the cursor on the block's other line, its row goes.
-	if feed(e, "3G"); len(e.Views()[0].Virtual[1]) != 0 {
-		t.Errorf("with the cursor in the block, line 2 draws %v", e.Views()[0].Virtual[1])
+	if feed(e, "3G"); len(e.Windows()[0].Virtual[1]) != 0 {
+		t.Errorf("with the cursor in the block, line 2 draws %v", e.Windows()[0].Virtual[1])
 	}
 }
 
@@ -1255,14 +1255,14 @@ func TestB303ImageRows(t *testing.T) {
 	e.SetSize(80, 20)
 	e.Use(pictured{path: pic})
 	// With no cell size from the client, the image takes no rows.
-	if len(e.Views()[0].Virtual[0]) != 0 {
-		t.Fatalf("with no cell size, line 1 draws %v", e.Views()[0].Virtual[0])
+	if len(e.Windows()[0].Virtual[0]) != 0 {
+		t.Fatalf("with no cell size, line 1 draws %v", e.Windows()[0].Virtual[0])
 	}
 	// With 8 by 16 pixel cells, 80 by 32 pixels take 10 columns and two
 	// rows, on the cursor's line too.
 	e.SetCell(8, 16)
-	settle(t, e, func() bool { return len(e.Views()[0].Virtual[0]) == 2 })
-	v := e.Views()[0].Virtual[0]
+	settle(t, e, func() bool { return len(e.Windows()[0].Virtual[0]) == 2 })
+	v := e.Windows()[0].Virtual[0]
 	if v[0].Image == 0 || v[1].Image != v[0].Image || v[0].Row != 0 || v[1].Row != 1 || v[0].Cols != 10 {
 		t.Errorf("the image's rows are %+v", v)
 	}
@@ -1285,8 +1285,8 @@ func TestB306FreeImages(t *testing.T) {
 	e.SetSize(80, 20)
 	e.SetCell(8, 16)
 	e.Use(pictured{path: pic})
-	settle(t, e, func() bool { return len(e.Views()[0].Virtual[0]) == 2 })
-	id := e.Views()[0].Virtual[0][0].Image
+	settle(t, e, func() bool { return len(e.Windows()[0].Virtual[0]) == 2 })
+	id := e.Windows()[0].Virtual[0][0].Image
 	// Closing the buffer drops the image it showed, once.
 	if feed(e, ":bd<CR>"); !slices.Equal(e.Freed(), []int{id}) || e.Freed() != nil {
 		t.Errorf("after :bd the images freed are not %d once", id)
@@ -1309,11 +1309,11 @@ func TestB308RemoteImage(t *testing.T) {
 	// With remote_images off, an image at an address does not load.
 	feed(e, ":set remote_images false<CR>")
 	e.Use(pictured{path: srv.URL + "/a.png"})
-	if len(e.Views()[0].Virtual[0]) != 0 {
+	if len(e.Windows()[0].Virtual[0]) != 0 {
 		t.Fatal("with remote_images off the image took rows")
 	}
 	feed(e, ":set remote_images true<CR>")
-	settle(t, e, func() bool { return len(e.Views()[0].Virtual[0]) == 2 })
+	settle(t, e, func() bool { return len(e.Windows()[0].Virtual[0]) == 2 })
 }
 
 // floater is a module whose :Float shows markdown with an image in a float.
@@ -1357,7 +1357,7 @@ func TestB289PluginReadsItsDecorations(t *testing.T) {
 	e := loaded(t, "ctx", "f", "a\n b\n c\nd\n", "buffer.read", "buffer.write", "ui")
 	e.SetSize(80, 20)
 	feed(e, ":Fold 0 2<CR>")
-	settle(t, e, func() bool { return e.Views()[0].Folds != nil })
+	settle(t, e, func() bool { return e.Windows()[0].Folds != nil })
 	feed(e, "G:Decos<CR>")
 	settle(t, e, func() bool { return strings.Contains(text(e), "1:0-5:true|") })
 }

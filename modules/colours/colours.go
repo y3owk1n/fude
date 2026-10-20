@@ -16,13 +16,13 @@ import (
 )
 
 // rows is more lines than a window shows. The text's colours show for that
-// many from the top of the view.
+// many from the top of the window.
 const rows = 200
 
 // Module is colours.
 type Module struct {
 	mu      sync.Mutex
-	tops    map[string]int    // by buffer, where the view starts, as last heard
+	tops    map[string]int    // by buffer, where the window's text starts, as last heard
 	named   map[string][]int  // by buffer, the ids of the colours the text names
 	given   map[string][]int  // by buffer, the ids of the colours the server gave
 	asked   map[string]uint32 // by buffer, the request waiting for the server
@@ -41,7 +41,7 @@ func New() *Module {
 func (m *Module) Name() string { return "colours" }
 
 func (m *Module) Subscribed() []string {
-	return []string{"buffer.opened", "buffer.changed", "buffer.closed", "view.moved", "lsp.attached", "option.set", "config.reloaded"}
+	return []string{"buffer.opened", "buffer.changed", "buffer.closed", "window.moved", "lsp.attached", "option.set", "config.reloaded"}
 }
 
 func (m *Module) Registered() []api.Registration { return nil }
@@ -52,7 +52,7 @@ func (m *Module) Call(context.Context, uint32, api.Scope, ...int) (api.Result, e
 	return api.Result{}, nil
 }
 
-// Event colours the text the view shows when it moves or the text changes,
+// Event colours the text the window shows when it moves or the text changes,
 // and asks the server again after each change and once one attaches.
 func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result, error) {
 	m.mu.Lock()
@@ -80,7 +80,7 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 		delete(m.given, buf)
 		return res, nil
 	}
-	if event == "view.moved" {
+	if event == "window.moved" {
 		_, top, _ := strings.Cut(detail, " ")
 		at, _ := strconv.Atoi(top)
 		if at == m.tops[buf] && m.named[buf] != nil {
@@ -149,7 +149,7 @@ func (m *Module) Callback(_ context.Context, id uint32, s api.Scope) (api.Result
 func (m *Module) Work(context.Context, api.Job) (string, error) { return "", nil }
 func (m *Module) Close(context.Context) error                   { return nil }
 
-// name colours the text that names colours in the lines of the view, from
+// name colours the text that names colours in the lines of the window, from
 // its top, in place of the colours it had (B208).
 func (m *Module) name(s api.Scope) api.Result {
 	buf, t := s.About["buffer"], s.Text

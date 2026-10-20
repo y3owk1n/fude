@@ -87,9 +87,9 @@ after its name in `Args`, `Bang` for a `!` after the name, and its range
 in `First` and `Last`, where its lines start. `sdk.On` runs a function
 for an event:
 `buffer.opened`, `buffer.changed`, `buffer.saved`, `buffer.closed`,
-`mode.changed`, `view.moved`, `syntax.updated` or `lsp.diagnostics`.
-For `view.moved`, the event's `Cursor` and `Top` say where the cursor is
-and where the view starts, and for `buffer.changed`, its `Start` and
+`mode.changed`, `window.moved`, `syntax.updated` or `lsp.diagnostics`.
+For `window.moved`, the event's `Cursor` and `Top` say where the cursor is
+and where the window's text starts, and for `buffer.changed`, its `Start` and
 `End` say what the change covered.
 
 `sdk.Current` gives the id, path and filetype of the buffer a call or

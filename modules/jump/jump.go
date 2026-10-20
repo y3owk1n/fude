@@ -81,7 +81,7 @@ func (m *Module) Call(_ context.Context, _ uint32, s api.Scope, args ...int) (ap
 	return m.find(s, args[0]), nil
 }
 
-// find finds the text typed in the current window's view, ignoring case
+// find finds the text typed in what the current window shows, ignoring case
 // unless it has a capital, and labels the matches nearest the cursor
 // first. A label is never the character after a match, so typing more of
 // the text never jumps.

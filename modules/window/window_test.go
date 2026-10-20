@@ -24,7 +24,7 @@ func TestB140Navigate(t *testing.T) {
 	// :vsplit leaves the cursor in the right window, so left moves within
 	// fude, and left again goes to tmux's pane.
 	editortest.Feed(e, ":vsplit<CR><Plug>(window.left)")
-	if v := e.Views(); !v[0].Current || v[1].Current {
+	if v := e.Windows(); !v[0].Current || v[1].Current {
 		t.Fatal("<Plug>(window.left) did not move to the left window")
 	}
 	editortest.Feed(e, "<Plug>(window.left)")

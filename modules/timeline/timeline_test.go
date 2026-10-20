@@ -48,7 +48,7 @@ func TestB31Timeline(t *testing.T) {
 	e = editortest.Open(t, path)
 	e.Use(timeline.New())
 	source := func() string {
-		for _, v := range e.Views() {
+		for _, v := range e.Windows() {
 			if v.Name == path {
 				return v.Text.Slice(0, v.Text.Len())
 			}

@@ -13,7 +13,7 @@ import (
 // screen returns the text of the terminal window's screen, or "" when no
 // window shows one in terminal mode.
 func screen(e *editor.Session) string {
-	for _, v := range e.Views() {
+	for _, v := range e.Windows() {
 		if v.Cells == nil {
 			continue
 		}
@@ -40,7 +40,7 @@ func TestB205Terminal(t *testing.T) {
 	e.Use(terminalmod.New())
 	e.SetSize(80, 24)
 	feed(e, ":terminal cat<CR>")
-	vs := e.Views()
+	vs := e.Windows()
 	if len(vs) != 2 || !e.Terminal() || vs[1].H != 8 || vs[1].Name != "[terminal cat]" {
 		t.Fatalf(":terminal cat made %d windows, the last %q %d rows tall, terminal mode %v", len(vs), vs[len(vs)-1].Name, vs[len(vs)-1].H, e.Terminal())
 	}
@@ -62,7 +62,7 @@ func TestB205Terminal(t *testing.T) {
 	}
 	// The program ends, and its window stays with how it ended.
 	feed(e, "i<C-d><C-d>")
-	settle(t, e, func() bool { return e.Views()[1].Name == "[terminal cat, exited 0]" })
+	settle(t, e, func() bool { return e.Windows()[1].Name == "[terminal cat, exited 0]" })
 	if e.Terminal() || !strings.HasPrefix(text(e), "hi\nhi") {
 		t.Errorf("after cat ended, terminal mode is %v with %q", e.Terminal(), text(e))
 	}
@@ -72,7 +72,7 @@ func TestB205Terminal(t *testing.T) {
 	e.Use(terminalmod.New())
 	e.SetSize(80, 24)
 	feed(e, ":terminal cat<CR>")
-	if vs := e.Views(); len(vs) != 2 || vs[1].H != 12 {
+	if vs := e.Windows(); len(vs) != 2 || vs[1].H != 12 {
 		t.Errorf("with terminal_height = 50 the terminal is %d rows tall, want 12", vs[len(vs)-1].H)
 	}
 }
@@ -88,7 +88,7 @@ func TestB355TerminalEnv(t *testing.T) {
 	e.SetSize(80, 24)
 	echoed := func() string {
 		feed(e, ":terminal echo [$FUDE_SOCKET $FUDE_SESSION]<CR>")
-		settle(t, e, func() bool { return strings.HasSuffix(e.Views()[len(e.Views())-1].Name, "exited 0]") })
+		settle(t, e, func() bool { return strings.HasSuffix(e.Windows()[len(e.Windows())-1].Name, "exited 0]") })
 		got := strings.TrimSpace(text(e))
 		feed(e, ":q<CR>")
 		return got

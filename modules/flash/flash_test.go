@@ -16,7 +16,7 @@ func TestMain(m *testing.M) { os.Exit(editortest.Main(m)) }
 
 // flashed returns where the flash is, or nil.
 func flashed(e *editor.Session) []int {
-	for _, d := range e.Views()[0].Decorations {
+	for _, d := range e.Windows()[0].Decorations {
 		if d.Name == "flash" {
 			return []int{d.Start, d.End}
 		}

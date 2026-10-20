@@ -71,7 +71,7 @@ func TestB240AttachedLeaves(t *testing.T) {
 	// :qa leaves, and the change it made stays, unsaved, for the host.
 	agent := e.Attach("agent", editor.Host)
 	feed(agent, "x:qa<CR>")
-	if !agent.Done() || e.Done() || text(e) != "bc" || !e.Views()[0].Modified {
+	if !agent.Done() || e.Done() || text(e) != "bc" || !e.Windows()[0].Modified {
 		t.Fatalf(":qa in an attached session: it done %v, fude done %v, text %q", agent.Done(), e.Done(), text(e))
 	}
 	for _, keys := range []string{":q<CR>", "ZZ"} {
@@ -118,8 +118,8 @@ func TestB244GuestRefuses(t *testing.T) {
 		}
 	}
 	now, _ := os.Getwd()
-	if name, _, _ := e.Theme(); now != wd || name != theme || text(e) != "b\na" || guest.Done() || len(guest.Views()) != 1 {
-		t.Errorf("a guest's refused commands left the directory %s, the theme %s, the text %q, it done %v, %d windows", now, name, text(e), guest.Done(), len(guest.Views()))
+	if name, _, _ := e.Theme(); now != wd || name != theme || text(e) != "b\na" || guest.Done() || len(guest.Windows()) != 1 {
+		t.Errorf("a guest's refused commands left the directory %s, the theme %s, the text %q, it done %v, %d windows", now, name, text(e), guest.Done(), len(guest.Windows()))
 	}
 	if _, err := os.Stat(ran); err == nil {
 		t.Error("a guest ran a program")
@@ -149,10 +149,10 @@ func TestB244GuestRefuses(t *testing.T) {
 	// sh from PATH, which on Windows comes with Git for Windows.
 	t.Setenv("SHELL", "sh")
 	feed(e, `:terminal cat<CR><C-\><C-n>`)
-	views := e.Views()
-	term := views[len(views)-1]
-	if feed(guest, fmt.Sprintf(":b %d<CR>", term.Buffer)); guest.Message() != "a guest may not use a terminal" || guest.Views()[0].Name == term.Name {
-		t.Errorf(":b on the host's terminal in a guest said %q and shows %s", guest.Message(), guest.Views()[0].Name)
+	wins := e.Windows()
+	term := wins[len(wins)-1]
+	if feed(guest, fmt.Sprintf(":b %d<CR>", term.Buffer)); guest.Message() != "a guest may not use a terminal" || guest.Windows()[0].Name == term.Name {
+		t.Errorf(":b on the host's terminal in a guest said %q and shows %s", guest.Message(), guest.Windows()[0].Name)
 	}
 }
 
@@ -182,10 +182,10 @@ func TestB245GuestProject(t *testing.T) {
 	feed(e, ":e "+out+"<CR>")
 	guest := e.Attach("guest", editor.Guest)
 	guest.SetSize(80, 24)
-	if name := guest.Views()[0].Name; name != "a.txt" {
+	if name := guest.Windows()[0].Name; name != "a.txt" {
 		t.Fatalf("a guest joined showing %s", name)
 	}
-	r := editor.Request{Buffer: e.Views()[0].Buffer, Command: editor.Command{Op: "delete", Target: editor.Target{Name: "lines"}}}
+	r := editor.Request{Buffer: e.Windows()[0].Buffer, Command: editor.Command{Op: "delete", Target: editor.Target{Name: "lines"}}}
 	if err := guest.Request(r); err == nil || err.Error() != out+" is outside the project" {
 		t.Errorf("a guest's request naming a buffer outside said %v", err)
 	}
@@ -205,7 +205,7 @@ func TestB245GuestProject(t *testing.T) {
 		}
 	}
 	feed(guest, "u:b a.txt<CR>")
-	if v := guest.Views(); len(v) != 1 || v[0].Name != "a.txt" || text(guest) != "a" {
+	if v := guest.Windows(); len(v) != 1 || v[0].Name != "a.txt" || text(guest) != "a" {
 		t.Errorf("a guest's paths outside left %d windows, on %q holding %q", len(v), v[0].Name, text(guest))
 	}
 	// The only buffer the guest's paths opened is the project's explorer.
@@ -218,7 +218,7 @@ func TestB245GuestProject(t *testing.T) {
 		}
 	}
 	// A file not made yet in the project opens.
-	if feed(guest, ":e sub/new.txt<CR>"); guest.Views()[0].Name != filepath.Join("sub", "new.txt") {
+	if feed(guest, ":e sub/new.txt<CR>"); guest.Windows()[0].Name != filepath.Join("sub", "new.txt") {
 		t.Errorf(":e sub/new.txt in a guest said %q", guest.Message())
 	}
 	// The finder previews only files in the project.
@@ -297,7 +297,7 @@ func TestB247ReadOnlyGuest(t *testing.T) {
 		t.Errorf("a read-only guest's search and yank left the cursor at %d and said %q", viewer.Cursor(), viewer.Message())
 	}
 	proposeQuote(t, viewer, 5, "bye")
-	if g := e.Views()[0].Ghosts; len(g) != 2 {
+	if g := e.Windows()[0].Ghosts; len(g) != 2 {
 		t.Errorf("a read-only guest's proposal left the ghosts %v", g)
 	}
 }
@@ -320,19 +320,19 @@ func TestB256Follow(t *testing.T) {
 	feed(pat, ":e b.txt<CR>50G")
 	// The window shows what pat's shows, and keeps up as pat moves.
 	same := func() bool {
-		v, w := e.Views()[0], pat.Views()[0]
+		v, w := e.Windows()[0], pat.Windows()[0]
 		return v.Name == w.Name && v.Cursor == w.Cursor && v.Top == w.Top
 	}
 	if feed(e, ":follow pat<CR>"); !same() {
-		t.Fatalf(":follow pat shows %s at %d, want pat's %s at %d", e.Views()[0].Name, e.Views()[0].Cursor, pat.Views()[0].Name, pat.Views()[0].Cursor)
+		t.Fatalf(":follow pat shows %s at %d, want pat's %s at %d", e.Windows()[0].Name, e.Windows()[0].Cursor, pat.Windows()[0].Name, pat.Windows()[0].Cursor)
 	}
 	if feed(pat, "90G"); !same() {
-		t.Errorf("after pat moved, the follower is at %d, want %d", e.Views()[0].Cursor, pat.Views()[0].Cursor)
+		t.Errorf("after pat moved, the follower is at %d, want %d", e.Windows()[0].Cursor, pat.Windows()[0].Cursor)
 	}
 	// It copies the layout, which window is current, and each window's left
 	// column.
 	feed(pat, ":vsplit c.txt<CR>$10h")
-	vs, ws := e.Views(), pat.Views()
+	vs, ws := e.Windows(), pat.Windows()
 	if len(vs) != len(ws) {
 		t.Fatalf("the follower has %d windows, pat %d", len(vs), len(ws))
 	}
@@ -347,7 +347,7 @@ func TestB256Follow(t *testing.T) {
 	// A window too short for pat's top line scrolls to show the cursor.
 	feed(pat, "<C-w>w95G")
 	e.SetSize(80, 8)
-	for _, v := range e.Views() {
+	for _, v := range e.Windows() {
 		if v.Name == "b.txt" && (v.Cursor/2 < v.Top/2 || v.Cursor/2 >= v.Top/2+v.H-1) {
 			t.Errorf("the follower's short window shows lines %d on, the cursor on %d", v.Top/2, v.Cursor/2)
 		}
@@ -366,7 +366,7 @@ func TestB256Follow(t *testing.T) {
 	// pat leaving stops it too.
 	feed(e, ":follow pat<CR>")
 	feed(pat, ":qa<CR>")
-	if e.Views(); e.Message() != "pat left, so following stopped" {
+	if e.Windows(); e.Message() != "pat left, so following stopped" {
 		t.Errorf("when pat left, the follower said %q", e.Message())
 	}
 	// A key's own message shows over that of following's end.
@@ -379,7 +379,7 @@ func TestB256Follow(t *testing.T) {
 	guest := e.Attach("guest", editor.Guest)
 	feed(guest, ":follow host<CR>")
 	feed(e, ":e "+filepath.Join(away, "out.txt")+"<CR>")
-	if name := guest.Views()[0].Name; name != "b.txt" {
+	if name := guest.Windows()[0].Name; name != "b.txt" {
 		t.Errorf("a guest followed the host to %s", name)
 	}
 }

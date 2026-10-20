@@ -125,7 +125,7 @@ type Session struct {
 	clip        string                  // the text last copied, when no clipboard command runs
 	toTerminal  bool                    // the client has yet to put clip on its terminal's clipboard
 	mode        vim.Mode                // the mode as plugins last heard it
-	seen        view                    // the current window as plugins last heard it
+	seen        seenAt                  // the current window as plugins last heard it
 	noticed     noticed                 // the windows and the rest as modules last heard of them (B346)
 	saves       map[*buffer]*saving     // the writes waiting for modules (B282)
 	inSave      *saving                 // the write the result being applied is for, or nil
@@ -591,14 +591,14 @@ func (e *Session) settle(err error) {
 		e.shownBuf = e.win.buf
 		e.emit("buffer.shown", "", e.win.buf)
 	}
-	if v := (view{e.win.buf, e.Cursor(), e.Top()}); v != e.seen {
+	if v := (seenAt{e.win.buf, e.Cursor(), e.Top()}); v != e.seen {
 		e.seen = v
-		e.emit("view.moved", fmt.Sprintf("%d %d", v.cursor, v.top), v.buf)
+		e.emit("window.moved", fmt.Sprintf("%d %d", v.cursor, v.top), v.buf)
 	}
 }
 
-// view is where the current window is, for view.moved.
-type view struct {
+// seenAt is where the current window is, for window.moved.
+type seenAt struct {
 	buf         *buffer
 	cursor, top int
 }
@@ -657,7 +657,7 @@ func (e *Session) reveal() {
 	// A top inside a closed fold is its first line (B224).
 	first, _ := w.fold(t, t.LineOf(e.Top()))
 	w.buf.text.MoveMark(w.top, min(max(t.LineStart(first), low), above))
-	// Without wrap the view scrolls sideways the least it must to show the
+	// Without wrap the window scrolls sideways the least it must to show the
 	// cursor's column (B37).
 	if col := vim.Column(t, line, c, tab, d.inlines); !w.opts.Wrap {
 		w.left = min(max(w.left, col-w.cols()+1), col)

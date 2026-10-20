@@ -197,7 +197,7 @@ func (im *images) flush() error {
 }
 
 // image draws row r of an image at row y of v.
-func (c *client) image(v wire.View, line int, r wire.Virtual, y int) {
+func (c *client) image(v wire.Window, line int, r wire.Virtual, y int) {
 	rows := 0
 	for _, o := range v.Virtual[line] {
 		if o.Image == r.Image {

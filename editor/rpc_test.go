@@ -144,8 +144,8 @@ func TestB239AttachFrames(t *testing.T) {
 	fmt.Fprintln(cl.c, `{"method":"size","params":[80,24]}`)
 	texts := map[int]string{}
 	// The first frame brings the whole text, and later ones its edits.
-	f := cl.frames(texts, func(f wire.Frame) bool { return len(f.Views) == 1 && f.Views[0].H == 24 })
-	if b := f.Views[0].Buffer; texts[b] != "one" {
+	f := cl.frames(texts, func(f wire.Frame) bool { return len(f.Windows) == 1 && f.Windows[0].H == 24 })
+	if b := f.Windows[0].Buffer; texts[b] != "one" {
 		t.Fatalf("the first frame gave the text %q", texts[b])
 	}
 	fmt.Fprintln(cl.c, `{"method":"keys","params":["A","!","<Esc>"]}`)
@@ -155,7 +155,7 @@ func TestB239AttachFrames(t *testing.T) {
 				t.Errorf("a frame after the first sent the whole text again")
 			}
 		}
-		return texts[f.Views[0].Buffer] == "one!" && f.Mode == vim.Normal
+		return texts[f.Windows[0].Buffer] == "one!" && f.Mode == vim.Normal
 	})
 	cl.do <- func() {}
 	if got := text(e); got != "one!" {
@@ -270,7 +270,7 @@ func TestB75RequestAtLeavesCursors(t *testing.T) {
 	if err := agent.Request(editor.Request{Buffer: 2, Command: editor.Command{Op: "delete", Target: editor.Target{Name: "word"}}}); err != nil {
 		t.Fatal(err)
 	}
-	if feed(agent, "<C-^>"); agent.Views()[0].Name == other {
+	if feed(agent, "<C-^>"); agent.Windows()[0].Name == other {
 		t.Errorf("after a request on %s, <C-^> went to it", other)
 	}
 }

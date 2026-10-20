@@ -29,7 +29,7 @@ e.Use(fold.New())  // a module, before Load
 e.SetSize(80, 24)
 e.Load()           // language servers, plugins and the start screen
 e.Feed("j")
-for _, v := range e.Views() {
+for _, v := range e.Windows() {
 	fmt.Println(v.Name, v.Cursor)
 }
 ```
@@ -39,7 +39,7 @@ for _, v := range e.Views() {
 - `Queue` hands the client the work other goroutines queue for the editor
   loop, such as a module's answer or a server's diagnostics. The client runs
   each func it receives, then draws.
-- `Views`, `Buffers`, `Float`, `Signature`, `Line`, `Mode` and `Message` are
+- `Windows`, `Buffers`, `Float`, `Signature`, `Line`, `Mode` and `Message` are
   what to draw, in the types of [`wire`](../wire).
 - `Use` adds a module over [`api`](../api). `cmd/fude` lists the built-in
   ones, and [`modules`](../modules) holds them.
@@ -64,7 +64,7 @@ func TestFolds(t *testing.T) {
 	e := editortest.Start(t, path)
 	e.Use(fold.New())
 	editortest.Feed(e, "jzc")
-	if e.Views()[0].Folds[0] != 2 {
+	if e.Windows()[0].Folds[0] != 2 {
 		t.Error("zc did not fold the function")
 	}
 }

@@ -98,9 +98,9 @@ and Neovim work this way, the text is trivially editable (B17), and a macro
 can hold `:w` or `<C-w>v`, which are not commands. The cost is that a
 remapped key changes how an old macro replays, as in Neovim.
 
-## D16. Views belong to clients
+## D16. Windows belong to clients
 
-The kernel holds a view's marks and nothing else about it. Why: keeps the
+The kernel holds a window's marks and nothing else about it. Why: keeps the
 kernel small, and in step 6 each client has its own windows and cursors on
 shared buffers.
 
@@ -183,7 +183,7 @@ network address when `fude --share` asks it to.
 
 ## D25. fude's own client protocol, carrying state
 
-Clients receive buffers, edits, views, decorations, modes and proposals,
+Clients receive buffers, edits, windows, decorations, modes and proposals,
 not a cell grid. Why: Neovim's UI protocol shares one screen, size and
 cursor between every attached client, and Neovide, goneovim and
 vscode-neovim all call far more than the UI protocol (Lua, Vimscript,
@@ -384,10 +384,10 @@ x/vt's API brings two of them in as direct dependencies:
 `charmbracelet/ultraviolet` for the key names fude sends it, and
 `charmbracelet/x/ansi` for the colours it returns.
 
-## D39. An attached client draws the session's views, sent as frames
+## D39. An attached client draws the session's windows, sent as frames
 
 `fude --attach` is fude's terminal client drawing a session of another
-fude (B239). The server sends the session's frame, the views, floats,
+fude (B239). The server sends the session's frame, the windows, floats,
 command line, hints and status that the terminal draws, whenever it
 changes, and the client sends keys, pastes, size and focus. Text goes
 once per buffer and then as the edits since, from the kernel's `Since`,
@@ -507,7 +507,7 @@ it carries the guest's own keymaps and options. Why: each side had its
 own copy of the replica types, and two copies of one protocol can
 disagree with nothing to catch it. A client that draws frames needs
 them without the editor. `wire/` stays in the root module until a client
-outside it needs the types. It takes `Span` from `syntax/`, and a view
+outside it needs the types. It takes `Span` from `syntax/`, and a window
 carries its `kernel.Snapshot` for a client in the same process, so it
 imports both.
 
@@ -662,15 +662,15 @@ the result's `Where`, or else below. Once a window is open, `:float`,
 placement it asks for, and modifiers, `[open]` and moves leave that
 window where it is. A locked window still closes.
 
-Hover, signature help, a menu item's doc, help and every panel are
-windows in this model (B368). Menus, the finder and the command line's
-menu are lists to pick from, not buffers. They stay their own and draw
-in the same box a float does. `Where` and `Lock` replace `Panel.Float`,
-`Jump.Split`, `Scratch.Split` and a terminal's fixed place below.
-`Panel.Screen` stays, as it changes how a window draws, not where. The
-box a float panel was (B318) goes, and its `Cards` and `Foot` become
-options of a window in any placement. The wire sends a float as a view
-with its rectangle.
+Hover, signature help, help and every panel show in windows in this model
+(B368). Menus, the finder and the command line's menu are lists to pick
+from, not buffers, and a menu item's doc is part of its menu. They keep
+their own code and draw in the same bordered box a float does. `Where`
+and `Lock` replace `Panel.Float`, `Jump.Split`, `Scratch.Split` and a
+terminal's fixed place below. `Panel.Screen` stays, as it changes how a
+window draws, not where. The box a float panel was (B318) goes, and its
+`Cards` and `Foot` become options of a window in any placement. The wire
+sends a float as a window with its rectangle.
 
 Why, as of 2026-10-20: the user asked that a module choose a split or a
 float, that the user can always change it while fude runs, and that a

@@ -21,7 +21,7 @@ func TestB136FormatOnSave(t *testing.T) {
 	// The commands run in turn, and the cursor on a line they keep stays.
 	editortest.Feed(e, "ll:w<CR>")
 	editortest.Settle(t, e, func() bool { return editortest.Disk(t, path) == "keep\ny there\n" })
-	if editortest.Text(e) != "keep\ny there" || e.Cursor() != 2 || e.Views()[0].Modified {
+	if editortest.Text(e) != "keep\ny there" || e.Cursor() != 2 || e.Windows()[0].Modified {
 		t.Fatalf("after :w the buffer has %q, the cursor at %d", editortest.Text(e), e.Cursor())
 	}
 	// A formatter that fails leaves the text, which is written anyway.
@@ -47,7 +47,7 @@ func TestB234Format(t *testing.T) {
 	e.Use(format.New())
 	editortest.Feed(e, "j:format<CR>")
 	editortest.Settle(t, e, func() bool { return editortest.Text(e) == "keep\ny here" })
-	if !e.Views()[0].Modified || editortest.Disk(t, path) != "keep\nx here\n" {
+	if !e.Windows()[0].Modified || editortest.Disk(t, path) != "keep\nx here\n" {
 		t.Fatalf("after :format the file has %q, want it unwritten", editortest.Disk(t, path))
 	}
 	if m := e.Message(); m != "fude-no-such-formatter not installed" {

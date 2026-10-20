@@ -258,7 +258,7 @@ func TestB199Center(t *testing.T) {
 			c.e.Feed(k)
 		}
 		c.draw()
-		left := step.text - c.e.Views()[0].Gutter
+		left := step.text - c.e.Windows()[0].Gutter
 		for y := range 40 {
 			for x := range 120 {
 				if s, _, _ := c.s.Get(x, y); (x < left || x >= step.right) && s != " " {
@@ -302,7 +302,7 @@ func TestB23Separator(t *testing.T) {
 		c.e.Feed(k)
 	}
 	c.draw()
-	x := c.e.Views()[1].X - 1
+	x := c.e.Windows()[1].X - 1
 	if s, style, _ := c.s.Get(x, 0); s != "│" || style.GetForeground() != themes["dark"].border {
 		t.Errorf("between the windows is %q in %v, want the border colour", s, style.GetForeground())
 	}
@@ -613,7 +613,7 @@ func TestB303DrawImage(t *testing.T) {
 	}
 	// Its 80 by 32 pixels take 10 columns and two rows of placeholders, in
 	// the colour of its id, and the terminal got it once, sized so.
-	id := c.img.ids[[3]int{c.e.Views()[0].Virtual[0][0].Image, 2, 10}]
+	id := c.img.ids[[3]int{c.e.Windows()[0].Virtual[0][0].Image, 2, 10}]
 	ink := color.NewRGBColor(int32(id>>16&0xff), int32(id>>8&0xff), int32(id&0xff))
 	for _, at := range []struct{ x, y, row, col int }{{0, 1, 0, 0}, {9, 2, 1, 9}} {
 		want := string([]rune{kitty.Placeholder, kitty.Diacritic(at.row), kitty.Diacritic(at.col)})
@@ -1807,24 +1807,24 @@ func TestB252Names(t *testing.T) {
 	defer a.Close()
 	// A session that sends no name is named by its origin.
 	on(func() { host.Attach("agent", editor.Host) })
-	names := func(v []wire.View) (out []string) {
+	names := func(v []wire.Window) (out []string) {
 		for _, o := range v[0].Others {
 			out = append(out, fmt.Sprintf("%s %d", o.Name, o.Colour))
 		}
 		return out
 	}
 	var seen []string
-	on(func() { seen = names(host.Views()) })
+	on(func() { seen = names(host.Windows()) })
 	if want := []string{"pat 1", "agent 2"}; !slices.Equal(seen, want) {
 		t.Errorf("the host sees %q, want %q", seen, want)
 	}
 	// The attached client sees the host by $USER.
-	for deadline := time.After(5 * time.Second); !slices.Equal(names(a.Views()), []string{"kyle 0", "agent 2"}); {
+	for deadline := time.After(5 * time.Second); !slices.Equal(names(a.Windows()), []string{"kyle 0", "agent 2"}); {
 		select {
 		case f := <-a.Queue():
 			f()
 		case <-deadline:
-			t.Fatalf("the attached client sees %q", names(a.Views()))
+			t.Fatalf("the attached client sees %q", names(a.Windows()))
 		}
 	}
 }
@@ -1948,7 +1948,7 @@ func TestB254OwnConfig(t *testing.T) {
 		}
 	}
 	// Its windows take its options, and it draws in its theme.
-	for deadline := time.After(5 * time.Second); !j.a.Views()[0].Number; {
+	for deadline := time.After(5 * time.Second); !j.a.Windows()[0].Number; {
 		select {
 		case f := <-j.a.Queue():
 			f()
@@ -1957,7 +1957,7 @@ func TestB254OwnConfig(t *testing.T) {
 		}
 	}
 	var hostNumber bool
-	on(func() { hostNumber = host.Views()[0].Number })
+	on(func() { hostNumber = host.Windows()[0].Number })
 	if name, _, _ := j.a.Theme(); name != "light" || hostNumber {
 		t.Errorf("the guest draws in %q, and the host shows numbers %v", name, hostNumber)
 	}

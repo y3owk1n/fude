@@ -70,7 +70,7 @@ func New() *Module {
 func (m *Module) Name() string { return "git" }
 
 func (m *Module) Subscribed() []string {
-	return []string{"buffer.opened", "buffer.changed", "buffer.closed", "view.moved", "editor.focused", "explorer.read", "option.set", "config.reloaded"}
+	return []string{"buffer.opened", "buffer.changed", "buffer.closed", "window.moved", "editor.focused", "explorer.read", "option.set", "config.reloaded"}
 }
 
 func (m *Module) Registered() []api.Registration {
@@ -147,7 +147,7 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 			m.stale[b] = true
 		}
 		return m.branch(s, m.read(s)), nil
-	case "view.moved", "option.set", "config.reloaded":
+	case "window.moved", "option.set", "config.reloaded":
 		if m.stale[buf] {
 			return m.read(s), nil
 		}

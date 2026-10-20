@@ -38,8 +38,8 @@ func TestB134Grep(t *testing.T) {
 	editortest.Feed(e, "<BS><BS><BS><BS><BS><BS>Needle")
 	editortest.Settle(t, e, func() bool { return slices.Equal(results(), []string{"a.go", "2  two Needle"}) })
 	// <CR> opens the file on the match.
-	if editortest.Feed(e, "<CR>"); e.Views()[0].Name != "a.go" || e.Cursor() != 10 {
-		t.Fatalf("<CR> opened %q at %d", e.Views()[0].Name, e.Cursor())
+	if editortest.Feed(e, "<CR>"); e.Windows()[0].Name != "a.go" || e.Cursor() != 10 {
+		t.Fatalf("<CR> opened %q at %d", e.Windows()[0].Name, e.Cursor())
 	}
 	// A match on a line of megabytes shows with the others.
 	editortest.Change(t, filepath.Join(dir, "c.txt"), "needle "+strings.Repeat("x", 2<<20)+"\n")

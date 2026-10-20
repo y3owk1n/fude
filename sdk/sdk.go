@@ -39,8 +39,8 @@ type Range struct {
 }
 
 // Event is an event the plugin subscribed to with On. Detail is the new
-// mode for mode.changed. For view.moved it is the cursor and the top of the
-// view, as "cursor top", which Cursor and Top hold too (B182). For
+// mode for mode.changed. For window.moved it is the cursor and the top of the
+// window, as "cursor top", which Cursor and Top hold too (B182). For
 // buffer.changed it is the range the change covers, as "start end", which
 // Start and End hold too (B183).
 type Event struct {
@@ -338,7 +338,7 @@ func onEvent(p *byte, n uint32) {
 	x, _ := strconv.Atoi(a)
 	y, _ := strconv.Atoi(b)
 	switch name {
-	case "view.moved":
+	case "window.moved":
 		ev.Cursor, ev.Top = x, y
 	case "buffer.changed":
 		ev.Start, ev.End = x, y

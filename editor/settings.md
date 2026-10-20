@@ -237,7 +237,7 @@ Numbers each line by its distance from the cursor's, for counts such as
 ## wrap
 
 A line longer than the window goes on over the rows below. Off, each line
-takes one row and the view scrolls sideways to keep the cursor in view.
+takes one row and the window scrolls sideways to keep the cursor in view.
 
 ## scroll_off
 
@@ -267,7 +267,7 @@ a pattern ignores case anyway.
 ## inc_search
 
 While a search is typed, the window shows the match it goes to, lit apart
-from the other matches, and `<Esc>` puts the view back. It is on unless
+from the other matches, and `<Esc>` scrolls the window back. It is on unless
 set off.
 
 ## sticky_context

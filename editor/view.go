@@ -13,8 +13,8 @@ import (
 	"github.com/y3owk1n/fude/wire"
 )
 
-// Views returns every window from the top left.
-func (e *Session) Views() []wire.View {
+// Windows returns every window as a client draws it, from the top left.
+func (e *Session) Windows() []wire.Window {
 	e.follow()
 	// Opening or closing a buffer may show or hide the buffer line.
 	if (len(e.Buffers()) > 0) != e.lined {
@@ -37,12 +37,12 @@ func (e *Session) Views() []wire.View {
 			b.syntax.Keep(ws)
 		}
 	}
-	var out []wire.View
+	var out []wire.Window
 	_, _, centered := e.area()
 	for _, w := range e.root.windows() {
 		e.fit(w)
 		t, top, tab := w.buf.text.Snapshot(), e.topOf(w), e.tabWidth(w.buf)
-		v := wire.View{
+		v := wire.Window{
 			Buffer: w.buf.id, Text: t, Top: top, Cursor: w.pos(),
 			X: w.x, Y: w.y, W: w.w, H: w.h,
 			Name: w.buf.name(), Modified: w.buf.modified(), Current: w == e.win || w == e.under,
@@ -234,7 +234,7 @@ func (e *Session) pinned(w *window, t kernel.Snapshot, top int) []int {
 	}
 	var starts []int
 	first := t.LineOf(top)
-	// A cursor above the view, as while a search shows its match (B21),
+	// A cursor above the window, as while a search shows its match (B21),
 	// has no line here to keep uncovered.
 	below := t.LineOf(w.pos()) - first
 	if below < 0 {
@@ -326,7 +326,7 @@ func (e *Session) icons(b *buffer, top, last int) map[int]wire.Sign {
 
 // ruler returns the cursor's place for a window that shows rows rows from
 // top, whose lines take rowsOf rows each. It is line,col, then -screen
-// column when that differs, then All, Top, Bot or how far down the view is
+// column when that differs, then All, Top, Bot or how far down the window is
 // (B38).
 func ruler(t kernel.Snapshot, c, top, rows, tab int, rowsOf func(int) int) string {
 	line, ls := t.LineOf(c), vim.LineStart(t, c)
@@ -338,7 +338,7 @@ func ruler(t kernel.Snapshot, c, top, rows, tab int, rowsOf func(int) int) strin
 	if vcol != col {
 		at += fmt.Sprintf("-%d", vcol)
 	}
-	// last is the last line the view shows.
+	// last is the last line the window shows.
 	last := t.LineOf(top)
 	for p, n := top, 0; ; p = vim.LineEnd(t, p) + 1 {
 		if n += rowsOf(p); n > rows {

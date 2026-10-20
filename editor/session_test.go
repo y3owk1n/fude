@@ -51,7 +51,7 @@ func TestB170Restart(t *testing.T) {
 	t.Setenv(editor.RestartEnv, e.Restart())
 	e = start(t)
 	e.SetSize(80, 20)
-	vs := e.Views()
+	vs := e.Windows()
 	if len(vs) != 2 || vs[0].Name != a || vs[1].Name != b {
 		t.Fatalf("the restarted session shows %d windows", len(vs))
 	}

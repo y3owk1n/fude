@@ -25,7 +25,7 @@ type part struct {
 // directory, dim, a dot while it is modified, the git branch and the
 // diagnostics. On the right: plugins' segments, the keys being typed, the
 // filetype and the ruler. The right goes first when the line is too narrow.
-func (c *client) status(v wire.View, x, w int) {
+func (c *client) status(v wire.Window, x, w int) {
 	y := v.Y + v.H - 1
 	// Every status line has the surface ground. Another window's has muted
 	// text, and no mode.

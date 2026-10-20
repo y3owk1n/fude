@@ -59,10 +59,10 @@ func shows(t *testing.T, e *editor.Session, name string) {
 	}
 }
 
-// current is the current window's view.
-func current(e *editor.Session) wire.View {
-	vs := e.Views()
-	return vs[slices.IndexFunc(vs, func(v wire.View) bool { return v.Current })]
+// current is the current window.
+func current(e *editor.Session) wire.Window {
+	vs := e.Windows()
+	return vs[slices.IndexFunc(vs, func(v wire.Window) bool { return v.Current })]
 }
 
 // B356
@@ -165,7 +165,7 @@ func TestB359PinOnStatusLine(t *testing.T) {
 	// c.txt, not pinned, shows none.
 	segs := func() []string {
 		var out []string
-		for _, v := range e.Views() {
+		for _, v := range e.Windows() {
 			out = append(out, v.Name+" "+strings.Join(v.LeftSegments, " "))
 		}
 		return out

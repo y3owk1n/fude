@@ -101,9 +101,9 @@ func TestB195FinderLists(t *testing.T) {
 	}
 	visited := func() []string {
 		feed(e, ":cclose<CR>:cfirst<CR>")
-		names := []string{e.Views()[0].Name}
+		names := []string{e.Windows()[0].Name}
 		feed(e, ":cnext<CR>")
-		return append(names, e.Views()[0].Name)
+		return append(names, e.Windows()[0].Name)
 	}
 	// Grep shows each match under a row for its file.
 	for find, rows := range map[string]int{":pick grep needle<CR>": 4, ":pick files<CR>": 2} {
@@ -111,9 +111,9 @@ func TestB195FinderLists(t *testing.T) {
 		settle(t, e, func() bool { return shown() == rows })
 		// <C-q> sends both matches to a list, which is the last list.
 		feed(e, "<C-q>")
-		settle(t, e, func() bool { return len(e.Views()) == 2 })
-		if len(e.Views()) != 2 {
-			t.Fatalf("<C-q> after %s left %d windows", find, len(e.Views()))
+		settle(t, e, func() bool { return len(e.Windows()) == 2 })
+		if len(e.Windows()) != 2 {
+			t.Fatalf("<C-q> after %s left %d windows", find, len(e.Windows()))
 		}
 		if got := visited(); !slices.Contains(got, "a.go") || !slices.Contains(got, "b.txt") {
 			t.Errorf("the list of %s went to %q", find, got)
@@ -176,12 +176,12 @@ func TestB212QCloses(t *testing.T) {
 	settle(t, e, func() bool { f, _ := e.Float(); return strings.Contains(f.Text, "a.txt") })
 	for _, keys := range []string{"<C-q>", ":timeline<CR>", ":grammar<CR>"} {
 		feed(e, keys)
-		settle(t, e, func() bool { return len(e.Views()) == 2 })
-		if len(e.Views()) != 2 {
-			t.Fatalf("%s made %d windows", keys, len(e.Views()))
+		settle(t, e, func() bool { return len(e.Windows()) == 2 })
+		if len(e.Windows()) != 2 {
+			t.Fatalf("%s made %d windows", keys, len(e.Windows()))
 		}
-		if feed(e, "q"); len(e.Views()) != 1 || e.Recording() != 0 {
-			t.Errorf("q after %s left %d windows, recording %q", keys, len(e.Views()), e.Recording())
+		if feed(e, "q"); len(e.Windows()) != 1 || e.Recording() != 0 {
+			t.Errorf("q after %s left %d windows, recording %q", keys, len(e.Windows()), e.Recording())
 		}
 	}
 }

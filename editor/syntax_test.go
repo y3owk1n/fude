@@ -196,7 +196,7 @@ func TestB164Filetypes(t *testing.T) {
 	for name, want := range map[string]string{"a.toml.tmpl": "toml", "a.yml": "yaml", "a.rs": "rust", ".bashrc": "bash", "a.nix": "nix"} {
 		path := filepath.Join(dir, name)
 		change(t, path, "x\n")
-		if got := start(t, path).Views()[0].Filetype; got != want {
+		if got := start(t, path).Windows()[0].Filetype; got != want {
 			t.Errorf("%s has filetype %q, want %q", name, got, want)
 		}
 	}
@@ -251,7 +251,7 @@ func TestB165BuiltGrammar(t *testing.T) {
 	e.Use(grammarsmod.New())
 	e.SetSize(80, 20)
 	settle(t, e, func() bool {
-		return slices.ContainsFunc(e.Views()[0].Highlights, func(s syntax.Span) bool { return s.Name == "keyword" })
+		return slices.ContainsFunc(e.Windows()[0].Highlights, func(s syntax.Span) bool { return s.Name == "keyword" })
 	})
 
 	// A grammar built at an older pin is outdated, and :grammar update
@@ -293,7 +293,7 @@ func TestB166Injections(t *testing.T) {
 	e.SetSize(80, 10)
 	at := strings.Index(text, "`func") + 1
 	settle(t, e, func() bool {
-		return slices.ContainsFunc(e.Views()[0].Highlights, func(s syntax.Span) bool { return s.Name == "keyword" && s.Start == at })
+		return slices.ContainsFunc(e.Windows()[0].Highlights, func(s syntax.Span) bool { return s.Name == "keyword" && s.Start == at })
 	})
 	if e.Message() != "" {
 		t.Errorf("the injections said %q", e.Message())

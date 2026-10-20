@@ -171,7 +171,7 @@ type client struct {
 	over     wire.Colors       // the colours [colors] puts in place of its own
 	restyled int               // how many times the modules' styles had changed (B345)
 	spinning bool              // the last frame shows a spinner
-	styles   []tcell.Style     // a view's, kept between frames so painting them allocates nothing
+	styles   []tcell.Style     // a window's, kept between frames so painting them allocates nothing
 	frame    int               // counts the frames drawn
 	lines    map[[2]int]*shown // the windows' lines drawn, by the cell each starts at
 	overlaid bool              // the last frame drew a box, the command line or a message over the windows
@@ -252,9 +252,9 @@ func (c *client) draw() {
 	// while something is over them and in the frame after.
 	over := c.e.Mode() == vim.Cmdline || floats || signs || msg != "" || ask != ""
 	// The windows cover from left to right, which changes when :center does.
-	views := c.e.Views()
+	wins := c.e.Windows()
 	left, right := w, 0
-	for _, v := range views {
+	for _, v := range wins {
 		left, right = min(left, v.X), max(right, v.X+v.W)
 	}
 	if fresh || over || c.overlaid || c.size != [4]int{w, h, left, right} {
@@ -263,8 +263,8 @@ func (c *client) draw() {
 	}
 	c.overlaid, c.size = over, [4]int{w, h, left, right}
 	cx, cy := 0, 0
-	for _, v := range views {
-		if x, y, ok := c.view(v, left, sel, visual && v.Current); ok {
+	for _, v := range wins {
+		if x, y, ok := c.window(v, left, sel, visual && v.Current); ok {
 			cx, cy = x, y
 		}
 	}
@@ -326,12 +326,12 @@ func (c *client) draw() {
 	}
 }
 
-// view draws one window: its text, a status line on its bottom row, and a
+// window draws one window: its text, a status line on its bottom row, and a
 // separator on its left when another window is beside it. left is the
 // column the windows start at, which has none. A line keeps its
 // rows when the last frame drew it from the same, unless it holds the
 // cursor. For the current window it reports where the cursor is.
-func (c *client) view(v wire.View, left int, sel vim.Selection, visual bool) (int, int, bool) {
+func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool) (int, int, bool) {
 	if v.Cells != nil {
 		return c.cells(v, left)
 	}
@@ -638,7 +638,7 @@ func (c *client) view(v wire.View, left int, sel vim.Selection, visual bool) (in
 
 // virtual draws the rows v draws above line, or below it, from row, each
 // cut at the window's edge, and returns the row after them.
-func (c *client) virtual(v wire.View, line int, above bool, numbers, row int) int {
+func (c *client) virtual(v wire.Window, line int, above bool, numbers, row int) int {
 	for _, r := range v.Virtual[line] {
 		if r.Above != above || row >= v.H-1 {
 			continue
@@ -658,7 +658,7 @@ func (c *client) virtual(v wire.View, line int, above bool, numbers, row int) in
 // pin draws the lines of v.Context over v's first rows on the surface
 // colour, each with its number and highlights, cut at the window's edge
 // (B217). numbers is where the gutter starts.
-func (c *client) pin(v wire.View, numbers, cur int) {
+func (c *client) pin(v wire.Window, numbers, cur int) {
 	t := v.Text
 	for i, start := range v.Context {
 		y, end := v.Y+i, vim.LineEnd(t, start)
@@ -707,7 +707,7 @@ func (c *client) pin(v wire.View, numbers, cur int) {
 
 // edge draws v's status line on its bottom row, and a separator on its
 // left unless the windows start there, at left.
-func (c *client) edge(v wire.View, left int) {
+func (c *client) edge(v wire.Window, left int) {
 	if v.X > left {
 		for y := v.Y; y < v.Y+v.H; y++ {
 			c.s.Put(v.X-1, y, "│", base.Foreground(th.border))
@@ -719,7 +719,7 @@ func (c *client) edge(v wire.View, left int) {
 // colorColumn shades the colour column on row y of v's text, where the
 // row's cell keeps the ground, so the cursor's line, a selection and a
 // match keep theirs (B200).
-func (c *client) colorColumn(v wire.View, y int) {
+func (c *client) colorColumn(v wire.Window, y int) {
 	x := v.ColorColumn - 1
 	if !v.Wrap {
 		x -= v.Left
@@ -755,7 +755,7 @@ func indentOf(t vim.Text, start, tab int) int {
 
 // guides draws a faint line at each indent level in the first lead columns
 // of a line, on row y.
-func (c *client) guides(v wire.View, lead, y int) {
+func (c *client) guides(v wire.Window, lead, y int) {
 	left := 0
 	if !v.Wrap {
 		left = v.Left
@@ -774,7 +774,7 @@ func (c *client) guides(v wire.View, lead, y int) {
 // number draws line's number in the gutter at x, y: from the cursor's
 // line cur with relative numbers, and its own on that line when numbers are
 // on too, put on the left (B39).
-func (c *client) number(line, rel int, onCursor bool, x, y int, v wire.View) {
+func (c *client) number(line, rel int, onCursor bool, x, y int, v wire.Window) {
 	n := line + 1
 	if v.Relative {
 		n = rel
@@ -808,7 +808,7 @@ func listChar(rest string, trailing bool) (string, bool) {
 // ghosts draws v's ghosts at position at, from column x of row y, on bg.
 // It returns the column after them and the end of the text they hide, at
 // least at and at most to.
-func (c *client) ghosts(v wire.View, at, to, x, y int, bg color.Color) (int, int) {
+func (c *client) ghosts(v wire.Window, at, to, x, y int, bg color.Color) (int, int) {
 	hidden := at
 	for _, g := range v.Ghosts {
 		if g.Pos == at {
@@ -840,7 +840,7 @@ func (c *client) ghost(g wire.Ghost, left, x, y, w int, bg color.Color) int {
 // returns the column after it. A diagnostic's shows after a gap, on its
 // severity's tint in its colour, as a label of its own. Any other is dim
 // (B61, B184).
-func (c *client) note(v wire.View, x, y int, n wire.Note, shade bool) int {
+func (c *client) note(v wire.Window, x, y int, n wire.Note, shade bool) int {
 	gap := base
 	if shade {
 		gap = gap.Background(th.cursorLine)

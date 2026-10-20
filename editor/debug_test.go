@@ -195,7 +195,7 @@ func withAdapter(t *testing.T, port bool) (*editor.Session, string) {
 
 // signAt returns the sign the first window shows on line, from 0.
 func signAt(e *editor.Session, line int) string {
-	return e.Views()[0].Signs[line].Text
+	return e.Windows()[0].Signs[line].Text
 }
 
 // B261, B262
@@ -227,7 +227,7 @@ func TestB262Breakpoints(t *testing.T) {
 			if signAt(e, 3) != "→" || signAt(e, 5) != "●" || e.Text().LineOf(e.Cursor()) != 3 {
 				t.Errorf("stopped, the window shows %q and %q with the cursor on line %d", signAt(e, 3), signAt(e, 5), e.Text().LineOf(e.Cursor())+1)
 			}
-			if e.Views()[0].Grounds[3] != "debug.line" {
+			if e.Windows()[0].Grounds[3] != "debug.line" {
 				t.Error("the stopped line is not lit")
 			}
 			// The launch settings' args reach the adapter with {file} made the
@@ -298,7 +298,7 @@ func TestB264Panel(t *testing.T) {
 	// open and the program's output.
 	feed(e, "<Space>dp")
 	panel := func() string {
-		for _, v := range e.Views() {
+		for _, v := range e.Windows() {
 			if v.Name == "[debug]" {
 				return v.Text.Slice(0, v.Text.Len())
 			}
@@ -310,7 +310,7 @@ func TestB264Panel(t *testing.T) {
 	if panel() != want {
 		t.Fatalf("the panel shows\n%s\nwant\n%s", panel(), want)
 	}
-	for _, v := range e.Views() {
+	for _, v := range e.Windows() {
 		if v.Name == "[debug]" && v.Modified {
 			t.Error("the panel shows as modified")
 		}
@@ -328,7 +328,7 @@ func TestB264Panel(t *testing.T) {
 		t.Errorf("choosing main.caller left the panel\n%s", panel())
 	}
 	var shown string
-	for _, v := range e.Views() {
+	for _, v := range e.Windows() {
 		if v.Current {
 			shown = v.Name
 		}

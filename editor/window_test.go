@@ -151,7 +151,7 @@ func TestB193WindowSizes(t *testing.T) {
 	e.SetSize(80, 20)
 	heights := func() []int {
 		var out []int
-		for _, v := range e.Views() {
+		for _, v := range e.Windows() {
 			out = append(out, v.H)
 		}
 		return out
@@ -175,7 +175,7 @@ func TestB193WindowSizes(t *testing.T) {
 		}
 	}
 	feed(e, "<C-w>o<C-w>v:vertical resize 30<CR>")
-	if vs := e.Views(); len(vs) != 2 || vs[0].W != 49 || vs[1].W != 30 {
+	if vs := e.Windows(); len(vs) != 2 || vs[0].W != 49 || vs[1].W != 30 {
 		t.Errorf(":vertical resize 30 left the windows %d and %d wide", vs[0].W, vs[1].W)
 	}
 }
@@ -187,7 +187,7 @@ func TestB21MatchesInEveryWindow(t *testing.T) {
 	change(t, filepath.Join(dir, "b"), "ax\n")
 	e := open(t, filepath.Join(dir, "a"))
 	feed(e, ":vs "+filepath.Join(dir, "b")+"<CR>/a<CR>")
-	for _, v := range e.Views() {
+	for _, v := range e.Windows() {
 		if want := strings.Index(v.Text.Slice(0, v.Text.Len()), "a"); len(v.Matches) != 1 || v.Matches[0] != [2]int{want, want + 1} {
 			t.Errorf("%s shows matches %v", v.Name, v.Matches)
 		}
@@ -207,10 +207,10 @@ func TestB37Wrap(t *testing.T) {
 	if feed(e, "j"); e.Top() != 21 {
 		t.Fatalf("on line 3 the window starts at %d, want line 2 at 21", e.Top())
 	}
-	// Without wrap the view scrolls sideways to the cursor's column.
+	// Without wrap the window scrolls sideways to the cursor's column.
 	feed(e, "gg:set wrap false<CR>$")
-	if v := e.Views()[0]; v.Top != 0 || v.Left != 10 {
-		t.Fatalf("on the last of 20 columns in 10 the view starts at %d, column %d, want 0 and 10", v.Top, v.Left)
+	if v := e.Windows()[0]; v.Top != 0 || v.Left != 10 {
+		t.Fatalf("on the last of 20 columns in 10 the window starts at %d, column %d, want 0 and 10", v.Top, v.Left)
 	}
 }
 
@@ -222,7 +222,7 @@ func TestB38Ruler(t *testing.T) {
 	e.SetSize(40, 4)
 	for _, c := range [][2]string{{"", "1,1 Top"}, {"j$", "2,2-9 Top"}, {"j", "3,0-1 Top"}, {"j", "4,1 33%"}, {"G", "6,1 Bot"}} {
 		feed(e, c[0])
-		if got := strings.Join(strings.Fields(e.Views()[0].Ruler), " "); got != c[1] {
+		if got := strings.Join(strings.Fields(e.Windows()[0].Ruler), " "); got != c[1] {
 			t.Errorf("after %q the ruler is %q, want %q", c[0], got, c[1])
 		}
 	}
@@ -238,28 +238,28 @@ func TestB38Ruler(t *testing.T) {
 func TestB39Set(t *testing.T) {
 	e := withCommands(open(t, ""))
 	feed(e, ":set number true<CR>:set relative_number true<CR>")
-	if v := e.Views()[0]; !v.Number || !v.Relative || v.Gutter != 4 {
-		t.Fatalf("after :set number true and relative_number true the view is %+v", v)
+	if v := e.Windows()[0]; !v.Number || !v.Relative || v.Gutter != 4 {
+		t.Fatalf("after :set number true and relative_number true the window is %+v", v)
 	}
 	// A window split from it starts the same, and :set changes only the
 	// current one.
 	feed(e, ":sp<CR>:set number false<CR>:set relative_number false<CR>")
-	if vs := e.Views(); vs[1].Number || vs[1].Relative || vs[1].Gutter != 0 || !vs[0].Number {
-		t.Fatalf("after :set number false and relative_number false in a split the views are %+v", vs)
+	if vs := e.Windows(); vs[1].Number || vs[1].Relative || vs[1].Gutter != 0 || !vs[0].Number {
+		t.Fatalf("after :set number false and relative_number false in a split the windows are %+v", vs)
 	}
 	// A name alone shows the option, and :set alone lists them in a window.
 	if feed(e, ":set number<CR>"); e.Message() != "number false" {
 		t.Errorf(":set number said %q", e.Message())
 	}
 	feed(e, ":set<CR>")
-	if listed := strings.Join(strings.Fields(text(e)), " "); e.Views()[2].Name != "[set]" || !strings.Contains(listed, "relative_number false") || !strings.Contains(listed, "scroll_off 0") || !strings.Contains(listed, "key_timeout 1000") {
+	if listed := strings.Join(strings.Fields(text(e)), " "); e.Windows()[2].Name != "[set]" || !strings.Contains(listed, "relative_number false") || !strings.Contains(listed, "scroll_off 0") || !strings.Contains(listed, "key_timeout 1000") {
 		t.Errorf(":set listed %q", text(e))
 	}
 	feed(e, "q")
 	// A :set with a bad value changes nothing.
 	for keys, want := range map[string]string{":set number bogus<CR>": `number takes true or false, not "bogus"`, ":set number on<CR>": `number takes true or false, not "on"`} {
-		if feed(e, keys); e.Views()[1].Number || e.Message() != want {
-			t.Errorf("%s left number %v and said %q", keys, e.Views()[1].Number, e.Message())
+		if feed(e, keys); e.Windows()[1].Number || e.Message() != want {
+			t.Errorf("%s left number %v and said %q", keys, e.Windows()[1].Number, e.Message())
 		}
 	}
 	if feed(e, ":set wide<CR>"); e.Message() != "no option named wide" {
@@ -267,7 +267,7 @@ func TestB39Set(t *testing.T) {
 	}
 	// config.toml sets what windows start with.
 	config(t, "number = true\n")
-	if v := start(t).Views()[0]; !v.Number || v.Relative {
+	if v := start(t).Windows()[0]; !v.Number || v.Relative {
 		t.Errorf("with number = true a window starts as %+v", v)
 	}
 }
@@ -285,10 +285,10 @@ func TestB116ScrollOff(t *testing.T) {
 	e.SetSize(40, 8)
 	feed(e, ":set scroll_off 2<CR>")
 	if feed(e, "4j"); e.Top() != 0 {
-		t.Fatalf("on line 5 the view starts at %d, want 0", e.Top())
+		t.Fatalf("on line 5 the window starts at %d, want 0", e.Top())
 	}
 	if feed(e, "j"); e.Top() != 2 {
-		t.Fatalf("on line 6 the view starts at %d, want line 2 at 2", e.Top())
+		t.Fatalf("on line 6 the window starts at %d, want line 2 at 2", e.Top())
 	}
 	if feed(e, ":set scroll_off<CR>"); e.Message() != "scroll_off 2" {
 		t.Errorf(":set scroll_off said %q", e.Message())
@@ -301,7 +301,7 @@ func TestB116ScrollOff(t *testing.T) {
 // B117
 func TestB117CursorLine(t *testing.T) {
 	e := open(t, "")
-	if feed(e, ":set cursor_line true<CR>"); !e.Views()[0].CursorLine {
+	if feed(e, ":set cursor_line true<CR>"); !e.Windows()[0].CursorLine {
 		t.Fatal(":set cursor_line true left the window without it")
 	}
 }
@@ -330,8 +330,8 @@ func TestB121MatchParen(t *testing.T) {
 		// In insert mode the bracket before the cursor counts.
 		{"a", []int{8, 1}},
 	} {
-		if feed(e, c.keys); !slices.Equal(e.Views()[0].Pair, c.want) {
-			t.Errorf("after %q the pair is %v, want %v", c.keys, e.Views()[0].Pair, c.want)
+		if feed(e, c.keys); !slices.Equal(e.Windows()[0].Pair, c.want) {
+			t.Errorf("after %q the pair is %v, want %v", c.keys, e.Windows()[0].Pair, c.want)
 		}
 	}
 }
@@ -360,12 +360,12 @@ x = "<Nop>"
 	e.SetSize(80, 24)
 	feed(e, ":vsplit<CR>-")
 	// A key the explorer's table drops falls through to [keymap.normal].
-	if feed(e, "<C-h>"); !e.Views()[0].Current {
+	if feed(e, "<C-h>"); !e.Windows()[0].Current {
 		t.Fatal("<C-h> in an explorer did not move to the left window")
 	}
 	// A key mapped in it runs the explorer's action, and <Nop> does nothing.
-	if feed(e, "<C-w>ljx<C-v>"); len(e.Views()) != 3 || text(e) != "B" {
-		t.Fatalf("<C-v> on b left %d windows showing %q", len(e.Views()), text(e))
+	if feed(e, "<C-w>ljx<C-v>"); len(e.Windows()) != 3 || text(e) != "B" {
+		t.Fatalf("<C-v> on b left %d windows showing %q", len(e.Windows()), text(e))
 	}
 	// The finder's keys are an insert mode keymap.
 	feed(e, "<C-w>h:pick files<CR>")
@@ -384,10 +384,10 @@ func TestB143SignColumn(t *testing.T) {
 	change(t, path, "a\n")
 	config(t, "sign_column = true")
 	e := start(t, path)
-	if v := e.Views()[0]; v.SignCols != 2 || v.Gutter != 2 {
+	if v := e.Windows()[0]; v.SignCols != 2 || v.Gutter != 2 {
 		t.Fatalf("with sign_column a file with no signs has %d sign columns", v.SignCols)
 	}
-	if feed(e, ":set sign_column false<CR>"); e.Views()[0].SignCols != 0 {
+	if feed(e, ":set sign_column false<CR>"); e.Windows()[0].SignCols != 0 {
 		t.Fatal(":set sign_column false kept the sign column")
 	}
 }
@@ -418,23 +418,23 @@ func TestB217StickyContext(t *testing.T) {
 	// Scrolled into g in F, both first lines are pinned, with their highlights.
 	feed(e, "20Gzt3j")
 	settle(t, e, func() bool {
-		v := e.Views()[0]
+		v := e.Windows()[0]
 		return slices.Equal(v.Context, []int{11, 22}) && len(v.ContextHighlights) > 0
 	})
 	// With sticky_context_lines 1, only the innermost line pins.
-	if feed(e, ":set sticky_context_lines 1<CR>"); !slices.Equal(e.Views()[0].Context, []int{22}) {
-		t.Errorf("with sticky_context_lines 1, %v is pinned", e.Views()[0].Context)
+	if feed(e, ":set sticky_context_lines 1<CR>"); !slices.Equal(e.Windows()[0].Context, []int{22}) {
+		t.Errorf("with sticky_context_lines 1, %v is pinned", e.Windows()[0].Context)
 	}
 	// With the cursor on the top line, nothing covers it.
-	if feed(e, "zt"); len(e.Views()[0].Context) != 0 {
-		t.Errorf("with the cursor on the top line, %v is pinned", e.Views()[0].Context)
+	if feed(e, "zt"); len(e.Windows()[0].Context) != 0 {
+		t.Errorf("with the cursor on the top line, %v is pinned", e.Windows()[0].Context)
 	}
 	// :set sticky_context false turns it off in the window.
-	if feed(e, "3j"); len(e.Views()[0].Context) == 0 {
+	if feed(e, "3j"); len(e.Windows()[0].Context) == 0 {
 		t.Fatal("with the cursor below the top again, nothing is pinned")
 	}
-	if feed(e, ":set sticky_context false<CR>"); len(e.Views()[0].Context) != 0 {
-		t.Errorf("with sticky_context off, %v is pinned", e.Views()[0].Context)
+	if feed(e, ":set sticky_context false<CR>"); len(e.Windows()[0].Context) != 0 {
+		t.Errorf("with sticky_context off, %v is pinned", e.Windows()[0].Context)
 	}
 }
 
@@ -450,30 +450,30 @@ func TestB21IncrementalSearch(t *testing.T) {
 	e := open(t, path)
 	e.SetSize(80, 20)
 	// A client sizes the editor before each frame, which reveals the cursor.
-	top := func() int { e.SetSize(80, 20); return e.Text().LineOf(e.Views()[0].Top) }
+	top := func() int { e.SetSize(80, 20); return e.Text().LineOf(e.Windows()[0].Top) }
 	// The match out of view comes into it, lit apart, while the cursor stays.
 	feed(e, "/need")
 	line := top()
-	v := e.Views()[0]
+	v := e.Windows()[0]
 	if at := strings.Index(text(e), "needle"); v.Searched != [2]int{at, at + 4} || line == 0 || e.Cursor() != 0 {
-		t.Fatalf("typing /need lit %v with the view at line %d and the cursor at %d", v.Searched, line, e.Cursor())
+		t.Fatalf("typing /need lit %v with the window at line %d and the cursor at %d", v.Searched, line, e.Cursor())
 	}
-	// <Esc> puts the view back, and a search that runs keeps it.
-	if feed(e, "<Esc>"); top() != 0 || e.Views()[0].Searched != [2]int{} {
-		t.Errorf("after <Esc> the view is at line %d, lighting %v", top(), e.Views()[0].Searched)
+	// <Esc> scrolls the window back, and a search that runs keeps it.
+	if feed(e, "<Esc>"); top() != 0 || e.Windows()[0].Searched != [2]int{} {
+		t.Errorf("after <Esc> the window is at line %d, lighting %v", top(), e.Windows()[0].Searched)
 	}
 	if feed(e, "/needle<CR>"); top() == 0 || e.Text().LineOf(e.Cursor()) != 100 {
-		t.Errorf("the search went to line %d with the view at line %d", e.Text().LineOf(e.Cursor()), top())
+		t.Errorf("the search went to line %d with the window at line %d", e.Text().LineOf(e.Cursor()), top())
 	}
-	// With inc_search off the view stays put while a search is typed.
+	// With inc_search off the window stays put while a search is typed.
 	feed(e, "gg:set inc_search false<CR>/need")
-	if top() != 0 || e.Views()[0].Searched != [2]int{} {
-		t.Errorf("with inc_search off, /need moved the view to line %d and lit %v", top(), e.Views()[0].Searched)
+	if top() != 0 || e.Windows()[0].Searched != [2]int{} {
+		t.Errorf("with inc_search off, /need moved the window to line %d and lit %v", top(), e.Windows()[0].Searched)
 	}
 }
 
 // B21, B217: a search that shows its match deep in a function, with the
-// cursor above the view, pins the function's line.
+// cursor above the window, pins the function's line.
 func TestB21IncrementalSearchPinsContext(t *testing.T) {
 	var src strings.Builder
 	src.WriteString("package p\n\nfunc f() {\n")
@@ -488,7 +488,7 @@ func TestB21IncrementalSearchPinsContext(t *testing.T) {
 	captures(t, e)
 	feed(e, "/needle")
 	e.SetSize(80, 20)
-	if v := e.Views()[0]; len(v.Context) != 1 || v.Text.Slice(v.Context[0], v.Context[0]+4) != "func" {
+	if v := e.Windows()[0]; len(v.Context) != 1 || v.Text.Slice(v.Context[0], v.Context[0]+4) != "func" {
 		t.Errorf("with the match in view, the context is %v", v.Context)
 	}
 }

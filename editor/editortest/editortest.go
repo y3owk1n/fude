@@ -1,5 +1,5 @@
 // Package editortest drives a headless editor in tests, for a module or any
-// program that builds on the editor. Keys go in, and the text, views and
+// program that builds on the editor. Keys go in, and the text, windows and
 // message come out, with no terminal.
 package editortest
 
@@ -150,11 +150,11 @@ func Disk(t testing.TB, path string) string {
 	return string(b)
 }
 
-// Decorations lists the decorations every view shows, each as its text and
+// Decorations lists the decorations every window shows, each as its text and
 // its style.
 func Decorations(e *editor.Session) []string {
 	var out []string
-	for _, v := range e.Views() {
+	for _, v := range e.Windows() {
 		for _, d := range v.Decorations {
 			out = append(out, v.Text.Slice(d.Start, d.End)+" "+d.Name)
 		}

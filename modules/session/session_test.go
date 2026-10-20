@@ -35,7 +35,7 @@ func TestB226ProjectSession(t *testing.T) {
 	e.Welcome()
 	editortest.Settle(t, e, func() bool { return strings.Contains(editortest.Text(e), "s  restore the last session here") })
 	editortest.Feed(e, "s")
-	vs := e.Views()
+	vs := e.Windows()
 	if len(vs) != 2 || vs[0].Name != "a.txt" || vs[1].Name != "b.txt" || !vs[1].Current || vs[0].Cursor != 9 {
 		t.Fatalf("s restored %d windows, the first %q at %d", len(vs), vs[0].Name, vs[0].Cursor)
 	}
@@ -48,7 +48,7 @@ func TestB226ProjectSession(t *testing.T) {
 	e.Welcome()
 	editortest.Settle(t, e, func() bool { return strings.Contains(editortest.Text(e), "s  restore the last session here") })
 	editortest.Feed(e, "s")
-	if vs := e.Views(); len(vs) != 1 || editortest.Text(e) != "a.txt\nb.txt" || e.Text().LineOf(e.Cursor()) != 1 {
+	if vs := e.Windows(); len(vs) != 1 || editortest.Text(e) != "a.txt\nb.txt" || e.Text().LineOf(e.Cursor()) != 1 {
 		t.Fatalf("s restored %d windows showing %q, the cursor on line %d", len(vs), editortest.Text(e), e.Text().LineOf(e.Cursor()))
 	}
 }

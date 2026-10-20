@@ -33,7 +33,7 @@ type Editor struct {
 	changeAt int             // the change g; last moved to, or len(changes)
 }
 
-// NewEditor runs the grammar on r, with the cursor at its start and a view
+// NewEditor runs the grammar on r, with the cursor at its start and a window
 // of rows lines, cols columns wide.
 func NewEditor(r *Replica, rows, cols int) *Editor {
 	e := &Editor{r: r, marks: map[rune]kernel.MarkID{}, rows: rows, cols: cols, cursor: r.text.SetMark(0, kernel.Right)}
@@ -264,7 +264,7 @@ func (h host) IndentWidth() int { return cmp.Or(h.e.r.indent, vim.Tabstop) }
 // TabWidth is the buffer's setting in the server's config.toml.
 func (h host) TabWidth() int { return cmp.Or(h.e.r.tab, vim.Tabstop) }
 
-// Fold reports no folds, as a client's replica keeps no view of its own.
+// Fold reports no folds, as a client's replica keeps no window of its own.
 func (h host) Fold(line int) (int, int) { return line, line }
 
 // Shown reports no inlines, for the same reason.

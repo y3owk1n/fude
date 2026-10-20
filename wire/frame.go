@@ -10,10 +10,10 @@ import (
 )
 
 // Frame is what an attached session's client draws. The server sends one
-// whenever it changes (D39). Its views leave out their text, which Texts
+// whenever it changes (D39). Its windows leave out their text, which Texts
 // brings up to date.
 type Frame struct {
-	Views        []View
+	Windows      []Window
 	Buffers      []Tab          `json:",omitempty"` // what the buffer line shows (B258)
 	Texts        []Text         `json:",omitempty"`
 	Float        *Float         `json:",omitempty"`
@@ -34,7 +34,7 @@ type Frame struct {
 	Colors       *Colors          `json:",omitempty"`
 	Styles       map[string]Style `json:",omitempty"` // the styles modules defined (B345)
 	Restyled     int              `json:",omitempty"` // how many times they changed
-	Images       map[int][]byte   `json:",omitempty"` // by id, the PNG of each image a view shows that the client lacks (B303)
+	Images       map[int][]byte   `json:",omitempty"` // by id, the PNG of each image a window shows that the client lacks (B303)
 	Freed        []int            `json:",omitempty"` // the images dropped since the last frame, for the client to free (B306)
 	Clipboard    *string          `json:",omitempty"` // to put on the client's clipboard (B241)
 	Wait         *time.Duration   `json:",omitempty"` // until a key typed now times out
@@ -51,8 +51,8 @@ type Text struct {
 	Whole   *string         `json:",omitempty"`
 }
 
-// View is one window as a client draws it.
-type View struct {
+// Window is one window as a client draws it.
+type Window struct {
 	Buffer            int             // the buffer's number, which a frame's Texts name
 	Text              kernel.Snapshot `json:"-"`
 	Top, Cursor       int
@@ -65,7 +65,7 @@ type View struct {
 	Matches           [][2]int          // of the search, shown in every window
 	Searched          [2]int            // the match the search being typed goes to, lit apart from the rest (B21)
 	Segments          []string          // plugins' statusline segments, in the order they loaded
-	Ruler             string            // the cursor's line and column, and where the view is (B38)
+	Ruler             string            // the cursor's line and column, and where the window is (B38)
 	LeftSegments      []string          // the modules' statusline segments after the buffer's name, such as git's branch (B147)
 	Errors, Warnings  int               // the buffer's diagnostics of each severity (B147)
 	Filetype          string            // the buffer's filetype, "" for none (B164)
@@ -152,7 +152,7 @@ type Sign struct {
 	Text, Name string
 }
 
-// Other is another session as a view shows it (B252, B253).
+// Other is another session as a window shows it (B252, B253).
 type Other struct {
 	Name      string
 	Colour    int // which of six colours

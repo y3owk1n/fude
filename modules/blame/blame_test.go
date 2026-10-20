@@ -30,7 +30,7 @@ func TestB220Blame(t *testing.T) {
 	e.Use(blame.New())
 	e.SetSize(80, 10)
 	note := func(want string) func() bool {
-		return func() bool { return strings.Contains(e.Views()[0].Notes[e.Text().LineOf(e.Cursor())].Text, want) }
+		return func() bool { return strings.Contains(e.Windows()[0].Notes[e.Text().LineOf(e.Cursor())].Text, want) }
 	}
 	// :blame shows who changed the cursor's line, and a line changed since
 	// shows it is not committed.
@@ -38,7 +38,7 @@ func TestB220Blame(t *testing.T) {
 	editortest.Settle(t, e, note("Ann, just now · first words"))
 	editortest.Feed(e, "Ax<Esc>")
 	editortest.Settle(t, e, note("not committed yet"))
-	if editortest.Feed(e, ":blame<CR>"); e.Views()[0].Notes[1].Text != "" {
-		t.Errorf("after :blame again the line shows %q", e.Views()[0].Notes[1].Text)
+	if editortest.Feed(e, ":blame<CR>"); e.Windows()[0].Notes[1].Text != "" {
+		t.Errorf("after :blame again the line shows %q", e.Windows()[0].Notes[1].Text)
 	}
 }

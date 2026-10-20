@@ -12,7 +12,7 @@ import (
 // cells draws a terminal window's screen in the program's colours, then
 // its separator and status line, and reports where the program's cursor
 // is (B205).
-func (c *client) cells(v wire.View, left int) (int, int, bool) {
+func (c *client) cells(v wire.Window, left int) (int, int, bool) {
 	c.s.FillArea(v.X, v.Y, v.W, v.H-1, ' ', base)
 	for y, row := range v.Cells[:min(len(v.Cells), v.H-1)] {
 		for x, cell := range row[:min(len(row), v.W)] {

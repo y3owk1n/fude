@@ -27,7 +27,7 @@ type Session interface {
 	Done() bool
 
 	// What the client draws.
-	Views() []wire.View
+	Windows() []wire.Window
 	Buffers() []wire.Tab
 	Float() (wire.Float, bool)
 	Signature() (wire.Float, bool)

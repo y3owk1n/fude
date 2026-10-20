@@ -98,7 +98,7 @@ To stay reusable the kernel holds mechanism, never policy:
   Loading text, saving files and persisting the timeline go through
   interfaces the host implements.
 - **No editor concepts.** It knows text, marks, transactions and history.
-  Commands, modes, keys, views, registers, syntax and files are above it.
+  Commands, modes, keys, windows, registers, syntax and files are above it.
   A transaction's origin and label are opaque values the host supplies.
 - **No dependencies.** Standard library only, enforced in CI.
 
@@ -219,7 +219,7 @@ the change at one cursor (B42).
 
 `vim/` owns the grammar, modes, registers, dot repeat, macros, search and
 the edit-producing ex commands. It keeps its visual anchor and query
-selection regions as marks through `Host.SetMark`, so another view's edits
+selection regions as marks through `Host.SetMark`, so another window's edits
 move them (B23). The host owns files, windows, history
 storage, the clipboard and everything shown on screen. `:w` and `<C-w>v`
 reach the host through `Unhandled`.
@@ -458,7 +458,7 @@ picked key goes back in `Keys` (B324).
 `modules/jump` runs `s` (B218). Its `<Plug>(jump.start)` returns a result
 with `Capture`, so each key typed next goes to its call with `key` in
 `About`, before any overlay, until a result without it (B316). It finds
-the text typed between the view's `top` and `bottom`, highlights each
+the text typed between the window's `top` and `bottom`, highlights each
 match, and covers the character after it with its label (B315). A label
 or `<CR>` returns a `Jump`, and the editor adds it to the jumplist.
 
@@ -473,7 +473,7 @@ modified one, and leaves out what a guest may not show (B331).
 for each working directory in fude's state directory through
 `internal/keep`, under the hash of the directory a session uses. A
 guest's pins live in memory under its session's id, from `About` (B361). It
-hears `view.moved` and keeps a pinned file's cursor as a line and
+hears `window.moved` and keeps a pinned file's cursor as a line and
 column, which a jump opens at (B357). Its status segments are its
 session's own, and a change to the pins sets them on every pinned buffer
 by id (B359). `:pin list` opens a `Scratch` of kind `pins`, and the
@@ -495,11 +495,11 @@ backspace and 0x08 for `Ctrl+h`, and tmux passes both on as they are, so
 the terminal client reads the tty through a wrapper that turns 0x08 into
 `Ctrl+h` in the kitty keyboard protocol before tcell parses it (B141).
 
-## Views
+## Windows
 
-A view is one buffer shown in one window. It owns a cursor mark, a top-line
-mark and a jumplist. The kernel only holds their marks, so another view's
-edits move them (B23). Each buffer keeps its own changelist.
+A window shows one buffer and acts on it. It owns a cursor mark, a
+top-line mark and a jumplist. The kernel only holds their marks, so another
+window's edits move them (B23). Each buffer keeps its own changelist.
 
 A split shares its space equally until a window in it asks for a size,
 with `<C-w>+` or `:resize` and the others (B193). The node that holds it in
@@ -520,14 +520,14 @@ does, because every panel's `q` runs it. The other `<C-w>` keys stay
 there too (B91, B193).
 
 The window layout (splits) is outside the kernel. Until step 6 it lives in
-`editor/`, and the terminal client draws what `Editor.Views` returns. With
-remote clients, each client gets its own views (D16).
-After an undo, the view that undid puts its cursor at the start of the
-changed text, as Neovim does. Other views only see their marks move.
+`editor/`, and the terminal client draws what `Editor.Windows` returns. With
+remote clients, each client gets its own windows (D16).
+After an undo, the window that undid puts its cursor at the start of the
+changed text, as Neovim does. Other windows only see their marks move.
 
 ## Registers
 
-Registers belong to the vim machine and are shared by every view.
+Registers belong to the vim machine and are shared by every window.
 Unnamed, `"a` to `"z` with uppercase append, `"0` to `"9`, `"-`, `".`,
 `":`, `"/`, `"%`, `"_`, `"+` and `"*` behave as in Neovim. `"+` and `"*`
 go through the host's clipboard. fude's uses the OS clipboard command when
@@ -606,8 +606,8 @@ text hash, and a clean close adds a `close` record. On open:
 
 The kernel reports only changes, through its listener. `editor/` turns
 that into `buffer.changed` and emits the rest by name: `buffer.opened`,
-`buffer.saved`, `buffer.closed`, `view.moved` when a key moves the cursor
-or the view, `mode.changed`, `syntax.updated` when a parse lands,
+`buffer.saved`, `buffer.closed`, `window.moved` when a key moves the cursor
+or scrolls the window, `mode.changed`, `syntax.updated` when a parse lands,
 `lsp.diagnostics`, `lsp.attached` once a server is ready for a buffer
 (B284), `editor.focused` when the terminal gets the focus back
 (B277), `buffer.shown` when the current window shows another buffer
@@ -656,7 +656,7 @@ A module's decoration marked `Replace`, or a plugin's from `replace`,
 draws its note in place of its range, which stays in the text (B295). The editor builds each window's
 list of what draws in its lines and is not text: inlay hints, proposals'
 text and replacements, leaving out replacements on the cursor's line and
-a selection's. That list is `View.Ghosts`. `vim.Rows`, `vim.Column` and
+a selection's. That list is `Window.Ghosts`. `vim.Rows`, `vim.Column` and
 `vim.ColumnStart` take it as `[]vim.Inline`, so the editor's wrap and
 scrolling, `gj` and `gk` through `Host.Shown`, and the client's drawing
 count the same columns. The text's own columns, for indents, tabs and
@@ -664,7 +664,7 @@ block selections, leave it out.
 
 A module's decoration with `Lines` draws them as rows of their own below
 its line, or above it with `Above` (B299). The editor's list for a window
-holds them by line as `View.Virtual`, and its row count for a line adds
+holds them by line as `Window.Virtual`, and its row count for a line adds
 them, so scrolling and the client's drawing count the same rows. They
 hold no text, so `gj` and `gk` pass over them. A line that shows its text
 as it is draws none. A decoration marked `Block` makes its lines show
@@ -680,7 +680,7 @@ the image's rows are virtual rows that carry its id, the row and its
 columns.
 
 A decoration marked `Line`, or a plugin's from `shade`, shades its lines'
-rows to the window's edge in its style's ground, as `View.Grounds` gives
+rows to the window's edge in its style's ground, as `Window.Grounds` gives
 them by line (B296). It draws under the text's colours, and in place of
 the cursor line's shade.
 The debugger's stopped line uses it.
@@ -778,15 +778,15 @@ its colour, then the buffer's name with its directory dim, a dot when it
 is modified, the git branch and the counts of errors and warnings. On the
 right are the plugins' segments, the keys of a command being typed, the
 filetype and the ruler, which the line drops first when it is too narrow.
-`View` carries the counts, and the modules' segments for the left, such
-as the branch `modules/git` sets with `StatusLeft`. The editor keeps `View.Ruler` in
+`Window` carries the counts, and the modules' segments for the left, such
+as the branch `modules/git` sets with `StatusLeft`. The editor keeps `Window.Ruler` in
 Neovim's form, `line,col`, then `-vcol` when the screen column differs,
-then `All`, `Top`, `Bot` or how far down the view is (B38), and the
+then `All`, `Top`, `Bot` or how far down the window is (B38), and the
 client shows it as `line:col` with the screen column (B147).
 
 Before the filetype goes the buffer's language server. fude asks servers
 for `$/progress` in `initialize`, and keeps each piece of work a server
-begins until it ends. `View.Progress` is "starting" until the server
+begins until it ends. `Window.Progress` is "starting" until the server
 answers `initialize`, then the title, message and percentage of the work
 it began first, or "" when it has none. While a frame shows progress, the
 client draws a spinner and draws again every 80ms, so an idle editor runs
@@ -1098,7 +1098,7 @@ completion_sources = ["lsp", "snippet", "path", "buffer"] # where completions co
 socket = "/run/user/1000/fude.sock" # where clients attach, instead of one path per process (B97)
 number = false       # line numbers, which :set number changes per window (B39)
 relative_number = false # numbers from the cursor's line (B39)
-wrap = true          # long lines go on the rows below, else the view scrolls sideways (B37)
+wrap = true          # long lines go on the rows below, else the window scrolls sideways (B37)
 scroll_off = 0       # lines kept in view above and below the cursor's (B116)
 cursor_line = false  # shade the cursor's line (B117)
 list = false         # show tabs, trailing spaces and no-break spaces (B118)
@@ -1175,7 +1175,7 @@ fude runs `_initialize`, where a compiler such as TinyGo puts the program's
 setup, then `init`, together under the init budget, and either may register
 and subscribe (D35). `on_event` gets the event's name, and for some events
 a space and a detail. For `mode.changed` the detail is the new mode. For
-`view.moved` it is the cursor and the view's top, as `cursor top` (B182).
+`window.moved` it is the cursor and the window's top, as `cursor top` (B182).
 For `buffer.changed` it is where the change starts and ends in the text
 after it, as `start end`. Changes the plugin hears of as one come as one
 range that covers them all, with an older one moved through the edits
@@ -1629,7 +1629,7 @@ emulator, so the emulator and the screen it keeps are only ever touched
 on the loop. One copies what the emulator answers and encodes, such as
 keys, to the program. One waits for the program to end and tells the
 loop. In terminal mode, `Feed` sends keys to the emulator before
-anything else sees them, and the view carries the screen's cells, which
+anything else sees them, and the window carries the screen's cells, which
 the client draws as they are, every frame, outside B197's line keys.
 Leaving terminal mode replaces the buffer's kernel text with the
 scrollback and screen as text, marks the windows on it afresh, and makes
@@ -1680,7 +1680,7 @@ read `state` and redraw (B78). A newer notice replaces one the client has
 yet to read, so it hears the newest version and not every step.
 
 The protocol is fude's own and carries state, not cells: buffer text and
-edits, views, decorations, modes and proposals. A terminal client renders
+edits, windows, decorations, modes and proposals. A terminal client renders
 its own cells from that state, and an agent reads text and positions
 straight from it. Neovim's UI protocol does not fit, because it shares one
 screen and one cursor between every client, and real Neovim GUIs also call
@@ -1688,7 +1688,7 @@ much of Neovim's Lua and Vimscript API (D25).
 
 A request with `Proposal` runs its keys on a copy of the buffer's text and
 keeps the one edit they make as a decoration the proposing session owns:
-marks around the text it replaces, and its new text. A view draws the new
+marks around the text it replaces, and its new text. A window draws the new
 text as ghost text after the range, which it shows struck out, and the
 buffer's text does not change (B71). The copy shares the buffer's syntax,
 so `a_function` and the other syntax objects work in a proposal. `format`
@@ -1796,17 +1796,17 @@ client knows which of its keys it shows. Because one goroutine sends,
 each frame's edits arrive in order. Closing the connection makes the
 session leave (B240).
 
-A frame holds what `ui/term` reads of a session: the views without their
+A frame holds what `ui/term` reads of a session: the windows without their
 text, the float, the command line and its cursor, the mode, message,
 selection, other cursors, theme, signature help, `:s` preview,
 the macro being recorded and the text to put on the client's clipboard.
-Each view names its buffer and version. A buffer's text comes once, then
+Each window names its buffer and version. A buffer's text comes once, then
 as the edits since the version the client holds, the lists `Since` gives
 and `pull` returns. A client that falls too far behind gets the whole
 text again.
 
 `ui/term` reads a session through one interface, the methods it calls
-today, such as `Views`, `Float`, `Feed` and `SetSize`. `*editor.Session`
+today, such as `Windows`, `Float`, `Feed` and `SetSize`. `*editor.Session`
 implements it, and so does the attached session in `ui/term`, which
 applies frames as they come and sends input as it is typed. The speed
 harness measures the attached path on the local socket as it measures
@@ -1874,7 +1874,7 @@ as `relay/room/fingerprint/secret`, when `fude share --relay host` made it.
 ### Presence
 
 Each session has a name and a colour, a number fixed when it begins.
-`Views` gives each view the other sessions whose current window shows
+`Windows` gives each window the other sessions whose current window shows
 its buffer, with their names, colours, cursors and selections. `ui/term`
 maps the number to one of six of the theme's accents, so each client
 draws the others in its own theme. The attach call and a guest's first
@@ -1892,7 +1892,7 @@ of the theme reaches the host.
 
 `fude join --read-only` sets `read_only` in its first line, the host's
 question names it, and the session is `ReadOnly` (B247, B255). `:follow
-name` stores the session it follows. `Views` first rebuilds the
+name` stores the session it follows. `Windows` first rebuilds the
 session's window tree as a copy of the other's. It keeps each window
 that copied one of the other's last time, and makes the rest anew. Each
 window takes its counterpart's buffer, top, left column and cursor. Then

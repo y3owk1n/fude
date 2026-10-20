@@ -18,7 +18,7 @@ import (
 // sent on.
 func (e *Session) frame(sent map[int]kernel.Version) wire.Frame {
 	f := wire.Frame{
-		Views: e.Views(), Buffers: e.Buffers(), Line: e.Line(), LineCursor: e.LineCursor(), Mode: e.Mode(), Message: e.Message(), Confirm: e.Confirm(),
+		Windows: e.Windows(), Buffers: e.Buffers(), Line: e.Line(), LineCursor: e.LineCursor(), Mode: e.Mode(), Message: e.Message(), Confirm: e.Confirm(),
 		Cursors: e.Cursors(), Recording: e.Recording(), Substituting: e.Substituting(), Terminal: e.Terminal(), Shown: e.Shown(),
 	}
 	if fl, ok := e.Float(); ok {
@@ -55,7 +55,7 @@ func (e *Session) frame(sent map[int]kernel.Version) wire.Frame {
 			f.Images[id], e.sentImages[id] = p.png, true
 		}
 	}
-	for _, v := range f.Views {
+	for _, v := range f.Windows {
 		for _, rows := range v.Virtual {
 			for _, r := range rows {
 				give(r.Image)
@@ -70,7 +70,7 @@ func (e *Session) frame(sent map[int]kernel.Version) wire.Frame {
 		}
 	}
 	f.Freed = e.Freed()
-	for _, v := range f.Views {
+	for _, v := range f.Windows {
 		b, err := e.buffer(v.Buffer)
 		if err != nil {
 			continue

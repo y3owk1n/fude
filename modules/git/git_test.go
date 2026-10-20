@@ -32,12 +32,12 @@ func TestB123GitSigns(t *testing.T) {
 	// a becomes xa and b goes, a change that also deleted, and new is added.
 	editortest.Feed(e, "ix<Esc>jddGonew<Esc>")
 	want := map[int]wire.Sign{0: {Text: "~", Name: "git.change"}, 2: {Text: "┃", Name: "git.add"}}
-	editortest.Settle(t, e, func() bool { return maps.Equal(e.Views()[0].Signs, want) })
+	editortest.Settle(t, e, func() bool { return maps.Equal(e.Windows()[0].Signs, want) })
 	// Turning git_signs off removes the signs, and turning it on brings them back.
 	editortest.Feed(e, ":set git_signs false<CR>")
-	editortest.Settle(t, e, func() bool { return len(e.Views()[0].Signs) == 0 })
+	editortest.Settle(t, e, func() bool { return len(e.Windows()[0].Signs) == 0 })
 	editortest.Feed(e, ":set git_signs true<CR>")
-	editortest.Settle(t, e, func() bool { return maps.Equal(e.Views()[0].Signs, want) })
+	editortest.Settle(t, e, func() bool { return maps.Equal(e.Windows()[0].Signs, want) })
 	// A file whose lines end in \r\n, in the index too, differs where it
 	// changed and nowhere else.
 	crlf := filepath.Join(dir, "crlf")
@@ -50,14 +50,14 @@ func TestB123GitSigns(t *testing.T) {
 	e.SetSize(40, 10)
 	editortest.Feed(e, "jix<Esc>")
 	want = map[int]wire.Sign{1: {Text: "┃", Name: "git.change"}}
-	editortest.Settle(t, e, func() bool { return maps.Equal(e.Views()[0].Signs, want) })
+	editortest.Settle(t, e, func() bool { return maps.Equal(e.Windows()[0].Signs, want) })
 
 	// Without git installed, the file shows no git signs.
 	t.Setenv("PATH", "")
 	e = editortest.Open(t, path)
 	e.Use(gitmod.New())
-	if editortest.Feed(e, "ix<Esc>"); len(e.Views()[0].Signs) != 0 {
-		t.Fatalf("without git the signs are %v", e.Views()[0].Signs)
+	if editortest.Feed(e, "ix<Esc>"); len(e.Windows()[0].Signs) != 0 {
+		t.Fatalf("without git the signs are %v", e.Windows()[0].Signs)
 	}
 }
 
@@ -88,13 +88,13 @@ func TestB126ExplorerGitStatus(t *testing.T) {
 	e.Use(gitmod.New())
 	// An explorer below the repository's root, with an untracked file below sub/.
 	want := map[int]wire.Sign{0: {Text: "+", Name: "git.add"}, 1: {Text: "✹", Name: "git.change"}, 3: {Text: "?", Name: "git.delete"}}
-	editortest.Settle(t, e, func() bool { return maps.Equal(e.Views()[0].Signs, want) })
+	editortest.Settle(t, e, func() bool { return maps.Equal(e.Windows()[0].Signs, want) })
 
 	// Without git installed, the explorer shows no git signs.
 	t.Setenv("PATH", "")
 	e = editortest.Open(t, top)
-	if e.Use(gitmod.New()); len(e.Views()[0].Signs) != 0 {
-		t.Fatalf("without git the signs are %v", e.Views()[0].Signs)
+	if e.Use(gitmod.New()); len(e.Windows()[0].Signs) != 0 {
+		t.Fatalf("without git the signs are %v", e.Windows()[0].Signs)
 	}
 }
 
@@ -108,7 +108,7 @@ func TestB147Branch(t *testing.T) {
 	editortest.Change(t, path, "a\n")
 	e := editortest.Open(t, path)
 	e.Use(gitmod.New())
-	editortest.Settle(t, e, func() bool { return slices.Equal(e.Views()[0].LeftSegments, []string{"trunk"}) })
+	editortest.Settle(t, e, func() bool { return slices.Equal(e.Windows()[0].LeftSegments, []string{"trunk"}) })
 }
 
 // B221
@@ -130,10 +130,10 @@ func TestB221StageHunk(t *testing.T) {
 	e.Use(gitmod.New())
 	e.SetSize(80, 10)
 	editortest.Feed(e, "rAGrC")
-	editortest.Settle(t, e, func() bool { return len(e.Views()[0].Signs) == 2 })
+	editortest.Settle(t, e, func() bool { return len(e.Windows()[0].Signs) == 2 })
 	// ghh stages the first line's hunk, and the last stays as it was.
 	editortest.Feed(e, "ggghh")
-	editortest.Settle(t, e, func() bool { return git("show", ":a.txt") == "A\nb\nc\n" && len(e.Views()[0].Signs) == 1 })
+	editortest.Settle(t, e, func() bool { return git("show", ":a.txt") == "A\nb\nc\n" && len(e.Windows()[0].Signs) == 1 })
 }
 
 // B222
@@ -177,7 +177,7 @@ func TestB138Hunks(t *testing.T) {
 	e.Use(gitmod.New())
 	e.SetSize(40, 10)
 	editortest.Feed(e, "jrBjjrD")
-	editortest.Settle(t, e, func() bool { return len(e.Views()[0].Signs) == 2 })
+	editortest.Settle(t, e, func() bool { return len(e.Windows()[0].Signs) == 2 })
 	line := func() int { return e.Text().LineOf(e.Cursor()) }
 	for _, c := range []struct {
 		keys string

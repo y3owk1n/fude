@@ -131,7 +131,7 @@ var defaults = config{TabWidth: 8, Editorconfig: true, KeyTimeout: 1000, KeyHint
 type options struct {
 	Number             bool `toml:"number" help:"shows line numbers"`
 	RelativeNumber     bool `toml:"relative_number" help:"numbers lines from the cursor's"`
-	Wrap               bool `toml:"wrap" help:"long lines go on the rows below, else the view scrolls sideways"`
+	Wrap               bool `toml:"wrap" help:"long lines go on the rows below, else the window scrolls sideways"`
 	ScrollOff          int  `toml:"scroll_off" help:"the lines kept in view above and below the cursor's"`
 	CursorLine         bool `toml:"cursor_line" help:"shades the cursor's line"`
 	List               bool `toml:"list" help:"shows tabs, trailing spaces and no-break spaces"`

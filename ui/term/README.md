@@ -16,7 +16,7 @@ return term.Run(e)
 `Run` takes any `Session`, the editor's own or an `Attached` one from
 `Attach` and `Join`, which run in another process and draw the frames the
 editor sends over its socket or a share. The interface in `session.go` is
-what a client needs of an editor: keys in, and the views, floats, command
+what a client needs of an editor: keys in, and the windows, floats, command
 line, mode and message out.
 
 Everything the client draws comes as [`wire`](../../wire) types, so another

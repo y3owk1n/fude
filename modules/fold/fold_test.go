@@ -19,7 +19,7 @@ func TestB224Folds(t *testing.T) {
 	e := editortest.Start(t, path)
 	e.Use(fold.New())
 	e.SetSize(80, 20)
-	folds := func() map[int]int { return e.Views()[0].Folds }
+	folds := func() map[int]int { return e.Windows()[0].Folds }
 	// zc in a body closes the fold of the line above it with less indent,
 	// and j passes over it.
 	if editortest.Feed(e, "jzc"); !maps.Equal(folds(), map[int]int{0: 2}) || e.Cursor() != 0 {

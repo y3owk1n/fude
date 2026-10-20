@@ -48,7 +48,7 @@ func TestB213Recent(t *testing.T) {
 	editortest.Feed(e, ":pick recent<CR>")
 	editortest.Settle(t, e, func() bool { return slices.Contains(rows(e), "a.txt") && !slices.Contains(rows(e), "b.txt") })
 	editortest.Feed(e, "a.txt<CR>")
-	editortest.Settle(t, e, func() bool { return e.Views()[0].Name == "a.txt" })
+	editortest.Settle(t, e, func() bool { return e.Windows()[0].Name == "a.txt" })
 	editortest.Feed(e, ":e b.txt<CR>")
 	// A recent file outside the working directory comes after its own, even
 	// when it is newer.

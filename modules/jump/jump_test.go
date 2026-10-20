@@ -14,9 +14,9 @@ import (
 
 func TestMain(m *testing.M) { os.Exit(editortest.Main(m)) }
 
-// labels returns the labels the view shows.
+// labels returns the labels the window shows.
 func labels(e *editor.Session) []wire.Ghost {
-	return slices.DeleteFunc(slices.Clone(e.Views()[0].Ghosts), func(g wire.Ghost) bool { return g.Style != "jump.label" })
+	return slices.DeleteFunc(slices.Clone(e.Windows()[0].Ghosts), func(g wire.Ghost) bool { return g.Style != "jump.label" })
 }
 
 // B218, B315, B316
@@ -33,7 +33,7 @@ func TestB218Jump(t *testing.T) {
 	if len(l) != 3 || slices.ContainsFunc(l, func(g wire.Ghost) bool { return strings.Contains("rzt", g.Text) }) {
 		t.Fatalf("sba labels %+v", l)
 	}
-	if segs := e.Views()[0].Segments; !slices.Contains(segs, "sba") {
+	if segs := e.Windows()[0].Segments; !slices.Contains(segs, "sba") {
 		t.Errorf("the status line shows %q while sba is typed", segs)
 	}
 	i := slices.IndexFunc(l, func(g wire.Ghost) bool { return g.Pos == 10 && g.End == 11 })

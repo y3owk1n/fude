@@ -125,12 +125,12 @@ Where fude departs, the line says so and cites the departure in
   break puts as lines.
 - B37 [2] A line longer than its window wraps onto the rows below, as with
   Neovim's `wrap`, and the window scrolls so the cursor's whole line shows.
-  With `wrap` off, each line takes one row and the view scrolls sideways
+  With `wrap` off, each line takes one row and the window scrolls sideways
   the least it must to show the cursor. Rows past the end of the text show
   `~`.
 - B38 [2] Each window's status line ends with Neovim's ruler: the cursor's
   line and column, its screen column when that differs, and `All`, `Top`,
-  `Bot` or how far down the view is. The current window's also shows the
+  `Bot` or how far down the window is. The current window's also shows the
   keys of a command being typed, as `showcmd` does.
 - B39 [2] `:set name value` sets an option as `config.toml` would, with
   fude's option names (N4): `true` or `false` for a switch and a number of
@@ -652,7 +652,7 @@ Where fude departs, the line says so and cites the departure in
   Matches highlight in every window while typing and after the search.
   While a search is typed, with `inc_search` on, as it is unless set off,
   the window shows the match it goes to, lit apart from the rest, and
-  `<Esc>` puts the view back. `<C-l>` clears the highlight. Patterns use Vim syntax on a linear-time engine, and a pattern
+  `<Esc>` scrolls the window back. `<C-l>` clears the highlight. Patterns use Vim syntax on a linear-time engine, and a pattern
   that needs backtracking is refused with a message naming the atom (N1).
 - B120 [2] With `ignore_case`, searches, `:s` and their highlights ignore
   case, and with `smart_case` too a pattern with an uppercase letter
@@ -830,8 +830,8 @@ Where fude departs, the line says so and cites the departure in
   `<CR>` goes to the one picked. Without a server that finds symbols, it
   says so.
 - B218 [2] `s` in normal and visual mode starts a jump (N32). Each
-  character typed after it adds to a text to find in the current window's
-  view, ignoring case unless it has a capital. Each match is highlighted,
+  character typed after it adds to a text to find in the current
+  window, ignoring case unless it has a capital. Each match is highlighted,
   and the nearest ones to the cursor get a label, a letter drawn over the
   character after the match. A label is never the character after any
   match, so typing more of the text never jumps. Typing a label moves the
@@ -1055,8 +1055,8 @@ Where fude departs, the line says so and cites the departure in
   budget. When the work ends, a function of the plugin's runs with its
   output or error, as a timer's does (B180). At most 8 of a plugin's jobs
   run at once, and the rest wait. Unloading the plugin stops them.
-- B182 [4] A plugin that hears `view.moved` hears where the cursor is and
-  where the view starts, in the session whose view moved.
+- B182 [4] A plugin that hears `window.moved` hears where the cursor is and
+  where the window's text starts, in the session whose window moved.
 - B183 [4] A plugin that hears `buffer.changed` hears the range the change
   covers in the text it reads. Changes it heard of as one, because it fell
   behind, come as one range that covers them all.
@@ -1278,7 +1278,7 @@ Where fude departs, the line says so and cites the departure in
 - B316 [4] A module's call may take the keys typed next. Each key goes
   to that call before any other key handling, until a result lets them
   go. A jump reads its characters and labels this way (B218). A call
-  about the current window names where its view starts, and the end of
+  about the current window names where its text starts, and the end of
   the line one window height below it.
 - B315 [4] A module's decoration covers a range on one line with its
   note, padded to the range's width. It shows on the cursor's line too,
@@ -1577,7 +1577,7 @@ Where fude departs, the line says so and cites the departure in
 - B73 [6] Two clients editing one buffer converge to the same text.
 - B74 [6] A proposal follows edits made after it. If an edit overlaps it,
   the proposal is marked stale and cannot be accepted.
-- B75 [6] A request with a position edits there and leaves every view's
+- B75 [6] A request with a position edits there and leaves every window's
   cursor where it was. A request on another buffer leaves the window's
   `#` as it was.
 - B76 [6] A request made against an older version applies at the position

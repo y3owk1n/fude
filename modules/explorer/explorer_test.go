@@ -105,12 +105,12 @@ func TestB125EditExplorer(t *testing.T) {
 	if info, err := os.Stat(filepath.Join(dir, "new")); err != nil || !info.IsDir() {
 		t.Errorf("new/ is not a directory: %v", err)
 	}
-	if editortest.Text(e) != "keep.txt\nnew/\nnew.txt\nz.txt" || e.Views()[0].Modified {
+	if editortest.Text(e) != "keep.txt\nnew/\nnew.txt\nz.txt" || e.Windows()[0].Modified {
 		t.Errorf("after :w the explorer is %q", editortest.Text(e))
 	}
 	// The renamed file's buffer follows it.
-	if editortest.Feed(e, ":b 1<CR>"); e.Views()[0].Name != filepath.Join(dir, "z.txt") {
-		t.Errorf("the buffer of a.txt is named %q", e.Views()[0].Name)
+	if editortest.Feed(e, ":b 1<CR>"); e.Windows()[0].Name != filepath.Join(dir, "z.txt") {
+		t.Errorf("the buffer of a.txt is named %q", e.Windows()[0].Name)
 	}
 	// A rename that fails, into a folder that is a file, leaves the name.
 	dir = t.TempDir()
@@ -157,5 +157,5 @@ func TestB127ExplorerNotes(t *testing.T) {
 	e.Use(explorer.New())
 	e.SetSize(40, 10)
 	want := map[int]wire.Note{0: {Text: " -> plain"}, 2: {Text: "*"}}
-	editortest.Settle(t, e, func() bool { return maps.Equal(e.Views()[0].Notes, want) })
+	editortest.Settle(t, e, func() bool { return maps.Equal(e.Windows()[0].Notes, want) })
 }

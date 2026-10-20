@@ -72,7 +72,7 @@ func New() *Module {
 func (m *Module) Name() string { return "markdown" }
 
 func (m *Module) Subscribed() []string {
-	return []string{"buffer.opened", "buffer.changed", "buffer.closed", "view.moved", "option.set", "config.reloaded"}
+	return []string{"buffer.opened", "buffer.changed", "buffer.closed", "window.moved", "option.set", "config.reloaded"}
 }
 
 func (m *Module) Registered() []api.Registration { return nil }
@@ -106,7 +106,7 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 			return m.draw(s), nil
 		}
 		return api.Result{}, nil
-	case "view.moved":
+	case "window.moved":
 		if on, _ := s.Option("render"); m.off[buf] == (on == "true") {
 			return m.draw(s), nil
 		}

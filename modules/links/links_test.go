@@ -52,13 +52,13 @@ func TestB301File(t *testing.T) {
 	e.Use(links.New())
 	// A path opens beside the file, at the line after its colon.
 	editortest.Feed(e, "fogf")
-	editortest.Settle(t, e, func() bool { return strings.HasSuffix(e.Views()[0].Name, "other.txt") })
+	editortest.Settle(t, e, func() bool { return strings.HasSuffix(e.Windows()[0].Name, "other.txt") })
 	if line := e.Text().LineOf(e.Cursor()); line != 1 {
 		t.Errorf("gf went to line %d of other.txt, want 2", line+1)
 	}
 	// A markdown link opens its destination.
 	editortest.Feed(e, "<C-o>f[gf")
-	editortest.Settle(t, e, func() bool { return strings.HasSuffix(e.Views()[0].Name, filepath.Join("sub", "d.md")) })
+	editortest.Settle(t, e, func() bool { return strings.HasSuffix(e.Windows()[0].Name, filepath.Join("sub", "d.md")) })
 	// A word that names no file says so.
 	editortest.Feed(e, "<C-o>$gf")
 	editortest.Settle(t, e, func() bool { return e.Message() == "no file named none" })

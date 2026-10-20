@@ -27,7 +27,7 @@ func TestB266PickCommands(t *testing.T) {
 	editortest.Feed(e, ":pick commands<CR>opens a window below with a new empty")
 	editortest.Settle(t, e, func() bool { return shows(":new") })
 	editortest.Feed(e, "<CR>")
-	editortest.Settle(t, e, func() bool { return len(e.Views()) == 2 })
+	editortest.Settle(t, e, func() bool { return len(e.Windows()) == 2 })
 	// One that needs an argument waits on the command line.
 	editortest.Feed(e, ":pick commands<CR>:cdo")
 	editortest.Settle(t, e, func() bool { return shows(":cdo") })
@@ -50,7 +50,7 @@ func TestB215PickLists(t *testing.T) {
 	editortest.Settle(t, e, func() bool { return shows("normal mapping  types :set<Space>number<Space>true<CR>") })
 	// A mapping picked runs.
 	editortest.Feed(e, "<CR>")
-	editortest.Settle(t, e, func() bool { return e.Views()[0].Number })
+	editortest.Settle(t, e, func() bool { return e.Windows()[0].Number })
 	// It lists the machine's keys too, each with its kind and help, and a
 	// motion picked runs, j here after insert mode's <Down>.
 	editortest.Feed(e, "ggix<CR>y<Esc>gg:pick keymaps<CR>moves down a line")

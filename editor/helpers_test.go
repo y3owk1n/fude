@@ -40,7 +40,7 @@ func withCommands(e *editor.Session) *editor.Session {
 
 func windows(e *editor.Session) string {
 	var out []string
-	for _, v := range e.Views() {
+	for _, v := range e.Windows() {
 		cur := ""
 		if v.Current {
 			cur = "*"
@@ -70,7 +70,7 @@ func captures(t *testing.T, e *editor.Session) map[string]string {
 	t.Helper()
 	deadline := time.After(5 * time.Second)
 	for {
-		for _, v := range e.Views() {
+		for _, v := range e.Windows() {
 			if v.Current && len(v.Highlights) > 0 {
 				out := map[string]string{}
 				for _, s := range v.Highlights {

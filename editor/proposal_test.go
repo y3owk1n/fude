@@ -22,7 +22,7 @@ func TestB71ProposalIsGhostText(t *testing.T) {
 	feed(e, `isay "hi" now<Esc>0`)
 	agent := e.Attach("agent", editor.Host)
 	proposeQuote(t, agent, 5, "hello")
-	v := e.Views()[0]
+	v := e.Windows()[0]
 	if text(e) != `say "hi" now` || e.Cursor() != 0 || len(v.Ghosts) != 1 || v.Ghosts[0] != (wire.Ghost{Pos: 7, Text: "ello"}) {
 		t.Fatalf("got %q, cursor %d and ghosts %v, want the text unchanged and ello after hi", text(e), e.Cursor(), v.Ghosts)
 	}

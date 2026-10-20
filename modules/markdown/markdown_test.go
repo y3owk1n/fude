@@ -68,7 +68,7 @@ func TestB298Render(t *testing.T) {
 		{Pos: at("| d") + 4, End: at("| d") + 5, Text: "│", Style: "markdown.table"},
 	}
 	shown := func() bool {
-		v := e.Views()[0]
+		v := e.Windows()[0]
 		for _, g := range want {
 			if !slices.Contains(v.Ghosts, g) {
 				return false
@@ -94,12 +94,12 @@ func TestB298Render(t *testing.T) {
 	// without its borders.
 	table := e.Text().LineOf(at("| a"))
 	editortest.Feed(e, strconv.Itoa(table+3)+"G")
-	for _, g := range e.Views()[0].Ghosts {
+	for _, g := range e.Windows()[0].Ghosts {
 		if g.Pos >= at("| a") && g.Style == "markdown.table" {
 			t.Errorf("with the cursor in the table, it shows %+v", g)
 		}
 	}
-	if v := e.Views()[0]; len(v.Virtual[table]) != 0 || len(v.Virtual[table+2]) != 0 {
+	if v := e.Windows()[0]; len(v.Virtual[table]) != 0 || len(v.Virtual[table+2]) != 0 {
 		t.Errorf("with the cursor in the table, its borders show: %v", v.Virtual)
 	}
 	editortest.Feed(e, "gg")
@@ -108,9 +108,9 @@ func TestB298Render(t *testing.T) {
 	editortest.Feed(e, "Go- new<Esc>gg")
 	editortest.Settle(t, e, func() bool {
 		at := strings.Index(editortest.Text(e), "- new")
-		return slices.Contains(e.Views()[0].Ghosts, wire.Ghost{Pos: at, End: at + 1, Text: "•", Style: "markdown.bullet"})
+		return slices.Contains(e.Windows()[0].Ghosts, wire.Ghost{Pos: at, End: at + 1, Text: "•", Style: "markdown.bullet"})
 	})
 	// render false shows the text as it is.
 	editortest.Feed(e, ":set render false<CR>")
-	editortest.Settle(t, e, func() bool { v := e.Views()[0]; return len(v.Ghosts) == 0 && len(v.Grounds) == 0 })
+	editortest.Settle(t, e, func() bool { v := e.Windows()[0]; return len(v.Ghosts) == 0 && len(v.Grounds) == 0 })
 }
