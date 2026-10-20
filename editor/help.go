@@ -56,20 +56,28 @@ func guide() []guidePage {
 	return out
 }
 
-// settingsFile holds the longer explanations of the options and settings,
-// each under a heading of the name :h finds it by.
+// referenceFiles hold the longer explanations of help's entries, each
+// under a heading of the name :h finds it by.
 //
-//go:embed settings.md
-var settingsFile string
+//go:embed reference/*.md
+var referenceFiles embed.FS
 
-// details returns the longer explanations of the options and settings, by
-// the name :h finds each by (B162).
+// details returns the longer explanations of help's entries, by the name :h
+// finds each by, and each file's opening text by its title in lower case,
+// which help shows under the section of that title (B162).
 func details() map[string]string {
 	out := map[string]string{}
-	parts := strings.Split(settingsFile, "\n## ")
-	for _, p := range parts[1:] {
-		name, text, _ := strings.Cut(p, "\n")
-		out[name] = strings.TrimSpace(text)
+	// The files are in the binary, so neither call fails.
+	names, _ := fs.Glob(referenceFiles, "reference/*.md")
+	for _, name := range names {
+		data, _ := referenceFiles.ReadFile(name)
+		parts := strings.Split(string(data), "\n## ")
+		title, intro, _ := strings.Cut(strings.TrimPrefix(parts[0], "# "), "\n")
+		out[strings.ToLower(title)] = strings.TrimSpace(intro)
+		for _, p := range parts[1:] {
+			name, text, _ := strings.Cut(p, "\n")
+			out[name] = strings.TrimSpace(text)
+		}
 	}
 	return out
 }
@@ -361,7 +369,8 @@ func (e *Session) helpText() (string, map[string]int) {
 	write("")
 	write("`:h {name}` goes to a page of the guide, a section of the reference, or a")
 	write("command, key, option or setting. `<CR>` on a name goes to it, and `q`")
-	write("closes this window.")
+	write("closes this window. An example shows the text before, the keys typed and")
+	write("the text after, with `|` at the cursor and `\\n` for a line break.")
 	write("")
 	write("## Guide")
 	write("")
@@ -384,9 +393,9 @@ func (e *Session) helpText() (string, map[string]int) {
 		write("")
 		tag(slug(s.title))
 		write("## " + sentence(s.title))
-		if s.note != "" {
+		if note := cmp.Or(more[slug(s.title)], s.note); note != "" {
 			write("")
-			write(s.note)
+			write(note)
 		}
 		for _, en := range s.entries {
 			write("")

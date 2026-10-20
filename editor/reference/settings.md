@@ -1,8 +1,8 @@
 # Settings
 
-The longer explanations help gives the options and settings, each under the
-name `:h` finds it by. `:set name value` changes any of them in the running
-fude, as config.toml would, and never writes config.toml. The tables, such
+The keys of config.toml, beside the options above. `:set name value`
+changes any of them in the running fude, as config.toml would, and never
+writes config.toml. The tables, such
 as `keymap` and `filetype`, change in config.toml, and `:config reload`
 reads it again.
 

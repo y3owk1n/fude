@@ -16,23 +16,48 @@ func TestB110GrammarCases(t *testing.T) {
 		t.Fatal(err)
 	}
 	config(t, "[keymap.normal]\n\"s\" = \"\"\n[keymap.visual]\n\"s\" = \"\"\n")
-	dir := t.TempDir()
-	for i, l := range strings.Split(strings.TrimRight(string(src), "\n"), "\n") {
-		if l == "" || strings.HasPrefix(l, "# ") {
-			continue
+	for _, l := range strings.Split(strings.TrimRight(string(src), "\n"), "\n") {
+		if l != "" && !strings.HasPrefix(l, "# ") {
+			grammarCase(t, l)
 		}
-		var c [3]string
-		if _, err := fmt.Sscanf(l, "%q %q %q", &c[0], &c[1], &c[2]); err != nil {
-			t.Fatalf("%s: %v", l, err)
+	}
+}
+
+// B162: every example in help's reference gives what it shows.
+func TestB162Examples(t *testing.T) {
+	files, err := filepath.Glob("reference/*.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range files {
+		src, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatal(err)
 		}
-		path := filepath.Join(dir, fmt.Sprint(i))
-		change(t, path, strings.Replace(c[0], "|", "", 1)+"\n")
-		e := start(t, path)
-		e.SetSize(80, 23)
-		feed(e, fmt.Sprintf("%dgo%s", strings.Index(c[0], "|")+1, c[1]))
-		got := text(e)
-		if got = got[:e.Cursor()] + "|" + got[e.Cursor():]; got != c[2] {
-			t.Errorf("%q on %q: got %q, want %q", c[1], c[0], got, c[2])
+		for _, block := range strings.Split(string(src), "```keys\n")[1:] {
+			block, _, _ = strings.Cut(block, "```")
+			for _, l := range strings.Split(strings.TrimSpace(block), "\n") {
+				grammarCase(t, l)
+			}
 		}
+	}
+}
+
+// grammarCase checks a case written as the text with | at the cursor, the
+// keys and the text after them, each quoted, in a file of the editor's own.
+func grammarCase(t *testing.T, l string) {
+	t.Helper()
+	var c [3]string
+	if _, err := fmt.Sscanf(l, "%q %q %q", &c[0], &c[1], &c[2]); err != nil {
+		t.Fatalf("%s: %v", l, err)
+	}
+	path := filepath.Join(t.TempDir(), "f")
+	change(t, path, strings.Replace(c[0], "|", "", 1)+"\n")
+	e := start(t, path)
+	e.SetSize(80, 23)
+	feed(e, fmt.Sprintf("%dgo%s", strings.Index(c[0], "|")+1, c[1]))
+	got := text(e)
+	if got = got[:e.Cursor()] + "|" + got[e.Cursor():]; got != c[2] {
+		t.Errorf("%q on %q: got %q, want %q", c[1], c[0], got, c[2])
 	}
 }

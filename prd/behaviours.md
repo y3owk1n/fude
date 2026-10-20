@@ -574,8 +574,9 @@ Where fude departs, the line says so and cites the departure in
   guide and reference. The guide's pages explain fude with examples, and
   each has a tag such as `guide-start`. The reference lists every command,
   key, `<Plug>` command, option and `config.toml` setting fude has, with
-  what each does, and explains each option and setting at length, with an
-  example where one helps. It also lists the mappings in use and marks the ones
+  what each does, and explains each option, setting and motion at length,
+  with an example where one helps. A motion's examples show the text
+  before, the keys typed and the text after, and are what fude does. It also lists the mappings in use and marks the ones
   `config.toml` sets. `:h name` goes to a page, a reference section such
   as `settings`, or the entry for a command (`:w`), a key (`w`,
   `<Leader>w`), an option or a setting. `<CR>` on a name in help goes to
