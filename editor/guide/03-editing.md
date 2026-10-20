@@ -18,7 +18,15 @@ object, and a count may come before either. `2d3w` deletes six words.
   selected lines and keep them selected.
 
 An operator typed twice acts on the line, so `yy` copies it and `>>`
-indents it. `D`, `C` and `Y` act to the end of the line.
+indents it. `D`, `C` and `Y` act to the end of the line. Each example
+shows the text before, the keys and the text after, `|` at the cursor:
+
+```keys
+"|one two three four five six seven" "2d3w" "|seven"
+"a\n|b\nc" "yyP" "a\n|b\nb\nc"
+"|x\ny" ">>" "\t|x\ny"
+"ab|cd" "D" "a|b"
+```
 
 ## Text objects
 
@@ -36,6 +44,11 @@ around it.
 
 `ci"` changes the text inside the quotes around the cursor, wherever the
 cursor is in them.
+
+```keys
+"say \"h|i there\" now" "ci\"bye<Esc>" "say \"by|e\" now"
+"f(a, |b)" "di(" "f(|)"
+```
 
 ## Several places at once
 
@@ -80,7 +93,12 @@ holds the text last typed in insert mode, `":` the last command line,
 ## Repeating
 
 `.` repeats the last change, and a count before it replaces the change's
-own. `qa` starts recording keys into register `a` and `q` stops. `@a`
+own.
+
+```keys
+"|a b c d" "dw." "|c d"
+"|a b c d e" "dw2." "|d e"
+``` `qa` starts recording keys into register `a` and `q` stops. `@a`
 plays them back, `@@` plays the last register played, and `Q` the last one
 recorded. `@:` runs the last command line again. `:reg a` shows the keys
 as text, and editing that text changes them.

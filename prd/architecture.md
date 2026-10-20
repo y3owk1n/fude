@@ -1422,7 +1422,9 @@ finds the entry by. Help puts
 each explanation under its entry. An explanation's examples are blocks
 fenced as `keys`, each line the text before, the keys and the text after,
 as `vim/testdata/grammar.txt` writes them, and a test runs every one in
-the editor (B162). Each ex command, key, `<Plug>` command and text object
+the editor, the guide's too (B162). `editor.HelpGaps` lists each entry
+with no explanation and each explanation with no entry, with the modules
+a distribution adds, and `cmd/fude`'s test fails on any. Each ex command, key, `<Plug>` command and text object
 is an entry
 in a table that holds its handler and a line of help: `vim.Commands` and
 `vim.Bindings` for the machine's, `commands`, `plugs`, `hostOperators`

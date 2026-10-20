@@ -86,6 +86,18 @@ func stateOf(t *testing.T, socket string) state {
 	return st
 }
 
+// B162: with the modules fude adds, every entry of help has a longer
+// explanation, and every explanation names an entry.
+func TestB162HelpComplete(t *testing.T) {
+	gaps, err := editor.HelpGaps(modules()...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, g := range gaps {
+		t.Errorf("help: %s", g)
+	}
+}
+
 // B348
 func TestB348Help(t *testing.T) {
 	want, err := fude(t.TempDir(), "help")

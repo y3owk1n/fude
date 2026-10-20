@@ -23,9 +23,9 @@ func TestB110GrammarCases(t *testing.T) {
 	}
 }
 
-// B162: every example in help's reference gives what it shows.
+// B162: every example in help's reference and guide gives what it shows.
 func TestB162Examples(t *testing.T) {
-	files, err := filepath.Glob("reference/*.md")
+	files, err := filepath.Glob("*/*.md")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -62,6 +62,14 @@ imports, `just module-imports` that `modules/` imports only `api/`, `protocol/` 
 `just cgo` the cgo rule. Nothing checks that `core/` starts no goroutines
 and does no I/O, so a review must.
 
+## Help
+
+A change to a key, command, option or behaviour updates its section in
+`editor/reference/<section>.md`, and any page of `editor/guide` that names
+it, in the same commit. Write examples as ```keys blocks. `just check`
+fails on an entry with no section, a section with no entry, and an example
+that does not give what it shows.
+
 ## Tests
 
 The test plugins in `plugin/testdata` are checked-in `.wasm` files. After

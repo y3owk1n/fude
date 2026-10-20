@@ -353,6 +353,49 @@ func helpFields(v reflect.Value) []helpField {
 	return out
 }
 
+// HelpGaps returns what help lacks with fude's defaults and modules, for a
+// distribution's tests: each entry with no longer explanation in
+// editor/reference, each explanation there that names no entry of its
+// section, and each file there with no section (B162).
+func HelpGaps(modules ...api.Module) ([]string, error) {
+	e, err := open(defaults, nil)
+	if err != nil {
+		return nil, fmt.Errorf("help: %w", err)
+	}
+	for _, m := range modules {
+		e.Use(m)
+	}
+	var gaps []string
+	more := details()
+	sections := map[string]bool{}
+	for _, s := range e.helpSections() {
+		own, ok := more[slug(s.title)]
+		if !ok {
+			// The mappings and a kind's keys come from keymaps alone.
+			continue
+		}
+		sections[slug(s.title)] = true
+		named := map[string]bool{"": true}
+		for _, en := range s.entries {
+			if named[en.tags[0]] = true; own[en.tags[0]] == "" {
+				gaps = append(gaps, fmt.Sprintf("%s: %s has no explanation", slug(s.title), en.tags[0]))
+			}
+		}
+		for name := range own {
+			if !named[name] {
+				gaps = append(gaps, fmt.Sprintf("%s: %s explains no entry", slug(s.title), name))
+			}
+		}
+	}
+	for name := range more {
+		if !sections[name] {
+			gaps = append(gaps, fmt.Sprintf("%s.md is no section of the reference", name))
+		}
+	}
+	slices.Sort(gaps)
+	return gaps, nil
+}
+
 // helpText returns help as markdown: an index, the guide's pages, then the
 // reference built from the tables. It also returns the line of each name
 // :h finds a page, section or entry by, the first one's when several share
