@@ -183,7 +183,7 @@ func (h host) Redo() (int, int, error) {
 	return start, b.before[b.head], nil
 }
 
-func (h host) Unhandled(k string) {
+func (h host) Unhandled(k string) error {
 	// A count before <C-w> sizes a window (B193).
 	digits := len(k) - len(strings.TrimLeft(k, "0123456789"))
 	count, _ := strconv.Atoi(k[:digits])
@@ -192,12 +192,11 @@ func (h host) Unhandled(k string) {
 		// The layout's keys do not reach a float, so <C-w> in one closes it.
 		if f := h.e.win; f.anchor != "" {
 			h.e.closeFloat(f)
-			return
+			return nil
 		}
-		h.e.window(w, count)
-		return
+		return h.e.window(w, count)
 	}
-	h.e.ex(strings.TrimPrefix(k, ":"))
+	return h.e.ex(strings.TrimPrefix(k, ":"))
 }
 
 // Editable returns why the current buffer's text may not change, or nil

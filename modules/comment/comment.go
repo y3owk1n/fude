@@ -30,7 +30,7 @@ func (Module) Call(_ context.Context, _ uint32, s api.Scope, args ...int) (api.R
 	t, start, end, linewise := s.Text, args[0], args[1], args[2] == 1
 	cs, ok := s.Comment(start)
 	if !ok {
-		return api.Result{Message: "no comment syntax for this file"}, nil
+		return api.Result{Error: "no comment syntax for this file"}, nil
 	}
 	last := t.LineOf(end)
 	if !linewise && end > start {

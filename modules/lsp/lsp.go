@@ -159,9 +159,9 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 	}
 	if s.About["servers"] == "" {
 		if id == workspace {
-			return api.Result{Message: "no language server offers workspace symbols"}, nil
+			return api.Result{Error: "no language server offers workspace symbols"}, nil
 		}
-		return api.Result{Message: "no language server"}, nil
+		return api.Result{Error: "no language server"}, nil
 	}
 	switch id {
 	case renameKey:
@@ -171,7 +171,7 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 	case renameCmd:
 		name := strings.TrimSpace(s.About["args"])
 		if name == "" {
-			return api.Result{Message: "no new name"}, nil
+			return api.Result{Error: "no new name"}, nil
 		}
 		params, _ := json.Marshal(map[string]string{"newName": name})
 		return api.Result{Requests: []api.Request{{ID: renameCmd, Method: "textDocument/rename", Pos: cursor, End: -1, Params: string(params)}}}, nil
@@ -226,7 +226,7 @@ func (m *Module) Callback(_ context.Context, id uint32, s api.Scope) (api.Result
 	var res api.Result
 	switch {
 	case id == diagPick || id == ranReq:
-		res.Message = s.About["error"]
+		res.Error = s.About["error"]
 		return res, nil
 	case id == menuID:
 		m.picked(&res, s)
@@ -234,9 +234,9 @@ func (m *Module) Callback(_ context.Context, id uint32, s api.Scope) (api.Result
 	case id == actionsReq:
 		switch err := s.About["error"]; {
 		case strings.HasPrefix(err, "no language server answered"):
-			res.Message = "no code actions"
+			res.Error = "no code actions"
 		case err != "":
-			res.Message = offers(err, "code actions")
+			res.Error = offers(err, "code actions")
 		default:
 			m.offered(&res, s)
 		}
@@ -250,7 +250,7 @@ func (m *Module) Callback(_ context.Context, id uint32, s api.Scope) (api.Result
 			a.raw = json.RawMessage(s.About["output"])
 			m.act(&res, s, a, 0)
 		} else if err := s.About["error"]; err != "" {
-			res.Message = err
+			res.Error = err
 		}
 		return res, nil
 	}
@@ -270,22 +270,22 @@ func (m *Module) Callback(_ context.Context, id uint32, s api.Scope) (api.Result
 			return api.Result{}, nil
 		}
 		if err := s.About["error"]; err != "" {
-			return api.Result{Message: offers(err, "workspace symbols"), Pick: &api.Pick{ID: picked}}, nil
+			return api.Result{Error: offers(err, "workspace symbols"), Pick: &api.Pick{ID: picked}}, nil
 		}
 		items, err := symbolPlaces(s.About["output"])
 		if err != nil {
-			return api.Result{Message: err.Error(), Pick: &api.Pick{ID: picked}}, nil
+			return api.Result{Error: err.Error(), Pick: &api.Pick{ID: picked}}, nil
 		}
 		return api.Result{Pick: &api.Pick{ID: picked, Items: items, Encoding: s.About["encoding"]}}, nil
 	}
 	if err := s.About["error"]; err != "" {
 		if id == renameCmd {
-			return api.Result{Message: offers(err, "rename")}, nil
+			return api.Result{Error: offers(err, "rename")}, nil
 		}
 		if strings.HasPrefix(err, "no language server answered") {
-			return api.Result{Message: "no " + what[id] + " found"}, nil
+			return api.Result{Error: "no " + what[id] + " found"}, nil
 		}
-		return api.Result{Message: offers(err, what[id])}, nil
+		return api.Result{Error: offers(err, what[id])}, nil
 	}
 	out, enc := s.About["output"], s.About["encoding"]
 	switch id {
@@ -345,7 +345,7 @@ func hovered(out string) api.Result {
 		}
 	}
 	if len(texts) == 0 {
-		return api.Result{Message: "no hover information"}
+		return api.Result{Error: "no hover information"}
 	}
 	return api.Result{Float: &api.Float{Text: strings.TrimSpace(strings.Join(texts, "\n\n"))}}
 }
@@ -397,7 +397,7 @@ func located(id uint32, out, enc string) api.Result {
 	}
 	switch {
 	case len(items) == 0:
-		return api.Result{Message: "no " + what[id] + " found"}
+		return api.Result{Error: "no " + what[id] + " found"}
 	case len(items) == 1 && id != references:
 		return api.Result{Jump: jump}
 	}
@@ -450,7 +450,7 @@ func listed(s api.Scope, out, enc string) api.Result {
 	json.Unmarshal([]byte(out), &raw)
 	add(raw, 0)
 	if len(items) == 0 {
-		return api.Result{Message: "no symbols found"}
+		return api.Result{Error: "no symbols found"}
 	}
 	return api.Result{Places: &api.Places{Title: "symbols", Items: items, Show: true, File: s.About["path"], Encoding: enc}}
 }

@@ -2,6 +2,7 @@ package editor
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"reflect"
@@ -37,7 +38,7 @@ func fields[T any](o *options) map[string]*T {
 // it lists every one in a window. It changes the current window and the
 // default for the session's windows opened later, and never config.toml
 // (B39).
-func (e *Session) set(args string) {
+func (e *Session) set(args string) error {
 	switches, numbers := e.win.opts.switches(), e.win.opts.numbers()
 	name, value, given := strings.Cut(strings.TrimSpace(args), " ")
 	value = strings.TrimSpace(value)
@@ -46,8 +47,7 @@ func (e *Session) set(args string) {
 		defer e.emit("option.set", name, e.win.buf)
 	}
 	if _, ok := e.cfg.settings()[name]; ok {
-		e.setSetting(name, value, given)
-		return
+		return e.setSetting(name, value, given)
 	}
 	switch _, number := numbers[name]; {
 	case name == "":
@@ -63,29 +63,26 @@ func (e *Session) set(args string) {
 			lines = append(lines, fmt.Sprintf("%-18s %s", n, settingText(settings[n])))
 		}
 		e.scratch("[set]", strings.Join(lines, "\n"), e.placement(nil, "", false, "below"))
-		return
+		return nil
 	case switches[name] == nil && !number:
-		e.message = "no option named " + name
-		return
+		return errors.New("no option named " + name)
 	case !given && number:
 		e.message = fmt.Sprintf("%s %d", name, *numbers[name])
-		return
+		return nil
 	case !given:
 		e.message = fmt.Sprintf("%s %t", name, *switches[name])
-		return
+		return nil
 	}
 	was := e.win.opts
 	if n, ok := numbers[name]; ok {
 		v, err := strconv.Atoi(value)
 		if err != nil || v < 0 {
-			e.message = fmt.Sprintf("%s takes a number of 0 or more, not %q", name, value)
-			return
+			return fmt.Errorf("%s takes a number of 0 or more, not %q", name, value)
 		}
 		*n = v
 	} else {
 		if value != "true" && value != "false" {
-			e.message = fmt.Sprintf("%s takes true or false, not %q", name, value)
-			return
+			return fmt.Errorf("%s takes true or false, not %q", name, value)
 		}
 		*switches[name] = value == "true"
 	}
@@ -96,6 +93,7 @@ func (e *Session) set(args string) {
 	}
 	// A colour column changes how wide centering makes the windows.
 	e.layout()
+	return nil
 }
 
 // option returns the option or config.toml setting called name there, as
@@ -200,50 +198,45 @@ func settingText(v reflect.Value) string {
 // setSetting runs :set on a setting of the editor, which every session
 // shares, so a guest may not. theme, leader and center act at once, as
 // :theme, a new leader and :center would (B39).
-func (e *Session) setSetting(name, value string, given bool) {
+func (e *Session) setSetting(name, value string, given bool) error {
 	v := e.cfg.settings()[name]
 	switch {
 	case !given && name == "theme":
 		// :theme and :center change these too, so they show as they are now.
 		e.message = name + " " + e.theme
-		return
+		return nil
 	case !given && name == "center":
 		e.message = fmt.Sprintf("%s %t", name, e.centered)
-		return
+		return nil
 	case !given:
 		e.message = name + " " + settingText(v)
-		return
+		return nil
 	case e.power != Host:
-		e.message = "a guest may not change " + name + ", which every session shares"
-		return
+		return errors.New("a guest may not change " + name + ", which every session shares")
 	}
 	var set reflect.Value
 	switch v.Kind() {
 	case reflect.Bool:
 		if value != "true" && value != "false" {
-			e.message = fmt.Sprintf("%s takes true or false, not %q", name, value)
-			return
+			return fmt.Errorf("%s takes true or false, not %q", name, value)
 		}
 		set = reflect.ValueOf(value == "true")
 	case reflect.Uint:
 		n, err := strconv.ParseUint(value, 10, 0)
 		if err != nil {
-			e.message = fmt.Sprintf("%s takes a number of 0 or more, not %q", name, value)
-			return
+			return fmt.Errorf("%s takes a number of 0 or more, not %q", name, value)
 		}
 		set = reflect.ValueOf(uint(n))
 	case reflect.Slice:
 		items := strings.Split(value, ",")
 		if bad := slices.IndexFunc(items, func(s string) bool { return !slices.Contains(defaults.Sources, s) }); name == "completion_sources" && bad >= 0 {
-			e.message = fmt.Sprintf("%s takes %s, not %q", name, strings.Join(defaults.Sources, ","), items[bad])
-			return
+			return fmt.Errorf("%s takes %s, not %q", name, strings.Join(defaults.Sources, ","), items[bad])
 		}
 		set = reflect.ValueOf(items)
 	case reflect.Struct:
 		var hex wire.Hex
 		if err := hex.UnmarshalText([]byte(value)); err != nil {
-			e.message = fmt.Sprintf("%s takes #rrggbb, not %q", name, value)
-			return
+			return fmt.Errorf("%s takes #rrggbb, not %q", name, value)
 		}
 		set = reflect.ValueOf(hex)
 	default:
@@ -253,10 +246,7 @@ func (e *Session) setSetting(name, value string, given bool) {
 	case "theme":
 		// config.toml's theme stays, so :theme's <Tab> offers it to switch
 		// back to (B158).
-		if err := e.setTheme(value); err != nil {
-			e.message = err.Error()
-		}
-		return
+		return e.setTheme(value)
 	case "leader":
 		e.moveLeader(e.cfg.Leader, value)
 	case "center":
@@ -274,4 +264,5 @@ func (e *Session) setSetting(name, value string, given bool) {
 		}
 		s.layout()
 	}
+	return nil
 }

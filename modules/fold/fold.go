@@ -68,7 +68,7 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 	case nextFold, prevFold:
 		to, ok := moveTo(t, folds, line, max(args[1], 1), tab, id == nextFold)
 		if !ok {
-			return api.Result{Message: "no fold there"}, nil
+			return api.Result{Error: "no fold there"}, nil
 		}
 		return api.Result{Jump: &api.Jump{Pos: t.LineStart(to)}}, nil
 	case create:
@@ -171,7 +171,7 @@ func (m *Module) closeAround(t api.Text, folds []api.Decoration, line, tab int) 
 			}
 		}
 	}
-	return api.Result{Message: "no fold here"}
+	return api.Result{Error: "no fold here"}
 }
 
 // closeAt closes the fold that starts on line, when there is one, opening

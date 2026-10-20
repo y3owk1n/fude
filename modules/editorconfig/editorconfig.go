@@ -44,7 +44,7 @@ func (Module) Event(_ context.Context, _ string, s api.Scope) (api.Result, error
 	}
 	ec, err := readEditorconfig(path)
 	if err != nil {
-		return api.Result{Message: err.Error()}, nil
+		return api.Result{Error: err.Error()}, nil
 	}
 	set := map[string]string{}
 	if ec.expandTab != nil {

@@ -204,7 +204,7 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 		case "eval":
 			m.eval(&res, strings.TrimSpace(rest), false)
 		default:
-			res.Message = "debug what? " + strings.Join(subcommands, ", ")
+			res.Error = "debug what? " + strings.Join(subcommands, ", ")
 		}
 	case keyBreak:
 		m.toggle(&res, s, args[0])
@@ -374,22 +374,22 @@ func launches() (map[string]launch, error) {
 // them to choose from (B262).
 func (m *Module) start(res *api.Result, s api.Scope, name string) {
 	if m.run != nil {
-		res.Message = "a debug session runs, and :debug stop ends it"
+		res.Error = "a debug session runs, and :debug stop ends it"
 		return
 	}
 	all, err := launches()
 	if err != nil {
-		res.Message = err.Error()
+		res.Error = err.Error()
 		return
 	}
 	names := slices.Sorted(maps.Keys(all))
 	switch {
 	case len(all) == 0:
-		res.Message = "no launch settings, so .fude/launch.toml should hold some"
+		res.Error = "no launch settings, so .fude/launch.toml should hold some"
 	case name != "":
 		l, ok := all[name]
 		if !ok {
-			res.Message = "no launch settings called " + name
+			res.Error = "no launch settings called " + name
 			return
 		}
 		m.launch(res, s, name, l)
@@ -421,10 +421,10 @@ func (m *Module) launch(res *api.Result, s api.Scope, name string, l launch) {
 	}
 	switch {
 	case adapter == "":
-		res.Message = fmt.Sprintf("no debug adapter for %s, so its filetype table's debug should name one", cmp.Or(ft, "this file"))
+		res.Error = fmt.Sprintf("no debug adapter for %s, so its filetype table's debug should name one", cmp.Or(ft, "this file"))
 		return
 	case cmd == nil:
-		res.Message = "no [debug." + adapter + "] table in config.toml"
+		res.Error = "no [debug." + adapter + "] table in config.toml"
 		return
 	}
 	file, _ := filepath.Abs(s.About["path"])
@@ -517,7 +517,7 @@ func (m *Module) event(res *api.Result, s api.Scope, d *session, name string, bo
 	}
 	read := func(v any) bool {
 		if err := json.Unmarshal(body, v); err != nil {
-			res.Message = fmt.Sprintf("the debug adapter sent a bad %s: %v", name, err)
+			res.Error = fmt.Sprintf("the debug adapter sent a bad %s: %v", name, err)
 			return false
 		}
 		return true
@@ -536,7 +536,7 @@ func (m *Module) event(res *api.Result, s api.Scope, d *session, name string, bo
 		m.request(d, "setExceptionBreakpoints", map[string]any{"filters": []string{}}, func(*api.Result, api.Scope, json.RawMessage, error) {})
 		m.request(d, "configurationDone", nil, func(res *api.Result, _ api.Scope, _ json.RawMessage, err error) {
 			if err != nil {
-				res.Message = err.Error()
+				res.Error = err.Error()
 			}
 		})
 	case "stopped":
@@ -563,7 +563,7 @@ func (m *Module) event(res *api.Result, s api.Scope, d *session, name string, bo
 				err = json.Unmarshal(body, &t)
 			}
 			if err != nil || len(t.Threads) == 0 {
-				res.Message = why + ", in no thread fude could find"
+				res.Error = why + ", in no thread fude could find"
 				return
 			}
 			m.stoppedAt(d, t.Threads[0].ID, why)
@@ -609,7 +609,7 @@ func (m *Module) stoppedAt(d *session, thread int, why string) {
 			return
 		}
 		if err != nil {
-			res.Message = why + ", with no stack: " + err.Error()
+			res.Error = why + ", with no stack: " + err.Error()
 			return
 		}
 		d.frames, d.frame, d.scopes = st.Frames, 0, nil
@@ -632,7 +632,7 @@ func (m *Module) showFrame(res *api.Result, s api.Scope, d *session) {
 	}
 	f := d.frames[d.frame]
 	if f.Source.Path == "" {
-		res.Message = "the frame " + f.Name + " has no source"
+		res.Error = "the frame " + f.Name + " has no source"
 		return
 	}
 	res.Jump = &api.Jump{Path: f.Source.Path, Line: f.Line, Column: max(f.Column, 1)}
@@ -716,7 +716,7 @@ func (m *Module) end(res *api.Result, s api.Scope, d *session, why string) {
 func (m *Module) stop(res *api.Result, s api.Scope) {
 	d := m.run
 	if d == nil {
-		res.Message = "no debug session runs"
+		res.Error = "no debug session runs"
 		return
 	}
 	// The session ends whatever the adapter answers.
@@ -733,16 +733,16 @@ func (m *Module) step(res *api.Result, s api.Scope, how string) {
 		m.start(res, s, "")
 		return
 	case d == nil:
-		res.Message = "no debug session runs"
+		res.Error = "no debug session runs"
 		return
 	case d.thread == 0:
-		res.Message = d.name + " is not stopped"
+		res.Error = d.name + " is not stopped"
 		return
 	}
 	cmd := map[string]string{"continue": "continue", "next": "next", "in": "stepIn", "out": "stepOut"}[how]
 	m.request(d, cmd, map[string]any{"threadId": d.thread}, func(res *api.Result, _ api.Scope, _ json.RawMessage, err error) {
 		if err != nil {
-			res.Message = err.Error()
+			res.Error = err.Error()
 		}
 	})
 	m.running(res, s, d)
@@ -752,7 +752,7 @@ func (m *Module) step(res *api.Result, s api.Scope, how string) {
 // tells a running session (B262).
 func (m *Module) toggle(res *api.Result, s api.Scope, cursor int) {
 	if s.About["path"] == "" {
-		res.Message = "a breakpoint needs a file"
+		res.Error = "a breakpoint needs a file"
 		return
 	}
 	buffer, _ := strconv.Atoi(s.About["buffer"])
@@ -820,7 +820,7 @@ func (m *Module) sendBreaks(s api.Scope, buffer int) {
 			err = json.Unmarshal(body, &r)
 		}
 		if err != nil {
-			res.Message = "the debug adapter took no breakpoints: " + err.Error()
+			res.Error = "the debug adapter took no breakpoints: " + err.Error()
 			return
 		}
 		for i, taken := range r.Breakpoints {
@@ -844,10 +844,10 @@ func (m *Module) eval(res *api.Result, expr string, float bool) {
 	d := m.run
 	switch {
 	case d == nil:
-		res.Message = "no debug session runs"
+		res.Error = "no debug session runs"
 		return
 	case expr == "":
-		res.Message = "evaluate what? :debug eval expr"
+		res.Error = "evaluate what? :debug eval expr"
 		return
 	}
 	args := map[string]any{"expression": expr, "context": map[bool]string{true: "hover", false: "repl"}[float]}
@@ -863,7 +863,7 @@ func (m *Module) eval(res *api.Result, expr string, float bool) {
 		}
 		switch {
 		case err != nil:
-			res.Message = expr + ": " + err.Error()
+			res.Error = expr + ": " + err.Error()
 		case float:
 			res.Float = &api.Float{Text: r.Result}
 		default:
@@ -901,7 +901,7 @@ func (m *Module) evalHere(res *api.Result, s api.Scope, args []int) {
 func (m *Module) showPanel(res *api.Result, s api.Scope) {
 	d := m.run
 	if d == nil {
-		res.Message = "no debug session runs"
+		res.Error = "no debug session runs"
 		return
 	}
 	m.panel = true
@@ -929,7 +929,7 @@ func (m *Module) fetchScopes(d *session) {
 			return
 		}
 		if err != nil {
-			res.Message = "the frame's scopes: " + err.Error()
+			res.Error = "the frame's scopes: " + err.Error()
 			return
 		}
 		d.scopes = r.Scopes
@@ -956,7 +956,7 @@ func (m *Module) fetchMembers(d *session, ref int) {
 			return
 		}
 		if err != nil {
-			res.Message = "the variables: " + err.Error()
+			res.Error = "the variables: " + err.Error()
 			return
 		}
 		d.members[ref] = r.Variables

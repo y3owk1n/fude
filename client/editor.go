@@ -149,14 +149,13 @@ func (h host) Apply(edits []vim.Edit, _ string) error {
 	return nil
 }
 
-func (h host) Unhandled(keys string) {
+func (h host) Unhandled(keys string) error {
 	// An ex line, such as ":w", runs on the server's command line.
 	if strings.HasPrefix(keys, ":") {
 		keys += "<CR>"
 	}
-	if _, err := h.e.server(keys); err != nil {
-		h.e.message = err.Error()
-	}
+	_, err := h.e.server(keys)
+	return err
 }
 
 func (h host) Undo() (int, int, error) { return h.e.step("u") }

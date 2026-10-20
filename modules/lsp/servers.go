@@ -45,7 +45,7 @@ func (m *Module) serverCall(res *api.Result, s api.Scope, id uint32, cursor int)
 		if do == "" {
 			p, names, _ := panel(s)
 			if len(names) == 0 {
-				res.Message = "no language servers are set in config.toml"
+				res.Error = "no language servers are set in config.toml"
 				return
 			}
 			res.Show = p
@@ -57,14 +57,14 @@ func (m *Module) serverCall(res *api.Result, s api.Scope, id uint32, cursor int)
 			}
 		}
 		if len(res.Servers) == 0 {
-			res.Message = "no language server is set for this file"
+			res.Error = "no language server is set for this file"
 			if name != "" {
-				res.Message = "no language server is called " + name
+				res.Error = "no language server is called " + name
 			}
 		}
 	default:
 		if s.About["title"] != panelTitle {
-			res.Message = "not in the language servers panel"
+			res.Error = "not in the language servers panel"
 			return
 		}
 		_, names, starts := panel(s)

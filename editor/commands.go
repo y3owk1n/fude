@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"errors"
 	"maps"
 	"path/filepath"
 	"reflect"
@@ -17,7 +18,7 @@ import (
 // argument may become.
 type command struct {
 	vim.Command
-	run func(e *Session, x call)
+	run func(e *Session, x call) error
 	// complete returns where the word being typed in arg begins and what it
 	// may become, or is nil for an argument with no completion.
 	complete func(e *Session, line string, start int, arg string, wait bool) (int, []string)
@@ -44,74 +45,65 @@ var (
 
 func init() {
 	commands = []command{
-		{vim.Command{Name: "accept", Args: "[n]", Help: "applies proposal n, or the buffer's newest"}, func(e *Session, x call) {
-			e.decide(x.arg, true)
+		{vim.Command{Name: "accept", Args: "[n]", Help: "applies proposal n, or the buffer's newest"}, func(e *Session, x call) error {
+			return e.decide(x.arg, true)
 		}, nil},
-		{vim.Command{Name: "cd", Args: "[dir]", Help: "changes the working directory, to home without dir"}, func(e *Session, x call) { e.cd(x.arg) }, completePath},
-		{vim.Command{Name: "close", Short: []string{"clo"}, Help: "closes the window"}, func(e *Session, _ call) {
-			if err := e.closeWindow(e.win); err != nil {
-				e.message = err.Error()
-			}
-		}, nil},
-		{vim.Command{Name: "edit", Short: []string{"e"}, Args: "[file]", Help: "opens file, or reads the buffer's file again. ! drops changes"}, func(e *Session, x call) {
+		{vim.Command{Name: "cd", Args: "[dir]", Help: "changes the working directory, to home without dir"}, func(e *Session, x call) error { return e.cd(x.arg) }, completePath},
+		{vim.Command{Name: "close", Short: []string{"clo"}, Help: "closes the window"}, func(e *Session, _ call) error { return e.closeWindow(e.win) }, nil},
+		{vim.Command{Name: "edit", Short: []string{"e"}, Args: "[file]", Help: "opens file, or reads the buffer's file again. ! drops changes"}, func(e *Session, x call) error {
 			if x.arg == "" {
-				e.reread(x.force)
-				return
+				return e.reread(x.force)
 			}
-			e.edit(x.arg)
+			return e.edit(x.arg)
 		}, completePath},
-		{vim.Command{Name: "pick", Args: "[source] [text]", Help: "opens the finder on a source, or on the sources: files, grep [text], buffers, recent, diagnostics, symbols, help or keymaps"}, func(e *Session, x call) { e.openPick(x.arg) }, func(e *Session, _ string, start int, arg string, _ bool) (int, []string) {
+		{vim.Command{Name: "pick", Args: "[source] [text]", Help: "opens the finder on a source, or on the sources: files, grep [text], buffers, recent, diagnostics, symbols, help or keymaps"}, func(e *Session, x call) error { return e.openPick(x.arg) }, func(e *Session, _ string, start int, arg string, _ bool) (int, []string) {
 			return start, fuzzy.Match(e.pickNames(), arg)
 		}},
-		{vim.Command{Name: "config", Args: "reload", Help: "reads config.toml again, without writing it"}, func(e *Session, x call) {
+		{vim.Command{Name: "config", Args: "reload", Help: "reads config.toml again, without writing it"}, func(e *Session, x call) error {
 			if x.arg != "reload" {
-				e.message = "config what? reload"
-				return
+				return errors.New("config what? reload")
 			}
-			e.reloadConfig()
+			return e.reloadConfig()
 		}, func(_ *Session, _ string, start int, arg string, _ bool) (int, []string) {
 			return start, fuzzy.Match([]string{"reload"}, arg)
 		}},
-		{vim.Command{Name: "plugin", Args: "reload", Help: "reads config.toml's plugins again and loads them anew"}, func(e *Session, x call) {
+		{vim.Command{Name: "plugin", Args: "reload", Help: "reads config.toml's plugins again and loads them anew"}, func(e *Session, x call) error {
 			if x.arg != "reload" {
-				e.message = "usage: :plugin reload"
-				return
+				return errors.New("plugin what? reload")
 			}
-			e.reloadPlugins()
+			return e.reloadPlugins()
 		}, func(_ *Session, _ string, start int, arg string, _ bool) (int, []string) {
 			return start, fuzzy.Match([]string{"reload"}, arg)
 		}},
-		{vim.Command{Name: "quit", Short: []string{"q"}, Help: "closes the window, and quits with the last. ! drops changes"}, func(e *Session, x call) { e.quit(x.force) }, nil},
-		{vim.Command{Name: "quitall", Short: []string{"qa", "qall", "quita"}, Help: "quits. ! drops every change"}, func(e *Session, x call) { e.quitAll(x.force) }, nil},
-		{vim.Command{Name: "restart", Help: "starts fude again on the same files, windows and unsaved changes, with config, plugins and servers loaded afresh"}, func(e *Session, _ call) { e.restart() }, nil},
-		{vim.Command{Name: "reject", Args: "[n]", Help: "drops proposal n, or the buffer's newest"}, func(e *Session, x call) {
-			e.decide(x.arg, false)
+		{vim.Command{Name: "quit", Short: []string{"q"}, Help: "closes the window, and quits with the last. ! drops changes"}, func(e *Session, x call) error { return e.quit(x.force) }, nil},
+		{vim.Command{Name: "quitall", Short: []string{"qa", "qall", "quita"}, Help: "quits. ! drops every change"}, func(e *Session, x call) error { return e.quitAll(x.force) }, nil},
+		{vim.Command{Name: "restart", Help: "starts fude again on the same files, windows and unsaved changes, with config, plugins and servers loaded afresh"}, func(e *Session, _ call) error { return e.restart() }, nil},
+		{vim.Command{Name: "reject", Args: "[n]", Help: "drops proposal n, or the buffer's newest"}, func(e *Session, x call) error {
+			return e.decide(x.arg, false)
 		}, nil},
-		{vim.Command{Name: "set", Short: []string{"se"}, Args: "[name [value]]", Help: "sets an option to a value, as config.toml would, shows one, or lists them all"}, func(e *Session, x call) { e.set(x.arg) }, completeOption},
-		{vim.Command{Name: "share", Help: "shows a new share string, which lets one more guest join"}, func(e *Session, _ call) { e.reshare() }, nil},
-		{vim.Command{Name: "wall", Short: []string{"wa"}, Help: "writes every modified buffer"}, func(e *Session, x call) { e.writeAll(e.bufs, x.force, nil) }, nil},
-		{vim.Command{Name: "wq", Help: "writes the buffer and closes the window"}, func(e *Session, x call) {
-			e.write(e.win.buf, x.force, func() { e.quit(x.force) })
+		{vim.Command{Name: "set", Short: []string{"se"}, Args: "[name [value]]", Help: "sets an option to a value, as config.toml would, shows one, or lists them all"}, func(e *Session, x call) error { return e.set(x.arg) }, completeOption},
+		{vim.Command{Name: "share", Help: "shows a new share string, which lets one more guest join"}, func(e *Session, _ call) error { return e.reshare() }, nil},
+		{vim.Command{Name: "wall", Short: []string{"wa"}, Help: "writes every modified buffer"}, func(e *Session, x call) error { return e.writeAll(e.bufs, x.force, nil) }, nil},
+		{vim.Command{Name: "wq", Help: "writes the buffer and closes the window"}, func(e *Session, x call) error {
+			return e.write(e.win.buf, x.force, func() { e.report(e.quit(x.force)) })
 		}, nil},
 		{vim.Command{Name: "wqall", Short: []string{"wqa"}, Help: "writes every modified buffer and quits"}, writeAllAndQuit, nil},
-		{vim.Command{Name: "write", Short: []string{"w"}, Args: "[file]", Help: "writes the buffer, or to file. ! overwrites a file changed on disk"}, func(e *Session, x call) {
+		{vim.Command{Name: "write", Short: []string{"w"}, Args: "[file]", Help: "writes the buffer, or to file. ! overwrites a file changed on disk"}, func(e *Session, x call) error {
 			if x.arg != "" {
-				e.writeTo(e.win.buf, x.arg, x.force)
-				return
+				return e.writeTo(e.win.buf, x.arg, x.force)
 			}
-			e.write(e.win.buf, x.force, nil)
+			return e.write(e.win.buf, x.force, nil)
 		}, completePath},
 		{vim.Command{Name: "xall", Short: []string{"xa"}, Help: "writes every modified buffer and quits"}, writeAllAndQuit, nil},
-		{vim.Command{Name: "xit", Short: []string{"x", "exit"}, Help: "writes the buffer if it is modified and closes the window"}, func(e *Session, x call) {
+		{vim.Command{Name: "xit", Short: []string{"x", "exit"}, Help: "writes the buffer if it is modified and closes the window"}, func(e *Session, x call) error {
 			if e.win.buf.modified() {
-				e.write(e.win.buf, x.force, func() { e.quit(x.force) })
-			} else {
-				e.quit(x.force)
+				return e.write(e.win.buf, x.force, func() { e.report(e.quit(x.force)) })
 			}
+			return e.quit(x.force)
 		}, nil},
 	}
 	plugs = []plug{
-		{"restart", "starts fude again on the same session", func(e *Session, _ int) { e.restart() }},
+		{"restart", "starts fude again on the same session", func(e *Session, _ int) { e.report(e.restart()) }},
 		{"finder.open", "opens the selected match", func(e *Session, _ int) { e.finderAct("open") }},
 		{"finder.list", "lists every match as places, the last list", func(e *Session, _ int) { e.finderAct("list") }},
 		{"finder.next", "selects the next match", func(e *Session, _ int) { e.finderAct("next") }},
@@ -139,8 +131,8 @@ func byName(cs []command) map[string]*command {
 }
 
 // writeAllAndQuit is :wqall and :xall.
-func writeAllAndQuit(e *Session, x call) {
-	e.writeAll(e.bufs, x.force, func() { e.quitAll(x.force) })
+func writeAllAndQuit(e *Session, x call) error {
+	return e.writeAll(e.bufs, x.force, func() { e.report(e.quitAll(x.force)) })
 }
 
 // completePath completes a path, off the loop when it must read a

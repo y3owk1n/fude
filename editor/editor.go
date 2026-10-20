@@ -46,29 +46,29 @@ type Editor struct {
 	pluginArgs        map[string]string // the arguments of a module's command, by its name (B324)
 	pathArgs          map[string]bool   // the modules' commands whose argument completes as a path (B290)
 	pluginBindings    []vim.Binding
-	plugged           int                               // how many of setup come before the plugins' own
-	commands          map[string]func(*Session, call)   // ex commands plugins registered
-	sources           map[string]func(*Session, string) // :pick sources modules registered, by name (B287)
-	writers           map[string]writer                 // what writes each kind of buffer modules write, by kind (B327)
-	completionSources map[string]completer              // the modules' sources of completion, by name (B336)
-	shortOf           map[string]string                 // the modules' command each short name stands for (B329)
-	tabs              []api.Tab                         // what a module says the buffer line lists (B331)
-	completers        map[string]func(*Session, string) // by command, what asks a module to complete its argument (B290)
-	decos             map[any][]decoration              // by owner: a plugin, or a buffer for its diagnostics
-	servers           map[string]*server                // by command and root
-	down              map[string]string                 // by name, why a configured language server is not running
-	building          map[string]bool                   // the filetypes whose grammar builds now
-	failed            map[string]string                 // by filetype, why its grammar did not build this session
-	started           bool                              // Load ran, so new buffers attach to servers at once
-	project           string                            // the directory fude started in, symlinks resolved (B243)
-	wd                string                            // the working directory, which :cd changes (B340)
-	share             *share                            // the guests' listener, while fude shares (B248)
-	socket            string                            // where Serve listens, for a :terminal's FUDE_SOCKET (B355)
-	clients           atomic.Int64                      // the attached clients yet to have their last frame (B242)
-	began             int                               // how many sessions began, for the next one's colour (B252)
-	sessions          []*Session                        // the first is the one that opened the editor
-	setup             []func(*Session)                  // what every session's machine gets, such as keymaps
-	proposed          int                               // the id of the newest proposal
+	plugged           int                                   // how many of setup come before the plugins' own
+	commands          map[string]func(*Session, call) error // ex commands plugins registered
+	sources           map[string]func(*Session, string)     // :pick sources modules registered, by name (B287)
+	writers           map[string]writer                     // what writes each kind of buffer modules write, by kind (B327)
+	completionSources map[string]completer                  // the modules' sources of completion, by name (B336)
+	shortOf           map[string]string                     // the modules' command each short name stands for (B329)
+	tabs              []api.Tab                             // what a module says the buffer line lists (B331)
+	completers        map[string]func(*Session, string)     // by command, what asks a module to complete its argument (B290)
+	decos             map[any][]decoration                  // by owner: a plugin, or a buffer for its diagnostics
+	servers           map[string]*server                    // by command and root
+	down              map[string]string                     // by name, why a configured language server is not running
+	building          map[string]bool                       // the filetypes whose grammar builds now
+	failed            map[string]string                     // by filetype, why its grammar did not build this session
+	started           bool                                  // Load ran, so new buffers attach to servers at once
+	project           string                                // the directory fude started in, symlinks resolved (B243)
+	wd                string                                // the working directory, which :cd changes (B340)
+	share             *share                                // the guests' listener, while fude shares (B248)
+	socket            string                                // where Serve listens, for a :terminal's FUDE_SOCKET (B355)
+	clients           atomic.Int64                          // the attached clients yet to have their last frame (B242)
+	began             int                                   // how many sessions began, for the next one's colour (B252)
+	sessions          []*Session                            // the first is the one that opened the editor
+	setup             []func(*Session)                      // what every session's machine gets, such as keymaps
+	proposed          int                                   // the id of the newest proposal
 	listeners         map[api.Module]*listener
 	segments          map[api.Module]map[*buffer]string // what each plugin shows on the statusline of each buffer
 	leftSegments      map[api.Module]map[*buffer]string // what each shows on its left, after the buffer's name (B147)
@@ -162,7 +162,7 @@ func open(cfg config, paths []string) (*Session, error) {
 	if len(paths) == 0 {
 		paths = []string{""}
 	}
-	ed := &Editor{next: 1, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(*Session, call){}, sources: map[string]func(*Session, string){}, writers: map[string]writer{}, completionSources: map[string]completer{}, shortOf: map[string]string{}, completers: map[string]func(*Session, string){}, decos: map[any][]decoration{}, servers: map[string]*server{}, down: map[string]string{}, building: map[string]bool{}, failed: map[string]string{}, listeners: map[api.Module]*listener{}, segments: map[api.Module]map[*buffer]string{}, leftSegments: map[api.Module]map[*buffer]string{}}
+	ed := &Editor{next: 1, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(*Session, call) error{}, sources: map[string]func(*Session, string){}, writers: map[string]writer{}, completionSources: map[string]completer{}, shortOf: map[string]string{}, completers: map[string]func(*Session, string){}, decos: map[any][]decoration{}, servers: map[string]*server{}, down: map[string]string{}, building: map[string]bool{}, failed: map[string]string{}, listeners: map[api.Module]*listener{}, segments: map[api.Module]map[*buffer]string{}, leftSegments: map[api.Module]map[*buffer]string{}}
 	// Without a config directory there are no overrides, and loadConfig
 	// reports why.
 	if dir, err := keep.Dir("XDG_CONFIG_HOME", ".config"); err == nil {
@@ -863,27 +863,23 @@ func (e *Session) jump(n int) bool {
 
 // quit closes the current window, or quits once it is the last one. Without
 // force it refuses to quit while a buffer has unsaved changes.
-func (e *Session) quit(force bool) {
+func (e *Session) quit(force bool) error {
 	if e.root.win == nil || e.win.anchor != "" {
-		if err := e.closeWindow(e.win); err != nil {
-			e.message = err.Error()
-		}
-		return
+		return e.closeWindow(e.win)
 	}
-	e.quitAll(force)
+	return e.quitAll(force)
 }
 
 // quitAll quits fude. Without force it refuses while a buffer has unsaved
 // changes. A session other than the first only leaves, and fude keeps running.
-func (e *Session) quitAll(force bool) {
+func (e *Session) quitAll(force bool) error {
 	if e != e.sessions[0] {
 		e.leave()
-		return
+		return nil
 	}
 	for _, b := range e.bufs {
 		if b.modified() && !force {
-			e.message = fmt.Sprintf("\"%s\" has unsaved changes, ! drops them", b.name())
-			return
+			return fmt.Errorf("\"%s\" has unsaved changes, ! drops them", b.name())
 		}
 	}
 	e.quitting()
@@ -904,6 +900,7 @@ func (e *Session) quitAll(force bool) {
 	for _, s := range e.sessions {
 		s.done = true
 	}
+	return nil
 }
 
 // SetName names the session, as --name does (B252).
@@ -920,11 +917,10 @@ func (e *Session) leave() {
 	e.done = true
 }
 
-func (e *Session) ex(line string) {
+func (e *Session) ex(line string) error {
 	first, last, rest, ranged, err := e.vim.LineRange(strings.TrimSpace(line))
 	if err != nil {
-		e.message = err.Error()
-		return
+		return err
 	}
 	name, arg, _ := strings.Cut(rest, " ")
 	name, force := strings.CutSuffix(name, "!")
@@ -934,73 +930,71 @@ func (e *Session) ex(line string) {
 	arg = strings.TrimSpace(arg)
 	if c, ok := commandsByName[name]; ok {
 		if e.power != Host && refuses(c.Name, arg) {
-			e.message = "a guest may not run :" + c.Name
-			return
+			return errors.New("a guest may not run :" + c.Name)
 		}
-		if takesPath(c) && !e.mayTake(&arg) {
-			return
+		if takesPath(c) {
+			if err := e.mayTake(&arg); err != nil {
+				return err
+			}
 		}
-		c.run(e, call{name, arg, force, first, last, ranged})
-		return
+		return c.run(e, call{name, arg, force, first, last, ranged})
 	}
 	if run, ok := e.commands[name]; ok {
-		if e.pathArgs[name] && !e.mayTake(&arg) {
-			return
+		if e.pathArgs[name] {
+			if err := e.mayTake(&arg); err != nil {
+				return err
+			}
 		}
-		run(e, call{name, arg, force, first, last, ranged})
-		return
+		return run(e, call{name, arg, force, first, last, ranged})
 	}
-	e.message = "not a command: " + line
+	return errors.New("not a command: " + line)
 }
 
 // mayTake expands the path arg names, as %, # and ~, and reports whether
 // the session may use it, saying why not (B204, B245).
-func (e *Session) mayTake(arg *string) bool {
+func (e *Session) mayTake(arg *string) error {
 	full, err := e.expand(*arg)
 	if err == nil {
 		err = e.outside(full)
 	}
 	if err != nil {
-		e.message = err.Error()
-		return false
+		return err
 	}
 	*arg = full
-	return true
+	return nil
 }
 
 // edit shows the file at path, opening it if no buffer holds it.
-func (e *Session) edit(path string) {
+func (e *Session) edit(path string) error {
 	switch path {
 	case "":
-		e.message = "no file name"
-		return
+		return errors.New("no file name")
 	case "#":
 		if b := e.find(path); b != nil {
 			e.show(b)
 		}
-		return
+		return nil
 	}
 	if err := e.outside(path); err != nil {
-		e.message = err.Error()
-		return
+		return err
 	}
 	for _, b := range e.bufs {
 		if b.is(path) {
 			e.show(b)
-			return
+			return nil
 		}
 	}
 	if info, err := os.Stat(path); err == nil && info.IsDir() {
 		e.openExplorer(path, "")
-		return
+		return nil
 	}
 	msg, err := e.add(path)
 	if err != nil {
-		e.message = err.Error()
-		return
+		return err
 	}
 	e.show(e.bufs[len(e.bufs)-1])
 	e.message = msg
+	return nil
 }
 
 // list shows every buffer with its number, % for the current window's and +

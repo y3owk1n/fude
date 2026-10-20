@@ -102,7 +102,7 @@ func (m *Module) Callback(_ context.Context, id uint32, s api.Scope) (api.Result
 		// A server answers null for a text with no hints.
 		return res, nil
 	case err != "":
-		res.Message = err
+		res.Error = err
 		return res, nil
 	}
 	var found []struct {
@@ -112,7 +112,7 @@ func (m *Module) Callback(_ context.Context, id uint32, s api.Scope) (api.Result
 		PaddingRight bool            `json:"paddingRight"`
 	}
 	if err := json.Unmarshal([]byte(s.About["output"]), &found); err != nil {
-		return api.Result{Message: "inlay hints from " + s.About["server"] + ": " + err.Error()}, nil
+		return api.Result{Error: "inlay hints from " + s.About["server"] + ": " + err.Error()}, nil
 	}
 	for _, h := range found {
 		label := hintLabel(h.Label)

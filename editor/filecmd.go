@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -35,41 +36,38 @@ func (e *Session) revert(b *buffer) error {
 
 // reread reads the current buffer's file again, as :e does, and refuses
 // while it has changes unless force drops them, as :e! does (B155).
-func (e *Session) reread(force bool) {
+func (e *Session) reread(force bool) error {
 	b := e.win.buf
 	switch {
 	case b.listed != "" && b.modified() && !force:
-		e.message = fmt.Sprintf("\"%s\" has unsaved changes, :e! drops them", b.title)
+		return fmt.Errorf("\"%s\" has unsaved changes, :e! drops them", b.title)
 	case b.listed != "":
 		// An explorer reads its directory again (B124).
 		e.reload(b)
+		return nil
 	case b.file.path == "" || b.title != "":
-		e.message = "no file name"
+		return errors.New("no file name")
 	case b.modified() && !force:
-		e.message = fmt.Sprintf("\"%s\" has unsaved changes, :e! drops them", b.file.path)
-	default:
-		if err := e.revert(b); err != nil {
-			e.message = err.Error()
-		}
+		return fmt.Errorf("\"%s\" has unsaved changes, :e! drops them", b.file.path)
 	}
+	return e.revert(b)
 }
 
 // writeTo writes b's text to path, leaving b on its own file, as :w path
 // does. It refuses to write over a file that exists unless force (B155).
-func (e *Session) writeTo(b *buffer, path string, force bool) {
+func (e *Session) writeTo(b *buffer, path string, force bool) error {
 	if _, err := os.Stat(path); err == nil && !force {
-		e.message = fmt.Sprintf("\"%s\" exists, :w! writes over it", path)
-		return
+		return fmt.Errorf("\"%s\" exists, :w! writes over it", path)
 	}
 	f := b.file
 	f.path = path
 	t := b.text.Snapshot()
 	n, err := f.write(t.Slice(0, t.Len()))
 	if err != nil {
-		e.message = err.Error()
-		return
+		return err
 	}
 	e.message = fmt.Sprintf("\"%s\" %dB written", path, n)
+	return nil
 }
 
 // empty shows a new buffer with no file in the current window, as :enew
@@ -85,12 +83,11 @@ func (e *Session) empty() {
 // cd makes dir the working directory, or the home directory for "". The
 // buffers' paths become absolute first, so they keep naming their files
 // (B155).
-func (e *Session) cd(dir string) {
+func (e *Session) cd(dir string) error {
 	if dir == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {
-			e.message = err.Error()
-			return
+			return err
 		}
 		dir = home
 	}
@@ -100,22 +97,20 @@ func (e *Session) cd(dir string) {
 		}
 		abs, err := filepath.Abs(b.file.path)
 		if err != nil {
-			e.message = err.Error()
-			return
+			return err
 		}
 		b.file.path = abs
 	}
 	if err := os.Chdir(dir); err != nil {
-		e.message = fmt.Sprintf("cd %s: %v", dir, err)
-		return
+		return fmt.Errorf("cd %s: %w", dir, err)
 	}
 	wd, err := os.Getwd()
 	if err != nil {
-		e.message = err.Error()
-		return
+		return err
 	}
 	e.message, e.wd = wd, wd
 	e.emit("cwd.changed", wd, e.win.buf)
+	return nil
 }
 
 // takesPath reports whether c's argument is a file or a directory, which
@@ -186,28 +181,27 @@ func modify(path string, m byte) (string, error) {
 
 // write writes b to its file, then runs then. Without force it asks first
 // when the file changed on disk since fude read it.
-func (e *Session) write(b *buffer, force bool, then func()) {
+func (e *Session) write(b *buffer, force bool, then func()) error {
 	if _, ok := e.writers[b.kind()]; ok || b.listed != "" {
 		e.writeKind(b, then)
-		return
+		return nil
 	}
 	switch {
 	case b.file.path == "":
-		e.message = "no file name"
-		return
+		return errors.New("no file name")
 	case b.file.readonly:
-		e.message = fmt.Sprintf("\"%s\" is read-only", b.file.path)
-		return
+		return fmt.Errorf("\"%s\" is read-only", b.file.path)
 	case !force && b.file.changed():
 		e.confirm(fmt.Sprintf("\"%s\" changed on disk since fude read it, write anyway?", b.file.path), func(yes bool) {
 			if yes {
-				e.write(b, true, then)
+				e.report(e.write(b, true, then))
 			}
 		})
-		return
+		return nil
 	}
 	// The modules that hear buffer.saving change the text first (B282).
 	e.saving(b, func() { e.writeOut(b, then) })
+	return nil
 }
 
 // writeOut writes b's text to its file, then runs then.
@@ -235,16 +229,16 @@ func (e *Session) writeOut(b *buffer, then func()) {
 
 // writeAll writes each modified buffer in bs, then runs then. It stops at
 // the first buffer that fails to write.
-func (e *Session) writeAll(bs []*buffer, force bool, then func()) {
+func (e *Session) writeAll(bs []*buffer, force bool, then func()) error {
 	for i, b := range bs {
 		if b.modified() {
-			e.write(b, force, func() { e.writeAll(bs[i+1:], force, then) })
-			return
+			return e.write(b, force, func() { e.report(e.writeAll(bs[i+1:], force, then)) })
 		}
 	}
 	if then != nil {
 		then()
 	}
+	return nil
 }
 
 // Focus reloads each unmodified buffer whose file changed on disk, as one

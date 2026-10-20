@@ -67,7 +67,7 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, _ ...int) (api.
 	}
 	buf, _ := strconv.Atoi(s.About["buffer"])
 	if s.Buffers[buf].Kind != "history" {
-		return api.Result{Message: "not in a history window"}, nil
+		return api.Result{Error: "not in a history window"}, nil
 	}
 	t := s.Text
 	pos, _ := strconv.Atoi(s.About["cursor"])

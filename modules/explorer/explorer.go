@@ -81,7 +81,7 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 	case cwd:
 		wd, err := os.Getwd()
 		if err != nil {
-			return api.Result{Message: err.Error()}, nil
+			return api.Result{Error: err.Error()}, nil
 		}
 		return api.Result{Jump: list(s, wd)}, nil
 	case reload:
@@ -90,7 +90,7 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 		return save(s, dir), nil
 	}
 	if dir == "" {
-		return api.Result{Message: "not in an explorer"}, nil
+		return api.Result{Error: "not in an explorer"}, nil
 	}
 	t := s.Text
 	line := t.LineOf(args[0])
@@ -145,13 +145,13 @@ func listUp(s api.Scope, count int) api.Result {
 	if count == 1 || from == "" {
 		wd, err := os.Getwd()
 		if err != nil {
-			return api.Result{Message: err.Error()}
+			return api.Result{Error: err.Error()}
 		}
 		return api.Result{Jump: list(s, wd)}
 	}
 	from, err := filepath.Abs(from)
 	if err != nil {
-		return api.Result{Message: err.Error()}
+		return api.Result{Error: err.Error()}
 	}
 	for range max(count, 1) {
 		from = filepath.Dir(from)
@@ -172,7 +172,7 @@ func name(en fs.DirEntry) string {
 func save(s api.Scope, dir string) api.Result {
 	c, err := plan(s.Text, s.Entries())
 	if err != nil {
-		return api.Result{Message: err.Error()}
+		return api.Result{Error: err.Error()}
 	}
 	if len(c.renames)+len(c.deletes)+len(c.creates) == 0 {
 		return api.Result{}
@@ -193,7 +193,7 @@ func save(s api.Scope, dir string) api.Result {
 		res.Moved = append(res.Moved, [2]string{filepath.Join(dir, r[0]), filepath.Join(dir, r[1])})
 	}
 	if err != nil {
-		res.Message = err.Error()
+		res.Error = err.Error()
 	}
 	return res
 }

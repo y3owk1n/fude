@@ -178,6 +178,14 @@ func TestB257Cdo(t *testing.T) {
 	if feed(e, ":cdo s/nowhere/x/<CR>"); strings.HasPrefix(e.Message(), "ran") {
 		t.Errorf(":cdo with a failing command said %q", e.Message())
 	}
+	// So does one of fude's own commands, as :cd to no folder, and a
+	// module's, as :b naming no buffer.
+	if feed(e, ":cdo cd nowhere<CR>"); !strings.HasPrefix(e.Message(), "cd nowhere: ") {
+		t.Errorf(":cdo with a failing :cd said %q", e.Message())
+	}
+	if feed(e, ":cdo b nowhere<CR>"); strings.HasPrefix(e.Message(), "ran") {
+		t.Errorf(":cdo with a failing :b said %q", e.Message())
+	}
 	// :cdo runs at each place, which stays on its text as the lines before
 	// it go.
 	if feed(e, ":cdo d<CR>"); e.Message() != "ran :d at 3 places in 2 files" {

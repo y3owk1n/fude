@@ -84,24 +84,24 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 	case config:
 		dir, err := keep.Dir("XDG_CONFIG_HOME", ".config")
 		if err != nil {
-			return api.Result{Message: fmt.Sprintf("config.toml: %v", err)}, nil
+			return api.Result{Error: fmt.Sprintf("config.toml: %v", err)}, nil
 		}
 		// A new machine has no config directory, which :w needs.
 		dir = filepath.Join(dir, "fude")
 		if err := os.MkdirAll(dir, 0o700); err != nil {
-			return api.Result{Message: fmt.Sprintf("config.toml: %v", err)}, nil
+			return api.Result{Error: fmt.Sprintf("config.toml: %v", err)}, nil
 		}
 		return api.Result{Jump: &api.Jump{Path: filepath.Join(dir, "config.toml")}}, nil
 	}
 	// The list is the start screen's, from any window (B225).
 	recent, err := recentFiles()
 	if err != nil {
-		return api.Result{Message: err.Error()}, nil
+		return api.Result{Error: err.Error()}, nil
 	}
 	if n := int(id - recentFile); n < len(recent) {
 		return api.Result{Jump: &api.Jump{Path: recent[n]}}, nil
 	}
-	return api.Result{Message: fmt.Sprintf("no recent file %d", id-recentFile+1)}, nil
+	return api.Result{Error: fmt.Sprintf("no recent file %d", id-recentFile+1)}, nil
 }
 
 // recentFiles are the 9 newest recent files under the working directory,
@@ -129,7 +129,7 @@ func (m *Module) Event(context.Context, string, api.Scope) (api.Result, error) {
 	var res api.Result
 	recent, err := recentFiles()
 	if err != nil {
-		res.Message = err.Error()
+		res.Error = err.Error()
 	}
 	list := actions
 	if path, err := keep.SessionPath(); err == nil {

@@ -117,7 +117,7 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 	}
 	defer m.mu.Unlock()
 	if on, _ := s.Option("spell"); on != "true" {
-		return api.Result{Message: "spell is off, and :set spell turns it on"}, nil
+		return api.Result{Error: "spell is off, and :set spell turns it on"}, nil
 	}
 	if m.known == nil {
 		res := m.read(s)
@@ -175,7 +175,7 @@ func (m *Module) Callback(_ context.Context, id uint32, s api.Scope) (api.Result
 	case id == read && s.About["error"] != "":
 		// A list that fails to read says so once, and spell then finds
 		// nothing.
-		return api.Result{Message: s.About["error"]}, nil
+		return api.Result{Error: s.About["error"]}, nil
 	case id == read:
 		return m.underline(s), nil
 	case id != m.asked.id || s.About["ok"] != "true":
@@ -184,7 +184,7 @@ func (m *Module) Callback(_ context.Context, id uint32, s api.Scope) (api.Result
 	q := m.asked
 	i, _ := strconv.Atoi(s.About["picked"])
 	if q.end > s.Text.Len() || s.Text.Slice(q.start, q.end) != q.word || i < 0 || i >= len(q.items) {
-		return api.Result{Message: "the text changed, so " + q.word + " stays"}, nil
+		return api.Result{Error: "the text changed, so " + q.word + " stays"}, nil
 	}
 	return api.Result{Edits: []api.Edit{{Start: q.start, End: q.end, Text: q.items[i]}}}, nil
 }
@@ -245,7 +245,7 @@ func (m *Module) underline(s api.Scope) api.Result {
 func (m *Module) step(s api.Scope, cursor int, back bool) api.Result {
 	found := typos(s, 0, s.Text.Len(), m.known)
 	if len(found) == 0 {
-		return api.Result{Message: "no misspelled words"}
+		return api.Result{Error: "no misspelled words"}
 	}
 	i := 0
 	if back {
@@ -267,7 +267,7 @@ func (m *Module) step(s api.Scope, cursor int, back bool) api.Result {
 func (m *Module) suggest(s api.Scope, cursor int) api.Result {
 	start, end, ok := wordAt(s.Text, cursor)
 	if !ok {
-		return api.Result{Message: "no word under the cursor"}
+		return api.Result{Error: "no word under the cursor"}
 	}
 	word := s.Text.Slice(start, end)
 	lower := strings.ToLower(word)
@@ -294,7 +294,7 @@ func (m *Module) suggest(s api.Scope, cursor int) api.Result {
 		}
 	}
 	if len(items) == 0 {
-		return api.Result{Message: "no words close to " + word}
+		return api.Result{Error: "no words close to " + word}
 	}
 	m.picks++
 	m.asked = question{read + m.picks, start, end, word, items}
@@ -306,7 +306,7 @@ func (m *Module) suggest(s api.Scope, cursor int) api.Result {
 func (m *Module) add(s api.Scope, cursor int) api.Result {
 	start, end, ok := wordAt(s.Text, cursor)
 	if !ok {
-		return api.Result{Message: "no word under the cursor"}
+		return api.Result{Error: "no word under the cursor"}
 	}
 	word, path := s.Text.Slice(start, end), m.own
 	at := time.Now()
@@ -323,7 +323,7 @@ func (m *Module) add(s api.Scope, cursor int) api.Result {
 	}
 	trace.Since("file", fmt.Sprintf("added %q to %q", word, path), at, err)
 	if err != nil {
-		return api.Result{Message: fmt.Sprintf("add %s to your words: %v", word, err)}
+		return api.Result{Error: fmt.Sprintf("add %s to your words: %v", word, err)}
 	}
 	m.known[word] = true
 	res := m.underline(s)

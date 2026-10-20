@@ -725,12 +725,10 @@ var windowKeys = []windowKey{
 }
 
 // window runs a <C-w> command, typed after count.
-func (e *Session) window(k string, count int) {
+func (e *Session) window(k string, count int) error {
 	i := slices.IndexFunc(windowKeys, func(w windowKey) bool { return slices.Contains(w.keys, k) })
 	if i < 0 {
-		return
+		return nil
 	}
-	if err := windowKeys[i].run(e, count); err != nil {
-		e.message = err.Error()
-	}
+	return windowKeys[i].run(e, count)
 }

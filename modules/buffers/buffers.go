@@ -74,13 +74,13 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, _ ...int) (api.
 		return api.Result{Ex: []string{write}}, nil
 	}
 	if arg == "" && id == show {
-		return api.Result{Message: "which buffer? :buffer n"}, nil
+		return api.Result{Error: "which buffer? :buffer n"}, nil
 	}
 	b := current
 	if arg != "" || id == show {
 		var msg string
 		if b, msg = find(s, arg); b == 0 {
-			return api.Result{Message: msg}, nil
+			return api.Result{Error: msg}, nil
 		}
 	}
 	switch {

@@ -58,8 +58,10 @@ type Host interface {
 	BeginGroup()
 	EndGroup()
 	// Unhandled gets what the machine leaves to the host: an ex line such as
-	// ":w", and a <C-w> key with its count, such as "2<C-w>+".
-	Unhandled(keys string)
+	// ":w", and a <C-w> key with its count, such as "2<C-w>+". An error it
+	// returns is the command's failure, which stops what ran it, such as a
+	// macro or :g.
+	Unhandled(keys string) error
 	Undo() (start, cursor int, err error)
 	Redo() (start, cursor int, err error)
 	Clipboard() (string, error) // the system clipboard, the "+ and "* register
@@ -118,7 +120,7 @@ type Defaults struct{}
 
 func (Defaults) BeginGroup()                {}
 func (Defaults) EndGroup()                  {}
-func (Defaults) Unhandled(string)           {}
+func (Defaults) Unhandled(string) error     { return nil }
 func (Defaults) Undo() (int, int, error)    { return 0, 0, ErrNoStep }
 func (Defaults) Redo() (int, int, error)    { return 0, 0, ErrNoStep }
 func (Defaults) Step(int) (int, bool)       { return 0, false }
@@ -680,8 +682,7 @@ func (m *Machine) normal(k Key) error {
 			cmd = strconv.Itoa(m.count) + cmd
 		}
 		m.count, m.reg, m.op, m.opCount = 0, 0, "", 0
-		m.h.Unhandled(cmd)
-		return nil
+		return m.h.Unhandled(cmd)
 	}
 	if (m.op != "" || m.mode == Visual) && (cmd == "i" || cmd == "a") {
 		m.pending = k
@@ -888,20 +889,16 @@ func init() {
 			return nil
 		}},
 		"ZZ": {"writes the buffer if it is modified, and closes the window", func(m *Machine, _ normalCall) error {
-			m.h.Unhandled(":x")
-			return nil
+			return m.h.Unhandled(":x")
 		}},
 		"ZQ": {"closes the window without writing", func(m *Machine, _ normalCall) error {
-			m.h.Unhandled(":q!")
-			return nil
+			return m.h.Unhandled(":q!")
 		}},
 		"<C-^>": {"shows the buffer shown before, or buffer n", func(m *Machine, x normalCall) error {
 			if x.count > 0 {
-				m.h.Unhandled(":b " + strconv.Itoa(x.count))
-			} else {
-				m.h.Unhandled(":b #")
+				return m.h.Unhandled(":b " + strconv.Itoa(x.count))
 			}
-			return nil
+			return m.h.Unhandled(":b #")
 		}},
 		"<C-o>": {"goes back n places in the jump list", func(m *Machine, x normalCall) error {
 			m.walk(m.h.Jump, x.n())

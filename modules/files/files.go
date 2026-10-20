@@ -95,7 +95,7 @@ func (m *Module) Callback(_ context.Context, id uint32, s api.Scope) (api.Result
 		return api.Result{}, nil
 	}
 	if err := s.About["error"]; err != "" {
-		return api.Result{Message: err}, nil
+		return api.Result{Error: err}, nil
 	}
 	paths := strings.FieldsFunc(s.About["output"], func(r rune) bool { return r == 0 })
 	return api.Result{Pick: &api.Pick{ID: filesSrc, Items: paths, Files: true, Update: true}}, nil

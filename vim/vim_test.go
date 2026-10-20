@@ -2,6 +2,7 @@ package vim_test
 
 import (
 	"cmp"
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -33,6 +34,7 @@ type host struct {
 	left    int    // the first column shown, when lines do not wrap
 	shown   int    // how many columns show then
 	name    string // the file's name
+	refuse  string // a line Unhandled fails, as the host's commands may
 }
 
 func (h *host) FileName() string { return h.name }
@@ -71,11 +73,18 @@ func (t text) LineStart(line int) int {
 	return pos
 }
 
-func (h *host) Text() vim.Text     { return text(h.text) }
-func (h *host) Cursor() int        { return h.cursor }
-func (h *host) SetCursor(pos int)  { h.cursor = pos }
-func (h *host) BeginGroup()        { h.depth++ }
-func (h *host) Unhandled(k string) { h.keys = append(h.keys, k) }
+func (h *host) Text() vim.Text    { return text(h.text) }
+func (h *host) Cursor() int       { return h.cursor }
+func (h *host) SetCursor(pos int) { h.cursor = pos }
+func (h *host) BeginGroup()       { h.depth++ }
+func (h *host) Unhandled(k string) error {
+	h.keys = append(h.keys, k)
+	if k == h.refuse {
+		return errors.New("refused " + k)
+	}
+	return nil
+}
+
 func (h *host) SetMark(r rune, pos int) {
 	if h.marks == nil {
 		h.marks = map[rune]int{}
@@ -700,6 +709,18 @@ func TestB112Unhandled(t *testing.T) {
 	_, h, _ := run(t, "|a\nb\nc\nd", ":w x<CR>2<C-w>v3:w<CR>3:d<CR>")
 	if want := []string{":w x", "2<C-w>v", ":.,.+2w"}; !slices.Equal(h.keys, want) || h.text != "d" {
 		t.Fatalf("Unhandled got %q and the text is %q, want %q and 3:d deleting three lines", h.keys, h.text, want)
+	}
+	// A line the host fails stops :g, and Feed returns why.
+	h = &host{text: "a\nb", refuse: ":w"}
+	m := vim.New(h)
+	var err error
+	for _, k := range vim.Keys(":g/./w<CR>") {
+		if err = m.Feed(k); err != nil {
+			break
+		}
+	}
+	if err == nil || err.Error() != "refused :w" || len(h.keys) != 1 {
+		t.Errorf(":g/./w with :w refused returned %v after %q", err, h.keys)
 	}
 }
 

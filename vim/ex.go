@@ -131,8 +131,7 @@ func (m *Machine) ex(line string) error {
 	if cmd, ok := exByName[name]; ok {
 		return cmd.run(m, exCall{t, c, first, last, ranged, name, arg})
 	}
-	m.h.Unhandled(":" + line)
-	return nil
+	return m.h.Unhandled(":" + line)
 }
 
 // exSubstitute runs :s, which without an argument repeats the last

@@ -61,8 +61,12 @@ type Result struct {
 	// as key in About, before the vim machine or a menu takes them, until
 	// a result without it (B316).
 	Capture    bool
-	StatusLeft *string        // its segment on the statusline's left, after the buffer's name, as git's branch is (B147)
-	Message    string         // a line for the message area, "" for none
+	StatusLeft *string // its segment on the statusline's left, after the buffer's name, as git's branch is (B147)
+	Message    string  // a line for the message area, "" for none
+	// Error is why the call failed, "" when it did not. It shows in place of
+	// Message, and a command that fails stops what ran it, such as :cdo, :g
+	// or a macro.
+	Error      string
 	Float      *Float         // text to show at the cursor, empty to close it
 	Show       *Panel         // text to show in a window of its own
 	Jump       *Jump          // where to move the cursor

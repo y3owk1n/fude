@@ -2,6 +2,7 @@ package editor
 
 import (
 	"cmp"
+	"errors"
 	"fmt"
 	"maps"
 	"slices"
@@ -13,27 +14,27 @@ import (
 
 // openPick opens the finder on the items of source, or on the sources
 // without one. grep takes the text after it as its query (B213).
-func (e *Session) openPick(arg string) {
+func (e *Session) openPick(arg string) error {
 	source, rest, _ := strings.Cut(arg, " ")
 	// A guest's finder and grep work only while the working directory is
 	// in the project (B245).
 	if source == "files" || source == "grep" {
 		if err := e.outside("."); err != nil {
-			e.message = "the working directory is outside the project"
-			return
+			return errors.New("the working directory is outside the project")
 		}
 	}
 	switch source {
 	case "":
 		names := e.pickNames()
-		e.pickFrom("pick", names, func(i int) { e.openPick(names[i]) })
+		e.pickFrom("pick", names, func(i int) { e.report(e.openPick(names[i])) })
 	default:
 		if src := e.sources[source]; src != nil {
 			src(e, strings.TrimSpace(rest))
-			return
+			return nil
 		}
 		e.message = fmt.Sprintf("no source named %q, only %s", source, strings.Join(e.pickNames(), ", "))
 	}
+	return nil
 }
 
 // pickNames returns the sources of :pick, the modules' (B287).

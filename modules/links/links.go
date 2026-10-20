@@ -59,14 +59,14 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 	defer m.mu.Unlock()
 	target := under(s, args[0])
 	if target == "" {
-		return api.Result{Message: "no link or file under the cursor"}, nil
+		return api.Result{Error: "no link or file under the cursor"}, nil
 	}
 	if id == open {
 		if !strings.Contains(target, "://") && !strings.HasPrefix(target, "mailto:") {
 			path, _ := split(target)
 			found, ok := find(s, path)
 			if !ok {
-				return api.Result{Message: "no file named " + path}, nil
+				return api.Result{Error: "no file named " + path}, nil
 			}
 			target = found
 		}
@@ -77,7 +77,7 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 	path, line := split(target)
 	found, ok := find(s, path)
 	if !ok {
-		return api.Result{Message: "no file named " + path}, nil
+		return api.Result{Error: "no file named " + path}, nil
 	}
 	j := &api.Jump{Path: found}
 	if line > 0 {
@@ -100,7 +100,7 @@ func (m *Module) Callback(_ context.Context, id uint32, s api.Scope) (api.Result
 	case !ok:
 		return api.Result{}, nil
 	case s.About["error"] != "":
-		return api.Result{Message: s.About["error"]}, nil
+		return api.Result{Error: s.About["error"]}, nil
 	}
 	return api.Result{Message: "opened " + target}, nil
 }

@@ -93,14 +93,14 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 		if i := slices.IndexFunc(s.States(b), func(st api.State) bool { return st.Unsaved }); i >= 0 {
 			return api.Result{Travel: &api.Travel{Buffer: b, To: i}}, nil
 		}
-		return api.Result{Message: "nothing to recover"}, nil
+		return api.Result{Error: "nothing to recover"}, nil
 	}
 	if id == restoreKey || id == diffKey || id == earlierKey || id == laterKey {
 		arg = ""
 	}
 	i, err := state(s, b, arg, args[0])
 	if err != nil {
-		return api.Result{Message: err.Error()}, nil
+		return api.Result{Error: err.Error()}, nil
 	}
 	switch id {
 	case restoreCmd:
@@ -122,7 +122,7 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 	j := slices.IndexFunc(states, func(st api.State) bool { return st.Current })
 	if _, to, ok := strings.Cut(arg, " "); ok && id == diffCmd {
 		if j, err = state(s, b, strings.TrimSpace(to), args[0]); err != nil {
-			return api.Result{Message: err.Error()}, nil
+			return api.Result{Error: err.Error()}, nil
 		}
 	}
 	x, _ := s.StateText(b, i)
@@ -191,7 +191,7 @@ func travel(s api.Scope, b int, arg string, later bool) api.Result {
 	unit := arg[len(arg)-1]
 	n, err := strconv.Atoi(strings.TrimRight(arg, "smhdf"))
 	if err != nil || n < 0 {
-		return api.Result{Message: "bad count: " + arg}
+		return api.Result{Error: "bad count: " + arg}
 	}
 	target := cur
 	switch unit {

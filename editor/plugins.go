@@ -278,7 +278,7 @@ func (e *Session) pluginRequest(p api.Module, b *buffer, rq api.Request, save *s
 func (e *Session) setOptions(b *buffer, set map[string]string) {
 	for name, value := range set {
 		if name != "expand_tab" && name != "indent_width" && name != "tab_width" {
-			e.set(name + " " + value)
+			e.report(e.set(name + " " + value))
 			continue
 		}
 		if b.set == nil {
@@ -343,7 +343,7 @@ func (e *Session) arrive() {
 		if e.win.buf.is(g.Path) {
 			e.pushJump(e.Cursor())
 		} else {
-			e.edit(g.Path)
+			e.report(e.edit(g.Path))
 		}
 		if e.win.buf.is(g.Path) {
 			e.setCursor(e.jumpPos(g))
@@ -444,7 +444,7 @@ func (e *Session) act(p api.Module, res api.Result) {
 		if b, err := e.buffer(id); err != nil {
 			e.message = err.Error()
 		} else {
-			e.write(b, false, nil)
+			e.report(e.write(b, false, nil))
 		}
 	}
 	for _, a := range res.Windows {
@@ -702,12 +702,13 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 			}
 		})
 	}
-	switch {
-	case res.Message == "":
+	// A failure's reason shows in place of the message.
+	switch msg := cmp.Or(res.Error, res.Message); {
+	case msg == "":
 	case save != nil:
-		save.notes = append(save.notes, res.Message)
+		save.notes = append(save.notes, msg)
 	default:
-		e.message = res.Message
+		e.message = msg
 	}
 	if f := res.Float; f != nil && f.Keys {
 		// Key hints for a command no longer typed are too late.
@@ -970,15 +971,13 @@ func (e *Session) unload(p api.Module, err error) {
 
 // reloadPlugins reads the [[plugin]] tables of config.toml again, closes
 // every plugin and what it added, and loads them anew (B191).
-func (e *Session) reloadPlugins() {
+func (e *Session) reloadPlugins() error {
 	if !e.started {
-		e.message = "the plugins have not loaded yet"
-		return
+		return errors.New("the plugins have not loaded yet")
 	}
 	cfg, err := loadConfig()
 	if err != nil {
-		e.message = err.Error()
-		return
+		return err
 	}
 	for _, p := range slices.Clone(e.modules) {
 		if _, ok := p.(*plugin.Plugin); ok {
@@ -990,6 +989,7 @@ func (e *Session) reloadPlugins() {
 	e.setup = e.setup[:e.plugged]
 	e.message = fmt.Sprintf("reloading %d plugins", len(cfg.Plugin))
 	e.loadPlugins()
+	return nil
 }
 
 // unregister removes the commands, operators, objects and mappings p
@@ -1086,17 +1086,19 @@ func (e *Session) register(p api.Module, r api.Registration) {
 		for _, name := range append([]string{r.Name}, r.Short...) {
 			e.pluginArgs[name], e.pathArgs[name] = r.Args, r.Paths
 		}
-		run := func(s *Session, c call) {
+		run := func(s *Session, c call) error {
 			scope := s.scope(p, s.win.buf, s.Text())
 			scope.About["args"], scope.About["bang"] = c.arg, strconv.FormatBool(c.force)
 			scope.About["first"], scope.About["last"], scope.About["ranged"] = strconv.Itoa(c.first), strconv.Itoa(c.last), strconv.FormatBool(c.ranged)
-			if edits, _, ok := s.run(p, r.ID, scope, s.Cursor(), 0); ok && len(edits) > 0 {
-				if err := (host{s}).Apply(edits, ":"+r.Name); err != nil {
-					s.message = err.Error()
-					return
-				}
-				s.setCursor(edits[0].Start)
+			edits, _, err := s.run(p, r.ID, scope, s.Cursor(), 0)
+			if err != nil || len(edits) == 0 {
+				return err
 			}
+			if err := (host{s}).Apply(edits, ":"+r.Name); err != nil {
+				return err
+			}
+			s.setCursor(edits[0].Start)
+			return nil
 		}
 		complete := func(s *Session, arg string) {
 			if r.Host && s.power != Host {
@@ -1133,9 +1135,9 @@ func (e *Session) register(p api.Module, r api.Registration) {
 		e.pluginBindings = append(e.pluginBindings, vim.Binding{Kind: "object", Keys: r.Name, Help: r.Help})
 		e.each(func(s *Session) {
 			s.vim.Object(r.Name, func(t vim.Text, start, end int) (int, int, bool) {
-				_, res, ok := s.run(p, r.ID, s.scope(p, s.win.buf, t), start, end)
+				_, res, err := s.run(p, r.ID, s.scope(p, s.win.buf, t), start, end)
 				sel := res.Selected
-				if !ok || sel == nil {
+				if err != nil || sel == nil {
 					return 0, 0, false
 				}
 				return sel[0], sel[1], true
@@ -1377,16 +1379,14 @@ func (e *Session) about(b *buffer) api.Context {
 // buffer, reading scope. It adds the decorations the call asks for, and
 // returns its edits, sorted, and what an object's call selected. A call that
 // fails unloads p, and calls into an unloaded module do nothing.
-func (e *Session) run(p api.Module, id uint32, scope api.Scope, args ...int) ([]vim.Edit, api.Result, bool) {
+func (e *Session) run(p api.Module, id uint32, scope api.Scope, args ...int) ([]vim.Edit, api.Result, error) {
 	defer scope.Done()
 	// A guest may not call a plugin granted process, net, fs.read or keys (B246).
 	if w, ok := p.(*plugin.Plugin); ok && e.power != Host && slices.ContainsFunc(w.Capabilities, func(c string) bool { return c == "process" || c == "net" || c == "fs.read" || c == "keys" }) {
-		e.message = "a guest may not use plugin " + p.Name()
-		return nil, api.Result{}, false
+		return nil, api.Result{}, e.fail(errors.New("a guest may not use plugin " + p.Name()))
 	}
 	if !slices.Contains(e.modules, p) {
-		e.message = fmt.Sprintf("plugin %s is unloaded", p.Name())
-		return nil, api.Result{}, false
+		return nil, api.Result{}, e.fail(fmt.Errorf("plugin %s is unloaded", p.Name()))
 	}
 	name := strconv.Itoa(int(id))
 	for _, r := range p.Registered() {
@@ -1400,8 +1400,7 @@ func (e *Session) run(p api.Module, id uint32, scope api.Scope, args ...int) ([]
 				name = r.Name
 			}
 			if r.Host && e.power != Host {
-				e.message = "a guest may not run " + name
-				return nil, api.Result{}, false
+				return nil, api.Result{}, e.fail(errors.New("a guest may not run " + name))
 			}
 		}
 	}
@@ -1412,11 +1411,10 @@ func (e *Session) run(p api.Module, id uint32, scope api.Scope, args ...int) ([]
 	trace.Since(kind(p), p.Name()+" ran "+name, at, err)
 	switch {
 	case errors.Is(err, api.ErrBusy):
-		e.message = err.Error()
-		return nil, api.Result{}, false
+		return nil, api.Result{}, e.fail(err)
 	case err != nil:
 		e.unload(p, err)
-		return nil, api.Result{}, false
+		return nil, api.Result{}, err
 	}
 	// A result that captures keys takes those typed next, and one without
 	// it lets them go (B316).
@@ -1426,7 +1424,26 @@ func (e *Session) run(p api.Module, id uint32, scope api.Scope, args ...int) ([]
 	case e.capture != nil && e.capture.p == p && e.capture.id == id:
 		e.capture = nil
 	}
-	return e.decorate(p, e.win.buf, res), res, true
+	edits := e.decorate(p, e.win.buf, res)
+	if res.Error != "" {
+		return edits, res, errors.New(res.Error)
+	}
+	return edits, res, nil
+}
+
+// report shows err as the message, for a failure no caller takes back,
+// such as one in a write that finishes later.
+func (e *Session) report(err error) {
+	if err != nil {
+		e.message = err.Error()
+	}
+}
+
+// fail shows err as the message and returns it, for a call that failed to
+// tell the user and its caller both.
+func (e *Session) fail(err error) error {
+	e.message = err.Error()
+	return err
 }
 
 // captured is the module call the keys typed next go to (B316).
@@ -1443,8 +1460,8 @@ func (c *captured) key(e *Session, k vim.Key) bool {
 	}
 	scope := e.scope(c.p, e.win.buf, e.Text())
 	scope.About["key"] = string(k)
-	edits, _, ok := e.run(c.p, c.id, scope, e.Cursor(), 1)
-	if !ok {
+	edits, _, err := e.run(c.p, c.id, scope, e.Cursor(), 1)
+	if err != nil {
 		// A call that failed, or a module gone, lets the keys go.
 		e.capture = nil
 	}

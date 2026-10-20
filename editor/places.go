@@ -48,7 +48,7 @@ func (e *Session) visit(sp spot) {
 	if e.win.buf.is(sp.path) {
 		e.pushJump(e.Cursor())
 	} else {
-		e.edit(sp.path)
+		e.report(e.edit(sp.path))
 	}
 	if e.win.buf.is(sp.path) {
 		e.setCursor(lsp.Offset(e.Text(), sp.pos, sp.enc))

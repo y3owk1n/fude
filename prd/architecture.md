@@ -165,7 +165,7 @@ type Host interface {
     Apply(edits []Edit, label string) error
     BeginGroup()
     EndGroup()
-    Unhandled(keys string) // ex lines and <C-w> keys vim does not own
+    Unhandled(keys string) error // ex lines and <C-w> keys vim does not own, and why one failed
     Undo() (start, cursor int, err error) // ErrNoStep at the end
     Redo() (start, cursor int, err error)
     Step(n int) (start int, ok bool) // g- and g+, in time order
@@ -222,7 +222,10 @@ the edit-producing ex commands. It keeps its visual anchor and query
 selection regions as marks through `Host.SetMark`, so another window's edits
 move them (B23). The host owns files, windows, history
 storage, the clipboard and everything shown on screen. `:w` and `<C-w>v`
-reach the host through `Unhandled`.
+reach the host through `Unhandled`, and an error it returns stops what ran
+them, such as a macro or `:g`, as a failed command of the machine's own
+does. The editor's commands return their errors to it, and a module's
+command fails with its result's `Error` (D57).
 
 Tree targets are not part of `vim/`. `editor/` adds `af`, `if` and the rest
 from `syntax/` with `Machine.Object`, and `gc` with `Machine.Operator`, the

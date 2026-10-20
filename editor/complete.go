@@ -124,10 +124,10 @@ func (e *Session) complete(auto bool) {
 		if !ok {
 			continue
 		}
-		_, res, ok := e.run(cp.p, cp.id, e.scope(cp.p, b, t), c)
+		_, res, err := e.run(cp.p, cp.id, e.scope(cp.p, b, t), c)
 		got := res.Completion
 		switch {
-		case !ok || got == nil:
+		case err != nil || got == nil:
 		case got.Only && got.Later:
 			e.completion.waiting = &waiting{cp.p, name, auto}
 			return

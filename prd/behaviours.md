@@ -1228,6 +1228,10 @@ Where fude departs, the line says so and cites the departure in
   pattern the last search, sets any option as `:set` does, and runs ex
   command lines. A plugin needs `keys` for the command lines and for an
   option that is not a buffer's own.
+- B372 [4] A module's result says why its call failed, which shows as the
+  message. A module's command that fails this way stops what ran it, such
+  as `:cdo`, `:g` or a macro, as a failed command of fude's own does. A
+  plugin needs no capability to say it (D57).
 - B345 [4] A module's result defines styles by name, with a colour for
   the text and one for its ground, bold, italic, underline or strike, over
   the theme's styles. Its decorations and spans name them.
@@ -1882,7 +1886,9 @@ Tested through `vim/`'s exported API with a minimal host over a byte slice.
   `Waiting` reports true, and `Timeout` resolves them as Neovim does after
   `timeoutlen`.
 - B112 [2] Keys the machine does not own, such as `:w` and `<C-w>v`, reach
-  the host's `Unhandled` with their full text and count.
+  the host's `Unhandled` with their full text and count. An error it
+  returns stops what ran them, as a macro, `:g` or `:normal`, and `Feed`
+  returns it.
 - B113 [2] An operator or target the host registers composes with every
   built-in target or operator.
 - B179 [2] A command the host adds, run from a mapping in insert mode,

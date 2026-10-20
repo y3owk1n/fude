@@ -39,10 +39,10 @@ func (m *Module) Call(_ context.Context, _ uint32, s api.Scope, _ ...int) (api.R
 	}
 	name := strings.TrimSpace(s.About["args"])
 	if name == "" {
-		return api.Result{Message: "which plug? :plug name"}, nil
+		return api.Result{Error: "which plug? :plug name"}, nil
 	}
 	if !slices.Contains(names, name) {
-		return api.Result{Message: "no plug is called " + name}, nil
+		return api.Result{Error: "no plug is called " + name}, nil
 	}
 	return api.Result{Keys: "<Plug>(" + name + ")"}, nil
 }

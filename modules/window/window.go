@@ -160,7 +160,7 @@ func command(id uint32, s api.Scope) api.Result {
 	case vertical:
 		name, rest, _ := strings.Cut(arg, " ")
 		if name != "resize" && name != "res" {
-			return api.Result{Message: "usage: :vertical resize [+-]{n}"}
+			return api.Result{Error: "usage: :vertical resize [+-]{n}"}
 		}
 		return sized(strings.TrimSpace(rest), true)
 	}
@@ -186,7 +186,7 @@ func placed(s api.Scope) api.Result {
 		return res
 	}
 	if !slices.Contains(ways, way) {
-		return api.Result{Message: "usage: :window float|above|below|left|right [cmd], or :window zoom"}
+		return api.Result{Error: "usage: :window float|above|below|left|right [cmd], or :window zoom"}
 	}
 	if cmd = strings.TrimSpace(cmd); cmd == "" || way == "zoom" {
 		return api.Result{Windows: []api.WindowAction{{Do: way}}}
@@ -199,7 +199,7 @@ func placed(s api.Scope) api.Result {
 func sized(arg string, across bool) api.Result {
 	n, err := strconv.Atoi(arg)
 	if arg != "" && err != nil {
-		return api.Result{Message: "not a size: " + arg}
+		return api.Result{Error: "not a size: " + arg}
 	}
 	do := "height"
 	if arg != "" && (arg[0] == '+' || arg[0] == '-') {
@@ -217,7 +217,7 @@ func (m *Module) Event(context.Context, string, api.Scope) (api.Result, error) {
 
 // Callback says why tmux could not move.
 func (m *Module) Callback(_ context.Context, _ uint32, s api.Scope) (api.Result, error) {
-	return api.Result{Message: s.About["error"]}, nil
+	return api.Result{Error: s.About["error"]}, nil
 }
 
 // Work runs tmux.

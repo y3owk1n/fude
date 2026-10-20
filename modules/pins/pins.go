@@ -93,7 +93,7 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, _ ...int) (api.
 	defer m.mu.Unlock()
 	pins, err := m.pins(s)
 	if err != nil {
-		return api.Result{Message: err.Error()}, nil
+		return api.Result{Error: err.Error()}, nil
 	}
 	if id >= slot {
 		return goTo(s, pins, int(id-slot)+1), nil
@@ -110,7 +110,7 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, _ ...int) (api.
 		default:
 			n, err := strconv.Atoi(arg)
 			if err != nil || n < 1 || n > most {
-				return api.Result{Message: "pin takes remove, list or a number from 1 to 9"}, nil
+				return api.Result{Error: "pin takes remove, list or a number from 1 to 9"}, nil
 			}
 			return goTo(s, pins, n), nil
 		}
@@ -120,7 +120,7 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, _ ...int) (api.
 		return listed(s, pins), nil
 	case next, prev:
 		if len(pins) == 0 {
-			return api.Result{Message: "no pins"}, nil
+			return api.Result{Error: "no pins"}, nil
 		}
 		i := index(pins, s.About["path"])
 		switch {
@@ -153,7 +153,7 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, _ ...int) (api.
 	case quit:
 		b := atoi(s.About["buffer"])
 		if s.Buffers[b].Modified {
-			return api.Result{Message: "the pins have changes not written, :w writes them"}, nil
+			return api.Result{Error: "the pins have changes not written, :w writes them"}, nil
 		}
 		return api.Result{Close: []int{b}}, nil
 	case write:
@@ -167,16 +167,16 @@ func (m *Module) add(s api.Scope, pins []pin) api.Result {
 	b := s.Buffers[atoi(s.About["buffer"])]
 	switch {
 	case b.Path == "" || b.Kind != "":
-		return api.Result{Message: "this buffer has no file to pin"}
+		return api.Result{Error: "this buffer has no file to pin"}
 	case b.Barred:
-		return api.Result{Message: "a guest may not pin a file outside the project"}
+		return api.Result{Error: "a guest may not pin a file outside the project"}
 	}
 	path := abs(b.Path)
 	if i := index(pins, path); i >= 0 {
-		return api.Result{Message: fmt.Sprintf("already pin %d", i+1)}
+		return api.Result{Error: fmt.Sprintf("already pin %d", i+1)}
 	}
 	if len(pins) == most {
-		return api.Result{Message: "9 pins already, :pin list takes one off"}
+		return api.Result{Error: "9 pins already, :pin list takes one off"}
 	}
 	line, col := lineColumn(s.Text, atoi(s.About["cursor"]))
 	pins = append(pins, pin{Path: path, Line: line, Column: col})
@@ -187,7 +187,7 @@ func (m *Module) add(s api.Scope, pins []pin) api.Result {
 func (m *Module) remove(s api.Scope, pins []pin) api.Result {
 	i := index(pins, s.About["path"])
 	if i < 0 {
-		return api.Result{Message: "this file is not pinned"}
+		return api.Result{Error: "this file is not pinned"}
 	}
 	return m.changed(s, slices.Delete(slices.Clone(pins), i, i+1), "unpinned")
 }
@@ -204,13 +204,13 @@ func (m *Module) write(s api.Scope, pins []pin) api.Result {
 		}
 		path := resolve(s, name)
 		if err := mayPin(s, path); err != nil {
-			return api.Result{Message: fmt.Sprintf("line %d: %v", line+1, err)}
+			return api.Result{Error: fmt.Sprintf("line %d: %v", line+1, err)}
 		}
 		if index(out, path) >= 0 {
-			return api.Result{Message: fmt.Sprintf("line %d: %s is pinned already", line+1, name)}
+			return api.Result{Error: fmt.Sprintf("line %d: %s is pinned already", line+1, name)}
 		}
 		if len(out) == most {
-			return api.Result{Message: fmt.Sprintf("line %d: 9 pins at most", line+1)}
+			return api.Result{Error: fmt.Sprintf("line %d: 9 pins at most", line+1)}
 		}
 		p := pin{Path: path}
 		if i := index(pins, path); i >= 0 {
@@ -225,7 +225,7 @@ func (m *Module) write(s api.Scope, pins []pin) api.Result {
 // open file's pin on the session's status lines (B359).
 func (m *Module) changed(s api.Scope, pins []pin, msg string) api.Result {
 	if err := m.set(s, pins); err != nil {
-		return api.Result{Message: err.Error()}
+		return api.Result{Error: err.Error()}
 	}
 	return api.Result{Message: msg, SessionLeft: segments(s, pins)}
 }
@@ -364,11 +364,11 @@ func save(wd string, pins []pin) error {
 // goTo shows pin n's file with the cursor where it last was.
 func goTo(s api.Scope, pins []pin, n int) api.Result {
 	if n > len(pins) {
-		return api.Result{Message: fmt.Sprintf("no pin %d", n)}
+		return api.Result{Error: fmt.Sprintf("no pin %d", n)}
 	}
 	p := pins[n-1]
 	if _, err := os.Stat(p.Path); err != nil {
-		return api.Result{Message: fmt.Sprintf("pin %d, %s, is gone", n, shown(s, p.Path))}
+		return api.Result{Error: fmt.Sprintf("pin %d, %s, is gone", n, shown(s, p.Path))}
 	}
 	return api.Result{Jump: &api.Jump{Path: shown(s, p.Path), Line: p.Line, Column: p.Column}}
 }

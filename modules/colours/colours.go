@@ -123,7 +123,7 @@ func (m *Module) Callback(_ context.Context, id uint32, s api.Scope) (api.Result
 		// A server answers null for a text with no colours.
 		return res, nil
 	case err != "":
-		res.Message = err
+		res.Error = err
 		return res, nil
 	}
 	var found []struct {
@@ -133,7 +133,7 @@ func (m *Module) Callback(_ context.Context, id uint32, s api.Scope) (api.Result
 		} `json:"color"`
 	}
 	if err := json.Unmarshal([]byte(s.About["output"]), &found); err != nil {
-		res.Message = "colours from " + s.About["server"] + ": " + err.Error()
+		res.Error = "colours from " + s.About["server"] + ": " + err.Error()
 		return res, nil
 	}
 	enc := s.About["encoding"]

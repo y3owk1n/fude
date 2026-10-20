@@ -64,6 +64,7 @@ A `Result` asks for any of these, and fude applies them together once the call r
 | `StatusLeft`, `SessionLeft` | its segment on the statusline's left, after the buffer's name, for every session, or by buffer id for the call's session alone |
 | `Capture` | the keys typed next, each sent to the same call with `key` in `About`, until a result without it |
 | `Message` | a line in the message area |
+| `Error` | why the call failed, which shows in place of `Message`. A command that fails stops what ran it, such as `:cdo`, `:g` or a macro. A plugin needs no capability for it |
 | `Float` | text at the cursor, markdown, or as it is with its own spans. With `Keys` it is the key hints across the bottom of the windows |
 | `Show` | text in a read-only window of its own, of the `Kind` of buffer whose `[keymap.<kind>]` keys go over its own, with styles over it and keys of its own. Showing it again keeps the cursor's line and the focus. `Where` says where its window opens, such as `float` in the middle of the screen, and `Lock` keeps it there. In a float, `Foot` stays at its foot as the text scrolls. With `Screen` it shows in the current window in place of the buffer, without line numbers or guides, and `Cursor` is where the cursor starts. With `Line` it puts that line at the top of its window, with the cursor and the focus there. With `Update` it only replaces a panel that is open |
 | `Servers` | restarts, stops, disables or enables language servers, which a guest may not |

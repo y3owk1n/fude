@@ -67,7 +67,7 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, _ ...int) (api.
 		return api.Result{Terminal: &api.Terminal{Shell: n, Close: true}}, nil
 	case err == nil:
 		// Shells are numbered from 1.
-		return api.Result{Message: "no shell " + args}, nil
+		return api.Result{Error: "no shell " + args}, nil
 	}
 	return api.Result{Terminal: &api.Terminal{Command: args}}, nil
 }
@@ -103,7 +103,7 @@ func (m *Module) list(s api.Scope) api.Result {
 		}
 	}
 	if len(items) == 0 {
-		return api.Result{Message: "no terminals"}
+		return api.Result{Error: "no terminals"}
 	}
 	return api.Result{Pick: &api.Pick{ID: picked, Title: "terminals", Items: items}}
 }

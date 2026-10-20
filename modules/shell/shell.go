@@ -76,9 +76,9 @@ func (m *Module) read(s api.Scope) api.Result {
 	t := s.Text
 	switch cmd, run := strings.CutPrefix(arg, "!"); {
 	case arg == "":
-		return api.Result{Message: "no file name"}
+		return api.Result{Error: "no file name"}
 	case run && s.About["power"] != "host":
-		return api.Result{Message: "a guest may not run :!"}
+		return api.Result{Error: "a guest may not run :!"}
 	case run:
 		s.About["args"], s.About["bang"] = cmd, "true"
 		s.About["first"] = strconv.Itoa(t.LineStart(t.LineOf(last)))
@@ -88,7 +88,7 @@ func (m *Module) read(s api.Scope) api.Result {
 	text, err := os.ReadFile(arg)
 	trace.Since("file", fmt.Sprintf("read %q, %d bytes", arg, len(text)), at, err)
 	if err != nil {
-		return api.Result{Message: err.Error()}
+		return api.Result{Error: err.Error()}
 	}
 	if out := strings.TrimSuffix(string(text), "\n"); out != "" {
 		at := lineEnd(t, last)
@@ -111,7 +111,7 @@ func lineEnd(t api.Text, pos int) int {
 func (m *Module) shell(s api.Scope) api.Result {
 	cmd := strings.TrimSpace(s.About["args"])
 	if cmd == "" {
-		return api.Result{Message: "no command"}
+		return api.Result{Error: "no command"}
 	}
 	t := s.Text
 	first, _ := strconv.Atoi(s.About["first"])
@@ -146,12 +146,12 @@ func (m *Module) Callback(_ context.Context, id uint32, s api.Scope) (api.Result
 		return api.Result{}, nil
 	}
 	if err := s.About["error"]; err != "" {
-		return api.Result{Message: err}, nil
+		return api.Result{Error: err}, nil
 	}
 	out := strings.TrimSuffix(s.About["output"], "\n")
 	switch {
 	case r.filter && (r.end > s.Text.Len() || s.Text.Slice(r.start, r.end) != r.text):
-		return api.Result{Message: "the text changed while " + r.cmd + " ran"}, nil
+		return api.Result{Error: "the text changed while " + r.cmd + " ran"}, nil
 	case r.filter:
 		return api.Result{Edits: []api.Edit{{Start: r.start, End: r.end, Text: out}}}, nil
 	case r.below && out == "":

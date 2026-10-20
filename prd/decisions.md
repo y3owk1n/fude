@@ -700,6 +700,25 @@ so any digraph a Vim user knows works. RFC 1345's distribution is
 unlimited. The table is a list of characters by name, which fude holds
 as data rather than as Vim's code.
 
+## D57. A command that fails returns why, apart from its message
+
+A command fails with an error its caller takes back, not with a message
+alone. The vim machine's host returns one from `Unhandled`, the editor's
+commands return theirs, and a module's command fails with its result's
+`Error`, which shows as the message does. So `:cdo`, `:g`, `:normal` and a
+macro stop at a failed command of any kind (B257, B372). A report of what
+a command did, such as `:pwd`'s folder or a task's ending, stays a
+`Message`.
+
+Why, as of 2026-10-20: B257 promised that `:cdo` stops where its command
+fails, and only the machine's own commands could say so. A message could
+not tell a failure from a report, as `:w` sets one too. The user chose to
+give every command an error over narrowing B257. `Call`'s own error was
+not reused, as it means the module itself broke, and fude unloads a
+module that returns one. A plugin needs no capability for `Error`. A
+failure is its call's own outcome, as `Log` is, and a plugin without `ui`
+could not otherwise fail a command.
+
 ## Departures from Neovim
 
 Each entry: what differs, then why.

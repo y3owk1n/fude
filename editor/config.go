@@ -292,17 +292,16 @@ func (e *Session) configures(table, keys string) bool {
 // no longer maps does what fude does by default. Its tables replace the old
 // ones, and its plugins load again. A file with an error changes nothing
 // (B39).
-func (e *Session) reloadConfig() {
+func (e *Session) reloadConfig() error {
 	cfg, err := loadConfig()
 	if err != nil {
-		e.message = err.Error()
-		return
+		return err
 	}
 	old := e.cfg
 	settings := cfg.settings()
 	for name, v := range old.settings() {
 		if now := settingText(settings[name]); now != settingText(v) {
-			e.setSetting(name, now, true)
+			e.report(e.setSetting(name, now, true))
 		}
 	}
 	// The options the file changed apply to every window.
@@ -332,11 +331,12 @@ func (e *Session) reloadConfig() {
 	e.cfg.options, e.cfg.Keymap = cfg.options, cfg.Keymap
 	e.cfg.Filetype, e.cfg.LSP, e.cfg.Formatter, e.cfg.Debug, e.cfg.Task = cfg.Filetype, cfg.LSP, cfg.Formatter, cfg.Debug, cfg.Task
 	if e.started {
-		e.reloadPlugins()
+		e.report(e.reloadPlugins())
 	}
 	e.layout()
 	e.emit("config.reloaded", "", e.win.buf)
 	e.message = "reloaded config.toml"
+	return nil
 }
 
 // apply copies to o each option of from that changed names.

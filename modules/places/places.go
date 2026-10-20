@@ -92,7 +92,7 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 	}
 	pl, ok := s.Places()
 	if !ok {
-		return api.Result{Message: "no list of places"}, nil
+		return api.Result{Error: "no list of places"}, nil
 	}
 	arg := strings.TrimSpace(s.About["args"])
 	count := 1
@@ -115,7 +115,7 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 	case nth:
 		n, err := strconv.Atoi(arg)
 		if arg != "" && err != nil {
-			return api.Result{Message: "not a number: " + arg}, nil
+			return api.Result{Error: "not a number: " + arg}, nil
 		}
 		return step(s, pl, func(at, _ int) int {
 			if arg == "" {
@@ -129,7 +129,7 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 			if id == runFiles {
 				name = "cfdo"
 			}
-			return api.Result{Message: "run what? :" + name + " cmd"}, nil
+			return api.Result{Error: "run what? :" + name + " cmd"}, nil
 		}
 		each := &api.Each{Encoding: pl.Encoding, Ex: arg, PerFile: id == runFiles}
 		for _, e := range entries(s, pl) {
@@ -157,7 +157,7 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 		return api.Result{}, nil
 	}
 	if len(es) == 0 {
-		return api.Result{Message: "no " + pl.Title}, nil
+		return api.Result{Error: "no " + pl.Title}, nil
 	}
 	return api.Result{Show: panel(pl.Title, es, 0)}, nil
 }
@@ -168,7 +168,7 @@ func step(s api.Scope, pl api.Places, to func(at, n int) int) api.Result {
 	es := entries(s, pl)
 	at := to(pl.At-1, len(es))
 	if at < 0 || at >= len(es) {
-		return api.Result{Message: "no more places"}
+		return api.Result{Error: "no more places"}
 	}
 	// Going to a place does not show the list again.
 	pl.At, pl.Show = at+1, false
@@ -182,7 +182,7 @@ func (m *Module) visit(s api.Scope, cursor int) api.Result {
 	es, ok := m.lists[title]
 	line := s.Text.LineOf(cursor)
 	if !ok || line >= len(es) {
-		return api.Result{Message: "not in a list"}
+		return api.Result{Error: "not in a list"}
 	}
 	res := api.Result{Jump: jump(es[line], "")}
 	if pl, ok := s.Places(); ok && "["+pl.Title+"]" == title {

@@ -96,7 +96,7 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 	items, err := m.userSnippets(s.About["filetype"], t.Slice(start, c))
 	res := api.Result{Completion: &api.Completion{Start: start, Items: items}}
 	if err != nil {
-		res.Message = err.Error()
+		res.Error = err.Error()
 	}
 	return res, nil
 }

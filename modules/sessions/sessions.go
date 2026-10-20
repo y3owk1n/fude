@@ -65,12 +65,12 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, _ ...int) (api.
 		return api.Result{Message: strings.Join(guests, "  ")}, nil
 	case kick:
 		if name == "" {
-			return api.Result{Message: "kick whom? :kick name"}, nil
+			return api.Result{Error: "kick whom? :kick name"}, nil
 		}
 		return api.Result{Kick: name}, nil
 	}
 	if name == "" {
-		return api.Result{Message: "follow whom? :follow name"}, nil
+		return api.Result{Error: "follow whom? :follow name"}, nil
 	}
 	return api.Result{Follow: name}, nil
 }

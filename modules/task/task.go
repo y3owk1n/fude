@@ -88,7 +88,7 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 		a.id = 0
 	} else if id == run && a.name == "" {
 		if m.last == nil {
-			return api.Result{Message: "no task has run"}, nil
+			return api.Result{Error: "no task has run"}, nil
 		}
 		return m.start(*m.last, a.vars), nil
 	}
@@ -135,19 +135,19 @@ func (m *Module) Callback(_ context.Context, id uint32, s api.Scope) (api.Result
 	var ts []task
 	if out := s.About["output"]; out != "" {
 		if err := json.Unmarshal([]byte(out), &ts); err != nil {
-			return api.Result{Message: "tasks: " + err.Error()}, nil
+			return api.Result{Error: "tasks: " + err.Error()}, nil
 		}
 	}
-	res := api.Result{Message: s.About["error"]}
+	res := api.Result{Error: s.About["error"]}
 	switch a.id {
 	case 0:
 		for _, t := range ts {
 			res.Complete = append(res.Complete, t.Name)
 		}
-		res.Message = ""
+		res.Error = ""
 	case pick:
 		if len(ts) == 0 {
-			res.Message = cmp.Or(res.Message, "no tasks")
+			res.Error = cmp.Or(res.Error, "no tasks")
 			return res, nil
 		}
 		items := make([]string, len(ts))
@@ -163,7 +163,7 @@ func (m *Module) Callback(_ context.Context, id uint32, s api.Scope) (api.Result
 	case run:
 		i := slices.IndexFunc(ts, func(t task) bool { return t.Name == a.name })
 		if i < 0 {
-			res.Message = cmp.Or(res.Message, "no task named "+a.name)
+			res.Error = cmp.Or(res.Error, "no task named "+a.name)
 			return res, nil
 		}
 		return m.start(ts[i], a.vars), nil

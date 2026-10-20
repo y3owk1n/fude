@@ -65,7 +65,7 @@ func (m *Module) Callback(_ context.Context, id uint32, s api.Scope) (api.Result
 		return api.Result{}, nil
 	}
 	if err := s.About["error"]; err != "" {
-		return api.Result{Message: err, Pick: &api.Pick{ID: pick}}, nil
+		return api.Result{Error: err, Pick: &api.Pick{ID: pick}}, nil
 	}
 	var items []string
 	if out := s.About["output"]; out != "" {

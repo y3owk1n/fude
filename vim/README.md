@@ -12,7 +12,7 @@ go get github.com/y3owk1n/fude/vim
 
 Your program is the host. It feeds the machine keys, and the machine reads and edits the text through the `Host` interface you write.
 
-The machine owns modes, counts, operators, motions, text objects, registers, dot repeat, macros, search and the ex commands that edit text. The host owns the text, its undo history, files, windows and what shows on screen. An ex line the machine does not own, such as `:w`, reaches the host through `Unhandled`.
+The machine owns modes, counts, operators, motions, text objects, registers, dot repeat, macros, search and the ex commands that edit text. The host owns the text, its undo history, files, windows and what shows on screen. An ex line the machine does not own, such as `:w`, reaches the host through `Unhandled`, and an error it returns stops what ran the line, such as a macro or `:g`.
 
 Feed keys from one goroutine. When `Waiting` reports keys that wait for more, as `d` waits for a motion, call `Timeout` after your own delay.
 

@@ -62,7 +62,7 @@ func (m *Module) offered(res *api.Result, s api.Scope) {
 		m.menu = append(m.menu, act)
 	}
 	if len(m.menu) == 0 {
-		res.Message = "no code actions"
+		res.Error = "no code actions"
 		return
 	}
 	rank := func(a action) int {
@@ -263,7 +263,7 @@ func (m *Module) picked(res *api.Result, s api.Scope) {
 	}
 	a := m.menu[i]
 	if a.disabled != "" {
-		res.Message = a.title + ": " + a.disabled
+		res.Error = a.title + ": " + a.disabled
 		return
 	}
 	m.act(res, s, a, actReq+uint32(i))
@@ -281,14 +281,14 @@ func (m *Module) act(res *api.Result, s api.Scope, a action, id uint32) {
 	json.Unmarshal(a.raw, &action)
 	if action.Edit == nil && action.Command == nil && action.Data != nil {
 		if id == 0 {
-			res.Message = a.title + " could not be resolved"
+			res.Error = a.title + " could not be resolved"
 			return
 		}
 		res.Requests = append(res.Requests, api.Request{ID: id, Method: "codeAction/resolve", Pos: -1, End: -1, Params: string(a.raw), Server: a.server})
 		return
 	}
 	if action.Command != nil && s.About["power"] != "host" {
-		res.Message = "a guest may not take a code action that runs a command"
+		res.Error = "a guest may not take a code action that runs a command"
 		return
 	}
 	if action.Edit != nil {

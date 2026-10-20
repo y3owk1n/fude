@@ -2,6 +2,7 @@ package editor
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -80,18 +81,16 @@ func (n *node) save() (savedNode, bool) {
 
 // restart saves the session and quits, keeping unsaved changes, so that
 // main starts fude again on it (B170, N23).
-func (e *Session) restart() {
+func (e *Session) restart() error {
 	if e != e.sessions[0] {
-		e.message = "only the terminal fude started in can restart it"
-		return
+		return errors.New("only the terminal fude started in can restart it")
 	}
 	path, err := writeSession(e.session())
 	if err != nil {
-		e.message = err.Error()
-		return
+		return err
 	}
 	e.restarting = path
-	e.quitAll(true)
+	return e.quitAll(true)
 }
 
 // session returns the session to keep: the buffers on files, the windows

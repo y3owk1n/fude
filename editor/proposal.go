@@ -48,10 +48,9 @@ func (e *Session) propose(b *buffer, pos int, keys, text string) error {
 // decide accepts or rejects the proposal numbered arg, or the newest on the
 // current buffer. Accepting applies it as one node of its proposer's
 // origin (B72), and a stale one cannot be accepted (B74).
-func (e *Session) decide(arg string, accept bool) {
+func (e *Session) decide(arg string, accept bool) error {
 	if err := e.mayEdit(); accept && err != nil {
-		e.message = err.Error()
-		return
+		return err
 	}
 	var owner *Session
 	i := -1
@@ -67,13 +66,11 @@ func (e *Session) decide(arg string, accept bool) {
 		}
 	}
 	if i < 0 {
-		e.message = strings.TrimSpace("no proposal " + arg)
-		return
+		return errors.New(strings.TrimSpace("no proposal " + arg))
 	}
 	d := e.decos[owner][i]
 	if accept && d.style == "proposal.stale" {
-		e.message = fmt.Sprintf("proposal %d is stale", d.id)
-		return
+		return fmt.Errorf("proposal %d is stale", d.id)
 	}
 	b := d.buf
 	edit := kernel.Edit{Start: b.text.Mark(d.start), End: b.text.Mark(d.end), Text: d.note}
@@ -82,12 +79,12 @@ func (e *Session) decide(arg string, accept bool) {
 	e.decos[owner] = slices.Delete(e.decos[owner], i, i+1)
 	d.remove()
 	if !accept {
-		return
+		return nil
 	}
 	t := kernel.Transaction{Base: b.text.Snapshot().Version(), Origin: owner.origin, Label: "proposal", Time: e.now(), Edits: []kernel.Edit{edit}}
 	if err := b.text.Apply(t); err != nil {
-		e.message = err.Error()
-		return
+		return err
 	}
 	b.head = b.text.Head()
+	return nil
 }

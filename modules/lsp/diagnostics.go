@@ -143,7 +143,7 @@ func (m *Module) at(s api.Scope, buf string) map[int][]*diagnostic {
 func (m *Module) step(res *api.Result, s api.Scope, cursor, n int) {
 	at := m.at(s, s.About["buffer"])
 	if len(at) == 0 {
-		res.Message = "no diagnostics"
+		res.Error = "no diagnostics"
 		return
 	}
 	starts := slices.Sorted(maps.Keys(at))
@@ -173,7 +173,7 @@ func (m *Module) show(res *api.Result, s api.Scope, cursor int) {
 		}
 	}
 	if len(here) == 0 {
-		res.Message = "no diagnostics on this line"
+		res.Error = "no diagnostics on this line"
 		return
 	}
 	res.Float = float(here)

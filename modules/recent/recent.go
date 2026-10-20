@@ -52,12 +52,12 @@ func (m *Module) Call(_ context.Context, _ uint32, s api.Scope, _ ...int) (api.R
 	res := m.logged()
 	wd, err := os.Getwd()
 	if err != nil {
-		res.Message = fmt.Sprintf("recent files: %v", err)
+		res.Error = fmt.Sprintf("recent files: %v", err)
 		return res, nil
 	}
 	here, elsewhere, err := m.store.Files(s.About["path"], wd)
 	if err != nil {
-		res.Message = err.Error()
+		res.Error = err.Error()
 		return res, nil
 	}
 	res.Pick = &api.Pick{ID: 1, Title: "recent files", Items: append(here, elsewhere...), Files: true}

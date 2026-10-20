@@ -155,7 +155,7 @@ func (m *Module) draw(s api.Scope) api.Result {
 	}
 	spans, err := s.Query(queries)
 	if err != nil {
-		res.Message = err.Error()
+		res.Error = err.Error()
 		return res
 	}
 	icons, _ := s.Option("icons")

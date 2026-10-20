@@ -269,7 +269,7 @@ matches the last list of places.
 `:plugin reload` reads the `[[plugin]]` tables of config.toml again, closes
 every plugin with all it added, and loads them anew, a rebuilt plugin from
 its new file. A plugin the file no longer lists goes, with its commands,
-keys, operators and objects. Any other argument says "usage: :plugin
+keys, operators and objects. Any other argument says "plugin what?
 reload". A guest may not run it.
 
 ## :quit

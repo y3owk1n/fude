@@ -160,8 +160,8 @@ func (e *Session) writeKind(b *buffer, then func()) {
 		if confirmed {
 			scope.About["confirmed"] = "true"
 		}
-		_, res, ok := e.run(w.p, w.id, scope, e.Cursor())
-		return res, ok
+		_, res, err := e.run(w.p, w.id, scope, e.Cursor())
+		return res, err == nil
 	}
 	done := func(res api.Result) {
 		if b.listed != "" {

@@ -30,7 +30,7 @@ var needs = map[string]string{
 	"Completion": "ui", "Copy": "ui", "Window": "ui", "Tabs": "ui", "Follow": "ui", "Kick": "ui",
 	"Close": "ui", "Drop": "buffer.write", "Windows": "ui", "Scratch": "ui", "Write": "buffer.write",
 	"Marks": "ui", "Registers": "ui", "Search": "ui", "Ex": "keys", "Place": "keys", "Each": "keys", "Styles": "ui",
-	"Emit": "", "Timers": "", "Set": "", "Log": "", "Selected": "",
+	"Emit": "", "Timers": "", "Set": "", "Log": "", "Selected": "", "Error": "",
 	"Jobs": "", "Terminal": "process", "Build": "process",
 	"Requests": "lsp", "Apply": "lsp", "Servers": "lsp",
 	"Restore": "fs.read", "Keys": "keys",

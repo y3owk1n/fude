@@ -160,11 +160,11 @@ func newShare() (*share, error) {
 
 // reshare shows a new share string, as :share does (B249). After the relay
 // went away it holds a new place there first (B251).
-func (e *Session) reshare() {
+func (e *Session) reshare() error {
 	sh := e.share
 	switch {
 	case sh == nil:
-		e.message = "fude is not sharing, so start it with fude share"
+		return errors.New("fude is not sharing, so start it with fude share")
 	case sh.lost:
 		// A second :share while this one waits finds the place being held.
 		sh.lost = false
@@ -184,6 +184,7 @@ func (e *Session) reshare() {
 	default:
 		e.invite()
 	}
+	return nil
 }
 
 // invite shows a new share string, and puts the command that joins with it

@@ -40,7 +40,7 @@ func (m *Module) Call(_ context.Context, _ uint32, s api.Scope, _ ...int) (api.R
 	arg := strings.TrimSpace(s.About["args"])
 	// A guest lists the grammars and builds none (B244).
 	if arg != "" && s.About["power"] != "host" {
-		return api.Result{Message: "a guest may not build grammars"}, nil
+		return api.Result{Error: "a guest may not build grammars"}, nil
 	}
 	if ft, ok := strings.CutPrefix(arg, "install "); ok {
 		return api.Result{Build: []string{strings.TrimSpace(ft)}}, nil
@@ -59,7 +59,7 @@ func (m *Module) Call(_ context.Context, _ uint32, s api.Scope, _ ...int) (api.R
 		return api.Result{Build: outdated}, nil
 	case "":
 	default:
-		return api.Result{Message: "not a grammar command: " + arg}, nil
+		return api.Result{Error: "not a grammar command: " + arg}, nil
 	}
 	lines := make([]string, len(grammars))
 	for i, g := range grammars {

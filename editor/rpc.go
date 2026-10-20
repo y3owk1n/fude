@@ -455,7 +455,7 @@ func (e *Session) call(method string, params json.RawMessage) (any, error) {
 		}
 		// The first is edited last, so it shows (B351).
 		for _, path := range slices.Backward(p.Paths) {
-			e.edit(path)
+			e.report(e.edit(path))
 		}
 	case "request":
 		var r Request

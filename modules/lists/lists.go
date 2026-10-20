@@ -62,7 +62,7 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, _ ...int) (api.
 			}
 			shown = append(shown, fmt.Sprintf("%d%s \"%s\"", bid, flags, b.Name))
 		}
-		return api.Result{Message: strings.Join(shown, "  ")}, nil
+		return api.Result{Error: strings.Join(shown, "  ")}, nil
 	case marks:
 		return places(s, "marks", s.Marks(), func(_ int, mk api.Mark) string { return mk.Name + "  " }), nil
 	case jumps:
@@ -79,7 +79,7 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, _ ...int) (api.
 			for _, r := range s.Registers() {
 				shown = append(shown, fmt.Sprintf("\"%s   %s", r.Name, strings.ReplaceAll(r.Text, "\n", "^J")))
 			}
-			return api.Result{Message: strings.Join(shown, "  ")}, nil
+			return api.Result{Error: strings.Join(shown, "  ")}, nil
 		}
 		for _, r := range arg {
 			text, ok, err := s.Register(r)
@@ -90,7 +90,7 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, _ ...int) (api.
 				shown = append(shown, fmt.Sprintf("\"%c   %s", r, strings.ReplaceAll(text, "\n", "^J")))
 			}
 		}
-		return api.Result{Message: strings.Join(shown, "  ")}, nil
+		return api.Result{Error: strings.Join(shown, "  ")}, nil
 	}
 	// messages
 	if _, ok := s.About["complete"]; ok {
@@ -105,7 +105,7 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, _ ...int) (api.
 		// (B241).
 		return api.Result{Copy: history[len(history)-1], Message: "copied the last message"}, nil
 	case arg != "":
-		return api.Result{Message: "messages takes yank or nothing"}, nil
+		return api.Result{Error: "messages takes yank or nothing"}, nil
 	}
 	return api.Result{Show: &api.Panel{Title: "[messages]", Text: strings.Join(history, "\n")}}, nil
 }
@@ -114,7 +114,7 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, _ ...int) (api.
 // says, as its line and column and the text of its line. <CR> goes to it.
 func places(s api.Scope, what string, ms []api.Mark, label func(int, api.Mark) string) api.Result {
 	if len(ms) == 0 {
-		return api.Result{Message: "no " + what}
+		return api.Result{Error: "no " + what}
 	}
 	pl := &api.Places{Title: what, Show: true}
 	for i, mk := range ms {

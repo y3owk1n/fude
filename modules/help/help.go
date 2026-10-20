@@ -51,7 +51,7 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 	}
 	text, line, ok := s.HelpAt(topic)
 	if !ok {
-		return api.Result{Message: "no help for " + topic}, nil
+		return api.Result{Error: "no help for " + topic}, nil
 	}
 	// Help is markdown, coloured as such once its grammar is built, with
 	// the entry at the top of the window and its text below it.

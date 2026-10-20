@@ -105,7 +105,7 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 	defer m.mu.Unlock()
 	base := m.base[s.About["buffer"]]
 	if base == nil {
-		return api.Result{Message: "not in a git repository"}, nil
+		return api.Result{Error: "not in a git repository"}, nil
 	}
 	t := s.Text
 	hs := hunks(*base, t.Slice(0, t.Len()))
@@ -172,7 +172,7 @@ func (m *Module) Callback(_ context.Context, id uint32, s api.Scope) (api.Result
 	switch j.kind {
 	case "stage":
 		if err := s.About["error"]; err != "" {
-			return api.Result{Message: err}, nil
+			return api.Result{Error: err}, nil
 		}
 		return m.read(s), nil
 	case "branch":
@@ -471,7 +471,7 @@ func common(a, b string, back bool) int {
 // (B138).
 func jump(t api.Text, hs []hunk, to uint32, cursor, count int) api.Result {
 	if len(hs) == 0 {
-		return api.Result{Message: "no hunks"}
+		return api.Result{Error: "no hunks"}
 	}
 	cur := t.LineOf(cursor)
 	var starts []int
@@ -502,7 +502,7 @@ func jump(t api.Text, hs []hunk, to uint32, cursor, count int) api.Result {
 		}
 	}
 	if i < 0 {
-		return api.Result{Message: "no " + name + " hunk"}
+		return api.Result{Error: "no " + name + " hunk"}
 	}
 	return api.Result{Jump: &api.Jump{Pos: t.LineStart(starts[i])}}
 }
@@ -525,7 +525,7 @@ func previewHunk(t api.Text, hs []hunk, cursor int) api.Result {
 		md := "```diff\n" + strings.Join(lines, "\n") + "\n```"
 		return api.Result{Float: &api.Float{Text: md}}
 	}
-	return api.Result{Message: "no hunk on this line"}
+	return api.Result{Error: "no hunk on this line"}
 }
 
 // resetHunks puts the hunks meeting the lines from start to end back as
@@ -557,7 +557,7 @@ func (m *Module) stageHunks(s api.Scope, hs []hunk, start, end int) api.Result {
 		lines = slices.Concat(lines[:h.line], h.old, lines[h.line+h.count:])
 	}
 	if staged == 0 {
-		return api.Result{Message: "no hunk here"}
+		return api.Result{Error: "no hunk here"}
 	}
 	m.jobs++
 	m.about[m.jobs] = job{"stage", s.About["buffer"]}

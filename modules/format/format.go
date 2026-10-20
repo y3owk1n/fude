@@ -120,16 +120,16 @@ func (m *Module) Callback(_ context.Context, id uint32, s api.Scope) (api.Result
 	case a == nil:
 		return api.Result{}, nil
 	case t.Slice(0, t.Len()) != a.text:
-		return api.Result{Message: "the text changed while it was formatted"}, nil
+		return api.Result{Error: "the text changed while it was formatted"}, nil
 	case a.ranged && strings.HasPrefix(s.About["error"], "no language server offers"):
 		// The server formats whole documents only, so it is asked for that
 		// and only its edits inside the lines apply.
 		a.ranged = false
 		return m.request(s, a, "textDocument/formatting"), nil
 	case a.explicit && strings.HasPrefix(s.About["error"], "no language server offers"):
-		return api.Result{Message: "nothing formats this file"}, nil
+		return api.Result{Error: "nothing formats this file"}, nil
 	case s.About["error"] != "":
-		return api.Result{Message: s.About["error"]}, nil
+		return api.Result{Error: s.About["error"]}, nil
 	}
 	var formatted string
 	if len(a.runs) > 0 {
@@ -139,7 +139,7 @@ func (m *Module) Callback(_ context.Context, id uint32, s api.Scope) (api.Result
 	} else {
 		var err error
 		if formatted, err = applied(t, s.About["output"], s.About["encoding"], a.from, a.to); err != nil {
-			return api.Result{Message: err.Error()}, nil
+			return api.Result{Error: err.Error()}, nil
 		}
 	}
 	res := api.Result{Message: a.note()}
@@ -199,7 +199,7 @@ func (m *Module) start(s api.Scope, from, to int, explicit bool) api.Result {
 	}
 	var err error
 	if a.runs, a.missing, err = formatters(s); err != nil {
-		return api.Result{Message: err.Error()}
+		return api.Result{Error: err.Error()}
 	}
 	m.jobs++
 	m.asks[m.jobs] = a

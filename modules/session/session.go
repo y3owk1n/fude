@@ -40,7 +40,7 @@ func (m *Module) Init(context.Context, api.Scope) (api.Result, error) { return a
 func (m *Module) Call(context.Context, uint32, api.Scope, ...int) (api.Result, error) {
 	path, err := keep.SessionPath()
 	if err != nil {
-		return api.Result{Message: err.Error()}, nil
+		return api.Result{Error: err.Error()}, nil
 	}
 	at := time.Now()
 	data, err := fsys.ReadFile(path)
@@ -49,9 +49,9 @@ func (m *Module) Call(context.Context, uint32, api.Scope, ...int) (api.Result, e
 	}
 	switch {
 	case errors.Is(err, fs.ErrNotExist):
-		return api.Result{Message: "no session here"}, nil
+		return api.Result{Error: "no session here"}, nil
 	case err != nil:
-		return api.Result{Message: fmt.Sprintf("session: %v", err)}, nil
+		return api.Result{Error: fmt.Sprintf("session: %v", err)}, nil
 	}
 	return api.Result{Restore: string(data)}, nil
 }
