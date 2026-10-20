@@ -102,6 +102,25 @@ func Run(e Session) error {
 	}
 }
 
+// dirty reports whether a cell of s changed since s last showed. A screen
+// that cannot tell counts as changed.
+func dirty(s tcell.Screen) bool {
+	cs, ok := s.(interface{ GetCells() *tcell.CellBuffer })
+	if !ok {
+		return true
+	}
+	cells := cs.GetCells()
+	w, h := cells.Size()
+	for y := range h {
+		for x := range w {
+			if cells.Dirty(x, y) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // drain runs the work queued for the loop that is waiting now, so a burst
 // of it, such as a server's answers, draws one frame. It stops when a key
 // is waiting, which goes first.
@@ -179,6 +198,7 @@ type client struct {
 	sig      sig               // reused to build each line's sig
 	img      images            // how the client shows images (B303)
 	menuTop  int               // the first row of the cursor's menu in the last frame
+	cursor   [3]int            // where the last frame written put the cursor, and its shape
 }
 
 // shown is what a frame drew a window's line from. When the next frame
@@ -342,7 +362,12 @@ func (c *client) draw() {
 	if err := c.img.flush(); err != nil {
 		trace.Record("image", err.Error(), 0)
 	}
-	c.s.Show()
+	// Skip a frame that changes no cell and leaves the cursor as it was. A
+	// module's result often draws one.
+	if cursor := [3]int{cx, cy, int(shape)}; cursor != c.cursor || dirty(c.s) {
+		c.s.Show()
+		c.cursor = cursor
+	}
 	if err := c.img.paint(c.s, now); err != nil {
 		trace.Record("image", err.Error(), 0)
 	}
