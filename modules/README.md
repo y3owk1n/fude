@@ -18,13 +18,14 @@ and a program that embeds the editor does the same.
 | [`explorer`](explorer) | `-`, an explorer's keys, its notes and icons, `:w` renaming, deleting and creating its entries, and `:pwd` |
 | [`files`](files) | `:pick files` and `:pick buffers` |
 | [`flash`](flash) | text just yanked, put, undone or redone shows for a moment |
-| [`fold`](fold) | `zc`, `zo`, `za`, `zR` and `zM` fold by indent |
-| [`format`](format) | `gq`, `:format` and `format_on_save` |
+| [`fold`](fold) | `zc`, `zo`, `za`, `zR` and `zM` fold by indent, `zf` folds a motion's lines, and `zj` and `zk` move between folds |
+| [`format`](format) | `gq`, `=`, `:format` and `format_on_save` |
 | [`git`](git) | git signs, hunks, `gh`, `gH`, `:gitdiff`, an explorer's git status and the branch on the status line |
 | [`grammars`](grammars) | `:grammar` lists, installs and updates the grammars |
 | [`grep`](grep) | `:pick grep`, a live search of the files' lines |
 | [`help`](help) | `:help` shows help at an entry, and `<CR>` follows a name |
 | [`hints`](hints) | the keys that may follow the command being typed, after `key_hints` |
+| [`history`](history) | `q:`, `q/` and `q?` list the command lines or searches to edit and run one |
 | [`inlay`](inlay) | a language server's inlay hints |
 | [`jump`](jump) | `s` jumps to text in view by its label |
 | [`links`](links) | `gx` opens the link or file under the cursor, `gf` the file |

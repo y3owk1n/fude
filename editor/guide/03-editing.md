@@ -9,7 +9,11 @@ object, and a count may come before either. `2d3w` deletes six words.
 - `>` and `<` indent and dedent, `gu`, `gU` and `g~` change case. In visual
   mode, `>` and `<` keep the selection, so `V>>>` indents three times.
 - `gc` comments lines, or uncomments them, in the language at the cursor.
-- `gq` formats lines through the filetype's formatters or the language server.
+- `gq` and `=` format lines through the filetype's formatters or the
+  language server, and `gw` does the same and leaves the cursor where it
+  was.
+- `g?` rot13-encodes, and `!` opens the command line to put the lines
+  through a shell command.
 - `]e` and `[e` move the line down and up. In visual mode they move the
   selected lines and keep them selected.
 
@@ -26,6 +30,7 @@ around it.
   line.
 - `i(`, `i[`, `i{`, `i<`, `i"` and `i'` inside a pair, `a(` and the others
   around it.
+- `it` and `at` inside and around a tag pair, such as `<b>` and `</b>`.
 - `if` and `af` a function, `ic` and `ac` a class, `ia` and `aa` an
   argument, when the file's grammar is built.
 
@@ -55,15 +60,18 @@ Deleted and copied text goes to the unnamed register, and `p` and `P` put
 it after or before the cursor, as lines when it was lines. `"a` before a
 command uses register `a` instead, and `"A` appends to it. `"_` throws the
 text away. `"+` is the system clipboard, and with the `clipboard` option
-on, every copy and delete goes there too.
+on, every copy and delete goes there too. `gp` and `gP` leave the cursor
+after the text, and `]p` puts lines at the cursor line's indent. `".`
+holds the text last typed in insert mode, `":` the last command line,
+`"/` the last search and `"%` the file's name.
 
 ## Repeating
 
 `.` repeats the last change, and a count before it replaces the change's
 own. `qa` starts recording keys into register `a` and `q` stops. `@a`
 plays them back, `@@` plays the last register played, and `Q` the last one
-recorded. `:reg a` shows the keys as text, and editing that text changes
-them.
+recorded. `@:` runs the last command line again. `:reg a` shows the keys
+as text, and editing that text changes them.
 
 ## Searching and substituting
 
@@ -75,14 +83,19 @@ pattern ignores case unless it has a capital.
 
 `:s/old/new/g` replaces on the line, and `:%s/old/new/g` in the whole
 file. While the command is typed, the window shows each match struck out
-with its replacement. `&` repeats the last substitute. A pattern that
+with its replacement. `&` repeats the last substitute, and `g&` repeats
+it on every line. `q:` lists the command lines entered and `q/` the
+searches, in a window to edit, and `<CR>` there runs the line under the
+cursor. A pattern that
 needs backtracking, such as a back reference, is refused with a message
 naming the part.
 
 ## Marks and lines
 
 `ma` sets mark `a`, and `` `a `` goes to it, `'a` to its line. Marks
-move with edits above them. `:g/pat/d` deletes every line that matches,
+move with edits above them. `''` goes back to where the last jump left
+from, `` `. `` to the last change and `` `^ `` to where insert mode was
+left, and `gi` inserts there again. `:g/pat/d` deletes every line that matches,
 and `:v/pat/d` every line that does not. `:5,9normal A;` types `;` at the
 end of lines 5 to 9. `<C-a>` and `<C-x>` add to and subtract from the
 number under the cursor.
@@ -92,6 +105,9 @@ number under the cursor.
 In insert mode, `<C-w>` deletes the word before the cursor and `<C-u>`
 the line before it. `<C-r>a` types register `a`, `<C-t>` and `<C-d>`
 indent and dedent the line, and `<C-o>` runs one normal mode command.
+`<C-v>` types the next key as it is, `<C-k>e'` types é and the other
+digraphs, `<C-a>` types the text last typed, and `<C-e>` and `<C-y>`
+copy the character below and above the cursor.
 
 ## Spelling
 
