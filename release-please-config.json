@@ -11,7 +11,23 @@
 				{ "type": "generic", "path": "go.work" },
 				{ "type": "generic", "path": "cmd/fude/go.mod" },
 				{ "type": "generic", "path": "plugin/go.mod" },
-				{ "type": "generic", "path": "sdk/go.mod" }
+				{ "type": "generic", "path": "sdk/go.mod" },
+				{ "type": "generic", "path": "plugin/testdata/count/go.mod" },
+				{ "type": "generic", "path": "plugin/testdata/ctx/go.mod" },
+				{ "type": "generic", "path": "plugin/testdata/deco/go.mod" },
+				{ "type": "generic", "path": "plugin/testdata/fsread/go.mod" },
+				{ "type": "generic", "path": "plugin/testdata/full/go.mod" },
+				{ "type": "generic", "path": "plugin/testdata/kit/go.mod" },
+				{ "type": "generic", "path": "plugin/testdata/later/go.mod" },
+				{ "type": "generic", "path": "plugin/testdata/listen/go.mod" },
+				{ "type": "generic", "path": "plugin/testdata/net/go.mod" },
+				{ "type": "generic", "path": "plugin/testdata/pop/go.mod" },
+				{ "type": "generic", "path": "plugin/testdata/proc/go.mod" },
+				{ "type": "generic", "path": "plugin/testdata/seg/go.mod" },
+				{ "type": "generic", "path": "plugin/testdata/spin/go.mod" },
+				{ "type": "generic", "path": "plugin/testdata/trap/go.mod" },
+				{ "type": "generic", "path": "plugin/testdata/watch/go.mod" },
+				{ "type": "generic", "path": "plugin/testdata/write/go.mod" }
 			]
 		}
 	},
