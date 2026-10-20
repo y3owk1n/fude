@@ -44,8 +44,12 @@ This repo is production grade, and the way to get there is less code.
 3. Stop and ask the user to run `/cursor_unslop`. Commit only after they
    say it is done.
 
-Commit straight to `main` with conventional, atomic commits. Never add AI
-attribution of any kind.
+Commit straight to `main` with conventional, atomic commits. A commit's
+scope is the first of `core`, `vim`, `syntax`, `protocol`, `api`,
+`plugin` and `sdk` that it touches, as in `fix(vim): ...`, so the
+changelog labels it for programs that embed that module. A commit that
+touches none of them names the part of fude it changes, as in
+`fix(help): ...`.
 
 ## Boundaries
 
