@@ -381,7 +381,7 @@ func TestB52PluginOperatorsAndObjects(t *testing.T) {
 	}
 }
 
-// B54, and B173 as kit is written with the sdk
+// B54, B329, and B173 as kit is written with the sdk
 func TestB54PluginCommandsAndKeys(t *testing.T) {
 	for _, c := range [][2]string{
 		{":Shout<CR>", "!ab cd\nef"},
@@ -401,6 +401,12 @@ func TestB54PluginCommandsAndKeys(t *testing.T) {
 	e.Use(helpmod.New())
 	if feed(e, ":h :Shout<CR>"); !strings.Contains(text(e), "`:Shout`\n  types ! at the cursor") {
 		t.Error("help does not describe :Shout")
+	}
+	// A module command's short names show on its line, not as entries of
+	// their own (B329).
+	withCommands(e)
+	if feed(e, ":h :cn<CR>"); !strings.Contains(text(e), "`:cnext  :cn`\n  goes to the next place") || strings.Contains(text(e), "`:cn`\n") {
+		t.Error("help does not show :cn on the line of :cnext")
 	}
 }
 
@@ -736,7 +742,10 @@ func (idle) Close(context.Context) error                   { return nil }
 type hostOnly struct{ idle }
 
 func (hostOnly) Registered() []api.Registration {
-	return []api.Registration{{Kind: api.Key, Name: "gX", Help: "does nothing, as the host", ID: 1, Host: true}}
+	return []api.Registration{
+		{Kind: api.Key, Name: "gX", Help: "does nothing, as the host", ID: 1, Host: true},
+		{Kind: api.Plug, Name: "none", Keys: "gY", Help: "does nothing, as the host", ID: 2, Host: true},
+	}
 }
 
 // B244, a module's registration marked host-only
@@ -748,6 +757,10 @@ func TestB244GuestRefusesAModuleKey(t *testing.T) {
 	guest := e.Attach("guest", editor.Guest)
 	if feed(guest, "gX"); guest.Message() != "a guest may not run gX" {
 		t.Errorf("the guest's gX said %q", guest.Message())
+	}
+	// A plug is refused by its name, whatever keys map to it.
+	if feed(guest, "gY"); guest.Message() != "a guest may not run <Plug>(idle.none)" {
+		t.Errorf("the guest's gY said %q", guest.Message())
 	}
 	if feed(e, "gX"); e.Message() != "" {
 		t.Errorf("the host's gX said %q", e.Message())

@@ -558,25 +558,24 @@ func (e *Session) unlay(w *window) error {
 }
 
 // only closes every window but the current one, and every float but those
-// the current window is in or over.
-func (e *Session) only() {
+// the current window is in or over, as closeWindow does, so a window whose
+// program runs hides (B364).
+func (e *Session) only() error {
 	keep := map[*window]bool{}
 	for w := e.win; w != nil; w = w.from {
 		keep[w] = true
 	}
-	for _, f := range slices.Clone(e.floats) {
-		if !keep[f] {
-			e.closeFloat(f)
+	for _, w := range append(slices.Clone(e.floats), e.root.windows()...) {
+		// Closing a float closes those opened from it.
+		if keep[w] || w.anchor != "" && !slices.Contains(e.floats, w) {
+			continue
+		}
+		if err := e.closeWindow(w); err != nil {
+			return err
 		}
 	}
-	for _, w := range e.root.windows() {
-		if w != e.under() {
-			e.closeFloatsOver(w)
-			w.drop()
-		}
-	}
-	e.root = &node{win: e.under()}
 	e.layout()
+	return nil
 }
 
 // navigate moves to the window in direction d, h, j, k or l, or inside
@@ -721,7 +720,7 @@ var windowKeys = []windowKey{
 	{[]string{"l", "<C-l>"}, "moves to the window right", func(e *Session, _ int) error { e.moveTo('l'); return nil }},
 	{[]string{"c", "<C-c>"}, "closes the window", func(e *Session, _ int) error { return e.closeWindow(e.win) }},
 	{[]string{"q", "<C-q>"}, "closes the window, and quits with the last", func(e *Session, _ int) error { e.quit(false); return nil }},
-	{[]string{"o", "<C-o>"}, "closes every other window", func(e *Session, _ int) error { e.only(); return nil }},
+	{[]string{"o", "<C-o>"}, "closes every other window", func(e *Session, _ int) error { return e.only() }},
 	{[]string{"="}, "makes the windows the same size", func(e *Session, _ int) error { e.root.even(); e.layout(); return nil }},
 }
 

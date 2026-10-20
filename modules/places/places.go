@@ -125,7 +125,11 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 		}), nil
 	case run, runFiles:
 		if arg == "" {
-			return api.Result{Message: "run what? :cdo cmd"}, nil
+			name := "cdo"
+			if id == runFiles {
+				name = "cfdo"
+			}
+			return api.Result{Message: "run what? :" + name + " cmd"}, nil
 		}
 		each := &api.Each{Encoding: pl.Encoding, Ex: arg, PerFile: id == runFiles}
 		for _, e := range entries(s, pl) {

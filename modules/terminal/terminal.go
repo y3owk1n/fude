@@ -61,8 +61,13 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, _ ...int) (api.
 			args = n
 		}
 	}
-	if n, err := strconv.Atoi(args); err == nil && n > 0 || args == "" {
+	n, err := strconv.Atoi(args)
+	switch {
+	case args == "" || err == nil && n > 0:
 		return api.Result{Terminal: &api.Terminal{Shell: n, Close: true}}, nil
+	case err == nil:
+		// Shells are numbered from 1.
+		return api.Result{Message: "no shell " + args}, nil
 	}
 	return api.Result{Terminal: &api.Terminal{Command: args}}, nil
 }

@@ -116,6 +116,13 @@ func TestB205Shells(t *testing.T) {
 	if vs := e.Windows(); len(vs) != 2 || vs[1].H != 5 || vs[1].Name != "[shell 1]" || !e.Terminal() || !shows(e, "one") {
 		t.Fatalf(":terminal again showed %d windows, the last %q %d rows tall, terminal mode %v", len(vs), vs[len(vs)-1].Name, vs[len(vs)-1].H, e.Terminal())
 	}
+	// :only hides it as closing it does, so it shows again where it was.
+	if feed(e, `<C-\><C-n><C-w>k:only<CR>`); len(e.Windows()) != 1 {
+		t.Fatalf(":only left %d windows", len(e.Windows()))
+	}
+	if feed(e, ":terminal<CR>"); len(e.Windows()) != 2 || e.Windows()[1].H != 5 || !shows(e, "one") {
+		t.Fatalf(":terminal after :only showed %d windows, the last %d rows tall", len(e.Windows()), e.Windows()[len(e.Windows())-1].H)
+	}
 	// Under windows side by side, it shows again under both.
 	feed(e, `<C-\><C-n><C-w>k:vsplit<CR><C-w>j:terminal<CR>:terminal<CR>`)
 	if vs := e.Windows(); len(vs) != 3 || vs[2].Name != "[shell 1]" || vs[2].W != 80 {

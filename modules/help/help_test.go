@@ -56,4 +56,7 @@ func TestB162Help(t *testing.T) {
 	if editortest.Feed(e, ":h<CR>/guide-config<CR><CR>"); line() != "# Configuring fude" {
 		t.Errorf("<CR> on guide-config went to %q", line())
 	}
+	if editortest.Feed(e, ":h<CR>/restart)`,<CR><CR>"); line() != "`<Plug>(restart)`" {
+		t.Errorf("<CR> on <Plug>(restart) went to %q, said %q", line(), e.Message())
+	}
 }

@@ -168,7 +168,7 @@ func (m *Machine) exMove(x exCall) error {
 func (m *Machine) exShift(x exCall) error {
 	times := 1 + strings.Count(x.arg, x.name)
 	lines := x.t.LineOf(x.last) - x.t.LineOf(x.first)
-	if err := m.shift(x.name, ":"+x.name, region{start: x.first, end: LineEnd(x.t, x.last), lines: true}, 0, times); err != nil {
+	if err := m.shift(x.name, ":"+x.name, region{start: x.first, end: LineEnd(x.t, x.last), lines: true}, times); err != nil {
 		return err
 	}
 	t := m.h.Text()
@@ -480,6 +480,8 @@ func (m *Machine) normalLines(first, last int, keys string) error {
 			break
 		}
 		m.h.SetCursor(ls)
+		// A key that failed on the line before stops only that line.
+		m.beep = false
 		if err := m.run(Keys(keys), true); err != nil {
 			return err
 		}

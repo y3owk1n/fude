@@ -119,7 +119,9 @@ Where fude departs, the line says so and cites the departure in
 - B12 [2] `dd`, `cc`, `yy` act on lines, with counts.
 - B13 [2] Text objects `iw aw iW aW is as ip ap il al`, the quote and
   bracket pairs `i" a" i' a' i( a( i[ a[ i{ a{ i< a<` and the tag pairs
-  `it at` select as in Neovim.
+  `it at` select as in Neovim. In visual mode an object typed again grows
+  the selection. A word, sentence or paragraph object adds the next one,
+  and a pair, quote or tag object takes the next one out.
 - B14 [2] `"x` before a command uses register `x`. Uppercase appends.
   `"_` discards. `"+` is the system clipboard. `".` holds the text last
   typed in insert mode, `":` the last command line, `"/` the last search
@@ -208,7 +210,8 @@ Where fude departs, the line says so and cites the departure in
   and `q` quits. The 9 newest recent files under the working directory
   follow, numbered, or the 9 newest anywhere when it has none, with `~`
   for the home directory. A digit opens its recent file, and `<CR>` runs the
-  line under the cursor. The screen shows no line numbers or guides, and
+  line under the cursor. A key mapped to a digit's plug, such as
+  `<Plug>(start.1)`, opens the file the screen would list from any window. The screen shows no line numbers or guides, and
   the window gets its options back when it shows another buffer.
 - B226 [2] Quitting fude keeps the working directory's session: its
   windows on files and explorers, each with its cursor, top line and
@@ -332,8 +335,9 @@ Where fude departs, the line says so and cites the departure in
   with the cursor on it. `q/` and `q?` list the searches. The lines edit
   as any buffer's do. `<CR>` in normal mode closes the window and runs the
   line under the cursor in the window it opened from, as if typed after
-  `:`, `/` or `?`. On the empty line it only closes. `q` and another key
-  still record a macro.
+  `:`, `/` or `?`. On the empty line it only closes. Its
+  `<Plug>(history.run)` outside that window says "not in a history
+  window" and does nothing. `q` and another key still record a macro.
 - B134 [2] `:pick grep` opens a live grep in the finder, as fff.nvim's
   is, and `:pick grep text` starts it with text typed. Each change to the query
   searches the working directory's files for it as plain text, with `rg`
@@ -558,9 +562,11 @@ Where fude departs, the line says so and cites the departure in
   and its roots and files (N20). The cursor moves and the panel scrolls
   as in any window, while its keys stay at its foot. `r`, `s`, `d` and
   `e` restart, stop, disable or enable the server whose part holds the
-  cursor, as `[keymap.lsp]` maps them. `:lsp restart` restarts each of the current file's servers, or
+  cursor, as `[keymap.lsp]` maps them. Outside the panel they say "not in
+  the language servers panel" and do nothing. `:lsp restart` restarts each of the current file's servers, or
   starts one again after it stayed off (B63), and opens its files in the
-  new one.
+  new one. A server's name after the word acts on that server alone, and
+  `<Tab>` there completes the names.
 - B160 [5] `:lsp stop` stops each of the current file's servers, and
   opening a file one serves starts it again. `:lsp disable` stops them and
   keeps them off for every file until `:lsp enable`, even through `:lsp
@@ -575,7 +581,8 @@ Where fude departs, the line says so and cites the departure in
   each has a tag such as `guide-start`. The reference lists every command,
   key, `<Plug>` command, option and `config.toml` setting fude has, with
   what each does, and explains each of them at length, with examples where
-  they help. An example of keys shows the text before, the keys typed and
+  they help. A command's short names show on its line, a module's too, as
+  in `:buffer {buffer}  :b`. An example of keys shows the text before, the keys typed and
   the text after, and is what fude does. It also lists the mappings in use and marks the ones
   `config.toml` sets. `:h name` goes to a page, a reference section such
   as `settings`, or the entry for a command (`:w`), a key (`w`,
@@ -727,7 +734,8 @@ Where fude departs, the line says so and cites the departure in
 - B85 [2] `gv` reselects the last selection, `o` in visual mode swaps its
   ends, `O` in blockwise visual mode moves the cursor to the other corner
   on its line, and `I` and `A` in blockwise visual mode insert on every
-  line.
+  line. Over characters or lines, `I` inserts at the start of the first
+  selected line and `A` at the end of the last.
 
 ## Ex commands and buffers
 
@@ -770,7 +778,8 @@ Where fude departs, the line says so and cites the departure in
   its top border shows. `q` or `:close` in a float closes it, and the
   focus goes back to the window it opened from.
   A hidden window keeps its buffer, its program and its cursor, and shows
-  again in the place it had.
+  again in the place it had. `:only` hides a window whose program runs, as
+  closing it does.
 - B365 [2] `:window float`, `:window above`, `:window below`,
   `:window left` and `:window right` move the current window into a
   float, or to that edge of the layout, as long or as wide as it.
@@ -813,6 +822,7 @@ Where fude departs, the line says so and cites the departure in
   time and again once it ended, and hides its window when that is the
   current one (B364). `:terminal n` does the same for the session's shell
   numbered n, as `:b n` names a buffer, and `:terminal` alone is shell 1.
+  Shells are numbered from 1, so `:terminal 0` says there is no shell 0.
   `:terminal <Tab>` completes the shells that started, each its number
   and then shell, as `:b`'s completion names a buffer.
   `:terminal cmd` runs `cmd` through the shell in a new window each time.
@@ -899,8 +909,10 @@ Where fude departs, the line says so and cites the departure in
   cursor and `cs{old}{new}` changes it. A closing bracket, or `b`, `r`, `B`
   or `a`, names a pair. An opening bracket names the same pair with a
   blank inside each side, and `ds` and `cs` also take those blanks away.
-  Any other character goes on both sides. Dot repeats each, with its characters, and
-  `<Esc>` cancels one waiting for its character.
+  Any other character goes on both sides. The blanks at the end of what
+  `ys` covers stay outside the pair, so `ysaw(` surrounds as `ysiw(`
+  does. Dot repeats each, with its characters, and `<Esc>` cancels one
+  waiting for its character.
 - B223 [2] The vim machine asks its host for the closed fold that holds a
   line. `j` and `k` pass over a closed fold as one line, landing on its
   first line, and a linewise command, such as `dd`, `dj` or `V`, takes
@@ -979,7 +991,9 @@ Where fude departs, the line says so and cites the departure in
   restoring a node creates a new node rather than discarding later ones. In
   its window, `[` and `]` move the text to the node above or below, `d`
   diffs the node under the cursor against now, and `<CR>` restores it on
-  top of the newest node. B142 changes these keys.
+  top of the newest node. B142 changes these keys. Outside its window,
+  those keys and `:restore` or `:diff` with no number say "not in a
+  timeline".
 - B32 [2] Any two nodes can be diffed.
 - B33 [2] The timeline persists across sessions when the file on disk still
   matches the last saved node.
@@ -997,7 +1011,9 @@ Where fude departs, the line says so and cites the departure in
 ## Syntax
 
 - B40 [3] With a grammar installed, `if af ia aa ic ac` select function,
-  argument and class through tree-sitter queries.
+  argument and class through tree-sitter queries. When the selection is
+  already what one selects, it takes the next larger one, so a count or
+  the object again in visual mode grows the selection.
 - B217 [3] With `sticky_context` on, as it is unless `:set` or config.toml
   sets it off, a window
   whose top is inside a function or class pins that one's first line over

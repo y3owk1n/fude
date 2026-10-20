@@ -5,6 +5,7 @@ package timeline
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strconv"
@@ -144,7 +145,10 @@ func (m *Module) source(s api.Scope) int {
 // cursor in the timeline window when arg is "".
 func state(s api.Scope, b int, arg string, cursor int) (int, error) {
 	first, _, _ := strings.Cut(arg, " ")
-	if first == "" && s.About["title"] == title {
+	if first == "" {
+		if s.About["title"] != title {
+			return 0, errors.New("not in a timeline")
+		}
 		return s.Text.LineOf(cursor), nil
 	}
 	i, err := strconv.Atoi(first)

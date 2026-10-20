@@ -164,6 +164,9 @@ func TestB257Cdo(t *testing.T) {
 		}
 		return out
 	}
+	if feed(e, ":cfdo<CR>"); e.Message() != "run what? :cfdo cmd" {
+		t.Errorf(":cfdo alone said %q", e.Message())
+	}
 	// :cfdo runs once in each file, at its first place.
 	if feed(e, ":cfdo normal Ix<CR>"); e.Message() != "ran :normal Ix in 2 files" {
 		t.Errorf(":cfdo said %q", e.Message())

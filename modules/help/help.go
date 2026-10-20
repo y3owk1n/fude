@@ -72,7 +72,11 @@ func word(t api.Text, c int) string {
 	if i := strings.IndexAny(text[at:], " \t"); i >= 0 {
 		end = at + i
 	}
-	return strings.Trim(text[start:end], ".,`()")
+	w := strings.Trim(text[start:end], ".,`()")
+	if strings.HasPrefix(w, "<Plug>(") {
+		w += ")" // the one Trim took
+	}
+	return w
 }
 
 func (m *Module) Event(context.Context, string, api.Scope) (api.Result, error) {

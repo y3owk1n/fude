@@ -17,6 +17,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	ts "github.com/tree-sitter/go-tree-sitter"
 )
@@ -534,9 +535,12 @@ func (h *Buffer) Object(t Text, name string, start, end int) (int, int, bool) {
 		return h.node(tree.RootNode(), name, span{start, end})
 	}
 	want, _ := h.objects.CaptureIndexForName(Objects[name].Capture)
+	// A selection of more than one character that is just what a capture
+	// selects takes the next larger one, so a count or a second af grows it.
+	grow := utf8.RuneCountInString(t.Slice(start, end)) > 1
 	h.cursor.SetByteRange(uint(start), uint(max(end, start+1)))
 	var best span
-	var node *ts.Node
+	size := -1 // of the capture best came from, or -1 for none
 	matches := h.cursor.Matches(h.objects, tree.RootNode(), nil)
 	for m := matches.Next(); m != nil; m = matches.Next() {
 		// A capture that repeats in one match, such as a struct's fields,
@@ -551,18 +555,19 @@ func (h *Buffer) Object(t Text, name string, start, end int) (int, int, bool) {
 			}
 			e = int(c.Node.EndByte())
 		}
-		if s >= 0 && s <= start && end <= e && start < e && (node == nil || e-s < best.end-best.start) {
-			best, node = span{s, e}, n
+		if s < 0 || s > start || end > e || start >= e || size >= 0 && e-s >= size {
+			continue
 		}
+		r := trim(t, span{s, e})
+		if name == "aa" {
+			r.start, r.end = withComma(n, r.start, r.end)
+		}
+		if grow && r == (span{start, end}) {
+			continue
+		}
+		best, size = r, e-s
 	}
-	if node == nil {
-		return 0, 0, false
-	}
-	best = trim(t, best)
-	if name == "aa" {
-		best.start, best.end = withComma(node, best.start, best.end)
-	}
-	return best.start, best.end, true
+	return best.start, best.end, size >= 0
 }
 
 // Parses returns how many parses the buffer has taken, which a caller of

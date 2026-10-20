@@ -35,8 +35,8 @@ replaces the lines with what the command writes. `!!` takes the line, and
 Outdents the lines the target covers by `indent_width` columns, or to none
 when they have less. The rest of the indent is rebuilt in tabs and spaces,
 or spaces with `expand_tab`. Empty lines stay empty. A count before `<<`
-takes n lines, each shifted once. The cursor stays at its column on the
-first line, not on the first non-blank.
+takes n lines, each shifted once. The cursor goes to the first non-blank
+of the first line.
 
 ```keys
 "\t\t|a\n\tb" "<<" "\t|a\n\tb"
@@ -51,8 +51,8 @@ outdents them. Empty lines stay empty, so `>ap` leaves the blank line
 after a paragraph alone.
 
 ```keys
-"|a\nb" ">>" "|\ta\nb"
-"|a\n\nb" ">2j" "|\ta\n\n\tb"
+"|a\nb" ">>" "\t|a\nb"
+"|a\n\nb" ">2j" "\t|a\n\n\tb"
 ```
 
 ## c{motion}
@@ -206,7 +206,8 @@ session may run it.
 Waits for one more character, then puts the pair it names around the text
 the target covers. `)` or `b`, `]` or `r`, `}` or `B`, and `>`, `<` or `a`
 name brackets, and `(`, `[` and `{` the same brackets with a space inside
-each. Any other character goes on both sides, as `"` does. A linewise
-target wraps from the first line's first non-blank to the last line's end,
-so `yss)` wraps the line's text. `.` repeats it with the same character. The surround module
-gives it.
+each. Any other character goes on both sides, as `"` does. The blanks at
+the end of the target stay outside the pair, so `ysaw(` wraps the word as
+`ysiw(` does. A linewise target wraps from the first line's first
+non-blank to the last line's end, so `yss)` wraps the line's text. `.`
+repeats it with the same character. The surround module gives it.

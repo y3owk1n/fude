@@ -135,6 +135,13 @@
 "<p><br/>x|y</p>" "dit" "<p>|</p>"
 "<div class=\"a>b\">x|y</div>" "dit" "<div class=\"a>b\">|</div>"
 "a < b and c|d" "dit" "a < b and c|d"
+"foo |bar baz qux" "vawawd" "foo |qux"
+"f(a(|bb)c)" "vi(i(d" "f(|)"
+"f(a(|bb)c)" "vi(i(i(d" "f(|)"
+"\"a |b\"" "vi\"i\"d" "|"
+"<a><b>x|y</b></a>" "vititd" "<a>|</a>"
+"|a\nb\n\nc\nd" "vipipd" "|c\nd"
+"|a\nb\n\nc\nd" "vipipipd" "|"
 
 # B14
 "x|yz" "\"ayl\"Ayl\"ap" "xyy|yz"
@@ -312,11 +319,11 @@
 "a|bC d" "g~w" "a|Bc d"
 "ab|C d" "gUiw" "|ABC d"
 "A|B\nC" "guu" "|ab\nC"
-"a|b\nc" ">>" "|\tab\nc"
-"a|b\nc\nd" "2>>" "|\tab\n\tc\nd"
-"\t\t a|b" "<<" "\t a|b"
-"   a|b" "<<" "a|b"
-"a\n|b\n\nc" ">ip" "|\ta\n\tb\n\nc"
+"a|b\nc" ">>" "\t|ab\nc"
+"a|b\nc\nd" "2>>" "\t|ab\n\tc\nd"
+"\t\t a|b" "<<" "\t |ab"
+"   a|b" "<<" "|ab"
+"a\n|b\n\nc" ">ip" "\t|a\n\tb\n\nc"
 "|abc Xyz" "g?w" "|nop Xyz"
 "a|bc" "g??" "|nop"
 "a|bc" "g?g?" "|nop"
@@ -438,6 +445,9 @@
 "a|bc\n世b\nabc" "<C-v>jjAZ<Esc>" "a|bZc\n世Zb\nabZc"
 "|abc\ndef" "<C-v>jlO<Esc>" "abc\n|def"
 "|abc\ndef" "<C-v>jlOd" "|c\nf"
+"  a|b\ncd\nef" "VjIx<Esc>" "|x  ab\ncd\nef"
+"a|b\ncd\nef" "vjAx<Esc>" "ab\ncd|x\nef"
+"ab\n|cd\nef" "VjAx<Esc>" "ab\ncd\nef|x"
 
 # B235
 "|abcd\n  efgh" "Vj>><Esc>" "\t\tabcd\n|\t\t  efgh"
@@ -483,6 +493,8 @@
 "|ax\nb\ncx" ":g/x/normal Az<CR>" "axz\nb\ncx|z"
 "|a\nb" ":%normal A!<CR>" "a!\nb|!"
 "|a\nb\nc" ":2,3normal ix<CR>" "a\nxb\n|xc"
+"|a\nbx" ":%norm fxD<CR>" "a\n|b"
+"|a\nbx\ncx" ":g/./norm fxD<CR>" "a\nb\n|c"
 
 # B9
 "|a👍🏽b" "l" "a|👍🏽b"

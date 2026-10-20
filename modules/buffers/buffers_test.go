@@ -52,6 +52,9 @@ func TestB89Buffers(t *testing.T) {
 	if want := `1+ "` + a + `"  2% "` + b + `"`; e.Message() != want {
 		t.Errorf(":ls said %q, want %q", e.Message(), want)
 	}
+	if feed(e, ":b<CR>"); e.Message() != "which buffer? :buffer n" {
+		t.Errorf(":b alone said %q", e.Message())
+	}
 	feed(e, ":b 1<CR>")
 	if text(e) != "aa" {
 		t.Fatalf(":b 1 showed %q, want the modified a", text(e))

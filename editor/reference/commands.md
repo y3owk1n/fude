@@ -493,22 +493,6 @@ nothing and the message shows its error output. A guest may not run it.
 shell = "right"
 ```
 
-## :b
-
-The same as `:buffer`.
-
-## :bN
-
-The same as `:bprevious`.
-
-## :bNext
-
-The same as `:bprevious`.
-
-## :bd
-
-The same as `:bdelete`.
-
 ## :bdelete
 
 Closes the buffer with that number, or whose name holds the text, or the
@@ -527,20 +511,12 @@ follows the cursor and the edits, and git reads the buffer's text, so
 unsaved lines still line up. Outside a git repository, or for a buffer
 with no file, it turns on and shows nothing.
 
-## :bn
-
-The same as `:bnext`.
-
 ## :bnext
 
 Shows the next buffer being edited in the current window, after the last
 going on from the first. It passes help, lists, explorers, terminals and
 the other windows fude writes. The buffer the window leaves stays loaded
 with its changes.
-
-## :bp
-
-The same as `:bprevious`.
 
 ## :bprevious
 
@@ -562,23 +538,11 @@ Lists the buffers in the message line, each as its number, `%` for the
 current window's, `+` for one with changes, and its name in quotes. `:b`
 takes the number.
 
-## :cN
-
-The same as `:cprevious`.
-
-## :cNext
-
-The same as `:cprevious`.
-
 ## :cc
 
 Goes to place n of the last list of places, or without n to the place
 last gone to, or the first. The message says which place it is, of how
 many, with its text. A number past the list's ends says "no more places".
-
-## :ccl
-
-The same as `:cclose`.
 
 ## :cclose
 
@@ -614,10 +578,6 @@ Runs the command once in each file of the last list of places, at its
 first place there, as `:cdo` runs it at every place. The command often
 takes every line itself, as `:cfdo %s/old/new/g`.
 
-## :cfir
-
-The same as `:cfirst`.
-
 ## :cfirst
 
 Goes to the first place of the last list of places, as `[Q` does.
@@ -629,17 +589,9 @@ its line, column and the text of its line. `<CR>` on one goes there. The
 list becomes the last list of places, so `:cnext` steps through it too.
 With no change it says "no changes".
 
-## :cla
-
-The same as `:clast`.
-
 ## :clast
 
 Goes to the last place of the last list of places, as `]Q` does.
-
-## :cn
-
-The same as `:cnext`.
 
 ## :cnext
 
@@ -652,10 +604,6 @@ count, and `]q` does. With no list it says "no list of places".
 The last list is the latest of: the places of a language server's answer,
 such as references, `:marks`, `:jumps` and `:changes`, a finder's matches
 after `<C-q>`, and the places a task's output names.
-
-## :cope
-
-The same as `:copen`.
 
 ## :copen
 
@@ -671,22 +619,10 @@ list = "right"
 "o" = "<Plug>(list.open)"
 ```
 
-## :cp
-
-The same as `:cprevious`.
-
 ## :cprevious
 
 Goes to the place before in the last list of places, as `[q` does and as
 `:cnext` goes to the next. Before the first it says "no more places".
-
-## :cr
-
-The same as `:cfirst`.
-
-## :crewind
-
-The same as `:cfirst`.
 
 ## :debug
 
@@ -736,7 +672,8 @@ or between state n and now without m, in a window below. The numbers are
 those `:timeline` lists, and in the timeline's window n is the state under
 the cursor. Each part shows three lines around it, a removed line marked
 `-` and an added one `+`. Two states with the same text show "no
-difference". A number with no state says "no such state". `q` closes the
+difference". A number with no state says "no such state", and no number
+outside the timeline's window says "not in a timeline". `q` closes the
 window.
 
 ## :earlier
@@ -803,10 +740,6 @@ A build says when it starts and ends, and a build that needs a missing tool
 names it. `<Tab>` completes `update` and `install` with each filetype. A
 guest may list the grammars but not build them.
 
-## :h
-
-The same as `:help`.
-
 ## :help
 
 Opens help in a window. Without an argument it opens at the index of the
@@ -816,10 +749,6 @@ key (`w`, `<Leader>w`), a `<Plug>` command, an option or a setting.
 `<CR>` on a name in help goes to it, and `q` closes the window. `<Tab>`
 completes the names. A name help does not know says "no help for name".
 
-## :hid
-
-The same as `:hide`.
-
 ## :hide
 
 Takes the current window out of sight. It keeps its buffer, its cursor
@@ -828,10 +757,6 @@ after, takes the focus. A terminal's hidden window shows again in the place
 it had when its terminal shows, as `:terminal n` or `:pick terminals` do.
 The last window shown says "cannot hide the last window", and a window a
 module locked in place says it cannot move.
-
-## :ju
-
-The same as `:jumps`.
 
 ## :jumps
 
@@ -854,10 +779,6 @@ does, as `:earlier` goes back. A time such as `5m` goes to the first state
 made at least that long after the current one, or the newest. `nf` goes
 to the nth write after the current state, or the newest state.
 
-## :ls
-
-The same as `:buffers`.
-
 ## :lsp
 
 Without an argument it opens a float with a part for each language server
@@ -866,7 +787,8 @@ files. The state is running, starting, stopped, disabled, failed with why,
 not installed, or no files. In it `r`, `s`, `d` and `e` restart, stop,
 disable or enable the server under the cursor, and `q` closes it.
 
-With a word, it acts on every server set for the current file's filetype:
+With a word, it acts on every server set for the current file's
+filetype, or with a server's name after the word, on that server:
 
 - `restart` stops them and starts them again, one that was not installed
   too
@@ -875,8 +797,8 @@ With a word, it acts on every server set for the current file's filetype:
   enable`, even through `restart`
 - `enable` starts them again for the open files
 
-`<Tab>` completes the word. A file no server is set for says so, and a
-guest may only open the float.
+`<Tab>` completes the word, and after it the servers' names. A file no
+server is set for says so, and a guest may only open the float.
 
 ```toml
 [lsp.gopls]
@@ -891,10 +813,6 @@ lsp = ["gopls"]
 Lists the buffer's marks in a window, each with its name, line, column and
 the text of its line. `<CR>` on one goes there. The list becomes the last
 list of places. With no mark it says "no marks".
-
-## :mes
-
-The same as `:messages`.
 
 ## :messages
 
@@ -911,16 +829,13 @@ window, or above it with `split_below` off. `[open] window` in config.toml
 or `:window` before it puts it elsewhere. It takes no file, and `:split
 file` opens one.
 
-## :on
-
-The same as `:only`.
-
 ## :only
 
 Closes every window but the current one, splits and floats alike, and
 keeps the floats the current one opened from. The buffers stay loaded with
-their changes, so nothing asks to write first, and a terminal's program
-goes on. With one window it does nothing.
+their changes, so nothing asks to write first. A window whose program
+runs hides, as closing it does, and shows again where it was. With one
+window it does nothing.
 
 ## :pin
 
@@ -956,10 +871,6 @@ plug says "no plug is called name".
 
 Shows the working directory in the message line. `:cd` changes it.
 
-## :r
-
-The same as `:read`.
-
 ## :read
 
 `:r file` puts the file's text below the cursor's line, or below the last
@@ -973,10 +884,6 @@ Brings back the newest change that a session left unsaved when it did not
 close, such as after a crash, as the buffer's text. It makes no new state.
 With nothing left that way it says "nothing to recover".
 
-## :reg
-
-The same as `:registers`.
-
 ## :registers
 
 Lists every register that holds text in the message line, each as its
@@ -985,17 +892,12 @@ registers a and b.
 
 ## :rename
 
-Renames a symbol in every file through the language server, to the name
-after `:rename`. `grn` starts the command line with `:rename` and the word
-under the cursor, and the symbol is the one under the cursor where `grn`
-was typed. Files without a buffer open in one and stay unwritten. The
+Renames the symbol under the cursor in every file through the language
+server, to the name after `:rename`. `grn` starts the command line with
+`:rename` and the word under the cursor. Files without a buffer open in one and stay unwritten. The
 message says how many files changed, or why one was left alone. Without a
 name it says "no new name", and a buffer no server offers renames for says
 so.
-
-## :res
-
-The same as `:resize`.
 
 ## :resize
 
@@ -1010,11 +912,8 @@ itself. Anything else after the name says "not a size".
 Makes the text of state n the newest text, as a new state, so nothing is
 lost and `u` goes back. In the timeline's window n is the state under the
 cursor, which `<CR>` restores too. A state the text already is says so,
-and a number with no state says "no such state".
-
-## :sp
-
-The same as `:split`.
+and a number with no state says "no such state". With no number outside
+the timeline's window it says "not in a timeline".
 
 ## :split
 
@@ -1054,23 +953,15 @@ command = "go test ./..."
 command = "go run {file}"
 ```
 
-## :ter
-
-The same as `:terminal`.
-
-## :term
-
-The same as `:terminal`.
-
 ## :terminal
 
 Shows shell 1 in a terminal window below, starting it the first time, and
 hides it when the current window shows it. `:terminal n` does the same for
-shell n, as `:b n` names a buffer. `<Tab>` completes the shells that
-started, each as its number then `shell`. `:terminal cmd` runs cmd through
-the shell in a new window each time, and when it ends the window stays and
-its title shows how it exited. A shell's window closes when the shell
-exits.
+shell n, as `:b n` names a buffer. Shells are numbered from 1. `<Tab>`
+completes the shells that started, each as its number then `shell`.
+`:terminal cmd` runs cmd through the shell in a new window each time, and
+when it ends the window stays and its title shows how it exited. A shell's
+window closes when the shell exits.
 
 Keys typed in the window go to the program while in terminal mode.
 `<C-\><C-n>` or `<Esc><Esc>` leaves terminal mode for normal mode, and
@@ -1117,18 +1008,10 @@ as a new state, and `q` closes the window.
 timeline = "float"
 ```
 
-## :up
-
-The same as `:update`.
-
 ## :update
 
 Writes the buffer as `:w` does, but only when it has changes. `:up!`
 writes over a file changed on disk without asking.
-
-## :vert
-
-The same as `:vertical`.
 
 ## :vertical
 
@@ -1138,19 +1021,11 @@ makes the window as wide as it can be. Every other window keeps at least a
 column. `resize` is the only command it takes, so `:vertical split` says
 how to use it, and `:vsplit` is the vertical split.
 
-## :vne
-
-The same as `:vnew`.
-
 ## :vnew
 
 Opens a window with a new empty buffer that has no file, to the right of
 the current window, or to the left with `split_right` off, as `:new` does
 below.
-
-## :vs
-
-The same as `:vsplit`.
 
 ## :vsplit
 
@@ -1161,10 +1036,6 @@ Opens a window to the right of the current one, or to the left with
 
 Lists the guests by name in the message line, read-only ones too, or says
 "no guests". A guest sees itself in the list.
-
-## :win
-
-The same as `:window`.
 
 ## :window
 

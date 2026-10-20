@@ -7,6 +7,7 @@ import (
 
 	"github.com/y3owk1n/fude/editor/editortest"
 	"github.com/y3owk1n/fude/modules/history"
+	"github.com/y3owk1n/fude/modules/plug"
 	"github.com/y3owk1n/fude/modules/window"
 )
 
@@ -19,6 +20,7 @@ func TestB371History(t *testing.T) {
 	e := editortest.Start(t, path)
 	e.Use(history.New())
 	e.Use(window.New())
+	e.Use(plug.New())
 	e.SetSize(80, 24)
 	editortest.Feed(e, ":s/x/y/<CR>/<lt>b<CR>gg")
 	// q: lists the command lines, seven lines tall, with the cursor on an
@@ -39,5 +41,9 @@ func TestB371History(t *testing.T) {
 	// q and another key still records a macro.
 	if editortest.Feed(e, "ggqaA!<Esc>q@a"); editortest.Text(e) != "y y y!!\n<b>" {
 		t.Errorf("recording and running a macro made %q", editortest.Text(e))
+	}
+	// Its <CR> does nothing outside its window.
+	if editortest.Feed(e, ":plug history.run<CR>"); len(e.Windows()) != 2 || editortest.Text(e) != "y y y!!\n<b>" || e.Message() != "not in a history window" {
+		t.Errorf("history.run in a file left %d windows and %q, and said %q", len(e.Windows()), editortest.Text(e), e.Message())
 	}
 }

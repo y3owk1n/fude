@@ -46,7 +46,7 @@ func TestB366Open(t *testing.T) {
 	}
 }
 
-// B205, for completing :terminal
+// B205, for completing :terminal and the shells it names
 func TestB205CompleteShells(t *testing.T) {
 	// sh from PATH, which on Windows comes with Git for Windows.
 	t.Setenv("SHELL", "sh")
@@ -60,5 +60,9 @@ func TestB205CompleteShells(t *testing.T) {
 	}
 	if editortest.Feed(e, "<CR>"); len(e.Windows()) != 1 {
 		t.Errorf(":terminal 2 shell in shell 2 left %d windows, want it hidden", len(e.Windows()))
+	}
+	// A number that names no shell runs nothing.
+	if editortest.Feed(e, ":terminal 0<CR>"); len(e.Windows()) != 1 || e.Message() != "no shell 0" {
+		t.Errorf(":terminal 0 left %d windows and said %q", len(e.Windows()), e.Message())
 	}
 }

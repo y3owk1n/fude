@@ -81,7 +81,6 @@ const limit = 1000
 // Module is lsp.
 type Module struct {
 	mu       sync.Mutex
-	renameAt map[string]int                     // by buffer, where grn was pressed
 	search   uint32                             // the newest workspace symbol search
 	diags    map[string]map[string][]diagnostic // by buffer, by server, its diagnostics
 	notes    map[string]bool                    // by buffer, diagnostic_notes was on when it last drew
@@ -93,7 +92,7 @@ type Module struct {
 
 // New returns lsp.
 func New() *Module {
-	return &Module{renameAt: map[string]int{}, diags: map[string]map[string][]diagnostic{}, notes: map[string]bool{}}
+	return &Module{diags: map[string]map[string][]diagnostic{}, notes: map[string]bool{}}
 }
 
 func (m *Module) Name() string { return "lsp" }
@@ -118,7 +117,7 @@ func (m *Module) Registered() []api.Registration {
 		{Kind: api.Plug, Name: "diagnostics", Keys: "<C-w>d", Help: "shows the diagnostics on the cursor's line in full", ID: showDiag},
 		{Kind: api.Plug, Name: "actions", Keys: "gra", Help: "lists the language server's actions for the cursor's place", ID: codeActions, Attached: true, Visual: true},
 		{Kind: api.Source, Name: "diagnostics", Help: "the diagnostics of every open buffer, the current buffer's first", ID: diagnosticsSrc},
-		{Kind: api.Command, Name: "lsp", Help: "opens the panel of language servers, or acts on the file's servers: restart, stop, disable or enable", ID: lspCmd, Complete: true},
+		{Kind: api.Command, Name: "lsp", Help: "opens the panel of language servers, or acts on the file's servers or a named one: restart, stop, disable or enable", ID: lspCmd, Complete: true},
 		{Kind: api.Plug, Name: "restart", Help: "restarts the language server under the cursor", ID: restartKey},
 		{Kind: api.Plug, Name: "stop", Help: "stops the language server under the cursor", ID: stopKey},
 		{Kind: api.Plug, Name: "disable", Help: "keeps the language server under the cursor off", ID: disableKey},
@@ -133,7 +132,7 @@ func (m *Module) Init(context.Context, api.Scope) (api.Result, error) { return a
 func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (api.Result, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	buf, cursor := s.About["buffer"], args[0]
+	cursor := args[0]
 	var res api.Result
 	switch id {
 	case nextDiag:
@@ -167,17 +166,15 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 	switch id {
 	case renameKey:
 		// grn asks for the new name on the command line, starting from the
-		// word under the cursor, and :rename sends it.
-		m.renameAt[buf] = cursor
+		// word under the cursor, and :rename sends it from the same place.
 		return api.Result{Cmdline: "rename " + word(s.Text, cursor)}, nil
 	case renameCmd:
 		name := strings.TrimSpace(s.About["args"])
 		if name == "" {
 			return api.Result{Message: "no new name"}, nil
 		}
-		at := min(m.renameAt[buf], s.Text.Len())
 		params, _ := json.Marshal(map[string]string{"newName": name})
-		return api.Result{Requests: []api.Request{{ID: renameCmd, Method: "textDocument/rename", Pos: at, End: -1, Params: string(params)}}}, nil
+		return api.Result{Requests: []api.Request{{ID: renameCmd, Method: "textDocument/rename", Pos: cursor, End: -1, Params: string(params)}}}, nil
 	case workspace:
 		return api.Result{Pick: &api.Pick{ID: picked, Title: "symbols", Hint: "type to search the symbols", Query: s.About["args"], Live: true, Places: true}}, nil
 	}
@@ -209,7 +206,6 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 		res.Show.Update = true
 	case "buffer.closed":
 		delete(m.diags, s.About["buffer"])
-		delete(m.renameAt, s.About["buffer"])
 		delete(m.notes, s.About["buffer"])
 	case "window.moved", "option.set", "config.reloaded":
 		// diagnostic_notes turned on or off, here or in the window moved to.

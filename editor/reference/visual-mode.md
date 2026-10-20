@@ -5,9 +5,9 @@ columns on every line from the line it started on to the cursor's. The
 selection runs from where it started to the cursor, both ends included. A
 motion or a scroll moves the cursor, so it grows or shrinks the selection.
 `$` in a block takes every line to its end, however long. A text object,
-such as `iw` or `ip`, selects what it covers at the cursor in place of the
-selection, as lines when it is linewise. The syntax objects `an` and `in`
-grow the selection instead.
+such as `iw` or `ip`, selects what it covers at the cursor, as lines when
+it is linewise, and typed again it grows the selection, as the text
+objects say.
 
 A count goes to the key after it. A motion moves n, `>` shifts n levels,
 `p` puts n times and `<C-a>` adds n. A count before `v`, `V` or `<C-v>` in
@@ -73,6 +73,23 @@ line it beeps. The cursor goes to the start of the selection.
 ```keys
 "|x 1\nx 9" "Vj<C-a>" "|x 2\nx 10"
 "|x 1\nx 9" "Vj5<C-a>" "|x 6\nx 14"
+```
+
+## <C-n>
+
+Makes the selection a region, the first time, and adds the next match of
+its text as another region, going on from the start at the end of the
+text. It looks for the text as it is, or for the whole word after `<C-n>`
+in normal mode selected it. The selection must be on one line, and when no
+match is left it says "no more matches". Then `d`, `x`, `y`, `c` and the
+operators of modules act on every region at once. `c` types into every
+region until `<Esc>`, and `y` yanks them as lines of one register. Any
+other key keeps the first region alone.
+
+```keys
+"|ab x ab" "vl<C-n>d" "| x "
+"|ab x ab" "vl<C-n>cz<Esc>" "|z x z"
+"|foo foobar foo" "<C-n><C-n>cx<Esc>" "|x foobar x"
 ```
 
 ## <C-v>
@@ -141,10 +158,11 @@ In a block, inserts after its right edge on its first line. On `<Esc>` the
 text typed goes after the block on every other line too, and a line too
 short to reach the edge gets spaces up to it. After `$` it goes at the end
 of each line. Text is copied only when it was typed on the first line,
-with no line break. In a selection of characters or lines `A` does
-nothing.
+with no line break. Over characters or lines it inserts at the end of
+the last selected line.
 
 ```keys
+"a|b\ncd\nef" "vjAx<Esc>" "ab\ncd|x\nef"
 "|ab\nab" "<C-v>jAx<Esc>" "|axb\naxb"
 "|a\nabc" "<C-v>jllAx<Esc>" "|a  x\nabcx"
 "|a\nabc" "<C-v>j$A;<Esc>" "|a;\nabc;"
@@ -274,10 +292,11 @@ Switches the case of every letter in the selection. The same as `~`.
 In a block, inserts before its left edge on its first line. On `<Esc>` the
 text typed goes there on every other line too, except a line too short to
 reach the edge. Text is copied only when it was typed on the first line,
-with no line break. In a selection of characters or lines `I` does
-nothing.
+with no line break. Over characters or lines it inserts at the start of
+the first selected line.
 
 ```keys
+"  a|b\ncd\nef" "VjIx<Esc>" "|x  ab\ncd\nef"
 "a|b\nab" "<C-v>jIx<Esc>" "a|xb\naxb"
 "a|b\n\nab" "<C-v>jjI-<Esc>" "a|-b\n\na-b"
 ```

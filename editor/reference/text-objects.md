@@ -2,8 +2,7 @@
 
 A text object selects text around the cursor, wherever in it the cursor
 is. It works after an operator, as `diw` deletes the word, and in visual
-mode, where it replaces the selection with what it selects from the
-cursor. An `i` object takes the text inside, and an `a` object takes the
+mode, where it selects what it covers at the cursor. An `i` object takes the text inside, and an `a` object takes the
 pair or the blanks around it too. n is the count typed before it, or 1
 without one. A count after the operator works as well, so `d2aw` and
 `2daw` both delete two words.
@@ -12,12 +11,22 @@ An object that finds nothing fails, so the operator does nothing. Most
 select characters. `ip`, `ap` and `al` select whole lines, as does an `i`
 bracket object whose brackets sit on lines of their own. In visual mode
 such an object selects lines as `V` does. Typing an object again in
-visual mode selects from the cursor again, so `vawaw` selects the blanks
-and the word after the first word, not two words.
+visual mode grows the selection. A word, sentence or paragraph object adds
+the next one after it, so `vawaw` selects two words. A bracket, quote or
+tag object takes the next pair out, so `vi(i(` selects inside the
+parentheses around those, and `vi"i"` takes the quotes too.
+
+```keys
+"foo |bar baz qux" "vawawd" "foo |qux"
+"f(a(|bb)c)" "vi(i(d" "f(|)"
+"\"a |b\"" "vi\"i\"d" "|"
+```
 
 The syntax objects, `af` to `[n` at the end, come from the grammar of the
 file's filetype. With no grammar built for it, or before its first parse,
-they find nothing.
+they find nothing. When the selection is already what `af`, `if`, `ac`,
+`ic`, `aa` or `ia` selects, it takes the next larger one, so a count, or
+the object again in visual mode, grows the selection.
 
 ## a"
 
@@ -336,7 +345,8 @@ the grammar's query names one. Blanks at its end stay out.
 
 The function at the cursor, the smallest that holds it or the selection,
 as the grammar's query names one. Blanks at its end stay out. A count
-selects the same function again, not the one around it.
+selects the function around it, so `2af` in a function literal selects
+the function that holds it.
 
 ## an
 

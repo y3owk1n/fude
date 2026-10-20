@@ -258,24 +258,35 @@ var visuals = map[string]visualKey{
 	"v":     {"selects characters, or leaves when it does", switchVisual},
 	"V":     {"selects lines, or leaves when it does", switchVisual},
 	"<C-v>": {"selects a block, or leaves when it does", switchVisual},
-	"I": {"inserts before a block on each of its lines", func(m *Machine, _ visualCall) error {
+	"I": {"inserts before a block on each of its lines, or at the start of the first selected line", func(m *Machine, x visualCall) error {
 		if m.visual == "<C-v>" {
 			return m.blockInsertStart(false)
 		}
-		return nil
+		r := m.selection()
+		m.leaveVisual()
+		return m.startInsert("I", LineStart(x.t, r.start))
 	}},
-	"A": {"inserts after a block on each of its lines", func(m *Machine, _ visualCall) error {
+	"A": {"inserts after a block on each of its lines, or at the end of the last selected line", func(m *Machine, x visualCall) error {
 		if m.visual == "<C-v>" {
 			return m.blockInsertStart(true)
 		}
-		return nil
+		r := m.selection()
+		m.leaveVisual()
+		end := r.end
+		if !r.lines && end > r.start {
+			end--
+		}
+		return m.startInsert("A", LineEnd(x.t, end))
 	}},
 	":": {"opens the command line with the selected lines as its range", func(m *Machine, _ visualCall) error {
 		m.leaveVisual()
 		m.enterLine(Normal, ":", "'<,'>")
 		return nil
 	}},
-	"o":      {"moves the cursor to the other end of the selection", otherEnd},
+	"o": {"moves the cursor to the other end of the selection", otherEnd},
+	"<C-n>": {"adds the next match of the selection's text as another region", func(m *Machine, _ visualCall) error {
+		return m.addRegion()
+	}},
 	"O":      {"moves the cursor to the other end of the selection, or of a block's line", otherEnd},
 	"<C-a>":  {"adds n to the first number on each selected line", incrementSelection},
 	"<C-x>":  {"subtracts n from the first number on each selected line", incrementSelection},
@@ -390,7 +401,8 @@ func joinSelection(m *Machine, x visualCall) error {
 // visualKey handles a command in visual mode.
 func (m *Machine) visualKey(cmd string, count int, reg rune) error {
 	if cmd == "<C-n>" {
-		return m.addRegion()
+		// It adds a region, so it runs before the regions take the key.
+		return visuals[cmd].run(m, visualCall{})
 	}
 	if len(m.regions) > 0 {
 		if ok, err := m.regionKey(cmd, reg); ok {
@@ -431,7 +443,7 @@ func (m *Machine) visualKey(cmd string, count int, reg rune) error {
 		}
 		m.leaveVisual()
 		if v.op == ">" || v.op == "<" {
-			if err := m.shift(v.op, string(m.visual)+cmd, r, 0, max(count, 1)); err != nil {
+			if err := m.shift(v.op, string(m.visual)+cmd, r, max(count, 1)); err != nil {
 				return err
 			}
 			// The selection stays, so the next > or < shifts it again.
@@ -450,6 +462,7 @@ func (m *Machine) visualKey(cmd string, count int, reg rune) error {
 		return visuals["r{char}"].run(m, visualCall{t, c, cmd, count, reg})
 	}
 	if r, ok := m.object(t, c, count, cmd); ok {
+		r = m.grow(t, count, cmd, r)
 		m.anchor = r.start
 		if r.lines {
 			m.visual = "V"
@@ -478,4 +491,34 @@ func (m *Machine) visualKey(cmd string, count int, reg rune) error {
 		}
 	}
 	return nil
+}
+
+// grow widens r, what one of the machine's own objects selects at the
+// cursor, when the selection is more than the cursor's character. A word,
+// sentence or paragraph object adds the next ones after the selection, and a
+// pair, quote or tag takes the next one out while r is inside it.
+func (m *Machine) grow(t Text, count int, cmd string, r region) region {
+	if _, ok := textObjects[cmd[1:]]; !ok || m.anchor == m.h.Cursor() {
+		return r
+	}
+	sel := m.selection()
+	if strings.Contains("wWsp", cmd[1:]) {
+		from := sel.end
+		if sel.lines {
+			from++
+		}
+		more, ok := textObject(t, from, count, cmd)
+		if from >= t.Len() || !ok {
+			return r
+		}
+		return region{start: sel.start, end: more.end, lines: more.lines}
+	}
+	for n := max(count, 1) + 1; r.start >= sel.start && r.end <= sel.end; n++ {
+		out, ok := textObject(t, m.h.Cursor(), n, cmd)
+		if !ok || out == r {
+			break
+		}
+		r = out
+	}
+	return r
 }

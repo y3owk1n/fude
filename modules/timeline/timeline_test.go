@@ -31,6 +31,11 @@ func TestB31Timeline(t *testing.T) {
 	if len(lines) != 4 || !strings.HasPrefix(lines[3], "* 3") || !strings.HasSuffix(lines[3], "restore 1") {
 		t.Errorf("after :restore, :timeline listed %q, want a new state 3 and state 2 kept", lines)
 	}
+	// Outside one, :restore with no number says so, as the window's keys do.
+	if editortest.Feed(e, ":q<CR>:restore<CR>"); e.Message() != "not in a timeline" {
+		t.Errorf(":restore outside a timeline said %q", e.Message())
+	}
+	editortest.Feed(e, ":timeline<CR>")
 	// In a timeline window, :restore takes the state on the cursor's line.
 	editortest.Feed(e, "3G:restore<CR>:q<CR>")
 	if editortest.Text(e) != "two" {

@@ -43,23 +43,29 @@ func TestB40SyntaxObjects(t *testing.T) {
 	src := "package p\n\ntype T struct {\n\tA int\n\tB string\n}\n\nfunc F(a int, b string) error {\n\tx := g(a, b)\n\treturn nil\n}\n"
 	typ := "type T struct {\n\tA int\n\tB string\n}"
 	fn := "func F(a int, b string) error {\n\tx := g(a, b)\n\treturn nil\n}"
-	for _, c := range [][2]string{
-		{"9G^dif", "package p\n\n" + typ + "\n\nfunc F(a int, b string) error {\n\t\n}"},
-		{"9G^vifd", "package p\n\n" + typ + "\n\nfunc F(a int, b string) error {\n\t\n}"},
-		{"9Gdaf", "package p\n\n" + typ + "\n\n"},
-		{"4G^dic", "package p\n\ntype T struct {\n\t\n}\n\n" + fn},
-		{"4Gdac", "package p\n\n\n\n" + fn},
-		{"8Gf(ldia", "package p\n\n" + typ + "\n\nfunc F(, b string) error {\n\tx := g(a, b)\n\treturn nil\n}"},
-		{"8Gf(ldaa", "package p\n\n" + typ + "\n\nfunc F(b string) error {\n\tx := g(a, b)\n\treturn nil\n}"},
-		{"8Gfbdaa", "package p\n\n" + typ + "\n\nfunc F(a int) error {\n\tx := g(a, b)\n\treturn nil\n}"},
+	nested := "package p\n\nfunc F() {\n\th := func() {\n\t\treturn\n\t}\n\th(g(ab), c)\n}\n"
+	for _, c := range [][3]string{
+		{src, "9G^dif", "package p\n\n" + typ + "\n\nfunc F(a int, b string) error {\n\t\n}"},
+		{src, "9G^vifd", "package p\n\n" + typ + "\n\nfunc F(a int, b string) error {\n\t\n}"},
+		{src, "9Gdaf", "package p\n\n" + typ + "\n\n"},
+		{src, "4G^dic", "package p\n\ntype T struct {\n\t\n}\n\n" + fn},
+		{src, "4Gdac", "package p\n\n\n\n" + fn},
+		{src, "8Gf(ldia", "package p\n\n" + typ + "\n\nfunc F(, b string) error {\n\tx := g(a, b)\n\treturn nil\n}"},
+		{src, "8Gf(ldaa", "package p\n\n" + typ + "\n\nfunc F(b string) error {\n\tx := g(a, b)\n\treturn nil\n}"},
+		{src, "8Gfbdaa", "package p\n\n" + typ + "\n\nfunc F(a int) error {\n\tx := g(a, b)\n\treturn nil\n}"},
+		// A count, or the object again in visual mode, takes the one around it.
+		{nested, "5Gdaf", "package p\n\nfunc F() {\n\th := \n\th(g(ab), c)\n}"},
+		{nested, "5G2daf", "package p\n\n"},
+		{nested, "5Gvafafd", "package p\n\n"},
+		{nested, "7Gfa2dia", "package p\n\nfunc F() {\n\th := func() {\n\t\treturn\n\t}\n\th(, c)\n}"},
 	} {
 		path := filepath.Join(t.TempDir(), "a.go")
-		change(t, path, src)
+		change(t, path, c[0])
 		e := start(t, path)
 		e.SetSize(80, 20)
 		captures(t, e)
-		if feed(e, c[0]); text(e) != c[1] {
-			t.Errorf("%s left %q, want %q", c[0], text(e), c[1])
+		if feed(e, c[1]); text(e) != c[2] {
+			t.Errorf("%s left %q, want %q", c[1], text(e), c[2])
 		}
 	}
 }

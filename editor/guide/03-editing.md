@@ -39,11 +39,23 @@ cursor is in them.
 
 ## Several places at once
 
-`<C-n>` selects the word under the cursor, and each `<C-n>` after adds its
-next match, so `<C-n><C-n><C-n>c` changes three of them as you type.
-`/word<CR>` then `cgn` changes one match, and `.` the next. In visual mode
-`:select` takes every node of a tree-sitter query, and `<C-v>` with `I`
-or `A` types on every line of a block.
+fude edits several places at once through regions, one cursor each.
+`<C-n>` on a word selects it as the first region, and each `<C-n>` after
+adds the next match of the whole word, going round the text. In visual
+mode `<C-n>` does the same for the selected text, which must be on one
+line. `:select` in visual mode makes a region of every node a tree-sitter
+query names in the selection, as `:select (identifier) @x` does. With the
+regions chosen:
+
+- `c` deletes every region and types into all of them at once until
+  `<Esc>`, so `<C-n><C-n><C-n>cnew<Esc>` renames three matches.
+- `d` and `x` delete every region, and `y` yanks them as lines of one
+  register.
+- An operator from a module, such as `gc`, acts on each region.
+- Any other key keeps the first region alone and goes on from there.
+
+`/word<CR>` then `cgn` changes one match and `.` the next, so `n` can skip
+one on the way. `<C-v>` with `I` or `A` types on every line of a block.
 
 ## Surrounding
 

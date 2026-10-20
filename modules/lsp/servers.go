@@ -25,16 +25,23 @@ var panelKeys = map[string]string{
 	"q": "<Plug>(float.close)", "<Esc>": "<Plug>(float.close)",
 }
 
-// serverCall runs :lsp, which opens the panel or acts on the current
-// file's servers, and the panel's keys (B159, B160).
+// serverCall runs :lsp, which opens the panel or acts on the named server
+// or the current file's servers, and the panel's keys (B159, B160).
 func (m *Module) serverCall(res *api.Result, s api.Scope, id uint32, cursor int) {
 	switch id {
 	case lspCmd:
-		if arg, ok := s.About["complete"]; ok && !strings.Contains(arg, " ") {
+		if arg, ok := s.About["complete"]; ok {
 			res.Complete = serverActions
+			if do, _, ok := strings.Cut(arg, " "); ok {
+				res.Complete = nil
+				for _, sv := range s.Servers() {
+					res.Complete = append(res.Complete, do+" "+sv.Name)
+				}
+			}
 			return
 		}
-		do := strings.TrimSpace(s.About["args"])
+		do, name, _ := strings.Cut(strings.TrimSpace(s.About["args"]), " ")
+		name = strings.TrimSpace(name)
 		if do == "" {
 			p, names, _ := panel(s)
 			if len(names) == 0 {
@@ -45,14 +52,21 @@ func (m *Module) serverCall(res *api.Result, s api.Scope, id uint32, cursor int)
 			return
 		}
 		for _, sv := range s.Servers() {
-			if slices.Contains(sv.Filetypes, s.About["filetype"]) {
+			if name == sv.Name || name == "" && slices.Contains(sv.Filetypes, s.About["filetype"]) {
 				res.Servers = append(res.Servers, api.ServerAction{Name: sv.Name, Do: do})
 			}
 		}
 		if len(res.Servers) == 0 {
 			res.Message = "no language server is set for this file"
+			if name != "" {
+				res.Message = "no language server is called " + name
+			}
 		}
 	default:
+		if s.About["title"] != panelTitle {
+			res.Message = "not in the language servers panel"
+			return
+		}
 		_, names, starts := panel(s)
 		if len(names) > 0 {
 			res.Servers = []api.ServerAction{{Name: names[serverAt(starts, s.Text.LineOf(cursor))], Do: map[uint32]string{restartKey: "restart", stopKey: "stop", disableKey: "disable", enableKey: "enable"}[id]}}

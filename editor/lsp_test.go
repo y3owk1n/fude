@@ -453,8 +453,12 @@ func TestB169SeveralServers(t *testing.T) {
 
 // B159
 func TestB159LspPanel(t *testing.T) {
-	e, log := withServer(t, "x\n", "utf-8")
+	e, log := withServer(t, "x\n", "utf-8", `keymap.normal.S = "<Plug>(lsp.stop)"`)
 	heard(t, log, `"method":"textDocument/didOpen"`, 1)
+	// The panel's keys act only in the panel.
+	if feed(e, "S"); e.Message() != "not in the language servers panel" {
+		t.Errorf("<Plug>(lsp.stop) in a file said %q", e.Message())
+	}
 	panel := func() string {
 		_, text := floatAt(e, "middle")
 		return text
@@ -481,7 +485,11 @@ func TestB159LspPanel(t *testing.T) {
 	if feed(e, ":lsp<CR>"); !strings.Contains(panel(), "crashed twice") {
 		t.Fatalf("with the server off the panel showed %q", panel())
 	}
-	feed(e, "q:lsp restart<CR>")
+	// <Tab> after the word completes the servers' names.
+	if feed(e, "q:lsp restart <Tab>"); e.Line() != ":lsp restart fake" {
+		t.Fatalf(":lsp restart <Tab> made %q", e.Line())
+	}
+	feed(e, "<CR>")
 	heard(t, log, `"method":"textDocument/didOpen"`, 4)
 }
 
@@ -941,6 +949,9 @@ func TestB66Rename(t *testing.T) {
 	if feed(e, ":b a.go<CR>u"); text(e) != "a target\nb target\nc" {
 		t.Errorf("u after the rename left %q, want it undone in one step", text(e))
 	}
+	// Typed, :rename renames the symbol under the cursor, not where grn was.
+	feed(e, "jw:rename other<CR>")
+	heard(t, log, `"newName":"other","position":{"line":1,"character":2}`, 1)
 }
 
 // B66, for gra and insert <C-s>

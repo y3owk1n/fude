@@ -117,9 +117,21 @@ func (e *Session) helpSections() []helpSection {
 		}
 		commands.entries = append(commands.entries, helpEntry{tags, head, c.Help})
 	}
+	shorts := slices.Sorted(maps.Keys(e.shortOf))
 	for _, name := range slices.Sorted(maps.Keys(e.commands)) {
+		// A short name shows on its command's line.
+		if _, ok := e.shortOf[name]; ok {
+			continue
+		}
 		head := strings.TrimSpace(":" + name + " " + e.pluginArgs[name])
-		commands.entries = append(commands.entries, helpEntry{[]string{":" + name}, head, cmp.Or(e.pluginHelp[":"+name], "a plugin's command")})
+		tags := []string{":" + name}
+		for _, s := range shorts {
+			if e.shortOf[s] == name {
+				head += "  :" + s
+				tags = append(tags, ":"+s)
+			}
+		}
+		commands.entries = append(commands.entries, helpEntry{tags, head, cmp.Or(e.pluginHelp[":"+name], "a plugin's command")})
 	}
 	out = append(out, commands)
 

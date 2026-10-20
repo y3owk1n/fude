@@ -65,6 +65,10 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, _ ...int) (api.
 			Keys:    "G",
 		}, nil
 	}
+	buf, _ := strconv.Atoi(s.About["buffer"])
+	if s.Buffers[buf].Kind != "history" {
+		return api.Result{Message: "not in a history window"}, nil
+	}
 	t := s.Text
 	pos, _ := strconv.Atoi(s.About["cursor"])
 	line := t.LineOf(pos)
@@ -72,7 +76,6 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, _ ...int) (api.
 	if line+1 < t.Lines() {
 		end = t.LineStart(line+1) - 1
 	}
-	buf, _ := strconv.Atoi(s.About["buffer"])
 	res := api.Result{Drop: []int{buf}, Windows: []api.WindowAction{{Do: "close"}}}
 	if text := t.Slice(t.LineStart(line), end); text != "" {
 		res.Keys = m.prompt + strings.ReplaceAll(text, "<", "<lt>") + "<CR>"

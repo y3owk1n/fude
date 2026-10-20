@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/internal/keep"
@@ -43,11 +42,8 @@ var actions = [][2]string{
 	{"q", "quit"},
 }
 
-// Module is start. It keeps the recent files the screen lists.
-type Module struct {
-	mu     sync.Mutex
-	recent []string
-}
+// Module is start.
+type Module struct{}
 
 // New returns start.
 func New() *Module { return &Module{} }
@@ -72,8 +68,6 @@ func (m *Module) Init(context.Context, api.Scope) (api.Result, error) { return a
 // Call runs the key at the start of the line under the cursor, opens
 // config.toml, or opens a recent file.
 func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (api.Result, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
 	switch id {
 	case open:
 		t := s.Text
@@ -99,46 +93,57 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 		}
 		return api.Result{Jump: &api.Jump{Path: filepath.Join(dir, "config.toml")}}, nil
 	}
-	if n := int(id - recentFile); n < len(m.recent) {
-		return api.Result{Jump: &api.Jump{Path: m.recent[n]}}, nil
+	// The list is the start screen's, from any window (B225).
+	recent, err := recentFiles()
+	if err != nil {
+		return api.Result{Message: err.Error()}, nil
+	}
+	if n := int(id - recentFile); n < len(recent) {
+		return api.Result{Jump: &api.Jump{Path: recent[n]}}, nil
 	}
 	return api.Result{Message: fmt.Sprintf("no recent file %d", id-recentFile+1)}, nil
 }
 
-// Event shows the start screen in place of the empty buffer. It lists the
-// 9 newest recent files under the working directory, or the 9 newest
-// anywhere when it has none, and a line to restore the directory's
-// session first when it has one.
-func (m *Module) Event(context.Context, string, api.Scope) (api.Result, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	var res api.Result
+// recentFiles are the 9 newest recent files under the working directory,
+// or the 9 newest anywhere when it has none.
+func recentFiles() ([]string, error) {
 	wd, err := os.Getwd()
-	var here, elsewhere []string
-	if err == nil {
-		// The log is for failed writes, and this only reads.
-		here, elsewhere, err = keep.NewRecent(keep.RecentPath, func(string) {}).Files("", wd)
-	}
 	if err != nil {
-		res.Message = err.Error()
+		return nil, fmt.Errorf("recent files: %w", err)
+	}
+	// The log is for failed writes, and this only reads.
+	here, elsewhere, err := keep.NewRecent(keep.RecentPath, func(string) {}).Files("", wd)
+	if err != nil {
+		return nil, err
 	}
 	if len(here) == 0 {
 		here = elsewhere
 	}
-	m.recent = here[:min(len(here), 9)]
+	return here[:min(len(here), 9)], nil
+}
+
+// Event shows the start screen in place of the empty buffer, with the
+// recent files and a line to restore the directory's session first when
+// it has one.
+func (m *Module) Event(context.Context, string, api.Scope) (api.Result, error) {
+	var res api.Result
+	recent, err := recentFiles()
+	if err != nil {
+		res.Message = err.Error()
+	}
 	list := actions
 	if path, err := keep.SessionPath(); err == nil {
 		if _, err := os.Stat(path); err == nil {
 			list = append([][2]string{{"s", "restore the last session here"}}, list...)
 		}
 	}
-	res.Show = m.screen(list)
+	res.Show = screen(list, recent)
 	return res, nil
 }
 
 // screen is the start screen: fude's name, a line for each of list's keys,
 // and the recent files, numbered.
-func (m *Module) screen(list [][2]string) *api.Panel {
+func screen(list [][2]string, recent []string) *api.Panel {
 	var b strings.Builder
 	var spans []api.Span
 	mark := func(text, style string) {
@@ -155,11 +160,11 @@ func (m *Module) screen(list [][2]string) *api.Panel {
 		b.WriteString("  " + a[1] + "\n")
 	}
 	home, _ := os.UserHomeDir()
-	if len(m.recent) > 0 {
+	if len(recent) > 0 {
 		b.WriteString("\n   ")
 		mark("recent files", "markup.heading")
 		b.WriteString("\n\n")
-		for i, p := range m.recent {
+		for i, p := range recent {
 			b.WriteString("   ")
 			mark(strconv.Itoa(i+1), "keyword")
 			if home != "" && strings.HasPrefix(p, home+string(filepath.Separator)) {

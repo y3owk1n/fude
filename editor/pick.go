@@ -47,6 +47,9 @@ func (e *Session) commandList() []api.ExCommand {
 		all = append(all, api.ExCommand{Name: c.Name, Args: c.Args, Help: c.Help})
 	}
 	for _, name := range slices.Sorted(maps.Keys(e.commands)) {
+		if _, ok := e.shortOf[name]; ok {
+			continue
+		}
 		all = append(all, api.ExCommand{Name: name, Args: e.pluginArgs[name], Help: cmp.Or(e.pluginHelp[":"+name], "a plugin's command")})
 	}
 	for _, name := range e.plugNames() {

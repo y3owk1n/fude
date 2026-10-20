@@ -216,7 +216,7 @@ func (m *Machine) act(op string, reg rune, label string, r region) error {
 	case op == "!":
 		return m.filterLine(r)
 	case op == ">" || op == "<":
-		return m.shift(op, label, r, col, 1)
+		return m.shift(op, label, r, 1)
 	case r.block:
 		return m.actBlock(op, reg, label, r)
 	case r.start == r.end && !r.lines:

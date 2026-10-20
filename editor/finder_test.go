@@ -147,6 +147,9 @@ func TestB271Plug(t *testing.T) {
 	if feed(e, ":plug nope<CR>"); e.Message() != "no plug is called nope" {
 		t.Errorf(":plug nope said %q", e.Message())
 	}
+	if feed(e, ":plug<CR>"); e.Message() != "which plug? :plug name" {
+		t.Errorf(":plug alone said %q", e.Message())
+	}
 	// :pick commands finds a plug by what it does.
 	shows := func(want string) bool { f, _ := e.Menu(); return strings.Contains(f.Text, want) }
 	feed(e, ":pick commands<CR>lists the directory of the file")

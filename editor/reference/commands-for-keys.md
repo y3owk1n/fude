@@ -350,7 +350,8 @@ It closes the window and types the cursor's line after `:`, `/` or `?`,
 as the window's key chose, then `<CR>`, in the window the list opened
 from. The line runs as written, so a `<` in it is a `<`. On an empty line
 it only closes the window. The window's buffer goes with it, and any
-edits to the list are lost.
+edits to the list are lost. Mapped in another window, it says "not in a
+history window" and does nothing.
 
 ## <Plug>(jump.start)
 
@@ -478,7 +479,8 @@ actions".
 `r` runs it in the `:lsp` panel. Restarts the server whose part of the
 panel holds the cursor, and opens its files in the new one. `:lsp restart`
 does the same for the current file's servers. A guest may not run it, nor
-the panel's other three.
+the panel's other three. Outside the panel, it and the other three say
+"not in the language servers panel" and do nothing.
 
 ```toml
 [keymap.lsp]
@@ -692,11 +694,10 @@ mapped in.
 ## <Plug>(start.1)
 
 `1` on the start screen. Opens the first of the recent files the start
-screen listed: the 9 newest under the working directory, or the 9 newest
-anywhere when it has none. The list is made once, when the start screen
-shows, so mapped in normal mode it opens that file from any window. When
-fude started with a file there is no list, and it says "no recent file
-1", as it does when the list is shorter.
+screen lists: the 9 newest under the working directory, or the 9 newest
+anywhere when it has none. Mapped in normal mode it opens that file from
+any window, even when fude started with a file. When the list is shorter
+it says "no recent file 1".
 
 ## <Plug>(start.2)
 
@@ -758,7 +759,7 @@ nothing.
 line above the cursor's, then lists the timeline again with the cursor on
 that state, so `[` again goes one further back. On state 0 it does
 nothing. It works only in the window `:timeline` opens. In any other
-window it says there is no such state. A count does nothing.
+window it says "not in a timeline". A count does nothing.
 
 ## <Plug>(timeline.later)
 
@@ -773,14 +774,14 @@ between the state under the cursor and the state the text is at, with 3
 lines around each run. A line only the state under the cursor has comes
 after `-`, and a line only the text now has after `+`. The window's title
 names both states, such as `[diff 3 7]`, and `q` closes it. Outside a
-timeline window it says there is no such state.
+timeline window it says "not in a timeline".
 
 ## <Plug>(timeline.restore)
 
 `<CR>` in a timeline window. Makes the text of the state under the cursor
 the newest state, as `:restore` does. The states after it stay, so it
 loses nothing. The timeline lists again with the cursor on the new state.
-Outside a timeline window it says there is no such state.
+Outside a timeline window it says "not in a timeline".
 
 ## <Plug>(timeline.list)
 

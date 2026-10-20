@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/fude/editor/editortest"
+	"github.com/y3owk1n/fude/modules/buffers"
 	"github.com/y3owk1n/fude/modules/files"
 	"github.com/y3owk1n/fude/modules/recent"
 	"github.com/y3owk1n/fude/modules/start"
@@ -19,10 +20,12 @@ func TestB225StartScreen(t *testing.T) {
 	dir := t.TempDir()
 	editortest.Change(t, filepath.Join(dir, "a.txt"), "a\n")
 	t.Chdir(dir)
-	e := editortest.Open(t, "a.txt")
+	editortest.Config(t, "[keymap.normal]\nQ = \"<Plug>(start.1)\"\n")
+	e := editortest.Start(t, "a.txt")
 	e.Use(recent.New())
 	e.Use(start.New())
 	e.Use(files.New())
+	e.Use(buffers.New())
 	e.SetSize(80, 24)
 	abs, err := filepath.Abs("a.txt")
 	if err != nil {
@@ -32,6 +35,11 @@ func TestB225StartScreen(t *testing.T) {
 		b, _ := os.ReadFile(filepath.Join(os.Getenv("XDG_STATE_HOME"), "fude", "recent"))
 		return strings.Contains(string(b), abs)
 	})
+	// A key mapped to a digit's plug opens that recent file from any
+	// window, with no start screen shown.
+	if editortest.Feed(e, ":enew<CR>Q"); e.Windows()[0].Name != "a.txt" {
+		t.Errorf("<Plug>(start.1) opened %q and said %q", e.Windows()[0].Name, e.Message())
+	}
 	// The start screen lists the actions, then the recent files, without
 	// line numbers.
 	editortest.Feed(e, ":set number true<CR>:enew<CR>")

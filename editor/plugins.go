@@ -541,7 +541,7 @@ func (e *Session) windowAction(a api.WindowAction) error {
 		return e.closeWindow(w)
 	case "only":
 		e.win = w
-		e.only()
+		return e.only()
 	case "float", "above", "below", "left", "right":
 		return e.move(w, a.Do)
 	case "zoom":
@@ -1394,8 +1394,8 @@ func (e *Session) run(p api.Module, id uint32, scope api.Scope, args ...int) ([]
 			switch {
 			case r.Kind == api.Command:
 				name = ":" + r.Name
-			case r.Kind == api.Plug && r.Keys != "":
-				name = r.Keys
+			case r.Kind == api.Plug:
+				name = "<Plug>(" + p.Name() + "." + r.Name + ")"
 			default:
 				name = r.Name
 			}

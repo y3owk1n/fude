@@ -1635,7 +1635,7 @@ jumps to its place in another window and keeps the list (B66).
 
 `grn` opens the command line as `:rename <word>`, with the word under the
 cursor, the way Neovim prompts with it. `:rename new` asks the server to
-rename the symbol where `grn` was pressed. Its workspace edit applies one
+rename the symbol under the cursor, which is where `grn` was pressed. Its workspace edit applies one
 transaction per file, opening a buffer for a file that has none and
 writing nothing, as Neovim does. Edits to the buffer that asked must fit
 the text it asked about, and edits to another buffer the version the

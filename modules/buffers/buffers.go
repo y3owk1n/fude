@@ -73,6 +73,9 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, _ ...int) (api.
 		}
 		return api.Result{Ex: []string{write}}, nil
 	}
+	if arg == "" && id == show {
+		return api.Result{Message: "which buffer? :buffer n"}, nil
+	}
 	b := current
 	if arg != "" || id == show {
 		var msg string

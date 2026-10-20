@@ -44,7 +44,13 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 	chars := strings.Split(s.About["chars"], "")
 	switch id {
 	case add, addVisual:
-		return api.Result{Edits: wrap(s.Text, args[0], args[1], args[2] == 1, chars[0])}, nil
+		start, end, lines := args[0], args[1], args[2] == 1
+		// The blanks at a target's end stay outside the pair, as
+		// vim-surround leaves them, so ysaw( surrounds as ysiw( does.
+		if trimmed := strings.TrimRight(s.Text.Slice(start, end), " \t"); id == add && !lines && trimmed != "" {
+			end = start + len(trimmed)
+		}
+		return api.Result{Edits: wrap(s.Text, start, end, lines, chars[0])}, nil
 	case del:
 		return api.Result{Edits: rewrap(s, args[0], chars[0], "")}, nil
 	}

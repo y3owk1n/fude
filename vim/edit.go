@@ -337,8 +337,8 @@ func (m *Machine) changeCase(op, label string, r region) error {
 
 // shift indents the lines of r by times the indent width for >, or outdents
 // them for <, rebuilding the indent from tabs and spaces. Empty lines stay
-// empty.
-func (m *Machine) shift(op, label string, r region, col, times int) error {
+// empty. The cursor goes to the first non-blank of the first line.
+func (m *Machine) shift(op, label string, r region, times int) error {
 	tab := m.h.TabWidth()
 	t := m.h.Text()
 	var edits []Edit
@@ -365,7 +365,8 @@ func (m *Machine) shift(op, label string, r region, col, times int) error {
 		}
 	}
 	t = m.h.Text()
-	m.h.SetCursor(clamp(t, atColumn(t, LineStart(t, r.start), col, tab)))
+	ls := LineStart(t, r.start)
+	m.h.SetCursor(clamp(t, firstNonBlank(t, ls, LineEnd(t, ls))))
 	return nil
 }
 
