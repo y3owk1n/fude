@@ -387,6 +387,7 @@ func (e *Session) splitBeside(across, after bool) {
 // insert puts nw in the layout beside l, after it when after is set, and
 // moves to it.
 func (e *Session) insert(nw *window, l *node, across, after bool) {
+	e.zoomed = nil
 	add := &node{win: nw}
 	if p := l.parent; p != nil && p.across == across {
 		i := slices.Index(p.kids, l)
@@ -409,6 +410,21 @@ func (e *Session) insert(nw *window, l *node, across, after bool) {
 	}
 	e.win = nw
 	e.layout()
+}
+
+// zoom shows w alone across the layout's room, or every window again when
+// w is zoomed. The others keep their places and sizes meanwhile (B370).
+func (e *Session) zoom(w *window) error {
+	if w.anchor != "" {
+		return errors.New("a float does not zoom")
+	}
+	if e.zoomed == w {
+		e.zoomed = nil
+	} else {
+		e.zoomed, e.win = w, w
+	}
+	e.layout()
+	return nil
 }
 
 // closeWindow closes w, or hides it while its program runs.
@@ -480,6 +496,7 @@ func (e *Session) unhide(w *window) {
 // unlay takes w out of the layout. The window before it in the split, or
 // else the one after, takes its place and becomes current.
 func (e *Session) unlay(w *window) error {
+	e.zoomed = nil
 	l := e.root.leaf(w)
 	p := l.parent
 	if p == nil {
@@ -535,24 +552,30 @@ func (e *Session) moveTo(d byte) {
 // cursor's row or column, or nil (B330).
 func (e *Session) beside(d byte) *window {
 	w := e.win
+	// For a zoomed window, beside measures from its place in the layout
+	// (B370).
+	x, y, ww, h := w.x, w.y, w.w, w.h
+	if w == e.zoomed {
+		x, y, ww, h = e.unzoomed[0], e.unzoomed[1], e.unzoomed[2], e.unzoomed[3]
+	}
 	t := w.buf.text.Snapshot()
-	row, col := w.y, w.x
-	for p := e.Top(); p < vim.LineStart(t, w.pos()) && row < w.y+w.h-2; p = vim.LineEnd(t, p) + 1 {
+	row, col := y, x
+	for p := e.Top(); p < vim.LineStart(t, w.pos()) && row < y+h-2; p = vim.LineEnd(t, p) + 1 {
 		row++
 	}
-	col += min(w.pos()-vim.LineStart(t, w.pos()), w.w-1)
+	col += min(w.pos()-vim.LineStart(t, w.pos()), ww-1)
 	switch d {
 	case 'h':
-		col = w.x - 2
+		col = x - 2
 	case 'l':
-		col = w.x + w.w + 1
+		col = x + ww + 1
 	case 'k':
-		row = w.y - 1
+		row = y - 1
 	case 'j':
-		row = w.y + w.h
+		row = y + h
 	}
 	for _, o := range e.root.windows() {
-		if col >= o.x && col < o.x+o.w && row >= o.y && row < o.y+o.h {
+		if o != w && col >= o.x && col < o.x+o.w && row >= o.y && row < o.y+o.h {
 			return o
 		}
 	}
@@ -568,6 +591,12 @@ func (e *Session) layout() {
 		top = 1
 	}
 	e.root.place(x, top, w, max(e.height-top, 2))
+	// A zoomed window takes all the room, and the others keep their places
+	// for when it is not.
+	if z := e.zoomed; z != nil {
+		e.unzoomed = [4]int{z.x, z.y, z.w, z.h}
+		z.x, z.y, z.w, z.h = x, top, w, max(e.height-top, 2)
+	}
 	for _, f := range e.floats {
 		e.place(f)
 	}

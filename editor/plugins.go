@@ -544,6 +544,8 @@ func (e *Session) windowAction(a api.WindowAction) error {
 		e.only()
 	case "float", "above", "below", "left", "right":
 		return e.move(w, a.Do)
+	case "zoom":
+		return e.zoom(w)
 	case "hide":
 		if w.locked {
 			return fmt.Errorf("%s cannot move", w.buf.name())
@@ -1336,7 +1338,7 @@ func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 		if w.alt != nil {
 			alt = w.alt.id
 		}
-		wins = append(wins, api.Window{ID: w.id, Buffer: w.buf.id, Alt: alt, Cursor: w.pos(), Top: w.buf.text.Mark(w.top), Row: w.y, Column: w.x, Width: w.w, Height: w.h, Current: w == e.win, Float: w.anchor})
+		wins = append(wins, api.Window{ID: w.id, Buffer: w.buf.id, Alt: alt, Cursor: w.pos(), Top: w.buf.text.Mark(w.top), Row: w.y, Column: w.x, Width: w.w, Height: w.h, Current: w == e.win, Float: w.anchor, Zoomed: w == e.zoomed})
 		if w.buf == b && (w == e.win || s.About["cursor"] == "") {
 			s.About["cursor"] = strconv.Itoa(w.pos())
 		}

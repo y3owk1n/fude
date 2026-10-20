@@ -737,6 +737,11 @@ Where fude departs, the line says so and cites the departure in
   `:window right terminal`, they open its window there instead. `:hide`
   refuses for the last window shown, and a move refuses for a locked
   window, naming it (B367).
+- B370 [2] `<C-w>z` and `:window zoom` show the current window alone
+  across the screen, with zoomed on its status line. Either one again
+  shows every window as it was. Splitting, closing or moving a window, or moving to
+  another, shows every window again first. A float does not zoom, and
+  floats show over a zoomed window.
 - B369 [2] `:pick terminals` lists the session's terminals by name, those
   out of sight too, and picking one shows its window where it was, or
   below, in terminal mode while its program runs (B364).

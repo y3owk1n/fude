@@ -2,7 +2,7 @@
 // window that way, to tmux's pane there, as nvim-tmux-navigation does
 // (B140). It is also :split, :vsplit, :new, :vnew, :only, :resize,
 // :vertical resize, :hide and :window, and the <C-w> keys that size a
-// window (B91, B193, B365).
+// window (B91, B193, B365, B370).
 package window
 
 import (
@@ -46,10 +46,11 @@ const (
 	widest
 	hide
 	place
+	zoom
 )
 
-// ways are where :window puts a window (B365).
-var ways = []string{"float", "above", "below", "left", "right"}
+// ways are where :window puts a window (B365), and zoom (B370).
+var ways = []string{"float", "above", "below", "left", "right", "zoom"}
 
 // sizes are the <C-w> keys that size the current window, by their ids:
 // each changes its rows or columns by the count, or makes it the count
@@ -92,7 +93,8 @@ func (m *Module) Registered() []api.Registration {
 		api.Registration{Kind: api.Command, Name: "vnew", Short: []string{"vne"}, Help: "opens a window to the right with a new empty buffer, or left with split_right off", ID: right},
 		api.Registration{Kind: api.Command, Name: "only", Short: []string{"on"}, Help: "closes every other window", ID: only},
 		api.Registration{Kind: api.Command, Name: "hide", Short: []string{"hid"}, Help: "hides the window, which keeps its buffer and program and shows again where it was", ID: hide},
-		api.Registration{Kind: api.Command, Name: "window", Short: []string{"win"}, Args: "float|above|below|left|right [cmd]", Help: "opens the window cmd opens there, or moves the window into a float or to that edge", ID: place, Complete: true},
+		api.Registration{Kind: api.Command, Name: "window", Short: []string{"win"}, Args: "float|above|below|left|right [cmd] | zoom", Help: "opens the window cmd opens there, or moves the window into a float or to that edge. zoom shows the window alone, or every window again", ID: place, Complete: true},
+		api.Registration{Kind: api.Plug, Name: "zoom", Keys: "<C-w>z", Help: "shows the window alone, or every window again", ID: zoom},
 		api.Registration{Kind: api.Command, Name: "resize", Short: []string{"res"}, Args: "[+-]{n}", Help: "makes the window n rows tall, or n taller or shorter, or as tall as it can be", ID: resize},
 		api.Registration{Kind: api.Command, Name: "vertical", Short: []string{"vert"}, Args: "resize [+-]{n}", Help: "makes the window n columns wide, or n wider or narrower, or as wide as it can be", ID: vertical},
 	)
@@ -151,6 +153,8 @@ func command(id uint32, s api.Scope) api.Result {
 		return api.Result{Windows: []api.WindowAction{{Do: "only"}}}
 	case hide:
 		return api.Result{Windows: []api.WindowAction{{Do: "hide"}}}
+	case zoom:
+		return api.Result{Windows: []api.WindowAction{{Do: "zoom"}}}
 	case place:
 		return placed(s)
 	case vertical:
@@ -164,8 +168,9 @@ func command(id uint32, s api.Scope) api.Result {
 }
 
 // placed opens the window the command line after the way opens that way,
-// or moves the current window that way without one, as :window does. It
-// completes the way being typed (B365).
+// or moves the current window that way without one, as :window does.
+// zoom shows the current window alone, or every window again. It
+// completes the way being typed (B365, B370).
 func placed(s api.Scope) api.Result {
 	way, cmd, _ := strings.Cut(strings.TrimSpace(s.About["args"]), " ")
 	if word, ok := s.About["complete"]; ok {
@@ -181,9 +186,9 @@ func placed(s api.Scope) api.Result {
 		return res
 	}
 	if !slices.Contains(ways, way) {
-		return api.Result{Message: "usage: :window float|above|below|left|right [cmd]"}
+		return api.Result{Message: "usage: :window float|above|below|left|right [cmd], or :window zoom"}
 	}
-	if cmd = strings.TrimSpace(cmd); cmd == "" {
+	if cmd = strings.TrimSpace(cmd); cmd == "" || way == "zoom" {
 		return api.Result{Windows: []api.WindowAction{{Do: way}}}
 	}
 	return api.Result{Ex: []string{cmd}, Place: way}

@@ -306,8 +306,9 @@ type Jump struct {
 // WindowAction does Do to the window by its ID, as Scope.Windows lists it,
 // or to the current one for 0. close closes it, hide takes it out of sight
 // to show again where it was (B364), float moves it into a float, and
-// above, below, left and right to that edge of the layout (B365), only
-// closes every other,
+// above, below, left and right to that edge of the layout (B365), zoom
+// shows it alone across the layout's room or every window again (B370),
+// only closes every other,
 // focus makes it current, height and width make it Size rows or columns,
 // or as many as it can take for 0, taller and wider make it Size more, or
 // fewer for a negative Size, cursor moves its cursor to Pos and top makes
@@ -415,6 +416,7 @@ type Window struct {
 	Width, Height int
 	Current       bool
 	Float         string // where a float sits over the layout: middle, cursor or above, or "" in it (D55)
+	Zoomed        bool   // it shows alone across the layout's room (B370)
 }
 
 // Selection is what visual mode selects: its Kind, v, V or <C-v>, the

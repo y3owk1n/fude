@@ -60,6 +60,10 @@ func (c *client) status(v wire.Window, x, w int) {
 	if v.Sharing != "" {
 		right = append(right, part{v.Sharing + "  ", ground.Foreground(th.cmd)})
 	}
+	// A zoomed window says so, as the others are hidden behind it (B370).
+	if v.Zoomed {
+		right = append(right, part{"zoomed  ", ground.Foreground(th.cmd)})
+	}
 	// The other sessions in the buffer, each in its colour (B253).
 	for _, o := range v.Others {
 		right = append(right, part{o.Name + "  ", ground.Foreground(presence(o.Colour))})

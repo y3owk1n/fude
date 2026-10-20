@@ -53,7 +53,9 @@ set -g @vim_navigator_check 'ps -o state= -o comm= -t "#{pane_tty}" | grep -iqE 
 `:window float`, `:window above`, `:window below`, `:window left` and
 `:window right` before a command open its window there, such as
 `:window float help` or `:window right terminal`. Alone, they move the
-current window into a float, or to that edge of the screen. In
+current window into a float, or to that edge of the screen. `<C-w>z` or
+`:window zoom` shows the current window alone across the screen, and
+either one again brings every window back as it was. In
 `config.toml`, `[open]` sets where each module's windows open, such as
 `help = "float"`. A window its module locks stays where it opened.
 

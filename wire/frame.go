@@ -59,6 +59,7 @@ type Window struct {
 	Name             string
 	Modified         bool
 	Current          bool          // the window with the focus
+	Zoomed           bool          // it shows alone, the other windows of the layout hidden behind it (B370)
 	Highlights       []syntax.Span // in paint order, later ones drawing over earlier ones
 	Decorations      []syntax.Span // plugins' styles, drawn over highlights
 	Ghosts           []Ghost

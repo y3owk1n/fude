@@ -511,6 +511,11 @@ with `Place` set. `Place` sets `Session.placing` until the next key, so a
 result that comes later through a job's callback still finds it. `move` takes a window out of the layout
 or the floats and puts it in a float, or beside the whole layout.
 
+A zoomed window stays in the layout, and `layout` gives it all the room
+after placing every window, so the others keep their sizes for when it is
+not (B370). `Windows` sends it alone, and a change to the layout or the
+focus leaving it unzooms.
+
 A hidden window leaves the layout and keeps its buffer, cursor and the
 `slot` it had: the window beside it, the split's direction, its side and
 the size it asked for. It shows again there, or below the current window

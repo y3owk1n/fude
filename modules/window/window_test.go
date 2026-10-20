@@ -66,3 +66,33 @@ func TestB365Place(t *testing.T) {
 		t.Errorf(":hide in the last window left %d windows saying %q", len(e.Windows()), e.Message())
 	}
 }
+
+// B370
+func TestB370Zoom(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "f")
+	editortest.Change(t, path, "a\n")
+	e := editortest.Open(t, path)
+	e.Use(window.New())
+	e.SetSize(80, 24)
+	rects := func() [][4]int {
+		var out [][4]int
+		for _, w := range e.Windows() {
+			out = append(out, [4]int{w.X, w.Y, w.W, w.H})
+		}
+		return out
+	}
+	editortest.Feed(e, ":vsplit<CR>:split<CR>")
+	before := rects()
+	// The window shows alone across the screen, and again brings back every
+	// window as it was.
+	if editortest.Feed(e, "<C-w>z"); len(e.Windows()) != 1 || !e.Windows()[0].Zoomed || e.Windows()[0].W != 80 {
+		t.Fatalf("<C-w>z left the windows %v", rects())
+	}
+	if editortest.Feed(e, ":window zoom<CR>"); !slices.Equal(rects(), before) {
+		t.Fatalf(":window zoom left the windows %v, want %v", rects(), before)
+	}
+	// Moving to another window shows every window again.
+	if editortest.Feed(e, "<C-w>z<C-w>h"); !slices.Equal(rects(), before) {
+		t.Errorf("<C-w>h from a zoomed window left the windows %v, want %v", rects(), before)
+	}
+}

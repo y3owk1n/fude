@@ -37,9 +37,16 @@ func (e *Session) Windows() []wire.Window {
 			b.syntax.Keep(ws)
 		}
 	}
+	// The focus leaving a zoomed window shows every window again.
+	if z := e.zoomed; z != nil && e.under() != z {
+		e.zoomed = nil
+		e.layout()
+	}
 	var out []wire.Window
 	for _, w := range e.root.windows() {
-		out = append(out, e.draw(w))
+		if e.zoomed == nil || w == e.zoomed {
+			out = append(out, e.draw(w))
+		}
 	}
 	for _, f := range e.floats {
 		e.place(f)
@@ -56,7 +63,7 @@ func (e *Session) draw(w *window) wire.Window {
 	v := wire.Window{
 		Buffer: w.buf.id, Text: t, Top: top, Cursor: w.pos(),
 		X: w.x, Y: w.y, W: w.w, H: w.h,
-		Name: w.buf.name(), Modified: w.buf.modified(), Current: w == e.win,
+		Name: w.buf.name(), Modified: w.buf.modified(), Current: w == e.win, Zoomed: w == e.zoomed,
 		Gutter: w.gutter(), SignCols: w.signCols(), Number: w.numberCols() > 0 && w.opts.Number, Relative: w.numberCols() > 0 && w.opts.RelativeNumber,
 		Wrap: w.opts.Wrap, Left: w.left, CursorLine: w.opts.CursorLine, List: w.opts.List,
 		Indent: e.indentWidth(w.buf), Tab: tab, Guides: w.opts.IndentGuides, ColorColumn: w.opts.ColorColumn,

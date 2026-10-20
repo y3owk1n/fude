@@ -124,6 +124,8 @@ type Session struct {
 	hidden      []*window               // the windows out of sight, each keeping where it was (B364)
 	shells      map[int]*buffer         // the shells :terminal n shows and hides, by n, once each started (B205)
 	placing     string                  // where a modifier puts the window its command opens, until the next key (B365)
+	zoomed      *window                 // the window that shows alone across the layout's room, nil for none (B370)
+	unzoomed    [4]int                  // where the zoomed window is in the layout, its x, y, w and h
 	opts        options                 // what the session's new windows start with
 	changed     chan change             // told when the shown text changes, for a client over the socket
 	clip        string                  // the text last copied, when no clipboard command runs
