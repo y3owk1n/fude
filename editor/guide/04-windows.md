@@ -48,6 +48,15 @@ set -g @vim_navigator_pattern '(\S+/)?g?\.?(view|l?n?vim?x?|fzf|fude)(diff)?(-wr
 set -g @vim_navigator_check 'ps -o state= -o comm= -t "#{pane_tty}" | grep -iqE "^[^TXZ ]+ +@vim_navigator_pattern$" && ! ps -o args= -t "#{pane_tty}" | grep -qE "(^|/)fude +(tail|relay)( |$)"'
 ```
 
+## Placing windows
+
+`:window float`, `:window above`, `:window below`, `:window left` and
+`:window right` before a command open its window there, such as
+`:window float help` or `:window right terminal`. Alone, they move the
+current window into a float, or to that edge of the screen. In
+`config.toml`, `[open]` sets where each module's windows open, such as
+`help = "float"`. A window its module locks stays where it opened.
+
 ## Explorers
 
 `-` lists the current file's folder, as a buffer of its entries' names.

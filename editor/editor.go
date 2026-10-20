@@ -123,6 +123,7 @@ type Session struct {
 	closed      *window                 // the float at the cursor the key being handled closed, which hover enters
 	hidden      []*window               // the windows out of sight, each keeping where it was (B364)
 	shells      map[int]*buffer         // the shells :terminal n shows and hides, by n, once each started (B205)
+	placing     string                  // where a modifier puts the window its command opens, until the next key (B365)
 	opts        options                 // what the session's new windows start with
 	changed     chan change             // told when the shown text changes, for a client over the socket
 	clip        string                  // the text last copied, when no clipboard command runs
@@ -517,6 +518,8 @@ func (e *Session) Feed(k vim.Key) {
 func (e *Session) feed(k vim.Key) {
 	e.fit(e.win)
 	e.message = ""
+	// A modifier places the window its command opens by the next key.
+	e.placing = ""
 	// Hover enters a float the last key closed only while the next key
 	// runs, so the float closed before this key is freed.
 	if c := e.closed; c != nil {

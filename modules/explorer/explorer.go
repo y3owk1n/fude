@@ -18,6 +18,7 @@ import (
 	"sync"
 
 	"github.com/y3owk1n/fude/api"
+	splits "github.com/y3owk1n/fude/internal/split"
 	"github.com/y3owk1n/fude/internal/trace"
 )
 
@@ -101,7 +102,9 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 	if strings.HasSuffix(name, "/") {
 		jump = list(s, jump.Path)
 	}
-	jump.Split = map[uint32]string{split: "below", vsplit: "right"}[id]
+	if id == split || id == vsplit {
+		jump.Where = splits.Way(s, id == vsplit)
+	}
 	return api.Result{Jump: jump}, nil
 }
 

@@ -27,3 +27,21 @@ func TestB369PickTerminals(t *testing.T) {
 	editortest.Feed(e, "<CR>")
 	editortest.Settle(t, e, func() bool { return len(e.Windows()) == 2 && e.Terminal() })
 }
+
+// B366
+func TestB366Open(t *testing.T) {
+	// sh from PATH, which on Windows comes with Git for Windows.
+	t.Setenv("SHELL", "sh")
+	editortest.Config(t, "[open]\nterminal = \"right\"\n")
+	e := editortest.Start(t)
+	e.Use(terminal.New())
+	e.SetSize(80, 24)
+	if editortest.Feed(e, ":terminal<CR>"); len(e.Windows()) != 2 || e.Windows()[1].X == 0 || !e.Terminal() {
+		t.Fatalf("with terminal = \"right\" :terminal made %d windows, the last at column %d", len(e.Windows()), e.Windows()[len(e.Windows())-1].X)
+	}
+	// A value that is not a placement is a config error.
+	editortest.Config(t, "[open]\nterminal = \"up\"\n")
+	if e := editortest.Start(t); !strings.Contains(e.Message(), `open.terminal has no placement "up"`) {
+		t.Errorf("open.terminal = \"up\" said %q", e.Message())
+	}
+}

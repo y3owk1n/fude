@@ -188,6 +188,9 @@ func (e *Session) helpSections() []helpSection {
 			for _, k := range helpFields(reflect.New(v.Type().Elem()).Elem()) {
 				settings.entries = append(settings.entries, helpEntry{[]string{name + "." + k.name}, table + " " + k.name, k.help})
 			}
+		case v.Kind() == reflect.Map:
+			// [open], a value for any key, such as a module's name.
+			settings.entries = append(settings.entries, helpEntry{[]string{name}, "[" + name + "] {" + f.Tag.Get("key") + "}", f.Tag.Get("help")})
 		default:
 			value := fmt.Sprint(v.Interface())
 			switch v.Kind() {

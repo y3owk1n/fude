@@ -653,14 +653,18 @@ the `:lsp` panel does, or at the cursor, as hover does. A hidden window
 keeps its buffer, its program, its cursor and the place it had, and shows
 there again.
 
-A module's result names where its window opens with `Where`: `below`,
-`right`, `here` for the current window, `float` or `cursor` (B367). fude
-places it by the first of these that says where: a command modifier such
-as `:float help` (B365), `config.toml`'s `[open]` by module name (B366),
-the result's `Where`, or else below. Once a window is open, `:float`,
-`:below`, `:right` and `:hide` move it. A result's `Lock` fixes the
-placement it asks for, and modifiers, `[open]` and moves leave that
-window where it is. A locked window still closes.
+A module's result names where its window opens with `Where`: `above`,
+`below`, `left`, `right`, `here` for the current window, `float` or
+`cursor` (B367). fude places it by the first of these that says where: a
+command modifier such as `:window float help` (B365), `config.toml`'s
+`[open]` by module name (B366), the result's `Where`, or else the kind's
+own, below for a panel or a terminal and here for a jump. Once a window is
+open, `:window float`, `:window below` and the other ways, and `:hide`,
+move it. The ways are subcommands of `:window`, as `:lsp stop` is of
+`:lsp`, and the window commands from vim, such as `:split`, stay as they
+are. A result's `Lock` fixes the placement it asks for, and modifiers,
+`[open]` and moves leave that window where it is. A locked window still
+closes.
 
 Hover, signature help, help and every panel show in windows in this model
 (B368). Menus, the finder and the command line's menu are lists to pick
@@ -677,8 +681,8 @@ float, that the user can always change it while fude runs, and that a
 module can lock it. `:terminal` showed the need. It opened below, as a
 new shell each time, and could not move. A float was a box of text, so no
 option could have floated it. Making the float a window removes the box,
-with its own keys and its own drawing. Neovim's `:right`
-aligns lines, which fude does not do. This reopens N16 for panels, N29,
+with its own keys and its own drawing. Neovim's `:left` and `:right`
+align lines, which fude does not do. This reopens N16 for panels, N29,
 B205, B318 and B335.
 
 ## Departures from Neovim
@@ -808,7 +812,9 @@ A new window goes below the current one for `:split` and right of it for
 and `splitright` set. Neovim's defaults put it above and left. Why: the
 user sets both, as many configs do, and asked for it on 2026-10-16.
 `split_below` and `split_right` turn each off, which the user asked for on
-2026-10-17. A terminal, a task and a timeline still open below.
+2026-10-17. `modules/window` and `modules/explorer` read them and ask for
+above or left, and every other window opens where it asks (D55), so a
+terminal, a task and a timeline still open below.
 
 ### N17. A buffer's keys do not wait
 

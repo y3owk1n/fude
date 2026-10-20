@@ -1,7 +1,8 @@
 // Package window moves to the window that way, or inside tmux, with no
 // window that way, to tmux's pane there, as nvim-tmux-navigation does
-// (B140). It is also :split, :vsplit, :new, :vnew, :only, :resize and
-// :vertical resize, and the <C-w> keys that size a window (B91, B193).
+// (B140). It is also :split, :vsplit, :new, :vnew, :only, :resize,
+// :vertical resize, :hide and :window, and the <C-w> keys that size a
+// window (B91, B193, B365).
 package window
 
 import (
@@ -10,10 +11,12 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/y3owk1n/fude/api"
+	splits "github.com/y3owk1n/fude/internal/split"
 )
 
 // dirs are the ways it moves, by the ids Call runs them by, with tmux's
@@ -42,7 +45,11 @@ const (
 	tallestToo
 	widest
 	hide
+	place
 )
+
+// ways are where :window puts a window (B365).
+var ways = []string{"float", "above", "below", "left", "right"}
 
 // sizes are the <C-w> keys that size the current window, by their ids:
 // each changes its rows or columns by the count, or makes it the count
@@ -85,6 +92,7 @@ func (m *Module) Registered() []api.Registration {
 		api.Registration{Kind: api.Command, Name: "vnew", Short: []string{"vne"}, Help: "opens a window to the right with a new empty buffer, or left with split_right off", ID: right},
 		api.Registration{Kind: api.Command, Name: "only", Short: []string{"on"}, Help: "closes every other window", ID: only},
 		api.Registration{Kind: api.Command, Name: "hide", Short: []string{"hid"}, Help: "hides the window, which keeps its buffer and program and shows again where it was", ID: hide},
+		api.Registration{Kind: api.Command, Name: "window", Short: []string{"win"}, Args: "float|above|below|left|right [cmd]", Help: "opens the window cmd opens there, or moves the window into a float or to that edge", ID: place, Complete: true},
 		api.Registration{Kind: api.Command, Name: "resize", Short: []string{"res"}, Args: "[+-]{n}", Help: "makes the window n rows tall, or n taller or shorter, or as tall as it can be", ID: resize},
 		api.Registration{Kind: api.Command, Name: "vertical", Short: []string{"vert"}, Args: "resize [+-]{n}", Help: "makes the window n columns wide, or n wider or narrower, or as wide as it can be", ID: vertical},
 	)
@@ -125,29 +133,26 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 }
 
 // command splits, sizes or hides the current window, or closes the others,
-// as its command does.
-// A split goes below or right, or above or left with split_below or
-// split_right off, which the editor reads (B91, B193).
+// as its command does (B91, B193).
 func command(id uint32, s api.Scope) api.Result {
 	arg := strings.TrimSpace(s.About["args"])
-	way := "below"
-	if id == vsplit || id == right {
-		way = "right"
-	}
+	way := splits.Way(s, id == vsplit || id == right)
 	switch id {
 	case split, vsplit:
 		current, _ := strconv.Atoi(s.About["buffer"])
-		res := api.Result{Jump: &api.Jump{Buffer: current, Split: way}}
+		res := api.Result{Jump: &api.Jump{Buffer: current, Where: way}}
 		if arg != "" {
 			res.Ex = []string{"edit " + arg}
 		}
 		return res
 	case below, right:
-		return api.Result{Scratch: &api.Scratch{Split: way}}
+		return api.Result{Scratch: &api.Scratch{Where: way}}
 	case only:
 		return api.Result{Windows: []api.WindowAction{{Do: "only"}}}
 	case hide:
 		return api.Result{Windows: []api.WindowAction{{Do: "hide"}}}
+	case place:
+		return placed(s)
 	case vertical:
 		name, rest, _ := strings.Cut(arg, " ")
 		if name != "resize" && name != "res" {
@@ -156,6 +161,32 @@ func command(id uint32, s api.Scope) api.Result {
 		return sized(strings.TrimSpace(rest), true)
 	}
 	return sized(arg, false)
+}
+
+// placed opens the window the command line after the way opens that way,
+// or moves the current window that way without one, as :window does. It
+// completes the way being typed (B365).
+func placed(s api.Scope) api.Result {
+	way, cmd, _ := strings.Cut(strings.TrimSpace(s.About["args"]), " ")
+	if word, ok := s.About["complete"]; ok {
+		if strings.Contains(s.About["args"], " ") {
+			return api.Result{}
+		}
+		var res api.Result
+		for _, w := range ways {
+			if strings.HasPrefix(w, word) {
+				res.Complete = append(res.Complete, w)
+			}
+		}
+		return res
+	}
+	if !slices.Contains(ways, way) {
+		return api.Result{Message: "usage: :window float|above|below|left|right [cmd]"}
+	}
+	if cmd = strings.TrimSpace(cmd); cmd == "" {
+		return api.Result{Windows: []api.WindowAction{{Do: way}}}
+	}
+	return api.Result{Ex: []string{cmd}, Place: way}
 }
 
 // sized makes the window n rows tall, or n columns wide when across, n

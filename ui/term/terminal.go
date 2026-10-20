@@ -33,7 +33,10 @@ func (c *client) cells(v wire.Window, left int) (int, int, bool) {
 			c.s.Put(v.X+x, v.Y+y, cmp.Or(cell.Text, " "), style)
 		}
 	}
-	c.edge(v, left)
+	// A float's border takes the row of its status line.
+	if v.Float == "" {
+		c.edge(v, left)
+	}
 	return v.X + v.CellX, v.Y + v.CellY, v.Current && v.CellX >= 0
 }
 

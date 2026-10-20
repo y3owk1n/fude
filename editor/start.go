@@ -16,7 +16,7 @@ func (e *Session) Welcome() { e.emit("editor.started", "", e.win.buf) }
 // gets its options back once it shows another buffer (B320).
 func (e *Session) screenPanel(b *buffer, p api.Panel) {
 	if slices.ContainsFunc(e.root.windows(), func(w *window) bool { return w.buf.title == p.Title }) {
-		e.panel(p)
+		e.panel(nil, p)
 		return
 	}
 	if p.Update || e.win.buf != b {

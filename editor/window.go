@@ -48,6 +48,7 @@ type window struct {
 	image                string
 	imageRows, imageCols int
 	was                  slot // where a hidden window was in the layout (B364)
+	locked               bool // its module keeps it where it opened (B367)
 }
 
 // slot is where a window was in the layout: beside the window next to it,

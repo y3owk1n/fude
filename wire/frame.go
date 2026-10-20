@@ -58,7 +58,7 @@ type Window struct {
 	X, Y, W, H       int // H counts the status line on the bottom row
 	Name             string
 	Modified         bool
-	Current          bool          // the window with the focus, and while a float has it, the window under it too
+	Current          bool          // the window with the focus
 	Highlights       []syntax.Span // in paint order, later ones drawing over earlier ones
 	Decorations      []syntax.Span // plugins' styles, drawn over highlights
 	Ghosts           []Ghost

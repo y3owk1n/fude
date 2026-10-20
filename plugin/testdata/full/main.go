@@ -87,7 +87,7 @@ func init() {
 		var r api.Result
 		switch c.Args {
 		case "split":
-			r.Jump = &api.Jump{Buffer: id, Split: "right"}
+			r.Jump = &api.Jump{Buffer: id, Where: "right"}
 		case "close":
 			r.Windows = []api.WindowAction{{Do: "close"}}
 		case "write":

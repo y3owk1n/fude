@@ -89,6 +89,7 @@ type config struct {
 		Workspace bool     `toml:"workspace_required" help:"the formatter runs only for a file under one of its root files"`
 	} `toml:"formatter" key:"name"`
 	Task   map[string]taskConfig `toml:"task" key:"name"`
+	Open   map[string]string     `toml:"open" key:"module" help:"where the module's windows open: above, below, left, right, here, float or cursor"`
 	Plugin []struct {
 		Path         string         `toml:"path" help:"the plugin's file, from the config directory"`
 		Capabilities []string       `toml:"capabilities" help:"what the plugin may do"`
@@ -183,6 +184,11 @@ func loadConfig() (config, error) {
 	for _, s := range c.Sources {
 		if !slices.Contains(defaults.Sources, s) {
 			return c, fmt.Errorf("%s: completion_sources has no source %q", path, s)
+		}
+	}
+	for module, where := range c.Open {
+		if !slices.Contains(placements, where) {
+			return c, fmt.Errorf("%s: open.%s has no placement %q", path, module, where)
 		}
 	}
 	return c, nil

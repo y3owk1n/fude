@@ -300,13 +300,28 @@ func (e *Session) setOptions(b *buffer, set map[string]string) {
 // jumpTo is where a plugin's call about b asked to move the cursor.
 type jumpTo struct {
 	b *buffer
+	p api.Module
 	api.Jump
 }
 
 // went moves the cursor where a plugin's call last asked to, after the call
 // and its edits: in a file it opens, or in the current window when it shows
-// the buffer the call was about (B187).
+// the buffer the call was about (B187). Then it does what the calls' results
+// asked of buffers and windows. A command line a result ran may ask for
+// more, so it repeats, at most 8 times, and a call that runs itself cannot
+// stall the editor.
 func (e *Session) went() {
+	for range 8 {
+		if e.jumpTo == nil && len(e.actions) == 0 {
+			break
+		}
+		e.arrive()
+	}
+	e.notice()
+}
+
+// arrive moves the cursor as went does, then does the actions waiting.
+func (e *Session) arrive() {
 	g := e.jumpTo
 	e.jumpTo = nil
 	switch {
@@ -320,8 +335,9 @@ func (e *Session) went() {
 				e.win = e.root.windows()[i]
 			}
 		}
-		if g.Split != "" {
-			e.split(g.Split == "right")
+		if where := e.placement(g.p, g.Where, g.Lock, "here"); where != "here" {
+			e.openIn(e.win.buf, where)
+			e.win.locked = g.Lock
 		}
 		// Moving to another buffer is a jump of its own.
 		if e.win.buf.is(g.Path) {
@@ -339,8 +355,9 @@ func (e *Session) went() {
 			e.message = err.Error()
 			break
 		}
-		if g.Split != "" {
-			e.split(g.Split == "right")
+		if where := e.placement(g.p, g.Where, g.Lock, "here"); where != "here" {
+			e.openIn(e.win.buf, where)
+			e.win.locked = g.Lock
 		}
 		e.show(to)
 		if e.win.buf == to && g.Line != 0 {
@@ -356,7 +373,6 @@ func (e *Session) went() {
 	for _, f := range actions {
 		f()
 	}
-	e.notice()
 }
 
 // noticed is what the modules last heard of the session's windows, the
@@ -416,7 +432,7 @@ func (e *Session) notice() {
 
 // act does what res asks of buffers, windows and the vim machine, once the
 // call's edits are made (B343, B344, B345).
-func (e *Session) act(res api.Result) {
+func (e *Session) act(p api.Module, res api.Result) {
 	for i, id := range slices.Concat(res.Close, res.Drop) {
 		if b, err := e.buffer(id); err != nil {
 			e.message = err.Error()
@@ -437,7 +453,7 @@ func (e *Session) act(res api.Result) {
 		}
 	}
 	if s := res.Scratch; s != nil {
-		e.openScratch(*s)
+		e.openScratch(p, *s)
 	}
 	for _, m := range res.Marks {
 		if err := e.setMark(m); err != nil {
@@ -462,6 +478,9 @@ func (e *Session) act(res api.Result) {
 	}
 	if s := res.Search; s != nil {
 		e.vim.SetSearch(s.Pattern, s.Forward)
+	}
+	if len(res.Ex) > 0 && res.Place != "" {
+		e.placing = res.Place
 	}
 	for _, line := range res.Ex {
 		if err := e.vim.Ex(line); err != nil {
@@ -523,7 +542,12 @@ func (e *Session) windowAction(a api.WindowAction) error {
 	case "only":
 		e.win = w
 		e.only()
+	case "float", "above", "below", "left", "right":
+		return e.move(w, a.Do)
 	case "hide":
+		if w.locked {
+			return fmt.Errorf("%s cannot move", w.buf.name())
+		}
 		return e.hide(w)
 	case "focus":
 		e.win = w
@@ -559,8 +583,8 @@ func (e *Session) windowAction(a api.WindowAction) error {
 }
 
 // openScratch shows a new buffer with no file holding s's text, coloured
-// as its filetype, for the user to edit (B343).
-func (e *Session) openScratch(s api.Scratch) {
+// as its filetype, for the user to edit, in a window placed for p (B343).
+func (e *Session) openScratch(p api.Module, s api.Scratch) {
 	if _, err := e.add(""); err != nil {
 		e.message = err.Error()
 		return
@@ -574,10 +598,8 @@ func (e *Session) openScratch(s api.Scratch) {
 		b.head, b.saved = b.text.Head(), b.text.Head()
 	}
 	b.panelKind = s.Kind
-	if s.Split != "" {
-		e.split(s.Split == "right")
-	}
-	e.show(b)
+	e.openIn(b, e.placement(p, s.Where, s.Lock, "here"))
+	e.win.locked = s.Lock
 	if b.ft = s.Filetype; b.ft == "" {
 		return
 	}
@@ -758,14 +780,14 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 	switch s := res.Show; {
 	case s != nil && s.Screen:
 		e.screenPanel(b, *s)
-	case s != nil && e.panel(*s) && s.Line > 0:
+	case s != nil && e.panel(p, *s) && s.Line > 0:
 		e.panelAt(s.Title, s.Line-1)
 	}
 	e.later = append(e.later, vim.Keys(res.Keys)...)
 	if j := res.Jump; j != nil {
-		e.jumpTo = &jumpTo{b, *j}
+		e.jumpTo = &jumpTo{b, p, *j}
 	}
-	e.actions = append(e.actions, func() { e.act(res) })
+	e.actions = append(e.actions, func() { e.act(p, res) })
 	if pk := res.Pick; pk != nil {
 		e.showPick(p, b, pk, save)
 	}

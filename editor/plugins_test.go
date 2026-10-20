@@ -1445,3 +1445,28 @@ func TestB363ModuleConfirm(t *testing.T) {
 	next("confirm.answered yes")
 	next("7 true")
 }
+
+// locker is a module whose :Locked shows a panel it locks in a float.
+type locker struct{ idle }
+
+func (locker) Registered() []api.Registration {
+	return []api.Registration{{Kind: api.Command, Name: "Locked", Help: "shows a locked panel", ID: 1}}
+}
+
+func (locker) Call(context.Context, uint32, api.Scope, ...int) (api.Result, error) {
+	return api.Result{Show: &api.Panel{Title: "[locked]", Text: "kept", Where: "float", Lock: true}}, nil
+}
+
+// B367
+func TestB367LockedWindow(t *testing.T) {
+	e := withCommands(open(t, ""))
+	e.SetSize(80, 24)
+	e.Use(locker{})
+	// The module's float stays one through a modifier and a move.
+	if feed(e, ":window below Locked<CR>"); !floated(e) || len(e.Windows()) != 2 {
+		t.Fatalf(":window below Locked made the windows %s", windows(e))
+	}
+	if feed(e, ":window below<CR>"); !floated(e) || e.Message() != "[locked] cannot move" {
+		t.Errorf(":window below in the locked float left a float current %v, saying %q", floated(e), e.Message())
+	}
+}

@@ -102,7 +102,11 @@ func TestB205Shells(t *testing.T) {
 	}
 	// :terminal 2 is another shell.
 	if feed(e, `<C-\><C-n>:terminal 2<CR>`); len(e.Windows()) != 4 || e.Windows()[3].Name != "[shell 2]" {
-		t.Errorf(":terminal 2 left %d windows, the last %q", len(e.Windows()), e.Windows()[len(e.Windows())-1].Name)
+		t.Fatalf(":terminal 2 left %d windows, the last %q", len(e.Windows()), e.Windows()[len(e.Windows())-1].Name)
+	}
+	// A shell in a float leaves terminal mode as one in a split does.
+	if feed(e, `<C-\><C-n>:window float<CR>i<C-\><C-n>`); !floated(e) || e.Terminal() {
+		t.Fatalf("leaving terminal mode in a float left a float current %v, terminal mode %v", floated(e), e.Terminal())
 	}
 }
 

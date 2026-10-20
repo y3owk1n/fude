@@ -501,6 +501,16 @@ A window shows one buffer and acts on it. It owns a cursor mark, a
 top-line mark and a jumplist. The kernel only holds their marks, so another
 window's edits move them (B23). Each buffer keeps its own changelist.
 
+Every window a result opens goes through `placement` and `openIn` in
+`editor/place.go` (D55). `placement` picks the first of a modifier's
+place, `[open]` for the module that asked, the result's `Where` and the
+kind's own, and a locked result skips the first two. `openIn` splits
+beside the layout window under the current one, shows the buffer here,
+or opens a float. `:window float help` is a result whose `Ex` runs `help`
+with `Place` set. `Place` sets `Session.placing` until the next key, so a
+result that comes later through a job's callback still finds it. `move` takes a window out of the layout
+or the floats and puts it in a float, or beside the whole layout.
+
 A hidden window leaves the layout and keeps its buffer, cursor and the
 `slot` it had: the window beside it, the split's direction, its side and
 the size it asked for. It shows again there, or below the current window

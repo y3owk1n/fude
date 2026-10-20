@@ -83,7 +83,7 @@ func replace(old, new string) kernel.Edit {
 // a float in the middle of the screen, or in place of what the window of
 // that title shows, keeping its cursor's line and the focus where they
 // are. It reports whether it did (B186, B318).
-func (e *Session) panel(p api.Panel) bool {
+func (e *Session) panel(owner api.Module, p api.Panel) bool {
 	if i := slices.IndexFunc(e.windows(), func(w *window) bool { return w.buf.title == p.Title }); i >= 0 {
 		b := e.windows()[i].buf
 		if err := e.refill(b, p.Text, styled(p.Spans)); err != nil {
@@ -96,11 +96,8 @@ func (e *Session) panel(p api.Panel) bool {
 	if p.Update {
 		return false
 	}
-	if p.Float {
-		e.openFloat(e.floatBuffer(p.Title, p.Text, nil), middle, true)
-	} else {
-		e.scratch(p.Title, p.Text)
-	}
+	e.scratch(p.Title, p.Text, e.placement(owner, p.Where, p.Lock, "below"))
+	e.win.locked = p.Lock
 	b := e.win.buf
 	b.panelKind = p.Kind
 	b.keys = e.panelKeys(b, p.Keys)
@@ -157,8 +154,9 @@ func (e *Session) localKeys(b *buffer) *vim.Keymaps {
 	return e.locals[b.kind()]
 }
 
-// scratch shows text in a new read-only window titled title, about src.
-func (e *Session) scratch(title, text string) {
+// scratch shows text in a new read-only window titled title, placed where
+// says.
+func (e *Session) scratch(title, text, where string) {
 	b, _, err := openBuffer(e.next, "")
 	if err != nil {
 		e.message = err.Error()
@@ -172,8 +170,7 @@ func (e *Session) scratch(title, text string) {
 	b.saved = b.text.Head()
 	b.title, b.file.readonly, b.shown = title, true, true
 	e.bufs = append(e.bufs, b)
-	e.splitBeside(false, true)
-	e.win.show(b)
+	e.openIn(b, where)
 }
 
 // panelStyles names the decorations that style a panel's text.

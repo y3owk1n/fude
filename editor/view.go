@@ -56,7 +56,7 @@ func (e *Session) draw(w *window) wire.Window {
 	v := wire.Window{
 		Buffer: w.buf.id, Text: t, Top: top, Cursor: w.pos(),
 		X: w.x, Y: w.y, W: w.w, H: w.h,
-		Name: w.buf.name(), Modified: w.buf.modified(), Current: w == e.win || w == e.under(),
+		Name: w.buf.name(), Modified: w.buf.modified(), Current: w == e.win,
 		Gutter: w.gutter(), SignCols: w.signCols(), Number: w.numberCols() > 0 && w.opts.Number, Relative: w.numberCols() > 0 && w.opts.RelativeNumber,
 		Wrap: w.opts.Wrap, Left: w.left, CursorLine: w.opts.CursorLine, List: w.opts.List,
 		Indent: e.indentWidth(w.buf), Tab: tab, Guides: w.opts.IndentGuides, ColorColumn: w.opts.ColorColumn,

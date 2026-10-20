@@ -108,6 +108,7 @@ type Result struct {
 	Registers []RegisterText
 	Search    *Search
 	Ex        []string
+	Place     string // where the window a line of Ex opens goes, as :window float help puts help in a float (B365)
 	Each      *Each
 	// Styles defines styles by name, which a decoration's or a span's Style
 	// names, over the theme's own and those defined before (B345).
@@ -201,6 +202,10 @@ type Pick struct {
 type Terminal struct {
 	Name, Command string
 	Shell, Buffer int
+	// Where and Lock place a new terminal's window as Panel's do, below
+	// when "", terminal_height percent of the screen tall above or below.
+	Where string
+	Lock  bool
 }
 
 // Places is the last list of places, so ]q goes to the first, in a window
@@ -287,7 +292,8 @@ type MenuItem struct {
 type Jump struct {
 	Path         string
 	Buffer       int    // the buffer to show by id, in place of Path, its cursor where it was unless Line is set (B343)
-	Split        string // below or right opens Path in a new window there (B327)
+	Where        string // the window Path or Buffer shows in, here when "", as Panel's Where says (B327, B367)
+	Lock         bool
 	Pos          int
 	Line, Column int
 	Encoding     string // what Column counts in, utf-8 or utf-16, utf-8 by default
@@ -295,7 +301,9 @@ type Jump struct {
 
 // WindowAction does Do to the window by its ID, as Scope.Windows lists it,
 // or to the current one for 0. close closes it, hide takes it out of sight
-// to show again where it was (B364), only closes every other,
+// to show again where it was (B364), float moves it into a float, and
+// above, below, left and right to that edge of the layout (B365), only
+// closes every other,
 // focus makes it current, height and width make it Size rows or columns,
 // or as many as it can take for 0, taller and wider make it Size more, or
 // fewer for a negative Size, cursor moves its cursor to Pos and top makes
@@ -320,11 +328,12 @@ type Search struct {
 }
 
 // Scratch is a new buffer with no file, holding Text and coloured as
-// Filetype, for the user to edit. It shows in the current window, or in a
-// new one Split below or right. When a module's Write writes its Kind, :w
-// writes it through that module (B327, B343).
+// Filetype, for the user to edit. It shows where Where says, here in the
+// current window when "", as Panel's Where says. When a module's Write
+// writes its Kind, :w writes it through that module (B327, B343, B367).
 type Scratch struct {
-	Text, Filetype, Split, Kind string
+	Text, Filetype, Where, Kind string
+	Lock                        bool
 }
 
 // Panel is text a call shows in a read-only window titled Title, coloured
@@ -341,9 +350,14 @@ type Panel struct {
 	// each time it shows, with the cursor on it and the focus there, as
 	// help's entry does (B334).
 	Line int
-	// Float shows it in a box of its own in the middle of the screen, which
-	// takes the focus and names it by Title without its brackets (B318).
-	Float bool
+	// Where is where its window opens: above, below, left or right of the
+	// current window, here in it, or a float in the middle of the screen or
+	// at the cursor, below when "". A float names it by Title without its
+	// brackets (B318). A modifier, such as :window float help, and
+	// config.toml's [open] place it elsewhere. Lock keeps it where Where
+	// says, and no move takes it from there (B365, B366, B367).
+	Where string
+	Lock  bool
 	// Screen shows it in the current window in place of the buffer the call
 	// is about, while the window still shows that buffer. The window shows
 	// no line numbers, guides or wrap until it shows another buffer, as

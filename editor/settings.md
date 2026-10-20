@@ -78,6 +78,21 @@ How tall a window from `:terminal` or a task opens, in percent of the
 screen's rows, 33 unless set. It is never under 3 rows, and `:resize`
 changes it after.
 
+## open
+
+Where each module's windows open, by the module's name: `above`, `below`,
+`left` or `right` of the current window, `here` in it, or `float` in the
+middle of the screen or at the `cursor`. It wins over where the module
+asks, and `:window` typed before a command, such as `:window float help`,
+wins over it. A window its module locks opens where the module asks.
+
+```toml
+[open]
+help = "float"
+terminal = "right"
+timeline = "left"
+```
+
 ## split_below
 
 `:split`, `:new`, `<C-w>s` and an explorer's `<C-h>` open the new window

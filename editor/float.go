@@ -211,6 +211,15 @@ func (e *Session) cursorCell(w *window) (int, int) {
 // room each side go around them, and a foot goes under a rule above the
 // bottom of the border.
 func (e *Session) place(f *window) {
+	if t := f.buf.term; t != nil {
+		// A terminal takes four fifths of the screen, in its middle.
+		f.w, f.h = max(e.width*4/5-4, 1), max(e.height*4/5-1, 2)
+		f.x, f.y = (e.width-f.w)/2, (e.height-f.h-1)/2+1
+		if err := t.fit(f.w, f.h-1); err != nil {
+			e.message = err.Error()
+		}
+		return
+	}
 	t, tab := f.buf.text.Snapshot(), e.tabWidth(f.buf)
 	lo, wide, _ := e.area()
 	hi := lo + wide

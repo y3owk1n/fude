@@ -88,13 +88,15 @@ var termKeys = map[vim.Key]rune{
 	"<PageUp>": uv.KeyPgUp, "<PageDown>": uv.KeyPgDown,
 }
 
-// terminalWindow shows b in a new window below, terminal_height percent of
-// the screen tall, with none of the window options, and moves to it (B205).
-func (e *Session) terminalWindow(b *buffer) {
-	e.splitBeside(false, true)
-	e.root.leaf(e.win).size = max((e.height*int(e.cfg.TerminalHeight)+50)/100, 3)
-	e.show(b)
-	e.win.opts = options{}
+// terminalWindow shows b in a new window placed where says, above or below
+// terminal_height percent of the screen tall, with none of the window
+// options, and moves to it. A locked one stays there (B205, B367).
+func (e *Session) terminalWindow(b *buffer, where string, lock bool) {
+	e.openIn(b, where)
+	if where == "above" || where == "below" {
+		e.root.leaf(e.win).size = max((e.height*int(e.cfg.TerminalHeight)+50)/100, 3)
+	}
+	e.win.opts, e.win.locked = options{}, lock
 	e.layout()
 }
 
@@ -103,7 +105,8 @@ func (e *Session) terminalWindow(b *buffer) {
 // returns its buffer, or nil when it could not. A module's terminal leaves
 // the cursor in the window it ran from, and its title is the module's name
 // and task.
-func (e *Session) openTerminal(arg string, owner api.Module, task string) *buffer {
+func (e *Session) openTerminal(term api.Terminal, owner api.Module, where string) *buffer {
+	arg, task := term.Command, term.Name
 	from := e.win
 	argv := shell.Command(arg)
 	if _, err := e.add(""); err != nil {
@@ -116,7 +119,7 @@ func (e *Session) openTerminal(arg string, owner api.Module, task string) *buffe
 	if owner != nil {
 		b.title = "[" + owner.Name() + " " + task + "]"
 	}
-	e.terminalWindow(b)
+	e.terminalWindow(b, where, term.Lock)
 	t := &terminal{name: cmp.Or(arg, argv[0]), typing: true, cols: max(e.win.w, 1), rows: max(e.win.h-1, 1), owner: owner, task: task, started: time.Now()}
 	t.em = vt.NewEmulator(t.cols, t.rows)
 	cmd := exec.Command(argv[0], argv[1:]...)
@@ -125,7 +128,7 @@ func (e *Session) openTerminal(arg string, owner api.Module, task string) *buffe
 	if e.socket != "" {
 		cmd.Env = append(cmd.Env, "FUDE_SOCKET="+e.socket, "FUDE_SESSION="+string(e.origin))
 	}
-	term, err := pty.Start(cmd, t.cols, t.rows)
+	pt, err := pty.Start(cmd, t.cols, t.rows)
 	if err != nil {
 		// The window and buffer go, so no terminal shows without a program.
 		if cerr := e.closeWindow(e.win); cerr != nil {
@@ -135,7 +138,11 @@ func (e *Session) openTerminal(arg string, owner api.Module, task string) *buffe
 		e.message = err.Error()
 		return nil
 	}
-	t.pty, b.term = term, t
+	t.pty, b.term = pt, t
+	// A float is as big as the screen lets a terminal be, once it is one.
+	if e.win.anchor != "" {
+		e.place(e.win)
+	}
 	e.record("term", "started "+t.name, 0)
 	// The emulator's answers and the keys it encodes go to the program.
 	go func() {
@@ -145,7 +152,7 @@ func (e *Session) openTerminal(arg string, owner api.Module, task string) *buffe
 			if err != nil {
 				return
 			}
-			if _, err := term.Write(buf[:n]); err != nil {
+			if _, err := pt.Write(buf[:n]); err != nil {
 				return
 			}
 		}
@@ -156,7 +163,7 @@ func (e *Session) openTerminal(arg string, owner api.Module, task string) *buffe
 		defer close(drained)
 		buf := make([]byte, 32<<10)
 		for {
-			n, err := term.Read(buf)
+			n, err := pt.Read(buf)
 			if n > 0 {
 				out := append([]byte(nil), buf[:n]...)
 				e.queue <- func() { t.em.Write(out) }
@@ -167,7 +174,7 @@ func (e *Session) openTerminal(arg string, owner api.Module, task string) *buffe
 		}
 	}()
 	go func() {
-		err := term.Wait()
+		err := pt.Wait()
 		// Its last output reaches the emulator before its end, unless a
 		// child it left keeps the terminal open.
 		select {
@@ -296,7 +303,7 @@ func (e *Session) freeze(b *buffer) {
 	s := b.text.Snapshot()
 	at := vim.ColumnStart(s, s.LineStart(last), cur.X, e.tabWidth(b), nil)
 	for _, s := range e.sessions {
-		for _, w := range s.root.windows() {
+		for _, w := range append(s.windows(), s.hidden...) {
 			if w.buf == b {
 				w.cursor, w.top = b.text.SetMark(at, kernel.Right), b.text.SetMark(0, kernel.Left)
 			}
@@ -383,6 +390,7 @@ func (t *terminal) stop() {
 // of t's name still runs, its window shows again instead. The window of
 // one that ended closes first (B228, B231).
 func (e *Session) moduleTerminal(p api.Module, t api.Terminal) {
+	where := e.placement(p, t.Where, t.Lock, "below")
 	switch {
 	case t.Buffer != 0:
 		i := slices.IndexFunc(e.bufs, func(b *buffer) bool { return b.id == t.Buffer && b.term != nil })
@@ -390,21 +398,21 @@ func (e *Session) moduleTerminal(p api.Module, t api.Terminal) {
 			e.message = fmt.Sprintf("no terminal %d", t.Buffer)
 			return
 		}
-		e.focusTerminal(e.bufs[i])
+		e.focusTerminal(e.bufs[i], where, t.Lock)
 		return
 	case t.Name == "" && t.Command == "":
-		e.toggleShell(max(t.Shell, 1))
+		e.toggleShell(t, where)
 		return
 	case t.Name == "":
 		// One with no name is a terminal of its own, as :terminal cmd opens
 		// (B335).
-		e.openTerminal(t.Command, nil, "")
+		e.openTerminal(t, nil, where)
 		return
 	}
 	for _, b := range e.bufs {
 		if term := b.term; term != nil && term.owner == p && term.task == t.Name && !term.exited {
 			from := e.win
-			if e.showTerminal(b) {
+			if e.showTerminal(b, where, t.Lock) {
 				e.win = from
 			}
 			return
@@ -418,13 +426,15 @@ func (e *Session) moduleTerminal(p api.Module, t api.Terminal) {
 			}
 		}
 	}
-	e.openTerminal(t.Command, p, t.Name)
+	e.openTerminal(t, p, where)
 }
 
-// toggleShell shows the session's shell numbered n in terminal mode,
-// starting it the first time and again once it ended, or hides its window
-// when that is the current one (B205).
-func (e *Session) toggleShell(n int) {
+// toggleShell shows the session's shell numbered t.Shell, or 1, in terminal
+// mode, starting it the first time and again once it ended in a window
+// placed where says, or hides its window when that is the current one
+// (B205).
+func (e *Session) toggleShell(t api.Terminal, where string) {
+	n := max(t.Shell, 1)
 	b := e.shells[n]
 	switch {
 	case b == nil || b.term.exited || !slices.Contains(e.bufs, b):
@@ -438,7 +448,7 @@ func (e *Session) toggleShell(n int) {
 				return
 			}
 		}
-		if b = e.openTerminal("", nil, ""); b == nil {
+		if b = e.openTerminal(t, nil, where); b == nil {
 			return
 		}
 		b.title = fmt.Sprintf("[shell %d]", n)
@@ -451,33 +461,33 @@ func (e *Session) toggleShell(n int) {
 			e.message = err.Error()
 		}
 	default:
-		e.focusTerminal(b)
+		e.focusTerminal(b, where, t.Lock)
 	}
 }
 
 // focusTerminal moves to the window on b, a terminal. With none showing,
-// it shows the hidden one where it was, or opens one below. The terminal
-// goes to terminal mode while its program runs.
-func (e *Session) focusTerminal(b *buffer) {
+// it shows the hidden one where it was, or opens one placed where says.
+// The terminal goes to terminal mode while its program runs.
+func (e *Session) focusTerminal(b *buffer, where string, lock bool) {
 	if i := slices.IndexFunc(e.windows(), func(w *window) bool { return w.buf == b }); i >= 0 {
 		e.win = e.windows()[i]
 	} else {
-		e.showTerminal(b)
+		e.showTerminal(b, where, lock)
 	}
 	b.term.typing = !b.term.exited
 }
 
-// showTerminal shows a window on b that is out of sight where it was, or else
-// opens one below, unless a window shows b already. It reports whether it
-// showed one.
-func (e *Session) showTerminal(b *buffer) bool {
+// showTerminal shows a window on b that is out of sight where it was, or
+// else opens one placed where says, unless a window shows b already. It
+// reports whether it showed one.
+func (e *Session) showTerminal(b *buffer, where string, lock bool) bool {
 	if slices.ContainsFunc(e.windows(), func(w *window) bool { return w.buf == b }) {
 		return false
 	}
 	if i := slices.IndexFunc(e.hidden, func(w *window) bool { return w.buf == b }); i >= 0 {
 		e.unhide(e.hidden[i])
 	} else {
-		e.terminalWindow(b)
+		e.terminalWindow(b, where, lock)
 	}
 	return true
 }

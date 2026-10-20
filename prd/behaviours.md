@@ -732,12 +732,14 @@ Where fude departs, the line says so and cites the departure in
   float closes it, and the focus goes back to the window it opened from.
   A hidden window keeps its buffer, its program and its cursor, and shows
   again in the place it had.
-- B365 [2] `:float`, `:below`, `:right` and `:hide` alone move the
-  current window into a float, a split below or right, or out of sight,
-  keeping its buffer, cursor and program. Before a command that opens a
-  window, such as `:float help` or `:right terminal`, they open it there.
-  `:hide` refuses for the last window shown, and a move refuses for a
-  locked window, naming it (B367).
+- B365 [2] `:window float`, `:window above`, `:window below`,
+  `:window left` and `:window right` move the current window into a
+  float, or to that edge of the layout, as long or as wide as it.
+  `:hide` takes it out of sight. Each keeps its buffer, cursor and
+  program. With a command after them, such as `:window float help` or
+  `:window right terminal`, they open its window there instead. `:hide`
+  refuses for the last window shown, and a move refuses for a locked
+  window, naming it (B367).
 - B369 [2] `:pick terminals` lists the session's terminals by name, those
   out of sight too, and picking one shows its window where it was, or
   below, in terminal mode while its program runs (B364).
@@ -1273,7 +1275,8 @@ Where fude departs, the line says so and cites the departure in
   scrolls, as the `:lsp` panel's do (B159). A panel shown only to update
   replaces the text of the one open, and opens none once it is closed.
 - B367 [4] A module's result names where the window it opens goes:
-  below, right, here in the current window, a float, or at the cursor.
+  above, below, left or right, here in the current window, a float, or at
+  the cursor.
   `[open]` and modifiers place it elsewhere (B365, B366) unless the
   result locks it. A locked window stays where the module put it until
   it closes.
