@@ -65,7 +65,7 @@ A `Result` asks for any of these, and fude applies them together once the call r
 | `Capture` | the keys typed next, each sent to the same call with `key` in `About`, until a result without it |
 | `Message` | a line in the message area |
 | `Float` | text at the cursor, markdown, or as it is with its own spans. With `Keys` it is the key hints across the bottom of the windows |
-| `Show` | text in a read-only window of its own, of the `Kind` of buffer whose `[keymap.<kind>]` keys go over its own, with styles over it and keys of its own. Showing it again keeps the cursor's line and the focus. With `Float` it shows in a float in the middle of the screen. With `Cards` the cursor moves by card, and `Foot` stays at the window's foot as the text scrolls. With `Screen` it shows in the current window in place of the buffer, without line numbers or guides, and `Cursor` is where the cursor starts. With `Line` it puts that line at the top of its window, with the cursor and the focus there. With `Update` it only replaces a panel that is open |
+| `Show` | text in a read-only window of its own, of the `Kind` of buffer whose `[keymap.<kind>]` keys go over its own, with styles over it and keys of its own. Showing it again keeps the cursor's line and the focus. `Where` says where its window opens, such as `float` in the middle of the screen, and `Lock` keeps it there. In a float, `Foot` stays at its foot as the text scrolls. With `Screen` it shows in the current window in place of the buffer, without line numbers or guides, and `Cursor` is where the cursor starts. With `Line` it puts that line at the top of its window, with the cursor and the focus there. With `Update` it only replaces a panel that is open |
 | `Servers` | restarts, stops, disables or enables language servers, which a guest may not |
 | `Keys` | keys to run once the call is done, as typed |
 | `Restore` | a session from `Session`, whose files open and whose windows build again |
@@ -78,12 +78,12 @@ A `Result` asks for any of these, and fude applies them together once the call r
 | `Tabs` | what the buffer line lists, each buffer with the name it shows |
 | `Follow`, `Kick` | the session to follow, or the guest whose session ends, by name |
 | `Build` | the filetypes whose grammars build again |
-| `Jump` | where the cursor goes, in this buffer, or at a line and column of a file or of another buffer by its `Buffer` id, in a window that shows a file, or with `Split` in a new one |
+| `Jump` | where the cursor goes, in this buffer, or at a line and column of a file or of another buffer by its `Buffer` id, in a window that shows a file, or with `Where` in a new one placed as `Show`'s is |
 | `Close`, `Drop`, `Write` | the buffers to close, as `:bd` does, to close dropping their changes, as `:bd!` does, and to write, as `:w` does, by id |
-| `Windows` | what to do to windows by id: `close`, `only`, `focus`, `height` or `width` to a `Size`, or as large as it can be for 0, `taller` or `wider` by `Size`, or move the `cursor` or the `top` line to `Pos` |
-| `Scratch` | a new buffer with no file, holding text to edit, in the window or a split. Of a `Kind` a `Write` writes, `:w` writes it there |
+| `Windows` | what to do to windows by id: `close`, `hide`, `float`, `above`, `below`, `left`, `right`, `only`, `focus`, `height` or `width` to a `Size`, or as large as it can be for 0, `taller` or `wider` by `Size`, or move the `cursor` or the `top` line to `Pos` |
+| `Scratch` | a new buffer with no file, holding text to edit, in the window, or with `Where` in a new one. Of a `Kind` a `Write` writes, `:w` writes it there |
 | `Marks`, `Registers`, `Search` | marks to set, text to put in registers, and the pattern `n` finds |
-| `Ex` | command lines to run, without their colon, as typed |
+| `Ex` | command lines to run, without their colon, as typed. `Place` puts the window one opens where it says, as `:window float help` does |
 | `Styles` | styles by name, each with colours for its text and ground and how its text draws, over the theme's, which decorations and spans name |
 | `Pick` | a list to pick from, live or of places, or a question. With `Update` it fills the open list of its ID, as items read off the loop do. `<C-g>` in a list that is not live tells the callback `all` |
 | `Menu` | a numbered menu at the cursor, each item with what it does beside it, whose choice runs the callback |
@@ -91,7 +91,7 @@ A `Result` asks for any of these, and fude applies them together once the call r
 | `Log` | lines for fude's log |
 | `Selected` | the range an object's call selects |
 | `Set` | `expand_tab`, `indent_width` or `tab_width` on the buffer, over config.toml, and any other option as `:set` sets it |
-| `Terminal` | a program in a terminal window below, which the status line names while it runs. With no `Name` it opens as `:terminal` does, focused and not named |
+| `Terminal` | a program in a terminal window below, or placed by `Where`, which the status line names while it runs. With no `Name` it opens as `:terminal cmd` does, focused and not named, and with no `Command` either it is the session's shell numbered `Shell`. `Buffer` shows a terminal again, and `Close` closes its window once the program ends |
 | `Places` | the last list of places, which `]q` steps through, each `path:line:column:text`, or `line:column:text` in `File`, or a path alone, in a window with `Show`, with columns in `Encoding` and the place last gone to in `At`, from 1. The editor keeps it and emits `places.set`, with `show` when it asks, and `modules/places` shows it |
 | `Each` | a command line to run at each place of a list, or once in each of its files, as `:cdo` and `:cfdo` do |
 | `Apply` | a language server's workspace edit, applied with the editor's version checks |
