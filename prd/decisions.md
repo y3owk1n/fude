@@ -736,6 +736,30 @@ number. So does an explorer, which `:b` and the buffer line passed
 already, and which `-` opens again. Files, new buffers and shells, which
 the user edits or comes back to, keep theirs.
 
+## D59. Modules add options of their own, under their names
+
+A module, built in or a plugin, registers an option as it registers a
+command, with a default, its help and whether each window has its own.
+It is named after the module, as `autopairs.enabled`, so no two modules
+share a name. `:set`, `:h` and a module's scope treat it as they treat
+fude's options. A plugin's starts at its `options` in `[[plugin]]`, and
+a built-in module's at its table `[module.<name>]` (B377). A module
+that acts on its own, such as `start`, `session`, `hints` or `spell`, has
+an `enabled` switch. One that acts only on a key or a command has none,
+and dropping its keys turns it off. `git` and `lsp` do both, so they keep
+the narrower `git.signs` and `lsp.diagnostic_notes`.
+
+Why, as of 2026-10-20: the user wanted plugins to add settings a user
+turns on and off with `:set`, and fude's modules to declare theirs the
+way a plugin does, instead of as fields of the editor's config. The user
+chose a table for each module over flat names at the top of config.toml,
+though it moves keys such as `autopairs`. A flat name would need a check
+across modules for each one, and would hide which module reads it. A
+plugin keeps its starting values in its own table, as `options`, since
+its name is known only once it loads, in the background. The user chose
+that over keeping a plugin's read-only settings beside its options, two
+ways to do one job, and named the table `options` after what it starts.
+
 ## Departures from Neovim
 
 Each entry: what differs, then why.
@@ -971,8 +995,8 @@ fude the margins are no windows at all, only less room for the layout.
 
 ### N28. Brackets and quotes close themselves
 
-fude closes a bracket or quote as it is typed, which `autopairs` turns off
-(B202). Neovim closes nothing, and plugins such as nvim-autopairs add it.
+fude closes a bracket or quote as it is typed, which `autopairs.enabled` turns
+off (B202). Neovim closes nothing, and plugins such as nvim-autopairs add it.
 Why: most editors people come from close pairs. Pairing only before a
 blank or a closing bracket, and never a quote after a letter, avoids the
 cases that make it annoying, so it can stay on.

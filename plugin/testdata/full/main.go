@@ -13,7 +13,8 @@
 // the style full.hot and colours the first byte in it. :Heard types the
 // names of the window, search, macro, selection and theme events it heard.
 // It registers § as a Typed key, which needs buffer.read, explains :Whole
-// at length and adds the guide page guide-full. Needs keys, and buffer.read
+// at length and adds the guide page guide-full. It has the options depth
+// and bold, each window's, which :Opts types, and depth as its init read it. Needs keys, and buffer.read
 // and buffer.write for the others.
 package main
 
@@ -114,6 +115,14 @@ func init() {
 		if err != nil {
 			sdk.Log(err.Error())
 		}
+	})
+	sdk.Define("depth", "3", "how deep it looks")
+	sdk.Register(api.Registration{Kind: api.Option, Name: "bold", Help: "draws it bold", Default: "false", Window: true}, nil)
+	atInit, _ := sdk.Option("full.depth")
+	sdk.Command("Opts", "types its options, then depth as init read it", func(sdk.Call) {
+		depth, _ := sdk.Option("full.depth")
+		bold, _ := sdk.Option("full.bold")
+		sdk.Edit(0, 0, depth+"|"+bold+"|"+atInit+"|")
 	})
 	sdk.Command("Wrap", "types the wrap option", func(sdk.Call) {
 		v, _ := sdk.Option("wrap")

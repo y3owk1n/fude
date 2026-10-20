@@ -80,13 +80,13 @@ type call struct {
 var errBudget = errors.New("ran past its budget")
 
 // Grants are what config.toml lets a plugin do: its capabilities, the
-// programs process may run and the hosts net may reach. Settings are what
-// it reads through setting, by name.
+// programs process may run and the hosts net may reach. Options are where
+// its options start, by name (B377).
 type Grants struct {
 	Capabilities []string
 	Programs     []string
 	Hosts        []string
-	Settings     map[string]string
+	Options      map[string]string
 }
 
 // Load compiles the plugin at path and instantiates it with g. Compiled code
@@ -160,6 +160,22 @@ func (p *Plugin) Init(ctx context.Context, s fude.Scope) (fude.Result, error) {
 	defer p.mu.Unlock()
 	ctx, cancel := context.WithTimeout(ctx, InitBudget)
 	defer cancel()
+	// The plugin's own options read as they start while its init defines
+	// them, before the editor keeps them (B377).
+	get := s.Option
+	s.Option = func(name string) (string, bool) {
+		short, own := strings.CutPrefix(name, p.name+".")
+		i := slices.IndexFunc(p.registered, func(r fude.Registration) bool { return r.Kind == fude.Option && r.Name == short })
+		switch v, set := p.Options[short]; {
+		case own && i >= 0 && set:
+			return v, true
+		case own && i >= 0:
+			return p.registered[i].Default, true
+		case get == nil:
+			return "", false
+		}
+		return get(name)
+	}
 	p.call = &call{name: "init", Scope: s}
 	defer func() { p.call = nil }()
 	for _, name := range []string{"_initialize", "init"} {
@@ -256,7 +272,6 @@ func (p *Plugin) host(ctx context.Context) error {
 	_, err := p.runtime.NewHostModuleBuilder("fude").
 		NewFunctionBuilder().WithFunc(p.logText).Export("log").
 		NewFunctionBuilder().WithFunc(p.context).Export("context").
-		NewFunctionBuilder().WithFunc(p.setting).Export("setting").
 		NewFunctionBuilder().WithFunc(p.textLen).Export("text_len").
 		NewFunctionBuilder().WithFunc(p.lines).Export("lines").
 		NewFunctionBuilder().WithFunc(p.lenOf).Export("len_of").
@@ -303,21 +318,6 @@ func (p *Plugin) context(ctx context.Context, m api.Module, ptr, n uint32) int64
 	}
 	name, ok := m.Memory().Read(ptr, n)
 	v, has := p.call.About[string(name)]
-	if !ok || !has {
-		return errRange
-	}
-	return give(ctx, m, v)
-}
-
-// setting writes the value of the plugin's setting named at (ptr, n) into
-// memory the plugin allocates, or returns errRange for one it has none of
-// (B178).
-func (p *Plugin) setting(ctx context.Context, m api.Module, ptr, n uint32) int64 {
-	if p.call == nil {
-		return errDenied
-	}
-	name, ok := m.Memory().Read(ptr, n)
-	v, has := p.Settings[string(name)]
 	if !ok || !has {
 		return errRange
 	}

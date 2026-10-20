@@ -29,7 +29,7 @@ func TestB202AutoPairs(t *testing.T) {
 		// Dot repeats what was typed with its pairs.
 		{"|", "i(a<Esc>$.", "(a(|a))"},
 		// With autopairs off, a bracket comes alone.
-		{"|", ":set autopairs false<CR>i(", "(|"},
+		{"|", ":set autopairs.enabled false<CR>i(", "(|"},
 	} {
 		path := filepath.Join(t.TempDir(), "a.txt")
 		editortest.Change(t, path, strings.Replace(c.start, "|", "", 1)+"\n")
@@ -47,5 +47,30 @@ func TestB202AutoPairs(t *testing.T) {
 	editortest.Feed(e, "i")
 	if e.Paste("("); editortest.Text(e) != "(" {
 		t.Errorf("pasting ( made %q", editortest.Text(e))
+	}
+}
+
+// B377: [module.autopairs] starts autopairs.enabled.
+func TestB377ModuleOptions(t *testing.T) {
+	editortest.Config(t, "[module.autopairs]\nenabled = false\n")
+	e := editortest.Start(t)
+	e.Use(autopairs.New())
+	e.Load()
+	if editortest.Feed(e, "i(<Esc>"); editortest.Text(e) != "(" {
+		t.Errorf("with enabled = false, i( made %q", editortest.Text(e))
+	}
+	// :config reload starts it anew, as :set would.
+	dir := os.Getenv("XDG_CONFIG_HOME")
+	editortest.Change(t, filepath.Join(dir, "fude", "config.toml"), "[module.autopairs]\nenabled = true\n")
+	if editortest.Feed(e, ":config reload<CR>:set autopairs.enabled<CR>"); e.Message() != "autopairs.enabled true" {
+		t.Errorf("after :config reload, :set autopairs.enabled said %q", e.Message())
+	}
+	// A key that names no option, or a value of the wrong kind, says so.
+	editortest.Config(t, "[module.autopairs]\nenabled = 3\n[module.nothing]\nx = 1\n")
+	e = editortest.Start(t)
+	e.Use(autopairs.New())
+	e.Load()
+	if want := `autopairs.enabled takes true or false, not "3"  module.nothing.x is no option of a module`; e.Message() != want {
+		t.Errorf("a wrong [module] table said %q, want %q", e.Message(), want)
 	}
 }

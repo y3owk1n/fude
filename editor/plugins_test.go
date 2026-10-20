@@ -422,6 +422,30 @@ func TestB375PluginWritesHelp(t *testing.T) {
 	}
 }
 
+// B377, as a plugin registers them
+func TestB377PluginOptions(t *testing.T) {
+	useTable(t, "full", "options = { depth = 5 }\n", "buffer.write")
+	e := opened(t, "f", "a\n")
+	e.SetSize(80, 24)
+	if feed(e, ":Opts<CR>"); text(e) != "5|false|5|a" {
+		t.Errorf(":Opts typed %q, want 5|false|5|a", text(e))
+	}
+	// :set changes a window option in the window and those opened after it.
+	feed(e, ":set full.depth 7<CR>:set full.bold true<CR><C-w>v:set full.bold false<CR><C-w>h")
+	for name, want := range map[string]string{"full.bold": "full.bold true", "full.depth": "full.depth 7"} {
+		if feed(e, ":set "+name+"<CR>"); e.Message() != want {
+			t.Errorf(":set %s said %q, want %q", name, e.Message(), want)
+		}
+	}
+	if feed(e, ":set full.depth deep<CR>"); e.Message() != `full.depth takes a number of 0 or more, not "deep"` {
+		t.Errorf(":set full.depth deep said %q", e.Message())
+	}
+	e.Use(helpmod.New())
+	if feed(e, ":h full.depth<CR>"); !strings.Contains(text(e), "`full.depth = 3`\n  how deep it looks") {
+		t.Error("help does not list full.depth")
+	}
+}
+
 // B175
 func TestB175PluginCommandArguments(t *testing.T) {
 	for _, c := range [][2]string{
@@ -455,16 +479,21 @@ func TestB177PluginInsertKeys(t *testing.T) {
 
 // B178
 func TestB178PluginSettings(t *testing.T) {
-	useTable(t, "ctx", "settings = { depth = 3, on = true }\n", "buffer.write")
+	useTable(t, "ctx", "options = { depth = 3, on = true }\n", "buffer.write")
 	e := opened(t, "f", "a\n")
-	if feed(e, ":Set depth<CR>:Set on<CR>:Set none<CR>"); text(e) != "nonetrue3a" {
-		t.Errorf(":Set typed %q, want nonetrue3a", text(e))
+	if feed(e, ":Opt ctx.depth<CR>:Opt ctx.on<CR>"); text(e) != "true|3|a" {
+		t.Errorf(":Opt typed %q, want true|3|a", text(e))
+	}
+	// A name that is no option says so.
+	useTable(t, "ctx", "options = { deep = 3 }\n", "buffer.write")
+	if e = opened(t, "f", "a\n"); e.Message() != "ctx.deep is no option of ctx" {
+		t.Errorf("a setting of no option said %q", e.Message())
 	}
 	// A list is no setting, so the plugin does not load.
-	useTable(t, "ctx", "settings = { depth = [3] }\n", "buffer.write")
+	useTable(t, "ctx", "options = { depth = [3] }\n", "buffer.write")
 	e = start(t, filepath.Join(t.TempDir(), "f"))
-	if e.Load(); !strings.Contains(e.Message(), "setting depth is not a number, string or boolean") {
-		t.Errorf("a list as a setting said %q", e.Message())
+	if e.Load(); !strings.Contains(e.Message(), "option depth is not a number, string or boolean") {
+		t.Errorf("a list as an option said %q", e.Message())
 	}
 }
 

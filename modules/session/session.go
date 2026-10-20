@@ -31,7 +31,10 @@ func (m *Module) Name() string { return "session" }
 func (m *Module) Subscribed() []string { return []string{"editor.quitting"} }
 
 func (m *Module) Registered() []api.Registration {
-	return []api.Registration{{Kind: api.Plug, Name: "restore", Help: "restores the last session of the working directory", ID: restore}}
+	return []api.Registration{
+		{Kind: api.Option, Name: "enabled", Default: "true", Help: "keeps the working directory's session as fude quits"},
+		{Kind: api.Plug, Name: "restore", Help: "restores the last session of the working directory", ID: restore},
+	}
 }
 
 func (m *Module) Init(context.Context, api.Scope) (api.Result, error) { return api.Result{}, nil }
@@ -60,7 +63,7 @@ func (m *Module) Call(context.Context, uint32, api.Scope, ...int) (api.Result, e
 // keeps the last one.
 func (m *Module) Event(_ context.Context, _ string, s api.Scope) (api.Result, error) {
 	data := s.Session()
-	if data == "" {
+	if on, _ := s.Option("session.enabled"); data == "" || on != "true" {
 		return api.Result{}, nil
 	}
 	path, err := keep.SessionPath()

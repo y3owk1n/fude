@@ -37,7 +37,12 @@ func (m *Module) Name() string { return "hints" }
 
 func (m *Module) Subscribed() []string { return []string{"keys.pending"} }
 
-func (m *Module) Registered() []api.Registration { return nil }
+func (m *Module) Registered() []api.Registration {
+	return []api.Registration{
+		{Kind: api.Option, Name: "enabled", Default: "true", Help: "the keys that may follow a command being typed show in a panel"},
+		{Kind: api.Option, Name: "delay", Default: "300", Help: "the milliseconds a command being typed waits before the keys that may follow it show"},
+	}
+}
 
 func (m *Module) Init(context.Context, api.Scope) (api.Result, error) { return api.Result{}, nil }
 
@@ -45,7 +50,7 @@ func (m *Module) Call(context.Context, uint32, api.Scope, ...int) (api.Result, e
 	return api.Result{}, nil
 }
 
-// Event waits key_hints for a command being typed, or shows the hints of
+// Event waits hints.delay for a command being typed, or shows the hints of
 // one that goes on while they show.
 func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result, error) {
 	m.mu.Lock()
@@ -58,11 +63,11 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 	case m.showing:
 		return m.show(s), nil
 	}
-	ms, _ := s.Option("key_hints")
-	wait, _ := strconv.Atoi(ms)
-	if wait <= 0 {
+	if on, _ := s.Option("hints.enabled"); on != "true" {
 		return api.Result{}, nil
 	}
+	ms, _ := s.Option("hints.delay")
+	wait, _ := strconv.Atoi(ms)
 	m.timer++
 	return api.Result{Timers: []api.Timer{{ID: m.timer, After: time.Duration(wait) * time.Millisecond}}}, nil
 }

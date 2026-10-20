@@ -56,6 +56,7 @@ Call these from an `init` function.
 | `Operator` | an operator that composes with every motion and text object |
 | `Object` | a text object that composes with every operator |
 | `Page` | a page of help's guide, `guide-name`, in markdown under a `#` title |
+| `Define` | the option `plugin.name`, which `:set` changes, starting at its key in the plugin's `options` table |
 | `On` | a handler for an event, such as `buffer.saved` or `mode.changed` |
 | `Register` | anything a module registers, an `api.Registration` of any kind and with any field |
 
@@ -67,7 +68,7 @@ A call outside the plugin's capabilities fails with an error, and fude logs it.
 
 | Capability | Funcs |
 |---|---|
-| none | `Log`, `Current`, `Mode`, `Setting`, `Option`, `Config`, `IndentWidth`, `TabWidth`, `SetOption`, `Emit`, `After`, `ID`, `Callback`, `About` |
+| none | `Log`, `Current`, `Mode`, `Option`, `Config`, `IndentWidth`, `TabWidth`, `SetOption`, `Emit`, `After`, `ID`, `Callback`, `About` |
 | each field's | `Do`, which asks for anything a module's `api.Result` asks for, and `Read`, which reads any field of a module's `api.Scope` |
 | `buffer.read` | `Len`, `Lines`, `LineOf`, `LineStart`, `Text`, `NodeAt`, `Language`, `Spans`, `Comment`, `Buffers`, `LenOf`, `TextOf` |
 | `buffer.write` | `Edit` |

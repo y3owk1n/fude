@@ -82,7 +82,7 @@ Where fude departs, the line says so and cites the departure in
   editorconfig.org's spec says. Their `indent_style`, `indent_size` and
   `tab_width` set the file's `expand_tab`, `indent_width` and `tab_width`,
   over config.toml's. A nearer file wins over one above it, and a later
-  section over an earlier one. `editorconfig = false` reads none.
+  section over an earlier one. `editorconfig.enabled` off reads none.
 - B270 [2] `fude --clean` starts with the defaults and reads nothing in
   fude's config directory. It loads no `config.toml`, so no plugins, and
   no snippets, queries or own words. It still keeps files' timelines,
@@ -99,7 +99,7 @@ Where fude departs, the line says so and cites the departure in
 - B8 [1] A bracketed paste is inserted as typed text, with no keymap applied.
 - B9 [1] The cursor moves by grapheme cluster. An emoji with a skin tone
   modifier, or a letter with combining marks, is one step for `l` and `h`.
-- B202 [2] With `autopairs` on, as it is unless set off, typing `(`, `[`,
+- B202 [2] With `autopairs.enabled` on, as it is unless set off, typing `(`, `[`,
   `{`, `"`, `'` or `` ` `` in insert mode before a blank, a line end or a
   closing bracket types its closing one too, with the cursor between
   them. A quote after a letter, digit or `_` types only itself. Typing a
@@ -155,8 +155,9 @@ Where fude departs, the line says so and cites the departure in
   `key_timeout`, takes `:set` the same way and changes every session. A
   list takes its items apart by commas, as `:set completion_sources
   lsp,buffer`. `theme`, `leader` and `center` act at once, as `:theme`, a
-  new leader and `:center` would. A module's setting, such as
-  `highlight_colors` or `git_signs`, applies to the current window at once.
+  new leader and `:center` would. A module's option, such as
+  `colours.enabled` or `git.signs`, applies to the current window at once
+  (B377).
   `socket` takes effect when fude starts.
   A guest may not change a setting. `keymap` and the other tables change
   in `config.toml`, and `:config reload` reads it again, never writing
@@ -192,7 +193,7 @@ Where fude departs, the line says so and cites the departure in
   also deleted lines. A diagnostic's sign wins on its line. A file whose
   lines end in `\r\n` shows only its changes, whichever line ends the
   index holds. Without git installed, there are no git signs. With
-  `git_signs` off there are none either, and the hunk keys still work.
+  `git.signs` off there are none either, and the hunk keys still work.
 - B124 [2] `:e dir`, `fude dir` and `-` open a directory as an explorer: a
   buffer of its entries' names, directories with a trailing `/`, with no
   line numbers. `-` lists the current file's directory, `N-` goes up N
@@ -204,7 +205,8 @@ Where fude departs, the line says so and cites the departure in
   below, `_` lists the working directory and `<C-l>` reads it again, as
   oil.nvim's keys do. B142 changes these keys.
 - B225 [2] `fude` with no file, when not restarting, shows a start screen
-  in place of the empty buffer. Under fude's name, a line for each key
+  in place of the empty buffer, unless `start.enabled` is off. Under
+  fude's name, a line for each key
   says what it does. `f` runs `:pick files`, `g` runs `:pick grep`, `r`
   runs `:pick recent`, `e` opens an empty buffer, `c` opens config.toml
   and `q` quits. The 9 newest recent files under the working directory
@@ -213,8 +215,9 @@ Where fude departs, the line says so and cites the departure in
   line under the cursor. A key mapped to a digit's plug, such as
   `<Plug>(start.1)`, opens the file the screen would list from any window. The screen shows no line numbers or guides, and
   the window gets its options back when it shows another buffer.
-- B226 [2] Quitting fude keeps the working directory's session: its
-  windows on files and explorers, each with its cursor, top line and
+- B226 [2] Quitting fude, unless `session.enabled` is off, keeps the
+  working directory's session: its windows on files and explorers, each
+  with its cursor, top line and
   options, and which is current, kept across fude's runs in its state
   directory. A quit with no window on a file or explorer keeps the last
   one. The start screen of fude
@@ -410,9 +413,9 @@ Where fude departs, the line says so and cites the departure in
   since. git reads the buffer's text, so lines changed since the last
   write still line up. `:blame` again stops it.
 - B139 [2] Text just yanked, put, undone or redone shows highlighted for
-  `flash_time` milliseconds, 300 unless set, as undo-glow.nvim shows it,
-  and a change to the buffer clears it sooner (N15). `flash_time = 0`
-  turns it off.
+  `flash.time` milliseconds, 300 unless set, as undo-glow.nvim shows it,
+  and a change to the buffer clears it sooner (N15). `flash.enabled`
+  off turns it off.
 - B140 [2] `<Plug>(window.left)`, `<Plug>(window.down)`,
   `<Plug>(window.up)` and `<Plug>(window.right)` move to the window that
   way. Inside tmux, with no window that way, they move to tmux's pane
@@ -510,7 +513,7 @@ Where fude departs, the line says so and cites the departure in
   line with text (N19). `list` hides them.
 - B197 [2] Every frame shows the same cells as the first frame of a fresh
   client would, whatever frames came before it.
-- B208 [2] With `highlight_colors` on, as it is unless set off, text
+- B208 [2] With `colours.enabled` on, as it is unless set off, text
   that names a colour shows on that colour, in black or white text,
   whichever reads better. A colour is `#rgb`, `#rgba`, `#rrggbb` or
   `#rrggbbaa` without a word character either side, or `rgb()`, `rgba()`,
@@ -596,7 +599,7 @@ Where fude departs, the line says so and cites the departure in
   `<Leader>w`), an option or a setting. `<CR>` on a name in help goes to
   it (D34).
 - B172 [2] When a command being typed in normal or visual mode waits
-  `key_hints` milliseconds for its next key, a panel above the status line
+  `hints.delay` milliseconds for its next key, a panel above the status line
   lists the keys that may follow, with what each does. It lists fude's own
   keys, operators and objects, and the mappings. A mapping replaces the key
   it shadows. A key that starts longer ones is a group, listed first with
@@ -605,7 +608,7 @@ Where fude departs, the line says so and cites the departure in
   own, such as `gr`, `[` and `]`. The panel follows the keys typed after
   it. While it shows, a mapping's keys wait for the next key instead of
   `key_timeout`. `<BS>` drops the last key typed, and `<Esc>` drops the
-  command without running any of its keys (N24). `key_hints = 0` turns the
+  command without running any of its keys (N24). `hints.enabled` off turns the
   panel off.
 - B163 [2] `fude man` prints fude(1): the commands, keys and mappings of
   `:h` with fude's defaults, and where fude keeps its config, state and
@@ -637,7 +640,7 @@ Where fude departs, the line says so and cites the departure in
   `<style>` in HTML. An injected language whose grammar is not built
   builds on first use, and its colours show once it is. One whose grammar
   or queries fail to load says why.
-- B298 [3] With `render` on, as it is unless set off, a markdown file draws
+- B298 [3] With `markdown.enabled` on, as it is unless set off, a markdown file draws
   as it reads, and the cursor's line shows its text as it is (B295).
   After a change it draws again 50 milliseconds later, once for however
   many changes come meanwhile.
@@ -976,7 +979,7 @@ Where fude departs, the line says so and cites the departure in
   folder too when two names are the same. The current window's buffer
   shows lit and bold, and a modified one shows ●. When they do not fit, the row
   shows the part around the current one, with ‹ or › where it is cut.
-  `buffer_line = false` hides it. A guest's row lists only the buffers
+  `bufferline.enabled` off hides it. A guest's row lists only the buffers
   it may show (B244, B245).
 - B356 [2] `:pin` and `<Leader>a` pin the current file, after the working
   directory's other pins. A file pinned already says which pin it is, and
@@ -1069,19 +1072,19 @@ Where fude departs, the line says so and cites the departure in
   pattern with a predicate it does not evaluate, such as Objective-C's
   `#has-ancestor?`, and applies the rest of the query. Edited text keeps
   its colour until the next parse.
-- B259 [3] With `spell` on, a window underlines the words its word list
-  lacks. The list is the file `spell_words` names, or
+- B259 [3] With `spell.enabled` on, a window underlines the words its word list
+  lacks. The list is the file `spell.words` names, or
   `/usr/share/dict/words` without it, and `words.txt` in fude's config
   directory. Windows has no system list, so there spell needs
-  `spell_words`. In Markdown, text, git commit and files of no filetype,
+  `spell.words`. In Markdown, text, git commit and files of no filetype,
   spell checks all the text but code and links. Elsewhere it checks the
   comments and strings. A word passes when the
   list has it, in lower case too, or has it without an ending of a
   plural or a contraction, which lists such as macOS's leave out. A word
   with a capital after its first letter, or a digit or one of `_ . / @ \`
   beside it, is a name or a path and passes. A list that fails to read
-  says so once, and spell then finds nothing. `spell` is an option, and
-  a filetype table may set it.
+  says so once, and spell then finds nothing. `spell.enabled` is each
+  window's, off unless set, and a filetype table's `spell` sets it.
 - B260 [3] `]s` and `[s` go to the next and previous word spell finds,
   wrapping at the ends. `z=` lists the words of the list closest to the
   one under the cursor, and the one chosen replaces it. `zg` adds the
@@ -1134,10 +1137,11 @@ Where fude departs, the line says so and cites the departure in
   position and where a line starts, without reading the text.
 - B177 [4] A plugin can map keys in insert mode. They run what it
   registered, and the cursor lands after the text it typed (B179).
-- B178 [4] A plugin reads its settings by name, as text, from the
-  `settings` of its `[[plugin]]` table. Each is a number, a string or a boolean,
-  and a table or a list there keeps the plugin from loading, with a
-  message that names it.
+- B178 [4] The `options` table of a plugin's `[[plugin]]` table starts
+  its options by name (B377), which its init may read once it defines
+  them. Each is a number, a string or a boolean, and a table or a list
+  there keeps the plugin from loading, with a message that names it. A
+  name that is no option of the plugin says so.
 - B180 [4] A plugin can ask to run a function after a while. The function
   runs once, off the input path, as an event does. It is about the buffer
   the call that asked was about, and does not run when that buffer closed
@@ -1258,6 +1262,16 @@ Where fude departs, the line says so and cites the departure in
 - B376 [4] A module may add a page to help's guide, in markdown under a
   `#` title. Its tag is `guide-` and the page's name, it shows after
   fude's own pages in the index, and `fude man` prints it in the guide.
+- B377 [4] A module may add options, each named after it, such as
+  `autopairs.enabled`, with a default that makes it a switch, a number or
+  text. `:set` shows, changes and lists them as it does fude's, `:h` lists
+  them, and a module reads them as it reads fude's. An option may be each
+  window's, as fude's options are. Otherwise every session shares it, and
+  a guest may not change it. A plugin's option starts at its key in the
+  plugin's `options` (B178), and a built-in module's at its key in
+  `[module.<name>]`. A key there
+  that names no option, or a value of the wrong kind, is an error that
+  names it, and `:config reload` changes nothing then (D59).
 - B345 [4] A module's result defines styles by name, with a colour for
   the text and one for its ground, bold, italic, underline or strike, over
   the theme's styles. Its decorations and spans name them.
@@ -1529,8 +1543,8 @@ Where fude departs, the line says so and cites the departure in
   whole texts.
 - B61 [5] Diagnostics show inline, and `]d` and `[d` move between them.
   After a line with a diagnostic, two columns on, its message shows in its
-  severity's colour on a tint of that colour, unless `diagnostic_notes` is
-  off.
+  severity's colour on a tint of that colour, unless `lsp.diagnostic_notes`
+  is off.
   Each move shows the diagnostics that start at the cursor in a float
   there, in their severity's colour, with their source and code, until the
   next key. `<C-w>d` shows those on the cursor's line in the same float,
@@ -1572,10 +1586,10 @@ Where fude departs, the line says so and cites the departure in
   the arrows move the selection, `<CR>` takes it, a digit takes the action
   it numbers, and any other key closes the menu. The edits of an action
   undo as one step labelled code action.
-- B209 [5] With `highlight_colors` on, the colours a language server
+- B209 [5] With `colours.enabled` on, the colours a language server
   reports for a buffer show as B208's do, and the server is asked again
   after each change.
-- B216 [5] With `inlay_hints` on, as it is unless set off, the inlay
+- B216 [5] With `inlay.enabled` on, as it is unless set off, the inlay
   hints a language server gives for a buffer show among its text, dim on
   the surface colour, before the character they are at, with the padding
   the server asks for. They are not part of the text, so the cursor,

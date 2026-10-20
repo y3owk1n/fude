@@ -28,7 +28,7 @@ Deletes the character before the cursor. In the indent it deletes back to
 the column of the indent level before, and at the start of a line it joins
 the line to the one above. In replace mode it puts back the character the
 last one typed took the place of, and once nothing typed is left it moves
-left. With `autopairs` on, between an empty pair such as `()` it deletes
+left. With `autopairs.enabled` on, between an empty pair such as `()` it deletes
 both.
 
 ```keys
@@ -291,7 +291,7 @@ Moves to the line above, as `<Down>` moves down.
 
 ## (
 
-With `autopairs` on, as it is by default, `(`, `[`, `{`, `"`, `'` and
+With `autopairs.enabled` on, as it is by default, `(`, `[`, `{`, `"`, `'` and
 `` ` `` type their closing one too, with the cursor between, when typed
 before a blank, the end of a line or a closing bracket. A quote after a
 letter, a digit or `_` types only itself. Typing a closing one that comes
@@ -299,5 +299,6 @@ next steps over it. Pairs form only in insert mode, never in replace mode
 or from a paste. To type each one alone:
 
 ```toml
-autopairs = false
+[module.autopairs]
+enabled = false
 ```

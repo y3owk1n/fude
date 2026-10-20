@@ -24,14 +24,14 @@ and a program that embeds the editor does the same.
 | [`grammars`](grammars) | `:grammar` lists, installs and updates the grammars |
 | [`grep`](grep) | `:pick grep`, a live search of the files' lines |
 | [`help`](help) | `:help` shows help at an entry, and `<CR>` follows a name |
-| [`hints`](hints) | the keys that may follow the command being typed, after `key_hints` |
+| [`hints`](hints) | the keys that may follow the command being typed, after `hints.delay` |
 | [`history`](history) | `q:`, `q/` and `q?` list the command lines or searches to edit and run one |
 | [`inlay`](inlay) | a language server's inlay hints |
 | [`jump`](jump) | `s` jumps to text in view by its label |
 | [`links`](links) | `gx` opens the link or file under the cursor, `gf` the file |
 | [`lists`](lists) | `:buffers`, `:marks`, `:jumps`, `:changes`, `:registers` and `:messages` |
 | [`lsp`](lsp) | diagnostics, hover, definitions, references, symbols, rename, code actions and the `:lsp` panel |
-| [`markdown`](markdown) | a markdown file draws as it reads, with `render` on |
+| [`markdown`](markdown) | a markdown file draws as it reads, with `markdown.enabled` on |
 | [`pick`](pick) | `:pick help`, `:pick keymaps` and `:pick commands` |
 | [`pins`](pins) | `:pin`, `<Leader>a`, `<Leader>1` to `<Leader>9` and `:pin list`, a short list of files for each working directory, with each pin on the status line |
 | [`places`](places) | the last list of places in a window, `]q` and the other steps, `:copen`, `:cclose`, `:cdo` and `:cfdo` |
@@ -40,7 +40,7 @@ and a program that embeds the editor does the same.
 | [`session`](session) | keeps the working directory's session as fude quits, and restores it |
 | [`sessions`](sessions) | `:who`, `:kick` and `:follow` |
 | [`shell`](shell) | `:!`, `:{range}!` and `:r !` run a command in the shell, and `:r file` puts a file's text below the line |
-| [`spell`](spell) | `spell`, `]s`, `[s`, `z=` and `zg` |
+| [`spell`](spell) | `spell.enabled`, `]s`, `[s`, `z=` and `zg` |
 | [`start`](start) | the start screen of fude started with no file |
 | [`surround`](surround) | `ys`, `yss`, `ds`, `cs` and `S` in visual mode surround text |
 | [`window`](window) | `<Plug>(window.*)` move to the window that way, or to tmux's pane, and `:split`, `:vsplit`, `:new`, `:vnew`, `:only`, `:resize` and `:vertical resize` |

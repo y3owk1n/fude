@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/wire"
 )
 
@@ -49,6 +50,9 @@ func (e *Session) set(args string) error {
 	if _, ok := e.cfg.settings()[name]; ok {
 		return e.setSetting(name, value, given)
 	}
+	if _, ok := e.declared[name]; ok {
+		return e.setDeclared(name, value, given)
+	}
 	switch _, number := numbers[name]; {
 	case name == "":
 		var lines []string
@@ -61,6 +65,9 @@ func (e *Session) set(args string) error {
 		settings := e.cfg.settings()
 		for _, n := range slices.Sorted(maps.Keys(settings)) {
 			lines = append(lines, fmt.Sprintf("%-18s %s", n, settingText(settings[n])))
+		}
+		for _, n := range slices.Sorted(maps.Keys(e.declared)) {
+			lines = append(lines, fmt.Sprintf("%-18s %s", n, declaredValue(e.win.opts, e.values, n)))
 		}
 		e.scratch("[set]", strings.Join(lines, "\n"), e.placement(nil, "", false, "below"), false)
 		return nil
@@ -265,4 +272,169 @@ func (e *Session) setSetting(name, value string, given bool) error {
 		s.layout()
 	}
 	return nil
+}
+
+// declared is an option a module registered, with the value config.toml or
+// its Default starts it at (B377).
+type declared struct {
+	owner api.Module
+	reg   api.Registration
+	start string
+}
+
+// declare adds the options p registered, starting at the values start
+// gives them by name, which are a plugin's options table or a module's
+// [module.name] table. A value of the wrong kind leaves the Default, and a
+// name that is no option says so (B377).
+func (e *Session) declare(p api.Module, start map[string]string) {
+	unknown := maps.Clone(start)
+	for _, r := range p.Registered() {
+		if r.Kind != api.Option {
+			continue
+		}
+		delete(unknown, r.Name)
+		name := p.Name() + "." + r.Name
+		if _, taken := e.cfg.settings()[name]; taken || e.declared[name].owner != nil {
+			e.message = "the option " + name + " is taken"
+			continue
+		}
+		value := r.Default
+		if v, ok := start[r.Name]; ok {
+			if err := check(name, r.Default, v); err != nil {
+				e.message = err.Error()
+			} else {
+				value = v
+			}
+		}
+		e.declared[name], e.values[name] = declared{p, r, value}, value
+	}
+	for _, key := range slices.Sorted(maps.Keys(unknown)) {
+		e.message = fmt.Sprintf("%s.%s is no option of %s", p.Name(), key, p.Name())
+	}
+}
+
+// moduleConfig returns what is wrong with cfg's [module] tables: a key that
+// names no option of a module fude runs, or a value of the wrong kind
+// (B377).
+func (e *Session) moduleConfig(cfg config) error {
+	var bad []string
+	for _, owner := range slices.Sorted(maps.Keys(cfg.Module)) {
+		values, err := texts(cfg.Module[owner])
+		if err != nil {
+			bad = append(bad, fmt.Sprintf("module.%s: %v", owner, err))
+			continue
+		}
+		for _, key := range slices.Sorted(maps.Keys(values)) {
+			name := owner + "." + key
+			d, ok := e.declared[name]
+			if !ok || kind(d.owner) == "plugin" {
+				bad = append(bad, "module."+name+" is no option of a module")
+			} else if err := check(name, d.reg.Default, values[key]); err != nil {
+				bad = append(bad, err.Error())
+			}
+		}
+	}
+	if len(bad) > 0 {
+		return errors.New(strings.Join(bad, "  "))
+	}
+	return nil
+}
+
+// redeclare starts modules' options at the values cfg's [module] tables
+// give them, where those changed. A window option that changed takes its
+// new value in every window (B39, B377).
+func (e *Session) redeclare(cfg config) {
+	for name, d := range e.declared {
+		if kind(d.owner) == "plugin" {
+			// Its options table starts it again as it loads again.
+			continue
+		}
+		start, _ := texts(cfg.Module[d.owner.Name()])
+		value, ok := start[d.reg.Name]
+		if !ok {
+			value = d.reg.Default
+		}
+		if value == d.start {
+			continue
+		}
+		d.start = value
+		e.declared[name], e.values[name] = d, value
+		if !d.reg.Window {
+			continue
+		}
+		for _, s := range e.sessions {
+			for _, w := range s.root.windows() {
+				w.opts.Modules = with(w.opts.Modules, name, value)
+				if w.own != nil {
+					w.own.Modules = with(w.own.Modules, name, value)
+				}
+			}
+			s.opts.Modules = with(s.opts.Modules, name, value)
+		}
+	}
+}
+
+// setDeclared runs :set on an option a module registered. A window option
+// changes as fude's do, and every session shares another, so a guest may
+// not change it (B377).
+func (e *Session) setDeclared(name, value string, given bool) error {
+	d := e.declared[name]
+	switch {
+	case !given:
+		e.message = name + " " + declaredValue(e.win.opts, e.values, name)
+		return nil
+	case !d.reg.Window && e.power != Host:
+		return errors.New("a guest may not change " + name + ", which every session shares")
+	}
+	if err := check(name, d.reg.Default, value); err != nil {
+		return err
+	}
+	if !d.reg.Window {
+		e.values[name] = value
+		return nil
+	}
+	was := e.win.opts
+	e.win.opts.Modules = with(e.win.opts.Modules, name, value)
+	e.win.keep(was)
+	if e.win.anchor == "" {
+		e.opts = e.win.ownOptions()
+	}
+	return nil
+}
+
+// declaredValue returns the value of the module's option name in a window
+// with opts, where values has the shared ones (B377).
+func declaredValue(opts options, values map[string]string, name string) string {
+	if v, ok := opts.Modules[name]; ok {
+		return v
+	}
+	return values[name]
+}
+
+// check returns why the option name, whose Default is def, may not take
+// value: a switch takes true or false, and a number one of 0 or more.
+func check(name, def, value string) error {
+	switch {
+	case def == "true" || def == "false":
+		if value != "true" && value != "false" {
+			return fmt.Errorf("%s takes true or false, not %q", name, value)
+		}
+	case number(def) && !number(value):
+		return fmt.Errorf("%s takes a number of 0 or more, not %q", name, value)
+	}
+	return nil
+}
+
+// number reports whether s is a number of 0 or more.
+func number(s string) bool {
+	n, err := strconv.Atoi(s)
+	return err == nil && n >= 0
+}
+
+// with returns a copy of m with name set to value.
+func with(m map[string]string, name, value string) map[string]string {
+	out := map[string]string{}
+	maps.Copy(out, m)
+	out[name] = value
+	return out
 }

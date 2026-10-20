@@ -110,7 +110,7 @@ func TestB298Render(t *testing.T) {
 		at := strings.Index(editortest.Text(e), "- new")
 		return slices.Contains(e.Windows()[0].Ghosts, wire.Ghost{Pos: at, End: at + 1, Text: "•", Style: "markdown.bullet"})
 	})
-	// render false shows the text as it is.
-	editortest.Feed(e, ":set render false<CR>")
+	// markdown.enabled false shows the text as it is.
+	editortest.Feed(e, ":set markdown.enabled false<CR>")
 	editortest.Settle(t, e, func() bool { v := e.Windows()[0]; return len(v.Ghosts) == 0 && len(v.Grounds) == 0 })
 }

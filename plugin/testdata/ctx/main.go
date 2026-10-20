@@ -3,8 +3,8 @@
 // was about: its args, bang, first, last and ranged, joined by |. :Where
 // types the buffer's id, path and filetype, the mode, how many lines the
 // text has, the cursor's line and where the last line starts. The insert
-// mode key <C-j> types the mode it ran in, in brackets. :Set name types
-// the setting name, or none, :Opt name the option name and a |, :Cfg path
+// mode key <C-j> types the mode it ran in, in brackets. It has the options
+// depth and on. :Opt name types the option name and a |, :Cfg path
 // the config.toml value at path as JSON and a |, :SetOpt name value sets
 // the option, and :Indent types the indent and tab widths. :Show
 // text shows text in a window titled [shown], as Go, :Styled text shows it
@@ -40,13 +40,8 @@ func init() {
 	sdk.Insert("<C-j>", "types the mode", func(c sdk.Call) {
 		sdk.Edit(c.Cursor, c.Cursor, "["+sdk.Mode()+"]")
 	})
-	sdk.Command("Set", "types a setting", func(c sdk.Call) {
-		v, ok := sdk.Setting(c.Args)
-		if !ok {
-			v = "none"
-		}
-		sdk.Edit(c.Cursor, c.Cursor, v)
-	})
+	sdk.Define("depth", "0", "how deep it looks")
+	sdk.Define("on", "false", "turns it on")
 	sdk.Command("Opt", "types an option", func(c sdk.Call) {
 		v, ok := sdk.Option(c.Args)
 		if !ok {

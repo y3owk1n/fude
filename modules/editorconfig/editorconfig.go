@@ -25,9 +25,11 @@ type Module struct{}
 // New returns editorconfig.
 func New() Module { return Module{} }
 
-func (Module) Name() string                   { return "editorconfig" }
-func (Module) Subscribed() []string           { return []string{"buffer.opened"} }
-func (Module) Registered() []api.Registration { return nil }
+func (Module) Name() string         { return "editorconfig" }
+func (Module) Subscribed() []string { return []string{"buffer.opened"} }
+func (Module) Registered() []api.Registration {
+	return []api.Registration{{Kind: api.Option, Name: "enabled", Default: "true", Help: "a file's .editorconfig files set its indent_style, indent_size and tab_width, over config.toml"}}
+}
 
 func (Module) Init(context.Context, api.Scope) (api.Result, error) { return api.Result{}, nil }
 
@@ -39,7 +41,7 @@ func (Module) Call(context.Context, uint32, api.Scope, ...int) (api.Result, erro
 // unless editorconfig is off in config.toml.
 func (Module) Event(_ context.Context, _ string, s api.Scope) (api.Result, error) {
 	path := s.About["path"]
-	if on, _ := s.Option("editorconfig"); on != "true" || path == "" {
+	if on, _ := s.Option("editorconfig.enabled"); on != "true" || path == "" {
 		return api.Result{}, nil
 	}
 	ec, err := readEditorconfig(path)

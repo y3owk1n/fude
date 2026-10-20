@@ -152,7 +152,7 @@ func completeOption(e *Session, line string, start int, arg string, wait bool) (
 	opts, settings := e.win.opts, e.cfg.settings()
 	name, value, given := strings.Cut(arg, " ")
 	if !given {
-		names := slices.Concat(slices.Collect(maps.Keys(opts.switches())), slices.Collect(maps.Keys(opts.numbers())), slices.Collect(maps.Keys(settings)))
+		names := slices.Concat(slices.Collect(maps.Keys(opts.switches())), slices.Collect(maps.Keys(opts.numbers())), slices.Collect(maps.Keys(settings)), slices.Collect(maps.Keys(e.declared)))
 		slices.Sort(names)
 		return start, fuzzy.Match(names, name)
 	}
@@ -160,6 +160,9 @@ func completeOption(e *Session, line string, start int, arg string, wait bool) (
 	// its sources.
 	at := start + len(name) + 1
 	_, isSwitch := opts.switches()[name]
+	if def := e.declared[name].reg.Default; def == "true" || def == "false" {
+		isSwitch = true
+	}
 	switch {
 	case isSwitch || settings[name].IsValid() && settings[name].Kind() == reflect.Bool:
 		return at, fuzzy.Match([]string{"false", "true"}, value)

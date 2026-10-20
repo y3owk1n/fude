@@ -51,4 +51,20 @@ func TestB226ProjectSession(t *testing.T) {
 	if vs := e.Windows(); len(vs) != 1 || editortest.Text(e) != "a.txt\nb.txt" || e.Text().LineOf(e.Cursor()) != 1 {
 		t.Fatalf("s restored %d windows showing %q, the cursor on line %d", len(vs), editortest.Text(e), e.Text().LineOf(e.Cursor()))
 	}
+	// With session.enabled off, quitting keeps none, and the last one kept
+	// stays.
+	editortest.Config(t, "[module.session]\nenabled = false\n")
+	e = editortest.Start(t, "b.txt")
+	e.Use(session.New())
+	editortest.Feed(e, ":qa<CR>")
+	editortest.Config(t, "")
+	e = editortest.Start(t)
+	e.Use(start.New())
+	e.Use(session.New())
+	e.Use(window.New())
+	e.Welcome()
+	editortest.Settle(t, e, func() bool { return strings.Contains(editortest.Text(e), "s  restore the last session here") })
+	if editortest.Feed(e, "s"); editortest.Text(e) != "a.txt\nb.txt" {
+		t.Errorf("after a quit with session.enabled off, s restored %q", editortest.Text(e))
+	}
 }

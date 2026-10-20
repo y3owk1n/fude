@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/y3owk1n/fude/editor/editortest"
 	"github.com/y3owk1n/fude/modules/buffers"
@@ -72,5 +73,20 @@ func TestB225StartScreen(t *testing.T) {
 	editortest.Feed(e, "ci# mine<Esc>:w<CR>")
 	if b, err := os.ReadFile(filepath.Join(config, "fude", "config.toml")); err != nil || string(b) != "# mine\n" {
 		t.Errorf("c then :w wrote %q, %v, and said %q", b, err, e.Message())
+	}
+	// With start.enabled off, the empty buffer stays.
+	editortest.Feed(e, ":set start.enabled false<CR>:enew<CR>")
+	e.Welcome()
+	for end := time.After(300 * time.Millisecond); ; {
+		select {
+		case f := <-e.Queue():
+			f()
+			continue
+		case <-end:
+		}
+		break
+	}
+	if got := editortest.Text(e); got != "" {
+		t.Errorf("with start.enabled off, the window shows %q", got)
 	}
 }

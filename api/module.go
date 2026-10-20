@@ -70,6 +70,12 @@ const (
 	// fude man guide prints. Name is its tag after guide-, and Doc is its
 	// markdown, starting with a # title. It is never called (B376).
 	Page
+	// Option is a value :set changes as owner.name, which starts as Default,
+	// or as config.toml gives it: a plugin's in its options table, and a
+	// module's in [module.owner]. A Default of true or false makes it a
+	// switch, and one of digits a number. Window makes it each window's, as
+	// fude's options are. It is never called (B377).
+	Option
 )
 
 // Registration is one thing a module's init registered: its name, what it
@@ -119,4 +125,7 @@ type Registration struct {
 	// Args are the arguments a Command takes, as :h and :pick commands show
 	// them, in brackets when it may go without, such as [file] (B324).
 	Args string
+	// Default and Window are an Option's (B377).
+	Default string
+	Window  bool
 }

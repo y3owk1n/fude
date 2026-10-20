@@ -35,7 +35,9 @@ func (m *Module) Subscribed() []string {
 	return []string{"buffer.opened", "buffer.changed", "buffer.closed", "lsp.attached", "option.set", "config.reloaded"}
 }
 
-func (m *Module) Registered() []api.Registration { return nil }
+func (m *Module) Registered() []api.Registration {
+	return []api.Registration{{Kind: api.Option, Name: "enabled", Default: "true", Help: "language servers' inlay hints, such as parameter names and types, show in the text"}}
+}
 
 func (m *Module) Init(context.Context, api.Scope) (api.Result, error) { return api.Result{}, nil }
 
@@ -50,7 +52,7 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 	defer m.mu.Unlock()
 	buf := s.About["buffer"]
 	switch event, detail, _ := strings.Cut(name, " "); {
-	case event == "option.set" && detail != "inlay_hints":
+	case event == "option.set" && detail != "inlay.enabled":
 		return api.Result{}, nil
 	case event == "lsp.attached":
 		delete(m.without, buf)
@@ -62,7 +64,7 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 		delete(m.without, buf)
 		return api.Result{}, nil
 	}
-	if on, _ := s.Option("inlay_hints"); on != "true" {
+	if on, _ := s.Option("inlay.enabled"); on != "true" {
 		res := api.Result{Undecorate: m.shown[buf]}
 		delete(m.shown, buf)
 		return res, nil

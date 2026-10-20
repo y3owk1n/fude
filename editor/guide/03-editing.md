@@ -141,11 +141,11 @@ copy the character below and above the cursor.
 
 ## Spelling
 
-`:set spell true` underlines words the word list lacks: all of a Markdown,
+`:set spell.enabled true` underlines words the word list lacks: all of a Markdown,
 text or git commit file but its code, and the comments and strings of
 code. `]s` and `[s` go to them, `z=` lists words for the one under the
-cursor, and `zg` adds it to your own words. `:set spell false` turns it
-off. The list is `/usr/share/dict/words`, or the file `spell_words`
+cursor, and `zg` adds it to your own words. `:set spell.enabled false`
+turns it off. The list is `/usr/share/dict/words`, or the file `spell.words`
 names.
 
 ```toml

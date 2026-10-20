@@ -44,7 +44,9 @@ func (m *Module) Subscribed() []string {
 	return []string{"buffer.opened", "buffer.changed", "buffer.closed", "window.moved", "lsp.attached", "option.set", "config.reloaded"}
 }
 
-func (m *Module) Registered() []api.Registration { return nil }
+func (m *Module) Registered() []api.Registration {
+	return []api.Registration{{Kind: api.Option, Name: "enabled", Default: "true", Help: "text that names a colour, such as #ff8800 or rgb(255, 136, 0), shows on that colour"}}
+}
 
 func (m *Module) Init(context.Context, api.Scope) (api.Result, error) { return api.Result{}, nil }
 
@@ -60,7 +62,7 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 	buf := s.About["buffer"]
 	event, detail, _ := strings.Cut(name, " ")
 	switch {
-	case event == "option.set" && detail != "highlight_colors":
+	case event == "option.set" && detail != "colours.enabled":
 		return api.Result{}, nil
 	case event == "lsp.attached":
 		delete(m.without, buf)
@@ -74,7 +76,7 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 		delete(m.without, buf)
 		return api.Result{}, nil
 	}
-	if on, _ := s.Option("highlight_colors"); on != "true" {
+	if on, _ := s.Option("colours.enabled"); on != "true" {
 		res := api.Result{Undecorate: append(m.named[buf], m.given[buf]...)}
 		delete(m.named, buf)
 		delete(m.given, buf)

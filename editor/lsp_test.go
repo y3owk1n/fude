@@ -527,13 +527,13 @@ func TestB61Diagnostics(t *testing.T) {
 	if got := decorations(e); got[0] != "bad diagnostic.error" || got[1] != "bad diagnostic.error" {
 		t.Errorf("decorations are %q, want two errors on bad", got)
 	}
-	// The message shows after its line until diagnostic_notes is off.
+	// The message shows after its line until lsp.diagnostic_notes is off.
 	if n := e.Windows()[0].Notes[1]; n != (wire.Note{Text: "bad word", Name: "diagnostic.error"}) {
 		t.Errorf("the line with errors has the note %+v", n)
 	}
-	feed(e, ":set diagnostic_notes false<CR>")
+	feed(e, ":set lsp.diagnostic_notes false<CR>")
 	settle(t, e, func() bool { return len(e.Windows()[0].Notes) == 0 })
-	feed(e, ":set diagnostic_notes true<CR>")
+	feed(e, ":set lsp.diagnostic_notes true<CR>")
 	settle(t, e, func() bool { return len(e.Windows()[0].Notes) == 1 })
 	for _, c := range []struct {
 		keys string

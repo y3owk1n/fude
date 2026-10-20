@@ -43,7 +43,7 @@ func TestB259Spell(t *testing.T) {
 	dir := t.TempDir()
 	list := filepath.Join(dir, "words")
 	editortest.Change(t, list, strings.Join([]string{"the", "cat", "sat", "on", "mat", "is", "this", "comment", "has", "a", "string", "typo"}, "\n")+"\n")
-	editortest.Config(t, fmt.Sprintf("spell = true\nspell_words = %q\n", list))
+	editortest.Config(t, fmt.Sprintf("[module.spell]\nenabled = true\nwords = %q\n", list))
 	// Prose checks every word but names and paths, and plurals and
 	// contractions of the list's words pass.
 	notes := filepath.Join(dir, "notes")
@@ -55,9 +55,11 @@ func TestB259Spell(t *testing.T) {
 	if got := typosIn(e); !slices.Equal(got, []string{"sta", "teh"}) {
 		t.Errorf("spell found %q in prose", got)
 	}
-	// Code checks only its comments and strings.
+	// Code checks only its comments and strings. A filetype table turns
+	// spell on for its files.
 	code := filepath.Join(dir, "a.go")
 	editortest.Change(t, code, "package main\n\n// this comment has a tpyo\nvar x = \"a string wth typo\"\n\nfunc mian() {}\n")
+	editortest.Config(t, fmt.Sprintf("[module.spell]\nwords = %q\n[filetype.go]\nspell = true\n", list))
 	e = editortest.Start(t, code)
 	spelling(t, e)
 	e.SetSize(80, 20)
@@ -66,7 +68,7 @@ func TestB259Spell(t *testing.T) {
 		t.Errorf("spell found %q in code", got)
 	}
 	// spell is off unless set.
-	editortest.Config(t, fmt.Sprintf("spell_words = %q\n", list))
+	editortest.Config(t, fmt.Sprintf("[module.spell]\nwords = %q\n", list))
 	e = editortest.Start(t, notes)
 	spelling(t, e)
 	e.SetSize(80, 20)
@@ -86,7 +88,7 @@ func TestB259Spell(t *testing.T) {
 		break
 	}
 	// A list that fails to read says so, and spell then finds nothing.
-	editortest.Config(t, "spell = true\nspell_words = \"/nowhere/words\"\n")
+	editortest.Config(t, "[module.spell]\nenabled = true\nwords = \"/nowhere/words\"\n")
 	e = editortest.Start(t, notes)
 	spelling(t, e)
 	e.Windows()
@@ -101,7 +103,7 @@ func TestB260SpellKeys(t *testing.T) {
 	dir := t.TempDir()
 	list := filepath.Join(dir, "words")
 	editortest.Change(t, list, "the\ncat\nsat\non\nmat\n")
-	editortest.Config(t, fmt.Sprintf("spell = true\nspell_words = %q\n", list))
+	editortest.Config(t, fmt.Sprintf("[module.spell]\nenabled = true\nwords = %q\n", list))
 	notes := filepath.Join(dir, "notes")
 	editortest.Change(t, notes, "the cta sat on teh mat\nmat sta\n")
 	e := editortest.Start(t, notes)
@@ -134,13 +136,13 @@ func TestB260SpellKeys(t *testing.T) {
 	}
 }
 
-// B39, B259: :set spell_words reads the list it names.
+// B39, B259: :set spell.words reads the list it names.
 func TestSetSpellWords(t *testing.T) {
 	dir := t.TempDir()
 	first, second := filepath.Join(dir, "first"), filepath.Join(dir, "second")
 	editortest.Change(t, first, "the\ncat\n")
 	editortest.Change(t, second, "the\ncat\nsat\n")
-	editortest.Config(t, fmt.Sprintf("spell = true\nspell_words = %q\n", first))
+	editortest.Config(t, fmt.Sprintf("[module.spell]\nenabled = true\nwords = %q\n", first))
 	notes := filepath.Join(dir, "notes")
 	editortest.Change(t, notes, "the cat sat\n")
 	e := editortest.Start(t, notes)
@@ -148,6 +150,6 @@ func TestSetSpellWords(t *testing.T) {
 	e.SetSize(80, 20)
 	editortest.Settle(t, e, func() bool { return slices.Equal(typosIn(e), []string{"sat"}) })
 	// The new list is read when spell next hears of the window, here a move.
-	editortest.Feed(e, fmt.Sprintf(":set spell_words %s<CR>w", second))
+	editortest.Feed(e, fmt.Sprintf(":set spell.words %s<CR>w", second))
 	editortest.Settle(t, e, func() bool { return len(typosIn(e)) == 0 })
 }

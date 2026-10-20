@@ -24,7 +24,7 @@ tab. A `[filetype.<name>]` table sets it for one filetype.
 tab_width = 4
 ```
 
-## editorconfig
+## editorconfig.enabled
 
 Opening a file reads the `.editorconfig` files in its folder and each one
 above it, up to the first that sets `root = true`. Their `indent_style`,
@@ -34,7 +34,8 @@ file under the home folder, unless a project's `.editorconfig` above the
 file sets `root = true`. On unless set.
 
 ```toml
-editorconfig = false
+[module.editorconfig]
+enabled = false
 ```
 
 ## key_timeout
@@ -44,16 +45,37 @@ When the keys typed start a longer mapping, such as `<Leader>` with
 none, it runs the mapping the keys complete, or the keys as typed. While the
 key hints show, it waits for the next key instead.
 
-## key_hints
+## hints.enabled
+
+A command being typed that waits for its next key shows a panel of the
+keys that may follow it, after `hints.delay`. On unless set.
+
+## hints.delay
 
 How long a command being typed waits before a panel lists the keys that may
-follow it. 0 turns the panel off. Keep it below `key_timeout`, or a
-mapping's keys run before its hints show.
+follow it, in milliseconds. Keep it below `key_timeout`, or a mapping's
+keys run before its hints show.
 
-## flash_time
+## flash.enabled
+
+Text just yanked, put, undone or redone shows highlighted for
+`flash.time`. On unless set.
+
+## flash.time
 
 How long text just yanked, put, undone or redone shows highlighted, in
-milliseconds. A change to the buffer clears it sooner. 0 turns it off.
+milliseconds. A change to the buffer clears it sooner.
+
+## start.enabled
+
+fude started with no file shows the start screen, with recent files and
+what to do first. Off, it opens an empty buffer. On unless set.
+
+## session.enabled
+
+As fude quits, it keeps the working directory's windows and files, which
+the start screen's `s` and `<Plug>(session.restore)` bring back. Off, it
+keeps none, and the last one kept stays. On unless set.
 
 ## large_file
 
@@ -93,6 +115,17 @@ terminal = "right"
 timeline = "left"
 ```
 
+## module
+
+Where a module's options start, in a table named after the module.
+`:set` takes each option as the module's name, a dot and the key. A key that names no option of the module, or a value of the
+wrong kind, is an error that names it.
+
+```toml
+[module.autopairs]
+enabled = false
+```
+
 ## split_below
 
 `:split`, `:new`, `<C-w>s` and an explorer's `<C-h>` open the new window
@@ -111,7 +144,7 @@ trigger character such as `.` is typed, with none put in the text until
 `<C-n>` or `<C-p>`. On the command line, the completion menu shows as the
 line is typed. Off, `<C-x><C-o>` and `<Tab>` ask for them.
 
-## git_signs
+## git.signs
 
 A file in a git repository shows in the sign column which lines differ
 from git's index. The default is on. When it is off, the sign column shows no git signs,
@@ -124,7 +157,7 @@ loads from the network, in at most 10 seconds and 16MB. The default is
 on. `:set remote_images false` stops new ones loading, so opening a file
 contacts no server it names.
 
-## highlight_colors
+## colours.enabled
 
 Text that names a colour shows on that colour, in black or white text,
 whichever reads better. That is `#rgb`, `#rgba`, `#rrggbb` and
@@ -132,7 +165,7 @@ whichever reads better. That is `#rgb`, `#rgba`, `#rrggbb` and
 and the colours a language server reports, such as Tailwind's class
 names. The default is on.
 
-## inlay_hints
+## inlay.enabled
 
 A language server's inlay hints, such as the names of a call's
 parameters or a variable's inferred type, show among the text in a dim
@@ -141,7 +174,7 @@ the cursor and edits pass over them. The default is on. Some servers send
 hints only when their settings ask for them, such as gopls with
 `[lsp.gopls.settings.gopls.hints]`.
 
-## autopairs
+## autopairs.enabled
 
 An opening bracket or quote typed in insert mode comes with its closing
 one, before a blank, a line end or a closing bracket. Typing the closing
@@ -192,14 +225,14 @@ What `<Leader>` stands for in a mapping, from config or a plugin, when the
 mapping is made. Write it as a mapping writes keys, such as `"<Space>"` or
 `","`.
 
-## buffer_line
+## bufferline.enabled
 
 Once two or more files are open, the top row lists them by number and
 name, the current one lit and a modified one marked ●. `:b 3` shows
 buffer 3. With it off, the windows take the top row and only `:ls` and
 `:pick buffers` list the buffers.
 
-## spell_words
+## spell.words
 
 The word list spell checks against, one word a line, and
 `/usr/share/dict/words` when unset, which macOS ships and Linux has with
@@ -367,7 +400,7 @@ color_column = 73
 
 ## filetype.spell
 
-Turns `spell` on or off in a file of the type, over the setting outside
+Turns `spell.enabled` on or off in a file of the type, over the setting outside
 the table. `[filetype.markdown] spell = true` checks the prose you write
 and leaves code alone.
 
@@ -549,7 +582,9 @@ The programs a plugin with `process` may run, such as `["git"]`.
 The hosts a plugin with `net` may reach over http and https, a redirect too,
 such as `["api.github.com"]`.
 
-## plugin.settings
+## plugin.options
 
-A table of the plugin's own settings, such as `{ depth = 3, style = "box" }`,
-which it reads by name. Each is a number, a string or a boolean.
+Where the plugin's options start, by name, such as `{ depth = 3, style =
+"box" }`. Each is a number, a string or a boolean, and a name that is no
+option of the plugin is an error. `depth` here starts `wordcount.depth`
+for a plugin named wordcount.

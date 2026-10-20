@@ -35,7 +35,12 @@ func (m *Module) Name() string { return "flash" }
 
 func (m *Module) Subscribed() []string { return []string{"text.touched", "buffer.changed"} }
 
-func (m *Module) Registered() []api.Registration { return nil }
+func (m *Module) Registered() []api.Registration {
+	return []api.Registration{
+		{Kind: api.Option, Name: "enabled", Default: "true", Help: "text just yanked, put, undone or redone shows highlighted for a moment"},
+		{Kind: api.Option, Name: "time", Default: "300", Help: "the milliseconds text just yanked, put, undone or redone shows highlighted"},
+	}
+}
 
 func (m *Module) Init(context.Context, api.Scope) (api.Result, error) { return api.Result{}, nil }
 
@@ -51,9 +56,9 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 	buf := s.About["buffer"]
 	res := m.clear(buf)
 	event, detail, _ := strings.Cut(name, " ")
-	ms, _ := s.Option("flash_time")
+	ms, _ := s.Option("flash.time")
 	wait, _ := strconv.Atoi(ms)
-	if event != "text.touched" || wait == 0 {
+	if on, _ := s.Option("flash.enabled"); event != "text.touched" || on != "true" {
 		return res, nil
 	}
 	fields := strings.Fields(detail)

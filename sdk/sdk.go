@@ -75,9 +75,6 @@ func hostLog(ptr *byte, n uint32)
 //go:wasmimport fude context
 func hostContext(ptr *byte, n uint32) int64
 
-//go:wasmimport fude setting
-func hostSetting(ptr *byte, n uint32) int64
-
 //go:wasmimport fude text_len
 func hostTextLen() int32
 
@@ -178,6 +175,14 @@ func Register(r api.Registration, f func(a, b, c int) int) {
 // function.
 func Page(name, text string) {
 	add(api.Registration{Kind: api.Page, Name: name, Doc: text}, nil)
+}
+
+// Define adds the option plugin.name, which :set changes and Option reads.
+// It starts at its key in the plugin's options table, or else at value, which as
+// true or false makes it a switch and as digits a number (B377). Call it
+// from an init function, which may read it once it is defined.
+func Define(name, value, help string) {
+	add(api.Registration{Kind: api.Option, Name: name, Help: help, Default: value}, nil)
 }
 
 // Do asks for what r holds, as a module's call returns it. fude applies it
@@ -476,14 +481,6 @@ type Buffer struct {
 func Current() Buffer {
 	id, _ := strconv.Atoi(About("buffer"))
 	return Buffer{ID: id, Path: About("path"), Filetype: About("filetype")}
-}
-
-// Setting returns the value of the setting name in the plugin's settings
-// table in config.toml, as text, or false when it has none.
-func Setting(name string) (string, bool) {
-	p, n := ptr(name)
-	v, err := answer(hostSetting(p, n))
-	return v, err == nil
 }
 
 // Option returns the option or config.toml setting called name there, as

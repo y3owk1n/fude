@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -96,6 +97,8 @@ func (m *Module) Registered() []api.Registration {
 		{Kind: api.Plug, Name: "prev", Keys: "[s", Help: "goes to the misspelled word before", ID: prev},
 		{Kind: api.Plug, Name: "suggest", Keys: "z=", Help: "lists words for the one under the cursor, and the one chosen replaces it", ID: suggest},
 		{Kind: api.Plug, Name: "good", Keys: "zg", Help: "adds the word under the cursor to your words", ID: good},
+		{Kind: api.Option, Name: "enabled", Default: "false", Window: true, Help: "underlines words the word list lacks, in prose and in comments and strings"},
+		{Kind: api.Option, Name: "words", Default: systemWords(), Help: "the word list spell checks against, one word a line"},
 	}
 }
 
@@ -104,7 +107,7 @@ func (m *Module) Registered() []api.Registration {
 func (m *Module) Init(_ context.Context, s api.Scope) (api.Result, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if on, _ := s.Option("spell"); on != "true" {
+	if on, _ := s.Option("spell.enabled"); on != "true" {
 		return api.Result{}, nil
 	}
 	return m.read(s), nil
@@ -116,8 +119,8 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 		return api.Result{}, fmt.Errorf("spell %w", api.ErrBusy)
 	}
 	defer m.mu.Unlock()
-	if on, _ := s.Option("spell"); on != "true" {
-		return api.Result{Error: "spell is off, and :set spell turns it on"}, nil
+	if on, _ := s.Option("spell.enabled"); on != "true" {
+		return api.Result{Error: "spell is off, and :set spell.enabled true turns it on"}, nil
 	}
 	if m.known == nil {
 		res := m.read(s)
@@ -144,10 +147,10 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 		delete(m.tops, buf)
 		delete(m.shown, buf)
 		return api.Result{}, nil
-	case event == "option.set" && detail != "spell" && detail != "spell_words":
+	case event == "option.set" && detail != "spell.enabled" && detail != "spell.words":
 		return api.Result{}, nil
 	}
-	if on, _ := s.Option("spell"); on != "true" {
+	if on, _ := s.Option("spell.enabled"); on != "true" {
 		return m.clear(buf), nil
 	}
 	// still is a window.moved that did not scroll, which underlines nothing new.
@@ -158,7 +161,7 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 		still = at == m.tops[buf] && m.shown[buf] != nil
 		m.tops[buf] = at
 	}
-	switch path, _ := s.Option("spell_words"); {
+	switch path, _ := s.Option("spell.words"); {
 	case m.known == nil || path != m.list:
 		return m.read(s), nil
 	case still:
@@ -203,10 +206,10 @@ func (m *Module) Work(_ context.Context, j api.Job) (string, error) {
 
 func (m *Module) Close(context.Context) error { return nil }
 
-// read starts reading the word list spell_words names, once for each
-// list it names, so :set spell_words reads the new one (B39).
+// read starts reading the word list spell.words names, once for each
+// list it names, so :set spell.words reads the new one (B39).
 func (m *Module) read(s api.Scope) api.Result {
-	path, _ := s.Option("spell_words")
+	path, _ := s.Option("spell.words")
 	if path == m.list {
 		return api.Result{}
 	}
@@ -490,4 +493,12 @@ func words(path, own string) (map[string]bool, error) {
 		return nil, fmt.Errorf("read your words: %w", err)
 	}
 	return known, nil
+}
+
+// systemWords is the word list the system has, of which Windows has none.
+func systemWords() string {
+	if runtime.GOOS == "windows" {
+		return ""
+	}
+	return "/usr/share/dict/words"
 }

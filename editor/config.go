@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"slices"
 	"time"
 
@@ -29,32 +28,23 @@ type taskConfig struct {
 // config is what config.toml holds (D27). Each key's help tag is what
 // help says of it.
 type config struct {
-	IndentWidth     uint     `toml:"indent_width" help:"the columns of an indent level, 0 for the tab width"`
-	TabWidth        uint     `toml:"tab_width" help:"the columns a tab shows as"`
-	Editorconfig    bool     `toml:"editorconfig" help:"a file's .editorconfig files set its indent_style, indent_size and tab_width, over config.toml"`
-	KeyTimeout      uint     `toml:"key_timeout" help:"the milliseconds a mapping waits for its next key"`
-	KeyHints        uint     `toml:"key_hints" help:"the milliseconds a command being typed waits before the keys that may follow it show, 0 for never"`
-	FlashTime       uint     `toml:"flash_time" help:"the milliseconds text just yanked, put, undone or redone shows highlighted, 0 for never"`
-	LargeFile       uint     `toml:"large_file" help:"the megabytes over which a file opens with syntax and language servers off"`
-	Center          bool     `toml:"center" help:"the windows start centered on a wide screen, as :center toggles"`
-	TerminalHeight  uint     `toml:"terminal_height" help:"the percent of the screen's rows a terminal or task window takes when it opens"`
-	SplitBelow      bool     `toml:"split_below" help:"a split opens below the window, else above it"`
-	SplitRight      bool     `toml:"split_right" help:"a vertical split opens right of the window, else left of it"`
-	Autocomplete    bool     `toml:"autocomplete" help:"completions show while typing, not only on <C-x><C-o>"`
-	GitSigns        bool     `toml:"git_signs" help:"the sign column shows how a file differs from git's index"`
-	RemoteImages    bool     `toml:"remote_images" help:"images at http and https addresses load from the network"`
-	HighlightColors bool     `toml:"highlight_colors" help:"text that names a colour, such as #ff8800 or rgb(255, 136, 0), shows on that colour"`
-	InlayHints      bool     `toml:"inlay_hints" help:"language servers' inlay hints, such as parameter names and types, show in the text"`
-	Autopairs       bool     `toml:"autopairs" help:"an opening bracket or quote typed comes with its closing one"`
-	Sources         []string `toml:"completion_sources" help:"where completions come from, in the menu's order: lsp, snippet, path and buffer"`
-	AutoInstall     bool     `toml:"auto_install" help:"builds a missing grammar the first time a file needs it"`
-	Socket          string   `toml:"socket" help:"where clients attach, instead of a path for each process"`
-	FormatOnSave    bool     `toml:"format_on_save" help:"a write formats the buffer first"`
-	FormatTimeout   uint     `toml:"format_timeout" help:"the milliseconds formatting may take"`
-	Leader          string   `toml:"leader" help:"what <Leader> in a mapping stands for"` // N18
-	Theme           string   `toml:"theme" help:"the colours: dark, light or a base16 scheme file"`
-	BufferLine      bool     `toml:"buffer_line" help:"the top row lists the open buffers that have files"`
-	SpellWords      string   `toml:"spell_words" help:"the word list spell checks against, one word a line"`
+	IndentWidth    uint     `toml:"indent_width" help:"the columns of an indent level, 0 for the tab width"`
+	TabWidth       uint     `toml:"tab_width" help:"the columns a tab shows as"`
+	KeyTimeout     uint     `toml:"key_timeout" help:"the milliseconds a mapping waits for its next key"`
+	LargeFile      uint     `toml:"large_file" help:"the megabytes over which a file opens with syntax and language servers off"`
+	Center         bool     `toml:"center" help:"the windows start centered on a wide screen, as :center toggles"`
+	TerminalHeight uint     `toml:"terminal_height" help:"the percent of the screen's rows a terminal or task window takes when it opens"`
+	SplitBelow     bool     `toml:"split_below" help:"a split opens below the window, else above it"`
+	SplitRight     bool     `toml:"split_right" help:"a vertical split opens right of the window, else left of it"`
+	Autocomplete   bool     `toml:"autocomplete" help:"completions show while typing, not only on <C-x><C-o>"`
+	RemoteImages   bool     `toml:"remote_images" help:"images at http and https addresses load from the network"`
+	Sources        []string `toml:"completion_sources" help:"where completions come from, in the menu's order: lsp, snippet, path and buffer"`
+	AutoInstall    bool     `toml:"auto_install" help:"builds a missing grammar the first time a file needs it"`
+	Socket         string   `toml:"socket" help:"where clients attach, instead of a path for each process"`
+	FormatOnSave   bool     `toml:"format_on_save" help:"a write formats the buffer first"`
+	FormatTimeout  uint     `toml:"format_timeout" help:"the milliseconds formatting may take"`
+	Leader         string   `toml:"leader" help:"what <Leader> in a mapping stands for"` // N18
+	Theme          string   `toml:"theme" help:"the colours: dark, light or a base16 scheme file"`
 	options
 	Colors   wire.Colors `toml:"colors" help:"colours by role, each as #rrggbb, that replace the theme's"`
 	Keymap   keymap      `toml:"keymap"`
@@ -69,7 +59,7 @@ type config struct {
 		ExpandTab    *bool    `toml:"expand_tab" help:"files of the type indent with spaces only"`
 		Wrap         *bool    `toml:"wrap" help:"long lines in files of the type go on the rows below"`
 		ColorColumn  *int     `toml:"color_column" help:"the column shaded in files of the type, 0 for none"`
-		Spell        *bool    `toml:"spell" help:"spell checks files of the type"`
+		Spell        *bool    `toml:"spell" help:"spell checks files of the type, as spell.enabled"`
 		Debug        []string `toml:"debug" help:"the debug adapters of files of the type, by the names of their [debug.{name}] tables"`
 	} `toml:"filetype" key:"type"`
 	Debug map[string]struct {
@@ -88,14 +78,15 @@ type config struct {
 		Root      []string `toml:"root" help:"the files that mark the folder it runs in, most wanted first, looked for from the file's folder up"`
 		Workspace bool     `toml:"workspace_required" help:"the formatter runs only for a file under one of its root files"`
 	} `toml:"formatter" key:"name"`
-	Task   map[string]taskConfig `toml:"task" key:"name"`
-	Open   map[string]string     `toml:"open" key:"module" help:"where the module's windows open: above, below, left, right, here, float or cursor"`
+	Task   map[string]taskConfig     `toml:"task" key:"name"`
+	Open   map[string]string         `toml:"open" key:"module" help:"where the module's windows open: above, below, left, right, here, float or cursor"`
+	Module map[string]map[string]any `toml:"module" key:"name" help:"the starting values of a module's options by their names, as enabled = false in [module.autopairs] for autopairs.enabled"`
 	Plugin []struct {
 		Path         string         `toml:"path" help:"the plugin's file, from the config directory"`
 		Capabilities []string       `toml:"capabilities" help:"what the plugin may do"`
 		Programs     []string       `toml:"programs" help:"the programs process may run"`
 		Hosts        []string       `toml:"hosts" help:"the hosts net may reach"`
-		Settings     map[string]any `toml:"settings" help:"what the plugin reads with its setting function"`
+		Options      map[string]any `toml:"options" help:"where the plugin's options start, by name"`
 	} `toml:"plugin"`
 }
 
@@ -124,7 +115,7 @@ var keymapTables = []struct{ name, help string }{
 	{"groups", "names of the keys mappings start with, which key hints show"},
 }
 
-var defaults = config{TabWidth: 8, Editorconfig: true, KeyTimeout: 1000, KeyHints: 300, FlashTime: 300, FormatTimeout: 1000, LargeFile: 2, TerminalHeight: 33, SplitBelow: true, SplitRight: true, HighlightColors: true, GitSigns: true, RemoteImages: true, InlayHints: true, Autopairs: true, Sources: []string{"lsp", "snippet", "path", "buffer"}, AutoInstall: true, BufferLine: true, SpellWords: systemWords(), Leader: "<Space>", Theme: "dark", options: options{Wrap: true, IndentGuides: true, IncSearch: true, StickyContext: true, StickyContextLines: 3, DiagnosticNotes: true, Render: true}}
+var defaults = config{TabWidth: 8, KeyTimeout: 1000, FormatTimeout: 1000, LargeFile: 2, TerminalHeight: 33, SplitBelow: true, SplitRight: true, RemoteImages: true, Sources: []string{"lsp", "snippet", "path", "buffer"}, AutoInstall: true, Leader: "<Space>", Theme: "dark", options: options{Wrap: true, IndentGuides: true, IncSearch: true, StickyContext: true, StickyContextLines: 3}}
 
 // options are the settings each window has, which :set changes for the
 // current window and the windows opened after it (B39). :set takes each by
@@ -144,12 +135,12 @@ type options struct {
 	IndentGuides       bool `toml:"indent_guides" help:"draws a faint line at each indent level"`
 	ColorColumn        int  `toml:"color_column" help:"shades this column of the text, and is how wide :center makes it, 0 for none"`
 	Icons              bool `toml:"icons" help:"shows nerd font icons in explorers and signs"`
-	Spell              bool `toml:"spell" help:"underlines words the word list lacks, in prose and in comments and strings"`
 	IncSearch          bool `toml:"inc_search" help:"while a search is typed, the window shows the match it goes to, lit apart from the rest"`
 	StickyContext      bool `toml:"sticky_context" help:"the first lines of the functions and classes the top of a window is in stay pinned over it"`
 	StickyContextLines int  `toml:"sticky_context_lines" help:"the most lines sticky context pins"`
-	DiagnosticNotes    bool `toml:"diagnostic_notes" help:"a diagnostic's message shows after its line"`
-	Render             bool `toml:"render" help:"markdown files draw as they read, but for the cursor's line"`
+	// Modules are the values :set gave modules' window options here, by
+	// name. A change replaces the map, so a copy of options keeps its own.
+	Modules map[string]string `toml:"-"`
 }
 
 // loadConfig reads config.toml. A missing file is no error. After an error
@@ -294,10 +285,14 @@ func (e *Session) configures(table, keys string) bool {
 // (B39).
 func (e *Session) reloadConfig() error {
 	cfg, err := loadConfig()
+	if err == nil {
+		err = e.moduleConfig(cfg)
+	}
 	if err != nil {
 		return err
 	}
 	old := e.cfg
+	e.redeclare(cfg)
 	settings := cfg.settings()
 	for name, v := range old.settings() {
 		if now := settingText(settings[name]); now != settingText(v) {
@@ -329,7 +324,7 @@ func (e *Session) reloadConfig() error {
 		s.rekey(old.Keymap, cfg.Keymap)
 	}
 	e.cfg.options, e.cfg.Keymap = cfg.options, cfg.Keymap
-	e.cfg.Filetype, e.cfg.LSP, e.cfg.Formatter, e.cfg.Debug, e.cfg.Task = cfg.Filetype, cfg.LSP, cfg.Formatter, cfg.Debug, cfg.Task
+	e.cfg.Filetype, e.cfg.LSP, e.cfg.Formatter, e.cfg.Debug, e.cfg.Task, e.cfg.Module = cfg.Filetype, cfg.LSP, cfg.Formatter, cfg.Debug, cfg.Task, cfg.Module
 	if e.started {
 		e.report(e.reloadPlugins())
 	}
@@ -406,12 +401,4 @@ func (e *Session) ownKeys() keymap {
 		}
 	}
 	return own
-}
-
-// systemWords is the word list the system has, of which Windows has none.
-func systemWords() string {
-	if runtime.GOOS == "windows" {
-		return ""
-	}
-	return "/usr/share/dict/words"
 }

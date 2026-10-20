@@ -50,7 +50,7 @@ type Module struct {
 	stale map[string]bool    // by buffer, the index may have changed since base was read
 	signs map[string][]int   // by buffer, the ids of the signs showing
 	list  map[string][]int   // by explorer, the ids of its entries' signs
-	off   map[string]bool    // by buffer, git_signs was off when it was last signed
+	off   map[string]bool    // by buffer, git.signs was off when it was last signed
 	ids   int
 	jobs  uint32
 	about map[uint32]job // by id, what each job that runs does
@@ -83,6 +83,7 @@ func (m *Module) Registered() []api.Registration {
 		{Kind: api.Operator, Name: "gH", Help: "puts the hunks a motion or object covers back as git's index has them", ID: reset, Host: true},
 		{Kind: api.Operator, Name: "gh", Help: "stages the hunks a motion or object covers in git's index", ID: stage, Host: true},
 		{Kind: api.Command, Name: "gitdiff", Help: "shows the lines that differ from git's index", ID: gitdiff},
+		{Kind: api.Option, Name: "signs", Default: "true", Help: "the sign column shows how a file differs from git's index"},
 	}
 }
 
@@ -123,7 +124,7 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 }
 
 // Event reads a buffer's base as it opens, or once the index may have
-// changed, and signs its changes as the text changes or git_signs turns on
+// changed, and signs its changes as the text changes or git.signs turns on
 // or off.
 func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result, error) {
 	m.mu.Lock()
@@ -151,8 +152,8 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 		if m.stale[buf] {
 			return m.read(s), nil
 		}
-		// git_signs turned on or off, here or in the window moved to.
-		if on, _ := s.Option("git_signs"); m.off[buf] == (on == "true") {
+		// git.signs turned on or off, here or in the window moved to.
+		if on, _ := s.Option("git.signs"); m.off[buf] == (on == "true") {
 			return m.sign(s), nil
 		}
 		return api.Result{}, nil
@@ -345,11 +346,11 @@ func (m *Module) hide(buf string) api.Result {
 }
 
 // sign puts the sign of each line that differs from the base on the buffer
-// s is about, in place of the signs it had, unless git_signs is off (B123).
+// s is about, in place of the signs it had, unless git.signs is off (B123).
 func (m *Module) sign(s api.Scope) api.Result {
 	buf, t := s.About["buffer"], s.Text
 	res := m.hide(buf)
-	on, _ := s.Option("git_signs")
+	on, _ := s.Option("git.signs")
 	m.off[buf] = on != "true"
 	base := m.base[buf]
 	if base == nil || m.off[buf] {

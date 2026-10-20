@@ -33,10 +33,10 @@ func TestB123GitSigns(t *testing.T) {
 	editortest.Feed(e, "ix<Esc>jddGonew<Esc>")
 	want := map[int]wire.Sign{0: {Text: "~", Name: "git.change"}, 2: {Text: "┃", Name: "git.add"}}
 	editortest.Settle(t, e, func() bool { return maps.Equal(e.Windows()[0].Signs, want) })
-	// Turning git_signs off removes the signs, and turning it on brings them back.
-	editortest.Feed(e, ":set git_signs false<CR>")
+	// Turning git.signs off removes the signs, and turning it on brings them back.
+	editortest.Feed(e, ":set git.signs false<CR>")
 	editortest.Settle(t, e, func() bool { return len(e.Windows()[0].Signs) == 0 })
-	editortest.Feed(e, ":set git_signs true<CR>")
+	editortest.Feed(e, ":set git.signs true<CR>")
 	editortest.Settle(t, e, func() bool { return maps.Equal(e.Windows()[0].Signs, want) })
 	// A file whose lines end in \r\n, in the index too, differs where it
 	// changed and nowhere else.

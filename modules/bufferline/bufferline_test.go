@@ -41,9 +41,9 @@ func TestB331BufferLineFollows(t *testing.T) {
 	})
 	editortest.Feed(e, ":bd 2<CR>")
 	editortest.Settle(t, e, func() bool { return slices.Equal(names(), []string{"a.txt", "x.txt"}) })
-	// :set buffer_line turns the row off and on at once.
-	editortest.Feed(e, ":set buffer_line false<CR>")
+	// :set bufferline.enabled turns the row off and on at once.
+	editortest.Feed(e, ":set bufferline.enabled false<CR>")
 	editortest.Settle(t, e, func() bool { return len(names()) == 0 })
-	editortest.Feed(e, ":set buffer_line true<CR>")
+	editortest.Feed(e, ":set bufferline.enabled true<CR>")
 	editortest.Settle(t, e, func() bool { return len(names()) == 2 })
 }

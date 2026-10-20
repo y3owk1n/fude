@@ -75,7 +75,9 @@ func (m *Module) Subscribed() []string {
 	return []string{"buffer.opened", "buffer.changed", "buffer.closed", "window.moved", "option.set", "config.reloaded"}
 }
 
-func (m *Module) Registered() []api.Registration { return nil }
+func (m *Module) Registered() []api.Registration {
+	return []api.Registration{{Kind: api.Option, Name: "enabled", Default: "true", Help: "markdown files draw as they read, but for the cursor's line", Window: true}}
+}
 
 // Init draws the buffer open at the start.
 func (m *Module) Init(_ context.Context, s api.Scope) (api.Result, error) {
@@ -102,12 +104,12 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 		return api.Result{}, nil
 	case "option.set", "config.reloaded":
 		// render or icons changed.
-		if detail == "render" || detail == "icons" || event == "config.reloaded" {
+		if detail == "markdown.enabled" || detail == "icons" || event == "config.reloaded" {
 			return m.draw(s), nil
 		}
 		return api.Result{}, nil
 	case "window.moved":
-		if on, _ := s.Option("render"); m.off[buf] == (on == "true") {
+		if on, _ := s.Option("markdown.enabled"); m.off[buf] == (on == "true") {
 			return m.draw(s), nil
 		}
 		return api.Result{}, nil
@@ -148,7 +150,7 @@ func (m *Module) draw(s api.Scope) api.Result {
 	buf, t := s.About["buffer"], s.Text
 	res := api.Result{Undecorate: m.shown[buf]}
 	delete(m.shown, buf)
-	on, _ := s.Option("render")
+	on, _ := s.Option("markdown.enabled")
 	m.off[buf] = on != "true"
 	if m.off[buf] || s.About["filetype"] != "markdown" {
 		return res

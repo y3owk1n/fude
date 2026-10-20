@@ -16,7 +16,7 @@ func TestMain(m *testing.M) { os.Exit(editortest.Main(m)) }
 func TestB172KeyHints(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "a.txt")
 	editortest.Change(t, path, "ab\n")
-	editortest.Config(t, "key_hints = 1\n[keymap.normal]\n\"<Leader>w\" = \":w<CR>\"\n\"<Leader>sg\" = \":pick grep<CR>\"\n[keymap.groups]\n\"<Leader>s\" = \"search\"\n")
+	editortest.Config(t, "[module.hints]\ndelay = 1\n[keymap.normal]\n\"<Leader>w\" = \":w<CR>\"\n\"<Leader>sg\" = \":pick grep<CR>\"\n[keymap.groups]\n\"<Leader>s\" = \"search\"\n")
 	e := editortest.Start(t, path)
 	e.Use(hints.New())
 	e.SetSize(100, 30)

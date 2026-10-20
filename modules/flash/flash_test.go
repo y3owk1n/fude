@@ -45,8 +45,8 @@ func TestB139Flash(t *testing.T) {
 	}
 	// It goes after a moment.
 	editortest.Settle(t, e, func() bool { return flashed(e) == nil })
-	// flash_time = 0 turns it off.
-	editortest.Config(t, "flash_time = 0\n")
+	// flash.enabled false turns it off.
+	editortest.Config(t, "[module.flash]\nenabled = false\n")
 	e = editortest.Start(t, path)
 	e.Use(flash.New())
 	editortest.Feed(e, "yiw")
@@ -61,6 +61,6 @@ func TestB139Flash(t *testing.T) {
 		break
 	}
 	if flashed(e) != nil {
-		t.Errorf("with flash_time = 0 the flash is %v, want none", flashed(e))
+		t.Errorf("with flash.enabled false the flash is %v, want none", flashed(e))
 	}
 }

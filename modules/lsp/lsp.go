@@ -122,6 +122,7 @@ func (m *Module) Registered() []api.Registration {
 		{Kind: api.Plug, Name: "stop", Help: "stops the language server under the cursor", ID: stopKey},
 		{Kind: api.Plug, Name: "disable", Help: "keeps the language server under the cursor off", ID: disableKey},
 		{Kind: api.Plug, Name: "enable", Help: "lets the language server under the cursor start again", ID: enableKey},
+		{Kind: api.Option, Name: "diagnostic_notes", Default: "true", Help: "a diagnostic's message shows after its line", Window: true},
 	}
 }
 
@@ -210,7 +211,7 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 	case "window.moved", "option.set", "config.reloaded":
 		// diagnostic_notes turned on or off, here or in the window moved to.
 		if buf := s.About["buffer"]; m.diags[buf] != nil {
-			if on, _ := s.Option("diagnostic_notes"); m.notes[buf] != (on == "true") {
+			if on, _ := s.Option("lsp.diagnostic_notes"); m.notes[buf] != (on == "true") {
 				m.redraw(&res, s, buf)
 			}
 		}

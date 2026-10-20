@@ -54,6 +54,7 @@ func (m *Module) Subscribed() []string { return []string{"editor.started"} }
 
 func (m *Module) Registered() []api.Registration {
 	regs := []api.Registration{
+		{Kind: api.Option, Name: "enabled", Default: "true", Help: "fude started with no file shows the start screen"},
 		{Kind: api.Plug, Name: "open", Help: "runs the start screen's line under the cursor", ID: open},
 		{Kind: api.Plug, Name: "config", Help: "opens config.toml", ID: config},
 	}
@@ -125,7 +126,10 @@ func recentFiles() ([]string, error) {
 // Event shows the start screen in place of the empty buffer, with the
 // recent files and a line to restore the directory's session first when
 // it has one.
-func (m *Module) Event(context.Context, string, api.Scope) (api.Result, error) {
+func (m *Module) Event(_ context.Context, _ string, s api.Scope) (api.Result, error) {
+	if on, _ := s.Option("start.enabled"); on != "true" {
+		return api.Result{}, nil
+	}
 	var res api.Result
 	recent, err := recentFiles()
 	if err != nil {

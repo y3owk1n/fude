@@ -472,7 +472,7 @@ to the last before the first, as `]d` moves forward.
 
 `<C-w>d` runs it. Shows every diagnostic on the cursor's line in a float,
 in full, without moving the cursor. A line with none says "no diagnostics
-on this line". It helps when `diagnostic_notes` is off, or a note is cut
+on this line". It helps when `lsp.diagnostic_notes` is off, or a note is cut
 at the window's edge.
 
 ## <Plug>(lsp.actions)
@@ -654,7 +654,8 @@ No key maps it in normal mode.
 
 `]s` by default. Goes to the start of the next word spell finds after the
 cursor, wrapping from the end of the text to its start. A count does
-nothing. With `spell` off it says so, and `:set spell` turns it on. While
+nothing. With `spell.enabled` off it says so, and `:set spell.enabled true` turns
+it on. While
 the word list is still being read it says so. With no misspelled words it
 says so.
 
@@ -671,13 +672,13 @@ one under the cursor by at most two letters added, taken out or changed,
 closest first. The one picked
 replaces the word, keeping its capital first letter. If the text changed
 since, the word stays and the message says why. With no word under the
-cursor, or no close words, it says so. It works only with `spell` on.
+cursor, or no close words, it says so. It works only with `spell.enabled` on.
 
 ## <Plug>(spell.good)
 
 `zg` by default. Adds the word under the cursor to `words.txt` in fude's
 config directory, so spell passes it from then on, and says so. With no
-word under the cursor it says so, and it works only with `spell` on.
+word under the cursor it says so, and it works only with `spell.enabled` on.
 
 ## <Plug>(start.open)
 

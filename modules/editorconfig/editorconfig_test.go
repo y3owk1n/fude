@@ -60,8 +60,8 @@ func TestB238Editorconfig(t *testing.T) {
 		e := editortest.Start(t, filepath.Join(proj, name))
 		indented(t, e, want, name)
 	}
-	// editorconfig = false leaves config.toml's.
-	editortest.Config(t, "editorconfig = false\n[filetype.txt]\nindent_width = 3\nexpand_tab = true\n")
+	// editorconfig.enabled false leaves config.toml's.
+	editortest.Config(t, "[module.editorconfig]\nenabled = false\n[filetype.txt]\nindent_width = 3\nexpand_tab = true\n")
 	e := editortest.Start(t, filepath.Join(proj, "a.txt"))
-	indented(t, e, "   x", "a.txt with editorconfig = false")
+	indented(t, e, "   x", "a.txt with editorconfig.enabled false")
 }

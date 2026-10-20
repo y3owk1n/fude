@@ -197,6 +197,11 @@ func (w *window) keep(was options) {
 			*ownN[name] = *p
 		}
 	}
+	for name, v := range w.opts.Modules {
+		if was.Modules[name] != v {
+			w.own.Modules = with(w.own.Modules, name, v)
+		}
+	}
 }
 
 // expandTab reports whether b indents with spaces only. A window that
@@ -241,7 +246,7 @@ func (e *Session) fit(w *window) {
 		w.opts.Wrap = *ft.Wrap
 	}
 	if ft.Spell != nil {
-		w.opts.Spell = *ft.Spell
+		w.opts.Modules = with(w.opts.Modules, "spell.enabled", strconv.FormatBool(*ft.Spell))
 	}
 	if ft.ColorColumn != nil {
 		w.opts.ColorColumn = *ft.ColorColumn

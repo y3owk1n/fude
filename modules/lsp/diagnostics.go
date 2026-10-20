@@ -95,7 +95,7 @@ func (m *Module) redraw(res *api.Result, s api.Scope, buf string) {
 	}
 	slices.SortStableFunc(all, func(x, y *diagnostic) int { return cmp.Compare(y.severity, x.severity) })
 	// With diagnostic_notes off, the messages do not show after their lines.
-	on, _ := s.Option("diagnostic_notes")
+	on, _ := s.Option("lsp.diagnostic_notes")
 	m.notes[buf] = on == "true"
 	for _, d := range all {
 		m.ids++

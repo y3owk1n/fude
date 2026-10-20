@@ -78,13 +78,14 @@ so they shade none. The default is 0, for none.
 Shows nerd font icons left of an explorer's names, and in place of the letters
 of diagnostic signs. Needs a terminal font with nerd font glyphs.
 
-## spell
+## spell.enabled
 
 Underlines the words the word list lacks: all the text of Markdown, text
 and git commit files but their code and links, and the comments and
 strings of other files. `]s` and `[s` go to them, `z=` lists words for
 the one under the cursor, and `zg` adds it to your words. A filetype
-table may turn it on, as `[filetype.markdown] spell = true`.
+table may turn it on, as `[filetype.markdown] spell = true`. Off unless
+set.
 
 ## inc_search
 
@@ -107,14 +108,14 @@ Sticky context pins at most this many lines over a window's top. The
 default is 3. When the top is inside more functions and classes than that,
 the innermost ones pin.
 
-## diagnostic_notes
+## lsp.diagnostic_notes
 
 After a line with a diagnostic, its message shows in the severity's colour.
-The default is on, and `:set diagnostic_notes false` turns the messages off
+The default is on, and `:set lsp.diagnostic_notes false` turns the messages off
 in every window of the buffer. The signs stay, and `]d` and `<C-w>d` still
 show each one.
 
-## render
+## markdown.enabled
 
 A markdown file draws as it reads. A heading's `#`s go and its line is on
 its level's colour, a code block is on the surface colour without its
@@ -123,4 +124,4 @@ table's columns line up between box lines. Emphasis loses its marks, a
 link shows its text alone, and an image file shows below its line where
 the terminal shows images. The cursor's line, and
 a selection's, show their text as it is. The default is on, and
-`:set render false` shows the text as it is everywhere.
+`:set markdown.enabled false` shows the text as it is everywhere.

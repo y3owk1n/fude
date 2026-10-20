@@ -430,11 +430,11 @@ func TestB208Colours(t *testing.T) {
 	if _, style, _ := c.s.Get(46, 0); style.GetBackground() != themes["dark"].cursorLine {
 		t.Errorf("#12, no colour, is drawn on %v", style.GetBackground())
 	}
-	c = startWith(t, "highlight_colors = false\n", path)
+	c = startWith(t, "[module.colours]\nenabled = false\n", path)
 	c.e.(*editor.Session).Use(colourmod.New())
 	c.draw()
 	if _, style, _ := c.s.Get(2, 0); style.GetBackground() != themes["dark"].bg {
-		t.Errorf("with highlight_colors off, #ff0000 is drawn on %v", style.GetBackground())
+		t.Errorf("with colours.enabled off, #ff0000 is drawn on %v", style.GetBackground())
 	}
 }
 
@@ -1075,7 +1075,7 @@ func TestB150Panels(t *testing.T) {
 
 // B151
 func TestB151Tint(t *testing.T) {
-	cl := startWith(t, "key_hints = 1\n")
+	cl := startWith(t, "[module.hints]\ndelay = 1\n")
 	cl.e.(*editor.Session).Use(hintsmod.New())
 	cl.draw()
 	_, before, _ := cl.s.Get(0, 0)
@@ -2054,10 +2054,10 @@ func TestB258BufferLine(t *testing.T) {
 	if c.draw(); !strings.Contains(c.row(0), filepath.Join("one", "x.txt")) || !strings.Contains(c.row(0), filepath.Join("two", "x.txt")) {
 		t.Errorf("files of one name show as %q", c.row(0))
 	}
-	// buffer_line = false hides it.
-	c = lined(startWith(t, "buffer_line = false\n", "a.txt", "b.txt"))
+	// bufferline.enabled false hides it.
+	c = lined(startWith(t, "[module.bufferline]\nenabled = false\n", "a.txt", "b.txt"))
 	if c.draw(); !strings.HasPrefix(c.row(0), "a.txt") {
-		t.Errorf("with buffer_line off the top row is %q", c.row(0))
+		t.Errorf("with bufferline.enabled off the top row is %q", c.row(0))
 	}
 	// Too many to fit shows the part around the current one, cut with marks.
 	var names []string

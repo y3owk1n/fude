@@ -41,6 +41,9 @@ func (e *Session) Load() {
 			failed = append(failed, err.Error())
 		}
 	}
+	if err := e.moduleConfig(e.cfg); err != nil {
+		failed = append(failed, err.Error())
+	}
 	if len(failed) > 0 {
 		e.message = strings.Join(failed, "  ")
 	}
@@ -51,6 +54,10 @@ func (e *Session) Load() {
 // Use runs m, a module built into the distribution, as it runs a plugin
 // (D49). Call it before Load. :plugin reload leaves it as it is.
 func (e *Session) Use(m api.Module) {
+	// Its options start before its init, which may read them. Load reports
+	// a wrong [module.name] table.
+	start, _ := texts(e.cfg.Module[m.Name()])
+	e.declare(m, start)
 	b, t := e.win.buf, e.Text()
 	scope := e.scope(m, b, t)
 	res, err := m.Init(context.Background(), scope)
@@ -71,7 +78,7 @@ func (e *Session) loadPlugins() {
 		if !filepath.IsAbs(path) {
 			path = filepath.Join(config, "fude", path)
 		}
-		settings, err := texts(s.Settings)
+		options, err := texts(s.Options)
 		if err != nil {
 			e.message = fmt.Sprintf("load plugin %s: %v", s.Path, err)
 			continue
@@ -80,7 +87,7 @@ func (e *Session) loadPlugins() {
 		go func() {
 			defer scope.Done()
 			ctx, at := context.Background(), time.Now()
-			p, err := plugin.Load(ctx, path, plugin.Grants{Capabilities: s.Capabilities, Programs: s.Programs, Hosts: s.Hosts, Settings: settings}, filepath.Join(cache, "fude", "wasm"), logLine, func(text string, took time.Duration) { trace.Record("plugin", text, took) })
+			p, err := plugin.Load(ctx, path, plugin.Grants{Capabilities: s.Capabilities, Programs: s.Programs, Hosts: s.Hosts, Options: options}, filepath.Join(cache, "fude", "wasm"), logLine, func(text string, took time.Duration) { trace.Record("plugin", text, took) })
 			if err != nil {
 				trace.Since("plugin", "load "+path, at, err)
 				e.queue <- func() { e.message = err.Error() }
@@ -88,14 +95,17 @@ func (e *Session) loadPlugins() {
 			}
 			res, err := p.Init(ctx, scope)
 			trace.Since("plugin", "compiled and ran init of "+p.Name(), at, err)
-			e.queue <- func() { e.loaded(p, err, b, t, res) }
+			e.queue <- func() {
+				e.declare(p, options)
+				e.loaded(p, err, b, t, res)
+			}
 		}()
 	}
 }
 
-// texts returns a plugin's settings as the text its setting function gives
-// it. Only numbers, strings and booleans read as text, so a table or a list
-// is refused (B178).
+// texts returns a plugin's options table, or a [module.name] table, as the
+// text its options start at. Only numbers, strings and booleans read as text, so
+// a table or a list is refused (B178, B377).
 func texts(settings map[string]any) (map[string]string, error) {
 	out := map[string]string{}
 	for name, v := range settings {
@@ -103,7 +113,7 @@ func texts(settings map[string]any) (map[string]string, error) {
 		case string, int64, float64, bool:
 			out[name] = fmt.Sprint(v)
 		default:
-			return nil, fmt.Errorf("setting %s is not a number, string or boolean", name)
+			return nil, fmt.Errorf("option %s is not a number, string or boolean", name)
 		}
 	}
 	return out, nil
@@ -1066,6 +1076,12 @@ func (e *Session) drop(p api.Module) {
 	}
 	delete(e.decos, p)
 	delete(e.segments, p)
+	for name, d := range e.declared {
+		if d.owner == p {
+			delete(e.declared, name)
+			delete(e.values, name)
+		}
+	}
 }
 
 // register adds a command, operator, object or key a plugin registered, as
@@ -1278,13 +1294,16 @@ func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 	s.Servers = func() []api.Server { return servers }
 	// The theme and center are as :theme and :center left them, not as
 	// config.toml set them.
-	theme, centered := e.theme, e.centered
+	theme, centered, values := e.theme, e.centered, maps.Clone(e.values)
 	s.Option = func(name string) (string, bool) {
 		switch name {
 		case "theme":
 			return theme, true
 		case "center":
 			return strconv.FormatBool(centered), true
+		}
+		if _, ok := values[name]; ok {
+			return declaredValue(opts, values, name), true
 		}
 		return option(opts, cfg, name)
 	}

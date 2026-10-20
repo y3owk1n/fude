@@ -26,7 +26,9 @@ func (m *Module) Subscribed() []string {
 	return []string{"buffer.opened", "buffer.closed", "buffer.renamed", "explorer.read", "config.reloaded", "option.set"}
 }
 
-func (m *Module) Registered() []api.Registration { return nil }
+func (m *Module) Registered() []api.Registration {
+	return []api.Registration{{Kind: api.Option, Name: "enabled", Default: "true", Help: "the top row lists the open buffers that have files"}}
+}
 
 // Init lists the buffers open at the start.
 func (m *Module) Init(_ context.Context, s api.Scope) (api.Result, error) {
@@ -46,7 +48,7 @@ func (m *Module) Event(_ context.Context, _ string, s api.Scope) (api.Result, er
 // opened, or none while buffer_line is off.
 func tabs(s api.Scope) *[]api.Tab {
 	out := []api.Tab{}
-	if on, _ := s.Option("buffer_line"); on != "true" {
+	if on, _ := s.Option("bufferline.enabled"); on != "true" {
 		return &out
 	}
 	bases := map[string]int{}

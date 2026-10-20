@@ -12,8 +12,8 @@ buffer the window showed before. A buffer with changes stays loaded when
 the window shows another.
 
 Once two or more files are open, the top row lists them by number, the
-current one lit and a modified one marked ●. `buffer_line = false` hides
-it.
+current one lit and a modified one marked ●. `:set bufferline.enabled
+false` hides it.
 
 ## Windows
 

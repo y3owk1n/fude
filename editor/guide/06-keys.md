@@ -46,7 +46,7 @@ milliseconds for the next key. If none comes, the keys run as they are.
 
 ## Key hints
 
-Type the start of a command and wait `key_hints` milliseconds. A panel
+Type the start of a command and wait `hints.delay` milliseconds. A panel
 above the status line lists every key that may come next and what it
 does. A key that starts longer ones is a group, listed first with how many
 keys it leads to. Name a group of your own mappings with
@@ -58,7 +58,7 @@ keys it leads to. Name a group of your own mappings with
 ```
 
 While the hints show, the keys typed wait for the next one, `<BS>` goes
-back a key, and `<Esc>` drops the command. `key_hints = 0` turns the
+back a key, and `<Esc>` drops the command. `:set hints.enabled false` turns the
 hints off.
 
 ## Next

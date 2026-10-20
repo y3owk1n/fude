@@ -33,6 +33,15 @@ and change every session. `:set` changes the running fude, never
 config.toml. After you edit config.toml, `:config reload` reads it again.
 What you changed there applies, and what you set with `:set` stays.
 
+A module's options are named after it, such as `autopairs.enabled`, and
+`:set autopairs.enabled false` changes one. config.toml sets them in a
+table for the module.
+
+```toml
+[module.autopairs]
+enabled = false
+```
+
 ## Filetypes
 
 A `[filetype.<name>]` table applies to the files of one filetype, and
@@ -68,7 +77,7 @@ describe them.
 A project's `.editorconfig` sets the indentation of its files. Its
 `indent_style`, `indent_size` and `tab_width` win over config.toml's, and
 `~/.editorconfig` works for every file under your home folder.
-`editorconfig = false` turns this off.
+`enabled = false` in `[module.editorconfig]` turns this off.
 
 ## Keymaps
 

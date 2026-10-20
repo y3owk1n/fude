@@ -411,7 +411,7 @@ register reads the clipboard and compares it with the unnamed register
 put it. The editor's `Undo` and `Redo` take what the kernel's listener
 last heard changed, as the text is after it. The editor emits each as
 `text.touched` with its kind and range (B313). `modules/flash` shows that
-text as a decoration for `flash_time` milliseconds, through a timer, and
+text as a decoration for `flash.time` milliseconds, through a timer, and
 a change to its buffer clears it at once (B139).
 
 `modules/start` is the start screen (B225). `cmd/fude` calls `Welcome`
@@ -440,7 +440,7 @@ feeds its query with `Machine.Prompt` on, which runs none of them (B323).
 with the command being typed whenever it changes. A module that hears it
 gets the hints in `Scope.Hints`, with each mapping's text and each group's
 name. The editor reads them on the loop as it builds the event's scope. The module waits
-`key_hints` with a timer and shows a `Float` marked `Keys`. While that
+`hints.delay` with a timer and shows a `Float` marked `Keys`. While that
 float shows, the editor keeps the command waiting for its next key instead
 of `key_timeout`, and `<Esc>` and `<BS>` act on it. The editor closes it
 itself once no command is being typed (B326).
@@ -1108,7 +1108,6 @@ Without the variables, these are `~/.config`, `~/.local/state`,
 ```toml
 indent_width = 0     # columns >, <, <C-t> and <C-d> shift by, 0 for the tab width
 tab_width = 8        # columns a tab shows as (B237)
-editorconfig = true  # .editorconfig sets a file's indentation, over these (B238)
 key_timeout = 1000   # milliseconds a mapping prefix waits (B84)
 large_file = 2       # megabytes over which syntax and LSP stay off (B83)
 center = false       # start with the windows centered, as :center toggles (B199)
@@ -1116,8 +1115,6 @@ terminal_height = 33 # percent of the screen a terminal or task window opens at 
 split_below = true   # false opens :split above (N16)
 split_right = true   # false opens :vsplit left (N16)
 autocomplete = false # show completions while typing, in insert mode and a command line (B67, B131)
-highlight_colors = true # text that names a colour shows on it (B208, B209)
-autopairs = true     # a bracket or quote typed comes with its closing one (B202)
 completion_sources = ["lsp", "snippet", "path", "buffer"] # where completions come from, in order (B206)
 socket = "/run/user/1000/fude.sock" # where clients attach, instead of one path per process (B97)
 number = false       # line numbers, which :set number changes per window (B39)
@@ -1131,8 +1128,6 @@ smart_case = false   # with ignore_case, an uppercase letter matches case (B120)
 expand_tab = false   # indent with spaces only (B122)
 format_on_save = false # format before :w writes (B136)
 format_timeout = 1000  # milliseconds a format may take (B136, B234)
-key_hints = 300        # milliseconds before the keys that may follow show, 0 for never (B172)
-flash_time = 300       # milliseconds a yank, put, undo or redo shows highlighted, 0 for never (B139)
 clipboard = false    # yanks, deletes and puts use the system clipboard (B137)
 sign_column = false  # keep the sign column when there are no signs (B143)
 indent_guides = true # a faint line at each indent level (B153)
@@ -1148,6 +1143,9 @@ theme = "dark"       # dark, light, or a base16 scheme such as "~/.config/stylix
 
 [keymap.groups]      # names of the keys mappings start with, for key hints (B172)
 "<Leader>s" = "search"
+
+[module.autopairs]   # where a module's options start, which :set takes as autopairs.enabled (B377)
+enabled = true       # a bracket or quote typed comes with its closing one (B202)
 
 [keymap.explorer]     # or any kind of buffer's, fude's or a module's such as [keymap.pins]: its own keys (B142, D53)
 "<C-h>" = ""
@@ -1274,8 +1272,8 @@ A plugin declares its capabilities in `config.toml`, for `process` the
 programs it may run as `programs = ["git"]`, and for `net` the hosts it may
 reach as `hosts = ["api.github.com"]`. A call outside the
 declared capabilities returns -1, and fude logs it to
-`$XDG_STATE_HOME/fude/log` (B50). Its table's `settings`, such as
-`settings = { depth = 3 }`, are what it reads through `setting`.
+`$XDG_STATE_HOME/fude/log` (B50). Its table's `options`, such as
+`options = { depth = 3 }`, start the options it defines (B178, B377).
 
 The edits a call asks for apply as one transaction once the call returns,
 after its decorations, so its edits move them. A call that traps or runs
@@ -1424,7 +1422,10 @@ fenced as `keys`, each line the text before, the keys and the text after,
 as `vim/testdata/grammar.txt` writes them, and a test runs every one in
 the editor, the guide's too (B162). A module's registration may carry
 its own explanation as `Doc`, and a registration of kind `Page` adds a
-guide page (B375, B376). `editor.HelpGaps` lists each entry
+guide page (B375, B376). An `Option` registration is an entry of OPTIONS,
+or of SETTINGS when windows share it. The editor keeps those options'
+values by `owner.name`, and a window's own in its options' `Modules`
+(B377). `editor.HelpGaps` lists each entry
 with no explanation and each explanation with no entry, with the modules
 a distribution adds, and `cmd/fude`'s test fails on any. Each ex command, key, `<Plug>` command and text object
 is an entry

@@ -50,8 +50,8 @@ func TestB131CommandCompletion(t *testing.T) {
 		// <S-Tab> goes back from the lit first match to the last.
 		{"<Esc>:set _case<S-Tab>", ":set ignore_case"},
 		// :set completes the settings too, and then their values.
-		{"<Esc>:set highlight_c<Tab>", ":set highlight_colors"},
-		{" f<Tab>", ":set highlight_colors false"},
+		{"<Esc>:set remote_i<Tab>", ":set remote_images"},
+		{" f<Tab>", ":set remote_images false"},
 		{"<Esc>:set completion_sources lsp,b<Tab>", ":set completion_sources lsp,buffer"},
 	} {
 		if feed(e, c.keys); e.Line() != c.line {

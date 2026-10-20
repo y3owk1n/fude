@@ -37,14 +37,14 @@ func (m *Module) Registered() []api.Registration {
 		}
 		regs[i] = api.Registration{Kind: api.Typed, Name: k, Help: help, ID: uint32(i + 1)}
 	}
-	return regs
+	return append(regs, api.Registration{Kind: api.Option, Name: "enabled", Default: "true", Help: "an opening bracket or quote typed comes with its closing one"})
 }
 
 func (m *Module) Init(context.Context, api.Scope) (api.Result, error) { return api.Result{}, nil }
 
 // Call pairs the key typed at the cursor, or lets it type as it is.
 func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (api.Result, error) {
-	if on, _ := s.Option("autopairs"); on != "true" || int(id) > len(keys) {
+	if on, _ := s.Option("autopairs.enabled"); on != "true" || int(id) > len(keys) {
 		return api.Result{}, nil
 	}
 	return api.Result{Edits: pair(s.Text, args[0], keys[id-1])}, nil

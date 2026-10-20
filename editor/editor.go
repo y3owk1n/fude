@@ -39,8 +39,10 @@ type Editor struct {
 	theme    string                // the theme clients draw in, which :theme changes
 	base16   *[16]int32            // the colours of the base16 scheme it names
 	queue    chan func()
-	queries  string       // the directory of query files that replace shipped ones
-	modules  []api.Module // the plugins that loaded, in the order they did
+	queries  string              // the directory of query files that replace shipped ones
+	modules  []api.Module        // the plugins that loaded, in the order they did
+	declared map[string]declared // the options modules registered, by owner.name (B377)
+	values   map[string]string   // their values, a window option's as it starts
 	// What plugins add, for help and the key hints: what each command and
 	// key does, by :name and <Plug>(name), and their operators and objects.
 	pluginHelp        map[string]string
@@ -164,7 +166,7 @@ func open(cfg config, paths []string) (*Session, error) {
 	if len(paths) == 0 {
 		paths = []string{""}
 	}
-	ed := &Editor{next: 1, aside: firstAside, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(*Session, call) error{}, sources: map[string]func(*Session, string){}, writers: map[string]writer{}, completionSources: map[string]completer{}, shortOf: map[string]string{}, completers: map[string]func(*Session, string){}, decos: map[any][]decoration{}, servers: map[string]*server{}, down: map[string]string{}, building: map[string]bool{}, failed: map[string]string{}, listeners: map[api.Module]*listener{}, segments: map[api.Module]map[*buffer]string{}, leftSegments: map[api.Module]map[*buffer]string{}}
+	ed := &Editor{next: 1, aside: firstAside, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(*Session, call) error{}, sources: map[string]func(*Session, string){}, writers: map[string]writer{}, completionSources: map[string]completer{}, shortOf: map[string]string{}, completers: map[string]func(*Session, string){}, decos: map[any][]decoration{}, servers: map[string]*server{}, down: map[string]string{}, building: map[string]bool{}, failed: map[string]string{}, listeners: map[api.Module]*listener{}, declared: map[string]declared{}, values: map[string]string{}, segments: map[api.Module]map[*buffer]string{}, leftSegments: map[api.Module]map[*buffer]string{}}
 	// Without a config directory there are no overrides, and loadConfig
 	// reports why.
 	if dir, err := keep.Dir("XDG_CONFIG_HOME", ".config"); err == nil {

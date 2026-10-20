@@ -180,6 +180,7 @@ func (e *Session) helpSections() []helpSection {
 		}
 		options.entries = append(options.entries, helpEntry{[]string{f.name}, head, f.help})
 	}
+	options.entries = append(options.entries, e.declaredEntries(true)...)
 	out = append(out, options)
 
 	settings := helpSection{title: "SETTINGS", note: "The keys of config.toml, beside the options above."}
@@ -225,7 +226,31 @@ func (e *Session) helpSections() []helpSection {
 			settings.entries = append(settings.entries, helpEntry{[]string{name}, name + " = " + value, f.Tag.Get("help")})
 		}
 	}
+	settings.entries = append(settings.entries, e.declaredEntries(false)...)
 	return append(out, settings)
+}
+
+// declaredEntries returns help's entries of the options modules registered,
+// each window's or the others, with the values they start at (B377).
+func (e *Session) declaredEntries(window bool) []helpEntry {
+	var out []helpEntry
+	for _, name := range slices.Sorted(maps.Keys(e.declared)) {
+		d := e.declared[name]
+		if d.reg.Window != window {
+			continue
+		}
+		value := d.reg.Default
+		if value != "true" && value != "false" && !number(value) {
+			value = fmt.Sprintf("%q", value)
+		}
+		head := name + " = " + value
+		if window {
+			// As fude's options show theirs.
+			head = name + "  " + cmp.Or(map[string]string{"true": "on", "false": "off"}[value], value)
+		}
+		out = append(out, helpEntry{[]string{name}, head, d.reg.Help})
+	}
+	return out
 }
 
 // keyTags are the names :h finds keys by: the keys, and for keys such as
@@ -377,6 +402,10 @@ func (e *Session) moduleDocs() map[string]map[string]string {
 				section, tag = modes[keyedMode(r)]+"-mode", bindingKeys(r)
 			case r.Kind == api.Insert, r.Kind == api.Typed:
 				section, tag = "insert-mode", r.Name
+			case r.Kind == api.Option && r.Window:
+				section, tag = "options", p.Name()+"."+r.Name
+			case r.Kind == api.Option:
+				section, tag = "settings", p.Name()+"."+r.Name
 			default:
 				continue
 			}
