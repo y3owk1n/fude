@@ -367,7 +367,7 @@ func (c *client) floating(v wire.Window, sel vim.Selection, visual bool) (int, i
 	}
 	c.panel(v.X-2, v.Y-1, v.W+2, rows)
 	if v.Name != "" {
-		c.s.PutStrStyled(v.X, v.Y-1, " "+v.Name+" ", base.Foreground(th.muted))
+		c.putClipped(v.X, v.Y-1, v.X+v.W, part{" " + v.Name + " ", base.Foreground(th.muted)})
 	}
 	x, y, ok := c.window(v, v.X, sel, visual)
 	if len(foot) == 0 {
