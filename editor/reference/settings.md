@@ -582,6 +582,11 @@ The programs a plugin with `process` may run, such as `["git"]`.
 The hosts a plugin with `net` may reach over http and https, a redirect too,
 such as `["api.github.com"]`.
 
+## plugin.disabled
+
+`true` keeps the plugin from loading, with its table kept for later.
+`:plugin reload` then drops it, and loads it once it is `false` again.
+
 ## plugin.options
 
 Where the plugin's options start, by name, such as `{ depth = 3, style =

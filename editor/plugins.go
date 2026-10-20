@@ -74,6 +74,9 @@ func (e *Session) loadPlugins() {
 		return
 	}
 	for _, s := range e.cfg.Plugin {
+		if s.Disabled {
+			continue
+		}
 		path := s.Path
 		if !filepath.IsAbs(path) {
 			path = filepath.Join(config, "fude", path)

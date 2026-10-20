@@ -1112,6 +1112,21 @@ func TestB191PluginReload(t *testing.T) {
 	}
 }
 
+// B378
+func TestB378PluginDisabled(t *testing.T) {
+	later, err := filepath.Abs(filepath.Join("..", "plugin", "testdata", "later", "later.wasm"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	useTable(t, "ctx", fmt.Sprintf("disabled = true\n[[plugin]]\npath = %q\ncapabilities = [\"buffer.write\"]\n", later), "buffer.write")
+	e := opened(t, "f", "a\n")
+	feed(e, ":Twice<CR>")
+	settle(t, e, func() bool { return text(e) == "tta" })
+	if feed(e, ":Ctx<CR>"); !strings.Contains(e.Message(), "not a command") {
+		t.Errorf(":Ctx of the disabled plugin said %q", e.Message())
+	}
+}
+
 // decorations is editortest.Decorations, by the short name the tests use.
 var decorations = editortest.Decorations
 

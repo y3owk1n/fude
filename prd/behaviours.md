@@ -1203,6 +1203,8 @@ Where fude departs, the line says so and cites the departure in
   again and loads every plugin anew, a rebuilt one from its new file. What
   a plugin it no longer lists added goes with it, its operators and
   objects too.
+- B378 [4] A `[[plugin]]` table with `disabled = true` loads no plugin,
+  and `:plugin reload` drops one that was loaded.
 - B192 [4] A plugin's author tests the plugin in `go test` with
   `plugin/plugintest`. It loads the plugin's `.wasm` with the capabilities
   a `[[plugin]]` table would give it. It runs a command, a key, an event

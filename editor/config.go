@@ -87,6 +87,7 @@ type config struct {
 		Programs     []string       `toml:"programs" help:"the programs process may run"`
 		Hosts        []string       `toml:"hosts" help:"the hosts net may reach"`
 		Options      map[string]any `toml:"options" help:"where the plugin's options start, by name"`
+		Disabled     bool           `toml:"disabled" help:"keeps the plugin from loading, with its table kept"`
 	} `toml:"plugin"`
 }
 

@@ -14,6 +14,7 @@ programs = ["git"]
 ```
 
 `path` is the module's file, from the folder of `config.toml`.
+`disabled = true` keeps it from loading, with the table kept.
 `capabilities` lets it call what each one grants.
 
 - `buffer.read` reads the text.
