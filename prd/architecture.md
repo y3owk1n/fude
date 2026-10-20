@@ -72,7 +72,8 @@ modules/         Go packages over api/ and protocol/ that cmd/fude adds with
                  rename and code actions
   spell/         spell, ]s, [s, z= and zg
   task/          :task and :pick tasks, a project's tasks in a terminal
-cmd/fude/        main, distribution wiring, a module of its own for go install (D37)
+distribution/    the modules fude runs, which cmd/fude and the speed promises share
+cmd/fude/        main, a module of its own for go install (D37)
 ```
 
 Modules import `api/`, never `core/` or `vim/` directly. `client/` is not

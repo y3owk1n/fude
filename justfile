@@ -53,9 +53,11 @@ wasm:
 demo tape="fude":
     vhs demos/{{tape}}.tape
 
-# Check the speed promises, without the race detector.
+# Check the speed and memory promises, without the race detector, one
+# package at a time so none slows another's timings.
 perf:
-    go test -count=1 -v -run Promise ./ui/term/
+    go test -count=1 -p 1 -v -run Promise ./ui/term/ ./editor/
+    cd cmd/fude && go test -count=1 -v -run Promise .
 
 # Tidy cmd/fude's go.mod against the checkout, and fail if that changed it.
 # go install of a release takes the versions go.mod lists, and the newest

@@ -8,7 +8,7 @@ go 1.26.0
 // they come from the checkout.
 require (
 	github.com/y3owk1n/fude v0.1.1 // x-release-please-version
-	github.com/y3owk1n/fude/api v0.1.1 // x-release-please-version
+	github.com/y3owk1n/fude/api v0.1.1 // indirect; x-release-please-version
 	github.com/y3owk1n/fude/plugin v0.1.1 // x-release-please-version
 )
 

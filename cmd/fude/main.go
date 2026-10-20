@@ -16,54 +16,10 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/client"
+	"github.com/y3owk1n/fude/distribution"
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/internal/relay"
-	"github.com/y3owk1n/fude/modules/autopairs"
-	"github.com/y3owk1n/fude/modules/blame"
-	"github.com/y3owk1n/fude/modules/bufferline"
-	"github.com/y3owk1n/fude/modules/buffers"
-	"github.com/y3owk1n/fude/modules/colours"
-	"github.com/y3owk1n/fude/modules/comment"
-	"github.com/y3owk1n/fude/modules/completion"
-	debugmod "github.com/y3owk1n/fude/modules/debug"
-	"github.com/y3owk1n/fude/modules/editorconfig"
-	explorermod "github.com/y3owk1n/fude/modules/explorer"
-	"github.com/y3owk1n/fude/modules/files"
-	"github.com/y3owk1n/fude/modules/flash"
-	"github.com/y3owk1n/fude/modules/fold"
-	"github.com/y3owk1n/fude/modules/format"
-	"github.com/y3owk1n/fude/modules/git"
-	"github.com/y3owk1n/fude/modules/grammars"
-	"github.com/y3owk1n/fude/modules/grep"
-	"github.com/y3owk1n/fude/modules/guides"
-	helpmod "github.com/y3owk1n/fude/modules/help"
-	"github.com/y3owk1n/fude/modules/hints"
-	"github.com/y3owk1n/fude/modules/history"
-	"github.com/y3owk1n/fude/modules/inlay"
-	"github.com/y3owk1n/fude/modules/jump"
-	"github.com/y3owk1n/fude/modules/links"
-	"github.com/y3owk1n/fude/modules/lists"
-	lspmod "github.com/y3owk1n/fude/modules/lsp"
-	"github.com/y3owk1n/fude/modules/markdown"
-	pickmod "github.com/y3owk1n/fude/modules/pick"
-	"github.com/y3owk1n/fude/modules/pins"
-	"github.com/y3owk1n/fude/modules/places"
-	"github.com/y3owk1n/fude/modules/plug"
-	"github.com/y3owk1n/fude/modules/recent"
-	sessionmod "github.com/y3owk1n/fude/modules/session"
-	"github.com/y3owk1n/fude/modules/sessions"
-	"github.com/y3owk1n/fude/modules/shell"
-	"github.com/y3owk1n/fude/modules/spell"
-	startmod "github.com/y3owk1n/fude/modules/start"
-	"github.com/y3owk1n/fude/modules/sticky"
-	"github.com/y3owk1n/fude/modules/surround"
-	"github.com/y3owk1n/fude/modules/task"
-	terminalmod "github.com/y3owk1n/fude/modules/terminal"
-	thememod "github.com/y3owk1n/fude/modules/theme"
-	"github.com/y3owk1n/fude/modules/timeline"
-	"github.com/y3owk1n/fude/modules/window"
 	"github.com/y3owk1n/fude/plugin"
 	"github.com/y3owk1n/fude/ui/term"
 )
@@ -73,15 +29,6 @@ func main() {
 		fmt.Fprintln(os.Stderr, "fude:", err)
 		os.Exit(1)
 	}
-}
-
-// modules returns the modules this distribution adds to the editor (D49).
-func modules() []api.Module {
-	words := ""
-	if dir, err := editor.ConfigDir(); err == nil {
-		words = filepath.Join(dir, "words.txt")
-	}
-	return []api.Module{autopairs.New(), blame.New(), bufferline.New(), buffers.New(), colours.New(), comment.New(), completion.New(), debugmod.New(), editorconfig.New(), files.New(), flash.New(), fold.New(), format.New(), git.New(), grammars.New(), grep.New(), guides.New(), helpmod.New(), hints.New(), history.New(), inlay.New(), jump.New(), links.New(), explorermod.New(), lists.New(), lspmod.New(), markdown.New(), pickmod.New(), places.New(), pins.New(), plug.New(), recent.New(), sessionmod.New(), sessions.New(), shell.New(), spell.New(words), startmod.New(), sticky.New(), surround.New(), task.New(), terminalmod.New(), thememod.New(), timeline.New(), window.New()}
 }
 
 // run runs the subcommand args name, or else opens the files they name.
@@ -112,7 +59,7 @@ func run(args []string) error {
 		if len(words) > 1 {
 			return usage(cmd)
 		}
-		page, err := editor.Man(strings.Join(words, ""), modules()...)
+		page, err := editor.Man(strings.Join(words, ""), distribution.Modules()...)
 		if err != nil {
 			return err
 		}
@@ -451,7 +398,7 @@ func edit(sharing bool, words []string, flags map[string]string, remove func()) 
 	if err != nil {
 		return err
 	}
-	for _, m := range modules() {
+	for _, m := range distribution.Modules() {
 		e.Use(m)
 	}
 	e.SetName(name(flags))

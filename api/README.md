@@ -36,7 +36,7 @@ func (upper) Call(_ context.Context, _ uint32, s api.Scope, args ...int) (api.Re
 }
 ```
 
-Its other four methods do nothing here. `Event` and `Callback` return an empty `Result`, `Work` returns `""`, and `Close` returns `nil`. A distribution adds the module before it loads, with `e.Use(upper{})` on the `*editor.Session` it starts. fude's `cmd/fude` lists its own in `modules()`.
+Its other four methods do nothing here. `Event` and `Callback` return an empty `Result`, `Work` returns `""`, and `Close` returns `nil`. A distribution adds the module before it loads, with `e.Use(upper{})` on the `*editor.Session` it starts. fude lists its own in `distribution.Modules`, which `cmd/fude` adds.
 
 [`modules/blame`](../modules/blame) is a fuller one. It hears the cursor move, runs git in the background and shows a note.
 

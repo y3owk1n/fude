@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/y3owk1n/fude/distribution"
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/editor/editortest"
 	"github.com/y3owk1n/fude/plugin"
@@ -89,7 +90,7 @@ func stateOf(t *testing.T, socket string) state {
 // B162: with the modules fude adds, every entry of help has a longer
 // explanation, and every explanation names an entry.
 func TestB162HelpComplete(t *testing.T) {
-	missing, unused, err := editor.HelpGaps(modules()...)
+	missing, unused, err := editor.HelpGaps(distribution.Modules()...)
 	if err != nil {
 		t.Fatal(err)
 	}

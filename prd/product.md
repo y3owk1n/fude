@@ -41,10 +41,13 @@ Neovim works and drops the weight.
   - Key read to frame written under 1ms at p99, on 10MB of real Go with its
     syntax on. Keys come 10ms apart, and the work the loop does between
     them counts.
-  - The same under 2ms at p99 with fude set up as for work: the file in a
-    git repository and in two windows, a language server that publishes
-    diagnostics after each change and completes while typing, and a plugin
-    that reads the text on each change.
+  - The same under 2ms at p99 with fude set up as for work: every module
+    it adds, the file in a git repository and in two windows, a language
+    server that publishes diagnostics after each change and completes
+    while typing, and a plugin that reads the text on each change.
+  - With every module on, a scroll shows everything the modules draw for
+    the new view, such as pinned lines, guides, git signs, colours and
+    spelling, under 5ms at p99.
   - A 1GB file shows its first frame in under 1s and scrolls at frame rate.
   - Through `fude attach` on the local socket, key read to frame drawn
     under 5ms at p99, on the same file as the 1ms promise.
@@ -59,7 +62,10 @@ Neovim works and drops the weight.
   CI fails when it grows past that.
 - **Stable**: a terminal leaves nothing behind once its program ends: no
   goroutine, pseudo-terminal or memory, so fude is as big after many
-  terminals as after one. CI fails when a terminal leaves any.
+  terminals as after one. A closed file or help window leaves nothing
+  either. fude with every module it adds is as big after a hundred files
+  opened, edited, scrolled and closed as after a few. CI fails when
+  either leaves anything.
 - **Plugins cannot stall the editor**: plugins run as sandboxed wasm with
   declared capabilities. A plugin call on the input path is cut off at its
   budget, and a slow or crashing plugin slows or kills only itself.

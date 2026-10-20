@@ -23,9 +23,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/y3owk1n/fude/distribution"
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/editor/editortest"
-	completionmod "github.com/y3owk1n/fude/modules/completion"
 	"github.com/y3owk1n/fude/vim"
 )
 
@@ -198,18 +198,13 @@ func TestPromiseAttachLatency(t *testing.T) {
 }
 
 // Key read to frame written under 2ms at p99, as TestPromiseKeyLatency
-// measures it, with fude set up as for work. The 10MB of real Go is in a git
-// repository, so its signs diff, and shows in two windows. A language server
-// publishes diagnostics after each change and offers completions as keys
-// are typed, and a plugin counts words on each change.
+// measures it, with fude set up as for work. Every module fude adds runs.
+// The 10MB of real Go is in a git repository, so its signs diff, and shows
+// in two windows. A language server publishes diagnostics after each change
+// and offers completions as keys are typed, and a plugin counts words on
+// each change.
 func TestPromiseKeyLatencyFullSetup(t *testing.T) {
-	path := realCode(t, 10<<20)
-	dir := filepath.Dir(path)
-	for _, args := range [][]string{{"init", "-q"}, {"add", "f.go"}, {"-c", "user.name=fude", "-c", "user.email=fude@localhost", "commit", "-qm", "base"}} {
-		if out, err := exec.Command("git", append([]string{"-C", dir}, args...)...).CombinedOutput(); err != nil {
-			t.Fatalf("git %s: %v: %s", args[0], err, out)
-		}
-	}
+	path := committed(t, realCode(t, 10<<20))
 	count, err := filepath.Abs("../../plugin/testdata/count/count.wasm")
 	if err != nil {
 		t.Fatal(err)
@@ -224,8 +219,9 @@ lsp = ["busy"]
 path = %q
 capabilities = ["buffer.read", "ui"]
 `, os.Args[0], count), path)
-	// The words, paths and snippets complete through their module, as in fude.
-	c.e.(*editor.Session).Use(completionmod.New())
+	for _, m := range distribution.Modules() {
+		c.e.(*editor.Session).Use(m)
+	}
 	c.draw()
 	c.e.Load()
 	c.press("<C-w>v", 0)
@@ -244,6 +240,68 @@ capabilities = ["buffer.read", "ui"]
 	if p99 > 2*time.Millisecond {
 		t.Errorf("p99 is %v, want under 2ms", p99)
 	}
+}
+
+// A scroll's frame shows everything fude's modules draw for the window's
+// new view under 5ms at p99, from the key's arrival, on the full setup's
+// 10MB of real Go in a git repository with every module fude adds: the
+// pinned lines, indent guides, git signs, colours and spelling of the lines
+// it scrolled to. Keys come 10ms apart.
+func TestPromiseScrollSettles(t *testing.T) {
+	c := startWith(t, "large_file = 20\n[module.spell]\nenabled = true", committed(t, realCode(t, 10<<20)))
+	for _, m := range distribution.Modules() {
+		c.e.(*editor.Session).Use(m)
+	}
+	c.draw()
+	c.e.Load()
+	settled := func() {
+		for !c.e.(*editor.Session).Idle() {
+			(<-c.e.Queue())()
+		}
+		c.draw()
+	}
+	// The file's syntax comes first, as it would before a person scrolls.
+	for deadline := time.After(editortest.Patience); len(c.e.(*editor.Session).Windows()[0].Highlights) == 0; {
+		select {
+		case f := <-c.e.Queue():
+			f()
+		case <-deadline:
+			t.Fatal("the file never parsed")
+		}
+	}
+	settled()
+	// Keys that wait for another, such as the g of gg, wait for key hints
+	// on purpose, so the scrolls are one key each.
+	session := "<C-d><C-d><C-d><C-u>jjjjjjjjjjkkkkk<C-f><C-b>G<C-u><C-u>HLM"
+	var times []time.Duration
+	for len(times) < 500 {
+		for _, k := range vim.Keys(session) {
+			// press returns the time since the key arrived.
+			first := c.press(string(k), 10*time.Millisecond)
+			arrive := time.Now().Add(-first)
+			settled()
+			times = append(times, time.Since(arrive))
+		}
+	}
+	slices.Sort(times)
+	p50, p99, worst := times[len(times)/2], times[len(times)*99/100], times[len(times)-1]
+	t.Logf("p50 %v, p99 %v, worst %v over %d keys", p50, p99, worst, len(times))
+	if p99 > 5*time.Millisecond {
+		t.Errorf("p99 is %v, want under 5ms", p99)
+	}
+}
+
+// committed makes the folder of path a git repository with the file
+// committed, so git signs diff against it, and returns path.
+func committed(t *testing.T, path string) string {
+	t.Helper()
+	dir := filepath.Dir(path)
+	for _, args := range [][]string{{"init", "-q"}, {"add", filepath.Base(path)}, {"-c", "user.name=fude", "-c", "user.email=fude@localhost", "commit", "-qm", "base"}} {
+		if out, err := exec.Command("git", append([]string{"-C", dir}, args...)...).CombinedOutput(); err != nil {
+			t.Fatalf("git %s: %v: %s", args[0], err, out)
+		}
+	}
+	return path
 }
 
 // perfDiagnostics and perfItems are how many diagnostics TestPerfServer
