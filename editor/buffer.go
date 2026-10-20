@@ -164,12 +164,21 @@ func historyPath(path string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("timeline of %s: %w", path, err)
 	}
-	dir, err := keep.Dir("XDG_STATE_HOME", filepath.Join(".local", "state"))
+	dir, err := timelineDir()
 	if err != nil {
 		return "", fmt.Errorf("timeline of %s: %w", path, err)
 	}
 	sum := sha256.Sum256([]byte(paths.Key(abs)))
-	return filepath.Join(dir, "fude", "timeline", hex.EncodeToString(sum[:16])+".log"), nil
+	return filepath.Join(dir, hex.EncodeToString(sum[:16])+".log"), nil
+}
+
+// timelineDays is how many days fude keeps a timeline log after its last write (N41).
+const timelineDays = 30
+
+// timelineDir returns where the timeline logs live.
+func timelineDir() (string, error) {
+	dir, err := keep.Dir("XDG_STATE_HOME", filepath.Join(".local", "state"))
+	return filepath.Join(dir, "fude", "timeline"), err
 }
 
 // written reports whether fude writes b's text, as it does a float, help, a

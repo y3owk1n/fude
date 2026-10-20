@@ -31,7 +31,8 @@ changes that were never written, fude says so, and `:recover` brings them
 back. Leaving them keeps them on the timeline as a branch.
 
 The timeline of a file carries over from session to session while the
-file on disk is the one fude last wrote.
+file on disk is the one fude last wrote. fude deletes it when the file
+changes outside fude, and 30 days after the last change to it.
 
 ## Restarting
 

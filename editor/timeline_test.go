@@ -1,10 +1,13 @@
 package editor_test
 
 import (
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/y3owk1n/fude/editor/editortest"
 	"github.com/y3owk1n/fude/modules/format"
@@ -139,6 +142,50 @@ func TestB198TimelineLogCut(t *testing.T) {
 	}
 	if feed(e, "u"); text(e) != before {
 		t.Errorf("undo after the cut left %d bytes, want %d", len(text(e)), len(before))
+	}
+}
+
+// B382
+func TestB382TimelineLogsGo(t *testing.T) {
+	state := t.TempDir()
+	t.Setenv("XDG_STATE_HOME", state)
+	dir := filepath.Join(state, "fude", "timeline")
+	path := filepath.Join(t.TempDir(), "f")
+	if err := os.WriteFile(path, []byte("one"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	feed(open(t, path), "A two<Esc>:w<CR>:q<CR>")
+
+	// The file changes outside fude, so opening it deletes its log.
+	if err := os.WriteFile(path, []byte("three"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	e := open(t, path)
+	if logs, err := os.ReadDir(dir); err != nil || len(logs) != 1 {
+		t.Fatalf("after the file changed, the logs are %v, %v, want only the new one", logs, err)
+	}
+	if feed(e, "u"); text(e) != "three" {
+		t.Errorf("undo after the file changed left %q, want nothing to undo", text(e))
+	}
+
+	// A log no session wrote for 30 days goes when fude starts.
+	old, recent := filepath.Join(dir, "old.log"), filepath.Join(dir, "recent.log")
+	for _, log := range []string{old, recent} {
+		if err := os.WriteFile(log, []byte("{}\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	month := time.Now().Add(-31 * 24 * time.Hour)
+	if err := os.Chtimes(old, month, month); err != nil {
+		t.Fatal(err)
+	}
+	e.Load()
+	editortest.Settle(t, e, func() bool {
+		_, err := os.Stat(old)
+		return errors.Is(err, fs.ErrNotExist)
+	})
+	if _, err := os.Stat(recent); err != nil {
+		t.Errorf("a log written today went: %v", err)
 	}
 }
 

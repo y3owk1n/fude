@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/y3owk1n/fude/core/kernel"
@@ -65,13 +66,17 @@ func Open(path, text string) (*Log, Loaded, error) {
 		return nil, Loaded{}, err
 	}
 	if !ok {
-		// Nanoseconds keep two logs set aside in one second apart, as Windows
-		// will not replace one a fude still has open.
-		switch err := os.Rename(path, path+"."+strconv.FormatInt(time.Now().UnixNano(), 10)); {
+		// Rename the log before deleting it. Windows keeps a deleted file's
+		// name taken while another fude has the file open (B382).
+		aside := path + "." + strconv.FormatInt(time.Now().UnixNano(), 10)
+		switch err := os.Rename(path, aside); {
 		case err == nil:
-			trace.Record("file", fmt.Sprintf("set %q aside, as the text no longer matches it", path), 0)
+			if err := os.Remove(aside); err != nil {
+				return nil, Loaded{}, fmt.Errorf("delete timeline log %s: %w", aside, err)
+			}
+			trace.Record("file", fmt.Sprintf("deleted %q, as the text no longer matches it", path), 0)
 		case !errors.Is(err, fs.ErrNotExist):
-			return nil, Loaded{}, fmt.Errorf("set aside timeline log %s: %w", path, err)
+			return nil, Loaded{}, fmt.Errorf("delete timeline log %s: %w", path, err)
 		}
 		l.write(record{Kind: "base", Hash: sum})
 		return l, Loaded{}, nil
@@ -99,6 +104,47 @@ func Open(path, text string) (*Log, Loaded, error) {
 		return nil, Loaded{}, err
 	}
 	return l, loaded, nil
+}
+
+// Prune deletes the logs in dir last written before old. It also deletes
+// the logs renamed for deleting that a fude stopped before it deleted
+// (B382).
+func Prune(dir string, old time.Time) error {
+	entries, err := os.ReadDir(dir)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("prune timeline logs in %s: %w", dir, err)
+	}
+	for _, en := range entries {
+		_, nanos, aside := strings.Cut(en.Name(), ".log.")
+		switch {
+		case aside:
+			// .log.new is a log being cut.
+			if _, err := strconv.ParseInt(nanos, 10, 64); err != nil {
+				continue
+			}
+		case !strings.HasSuffix(en.Name(), ".log"):
+			continue
+		default:
+			info, err := en.Info()
+			if errors.Is(err, fs.ErrNotExist) {
+				continue
+			}
+			if err != nil {
+				return fmt.Errorf("prune timeline logs in %s: %w", dir, err)
+			}
+			if !info.ModTime().Before(old) {
+				continue
+			}
+		}
+		// Another fude may have pruned it first.
+		if err := os.Remove(filepath.Join(dir, en.Name())); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return fmt.Errorf("prune timeline logs in %s: %w", dir, err)
+		}
+	}
+	return nil
 }
 
 // hash is the SHA-256 of text, in hex.

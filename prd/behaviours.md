@@ -1020,12 +1020,15 @@ Where fude departs, the line says so and cites the departure in
   timeline".
 - B32 [2] Any two nodes can be diffed.
 - B33 [2] The timeline persists across sessions when the file on disk still
-  matches the last saved node.
+  matches the last saved node, for 30 days after its last change (B382).
 - B198 [2] Closing a file at its last save cuts a timeline log over 1MB to
   the newest changes on the way to that save that fit in 1MB (N26). Opening
   a file cuts its log the same way when the last session ended without
   closing it and left no changes to recover. The timeline that is left
   persists as B33 says.
+- B382 [2] Opening a file whose text no longer matches its timeline log
+  deletes the log and starts a new one. When fude starts, it deletes the
+  timeline logs no session has written for 30 days (N41).
 - B34 [2] After a crash, opening the file offers to recover every edit made
   since the last save, and `:recover` brings them back. Declining keeps them
   on the timeline as a branch. A formatter's or plugin's answer that comes

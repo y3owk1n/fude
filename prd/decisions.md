@@ -1150,6 +1150,16 @@ the language server, as `gq` does (B234). Neovim reindents them with
 chose on 2026-10-20 that `=` format rather than reindent by bracket depth
 or by tree-sitter queries.
 
+### N41. A timeline log goes 30 days after its last change
+
+fude deletes a file's timeline log when the file changed outside fude, and
+at start the logs no session has written for 30 days (B382). Closing a
+file writes to its log, so a file opened in that time keeps its timeline.
+Neovim's `undodir` keeps every undo file until the user deletes it. Why:
+fude kept one log for every file ever opened, and one more each time a file
+changed outside fude, and nothing removed them. The user chose on 2026-10-20 to
+drop the logs nothing reads and those of files left alone for 30 days.
+
 ## Open
 
 None.

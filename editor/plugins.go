@@ -18,6 +18,7 @@ import (
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/internal/keep"
+	"github.com/y3owk1n/fude/internal/timeline"
 	"github.com/y3owk1n/fude/internal/trace"
 	"github.com/y3owk1n/fude/plugin"
 	"github.com/y3owk1n/fude/protocol/lsp"
@@ -35,6 +36,16 @@ var logMu sync.Mutex
 // editor loop through Queue.
 func (e *Session) Load() {
 	e.started = true
+	// Off the loop, as it reads a directory (B382).
+	go func() {
+		dir, err := timelineDir()
+		if err == nil {
+			err = timeline.Prune(dir, time.Now().Add(-timelineDays*24*time.Hour))
+		}
+		if err != nil {
+			trace.Record("file", err.Error(), 0)
+		}
+	}()
 	var failed []string
 	for _, b := range e.bufs {
 		if err := e.attach(b); err != nil {
