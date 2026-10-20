@@ -2,6 +2,7 @@ package timeline_test
 
 import (
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/y3owk1n/fude/core/kernel"
@@ -24,6 +25,9 @@ func TestLogKeepsTheTimelineAndTheUnsavedEdit(t *testing.T) {
 		t.Fatal(err)
 	}
 	// The process ends without a clean close, so the last edit is unsaved.
+	for log.Busy() {
+		runtime.Gosched()
+	}
 	_, l, err := timeline.Open(path, "ab")
 	if err != nil {
 		t.Fatal(err)

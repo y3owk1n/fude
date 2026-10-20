@@ -80,7 +80,8 @@ Neovim works and drops the weight.
 - **Commands are data**: every edit is a serializable `Command`, inspectable,
   replayable and sendable over the wire.
 - **Nothing is lost**: every transaction lands on the timeline and on disk.
-  Undo and redo never discard a branch, and a crash loses no edit.
+  Undo and redo never discard a branch, and a crash loses only the edits of
+  its last instant, which had not yet reached the disk.
 - **Headless first**: every behaviour is reachable without a terminal, which
   is also how fude is tested.
 

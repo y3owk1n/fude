@@ -68,13 +68,19 @@ func (ed *Editor) emitTo(ev event) int {
 }
 
 // Idle reports whether no module or plugin work is under way: no event or
-// callback waits for one or runs in it, and no plugin load, job, timer or
-// request one started has yet come back to the loop. A terminal or a
-// language server that keeps running does not count. A test waits for it
-// before it checks that something did not happen.
+// callback waits for one or runs in it, no plugin load, job, timer or
+// request one started has yet come back to the loop, and no timeline log
+// has records to write. A terminal or a language server that keeps running
+// does not count. A test waits for it before it checks that something did
+// not happen, or before it opens a file again as after a crash.
 func (ed *Editor) Idle() bool {
 	if len(ed.queue) > 0 || ed.working > 0 {
 		return false
+	}
+	for _, b := range ed.bufs {
+		if b.log != nil && b.log.Busy() {
+			return false
+		}
 	}
 	for _, l := range ed.listeners {
 		l.mu.Lock()

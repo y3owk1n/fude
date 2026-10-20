@@ -124,7 +124,10 @@ no data migration.
 ## D19. The timeline log replaces swap files
 
 Why: the timeline already records every edit. Appending it to disk as it
-happens gives crash recovery and persistent undo from one mechanism.
+happens gives crash recovery and persistent undo from one mechanism. Each
+log has a goroutine of its own that writes it in batches, so the editor
+loop never waits on a slow or busy disk. A crash loses only the edits made
+in the instant before it, which had not yet reached the disk.
 
 ## D20. Neovim is the reference, not a contract
 

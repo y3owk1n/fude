@@ -128,6 +128,7 @@ func TestB198TimelineLogCut(t *testing.T) {
 	feed(e, "u")
 	before = text(e)
 	feed(e, "<C-r>")
+	editortest.Quiet(t, e)
 	if e = open(t, path); text(e) != want || e.Message() != "" {
 		t.Fatalf("reopening after a crash said %q", e.Message())
 	}
@@ -161,6 +162,7 @@ func TestB382TimelineLogsGo(t *testing.T) {
 		t.Fatal(err)
 	}
 	e := open(t, path)
+	editortest.Quiet(t, e)
 	if logs, err := os.ReadDir(dir); err != nil || len(logs) != 1 {
 		t.Fatalf("after the file changed, the logs are %v, %v, want only the new one", logs, err)
 	}
@@ -196,9 +198,11 @@ func TestB34Recovery(t *testing.T) {
 		t.Fatal(err)
 	}
 	// The session ends without :q, as a crash would.
-	feed(open(t, path), "A two<Esc>:w<CR>A three<Esc>")
-
 	e := open(t, path)
+	feed(e, "A two<Esc>:w<CR>A three<Esc>")
+	editortest.Quiet(t, e)
+
+	e = open(t, path)
 	e.Use(timelinemod.New())
 	if !strings.Contains(e.Message(), ":recover") || text(e) != "one two" {
 		t.Fatalf("after a crash, opening said %q with %q", e.Message(), text(e))
