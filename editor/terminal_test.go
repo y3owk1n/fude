@@ -75,6 +75,17 @@ func TestB205Terminal(t *testing.T) {
 	if vs := e.Windows(); len(vs) != 2 || vs[1].H != 12 {
 		t.Errorf("with terminal_height = 50 the terminal is %d rows tall, want 12", vs[len(vs)-1].H)
 	}
+	// A terminal opened from a file whose filetype sets options shows no
+	// line numbers either.
+	config(t, "number = true\n[filetype.go]\nexpand_tab = true\n")
+	goPath := filepath.Join(filepath.Dir(path), "a.go")
+	change(t, goPath, "package a\n")
+	e = start(t, goPath)
+	e.Use(terminalmod.New())
+	e.SetSize(80, 24)
+	if feed(e, `:terminal cat<CR><C-\><C-n>`); len(e.Windows()) != 2 || e.Windows()[1].Number {
+		t.Errorf("a terminal opened from a.go shows line numbers %v", e.Windows()[len(e.Windows())-1].Number)
+	}
 }
 
 // B205, B364, for the shells :terminal shows and hides
