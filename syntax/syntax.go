@@ -88,11 +88,13 @@ type Buffer struct {
 	parsed func()
 
 	// The editor loop's side.
-	seq     int      // changes heard
-	log     []change // changes since the text the spans and tree are for
+	seq int      // changes heard
+	log []change // changes since the text the worker last read
+	// The worker's last results. Changed moves them through each change, so
+	// no read replays the changes.
 	spans   []Span   // in paint order, later spans drawing over earlier ones
 	regions []Region // of other languages, inner ones after the regions holding them
-	tree    *ts.Tree // a clone of the worker's last tree
+	tree    *ts.Tree // a clone of the worker's tree
 	lang    *ts.Language
 	objects *ts.Query
 	cursor  *ts.QueryCursor
@@ -326,6 +328,22 @@ func (h *Buffer) Changed(before Text, edits []Edit) {
 		h.edits = append(h.edits, pending{h.seq, in, e})
 	}
 	h.log = append(h.log, c)
+	c.move(h.spans, h.regions, h.tree)
+}
+
+// move moves spans, regions and tree through c. tree may be nil.
+func (c change) move(spans []Span, regions []Region, tree *ts.Tree) {
+	for i, s := range spans {
+		spans[i].Start, spans[i].End = through(c.edits, s.Start, true), through(c.edits, s.End, false)
+	}
+	for i, r := range regions {
+		regions[i].Start, regions[i].End = through(c.edits, r.Start, true), through(c.edits, r.End, false)
+	}
+	if tree != nil {
+		for i := range c.tree {
+			tree.Edit(&c.tree[i])
+		}
+	}
 }
 
 // Show returns the spans that colour [from, to) of t, the text now, which
@@ -351,9 +369,6 @@ func (h *Buffer) Show(t Text, view any, from, to int) []Span {
 	}
 	var out []Span
 	for _, s := range h.spans {
-		for _, c := range h.log {
-			s.Start, s.End = through(c.edits, s.Start, true), through(c.edits, s.End, false)
-		}
 		if s.Start < s.End && s.End > from && s.Start < to {
 			out = append(out, s)
 		}
@@ -381,15 +396,7 @@ func (h *Buffer) LanguageAt(pos int) string { return LanguageIn(h.Regions(), pos
 
 // Regions returns where text of other languages sits in the text now, inner
 // regions after the regions holding them. The copy is safe on any goroutine.
-func (h *Buffer) Regions() []Region {
-	out := slices.Clone(h.regions)
-	for i := range out {
-		for _, c := range h.log {
-			out[i].Start, out[i].End = through(c.edits, out[i].Start, true), through(c.edits, out[i].End, false)
-		}
-	}
-	return out
-}
+func (h *Buffer) Regions() []Region { return slices.Clone(h.regions) }
 
 // LanguageIn returns the filetype of the innermost of regions that holds
 // pos, or "" for none.
@@ -421,12 +428,15 @@ func (h *Buffer) take(seq int, spans []Span, regions []Region, missing []problem
 	if h.tree != nil {
 		go h.tree.Close()
 	}
-	h.spans, h.regions, h.tree = spans, regions, tree
 	i := 0
 	for i < len(h.log) && h.log[i].seq <= seq {
 		i++
 	}
 	h.log = h.log[i:]
+	for _, c := range h.log {
+		c.move(spans, regions, tree)
+	}
+	h.spans, h.regions, h.tree = spans, regions, tree
 	h.parsed()
 }
 
@@ -532,10 +542,8 @@ func (h *Buffer) Object(t Text, name string, start, end int) (int, int, bool) {
 	if h.tree == nil {
 		return 0, 0, false
 	}
-	tree, done := h.current()
-	defer done()
 	if Objects[name].Capture == "" {
-		return h.node(tree.RootNode(), name, span{start, end})
+		return h.node(h.tree.RootNode(), name, span{start, end})
 	}
 	want, _ := h.objects.CaptureIndexForName(Objects[name].Capture)
 	// A selection of more than one character that is just what a capture
@@ -544,7 +552,7 @@ func (h *Buffer) Object(t Text, name string, start, end int) (int, int, bool) {
 	h.cursor.SetByteRange(uint(start), uint(max(end, start+1)))
 	var best span
 	size := -1 // of the capture best came from, or -1 for none
-	matches := h.cursor.Matches(h.objects, tree.RootNode(), nil)
+	matches := h.cursor.Matches(h.objects, h.tree.RootNode(), nil)
 	for m := matches.Next(); m != nil; m = matches.Next() {
 		// A capture that repeats in one match, such as a struct's fields,
 		// selects from the first to the last.
@@ -588,12 +596,10 @@ func (h *Buffer) Select(t Text, src string, start, end int) ([][2]int, error) {
 	if len(q.CaptureNames()) == 0 {
 		return nil, errors.New("the query captures nothing")
 	}
-	tree, done := h.current()
-	defer done()
 	c := ts.NewQueryCursor()
 	defer c.Close()
 	var out [][2]int
-	for hit := range captures(c, q, tree, []byte(t.Slice(0, t.Len())), start, end) {
+	for hit := range captures(c, q, h.tree, []byte(t.Slice(0, t.Len())), start, end) {
 		if s, e := int(hit.Node.StartByte()), int(hit.Node.EndByte()); start <= s && e <= end {
 			out = append(out, [2]int{s, e})
 		}
@@ -612,11 +618,6 @@ func (h *Buffer) Nodes() (at func(pos, up int) (kind string, start, end int, ok 
 		return func(int, int) (string, int, int, bool) { return "", 0, 0, false }, func(int) []int { return nil }, func() {}
 	}
 	tree := h.tree.Clone()
-	for _, c := range h.log {
-		for i := range c.tree {
-			tree.Edit(&c.tree[i])
-		}
-	}
 	h.mu.Lock()
 	h.held++
 	h.mu.Unlock()
@@ -661,21 +662,6 @@ func (h *Buffer) Nodes() (at func(pos, up int) (kind string, start, end int, ok 
 		return n.Kind(), int(n.StartByte()), int(n.EndByte()), true
 	}
 	return at, context, free
-}
-
-// current returns the last parse moved through the edits made since, and
-// the func to call when done with it.
-func (h *Buffer) current() (*ts.Tree, func()) {
-	if len(h.log) == 0 {
-		return h.tree, func() {}
-	}
-	tree := h.tree.Clone()
-	for _, c := range h.log {
-		for i := range c.tree {
-			tree.Edit(&c.tree[i])
-		}
-	}
-	return tree, tree.Close
 }
 
 // span is a range of bytes.
