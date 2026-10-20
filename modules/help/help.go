@@ -55,7 +55,7 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 	}
 	// Help is markdown, coloured as such once its grammar is built, with
 	// the entry at the top of the window and its text below it.
-	return api.Result{Show: &api.Panel{Title: "[help]", Filetype: "markdown", Text: text, Keys: keys, Line: line + 1}}, nil
+	return api.Result{Show: &api.Panel{Unnumbered: true, Title: "[help]", Filetype: "markdown", Text: text, Keys: keys, Line: line + 1}}, nil
 }
 
 // word is the name under c: the run of text between blanks, without the

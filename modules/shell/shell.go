@@ -159,7 +159,7 @@ func (m *Module) Callback(_ context.Context, id uint32, s api.Scope) (api.Result
 	case r.below:
 		return api.Result{Edits: []api.Edit{{Start: min(r.start, s.Text.Len()), End: min(r.start, s.Text.Len()), Text: "\n" + out}}}, nil
 	case strings.Count(out, "\n") > 10:
-		return api.Result{Show: &api.Panel{Title: "[!" + r.cmd + "]", Text: out}}, nil
+		return api.Result{Show: &api.Panel{Unnumbered: true, Title: "[!" + r.cmd + "]", Text: out}}, nil
 	}
 	return api.Result{Message: out}, nil
 }

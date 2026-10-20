@@ -587,7 +587,7 @@ func (e *Session) windowAction(a api.WindowAction) error {
 // openScratch shows a new buffer with no file holding s's text, coloured
 // as its filetype, for the user to edit, in a window placed for p (B343).
 func (e *Session) openScratch(p api.Module, s api.Scratch) {
-	if _, err := e.add(""); err != nil {
+	if _, err := e.addAs("", !s.Unnumbered); err != nil {
 		e.message = err.Error()
 		return
 	}
@@ -1234,7 +1234,7 @@ func bindingKeys(r api.Registration) string {
 func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 	bufs := map[int]api.Buffer{}
 	for _, o := range e.bufs {
-		bufs[o.id] = api.Buffer{Barred: e.barred(o) != nil, Path: o.file.path, Filetype: e.filetype(o), Name: o.name(), Modified: o.modified(), Kind: o.kind(), Text: o.text.Snapshot()}
+		bufs[o.id] = api.Buffer{Barred: e.barred(o) != nil, Path: o.file.path, Filetype: e.filetype(o), Name: o.name(), Modified: o.modified(), Kind: o.kind(), Unnumbered: !o.numbered(), Text: o.text.Snapshot()}
 	}
 	ft, opts, cfg := e.filetype(b), e.opts, &e.cfg
 	if e.win.buf == b {

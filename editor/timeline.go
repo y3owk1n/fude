@@ -96,7 +96,7 @@ func (e *Session) panel(owner api.Module, p api.Panel) bool {
 	if p.Update {
 		return false
 	}
-	e.scratch(p.Title, p.Text, e.placement(owner, p.Where, p.Lock, "below"))
+	e.scratch(p.Title, p.Text, e.placement(owner, p.Where, p.Lock, "below"), !p.Unnumbered)
 	e.win.locked = p.Lock
 	b := e.win.buf
 	b.panelKind = p.Kind
@@ -156,13 +156,12 @@ func (e *Session) localKeys(b *buffer) *vim.Keymaps {
 
 // scratch shows text in a new read-only window titled title, placed where
 // says.
-func (e *Session) scratch(title, text, where string) {
-	b, _, err := openBuffer(e.next, "")
+func (e *Session) scratch(title, text, where string, numbered bool) {
+	b, _, err := openBuffer(e.newID(numbered), "")
 	if err != nil {
 		e.message = err.Error()
 		return
 	}
-	e.next++
 	if err := b.text.Apply(kernel.Transaction{Edits: []kernel.Edit{{Text: text}}}); err != nil {
 		e.message = err.Error()
 		return

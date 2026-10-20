@@ -228,7 +228,7 @@ func panel(title string, es []entry, line int) *api.Panel {
 			cursor += len(e.shown) + 1
 		}
 	}
-	return &api.Panel{Title: "[" + title + "]", Text: strings.Join(lines, "\n"), Keys: keys, Kind: "list", Cursor: cursor}
+	return &api.Panel{Unnumbered: true, Title: "[" + title + "]", Text: strings.Join(lines, "\n"), Keys: keys, Kind: "list", Cursor: cursor}
 }
 
 // jump goes to e, its column in enc.

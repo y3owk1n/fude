@@ -208,8 +208,9 @@ func TestB245GuestProject(t *testing.T) {
 	if v := guest.Windows(); len(v) != 1 || v[0].Name != "a.txt" || text(guest) != "a" {
 		t.Errorf("a guest's paths outside left %d windows, on %q holding %q", len(v), v[0].Name, text(guest))
 	}
-	// The only buffer the guest's paths opened is the project's explorer.
-	if feed(e, ":ls<CR>"); !strings.HasPrefix(e.Message(), buffers+"  ") || strings.Count(e.Message(), "  ") != strings.Count(buffers, "  ")+1 {
+	// The only buffer the guest's paths opened is the project's explorer,
+	// which :ls passes as it has no number (B373).
+	if feed(e, ":ls<CR>"); e.Message() != buffers {
 		t.Errorf("a guest's paths outside left the buffers %s, from %s", e.Message(), buffers)
 	}
 	for _, path := range []string{filepath.Join(away, "new.txt"), filepath.Join(project, "..", "made.txt")} {

@@ -54,6 +54,9 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, _ ...int) (api.
 		var shown []string
 		for _, bid := range slices.Sorted(maps.Keys(s.Buffers)) {
 			b, flags := s.Buffers[bid], ""
+			if b.Unnumbered {
+				continue
+			}
 			if strconv.Itoa(bid) == s.About["buffer"] {
 				flags += "%"
 			}
@@ -62,7 +65,7 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, _ ...int) (api.
 			}
 			shown = append(shown, fmt.Sprintf("%d%s \"%s\"", bid, flags, b.Name))
 		}
-		return api.Result{Error: strings.Join(shown, "  ")}, nil
+		return api.Result{Message: strings.Join(shown, "  ")}, nil
 	case marks:
 		return places(s, "marks", s.Marks(), func(_ int, mk api.Mark) string { return mk.Name + "  " }), nil
 	case jumps:
@@ -79,7 +82,7 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, _ ...int) (api.
 			for _, r := range s.Registers() {
 				shown = append(shown, fmt.Sprintf("\"%s   %s", r.Name, strings.ReplaceAll(r.Text, "\n", "^J")))
 			}
-			return api.Result{Error: strings.Join(shown, "  ")}, nil
+			return api.Result{Message: strings.Join(shown, "  ")}, nil
 		}
 		for _, r := range arg {
 			text, ok, err := s.Register(r)
@@ -90,7 +93,7 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, _ ...int) (api.
 				shown = append(shown, fmt.Sprintf("\"%c   %s", r, strings.ReplaceAll(text, "\n", "^J")))
 			}
 		}
-		return api.Result{Error: strings.Join(shown, "  ")}, nil
+		return api.Result{Message: strings.Join(shown, "  ")}, nil
 	}
 	// messages
 	if _, ok := s.About["complete"]; ok {
@@ -107,7 +110,7 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, _ ...int) (api.
 	case arg != "":
 		return api.Result{Error: "messages takes yank or nothing"}, nil
 	}
-	return api.Result{Show: &api.Panel{Title: "[messages]", Text: strings.Join(history, "\n")}}, nil
+	return api.Result{Show: &api.Panel{Unnumbered: true, Title: "[messages]", Text: strings.Join(history, "\n")}}, nil
 }
 
 // places lists ms in a list window titled what, each after what label

@@ -609,7 +609,7 @@ func gitDiff(s api.Scope, base string) api.Result {
 		return api.Result{Message: "no changes from git's index"}
 	}
 	text := diff.Unified(ops, 3)
-	panel := &api.Panel{Title: "[git diff " + filepath.Base(s.About["path"]) + "]", Filetype: "diff", Text: text}
+	panel := &api.Panel{Unnumbered: true, Title: "[git diff " + filepath.Base(s.About["path"]) + "]", Filetype: "diff", Text: text}
 	at := 0
 	for _, l := range strings.Split(text, "\n") {
 		style := ""

@@ -109,8 +109,8 @@ func (e *Session) under() *window {
 // floatBuffer returns a read-only buffer titled title holding text, styled
 // by spans, for a float to show.
 func (e *Session) floatBuffer(title, text string, spans []syntax.Span) *buffer {
-	b := &buffer{id: e.next, text: kernel.New(text, nil), before: map[kernel.NodeID]int{}, marks: map[rune]kernel.MarkID{}, title: title}
-	e.next++
+	// A float is gone with its next key, so it takes no number.
+	b := &buffer{id: e.newID(false), text: kernel.New(text, nil), before: map[kernel.NodeID]int{}, marks: map[rune]kernel.MarkID{}, title: title}
 	b.saved = b.text.Head()
 	b.file.readonly = true
 	e.style(b, spans)

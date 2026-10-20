@@ -22,7 +22,7 @@ func (e *Session) screenPanel(b *buffer, p api.Panel) {
 	if p.Update || e.win.buf != b {
 		return
 	}
-	s, _, err := openBuffer(e.next, "")
+	s, _, err := openBuffer(e.newID(!p.Unnumbered), "")
 	if err == nil {
 		t := s.text.Snapshot()
 		err = s.text.Apply(kernel.Transaction{Base: t.Version(), Edits: []kernel.Edit{{Text: p.Text}}})
@@ -31,7 +31,6 @@ func (e *Session) screenPanel(b *buffer, p api.Panel) {
 		e.message = err.Error()
 		return
 	}
-	e.next++
 	s.title, s.file.readonly, s.screen = p.Title, true, true
 	s.saved = s.text.Head()
 	e.bufs = append(e.bufs, s)

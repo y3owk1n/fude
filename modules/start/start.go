@@ -179,7 +179,7 @@ func screen(list [][2]string, recent []string) *api.Panel {
 			b.WriteString("\n")
 		}
 	}
-	return &api.Panel{Title: "[start]", Text: strings.TrimSuffix(b.String(), "\n"), Spans: spans, Keys: keys, Screen: true, Cursor: cursor}
+	return &api.Panel{Unnumbered: true, Title: "[start]", Text: strings.TrimSuffix(b.String(), "\n"), Spans: spans, Keys: keys, Screen: true, Cursor: cursor}
 }
 
 func (m *Module) Callback(context.Context, uint32, api.Scope) (api.Result, error) {

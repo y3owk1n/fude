@@ -113,7 +113,7 @@ func panel(s api.Scope) (*api.Panel, []string, []int) {
 		}
 	}
 	home, _ := os.UserHomeDir()
-	p := &api.Panel{Title: panelTitle, Where: "float", Keys: panelKeys}
+	p := &api.Panel{Unnumbered: true, Title: panelTitle, Where: "float", Keys: panelKeys}
 	var names []string
 	var starts []int
 	for i, sv := range s.Servers() {

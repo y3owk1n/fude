@@ -75,6 +75,23 @@ func TestB89Buffers(t *testing.T) {
 	if want := `2% "` + b + `"`; e.Message() != want {
 		t.Errorf("after :bd! 1, :ls said %q, want %q", e.Message(), want)
 	}
+	// The first file opened takes the number of the empty buffer fude began
+	// with.
+	e = open(t, "")
+	e.Use(lists.New())
+	if feed(e, ":e "+a+"<CR>:e "+b+"<CR>:ls<CR>"); e.Message() != `1 "`+a+`"  2% "`+b+`"` {
+		t.Errorf("after opening two files from an empty buffer, :ls said %q", e.Message())
+	}
+	// Help takes no number, so the next file is 2 and :b names no help
+	// (B373).
+	e = open(t, a)
+	e.Use(lists.New())
+	if feed(e, ":h<CR>:q<CR>:e "+b+"<CR>:ls<CR>"); e.Message() != `1 "`+a+`"  2% "`+b+`"` {
+		t.Errorf("after :h and :e, :ls said %q", e.Message())
+	}
+	if feed(e, ":b help<CR>"); !strings.HasPrefix(e.Message(), "no buffer") {
+		t.Errorf(":b help said %q", e.Message())
+	}
 	// :bn and :bp go through the buffers being edited, past help, wrapping
 	// at either end, and :bd moves the window to one of them.
 	e = open(t, a)

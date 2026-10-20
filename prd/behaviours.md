@@ -747,13 +747,26 @@ Where fude departs, the line says so and cites the departure in
 - B88 [2] `:{range}normal keys` runs keys on each line of the range, as one
   transaction.
 - B89 [2] `:e path`, `:ls`, `:b N`, `:bn`, `:bp` and `:bd` manage buffers.
-  `:bn` and `:bp` go through the buffers being edited, wrapping at
+  The first file opened takes the number of the empty buffer
+  fude began with, which then goes, so the file is buffer 1, as in Neovim.
+  That happens while the empty buffer holds no text and no other window
+  shows it. `:bn` and `:bp` go
+  through the buffers being edited, wrapping at
   either end, and pass help, lists, explorers, terminals and the windows
   fude writes. After `:bd`, a window that showed the buffer shows the
   one it showed before, or else the next buffer being edited. Neither is
   an empty buffer with no file while another is open. A buffer's
   argument completes as its number, then its path from the working
   directory, or from `~`.
+- B373 [2] Every buffer takes the next number, as in Neovim, but a
+  module's panel, scratch buffer or terminal may take none, and a float
+  never does. The numbers `:b`, `:ls` and the buffer line show go on
+  without it, and `:b`, `:bn` and `:bp` pass it. fude gives it an id past
+  every number, which a module still names it by. Explorers, the start
+  screen, help, the lists and places, the language servers and debug
+  panels, a diff, `:grammar`, the timeline, `q:`, the output of `:!`, a
+  task's window, the pins and the list `:set` shows take none. Files, new
+  empty buffers and shells are numbered (D58).
 - B170 [2] `:restart` and `ZR` replace fude's process with a new fude,
   which loads config.toml, plugins, grammars and language servers again.
   The new process opens the same files and splits, with each window's cursor,

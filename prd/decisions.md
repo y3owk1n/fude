@@ -719,6 +719,23 @@ module that returns one. A plugin needs no capability for `Error`. A
 failure is its call's own outcome, as `Log` is, and a plugin without `ui`
 could not otherwise fail a command.
 
+## D58. Buffers are numbered as Neovim's, and a view may take no number
+
+Every buffer takes the next number, as in Neovim, and the first file
+opened takes the empty buffer fude began with, so it is buffer 1. A
+module's panel, scratch buffer or terminal sets `Unnumbered` to take
+none, and a float never takes one. Such a buffer gets an id past every
+number, which modules still use, and `:b`, `:ls`, `:bn`, `:bp` and the
+buffer line pass it (B89, B373). An explorer takes none either.
+
+Why, as of 2026-10-20: the user saw a file opened from the start screen
+as buffer 3, and `:b 2` reach the start screen. The user chose Neovim's
+numbering, with a way for a module or plugin to keep a view out of it,
+over numbering files alone. The views the user reads and leaves take no
+number. So does an explorer, which `:b` and the buffer line passed
+already, and which `-` opens again. Files, new buffers and shells, which
+the user edits or comes back to, keep theirs.
+
 ## Departures from Neovim
 
 Each entry: what differs, then why.

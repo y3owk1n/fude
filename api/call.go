@@ -210,6 +210,9 @@ type Terminal struct {
 	// when "", terminal_height percent of the screen tall above or below.
 	Where string
 	Lock  bool
+	// Unnumbered gives its buffer no number of those :b, :ls and the buffer
+	// line count, as Panel's does.
+	Unnumbered bool
 	// Close closes its window and buffer once its program ends, as a
 	// shell's do. Without it, the window stays with the program's last
 	// screen as text to read, as a task's does (B205).
@@ -343,6 +346,8 @@ type Search struct {
 type Scratch struct {
 	Text, Filetype, Where, Kind string
 	Lock                        bool
+	// Unnumbered gives its buffer no number, as Panel's does.
+	Unnumbered bool
 }
 
 // Panel is text a call shows in a read-only window titled Title, coloured
@@ -371,7 +376,12 @@ type Panel struct {
 	// is about, while the window still shows that buffer. The window shows
 	// no line numbers, guides or wrap until it shows another buffer, as
 	// the start screen does (B320).
-	Screen bool
+	// Unnumbered gives its buffer no number of those :b, :ls and the buffer
+	// line count, so the numbers go on without it. A view the user only
+	// reads should set it. fude gives it an id of its own, past every
+	// number, which a module still names it by (B373).
+	Unnumbered bool
+	Screen     bool
 	// Cursor is where the cursor goes when the panel opens.
 	Cursor int
 	// Update only replaces the text of the panel open under Title, and
@@ -675,6 +685,7 @@ type Buffer struct {
 	Modified       bool
 	Kind           string // its kind of buffer, such as explorer or help, or "" for one a user edits (B331)
 	Barred         bool   // the session may not show it, as a guest may not a file outside the project (B245)
+	Unnumbered     bool   // it has no number of those :b and :ls count, as a Panel asked (B373)
 	Text           Text   `json:"-"`
 }
 

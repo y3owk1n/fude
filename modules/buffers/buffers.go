@@ -100,7 +100,7 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, _ ...int) (api.
 func step(s api.Scope, current int, forward bool) (int, bool) {
 	var edited []int
 	for _, id := range slices.Sorted(maps.Keys(s.Buffers)) {
-		if b := s.Buffers[id]; b.Kind == "" && !b.Barred {
+		if b := s.Buffers[id]; b.Kind == "" && !b.Barred && !b.Unnumbered {
 			edited = append(edited, id)
 		}
 	}
@@ -143,6 +143,8 @@ func find(s api.Scope, arg string) (int, string) {
 	found := 0
 	for _, id := range slices.Sorted(maps.Keys(s.Buffers)) {
 		switch {
+		case s.Buffers[id].Unnumbered:
+			// A buffer with no number is no buffer :b names (B373).
 		case strconv.Itoa(id) == arg:
 			return id, ""
 		case arg != "" && strings.Contains(s.Buffers[id].Name, arg):
@@ -163,7 +165,7 @@ func find(s api.Scope, arg string) (int, string) {
 func names(s api.Scope) []string {
 	var out []string
 	for _, id := range slices.Sorted(maps.Keys(s.Buffers)) {
-		if b := s.Buffers[id]; b.Path != "" {
+		if b := s.Buffers[id]; b.Path != "" && !b.Unnumbered {
 			out = append(out, strconv.Itoa(id)+" "+short(b.Path, s.About["cwd"]))
 		}
 	}

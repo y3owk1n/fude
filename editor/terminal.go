@@ -112,7 +112,7 @@ func (e *Session) openTerminal(term api.Terminal, owner api.Module, where string
 	arg, task := term.Command, term.Name
 	from := e.win
 	argv := shell.Command(arg)
-	if _, err := e.add(""); err != nil {
+	if _, err := e.addAs("", !term.Unnumbered); err != nil {
 		e.message = err.Error()
 		return nil
 	}

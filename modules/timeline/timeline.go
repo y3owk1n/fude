@@ -128,7 +128,7 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 	x, _ := s.StateText(b, i)
 	y, _ := s.StateText(b, j)
 	text := diff.Unified(diff.Lines(strings.Split(x, "\n"), strings.Split(y, "\n")), 3)
-	return api.Result{Show: &api.Panel{Title: fmt.Sprintf("[diff %d %d]", i, j), Text: text, Spans: colours(text)}}, nil
+	return api.Result{Show: &api.Panel{Unnumbered: true, Title: fmt.Sprintf("[diff %d %d]", i, j), Text: text, Spans: colours(text)}}, nil
 }
 
 // source is the buffer a call is about, or the one the timeline lists for
@@ -177,7 +177,7 @@ func (m *Module) panel(states []api.State) *api.Panel {
 			lines[i] += fmt.Sprintf("  (from %d)", st.Parent)
 		}
 	}
-	return &api.Panel{Title: title, Text: strings.Join(lines, "\n"), Keys: keys}
+	return &api.Panel{Unnumbered: true, Title: title, Text: strings.Join(lines, "\n"), Keys: keys}
 }
 
 // travel runs :earlier or :later. The argument is a count of states, a time

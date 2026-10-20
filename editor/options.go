@@ -62,7 +62,7 @@ func (e *Session) set(args string) error {
 		for _, n := range slices.Sorted(maps.Keys(settings)) {
 			lines = append(lines, fmt.Sprintf("%-18s %s", n, settingText(settings[n])))
 		}
-		e.scratch("[set]", strings.Join(lines, "\n"), e.placement(nil, "", false, "below"))
+		e.scratch("[set]", strings.Join(lines, "\n"), e.placement(nil, "", false, "below"), false)
 		return nil
 	case switches[name] == nil && !number:
 		return errors.New("no option named " + name)

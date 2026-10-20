@@ -188,7 +188,7 @@ func (m *Module) Close(context.Context) error { return nil }
 // start runs t in a terminal window, with vars in its command, or says it
 // runs and shows its window again.
 func (m *Module) start(t task, vars *strings.Replacer) api.Result {
-	res := api.Result{Terminal: &api.Terminal{Name: t.Name, Command: vars.Replace(t.Command)}}
+	res := api.Result{Terminal: &api.Terminal{Unnumbered: true, Name: t.Name, Command: vars.Replace(t.Command)}}
 	if m.running[t.Name] {
 		res.Message = "the " + t.Name + " task is running"
 	}

@@ -237,12 +237,11 @@ func (e *Session) savedBuffer(sn savedNode) *buffer {
 	if i := slices.IndexFunc(e.bufs, func(b *buffer) bool { return b.listed == sn.Path }); i >= 0 {
 		return e.bufs[i]
 	}
-	b, err := explorerBuffer(e.next, sn.Path)
+	b, err := explorerBuffer(e.newID(false), sn.Path)
 	if err != nil {
 		e.message = err.Error()
 		return nil
 	}
-	e.next++
 	e.bufs = append(e.bufs, b)
 	e.emit("explorer.read", "", b)
 	return b

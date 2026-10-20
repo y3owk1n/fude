@@ -60,7 +60,7 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, _ ...int) (api.
 		}
 		lines := s.History(kept)
 		return api.Result{
-			Scratch: &api.Scratch{Text: strings.Join(append(lines, ""), "\n"), Kind: "history", Where: "below"},
+			Scratch: &api.Scratch{Unnumbered: true, Text: strings.Join(append(lines, ""), "\n"), Kind: "history", Where: "below"},
 			Ex:      []string{"resize 7"},
 			Keys:    "G",
 		}, nil

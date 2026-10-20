@@ -178,6 +178,9 @@ func (b *buffer) written() bool { return b.file.readonly && b.title != "" }
 
 func (b *buffer) modified() bool { return b.text.Head() != b.saved }
 
+// numbered reports whether b has a number of those :b and :ls count (B373).
+func (b *buffer) numbered() bool { return b.id < firstAside }
+
 // name is the buffer's path, or [No Name] for a buffer with no file.
 func (b *buffer) name() string {
 	switch {

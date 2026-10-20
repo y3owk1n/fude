@@ -59,11 +59,10 @@ func (e *Session) openExplorer(dir, at string) {
 		}
 	}
 	if b == nil {
-		if b, err = explorerBuffer(e.next, abs); err != nil {
+		if b, err = explorerBuffer(e.newID(false), abs); err != nil {
 			e.message = err.Error()
 			return
 		}
-		e.next++
 		e.bufs = append(e.bufs, b)
 		e.emit("explorer.read", "", b)
 	}

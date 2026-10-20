@@ -1011,7 +1011,7 @@ func (m *Module) draw(res *api.Result, s api.Scope) {
 	for i, r := range rows {
 		lines[i] = r.text
 	}
-	res.Show = &api.Panel{Title: "[debug]", Text: strings.Join(lines, "\n"), Keys: panelKeys}
+	res.Show = &api.Panel{Unnumbered: true, Title: "[debug]", Text: strings.Join(lines, "\n"), Keys: panelKeys}
 }
 
 // openRow acts on the panel's line: a frame is chosen and shows its line,

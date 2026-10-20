@@ -381,7 +381,7 @@ func listed(s api.Scope, pins []pin) api.Result {
 		text.WriteString(shown(s, p.Path))
 		text.WriteByte('\n')
 	}
-	return api.Result{Scratch: &api.Scratch{Text: text.String(), Kind: "pins"}}
+	return api.Result{Scratch: &api.Scratch{Unnumbered: true, Text: text.String(), Kind: "pins"}}
 }
 
 // mayPin says why path may not be pinned: it names no file, or one

@@ -31,6 +31,7 @@ import (
 type Editor struct {
 	bufs     []*buffer
 	next     int // the id the next buffer gets
+	aside    int // the id the next buffer with no number gets, past every number (B373)
 	joined   int // how many sessions joined, which numbers the next (B332)
 	cfg      config
 	styles   map[string]wire.Style // the styles modules defined, by name (B345)
@@ -162,7 +163,7 @@ func open(cfg config, paths []string) (*Session, error) {
 	if len(paths) == 0 {
 		paths = []string{""}
 	}
-	ed := &Editor{next: 1, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(*Session, call) error{}, sources: map[string]func(*Session, string){}, writers: map[string]writer{}, completionSources: map[string]completer{}, shortOf: map[string]string{}, completers: map[string]func(*Session, string){}, decos: map[any][]decoration{}, servers: map[string]*server{}, down: map[string]string{}, building: map[string]bool{}, failed: map[string]string{}, listeners: map[api.Module]*listener{}, segments: map[api.Module]map[*buffer]string{}, leftSegments: map[api.Module]map[*buffer]string{}}
+	ed := &Editor{next: 1, aside: firstAside, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(*Session, call) error{}, sources: map[string]func(*Session, string){}, writers: map[string]writer{}, completionSources: map[string]completer{}, shortOf: map[string]string{}, completers: map[string]func(*Session, string){}, decos: map[any][]decoration{}, servers: map[string]*server{}, down: map[string]string{}, building: map[string]bool{}, failed: map[string]string{}, listeners: map[api.Module]*listener{}, segments: map[api.Module]map[*buffer]string{}, leftSegments: map[api.Module]map[*buffer]string{}}
 	// Without a config directory there are no overrides, and loadConfig
 	// reports why.
 	if dir, err := keep.Dir("XDG_CONFIG_HOME", ".config"); err == nil {
@@ -371,8 +372,44 @@ func (e *Session) useKeys(km keymap, leader string) {
 	}
 }
 
+// nextID returns the id a new buffer takes. While the empty buffer fude
+// began with holds no text and no window but the current one shows it, it
+// is that buffer's, which add then closes, so the first file opened is
+// buffer 1, as Vim's is.
+func (e *Session) nextID() (int, *buffer) {
+	for _, b := range e.bufs {
+		if b.id != 1 || b.file.path != "" || b.title != "" || b.listed != "" || b.term != nil || b.modified() || b.text.Snapshot().Len() > 0 {
+			continue
+		}
+		if !slices.ContainsFunc(e.sessions, func(s *Session) bool {
+			return slices.ContainsFunc(append(s.windows(), s.hidden...), func(w *window) bool { return w.buf == b && w != e.win })
+		}) {
+			return b.id, b
+		}
+	}
+	return e.newID(true), nil
+}
+
+// firstAside is the id of the first buffer with no number, past any number
+// a session reaches.
+const firstAside = 1 << 30
+
+// newID returns the id of a new buffer: the next number, or without one an
+// id past every number, which :b, :ls and the buffer line skip (B373).
+func (e *Session) newID(numbered bool) int {
+	if !numbered {
+		e.aside++
+		return e.aside - 1
+	}
+	e.next++
+	return e.next - 1
+}
+
 // add opens path as a new buffer at the end of the list.
-func (e *Session) add(path string) (string, error) {
+func (e *Session) add(path string) (string, error) { return e.addAs(path, true) }
+
+// addAs is add, where an empty buffer may take no number.
+func (e *Session) addAs(path string, numbered bool) (string, error) {
 	// A typed path takes the system's separators, \ on Windows.
 	path = filepath.FromSlash(path)
 	if info, err := os.Stat(path); err == nil && info.IsDir() {
@@ -380,21 +417,31 @@ func (e *Session) add(path string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("list %s: %w", path, err)
 		}
-		b, err := explorerBuffer(e.next, abs)
+		// An explorer takes no number, as :b and the buffer line pass it.
+		b, err := explorerBuffer(e.newID(false), abs)
 		if err != nil {
 			return "", err
 		}
-		e.next++
 		e.bufs = append(e.bufs, b)
 		e.emit("explorer.read", "", b)
 		return "", nil
 	}
-	b, msg, err := openBuffer(e.next, path)
+	// An empty buffer never takes another's place.
+	id, blank := 0, (*buffer)(nil)
+	if path == "" {
+		id = e.newID(numbered)
+	} else {
+		id, blank = e.nextID()
+	}
+	b, msg, err := openBuffer(id, path)
 	if err != nil {
 		return "", err
 	}
-	e.next++
 	e.bufs = append(e.bufs, b)
+	// The empty buffer whose id b took goes before b is heard of.
+	if blank != nil {
+		e.close(blank, true)
+	}
 	if b.picture != "" {
 		e.decos[b] = append(e.decos[b], decoration{buf: b, start: b.text.SetMark(0, kernel.Left), end: b.text.SetMark(0, kernel.Left), image: b.picture})
 		b.inlines++
