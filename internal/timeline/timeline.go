@@ -45,7 +45,6 @@ type Log struct {
 	wrote    sync.Cond // signalled when the writer stops
 	queue    []record  // for the writer
 	writing  bool      // a writer runs
-	f        *os.File  // the writer's
 	err      error     // the first write that failed, which stops the log
 	reported bool      // Failed returned err
 	saved    record    // the last base or save record, which the next open matches
@@ -104,11 +103,17 @@ func Open(path, text string) (*Log, Loaded, error) {
 	if info.Size() <= Cap || loaded.Unsaved != (kernel.NodeID{}) {
 		return l, loaded, nil
 	}
+	// On Windows the cut fails while another fude writes the log. The file
+	// then opens with the log uncut.
 	at = time.Now()
-	if err := l.cut(loaded.Nodes, loaded.Head, loaded.Saves); err != nil {
-		return nil, Loaded{}, err
+	err = l.cut(loaded.Nodes, loaded.Head, loaded.Saves)
+	trace.Since("file", fmt.Sprintf("cut %q, %d bytes", path, info.Size()), at, err)
+	if err != nil {
+		if rerr := os.Remove(path + ".new"); rerr != nil && !errors.Is(rerr, fs.ErrNotExist) {
+			return nil, Loaded{}, fmt.Errorf("cut timeline log %s: %w", path, rerr)
+		}
+		return l, loaded, nil
 	}
-	trace.Since("file", fmt.Sprintf("cut %q, %d bytes", path, info.Size()), at, nil)
 	if loaded, _, err = read(path, sum); err != nil {
 		return nil, Loaded{}, err
 	}
@@ -219,13 +224,8 @@ func (l *Log) drain() {
 			err = cmp.Or(err, merr)
 			lines = append(append(lines, line...), '\n')
 		}
-		if err == nil && l.f == nil {
-			if err = os.MkdirAll(filepath.Dir(l.path), 0o700); err == nil {
-				l.f, err = fsys.Append(l.path, 0o600)
-			}
-		}
 		if err == nil {
-			_, err = l.f.Write(lines)
+			err = l.append(lines)
 		}
 		l.mu.Lock()
 		if err != nil {
@@ -239,6 +239,21 @@ func (l *Log) drain() {
 	}
 	l.queue, l.writing = nil, false
 	l.wrote.Broadcast()
+}
+
+// append writes lines at the end of the log and closes the file. No fude
+// then holds a log open between writes, so on Windows another fude can
+// replace it (B198).
+func (l *Log) append(lines []byte) error {
+	if err := os.MkdirAll(filepath.Dir(l.path), 0o700); err != nil {
+		return err
+	}
+	f, err := fsys.Append(l.path, 0o600)
+	if err != nil {
+		return err
+	}
+	_, err = f.Write(lines)
+	return errors.Join(err, f.Close())
 }
 
 // Busy reports whether records wait to be written.
@@ -279,17 +294,10 @@ func (l *Log) Close(t *kernel.Buffer, saves []kernel.NodeID, cut bool) {
 	}
 }
 
-// end writes the close record at head, waits for the writer, and closes
-// the file.
+// end writes the close record at head and waits for the writer.
 func (l *Log) end(head kernel.NodeID) {
 	l.write(record{Kind: "close", Head: head})
 	l.wait()
-	if l.f != nil {
-		if err := l.f.Close(); err != nil && l.err == nil {
-			l.err = fmt.Errorf("timeline log %s: %w", l.path, err)
-		}
-		l.f = nil
-	}
 }
 
 // cut rewrites the log with the nodes on the way to head, from the newest,

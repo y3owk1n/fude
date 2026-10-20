@@ -36,7 +36,11 @@ func TestLogKeepsTheTimelineAndTheUnsavedEdit(t *testing.T) {
 		t.Errorf("reopened with %d nodes, unsaved %v and %d saves, want 2, the head and 1", len(l.Nodes), l.Unsaved, len(l.Saves))
 	}
 	// Text that no longer matches starts a new log.
-	if _, l, err = timeline.Open(path, "other"); err != nil || len(l.Nodes) != 0 {
+	log, l, err = timeline.Open(path, "other")
+	if err != nil || len(l.Nodes) != 0 {
 		t.Errorf("a changed text reopened with %d nodes and %v", len(l.Nodes), err)
+	}
+	for log.Busy() {
+		runtime.Gosched()
 	}
 }
