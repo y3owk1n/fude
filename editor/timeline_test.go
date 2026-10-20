@@ -107,6 +107,39 @@ func TestB198TimelineLogCut(t *testing.T) {
 	if feed(e, "u"); text(e) != before {
 		t.Errorf("undo after reopening left %d bytes, want %d", len(text(e)), len(before))
 	}
+
+	// A session that ends at its last save without :q, as a crash would,
+	// cuts nothing, so the next open cuts the log.
+	path = filepath.Join(t.TempDir(), "g")
+	if err := os.WriteFile(path, []byte("one"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	e = open(t, path)
+	for range 15 {
+		feed(e, "o")
+		e.Paste(strings.Repeat("x", 100<<10))
+		feed(e, "<Esc>")
+	}
+	feed(e, "A last<Esc>:w<CR>")
+	want = text(e)
+	feed(e, "u")
+	before = text(e)
+	feed(e, "<C-r>")
+	if e = open(t, path); text(e) != want || e.Message() != "" {
+		t.Fatalf("reopening after a crash said %q", e.Message())
+	}
+	logs, err = filepath.Glob(filepath.Join(state, "fude", "timeline", "*.log"))
+	if err != nil || len(logs) != 2 {
+		t.Fatalf("the timeline logs are %q, %v", logs, err)
+	}
+	for _, log := range logs {
+		if info, err := os.Stat(log); err != nil || info.Size() > 1<<20 {
+			t.Fatalf("after reopening, %s is %v bytes (%v), want at most 1MB", log, info.Size(), err)
+		}
+	}
+	if feed(e, "u"); text(e) != before {
+		t.Errorf("undo after the cut left %d bytes, want %d", len(text(e)), len(before))
+	}
 }
 
 // B34

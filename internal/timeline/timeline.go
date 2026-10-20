@@ -81,6 +81,23 @@ func Open(path, text string) (*Log, Loaded, error) {
 	if len(loaded.Saves) > 0 {
 		l.saved.Kind = "save"
 	}
+	// A session that ended without closing the file did not cut its log, so
+	// opening cuts it, unless it holds changes for :recover (N26).
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, Loaded{}, fmt.Errorf("read timeline log %s: %w", path, err)
+	}
+	if info.Size() <= Cap || loaded.Unsaved != (kernel.NodeID{}) {
+		return l, loaded, nil
+	}
+	at = time.Now()
+	if err := l.cut(loaded.Nodes, loaded.Head, loaded.Saves); err != nil {
+		return nil, Loaded{}, err
+	}
+	trace.Since("file", fmt.Sprintf("cut %q, %d bytes", path, info.Size()), at, nil)
+	if loaded, _, err = read(path, sum); err != nil {
+		return nil, Loaded{}, err
+	}
 	return l, loaded, nil
 }
 

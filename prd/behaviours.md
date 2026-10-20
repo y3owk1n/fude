@@ -1022,8 +1022,10 @@ Where fude departs, the line says so and cites the departure in
 - B33 [2] The timeline persists across sessions when the file on disk still
   matches the last saved node.
 - B198 [2] Closing a file at its last save cuts a timeline log over 1MB to
-  the newest changes on the way to that save that fit in 1MB (N26). The
-  timeline that is left persists as B33 says.
+  the newest changes on the way to that save that fit in 1MB (N26). Opening
+  a file cuts its log the same way when the last session ended without
+  closing it and left no changes to recover. The timeline that is left
+  persists as B33 says.
 - B34 [2] After a crash, opening the file offers to recover every edit made
   since the last save, and `:recover` brings them back. Declining keeps them
   on the timeline as a branch. A formatter's or plugin's answer that comes
