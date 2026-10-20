@@ -45,3 +45,20 @@ func TestB366Open(t *testing.T) {
 		t.Errorf("open.terminal = \"up\" said %q", e.Message())
 	}
 }
+
+// B205, for completing :terminal
+func TestB205CompleteShells(t *testing.T) {
+	// sh from PATH, which on Windows comes with Git for Windows.
+	t.Setenv("SHELL", "sh")
+	e := editortest.Start(t)
+	e.Use(terminal.New())
+	e.SetSize(80, 24)
+	// A shell completes as its number, then shell, and that names it, as
+	// :b's completion names a buffer.
+	if editortest.Feed(e, ":terminal 2<CR><C-\\><C-n>:terminal <Tab>"); e.Line() != ":terminal 2 shell" {
+		t.Fatalf(":terminal <Tab> made the line %q, want :terminal 2 shell", e.Line())
+	}
+	if editortest.Feed(e, "<CR>"); len(e.Windows()) != 1 {
+		t.Errorf(":terminal 2 shell in shell 2 left %d windows, want it hidden", len(e.Windows()))
+	}
+}

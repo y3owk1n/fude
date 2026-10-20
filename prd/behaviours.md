@@ -769,6 +769,8 @@ Where fude departs, the line says so and cites the departure in
   time and again once it ended, and hides its window when that is the
   current one (B364). `:terminal n` does the same for the session's shell
   numbered n, as `:b n` names a buffer, and `:terminal` alone is shell 1.
+  `:terminal <Tab>` completes the shells that started, each its number
+  and then shell, as `:b`'s completion names a buffer.
   `:terminal cmd` runs `cmd` through the shell in a new window each time.
   Each opens below, in terminal mode (N29, D55). The
   shell is `SHELL`, or `/bin/sh` without it. On Windows it is `SHELL` when

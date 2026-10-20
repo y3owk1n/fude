@@ -5,6 +5,7 @@ package terminal
 
 import (
 	"context"
+	"fmt"
 	"maps"
 	"slices"
 	"strconv"
@@ -35,7 +36,7 @@ func (m *Module) Subscribed() []string { return nil }
 
 func (m *Module) Registered() []api.Registration {
 	return []api.Registration{
-		{Kind: api.Command, Name: "terminal", Short: []string{"ter", "term"}, Args: "[n|cmd]", Help: "shows or hides shell n, 1 without it, or runs cmd in a terminal window below. <C-\\><C-n> or <Esc><Esc> leaves terminal mode, and i goes back", ID: run, Host: true},
+		{Kind: api.Command, Name: "terminal", Short: []string{"ter", "term"}, Args: "[n|cmd]", Help: "shows or hides shell n, 1 without it, or runs cmd in a terminal window below. <C-\\><C-n> or <Esc><Esc> leaves terminal mode, and i goes back", ID: run, Host: true, Complete: true},
 		{Kind: api.Source, Name: "terminals", Help: "the terminals, and shows the one picked", ID: pick, Host: true},
 	}
 }
@@ -49,11 +50,39 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, _ ...int) (api.
 	if id == pick {
 		return m.list(s), nil
 	}
+	if _, ok := s.About["complete"]; ok {
+		return api.Result{Complete: shells(s)}, nil
+	}
 	args := strings.TrimSpace(s.About["args"])
+	// A completion names a shell by its number, then what it is, as :b's
+	// names a buffer.
+	if n, _, ok := strings.Cut(args, " "); ok {
+		if _, err := strconv.Atoi(n); err == nil {
+			args = n
+		}
+	}
 	if n, err := strconv.Atoi(args); err == nil && n > 0 || args == "" {
 		return api.Result{Terminal: &api.Terminal{Shell: n, Close: true}}, nil
 	}
 	return api.Result{Terminal: &api.Terminal{Command: args}}, nil
+}
+
+// shells are the session's shells as :terminal completes them, each its
+// number, then shell.
+func shells(s api.Scope) []string {
+	var ns []int
+	for _, b := range s.Buffers {
+		var n int
+		if _, err := fmt.Sscanf(b.Name, "[shell %d]", &n); err == nil && b.Kind == "terminal" {
+			ns = append(ns, n)
+		}
+	}
+	slices.Sort(ns)
+	out := make([]string, len(ns))
+	for i, n := range ns {
+		out[i] = strconv.Itoa(n) + " shell"
+	}
+	return out
 }
 
 // list lists the terminals the session may show, by their names.
