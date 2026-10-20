@@ -456,14 +456,10 @@ func (h *Buffer) run(filetype string, p *ts.Parser, q, inj *ts.Query, in *inject
 	}()
 	var text []byte
 	parsed := -1
-	for {
-		select {
-		case <-h.quit:
-			return
-		case <-h.wake:
-		}
-		// Take the edits up to the request's text and no further, so the tree
-		// and the text stay that text.
+	var took time.Duration // how long the last parse after edits took
+	// next takes the newest request, and the edits up to its text and no
+	// further, so the tree stays that text. It returns how many edits it took.
+	next := func() (request, int) {
 		h.mu.Lock()
 		r := h.req
 		n := 0
@@ -476,6 +472,37 @@ func (h *Buffer) run(filetype string, p *ts.Parser, q, inj *ts.Query, in *inject
 		if tree != nil {
 			for i := range edits {
 				tree.Edit(&edits[i].tree)
+			}
+		}
+		return r, n
+	}
+	for {
+		select {
+		case <-h.quit:
+			return
+		case <-h.wake:
+		}
+		r, edits := next()
+		if tree != nil && r.seq != parsed {
+			// While edits keep coming, as from a paste of keys or a macro, wait
+			// until none has come for as long as the last parse took. A stream of
+			// edits then parses once, not after every frame. A request with no
+			// new edit, such as a scroll's, does not restart the wait.
+			quiet := time.NewTimer(took)
+		wait:
+			for {
+				select {
+				case <-h.quit:
+					return
+				case <-h.wake:
+					var n int
+					if r, n = next(); n > 0 {
+						edits += n
+						quiet.Reset(took)
+					}
+				case <-quiet.C:
+					break wait
+				}
 			}
 		}
 		if r.seq != parsed || tree == nil {
@@ -500,16 +527,19 @@ func (h *Buffer) run(filetype string, p *ts.Parser, q, inj *ts.Query, in *inject
 			// The binding copies each chunk the callback returns, so chunks stay
 			// small.
 			at := time.Now()
-			next := p.ParseWithOptions(func(i int, _ ts.Point) []byte { return text[i:min(i+chunk, len(text))] }, tree,
+			parse := p.ParseWithOptions(func(i int, _ ts.Point) []byte { return text[i:min(i+chunk, len(text))] }, tree,
 				&ts.ParseOptions{ProgressCallback: stop})
-			if next == nil {
+			if parse == nil {
 				return
 			}
+			// Only a parse after edits sets the wait, as the first reads the
+			// whole text and takes far longer.
 			if tree != nil {
 				tree.Close()
+				took = time.Since(at)
 			}
-			tree, parsed = next, r.seq
-			h.trace(fmt.Sprintf("parsed %s, %d bytes after %d edits", filetype, len(text), len(edits)), time.Since(at))
+			tree, parsed = parse, r.seq
+			h.trace(fmt.Sprintf("parsed %s, %d bytes after %d edits", filetype, len(text), edits), time.Since(at))
 		}
 		at := time.Now()
 		var spans []Span
