@@ -34,8 +34,18 @@ func FakeProgram(t testing.TB, names ...string) string {
 		if runtime.GOOS == "windows" {
 			name += ".exe"
 		}
-		if err := link(exe, filepath.Join(dir, name)); err != nil {
+		path := filepath.Join(dir, name)
+		if err := link(exe, path); err != nil {
 			t.Fatal(err)
+		}
+		// Windows scans a new program the first time it runs, which can
+		// take seconds, so it runs once here, before a test times it.
+		if runtime.GOOS == "windows" {
+			first := exec.Command(path)
+			first.Env = append(os.Environ(), "FUDE_FAKE_SLEEP=0s")
+			if out, err := first.CombinedOutput(); err != nil {
+				t.Fatalf("run %s: %v\n%s", path, err, out)
+			}
 		}
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
