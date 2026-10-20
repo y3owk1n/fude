@@ -30,7 +30,7 @@ func (e *Session) Windows() []wire.Window {
 	for b, ws := range shown {
 		if b.syntax != nil {
 			for _, w := range slices.Clone(ws) {
-				for i := range w.(*window).opts.StickyContextLines {
+				for i := range w.(*window).pins.starts {
 					ws = append(ws, contextRow{w.(*window), i})
 				}
 			}
@@ -66,7 +66,7 @@ func (e *Session) draw(w *window) wire.Window {
 		Name: w.buf.name(), Modified: w.buf.modified(), Current: w == e.win, Zoomed: w == e.zoomed,
 		Gutter: w.gutter(), SignCols: w.signCols(), Number: w.numberCols() > 0 && w.opts.Number, Relative: w.numberCols() > 0 && w.opts.RelativeNumber,
 		Wrap: w.opts.Wrap, Left: w.left, CursorLine: w.opts.CursorLine, List: w.opts.List,
-		Indent: e.indentWidth(w.buf), Tab: tab, Guides: w.opts.IndentGuides, ColorColumn: w.opts.ColorColumn,
+		Tab: tab, ColorColumn: w.opts.ColorColumn,
 	}
 	// Centered, the colour column is the windows' edge, so it shows none.
 	if centered {
@@ -99,13 +99,14 @@ func (e *Session) draw(w *window) wire.Window {
 			v.Folds[first] = end - first
 		}
 	}
+	if w.guides.buf == w.buf {
+		v.Guides = w.guides.lines
+	}
 	if h := w.buf.syntax; h != nil {
 		v.Highlights = h.Show(t, w, top, last)
-		if w.opts.StickyContext {
-			v.Context = e.pinned(w, t, top)
-			for i, start := range v.Context {
-				v.ContextHighlights = append(v.ContextHighlights, h.Show(t, contextRow{w, i}, start, vim.LineEnd(t, start))...)
-			}
+		v.Context = pinned(w, t, top)
+		for i, start := range v.Context {
+			v.ContextHighlights = append(v.ContextHighlights, h.Show(t, contextRow{w, i}, start, vim.LineEnd(t, start))...)
 		}
 	}
 	v.Matches = e.vim.Matches(t, top, last)
@@ -239,42 +240,19 @@ type contextRow struct {
 	row int
 }
 
-// pinned returns the starts of the lines pinned over w's first rows: those
-// of the functions and classes that hold the first line they leave in view
-// and start above it, the outermost first. They never cover the cursor's
-// line, and are at most sticky_context_lines (B217).
-func (e *Session) pinned(w *window, t kernel.Snapshot, top int) []int {
-	p, h := &w.pinned, w.buf.syntax
-	if p.version == t.Version() && p.top == top && p.cursor == w.pos() && p.parses == h.Parses() && p.lines == w.opts.StickyContextLines {
-		return p.starts
+// pinned returns the starts of the lines a module pinned over w's first
+// rows, those that still start a line above top (B217).
+func pinned(w *window, t kernel.Snapshot, top int) []int {
+	if w.pins.buf != w.buf {
+		return nil
 	}
-	var starts []int
-	first := t.LineOf(top)
-	// A cursor above the window, as while a search shows its match (B21),
-	// has no line here to keep uncovered.
-	below := t.LineOf(w.pos()) - first
-	if below < 0 {
-		below = w.opts.StickyContextLines
-	}
-	room := min(w.opts.StickyContextLines, below, max(w.h-3, 0))
-	// Each pinned line covers one more line of text, so the loop asks again
-	// about the line under them until the answer stops changing.
-	for range w.opts.StickyContextLines {
-		under := first + len(starts)
-		var found []int
-		for _, s := range h.Context(t.LineStart(min(under, t.Lines()-1))) {
-			if ls := t.LineStart(t.LineOf(s)); t.LineOf(s) < under && !slices.Contains(found, ls) {
-				found = append(found, ls)
-			}
+	var out []int
+	for _, s := range w.pins.starts {
+		if s < top && t.LineStart(t.LineOf(s)) == s {
+			out = append(out, s)
 		}
-		found = found[max(len(found)-room, 0):]
-		if slices.Equal(found, starts) {
-			break
-		}
-		starts = found
 	}
-	p.version, p.top, p.cursor, p.parses, p.lines, p.starts = t.Version(), top, w.pos(), h.Parses(), w.opts.StickyContextLines, starts
-	return starts
+	return out
 }
 
 // pair returns the bracket at w's cursor and its match within the lines

@@ -195,6 +195,14 @@ type sig []byte
 func (k sig) int(n int) sig    { return binary.AppendVarint(k, int64(n)) }
 func (k sig) str(s string) sig { return append(k.int(len(s)), s...) }
 
+func (k sig) ints(ns []int) sig {
+	k = k.int(len(ns))
+	for _, n := range ns {
+		k = k.int(n)
+	}
+	return k
+}
+
 func (k sig) flag(b bool) sig {
 	if b {
 		return k.int(1)
@@ -387,7 +395,7 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 		cursors = c.e.Cursors()
 	}
 	// win holds what every line of the window draws from.
-	win := sig(nil).int(v.X).int(v.Y).int(v.W).int(v.Left).flag(v.Wrap).flag(v.List).int(v.ColorColumn).int(v.Tab).int(v.Indent)
+	win := sig(nil).int(v.X).int(v.Y).int(v.W).int(v.Left).flag(v.Wrap).flag(v.List).int(v.ColorColumn).int(v.Tab)
 	// Pinned lines cover rows, so a change to them draws every row again.
 	for _, p := range v.Context {
 		win = win.int(p)
@@ -454,15 +462,15 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 		if name, ok := v.Grounds[line]; ok {
 			ground, shade = base.Background(colours[name].GetBackground()), false
 		}
-		lead := -1
-		if v.Guides && !v.List {
-			lead = indentOf(t, pos, v.Tab)
+		var guides []int
+		if !v.List {
+			guides = v.Guides[line]
 		}
 		text := t.Slice(pos, end)
 		// A tag starts each part of the sig, so two different lines never
 		// read the same. Its positions count from the line's start, so a
 		// line keeps its sig when text above it changes.
-		k := append(c.sig[:0], win...).int(row).int(len(starts)).str(text).flag(shade).int(lead).str(v.Notes[line].Text).str(v.Notes[line].Name).int(v.Folds[line]).str(v.Grounds[line])
+		k := append(c.sig[:0], win...).int(row).int(len(starts)).str(text).flag(shade).ints(guides).str(v.Notes[line].Text).str(v.Notes[line].Name).int(v.Folds[line]).str(v.Grounds[line])
 		for _, p := range v.Pair {
 			if p >= pos && p <= end {
 				k = k.int(1).int(p - pos)
@@ -614,8 +622,8 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 				if ground != base && x < v.W {
 					c.s.FillArea(v.X+x, y, v.W-x, 1, ' ', ground)
 				}
-				if i == 0 && lead > 0 {
-					c.guides(v, lead, y)
+				if i == 0 {
+					c.guides(v, guides, y)
 				}
 				c.colorColumn(v, y)
 				if i == len(starts)-1 && slices.Contains(cursors, end) && x < v.W {
@@ -757,35 +765,14 @@ func (c *client) colorColumn(v wire.Window, y int) {
 	}
 }
 
-// indentOf returns the columns of the leading blanks of the line at start.
-// A blank line takes the indent of the next line with text, so the guides
-// run through it (B153).
-func indentOf(t vim.Text, start, tab int) int {
-	lead := 0
-	// A long run of blank lines looks 200 lines ahead at most.
-	for p, n := start, 0; n < 200; n++ {
-		end := vim.LineEnd(t, p)
-		text := t.Slice(p, end)
-		if rest := strings.TrimLeft(text, " \t"); rest != "" {
-			lead = vim.Column(t, p, p+len(text)-len(rest), tab, nil)
-			break
-		}
-		if end == t.Len() {
-			break
-		}
-		p = end + 1
-	}
-	return lead
-}
-
-// guides draws a faint line at each indent level in the first lead columns
-// of a line, on row y.
-func (c *client) guides(v wire.Window, lead, y int) {
+// guides draws a faint line at each of a line's guide columns, on row y,
+// where the cell is blank (B153).
+func (c *client) guides(v wire.Window, cols []int, y int) {
 	left := 0
 	if !v.Wrap {
 		left = v.Left
 	}
-	for col := 0; col < lead; col += max(v.Indent, 1) {
+	for _, col := range cols {
 		x := v.X + col - left
 		if x < v.X || x >= v.X+v.W {
 			continue

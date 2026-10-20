@@ -232,6 +232,28 @@ name, the current one lit and a modified one marked ●. `:b 3` shows
 buffer 3. With it off, the windows take the top row and only `:ls` and
 `:pick buffers` list the buffers.
 
+## guides.enabled
+
+Draws a faint line at each indent level in a line's leading blanks, every
+`indent_width` columns, and a blank line shows the guides of the next line
+with text. `list` hides them. On unless set, and `:set guides.enabled
+false` turns them off in every window.
+
+## sticky.enabled
+
+When the top of a window is inside a function or a class whose first line
+has scrolled out of view, that first line stays pinned over the window's
+top row, on the surface colour. Nested ones pin too, the outermost first,
+at most `sticky.lines`, and never over the cursor's line. It needs the
+file's grammar. The default is on, and `:set sticky.enabled false` turns
+it off in every window.
+
+## sticky.lines
+
+Sticky pins at most this many lines over a window's top. The default is
+3. When the top is inside more functions and classes than that, the
+innermost ones pin.
+
 ## spell.words
 
 The word list spell checks against, one word a line, and

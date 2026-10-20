@@ -483,6 +483,23 @@ by id (B359). `:pin list` opens a `Scratch` of kind `pins`, and the
 module's `Write` reads the buffer's lines as the new list (B358). It
 hears `explorer.moved` for files that are not open (B360).
 
+`modules/sticky` pins the lines of B217. It hears `window.moved`,
+`window.opened`, `buffer.changed`, `syntax.updated` and `option.set`,
+finds the functions and classes over each window's top through
+`Scope.Context`, and returns `Pins` by window id for every window on the
+event's buffer. The editor keeps a window's pins with the buffer they
+were for, and draws those that still start a line above its top, with
+their numbers, highlights and replacements. A result read from text that
+has changed since pins nothing (B379).
+
+`modules/guides` works out the guides of B153. On the same events and `buffer.opened`, it
+reads the buffer's indent and tab widths from `About` and returns
+`Guides` by window id: for each line from a window's height above the
+window to one below it, the display columns of its guides. The editor
+keeps them with the buffer they were for and puts them in the window's
+frame as they are, and the client draws them on the line's blank cells
+(B380).
+
 `modules/window` is `<Plug>(window.*)`. `Scope.Window` says whether a
 window is next to the current one that way, and the result's `Window`
 moves to it, as `<C-w>h`, `<C-w>j`, `<C-w>k` and `<C-w>l` do. With no
@@ -1130,7 +1147,6 @@ format_on_save = false # format before :w writes (B136)
 format_timeout = 1000  # milliseconds a format may take (B136, B234)
 clipboard = false    # yanks, deletes and puts use the system clipboard (B137)
 sign_column = false  # keep the sign column when there are no signs (B143)
-indent_guides = true # a faint line at each indent level (B153)
 color_column = 0     # the column of the text to shade, and how wide :center is (B200)
 icons = false        # nerd font icons in explorers and diagnostic signs (B128)
 

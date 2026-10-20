@@ -760,6 +760,28 @@ its name is known only once it loads, in the background. The user chose
 that over keeping a plugin's read-only settings beside its options, two
 ways to do one job, and named the table `options` after what it starts.
 
+## D60. Sticky context and indent guides are modules
+
+`modules/sticky` decides which lines pin over a window's top, and
+`modules/guides` the display columns of each line's indent guides. The
+editor draws the pins, and the client the guides, on blank cells after
+tabs are expanded. Their options, `sticky.enabled`, `sticky.lines` and
+`guides.enabled`, are shared by every window (B153, B217, B379, B380).
+
+Why, as of 2026-10-20: the user wanted sticky context to be a module, so
+a distribution may leave it out. The editor keeps the drawing, since a
+pinned line needs its number, highlights, replacements and ground, which
+no decoration gives. Its options are shared because a module reads only
+the window its call is about. The pins now come a step after a scroll,
+as spell's and markdown's decorations do. The user then wanted indent
+guides to be a module too, as fast as it could be. A decoration marks
+text, and a replaced tab draws at its replacement's width, so guides as
+replacements would shrink every tab. The module gives display columns
+instead, which the client draws as it did, so a guide may still fall
+inside a tab. It sends a window's height of guides above the window and
+below it, so a short scroll draws with the guides it has, and the editor
+passes them to the frame as they are, with no decoration to look up.
+
 ## Departures from Neovim
 
 Each entry: what differs, then why.
@@ -907,9 +929,9 @@ configs set space.
 
 ### N19. Indent guides are on
 
-fude draws indent guides unless `indent_guides` is off (B153), where
+fude draws indent guides unless `guides.enabled` is off (B153), where
 Neovim draws none without a plugin. Why: the redesign the user approved on
-2026-10-16 shows them, and `indent_guides = false` turns them off.
+2026-10-16 shows them, and `:set guides.enabled false` turns them off.
 
 ### N20. `:lsp` alone shows the servers, and there is no `:checkhealth`
 

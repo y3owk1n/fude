@@ -23,6 +23,7 @@ and a program that embeds the editor does the same.
 | [`git`](git) | git signs, hunks, `gh`, `gH`, `:gitdiff`, an explorer's git status and the branch on the status line |
 | [`grammars`](grammars) | `:grammar` lists, installs and updates the grammars |
 | [`grep`](grep) | `:pick grep`, a live search of the files' lines |
+| [`guides`](guides) | a faint line marks each indent level in a line's leading blanks |
 | [`help`](help) | `:help` shows help at an entry, and `<CR>` follows a name |
 | [`hints`](hints) | the keys that may follow the command being typed, after `hints.delay` |
 | [`history`](history) | `q:`, `q/` and `q?` list the command lines or searches to edit and run one |
@@ -42,6 +43,7 @@ and a program that embeds the editor does the same.
 | [`shell`](shell) | `:!`, `:{range}!` and `:r !` run a command in the shell, and `:r file` puts a file's text below the line |
 | [`spell`](spell) | `spell.enabled`, `]s`, `[s`, `z=` and `zg` |
 | [`start`](start) | the start screen of fude started with no file |
+| [`sticky`](sticky) | the first lines of the functions and classes a window's top is in stay pinned over it |
 | [`surround`](surround) | `ys`, `yss`, `ds`, `cs` and `S` in visual mode surround text |
 | [`window`](window) | `<Plug>(window.*)` move to the window that way, or to tmux's pane, and `:split`, `:vsplit`, `:new`, `:vnew`, `:only`, `:resize` and `:vertical resize` |
 | [`terminal`](terminal) | `:terminal` runs a command, or the shell, in a window below |

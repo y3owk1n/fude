@@ -757,6 +757,16 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 	if res.Tabs != nil {
 		e.tabs = *res.Tabs
 	}
+	for _, s := range e.sessions {
+		for _, w := range s.windows() {
+			if starts, ok := res.Pins[w.id]; ok {
+				w.pins.buf, w.pins.starts = w.buf, starts
+			}
+			if lines, ok := res.Guides[w.id]; ok {
+				w.guides.buf, w.guides.lines = w.buf, lines
+			}
+		}
+	}
 	if res.Follow != "" {
 		e.startFollow(res.Follow)
 	}
@@ -1312,7 +1322,7 @@ func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 	}
 	s.Config = func(path string) (string, bool) { return configNode(cfg, path) }
 	if b.syntax != nil {
-		s.Node, s.Free = b.syntax.Nodes()
+		s.Node, s.Context, s.Free = b.syntax.Nodes()
 		regions := b.syntax.Regions()
 		s.Language = func(pos int) string { return cmp.Or(syntax.LanguageIn(regions, pos), ft) }
 		if snap, ok := t.(kernel.Snapshot); ok {

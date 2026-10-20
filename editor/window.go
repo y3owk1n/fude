@@ -27,13 +27,17 @@ type window struct {
 	saved  *options // its options while the start screen shows (B225)
 	own    *options // its options under those its buffer's filetype sets (B94)
 	fitted *buffer  // the buffer its filetype's options were last fitted for
-	// pinned is the last sticky context worked out, with the text's version,
-	// the top, cursor, parse and sticky_context_lines it was for, so a frame
-	// that changes none of them asks no tree.
-	pinned struct {
-		version                    kernel.Version
-		top, cursor, parses, lines int
-		starts                     []int
+	// pins are the starts of the lines a module pinned over its top rows
+	// while it showed buf (B217).
+	pins struct {
+		buf    *buffer
+		starts []int
+	}
+	// guides are, by line, the columns where a module put indent guides
+	// while the window showed buf (B153).
+	guides struct {
+		buf   *buffer
+		lines map[int][]int
 	}
 
 	x, y, w, h int // where the layout puts it, its status line included

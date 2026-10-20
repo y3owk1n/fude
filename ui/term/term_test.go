@@ -30,9 +30,11 @@ import (
 	colourmod "github.com/y3owk1n/fude/modules/colours"
 	completionmod "github.com/y3owk1n/fude/modules/completion"
 	filesmod "github.com/y3owk1n/fude/modules/files"
+	guidesmod "github.com/y3owk1n/fude/modules/guides"
 	hintsmod "github.com/y3owk1n/fude/modules/hints"
 	lspmod "github.com/y3owk1n/fude/modules/lsp"
 	sessionsmod "github.com/y3owk1n/fude/modules/sessions"
+	stickymod "github.com/y3owk1n/fude/modules/sticky"
 	terminalmod "github.com/y3owk1n/fude/modules/terminal"
 	thememod "github.com/y3owk1n/fude/modules/theme"
 	timelinemod "github.com/y3owk1n/fude/modules/timeline"
@@ -504,6 +506,7 @@ func TestB217PinnedReplace(t *testing.T) {
 	}
 	c := startWith(t, "", path)
 	c.e.(*editor.Session).Use(heading{})
+	c.e.(*editor.Session).Use(stickymod.New())
 	// The client sizes the window as it draws, which zt needs first.
 	c.draw()
 	for _, k := range vim.Keys("60Gzt3j") {
@@ -1167,17 +1170,28 @@ func TestB153IndentGuides(t *testing.T) {
 		t.Fatal(err)
 	}
 	cl := start(t, path)
-	cl.draw()
+	cl.e.(*editor.Session).Use(guidesmod.New())
 	cell := func(x, y int) string { s, _, _ := cl.s.Get(x, y); return s }
-	// An indented line and the blank line before the next one show a guide.
-	if cell(0, 1) != "│" || cell(0, 2) != "│" || cell(0, 0) != "a" {
-		t.Fatalf("the first column reads %q %q %q", cell(0, 0), cell(0, 1), cell(0, 2))
+	// An indented line and the blank line before the next one show a guide,
+	// once the module's answer comes through the loop.
+	for deadline := time.After(5 * time.Second); ; {
+		if cl.draw(); cell(0, 1) == "│" && cell(0, 2) == "│" && cell(0, 0) == "a" {
+			break
+		}
+		select {
+		case f := <-cl.e.Queue():
+			f()
+		case <-time.After(10 * time.Millisecond):
+		case <-deadline:
+			t.Fatalf("the first column reads %q %q %q", cell(0, 0), cell(0, 1), cell(0, 2))
+		}
 	}
-	for _, k := range vim.Keys(":set indent_guides false<CR>") {
+	// list hides them.
+	for _, k := range vim.Keys(":set list true<CR>") {
 		cl.e.Feed(k)
 	}
-	if cl.draw(); cell(0, 1) != " " {
-		t.Fatalf("with indent_guides false the first column has %q", cell(0, 1))
+	if cl.draw(); cell(0, 2) != " " {
+		t.Fatalf("with list on the blank line has %q", cell(0, 2))
 	}
 }
 

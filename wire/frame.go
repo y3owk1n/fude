@@ -83,9 +83,8 @@ type Window struct {
 	Pair             []int             // the bracket at the cursor and its match, shown bold (B121)
 	List             bool              // show tabs, trailing spaces and no-break spaces (B118)
 	Left             int               // the first column shown without wrap
-	Indent           int               // the columns of an indent level, where guides go
 	Tab              int               // the columns a tab shows as
-	Guides           bool              // draw indent guides (B153)
+	Guides           map[int][]int     // by line, the display columns where a faint line marks the indent (B153)
 	ColorColumn      int               // the column of the text to shade, from 1, or 0 (B200)
 	Colours          []Colour          // text that names a colour, shown on it (B208, B209)
 	Folds            map[int]int       // by the first line of each closed fold shown, the lines it hides (B224)

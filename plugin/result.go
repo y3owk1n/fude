@@ -27,7 +27,7 @@ var needs = map[string]string{
 	"Decorate": "ui", "Undecorate": "ui", "Status": "ui", "StatusLeft": "ui", "SessionLeft": "ui", "Capture": "ui",
 	"Message": "ui", "Float": "ui", "Show": "ui", "Jump": "ui", "Pick": "ui", "Menu": "ui",
 	"Places": "ui", "Complete": "ui", "Cmdline": "ui", "Confirm": "ui", "Moved": "ui",
-	"Completion": "ui", "Copy": "ui", "Window": "ui", "Tabs": "ui", "Follow": "ui", "Kick": "ui",
+	"Completion": "ui", "Copy": "ui", "Pins": "ui", "Guides": "ui", "Window": "ui", "Tabs": "ui", "Follow": "ui", "Kick": "ui",
 	"Close": "ui", "Drop": "buffer.write", "Windows": "ui", "Scratch": "ui", "Write": "buffer.write",
 	"Marks": "ui", "Registers": "ui", "Search": "ui", "Ex": "keys", "Place": "keys", "Each": "keys", "Styles": "ui",
 	"Emit": "", "Timers": "", "Set": "", "Log": "", "Selected": "", "Error": "",

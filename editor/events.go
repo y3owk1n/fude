@@ -273,10 +273,10 @@ func (e *Session) handled(p api.Module, ev event, err error, t kernel.Snapshot, 
 }
 
 // stale returns what of res applies once the text it read has changed:
-// everything but its edits, what it selected, and its decorations and a
-// jump on that text (B291).
+// everything but its edits, what it selected, its pins and guides, and its
+// decorations and a jump on that text (B153, B291, B379).
 func stale(res api.Result) api.Result {
-	res.Edits, res.Selected, res.Apply = nil, nil, nil
+	res.Edits, res.Selected, res.Apply, res.Pins, res.Guides = nil, nil, nil, nil, nil
 	res.Decorate = slices.DeleteFunc(slices.Clone(res.Decorate), func(d api.Decoration) bool { return d.Buffer == 0 })
 	if res.Jump != nil && res.Jump.Path == "" && res.Jump.Buffer == 0 {
 		res.Jump = nil

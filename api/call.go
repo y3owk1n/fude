@@ -92,9 +92,13 @@ type Result struct {
 	Copy       string         // text to put on the clipboard (B329)
 	Window     string         // h, j, k or l: the window next to the current one that way becomes current (B330)
 	Tabs       *[]Tab         // what the buffer line lists, none for no row (B331)
-	Follow     string         // the session whose windows the call's session follows, by name (B256, B332)
-	Build      []string       // the filetypes whose grammars build again, which only the host may ask (B165, B333)
-	Kick       string         // the guest whose session ends, by name, which only the host may ask (B250, B332)
+	Pins       map[int][]int  // by window id, the starts of the lines pinned over its top rows, in place of those it had (B217)
+	// Guides are by window id, then by line, the display columns where a
+	// faint line marks the indent, in place of those the window had (B153).
+	Guides map[int]map[int][]int
+	Follow string   // the session whose windows the call's session follows, by name (B256, B332)
+	Build  []string // the filetypes whose grammars build again, which only the host may ask (B165, B333)
+	Kick   string   // the guest whose session ends, by name, which only the host may ask (B250, B332)
 	// Close closes the buffers by id, as :bd does, and keeps a modified
 	// one open. Write writes the buffers by id, as :w does. Windows does
 	// each action to its window, and Scratch opens a buffer with no file
@@ -665,10 +669,12 @@ type Scope struct {
 	// Decorations returns the owner's decorations on every open buffer, by
 	// Buffer, where they were when the call began (B289, B291).
 	Decorations func() []Decoration
-	// Node finds a syntax node in Text, as syntax.Buffer.Nodes does. Free
-	// frees what it reads once the call is done (B189).
-	Node func(pos, up int) (kind string, start, end int, ok bool)
-	Free func()
+	// Node finds a syntax node in Text, and Context where each function and
+	// class that holds pos starts, the outermost first, as syntax.Buffer.Nodes
+	// does. Free frees what they read once the call is done (B189, B217).
+	Node    func(pos, up int) (kind string, start, end int, ok bool)
+	Context func(pos int) []int
+	Free    func()
 }
 
 // Span is a highlight capture over [Start, End), named as the query names

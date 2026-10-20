@@ -89,7 +89,6 @@ type Buffer struct {
 
 	// The editor loop's side.
 	seq     int      // changes heard
-	parses  int      // parses taken
 	log     []change // changes since the text the spans and tree are for
 	spans   []Span   // in paint order, later spans drawing over earlier ones
 	regions []Region // of other languages, inner ones after the regions holding them
@@ -98,6 +97,7 @@ type Buffer struct {
 	objects *ts.Query
 	cursor  *ts.QueryCursor
 	closed  bool
+	held    int // how many of Nodes' lookups read objects and are not yet freed, under mu
 	asked   request
 	missing func(filetype string, err error) // told once of each injected language that did not load
 	trace   func(text string, took time.Duration)
@@ -296,8 +296,12 @@ func plainLua(pat string) bool {
 // frees the editor loop's.
 func (h *Buffer) Close() {
 	close(h.quit)
+	h.mu.Lock()
 	h.closed = true
-	h.objects.Close()
+	if h.held == 0 {
+		h.objects.Close()
+	}
+	h.mu.Unlock()
 	h.cursor.Close()
 	if h.tree != nil {
 		h.tree.Close()
@@ -418,7 +422,6 @@ func (h *Buffer) take(seq int, spans []Span, regions []Region, missing []problem
 		go h.tree.Close()
 	}
 	h.spans, h.regions, h.tree = spans, regions, tree
-	h.parses++
 	i := 0
 	for i < len(h.log) && h.log[i].seq <= seq {
 		i++
@@ -570,38 +573,6 @@ func (h *Buffer) Object(t Text, name string, start, end int) (int, int, bool) {
 	return best.start, best.end, size >= 0
 }
 
-// Parses returns how many parses the buffer has taken, which a caller of
-// Context keeps to know when its answer may have changed.
-func (h *Buffer) Parses() int { return h.parses }
-
-// Context returns where each function and class that holds pos starts,
-// the outermost first, in the last parse moved through the edits made since
-// (B217).
-func (h *Buffer) Context(pos int) []int {
-	if h.tree == nil {
-		return nil
-	}
-	tree, done := h.current()
-	defer done()
-	fn, okFn := h.objects.CaptureIndexForName("function.outer")
-	class, okClass := h.objects.CaptureIndexForName("class.outer")
-	h.cursor.SetByteRange(uint(pos), uint(pos+1))
-	var starts []int
-	matches := h.cursor.Matches(h.objects, tree.RootNode(), nil)
-	for m := matches.Next(); m != nil; m = matches.Next() {
-		for _, c := range m.Captures {
-			if !(okFn && c.Index == uint32(fn) || okClass && c.Index == uint32(class)) {
-				continue
-			}
-			if s, e := int(c.Node.StartByte()), int(c.Node.EndByte()); s <= pos && pos < e {
-				starts = append(starts, s)
-			}
-		}
-	}
-	slices.Sort(starts)
-	return slices.Compact(starts)
-}
-
 // Select returns the range of every node a capture of the query src names
 // within [start, end) of t, the text now. It queries the last parse, moved
 // through the edits made since.
@@ -630,13 +601,15 @@ func (h *Buffer) Select(t Text, src string, start, end int) ([][2]int, error) {
 	return out, nil
 }
 
-// Nodes returns a lookup and the func that frees it. The lookup finds the
-// named node that holds pos, or its up'th named parent, in the last parse
-// moved through the edits made since. It reads a copy of the tree, so one
-// other goroutine may use it until it is freed (B189).
-func (h *Buffer) Nodes() (func(pos, up int) (kind string, start, end int, ok bool), func()) {
+// Nodes returns two lookups and the func that frees them, over the last
+// parse moved through the edits made since. at finds the named node that
+// holds pos, or its up'th named parent (B189). context finds where each
+// function and class that holds pos starts, the outermost first, as the
+// grammar's text objects say (B217). They read a copy of the tree, so one
+// other goroutine may use them until they are freed.
+func (h *Buffer) Nodes() (at func(pos, up int) (kind string, start, end int, ok bool), context func(pos int) []int, free func()) {
 	if h.tree == nil {
-		return func(int, int) (string, int, int, bool) { return "", 0, 0, false }, func() {}
+		return func(int, int) (string, int, int, bool) { return "", 0, 0, false }, func(int) []int { return nil }, func() {}
 	}
 	tree := h.tree.Clone()
 	for _, c := range h.log {
@@ -644,7 +617,39 @@ func (h *Buffer) Nodes() (func(pos, up int) (kind string, start, end int, ok boo
 			tree.Edit(&c.tree[i])
 		}
 	}
-	at := func(pos, up int) (string, int, int, bool) {
+	h.mu.Lock()
+	h.held++
+	h.mu.Unlock()
+	fn, okFn := h.objects.CaptureIndexForName("function.outer")
+	class, okClass := h.objects.CaptureIndexForName("class.outer")
+	context = func(pos int) []int {
+		c := ts.NewQueryCursor()
+		defer c.Close()
+		c.SetByteRange(uint(pos), uint(pos+1))
+		var starts []int
+		matches := c.Matches(h.objects, tree.RootNode(), nil)
+		for m := matches.Next(); m != nil; m = matches.Next() {
+			for _, cp := range m.Captures {
+				if !(okFn && cp.Index == uint32(fn) || okClass && cp.Index == uint32(class)) {
+					continue
+				}
+				if s, e := int(cp.Node.StartByte()), int(cp.Node.EndByte()); s <= pos && pos < e {
+					starts = append(starts, s)
+				}
+			}
+		}
+		slices.Sort(starts)
+		return slices.Compact(starts)
+	}
+	free = func() {
+		tree.Close()
+		h.mu.Lock()
+		defer h.mu.Unlock()
+		if h.held--; h.held == 0 && h.closed {
+			h.objects.Close()
+		}
+	}
+	at = func(pos, up int) (string, int, int, bool) {
 		n := tree.RootNode().NamedDescendantForByteRange(uint(pos), uint(pos))
 		for ; n != nil && up > 0; up-- {
 			for n = n.Parent(); n != nil && !n.IsNamed(); n = n.Parent() {
@@ -655,7 +660,7 @@ func (h *Buffer) Nodes() (func(pos, up int) (kind string, start, end int, ok boo
 		}
 		return n.Kind(), int(n.StartByte()), int(n.EndByte()), true
 	}
-	return at, tree.Close
+	return at, context, free
 }
 
 // current returns the last parse moved through the edits made since, and

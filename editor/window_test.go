@@ -12,6 +12,7 @@ import (
 	"github.com/y3owk1n/fude/editor"
 	explorermod "github.com/y3owk1n/fude/modules/explorer"
 	filesmod "github.com/y3owk1n/fude/modules/files"
+	"github.com/y3owk1n/fude/modules/sticky"
 	windowmod "github.com/y3owk1n/fude/modules/window"
 )
 
@@ -413,35 +414,6 @@ func TestB144Leader(t *testing.T) {
 	}
 }
 
-// B217
-func TestB217StickyContext(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "a.go")
-	change(t, path, "package p\n\nfunc F() {\n\tg := func() {\n"+strings.Repeat("\t\tx()\n", 30)+"\t}\n}\n")
-	e := start(t, path)
-	e.SetSize(80, 10)
-	// Scrolled into g in F, both first lines are pinned, with their highlights.
-	feed(e, "20Gzt3j")
-	settle(t, e, func() bool {
-		v := e.Windows()[0]
-		return slices.Equal(v.Context, []int{11, 22}) && len(v.ContextHighlights) > 0
-	})
-	// With sticky_context_lines 1, only the innermost line pins.
-	if feed(e, ":set sticky_context_lines 1<CR>"); !slices.Equal(e.Windows()[0].Context, []int{22}) {
-		t.Errorf("with sticky_context_lines 1, %v is pinned", e.Windows()[0].Context)
-	}
-	// With the cursor on the top line, nothing covers it.
-	if feed(e, "zt"); len(e.Windows()[0].Context) != 0 {
-		t.Errorf("with the cursor on the top line, %v is pinned", e.Windows()[0].Context)
-	}
-	// :set sticky_context false turns it off in the window.
-	if feed(e, "3j"); len(e.Windows()[0].Context) == 0 {
-		t.Fatal("with the cursor below the top again, nothing is pinned")
-	}
-	if feed(e, ":set sticky_context false<CR>"); len(e.Windows()[0].Context) != 0 {
-		t.Errorf("with sticky_context off, %v is pinned", e.Windows()[0].Context)
-	}
-}
-
 // B21, while the search is typed
 func TestB21IncrementalSearch(t *testing.T) {
 	var src strings.Builder
@@ -488,11 +460,13 @@ func TestB21IncrementalSearchPinsContext(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "a.go")
 	change(t, path, src.String())
 	e := open(t, path)
+	e.Use(sticky.New())
 	e.SetSize(80, 20)
 	captures(t, e)
 	feed(e, "/needle")
-	e.SetSize(80, 20)
-	if v := e.Windows()[0]; len(v.Context) != 1 || v.Text.Slice(v.Context[0], v.Context[0]+4) != "func" {
-		t.Errorf("with the match in view, the context is %v", v.Context)
-	}
+	settle(t, e, func() bool {
+		e.SetSize(80, 20)
+		v := e.Windows()[0]
+		return len(v.Context) == 1 && v.Text.Slice(v.Context[0], v.Context[0]+4) == "func"
+	})
 }

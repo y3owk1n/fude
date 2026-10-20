@@ -507,7 +507,7 @@ Where fude departs, the line says so and cites the departure in
   that its query matches, where `matchfuzzypos()` puts them, and a grep
   result marks where the query is in its line. A command line's menu marks
   the letters the typed word matches.
-- B153 [2] With `indent_guides` on, as it is unless set off, a faint line
+- B153 [2] With `guides.enabled` on, as it is unless set off, a faint line
   marks each indent level in a line's leading blanks, at every
   `indent_width` columns, and a blank line shows the guides of the next
   line with text (N19). `list` hides them.
@@ -1037,11 +1037,11 @@ Where fude departs, the line says so and cites the departure in
   argument and class through tree-sitter queries. When the selection is
   already what one selects, it takes the next larger one, so a count or
   the object again in visual mode grows the selection.
-- B217 [3] With `sticky_context` on, as it is unless `:set` or config.toml
+- B217 [3] With `sticky.enabled` on, as it is unless `:set` or config.toml
   sets it off, a window
   whose top is inside a function or class pins that one's first line over
   its top row when the line is above it. Nested ones pin too, the
-  outermost first. At most `sticky_context_lines` pin, 3 by default, and
+  outermost first. At most `sticky.lines` pin, 3 by default, and
   when the top is inside more than that, the innermost ones pin. Each has
   its number and highlights on the surface colour. The grammar's text objects say what a function or class
   is, and the first line left in view under the pinned ones decides which
@@ -1274,6 +1274,15 @@ Where fude departs, the line says so and cites the departure in
   `[module.<name>]`. A key there
   that names no option, or a value of the wrong kind, is an error that
   names it, and `:config reload` changes nothing then (D59).
+- B379 [4] A module's call reads where each function and class that
+  holds a place starts, the outermost first, as the grammar's text objects
+  say. Its result pins lines over a window's top rows, by the window's id,
+  in place of those it pinned before. fude draws a pinned line as B217
+  says while it still starts a line above the window's top (D60).
+- B380 [4] A module's result gives a window's indent guides, by line, as
+  the display columns where a faint line marks the indent, in place of
+  those it had. The client draws each where the cell is blank, on a
+  line's first row, unless `list` is on (B153, D60).
 - B345 [4] A module's result defines styles by name, with a colour for
   the text and one for its ground, bold, italic, underline or strike, over
   the theme's styles. Its decorations and spans name them.

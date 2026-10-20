@@ -62,11 +62,6 @@ nothing.
 Keeps the sign column in every window, so the text does not move when a git
 or diagnostic sign comes. Off, the column shows while the buffer has signs.
 
-## indent_guides
-
-Draws a faint line at each indent level in a line's leading blanks, and a
-blank line shows the guides of the next line with text.
-
 ## color_column
 
 Shades this column of the text, counting from 1, on each line. It is also
@@ -92,21 +87,6 @@ set.
 While a search is typed, the window shows the match it goes to, lit apart
 from the other matches, and `<Esc>` scrolls the window back. It is on unless
 set off.
-
-## sticky_context
-
-When the top of a window is inside a function or a class whose first line
-has scrolled out of view, that first line stays pinned over the window's
-top row, on the surface colour, as nvim-treesitter-context does. Nested
-ones pin too, the outermost first, at most `sticky_context_lines`, and
-never over the cursor's line. It needs the file's grammar. The default is
-on, and `:set sticky_context false` turns it off in the window.
-
-## sticky_context_lines
-
-Sticky context pins at most this many lines over a window's top. The
-default is 3. When the top is inside more functions and classes than that,
-the innermost ones pin.
 
 ## lsp.diagnostic_notes
 
