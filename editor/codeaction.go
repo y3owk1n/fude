@@ -78,13 +78,13 @@ func (e *Session) drawMenu() {
 			spans = append(spans, syntax.Span{Start: start, End: s.Len(), Name: "menu.selected"})
 		}
 	}
-	e.float.text, e.float.spans = s.String(), spans
-	e.float.doc, e.float.docSpans = "", nil
+	e.menu.text, e.menu.spans = s.String(), spans
+	e.menu.doc, e.menu.docSpans = "", nil
 	if doc := p.items[p.sel].Doc; doc != nil {
 		if doc.Spans == nil {
-			e.float.doc, e.float.docSpans = e.markdown(doc.Text)
+			e.menu.doc, e.menu.docSpans = e.markdown(doc.Text)
 		} else {
-			e.float.doc, e.float.docSpans = doc.Text, styled(doc.Spans)
+			e.menu.doc, e.menu.docSpans = doc.Text, styled(doc.Spans)
 		}
 	}
 }
@@ -120,7 +120,7 @@ func (p *pick) key(e *Session, k vim.Key) bool {
 // chose closes the menu and tells its module which item was picked, or
 // that none was.
 func (e *Session) chose(p *pick, i int, ok bool) {
-	e.pick, e.float.text, e.float.doc, e.float.docSpans = nil, "", "", nil
+	e.pick, e.menu.text, e.menu.doc, e.menu.docSpans = nil, "", "", nil
 	if !ok {
 		i = -1
 	}

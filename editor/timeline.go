@@ -59,7 +59,7 @@ var scratchKeys = map[string]string{"q": ":close<CR>"}
 // to where the last change there starts.
 func (e *Session) scrub(src *buffer, id kernel.NodeID) {
 	start, _ := goTo(src, id)
-	for _, w := range e.root.windows() {
+	for _, w := range e.windows() {
 		if w.buf == src {
 			src.text.MoveMark(w.cursor, start)
 		}
@@ -79,38 +79,33 @@ func replace(old, new string) kernel.Edit {
 	return kernel.Edit{Start: pre, End: len(old) - suf, Text: new[pre : len(new)-suf]}
 }
 
-// panel shows text in the read-only window titled title, coloured as
-// filetype once its grammar is built. It opens the window unless one of
-// that title is open. It reports whether it could, and says why not when it
-// could not.
-// panel shows p in a read-only window titled p.Title, or in place of what
-// the window of that title shows, keeping its cursor's line and the focus
-// where they are. It reports whether it did (B186).
+// panel shows p in a read-only window titled p.Title, in a split below or
+// a float in the middle of the screen, or in place of what the window of
+// that title shows, keeping its cursor's line and the focus where they
+// are. It reports whether it did (B186, B318).
 func (e *Session) panel(p api.Panel) bool {
-	if p.Float {
-		return e.boxPanel(p)
-	}
-	if i := slices.IndexFunc(e.root.windows(), func(w *window) bool { return w.buf.title == p.Title }); i >= 0 {
-		b := e.root.windows()[i].buf
-		t := b.text.Snapshot()
-		if old := t.Slice(0, t.Len()); old != p.Text {
-			if err := b.text.Apply(kernel.Transaction{Base: t.Version(), Edits: []kernel.Edit{replace(old, p.Text)}}); err != nil {
-				e.message = err.Error()
-				return false
-			}
-			b.saved = b.text.Head()
+	if i := slices.IndexFunc(e.windows(), func(w *window) bool { return w.buf.title == p.Title }); i >= 0 {
+		b := e.windows()[i].buf
+		if err := e.refill(b, p.Text, styled(p.Spans)); err != nil {
+			e.message = err.Error()
+			return false
 		}
-		e.style(b, p.Spans)
+		b.cards, b.foot, b.footSpans = p.Cards, p.Foot, styled(p.FootSpans)
 		return true
 	}
 	if p.Update {
 		return false
 	}
-	e.scratch(p.Title, p.Text)
+	if p.Float {
+		e.openFloat(e.floatBuffer(p.Title, p.Text, nil), middle, true)
+	} else {
+		e.scratch(p.Title, p.Text)
+	}
 	b := e.win.buf
 	b.panelKind = p.Kind
 	b.keys = e.panelKeys(b, p.Keys)
-	e.style(b, p.Spans)
+	b.cards, b.foot, b.footSpans = p.Cards, p.Foot, styled(p.FootSpans)
+	e.style(b, styled(p.Spans))
 	e.setCursor(min(max(p.Cursor, 0), b.text.Snapshot().Len()))
 	if b.ft = p.Filetype; b.ft == "" {
 		return true
@@ -126,11 +121,11 @@ func (e *Session) panel(p api.Panel) bool {
 // panelAt moves the focus to the window of the panel titled title, with
 // line at its top and the cursor on it (B334).
 func (e *Session) panelAt(title string, line int) {
-	i := slices.IndexFunc(e.root.windows(), func(w *window) bool { return w.buf.title == title })
+	i := slices.IndexFunc(e.windows(), func(w *window) bool { return w.buf.title == title })
 	if i < 0 {
 		return
 	}
-	e.win = e.root.windows()[i]
+	e.win = e.windows()[i]
 	t := e.win.buf.text.Snapshot()
 	at := t.LineStart(min(line, t.Lines()-1))
 	e.setCursor(at)
@@ -185,7 +180,7 @@ func (e *Session) scratch(title, text string) {
 type panelStyles struct{ b *buffer }
 
 // style puts spans on b, a panel, in place of the styles it had (B276).
-func (e *Session) style(b *buffer, spans []api.Span) {
+func (e *Session) style(b *buffer, spans []syntax.Span) {
 	for _, d := range e.decos[panelStyles{b}] {
 		d.remove()
 	}

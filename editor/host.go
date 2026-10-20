@@ -98,6 +98,8 @@ func (h host) Fold(line int) (int, int) { return h.e.win.fold(h.e.Text(), line) 
 
 // Shown returns what the current window shows in its lines from start to
 // end that the text does not hold (B295).
+func (h host) WordWrap() bool { return h.e.win.anchor != "" }
+
 func (h host) Shown(start, end int) []vim.Inline {
 	return h.e.shown(h.e.win, start, end).inlines
 }
@@ -176,15 +178,12 @@ func (h host) Unhandled(k string) {
 	digits := len(k) - len(strings.TrimLeft(k, "0123456789"))
 	count, _ := strconv.Atoi(k[:digits])
 	k = k[digits:]
-	if h.e.under != nil {
-		// In a float, :q, :close and <C-w> only leave it. Any other ex line
-		// leaves it and acts on the window under it.
-		h.e.unfocus()
-		if name, _, _ := strings.Cut(strings.TrimPrefix(k, ":"), " "); strings.HasPrefix(k, "<C-w>") || slices.Contains([]string{"q", "q!", "quit", "quit!", "clo", "close"}, name) {
+	if w, ok := strings.CutPrefix(k, "<C-w>"); ok {
+		// The layout's keys do not reach a float, so <C-w> in one closes it.
+		if f := h.e.win; f.anchor != "" {
+			h.e.closeFloat(f)
 			return
 		}
-	}
-	if w, ok := strings.CutPrefix(k, "<C-w>"); ok {
 		h.e.window(w, count)
 		return
 	}

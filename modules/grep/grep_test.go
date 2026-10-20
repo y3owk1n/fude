@@ -27,7 +27,7 @@ func TestB134Grep(t *testing.T) {
 	e.Use(grep.New())
 	e.SetSize(100, 24)
 	results := func() []string {
-		f, _ := e.Float()
+		f, _ := e.Menu()
 		lines := strings.Split(f.Text, "\n")[1:]
 		return slices.DeleteFunc(lines, func(l string) bool { return l == "" })
 	}

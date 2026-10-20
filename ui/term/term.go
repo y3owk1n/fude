@@ -239,23 +239,30 @@ func (c *client) draw() {
 
 	// A modal box, the command line or the finder, has the windows under it
 	// drawn in the tinted theme, and draws on the tinted ground (B151).
-	f, floats := c.e.Float()
-	sig, signs := c.e.Signature()
+	f, floats := c.e.Menu()
 	msg, ask := c.e.Message(), c.e.Confirm()
+	wins := c.e.Windows()
+	// A float in the middle of the screen dims the windows under it, as a
+	// modal box does.
+	middle, floated := false, false
+	for _, v := range wins {
+		middle, floated = middle || v.Float == "middle", floated || v.Float != ""
+	}
 	// A :s being typed shows its preview in the windows, so they stay lit.
-	modal := c.e.Mode() == vim.Cmdline && !c.e.Substituting() || floats && f.W > 0 && !f.Lit || ask != ""
+	modal := c.e.Mode() == vim.Cmdline && !c.e.Substituting() || floats && f.W > 0 && !f.Lit || middle || ask != ""
 	if modal {
 		apply(dimmed)
 		defer apply(lit)
 	}
 	// No line's sig holds what draws over the windows, so every line draws
 	// while something is over them and in the frame after.
-	over := c.e.Mode() == vim.Cmdline || floats || signs || msg != "" || ask != ""
+	over := c.e.Mode() == vim.Cmdline || floats || floated || msg != "" || ask != ""
 	// The windows cover from left to right, which changes when :center does.
-	wins := c.e.Windows()
 	left, right := w, 0
 	for _, v := range wins {
-		left, right = min(left, v.X), max(right, v.X+v.W)
+		if v.Float == "" {
+			left, right = min(left, v.X), max(right, v.X+v.W)
+		}
 	}
 	if fresh || over || c.overlaid || c.size != [4]int{w, h, left, right} {
 		c.s.Fill(' ', base)
@@ -264,6 +271,9 @@ func (c *client) draw() {
 	c.overlaid, c.size = over, [4]int{w, h, left, right}
 	cx, cy := 0, 0
 	for _, v := range wins {
+		if v.Float != "" {
+			continue
+		}
 		if x, y, ok := c.window(v, left, sel, visual && v.Current); ok {
 			cx, cy = x, y
 		}
@@ -273,20 +283,25 @@ func (c *client) draw() {
 		apply(lit)
 		base = base.Background(dimmed.th.bg)
 	}
-	// The signature goes above the cursor's line, and a completion menu below
-	// it draws over it if they meet (B203).
-	if signs {
-		c.above(sig, cx, cy, left, right, h)
+	// The floats draw over the layout, lit, and a completion menu draws over
+	// signature help if they meet (B203).
+	for _, v := range wins {
+		if v.Float == "" {
+			continue
+		}
+		if x, y, ok := c.floating(v, sel, visual && v.Current); ok {
+			cx, cy = x, y
+		}
 	}
 	switch {
 	case c.e.Mode() == vim.Cmdline:
 		// The completion menu is part of the command line's box.
 		if !floats {
-			f = wire.Float{}
+			f = wire.Menu{}
 		}
 		cx, cy = c.commandLine(w, h, f.Text, f.Spans)
 	case floats:
-		if x, y, ok := c.float(f, cx, cy, left, right, h); ok {
+		if x, y, ok := c.menu(f, cx, cy, left, right, h); ok {
 			cx, cy = x, y
 		}
 	}
@@ -410,7 +425,10 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 		}
 		// A line wraps onto as many rows as it needs (B37).
 		starts := []int{pos}
-		if v.Wrap {
+		switch {
+		case v.Wrap && v.Float != "":
+			starts = vim.WordRows(t, pos, v.W, v.Tab, in)
+		case v.Wrap:
 			starts = vim.Rows(t, pos, v.W, v.Tab, in)
 		}
 		starts = starts[:min(len(starts), v.H-1-row)]
@@ -611,6 +629,9 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 				}
 			}
 		}
+		if v.Float != "" {
+			c.floatRows(v, pos, row, len(starts))
+		}
 		row = c.virtual(v, line, false, numbers, row+len(starts))
 		// A closed fold's other lines do not show.
 		if n := v.Folds[line]; n > 0 {
@@ -624,12 +645,17 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 		}
 		pos = end + 1
 	}
-	// Rows past the end of the text show ~.
+	// Rows past the end of the text show ~, and a float's show nothing.
 	for ; row < v.H-1; row++ {
 		c.s.FillArea(numbers, v.Y+row, v.Gutter+v.W, 1, ' ', base)
-		c.s.Put(numbers, v.Y+row, "~", base.Foreground(th.faint))
+		if v.Float == "" {
+			c.s.Put(numbers, v.Y+row, "~", base.Foreground(th.faint))
+		}
 	}
 	c.pin(v, numbers, cur)
+	if v.Float != "" {
+		return cx, cy, found
+	}
 	// The separator and status line span the whole window.
 	v.X, v.W = numbers, v.W+v.Gutter
 	c.edge(v, left)

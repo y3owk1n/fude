@@ -16,8 +16,7 @@ type Frame struct {
 	Windows      []Window
 	Buffers      []Tab          `json:",omitempty"` // what the buffer line shows (B258)
 	Texts        []Text         `json:",omitempty"`
-	Float        *Float         `json:",omitempty"`
-	Signature    *Float         `json:",omitempty"`
+	Menu         *Menu          `json:",omitempty"`
 	Line         string         `json:",omitempty"`
 	LineCursor   int            `json:",omitempty"`
 	Mode         vim.Mode       `json:",omitempty"`
@@ -53,46 +52,47 @@ type Text struct {
 
 // Window is one window as a client draws it.
 type Window struct {
-	Buffer            int             // the buffer's number, which a frame's Texts name
-	Text              kernel.Snapshot `json:"-"`
-	Top, Cursor       int
-	X, Y, W, H        int // H counts the status line on the bottom row
-	Name              string
-	Modified, Current bool
-	Highlights        []syntax.Span // in paint order, later ones drawing over earlier ones
-	Decorations       []syntax.Span // plugins' styles, drawn over highlights
-	Ghosts            []Ghost
-	Matches           [][2]int          // of the search, shown in every window
-	Searched          [2]int            // the match the search being typed goes to, lit apart from the rest (B21)
-	Segments          []string          // plugins' statusline segments, in the order they loaded
-	Ruler             string            // the cursor's line and column, and where the window is (B38)
-	LeftSegments      []string          // the modules' statusline segments after the buffer's name, such as git's branch (B147)
-	Errors, Warnings  int               // the buffer's diagnostics of each severity (B147)
-	Filetype          string            // the buffer's filetype, "" for none (B164)
-	Server            string            // the buffer's language servers, "" for none (B161, B169)
-	Progress          string            // what the server is doing, "" once it is ready (B161)
-	Gutter            int               // the columns the sign column and line numbers take on the left
-	SignCols          int               // the columns of the sign column, at the gutter's left
-	Signs             map[int]Sign      // by line, the sign each one shows (B119)
-	Notes             map[int]Note      // by line, text after its end (B127, B184)
-	Icons             map[int]Sign      // by line, an explorer's icon at the gutter's right (B128)
-	Number, Relative  bool              // show line numbers, and relative ones (B39)
-	Wrap              bool              // long lines go on the rows below
-	CursorLine        bool              // shade the cursor's line (B117)
-	Pair              []int             // the bracket at the cursor and its match, shown bold (B121)
-	List              bool              // show tabs, trailing spaces and no-break spaces (B118)
-	Left              int               // the first column shown without wrap
-	Indent            int               // the columns of an indent level, where guides go
-	Tab               int               // the columns a tab shows as
-	Guides            bool              // draw indent guides (B153)
-	ColorColumn       int               // the column of the text to shade, from 1, or 0 (B200)
-	Colours           []Colour          // text that names a colour, shown on it (B208, B209)
-	Folds             map[int]int       // by the first line of each closed fold shown, the lines it hides (B224)
-	Grounds           map[int]string    // by line, the style whose ground shades its rows (B296)
-	Virtual           map[int][]Virtual // by line, the rows drawn above and below it (B299)
-	Tasks             []string          // the tasks running, on the current window's status line (B231)
-	Others            []Other           // the other sessions whose current window shows the buffer (B253)
-	Sharing           string            // on the current window, whether fude shares or the session is a guest (B269)
+	Buffer           int             // the buffer's number, which a frame's Texts name
+	Text             kernel.Snapshot `json:"-"`
+	Top, Cursor      int
+	X, Y, W, H       int // H counts the status line on the bottom row
+	Name             string
+	Modified         bool
+	Current          bool          // the window with the focus, and while a float has it, the window under it too
+	Highlights       []syntax.Span // in paint order, later ones drawing over earlier ones
+	Decorations      []syntax.Span // plugins' styles, drawn over highlights
+	Ghosts           []Ghost
+	Matches          [][2]int          // of the search, shown in every window
+	Searched         [2]int            // the match the search being typed goes to, lit apart from the rest (B21)
+	Segments         []string          // plugins' statusline segments, in the order they loaded
+	Ruler            string            // the cursor's line and column, and where the window is (B38)
+	LeftSegments     []string          // the modules' statusline segments after the buffer's name, such as git's branch (B147)
+	Errors, Warnings int               // the buffer's diagnostics of each severity (B147)
+	Filetype         string            // the buffer's filetype, "" for none (B164)
+	Server           string            // the buffer's language servers, "" for none (B161, B169)
+	Progress         string            // what the server is doing, "" once it is ready (B161)
+	Gutter           int               // the columns the sign column and line numbers take on the left
+	SignCols         int               // the columns of the sign column, at the gutter's left
+	Signs            map[int]Sign      // by line, the sign each one shows (B119)
+	Notes            map[int]Note      // by line, text after its end (B127, B184)
+	Icons            map[int]Sign      // by line, an explorer's icon at the gutter's right (B128)
+	Number, Relative bool              // show line numbers, and relative ones (B39)
+	Wrap             bool              // long lines go on the rows below
+	CursorLine       bool              // shade the cursor's line (B117)
+	Pair             []int             // the bracket at the cursor and its match, shown bold (B121)
+	List             bool              // show tabs, trailing spaces and no-break spaces (B118)
+	Left             int               // the first column shown without wrap
+	Indent           int               // the columns of an indent level, where guides go
+	Tab              int               // the columns a tab shows as
+	Guides           bool              // draw indent guides (B153)
+	ColorColumn      int               // the column of the text to shade, from 1, or 0 (B200)
+	Colours          []Colour          // text that names a colour, shown on it (B208, B209)
+	Folds            map[int]int       // by the first line of each closed fold shown, the lines it hides (B224)
+	Grounds          map[int]string    // by line, the style whose ground shades its rows (B296)
+	Virtual          map[int][]Virtual // by line, the rows drawn above and below it (B299)
+	Tasks            []string          // the tasks running, on the current window's status line (B231)
+	Others           []Other           // the other sessions whose current window shows the buffer (B253)
+	Sharing          string            // on the current window, whether fude shares or the session is a guest (B269)
 	// Context is the start of each line pinned over the window's first rows,
 	// the functions and classes the text under them is in, with their
 	// highlights (B217).
@@ -102,6 +102,14 @@ type Window struct {
 	// the program's cursor at CellX and CellY, or -1 when it hides it (B205).
 	Cells        [][]Cell
 	CellX, CellY int
+	// Float is where a float sits over the layout: middle, cursor or above,
+	// or "" for a window in it. A float draws in a border titled by Name,
+	// with a column of room each side of its text. The bottom of the border
+	// takes the row of a status line. Foot shows under a rule above it,
+	// styled by FootSpans, and stays as the text scrolls (D55, B159).
+	Float     string
+	Foot      string
+	FootSpans []syntax.Span
 }
 
 // Ghost is text a window draws that the text does not hold, before the
@@ -160,24 +168,18 @@ type Other struct {
 	Selection *vim.Selection `json:",omitempty"`
 }
 
-// Float is text a client draws over the windows at the cursor, styled by
-// Spans. While it has the cursor, Top is the start of the first line it
-// shows and Cursor is where the cursor is in it, else -1.
-type Float struct {
-	Text        string
-	Spans       []syntax.Span
-	Top, Cursor int
-	Title       string // drawn in the top of its border
-	Doc         string // drawn beside it, styled by DocSpans
-	DocSpans    []syntax.Span
-	Lit         bool     // the windows under it stay lit, as under the key hints (B151)
-	DocImage    *Picture // an image in the documentation's box, as the finder previews one (B305)
-	Image       *Picture // an image below the text of a float at the cursor, as hover's markdown shows one (B309)
-	// Foot shows under a rule at the bottom of a box in a place of its own,
-	// styled by FootSpans, and stays there as the text scrolls, as a
-	// panel's keys do (B159).
-	Foot      string
-	FootSpans []syntax.Span
+// Menu is a menu a client draws over the windows, styled by Spans:
+// completion's, code actions', the command line's, the finder or the key
+// hints. Cursor is where the cursor is in it, or -1.
+type Menu struct {
+	Text     string
+	Spans    []syntax.Span
+	Cursor   int
+	Title    string // drawn in the top of its border
+	Doc      string // drawn beside it, styled by DocSpans
+	DocSpans []syntax.Span
+	Lit      bool     // the windows under it stay lit, as under the key hints (B151)
+	DocImage *Picture // an image in the documentation's box, as the finder previews one (B305)
 	// Where a box in a place of its own goes, its border included. W is 0
 	// for a box at the cursor. DocW is the width of the documentation's box
 	// right of it.

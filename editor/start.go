@@ -39,6 +39,6 @@ func (e *Session) screenPanel(b *buffer, p api.Panel) {
 	opts := e.win.opts
 	e.win.saved, e.win.opts = &opts, options{}
 	s.keys = e.panelKeys(s, p.Keys)
-	e.style(s, p.Spans)
+	e.style(s, styled(p.Spans))
 	e.setCursor(min(max(p.Cursor, 0), s.text.Snapshot().Len()))
 }

@@ -370,7 +370,7 @@ x = "<Nop>"
 	// The finder's keys are an insert mode keymap.
 	feed(e, "<C-w>h:pick files<CR>")
 	settle(t, e, func() bool {
-		f, _ := e.Float()
+		f, _ := e.Menu()
 		return strings.Count(f.Text, "\n") > 0 && strings.Contains(f.Text, "\nb")
 	})
 	if feed(e, "<C-j><CR>"); text(e) != "B" {

@@ -35,7 +35,7 @@ func TestB228Tasks(t *testing.T) {
 	// Makefile's targets (B233).
 	editortest.Feed(e, ":pick tasks<CR>")
 	editortest.Settle(t, e, func() bool {
-		f, _ := e.Float()
+		f, _ := e.Menu()
 		return strings.Contains(f.Text, "say  config") && strings.Contains(f.Text, "lint  project") && strings.Contains(f.Text, "build  make")
 	})
 	editortest.Feed(e, "<Esc>")
@@ -112,7 +112,7 @@ func TestB231BackgroundTasks(t *testing.T) {
 	}
 	// :pick tasks marks it, and picking it shows its window again.
 	editortest.Feed(e, ":pick tasks<CR>")
-	editortest.Settle(t, e, func() bool { f, _ := e.Float(); return strings.Contains(f.Text, "wait  config, running") })
+	editortest.Settle(t, e, func() bool { f, _ := e.Menu(); return strings.Contains(f.Text, "wait  config, running") })
 	editortest.Feed(e, "<CR>")
 	editortest.Settle(t, e, func() bool { return len(e.Windows()) == 2 })
 	if e.Windows()[1].H != 12 {

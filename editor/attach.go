@@ -21,11 +21,8 @@ func (e *Session) frame(sent map[int]kernel.Version) wire.Frame {
 		Windows: e.Windows(), Buffers: e.Buffers(), Line: e.Line(), LineCursor: e.LineCursor(), Mode: e.Mode(), Message: e.Message(), Confirm: e.Confirm(),
 		Cursors: e.Cursors(), Recording: e.Recording(), Substituting: e.Substituting(), Terminal: e.Terminal(), Shown: e.Shown(),
 	}
-	if fl, ok := e.Float(); ok {
-		f.Float = &fl
-	}
-	if sig, ok := e.Signature(); ok {
-		f.Signature = &sig
+	if fl, ok := e.Menu(); ok {
+		f.Menu = &fl
 	}
 	if sel, ok := e.Selection(); ok {
 		f.Selection = &sel
@@ -62,11 +59,9 @@ func (e *Session) frame(sent map[int]kernel.Version) wire.Frame {
 			}
 		}
 	}
-	if f.Float != nil {
-		for _, p := range []*wire.Picture{f.Float.DocImage, f.Float.Image} {
-			if p != nil {
-				give(p.ID)
-			}
+	if f.Menu != nil {
+		if p := f.Menu.DocImage; p != nil {
+			give(p.ID)
 		}
 	}
 	f.Freed = e.Freed()

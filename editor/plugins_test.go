@@ -146,9 +146,9 @@ func TestB59PluginFloat(t *testing.T) {
 	e.Load()
 	next(t, e)
 	feed(e, "gP")
-	f, ok := e.Float()
-	if !ok || f.Text != "hi" || len(f.Spans) != 1 || f.Spans[0].Name != "markup.strong" {
-		t.Fatalf("gP showed %q with %v, want hi in bold", f.Text, f.Spans)
+	f, text := floatAt(e, "cursor")
+	if text != "hi" || len(f.Decorations) != 1 || f.Decorations[0].Name != "markup.strong" {
+		t.Fatalf("gP showed %q with %v, want hi in bold", text, f.Decorations)
 	}
 }
 
@@ -637,7 +637,7 @@ func TestB185PluginPicksAndAsks(t *testing.T) {
 	// ask for it.
 	feed(e, ":Pick<CR>ban")
 	settle(t, e, func() bool {
-		f, _ := e.Float()
+		f, _ := e.Menu()
 		return strings.Contains(f.Text, "fruit ban") && strings.Contains(f.Text, "1 / 3")
 	})
 	feed(e, "<CR>")
@@ -972,11 +972,11 @@ func TestB285LivePick(t *testing.T) {
 	e.Use(letters{})
 	feed(e, ":pick letters a<CR>")
 	settle(t, e, func() bool {
-		f, _ := e.Float()
+		f, _ := e.Menu()
 		return strings.Contains(f.Text, "a1") && strings.Contains(f.Text, "a2")
 	})
 	feed(e, "b")
-	settle(t, e, func() bool { f, _ := e.Float(); return strings.Contains(f.Text, "ab2") })
+	settle(t, e, func() bool { f, _ := e.Menu(); return strings.Contains(f.Text, "ab2") })
 	feed(e, "<C-n><CR>")
 	settle(t, e, func() bool { return e.Message() == "picked ab2 true" })
 }
@@ -1003,14 +1003,14 @@ func TestB286PlacesPick(t *testing.T) {
 	e.SetSize(80, 20)
 	e.Use(spots{path: path})
 	feed(e, ":pick spots<CR>")
-	settle(t, e, func() bool { f, _ := e.Float(); return strings.Contains(f.Text, "second") })
+	settle(t, e, func() bool { f, _ := e.Menu(); return strings.Contains(f.Text, "second") })
 	feed(e, "<CR>")
 	if line := e.Text().LineOf(e.Cursor()); line != 1 || e.Windows()[0].Name != path {
 		t.Errorf("picking the place put the cursor on line %d of %s, want line 2 of the file", line+1, e.Windows()[0].Name)
 	}
 	// <C-q> lists the places.
 	feed(e, ":pick spots<CR>")
-	settle(t, e, func() bool { f, _ := e.Float(); return strings.Contains(f.Text, "second") })
+	settle(t, e, func() bool { f, _ := e.Menu(); return strings.Contains(f.Text, "second") })
 	feed(e, "<C-q>")
 	settle(t, e, func() bool {
 		return slices.ContainsFunc(e.Windows(), func(v wire.Window) bool { return v.Name == "[spots]" })
@@ -1025,11 +1025,11 @@ func TestB287PluginSource(t *testing.T) {
 	e := loaded(t, "ctx", "f", "x\n", "buffer.write", "ui")
 	e.SetSize(80, 20)
 	feed(e, ":pick letters a<CR>")
-	settle(t, e, func() bool { f, _ := e.Float(); return strings.Contains(f.Text, "a2") })
+	settle(t, e, func() bool { f, _ := e.Menu(); return strings.Contains(f.Text, "a2") })
 	feed(e, "<C-n><CR>")
 	settle(t, e, func() bool { return strings.HasPrefix(text(e), "a2") })
 	feed(e, "<Esc>:pick<CR>")
-	settle(t, e, func() bool { f, _ := e.Float(); return strings.Contains(f.Text, "letters") })
+	settle(t, e, func() bool { f, _ := e.Menu(); return strings.Contains(f.Text, "letters") })
 }
 
 // B191
@@ -1347,8 +1347,9 @@ func TestB309FloatImage(t *testing.T) {
 	// its description.
 	feed(e, ":Float<CR>")
 	settle(t, e, func() bool {
-		f, ok := e.Float()
-		return ok && f.Text == "see pic here" && f.Image != nil && f.Image.Rows == 2 && f.Image.Cols == 10
+		f, text := floatAt(e, "cursor")
+		rows := f.Virtual[0]
+		return text == "see pic here" && len(rows) == 2 && rows[0].Image != 0 && rows[0].Cols == 10
 	})
 }
 

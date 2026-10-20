@@ -8,6 +8,7 @@ import (
 
 	"github.com/clipperhouse/displaywidth"
 	"github.com/y3owk1n/fude/syntax"
+	"github.com/y3owk1n/fude/vim"
 	"github.com/y3owk1n/fude/wire"
 )
 
@@ -150,13 +151,13 @@ func (c *client) confirm(q string, w, h int) {
 	}
 }
 
-// float draws f in a bordered box at the cursor, cx and cy, below its line,
+// menu draws f in a bordered box at the cursor, cx and cy, below its line,
 // or above it when there is more room there, at most 80 columns and 20 rows.
 // Its documentation goes in a box beside it. The windows cover the columns
 // from lo to hi, which :center narrows, and h rows (B199). While f has
 // the cursor, its rows scroll to show it, and
-// float reports where it is.
-func (c *client) float(f wire.Float, cx, cy, lo, hi, h int) (int, int, bool) {
+// menu reports where it is.
+func (c *client) menu(f wire.Menu, cx, cy, lo, hi, h int) (int, int, bool) {
 	if f.W > 2 && f.H > 2 {
 		if f.DocW > 2 {
 			// The documentation box is as tall as the box beside it.
@@ -167,32 +168,10 @@ func (c *client) float(f wire.Float, cx, cy, lo, hi, h int) (int, int, bool) {
 				c.picture(*p, f.X+f.W+2, f.Y+1, f.DocW-4)
 			}
 		}
-		text, spans, n := f.Text, f.Spans, f.H-2
+		n := f.H - 2
 		all, _ := wrap(f.Text, f.Spans, f.W-4)
-		var foot []row
-		if f.Foot != "" {
-			// The foot comes after the text, its rows and spans moved past it,
-			// and keeps the box's last rows under a rule.
-			off := len(f.Text) + 1
-			text = f.Text + "\n" + f.Foot
-			spans = slices.Clone(f.Spans)
-			for _, s := range f.FootSpans {
-				spans = append(spans, syntax.Span{Start: s.Start + off, End: s.End + off, Name: s.Name})
-			}
-			footRows, _ := wrap(f.Foot, f.FootSpans, f.W-4)
-			foot = append(foot, row{start: off, end: off, rule: true})
-			for _, r := range footRows {
-				foot = append(foot, row{start: r.start + off, end: r.end + off, rule: r.rule})
-			}
-			n = max(n-len(foot), 1)
-		}
 		first := c.scroll(all, f, n)
-		rows := slices.Clone(all[first:min(first+n, len(all))])
-		for len(foot) > 0 && len(rows) < n {
-			rows = append(rows, row{start: len(f.Text), end: len(f.Text)})
-		}
-		rows = append(rows, foot...)
-		x, y, ok := c.box(text, spans, rows, f.X, f.Y, f.W-4, f.Cursor)
+		x, y, ok := c.box(f.Text, f.Spans, all[first:min(first+n, len(all))], f.X, f.Y, f.W-4, f.Cursor)
 		if f.Title != "" {
 			c.s.PutStrStyled(f.X+2, f.Y, " "+f.Title+" ", base.Foreground(th.muted))
 		}
@@ -200,15 +179,6 @@ func (c *client) float(f wire.Float, cx, cy, lo, hi, h int) (int, int, bool) {
 	}
 	rows, width := wrap(f.Text, f.Spans, min(80, hi-lo-4))
 	below, above := h-cy-1, cy
-	// An image goes under the text when the text and the image both fit.
-	// The box widens to the image, up to the windows' width (B309).
-	text := len(rows)
-	if p := f.Image; p != nil && text+p.Rows <= min(max(below, above)-2, 20) {
-		width = max(width, min(p.Cols, hi-lo-4))
-		for range p.Rows {
-			rows = append(rows, row{start: len(f.Text), end: len(f.Text)})
-		}
-	}
 	n := min(len(rows), max(below, above)-2, 20)
 	if width < 1 || n < 1 {
 		return 0, 0, false
@@ -220,9 +190,6 @@ func (c *client) float(f wire.Float, cx, cy, lo, hi, h int) (int, int, bool) {
 	}
 	x := max(min(cx, hi-width-4), lo)
 	fx, fy, found := c.box(f.Text, f.Spans, rows[first:min(first+n, len(rows))], x, y, width, f.Cursor)
-	if p := f.Image; p != nil && len(rows) > text {
-		c.picture(*p, x+2, y+1+text, width)
-	}
 	if f.Doc == "" {
 		return fx, fy, found
 	}
@@ -261,28 +228,11 @@ func (c *client) float(f wire.Float, cx, cy, lo, hi, h int) (int, int, bool) {
 	return fx, fy, found
 }
 
-// above draws f in a box above the cursor's line at cx and cy, at most 80
-// columns and 10 rows. When it does not fit there and there is more room
-// below, it goes below. The windows cover the columns from lo to hi, and h
-// rows.
-func (c *client) above(f wire.Float, cx, cy, lo, hi, h int) {
-	rows, width := wrap(f.Text, f.Spans, min(80, hi-lo-4))
-	want, up, down := min(len(rows), 10), cy-2, h-cy-3
-	n, y := min(want, up), cy-min(want, up)-2
-	if up < want && down > up {
-		n, y = min(want, down), cy+1
-	}
-	if width < 1 || n < 1 {
-		return
-	}
-	c.box(f.Text, f.Spans, rows[:n], max(min(cx, hi-width-4), lo), y, width, -1)
-}
-
-// scroll returns the first of rows to show in a box n rows tall. It is f's
-// top row, moved so the cursor's row shows when f has the cursor. A menu
+// scroll returns the first of rows to show in a box n rows tall. With the
+// cursor in f, it is the first that keeps the cursor's row showing. A menu
 // without the cursor starts where the last frame showed it, and moves only
 // as far as it must to show its selected item (B64).
-func (c *client) scroll(rows []row, f wire.Float, n int) int {
+func (c *client) scroll(rows []row, f wire.Menu, n int) int {
 	// rowOf is the row that shows the byte at p.
 	rowOf := func(p int) int {
 		i, _ := slices.BinarySearchFunc(rows, p, func(r row, p int) int { return cmp.Compare(r.start, p+1) })
@@ -299,7 +249,7 @@ func (c *client) scroll(rows []row, f wire.Float, n int) int {
 		return c.menuTop
 	}
 	cur := rowOf(f.Cursor)
-	return min(max(rowOf(f.Top), cur-n+1), cur)
+	return min(max(cur-n+1, 0), cur)
 }
 
 // row is one row of a box: bytes of its text, or a rule across it.
@@ -401,4 +351,65 @@ func (c *client) box(text string, spans []syntax.Span, rows []row, x, y, width, 
 		}
 	}
 	return fx, fy, found
+}
+
+// floating draws v, a float, in a border titled by its name, with a column
+// of room each side of its text and its foot under a rule over the bottom
+// of the border, and reports where its cursor is (D55).
+func (c *client) floating(v wire.Window, sel vim.Selection, visual bool) (int, int, bool) {
+	var foot []string
+	if v.Foot != "" {
+		foot = strings.Split(v.Foot, "\n")
+	}
+	rows := v.H - 1
+	if len(foot) > 0 {
+		rows += len(foot) + 1
+	}
+	c.panel(v.X-2, v.Y-1, v.W+2, rows)
+	if v.Name != "" {
+		c.s.PutStrStyled(v.X, v.Y-1, " "+v.Name+" ", base.Foreground(th.muted))
+	}
+	x, y, ok := c.window(v, v.X, sel, visual)
+	if len(foot) == 0 {
+		return x, y, ok
+	}
+	c.rule(v.X-2, v.Y+v.H-1, v.W+2)
+	styles := paint(nil, v.FootSpans, 0, len(v.Foot))
+	at := 0
+	for i, line := range foot {
+		col := v.X
+		for rest := line; rest != "" && col < v.X+v.W; {
+			s := base
+			if p := at + len(line) - len(rest); p < len(styles) {
+				s = styles[p]
+			}
+			next, w := c.s.Put(col, v.Y+v.H+i, rest, s)
+			if len(next) == len(rest) {
+				break
+			}
+			rest, col = next, col+w
+		}
+		at += len(line) + 1
+	}
+	return x, y, ok
+}
+
+// floatRows draws what a float draws over the n rows from row of the line
+// at pos: a rule across a markup.rule line, and the raised ground and the
+// accent bar of a selected card, over the room beside its text (B150).
+func (c *client) floatRows(v wire.Window, pos, row, n int) {
+	if slices.ContainsFunc(v.Highlights, func(s syntax.Span) bool { return s.Name == "markup.rule" && s.Start == pos }) ||
+		slices.ContainsFunc(v.Decorations, func(s syntax.Span) bool { return s.Name == "markup.rule" && s.Start == pos }) {
+		c.rule(v.X-2, v.Y+row, v.W+2)
+		return
+	}
+	if v.Grounds[v.Text.LineOf(pos)] != "menu.selected" {
+		return
+	}
+	ground := base.Background(th.raised)
+	for y := v.Y + row; y < v.Y+row+n; y++ {
+		c.s.Put(v.X-1, y, " ", ground)
+		c.s.Put(v.X+v.W, y, " ", ground)
+		c.s.Put(v.X-2, y, "▌", base.Foreground(th.normal))
+	}
 }

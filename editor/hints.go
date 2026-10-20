@@ -59,12 +59,12 @@ func (e *Session) typing() {
 	}
 }
 
-// keysFloat is the key hints across the bottom of the windows, which
+// keysMenu is the key hints across the bottom of the windows, which
 // :center may narrow, above the status line.
-func (e *Session) keysFloat() wire.Float {
+func (e *Session) keysMenu() wire.Menu {
 	x, w, _ := e.area()
 	h := strings.Count(e.keyFloat.Text, "\n") + 3
-	return wire.Float{Text: e.keyFloat.Text, Spans: styled(e.keyFloat.Spans), Cursor: -1, Title: vim.Notation(e.vim.Shown()), Lit: true, X: x, Y: max(e.height-1-h, 0), W: w, H: h}
+	return wire.Menu{Text: e.keyFloat.Text, Spans: styled(e.keyFloat.Spans), Cursor: -1, Title: vim.Notation(e.vim.Shown()), Lit: true, X: x, Y: max(e.height-1-h, 0), W: w, H: h}
 }
 
 // hinted gives a module that hears keys.pending the command being typed,

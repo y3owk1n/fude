@@ -90,7 +90,10 @@ func (e *Session) set(args string) {
 		*switches[name] = value == "true"
 	}
 	e.win.keep(was)
-	e.opts = e.win.ownOptions()
+	// A float's options are its own, which new windows do not start with.
+	if e.win.anchor == "" {
+		e.opts = e.win.ownOptions()
+	}
 	// A colour column changes how wide centering makes the windows.
 	e.layout()
 }

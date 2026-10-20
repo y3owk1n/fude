@@ -33,7 +33,7 @@ func TestB129Files(t *testing.T) {
 	e.Use(files.New())
 	e.SetSize(80, 24)
 	results := func() []string {
-		f, _ := e.Float()
+		f, _ := e.Menu()
 		return slices.DeleteFunc(strings.Split(f.Text, "\n")[1:], func(l string) bool { return l == "" })
 	}
 	// The finder lists the files git does not ignore, each by its name and
@@ -50,14 +50,14 @@ func TestB129Files(t *testing.T) {
 	// A screen too short for a row of matches still shows the query.
 	e.SetSize(80, 5)
 	editortest.Feed(e, ":pick files<CR>zzz")
-	if f, _ := e.Float(); !strings.HasPrefix(f.Text, "› zzz") {
+	if f, _ := e.Menu(); !strings.HasPrefix(f.Text, "› zzz") {
 		t.Errorf("on a short screen the finder shows %q", f.Text)
 	}
 	editortest.Feed(e, "<Esc>")
 	e.SetSize(80, 24)
 	// <Esc> closes the finder and opens nothing.
 	editortest.Feed(e, ":pick files<CR>x<Esc>")
-	if _, ok := e.Float(); ok || e.Windows()[0].Name != filepath.Join("editor", "git.go") || editortest.Text(e) != "editor/git.go" {
+	if _, ok := e.Menu(); ok || e.Windows()[0].Name != filepath.Join("editor", "git.go") || editortest.Text(e) != "editor/git.go" {
 		t.Fatalf("after <Esc> the finder shows %v and the window has %q", ok, e.Windows()[0].Name)
 	}
 }
@@ -73,7 +73,7 @@ func TestB213Buffers(t *testing.T) {
 	e.SetSize(100, 30)
 	editortest.Feed(e, ":e b.txt<CR>")
 	rows := func() []string {
-		f, _ := e.Float()
+		f, _ := e.Menu()
 		return slices.DeleteFunc(strings.Split(f.Text, "\n")[1:], func(l string) bool { return l == "" })
 	}
 	// Buffers lists the files but the current one, and <CR> opens the one

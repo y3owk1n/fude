@@ -42,7 +42,7 @@ func TestB305PreviewImage(t *testing.T) {
 	// The preview names the image, and the image shows under that, in two
 	// rows of 10 columns.
 	settle(t, e, func() bool {
-		f, _ := e.Float()
+		f, _ := e.Menu()
 		return f.Doc == "a.png\n\nPNG, 80 by 32 pixels" && f.DocImage != nil && f.DocImage.Row == 3 && f.DocImage.Rows == 2 && f.DocImage.Cols == 10
 	})
 }
@@ -60,14 +60,14 @@ func TestB130FilesPreview(t *testing.T) {
 	e.Use(filesmod.New())
 	e.SetSize(100, 24)
 	feed(e, ":pick files<CR>")
-	doc := func() string { f, _ := e.Float(); return f.Doc }
+	doc := func() string { f, _ := e.Menu(); return f.Doc }
 	settle(t, e, func() bool { return doc() == "a\n\none\ntwo" })
 	feed(e, "<C-n>")
 	settle(t, e, func() bool { return doc() == "b\n\nthree" })
 	// A file's preview has its filetype's highlights.
 	feed(e, "<C-n>")
 	settle(t, e, func() bool {
-		f, _ := e.Float()
+		f, _ := e.Menu()
 		return f.Doc == "c.go\n\npackage c" && slices.ContainsFunc(f.DocSpans, func(s syntax.Span) bool { return s.Name == "keyword" })
 	})
 	// A zero byte in the first 16KB makes a binary file, and a long line
@@ -96,7 +96,7 @@ func TestB195FinderLists(t *testing.T) {
 	e.Use(grep.New())
 	e.SetSize(100, 24)
 	shown := func() int {
-		f, _ := e.Float()
+		f, _ := e.Menu()
 		return len(slices.DeleteFunc(strings.Split(f.Text, "\n")[1:], func(l string) bool { return l == "" }))
 	}
 	visited := func() []string {
@@ -128,7 +128,7 @@ func TestB202FinderQuery(t *testing.T) {
 	e.Use(grep.New())
 	e.SetSize(100, 24)
 	feed(e, ":pick grep<CR>f(")
-	if f, _ := e.Float(); !strings.HasPrefix(f.Text, "› f( ") {
+	if f, _ := e.Menu(); !strings.HasPrefix(f.Text, "› f( ") {
 		t.Fatalf("typing f( in the finder makes the line %q", strings.SplitN(f.Text, "\n", 2)[0])
 	}
 }
@@ -148,7 +148,7 @@ func TestB271Plug(t *testing.T) {
 		t.Errorf(":plug nope said %q", e.Message())
 	}
 	// :pick commands finds a plug by what it does.
-	shows := func(want string) bool { f, _ := e.Float(); return strings.Contains(f.Text, want) }
+	shows := func(want string) bool { f, _ := e.Menu(); return strings.Contains(f.Text, want) }
 	feed(e, ":pick commands<CR>lists the directory of the file")
 	settle(t, e, func() bool { return shows(":plug explorer.up") })
 	feed(e, "<Esc><Esc>")
@@ -173,7 +173,7 @@ func TestB212QCloses(t *testing.T) {
 	feed(e, "ix<Esc>")
 	// A list of places, a timeline and a window fude wrote each close.
 	feed(e, ":pick files<CR>")
-	settle(t, e, func() bool { f, _ := e.Float(); return strings.Contains(f.Text, "a.txt") })
+	settle(t, e, func() bool { f, _ := e.Menu(); return strings.Contains(f.Text, "a.txt") })
 	for _, keys := range []string{"<C-q>", ":timeline<CR>", ":grammar<CR>"} {
 		feed(e, keys)
 		settle(t, e, func() bool { return len(e.Windows()) == 2 })
@@ -202,7 +202,7 @@ func TestB210FinderIgnored(t *testing.T) {
 	e.SetSize(100, 24)
 	// shown is the finder's rows, sorted, as the search's order may vary.
 	shown := func() []string {
-		f, _ := e.Float()
+		f, _ := e.Menu()
 		return slices.Sorted(slices.Values(slices.DeleteFunc(strings.Split(f.Text, "\n")[1:], func(l string) bool { return l == "" })))
 	}
 	for _, c := range []struct {
@@ -234,7 +234,7 @@ func TestB64FinderScrolls(t *testing.T) {
 	e.SetSize(40, 24)
 	// shown is the finder's rows and the selected one's index.
 	shown := func() ([]string, int) {
-		f, _ := e.Float()
+		f, _ := e.Menu()
 		for _, s := range f.Spans {
 			if s.Name == "menu.selected" {
 				return strings.Split(f.Text, "\n")[2:], strings.Count(f.Text[:s.Start], "\n") - 2

@@ -105,8 +105,8 @@ type Session struct {
 	actions     []func()                // what modules' results asked of buffers and windows, after the key (B343)
 	lastList    *api.Places             // the last list of places, which modules/places shows (B347)
 	snip        *snippet                // the snippet being filled in (B207)
-	float       floating                // text shown over the windows at the cursor, such as hover
-	completion  completion              // the completions shown while typing, and the signature help
+	menu        cursorMenu              // a menu at the cursor, such as code actions'
+	completion  completion              // the completions shown while typing
 	lspKeys     bool                    // the attached keys are mapped
 	later       []vim.Key               // keys to feed once the key being fed is done
 	pick        *pick                   // the code actions shown to choose from
@@ -119,7 +119,8 @@ type Session struct {
 	keymap      keymap                  // the [keymap] tables the session's keys come from, a guest's own (B254)
 	history     []string                // the messages shown, oldest first, at most 200 (B157)
 	logged      string                  // the message last put in history
-	under       *window                 // the window a focused float was opened from
+	floats      []*window               // the floats over the layout, the topmost last (D55)
+	closed      *window                 // the float at the cursor the key being handled closed, which hover enters
 	opts        options                 // what the session's new windows start with
 	changed     chan change             // told when the shown text changes, for a client over the socket
 	clip        string                  // the text last copied, when no clipboard command runs
@@ -514,6 +515,12 @@ func (e *Session) Feed(k vim.Key) {
 func (e *Session) feed(k vim.Key) {
 	e.fit(e.win)
 	e.message = ""
+	// Hover enters a float the last key closed only while the next key
+	// runs, so the float closed before this key is freed.
+	if c := e.closed; c != nil {
+		e.closed = nil
+		e.forget(c.buf)
+	}
 	if e.vim.Mode() == vim.Cmdline && k == "<CR>" {
 		at, line := time.Now(), e.vim.Line()
 		defer func() { e.record("cmd", line, time.Since(at)) }()
@@ -689,15 +696,6 @@ func (e *Session) setCursor(pos int) { e.win.buf.text.MoveMark(e.win.cursor, pos
 // Mode returns the vim mode.
 func (e *Session) Mode() vim.Mode { return e.vim.Mode() }
 
-// Signature returns the signature help to draw above the cursor's line, or
-// false when none shows (B203).
-func (e *Session) Signature() (wire.Float, bool) {
-	if e.completion.sig == nil {
-		return wire.Float{}, false
-	}
-	return *e.completion.sig, true
-}
-
 // Terminal reports whether the current window is a terminal in terminal
 // mode, where every key goes to its program (B205).
 func (e *Session) Terminal() bool {
@@ -705,18 +703,18 @@ func (e *Session) Terminal() bool {
 	return t != nil && t.typing
 }
 
-// Float returns the float to draw, or false when there is none.
-func (e *Session) Float() (wire.Float, bool) {
+// Menu returns the menu to draw, or false when none shows.
+func (e *Session) Menu() (wire.Menu, bool) {
 	if e.keyFloat != nil {
-		return e.keysFloat(), true
+		return e.keysMenu(), true
 	}
 	if m := e.cmdline.menu; m != nil {
-		return m.float(), true
+		return m.box(), true
 	}
 	if f := e.finder; f != nil {
 		e.seek(f)
 		t := e.Text()
-		fl := f.float(t.Slice(0, t.Len()), e.Cursor(), e.width, e.height)
+		fl := f.box(t.Slice(0, t.Len()), e.Cursor(), e.width, e.height)
 		// An image previewed shows below the line that names it, under the
 		// path and its rule (B305).
 		if p := e.previewed(f); p != nil && fl.DocW > 4 && fl.H > 6 {
@@ -725,48 +723,12 @@ func (e *Session) Float() (wire.Float, bool) {
 		}
 		return fl, true
 	}
-	// A command line typed in a float shows alone, as the client draws one
-	// box at the cursor, which would take the float for the line's menu.
-	if e.vim.Mode() == vim.Cmdline {
-		return wire.Float{}, false
-	}
-	if e.under != nil {
-		if bx := e.win.buf.box; bx != nil {
-			return e.boxFloat(bx), true
-		}
-		t := e.Text()
-		return wire.Float{Text: t.Slice(0, t.Len()), Spans: e.float.spans, Top: e.Top(), Cursor: e.Cursor()}, true
-	}
-	fl := wire.Float{Text: e.float.text, Spans: e.float.spans, Cursor: -1, Doc: e.float.doc, DocSpans: e.float.docSpans}
-	if e.float.image != "" && e.cell[0] > 0 && e.cell[1] > 0 {
-		if p := e.picture(e.float.image); p != nil {
-			// A float at the cursor is at most 80 columns and 20 rows, its
-			// border and a row of text included.
-			rows, cols := e.fitImage(p, 76, 12)
-			fl.Image = &wire.Picture{ID: p.id, Rows: rows, Cols: cols}
-		}
-	}
-	return fl, e.float.text != ""
+	return wire.Menu{Text: e.menu.text, Spans: e.menu.spans, Cursor: -1, Doc: e.menu.doc, DocSpans: e.menu.docSpans}, e.menu.text != ""
 }
 
 // floatKeys are a focused float's own keys, which [keymap.float] changes
 // (B142).
 var floatKeys = map[string]string{"q": "<Plug>(float.close)"}
-
-// focus moves the cursor into a float showing text, a read-only window
-// outside the layout, where keys move and scroll as in any window.
-func (e *Session) focus(text string) {
-	b := &buffer{text: kernel.New(text, nil), before: map[kernel.NodeID]int{}, marks: map[rune]kernel.MarkID{}, title: "[float]"}
-	b.file.readonly = true
-	w := newWindow(b, 0, 0)
-	w.w, w.h = 80, 21
-	e.under, e.win = e.win, w
-}
-
-// unfocus closes the float that has the cursor.
-func (e *Session) unfocus() {
-	e.win, e.under, e.float.spans = e.under, nil, nil
-}
 
 // Cursors returns the cursors after the first while a change on several
 // regions types into all of them.
@@ -893,7 +855,7 @@ func (e *Session) jump(n int) bool {
 // quit closes the current window, or quits once it is the last one. Without
 // force it refuses to quit while a buffer has unsaved changes.
 func (e *Session) quit(force bool) {
-	if e.root.win == nil {
+	if e.root.win == nil || e.win.anchor != "" {
 		if err := e.closeWindow(e.win); err != nil {
 			e.message = err.Error()
 		}
@@ -1139,33 +1101,36 @@ func (e *Session) close(b *buffer, force bool) {
 }
 
 // overlay is what may take a key before the vim machine sees it: a module
-// call that captured the keys, the finder, a terminal, the completion
-// menu, a snippet, a code action pick, the float, a question, the :lsp
-// panel and the command line's menu. One that is not up takes nothing.
+// call that captured the keys, a question, the finder, a terminal, the
+// completion menu, a snippet, a code action pick, the menu and the float
+// at the cursor, a panel with cards and the command line's menu. One that
+// is not up takes nothing.
 type overlay interface {
 	key(e *Session, k vim.Key) bool
 }
 
 // overlays are what may take a key, in the order they get it.
 func (e *Session) overlays() []overlay {
-	return []overlay{e.capture, e.ask, e.finder, terminalMode{}, &e.completion, e.snip, e.pick, &e.float, boxKeys{}, &e.cmdline}
+	return []overlay{e.capture, e.ask, e.finder, terminalMode{}, &e.completion, e.snip, e.pick, &e.menu, cardKeys{}, &e.cmdline}
 }
 
-// floating is text shown over the windows at the cursor, such as hover,
-// and the documentation shown beside a menu.
-type floating struct {
+// cursorMenu is a menu at the cursor, such as code actions', and the
+// documentation shown beside it.
+type cursorMenu struct {
 	text     string
 	spans    []syntax.Span
-	doc      string // the selected completion's documentation, beside the menu
+	doc      string // the selected item's documentation, beside the menu
 	docSpans []syntax.Span
-	left     string // the float the key being handled closed, which hover enters
-	image    string // the image its markdown shows, below its text (B309)
 }
 
-// key closes the float, which any key does, and keeps its text so that
-// hover again moves the cursor into it.
-func (f *floating) key(*Session, vim.Key) bool {
-	f.left, f.text = f.text, ""
+// key closes the menu and the float at the cursor, which any key does. It
+// keeps that float, so that hover again moves the focus into it.
+func (f *cursorMenu) key(e *Session, _ vim.Key) bool {
+	f.text = ""
+	if w := e.floatAt(atCursor); w != nil && w != e.win {
+		e.closed = w
+		e.closeFloat(w)
+	}
 	return false
 }
 

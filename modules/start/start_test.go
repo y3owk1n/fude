@@ -51,7 +51,7 @@ func TestB225StartScreen(t *testing.T) {
 	editortest.Feed(e, ":enew<CR>")
 	e.Welcome()
 	editortest.Settle(t, e, func() bool { return strings.Contains(editortest.Text(e), "f  find a file") })
-	if editortest.Feed(e, "<CR>"); func() bool { _, ok := e.Float(); return !ok }() {
+	if editortest.Feed(e, "<CR>"); func() bool { _, ok := e.Menu(); return !ok }() {
 		t.Error("<CR> on f did not open the finder")
 	}
 	// c opens config.toml, so :w writes it on a machine with no config

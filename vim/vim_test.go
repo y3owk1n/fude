@@ -28,7 +28,10 @@ type host struct {
 	clip    string
 	fold    [2]int // a closed fold's first and last line, when last > 0
 	indent  int    // the indent width, the tab's when 0
+	words   bool   // the rows end after a space, as a float's do
 }
+
+func (h *host) WordWrap() bool { return h.words }
 
 func (h *host) IndentWidth() int { return cmp.Or(h.indent, vim.Tabstop) }
 
@@ -431,6 +434,23 @@ func TestB27ScreenRows(t *testing.T) {
 		}
 		if err := m.Feed(vim.Key(c.keys[1:])); err != nil || h.cursor != c.want {
 			t.Fatalf("%s went to %d, want %d: %v", c.keys, h.cursor, c.want, err)
+		}
+	}
+}
+
+// B364, for gj in a float, whose rows end after a space
+func TestB364WordRows(t *testing.T) {
+	for _, c := range []struct {
+		words bool
+		want  int
+	}{{false, 9}, {true, 8}} {
+		h := &host{text: "aaa bbb ccc ddd", cols: 9, words: c.words}
+		m := vim.New(h)
+		if err := m.Feed("g"); err != nil {
+			t.Fatal(err)
+		}
+		if err := m.Feed("j"); err != nil || h.cursor != c.want {
+			t.Errorf("with words %v, gj went to %d, want %d: %v", c.words, h.cursor, c.want, err)
 		}
 	}
 }

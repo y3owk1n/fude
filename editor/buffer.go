@@ -77,9 +77,13 @@ type buffer struct {
 	set     map[string]string // the options modules set on it, by name (B283)
 	folds   []decoration      // the closed folds on it, modules' decorations (B224)
 	keys    *vim.Keymaps      // a panel's own keys, nil for its kind's (B291)
-	box     *box              // how a panel in a box of its own draws, nil for any other (B159)
-	screen  bool              // a panel in place of a window's buffer, which shows it bare (B320)
-	term    *terminal         // the program a terminal buffer shows, nil for any other (B205)
+	cards   []int             // the first lines of a panel's cards, which the cursor moves between (B159)
+	// foot is text a panel keeps under a rule at its window's foot as it
+	// scrolls, styled by footSpans (B159).
+	foot      string
+	footSpans []syntax.Span
+	screen    bool      // a panel in place of a window's buffer, which shows it bare (B320)
+	term      *terminal // the program a terminal buffer shows, nil for any other (B205)
 	// A scratch buffer shows something about another buffer, such as its
 	// timeline, under a title instead of a file name.
 	title     string

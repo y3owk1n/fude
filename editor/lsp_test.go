@@ -456,8 +456,8 @@ func TestB159LspPanel(t *testing.T) {
 	e, log := withServer(t, "x\n", "utf-8")
 	heard(t, log, `"method":"textDocument/didOpen"`, 1)
 	panel := func() string {
-		f, _ := e.Float()
-		return f.Text
+		_, text := floatAt(e, "middle")
+		return text
 	}
 	feed(e, ":lsp<CR>")
 	settle(t, e, func() bool { return strings.Contains(panel(), "v1") && strings.Contains(panel(), "running") })
@@ -499,8 +499,8 @@ func TestB160LspStopAndDisable(t *testing.T) {
 	heard(t, log, `"method":"shutdown"`, 1)
 	// A disabled server stays off, even through :lsp restart.
 	feed(e, ":lsp disable<CR>:lsp restart<CR>:lsp<CR>")
-	if f, _ := e.Float(); !strings.Contains(f.Text, "disabled") || strings.Contains(f.Text, "a.go") {
-		t.Fatalf("with the server disabled the panel showed %q", f.Text)
+	if _, text := floatAt(e, "middle"); !strings.Contains(text, "disabled") || strings.Contains(text, "a.go") {
+		t.Fatalf("with the server disabled the panel showed %q", text)
 	}
 	feed(e, "q:lsp enable<CR>")
 	heard(t, log, `"method":"textDocument/didOpen"`, 2)
@@ -538,8 +538,8 @@ func TestB61Diagnostics(t *testing.T) {
 		at   int
 	}{{"gg]d", 3}, {"]d", 9}, {"]d", 3}, {"[d", 9}, {"gg2]d", 9}} {
 		feed(e, c.keys)
-		if f, _ := e.Float(); e.Cursor() != c.at || f.Text != "bad word  fake(7)" || f.Spans[0].Name != "diagnostic.error.text" || e.Message() != "" {
-			t.Errorf("%s put the cursor at %d showing %q, want %d and the diagnostic in a float", c.keys, e.Cursor(), f.Text, c.at)
+		if f, text := floatAt(e, "cursor"); e.Cursor() != c.at || text != "bad word  fake(7)" || f.Decorations[0].Name != "diagnostic.error.text" || e.Message() != "" {
+			t.Errorf("%s put the cursor at %d showing %q, want %d and the diagnostic in a float", c.keys, e.Cursor(), text, c.at)
 		}
 	}
 	feed(e, "ggOx<Esc>gg]d")
@@ -548,9 +548,9 @@ func TestB61Diagnostics(t *testing.T) {
 	}
 	// <C-w>d shows the cursor's line's diagnostics in full where it is, and
 	// <C-w> still starts the window keys.
-	if feed(e, "<Esc>0<C-w>d"); e.Cursor() != 5 || func() string { f, _ := e.Float(); return f.Text }() != "bad word  fake(7)\nbad word  fake(7)" {
-		f, _ := e.Float()
-		t.Errorf("<C-w>d at %d showed %q, want both of the line's diagnostics", e.Cursor(), f.Text)
+	if feed(e, "<Esc>0<C-w>d"); e.Cursor() != 5 || func() string { _, text := floatAt(e, "cursor"); return text }() != "bad word  fake(7)\nbad word  fake(7)" {
+		_, text := floatAt(e, "cursor")
+		t.Errorf("<C-w>d at %d showed %q, want both of the line's diagnostics", e.Cursor(), text)
 	}
 	if feed(e, "k<C-w>d"); e.Message() != "no diagnostics on this line" {
 		t.Errorf("<C-w>d on a line with none said %q", e.Message())
@@ -608,15 +608,14 @@ func TestB62DefinitionAndHover(t *testing.T) {
 		t.Errorf("<C-o> after <C-]> went to %d, want back to 0", e.Cursor())
 	}
 	feed(e, "jwK")
-	settle(t, e, func() bool { _, ok := e.Float(); return ok })
+	settle(t, e, func() bool { _, text := floatAt(e, "cursor"); return text != "" })
 	// Hover's markdown shows with its markers gone and its styles as spans.
-	f, _ := e.Float()
-	float, spans := f.Text, f.Spans
+	f, float := floatAt(e, "cursor")
 	if want := "func target()\n---\nhover at 1:2"; float != want {
 		t.Errorf("hover showed %q, want %q", float, want)
 	}
 	styled := map[string]string{}
-	for _, s := range spans {
+	for _, s := range f.Decorations {
 		styled[float[s.Start:s.End]] = s.Name
 	}
 	if styled["func"] != "keyword" || styled["---"] != "markup.rule" || styled["hover"] != "markup.strong" {
@@ -625,14 +624,14 @@ func TestB62DefinitionAndHover(t *testing.T) {
 	if feed(e, "l"); e.Cursor() != 5 {
 		t.Errorf("l with hover shown went to %d, want 5", e.Cursor())
 	}
-	if _, ok := e.Float(); ok {
+	if _, text := floatAt(e, "cursor"); text != "" {
 		t.Error("a key left the hover shown")
 	}
 	// K again moves the cursor into the float, where keys move, and q
 	// leaves it.
 	feed(e, "K")
-	settle(t, e, func() bool { _, ok := e.Float(); return ok })
-	if feed(e, "Kj"); text(e) != "func target()\n---\nhover at 1:3" || e.Cursor() != 14 || len(e.Windows()) != 1 {
+	settle(t, e, func() bool { _, text := floatAt(e, "cursor"); return text != "" })
+	if feed(e, "Kj"); text(e) != "func target()\n---\nhover at 1:3" || e.Cursor() != 14 || !floated(e) {
 		t.Errorf("K, j on a shown hover left %q with the cursor at %d in %d windows", text(e), e.Cursor(), len(e.Windows()))
 	}
 	if feed(e, "q"); e.Cursor() != 5 {
@@ -670,7 +669,7 @@ func TestB67Autocomplete(t *testing.T) {
 	e, log := withServer(t, "x \n", "utf-8", "autocomplete = true")
 	heard(t, log, `"method":"textDocument/didOpen"`, 1)
 	feed(e, "Aa")
-	settle(t, e, func() bool { _, ok := e.Float(); return ok })
+	settle(t, e, func() bool { _, ok := e.Menu(); return ok })
 	if text(e) != "x a" {
 		t.Fatalf("the menu put %q in the text, want nothing", text(e))
 	}
@@ -687,14 +686,14 @@ func TestB68CompletionDocs(t *testing.T) {
 	e, log := withServer(t, "x ap\n", "utf-8")
 	heard(t, log, `"method":"textDocument/didOpen"`, 1)
 	feed(e, "A<C-x><C-o>")
-	settle(t, e, func() bool { f, _ := e.Float(); return f.Doc != "" })
-	if f, _ := e.Float(); f.Doc != "fruit\nred fruit" {
+	settle(t, e, func() bool { f, _ := e.Menu(); return f.Doc != "" })
+	if f, _ := e.Menu(); f.Doc != "fruit\nred fruit" {
 		t.Fatalf("apple's documentation is %q, want its detail and documentation", f.Doc)
 	}
 	// An item without documentation is resolved for it.
 	feed(e, "<C-n>")
-	settle(t, e, func() bool { f, _ := e.Float(); return f.Doc != "" })
-	if f, _ := e.Float(); f.Doc != "orange fruit" {
+	settle(t, e, func() bool { f, _ := e.Menu(); return f.Doc != "" })
+	if f, _ := e.Menu(); f.Doc != "orange fruit" {
 		t.Fatalf("apricot's documentation is %q, want it resolved", f.Doc)
 	}
 }
@@ -768,12 +767,29 @@ func TestB136FormatOnSaveServer(t *testing.T) {
 	}
 }
 
+// B364
+func TestB364FloatIsAWindow(t *testing.T) {
+	e, log := withServer(t, "a\nb target\n", "utf-8")
+	heard(t, log, `"method":"textDocument/didOpen"`, 1)
+	feed(e, "jwK")
+	settle(t, e, func() bool { _, text := floatAt(e, "cursor"); return text != "" })
+	// In the float, an ex line acts on its text, as in a split,
+	// and :q closes only the float.
+	if feed(e, "K:set number true<CR>"); !floated(e) || !func() bool { f, _ := floatAt(e, "cursor"); return f.Number }() || e.Windows()[0].Number {
+		f, _ := floatAt(e, "cursor")
+		t.Fatalf(":set number true in the float left %d windows, floated %v, the float numbered %v and the file %v", len(e.Windows()), floated(e), f.Number, e.Windows()[0].Number)
+	}
+	if feed(e, ":q<CR>"); floated(e) || text(e) != "a\nb target" || len(e.Windows()) != 1 || e.Cursor() != 4 {
+		t.Errorf(":q in the float left %d windows on %q with the cursor at %d", len(e.Windows()), text(e), e.Cursor())
+	}
+}
+
 // B142, for a float the cursor is in, which takes no typing
 func TestB142FloatKeymap(t *testing.T) {
 	e, log := withServer(t, "a\nb target\n", "utf-8", "[keymap.float]\n\"<Esc>\" = \"<Plug>(float.close)\"")
 	heard(t, log, `"method":"textDocument/didOpen"`, 1)
 	feed(e, "jwK")
-	settle(t, e, func() bool { _, ok := e.Float(); return ok })
+	settle(t, e, func() bool { _, text := floatAt(e, "cursor"); return text != "" })
 	// Hover again moves the cursor into the float, and the float's keymap
 	// closes it.
 	if feed(e, "K"); !strings.Contains(text(e), "hover at") {
@@ -788,7 +804,7 @@ func TestB142FloatKeymap(t *testing.T) {
 	if feed(e, "/"); e.Line() != "/" {
 		t.Fatalf("/ in the float typed %q", e.Line())
 	}
-	if f, ok := e.Float(); ok {
+	if f, ok := e.Menu(); ok {
 		t.Errorf("while / is typed the float shows %q as the line's menu", f.Text)
 	}
 	feed(e, "<Esc>")
@@ -870,7 +886,7 @@ func TestB196PickPlaces(t *testing.T) {
 	e, _ := withServer(t, "ok\nbad x bad\nfunc needle\n", "utf-16")
 	settle(t, e, func() bool { return len(decorations(e)) == 2 })
 	rows := func() []string {
-		f, _ := e.Float()
+		f, _ := e.Menu()
 		return slices.DeleteFunc(strings.Split(f.Text, "\n")[2:], func(l string) bool { return l == "" })
 	}
 	// Diagnostics show under their file, each its line, severity and
@@ -939,8 +955,8 @@ func TestB66ActionsAndSignature(t *testing.T) {
 		e, log := withServer(t, "x\n", "utf-8")
 		heard(t, log, `"method":"textDocument/didOpen"`, 1)
 		feed(e, "gra")
-		settle(t, e, func() bool { _, ok := e.Float(); return ok })
-		if f, _ := e.Float(); f.Text != "1  Add hi\n2  Run cmd" {
+		settle(t, e, func() bool { _, ok := e.Menu(); return ok })
+		if f, _ := e.Menu(); f.Text != "1  Add hi\n2  Run cmd" {
 			t.Errorf("gra showed %q", f.Text)
 		}
 		feed(e, c[0])
@@ -953,9 +969,9 @@ func TestB66ActionsAndSignature(t *testing.T) {
 	e, log := withServer(t, "f(1, \n", "utf-8")
 	heard(t, log, `"method":"textDocument/didOpen"`, 1)
 	feed(e, "A<C-s>")
-	settle(t, e, func() bool { _, ok := e.Signature(); return ok })
-	if s, _ := e.Signature(); !strings.HasPrefix(s.Text, "f(a int, b string)\n") || s.Text[s.Spans[0].Start:s.Spans[0].End] != "b string" {
-		t.Errorf("<C-s> showed %q with %v, want the signature with b string bold", s.Text, s.Spans)
+	settle(t, e, func() bool { _, text := floatAt(e, "above"); return text != "" })
+	if s, text := floatAt(e, "above"); !strings.HasPrefix(text, "f(a int, b string)\n") || text[s.Decorations[0].Start:s.Decorations[0].End] != "b string" {
+		t.Errorf("<C-s> showed %q with %v, want the signature with b string bold", text, s.Decorations)
 	}
 }
 
@@ -965,19 +981,19 @@ func TestB227ActionMenu(t *testing.T) {
 	heard(t, log, `"method":"textDocument/didOpen"`, 1)
 	// The selected action shows what it changes, and the next what it runs.
 	feed(e, "gra")
-	settle(t, e, func() bool { f, _ := e.Float(); return f.Doc != "" })
-	if f, _ := e.Float(); !strings.Contains(f.Doc, "-x\n+hi x") {
+	settle(t, e, func() bool { f, _ := e.Menu(); return f.Doc != "" })
+	if f, _ := e.Menu(); !strings.Contains(f.Doc, "-x\n+hi x") {
 		t.Errorf("Add hi previews %q", f.Doc)
 	}
-	if feed(e, "j"); func() string { f, _ := e.Float(); return f.Doc }() != "runs fake.run" {
-		f, _ := e.Float()
+	if feed(e, "j"); func() string { f, _ := e.Menu(); return f.Doc }() != "runs fake.run" {
+		f, _ := e.Menu()
 		t.Errorf("Run cmd previews %q", f.Doc)
 	}
 	// <Esc> closes the menu and changes nothing.
 	if feed(e, "<Esc>"); text(e) != "x" {
 		t.Errorf("<Esc> left %q", text(e))
 	}
-	if _, ok := e.Float(); ok {
+	if _, ok := e.Menu(); ok {
 		t.Error("the menu still shows after <Esc>")
 	}
 }
@@ -986,12 +1002,12 @@ func TestB227ActionMenu(t *testing.T) {
 func TestB203SignatureWhileTyping(t *testing.T) {
 	e, log := withServer(t, "x\n", "utf-8")
 	heard(t, log, `"method":"textDocument/didOpen"`, 1)
-	shown := func() bool { _, ok := e.Signature(); return ok }
+	shown := func() bool { _, text := floatAt(e, "above"); return text != "" }
 	feed(e, "Af(")
 	settle(t, e, shown)
-	s, _ := e.Signature()
-	if !strings.Contains(s.Text, "the name") || !strings.Contains(s.Text, "adds things") || s.Text[s.Spans[0].Start:s.Spans[0].End] != "b string" {
-		t.Errorf("typing ( showed %q with %v, want the signature, b string bold, and both documentations", s.Text, s.Spans)
+	s, text := floatAt(e, "above")
+	if !strings.Contains(text, "the name") || !strings.Contains(text, "adds things") || text[s.Decorations[0].Start:s.Decorations[0].End] != "b string" {
+		t.Errorf("typing ( showed %q with %v, want the signature, b string bold, and both documentations", text, s.Decorations)
 	}
 	if feed(e, "<C-s>"); shown() {
 		t.Error("<C-s> left the signature showing")

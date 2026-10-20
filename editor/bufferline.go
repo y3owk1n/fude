@@ -2,7 +2,6 @@ package editor
 
 import (
 	"cmp"
-	"slices"
 
 	"github.com/y3owk1n/fude/wire"
 )
@@ -13,10 +12,7 @@ import (
 func (e *Session) Buffers() []wire.Tab {
 	// While a float or the finder is open, the window under it is the
 	// current one.
-	current := e.win
-	if !slices.Contains(e.root.windows(), current) && e.under != nil {
-		current = e.under
-	}
+	current := e.under()
 	var tabs []wire.Tab
 	for _, t := range e.tabs {
 		if b, err := e.buffer(t.Buffer); err == nil && t.Buffer != 0 && e.barred(b) == nil {

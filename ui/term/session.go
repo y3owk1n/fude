@@ -29,8 +29,7 @@ type Session interface {
 	// What the client draws.
 	Windows() []wire.Window
 	Buffers() []wire.Tab
-	Float() (wire.Float, bool)
-	Signature() (wire.Float, bool)
+	Menu() (wire.Menu, bool)
 	Line() string
 	LineCursor() int
 	Mode() vim.Mode

@@ -176,11 +176,15 @@ func (e *Session) buffer(id int) (*buffer, error) {
 	if id == 0 {
 		return e.win.buf, nil
 	}
-	i := slices.IndexFunc(e.bufs, func(b *buffer) bool { return b.id == id })
-	if i < 0 {
-		return nil, fmt.Errorf("no buffer %d", id)
+	if i := slices.IndexFunc(e.bufs, func(b *buffer) bool { return b.id == id }); i >= 0 {
+		return e.bufs[i], nil
 	}
-	return e.bufs[i], nil
+	// A float's own buffer is no buffer of the session's, but the frames
+	// bring its text all the same.
+	if i := slices.IndexFunc(e.floats, func(f *window) bool { return f.buf.id == id }); i >= 0 {
+		return e.floats[i].buf, nil
+	}
+	return nil, fmt.Errorf("no buffer %d", id)
 }
 
 // command feeds a command's keys, then types its text if they began an

@@ -91,6 +91,9 @@ type Host interface {
 	// Shown returns the inlines the window shows on the text from start to
 	// end, which gj and gk count as the window draws them (B295).
 	Shown(start, end int) []Inline
+	// WordWrap reports whether the window's rows end after a space that
+	// fits, as WordRows breaks them, which gj and gk count by.
+	WordWrap() bool
 	// Editable returns why the text may not change, or nil. A key that
 	// would start insert or replace mode returns that reason and stays in
 	// normal mode (B302).
@@ -117,6 +120,7 @@ func (Defaults) IndentWidth() int           { return Tabstop }
 func (Defaults) TabWidth() int              { return Tabstop }
 func (Defaults) Fold(line int) (int, int)   { return line, line }
 func (Defaults) Shown(int, int) []Inline    { return nil }
+func (Defaults) WordWrap() bool             { return false }
 func (Defaults) Editable() error            { return nil }
 func (Defaults) Clipboard() (string, error) { return "", errNoClipboard }
 func (Defaults) SetClipboard(string) error  { return errNoClipboard }

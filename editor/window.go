@@ -37,6 +37,16 @@ type window struct {
 	}
 
 	x, y, w, h int // where the layout puts it, its status line included
+
+	// anchor is where a float sits over the layout, or "" for a window in
+	// it, and from is the window a float or the finder opened from, which
+	// takes the focus back as it closes (D55).
+	anchor string
+	from   *window
+	// image is the image a float at the cursor shows under its text, and
+	// imageRows and imageCols how big it shows (B309).
+	image                string
+	imageRows, imageCols int
 }
 
 // windowIDs is the id the last window got.
@@ -108,11 +118,19 @@ func (w *window) nextLine(t kernel.Snapshot, start int) (int, bool) {
 // rows is how many rows the line at start takes in the window, with tabs
 // tab columns wide and what d draws there that the text does not hold.
 func (w *window) rows(t kernel.Snapshot, start, tab int, d drawn) int {
-	n := 1
-	if w.opts.Wrap {
-		n = len(vim.Rows(t, start, w.cols(), tab, d.inlines))
+	return len(w.starts(t, start, tab, d.inlines)) + d.rows(t.LineOf(start))
+}
+
+// starts returns where each row of the line at start begins. A line takes
+// one row without wrap, and a float's rows end after a space (B364).
+func (w *window) starts(t kernel.Snapshot, start, tab int, in []vim.Inline) []int {
+	switch {
+	case !w.opts.Wrap:
+		return []int{start}
+	case w.anchor != "":
+		return vim.WordRows(t, start, w.cols(), tab, in)
 	}
-	return n + d.rows(t.LineOf(start))
+	return vim.Rows(t, start, w.cols(), tab, in)
 }
 
 // show switches the window to b, at the place b was last left.
@@ -378,11 +396,16 @@ func (e *Session) splitBeside(across, after bool) {
 // closeWindow closes w. The window before it in the split, or else the one
 // after, takes its place and becomes current.
 func (e *Session) closeWindow(w *window) error {
+	if w.anchor != "" {
+		e.closeFloat(w)
+		return nil
+	}
 	l := e.root.leaf(w)
 	p := l.parent
 	if p == nil {
 		return errors.New("cannot close the last window")
 	}
+	e.closeFloatsOver(w)
 	w.buf.last, w.buf.lastTop = w.pos(), w.buf.text.Mark(w.top)
 	i := slices.Index(p.kids, l)
 	p.kids = append(p.kids[:i], p.kids[i+1:]...)
@@ -403,9 +426,19 @@ func (e *Session) closeWindow(w *window) error {
 	return nil
 }
 
-// only closes every window but the current one.
+// only closes every window but the current one, and every float but those
+// the current window is in or over.
 func (e *Session) only() {
-	e.root = &node{win: e.win}
+	keep := map[*window]bool{}
+	for w := e.win; w != nil; w = w.from {
+		keep[w] = true
+	}
+	for _, f := range slices.Clone(e.floats) {
+		if !keep[f] {
+			e.closeFloat(f)
+		}
+	}
+	e.root = &node{win: e.under()}
 	e.layout()
 }
 
@@ -455,6 +488,9 @@ func (e *Session) layout() {
 		top = 1
 	}
 	e.root.place(x, top, w, max(e.height-top, 2))
+	for _, f := range e.floats {
+		e.place(f)
+	}
 	// A terminal is as big as the window showing it, its status line aside.
 	for _, win := range e.root.windows() {
 		if t := win.buf.term; t != nil {

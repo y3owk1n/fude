@@ -120,7 +120,7 @@ func TestB302ReadOnlyTakesNoTyping(t *testing.T) {
 		if feed(e, keys); e.Mode() != vim.Normal && e.Mode() != vim.Visual || e.Cursor() != 0 || e.Message() != "cannot make changes, the file is read-only" {
 			t.Errorf("%s left mode %v, the cursor at %d, saying %q", keys, e.Mode(), e.Cursor(), e.Message())
 		}
-		if _, ok := e.Float(); ok {
+		if _, ok := e.Menu(); ok {
 			t.Errorf("%s opened a float", keys)
 		}
 	}

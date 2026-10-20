@@ -677,6 +677,9 @@ func (m *Machine) screenLine(t Text, c, n int, down bool) (int, bool) {
 	ls := LineStart(t, c)
 	rows := func(ls int) ([]int, []Inline) {
 		in := m.h.Shown(ls, LineEnd(t, ls))
+		if m.h.WordWrap() {
+			return WordRows(t, ls, cols, tab, in), in
+		}
 		return Rows(t, ls, cols, tab, in), in
 	}
 	starts, in := rows(ls)

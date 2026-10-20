@@ -16,7 +16,7 @@ func TestMain(m *testing.M) { os.Exit(editortest.Main(m)) }
 
 // rows returns the finder's items.
 func rows(e *editor.Session) []string {
-	f, _ := e.Float()
+	f, _ := e.Menu()
 	return slices.DeleteFunc(strings.Split(f.Text, "\n")[1:], func(l string) bool { return l == "" })
 }
 

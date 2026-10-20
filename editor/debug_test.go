@@ -353,7 +353,7 @@ func TestB265Eval(t *testing.T) {
 		{"0wv$<Space>de", "the value of a := 1"},
 	} {
 		feed(e, "<Esc>"+c.keys)
-		settle(t, e, func() bool { f, _ := e.Float(); return strings.Contains(f.Text, c.want) })
+		settle(t, e, func() bool { _, text := floatAt(e, "cursor"); return strings.Contains(text, c.want) })
 	}
 	if got := disk(t, log); !strings.Contains(got, `"context":"repl"`) || !strings.Contains(got, `"context":"hover"`) {
 		t.Errorf("the adapter's evaluates were not asked as repl and hover:\n%s", got)

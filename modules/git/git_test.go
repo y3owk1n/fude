@@ -189,8 +189,8 @@ func TestB138Hunks(t *testing.T) {
 	}
 	// The preview shows the hunk's old and new lines.
 	editortest.Feed(e, "[h<Plug>(git.preview)")
-	if f, ok := e.Float(); !ok || f.Text != "-b\n+B" {
-		t.Fatalf("the preview is %q", f.Text)
+	if text, _ := editortest.Float(e, "cursor"); text != "-b\n+B" {
+		t.Fatalf("the preview is %q", text)
 	}
 	// gH puts the hunks in range back as the index has them.
 	if editortest.Feed(e, "<Esc>]hVgH"); editortest.Text(e) != "a\nB\nc\nd\ne" {

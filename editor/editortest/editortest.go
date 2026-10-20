@@ -150,6 +150,17 @@ func Disk(t testing.TB, path string) string {
 	return string(b)
 }
 
+// Float returns the text of the float over the layout at anchor, middle,
+// cursor or above, and whether one shows there (D55).
+func Float(e *editor.Session, anchor string) (string, bool) {
+	for _, w := range e.Windows() {
+		if w.Float == anchor {
+			return w.Text.Slice(0, w.Text.Len()), true
+		}
+	}
+	return "", false
+}
+
 // Decorations lists the decorations every window shows, each as its text and
 // its style.
 func Decorations(e *editor.Session) []string {

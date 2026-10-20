@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -13,6 +14,7 @@ import (
 	buffersmod "github.com/y3owk1n/fude/modules/buffers"
 	placesmod "github.com/y3owk1n/fude/modules/places"
 	windowmod "github.com/y3owk1n/fude/modules/window"
+	"github.com/y3owk1n/fude/wire"
 )
 
 func TestMain(m *testing.M) { os.Exit(editortest.Main(m)) }
@@ -31,6 +33,22 @@ var (
 
 // withCommands is e with the modules that hold :b, :bn, :bp, :bd, :enew,
 // the window commands and the lists of places, as fude has them.
+// floatAt returns the float over the layout at anchor, with its text, and
+// whether one shows there (D55).
+func floatAt(e *editor.Session, anchor string) (wire.Window, string) {
+	for _, w := range e.Windows() {
+		if w.Float == anchor {
+			return w, w.Text.Slice(0, w.Text.Len())
+		}
+	}
+	return wire.Window{}, ""
+}
+
+// floated reports whether the current window is a float.
+func floated(e *editor.Session) bool {
+	return slices.ContainsFunc(e.Windows(), func(w wire.Window) bool { return w.Float != "" && w.Current })
+}
+
 func withCommands(e *editor.Session) *editor.Session {
 	e.Use(buffersmod.New())
 	e.Use(windowmod.New())

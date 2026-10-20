@@ -312,13 +312,12 @@ func wait(d *time.Duration) (time.Duration, bool) {
 func (a *Attached) Windows() []wire.Window { return a.f.Windows }
 func (a *Attached) Buffers() []wire.Tab    { return a.f.Buffers }
 
-func (a *Attached) Float() (wire.Float, bool)     { return orZero(a.f.Float) }
-func (a *Attached) Signature() (wire.Float, bool) { return orZero(a.f.Signature) }
+func (a *Attached) Menu() (wire.Menu, bool) { return orZero(a.f.Menu) }
 
-// orZero reads a frame's float, which it leaves out when none shows.
-func orZero(f *wire.Float) (wire.Float, bool) {
+// orZero reads a frame's menu, which it leaves out when none shows.
+func orZero(f *wire.Menu) (wire.Menu, bool) {
 	if f == nil {
-		return wire.Float{}, false
+		return wire.Menu{}, false
 	}
 	return *f, true
 }

@@ -118,8 +118,8 @@ func init() {
 		{"finder.prev", "selects the match before", func(e *Session, _ int) { e.finderAct("prev") }},
 		{"finder.all", "turns searching the files git ignores and hidden ones on or off", func(e *Session, _ int) { e.finderAct("all") }},
 		{"float.close", "closes the float the cursor is in", func(e *Session, _ int) {
-			if e.under != nil {
-				e.unfocus()
+			if e.win.anchor != "" {
+				e.closeFloat(e.win)
 			}
 		}},
 		{"terminal.close", "closes the terminal or task window once its program has ended", func(e *Session, _ int) { e.closeTerminal() }},

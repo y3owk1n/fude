@@ -39,7 +39,7 @@ for _, v := range e.Windows() {
 - `Queue` hands the client the work other goroutines queue for the editor
   loop, such as a module's answer or a server's diagnostics. The client runs
   each func it receives, then draws.
-- `Windows`, `Buffers`, `Float`, `Signature`, `Line`, `Mode` and `Message` are
+- `Windows`, `Buffers`, `Menu`, `Line`, `Mode` and `Message` are
   what to draw, in the types of [`wire`](../wire).
 - `Use` adds a module over [`api`](../api). `cmd/fude` lists the built-in
   ones, and [`modules`](../modules) holds them.

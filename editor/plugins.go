@@ -376,7 +376,7 @@ type noticed struct {
 func (e *Session) notice() {
 	n := &e.noticed
 	wins := map[int]*buffer{}
-	for _, w := range e.root.windows() {
+	for _, w := range e.windows() {
 		wins[w.id] = w.buf
 	}
 	search, _ := e.vim.Search()
@@ -508,17 +508,13 @@ func (e *Session) setMark(m api.Mark) error {
 
 // windowAction does a to its window (B343).
 func (e *Session) windowAction(a api.WindowAction) error {
-	// A float takes no window action, so the window under it does.
-	if !slices.Contains(e.root.windows(), e.win) && e.under != nil {
-		e.unfocus()
-	}
 	w := e.win
 	if a.ID != 0 {
-		i := slices.IndexFunc(e.root.windows(), func(w *window) bool { return w.id == a.ID })
+		i := slices.IndexFunc(e.windows(), func(w *window) bool { return w.id == a.ID })
 		if i < 0 {
 			return fmt.Errorf("no window %d", a.ID)
 		}
-		w = e.root.windows()[i]
+		w = e.windows()[i]
 	}
 	t := w.buf.text.Snapshot()
 	switch a.Do {
@@ -530,6 +526,9 @@ func (e *Session) windowAction(a api.WindowAction) error {
 	case "focus":
 		e.win = w
 	case "height", "width", "taller", "wider":
+		if w.anchor != "" {
+			return fmt.Errorf("window %d is a float, which sizes itself", w.id)
+		}
 		cur := e.win
 		e.win = w
 		e.resize(a.Do == "width" || a.Do == "wider", func(now, room int) int {
@@ -689,13 +688,11 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 		if e.keyFloat = f; f.Text == "" || e.vim.Shown() == "" {
 			e.keyFloat = nil
 		}
+	} else if f != nil && f.Spans == nil {
+		text, spans := e.markdown(f.Text)
+		e.popup(text, spans, markdownImage(f.Text, b.file.path))
 	} else if f != nil {
-		if f.Spans == nil {
-			e.float.text, e.float.spans = e.markdown(f.Text)
-			e.float.image = markdownImage(f.Text, b.file.path)
-		} else {
-			e.float.text, e.float.spans = f.Text, styled(f.Spans)
-		}
+		e.popup(f.Text, styled(f.Spans), "")
 	}
 	if a := res.Apply; a != nil {
 		e.applyWorkspace(b, a)
@@ -1136,8 +1133,7 @@ func (e *Session) register(p api.Module, r api.Registration) {
 		e.pluginHelp["<Plug>("+name+")"] = r.Help
 		e.each(func(s *Session) {
 			s.vim.Command(name, func(t vim.Text, pos, count int) []vim.Edit {
-				if r.Enters && s.float.left != "" {
-					s.focus(s.float.left)
+				if r.Enters && s.enter() {
 					return nil
 				}
 				args := []int{pos, count}
@@ -1311,12 +1307,12 @@ func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 	// The windows and the selection are listed now too, for the same
 	// reason.
 	var wins []api.Window
-	for _, w := range e.root.windows() {
+	for _, w := range e.windows() {
 		alt := 0
 		if w.alt != nil {
 			alt = w.alt.id
 		}
-		wins = append(wins, api.Window{ID: w.id, Buffer: w.buf.id, Alt: alt, Cursor: w.pos(), Top: w.buf.text.Mark(w.top), Row: w.y, Column: w.x, Width: w.w, Height: w.h, Current: w == e.win})
+		wins = append(wins, api.Window{ID: w.id, Buffer: w.buf.id, Alt: alt, Cursor: w.pos(), Top: w.buf.text.Mark(w.top), Row: w.y, Column: w.x, Width: w.w, Height: w.h, Current: w == e.win, Float: w.anchor})
 		if w.buf == b && (w == e.win || s.About["cursor"] == "") {
 			s.About["cursor"] = strconv.Itoa(w.pos())
 		}

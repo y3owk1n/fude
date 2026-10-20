@@ -80,7 +80,9 @@ func (e *Session) openFinder(f *finder, query string) {
 		f.project = e.project
 	}
 	b := &buffer{text: kernel.New(query, nil), before: map[kernel.NodeID]int{}, marks: map[rune]kernel.MarkID{}, title: "[find]"}
-	e.finder, e.under, e.win = f, e.win, newWindow(b, 0, 0)
+	w := newWindow(b, 0, 0)
+	w.from = e.win
+	e.finder, e.win = f, w
 	e.later = append(e.later, "A")
 }
 
@@ -212,7 +214,9 @@ func (e *Session) closeFinder() {
 	}
 	e.finder = nil
 	e.release(seen)
-	e.unfocus()
+	if e.win.from != nil {
+		e.win = e.win.from
+	}
 }
 
 // seek matches the query off the loop when it changed since the last
@@ -245,10 +249,10 @@ func (e *Session) seek(f *finder) {
 	}()
 }
 
-// float shows the finder in the middle of the screen, at most 20 rows tall,
+// box shows the finder in the middle of the screen, at most 20 rows tall,
 // with the cursor in the query. On a screen of 60 columns or more, the
 // selected file's first lines show in a box right of the list (B130).
-func (f *finder) float(query string, cursor, width, height int) wire.Float {
+func (f *finder) box(query string, cursor, width, height int) wire.Menu {
 	// A margin of two columns and a row keeps the box off the screen's edges.
 	total, h := min(162, width-4), min(22, height-2)
 	w, docW := total, 0
@@ -386,7 +390,7 @@ func (f *finder) float(query string, cursor, width, height int) wire.Float {
 			docSpans = append(slices.Clip(docSpans), syntax.Span{Start: start, End: start + end, Name: "menu.selected"})
 		}
 	}
-	return wire.Float{Text: s.String(), Spans: spans, Title: f.title, Cursor: cursor + len(prompt), Doc: doc, DocSpans: docSpans, X: (width - total) / 2, Y: (height - h) / 2, W: w, H: h, DocW: docW}
+	return wire.Menu{Text: s.String(), Spans: spans, Title: f.title, Cursor: cursor + len(prompt), Doc: doc, DocSpans: docSpans, X: (width - total) / 2, Y: (height - h) / 2, W: w, H: h, DocW: docW}
 }
 
 // writePath writes path in at most width columns: its name, in style when

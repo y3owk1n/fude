@@ -343,9 +343,9 @@ func readEntries(dir string) []string {
 	return names
 }
 
-// float shows the menu, at most 10 rows tall, for the client to put under
+// box shows the menu, at most 10 rows tall, for the client to put under
 // the command line (B148).
-func (m *cmenu) float() wire.Float {
+func (m *cmenu) box() wire.Menu {
 	rows := min(len(m.items), 10)
 	// The rows move only when the selection would leave them.
 	if m.sel < len(m.items) {
@@ -379,7 +379,7 @@ func (m *cmenu) float() wire.Float {
 			s.WriteString(m.notes[i])
 		}
 	}
-	return wire.Float{Text: s.String(), Spans: spans, Cursor: -1}
+	return wire.Menu{Text: s.String(), Spans: spans, Cursor: -1}
 }
 
 // incSearch remembers top and at, the window's top and the cursor before a

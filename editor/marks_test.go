@@ -107,7 +107,7 @@ func TestB152Marks(t *testing.T) {
 	e.SetSize(100, 24)
 	// marked is the letters a float marks as matching, in order.
 	marked := func() string {
-		f, _ := e.Float()
+		f, _ := e.Menu()
 		var b strings.Builder
 		for _, s := range f.Spans {
 			if s.Name == "match" {

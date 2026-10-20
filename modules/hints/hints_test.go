@@ -20,13 +20,13 @@ func TestB172KeyHints(t *testing.T) {
 	e := editortest.Start(t, path)
 	e.Use(hints.New())
 	e.SetSize(100, 30)
-	shows := func(want string) bool { f, ok := e.Float(); return ok && strings.Contains(f.Text, want) }
+	shows := func(want string) bool { f, ok := e.Menu(); return ok && strings.Contains(f.Text, want) }
 	// After a mapping's first key, the hints say what may follow, and the key
 	// waits for the next one instead of key_timeout.
 	editortest.Feed(e, "<Space>")
 	editortest.Settle(t, e, func() bool { return shows("w  :w<CR>") })
 	// A key that starts longer ones shows its group's name.
-	if f, _ := e.Float(); f.Title != "<Space>" || !strings.Contains(f.Text, "s  +search 1") {
+	if f, _ := e.Menu(); f.Title != "<Space>" || !strings.Contains(f.Text, "s  +search 1") {
 		t.Fatalf("the hints show %q titled %q", f.Text, f.Title)
 	}
 	if _, waiting := e.Wait(); waiting {
@@ -41,7 +41,7 @@ func TestB172KeyHints(t *testing.T) {
 	if editortest.Feed(e, "<Esc>"); e.Cursor() != 0 {
 		t.Errorf("<Esc> ran the held <Space>, the cursor is at %d", e.Cursor())
 	}
-	if _, ok := e.Float(); ok {
+	if _, ok := e.Menu(); ok {
 		t.Error("the hints stay after <Esc>")
 	}
 	// The machine's own keys follow g.

@@ -665,7 +665,7 @@ func TestB305DrawPreviewImage(t *testing.T) {
 	// rows down, under the path, its rule and the line naming the image.
 	for deadline := time.After(5 * time.Second); ; {
 		c.draw()
-		f, _ := c.e.Float()
+		f, _ := c.e.Menu()
 		if s, _, _ := c.s.Get(f.X+f.W+2, f.Y+4); f.DocImage != nil && strings.HasPrefix(s, string(kitty.Placeholder)) {
 			break
 		}
@@ -1082,7 +1082,7 @@ func TestB151Tint(t *testing.T) {
 	// The key hints leave the windows lit.
 	cl.e.Feed("g")
 	for deadline := time.After(5 * time.Second); ; {
-		if _, ok := cl.e.Float(); ok {
+		if _, ok := cl.e.Menu(); ok {
 			break
 		}
 		select {

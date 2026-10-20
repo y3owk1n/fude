@@ -127,14 +127,14 @@ func TestB244GuestRefuses(t *testing.T) {
 	// The guest takes a code action that edits, and not one that runs a
 	// command.
 	feed(guest, "gra")
-	settle(t, guest, func() bool { _, ok := guest.Float(); return ok })
+	settle(t, guest, func() bool { _, ok := guest.Menu(); return ok })
 	feed(guest, "2")
 	settle(t, guest, func() bool { return guest.Message() != "" })
 	if guest.Message() != "a guest may not take a code action that runs a command" || text(e) != "b\na" {
 		t.Errorf("a guest's code action that runs a command said %q and left %q", guest.Message(), text(e))
 	}
 	feed(guest, "gra")
-	settle(t, guest, func() bool { _, ok := guest.Float(); return ok })
+	settle(t, guest, func() bool { _, ok := guest.Menu(); return ok })
 	feed(guest, "1")
 	settle(t, guest, func() bool { return text(e) != "b\na" })
 	if text(e) != "hi b\na" {
@@ -224,7 +224,7 @@ func TestB245GuestProject(t *testing.T) {
 	// The finder previews only files in the project.
 	feed(guest, ":pick buffers<CR>out")
 	settle(t, guest, func() bool {
-		f, _ := guest.Float()
+		f, _ := guest.Menu()
 		return strings.HasSuffix(f.Doc, "\n\n"+out+" is outside the project")
 	})
 	feed(guest, "<Esc>")

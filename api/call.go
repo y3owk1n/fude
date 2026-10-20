@@ -395,6 +395,7 @@ type Window struct {
 	Row, Column   int
 	Width, Height int
 	Current       bool
+	Float         string // where a float sits over the layout: middle, cursor or above, or "" in it (D55)
 }
 
 // Selection is what visual mode selects: its Kind, v, V or <C-v>, the

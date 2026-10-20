@@ -146,9 +146,5 @@ func (e *Session) serverActions(actions []api.ServerAction) {
 // name changed. The modules hear it about the file the current window
 // shows, or the one under its float, once the change is done (B317).
 func (e *Session) serversChanged(name string) {
-	b := e.win.buf
-	if e.under != nil {
-		b = e.under.buf
-	}
-	e.emitTo(event{name: "lsp.changed", detail: name, buf: b, from: e})
+	e.emitTo(event{name: "lsp.changed", detail: name, buf: e.under().buf, from: e})
 }

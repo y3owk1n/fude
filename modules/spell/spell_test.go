@@ -119,7 +119,7 @@ func TestB260SpellKeys(t *testing.T) {
 	}
 	// z= lists the list's closest words, and the one chosen replaces it.
 	editortest.Feed(e, "0]sz=")
-	editortest.Settle(t, e, func() bool { f, _ := e.Float(); return strings.Contains(f.Text, "cat") })
+	editortest.Settle(t, e, func() bool { f, _ := e.Menu(); return strings.Contains(f.Text, "cat") })
 	// The choice reaches spell off the loop, and its edit follows.
 	editortest.Feed(e, "<CR>")
 	editortest.Settle(t, e, func() bool { return strings.HasPrefix(editortest.Text(e), "the cat sat") })

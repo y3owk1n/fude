@@ -59,7 +59,7 @@ func TestB131CommandCompletion(t *testing.T) {
 		}
 	}
 	lit := func(want string) bool {
-		f, _ := e.Float()
+		f, _ := e.Menu()
 		return slices.ContainsFunc(f.Spans, func(s syntax.Span) bool { return s.Name == "menu.selected" && f.Text[s.Start:s.End] == want })
 	}
 	// <CR> on a name that is no command runs the menu's first, and on one
@@ -93,7 +93,7 @@ func TestB131CommandCompletion(t *testing.T) {
 	feed(e, ":b readme<CR>")
 	// A short name matches as its command, which shows its short names.
 	feed(e, "<Esc>:ls")
-	if f, _ := e.Float(); !regexp.MustCompile(`(?m)^buffers +ls$`).MatchString(f.Text) || !lit("buffers") {
+	if f, _ := e.Menu(); !regexp.MustCompile(`(?m)^buffers +ls$`).MatchString(f.Text) || !lit("buffers") {
 		t.Errorf(":ls shows %q, want buffers lit with ls beside it", f.Text)
 	}
 	feed(e, "<Esc>")
@@ -114,7 +114,7 @@ func TestB131CommandCompletion(t *testing.T) {
 	}
 	change(t, filepath.Join(".fude", "tasks.toml"), "[task.build]\ncommand = \"true\"\n")
 	feed(e, "<Esc>:task b")
-	settle(t, e, func() bool { f, _ := e.Float(); return strings.HasPrefix(f.Text, "build") })
+	settle(t, e, func() bool { f, _ := e.Menu(); return strings.HasPrefix(f.Text, "build") })
 	// A menu that comes later lights its item too.
 	if !lit("build") {
 		t.Error(":task b lights none of its menu, want build")
@@ -122,13 +122,13 @@ func TestB131CommandCompletion(t *testing.T) {
 
 	// With autocomplete, the menu shows as the line is typed.
 	feed(e, "<Esc>:bu")
-	if f, ok := e.Float(); !ok || !strings.HasPrefix(f.Text, "buffer") {
+	if f, ok := e.Menu(); !ok || !strings.HasPrefix(f.Text, "buffer") {
 		t.Fatalf("typing :bu shows the menu %q", f.Text)
 	}
 	// A long menu shows its best matches first, lighting the first, and
 	// <C-n> goes on to the second.
 	feed(e, "<Esc>:h plug")
-	f, _ := e.Float()
+	f, _ := e.Menu()
 	items := strings.Split(f.Text, "\n")
 	if !lit(items[0]) {
 		t.Errorf("the menu %q lights none of its first", items[:2])
@@ -138,7 +138,7 @@ func TestB131CommandCompletion(t *testing.T) {
 	}
 	// A path's menu shows once its directory is read.
 	feed(e, "<Esc>:e ed")
-	settle(t, e, func() bool { f, ok := e.Float(); return ok && strings.HasPrefix(f.Text, "editor/\n") })
+	settle(t, e, func() bool { f, ok := e.Menu(); return ok && strings.HasPrefix(f.Text, "editor/\n") })
 }
 
 // B257
@@ -155,7 +155,7 @@ func TestB257Cdo(t *testing.T) {
 	e.SetSize(100, 24)
 	feed(e, ":pick grep foo<CR>")
 	// The query and three matches.
-	settle(t, e, func() bool { f, _ := e.Float(); return strings.Count(f.Text, "foo") == 4 })
+	settle(t, e, func() bool { f, _ := e.Menu(); return strings.Count(f.Text, "foo") == 4 })
 	feed(e, "<C-q>:cclose<CR>")
 	texts := func() (out []string) {
 		for _, name := range []string{"a.txt", "b.txt"} {
@@ -219,7 +219,7 @@ func TestB206CompletionSources(t *testing.T) {
 	e.Use(completionmod.New())
 	// The nearest word comes first, and the menu names where it came from.
 	feed(e, "o ap<C-x><C-o>")
-	if f, _ := e.Float(); text(e) != "apple apricot\n apricot" || !strings.Contains(f.Text, "apple  [buffer]") {
+	if f, _ := e.Menu(); text(e) != "apple apricot\n apricot" || !strings.Contains(f.Text, "apple  [buffer]") {
 		t.Fatalf("<C-x><C-o> after ap made %q with the menu %q", text(e), f.Text)
 	}
 	feed(e, "<Esc>o./no<C-x><C-o>")

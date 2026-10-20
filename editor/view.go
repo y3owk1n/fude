@@ -23,7 +23,7 @@ func (e *Session) Windows() []wire.Window {
 	}
 	shown := map[*buffer][]any{}
 	for _, s := range e.sessions {
-		for _, w := range s.root.windows() {
+		for _, w := range s.windows() {
 			shown[w.buf] = append(shown[w.buf], w)
 		}
 	}
@@ -38,182 +38,191 @@ func (e *Session) Windows() []wire.Window {
 		}
 	}
 	var out []wire.Window
-	_, _, centered := e.area()
 	for _, w := range e.root.windows() {
-		e.fit(w)
-		t, top, tab := w.buf.text.Snapshot(), e.topOf(w), e.tabWidth(w.buf)
-		v := wire.Window{
-			Buffer: w.buf.id, Text: t, Top: top, Cursor: w.pos(),
-			X: w.x, Y: w.y, W: w.w, H: w.h,
-			Name: w.buf.name(), Modified: w.buf.modified(), Current: w == e.win || w == e.under,
-			Gutter: w.gutter(), SignCols: w.signCols(), Number: w.numberCols() > 0 && w.opts.Number, Relative: w.numberCols() > 0 && w.opts.RelativeNumber,
-			Wrap: w.opts.Wrap, Left: w.left, CursorLine: w.opts.CursorLine, List: w.opts.List,
-			Indent: e.indentWidth(w.buf), Tab: tab, Guides: w.opts.IndentGuides, ColorColumn: w.opts.ColorColumn,
-		}
-		// Centered, the colour column is the windows' edge, so it shows none.
-		if centered {
-			v.ColorColumn = 0
-		}
-		if term := w.buf.term; term != nil && term.typing {
-			v.Cells, v.CellX, v.CellY = term.screen()
-		}
-		// The last line shown, a closed fold counting as one (B224).
-		lastStart := t.LineStart(min(t.LineOf(top)+max(w.h-2, 0), t.Lines()-1))
-		if len(w.buf.folds) > 0 {
-			lastStart = top
-			for range max(w.h-2, 0) {
-				next, ok := w.nextLine(t, lastStart)
-				if !ok {
-					break
-				}
-				lastStart = next
-			}
-		}
-		last := vim.LineEnd(t, lastStart)
-		d := e.shown(w, top, last)
-		v.Virtual = d.virtual
-		for _, f := range w.buf.folds {
-			first, end := w.fold(t, t.LineOf(w.buf.text.Mark(f.start)))
-			if s := t.LineStart(first); s >= top && s <= last {
-				if v.Folds == nil {
-					v.Folds = map[int]int{}
-				}
-				v.Folds[first] = end - first
-			}
-		}
-		if h := w.buf.syntax; h != nil {
-			v.Highlights = h.Show(t, w, top, last)
-			if w.opts.StickyContext {
-				v.Context = e.pinned(w, t, top)
-				for i, start := range v.Context {
-					v.ContextHighlights = append(v.ContextHighlights, h.Show(t, contextRow{w, i}, start, vim.LineEnd(t, start))...)
-				}
-			}
-		}
-		v.Matches = e.vim.Matches(t, top, last)
-		if s, end, ok := e.vim.Incremental(); ok && w == e.win && w.opts.IncSearch {
-			v.Searched = [2]int{s, end}
-		}
-		if v.Current {
-			v.Tasks = e.runningTasks()
-			v.Sharing = e.sharing()
-		}
-		v.Others = e.others(w.buf)
-		v.Signs = e.signs(w.buf, top, last)
-		for _, p := range e.modules {
-			for _, d := range e.decos[p] {
-				if d.buf != w.buf || d.note == "" || d.inline() {
-					continue
-				}
-				if at := w.buf.text.Mark(d.start); at >= top && at <= last {
-					if v.Notes == nil {
-						v.Notes = map[int]wire.Note{}
-					}
-					v.Notes[t.LineOf(at)] = wire.Note{Text: d.note, Name: d.style}
-				}
-			}
-		}
-		if w.opts.Icons {
-			v.Icons = e.icons(w.buf, top, last)
-			for line, s := range v.Signs {
-				if icon, ok := diagnosticIcons[s.Name]; ok {
-					v.Signs[line] = wire.Sign{Text: icon, Name: s.Name}
-				}
-			}
-		}
-		v.Pair = e.pair(w, t, top, last)
-		v.Ruler = ruler(t, w.pos(), top, max(w.h-1, 1), tab, func(p int) int { return w.rows(t, p, tab, d) })
-		for _, p := range e.modules {
-			if s := e.segments[p][w.buf]; s != "" {
-				v.Segments = append(v.Segments, s)
-			}
-			if s := e.leftSegments[p][w.buf]; s != "" {
-				v.LeftSegments = append(v.LeftSegments, s)
-			}
-			if s := e.ownLeft[p][w.buf]; s != "" {
-				v.LeftSegments = append(v.LeftSegments, s)
-			}
-		}
-		v.Filetype = e.filetype(w.buf)
-		var names []string
-		for _, s := range w.buf.servers {
-			names = append(names, s.name)
-			v.Progress = cmp.Or(v.Progress, s.doing())
-		}
-		v.Server = strings.Join(names, ", ")
-		// The modules' diagnostics count, by their styles (B147).
-		for _, p := range e.modules {
-			for _, d := range e.decos[p] {
-				if d.buf != w.buf {
-					continue
-				}
-				switch d.style {
-				case "diagnostic.error":
-					v.Errors++
-				case "diagnostic.warn":
-					v.Warnings++
-				}
-			}
-		}
-		if w == e.win {
-			// The :s being typed shows its matches, then each match struck
-			// out before its replacement (B154).
-			edits, replacing := e.vim.Preview(top, last)
-			for _, ed := range edits {
-				if !replacing {
-					v.Matches = append(v.Matches, [2]int{ed.Start, ed.End})
-					continue
-				}
-				v.Decorations = append(v.Decorations, syntax.Span{Start: ed.Start, End: ed.End, Name: "sub.old"})
-				v.Ghosts = append(v.Ghosts, wire.Ghost{Pos: ed.End, Text: ed.Text, Style: "sub.new"})
-			}
-		}
-		if w == e.win {
-			v.Decorations = append(v.Decorations, e.snippetSpan(w.buf)...)
-		}
-		for _, ds := range e.decos {
-			for _, d := range ds {
-				if d.buf != w.buf {
-					continue
-				}
-				s, end := w.buf.text.Mark(d.start), w.buf.text.Mark(d.end)
-				if hex, ok := strings.CutPrefix(d.style, "colour #"); ok {
-					if rgb, err := strconv.ParseInt(hex, 16, 32); err == nil && s < end && end > top && s < last {
-						v.Colours = append(v.Colours, wire.Colour{Start: s, End: end, RGB: int32(rgb)})
-					}
-					continue
-				}
-				if d.line {
-					if v.Grounds == nil {
-						v.Grounds = map[int]string{}
-					}
-					if end >= top && s <= last {
-						for l := t.LineOf(max(s, top)); l <= t.LineOf(min(end, last)); l++ {
-							v.Grounds[l] = d.style
-						}
-					}
-					// A pinned line keeps its ground (B217).
-					for _, p := range v.Context {
-						if l := t.LineOf(p); l >= t.LineOf(s) && l <= t.LineOf(end) {
-							v.Grounds[l] = d.style
-						}
-					}
-					continue
-				}
-				if !d.insert && !d.replace && !d.cover && !d.block && s < end && end > top && s < last {
-					v.Decorations = append(v.Decorations, syntax.Span{Start: s, End: end, Name: d.style})
-				}
-			}
-		}
-		v.Ghosts = append(v.Ghosts, d.ghosts...)
-		// A pinned line shows as it draws in the window (B217, B295).
-		for _, p := range v.Context {
-			v.Ghosts = append(v.Ghosts, e.shown(w, p, vim.LineEnd(t, p)).ghosts...)
-		}
-		slices.SortStableFunc(v.Ghosts, func(a, b wire.Ghost) int { return cmp.Compare(a.Pos, b.Pos) })
-		out = append(out, v)
+		out = append(out, e.draw(w))
+	}
+	for _, f := range e.floats {
+		e.place(f)
+		out = append(out, e.floatWindow(f))
 	}
 	return out
+}
+
+// draw is how a client draws w.
+func (e *Session) draw(w *window) wire.Window {
+	_, _, centered := e.area()
+	e.fit(w)
+	t, top, tab := w.buf.text.Snapshot(), e.topOf(w), e.tabWidth(w.buf)
+	v := wire.Window{
+		Buffer: w.buf.id, Text: t, Top: top, Cursor: w.pos(),
+		X: w.x, Y: w.y, W: w.w, H: w.h,
+		Name: w.buf.name(), Modified: w.buf.modified(), Current: w == e.win || w == e.under(),
+		Gutter: w.gutter(), SignCols: w.signCols(), Number: w.numberCols() > 0 && w.opts.Number, Relative: w.numberCols() > 0 && w.opts.RelativeNumber,
+		Wrap: w.opts.Wrap, Left: w.left, CursorLine: w.opts.CursorLine, List: w.opts.List,
+		Indent: e.indentWidth(w.buf), Tab: tab, Guides: w.opts.IndentGuides, ColorColumn: w.opts.ColorColumn,
+	}
+	// Centered, the colour column is the windows' edge, so it shows none.
+	if centered {
+		v.ColorColumn = 0
+	}
+	if term := w.buf.term; term != nil && term.typing {
+		v.Cells, v.CellX, v.CellY = term.screen()
+	}
+	// The last line shown, a closed fold counting as one (B224).
+	lastStart := t.LineStart(min(t.LineOf(top)+max(w.h-2, 0), t.Lines()-1))
+	if len(w.buf.folds) > 0 {
+		lastStart = top
+		for range max(w.h-2, 0) {
+			next, ok := w.nextLine(t, lastStart)
+			if !ok {
+				break
+			}
+			lastStart = next
+		}
+	}
+	last := vim.LineEnd(t, lastStart)
+	d := e.shown(w, top, last)
+	v.Virtual = d.virtual
+	for _, f := range w.buf.folds {
+		first, end := w.fold(t, t.LineOf(w.buf.text.Mark(f.start)))
+		if s := t.LineStart(first); s >= top && s <= last {
+			if v.Folds == nil {
+				v.Folds = map[int]int{}
+			}
+			v.Folds[first] = end - first
+		}
+	}
+	if h := w.buf.syntax; h != nil {
+		v.Highlights = h.Show(t, w, top, last)
+		if w.opts.StickyContext {
+			v.Context = e.pinned(w, t, top)
+			for i, start := range v.Context {
+				v.ContextHighlights = append(v.ContextHighlights, h.Show(t, contextRow{w, i}, start, vim.LineEnd(t, start))...)
+			}
+		}
+	}
+	v.Matches = e.vim.Matches(t, top, last)
+	if s, end, ok := e.vim.Incremental(); ok && w == e.win && w.opts.IncSearch {
+		v.Searched = [2]int{s, end}
+	}
+	if v.Current {
+		v.Tasks = e.runningTasks()
+		v.Sharing = e.sharing()
+	}
+	v.Others = e.others(w.buf)
+	v.Signs = e.signs(w.buf, top, last)
+	for _, p := range e.modules {
+		for _, d := range e.decos[p] {
+			if d.buf != w.buf || d.note == "" || d.inline() {
+				continue
+			}
+			if at := w.buf.text.Mark(d.start); at >= top && at <= last {
+				if v.Notes == nil {
+					v.Notes = map[int]wire.Note{}
+				}
+				v.Notes[t.LineOf(at)] = wire.Note{Text: d.note, Name: d.style}
+			}
+		}
+	}
+	if w.opts.Icons {
+		v.Icons = e.icons(w.buf, top, last)
+		for line, s := range v.Signs {
+			if icon, ok := diagnosticIcons[s.Name]; ok {
+				v.Signs[line] = wire.Sign{Text: icon, Name: s.Name}
+			}
+		}
+	}
+	v.Pair = e.pair(w, t, top, last)
+	v.Ruler = ruler(t, w.pos(), top, max(w.h-1, 1), tab, func(p int) int { return w.rows(t, p, tab, d) })
+	for _, p := range e.modules {
+		if s := e.segments[p][w.buf]; s != "" {
+			v.Segments = append(v.Segments, s)
+		}
+		if s := e.leftSegments[p][w.buf]; s != "" {
+			v.LeftSegments = append(v.LeftSegments, s)
+		}
+		if s := e.ownLeft[p][w.buf]; s != "" {
+			v.LeftSegments = append(v.LeftSegments, s)
+		}
+	}
+	v.Filetype = e.filetype(w.buf)
+	var names []string
+	for _, s := range w.buf.servers {
+		names = append(names, s.name)
+		v.Progress = cmp.Or(v.Progress, s.doing())
+	}
+	v.Server = strings.Join(names, ", ")
+	// The modules' diagnostics count, by their styles (B147).
+	for _, p := range e.modules {
+		for _, d := range e.decos[p] {
+			if d.buf != w.buf {
+				continue
+			}
+			switch d.style {
+			case "diagnostic.error":
+				v.Errors++
+			case "diagnostic.warn":
+				v.Warnings++
+			}
+		}
+	}
+	if w == e.win {
+		// The :s being typed shows its matches, then each match struck
+		// out before its replacement (B154).
+		edits, replacing := e.vim.Preview(top, last)
+		for _, ed := range edits {
+			if !replacing {
+				v.Matches = append(v.Matches, [2]int{ed.Start, ed.End})
+				continue
+			}
+			v.Decorations = append(v.Decorations, syntax.Span{Start: ed.Start, End: ed.End, Name: "sub.old"})
+			v.Ghosts = append(v.Ghosts, wire.Ghost{Pos: ed.End, Text: ed.Text, Style: "sub.new"})
+		}
+	}
+	if w == e.win {
+		v.Decorations = append(v.Decorations, e.snippetSpan(w.buf)...)
+	}
+	for _, ds := range e.decos {
+		for _, d := range ds {
+			if d.buf != w.buf {
+				continue
+			}
+			s, end := w.buf.text.Mark(d.start), w.buf.text.Mark(d.end)
+			if hex, ok := strings.CutPrefix(d.style, "colour #"); ok {
+				if rgb, err := strconv.ParseInt(hex, 16, 32); err == nil && s < end && end > top && s < last {
+					v.Colours = append(v.Colours, wire.Colour{Start: s, End: end, RGB: int32(rgb)})
+				}
+				continue
+			}
+			if d.line {
+				if v.Grounds == nil {
+					v.Grounds = map[int]string{}
+				}
+				if end >= top && s <= last {
+					for l := t.LineOf(max(s, top)); l <= t.LineOf(min(end, last)); l++ {
+						v.Grounds[l] = d.style
+					}
+				}
+				// A pinned line keeps its ground (B217).
+				for _, p := range v.Context {
+					if l := t.LineOf(p); l >= t.LineOf(s) && l <= t.LineOf(end) {
+						v.Grounds[l] = d.style
+					}
+				}
+				continue
+			}
+			if !d.insert && !d.replace && !d.cover && !d.block && s < end && end > top && s < last {
+				v.Decorations = append(v.Decorations, syntax.Span{Start: s, End: end, Name: d.style})
+			}
+		}
+	}
+	v.Ghosts = append(v.Ghosts, d.ghosts...)
+	// A pinned line shows as it draws in the window (B217, B295).
+	for _, p := range v.Context {
+		v.Ghosts = append(v.Ghosts, e.shown(w, p, vim.LineEnd(t, p)).ghosts...)
+	}
+	slices.SortStableFunc(v.Ghosts, func(a, b wire.Ghost) int { return cmp.Compare(a.Pos, b.Pos) })
+	return v
 }
 
 // contextRow names a line sticky context pins over w's rows, for the

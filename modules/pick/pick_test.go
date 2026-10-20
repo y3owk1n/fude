@@ -22,7 +22,7 @@ func TestB266PickCommands(t *testing.T) {
 	e.Use(window.New())
 	e.Use(places.New())
 	e.SetSize(100, 30)
-	shows := func(want string) bool { f, _ := e.Float(); return strings.Contains(f.Text, want) }
+	shows := func(want string) bool { f, _ := e.Menu(); return strings.Contains(f.Text, want) }
 	// Typing what a command does finds it, and the one picked runs.
 	editortest.Feed(e, ":pick commands<CR>opens a window below with a new empty")
 	editortest.Settle(t, e, func() bool { return shows(":new") })
@@ -42,7 +42,7 @@ func TestB215PickLists(t *testing.T) {
 	e.Use(pick.New())
 	e.Use(help.New())
 	e.SetSize(100, 30)
-	shows := func(want string) bool { f, _ := e.Float(); return strings.Contains(f.Text, want) }
+	shows := func(want string) bool { f, _ := e.Menu(); return strings.Contains(f.Text, want) }
 	// :pick alone lists the sources, and picking one opens its finder.
 	editortest.Feed(e, ":pick<CR>")
 	editortest.Settle(t, e, func() bool { return shows("keymaps") })

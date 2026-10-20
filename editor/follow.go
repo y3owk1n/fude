@@ -37,10 +37,7 @@ func (e *Session) follow() {
 	e.mirrors = mirrors
 	// While the other has a float or the finder open, the window under it
 	// is the current one.
-	current := s.win
-	if !slices.Contains(s.root.windows(), current) {
-		current = s.under
-	}
+	current := s.under()
 	if w := mirrors[current]; w != nil {
 		e.win = w
 	} else {

@@ -143,3 +143,30 @@ func Rows(t Text, start, cols, tab int, in []Inline) []int {
 	})
 	return rows
 }
+
+// WordRows is Rows that ends a row after its last space that fits, or
+// where Rows does on a row with none, as a float wraps its text.
+func WordRows(t Text, start, cols, tab int, in []Inline) []int {
+	rows := Rows(t, start, cols, tab, in)
+	if len(rows) == 1 {
+		return rows
+	}
+	rows = rows[:1]
+	// brk is just after the row's last space, and brkX its column.
+	x, brk, brkX := 0, -1, 0
+	walk(t, start, tab, in, func(p, _, w int) bool {
+		for x > 0 && x+w > cols {
+			if brk > rows[len(rows)-1] {
+				rows, x, brk = append(rows, brk), x-brkX, -1
+			} else {
+				rows, x = append(rows, p), 0
+			}
+		}
+		x += w
+		if t.Slice(p, min(p+1, t.Len())) == " " {
+			brk, brkX = p+1, x
+		}
+		return true
+	})
+	return rows
+}

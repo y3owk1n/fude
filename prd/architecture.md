@@ -794,8 +794,8 @@ no timer (B161).
 
 The client draws the command line in a box with a rounded border, a fifth
 of the way down the screen and at most 60 columns wide, and the
-completion menu under it, so the editor gives the menu's `Float` no place
-of its own (B148). The last message is a toast in the top right corner,
+completion menu under it, so the editor gives that `Menu` no place of
+its own (B148). The last message is a toast in the top right corner,
 drawn while `Message` returns it, so it goes with the next key as before
 (B149). A yes or no question is not a message. The editor asks every one
 through `confirm`, and `Confirm` returns it until `y` or `n` answers. The
@@ -1007,7 +1007,7 @@ the argument's last word. A path completes in the directory typed so far.
 Reading a directory of 10,000 entries takes 10ms and matching them 1.5ms,
 so the menu that shows while typing completes a path off the loop. It
 shows the result only if the line has not changed by then. `<Tab>`
-completes at once. Each command line reads a directory once and keeps its entries. The menu is a `Float` the
+completes at once. Each command line reads a directory once and keeps its entries. The menu is a `Menu` the
 editor places above the command line, under the word, at most 10 rows
 tall (B131).
 
@@ -1017,7 +1017,7 @@ tall (B131).
 insert key edits it. Keys reach the finder before anything else: `<CR>`,
 `<C-n>` and `<C-p>` are its own, and the rest go to the machine. When the machine leaves insert mode, by `<Esc>` or a mapping to
 it, the finder closes. The editor places the box in the middle of the
-screen, at most 80 columns and 20 rows, through `Float`'s `X`, `Y`, `W`
+screen, at most 80 columns and 20 rows, through `Menu`'s `X`, `Y`, `W`
 and `H`, and the terminal draws it there.
 
 `modules/files` is `:pick files` and `:pick buffers`. The files come from
@@ -1048,7 +1048,7 @@ leads to the best score, or the place a run of letters needs, as fzy's
 both share the function that fills one (B152).
 
 On a screen of 60 columns or more, the list takes two fifths of the width
-and a preview box the rest, up to 160 columns in all. `Float.DocW` is the
+and a preview box the rest, up to 160 columns in all. `Menu.DocW` is the
 preview box's width. The preview is the start of the selected file, cut to
 the box, with tabs as 4 spaces. `syntax.Highlight` colours it by the
 file's extension, which takes over a millisecond, so fude reads and
@@ -1543,22 +1543,29 @@ where keys move and scroll as in any window. `q`, `:q`, `:close` and any
 window under it. Both keys exist in
 every buffer, as in Neovim, and say so when no server is attached (B62).
 
-A float is text and the spans that style it, which the editor holds and the
-client draws over the windows, in a bordered box at the cursor: below its
-line, or above when there is more room there, at most 80 columns and 20
-lines. A line wraps after the last space that fits in the box, or at the
-box's edge when one word is wider, as Neovim's `'linebreak'` wraps.
+Hover shows in a float, a window over the layout at the cursor of the
+window it opened from (D55). The editor keeps the floats and places each
+one. Hover goes below the cursor's line, or above it when there is more
+room there, at most 80 columns and 20 rows. Signature help goes above it,
+at most 10 rows. A float in the middle of the screen, as the `:lsp` panel
+is, sits a fifth of the way down. Each float goes to the
+client as a `wire.Window` with its `Float`, and the client draws it in a
+bordered box over the layout. A float's line wraps after the last space
+that fits, or at its edge when one word is wider, as Neovim's
+`'linebreak'` wraps. `vim.WordRows` breaks the rows, and the vim host's
+`WordWrap` makes `gj` and `gk` count the same rows. A float's buffer is its
+own, outside the session's buffers, and closes with it.
 
 fude renders the markdown language servers write, not all of markdown.
 Fenced code takes its language's highlights through `syntax.Highlight`.
 Inline code, bold, italic, headings and links lose their markers and keep
 their styles as spans, and a line of `---` draws as a rule across the
-float. A full markdown grammar comes only if servers start sending more.
+float's box. A full markdown grammar comes only if servers start sending more.
 
 Completion works as Neovim's does with the same items. In insert mode,
 `<C-x><C-o>` asks the server what may go at the cursor. When the answer
 comes, fude puts the first item in place of the word before the cursor and
-shows every item's label in a float. `<C-n>` and `<C-p>` step through the
+shows every item's label in a menu at the cursor. `<C-n>` and `<C-p>` step through the
 items and the typed word, putting each in the text. `<C-y>` keeps the item
 and `<C-e>` puts the typed word back. Any other key keeps the item and goes
 on to type. An item puts in its `textEdit`, else its `insertText`, else its
@@ -1806,7 +1813,7 @@ and `pull` returns. A client that falls too far behind gets the whole
 text again.
 
 `ui/term` reads a session through one interface, the methods it calls
-today, such as `Windows`, `Float`, `Feed` and `SetSize`. `*editor.Session`
+today, such as `Windows`, `Menu`, `Feed` and `SetSize`. `*editor.Session`
 implements it, and so does the attached session in `ui/term`, which
 applies frames as they come and sends input as it is typed. The speed
 harness measures the attached path on the local socket as it measures
@@ -1960,9 +1967,9 @@ phases, each unit a commit that keeps every behaviour.
    panel is the module's. `Scope.Servers` reads the servers' state, and
    `Result.Servers` restarts, stops, disables or enables one. On
    `lsp.changed` the module shows the panel again with `Update`, so a
-   closed panel stays closed. The panel is a `Float` panel with `Cards`
+   closed panel stays closed. The panel shows in a float with `Cards`
    and a `Foot`. The editor keeps the cursor on a card's first row and
-   scrolls the box to show all of the card (B317, B318). The completion
+   scrolls the float to show all of the card (B317, B318). The completion
    engine and its language server source stay, because a module's `Call`
    is busy while it handles `buffer.changed`, which is when completion
    fires. `modules/completion` is the other sources, buffer words, paths

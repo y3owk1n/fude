@@ -19,7 +19,6 @@ import (
 	"github.com/y3owk1n/fude/protocol/lsp"
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
-	"github.com/y3owk1n/fude/wire"
 )
 
 // server is a running language server and the buffers attached to it.
@@ -576,7 +575,7 @@ func (e *Session) signature(typed bool) {
 		}
 		json.Unmarshal(res, &help)
 		if len(help.Signatures) == 0 {
-			e.completion.sig = nil
+			e.showSignature("", nil)
 			if !typed {
 				e.message = "no signature help"
 			}
@@ -619,7 +618,7 @@ func (e *Session) signature(typed bool) {
 			}
 			text += "\n" + md
 		}
-		e.completion.sig = &wire.Float{Text: text, Spans: spans, Cursor: -1}
+		e.showSignature(text, spans)
 	})
 }
 
