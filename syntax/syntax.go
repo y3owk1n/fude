@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -442,6 +443,13 @@ func (h *Buffer) take(seq int, spans []Span, regions []Region, missing []problem
 // run parses the filetype's text and highlights each newest request until
 // Close, with the regions of other languages that inj marks.
 func (h *Buffer) run(filetype string, p *ts.Parser, q, inj *ts.Query, in *injector) {
+	// The goroutine keeps its thread until it returns. The thread's lower
+	// priority then never passes to another goroutine, and Go ends the thread
+	// with the goroutine.
+	runtime.LockOSThread()
+	if err := background(); err != nil {
+		h.trace(fmt.Sprintf("parse thread kept its priority: %v", err), 0)
+	}
 	defer p.Close()
 	defer q.Close()
 	defer inj.Close()
