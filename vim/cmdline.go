@@ -84,8 +84,14 @@ func init() {
 		"<CR>": {"runs the line", func(m *Machine, _ Key, _, _ string) error {
 			m.mode = m.back
 			m.remember()
-			if m.prompt == ":" {
-				return m.ex(m.line)
+			if line := m.line; m.prompt == ":" {
+				// ": gets the line after it runs, so a command that lists the
+				// registers shows the line before it.
+				err := m.ex(line)
+				if line != "" {
+					m.keep(':', line)
+				}
+				return err
 			}
 			return m.command(m.prompt + cmp.Or(m.line, m.search.pattern))
 		}},

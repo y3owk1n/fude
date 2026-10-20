@@ -3,6 +3,7 @@ package vim
 import (
 	"fmt"
 	"math"
+	"strconv"
 	"strings"
 	"unicode"
 )
@@ -202,8 +203,18 @@ func (m *Machine) act(op string, reg rune, label string, r region) error {
 	}
 	m.wantSet = false
 	switch {
-	case op == "g~" || op == "gu" || op == "gU":
+	case op == "g~" || op == "gu" || op == "gU" || op == "g?":
 		return m.changeCase(op, label, r)
+	case op == "gw":
+		// gw is the host's gq, with the cursor kept.
+		if _, ok := m.ops["gq"]; !ok {
+			return nil
+		}
+		err := m.act("gq", reg, label, r)
+		m.h.SetCursor(c)
+		return err
+	case op == "!":
+		return m.filterLine(r)
 	case op == ">" || op == "<":
 		return m.shift(op, label, r, col, 1)
 	case r.block:
@@ -336,6 +347,9 @@ func (m *Machine) store(reg rune, op string, r register) {
 	switch {
 	case reg == '_':
 		return
+	case strings.ContainsRune(".:/%", reg):
+		m.msg = fmt.Sprintf("register %c cannot be written", reg)
+		return
 	case reg == '+' || reg == '*':
 		if err := m.h.SetClipboard(r.text); err != nil {
 			m.msg = err.Error()
@@ -410,7 +424,10 @@ func appendRegister(old, r register) register {
 }
 
 // put inserts reg n times, after the cursor for p and before it for P.
-func (m *Machine) put(reg rune, after bool, n int) error {
+// With past the cursor goes just after the text, as for gp and gP. With
+// indent, as for ]p and [p, every line moves by as many columns as the
+// first must move to have the cursor line's indent.
+func (m *Machine) put(reg rune, after bool, n int, past, indent bool) error {
 	reg, r, ok, err := m.fetchPut(reg)
 	switch {
 	case err != nil:
@@ -421,6 +438,9 @@ func (m *Machine) put(reg rune, after bool, n int) error {
 	label := "P"
 	if after {
 		label = "p"
+	}
+	if indent && r.linewise {
+		r.text = m.reindent(r.text)
 	}
 	if r.block {
 		return m.putBlock(r.text, after, n, label)
@@ -447,6 +467,10 @@ func (m *Machine) put(reg rune, after bool, n int) error {
 	m.changedText(m.flash[0], m.flash[1])
 	t = m.h.Text()
 	switch {
+	case past && r.linewise && after:
+		m.h.SetCursor(clamp(t, min(m.flash[1]+1, t.Len())))
+	case past:
+		m.h.SetCursor(clamp(t, m.flash[1]))
 	case r.linewise && after:
 		m.h.SetCursor(firstNonBlank(t, at+1, LineEnd(t, at+1)))
 	case r.linewise:
@@ -627,4 +651,37 @@ func (m *Machine) takeChar(k Key) error {
 	}
 	m.wait = nil
 	return w.run(w.got)
+}
+
+// reindent returns the lines of text, each moved by as many columns as the
+// first must move to have the cursor line's indent. Blank lines stay.
+func (m *Machine) reindent(text string) string {
+	t, c, tab := m.h.Text(), m.h.Cursor(), m.h.TabWidth()
+	ls := LineStart(t, c)
+	want := column(t, ls, firstNonBlank(t, ls, LineEnd(t, ls)), tab)
+	lines := strings.SplitAfter(text, "\n")
+	by := want - textWidth(lines[0][:len(lines[0])-len(strings.TrimLeft(lines[0], " \t"))], 0, tab)
+	for i, l := range lines {
+		body := strings.TrimLeft(l, " \t")
+		if strings.TrimSpace(body) == "" {
+			continue
+		}
+		w := textWidth(l[:len(l)-len(body)], 0, tab)
+		lines[i] = m.indentText(max(w+by, 0)) + body
+	}
+	return strings.Join(lines, "")
+}
+
+// filterLine opens the command line with the lines of r as its range and
+// then !, so a shell command can take them. The range is . for one line
+// and .,.+n for more.
+func (m *Machine) filterLine(r region) error {
+	t := m.h.Text()
+	m.h.SetCursor(LineStart(t, r.start))
+	line := "."
+	if n := t.LineOf(r.end) - t.LineOf(r.start); n > 0 {
+		line = ".,.+" + strconv.Itoa(n)
+	}
+	m.enterLine(Normal, ":", line+"!")
+	return nil
 }

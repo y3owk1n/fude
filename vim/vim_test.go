@@ -32,7 +32,10 @@ type host struct {
 	words   bool   // the rows end after a space, as a float's do
 	left    int    // the first column shown, when lines do not wrap
 	shown   int    // how many columns show then
+	name    string // the file's name
 }
+
+func (h *host) FileName() string { return h.name }
 
 func (h *host) Sideways() (int, int) { return h.left, h.shown }
 func (h *host) SetLeft(left int)     { h.left = left }
@@ -333,6 +336,17 @@ func TestB13TextObjects(t *testing.T) {
 // B14
 func TestB14Registers(t *testing.T) {
 	cases(t)
+	// "% is the file's name, and the registers fude keeps cannot be written.
+	h := &host{text: "x", name: "a.txt"}
+	m := vim.New(h)
+	for _, k := range vim.Keys(`"%p".yy`) {
+		if err := m.Feed(k); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if h.text != "xa.txt" || m.Message() != "register . cannot be written" {
+		t.Errorf(`"%%p made %q, and ".yy said %q`, h.text, m.Message())
+	}
 }
 
 // B36
@@ -423,6 +437,13 @@ func TestB28StarSearch(t *testing.T) {
 // B25
 func TestB25EditingCommands(t *testing.T) {
 	cases(t)
+	// ga and g8 show the character under the cursor and its bytes.
+	for keys, want := range map[string]string{"ga": "é is 233, hex e9, octal 351", "g8": "c3 a9"} {
+		_, _, m := run(t, "|é", keys)
+		if m.Message() != want {
+			t.Errorf("%s said %q, want %q", keys, m.Message(), want)
+		}
+	}
 }
 
 // B26
@@ -959,5 +980,12 @@ func TestB156TextCommands(t *testing.T) {
 	}
 	if h.text != "        x\n        y" {
 		t.Errorf(":retab made %q", h.text)
+	}
+	// !{motion} opens the command line with the lines' range, for a command
+	// to put them through.
+	for keys, want := range map[string]string{"!j": ":.,.+1!", "!!": ":.!", "Vj!": ":.,.+1!"} {
+		if _, _, m := run(t, "|a\nb\nc", keys); m.Line() != want {
+			t.Errorf("%s opened %q, want %q", keys, m.Line(), want)
+		}
 	}
 }

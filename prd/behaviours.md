@@ -121,8 +121,14 @@ Where fude departs, the line says so and cites the departure in
   bracket pairs `i" a" i' a' i( a( i[ a[ i{ a{ i< a<` and the tag pairs
   `it at` select as in Neovim.
 - B14 [2] `"x` before a command uses register `x`. Uppercase appends.
-  `"_` discards. `"+` is the system clipboard.
+  `"_` discards. `"+` is the system clipboard. `".` holds the text last
+  typed in insert mode, `":` the last command line, `"/` the last search
+  and `"%` the file's name. They can be read but not written.
 - B15 [2] `p` and `P` put a register, linewise or charwise as it was yanked.
+  `gp` and `gP` put it and leave the cursor just after it. `]p` puts lines
+  below the cursor's and `[p`, `]P` and `[P` above it. Each line moves by
+  as many columns as the first must move to have the cursor line's
+  indent.
 - B36 [2] `"+` and `"*` are the system clipboard: `y`, `d` and `c` write
   it, and `p`, `P`, `@` and insert `<C-r>` read it. Text ending in a line
   break puts as lines.
@@ -356,7 +362,8 @@ Where fude departs, the line says so and cites the departure in
   without writing it, and says which formatters are not installed. A
   formatter that fails or takes over `format_timeout` milliseconds leaves
   the text and says why. With nothing to format the file, it says so.
-  With a range, it formats only those lines, as `gq` does.
+  With a range, it formats only those lines, as `gq` does. `=` formats as
+  `gq` does, and `gw` formats and leaves the cursor where it was.
 - B137 [2] With `clipboard` on, a yank, delete or change without a
   register also copies to the system clipboard, and `"_` still copies
   nothing. A put without a register takes the clipboard when something
@@ -509,7 +516,8 @@ Where fude departs, the line says so and cites the departure in
   blanks as `expand_tab` says, as tabs only with `!`. `:!cmd` shows what a
   shell command writes, in the shell `:terminal` runs (B205). PowerShell
   runs it without its profile, as `sh -c` reads no startup file.
-  `:{range}!cmd` puts its lines through the command, and `:r file` and
+  `:{range}!cmd` puts its lines through the command, and `!{motion}` and
+  `!!` open the command line with the lines' range and `!`. `:r file` and
   `:r !cmd` put a file or a command's output below the line. A range that
   changes while its command runs keeps the change, and the message says
   so.
@@ -631,7 +639,7 @@ Where fude departs, the line says so and cites the departure in
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays
   them. `@@` repeats the last executed register and `Q` replays the last
-  recorded one. `:reg x` shows the macro as text, and editing that text
+  recorded one. `@:` runs the last command line again. `:reg x` shows the macro as text, and editing that text
   changes the macro.
 - B18 [2] `v`, `V` and `<C-v>` select. Any operator, `~ u U r J gJ p P`
   and the line commands `X D Y C S R` apply to the selection as in Neovim,
@@ -664,7 +672,8 @@ Where fude departs, the line says so and cites the departure in
   Neovim's `ignorecase` and `smartcase`.
 - B22 [2] `:s/pat/rep/flags` substitutes with the pattern syntax of B21 and
   Vim's replacement forms (N1). `&` repeats the last substitute with its
-  flags. The whole substitute is one transaction.
+  flags, and `g&` repeats it on every line with the last search's pattern.
+  The whole substitute is one transaction.
 - B23 [2] `<C-w>s` and `<C-w>v` split, `<C-w>hjkl` move between splits, and
   two splits on one buffer see each other's edits. A new window goes below
   or right of the current one and takes the cursor (N16). With
@@ -672,10 +681,13 @@ Where fude departs, the line says so and cites the departure in
   side have a line between them in the border colour floats have.
 - B24 [2] Every key sequence in the grammar gives the same result whether
   it comes from typed keys, a macro, a plugin key or a client (D3).
-- B25 [2] `x X s S r R J gJ ~ g~ gu gU > < D C Y` act as in Neovim with
-  counts. `Y` yanks to the end of the line.
+- B25 [2] `x X s S r R J gJ ~ g~ gu gU g? > < D C Y` act as in Neovim with
+  counts. `Y` yanks to the end of the line. `ga` shows the number of the
+  character under the cursor, and `g8` its bytes in UTF-8.
 - B26 [2] `<C-a>` and `<C-x>` add to and subtract from the decimal, hex or
-  binary number at or after the cursor, with counts.
+  binary number at or after the cursor, with counts. In visual mode they
+  change the first number of each selected line, and `g<C-a>` and
+  `g<C-x>` change the first by n, the second by 2n and on.
 - B27 [2] `% ( ) { } [( [{ ]) ]} [[ ]] [] ][ H M L gj gk go g0 g^ gm gM
   g$` move as in Neovim. `g0 g^ gm g$` go along the cursor's screen row,
   which is where the line wraps, or with `wrap` off what the window shows. `<C-d> <C-u> <C-f> <C-b> <C-e>
@@ -697,7 +709,9 @@ Where fude departs, the line says so and cites the departure in
 - B84 [2] A typed prefix that is also a complete mapping waits `key_timeout`
   (1000ms by default), then runs the complete mapping.
 - B85 [2] `gv` reselects the last selection, `o` in visual mode swaps its
-  ends, and `I` and `A` in blockwise visual mode insert on every line.
+  ends, `O` in blockwise visual mode moves the cursor to the other corner
+  on its line, and `I` and `A` in blockwise visual mode insert on every
+  line.
 
 ## Ex commands and buffers
 
@@ -881,12 +895,14 @@ Where fude departs, the line says so and cites the departure in
   lines among them, up to the last line indented more. `zc` closes the fold the
   cursor's line starts, or else the innermost one it is in. `zo` opens the
   closed fold it is on, and `za` does one or the other. `zR` opens every
-  fold, and `zM` closes every outermost one. A closed fold shows its first
-  line, then how many lines it hides. `j` and `k` pass over it as B223
-  says, relative numbers count it as one line, and any other move that
-  lands the cursor inside it, such as a search, `G` or a mark, opens it.
-  Folds belong to the buffer, so every window on it shows them, and
-  edits move them.
+  fold, and `zM` closes every outermost one. `zf{motion}` closes a fold
+  over the lines it covers. `zj` goes to where the next fold starts and
+  `zk` to where the one above ends, a closed fold counting as one line.
+  A closed fold shows its first line, then how many lines it hides. `j`
+  and `k` pass over it as B223 says, relative numbers count it as one
+  line, and any other move that lands the cursor inside it, such as a
+  search, `G` or a mark, opens it. Folds belong to the buffer, so every
+  window on it shows them, and edits move them.
 - B232 [2] `gn` selects in visual mode the match of the last search
   under the cursor, or else the next one, and `gN` the one before, going
   round the text. After an operator they are its target, so `cgn` changes

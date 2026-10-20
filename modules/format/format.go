@@ -1,7 +1,7 @@
 // Package format formats a buffer through its filetype's formatters, or
 // else its language server. A write with format_on_save formats the whole
-// text first, gq formats the lines a motion covers, and :format formats
-// the text or a range of it (B65, B136, B171, B234).
+// text first, gq and = format the lines a motion covers, and :format
+// formats the text or a range of it (B65, B136, B171, B234).
 package format
 
 import (
@@ -66,6 +66,7 @@ func (m *Module) Subscribed() []string { return []string{"buffer.saving"} }
 func (m *Module) Registered() []api.Registration {
 	return []api.Registration{
 		{Kind: api.Operator, Name: "gq", Help: "formats the lines a motion or object covers", ID: gq},
+		{Kind: api.Operator, Name: "=", Help: "formats the lines a motion or object covers, as gq does", ID: gq},
 		{Kind: api.Command, Name: "format", Help: "formats the buffer, or the lines of a range, as a write with format_on_save does, without writing it", ID: command},
 	}
 }

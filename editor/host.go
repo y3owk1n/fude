@@ -81,6 +81,7 @@ func (h host) Sideways() (int, int) {
 	return h.e.win.left, h.e.win.cols()
 }
 func (h host) SetLeft(left int) { h.e.win.left = left }
+func (h host) FileName() string { return h.e.win.buf.file.path }
 func (h host) PushJump(pos int) { h.e.pushJump(pos) }
 func (h host) Jump(n int) bool  { return h.e.jump(n) }
 

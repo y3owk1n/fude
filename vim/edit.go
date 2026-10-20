@@ -27,6 +27,9 @@ var operators = map[string]string{
 	"y": "yanks the text a motion or object covers", "g~": "switches the case of the text a motion or object covers",
 	"gu": "lowercases the text a motion or object covers", "gU": "uppercases the text a motion or object covers",
 	">": "indents the lines a motion or object covers", "<": "outdents the lines a motion or object covers",
+	"g?": "rot13-encodes the text a motion or object covers",
+	"!":  "opens the command line to put the lines a motion or object covers through a shell command",
+	"gw": "formats the lines a motion or object covers as gq does, leaving the cursor where it was",
 }
 
 // editKey is a command that changes text without an operator.
@@ -198,24 +201,42 @@ func (m *Machine) unreplace() error {
 	return nil
 }
 
-// increment adds n to the decimal, hex or binary number at or after the
-// cursor on its line, keeping its width, and puts the cursor on its last
-// digit. A "-" right before a decimal makes it negative.
+// increment adds n to the number at or after the cursor on its line, and
+// puts the cursor on its last digit.
 func (m *Machine) increment(n int) error {
 	t, c := m.h.Text(), m.h.Cursor()
 	ls := LineStart(t, c)
-	line := t.Slice(ls, LineEnd(t, c))
-	s, e, base := findNumber(line, c-ls)
-	if s < 0 {
+	e, ok, err := numberEdit(t, ls, c-ls, n)
+	switch {
+	case err != nil:
+		return err
+	case !ok:
 		m.beep = true
 		return nil
+	}
+	if err := m.apply([]Edit{e}, "<C-a>"); err != nil {
+		return err
+	}
+	m.h.SetCursor(e.Start + len(e.Text) - 1)
+	return nil
+}
+
+// numberEdit returns the edit that adds n to the first decimal, hex or
+// binary number on the line at ls that ends after byte col of it, keeping
+// its width, or false when there is none. A "-" right before a decimal
+// makes it negative.
+func numberEdit(t Text, ls, col, n int) (Edit, bool, error) {
+	line := t.Slice(ls, LineEnd(t, ls))
+	s, e, base := findNumber(line, col)
+	if s < 0 {
+		return Edit{}, false, nil
 	}
 	num := line[s:e]
 	var out string
 	if base == 10 {
 		v, err := strconv.ParseInt(num, 10, 64)
 		if err != nil {
-			return fmt.Errorf("increment %s: %w", num, err)
+			return Edit{}, false, fmt.Errorf("increment %s: %w", num, err)
 		}
 		digits := strings.TrimPrefix(num, "-")
 		out = strconv.FormatInt(v+int64(n), 10)
@@ -231,7 +252,7 @@ func (m *Machine) increment(n int) error {
 		prefix, digits := num[:2], num[2:]
 		v, err := strconv.ParseUint(digits, base, 64)
 		if err != nil {
-			return fmt.Errorf("increment %s: %w", num, err)
+			return Edit{}, false, fmt.Errorf("increment %s: %w", num, err)
 		}
 		out = strconv.FormatUint(v+uint64(n), base)
 		if strings.ToUpper(digits) == digits && strings.ToLower(digits) != digits {
@@ -239,11 +260,7 @@ func (m *Machine) increment(n int) error {
 		}
 		out = prefix + strings.Repeat("0", max(len(digits)-len(out), 0)) + out
 	}
-	if err := m.apply([]Edit{{Start: ls + s, End: ls + e, Text: out}}, "<C-a>"); err != nil {
-		return err
-	}
-	m.h.SetCursor(ls + s + len(out) - 1)
-	return nil
+	return Edit{Start: ls + s, End: ls + e, Text: out}, true, nil
 }
 
 // findNumber returns the first number in line that ends after col, and its
@@ -290,7 +307,7 @@ func findNumber(line string, col int) (int, int, int) {
 	return -1, -1, 0
 }
 
-// changeCase applies g~, gu or gU to r and puts the cursor at its start.
+// changeCase applies g~, gu, gU or g? to r and puts the cursor at its start.
 func (m *Machine) changeCase(op, label string, r region) error {
 	t := m.h.Text()
 	f := swapCase
@@ -299,6 +316,8 @@ func (m *Machine) changeCase(op, label string, r region) error {
 		f = strings.ToLower
 	case "gU":
 		f = strings.ToUpper
+	case "g?":
+		f = rot13
 	}
 	ranges := m.lineRanges(t, r)
 	var edits []Edit
@@ -374,5 +393,17 @@ func swapCase(s string) string {
 			return unicode.ToLower(r)
 		}
 		return unicode.ToUpper(r)
+	}, s)
+}
+
+func rot13(s string) string {
+	return strings.Map(func(r rune) rune {
+		switch {
+		case r >= 'a' && r <= 'z':
+			return 'a' + (r-'a'+13)%26
+		case r >= 'A' && r <= 'Z':
+			return 'A' + (r-'A'+13)%26
+		}
+		return r
 	}, s)
 }

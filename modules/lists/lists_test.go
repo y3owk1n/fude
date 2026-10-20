@@ -63,8 +63,9 @@ func TestB157InfoViews(t *testing.T) {
 	if editortest.Text(e) != "1  3:1  hree" {
 		t.Fatalf(":changes listed %q", editortest.Text(e))
 	}
-	// :registers with no name lists every register that holds text.
-	if editortest.Feed(e, ":q<CR>ggyiw:registers<CR>"); e.Message() != `""   one  "-   t  "0   one` {
+	// :registers with no name lists every register that holds text, the
+	// file's name and the last command line too.
+	if editortest.Feed(e, ":q<CR>ggyiw:registers<CR>"); e.Message() != `""   one  "%   `+path+`  "-   t  "0   one  ":   q` {
 		t.Fatalf(":registers listed %q", e.Message())
 	}
 }

@@ -131,7 +131,10 @@ var visualOps = map[string]visualOp{
 	"~": {"g~", false, "switches the case of the selection"}, "g~": {"g~", false, "switches the case of the selection"},
 	"u": {"gu", false, "lowercases the selection"}, "gu": {"gu", false, "lowercases the selection"},
 	"U": {"gU", false, "uppercases the selection"}, "gU": {"gU", false, "uppercases the selection"},
-	">": {">", true, "indents the selected lines and keeps them selected"}, "<": {"<", true, "outdents the selected lines and keeps them selected"},
+	"g?": {"g?", false, "rot13-encodes the selection"},
+	"gw": {"gw", true, "formats the selected lines as gq does, leaving the cursor where it was"},
+	"!":  {"!", true, "opens the command line to put the selected lines through a shell command"},
+	">":  {">", true, "indents the selected lines and keeps them selected"}, "<": {"<", true, "outdents the selected lines and keeps them selected"},
 	"X": {"d", true, "deletes the selected lines"}, "D": {"d", true, "deletes the selected lines, or to the end of each line of a block"},
 	"Y": {"y", true, "yanks the selected lines"},
 	"C": {"c", true, "changes the selected lines, or to the end of each line of a block"},
@@ -272,15 +275,16 @@ var visuals = map[string]visualKey{
 		m.enterLine(Normal, ":", "'<,'>")
 		return nil
 	}},
-	"o": {"moves the cursor to the other end of the selection", func(m *Machine, x visualCall) error {
-		m.anchor, x.c = x.c, m.anchor
-		m.h.SetCursor(x.c)
-		return nil
-	}},
-	"*":  {"searches forward for the selected text", searchSelection},
-	"#":  {"searches back for the selected text", searchSelection},
-	"J":  {"joins the selected lines, with spaces", joinSelection},
-	"gJ": {"joins the selected lines, as they are", joinSelection},
+	"o":      {"moves the cursor to the other end of the selection", otherEnd},
+	"O":      {"moves the cursor to the other end of the selection, or of a block's line", otherEnd},
+	"<C-a>":  {"adds n to the first number on each selected line", incrementSelection},
+	"<C-x>":  {"subtracts n from the first number on each selected line", incrementSelection},
+	"g<C-a>": {"adds n, 2n, 3n and on to the first number on each selected line", incrementSelection},
+	"g<C-x>": {"subtracts n, 2n, 3n and on from the first number on each selected line", incrementSelection},
+	"*":      {"searches forward for the selected text", searchSelection},
+	"#":      {"searches back for the selected text", searchSelection},
+	"J":      {"joins the selected lines, with spaces", joinSelection},
+	"gJ":     {"joins the selected lines, as they are", joinSelection},
 	"p": {"replaces the selection with the register, n times", func(m *Machine, x visualCall) error {
 		return m.putOver(x.reg, false, max(x.count, 1))
 	}},
@@ -300,6 +304,58 @@ func switchVisual(m *Machine, x visualCall) error {
 		m.h.SetCursor(clamp(x.t, x.c))
 	}
 	m.visual = Key(x.cmd)
+	return nil
+}
+
+// otherEnd is o, which moves the cursor to the selection's other end, and
+// O, which in a block moves it to the other corner on its line.
+func otherEnd(m *Machine, x visualCall) error {
+	if x.cmd == "o" || m.visual != "<C-v>" {
+		m.anchor, x.c = x.c, m.anchor
+		m.h.SetCursor(x.c)
+		return nil
+	}
+	tab := m.h.TabWidth()
+	as, cs := LineStart(x.t, m.anchor), LineStart(x.t, x.c)
+	ac, cc := column(x.t, as, m.anchor, tab), column(x.t, cs, x.c, tab)
+	m.anchor = atColumn(x.t, as, cc, tab)
+	m.h.SetCursor(atColumn(x.t, cs, ac, tab))
+	return nil
+}
+
+// incrementSelection is <C-a> and <C-x>, which add n to the first number
+// of each selected line, or subtract it, and g<C-a> and g<C-x>, which add
+// n to the first number, 2n to the second and on.
+func incrementSelection(m *Machine, x visualCall) error {
+	n := max(x.count, 1)
+	if strings.HasSuffix(x.cmd, "<C-x>") {
+		n = -n
+	}
+	r := m.selection()
+	m.leaveVisual()
+	var edits []Edit
+	for _, rg := range m.lineRanges(x.t, r) {
+		by := n
+		if x.cmd[0] == 'g' {
+			by = n * (len(edits) + 1)
+		}
+		ls := LineStart(x.t, rg[0])
+		e, ok, err := numberEdit(x.t, ls, rg[0]-ls, by)
+		if err != nil {
+			return err
+		}
+		if ok && e.Start < rg[1] {
+			edits = append(edits, e)
+		}
+	}
+	if len(edits) == 0 {
+		m.beep = true
+		return nil
+	}
+	if err := m.apply(edits, "<C-a>"); err != nil {
+		return err
+	}
+	m.h.SetCursor(r.start)
 	return nil
 }
 

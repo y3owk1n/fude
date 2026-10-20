@@ -42,4 +42,15 @@ func TestB224Folds(t *testing.T) {
 	if editortest.Feed(e, "zR"); folds() != nil {
 		t.Errorf("zR left %v", folds())
 	}
+	// zf closes a fold over the lines it covers.
+	if editortest.Feed(e, "ggzfj"); !maps.Equal(folds(), map[int]int{0: 1}) {
+		t.Errorf("zfj made %v", folds())
+	}
+	// zj goes to where the next fold starts and zk to where the one above
+	// ends, a closed fold counting as one line.
+	for keys, want := range map[string]int{"zRggzj": 4, "zRGzk": 5, "zRG2zk": 2, "zMGzk": 4} {
+		if editortest.Feed(e, keys); e.Text().LineOf(e.Cursor()) != want {
+			t.Errorf("%s went to line %d, want %d", keys, e.Text().LineOf(e.Cursor()), want)
+		}
+	}
 }

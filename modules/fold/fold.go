@@ -1,5 +1,6 @@
-// Package fold folds a buffer by indent, through zc, zo, za, zR and zM
-// (B224, N34).
+// Package fold folds a buffer by indent, through zc, zo, za, zR and zM,
+// folds the lines zf covers, and moves between folds with zj and zk (B224,
+// N34).
 package fold
 
 import (
@@ -19,6 +20,9 @@ const (
 	open
 	openAll
 	closeAll
+	create
+	nextFold
+	prevFold
 )
 
 // Module is fold.
@@ -40,6 +44,9 @@ func (m *Module) Registered() []api.Registration {
 		{Kind: api.Plug, Name: "open", Keys: "zo", Help: "opens the closed fold at the cursor", ID: open},
 		{Kind: api.Plug, Name: "open_all", Keys: "zR", Help: "opens every fold", ID: openAll},
 		{Kind: api.Plug, Name: "close_all", Keys: "zM", Help: "closes every outermost fold", ID: closeAll},
+		{Kind: api.Operator, Name: "zf", Help: "closes a fold over the lines a motion or object covers", ID: create},
+		{Kind: api.Plug, Name: "next", Keys: "zj", Help: "goes to the start of the n-th fold below", ID: nextFold},
+		{Kind: api.Plug, Name: "prev", Keys: "zk", Help: "goes to the end of the n-th fold above", ID: prevFold},
 	}
 }
 
@@ -58,6 +65,18 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 	folds := closed(s)
 	var res api.Result
 	switch id {
+	case nextFold, prevFold:
+		to, ok := moveTo(t, folds, line, max(args[1], 1), tab, id == nextFold)
+		if !ok {
+			return api.Result{Message: "no fold there"}, nil
+		}
+		return api.Result{Jump: &api.Jump{Pos: t.LineStart(to)}}, nil
+	case create:
+		if last := t.LineOf(args[1]); last > line {
+			res = opened(t, folds, line)
+			res.Undecorate = append(res.Undecorate, opened(t, folds, last).Undecorate...)
+			res.Decorate = []api.Decoration{m.fold(t, line, last)}
+		}
 	case open:
 		res = opened(t, folds, line)
 	case toggle:
@@ -229,4 +248,63 @@ func foldEnd(t api.Text, line, tab int) (int, bool) {
 		last = l
 	}
 	return last, last > line
+}
+
+// moveTo returns the line n folds below line, where one starts, or above
+// it, where one ends. A closed fold counts as one line, which is its first,
+// and false means there are fewer than n.
+func moveTo(t api.Text, folds []api.Decoration, line, n, tab int, down bool) (int, bool) {
+	step := -1
+	if down {
+		step = 1
+	}
+	for l := line + step; l >= 0 && l < t.Lines(); l += step {
+		first := firstOf(t, folds, l)
+		switch {
+		case first != l && down:
+			continue
+		case first != l:
+			l = first
+		case down && !startsFold(t, folds, l, tab), !down && !endsFold(t, l, tab):
+			continue
+		}
+		if n--; n == 0 {
+			return l, true
+		}
+	}
+	return 0, false
+}
+
+// startsFold reports whether a fold starts on line, closed or by indent.
+func startsFold(t api.Text, folds []api.Decoration, line, tab int) bool {
+	for _, f := range folds {
+		if t.LineOf(f.Start) == line {
+			return true
+		}
+	}
+	_, ok := foldEnd(t, line, tab)
+	return ok
+}
+
+// endsFold reports whether a fold by indent ends on line. One does when
+// the next line with text, if any, is indented no more than the nearest
+// line above that is indented less.
+func endsFold(t api.Text, line, tab int) bool {
+	ind, ok := indentCol(t, line, tab)
+	if !ok {
+		return false
+	}
+	after := -1
+	for l := line + 1; l < t.Lines(); l++ {
+		if col, ok := indentCol(t, l, tab); ok {
+			after = col
+			break
+		}
+	}
+	for l := line - 1; l >= 0; l-- {
+		if col, ok := indentCol(t, l, tab); ok && col < ind {
+			return col >= after
+		}
+	}
+	return false
 }

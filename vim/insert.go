@@ -99,6 +99,9 @@ var inserts = map[string]insertKey{
 		m.h.EndGroup()
 		m.mode = Normal
 		m.h.SetMark('^', c)
+		if c >= m.insStart {
+			m.keep('.', t.Slice(m.insStart, c))
+		}
 		m.h.SetCursor(prev(t, LineStart(t, c), c))
 		return nil
 	}},

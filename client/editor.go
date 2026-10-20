@@ -274,5 +274,8 @@ func (h host) WordWrap() bool              { return false }
 func (h host) Sideways() (int, int)        { return 0, 0 }
 func (h host) SetLeft(int)                 {}
 
+// FileName is "", as the replica knows its buffer by number alone.
+func (h host) FileName() string { return "" }
+
 // Editable lets the replica change, as fude says whether the change holds.
 func (h host) Editable() error { return nil }

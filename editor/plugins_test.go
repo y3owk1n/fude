@@ -494,8 +494,10 @@ func TestB340PluginReadsWindowsAndSelection(t *testing.T) {
 func TestB341PluginReadsTheMachine(t *testing.T) {
 	e := loaded(t, "full", "f", "abc\n", "buffer.read", "buffer.write")
 	feed(e, "\"ayiw/c<CR>qq:State<CR>q")
-	if want := "ctrue|\":abc,a:abc,|c|q|abc"; text(e) != want {
-		t.Errorf(":State typed %q, want %q", text(e), want)
+	// "% is the file's path, which the test's temporary folder starts.
+	before, after, ok := strings.Cut(text(e), "%:")
+	if !ok || before != "ctrue|\":abc," || !strings.HasSuffix(after, "f,/:c,a:abc,|c|q|abc") {
+		t.Errorf(":State typed %q", text(e))
 	}
 }
 

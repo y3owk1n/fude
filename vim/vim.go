@@ -15,6 +15,7 @@ package vim
 
 import (
 	"errors"
+	"fmt"
 	"slices"
 	"strconv"
 	"strings"
@@ -68,6 +69,9 @@ type Host interface {
 	// which the machine uses for its own marks.
 	SetMark(name rune, pos int)
 	Mark(name rune) (int, bool)
+	// FileName is the name of the text's file, which the register % holds,
+	// or "" for none.
+	FileName() string
 	// Viewport returns the first line shown, how many rows fit and how wide
 	// they are, or math.MaxInt wide when lines do not wrap.
 	Viewport() (top, height, width int)
@@ -108,8 +112,8 @@ type Host interface {
 // Defaults is the part of a Host a host may leave out by embedding it. It
 // has no undo history, jumps, changes or system clipboard, ignores what
 // reaches Unhandled, shows a tab as Tabstop columns, indents by as many and
-// has no folds or sideways view. A host then writes Text, Cursor, SetCursor,
-// Apply, SetMark, Mark, Viewport and SetTop.
+// has no folds, sideways view or file name. A host then writes Text,
+// Cursor, SetCursor, Apply, SetMark, Mark, Viewport and SetTop.
 type Defaults struct{}
 
 func (Defaults) BeginGroup()                {}
@@ -125,6 +129,7 @@ func (Defaults) IndentWidth() int           { return Tabstop }
 func (Defaults) TabWidth() int              { return Tabstop }
 func (Defaults) Fold(line int) (int, int)   { return line, line }
 func (Defaults) Sideways() (int, int)       { return 0, 0 }
+func (Defaults) FileName() string           { return "" }
 func (Defaults) SetLeft(int)                {}
 func (Defaults) Shown(int, int) []Inline    { return nil }
 func (Defaults) WordWrap() bool             { return false }
@@ -288,6 +293,11 @@ func (m *Machine) Registers() map[rune]Saved {
 	for name, r := range m.regs {
 		out[name] = Saved{r.text, r.linewise, r.block}
 	}
+	for _, name := range "/%" {
+		if r, ok, _ := m.fetch(name); ok {
+			out[name] = Saved{Text: r.text}
+		}
+	}
 	return out
 }
 
@@ -327,12 +337,27 @@ func (m *Machine) Register(name rune) (string, bool, error) {
 // fetch returns register name, or false when it is empty. "+ and "* are the
 // host's clipboard, linewise when its text ends in a line break.
 func (m *Machine) fetch(name rune) (register, bool, error) {
-	if name == '+' || name == '*' {
+	switch name {
+	case '+', '*':
 		text, err := m.h.Clipboard()
 		return register{text: text, linewise: strings.HasSuffix(text, "\n")}, text != "", err
+	case '/':
+		return register{text: m.search.pattern}, m.search.pattern != "", nil
+	case '%':
+		name := m.h.FileName()
+		return register{text: name}, name != "", nil
 	}
 	r, ok := m.regs[unicode.ToLower(name)]
 	return r, ok, nil
+}
+
+// keep puts text in register name, one that only the machine writes. .
+// holds the text last typed in insert mode and : the last command line.
+func (m *Machine) keep(name rune, text string) {
+	if m.regs == nil {
+		m.regs = map[rune]register{}
+	}
+	m.regs[name] = register{text: text}
 }
 
 // Feed handles one key. It returns the host's error if an edit fails.
@@ -512,6 +537,14 @@ func (m *Machine) execute(name rune, n int) error {
 		return err
 	}
 	m.executed = name
+	if name == ':' {
+		for range n {
+			if err := m.ex(r.text); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
 	for range n {
 		if err := m.run(Keys(r.text), true); err != nil || m.beep {
 			return err
@@ -763,10 +796,41 @@ var normals map[string]normalKey
 func init() {
 	normals = map[string]normalKey{
 		"p": {"puts the register after the cursor, n times", func(m *Machine, x normalCall) error {
-			return m.put(x.reg, true, x.n())
+			return m.put(x.reg, true, x.n(), false, false)
 		}},
 		"P": {"puts the register before the cursor, n times", func(m *Machine, x normalCall) error {
-			return m.put(x.reg, false, x.n())
+			return m.put(x.reg, false, x.n(), false, false)
+		}},
+		"gp": {"puts the register after the cursor, n times, and moves just past it", func(m *Machine, x normalCall) error {
+			return m.put(x.reg, true, x.n(), true, false)
+		}},
+		"gP": {"puts the register before the cursor, n times, and moves just past it", func(m *Machine, x normalCall) error {
+			return m.put(x.reg, false, x.n(), true, false)
+		}},
+		"]p": {"puts the register after the cursor, its lines at the line's indent", func(m *Machine, x normalCall) error {
+			return m.put(x.reg, true, x.n(), false, true)
+		}},
+		"[p": {"puts the register before the cursor, its lines at the line's indent", func(m *Machine, x normalCall) error {
+			return m.put(x.reg, false, x.n(), false, true)
+		}},
+		"]P": {"puts the register before the cursor, its lines at the line's indent", func(m *Machine, x normalCall) error {
+			return m.put(x.reg, false, x.n(), false, true)
+		}},
+		"[P": {"puts the register before the cursor, its lines at the line's indent", func(m *Machine, x normalCall) error {
+			return m.put(x.reg, false, x.n(), false, true)
+		}},
+		"g&": {"repeats the last substitute on every line, with the last search and its flags", func(m *Machine, _ normalCall) error {
+			return m.ex("%s//~/&")
+		}},
+		"ga": {"shows the number of the character under the cursor", func(m *Machine, x normalCall) error {
+			m.msg = describe(x.t, x.c, x.end, func(r rune) string {
+				return fmt.Sprintf("%s is %d, hex %x, octal %o", string(r), r, r, r)
+			})
+			return nil
+		}},
+		"g8": {"shows the bytes of the character under the cursor", func(m *Machine, x normalCall) error {
+			m.msg = describe(x.t, x.c, x.end, func(r rune) string { return fmt.Sprintf("% x", string(r)) })
+			return nil
 		}},
 		"u": {"undoes n changes", func(m *Machine, x normalCall) error {
 			return m.undo(true, x.n())
@@ -924,4 +988,17 @@ func (m *Machine) undo(back bool, n int) error {
 		m.h.SetCursor(clamp(t, p))
 	}
 	return nil
+}
+
+// describe returns what show says of each character in the cluster at c,
+// joined by " + ", or that there is none before end.
+func describe(t Text, c, end int, show func(r rune) string) string {
+	if c >= end {
+		return "no character under the cursor"
+	}
+	var parts []string
+	for _, r := range t.Slice(c, next(t, c, end)) {
+		parts = append(parts, show(r))
+	}
+	return strings.Join(parts, " + ")
 }
