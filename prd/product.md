@@ -48,6 +48,10 @@ Neovim works and drops the weight.
   - With every module on, a scroll shows everything the modules draw for
     the new view, such as pinned lines, guides, git signs, colours and
     spelling, under 5ms at p99.
+  - Undo and redo, from `u` or `<C-r>` read to frame written, under 1ms at
+    p99, on the same 10MB of Go with 10,000 steps on its timeline.
+  - `:%s` over the same 10MB of Go, from `<CR>` to the frame that shows
+    it, under 50ms.
   - A 1GB file shows its first frame in under 1s and scrolls at frame rate.
   - Through `fude attach` on the local socket, key read to frame drawn
     under 5ms at p99, on the same file as the 1ms promise.

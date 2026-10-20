@@ -384,6 +384,55 @@ func TestPerfServer(t *testing.T) {
 	}
 }
 
+// Undo and redo, from u or <C-r> read to frame written, under 1ms at p99,
+// as TestPromiseKeyLatency measures it, on 10MB of real Go whose timeline
+// holds 10,000 steps.
+func TestPromiseUndo(t *testing.T) {
+	c := startWith(t, "large_file = 20", realCode(t, 10<<20))
+	c.draw()
+	// Each x is a step of its own.
+	for range 10000 {
+		c.e.Feed(vim.Key("x"))
+	}
+	c.draw()
+	var times []time.Duration
+	for len(times) < 1000 {
+		for _, k := range vim.Keys("uuuuu<C-r><C-r><C-r><C-r><C-r>") {
+			times = append(times, c.press(string(k), 10*time.Millisecond))
+		}
+	}
+	slices.Sort(times)
+	p50, p99, worst := times[len(times)/2], times[len(times)*99/100], times[len(times)-1]
+	t.Logf("p50 %v, p99 %v, worst %v over %d keys", p50, p99, worst, len(times))
+	if p99 > time.Millisecond {
+		t.Errorf("p99 is %v, want under 1ms", p99)
+	}
+}
+
+// :%s/err/e/g over 10MB of real Go, from <CR> read to the frame that shows
+// it, under 50ms. The median of ten runs counts, and the test undoes each
+// run before the next.
+func TestPromiseSubstitute(t *testing.T) {
+	c := startWith(t, "large_file = 20", realCode(t, 10<<20))
+	c.draw()
+	e := c.e.(*editor.Session)
+	size := e.Text().Len()
+	var times []time.Duration
+	for range 10 {
+		c.press(":%s/err/e/g", 10*time.Millisecond)
+		times = append(times, c.press("<CR>", 10*time.Millisecond))
+		if e.Text().Len() >= size {
+			t.Fatalf(":%%s left the text %d bytes, want fewer than %d", e.Text().Len(), size)
+		}
+		c.press("u", 10*time.Millisecond)
+	}
+	slices.Sort(times)
+	t.Logf("median %v, worst %v over %d runs", times[len(times)/2], times[len(times)-1], len(times))
+	if times[len(times)/2] > 50*time.Millisecond {
+		t.Errorf("the median is %v, want under 50ms", times[len(times)/2])
+	}
+}
+
 // A 1GB file shows its first frame in under 1s and scrolls at frame rate,
 // which is a frame every 16ms. The best of three opens counts.
 func TestPromiseHugeFile(t *testing.T) {
