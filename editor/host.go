@@ -152,7 +152,7 @@ func (ed *Editor) tabWidth(b *buffer) int {
 // text since, it becomes a new node and the cursor goes to its start.
 func (h host) Undo() (int, int, error) {
 	b := h.e.win.buf
-	node, n := b.text.Head(), len(b.text.Nodes())
+	node, n := b.text.Head(), b.text.NodeCount()
 	start, err := b.text.UndoOrigin(h.e.origin, "undo", h.e.now())
 	switch {
 	case errors.Is(err, kernel.ErrNothing):
@@ -163,7 +163,7 @@ func (h host) Undo() (int, int, error) {
 		return 0, 0, err
 	}
 	cursor := b.before[node]
-	if len(b.text.Nodes()) > n {
+	if b.text.NodeCount() > n {
 		cursor = start
 	}
 	b.head = b.text.Head()

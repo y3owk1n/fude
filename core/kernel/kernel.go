@@ -181,6 +181,9 @@ func (b *Buffer) Head() NodeID { return b.head }
 // Nodes returns the timeline in creation order.
 func (b *Buffer) Nodes() []Node { return slices.Clone(b.nodes) }
 
+// NodeCount is how many nodes Nodes returns, without copying them.
+func (b *Buffer) NodeCount() int { return len(b.nodes) }
+
 // Apply applies t at its base version, or returns ErrStale. Outside a group
 // it makes one node.
 func (b *Buffer) Apply(t Transaction) error {
