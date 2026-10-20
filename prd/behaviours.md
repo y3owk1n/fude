@@ -725,8 +725,10 @@ Where fude departs, the line says so and cites the departure in
 - B364 [2] Every window is in a split, in a float or hidden (D55). A
   float holds any buffer, a terminal's too, and takes keys, search,
   yanks and `:w` as a window in a split does. It sits in the middle of
-  the screen or at the cursor, over the splits. `q` or `:close` in a
-  float closes it, and the focus goes back to the window it opened from.
+  the screen or at the cursor, over the splits. The float with the focus
+  shows its status line in its bottom border, without its name, which
+  its top border shows. `q` or `:close` in a float closes it, and the
+  focus goes back to the window it opened from.
   A hidden window keeps its buffer, its program and its cursor, and shows
   again in the place it had.
 - B365 [2] `:window float`, `:window above`, `:window below`,

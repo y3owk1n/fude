@@ -370,6 +370,12 @@ func (c *client) floating(v wire.Window, sel vim.Selection, visual bool) (int, i
 		c.putClipped(v.X, v.Y-1, v.X+v.W, part{" " + v.Name + " ", base.Foreground(th.muted)})
 	}
 	x, y, ok := c.window(v, v.X, sel, visual)
+	// The float with the focus has its status line in its bottom border,
+	// without its name, which the top border shows.
+	if v.Current {
+		left, right := c.statusParts(v, base, false)
+		c.putParts(left, append([]part{{" ", base}}, right...), v.X-1, v.Y+rows, v.W+2)
+	}
 	if len(foot) == 0 {
 		return x, y, ok
 	}

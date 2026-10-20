@@ -1248,6 +1248,11 @@ func TestB159LspPanelScrolls(t *testing.T) {
 	if !shows("server00") {
 		t.Fatal("the panel does not show its first server")
 	}
+	// The float has the focus, so its bottom border holds its status line
+	// and the mode, which no other window shows (B364).
+	if !shows("╰ NORMAL ─") {
+		t.Error("the panel's bottom border does not show its status line")
+	}
 	for _, k := range vim.Keys("G") {
 		cl.e.Feed(k)
 	}

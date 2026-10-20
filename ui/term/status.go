@@ -34,7 +34,29 @@ func (c *client) status(v wire.Window, x, w int) {
 		ground = ground.Foreground(th.muted)
 	}
 	c.s.FillArea(x, y, w, 1, ' ', ground)
-	var left, right []part
+	left, right := c.statusParts(v, ground, true)
+	c.putParts(left, right, x, y, w)
+}
+
+// putParts draws left from x and right to x+w on row y, and left alone when
+// both do not fit.
+func (c *client) putParts(left, right []part, x, y, w int) {
+	if width(left)+1+width(right) > w {
+		right = nil
+	}
+	at := x
+	for _, p := range left {
+		at = c.putClipped(at, y, x+w, p)
+	}
+	at = x + w - width(right)
+	for _, p := range right {
+		at = c.putClipped(at, y, x+w, p)
+	}
+}
+
+// statusParts are what v's status line shows on its left and on its right,
+// in styles over ground. They hold v's name when named is set.
+func (c *client) statusParts(v wire.Window, ground tcell.Style, named bool) (left, right []part) {
 	if v.Current {
 		label, colour := c.mode()
 		left = append(left, part{" " + label + " ", ground.Background(colour).Foreground(th.bg).Bold(true)})
@@ -42,8 +64,10 @@ func (c *client) status(v wire.Window, x, w int) {
 			left = append(left, part{" ● @" + string(r), ground.Foreground(th.err).Bold(true)})
 		}
 	}
-	dir, name := splitName(v.Name)
-	left = append(left, part{" " + dir, ground.Foreground(th.faint)}, part{name, ground.Bold(v.Current)})
+	if named {
+		dir, name := splitName(v.Name)
+		left = append(left, part{" " + dir, ground.Foreground(th.faint)}, part{name, ground.Bold(v.Current)})
+	}
 	if v.Modified {
 		left = append(left, part{" ●", ground.Foreground(th.cmd)})
 	}
@@ -99,17 +123,7 @@ func (c *client) status(v wire.Window, x, w int) {
 		right = append(right, part{v.Filetype + "  ", muted})
 	}
 	right = append(right, part{ruler(v.Ruler) + " ", muted})
-	if width(left)+1+width(right) > w {
-		right = nil
-	}
-	at := x
-	for _, p := range left {
-		at = c.putClipped(at, y, x+w, p)
-	}
-	at = x + w - width(right)
-	for _, p := range right {
-		at = c.putClipped(at, y, x+w, p)
-	}
+	return left, right
 }
 
 // spinner is the frames of the spinner a busy language server shows, one
