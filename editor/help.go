@@ -483,8 +483,25 @@ func HelpGaps(modules ...api.Module) (missing, unused []string, err error) {
 	return missing, unused, nil
 }
 
-// helpText returns help as markdown: an index, the guide's pages, then the
-// reference built from the tables. It also returns the line of each name
+// demote moves each heading of md n levels lower, but for lines in its
+// code blocks, so a guide page's headings nest under help's own.
+func demote(md string, n int) string {
+	lines := strings.Split(md, "\n")
+	fenced := false
+	for i, l := range lines {
+		switch {
+		case strings.HasPrefix(l, "```"):
+			fenced = !fenced
+		case !fenced && strings.HasPrefix(strings.TrimLeft(l, "#"), " ") && strings.HasPrefix(l, "#"):
+			lines[i] = strings.Repeat("#", n) + l
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+// helpText returns help as markdown under one title: the contents, the
+// guide's pages, then the reference built from the tables, each under a
+// heading of its own. It also returns the line of each name
 // :h finds a page, section or entry by, the first one's when several share
 // it.
 func (e *Session) helpText() (string, map[string]int) {
@@ -516,27 +533,33 @@ func (e *Session) helpText() (string, map[string]int) {
 	write("closes this window. An example shows the text before, the keys typed and")
 	write("the text after, with `|` at the cursor and `\\n` for a line break.")
 	write("")
-	write("## Guide")
+	write("## Contents")
+	write("")
+	write("### Guide")
 	write("")
 	for _, p := range pages {
 		write("- " + p.title + "  `" + p.tag + "`")
 	}
 	write("")
-	write("## Reference")
+	write("### Reference")
 	write("")
 	for _, s := range sections {
 		write("- " + sentence(s.title) + "  `" + slug(s.title) + "`")
 	}
+	write("")
+	write("## Guide")
 	for _, p := range pages {
 		write("")
 		tag(p.tag)
-		write(p.text)
+		write(demote(p.text, 2))
 	}
+	write("")
+	write("## Reference")
 	more, docs := details(), e.moduleDocs()
 	for _, s := range sections {
 		write("")
 		tag(slug(s.title))
-		write("## " + sentence(s.title))
+		write("### " + sentence(s.title))
 		own := more[slug(s.title)]
 		if note := cmp.Or(own[""], s.note); note != "" {
 			write("")

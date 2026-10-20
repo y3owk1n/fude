@@ -1426,7 +1426,8 @@ changes, and a module's style replaces the theme's of the same name
 (B345).
 
 Help is markdown in one buffer: an index, the guide, then the reference
-(D34). The guide's pages are files in `editor/guide`, embedded in the
+(D34). Its headings nest under one title, so a guide page's own headings
+show two levels lower there than in its file. The guide's pages are files in `editor/guide`, embedded in the
 binary, whose names order them and give their tags. fude builds the
 reference from the tables that run it, so it cannot fall behind them.
 The files of `editor/reference` explain entries at length, a file for each

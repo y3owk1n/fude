@@ -30,7 +30,7 @@ func TestB162Help(t *testing.T) {
 	if editortest.Feed(e, ":h<CR>"); !strings.HasPrefix(editortest.Text(e), "# fude help") || !strings.Contains(editortest.Text(e), "`:write [file]  :w`\n  writes the buffer") {
 		t.Fatalf(":h opened %q", editortest.Text(e)[:min(200, len(editortest.Text(e)))])
 	}
-	for topic, want := range map[string]string{":w": "`:write [file]  :w`", "w": "`w`", "theme": "`theme = \"dark\"`", "colors": "`[colors]`", "guide-start": "# Getting started"} {
+	for topic, want := range map[string]string{":w": "`:write [file]  :w`", "w": "`w`", "theme": "`theme = \"dark\"`", "colors": "`[colors]`", "guide-start": "### Getting started"} {
 		if editortest.Feed(e, ":h "+topic+"<CR>"); line() != want {
 			t.Errorf(":h %s went to %q, want %q", topic, line(), want)
 		}
@@ -42,7 +42,7 @@ func TestB162Help(t *testing.T) {
 	if editortest.Feed(e, ":h ;<CR>jff<CR>"); line() != "`f{char}`" {
 		t.Errorf("<CR> on f went to %q", line())
 	}
-	if editortest.Feed(e, ":h<CR>/guide-config<CR><CR>"); line() != "# Configuring fude" {
+	if editortest.Feed(e, ":h<CR>/guide-config<CR><CR>"); line() != "### Configuring fude" {
 		t.Errorf("<CR> on guide-config went to %q", line())
 	}
 	if editortest.Feed(e, ":h<CR>/restart)`,<CR><CR>"); line() != "`<Plug>(restart)`" {
@@ -109,7 +109,7 @@ func TestB376ModulePages(t *testing.T) {
 	}
 	editortest.Feed(e, ":h guide-written<CR>")
 	text, line := editortest.Text(e), e.Text().LineOf(e.Cursor())
-	if strings.Split(text, "\n")[line] != "# Writing it down" {
+	if strings.Split(text, "\n")[line] != "### Writing it down" {
 		t.Errorf(":h guide-written went to %q", strings.Split(text, "\n")[line])
 	}
 	// fude man guide prints it after fude's own pages.
