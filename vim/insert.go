@@ -1,6 +1,8 @@
 package vim
 
 import (
+	"fmt"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 )
@@ -9,6 +11,12 @@ func (m *Machine) insert(k Key) error {
 	t, c := m.h.Text(), m.h.Cursor()
 	if k != "<Up>" && k != "<Down>" {
 		m.wantSet = false
+	}
+	switch m.pending {
+	case "<C-v>":
+		return m.literal(k)
+	case "<C-k>":
+		return m.digraph(k)
 	}
 	if m.pending == "<C-r>" {
 		m.pending = ""
@@ -80,29 +88,26 @@ type insertKey struct {
 
 // inserts are those keys. They work in replace mode too.
 var inserts = map[string]insertKey{
-	"<Esc>": {"leaves insert mode", func(m *Machine, _ Text, _ int, _ Key) error {
-		m.cursors = nil
-		if b := m.blockInsert; b != nil {
-			m.blockInsert = nil
-			if err := m.finishBlock(b); err != nil {
-				return err
-			}
-			m.h.EndGroup()
-			m.mode = Normal
-			m.h.SetCursor(clamp(m.h.Text(), b.home))
-			return nil
-		}
-		if err := m.dropIndent(); err != nil {
+	"<Esc>": {"leaves insert mode", leaveInsert},
+	"<C-v>": {"types the next key as it is, or the character a number names", waitKey},
+	"<C-k>": {"types the character the next two keys name", waitKey},
+	"<C-a>": {"types the text last typed in insert mode", func(m *Machine, _ Text, _ int, _ Key) error {
+		return m.typeLast()
+	}},
+	"<C-@>": {"types the text last typed in insert mode and leaves insert mode", func(m *Machine, t Text, c int, k Key) error {
+		if err := m.typeLast(); err != nil {
 			return err
 		}
-		t, c := m.h.Text(), m.h.Cursor()
-		m.h.EndGroup()
-		m.mode = Normal
-		m.h.SetMark('^', c)
-		if c >= m.insStart {
-			m.keep('.', t.Slice(m.insStart, c))
+		return leaveInsert(m, t, c, k)
+	}},
+	"<C-e>": {"types the character below the cursor", copyKey},
+	"<C-y>": {"types the character above the cursor", copyKey},
+	"<Insert>": {"switches between insert and replace mode", func(m *Machine, _ Text, _ int, _ Key) error {
+		if m.mode == Insert {
+			m.mode, m.replaced = Replace, nil
+		} else {
+			m.mode = Insert
 		}
-		m.h.SetCursor(prev(t, LineStart(t, c), c))
 		return nil
 	}},
 	"<CR>":  {"breaks the line", func(m *Machine, _ Text, _ int, _ Key) error { return m.newline() }},
@@ -429,4 +434,172 @@ func (m *Machine) indentLine(in bool) error {
 		m.h.SetCursor(ls + len(s))
 	}
 	return nil
+}
+
+// leaveInsert is <Esc>, which goes back to normal mode.
+func leaveInsert(m *Machine, _ Text, _ int, _ Key) error {
+	m.cursors = nil
+	if b := m.blockInsert; b != nil {
+		m.blockInsert = nil
+		if err := m.finishBlock(b); err != nil {
+			return err
+		}
+		m.h.EndGroup()
+		m.mode = Normal
+		m.h.SetCursor(clamp(m.h.Text(), b.home))
+		return nil
+	}
+	if err := m.dropIndent(); err != nil {
+		return err
+	}
+	t, c := m.h.Text(), m.h.Cursor()
+	m.h.EndGroup()
+	m.mode = Normal
+	m.h.SetMark('^', c)
+	if c >= m.insStart {
+		m.keep('.', t.Slice(m.insStart, c))
+	}
+	m.h.SetCursor(prev(t, LineStart(t, c), c))
+	return nil
+}
+
+// waitKey is <C-v> and <C-k>, which wait for the keys that name what to
+// type.
+func waitKey(m *Machine, _ Text, _ int, k Key) error {
+	m.pending, m.spell = k, ""
+	return nil
+}
+
+// typeLast types the register ., the text last typed in insert mode.
+func (m *Machine) typeLast() error {
+	r, ok, _ := m.fetch('.')
+	if !ok {
+		return nil
+	}
+	return m.typeText(r.text)
+}
+
+// copyKey is <C-e> and <C-y>, which type the character at the cursor's
+// column on the line below or above, or beep when it has none.
+func copyKey(m *Machine, t Text, c int, k Key) error {
+	tab, ls := m.h.TabWidth(), LineStart(t, c)
+	from := ls
+	switch {
+	case k == "<C-e>" && LineEnd(t, c) < t.Len():
+		from = LineEnd(t, c) + 1
+	case k == "<C-y>" && ls > 0:
+		from = LineStart(t, ls-1)
+	default:
+		m.beep = true
+		return nil
+	}
+	col := column(t, ls, c, tab)
+	if column(t, from, LineEnd(t, from), tab) <= col {
+		m.beep = true
+		return nil
+	}
+	p := atColumn(t, from, col, tab)
+	return m.typeText(t.Slice(p, next(t, p, LineEnd(t, from))))
+}
+
+// numberForms are the letters that start a number after <C-v>, with its
+// base and how many digits it takes at most.
+var numberForms = map[string][2]int{"o": {8, 3}, "O": {8, 3}, "x": {16, 2}, "X": {16, 2}, "u": {16, 4}, "U": {16, 8}}
+
+// literal takes a key after <C-v>. A number names a character: up to 3
+// decimal digits, or a letter of numberForms and its digits. A key that
+// ends a number early types after it. Any other key types the character
+// it sends, as <CR> types a carriage return.
+func (m *Machine) literal(k Key) error {
+	if m.spell == "" {
+		if _, ok := numberForms[string(k)]; ok || len(k) == 1 && k[0] >= '0' && k[0] <= '9' {
+			m.spell = string(k)
+			if ok {
+				return nil
+			}
+			return m.digitsDone("", 10, 3, "")
+		}
+		m.pending = ""
+		return m.typeText(keyText(k))
+	}
+	prefix, base, most := "", 10, 3
+	if f, ok := numberForms[m.spell[:1]]; ok {
+		prefix, base, most = m.spell[:1], f[0], f[1]
+	}
+	if _, err := strconv.ParseUint(string(k), base, 8); len(k) == 1 && err == nil {
+		m.spell += string(k)
+		return m.digitsDone(prefix, base, most, "")
+	}
+	return m.digitsDone(prefix, base, 0, k)
+}
+
+// digitsDone types the character the digits after <C-v> name once there
+// are most of them, or else waits for more. A key that ends them early
+// types after them.
+func (m *Machine) digitsDone(prefix string, base, most int, after Key) error {
+	digits := m.spell[len(prefix):]
+	if after == "" && len(digits) < most {
+		return nil
+	}
+	m.pending, m.spell = "", ""
+	text := prefix
+	if digits != "" {
+		n, err := strconv.ParseUint(digits, base, 32)
+		if err != nil {
+			return fmt.Errorf("character %s: %w", digits, err)
+		}
+		text = string(rune(n))
+	}
+	if err := m.typeText(text); err != nil {
+		return err
+	}
+	if after != "" {
+		return m.insert(after)
+	}
+	return nil
+}
+
+// keyText returns the character a key sends, or its name for a key that
+// sends none, such as <Up>.
+func keyText(k Key) string {
+	switch {
+	case k.isChar():
+		return string(k)
+	case k == "<CR>":
+		return "\r"
+	case k == "<Esc>":
+		return "\x1b"
+	case k == "<BS>":
+		return "\b"
+	case k == "<Del>":
+		return "\x7f"
+	case k == "<C-@>":
+		return "\x00"
+	case len(k) == 5 && strings.HasPrefix(string(k), "<C-") && strings.Contains("abcdefghijklmnopqrstuvwxyz[\\]^_", string(k[3])):
+		return string(rune(k[3] & 0x1f))
+	}
+	return string(k)
+}
+
+// digraph takes a key after <C-k>: the first of two, or the second, which
+// types the character the two name in either order, or else itself.
+func (m *Machine) digraph(k Key) error {
+	if !k.isChar() {
+		m.pending, m.spell = "", ""
+		return m.typeText(string(k))
+	}
+	if m.spell == "" {
+		m.spell = string(k)
+		return nil
+	}
+	first := m.spell
+	m.pending, m.spell = "", ""
+	r, ok := digraphs[first+string(k)]
+	if !ok {
+		r, ok = digraphs[string(k)+first]
+	}
+	if !ok {
+		return m.typeText(string(k))
+	}
+	return m.typeText(string(r))
 }

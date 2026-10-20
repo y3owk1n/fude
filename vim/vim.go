@@ -162,8 +162,12 @@ type Machine struct {
 	opCount int
 	reg     rune // the register named with ", or 0
 	regs    map[rune]register
-	shown   []Key  // the keys of the command being typed, for Shown
-	pending Key    // g, f, t, F, T, ", q, @ or a text object's i or a
+	shown   []Key // the keys of the command being typed, for Shown
+	// pending is g, f, t, F, T, ", q, @ or a text object's i or a, or in
+	// insert mode <C-r>, <C-v> or <C-k>. spell is the keys typed after <C-v>
+	// or <C-k> so far.
+	pending Key
+	spell   string
 	find    string // the last f, t, F or T and its character
 	want    int    // the column j and k aim for
 	wantSet bool
@@ -824,7 +828,11 @@ func init() {
 		}},
 		"ga": {"shows the number of the character under the cursor", func(m *Machine, x normalCall) error {
 			m.msg = describe(x.t, x.c, x.end, func(r rune) string {
-				return fmt.Sprintf("%s is %d, hex %x, octal %o", string(r), r, r, r)
+				s := fmt.Sprintf("%s is %d, hex %x, octal %o", string(r), r, r, r)
+				if d, ok := digraphOf(r); ok {
+					s += ", digraph " + d
+				}
+				return s
 			})
 			return nil
 		}},
@@ -915,14 +923,15 @@ func init() {
 		"&": {"repeats the last substitute on the line, with its flags", func(m *Machine, _ normalCall) error {
 			return m.ex("&&")
 		}},
-		"v":     {"selects characters", visualMode},
-		"V":     {"selects lines", visualMode},
-		"<C-v>": {"selects a block", visualMode},
-		"i":     {"inserts before the cursor", insertAt(func(x normalCall) int { return x.c })},
-		"a":     {"inserts after the cursor", insertAt(func(x normalCall) int { return next(x.t, x.c, x.end) })},
-		"I":     {"inserts before the line's first non-blank", insertAt(func(x normalCall) int { return firstNonBlank(x.t, x.start, x.end) })},
-		"A":     {"inserts at the end of the line", insertAt(func(x normalCall) int { return x.end })},
-		"gI":    {"inserts at the start of the line", insertAt(func(x normalCall) int { return x.start })},
+		"v":        {"selects characters", visualMode},
+		"V":        {"selects lines", visualMode},
+		"<C-v>":    {"selects a block", visualMode},
+		"i":        {"inserts before the cursor", insertAt(func(x normalCall) int { return x.c })},
+		"<Insert>": {"inserts before the cursor", insertAt(func(x normalCall) int { return x.c })},
+		"a":        {"inserts after the cursor", insertAt(func(x normalCall) int { return next(x.t, x.c, x.end) })},
+		"I":        {"inserts before the line's first non-blank", insertAt(func(x normalCall) int { return firstNonBlank(x.t, x.start, x.end) })},
+		"A":        {"inserts at the end of the line", insertAt(func(x normalCall) int { return x.end })},
+		"gI":       {"inserts at the start of the line", insertAt(func(x normalCall) int { return x.start })},
 		"gi": {"inserts where insert mode was last left", func(m *Machine, x normalCall) error {
 			p, ok := m.h.Mark('^')
 			if !ok {

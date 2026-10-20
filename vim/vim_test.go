@@ -437,8 +437,9 @@ func TestB28StarSearch(t *testing.T) {
 // B25
 func TestB25EditingCommands(t *testing.T) {
 	cases(t)
-	// ga and g8 show the character under the cursor and its bytes.
-	for keys, want := range map[string]string{"ga": "é is 233, hex e9, octal 351", "g8": "c3 a9"} {
+	// ga shows the character under the cursor, with its digraph, and g8
+	// its bytes.
+	for keys, want := range map[string]string{"ga": "é is 233, hex e9, octal 351, digraph e'", "g8": "c3 a9"} {
 		_, _, m := run(t, "|é", keys)
 		if m.Message() != want {
 			t.Errorf("%s said %q, want %q", keys, m.Message(), want)
@@ -579,6 +580,7 @@ func TestB122ExpandTab(t *testing.T) {
 		{true, "|x", ">>", "        x"},
 		{true, "ab|c", "i<Tab><Esc>", "ab      c"},
 		{false, "ab|c", "i<Tab><Esc>", "ab\tc"},
+		{true, "ab|c", "i<C-v><Tab><Esc>", "ab\tc"},
 	} {
 		h := &host{text: strings.Replace(c.start, "|", "", 1), cursor: strings.Index(c.start, "|")}
 		m := vim.New(h)

@@ -327,6 +327,13 @@ Where fude departs, the line says so and cites the departure in
   cursor and `<C-u>` all before it. `<Up>` and `<Down>` recall older and
   newer lines that start with the text typed, `:` lines and searches each
   from their own history, as Neovim's command line does.
+- B371 [2] `q:` opens a window seven lines tall below the current one. It
+  lists the command lines entered, the newest last, then an empty line
+  with the cursor on it. `q/` and `q?` list the searches. The lines edit
+  as any buffer's do. `<CR>` in normal mode closes the window and runs the
+  line under the cursor in the window it opened from, as if typed after
+  `:`, `/` or `?`. On the empty line it only closes. `q` and another key
+  still record a macro.
 - B134 [2] `:pick grep` opens a live grep in the finder, as fff.nvim's
   is, and `:pick grep text` starts it with text typed. Each change to the query
   searches the working directory's files for it as plain text, with `rg`
@@ -412,7 +419,8 @@ Where fude departs, the line says so and cites the departure in
   `finder`, whose keys are insert mode's, `float` for a float the cursor
   is in, `lsp`, `help`, `scratch` for the windows fude writes, such as
   `:messages`, `:grammar` and a diff (B212), `start` (B225),
-  `terminal` for a terminal or task window in normal mode (B228), and
+  `terminal` for a terminal or task window in normal mode (B228), `history`
+  (B371), and
   any kind a module or plugin adds, such as `pins` (B358) (D53). Hover while a float shows moves the
   cursor into it, whichever key runs hover.
   Nothing types in a window fude writes, such as a float, help, a list, a
@@ -696,7 +704,13 @@ Where fude departs, the line says so and cites the departure in
 - B28 [2] `*` and `#` search for the word under the cursor. In visual mode
   they search for the selected text literally.
 - B29 [2] Insert-mode `<BS> <C-w> <C-u> <C-r>{reg} <C-o> <C-t> <C-d>` act as
-  in Neovim. `<C-w>` and `<C-u>` start a new undo step first. New lines
+  in Neovim. `<C-v>` types the next key as it is, or the character a
+  number after it names, as `<C-v>065`, `<C-v>x41` and `<C-v>u20ac` do.
+  `<C-k>` types the digraph the next two keys name (D56). `<C-a>` types
+  the text last typed in insert mode, and `<C-@>` types it and leaves
+  insert mode. `<C-e>` and `<C-y>` type the character below and above
+  the cursor. `<Insert>` switches between insert and replace mode, and
+  in normal mode starts insert mode. `<C-w>` and `<C-u>` start a new undo step first. New lines
   keep the previous line's indent, as B211 adds to.
 - B211 [2] A new line after a line ending in `(`, `[` or `{` gets one
   more indent level, `indent_width` columns more in tabs then spaces as

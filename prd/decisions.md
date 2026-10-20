@@ -685,6 +685,21 @@ with its own keys and its own drawing. Neovim's `:left` and `:right`
 align lines, which fude does not do. This reopens N16 for panels, N29,
 B205, B318 and B335.
 
+## D56. The digraphs are Vim's default table
+
+`<C-k>` types the character two keys name (B29), from the same 1366
+digraphs Vim has by default. 1297 are RFC 1345's two-key mnemonics as the
+RFC gives them. Three take Vim's character instead: `NU` is a line feed,
+and `</` and `/>` are the CJK angle brackets. The other 66 are Vim's own
+additions, such as `Eu` and `=e` for the euro sign and `` A` `` for À.
+`vim/digraphs.go` holds them as a map, written once from Vim's
+`digraph.c`.
+
+Why, as of 2026-10-20: the user chose the full table over a smaller set,
+so any digraph a Vim user knows works. RFC 1345's distribution is
+unlimited. The table is a list of characters by name, which fude holds
+as data rather than as Vim's code.
+
 ## Departures from Neovim
 
 Each entry: what differs, then why.
@@ -1042,6 +1057,14 @@ harpoon maps none. Each session has its own pins (B361). Why: the user
 asked on 2026-10-19 for a list like harpoon's and chose each of these.
 `q` closes the list's window though its lines are edited, as harpoon's
 does, where an explorer keeps `q` (N31).
+
+### N40. `=` formats as `gq` does
+
+`=` puts the lines it covers through the filetype's formatters, or else
+the language server, as `gq` does (B234). Neovim reindents them with
+`indentexpr` or C indenting. Why: fude has no indent engine, and the user
+chose on 2026-10-20 that `=` format rather than reindent by bracket depth
+or by tree-sitter queries.
 
 ## Open
 
