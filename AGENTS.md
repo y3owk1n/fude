@@ -81,6 +81,13 @@ keys into a headless buffer, the CLI, a file on disk, the exported API of
 the test covers. Mock only at system boundaries. A module's tests live
 beside it and drive the editor through `editor/editortest`.
 
+Never wait a fixed time or race a timeout. Wait for a condition with
+`editortest.Settle`, and run `editortest.Quiet` before checking that
+something did not happen. A test that needs a signal fude does not give
+adds one to the editor, as `Session.Idle` was added. Hold a fake's work
+open with a channel the test closes. Give a module's timeout, such as
+`format_timeout`, far more than the test needs.
+
 Avoid over testing. Write one test per behaviour, for what would break. No tests for helpers, internals, getters or the toolchain, and no
 second test that proves the same thing.
 

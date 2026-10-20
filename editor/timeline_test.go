@@ -1,13 +1,12 @@
 package editor_test
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
+	"github.com/y3owk1n/fude/editor/editortest"
 	"github.com/y3owk1n/fude/modules/format"
 	timelinemod "github.com/y3owk1n/fude/modules/timeline"
 )
@@ -138,25 +137,16 @@ func TestB34Recovery(t *testing.T) {
 	}
 
 	// A formatter that answers after its buffer closed changes nothing, so
-	// there is nothing to recover.
-	dir := t.TempDir()
-	path, done := filepath.Join(dir, "g.txt"), filepath.Join(dir, "done")
+	// there is nothing to recover. up writes nothing, which would empty the
+	// buffer. Its timeout is long, so a slow machine never stops it first.
+	path = filepath.Join(t.TempDir(), "g.txt")
 	change(t, path, "one\n")
-	// sh and TOML both read a backslash as an escape, so the path has /.
-	config(t, fmt.Sprintf("[filetype.txt]\nformat = [\"up\"]\n[formatter.up]\ncommand = [\"sh\", \"-c\", \"sed s/one/ONE/; touch %s\"]\n", filepath.ToSlash(done)))
+	editortest.FakeProgram(t, "up")
+	config(t, "format_timeout = 60000\n[filetype.txt]\nformat = [\"up\"]\n")
 	e = withCommands(start(t, path))
 	e.Use(format.New())
 	feed(e, ":format<CR>:bd!<CR>")
-	settle(t, e, func() bool { _, err := os.Stat(done); return err == nil })
-	for end := time.After(100 * time.Millisecond); ; {
-		select {
-		case f := <-e.Queue():
-			f()
-			continue
-		case <-end:
-		}
-		break
-	}
+	editortest.Quiet(t, e)
 	if e = start(t, path); strings.Contains(e.Message(), ":recover") {
 		t.Errorf("after a formatter answered a closed buffer, opening said %q", e.Message())
 	}

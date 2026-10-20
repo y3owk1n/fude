@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/y3owk1n/fude/editor/editortest"
 	"github.com/y3owk1n/fude/internal/trace"
 	"github.com/y3owk1n/fude/vim"
 	"github.com/y3owk1n/fude/wire"
@@ -188,7 +189,7 @@ func TestB78ClientHearsChanges(t *testing.T) {
 	cl.do <- func() { feed(e, "ihi<Esc>"); close(done) }
 	<-done
 	// The client hears of the edit's two keys, and of the second last.
-	cl.c.SetReadDeadline(time.Now().Add(5 * time.Second))
+	cl.c.SetReadDeadline(time.Now().Add(editortest.Patience))
 	for cl.in.Scan() {
 		if cl.in.Text() == `{"method":"changed","params":{"buffer":1,"version":2}}` {
 			return
@@ -208,7 +209,7 @@ func TestB174Tail(t *testing.T) {
 	// A key from the client names the client, and a local key names no one.
 	fmt.Fprintln(cl.c, `{"id":2,"method":"keys","params":{"keys":"iy<Esc>"}}`)
 	want := map[string]bool{`"x" in insert`: true, `client1: "y" in insert`: true}
-	cl.c.SetReadDeadline(time.Now().Add(5 * time.Second))
+	cl.c.SetReadDeadline(time.Now().Add(editortest.Patience))
 	for len(want) > 0 && cl.in.Scan() {
 		var line struct {
 			Method string

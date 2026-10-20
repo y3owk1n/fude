@@ -159,8 +159,8 @@ func TestB78ClientHearsChanges(t *testing.T) {
 	typed("atwo<Esc>")
 	select {
 	case <-c.Changed():
-	case <-time.After(5 * time.Second):
-		t.Fatal("the client heard no change after 5s")
+	case <-time.After(editortest.Patience):
+		t.Fatal("the client heard no change")
 	}
 }
 

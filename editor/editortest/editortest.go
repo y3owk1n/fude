@@ -111,10 +111,10 @@ func Text(e *editor.Session) string {
 }
 
 // Settle runs the work queued for the editor loop, such as a module's
-// answer, until done reports true, or fails after five seconds.
+// answer, until done reports true, or fails after Patience.
 func Settle(t testing.TB, e *editor.Session, done func() bool) {
 	t.Helper()
-	deadline := time.After(5 * time.Second)
+	deadline := time.After(Patience)
 	for !done() {
 		select {
 		case f := <-e.Queue():
@@ -122,10 +122,22 @@ func Settle(t testing.TB, e *editor.Session, done func() bool) {
 		case <-time.After(10 * time.Millisecond):
 			// done may wait on something other than the loop, such as a log.
 		case <-deadline:
-			t.Fatalf("still waiting after 5s, with text %q and message %q", Text(e), e.Message())
+			t.Fatalf("still waiting after %s, with text %q and message %q", Patience, Text(e), e.Message())
 		}
 	}
 }
+
+// Quiet runs e's loop until no module or plugin work is under way, so a
+// test can then check that something did not happen.
+func Quiet(t testing.TB, e *editor.Session) {
+	t.Helper()
+	Settle(t, e, e.Idle)
+}
+
+// Patience is how long a test waits for what it waits on before it fails.
+// Nothing a test waits on comes close to it, so it fails a test that
+// hangs and never a slow one.
+const Patience = 30 * time.Second
 
 // Change writes text to the file at path, dated an hour ahead, so a buffer
 // that holds the file sees it changed.

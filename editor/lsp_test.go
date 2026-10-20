@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/y3owk1n/fude/editor"
+	"github.com/y3owk1n/fude/editor/editortest"
 	buffersmod "github.com/y3owk1n/fude/modules/buffers"
 	"github.com/y3owk1n/fude/modules/colours"
 	explorermod "github.com/y3owk1n/fude/modules/explorer"
@@ -295,7 +296,7 @@ func fakeLog(t *testing.T, name string) string {
 	t.Helper()
 	log := filepath.Join(t.TempDir(), name)
 	t.Cleanup(func() {
-		for end := time.Now().Add(5 * time.Second); time.Now().Before(end); time.Sleep(10 * time.Millisecond) {
+		for end := time.Now().Add(editortest.Patience); time.Now().Before(end); time.Sleep(10 * time.Millisecond) {
 			if err := os.Remove(log); err == nil || errors.Is(err, fs.ErrNotExist) {
 				return
 			}
@@ -307,7 +308,7 @@ func fakeLog(t *testing.T, name string) string {
 // heard waits until the server's log has want at least times times.
 func heard(t *testing.T, log, want string, times int) {
 	t.Helper()
-	deadline := time.Now().Add(5 * time.Second)
+	deadline := time.Now().Add(editortest.Patience)
 	for time.Now().Before(deadline) {
 		if b, _ := os.ReadFile(log); strings.Count(string(b), want) >= times {
 			return

@@ -86,7 +86,7 @@ func run(t *testing.T, cases [][3]string) {
 
 func captures(t *testing.T, e *editor.Session) map[string]string {
 	t.Helper()
-	deadline := time.After(5 * time.Second)
+	deadline := time.After(editortest.Patience)
 	for {
 		for _, v := range e.Windows() {
 			if v.Current && len(v.Highlights) > 0 {
@@ -102,7 +102,7 @@ func captures(t *testing.T, e *editor.Session) map[string]string {
 		case f := <-e.Queue():
 			f()
 		case <-deadline:
-			t.Fatal("no highlights after 5s")
+			t.Fatal("no highlights")
 		}
 	}
 }

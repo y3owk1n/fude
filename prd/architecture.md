@@ -1297,7 +1297,11 @@ past its budget leaves no edit and no decoration (B53), and starts no
 timer and no job.
 
 Timers and jobs come back through the plugin's listener, the goroutine
-that hands it events, so one call into it runs at a time. A timer's
+that hands it events, so one call into it runs at a time. The editor
+counts the plugin loads, jobs, timers and requests under way, and each
+listener knows whether it holds an event, so `Session.Idle` says when
+none is left. A test waits for it before it checks that something did
+not happen. A timer's
 callback runs once, after its delay. A job is a program or a get with no
 budget, which `Plugin.Work` runs through the same checks as `run` and
 `http_get`, at most 8 at once for a plugin. fude runs a stream job's

@@ -149,7 +149,7 @@ func TestB141CtrlH(t *testing.T) {
 				if got := keys(k); len(got) != 1 || got[0] != c.want {
 					t.Fatalf("%q read as %v, want %v", c.in, got, c.want)
 				}
-			case <-time.After(time.Second):
+			case <-time.After(editortest.Patience):
 				t.Fatalf("%q read as nothing", c.in)
 			}
 			break
@@ -197,7 +197,7 @@ func TestB197FrameAfterFrame(t *testing.T) {
 	// until done reports true.
 	parsed := func(done func() bool) {
 		t.Helper()
-		deadline := time.After(5 * time.Second)
+		deadline := time.After(editortest.Patience)
 		for step(""); !done(); step("") {
 			select {
 			case f := <-c.e.Queue():
@@ -387,7 +387,7 @@ func TestB345ModuleStyles(t *testing.T) {
 	select {
 	case f := <-c.e.Queue():
 		f()
-	case <-time.After(5 * time.Second):
+	case <-time.After(editortest.Patience):
 		t.Fatal("the plugin never loaded")
 	}
 	for _, k := range vim.Keys("ia<Esc>:Paint<CR>") {
@@ -409,7 +409,7 @@ func TestB208Colours(t *testing.T) {
 	c := startWith(t, "cursor_line = true\n", path)
 	c.e.(*editor.Session).Use(colourmod.New())
 	// The module's colours land through the loop.
-	for deadline := time.After(5 * time.Second); ; {
+	for deadline := time.After(editortest.Patience); ; {
 		if c.draw(); func() bool { _, style, _ := c.s.Get(2, 0); return style.GetBackground() == color.NewHexColor(0xff0000) }() {
 			break
 		}
@@ -513,7 +513,7 @@ func TestB217PinnedReplace(t *testing.T) {
 		c.e.Feed(k)
 	}
 	// The pinned line shows once the parse arrives through the loop.
-	for deadline := time.After(5 * time.Second); ; {
+	for deadline := time.After(editortest.Patience); ; {
 		c.draw()
 		var row strings.Builder
 		for x := range 10 {
@@ -602,7 +602,7 @@ func TestB303DrawImage(t *testing.T) {
 	c.e.(*editor.Session).Use(buffersmod.New())
 	// The image loads off the loop, and its rows show once it lands.
 	cell := func(x, y int) (string, tcell.Style) { s, style, _ := c.s.Get(x, y); return s, style }
-	for deadline := time.After(5 * time.Second); ; {
+	for deadline := time.After(editortest.Patience); ; {
 		if c.draw(); strings.HasPrefix(func() string { s, _ := cell(0, 1); return s }(), string(kitty.Placeholder)) {
 			break
 		}
@@ -666,7 +666,7 @@ func TestB305DrawPreviewImage(t *testing.T) {
 	}
 	// The image's first cell is two columns into the preview's box, four
 	// rows down, under the path, its rule and the line naming the image.
-	for deadline := time.After(5 * time.Second); ; {
+	for deadline := time.After(editortest.Patience); ; {
 		c.draw()
 		f, _ := c.e.Menu()
 		if s, _, _ := c.s.Get(f.X+f.W+2, f.Y+4); f.DocImage != nil && strings.HasPrefix(s, string(kitty.Placeholder)) {
@@ -718,7 +718,7 @@ func TestB309DrawFloatImage(t *testing.T) {
 	}
 	// The float opens under the cursor's line, its text on its first row
 	// and the image's first cell under it, two columns in.
-	for deadline := time.After(5 * time.Second); ; {
+	for deadline := time.After(editortest.Patience); ; {
 		c.draw()
 		if s, _, _ := c.s.Get(2, 3); strings.HasPrefix(s, string(kitty.Placeholder)) {
 			break
@@ -766,7 +766,7 @@ func TestB310PaintImage(t *testing.T) {
 		cl.e.(*editor.Session).Use(framed{path: pic})
 		// The image paints at its first cell, under line a, once its rows
 		// show, and the frames after leave it.
-		for deadline := time.After(5 * time.Second); !strings.Contains(out.String(), c.show); {
+		for deadline := time.After(editortest.Patience); !strings.Contains(out.String(), c.show); {
 			cl.draw()
 			select {
 			case f := <-cl.e.Queue():
@@ -790,7 +790,7 @@ func TestB310PaintImage(t *testing.T) {
 		for _, k := range vim.Keys(":Hover<CR>") {
 			cl.e.Feed(k)
 		}
-		for deadline := time.After(5 * time.Second); slices.ContainsFunc(cl.img.painted, func(o overlay) bool { return o.x == 0 && o.y == 1 }); {
+		for deadline := time.After(editortest.Patience); slices.ContainsFunc(cl.img.painted, func(o overlay) bool { return o.x == 0 && o.y == 1 }); {
 			cl.draw()
 			select {
 			case f := <-cl.e.Queue():
@@ -838,7 +838,7 @@ func TestB145Theme(t *testing.T) {
 		t.Fatal(err)
 	}
 	cl := start(t, path)
-	deadline := time.After(5 * time.Second)
+	deadline := time.After(editortest.Patience)
 	for {
 		cl.draw()
 		if _, style, _ := cl.s.Get(0, 2); style.GetForeground() == themes["dark"].keyword {
@@ -1084,7 +1084,7 @@ func TestB151Tint(t *testing.T) {
 	_, before, _ := cl.s.Get(0, 0)
 	// The key hints leave the windows lit.
 	cl.e.Feed("g")
-	for deadline := time.After(5 * time.Second); ; {
+	for deadline := time.After(editortest.Patience); ; {
 		if _, ok := cl.e.Menu(); ok {
 			break
 		}
@@ -1174,7 +1174,7 @@ func TestB153IndentGuides(t *testing.T) {
 	cell := func(x, y int) string { s, _, _ := cl.s.Get(x, y); return s }
 	// An indented line and the blank line before the next one show a guide,
 	// once the module's answer comes through the loop.
-	for deadline := time.After(5 * time.Second); ; {
+	for deadline := time.After(editortest.Patience); ; {
 		if cl.draw(); cell(0, 1) == "│" && cell(0, 2) == "│" && cell(0, 0) == "a" {
 			break
 		}
@@ -1322,7 +1322,7 @@ func serve(t *testing.T, e *editor.Session) (string, func(func()), func(func()))
 // on row y.
 func (c *client) shows(t *testing.T, y int, want string) {
 	t.Helper()
-	deadline := time.After(5 * time.Second)
+	deadline := time.After(editortest.Patience)
 	for {
 		c.draw()
 		if strings.Contains(c.row(y), want) {
@@ -1380,7 +1380,7 @@ func TestB239Attach(t *testing.T) {
 		t.Fatal(err)
 	}
 	broken.Close()
-	for deadline := time.After(5 * time.Second); !broken.Done(); {
+	for deadline := time.After(editortest.Patience); !broken.Done(); {
 		select {
 		case f := <-broken.Queue():
 			f()
@@ -1398,7 +1398,7 @@ func TestB239Attach(t *testing.T) {
 		}
 	})
 	host.Finish(time.Second)
-	for deadline := time.After(5 * time.Second); !a.Done(); {
+	for deadline := time.After(editortest.Patience); !a.Done(); {
 		select {
 		case f := <-a.Queue():
 			f()
@@ -1463,7 +1463,7 @@ func closedPort(t *testing.T) string {
 // asked waits until the host's fude asks to let a guest in.
 func asked(t *testing.T, host *editor.Session, on func(func()), name string) {
 	t.Helper()
-	for deadline := time.Now().Add(5 * time.Second); ; time.Sleep(time.Millisecond) {
+	for deadline := time.Now().Add(editortest.Patience); ; time.Sleep(time.Millisecond) {
 		var msg string
 		on(func() { msg = host.Confirm() })
 		if msg == name+" wants to join, let them in?" {
@@ -1494,7 +1494,7 @@ func refused(t *testing.T, s, why string) {
 		if j.err == nil || !strings.HasSuffix(j.err.Error(), why) {
 			t.Errorf("a join said %v, want it to end with %q", j.err, why)
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(editortest.Patience):
 		t.Fatalf("a join waited for the host, want it to end with %q", why)
 	}
 }
@@ -1532,7 +1532,7 @@ func TestB248Share(t *testing.T) {
 	for _, k := range vim.Keys(":terminal<CR>") {
 		j.a.Feed(k)
 	}
-	for deadline := time.After(5 * time.Second); j.a.Message() != "a guest may not run :terminal"; {
+	for deadline := time.After(editortest.Patience); j.a.Message() != "a guest may not run :terminal"; {
 		select {
 		case f := <-j.a.Queue():
 			f()
@@ -1546,7 +1546,7 @@ func TestB248Share(t *testing.T) {
 			host.Feed(k)
 		}
 	})
-	for deadline := time.After(5 * time.Second); !j.a.Done(); {
+	for deadline := time.After(editortest.Patience); !j.a.Done(); {
 		select {
 		case f := <-j.a.Queue():
 			f()
@@ -1685,7 +1685,7 @@ func TestB250WhoAndKick(t *testing.T) {
 	// :kick ends the one guest's session, and its client says the host
 	// ended it.
 	ex("kick kyle2")
-	for deadline := time.After(5 * time.Second); !guests[1].Done(); {
+	for deadline := time.After(editortest.Patience); !guests[1].Done(); {
 		select {
 		case f := <-guests[1].Queue():
 			f()
@@ -1780,7 +1780,7 @@ func TestB251Relay(t *testing.T) {
 	// When the relay goes away the host says so, and :share holds a new
 	// place once it is back.
 	stop()
-	for deadline := time.Now().Add(5 * time.Second); ; time.Sleep(time.Millisecond) {
+	for deadline := time.Now().Add(editortest.Patience); ; time.Sleep(time.Millisecond) {
 		var msg string
 		on(func() { msg = host.Message() })
 		if strings.HasPrefix(msg, "lost the relay at "+addr) {
@@ -1794,7 +1794,7 @@ func TestB251Relay(t *testing.T) {
 	if msg := ex("share"); msg != "holding a new place at the relay" {
 		t.Fatalf(":share after the relay went away said %q", msg)
 	}
-	for deadline := time.Now().Add(5 * time.Second); ; time.Sleep(time.Millisecond) {
+	for deadline := time.Now().Add(editortest.Patience); ; time.Sleep(time.Millisecond) {
 		var msg string
 		on(func() { msg = host.Message() })
 		if strings.HasPrefix(msg, "copied") {
@@ -1835,7 +1835,7 @@ func TestB252Names(t *testing.T) {
 		t.Errorf("the host sees %q, want %q", seen, want)
 	}
 	// The attached client sees the host by $USER.
-	for deadline := time.After(5 * time.Second); !slices.Equal(names(a.Windows()), []string{"kyle 0", "agent 2"}); {
+	for deadline := time.After(editortest.Patience); !slices.Equal(names(a.Windows()), []string{"kyle 0", "agent 2"}); {
 		select {
 		case f := <-a.Queue():
 			f()
@@ -1901,7 +1901,7 @@ func TestB254OwnConfig(t *testing.T) {
 		return s
 	}
 	// The plugin has loaded once its command types on the host.
-	for deadline := time.Now().Add(5 * time.Second); text() != "!hello"; time.Sleep(10 * time.Millisecond) {
+	for deadline := time.Now().Add(editortest.Patience); text() != "!hello"; time.Sleep(10 * time.Millisecond) {
 		if time.Now().After(deadline) {
 			t.Fatalf("the plugin never loaded, leaving %q", text())
 		}
@@ -1949,7 +1949,7 @@ func TestB254OwnConfig(t *testing.T) {
 	for _, k := range vim.Keys("Q,q") {
 		j.a.Feed(k)
 	}
-	for deadline := time.Now().Add(5 * time.Second); text() != "guest hello"; time.Sleep(time.Millisecond) {
+	for deadline := time.Now().Add(editortest.Patience); text() != "guest hello"; time.Sleep(time.Millisecond) {
 		if time.Now().After(deadline) {
 			t.Fatalf("the guest's Q,q left %q, want its own mapping typed alone", text())
 		}
@@ -1958,13 +1958,13 @@ func TestB254OwnConfig(t *testing.T) {
 	for _, k := range vim.Keys(",!") {
 		j.a.Feed(k)
 	}
-	for deadline := time.Now().Add(5 * time.Second); strings.Count(text(), "!") != 1; time.Sleep(time.Millisecond) {
+	for deadline := time.Now().Add(editortest.Patience); strings.Count(text(), "!") != 1; time.Sleep(time.Millisecond) {
 		if time.Now().After(deadline) {
 			t.Fatalf("the guest's ,! left %q, want the plugin's key to type", text())
 		}
 	}
 	// Its windows take its options, and it draws in its theme.
-	for deadline := time.After(5 * time.Second); !j.a.Windows()[0].Number; {
+	for deadline := time.After(editortest.Patience); !j.a.Windows()[0].Number; {
 		select {
 		case f := <-j.a.Queue():
 			f()
@@ -1994,7 +1994,7 @@ func TestB255JoinReadOnly(t *testing.T) {
 		waiting <- joined{a, err}
 	}()
 	// The host's question says the guest asks to be read-only.
-	for deadline := time.Now().Add(5 * time.Second); ; time.Sleep(time.Millisecond) {
+	for deadline := time.Now().Add(editortest.Patience); ; time.Sleep(time.Millisecond) {
 		var msg string
 		on(func() { msg = host.Confirm() })
 		if msg == "kyle wants to join read-only, let them in?" {
@@ -2011,7 +2011,7 @@ func TestB255JoinReadOnly(t *testing.T) {
 	}
 	defer j.a.Close()
 	j.a.Feed("x")
-	for deadline := time.After(5 * time.Second); j.a.Message() != "cannot make changes, the session is read-only"; {
+	for deadline := time.After(editortest.Patience); j.a.Message() != "cannot make changes, the session is read-only"; {
 		select {
 		case f := <-j.a.Queue():
 			f()

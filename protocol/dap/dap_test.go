@@ -129,8 +129,8 @@ func (s *session) answer(t *testing.T, command string, args any) (json.RawMessag
 			f()
 		case r := <-got:
 			return r.body, r.err
-		case <-time.After(5 * time.Second):
-			t.Fatalf("no answer to %s after 5s", command)
+		case <-time.After(30 * time.Second):
+			t.Fatalf("no answer to %s after 30s", command)
 		}
 	}
 }
@@ -144,8 +144,8 @@ func (s *session) event(t *testing.T) string {
 			f()
 		case e := <-s.events:
 			return e
-		case <-time.After(5 * time.Second):
-			t.Fatal("no event after 5s")
+		case <-time.After(30 * time.Second):
+			t.Fatal("no event after 30s")
 		}
 	}
 }
@@ -179,7 +179,7 @@ func TestClient(t *testing.T) {
 				f()
 			case <-s.exited:
 				done = true
-			case <-time.After(5 * time.Second):
+			case <-time.After(30 * time.Second):
 				t.Fatalf("port %v: no exit after disconnect", port)
 			}
 		}

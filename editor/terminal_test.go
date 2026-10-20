@@ -7,9 +7,9 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/y3owk1n/fude/editor"
+	"github.com/y3owk1n/fude/editor/editortest"
 	terminalmod "github.com/y3owk1n/fude/modules/terminal"
 )
 
@@ -105,7 +105,12 @@ func TestB205Shells(t *testing.T) {
 	e := withCommands(open(t, ""))
 	e.Use(terminalmod.New())
 	e.SetSize(80, 24)
-	feed(e, ":terminal<CR>echo one<CR>")
+	// The test waits for the shell's prompt before typing. dash, which is sh
+	// on Ubuntu, does not draw typed-ahead input again after its prompt, so
+	// one would share the prompt's row.
+	feed(e, ":terminal<CR>")
+	settle(t, e, func() bool { return strings.TrimSpace(screen(e)) != "" })
+	feed(e, "echo one<CR>")
 	settle(t, e, func() bool { return shows(e, "one") })
 	// The shell hides, and shows again where it was and as tall, its
 	// program going on.
@@ -194,14 +199,7 @@ func TestPromiseTerminalsLeaveNothing(t *testing.T) {
 			settle(t, e, one)
 		}
 		// What the programs wrote last reaches the loop too.
-		for drained := false; !drained; {
-			select {
-			case f := <-e.Queue():
-				f()
-			case <-time.After(50 * time.Millisecond):
-				drained = true
-			}
-		}
+		editortest.Quiet(t, e)
 	}
 	measure := func() (int, uint64) {
 		runtime.GC()

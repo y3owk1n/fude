@@ -87,18 +87,23 @@ func (e *Session) loadPlugins() {
 			continue
 		}
 		b, t, scope := e.win.buf, e.Text(), e.scope(nil, e.win.buf, e.Text())
+		e.working++
 		go func() {
 			defer scope.Done()
 			ctx, at := context.Background(), time.Now()
 			p, err := plugin.Load(ctx, path, plugin.Grants{Capabilities: s.Capabilities, Programs: s.Programs, Hosts: s.Hosts, Options: options}, filepath.Join(cache, "fude", "wasm"), logLine, func(text string, took time.Duration) { trace.Record("plugin", text, took) })
 			if err != nil {
 				trace.Since("plugin", "load "+path, at, err)
-				e.queue <- func() { e.message = err.Error() }
+				e.queue <- func() {
+					e.working--
+					e.message = err.Error()
+				}
 				return
 			}
 			res, err := p.Init(ctx, scope)
 			trace.Since("plugin", "compiled and ran init of "+p.Name(), at, err)
 			e.queue <- func() {
+				e.working--
 				e.declare(p, options)
 				e.loaded(p, err, b, t, res)
 			}
@@ -260,6 +265,7 @@ func (e *Session) pluginRequest(p api.Module, b *buffer, rq api.Request, save *s
 	}
 	t, uri := b.text.Snapshot(), lsp.URI(b.file.path)
 	left, done := len(to), false
+	e.working++
 	for _, s := range to {
 		s.client.Request(rq.Method, func(enc string) any {
 			out := map[string]any{}
@@ -279,8 +285,10 @@ func (e *Session) pluginRequest(p api.Module, b *buffer, rq api.Request, save *s
 			case done:
 			case len(res) > 0 && string(res) != "null":
 				done = true
+				e.working--
 				reply(api.Context{"output": string(res), "server": s.name, "encoding": s.client.Encoding()})
 			case left == 0:
+				e.working--
 				reply(api.Context{"error": "no language server answered " + rq.Method})
 			}
 		})
@@ -670,6 +678,7 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 				}
 			}
 		}
+		e.working++
 		go func() {
 			// The start line shows a job that never ends. Its id is its callback's.
 			task := fmt.Sprintf("%s #%d", cmp.Or(j.URL, strings.Join(j.Argv, " ")), j.ID)
@@ -692,6 +701,7 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 				extra["done"] = "true"
 			}
 			e.queue <- func() {
+				e.working--
 				about := b
 				if j.Stream {
 					about = e.win.buf
@@ -707,8 +717,10 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 	}
 	for _, tm := range res.Timers {
 		wait()
+		e.working++
 		time.AfterFunc(tm.After, func() {
 			e.queue <- func() {
+				e.working--
 				if slices.Contains(e.modules, p) {
 					e.listen(p).add(event{buf: b, id: tm.ID, save: save, from: e})
 				}

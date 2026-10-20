@@ -79,7 +79,7 @@ func TestBuffer(t *testing.T) {
 	defer h.Close()
 	src := text("package p\n\nfunc f(a int, b int) {\n\treturn\n}\n")
 	h.Changed(text(""), []syntax.Edit{{Start: 0, End: 0, Text: string(src)}})
-	deadline := time.After(5 * time.Second)
+	deadline := time.After(30 * time.Second)
 	var spans []syntax.Span
 	for len(spans) == 0 {
 		spans = h.Show(src, "view", 0, src.Len())
@@ -88,7 +88,7 @@ func TestBuffer(t *testing.T) {
 			f()
 		case <-parsed:
 		case <-deadline:
-			t.Fatal("no highlights after 5s")
+			t.Fatal("no highlights after 30s")
 		}
 	}
 	if got := named(string(src), spans); got["func"] != "keyword" {

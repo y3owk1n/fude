@@ -55,14 +55,14 @@ func useTable(t *testing.T, name, more string, caps ...string) {
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 }
 
-// next runs the next thing the editor queues, or fails after 5s.
+// next runs the next thing the editor queues, or fails after editortest.Patience.
 func next(t *testing.T, e *editor.Session) {
 	t.Helper()
 	select {
 	case f := <-e.Queue():
 		f()
-	case <-time.After(5 * time.Second):
-		t.Fatal("nothing queued after 5s")
+	case <-time.After(editortest.Patience):
+		t.Fatal("nothing queued")
 	}
 }
 
@@ -80,23 +80,14 @@ func TestB57Events(t *testing.T) {
 	select {
 	case f := <-e.Queue():
 		f()
-	case <-time.After(5 * time.Second):
-		t.Fatal("the plugin did not load in 5s")
+	case <-time.After(editortest.Patience):
+		t.Fatal("the plugin did not load")
 	}
 	// Five edits made before the loop runs again come as one event, about
 	// the text after all of them.
 	feed(e, "Ahello<Esc>")
 	settle(t, e, func() bool { d := decorations(e); return len(d) == 1 && d[0] == "abchello keyword" })
-	// Any later event would come within a moment.
-	for quiet := time.After(200 * time.Millisecond); ; {
-		select {
-		case f := <-e.Queue():
-			f()
-			continue
-		case <-quiet:
-		}
-		break
-	}
+	editortest.Quiet(t, e)
 	if n := strings.Count(fudeLog(), "listen: buffer.changed"); n != 1 {
 		t.Fatalf("the plugin heard %d events, want one for five edits", n)
 	}
@@ -107,16 +98,7 @@ func TestB57Events(t *testing.T) {
 	// The loop hands it the event once the work queued before it has run.
 	// Its log shows it began, and it then loops until its budget runs out.
 	feed(e, "A!<Esc>")
-	for deadline := time.Now().Add(5 * time.Second); strings.Count(fudeLog(), "listen: buffer.changed") < 2; {
-		select {
-		case f := <-e.Queue():
-			f()
-		case <-time.After(time.Millisecond):
-		}
-		if time.Now().After(deadline) {
-			t.Fatal("the plugin never began the event")
-		}
-	}
+	settle(t, e, func() bool { return strings.Count(fudeLog(), "listen: buffer.changed") >= 2 })
 	if feed(e, "gZ"); !strings.Contains(e.Message(), "busy") {
 		t.Fatalf("gZ while the plugin handled an event said %q", e.Message())
 	}
@@ -260,10 +242,8 @@ func TestB50Capabilities(t *testing.T) {
 // B51, B56
 func TestB51PluginOverBudget(t *testing.T) {
 	e := withPlugin(t, "spin")
-	at := time.Now()
-	e.Load()
-	if d := time.Since(at); d > 50*time.Millisecond {
-		t.Errorf("Load took %v, want it to return before the plugin loads", d)
+	if e.Load(); e.Idle() {
+		t.Error("Load waited for the plugin to load, want it to return first")
 	}
 	feed(e, "ix<Esc>")
 	if text(e) != "xabc" {
@@ -350,8 +330,8 @@ func opened(t *testing.T, file, text string) *editor.Session {
 	select {
 	case f := <-e.Queue():
 		f()
-	case <-time.After(5 * time.Second):
-		t.Fatal("the plugin did not load in 5s")
+	case <-time.After(editortest.Patience):
+		t.Fatal("the plugin did not load")
 	}
 	return e
 }
@@ -927,7 +907,11 @@ func (saver) Event(context.Context, string, api.Scope) (api.Result, error) {
 
 // slow is a module whose job on saving takes longer than the write waits,
 // and then asks for an edit.
-type slow struct{ idle }
+// slow is a module whose job before a write ends once open is closed.
+type slow struct {
+	idle
+	open chan struct{}
+}
 
 func (slow) Subscribed() []string { return []string{"buffer.saving"} }
 
@@ -935,8 +919,8 @@ func (slow) Event(context.Context, string, api.Scope) (api.Result, error) {
 	return api.Result{Jobs: []api.Job{{ID: 1, Argv: []string{"sleep"}}}}, nil
 }
 
-func (slow) Work(context.Context, api.Job) (string, error) {
-	time.Sleep(300 * time.Millisecond)
+func (s slow) Work(context.Context, api.Job) (string, error) {
+	<-s.open
 	return "", nil
 }
 
@@ -960,23 +944,16 @@ func TestB282WriteWaitsForModules(t *testing.T) {
 	config(t, "format_timeout = 50\n")
 	change(t, path, "b\n")
 	e = start(t, path)
-	e.Use(slow{})
+	m := slow{open: make(chan struct{})}
+	e.Use(m)
 	feed(e, ":w<CR>")
 	settle(t, e, func() bool { return strings.Contains(e.Message(), "written as it was") })
 	if disk(t, path) != "b\n" {
 		t.Errorf("the file holds %q, want it written as it was", disk(t, path))
 	}
-	for end := time.After(400 * time.Millisecond); ; {
-		select {
-		case f := <-e.Queue():
-			f()
-			continue
-		case <-time.After(10 * time.Millisecond):
-			continue
-		case <-end:
-		}
-		break
-	}
+	// The job ends only after the write gave up on it.
+	close(m.open)
+	editortest.Quiet(t, e)
 	if text(e) != "b" {
 		t.Errorf("the late edit left %q, want it dropped", text(e))
 	}
@@ -1168,8 +1145,8 @@ func TestB246GuestPlugins(t *testing.T) {
 			select {
 			case f := <-e.Queue():
 				f()
-			case <-time.After(5 * time.Second):
-				t.Fatal("the plugin did not load in 5s")
+			case <-time.After(editortest.Patience):
+				t.Fatal("the plugin did not load")
 			}
 			guest := e.Attach("guest", editor.Guest)
 			for _, keys := range []string{"gS", ":Shout<CR>", "gsaL"} {

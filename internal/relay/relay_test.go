@@ -1,6 +1,7 @@
 package relay_test
 
 import (
+	"bufio"
 	"io"
 	"net"
 	"testing"
@@ -23,21 +24,51 @@ func TestB251PassesEarlyBytes(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer p.Close()
-	g, err := relay.Join(l.Addr().String(), "room")
+	// The guest's hello and its first bytes go in one write, so the relay
+	// reads them together.
+	g, err := net.Dial("tcp", l.Addr().String())
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer g.Close()
-	if _, err := g.Write([]byte("hello")); err != nil {
+	if _, err := g.Write([]byte("{\"room\":\"room\",\"role\":\"join\"}\nhello")); err != nil {
 		t.Fatal(err)
 	}
-	// The bytes reach the host before it reads the relay's line.
-	time.Sleep(50 * time.Millisecond)
+	read(t, p)
+
+	// A relay that sends its line and the guest's bytes in one write makes
+	// the host read them together.
+	fake, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer fake.Close()
+	go func() {
+		c, err := fake.Accept()
+		if err != nil {
+			return
+		}
+		bufio.NewReader(c).ReadString('\n')
+		c.Write([]byte("{}\n"))
+		c.Write([]byte("{}\nhello"))
+	}()
+	p, err = relay.Offer(fake.Addr().String(), "room")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer p.Close()
+	read(t, p)
+}
+
+// read takes the host's place p and reads hello from the guest.
+func read(t *testing.T, p *relay.Place) {
+	t.Helper()
 	c, err := p.Take()
 	if err != nil {
 		t.Fatal(err)
 	}
-	c.SetReadDeadline(time.Now().Add(time.Second))
+	// The deadline only turns a hang into a failure.
+	c.SetReadDeadline(time.Now().Add(30 * time.Second))
 	got := make([]byte, 5)
 	if _, err := io.ReadFull(c, got); err != nil || string(got) != "hello" {
 		t.Errorf("the host read %q and %v, want hello", got, err)

@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/y3owk1n/fude/editor"
+	"github.com/y3owk1n/fude/editor/editortest"
 	completionmod "github.com/y3owk1n/fude/modules/completion"
 	"github.com/y3owk1n/fude/vim"
 )
@@ -155,7 +156,7 @@ func TestPromiseAttachLatency(t *testing.T) {
 	// upTo runs the frames that come, drawing after each, until fude has
 	// handled n of the client's notices.
 	upTo := func(n int) {
-		for deadline := time.After(5 * time.Second); a.f.Input < n; {
+		for deadline := time.After(editortest.Patience); a.f.Input < n; {
 			select {
 			case f := <-a.Queue():
 				f()

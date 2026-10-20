@@ -7,7 +7,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/editor/editortest"
@@ -72,20 +71,9 @@ func TestB259Spell(t *testing.T) {
 	e = editortest.Start(t, notes)
 	spelling(t, e)
 	e.SetSize(80, 20)
-	// The loop runs long enough for a word list to be read.
-	for end := time.After(300 * time.Millisecond); ; {
-		if got := typosIn(e); len(got) > 0 {
-			t.Fatalf("with spell off spell found %q", got)
-		}
-		select {
-		case f := <-e.Queue():
-			f()
-			continue
-		case <-time.After(10 * time.Millisecond):
-			continue
-		case <-end:
-		}
-		break
+	editortest.Quiet(t, e)
+	if got := typosIn(e); len(got) > 0 {
+		t.Fatalf("with spell off spell found %q", got)
 	}
 	// A list that fails to read says so, and spell then finds nothing.
 	editortest.Config(t, "[module.spell]\nenabled = true\nwords = \"/nowhere/words\"\n")

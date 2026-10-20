@@ -32,10 +32,11 @@ type event struct {
 // the older one, so a plugin that falls behind hears the newest state only
 // (B57).
 type listener struct {
-	p       api.Module
-	mu      sync.Mutex
-	pending []event
-	wake    chan struct{}
+	p        api.Module
+	mu       sync.Mutex
+	pending  []event
+	handling bool // it has handed its plugin an event whose result has yet to apply
+	wake     chan struct{}
 	// ctx ends when the plugin unloads, which stops its jobs.
 	ctx  context.Context
 	stop context.CancelFunc
@@ -64,6 +65,26 @@ func (ed *Editor) emitTo(ev event) int {
 		told++
 	}
 	return told
+}
+
+// Idle reports whether no module or plugin work is under way: no event or
+// callback waits for one or runs in it, and no plugin load, job, timer or
+// request one started has yet come back to the loop. A terminal or a
+// language server that keeps running does not count. A test waits for it
+// before it checks that something did not happen.
+func (ed *Editor) Idle() bool {
+	if len(ed.queue) > 0 || ed.working > 0 {
+		return false
+	}
+	for _, l := range ed.listeners {
+		l.mu.Lock()
+		busy := l.handling || len(l.pending) > 0
+		l.mu.Unlock()
+		if busy {
+			return false
+		}
+	}
+	return true
 }
 
 // add puts ev last in what l hands its plugin, as a callback is.
@@ -170,7 +191,8 @@ func (e *Session) listen(p api.Module) *listener {
 					for len(l.pending) > 0 && !slices.Contains(e.bufs, l.pending[0].buf) && l.pending[0].name != "buffer.closed" {
 						l.pending = l.pending[1:]
 					}
-					if more = len(l.pending) > 0; more {
+					l.handling = len(l.pending) > 0
+					if more = l.handling; more {
 						ev, l.pending = l.pending[0], l.pending[1:]
 						t = ev.buf.text.Snapshot()
 						// A callback reads as the session that asked for it (B247).
@@ -203,7 +225,12 @@ func (e *Session) listen(p api.Module) *listener {
 					trace.Since(kind(p), p.Name()+" heard "+name, at, err)
 				}
 				scope.Done()
-				if !on(func() { e.asker(ev).handled(p, ev, err, t, seen, res) }) {
+				if !on(func() {
+					e.asker(ev).handled(p, ev, err, t, seen, res)
+					l.mu.Lock()
+					l.handling = false
+					l.mu.Unlock()
+				}) {
 					return
 				}
 			}

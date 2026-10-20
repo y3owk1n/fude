@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"slices"
 	"testing"
-	"time"
 
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/editor/editortest"
@@ -50,16 +49,7 @@ func TestB139Flash(t *testing.T) {
 	e = editortest.Start(t, path)
 	e.Use(flash.New())
 	editortest.Feed(e, "yiw")
-	// The module's answer arrives through the loop.
-	for wait := time.After(200 * time.Millisecond); ; {
-		select {
-		case f := <-e.Queue():
-			f()
-			continue
-		case <-wait:
-		}
-		break
-	}
+	editortest.Quiet(t, e)
 	if flashed(e) != nil {
 		t.Errorf("with flash.enabled false the flash is %v, want none", flashed(e))
 	}
