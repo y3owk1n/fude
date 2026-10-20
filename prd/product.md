@@ -49,7 +49,11 @@ Neovim works and drops the weight.
     the new view, such as pinned lines, guides, git signs, colours and
     spelling, under 5ms at p99.
   - Undo and redo, from `u` or `<C-r>` read to frame written, under 1ms at
-    p99, on the same 10MB of Go with 10,000 steps on its timeline.
+    p99, on the same 10MB of Go with 10,000 steps on its timeline, each step
+    a change of its own.
+  - A key read just after 10,000 edits arrive at once, as a paste of keys or
+    a macro sends them, draws under 1ms at p99 while their parse runs. Every
+    module is on, and the file is the same 10MB of Go.
   - `:%s` over the same 10MB of Go, from `<CR>` to the frame that shows
     it, under 50ms.
   - A 1GB file shows its first frame in under 1s and scrolls at frame rate.

@@ -188,7 +188,8 @@ Each line is a test, measured on an Apple M-series Mac, and `just check` fails w
 | Key to frame, p99, 10MB of Go with syntax | 1ms | 0.75ms |
 | The same with every module, git, a language server and a plugin | 2ms | 1ms |
 | A scroll with everything the modules draw for it, p99 | 5ms | 1.3ms |
-| Undo and redo on a 10,000-step timeline, p99 | 1ms | 0.2ms |
+| Undo and redo on a 10,000-step timeline, p99 | 1ms | 0.3ms |
+| A key after a burst of 10,000 edits, every module on, p99 | 1ms | 0.5ms |
 | `:%s` over 10MB of Go | 50ms | 18ms |
 | Through `fude attach`, p99 | 5ms | 0.8ms |
 | First frame of a 1GB file | 1s | 0.55s |

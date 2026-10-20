@@ -390,14 +390,54 @@ func TestPerfServer(t *testing.T) {
 func TestPromiseUndo(t *testing.T) {
 	c := startWith(t, "large_file = 20", realCode(t, 10<<20))
 	c.draw()
-	// Each x is a step of its own.
+	// Each x is a step of its own, on a line of its own, so each deletes a
+	// character.
 	for range 10000 {
 		c.e.Feed(vim.Key("x"))
+		c.e.Feed(vim.Key("j"))
 	}
 	c.draw()
 	var times []time.Duration
 	for len(times) < 1000 {
 		for _, k := range vim.Keys("uuuuu<C-r><C-r><C-r><C-r><C-r>") {
+			times = append(times, c.press(string(k), 10*time.Millisecond))
+		}
+	}
+	slices.Sort(times)
+	p50, p99, worst := times[len(times)/2], times[len(times)*99/100], times[len(times)-1]
+	t.Logf("p50 %v, p99 %v, worst %v over %d keys", p50, p99, worst, len(times))
+	if p99 > time.Millisecond {
+		t.Errorf("p99 is %v, want under 1ms", p99)
+	}
+}
+
+// A key draws under 1ms at p99 just after 10,000 edits arrive at once, as
+// a paste of keys or a macro sends them, while their parse runs. The text is
+// 10MB of real Go, with every module fude adds. The test feeds the burst as
+// the loop feeds keys from the terminal. It runs one queued result between
+// keys and draws no frame until the keys stop.
+func TestPromiseBurst(t *testing.T) {
+	c := startWith(t, "large_file = 20", realCode(t, 10<<20))
+	for _, m := range distribution.Modules() {
+		c.e.(*editor.Session).Use(m)
+	}
+	c.draw()
+	c.e.Load()
+	for range 10000 {
+		for _, k := range vim.Keys("xj") {
+			c.e.Feed(k)
+			select {
+			case f := <-c.e.Queue():
+				f()
+			default:
+			}
+		}
+	}
+	c.draw()
+	session := "jjjjkkwwbbeeWB}}{{xu.uddpyyPuuciwbar<Esc>uihello world<Esc>uoreturn nil<Esc>uA;<Esc>u<C-d><C-u>zzHML"
+	var times []time.Duration
+	for len(times) < 300 {
+		for _, k := range vim.Keys(session) {
 			times = append(times, c.press(string(k), 10*time.Millisecond))
 		}
 	}
