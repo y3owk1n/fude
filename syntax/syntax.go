@@ -126,12 +126,11 @@ type change struct {
 	tree  []ts.InputEdit // the same edits, last first, for a tree
 }
 
-// pending is an edit the worker has yet to make to its tree and text, from
-// the change numbered seq.
+// pending is an edit the worker has yet to make to its tree, from the
+// change numbered seq.
 type pending struct {
 	seq  int
 	tree ts.InputEdit
-	text Edit
 }
 
 // request asks for the spans of the parts of text that views show, each
@@ -325,7 +324,7 @@ func (h *Buffer) Changed(before Text, edits []Edit) {
 			StartPosition: start, OldEndPosition: point(before, e.End), NewEndPosition: after(start, e.Text),
 		}
 		c.tree = append(c.tree, in)
-		h.edits = append(h.edits, pending{h.seq, in, e})
+		h.edits = append(h.edits, pending{h.seq, in})
 	}
 	h.log = append(h.log, c)
 	c.move(h.spans, h.regions, h.tree)
@@ -477,13 +476,14 @@ func (h *Buffer) run(filetype string, p *ts.Parser, q, inj *ts.Query, in *inject
 		if tree != nil {
 			for i := range edits {
 				tree.Edit(&edits[i].tree)
-				e := edits[i].text
-				text = slices.Replace(text, e.Start, e.End, []byte(e.Text)...)
 			}
 		}
 		if r.seq != parsed || tree == nil {
-			if tree == nil {
-				text = []byte(r.text.Slice(0, r.text.Len()))
+			// The worker copies the text once a parse. Moving its copy through
+			// each edit would move up to the file's size an edit.
+			text = text[:0]
+			for at := 0; at < r.text.Len(); at += chunk {
+				text = append(text, r.text.Slice(at, min(at+chunk, r.text.Len()))...)
 			}
 			// A parse runs to the end even when a newer request comes, since a
 			// stopped parse would start over. Only Close stops one. Reset does
