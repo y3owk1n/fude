@@ -57,6 +57,9 @@ Neovim works and drops the weight.
   interface (D22, D23).
 - **Small kernel**: `core/` stays under 10k lines of Go, excluding tests.
   CI fails when it grows past that.
+- **Stable**: a terminal leaves nothing behind once its program ends: no
+  goroutine, pseudo-terminal or memory, so fude is as big after many
+  terminals as after one. CI fails when a terminal leaves any.
 - **Plugins cannot stall the editor**: plugins run as sandboxed wasm with
   declared capabilities. A plugin call on the input path is cut off at its
   budget, and a slow or crashing plugin slows or kills only itself.

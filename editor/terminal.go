@@ -148,10 +148,11 @@ func (e *Session) openTerminal(term api.Terminal, owner api.Module, where string
 	}
 	e.record("term", "started "+t.name, 0)
 	// The emulator's answers and the keys it encodes go to the program.
+	em := t.em
 	go func() {
 		buf := make([]byte, 32<<10)
 		for {
-			n, err := t.em.Read(buf)
+			n, err := em.Read(buf)
 			if err != nil {
 				return
 			}
@@ -169,7 +170,12 @@ func (e *Session) openTerminal(term api.Terminal, owner api.Module, where string
 			n, err := pt.Read(buf)
 			if n > 0 {
 				out := append([]byte(nil), buf[:n]...)
-				e.queue <- func() { t.em.Write(out) }
+				// fude drops output that comes once the emulator is gone.
+				e.queue <- func() {
+					if t.em != nil {
+						t.em.Write(out)
+					}
+				}
 			}
 			if err != nil {
 				return
@@ -213,10 +219,11 @@ func (e *Session) terminalExited(b *buffer, err error) {
 	}
 	b.title = fmt.Sprintf("[terminal %s, exited %d]", t.name, status)
 	e.record("term", fmt.Sprintf("%s exited %d", t.name, status), time.Since(t.started))
-	if t.typing {
-		t.typing = false
-		e.freeze(b)
-	}
+	// The last screen stays as text, and the pseudo-terminal and the
+	// emulator, with its scrollback, go at once.
+	t.typing = false
+	e.freeze(b)
+	t.stop()
 	if p := t.owner; p != nil && slices.Contains(e.modules, p) {
 		took := time.Since(t.started).Round(100 * time.Millisecond)
 		b.title = fmt.Sprintf("[%s %s ✓ %s]", p.Name(), t.task, took)
@@ -239,7 +246,9 @@ func (e *Session) closeTerminalBuffer(b *buffer) {
 			}
 		}
 	}
-	e.close(b, true)
+	if slices.Contains(e.bufs, b) {
+		e.close(b, true)
+	}
 }
 
 // terminalKey sends k to the program of the current window's terminal.
@@ -393,8 +402,12 @@ func (t *terminal) fit(cols, rows int) error {
 	return t.pty.Resize(cols, rows)
 }
 
-// stop ends t's program and lets its pseudo-terminal go.
+// stop ends t's program and lets its pseudo-terminal and emulator go,
+// once.
 func (t *terminal) stop() {
+	if t.em == nil {
+		return
+	}
 	if !t.exited {
 		t.pty.Kill()
 	}
@@ -404,9 +417,10 @@ func (t *terminal) stop() {
 	// without the race.
 	if pw, ok := t.em.InputPipe().(*io.PipeWriter); ok {
 		pw.Close()
-		return
+	} else {
+		t.em.Close()
 	}
-	t.em.Close()
+	t.em = nil
 }
 
 // moduleTerminal runs t for p in a terminal window below. If p's terminal

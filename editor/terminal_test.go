@@ -3,8 +3,10 @@ package editor_test
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/y3owk1n/fude/editor"
 	terminalmod "github.com/y3owk1n/fude/modules/terminal"
@@ -153,5 +155,51 @@ func TestB355TerminalEnv(t *testing.T) {
 	defer e.Serve(path)()
 	if got, want := echoed(), "["+path+" user]"; got != want {
 		t.Errorf("a terminal's program has %s, want %s", got, want)
+	}
+}
+
+// Promise: a terminal leaves nothing behind once its program ends, so fude
+// is as big after many terminals as after one (product.md, Stable).
+func TestPromiseTerminalsLeaveNothing(t *testing.T) {
+	// sh from PATH, which on Windows comes with Git for Windows.
+	t.Setenv("SHELL", "sh")
+	e := withCommands(open(t, ""))
+	e.Use(terminalmod.New())
+	e.SetSize(100, 30)
+	one := func() bool { return len(e.Windows()) == 1 }
+	cycles := func(n int) {
+		for range n {
+			feed(e, ":terminal<CR>exit<CR>")
+			settle(t, e, one)
+			feed(e, ":window float terminal<CR>exit<CR>")
+			settle(t, e, one)
+			feed(e, ":terminal echo hi<CR>")
+			settle(t, e, func() bool { return strings.HasSuffix(e.Windows()[len(e.Windows())-1].Name, "exited 0]") })
+			feed(e, "q")
+			settle(t, e, one)
+		}
+		// What the programs wrote last reaches the loop too.
+		for drained := false; !drained; {
+			select {
+			case f := <-e.Queue():
+				f()
+			case <-time.After(50 * time.Millisecond):
+				drained = true
+			}
+		}
+	}
+	measure := func() (int, uint64) {
+		runtime.GC()
+		runtime.GC()
+		var m runtime.MemStats
+		runtime.ReadMemStats(&m)
+		return runtime.NumGoroutine(), m.HeapAlloc
+	}
+	cycles(3)
+	g0, h0 := measure()
+	cycles(20)
+	g1, h1 := measure()
+	if g1 > g0+2 || h1 > h0+1<<20 {
+		t.Errorf("60 more terminals took goroutines from %d to %d and the heap from %.1fMB to %.1fMB", g0, g1, float64(h0)/(1<<20), float64(h1)/(1<<20))
 	}
 }

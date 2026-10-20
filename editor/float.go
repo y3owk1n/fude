@@ -47,6 +47,7 @@ func (e *Session) closeFloat(f *window) {
 	}
 	e.unfloat(f)
 	if f != e.closed {
+		f.drop()
 		e.forget(f.buf)
 	}
 }

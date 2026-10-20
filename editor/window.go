@@ -143,9 +143,12 @@ func (w *window) starts(t kernel.Snapshot, start, tab int, in []vim.Inline) []in
 	return vim.Rows(t, start, w.cols(), tab, in)
 }
 
-// show switches the window to b, at the place b was last left.
+// show switches the window to b, at the place b was last left. Its marks
+// in the buffer it showed go.
 func (w *window) show(b *buffer) {
 	w.buf.last, w.buf.lastTop = w.pos(), w.buf.text.Mark(w.top)
+	w.buf.text.DeleteMark(w.cursor)
+	w.buf.text.DeleteMark(w.top)
 	if w.buf != b {
 		w.alt = w.buf
 	}
@@ -155,6 +158,17 @@ func (w *window) show(b *buffer) {
 	}
 	w.cursor = b.text.SetMark(b.last, kernel.Right)
 	w.top = b.text.SetMark(b.lastTop, kernel.Left)
+}
+
+// drop lets go of the marks w keeps, as it closes: its cursor, its top line
+// and its jumps.
+func (w *window) drop() {
+	w.buf.text.DeleteMark(w.cursor)
+	w.buf.text.DeleteMark(w.top)
+	for _, j := range w.jumps {
+		j.buf.text.DeleteMark(j.mark)
+	}
+	w.jumps = nil
 }
 
 // ownOptions returns w's options without those its buffer's filetype sets.
@@ -435,9 +449,29 @@ func (e *Session) closeWindow(w *window) error {
 	}
 	if w.anchor != "" {
 		e.closeFloat(w)
-		return nil
+	} else {
+		if err := e.unlay(w); err != nil {
+			return err
+		}
+		w.drop()
 	}
-	return e.unlay(w)
+	// An ended terminal's buffer goes with its last window, as there is
+	// nothing in it to come back to.
+	if t := w.buf.term; t != nil && t.exited && slices.Contains(e.bufs, w.buf) && !e.showing(w.buf) {
+		e.close(w.buf, true)
+	}
+	return nil
+}
+
+// showing reports whether a window of any session shows b, one out of
+// sight too.
+func (e *Session) showing(b *buffer) bool {
+	for _, s := range e.sessions {
+		if slices.ContainsFunc(append(s.windows(), s.hidden...), func(w *window) bool { return w.buf == b }) {
+			return true
+		}
+	}
+	return false
 }
 
 // hide takes w out of sight, keeping its buffer, its program, its cursor
@@ -533,6 +567,12 @@ func (e *Session) only() {
 	for _, f := range slices.Clone(e.floats) {
 		if !keep[f] {
 			e.closeFloat(f)
+		}
+	}
+	for _, w := range e.root.windows() {
+		if w != e.under() {
+			e.closeFloatsOver(w)
+			w.drop()
 		}
 	}
 	e.root = &node{win: e.under()}

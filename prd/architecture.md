@@ -1658,7 +1658,11 @@ terminals` lists the terminal buffers from `Scope.Buffers` and shows one
 again with a `Terminal` of its `Buffer`. Closing a window whose program
 runs hides it, so the program goes on (B231). A `Terminal` with `Close`,
 as each shell is, closes its windows and buffer once its program ends, and
-any other keeps its last screen as text. Three goroutines serve it. One reads the program's
+any other keeps its last screen as text. Either way, fude closes the
+pseudo-terminal and drops the emulator, with its 4MB parse buffer, as the
+program ends. An ended terminal's buffer closes with its last window. A
+window deletes its marks as it shows another buffer or closes, so a
+buffer keeps no marks for windows gone. Three goroutines serve it. One reads the program's
 output and hands each chunk to the editor loop, which writes it into the
 emulator, so the emulator and the screen it keeps are only ever touched
 on the loop. One copies what the emulator answers and encodes, such as

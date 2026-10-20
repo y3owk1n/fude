@@ -34,6 +34,12 @@ func (e *Session) follow() {
 	}
 	mirrors := map[*window]*window{}
 	e.root = e.mirror(s.root, nil, mirrors)
+	// A window that mirrors none now goes.
+	for l, w := range e.mirrors {
+		if mirrors[l] != w {
+			w.drop()
+		}
+	}
 	e.mirrors = mirrors
 	// While the other has a float or the finder open, the window under it
 	// is the current one.
