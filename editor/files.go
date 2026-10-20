@@ -64,6 +64,7 @@ type finder struct {
 	// and false when cancelled.
 	prompt string
 	title  string // drawn in the box's border, such as :pick's source
+	typed  string // the query as it stood when the finder closed
 	chose  func(picked int, item, query string, ok bool)
 	// A module's live pick: the module and pick its items come from, and
 	// found takes the items it answers a query with (B285).
@@ -75,9 +76,13 @@ type finder struct {
 
 // openFinder opens f in a box with query typed.
 func (e *Session) openFinder(f *finder, query string) {
-	f.queries, f.queue, f.filetype = e.queries, e.queue, e.filetypeOf
-	if e.power != Host {
-		f.project = e.project
+	// A finder opened again keeps these, which a preview may still read
+	// off the loop (B374).
+	if f.queue == nil {
+		f.queries, f.queue, f.filetype = e.queries, e.queue, e.filetypeOf
+		if e.power != Host {
+			f.project = e.project
+		}
 	}
 	b := &buffer{text: kernel.New(query, nil), before: map[kernel.NodeID]int{}, marks: map[rune]kernel.MarkID{}, title: "[find]"}
 	w := newWindow(b, 0, 0)
@@ -209,8 +214,13 @@ func (e *Session) closeFinder() {
 		e.settle(e.vim.Feed("<Esc>"))
 	}
 	var seen []string
-	if e.finder != nil {
-		seen = e.finder.seen
+	// A list resumes with what was typed in it, and a question does not.
+	if f := e.finder; f != nil {
+		seen = f.seen
+		if f.prompt == "" {
+			f.typed, f.open, f.list, f.seen, f.shown = e.Text().Slice(0, e.Text().Len()), false, false, nil, ""
+			e.lastFinder = f
+		}
 	}
 	e.finder = nil
 	e.release(seen)

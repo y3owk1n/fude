@@ -289,6 +289,13 @@ Where fude departs, the line says so and cites the departure in
   when it does not fit. `<C-n>` and `<C-p>` move the selection,
   `<CR>` opens the selected file, and leaving insert mode closes the
   finder (N11). B142 changes these keys.
+- B374 [2] `:pick resume` and `<Plug>(finder.resume)` open the finder that
+  closed last again, as it was: the query typed in it, its matches and the
+  one selected, so `<CR>` picks what was selected. Any list the finder
+  showed resumes, a `:pick` source's or a module's. A list that asks a
+  question with a prompt, as `z=` does, does not, as the user answers it
+  once. Before any finder it says "no finder to resume". No key runs it
+  until one is mapped.
 - B130 [2] On a screen of 60 columns or more, the finder shows the start
   of the selected file in a box right of the list, as fff.nvim does, with
   its filetype's highlights. The two boxes have the same width and height.

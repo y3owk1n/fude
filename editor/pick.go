@@ -27,18 +27,35 @@ func (e *Session) openPick(arg string) error {
 	case "":
 		names := e.pickNames()
 		e.pickFrom("pick", names, func(i int) { e.report(e.openPick(names[i])) })
+	case "resume":
+		return e.resume()
 	default:
 		if src := e.sources[source]; src != nil {
 			src(e, strings.TrimSpace(rest))
 			return nil
 		}
-		e.message = fmt.Sprintf("no source named %q, only %s", source, strings.Join(e.pickNames(), ", "))
+		return fmt.Errorf("no source named %q, only %s", source, strings.Join(e.pickNames(), ", "))
+	}
+	return nil
+}
+
+// resume opens the finder that closed last again, with the query typed in
+// it, its matches and the one selected (B374).
+func (e *Session) resume() error {
+	f := e.lastFinder
+	if f == nil {
+		return errors.New("no finder to resume")
+	}
+	if e.finder == nil {
+		e.openFinder(f, f.typed)
 	}
 	return nil
 }
 
 // pickNames returns the sources of :pick, the modules' (B287).
-func (e *Session) pickNames() []string { return slices.Sorted(maps.Keys(e.sources)) }
+func (e *Session) pickNames() []string {
+	return append(slices.Sorted(maps.Keys(e.sources)), "resume")
+}
 
 // commandList is every ex command, the modules' too, and :plug of each
 // <Plug>, each with its arguments and help (B324).

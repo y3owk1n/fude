@@ -264,6 +264,13 @@ A plugin may add more. `<Tab>` completes the source, and a name no source
 has says which there are. In the finder `<C-q>` closes it and makes its
 matches the last list of places.
 
+`:pick resume` opens the finder that closed last again, with the query
+typed in it, its matches and the one selected, so `<CR>` picks what was
+selected. Any list the finder showed resumes, a module's such as the
+debug launch list too. A list that asks a question with a prompt, such as
+the spellings `z=` offers, does not. Before any finder it says "no finder
+to resume".
+
 ## :plugin
 
 `:plugin reload` reads the `[[plugin]]` tables of config.toml again, closes

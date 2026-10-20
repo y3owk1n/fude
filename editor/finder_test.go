@@ -258,3 +258,33 @@ func TestB64FinderScrolls(t *testing.T) {
 		t.Errorf("after <C-p> the rows are %q with row %d selected, want %q with row %d", up, at, rows, sel-1)
 	}
 }
+
+// B374
+func TestB374PickResume(t *testing.T) {
+	dir := t.TempDir()
+	for _, name := range []string{"ab.txt", "ac.txt", "zz.txt"} {
+		change(t, filepath.Join(dir, name), name+"\n")
+	}
+	t.Chdir(dir)
+	e := withCommands(open(t, ""))
+	e.Use(filesmod.New())
+	e.SetSize(100, 24)
+	if feed(e, ":pick resume<CR>"); e.Message() != "no finder to resume" {
+		t.Errorf(":pick resume before any finder said %q", e.Message())
+	}
+	query := func() string { f, _ := e.Menu(); return strings.SplitN(f.Text, "\n", 2)[0] }
+	feed(e, ":pick files<CR>a")
+	settle(t, e, func() bool { f, _ := e.Menu(); return strings.Count(f.Text, ".txt") == 2 })
+	// The second match, under the query and a blank row, is selected as
+	// the finder closes.
+	feed(e, "<C-n>")
+	f, _ := e.Menu()
+	picked := strings.Fields(strings.Split(f.Text, "\n")[3])[0]
+	feed(e, "<Esc>")
+	if feed(e, ":pick resume<CR>"); !strings.HasPrefix(query(), "› a") {
+		t.Fatalf(":pick resume shows the query %q", query())
+	}
+	if feed(e, "<CR>"); filepath.Base(e.Windows()[0].Name) != picked {
+		t.Errorf("<CR> in the resumed finder opened %q, want %q", e.Windows()[0].Name, picked)
+	}
+}

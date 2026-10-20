@@ -56,7 +56,7 @@ func init() {
 			}
 			return e.edit(x.arg)
 		}, completePath},
-		{vim.Command{Name: "pick", Args: "[source] [text]", Help: "opens the finder on a source, or on the sources: files, grep [text], buffers, recent, diagnostics, symbols, help or keymaps"}, func(e *Session, x call) error { return e.openPick(x.arg) }, func(e *Session, _ string, start int, arg string, _ bool) (int, []string) {
+		{vim.Command{Name: "pick", Args: "[source] [text]", Help: "opens the finder on a source, or on the sources: files, grep [text], buffers, recent, diagnostics, symbols, help or keymaps. resume opens the last one again"}, func(e *Session, x call) error { return e.openPick(x.arg) }, func(e *Session, _ string, start int, arg string, _ bool) (int, []string) {
 			return start, fuzzy.Match(e.pickNames(), arg)
 		}},
 		{vim.Command{Name: "config", Args: "reload", Help: "reads config.toml again, without writing it"}, func(e *Session, x call) error {
@@ -109,6 +109,7 @@ func init() {
 		{"finder.next", "selects the next match", func(e *Session, _ int) { e.finderAct("next") }},
 		{"finder.prev", "selects the match before", func(e *Session, _ int) { e.finderAct("prev") }},
 		{"finder.all", "turns searching the files git ignores and hidden ones on or off", func(e *Session, _ int) { e.finderAct("all") }},
+		{"finder.resume", "opens the finder that closed last again, as it was", func(e *Session, _ int) { e.report(e.resume()) }},
 		{"float.close", "closes the float the cursor is in", func(e *Session, _ int) {
 			if e.win.anchor != "" {
 				e.closeFloat(e.win)

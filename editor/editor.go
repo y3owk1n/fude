@@ -112,6 +112,7 @@ type Session struct {
 	later       []vim.Key               // keys to feed once the key being fed is done
 	pick        *pick                   // the code actions shown to choose from
 	finder      *finder                 // the file finder, while it shows
+	lastFinder  *finder                 // the finder that closed last, which :pick resume opens again (B374)
 	capture     *captured               // the module call the keys typed next go to (B316)
 	shownBuf    *buffer                 // the buffer the current window showed when the modules last heard (B314)
 	cmdline     cmdline                 // the completions of the command line being typed

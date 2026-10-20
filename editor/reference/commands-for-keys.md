@@ -72,6 +72,17 @@ ignores and hidden files too, and the count above the matches says "with
 ignored". Run again, it leaves them out. `.git` is never searched. In the
 other finders it does nothing. `<C-g>` runs it in the finder.
 
+
+## <Plug>(finder.resume)
+
+Opens the finder that closed last again, as `:pick resume` does, with its
+query, its matches and the one selected. No key runs it, so map one to
+have it:
+
+```toml
+[keymap.normal]
+"<Leader>'" = "<Plug>(finder.resume)"
+```
 ## <Plug>(float.close)
 
 Closes the float the cursor is in, and the floats opened from it, and the
