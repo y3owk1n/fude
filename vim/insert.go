@@ -98,6 +98,7 @@ var inserts = map[string]insertKey{
 		t, c := m.h.Text(), m.h.Cursor()
 		m.h.EndGroup()
 		m.mode = Normal
+		m.h.SetMark('^', c)
 		m.h.SetCursor(prev(t, LineStart(t, c), c))
 		return nil
 	}},

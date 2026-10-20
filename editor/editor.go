@@ -818,6 +818,8 @@ func (e *Session) show(b *buffer) {
 // pushJump records pos in the current window's buffer as a jump, dropping
 // any older one on the same line of the same buffer.
 func (e *Session) pushJump(pos int) {
+	// '' and `` go back to where the last jump left from (B20).
+	host{e}.SetMark('\'', pos)
 	w := e.win
 	b, t := w.buf, w.buf.text.Snapshot()
 	var kept []place

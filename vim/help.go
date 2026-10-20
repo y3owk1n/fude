@@ -40,6 +40,9 @@ func Bindings() []Binding {
 	for keys, sk := range scrolls {
 		add("normal", keys, sk.help)
 	}
+	for keys, sk := range sideways {
+		add("normal", keys, sk.help)
+	}
 	for k, to := range arrows {
 		add("normal", string(k), "does what "+string(to)+" does")
 	}

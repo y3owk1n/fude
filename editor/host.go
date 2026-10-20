@@ -71,7 +71,16 @@ func (h host) Viewport() (int, int, int) {
 	}
 	return h.e.Top(), h.e.rows(), h.e.win.cols()
 }
-func (h host) SetTop(top int)   { h.e.win.buf.text.MoveMark(h.e.win.top, top) }
+func (h host) SetTop(top int) { h.e.win.buf.text.MoveMark(h.e.win.top, top) }
+
+// Sideways is the window's when its lines do not wrap.
+func (h host) Sideways() (int, int) {
+	if h.e.win.opts.Wrap {
+		return 0, 0
+	}
+	return h.e.win.left, h.e.win.cols()
+}
+func (h host) SetLeft(left int) { h.e.win.left = left }
 func (h host) PushJump(pos int) { h.e.pushJump(pos) }
 func (h host) Jump(n int) bool  { return h.e.jump(n) }
 

@@ -411,7 +411,7 @@ func (m *Machine) visualKey(cmd string, count int, reg rune) error {
 	if ok, err := m.scroll(cmd, count); ok {
 		return err
 	}
-	if p, k, ok := m.motion(cmd, count); ok {
+	if p, k, ok := m.motion(cmd, count, ""); ok {
 		if k == failed {
 			m.beep = true
 		} else {

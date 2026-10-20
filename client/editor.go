@@ -267,10 +267,12 @@ func (h host) TabWidth() int { return cmp.Or(h.e.r.tab, vim.Tabstop) }
 // Fold reports no folds, as a client's replica keeps no window of its own.
 func (h host) Fold(line int) (int, int) { return line, line }
 
-// Shown reports no inlines, and WordWrap no rows that end at a space, for
-// the same reason.
+// Shown reports no inlines, WordWrap no rows that end at a space, and
+// Sideways no view to scroll, for the same reason.
 func (h host) Shown(int, int) []vim.Inline { return nil }
 func (h host) WordWrap() bool              { return false }
+func (h host) Sideways() (int, int)        { return 0, 0 }
+func (h host) SetLeft(int)                 {}
 
 // Editable lets the replica change, as fude says whether the change holds.
 func (h host) Editable() error { return nil }

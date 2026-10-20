@@ -91,8 +91,8 @@ Where fude departs, the line says so and cites the departure in
 
 ## Modes and insert
 
-- B6 [1] `i`, `a`, `I`, `A`, `o`, `O` enter insert mode at the positions Vim
-  uses. `<Esc>` returns to normal mode and moves the cursor left as Neovim does.
+- B6 [1] `i`, `a`, `I`, `A`, `o`, `O`, `gI` and `gi` enter insert mode at
+  the positions Vim uses, `gi` where insert mode was last left. `<Esc>` returns to normal mode and moves the cursor left as Neovim does.
 - B7 [1] Text typed in insert mode is one timeline node from entering
   insert to leaving it, except where `<Left>`, `<Right>`, `<C-w>`, `<C-u>`
   or `<C-g>u` split it, as in Neovim.
@@ -110,13 +110,16 @@ Where fude departs, the line says so and cites the departure in
 
 ## Grammar
 
-- B10 [2] `h j k l w b e W B E 0 ^ $ gg G f t F T ; ,` move as in Neovim,
-  with counts.
+- B10 [2] `h j k l w b e W B E ge gE 0 ^ $ g_ | + - _ <CR> gg G f t F T
+  ; ,` move as in Neovim, with counts. `-` alone in normal mode is the
+  explorer's (B124), so the `-` motion works after an operator, as `d-`,
+  and in visual mode.
 - B11 [2] `d`, `c`, `y` combine with every motion and text object, with
   counts on both sides: `2d3w` deletes six words.
 - B12 [2] `dd`, `cc`, `yy` act on lines, with counts.
-- B13 [2] Text objects `iw aw iW aW is as ip ap il al` and the quote and
-  bracket pairs `i" a" i' a' i( a( i[ a[ i{ a{ i< a<` select as in Neovim.
+- B13 [2] Text objects `iw aw iW aW is as ip ap il al`, the quote and
+  bracket pairs `i" a" i' a' i( a( i[ a[ i{ a{ i< a<` and the tag pairs
+  `it at` select as in Neovim.
 - B14 [2] `"x` before a command uses register `x`. Uppercase appends.
   `"_` discards. `"+` is the system clipboard.
 - B15 [2] `p` and `P` put a register, linewise or charwise as it was yanked.
@@ -186,7 +189,7 @@ Where fude departs, the line says so and cites the departure in
   buffer of its entries' names, directories with a trailing `/`, with no
   line numbers. `-` lists the current file's directory, `N-` goes up N
   levels and `1-` lists the working directory, as Neovim's built-in `-`
-  does, in place of the `-` motion. An explorer opens with the cursor on the
+  does, in place of the `-` motion in normal mode (B10). An explorer opens with the cursor on the
   entry that leads to the current file or explorer, when its directory
   holds it, and else on the first entry. In an explorer,
   `<CR>` opens the entry, `<C-s>` and `<C-h>` open it in a split beside or
@@ -643,7 +646,11 @@ Where fude departs, the line says so and cites the departure in
 - B19 [2] An operator in operator-pending state waits for a target. `<Esc>`
   cancels and changes nothing.
 - B20 [2] `m{a-z}` sets a mark, and `` `x `` and `'x` jump to it. Marks
-  move with edits above them.
+  move with edits above them. fude also sets the marks Neovim sets. `'`,
+  which `` ` `` names too, is where the last jump left from. `.` is the
+  last change. `[` and `]` are the start and end of the last change, put
+  or yank. `^` is where insert mode was last left, and `<` and `>` are the
+  ends of the last selection. `:marks` lists them all.
 - B21 [2] `/` and `?` search forward and back, and `n` and `N` repeat.
   A search that reaches an end of the text goes on from the other.
   Matches highlight in every window while typing and after the search.
@@ -669,8 +676,11 @@ Where fude departs, the line says so and cites the departure in
   counts. `Y` yanks to the end of the line.
 - B26 [2] `<C-a>` and `<C-x>` add to and subtract from the decimal, hex or
   binary number at or after the cursor, with counts.
-- B27 [2] `% ( ) { } H M L gj gk go` move as in Neovim. `<C-d> <C-u> <C-f>
-  <C-b> <C-e> <C-y> zz zt zb` scroll as in Neovim.
+- B27 [2] `% ( ) { } [( [{ ]) ]} [[ ]] [] ][ H M L gj gk go g0 g^ gm gM
+  g$` move as in Neovim. `g0 g^ gm g$` go along the cursor's screen row,
+  which is where the line wraps, or with `wrap` off what the window shows. `<C-d> <C-u> <C-f> <C-b> <C-e>
+  <C-y> zz zt zb z. z<CR> z-` scroll as in Neovim. With `wrap` off, `zh zl
+  zH zL zs ze` scroll sideways, and the cursor moves only to stay in view.
 - B28 [2] `*` and `#` search for the word under the cursor. In visual mode
   they search for the selected text literally.
 - B29 [2] Insert-mode `<BS> <C-w> <C-u> <C-r>{reg} <C-o> <C-t> <C-d>` act as

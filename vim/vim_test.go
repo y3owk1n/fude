@@ -3,6 +3,7 @@ package vim_test
 import (
 	"cmp"
 	"fmt"
+	"math"
 	"os"
 	"regexp"
 	"slices"
@@ -29,7 +30,12 @@ type host struct {
 	fold    [2]int // a closed fold's first and last line, when last > 0
 	indent  int    // the indent width, the tab's when 0
 	words   bool   // the rows end after a space, as a float's do
+	left    int    // the first column shown, when lines do not wrap
+	shown   int    // how many columns show then
 }
+
+func (h *host) Sideways() (int, int) { return h.left, h.shown }
+func (h *host) SetLeft(left int)     { h.left = left }
 
 func (h *host) WordWrap() bool { return h.words }
 
@@ -131,6 +137,9 @@ func TestB6EnterAndLeaveInsert(t *testing.T) {
 		{"a|bc\nd", "AX", "abcX|\nd"},
 		{"a|bc\nd", "oX", "abc\nX|\nd"},
 		{"abc\nd|e", "OX", "abc\nX|\nde"},
+		{"  a|b", "gIX", "X|  ab"},
+		{"|ab", "Axy<Esc>0giX", "abxyX|"},
+		{"a|b", "giX", "aX|b"},
 	}
 	for _, c := range cases {
 		if got, _, m := run(t, c.start, c.keys); got != c.want || m.Mode() != vim.Insert {
@@ -381,6 +390,11 @@ func TestB19EscCancelsOperator(t *testing.T) {
 	cases(t)
 }
 
+// B20
+func TestB20Marks(t *testing.T) {
+	cases(t)
+}
+
 // B21
 func TestB21Search(t *testing.T) {
 	cases(t)
@@ -435,6 +449,56 @@ func TestB27ScreenRows(t *testing.T) {
 		if err := m.Feed(vim.Key(c.keys[1:])); err != nil || h.cursor != c.want {
 			t.Fatalf("%s went to %d, want %d: %v", c.keys, h.cursor, c.want, err)
 		}
+	}
+}
+
+// B27, for the keys that move along a screen row or scroll sideways
+func TestB27Sideways(t *testing.T) {
+	feed := func(h *host, keys string) {
+		m := vim.New(h)
+		for _, k := range vim.Keys(keys) {
+			if err := m.Feed(k); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	text := "abcdefghijklmnopqrstuvwxyz"
+	// Wrapped 10 columns wide, the cursor's row is klmnopqrst.
+	for keys, want := range map[string]int{"g0": 10, "g^": 10, "gm": 15, "g$": 19} {
+		h := &host{text: text, cursor: 13, cols: 10}
+		if feed(h, keys); h.cursor != want {
+			t.Errorf("%s on a wrapped row went to %d, want %d", keys, h.cursor, want)
+		}
+	}
+	// Without wrap the view shows 10 columns from column 5.
+	for keys, want := range map[string]int{"g0": 5, "gm": 10, "g$": 14} {
+		h := &host{text: text, cursor: 7, cols: math.MaxInt, left: 5, shown: 10}
+		if feed(h, keys); h.cursor != want {
+			t.Errorf("%s in a view from column 5 went to %d, want %d", keys, h.cursor, want)
+		}
+	}
+	for _, c := range []struct {
+		keys                           string
+		cursor, left, wantLeft, wantAt int
+	}{
+		{"zl", 0, 0, 1, 1},
+		{"3zh", 5, 4, 1, 5},
+		{"zh", 3, 0, 0, 3},
+		{"zL", 0, 0, 5, 5},
+		{"zH", 12, 8, 3, 12},
+		{"zs", 7, 0, 7, 7},
+		{"ze", 15, 0, 6, 15},
+		{"zh", 19, 10, 9, 18},
+	} {
+		h := &host{text: text, cursor: c.cursor, cols: math.MaxInt, left: c.left, shown: 10}
+		if feed(h, c.keys); h.left != c.wantLeft || h.cursor != c.wantAt {
+			t.Errorf("%s from column %d with the cursor at %d left the view at %d and the cursor at %d, want %d and %d", c.keys, c.left, c.cursor, h.left, h.cursor, c.wantLeft, c.wantAt)
+		}
+	}
+	// While lines wrap, they do not scroll sideways.
+	h := &host{text: text, cursor: 3}
+	if feed(h, "zl"); h.left != 0 || h.cursor != 3 {
+		t.Errorf("zl with wrap moved the view to %d and the cursor to %d", h.left, h.cursor)
 	}
 }
 

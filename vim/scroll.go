@@ -60,21 +60,84 @@ var scrolls = map[string]scrollKey{
 		}
 		return top, min(x.line, down(x.t, top, x.h-1)), true
 	}},
-	"zz": {"scrolls the cursor's line to the middle of the view", func(m *Machine, x scrollCall) (int, int, bool) {
-		return up(x.t, x.line, (x.h-1)/2), x.line, true
-	}},
-	"zt": {"scrolls the cursor's line to the top of the view", func(m *Machine, x scrollCall) (int, int, bool) {
-		return x.line, x.line, true
-	}},
-	"zb": {"scrolls the cursor's line to the bottom of the view", func(m *Machine, x scrollCall) (int, int, bool) {
-		return up(x.t, x.line, x.h-1), x.line, true
-	}},
+	"zz":    {"scrolls the cursor's line, or line n, to the middle of the view", toMiddle},
+	"z.":    {"scrolls the cursor's line, or line n, to the middle of the view, at its first non-blank", toMiddle},
+	"zt":    {"scrolls the cursor's line, or line n, to the top of the view", toTop},
+	"z<CR>": {"scrolls the cursor's line, or line n, to the top of the view, at its first non-blank", toTop},
+	"zb":    {"scrolls the cursor's line, or line n, to the bottom of the view", toBottom},
+	"z-":    {"scrolls the cursor's line, or line n, to the bottom of the view, at its first non-blank", toBottom},
+}
+
+// at returns the line zt, zz and zb put in place: line n, or the cursor's.
+func (x scrollCall) at() int {
+	if x.count > 0 {
+		return down(x.t, 0, x.count-1)
+	}
+	return x.line
+}
+
+func toMiddle(_ *Machine, x scrollCall) (int, int, bool) {
+	return up(x.t, x.at(), (x.h-1)/2), x.at(), true
+}
+
+func toTop(_ *Machine, x scrollCall) (int, int, bool) { return x.at(), x.at(), true }
+
+func toBottom(_ *Machine, x scrollCall) (int, int, bool) {
+	return up(x.t, x.at(), x.h-1), x.at(), true
+}
+
+// sideways are the commands that scroll a view whose lines do not wrap,
+// by their keys. by returns how far one moves the left edge, given n and
+// the view's width. zs and ze have none, as they put the cursor's column
+// at an edge.
+var sideways = map[string]struct {
+	help string
+	by   func(n, cols int) int
+}{
+	"zl": {"scrolls the view n columns right", func(n, _ int) int { return n }},
+	"zh": {"scrolls the view n columns left", func(n, _ int) int { return -n }},
+	"zL": {"scrolls the view half its width right", func(_, cols int) int { return cols / 2 }},
+	"zH": {"scrolls the view half its width left", func(_, cols int) int { return -cols / 2 }},
+	"zs": {"scrolls the view so the cursor is at its left edge", nil},
+	"ze": {"scrolls the view so the cursor is at its right edge", nil},
+}
+
+// scrollSideways runs one of sideways, which does nothing while lines wrap.
+// The cursor moves the least it must to stay in the view.
+func (m *Machine) scrollSideways(cmd string, n int) {
+	left, cols := m.h.Sideways()
+	if cols <= 0 {
+		return
+	}
+	t, c, tab := m.h.Text(), m.h.Cursor(), m.h.TabWidth()
+	ls := LineStart(t, c)
+	col := column(t, ls, c, tab)
+	switch cmd {
+	case "zs":
+		left = col
+	case "ze":
+		left = col - cols + 1
+	default:
+		left += sideways[cmd].by(n, cols)
+	}
+	left = max(left, 0)
+	m.h.SetLeft(left)
+	switch {
+	case col < left:
+		m.h.SetCursor(clamp(t, colStart(t, ls, left, tab)))
+	case col >= left+cols:
+		m.h.SetCursor(atColumn(t, ls, left+cols-1, tab))
+	}
 }
 
 // scroll runs a command that moves the view, or reports false. The cursor
 // keeps its column. It moves only as far as it must to stay in the view,
 // except that <C-d> and <C-u> move it with the view.
 func (m *Machine) scroll(cmd string, count int) (bool, error) {
+	if _, ok := sideways[cmd]; ok {
+		m.scrollSideways(cmd, max(count, 1))
+		return true, nil
+	}
 	sk, ok := scrolls[cmd]
 	if !ok {
 		return false, nil
@@ -86,7 +149,10 @@ func (m *Machine) scroll(cmd string, count int) (bool, error) {
 		return true, nil
 	}
 	m.h.SetTop(top)
-	if line != LineStart(t, c) {
+	switch {
+	case cmd == "z." || cmd == "z<CR>" || cmd == "z-":
+		m.h.SetCursor(firstNonBlank(t, line, LineEnd(t, line)))
+	case line != LineStart(t, c):
 		m.h.SetCursor(m.toLine(t, c, line))
 	}
 	return true, nil

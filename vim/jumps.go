@@ -3,10 +3,16 @@ package vim
 // isJump reports whether a motion is one the jumplist records.
 func isJump(cmd string) bool {
 	switch cmd {
-	case "G", "gg", "%", "(", ")", "{", "}", "n", "N", "*", "#", "H", "M", "L":
+	case "G", "gg", "%", "(", ")", "{", "}", "[[", "]]", "[]", "][", "n", "N", "*", "#", "H", "M", "L":
 		return true
 	}
 	return len(cmd) > 1 && (cmd[0] == '/' || cmd[0] == '?' || cmd[0] == '`' || cmd[0] == '\'')
+}
+
+// jumpFrom records a jump that leaves from c, and puts the mark ' there.
+func (m *Machine) jumpFrom(c int) {
+	m.h.SetMark('\'', c)
+	m.h.PushJump(c)
 }
 
 // walk moves n entries back through the jumplist or the changelist, or

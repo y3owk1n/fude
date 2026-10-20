@@ -72,6 +72,11 @@ type Host interface {
 	// they are, or math.MaxInt wide when lines do not wrap.
 	Viewport() (top, height, width int)
 	SetTop(top int)
+	// Sideways returns the first screen column shown and how many columns
+	// show, for a view whose lines do not wrap. It returns 0 columns when it
+	// does not know. SetLeft makes left the first column shown.
+	Sideways() (left, cols int)
+	SetLeft(left int)
 	// These keep the jumplist and changelist. PushJump records where a jump
 	// leaves from. Jump and Change move n entries back, or forward when n is
 	// negative, and report false at either end. A jump may change buffers.
@@ -103,8 +108,8 @@ type Host interface {
 // Defaults is the part of a Host a host may leave out by embedding it. It
 // has no undo history, jumps, changes or system clipboard, ignores what
 // reaches Unhandled, shows a tab as Tabstop columns, indents by as many and
-// has no folds. A host then writes Text, Cursor, SetCursor, Apply, SetMark,
-// Mark, Viewport and SetTop.
+// has no folds or sideways view. A host then writes Text, Cursor, SetCursor,
+// Apply, SetMark, Mark, Viewport and SetTop.
 type Defaults struct{}
 
 func (Defaults) BeginGroup()                {}
@@ -119,6 +124,8 @@ func (Defaults) Change(int) bool            { return false }
 func (Defaults) IndentWidth() int           { return Tabstop }
 func (Defaults) TabWidth() int              { return Tabstop }
 func (Defaults) Fold(line int) (int, int)   { return line, line }
+func (Defaults) Sideways() (int, int)       { return 0, 0 }
+func (Defaults) SetLeft(int)                {}
 func (Defaults) Shown(int, int) []Inline    { return nil }
 func (Defaults) WordWrap() bool             { return false }
 func (Defaults) Editable() error            { return nil }
@@ -454,7 +461,29 @@ func (m *Machine) apply(edits []Edit, label string) error {
 	if len(m.cursors) > 0 && (m.mode == Insert || m.mode == Replace) {
 		edits = m.mirror(edits)
 	}
-	return m.h.Apply(edits, label)
+	if err := m.h.Apply(edits, label); err != nil || len(edits) == 0 {
+		return err
+	}
+	// [ and ] mark the start and end of the changed text, which in insert
+	// mode starts where typing began. . marks the last change.
+	shift, start := 0, edits[0].Start
+	for _, e := range edits[:len(edits)-1] {
+		shift += len(e.Text) - (e.End - e.Start)
+	}
+	last := edits[len(edits)-1]
+	end := last.Start + shift + len(last.Text)
+	if m.mode == Insert || m.mode == Replace {
+		start = min(start, m.insStart)
+	}
+	m.changedText(start, end)
+	m.h.SetMark('.', max(end-1, last.Start+shift))
+	return nil
+}
+
+// changedText sets the marks [ and ] on the text from start to end.
+func (m *Machine) changedText(start, end int) {
+	m.h.SetMark('[', start)
+	m.h.SetMark(']', max(end-1, start))
 }
 
 // repeat replays the last change, with count in place of its own when set.
@@ -656,7 +685,7 @@ func (m *Machine) command(cmd string) error {
 	if ok, err := m.edit(cmd, count); ok {
 		return err
 	}
-	if p, k, ok := m.motion(cmd, count); ok {
+	if p, k, ok := m.motion(cmd, count, ""); ok {
 		switch {
 		case k == failed:
 			m.beep = true
@@ -667,7 +696,7 @@ func (m *Machine) command(cmd string) error {
 			m.h.SetCursor(p)
 		default:
 			if isJump(cmd) {
-				m.h.PushJump(m.h.Cursor())
+				m.jumpFrom(m.h.Cursor())
 			}
 			m.h.SetCursor(clamp(m.h.Text(), p))
 		}
@@ -829,6 +858,14 @@ func init() {
 		"a":     {"inserts after the cursor", insertAt(func(x normalCall) int { return next(x.t, x.c, x.end) })},
 		"I":     {"inserts before the line's first non-blank", insertAt(func(x normalCall) int { return firstNonBlank(x.t, x.start, x.end) })},
 		"A":     {"inserts at the end of the line", insertAt(func(x normalCall) int { return x.end })},
+		"gI":    {"inserts at the start of the line", insertAt(func(x normalCall) int { return x.start })},
+		"gi": {"inserts where insert mode was last left", func(m *Machine, x normalCall) error {
+			p, ok := m.h.Mark('^')
+			if !ok {
+				p = x.c
+			}
+			return m.startInsert(x.k, p)
+		}},
 		"o": {"opens a line below and inserts", func(m *Machine, x normalCall) error {
 			if err := m.startInsert(x.k, x.end); err != nil {
 				return err

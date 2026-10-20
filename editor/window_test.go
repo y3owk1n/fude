@@ -212,6 +212,10 @@ func TestB37Wrap(t *testing.T) {
 	if v := e.Windows()[0]; v.Top != 0 || v.Left != 10 {
 		t.Fatalf("on the last of 20 columns in 10 the window starts at %d, column %d, want 0 and 10", v.Top, v.Left)
 	}
+	// zh scrolls it a column back, and the cursor stays in view (B27).
+	if feed(e, "zh"); e.Windows()[0].Left != 9 || e.Cursor() != 18 {
+		t.Fatalf("zh left the window at column %d and the cursor at %d, want 9 and 18", e.Windows()[0].Left, e.Cursor())
+	}
 }
 
 // B38

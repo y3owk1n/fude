@@ -24,12 +24,12 @@ const (
 )
 
 // motionCall is what a motion gets: the text, the cursor, the count typed
-// (0 for none), n for the count or 1, the start of the cursor's line, and
-// the keys typed.
+// (0 for none), n for the count or 1, the start of the cursor's line, the
+// keys typed and the operator it is the target of, or "".
 type motionCall struct {
 	t                Text
 	c, count, n, sol int
-	cmd              string
+	cmd, op          string
 }
 
 // motionKey is a motion and what it does.
@@ -45,11 +45,14 @@ func (m *Machine) moved(p int, k kind, keep bool) (int, kind) {
 	return p, k
 }
 
-// wordMotion is w and W, b and B when back, or e and E when end.
+// wordMotion is w and W, b and B when back, e and E when end, or ge and gE
+// when both.
 func wordMotion(back, end bool) func(m *Machine, x motionCall) (int, kind) {
 	return func(m *Machine, x motionCall) (int, kind) {
-		big := x.cmd == strings.ToUpper(x.cmd)
+		big := unicode.IsUpper(rune(x.cmd[len(x.cmd)-1]))
 		switch {
+		case back && end:
+			return m.moved(wordEndBack(x.t, x.c, x.n, big), inclusive, false)
 		case back:
 			return m.moved(wordBack(x.t, x.c, x.n, big), exclusive, false)
 		case end:
@@ -57,6 +60,124 @@ func wordMotion(back, end bool) func(m *Machine, x motionCall) (int, kind) {
 		}
 		return m.moved(wordForward(x.t, x.c, x.n, big, false), exclusive, false)
 	}
+}
+
+// lineFirstMotion is +, <CR>, - and _, which go to the first non-blank of
+// a line below or above.
+func lineFirstMotion(m *Machine, x motionCall) (int, kind) {
+	var line int
+	switch x.cmd {
+	case "-":
+		line = m.foldUp(x.t, x.sol, x.n)
+	case "_":
+		line = m.foldDown(x.t, x.sol, x.n-1)
+	default:
+		line = m.foldDown(x.t, x.sol, x.n)
+	}
+	if line == x.sol && x.cmd != "_" {
+		return x.c, failed
+	}
+	return m.moved(firstNonBlank(x.t, line, LineEnd(x.t, line)), linewise, false)
+}
+
+// unmatchedMotion is [( and [{, or ]) and ]} going forward.
+func unmatchedMotion(m *Machine, x motionCall) (int, kind) {
+	open, close := byte('('), byte(')')
+	if strings.ContainsAny(x.cmd, "{}") {
+		open, close = '{', '}'
+	}
+	p := outer(x.t, x.c, x.n, open, close)
+	if x.cmd[0] == ']' {
+		p = outerClose(x.t, x.c, x.n, open, close)
+	}
+	if p < 0 {
+		return x.c, failed
+	}
+	return m.moved(p, exclusive, false)
+}
+
+// sectionMotion is ]] and ][ going forward, or [[ and [] going back, to a
+// line starting with { for ]] and [[, or with } for ][ and []. After an
+// operator ]] also stops below a line starting with }. With none left it
+// goes to the first line, or to the last character of the text.
+func sectionMotion(m *Machine, x motionCall) (int, kind) {
+	forward := x.cmd[0] == ']'
+	ch := byte('{')
+	if x.cmd == "][" || x.cmd == "[]" {
+		ch = '}'
+	}
+	line, last := x.t.LineOf(x.c), x.t.Lines()-1
+	for range x.n {
+		for {
+			if forward && line == last {
+				return m.moved(lastChar(x.t, x.t.Len()), inclusive, false)
+			}
+			if !forward && line == 0 {
+				return m.moved(0, exclusive, false)
+			}
+			if forward {
+				line++
+			} else {
+				line--
+			}
+			s := x.t.LineStart(line)
+			if at(x.t, s) == ch || x.cmd == "]]" && x.op != "" && at(x.t, x.t.LineStart(line-1)) == '}' {
+				break
+			}
+		}
+	}
+	return m.moved(x.t.LineStart(line), exclusive, false)
+}
+
+// rowMotion is g0, g^, gm and g$, which go along the cursor's screen row.
+// The row is where the line wraps, or with wrap off what the view shows.
+func rowMotion(m *Machine, x motionCall) (int, kind) {
+	tab := m.h.TabWidth()
+	start, end, cols := m.row(x.t, x.c)
+	switch x.cmd {
+	case "g^":
+		return m.moved(firstNonBlank(x.t, start, end), exclusive, false)
+	case "gm":
+		return m.moved(atColumn(x.t, start, cols/2, tab), exclusive, false)
+	case "g$":
+		m.want = math.MaxInt
+		return m.moved(lastChar(x.t, end), inclusive, true)
+	}
+	return m.moved(start, exclusive, false)
+}
+
+// row returns where the screen row that holds c starts and ends, and how
+// many columns it shows.
+func (m *Machine) row(t Text, c int) (start, end, cols int) {
+	ls, le := LineStart(t, c), LineEnd(t, c)
+	_, _, cols = m.h.Viewport()
+	if cols == math.MaxInt {
+		left, shown := m.h.Sideways()
+		if shown <= 0 {
+			return ls, le, math.MaxInt
+		}
+		tab := m.h.TabWidth()
+		return colStart(t, ls, left, tab), next(t, atColumn(t, ls, left+shown-1, tab), le), shown
+	}
+	starts, _ := m.rows(t, ls, cols)
+	r := len(starts) - 1
+	for r > 0 && starts[r] > c {
+		r--
+	}
+	if r+1 < len(starts) {
+		le = starts[r+1]
+	}
+	return starts[r], le, cols
+}
+
+// rows returns where each row of the line at ls starts, as the host wraps
+// it at cols, and the inlines the rows count (B295).
+func (m *Machine) rows(t Text, ls, cols int) ([]int, []Inline) {
+	in := m.h.Shown(ls, LineEnd(t, ls))
+	if m.h.WordWrap() {
+		return WordRows(t, ls, cols, m.h.TabWidth(), in), in
+	}
+	return Rows(t, ls, cols, m.h.TabWidth(), in), in
 }
 
 // lineMotion is j, k, gg and G.
@@ -121,9 +242,14 @@ func repeatFindMotion(m *Machine, x motionCall) (int, kind) {
 	return m.found(p, f, ok)
 }
 
-// markMotion is ` and ' with a mark.
+// markMotion is ` and ' with a mark. ` and ' name one mark, where the last
+// jump left from.
 func markMotion(m *Machine, x motionCall) (int, kind) {
-	p, ok := m.h.Mark(rune(x.cmd[1]))
+	name := rune(x.cmd[1])
+	if name == '`' {
+		name = '\''
+	}
+	p, ok := m.h.Mark(name)
 	switch {
 	case !ok:
 		m.msg = "mark not set"
@@ -214,12 +340,47 @@ var motions = map[string]motionKey{
 		m.want = math.MaxInt
 		return m.moved(lastChar(x.t, LineEnd(x.t, down(x.t, x.sol, x.n-1))), inclusive, true)
 	}},
+	"g_": {"goes to the last non-blank of the line, or of the line n-1 below", func(m *Machine, x motionCall) (int, kind) {
+		s := down(x.t, x.sol, x.n-1)
+		line := x.t.Slice(s, LineEnd(x.t, s))
+		return m.moved(lastChar(x.t, s+len(strings.TrimRight(line, " \t"))), inclusive, false)
+	}},
+	"|": {"goes to column n", func(m *Machine, x motionCall) (int, kind) {
+		return m.moved(atColumn(x.t, x.sol, x.n-1, m.h.TabWidth()), exclusive, false)
+	}},
+	"+":    {"goes to the first non-blank n lines down", lineFirstMotion},
+	"<CR>": {"goes to the first non-blank n lines down", lineFirstMotion},
+	"-":    {"goes to the first non-blank n lines up", lineFirstMotion},
+	"_":    {"goes to the first non-blank of the line, or of the line n-1 below", lineFirstMotion},
+	"[(":   {"goes to the n-th unmatched ( before the cursor", unmatchedMotion},
+	"[{":   {"goes to the n-th unmatched { before the cursor", unmatchedMotion},
+	"])":   {"goes to the n-th unmatched ) after the cursor", unmatchedMotion},
+	"]}":   {"goes to the n-th unmatched } after the cursor", unmatchedMotion},
+	"]]":   {"goes to the next line starting with {", sectionMotion},
+	"][":   {"goes to the next line starting with }", sectionMotion},
+	"[[":   {"goes to the line starting with { above", sectionMotion},
+	"[]":   {"goes to the line starting with } above", sectionMotion},
+	"g0":   {"goes to the start of the screen row", rowMotion},
+	"g^":   {"goes to the first non-blank of the screen row", rowMotion},
+	"gm":   {"goes half a screen width along the screen row", rowMotion},
+	"g$":   {"goes to the end of the screen row", rowMotion},
+	"gM": {"goes to the middle of the line's text, or n% along it", func(m *Machine, x motionCall) (int, kind) {
+		tab := m.h.TabWidth()
+		w := column(x.t, x.sol, LineEnd(x.t, x.c), tab)
+		pct := 50
+		if x.count > 0 {
+			pct = min(x.count, 100)
+		}
+		return m.moved(atColumn(x.t, x.sol, w*pct/100, tab), exclusive, false)
+	}},
 	"w":              {"goes to the start of the next word", wordMotion(false, false)},
 	"W":              {"goes to the start of the next word of non-blanks", wordMotion(false, false)},
 	"b":              {"goes to the start of the word", wordMotion(true, false)},
 	"B":              {"goes to the start of the word of non-blanks", wordMotion(true, false)},
 	"e":              {"goes to the end of the word", wordMotion(false, true)},
 	"E":              {"goes to the end of the word of non-blanks", wordMotion(false, true)},
+	"ge":             {"goes back to the end of the word before", wordMotion(true, true)},
+	"gE":             {"goes back to the end of the word of non-blanks before", wordMotion(true, true)},
 	"n":              {"goes to the next match of the last search", searchMotion},
 	"N":              {"goes to the previous match of the last search", searchMotion},
 	"*":              {"searches forward for the word under the cursor", starMotion},
@@ -255,14 +416,14 @@ func motionOf(cmd string) (string, bool) {
 }
 
 // motion returns where cmd moves the cursor and its kind, or false if cmd is
-// not a motion.
-func (m *Machine) motion(cmd string, count int) (int, kind, bool) {
+// not a motion. op is the operator it is the target of, or "".
+func (m *Machine) motion(cmd string, count int, op string) (int, kind, bool) {
 	key, ok := motionOf(cmd)
 	if !ok {
 		return m.h.Cursor(), exclusive, false
 	}
 	t, c := m.h.Text(), m.h.Cursor()
-	p, k := motions[key].run(m, motionCall{t, c, count, max(count, 1), LineStart(t, c), cmd})
+	p, k := motions[key].run(m, motionCall{t, c, count, max(count, 1), LineStart(t, c), cmd, op})
 	return p, k, true
 }
 
@@ -554,6 +715,25 @@ func wordBack(t Text, p, n int, big bool) int {
 	return p
 }
 
+// wordEndBack is ge, or gE when big is set. An empty line counts as a word.
+func wordEndBack(t Text, p, n int, big bool) int {
+	for range n {
+		if p == 0 {
+			break
+		}
+		c := class(t, p, big)
+		q := prev(t, 0, p)
+		for c != 0 && q > 0 && class(t, q, big) == c {
+			q = prev(t, 0, q)
+		}
+		for q > 0 && class(t, q, big) == 0 && !emptyLine(t, q) {
+			q = prev(t, 0, q)
+		}
+		p = q
+	}
+	return p
+}
+
 // class is 0 for a blank, 1 for punctuation and 2 for a word character.
 // With big set every non-blank is 1.
 func class(t Text, p int, big bool) int {
@@ -675,14 +855,7 @@ func (m *Machine) screenLine(t Text, c, n int, down bool) (int, bool) {
 	tab := m.h.TabWidth()
 	_, _, cols := m.h.Viewport()
 	ls := LineStart(t, c)
-	rows := func(ls int) ([]int, []Inline) {
-		in := m.h.Shown(ls, LineEnd(t, ls))
-		if m.h.WordWrap() {
-			return WordRows(t, ls, cols, tab, in), in
-		}
-		return Rows(t, ls, cols, tab, in), in
-	}
-	starts, in := rows(ls)
+	starts, in := m.rows(t, ls, cols)
 	r := len(starts) - 1
 	for r > 0 && starts[r] > c {
 		r--
@@ -696,13 +869,13 @@ moves:
 			r++
 		case down && LineEnd(t, ls) < t.Len():
 			ls = LineEnd(t, ls) + 1
-			starts, in = rows(ls)
+			starts, in = m.rows(t, ls, cols)
 			r = 0
 		case !down && r > 0:
 			r--
 		case !down && ls > 0:
 			ls = LineStart(t, ls-1)
-			starts, in = rows(ls)
+			starts, in = m.rows(t, ls, cols)
 			r = len(starts) - 1
 		case i == 0:
 			return 0, false

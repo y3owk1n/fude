@@ -123,6 +123,7 @@ func (m *Machine) ex(line string) error {
 	name, arg := exName(rest)
 	if name == "" {
 		if ranged {
+			m.jumpFrom(c)
 			m.h.SetCursor(firstNonBlank(t, last, LineEnd(t, last)))
 		}
 		return nil

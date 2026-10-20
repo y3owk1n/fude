@@ -223,6 +223,7 @@ func (m *Machine) act(op string, reg rune, label string, r region) error {
 	m.store(reg, op, register{text: text, linewise: lines})
 	if op == "y" {
 		m.flash, m.flashPut = [2]int{start, end}, false
+		m.changedText(start, end)
 	}
 	switch {
 	case op == "y" && lines:
@@ -301,7 +302,7 @@ func (m *Machine) span(t Text, c int, op, cmd string, count int) (region, bool) 
 	case cmd == "w" || cmd == "W":
 		to, k = wordForward(t, c, n, big, true), exclusive
 	default:
-		if to, k, ok = m.motion(cmd, count); !ok || k == failed {
+		if to, k, ok = m.motion(cmd, count, op); !ok || k == failed {
 			return region{}, false
 		}
 	}
@@ -443,6 +444,7 @@ func (m *Machine) put(reg rune, after bool, n int) error {
 	if r.linewise && after {
 		m.flash[0]++ // after the line break put before the lines
 	}
+	m.changedText(m.flash[0], m.flash[1])
 	t = m.h.Text()
 	switch {
 	case r.linewise && after:

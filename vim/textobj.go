@@ -68,6 +68,7 @@ var textObjects = map[string]textObjectKey{
 	"[": bracket('[', ']'), "]": bracket('[', ']'),
 	"{": bracket('{', '}'), "}": bracket('{', '}'), "B": bracket('{', '}'),
 	"<": bracket('<', '>'), ">": bracket('<', '>'),
+	"t": {"the text inside n tag pairs", "n tag pairs and the text inside", tag},
 }
 
 // Object adds a text object such as af, which works after every operator and
@@ -410,6 +411,26 @@ func closer(t Text, o int, open, close byte) int {
 	return -1
 }
 
+// outerClose returns the n-th unmatched close after c, or -1.
+func outerClose(t Text, c, n int, open, close byte) int {
+	depth := 0
+	for p := c + 1; p < t.Len(); p++ {
+		switch at(t, p) {
+		case open:
+			depth++
+		case close:
+			if depth == 0 {
+				if n--; n == 0 {
+					return p
+				}
+				continue
+			}
+			depth--
+		}
+	}
+	return -1
+}
+
 // outer returns the n-th unmatched open before c, or -1.
 func outer(t Text, c, n int, open, close byte) int {
 	depth := 0
@@ -425,6 +446,95 @@ func outer(t Text, c, n int, open, close byte) int {
 				continue
 			}
 			depth--
+		}
+	}
+	return -1
+}
+
+// tag selects the n-th pair of tags of one name around c, such as <a href>
+// and </a>, without or with the tags. A tag that closes itself, a comment
+// and a tag left open pair with nothing.
+func tag(t Text, c, n int, around bool) (region, bool) {
+	type open struct {
+		name       string
+		start, end int
+	}
+	s := t.Slice(0, t.Len())
+	var opens []open
+	for i := 0; ; {
+		j := strings.IndexByte(s[i:], '<')
+		if j < 0 {
+			return region{}, false
+		}
+		start := i + j
+		rest := s[start+1:]
+		closing := strings.HasPrefix(rest, "/")
+		if closing {
+			rest = rest[1:]
+		}
+		name := tagName(rest)
+		end := tagEnd(s, start)
+		if name == "" || end < 0 {
+			i = start + 1
+			continue
+		}
+		i = end
+		switch {
+		case !closing && s[end-2] != '/':
+			opens = append(opens, open{name, start, end})
+		case closing:
+			k := len(opens) - 1
+			for k >= 0 && opens[k].name != name {
+				k--
+			}
+			if k < 0 {
+				continue
+			}
+			o := opens[k]
+			opens = opens[:k]
+			if o.start > c || c >= end {
+				continue
+			}
+			if n--; n > 0 {
+				continue
+			}
+			if around {
+				return region{start: o.start, end: end}, true
+			}
+			return region{start: o.end, end: start}, true
+		}
+	}
+}
+
+// tagName returns the name a tag starts s with, a letter then letters,
+// digits or -_:., or "" when s starts none.
+func tagName(s string) string {
+	letter := func(r rune) bool { return r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' }
+	end := strings.IndexFunc(s, func(r rune) bool {
+		return !letter(r) && !(r >= '0' && r <= '9') && !strings.ContainsRune("-_:.", r)
+	})
+	if end < 0 {
+		end = len(s)
+	}
+	if end == 0 || !letter(rune(s[0])) {
+		return ""
+	}
+	return s[:end]
+}
+
+// tagEnd returns where the tag at start ends, after its >, passing over
+// quoted attribute values, or -1.
+func tagEnd(s string, start int) int {
+	for i := start + 1; i < len(s); i++ {
+		switch s[i] {
+		case '>':
+			return i + 1
+		case '"', '\'':
+			q := strings.IndexByte(s[i+1:], s[i])
+			if q < 0 {
+				return -1
+			}
+			i += q + 1
 		}
 	}
 	return -1
