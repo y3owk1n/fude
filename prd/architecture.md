@@ -1651,7 +1651,9 @@ which the editor shows, or hides with `hide` while its window is current
 (B205). With a command it is a terminal of its own (B335). `:pick
 terminals` lists the terminal buffers from `Scope.Buffers` and shows one
 again with a `Terminal` of its `Buffer`. Closing a window whose program
-runs hides it, so the program goes on (B231). Three goroutines serve it. One reads the program's
+runs hides it, so the program goes on (B231). A `Terminal` with `Close`,
+as each shell is, closes its windows and buffer once its program ends, and
+any other keeps its last screen as text. Three goroutines serve it. One reads the program's
 output and hands each chunk to the editor loop, which writes it into the
 emulator, so the emulator and the screen it keeps are only ever touched
 on the loop. One copies what the emulator answers and encodes, such as

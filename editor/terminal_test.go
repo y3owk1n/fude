@@ -108,6 +108,9 @@ func TestB205Shells(t *testing.T) {
 	if feed(e, `<C-\><C-n>:window float<CR>i<C-\><C-n>`); !floated(e) || e.Terminal() {
 		t.Fatalf("leaving terminal mode in a float left a float current %v, terminal mode %v", floated(e), e.Terminal())
 	}
+	// A shell's window closes once it exits.
+	feed(e, "iexit<CR>")
+	settle(t, e, func() bool { return len(e.Windows()) == 3 && !floated(e) })
 }
 
 // B355

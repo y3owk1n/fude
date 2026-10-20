@@ -779,8 +779,9 @@ Where fude departs, the line says so and cites the departure in
   says TERMINAL. The program's terminal is the window's size and follows
   it. `<C-\><C-n>`, or `<Esc>` twice, goes to normal mode, where the
   window holds the scrollback and screen as text to move through, search
-  and yank, and `i` or `a` goes back. When the program ends, the window
-  stays, in normal mode, with its exit status in its name. Closing the
+  and yank, and `i` or `a` goes back. When a shell ends, its window and
+  buffer close. When `cmd` ends, the window stays, in normal mode, with
+  its exit status in its name. Closing the
   buffer or quitting fude ends the program, and hiding its window does
   not.
 - B194 [2] The last list of places a window showed, such as `grr`'s, is
@@ -1183,7 +1184,9 @@ Where fude departs, the line says so and cites the departure in
   takes the focus to type into. The status line does not name it as a
   task. `:terminal cmd` opens one this way (B205). With no command either,
   it is one of the session's numbered shells, as `:terminal n` shows and
-  hides it, and a module may show a terminal again by its buffer.
+  hides it, and a module may show a terminal again by its buffer. A
+  module's terminal may ask to close once its program ends, as a shell
+  does, or else stays with the last screen to read, as a task does.
 - B334 [4] A module's call reads help's text and the line of the entry a
   name has. Its panel may put a line at the top of its window, with the
   cursor and the focus there, each time it shows, as `:help` does (B162).

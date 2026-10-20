@@ -102,8 +102,9 @@ file when an explorer renames it.
 it again when you are in it. The same shell comes back where it was, with
 its history and directory, so one key mapped to `:terminal<CR>` shows
 and hides it. `:terminal 2` is a second shell, and any number
-another, as `:b 2` names a buffer. `:terminal cmd` runs `cmd` in a new
-window each time. `<Esc><Esc>` leaves terminal mode to move through the
+another, as `:b 2` names a buffer. `exit` in a shell closes its window.
+`:terminal cmd` runs `cmd` in a new window each time, which stays once
+`cmd` ends, to read and copy its output. `<Esc><Esc>` leaves terminal mode to move through the
 output, and `i` goes back. `:pick terminals` lists every terminal, those
 out of sight too, and shows the one picked.
 

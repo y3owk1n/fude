@@ -43,14 +43,15 @@ func (m *Module) Registered() []api.Registration {
 func (m *Module) Init(context.Context, api.Scope) (api.Result, error) { return api.Result{}, nil }
 
 // Call shows or hides the shell numbered after :terminal, or runs the
-// command typed after it, or lists the terminals to pick from.
+// command typed after it, or lists the terminals to pick from. A shell's
+// window closes once it exits, and a command's stays to read (B205).
 func (m *Module) Call(_ context.Context, id uint32, s api.Scope, _ ...int) (api.Result, error) {
 	if id == pick {
 		return m.list(s), nil
 	}
 	args := strings.TrimSpace(s.About["args"])
-	if n, err := strconv.Atoi(args); err == nil && n > 0 {
-		return api.Result{Terminal: &api.Terminal{Shell: n}}, nil
+	if n, err := strconv.Atoi(args); err == nil && n > 0 || args == "" {
+		return api.Result{Terminal: &api.Terminal{Shell: n, Close: true}}, nil
 	}
 	return api.Result{Terminal: &api.Terminal{Command: args}}, nil
 }

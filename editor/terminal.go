@@ -37,6 +37,7 @@ type terminal struct {
 	owner      api.Module // the module that ran it, nil for :terminal (B228)
 	task       string     // the name its module ran it under
 	started    time.Time  // when it started
+	close      bool       // its windows and buffer close once the program ends (B205)
 }
 
 // terminalKeys are a terminal window's own keys in normal mode, which
@@ -120,7 +121,7 @@ func (e *Session) openTerminal(term api.Terminal, owner api.Module, where string
 		b.title = "[" + owner.Name() + " " + task + "]"
 	}
 	e.terminalWindow(b, where, term.Lock)
-	t := &terminal{name: cmp.Or(arg, argv[0]), typing: true, cols: max(e.win.w, 1), rows: max(e.win.h-1, 1), owner: owner, task: task, started: time.Now()}
+	t := &terminal{name: cmp.Or(arg, argv[0]), typing: true, cols: max(e.win.w, 1), rows: max(e.win.h-1, 1), owner: owner, task: task, started: time.Now(), close: term.Close}
 	t.em = vt.NewEmulator(t.cols, t.rows)
 	cmd := exec.Command(argv[0], argv[1:]...)
 	cmd.Env = append(os.Environ(), "TERM=xterm-256color")
@@ -198,6 +199,11 @@ func (e *Session) terminalExited(b *buffer, err error) {
 		return
 	}
 	t.exited = true
+	if t.close {
+		e.record("term", t.name+" exited", time.Since(t.started))
+		e.closeTerminalBuffer(b)
+		return
+	}
 	status := 0
 	var exit *exec.ExitError
 	if errors.As(err, &exit) {
@@ -217,6 +223,21 @@ func (e *Session) terminalExited(b *buffer, err error) {
 		}
 		e.listen(p).add(event{name: "terminal.exited", detail: t.task, buf: b, extra: api.Context{"status": strconv.Itoa(status), "took": took.String()}, from: e})
 	}
+}
+
+// closeTerminalBuffer closes every window on b, a terminal whose program
+// ended, and then b. A session's last window shows another buffer (B205).
+func (e *Session) closeTerminalBuffer(b *buffer) {
+	for _, s := range e.sessions {
+		for _, w := range s.windows() {
+			if w.buf == b && w != s.root.win {
+				if err := s.closeWindow(w); err != nil {
+					s.message = err.Error()
+				}
+			}
+		}
+	}
+	e.close(b, true)
 }
 
 // terminalKey sends k to the program of the current window's terminal.

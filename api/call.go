@@ -206,6 +206,10 @@ type Terminal struct {
 	// when "", terminal_height percent of the screen tall above or below.
 	Where string
 	Lock  bool
+	// Close closes its window and buffer once its program ends, as a
+	// shell's do. Without it, the window stays with the program's last
+	// screen as text to read, as a task's does (B205).
+	Close bool
 }
 
 // Places is the last list of places, so ]q goes to the first, in a window
