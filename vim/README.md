@@ -64,6 +64,17 @@ for _, k := range vim.Keys("wdw") {
 
 `line` is a string type that implements `vim.Text`: `Len`, `Slice`, `Lines`, `LineStart` and `LineOf`, with byte offsets and lines counted from 0. The whole example, with `line` and marks that move, runs as a test in [`example_test.go`](example_test.go).
 
+## Drawing it yourself
+
+The machine draws nothing. How text looks is up to the host, and the machine tells it what to draw:
+
+- `Rows` and `WordRows` return where each screen row of a line starts when it wraps, by character or after a space.
+- `Column` returns the display column a byte draws at, and `ColumnStart` the byte at a column. They count graphemes, wide characters and tab stops.
+- `Selection` returns the visual selection's bytes, and for a block its display columns `Left` and `Right`.
+- `Mode`, `Shown`, `Line`, `LineCursor` and `Message` give the mode, the keys of the command being typed, the command line with its cursor, and what the last key has to say.
+
+Measure columns with `Column`, passing nil inlines and the width your `TabWidth` returns, rather than with code of your own. The machine measures block selections and `gj` the same way, so the highlight then covers what `d` deletes.
+
 ## Adding to the grammar
 
 - `Map` maps keys to keys in one mode, as a mapping in a config does.
