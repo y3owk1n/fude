@@ -1163,6 +1163,18 @@ fude kept one log for every file ever opened, and one more each time a file
 changed outside fude, and nothing removed them. The user chose on 2026-10-20 to
 drop the logs nothing reads and those of files left alone for 30 days.
 
+### N42. A lone Esc waits 10ms
+
+A terminal without the kitty keyboard protocol sends Esc as one byte, which
+also starts every escape sequence, so fude waits for more before it takes
+the byte as Esc. It waits 10ms, and on Windows tcell's own 125ms, as
+Windows' terminal input comes in delayed batches. Neovim waits 50ms, its
+`ttimeoutlen`. Why: a terminal writes a sequence in one go, so its bytes
+come together, and 50ms on every Esc is the longest wait a key has. With
+the kitty protocol, which fude asks for, Esc is a sequence of its own and
+waits for nothing. `TCELL_ESCDELAY`, in milliseconds, sets a longer wait
+for a link that splits sequences.
+
 ## Open
 
 None.

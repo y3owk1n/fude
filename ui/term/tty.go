@@ -2,6 +2,8 @@ package term
 
 import (
 	"bytes"
+	"runtime"
+	"time"
 
 	"github.com/gdamore/tcell/v3"
 )
@@ -10,10 +12,18 @@ import (
 // round trip, so fude turns it off and asks for the kitty keyboard protocol
 // without querying (D26).
 func screen(tty tcell.Tty) (tcell.Screen, error) {
+	// After a lone Esc from a terminal without the kitty protocol, fude waits
+	// 10ms for the rest of a sequence. Windows keeps tcell's 125ms, as its
+	// terminal input comes in delayed batches (N42).
+	esc := 10 * time.Millisecond
+	if runtime.GOOS == "windows" {
+		esc = 0
+	}
 	s, err := tcell.NewTerminfoScreenFromTty(&ctrlH{Tty: tty},
 		tcell.OptNegotiation(false),
 		tcell.OptKeyboardProtocol(tcell.KittyKeyboard),
 		tcell.OptAdvancedKeys(true),
+		tcell.OptEscapeTimeout(esc),
 	)
 	if err != nil {
 		return nil, err
