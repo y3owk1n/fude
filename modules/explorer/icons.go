@@ -140,8 +140,10 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 		m.notes[buf] = map[string]string{}
 	}
 	var res api.Result
+	// Decorations holds the module's decorations on every explorer, so only
+	// this buffer's go.
 	for _, d := range s.Decorations() {
-		if line := t.LineOf(min(d.Start, t.Len())); line >= first && line <= last {
+		if line := t.LineOf(min(d.Start, t.Len())); strconv.Itoa(d.Buffer) == buf && line >= first && line <= last {
 			res.Undecorate = append(res.Undecorate, d.ID)
 		}
 	}

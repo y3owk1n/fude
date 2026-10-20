@@ -159,3 +159,25 @@ func TestB127ExplorerNotes(t *testing.T) {
 	want := map[int]wire.Note{0: {Text: " -> plain"}, 2: {Text: "*"}}
 	editortest.Settle(t, e, func() bool { return maps.Equal(e.Windows()[0].Notes, want) })
 }
+
+// B128, for an explorer shown again after its parent was listed
+func TestB128IconsStay(t *testing.T) {
+	dir := t.TempDir()
+	sub := filepath.Join(dir, "sub")
+	if err := os.Mkdir(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	editortest.Change(t, filepath.Join(sub, "a.go"), "")
+	editortest.Change(t, filepath.Join(dir, "b.md"), "")
+	e := editortest.Open(t, sub)
+	e.Use(explorer.New())
+	e.SetSize(40, 10)
+	editortest.Feed(e, ":set icons true<CR>")
+	icons := func() int { return len(e.Windows()[0].Icons) }
+	editortest.Settle(t, e, func() bool { return icons() == 1 })
+	// Listing the directory above leaves the icons of the one below.
+	editortest.Feed(e, "-")
+	editortest.Settle(t, e, func() bool { return icons() == 2 })
+	editortest.Feed(e, "gg/sub<CR><CR>")
+	editortest.Settle(t, e, func() bool { return icons() == 1 })
+}
