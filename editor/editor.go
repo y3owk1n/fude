@@ -656,6 +656,13 @@ func (e *Session) settle(err error) {
 		e.shownBuf = e.win.buf
 		e.emit("buffer.shown", "", e.win.buf)
 	}
+	// A view that takes no number cannot show again once no window shows
+	// it, so fude closes it (B381).
+	for _, b := range slices.Clone(e.bufs) {
+		if b.shown && !b.numbered() && !e.showing(b) {
+			e.close(b, true)
+		}
+	}
 	if v := (seenAt{e.win.buf, e.Cursor(), e.Top()}); v != e.seen {
 		e.seen = v
 		e.emit("window.moved", fmt.Sprintf("%d %d", v.cursor, v.top), v.buf)

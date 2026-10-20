@@ -928,6 +928,21 @@ func TestB133CommandLineEditing(t *testing.T) {
 			t.Errorf("after %q the line is %q, want %q", c.keys, got, c.line)
 		}
 	}
+	// The history keeps its newest 10000 lines, so after 10001 more the
+	// oldest it recalls is the second of them.
+	m.Feed(vim.Key("<Esc>"))
+	for i := range 10001 {
+		for _, k := range vim.Keys(fmt.Sprintf(":%05d<CR>", i)) {
+			m.Feed(k)
+		}
+	}
+	m.Feed(vim.Key(":"))
+	for range 10001 {
+		m.Feed(vim.Key("<Up>"))
+	}
+	if m.Line() != ":00001" {
+		t.Errorf("the oldest line recalled is %q, want :00001", m.Line())
+	}
 }
 
 // B135

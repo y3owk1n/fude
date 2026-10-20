@@ -347,3 +347,32 @@ func TestB109UndoOrigin(t *testing.T) {
 		t.Errorf("undoing under an overlapping change left %q: %v", text(d), err)
 	}
 }
+
+// B381
+func TestB381Forget(t *testing.T) {
+	b := kernel.New("one", nil)
+	apply(t, b, kernel.Edit{Start: 3, End: 3, Text: " two"})
+	m := b.SetMark(4, kernel.Right)
+	tx := kernel.Transaction{Base: b.Snapshot().Version(), Origin: "view", Edits: []kernel.Edit{{Start: 0, End: 3, Text: "three"}}, Forget: true}
+	if err := b.Apply(tx); err != nil {
+		t.Fatal(err)
+	}
+	if text(b) != "three two" || b.Mark(m) != 6 {
+		t.Fatalf("forgetting left %q with the mark at %d, want three two with it at 6", text(b), b.Mark(m))
+	}
+	if _, ok := b.Undo(); ok || len(b.Nodes()) != 0 || b.Head() != (kernel.NodeID{}) {
+		t.Fatalf("after forgetting, %d nodes stay and undo went %v", len(b.Nodes()), ok)
+	}
+	// A later change is the root's first child.
+	apply(t, b, kernel.Edit{Start: 0, End: 0, Text: ">"})
+	if b.Undo(); text(b) != "three two" {
+		t.Errorf("undoing the change after forgetting left %q", text(b))
+	}
+	// A buffer whose timeline a store keeps refuses to forget it.
+	var store nodes
+	s := kernel.New("a", &store)
+	tx = kernel.Transaction{Base: s.Snapshot().Version(), Edits: []kernel.Edit{{Text: "b"}}, Forget: true}
+	if err := s.Apply(tx); err == nil || text(s) != "a" {
+		t.Errorf("forgetting with a store gave %v and left %q", err, text(s))
+	}
+}

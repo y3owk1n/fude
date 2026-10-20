@@ -47,6 +47,11 @@ type Transaction struct {
 	Time    time.Time // the host's clock, since the kernel reads none
 	Edits   []Edit
 	Reverts NodeID // the node this undoes, for UndoOrigin
+	// Forget makes the text after the edits the timeline's root. No node
+	// keeps these edits or any before them, as a view that shows new text
+	// in place of the old has nothing to undo. A buffer with a store
+	// refuses it, since its log on disk would no longer match (B381).
+	Forget bool
 }
 
 // Change is an applied transaction's edits and the text each replaced.
@@ -188,12 +193,22 @@ func (b *Buffer) Apply(t Transaction) error {
 	if len(t.Edits) == 0 {
 		return nil
 	}
+	if t.Forget && b.store != nil {
+		return fmt.Errorf("kernel: apply %q: a buffer with a store keeps its timeline", t.Label)
+	}
 	if b.group != nil && b.group.ID.Origin != t.Origin {
 		// A group never mixes origins, so another origin's change ends its node.
 		b.commit()
 	}
 	c := b.edit(t.Edits)
 	b.version++
+	if t.Forget {
+		b.nodes, b.head, b.group = nil, NodeID{}, nil
+		clear(b.pos)
+		clear(b.redo)
+		clear(b.reverted)
+		return nil
+	}
 
 	if b.group == nil {
 		b.group = &Node{ID: b.next(t.Origin), Parent: b.head, Label: t.Label, Time: t.Time}

@@ -199,8 +199,12 @@ func (m *Machine) remember() {
 	}
 	key := m.historyOf()
 	h := slices.DeleteFunc(m.history[key], func(l string) bool { return l == m.line })
-	m.history[key] = append(h, m.line)
+	h = append(h, m.line)
+	m.history[key] = h[max(len(h)-historyLines, 0):]
 }
+
+// historyLines is how many lines each history keeps, the newest (B133).
+const historyLines = 10000
 
 // recall puts the next older or newer line of the history that starts with
 // the text typed before recalling in the command line, and that text after

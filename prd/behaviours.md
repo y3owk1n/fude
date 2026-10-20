@@ -339,7 +339,8 @@ Where fude departs, the line says so and cites the departure in
   the end. Typed text goes in at the cursor. `<BS>` and `<Del>` delete a character, `<C-w>` the word before the
   cursor and `<C-u>` all before it. `<Up>` and `<Down>` recall older and
   newer lines that start with the text typed, `:` lines and searches each
-  from their own history, as Neovim's command line does.
+  from their own history, as Neovim's command line does. Each history
+  keeps its newest 10000 lines.
 - B371 [2] `q:` opens a window seven lines tall below the current one. It
   lists the command lines entered, the newest last, then an empty line
   with the cursor on it. `q/` and `q?` list the searches. The lines edit
@@ -1283,6 +1284,10 @@ Where fude departs, the line says so and cites the departure in
   the display columns where a faint line marks the indent, in place of
   those it had. The client draws each where the cell is blank, on a
   line's first row, unless `list` is on (B153, D60).
+- B381 [4] A read-only view fude or a module shows, which takes no
+  number, such as help or a panel, closes once no window shows it, as
+  nothing can show it again. Showing a panel again in its window keeps no
+  copy of what it showed before.
 - B345 [4] A module's result defines styles by name, with a colour for
   the text and one for its ground, bold, italic, underline or strike, over
   the theme's styles. Its decorations and spans name them.

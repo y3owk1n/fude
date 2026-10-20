@@ -118,11 +118,12 @@ func (e *Session) floatBuffer(title, text string, spans []syntax.Span) *buffer {
 }
 
 // refill replaces b's text with text, styled by spans, keeping its marks
-// where the text around them stays.
+// where the text around them stays. b is a view, so it keeps no timeline
+// of what it showed before (B381).
 func (e *Session) refill(b *buffer, text string, spans []syntax.Span) error {
 	t := b.text.Snapshot()
 	if old := t.Slice(0, t.Len()); old != text {
-		if err := b.text.Apply(kernel.Transaction{Base: t.Version(), Edits: []kernel.Edit{replace(old, text)}}); err != nil {
+		if err := b.text.Apply(kernel.Transaction{Base: t.Version(), Edits: []kernel.Edit{replace(old, text)}, Forget: true}); err != nil {
 			return err
 		}
 		b.saved = b.text.Head()
