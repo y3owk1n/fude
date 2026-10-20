@@ -643,6 +643,44 @@ tests run `sh` and Unix programs from Git for Windows, which a Windows
 build needs for grammars anyway. Delve does not run on Windows on arm64,
 so oku skips `dlv` there.
 
+## D55. A window's placement is data, which a module proposes and the user changes
+
+Every window has a placement: in the layout's splits, in a float over
+them, or hidden (B364). Placement is all that differs, so a float holds
+any buffer, a terminal's too, and takes the same keys, search, yanks and
+`:w` as a window in a split. A float sits in the middle of the screen, as
+the `:lsp` panel does, or at the cursor, as hover does. A hidden window
+keeps its buffer, its program, its cursor and the place it had, and shows
+there again.
+
+A module's result names where its window opens with `Where`: `below`,
+`right`, `here` for the current window, `float` or `cursor` (B367). fude
+places it by the first of these that says where: a command modifier such
+as `:float help` (B365), `config.toml`'s `[open]` by module name (B366),
+the result's `Where`, or else below. Once a window is open, `:float`,
+`:below`, `:right` and `:hide` move it. A result's `Lock` fixes the
+placement it asks for, and modifiers, `[open]` and moves leave that
+window where it is. A locked window still closes.
+
+Hover, signature help, a menu item's doc, help and every panel are
+windows in this model (B368). Menus, the finder and the command line's
+menu are lists to pick from, not buffers. They stay their own and draw
+in the same box a float does. `Where` and `Lock` replace `Panel.Float`,
+`Jump.Split`, `Scratch.Split` and a terminal's fixed place below.
+`Panel.Screen` stays, as it changes how a window draws, not where. The
+box a float panel was (B318) goes, and its `Cards` and `Foot` become
+options of a window in any placement. The wire sends a float as a view
+with its rectangle.
+
+Why, as of 2026-10-20: the user asked that a module choose a split or a
+float, that the user can always change it while fude runs, and that a
+module can lock it. `:terminal` showed the need. It opened below, as a
+new shell each time, and could not move. A float was a box of text, so no
+option could have floated it. Making the float a window removes the box,
+with its own keys and its own drawing. Neovim's `:right`
+aligns lines, which fude does not do. This reopens N16 for panels, N29,
+B205, B318 and B335.
+
 ## Departures from Neovim
 
 Each entry: what differs, then why.
@@ -882,17 +920,21 @@ Why: most editors people come from close pairs. Pairing only before a
 blank or a closing bracket, and never a quote after a letter, avoids the
 cases that make it annoying, so it can stay on.
 
-### N29. A terminal opens below, and <Esc> twice leaves it
+### N29. `:terminal` shows one shell, and <Esc> twice leaves it
 
-`:terminal` opens in a window below, a third of the screen tall unless
-`terminal_height` says otherwise, in terminal mode, where Neovim's
-replaces the current window and starts in normal mode. `<Esc>` twice leaves terminal mode as `<C-\><C-n>` does. A
+`:terminal` shows the session's shell, starting it the first time, and
+hides it when its window is current. It opens below in terminal mode, a
+third of the screen tall unless `terminal_height` says otherwise, and a
+modifier or `[open]` may place it elsewhere (D55). `:terminal cmd`
+opens a new window each time. Neovim's replaces the current window,
+starts a new shell each time and starts in normal mode. `<Esc>` twice leaves terminal mode as `<C-\><C-n>` does. A
 single `<Esc>` waits 300ms for a second one, then goes to the program,
 ahead of any other key, so an Alt chord stays one. In normal mode the
 window holds the scrollback and screen as text, as they were when
 terminal mode was left, without the program's colours. `i` and `a` go
 back to the live screen (B205). Why: a terminal usually runs beside the
-file being edited, so it opens below it. `<Esc><Esc>` is quicker to type
+file being edited, so it opens below it. One shell that hides and shows
+again keeps its history and directory. A new shell each time loses them. `<Esc><Esc>` is quicker to type
 than `<C-\><C-n>`. Text that stays as it was keeps the cursor and marks in
 place in normal mode while the program goes on writing.
 

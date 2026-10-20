@@ -29,6 +29,9 @@
   selections, named marks and decorations are marks.
 - **View**: one buffer shown in one window, with its own cursor, selection,
   scroll and jumplist. Owned by a client.
+- **Placement**: where a window is: in a split, in a float over the
+  splits, or hidden. A module proposes it, the user changes it, and a
+  module may lock it (D55).
 - **Decoration**: a mark range owned by a module, carrying a highlight,
   virtual text or a sign.
 - **Transaction**: an atomic, sorted set of edits to one snapshot, with its

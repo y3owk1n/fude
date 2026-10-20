@@ -725,6 +725,24 @@ Where fude departs, the line says so and cites the departure in
   `:resize` and `:vertical resize` take a size, or a change of it with `+`
   or `-`. Every other window keeps at least a row and its status line, or
   a column.
+- B364 [2] Every window is in a split, in a float or hidden (D55). A
+  float holds any buffer, a terminal's too, and takes keys, search,
+  yanks and `:w` as a window in a split does. It sits in the middle of
+  the screen or at the cursor, over the splits. `q` or `:close` in a
+  float closes it, and the focus goes back to the window it opened from.
+  A hidden window keeps its buffer, its program and its cursor, and shows
+  again in the place it had.
+- B365 [2] `:float`, `:below`, `:right` and `:hide` alone move the
+  current window into a float, a split below or right, or out of sight,
+  keeping its buffer, cursor and program. Before a command that opens a
+  window, such as `:float help` or `:right terminal`, they open it there.
+  `:hide` refuses for the last window shown, and a move refuses for a
+  locked window, naming it (B367).
+- B366 [2] `[open]` in `config.toml` sets where each module's windows
+  open, by the module's name, such as `help = "float"` or
+  `terminal = "right"`. It wins over what the module asks and loses to a
+  modifier (B365). A value that is not a placement is a config error
+  naming it (B93).
 - B199 [2] `:center` and `<Plug>(theme.center)` toggle the windows centered
   (N27). Centered, each window gets `color_column` columns of text, or
   100 without one, and its gutter. Windows side by side add up, with a
@@ -742,8 +760,10 @@ Where fude departs, the line says so and cites the departure in
   column of the text, counting from 1, on each line. The cursor's line, a
   selection and a match keep their colours there. 0, the default, shades
   none, and neither do centered windows, since it is their edge (B199).
-- B205 [2] `:terminal` runs the shell, and `:terminal cmd` runs `cmd`
-  through it, in a terminal window below, in terminal mode (N29). The
+- B205 [2] `:terminal` shows the session's shell, starting it the first
+  time, and hides its window when that is the current one (B364).
+  `:terminal cmd` runs `cmd` through the shell in a new window each time.
+  Each opens below, in terminal mode (N29, D55). The
   shell is `SHELL`, or `/bin/sh` without it. On Windows it is `SHELL` when
   Windows can run it, which Git Bash's `/usr/bin/bash` is not, or else
   `pwsh`, or else Windows PowerShell, in a pseudo console. The
@@ -754,7 +774,8 @@ Where fude departs, the line says so and cites the departure in
   window holds the scrollback and screen as text to move through, search
   and yank, and `i` or `a` goes back. When the program ends, the window
   stays, in normal mode, with its exit status in its name. Closing the
-  buffer or quitting fude ends the program.
+  buffer or quitting fude ends the program, and hiding its window does
+  not.
 - B194 [2] The last list of places a window showed, such as `grr`'s, is
   the quickfix list (N25). `]q` and `:cnext` go to its next place, and
   `[q` and `:cprev` to the one before. `[Q`, `]Q`, `:cfirst` and `:clast`
@@ -1153,7 +1174,7 @@ Where fude departs, the line says so and cites the departure in
   notes and icons are a module's decorations (B127, B128).
 - B335 [4] A module's terminal with no name opens anew each time and
   takes the focus to type into. The status line does not name it as a
-  task. `:terminal` opens one this way (B205).
+  task. `:terminal cmd` opens one this way (B205).
 - B334 [4] A module's call reads help's text and the line of the entry a
   name has. Its panel may put a line at the top of its window, with the
   cursor and the focus there, each time it shows, as `:help` does (B162).
@@ -1239,11 +1260,16 @@ Where fude departs, the line says so and cites the departure in
   so a panel's own keys and `[keymap.*]` apply to them.
 - B319 [4] A module hears `editor.started` when fude starts with no file
   to open and is not restarting. The start screen shows then (B225).
-- B318 [4] A module's panel may show in a box of its own in the middle
-  of the screen, which takes the focus. Its parts may be cards, which
+- B318 [4] A module's panel may show in a float in the middle of the
+  screen, which takes the focus (B364). Its parts may be cards, which
   the cursor moves between, and its keys may stay at its foot as it
   scrolls, as the `:lsp` panel's do (B159). A panel shown only to update
   replaces the text of the one open, and opens none once it is closed.
+- B367 [4] A module's result names where the window it opens goes:
+  below, right, here in the current window, a float, or at the cursor.
+  `[open]` and modifiers place it elsewhere (B365, B366) unless the
+  result locks it. A locked window stays where the module put it until
+  it closes.
 - B317 [4] A module hears `lsp.changed` when a language server starts,
   is ready, stops, fails to start, or is disabled or enabled. A call
   lists the language servers `config.toml` sets, each with its state,
@@ -1405,6 +1431,10 @@ Where fude departs, the line says so and cites the departure in
   in full, without moving.
 - B62 [5] `<C-]>` jumps to the definition and `K` shows hover, as in
   Neovim with a server attached.
+- B368 [5] Hover and signature help show in a float at the cursor
+  (B364). Hover again moves the focus into it, where it takes keys as any
+  window does, and `:right` moves it into a split beside, which stays as
+  the cursor moves.
 - B63 [5] A server that crashes is reported and restarted once. Editing never
   blocks on a server. The log keeps what it wrote to stderr, to its last
   line.
