@@ -77,6 +77,35 @@ func TestB205Terminal(t *testing.T) {
 	}
 }
 
+// B205, B364, for the shells :terminal shows and hides
+func TestB205Shells(t *testing.T) {
+	// sh from PATH, which on Windows comes with Git for Windows.
+	t.Setenv("SHELL", "sh")
+	e := withCommands(open(t, ""))
+	e.Use(terminalmod.New())
+	e.SetSize(80, 24)
+	feed(e, ":terminal<CR>echo one<CR>")
+	settle(t, e, func() bool { return strings.Count(screen(e), "one") == 2 })
+	// The shell hides, and shows again where it was and as tall, its
+	// program going on.
+	if feed(e, `<C-\><C-n>:resize 5<CR>:terminal<CR>`); len(e.Windows()) != 1 {
+		t.Fatalf(":terminal in the shell left %d windows", len(e.Windows()))
+	}
+	feed(e, ":terminal<CR>")
+	if vs := e.Windows(); len(vs) != 2 || vs[1].H != 5 || vs[1].Name != "[shell 1]" || !e.Terminal() || strings.Count(screen(e), "one") != 2 {
+		t.Fatalf(":terminal again showed %d windows, the last %q %d rows tall, terminal mode %v", len(vs), vs[len(vs)-1].Name, vs[len(vs)-1].H, e.Terminal())
+	}
+	// Under windows side by side, it shows again under both.
+	feed(e, `<C-\><C-n><C-w>k:vsplit<CR><C-w>j:terminal<CR>:terminal<CR>`)
+	if vs := e.Windows(); len(vs) != 3 || vs[2].Name != "[shell 1]" || vs[2].W != 80 {
+		t.Fatalf("under a vsplit the shell showed again %d columns wide in %d windows", vs[len(vs)-1].W, len(vs))
+	}
+	// :terminal 2 is another shell.
+	if feed(e, `<C-\><C-n>:terminal 2<CR>`); len(e.Windows()) != 4 || e.Windows()[3].Name != "[shell 2]" {
+		t.Errorf(":terminal 2 left %d windows, the last %q", len(e.Windows()), e.Windows()[len(e.Windows())-1].Name)
+	}
+}
+
 // B355
 func TestB355TerminalEnv(t *testing.T) {
 	// sh from PATH, which on Windows comes with Git for Windows.

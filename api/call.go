@@ -191,11 +191,16 @@ type Pick struct {
 // again instead. The window of one that ended closes first. When the
 // program ends, the owner hears terminal.exited with Name. The event is
 // about the terminal's buffer, with status and took in About (B228, B231).
-// With no Name it is a terminal of its own, as :terminal opens: a new one
-// each time, which takes the focus to type into and the status line does
-// not name. With no Command it runs the shell (B335).
+// With no Name it is a terminal of its own, as :terminal cmd opens: a new
+// one each time, which takes the focus to type into and the status line
+// does not name. With no Command either, it is the session's shell numbered
+// Shell, or 1 for 0. It shows in terminal mode, starting the first time,
+// and hides when its window is current, as :terminal does (B205, B335).
+// Buffer shows the terminal buffer of that id again where its window was,
+// or below, as :pick terminals does (B364).
 type Terminal struct {
 	Name, Command string
+	Shell, Buffer int
 }
 
 // Places is the last list of places, so ]q goes to the first, in a window
@@ -289,7 +294,8 @@ type Jump struct {
 }
 
 // WindowAction does Do to the window by its ID, as Scope.Windows lists it,
-// or to the current one for 0. close closes it, only closes every other,
+// or to the current one for 0. close closes it, hide takes it out of sight
+// to show again where it was (B364), only closes every other,
 // focus makes it current, height and width make it Size rows or columns,
 // or as many as it can take for 0, taller and wider make it Size more, or
 // fewer for a negative Size, cursor moves its cursor to Pos and top makes

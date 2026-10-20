@@ -41,6 +41,7 @@ const (
 	tallest
 	tallestToo
 	widest
+	hide
 )
 
 // sizes are the <C-w> keys that size the current window, by their ids:
@@ -83,6 +84,7 @@ func (m *Module) Registered() []api.Registration {
 		api.Registration{Kind: api.Command, Name: "new", Help: "opens a window below with a new empty buffer, or above with split_below off", ID: below},
 		api.Registration{Kind: api.Command, Name: "vnew", Short: []string{"vne"}, Help: "opens a window to the right with a new empty buffer, or left with split_right off", ID: right},
 		api.Registration{Kind: api.Command, Name: "only", Short: []string{"on"}, Help: "closes every other window", ID: only},
+		api.Registration{Kind: api.Command, Name: "hide", Short: []string{"hid"}, Help: "hides the window, which keeps its buffer and program and shows again where it was", ID: hide},
 		api.Registration{Kind: api.Command, Name: "resize", Short: []string{"res"}, Args: "[+-]{n}", Help: "makes the window n rows tall, or n taller or shorter, or as tall as it can be", ID: resize},
 		api.Registration{Kind: api.Command, Name: "vertical", Short: []string{"vert"}, Args: "resize [+-]{n}", Help: "makes the window n columns wide, or n wider or narrower, or as wide as it can be", ID: vertical},
 	)
@@ -122,8 +124,8 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 	return api.Result{Jobs: []api.Job{{ID: id, Argv: []string{"tmux", "select-pane", "-t", os.Getenv("TMUX_PANE"), d.flag}}}}, nil
 }
 
-// command splits or sizes the current window, or closes the others, as its
-// command does.
+// command splits, sizes or hides the current window, or closes the others,
+// as its command does.
 // A split goes below or right, or above or left with split_below or
 // split_right off, which the editor reads (B91, B193).
 func command(id uint32, s api.Scope) api.Result {
@@ -144,6 +146,8 @@ func command(id uint32, s api.Scope) api.Result {
 		return api.Result{Scratch: &api.Scratch{Split: way}}
 	case only:
 		return api.Result{Windows: []api.WindowAction{{Do: "only"}}}
+	case hide:
+		return api.Result{Windows: []api.WindowAction{{Do: "hide"}}}
 	case vertical:
 		name, rest, _ := strings.Cut(arg, " ")
 		if name != "resize" && name != "res" {

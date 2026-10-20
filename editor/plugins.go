@@ -523,6 +523,8 @@ func (e *Session) windowAction(a api.WindowAction) error {
 	case "only":
 		e.win = w
 		e.only()
+	case "hide":
+		return e.hide(w)
 	case "focus":
 		e.win = w
 	case "height", "width", "taller", "wider":

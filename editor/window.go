@@ -47,6 +47,15 @@ type window struct {
 	// imageRows and imageCols how big it shows (B309).
 	image                string
 	imageRows, imageCols int
+	was                  slot // where a hidden window was in the layout (B364)
+}
+
+// slot is where a window was in the layout: beside the window next to it,
+// after it or before, and the size it asked for there (B364).
+type slot struct {
+	beside        *window
+	across, after bool
+	size          int
 }
 
 // windowIDs is the id the last window got.
@@ -371,7 +380,12 @@ func (e *Session) splitBeside(across, after bool) {
 		nw.own = &own
 	}
 	nw.alt = old.alt
-	l := e.root.leaf(old)
+	e.insert(nw, e.root.leaf(old), across, after)
+}
+
+// insert puts nw in the layout beside l, after it when after is set, and
+// moves to it.
+func (e *Session) insert(nw *window, l *node, across, after bool) {
 	add := &node{win: nw}
 	if p := l.parent; p != nil && p.across == across {
 		i := slices.Index(p.kids, l)
@@ -381,8 +395,11 @@ func (e *Session) splitBeside(across, after bool) {
 		add.parent = p
 		p.kids = slices.Insert(p.kids, i, add)
 	} else {
-		// l becomes a split holding the new window and the old one.
-		keep := &node{win: old, parent: l}
+		// l becomes a split holding the new window and what l held.
+		keep := &node{win: l.win, across: l.across, kids: l.kids, parent: l}
+		for _, k := range keep.kids {
+			k.parent = keep
+		}
 		add.parent = l
 		l.win, l.across, l.kids = nil, across, []*node{keep, add}
 		if !after {
@@ -393,13 +410,75 @@ func (e *Session) splitBeside(across, after bool) {
 	e.layout()
 }
 
-// closeWindow closes w. The window before it in the split, or else the one
-// after, takes its place and becomes current.
+// closeWindow closes w, or hides it while its program runs.
 func (e *Session) closeWindow(w *window) error {
+	// A window whose program runs hides, and the program goes on (B231).
+	if t := w.buf.term; t != nil && !t.exited {
+		return e.hide(w)
+	}
 	if w.anchor != "" {
 		e.closeFloat(w)
 		return nil
 	}
+	return e.unlay(w)
+}
+
+// hide takes w out of sight, keeping its buffer, its program, its cursor
+// and where it was, to show there again (B364).
+func (e *Session) hide(w *window) error {
+	if w.anchor != "" {
+		e.unfloat(w)
+	} else {
+		l := e.root.leaf(w)
+		p := l.parent
+		if p == nil {
+			return errors.New("cannot hide the last window")
+		}
+		i := slices.Index(p.kids, l)
+		next := i - 1
+		if i == 0 {
+			next = 1
+		}
+		w.was = slot{beside: p.kids[next].windows()[0], across: p.across, after: i > next, size: l.size}
+		if err := e.unlay(w); err != nil {
+			return err
+		}
+	}
+	e.hidden = append(e.hidden, w)
+	return nil
+}
+
+// unhide shows w again where it was hidden from, and moves to it. A window
+// whose neighbour is gone shows below the current one.
+func (e *Session) unhide(w *window) {
+	e.hidden = slices.DeleteFunc(e.hidden, func(h *window) bool { return h == w })
+	if w.anchor != "" {
+		if !slices.Contains(e.windows(), w.from) {
+			w.from = e.win
+		}
+		e.floats = append(e.floats, w)
+		e.place(w)
+		e.win = w
+		return
+	}
+	s := w.was
+	if !slices.Contains(e.root.windows(), s.beside) {
+		s = slot{beside: e.under(), after: true, size: s.size}
+	}
+	// It goes beside all of the split its neighbour is in now, when that
+	// split is the other way.
+	l := e.root.leaf(s.beside)
+	for l.parent != nil && l.parent.across != s.across {
+		l = l.parent
+	}
+	e.insert(w, l, s.across, s.after)
+	e.root.leaf(w).size = s.size
+	e.layout()
+}
+
+// unlay takes w out of the layout. The window before it in the split, or
+// else the one after, takes its place and becomes current.
+func (e *Session) unlay(w *window) error {
 	l := e.root.leaf(w)
 	p := l.parent
 	if p == nil {

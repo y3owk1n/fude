@@ -33,3 +33,19 @@ func TestB140Navigate(t *testing.T) {
 		return string(b) == "select-pane -t %3 -L\n"
 	})
 }
+
+// B365, for :hide
+func TestB365Hide(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "f")
+	editortest.Change(t, path, "a\n")
+	e := editortest.Open(t, path)
+	e.Use(window.New())
+	e.SetSize(80, 24)
+	// :hide takes the window out of sight, and refuses for the last one.
+	if editortest.Feed(e, ":split<CR>:hide<CR>"); len(e.Windows()) != 1 {
+		t.Fatalf(":hide left %d windows", len(e.Windows()))
+	}
+	if editortest.Feed(e, ":hide<CR>"); len(e.Windows()) != 1 || e.Message() != "cannot hide the last window" {
+		t.Errorf(":hide in the last window left %d windows saying %q", len(e.Windows()), e.Message())
+	}
+}

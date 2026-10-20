@@ -923,7 +923,8 @@ cases that make it annoying, so it can stay on.
 ### N29. `:terminal` shows one shell, and <Esc> twice leaves it
 
 `:terminal` shows the session's shell, starting it the first time, and
-hides it when its window is current. It opens below in terminal mode, a
+hides it when its window is current. `:terminal n` does the same for
+shell n, as `:b n` names a buffer. It opens below in terminal mode, a
 third of the screen tall unless `terminal_height` says otherwise, and a
 modifier or `[open]` may place it elsewhere (D55). `:terminal cmd`
 opens a new window each time. Neovim's replaces the current window,

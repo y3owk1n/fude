@@ -21,7 +21,9 @@ it.
 new one right. The new window takes the cursor. `<C-w>h`, `<C-w>j`,
 `<C-w>k` and `<C-w>l` move between windows. `<C-w>c` closes a window,
 `<C-w>o` closes every other one, and `:q` in a split closes only that
-window. `:sp file` and `:vs file` split and open a file.
+window. `:sp file` and `:vs file` split and open a file. `:hide` takes a
+window out of sight. The window keeps its buffer, a terminal's program
+goes on, and the window shows again where it was, at the same size.
 
 `<C-w>+` and `<C-w>-` make the window taller or shorter, and `<C-w>>`
 and `<C-w><` wider or narrower, by the count typed before them, such as
@@ -84,6 +86,17 @@ where you left it. The status line shows a pinned file's place, such as
 delete or type lines and `:w` keeps them, `<CR>` opens one and `q`
 closes the list. `:pin remove` takes the current file off, and a pin follows its
 file when an explorer renames it.
+
+## Terminals
+
+`:terminal` shows a shell in a window below, in terminal mode, and hides
+it again when you are in it. The same shell comes back where it was, with
+its history and directory, so one key mapped to `:terminal<CR>` shows
+and hides it. `:terminal 2` is a second shell, and any number
+another, as `:b 2` names a buffer. `:terminal cmd` runs `cmd` in a new
+window each time. `<Esc><Esc>` leaves terminal mode to move through the
+output, and `i` goes back. `:pick terminals` lists every terminal, those
+out of sight too, and shows the one picked.
 
 ## Tasks
 

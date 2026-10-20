@@ -1,0 +1,29 @@
+package terminal_test
+
+import (
+	"os"
+	"strings"
+	"testing"
+
+	"github.com/y3owk1n/fude/editor/editortest"
+	"github.com/y3owk1n/fude/modules/terminal"
+)
+
+func TestMain(m *testing.M) { os.Exit(editortest.Main(m)) }
+
+// B369
+func TestB369PickTerminals(t *testing.T) {
+	// sh from PATH, which on Windows comes with Git for Windows.
+	t.Setenv("SHELL", "sh")
+	e := editortest.Start(t)
+	e.Use(terminal.New())
+	e.SetSize(80, 24)
+	// A shell out of sight is in the list, and picking it shows it again.
+	if editortest.Feed(e, ":terminal<CR><C-\\><C-n>:terminal<CR>"); len(e.Windows()) != 1 {
+		t.Fatalf(":terminal twice left %d windows", len(e.Windows()))
+	}
+	editortest.Feed(e, ":pick terminals<CR>")
+	editortest.Settle(t, e, func() bool { f, _ := e.Menu(); return strings.Contains(f.Text, "shell 1") })
+	editortest.Feed(e, "<CR>")
+	editortest.Settle(t, e, func() bool { return len(e.Windows()) == 2 && e.Terminal() })
+}

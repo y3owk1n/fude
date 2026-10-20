@@ -121,6 +121,8 @@ type Session struct {
 	logged      string                  // the message last put in history
 	floats      []*window               // the floats over the layout, the topmost last (D55)
 	closed      *window                 // the float at the cursor the key being handled closed, which hover enters
+	hidden      []*window               // the windows out of sight, each keeping where it was (B364)
+	shells      map[int]*buffer         // the shells :terminal n shows and hides, by n, once each started (B205)
 	opts        options                 // what the session's new windows start with
 	changed     chan change             // told when the shown text changes, for a client over the socket
 	clip        string                  // the text last copied, when no clipboard command runs
@@ -1073,6 +1075,7 @@ func (e *Session) close(b *buffer, force bool) {
 		}
 	}
 	for _, s := range e.sessions {
+		s.hidden = slices.DeleteFunc(s.hidden, func(w *window) bool { return w.buf == b })
 		for _, w := range s.root.windows() {
 			var kept []place
 			for _, j := range w.jumps {

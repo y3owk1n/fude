@@ -150,7 +150,7 @@ Each language's grammar builds in the background the first time you open one of 
 | **Folders**          | Edit an explorer and `:w` to rename, delete and create files                                                       |
 | **Git**              | Signs, `]h` and `[h` between hunks, a hunk preview, `gh` to stage a hunk and `gH` to put one back as the index has it, `:gitdiff`, `:blame` for the cursor's line |
 | **Together**         | `fude attach` for a second session, `fude share` and `fude join` over TLS, everyone's cursor in their own colour, `:follow`, proposals from agents |
-| **Terminal**         | `:terminal` in a split, and `<Esc><Esc>` to move through its output in normal mode                                |
+| **Terminal**         | `:terminal` shows and hides a shell, `:terminal 2` another, and `<Esc><Esc>` moves through its output in normal mode |
 | **Tasks**            | `:pick tasks` and `:task` run config.toml's tasks, just recipes, make targets and npm scripts in a split or in the background, and `]q` walks their errors |
 | **Discovery**        | Key hints for a half-typed command, `:h` with a written guide and a full reference, man pages                    |
 | **Typing**           | Autopairs, spelling with `]s` and `z=`, and `#hex`, `rgb()` and `hsl()` text shown on the colour it names         |

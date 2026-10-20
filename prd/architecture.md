@@ -501,6 +501,12 @@ A window shows one buffer and acts on it. It owns a cursor mark, a
 top-line mark and a jumplist. The kernel only holds their marks, so another
 window's edits move them (B23). Each buffer keeps its own changelist.
 
+A hidden window leaves the layout and keeps its buffer, cursor and the
+`slot` it had: the window beside it, the split's direction, its side and
+the size it asked for. It shows again there, or below the current window
+once that neighbour is gone, and a hidden float goes back over the window
+it opened from (B364).
+
 A split shares its space equally until a window in it asks for a size,
 with `<C-w>+` or `:resize` and the others (B193). The node that holds it in
 the split keeps that size, in rows or columns, while every other node of
@@ -1630,7 +1636,12 @@ it (B66).
 
 A terminal is a buffer whose `term` holds a program running in a
 pseudo-terminal (D38). `modules/terminal` is `:terminal`, a `Terminal`
-with no name, which the editor opens as a terminal of its own (B335). Three goroutines serve it. One reads the program's
+with no name. With no command it is a shell the session keeps by number,
+which the editor shows, or hides with `hide` while its window is current
+(B205). With a command it is a terminal of its own (B335). `:pick
+terminals` lists the terminal buffers from `Scope.Buffers` and shows one
+again with a `Terminal` of its `Buffer`. Closing a window whose program
+runs hides it, so the program goes on (B231). Three goroutines serve it. One reads the program's
 output and hands each chunk to the editor loop, which writes it into the
 emulator, so the emulator and the screen it keeps are only ever touched
 on the loop. One copies what the emulator answers and encodes, such as

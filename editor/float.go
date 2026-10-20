@@ -40,18 +40,23 @@ func (e *Session) openFloat(b *buffer, anchor string, focus bool) *window {
 	return w
 }
 
-// closeFloat closes f and the floats opened from it. The focus goes back to
-// the window f opened from, or the first window when that one is gone.
+// closeFloat closes f and the floats opened from it, and frees its buffer.
 func (e *Session) closeFloat(f *window) {
-	i := slices.Index(e.floats, f)
-	if i < 0 {
+	if !slices.Contains(e.floats, f) {
 		return
 	}
-	e.floats = slices.Delete(e.floats, i, i+1)
-	e.closeFloatsOver(f)
+	e.unfloat(f)
 	if f != e.closed {
 		e.forget(f.buf)
 	}
+}
+
+// unfloat takes f out of the floats and closes the floats opened from it.
+// The focus goes back to the window f opened from, or the first window
+// when that one is gone.
+func (e *Session) unfloat(f *window) {
+	e.floats = slices.DeleteFunc(e.floats, func(g *window) bool { return g == f })
+	e.closeFloatsOver(f)
 	if e.win == f {
 		e.win = f.from
 		if !slices.Contains(e.windows(), e.win) {

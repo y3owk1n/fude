@@ -99,15 +99,16 @@ func (e *Session) terminalWindow(b *buffer) {
 }
 
 // openTerminal runs arg through the shell, or the shell alone, in a window
-// below terminal_height percent of the screen tall, in terminal mode. A
-// module's terminal leaves the cursor in the window it ran from, and its
-// title is the module's name and task.
-func (e *Session) openTerminal(arg string, owner api.Module, task string) {
+// below terminal_height percent of the screen tall, in terminal mode, and
+// returns its buffer, or nil when it could not. A module's terminal leaves
+// the cursor in the window it ran from, and its title is the module's name
+// and task.
+func (e *Session) openTerminal(arg string, owner api.Module, task string) *buffer {
 	from := e.win
 	argv := shell.Command(arg)
 	if _, err := e.add(""); err != nil {
 		e.message = err.Error()
-		return
+		return nil
 	}
 	b := e.bufs[len(e.bufs)-1]
 	b.file.readonly = true
@@ -132,7 +133,7 @@ func (e *Session) openTerminal(arg string, owner api.Module, task string) {
 		}
 		e.close(b, true)
 		e.message = err.Error()
-		return
+		return nil
 	}
 	t.pty, b.term = term, t
 	e.record("term", "started "+t.name, 0)
@@ -178,6 +179,7 @@ func (e *Session) openTerminal(arg string, owner api.Module, task string) {
 	if owner != nil {
 		e.win = from
 	}
+	return b
 }
 
 // terminalExited notes that b's program ended, and shows its last screen
@@ -381,16 +383,28 @@ func (t *terminal) stop() {
 // of t's name still runs, its window shows again instead. The window of
 // one that ended closes first (B228, B231).
 func (e *Session) moduleTerminal(p api.Module, t api.Terminal) {
-	// One with no name is a terminal of its own, as :terminal opens (B335).
-	if t.Name == "" {
+	switch {
+	case t.Buffer != 0:
+		i := slices.IndexFunc(e.bufs, func(b *buffer) bool { return b.id == t.Buffer && b.term != nil })
+		if i < 0 {
+			e.message = fmt.Sprintf("no terminal %d", t.Buffer)
+			return
+		}
+		e.focusTerminal(e.bufs[i])
+		return
+	case t.Name == "" && t.Command == "":
+		e.toggleShell(max(t.Shell, 1))
+		return
+	case t.Name == "":
+		// One with no name is a terminal of its own, as :terminal cmd opens
+		// (B335).
 		e.openTerminal(t.Command, nil, "")
 		return
 	}
 	for _, b := range e.bufs {
 		if term := b.term; term != nil && term.owner == p && term.task == t.Name && !term.exited {
-			if !slices.ContainsFunc(e.root.windows(), func(w *window) bool { return w.buf == b }) {
-				from := e.win
-				e.terminalWindow(b)
+			from := e.win
+			if e.showTerminal(b) {
 				e.win = from
 			}
 			return
@@ -405,6 +419,67 @@ func (e *Session) moduleTerminal(p api.Module, t api.Terminal) {
 		}
 	}
 	e.openTerminal(t.Command, p, t.Name)
+}
+
+// toggleShell shows the session's shell numbered n in terminal mode,
+// starting it the first time and again once it ended, or hides its window
+// when that is the current one (B205).
+func (e *Session) toggleShell(n int) {
+	b := e.shells[n]
+	switch {
+	case b == nil || b.term.exited || !slices.Contains(e.bufs, b):
+		// The window of one that ended closes first, as a task's does.
+		for _, w := range e.windows() {
+			if b == nil || w.buf != b {
+				continue
+			}
+			if err := e.closeWindow(w); err != nil {
+				e.message = err.Error()
+				return
+			}
+		}
+		if b = e.openTerminal("", nil, ""); b == nil {
+			return
+		}
+		b.title = fmt.Sprintf("[shell %d]", n)
+		if e.shells == nil {
+			e.shells = map[int]*buffer{}
+		}
+		e.shells[n] = b
+	case e.win.buf == b:
+		if err := e.hide(e.win); err != nil {
+			e.message = err.Error()
+		}
+	default:
+		e.focusTerminal(b)
+	}
+}
+
+// focusTerminal moves to the window on b, a terminal. With none showing,
+// it shows the hidden one where it was, or opens one below. The terminal
+// goes to terminal mode while its program runs.
+func (e *Session) focusTerminal(b *buffer) {
+	if i := slices.IndexFunc(e.windows(), func(w *window) bool { return w.buf == b }); i >= 0 {
+		e.win = e.windows()[i]
+	} else {
+		e.showTerminal(b)
+	}
+	b.term.typing = !b.term.exited
+}
+
+// showTerminal shows a window on b that is out of sight where it was, or else
+// opens one below, unless a window shows b already. It reports whether it
+// showed one.
+func (e *Session) showTerminal(b *buffer) bool {
+	if slices.ContainsFunc(e.windows(), func(w *window) bool { return w.buf == b }) {
+		return false
+	}
+	if i := slices.IndexFunc(e.hidden, func(w *window) bool { return w.buf == b }); i >= 0 {
+		e.unhide(e.hidden[i])
+	} else {
+		e.terminalWindow(b)
+	}
+	return true
 }
 
 // runningTasks returns the names of the modules' terminals whose programs

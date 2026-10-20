@@ -738,6 +738,9 @@ Where fude departs, the line says so and cites the departure in
   window, such as `:float help` or `:right terminal`, they open it there.
   `:hide` refuses for the last window shown, and a move refuses for a
   locked window, naming it (B367).
+- B369 [2] `:pick terminals` lists the session's terminals by name, those
+  out of sight too, and picking one shows its window where it was, or
+  below, in terminal mode while its program runs (B364).
 - B366 [2] `[open]` in `config.toml` sets where each module's windows
   open, by the module's name, such as `help = "float"` or
   `terminal = "right"`. It wins over what the module asks and loses to a
@@ -761,7 +764,9 @@ Where fude departs, the line says so and cites the departure in
   selection and a match keep their colours there. 0, the default, shades
   none, and neither do centered windows, since it is their edge (B199).
 - B205 [2] `:terminal` shows the session's shell, starting it the first
-  time, and hides its window when that is the current one (B364).
+  time and again once it ended, and hides its window when that is the
+  current one (B364). `:terminal n` does the same for the session's shell
+  numbered n, as `:b n` names a buffer, and `:terminal` alone is shell 1.
   `:terminal cmd` runs `cmd` through the shell in a new window each time.
   Each opens below, in terminal mode (N29, D55). The
   shell is `SHELL`, or `/bin/sh` without it. On Windows it is `SHELL` when
@@ -1174,7 +1179,9 @@ Where fude departs, the line says so and cites the departure in
   notes and icons are a module's decorations (B127, B128).
 - B335 [4] A module's terminal with no name opens anew each time and
   takes the focus to type into. The status line does not name it as a
-  task. `:terminal cmd` opens one this way (B205).
+  task. `:terminal cmd` opens one this way (B205). With no command either,
+  it is one of the session's numbered shells, as `:terminal n` shows and
+  hides it, and a module may show a terminal again by its buffer.
 - B334 [4] A module's call reads help's text and the line of the entry a
   name has. Its panel may put a line at the top of its window, with the
   cursor and the focus there, each time it shows, as `:help` does (B162).
