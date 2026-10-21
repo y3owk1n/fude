@@ -474,6 +474,10 @@ stays modified. It refuses to write over a file that exists, and `:w!
 file` writes over it. `<Tab>` completes a path. In an explorer or a pin
 list, `:w` makes the directory or the pins what the lines say.
 
+`:w !cmd` writes nothing. It gives the shell command the range's lines,
+or every line, and shows what it writes, as `:!` does. It comes with the
+shell module.
+
 ## :xall
 
 The same as `:wqall`.
@@ -502,7 +506,9 @@ from the range's last, as `:y 3` or `:y x 3`.
 `:!cmd` runs cmd in the shell and shows what it writes in the message
 line, or in a window below when it is more than 10 lines. The shell is
 `$SHELL -c`, or `/bin/sh` without `SHELL`, and on Windows PowerShell
-without its profile. It runs in the working directory.
+without its profile. It runs in the working directory. `%` in cmd is the
+buffer's file and `#` the alternate one, with the modifiers `:e` takes,
+as `%:t`, and `\%` is a `%` of its own.
 
 With a range, `:{range}!cmd` puts the range's lines through cmd, as its
 input, and puts what it writes in their place. `!{motion}` and `!!` in

@@ -1013,6 +1013,18 @@ func (e *Session) ex(line string) error {
 		name, arg, force = "!", cmd, false
 	}
 	arg = strings.TrimSpace(arg)
+	// :w !cmd gives the lines to cmd, which the shell module runs.
+	if (name == "w" || name == "write") && strings.HasPrefix(arg, "!") {
+		run, ok := e.commands["!"]
+		if !ok {
+			return errors.New("no shell to run " + arg[1:])
+		}
+		cmd := strings.TrimSpace(arg[1:])
+		if err := e.mayTake(&cmd); err != nil {
+			return err
+		}
+		return run(e, call{name, cmd, false, first, last, ranged})
+	}
 	if c, ok := commandsByName[name]; ok {
 		if e.power != Host && refuses(c.Name, arg) {
 			return errors.New("a guest may not run :" + c.Name)

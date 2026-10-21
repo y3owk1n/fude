@@ -2,6 +2,7 @@ package shell_test
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/y3owk1n/fude/editor/editortest"
@@ -32,4 +33,14 @@ func TestB156Shell(t *testing.T) {
 	if editortest.Text(e) != "xa\nout\nb\nc" {
 		t.Errorf("after the text changed under the filter it is %q", editortest.Text(e))
 	}
+	// :w !cmd gives the command the lines and shows what it writes, and %
+	// in :! is the file's name.
+	path := filepath.Join(t.TempDir(), "f.txt")
+	editortest.Change(t, path, "ab\ncd\nef\n")
+	e = editortest.Open(t, path)
+	e.Use(shell.New())
+	editortest.Feed(e, ":2,3w !tr a-z A-Z<CR>")
+	editortest.Settle(t, e, func() bool { return e.Message() == "CD\nEF" })
+	editortest.Feed(e, ":!echo %:t<CR>")
+	editortest.Settle(t, e, func() bool { return e.Message() == "f.txt" })
 }

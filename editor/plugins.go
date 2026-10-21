@@ -1169,7 +1169,7 @@ func (e *Session) register(p api.Module, r api.Registration) {
 		}
 		run := func(s *Session, c call) error {
 			scope := s.scope(p, s.win.buf, s.Text())
-			scope.About["args"], scope.About["bang"] = c.arg, strconv.FormatBool(c.force)
+			scope.About["command"], scope.About["args"], scope.About["bang"] = c.name, c.arg, strconv.FormatBool(c.force)
 			scope.About["first"], scope.About["last"], scope.About["ranged"] = strconv.Itoa(c.first), strconv.Itoa(c.last), strconv.FormatBool(c.ranged)
 			edits, _, err := s.run(p, r.ID, scope, s.Cursor(), 0)
 			if err != nil || len(edits) == 0 {

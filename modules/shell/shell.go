@@ -50,7 +50,7 @@ func (m *Module) Subscribed() []string { return nil }
 
 func (m *Module) Registered() []api.Registration {
 	return []api.Registration{
-		{Kind: api.Command, Name: "!", Help: "runs cmd in the shell, or with a range puts the lines through it", ID: shell, Host: true},
+		{Kind: api.Command, Name: "!", Args: "{cmd}", Paths: true, Help: "runs cmd in the shell, with % as the file's name, or with a range puts the lines through it", ID: shell, Host: true},
 		{Kind: api.Command, Name: "read", Short: []string{"r"}, Args: "{file} | !{cmd}", Paths: true, Help: "puts a file, or what cmd writes, below the line", ID: read},
 	}
 }
@@ -107,7 +107,8 @@ func lineEnd(t api.Text, pos int) int {
 
 // shell starts the command typed after :!, off the loop. With a range it
 // reads those lines. With a bang, as :r !cmd runs it, what it writes goes
-// below the range's last line.
+// below the range's last line. As :w !cmd it reads the lines, or the whole
+// text, and what it writes shows.
 func (m *Module) shell(s api.Scope) api.Result {
 	cmd := strings.TrimSpace(s.About["args"])
 	if cmd == "" {
@@ -120,6 +121,13 @@ func (m *Module) shell(s api.Scope) api.Result {
 	r := run{buf: s.About["buffer"], cmd: cmd, start: first, end: end}
 	input := ""
 	switch {
+	case s.About["command"] == "w" || s.About["command"] == "write":
+		// :w !cmd gives cmd the lines, or every line, and shows what it
+		// writes.
+		if s.About["ranged"] != "true" {
+			first, end = 0, t.Len()
+		}
+		input = t.Slice(first, end) + "\n"
 	case s.About["bang"] == "true":
 		r.start, r.below = end, true
 	case s.About["ranged"] == "true":

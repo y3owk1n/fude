@@ -555,12 +555,15 @@ Where fude departs, the line says so and cites the departure in
   reverse, `n` by each line's first number, `i` ignoring case and `u`
   keeping one of lines that sort the same. `:join` joins its range, or the
   line and the next, and `!` adds no spaces. `:retab` rewrites leading
-  blanks as `expand_tab` says, as tabs only with `!`. `:!cmd` shows what a
-  shell command writes, in the shell `:terminal` runs (B205). PowerShell
-  runs it without its profile, as `sh -c` reads no startup file.
-  `:{range}!cmd` puts its lines through the command, and `!{motion}` and
-  `!!` open the command line with the lines' range and `!`. `:r file` and
-  `:r !cmd` put a file or a command's output below the line. A range that
+  blanks as `expand_tab` says, as tabs only with `!`. `:join` leaves the
+  cursor on the line's first non-blank. `:!cmd` shows what a shell
+  command writes, with `%` and `#` as the file names `:e` takes, in the
+  shell `:terminal` runs (B205). PowerShell runs it without its profile,
+  as `sh -c` reads no startup file. `:{range}!cmd` puts its lines through
+  the command, and `!{motion}` and `!!` open the command line with the
+  lines' range and `!`. `:r file` and `:r !cmd` put a file or a command's
+  output below the line. `:w !cmd` gives the command the lines, or every
+  line, and shows what it writes. A range that
   changes while its command runs keeps the change, and the message says
   so.
 - B157 [2] `:messages` lists the session's last 200 messages in a window,
