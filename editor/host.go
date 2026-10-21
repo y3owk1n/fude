@@ -48,6 +48,18 @@ func (h host) end() {
 
 func (h host) SetMark(name rune, pos int) {
 	b := h.e.win.buf
+	if name >= 'A' && name <= 'Z' {
+		// A file mark is one across every buffer, so setting it in one
+		// takes it from another.
+		if f, ok := h.e.fileMarks[name]; ok && f.buf != b {
+			delete(f.buf.marks, name)
+			f.buf.text.DeleteMark(f.mark)
+		}
+		if h.e.fileMarks == nil {
+			h.e.fileMarks = map[rune]place{}
+		}
+		defer func() { h.e.fileMarks[name] = place{b, b.marks[name]} }()
+	}
 	if id, ok := b.marks[name]; ok {
 		b.text.MoveMark(id, pos)
 		return
@@ -62,6 +74,17 @@ func (h host) Mark(name rune) (int, bool) {
 		return 0, false
 	}
 	return b.text.Mark(id), true
+}
+
+// ShowMark shows the buffer that holds file mark name, if it is still
+// open and the session may show it.
+func (h host) ShowMark(name rune) bool {
+	f, ok := h.e.fileMarks[name]
+	if !ok || !slices.Contains(h.e.bufs, f.buf) {
+		return false
+	}
+	h.e.show(f.buf)
+	return h.e.win.buf == f.buf
 }
 
 // Viewport gives a width no line reaches without wrap, so gj is j.

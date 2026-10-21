@@ -68,9 +68,13 @@ type Host interface {
 	SetClipboard(text string) error
 	// SetMark keeps a mark that moves with edits, staying after text
 	// inserted at it. Names are mark letters, or runes from 0xF0000 up,
-	// which the machine uses for its own marks.
+	// which the machine uses for its own marks. A to Z are file marks, one
+	// each across every text, which Mark finds only in the text that holds
+	// it. ShowMark shows the text that holds file mark name, and reports
+	// whether one does.
 	SetMark(name rune, pos int)
 	Mark(name rune) (int, bool)
+	ShowMark(name rune) bool
 	// FileName is the name of the text's file, which the register % holds,
 	// or "" for none.
 	FileName() string
@@ -114,7 +118,7 @@ type Host interface {
 // Defaults is the part of a Host a host may leave out by embedding it. It
 // has no undo history, jumps, changes or system clipboard, ignores what
 // reaches Unhandled, shows a tab as Tabstop columns, indents by as many and
-// has no folds, sideways view or file name. A host then writes Text,
+// has no folds, sideways view, file name or other texts to show. A host then writes Text,
 // Cursor, SetCursor, Apply, SetMark, Mark, Viewport and SetTop.
 type Defaults struct{}
 
@@ -136,6 +140,7 @@ func (Defaults) SetLeft(int)                {}
 func (Defaults) Shown(int, int) []Inline    { return nil }
 func (Defaults) WordWrap() bool             { return false }
 func (Defaults) Editable() error            { return nil }
+func (Defaults) ShowMark(rune) bool         { return false }
 func (Defaults) Clipboard() (string, error) { return "", errNoClipboard }
 func (Defaults) SetClipboard(string) error  { return errNoClipboard }
 
@@ -694,7 +699,7 @@ func (m *Machine) paste(s string) error {
 var prefixes = []Binding{
 	{"normal", "{count}", "repeats the command that follows, or sets its n"},
 	{"normal", `"{reg}`, "names the register the next command uses"},
-	{"normal", "m{a-z}", "sets a mark at the cursor"},
+	{"normal", "m{a-zA-Z}", "sets a mark at the cursor, A to Z a file mark that ' and ` find from any file"},
 	{"normal", "q{reg}", "records keys into the register until q"},
 	{"normal", "q=", "toggles multicursor follow, 1q= sets it on and 2q= off"},
 	{"normal", "zq{motion}", "places a multicursor at each place the motion reaches"},
@@ -748,8 +753,12 @@ func (m *Machine) normal(k Key) error {
 		m.counted = true
 		return nil
 	}
-	if cmd[0] == 'm' && len(cmd) == 2 && cmd[1] >= 'a' && cmd[1] <= 'z' {
-		m.h.SetMark(rune(cmd[1]), m.h.Cursor())
+	if cmd[0] == 'm' && len(cmd) == 2 && (unicode.IsLetter(rune(cmd[1])) || strings.ContainsRune("'`[]<>", rune(cmd[1]))) {
+		name := rune(cmd[1])
+		if name == '`' {
+			name = '\''
+		}
+		m.h.SetMark(name, m.h.Cursor())
 		return nil
 	}
 	if cmd == "q=" {

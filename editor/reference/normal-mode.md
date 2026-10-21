@@ -555,14 +555,18 @@ goes to the last join. On the last line it fails.
 "|f(\n  )" "J" "f(|)"
 ```
 
-## m{a-z}
+## m{a-zA-Z}
 
 Sets mark a to z at the cursor, for `` `a `` and `'a` to go to. A mark
-moves with its text as lines above it change. Marks belong to the
-buffer.
+moves with its text as lines above it change. Marks a to z belong to the
+buffer. A to Z are file marks, one each across every buffer, and going to
+one shows the buffer that holds it, though an operator takes it only in
+its own buffer. `m'`, `` m` ``, `m[`, `m]`, `m<` and `m>` set those marks
+by hand.
 
 ```keys
 "ab|c\nd" "maj`a" "ab|c\nd"
+"ab|c\nd" "mAj`A" "ab|c\nd"
 ```
 
 ## O

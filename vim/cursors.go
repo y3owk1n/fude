@@ -59,6 +59,7 @@ func (quiet) Change(int) bool           { return false }
 func (quiet) SetTop(int)                {}
 func (quiet) SetLeft(int)               {}
 func (quiet) SetClipboard(string) error { return nil }
+func (quiet) ShowMark(rune) bool        { return false }
 
 func (q quiet) SetMark(name rune, pos int) {
 	if name != '\'' {

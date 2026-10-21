@@ -248,6 +248,7 @@
 "|ab\ncd" "yyjp`[" "ab\ncd\n|ab"
 "|ab\ncd" "ciwxyz<Esc>0`]" "xy|z\ncd"
 "|ab" "Axy<Esc>0`^" "abx|y"
+"|ab\ncd" "mAj'A" "|ab\ncd"
 
 # B21
 "|foo bar foo" "/foo<CR>" "foo bar |foo"

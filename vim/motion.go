@@ -257,13 +257,20 @@ func markMotion(m *Machine, x motionCall) (int, kind) {
 		name = '\''
 	}
 	p, ok := m.h.Mark(name)
+	t := x.t
+	// A file mark in another text shows that text, but not for an
+	// operator, which acts within one.
+	if !ok && name >= 'A' && name <= 'Z' && x.op == "" && m.h.ShowMark(name) {
+		t = m.h.Text()
+		p, ok = m.h.Mark(name)
+	}
 	switch {
 	case !ok:
 		m.msg = "mark not set"
 		return x.c, failed
 	case x.cmd[0] == '\'':
-		s := LineStart(x.t, p)
-		return firstNonBlank(x.t, s, LineEnd(x.t, s)), linewise
+		s := LineStart(t, p)
+		return firstNonBlank(t, s, LineEnd(t, s)), linewise
 	}
 	return p, exclusive
 }

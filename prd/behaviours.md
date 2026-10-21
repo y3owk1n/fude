@@ -701,7 +701,9 @@ Where fude departs, the line says so and cites the departure in
 - B19 [2] An operator in operator-pending state waits for a target. `<Esc>`
   cancels and changes nothing.
 - B20 [2] `m{a-z}` sets a mark, and `` `x `` and `'x` jump to it. Marks
-  move with edits above them. fude also sets the marks Neovim sets. `'`,
+  move with edits above them. `m{A-Z}` sets a file mark, one for every
+  buffer, and jumping to it shows the buffer that holds it. An operator
+  takes a file mark only in its own buffer. fude also sets the marks Neovim sets. `'`,
   which `` ` `` names too, is where the last jump left from. `.` is the
   last change. `[` and `]` are the start and end of the last change, put
   or yank. `^` is where insert mode was last left, and `<` and `>` are the

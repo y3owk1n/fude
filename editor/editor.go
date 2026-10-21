@@ -96,7 +96,8 @@ type Session struct {
 	root        *node
 	win         *window // the current window
 	vim         *vim.Machine
-	cursorsIn   *buffer // the buffer the machine's cursors are in (N43)
+	cursorsIn   *buffer        // the buffer the machine's cursors are in (N43)
+	fileMarks   map[rune]place // the marks A to Z, each in the one buffer that holds it
 	message     string
 	done        bool
 	cell        [2]int                  // the client's cell in pixels, 0 when it shows no images (B303)

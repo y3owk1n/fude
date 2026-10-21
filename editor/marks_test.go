@@ -28,6 +28,20 @@ func TestB20Marks(t *testing.T) {
 	if e.Message() != "mark not set" {
 		t.Errorf("jumping to an unset mark gave %q", e.Message())
 	}
+	// A file mark takes the cursor back to the buffer that holds it, but an
+	// operator takes it only in its own.
+	dir := t.TempDir()
+	a, b := filepath.Join(dir, "a"), filepath.Join(dir, "b")
+	change(t, a, "one\ntwo\n")
+	change(t, b, "three\n")
+	e = withCommands(start(t, a, b))
+	feed(e, "jlmA:bn<CR>")
+	if feed(e, "d`A"); text(e) != "three" || e.Message() != "mark not set" {
+		t.Errorf("d`A from another buffer left %q, said %q", text(e), e.Message())
+	}
+	if feed(e, "`A"); text(e) != "one\ntwo" || e.Cursor() != 5 {
+		t.Errorf("`A from another buffer went to %d in %q", e.Cursor(), text(e))
+	}
 }
 
 // B90

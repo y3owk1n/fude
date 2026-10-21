@@ -174,6 +174,9 @@ func (h host) SetMark(name rune, pos int) {
 	h.e.marks[name] = h.e.r.text.SetMark(pos, kernel.Right)
 }
 
+// ShowMark reports false, as a replica holds one text.
+func (h host) ShowMark(rune) bool { return false }
+
 func (h host) Mark(name rune) (int, bool) {
 	id, ok := h.e.marks[name]
 	if !ok {
