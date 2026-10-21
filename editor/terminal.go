@@ -97,9 +97,10 @@ func (e *Session) terminalWindow(b *buffer, where string, lock bool) {
 	if where == "above" || where == "below" {
 		e.root.leaf(e.win).size = max((e.height*int(e.cfg.TerminalHeight)+50)/100, 3)
 	}
-	// A terminal window has no options. A split copies the window it came
-	// from, own options under its filetype's included, so those go too.
-	e.win.opts, e.win.own, e.win.locked = options{}, nil, lock
+	// A terminal window has no options but how searches go. A split copies
+	// the window it came from, own options under its filetype's included,
+	// so those go too.
+	e.win.opts, e.win.own, e.win.locked = options{HLSearch: true, WrapScan: true}, nil, lock
 	e.layout()
 }
 

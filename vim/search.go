@@ -42,6 +42,21 @@ type patternKey struct {
 // whether a pattern with an uppercase letter matches case anyway (B120).
 func (m *Machine) IgnoreCase(ignore, smart bool) { m.ignoreCase, m.smartCase = ignore, smart }
 
+// WrapScan sets whether a search that reaches an end of the text goes on
+// from the other, as it does unless set off (B484).
+func (m *Machine) WrapScan(on bool) { m.noWrapScan = !on }
+
+// notFound is what a search for src that found no match says.
+func (m *Machine) notFound(src string, forward bool) string {
+	switch {
+	case !m.noWrapScan:
+		return "pattern not found: " + src
+	case forward:
+		return "search hit the end without a match for " + src
+	}
+	return "search hit the start without a match for " + src
+}
+
 // hasUpper reports whether src has an uppercase letter that is not part
 // of a backslash item, such as \S.
 func hasUpper(src string) bool {
@@ -74,16 +89,16 @@ func (m *Machine) seek(c int, src string, forward bool, n int) (int, kind) {
 		// After wrapping, a search reads only up to where it began.
 		at, ok := 0, false
 		if forward {
-			if at, ok = p.first(t, pos+1, t.Len()+1); !ok {
+			if at, ok = p.first(t, pos+1, t.Len()+1); !ok && !m.noWrapScan {
 				at, ok = p.first(t, 0, pos+1)
 				m.msg = "search hit the end, continuing at the start"
 			}
-		} else if at, ok = p.last(t, 0, pos); !ok {
+		} else if at, ok = p.last(t, 0, pos); !ok && !m.noWrapScan {
 			at, ok = p.last(t, pos, t.Len()+1)
 			m.msg = "search hit the start, continuing at the end"
 		}
 		if !ok {
-			m.msg = "pattern not found: " + src
+			m.msg = m.notFound(src, forward)
 			return c, failed
 		}
 		pos = at
@@ -155,9 +170,9 @@ func (m *Machine) seekOffset(c int, src, off string, forward bool, n int, again 
 		from = -1 // before the text, so a match at its start counts
 	}
 	for range n {
-		at, ok := p.after(t, from, place, forward)
+		at, ok := p.after(t, from, place, forward, !m.noWrapScan)
 		if !ok {
-			m.msg = "pattern not found: " + src
+			m.msg = m.notFound(src, forward)
 			return c, failed
 		}
 		from = place(at)
@@ -170,8 +185,9 @@ func (m *Machine) seekOffset(c int, src, off string, forward bool, n int, again 
 }
 
 // after returns the first match whose place is after from, or searching
-// back the last whose place is before it, wrapping around the text.
-func (p *pattern) after(t Text, from int, place func(int) int, forward bool) (int, bool) {
+// back the last whose place is before it, wrapping around the text when
+// wrap is set.
+func (p *pattern) after(t Text, from int, place func(int) int, forward, wrap bool) (int, bool) {
 	if forward {
 		for lo, wrapped := LineStart(t, max(from, 0)), false; ; {
 			at, ok := p.first(t, lo, t.Len()+1)
@@ -180,7 +196,7 @@ func (p *pattern) after(t Text, from int, place func(int) int, forward bool) (in
 				return at, true
 			case ok:
 				lo = at + 1
-			case wrapped || lo == 0:
+			case wrapped || lo == 0 || !wrap:
 				return 0, false
 			default:
 				lo, wrapped, from = 0, true, -1
@@ -194,7 +210,7 @@ func (p *pattern) after(t Text, from int, place func(int) int, forward bool) (in
 			return at, true
 		case ok:
 			hi = at
-		case wrapped:
+		case wrapped || !wrap:
 			return 0, false
 		default:
 			hi, wrapped, from = t.Len()+1, true, t.Len()+1
@@ -772,7 +788,7 @@ func (m *Machine) Incremental() (int, int, bool) {
 		return 0, 0, false
 	}
 	t := m.h.Text()
-	at, ok := p.wrapped(t, m.searchFrom, m.prompt == "/")
+	at, ok := p.wrapped(t, m.searchFrom, m.prompt == "/", !m.noWrapScan)
 	if !ok {
 		return 0, 0, false
 	}
@@ -780,16 +796,16 @@ func (m *Machine) Incremental() (int, int, bool) {
 }
 
 // wrapped returns the start of the first match after at, or going back the
-// last before it, wrapping around the text.
-func (p *pattern) wrapped(t Text, at int, forward bool) (int, bool) {
+// last before it, wrapping around the text when wrap is set.
+func (p *pattern) wrapped(t Text, at int, forward, wrap bool) (int, bool) {
 	if forward {
-		if to, ok := p.first(t, at+1, t.Len()+1); ok {
-			return to, true
+		if to, ok := p.first(t, at+1, t.Len()+1); ok || !wrap {
+			return to, ok
 		}
 		return p.first(t, 0, at+1)
 	}
-	if to, ok := p.last(t, 0, at); ok {
-		return to, true
+	if to, ok := p.last(t, 0, at); ok || !wrap {
+		return to, ok
 	}
 	return p.last(t, at, t.Len()+1)
 }

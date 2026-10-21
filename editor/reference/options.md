@@ -114,6 +114,19 @@ While a search is typed, the window shows the match it goes to, lit apart
 from the other matches, and `<Esc>` scrolls the window back. It is on unless
 set off.
 
+## hl_search
+
+Lights the matches of the search being typed and of the last search in
+every window, until `<C-l>` or `:noh`. Off, only the match a search being
+typed goes to shows, with `inc_search` on. It is on unless set off.
+
+## wrap_scan
+
+A search that reaches the end of the text goes on from its start, and one
+going back from its end. Off, `/`, `?`, `n`, `N`, `*`, `#`, `gn` and `gN`
+stop at the end, and say so when nothing matches before it. It is on
+unless set off.
+
 ## lsp.diagnostic_notes
 
 After a line with a diagnostic, its message shows in the severity's colour.

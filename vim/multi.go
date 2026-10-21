@@ -7,8 +7,8 @@ import (
 )
 
 // searchMatch returns the match of the last search under c, or else the next
-// one after it, or the one before it when back, wrapping around the text,
-// for gn and gN (B232).
+// one after it, or the one before it when back, wrapping around the text
+// unless WrapScan is off, for gn and gN (B232).
 func (m *Machine) searchMatch(t Text, c int, back bool) (int, int, error) {
 	if m.search.pattern == "" {
 		return 0, 0, errors.New("no previous search")
@@ -23,17 +23,9 @@ func (m *Machine) searchMatch(t Text, c int, back bool) (int, int, error) {
 			return ls + s, ls + e, nil
 		}
 	}
-	var at int
-	var ok bool
-	if back {
-		if at, ok = p.last(t, 0, c); !ok {
-			at, ok = p.last(t, c, t.Len()+1)
-		}
-	} else if at, ok = p.first(t, c+1, t.Len()+1); !ok {
-		at, ok = p.first(t, 0, c+1)
-	}
+	at, ok := p.wrapped(t, c, !back, !m.noWrapScan)
 	if !ok {
-		return 0, 0, errors.New("pattern not found: " + m.search.pattern)
+		return 0, 0, errors.New(m.notFound(m.search.pattern, !back))
 	}
 	return at, p.endAt(t, at), nil
 }

@@ -49,7 +49,7 @@ func (e *Session) screenPanel(b *buffer, p api.Panel) {
 	e.bufs = append(e.bufs, s)
 	e.win.show(s)
 	opts := e.win.opts
-	e.win.saved, e.win.opts = &opts, options{}
+	e.win.saved, e.win.opts = &opts, options{HLSearch: true, WrapScan: true}
 	s.keys = e.panelKeys(s, p.Keys)
 	e.style(s, styled(p.Spans))
 	e.setCursor(min(max(p.Cursor, 0), s.text.Snapshot().Len()))

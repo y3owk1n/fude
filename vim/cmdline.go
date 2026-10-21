@@ -173,7 +173,10 @@ func stepMatch(m *Machine, k Key, _, _ string) error {
 	if err != nil {
 		return err
 	}
-	to, _ := p.wrapped(m.h.Text(), at, k == "<C-g>")
+	to, ok := p.wrapped(m.h.Text(), at, k == "<C-g>", !m.noWrapScan)
+	if !ok {
+		return nil
+	}
 	m.searchFrom = to - 1
 	if m.prompt == "?" {
 		m.searchFrom = to + 1

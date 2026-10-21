@@ -231,6 +231,7 @@ type Machine struct {
 	hl                    bool                    // matches of the last search are highlighted
 	res                   map[patternKey]*pattern // compiled patterns, as a search and a :s preview take turns
 	ignoreCase, smartCase bool
+	noWrapScan            bool     // searches stop at the ends of the text
 	clipboard             bool     // commands without a register use the host's clipboard too
 	flash                 [2]int   // what the last key yanked or put, empty when nothing
 	flashes               [][2]int // the same at the multicursors

@@ -119,7 +119,7 @@ var keymapTables = []struct{ name, help string }{
 	{"groups", "names of the keys mappings start with, which key hints show"},
 }
 
-var defaults = config{TabWidth: 8, KeyTimeout: 1000, FormatTimeout: 1000, LargeFile: 2, TerminalHeight: 33, SplitBelow: true, SplitRight: true, RemoteImages: true, Sources: []string{"lsp", "snippet", "path", "buffer"}, AutoInstall: true, Leader: "<Space>", Theme: "dark", options: options{Wrap: true, IncSearch: true}}
+var defaults = config{TabWidth: 8, KeyTimeout: 1000, FormatTimeout: 1000, LargeFile: 2, TerminalHeight: 33, SplitBelow: true, SplitRight: true, RemoteImages: true, Sources: []string{"lsp", "snippet", "path", "buffer"}, AutoInstall: true, Leader: "<Space>", Theme: "dark", options: options{Wrap: true, IncSearch: true, HLSearch: true, WrapScan: true}}
 
 // options are the settings each window has, which :set changes for the
 // current window and the windows opened after it (B39). :set takes each by
@@ -143,6 +143,8 @@ type options struct {
 	ColorColumn    int  `toml:"color_column" help:"shades this column of the text, and is how wide :center makes it, 0 for none"`
 	Icons          bool `toml:"icons" help:"shows nerd font icons in explorers and signs"`
 	IncSearch      bool `toml:"inc_search" help:"while a search is typed, the window shows the match it goes to, lit apart from the rest"`
+	HLSearch       bool `toml:"hl_search" help:"the matches of the search being typed and of the last search are lit"`
+	WrapScan       bool `toml:"wrap_scan" help:"a search that reaches an end of the text goes on from the other"`
 	// Modules are the values :set gave modules' window options here, by
 	// name. A change replaces the map, so a copy of options keeps its own.
 	Modules map[string]string `toml:"-"`

@@ -114,7 +114,9 @@ func (e *Session) draw(w *window) wire.Window {
 	}
 	// A server's semantic tokens draw over the syntax's highlights (B471).
 	v.Highlights = append(v.Highlights, w.buf.tokensIn(top, last)...)
-	v.Matches = e.vim.Matches(t, top, last)
+	if w.opts.HLSearch {
+		v.Matches = e.vim.Matches(t, top, last)
+	}
 	if s, end, ok := e.vim.Incremental(); ok && w == e.win && w.opts.IncSearch {
 		v.Searched = [2]int{s, end}
 	}

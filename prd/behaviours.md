@@ -770,8 +770,9 @@ Where fude departs, the line says so and cites the departure in
   buffer was last left, at its start until then. `(`, `)`, `{` and `}` are
   where those motions go from the cursor. `:marks` lists them all.
 - B21 [2] `/` and `?` search forward and back, and `n` and `N` repeat.
-  A search that reaches an end of the text goes on from the other.
-  Matches highlight in every window while typing and after the search.
+  A search that reaches an end of the text goes on from the other, unless
+  `wrap_scan` is off (B484). Matches highlight in every window while
+  typing and after the search, unless `hl_search` is off (B485).
   While a search is typed, with `inc_search` on, as it is unless set off,
   the window shows the match it goes to, lit apart from the rest, and
   `<Esc>` scrolls the window back. `<C-g>` and `<C-t>` move that match on
@@ -788,6 +789,16 @@ Where fude departs, the line says so and cites the departure in
   case, and with `smart_case` too a pattern with an uppercase letter
   matches case. `\c` and `\C` in a pattern override both, as with
   Neovim's `ignorecase` and `smartcase`.
+- B484 [2] With `wrap_scan` off, `/`, `?`, `n`, `N`, `*`, `#`, `gn`, `gN`
+  and the match a search being typed goes to stop at the end of the text,
+  or at its start going back, and a search with no match before it fails
+  and says which end it hit, as with Neovim's `nowrapscan`. It is on
+  unless set off.
+- B485 [2] With `hl_search` off, no window lights the matches of the
+  search being typed or of the last search, as with Neovim's
+  `nohlsearch`. The match a search being typed goes to is still lit apart
+  with `inc_search`. Turning it on again lights the last search's
+  matches, unless `<C-l>` or `:noh` hid them. It is on unless set off.
 - B22 [2] `:s/pat/rep/flags` substitutes with the pattern syntax of B21 and
   Vim's replacement forms (N1). `&` repeats the last substitute with its
   flags, and `g&` repeats it on every line with the last search's pattern.

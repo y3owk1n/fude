@@ -196,6 +196,23 @@ func TestB21MatchesInEveryWindow(t *testing.T) {
 	}
 }
 
+// B485
+func TestB485HLSearch(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "f")
+	change(t, path, "ab ab\n")
+	e := open(t, path)
+	feed(e, ":set hl_search false<CR>/ab")
+	if v := e.Windows()[0]; v.Matches != nil || v.Searched != [2]int{3, 5} {
+		t.Errorf("typing a search with hl_search off shows matches %v and lights %v", v.Matches, v.Searched)
+	}
+	if feed(e, "<CR>"); e.Windows()[0].Matches != nil {
+		t.Errorf("after the search with hl_search off the window shows matches %v", e.Windows()[0].Matches)
+	}
+	if feed(e, ":set hl_search true<CR>"); len(e.Windows()[0].Matches) != 2 {
+		t.Errorf("with hl_search on again the window shows matches %v", e.Windows()[0].Matches)
+	}
+}
+
 // B37
 func TestB37Wrap(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "f")

@@ -608,6 +608,7 @@ func (e *Session) feed(k vim.Key) {
 		}
 	}
 	e.vim.IgnoreCase(e.win.opts.IgnoreCase, e.win.opts.SmartCase)
+	e.vim.WrapScan(e.win.opts.WrapScan)
 	e.vim.ExpandTab(e.win.opts.ExpandTab)
 	e.vim.TextWidth(e.win.opts.TextWidth)
 	e.vim.Abbreviate(e.cfg.Abbreviations)

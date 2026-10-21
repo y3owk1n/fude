@@ -1099,6 +1099,35 @@ func TestB156TextCommands(t *testing.T) {
 	}
 }
 
+// B484
+func TestB484WrapScan(t *testing.T) {
+	for _, c := range []struct {
+		wrap    bool
+		keys    string
+		want    int
+		message string
+	}{
+		{true, "/abc<CR>", 0, "search hit the end, continuing at the start"},
+		{false, "/abc<CR>", 6, "search hit the end without a match for abc"},
+		{false, "?x<CR>", 4, ""},
+		{false, "?x<CR>?<CR>", 4, "search hit the start without a match for x"},
+		{false, "$/abc/e<CR>", 8, "search hit the end without a match for abc"},
+		{false, "0*", 6, ""},
+	} {
+		h := &host{text: "abc x abc", cursor: 6}
+		m := vim.New(h)
+		m.WrapScan(c.wrap)
+		for _, k := range vim.Keys(c.keys) {
+			if err := m.Feed(k); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if h.cursor != c.want || m.Message() != c.message {
+			t.Errorf("%s with wrap_scan %v went to %d saying %q, want %d and %q", c.keys, c.wrap, h.cursor, m.Message(), c.want, c.message)
+		}
+	}
+}
+
 // B450
 func TestB450TextWidth(t *testing.T) {
 	for _, c := range [][3]string{
