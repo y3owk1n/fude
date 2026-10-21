@@ -1126,10 +1126,17 @@ operators and keyed commands that wait for characters (B322).
 The fold module folds a buffer by indent, as VS Code does by default
 (B224), and `zf` closes a fold over the lines a motion covers. Neovim's
 default `foldmethod` is manual, where only `zf` makes a fold, and
-`foldmethod` offers indent, syntax, markers and expressions. fude has no
-`foldmethod`, `zC` or `zO`, and no `foldlevel` or `foldenable` options.
-`zm` and `zr` take the level from the folds closed now, and `zi` keeps the
-folds it opens to close them again. Why: indent folds work in every
+`foldmethod` offers indent, syntax, markers and expressions. A fold by
+indent starts on the line before the lines indented more, where Neovim's
+starts on the first of them. fude keeps every closed fold, nested ones
+too, and `zo`, `zO`, `zc`, `zC`, `za` and `zA` open and close them a
+level or every level at a time as Neovim's do (B502). Closing a fold puts
+the cursor on its first line, where Neovim leaves it on its own line
+inside the fold, so a count on `zo` opens more than one level only where
+folds start on the same line. fude has no `foldmethod` and no
+`foldlevel` or `foldenable` options. `zm` and `zr` take the level from
+the folds closed now, and `zi` keeps the folds it opens to close them
+again. Why: indent folds work in every
 file, with or without a grammar, and grammar repos ship no fold queries
 (D28). The user asked for folding on 2026-10-17.
 

@@ -1061,24 +1061,32 @@ Where fude departs, the line says so and cites the departure in
   `vim.Defaults` has no folds.
 - B224 [2] The fold module folds a buffer by indent (N34). A fold starts
   on a line followed by lines indented more, and holds them and the blank
-  lines among them, up to the last line indented more. `zc` closes the fold the
-  cursor's line starts, or else the innermost one it is in. `zo` opens the
-  closed fold it is on, and `za` does one or the other. `zR` opens every
-  fold, and `zM` closes every outermost one. `zf{motion}` closes a fold
-  over the lines it covers. `zj` goes to where the next fold starts and
-  `zk` to where the one above ends, a closed fold counting as one line.
-  `zv` opens the closed folds that hold the cursor's line. `zA` opens the
-  closed fold it is on, or else closes the outermost one it is in. `zm`
-  and `zr` fold n levels more or less, so every fold deeper than the level
-  closes and the rest open. The level is one less than the shallowest
-  closed fold's depth, or the deepest fold's depth with none closed, the
-  outermost folds being 1 deep (N34). `zi` opens every closed fold, and
-  again closes those folds where the edits have moved them.
+  lines among them, up to the last line indented more. `zc`, `zo`, `za`,
+  `zC`, `zO` and `zA` close and open the folds at the cursor as B502 says.
+  `zR` opens every fold, and `zM` closes every fold, nested ones too.
+  `zf{motion}` closes a fold over the lines it covers. `zj` goes to where
+  the next fold starts and `zk` to where the one above ends, a closed fold
+  counting as one line. `zv` opens the closed folds that hold the cursor's
+  line. `zm` and `zr` fold n levels more or less, so every fold deeper
+  than the level closes, nested ones too, and the rest open. The level is
+  one less than the shallowest closed fold's depth, or the deepest fold's
+  depth with none closed, the outermost folds being 1 deep (N34). `zi`
+  opens every closed fold, and again closes those folds where the edits
+  have moved them.
   A closed fold shows its first line, then how many lines it hides. `j`
   and `k` pass over it as B223 says, relative numbers count it as one
   line, and any other move that lands the cursor inside it, such as a
   search, `G` or a mark, opens it. Folds belong to the buffer, so every
   window on it shows them, and edits move them.
+- B502 [2] The fold module keeps each closed fold, so a fold closed inside
+  a closed fold stays closed when the outer one opens. Of the folds that
+  hold the cursor's line, outermost first, `zo` opens the first closed one
+  and `zc` closes the last open one before it, n levels with a count, and
+  `za` opens with a closed one there and closes without, as in Neovim. `zO`
+  opens the first closed one and every fold inside it, `zC` closes every
+  one, and `zA` does `zO` with a closed one there and `zC` without. The
+  cursor sits on a closed fold's first line, which the folds inside it do
+  not hold (N34).
 - B232 [2] `gn` selects in visual mode the match of the last search
   under the cursor, or else the next one, and `gN` the one before, going
   round the text. After an operator they are its target, so `cgn` changes

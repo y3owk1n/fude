@@ -301,27 +301,41 @@ edits to the explorer not yet written with `:w`.
 
 ## <Plug>(fold.toggle)
 
-`za` by default. On a line inside a closed fold, it opens every closed
-fold that holds the line. Elsewhere it closes a fold as
-`<Plug>(fold.close)` does, and says "no fold here" when there is none.
-The count does nothing.
+`za` by default. When a fold that holds the cursor's line is closed, it
+opens n levels as `<Plug>(fold.open)` does. Elsewhere it closes n levels
+as `<Plug>(fold.close)` does, and says "no fold here" when there is none.
 
 ## <Plug>(fold.close)
 
 `zc` by default. Folds go by indent. A fold starts on a line followed by
-lines indented more, and holds them and the blank lines among them. On
-such a line it closes that fold. Elsewhere it closes the innermost fold
-the cursor's line is in. The closed folds inside it join the new one. The
-cursor goes to the fold's first line. With no fold there, the message
-says "no fold here". `zc` on a closed fold closes the same fold again,
-not the one around it as Vim does.
+lines indented more, and holds them and the blank lines among them, so a
+line can be in folds within folds. Of the folds that hold the cursor's
+line, outermost first, it closes the last one open before the first
+closed one, which with every fold open is the innermost. With a count it
+closes that many levels, outward. The closed folds inside stay closed, so
+`<Plug>(fold.open)` shows them again. The cursor goes to the first line of
+the fold it is in. With no fold there, the message says "no fold here".
+
+## <Plug>(fold.close_deep)
+
+`zC` by default. Closes every fold that holds the cursor's line, as many
+levels as there are, and the cursor goes to the first line of the
+outermost.
 
 ## <Plug>(fold.open)
 
-`zo` by default. It opens every closed fold that holds the cursor's line,
-nested ones too, where Vim's `zo` opens one level. On a line in no closed
+`zo` by default. Opens the outermost closed fold that holds the cursor's
+line, and leaves the closed folds inside it closed. With a count it opens
+that many levels. The cursor sits on the first line of a closed fold,
+which the folds inside it do not hold, so a count opens more than one
+level only where folds start on the same line. On a line in no closed
 fold it does nothing. A fold `zf` made is gone once opened, and
 `<Plug>(fold.close)` folds by indent after that.
+
+## <Plug>(fold.open_deep)
+
+`zO` by default. Opens the outermost closed fold that holds the cursor's
+line and every closed fold inside it.
 
 ## <Plug>(fold.open_all)
 
@@ -331,21 +345,23 @@ open.
 
 ## <Plug>(fold.close_all)
 
-`zM` by default. It closes each outermost fold by indent, from the top of
-the buffer down, and the cursor goes to the first line of the fold it is
-in.
+`zM` by default. It closes every fold by indent, the nested ones too, so
+`<Plug>(fold.open)` opens them one level at a time. The cursor goes to
+the first line of the fold it is in.
 
 ## <Plug>(fold.toggle_all)
 
-`zA` by default. On a line inside a closed fold, it opens every closed
-fold that holds the line, as `<Plug>(fold.toggle)` does. Elsewhere it
-closes the outermost fold the cursor's line is in, and says "no fold
-here" when there is none. The count does nothing.
+`zA` by default. When a fold that holds the cursor's line is closed, it
+opens it and every fold inside it, as `<Plug>(fold.open_deep)` does.
+Elsewhere it closes every fold that holds the line, as
+`<Plug>(fold.close_deep)` does, and says "no fold here" when there is
+none.
 
 ## <Plug>(fold.view)
 
 `zv` by default. Opens every closed fold that holds the cursor's line, so
-the line shows. On a line in no closed fold it does nothing.
+the line shows. The closed folds inside them stay closed. On a line in no
+closed fold it does nothing.
 
 ## <Plug>(fold.more)
 
@@ -354,8 +370,8 @@ deep a fold may be and stay open, the outermost folds being 1 deep. Every
 fold deeper than the level closes and the others open. The level starts
 one less than the depth of the shallowest closed fold, or with no fold
 closed at the deepest fold's depth, so `zm` after `zR` closes the
-innermost folds. At 0 it closes the outermost folds, as `zM` does, and
-goes no lower.
+innermost folds. At 0 it closes every fold, as `zM` does, and goes no
+lower.
 
 ## <Plug>(fold.less)
 

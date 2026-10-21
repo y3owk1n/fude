@@ -53,9 +53,10 @@ func TestB224Folds(t *testing.T) {
 			t.Errorf("%s went to line %d, want %d", keys, e.Text().LineOf(e.Cursor()), want)
 		}
 	}
-	// zm and zr fold one level more or less, from every fold open, and zA
-	// closes the outermost fold the cursor is in or opens it. zi opens every
-	// fold, and again closes them as they were.
+	// zm and zr fold one level more or less, from every fold open, and zv
+	// opens the folds that hide the cursor's line. zA closes every fold the
+	// cursor is in or opens them. zi opens every fold, and again closes them
+	// as they were.
 	editortest.Change(t, path, "a\n\tb\n\t\tc\n\td\ne\n")
 	e = editortest.Start(t, path)
 	e.Use(fold.New())
@@ -70,11 +71,41 @@ func TestB224Folds(t *testing.T) {
 		{"zr", map[int]int{1: 1}},
 		{"zr", nil},
 		{"2zm", map[int]int{0: 3}},
-		{"zv", nil},
+		{"zv", map[int]int{1: 1}},
 		{"jjzA", map[int]int{0: 3}},
 		{"zA", nil},
 		{"zMzi", nil},
 		{"zi", map[int]int{0: 3}},
+	} {
+		if editortest.Feed(e, c.keys); !maps.Equal(e.Windows()[0].Folds, c.want) {
+			t.Errorf("%s made %v, want %v", c.keys, e.Windows()[0].Folds, c.want)
+		}
+	}
+}
+
+// B502
+func TestB502FoldLevels(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.go")
+	editortest.Change(t, path, "a\n\tb\n\t\tc\n\t\t\td\n\t\t\td\n\t\te\n\tf\ng\n")
+	e := editortest.Start(t, path)
+	e.Use(fold.New())
+	e.SetSize(80, 20)
+	// The folds start on lines 0, 1 and 2, and line 3 is in all three.
+	for _, c := range []struct {
+		keys string
+		want map[int]int
+	}{
+		{"4Gzc", map[int]int{2: 2}},
+		{"zc", map[int]int{1: 4}},
+		{"zo", map[int]int{2: 2}},
+		{"zR4G2zc", map[int]int{1: 4}},
+		{"zR4GzC", map[int]int{0: 6}},
+		{"zo", map[int]int{1: 4}},
+		{"jza", map[int]int{2: 2}},
+		{"za", map[int]int{1: 4}},
+		{"zMzO", nil},
+		{"4GzA", map[int]int{0: 6}},
+		{"zA", nil},
 	} {
 		if editortest.Feed(e, c.keys); !maps.Equal(e.Windows()[0].Folds, c.want) {
 			t.Errorf("%s made %v, want %v", c.keys, e.Windows()[0].Folds, c.want)

@@ -1,9 +1,10 @@
-// Package fold folds a buffer by indent, through zc, zo, za, zA, zv, zR,
-// zM, zm, zr and zi, folds the lines zf covers, and moves between folds
-// with zj and zk (B224, N34).
+// Package fold folds a buffer by indent, through zc, zC, zo, zO, za, zA,
+// zv, zR, zM, zm, zr and zi, folds the lines zf covers, and moves between
+// folds with zj and zk (B224, B502, N34).
 package fold
 
 import (
+	"cmp"
 	"context"
 	"slices"
 	"strconv"
@@ -28,6 +29,8 @@ const (
 	more
 	less
 	enable
+	openDeep
+	closeDeep
 )
 
 // Module is fold.
@@ -44,15 +47,17 @@ func (m *Module) Subscribed() []string { return nil }
 
 func (m *Module) Registered() []api.Registration {
 	return []api.Registration{
-		{Kind: api.Plug, Name: "toggle", Keys: "za", Help: "opens the closed fold at the cursor, or closes the one it is in", ID: toggle},
-		{Kind: api.Plug, Name: "close", Keys: "zc", Help: "closes the fold the cursor's line starts, or the one it is in", ID: closeOne},
-		{Kind: api.Plug, Name: "open", Keys: "zo", Help: "opens the closed fold at the cursor", ID: open},
+		{Kind: api.Plug, Name: "toggle", Keys: "za", Help: "opens the closed fold at the cursor as zo does, or closes one as zc does", ID: toggle},
+		{Kind: api.Plug, Name: "close", Keys: "zc", Help: "closes one level of the folds at the cursor, or n levels", ID: closeOne},
+		{Kind: api.Plug, Name: "close_deep", Keys: "zC", Help: "closes every fold at the cursor", ID: closeDeep},
+		{Kind: api.Plug, Name: "open", Keys: "zo", Help: "opens one level of the closed folds at the cursor, or n levels", ID: open},
+		{Kind: api.Plug, Name: "open_deep", Keys: "zO", Help: "opens the closed fold at the cursor and every fold in it", ID: openDeep},
 		{Kind: api.Plug, Name: "open_all", Keys: "zR", Help: "opens every fold", ID: openAll},
-		{Kind: api.Plug, Name: "close_all", Keys: "zM", Help: "closes every outermost fold", ID: closeAll},
+		{Kind: api.Plug, Name: "close_all", Keys: "zM", Help: "closes every fold", ID: closeAll},
 		{Kind: api.Operator, Name: "zf", Help: "closes a fold over the lines a motion or object covers", ID: create},
 		{Kind: api.Plug, Name: "next", Keys: "zj", Help: "goes to the start of the n-th fold below", ID: nextFold},
 		{Kind: api.Plug, Name: "prev", Keys: "zk", Help: "goes to the end of the n-th fold above", ID: prevFold},
-		{Kind: api.Plug, Name: "toggle_all", Keys: "zA", Help: "opens the closed fold at the cursor, or closes the outermost one it is in", ID: toggleAll},
+		{Kind: api.Plug, Name: "toggle_all", Keys: "zA", Help: "opens the closed fold at the cursor as zO does, or closes every fold at the cursor", ID: toggleAll},
 		{Kind: api.Plug, Name: "view", Keys: "zv", Help: "opens the folds that hide the cursor's line", ID: view},
 		{Kind: api.Plug, Name: "more", Keys: "zm", Help: "folds one level more, or n levels", ID: more},
 		{Kind: api.Plug, Name: "less", Keys: "zr", Help: "folds one level less, or n levels", ID: less},
@@ -62,10 +67,11 @@ func (m *Module) Registered() []api.Registration {
 
 func (m *Module) Init(context.Context, api.Scope) (api.Result, error) { return api.Result{}, nil }
 
-// Call runs a fold key at the cursor. zc closes the fold the cursor's
-// line starts, or else the one it is in, zo opens the closed fold it is
-// in, and za does one or the other. zR opens every fold, and zM closes
-// every outermost one.
+// Call runs a fold key at the cursor. The folds at the cursor are those
+// that hold its line, outermost first. zo opens the first closed one, zc
+// closes the last open one before it, and za does one or the other. zO
+// opens the first closed one and every fold in it, zC closes them all,
+// and zA does one or the other. zR opens every fold, and zM closes them.
 func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (api.Result, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -87,21 +93,10 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 			res.Undecorate = append(res.Undecorate, opened(t, folds, last).Undecorate...)
 			res.Decorate = []api.Decoration{m.fold(t, line, last)}
 		}
-	case open, view:
+	case view:
 		res = opened(t, folds, line)
-	case toggle:
-		if res = opened(t, folds, line); res.Undecorate == nil {
-			res = m.closeAround(t, folds, line, tab)
-		}
-	case toggleAll:
-		if res = opened(t, folds, line); res.Undecorate != nil {
-			break
-		}
-		if closing, ok := m.closeAt(t, folds, outermost(t, line, tab), tab); ok {
-			res = closing
-		} else {
-			res.Error = "no fold here"
-		}
+	case open, closeOne, toggle, openDeep, closeDeep, toggleAll:
+		res = m.levels(t, folds, spans(t, folds, line, tab), id, max(args[1], 1))
 	case more, less:
 		n := max(args[1], 1)
 		if id == more {
@@ -110,17 +105,16 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 		res = m.level(t, folds, tab, n)
 	case enable:
 		res = m.enable(s, folds)
-	case closeOne:
-		res = m.closeAround(t, folds, line, tab)
 	case openAll:
 		for _, f := range folds {
 			res.Undecorate = append(res.Undecorate, f.ID)
 		}
 	case closeAll:
 		for l := 0; l < t.Lines(); l++ {
-			if last, ok := foldEnd(t, l, tab); ok {
+			if last, ok := foldEnd(t, l, tab); ok && !slices.ContainsFunc(folds, func(f api.Decoration) bool {
+				return t.LineOf(f.Start) == l && t.LineOf(f.End) == last
+			}) {
 				res.Decorate = append(res.Decorate, m.fold(t, l, last))
-				l = last
 			}
 		}
 	}
@@ -141,6 +135,102 @@ func (m *Module) Callback(context.Context, uint32, api.Scope) (api.Result, error
 
 func (m *Module) Work(context.Context, api.Job) (string, error) { return "", nil }
 func (m *Module) Close(context.Context) error                   { return nil }
+
+// span is a fold that holds a line: its first and last lines, and its
+// decoration when it is closed.
+type span struct {
+	first, last int
+	closed      *api.Decoration
+}
+
+// spans returns the folds that hold line, by indent or closed, outermost
+// first.
+func spans(t api.Text, folds []api.Decoration, line, tab int) []span {
+	var out []span
+	if last, ok := foldEnd(t, line, tab); ok {
+		out = append(out, span{first: line, last: last})
+	}
+	ind, ok := indentCol(t, line, tab)
+	for l := line - 1; l >= 0; l-- {
+		if col, text := indentCol(t, l, tab); text && (!ok || col < ind) {
+			if last, _ := foldEnd(t, l, tab); last >= line {
+				out = append(out, span{first: l, last: last})
+			}
+			ind, ok = col, true
+		}
+	}
+	for _, f := range folds {
+		first, last := t.LineOf(f.Start), t.LineOf(f.End)
+		if line < first || line > last {
+			continue
+		}
+		if i := slices.IndexFunc(out, func(sp span) bool { return sp.first == first && sp.last == last }); i >= 0 {
+			out[i].closed = &f
+		} else {
+			out = append(out, span{first, last, &f})
+		}
+	}
+	slices.SortFunc(out, func(a, b span) int { return cmp.Or(a.first-b.first, b.last-a.last) })
+	return out
+}
+
+// levels opens or closes the folds at the cursor, path, as the key id says,
+// n levels for zo, zc and za.
+func (m *Module) levels(t api.Text, folds []api.Decoration, path []span, id uint32, n int) api.Result {
+	if len(path) == 0 {
+		return api.Result{Error: "no fold here"}
+	}
+	first := slices.IndexFunc(path, func(sp span) bool { return sp.closed != nil })
+	switch {
+	case id == toggle && first >= 0:
+		id = open
+	case id == toggle:
+		id = closeOne
+	case id == toggleAll && first >= 0:
+		id = openDeep
+	case id == toggleAll:
+		id = closeDeep
+	}
+	var res api.Result
+	switch id {
+	case open:
+		for _, sp := range path {
+			if sp.closed != nil && n > 0 {
+				res.Undecorate = append(res.Undecorate, sp.closed.ID)
+				n--
+			}
+		}
+	case openDeep:
+		if first < 0 {
+			break
+		}
+		for _, f := range folds {
+			if l := t.LineOf(f.Start); l >= path[first].first && l <= path[first].last {
+				res.Undecorate = append(res.Undecorate, f.ID)
+			}
+		}
+	case closeDeep:
+		for _, sp := range path {
+			if sp.closed == nil {
+				res.Decorate = append(res.Decorate, m.fold(t, sp.first, sp.last))
+			}
+		}
+	case closeOne:
+		// Each level closes the last open fold before the first closed one.
+		for range n {
+			if first = slices.IndexFunc(path, func(sp span) bool { return sp.closed != nil }); first < 0 {
+				first = len(path)
+			}
+			if first == 0 {
+				break
+			}
+			d := m.fold(t, path[first-1].first, path[first-1].last)
+			path[first-1].closed = &d
+			res.Decorate = append(res.Decorate, d)
+		}
+	}
+	return res
+}
 
 // level folds n levels less, or more for a negative n, from the level the
 // closed folds are at. Folds deeper than the level close and the rest
@@ -163,7 +253,7 @@ func (m *Module) level(t api.Text, folds []api.Decoration, tab, n int) api.Resul
 		res.Undecorate = append(res.Undecorate, f.ID)
 	}
 	for l, d := range depth {
-		if last, ok := foldEnd(t, l, tab); ok && d == to+1 {
+		if last, ok := foldEnd(t, l, tab); ok && d > to {
 			res.Decorate = append(res.Decorate, m.fold(t, l, last))
 		}
 	}
@@ -214,19 +304,6 @@ func depths(t api.Text, tab int) map[int]int {
 	return out
 }
 
-// outermost returns the line that starts the outermost fold holding line,
-// or line.
-func outermost(t api.Text, line, tab int) int {
-	first := line
-	ind, ok := indentCol(t, line, tab)
-	for l := line - 1; l >= 0; l-- {
-		if col, text := indentCol(t, l, tab); text && (!ok || col < ind) {
-			first, ind, ok = l, col, true
-		}
-	}
-	return first
-}
-
 // fold returns the decoration that closes the fold from line first to line
 // last.
 func (m *Module) fold(t api.Text, first, last int) api.Decoration {
@@ -267,40 +344,6 @@ func opened(t api.Text, folds []api.Decoration, line int) api.Result {
 		}
 	}
 	return res
-}
-
-// closeAround closes the fold line starts, or else the innermost one that
-// holds it, which the nearest line above with less indent starts.
-func (m *Module) closeAround(t api.Text, folds []api.Decoration, line, tab int) api.Result {
-	if res, ok := m.closeAt(t, folds, line, tab); ok {
-		return res
-	}
-	ind, ok := indentCol(t, line, tab)
-	for l := line - 1; l >= 0; l-- {
-		if col, text := indentCol(t, l, tab); text && (!ok || col < ind) {
-			if res, ok := m.closeAt(t, folds, l, tab); ok {
-				return res
-			}
-		}
-	}
-	return api.Result{Error: "no fold here"}
-}
-
-// closeAt closes the fold that starts on line, when there is one, opening
-// the closed folds it holds first.
-func (m *Module) closeAt(t api.Text, folds []api.Decoration, line, tab int) (api.Result, bool) {
-	last, ok := foldEnd(t, line, tab)
-	if !ok {
-		return api.Result{}, false
-	}
-	var res api.Result
-	for _, f := range folds {
-		if s := t.LineOf(f.Start); s >= line && s <= last {
-			res.Undecorate = append(res.Undecorate, f.ID)
-		}
-	}
-	res.Decorate = []api.Decoration{m.fold(t, line, last)}
-	return res, true
 }
 
 // firstLine returns the first line of the fold holding line once res
