@@ -297,7 +297,7 @@ func moveKey(m *Machine, t Text, c int, k Key) error {
 		m.h.EndGroup()
 		m.h.BeginGroup()
 		m.h.SetCursor(n)
-		m.insStart = n
+		m.insStart, m.insFresh = n, true
 	}
 	return nil
 }
@@ -348,7 +348,7 @@ func (m *Machine) startInsert(k Key, pos int) error {
 	m.label = string(k)
 	m.h.BeginGroup()
 	m.h.SetCursor(pos)
-	m.insStart, m.autoIndent = pos, false
+	m.insStart, m.autoIndent, m.insFresh = pos, false, true
 	return nil
 }
 

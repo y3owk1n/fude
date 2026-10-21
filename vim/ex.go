@@ -613,9 +613,13 @@ func (m *Machine) global(first, last int, pat, cmd string, match bool) error {
 	return nil
 }
 
-// globalMark is the first of the marks :g keeps on the lines it found,
-// after the one :normal keeps on its first line.
-const globalMark = OwnMarks + 1
+// lineMark is the start of the line U puts back, after the mark :normal
+// keeps on its first line. globalMark is the first of the marks :g keeps on
+// the lines it found.
+const (
+	lineMark   = OwnMarks + 1
+	globalMark = OwnMarks + 2
+)
 
 // normalLines runs keys in normal mode at the start of each line from first
 // to last, through the mappings when mapped, as one undo step, ending any

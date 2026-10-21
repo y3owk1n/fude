@@ -585,3 +585,16 @@
 "|a\nb\nc\nd" "yy:2,3put<CR>" "a\nb\nc\n|a\nd"
 "|a\nb\nc" "\"xyyj:pu x<CR>" "a\nb\n|a\nc"
 "a b|c" "yiw:put<CR>" "a bc\n|bc"
+
+# B500
+"|abc def\nxyz" "xxlxU" "|abc def\nxyz"
+"|abc def\nxyz" "xxlxUU" "c|def\nxyz"
+"|abc def\nxyz" "xxUU.." "|def\nxyz"
+"|abc def\nxyz\nlast" "xjxkU" "bc def\n|xyz\nlast"
+"|abc def\nxyz" "xjxkxU" "|bc def\nyz"
+"|abc def\nxyz" "U" "|abc def\nxyz"
+"|abc def\nxyz" "Afoo<Esc>U" "abc de|f\nxyz"
+"|abc def\nxyz" "ofoo<Esc>U" "abc def\n|\nxyz"
+"|abc def\nxyz" "A<CR>bar<Esc>U" "abc def\nba|r\nxyz"
+"|abc def\nxyz" "xddU" "|xyz"
+"|abc def\nxyz" "xyyjpU" "|abc def\nxyz\nbc def"

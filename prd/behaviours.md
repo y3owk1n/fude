@@ -1261,6 +1261,15 @@ Where fude departs, the line says so and cites the departure in
 - B30 [2] `u` and `<C-r>` move along the current branch, as `:undo` and
   `:redo` do. An edit after an undo starts a new branch and keeps the old
   one.
+- B500 [2] `U` puts back the line the last change to a single line was
+  on, as it was before the changes made to it since, with the cursor at
+  its column then. `U` is a change, so `u` undoes it, and `U` again puts
+  back what the first `U` took away, as in Neovim. `.` does not repeat
+  it. In insert mode only the first change of each stretch of typing
+  counts. A change across a line break that touches the line, such as
+  `o`, `J` or `dd`, forgets it, and then `U` does nothing. fude keeps one
+  such line, in the file changed last, so in another file `U` does
+  nothing, where Neovim keeps one per buffer.
 - B31 [2] `:timeline` lists every node with its time and command, and
   restoring a node creates a new node rather than discarding later ones. In
   its window, `[` and `]` move the text to the node above or below, `d`

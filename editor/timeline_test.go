@@ -14,6 +14,22 @@ import (
 	timelinemod "github.com/y3owk1n/fude/modules/timeline"
 )
 
+// B500: U keeps the line of the file changed last, so in another file it
+// does nothing.
+func TestB500UndoLineInAnotherFile(t *testing.T) {
+	dir := t.TempDir()
+	a, b := filepath.Join(dir, "a"), filepath.Join(dir, "b")
+	change(t, a, "abc\n")
+	change(t, b, "xyz\n")
+	e := open(t, a)
+	if feed(e, "x:e "+b+"<CR>x:e #<CR>U"); text(e) != "bc" {
+		t.Errorf("U in a after a change in b made %q", text(e))
+	}
+	if feed(e, ":e #<CR>U"); text(e) != "xyz" {
+		t.Errorf("U back in b made %q", text(e))
+	}
+}
+
 // B30
 func TestB30UndoRedoBranches(t *testing.T) {
 	cases := [][3]string{

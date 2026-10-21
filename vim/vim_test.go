@@ -1145,3 +1145,8 @@ func TestB453Abbreviations(t *testing.T) {
 		}
 	}
 }
+
+// B500
+func TestB500UndoLine(t *testing.T) {
+	cases(t)
+}

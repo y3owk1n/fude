@@ -250,6 +250,12 @@ type Machine struct {
 	autoIndent bool // the line's indent came from autoindent and is untouched
 	oneshot    bool // <C-o> is running one normal command
 	armed      bool // that command has begun
+	insFresh   bool // no change made since typing began or an arrow moved
+
+	// U: the text of the line lineMark marks, from before its latest
+	// changes, the cursor's column then, and the file the line is in.
+	uLine, uFile string
+	uCol         int
 
 	// Keymaps.
 	maps  Keymaps
@@ -478,7 +484,7 @@ func (m *Machine) feed(k Key) error {
 	case m.oneshot && m.idle() && m.armed:
 		m.oneshot, m.mode = false, Insert
 		m.h.BeginGroup()
-		m.insStart = m.h.Cursor()
+		m.insStart, m.insFresh = m.h.Cursor(), true
 	case m.oneshot && m.idle():
 		m.armed = true
 	}
@@ -574,6 +580,9 @@ func (m *Machine) apply(edits []Edit, label string) error {
 			m.grouped = true
 		}
 	}
+	if len(edits) > 0 {
+		m.keepLine(edits)
+	}
 	if err := m.h.Apply(edits, label); err != nil || len(edits) == 0 {
 		return err
 	}
@@ -590,6 +599,67 @@ func (m *Machine) apply(edits []Edit, label string) error {
 	}
 	m.changedText(start, end)
 	m.h.SetMark('.', max(end-1, last.Start+shift))
+	return nil
+}
+
+// keepLine keeps the line edits are about to change for U, when they change
+// one line and no line break and U keeps another line or none. In insert
+// mode only the first change does. Edits to more of the text that touch the
+// line U keeps make it forget the line.
+func (m *Machine) keepLine(edits []Edit) {
+	t := m.h.Text()
+	ls := LineStart(t, edits[0].Start)
+	le := LineEnd(t, ls)
+	one := edits[len(edits)-1].End <= le
+	for _, e := range edits {
+		one = one && !strings.Contains(e.Text, "\n")
+	}
+	at, kept := m.h.Mark(lineMark)
+	kept = kept && m.uFile == m.h.FileName()
+	if kept {
+		at = LineStart(t, at)
+	}
+	switch {
+	case !one && kept:
+		end := LineEnd(t, at)
+		for _, e := range edits {
+			if e.Start <= end && e.End >= at {
+				m.h.DeleteMark(lineMark)
+				return
+			}
+		}
+	case one && (!kept || at != ls) && (m.insFresh || m.mode != Insert && m.mode != Replace):
+		m.h.SetMark(lineMark, ls)
+		m.uLine, m.uCol, m.uFile = t.Slice(ls, le), 0, m.h.FileName()
+		if c := m.h.Cursor(); c >= ls && c <= le {
+			m.uCol = c - ls
+		}
+	}
+	m.insFresh = false
+}
+
+// undoLine puts back the line U keeps as it was before its latest changes,
+// and keeps its text now for the next U. It is a change, but not one . repeats.
+// In another file it does nothing.
+func (m *Machine) undoLine() error {
+	at, ok := m.h.Mark(lineMark)
+	if !ok || m.uFile != m.h.FileName() {
+		m.beep = true
+		return nil
+	}
+	t, c := m.h.Text(), m.h.Cursor()
+	ls := LineStart(t, at)
+	le := LineEnd(t, ls)
+	text, col := m.uLine, m.uCol
+	m.uLine = t.Slice(ls, le)
+	if c >= ls && c <= le {
+		m.uCol = c - ls
+	}
+	if err := m.apply([]Edit{{Start: ls, End: le, Text: text}}, "U"); err != nil {
+		return err
+	}
+	m.changed = false
+	m.h.SetCursor(clamp(m.h.Text(), ls+min(col, len(text))))
 	return nil
 }
 
@@ -995,6 +1065,9 @@ func init() {
 		"<C-r>": {"redoes n changes", func(m *Machine, x normalCall) error {
 			return m.undo(false, x.n())
 		}},
+		"U": {"undoes the latest changes on the last line changed, or the U before", func(m *Machine, _ normalCall) error {
+			return m.undoLine()
+		}},
 		".": {"repeats the last change, with n as its count", func(m *Machine, x normalCall) error {
 			return m.repeat(x.count)
 		}},
@@ -1102,14 +1175,18 @@ func init() {
 				return err
 			}
 			m.insCount = x.count
-			return m.newline()
+			err := m.newline()
+			m.insFresh = true
+			return err
 		}},
 		"O": {"opens a line above and inserts, n lines after <Esc>", func(m *Machine, x normalCall) error {
 			if err := m.startInsert(x.k, x.start); err != nil {
 				return err
 			}
 			m.insCount = x.count
-			return m.openAbove()
+			err := m.openAbove()
+			m.insFresh = true
+			return err
 		}},
 	}
 }

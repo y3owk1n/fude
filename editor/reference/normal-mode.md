@@ -740,6 +740,21 @@ does. fude maps `s` to a jump, which labels the matches of the characters
 typed next, so this `s` runs only once `[keymap.normal]` maps `"s" = ""`.
 Until then `cl` does what it does.
 
+## U
+
+Puts back the line last changed on its own as it was before the changes
+made to it since, with the cursor where it was then. `U` is a change, so
+`u` undoes it, and `U` again puts back what it took away. `.` does not
+repeat it. A change that splits, joins or deletes the line, such as `o`,
+`J` or `dd`, forgets it, and `U` then does nothing. It keeps the line of
+the file changed last, and in another file does nothing.
+
+```keys
+"|abc def\nxyz" "xxlxU" "|abc def\nxyz"
+"|abc def\nxyz" "xxUu" "|c def\nxyz"
+"|abc def\nxyz" "xjxkU" "bc def\n|xyz"
+```
+
 ## u
 
 Undoes n changes. The cursor goes back to where it was before the change
