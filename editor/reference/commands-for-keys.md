@@ -636,6 +636,30 @@ the last list. A count does nothing.
 `]Q` by default, and `:clast` does the same. Goes to the last place of
 the last list. A count does nothing.
 
+## <Plug>(review.accept)
+
+`a` in the `:review` window. Accepts the proposal under the cursor, as
+`:accept n` does. On a line of no proposal it says so.
+
+## <Plug>(review.reject)
+
+`r` in the `:review` window. Rejects the proposal under the cursor, as
+`:reject n` does.
+
+## <Plug>(review.accept_all)
+
+`A` in the `:review` window. Accepts every proposal the window shows, as
+one undo step on each buffer, leaving the stale ones.
+
+## <Plug>(review.reject_all)
+
+`R` in the `:review` window. Rejects every proposal the window shows.
+
+## <Plug>(review.open)
+
+`<CR>` in the `:review` window. Goes to the proposal under the cursor, in
+its file.
+
 ## <Plug>(session.restore)
 
 `s` on the start screen, whose `s` line shows when the working directory

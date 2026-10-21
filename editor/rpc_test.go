@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -196,6 +197,43 @@ func TestB78ClientHearsChanges(t *testing.T) {
 		}
 	}
 	t.Fatalf("after another session's edit the client last heard %q", cl.in.Text())
+}
+
+// B389
+func TestB389ClientHearsItsProposals(t *testing.T) {
+	e := open(t, "")
+	feed(e, "ione two three<Esc>")
+	cl := dial(t, e)
+	fmt.Fprintln(cl.c, `{"id":1,"method":"propose","params":{"edits":[{"buffer":1,"start":0,"end":3,"text":"1"},{"buffer":1,"start":4,"end":7,"text":"2"},{"buffer":1,"start":8,"end":13,"text":"3"}]}}`)
+	cl.c.SetReadDeadline(time.Now().Add(editortest.Patience))
+	var ids []int
+	for ids == nil && cl.in.Scan() {
+		var reply struct {
+			ID     int
+			Result struct{ IDs []int }
+		}
+		if json.Unmarshal(cl.in.Bytes(), &reply) == nil && reply.ID == 1 {
+			ids = reply.Result.IDs
+		}
+	}
+	done := make(chan struct{})
+	cl.do <- func() { feed(e, fmt.Sprintf("$x:reject %d<CR>:accept %d<CR>", ids[1], ids[0])); close(done) }
+	<-done
+	// It hears each, in the order it happened.
+	want := []string{
+		fmt.Sprintf(`{"method":"proposal","params":{"id":%d,"state":"stale"}}`, ids[2]),
+		fmt.Sprintf(`{"method":"proposal","params":{"id":%d,"state":"rejected"}}`, ids[1]),
+		fmt.Sprintf(`{"method":"proposal","params":{"id":%d,"state":"accepted"}}`, ids[0]),
+	}
+	var heard []string
+	for len(heard) < len(want) && cl.in.Scan() {
+		if strings.HasPrefix(cl.in.Text(), `{"method":"proposal"`) {
+			heard = append(heard, cl.in.Text())
+		}
+	}
+	if !slices.Equal(heard, want) {
+		t.Fatalf("the client heard %q, want %q", heard, want)
+	}
 }
 
 // B174

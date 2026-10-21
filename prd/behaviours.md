@@ -1120,6 +1120,10 @@ Where fude departs, the line says so and cites the departure in
   removed when the plugin unloads.
 - B56 [4] Loading plugins never delays the first frame.
 - B386 [4] A plugin reads the time of day.
+- B390 [4] A module reads every proposal on the open buffers, each with
+  its number, buffer, range, new text, whether it is stale and who
+  proposed it, and hears `proposals.changed` when one comes, goes or goes
+  stale.
 - B57 [4] A plugin hears the events it subscribes to off the input path,
   with the text they are about. One that falls behind hears the newest
   state once, not every step. A key that needs a plugin busy with an
@@ -1750,6 +1754,27 @@ Where fude departs, the line says so and cites the departure in
   once, and after another client's edits land in between, both copies hold
   both edits. An edit of its own whose text another client changed first
   is dropped and reported.
+- B387 [6] A client may propose a change of several edits, each a range
+  of a buffer's text, named by its number or a file's path, and its new
+  text. Each edit is a proposal of its own, and the client hears their
+  numbers. A path to a file that is not open opens it as a buffer with no
+  window, or as an empty one when there is no file. fude refuses an edit
+  that names the version it read unless the buffer is still at it. When
+  it refuses one edit, for its version, its range or an overlap with
+  another, it proposes none, and the client hears why. Accepting changes the buffer, and
+  writing it stays the user's.
+- B388 [6] `:accept` and `:reject` take several proposal numbers.
+  Accepting several makes one undo step on each buffer they change, which
+  the proposer's undo reverts. A stale one among them stays, and the
+  message names it, while the others apply.
+- B389 [6] A client hears when the user accepts or rejects each proposal
+  of its own, and when one goes stale, with its number, in the order it
+  happens.
+- B391 [6] `:review` shows every proposal in a window, by file, each as
+  its number and the lines it changes, before and after. `a` accepts the
+  proposal under the cursor and `r` rejects it, `A` accepts every one the
+  window shows and `R` rejects them, and `<CR>` goes to it. The window
+  follows as proposals come, go and go stale.
 - B97 [6] The `socket` setting is where fude listens, so a client on
   another machine reaches it through `ssh -L`. fude makes the folder it
   names when that folder is missing. fude listens on no network

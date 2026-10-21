@@ -1754,7 +1754,8 @@ a crashed fude left. Each call is a line of JSON,
 `{"id", "method", "params"}`, and each reply is a line with the `id` and a
 `result` or an `error`. `keys` types keys as one complete input, so keys
 held for a longer mapping run at once. `request` runs a request, and
-`state` changes nothing. `open` takes `paths` and edits each, the
+`state` changes nothing. `propose` takes `edits` and answers with the
+`ids` of the proposals they make (B387). `open` takes `paths` and edits each, the
 first one last so that it shows (B351). `session` takes a `name`. The
 connection's later calls then act on the session with that origin, or
 else that name, or on the first session when the name is empty. The
@@ -1766,7 +1767,10 @@ Between replies the server sends
 `{"method": "changed", "params": {"buffer", "version"}}` when the text of
 the buffer a client shows changes, whoever changed it, so a client knows to
 read `state` and redraw (B78). A newer notice replaces one the client has
-yet to read, so it hears the newest version and not every step.
+yet to read, so it hears the newest version and not every step. It also
+sends `{"method": "proposal", "params": {"id", "state"}}` when one of the
+client's proposals is `accepted`, `rejected` or `stale`. These notices
+queue, none replacing another, so the client hears each (B389).
 
 The protocol is fude's own and carries state, not cells: buffer text and
 edits, windows, decorations, modes and proposals. A terminal client renders
@@ -1777,14 +1781,22 @@ much of Neovim's Lua and Vimscript API (D25).
 
 A request with `Proposal` runs its keys on a copy of the buffer's text and
 keeps the one edit they make as a decoration the proposing session owns:
-marks around the text it replaces, and its new text. A window draws the new
+marks around the text it replaces, and its new text. `propose` keeps each
+of its edits as one such decoration, after checking every edit's version,
+range and overlap, so fude proposes a change whole or not at all (B387). A window draws the new
 text as ghost text after the range, which it shows struck out, and the
 buffer's text does not change (B71). The copy shares the buffer's syntax,
 so `a_function` and the other syntax objects work in a proposal. `format`
 cannot be proposed, as its edit waits for the language server. The marks move with edits, and an
 edit inside the range marks the proposal stale (B74). `:accept [n]` applies
 it as one transaction of the proposer's origin, which makes one node
-(B72), and refuses a stale one. `:reject [n]` drops it, and nothing enters the
+(B72), and refuses a stale one. With several numbers it applies each in
+turn inside one group of the proposer's origin on each buffer, as `push`
+does, so a later proposal's marks have moved past the earlier ones, and
+one whose range an earlier one changed has gone stale and stays (B388).
+A module reads the proposals through `Scope.Proposals` and hears
+`proposals.changed`, and `modules/review` shows them with `:review`,
+accepting and rejecting through `:accept` and `:reject` (B390, B391). `:reject [n]` drops it, and nothing enters the
 timeline. Both default to the newest proposal on the current buffer. A
 client accepts or rejects with `keys`, and its state lists its proposals on
 its buffer with their ids. A proposal outlives the client that made it,

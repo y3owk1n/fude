@@ -237,6 +237,17 @@ type Terminal struct {
 	Close bool
 }
 
+// Proposal is an edit a client proposed that no one has accepted or
+// rejected: its number, the buffer and range it replaces, its new text,
+// whether an edit since made it stale, and who proposed it (B390).
+type Proposal struct {
+	ID, Buffer int
+	Start, End int
+	Text       string
+	Stale      bool
+	By         string
+}
+
 // Places is the last list of places, so ]q goes to the first, in a window
 // of its own with Show. Each item is path:line:column:text, or
 // line:column:text in File when it is set, or a path alone for its start.
@@ -645,6 +656,9 @@ type Scope struct {
 	Recording func() string
 	History   func(prompt string) []string
 	Places    func() (Places, bool)
+	// Proposals returns every proposal on the open buffers, by number, in a
+	// call and an event (B390).
+	Proposals func() []Proposal
 	// HelpAt returns help's text and the line, from 0, of the entry topic
 	// names, or of the start for "", or false when it names none. Only a
 	// call has it (B334).

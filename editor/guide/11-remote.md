@@ -103,14 +103,20 @@ own changes. `:restart` drops every client, which must attach again.
 ## Proposals
 
 A client may send an edit as a proposal instead of making it. A proposal
-shows in the text as ghost text and changes nothing until accepted.
+shows in the text as ghost text and changes nothing until accepted. An
+agent that writes a change across a file, or several, proposes each part
+of it with `propose`, and each part is a proposal of its own.
 
 - `:accept` applies the buffer's newest proposal, and `:accept 3`
-  proposal 3, as one change on the timeline.
+  proposal 3, as one change on the timeline. `:accept 3 4 5` applies
+  all three, as one change on each buffer.
 - `:reject` drops it and leaves no trace.
+- `:review` lists every proposal as the lines it changes. `a` and `r`
+  accept and reject the one under the cursor, and `A` and `R` all of them.
 
 A proposal follows edits made after it. One whose text was edited since
-is marked stale and cannot be accepted.
+is marked stale and cannot be accepted. The client that proposed it hears
+when you accept or reject it, and when it goes stale.
 
 ## Watching fude
 

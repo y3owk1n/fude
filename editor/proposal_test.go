@@ -1,6 +1,9 @@
 package editor_test
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/y3owk1n/fude/editor"
@@ -66,5 +69,71 @@ func TestB74ProposalFollowsEdits(t *testing.T) {
 	feed(e, `0f"lx:accept<CR>`)
 	if got := text(e); got != `we say "ello" now` || e.Message() != "proposal 2 is stale" {
 		t.Fatalf("accepting after an edit inside it made %q and said %q", got, e.Message())
+	}
+}
+
+// B387
+func TestB387ProposeChange(t *testing.T) {
+	dir := t.TempDir()
+	other, fresh := filepath.Join(dir, "other.txt"), filepath.Join(dir, "new.txt")
+	change(t, other, "one\n")
+	e := open(t, "")
+	feed(e, "ihello world<Esc>")
+	agent := e.Attach("agent", editor.Host)
+	v := agent.Text().Version()
+	old := v - 1
+	// One edit at an old version, or two that overlap, propose nothing.
+	for _, edits := range [][]editor.ProposedEdit{
+		{{Buffer: 1, Start: 6, End: 11, Text: "there"}, {Buffer: 1, Version: &old, Start: 0, End: 5, Text: "bye"}},
+		{{Buffer: 1, Start: 0, End: 5, Text: "bye"}, {Buffer: 1, Start: 3, End: 8, Text: "x"}},
+	} {
+		if _, err := agent.Propose(edits); err == nil || len(e.Windows()[0].Ghosts) != 0 {
+			t.Fatalf("%v proposed %v with error %v", edits, e.Windows()[0].Ghosts, err)
+		}
+	}
+	ids, err := agent.Propose([]editor.ProposedEdit{
+		{Buffer: 1, Version: &v, Start: 0, End: 5, Text: "goodbye"},
+		{Path: other, Start: 0, End: 3, Text: "two"},
+		{Path: fresh, Text: "fresh"},
+	})
+	if err != nil || len(ids) != 3 {
+		t.Fatalf("proposing three edits gave %v, %v", ids, err)
+	}
+	if text(e) != "hello world" || len(e.Windows()[0].Ghosts) != 1 {
+		t.Fatalf("the change made the text %q with ghosts %v", text(e), e.Windows()[0].Ghosts)
+	}
+	// The files a change names open with no window, and accepting changes
+	// their buffers, not the files.
+	feed(e, fmt.Sprintf(":accept %d %d<CR>:e %s<CR>", ids[1], ids[2], other))
+	if text(e) != "two" || disk(t, other) != "one\n" {
+		t.Fatalf("accepting the edit of other.txt made its buffer %q and its file %q", text(e), disk(t, other))
+	}
+	if feed(e, ":e "+fresh+"<CR>"); text(e) != "fresh" {
+		t.Fatalf("accepting the edit of a new file made %q", text(e))
+	}
+	if _, err := os.Stat(fresh); err == nil {
+		t.Fatal("accepting the edit of a new file wrote it")
+	}
+}
+
+// B388
+func TestB388AcceptSeveral(t *testing.T) {
+	e := open(t, "")
+	feed(e, "ione two three<Esc>")
+	agent := e.Attach("agent", editor.Host)
+	ids, err := agent.Propose([]editor.ProposedEdit{{Buffer: 1, Start: 0, End: 3, Text: "1"}, {Buffer: 1, Start: 4, End: 7, Text: "2"}, {Buffer: 1, Start: 8, End: 13, Text: "3"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// An edit inside the third makes it stale, and it stays as the others
+	// apply.
+	feed(e, "$x")
+	feed(e, fmt.Sprintf(":accept %d %d %d<CR>", ids[0], ids[1], ids[2]))
+	if text(e) != "1 2 thre" || e.Message() != fmt.Sprintf("proposal %d is stale", ids[2]) {
+		t.Fatalf("accepting three, one stale, made %q and said %q", text(e), e.Message())
+	}
+	// The agent's one undo reverts both.
+	if feed(agent, "u"); text(e) != "one two thre" {
+		t.Fatalf("one undo of the agent's left %q", text(e))
 	}
 }

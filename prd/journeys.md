@@ -64,3 +64,16 @@ The edit lands as a proposal and shows as ghost text. The user's cursor does
 not move. Accepting makes one timeline node and rejecting leaves none
 (B70 to B72). If the user edits elsewhere first, the proposal follows the
 text. If the user's edit overlaps it, the proposal is marked stale (B74).
+
+An agent that writes a file's new text proposes its hunks instead:
+
+```json
+{"method": "propose", "params": {"edits": [
+  {"buffer": 3, "version": 118, "start": 1180, "end": 1184, "text": "hello"},
+  {"path": "/src/app/new.go", "start": 0, "end": 0, "text": "package app\n"}
+]}}
+```
+
+`:review` lists both as the lines they change. The user accepts the first
+with `a` and rejects the second with `r`, and the agent hears what became
+of each (B387 to B391).

@@ -133,6 +133,7 @@ type Session struct {
 	unzoomed    [4]int                  // where the zoomed window is in the layout, its x, y, w and h
 	opts        options                 // what the session's new windows start with
 	changed     chan change             // told when the shown text changes, for a client over the socket
+	notices     *notices                // what its client over the socket has yet to hear of its proposals (B389)
 	clip        string                  // the text last copied, when no clipboard command runs
 	toTerminal  bool                    // the client has yet to put clip on its terminal's clipboard
 	mode        vim.Mode                // the mode as plugins last heard it
@@ -493,18 +494,21 @@ func (l heard) Changed(before kernel.Snapshot, edits []kernel.Edit) {
 		}
 	}
 	for owner, ds := range l.ed.decos {
-		if _, ok := owner.(*Session); !ok {
+		s, ok := owner.(*Session)
+		if !ok {
 			continue
 		}
 		for i, d := range ds {
-			if d.buf != l.b {
+			if d.buf != l.b || d.style == "proposal.stale" {
 				continue
 			}
 			start, end := l.b.text.Mark(d.start), l.b.text.Mark(d.end)
-			for _, e := range edits {
-				if e.Start < end && start < e.End || e.Start == e.End && start < e.Start && e.Start < end {
-					ds[i].style = "proposal.stale"
-				}
+			if slices.ContainsFunc(edits, func(e kernel.Edit) bool {
+				return e.Start < end && start < e.End || e.Start == e.End && start < e.Start && e.Start < end
+			}) {
+				ds[i].style = "proposal.stale"
+				s.tell(d.id, "stale")
+				l.ed.emit("proposals.changed", "", l.b)
 			}
 		}
 	}

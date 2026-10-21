@@ -785,6 +785,29 @@ inside a tab. It sends a window's height of guides above the window and
 below it, so a short scroll draws with the guides it has, and the editor
 passes them to the frame as they are, with no decoration to look up.
 
+## D61. An agent's change is proposals a user reviews
+
+An agent that connects to fude may edit a buffer, with `push`, or
+propose its change, with `propose`, as it chooses. A proposed change is
+a list of edits, each a range of a buffer's or a file's text and its new
+text, and each is a proposal of its own, so the user takes some and
+drops others (B387, B388). The proposer hears what became of each
+(B389). `:review` lists them as the lines they change, and is a module
+over the proposals a module reads, so an agent module built later reads
+them the same way (B390, B391).
+
+Why, as of 2026-10-21: the user wanted an api for AI agent integrations,
+starting with a bridge that lets any agent speaking MCP reach a running
+fude, and left it to each agent whether to edit or propose. A proposal
+was one edit made by running a command on a copy of the text, which
+covers an agent that thinks in vim commands but not one that writes a
+file's new text, as every agent today does. Each hunk is a proposal, not
+a part of one, so `:accept`, `:reject`, staleness and the ids a client
+reads stay as they were. A separate diff view, as Claude Code's IDE
+integration opens, would be a second way to review a change. The review
+window is a module, as the list of places is, so a distribution may
+leave it out.
+
 ## Departures from Neovim
 
 Each entry: what differs, then why.

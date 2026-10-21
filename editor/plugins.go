@@ -1436,6 +1436,16 @@ func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 	}
 	cursors := e.vim.Cursors()
 	s.Cursors = func() []int { return cursors }
+	var proposals []api.Proposal
+	for o, ds := range e.decos {
+		if by, ok := o.(*Session); ok {
+			for _, d := range ds {
+				proposals = append(proposals, api.Proposal{ID: d.id, Buffer: d.buf.id, Start: d.buf.text.Mark(d.start), End: d.buf.text.Mark(d.end), Text: d.note, Stale: d.style == "proposal.stale", By: by.label()})
+			}
+		}
+	}
+	slices.SortFunc(proposals, func(x, y api.Proposal) int { return cmp.Compare(x.ID, y.ID) })
+	s.Proposals = func() []api.Proposal { return proposals }
 	last := e.lastList
 	s.Places = func() (api.Places, bool) {
 		if last == nil {

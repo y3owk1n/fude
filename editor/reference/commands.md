@@ -105,10 +105,12 @@ goes to the first non-blank of the range's last line.
 Applies proposal n, or without n the newest proposal on the current
 buffer. A proposal is an edit that a client attached over RPC sent to show
 as ghost text, which changes nothing until accepted. Accepting applies it
-as one undo step, made by the client that proposed it. An edit since then
-that overlaps it makes it stale, and a stale one says "proposal n is stale"
-and stays. A number with no proposal says "no proposal n". A read-only
-guest may not accept one.
+as one undo step, made by the client that proposed it. Several numbers
+apply each, as one undo step on each buffer they change. An edit since
+then that overlaps one makes it stale, and a stale one says "proposal n
+is stale" and stays while the others apply. A number with no proposal
+says "no proposal n", and applies none. A read-only guest may not accept
+one. `:review` lists the proposals.
 
 ## :cd
 
@@ -296,9 +298,10 @@ leaves, and fude goes on for the other sessions.
 
 ## :reject
 
-Drops proposal n, or without n the newest proposal on the current buffer.
-The text stays as it was, and the timeline gets no state. It drops a stale
-proposal too. A number with no proposal says "no proposal n".
+Drops proposal n, or without n the newest proposal on the current buffer,
+or each of several numbers. The text stays as it was, and the timeline
+gets no state. It drops a stale proposal too. A number with no proposal
+says "no proposal n", and drops none.
 
 ## :restart
 
@@ -921,6 +924,21 @@ lost and `u` goes back. In the timeline's window n is the state under the
 cursor, which `<CR>` restores too. A state the text already is says so,
 and a number with no state says "no such state". With no number outside
 the timeline's window it says "not in a timeline".
+
+## :review
+
+Shows every proposal clients made in a window, by file. Each shows its
+number, its line, who proposed it and whether it is stale, then the lines
+it changes, those it removes after `-` and those it adds after `+`. `a`
+accepts the proposal under the cursor and `r` rejects it, `A` accepts
+every one the window shows and `R` rejects them, and `<CR>` goes to it.
+The window follows as proposals come, go and go stale. With none it says
+"no proposals".
+
+```toml
+[keymap.review]
+"y" = "<Plug>(review.accept)"
+```
 
 ## :split
 

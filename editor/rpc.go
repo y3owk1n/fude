@@ -302,10 +302,10 @@ func (e *Session) serve(c net.Conn, o kernel.Origin) {
 		e.queue <- func() { f(); close(done) }
 		<-done
 	}
-	changed := make(chan change, 1)
+	changed, ns := make(chan change, 1), &notices{wake: make(chan struct{}, 1)}
 	on(func() {
 		own = e.Attach(o, Host)
-		own.changed = changed
+		own.changed, own.notices = changed, ns
 		s = own
 	})
 	trace.Record("rpc", string(o)+" attached", 0)
@@ -327,6 +327,12 @@ func (e *Session) serve(c net.Conn, o kernel.Origin) {
 			case c := <-changed:
 				if out(map[string]any{"method": "changed", "params": c}) != nil {
 					return
+				}
+			case <-ns.wake:
+				for _, n := range ns.take() {
+					if out(map[string]any{"method": "proposal", "params": n}) != nil {
+						return
+					}
 				}
 			case <-left:
 				return
@@ -434,7 +440,8 @@ func (e *Session) serve(c net.Conn, o kernel.Origin) {
 }
 
 // call runs one call of a client's: keys to type, files to open, a
-// request, state to read, or a replica's pull or push. It returns the result of a call that
+// request, a change to propose, state to read, or a replica's pull or
+// push. It returns the result of a call that
 // has one of its own, and nil for those whose result is the state.
 func (e *Session) call(method string, params json.RawMessage) (any, error) {
 	switch method {
@@ -463,6 +470,18 @@ func (e *Session) call(method string, params json.RawMessage) (any, error) {
 			return nil, fmt.Errorf("read request: %w", err)
 		}
 		return nil, e.Request(r)
+	case "propose":
+		var p struct {
+			Edits []ProposedEdit `json:"edits"`
+		}
+		if err := json.Unmarshal(params, &p); err != nil {
+			return nil, fmt.Errorf("read propose: %w", err)
+		}
+		ids, err := e.Propose(p.Edits)
+		if err != nil {
+			return nil, err
+		}
+		return map[string][]int{"ids": ids}, nil
 	case "pull":
 		var p struct {
 			Buffer  int             `json:"buffer"`
