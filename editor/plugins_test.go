@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -520,6 +521,14 @@ func TestB385PluginTalksToAProgram(t *testing.T) {
 		s := text(e)
 		return strings.Count(s, "x|") == 9 && strings.Count(s, "end|") == 2 && strings.Contains(s, "hi\n")
 	})
+}
+
+// B386
+func TestB386PluginReadsTheClock(t *testing.T) {
+	e := loaded(t, "later", "f", "a\n", "buffer.write")
+	if feed(e, ":Now<CR>"); text(e) != strconv.Itoa(time.Now().Year())+"a" {
+		t.Errorf(":Now typed %q, want this year", text(e))
+	}
 }
 
 // B340

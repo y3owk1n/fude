@@ -68,7 +68,7 @@ A call outside the plugin's capabilities fails with an error, and fude logs it.
 
 | Capability | Funcs |
 |---|---|
-| none | `Log`, `Current`, `Mode`, `Option`, `Config`, `IndentWidth`, `TabWidth`, `SetOption`, `Emit`, `After`, `ID`, `Callback`, `About` |
+| none | `Log`, `Now`, `Current`, `Mode`, `Option`, `Config`, `IndentWidth`, `TabWidth`, `SetOption`, `Emit`, `After`, `ID`, `Callback`, `About` |
 | each field's | `Do`, which asks for anything a module's `api.Result` asks for, and `Read`, which reads any field of a module's `api.Scope` |
 | `buffer.read` | `Len`, `Lines`, `LineOf`, `LineStart`, `Text`, `NodeAt`, `Language`, `Spans`, `Comment`, `Buffers`, `LenOf`, `TextOf` |
 | `buffer.write` | `Edit` |

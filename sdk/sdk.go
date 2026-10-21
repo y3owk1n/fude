@@ -78,6 +78,9 @@ func hostContext(ptr *byte, n uint32) int64
 //go:wasmimport fude text_len
 func hostTextLen() int32
 
+//go:wasmimport fude now
+func hostNow() int64
+
 //go:wasmimport fude lines
 func hostLines() int32
 
@@ -636,6 +639,10 @@ func LenOf(id int) (int, error) {
 func TextOf(id, start, end int) (string, error) {
 	return answer(hostTextOf(uint32(id), uint32(start), uint32(end)))
 }
+
+// Now returns the time of day. A plugin has no clock of its own, so
+// time.Now reads 1970 in one, and time.Since counts from then (B386).
+func Now() time.Time { return time.Unix(0, hostNow()) }
 
 // Mode returns the mode, such as normal or insert.
 func Mode() string { return About("mode") }

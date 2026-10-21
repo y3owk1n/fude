@@ -291,6 +291,7 @@ func (p *Plugin) host(ctx context.Context) error {
 		NewFunctionBuilder().WithFunc(p.subscribe).Export("subscribe").
 		NewFunctionBuilder().WithFunc(p.result).Export("result").
 		NewFunctionBuilder().WithFunc(p.readScope).Export("read").
+		NewFunctionBuilder().WithFunc(now).Export("now").
 		Instantiate(ctx)
 	if err != nil {
 		return fmt.Errorf("plugin %s: %w", p.name, err)
@@ -313,6 +314,9 @@ func (p *Plugin) logText(_ context.Context, m api.Module, ptr, n uint32) {
 		p.log(p.name + ": " + string(b))
 	}
 }
+
+// now returns the time of day, in nanoseconds since 1970 (B386).
+func now() int64 { return time.Now().UnixNano() }
 
 // context writes the value named at (ptr, n) of what the call is about into
 // memory the plugin allocates, or returns errRange for a name it has none

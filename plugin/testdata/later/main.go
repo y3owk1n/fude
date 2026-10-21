@@ -8,10 +8,15 @@
 // none. :Lines streams what printf prints, typing each line as it comes
 // and end once printf ends. :Talk starts cat and sends it x and y, typing
 // each line it gives back and end once it ends, which :Hush makes it do.
-// Needs buffer.write, process, net and ui.
+// :Now types the year the clock reads. Needs buffer.write, process, net
+// and ui.
 package main
 
-import "github.com/y3owk1n/fude/sdk"
+import (
+	"strconv"
+
+	"github.com/y3owk1n/fude/sdk"
+)
 
 // typed types out at the start of the text, or the error.
 func typed(out string, err error) {
@@ -50,6 +55,9 @@ func init() {
 		cat.Send("y\n")
 	})
 	sdk.Command("Hush", "stops cat", func(sdk.Call) { cat.Stop() })
+	sdk.Command("Now", "types the year", func(sdk.Call) {
+		sdk.Edit(0, 0, strconv.Itoa(sdk.Now().Year()))
+	})
 	sdk.Command("Jobs", "runs two programs in the background", func(sdk.Call) {
 		sdk.Start(func(out string, err error) { typed("slept"+out, err) }, "sleep", "0.1")
 		sdk.Start(typed, "echo", "hi")
