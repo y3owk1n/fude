@@ -225,6 +225,35 @@ line, and outside the panel, it does nothing. A guest may not run it.
 o = "<Plug>(debug.open)"
 ```
 
+## <Plug>(diff.next)
+
+`]c` by default. In a window in diff mode it goes to the first line of
+the n-th change below the cursor's line, or to the last change when n is
+past it. A change with no lines here starts on the line below its fill.
+With no change below, the message says "no change there", and outside
+diff mode "not in diff mode".
+
+## <Plug>(diff.prev)
+
+`[c` by default. It goes to the first line of the n-th change above the
+cursor's line, or to the first change when n is past it, as
+`<Plug>(diff.next)` does going down.
+
+## <Plug>(diff.get)
+
+`do` by default. It replaces the lines of the change on the cursor's line
+with the other buffer's lines of it, as `:diffget` does. A change with no
+lines here is on the line below its fill. With more than two buffers in
+diff mode, n is the number of the buffer to take from, as `3do` takes
+buffer 3's. `d` waits for the key after it, so `dw` and `dd` still
+delete.
+
+## <Plug>(diff.put)
+
+`dp` by default. It replaces the other buffer's lines of the change on
+the cursor's line with this buffer's, as `:diffput` does, or buffer n's
+with a count.
+
 ## <Plug>(explorer.up)
 
 Opens an explorer on the directory holding the current file, or on the

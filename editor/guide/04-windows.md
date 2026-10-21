@@ -64,6 +64,19 @@ either one again brings every window back as it was. In
 `config.toml`, `[open]` sets where each module's windows open, such as
 `help = "float"`. A window its module locks stays where it opened.
 
+## Comparing files
+
+`fude -d a b` shows two files side by side in diff mode. With
+`difftool.fude.cmd` set to `fude -d "$LOCAL" "$REMOTE"` in git's config,
+`git difftool -t fude` compares in fude. In fude, `:diffthis` puts a
+window in diff mode, and `:diffsplit file` opens a file below with both in
+it. Changed lines show on a blue ground, added ones on a green one, and a
+row of `-` stands in for each line the other file has, so the lines that
+pair stay side by side. The windows scroll together and keep the cursor's
+line level. `]c` and `[c` go to the next and previous change, `do` takes
+the other file's lines of the change at the cursor, and `dp` gives it this
+file's. `:diffoff!` ends it.
+
 ## Explorers
 
 `-` lists the current file's folder, as a buffer of its entries' names.

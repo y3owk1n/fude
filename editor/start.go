@@ -11,6 +11,19 @@ import (
 // restarting, as the start screen shows (B225, B319).
 func (e *Session) Welcome() { e.emit("editor.started", "", e.win.buf) }
 
+// Diff shows each open buffer in a window of its own, side by side in the
+// order they opened, all in diff mode, as fude -d does (B526).
+func (e *Session) Diff() {
+	first := e.win
+	for _, b := range e.bufs[1:] {
+		e.splitBeside(true, true)
+		e.show(b)
+	}
+	err := e.windo("diffthis")
+	e.win = first
+	e.settle(err)
+}
+
 // screenPanel shows p in the current window in place of b, while the
 // window shows b. The window shows no line numbers, guides or wrap, and
 // gets its options back once it shows another buffer (B320).

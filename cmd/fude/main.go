@@ -518,6 +518,9 @@ func edit(sharing bool, words []string, flags map[string]string, remove func()) 
 		e.Use(m)
 	}
 	e.SetName(name(flags))
+	if _, ok := flags["-d"]; ok {
+		e.Diff()
+	}
 	if len(words) == 0 && !restarted {
 		e.Welcome()
 	}

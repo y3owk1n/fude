@@ -1212,6 +1212,48 @@ Where fude departs, the line says so and cites the departure in
 - B360 [2] When an explorer renames or moves a pinned file, or a directory
   holding one, the pin follows it to its new path, whether or not the file
   is open.
+- B520 [2] `:diffthis` puts the window in diff mode, as in Neovim. Once
+  two or more windows are, each shows how its buffer differs from the
+  others', compared line by line from the first buffer in diff mode. At a
+  change, a line every buffer has there shows on `diff.change`'s ground,
+  with the text that differs from the next buffer's line on
+  `diff.text`'s, and a line some lack on `diff.add`'s. A row of `-` in
+  `diff.delete` stands above the next line for each line another buffer
+  has there, or below the last, and shows on the cursor's line too, so the
+  lines that pair stay level. `:diffoff` takes the window out and `:diffoff!`
+  every window. Closing the second to last window in diff mode takes the
+  last one out, as Neovim's `closeoff` does.
+- B521 [2] The comparison follows the edits in any buffer in diff mode, and
+  a window in diff mode that shows another buffer compares that one.
+  `:diffupdate` compares again. `:diff` stays the timeline's (N55).
+- B522 [2] `:diffsplit file` opens file in a window below, or above with
+  `split_below` off, both windows in diff mode, as Neovim's default
+  `diffopt` does, and `:vertical diffsplit file` opens it on the right.
+- B523 [2] The windows in diff mode scroll together, as Neovim's
+  `scrollbind` and `cursorbind` do. After each key, every other window in
+  diff mode puts its top line, its cursor's line and its first column
+  level with the current window's, the rows of `-` counted, and keeps the
+  cursor's screen column on its line. Their lines do not wrap while they
+  are in diff mode, and wrap again as before once out. A window split from
+  one is not in diff mode. When the current window's top line is one the
+  other shows as a row of `-`, the other starts at that row, hiding those
+  above it, as Neovim's `topfill` does.
+- B524 [2] `]c` and `[c` go to the first line of the n-th change below or
+  above the cursor's line, or to the last or first change when n is past
+  them, as in Neovim. A change with no lines in this buffer starts on the
+  line below its rows of `-`. With none that way, the message says "no
+  change there".
+- B525 [2] `do` and `:diffget` replace the lines of the change on the
+  cursor's line, or of each change in a range, with the other buffer's,
+  and `dp` and `:diffput` replace the other buffer's with this one's, as
+  in Neovim. A change with no lines here is on the line below its rows of
+  `-`, or on the last line at the end. With more than two buffers in diff
+  mode, a count or an argument names the other buffer, by its number or
+  part of its name, or the message says to name one. `d` followed by any
+  other key is still the operator.
+- B526 [2] `fude -d a b` opens the files side by side in that order, the
+  first one current, each window in diff mode, so `git difftool` can run
+  fude. It takes any number of files.
 
 ## Timeline
 

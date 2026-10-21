@@ -811,6 +811,57 @@ difference". A number with no state says "no such state", and no number
 outside the timeline's window says "not in a timeline". `q` closes the
 window.
 
+## :diffget
+
+Replaces the lines of each change in the range with the other buffer's
+lines of it, in a window in diff mode. Without a range it is the change on
+the cursor's line, and a change with no lines here is on the line below
+its fill, or on the last line at the end. With more than two buffers in
+diff mode, the argument names the one to take from, by its number or part
+of its name, and without one it says "more than two buffers in diff mode,
+so name one". A range with no change says "no change here".
+
+## :diffoff
+
+Takes the window out of diff mode. Its lines wrap again as they did
+before, and it scrolls on its own. With `!` it takes every window out.
+Once one window is left in diff mode, nothing shows as changed. Closing
+the second to last window in diff mode takes the last one out too.
+
+## :diffput
+
+Replaces the other buffer's lines of each change in the range with this
+buffer's, as `:diffget` takes them, with the same range and argument.
+
+## :diffsplit
+
+Opens file in a window below, or above with `split_below` off, and puts
+both windows in diff mode, as `:diffthis` in each would. `:vertical
+diffsplit file` opens it on the right, as `fude -d` shows two files.
+
+## :diffthis
+
+Puts the window in diff mode. Once two or more windows are in it, each
+shows how its buffer differs from the others', compared line by line:
+
+- a line in every buffer at a change shows as changed, on a blue ground,
+  with the text that differs from the next buffer's line on a brighter one
+- a line the other buffers lack shows as added, on a green ground
+- a row of `-` on a red ground stands for each line another buffer has
+  there, so the lines that pair stay side by side
+
+The windows scroll together, each keeping its top line, cursor's line and
+first column level with the current window's, and their lines do not wrap
+while they are in diff mode. The comparison follows the edits in any of
+the buffers. `]c` and `[c` go to the changes, and `do` and `dp` take and
+give them.
+
+## :diffupdate
+
+Compares the buffers in diff mode again. The comparison follows each edit,
+so it is rarely needed. `:diff` compares two states of the timeline
+instead.
+
 ## :earlier
 
 Goes n states back through the buffer's text, 1 without n, as `g-` does.

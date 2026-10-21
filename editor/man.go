@@ -44,6 +44,7 @@ type Flag struct {
 // Flags are fude's flags.
 var Flags = []Flag{
 	{"--clean", "read no config", []string{"fude", "share", "join"}},
+	{"-d", "show the files side by side, in diff mode", []string{"fude"}},
 	{"--name <name>", "the name others see you by", []string{"fude", "attach", "share", "join"}},
 	{"--socket <path>", "the fude to reach", []string{"open", "keys", "state", "attach", "tail"}},
 	{"--session <name>", "the session to act on", []string{"open", "keys", "state"}},

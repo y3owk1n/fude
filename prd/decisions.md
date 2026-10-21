@@ -1307,13 +1307,15 @@ means a dependency with code for each system, or polling every directory
 of the project while fude runs. The changes that matter while editing are
 the ones fude makes.
 
+### N55. `:diff` stays the timeline's
+
+In Neovim `:diff` is short for `:diffupdate`. In fude `:diff` compares two
+states of a buffer's timeline (B32), and diff mode's `:diffupdate` answers
+to its full name and `:diffu`. Why: fude's diff mode compares again after
+every edit, so `:diffupdate` is rarely typed, while comparing two moments
+of the timeline is fude's own and was `:diff` first. Giving the name to
+diff mode would take it from the command fude's users type more.
+
 ## Open
 
-### Diff mode of two buffers
-
-`:diff` compares two states of a buffer's timeline, and the git module
-shows a file's hunks against the index (B221). Nothing compares two
-buffers side by side: no `fude -d a b`, no filler rows that keep their
-lines level, no `do`, `dp`, `]c` or `[c`. It needs rows in a window that
-belong to no line, and windows that scroll together, which want a design
-of their own before a module can build on them.
+None.

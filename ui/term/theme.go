@@ -197,6 +197,10 @@ func build(t theme) styles {
 		"flash": base.Background(t.cmd).Foreground(t.bg),
 		// A hunk's lines, as git's index has them and as they are.
 		"diff.minus": fg(t.err), "diff.plus": fg(t.insert),
+		// Diff mode's added and changed lines, the text changed in them, and
+		// the rows that stand for lines another buffer has (B520).
+		"diff.add": base.Background(mix(t.insert, t.bg, 0.8)), "diff.change": base.Background(mix(t.normal, t.bg, 0.85)),
+		"diff.text": base.Background(mix(t.normal, t.bg, 0.6)), "diff.delete": fg(mix(t.err, t.bg, 0.4)).Background(mix(t.err, t.bg, 0.85)),
 		// The key hints: keys, groups of longer ones, counts, and the keys a
 		// mapping types.
 		"hints.key": fg(t.normal).Bold(true), "hints.group": fg(t.keyword).Bold(true),

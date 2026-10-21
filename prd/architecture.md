@@ -62,6 +62,7 @@ modules/         Go packages over api/ and protocol/ that cmd/fude adds with
   colours/       text that names a colour, and a server's colours
   comment/       gc
   debug/         :debug, breakpoints, stepping and the debug panel
+  diff/          diff mode: :diffthis, ]c, do and dp, and its rows of fill
   editorconfig/  .editorconfig files set a file's indentation
   fold/          zc, zo, za, zR and zM, folds by indent
   format/        gq, :format and format_on_save
@@ -576,6 +577,16 @@ of 0 for as tall as it can be. Its plugs, mapped to `<C-w>+`, `-`, `>`,
 `<`, `_` and `|`, size a window with the same actions and the count. `:close` stays in the editor, as `:quit`
 does, because every panel's `q` runs it. The other `<C-w>` keys stay
 there too (B91, B193).
+
+A `WindowAction` of `bind` binds a window, which then does not wrap.
+After each key, `level` in `editor/bound.go` puts every other bound
+window's top line, cursor's line and first column level with the
+current one's, counting the rows decorations draw between lines. A window
+leveled to a row drawn above its top line hides the rows above that one,
+until its top line moves. The diff module binds the windows in diff mode,
+and draws its rows of fill as `Insert` decorations with `Lines`, which
+show on the cursor's line too, so the rows the two windows count stay the
+same (B523).
 
 The window layout (splits) is outside the kernel. Until step 6 it lives in
 `editor/`, and the terminal client draws what `Editor.Windows` returns. With
