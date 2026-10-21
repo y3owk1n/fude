@@ -49,4 +49,17 @@ func TestB172KeyHints(t *testing.T) {
 	editortest.Feed(e, "g")
 	row := regexp.MustCompile(`(?m)(^|  )0 +goes to the start of the screen row`)
 	editortest.Settle(t, e, func() bool { f, ok := e.Menu(); return ok && row.MatchString(f.Text) })
+	// Keys past the panel's rows show a page at a time, which <C-d> and
+	// <C-u> turn while the command waits.
+	first, _ := e.Menu()
+	if !regexp.MustCompile(`^g  1/\d+$`).MatchString(first.Title) {
+		t.Fatalf("the hints of g are titled %q, not as the first of their pages", first.Title)
+	}
+	editortest.Feed(e, "<C-d>")
+	if f, ok := e.Menu(); !ok || !strings.HasPrefix(f.Title, "g  2/") || f.Text == first.Text || f.H != first.H {
+		t.Fatalf("<C-d> shows %q titled %q, %d rows high", f.Text, f.Title, f.H)
+	}
+	if editortest.Feed(e, "<C-u>"); !shows(first.Text) {
+		t.Error("<C-u> does not go back to the first page")
+	}
 }

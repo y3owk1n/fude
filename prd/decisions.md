@@ -1014,12 +1014,15 @@ the user write or drop changes to reload config.
 
 fude lists the keys that may follow a command being typed, as which-key.nvim
 does for Neovim (B172). While the hints show, `<Esc>` drops the held keys
-of a mapping, `<BS>` goes back a key, and `key_timeout` waits. Neovim has
+of a mapping, `<BS>` goes back a key, `<C-d>` and `<C-u>` turn their pages,
+and `key_timeout` waits. Neovim has
 no hints without a plugin, and there `<Esc>` after a mapping's first key
 runs that key as typed. Why: fude's keys and mappings already say what
 they do for `:h`, so the hints need only a panel. Someone reading the
 hints should not race `key_timeout`, and `<Esc>` there means "none of
-these".
+these". The panel pages instead of cutting the list, because `g` or an
+operator has more keys than a small screen holds, and a cut list hid
+whichever keys sorted last.
 
 ### N25. The last list of places is the quickfix list
 

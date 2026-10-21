@@ -1,6 +1,6 @@
 // Package hints shows the keys that may follow the command being typed,
 // once it waits key_hints milliseconds for its next key, as which-key.nvim
-// does. They stay while the command goes on (B172).
+// does. They stay while the command goes on, a page at a time (B172).
 package hints
 
 import (
@@ -83,9 +83,9 @@ func (m *Module) Callback(_ context.Context, id uint32, s api.Scope) (api.Result
 	return m.show(s), nil
 }
 
-// show lays the hints out in columns, groups first, in the windows' width.
-// Rows past a third of the screen are cut, and the last cell counts the
-// rest. A command with no hints shows none.
+// show lays the hints out in columns, groups first, in the windows' width,
+// a page at a time of no more rows than a third of the screen. A form feed
+// starts each page after the first. A command with no hints shows none.
 func (m *Module) show(s api.Scope) api.Result {
 	hints := s.Hints()
 	if m.showing = len(hints) > 0; !m.showing {
@@ -106,12 +106,7 @@ func (m *Module) show(s api.Scope) api.Result {
 		}
 		return 0
 	})
-	rows := (len(hints) + cols - 1) / cols
-	if limit := max(lines/3, 2); rows > limit {
-		rows = limit
-		more := len(hints) - (rows*cols - 1)
-		hints = append(hints[:rows*cols-1], api.Hint{Key: "…", Help: fmt.Sprintf("%d more", more)})
-	}
+	rows := min((len(hints)+cols-1)/cols, max(lines/3, 2))
 	keyW := 1
 	for _, h := range hints {
 		keyW = max(keyW, utf8.RuneCountInString(h.Key))
@@ -119,41 +114,48 @@ func (m *Module) show(s api.Scope) api.Result {
 	keyW = min(keyW, cellW/3)
 	var b strings.Builder
 	var spans []api.Span
-	for r := range rows {
-		if r > 0 {
-			b.WriteString("\n")
+	for first := 0; first < len(hints); first += rows * cols {
+		if first > 0 {
+			b.WriteString("\f")
 		}
-		for c := range cols {
-			i := c*rows + r
-			if i >= len(hints) {
-				break
+		page := hints[first:min(first+rows*cols, len(hints))]
+		// Every page has the first's rows, so the panel keeps its height.
+		for r := range rows {
+			if r > 0 {
+				b.WriteString("\n")
 			}
-			if c > 0 {
-				b.WriteString("  ")
-			}
-			h := hints[i]
-			cell := append([]piece{{fmt.Sprintf("%-*s", keyW, h.Key), "hints.key"}, {"  ", ""}}, pieces(h)...)
-			// A cell longer than its width ends in an ellipsis.
-			room := cellW
-			for _, p := range cell {
-				text := []rune(p.text)
-				if len(text) > room {
-					text = append(text[:max(room-1, 0)], '…')
-				}
-				if len(text) == 0 {
+			for c := range cols {
+				i := c*rows + r
+				if i >= len(page) {
 					break
 				}
-				start := b.Len()
-				b.WriteString(string(text))
-				if p.style != "" {
-					spans = append(spans, api.Span{Start: start, End: b.Len(), Name: p.style})
+				if c > 0 {
+					b.WriteString("  ")
 				}
-				if room -= len(text); room <= 0 {
-					break
+				h := page[i]
+				cell := append([]piece{{fmt.Sprintf("%-*s", keyW, h.Key), "hints.key"}, {"  ", ""}}, pieces(h)...)
+				// A cell longer than its width ends in an ellipsis.
+				room := cellW
+				for _, p := range cell {
+					text := []rune(p.text)
+					if len(text) > room {
+						text = append(text[:max(room-1, 0)], '…')
+					}
+					if len(text) == 0 {
+						break
+					}
+					start := b.Len()
+					b.WriteString(string(text))
+					if p.style != "" {
+						spans = append(spans, api.Span{Start: start, End: b.Len(), Name: p.style})
+					}
+					if room -= len(text); room <= 0 {
+						break
+					}
 				}
-			}
-			if c < cols-1 {
-				b.WriteString(strings.Repeat(" ", max(room, 0)))
+				if c < cols-1 {
+					b.WriteString(strings.Repeat(" ", max(room, 0)))
+				}
 			}
 		}
 	}

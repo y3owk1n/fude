@@ -58,7 +58,9 @@ keys it leads to. Name a group of your own mappings with
 ```
 
 While the hints show, the keys typed wait for the next one, `<BS>` goes
-back a key, and `<Esc>` drops the command. `:set hints.enabled false` turns the
+back a key, and `<Esc>` drops the command. When the keys do not fit, the
+panel shows them a page at a time, with the page in its title, as
+`g  1/3`. `<C-d>` and `<C-u>` turn the pages. `:set hints.enabled false` turns the
 hints off.
 
 ## Next

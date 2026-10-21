@@ -286,7 +286,8 @@ type Float struct {
 	// keeps the windows lit. While it shows, the command waits for its next key
 	// instead of key_timeout, <Esc> drops it and <BS> its last key. It
 	// closes once no command is being typed, and an empty Text closes it
-	// sooner (B172, B326).
+	// sooner. A form feed in Text starts a page, which <C-d> and <C-u> turn
+	// when the command does not go on with them (B172, B326).
 	Keys bool
 }
 

@@ -711,8 +711,11 @@ Where fude departs, the line says so and cites the departure in
   it shadows. A key that starts longer ones is a group, listed first with
   its name and how many keys follow it. `[keymap.groups]` names the keys
   mappings start with, such as `"<Leader>s" = "search"`, and fude names its
-  own, such as `gr`, `[` and `]`. The panel follows the keys typed after
-  it. While it shows, a mapping's keys wait for the next key instead of
+  own, such as `gr`, `[` and `]`. When the keys do not fit in a third of
+  the screen, the panel shows them a page at a time, with the page in its
+  title, as `g  1/3`. `<C-d>` and `<C-u>` turn the pages, unless the
+  command goes on with that key. The panel
+  follows the keys typed after it. While it shows, a mapping's keys wait for the next key instead of
   `key_timeout`. `<BS>` drops the last key typed, and `<Esc>` drops the
   command without running any of its keys (N24). `hints.enabled` off turns the
   panel off.

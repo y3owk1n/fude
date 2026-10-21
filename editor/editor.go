@@ -107,6 +107,7 @@ type Session struct {
 	freed       []int                   // the images dropped, for the client to free (B306)
 	restarting  string                  // the session file :restart saved, for main (B170)
 	keyFloat    *api.Float              // the key hints a module shows, while they show (B172, B326)
+	keyPage     int                     // the page of the key hints that shows
 	pendingKeys string                  // the command being typed the modules last heard of (B326)
 	ask         *question               // the yes or no question showing until y or n answers it (B362)
 	jumpTo      *jumpTo                 // where a plugin's call asked to move the cursor, after the key
@@ -572,6 +573,9 @@ func (e *Session) Feed(k vim.Key) {
 			e.vim.Back()
 		}
 		e.typing()
+		return
+	}
+	if e.keyFloat != nil && e.turnPage(k) {
 		return
 	}
 	e.feed(k)

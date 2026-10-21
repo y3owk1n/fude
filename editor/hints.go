@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"fmt"
 	"slices"
 	"strconv"
 	"strings"
@@ -54,17 +55,45 @@ func (e *Session) typing() {
 		e.keyFloat = nil
 	}
 	if shown != e.pendingKeys {
-		e.pendingKeys = shown
+		e.pendingKeys, e.keyPage = shown, 0
 		e.emit("keys.pending", vim.Notation(shown), e.win.buf)
 	}
 }
 
-// keysMenu is the key hints across the bottom of the windows, which
-// :center may narrow, above the status line.
+// keysMenu is the page of the key hints that shows, across the bottom of
+// the windows, which :center may narrow, above the status line.
 func (e *Session) keysMenu() wire.Menu {
 	x, w, _ := e.area()
-	h := strings.Count(e.keyFloat.Text, "\n") + 3
-	return wire.Menu{Text: e.keyFloat.Text, Spans: styled(e.keyFloat.Spans), Cursor: -1, Title: vim.Notation(e.vim.Shown()), Lit: true, X: x, Y: max(e.height-1-h, 0), W: w, H: h}
+	pages := strings.Split(e.keyFloat.Text, "\f")
+	n := min(e.keyPage, len(pages)-1)
+	start := 0
+	for _, p := range pages[:n] {
+		start += len(p) + 1
+	}
+	text := pages[n]
+	var spans []api.Span
+	for _, s := range e.keyFloat.Spans {
+		if s.Start >= start && s.End <= start+len(text) {
+			spans = append(spans, api.Span{Start: s.Start - start, End: s.End - start, Name: s.Name})
+		}
+	}
+	title := vim.Notation(e.vim.Shown())
+	if len(pages) > 1 {
+		title += fmt.Sprintf("  %d/%d", n+1, len(pages))
+	}
+	h := strings.Count(text, "\n") + 3
+	return wire.Menu{Text: text, Spans: styled(spans), Cursor: -1, Title: title, Lit: true, X: x, Y: max(e.height-1-h, 0), W: w, H: h}
+}
+
+// turnPage turns the key hints a page on for <C-d> and back for <C-u>,
+// unless the command being typed goes on with that key (B172).
+func (e *Session) turnPage(k vim.Key) bool {
+	turn := map[vim.Key]int{"<C-d>": 1, "<C-u>": -1}[k]
+	if turn == 0 || slices.ContainsFunc(e.keyHints(), func(h api.Hint) bool { return h.Key == string(k) }) {
+		return false
+	}
+	e.keyPage = min(max(e.keyPage+turn, 0), strings.Count(e.keyFloat.Text, "\f"))
+	return true
 }
 
 // hinted gives a module that hears keys.pending the command being typed,
