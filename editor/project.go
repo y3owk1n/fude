@@ -10,6 +10,7 @@ import (
 	"slices"
 
 	"github.com/y3owk1n/fude/api"
+	"github.com/y3owk1n/fude/vim"
 )
 
 // sessionJSON is the windows on files and explorers, their cursors and
@@ -114,7 +115,15 @@ func (e *Session) lists(scope *api.Scope) {
 	scope.Marks = func() []api.Mark {
 		var out []api.Mark
 		for _, name := range slices.Sorted(maps.Keys(b.marks)) {
+			if name >= vim.OwnMarks {
+				break
+			}
 			out = append(out, api.Mark{Name: string(name), Buffer: b.id, Pos: b.text.Mark(b.marks[name])})
+		}
+		for _, name := range slices.Sorted(maps.Keys(e.fileMarks)) {
+			if f := e.fileMarks[name]; f.buf != b {
+				out = append(out, api.Mark{Name: string(name), Buffer: f.buf.id, Pos: f.buf.text.Mark(f.mark)})
+			}
 		}
 		return out
 	}

@@ -3,6 +3,7 @@ package vim
 import (
 	"cmp"
 	"errors"
+	"fmt"
 	"regexp"
 	"slices"
 	"strconv"
@@ -24,14 +25,14 @@ type exCommand struct {
 }
 
 // exCall is what an ex command gets from its command line. first and last
-// are the starts of the range's first and last lines, and ranged says
-// whether the line had a range.
+// are the starts of the range's first and last lines, ranged says whether
+// the line had a range and zero whether it was line 0, above the first.
 type exCall struct {
-	t           Text
-	c           int // the cursor
-	first, last int
-	ranged      bool
-	name, arg   string
+	t            Text
+	c            int // the cursor
+	first, last  int
+	ranged, zero bool
+	name, arg    string
 }
 
 // counted splits a count off the end of the argument, as :d, :y, :j, :>
@@ -79,6 +80,7 @@ func init() {
 		{Command{"<", nil, "[<...] [count]", "outdents the lines, or count lines from the last, once more for each <"}, (*Machine).exShift},
 		{Command{"copy", []string{"co", "t"}, "{address}", "copies the lines below the line at address, 0 for the top"}, (*Machine).exMove},
 		{Command{"delete", []string{"d"}, "[x] [count]", "deletes the lines into register x, or count lines from the last"}, (*Machine).exYank},
+		{Command{"delmarks", []string{"delm"}, "{marks} | !", "deletes the marks, such as a-c, or with ! every mark from a to z"}, (*Machine).exDelmarks},
 		{Command{"global", []string{"g"}, "/{pattern}/{command}", "runs command on each line that matches. Without a range, every line"}, (*Machine).exGlobal},
 		{Command{"join", []string{"j"}, "[!] [count]", "joins the lines, or the line with the next, or count lines from the last. ! keeps their blanks"}, func(m *Machine, x exCall) error {
 			first, last, arg := x.counted()
@@ -91,6 +93,13 @@ func init() {
 			m.h.SetCursor(firstNonBlank(t, first, LineEnd(t, first)))
 			return nil
 		}},
+		{Command{"mark", []string{"ma", "k"}, "{a-zA-Z}", "sets the mark at the start of the range's last line"}, func(m *Machine, x exCall) error {
+			if c := x.arg; len(c) != 1 || !(c[0] >= 'a' && c[0] <= 'z' || c[0] >= 'A' && c[0] <= 'Z') {
+				return errors.New("a mark is a letter from a to z or A to Z")
+			}
+			m.h.SetMark(rune(x.arg[0]), x.last)
+			return nil
+		}},
 		{Command{"move", []string{"m"}, "{address}", "moves the lines below the line at address, 0 for the top"}, (*Machine).exMove},
 		{Command{"nohlsearch", []string{"noh"}, "", "hides the last search's highlight until the next search"}, func(m *Machine, _ exCall) error {
 			m.hl = false
@@ -99,6 +108,10 @@ func init() {
 		{Command{"normal", []string{"norm"}, "[!] {keys}", "types keys in normal mode at the start of each line. ! leaves out the mappings"}, func(m *Machine, x exCall) error {
 			keys, bang := strings.CutPrefix(x.arg, "!")
 			return m.normalLines(x.first, x.last, strings.TrimLeft(keys, " "), !bang)
+		}},
+		{Command{"put", []string{"pu"}, "[!] [x]", "puts register x on lines of its own below the range's last line, or above it with ! or on line 0"}, (*Machine).exPut},
+		{Command{"redo", []string{"red"}, "", "redoes a change, as <C-r> does"}, func(m *Machine, _ exCall) error {
+			return m.undo(false, 1)
 		}},
 		{Command{"retab", []string{"ret"}, "[!]", "rewrites leading blanks as spaces with expand_tab, or as tabs with !. Without a range, every line"}, func(m *Machine, x exCall) error {
 			first, last := x.rangeOrAll()
@@ -112,6 +125,9 @@ func init() {
 		{Command{"sort", []string{"sor"}, "[!][n][i][u]", "sorts the lines. ! reverses, n sorts by number, i ignores case and u drops repeats. Without a range, every line"}, func(m *Machine, x exCall) error {
 			first, last := x.rangeOrAll()
 			return m.sortLines(first, last, x.arg)
+		}},
+		{Command{"undo", []string{"u"}, "", "undoes a change, as u does"}, func(m *Machine, _ exCall) error {
+			return m.undo(true, 1)
 		}},
 		{Command{"vglobal", []string{"v", "g!"}, "/{pattern}/{command}", "runs command on each line that does not match. Without a range, every line"}, (*Machine).exGlobal},
 		{Command{"yank", []string{"y"}, "[x] [count]", "yanks the lines into register x, or count lines from the last"}, (*Machine).exYank},
@@ -150,6 +166,10 @@ func (m *Machine) ex(line string) error {
 	if err != nil {
 		return err
 	}
+	// Line 0 is the first line for any command but :put, which puts above
+	// it, and :m and :t, which take their address on their own.
+	zero := last < 0
+	first, last = max(first, 0), max(last, 0)
 	name, arg := exName(rest)
 	// A | ends the command and starts another, unless a backslash is before
 	// it or the command takes | in its argument.
@@ -167,7 +187,7 @@ func (m *Machine) ex(line string) error {
 		return nil
 	}
 	if cmd, ok := exByName[name]; ok {
-		return cmd.run(m, exCall{t, c, first, last, ranged, name, arg})
+		return cmd.run(m, exCall{t, m.h.Cursor(), first, last, ranged, zero, name, arg})
 	}
 	return m.h.Unhandled(":" + line)
 }
@@ -221,7 +241,56 @@ func (m *Machine) exMove(x exCall) error {
 	if x.name[0] == 'm' {
 		return m.moveLines(x.first, x.last, target, ":m")
 	}
-	return m.copyLines(x.first, x.last, target)
+	return m.putLines(x.t.Slice(x.first, LineEnd(x.t, x.last)), target, ":t")
+}
+
+// exPut runs :put, which puts the register named by its argument, or else
+// the one p puts, as whole lines below the range's last line. ! or line 0
+// puts them above it.
+func (m *Machine) exPut(x exCall) error {
+	arg, above := strings.CutPrefix(x.arg, "!")
+	var reg rune
+	if arg = strings.TrimSpace(arg); arg != "" {
+		reg = rune(arg[0])
+	}
+	reg, r, ok, err := m.fetchPut(reg)
+	switch {
+	case err != nil:
+		return err
+	case !ok:
+		return fmt.Errorf("nothing in register %c", reg)
+	}
+	target := x.last
+	if above || x.zero {
+		target = -1
+		if x.last > 0 {
+			target = LineStart(x.t, x.last-1)
+		}
+	}
+	return m.putLines(strings.TrimSuffix(r.text, "\n"), target, ":put")
+}
+
+// exDelmarks runs :delmarks, which deletes each mark its argument names, a
+// to c for a-c, or with ! every mark from a to z.
+func (m *Machine) exDelmarks(x exCall) error {
+	names := strings.ReplaceAll(x.arg, " ", "")
+	if names == "!" {
+		names = "a-z"
+	}
+	if names == "" {
+		return errors.New(":delmarks needs the marks to delete, or !")
+	}
+	for i := 0; i < len(names); i++ {
+		from, to := names[i], names[i]
+		if i+2 < len(names) && names[i+1] == '-' {
+			to = names[i+2]
+			i += 2
+		}
+		for c := from; c <= to; c++ {
+			m.h.DeleteMark(rune(c))
+		}
+	}
+	return nil
 }
 
 // exShift runs :> and :<, once more for each > or < after the first.
@@ -250,9 +319,10 @@ func (m *Machine) exGlobal(x exCall) error {
 
 // LineRange reads the range line starts with, for the host's own commands:
 // the starts of its first and last lines, the rest of line, and whether it
-// had a range. Without one it is the cursor's line.
+// had a range. Without one it is the cursor's line. Line 0 is the first.
 func (m *Machine) LineRange(line string) (first, last int, rest string, ranged bool, err error) {
-	return m.lineRange(m.h.Text(), m.h.Cursor(), line)
+	first, last, rest, ranged, err = m.lineRange(m.h.Text(), m.h.Cursor(), line)
+	return max(first, 0), max(last, 0), rest, ranged, err
 }
 
 // sortLines sorts the lines from first to last, as :sort does (B156). The
@@ -335,7 +405,8 @@ func (m *Machine) retab(first, last int, force bool) error {
 }
 
 // exName splits a command line after its range into the command's name and
-// its argument. A name is a run of letters, >, <, &, && or g!.
+// its argument. A name is a run of letters, >, <, &, && or g!, or k before
+// one letter.
 func exName(s string) (string, string) {
 	s = strings.TrimLeft(s, " ")
 	switch {
@@ -352,8 +423,12 @@ func exName(s string) (string, string) {
 	for i < len(s) && (s[i] >= 'a' && s[i] <= 'z' || s[i] >= 'A' && s[i] <= 'Z') {
 		i++
 	}
-	if i == 0 {
+	switch {
+	case i == 0:
 		return s[:1], s[1:]
+	case i == 2 && s[0] == 'k':
+		// :k takes its mark straight after it, as :ka does.
+		return "k", s[1:]
 	}
 	return s[:i], strings.TrimLeft(s[i:], " ")
 }
@@ -422,18 +497,17 @@ func (m *Machine) moveLines(first, last, target int, label string) error {
 	return nil
 }
 
-// copyLines copies lines first to last below the line starting at target, or
-// above the first line when target is -1, and puts the cursor on the last
-// line copied.
-func (m *Machine) copyLines(first, last, target int) error {
+// putLines puts block on lines of its own below the line starting at
+// target, or above the first line when target is -1, and puts the cursor on
+// the last line put.
+func (m *Machine) putLines(block string, target int, label string) error {
 	t := m.h.Text()
-	block := t.Slice(first, LineEnd(t, last))
 	e, landed := Edit{Start: 0, End: 0, Text: block + "\n"}, 0
 	if target >= 0 {
 		at := LineEnd(t, target)
 		e, landed = Edit{Start: at, End: at, Text: "\n" + block}, at+1
 	}
-	if err := m.apply([]Edit{e}, ":t"); err != nil {
+	if err := m.apply([]Edit{e}, label); err != nil {
 		return err
 	}
 	m.cursorOnLast(landed, block)
@@ -520,8 +594,9 @@ func (m *Machine) global(first, last int, pat, cmd string, match bool) error {
 	return nil
 }
 
-// globalMark is the first of the private marks :g keeps on the lines it found.
-const globalMark = 0xF0000
+// globalMark is the first of the marks :g keeps on the lines it found,
+// after the one :normal keeps on its first line.
+const globalMark = OwnMarks + 1
 
 // normalLines runs keys in normal mode at the start of each line from first
 // to last, through the mappings when mapped, as one undo step, ending any
@@ -532,11 +607,11 @@ func (m *Machine) normalLines(first, last int, keys string, mapped bool) error {
 	for ls := first; ls < last && LineEnd(t, ls) < t.Len(); ls = LineEnd(t, ls) + 1 {
 		n++
 	}
-	m.h.SetMark(globalMark-1, first)
+	m.h.SetMark(OwnMarks, first)
 	m.h.BeginGroup()
 	defer m.h.EndGroup()
 	for i := range n {
-		start, _ := m.h.Mark(globalMark - 1)
+		start, _ := m.h.Mark(OwnMarks)
 		t = m.h.Text()
 		ls := down(t, LineStart(t, start), i)
 		if i > 0 && ls == LineStart(t, start) {
@@ -558,8 +633,10 @@ func (m *Machine) normalLines(first, last int, keys string, mapped bool) error {
 }
 
 // lineRange parses a leading range: %, or one or two addresses joined by a
-// comma. It returns the starts of the first and last lines, the rest of s,
-// and whether s had a range. Without one both lines are the cursor's.
+// comma, or by a semicolon, which moves the cursor to the first line before
+// the second is read. It returns the starts of the first and last lines,
+// -1 for line 0, the rest of s, and whether s had a range. Without one both
+// lines are the cursor's.
 func (m *Machine) lineRange(t Text, c int, s string) (int, int, string, bool, error) {
 	if rest, ok := strings.CutPrefix(s, "%"); ok {
 		return 0, LineStart(t, t.Len()), rest, true, nil
@@ -569,18 +646,21 @@ func (m *Machine) lineRange(t Text, c int, s string) (int, int, string, bool, er
 		return LineStart(t, c), LineStart(t, c), s, false, err
 	}
 	last := first
-	if r, found := strings.CutPrefix(rest, ","); found {
-		l, r2, ok, err := m.address(t, c, r)
+	if rest != "" && (rest[0] == ',' || rest[0] == ';') {
+		if rest[0] == ';' {
+			// The cursor keeps its column, as far as the line reaches.
+			tab := m.h.TabWidth()
+			c = clamp(t, atColumn(t, max(first, 0), column(t, LineStart(t, c), c, tab), tab))
+			m.h.SetCursor(c)
+		}
+		// A second address left out is the cursor's line.
+		l, r, _, err := m.address(t, c, rest[1:])
 		if err != nil {
 			return 0, 0, "", false, err
 		}
-		if ok {
-			last, rest = l, r2
-		}
+		last, rest = l, r
 	}
-	// Line 0 is the first line for any command but :m and :t, which take
-	// their address on their own.
-	return max(min(first, last), 0), max(first, last, 0), rest, true, nil
+	return min(first, last), max(first, last), rest, true, nil
 }
 
 // address parses one line address: a line number, ., $, a mark such as 'a,
@@ -594,7 +674,7 @@ func (m *Machine) address(t Text, c int, s string) (int, string, bool, error) {
 	case strings.HasPrefix(s, "$"):
 		line, s = LineStart(t, t.Len()), s[1:]
 	case strings.HasPrefix(s, "'") && len(s) > 1:
-		p, set := m.h.Mark(rune(s[1]))
+		p, set := m.mark(t, c, rune(s[1]))
 		if !set {
 			return 0, s, false, errors.New("mark not set")
 		}
@@ -606,9 +686,7 @@ func (m *Machine) address(t Text, c int, s string) (int, string, bool, error) {
 		if s[0] == '/' {
 			from = LineEnd(t, c)
 		}
-		m.h.SetCursor(from)
-		p, k := m.seek(parts[0], s[0] == '/', 1)
-		m.h.SetCursor(c)
+		p, k := m.seek(from, parts[0], s[0] == '/', 1)
 		if k == failed {
 			return 0, s, false, errors.New(m.msg)
 		}

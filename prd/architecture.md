@@ -172,6 +172,7 @@ type Host interface {
     Step(n int) (start int, ok bool) // g- and g+, in time order
     SetMark(name rune, pos int)      // marks move with edits
     Mark(name rune) (int, bool)
+    DeleteMark(name rune)
     Viewport() (top, height, width int)
     SetTop(top int)
     PushJump(pos int) // jumps may cross buffers, so the host keeps the lists
@@ -188,7 +189,8 @@ type Host interface {
 
 // Defaults is the part of Host a host may leave out: no history, jumps,
 // changes or clipboard, and Unhandled ignored. Embedding it leaves Text,
-// Cursor, SetCursor, Apply, SetMark, Mark, Viewport and SetTop to write.
+// Cursor, SetCursor, Apply, SetMark, Mark, DeleteMark, Viewport and SetTop
+// to write.
 type Defaults struct{}
 
 func New(h Host) *Machine

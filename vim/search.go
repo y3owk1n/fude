@@ -56,10 +56,10 @@ func hasUpper(src string) bool {
 	return false
 }
 
-// seek returns the n-th match of src after the cursor, or before it when
-// searching back, wrapping around the ends of the text.
-func (m *Machine) seek(src string, forward bool, n int) (int, kind) {
-	t, c := m.h.Text(), m.h.Cursor()
+// seek returns the n-th match of src after c, or before it when searching
+// back, wrapping around the ends of the text.
+func (m *Machine) seek(c int, src string, forward bool, n int) (int, kind) {
+	t := m.h.Text()
 	if src == "" {
 		m.msg = "no previous search"
 		return c, failed
@@ -96,13 +96,14 @@ func (m *Machine) seek(src string, forward bool, n int) (int, kind) {
 // character, s or b for its first, each with a count of characters to
 // move, or a count of lines alone. With e, s or b, a match counts when the
 // place the offset names is past the cursor less the count. So /pat/e
-// takes the match the cursor is on, and n the next. again is true for n
-// and N, which start a line offset from the line the offset left.
-func (m *Machine) seekOffset(src, off string, forward bool, n int, again bool) (int, kind) {
+// takes the match the cursor is on, and n the next. c is where the search
+// starts. again is true for n and N, which start a line offset from the
+// line the offset left.
+func (m *Machine) seekOffset(c int, src, off string, forward bool, n int, again bool) (int, kind) {
 	if off == "" {
-		return m.seek(src, forward, n)
+		return m.seek(c, src, forward, n)
 	}
-	t, c := m.h.Text(), m.h.Cursor()
+	t := m.h.Text()
 	anchor, count := byte('l'), off
 	if strings.ContainsRune("esb", rune(off[0])) {
 		anchor, count = off[0], off[1:]
@@ -130,9 +131,7 @@ func (m *Machine) seekOffset(src, off string, forward bool, n int, again bool) (
 				from = LineEnd(t, from)
 			}
 		}
-		m.h.SetCursor(from)
-		at, k := m.seek(src, forward, n)
-		m.h.SetCursor(c)
+		at, k := m.seek(from, src, forward, n)
 		if k == failed {
 			return c, failed
 		}
@@ -753,8 +752,9 @@ func (p *pattern) expand(rep, text string, mt []int) string {
 
 // Incremental returns where the match the search being typed after / or ?
 // goes to starts and ends: the first after the cursor, or before it for ?,
-// wrapping around the text, for a host to bring into view and light. It is
-// false when no search is typed or nothing matches (B21).
+// wrapping around the text, or the one <C-g> and <C-t> moved to, for a host
+// to bring into view and light. It is false when no search is typed or
+// nothing matches (B21).
 func (m *Machine) Incremental() (int, int, bool) {
 	if c := m.confirm; c != nil {
 		e := c.edits[c.at]
@@ -771,17 +771,25 @@ func (m *Machine) Incremental() (int, int, bool) {
 	if err != nil {
 		return 0, 0, false
 	}
-	t, c := m.h.Text(), m.h.Cursor()
-	at, ok := 0, false
-	if m.prompt == "/" {
-		if at, ok = p.first(t, c+1, t.Len()+1); !ok {
-			at, ok = p.first(t, 0, c+1)
-		}
-	} else if at, ok = p.last(t, 0, c); !ok {
-		at, ok = p.last(t, c, t.Len()+1)
-	}
+	t := m.h.Text()
+	at, ok := p.wrapped(t, m.searchFrom, m.prompt == "/")
 	if !ok {
 		return 0, 0, false
 	}
 	return at, p.endAt(t, at), true
+}
+
+// wrapped returns the start of the first match after at, or going back the
+// last before it, wrapping around the text.
+func (p *pattern) wrapped(t Text, at int, forward bool) (int, bool) {
+	if forward {
+		if to, ok := p.first(t, at+1, t.Len()+1); ok {
+			return to, true
+		}
+		return p.first(t, 0, at+1)
+	}
+	if to, ok := p.last(t, 0, at); ok {
+		return to, true
+	}
+	return p.last(t, at, t.Len()+1)
 }

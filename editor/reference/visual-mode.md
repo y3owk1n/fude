@@ -135,6 +135,17 @@ stays empty. With `expand_tab` the indent is spaces only.
 "|a\nb" "Vj2><Esc>" "\t\ta\n\t\t|b"
 ```
 
+## @{reg}
+
+Over lines, replays the register on each selected line, from its start,
+as `:'<,'>normal @x` does, as one undo step. Over characters or a block,
+it replays the register with the selection kept, so the keys in it act on
+the selection.
+
+```keys
+"|a\nb\nc" "qaA!<Esc>quVj@a" "a!\nb|!\nc"
+```
+
 ## [e
 
 Moves the selected lines n lines up and keeps them selected, so `[e`

@@ -49,9 +49,9 @@ type buffer struct {
 	saved kernel.NodeID
 	hl    highlights // for calls that read its captures (B273)
 
-	// Where the cursor and the top line were when the buffer was last left,
-	// for the next window to show it.
-	last, lastTop int
+	// The top line when the buffer was last left, for the next window to
+	// show it. The mark " is where the cursor was.
+	lastTop int
 
 	// The cursor from before each undo step, for the vim machine's undo.
 	before map[kernel.NodeID]int
@@ -89,6 +89,24 @@ type buffer struct {
 	ft        string // the filetype of a buffer with no file, such as help's markdown
 	shown     bool   // fude wrote it to show something, such as :messages or a diff
 	panelKind string // its kind as a module's panel names it, such as list (B347)
+}
+
+// setMark keeps mark name at pos, moving it with edits.
+func (b *buffer) setMark(name rune, pos int) {
+	if id, ok := b.marks[name]; ok {
+		b.text.MoveMark(id, pos)
+		return
+	}
+	b.marks[name] = b.text.SetMark(pos, kernel.Right)
+}
+
+// markAt returns where mark name is. " is at the start of a buffer never
+// left.
+func (b *buffer) markAt(name rune) (int, bool) {
+	if id, ok := b.marks[name]; ok {
+		return b.text.Mark(id), true
+	}
+	return 0, name == '"'
 }
 
 // pushChange records an edit at pos, replacing the newest entry when it is

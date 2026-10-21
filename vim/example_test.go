@@ -38,6 +38,7 @@ func (f *field) SetCursor(pos int)          { f.cursor = pos }
 func (f *field) Viewport() (int, int, int)  { return 0, 1, 80 }
 func (f *field) SetTop(int)                 {}
 func (f *field) SetMark(name rune, pos int) { f.marks[name] = pos }
+func (f *field) DeleteMark(name rune)       { delete(f.marks, name) }
 
 func (f *field) Mark(name rune) (int, bool) {
 	pos, ok := f.marks[name]

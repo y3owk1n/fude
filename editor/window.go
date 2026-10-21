@@ -150,7 +150,8 @@ func (w *window) starts(t kernel.Snapshot, start, tab int, in []vim.Inline) []in
 // show switches the window to b, at the place b was last left. Its marks
 // in the buffer it showed go.
 func (w *window) show(b *buffer) {
-	w.buf.last, w.buf.lastTop = w.pos(), w.buf.text.Mark(w.top)
+	w.buf.setMark('"', w.pos())
+	w.buf.lastTop = w.buf.text.Mark(w.top)
 	w.buf.text.DeleteMark(w.cursor)
 	w.buf.text.DeleteMark(w.top)
 	if w.buf != b {
@@ -160,7 +161,8 @@ func (w *window) show(b *buffer) {
 	if w.saved != nil && !b.screen {
 		w.opts, w.saved = *w.saved, nil
 	}
-	w.cursor = b.text.SetMark(b.last, kernel.Right)
+	last, _ := b.markAt('"')
+	w.cursor = b.text.SetMark(last, kernel.Right)
 	w.top = b.text.SetMark(b.lastTop, kernel.Left)
 }
 
@@ -528,7 +530,8 @@ func (e *Session) unlay(w *window) error {
 		return errors.New("cannot close the last window")
 	}
 	e.closeFloatsOver(w)
-	w.buf.last, w.buf.lastTop = w.pos(), w.buf.text.Mark(w.top)
+	w.buf.setMark('"', w.pos())
+	w.buf.lastTop = w.buf.text.Mark(w.top)
 	i := slices.Index(p.kids, l)
 	p.kids = append(p.kids[:i], p.kids[i+1:]...)
 	next := p.kids[max(i-1, 0)]

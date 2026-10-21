@@ -341,7 +341,8 @@ func (e *Session) freeze(b *buffer) {
 			}
 		}
 	}
-	b.last, b.lastTop = at, 0
+	b.setMark('"', at)
+	b.lastTop = 0
 	e.reveal()
 }
 

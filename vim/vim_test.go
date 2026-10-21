@@ -97,6 +97,8 @@ func (h *host) Mark(r rune) (int, bool) {
 	return p, ok
 }
 
+func (h *host) DeleteMark(r rune) { delete(h.marks, r) }
+
 func (h *host) EndGroup() {
 	h.depth--
 	if h.depth == 0 && h.applied {
@@ -666,6 +668,21 @@ func TestB87Global(t *testing.T) {
 	}
 }
 
+// B403
+func TestB403MarkCommands(t *testing.T) {
+	cases(t)
+}
+
+// B404
+func TestB404VisualMacro(t *testing.T) {
+	cases(t)
+}
+
+// B405
+func TestB405Put(t *testing.T) {
+	cases(t)
+}
+
 // B88
 func TestB88Normal(t *testing.T) {
 	cases(t)
@@ -944,6 +961,7 @@ func TestB132ArrowKeys(t *testing.T) {
 
 // B133
 func TestB133CommandLineEditing(t *testing.T) {
+	cases(t)
 	_, _, m := run(t, "|x", ":one<CR>:two<CR>")
 	for _, c := range []struct{ keys, line string }{
 		// The cursor moves, and text goes in where it is.
@@ -958,6 +976,10 @@ func TestB133CommandLineEditing(t *testing.T) {
 		{"<Up>", ":one|"},
 		{"<Down>", ":o|"},
 		{"<Esc>:<Up><Up>", ":one|"},
+		// <C-p> and <C-n> recall every line, whatever is typed.
+		{"<Esc>:o<C-p>", ":two|"},
+		{"<C-p>", ":one|"},
+		{"<C-n><C-n>", ":o|"},
 	} {
 		for _, k := range vim.Keys(c.keys) {
 			if err := m.Feed(k); err != nil {
@@ -987,6 +1009,7 @@ func TestB133CommandLineEditing(t *testing.T) {
 
 // B135
 func TestB135CommandLineRegister(t *testing.T) {
+	cases(t)
 	_, _, m := run(t, "foo |bar", `"ayy:<C-r><C-w> <C-r>a`)
 	if m.Line() != ":bar foo bar" {
 		t.Errorf("<C-r><C-w> and <C-r>a made %q, want %q", m.Line(), ":bar foo bar")

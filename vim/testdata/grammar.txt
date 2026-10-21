@@ -249,6 +249,12 @@
 "|ab\ncd" "ciwxyz<Esc>0`]" "xy|z\ncd"
 "|ab" "Axy<Esc>0`^" "abx|y"
 "|ab\ncd" "mAj'A" "|ab\ncd"
+"One|. Two three." "`(" "|One. Two three."
+"One|. Two three." "`)" "One. |Two three."
+"One. |Two three. Four." "d`)" "One. |Four."
+"a\n|b\n\nc" "`{" "|a\nb\n\nc"
+"a\n|b\n\nc" "`}" "a\nb\n|\nc"
+"a\n|b\n\nc\n\nd" "d'}" "a\n|c\n\nd"
 
 # B21
 "|foo bar foo" "/foo<CR>" "foo bar |foo"
@@ -273,6 +279,13 @@
 "|foo bar foo\nbaz foo qux\n\nend foo" "/foo/e<CR>0//<CR>" "foo bar |foo\nbaz foo qux\n\nend foo"
 "|foo bar foo\nbaz foo qux\n\nend foo" "G?foo?e<CR>" "foo bar foo\nbaz fo|o qux\n\nend foo"
 "|foo bar foo\nbaz foo qux\n\nend foo" "d/foo/e<CR>" "| bar foo\nbaz foo qux\n\nend foo"
+"|x foo foo foo y" "/foo<C-g><CR>" "x foo |foo foo y"
+"|x foo foo foo y" "/foo<C-t><CR>" "x foo foo |foo y"
+"|x foo foo foo y" "?foo<C-g><CR>" "x |foo foo foo y"
+"|x foo foo foo y" "?foo<C-t><CR>" "x foo |foo foo y"
+"|x foo foo foo y" "/foo<C-g><C-g><C-g><CR>" "x |foo foo foo y"
+"|x foo foo foo y" "/fo<C-g>o<CR>" "x foo |foo foo y"
+"|x foo foo foo y" "d/foo<C-g><CR>" "|foo foo y"
 
 # B22
 "  a\nfoo |x" ":s/x/y/<CR>" "  a\n|foo y"
@@ -311,6 +324,12 @@
 "|a.b a.b" "vll*" "a.b |a.b"
 "a.b axb |a.b" "v2l#" "|a.b axb a.b"
 "|a.b axb a.b" "v2l*" "a.b axb |a.b"
+"|foo foobar foo" "g*" "foo |foobar foo"
+"|foo foobar foo" "g#" "foo foobar |foo"
+"x\n\nf\n{\n x\n y(|x)\n}" "gd" "x\n\nf\n{\n |x\n y(x)\n}"
+"x\n\nf\n{\n x\n y(|x)\n}" "gD" "|x\n\nf\n{\n x\n y(x)\n}"
+"x\n\nf\n{\n x\n y(|x)\n}" "gdn" "x\n\nf\n{\n x\n y(|x)\n}"
+"x\nf\n{\n y(|x)\n}" "gd" "|x\nf\n{\n y(x)\n}"
 
 # B25
 "a|bcd" "2x" "a|d"
@@ -507,6 +526,10 @@
 "|foo bar foo\nbaz foo qux\n\nend foo" ":1d|$d<CR>" "baz foo qux\n|"
 "|foo bar foo\nbaz foo qux\n\nend foo" ":s/foo/X/|s/bar/Y/<CR>" "|X Y foo\nbaz foo qux\n\nend foo"
 "|foo bar foo\nbaz foo qux\n\nend foo" ":g/foo/s/o/0/|s/0/1/<CR>" "f1o bar foo\nbaz f1o qux\n\n|end f1o"
+"|a\nb\nc\nd\ne" ":2;+1d<CR>" "a\n|d\ne"
+"|a\nb\nc\nd\ne" ":2,+1d<CR>" "a\n|c\nd\ne"
+"abc|def\nab\nabcdef\nabcdef" ":3;4y<CR>" "abcdef\nab\nabc|def\nabcdef"
+"a\nb\n|c\nd" ":1,d<CR>" "|d"
 
 # B87
 "|1x\n2\n3x\n4" ":g/x/d<CR>" "2\n|4"
@@ -526,3 +549,33 @@
 "|a👍🏽b" "ll" "a👍🏽|b"
 "a👍🏽|b" "h" "a|👍🏽b"
 "|xéy" "ll" "xé|y"
+
+# B133
+"|two" ":s/two/<C-v>u00e9/<CR>" "|é"
+"|two" ":s/two/<C-k>e:/<CR>" "|ë"
+"|two" ":s/two/<C-k>e<Esc>/<CR>" "|"
+
+# B135
+"foo|.bar(x) baz" ":s/<C-r><C-a>/Z/<CR>" "|Z baz"
+"|ab\ncd" "j:s/<C-r><C-l>/X/<CR>" "ab\n|X"
+
+# B403
+"|a\n  b\nc" ":2mark a<CR>G`a" "a\n|  b\nc"
+"|a\nb\nc" ":2,3kb<CR>`b" "a\nb\n|c"
+"|a\nb\nc" ":3k c<CR>'c" "a\nb\n|c"
+"|a\nb\nc" "jmajmbgg:delm a<CR>`a" "|a\nb\nc"
+"|a\nb\nc" "jmajmbgg:delm a<CR>`b" "a\nb\n|c"
+"|a\nb\nc" "jmajmbgg:delmarks a-b<CR>`b" "|a\nb\nc"
+"|a\nb\nc" "jmajmbgg:delm!<CR>`b" "|a\nb\nc"
+
+# B404
+"|a1\nb1\nc1\nd1" "qaA!<Esc>jqggVj@a" "a1!!\nb1!\nc|1\nd1"
+"|a1\nb1\nc1" "qaA!<Esc>qggvj@a" "a1!\nb1|!\nc1"
+
+# B405
+"|a\n  b\nc\nd" "jyy:put<CR>" "a\n  b\n  |b\nc\nd"
+"|a\n  b\nc\nd" "jyy:put!<CR>" "a\n  |b\n  b\nc\nd"
+"|a\n  b\nc\nd" "jyy:0put<CR>" "  |b\na\n  b\nc\nd"
+"|a\nb\nc\nd" "yy:2,3put<CR>" "a\nb\nc\n|a\nd"
+"|a\nb\nc" "\"xyyj:pu x<CR>" "a\nb\n|a\nc"
+"a b|c" "yiw:put<CR>" "a bc\n|bc"

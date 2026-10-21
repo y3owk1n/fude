@@ -322,9 +322,10 @@ Where fude departs, the line says so and cites the departure in
 - B305 [2] The finder previews a PNG, JPEG or GIF as a line that says its
   format and size, with the image below it, fit to the box, where the
   terminal shows images (B303).
-- B131 [2] In a `:` command line, `<Tab>` and `<C-n>` put the next
-  completion of the word being typed in the line, and `<S-Tab>` and
-  `<C-p>` the one before. After the last comes the word as typed.
+- B131 [2] In a `:` command line, `<Tab>` puts the next completion of the
+  word being typed in the line, and `<S-Tab>` the one before, as do
+  `<C-n>` and `<C-p>` while the menu shows. After the last comes the word
+  as typed.
   `<C-y>` keeps the completion and `<C-e>` puts the typed word back. A
   menu above the line shows the completions, ranked as `matchfuzzy()`
   ranks them, as Neovim's wildmenu does with `wildoptions=pum,fuzzy`.
@@ -358,8 +359,11 @@ Where fude departs, the line says so and cites the departure in
   the end. Typed text goes in at the cursor. `<BS>` and `<Del>` delete a character, `<C-w>` the word before the
   cursor and `<C-u>` all before it. `<Up>` and `<Down>` recall older and
   newer lines that start with the text typed, `:` lines and searches each
-  from their own history, as Neovim's command line does. Each history
-  keeps its newest 10000 lines.
+  from their own history, as Neovim's command line does. `<C-p>` and
+  `<C-n>` recall every line, whatever is typed, unless a completion menu
+  shows (B131). Each history keeps its newest 10000 lines. `<C-v>` and
+  `<C-k>` type a key as it is, the character a number names, or a
+  digraph, as in insert mode (B29).
 - B371 [2] `q:` opens a window seven lines tall below the current one. It
   lists the command lines entered, the newest last, then an empty line
   with the cursor on it. `q/` and `q?` list the searches. The lines edit
@@ -379,8 +383,9 @@ Where fude departs, the line says so and cites the departure in
   than 64KB shows the line's start.
   `<CR>` opens the file at the match (N13).
 - B135 [2] In a command line, `<C-r>` and a register's name put the
-  register's text at the cursor, without its last line break, and
-  `<C-r><C-w>` the word under the cursor in the text. A mapping to
+  register's text at the cursor, without its last line break,
+  `<C-r><C-w>` the word under the cursor in the text, `<C-r><C-a>` the
+  word of non-blanks there and `<C-r><C-l>` the cursor's line. A mapping to
   `:pick grep <C-r><C-w><CR>` greps the word under the cursor.
 - B136 [2] With `format_on_save` on, `:w` formats the buffer first, as
   conform.nvim's `format_on_save` does. A filetype's `format` names its
@@ -709,19 +714,23 @@ Where fude departs, the line says so and cites the departure in
   takes a file mark only in its own buffer. fude also sets the marks Neovim sets. `'`,
   which `` ` `` names too, is where the last jump left from. `.` is the
   last change. `[` and `]` are the start and end of the last change, put
-  or yank. `^` is where insert mode was last left, and `<` and `>` are the
-  ends of the last selection. `:marks` lists them all.
+  or yank. `^` is where insert mode was last left, `<` and `>` are the
+  ends of the last selection, and `"` is where the cursor was when the
+  buffer was last left, at its start until then. `(`, `)`, `{` and `}` are
+  where those motions go from the cursor. `:marks` lists them all.
 - B21 [2] `/` and `?` search forward and back, and `n` and `N` repeat.
   A search that reaches an end of the text goes on from the other.
   Matches highlight in every window while typing and after the search.
   While a search is typed, with `inc_search` on, as it is unless set off,
   the window shows the match it goes to, lit apart from the rest, and
-  `<Esc>` scrolls the window back. `<C-l>` clears the highlight, and
-  removes the multicursors B397 says. An offset after the pattern moves
-  from the match as in Neovim: `/pat/e` to its last character, `s` or `b`
-  to its first, each with a count of characters, as `/pat/e+1`, and a
-  count alone of lines, as `/pat/+2`. `n` and `N` keep the offset, and an
-  empty pattern with one, as `//e`, takes the last. Patterns use Vim syntax on a
+  `<Esc>` scrolls the window back. `<C-g>` and `<C-t>` move that match on
+  to the next and back to the one before, wrapping around, and the search
+  goes there. `<C-l>` clears the highlight, and removes the multicursors
+  B397 says. An offset after the pattern moves from the match as in
+  Neovim: `/pat/e` to its last character, `s` or `b` to its first, each
+  with a count of characters, as `/pat/e+1`, and a count alone of lines,
+  as `/pat/+2`. `n` and `N` keep the offset, and an empty pattern with
+  one, as `//e`, takes the last. Patterns use Vim syntax on a
   linear-time engine, and a pattern that needs backtracking is refused
   with a message naming the atom (N1).
 - B120 [2] With `ignore_case`, searches, `:s` and their highlights ignore
@@ -755,8 +764,11 @@ Where fude departs, the line says so and cites the departure in
   which is where the line wraps, or with `wrap` off what the window shows. `<C-d> <C-u> <C-f> <C-b> <C-e>
   <C-y> zz zt zb z. z<CR> z-` scroll as in Neovim. With `wrap` off, `zh zl
   zH zL zs ze` scroll sideways, and the cursor moves only to stay in view.
-- B28 [2] `*` and `#` search for the word under the cursor. In visual mode
-  they search for the selected text literally.
+- B28 [2] `*` and `#` search for the word under the cursor, and `g*` and
+  `g#` for it inside longer words too. In visual mode they search for the
+  selected text literally. `gD` goes to the word's first match in the
+  text, and `gd` to its first after the blank line above the line starting
+  with `{` above the cursor.
 - B29 [2] Insert-mode `<BS> <C-w> <C-u> <C-r>{reg} <C-o> <C-t> <C-d>` act as
   in Neovim. `<C-v>` types the next key as it is, or the character a
   number after it names, as `<C-v>065`, `<C-v>x41` and `<C-v>u20ac` do.
@@ -787,7 +799,9 @@ Where fude departs, the line says so and cites the departure in
 
 - B86 [2] `:{range}d`, `:{range}y`, `:{range}m`, `:{range}t`, `:{range}>`
   and `:{range}<` act on lines, with ranges written as in Neovim (`.`, `$`,
-  `%`, `'<,'>`, `'a`, `/pat/`, offsets). A count after `:d`, `:y`,
+  `%`, `'<,'>`, `'a`, `/pat/`, offsets). After `;` between two addresses
+  the cursor moves to the first line, and the second counts from it. A
+  second address left out is the cursor's line. A count after `:d`, `:y`,
   `:join`, `:>` or `:<` takes that many lines from the range's last, as
   `:d 3`. A `|` ends a command and starts the next, as `:w | q`, but
   `:g`, `:v`, `:normal`, `:!`, `:r !`, `:w !` and `:terminal` take it in
@@ -796,6 +810,16 @@ Where fude departs, the line says so and cites the departure in
   or non-matching line, as one transaction.
 - B88 [2] `:{range}normal keys` runs keys on each line of the range, as one
   transaction, and `:normal!` runs them without the mappings.
+- B403 [2] `:{range}mark x` and `:{range}kx` set mark x, a to z or A to
+  Z, at the start of the range's last line. `:delmarks` deletes the marks
+  it names, with `a-d` for a to d, and `:delmarks!` every mark from a to
+  z.
+- B404 [2] `@x` in linewise visual mode replays register x on each
+  selected line, as `:'<,'>normal @x` does. Over characters or a block it
+  replays it with the selection kept.
+- B405 [2] `:{range}put x` puts register x on lines of its own below the
+  range's last line, and `:put! x` and `:0put x` above it. Without x it
+  puts the register `p` puts.
 - B89 [2] `:e path`, `:ls`, `:b N`, `:bn`, `:bp` and `:bd` manage buffers.
   The first file opened takes the number of the empty buffer
   fude began with, which then goes, so the file is buffer 1, as in Neovim.
@@ -1121,8 +1145,9 @@ Where fude departs, the line says so and cites the departure in
 
 ## Timeline
 
-- B30 [2] `u` and `<C-r>` move along the current branch. An edit after an
-  undo starts a new branch and keeps the old one.
+- B30 [2] `u` and `<C-r>` move along the current branch, as `:undo` and
+  `:redo` do. An edit after an undo starts a new branch and keeps the old
+  one.
 - B31 [2] `:timeline` lists every node with its time and command, and
   restoring a node creates a new node rather than discarding later ones. In
   its window, `[` and `]` move the text to the node above or below, `d`

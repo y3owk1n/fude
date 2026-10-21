@@ -221,19 +221,52 @@ func windowMotion(m *Machine, x motionCall) (int, kind) {
 
 // searchMotion is n and N.
 func searchMotion(m *Machine, x motionCall) (int, kind) {
-	return m.seekOffset(m.search.pattern, m.search.offset, m.search.forward == (x.cmd == "n"), x.n, true)
+	return m.seekOffset(x.c, m.search.pattern, m.search.offset, m.search.forward == (x.cmd == "n"), x.n, true)
 }
 
-// starMotion is * and #.
+// starMotion is * and #, and g* and g#, which match the word inside others
+// too.
 func starMotion(m *Machine, x motionCall) (int, kind) {
 	word, ok := keywordAt(x.t, x.c)
 	if !ok {
 		m.msg = "no word under the cursor"
 		return x.c, failed
 	}
-	m.search.pattern, m.search.forward, m.search.offset = `\<`+word+`\>`, x.cmd == "*", ""
-	p, k := m.seek(m.search.pattern, m.search.forward, x.n)
-	return p, k
+	if x.cmd[0] != 'g' {
+		word = `\<` + word + `\>`
+	}
+	m.search.pattern, m.search.forward, m.search.offset = word, strings.HasSuffix(x.cmd, "*"), ""
+	return m.seek(x.c, m.search.pattern, m.search.forward, x.n)
+}
+
+// declMotion is gd and gD, which go to the first match of the word under
+// the cursor in the text, or for gd from the blank line above the line
+// starting with { above the cursor.
+func declMotion(m *Machine, x motionCall) (int, kind) {
+	word, ok := keywordAt(x.t, x.c)
+	if !ok {
+		m.msg = "no word under the cursor"
+		return x.c, failed
+	}
+	m.search.pattern, m.search.forward, m.search.offset = `\<`+word+`\>`, true, ""
+	p, err := m.compile(m.search.pattern)
+	if err != nil {
+		m.msg = err.Error()
+		return x.c, failed
+	}
+	line := 0
+	if x.cmd == "gd" {
+		line = x.t.LineOf(x.c)
+		for line > 0 && at(x.t, x.t.LineStart(line)) != '{' {
+			line--
+		}
+		for line > 0 && LineEnd(x.t, x.t.LineStart(line)) > x.t.LineStart(line) {
+			line--
+		}
+	}
+	m.hl = true
+	pos, _ := p.first(x.t, x.t.LineStart(line), x.t.Len()+1)
+	return pos, exclusive
 }
 
 // repeatFindMotion is ; and ,.
@@ -256,7 +289,7 @@ func markMotion(m *Machine, x motionCall) (int, kind) {
 	if name == '`' {
 		name = '\''
 	}
-	p, ok := m.h.Mark(name)
+	p, ok := m.mark(x.t, x.c, name)
 	t := x.t
 	// A file mark in another text shows that text, but not for an
 	// operator, which acts within one.
@@ -275,9 +308,10 @@ func markMotion(m *Machine, x motionCall) (int, kind) {
 	return p, exclusive
 }
 
-// searchForMotion is / and ? with a pattern.
-// The pattern is cut at the first delim not after a backslash, and what
-// follows is the offset, as /pat/e+1. An empty pattern is the last one.
+// searchForMotion is / and ? with a pattern. It starts where the search
+// typed started, which <C-g> and <C-t> move. The pattern is cut at the
+// first delim not after a backslash, and what follows is the offset, as
+// /pat/e+1. An empty pattern is the last one.
 func searchForMotion(m *Machine, x motionCall) (int, kind) {
 	parts := splitDelim(x.cmd[1:], x.cmd[0])
 	if parts[0] != "" {
@@ -287,7 +321,23 @@ func searchForMotion(m *Machine, x motionCall) (int, kind) {
 	if len(parts) > 1 {
 		m.search.offset = parts[1]
 	}
-	return m.seekOffset(m.search.pattern, m.search.offset, m.search.forward, x.n, false)
+	return m.seekOffset(m.searchFrom, m.search.pattern, m.search.offset, m.search.forward, x.n, false)
+}
+
+// mark returns where mark name is. ( ) { } are where those motions go from
+// c.
+func (m *Machine) mark(t Text, c int, name rune) (int, bool) {
+	switch name {
+	case '(':
+		return sentenceBack(t, c, 1), true
+	case ')':
+		return sentenceForward(t, c, 1), true
+	case '{':
+		return paragraphBack(t, c, 1), true
+	case '}':
+		return paragraphForward(t, c, 1), true
+	}
+	return m.h.Mark(name)
 }
 
 // findMotion is f, F, t and T with a character.
@@ -443,6 +493,10 @@ var motions = map[string]motionKey{
 	"N":              {"goes to the previous match of the last search", searchMotion},
 	"*":              {"searches forward for the word under the cursor", starMotion},
 	"#":              {"searches back for the word under the cursor", starMotion},
+	"g*":             {"searches forward for the word under the cursor, also inside other words", starMotion},
+	"g#":             {"searches back for the word under the cursor, also inside other words", starMotion},
+	"gd":             {"goes to the first match of the word under the cursor in the function", declMotion},
+	"gD":             {"goes to the first match of the word under the cursor in the file", declMotion},
 	";":              {"repeats the last f, t, F or T", repeatFindMotion},
 	",":              {"repeats the last f, t, F or T the other way", repeatFindMotion},
 	"`{mark}":        {"goes to the mark", markMotion},

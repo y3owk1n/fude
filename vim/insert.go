@@ -247,6 +247,10 @@ func (m *Machine) startInsert(k Key, pos int) error {
 
 // typeText inserts text the user typed or pasted.
 func (m *Machine) typeText(s string) error {
+	if m.mode == Cmdline {
+		m.typeLine(s)
+		return nil
+	}
 	m.autoIndent = false
 	return m.insertText(s)
 }
@@ -592,10 +596,13 @@ func (m *Machine) digitsDone(prefix string, base, most int, after Key) error {
 	if err := m.typeText(text); err != nil {
 		return err
 	}
-	if after != "" {
-		return m.insert(after)
+	switch {
+	case after == "":
+		return nil
+	case m.mode == Cmdline:
+		return m.cmdline(after)
 	}
-	return nil
+	return m.insert(after)
 }
 
 // keyText returns the character a key sends, or its name for a key that

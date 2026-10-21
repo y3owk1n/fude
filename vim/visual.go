@@ -379,7 +379,7 @@ func searchSelection(m *Machine, x visualCall) error {
 	// The search starts at the selection's start, so # finds the match
 	// before it, not the selection.
 	m.h.SetCursor(r.start)
-	p, k := m.seek(m.search.pattern, m.search.forward, max(x.count, 1))
+	p, k := m.seek(r.start, m.search.pattern, m.search.forward, max(x.count, 1))
 	if k != failed {
 		m.h.SetCursor(clamp(x.t, p))
 	}

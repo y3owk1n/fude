@@ -7,9 +7,10 @@ a register or an operator typed before `/` or `?` waits for the search, so
 `d/x<CR>` deletes up to the next `x`, and in visual mode a search moves the
 selection's end.
 
-In a `:` line, `<Tab>` and `<C-n>` put the next completion of the word
-being typed in the line, and `<S-Tab>` and `<C-p>` the one before. A menu
-above the line shows them, ranked by how well they match, and after the
+In a `:` line, `<Tab>` puts the next completion of the word being typed in
+the line, and `<S-Tab>` the one before. While a menu of them shows,
+`<C-n>` and `<C-p>` step through it as well. The menu shows them above the
+line, ranked by how well they match, and after the
 last comes the word as typed. The word is a command's name, its short
 names matching as it does, or an argument the command takes, such as a
 path for `:edit` or an option for `:set`. The menu lights the item the
@@ -60,6 +61,18 @@ instead.
 "|xa ax" "/a<Home><C-e>x<CR>" "xa |ax"
 ```
 
+## <C-g>
+
+While a search is typed, moves the match it goes to on to the next one,
+wrapping around the text, so `<CR>` goes there. The window shows it as it
+shows the first. Typing more searches on from there. An operator takes the
+text up to that match.
+
+```keys
+"|x foo foo foo y" "/foo<C-g><CR>" "x foo |foo foo y"
+"|x foo foo foo y" "d/foo<C-g><CR>" "|foo foo y"
+```
+
 ## <C-h>
 
 Deletes the character before the cursor, or leaves an empty line. The same
@@ -69,17 +82,58 @@ as `<BS>`.
 "|ab ac" "/ab<C-h>c<CR>" "ab |ac"
 ```
 
+## <C-k>
+
+Types the character the next two keys name as a digraph, as in insert
+mode, so `<C-k>e:` types `ë`. Two keys that name none type the second.
+`<Esc>` after it types nothing.
+
+```keys
+"|two" ":s/two/<C-k>e:/<CR>" "|ë"
+```
+
+## <C-n>
+
+Recalls the next newer line of the history, whatever was typed. Past the
+newest, it puts back what was typed. While a completion menu shows in a
+`:` line, it puts the next completion in the line instead.
+
+```keys
+"|b ac b ac" "/ac<CR>/b<CR>/<C-p><C-p><C-n><CR>" "|b ac b ac"
+```
+
+## <C-p>
+
+Recalls the next older line of the history, whatever was typed, where
+`<Up>` takes only a line that starts with it. While a completion menu
+shows in a `:` line, it puts the completion before instead.
+
+```keys
+"|b ac b ac" "/ac<CR>/b<CR>/a<C-p><C-p><CR>" "b ac b |ac"
+```
+
 ## <C-r>
 
 Types the register named next at the cursor, without its last line break,
 so `<C-r>"` types what was last yanked. `<C-r><C-w>` types the word under
 the text's cursor instead, so `:s/<C-r><C-w>/` starts a substitute of it.
-An empty register types nothing.
+`<C-r><C-a>` types the word of non-blanks there, and `<C-r><C-l>` the
+cursor's line. An empty register types nothing.
 
 ```keys
 "|foo bar foo" "yiw/<C-r>\"<CR>" "foo bar |foo"
 "|foo bar foo" "/<C-r><C-w><CR>" "foo bar |foo"
 "|ab ab" ":s/<C-r><C-w>/x/g<CR>" "|x x"
+"a.|b c" ":s/<C-r><C-a>/x/<CR>" "|x c"
+```
+
+## <C-t>
+
+While a search is typed, moves the match it goes to back to the one
+before, wrapping around the text, as `<C-g>` moves it on.
+
+```keys
+"|x foo foo foo y" "/foo<C-t><CR>" "x foo foo |foo y"
 ```
 
 ## <C-u>
@@ -89,6 +143,16 @@ Deletes all of the line before the cursor, and keeps what is after it.
 ```keys
 "|ab ac" "/zz<C-u>ac<CR>" "ab |ac"
 "|ab ac" "/zzac<Left><Left><C-u><CR>" "ab |ac"
+```
+
+## <C-v>
+
+Types the next key as it is, as in insert mode, so `<C-v><Tab>` types a
+tab where `<Tab>` would complete. A number after it types the character it
+names, as `<C-v>065`, `<C-v>x41` and `<C-v>u20ac` do.
+
+```keys
+"|two" ":s/two/<C-v>u00e9/<CR>" "|é"
 ```
 
 ## <C-w>

@@ -67,13 +67,14 @@ type Host interface {
 	Clipboard() (string, error) // the system clipboard, the "+ and "* register
 	SetClipboard(text string) error
 	// SetMark keeps a mark that moves with edits, staying after text
-	// inserted at it. Names are mark letters, or runes from 0xF0000 up,
-	// which the machine uses for its own marks. A to Z are file marks, one
-	// each across every text, which Mark finds only in the text that holds
-	// it. ShowMark shows the text that holds file mark name, and reports
-	// whether one does.
+	// inserted at it. Names are mark letters, or runes from OwnMarks up,
+	// which the machine uses for its own marks. DeleteMark unsets one. A to
+	// Z are file marks, one each across every text, which Mark finds only
+	// in the text that holds it. ShowMark shows the text that holds file
+	// mark name, and reports whether one does.
 	SetMark(name rune, pos int)
 	Mark(name rune) (int, bool)
+	DeleteMark(name rune)
 	ShowMark(name rune) bool
 	// FileName is the name of the text's file, which the register % holds,
 	// or "" for none.
@@ -115,11 +116,16 @@ type Host interface {
 	Editable() error
 }
 
+// OwnMarks is the first of the mark names the machine keeps for itself,
+// which a host never lists.
+const OwnMarks = 0xF0000
+
 // Defaults is the part of a Host a host may leave out by embedding it. It
 // has no undo history, jumps, changes or system clipboard, ignores what
 // reaches Unhandled, shows a tab as Tabstop columns, indents by as many and
-// has no folds, sideways view, file name or other texts to show. A host then writes Text,
-// Cursor, SetCursor, Apply, SetMark, Mark, Viewport and SetTop.
+// has no folds, sideways view, file name or other texts to show. A host
+// then writes Text, Cursor, SetCursor, Apply, SetMark, Mark, DeleteMark,
+// Viewport and SetTop.
 type Defaults struct{}
 
 func (Defaults) BeginGroup()                {}
@@ -216,6 +222,7 @@ type Machine struct {
 	recalling  bool
 	recallFrom string
 	back       Mode // the mode a search returns to
+	searchFrom int  // where the search being typed starts, which <C-g> and <C-t> move
 	search     struct {
 		pattern string
 		forward bool
@@ -677,11 +684,8 @@ func (m *Machine) Complete(back int, text string) error {
 // paste is Paste at the cursor.
 func (m *Machine) paste(s string) error {
 	switch m.mode {
-	case Insert, Replace:
+	case Insert, Replace, Cmdline:
 		return m.typeText(s)
-	case Cmdline:
-		m.typeLine(s)
-		return nil
 	}
 	t, c := m.h.Text(), m.h.Cursor()
 	at := next(t, c, LineEnd(t, c))
@@ -704,6 +708,7 @@ var prefixes = []Binding{
 	{"normal", "q=", "toggles multicursor follow, 1q= sets it on and 2q= off"},
 	{"normal", "zq{motion}", "places a multicursor at each place the motion reaches"},
 	{"normal", "@{reg}", "replays the register, n times"},
+	{"visual", "@{reg}", "replays the register on each selected line, or in the selection"},
 	{"normal", "<C-w>{key}", "runs a window command"},
 }
 
@@ -773,9 +778,13 @@ func (m *Machine) normal(k Key) error {
 			return nil
 		}
 		name, _ := utf8.DecodeRuneInString(cmd[1:])
-		if cmd[0] == 'q' {
+		switch {
+		case cmd[0] == 'q':
 			m.recording, m.macro = name, nil
 			return nil
+		case m.mode == Visual && m.visual == "V":
+			m.leaveVisual()
+			return m.ex("'<,'>normal @" + string(name))
 		}
 		return m.execute(name, count)
 	}

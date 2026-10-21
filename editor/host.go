@@ -60,20 +60,21 @@ func (h host) SetMark(name rune, pos int) {
 		}
 		defer func() { h.e.fileMarks[name] = place{b, b.marks[name]} }()
 	}
-	if id, ok := b.marks[name]; ok {
-		b.text.MoveMark(id, pos)
-		return
-	}
-	b.marks[name] = b.text.SetMark(pos, kernel.Right)
+	b.setMark(name, pos)
 }
 
-func (h host) Mark(name rune) (int, bool) {
+func (h host) Mark(name rune) (int, bool) { return h.e.win.buf.markAt(name) }
+
+func (h host) DeleteMark(name rune) {
 	b := h.e.win.buf
-	id, ok := b.marks[name]
-	if !ok {
-		return 0, false
+	if f, ok := h.e.fileMarks[name]; ok {
+		b = f.buf
+		delete(h.e.fileMarks, name)
 	}
-	return b.text.Mark(id), true
+	if id, ok := b.marks[name]; ok {
+		b.text.DeleteMark(id)
+		delete(b.marks, name)
+	}
 }
 
 // ShowMark shows the buffer that holds file mark name, if it is still

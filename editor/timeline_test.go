@@ -24,6 +24,8 @@ func TestB30UndoRedoBranches(t *testing.T) {
 		{"abc", "lliX<Esc>uiY<Esc>u<C-r>", "ab|Yc"},
 		{"abc", "lliX<Esc>iY<Esc>uu<C-r>", "ab|Xc"},
 		{"a b c", "dwwdwuu", "|a b c"},
+		{"a bc", "x:undo<CR>", "|a bc"},
+		{"a bc", "xx:u<CR>:red<CR>", "|bc"},
 	}
 	run(t, cases)
 }

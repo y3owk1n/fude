@@ -42,14 +42,16 @@ func TestB157InfoViews(t *testing.T) {
 	if editortest.Feed(e, ":messages<CR>"); editortest.Text(e) != "number false\nwrap true" {
 		t.Fatalf(":messages listed %q", editortest.Text(e))
 	}
-	// :marks lists the marks, and <CR> jumps to one.
-	// The list shows once modules/places hears of it.
-	editortest.Feed(e, ":q<CR>majjmb:marks<CR>")
-	editortest.Settle(t, e, func() bool { return editortest.Text(e) == "a  1:1  one\nb  3:1  three" })
-	if editortest.Text(e) != "a  1:1  one\nb  3:1  three" {
+	// :marks lists the marks, " where :messages left the buffer too, and
+	// <CR> jumps to one. The list shows once modules/places hears of it.
+	// The mark :normal keeps for itself is not listed.
+	editortest.Feed(e, ":q<CR>:1normal l<CR>0majjmb:marks<CR>")
+	want := "\"  1:1  one\na  1:1  one\nb  3:1  three"
+	editortest.Settle(t, e, func() bool { return editortest.Text(e) == want })
+	if editortest.Text(e) != want {
 		t.Fatalf(":marks listed %q", editortest.Text(e))
 	}
-	if editortest.Feed(e, "j<CR>"); e.Cursor() != 8 {
+	if editortest.Feed(e, "jj<CR>"); e.Cursor() != 8 {
 		t.Fatalf("<CR> on mark b went to %d", e.Cursor())
 	}
 	// :jumps and :changes list where the cursor jumped and the text changed.

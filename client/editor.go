@@ -185,6 +185,13 @@ func (h host) Mark(name rune) (int, bool) {
 	return h.e.r.text.Mark(id), true
 }
 
+func (h host) DeleteMark(name rune) {
+	if id, ok := h.e.marks[name]; ok {
+		h.e.r.text.DeleteMark(id)
+		delete(h.e.marks, name)
+	}
+}
+
 func (h host) Viewport() (int, int, int) { return h.e.top, h.e.rows, h.e.cols }
 func (h host) SetTop(top int)            { h.e.top = top }
 

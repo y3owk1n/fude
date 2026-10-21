@@ -42,6 +42,16 @@ func TestB20Marks(t *testing.T) {
 	if feed(e, "`A"); text(e) != "one\ntwo" || e.Cursor() != 5 {
 		t.Errorf("`A from another buffer went to %d in %q", e.Cursor(), text(e))
 	}
+	// " is where the cursor was when the buffer was last left, and moves
+	// with edits.
+	c, d := filepath.Join(dir, "c"), filepath.Join(dir, "d")
+	change(t, c, "abc\ndef\n")
+	change(t, d, "x\n")
+	e = open(t, c)
+	feed(e, "jl:e "+d+"<CR>:e #<CR>ggOnew<Esc>`\"")
+	if got := text(e); got[:e.Cursor()] != "new\nabc\nd" {
+		t.Errorf("`\" went to %q|%q", got[:e.Cursor()], got[e.Cursor():])
+	}
 }
 
 // B90

@@ -20,9 +20,11 @@ pattern. In an entry's heading `|` means "or", as in `:read {file} |
 
 A range of lines may come before the name. Without one, a command acts on
 the cursor's line, or on every line where its entry says so. `%` is every
-line. Otherwise a range is one address, or two joined by `,`, and fude
-swaps two given last line first. An address is one of these, then any
-number of `+n` and `-n`:
+line. Otherwise a range is one address, or two joined by `,` or `;`, and
+fude swaps two given last line first. After `;` the cursor moves to the
+first line, so the second counts from it, as `:5;+2` is lines 5 to 7. A
+second address left out is the cursor's line. An address is one of these,
+then any number of `+n` and `-n`:
 
 - a line number. 0 is above the first line for `:move` and `:copy`, and
   the first line for the rest
@@ -39,6 +41,7 @@ set, or a pattern that matches nowhere, stops the command and says so.
 
 ```keys
 "|a\nb\nc" ":2,3d<CR>" "|a"
+"|a\nb\nc\nd" ":2;+1d<CR>" "a\n|d"
 "|a\nb\nc" ":.,$d<CR>" "|"
 "|a\nb\nc" ":/c/d<CR>" "a\n|b"
 "|a\nb\nc" ":+1d<CR>" "a\n|c"
@@ -49,8 +52,9 @@ set, or a pattern that matches nowhere, stops the command and says so.
 "|a\nb\nc" ":3<CR>" "a\nb\n|c"
 ```
 
-`<Tab>` and `<C-n>` put the next completion of the word being typed in the
-line, and `<S-Tab>` and `<C-p>` the one before. After the last comes the
+`<Tab>` puts the next completion of the word being typed in the line, and
+`<S-Tab>` the one before. While the menu shows, `<C-n>` and `<C-p>` step
+through it too, and else recall the history. After the last comes the
 word as typed. A menu above the line ranks them as a fuzzy finder does, so
 `:bde<Tab>` finds `:bdelete`. While the menu shows, `<CR>` runs its lit
 item, `<C-y>` keeps the completion and `<C-e>` puts the typed word back.
@@ -173,6 +177,18 @@ deletes three lines, and `:d x 3` puts them in register x.
 "|a\nb\nc" ":d 2<CR>" "|c"
 ```
 
+## :delmarks
+
+Deletes the marks named, as `:delm a`, `:delm abc` or `:delm a-d`, where
+`a-d` names every mark from a to d. Spaces between them do not count.
+`:delm!` deletes every mark from a to z. With no name and no `!` it says
+so.
+
+```keys
+"|a\nb" "jmagg:delm a<CR>`a" "|a\nb"
+"|a\nb" "jmamb:delm a-b<CR>gg`b" "|a\nb"
+```
+
 ## :edit
 
 Opens file in the current window, or shows the buffer that holds it
@@ -220,6 +236,18 @@ count after it joins that many lines from the range's last, as `:j 3`.
 "|a\nb\nc" ":1,3j<CR>" "|a b c"
 "|a\nb\nc" ":j 3<CR>" "|a b c"
 "|a\n  b" ":j!<CR>" "|a  b"
+```
+
+## :mark
+
+Sets mark x at the start of the range's last line, or of the cursor's, so
+`` `x `` and `'x` go there. `:k` does the same, and takes the mark
+straight after it, as `:ka`. The mark is a letter from a to z, and any
+other says so.
+
+```keys
+"|a\nb\nc" ":3mark a<CR>`a" "a\nb\n|c"
+"|a\nb\nc" ":2ka<CR>'a" "a\n|b\nc"
 ```
 
 ## :move
@@ -289,6 +317,21 @@ its new file. A plugin the file no longer lists goes, with its commands,
 keys, operators and objects. Any other argument says "plugin what?
 reload". A guest may not run it.
 
+## :put
+
+Puts register x, or the register `p` puts without one, on lines of its own
+below the range's last line, or the cursor's. Text yanked as characters
+goes on a line too. With `!`, or line 0 as `:0put`, the lines go above
+instead. The cursor goes to the first non-blank of the last line put. An
+empty register says so.
+
+```keys
+"|a\nb" "yy:put<CR>" "a\n|a\nb"
+"|a\nb" "yy:$put<CR>" "a\nb\n|a"
+"a\n|b" "yy:put!<CR>" "a\n|b\nb"
+"a\n|b" "yiw:0put<CR>" "|b\na\nb"
+```
+
 ## :quit
 
 Closes the current window, as `:close` does, and in the last window quits
@@ -303,6 +346,14 @@ Quits fude whatever the windows, closing its files, modules and language
 servers. It refuses while any buffer has changes and names one, and
 `:qa!` drops every change. In a session attached to a running fude it
 leaves, and fude goes on for the other sessions.
+
+## :redo
+
+Redoes one change, as `<C-r>` does.
+
+```keys
+"|ab" "x:undo<CR>:redo<CR>" "|b"
+```
 
 ## :reject
 
@@ -429,6 +480,14 @@ with its flags, as `:&&` does.
 "|Ab" ":s/a/x/i<CR>" "|xb"
 "|ab ab" ":s/a/[&]/<CR>:s/b/~/<CR>" "|[a][b] ab"
 "|abc" ":s/b//<CR>" "|ac"
+```
+
+## :undo
+
+Undoes one change, as `u` does.
+
+```keys
+"|ab" "x:undo<CR>" "|ab"
 ```
 
 ## :vglobal

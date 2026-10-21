@@ -19,16 +19,22 @@ var arrows = map[Key]Key{
 func (m *Machine) enterLine(back Mode, prompt, line string) {
 	m.back, m.mode, m.prompt = back, Cmdline, prompt
 	m.line, m.lineAt, m.recalling = line, len(line), false
+	m.searchFrom = m.h.Cursor()
 }
 
 // cmdline takes a key while a command line is typed.
 func (m *Machine) cmdline(k Key) error {
-	if k != "<Up>" && k != "<Down>" {
+	if _, ok := recalls[k]; !ok {
 		m.recalling = false
 	}
-	if m.pending == "<C-r>" {
+	switch m.pending {
+	case "<C-r>":
 		m.pending = ""
 		return m.typeRegister(k)
+	case "<C-v>":
+		return m.literal(k)
+	case "<C-k>":
+		return m.digraph(k)
 	}
 	if ck, ok := cmdlineKeys[string(k)]; ok {
 		return ck.run(m, k, m.line[:m.lineAt], m.line[m.lineAt:])
@@ -75,8 +81,13 @@ func init() {
 		m.lineAt = len(m.line)
 		return nil
 	}
+	// wait keeps a key that takes the keys after it.
+	wait := func(m *Machine, k Key, _, _ string) error {
+		m.pending, m.spell = k, ""
+		return nil
+	}
 	recall := func(m *Machine, k Key, _, _ string) error {
-		m.recall(k == "<Up>")
+		m.recall(recalls[k][0], recalls[k][1])
 		return nil
 	}
 	cmdlineKeys = map[string]cmdlineKey{
@@ -136,20 +147,66 @@ func init() {
 		"<C-e>":     {"goes to the end of the line", end},
 		"<Up>":      {"recalls an older line that starts with what is typed", recall},
 		"<Down>":    {"recalls a newer line that starts with what is typed", recall},
-		"<C-r>": {"types the register named next, or with <C-w> the word under the cursor", func(m *Machine, k Key, _, _ string) error {
-			m.pending = k
-			return nil
-		}},
+		"<C-p>":     {"recalls an older line", recall},
+		"<C-n>":     {"recalls a newer line", recall},
+		"<C-g>":     {"in a search, goes on to the next match", stepMatch},
+		"<C-t>":     {"in a search, goes back to the match before", stepMatch},
+		"<C-r>":     {"types the register named next, or with <C-w>, <C-a> or <C-l> the word, the word of non-blanks or the line under the cursor", wait},
+		"<C-v>":     {"types the next key as it is, or the character a number after it names", wait},
+		"<C-k>":     {"types the character the next two keys name", wait},
 	}
 }
 
+// recalls are the keys that recall a line of the history: whether each goes
+// to an older line, and whether it takes only a line that starts with what
+// is typed.
+var recalls = map[Key][2]bool{"<Up>": {true, true}, "<Down>": {false, true}, "<C-p>": {true, false}, "<C-n>": {false, false}}
+
+// stepMatch is <C-g> and <C-t>, which move the match a search being typed
+// goes to on to the next one, or back to the one before. The search then
+// starts next to it, so it goes there (B21).
+func stepMatch(m *Machine, k Key, _, _ string) error {
+	at, _, ok := m.Incremental()
+	if !ok {
+		return nil
+	}
+	p, err := m.compile(m.line)
+	if err != nil {
+		return err
+	}
+	to, _ := p.wrapped(m.h.Text(), at, k == "<C-g>")
+	m.searchFrom = to - 1
+	if m.prompt == "?" {
+		m.searchFrom = to + 1
+	}
+	return nil
+}
+
 // typeRegister puts register k in the command line, without its last line
-// break, or the word under the cursor for <C-w>.
+// break, or for <C-w> the word under the cursor, <C-a> the word of
+// non-blanks and <C-l> the line.
 func (m *Machine) typeRegister(k Key) error {
-	if k == "<C-w>" {
-		if w, ok := keywordAt(m.h.Text(), m.h.Cursor()); ok {
+	t, c := m.h.Text(), m.h.Cursor()
+	switch k {
+	case "<C-w>":
+		if w, ok := keywordAt(t, c); ok {
 			m.typeLine(w)
 		}
+		return nil
+	case "<C-a>":
+		// The word under the cursor, or else the next on the line.
+		ls := LineStart(t, c)
+		line := t.Slice(ls, LineEnd(t, c))
+		rest := strings.TrimLeft(line[c-ls:], " \t")
+		before := line[:len(line)-len(rest)]
+		w := before[strings.LastIndexAny(before, " \t")+1:] + rest
+		if end := strings.IndexAny(w, " \t"); end >= 0 {
+			w = w[:end]
+		}
+		m.typeLine(w)
+		return nil
+	case "<C-l>":
+		m.typeLine(t.Slice(LineStart(t, c), LineEnd(t, c)))
 		return nil
 	}
 	if !k.isChar() {
@@ -233,10 +290,10 @@ func (m *Machine) remember() {
 // historyLines is how many lines each history keeps, the newest (B133).
 const historyLines = 10000
 
-// recall puts the next older or newer line of the history that starts with
-// the text typed before recalling in the command line, and that text after
-// the newest.
-func (m *Machine) recall(older bool) {
+// recall puts the next older or newer line of the history in the command
+// line, when filtered only one that starts with the text typed before
+// recalling, and that text after the newest.
+func (m *Machine) recall(older, filtered bool) {
 	h := m.history[m.historyOf()]
 	if !m.recalling {
 		m.recalling, m.recalled, m.recallFrom = true, len(h), m.line
@@ -251,7 +308,7 @@ func (m *Machine) recall(older bool) {
 			m.SetLine(m.recallFrom)
 			return
 		}
-		if strings.HasPrefix(h[i], m.recallFrom) {
+		if !filtered || strings.HasPrefix(h[i], m.recallFrom) {
 			m.recalled = i
 			m.SetLine(h[i])
 			return

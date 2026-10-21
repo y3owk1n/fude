@@ -43,11 +43,12 @@ type cmenu struct {
 // commandKey takes a key while a command line is typed: <Tab> puts the lit
 // completion in the line, or else the next, <C-n> the next, <S-Tab> and
 // <C-p> the one before, <C-y> keeps it and <C-e> puts back what was typed. It reports whether it
-// took the key, and other keys close the menu.
+// took the key, and other keys close the menu. Without a menu, <C-n> and
+// <C-p> recall the history.
 func (c *cmdline) key(e *Session, k vim.Key) bool {
 	line, ok := strings.CutPrefix(e.vim.Line(), ":")
 	m := c.menu
-	if e.vim.Mode() != vim.Cmdline || !ok {
+	if e.vim.Mode() != vim.Cmdline || !ok || m == nil && (k == "<C-n>" || k == "<C-p>") {
 		c.menu, c.dirs = nil, nil
 		return false
 	}

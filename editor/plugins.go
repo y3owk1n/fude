@@ -549,11 +549,7 @@ func (e *Session) setMark(m api.Mark) error {
 	case m.Pos < 0 || m.Pos > b.text.Snapshot().Len():
 		return fmt.Errorf("%d is outside buffer %d", m.Pos, b.id)
 	}
-	if id, ok := b.marks[name[0]]; ok {
-		b.text.MoveMark(id, m.Pos)
-	} else {
-		b.marks[name[0]] = b.text.SetMark(m.Pos, kernel.Right)
-	}
+	b.setMark(name[0], m.Pos)
 	return nil
 }
 

@@ -47,6 +47,6 @@ func TestB172KeyHints(t *testing.T) {
 	}
 	// The machine's own keys follow g, in a column as wide as the widest.
 	editortest.Feed(e, "g")
-	gg := regexp.MustCompile(`(^|  )g +goes to the first line`)
-	editortest.Settle(t, e, func() bool { f, ok := e.Menu(); return ok && gg.MatchString(f.Text) })
+	row := regexp.MustCompile(`(?m)(^|  )0 +goes to the start of the screen row`)
+	editortest.Settle(t, e, func() bool { f, ok := e.Menu(); return ok && row.MatchString(f.Text) })
 }

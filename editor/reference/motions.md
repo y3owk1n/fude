@@ -577,6 +577,43 @@ Searches back for the word under the cursor, as `*` searches forward.
 "foo x foobar |foo" "#" "|foo x foobar foo"
 ```
 
+## g*
+
+Searches forward for the word under the cursor as `*` does, but also
+where it is part of a longer word.
+
+```keys
+"|foo x foobar foo" "g*" "foo x |foobar foo"
+```
+
+## g#
+
+Searches back for the word under the cursor as `#` does, but also where
+it is part of a longer word.
+
+```keys
+"|foo x foobar foo" "g#" "foo x foobar |foo"
+```
+
+## gd
+
+Goes to the first match of the word under the cursor in its function. The
+search starts at the blank line above the line starting with `{` above the
+cursor, or at the first line when there is none. The word becomes the last
+search, as with `*`. A language server's definition is on `<C-]>`.
+
+```keys
+"x := 1\n\nfunc f()\n{\n\tx := 2\n\tprint(|x)\n}" "gd" "x := 1\n\nfunc f()\n{\n\t|x := 2\n\tprint(x)\n}"
+```
+
+## gD
+
+Goes to the first match of the word under the cursor in the file.
+
+```keys
+"x := 1\n\nfunc f()\n{\n\tx := 2\n\tprint(|x)\n}" "gD" "|x := 1\n\nfunc f()\n{\n\tx := 2\n\tprint(x)\n}"
+```
+
 ## ;
 
 Repeats the last `f`, `t`, `F` or `T` the same way, n times. After `t` and
@@ -601,14 +638,16 @@ Goes to the mark, where `m` set it or fude did, as `` `a `` goes to mark
 `a`. Marks move with the text when lines above them change. fude sets
 these: `` ` `` and `'` where the last jump left from, `.` the last change,
 `[` and `]` the start and end of the last change, put or yank, `^` where
-insert mode was last left, and `<` and `>` the ends of the last
-selection. It fails and says so when the mark is not set. Exclusive, and a
-jump.
+insert mode was last left, `<` and `>` the ends of the last selection, and
+`"` where the cursor was when the buffer was last left. `(` and `)`, `{`
+and `}` are where those motions go from the cursor. It fails and says so
+when the mark is not set. Exclusive, and a jump.
 
 ```keys
 "x\nfoo|bar" "max0`a" "x\nfoo|ar"
 "|a\nb\nc" "G``" "|a\nb\nc"
 "|ab cd ef" "wyw0`]" "ab cd| ef"
+"One. |Two. Three." "d`)" "One. |Three."
 ```
 
 ## '{mark}
