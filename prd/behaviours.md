@@ -923,10 +923,10 @@ Where fude departs, the line says so and cites the departure in
   another, shows every window again first. A float does not zoom, and
   floats show over a zoomed window.
 - B430 [2] `<C-w>n` and `<C-w><C-n>` open a new empty buffer in a window
-  below, as `:new` does. `:vertical cmd` runs cmd, and the window it opens
-  goes right of the current one, or left with `split_right` off, as
-  `:vertical split` and `:vertical new` do in Neovim. `:vertical resize`
-  still sizes the window.
+  below, as `:new` does, as many rows tall as a count before them says.
+  `:vertical cmd` runs cmd, and the window it opens goes right of the
+  current one, or left with `split_right` off, as `:vertical split` and
+  `:vertical new` do in Neovim. `:vertical resize` still sizes the window.
 - B369 [2] `:pick terminals` lists the session's terminals by name, those
   out of sight too, and picking one shows its window where it was, or
   below, in terminal mode while its program runs (B364).
@@ -1177,7 +1177,9 @@ Where fude departs, the line says so and cites the departure in
 - B420 [2] `<C-w>w` and `<C-w>W` move to the next and previous window,
   going round, and with a count n to window n, or the last. `<C-w>p` moves
   to the window current before, and says "no previous window" once that
-  has closed. Windows count from the top left, as in Neovim.
+  has closed. Windows count from the top left, and the floats after them,
+  the newest first, as in Neovim. These keys move in and out of a float
+  and leave it open, where any other `<C-w>` key in a float closes it.
 - B421 [2] `<C-w>x` exchanges the window with the next in its split, or
   the one before for the last, or window n of the split with a count, and
   the cursor stays in its place, now in the other window. `<C-w>r` and

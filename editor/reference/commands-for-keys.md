@@ -1047,7 +1047,8 @@ floats show over a zoomed window.
 ## <Plug>(window.new)
 
 `<C-w>n` by default. Opens a window below with a new empty buffer, or
-above with `split_below` off, as `:new` does. The count does nothing.
+above with `split_below` off, as `:new` does. A count makes the new window
+that many rows tall, as `:resize` does.
 
 ## <Plug>(window.new.ctrl)
 

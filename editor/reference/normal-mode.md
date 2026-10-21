@@ -192,8 +192,8 @@ Runs a window command, the key after `<C-w>`. fude's own split, close,
 arrange and move between windows, as the entries that follow say, and
 modules add more, such as the window module's keys that resize. A count
 before `<C-w>` reaches the command, which the keys that resize read as a
-size. In a float, any `<C-w>`
-key closes the float.
+size. In a float, a `<C-w>` key closes the float, except `<C-w>w`,
+`<C-w>W` and `<C-w>p`, which move to another window and leave it open.
 
 ## <C-x>
 
@@ -1000,8 +1000,10 @@ Makes the windows of each split share its space equally again.
 ## <C-w>w
 
 Moves to the next window, from the top left, going on from the first
-after the last. With a count it moves to window n instead, or to the last
-when there are fewer. `<C-w><C-w>` is the same.
+after the last. The floats come after the windows of the layout, the
+newest first, and stay open as the focus moves in and out of them. With a
+count it moves to window n instead, or to the last when there are fewer.
+`<C-w><C-w>` is the same.
 
 ## <C-w>W
 
@@ -1010,9 +1012,9 @@ a count it moves to window n, as `<C-w>w` does.
 
 ## <C-w>p
 
-Moves to the window that was current before this one. When that window
-has closed, the message says "no previous window". `<C-w><C-p>` is the
-same.
+Moves to the window that was current before this one, a float too. When
+that window has closed, the message says "no previous window".
+`<C-w><C-p>` is the same.
 
 ## <C-w>x
 

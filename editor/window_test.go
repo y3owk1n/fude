@@ -516,6 +516,21 @@ func TestB420NextWindow(t *testing.T) {
 	if feed(e, "<C-w>o<C-w>p"); e.Message() != "no previous window" {
 		t.Errorf("<C-w>p with the previous window closed said %q", e.Message())
 	}
+	// Floats count after the windows of the layout, the newest first, and
+	// stay open as the focus moves in and out of them.
+	e = threeWindows(t)
+	feed(e, ":window float<CR>1<C-w>w:window float<CR>")
+	for _, c := range [][2]string{
+		{"<C-w>w", "c"},
+		{"<C-w>w", "b"},
+		{"<C-w>W", "c"},
+		{"2<C-w>w", "a"},
+		{"<C-w>p", "c"},
+	} {
+		if feed(e, c[0]); text(e) != c[1] || len(e.Windows()) != 3 {
+			t.Errorf("%s with floats went to %q, with %d windows, want %q", c[0], text(e), len(e.Windows()), c[1])
+		}
+	}
 }
 
 // B421

@@ -82,6 +82,10 @@ func TestB430NewAndVertical(t *testing.T) {
 	if editortest.Feed(e, "<C-w>n"); len(e.Windows()) != 2 || current().Y == 0 || editortest.Text(e) != "" {
 		t.Fatalf("<C-w>n made %d windows, the current at row %d with %q", len(e.Windows()), current().Y, editortest.Text(e))
 	}
+	// A count is the new window's height, as :resize sets it.
+	if editortest.Feed(e, "3<C-w>n"); len(e.Windows()) != 3 || current().H != 3 {
+		t.Errorf("3<C-w>n made %d windows, the current %d rows tall", len(e.Windows()), current().H)
+	}
 	// :vertical opens the window of the command after it to the right.
 	for _, cmd := range []string{"new", "split"} {
 		editortest.Feed(e, ":only<CR>:vertical "+cmd+"<CR>")

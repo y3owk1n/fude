@@ -218,8 +218,9 @@ func (h host) Unhandled(k string) error {
 	count, _ := strconv.Atoi(k[:digits])
 	k = k[digits:]
 	if w, ok := strings.CutPrefix(k, "<C-w>"); ok {
-		// The layout's keys do not reach a float, so <C-w> in one closes it.
-		if f := h.e.win; f.anchor != "" {
+		// The layout's keys do not reach a float, so <C-w> in one closes it,
+		// but for the keys that move between windows (B420).
+		if f := h.e.win; f.anchor != "" && !slices.Contains([]string{"w", "<C-w>", "W", "p", "<C-p>"}, w) {
 			h.e.closeFloat(f)
 			return nil
 		}

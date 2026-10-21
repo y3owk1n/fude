@@ -738,10 +738,14 @@ var windowKeys = []windowKey{
 	{[]string{"L"}, "moves the window to the far right, as tall as the layout", func(e *Session, _ int) error { return e.toEdge("right") }},
 }
 
-// cycle moves to window n of the layout, or the last when there are fewer,
-// or else step windows on from the current one, going round (B420).
+// cycle moves to window n, or the last when there are fewer, or else step
+// windows on from the current one, going round. The floats count after the
+// windows of the layout, the newest first (B420).
 func (e *Session) cycle(n, step int) {
 	ws := e.root.windows()
+	for _, f := range slices.Backward(e.floats) {
+		ws = append(ws, f)
+	}
 	if n > 0 {
 		e.win = ws[min(n, len(ws))-1]
 		return

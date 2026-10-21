@@ -122,7 +122,7 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 		}
 	}
 	if id >= split {
-		return command(id, s), nil
+		return command(id, s, args[1]), nil
 	}
 	if int(id) > len(dirs) || id == 0 {
 		return api.Result{}, nil
@@ -138,8 +138,9 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 }
 
 // command splits, sizes or hides the current window, or closes the others,
-// as its command does (B91, B193).
-func command(id uint32, s api.Scope) api.Result {
+// as its command does (B91, B193). A count before <C-w>n is the new
+// window's height (B430).
+func command(id uint32, s api.Scope, count int) api.Result {
 	arg := strings.TrimSpace(s.About["args"])
 	way := splits.Way(s, id == vsplit || id == right)
 	switch id {
@@ -151,7 +152,11 @@ func command(id uint32, s api.Scope) api.Result {
 		}
 		return res
 	case below, right, newCtrl:
-		return api.Result{Scratch: &api.Scratch{Where: way}}
+		res := api.Result{Scratch: &api.Scratch{Where: way}}
+		if count > 0 {
+			res.Ex = []string{"resize " + strconv.Itoa(count)}
+		}
+		return res
 	case only:
 		return api.Result{Windows: []api.WindowAction{{Do: "only"}}}
 	case hide:
