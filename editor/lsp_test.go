@@ -1162,6 +1162,10 @@ func TestB66ActionsAndSignature(t *testing.T) {
 		if text(e) != c[1] {
 			t.Errorf("gra %s left %q, want %q", c[0], text(e), c[1])
 		}
+		// A command's null answer says nothing.
+		if editortest.Quiet(t, e); strings.Contains(e.Message(), "answered") {
+			t.Errorf("gra %s said %q", c[0], e.Message())
+		}
 	}
 
 	e, log := withServer(t, "f(1, \n", "utf-8")

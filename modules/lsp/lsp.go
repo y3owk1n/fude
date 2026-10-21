@@ -258,8 +258,14 @@ func (m *Module) Callback(_ context.Context, id uint32, s api.Scope) (api.Result
 	switch {
 	case id == prepared || id == itemPick || id == hierarchy:
 		return m.tree.answered(id, s), nil
-	case id == diagPick || id == ranReq:
+	case id == diagPick:
 		res.Error = s.About["error"]
+		return res, nil
+	case id == ranReq:
+		// A command's answer is most often null, which says nothing.
+		if err := s.About["error"]; !strings.HasPrefix(err, "no language server answered") {
+			res.Error = err
+		}
 		return res, nil
 	case id == menuID:
 		m.picked(&res, s)
