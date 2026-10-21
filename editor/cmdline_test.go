@@ -223,8 +223,14 @@ func TestB501OlderLists(t *testing.T) {
 		feed(e, "<C-q>")
 		settle(t, e, func() bool { return shows(word) })
 	}
-	list("w00")
-	list("w01")
+	// A finder opened before the last list's window shows keeps the keys,
+	// and searches for what is typed in it.
+	feed(e, ":pick grep w00<CR>")
+	settle(t, e, func() bool { f, _ := e.Menu(); return strings.Count(f.Text, "w00") > 1 })
+	feed(e, "<C-q>:pick grep w01<CR>")
+	settle(t, e, func() bool { f, _ := e.Menu(); return strings.Count(f.Text, "w01") > 1 })
+	feed(e, "<C-q>")
+	settle(t, e, func() bool { return shows("w01") })
 	// :colder makes the list before the last list, and its window shows it.
 	if feed(e, ":colder<CR>"); !strings.HasPrefix(e.Message(), "list 1 of 2, ") || !strings.HasSuffix(e.Message(), ", 2 places") {
 		t.Errorf(":colder said %q", e.Message())

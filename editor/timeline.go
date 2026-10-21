@@ -96,6 +96,13 @@ func (e *Session) panel(owner api.Module, p api.Panel) bool {
 	if p.Update {
 		return false
 	}
+	// A panel that opens while a finder shows opens beside the window the
+	// finder came from, and the finder keeps the keys.
+	if e.finder != nil {
+		in := e.win
+		e.win = in.from
+		defer func() { e.win = in }()
+	}
 	e.scratch(p.Title, p.Text, e.placement(owner, p.Where, p.Lock, "below"), !p.Unnumbered)
 	e.win.locked = p.Lock
 	b := e.win.buf
@@ -116,6 +123,9 @@ func (e *Session) panel(owner api.Module, p api.Panel) bool {
 // panelAt moves the focus to the window of the panel titled title, with
 // line at its top and the cursor on it (B334).
 func (e *Session) panelAt(title string, line int) {
+	if e.finder != nil {
+		return
+	}
 	i := slices.IndexFunc(e.windows(), func(w *window) bool { return w.buf.title == title })
 	if i < 0 {
 		return
