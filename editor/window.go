@@ -356,11 +356,12 @@ func (e *Session) resize(across bool, to func(now, room int) int) {
 	if p == nil {
 		return
 	}
-	now, room := l.h, p.h
 	if across {
-		now, room = l.w, p.w-(len(p.kids)-1)
+		l.size = max(to(l.w, p.w-(len(p.kids)-1)), 1)
+	} else {
+		// A height counts the rows of text, without the status line.
+		l.size = max(to(l.h-1, p.h-1), 1) + 1
 	}
-	l.size = max(to(now, room), 1)
 	e.layout()
 }
 

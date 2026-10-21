@@ -898,7 +898,8 @@ Where fude departs, the line says so and cites the departure in
   the windows share their space equally again. All of them work as in
   Neovim.
   `:resize` and `:vertical resize` take a size, or a change of it with `+`
-  or `-`. Every other window keeps at least a row and its status line, or
+  or `-`. A height counts the rows of text, not the status line. Every
+  other window keeps at least a row and its status line, or
   a column.
 - B364 [2] Every window is in a split, in a float or hidden (D55). A
   float holds any buffer, a terminal's too, and takes keys, search,

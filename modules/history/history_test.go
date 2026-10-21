@@ -23,10 +23,10 @@ func TestB371History(t *testing.T) {
 	e.Use(plug.New())
 	e.SetSize(80, 24)
 	editortest.Feed(e, ":s/x/y/<CR>/<lt>b<CR>gg")
-	// q: lists the command lines, seven lines tall, with the cursor on an
-	// empty line after the newest.
+	// q: lists the command lines, seven lines tall above its status line,
+	// with the cursor on an empty line after the newest.
 	editortest.Feed(e, "q:")
-	if vs := e.Windows(); len(vs) != 2 || vs[1].H != 7 || editortest.Text(e) != "s/x/y/\n" || e.Cursor() != len("s/x/y/\n") {
+	if vs := e.Windows(); len(vs) != 2 || vs[1].H != 8 || editortest.Text(e) != "s/x/y/\n" || e.Cursor() != len("s/x/y/\n") {
 		t.Fatalf("q: showed %q in %d windows, the cursor at %d", editortest.Text(e), len(e.Windows()), e.Cursor())
 	}
 	// <CR> closes it and runs the line under the cursor, edited first, in

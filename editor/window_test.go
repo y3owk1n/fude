@@ -165,9 +165,10 @@ func TestB193WindowSizes(t *testing.T) {
 		{"<C-w>s", []int{10, 10}},
 		{"3<C-w>+", []int{7, 13}},
 		{"<C-w>=", []int{10, 10}},
-		{":resize 5<CR>", []int{15, 5}},
-		{":resize +2<CR>", []int{13, 7}},
-		{"2<C-w>-", []int{15, 5}},
+		// A height is the rows of text, and the status line is one more.
+		{":resize 5<CR>", []int{14, 6}},
+		{":resize +2<CR>", []int{12, 8}},
+		{"2<C-w>-", []int{14, 6}},
 		// The other window keeps a row and its status line.
 		{"<C-w>_", []int{2, 18}},
 	} {
@@ -551,7 +552,7 @@ func TestB421ExchangeAndRotate(t *testing.T) {
 	}
 	// Each window keeps its size as it moves.
 	sized := threeWindows(t)
-	if feed(sized, ":resize 3<CR><C-w>r"); sized.Windows()[0].H != 3 || !sized.Windows()[0].Current {
+	if feed(sized, ":resize 3<CR><C-w>r"); sized.Windows()[0].H != 4 || !sized.Windows()[0].Current {
 		t.Errorf("<C-w>r left the windows %q", windows(sized))
 	}
 	// A split beside the window stops a rotation.
