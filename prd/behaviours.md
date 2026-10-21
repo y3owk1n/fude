@@ -1986,6 +1986,12 @@ Where fude departs, the line says so and cites the departure in
   symbol under the cursor, as `<C-]>` goes to its definition. One is a
   jump, several are a list of places, and none says "no declaration
   found". As in Neovim, no key runs it, so a mapping or `:plug` does.
+- B461 [5] With `references.enabled` on, as it is unless set off, once the
+  cursor rests 300ms in normal mode, the references to the symbol under it
+  that the server finds in the buffer show on the selection's colour, as
+  Neovim's `document_highlight()` on `CursorHold` shows them. Moving the
+  cursor within one keeps them, and moving off them, a change to the text
+  or leaving normal mode takes them away.
 
 ## Debugging
 

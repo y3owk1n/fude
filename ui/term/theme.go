@@ -188,6 +188,8 @@ func build(t theme) styles {
 		"diagnostic.error.note": fg(t.err).Background(mix(t.err, t.bg, 0.85)), "diagnostic.warn.note": fg(t.warn).Background(mix(t.warn, t.bg, 0.85)),
 		"diagnostic.info.note": fg(t.info).Background(mix(t.info, t.bg, 0.85)), "diagnostic.hint.note": fg(t.hint).Background(mix(t.hint, t.bg, 0.85)),
 		"menu.selected": base.Background(t.raised), "inlay": fg(t.muted).Background(t.surface),
+		// The references to the symbol under the cursor (B461).
+		"reference":  base.Background(t.selection),
 		"jump.match": base.Background(t.selection), "jump.label": base.Background(t.cmd).Foreground(t.bg).Bold(true), "finder.dir": fg(t.muted), "finder.file": base.Bold(true), "snippet.placeholder": base.Background(t.selection),
 		// The letters of an item that match what was typed.
 		"match": fg(t.normal).Bold(true),

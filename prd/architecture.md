@@ -69,6 +69,7 @@ modules/         Go packages over api/ and protocol/ that cmd/fude adds with
   git/           git signs, hunks, gh, gH and :gitdiff
   grep/          :pick grep, a live search of the files' lines
   inlay/         a language server's inlay hints
+  references/    the references to the symbol under the cursor, lit
   lsp/           diagnostics, hover, definitions, references, symbols,
                  rename and code actions
   spell/         spell, ]s, [s, z= and zg

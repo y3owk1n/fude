@@ -374,6 +374,8 @@ func (c *Client) write(root string, options any, initialized <-chan answer, noti
 				"inlayHint":       map[string]any{},
 				"synchronization": map[string]any{"didSave": true},
 				"declaration":     map[string]any{"linkSupport": true},
+
+				"documentHighlight": map[string]any{},
 			},
 			"window":    map[string]any{"workDoneProgress": true},
 			"workspace": map[string]any{"configuration": true, "didChangeConfiguration": map[string]any{}},

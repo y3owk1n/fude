@@ -50,6 +50,7 @@ it again until `:lsp restart`.
 - `<Plug>(lsp.declaration)` goes to the declaration. It has no key, so
   map one in `[keymap.normal]`.
 - `]d` and `[d` go to the next and previous diagnostic.
+- Resting the cursor on a name lights up its other places in the file.
 - `<C-x><C-o>` in insert mode lists completions, and with `autocomplete`
   on they show as you type. `<C-n>` and `<C-p>` select one and `<C-y>`
   takes it. With no menu, `<C-n>` and `<C-p>` complete the word from the

@@ -122,6 +122,18 @@ func TestFakeServer(t *testing.T) {
 				locs = locs[len(locs)-1:]
 			}
 			reply(m.ID, locs)
+		case "textDocument/documentHighlight":
+			// Every "target", when the cursor is on one.
+			var found []any
+			lines := strings.Split(opened[m.Params.TextDocument.URI], "\n")
+			if l, c := lines[m.Params.Position.Line], m.Params.Position.Character; strings.Contains(l[max(c-5, 0):min(c+6, len(l))], "target") {
+				for line, l := range lines {
+					if i := strings.Index(l, "target"); i >= 0 {
+						found = append(found, map[string]any{"range": map[string]any{"start": map[string]int{"line": line, "character": i}, "end": map[string]int{"line": line, "character": i + 6}}})
+					}
+				}
+			}
+			reply(m.ID, found)
 		case "textDocument/rename":
 			uri := m.Params.TextDocument.URI
 			var edits []any
@@ -240,7 +252,7 @@ func TestFakeServer(t *testing.T) {
 				"positionEncoding": os.Getenv("FUDE_FAKE_ENCODING"), "textDocumentSync": json.RawMessage(cmp.Or(os.Getenv("FUDE_FAKE_SYNC"), "2")), "documentFormattingProvider": true, "completionProvider": map[string]any{"triggerCharacters": []string{"."}, "resolveProvider": true},
 				"definitionProvider": true, "typeDefinitionProvider": true, "implementationProvider": true, "referencesProvider": true, "renameProvider": true,
 				"codeActionProvider": true, "colorProvider": true, "signatureHelpProvider": map[string]any{"triggerCharacters": []string{"("}, "retriggerCharacters": []string{","}}, "documentSymbolProvider": true, "workspaceSymbolProvider": true, "inlayHintProvider": true, "hoverProvider": true,
-				"declarationProvider": true,
+				"declarationProvider": true, "documentHighlightProvider": true,
 			}})
 		case "shutdown":
 			reply(m.ID, nil)

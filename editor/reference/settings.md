@@ -175,6 +175,13 @@ the cursor and edits pass over them. The default is on. Some servers send
 hints only when their settings ask for them, such as gopls with
 `[lsp.gopls.settings.gopls.hints]`.
 
+## references.enabled
+
+Once the cursor rests on a symbol in normal mode for a moment, its
+references in the buffer that a language server finds light up on the
+selection's colour. They go when the cursor moves off them or the text
+changes. The default is on.
+
 ## autopairs.enabled
 
 An opening bracket or quote typed in insert mode comes with its closing
