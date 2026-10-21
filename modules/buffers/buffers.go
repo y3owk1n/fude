@@ -161,24 +161,32 @@ func find(s api.Scope, arg string) (int, string) {
 		}
 		return 0, "no alternate buffer"
 	}
-	found := 0
+	// Text in a file's own name names it before text in its directories.
+	var found, dirs []int
 	for _, id := range slices.Sorted(maps.Keys(s.Buffers)) {
+		name := s.Buffers[id].Name
 		switch {
 		case s.Buffers[id].Unnumbered:
 			// A buffer with no number is no buffer :b names (B373).
 		case strconv.Itoa(id) == arg:
 			return id, ""
-		case arg != "" && strings.Contains(s.Buffers[id].Name, arg):
-			if found != 0 {
-				return 0, "more than one buffer matches " + arg
-			}
-			found = id
+		case arg == "":
+		case strings.Contains(filepath.Base(name), arg):
+			found = append(found, id)
+		case strings.Contains(name, arg):
+			dirs = append(dirs, id)
 		}
 	}
-	if found == 0 {
-		return 0, "no buffer matches " + arg
+	if len(found) == 0 {
+		found = dirs
 	}
-	return found, ""
+	switch len(found) {
+	case 0:
+		return 0, "no buffer matches " + arg
+	case 1:
+		return found[0], ""
+	}
+	return 0, "more than one buffer matches " + arg
 }
 
 // names are what a buffer's name completes with: each buffer with a file,

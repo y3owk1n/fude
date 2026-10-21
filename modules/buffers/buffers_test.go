@@ -134,6 +134,16 @@ func TestB89Buffers(t *testing.T) {
 			t.Errorf(":bd in a new split showed %s, want a", v.Name)
 		}
 	}
+	// Text in a file's own name names it, though another's directory holds
+	// it too.
+	sub := filepath.Join(dir, "data")
+	if err := os.Mkdir(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	e = open(t, a)
+	if feed(e, ":e "+filepath.Join(sub, "b")+"<CR>:b a<CR>"); filepath.Base(e.Windows()[0].Name) != "a" {
+		t.Errorf(":b a showed %s, with message %q", e.Windows()[0].Name, e.Message())
+	}
 }
 
 // B428

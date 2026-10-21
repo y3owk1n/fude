@@ -662,11 +662,12 @@ before the first going on from the last.
 ## :buffer
 
 Shows the buffer with that number in the current window, as `:b 2` does,
-or the one whose name holds the text. Text that more than one name
-holds says so. `#` is the buffer the window showed before,
-as `<C-^>` shows. `:ls` lists the numbers. `<Tab>` completes the buffers,
-each as its number then its path. The buffer the window leaves stays
-loaded with its changes.
+or the one whose name holds the text. Text in one file's own name names
+that buffer, even if it is also in the directories of others. Text that
+more than one name holds says so. `#` is the buffer the window showed
+before, as `<C-^>` shows. `:ls` lists the numbers. `<Tab>` completes the
+buffers, each as its number then its path. The buffer the window leaves
+stays loaded with its changes.
 
 ## :buffers
 
