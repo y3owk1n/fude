@@ -1279,6 +1279,34 @@ keeps every word key the same in every file, and the syntax node objects
 (B45) already select a language's own units, such as a CSS property or a
 Lisp symbol.
 
+### N51. No :make, errorformat or :vimgrep
+
+fude has no `:make`, `makeprg`, `errorformat` or `:vimgrep`. A task runs
+a build or the tests in a terminal window (B228), language servers show
+a build's errors as diagnostics where they are (B61), and `:pick grep`
+searches the project as the query is typed (N13), sending its matches to
+the quickfix list with `<C-q>` (N25). Why: `errorformat` is a pattern
+language to learn for each compiler, which diagnostics make needless in
+a language with a server, and `:vimgrep` is `:pick grep` run once.
+
+### N52. One working directory per session
+
+`:cd` sets the session's working directory (B155), and there is no
+`:lcd` or `:tcd`. Why: `:tcd` belongs to tab pages, which fude does not
+have (N44), and a directory for each window would make one relative path
+name a different file in each, while the finders, the explorer and the
+tasks all work from the one directory.
+
+### N53. fude watches no files
+
+fude tells language servers of the files it changes itself: what it
+writes, and what the explorer creates, renames and deletes. It also
+tells them of an open file it finds changed on disk. It runs no watcher
+over the project. Why: the standard library has no file watcher, and one
+means a dependency with code for each system, or polling every directory
+of the project while fude runs. The changes that matter while editing are
+the ones fude makes.
+
 ## Open
 
 ### Diff mode of two buffers
