@@ -348,7 +348,10 @@ type Jump struct {
 // focus makes it current, height and width make it Size rows or columns,
 // or as many as it can take for 0, taller and wider make it Size more, or
 // fewer for a negative Size, cursor moves its cursor to Pos and top makes
-// the line holding Pos its top line (B343).
+// the line holding Pos its top line (B343). bind makes it scroll with the
+// other bound windows, its top line, cursor's line and first column level
+// with the current one's, counting the rows decorations draw between lines,
+// and its lines no longer wrap. unbind ends that (B523).
 type WindowAction struct {
 	ID        int
 	Do        string

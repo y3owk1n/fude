@@ -53,6 +53,11 @@ type window struct {
 	imageRows, imageCols int
 	was                  slot // where a hidden window was in the layout (B364)
 	locked               bool // its module keeps it where it opened (B367)
+	// bound windows scroll together, and wrapped is the wrap a bound one
+	// had before. To stay level, it hides fill of the rows drawn above its
+	// top line while that line starts at fillAt (B523).
+	bound, wrapped bool
+	fill, fillAt   int
 }
 
 // slot is where a window was in the layout: beside the window next to it,
@@ -384,6 +389,10 @@ func (e *Session) splitBeside(across, after bool) {
 	old := e.win
 	nw := newWindow(old.buf, old.pos(), old.buf.text.Mark(old.top))
 	nw.opts, nw.fitted = old.opts, old.fitted
+	// The new window is not bound, so it wraps as old did before (B523).
+	if old.bound {
+		nw.opts.Wrap = old.wrapped
+	}
 	if old.own != nil {
 		own := *old.own
 		nw.own = &own

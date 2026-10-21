@@ -606,6 +606,14 @@ func (e *Session) windowAction(a api.WindowAction) error {
 		} else {
 			w.buf.text.MoveMark(w.cursor, a.Pos)
 		}
+	case "bind":
+		if !w.bound {
+			w.bound, w.wrapped, w.opts.Wrap = true, w.opts.Wrap, false
+		}
+	case "unbind":
+		if w.bound {
+			w.bound, w.opts.Wrap, w.fill = false, w.wrapped, 0
+		}
 	default:
 		return fmt.Errorf("no window action %q", a.Do)
 	}

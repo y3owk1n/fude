@@ -763,6 +763,7 @@ func (e *Session) reveal() {
 	if col := vim.Column(t, line, c, tab, d.inlines); !w.opts.Wrap {
 		w.left = min(max(w.left, col-w.cols()+1), col)
 	}
+	e.level()
 }
 
 // Paste inserts text as typed, with no key mapping applied (B8).

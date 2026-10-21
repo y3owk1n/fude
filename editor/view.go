@@ -89,7 +89,7 @@ func (e *Session) draw(w *window) wire.Window {
 	}
 	last := vim.LineEnd(t, lastStart)
 	d := e.shown(w, top, last)
-	v.Virtual = d.virtual
+	v.Virtual = w.unfilled(d.virtual, t.LineOf(top))
 	for _, f := range w.buf.folds {
 		first, end := w.fold(t, t.LineOf(w.buf.text.Mark(f.start)))
 		if s := t.LineStart(first); s >= top && s <= last {
