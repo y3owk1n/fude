@@ -70,6 +70,10 @@
 "a|bc" "dj" "a|bc"
 "a\n  b|c\n  d" "dk" "  |d"
 "a|b\nc\nd" "cjX<Esc>" "|X\nd"
+"|ab\ncd" "dvj" "|cd"
+"|ab\ncd" "dVl" "|cd"
+"|ab\ncd" "d<C-v>j" "|b\nd"
+"|abc def" "dve" "|c def"
 
 # B12
 "a\nb|cd\ne" "dd" "a\n|e"

@@ -293,7 +293,8 @@ func (m *Machine) act(op string, reg rune, label string, r region) error {
 
 // span returns the text an operator covers, or false when cmd covers none.
 func (m *Machine) span(t Text, c int, op, cmd string, count int) (region, bool) {
-	n := max(count, 1)
+	n, force := max(count, 1), m.force
+	m.force, m.wrapped = "", false
 	if cmd == op || len(op) == 2 && cmd == op[1:] {
 		s := LineStart(t, c)
 		return m.folded(t, region{start: s, end: LineEnd(t, m.foldDown(t, s, n-1)), lines: true}), true
@@ -322,6 +323,18 @@ func (m *Machine) span(t Text, c int, op, cmd string, count int) (region, bool) 
 			return region{}, false
 		}
 	}
+	// v, V or <C-v> after the operator makes the motion charwise, turning
+	// an inclusive one exclusive and back, linewise, or a block.
+	switch force {
+	case "v":
+		k = map[kind]kind{linewise: exclusive, exclusive: inclusive, inclusive: exclusive}[k]
+	case "V":
+		k = linewise
+	case "<C-v>":
+		tab := m.h.TabWidth()
+		ca, ct := column(t, LineStart(t, c), c, tab), column(t, LineStart(t, to), to, tab)
+		return region{start: LineStart(t, min(c, to)), end: LineEnd(t, max(c, to)), block: true, left: min(ca, ct), right: max(ca, ct)}, true
+	}
 	r := region{start: min(c, to), end: max(c, to), lines: k == linewise}
 	switch k {
 	case linewise:
@@ -332,7 +345,7 @@ func (m *Machine) span(t Text, c int, op, cmd string, count int) (region, bool) 
 		// An exclusive motion ending in column 0 stops at the end of the line
 		// before, and covers whole lines if it started at or before the first
 		// non-blank.
-		if r.end > r.start && r.end == LineStart(t, r.end) {
+		if r.end > r.start && r.end == LineStart(t, r.end) && !m.wrapped {
 			r.end--
 			if s := LineStart(t, r.start); r.start <= firstNonBlank(t, s, LineEnd(t, s)) {
 				r.start, r.lines, r.adjusted = s, true, true

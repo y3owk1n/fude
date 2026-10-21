@@ -75,6 +75,10 @@ line it beeps. The cursor goes to the start of the selection.
 "|x 1\nx 9" "Vj5<C-a>" "|x 6\nx 14"
 ```
 
+## <C-c>
+
+The same as `<Esc>`.
+
 ## <C-n>
 
 Places a multicursor that keeps the selection, as `Q` places one, and

@@ -96,7 +96,8 @@ type insertKey struct {
 
 // inserts are those keys. They work in replace mode too.
 var inserts = map[string]insertKey{
-	"<Esc>": {"leaves insert mode", leaveInsert},
+	"<Esc>": {"leaves insert mode, typing the text n times when n started it", leaveInsert},
+	"<C-c>": {"leaves insert mode, typing the text once", leaveInsert},
 	"<C-v>": {"types the next key as it is, or the character a number names", waitKey},
 	"<C-k>": {"types the character the next two keys name", waitKey},
 	"<C-g>": {"with u after it, starts a new undo step", waitKey},
@@ -142,12 +143,18 @@ var inserts = map[string]insertKey{
 		}
 		return m.apply([]Edit{{Start: c, End: end}}, m.label)
 	}},
-	"<Left>":  {"moves left", moveKey},
-	"<Right>": {"moves right", moveKey},
-	"<Up>":    {"moves up a line", moveKey},
-	"<Down>":  {"moves down a line", moveKey},
-	"<Home>":  {"goes to the start of the line", moveKey},
-	"<End>":   {"goes to the end of the line", moveKey},
+	"<Left>":    {"moves left", moveKey},
+	"<Right>":   {"moves right", moveKey},
+	"<Up>":      {"moves up a line", moveKey},
+	"<Down>":    {"moves down a line", moveKey},
+	"<Home>":    {"goes to the start of the line", moveKey},
+	"<End>":     {"goes to the end of the line", moveKey},
+	"<S-Left>":  {"goes to the start of the word before the cursor", moveKey},
+	"<C-Left>":  {"goes to the start of the word of non-blanks before the cursor", moveKey},
+	"<S-Right>": {"goes to the start of the next word", moveKey},
+	"<C-Right>": {"goes to the start of the next word of non-blanks", moveKey},
+	"<C-Home>":  {"goes to the start of the text", moveKey},
+	"<C-End>":   {"goes to the end of the text", moveKey},
 }
 
 // backspaceKey is <BS> and <C-h>, which put back what replace mode typed
@@ -202,6 +209,14 @@ func (m *Machine) insertMove(t Text, c int, k Key) int {
 		return start
 	case "<End>":
 		return LineEnd(t, c)
+	case "<S-Left>", "<C-Left>":
+		return wordBack(t, c, 1, k == "<C-Left>")
+	case "<S-Right>", "<C-Right>":
+		return wordForward(t, c, 1, k == "<C-Right>", false)
+	case "<C-Home>":
+		return 0
+	case "<C-End>":
+		return t.Len()
 	}
 	line := up(t, start, 1)
 	if k == "<Down>" {
@@ -443,8 +458,26 @@ func (m *Machine) indentLine(in bool) error {
 	return nil
 }
 
-// leaveInsert is <Esc>, which goes back to normal mode.
-func leaveInsert(m *Machine, _ Text, _ int, _ Key) error {
+// leaveInsert is <Esc> and <C-c>, which go back to normal mode. After a
+// count, as 3ix, <Esc> types what was typed n times in all, and after o
+// and O on lines of their own.
+func leaveInsert(m *Machine, _ Text, _ int, k Key) error {
+	if n := m.insCount; n > 1 && k == "<Esc>" && m.blockInsert == nil {
+		m.insCount = 0
+		t, c := m.h.Text(), m.h.Cursor()
+		typed := t.Slice(m.insStart, c)
+		if m.label == "o" || m.label == "O" {
+			typed = "\n" + t.Slice(LineStart(t, c), c)
+		}
+		if typed != "" && c >= m.insStart {
+			more := strings.Repeat(typed, n-1)
+			if err := m.apply([]Edit{{Start: c, End: c, Text: more}}, m.label); err != nil {
+				return err
+			}
+			m.h.SetCursor(c + len(more))
+		}
+	}
+	m.insCount = 0
 	if b := m.blockInsert; b != nil {
 		m.blockInsert = nil
 		if err := m.finishBlock(b); err != nil {

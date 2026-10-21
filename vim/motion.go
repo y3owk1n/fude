@@ -319,6 +319,36 @@ var motions = map[string]motionKey{
 	"[C": {"goes to the previous multicursor, n times", func(m *Machine, x motionCall) (int, kind) {
 		return m.toCursor(x)
 	}},
+	"<C-End>": {"goes to the last character of the last line, or of line n", func(m *Machine, x motionCall) (int, kind) {
+		line := LineStart(x.t, x.t.Len())
+		if x.count > 0 {
+			line = down(x.t, 0, x.count-1)
+		}
+		return m.moved(lastChar(x.t, LineEnd(x.t, line)), inclusive, false)
+	}},
+	"<BS>": {"moves left, n characters, onto the line before at a line's start", func(m *Machine, x motionCall) (int, kind) {
+		if x.c == 0 {
+			return x.c, failed
+		}
+		p := x.c
+		for range x.n {
+			if p == 0 {
+				break
+			}
+			// From a line's start it goes to the last character of the line
+			// before, and after an operator to its line break, which the
+			// operator then takes.
+			if p == LineStart(x.t, p) {
+				if p--; x.op == "" && p > LineStart(x.t, p) {
+					p = prev(x.t, LineStart(x.t, p), p)
+				}
+				m.wrapped = x.op != ""
+				continue
+			}
+			p = prev(x.t, LineStart(x.t, p), p)
+		}
+		return m.moved(p, exclusive, false)
+	}},
 	"go": {"goes to byte n", func(m *Machine, x motionCall) (int, kind) {
 		p := min(x.n-1, x.t.Len())
 		for p > 0 && p < x.t.Len() && !utf8.RuneStart(x.t.Slice(p, p+1)[0]) {

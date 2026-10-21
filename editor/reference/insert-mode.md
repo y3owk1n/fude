@@ -56,6 +56,31 @@ Before anything was typed it does nothing.
 "|b" "ia<Esc>A<C-a>" "aba|"
 ```
 
+## <C-c>
+
+Leaves insert mode as `<Esc>` does, but after a count, as `3ix`, types
+the text once.
+
+```keys
+"|a" "3ix<C-c>" "|xa"
+```
+
+## <C-End>
+
+Goes to the end of the text.
+
+## <C-Home>
+
+Goes to the start of the text.
+
+## <C-Left>
+
+Goes back to the start of the word of non-blanks before the cursor.
+
+## <C-Right>
+
+Goes to the start of the next word of non-blanks.
+
 ## <C-d>
 
 Outdents the cursor's line by one indent level, keeping the cursor on the
@@ -238,7 +263,9 @@ Goes past the last character of the line, where typing appends.
 
 Leaves insert mode. The cursor moves one character left, onto the last
 one typed, but not past the start of the line. The text typed goes to the
-register `.`, and `gi` starts insert mode again where it left.
+register `.`, and `gi` starts insert mode again where it left. After a
+count, as `3ix`, the text goes in that many times, and after `3o` on that
+many lines.
 
 ```keys
 "|abc" "ix<Esc>" "|xabc"
@@ -279,6 +306,18 @@ Moves one character right, up to past the line's last character.
 ```keys
 "a|bc" "i<Right>x" "abx|c"
 ```
+
+## <S-Left>
+
+Goes back to the start of the word before the cursor.
+
+```keys
+"|ab cd" "A<S-Left>x" "ab x|cd"
+```
+
+## <S-Right>
+
+Goes to the start of the next word.
 
 ## <Up>
 

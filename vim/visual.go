@@ -249,11 +249,8 @@ var visuals = map[string]visualKey{
 	"[e": {"moves the selected lines n lines up and keeps them selected", func(m *Machine, x visualCall) error {
 		return m.moveSelection(-max(x.count, 1), "[e")
 	}},
-	"<Esc>": {"leaves visual mode", func(m *Machine, x visualCall) error {
-		m.leaveVisual()
-		m.h.SetCursor(clamp(x.t, x.c))
-		return nil
-	}},
+	"<Esc>": {"leaves visual mode", leaveSelection},
+	"<C-c>": {"leaves visual mode", leaveSelection},
 	"v":     {"selects characters, or leaves when it does", switchVisual},
 	"V":     {"selects lines, or leaves when it does", switchVisual},
 	"<C-v>": {"selects a block, or leaves when it does", switchVisual},
@@ -399,6 +396,13 @@ func joinSelection(m *Machine, x visualCall) error {
 	}
 	m.h.SetCursor(r.start)
 	return m.join(max(x.t.LineOf(last)-x.t.LineOf(r.start), 1), x.cmd == "J")
+}
+
+// leaveSelection is <Esc> and <C-c> in visual mode.
+func leaveSelection(m *Machine, x visualCall) error {
+	m.leaveVisual()
+	m.h.SetCursor(clamp(x.t, x.c))
+	return nil
 }
 
 // visualKey handles a command in visual mode.

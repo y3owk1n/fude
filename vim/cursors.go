@@ -33,6 +33,7 @@ type context struct {
 	anchorFirst bool
 	lastVisual  Key
 	autoIndent  bool
+	insCount    int
 	replaced    []string
 	blockInsert *blockInsert
 }
@@ -86,7 +87,7 @@ func (m *Machine) save(x *context) {
 		}
 	}
 	x.regs, x.want, x.wantSet, x.anchorFirst, x.lastVisual = m.regs, m.want, m.wantSet, m.anchorFirst, m.lastVisual
-	x.autoIndent, x.replaced, x.blockInsert = m.autoIndent, m.replaced, m.blockInsert
+	x.autoIndent, x.insCount, x.replaced, x.blockInsert = m.autoIndent, m.insCount, m.replaced, m.blockInsert
 }
 
 // load makes x the machine's cursor and state.
@@ -101,7 +102,7 @@ func (m *Machine) load(x *context) {
 		}
 	}
 	m.regs, m.want, m.wantSet, m.anchorFirst, m.lastVisual = x.regs, x.want, x.wantSet, x.anchorFirst, x.lastVisual
-	m.autoIndent, m.replaced, m.blockInsert = x.autoIndent, x.replaced, x.blockInsert
+	m.autoIndent, m.insCount, m.replaced, m.blockInsert = x.autoIndent, x.insCount, x.replaced, x.blockInsert
 }
 
 // Cursors returns where the multicursors are, lowest first. The cursor keys

@@ -10,7 +10,8 @@ import (
 // arrows are the normal and visual mode commands that the arrows, <Home>,
 // <End>, <Del> and the paging keys stand for.
 var arrows = map[Key]Key{
-	"<Up>": "k", "<Down>": "j", "<Home>": "0", "<End>": "$", "<PageUp>": "<C-b>", "<PageDown>": "<C-f>", "<Del>": "x",
+	"<Up>": "k", "<Down>": "j", "<Left>": "h", "<Right>": "l", "<Home>": "0", "<End>": "$", "<PageUp>": "<C-b>", "<PageDown>": "<C-f>", "<Del>": "x",
+	"<S-Left>": "b", "<C-Left>": "B", "<S-Right>": "w", "<C-Right>": "W", "<S-Up>": "<C-b>", "<S-Down>": "<C-f>", "<C-Home>": "gg",
 }
 
 // enterLine starts a command line after prompt with line typed, which
@@ -80,6 +81,7 @@ func init() {
 	}
 	cmdlineKeys = map[string]cmdlineKey{
 		"<Esc>": {"leaves the command line", leaveLine},
+		"<C-c>": {"leaves the command line", leaveLine},
 		"<CR>": {"runs the line", func(m *Machine, _ Key, _, _ string) error {
 			m.mode = m.back
 			m.remember()
@@ -124,12 +126,16 @@ func init() {
 			m.lineAt += n
 			return nil
 		}},
-		"<Home>": {"goes to the start of the line", home},
-		"<C-b>":  {"goes to the start of the line", home},
-		"<End>":  {"goes to the end of the line", end},
-		"<C-e>":  {"goes to the end of the line", end},
-		"<Up>":   {"recalls an older line that starts with what is typed", recall},
-		"<Down>": {"recalls a newer line that starts with what is typed", recall},
+		"<S-Left>":  {"goes to the start of the word before the cursor", wordLeft},
+		"<C-Left>":  {"goes to the start of the word before the cursor", wordLeft},
+		"<S-Right>": {"goes to the start of the next word", wordRight},
+		"<C-Right>": {"goes to the start of the next word", wordRight},
+		"<Home>":    {"goes to the start of the line", home},
+		"<C-b>":     {"goes to the start of the line", home},
+		"<End>":     {"goes to the end of the line", end},
+		"<C-e>":     {"goes to the end of the line", end},
+		"<Up>":      {"recalls an older line that starts with what is typed", recall},
+		"<Down>":    {"recalls a newer line that starts with what is typed", recall},
 		"<C-r>": {"types the register named next, or with <C-w> the word under the cursor", func(m *Machine, k Key, _, _ string) error {
 			m.pending = k
 			return nil
@@ -170,6 +176,23 @@ func (m *Machine) cut(from, to int) {
 
 // lineWordStart returns where the word that s ends with starts, after any spaces
 // at its end: a run of letters, digits and _, or of other characters.
+// wordLeft and wordRight are <S-Left> and <S-Right> on the command line,
+// which go to the start of the word before the cursor or after it.
+func wordLeft(m *Machine, _ Key, before, _ string) error {
+	m.lineAt = lineWordStart(before)
+	return nil
+}
+
+func wordRight(m *Machine, _ Key, _, after string) error {
+	i := strings.IndexByte(after, ' ')
+	if i < 0 {
+		m.lineAt = len(m.line)
+		return nil
+	}
+	m.lineAt += i + len(after[i:]) - len(strings.TrimLeft(after[i:], " "))
+	return nil
+}
+
 func lineWordStart(s string) int {
 	isWord := func(r rune) bool { return r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r) }
 	i := len(strings.TrimRight(s, " "))

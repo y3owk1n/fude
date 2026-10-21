@@ -92,7 +92,11 @@ Where fude departs, the line says so and cites the departure in
 ## Modes and insert
 
 - B6 [1] `i`, `a`, `I`, `A`, `o`, `O`, `gI` and `gi` enter insert mode at
-  the positions Vim uses, `gi` where insert mode was last left. `<Esc>` returns to normal mode and moves the cursor left as Neovim does.
+  the positions Vim uses, `gi` where insert mode was last left. `<Esc>`
+  returns to normal mode and moves the cursor left as Neovim does. After a
+  count, as `3ix`, `<Esc>` types the text that many times in all, and
+  after `3o` or `3O` on that many lines. `<C-c>` leaves insert mode, the
+  command line and visual mode as `<Esc>` does, typing the text once.
 - B402 [1] The terminal's cursor is a block in normal and visual mode, a
   bar in insert mode, and an underline in replace mode, while an operator
   waits for its target and while `r` waits for its character, as Neovim's
@@ -119,7 +123,11 @@ Where fude departs, the line says so and cites the departure in
   explorer's (B124), so the `-` motion works after an operator, as `d-`,
   and in visual mode.
 - B11 [2] `d`, `c`, `y` combine with every motion and text object, with
-  counts on both sides: `2d3w` deletes six words.
+  counts on both sides: `2d3w` deletes six words. `v`, `V` or `<C-v>`
+  after the operator forces the motion's kind: `v` makes a linewise one
+  charwise and turns an exclusive one inclusive and back, `V` makes it
+  linewise and `<C-v>` a block, so `dvj` deletes up to the cursor's
+  column on the line below.
 - B12 [2] `dd`, `cc`, `yy` act on lines, with counts.
 - B13 [2] Text objects `iw aw iW aW is as ip ap il al`, the quote and
   bracket pairs `i" a" i' a' i( a( i[ a[ i{ a{ i< a<` and the tag pairs
@@ -334,9 +342,14 @@ Where fude departs, the line says so and cites the departure in
   `readme`. `<C-e>` puts back the word
   as typed, such as the name of a new file. With `autocomplete` on, the
   menu shows as the line is typed (N12).
-- B132 [2] In normal and visual mode `<Up>`, `<Down>`, `<Home>`, `<End>`,
-  `<PageUp>`, `<PageDown>` and `<Del>` are `k`, `j`, `0`, `$`, `<C-b>`,
-  `<C-f>` and `x`. In insert mode the arrows, `<Home>` and `<End>` move
+- B132 [2] In normal and visual mode the arrows, `<Home>`, `<End>`,
+  `<PageUp>`, `<PageDown>` and `<Del>` are `k`, `j`, `h`, `l`, `0`, `$`,
+  `<C-b>`, `<C-f>` and `x`. The left and right arrows are `b` and `w`
+  with Shift, and `B` and `W` with Ctrl. Shift with the up and down
+  arrows pages. `<C-Home>` is `gg`, and `<C-End>` goes to the last
+  character of the last line. `<BS>` moves left, onto the line before at
+  a line's start, and after an operator takes that line break. In insert mode and on the command line Shift or Ctrl
+  with the left and right arrows moves a word. In insert mode the arrows, `<Home>` and `<End>` move
   the cursor and split the undo step. `<Up>` and `<Down>` keep the column,
   or go to the end of a shorter line. `<Del>` deletes the character under
   the cursor, and at the end of a line joins the next.

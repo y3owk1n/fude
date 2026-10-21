@@ -229,15 +229,59 @@ The same as `$`.
 
 The same as `0`.
 
+## <C-Home>
+
+The same as `gg`.
+
+## <C-Left>
+
+The same as `B`.
+
+## <C-Right>
+
+The same as `W`.
+
 ## <Insert>
 
 The same as `i`.
+
+## <Left>
+
+The same as `h`.
+
+```keys
+"a|b" "<Left>x" "|b"
+```
 
 ## <PageDown>
 
 The same as `<C-f>`.
 
 ## <PageUp>
+
+The same as `<C-b>`.
+
+## <Right>
+
+The same as `l`.
+
+## <S-Down>
+
+The same as `<C-f>`.
+
+## <S-Left>
+
+The same as `b`.
+
+```keys
+"ab |cd" "<S-Left>x" "|b cd"
+```
+
+## <S-Right>
+
+The same as `w`.
+
+## <S-Up>
 
 The same as `<C-b>`.
 
@@ -304,8 +348,8 @@ indent of the cursor's line, as `[P` does before it.
 
 ## A
 
-Starts insert mode at the end of the line. A count does not repeat the
-text typed.
+Starts insert mode at the end of the line. After a count, `<Esc>` types
+the text that many times in all.
 
 ```keys
 "|ab" "Ax<Esc>" "ab|x"
@@ -487,13 +531,16 @@ space or a tab.
 ## i
 
 Starts insert mode before the character under the cursor. `<Esc>` leaves
-it and the cursor moves back one character. A count does not repeat the
-text typed. In a buffer that may not change, it says why and stays in
+it and the cursor moves back one character. After a count, `<Esc>` types
+the text that many times in all, and `<C-c>` leaves it typed once. `a`,
+`A`, `I` and `gI` take a count the same way, and `o` and `O` open that
+many lines. In a buffer that may not change, it says why and stays in
 normal mode.
 
 ```keys
 "a|bc" "ix<Esc>" "a|xbc"
-"|a" "3ix<Esc>" "|xa"
+"|a" "3ix<Esc>" "xx|xa"
+"|a" "3ox<Esc>" "a\nx\nx\n|x"
 ```
 
 ## J
@@ -522,20 +569,23 @@ buffer.
 
 Opens a new line above the cursor's and starts insert mode on it, with
 the line's indent, or one indent more when the line starts with `)`, `]`
-or `}`. A count does not repeat the line.
+or `}`. After a count, `<Esc>` opens that many lines, each with the text.
 
 ```keys
 "  |a" "Ob<Esc>" "  |b\n  a"
+"|a" "2Ob<Esc>" "b\n|b\na"
 ```
 
 ## o
 
 Opens a new line below the cursor's and starts insert mode on it, with
 the line's indent, or one indent more after a line that ends with an
-opening bracket. A count does not repeat the line.
+opening bracket. After a count, `<Esc>` opens that many lines, each with
+the text.
 
 ```keys
 "  |a" "ob<Esc>" "  a\n  |b"
+"|a" "2ob<Esc>" "a\nb\n|b"
 ```
 
 ## P

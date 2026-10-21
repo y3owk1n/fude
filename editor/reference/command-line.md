@@ -38,6 +38,18 @@ Goes to the start of the line, as `<Home>` does.
 "|ab ac" "/c<C-b>a<CR>" "ab |ac"
 ```
 
+## <C-Left>
+
+The same as `<S-Left>`.
+
+## <C-Right>
+
+The same as `<S-Right>`.
+
+## <C-c>
+
+The same as `<Esc>`.
+
 ## <C-e>
 
 Goes to the end of the line, as `<End>` does. While a completion menu
@@ -163,6 +175,18 @@ Moves the cursor one character right, not past the end of the line.
 ```keys
 "|ab ac" "/a<Left><Right>c<CR>" "ab |ac"
 ```
+
+## <S-Left>
+
+Goes to the start of the word before the cursor.
+
+```keys
+"|ab ac" "/c<S-Left>a<CR>" "ab |ac"
+```
+
+## <S-Right>
+
+Goes to the start of the next word, or the end of the line.
 
 ## <Up>
 

@@ -36,6 +36,14 @@ var names = map[string]Key{
 	"c-\\":     "<C-\\>",
 }
 
+// The arrows, <Home> and <End> held with Shift or Ctrl, as <S-Left>.
+func init() {
+	for _, k := range []string{"Left", "Right", "Up", "Down", "Home", "End"} {
+		names["s-"+strings.ToLower(k)] = Key("<S-" + k + ">")
+		names["c-"+strings.ToLower(k)] = Key("<C-" + k + ">")
+	}
+}
+
 // Keys splits Vim notation such as "ihello<Esc>" into keys. A "<" that does
 // not start a known name is the character "<". <Plug>(name) is one key, which
 // runs the command the host added as name.

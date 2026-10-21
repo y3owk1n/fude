@@ -20,9 +20,26 @@ func keys(ev *tcell.EventKey) []vim.Key {
 		}
 	}
 	if k := key(ev.Key(), ev.Modifiers()&^tcell.ModShift, ev.Str()); k != "" {
-		return []vim.Key{k}
+		return []vim.Key{modified(k, ev.Modifiers())}
 	}
 	return nil
+}
+
+// modified names an arrow, <Home> or <End> held with Ctrl or Shift, as
+// <C-Left> or <S-End>.
+func modified(k vim.Key, mods tcell.ModMask) vim.Key {
+	switch k {
+	case "<Left>", "<Right>", "<Up>", "<Down>", "<Home>", "<End>":
+	default:
+		return k
+	}
+	switch {
+	case mods&tcell.ModCtrl != 0:
+		return "<C-" + k[1:]
+	case mods&tcell.ModShift != 0:
+		return "<S-" + k[1:]
+	}
+	return k
 }
 
 func key(k tcell.Key, mods tcell.ModMask, str string) vim.Key {

@@ -3,7 +3,7 @@ package vim
 // isJump reports whether a motion is one the jumplist records.
 func isJump(cmd string) bool {
 	switch cmd {
-	case "G", "gg", "%", "(", ")", "{", "}", "[[", "]]", "[]", "][", "n", "N", "*", "#", "H", "M", "L":
+	case "G", "gg", "<C-End>", "%", "(", ")", "{", "}", "[[", "]]", "[]", "][", "n", "N", "*", "#", "H", "M", "L":
 		return true
 	}
 	return len(cmd) > 1 && (cmd[0] == '/' || cmd[0] == '?' || cmd[0] == '`' || cmd[0] == '\'')
@@ -13,7 +13,7 @@ func isJump(cmd string) bool {
 // depend on where the cursor is, which follow does not repeat (B396).
 func absolute(cmd string) bool {
 	switch cmd {
-	case "G", "gg", "go", "H", "M", "L", "]C", "[C":
+	case "G", "gg", "go", "H", "M", "L", "]C", "[C", "<C-End>":
 		return true
 	}
 	return len(cmd) > 1 && (cmd[0] == '`' || cmd[0] == '\'')

@@ -172,6 +172,8 @@ type Machine struct {
 	pending Key
 	spell   string
 	find    string // the last f, t, F or T and its character
+	wrapped bool   // the motion just made went back over a line break, which an operator keeps
+	force   string // v, V or <C-v> typed after an operator, which forces its motion's kind
 	want    int    // the column j and k aim for
 	wantSet bool
 
@@ -230,6 +232,7 @@ type Machine struct {
 
 	// Insert mode.
 	insStart   int  // where typing began, the limit of <C-w> and <C-u>
+	insCount   int  // the count the insert began with, which <Esc> types the text that many times
 	autoIndent bool // the line's indent came from autoindent and is untouched
 	oneshot    bool // <C-o> is running one normal command
 	armed      bool // that command has begun
@@ -723,6 +726,10 @@ func (m *Machine) normal(k Key) error {
 			return m.runKeyed(kc, keys, region{start: c, end: c})
 		}
 	}
+	if m.op != "" && (cmd == "v" || cmd == "V" || cmd == "<C-v>") {
+		m.force = cmd
+		return nil
+	}
 	if len(m.op) == 2 && cmd == m.op[1:] {
 		// A doubled operator such as gqq, whose last key would otherwise
 		// wait for more.
@@ -893,7 +900,11 @@ type normalKey struct {
 // insertAt starts insert mode at where returns.
 func insertAt(where func(x normalCall) int) func(m *Machine, x normalCall) error {
 	return func(m *Machine, x normalCall) error {
-		return m.startInsert(x.k, where(x))
+		if err := m.startInsert(x.k, where(x)); err != nil {
+			return err
+		}
+		m.insCount = x.count
+		return nil
 	}
 }
 
@@ -1052,16 +1063,18 @@ func init() {
 			}
 			return m.startInsert(x.k, p)
 		}},
-		"o": {"opens a line below and inserts", func(m *Machine, x normalCall) error {
+		"o": {"opens a line below and inserts, n lines after <Esc>", func(m *Machine, x normalCall) error {
 			if err := m.startInsert(x.k, x.end); err != nil {
 				return err
 			}
+			m.insCount = x.count
 			return m.newline()
 		}},
-		"O": {"opens a line above and inserts", func(m *Machine, x normalCall) error {
+		"O": {"opens a line above and inserts, n lines after <Esc>", func(m *Machine, x normalCall) error {
 			if err := m.startInsert(x.k, x.start); err != nil {
 				return err
 			}
+			m.insCount = x.count
 			return m.openAbove()
 		}},
 	}

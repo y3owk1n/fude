@@ -163,5 +163,5 @@ func (m *Machine) Back() {
 // Cancel drops the command being typed and the held keys, running none of
 // them, as <Esc> does while hints show (B172).
 func (m *Machine) Cancel() {
-	m.held, m.ahead, m.pending, m.op, m.count, m.opCount, m.reg, m.shown = nil, 0, "", "", 0, 0, 0, nil
+	m.held, m.ahead, m.pending, m.op, m.count, m.opCount, m.reg, m.shown, m.force = nil, 0, "", "", 0, 0, 0, nil, ""
 }

@@ -164,6 +164,20 @@ func TestB6EnterAndLeaveInsert(t *testing.T) {
 	if got, _, _ := run(t, "|abc", "i<Esc>"); got != "|abc" {
 		t.Errorf("<Esc> at line start should not move: got %q", got)
 	}
+	// A count types the text that many times, or opens that many lines.
+	for _, c := range [][3]string{
+		{"|ab", "3ix<Esc>", "xx|xab"},
+		{"|ab", "3Ax<Esc>", "abxx|x"},
+		{"|ab\ncd", "3ox<Esc>", "ab\nx\nx\n|x\ncd"},
+		{"|ab", "3Ox<Esc>", "x\nx\n|x\nab"},
+		{"|ab", "3ix<C-c>", "|xab"},
+		{"|ab", "v<C-c>", "|ab"},
+		{"|ab", ":x<C-c>", "|ab"},
+	} {
+		if got, _, m := run(t, c[0], c[1]); got != c[2] || m.Mode() != vim.Normal {
+			t.Errorf("%q on %q made %q in mode %v, want %q in normal mode", c[1], c[0], got, m.Mode(), c[2])
+		}
+	}
 }
 
 // B232
@@ -908,6 +922,19 @@ func TestB132ArrowKeys(t *testing.T) {
 		{"ab|c", "i<Home>Z<End>Y<Esc>", "Zabc|Y"},
 		// <Del> at the end of a line joins the next one.
 		{"ab|c\nx", "a<Del><Esc>", "ab|cx"},
+		// <Left> and <Right> are h and l, and <BS> goes onto the line
+		// before, whose break an operator takes.
+		{"a|bc", "<Left>x", "|bc"},
+		{"a|bc", "<Right>x", "a|b"},
+		{"ab\n|cd", "<BS>", "a|b\ncd"},
+		{"ab\n|cd", "d<BS>", "ab|cd"},
+		{"ab\n|cd", "d2<BS>", "a|cd"},
+		// With Shift or Ctrl the arrows move by words, and <C-End> goes to
+		// the last character.
+		{"|ab cd\nef", "<S-Right>x", "ab |d\nef"},
+		{"ab cd\n|ef", "<S-Left>x", "ab |d\nef"},
+		{"|ab cd\nef", "<C-End>", "ab cd\ne|f"},
+		{"|ab cd", "A<S-Left>x<Esc>", "ab |xcd"},
 	} {
 		if got, _, _ := run(t, c.start, c.keys); got != c.want {
 			t.Errorf("%s on %q made %q, want %q", c.keys, c.start, got, c.want)

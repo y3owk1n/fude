@@ -62,6 +62,18 @@ Moves n lines up, as `j` moves down.
 "a\n  b|c\n  d" "dk" "  |d"
 ```
 
+## <BS>
+
+Moves left, n characters, and from a line's start onto the last
+character of the line before. After an operator it takes that line
+break, so `d<BS>` at a line's start joins the line to the one before.
+Exclusive.
+
+```keys
+"ab\n|cd" "<BS>" "a|b\ncd"
+"ab\n|cd" "d<BS>" "ab|cd"
+```
+
 ## gg
 
 Goes to the first line, or to line n, at the column `j` and `k` aim for.
@@ -82,6 +94,15 @@ and linewise, so `dG` deletes to the end of the text.
 "abcd|ef\nab\nabcdef" "G" "abcdef\nab\nabcd|ef"
 "abcd|ef\nab\nabcdef" "2G" "abcdef\na|b\nabcdef"
 "a\n|b\nc" "dG" "|a"
+```
+
+## <C-End>
+
+Goes to the last character of the last line, or of line n. Inclusive,
+and a jump. `<C-Home>` is `gg`.
+
+```keys
+"|ab\ncd" "<C-End>" "ab\nc|d"
 ```
 
 ## gj
