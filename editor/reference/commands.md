@@ -407,9 +407,14 @@ session, and a guest may not change one. `:set name` shows the value, and
 `:set` alone lists every option and setting with its value in a window.
 A name or value fude does not know changes nothing and says why.
 
+`:set filetype yaml` gives the current buffer another filetype until it
+closes, with that filetype's grammar, language servers and table in
+config.toml, and `:set filetype` shows the one it has.
+
 There is no `:set number` to turn a switch on, no `no` before a name and
 no `name=value`. `<Tab>` completes the name, then `true` and `false` for a
-switch, the themes for `theme`, or the sources for `completion_sources`.
+switch, the themes for `theme`, the filetypes for `filetype`, or the
+sources for `completion_sources`.
 
 ```toml
 # config.toml sets the start values, as :set relative_number true would

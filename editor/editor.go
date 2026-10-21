@@ -461,10 +461,8 @@ func (e *Session) addAs(path string, numbered bool) (string, error) {
 		}
 		return msg, nil
 	}
-	if ok, err := e.attachSyntax(b); err != nil {
-		msg = err.Error()
-	} else if ft := e.filetype(b); !ok && syntax.Buildable(ft) && e.cfg.AutoInstall && e.buildGrammar(ft, false) {
-		msg = cmp.Or(msg, "building the "+ft+" grammar")
+	if said := e.syntaxFor(b); said != "" {
+		msg = cmp.Or(msg, said)
 	}
 	if e.started {
 		if err := e.attach(b); err != nil {

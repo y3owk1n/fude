@@ -107,10 +107,8 @@ func (e *Session) panel(owner api.Module, p api.Panel) bool {
 	if b.ft = p.Filetype; b.ft == "" {
 		return true
 	}
-	if ok, err := e.attachSyntax(b); err != nil {
-		e.message = err.Error()
-	} else if !ok && syntax.Buildable(b.ft) && e.cfg.AutoInstall && e.buildGrammar(b.ft, false) {
-		e.message = "building the " + b.ft + " grammar"
+	if said := e.syntaxFor(b); said != "" {
+		e.message = said
 	}
 	return true
 }

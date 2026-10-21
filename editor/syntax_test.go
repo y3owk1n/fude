@@ -206,6 +206,14 @@ func TestB164Filetypes(t *testing.T) {
 			t.Errorf("%s has filetype %q, want %q", name, got, want)
 		}
 	}
+	// A file whose name says nothing has the filetype its #! line names.
+	for line, want := range map[string]string{"#!/usr/bin/env python3": "python", "#!/bin/sh -e": "bash", "#!/usr/bin/env -S node --flag": "javascript", "plain": ""} {
+		path := filepath.Join(t.TempDir(), "script")
+		change(t, path, line+"\nx\n")
+		if got := start(t, path).Windows()[0].Filetype; got != want {
+			t.Errorf("a file starting %q has filetype %q, want %q", line, got, want)
+		}
+	}
 	// A table named after an extension applies to that extension's filetype.
 	config(t, "[filetype.yml]\nindent_width = 3\n")
 	path := filepath.Join(dir, "a.yaml")
@@ -213,6 +221,20 @@ func TestB164Filetypes(t *testing.T) {
 	e := start(t, path)
 	if feed(e, ">>"); text(e) != "   x" {
 		t.Errorf("[filetype.yml] gave >> in a.yaml %q, want three spaces", text(e))
+	}
+	// :set filetype gives a buffer another filetype, with its table and
+	// grammar.
+	path = filepath.Join(dir, "a.txt")
+	change(t, path, "x\n")
+	e = start(t, path)
+	if feed(e, ":set filetype yaml<CR>>>"); e.Windows()[0].Filetype != "yaml" || text(e) != "   x" {
+		t.Errorf(":set filetype yaml gave filetype %q and >> %q", e.Windows()[0].Filetype, text(e))
+	}
+	change(t, path, "package main\n")
+	e = start(t, path)
+	e.SetSize(80, 10)
+	if feed(e, ":set filetype go<CR>"); captures(t, e)["package"] != "keyword" {
+		t.Errorf("after :set filetype go, package shows as %q", captures(t, e)["package"])
 	}
 }
 

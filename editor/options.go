@@ -47,6 +47,9 @@ func (e *Session) set(args string) error {
 	if given {
 		defer e.emit("option.set", name, e.win.buf)
 	}
+	if name == "filetype" {
+		return e.setFiletype(value, given)
+	}
 	if _, ok := e.cfg.settings()[name]; ok {
 		return e.setSetting(name, value, given)
 	}

@@ -26,6 +26,19 @@ func (e *Session) attachSyntax(b *buffer) (bool, error) {
 	return ok, err
 }
 
+// syntaxFor gives b its filetype's syntax, or starts building the grammar,
+// and returns what to say of it.
+func (e *Session) syntaxFor(b *buffer) string {
+	ok, err := e.attachSyntax(b)
+	if err != nil {
+		return err.Error()
+	}
+	if ft := e.filetype(b); !ok && syntax.Buildable(ft) && e.cfg.AutoInstall && e.buildGrammar(ft, false) {
+		return "building the " + ft + " grammar"
+	}
+	return ""
+}
+
 // buildGrammar builds filetype's grammar off the loop, and gives it to the
 // open buffers of that filetype once it is built. A build that failed this
 // session runs again only when forced. It reports whether a build started

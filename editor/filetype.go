@@ -59,13 +59,79 @@ func (ed *Editor) filetypeOf(path string) string {
 	return cmp.Or(extFiletypes[ext], extFiletypes[strings.ToLower(ext)], ext)
 }
 
-// filetype returns b's filetype. A buffer with no file has the one it was
-// given, or "".
+// filetype returns b's filetype: the one it was given, or else its file's,
+// or else its #! line's (B164).
 func (ed *Editor) filetype(b *buffer) string {
-	if b.file.path == "" {
+	if b.ft != "" || b.file.path == "" {
 		return b.ft
 	}
-	return ed.filetypeOf(b.file.path)
+	if ft := ed.filetypeOf(b.file.path); ft != "" {
+		return ft
+	}
+	t := b.text.Snapshot()
+	return shebang(t.Slice(0, min(t.Len(), 128)))
+}
+
+// setFiletype runs :set filetype, which shows the current buffer's
+// filetype, or gives it another with that one's syntax, language servers
+// and options (B164).
+func (e *Session) setFiletype(ft string, given bool) error {
+	b := e.win.buf
+	if !given {
+		e.message = "filetype " + e.filetype(b)
+		return nil
+	}
+	b.ft = ft
+	return e.retype(b)
+}
+
+// retype gives b the syntax, language servers and options of its filetype
+// once its filetype or file has changed.
+func (e *Session) retype(b *buffer) error {
+	e.detach(b)
+	if b.syntax != nil {
+		b.syntax.Close()
+		b.syntax = nil
+		e.emit("syntax.updated", "", b)
+	}
+	if limit := e.cfg.LargeFile; b.text.Snapshot().Len() > int(limit)<<20 {
+		return nil
+	}
+	if said := e.syntaxFor(b); said != "" {
+		e.message = said
+	}
+	for _, w := range e.windows() {
+		if w.buf == b {
+			w.fitted = nil
+			e.fit(w)
+		}
+	}
+	return e.attach(b)
+}
+
+// shebangs are the filetypes of interpreters a #! line names that differ
+// from the interpreter's name.
+var shebangs = map[string]string{
+	"sh": "bash", "dash": "bash", "ksh": "bash", "zsh": "bash", "node": "javascript", "nodejs": "javascript",
+	"deno": "javascript", "bun": "javascript", "luajit": "lua", "Rscript": "r", "gawk": "awk", "tclsh": "tcl",
+}
+
+// shebang returns the filetype the #! line at the start of text names, as
+// python for #!/usr/bin/env python3, or "".
+func shebang(text string) string {
+	line, ok := strings.CutPrefix(strings.SplitN(text, "\n", 2)[0], "#!")
+	if !ok {
+		return ""
+	}
+	fields := strings.Fields(line)
+	if len(fields) > 0 && filepath.Base(fields[0]) == "env" {
+		fields = slices.DeleteFunc(fields[1:], func(f string) bool { return strings.HasPrefix(f, "-") })
+	}
+	if len(fields) == 0 {
+		return ""
+	}
+	prog := strings.TrimRight(filepath.Base(fields[0]), "0123456789.")
+	return cmp.Or(shebangs[prog], prog)
 }
 
 // aliasFiletypes renames each [filetype.<ext>] table of c to the filetype

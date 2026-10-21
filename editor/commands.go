@@ -11,6 +11,7 @@ import (
 	"github.com/y3owk1n/fude/internal/fuzzy"
 
 	"github.com/y3owk1n/fude/api"
+	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
 )
 
@@ -152,12 +153,12 @@ func completeOption(e *Session, line string, start int, arg string, wait bool) (
 	opts, settings := e.win.opts, e.cfg.settings()
 	name, value, given := strings.Cut(arg, " ")
 	if !given {
-		names := slices.Concat(slices.Collect(maps.Keys(opts.switches())), slices.Collect(maps.Keys(opts.numbers())), slices.Collect(maps.Keys(settings)), slices.Collect(maps.Keys(e.declared)))
+		names := slices.Concat(slices.Collect(maps.Keys(opts.switches())), slices.Collect(maps.Keys(opts.numbers())), slices.Collect(maps.Keys(settings)), slices.Collect(maps.Keys(e.declared)), []string{"filetype"})
 		slices.Sort(names)
 		return start, fuzzy.Match(names, name)
 	}
-	// A switch takes true or false, theme a theme, and completion_sources
-	// its sources.
+	// A switch takes true or false, theme a theme, filetype a filetype with
+	// a grammar or a table, and completion_sources its sources.
 	at := start + len(name) + 1
 	_, isSwitch := opts.switches()[name]
 	if def := e.declared[name].reg.Default; def == "true" || def == "false" {
@@ -168,6 +169,13 @@ func completeOption(e *Session, line string, start int, arg string, wait bool) (
 		return at, fuzzy.Match([]string{"false", "true"}, value)
 	case name == "theme":
 		return completeTheme(e, line, at, value, wait)
+	case name == "filetype":
+		fts := slices.Collect(maps.Keys(e.cfg.Filetype))
+		for _, g := range syntax.Grammars() {
+			fts = append(fts, g.Filetype)
+		}
+		slices.Sort(fts)
+		return at, fuzzy.Match(slices.Compact(fts), value)
 	case name == "completion_sources":
 		done := value[:strings.LastIndexByte(value, ',')+1]
 		return at + len(done), fuzzy.Match(defaults.Sources, value[len(done):])

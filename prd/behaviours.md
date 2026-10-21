@@ -651,7 +651,11 @@ Where fude departs, the line says so and cites the departure in
   these, and the files it matches have that filetype. The filetype picks the grammar, language
   server, formatters, indent width and comment syntax, and shows on the
   status line. A table named after an extension such as `[filetype.yml]`
-  becomes `[filetype.yaml]`.
+  becomes `[filetype.yaml]`. A file with no extension and no name fude
+  knows takes its filetype from its `#!` line, as `python` for
+  `#!/usr/bin/env python3` and `bash` for `#!/bin/sh`. `:set filetype
+  {name}` gives the current buffer that filetype until it closes, with its
+  grammar, language servers and table.
 - B165 [3] Opening a file whose language fude knows but has no grammar
   for builds the grammar in the background, at the commit fude pins, with
   git and the tree-sitter CLI, and the file shows its highlights once the
