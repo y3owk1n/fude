@@ -156,6 +156,9 @@ func TestB44Comments(t *testing.T) {
 		{"x\n// a\n// b\ny", "jcgcz<Esc>", "x\n|z\ny"},
 		{"x\n\n// a\n// b", "Gdgc", "x\n|"},
 		{"x\n// a", "dgc", "|x\n// a"},
+		// gcgc uncomments that block, and does nothing outside one.
+		{"x\n// a\n\t// b\n\n// c", "jjgcgc", "x\n|a\n\tb\n\n// c"},
+		{"x\n// a", "gcgc", "|x\n// a"},
 	} {
 		path := filepath.Join(t.TempDir(), "a.go")
 		change(t, path, c[0])

@@ -158,9 +158,10 @@ Comments the lines the target covers, in the comment syntax of the
 language where the target starts, which may be a language inside the file,
 such as the code in a markdown fence. The marks go at the least indent of
 the lines. When every line that is not blank is already commented, it
-takes the marks off instead. `gcc` toggles the line, or n lines. A file
-with no comment syntax gets a message and stays as it was. The comment
-module gives it.
+takes the marks off instead. `gcc` toggles the line, or n lines, and
+`gcgc` takes the marks off the comment block at the cursor, the `gc`
+object. A file with no comment syntax gets a message and stays as it was.
+The comment module gives it.
 
 ## zf{motion}
 

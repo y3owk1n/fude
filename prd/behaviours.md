@@ -1361,7 +1361,8 @@ Where fude departs, the line says so and cites the departure in
   of the language where the target starts, including injected languages.
   After an operator, `gc` is the block of commented lines around the
   cursor, up to a line that is blank or not commented, as whole lines, so
-  `dgc` deletes it and `cgc` changes it, as in Neovim.
+  `dgc` deletes it, `cgc` changes it and `gcgc` uncomments it, and
+  `gcgc` on a line not commented does nothing, as in Neovim.
 - B45 [3] In visual mode, `an` and `in` select the enclosing syntax node,
   and `]n` and `[n` move to the next and previous node, as in Neovim.
 - B46 [3] With a grammar for the buffer's filetype, text shows in the colour

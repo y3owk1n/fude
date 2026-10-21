@@ -350,12 +350,12 @@ the function that holds it.
 
 ## gc
 
-The comment block at the cursor, which is the lines around it commented
-in the language's comment syntax, up to a line that is not commented or
-is blank. It selects whole lines, so `dgc` deletes the block, `cgc` changes
-it and `ygc` yanks it. It works after an operator only, since `gc` in
-visual mode comments the selection. On a line that is not commented it
-fails. It comes with the comment module.
+The comment block at the cursor, which is the lines around it commented in
+the language's comment syntax, up to a line that is not commented or is
+blank. It selects whole lines, so `dgc` deletes the block, `cgc` changes
+it, `ygc` yanks it and `gcgc` uncomments it. It works after an operator
+only, since `gc` in visual mode comments the selection. On a line that is
+not commented it fails. It comes with the comment module.
 
 ## an
 

@@ -44,6 +44,7 @@ func (m *Machine) operate(op string, reg rune, cmd string, count int, label stri
 
 // Operator adds an operator such as gc, which works with every motion and
 // text object, in visual mode, and doubled for the current line, as gcc.
+// Doubled whole, as gcgc, it takes the object of its name when there is one.
 // Its name may start with a built-in operator's, as ys starts with y. It
 // waits for chars characters typed after the motion and passes them to
 // apply, as ys{motion}) does. apply gets the target's range and whether it is
@@ -295,7 +296,8 @@ func (m *Machine) act(op string, reg rune, label string, r region) error {
 func (m *Machine) span(t Text, c int, op, cmd string, count int) (region, bool) {
 	n, force := max(count, 1), m.force
 	m.force, m.wrapped = "", false
-	if cmd == op || len(op) == 2 && cmd == op[1:] {
+	// An operator doubled is the line, unless an object has its name, as gc.
+	if _, obj := m.objects[cmd]; cmd == op && !obj || len(op) == 2 && cmd == op[1:] {
 		s := LineStart(t, c)
 		return m.folded(t, region{start: s, end: LineEnd(t, m.foldDown(t, s, n-1)), lines: true}), true
 	}

@@ -1,6 +1,6 @@
 // Package comment is gc, which comments the lines a motion or object
 // covers, or uncomments them, and after an operator is the block of
-// commented lines around the cursor (B44).
+// commented lines around the cursor, so gcgc uncomments it (B44).
 package comment
 
 import (
