@@ -114,14 +114,3 @@ func (e *Session) build(fts []string) {
 		e.message = "building the " + strings.Join(started, ", ") + " grammars"
 	}
 }
-
-// languageAt returns the filetype of the text at pos in b: an injected
-// language's, or b's own (B44, B166).
-func (e *Session) languageAt(b *buffer, pos int) string {
-	if b.syntax != nil {
-		if lang := b.syntax.LanguageAt(pos); lang != "" {
-			return lang
-		}
-	}
-	return e.filetype(b)
-}

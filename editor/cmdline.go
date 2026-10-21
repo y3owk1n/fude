@@ -290,20 +290,6 @@ func (e *Session) completeLater(line string, start int, arg string) {
 	}()
 }
 
-// completeOff finds the completions of line from start off the loop, and
-// shows them when the line is the same once they come.
-func (e *Session) completeOff(line string, start int, find func() []string) {
-	go func() {
-		items := find()
-		e.queue <- func() {
-			if now, _ := strings.CutPrefix(e.vim.Line(), ":"); e.vim.Mode() == vim.Cmdline && now == line {
-				e.cmdline.menu = newMenu(line, start, items)
-				e.light(e.cmdline.menu, line)
-			}
-		}
-	}()
-}
-
 // moduleMenu is the completion of a command line a module was asked for
 // (B290).
 type moduleMenu struct {

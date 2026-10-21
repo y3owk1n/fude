@@ -70,16 +70,6 @@ func (e *Session) writeTo(b *buffer, path string, force bool) error {
 	return nil
 }
 
-// empty shows a new buffer with no file in the current window, as :enew
-// does (B155).
-func (e *Session) empty() {
-	if _, err := e.add(""); err != nil {
-		e.message = err.Error()
-		return
-	}
-	e.show(e.bufs[len(e.bufs)-1])
-}
-
 // cd makes dir the working directory, or the home directory for "". The
 // buffers' paths become absolute first, so they keep naming their files
 // (B155).

@@ -208,24 +208,6 @@ func (w *window) keep(was options) {
 	}
 }
 
-// expandTab reports whether b indents with spaces only. A window that
-// shows it decides, or else what a module set, its filetype or the session.
-func (e *Session) expandTab(b *buffer) bool {
-	for _, w := range e.root.windows() {
-		if w.buf == b {
-			e.fit(w)
-			return w.opts.ExpandTab
-		}
-	}
-	if on, ok := b.set["expand_tab"]; ok {
-		return on == "true"
-	}
-	if on := e.cfg.Filetype[e.filetype(b)].ExpandTab; on != nil {
-		return *on
-	}
-	return e.opts.ExpandTab
-}
-
 // fit puts back w's own options, then applies over them the options w's
 // buffer's filetype sets, once each time w shows another buffer (B94).
 func (e *Session) fit(w *window) {
