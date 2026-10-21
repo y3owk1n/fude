@@ -835,8 +835,8 @@ lines of it, in a window in diff mode. Without a range it is the change on
 the cursor's line, and a change with no lines here is on the line below
 its fill, or on the last line at the end. With more than two buffers in
 diff mode, the argument names the one to take from, by its number or part
-of its name, and without one it says "more than two buffers in diff mode,
-so name one". A range with no change says "no change here".
+of its name. A part that is in one file's own name names that buffer, even
+if it is also in the directories of others. Without an argument it says "more than two buffers in diff mode, so name one". A range with no change says "no change here".
 
 ## :diffoff
 

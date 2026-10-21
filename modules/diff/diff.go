@@ -6,6 +6,7 @@ package diff
 import (
 	"cmp"
 	"context"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -376,13 +377,22 @@ func jump(t api.Text, blocks []block, j, line, count int, forward bool) api.Resu
 
 // other returns the place in bufs of the buffer, not the current one at j,
 // that spec names by its number or part of its name, or of the only one
-// for "", or why there is none.
+// for "", or why there is none. It looks in each file's own name first, and
+// in its directories only when no file's name matches.
 func other(s api.Scope, bufs []int, j int, spec string) (int, string) {
-	var found []int
+	var found, dirs []int
 	for k, b := range bufs {
-		if k != j && (spec == "" || spec == strconv.Itoa(b) || strings.Contains(s.Buffers[b].Name, spec)) {
+		name := s.Buffers[b].Name
+		switch {
+		case k == j:
+		case spec == "" || spec == strconv.Itoa(b) || strings.Contains(filepath.Base(name), spec):
 			found = append(found, k)
+		case strings.Contains(name, spec):
+			dirs = append(dirs, k)
 		}
+	}
+	if len(found) == 0 {
+		found = dirs
 	}
 	switch {
 	case len(found) == 1:
