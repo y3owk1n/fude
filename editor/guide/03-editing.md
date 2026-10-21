@@ -124,9 +124,11 @@ as text, and editing that text changes them.
 
 `/text` searches forward and `?text` back, and `n` and `N` repeat. `*` and
 `#` search for the word under the cursor. Matches stay highlighted until
-`<C-l>`. While you type a search, the window shows the match it goes to,
-and `<Esc>` scrolls the window back. With `ignore_case` and `smart_case` on, a
-pattern ignores case unless it has a capital.
+`<C-l>`, or never with `hl_search` off. A search that reaches the end goes
+on from the start, unless `wrap_scan` is off. While you type a search, the
+window shows the match it goes to, and `<Esc>` scrolls the window back.
+With `ignore_case` and `smart_case` on, a pattern ignores case unless it
+has a capital.
 
 `:s/old/new/g` replaces on the line, and `:%s/old/new/g` in the whole
 file. While the command is typed, the window shows each match struck out
