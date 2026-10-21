@@ -1856,6 +1856,9 @@ Where fude departs, the line says so and cites the departure in
   there, in their severity's colour, with their source and code, until the
   next key. `<C-w>d` shows those on the cursor's line in the same float,
   in full, without moving.
+- B470 [5] A server that offers diagnostics to be asked for, rather than
+  publishing them, is asked for a file's when it opens, after each change
+  and whenever the server asks fude to ask again. They show as B61's do.
 - B62 [5] `<C-]>` jumps to the definition and `K` shows hover, as in
   Neovim with a server attached.
 - B368 [5] Hover and signature help show in a float at the cursor

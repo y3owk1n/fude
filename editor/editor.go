@@ -536,6 +536,7 @@ func (l heard) Changed(before kernel.Snapshot, edits []kernel.Edit) {
 	for _, s := range l.b.servers {
 		s.versions[l.b]++
 		s.client.Change(lsp.URI(l.b.file.path), s.versions[l.b], before, out)
+		l.ed.askDiagnostics(s, l.b)
 	}
 }
 

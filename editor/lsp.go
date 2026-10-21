@@ -31,6 +31,7 @@ type server struct {
 	closing   bool // fude asked it to exit
 	bufs      []*buffer
 	versions  map[*buffer]int  // the changes it has heard of each, since it opened
+	pulls     map[*buffer]bool // the buffers whose diagnostics it was asked for, true to ask again (B470)
 	work      map[string]*work // by token, what it reports doing (B161)
 }
 
@@ -127,7 +128,7 @@ func (e *Session) attachTo(b *buffer, name string) error {
 		if err != nil {
 			return fmt.Errorf("start %s: %w", name, err)
 		}
-		s = &server{name: name, command: command, root: root, versions: map[*buffer]int{}}
+		s = &server{name: name, command: command, root: root, versions: map[*buffer]int{}, pulls: map[*buffer]bool{}}
 		if err := e.start(s); err != nil {
 			e.serversChanged(name)
 			e.down[name] = err.Error()
@@ -149,6 +150,7 @@ func (e *Session) attachTo(b *buffer, name string) error {
 		return cmp.Compare(slices.Index(names, x.name), slices.Index(names, y.name))
 	})
 	s.client.Open(lsp.URI(b.file.path), languageID(e.filetype(b)), b.text.Snapshot())
+	e.askDiagnostics(s, b)
 	return nil
 }
 
@@ -278,6 +280,7 @@ func (e *Session) notified(s *server, method string, params json.RawMessage) {
 		e.serversChanged(s.name)
 		for _, b := range s.bufs {
 			e.emit("lsp.attached", s.name, b)
+			e.askDiagnostics(s, b)
 		}
 		return
 	}
@@ -448,8 +451,9 @@ func (e *Session) workspaceEdit(s *server, from *buffer, t kernel.Snapshot, res 
 // served answers a request from s. workspace/applyEdit applies its edit, as
 // a code action's command asks, and workspace/configuration gets the
 // sections of s's settings that the request names (B168). A refresh is an
-// lsp.refresh event. Other requests get an empty answer, as fude offers
-// nothing else.
+// lsp.refresh event, and workspace/diagnostic/refresh asks for its buffers'
+// diagnostics again (B470). Other requests get an empty answer, as fude
+// offers nothing else.
 func (e *Session) served(s *server, method string, params json.RawMessage) any {
 	if method == "workspace/configuration" {
 		var p struct {
@@ -468,6 +472,9 @@ func (e *Session) served(s *server, method string, params json.RawMessage) any {
 	// the modules of its buffers (B463).
 	if what, ok := strings.CutSuffix(strings.TrimPrefix(method, "workspace/"), "/refresh"); ok {
 		for _, b := range s.bufs {
+			if what == "diagnostic" {
+				e.askDiagnostics(s, b)
+			}
 			e.emit("lsp.refresh", what, b)
 		}
 		return nil

@@ -45,6 +45,11 @@ import (
 // ask for the lenses again. Its call and type hierarchies are fixed ones. Completion offers apple, apricot
 // and banana, and formatting the whole document puts a tab before each line,
 // as gopls formats only whole documents. Positions are in bytes.
+//
+// It offers more for each word of FUDE_FAKE_OFFER. With diagnostic, each
+// "worse" in a document is an error fude asks for, and so is each write,
+// after which it asks fude to ask again. A whole text a change sends
+// becomes the document's.
 func TestFakeServer(t *testing.T) {
 	if os.Getenv("FUDE_FAKE_LSP") == "" {
 		return
@@ -71,6 +76,17 @@ func TestFakeServer(t *testing.T) {
 	}
 	opened := map[string]string{}
 	lensAsks := 0
+	offers := strings.Fields(os.Getenv("FUDE_FAKE_OFFER"))
+	saves := 0
+	// send sends a request or a notification of its own.
+	send := func(m map[string]any) {
+		m["jsonrpc"] = "2.0"
+		body, _ := json.Marshal(m)
+		fmt.Fprintf(os.Stdout, "Content-Length: %d\r\n\r\n%s", len(body), body)
+	}
+	span := func(line, start, end int) map[string]any {
+		return map[string]any{"start": map[string]int{"line": line, "character": start}, "end": map[string]int{"line": line, "character": end}}
+	}
 	for {
 		n := 0
 		for {
@@ -94,11 +110,15 @@ func TestFakeServer(t *testing.T) {
 			ID     *int   `json:"id"`
 			Method string `json:"method"`
 			Params struct {
-				NewName      string          `json:"newName"`
-				Query        string          `json:"query"`
-				Arguments    []string        `json:"arguments"`
-				Command      string          `json:"command"`
-				Range        json.RawMessage `json:"range"`
+				NewName        string          `json:"newName"`
+				Query          string          `json:"query"`
+				Arguments      []string        `json:"arguments"`
+				Command        string          `json:"command"`
+				Range          json.RawMessage `json:"range"`
+				ContentChanges []struct {
+					Range *json.RawMessage `json:"range"`
+					Text  string           `json:"text"`
+				} `json:"contentChanges"`
 				TextDocument struct {
 					URI  string `json:"uri"`
 					Text string `json:"text"`
@@ -293,14 +313,38 @@ func TestFakeServer(t *testing.T) {
 			}
 			body, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "method": "textDocument/publishDiagnostics", "params": map[string]any{"uri": m.Params.TextDocument.URI, "diagnostics": ds}})
 			fmt.Fprintf(os.Stdout, "Content-Length: %d\r\n\r\n%s", len(body), body)
+		case "textDocument/diagnostic":
+			var ds []any
+			for line, l := range strings.Split(opened[m.Params.TextDocument.URI], "\n") {
+				if i := strings.Index(l, "worse"); i >= 0 {
+					ds = append(ds, map[string]any{"range": span(line, i, i+5), "severity": 1, "message": "worse word"})
+				}
+			}
+			for range saves {
+				ds = append(ds, map[string]any{"range": span(0, 0, 0), "severity": 1, "message": "written"})
+			}
+			reply(m.ID, map[string]any{"kind": "full", "items": ds})
+		case "textDocument/didSave":
+			saves++
+			if slices.Contains(offers, "diagnostic") {
+				send(map[string]any{"id": "refresh", "method": "workspace/diagnostic/refresh"})
+			}
 		case "initialize":
-			reply(m.ID, map[string]any{"serverInfo": map[string]any{"name": "fake", "version": "v1"}, "capabilities": map[string]any{
+			// What each word of FUDE_FAKE_OFFER adds to what it offers.
+			more := map[string]map[string]any{
+				"diagnostic": {"diagnosticProvider": map[string]any{}},
+			}
+			caps := map[string]any{
 				"positionEncoding": os.Getenv("FUDE_FAKE_ENCODING"), "textDocumentSync": json.RawMessage(cmp.Or(os.Getenv("FUDE_FAKE_SYNC"), "2")), "documentFormattingProvider": true, "completionProvider": map[string]any{"triggerCharacters": []string{"."}, "resolveProvider": true},
 				"definitionProvider": true, "typeDefinitionProvider": true, "implementationProvider": true, "referencesProvider": true, "renameProvider": true,
 				"codeActionProvider": true, "colorProvider": true, "signatureHelpProvider": map[string]any{"triggerCharacters": []string{"("}, "retriggerCharacters": []string{","}}, "documentSymbolProvider": true, "workspaceSymbolProvider": true, "inlayHintProvider": true, "hoverProvider": true,
 				"declarationProvider": true, "documentHighlightProvider": true, "codeLensProvider": map[string]any{"resolveProvider": true},
 				"callHierarchyProvider": true, "typeHierarchyProvider": true,
-			}})
+			}
+			for _, o := range offers {
+				maps.Copy(caps, more[o])
+			}
+			reply(m.ID, map[string]any{"serverInfo": map[string]any{"name": "fake", "version": "v1"}, "capabilities": caps})
 		case "shutdown":
 			reply(m.ID, nil)
 		case "exit":
@@ -317,6 +361,9 @@ func TestFakeServer(t *testing.T) {
 			}
 			if strings.Contains(string(body), `"text":"~"`) {
 				progress("end", "")
+			}
+			if c := m.Params.ContentChanges; len(c) == 1 && c[0].Range == nil {
+				opened[m.Params.TextDocument.URI] = c[0].Text
 			}
 		}
 	}

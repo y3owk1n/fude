@@ -1631,6 +1631,14 @@ other colours, with no virtual text. `]d` and `[d` jump to the next and
 previous diagnostic, going round the ends, add the jump to the jumplist and
 show its message (B61).
 
+A server that offers `diagnosticProvider` is asked with
+`textDocument/diagnostic` once it starts and after each `didChange`, one
+request a buffer at a time, and a change while one waits asks again when
+it is answered. A full report goes to the modules as `lsp.published` does,
+so pulled and published diagnostics draw the same way, and an unchanged
+one keeps what shows. `workspace/diagnostic/refresh` asks again for each
+of the server's buffers (B470).
+
 A request carries an id the loop keeps with the code that handles the
 answer, and the answer comes back through the editor's queue, so a key that
 asks a server returns at once. `<C-]>` jumps to the first location the
