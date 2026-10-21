@@ -1,8 +1,8 @@
 // Package window moves to the window that way, or inside tmux, with no
 // window that way, to tmux's pane there, as nvim-tmux-navigation does
 // (B140). It is also :split, :vsplit, :new, :vnew, :only, :resize,
-// :vertical resize, :hide and :window, and the <C-w> keys that size a
-// window (B91, B193, B365, B370).
+// :vertical, :hide and :window, the <C-w> keys that size a window, and
+// <C-w>n (B91, B193, B365, B370, B422).
 package window
 
 import (
@@ -47,6 +47,7 @@ const (
 	hide
 	place
 	zoom
+	newCtrl
 )
 
 // ways are where :window puts a window (B365), and zoom (B370).
@@ -96,7 +97,9 @@ func (m *Module) Registered() []api.Registration {
 		api.Registration{Kind: api.Command, Name: "window", Short: []string{"win"}, Args: "float|above|below|left|right [cmd] | zoom", Help: "opens the window cmd opens there, or moves the window into a float or to that edge. zoom shows the window alone, or every window again", ID: place, Complete: true},
 		api.Registration{Kind: api.Plug, Name: "zoom", Keys: "<C-w>z", Help: "shows the window alone, or every window again", ID: zoom},
 		api.Registration{Kind: api.Command, Name: "resize", Short: []string{"res"}, Args: "[+-]{n}", Help: "makes the window n rows tall, or n taller or shorter, or as tall as it can be", ID: resize},
-		api.Registration{Kind: api.Command, Name: "vertical", Short: []string{"vert"}, Args: "resize [+-]{n}", Help: "makes the window n columns wide, or n wider or narrower, or as wide as it can be", ID: vertical},
+		api.Registration{Kind: api.Command, Name: "vertical", Short: []string{"vert"}, Args: "{cmd} | resize [+-]{n}", Help: "runs cmd, whose new window opens right, or left with split_right off. resize makes the window n columns wide, or n wider or narrower, or as wide as it can be", ID: vertical},
+		api.Registration{Kind: api.Plug, Name: "new", Keys: "<C-w>n", Help: "shows a new empty buffer below, as :new does", ID: below},
+		api.Registration{Kind: api.Plug, Name: "new.ctrl", Keys: "<C-w><C-n>", Help: "shows a new empty buffer below, as :new does", ID: newCtrl},
 	)
 	for _, sz := range sizes {
 		regs = append(regs, api.Registration{Kind: api.Plug, Name: sz.name, Keys: sz.keys, Help: sz.help, ID: sz.id})
@@ -147,7 +150,7 @@ func command(id uint32, s api.Scope) api.Result {
 			res.Ex = []string{"edit " + arg}
 		}
 		return res
-	case below, right:
+	case below, right, newCtrl:
 		return api.Result{Scratch: &api.Scratch{Where: way}}
 	case only:
 		return api.Result{Windows: []api.WindowAction{{Do: "only"}}}
@@ -159,10 +162,13 @@ func command(id uint32, s api.Scope) api.Result {
 		return placed(s)
 	case vertical:
 		name, rest, _ := strings.Cut(arg, " ")
-		if name != "resize" && name != "res" {
-			return api.Result{Error: "usage: :vertical resize [+-]{n}"}
+		switch {
+		case arg == "":
+			return api.Result{Error: "usage: :vertical {cmd}, or :vertical resize [+-]{n}"}
+		case name == "resize" || name == "res":
+			return sized(strings.TrimSpace(rest), true)
 		}
-		return sized(strings.TrimSpace(rest), true)
+		return api.Result{Ex: []string{arg}, Place: splits.Way(s, true)}
 	}
 	return sized(arg, false)
 }

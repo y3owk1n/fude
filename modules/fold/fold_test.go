@@ -53,4 +53,31 @@ func TestB224Folds(t *testing.T) {
 			t.Errorf("%s went to line %d, want %d", keys, e.Text().LineOf(e.Cursor()), want)
 		}
 	}
+	// zm and zr fold one level more or less, from every fold open, and zA
+	// closes the outermost fold the cursor is in or opens it. zi opens every
+	// fold, and again closes them as they were.
+	editortest.Change(t, path, "a\n\tb\n\t\tc\n\td\ne\n")
+	e = editortest.Start(t, path)
+	e.Use(fold.New())
+	e.SetSize(80, 20)
+	for _, c := range []struct {
+		keys string
+		want map[int]int
+	}{
+		{"zm", map[int]int{1: 1}},
+		{"zm", map[int]int{0: 3}},
+		{"zm", map[int]int{0: 3}},
+		{"zr", map[int]int{1: 1}},
+		{"zr", nil},
+		{"2zm", map[int]int{0: 3}},
+		{"zv", nil},
+		{"jjzA", map[int]int{0: 3}},
+		{"zA", nil},
+		{"zMzi", nil},
+		{"zi", map[int]int{0: 3}},
+	} {
+		if editortest.Feed(e, c.keys); !maps.Equal(e.Windows()[0].Folds, c.want) {
+			t.Errorf("%s made %v, want %v", c.keys, e.Windows()[0].Folds, c.want)
+		}
+	}
 }

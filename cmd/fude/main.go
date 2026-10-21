@@ -27,11 +27,21 @@ import (
 )
 
 func main() {
-	if err := run(os.Args[1:]); err != nil {
+	err := run(os.Args[1:])
+	var code exitCode
+	if errors.As(err, &code) {
+		os.Exit(int(code))
+	}
+	if err != nil {
 		fmt.Fprintln(os.Stderr, "fude:", err)
 		os.Exit(1)
 	}
 }
+
+// exitCode is the code :cquit asked fude to exit with (B423).
+type exitCode int
+
+func (c exitCode) Error() string { return fmt.Sprintf("exit %d", int(c)) }
 
 // run runs the subcommand args name, or else opens the files they name.
 func run(args []string) error {
@@ -542,6 +552,9 @@ func edit(sharing bool, words []string, flags map[string]string, remove func()) 
 		if err := restart(exe, argv, append(os.Environ(), editor.RestartEnv+"="+path)); err != nil {
 			return fmt.Errorf("restart: %w", err)
 		}
+	}
+	if code := e.ExitCode(); err == nil && code != 0 {
+		return exitCode(code)
 	}
 	return err
 }

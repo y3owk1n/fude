@@ -552,7 +552,7 @@ func TestB61Diagnostics(t *testing.T) {
 	for _, c := range []struct {
 		keys string
 		at   int
-	}{{"gg]d", 3}, {"]d", 9}, {"]d", 3}, {"[d", 9}, {"gg2]d", 9}} {
+	}{{"gg]d", 3}, {"]d", 9}, {"]d", 3}, {"[d", 9}, {"gg2]d", 9}, {"G[D", 3}, {"gg]D", 9}} {
 		feed(e, c.keys)
 		if f, text := floatAt(e, "cursor"); e.Cursor() != c.at || text != "bad word  fake(7)" || f.Decorations[0].Name != "diagnostic.error.text" || e.Message() != "" {
 			t.Errorf("%s put the cursor at %d showing %q, want %d and the diagnostic in a float", c.keys, e.Cursor(), text, c.at)

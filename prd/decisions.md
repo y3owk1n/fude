@@ -1123,7 +1123,9 @@ The fold module folds a buffer by indent, as VS Code does by default
 (B224), and `zf` closes a fold over the lines a motion covers. Neovim's
 default `foldmethod` is manual, where only `zf` makes a fold, and
 `foldmethod` offers indent, syntax, markers and expressions. fude has no
-`foldmethod`, `zC` or `zO`. Why: indent folds work in every
+`foldmethod`, `zC` or `zO`, and no `foldlevel` or `foldenable` options.
+`zm` and `zr` take the level from the folds closed now, and `zi` keeps the
+folds it opens to close them again. Why: indent folds work in every
 file, with or without a grammar, and grammar repos ship no fold queries
 (D28). The user asked for folding on 2026-10-17.
 

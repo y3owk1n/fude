@@ -49,6 +49,8 @@ func init() {
 		{vim.Command{Name: "accept", Args: "[n]", Help: "applies proposal n, or the buffer's newest"}, func(e *Session, x call) error {
 			return e.decide(x.arg, true)
 		}, nil},
+		{vim.Command{Name: "bufdo", Short: []string{"bufd"}, Args: "{cmd}", Help: "runs cmd in each buffer being edited, showing each in turn"}, func(e *Session, x call) error { return e.bufdo(x.arg) }, nil},
+		{vim.Command{Name: "cquit", Short: []string{"cq"}, Args: "[n]", Help: "quits without writing, and fude exits with n, or 1"}, func(e *Session, x call) error { return e.cquit(x.arg) }, nil},
 		{vim.Command{Name: "cd", Args: "[dir]", Help: "changes the working directory, to home without dir"}, func(e *Session, x call) error { return e.cd(x.arg) }, completePath},
 		{vim.Command{Name: "close", Short: []string{"clo"}, Help: "closes the window"}, func(e *Session, _ call) error { return e.closeWindow(e.win) }, nil},
 		{vim.Command{Name: "edit", Short: []string{"e"}, Args: "[file]", Help: "opens file, or reads the buffer's file again. ! drops changes"}, func(e *Session, x call) error {
@@ -56,6 +58,15 @@ func init() {
 				return e.reread(x.force)
 			}
 			return e.edit(x.arg)
+		}, completePath},
+		{vim.Command{Name: "file", Short: []string{"f"}, Args: "[file]", Help: "names the buffer's file, then says its name, lines and the cursor's place, as <C-g> does"}, func(e *Session, x call) error {
+			if x.arg != "" {
+				if err := e.rename(e.win.buf, x.arg); err != nil {
+					return err
+				}
+			}
+			e.message = e.fileInfo(0)
+			return nil
 		}, completePath},
 		{vim.Command{Name: "pick", Args: "[source] [text]", Help: "opens the finder on a source, or on the sources: files, grep [text], buffers, recent, diagnostics, symbols, help or keymaps. resume opens the last one again"}, func(e *Session, x call) error { return e.openPick(x.arg) }, func(e *Session, _ string, start int, arg string, _ bool) (int, []string) {
 			return start, fuzzy.Match(e.pickNames(), arg)
@@ -82,8 +93,10 @@ func init() {
 		{vim.Command{Name: "reject", Args: "[n]", Help: "drops proposal n, or the buffer's newest"}, func(e *Session, x call) error {
 			return e.decide(x.arg, false)
 		}, nil},
+		{vim.Command{Name: "saveas", Short: []string{"sav"}, Args: "{file}", Help: "names the buffer's file and writes it there. ! writes over a file that exists"}, func(e *Session, x call) error { return e.saveAs(x.arg, x.force) }, completePath},
 		{vim.Command{Name: "set", Short: []string{"se"}, Args: "[name [value]]", Help: "sets an option to a value, as config.toml would, shows one, or lists them all"}, func(e *Session, x call) error { return e.set(x.arg) }, completeOption},
 		{vim.Command{Name: "share", Help: "shows a new share string, which lets one more guest join"}, func(e *Session, _ call) error { return e.reshare() }, nil},
+		{vim.Command{Name: "windo", Args: "{cmd}", Help: "runs cmd in each window, moving to each in turn"}, func(e *Session, x call) error { return e.windo(x.arg) }, nil},
 		{vim.Command{Name: "wall", Short: []string{"wa"}, Help: "writes every modified buffer"}, func(e *Session, x call) error { return e.writeAll(e.bufs, x.force, nil) }, nil},
 		{vim.Command{Name: "wq", Help: "writes the buffer and closes the window"}, func(e *Session, x call) error {
 			return e.write(e.win.buf, x.force, func() { e.report(e.quit(x.force)) })
@@ -105,6 +118,8 @@ func init() {
 	}
 	plugs = []plug{
 		{"restart", "starts fude again on the same session", func(e *Session, _ int) { e.report(e.restart()) }},
+		{"file", "says the buffer's name, lines and the cursor's place, with a count its full path", func(e *Session, n int) { e.message = e.fileInfo(n) }},
+		{"suspend", "suspends fude to the shell that started it, until the shell resumes it", func(e *Session, _ int) { e.suspending = true }},
 		{"finder.open", "opens the selected match", func(e *Session, _ int) { e.finderAct("open") }},
 		{"finder.list", "lists every match as places, the last list", func(e *Session, _ int) { e.finderAct("list") }},
 		{"finder.next", "selects the next match", func(e *Session, _ int) { e.finderAct("next") }},
@@ -135,6 +150,42 @@ func byName(cs []command) map[string]*command {
 // writeAllAndQuit is :wqall and :xall.
 func writeAllAndQuit(e *Session, x call) error {
 	return e.writeAll(e.bufs, x.force, func() { e.report(e.quitAll(x.force)) })
+}
+
+// bufdo shows each buffer being edited in turn and runs cmd in it,
+// stopping at the first error (B425).
+func (e *Session) bufdo(cmd string) error {
+	if cmd == "" {
+		return errors.New("run what? :bufdo cmd")
+	}
+	for _, b := range slices.Clone(e.bufs) {
+		if b.kind() != "" || !b.numbered() || e.barred(b) != nil || !slices.Contains(e.bufs, b) {
+			continue
+		}
+		e.show(b)
+		if err := e.vim.Ex(cmd); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// windo moves to each window of the layout in turn and runs cmd there,
+// stopping at the first error (B425).
+func (e *Session) windo(cmd string) error {
+	if cmd == "" {
+		return errors.New("run what? :windo cmd")
+	}
+	for _, w := range e.root.windows() {
+		if !slices.Contains(e.root.windows(), w) {
+			continue
+		}
+		e.win = w
+		if err := e.vim.Ex(cmd); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // completePath completes a path, off the loop when it must read a
@@ -228,8 +279,10 @@ func (e *Session) plugNames() []string {
 
 // defaultMaps are the normal mode keys fude maps to its commands.
 var defaultMaps = map[string]string{
-	"ZR": "<Plug>(restart)",
-	"s":  "<Plug>(jump.start)",
+	"ZR":    "<Plug>(restart)",
+	"<C-g>": "<Plug>(file)",
+	"<C-z>": "<Plug>(suspend)",
+	"s":     "<Plug>(jump.start)",
 }
 
 // hostOperator is an operator fude adds, and what it does.

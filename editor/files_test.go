@@ -449,3 +449,69 @@ func TestB156Read(t *testing.T) {
 		t.Fatalf(":r in.txt made %q", text(e))
 	}
 }
+
+// B423
+func TestB423Cquit(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "f")
+	change(t, path, "one\n")
+	for keys, code := range map[string]int{"x:cq<CR>": 1, "x:cquit 3<CR>": 3, ":cq 0<CR>": 0} {
+		e := open(t, path)
+		if feed(e, keys); !e.Done() || e.ExitCode() != code || disk(t, path) != "one\n" {
+			t.Errorf("%s: done %v, exit code %d and the file %q, want done, %d and the file as it was", keys, e.Done(), e.ExitCode(), disk(t, path), code)
+		}
+	}
+}
+
+// B426
+func TestB426FileInfo(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "f")
+	change(t, path, "one\ntwo\nthree\nfour\n")
+	e := open(t, path)
+	for _, c := range [][2]string{
+		{"j<C-g>", `"` + path + `" 4 lines --50%--`},
+		{"Gx:file<CR>", `"` + path + `" [Modified] 4 lines --100%--`},
+		{"u2<C-g>", `buf 1: "` + path + `" 4 lines --100%--`},
+	} {
+		if feed(e, c[0]); e.Message() != c[1] {
+			t.Errorf("%s said %q, want %q", c[0], e.Message(), c[1])
+		}
+	}
+	// :file names the buffer's file, which :w then writes.
+	renamed := filepath.Join(dir, "g")
+	if feed(e, ":file "+renamed+"<CR>"); e.Message() != `"`+renamed+`" [New] 4 lines --100%--` {
+		t.Errorf(":file %s said %q", renamed, e.Message())
+	}
+	if feed(e, ":w<CR>"); disk(t, renamed) != "one\ntwo\nthree\nfour\n" {
+		t.Errorf(":w after :file wrote %q", disk(t, renamed))
+	}
+	empty := open(t, "")
+	if feed(empty, "<C-g>"); empty.Message() != `"[No Name]" --No lines in buffer--` {
+		t.Errorf("<C-g> in an empty buffer said %q", empty.Message())
+	}
+	// The buffer takes the grammar of its new name.
+	text := filepath.Join(dir, "a.txt")
+	change(t, text, "package main\n")
+	e = start(t, text)
+	e.SetSize(80, 10)
+	if feed(e, ":file "+filepath.Join(dir, "a.go")+"<CR>"); captures(t, e)["package"] != "keyword" {
+		t.Errorf("after :file a.go, package shows as %q", captures(t, e)["package"])
+	}
+}
+
+// B427
+func TestB427SaveAs(t *testing.T) {
+	dir := t.TempDir()
+	a, b := filepath.Join(dir, "a"), filepath.Join(dir, "b")
+	change(t, a, "one\n")
+	change(t, b, "two\n")
+	e := open(t, a)
+	if feed(e, "x:saveas "+b+"<CR>"); e.Message() != `"`+b+`" exists, :saveas! writes over it` || disk(t, b) != "two\n" {
+		t.Fatalf(":saveas over a file said %q and left %q", e.Message(), disk(t, b))
+	}
+	// The buffer writes to its new file from then on, and the old one is
+	// left as it was.
+	if feed(e, ":saveas! "+b+"<CR>x:w<CR>"); disk(t, b) != "e\n" || disk(t, a) != "one\n" || e.Windows()[0].Name != b {
+		t.Errorf(":saveas! then :w left %q in b and %q in a, the buffer named %q", disk(t, b), disk(t, a), e.Windows()[0].Name)
+	}
+}

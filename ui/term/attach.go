@@ -35,6 +35,7 @@ type Attached struct {
 	pics  map[int][]byte         // the images the frames brought, by id
 	freed []int                  // the images frames dropped since Freed was called
 	clip  *string                // for the terminal's clipboard, once
+	stop  bool                   // the user asked to suspend, until Suspend says so (B424)
 	done  bool
 	ended string     // why the session ended, for after the screen is gone
 	own   editor.Own // a guest's own config, whose theme it draws in (B254)
@@ -212,6 +213,7 @@ func (a *Attached) apply(f wire.Frame) {
 			f.Windows[i].Text = b.Snapshot()
 		}
 	}
+	a.stop = a.stop || f.Suspend
 	// A copy goes on this machine's clipboard, or else the terminal's
 	// (B241).
 	if f.Clipboard != nil {
@@ -349,6 +351,13 @@ func (a *Attached) Theme() (string, *[16]int32, *wire.Colors) {
 		return a.own.Theme, a.own.Base16, a.own.Colors
 	}
 	return a.f.Theme, a.f.Base16, a.f.Colors
+}
+
+// Suspend reports, once, that the user asked to suspend to the shell.
+func (a *Attached) Suspend() bool {
+	ok := a.stop
+	a.stop = false
+	return ok
 }
 
 // TerminalClipboard returns a copy for the terminal's clipboard once.

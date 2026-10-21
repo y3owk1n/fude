@@ -72,10 +72,13 @@ var textObjects = map[string]textObjectKey{
 }
 
 // Object adds a text object such as af, which works after every operator and
-// in visual mode. Its name starts with i, a, [ or ]. In visual mode find gets
-// the selection, and after an operator the character under the cursor. It
-// returns the text the object selects from there, or false when there is
-// none. A count runs find again on what it returned. A nil find removes it.
+// in visual mode. Its name starts with i, a, [ or ], or is gc. In visual mode
+// find gets the selection, and after an operator the character under the
+// cursor. It returns the text the object selects from there, or false when
+// there is none. After an operator, text from a line's start to a later
+// line's start, or to one past the text's end, is those whole lines, as
+// gc's comment block is. A count runs find again on what it returned. A nil
+// find removes it.
 func (m *Machine) Object(name string, find func(t Text, start, end int) (int, int, bool)) {
 	if find == nil {
 		delete(m.objects, name)
@@ -105,6 +108,9 @@ func (m *Machine) object(t Text, c, count int, cmd string) (region, bool) {
 			break
 		}
 		r, found = region{start: start, end: end}, true
+	}
+	if found && m.mode != Visual && r.start == LineStart(t, r.start) && (r.end > t.Len() || r.end > r.start && r.end == LineStart(t, r.end)) {
+		r.end, r.lines = r.end-1, true
 	}
 	return r, found
 }

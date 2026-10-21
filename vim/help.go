@@ -35,7 +35,7 @@ func Bindings() []Binding {
 		add("normal", keys, ek.help)
 	}
 	for keys, nk := range normals {
-		add("normal", keys, nk.help)
+		add("normal", keysText(Keys(keys)), nk.help)
 	}
 	for keys, sk := range scrolls {
 		add("normal", keys, sk.help)

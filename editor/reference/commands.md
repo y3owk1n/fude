@@ -124,6 +124,23 @@ is stale" and stays while the others apply. A number with no proposal
 says "no proposal n", and applies none. A read-only guest may not accept
 one. `:review` lists the proposals.
 
+## :bufdo
+
+Runs the command in each buffer being edited, from the lowest number up.
+It shows each buffer in the current window in turn and runs the command
+there, as typed after `:`, so `:bufdo %s/old/new/g` changes every buffer.
+It passes help, lists, explorers, terminals and the other windows fude
+writes. The last buffer stays shown, and the buffers stay unwritten until
+`:wall`. When the command fails, the run stops there and the message says
+why.
+
+## :cquit
+
+Quits fude as `:qa!` does, dropping every change, and fude exits with the
+code n, or 1 without it. `:cq 0` exits as a plain quit does. When the
+editor exits with a code other than 0, git drops the commit message. In a
+session attached to a running fude it leaves, and fude goes on.
+
 ## :cd
 
 Makes dir the working directory, or the home directory without one, and
@@ -200,6 +217,15 @@ Without a file it reads the buffer's file again, as one undo step. It
 refuses while the buffer has changes, and `:e!` drops them. In an explorer
 it reads the directory again. `<Tab>` completes a path. A guest opens only
 files under the project.
+
+## :file
+
+Says the buffer's name, whether it is modified, how many lines it has and
+how far down the cursor's line is, as `<C-g>` does. With a file name it
+first makes that the buffer's file, so the next `:w` writes there. The
+old file stays as it was. It writes nothing itself, and `:saveas` names
+and writes at once. A name that is a file already makes `:w` ask before
+writing over it.
 
 ## :global
 
@@ -384,6 +410,13 @@ cursor stays.
 "        |x" ":retab!<CR>" "\t|x"
 ```
 
+## :saveas
+
+Makes the file the buffer's file and writes the buffer there, as `:file`
+then `:w` would. From then on `:w` writes to the new file, and the old one
+stays as it was. It refuses a file that is already there, and `:saveas!`
+writes over it.
+
 ## :select
 
 Selects every node of the buffer's syntax tree that a capture of the query
@@ -504,6 +537,14 @@ Runs the command on each line that does not match the pattern, as
 "|a1\nb\na2" ":v/a/d<CR>" "a1\n|a2"
 "|a1\nb\na2" ":g!/a/d<CR>" "a1\n|a2"
 ```
+
+## :windo
+
+Runs the command in each window, from the top left. It moves to each
+window in turn and runs the command there, as typed after `:`, so
+`:windo set number true` numbers the lines of every window. The last
+window stays current. When the command fails, the run stops there and the
+message says why.
 
 ## :wall
 
@@ -1124,11 +1165,15 @@ writes over a file changed on disk without asking.
 
 ## :vertical
 
+Runs the command after it, and the window it opens goes right of the
+current one, or left with `split_right` off. So `:vertical split` splits
+as `:vsplit` does, `:vertical new` opens as `:vnew` does, and `:vertical
+help` shows help beside the window.
+
 `:vertical resize` makes the window n columns wide, or n columns wider
 with `+n` and narrower with `-n`, as `:resize` does with rows. Without n it
 makes the window as wide as it can be. Every other window keeps at least a
-column. `resize` is the only command it takes, so `:vertical split` says
-how to use it, and `:vsplit` is the vertical split.
+column.
 
 ## :vnew
 

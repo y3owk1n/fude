@@ -150,6 +150,12 @@ func TestB44Comments(t *testing.T) {
 		{src, "jjgcc", "func f() {\n\tx := 1\n|\n\t\ty := 2\n}"},
 		{"a\n//b\n  //  c\n//", "gc3j", "|// a\n// //b\n//   //  c\n// //"},
 		{"//a\n//b\n\n  //  c\n//", "gc4j", "|a\nb\n\n   c\n"},
+		// After an operator, gc is the block of commented lines around the
+		// cursor, up to a blank line.
+		{"x\n// a\n\t// b\n\n// c", "jjdgc", "x\n|\n// c"},
+		{"x\n// a\n// b\ny", "jcgcz<Esc>", "x\n|z\ny"},
+		{"x\n\n// a\n// b", "Gdgc", "x\n|"},
+		{"x\n// a", "dgc", "|x\n// a"},
 	} {
 		path := filepath.Join(t.TempDir(), "a.go")
 		change(t, path, c[0])

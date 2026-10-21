@@ -41,6 +41,22 @@ window and every unsaved change. `ZR` runs it in normal mode, as `:restart`
 does. Only the terminal fude started in can restart it, and from another
 one the message says so. A client attached over RPC must attach again.
 
+## <Plug>(file)
+
+`<C-g>` runs it. Says the buffer's name, then `[Modified]` when it has
+changes and `[New]` when its file is not written yet, then how many lines
+it has and how far down the cursor's line is, as `"main.go" [Modified] 40
+lines --25%--`. With a count it gives the file's full path, and with a
+count over 1 the buffer's number before it, as `buf 2:`. `:file` says the
+same.
+
+## <Plug>(suspend)
+
+`<C-z>` runs it. Gives the terminal back to the shell that started fude
+and stops fude, with the programs and language servers it started, until
+the shell resumes it, as `fg` does. A client attached to a running fude
+suspends itself, and that fude goes on. On Windows it does nothing.
+
 ## <Plug>(finder.open)
 
 Closes the finder and opens its selected match, in the window the finder
@@ -102,6 +118,26 @@ program's buffer goes with its last window. While a task runs, it hides the
 window and the task goes on. While a `:terminal` shell or command runs, it
 leaves the window and says `:q` stops the program. `q` runs it in a
 terminal window in normal mode.
+
+## <Plug>(buffers.next)
+
+`]b` by default. Shows the buffer n after the current one, 1 without a
+count, as `:bnext` does, going on from the first after the last.
+
+## <Plug>(buffers.prev)
+
+`[b` by default. Shows the buffer n before the current one, as `]b` goes
+forward.
+
+## <Plug>(buffers.first)
+
+`[B` by default. Shows the first buffer being edited, the one with the
+lowest number. The count does nothing.
+
+## <Plug>(buffers.last)
+
+`]B` by default. Shows the last buffer being edited, the one with the
+highest number. The count does nothing.
 
 ## <Plug>(debug.break)
 
@@ -268,6 +304,40 @@ open.
 `zM` by default. It closes each outermost fold by indent, from the top of
 the buffer down, and the cursor goes to the first line of the fold it is
 in.
+
+## <Plug>(fold.toggle_all)
+
+`zA` by default. On a line inside a closed fold, it opens every closed
+fold that holds the line, as `<Plug>(fold.toggle)` does. Elsewhere it
+closes the outermost fold the cursor's line is in, and says "no fold
+here" when there is none. The count does nothing.
+
+## <Plug>(fold.view)
+
+`zv` by default. Opens every closed fold that holds the cursor's line, so
+the line shows. On a line in no closed fold it does nothing.
+
+## <Plug>(fold.more)
+
+`zm` by default. Folds n levels more, 1 without a count. A level is how
+deep a fold may be and stay open, the outermost folds being 1 deep. Every
+fold deeper than the level closes and the others open. The level starts
+one less than the depth of the shallowest closed fold, or with no fold
+closed at the deepest fold's depth, so `zm` after `zR` closes the
+innermost folds. At 0 it closes the outermost folds, as `zM` does, and
+goes no lower.
+
+## <Plug>(fold.less)
+
+`zr` by default. Folds n levels less, 1 without a count, as
+`<Plug>(fold.more)` folds more. At the deepest fold's depth every fold is
+open, as after `zR`.
+
+## <Plug>(fold.enable)
+
+`zi` by default. Opens every closed fold and keeps where each was. Run
+again, it closes those folds again, where the edits since have moved them.
+With no fold closed and none kept, it does nothing.
 
 ## <Plug>(fold.next)
 
@@ -467,6 +537,17 @@ until the next key. A buffer with none says "no diagnostics".
 
 `[d` runs it. Moves to the n-th diagnostic before the cursor, going round
 to the last before the first, as `]d` moves forward.
+
+## <Plug>(lsp.first_diagnostic)
+
+`[D` runs it. Moves to the first diagnostic in the buffer and shows the
+diagnostics that start there in a float, as `]d` does. The count does
+nothing.
+
+## <Plug>(lsp.last_diagnostic)
+
+`]D` runs it. Moves to the last diagnostic in the buffer, as `[D` moves to
+the first.
 
 ## <Plug>(lsp.diagnostics)
 
@@ -865,6 +946,16 @@ screen, with zoomed on its status line, and again shows every window as
 it was. Splitting, closing or moving a window, or moving to another,
 shows every window again first. A float does not zoom and says so, and
 floats show over a zoomed window.
+
+## <Plug>(window.new)
+
+`<C-w>n` by default. Opens a window below with a new empty buffer, or
+above with `split_below` off, as `:new` does. The count does nothing.
+
+## <Plug>(window.new.ctrl)
+
+The same as `<Plug>(window.new)`, on `<C-w><C-n>`, so the key works with
+Ctrl still held.
 
 ## <Plug>(window.taller)
 

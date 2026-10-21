@@ -1,10 +1,12 @@
 // Package buffers shows, steps through, writes and closes buffers:
-// :buffer, :bnext, :bprevious, :update, :bdelete and :enew (B89, B155).
+// :buffer, :bnext, :bprevious, :update, :bdelete, :enew, and [b, ]b, [B
+// and ]B (B89, B155, B428).
 package buffers
 
 import (
 	"context"
 	"maps"
+	"math"
 	"os"
 	"path/filepath"
 	"slices"
@@ -22,6 +24,10 @@ const (
 	drop
 	empty
 	update
+	nextKey
+	prevKey
+	first
+	last
 )
 
 // Module is buffers.
@@ -42,21 +48,35 @@ func (m *Module) Registered() []api.Registration {
 		{Kind: api.Command, Name: "bdelete", Short: []string{"bd"}, Help: "closes the buffer. ! drops its changes", ID: drop, Complete: true, Args: "[buffer]"},
 		{Kind: api.Command, Name: "enew", Help: "shows a new empty buffer", ID: empty},
 		{Kind: api.Command, Name: "update", Short: []string{"up"}, Help: "writes the buffer if it is modified", ID: update},
+		{Kind: api.Plug, Name: "next", Keys: "]b", Help: "shows the next buffer, n buffers on with a count", ID: nextKey},
+		{Kind: api.Plug, Name: "prev", Keys: "[b", Help: "shows the buffer before, n buffers back with a count", ID: prevKey},
+		{Kind: api.Plug, Name: "first", Keys: "[B", Help: "shows the first buffer", ID: first},
+		{Kind: api.Plug, Name: "last", Keys: "]B", Help: "shows the last buffer", ID: last},
 	}
 }
 
 func (m *Module) Init(context.Context, api.Scope) (api.Result, error) { return api.Result{}, nil }
 
 // Call shows, steps to or closes a buffer, or completes a buffer's name.
-func (m *Module) Call(_ context.Context, id uint32, s api.Scope, _ ...int) (api.Result, error) {
+func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (api.Result, error) {
 	if _, ok := s.About["complete"]; ok {
 		return api.Result{Complete: names(s)}, nil
 	}
 	arg := strings.TrimSpace(s.About["args"])
 	current, _ := strconv.Atoi(s.About["buffer"])
+	// A count steps that many buffers, and [B and ]B as far as they go.
+	n := max(args[1], 1)
 	switch id {
-	case next, prev:
-		if b, ok := step(s, current, id == next); ok {
+	case prev, prevKey:
+		n = -n
+	case first:
+		n = math.MinInt
+	case last:
+		n = math.MaxInt
+	}
+	switch id {
+	case next, prev, nextKey, prevKey, first, last:
+		if b, ok := step(s, current, n); ok {
 			return api.Result{Jump: &api.Jump{Buffer: b}}, nil
 		}
 		return api.Result{}, nil
@@ -92,12 +112,13 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, _ ...int) (api.
 	return api.Result{Close: []int{b}}, nil
 }
 
-// step returns the buffer being edited after the current one, or before
-// it, wrapping at either end. It passes help, lists, explorers, terminals,
-// the windows fude writes, and those the session may not show. From a
-// buffer not among them, the next is the first and the one before the
-// last (B89).
-func step(s api.Scope, current int, forward bool) (int, bool) {
+// step returns the buffer being edited n after the current one, or before
+// it for a negative n, wrapping at either end, or the first or last for
+// the least or largest n. It passes help, lists, explorers, terminals, the
+// windows fude writes, and those the session may not show. From a buffer
+// not among them, the next is the first and the one before the last (B89,
+// B428).
+func step(s api.Scope, current, n int) (int, bool) {
 	var edited []int
 	for _, id := range slices.Sorted(maps.Keys(s.Buffers)) {
 		if b := s.Buffers[id]; b.Kind == "" && !b.Barred && !b.Unnumbered {
@@ -108,14 +129,14 @@ func step(s api.Scope, current int, forward bool) (int, bool) {
 		return 0, false
 	}
 	at := slices.Index(edited, current)
-	n := 1
-	if !forward {
-		n = -1
-	}
 	switch {
+	case n == math.MinInt:
+		at = 0
+	case n == math.MaxInt:
+		at = len(edited) - 1
 	case at >= 0:
 		at = ((at+n)%len(edited) + len(edited)) % len(edited)
-	case forward:
+	case n > 0:
 		at = 0
 	default:
 		at = len(edited) - 1

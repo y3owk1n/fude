@@ -211,6 +211,9 @@ func (m *Machine) Pending() bool   // an operator waits for its target, or r for
 
 `Object`, `Operator` and `Command` with a nil function remove what they
 added under name, as a plugin reload does for a plugin it drops (B191).
+After an operator, an object's text from a line's start to a later line's
+start, or to one past the text's end, is those whole lines, as `gc`'s
+comment block is (B44).
 
 Multicursors (B392) are marks through `Host.SetMark`, so edits anywhere
 move them. Each has its own context: its registers, its column for `j`

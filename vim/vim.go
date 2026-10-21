@@ -1024,6 +1024,12 @@ func init() {
 			_, err := m.moveBy(x.start, x.start, -max(x.count, 1), "[e")
 			return err
 		}},
+		"[ ": {"adds n blank lines above the line, leaving the cursor on its text", func(m *Machine, x normalCall) error {
+			return m.blankLines(x.start, x.n())
+		}},
+		"] ": {"adds n blank lines below the line", func(m *Machine, x normalCall) error {
+			return m.blankLines(x.end+1, x.n())
+		}},
 		"gv": {"selects the last selection again", func(m *Machine, _ normalCall) error {
 			m.reselect()
 			return nil

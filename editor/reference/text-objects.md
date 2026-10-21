@@ -8,9 +8,9 @@ without one. A count after the operator works as well, so `d2aw` and
 `2daw` both delete two words.
 
 An object that finds nothing fails, so the operator does nothing. Most
-select characters. `ip`, `ap` and `al` select whole lines, as does an `i`
-bracket object whose brackets sit on lines of their own. In visual mode
-such an object selects lines as `V` does. Typing an object again in
+select characters. `ip`, `ap`, `al` and `gc` select whole lines, as does
+an `i` bracket object whose brackets sit on lines of their own. In visual
+mode such an object selects lines as `V` does. Typing an object again in
 visual mode grows the selection. A word, sentence or paragraph object adds
 the next one after it, so `vawaw` selects two words. A bracket, quote or
 tag object takes the next pair out, so `vi(i(` selects inside the
@@ -347,6 +347,15 @@ The function at the cursor, the smallest that holds it or the selection,
 as the grammar's query names one. Blanks at its end stay out. A count
 selects the function around it, so `2af` in a function literal selects
 the function that holds it.
+
+## gc
+
+The comment block at the cursor, which is the lines around it commented
+in the language's comment syntax, up to a line that is not commented or
+is blank. It selects whole lines, so `dgc` deletes the block, `cgc` changes
+it and `ygc` yanks it. It works after an operator only, since `gc` in
+visual mode comments the selection. On a line that is not commented it
+fails. It comes with the comment module.
 
 ## an
 

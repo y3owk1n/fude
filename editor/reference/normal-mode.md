@@ -333,6 +333,24 @@ as `[e` moves it up. It fails on the last line.
 "|a\nb\nc" "2]e" "b\nc\n|a"
 ```
 
+## [<Space>
+
+Puts n blank lines above the cursor's line, 1 without a count. The cursor
+stays on its text, and `.` repeats it.
+
+```keys
+"a\nb|c" "[<Space>" "a\n\nb|c"
+"a\nb|c" "2[<Space>" "a\n\n\nb|c"
+```
+
+## ]<Space>
+
+Puts n blank lines below the cursor's line, as `[<Space>` puts them above.
+
+```keys
+"a\nb|c\nd" "]<Space>" "a\nb|c\n\nd"
+```
+
 ## ]P
 
 The same as `[P`.
@@ -963,6 +981,65 @@ and those it opened from.
 ## <C-w>=
 
 Makes the windows of each split share its space equally again.
+
+## <C-w>w
+
+Moves to the next window, from the top left, going on from the first
+after the last. With a count it moves to window n instead, or to the last
+when there are fewer. `<C-w><C-w>` is the same.
+
+## <C-w>W
+
+Moves to the window before, going on from the last before the first. With
+a count it moves to window n, as `<C-w>w` does.
+
+## <C-w>p
+
+Moves to the window that was current before this one. When that window
+has closed, the message says "no previous window". `<C-w><C-p>` is the
+same.
+
+## <C-w>x
+
+Exchanges the window with the next one in its split, or with the one
+before for the last, or with window n of the split with a count. Each
+window keeps its size. The cursor stays in its place in the split, so it
+is now in the other window. Beside a window that is split itself, it does
+nothing. `<C-w><C-x>` is the same.
+
+## <C-w>r
+
+Rotates the windows of the window's split down or right. Each moves one
+place on, and the last becomes the first. A count rotates n times. Each
+window keeps its size, and the cursor goes with its window. Beside a
+window that is split itself, the message says it cannot rotate.
+`<C-w><C-r>` is the same.
+
+## <C-w>R
+
+Rotates the windows of the window's split up or left, the first becoming
+the last, as `<C-w>r` rotates the other way.
+
+## <C-w>H
+
+Moves the window to the far left of the screen, as tall as all the
+windows, as `:window left` does. It keeps its buffer and cursor. In the
+only window it does nothing.
+
+## <C-w>J
+
+Moves the window to the bottom of the screen, as wide as all the windows,
+as `:window below` does.
+
+## <C-w>K
+
+Moves the window to the top of the screen, as wide as all the windows, as
+`:window above` does.
+
+## <C-w>L
+
+Moves the window to the far right of the screen, as tall as all the
+windows, as `:window right` does.
 
 ## ds{char}
 

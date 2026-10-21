@@ -71,6 +71,73 @@ func (e *Session) writeTo(b *buffer, path string, force bool) error {
 	return nil
 }
 
+// rename makes path b's file, which b is not yet written to, as :file
+// path does, with the filetype and language servers of the new name.
+// Writing over a file already there asks first (B426).
+func (e *Session) rename(b *buffer, path string) error {
+	// The servers hear of the close under the old name.
+	e.detach(b)
+	old := b.file.path
+	b.file.path = path
+	_, err := os.Stat(path)
+	b.file.isNew = err != nil
+	e.emit("buffer.renamed", old, b)
+	return e.retype(b)
+}
+
+// saveAs makes path the current buffer's file and writes it there, as
+// :saveas does. It refuses a file that exists unless force (B427).
+func (e *Session) saveAs(path string, force bool) error {
+	if _, err := os.Stat(path); err == nil && !force {
+		return fmt.Errorf("\"%s\" exists, :saveas! writes over it", path)
+	}
+	if err := e.rename(e.win.buf, path); err != nil {
+		return err
+	}
+	// The file there is written over without asking.
+	e.win.buf.file.note()
+	return e.write(e.win.buf, force, nil)
+}
+
+// fileInfo says what <C-g> says of the current buffer: its name, whether
+// it is modified or new, how many lines it has and how far down the cursor
+// is. A count gives the full path, and one over 1 the buffer's number too
+// (B426).
+func (e *Session) fileInfo(count int) string {
+	b, t := e.win.buf, e.Text()
+	name := b.name()
+	if abs, err := filepath.Abs(name); err == nil && count > 0 && b.title == "" && b.file.path != "" {
+		name = abs
+	}
+	var s strings.Builder
+	if count > 1 {
+		fmt.Fprintf(&s, "buf %d: ", b.id)
+	}
+	s.WriteString("\"" + name + "\" ")
+	flags := ""
+	if b.modified() {
+		flags += "[Modified]"
+	}
+	if b.file.isNew && b.file.path != "" {
+		flags += "[New]"
+	}
+	if b.file.readonly {
+		flags += "[readonly]"
+	}
+	if flags != "" {
+		s.WriteString(flags + " ")
+	}
+	switch n := t.Lines(); {
+	case t.Len() == 0:
+		s.WriteString("--No lines in buffer--")
+	case n == 1:
+		s.WriteString("1 line --100%--")
+	default:
+		fmt.Fprintf(&s, "%d lines --%d%%--", n, (t.LineOf(e.Cursor())+1)*100/n)
+	}
+	return s.String()
+}
+
 // cd makes dir the working directory, or the home directory for "". The
 // buffers' paths become absolute first, so they keep naming their files
 // (B155).

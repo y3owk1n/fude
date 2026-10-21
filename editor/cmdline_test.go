@@ -122,7 +122,7 @@ func TestB131CommandCompletion(t *testing.T) {
 
 	// With autocomplete, the menu shows as the line is typed.
 	feed(e, "<Esc>:bu")
-	if f, ok := e.Menu(); !ok || !strings.HasPrefix(f.Text, "buffer") {
+	if f, ok := e.Menu(); !ok || !strings.HasPrefix(f.Text, "bufdo") {
 		t.Fatalf("typing :bu shows the menu %q", f.Text)
 	}
 	// A long menu shows its best matches first, lighting the first, and
@@ -193,6 +193,37 @@ func TestB257Cdo(t *testing.T) {
 	}
 	if got := texts(); !slices.Equal(got, []string{"keep", ""}) {
 		t.Errorf(":cdo d left %q", got)
+	}
+}
+
+// B425
+func TestB425BufdoWindo(t *testing.T) {
+	dir := t.TempDir()
+	a, b := filepath.Join(dir, "a"), filepath.Join(dir, "b")
+	change(t, a, "a\n")
+	change(t, b, "b\n")
+	e := withCommands(start(t, a, b))
+	texts := func() []string {
+		var out []string
+		for _, v := range e.Windows() {
+			out = append(out, v.Text.Slice(0, v.Text.Len()))
+		}
+		return out
+	}
+	// :bufdo shows each buffer in turn, and the last stays.
+	if feed(e, ":bufdo normal Ax<CR>"); !slices.Equal(texts(), []string{"bx"}) || e.Message() != "" {
+		t.Errorf(":bufdo left %q saying %q", texts(), e.Message())
+	}
+	if feed(e, ":b 1<CR>"); text(e) != "ax" {
+		t.Errorf(":bufdo left the first buffer %q", text(e))
+	}
+	// :windo moves to each window in turn, and stays in the last.
+	if feed(e, ":vs "+b+"<CR><C-w>h:windo normal Ay<CR>"); !slices.Equal(texts(), []string{"axy", "bxy"}) || !e.Windows()[1].Current {
+		t.Errorf(":windo left %q, the last window current %v", texts(), e.Windows()[1].Current)
+	}
+	// A command that fails stops there and says why.
+	if feed(e, ":windo s/a/z/<CR>"); !slices.Equal(texts(), []string{"zxy", "bxy"}) || e.Message() == "" {
+		t.Errorf(":windo with a failing command left %q saying %q", texts(), e.Message())
 	}
 }
 

@@ -90,6 +90,13 @@ func Run(e Session) error {
 		if e.Done() {
 			return nil
 		}
+		if e.Suspend() {
+			if err := suspend(s); err != nil {
+				return err
+			}
+			// The shell drew over the screen, so every line draws again.
+			c.lines = nil
+		}
 		// A key starts both waits again. Other events, such as a spinner's
 		// frame, leave them running.
 		_, key := ev.(*tcell.EventKey)

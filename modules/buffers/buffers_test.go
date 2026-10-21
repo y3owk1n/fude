@@ -135,3 +135,23 @@ func TestB89Buffers(t *testing.T) {
 		}
 	}
 }
+
+// B428
+func TestB428BracketBuffers(t *testing.T) {
+	dir := t.TempDir()
+	var paths []string
+	for _, name := range []string{"a", "b", "c", "d"} {
+		paths = append(paths, filepath.Join(dir, name))
+		editortest.Change(t, paths[len(paths)-1], name+"\n")
+	}
+	e := editortest.Start(t, paths...)
+	e.Use(buffers.New())
+	name := func() string { return filepath.Base(e.Windows()[0].Name) }
+	for _, c := range []struct{ keys, want string }{
+		{"]b", "b"}, {"2]b", "d"}, {"]b", "a"}, {"[b", "d"}, {"3[b", "a"}, {"]B", "d"}, {"[B", "a"},
+	} {
+		if feed(e, c.keys); name() != c.want {
+			t.Errorf("%s showed %s, want %s", c.keys, name(), c.want)
+		}
+	}
+}

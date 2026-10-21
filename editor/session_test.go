@@ -36,6 +36,14 @@ func TestB77UndoOwnChanges(t *testing.T) {
 	}
 }
 
+// B424
+func TestB424Suspend(t *testing.T) {
+	e := open(t, "")
+	if feed(e, "<C-z>"); !e.Suspend() || e.Suspend() {
+		t.Error("<C-z> did not ask the client to suspend once")
+	}
+}
+
 // B170
 func TestB170Restart(t *testing.T) {
 	dir := t.TempDir()

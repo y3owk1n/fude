@@ -470,3 +470,99 @@ func TestB21IncrementalSearchPinsContext(t *testing.T) {
 		return len(v.Context) == 1 && v.Text.Slice(v.Context[0], v.Context[0]+4) == "func"
 	})
 }
+
+// shown returns the base name of each window's buffer from the top left,
+// the current one marked with *.
+func shown(e *editor.Session) string {
+	var out []string
+	for _, v := range e.Windows() {
+		name := filepath.Base(v.Name)
+		if v.Current {
+			name = "*" + name
+		}
+		out = append(out, name)
+	}
+	return strings.Join(out, " ")
+}
+
+// threeWindows opens a, then b and c each in a window below.
+func threeWindows(t *testing.T) *editor.Session {
+	t.Helper()
+	dir := t.TempDir()
+	for _, name := range []string{"a", "b", "c"} {
+		change(t, filepath.Join(dir, name), name+"\n")
+	}
+	e := withCommands(open(t, filepath.Join(dir, "a")))
+	e.SetSize(80, 23)
+	feed(e, ":sp "+filepath.Join(dir, "b")+"<CR>:sp "+filepath.Join(dir, "c")+"<CR>")
+	return e
+}
+
+// B420
+func TestB420NextWindow(t *testing.T) {
+	e := threeWindows(t)
+	for _, c := range [][2]string{
+		{"<C-w>w", "*a b c"},
+		{"<C-w>W", "a b *c"},
+		{"2<C-w>w", "a *b c"},
+		{"<C-w>p", "a b *c"},
+		{"<C-w><C-p>", "a *b c"},
+		{"9<C-w>W", "a b *c"},
+	} {
+		if feed(e, c[0]); shown(e) != c[1] {
+			t.Errorf("%s left the windows %q, want %q", c[0], shown(e), c[1])
+		}
+	}
+	if feed(e, "<C-w>o<C-w>p"); e.Message() != "no previous window" {
+		t.Errorf("<C-w>p with the previous window closed said %q", e.Message())
+	}
+}
+
+// B421
+func TestB421ExchangeAndRotate(t *testing.T) {
+	e := threeWindows(t)
+	for _, c := range [][2]string{
+		// The last window exchanges with the one before, and the cursor
+		// stays in its place.
+		{"<C-w>x", "a c *b"},
+		{"1<C-w>x", "b c *a"},
+		// Rotating moves the cursor with its window.
+		{"<C-w>r", "*a b c"},
+		{"2<C-w>R", "c *a b"},
+	} {
+		if feed(e, c[0]); shown(e) != c[1] {
+			t.Errorf("%s left the windows %q, want %q", c[0], shown(e), c[1])
+		}
+	}
+	// Each window keeps its size as it moves.
+	sized := threeWindows(t)
+	if feed(sized, ":resize 3<CR><C-w>r"); sized.Windows()[0].H != 3 || !sized.Windows()[0].Current {
+		t.Errorf("<C-w>r left the windows %q", windows(sized))
+	}
+	// A split beside the window stops a rotation.
+	if feed(e, ":vs<CR><C-w>k<C-w>r"); e.Message() != "cannot rotate while another window is split" {
+		t.Errorf("<C-w>r beside a split said %q", e.Message())
+	}
+}
+
+// B422
+func TestB422MoveToEdge(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "f")
+	change(t, path, "a\n")
+	e := withCommands(open(t, path))
+	e.SetSize(80, 23)
+	if feed(e, "<C-w>L"); windows(e) != "*0,0 80x23" || e.Message() != "" {
+		t.Errorf("<C-w>L in the only window left %q saying %q", windows(e), e.Message())
+	}
+	feed(e, ":sp<CR>")
+	for _, c := range [][2]string{
+		{"<C-w>L", "0,0 40x23 *41,0 39x23"},
+		{"<C-w>K", "*0,0 80x12 0,12 80x11"},
+		{"<C-w>J", "0,0 80x12 *0,12 80x11"},
+		{"<C-w>H", "*0,0 40x23 41,0 39x23"},
+	} {
+		if feed(e, c[0]); windows(e) != c[1] {
+			t.Errorf("%s left the windows %q, want %q", c[0], windows(e), c[1])
+		}
+	}
+}

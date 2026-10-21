@@ -655,6 +655,11 @@ func TestB236MoveLines(t *testing.T) {
 	}
 }
 
+// B429
+func TestB429BlankLines(t *testing.T) {
+	cases(t)
+}
+
 // B86
 func TestB86LineCommands(t *testing.T) {
 	cases(t)

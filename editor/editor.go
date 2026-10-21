@@ -133,18 +133,22 @@ type Session struct {
 	placing     string                  // where a modifier puts the window its command opens, until the next key (B365)
 	zoomed      *window                 // the window that shows alone across the layout's room, nil for none (B370)
 	unzoomed    [4]int                  // where the zoomed window is in the layout, its x, y, w and h
-	opts        options                 // what the session's new windows start with
-	changed     chan change             // told when the shown text changes, for a client over the socket
-	notices     *notices                // what its client over the socket has yet to hear of its proposals (B389)
-	clip        string                  // the text last copied, when no clipboard command runs
-	toTerminal  bool                    // the client has yet to put clip on its terminal's clipboard
-	mode        vim.Mode                // the mode as plugins last heard it
-	seen        seenAt                  // the current window as plugins last heard it
-	noticed     noticed                 // the windows and the rest as modules last heard of them (B346)
-	saves       map[*buffer]*saving     // the writes waiting for modules (B282)
-	inSave      *saving                 // the write the result being applied is for, or nil
-	depth       int                     // the undo groups the machine has open
-	pending     int                     // the cursor when the group being made began
+	lastWin     *window                 // the window current when a key last ended, and prevWin the one before it, for <C-w>p (B420)
+	prevWin     *window
+	suspending  bool                // the client has yet to suspend to the shell, as <C-z> asked (B424)
+	exitCode    int                 // what fude exits with, which :cquit sets (B423)
+	opts        options             // what the session's new windows start with
+	changed     chan change         // told when the shown text changes, for a client over the socket
+	notices     *notices            // what its client over the socket has yet to hear of its proposals (B389)
+	clip        string              // the text last copied, when no clipboard command runs
+	toTerminal  bool                // the client has yet to put clip on its terminal's clipboard
+	mode        vim.Mode            // the mode as plugins last heard it
+	seen        seenAt              // the current window as plugins last heard it
+	noticed     noticed             // the windows and the rest as modules last heard of them (B346)
+	saves       map[*buffer]*saving // the writes waiting for modules (B282)
+	inSave      *saving             // the write the result being applied is for, or nil
+	depth       int                 // the undo groups the machine has open
+	pending     int                 // the cursor when the group being made began
 
 	width, height int  // the space the windows share
 	lined         bool // the buffer line took the top row at the last layout (B258)
@@ -678,6 +682,9 @@ func (e *Session) settle(err error) {
 			e.close(b, true)
 		}
 	}
+	if e.win != e.lastWin {
+		e.prevWin, e.lastWin = e.lastWin, e.win
+	}
 	if v := (seenAt{e.win.buf, e.Cursor(), e.Top()}); v != e.seen {
 		e.seen = v
 		e.emit("window.moved", fmt.Sprintf("%d %d", v.cursor, v.top), v.buf)
@@ -984,6 +991,36 @@ func (e *Session) quitAll(force bool) error {
 		s.done = true
 	}
 	return nil
+}
+
+// cquit quits, dropping every change, so that fude exits with the code arg
+// gives, or 1 (B423).
+func (e *Session) cquit(arg string) error {
+	code := 1
+	if arg != "" {
+		n, err := strconv.Atoi(arg)
+		if err != nil {
+			return fmt.Errorf("not an exit code: %s", arg)
+		}
+		code = n
+	}
+	if err := e.quitAll(true); err != nil {
+		return err
+	}
+	e.exitCode = code
+	return nil
+}
+
+// ExitCode returns what fude exits with once the session is done, 0 unless
+// :cquit gave another (B423).
+func (e *Session) ExitCode() int { return e.exitCode }
+
+// Suspend reports, once, that the user asked to suspend fude to the shell,
+// for the client to do (B424).
+func (e *Session) Suspend() bool {
+	ok := e.suspending
+	e.suspending = false
+	return ok
 }
 
 // SetName names the session, as --name does (B252).

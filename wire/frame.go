@@ -39,6 +39,7 @@ type Frame struct {
 	Clipboard    *string          `json:",omitempty"` // to put on the client's clipboard (B241)
 	Wait         *time.Duration   `json:",omitempty"` // until a key typed now times out
 	Done         bool             `json:",omitempty"` // the session ended, as Message says when fude quit
+	Suspend      bool             `json:",omitempty"` // the user asked the client to suspend to the shell (B424)
 	Input        int              // the client's notices fude has handled, so a frame follows each
 }
 

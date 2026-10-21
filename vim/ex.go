@@ -541,6 +541,25 @@ func (m *Machine) moveBy(first, last, n int, label string) (int, error) {
 	return n, m.moveLines(first, last, target, label)
 }
 
+// blankLines puts n blank lines at at, a line's start, or one past the
+// text's end for after the last line. The cursor stays on its text (B429).
+func (m *Machine) blankLines(at, n int) error {
+	t, c := m.h.Text(), m.h.Cursor()
+	lines := strings.Repeat("\n", n)
+	e := Edit{Start: at, End: at, Text: lines}
+	if at > t.Len() {
+		e = Edit{Start: t.Len(), End: t.Len(), Text: lines}
+	}
+	if err := m.apply([]Edit{e}, "blank lines"); err != nil {
+		return err
+	}
+	if at <= c {
+		c += n
+	}
+	m.h.SetCursor(c)
+	return nil
+}
+
 // moveSelection moves the selected lines n lines down, or up when n is
 // negative, and keeps them selected (B236).
 func (m *Machine) moveSelection(n int, label string) error {

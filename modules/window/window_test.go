@@ -67,6 +67,33 @@ func TestB365Place(t *testing.T) {
 	}
 }
 
+// B430
+func TestB430NewAndVertical(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "f")
+	editortest.Change(t, path, "a\n")
+	e := editortest.Open(t, path)
+	e.Use(window.New())
+	e.SetSize(80, 24)
+	current := func() wire.Window {
+		i := slices.IndexFunc(e.Windows(), func(w wire.Window) bool { return w.Current })
+		return e.Windows()[i]
+	}
+	// <C-w>n opens a new empty buffer below.
+	if editortest.Feed(e, "<C-w>n"); len(e.Windows()) != 2 || current().Y == 0 || editortest.Text(e) != "" {
+		t.Fatalf("<C-w>n made %d windows, the current at row %d with %q", len(e.Windows()), current().Y, editortest.Text(e))
+	}
+	// :vertical opens the window of the command after it to the right.
+	for _, cmd := range []string{"new", "split"} {
+		editortest.Feed(e, ":only<CR>:vertical "+cmd+"<CR>")
+		if w := current(); len(e.Windows()) != 2 || w.X == 0 || w.H != e.Windows()[0].H {
+			t.Errorf(":vertical %s made %d windows, the current at column %d", cmd, len(e.Windows()), w.X)
+		}
+	}
+	if editortest.Feed(e, ":vertical<CR>"); e.Message() != "usage: :vertical {cmd}, or :vertical resize [+-]{n}" {
+		t.Errorf(":vertical alone said %q", e.Message())
+	}
+}
+
 // B370
 func TestB370Zoom(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "f")

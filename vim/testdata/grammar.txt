@@ -501,6 +501,12 @@
 "a\nb\n|c\nd" "Vj[ed" "a\n|b"
 "|a\nb\nc" "]e." "b\nc\n|a"
 
+# B429
+"a\nb|c\nd" "[<Space>" "a\n\nb|c\nd"
+"a\nb|c\nd" "2[<Space>" "a\n\n\nb|c\nd"
+"a\nb|c\nd" "]<Space>." "a\nb|c\n\n\nd"
+"a\nb|c" "]<Space>" "a\nb|c\n"
+
 # B86
 "a\n|b\n  c\nd" ":d<CR>" "a\n  |c\nd"
 "one\n|two\nthree" ":0d<CR>" "|two\nthree"

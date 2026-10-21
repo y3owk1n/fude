@@ -35,7 +35,8 @@ and `N` go to the next and previous match. A count repeats a motion, so
 
 `zc` folds the block the cursor is in, by its indent, and `zo` opens it
 again. `za` toggles, `zM` folds every outermost block and `zR` opens them
-all. `j` and `k` pass over a closed fold as one line.
+all, and `zm` and `zr` fold one level more or less. `j` and `k` pass over
+a closed fold as one line.
 
 `s` jumps anywhere in view. Type a character or two of where you want to
 go, and each match gets a highlighted label. Type the label to go there,

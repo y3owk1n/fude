@@ -7,7 +7,8 @@ windows may show the same one, each with its own cursor.
 
 `:e path` opens a file in a buffer. `:buffers` lists the open buffers with
 their numbers, and `:b 3` shows buffer 3. `:bn` and `:bp` go to the next
-and previous buffer you edit, past help and lists, and `:bd` closes one. `<C-^>` goes back to the
+and previous buffer you edit, past help and lists, as `]b` and `[b` do,
+and `:bd` closes one. `<C-^>` goes back to the
 buffer the window showed before. A buffer with changes stays loaded when
 the window shows another.
 
@@ -19,11 +20,15 @@ false` hides it.
 
 `<C-w>s` splits the window with the new one below, and `<C-w>v` with the
 new one right. The new window takes the cursor. `<C-w>h`, `<C-w>j`,
-`<C-w>k` and `<C-w>l` move between windows. `<C-w>c` closes a window,
+`<C-w>k` and `<C-w>l` move between windows, `<C-w>w` goes to the next
+one and `<C-w>p` back to the last one. `<C-w>c` closes a window,
 `<C-w>o` closes every other one, and `:q` in a split closes only that
 window. `:sp file` and `:vs file` split and open a file. `:hide` takes a
 window out of sight. The window keeps its buffer, a terminal's program
 goes on, and the window shows again where it was, at the same size.
+`<C-w>x` swaps a window with the next, `<C-w>r` rotates a row or column
+of windows, and `<C-w>H`, `<C-w>J`, `<C-w>K` and `<C-w>L` move the window
+to that edge of the screen.
 
 `<C-w>+` and `<C-w>-` make the window taller or shorter, and `<C-w>>`
 and `<C-w><` wider or narrower, by the count typed before them, such as

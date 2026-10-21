@@ -20,11 +20,13 @@ type Session interface {
 	Timeout()
 
 	// The loop. Queue holds work for the loop to run. Wait says how long
-	// until a typed key times out, and Done whether the session has ended.
+	// until a typed key times out, Done whether the session has ended, and
+	// Suspend, once, that the user asked to suspend fude to the shell.
 	Queue() <-chan func()
 	Load()
 	Wait() (time.Duration, bool)
 	Done() bool
+	Suspend() bool
 
 	// What the client draws.
 	Windows() []wire.Window

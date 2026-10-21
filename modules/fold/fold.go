@@ -1,6 +1,6 @@
-// Package fold folds a buffer by indent, through zc, zo, za, zR and zM,
-// folds the lines zf covers, and moves between folds with zj and zk (B224,
-// N34).
+// Package fold folds a buffer by indent, through zc, zo, za, zA, zv, zR,
+// zM, zm, zr and zi, folds the lines zf covers, and moves between folds
+// with zj and zk (B224, N34).
 package fold
 
 import (
@@ -23,6 +23,11 @@ const (
 	create
 	nextFold
 	prevFold
+	toggleAll
+	view
+	more
+	less
+	enable
 )
 
 // Module is fold.
@@ -47,6 +52,11 @@ func (m *Module) Registered() []api.Registration {
 		{Kind: api.Operator, Name: "zf", Help: "closes a fold over the lines a motion or object covers", ID: create},
 		{Kind: api.Plug, Name: "next", Keys: "zj", Help: "goes to the start of the n-th fold below", ID: nextFold},
 		{Kind: api.Plug, Name: "prev", Keys: "zk", Help: "goes to the end of the n-th fold above", ID: prevFold},
+		{Kind: api.Plug, Name: "toggle_all", Keys: "zA", Help: "opens the closed fold at the cursor, or closes the outermost one it is in", ID: toggleAll},
+		{Kind: api.Plug, Name: "view", Keys: "zv", Help: "opens the folds that hide the cursor's line", ID: view},
+		{Kind: api.Plug, Name: "more", Keys: "zm", Help: "folds one level more, or n levels", ID: more},
+		{Kind: api.Plug, Name: "less", Keys: "zr", Help: "folds one level less, or n levels", ID: less},
+		{Kind: api.Plug, Name: "enable", Keys: "zi", Help: "opens every closed fold, or closes again those it opened", ID: enable},
 	}
 }
 
@@ -77,12 +87,29 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 			res.Undecorate = append(res.Undecorate, opened(t, folds, last).Undecorate...)
 			res.Decorate = []api.Decoration{m.fold(t, line, last)}
 		}
-	case open:
+	case open, view:
 		res = opened(t, folds, line)
 	case toggle:
 		if res = opened(t, folds, line); res.Undecorate == nil {
 			res = m.closeAround(t, folds, line, tab)
 		}
+	case toggleAll:
+		if res = opened(t, folds, line); res.Undecorate != nil {
+			break
+		}
+		if closing, ok := m.closeAt(t, folds, outermost(t, line, tab), tab); ok {
+			res = closing
+		} else {
+			res.Error = "no fold here"
+		}
+	case more, less:
+		n := max(args[1], 1)
+		if id == more {
+			n = -n
+		}
+		res = m.level(t, folds, tab, n)
+	case enable:
+		res = m.enable(s, folds)
 	case closeOne:
 		res = m.closeAround(t, folds, line, tab)
 	case openAll:
@@ -114,6 +141,91 @@ func (m *Module) Callback(context.Context, uint32, api.Scope) (api.Result, error
 
 func (m *Module) Work(context.Context, api.Job) (string, error) { return "", nil }
 func (m *Module) Close(context.Context) error                   { return nil }
+
+// level folds n levels less, or more for a negative n, from the level the
+// closed folds are at. Folds deeper than the level close and the rest
+// open. With no fold closed the level is the deepest, as after zR.
+func (m *Module) level(t api.Text, folds []api.Decoration, tab, n int) api.Result {
+	depth := depths(t, tab)
+	deepest := 0
+	for l, d := range depth {
+		if _, ok := foldEnd(t, l, tab); ok {
+			deepest = max(deepest, d)
+		}
+	}
+	at := deepest
+	for _, f := range folds {
+		at = min(at, depth[t.LineOf(f.Start)]-1)
+	}
+	to := min(max(at+n, 0), deepest)
+	var res api.Result
+	for _, f := range folds {
+		res.Undecorate = append(res.Undecorate, f.ID)
+	}
+	for l, d := range depth {
+		if last, ok := foldEnd(t, l, tab); ok && d == to+1 {
+			res.Decorate = append(res.Decorate, m.fold(t, l, last))
+		}
+	}
+	return res
+}
+
+// enable opens every closed fold, keeping where each was as a decoration
+// that hides nothing, or closes those again when there are any, as zi
+// turns folding off and on.
+func (m *Module) enable(s api.Scope, folds []api.Decoration) api.Result {
+	id, _ := strconv.Atoi(s.About["buffer"])
+	var kept []api.Decoration
+	for _, d := range s.Decorations() {
+		if !d.Fold && d.Buffer == id {
+			kept = append(kept, d)
+		}
+	}
+	from, fold := folds, false
+	if len(kept) > 0 {
+		from, fold = kept, true
+	}
+	var res api.Result
+	for _, d := range from {
+		m.ids++
+		res.Undecorate = append(res.Undecorate, d.ID)
+		res.Decorate = append(res.Decorate, api.Decoration{ID: m.ids, Start: d.Start, End: d.End, Fold: fold})
+	}
+	return res
+}
+
+// depths returns, by line, how deep a fold the line starts would be: 1
+// with no line above it indented less, and one more for each line it is
+// inside the fold of. Lines of blanks have none.
+func depths(t api.Text, tab int) map[int]int {
+	out := map[int]int{}
+	var open []int // the indents of the lines whose folds hold the line
+	for l := 0; l < t.Lines(); l++ {
+		col, ok := indentCol(t, l, tab)
+		if !ok {
+			continue
+		}
+		for len(open) > 0 && open[len(open)-1] >= col {
+			open = open[:len(open)-1]
+		}
+		out[l] = len(open) + 1
+		open = append(open, col)
+	}
+	return out
+}
+
+// outermost returns the line that starts the outermost fold holding line,
+// or line.
+func outermost(t api.Text, line, tab int) int {
+	first := line
+	ind, ok := indentCol(t, line, tab)
+	for l := line - 1; l >= 0; l-- {
+		if col, text := indentCol(t, l, tab); text && (!ok || col < ind) {
+			first, ind, ok = l, col, true
+		}
+	}
+	return first
+}
 
 // fold returns the decoration that closes the fold from line first to line
 // last.

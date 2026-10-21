@@ -40,6 +40,8 @@ const (
 	stopKey
 	disableKey
 	enableKey
+	firstDiag
+	lastDiag
 )
 
 // The callbacks lsp asks for, by id. A request's id is the id of the call
@@ -114,6 +116,8 @@ func (m *Module) Registered() []api.Registration {
 		{Kind: api.Source, Name: "symbols", Help: "the symbols the language server finds for the query, asked again as it is typed", ID: workspace},
 		{Kind: api.Plug, Name: "next_diagnostic", Keys: "]d", Help: "goes to the next diagnostic", ID: nextDiag},
 		{Kind: api.Plug, Name: "prev_diagnostic", Keys: "[d", Help: "goes to the diagnostic before", ID: prevDiag},
+		{Kind: api.Plug, Name: "first_diagnostic", Keys: "[D", Help: "goes to the first diagnostic", ID: firstDiag},
+		{Kind: api.Plug, Name: "last_diagnostic", Keys: "]D", Help: "goes to the last diagnostic", ID: lastDiag},
 		{Kind: api.Plug, Name: "diagnostics", Keys: "<C-w>d", Help: "shows the diagnostics on the cursor's line in full", ID: showDiag},
 		{Kind: api.Plug, Name: "actions", Keys: "gra", Help: "lists the language server's actions for the cursor's place", ID: codeActions, Attached: true, Visual: true},
 		{Kind: api.Source, Name: "diagnostics", Help: "the diagnostics of every open buffer, the current buffer's first", ID: diagnosticsSrc},
@@ -141,6 +145,14 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 		return res, nil
 	case prevDiag:
 		m.step(&res, s, cursor, -max(args[1], 1))
+		return res, nil
+	case firstDiag:
+		// The first is the next one from before the text, and the last
+		// the one before from past it.
+		m.step(&res, s, -1, 1)
+		return res, nil
+	case lastDiag:
+		m.step(&res, s, s.Text.Len()+1, -1)
 		return res, nil
 	case showDiag:
 		m.show(&res, s, cursor)

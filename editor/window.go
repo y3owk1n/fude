@@ -716,6 +716,101 @@ var windowKeys = []windowKey{
 	{[]string{"q", "<C-q>"}, "closes the window, and quits with the last", func(e *Session, _ int) error { e.quit(false); return nil }},
 	{[]string{"o", "<C-o>"}, "closes every other window", func(e *Session, _ int) error { return e.only() }},
 	{[]string{"="}, "makes the windows the same size", func(e *Session, _ int) error { e.root.even(); e.layout(); return nil }},
+	{[]string{"w", "<C-w>"}, "moves to the next window, or to window n", func(e *Session, n int) error { e.cycle(n, 1); return nil }},
+	{[]string{"W"}, "moves to the window before, or to window n", func(e *Session, n int) error { e.cycle(n, -1); return nil }},
+	{[]string{"p", "<C-p>"}, "moves to the window that was current before", func(e *Session, _ int) error { return e.previous() }},
+	{[]string{"x", "<C-x>"}, "exchanges the window with the next in its split, or with the n-th", func(e *Session, n int) error { return e.exchange(n) }},
+	{[]string{"r", "<C-r>"}, "rotates the windows of its split down or right, n times", func(e *Session, n int) error { return e.rotate(max(n, 1)) }},
+	{[]string{"R"}, "rotates the windows of its split up or left, n times", func(e *Session, n int) error { return e.rotate(-max(n, 1)) }},
+	{[]string{"H"}, "moves the window to the far left, as tall as the layout", func(e *Session, _ int) error { return e.toEdge("left") }},
+	{[]string{"J"}, "moves the window to the bottom, as wide as the layout", func(e *Session, _ int) error { return e.toEdge("below") }},
+	{[]string{"K"}, "moves the window to the top, as wide as the layout", func(e *Session, _ int) error { return e.toEdge("above") }},
+	{[]string{"L"}, "moves the window to the far right, as tall as the layout", func(e *Session, _ int) error { return e.toEdge("right") }},
+}
+
+// cycle moves to window n of the layout, or the last when there are fewer,
+// or else step windows on from the current one, going round (B420).
+func (e *Session) cycle(n, step int) {
+	ws := e.root.windows()
+	if n > 0 {
+		e.win = ws[min(n, len(ws))-1]
+		return
+	}
+	i := slices.Index(ws, e.win)
+	e.win = ws[((i+step)%len(ws)+len(ws))%len(ws)]
+}
+
+// previous moves to the window that was current before this one (B420).
+func (e *Session) previous() error {
+	if e.prevWin == e.win || !slices.Contains(e.windows(), e.prevWin) {
+		return errors.New("no previous window")
+	}
+	e.win = e.prevWin
+	return nil
+}
+
+// siblings returns the nodes of the current window's split and its place
+// among them, or false when it is alone or one of them is a split.
+func (e *Session) siblings() ([]*node, int, bool) {
+	l := e.root.leaf(e.win)
+	p := l.parent
+	if p == nil || slices.ContainsFunc(p.kids, func(k *node) bool { return k.win == nil }) {
+		return nil, 0, false
+	}
+	return p.kids, slices.Index(p.kids, l), true
+}
+
+// exchange swaps the current window with the next in its split, or the one
+// before for the last, or with the n-th, each keeping its size. The cursor
+// stays in its place, in the other window. Beside a split it does nothing
+// (B421).
+func (e *Session) exchange(n int) error {
+	kids, i, ok := e.siblings()
+	if !ok {
+		return nil
+	}
+	j := i + 1
+	switch {
+	case n > 0:
+		j = min(n, len(kids)) - 1
+	case j == len(kids):
+		j = i - 1
+	}
+	e.zoomed = nil
+	kids[i], kids[j] = kids[j], kids[i]
+	e.win = kids[i].win
+	e.layout()
+	return nil
+}
+
+// rotate moves each window of the current one's split n places on, the
+// last ones going round to the start, or back for a negative n, each
+// keeping its size. The cursor goes with its window (B421).
+func (e *Session) rotate(n int) error {
+	kids, _, ok := e.siblings()
+	if !ok {
+		if e.root.win == e.win {
+			return nil
+		}
+		return errors.New("cannot rotate while another window is split")
+	}
+	moved := make([]*node, len(kids))
+	for i, k := range kids {
+		moved[((i+n)%len(kids)+len(kids))%len(kids)] = k
+	}
+	copy(kids, moved)
+	e.zoomed = nil
+	e.layout()
+	return nil
+}
+
+// toEdge moves the current window to that edge of the layout, spanning it,
+// and does nothing when it is the only one (B422).
+func (e *Session) toEdge(where string) error {
+	if e.root.win == e.win {
+		return nil
+	}
+	return e.move(e.win, where)
 }
 
 // window runs a <C-w> command, typed after count.

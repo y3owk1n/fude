@@ -41,6 +41,13 @@ Where fude departs, the line says so and cites the departure in
   modified buffer, and `ZQ` is `:q!`. `:wa` writes every modified buffer.
   `:qa` refuses while a buffer is modified, and `:qa!` quits anyway. `:wqa`
   and `:xa` write every modified buffer, then quit.
+- B423 [1] `:cquit` and `:cq` quit as `:qa!` does, dropping every change,
+  and fude exits with code 1, or n for `:cq n`, as in Neovim. `:cq 0`
+  exits with 0.
+- B424 [1] `<C-z>` suspends fude to the shell that started it, as in
+  Neovim, and fude draws again once the shell resumes it. A client
+  attached to a running fude suspends itself, and that fude goes on. On
+  Windows it does nothing.
 - B81 [1] `:w` on a file changed on disk since fude read it asks before
   overwriting. `:w!` overwrites without asking.
 - B304 [1] A PNG, JPEG or GIF file opens read-only as one line that says
@@ -556,6 +563,18 @@ Where fude departs, the line says so and cites the departure in
   changes. `:enew` shows a new buffer with no file, and `:new` and `:vnew`
   show one in a new split. `:cd dir` changes the working directory, home
   without `dir`, and `:pwd` shows it.
+- B426 [2] `<C-g>` and `:file` say the buffer's name, `[Modified]` when it
+  has changes, `[New]` when its file is not written yet, its line count
+  and how far down the cursor's line is, as `"a.go" [Modified] 4 lines
+  --50%--`, or `--No lines in buffer--` when empty, as in Neovim with
+  `ruler` on. A count gives the full path, and a count over 1 the
+  buffer's number first. `:file name` makes name the buffer's file
+  without writing, and the next `:w` writes there. The buffer takes the
+  filetype and language servers of its new name, here and after
+  `:saveas`.
+- B427 [2] `:saveas file` makes file the buffer's file and writes it
+  there, and `:w` writes there after. The old file stays as it was. It
+  refuses a file that exists, and `:saveas!` writes over it.
 - B156 [2] `:sort` sorts its range, every line without one: `!` in
   reverse, `n` by each line's first number, `i` ignoring case and `u`
   keeping one of lines that sort the same. `:join` joins its range, or the
@@ -710,6 +729,9 @@ Where fude departs, the line says so and cites the departure in
   and stop at the first and last lines. In visual mode they move the
   selected lines and keep them selected (N37). Each move is one undo
   step, and `.` repeats it.
+- B429 [2] `[<Space>` and `]<Space>` put n blank lines above or below the
+  cursor's line, as in Neovim. The cursor stays on its text, and `.`
+  repeats them.
 - B19 [2] An operator in operator-pending state waits for a target. `<Esc>`
   cancels and changes nothing.
 - B20 [2] `m{a-z}` sets a mark, and `` `x `` and `'x` jump to it. Marks
@@ -836,6 +858,9 @@ Where fude departs, the line says so and cites the departure in
   an empty buffer with no file while another is open. A buffer's
   argument completes as its number, then its path from the working
   directory, or from `~`.
+- B428 [2] `]b` and `[b` show the buffer n after or before the current
+  one, going round as `:bn` and `:bp` do, and `[B` and `]B` show the first
+  and last, as in Neovim.
 - B373 [2] Every buffer takes the next number, as in Neovim, but a
   module's panel, scratch buffer or terminal may take none, and a float
   never does. The numbers `:b`, `:ls` and the buffer line show go on
@@ -884,6 +909,11 @@ Where fude departs, the line says so and cites the departure in
   shows every window as it was. Splitting, closing or moving a window, or moving to
   another, shows every window again first. A float does not zoom, and
   floats show over a zoomed window.
+- B430 [2] `<C-w>n` and `<C-w><C-n>` open a new empty buffer in a window
+  below, as `:new` does. `:vertical cmd` runs cmd, and the window it opens
+  goes right of the current one, or left with `split_right` off, as
+  `:vertical split` and `:vertical new` do in Neovim. `:vertical resize`
+  still sizes the window.
 - B369 [2] `:pick terminals` lists the session's terminals by name, those
   out of sight too, and picking one shows its window where it was, or
   below, in terminal mode while its program runs (B364).
@@ -1017,6 +1047,13 @@ Where fude departs, the line says so and cites the departure in
   fold, and `zM` closes every outermost one. `zf{motion}` closes a fold
   over the lines it covers. `zj` goes to where the next fold starts and
   `zk` to where the one above ends, a closed fold counting as one line.
+  `zv` opens the closed folds that hold the cursor's line. `zA` opens the
+  closed fold it is on, or else closes the outermost one it is in. `zm`
+  and `zr` fold n levels more or less, so every fold deeper than the level
+  closes and the rest open. The level is one less than the shallowest
+  closed fold's depth, or the deepest fold's depth with none closed, the
+  outermost folds being 1 deep (N34). `zi` opens every closed fold, and
+  again closes those folds where the edits have moved them.
   A closed fold shows its first line, then how many lines it hides. `j`
   and `k` pass over it as B223 says, relative numbers count it as one
   line, and any other move that lands the cursor inside it, such as a
@@ -1109,6 +1146,23 @@ Where fude departs, the line says so and cites the departure in
 - B91 [2] `<C-w>c`, `<C-w>o`, `<C-w>q`, `<C-w>=` and `:q` in a split close
   or arrange splits as in Neovim, and `:sp`, `:vs`, `:on` and `:clo` split,
   keep only, or close the current window.
+- B420 [2] `<C-w>w` and `<C-w>W` move to the next and previous window,
+  going round, and with a count n to window n, or the last. `<C-w>p` moves
+  to the window current before, and says "no previous window" once that
+  has closed. Windows count from the top left, as in Neovim.
+- B421 [2] `<C-w>x` exchanges the window with the next in its split, or
+  the one before for the last, or window n of the split with a count, and
+  the cursor stays in its place, now in the other window. `<C-w>r` and
+  `<C-w>R` rotate the windows of the split down and up, n times, and the
+  cursor goes with its window. Each window keeps its size. Beside a window
+  that is split, `<C-w>r` says it cannot rotate. Each works as in Neovim.
+- B422 [2] `<C-w>H`, `<C-w>J`, `<C-w>K` and `<C-w>L` move the window to the
+  far left, bottom, top or right, as tall or as wide as the layout, as in
+  Neovim. In the only window they do nothing.
+- B425 [2] `:bufdo cmd` shows each buffer being edited in turn and runs
+  cmd there, and `:windo cmd` moves to each window in turn and runs cmd
+  there, as in Neovim. The last buffer or window stays current. If cmd
+  fails, the run stops there and the message says why.
 - B257 [2] `:cdo cmd` runs the ex command cmd at each place of the last
   list of places (N25), and `:cfdo cmd` runs it once in each file the
   list names, at its first place there. Each place stays on its text as
@@ -1217,6 +1271,9 @@ Where fude departs, the line says so and cites the departure in
   frame, editing does not.
 - B44 [3] `gc{target}` and `gcc` toggle comments, using the comment syntax
   of the language where the target starts, including injected languages.
+  After an operator, `gc` is the block of commented lines around the
+  cursor, up to a line that is blank or not commented, as whole lines, so
+  `dgc` deletes it and `cgc` changes it, as in Neovim.
 - B45 [3] In visual mode, `an` and `in` select the enclosing syntax node,
   and `]n` and `[n` move to the next and previous node, as in Neovim.
 - B46 [3] With a grammar for the buffer's filetype, text shows in the colour
@@ -1731,6 +1788,7 @@ Where fude departs, the line says so and cites the departure in
   whole texts. A server that asks to hear of saves hears of each write,
   with the text when it asks for that.
 - B61 [5] Diagnostics show inline, and `]d` and `[d` move between them.
+  `[D` and `]D` move to the first and last.
   After a line with a diagnostic, two columns on, its message shows in its
   severity's colour on a tint of that colour, unless `lsp.diagnostic_notes`
   is off.
