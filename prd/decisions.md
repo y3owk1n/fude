@@ -1316,6 +1316,17 @@ every edit, so `:diffupdate` is rarely typed, while comparing two moments
 of the timeline is fude's own and was `:diff` first. Giving the name to
 diff mode would take it from the command fude's users type more.
 
+### N56. A server's features are on when it offers them
+
+Linked editing ranges, formatting as text is typed and inline completion
+work whenever a server offers them (B472, B473, B474), where Neovim
+leaves them off until a `vim.lsp.*.enable()` call. Semantic tokens and
+pulled diagnostics are on in both (B470, B471). Why: fude has no Lua to
+make that call, and naming a server for a filetype in `config.toml` is
+already the choice to use what it offers, as inlay hints show unless set
+off (B216). An option for each would be five switches to find before a
+server works.
+
 ## Open
 
 None.
