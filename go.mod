@@ -1,6 +1,6 @@
 module github.com/y3owk1n/fude
 
-go 1.26.0
+go 1.27.0
 
 require (
 	github.com/charmbracelet/ultraviolet v0.0.0-20260303162955-0b88c25f3fff

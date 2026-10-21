@@ -1,6 +1,6 @@
 module count
 
-go 1.26.0
+go 1.27.0
 
 require github.com/y3owk1n/fude/sdk v0.0.0
 

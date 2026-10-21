@@ -29,7 +29,7 @@ gcc = { command = "gcc", install = "install llvm-mingw from https://github.com/m
 [build]
 needs = ["git"]
 deps = [
-  { ref = "./.oku/go.toml", version = "~1.26" },
+  { ref = "./.oku/go.toml", version = "~1.27" },
   { ref = "./.oku/llvm-mingw.toml", when = { os = "windows" } },
 ]
 source = { git = "https://github.com/y3owk1n/fude", tag = "{{tag}}" }

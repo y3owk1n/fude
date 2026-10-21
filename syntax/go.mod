@@ -1,6 +1,6 @@
 module github.com/y3owk1n/fude/syntax
 
-go 1.26
+go 1.27
 
 require (
 	github.com/tree-sitter/go-tree-sitter v0.25.0

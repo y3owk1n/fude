@@ -44,7 +44,7 @@ Each [release](https://github.com/y3owk1n/fude/releases) also has zips for macOS
 <details>
 <summary>Building from source, and what fude uses when it is on PATH</summary>
 
-Building needs Go 1.26 or later and a C compiler, since tree-sitter uses cgo. On Windows that is llvm-mingw's `gcc` and Git for Windows.
+Building needs Go 1.27 or later and a C compiler, since tree-sitter uses cgo. On Windows that is llvm-mingw's `gcc` and Git for Windows.
 
 ```sh
 git clone https://github.com/y3owk1n/fude && cd fude

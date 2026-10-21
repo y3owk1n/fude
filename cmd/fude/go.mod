@@ -1,6 +1,6 @@
 module github.com/y3owk1n/fude/cmd/fude
 
-go 1.26.0
+go 1.27.0
 
 // The program is a module of its own, with no replace lines, so go install
 // takes it at a release (D37). Its requirements are the version the modules
@@ -8,7 +8,6 @@ go 1.26.0
 // they come from the checkout.
 require (
 	github.com/y3owk1n/fude v0.2.0 // x-release-please-version
-	github.com/y3owk1n/fude/api v0.2.0 // indirect; x-release-please-version
 	github.com/y3owk1n/fude/plugin v0.2.0 // x-release-please-version
 )
 
@@ -35,6 +34,7 @@ require (
 	github.com/tree-sitter/go-tree-sitter v0.25.0 // indirect
 	github.com/tree-sitter/tree-sitter-go v0.25.0 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
+	github.com/y3owk1n/fude/api v0.2.0 // indirect; x-release-please-version
 	github.com/y3owk1n/fude/core v0.2.0 // indirect; x-release-please-version
 	github.com/y3owk1n/fude/protocol v0.2.0 // indirect; x-release-please-version
 	github.com/y3owk1n/fude/syntax v0.2.0 // indirect; x-release-please-version
