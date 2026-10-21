@@ -17,6 +17,7 @@ type drawn struct {
 	ghosts  []wire.Ghost
 	inlines []vim.Inline           // the ghosts, as the rows and columns count them
 	virtual map[int][]wire.Virtual // by line, the rows drawn above and below it (B299)
+	show    string                 // show_break, which a wrapped line's rows after its first start with (B489)
 }
 
 // shown returns what w draws in its lines from start to end that the text
@@ -29,7 +30,7 @@ type drawn struct {
 func (e *Session) shown(w *window, start, end int) drawn {
 	b := w.buf
 	if b.inlines == 0 {
-		return drawn{}
+		return drawn{show: e.cfg.ShowBreak}
 	}
 	t := b.text.Snapshot()
 	first, last := t.LineOf(w.pos()), t.LineOf(w.pos())
@@ -45,7 +46,7 @@ func (e *Session) shown(w *window, start, end int) drawn {
 			}
 		}
 	}
-	var out drawn
+	out := drawn{show: e.cfg.ShowBreak}
 	for _, ds := range e.decos {
 		for _, d := range ds {
 			if d.buf != b || !d.inline() {

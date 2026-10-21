@@ -210,6 +210,16 @@ the same column. Off unless set.
 column = true
 ```
 
+## show_break
+
+With `wrap` on, the text that starts the rows of a long line after its
+first, after the indent `break_indent` keeps, drawn faint. Empty unless
+set.
+
+```toml
+show_break = "↪ "
+```
+
 ## list_chars
 
 What `list` shows, by what it stands for, each one column wide. `tab`

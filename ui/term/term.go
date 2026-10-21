@@ -509,7 +509,7 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 		cursors = c.e.Cursors()
 	}
 	// win holds what every line of the window draws from.
-	win := sig(nil).int(v.X).int(v.Y).int(v.W).int(v.Left).flag(v.Wrap).flag(v.List).int(v.ColorColumn).int(v.CursorColumn).int(v.Tab).int(int(c.shape)).int(int(c.tint.Hex())).flag(c.extra != nil && c.extra.Load())
+	win := sig(nil).int(v.X).int(v.Y).int(v.W).int(v.Left).flag(v.Wrap).flag(v.BreakIndent).str(v.ShowBreak).flag(v.List).int(v.ColorColumn).int(v.CursorColumn).int(v.Tab).int(int(c.shape)).int(int(c.tint.Hex())).flag(c.extra != nil && c.extra.Load())
 	list := v.ListChars
 	var tabs []rune
 	if v.List {
@@ -551,13 +551,17 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 				matches = append(matches, mt)
 			}
 		}
-		// A line wraps onto as many rows as it needs (B37).
-		starts := []int{pos}
+		// A line wraps onto as many rows as it needs, those after the first
+		// hang columns in (B37, B489).
+		starts, hang := []int{pos}, 0
+		if v.Wrap {
+			hang = vim.Hang(t, pos, v.W, v.Tab, v.BreakIndent, v.ShowBreak)
+		}
 		switch {
 		case v.Wrap && (v.Float != "" || v.LineBreak):
-			starts = vim.WordRows(t, pos, v.W, v.Tab, in)
+			starts = vim.WordRows(t, pos, v.W, hang, v.Tab, in)
 		case v.Wrap:
-			starts = vim.Rows(t, pos, v.W, v.Tab, in)
+			starts = vim.Rows(t, pos, v.W, hang, v.Tab, in)
 		}
 		starts = starts[:min(len(starts), v.H-1-row)]
 		// The gutter draws in every frame, as relative numbers change with
@@ -638,9 +642,18 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 				if i+1 < len(starts) {
 					stop = starts[i+1]
 				}
+				x := 0
+				if i > 0 {
+					x = hang
+					bg := ground
+					if shade {
+						bg = base.Background(th.cursorLine)
+					}
+					c.s.FillArea(v.X, y, hang, 1, ' ', bg)
+					c.putClipped(v.X+max(hang-displaywidth.String(v.ShowBreak), 0), y, v.X+hang, part{v.ShowBreak, bg.Foreground(th.faint)})
+				}
 				// Without wrap the row starts at the first cluster v.Left columns
 				// into the line, after blanks for a wide one cut by the edge.
-				x := 0
 				if !v.Wrap {
 					start = vim.ColumnStart(t, pos, v.Left, v.Tab, in)
 					col = vim.Column(t, pos, start, v.Tab, nil)

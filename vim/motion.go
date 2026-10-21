@@ -167,7 +167,7 @@ func (m *Machine) row(t Text, c int) (start, end, cols int) {
 		tab := m.h.TabWidth()
 		return colStart(t, ls, left, tab), next(t, atColumn(t, ls, left+shown-1, tab), le), shown
 	}
-	starts, _ := m.rows(t, ls, cols)
+	starts, _, _ := m.rows(t, ls, cols)
 	r := len(starts) - 1
 	for r > 0 && starts[r] > c {
 		r--
@@ -179,13 +179,14 @@ func (m *Machine) row(t Text, c int) (start, end, cols int) {
 }
 
 // rows returns where each row of the line at ls starts, as the host wraps
-// it at cols, and the inlines the rows count (B295).
-func (m *Machine) rows(t Text, ls, cols int) ([]int, []Inline) {
-	in := m.h.Shown(ls, LineEnd(t, ls))
+// it at cols, the inlines the rows count and the columns the rows after
+// the first start in (B295, B489).
+func (m *Machine) rows(t Text, ls, cols int) ([]int, []Inline, int) {
+	in, hang := m.h.Shown(ls, LineEnd(t, ls)), m.h.Hang(ls)
 	if m.h.WordWrap() {
-		return WordRows(t, ls, cols, m.h.TabWidth(), in), in
+		return WordRows(t, ls, cols, hang, m.h.TabWidth(), in), in, hang
 	}
-	return Rows(t, ls, cols, m.h.TabWidth(), in), in
+	return Rows(t, ls, cols, hang, m.h.TabWidth(), in), in, hang
 }
 
 // lineMotion is j, k, gg and G.
@@ -981,12 +982,15 @@ func (m *Machine) screenLine(t Text, c, n int, down bool) (int, bool) {
 	tab := m.h.TabWidth()
 	_, _, cols := m.h.Viewport()
 	ls := LineStart(t, c)
-	starts, in := m.rows(t, ls, cols)
+	starts, in, hang := m.rows(t, ls, cols)
 	r := len(starts) - 1
 	for r > 0 && starts[r] > c {
 		r--
 	}
 	at := Column(t, ls, c, tab, in) - Column(t, ls, starts[r], tab, in)
+	if r > 0 {
+		at += hang
+	}
 	// A count past the last row stops there, and no row to move to fails.
 moves:
 	for i := range n {
@@ -995,13 +999,13 @@ moves:
 			r++
 		case down && LineEnd(t, ls) < t.Len():
 			ls = LineEnd(t, ls) + 1
-			starts, in = m.rows(t, ls, cols)
+			starts, in, hang = m.rows(t, ls, cols)
 			r = 0
 		case !down && r > 0:
 			r--
 		case !down && ls > 0:
 			ls = LineStart(t, ls-1)
-			starts, in = m.rows(t, ls, cols)
+			starts, in, hang = m.rows(t, ls, cols)
 			r = len(starts) - 1
 		case i == 0:
 			return 0, false
@@ -1015,6 +1019,9 @@ moves:
 		end = starts[r+1]
 	}
 	to, base := starts[r], Column(t, ls, starts[r], tab, in)
+	if r > 0 {
+		base -= hang
+	}
 	walk(t, ls, tab, in, func(p, x, w int) bool {
 		if p < starts[r] {
 			return true

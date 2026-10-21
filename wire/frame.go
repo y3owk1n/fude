@@ -83,6 +83,8 @@ type Window struct {
 	Number, Relative bool              // show line numbers, and relative ones (B39)
 	Wrap             bool              // long lines go on the rows below
 	LineBreak        bool              // and break between words
+	BreakIndent      bool              // and their rows after the first keep their indent (B489)
+	ShowBreak        string            // which those rows start with, after the indent
 	CursorLine       bool              // shade the cursor's line (B117)
 	Pair             []int             // the bracket at the cursor and its match, shown bold (B121)
 	List             bool              // show tabs, trailing spaces and no-break spaces (B118)

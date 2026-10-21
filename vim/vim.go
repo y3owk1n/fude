@@ -110,6 +110,9 @@ type Host interface {
 	// WordWrap reports whether the window's rows end after a space that
 	// fits, as WordRows breaks them, which gj and gk count by.
 	WordWrap() bool
+	// Hang returns the columns the rows after the first of the line at
+	// start begin with, as Hang gives them, which gj and gk count (B489).
+	Hang(start int) int
 	// Editable returns why the text may not change, or nil. A key that
 	// would start insert or replace mode returns that reason and stays in
 	// normal mode (B302).
@@ -145,6 +148,7 @@ func (Defaults) FileName() string           { return "" }
 func (Defaults) SetLeft(int)                {}
 func (Defaults) Shown(int, int) []Inline    { return nil }
 func (Defaults) WordWrap() bool             { return false }
+func (Defaults) Hang(int) int               { return 0 }
 func (Defaults) Editable() error            { return nil }
 func (Defaults) ShowMark(rune) bool         { return false }
 func (Defaults) Clipboard() (string, error) { return "", errNoClipboard }

@@ -121,10 +121,22 @@ func ColumnStart(t Text, start, col, tab int, in []Inline) int {
 	return at
 }
 
+// Hang returns the columns the rows after the first of the line at start
+// begin with when it wraps at cols: its indent when indent is set, kept to
+// leave 20 columns of text, then show's width. The text keeps at least one
+// column (B489).
+func Hang(t Text, start, cols, tab int, indent bool, show string) int {
+	n := displaywidth.String(show)
+	if indent {
+		n += min(column(t, start, firstNonBlank(t, start, LineEnd(t, start)), tab), max(cols-n-20, 0))
+	}
+	return max(min(n, cols-1), 0)
+}
+
 // Rows returns where each screen row of the line at start begins when it
-// wraps at cols columns: start, then each place that does not fit on the
-// row before it.
-func Rows(t Text, start, cols, tab int, in []Inline) []int {
+// wraps at cols columns, the rows after the first starting hang columns
+// in: start, then each place that does not fit on the row before it.
+func Rows(t Text, start, cols, hang, tab int, in []Inline) []int {
 	rows := []int{start}
 	end := LineEnd(t, start)
 	line := t.Slice(start, end)
@@ -133,10 +145,10 @@ func Rows(t Text, start, cols, tab int, in []Inline) []int {
 	if len(line)+(tab-1)*strings.Count(line, "\t") <= cols && !inlinesOn(in, start, end) {
 		return rows
 	}
-	x := 0
+	x, left := 0, 0 // left is the column the row's text starts at
 	walk(t, start, tab, in, func(p, _, w int) bool {
-		if x > 0 && x+w > cols {
-			rows, x = append(rows, p), 0
+		if x > left && x+w > cols {
+			rows, x, left = append(rows, p), hang, hang
 		}
 		x += w
 		return true
@@ -146,21 +158,22 @@ func Rows(t Text, start, cols, tab int, in []Inline) []int {
 
 // WordRows is Rows that ends a row after its last space that fits, or
 // where Rows does on a row with none, as a float wraps its text.
-func WordRows(t Text, start, cols, tab int, in []Inline) []int {
-	rows := Rows(t, start, cols, tab, in)
+func WordRows(t Text, start, cols, hang, tab int, in []Inline) []int {
+	rows := Rows(t, start, cols, hang, tab, in)
 	if len(rows) == 1 {
 		return rows
 	}
 	rows = rows[:1]
 	// brk is just after the row's last space, and brkX its column.
-	x, brk, brkX := 0, -1, 0
+	x, brk, brkX, left := 0, -1, 0, 0
 	walk(t, start, tab, in, func(p, _, w int) bool {
-		for x > 0 && x+w > cols {
+		for x > left && x+w > cols {
 			if brk > rows[len(rows)-1] {
-				rows, x, brk = append(rows, brk), x-brkX, -1
+				rows, x, brk = append(rows, brk), hang+x-brkX, -1
 			} else {
-				rows, x = append(rows, p), 0
+				rows, x = append(rows, p), hang
 			}
+			left = hang
 		}
 		x += w
 		if t.Slice(p, min(p+1, t.Len())) == " " {

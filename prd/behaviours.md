@@ -160,6 +160,11 @@ Where fude departs, the line says so and cites the departure in
 - B452 [2] With `line_break` on, a wrapped line breaks between words, so a
   word that does not fit on a row starts the next, and `gj` and `gk` count
   those rows.
+- B489 [2] With `wrap` on and `break_indent` on, a wrapped line's rows
+  after its first start at the line's indent, kept to leave 20 columns of
+  text, as Neovim's `breakindent` does. `show_break`'s text, faint, starts
+  those rows after the indent, as Neovim's `showbreak` does. `gj` and `gk`
+  keep the screen column across them. A float's rows start at its edge.
 - B453 [2] An `[abbreviations]` table in `config.toml` names words that
   insert mode replaces with their text, once a character that is not part
   of a word follows, or `<CR>` or `<Esc>`, and with `<C-]>` alone. The

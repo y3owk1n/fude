@@ -2409,3 +2409,24 @@ func TestB487FillChars(t *testing.T) {
 		t.Errorf(":set fill_chars.eob ab said %q", msg)
 	}
 }
+
+// B489
+func TestB489BreakIndent(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.txt")
+	if err := os.WriteFile(path, []byte("    "+strings.Repeat("x", 130)+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	// The second row keeps the line's 4 columns of indent, then shows "> ".
+	c := startWith(t, "break_indent = true\nshow_break = \"> \"\n", path)
+	c.draw()
+	if got, want := strings.TrimRight(c.row(1), " "), "    > "+strings.Repeat("x", 14); got != want {
+		t.Errorf("the second row is %q, want %q", got, want)
+	}
+	// gj keeps the screen column, so it lands 6 columns into the row's text.
+	for _, k := range vim.Keys("10lgj") {
+		c.e.Feed(k)
+	}
+	if got := c.e.(*editor.Session).Cursor(); got != 124 {
+		t.Errorf("gj from column 10 went to %d, want 124", got)
+	}
+}

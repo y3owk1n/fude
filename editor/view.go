@@ -65,7 +65,7 @@ func (e *Session) draw(w *window) wire.Window {
 		X: w.x, Y: w.y, W: w.w, H: w.h,
 		Name: w.buf.name(), Modified: w.buf.modified(), Current: w == e.win, Zoomed: w == e.zoomed,
 		Gutter: w.gutter(), SignCols: w.signCols(), Number: w.numberCols() > 0 && w.opts.Number, Relative: w.numberCols() > 0 && w.opts.RelativeNumber,
-		Wrap: w.opts.Wrap, LineBreak: w.opts.LineBreak, Left: w.left, CursorLine: w.opts.CursorLine, List: w.opts.List,
+		Wrap: w.opts.Wrap, LineBreak: w.opts.LineBreak, BreakIndent: w.opts.BreakIndent, ShowBreak: e.cfg.ShowBreak, Left: w.left, CursorLine: w.opts.CursorLine, List: w.opts.List,
 		Tab: tab, ColorColumn: w.opts.ColorColumn, ListChars: e.cfg.ListChars, FillChars: e.cfg.FillChars,
 	}
 	// Centered, the colour column is the windows' edge, so it shows none.
@@ -91,7 +91,8 @@ func (e *Session) draw(w *window) wire.Window {
 	d := e.shown(w, top, last)
 	v.Virtual = w.unfilled(d.virtual, t.LineOf(top))
 	if w.opts.CursorColumn {
-		v.CursorColumn = w.screenColumn(t, tab, d.inlines) + 1
+		_, col := w.screenAt(t, tab, d)
+		v.CursorColumn = col + 1
 	}
 	for _, f := range w.buf.folds {
 		first, end := w.fold(t, t.LineOf(w.buf.text.Mark(f.start)))

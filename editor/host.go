@@ -139,6 +139,13 @@ func (h host) Fold(line int) (int, int) { return h.e.win.fold(h.e.Text(), line) 
 // end that the text does not hold (B295).
 func (h host) WordWrap() bool { return h.e.win.anchor != "" || h.e.win.opts.LineBreak }
 
+// Hang is how many columns the current window's rows after a line's first
+// start in (B489).
+func (h host) Hang(start int) int {
+	w := h.e.win
+	return w.hang(w.buf.text.Snapshot(), start, h.e.tabWidth(w.buf), h.e.cfg.ShowBreak)
+}
+
 func (h host) Shown(start, end int) []vim.Inline {
 	return h.e.shown(h.e.win, start, end).inlines
 }

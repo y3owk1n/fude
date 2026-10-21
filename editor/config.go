@@ -48,6 +48,7 @@ type config struct {
 	Theme          string            `toml:"theme" help:"the colours: dark, light or a base16 scheme file"`
 	Title          bool              `toml:"title" help:"the terminal's title shows the current file's name, and gets its old title back as fude quits"`
 	MenuHeight     uint              `toml:"menu_height" help:"the most rows the completion menu at the cursor shows, 0 for as many as fit"`
+	ShowBreak      string            `toml:"show_break" help:"the text a long line's rows after its first start with"`
 	ListChars      wire.ListChars    `toml:"list_chars" help:"what list shows tabs, blanks and the ends of lines as, by what they stand for"`
 	FillChars      wire.FillChars    `toml:"fill_chars" help:"what fills the rows past the text, the line between windows and closed folds"`
 	options
@@ -131,6 +132,7 @@ type options struct {
 	RelativeNumber bool `toml:"relative_number" help:"numbers lines from the cursor's"`
 	Wrap           bool `toml:"wrap" help:"long lines go on the rows below, else the window scrolls sideways"`
 	LineBreak      bool `toml:"line_break" help:"a long line goes on the rows below between words, not in the middle of one"`
+	BreakIndent    bool `toml:"break_indent" help:"a long line's rows after its first keep its indent"`
 	TextWidth      int  `toml:"text_width" help:"typing past this column breaks the line, and gq wraps prose to it, 0 for no breaking and 79 columns for gq"`
 	ScrollOff      int  `toml:"scroll_off" help:"the lines kept in view above and below the cursor's"`
 	SideScrollOff  int  `toml:"side_scroll_off" help:"without wrap, the columns kept in view left and right of the cursor's"`

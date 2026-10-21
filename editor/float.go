@@ -193,16 +193,8 @@ func (e *Session) cursorCell(w *window) (int, int) {
 			y++
 		}
 	}
-	x := vim.Column(t, start, c, tab, d.inlines) - w.left
-	if w.opts.Wrap {
-		starts := w.starts(t, start, tab, d.inlines)
-		r := len(starts) - 1
-		for r > 0 && starts[r] > c {
-			r--
-		}
-		y += r
-		x = vim.Column(t, start, c, tab, d.inlines) - vim.Column(t, start, starts[r], tab, d.inlines)
-	}
+	r, x := w.screenAt(t, tab, d)
+	y += r
 	return w.x + w.gutter() + min(x, w.cols()-1), min(y, w.y+w.h-2)
 }
 
@@ -234,7 +226,7 @@ func (e *Session) place(f *window) {
 	measure := func(limit int) (width, rows int) {
 		for line := range t.Lines() {
 			start := t.LineStart(line)
-			starts := append(vim.WordRows(t, start, limit, tab, nil), vim.LineEnd(t, start))
+			starts := append(vim.WordRows(t, start, limit, 0, tab, nil), vim.LineEnd(t, start))
 			for i := range starts[:len(starts)-1] {
 				width = max(width, vim.Column(t, start, starts[i+1], tab, nil)-vim.Column(t, start, starts[i], tab, nil))
 			}

@@ -137,36 +137,50 @@ func (w *window) nextLine(t kernel.Snapshot, start int) (int, bool) {
 // rows is how many rows the line at start takes in the window, with tabs
 // tab columns wide and what d draws there that the text does not hold.
 func (w *window) rows(t kernel.Snapshot, start, tab int, d drawn) int {
-	return len(w.starts(t, start, tab, d.inlines)) + d.rows(t.LineOf(start))
+	return len(w.starts(t, start, tab, d)) + d.rows(t.LineOf(start))
 }
 
 // starts returns where each row of the line at start begins. A line takes
 // one row without wrap, and a float's rows, or with line_break any
 // window's, end after a space (B364).
-func (w *window) starts(t kernel.Snapshot, start, tab int, in []vim.Inline) []int {
+func (w *window) starts(t kernel.Snapshot, start, tab int, d drawn) []int {
 	switch {
 	case !w.opts.Wrap:
 		return []int{start}
 	case w.anchor != "" || w.opts.LineBreak:
-		return vim.WordRows(t, start, w.cols(), tab, in)
+		return vim.WordRows(t, start, w.cols(), w.hang(t, start, tab, d.show), tab, d.inlines)
 	}
-	return vim.Rows(t, start, w.cols(), tab, in)
+	return vim.Rows(t, start, w.cols(), w.hang(t, start, tab, d.show), tab, d.inlines)
 }
 
-// screenColumn returns the column of w's text the cursor shows in, on the
-// row that holds it.
-func (w *window) screenColumn(t kernel.Snapshot, tab int, in []vim.Inline) int {
+// hang returns the columns the rows after the first of the line at start
+// begin with: its indent with break_indent, then show, show_break's text.
+// A float's start in none (B489).
+func (w *window) hang(t kernel.Snapshot, start, tab int, show string) int {
+	if w.anchor != "" {
+		return 0
+	}
+	return vim.Hang(t, start, w.cols(), tab, w.opts.BreakIndent, show)
+}
+
+// screenAt returns the row of its line that w's cursor shows on, and the
+// column of the window's text.
+func (w *window) screenAt(t kernel.Snapshot, tab int, d drawn) (row, col int) {
 	c := w.pos()
 	ls := vim.LineStart(t, c)
 	if !w.opts.Wrap {
-		return vim.Column(t, ls, c, tab, in) - w.left
+		return 0, vim.Column(t, ls, c, tab, d.inlines) - w.left
 	}
-	starts := w.starts(t, ls, tab, in)
+	starts := w.starts(t, ls, tab, d)
 	r := len(starts) - 1
 	for r > 0 && starts[r] > c {
 		r--
 	}
-	return vim.Column(t, ls, c, tab, in) - vim.Column(t, ls, starts[r], tab, in)
+	col = vim.Column(t, ls, c, tab, d.inlines) - vim.Column(t, ls, starts[r], tab, d.inlines)
+	if r > 0 {
+		col += w.hang(t, ls, tab, d.show)
+	}
+	return r, col
 }
 
 // show switches the window to b, at the place b was last left. Its marks

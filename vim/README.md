@@ -69,7 +69,7 @@ for _, k := range vim.Keys("wdw") {
 
 The machine draws nothing. How text looks is up to the host, and the machine tells it what to draw:
 
-- `Rows` and `WordRows` return where each screen row of a line starts when it wraps, by character or after a space.
+- `Rows` and `WordRows` return where each screen row of a line starts when it wraps, by character or after a space, and `Hang` how many columns the rows after the first start in, for an indent kept or a mark.
 - `Column` returns the display column a byte draws at, and `ColumnStart` the byte at a column. They count graphemes, wide characters and tab stops.
 - `Selection` returns the visual selection's bytes, and for a block its display columns `Left` and `Right`.
 - `Mode`, `Shown`, `Line`, `LineCursor` and `Message` give the mode, the keys of the command being typed, the command line with its cursor, and what the last key has to say.

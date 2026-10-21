@@ -26,6 +26,13 @@ With `wrap` on, a long line goes on over the rows below between words, so
 no word is cut in two at the window's edge. A word longer than the window
 still breaks. `gj` and `gk` count the rows as they show.
 
+## break_indent
+
+With `wrap` on, the rows of a long line after its first start at the
+line's indent, so a wrapped list item or comment stays lined up. The
+indent keeps at least 20 columns of the window for the text.
+`show_break`'s text starts those rows after it.
+
 ## text_width
 
 Typing past this column in insert mode breaks the line at the last blank
