@@ -17,7 +17,10 @@ type ListChars struct {
 // FillChars are what fills where the screen shows no text, as config.toml's
 // [fill_chars] sets them (B487).
 type FillChars struct {
-	Eob  string `toml:"eob"`  // the rows past the end of the text
-	Vert string `toml:"vert"` // the line between windows side by side
-	Fold string `toml:"fold"` // the rest of a closed fold's row
+	Eob       string `toml:"eob"`        // the rows past the end of the text
+	Vert      string `toml:"vert"`       // the line between windows side by side
+	Fold      string `toml:"fold"`       // the rest of a closed fold's row
+	FoldOpen  string `toml:"fold_open"`  // in the fold column, a line that starts an open fold (B488)
+	FoldClose string `toml:"fold_close"` // in the fold column, a closed fold
+	FoldSep   string `toml:"fold_sep"`   // in the fold column, the other lines a fold holds
 }

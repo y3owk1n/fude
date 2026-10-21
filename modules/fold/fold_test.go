@@ -112,3 +112,27 @@ func TestB502FoldLevels(t *testing.T) {
 		}
 	}
 }
+
+// B488
+func TestB488FoldColumn(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.go")
+	editortest.Change(t, path, "func a() {\n\tx\n\n\ty\n}\nb\n")
+	e := editortest.Start(t, path)
+	e.Use(fold.New())
+	e.SetSize(80, 20)
+	signs := func() map[int]string {
+		out := map[int]string{}
+		for line, s := range e.Windows()[0].Signs {
+			out[line] = s.Text
+		}
+		return out
+	}
+	want := map[int]string{0: "-", 1: "│", 2: "│", 3: "│"}
+	editortest.Feed(e, ":set fold.column true<CR>")
+	editortest.Settle(t, e, func() bool { return maps.Equal(signs(), want) })
+	// A closed fold shows its own mark.
+	editortest.Feed(e, "zc")
+	editortest.Settle(t, e, func() bool { return signs()[0] == "+" })
+	editortest.Feed(e, ":set fold.column false<CR>")
+	editortest.Settle(t, e, func() bool { return len(signs()) == 0 })
+}

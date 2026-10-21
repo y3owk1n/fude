@@ -197,6 +197,19 @@ one steps over it, `<BS>` in an empty pair deletes both, and `<CR>` in
 empty brackets opens an indented line between them. A quote after a
 letter stays one, as in `don't`. The default is on.
 
+## fold.column
+
+The sign column shows the folds. It puts `-` on a line that starts an open
+fold, `+` on a closed one, and `│` on the other lines a fold holds, or the
+characters `[fill_chars]` gives them. A line with another sign, such as
+git's or a diagnostic's, shows that one. Every window on a buffer shows
+the same column. Off unless set.
+
+```toml
+[module.fold]
+column = true
+```
+
 ## list_chars
 
 What `list` shows, by what it stands for, each one column wide. `tab`
@@ -223,7 +236,10 @@ eol = "¬"
 What fills parts of the screen with no text, each one character one
 column wide: `eob` for the rows past the end of the text, `~` unless set,
 `vert` for the line between windows side by side, `│` unless set, and
-`fold` for the rest of a closed fold's row, blank unless set.
+`fold` for the rest of a closed fold's row, blank unless set. With
+`fold.column` on, `fold_open` marks a line that starts an open fold, `-`
+unless set, `fold_close` a closed fold, `+` unless set, and `fold_sep`
+the other lines a fold holds, `│` unless set.
 
 ```toml
 [fill_chars]

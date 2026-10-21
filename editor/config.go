@@ -121,7 +121,7 @@ var keymapTables = []struct{ name, help string }{
 	{"groups", "names of the keys mappings start with, which key hints show"},
 }
 
-var defaults = config{TabWidth: 8, KeyTimeout: 1000, FormatTimeout: 1000, LargeFile: 2, TerminalHeight: 33, SplitBelow: true, SplitRight: true, RemoteImages: true, Sources: []string{"lsp", "snippet", "path", "buffer"}, AutoInstall: true, Leader: "<Space>", Theme: "dark", ListChars: wire.ListChars{Tab: "> ", Trail: "-", Nbsp: "+"}, FillChars: wire.FillChars{Eob: "~", Vert: "│"}, options: options{Wrap: true, IncSearch: true, HLSearch: true, WrapScan: true}}
+var defaults = config{TabWidth: 8, KeyTimeout: 1000, FormatTimeout: 1000, LargeFile: 2, TerminalHeight: 33, SplitBelow: true, SplitRight: true, RemoteImages: true, Sources: []string{"lsp", "snippet", "path", "buffer"}, AutoInstall: true, Leader: "<Space>", Theme: "dark", ListChars: wire.ListChars{Tab: "> ", Trail: "-", Nbsp: "+"}, FillChars: wire.FillChars{Eob: "~", Vert: "│", FoldOpen: "-", FoldClose: "+", FoldSep: "│"}, options: options{Wrap: true, IncSearch: true, HLSearch: true, WrapScan: true}}
 
 // options are the settings each window has, which :set changes for the
 // current window and the windows opened after it (B39). :set takes each by

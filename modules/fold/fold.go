@@ -35,15 +35,18 @@ const (
 
 // Module is fold.
 type Module struct {
-	mu  sync.Mutex
-	ids int
+	mu    sync.Mutex
+	ids   int
+	signs map[string][]int // by buffer, the ids of the fold column's signs (B488)
 }
 
 // New returns fold.
-func New() *Module { return &Module{} }
+func New() *Module { return &Module{signs: map[string][]int{}} }
 
-func (m *Module) Name() string         { return "fold" }
-func (m *Module) Subscribed() []string { return nil }
+func (m *Module) Name() string { return "fold" }
+func (m *Module) Subscribed() []string {
+	return []string{"buffer.opened", "buffer.changed", "buffer.closed", "window.moved", "window.opened", "option.set", "config.reloaded"}
+}
 
 func (m *Module) Registered() []api.Registration {
 	return []api.Registration{
@@ -62,6 +65,7 @@ func (m *Module) Registered() []api.Registration {
 		{Kind: api.Plug, Name: "more", Keys: "zm", Help: "folds one level more, or n levels", ID: more},
 		{Kind: api.Plug, Name: "less", Keys: "zr", Help: "folds one level less, or n levels", ID: less},
 		{Kind: api.Plug, Name: "enable", Keys: "zi", Help: "opens every closed fold, or closes again those it opened", ID: enable},
+		{Kind: api.Option, Name: "column", Default: "false", Help: "the sign column shows where folds start and the lines they hold"},
 	}
 }
 
@@ -122,11 +126,22 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 	if first := firstLine(t, folds, res, line); first != line {
 		res.Jump = &api.Jump{Pos: t.LineStart(first)}
 	}
-	return res, nil
+	return m.column(s, res), nil
 }
 
-func (m *Module) Event(context.Context, string, api.Scope) (api.Result, error) {
-	return api.Result{}, nil
+// Event draws the fold column again on the buffer it is about, and
+// forgets a buffer that closed (B488).
+func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	switch event, detail, _ := strings.Cut(name, " "); {
+	case event == "buffer.closed":
+		delete(m.signs, s.About["buffer"])
+		return api.Result{}, nil
+	case event == "option.set" && detail != "fold.column" && !strings.HasPrefix(detail, "fill_chars."):
+		return api.Result{}, nil
+	}
+	return m.column(s, api.Result{}), nil
 }
 
 func (m *Module) Callback(context.Context, uint32, api.Scope) (api.Result, error) {

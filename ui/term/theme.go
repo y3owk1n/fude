@@ -232,7 +232,7 @@ func build(t theme) styles {
 	s.signColours = map[string]color.Color{
 		"diagnostic.error": t.err, "diagnostic.warn": t.warn, "diagnostic.info": t.info, "diagnostic.hint": t.hint,
 		"git.add": t.insert, "git.change": t.normal, "git.delete": t.err,
-		"debug.break": t.err, "debug.pending": t.muted, "debug.stopped": t.warn,
+		"debug.break": t.err, "debug.pending": t.muted, "debug.stopped": t.warn, "fold.column": t.faint,
 		"icon.azure": t.function, "icon.blue": t.normal, "icon.cyan": t.hint, "icon.green": t.str,
 		"icon.grey": t.muted, "icon.orange": t.number, "icon.purple": t.keyword, "icon.red": t.err,
 		"icon.yellow": t.warn,

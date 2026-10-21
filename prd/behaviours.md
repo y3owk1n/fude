@@ -230,9 +230,10 @@ Where fude departs, the line says so and cites the departure in
 - B487 [2] The `[fill_chars]` table sets what fills the screen, with the
   items of Neovim's `fillchars` as its keys: `eob` for the rows past the
   text, `~` unless set, `vert` for the line between windows side by side,
-  `│` unless set, and `fold` for the rest of a closed fold's row, blank
-  unless set. A character not one column wide changes nothing and says
-  why.
+  `│` unless set, `fold` for the rest of a closed fold's row, blank
+  unless set, and `fold_open`, `fold_close` and `fold_sep` for the fold
+  column (B488). A character not one column wide changes nothing and
+  says why.
 - B119 [5] A buffer with diagnostics shows a sign column, two columns left
   of the line numbers, with the letter of each line's worst diagnostic,
   `E`, `W`, `I` or `H`, as Neovim's `signcolumn=auto` does.
@@ -1128,6 +1129,13 @@ Where fude departs, the line says so and cites the departure in
   one, and `zA` does `zO` with a closed one there and `zC` without. The
   cursor sits on a closed fold's first line, which the folds inside it do
   not hold (N34).
+- B488 [2] With `fold.column` on, the sign column shows the folds, as
+  Neovim's `foldcolumn` at 1 does. It shows `-` on a line that starts an
+  open fold, `+` on a closed fold and `│` on the other lines a fold holds,
+  or what `[fill_chars]` gives as `fold_open`, `fold_close` and
+  `fold_sep`. A line with another sign, such as git's or a diagnostic's,
+  shows that sign instead. The column is the same in every window on a
+  buffer. It is off unless set.
 - B232 [2] `gn` selects in visual mode the match of the last search
   under the cursor, or else the next one, and `gN` the one before, going
   round the text. After an operator they are its target, so `cgn` changes
