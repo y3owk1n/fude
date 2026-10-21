@@ -380,6 +380,7 @@ func (c *Client) write(root string, options any, initialized <-chan answer, noti
 				"completion":         map[string]any{"completionItem": map[string]any{"snippetSupport": true}},
 				"diagnostic":         map[string]any{},
 				"inlayHint":          map[string]any{},
+				"inlineCompletion":   map[string]any{},
 				"onTypeFormatting":   map[string]any{},
 				"semanticTokens":     map[string]any{"requests": map[string]any{"full": true}, "formats": []string{"relative"}, "tokenTypes": tokenTypes, "tokenModifiers": []string{}},
 				"synchronization":    map[string]any{"didSave": true},

@@ -114,6 +114,7 @@ type Session struct {
 	lastList    *api.Places             // the last list of places, which modules/places shows (B347)
 	snip        *snippet                // the snippet being filled in (B207)
 	links       links                   // the ranges a server linked, which typing changes together (B473)
+	suggest     suggestion              // a server's inline completion at the cursor (B474)
 	menu        cursorMenu              // a menu at the cursor, such as code actions'
 	completion  completion              // the completions shown while typing
 	lspKeys     bool                    // the attached keys are mapped
@@ -628,6 +629,7 @@ func (e *Session) feed(k vim.Key) {
 	e.autocomplete(k)
 	e.signatureHelp(k)
 	e.formatTyped(k)
+	e.suggestAfter()
 	e.autocommand()
 }
 
@@ -1265,7 +1267,7 @@ type overlay interface {
 
 // overlays are what may take a key, in the order they get it.
 func (e *Session) overlays() []overlay {
-	return []overlay{e.capture, e.ask, e.finder, terminalMode{}, &e.completion, e.snip, e.pick, &e.menu, &e.cmdline}
+	return []overlay{e.capture, e.ask, e.finder, terminalMode{}, &e.completion, e.snip, &e.suggest, e.pick, &e.menu, &e.cmdline}
 }
 
 // cursorMenu is a menu at the cursor, such as code actions', and the

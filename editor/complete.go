@@ -197,13 +197,7 @@ func (e *Session) offer(keys string, t kernel.Snapshot, start int, sources []str
 	}
 	m := &menu{asked: map[int]bool{}, typed: t.Slice(start, cur)}
 	seen := map[string]bool{}
-	// A snippet's lines take the indent of the line it goes on.
-	before := t.Slice(vim.LineStart(t, start), start)
-	indent := before[:len(before)-len(strings.TrimLeft(before, " \t"))]
-	unit := "\t"
-	if e.win.opts.ExpandTab {
-		unit = strings.Repeat(" ", e.indentWidth(b))
-	}
+	indent, unit := e.snippetIndent(b, t, start)
 	vars := e.snippetVars(b, start)
 	for _, source := range sources {
 		for _, it := range items[source] {

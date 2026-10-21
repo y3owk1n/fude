@@ -33,6 +33,17 @@ func (e *Session) snippetVars(b *buffer, c int) map[string]string {
 	}
 }
 
+// snippetIndent returns the indent of the line a snippet goes in at at in
+// t, which its lines take, and the unit of indent b's window inserts.
+func (e *Session) snippetIndent(b *buffer, t kernel.Snapshot, at int) (indent, unit string) {
+	before := t.Slice(vim.LineStart(t, at), at)
+	indent, unit = before[:len(before)-len(strings.TrimLeft(before, " \t"))], "\t"
+	if e.win.opts.ExpandTab {
+		unit = strings.Repeat(" ", e.indentWidth(b))
+	}
+	return indent, unit
+}
+
 // snippet is a snippet being filled in: each of its stops, in the order
 // <Tab> visits them, with every place it shows, the first being the one the
 // cursor goes to (B207).

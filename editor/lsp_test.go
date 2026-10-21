@@ -51,8 +51,9 @@ import (
 // after which it asks fude to ask again. With tokens, the first "call" on
 // a line is a function's semantic token. With ontype, a ; typed puts a tab
 // before its line. With linked, the ranges linked at a place are every
-// "div" when it is in one. A whole text a change sends becomes the
-// document's.
+// "div" when it is in one. With inline, it suggests "hello world" for the
+// line up to the cursor, with a command. A whole text a change sends
+// becomes the document's.
 func TestFakeServer(t *testing.T) {
 	if os.Getenv("FUDE_FAKE_LSP") == "" {
 		return
@@ -223,6 +224,10 @@ func TestFakeServer(t *testing.T) {
 				reply(m.ID, nil)
 				break
 			}
+			if len(m.Params.Arguments) == 0 {
+				reply(m.ID, nil)
+				break
+			}
 			top := map[string]any{"start": map[string]int{"line": 0, "character": 0}, "end": map[string]int{"line": 0, "character": 0}}
 			edit := map[string]any{"changes": map[string]any{m.Params.Arguments[0]: []any{map[string]any{"range": top, "newText": "cmd "}}}}
 			apply, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": "apply-1", "method": "workspace/applyEdit", "params": map[string]any{"edit": edit}})
@@ -327,6 +332,12 @@ func TestFakeServer(t *testing.T) {
 				ds = append(ds, map[string]any{"range": span(0, 0, 0), "severity": 1, "message": "written"})
 			}
 			reply(m.ID, map[string]any{"kind": "full", "items": ds})
+		case "textDocument/inlineCompletion":
+			p := m.Params.Position
+			reply(m.ID, map[string]any{"items": []any{map[string]any{
+				"insertText": "hello world", "range": span(p.Line, 0, p.Character),
+				"command": map[string]any{"title": "accepted", "command": "fake.accepted"},
+			}}})
 		case "textDocument/linkedEditingRange":
 			var ranges []any
 			p := m.Params.Position
@@ -367,6 +378,7 @@ func TestFakeServer(t *testing.T) {
 			// What each word of FUDE_FAKE_OFFER adds to what it offers.
 			more := map[string]map[string]any{
 				"diagnostic": {"diagnosticProvider": map[string]any{}},
+				"inline":     {"inlineCompletionProvider": true},
 				"linked":     {"linkedEditingRangeProvider": true},
 				"ontype":     {"documentOnTypeFormattingProvider": map[string]any{"firstTriggerCharacter": ";"}},
 				"tokens":     {"semanticTokensProvider": map[string]any{"full": true, "legend": map[string]any{"tokenTypes": []string{"variable", "function"}, "tokenModifiers": []string{}}}},

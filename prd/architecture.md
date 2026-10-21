@@ -1744,6 +1744,25 @@ whose text is no longer a word, `^[\w-]*$`, ends the link. Multicursors
 would type in each range too, but they stay in normal mode, where `x` or
 `dd` would act at every range, and a move would leave them behind (B473).
 
+In insert mode, each key that moves the cursor or changes the text asks
+the first server offering `inlineCompletionProvider` for
+`textDocument/inlineCompletion`, automatic, once the key is done. One
+request waits at a time, and an answer for a cursor or text that changed
+since asks again where they are now, so a burst of keys costs two
+requests and no timer. The first item's text, a snippet expanded as a
+completion's is, goes from the start of its range, or the cursor, and
+marks keep where it goes. After each key fude shows the part past what
+was typed since that start as a decoration of an owner of its own, drawn
+as the supermaven plugin draws its suggestion: in `comment`, the first
+line inserted at the cursor, or over the rest of the line when the first
+line holds it, and the other lines as rows below. A suggestion the typed
+text leaves behind is dropped. `<Tab>` takes it as an overlay after the
+completion menu's and a snippet's, so they keep `<Tab>`, and only while a
+suggestion shows, so a plugin's `<Tab>` still gets the key otherwise.
+The text replaces its range and what was typed since through the vim
+host, inside the insert's undo step, and the item's command goes to the
+server with `workspace/executeCommand` (B474).
+
 A key typed in insert mode that is the `firstTriggerCharacter` or one
 of the `moreTriggerCharacter` of the first server offering
 `documentOnTypeFormattingProvider`, with `<CR>` as a line break, asks it

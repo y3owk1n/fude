@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/fude/syntax"
+	"github.com/y3owk1n/fude/wire"
 )
 
 // B470
@@ -67,5 +68,32 @@ func TestB473LinkedEditing(t *testing.T) {
 	// The edits to the other ranges are part of the insert's undo step.
 	if feed(e, "u"); text(e) != "<div></div>" {
 		t.Errorf("u left %q, want <div></div>", text(e))
+	}
+}
+
+// B474
+func TestB474InlineCompletion(t *testing.T) {
+	t.Setenv("FUDE_FAKE_OFFER", "inline")
+	e, log := withServer(t, "\n", "utf-8")
+	heard(t, log, `"method":"initialized"`, 1)
+	ghost := func(at int, text string) func() bool {
+		return func() bool {
+			return slices.Contains(e.Windows()[0].Ghosts, wire.Ghost{Pos: at, Text: text, Style: "comment"})
+		}
+	}
+	feed(e, "i")
+	settle(t, e, ghost(0, "hello world"))
+	// Typing what it suggests leaves the rest of it showing.
+	feed(e, "he")
+	settle(t, e, ghost(2, "llo world"))
+	feed(e, "<Tab>")
+	if got := text(e); got != "hello world" {
+		t.Errorf("<Tab> left %q, want hello world", got)
+	}
+	heard(t, log, `"command":"fake.accepted"`, 1)
+	// Out of insert mode it shows no more.
+	feed(e, "<Esc>")
+	if g := e.Windows()[0].Ghosts; len(g) > 0 {
+		t.Errorf("normal mode shows %v", g)
 	}
 }

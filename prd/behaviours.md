@@ -1886,10 +1886,19 @@ Where fude departs, the line says so and cites the departure in
   as when a space follows the name, ends the link. fude asks for the
   ranges whenever the cursor moves or the text changes, while a server
   offers them, where Neovim waits to be asked to.
-- B472 [5] In insert mode, typing a character that the first server
-  formatting as text is typed names as a trigger, such as `}` or a line
-  break, formats around it as the server says, when the text has not
-  changed since. The formatting is part of the insert's undo step. fude
+- B474 [5] In insert mode, the inline completion of the first server that
+  offers it shows dim after the cursor, its first line among the text and
+  the others below, as a plugin's ghost text does. fude asks for it as
+  the cursor moves or the text changes, and keeps showing what is left of
+  it past what is typed until it no longer fits. `<Tab>` takes it, its
+  command going to the server, and with none showing types a tab. It
+  goes when insert mode ends. fude asks whenever a server offers it,
+  where Neovim waits to be asked, and `<Tab>` takes it as it takes a
+  plugin's ghost text.
+- B472 [5] In insert mode, after a character that a server names as a
+  trigger for formatting as text is typed, such as `}` or a line break,
+  fude formats around it as the first such server says, when the text has
+  not changed since. The formatting is part of the insert's undo step. fude
   does this whenever a server offers it, where Neovim waits to be asked.
 - B451 [5] `gq` on a file nothing formats fills each paragraph of its
   lines to `text_width`, or 79 columns when that is 0. Blank lines and

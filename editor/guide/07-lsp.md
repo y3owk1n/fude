@@ -59,6 +59,8 @@ it again until `:lsp restart`.
 - With the cursor in text a server links to other text, such as an HTML
   tag's name, the linked text shows shaded, and what you type in insert
   mode goes in each.
+- A server's inline completion, such as Copilot's, shows dim after the
+  cursor in insert mode, and `<Tab>` takes it.
 - A server's semantic tokens colour names by what they are, such as a
   function or a type, over the syntax's colours.
 - `<C-x><C-o>` in insert mode lists completions, and with `autocomplete`

@@ -287,6 +287,7 @@ func hostBindings() []vim.Binding {
 		{"<C-x><C-n>", "completes the word before the cursor from the buffer's words"},
 		{"<C-x><C-o>", "lists the completions of every source"},
 		{"<C-x><C-p>", "completes the word before the cursor from the buffer's words, nearest before first"},
+		{"<Tab>", "takes the language server's suggestion after the cursor, or types a tab"},
 	} {
 		out = append(out, vim.Binding{Kind: "insert", Keys: k[0], Help: k[1]})
 	}

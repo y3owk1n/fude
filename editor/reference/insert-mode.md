@@ -370,6 +370,18 @@ Goes back to the start of the word before the cursor.
 
 Goes to the start of the next word.
 
+## <Tab>
+
+Takes the suggestion a language server's inline completion shows dim
+after the cursor. Its text goes in, in place of the text it replaces and
+what was typed since, with the cursor after it, and a snippet starts at
+its first stop. In a snippet or the completion menu it goes to the next
+stop or takes the item, and with no suggestion it types a tab.
+
+```keys
+"|x" "i<Tab>" "\t|x"
+```
+
 ## <Up>
 
 Moves to the line above, as `<Down>` moves down.
