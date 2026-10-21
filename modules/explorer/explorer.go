@@ -178,14 +178,20 @@ func save(s api.Scope, dir string) api.Result {
 		return api.Result{}
 	}
 	if s.About["confirmed"] != "true" {
-		var paths []string
-		for _, name := range slices.Concat(c.deletes, c.creates) {
-			paths = append(paths, filepath.Join(dir, name))
+		ask := &api.Confirm{Question: c.ask(dir)}
+		for _, name := range c.deletes {
+			ask.Deletes = append(ask.Deletes, filepath.Join(dir, name))
 		}
+		for _, name := range c.creates {
+			ask.Creates = append(ask.Creates, filepath.Join(dir, name))
+		}
+		ask.Paths = slices.Concat(ask.Deletes, ask.Creates)
 		for _, r := range c.renames {
-			paths = append(paths, filepath.Join(dir, r[0]), filepath.Join(dir, r[1]))
+			from, to := filepath.Join(dir, r[0]), filepath.Join(dir, r[1])
+			ask.Renames = append(ask.Renames, [2]string{from, to})
+			ask.Paths = append(ask.Paths, from, to)
 		}
-		return api.Result{Confirm: &api.Confirm{Question: c.ask(dir), Paths: paths}}
+		return api.Result{Confirm: ask}
 	}
 	var res api.Result
 	err = c.apply(dir)

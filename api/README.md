@@ -70,7 +70,7 @@ A `Result` asks for any of these, and fude applies them together once the call r
 | `Servers` | restarts, stops, disables or enables language servers, which a guest may not |
 | `Keys` | keys to run once the call is done, as typed |
 | `Restore` | a session from `Session`, whose files open and whose windows build again |
-| `Confirm` | a `Write`'s yes or no question, with the paths it would change |
+| `Confirm` | a `Write`'s yes or no question, with the paths it would change, and the files it would rename, create and delete, which language servers hear of |
 | `Moved` | paths a write renamed, whose open buffers follow them |
 | `Travel` | a buffer's text moves to one of its states, or restores one as a new state |
 | `Copy` | text to put on the clipboard |

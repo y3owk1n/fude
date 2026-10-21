@@ -394,9 +394,11 @@ func (c *Client) write(root string, options any, initialized <-chan answer, noti
 			"window": map[string]any{"workDoneProgress": true},
 			"workspace": map[string]any{
 				"configuration": true, "didChangeConfiguration": map[string]any{},
-				"codeLens":       map[string]any{"refreshSupport": true},
-				"diagnostics":    map[string]any{"refreshSupport": true},
-				"semanticTokens": map[string]any{"refreshSupport": true},
+				"codeLens":              map[string]any{"refreshSupport": true},
+				"diagnostics":           map[string]any{"refreshSupport": true},
+				"semanticTokens":        map[string]any{"refreshSupport": true},
+				"didChangeWatchedFiles": map[string]any{"dynamicRegistration": true, "relativePatternSupport": true},
+				"fileOperations":        map[string]any{"willRename": true, "didRename": true, "didCreate": true, "didDelete": true},
 			},
 		},
 	}

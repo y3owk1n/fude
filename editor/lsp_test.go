@@ -52,8 +52,10 @@ import (
 // a line is a function's semantic token. With ontype, a ; typed puts a tab
 // before its line. With linked, the ranges linked at a place are every
 // "div" when it is in one. With inline, it suggests "hello world" for the
-// line up to the cursor, with a command. A whole text a change sends
-// becomes the document's.
+// line up to the cursor, with a command. With files, it watches the Go
+// files under its root, hears of the Go files fude renames, creates and
+// deletes, and puts a line at the top of a Go file before it is renamed.
+// A whole text a change sends becomes the document's.
 func TestFakeServer(t *testing.T) {
 	if os.Getenv("FUDE_FAKE_LSP") == "" {
 		return
@@ -81,7 +83,7 @@ func TestFakeServer(t *testing.T) {
 	opened := map[string]string{}
 	lensAsks := 0
 	offers := strings.Fields(os.Getenv("FUDE_FAKE_OFFER"))
-	saves := 0
+	saves, root := 0, ""
 	// send sends a request or a notification of its own.
 	send := func(m map[string]any) {
 		m["jsonrpc"] = "2.0"
@@ -114,7 +116,11 @@ func TestFakeServer(t *testing.T) {
 			ID     *int   `json:"id"`
 			Method string `json:"method"`
 			Params struct {
-				NewName        string          `json:"newName"`
+				NewName string `json:"newName"`
+				RootURI string `json:"rootUri"`
+				Files   []struct {
+					OldURI string `json:"oldUri"`
+				} `json:"files"`
 				Query          string          `json:"query"`
 				Arguments      []string        `json:"arguments"`
 				Command        string          `json:"command"`
@@ -375,8 +381,11 @@ func TestFakeServer(t *testing.T) {
 				send(map[string]any{"id": "refresh", "method": "workspace/diagnostic/refresh"})
 			}
 		case "initialize":
+			root = m.Params.RootURI
+			goFiles := map[string]any{"filters": []any{map[string]any{"pattern": map[string]any{"glob": "**/*.go"}}}}
 			// What each word of FUDE_FAKE_OFFER adds to what it offers.
 			more := map[string]map[string]any{
+				"files":      {"workspace": map[string]any{"fileOperations": map[string]any{"willRename": goFiles, "didRename": goFiles, "didCreate": goFiles, "didDelete": goFiles}}},
 				"diagnostic": {"diagnosticProvider": map[string]any{}},
 				"inline":     {"inlineCompletionProvider": true},
 				"linked":     {"linkedEditingRangeProvider": true},
@@ -403,6 +412,17 @@ func TestFakeServer(t *testing.T) {
 			// fude's answer goes to the log, as everything fude sends does.
 			body, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": 1, "method": "workspace/configuration", "params": map[string]any{"items": []any{map[string]string{"section": "fake.answer"}}}})
 			fmt.Fprintf(os.Stdout, "Content-Length: %d\r\n\r\n%s", len(body), body)
+			if slices.Contains(offers, "files") {
+				watcher := map[string]any{"globPattern": map[string]any{"baseUri": root, "pattern": "**/*.{go,mod}"}}
+				registration := map[string]any{"id": "watch", "method": "workspace/didChangeWatchedFiles", "registerOptions": map[string]any{"watchers": []any{watcher}}}
+				send(map[string]any{"id": "register", "method": "client/registerCapability", "params": map[string]any{"registrations": []any{registration}}})
+			}
+		case "workspace/willRenameFiles":
+			changes := map[string]any{}
+			for _, f := range m.Params.Files {
+				changes[f.OldURI] = []any{map[string]any{"range": span(0, 0, 0), "newText": "// moved\n"}}
+			}
+			reply(m.ID, map[string]any{"changes": changes})
 		case "textDocument/didChange":
 			if strings.Contains(string(body), `"text":"#"`) {
 				fmt.Fprint(os.Stderr, "crashed on #")

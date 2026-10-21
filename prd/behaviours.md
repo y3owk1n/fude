@@ -1990,6 +1990,15 @@ Where fude departs, the line says so and cites the departure in
   `<C-n>` or `<C-p>`.
 - B68 [5] The selected completion's detail and documentation show beside
   the menu, resolved from the server when the item came without them.
+- B475 [5] fude watches no files, but tells language servers of the
+  files it changes and finds changed (N53). A server hears of each file
+  fude writes, each open file it finds changed on disk, and each the
+  explorer renames, creates or deletes, as changes to its watched files,
+  when the file matches a glob the server registered for them. A server
+  that asks to hear of renames, creations and deletions of the files
+  matching its patterns hears of the explorer's, and one that edits files
+  for a rename does so before the explorer renames, its edits applied as
+  rename's are.
 - B167 [5] `[filetype.<name>] lsp` names a filetype's servers. An
   `[lsp.<name>]` table sets a server's `command`, which is its name when
   unset, and its `root`, the files that mark a project's root, most wanted

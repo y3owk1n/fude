@@ -1773,6 +1773,27 @@ dropped when it changed since. The kernel joins a transaction of an
 origin whose group is open to that group, so while insert mode lasts the
 edits are part of its undo step (B472).
 
+fude runs no file watcher (N53). It tells servers of the files it changes
+itself and of an open file it finds changed when the terminal gives it
+focus. `client/registerCapability` for `workspace/didChangeWatchedFiles`
+keeps each registration's watchers on the server, by its id, until
+`client/unregisterCapability` names it or the server restarts. A glob
+becomes a regexp, `*` and `?` within a part of the path, `**` across
+parts, `{a,b}` and `[...]`, matched against the file's absolute path with
+forward slashes, or for a pattern relative to a folder against its path
+under that folder. A write sends `didChangeWatchedFiles`, created for a
+new file and changed otherwise, to each server with a watcher of that
+kind that matches. A `Write`'s `Confirm` names the files it renames,
+creates and deletes, as the explorer's does. Once the user answers yes,
+fude sends `workspace/willRenameFiles` to each server whose
+`fileOperations.willRename` filters match a renamed file, applies the
+edits each answers with as a workspace edit, and runs the write once
+every one has answered, so the rename waits for the servers while editing
+does not. After the write, servers hear `didRenameFiles`,
+`didCreateFiles` and `didDeleteFiles` by their filters, and
+`didChangeWatchedFiles` with a rename as its old file deleted and its new
+one created (B475).
+
 `grr`, `gri`, `grt` and `gO` are mapped while the current buffer has a
 server and removed when it has none (N3). `Machine.Unmap` also removes the
 prefixes only they used, so `gr` waits for nothing in a buffer without one

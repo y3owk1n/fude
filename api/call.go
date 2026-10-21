@@ -548,6 +548,11 @@ type Confirm struct {
 	ID       uint32
 	Question string
 	Paths    []string
+	// Renames, from and to, Creates and Deletes are the files and folders a
+	// Write's confirmed call renames, creates and deletes. Language servers
+	// hear of them, and edit files for the renames before the call (B475).
+	Renames          [][2]string
+	Creates, Deletes []string
 }
 
 // Entry is a name an explorer showed when it was read, and where its line's

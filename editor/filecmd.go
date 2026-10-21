@@ -57,8 +57,13 @@ func (e *Session) reread(force bool) error {
 // writeTo writes b's text to path, leaving b on its own file, as :w path
 // does. It refuses to write over a file that exists unless force (B155).
 func (e *Session) writeTo(b *buffer, path string, force bool) error {
-	if _, err := os.Stat(path); err == nil && !force {
+	_, err := os.Stat(path)
+	if err == nil && !force {
 		return fmt.Errorf("\"%s\" exists, :w! writes over it", path)
+	}
+	kind := fileEdited
+	if err != nil {
+		kind = fileCreated
 	}
 	f := b.file
 	f.path = path
@@ -67,6 +72,7 @@ func (e *Session) writeTo(b *buffer, path string, force bool) error {
 	if err != nil {
 		return err
 	}
+	e.filesChanged(fileChange{path, kind})
 	e.message = fmt.Sprintf("\"%s\" %dB written", path, n)
 	return nil
 }
@@ -272,10 +278,11 @@ func (e *Session) writeOut(b *buffer, then func()) {
 		e.message = err.Error()
 		return
 	}
-	tag := ""
+	tag, kind := "", fileEdited
 	if b.file.isNew {
-		tag = "[New] "
+		tag, kind = "[New] ", fileCreated
 	}
+	e.filesChanged(fileChange{b.file.path, kind})
 	b.file.isNew = false
 	b.markSaved(text)
 	for _, srv := range b.servers {
@@ -315,6 +322,7 @@ func (e *Session) Focus() {
 		if b.title != "" || b.file.warned || !b.file.changed() {
 			continue
 		}
+		e.filesChanged(fileChange{b.file.path, fileEdited})
 		if b.modified() {
 			e.message = fmt.Sprintf("\"%s\" changed on disk and in fude, keeping fude's text", b.file.path)
 			b.file.warned = true

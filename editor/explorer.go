@@ -194,13 +194,20 @@ func (e *Session) writeKind(b *buffer, then func()) {
 			return
 		}
 	}
-	e.confirm(res.Confirm.Question, func(yes bool) {
+	c := res.Confirm
+	e.confirm(c.Question, func(yes bool) {
 		if !yes {
 			return
 		}
-		if res, ok := call(true); ok {
-			done(res)
-		}
+		// Servers edit files for a rename before it happens (B475).
+		e.willRename(c.Renames, func() {
+			if res, ok := call(true); ok {
+				if res.Error == "" {
+					e.wrote(c)
+				}
+				done(res)
+			}
+		})
 	})
 }
 

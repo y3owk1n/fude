@@ -30,9 +30,10 @@ type server struct {
 	restarted bool // it crashed once, and the next crash leaves it off
 	closing   bool // fude asked it to exit
 	bufs      []*buffer
-	versions  map[*buffer]int  // the changes it has heard of each, since it opened
-	pulls     map[*buffer]bool // the buffers whose diagnostics it was asked for, true to ask again (B470)
-	work      map[string]*work // by token, what it reports doing (B161)
+	versions  map[*buffer]int      // the changes it has heard of each, since it opened
+	pulls     map[*buffer]bool     // the buffers whose diagnostics it was asked for, true to ask again (B470)
+	watchers  map[string][]watcher // by registration, the globs of the files it hears of changes to (B475)
+	work      map[string]*work     // by token, what it reports doing (B161)
 }
 
 // work is a piece of work a server reports progress on (B161).
@@ -217,8 +218,9 @@ func (e *Session) start(s *server) error {
 	}
 	trace.Record("lsp", "started "+s.name+" in "+s.root, 0)
 	e.serversChanged(s.name)
-	// A restarted server starts with none of its old process's work.
-	s.client, s.work = c, map[string]*work{}
+	// A restarted server starts with none of its old process's work or
+	// watchers.
+	s.client, s.work, s.watchers = c, map[string]*work{}, map[string][]watcher{}
 	if len(cfg.Settings) > 0 {
 		c.Notify("workspace/didChangeConfiguration", map[string]any{"settings": cfg.Settings})
 	}
@@ -455,8 +457,9 @@ func (e *Session) workspaceEdit(s *server, from *buffer, t kernel.Snapshot, res 
 // sections of s's settings that the request names (B168). A refresh is an
 // lsp.refresh event, and workspace/diagnostic/refresh and
 // workspace/semanticTokens/refresh ask for its buffers' diagnostics and
-// tokens again (B470, B471). Other requests get an empty answer, as fude
-// offers nothing else.
+// tokens again (B470, B471). client/registerCapability keeps the files it
+// watches (B475). Other requests get an empty answer, as fude offers
+// nothing else.
 func (e *Session) served(s *server, method string, params json.RawMessage) any {
 	if method == "workspace/configuration" {
 		var p struct {
@@ -470,6 +473,14 @@ func (e *Session) served(s *server, method string, params json.RawMessage) any {
 			out[i] = section(e.cfg.LSP[s.name].Settings, it.Section)
 		}
 		return out
+	}
+	switch method {
+	case "client/registerCapability":
+		s.register(params)
+		return nil
+	case "client/unregisterCapability":
+		s.unregister(params)
+		return nil
 	}
 	// A server that asks to be asked again, as for its code lenses, tells
 	// the modules of its buffers (B463).

@@ -1,9 +1,15 @@
 package editor_test
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
+	explorermod "github.com/y3owk1n/fude/modules/explorer"
+	"github.com/y3owk1n/fude/protocol/lsp"
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/wire"
 )
@@ -96,4 +102,54 @@ func TestB474InlineCompletion(t *testing.T) {
 	if g := e.Windows()[0].Ghosts; len(g) > 0 {
 		t.Errorf("normal mode shows %v", g)
 	}
+}
+
+// B475
+func TestB475FileNotifications(t *testing.T) {
+	t.Setenv("FUDE_FAKE_OFFER", "files")
+	dir := t.TempDir()
+	a, b, c := filepath.Join(dir, "a.go"), filepath.Join(dir, "b.go"), filepath.Join(dir, "c.go")
+	e, log := withServerAt(t, a, "x\n", "utf-8")
+	e.Use(explorermod.New())
+	// fude answers the server's registration on its loop.
+	settle(t, e, func() bool {
+		got, _ := os.ReadFile(log)
+		return strings.Contains(string(got), `"id":"register"`)
+	})
+	watched := func(path string, kind int) string {
+		return fmt.Sprintf(`{"type":%d,"uri":%q}`, kind, lsp.URI(path))
+	}
+	// A write of a file the server watches is a change, and of one it does
+	// not watch is nothing.
+	feed(e, ":w "+filepath.Join(dir, "a.txt")+"<CR>:w<CR>")
+	heard(t, log, watched(a, 2), 1)
+	if strings.Contains(disk(t, log), "a.txt") {
+		t.Errorf("the server heard of a.txt, which it does not watch")
+	}
+	// The explorer renames a.go to b.go and creates c.go. The server edits
+	// a.go first.
+	feed(e, "-/a.go<CR>cwb<Esc>oc.go<Esc>:w<CR>y")
+	settle(t, e, func() bool {
+		_, err := os.Stat(b)
+		return err == nil
+	})
+	heard(t, log, `"method":"workspace/willRenameFiles"`, 1)
+	heard(t, log, `"text":"// moved\n"`, 1)
+	heard(t, log, fmt.Sprintf(`"method":"workspace/didRenameFiles","params":{"files":[{"newUri":%q,"oldUri":%q}]}`, lsp.URI(b), lsp.URI(a)), 1)
+	heard(t, log, fmt.Sprintf(`"method":"workspace/didCreateFiles","params":{"files":[{"uri":%q}]}`, lsp.URI(c)), 1)
+	heard(t, log, watched(a, 3), 1)
+	heard(t, log, watched(b, 1), 1)
+	heard(t, log, watched(c, 1), 1)
+	if will, did := strings.Index(disk(t, log), "willRenameFiles"), strings.Index(disk(t, log), "didRenameFiles"); will > did {
+		t.Errorf("the server heard of the rename before it was asked for its edits")
+	}
+	// It deletes c.go.
+	feed(e, "/c.go<CR>dd:w<CR>y")
+	heard(t, log, fmt.Sprintf(`"method":"workspace/didDeleteFiles","params":{"files":[{"uri":%q}]}`, lsp.URI(c)), 1)
+	heard(t, log, watched(c, 3), 1)
+	// An open file found changed on disk is a change.
+	feed(e, ":e "+b+"<CR>")
+	change(t, b, "y\n")
+	e.Focus()
+	heard(t, log, watched(b, 2), 1)
 }

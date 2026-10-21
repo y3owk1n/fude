@@ -36,6 +36,11 @@ is optional.
 - `workspace_required = true` starts the server only when a root file is
   found, such as a linter's config.
 
+fude watches no files. A server hears of the files fude writes, of an
+open file fude finds changed when it comes back into focus, and of what
+the explorer renames, creates and deletes, and may edit files for a
+rename before it happens, as it does to update imports.
+
 A server whose program is not on PATH says so once, and fude does not try
 it again until `:lsp restart`.
 
