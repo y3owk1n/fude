@@ -62,7 +62,8 @@ it again until `:lsp restart`.
   on they show as you type. `<C-n>` and `<C-p>` select one and `<C-y>`
   takes it. With no menu, `<C-n>` and `<C-p>` complete the word from the
   open buffers' words. `<C-s>` shows the signature of the call being
-  typed.
+  typed. A server that formats as you type, such as after `}`, does so
+  as part of the insert's undo step.
 
 With several servers on a file, every one's diagnostics show, and
 hover, places, symbols, code actions and completions come from each server

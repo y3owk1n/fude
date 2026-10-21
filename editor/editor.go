@@ -625,6 +625,7 @@ func (e *Session) feed(k vim.Key) {
 	e.snippetAfter()
 	e.autocomplete(k)
 	e.signatureHelp(k)
+	e.formatTyped(k)
 	e.autocommand()
 }
 

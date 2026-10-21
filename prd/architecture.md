@@ -1730,6 +1730,16 @@ edits that fall inside the lines. The answer applies as one transaction on
 the text the request saw, so it is one timeline node. fude drops an answer
 for text that has changed since, and says so (B65).
 
+A key typed in insert mode that is the `firstTriggerCharacter` or one
+of the `moreTriggerCharacter` of the first server offering
+`documentOnTypeFormattingProvider`, with `<CR>` as a line break, asks it
+for `textDocument/onTypeFormatting` at the cursor once the key is done,
+so the server has heard of the character. The edits apply as one
+transaction of the session's origin on the text the request saw, and are
+dropped when it changed since. The kernel joins a transaction of an
+origin whose group is open to that group, so while insert mode lasts the
+edits are part of its undo step (B472).
+
 `grr`, `gri`, `grt` and `gO` are mapped while the current buffer has a
 server and removed when it has none (N3). `Machine.Unmap` also removes the
 prefixes only they used, so `gr` waits for nothing in a buffer without one

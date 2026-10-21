@@ -38,3 +38,17 @@ func TestB471SemanticTokens(t *testing.T) {
 	feed(e, "Ia<Esc>")
 	settle(t, e, function(3))
 }
+
+// B472
+func TestB472FormatOnType(t *testing.T) {
+	t.Setenv("FUDE_FAKE_OFFER", "ontype")
+	e, log := withServer(t, "\n", "utf-8")
+	heard(t, log, `"method":"initialized"`, 1)
+	feed(e, "ix;")
+	settle(t, e, func() bool { return text(e) == "\tx;" })
+	// The edits are part of the insert's undo step.
+	feed(e, "y<Esc>u")
+	if got := text(e); got != "" {
+		t.Errorf("u after the insert left %q, want the text before it", got)
+	}
+}

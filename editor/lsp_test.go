@@ -49,8 +49,8 @@ import (
 // It offers more for each word of FUDE_FAKE_OFFER. With diagnostic, each
 // "worse" in a document is an error fude asks for, and so is each write,
 // after which it asks fude to ask again. With tokens, the first "call" on
-// a line is a function's semantic token. A whole text a change sends
-// becomes the document's.
+// a line is a function's semantic token. With ontype, a ; typed puts a tab
+// before its line. A whole text a change sends becomes the document's.
 func TestFakeServer(t *testing.T) {
 	if os.Getenv("FUDE_FAKE_LSP") == "" {
 		return
@@ -325,6 +325,9 @@ func TestFakeServer(t *testing.T) {
 				ds = append(ds, map[string]any{"range": span(0, 0, 0), "severity": 1, "message": "written"})
 			}
 			reply(m.ID, map[string]any{"kind": "full", "items": ds})
+		case "textDocument/onTypeFormatting":
+			line := m.Params.Position.Line
+			reply(m.ID, []any{map[string]any{"range": span(line, 0, 0), "newText": "\t"}})
 		case "textDocument/semanticTokens/full":
 			// Each token's line and start count from the one before.
 			var data []int
@@ -349,6 +352,7 @@ func TestFakeServer(t *testing.T) {
 			// What each word of FUDE_FAKE_OFFER adds to what it offers.
 			more := map[string]map[string]any{
 				"diagnostic": {"diagnosticProvider": map[string]any{}},
+				"ontype":     {"documentOnTypeFormattingProvider": map[string]any{"firstTriggerCharacter": ";"}},
 				"tokens":     {"semanticTokensProvider": map[string]any{"full": true, "legend": map[string]any{"tokenTypes": []string{"variable", "function"}, "tokenModifiers": []string{}}}},
 			}
 			caps := map[string]any{

@@ -1879,6 +1879,11 @@ Where fude departs, the line says so and cites the departure in
   one timeline node. A formatter formats the whole file, and fude applies
   only its changes inside the lines. When nothing formats the file, `gq`
   fills its lines as prose (B451).
+- B472 [5] In insert mode, typing a character that the first server
+  formatting as text is typed names as a trigger, such as `}` or a line
+  break, formats around it as the server says, when the text has not
+  changed since. The formatting is part of the insert's undo step. fude
+  does this whenever a server offers it, where Neovim waits to be asked.
 - B451 [5] `gq` on a file nothing formats fills each paragraph of its
   lines to `text_width`, or 79 columns when that is 0. Blank lines and
   list items start paragraphs, each line keeps its paragraph's indent and
