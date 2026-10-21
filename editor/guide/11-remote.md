@@ -103,9 +103,10 @@ own changes. `:restart` drops every client, which must attach again.
 ## Proposals
 
 A client may send an edit as a proposal instead of making it. A proposal
-shows in the text as ghost text and changes nothing until accepted. An
-agent that writes a change across a file, or several, proposes each part
-of it with `propose`, and each part is a proposal of its own.
+shows in the text as ghost text and changes nothing until accepted. A
+tool that writes a change across a file, or several, such as a
+refactoring script, proposes each part of it with `propose`, and each
+part is a proposal of its own.
 
 - `:accept` applies the buffer's newest proposal, and `:accept 3`
   proposal 3, as one change on the timeline. `:accept 3 4 5` applies

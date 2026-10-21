@@ -65,7 +65,8 @@ not move. Accepting makes one timeline node and rejecting leaves none
 (B70 to B72). If the user edits elsewhere first, the proposal follows the
 text. If the user's edit overlaps it, the proposal is marked stale (B74).
 
-An agent that writes a file's new text proposes its hunks instead:
+A tool that writes a file's new text, such as a codemod, proposes its
+hunks instead:
 
 ```json
 {"method": "propose", "params": {"edits": [
@@ -75,5 +76,5 @@ An agent that writes a file's new text proposes its hunks instead:
 ```
 
 `:review` lists both as the lines they change. The user accepts the first
-with `a` and rejects the second with `r`, and the agent hears what became
+with `a` and rejects the second with `r`, and the tool hears what became
 of each (B387 to B391).

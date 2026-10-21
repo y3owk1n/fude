@@ -141,7 +141,7 @@ func render(s api.Scope, ps []api.Proposal) (string, []api.Span, []int) {
 			add("", "", 0)
 		}
 		name := buf.Name
-		// A path an agent gave whole shows from the working directory.
+		// A path a client gave whole shows from the working directory.
 		if rel, err := filepath.Rel(s.About["cwd"], name); filepath.IsAbs(name) && err == nil && !strings.HasPrefix(rel, "..") {
 			name = rel
 		}
