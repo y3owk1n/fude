@@ -17,8 +17,9 @@ type Module interface {
 	// Init runs before any other call, and may register and subscribe.
 	Init(ctx context.Context, s Scope) (Result, error)
 	// Call runs what it registered as id, on the input path, with the
-	// arguments its kind takes. It returns ErrBusy instead of waiting for a
-	// call that runs.
+	// arguments its kind takes. It may wait briefly for a call that runs,
+	// as a plugin's waits at most half its budget, and returns ErrBusy
+	// instead of waiting longer.
 	Call(ctx context.Context, id uint32, s Scope, args ...int) (Result, error)
 	// Event tells it of an event it subscribed to, with the event's detail
 	// after its name.
@@ -32,7 +33,7 @@ type Module interface {
 }
 
 // ErrBusy is what Call returns while another call runs, such as an event
-// handler. The input path never waits for one.
+// handler, that it cannot wait for. The input path never waits long.
 var ErrBusy = errors.New("is busy")
 
 // Kind is what a module registers.

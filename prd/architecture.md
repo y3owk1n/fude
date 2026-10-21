@@ -265,9 +265,11 @@ runs it (B244). A plugin that changes what sessions share declares
 
 A call on the input path that runs over budget cancels the command, stops
 the plugin, and tells the user (B51). The keystroke never waits longer than
-the budget. A plugin runs one call at a time, and a key whose plugin is
-busy with an event handler says the plugin is busy instead of waiting
-(B57).
+the budget. A plugin runs one call at a time. A key whose plugin is busy
+with an event handler waits at most half its budget, then runs in what is
+left. So a key typed while a short handler runs still works. After half
+its budget, the key says the plugin is busy (B57). `fude tail` shows the
+wait.
 The editor times a Go module's calls and traces them. It cannot stop one
 as it stops a plugin, so a module keeps its calls on the input path short.
 

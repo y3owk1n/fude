@@ -1122,8 +1122,9 @@ Where fude departs, the line says so and cites the departure in
 - B386 [4] A plugin reads the time of day.
 - B57 [4] A plugin hears the events it subscribes to off the input path,
   with the text they are about. One that falls behind hears the newest
-  state once, not every step, and a key that needs a plugin busy with an
-  event says so instead of waiting.
+  state once, not every step. A key that needs a plugin busy with an
+  event waits for it at most half the key's budget, and says the plugin
+  is busy if it is still busy then.
 - B47 [4] A plugin with `fs.read` reads files in the project, the
   directory fude started in, and no file outside it.
 - B48 [4] A plugin with `process` runs the programs its `[[plugin]]` table

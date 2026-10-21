@@ -16,7 +16,6 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/tetratelabs/wazero"
@@ -65,7 +64,7 @@ type Plugin struct {
 	trace func(text string, took time.Duration)
 	root  string // the project: the directory fude started in
 
-	mu      sync.Mutex
+	turn    chan struct{} // held by the call running, as calls take turns
 	cache   wazero.CompilationCache
 	runtime wazero.Runtime
 	mod     api.Module
@@ -112,7 +111,7 @@ func Load(ctx context.Context, path string, g Grants, cacheDir string, log func(
 	if err != nil {
 		return nil, fmt.Errorf("load plugin: %w", err)
 	}
-	p := &Plugin{name: strings.TrimSuffix(filepath.Base(path), ".wasm"), Grants: g, log: log, trace: trace, root: root, jobs: make(chan struct{}, maxJobs), fed: make(chan struct{}, maxFed)}
+	p := &Plugin{name: strings.TrimSuffix(filepath.Base(path), ".wasm"), Grants: g, log: log, trace: trace, root: root, turn: make(chan struct{}, 1), jobs: make(chan struct{}, maxJobs), fed: make(chan struct{}, maxFed)}
 	if p.cache, err = wazero.NewCompilationCacheWithDir(cacheDir); err != nil {
 		return nil, fmt.Errorf("plugin cache: %w", err)
 	}
@@ -161,8 +160,8 @@ func (p *Plugin) Subscribed() []string { return p.subscribed }
 // setup, then its init, each when it exports one, together under
 // InitBudget. Both may register and subscribe.
 func (p *Plugin) Init(ctx context.Context, s fude.Scope) (fude.Result, error) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+	p.turn <- struct{}{}
+	defer func() { <-p.turn }()
 	ctx, cancel := context.WithTimeout(ctx, InitBudget)
 	defer cancel()
 	// The plugin's own options read as they start while its init defines
@@ -207,20 +206,31 @@ func (p *Plugin) Close(ctx context.Context) error {
 // Call runs what the plugin registered as id through its export call(id,
 // a, b, c) i64, under InputBudget, reading s. The arguments a kind does not
 // take are 0, and an object's export returns start<<32|end, or a negative
-// number for none. It returns api.ErrBusy instead of waiting for a call
-// already running. A call that traps or runs past its budget returns an
-// error, and nothing it asked for happens.
+// number for none. It waits for a call already running for at most half
+// its budget, runs in what is left, and returns api.ErrBusy once that half
+// passes, so a key never waits past its budget (B57). A call that traps or
+// runs past its budget returns an error, and nothing it asked for happens.
 func (p *Plugin) Call(ctx context.Context, id uint32, s fude.Scope, args ...int) (fude.Result, error) {
-	if !p.mu.TryLock() {
-		return fude.Result{}, fmt.Errorf("plugin %s %w", p.name, fude.ErrBusy)
+	at := time.Now()
+	select {
+	case p.turn <- struct{}{}:
+	default:
+		p.trace(p.name+" waits for the call running", 0)
+		wait := time.NewTimer(InputBudget / 2)
+		defer wait.Stop()
+		select {
+		case p.turn <- struct{}{}:
+		case <-wait.C:
+			return fude.Result{}, fmt.Errorf("plugin %s %w", p.name, fude.ErrBusy)
+		}
 	}
-	defer p.mu.Unlock()
+	defer func() { <-p.turn }()
 	full := make([]uint64, 4)
 	full[0] = uint64(id)
 	for i, a := range args {
 		full[i+1] = uint64(a)
 	}
-	res, out, err := p.run(ctx, "call", s, InputBudget, full...)
+	res, out, err := p.run(ctx, "call", s, InputBudget-time.Since(at), full...)
 	if err == nil && len(out) > 0 && int64(out[0]) >= 0 && slices.ContainsFunc(p.registered, func(r fude.Registration) bool { return r.ID == id && r.Kind == fude.Object }) {
 		res.Selected = &[2]int{int(out[0] >> 32), int(uint32(out[0]))}
 	}
@@ -230,8 +240,8 @@ func (p *Plugin) Call(ctx context.Context, id uint32, s fude.Scope, args ...int)
 // Callback runs the plugin's callback export with id, reading s, under
 // EventBudget. It waits for a call already running.
 func (p *Plugin) Callback(ctx context.Context, id uint32, s fude.Scope) (fude.Result, error) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+	p.turn <- struct{}{}
+	defer func() { <-p.turn }()
 	res, _, err := p.run(ctx, "callback", s, EventBudget, uint64(id))
 	return res, err
 }
@@ -239,8 +249,8 @@ func (p *Plugin) Callback(ctx context.Context, id uint32, s fude.Scope) (fude.Re
 // Event runs the plugin's on_event with the event's name, written into its
 // memory, reading s, under EventBudget (B57).
 func (p *Plugin) Event(ctx context.Context, name string, s fude.Scope) (fude.Result, error) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+	p.turn <- struct{}{}
+	defer func() { <-p.turn }()
 	ctx, cancel := context.WithTimeout(ctx, EventBudget)
 	defer cancel()
 	out, err := p.mod.ExportedFunction("alloc").Call(ctx, uint64(len(name)))

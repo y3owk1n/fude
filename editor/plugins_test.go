@@ -95,7 +95,8 @@ func TestB57Events(t *testing.T) {
 	// It hears an event it emits under its own name.
 	feed(e, "gZ")
 	settle(t, e, func() bool { return strings.Contains(fudeLog(), "listen: listen.ping") })
-	// While it handles an event, its key says it is busy instead of waiting.
+	// While it handles an event longer than half a key's budget, its key
+	// says it is busy.
 	// The loop hands it the event once the work queued before it has run.
 	// Its log shows it began, and it then loops until its budget runs out.
 	feed(e, "A!<Esc>")
