@@ -397,7 +397,7 @@ func (e *Session) ownKeys() keymap {
 	add("normal", defaultMaps)
 	add("visual", map[string]string{"s": "<Plug>(jump.start)"})
 	for _, k := range e.moduleKeys() {
-		if !k.attached || e.lspKeys {
+		if e.keyOn(k) {
 			add(k.table, map[string]string{k.keys: k.plug})
 		}
 	}

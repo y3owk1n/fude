@@ -11,6 +11,7 @@ import (
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/editor/editortest"
 	diffmod "github.com/y3owk1n/fude/modules/diff"
+	"github.com/y3owk1n/fude/modules/hints"
 	"github.com/y3owk1n/fude/wire"
 )
 
@@ -200,6 +201,17 @@ func TestB525GetAndPut(t *testing.T) {
 	}
 	editortest.Feed(e, ":diffget c<CR>")
 	editortest.Settle(t, e, func() bool { return editortest.Text(e) == "c" })
+	// do and dp are keys only in diff mode, so elsewhere d offers the
+	// motions.
+	e.Use(hints.New())
+	offers := func(help string) bool { f, ok := e.Menu(); return ok && strings.Contains(f.Text, help) }
+	editortest.Feed(e, "d")
+	editortest.Settle(t, e, func() bool { return offers("takes the other") })
+	editortest.Feed(e, "<Esc>:diffoff!<CR>d")
+	editortest.Settle(t, e, func() bool { return offers("goes to the end of the line") })
+	if offers("takes the other") {
+		t.Error("d outside diff mode offers do")
+	}
 }
 
 // B526

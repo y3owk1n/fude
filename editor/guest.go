@@ -161,7 +161,7 @@ func (e *Session) use(own Own) {
 // (B254, B292).
 func (e *Session) moveModuleKeys(from, to string) {
 	for _, k := range e.moduleKeys() {
-		if !leaderKey.MatchString(k.keys) || e.configures(k.table, k.keys) || k.attached && !e.lspKeys {
+		if !leaderKey.MatchString(k.keys) || e.configures(k.table, k.keys) || !e.keyOn(k) {
 			continue
 		}
 		m, mode := e.table(k.table)

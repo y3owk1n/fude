@@ -311,16 +311,18 @@ func (e *Editor) published(s *server, b *buffer, params json.RawMessage) {
 }
 
 // syncKeys maps the attached keys while the current buffer has a language
-// server and removes them otherwise, so gr waits for nothing without one.
+// server and the bound keys while the current window is bound, and removes
+// them otherwise, so gr and d wait for nothing they cannot run.
 func (e *Session) syncKeys() {
-	want := len(e.win.buf.servers) > 0
-	if want == e.lspKeys {
+	attached, bound := len(e.win.buf.servers) > 0, e.win.bound
+	wasAttached, wasBound := e.lspKeys, e.boundKeys
+	if attached == wasAttached && bound == wasBound {
 		return
 	}
-	e.lspKeys = want
+	e.lspKeys, e.boundKeys = attached, bound
 	for _, k := range e.moduleKeys() {
-		if k.attached {
-			e.mapKey(k, want)
+		if k.attached && attached != wasAttached || k.bound && bound != wasBound {
+			e.mapKey(k, true)
 		}
 	}
 }

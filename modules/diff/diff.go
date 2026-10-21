@@ -59,8 +59,8 @@ func (m *Module) Registered() []api.Registration {
 		{Kind: api.Command, Name: "diffput", Short: []string{"diffpu"}, Args: "[buffer]", Help: "gives the other buffer the lines of the changes in the range", ID: put},
 		{Kind: api.Plug, Name: "next", Keys: "]c", Help: "goes to the start of the next change", ID: next},
 		{Kind: api.Plug, Name: "prev", Keys: "[c", Help: "goes to the start of the change before", ID: prev},
-		{Kind: api.Plug, Name: "get", Keys: "do", Help: "takes the other buffer's lines of the change at the cursor, or buffer n's", ID: get},
-		{Kind: api.Plug, Name: "put", Keys: "dp", Help: "gives the other buffer the lines of the change at the cursor, or buffer n", ID: put},
+		{Kind: api.Plug, Name: "get", Keys: "do", Help: "takes the other buffer's lines of the change at the cursor, or buffer n's", ID: get, Bound: true},
+		{Kind: api.Plug, Name: "put", Keys: "dp", Help: "gives the other buffer the lines of the change at the cursor, or buffer n", ID: put, Bound: true},
 	}
 }
 

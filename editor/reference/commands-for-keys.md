@@ -245,8 +245,8 @@ cursor's line, or to the first change when n is past it, as
 with the other buffer's lines of it, as `:diffget` does. A change with no
 lines here is on the line below its fill. With more than two buffers in
 diff mode, n is the number of the buffer to take from, as `3do` takes
-buffer 3's. `d` waits for the key after it, so `dw` and `dd` still
-delete.
+buffer 3's. `do` is a key only in a window in diff mode, and there `d`
+waits for the key after it, so `dw` and `dd` still delete.
 
 ## <Plug>(diff.put)
 

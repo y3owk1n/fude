@@ -1249,8 +1249,9 @@ Where fude departs, the line says so and cites the departure in
   in Neovim. A change with no lines here is on the line below its rows of
   `-`, or on the last line at the end. With more than two buffers in diff
   mode, a count or an argument names the other buffer, by its number or
-  part of its name, or the message says to name one. `d` followed by any
-  other key is still the operator.
+  part of its name, or the message says to name one. `do` and `dp` are
+  keys only in a window in diff mode, and `d` followed by any other key is
+  still the operator.
 - B526 [2] `fude -d a b` opens the files side by side in that order, the
   first one current, each window in diff mode, so `git difftool` can run
   fude. It takes any number of files.

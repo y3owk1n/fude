@@ -610,10 +610,12 @@ func (e *Session) windowAction(a api.WindowAction) error {
 		if !w.bound {
 			w.bound, w.wrapped, w.opts.Wrap = true, w.opts.Wrap, false
 		}
+		e.syncKeys()
 	case "unbind":
 		if w.bound {
 			w.bound, w.opts.Wrap, w.fill = false, w.wrapped, 0
 		}
+		e.syncKeys()
 	default:
 		return fmt.Errorf("no window action %q", a.Do)
 	}
@@ -1667,7 +1669,7 @@ func (e *Session) showPick(p api.Module, b *buffer, pk *api.Pick, save *saving) 
 // while the current buffer has a language server (B327).
 type moduleKey struct {
 	table, keys, plug string
-	attached          bool
+	attached, bound   bool
 }
 
 // keysOf are the keys r maps to p's plug, a Key's own or a Plug's Keys.
@@ -1683,11 +1685,11 @@ func keysOf(p api.Module, r api.Registration) []moduleKey {
 	}
 	plug := "<Plug>(" + p.Name() + "." + r.Name + ")"
 	if r.In != "" {
-		return []moduleKey{{r.In, keys, plug, r.Attached}}
+		return []moduleKey{{r.In, keys, plug, r.Attached, r.Bound}}
 	}
-	out := []moduleKey{{"normal", keys, plug, r.Attached}}
+	out := []moduleKey{{"normal", keys, plug, r.Attached, r.Bound}}
 	if r.Visual {
-		out = append(out, moduleKey{"visual", keys, plug, r.Attached})
+		out = append(out, moduleKey{"visual", keys, plug, r.Attached, r.Bound})
 	}
 	return out
 }
@@ -1703,20 +1705,25 @@ func (e *Session) moduleKeys() []moduleKey {
 	return out
 }
 
-// mapKey maps k, or takes it away with on false or while it is attached
-// and the buffer has no server. A key the session's [keymap] table maps
-// stays as the table has it (B327).
+// mapKey maps k, or takes it away with on false or while it is off. A key
+// the session's [keymap] table maps stays as the table has it (B327).
 func (e *Session) mapKey(k moduleKey, on bool) {
 	if e.configures(k.table, k.keys) {
 		return
 	}
 	m, mode := e.table(k.table)
 	keys := withLeader(k.keys, e.leader)
-	if on && (!k.attached || e.lspKeys) {
+	if on && e.keyOn(k) {
 		m.Map(mode, keys, k.plug)
 	} else {
 		m.Unmap(mode, keys)
 	}
+}
+
+// keyOn reports whether k is mapped now: an attached key while the buffer
+// has a server, and a bound key while the window is bound.
+func (e *Session) keyOn(k moduleKey) bool {
+	return (!k.attached || e.lspKeys) && (!k.bound || e.boundKeys)
 }
 
 // none is no marks, as a scope off the loop has (B329).

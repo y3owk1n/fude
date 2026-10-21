@@ -116,6 +116,7 @@ type Session struct {
 	menu        cursorMenu              // a menu at the cursor, such as code actions'
 	completion  completion              // the completions shown while typing
 	lspKeys     bool                    // the attached keys are mapped
+	boundKeys   bool                    // the bound keys are mapped
 	later       []vim.Key               // keys to feed once the key being fed is done
 	pick        *pick                   // the code actions shown to choose from
 	finder      *finder                 // the file finder, while it shows

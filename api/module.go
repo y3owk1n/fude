@@ -104,6 +104,9 @@ type Registration struct {
 	// Attached maps a Key, or a Plug's Keys, only while a language server
 	// is attached to the buffer, so the key is free without one (N3).
 	Attached bool
+	// Bound maps a Key, or a Plug's Keys, only while the current window
+	// scrolls with others, as windows in diff mode do (B523).
+	Bound bool
 	// Enters makes a Key or a Plug run while a float shows move the cursor
 	// into the float instead, as K does on hover (B62).
 	Enters bool
