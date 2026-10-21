@@ -354,6 +354,13 @@ func (c *Client) send(m func(enc string) any) {
 	}
 }
 
+// tokenTypes are the semantic token types the protocol names.
+var tokenTypes = []string{
+	"namespace", "type", "class", "enum", "interface", "struct", "typeParameter", "parameter", "variable", "property",
+	"enumMember", "event", "function", "method", "macro", "keyword", "modifier", "comment", "string", "number",
+	"regexp", "operator", "decorator",
+}
+
 // answer is what the server said to initialize.
 type answer struct {
 	encoding string
@@ -370,9 +377,13 @@ func (c *Client) write(root string, options any, initialized <-chan answer, noti
 		"capabilities": map[string]any{
 			"general": map[string]any{"positionEncodings": []string{"utf-8", "utf-16"}},
 			"textDocument": map[string]any{
-				"completion":      map[string]any{"completionItem": map[string]any{"snippetSupport": true}},
-				"diagnostic":      map[string]any{},
-				"inlayHint":       map[string]any{},
+				"completion": map[string]any{"completionItem": map[string]any{"snippetSupport": true}},
+				"diagnostic": map[string]any{},
+				"inlayHint":  map[string]any{},
+				"semanticTokens": map[string]any{
+					"requests": map[string]any{"full": true}, "formats": []string{"relative"},
+					"tokenTypes": tokenTypes, "tokenModifiers": []string{},
+				},
 				"synchronization": map[string]any{"didSave": true},
 				"declaration":     map[string]any{"linkSupport": true},
 
@@ -384,8 +395,9 @@ func (c *Client) write(root string, options any, initialized <-chan answer, noti
 			"window": map[string]any{"workDoneProgress": true},
 			"workspace": map[string]any{
 				"configuration": true, "didChangeConfiguration": map[string]any{},
-				"codeLens":    map[string]any{"refreshSupport": true},
-				"diagnostics": map[string]any{"refreshSupport": true},
+				"codeLens":       map[string]any{"refreshSupport": true},
+				"diagnostics":    map[string]any{"refreshSupport": true},
+				"semanticTokens": map[string]any{"refreshSupport": true},
 			},
 		},
 	}

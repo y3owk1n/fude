@@ -48,7 +48,8 @@ import (
 //
 // It offers more for each word of FUDE_FAKE_OFFER. With diagnostic, each
 // "worse" in a document is an error fude asks for, and so is each write,
-// after which it asks fude to ask again. A whole text a change sends
+// after which it asks fude to ask again. With tokens, the first "call" on
+// a line is a function's semantic token. A whole text a change sends
 // becomes the document's.
 func TestFakeServer(t *testing.T) {
 	if os.Getenv("FUDE_FAKE_LSP") == "" {
@@ -324,6 +325,21 @@ func TestFakeServer(t *testing.T) {
 				ds = append(ds, map[string]any{"range": span(0, 0, 0), "severity": 1, "message": "written"})
 			}
 			reply(m.ID, map[string]any{"kind": "full", "items": ds})
+		case "textDocument/semanticTokens/full":
+			// Each token's line and start count from the one before.
+			var data []int
+			prevLine, prevAt := 0, 0
+			for line, l := range strings.Split(opened[m.Params.TextDocument.URI], "\n") {
+				if at := strings.Index(l, "call"); at >= 0 {
+					col := at
+					if line == prevLine {
+						col -= prevAt
+					}
+					data = append(data, line-prevLine, col, 4, 1, 0)
+					prevLine, prevAt = line, at
+				}
+			}
+			reply(m.ID, map[string]any{"data": data})
 		case "textDocument/didSave":
 			saves++
 			if slices.Contains(offers, "diagnostic") {
@@ -333,6 +349,7 @@ func TestFakeServer(t *testing.T) {
 			// What each word of FUDE_FAKE_OFFER adds to what it offers.
 			more := map[string]map[string]any{
 				"diagnostic": {"diagnosticProvider": map[string]any{}},
+				"tokens":     {"semanticTokensProvider": map[string]any{"full": true, "legend": map[string]any{"tokenTypes": []string{"variable", "function"}, "tokenModifiers": []string{}}}},
 			}
 			caps := map[string]any{
 				"positionEncoding": os.Getenv("FUDE_FAKE_ENCODING"), "textDocumentSync": json.RawMessage(cmp.Or(os.Getenv("FUDE_FAKE_SYNC"), "2")), "documentFormattingProvider": true, "completionProvider": map[string]any{"triggerCharacters": []string{"."}, "resolveProvider": true},

@@ -151,6 +151,7 @@ func (e *Session) attachTo(b *buffer, name string) error {
 	})
 	s.client.Open(lsp.URI(b.file.path), languageID(e.filetype(b)), b.text.Snapshot())
 	e.askDiagnostics(s, b)
+	e.askTokens(b)
 	return nil
 }
 
@@ -281,6 +282,7 @@ func (e *Session) notified(s *server, method string, params json.RawMessage) {
 		for _, b := range s.bufs {
 			e.emit("lsp.attached", s.name, b)
 			e.askDiagnostics(s, b)
+			e.askTokens(b)
 		}
 		return
 	}
@@ -451,8 +453,9 @@ func (e *Session) workspaceEdit(s *server, from *buffer, t kernel.Snapshot, res 
 // served answers a request from s. workspace/applyEdit applies its edit, as
 // a code action's command asks, and workspace/configuration gets the
 // sections of s's settings that the request names (B168). A refresh is an
-// lsp.refresh event, and workspace/diagnostic/refresh asks for its buffers'
-// diagnostics again (B470). Other requests get an empty answer, as fude
+// lsp.refresh event, and workspace/diagnostic/refresh and
+// workspace/semanticTokens/refresh ask for its buffers' diagnostics and
+// tokens again (B470, B471). Other requests get an empty answer, as fude
 // offers nothing else.
 func (e *Session) served(s *server, method string, params json.RawMessage) any {
 	if method == "workspace/configuration" {
@@ -472,8 +475,11 @@ func (e *Session) served(s *server, method string, params json.RawMessage) any {
 	// the modules of its buffers (B463).
 	if what, ok := strings.CutSuffix(strings.TrimPrefix(method, "workspace/"), "/refresh"); ok {
 		for _, b := range s.bufs {
-			if what == "diagnostic" {
+			switch what {
+			case "diagnostic":
 				e.askDiagnostics(s, b)
+			case "semanticTokens":
+				e.askTokens(b)
 			}
 			e.emit("lsp.refresh", what, b)
 		}

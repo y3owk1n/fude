@@ -1639,6 +1639,22 @@ so pulled and published diagnostics draw the same way, and an unchanged
 one keeps what shows. `workspace/diagnostic/refresh` asks again for each
 of the server's buffers (B470).
 
+A server's semantic tokens are not decorations, which every frame walks
+all of, but highlights the buffer keeps by where they start, from the
+first server that offers `semanticTokensProvider`. fude asks for
+`textDocument/semanticTokens/full` once the server starts and after each
+change, one request at a time, and drops an answer for text that changed
+since for the next one. A change moves the tokens after it and drops
+those it made longer or shorter, so they stay on their text until the
+answer. A frame finds the window's tokens by binary search and draws them
+after the syntax's spans, so they paint over them. Each token type is
+named as Neovim links its `@lsp.type` group, function as `function`,
+method as `function.method` and parameter as `variable.parameter`, and
+the theme colours a dotted name it lacks as the name before its last dot.
+A name the theme has no colour for, such as `variable`, leaves the
+syntax's colour. fude asks for whole documents, not deltas, and draws no
+modifiers (B471).
+
 A request carries an id the loop keeps with the code that handles the
 answer, and the answer comes back through the editor's queue, so a key that
 asks a server returns at once. `<C-]>` jumps to the first location the

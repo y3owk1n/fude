@@ -70,6 +70,7 @@ type buffer struct {
 	signs   int               // plugins' signs on it, which show a sign column too
 	picture string            // the image file it shows, when it is one (B304)
 	inlines int               // decorations that show text in its lines
+	tokens  tokens            // a language server's semantic tokens (B471)
 	listed  string            // the directory an explorer lists, "" for any other buffer
 	entries []entry           // an explorer's names as it read them
 	touched [2]int            // the text the last change made, as it is after it

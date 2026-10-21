@@ -538,6 +538,8 @@ func (l heard) Changed(before kernel.Snapshot, edits []kernel.Edit) {
 		s.client.Change(lsp.URI(l.b.file.path), s.versions[l.b], before, out)
 		l.ed.askDiagnostics(s, l.b)
 	}
+	l.b.moveTokens(edits)
+	l.ed.askTokens(l.b)
 }
 
 // feedLater feeds the keys queued while a key or a module's result was

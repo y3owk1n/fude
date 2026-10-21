@@ -1905,6 +1905,13 @@ Where fude departs, the line says so and cites the departure in
 - B209 [5] With `colours.enabled` on, the colours a language server
   reports for a buffer show as B208's do, and the server is asked again
   after each change.
+- B471 [5] The semantic tokens of the first server that offers them
+  colour a file's text over its syntax highlights, each token in the
+  colour the syntax gives the same kind of text, such as a function's or
+  a type's, as Neovim links its `@lsp.type` groups. A kind the theme has
+  no colour for, such as a variable, keeps the syntax's. fude asks again
+  after each change and when the server asks, and the tokens move with
+  the text until it answers.
 - B216 [5] With `inlay.enabled` on, as it is unless set off, the inlay
   hints a language server gives for a buffer show among its text, dim on
   the surface colour, before the character they are at, with the padding
