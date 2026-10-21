@@ -1309,7 +1309,15 @@ callback runs once, after its delay. A job is a program or a get with no
 budget, which `Plugin.Work` runs through the same checks as `run` and
 `http_get`, at most 8 at once for a plugin. fude runs a stream job's
 callback with each line its program prints, as it prints it, and once more
-at its end with `done` true (B339). Its callback reads `output`,
+at its end with `done` true (B339). A `Fed` stream job's program keeps
+its stdin open. The editor keeps each running stream job on its
+listener. It hands the text of each `Send` to the job's `Work` on
+`Job.Feed`, from a goroutine that waits for the one before. So the text
+keeps its order, and the loop never waits on a program that does not
+read. A `Send` with
+`Stop` cancels the job's own context. A plugin's fed programs take none of
+its 8 job slots but 8 of their own, and one more fails at once, as a slot
+may never free (B385). Its callback reads `output`,
 and `error` when it failed, from its `context`. Each callback runs under
 the event budget, about the buffer the call that asked was about, and not
 at all once that buffer closes. Unloading the plugin cancels its

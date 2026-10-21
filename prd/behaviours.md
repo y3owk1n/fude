@@ -1247,6 +1247,12 @@ Where fude departs, the line says so and cites the departure in
 - B339 [4] A plugin's job may stream a program's output. Its callback
   runs with each line as the program prints it, then once more when the
   program ends, with any error.
+- B385 [4] A module, or a plugin with `process`, may keep a stream job's
+  input open and send it text while it runs. The text reaches the program
+  in the order the module sent it, and the editor never waits for the
+  program to read it. The module may end a stream job it started. A
+  plugin may talk to 8 programs at once beside its other jobs, which they
+  never hold up. fude refuses one more and says why.
 - B340 [4] A module reads the session's windows, each with its id, its
   buffer, its cursor, its top line and where it is on the screen, and
   what visual mode selects. Every call and event says where the cursor is

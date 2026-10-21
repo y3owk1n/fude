@@ -35,6 +35,10 @@ const (
 // maxJobs is how many of a plugin's jobs run at once. One more waits.
 const maxJobs = 8
 
+// maxFed is how many programs a plugin talks to run at once, outside its
+// jobs. Work refuses one more, as none of them may end soon (B385).
+const maxFed = 8
+
 // memoryPages is the most memory a plugin may grow to, 64MB.
 const memoryPages = 1024
 
@@ -67,6 +71,7 @@ type Plugin struct {
 	mod     api.Module
 	call    *call         // the call running now
 	jobs    chan struct{} // a slot for each job running
+	fed     chan struct{} // a slot for each program it talks to running
 }
 
 // call holds what one call into a plugin reads and what it asks for.
@@ -107,7 +112,7 @@ func Load(ctx context.Context, path string, g Grants, cacheDir string, log func(
 	if err != nil {
 		return nil, fmt.Errorf("load plugin: %w", err)
 	}
-	p := &Plugin{name: strings.TrimSuffix(filepath.Base(path), ".wasm"), Grants: g, log: log, trace: trace, root: root, jobs: make(chan struct{}, maxJobs)}
+	p := &Plugin{name: strings.TrimSuffix(filepath.Base(path), ".wasm"), Grants: g, log: log, trace: trace, root: root, jobs: make(chan struct{}, maxJobs), fed: make(chan struct{}, maxFed)}
 	if p.cache, err = wazero.NewCompilationCacheWithDir(cacheDir); err != nil {
 		return nil, fmt.Errorf("plugin cache: %w", err)
 	}
@@ -468,7 +473,7 @@ func (p *Plugin) program(ctx context.Context, argv []string, input string) (stri
 
 // stream runs argv as program does, and hands emit each line it prints as
 // it prints it (B339).
-func (p *Plugin) stream(ctx context.Context, argv []string, input string, emit func(string)) error {
+func (p *Plugin) stream(ctx context.Context, argv []string, input string, emit func(string), feed <-chan string) error {
 	cmd, err := p.command(ctx, argv, input)
 	if err != nil {
 		return err
@@ -477,18 +482,48 @@ func (p *Plugin) stream(ctx context.Context, argv []string, input string, emit f
 	if err != nil {
 		return fmt.Errorf("run %s: %w", argv[0], err)
 	}
+	var in io.WriteCloser
+	if feed != nil {
+		// feed writes input first, on the pipe that stays open.
+		cmd.Stdin = nil
+		if in, err = cmd.StdinPipe(); err != nil {
+			return fmt.Errorf("run %s: %w", argv[0], err)
+		}
+	}
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("run %s: %w", argv[0], err)
+	}
+	ended := make(chan struct{})
+	if in != nil {
+		go p.feed(argv[0], in, input, feed, ended)
 	}
 	lines := bufio.NewScanner(out)
 	lines.Buffer(nil, maxBody)
 	for lines.Scan() {
 		emit(lines.Text())
 	}
+	close(ended)
 	if err := errors.Join(lines.Err(), cmd.Wait()); err != nil {
 		return fmt.Errorf("run %s: %w", argv[0], err)
 	}
 	return nil
+}
+
+// feed writes input, then each text that comes on feed, on the input of
+// the program name until it ends (B385).
+func (p *Plugin) feed(name string, in io.Writer, input string, feed <-chan string, ended <-chan struct{}) {
+	text := input
+	for {
+		if _, err := io.WriteString(in, text); err != nil {
+			p.log(fmt.Sprintf("%s: write to %s: %v", p.name, name, err))
+			return
+		}
+		select {
+		case text = <-feed:
+		case <-ended:
+			return
+		}
+	}
 }
 
 // command is argv to run in the project, if the plugin declared the
@@ -509,8 +544,18 @@ func (p *Plugin) command(ctx context.Context, argv []string, input string) (*exe
 
 // Work does j, a program or a get, as run and http_get do but with no
 // budget, until it ends or ctx does. It calls j.Emit with each line a
-// stream's program prints. At most maxJobs run at once.
+// stream's program prints. At most maxJobs run at once, and maxFed
+// programs it talks to besides.
 func (p *Plugin) Work(ctx context.Context, j fude.Job) (string, error) {
+	if j.Fed {
+		select {
+		case p.fed <- struct{}{}:
+		default:
+			return "", fmt.Errorf("run %s: %d programs it talks to run already", j.Argv[0], maxFed)
+		}
+		defer func() { <-p.fed }()
+		return "", p.stream(ctx, j.Argv, j.Input, j.Emit, j.Feed)
+	}
 	select {
 	case p.jobs <- struct{}{}:
 	case <-ctx.Done():
@@ -519,7 +564,7 @@ func (p *Plugin) Work(ctx context.Context, j fude.Job) (string, error) {
 	defer func() { <-p.jobs }()
 	switch {
 	case j.Stream:
-		return "", p.stream(ctx, j.Argv, j.Input, j.Emit)
+		return "", p.stream(ctx, j.Argv, j.Input, j.Emit, j.Feed)
 	case j.URL != "":
 		body, err := p.get(ctx, j.URL)
 		return string(body), err

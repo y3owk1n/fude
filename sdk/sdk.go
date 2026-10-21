@@ -323,7 +323,37 @@ func keep(f func() bool, ask func(id uint32) error) error {
 // runs once more with done and the error it ended with. It needs process,
 // and name in the plugin's programs (B339).
 func Stream(f func(line string, done bool, err error), name string, args ...string) error {
-	return keep(func() bool {
+	_, err := stream(f, api.Job{Argv: append([]string{name}, args...), Stream: true})
+	return err
+}
+
+// Program is a program Spawn runs, whose input stays open.
+type Program struct{ id uint32 }
+
+// Spawn runs the program name with args as Stream does, with its input
+// open for Send. It takes none of the plugin's job slots, but at most 8
+// such programs run at once, and one more ends at once with an error. It
+// needs process, and name in the plugin's programs (B385).
+func Spawn(f func(line string, done bool, err error), name string, args ...string) (Program, error) {
+	id, err := stream(f, api.Job{Argv: append([]string{name}, args...), Stream: true, Fed: true})
+	return Program{id}, err
+}
+
+// Send writes text on the program's input.
+func (p Program) Send(text string) error {
+	return Do(api.Result{Send: []api.Send{{ID: p.id, Text: text}}})
+}
+
+// Stop kills the program, and its func runs once more with done and the
+// error of a killed program.
+func (p Program) Stop() error {
+	return Do(api.Result{Send: []api.Send{{ID: p.id, Stop: true}}})
+}
+
+// stream runs j, and f with each line its program prints, then once more
+// when it ends. It returns j's id.
+func stream(f func(line string, done bool, err error), j api.Job) (uint32, error) {
+	err := keep(func() bool {
 		if About("done") != "true" {
 			f(About("output"), false, nil)
 			return true
@@ -335,8 +365,10 @@ func Stream(f func(line string, done bool, err error), name string, args ...stri
 		f("", true, err)
 		return false
 	}, func(id uint32) error {
-		return Do(api.Result{Jobs: []api.Job{{ID: id, Argv: append([]string{name}, args...), Stream: true}}})
+		j.ID = id
+		return Do(api.Result{Jobs: []api.Job{j}})
 	})
+	return j.ID, err
 }
 
 // listeners are the functions On added, by event.

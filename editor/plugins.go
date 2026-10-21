@@ -680,6 +680,8 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 		l := e.listen(p)
 		// A stream's callbacks are about the buffer current as each line
 		// comes, and only its end counts for a write that waits (B291).
+		ctx := l.ctx
+		var st *stream
 		if j.Stream {
 			j.Emit = func(line string) {
 				e.queue <- func() {
@@ -688,6 +690,14 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 					}
 				}
 			}
+			st = &stream{}
+			st.ctx, st.stop = context.WithCancel(l.ctx)
+			ctx = st.ctx
+			if j.Fed {
+				st.feed = make(chan string)
+				j.Feed = st.feed
+			}
+			l.streams[j.ID] = st
 		}
 		e.working++
 		go func() {
@@ -695,7 +705,10 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 			task := fmt.Sprintf("%s #%d", cmp.Or(j.URL, strings.Join(j.Argv, " ")), j.ID)
 			trace.Record("job", p.Name()+" started "+task, 0)
 			at := time.Now()
-			out, err := p.Work(l.ctx, j)
+			out, err := p.Work(ctx, j)
+			if st != nil {
+				st.stop()
+			}
 			what := fmt.Sprintf("%s ran %s, %d bytes", p.Name(), task, len(out))
 			switch {
 			case j.URL != "":
@@ -716,12 +729,28 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 				about := b
 				if j.Stream {
 					about = e.win.buf
+					if l.streams[j.ID] == st {
+						delete(l.streams, j.ID)
+					}
 				}
 				if slices.Contains(e.modules, p) {
 					l.add(event{buf: about, id: j.ID, extra: extra, save: save, from: e})
 				}
 			}
 		}()
+	}
+	for _, sd := range res.Send {
+		st := e.listen(p).streams[sd.ID]
+		switch {
+		case st == nil:
+			logLine(fmt.Sprintf("%s: send to job #%d, which is not running", p.Name(), sd.ID))
+		case sd.Stop:
+			st.stop()
+		case st.feed == nil:
+			logLine(fmt.Sprintf("%s: send to job #%d, which takes no input", p.Name(), sd.ID))
+		default:
+			st.send(sd.Text)
+		}
 	}
 	for _, line := range res.Log {
 		logLine(line)

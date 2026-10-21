@@ -506,6 +506,22 @@ func TestB339PluginStreams(t *testing.T) {
 	settle(t, e, func() bool { return text(e) == "end|b|a|a" })
 }
 
+// B385
+func TestB385PluginTalksToAProgram(t *testing.T) {
+	useTable(t, "later", "programs = [\"cat\", \"echo\", \"sleep\"]\n", "buffer.write", "process")
+	e := opened(t, "f", "a\n")
+	feed(e, ":Talk<CR>")
+	settle(t, e, func() bool { return text(e) == "y|x|a" })
+	feed(e, ":Hush<CR>")
+	settle(t, e, func() bool { return text(e) == "end|y|x|a" })
+	// Eight programs it talks to hold up no job, and fude refuses a ninth.
+	feed(e, strings.Repeat(":Talk<CR>", 9)+":Jobs<CR>")
+	settle(t, e, func() bool {
+		s := text(e)
+		return strings.Count(s, "x|") == 9 && strings.Count(s, "end|") == 2 && strings.Contains(s, "hi\n")
+	})
+}
+
 // B340
 func TestB340PluginReadsWindowsAndSelection(t *testing.T) {
 	e := loaded(t, "full", "f", "abc\n", "buffer.read", "buffer.write")

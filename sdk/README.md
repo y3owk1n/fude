@@ -74,12 +74,12 @@ A call outside the plugin's capabilities fails with an error, and fude logs it.
 | `buffer.write` | `Edit` |
 | `ui` | `Decorate`, `Undecorate`, `Fold`, `Replace`, `Shade`, `Rows`, `Block`, `Decorations`, `Sign`, `SignUnder`, `Note`, `Status`, `Message`, `Float`, `Show`, `ShowStyled`, `Pick`, `Picker`, `Ask`, `Confirm`, `Jump`, `Open` |
 | `fs.read` | `ReadFile`, inside the folder fude started in |
-| `process` | `Run`, `Start`, `Pipe`, `Stream`, for the programs the plugin's table lists |
+| `process` | `Run`, `Start`, `Pipe`, `Stream`, `Spawn` and its program's `Send` and `Stop`, for the programs the plugin's table lists |
 | `net` | `Get`, `Fetch`, for the hosts the plugin's table lists |
 | `lsp` | `Request`, `RequestRange`, to the buffer's language servers |
 | `keys` | `Do` with `Keys`, which runs keys as typed |
 
-Edits, decorations and windows a call asks for apply together once it returns. `After`, `Start`, `Pipe`, `Stream`, `Fetch`, `Request`, `Pick`, `Ask`, `Confirm` and the ids `Callback` gives run their func later, off the input path, as an event runs.
+Edits, decorations and windows a call asks for apply together once it returns. `After`, `Start`, `Pipe`, `Stream`, `Spawn`, `Fetch`, `Request`, `Pick`, `Ask`, `Confirm` and the ids `Callback` gives run their func later, off the input path, as an event runs.
 
 A call on the input path, such as a key or an operator, has a time budget. fude stops a plugin that runs past it and tells the user.
 

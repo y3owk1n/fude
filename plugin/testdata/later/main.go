@@ -6,7 +6,9 @@
 // url gets the URL in the background and types its body. :Pick asks to
 // pick a fruit and types it, or none, and :Ask asks a name and types it, or
 // none. :Lines streams what printf prints, typing each line as it comes
-// and end once printf ends. Needs buffer.write, process, net and ui.
+// and end once printf ends. :Talk starts cat and sends it x and y, typing
+// each line it gives back and end once it ends, which :Hush makes it do.
+// Needs buffer.write, process, net and ui.
 package main
 
 import "github.com/y3owk1n/fude/sdk"
@@ -36,6 +38,18 @@ func init() {
 			sdk.Edit(0, 0, line+"|")
 		}, "printf", `a\nb\n`)
 	})
+	var cat sdk.Program
+	sdk.Command("Talk", "starts cat and sends it two lines", func(sdk.Call) {
+		cat, _ = sdk.Spawn(func(line string, done bool, _ error) {
+			if done {
+				line = "end"
+			}
+			sdk.Edit(0, 0, line+"|")
+		}, "cat")
+		cat.Send("x\n")
+		cat.Send("y\n")
+	})
+	sdk.Command("Hush", "stops cat", func(sdk.Call) { cat.Stop() })
 	sdk.Command("Jobs", "runs two programs in the background", func(sdk.Call) {
 		sdk.Start(func(out string, err error) { typed("slept"+out, err) }, "sleep", "0.1")
 		sdk.Start(typed, "echo", "hi")

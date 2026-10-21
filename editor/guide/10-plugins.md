@@ -102,7 +102,9 @@ starts it at 5, `:set wordcount.depth 4` changes it, and
 once, a number of milliseconds later, as an event runs. `sdk.Start` and `sdk.Fetch` run
 a program or get a URL in the background, with no budget, then run a
 function with the output. `sdk.Stream` runs a program and runs a
-function with each line it prints, as it prints it. `sdk.Request` asks the buffer's language
+function with each line it prints, as it prints it. `sdk.Spawn` does
+the same with the program's input kept open, which its `Send` writes to
+and its `Stop` ends. `sdk.Request` asks the buffer's language
 servers, at a position, and runs a function with the answer.
 
 The rest of the sdk reaches fude, each function behind its capability.

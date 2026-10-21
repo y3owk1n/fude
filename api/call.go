@@ -75,6 +75,7 @@ type Result struct {
 	Menu       *Menu          // a menu at the cursor, numbered, with what each item does beside it
 	Timers     []Timer        // the callbacks to run later
 	Jobs       []Job          // the work to do in the background
+	Send       []Send         // text for the input of the owner's stream jobs, or their end
 	Requests   []Request      // the requests to send the buffer's language servers
 	Selected   *[2]int        // what an object's call selects, nil for none
 	Terminal   *Terminal      // a program to run in a terminal window below
@@ -146,7 +147,19 @@ type Job struct {
 	Input  string // what the program reads on its stdin
 	URL    string
 	Stream bool
-	Emit   func(line string) `json:"-"` // what fude gives a Stream job before Work
+	// Fed keeps a Stream job's input open after Input. The text each Send
+	// to it carries comes on Feed, in order (B385).
+	Fed  bool
+	Emit func(line string) `json:"-"` // what fude gives a Stream job before Work
+	Feed <-chan string     `json:"-"` // what fude gives a Fed job before Work
+}
+
+// Send is Text for the input of the owner's Fed stream job of ID, or with
+// Stop the end of its stream job of ID, whose Work's ctx ends (B385).
+type Send struct {
+	ID   uint32
+	Text string
+	Stop bool
 }
 
 // Request is a request a call sends the language servers of the buffer it

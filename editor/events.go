@@ -38,8 +38,39 @@ type listener struct {
 	handling bool // it has handed its plugin an event whose result has yet to apply
 	wake     chan struct{}
 	// ctx ends when the plugin unloads, which stops its jobs.
+	ctx     context.Context
+	stop    context.CancelFunc
+	streams map[uint32]*stream // by id, its stream jobs that run, which only the loop touches
+}
+
+// stream is a stream job that runs. It holds what ends the job and, for a
+// fed one, where the text sent to it goes (B385).
+type stream struct {
 	ctx  context.Context
 	stop context.CancelFunc
+	feed chan string
+	last chan struct{} // closed once the text sent last is handed over, nil before any
+}
+
+// send hands text to the stream's Work after what was sent before it,
+// without the loop waiting for Work to take it.
+func (s *stream) send(text string) {
+	prev, done := s.last, make(chan struct{})
+	s.last = done
+	go func() {
+		defer close(done)
+		if prev != nil {
+			select {
+			case <-prev:
+			case <-s.ctx.Done():
+				return
+			}
+		}
+		select {
+		case s.feed <- text:
+		case <-s.ctx.Done():
+		}
+	}()
 }
 
 // emit tells every plugin subscribed to name of b.
@@ -155,7 +186,7 @@ func (e *Session) listen(p api.Module) *listener {
 	if l := e.listeners[p]; l != nil {
 		return l
 	}
-	l := &listener{p: p, wake: make(chan struct{}, 1)}
+	l := &listener{p: p, wake: make(chan struct{}, 1), streams: map[uint32]*stream{}}
 	l.ctx, l.stop = context.WithCancel(context.Background())
 	e.listeners[p] = l
 	// on runs f on the editor loop and waits for it, or reports false once
