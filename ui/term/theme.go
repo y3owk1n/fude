@@ -192,6 +192,8 @@ func build(t theme) styles {
 		// code lenses above their line (B462).
 		"reference": base.Background(t.selection), "lens": fg(t.muted),
 		"jump.match": base.Background(t.selection), "jump.label": base.Background(t.cmd).Foreground(t.bg).Bold(true), "finder.dir": fg(t.muted), "finder.file": base.Bold(true), "snippet.placeholder": base.Background(t.selection),
+		// Text a language server linked, which typing changes together (B473).
+		"lsp.linked": base.Background(t.surface),
 		// The letters of an item that match what was typed.
 		"match": fg(t.normal).Bold(true),
 		// What the :s being typed replaces, and what with.

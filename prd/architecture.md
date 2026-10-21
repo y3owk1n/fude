@@ -1730,6 +1730,20 @@ edits that fall inside the lines. The answer applies as one transaction on
 the text the request saw, so it is one timeline node. fude drops an answer
 for text that has changed since, and says so (B65).
 
+While the first of a buffer's servers that offers
+`linkedEditingRangeProvider` is attached, each key that moves the cursor
+or changes the text asks it for `textDocument/linkedEditingRange` at the
+cursor, once the key is done. An answer for text that changed since is
+dropped. Each range it names becomes two marks, the start's on the left
+of text put there and the end's on the right, so text typed at either
+edge joins the range, and the frame draws them as `lsp.linked`. After
+each key in insert mode, the range the cursor is in gives its text to
+every other range that differs, through the vim host as a snippet's
+places are kept equal, so the edits join the insert's undo step. A range
+whose text is no longer a word, `^[\w-]*$`, ends the link. Multicursors
+would type in each range too, but they stay in normal mode, where `x` or
+`dd` would act at every range, and a move would leave them behind (B473).
+
 A key typed in insert mode that is the `firstTriggerCharacter` or one
 of the `moreTriggerCharacter` of the first server offering
 `documentOnTypeFormattingProvider`, with `<CR>` as a line break, asks it

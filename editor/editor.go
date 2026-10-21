@@ -113,6 +113,7 @@ type Session struct {
 	actions     []func()                // what modules' results asked of buffers and windows, after the key (B343)
 	lastList    *api.Places             // the last list of places, which modules/places shows (B347)
 	snip        *snippet                // the snippet being filled in (B207)
+	links       links                   // the ranges a server linked, which typing changes together (B473)
 	menu        cursorMenu              // a menu at the cursor, such as code actions'
 	completion  completion              // the completions shown while typing
 	lspKeys     bool                    // the attached keys are mapped
@@ -623,6 +624,7 @@ func (e *Session) feed(k vim.Key) {
 		e.touch(e.win.buf, kind, spans...)
 	}
 	e.snippetAfter()
+	e.linkedAfter()
 	e.autocomplete(k)
 	e.signatureHelp(k)
 	e.formatTyped(k)

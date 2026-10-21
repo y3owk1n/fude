@@ -191,6 +191,7 @@ func (e *Session) draw(w *window) wire.Window {
 	}
 	if w == e.win {
 		v.Decorations = append(v.Decorations, e.snippetSpan(w.buf)...)
+		v.Decorations = append(v.Decorations, e.linkedSpans(w.buf)...)
 	}
 	for _, ds := range e.decos {
 		for _, d := range ds {

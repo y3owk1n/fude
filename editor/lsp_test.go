@@ -50,7 +50,9 @@ import (
 // "worse" in a document is an error fude asks for, and so is each write,
 // after which it asks fude to ask again. With tokens, the first "call" on
 // a line is a function's semantic token. With ontype, a ; typed puts a tab
-// before its line. A whole text a change sends becomes the document's.
+// before its line. With linked, the ranges linked at a place are every
+// "div" when it is in one. A whole text a change sends becomes the
+// document's.
 func TestFakeServer(t *testing.T) {
 	if os.Getenv("FUDE_FAKE_LSP") == "" {
 		return
@@ -325,6 +327,19 @@ func TestFakeServer(t *testing.T) {
 				ds = append(ds, map[string]any{"range": span(0, 0, 0), "severity": 1, "message": "written"})
 			}
 			reply(m.ID, map[string]any{"kind": "full", "items": ds})
+		case "textDocument/linkedEditingRange":
+			var ranges []any
+			p := m.Params.Position
+			lines := strings.Split(opened[m.Params.TextDocument.URI], "\n")
+			if l := lines[p.Line]; strings.Contains(l[max(p.Character-3, 0):min(p.Character+3, len(l))], "div") {
+				for line, l := range lines {
+					for i := 0; strings.Contains(l[i:], "div"); i += 3 {
+						i += strings.Index(l[i:], "div")
+						ranges = append(ranges, span(line, i, i+3))
+					}
+				}
+			}
+			reply(m.ID, map[string]any{"ranges": ranges})
 		case "textDocument/onTypeFormatting":
 			line := m.Params.Position.Line
 			reply(m.ID, []any{map[string]any{"range": span(line, 0, 0), "newText": "\t"}})
@@ -352,6 +367,7 @@ func TestFakeServer(t *testing.T) {
 			// What each word of FUDE_FAKE_OFFER adds to what it offers.
 			more := map[string]map[string]any{
 				"diagnostic": {"diagnosticProvider": map[string]any{}},
+				"linked":     {"linkedEditingRangeProvider": true},
 				"ontype":     {"documentOnTypeFormattingProvider": map[string]any{"firstTriggerCharacter": ";"}},
 				"tokens":     {"semanticTokensProvider": map[string]any{"full": true, "legend": map[string]any{"tokenTypes": []string{"variable", "function"}, "tokenModifiers": []string{}}}},
 			}

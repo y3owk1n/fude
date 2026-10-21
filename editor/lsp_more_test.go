@@ -52,3 +52,20 @@ func TestB472FormatOnType(t *testing.T) {
 		t.Errorf("u after the insert left %q, want the text before it", got)
 	}
 }
+
+// B473
+func TestB473LinkedEditing(t *testing.T) {
+	t.Setenv("FUDE_FAKE_OFFER", "linked")
+	e, log := withServer(t, "<div></div>\n", "utf-8")
+	heard(t, log, `"method":"initialized"`, 1)
+	feed(e, "l")
+	settle(t, e, func() bool { return len(e.Windows()[0].Decorations) == 2 })
+	feed(e, "ciwspan<Esc>")
+	if got := text(e); got != "<span></span>" {
+		t.Errorf("typing in a linked range left %q, want <span></span>", got)
+	}
+	// The edits to the other ranges are part of the insert's undo step.
+	if feed(e, "u"); text(e) != "<div></div>" {
+		t.Errorf("u left %q, want <div></div>", text(e))
+	}
+}

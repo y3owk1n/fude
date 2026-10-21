@@ -56,6 +56,9 @@ it again until `:lsp restart`.
 - Resting the cursor on a name lights up its other places in the file.
 - A server's code lenses, such as "run test", show above their lines, and
   `grx` runs the one on the cursor's line.
+- With the cursor in text a server links to other text, such as an HTML
+  tag's name, the linked text shows shaded, and what you type in insert
+  mode goes in each.
 - A server's semantic tokens colour names by what they are, such as a
   function or a type, over the syntax's colours.
 - `<C-x><C-o>` in insert mode lists completions, and with `autocomplete`

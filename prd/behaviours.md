@@ -1879,6 +1879,13 @@ Where fude departs, the line says so and cites the departure in
   one timeline node. A formatter formats the whole file, and fude applies
   only its changes inside the lines. When nothing formats the file, `gq`
   fills its lines as prose (B451).
+- B473 [5] With the cursor in text a language server links to other
+  text, such as an HTML tag's name and its closing tag's, the linked
+  ranges show shaded, and in insert mode what is typed in one goes in
+  each, as part of the insert's undo step. Text that stops being a word,
+  as when a space follows the name, ends the link. fude asks for the
+  ranges whenever the cursor moves or the text changes, while a server
+  offers them, where Neovim waits to be asked to.
 - B472 [5] In insert mode, typing a character that the first server
   formatting as text is typed names as a trigger, such as `}` or a line
   break, formats around it as the server says, when the text has not
