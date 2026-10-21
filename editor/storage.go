@@ -37,6 +37,10 @@ func Stores() ([]Store, error) {
 		},
 		{"pins", filepath.Join(state, "pins"), "the files :pin keeps a key away, by folder", "every folder's pins"},
 		{"recent", filepath.Join(state, "recent"), "the files the start screen lists as recent", "the list of recent files"},
+		{
+			"memory", filepath.Join(state, "memory"), "the registers, file marks, command and search histories and last search, as fude last quit",
+			"the registers, file marks and histories from before",
+		},
 		// fude makes these again, or never reads them back, so fude storage
 		// clean deletes them without --force.
 		{"log", filepath.Join(state, "log"), "what plugins log and language servers print on stderr", ""},

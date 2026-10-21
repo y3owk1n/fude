@@ -20,6 +20,7 @@ import (
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/internal/keep"
+	"github.com/y3owk1n/fude/internal/trace"
 	"github.com/y3owk1n/fude/protocol/lsp"
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
@@ -96,8 +97,9 @@ type Session struct {
 	root        *node
 	win         *window // the current window
 	vim         *vim.Machine
-	cursorsIn   *buffer        // the buffer the machine's cursors are in (N43)
-	fileMarks   map[rune]place // the marks A to Z, each in the one buffer that holds it
+	cursorsIn   *buffer            // the buffer the machine's cursors are in (N43)
+	fileMarks   map[rune]place     // the marks A to Z, each in the one buffer that holds it
+	marksToOpen map[rune]filePlace // the file marks fude remembered whose files are not open yet
 	message     string
 	done        bool
 	cell        [2]int                  // the client's cell in pixels, 0 when it shows no images (B303)
@@ -342,6 +344,9 @@ func Start(args []string) (*Session, error) {
 	e, err := open(cfg, paths)
 	if err != nil {
 		return nil, err
+	}
+	if err := e.recall(); err != nil {
+		e.message = err.Error()
 	}
 	if restored != nil {
 		e.restoreSession(*restored)
@@ -975,6 +980,9 @@ func (e *Session) quitAll(force bool) error {
 		}
 	}
 	e.quitting()
+	if err := e.remember(); err != nil {
+		trace.Record("memory", err.Error(), 0)
+	}
 	for _, b := range e.bufs {
 		b.close()
 	}

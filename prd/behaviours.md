@@ -1240,8 +1240,13 @@ Where fude departs, the line says so and cites the departure in
   with its path, its size and what it holds. `fude storage clean` deletes
   what fude makes again or never reads back: the compiled plugins, the
   built grammars and the log. With `--force` it also deletes the timelines,
-  sessions, pins and recent files, once it says what each loses and the
-  user answers y.
+  sessions, pins, recent files and what fude remembers (B454), once it says
+  what each loses and the user answers y.
+- B454 [2] What fude holds as it quits comes back in its next run: the
+  registers except the clipboard and those fude fills itself, the file
+  marks `A` to `Z`, the last 1000 command lines and searches, and the last
+  search, without its highlight. Going to a file mark in a file not open
+  opens it at the mark.
 - B34 [2] After a crash, opening the file offers to recover every edit made
   since the last save, and `:recover` brings them back. Declining keeps them
   on the timeline as a branch. A formatter's or plugin's answer that comes

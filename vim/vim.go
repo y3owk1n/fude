@@ -373,6 +373,14 @@ func (m *Machine) Search() (string, bool) { return m.search.pattern, m.search.fo
 // History returns the lines entered with prompt, : or /, oldest first.
 func (m *Machine) History(prompt string) []string { return slices.Clone(m.history[prompt]) }
 
+// SetHistory makes lines, oldest first, the lines entered with prompt.
+func (m *Machine) SetHistory(prompt string, lines []string) {
+	if m.history == nil {
+		m.history = map[string][]string{}
+	}
+	m.history[prompt] = slices.Clone(lines)
+}
+
 // Register returns the text in register name, or false when it is empty,
 // and the error reading the clipboard for "+ and "*.
 func (m *Machine) Register(name rune) (string, bool, error) {

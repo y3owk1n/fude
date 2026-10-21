@@ -58,6 +58,7 @@ func (h host) SetMark(name rune, pos int) {
 		if h.e.fileMarks == nil {
 			h.e.fileMarks = map[rune]place{}
 		}
+		delete(h.e.marksToOpen, name)
 		defer func() { h.e.fileMarks[name] = place{b, b.marks[name]} }()
 	}
 	b.setMark(name, pos)
@@ -71,6 +72,7 @@ func (h host) DeleteMark(name rune) {
 		b = f.buf
 		delete(h.e.fileMarks, name)
 	}
+	delete(h.e.marksToOpen, name)
 	if id, ok := b.marks[name]; ok {
 		b.text.DeleteMark(id)
 		delete(b.marks, name)
@@ -81,7 +83,10 @@ func (h host) DeleteMark(name rune) {
 // open and the session may show it.
 func (h host) ShowMark(name rune) bool {
 	f, ok := h.e.fileMarks[name]
-	if !ok || !slices.Contains(h.e.bufs, f.buf) {
+	if !ok {
+		return h.e.openMark(name)
+	}
+	if !slices.Contains(h.e.bufs, f.buf) {
 		return false
 	}
 	h.e.show(f.buf)

@@ -142,7 +142,7 @@ func TestB383Storage(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if out, err := fude(home, "storage"); err != nil || !strings.Contains(out, "timeline   5B") || !strings.Contains(out, "total      35B") {
+	if out, err := fude(home, "storage"); err != nil || !strings.Contains(out, "timeline   5B") || !strings.Contains(out, "total      40B") {
 		t.Fatalf("fude storage printed %q, %v", out, err)
 	}
 	// clean asks, and anything but y keeps them all, as does clean with
@@ -164,14 +164,14 @@ func TestB383Storage(t *testing.T) {
 		}
 		return string(out)
 	}
-	user := []string{"timeline", "sessions", "pins", "recent"}
+	user := []string{"timeline", "sessions", "pins", "recent", "memory"}
 	if out := clean(""); !strings.Contains(out, "freed 15B") || !slices.Equal(kept(), user) {
 		t.Errorf("fude storage clean printed %q and kept %v, want %v", out, kept(), user)
 	}
 	if out := clean("n\n", "--force"); !strings.Contains(out, "deleting it loses undo") || !slices.Equal(kept(), user) {
 		t.Errorf("declining fude storage clean --force printed %q and kept %v", out, kept())
 	}
-	if out := clean("y\n", "--force"); !strings.Contains(out, "freed 20B") || len(kept()) > 0 {
+	if out := clean("y\n", "--force"); !strings.Contains(out, "freed 25B") || len(kept()) > 0 {
 		t.Errorf("fude storage clean --force printed %q and kept %v", out, kept())
 	}
 }
