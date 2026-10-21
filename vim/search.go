@@ -3,6 +3,7 @@ package vim
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -89,6 +90,138 @@ func (m *Machine) seek(src string, forward bool, n int) (int, kind) {
 	}
 	m.hl = true
 	return pos, exclusive
+}
+
+// seekOffset is seek with a search offset: e for the match's last
+// character, s or b for its first, each with a count of characters to
+// move, or a count of lines alone. With e, s or b, a match counts when the
+// place the offset names is past the cursor less the count. So /pat/e
+// takes the match the cursor is on, and n the next. again is true for n
+// and N, which start a line offset from the line the offset left.
+func (m *Machine) seekOffset(src, off string, forward bool, n int, again bool) (int, kind) {
+	if off == "" {
+		return m.seek(src, forward, n)
+	}
+	t, c := m.h.Text(), m.h.Cursor()
+	anchor, count := byte('l'), off
+	if strings.ContainsRune("esb", rune(off[0])) {
+		anchor, count = off[0], off[1:]
+	}
+	d := 0
+	switch count {
+	case "":
+	case "+":
+		d = 1
+	case "-":
+		d = -1
+	default:
+		v, err := strconv.Atoi(count)
+		if err != nil {
+			m.msg = "bad search offset: " + off
+			return c, failed
+		}
+		d = v
+	}
+	if anchor == 'l' {
+		from := c
+		if again {
+			from = lineBy(t, LineStart(t, c), -d)
+			if forward {
+				from = LineEnd(t, from)
+			}
+		}
+		m.h.SetCursor(from)
+		at, k := m.seek(src, forward, n)
+		m.h.SetCursor(c)
+		if k == failed {
+			return c, failed
+		}
+		return lineBy(t, LineStart(t, at), d), linewise
+	}
+	p, err := m.compile(src)
+	if err != nil {
+		m.msg = err.Error()
+		return c, failed
+	}
+	// place is where in a match the offset counts from.
+	place := func(at int) int {
+		if anchor != 'e' {
+			return at
+		}
+		end := p.endAt(t, at)
+		return max(prev(t, LineStart(t, end), end), at)
+	}
+	from := step(t, c, -d)
+	if d > 0 && c < d {
+		from = -1 // before the text, so a match at its start counts
+	}
+	for range n {
+		at, ok := p.after(t, from, place, forward)
+		if !ok {
+			m.msg = "pattern not found: " + src
+			return c, failed
+		}
+		from = place(at)
+	}
+	m.hl = true
+	if anchor == 'e' {
+		return step(t, from, d), inclusive
+	}
+	return step(t, from, d), exclusive
+}
+
+// after returns the first match whose place is after from, or searching
+// back the last whose place is before it, wrapping around the text.
+func (p *pattern) after(t Text, from int, place func(int) int, forward bool) (int, bool) {
+	if forward {
+		for lo, wrapped := LineStart(t, max(from, 0)), false; ; {
+			at, ok := p.first(t, lo, t.Len()+1)
+			switch {
+			case ok && place(at) > from:
+				return at, true
+			case ok:
+				lo = at + 1
+			case wrapped || lo == 0:
+				return 0, false
+			default:
+				lo, wrapped, from = 0, true, -1
+			}
+		}
+	}
+	for hi, wrapped := t.Len()+1, false; ; {
+		at, ok := p.last(t, 0, hi)
+		switch {
+		case ok && place(at) < from:
+			return at, true
+		case ok:
+			hi = at
+		case wrapped:
+			return 0, false
+		default:
+			hi, wrapped, from = t.Len()+1, true, t.Len()+1
+		}
+	}
+}
+
+// lineBy returns the start of the line n lines below the one starting at
+// ls, or above for a negative n.
+func lineBy(t Text, ls, n int) int {
+	if n < 0 {
+		return up(t, ls, -n)
+	}
+	return down(t, ls, n)
+}
+
+// step moves d characters from p, back for a negative d, across lines,
+// staying in the text.
+func step(t Text, p, d int) int {
+	for ; d > 0 && p < t.Len(); d-- {
+		p = next(t, p, t.Len())
+	}
+	for ; d < 0 && p > 0; d++ {
+		p = prev(t, 0, p)
+	}
+	return p
 }
 
 // searchWindow is how many bytes a search reads first. It doubles until it
@@ -630,7 +763,11 @@ func (m *Machine) Incremental() (int, int, bool) {
 	if m.mode != Cmdline || m.prompt == ":" || m.line == "" {
 		return 0, 0, false
 	}
-	p, err := m.compile(m.line)
+	pat := splitDelim(m.line, m.prompt[0])[0]
+	if pat == "" {
+		return 0, 0, false
+	}
+	p, err := m.compile(pat)
 	if err != nil {
 		return 0, 0, false
 	}

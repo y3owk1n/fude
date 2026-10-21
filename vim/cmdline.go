@@ -1,7 +1,6 @@
 package vim
 
 import (
-	"cmp"
 	"slices"
 	"strings"
 	"unicode"
@@ -93,7 +92,12 @@ func init() {
 				}
 				return err
 			}
-			return m.command(m.prompt + cmp.Or(m.line, m.search.pattern))
+			// An empty search is the last, with its offset.
+			line := m.line
+			if line == "" {
+				line = strings.ReplaceAll(m.search.pattern, m.prompt, `\`+m.prompt) + m.prompt + m.search.offset
+			}
+			return m.command(m.prompt + line)
 		}},
 		"<BS>":  {"deletes the character before the cursor, or leaves an empty line", eraseLine},
 		"<C-h>": {"deletes the character before the cursor, or leaves an empty line", eraseLine},

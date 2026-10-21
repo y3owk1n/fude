@@ -259,6 +259,15 @@
 "|ab\nxb" "/b$<CR>" "a|b\nxb"
 "|ax\nb" "/^b<CR>" "ax\n|b"
 "|a b" "/\\<b<CR>" "a |b"
+"|foo bar foo\nbaz foo qux\n\nend foo" "/foo/e<CR>" "fo|o bar foo\nbaz foo qux\n\nend foo"
+"|foo bar foo\nbaz foo qux\n\nend foo" "/foo/e<CR>n" "foo bar fo|o\nbaz foo qux\n\nend foo"
+"|foo bar foo\nbaz foo qux\n\nend foo" "/foo/e-1<CR>n" "foo bar f|oo\nbaz foo qux\n\nend foo"
+"|foo bar foo\nbaz foo qux\n\nend foo" "/foo/s+1<CR>" "f|oo bar foo\nbaz foo qux\n\nend foo"
+"|foo bar foo\nbaz foo qux\n\nend foo" "/foo/b-1<CR>nn" "foo bar foo\nbaz foo qux\n\nend| foo"
+"|foo bar foo\nbaz foo qux\n\nend foo" "/foo/+1<CR>" "foo bar foo\n|baz foo qux\n\nend foo"
+"|foo bar foo\nbaz foo qux\n\nend foo" "/foo/e<CR>0//<CR>" "foo bar |foo\nbaz foo qux\n\nend foo"
+"|foo bar foo\nbaz foo qux\n\nend foo" "G?foo?e<CR>" "foo bar foo\nbaz fo|o qux\n\nend foo"
+"|foo bar foo\nbaz foo qux\n\nend foo" "d/foo/e<CR>" "| bar foo\nbaz foo qux\n\nend foo"
 
 # B22
 "  a\nfoo |x" ":s/x/y/<CR>" "  a\n|foo y"

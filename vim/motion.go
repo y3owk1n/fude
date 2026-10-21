@@ -221,8 +221,7 @@ func windowMotion(m *Machine, x motionCall) (int, kind) {
 
 // searchMotion is n and N.
 func searchMotion(m *Machine, x motionCall) (int, kind) {
-	p, k := m.seek(m.search.pattern, m.search.forward == (x.cmd == "n"), x.n)
-	return p, k
+	return m.seekOffset(m.search.pattern, m.search.offset, m.search.forward == (x.cmd == "n"), x.n, true)
 }
 
 // starMotion is * and #.
@@ -232,7 +231,7 @@ func starMotion(m *Machine, x motionCall) (int, kind) {
 		m.msg = "no word under the cursor"
 		return x.c, failed
 	}
-	m.search.pattern, m.search.forward = `\<`+word+`\>`, x.cmd == "*"
+	m.search.pattern, m.search.forward, m.search.offset = `\<`+word+`\>`, x.cmd == "*", ""
 	p, k := m.seek(m.search.pattern, m.search.forward, x.n)
 	return p, k
 }
@@ -270,10 +269,18 @@ func markMotion(m *Machine, x motionCall) (int, kind) {
 }
 
 // searchForMotion is / and ? with a pattern.
+// The pattern is cut at the first delim not after a backslash, and what
+// follows is the offset, as /pat/e+1. An empty pattern is the last one.
 func searchForMotion(m *Machine, x motionCall) (int, kind) {
-	m.search.pattern, m.search.forward = x.cmd[1:], x.cmd[0] == '/'
-	p, k := m.seek(m.search.pattern, m.search.forward, x.n)
-	return p, k
+	parts := splitDelim(x.cmd[1:], x.cmd[0])
+	if parts[0] != "" {
+		m.search.pattern = parts[0]
+	}
+	m.search.forward, m.search.offset = x.cmd[0] == '/', ""
+	if len(parts) > 1 {
+		m.search.offset = parts[1]
+	}
+	return m.seekOffset(m.search.pattern, m.search.offset, m.search.forward, x.n, false)
 }
 
 // findMotion is f, F, t and T with a character.

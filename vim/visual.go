@@ -378,7 +378,7 @@ func searchSelection(m *Machine, x visualCall) error {
 	r := m.selection()
 	m.leaveVisual()
 	pat := strings.ReplaceAll(strings.ReplaceAll(x.t.Slice(r.start, r.end), `\`, `\\`), "\n", `\n`)
-	m.search.pattern, m.search.forward = `\V`+pat, x.cmd == "*"
+	m.search.pattern, m.search.forward, m.search.offset = `\V`+pat, x.cmd == "*", ""
 	// The search starts at the selection's start, so # finds the match
 	// before it, not the selection.
 	m.h.SetCursor(r.start)

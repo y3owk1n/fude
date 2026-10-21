@@ -699,7 +699,11 @@ Where fude departs, the line says so and cites the departure in
   While a search is typed, with `inc_search` on, as it is unless set off,
   the window shows the match it goes to, lit apart from the rest, and
   `<Esc>` scrolls the window back. `<C-l>` clears the highlight, and
-  removes the multicursors B397 says. Patterns use Vim syntax on a
+  removes the multicursors B397 says. An offset after the pattern moves
+  from the match as in Neovim: `/pat/e` to its last character, `s` or `b`
+  to its first, each with a count of characters, as `/pat/e+1`, and a
+  count alone of lines, as `/pat/+2`. `n` and `N` keep the offset, and an
+  empty pattern with one, as `//e`, takes the last. Patterns use Vim syntax on a
   linear-time engine, and a pattern that needs backtracking is refused
   with a message naming the atom (N1).
 - B120 [2] With `ignore_case`, searches, `:s` and their highlights ignore

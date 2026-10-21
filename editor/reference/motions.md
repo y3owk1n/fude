@@ -613,10 +613,22 @@ the last one again. With `ignore_case` it ignores case, and with
 with `inc_search`, the window shows where it goes. Exclusive, and a jump,
 so `d/x<CR>` deletes up to the match.
 
+An offset may follow a second `/`. `e` goes to the match's last
+character, inclusive, and `s` or `b` to its first, each with `+n` or `-n`
+characters after it, as `/foo/e+1`. A number alone, as `/foo/+2`, goes n
+lines below the match, linewise. With `e`, `s` or `b`, the match the
+cursor is on counts when the place the offset names is past the cursor.
+`n` and `N` keep the offset, and `//e` takes the last pattern with a new
+offset.
+
 ```keys
 "|a\nfoo\nbar" "/oo<CR>" "a\nf|oo\nbar"
 "|a\nfoo\nbar" "d/oo<CR>" "|oo\nbar"
 "|a.b\nab" "/a\\.b<CR>n" "|a.b\nab"
+"|foo bar foo" "/foo/e<CR>" "fo|o bar foo"
+"|foo bar foo" "/foo/e<CR>n" "foo bar fo|o"
+"|foo bar foo" "d/foo/e<CR>" "| bar foo"
+"|a\nfoo\nbar" "/foo/+1<CR>" "a\nfoo\n|bar"
 ```
 
 ## ?{pattern}<CR>

@@ -212,6 +212,7 @@ type Machine struct {
 	search     struct {
 		pattern string
 		forward bool
+		offset  string // e, s or b with a count, or a count of lines, as /pat/e+1 gives
 	}
 	hl                    bool                    // matches of the last search are highlighted
 	res                   map[patternKey]*pattern // compiled patterns, as a search and a :s preview take turns
@@ -345,7 +346,7 @@ func (m *Machine) SetRegister(name rune, s Saved) error {
 // SetSearch makes pattern the last search, which n finds, going forward or
 // back, and highlights its matches.
 func (m *Machine) SetSearch(pattern string, forward bool) {
-	m.search.pattern, m.search.forward, m.hl = pattern, forward, true
+	m.search.pattern, m.search.forward, m.search.offset, m.hl = pattern, forward, "", true
 }
 
 // Search returns the last search's pattern, "" before any, and whether it
