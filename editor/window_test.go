@@ -304,6 +304,24 @@ func TestB116ScrollOff(t *testing.T) {
 	}
 }
 
+// B482
+func TestB482SideScrollOff(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "f")
+	change(t, path, strings.Repeat("a", 40)+"\n")
+	e := open(t, path)
+	// Ten columns, and three kept right and left of the cursor's.
+	e.SetSize(10, 4)
+	feed(e, ":set wrap false<CR>:set side_scroll_off 3<CR>")
+	for _, c := range []struct {
+		keys string
+		left int
+	}{{"6l", 0}, {"l", 1}, {"$", 33}, {"h", 33}, {"3h", 32}, {"0", 0}, {":set side_scroll_off 99<CR>7l", 2}} {
+		if feed(e, c.keys); e.Windows()[0].Left != c.left {
+			t.Errorf("after %q the window starts at column %d, want %d", c.keys, e.Windows()[0].Left, c.left)
+		}
+	}
+}
+
 // B117
 func TestB117CursorLine(t *testing.T) {
 	e := open(t, "")

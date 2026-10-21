@@ -205,6 +205,9 @@ Where fude departs, the line says so and cites the departure in
 - B116 [2] `scroll_off`, set with `:set scroll_off n` or in `config.toml`,
   keeps n lines in view above and below the cursor's, at most half the
   window, as Neovim's `scrolloff` does.
+- B482 [2] With `wrap` off, `side_scroll_off` keeps n columns in view left
+  and right of the cursor's, at most half the window, as Neovim's
+  `sidescrolloff` does with `sidescroll` at 1.
 - B117 [2] `cursor_line` shades the cursor's line and shows its number in
   bold, as Neovim's `cursorline` does.
 - B118 [2] `list` shows a tab as `>` and blanks, a trailing space as `-`

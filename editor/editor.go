@@ -768,9 +768,11 @@ func (e *Session) reveal() {
 	first, _ := w.fold(t, t.LineOf(e.Top()))
 	w.buf.text.MoveMark(w.top, min(max(t.LineStart(first), low), above))
 	// Without wrap the window scrolls sideways the least it must to show the
-	// cursor's column (B37).
+	// cursor's column and side_scroll_off columns each side of it, at most
+	// half the window (B37, B482).
 	if col := vim.Column(t, line, c, tab, d.inlines); !w.opts.Wrap {
-		w.left = min(max(w.left, col-w.cols()+1), col)
+		off := min(w.opts.SideScrollOff, (w.cols()-1)/2)
+		w.left = max(min(max(w.left, col+off-w.cols()+1), col-off), 0)
 	}
 	e.level()
 }

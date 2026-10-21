@@ -41,6 +41,12 @@ How many lines to keep in view above and below the cursor's, at most half
 the window. `8` keeps eight lines between the cursor and the window's top
 and bottom.
 
+## side_scroll_off
+
+With `wrap` off, how many columns to keep in view left and right of the
+cursor's, at most half the window. The window scrolls sideways one column
+at a time to keep them.
+
 ## cursor_line
 
 Shades the line the cursor is on, and shows its number in bold.
