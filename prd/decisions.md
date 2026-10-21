@@ -1222,6 +1222,70 @@ buffer's multicursors until it is current again. Why: one vim machine
 runs every window of a session, and a set of cursors for each buffer is
 more state for little use.
 
+### N44. No tab pages
+
+fude has no `:tabnew`, `gt` or `gT`. A session has one layout of splits
+and floats, which the session module keeps as fude quits. Why: splits,
+floats, pins and the buffer line already give each place its own view, and
+a second layout is a second session through `fude attach`, which keeps the
+frame and the saved session to one layout.
+
+### N45. No tags
+
+fude reads no tags file, so there is no `:tag`, `<C-t>` or tag stack, and
+`<C-]>` goes to a definition only through a language server (N3). Why: a
+tags file has to be generated and kept up to date, and a language server
+answers the same question from the code as it is.
+
+### N46. Files open as buffers, not as an argument list
+
+`fude a b` opens each file as a buffer (B80), and there is no `:args`,
+`:next` or `:argdo`. `:bufdo` runs a command in every buffer. Why: the
+buffer list and the buffer line already hold the files given, and a second
+list of the same files is a second thing to keep in step.
+
+### N47. Typing keeps the line's indent, with no indent rules for a language
+
+A new line takes the indent of the line above, and one level more after an
+opening bracket, with the bracket's closing one moved to a line of its own
+(B211). fude has no `indentexpr`, `cindent` or indent queries. Why:
+grammar repos ship no indent queries (D28), fude has no indent engine
+(N40), and a formatter, which `format_on_save` runs, puts each line where
+the language wants it.
+
+### N48. Some keys do fude's own thing
+
+`-` in normal mode opens the explorer on the file's directory (B124),
+where Neovim moves up a line, which `k` does. `<C-w>z` zooms the window
+(B370), where Neovim closes a preview window, which fude does not have.
+`gh` and `gH` stage hunks in git (B221), where Neovim starts Select mode,
+which fude does not have (N2). Why: each key's Neovim meaning is one
+fude has no use for, or one another key already gives.
+
+### N49. Keymaps live in config.toml, not in commands
+
+fude has no `:map`, `:noremap`, `:autocmd`, `:command`, `:let` or
+`:source`. Keymaps are tables in `config.toml` (D27), and logic that runs
+on events lives in a module or plugin. Why: commands that change mappings
+and register callbacks at run time are the config that runs later, which
+D27 rules out, and `:config reload` already applies a changed
+`config.toml`.
+
+### N50. A word is letters, digits and `_` in every language
+
+`w`, `iw`, `*` and abbreviations take a word as a run of letters, digits
+and `_`. There is no `iskeyword` to add `-` for CSS or Lisp. Why: one rule
+keeps every word key the same in every file, and the syntax node objects
+(B45) already select a language's own units, such as a CSS property or a
+Lisp symbol.
+
 ## Open
 
-None.
+### Diff mode of two buffers
+
+`:diff` compares two states of a buffer's timeline, and the git module
+shows a file's hunks against the index (B221). Nothing compares two
+buffers side by side: no `fude -d a b`, no filler rows that keep their
+lines level, no `do`, `dp`, `]c` or `[c`. It needs rows in a window that
+belong to no line, and windows that scroll together, which want a design
+of their own before a module can build on them.
