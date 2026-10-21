@@ -28,23 +28,24 @@ type taskConfig struct {
 // config is what config.toml holds (D27). Each key's help tag is what
 // help says of it.
 type config struct {
-	IndentWidth    uint     `toml:"indent_width" help:"the columns of an indent level, 0 for the tab width"`
-	TabWidth       uint     `toml:"tab_width" help:"the columns a tab shows as"`
-	KeyTimeout     uint     `toml:"key_timeout" help:"the milliseconds a mapping waits for its next key"`
-	LargeFile      uint     `toml:"large_file" help:"the megabytes over which a file opens with syntax and language servers off"`
-	Center         bool     `toml:"center" help:"the windows start centered on a wide screen, as :center toggles"`
-	TerminalHeight uint     `toml:"terminal_height" help:"the percent of the screen's rows a terminal or task window takes when it opens"`
-	SplitBelow     bool     `toml:"split_below" help:"a split opens below the window, else above it"`
-	SplitRight     bool     `toml:"split_right" help:"a vertical split opens right of the window, else left of it"`
-	Autocomplete   bool     `toml:"autocomplete" help:"completions show while typing, not only on <C-x><C-o>"`
-	RemoteImages   bool     `toml:"remote_images" help:"images at http and https addresses load from the network"`
-	Sources        []string `toml:"completion_sources" help:"where completions come from, in the menu's order: lsp, snippet, path and buffer"`
-	AutoInstall    bool     `toml:"auto_install" help:"builds a missing grammar the first time a file needs it"`
-	Socket         string   `toml:"socket" help:"where clients attach, instead of a path for each process"`
-	FormatOnSave   bool     `toml:"format_on_save" help:"a write formats the buffer first"`
-	FormatTimeout  uint     `toml:"format_timeout" help:"the milliseconds formatting may take"`
-	Leader         string   `toml:"leader" help:"what <Leader> in a mapping stands for"` // N18
-	Theme          string   `toml:"theme" help:"the colours: dark, light or a base16 scheme file"`
+	IndentWidth    uint              `toml:"indent_width" help:"the columns of an indent level, 0 for the tab width"`
+	TabWidth       uint              `toml:"tab_width" help:"the columns a tab shows as"`
+	KeyTimeout     uint              `toml:"key_timeout" help:"the milliseconds a mapping waits for its next key"`
+	LargeFile      uint              `toml:"large_file" help:"the megabytes over which a file opens with syntax and language servers off"`
+	Center         bool              `toml:"center" help:"the windows start centered on a wide screen, as :center toggles"`
+	TerminalHeight uint              `toml:"terminal_height" help:"the percent of the screen's rows a terminal or task window takes when it opens"`
+	SplitBelow     bool              `toml:"split_below" help:"a split opens below the window, else above it"`
+	SplitRight     bool              `toml:"split_right" help:"a vertical split opens right of the window, else left of it"`
+	Autocomplete   bool              `toml:"autocomplete" help:"completions show while typing, not only on <C-x><C-o>"`
+	RemoteImages   bool              `toml:"remote_images" help:"images at http and https addresses load from the network"`
+	Sources        []string          `toml:"completion_sources" help:"where completions come from, in the menu's order: lsp, snippet, path and buffer"`
+	AutoInstall    bool              `toml:"auto_install" help:"builds a missing grammar the first time a file needs it"`
+	Socket         string            `toml:"socket" help:"where clients attach, instead of a path for each process"`
+	FormatOnSave   bool              `toml:"format_on_save" help:"a write formats the buffer first"`
+	FormatTimeout  uint              `toml:"format_timeout" help:"the milliseconds formatting may take"`
+	Leader         string            `toml:"leader" help:"what <Leader> in a mapping stands for"` // N18
+	Abbreviations  map[string]string `toml:"abbreviations" help:"words that insert mode replaces with their text once a character that ends a word follows"`
+	Theme          string            `toml:"theme" help:"the colours: dark, light or a base16 scheme file"`
 	options
 	Colors   wire.Colors `toml:"colors" help:"colours by role, each as #rrggbb, that replace the theme's"`
 	Keymap   keymap      `toml:"keymap"`

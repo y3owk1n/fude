@@ -384,6 +384,11 @@ func (m *Machine) indentText(w int) string {
 // types spaces to the next indent width's column (B122, N10).
 func (m *Machine) ExpandTab(on bool) { m.expandTab = on }
 
+// Abbreviate makes each word in abbrevs typed in insert mode become its
+// text once a character that ends a word follows it, or <CR>, <Esc> or
+// <C-]> (B453).
+func (m *Machine) Abbreviate(abbrevs map[string]string) { m.abbrevs = abbrevs }
+
 // TextWidth makes typing past column n break the line, or never for 0.
 func (m *Machine) TextWidth(n int) { m.textWidth = n }
 

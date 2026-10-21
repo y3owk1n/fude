@@ -51,6 +51,12 @@ func (m *Machine) insert(k Key) error {
 			return err
 		}
 	}
+	if r, _ := utf8.DecodeRuneInString(string(k)); k == "<CR>" || k == "<Esc>" || k == "<C-]>" || k.isChar() && !isWord(r) {
+		if err := m.abbreviate(); err != nil || k == "<C-]>" {
+			return err
+		}
+		t, c = m.h.Text(), m.h.Cursor()
+	}
 	if ik, ok := inserts[string(k)]; ok {
 		return ik.run(m, t, c, k)
 	}
@@ -73,6 +79,36 @@ func (m *Machine) insert(k Key) error {
 		}
 		return m.wrapTyped()
 	}
+	return nil
+}
+
+// abbreviate replaces the word before the cursor with its abbreviation's
+// text, when the word starts the line, the insert, or follows a character
+// that is not part of a word.
+func (m *Machine) abbreviate() error {
+	if len(m.abbrevs) == 0 || m.mode != Insert {
+		return nil
+	}
+	t, c := m.h.Text(), m.h.Cursor()
+	ls := LineStart(t, c)
+	before := t.Slice(ls, c)
+	start := len(before)
+	for start > 0 {
+		r, n := utf8.DecodeLastRuneInString(before[:start])
+		if !isWord(r) {
+			break
+		}
+		start -= n
+	}
+	at := ls + start
+	text, ok := m.abbrevs[before[start:]]
+	if !ok || start == len(before) || at != ls && at < min(m.insStart, c) {
+		return nil
+	}
+	if err := m.apply([]Edit{{Start: at, End: c, Text: text}}, m.label); err != nil {
+		return err
+	}
+	m.h.SetCursor(at + len(text))
 	return nil
 }
 

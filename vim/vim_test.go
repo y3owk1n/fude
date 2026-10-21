@@ -1122,3 +1122,26 @@ func TestB450TextWidth(t *testing.T) {
 }
 
 // B453
+func TestB453Abbreviations(t *testing.T) {
+	for _, c := range [][2]string{
+		{"o teh.<Esc>", "xx teh\n the|."},
+		{"oteh<Esc>", "xx teh\nth|e"},
+		{"oteh<C-]>x<Esc>", "xx teh\nthe|x"},
+		// A word that is part of a longer one, or that was there before
+		// the insert began, stays.
+		{"oxteh <Esc>", "xx teh\nxteh| "},
+		{"A <Esc>", "xx teh| "},
+	} {
+		h := &host{text: "xx teh"}
+		m := vim.New(h)
+		m.Abbreviate(map[string]string{"teh": "the"})
+		for _, k := range vim.Keys(c[0]) {
+			if err := m.Feed(k); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if got := h.text[:h.cursor] + "|" + h.text[h.cursor:]; got != c[1] {
+			t.Errorf("%q made %q, want %q", c[0], got, c[1])
+		}
+	}
+}

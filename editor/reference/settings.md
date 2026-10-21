@@ -226,6 +226,22 @@ What `<Leader>` stands for in a mapping, from config or a plugin, when the
 mapping is made. Write it as a mapping writes keys, such as `"<Space>"` or
 `","`.
 
+## abbreviations
+
+Words that insert mode replaces as they are typed, each with its text:
+
+```toml
+[abbreviations]
+teh = "the"
+adn = "and"
+```
+
+A word goes once a character that is not part of a word follows it, or
+`<CR>` or `<Esc>`, and `<C-]>` replaces it without typing anything more.
+It must start the line or follow a character that is not part of a word,
+and be typed in the same insert, so `xteh ` and a `teh` that was there
+before stay.
+
 ## bufferline.enabled
 
 Once two or more files are open, the top row lists them by number and

@@ -156,6 +156,11 @@ Where fude departs, the line says so and cites the departure in
 - B452 [2] With `line_break` on, a wrapped line breaks between words, so a
   word that does not fit on a row starts the next, and `gj` and `gk` count
   those rows.
+- B453 [2] An `[abbreviations]` table in `config.toml` names words that
+  insert mode replaces with their text, once a character that is not part
+  of a word follows, or `<CR>` or `<Esc>`, and with `<C-]>` alone. The
+  word must start the line or follow a character not part of a word, and
+  be typed in the same insert.
 - B450 [2] With `text_width` above 0, a character typed past that column
   breaks the line at the last blank that leaves it within the column. The
   new line keeps the line's indent and a comment's marker, and goes under
