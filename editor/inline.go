@@ -23,8 +23,9 @@ type drawn struct {
 // does not hold: inlay hints, proposals' text and the replacements modules
 // put, by position, and the rows decorations draw between lines. The cursor's
 // line, and in the current window a selection's lines, show their text as
-// it is, without replacements or rows of their own. So do all the lines of
-// a block that holds one of them (B71, B216, B295, B299, B300).
+// it is, without replacements or rows of their own other than an insert's.
+// So do all the lines of a block that holds one of them (B71, B216, B295,
+// B299, B300).
 func (e *Session) shown(w *window, start, end int) drawn {
 	b := w.buf
 	if b.inlines == 0 {
@@ -51,7 +52,19 @@ func (e *Session) shown(w *window, start, end int) drawn {
 				continue
 			}
 			s, en := b.text.Mark(d.start), b.text.Mark(d.end)
-			switch line := t.LineOf(s); {
+			line := t.LineOf(s)
+			// An insert's rows are ghost text, which shows on the cursor's line
+			// too.
+			rows := len(d.lines) > 0 && !d.block && d.image == "" && (d.insert || line < first || line > last) && s >= start && s <= end
+			if rows {
+				if out.virtual == nil {
+					out.virtual = map[int][]wire.Virtual{}
+				}
+				for _, text := range d.lines {
+					out.virtual[line] = append(out.virtual[line], wire.Virtual{Text: text, Style: d.style, Above: d.above})
+				}
+			}
+			switch {
 			case d.block:
 			case d.image != "" && s >= start && s <= end:
 				// An image shows on the cursor's line too, so passing it moves
@@ -67,13 +80,8 @@ func (e *Session) shown(w *window, start, end int) drawn {
 				for r := range rows {
 					out.virtual[line] = append(out.virtual[line], wire.Virtual{Image: p.id, Row: r, Cols: cols})
 				}
-			case len(d.lines) > 0 && (line < first || line > last) && s >= start && s <= end:
-				if out.virtual == nil {
-					out.virtual = map[int][]wire.Virtual{}
-				}
-				for _, text := range d.lines {
-					out.virtual[line] = append(out.virtual[line], wire.Virtual{Text: text, Style: d.style, Above: d.above})
-				}
+			case rows && !d.insert:
+				// Its rows, drawn above, are all it shows.
 			case d.replace && (line < first || line > last) && s < en && t.LineOf(en) == line && s >= start && s <= end:
 				out.ghosts = append(out.ghosts, wire.Ghost{Pos: s, End: en, Text: d.note, Style: d.style})
 			case d.cover && s >= start && s <= end && t.LineOf(en) == line:

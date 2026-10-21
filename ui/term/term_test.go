@@ -538,7 +538,7 @@ type spaced struct{ heading }
 
 func (spaced) Init(_ context.Context, s api.Scope) (api.Result, error) {
 	p := s.Text.LineStart(1)
-	return api.Result{Decorate: []api.Decoration{{ID: 1, Start: p, End: p, Style: "markdown.rule", Lines: []string{"──"}}}}, nil
+	return api.Result{Decorate: []api.Decoration{{ID: 1, Start: p, End: p, Style: "markdown.rule", Lines: []string{"──", "\t─"}}}}, nil
 }
 
 // B299, drawn
@@ -550,14 +550,15 @@ func TestB299DrawVirtualRows(t *testing.T) {
 	c := startWith(t, "", path)
 	c.e.(*editor.Session).Use(spaced{})
 	c.draw()
-	// The row draws between the lines, and the third line goes down one.
-	for y, want := range []string{"a", "b", "──", "c"} {
+	// The rows draw between the lines, and the third line goes down two. A
+	// tab in a row takes the columns to the next tab stop.
+	for y, want := range []string{"a", "b", "──", strings.Repeat(" ", 8) + "─", "c"} {
 		var row strings.Builder
-		for x := range 2 {
+		for x := range 10 {
 			s, _, _ := c.s.Get(x, y)
 			row.WriteString(s)
 		}
-		if strings.TrimSpace(row.String()) != want {
+		if strings.TrimRight(row.String(), " ") != want {
 			t.Errorf("row %d shows %q, want %q", y, row.String(), want)
 		}
 	}

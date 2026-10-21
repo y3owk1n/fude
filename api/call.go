@@ -15,7 +15,8 @@ type Decoration struct {
 	// line and a selection's show their text as it is (B295).
 	Replace bool
 	// Insert shows Note in Style among the text at Start, on the cursor's
-	// line too, as an inlay hint does (B216).
+	// line too, as an inlay hint does (B216). Its Lines show there too, so
+	// ghost text of several lines is one decoration (B384).
 	Insert bool
 	// Icon shows Sign in Style in an explorer's icon column, left of Start's
 	// line, while icons is on. It does not show in the sign column (B337).

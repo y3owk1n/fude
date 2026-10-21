@@ -1302,6 +1302,30 @@ func TestB299PluginRowsAndBlock(t *testing.T) {
 	}
 }
 
+// suggesting is a module that shows ghost text of two lines after the
+// first line's a.
+type suggesting struct{ idle }
+
+func (suggesting) Init(context.Context, api.Scope) (api.Result, error) {
+	return api.Result{Decorate: []api.Decoration{{ID: 1, Start: 1, End: 1, Style: "proposal", Note: "bc", Lines: []string{"de"}, Insert: true}}}, nil
+}
+
+// B384
+func TestB384GhostText(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "f")
+	change(t, path, "a\nz\n")
+	e := start(t, path)
+	e.SetSize(80, 20)
+	e.Use(suggesting{})
+	// The note and its row show on the cursor's line.
+	feed(e, "A")
+	settle(t, e, func() bool {
+		v := e.Windows()[0]
+		return slices.Contains(v.Ghosts, wire.Ghost{Pos: 1, Text: "bc", Style: "proposal"}) &&
+			slices.Equal(v.Virtual[0], []wire.Virtual{{Text: "de", Style: "proposal"}})
+	})
+}
+
 // pictured is a module that shows the image at path below the first line.
 type pictured struct {
 	idle

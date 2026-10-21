@@ -11,6 +11,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/clipperhouse/displaywidth"
 	"github.com/gdamore/tcell/v3"
 	"github.com/gdamore/tcell/v3/color"
 
@@ -706,11 +707,30 @@ func (c *client) virtual(v wire.Window, line int, above bool, numbers, row int) 
 		if r.Image != 0 {
 			c.image(v, line, r, y)
 		} else {
-			c.putClipped(v.X, y, v.X+v.W, part{r.Text, colours[r.Style]})
+			c.putClipped(v.X, y, v.X+v.W, part{expandTabs(r.Text, v.Tab), colours[r.Style]})
 		}
 		row++
 	}
 	return row
+}
+
+// expandTabs returns s with each tab as the spaces to the next tab stop,
+// every tab columns, as the text's own tabs draw.
+func expandTabs(s string, tab int) string {
+	var b strings.Builder
+	col := 0
+	for {
+		i := strings.IndexByte(s, '\t')
+		if i < 0 {
+			b.WriteString(s)
+			return b.String()
+		}
+		col += displaywidth.String(s[:i])
+		n := tab - col%tab
+		b.WriteString(s[:i])
+		b.WriteString(strings.Repeat(" ", n))
+		col, s = col+n, s[i+1:]
+	}
 }
 
 // pin draws the lines of v.Context over v's first rows on the surface

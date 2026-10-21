@@ -1480,10 +1480,15 @@ Where fude departs, the line says so and cites the departure in
   colours on that ground.
 - B299 [4] A module's decoration, or a plugin's with `ui`, may draw rows
   of its own below its line, or above it, which hold no text, so the cursor passes over them. Each
-  is cut at the window's edge. They count as rows when the window
+  is cut at the window's edge, and a tab in one takes the columns to the
+  next tab stop, as the text's own do. They count as rows when the window
   scrolls, and a line's rows above it show when it is the window's top
   line. A line that shows its text as it is, as the cursor's does (B295),
-  draws none.
+  draws none but those of ghost text (B384).
+- B384 [4] A module's decoration, or a plugin's with `ui`, may show ghost
+  text. Its note shows among the text at a place, after the cursor, and
+  its rows show below its line, on the cursor's line too. So a suggestion
+  of several lines shows while the user types at it.
 - B300 [4] A module's decoration, or a plugin's with `ui`, may make its
   lines one block. While the
   cursor or a selection is on any of them, every line of the block shows

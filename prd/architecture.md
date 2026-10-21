@@ -709,7 +709,9 @@ its line, or above it with `Above` (B299). The editor's list for a window
 holds them by line as `Window.Virtual`, and its row count for a line adds
 them, so scrolling and the client's drawing count the same rows. They
 hold no text, so `gj` and `gk` pass over them. A line that shows its text
-as it is draws none. A decoration marked `Block` makes its lines show
+as it is draws none, but an `Insert` decoration's rows are ghost text,
+which the cursor's line draws too, so a suggestion of several lines is one
+decoration (B384). A decoration marked `Block` makes its lines show
 their text together. While the cursor or a selection is on one, the list
 leaves out the replacements and rows of them all (B300).
 
