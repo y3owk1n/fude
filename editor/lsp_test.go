@@ -35,8 +35,8 @@ import (
 // FUDE_FAKE_ENCODING, appends every message it gets to FUDE_FAKE_LOG, and
 // crashes when a change inserts "#". Each "bad" in an opened document gets
 // an error diagnostic, a definition or type definition is the first "target"
-// in it, references and implementations are every "target", its symbols are
-// f with x inside, rename changes every "target" and puts a line at the top
+// in it and a declaration the last, references and implementations are
+// every "target", its symbols are f with x inside, rename changes every "target" and puts a line at the top
 // of other.go beside it, code actions are an edit that puts "hi " first and
 // a command that asks fude to put "cmd " first, signature help is
 // f(a int, b string) on b, and hover
@@ -106,7 +106,7 @@ func TestFakeServer(t *testing.T) {
 		}
 		json.Unmarshal(body, &m)
 		switch m.Method {
-		case "textDocument/definition", "textDocument/typeDefinition", "textDocument/references", "textDocument/implementation":
+		case "textDocument/definition", "textDocument/typeDefinition", "textDocument/references", "textDocument/implementation", "textDocument/declaration":
 			uri := m.Params.TextDocument.URI
 			var locs []any
 			for line, l := range strings.Split(opened[uri], "\n") {
@@ -117,6 +117,9 @@ func TestFakeServer(t *testing.T) {
 			}
 			if strings.HasSuffix(m.Method, "efinition") {
 				locs = locs[:1]
+			}
+			if m.Method == "textDocument/declaration" {
+				locs = locs[len(locs)-1:]
 			}
 			reply(m.ID, locs)
 		case "textDocument/rename":
@@ -237,6 +240,7 @@ func TestFakeServer(t *testing.T) {
 				"positionEncoding": os.Getenv("FUDE_FAKE_ENCODING"), "textDocumentSync": json.RawMessage(cmp.Or(os.Getenv("FUDE_FAKE_SYNC"), "2")), "documentFormattingProvider": true, "completionProvider": map[string]any{"triggerCharacters": []string{"."}, "resolveProvider": true},
 				"definitionProvider": true, "typeDefinitionProvider": true, "implementationProvider": true, "referencesProvider": true, "renameProvider": true,
 				"codeActionProvider": true, "colorProvider": true, "signatureHelpProvider": map[string]any{"triggerCharacters": []string{"("}, "retriggerCharacters": []string{","}}, "documentSymbolProvider": true, "workspaceSymbolProvider": true, "inlayHintProvider": true, "hoverProvider": true,
+				"declarationProvider": true,
 			}})
 		case "shutdown":
 			reply(m.ID, nil)

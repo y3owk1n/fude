@@ -513,6 +513,18 @@ definitions, they show as a list of places, which becomes the last list.
 It is mapped with or without a server, and without one it says "no
 language server". With nothing found it says "no definition found".
 
+## <Plug>(lsp.declaration)
+
+Jumps to the declaration of the symbol under the cursor, as
+`<Plug>(lsp.definition)` jumps to its definition, such as a C function's
+prototype in its header. Several show as a list of places, and none says
+"no declaration found". No key runs it, so map one.
+
+```toml
+[keymap.normal]
+gD = "<Plug>(lsp.declaration)"
+```
+
 ## <Plug>(lsp.type_definition)
 
 `grt` runs it, and is mapped only while a language server is attached to

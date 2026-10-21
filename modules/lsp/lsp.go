@@ -1,7 +1,7 @@
 // Package lsp is what a language server tells about the symbol under the
-// cursor: hover, its definition, type definition, implementations and
-// references, the file's symbols, the workspace's, and renaming it (B62,
-// B66, B214). Its :lsp panel shows the language servers and restarts,
+// cursor: hover, its definition, declaration, type definition,
+// implementations and references, the file's symbols, the workspace's, and
+// renaming it (B62, B66, B214, B460). Its :lsp panel shows the language servers and restarts,
 // stops, disables or enables them (B159).
 package lsp
 
@@ -42,6 +42,7 @@ const (
 	enableKey
 	firstDiag
 	lastDiag
+	declaration
 )
 
 // The callbacks lsp asks for, by id. A request's id is the id of the call
@@ -62,12 +63,13 @@ const (
 var methods = map[uint32]string{
 	hover: "textDocument/hover", definition: "textDocument/definition", typeDefinition: "textDocument/typeDefinition",
 	implementation: "textDocument/implementation", references: "textDocument/references", symbols: "textDocument/documentSymbol",
+	declaration: "textDocument/declaration",
 }
 
 // what names each request in a message.
 var what = map[uint32]string{
 	hover: "hover", definition: "definition", typeDefinition: "type definition", implementation: "implementations",
-	references: "references", symbols: "symbols",
+	references: "references", symbols: "symbols", declaration: "declaration",
 }
 
 // kinds are the names of the protocol's symbol kinds.
@@ -126,6 +128,7 @@ func (m *Module) Registered() []api.Registration {
 		{Kind: api.Plug, Name: "stop", Help: "stops the language server under the cursor", ID: stopKey},
 		{Kind: api.Plug, Name: "disable", Help: "keeps the language server under the cursor off", ID: disableKey},
 		{Kind: api.Plug, Name: "enable", Help: "lets the language server under the cursor start again", ID: enableKey},
+		{Kind: api.Plug, Name: "declaration", Help: "goes to the declaration of the symbol under the cursor", ID: declaration},
 		{Kind: api.Option, Name: "diagnostic_notes", Default: "true", Help: "a diagnostic's message shows after its line", Window: true},
 	}
 }

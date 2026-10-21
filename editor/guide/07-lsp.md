@@ -47,6 +47,8 @@ it again until `:lsp restart`.
   definition and `gO` the file's symbols. `<CR>` on a line of the list
   goes there.
 - `grn` renames the name everywhere, and `gra` lists code actions.
+- `<Plug>(lsp.declaration)` goes to the declaration. It has no key, so
+  map one in `[keymap.normal]`.
 - `]d` and `[d` go to the next and previous diagnostic.
 - `<C-x><C-o>` in insert mode lists completions, and with `autocomplete`
   on they show as you type. `<C-n>` and `<C-p>` select one and `<C-y>`

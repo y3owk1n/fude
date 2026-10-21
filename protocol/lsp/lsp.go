@@ -373,6 +373,7 @@ func (c *Client) write(root string, options any, initialized <-chan answer, noti
 				"completion":      map[string]any{"completionItem": map[string]any{"snippetSupport": true}},
 				"inlayHint":       map[string]any{},
 				"synchronization": map[string]any{"didSave": true},
+				"declaration":     map[string]any{"linkSupport": true},
 			},
 			"window":    map[string]any{"workDoneProgress": true},
 			"workspace": map[string]any{"configuration": true, "didChangeConfiguration": map[string]any{}},

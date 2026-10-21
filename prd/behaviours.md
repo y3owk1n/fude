@@ -1982,6 +1982,10 @@ Where fude departs, the line says so and cites the departure in
   one of its patterns: a name, such as `*.go`, or with a slash the end of a
   path, such as `.github/workflows/*`. `workspace_required` keeps it to
   files under one of its root files.
+- B460 [5] `<Plug>(lsp.declaration)` goes to the declaration of the
+  symbol under the cursor, as `<C-]>` goes to its definition. One is a
+  jump, several are a list of places, and none says "no declaration
+  found". As in Neovim, no key runs it, so a mapping or `:plug` does.
 
 ## Debugging
 
