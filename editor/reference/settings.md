@@ -197,6 +197,40 @@ one steps over it, `<BS>` in an empty pair deletes both, and `<CR>` in
 empty brackets opens an indented line between them. A quote after a
 letter stays one, as in `don't`. The default is on.
 
+## list_chars
+
+What `list` shows, by what it stands for, each one column wide. `tab`
+takes two or three characters: the first for a tab's first cell, the
+second for the cells after it, and a third for its last cell. The others
+take one: `space` for a blank, `lead` for the blanks before a line's text
+and `trail` for those after it, both in place of `space`, `nbsp` for a
+no-break space, `eol` after the end of a line, and with `wrap` off
+`extends` and `precedes` in the last and first column of a line that goes
+on past them. `tab = "> "`, `trail = "-"` and `nbsp = "+"` unless set,
+and `""` shows the text as it is. `:set list_chars.eol ¬` sets one in the
+running fude.
+
+```toml
+[list_chars]
+tab = "» "
+lead = "·"
+trail = "·"
+eol = "¬"
+```
+
+## fill_chars
+
+What fills parts of the screen with no text, each one character one
+column wide: `eob` for the rows past the end of the text, `~` unless set,
+`vert` for the line between windows side by side, `│` unless set, and
+`fold` for the rest of a closed fold's row, blank unless set.
+
+```toml
+[fill_chars]
+eob = " "
+fold = "·"
+```
+
 ## menu_height
 
 The most rows the completion menu at the cursor shows. It scrolls to keep

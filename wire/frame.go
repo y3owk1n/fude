@@ -86,6 +86,8 @@ type Window struct {
 	CursorLine       bool              // shade the cursor's line (B117)
 	Pair             []int             // the bracket at the cursor and its match, shown bold (B121)
 	List             bool              // show tabs, trailing spaces and no-break spaces (B118)
+	ListChars        ListChars         // what list shows them as (B486)
+	FillChars        FillChars         // what fills the rows past the text, the lines between windows and closed folds (B487)
 	Left             int               // the first column shown without wrap
 	Tab              int               // the columns a tab shows as
 	Guides           map[int][]int     // by line, the display columns where a faint line marks the indent (B153)

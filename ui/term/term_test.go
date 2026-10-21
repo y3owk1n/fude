@@ -2350,3 +2350,62 @@ func TestB483CursorColumn(t *testing.T) {
 		t.Errorf("past the text the cursor's column is %v", ground(1, 3))
 	}
 }
+
+// B486, B118
+func TestB486ListChars(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.txt")
+	if err := os.WriteFile(path, []byte("\tab  \n  x\u00a0y\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for config, want := range map[string][2]string{
+		"list = true\n": {">       ab--", "  x+y"},
+		"list = true\n[list_chars]\ntab = \"<->\"\nspace = \".\"\nlead = \"_\"\ntrail = \"~\"\nnbsp = \"%\"\neol = \"$\"\n": {"<------>ab~~$", "__x%y$"},
+	} {
+		c := startWith(t, config, path)
+		c.draw()
+		for y, row := range want {
+			if got := strings.TrimRight(c.row(y), " "); got != row {
+				t.Errorf("with %q row %d is %q, want %q", config, y, got, row)
+			}
+		}
+	}
+	// Without wrap, a line cut at either edge shows extends and precedes.
+	long := filepath.Join(t.TempDir(), "b.txt")
+	if err := os.WriteFile(long, []byte(strings.Repeat("x", 130)+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	c := startWith(t, "list = true\nwrap = false\n[list_chars]\nextends = \">\"\nprecedes = \"<\"\n", long)
+	c.draw()
+	if got := c.row(0); got != strings.Repeat("x", 119)+">" {
+		t.Errorf("the first row is %q, want it cut with >", got)
+	}
+	c.e.Feed(vim.Keys("$")[0])
+	c.draw()
+	if got := c.row(0); !strings.HasPrefix(got, "<x") {
+		t.Errorf("at the line's end the first row is %q, want it to start with <", got)
+	}
+}
+
+// B487
+func TestB487FillChars(t *testing.T) {
+	c := startWith(t, "[fill_chars]\neob = \"@\"\nvert = \"!\"\n")
+	c.e.(*editor.Session).Use(windowmod.New())
+	for _, k := range vim.Keys(":vsplit<CR>") {
+		c.e.Feed(k)
+	}
+	c.draw()
+	x := c.e.Windows()[1].X - 1
+	if s, _, _ := c.s.Get(x, 0); s != "!" {
+		t.Errorf("between the windows is %q, want !", s)
+	}
+	if s, _, _ := c.s.Get(0, 1); s != "@" {
+		t.Errorf("past the text is %q, want @", s)
+	}
+	// A value fill_chars does not take changes nothing.
+	for _, k := range vim.Keys(":set fill_chars.eob ab<CR>") {
+		c.e.Feed(k)
+	}
+	if msg := c.e.Message(); msg != `fill_chars.eob takes one character one column wide, not "ab"` {
+		t.Errorf(":set fill_chars.eob ab said %q", msg)
+	}
+}

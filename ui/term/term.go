@@ -4,6 +4,7 @@ package term
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -509,6 +510,13 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 	}
 	// win holds what every line of the window draws from.
 	win := sig(nil).int(v.X).int(v.Y).int(v.W).int(v.Left).flag(v.Wrap).flag(v.List).int(v.ColorColumn).int(v.CursorColumn).int(v.Tab).int(int(c.shape)).int(int(c.tint.Hex())).flag(c.extra != nil && c.extra.Load())
+	list := v.ListChars
+	var tabs []rune
+	if v.List {
+		tabs = []rune(list.Tab)
+		win = win.str(list.Tab).str(list.Space).str(list.Lead).str(list.Trail).str(list.Nbsp).str(list.Eol).str(list.Extends).str(list.Precedes)
+	}
+	win = win.str(v.FillChars.Fold)
 	// Pinned lines cover rows, so a change to them draws every row again.
 	for _, p := range v.Context {
 		win = win.int(p)
@@ -619,9 +627,11 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 			}
 			last.frame, last.sig, last.styles, last.marks = c.frame, append(last.sig[:0], k...), append(last.styles[:0], styles...), last.marks[:0]
 			c.s.FillArea(v.X, v.Y+row, v.W, len(starts), ' ', ground)
-			// trail is where the line's trailing spaces start. col is the column
-			// in the line, which tabs are measured from.
+			// trail is where the line's trailing spaces start, and lead where its
+			// leading blanks end. col is the column in the line, which tabs are
+			// measured from.
 			trail := pos + len(strings.TrimRight(text, " "))
+			lead := end - len(strings.TrimLeft(text, " \t"))
 			col := 0
 			for i, start := range starts {
 				y, stop := v.Y+row+i, end
@@ -653,6 +663,9 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 					}
 					if v.Current && at == v.Cursor && (rest != "" || stop == end) {
 						cx, cy, found = v.X+min(x, v.W-1), y, true
+					}
+					if rest != "" && x >= v.W && v.List && list.Extends != "" {
+						c.s.Put(v.X+v.W-1, y, list.Extends, ground.Foreground(th.faint))
 					}
 					if rest == "" || x >= v.W {
 						break
@@ -703,14 +716,20 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 					if rest[0] == '\t' {
 						w := v.Tab - col%v.Tab
 						c.s.FillArea(v.X+x, y, min(w, v.W-x), 1, ' ', style)
-						if v.List {
-							c.s.Put(v.X+x, y, ">", style.Foreground(th.faint))
+						// [list_chars] tab gives the first cell, the ones after
+						// and, with a third character, the last (B486).
+						for j := 0; len(tabs) > 0 && j < min(w, v.W-x); j++ {
+							mark := tabs[min(j, 1)]
+							if len(tabs) == 3 && j == w-1 {
+								mark = tabs[2]
+							}
+							c.s.Put(v.X+x+j, y, string(mark), style.Foreground(th.faint))
 						}
 						x, col, rest = x+w, col+w, rest[1:]
 						continue
 					}
 					if v.List {
-						if mark, ok := listChar(rest, at >= trail); ok {
+						if mark, ok := listChar(list, rest, at < lead, at >= trail); ok {
 							// The mark takes the place of the one-column character.
 							c.s.Put(v.X+x, y, mark, style.Foreground(th.faint))
 							_, size := utf8.DecodeRuneInString(rest)
@@ -722,6 +741,13 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 					rest, width = c.s.Put(v.X+x, y, rest, style)
 					x, col = x+width, col+width
 				}
+				if v.List && list.Precedes != "" && !v.Wrap && start > pos {
+					c.s.Put(v.X, y, list.Precedes, ground.Foreground(th.faint))
+				}
+				if v.List && list.Eol != "" && i == len(starts)-1 && x < v.W {
+					c.s.Put(v.X+x, y, list.Eol, ground.Foreground(th.faint))
+					x++
+				}
 				// A closed fold's first line says how many lines it hides.
 				if n := v.Folds[line]; n > 0 && i == len(starts)-1 && x < v.W {
 					s := fmt.Sprintf("  ⋯ %d lines ", n)
@@ -729,6 +755,9 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 						s = "  ⋯ 1 line "
 					}
 					x = c.putClipped(v.X+x, y, v.X+v.W, part{s, base.Foreground(th.muted).Background(th.surface)}) - v.X
+					for ; v.FillChars.Fold != "" && x < v.W; x++ {
+						c.s.Put(v.X+x, y, v.FillChars.Fold, base.Foreground(th.muted))
+					}
 				}
 				if n := v.Notes[line]; i == len(starts)-1 && x >= 0 && n.Text != "" {
 					x = c.note(v, x, y, n, shade)
@@ -776,7 +805,7 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 	for ; row < v.H-1; row++ {
 		c.s.FillArea(numbers, v.Y+row, v.Gutter+v.W, 1, ' ', base)
 		if v.Float == "" {
-			c.s.Put(numbers, v.Y+row, "~", base.Foreground(th.faint))
+			c.s.Put(numbers, v.Y+row, cmp.Or(v.FillChars.Eob, " "), base.Foreground(th.faint))
 		}
 	}
 	c.pin(v, numbers, cur)
@@ -882,7 +911,7 @@ func (c *client) pin(v wire.Window, numbers, cur int) {
 func (c *client) edge(v wire.Window, left int) {
 	if v.X > left {
 		for y := v.Y; y < v.Y+v.H; y++ {
-			c.s.Put(v.X-1, y, "│", base.Foreground(th.border))
+			c.s.Put(v.X-1, y, cmp.Or(v.FillChars.Vert, " "), base.Foreground(th.border))
 		}
 	}
 	c.status(v, v.X, v.W)
@@ -951,16 +980,21 @@ func (c *client) number(line, rel int, onCursor bool, x, y int, v wire.Window) {
 }
 
 // listChar returns what list shows in place of the character rest starts
-// with: - for a trailing space and + for a
-// no-break space (B118).
-func listChar(rest string, trailing bool) (string, bool) {
+// with, from [list_chars]: trail for a trailing space, lead for a leading
+// one, else space, and nbsp for a no-break space (B118, B486).
+func listChar(list wire.ListChars, rest string, leading, trailing bool) (string, bool) {
+	var mark string
 	switch {
 	case rest[0] == ' ' && trailing:
-		return "-", true
+		mark = cmp.Or(list.Trail, list.Space)
+	case rest[0] == ' ' && leading:
+		mark = cmp.Or(list.Lead, list.Space)
+	case rest[0] == ' ':
+		mark = list.Space
 	case strings.HasPrefix(rest, "\u00a0"):
-		return "+", true
+		mark = list.Nbsp
 	}
-	return "", false
+	return mark, mark != ""
 }
 
 // ghosts draws v's ghosts at position at, from column x of row y, on bg.

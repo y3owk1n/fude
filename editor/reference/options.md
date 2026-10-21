@@ -59,7 +59,7 @@ window, so text above and below can be lined up with it.
 ## list
 
 Shows a tab as `>` and blanks, a trailing space as `-` and a no-break space
-as `+`. The indent guides hide while it is on.
+as `+`, or as `[list_chars]` says. The indent guides hide while it is on.
 
 ## ignore_case
 

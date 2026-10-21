@@ -215,7 +215,24 @@ Where fude departs, the line says so and cites the departure in
   `cursorcolumn` does. A selection, a match and a cell with a ground of
   its own keep theirs.
 - B118 [2] `list` shows a tab as `>` and blanks, a trailing space as `-`
-  and a no-break space as `+`, Neovim's default `listchars`.
+  and a no-break space as `+`, Neovim's default `listchars`, unless
+  `[list_chars]` says otherwise (B486).
+- B486 [2] The `[list_chars]` table sets what `list` shows, with the
+  items of Neovim's `listchars` as its keys: `tab` two or three
+  characters, the first for a tab's first cell, the second for the cells
+  after and the third, if given, for its last, and one each for `space`,
+  `lead` for blanks before a line's text, `trail` for blanks after it,
+  `nbsp`, `eol` after a line, and with `wrap` off `extends` and
+  `precedes` in the last and first column of a line cut there. A key it
+  leaves out keeps its default, and `""` shows the text as it is. `:set
+  list_chars.trail ~` sets one. A character not one column wide changes
+  nothing and says why.
+- B487 [2] The `[fill_chars]` table sets what fills the screen, with the
+  items of Neovim's `fillchars` as its keys: `eob` for the rows past the
+  text, `~` unless set, `vert` for the line between windows side by side,
+  `│` unless set, and `fold` for the rest of a closed fold's row, blank
+  unless set. A character not one column wide changes nothing and says
+  why.
 - B119 [5] A buffer with diagnostics shows a sign column, two columns left
   of the line numbers, with the letter of each line's worst diagnostic,
   `E`, `W`, `I` or `H`, as Neovim's `signcolumn=auto` does.

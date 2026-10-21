@@ -9,7 +9,9 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
+	"github.com/clipperhouse/displaywidth"
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/wire"
 )
@@ -185,9 +187,12 @@ func (c *config) settings() map[string]reflect.Value {
 		}
 		out[f.Tag.Get("toml")] = v.FieldByIndex(f.Index)
 	}
-	colors := reflect.ValueOf(&c.Colors).Elem()
-	for _, f := range reflect.VisibleFields(colors.Type()) {
-		out["colors."+f.Tag.Get("toml")] = colors.FieldByIndex(f.Index)
+	tables := map[string]any{"colors": &c.Colors, "list_chars": &c.ListChars, "fill_chars": &c.FillChars}
+	for name, table := range tables {
+		t := reflect.ValueOf(table).Elem()
+		for _, f := range reflect.VisibleFields(t.Type()) {
+			out[name+"."+f.Tag.Get("toml")] = t.FieldByIndex(f.Index)
+		}
 	}
 	return out
 }
@@ -223,6 +228,9 @@ func (e *Session) setSetting(name, value string, given bool) error {
 		return nil
 	case e.power != Host:
 		return errors.New("a guest may not change " + name + ", which every session shares")
+	}
+	if err := checkSetting(name, value); err != nil {
+		return err
 	}
 	var set reflect.Value
 	switch v.Kind() {
@@ -273,6 +281,25 @@ func (e *Session) setSetting(name, value string, given bool) error {
 			w.fitted = nil
 		}
 		s.layout()
+	}
+	return nil
+}
+
+// checkSetting returns why the setting name may not take value, or nil.
+// A character of [list_chars] or [fill_chars] is one column wide, and
+// list_chars.tab is two or three of them (B486, B487).
+func checkSetting(name, value string) error {
+	table, key, _ := strings.Cut(name, ".")
+	if table != "list_chars" && table != "fill_chars" || value == "" {
+		return nil
+	}
+	n := utf8.RuneCountInString(value)
+	ok, want := n == 1, "one character"
+	if key == "tab" {
+		ok, want = n == 2 || n == 3, "two or three characters"
+	}
+	if !ok || displaywidth.String(value) != n {
+		return fmt.Errorf("%s takes %s one column wide, not %q", name, want, value)
 	}
 	return nil
 }

@@ -48,6 +48,8 @@ type config struct {
 	Theme          string            `toml:"theme" help:"the colours: dark, light or a base16 scheme file"`
 	Title          bool              `toml:"title" help:"the terminal's title shows the current file's name, and gets its old title back as fude quits"`
 	MenuHeight     uint              `toml:"menu_height" help:"the most rows the completion menu at the cursor shows, 0 for as many as fit"`
+	ListChars      wire.ListChars    `toml:"list_chars" help:"what list shows tabs, blanks and the ends of lines as, by what they stand for"`
+	FillChars      wire.FillChars    `toml:"fill_chars" help:"what fills the rows past the text, the line between windows and closed folds"`
 	options
 	Colors   wire.Colors `toml:"colors" help:"colours by role, each as #rrggbb, that replace the theme's"`
 	Keymap   keymap      `toml:"keymap"`
@@ -119,7 +121,7 @@ var keymapTables = []struct{ name, help string }{
 	{"groups", "names of the keys mappings start with, which key hints show"},
 }
 
-var defaults = config{TabWidth: 8, KeyTimeout: 1000, FormatTimeout: 1000, LargeFile: 2, TerminalHeight: 33, SplitBelow: true, SplitRight: true, RemoteImages: true, Sources: []string{"lsp", "snippet", "path", "buffer"}, AutoInstall: true, Leader: "<Space>", Theme: "dark", options: options{Wrap: true, IncSearch: true, HLSearch: true, WrapScan: true}}
+var defaults = config{TabWidth: 8, KeyTimeout: 1000, FormatTimeout: 1000, LargeFile: 2, TerminalHeight: 33, SplitBelow: true, SplitRight: true, RemoteImages: true, Sources: []string{"lsp", "snippet", "path", "buffer"}, AutoInstall: true, Leader: "<Space>", Theme: "dark", ListChars: wire.ListChars{Tab: "> ", Trail: "-", Nbsp: "+"}, FillChars: wire.FillChars{Eob: "~", Vert: "│"}, options: options{Wrap: true, IncSearch: true, HLSearch: true, WrapScan: true}}
 
 // options are the settings each window has, which :set changes for the
 // current window and the windows opened after it (B39). :set takes each by
@@ -178,6 +180,11 @@ func loadConfig() (config, error) {
 	}
 	if err := badPattern(c); err != nil {
 		return c, fmt.Errorf("%s: %w", path, err)
+	}
+	for name, v := range c.settings() {
+		if err := checkSetting(name, settingText(v)); err != nil {
+			return c, fmt.Errorf("%s: %w", path, err)
+		}
 	}
 	for _, s := range c.Sources {
 		if !slices.Contains(defaults.Sources, s) {
