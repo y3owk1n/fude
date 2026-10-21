@@ -1236,6 +1236,32 @@ func TestB295PluginReplaceAndShade(t *testing.T) {
 	})
 }
 
+// tabbed is a module whose <Tab> types x after an a, and does nothing
+// elsewhere.
+type tabbed struct{ idle }
+
+func (tabbed) Registered() []api.Registration {
+	return []api.Registration{{Kind: api.Typed, Name: "<Tab>", ID: 1}}
+}
+
+func (tabbed) Call(_ context.Context, _ uint32, s api.Scope, args ...int) (api.Result, error) {
+	if c := args[0]; c > 0 && s.Text.Slice(c-1, c) == "a" {
+		return api.Result{Edits: []api.Edit{{Start: c, End: c, Text: "x"}}}, nil
+	}
+	return api.Result{}, nil
+}
+
+// B323: a module's <Tab> runs with expand_tab on too, and with no edits
+// <Tab> types its spaces.
+func TestB323TypedTab(t *testing.T) {
+	config(t, "expand_tab = true\nindent_width = 4\n")
+	e := start(t)
+	e.Use(tabbed{})
+	if feed(e, "ia<Tab>b<Tab>"); text(e) != "axb " {
+		t.Errorf("a<Tab>b<Tab> made %q, want %q", text(e), "axb ")
+	}
+}
+
 // ruled is a module that draws a row of its own above the line before the
 // last.
 type ruled struct{ idle }

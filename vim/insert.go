@@ -53,18 +53,19 @@ func (m *Machine) insert(k Key) error {
 	if ik, ok := inserts[string(k)]; ok {
 		return ik.run(m, t, c, k)
 	}
-	if k == "\t" && m.expandTab {
-		iw := m.h.IndentWidth()
-		return m.typeText(strings.Repeat(" ", iw-column(t, LineStart(t, c), c, m.h.TabWidth())%iw))
-	}
 	if k.isChar() {
 		if err := m.closeIndent(t, c, string(k)); err != nil {
 			return err
 		}
+		t, c = m.h.Text(), m.h.Cursor()
 		if hooked {
-			if done, err := m.typedKeyed(kc, m.h.Text(), m.h.Cursor()); done {
+			if done, err := m.typedKeyed(kc, t, c); done {
 				return err
 			}
+		}
+		if k == "\t" && m.expandTab {
+			iw := m.h.IndentWidth()
+			return m.typeText(strings.Repeat(" ", iw-column(t, LineStart(t, c), c, m.h.TabWidth())%iw))
 		}
 		return m.typeText(string(k))
 	}

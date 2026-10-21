@@ -78,10 +78,14 @@ type hostOperator struct {
 // start of the first.
 // Dot repeats it with its characters. In insert mode it runs when its key
 // is typed, before the key's own work, at the cursor and with no
-// characters. Its edits go in as typed text does, with the cursor after
-// the first one's text. With no edits the key does what it does, as
-// autopairs needs. A nil run removes it.
+// characters, and its key is in Vim notation, such as <Tab>. Its edits go
+// in as typed text does, with the cursor after the first one's text. With
+// no edits the key does what it does, as autopairs needs. A nil run
+// removes it.
 func (m *Machine) Keyed(mode Mode, keys string, chars int, run func(t Text, start, end int, lines bool, chars []string) []Edit) {
+	if ks := Keys(keys); mode == Insert && len(ks) == 1 {
+		keys = string(ks[0])
+	}
 	if run == nil {
 		delete(m.keyed[mode], keys)
 		return
