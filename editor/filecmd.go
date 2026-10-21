@@ -106,9 +106,9 @@ func (e *Session) saveAs(path string, force bool) error {
 }
 
 // fileInfo says what <C-g> says of the current buffer: its name, whether
-// it is modified or new, how many lines it has and how far down the cursor
-// is. A count gives the full path, and one over 1 the buffer's number too
-// (B426).
+// it is modified, new or read only, how many lines it has and how far down
+// the cursor is. A count gives the full path, and one over 1 the buffer's
+// number too (B426).
 func (e *Session) fileInfo(count int) string {
 	b, t := e.win.buf, e.Text()
 	name := b.name()
@@ -120,27 +120,25 @@ func (e *Session) fileInfo(count int) string {
 		fmt.Fprintf(&s, "buf %d: ", b.id)
 	}
 	s.WriteString("\"" + name + "\" ")
-	flags := ""
+	var parts []string
 	if b.modified() {
-		flags += "[Modified]"
+		parts = append(parts, "modified")
 	}
 	if b.file.isNew && b.file.path != "" {
-		flags += "[New]"
+		parts = append(parts, "new")
 	}
 	if b.file.readonly {
-		flags += "[readonly]"
-	}
-	if flags != "" {
-		s.WriteString(flags + " ")
+		parts = append(parts, "read only")
 	}
 	switch n := t.Lines(); {
 	case t.Len() == 0:
-		s.WriteString("--No lines in buffer--")
+		parts = append(parts, "has no lines")
 	case n == 1:
-		s.WriteString("1 line --100%--")
+		parts = append(parts, "1 line, 100% down")
 	default:
-		fmt.Fprintf(&s, "%d lines --%d%%--", n, (t.LineOf(e.Cursor())+1)*100/n)
+		parts = append(parts, fmt.Sprintf("%d lines, %d%% down", n, (t.LineOf(e.Cursor())+1)*100/n))
 	}
+	s.WriteString(strings.Join(parts, ", "))
 	return s.String()
 }
 

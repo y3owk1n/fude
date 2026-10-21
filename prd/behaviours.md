@@ -575,11 +575,12 @@ Where fude departs, the line says so and cites the departure in
   changes. `:enew` shows a new buffer with no file, and `:new` and `:vnew`
   show one in a new split. `:cd dir` changes the working directory, home
   without `dir`, and `:pwd` shows it.
-- B426 [2] `<C-g>` and `:file` say the buffer's name, `[Modified]` when it
-  has changes, `[New]` when its file is not written yet, its line count
-  and how far down the cursor's line is, as `"a.go" [Modified] 4 lines
-  --50%--`, or `--No lines in buffer--` when empty, as in Neovim with
-  `ruler` on. A count gives the full path, and a count over 1 the
+- B426 [2] `<C-g>` and `:file` say the buffer's name, modified when it
+  has changes, new when its file is not written yet, read only when it
+  cannot be written, its line count and how far down the cursor's line
+  is, as `"a.go" modified, 4 lines, 50% down`, or `"[No Name]" has no
+  lines` when empty, in words where Neovim shows `[Modified] 4 lines
+  --50%--`. A count gives the full path, and a count over 1 the
   buffer's number first. `:file name` makes name the buffer's file
   without writing, and the next `:w` writes there. The buffer takes the
   filetype and language servers of its new name, here and after

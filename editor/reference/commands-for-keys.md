@@ -43,12 +43,13 @@ one the message says so. A client attached over RPC must attach again.
 
 ## <Plug>(file)
 
-`<C-g>` runs it. Says the buffer's name, then `[Modified]` when it has
-changes and `[New]` when its file is not written yet, then how many lines
-it has and how far down the cursor's line is, as `"main.go" [Modified] 40
-lines --25%--`. With a count it gives the file's full path, and with a
-count over 1 the buffer's number before it, as `buf 2:`. `:file` says the
-same.
+`<C-g>` runs it. Says the buffer's name, then modified when it has
+changes, new when its file is not written yet and read only when it cannot
+be written, then how many lines it has and how far down the cursor's line
+is, as `"main.go" modified, 40 lines, 25% down`, or `"main.go" has no
+lines` when it is empty. With a count it gives the file's full path, and
+with a count over 1 the buffer's number before it, as `buf 2:`. `:file`
+says the same.
 
 ## <Plug>(suspend)
 

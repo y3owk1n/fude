@@ -469,9 +469,9 @@ func TestB426FileInfo(t *testing.T) {
 	change(t, path, "one\ntwo\nthree\nfour\n")
 	e := open(t, path)
 	for _, c := range [][2]string{
-		{"j<C-g>", `"` + path + `" 4 lines --50%--`},
-		{"Gx:file<CR>", `"` + path + `" [Modified] 4 lines --100%--`},
-		{"u2<C-g>", `buf 1: "` + path + `" 4 lines --100%--`},
+		{"j<C-g>", `"` + path + `" 4 lines, 50% down`},
+		{"Gx:file<CR>", `"` + path + `" modified, 4 lines, 100% down`},
+		{"u2<C-g>", `buf 1: "` + path + `" 4 lines, 100% down`},
 	} {
 		if feed(e, c[0]); e.Message() != c[1] {
 			t.Errorf("%s said %q, want %q", c[0], e.Message(), c[1])
@@ -479,14 +479,14 @@ func TestB426FileInfo(t *testing.T) {
 	}
 	// :file names the buffer's file, which :w then writes.
 	renamed := filepath.Join(dir, "g")
-	if feed(e, ":file "+renamed+"<CR>"); e.Message() != `"`+renamed+`" [New] 4 lines --100%--` {
+	if feed(e, ":file "+renamed+"<CR>"); e.Message() != `"`+renamed+`" new, 4 lines, 100% down` {
 		t.Errorf(":file %s said %q", renamed, e.Message())
 	}
 	if feed(e, ":w<CR>"); disk(t, renamed) != "one\ntwo\nthree\nfour\n" {
 		t.Errorf(":w after :file wrote %q", disk(t, renamed))
 	}
 	empty := open(t, "")
-	if feed(empty, "<C-g>"); empty.Message() != `"[No Name]" --No lines in buffer--` {
+	if feed(empty, "<C-g>"); empty.Message() != `"[No Name]" has no lines` {
 		t.Errorf("<C-g> in an empty buffer said %q", empty.Message())
 	}
 	// The buffer takes the grammar of its new name.
