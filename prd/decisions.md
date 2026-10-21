@@ -1318,6 +1318,78 @@ means a dependency with code for each system, or polling every directory
 of the project while fude runs. The changes that matter while editing are
 the ones fude makes.
 
+### N54. The rest of Neovim's options stay fixed or absent
+
+Beside the options fude has and those N44 to N53 leave out, the options
+below stay as fude has them: absent, or fixed at one value, most often
+Neovim's default (N4). Windows in diff mode scroll together without
+`scrollbind`, `cursorbind` or `scrollopt` (B523).
+
+`laststatus`, `cmdheight`, `cmdwinheight`, `ruler`, `showcmd`,
+`showcmdloc`, `showmode`, `statusline`, `rulerformat`, `winbar`,
+`showtabline`, `numberwidth`, `display`, `cursorlineopt`, `guicursor`,
+`titlestring`, `titlelen`, `titleold`, `icon` and `iconstring` stay
+fixed. Why: every window has a status line and the command line floats
+(B147, B148), the modules add their segments to it, and a format string
+for the bars or the title is config that runs, which D27 rules out.
+
+`winborder`, `winhighlight`, `winblend`, `pumblend`, `pumborder`,
+`pumwidth`, `pummaxwidth`, `completeitemalign`, `winheight`, `winwidth`,
+`winminheight`, `winminwidth`, `splitkeep`, `equalalways`, `eadirection`,
+`winfixbuf`, `winfixheight`, `winfixwidth`, `winpinned` and `switchbuf`
+stay fixed. Why: the layout sizes itself and `<C-w>=` evens it (B193), a
+module's window stays where it opened (D55), and floats share one look
+that the theme colours.
+
+`scroll`, `scrolljump`, `scrolloffpad`, `smoothscroll`, `sidescroll`,
+`startofline`, `whichwrap`, `jumpoptions`, `backspace`, `selection`,
+`nrformats`, `joinspaces`, `matchpairs`, `tildeop`, `cedit`, `digraph`,
+`langmap`, `keymap` and `timeout` stay fixed. Why: they change what a key
+does, and every key goes through one grammar that macros, plugins,
+remote clients and agents share, so a key must do the same thing in
+every fude.
+
+`formatoptions`, `formatlistpat`, `wrapmargin`, `autoindent`,
+`smartindent`, `copyindent`, `preserveindent`, `shiftround`,
+`vartabstop`, `infercase`, `showmatch`, `matchtime`, `comments` and
+`commentstring` stay fixed. Why: `text_width` keeps a comment's marker
+and a list item's indent (B450), typing keeps the line's indent (N47),
+`gc` takes a language's comments from its grammar, and a formatter does
+the rest.
+
+`complete`, `completeopt`, `autocompletedelay`, `autocompletetimeout`,
+`completetimeout`, `dictionary`, `thesaurus`, `wildmenu`, `wildmode`,
+`wildoptions`, `wildchar`, `wildcharm`, `wildignore`, `inccommand`,
+`history` and `messagesopt` stay fixed. Why: `completion_sources` picks
+where completions come from (B206), the finders skip what git ignores
+(B210), `:s` shows its changes as they are typed (B154), and the
+histories and `:messages` keep a fixed number of entries (B157).
+
+`autoread`, `autowrite`, `autowriteall`, `confirm`, `hidden`,
+`fileformat`, `fileformats`, `readonly`, `modified`, `modifiable` and
+`exrc` stay fixed. Why: a file unchanged in fude reloads when it changes
+on disk (B82), a buffer may stay unsaved in the background, fude writes
+only when asked and refuses to quit with unsaved changes (B5), line
+endings stay as found (B3), fude alone says what may change (B302), and
+a project's own config would be config that runs (D27).
+
+`sessionoptions`, `shada`, `shadafile`, `viewdir`, `viewoptions`,
+`autochdir`, `cdpath`, `cdhome`, `path`, `suffixesadd`, `keywordprg`,
+`shell` and its kin, and `scrollback` stay fixed. Why: a session keeps
+its windows and files (B226) and what fude held comes back in the next
+run (B454), the working directory changes only with `:cd` (N52), the
+finders and language servers find files and documentation, terminals and
+tasks run `$SHELL`, and a terminal keeps a fixed scrollback.
+
+`foldlevel`, `foldlevelstart`, `foldopen`, `foldclose`, `syntax`,
+`synmaxcol`, `spelllang`, `spellfile`, `spellcapcheck`, `spelloptions`,
+`spellsuggest` and `mkspellmem` stay fixed, and `signcolumn` and
+`colorcolumn` stay one switch and one column as `sign_column` and
+`color_column`. Why: folds start open and `zm` and `zr` set their level
+(N34), `large_file` turns syntax off for a big file, spelling reads one
+word list, `spell.words`, and one sign column and one shaded column
+cover what a window needs.
+
 ### N55. `:diff` stays the timeline's
 
 In Neovim `:diff` is short for `:diffupdate`. In fude `:diff` compares two
