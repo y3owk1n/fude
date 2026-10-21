@@ -1111,12 +1111,13 @@ selected lines. `ys`, `ds` and `cs` have no meaning in Neovim, so they take
 nothing away. `modules/surround` offers it, through the vim machine's
 operators and keyed commands that wait for characters (B322).
 
-### N34. Folds come from indent, through zc, zo, za, zR and zM
+### N34. Folds come from indent, and zf adds one by hand
 
 The fold module folds a buffer by indent, as VS Code does by default
-(B224). Neovim's default `foldmethod` is manual, where `zf` makes a fold,
-and `foldmethod` offers indent, syntax, markers and expressions. fude has
-no `zf`, `foldmethod`, `zj`, `zk`, `zC` or `zO`. Why: indent folds work in every
+(B224), and `zf` closes a fold over the lines a motion covers. Neovim's
+default `foldmethod` is manual, where only `zf` makes a fold, and
+`foldmethod` offers indent, syntax, markers and expressions. fude has no
+`foldmethod`, `zC` or `zO`. Why: indent folds work in every
 file, with or without a grammar, and grammar repos ship no fold queries
 (D28). The user asked for folding on 2026-10-17.
 
