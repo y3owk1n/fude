@@ -283,6 +283,11 @@
 "a|b\ncd" "v<Esc>j:'<,'>s/a/z/<CR>" "|zb\ncd"
 "|a a\na a" ":s/a/b/<CR>jg&" "b b\n|b a"
 "|a a\na a" ":s/a/b/g<CR>jg&" "b b\n|b b"
+"|foo bar foo\nbaz foo qux\n\nend foo" ":%s/foo/X/gc<CR>a" "X bar X\nbaz X qux\n\n|end X"
+"|foo bar foo\nbaz foo qux\n\nend foo" ":%s/foo/X/gc<CR>nl" "|foo bar X\nbaz foo qux\n\nend foo"
+"|foo bar foo\nbaz foo qux\n\nend foo" ":%s/foo/X/gc<CR>yq" "|X bar foo\nbaz foo qux\n\nend foo"
+"|foo bar foo\nbaz foo qux\n\nend foo" ":%s/foo/X/gc<CR>q" "|foo bar foo\nbaz foo qux\n\nend foo"
+"|foo bar foo\nbaz foo qux\n\nend foo" ":s/o/0/gn<CR>" "|foo bar foo\nbaz foo qux\n\nend foo"
 
 # B28
 "|foo.x foo" "*" "foo.x |foo"
@@ -482,6 +487,12 @@
 "a\nb\nc\n|d" ":-2<CR>" "a\n|b\nc\nd"
 "|a\nfoo\nc" ":/foo/d<CR>" "a\n|c"
 "|a\nb\nfoo\nd" ":.,/foo/-1d<CR>" "|foo\nd"
+"|foo bar foo\nbaz foo qux\n\nend foo" ":d 2<CR>" "|\nend foo"
+"|foo bar foo\nbaz foo qux\n\nend foo" ":y 2<CR>Gp" "foo bar foo\nbaz foo qux\n\nend foo\n|foo bar foo\nbaz foo qux"
+"|foo bar foo\nbaz foo qux\n\nend foo" ":> 2<CR>" "\tfoo bar foo\n\t|baz foo qux\n\nend foo"
+"|foo bar foo\nbaz foo qux\n\nend foo" ":1d|$d<CR>" "baz foo qux\n|"
+"|foo bar foo\nbaz foo qux\n\nend foo" ":s/foo/X/|s/bar/Y/<CR>" "|X Y foo\nbaz foo qux\n\nend foo"
+"|foo bar foo\nbaz foo qux\n\nend foo" ":g/foo/s/o/0/|s/0/1/<CR>" "f1o bar foo\nbaz f1o qux\n\n|end f1o"
 
 # B87
 "|1x\n2\n3x\n4" ":g/x/d<CR>" "2\n|4"

@@ -358,6 +358,21 @@ func (m *Machine) substitute(first, last int, pat, rep, flags string) error {
 	if len(edits) == 0 {
 		return fmt.Errorf("pattern not found: %s", pat)
 	}
+	switch {
+	case strings.Contains(flags, "n"):
+		lines := map[int]bool{}
+		t := m.h.Text()
+		for _, e := range edits {
+			lines[t.LineOf(e.Start)] = true
+		}
+		m.msg = fmt.Sprintf("%d matches on %d lines", len(edits), len(lines))
+		return nil
+	case strings.Contains(flags, "c"):
+		m.h.BeginGroup()
+		m.confirm = &confirming{edits: edits, from: m.h.Cursor()}
+		m.ask()
+		return nil
+	}
 	shift := 0
 	for _, e := range edits[:len(edits)-1] {
 		shift += len(e.Text) - (e.End - e.Start)
@@ -370,6 +385,84 @@ func (m *Machine) substitute(first, last int, pat, rep, flags string) error {
 	t := m.h.Text()
 	ls := LineStart(t, after)
 	m.h.SetCursor(firstNonBlank(t, ls, LineEnd(t, ls)))
+	return nil
+}
+
+// confirming is a :s with the c flag, asking before each of its edits, in
+// the text as it was. shift is how far the edits made so far moved the
+// rest.
+type confirming struct {
+	edits    []Edit
+	at       int
+	shift    int
+	replaced int
+	from     int // the cursor before, where it stays when nothing is replaced
+	last     int // where the last replacement starts
+}
+
+// ask puts the cursor on the next match :s c asks about and asks.
+func (m *Machine) ask() {
+	e := m.confirm.edits[m.confirm.at]
+	m.h.SetCursor(e.Start + m.confirm.shift)
+	m.msg = fmt.Sprintf("replace with %s? y yes, n no, a all, l this and stop, q stop", e.Text)
+}
+
+// confirmKey answers what :s c asks: y replaces the match, n skips it, a
+// replaces it and every one after, l replaces it and stops, and q, <Esc>
+// and <C-c> stop. All it replaces is one undo step.
+func (m *Machine) confirmKey(k Key) error {
+	c := m.confirm
+	replace := func() error {
+		e := c.edits[c.at]
+		e.Start, e.End = e.Start+c.shift, e.End+c.shift
+		if err := m.apply([]Edit{e}, ":s"); err != nil {
+			return err
+		}
+		c.shift += len(e.Text) - (e.End - e.Start)
+		c.replaced, c.last = c.replaced+1, e.Start
+		return nil
+	}
+	stop := false
+	switch k {
+	case "y":
+		if err := replace(); err != nil {
+			return err
+		}
+	case "l":
+		if err := replace(); err != nil {
+			return err
+		}
+		stop = true
+	case "a":
+		for ; c.at < len(c.edits); c.at++ {
+			if err := replace(); err != nil {
+				return err
+			}
+		}
+	case "n":
+	case "q", "<Esc>", "<C-c>":
+		stop = true
+	default:
+		m.ask()
+		return nil
+	}
+	if c.at++; !stop && c.at < len(c.edits) {
+		m.ask()
+		return nil
+	}
+	m.confirm = nil
+	m.h.EndGroup()
+	// The cursor ends on the line of the last replacement, as :s leaves it.
+	t := m.h.Text()
+	m.h.SetCursor(c.from)
+	if c.replaced > 0 {
+		ls := LineStart(t, c.last)
+		m.h.SetCursor(firstNonBlank(t, ls, LineEnd(t, ls)))
+	}
+	m.msg = fmt.Sprintf("%d substitutions", c.replaced)
+	if c.replaced == 1 {
+		m.msg = "1 substitution"
+	}
 	return nil
 }
 
@@ -530,6 +623,10 @@ func (p *pattern) expand(rep, text string, mt []int) string {
 // wrapping around the text, for a host to bring into view and light. It is
 // false when no search is typed or nothing matches (B21).
 func (m *Machine) Incremental() (int, int, bool) {
+	if c := m.confirm; c != nil {
+		e := c.edits[c.at]
+		return e.Start + c.shift, e.End + c.shift, true
+	}
 	if m.mode != Cmdline || m.prompt == ":" || m.line == "" {
 		return 0, 0, false
 	}

@@ -34,6 +34,23 @@ type exCall struct {
 	name, arg   string
 }
 
+// counted splits a count off the end of the argument, as :d, :y, :j, :>
+// and :< take one for that many lines from the range's last. It returns
+// the lines it covers and the argument before it, or the range and the
+// whole argument without one.
+func (x exCall) counted() (first, last int, arg string) {
+	arg = strings.TrimRight(x.arg, " ")
+	i := len(arg)
+	for i > 0 && arg[i-1] >= '0' && arg[i-1] <= '9' {
+		i--
+	}
+	n, err := strconv.Atoi(arg[i:])
+	if err != nil || n == 0 {
+		return x.first, x.last, x.arg
+	}
+	return x.last, down(x.t, x.last, n-1), strings.TrimRight(arg[:i], " ")
+}
+
 // rangeOrAll returns the range, or every line when there is none.
 func (x exCall) rangeOrAll() (int, int) {
 	if x.ranged {
@@ -58,22 +75,30 @@ func init() {
 		{Command{"&", nil, "", "repeats the last substitute without its flags"}, func(m *Machine, x exCall) error {
 			return m.substitute(x.first, x.last, m.lastSub.pattern, m.lastSub.rep, "")
 		}},
-		{Command{">", nil, "[>...]", "indents the lines, once more for each >"}, (*Machine).exShift},
-		{Command{"<", nil, "[<...]", "outdents the lines, once more for each <"}, (*Machine).exShift},
+		{Command{">", nil, "[>...] [count]", "indents the lines, or count lines from the last, once more for each >"}, (*Machine).exShift},
+		{Command{"<", nil, "[<...] [count]", "outdents the lines, or count lines from the last, once more for each <"}, (*Machine).exShift},
 		{Command{"copy", []string{"co", "t"}, "{address}", "copies the lines below the line at address, 0 for the top"}, (*Machine).exMove},
-		{Command{"delete", []string{"d"}, "[x]", "deletes the lines into register x"}, (*Machine).exYank},
+		{Command{"delete", []string{"d"}, "[x] [count]", "deletes the lines into register x, or count lines from the last"}, (*Machine).exYank},
 		{Command{"global", []string{"g"}, "/{pattern}/{command}", "runs command on each line that matches. Without a range, every line"}, (*Machine).exGlobal},
-		{Command{"join", []string{"j"}, "[!]", "joins the lines, or the line with the next. ! keeps their blanks"}, func(m *Machine, x exCall) error {
-			m.h.SetCursor(x.first)
-			return m.join(max(x.t.LineOf(x.last)-x.t.LineOf(x.first), 1), !strings.HasPrefix(x.arg, "!"))
+		{Command{"join", []string{"j"}, "[!] [count]", "joins the lines, or the line with the next, or count lines from the last. ! keeps their blanks"}, func(m *Machine, x exCall) error {
+			first, last, arg := x.counted()
+			m.h.SetCursor(first)
+			if err := m.join(max(x.t.LineOf(last)-x.t.LineOf(first), 1), !strings.HasPrefix(arg, "!")); err != nil {
+				return err
+			}
+			// :j, unlike J, leaves the cursor on the line's first non-blank.
+			t := m.h.Text()
+			m.h.SetCursor(firstNonBlank(t, first, LineEnd(t, first)))
+			return nil
 		}},
 		{Command{"move", []string{"m"}, "{address}", "moves the lines below the line at address, 0 for the top"}, (*Machine).exMove},
 		{Command{"nohlsearch", []string{"noh"}, "", "hides the last search's highlight until the next search"}, func(m *Machine, _ exCall) error {
 			m.hl = false
 			return nil
 		}},
-		{Command{"normal", []string{"norm"}, "{keys}", "types keys in normal mode at the start of each line"}, func(m *Machine, x exCall) error {
-			return m.normalLines(x.first, x.last, x.arg)
+		{Command{"normal", []string{"norm"}, "[!] {keys}", "types keys in normal mode at the start of each line. ! leaves out the mappings"}, func(m *Machine, x exCall) error {
+			keys, bang := strings.CutPrefix(x.arg, "!")
+			return m.normalLines(x.first, x.last, strings.TrimLeft(keys, " "), !bang)
 		}},
 		{Command{"retab", []string{"ret"}, "[!]", "rewrites leading blanks as spaces with expand_tab, or as tabs with !. Without a range, every line"}, func(m *Machine, x exCall) error {
 			first, last := x.rangeOrAll()
@@ -89,7 +114,7 @@ func init() {
 			return m.sortLines(first, last, x.arg)
 		}},
 		{Command{"vglobal", []string{"v", "g!"}, "/{pattern}/{command}", "runs command on each line that does not match. Without a range, every line"}, (*Machine).exGlobal},
-		{Command{"yank", []string{"y"}, "[x]", "yanks the lines into register x"}, (*Machine).exYank},
+		{Command{"yank", []string{"y"}, "[x] [count]", "yanks the lines into register x, or count lines from the last"}, (*Machine).exYank},
 	}
 	exByName = map[string]*exCommand{}
 	for i := range exCommands {
@@ -126,6 +151,14 @@ func (m *Machine) ex(line string) error {
 		return err
 	}
 	name, arg := exName(rest)
+	// A | ends the command and starts another, unless a backslash is before
+	// it or the command takes | in its argument.
+	if i := bar(rest); i >= 0 && !takesBar(name, arg) {
+		if err := m.ex(strings.TrimRight(line[:len(line)-len(rest)+i], " ")); err != nil {
+			return err
+		}
+		return m.ex(strings.TrimLeft(rest[i+1:], " "))
+	}
 	if name == "" {
 		if ranged {
 			m.jumpFrom(c)
@@ -137,6 +170,29 @@ func (m *Machine) ex(line string) error {
 		return cmd.run(m, exCall{t, c, first, last, ranged, name, arg})
 	}
 	return m.h.Unhandled(":" + line)
+}
+
+// bar returns where the first | not after a backslash is in s, or -1.
+func bar(s string) int {
+	for i := range len(s) {
+		if s[i] == '|' && (i == 0 || s[i-1] != '\\') {
+			return i
+		}
+	}
+	return -1
+}
+
+// takesBar reports whether the command name reads a | in its argument as
+// its own: :g, :v, :normal and :terminal, and a shell command after :!, :r !
+// and :w !.
+func takesBar(name, arg string) bool {
+	switch name {
+	case "g", "global", "v", "vglobal", "g!", "normal", "norm", "terminal", "term", "ter", "!":
+		return true
+	case "r", "read", "w", "write":
+		return strings.HasPrefix(arg, "!")
+	}
+	return false
 }
 
 // exSubstitute runs :s, which without an argument repeats the last
@@ -170,13 +226,14 @@ func (m *Machine) exMove(x exCall) error {
 
 // exShift runs :> and :<, once more for each > or < after the first.
 func (m *Machine) exShift(x exCall) error {
-	times := 1 + strings.Count(x.arg, x.name)
-	lines := x.t.LineOf(x.last) - x.t.LineOf(x.first)
-	if err := m.shift(x.name, ":"+x.name, region{start: x.first, end: LineEnd(x.t, x.last), lines: true}, times); err != nil {
+	first, last, arg := x.counted()
+	times := 1 + strings.Count(arg, x.name)
+	lines := x.t.LineOf(last) - x.t.LineOf(first)
+	if err := m.shift(x.name, ":"+x.name, region{start: first, end: LineEnd(x.t, last), lines: true}, times); err != nil {
 		return err
 	}
 	t := m.h.Text()
-	ls := down(t, x.first, lines)
+	ls := down(t, first, lines)
 	m.h.SetCursor(firstNonBlank(t, ls, LineEnd(t, ls)))
 	return nil
 }
@@ -305,10 +362,11 @@ func exName(s string) (string, string) {
 // names, and :d, which deletes them and puts the cursor on the first
 // non-blank of the line that takes their place.
 func (m *Machine) exYank(x exCall) error {
-	del, first, last := x.name[0] == 'd', x.first, x.last
+	first, last, arg := x.counted()
+	del := x.name[0] == 'd'
 	var reg rune
-	if x.arg != "" {
-		reg = rune(x.arg[0])
+	if arg != "" {
+		reg = rune(arg[0])
 	}
 	op := "y"
 	if del {
@@ -466,8 +524,9 @@ func (m *Machine) global(first, last int, pat, cmd string, match bool) error {
 const globalMark = 0xF0000
 
 // normalLines runs keys in normal mode at the start of each line from first
-// to last, as one undo step, ending any command left unfinished.
-func (m *Machine) normalLines(first, last int, keys string) error {
+// to last, through the mappings when mapped, as one undo step, ending any
+// command left unfinished.
+func (m *Machine) normalLines(first, last int, keys string, mapped bool) error {
 	t := m.h.Text()
 	n := 1
 	for ls := first; ls < last && LineEnd(t, ls) < t.Len(); ls = LineEnd(t, ls) + 1 {
@@ -486,7 +545,7 @@ func (m *Machine) normalLines(first, last int, keys string) error {
 		m.h.SetCursor(ls)
 		// A key that failed on the line before stops only that line.
 		m.beep = false
-		if err := m.run(Keys(keys), true); err != nil {
+		if err := m.run(Keys(keys), mapped); err != nil {
 			return err
 		}
 		for m.mode != Normal || !m.idle() {

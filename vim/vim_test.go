@@ -658,6 +658,17 @@ func TestB88Normal(t *testing.T) {
 	if _, h, _ := run(t, "|a\nb", ":%normal A!<CR>"); h.steps != 1 {
 		t.Errorf(":normal made %d undo steps, want 1", h.steps)
 	}
+	// :normal! leaves the mappings out.
+	_, h, m := run(t, "|ab\ncd", "")
+	m.Map(vim.Normal, "x", "dd")
+	for _, k := range vim.Keys(":normal! x<CR>:2normal x<CR>") {
+		if err := m.Feed(k); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if h.text != "b" {
+		t.Errorf(":normal! x then :normal x left %q, want the x unmapped and then dd", h.text)
+	}
 }
 
 // B9
@@ -1005,8 +1016,8 @@ func TestB156TextCommands(t *testing.T) {
 		{"|x10\nx9\ny\nx-1", ":sort n<CR>", "|y\nx-1\nx9\nx10"},
 		{"|B\na", ":sort i<CR>", "|a\nB"},
 		{"z\n|c\nb\na", ":2,3sort<CR>", "z\n|b\nc\na"},
-		{"|a\n  b\nc", ":join<CR>", "a| b\nc"},
-		{"|a\nb\nc", ":1,3j!<CR>", "ab|c"},
+		{"|a\n  b\nc", ":join<CR>", "|a b\nc"},
+		{"|a\nb\nc", ":1,3j!<CR>", "|abc"},
 	} {
 		if got, _, _ := run(t, c.start, c.keys); got != c.want {
 			t.Errorf("%s on %q made %q, want %q", c.keys, c.start, got, c.want)

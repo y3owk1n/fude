@@ -7,9 +7,16 @@ argument that does not start with a letter straight after the name, as
 `:s/a/b/`, `:m0` and `:sort!`. Any other argument needs a space before it,
 as `:d x`, `:b 2` and `:e #`, since `:b2` is not a command. `!` goes
 straight after the name, as in `:q!`, and each entry says what it changes.
-fude has no `|` between two commands. A `|` is part of the argument, so `:w
-| q` writes a file called `| q`, and `:wq` is the way to write and close.
-In an entry's heading `|` means "or", as in `:read {file} | !{cmd}`.
+A `|` ends a command and starts the next, so `:w | q` writes and closes.
+`:global`, `:vglobal`, `:normal`, `:!`, `:r !`, `:w !` and `:terminal` take
+the `|` in their argument instead, and `\|` is a `|` of its own, as in a
+pattern. In an entry's heading `|` means "or", as in `:read {file} |
+!{cmd}`.
+
+```keys
+"|a\nb\nc" ":1d|$d<CR>" "|b"
+"|ab" ":s/a/x/|s/b/y/<CR>" "|xy"
+```
 
 A range of lines may come before the name. Without one, a command acts on
 the cursor's line, or on every line where its entry says so. `%` is every
@@ -80,8 +87,8 @@ replaces every match again.
 Takes `indent_width` columns of leading blanks off each line of the range,
 as `<<` does, and once more for each further `<`. A line with less indent
 loses all of it. The cursor goes to the first non-blank of the range's
-last line. It takes no count, so `:< 3` is `:<` on the cursor's line, and
-`:.,.+2<` shifts three lines.
+last line. A count after it shifts that many lines from the range's last,
+so `:< 3` shifts three lines, as `:.,.+2<` does.
 
 ```keys
 "\t\t|x\ny" ":<lt><CR>" "\t|x\ny"
@@ -93,7 +100,8 @@ last line. It takes no count, so `:< 3` is `:<` on the cursor's line, and
 Adds `indent_width` columns of indent to each line of the range that is
 not empty, as `>>` does, and once more for each further `>`. The indent is
 spaces with `expand_tab` on, and else tabs as far as they go. The cursor
-goes to the first non-blank of the range's last line.
+goes to the first non-blank of the range's last line. A count after it
+shifts that many lines from the range's last, as `:> 2`.
 
 ```keys
 "|a\nb" ":><CR>" "\t|a\nb"
@@ -156,13 +164,13 @@ the first non-blank of the last line copied. Without an address it says
 
 Deletes the range's lines into register x, or as `dd` does without one.
 The cursor goes to the first non-blank of the line that takes their place.
-The argument is always a register, so `:d 3` deletes one line into
-register 3, not three lines. Give the lines as a range, as `:.,.+2d`.
+A count after it deletes that many lines from the range's last, so `:d 3`
+deletes three lines, and `:d x 3` puts them in register x.
 
 ```keys
 "a\n|b\nc" ":d<CR>" "a\n|c"
 "|a\nb" ":d x<CR>\"xp" "b\n|a"
-"|a\nb" ":d 3<CR>\"3p" "b\n|a"
+"|a\nb\nc" ":d 2<CR>" "|c"
 ```
 
 ## :edit
@@ -204,13 +212,14 @@ Joins the range's lines into one, or the cursor's line and the next
 without a range, as `J` does. Each joined line loses its leading blanks
 and one space goes between, but none after a blank, before a `)` or for an
 empty line. With `!` nothing goes between and no blanks go. The cursor goes
-to where the last two lines met. On the last line it does nothing. It
-takes no count, so give the lines as a range.
+to the joined line's first non-blank. On the last line it does nothing. A
+count after it joins that many lines from the range's last, as `:j 3`.
 
 ```keys
-"|a\nb\nc" ":j<CR>" "a| b\nc"
-"|a\nb\nc" ":1,3j<CR>" "a b| c"
-"|a\n  b" ":j!<CR>" "a|  b"
+"|a\nb\nc" ":j<CR>" "|a b\nc"
+"|a\nb\nc" ":1,3j<CR>" "|a b c"
+"|a\nb\nc" ":j 3<CR>" "|a b c"
+"|a\n  b" ":j!<CR>" "|a  b"
 ```
 
 ## :move
@@ -238,8 +247,7 @@ Types the keys on each line of the range, or the cursor's line, as typed
 in normal mode with the cursor at the line's start. Mappings apply, as for
 keys typed. After each line fude types `<Esc>` until normal mode is idle
 again, so `Ax` adds an x and leaves insert mode. The whole run is one
-undo step.
-There is no `:normal!`, so a `!` after the name is the first key.
+undo step. `:normal!` types the keys without the mappings.
 
 ```keys
 "|a\nb" ":%norm Ax<CR>" "ax\nb|x"
@@ -389,8 +397,11 @@ Replaces the first match of the pattern on each line of the range, or of
 the cursor's line, with the replacement. The pattern is a search's, and any
 character but a letter may stand for the `/`s. An empty pattern takes the last search,
 and a missing replacement deletes the match. The flags are `g` for every
-match on a line, `i` to ignore case and `I` to match it. Other flags do
-nothing, so there is no asking before each one. In the replacement:
+match on a line, `i` to ignore case, `I` to match it, `n` to count the
+matches and change nothing, and `c` to ask at each match. While it asks,
+the match shows lit and `y` replaces it, `n` skips it, `a` replaces it
+and every one after, `l` replaces it and stops, and `q`, `<Esc>` or
+`<C-c>` stop. All it replaces is one undo step. In the replacement:
 
 - `&` and `\0` are the match, and `\1` to `\9` its groups
 - `~` is the last substitute's replacement
@@ -409,6 +420,8 @@ with its flags, as `:&&` does.
 ```keys
 "|a a\na" ":s/a/b/<CR>" "|b a\na"
 "|a a\na" ":%s/a/b/g<CR>" "b b\n|b"
+"|a a\na" ":%s/a/b/gc<CR>yny" "b a\n|b"
+"|a a\na" ":%s/a/b/gn<CR>" "|a a\na"
 "|a/b" ":s#/#-#<CR>" "|a-b"
 "|a b" ":s/\\(a\\) \\(b\\)/\\2 \\1/<CR>" "|b a"
 "|ab" ":s/a/\\u&/<CR>" "|Ab"
@@ -475,7 +488,8 @@ have changes.
 ## :yank
 
 Yanks the range's lines into register x, or as `yy` does without one. The
-cursor stays. As with `:delete`, the argument is always a register.
+cursor stays. As with `:delete`, a count after it yanks that many lines
+from the range's last, as `:y 3` or `:y x 3`.
 
 ```keys
 "|a\nb" ":y<CR>p" "a\n|a\nb"

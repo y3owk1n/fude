@@ -200,7 +200,8 @@ type Machine struct {
 	replaced    []string // what each key typed in replace mode overwrote
 
 	// Command line and search.
-	prompt string // :, / or ?
+	confirm *confirming // a :s c asking about its matches
+	prompt  string      // :, / or ?
 	// The command lines and searches entered, oldest first, by : and /, and
 	// the one <Up> and <Down> recalled with the text typed before them.
 	history    map[string][]string
@@ -409,6 +410,9 @@ func (m *Machine) Feed(k Key) error {
 // feed handles one key, from the user or a replay, and keeps the keys of the
 // last change for dot repeat.
 func (m *Machine) feed(k Key) error {
+	if m.confirm != nil {
+		return m.confirmKey(k)
+	}
 	user := m.inner == 0 && !m.cascading
 	if user && !m.stepping && len(m.cursors) > 0 {
 		m.beginStep()
@@ -503,7 +507,7 @@ func (m *Machine) Idle() bool { return m.idle() && len(m.held) == 0 }
 
 // idle reports whether the machine is between commands.
 func (m *Machine) idle() bool {
-	return m.mode == Normal && m.pending == "" && m.op == "" && m.count == 0 && m.reg == 0 && m.wait == nil
+	return m.mode == Normal && m.pending == "" && m.op == "" && m.count == 0 && m.reg == 0 && m.wait == nil && m.confirm == nil
 }
 
 // run feeds keys until one fails or a motion beeps, through the keymap when

@@ -709,7 +709,11 @@ Where fude departs, the line says so and cites the departure in
 - B22 [2] `:s/pat/rep/flags` substitutes with the pattern syntax of B21 and
   Vim's replacement forms (N1). `&` repeats the last substitute with its
   flags, and `g&` repeats it on every line with the last search's pattern.
-  The whole substitute is one transaction.
+  The whole substitute is one transaction. The flag `n` counts the
+  matches and changes nothing. The flag `c` asks at each match: `y`
+  replaces it, `n` skips it, `a` replaces it and the rest, `l` replaces
+  it and stops, and `q` or `<Esc>` stops. The cursor ends on the line of
+  the last replacement.
 - B23 [2] `<C-w>s` and `<C-w>v` split, `<C-w>hjkl` move between splits, and
   two splits on one buffer see each other's edits. A new window goes below
   or right of the current one and takes the cursor (N16). With
@@ -761,11 +765,15 @@ Where fude departs, the line says so and cites the departure in
 
 - B86 [2] `:{range}d`, `:{range}y`, `:{range}m`, `:{range}t`, `:{range}>`
   and `:{range}<` act on lines, with ranges written as in Neovim (`.`, `$`,
-  `%`, `'<,'>`, `'a`, `/pat/`, offsets).
+  `%`, `'<,'>`, `'a`, `/pat/`, offsets). A count after `:d`, `:y`,
+  `:join`, `:>` or `:<` takes that many lines from the range's last, as
+  `:d 3`. A `|` ends a command and starts the next, as `:w | q`, but
+  `:g`, `:v`, `:normal`, `:!`, `:r !`, `:w !` and `:terminal` take it in
+  their argument, and `\|` is a `|` of its own.
 - B87 [2] `:g/pat/cmd` and `:v/pat/cmd` run an ex command on each matching
   or non-matching line, as one transaction.
 - B88 [2] `:{range}normal keys` runs keys on each line of the range, as one
-  transaction.
+  transaction, and `:normal!` runs them without the mappings.
 - B89 [2] `:e path`, `:ls`, `:b N`, `:bn`, `:bp` and `:bd` manage buffers.
   The first file opened takes the number of the empty buffer
   fude began with, which then goes, so the file is buffer 1, as in Neovim.
