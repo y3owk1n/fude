@@ -192,6 +192,27 @@ func (c *Client) Change(uri string, version int, before Text, edits []Edit) {
 	})
 }
 
+// Save tells the server the document was written, with its text when the
+// server asks for it, and nothing when the server did not ask to hear of
+// saves.
+func (c *Client) Save(uri string, t Text) {
+	var sync struct {
+		Save json.RawMessage `json:"save"`
+	}
+	if json.Unmarshal(c.Capability("textDocumentSync"), &sync) != nil || len(sync.Save) == 0 || string(sync.Save) == "false" {
+		return
+	}
+	var save struct {
+		IncludeText bool `json:"includeText"`
+	}
+	json.Unmarshal(sync.Save, &save)
+	params := map[string]any{"textDocument": map[string]any{"uri": uri}}
+	if save.IncludeText {
+		params["text"] = t.Slice(0, t.Len())
+	}
+	c.Notify("textDocument/didSave", params)
+}
+
 // wholeText reports whether the server syncs documents by their whole text.
 // That is kind 1 of textDocumentSync, sent as a number or as the change
 // field of an object.
@@ -347,10 +368,14 @@ func (c *Client) write(root string, options any, initialized <-chan answer, noti
 		"processId": nil, "rootUri": URI(root), "initializationOptions": options,
 		"workspaceFolders": []map[string]string{{"uri": URI(root), "name": filepath.Base(root)}},
 		"capabilities": map[string]any{
-			"general":      map[string]any{"positionEncodings": []string{"utf-8", "utf-16"}},
-			"textDocument": map[string]any{"completion": map[string]any{"completionItem": map[string]any{"snippetSupport": true}}, "inlayHint": map[string]any{}},
-			"window":       map[string]any{"workDoneProgress": true},
-			"workspace":    map[string]any{"configuration": true, "didChangeConfiguration": map[string]any{}},
+			"general": map[string]any{"positionEncodings": []string{"utf-8", "utf-16"}},
+			"textDocument": map[string]any{
+				"completion":      map[string]any{"completionItem": map[string]any{"snippetSupport": true}},
+				"inlayHint":       map[string]any{},
+				"synchronization": map[string]any{"didSave": true},
+			},
+			"window":    map[string]any{"workDoneProgress": true},
+			"workspace": map[string]any{"configuration": true, "didChangeConfiguration": map[string]any{}},
 		},
 	}
 	if c.frame(request{ID: 0, Method: "initialize", Params: params}) != nil {

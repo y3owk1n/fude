@@ -1699,7 +1699,8 @@ Where fude departs, the line says so and cites the departure in
 - B60 [5] fude starts the servers configured for the buffer's language,
   offers `utf-8` then `utf-16` positions, and sends incremental changes in
   the encoding the server chose, or the whole text to a server that syncs
-  whole texts.
+  whole texts. A server that asks to hear of saves hears of each write,
+  with the text when it asks for that.
 - B61 [5] Diagnostics show inline, and `]d` and `[d` move between them.
   After a line with a diagnostic, two columns on, its message shows in its
   severity's colour on a tint of that colour, unless `lsp.diagnostic_notes`

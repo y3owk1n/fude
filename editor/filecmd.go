@@ -10,6 +10,7 @@ import (
 
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/internal/trace"
+	"github.com/y3owk1n/fude/protocol/lsp"
 )
 
 // revert puts the text of b's file on disk in b, as one undo step.
@@ -210,6 +211,9 @@ func (e *Session) writeOut(b *buffer, then func()) {
 	}
 	b.file.isNew = false
 	b.markSaved(text)
+	for _, srv := range b.servers {
+		srv.client.Save(lsp.URI(b.file.path), s)
+	}
 	e.emit("buffer.saved", "", b)
 	e.message = fmt.Sprintf("\"%s\" %s%dB written", b.file.path, tag, n)
 	if then != nil {

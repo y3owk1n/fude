@@ -373,6 +373,19 @@ func TestB60ServerAndEncodings(t *testing.T) {
 		feed(e, "$a!<Esc>")
 		heard(t, log, `"contentChanges":[{"text":"ab!"}]`, 1)
 	}
+	// A server that asks to hear of saves hears of each write, with the
+	// text when it asks for that, and one that does not hears nothing.
+	t.Setenv("FUDE_FAKE_SYNC", `{"change":2,"save":{"includeText":true}}`)
+	e, log := withServer(t, "ab\n", "utf-8")
+	heard(t, log, `"method":"textDocument/didOpen"`, 1)
+	feed(e, "x:w<CR>")
+	heard(t, log, `"method":"textDocument/didSave","params":{"text":"b",`, 1)
+	t.Setenv("FUDE_FAKE_SYNC", "2")
+	e, log = withServer(t, "ab\n", "utf-8")
+	heard(t, log, `"method":"textDocument/didOpen"`, 1)
+	feed(e, "x:w<CR>ix<Esc>")
+	heard(t, log, `"text":"x"`, 1)
+	heard(t, log, `"method":"textDocument/didSave"`, 0)
 }
 
 // B63
