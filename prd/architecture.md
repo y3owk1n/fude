@@ -202,26 +202,35 @@ func (m *Machine) Object(name string, find func(t Text, start, end int) (int, in
 func (m *Machine) Operator(name string, apply func(t Text, start, end int, lines bool) []Edit)
 func (m *Machine) Selector(find func(t Text, query string, start, end int) ([][2]int, error))
 func (m *Machine) Command(name string, run func(t Text, pos, count int) []Edit) // the key <Plug>(name)
-func (m *Machine) Cursors() []int // the other cursors while c types into several regions
+func (m *Machine) Cursors() []int // the multicursors, besides the cursor keys move
+func (m *Machine) ForgetCursors() // removes them for good, as the host's text becomes another
+func (m *Machine) Pending() bool   // an operator waits for its target, or r for its character
 ```
 
 `Object`, `Operator` and `Command` with a nil function remove what they
 added under name, as a plugin reload does for a plugin it drops (B191).
 
-`:select` asks the host's selector for regions, and of two that overlap the
-earlier stays. The next `d`, `x`, `y` or host operator acts on every region
-as one undo step, and any other key keeps only the first region. `c`
-deletes every region and types into all of them: each edit made at the
-first cursor is repeated at the others, moved by their distance from it. So
-`<C-w>` takes the same number of bytes at each cursor, not each cursor's
-own word. `<C-o>` and `<Esc>` end the other cursors, and dot repeat makes
-the change at one cursor (B42).
-
+Multicursors (B392) are marks through `Host.SetMark`, so edits anywhere
+move them. Each has its own context: its registers, its column for `j`
+and `k`, its visual anchor, where its insert started, and its marks
+`[ ] < > . ^`. The machine runs a command at the cursor first. A command
+ends when the machine is idle again, in insert mode after each key, and
+in visual mode after each command. The machine then runs the same keys,
+as mappings resolved them, at each multicursor with that one's context
+swapped in. What a command did decides whether it runs again. One that
+edited text, ran an operator or entered insert or visual mode does,
+unless it ran an ex command. A motion does with follow on, unless it
+jumps. Anything else runs once. The command and its runs at the
+multicursors are one undo group. While they run, the machine ignores the
+host's groups, jumps and clipboard writes, so `u` takes all of it back
+and the jumplist stays the cursor's. `:select` and `<C-n>` place
+multicursors with their own selections, so they need no code of their
+own.
 
 `vim/` owns the grammar, modes, registers, dot repeat, macros, search and
-the edit-producing ex commands. It keeps its visual anchor and query
-selection regions as marks through `Host.SetMark`, so another window's edits
-move them (B23). The host owns files, windows, history
+the edit-producing ex commands. It keeps its multicursors as marks
+through `Host.SetMark`, so another window's edits move them (B23). The
+host owns files, windows, history
 storage, the clipboard and everything shown on screen. `:w` and `<C-w>v`
 reach the host through `Unhandled`, and an error it returns stops what ran
 them, such as a macro or `:g`, as a failed command of the machine's own

@@ -6,8 +6,10 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"time"
 	"unicode/utf8"
 
@@ -27,7 +29,8 @@ func Run(e Session) error {
 	if err != nil {
 		return fmt.Errorf("open terminal: %w", err)
 	}
-	s, err := screen(tty)
+	var extra atomic.Bool
+	s, err := screen(tty, &extra)
 	if err != nil {
 		return fmt.Errorf("open terminal: %w", err)
 	}
@@ -35,7 +38,7 @@ func Run(e Session) error {
 	s.EnablePaste()
 	s.EnableFocus()
 
-	c := &client{s: s, e: e, img: newImages(tty, s.Colors())}
+	c := &client{s: s, e: e, img: newImages(tty, s.Colors()), extra: &extra, out: tty}
 	c.draw()
 	// Plugins load after the first frame, so they never delay it (B56).
 	e.Load()
@@ -200,7 +203,24 @@ type client struct {
 	img      images            // how the client shows images (B303)
 	menuTop  int               // the first row of the cursor's menu in the last frame
 	cursor   [3]int            // where the last frame written put the cursor, and its shape
+	shape    tcell.CursorStyle // the cursor's shape in the frame being drawn
+	tint     color.Color       // the multicursors' colour then, the mode's
+	// extra is set once the terminal says it draws cursors of its own, as
+	// kitty's multiple cursors protocol does, which the client writes to out
+	// at the cells in marks (B401).
+	extra *atomic.Bool
+	out   io.Writer
+	marks [][2]int
+	wrote string // the cursors last written to out
 }
+
+// Kitty's multiple cursors protocol: clearCursors removes the terminal's
+// extra cursors, and drawCursors starts the sequence that draws them in the
+// main cursor's shape.
+const (
+	clearCursors = "\x1b[>0;4 q"
+	drawCursors  = "\x1b[>29"
+)
 
 // shown is what a frame drew a window's line from. When the next frame
 // would draw the line from the same, it leaves the line's rows as they are.
@@ -208,6 +228,7 @@ type shown struct {
 	frame  int
 	sig    sig
 	styles []tcell.Style
+	marks  [][2]int // the cells of the multicursors drawn
 }
 
 // sig holds what a line draws from, as bytes to compare.
@@ -229,6 +250,60 @@ func (k sig) flag(b bool) sig {
 		return k.int(1)
 	}
 	return k.int(0)
+}
+
+// cursorShape is the cursor's shape. It is an underline in replace mode,
+// while an operator waits for its target and while r waits for its
+// character, a bar in insert mode, and a block otherwise (B402).
+func (c *client) cursorShape() tcell.CursorStyle {
+	switch {
+	case c.e.Mode() == vim.Insert:
+		return tcell.CursorStyleSteadyBar
+	case c.e.Mode() == vim.Replace, c.e.Pending():
+		return tcell.CursorStyleSteadyUnderline
+	}
+	return tcell.CursorStyleSteadyBlock
+}
+
+// multicursor is style for a cell under a multicursor, in the mode's
+// colour. Where the terminal draws cursors of its own it stays as it is.
+// Elsewhere an underline shows as one, and a block or a bar, which a cell
+// cannot draw, as a block (B401).
+func (c *client) multicursor(style, base tcell.Style) tcell.Style {
+	switch {
+	case c.extra != nil && c.extra.Load():
+		return style
+	case c.shape == tcell.CursorStyleSteadyUnderline:
+		return style.Underline(true, c.tint)
+	}
+	return base.Background(c.tint).Foreground(th.bg)
+}
+
+// showCursors has a terminal that draws cursors of its own draw one at
+// each multicursor, in the shape of the cursor and the mode's colour, when
+// they changed or the screen was cleared, which takes them off (B401).
+func (c *client) showCursors(cleared bool) {
+	if c.extra == nil || !c.extra.Load() || c.out == nil {
+		return
+	}
+	var b strings.Builder
+	b.WriteString(clearCursors)
+	if len(c.marks) > 0 {
+		r, g, bl := c.tint.RGB()
+		fmt.Fprintf(&b, "\x1b[>40;2:%d:%d:%d q", r, g, bl)
+		b.WriteString(drawCursors)
+		for _, m := range c.marks {
+			fmt.Fprintf(&b, ";2:%d:%d", m[1]+1, m[0]+1)
+		}
+		b.WriteString(" q")
+	}
+	if b.String() == c.wrote && !cleared {
+		return
+	}
+	c.wrote = b.String()
+	if _, err := io.WriteString(c.out, c.wrote); err != nil {
+		trace.Record("cursors", err.Error(), 0)
+	}
 }
 
 func (c *client) draw() {
@@ -265,6 +340,8 @@ func (c *client) draw() {
 		c.e.SetCell(cell[0], cell[1])
 	}
 	sel, visual := c.e.Selection()
+	c.shape, c.marks = c.cursorShape(), c.marks[:0]
+	_, c.tint = c.mode()
 
 	// A modal box, the command line or the finder, has the windows under it
 	// drawn in the tinted theme, and draws on the tinted ground (B151).
@@ -293,6 +370,8 @@ func (c *client) draw() {
 			left, right = min(left, v.X), max(right, v.X+v.W)
 		}
 	}
+	// A new size clears the screen, and the terminal's own cursors with it.
+	cleared := fresh || c.size[0] != w || c.size[1] != h
 	if fresh || over || c.overlaid || c.size != [4]int{w, h, left, right} {
 		c.s.Fill(' ', base)
 		c.lines = map[[2]int]*shown{}
@@ -342,13 +421,7 @@ func (c *client) draw() {
 		cx, cy = -1, -1
 	}
 
-	shape := tcell.CursorStyleSteadyBlock
-	switch c.e.Mode() {
-	case vim.Insert:
-		shape = tcell.CursorStyleSteadyBar
-	case vim.Replace:
-		shape = tcell.CursorStyleSteadyUnderline
-	}
+	shape := c.shape
 	if text, ok := c.e.TerminalClipboard(); ok {
 		c.s.SetClipboard([]byte(text))
 	}
@@ -369,6 +442,7 @@ func (c *client) draw() {
 		c.s.Show()
 		c.cursor = cursor
 	}
+	c.showCursors(cleared)
 	if err := c.img.paint(c.s, now); err != nil {
 		trace.Record("image", err.Error(), 0)
 	}
@@ -421,7 +495,7 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 		cursors = c.e.Cursors()
 	}
 	// win holds what every line of the window draws from.
-	win := sig(nil).int(v.X).int(v.Y).int(v.W).int(v.Left).flag(v.Wrap).flag(v.List).int(v.ColorColumn).int(v.Tab)
+	win := sig(nil).int(v.X).int(v.Y).int(v.W).int(v.Left).flag(v.Wrap).flag(v.List).int(v.ColorColumn).int(v.Tab).int(int(c.shape)).int(int(c.tint.Hex())).flag(c.extra != nil && c.extra.Load())
 	// Pinned lines cover rows, so a change to them draws every row again.
 	for _, p := range v.Context {
 		win = win.int(p)
@@ -530,7 +604,7 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 				last = &shown{}
 				c.lines[at] = last
 			}
-			last.frame, last.sig, last.styles = c.frame, append(last.sig[:0], k...), append(last.styles[:0], styles...)
+			last.frame, last.sig, last.styles, last.marks = c.frame, append(last.sig[:0], k...), append(last.styles[:0], styles...), last.marks[:0]
 			c.s.FillArea(v.X, v.Y+row, v.W, len(starts), ' ', ground)
 			// trail is where the line's trailing spaces start. col is the column
 			// in the line, which tabs are measured from.
@@ -594,10 +668,14 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 					if s := v.Searched; at >= s[0] && at < s[1] {
 						style = style.Background(th.number).Foreground(th.bg)
 					}
-					if visual && selected(sel, at, col) || slices.Contains(cursors, at) {
+					if visual && selected(sel, at, col) {
 						// Reversing syntax colours would stripe the selection, so it
 						// drops them.
 						style = base.Background(th.selection)
+					}
+					if slices.Contains(cursors, at) {
+						style = c.multicursor(style, base)
+						last.marks = append(last.marks, [2]int{v.X + x, y})
 					}
 					// Other sessions' selections draw underlined, and their
 					// cursors draw as cells, in their colours (B253).
@@ -653,7 +731,8 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 				}
 				c.colorColumn(v, y)
 				if i == len(starts)-1 && slices.Contains(cursors, end) && x < v.W {
-					c.s.Put(v.X+x, y, " ", base.Background(th.selection))
+					c.s.Put(v.X+x, y, " ", c.multicursor(base, base))
+					last.marks = append(last.marks, [2]int{v.X + x, y})
 				}
 				for _, o := range v.Others {
 					if i == len(starts)-1 && o.Cursor == end && x < v.W {
@@ -662,6 +741,7 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 				}
 			}
 		}
+		c.marks = append(c.marks, last.marks...)
 		if v.Float != "" {
 			c.floatRows(v, pos, row)
 		}

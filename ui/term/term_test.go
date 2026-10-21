@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -93,7 +94,13 @@ func startWith(t *testing.T, config string, args ...string) *client {
 // mock returns a screen on a mock terminal of 120 by 40.
 func mock(t *testing.T) tcell.Screen {
 	t.Helper()
-	s, err := tcell.NewTerminfoScreenFromTty(vt.NewMockTerm(vt.MockOptSize{X: 120, Y: 40}))
+	return screenOn(t, vt.NewMockTerm(vt.MockOptSize{X: 120, Y: 40}))
+}
+
+// screenOn returns a screen on the mock terminal mt.
+func screenOn(t *testing.T, mt vt.MockTerm) tcell.Screen {
+	t.Helper()
+	s, err := tcell.NewTerminfoScreenFromTty(mt)
 	if err == nil {
 		err = s.Init()
 	}
@@ -129,7 +136,7 @@ func (t typed) Read(p []byte) (int, error) {
 // B141
 func TestB141CtrlH(t *testing.T) {
 	in := make(chan []byte, 1)
-	s, err := screen(typed{in})
+	s, err := screen(typed{in}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2136,4 +2143,125 @@ func TestB269ShareStatus(t *testing.T) {
 	}
 	g := &client{s: mock(t), e: j.a}
 	g.shows(t, 39, "guest")
+}
+
+// B401
+func TestB401Cursors(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.txt")
+	if err := os.WriteFile(path, []byte("ab cd\nef gh\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	c := startWith(t, "", path)
+	c.draw()
+	for _, k := range vim.Keys("Qjve") {
+		c.e.Feed(k)
+	}
+	c.draw()
+	// The multicursor draws as a block in the mode's colour, at the end of
+	// its own selection.
+	if _, s, _ := c.s.Get(1, 0); s.GetBackground() != th.visual {
+		t.Errorf("the multicursor in visual mode is on %v, want %v", s.GetBackground(), th.visual)
+	}
+	if _, s, _ := c.s.Get(0, 0); s.GetBackground() != th.selection {
+		t.Errorf("the selection at the cursor Q placed is on %v", s.GetBackground())
+	}
+	if _, s, _ := c.s.Get(3, 0); s.GetBackground() == th.selection {
+		t.Error("text outside every selection draws selected")
+	}
+	// Where the cursor is an underline, so is a multicursor.
+	for _, k := range vim.Keys("<Esc>d") {
+		c.e.Feed(k)
+	}
+	c.draw()
+	if _, s, _ := c.s.Get(1, 0); s.GetUnderlineStyle() == tcell.UnderlineStyleNone || s.GetUnderlineColor() != th.normal || s.GetBackground() == th.normal {
+		t.Error("while d waits, the multicursor does not draw as an underline in the mode's colour")
+	}
+
+	// A terminal that answers that it draws cursors of its own, as kitty
+	// does, gets one at each multicursor, in the cursor's shape. The answer
+	// never reaches the keys, even cut across two reads.
+	in := make(chan []byte, 2)
+	var extra atomic.Bool
+	s, err := screen(typed{in}, &extra)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Fini()
+	in <- []byte("\x1b[>1;2;3;29;30")
+	in <- []byte(";40;100;101 qx")
+	for read := false; !read; {
+		select {
+		case ev := <-s.EventQ():
+			k, ok := ev.(*tcell.EventKey)
+			if !ok {
+				continue
+			}
+			if !slices.Equal(keys(k), []vim.Key{"x"}) {
+				t.Fatalf("the answer and x read as %v", keys(k))
+			}
+			read = true
+		case <-time.After(editortest.Patience):
+			t.Fatal("x after the answer read as nothing")
+		}
+	}
+	if !extra.Load() {
+		t.Fatal("the answer did not say the terminal draws cursors")
+	}
+	var out strings.Builder
+	c = start(t, path)
+	c.extra, c.out = &extra, &out
+	c.draw()
+	for _, k := range vim.Keys("QjA") {
+		c.e.Feed(k)
+	}
+	c.draw()
+	r, g, b := th.insert.RGB()
+	if want := fmt.Sprintf("\x1b[>0;4 q\x1b[>40;2:%d:%d:%d q\x1b[>29;2:1:6 q", r, g, b); !strings.HasSuffix(out.String(), want) {
+		t.Errorf("the client wrote %q, want it to end in %q", out.String(), want)
+	}
+	if _, s, _ := c.s.Get(5, 0); s.GetBackground() == th.insert {
+		t.Error("a multicursor the terminal draws draws as a cell too")
+	}
+	// Removing them, which changes no cell, takes the terminal's off.
+	for _, k := range vim.Keys("<Esc>") {
+		c.e.Feed(k)
+	}
+	c.draw()
+	c.e.Feed("<C-l>")
+	c.draw()
+	if !strings.HasSuffix(out.String(), "q\x1b[>0;4 q") {
+		t.Errorf("after <C-l> the client wrote %q, want the cursors cleared", out.String())
+	}
+}
+
+// B402
+func TestB402CursorShape(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.txt")
+	if err := os.WriteFile(path, []byte("ab cd\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		keys string
+		want vt.CursorStyle
+	}{
+		{"", vt.SteadyBlock},
+		{"v", vt.SteadyBlock},
+		{"i", vt.SteadyBar},
+		{"R", vt.SteadyUnderline},
+		{"d", vt.SteadyUnderline},
+		{"2c", vt.SteadyUnderline},
+		{"r", vt.SteadyUnderline},
+		{"rx", vt.SteadyBlock},
+	} {
+		mt := vt.NewMockTerm(vt.MockOptSize{X: 120, Y: 40})
+		cl := start(t, path)
+		cl.s = screenOn(t, mt)
+		for _, k := range vim.Keys(c.keys) {
+			cl.e.Feed(k)
+		}
+		cl.draw()
+		if got := mt.Backend().GetCursor(); got != c.want {
+			t.Errorf("after %q the cursor is %v, want %v", c.keys, got, c.want)
+		}
+	}
 }

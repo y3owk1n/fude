@@ -13,14 +13,16 @@ import (
 
 func TestMain(m *testing.M) { os.Exit(editortest.Main(m)) }
 
-// flashed returns where the flash is, or nil.
+// flashed returns where the flash is, the start and end of each place in
+// order, or nil.
 func flashed(e *editor.Session) []int {
+	var out []int
 	for _, d := range e.Windows()[0].Decorations {
 		if d.Name == "flash" {
-			return []int{d.Start, d.End}
+			out = append(out, d.Start, d.End)
 		}
 	}
-	return nil
+	return out
 }
 
 // B139, B313
@@ -44,6 +46,13 @@ func TestB139Flash(t *testing.T) {
 	}
 	// It goes after a moment.
 	editortest.Settle(t, e, func() bool { return flashed(e) == nil })
+	// With multicursors it shows at each.
+	editortest.Change(t, path, "ab\ncd\n")
+	e = editortest.Open(t, path)
+	e.Use(flash.New())
+	e.SetSize(80, 20)
+	editortest.Feed(e, "Qjyiw")
+	editortest.Settle(t, e, func() bool { return slices.Equal(flashed(e), []int{0, 2, 3, 5}) })
 	// flash.enabled false turns it off.
 	editortest.Config(t, "[module.flash]\nenabled = false\n")
 	e = editortest.Start(t, path)

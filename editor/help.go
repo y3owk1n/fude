@@ -548,10 +548,20 @@ func (e *Session) helpText() (string, map[string]int) {
 	}
 	write("")
 	write("## Guide")
+	// A guide page's headings are names too, after every other name, so
+	// :h multicursor goes to its part of a page.
+	headings := map[string]int{}
 	for _, p := range pages {
 		write("")
 		tag(p.tag)
-		write(demote(p.text, 2))
+		for i, l := range strings.Split(demote(p.text, 2), "\n") {
+			if h, ok := strings.CutPrefix(l, "#### "); ok && i > 0 {
+				if _, seen := headings[slug(h)]; !seen {
+					headings[slug(h)] = line
+				}
+			}
+			write(l)
+		}
 	}
 	write("")
 	write("## Reference")
@@ -576,6 +586,11 @@ func (e *Session) helpText() (string, map[string]int) {
 				write("")
 				write("  " + strings.ReplaceAll(d, "\n", "\n  "))
 			}
+		}
+	}
+	for t, l := range headings {
+		if _, ok := tags[t]; !ok {
+			tags[t] = l
 		}
 	}
 	return strings.TrimSuffix(b.String(), "\n"), tags

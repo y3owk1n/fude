@@ -68,11 +68,13 @@ The terminal client talks to modules through the same interface the RPC
 boundary will expose. Why: retrofitting a split is painful, building it first
 delays a usable editor.
 
-## D12. Query selection lives in visual mode
+## D12. Query selection places multicursors
 
-A tree-sitter query selects every match as visual regions, then any operator
-applies to all of them. Why: it gives structural search and replace without
-changing the verb-first grammar.
+A tree-sitter query places a multicursor at every match, each selecting
+its match, then any operator applies at all of them (B42). Why: it gives
+structural search and replace without changing the verb-first grammar, and
+the multicursors are the ones `Q` places, so nothing is special about
+them.
 
 ## D13. Operators and targets are registered names
 
@@ -197,7 +199,11 @@ autocmds, options). Attaching them would mean emulating Neovim.
 `ui/term/` wraps tcell v3 with `OptAdvancedKeys`, so the rest of fude sees
 fude's key and cell types, never tcell's. Startup turns tcell's
 negotiation round trip off (`OptNegotiation(false)`) and enables the kitty
-keyboard protocol unconditionally, which terminals without it ignore. Why:
+keyboard protocol unconditionally, which terminals without it ignore. It
+asks once whether the terminal draws cursors of its own, kitty's multiple
+cursors protocol, and never waits for the answer. The input takes the
+answer out when it comes, and until then multicursors draw as cells
+(B401). Why:
 tcell v3 is tagged, maintained and terminfo-free. It stores a grapheme
 cluster per cell, wraps frames in synchronized output, and reads and
 writes OSC 52. Ultraviolet has a better feature set but no tagged release
@@ -823,7 +829,8 @@ file, and the refused atoms are rare in interactive use.
 
 ### N2. No Ex mode, Select mode, modelines or swap files
 
-`gQ` and Select mode are gone. Modelines are never read. The timeline log
+Ex mode and Select mode are gone, and `gQ` puts back multicursors (B397),
+as in Neovim 0.13. Modelines are never read. The timeline log
 replaces swap files (D19). Why: legacy that fude exists to drop, and
 modelines are a long-running source of security bugs.
 
@@ -1113,13 +1120,14 @@ no `zf`, `foldmethod`, `zj`, `zk`, `zC` or `zO`. Why: indent folds work in every
 file, with or without a grammar, and grammar repos ship no fold queries
 (D28). The user asked for folding on 2026-10-17.
 
-### N35. <C-n> adds a region
+### N35. <C-n> adds a multicursor
 
 `<C-n>` in normal mode selects the word under the cursor, and in visual
-mode adds its next match as another region (B232), as VS Code's `<C-d>`
-and vim-visual-multi's `<C-n>` do. Neovim's `<C-n>` in normal mode moves
-down a line, as `j` does. Why: `j` does that already, and the user asked
-on 2026-10-17 for a way to edit every match of a word at once.
+mode places a multicursor that keeps the selection and selects its next
+match (B232), as VS Code's `<C-d>` and vim-visual-multi's `<C-n>` do.
+Neovim's `<C-n>` in normal mode moves down a line, as `j` does. Why: `j`
+does that already, and the user asked on 2026-10-17 for a way to edit
+every match of a word at once. `zq*` does it too, but places every multicursor at once.
 
 ### N36. Visual > and < keep the selection
 
@@ -1195,6 +1203,15 @@ come together, and 50ms on every Esc is the longest wait a key has. With
 the kitty protocol, which fude asks for, Esc is a sequence of its own and
 waits for nothing. `TCELL_ESCDELAY`, in milliseconds, sets a longer wait
 for a link that splits sequences.
+
+### N43. Follow is not an option, and multicursors end with their buffer
+
+`q=` turns follow on and off for the session, where Neovim keeps it in
+the buffer-local `'follow'` option. Multicursors belong to one buffer, and
+showing another in the window removes them, where Neovim keeps each
+buffer's multicursors until it is current again. Why: one vim machine
+runs every window of a session, and a set of cursors for each buffer is
+more state for little use.
 
 ## Open
 

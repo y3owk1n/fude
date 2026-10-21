@@ -186,7 +186,6 @@ type Machine struct {
 	// Macros.
 	recording rune // the register being recorded into, or 0
 	macro     []Key
-	recorded  rune // the register Q replays
 	executed  rune // the register @@ replays
 	beep      bool // a motion failed, which stops a running macro
 	depth     int  // nested replays, to stop runaway recursion
@@ -216,11 +215,12 @@ type Machine struct {
 	hl                    bool                    // matches of the last search are highlighted
 	res                   map[patternKey]*pattern // compiled patterns, as a search and a :s preview take turns
 	ignoreCase, smartCase bool
-	clipboard             bool   // commands without a register use the host's clipboard too
-	flash                 [2]int // what the last key yanked or put, empty when nothing
-	flashPut              bool   // the last key put it, not yanked it
-	expandTab             bool   // indents are spaces only
-	asTyped               bool   // insert mode types each key as it is (B323)
+	clipboard             bool     // commands without a register use the host's clipboard too
+	flash                 [2]int   // what the last key yanked or put, empty when nothing
+	flashes               [][2]int // the same at the multicursors
+	flashPut              bool     // the last key put it, not yanked it
+	expandTab             bool     // indents are spaces only
+	asTyped               bool     // insert mode types each key as it is (B323)
 	wait                  *charWait
 	lastRep               string // the previous replacement, for ~
 	lastSub               struct{ pattern, rep, flags string }
@@ -243,12 +243,26 @@ type Machine struct {
 	cmds    map[string]func(Text, int, int) []Edit           // commands the host added
 	keyed   map[Mode]map[string]keyedCommand                 // commands the host added by their keys
 
-	// :select.
-	selector func(Text, string, int, int) ([][2]int, error)
-	regions  []region // in visual mode, every region :select or <C-n> chose, lowest first
-	multi    string   // the pattern <C-n> adds regions of (B232)
-	multiAt  int      // where the region <C-n> added last ends
-	cursors  []rune   // in insert mode, the marks of the cursors after the first
+	selector func(Text, string, int, int) ([][2]int, error) // what :select asks
+	multi    string                                         // the pattern <C-n> places cursors at (B232)
+	multiAt  int                                            // where the match <C-n> selected last ends
+
+	// Cursors (B392).
+	cursors   []*context // lowest first
+	free      []int      // the ids of removed cursors, for new ones
+	ids       int        // the most ids given out at once
+	written   map[rune]bool
+	last      int  // how many marks from lastMark hold the cursors <C-l> removed
+	follow    bool // motions move every cursor (B396)
+	inner     int  // replays of ., macros and ex commands, whose keys are not commands of their own
+	cascading bool // a command runs at the cursors
+	// The command typed while cursors are placed: its keys, the state it
+	// began in, the cursors where the cursor was, and what it did.
+	stepping, grouped            bool
+	step                         []Key
+	from                         state
+	with                         []*context
+	edited, operated, went, once bool
 }
 
 // change is the last change, for dot repeat.
@@ -271,10 +285,16 @@ func (m *Machine) Line() string { return m.prompt + m.line }
 // completion does.
 func (m *Machine) SetLine(s string) { m.line, m.lineAt = s, len(s) }
 
-// Flash returns the text the last key yanked or put, and whether it put
-// it, or false when it did neither (B139).
-func (m *Machine) Flash() (start, end int, put, ok bool) {
-	return m.flash[0], m.flash[1], m.flashPut, m.flash[1] > m.flash[0]
+// Flash returns the text the last key yanked or put, at the cursor and at
+// each multicursor, lowest first, and whether it put it. It returns none
+// when the key did neither (B139).
+func (m *Machine) Flash() (spans [][2]int, put bool) {
+	if m.flash[1] > m.flash[0] {
+		spans = append(spans, m.flash)
+	}
+	spans = append(spans, m.flashes...)
+	slices.SortFunc(spans, func(a, b [2]int) int { return a[0] - b[0] })
+	return spans, m.flashPut
 }
 
 // LineCursor returns where the cursor is in Line, in bytes.
@@ -370,7 +390,7 @@ func (m *Machine) keep(name rune, text string) {
 // Feed handles one key. It returns the host's error if an edit fails.
 func (m *Machine) Feed(k Key) error {
 	defer m.show(k)
-	m.beep, m.msg, m.flash = false, "", [2]int{}
+	m.beep, m.msg, m.flash, m.flashes = false, "", [2]int{}, nil
 	if m.mode == Normal {
 		// The host's own edits, such as another client's, can leave the
 		// cursor past the end of its line.
@@ -389,6 +409,13 @@ func (m *Machine) Feed(k Key) error {
 // feed handles one key, from the user or a replay, and keeps the keys of the
 // last change for dot repeat.
 func (m *Machine) feed(k Key) error {
+	user := m.inner == 0 && !m.cascading
+	if user && !m.stepping && len(m.cursors) > 0 {
+		m.beginStep()
+	}
+	if user && m.stepping {
+		m.step = append(m.step, k)
+	}
 	if m.idle() {
 		m.keys, m.changed = m.keys[:0], false
 	}
@@ -425,7 +452,24 @@ func (m *Machine) feed(k Key) error {
 	case m.oneshot && m.idle():
 		m.armed = true
 	}
+	if user && m.stepping && m.resting() {
+		if e := m.endStep(); err == nil {
+			err = e
+		}
+	}
 	return err
+}
+
+// resting reports whether a command is done, which is when the machine is
+// idle, or in insert or visual mode with no key awaited.
+func (m *Machine) resting() bool {
+	switch m.mode {
+	case Insert, Replace:
+		return m.pending == "" && m.wait == nil
+	case Visual:
+		return m.pending == "" && m.op == "" && m.count == 0 && m.reg == 0 && m.wait == nil
+	}
+	return m.idle()
 }
 
 // Shown returns the keys of the command being typed, or "" between
@@ -448,6 +492,10 @@ func (m *Machine) show(k Key) {
 	}
 	m.shown = append(m.shown, k)
 }
+
+// Pending reports whether an operator waits for its target or r for its
+// character, as a client shows with the cursor it shows in replace mode.
+func (m *Machine) Pending() bool { return m.op != "" || m.pending == "r" }
 
 // Idle reports whether the machine is in normal mode between commands, with
 // no count, register or held key.
@@ -485,13 +533,16 @@ func (m *Machine) run(keys []Key, mapped bool) error {
 	return nil
 }
 
-// apply edits through the host and marks the command as a change. While a
-// change on several regions types into all of them, it repeats the edits at
-// every cursor.
+// apply edits through the host and marks the command as a change. A command
+// typed while cursors are placed opens the undo group its runs at them join.
 func (m *Machine) apply(edits []Edit, label string) error {
 	m.changed = true
-	if len(m.cursors) > 0 && (m.mode == Insert || m.mode == Replace) {
-		edits = m.mirror(edits)
+	if m.stepping && !m.cascading {
+		m.edited = true
+		if !m.grouped {
+			m.h.BeginGroup()
+			m.grouped = true
+		}
 	}
 	if err := m.h.Apply(edits, label); err != nil || len(edits) == 0 {
 		return err
@@ -531,6 +582,8 @@ func (m *Machine) repeat(count int) error {
 	if d.count > 0 {
 		keys = append(keys, Keys(strconv.Itoa(d.count))...)
 	}
+	m.inner++
+	defer func() { m.inner-- }()
 	return m.run(append(keys, d.keys...), false)
 }
 
@@ -544,6 +597,8 @@ func (m *Machine) execute(name rune, n int) error {
 		return err
 	}
 	m.executed = name
+	m.inner++
+	defer func() { m.inner-- }()
 	if name == ':' {
 		for range n {
 			if err := m.ex(r.text); err != nil {
@@ -579,12 +634,35 @@ func (m *Machine) stopRecording() {
 		r.text = m.regs[name].text + r.text
 	}
 	m.regs[name] = r
-	m.recorded, m.recording, m.macro = name, 0, nil
+	m.recording, m.macro = 0, nil
 }
 
 // Paste inserts s as typed text, with no key mapping applied. In normal mode
 // it goes after the cursor and the mode stays normal.
 func (m *Machine) Paste(s string) error {
+	if m.mode == Cmdline {
+		return m.paste(s)
+	}
+	return m.everywhere(func() error { return m.paste(s) })
+}
+
+// Complete replaces the back bytes before the cursor with text, at the
+// cursor and at each multicursor, as choosing a completion does in insert
+// mode (B393).
+func (m *Machine) Complete(back int, text string) error {
+	return m.everywhere(func() error {
+		c := m.h.Cursor()
+		start := max(c-back, 0)
+		if err := m.apply([]Edit{{Start: start, End: c, Text: text}}, "completion"); err != nil {
+			return err
+		}
+		m.h.SetCursor(start + len(text))
+		return nil
+	})
+}
+
+// paste is Paste at the cursor.
+func (m *Machine) paste(s string) error {
 	switch m.mode {
 	case Insert, Replace:
 		return m.typeText(s)
@@ -610,6 +688,8 @@ var prefixes = []Binding{
 	{"normal", `"{reg}`, "names the register the next command uses"},
 	{"normal", "m{a-z}", "sets a mark at the cursor"},
 	{"normal", "q{reg}", "records keys into the register until q"},
+	{"normal", "q=", "toggles multicursor follow, 1q= sets it on and 2q= off"},
+	{"normal", "zq{motion}", "places a multicursor at each place the motion reaches"},
 	{"normal", "@{reg}", "replays the register, n times"},
 	{"normal", "<C-w>{key}", "runs a window command"},
 }
@@ -660,6 +740,11 @@ func (m *Machine) normal(k Key) error {
 		m.h.SetMark(rune(cmd[1]), m.h.Cursor())
 		return nil
 	}
+	if cmd == "q=" {
+		m.follow = m.count == 1 || m.count != 2 && !m.follow
+		m.count = 0
+		return nil
+	}
 	if (cmd[0] == 'q' || cmd[0] == '@') && len(cmd) > 1 {
 		count := max(m.count, 1)
 		m.count = 0
@@ -702,6 +787,18 @@ func (m *Machine) command(cmd string) error {
 	if m.before > 0 {
 		m.count, m.before = m.before*max(m.count, 1), 0
 	}
+	if cmd == "zq" && m.op == "" {
+		m.op, m.opCount, m.count = cmd, m.count, 0
+		return nil
+	}
+	if m.op == "zq" {
+		count := m.count
+		if m.opCount > 0 {
+			count = m.opCount * max(count, 1)
+		}
+		m.count, m.op, m.opCount, m.reg = 0, "", 0, 0
+		return m.along(cmd, count)
+	}
 	if m.mode == Visual {
 		count, reg := m.count, m.reg
 		m.count, m.reg = 0, 0
@@ -743,6 +840,8 @@ func (m *Machine) command(cmd string) error {
 			}
 			m.h.SetCursor(clamp(m.h.Text(), p))
 		}
+		// A motion that fails moves no multicursor (B396).
+		m.went = k != failed && !absolute(cmd)
 		return nil
 	}
 	if ok, err := m.scroll(cmd, count); ok {
@@ -855,11 +954,17 @@ func init() {
 		".": {"repeats the last change, with n as its count", func(m *Machine, x normalCall) error {
 			return m.repeat(x.count)
 		}},
-		"Q": {"replays the last recorded register, n times", func(m *Machine, x normalCall) error {
-			if m.recorded == 0 {
-				return nil
-			}
-			return m.execute(m.recorded, x.n())
+		"Q": {"toggles a multicursor, 1Q only adds one and 2Q only removes one", func(m *Machine, x normalCall) error {
+			m.toggle(x.count)
+			return nil
+		}},
+		"gQ": {"puts back the multicursors removed last", func(m *Machine, _ normalCall) error {
+			m.once = true
+			m.restore()
+			return nil
+		}},
+		"g<C-a>": {"numbers the multicursors from n", func(m *Machine, x normalCall) error {
+			return m.number(x.n())
 		}},
 		":": {"opens the command line, with n lines from the cursor's as its range", func(m *Machine, x normalCall) error {
 			line := ""
@@ -869,13 +974,14 @@ func init() {
 			m.enterLine(Normal, ":", line)
 			return nil
 		}},
-		"<C-l>": {"hides the last search's highlight", func(m *Machine, _ normalCall) error {
-			m.hl = false
+		"<C-l>": {"hides the last search's highlight and removes the multicursors", func(m *Machine, _ normalCall) error {
+			m.once, m.hl = true, false
+			m.clearCursors()
 			return nil
 		}},
 		"gn":    {"selects the next match of the last search", func(m *Machine, _ normalCall) error { return m.selectMatch(false) }},
 		"gN":    {"selects the match of the last search before the cursor", func(m *Machine, _ normalCall) error { return m.selectMatch(true) }},
-		"<C-n>": {"selects the word under the cursor, for <C-n> in visual mode to add its next match", func(m *Machine, _ normalCall) error { return m.addRegion() }},
+		"<C-n>": {"selects the word under the cursor, for multicursors at its matches", func(m *Machine, _ normalCall) error { return m.addCursor() }},
 		"]e": {"moves the line n lines down", func(m *Machine, x normalCall) error {
 			_, err := m.moveBy(x.start, x.start, max(x.count, 1), "]e")
 			return err
@@ -959,6 +1065,7 @@ func init() {
 // stepState moves n states through the text's history, back for a
 // negative n, and puts the cursor where the state changed.
 func (m *Machine) stepState(n int) error {
+	m.clearCursors()
 	start, ok := m.h.Step(n)
 	switch {
 	case !ok && n < 0:

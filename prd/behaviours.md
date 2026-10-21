@@ -93,6 +93,10 @@ Where fude departs, the line says so and cites the departure in
 
 - B6 [1] `i`, `a`, `I`, `A`, `o`, `O`, `gI` and `gi` enter insert mode at
   the positions Vim uses, `gi` where insert mode was last left. `<Esc>` returns to normal mode and moves the cursor left as Neovim does.
+- B402 [1] The terminal's cursor is a block in normal and visual mode, a
+  bar in insert mode, and an underline in replace mode, while an operator
+  waits for its target and while `r` waits for its character, as Neovim's
+  default `guicursor` has it.
 - B7 [1] Text typed in insert mode is one timeline node from entering
   insert to leaving it, except where `<Left>`, `<Right>`, `<C-w>`, `<C-u>`
   or `<C-g>u` split it, as in Neovim.
@@ -186,7 +190,9 @@ Where fude departs, the line says so and cites the departure in
 - B237 [2] A tab shows as `tab_width` columns, 8 unless set, and a
   `[filetype.<name>]` table sets it for one filetype. Indents made of tabs
   then spaces count each tab at that width, and `j` and `k` keep the
-  column it gives. `indent_width` is the tab width unless set.
+  column it gives. On a tab outside insert mode the cursor shows on its
+  last column, and `j` and `k` keep that one, as in Neovim.
+  `indent_width` is the tab width unless set.
 - B123 [2] A file in a git repository shows in the sign column how it
   differs from git's index, as gitsigns does: `┃` on added and changed
   lines, `▁` under the line before deleted ones, and `~` on a change that
@@ -595,8 +601,9 @@ Where fude departs, the line says so and cites the departure in
   they help. A command's short names show on its line, a module's too, as
   in `:buffer {buffer}  :b`. An example of keys shows the text before, the keys typed and
   the text after, and is what fude does. It also lists the mappings in use and marks the ones
-  `config.toml` sets. `:h name` goes to a page, a reference section such
-  as `settings`, or the entry for a command (`:w`), a key (`w`,
+  `config.toml` sets. `:h name` goes to a page, a heading of a guide page
+  such as `multicursor`, a reference section such as `settings`, or the
+  entry for a command (`:w`), a key (`w`,
   `<Leader>w`), an option or a setting. `<CR>` on a name in help goes to
   it (D34).
 - B172 [2] When a command being typed in normal or visual mode waits
@@ -665,9 +672,9 @@ Where fude departs, the line says so and cites the departure in
 - B16 [2] `.` repeats the last change with its count, and a new count
   replaces it.
 - B17 [2] `qx ... q` records keys into register `x` and `@x` replays
-  them. `@@` repeats the last executed register and `Q` replays the last
-  recorded one. `@:` runs the last command line again. `:reg x` shows the macro as text, and editing that text
-  changes the macro.
+  them. `@@` repeats the last executed register. `@:` runs the last
+  command line again. `:reg x` shows the macro as text, and editing that
+  text changes the macro.
 - B18 [2] `v`, `V` and `<C-v>` select. Any operator, `~ u U r J gJ p P`
   and the line commands `X D Y C S R` apply to the selection as in Neovim,
   and `.` repeats them.
@@ -691,8 +698,10 @@ Where fude departs, the line says so and cites the departure in
   Matches highlight in every window while typing and after the search.
   While a search is typed, with `inc_search` on, as it is unless set off,
   the window shows the match it goes to, lit apart from the rest, and
-  `<Esc>` scrolls the window back. `<C-l>` clears the highlight. Patterns use Vim syntax on a linear-time engine, and a pattern
-  that needs backtracking is refused with a message naming the atom (N1).
+  `<Esc>` scrolls the window back. `<C-l>` clears the highlight, and
+  removes the multicursors B397 says. Patterns use Vim syntax on a
+  linear-time engine, and a pattern that needs backtracking is refused
+  with a message naming the atom (N1).
 - B120 [2] With `ignore_case`, searches, `:s` and their highlights ignore
   case, and with `smart_case` too a pattern with an uppercase letter
   matches case. `\c` and `\C` in a pattern override both, as with
@@ -959,11 +968,84 @@ Where fude departs, the line says so and cites the departure in
   under the cursor, or else the next one, and `gN` the one before, going
   round the text. After an operator they are its target, so `cgn` changes
   a match and `.` changes the next. `<C-n>` in normal mode selects the
-  word under the cursor as a region, and in visual mode the selection.
-  Each `<C-n>` after adds the next match of that text as another region,
-  the word as a whole word, going round the text, until none is left.
-  `c`, `d`, `x`, `y` and host operators then act on every region, as on
-  `:select`'s (B42), so `c` types into all of them at once (N35).
+  word under the cursor, and in visual mode places a multicursor (B392)
+  that keeps the selection, then selects the next match of its text, the
+  word as a whole word, going round the text, until none is left. The
+  next key runs at every multicursor as B394 says, so `c` changes every
+  match (N35).
+- B392 [2] `Q` toggles a multicursor where the cursor is, `1Q` only adds
+  one and `2Q` only removes one, as in Neovim 0.13. While multicursors are
+  placed, each command that edits runs again at every multicursor, on that
+  multicursor's own text: an operator with its target, `x`, `p`, `r`, `J`
+  and the other edits, `.`, a macro, and the keys a mapping runs, so a
+  mapping of `K` to `Gdd` deletes the line at each. A motion moves only
+  the cursor, unless follow is on (B396). Ex commands, undo, scrolls and
+  window keys run once. `u` undoes what a command did at every
+  multicursor as one step. A multicursor where the cursor already is moves
+  with it and does not repeat its edits. A command that fails at one
+  multicursor, as `p` with nothing in its register, leaves it there and
+  says why.
+- B393 [2] With multicursors placed, a command that starts insert mode
+  starts it at every multicursor, and each key typed in insert mode runs
+  at each, so `<C-w>` deletes each one's own word. A multicursor where the
+  command cannot start insert mode, as `ct;` on a line with no `;`, is
+  removed. `<C-o>` runs its command as normal mode does with
+  multicursors, and the insert goes on at every multicursor after it,
+  where Neovim types at the cursor alone. A completion chosen from the
+  menu replaces the same bytes before each multicursor as before the
+  cursor, and a pasted text goes in at each. A snippet expands at the
+  cursor alone.
+- B394 [2] With multicursors placed, visual mode selects at every
+  multicursor. Each key in visual mode runs at each on its own selection,
+  so `viwd` deletes each one's own word, and `<Esc>` leaves each where its
+  selection ended.
+- B395 [2] Each multicursor has its own registers, copies of the
+  registers as they were when it was placed, and its own marks `[`, `]`,
+  `<`, `>`, `.` and `^`, so `gv` at each selects its own last selection.
+  When the multicursors are removed, each register a command wrote while
+  they were placed holds what every multicursor and the cursor held there,
+  as lines, in their order through the text. With `clipboard` on, each
+  still yanks into and puts from its own, and the clipboard gets that
+  text once they are removed.
+- B396 [2] `q=` toggles multicursor follow, `1q=` sets it on and `2q=`
+  off. With follow on, a motion that moves from the cursor, such as `w`,
+  `fx`, `j`, `n` or `*`, moves every multicursor. `G`, `gg`, `H`, `M`,
+  `L`, marks and the jumplist move only the cursor. Multicursors that land
+  in one place become one, and one that lands where the cursor is becomes
+  it. A motion that fails at the cursor, as `w` at the end of the text,
+  moves none. `Q` sets follow off, `Q` in visual mode sets it on, and the
+  other keys that place multicursors, as `zq` does, leave it.
+- B397 [2] `<C-l>` removes every multicursor, as it hides the search
+  highlight. `gQ` puts back the multicursors removed last and the cursor
+  where it was then, and does nothing while multicursors are placed. `g-`
+  and `g+`, which move through the timeline, remove them. Multicursors
+  belong to one buffer, and a key typed while the window shows another
+  removes them for good, their registers left as they were (N43).
+- B398 [2] `zq{motion}` places a multicursor at the cursor and at each
+  place the motion reaches from there, again and again, to the end of the
+  text, its last character too. With `f`, `t`, `F` or `T` the cursor's
+  place counts only at the start of the text, a `t` next to its character
+  goes on past it as `;` does, and a motion back places none. The cursor
+  goes to the first multicursor placed, unless one is where it is. A
+  search motion (`n`, `N`, `*`, `#`, `/`, `?`) places one at every
+  match, and sets each one's `gv` to its match, so `zq*gvc` changes every
+  match of the word under the cursor. In visual mode `zq{motion}` stays
+  within the selection, and a block selection starts each line of the
+  block at its left column. `Q` in visual mode places a multicursor on
+  each line of the selection at the cursor's column, and sets follow on.
+- B399 [2] `]C` and `[C` move to the next and previous multicursor, n
+  times, going round the text, so `]CQ` removes them one at a time. With
+  none placed, they move to the multicursors `<C-l>` removed last, as an
+  exclusive motion, so `d]C` deletes up to the next one.
+- B400 [2] `g<C-a>` with multicursors placed puts a number before each
+  and the cursor, counting up from n, or 1, through the text, so a column
+  of multicursors becomes 1, 2, 3.
+- B401 [2] Every multicursor shows in the window that has the cursor, and
+  in visual mode every multicursor's selection, in the colour the status
+  line gives the mode. A terminal that says it draws cursors of its own,
+  through kitty's multiple cursors protocol, draws one at each
+  multicursor in the cursor's shape (B402). Elsewhere each is a block, or
+  an underline where the cursor is one.
 - B90 [2] `<C-o>` and `<C-i>` move through the jumplist, and `g;` and `g,`
   through the changelist, as in Neovim. Each keeps its newest 100 places.
 - B91 [2] `<C-w>c`, `<C-w>o`, `<C-w>q`, `<C-w>=` and `:q` in a split close
@@ -1066,10 +1148,12 @@ Where fude departs, the line says so and cites the departure in
   pattern that means the same as a regular expression works as `#match?`,
   and `#set! "priority"` is allowed and changes nothing (D28). In an
   `injections.scm` such a predicate leaves out its pattern instead (B166).
-- B42 [3] `:select <query>` in visual mode selects, as a region, every node
-  that a capture of the tree-sitter query names within the selection. `d`,
-  `x`, `y` and host operators such as `gc` then act on every region as one
-  undo step, and `c` types into every region at once until `<Esc>`.
+- B42 [3] `:select <query>` in visual mode places a multicursor (B392)
+  at every node that a capture of the tree-sitter query names within the
+  selection, each selecting its node, and the cursor selects the first.
+  The next key runs at every multicursor as B394 says, so `d`, `x`, `y`
+  and host operators such as `gc` act on every node as one undo step,
+  and `c` types into every node at once.
 - B43 [3] A keystroke never waits for a reparse. Highlighting may lag by a
   frame, editing does not.
 - B44 [3] `gc{target}` and `gcc` toggle comments, using the comment syntax
@@ -1449,7 +1533,8 @@ Where fude departs, the line says so and cites the departure in
   `:pick files`'s do.
 - B313 [4] A module hears `text.touched` when a key yanks, puts, undoes or
   redoes text, with what it did, `yank`, `put`, `undo` or `redo`, and
-  where the text is, as flash shows it (B139).
+  where the text is, a start and an end at the cursor and at each
+  multicursor, as flash shows it (B139).
 - B311 [4] A module hears `explorer.read` when an explorer reads its
   directory: as it opens, as it reads it again, and when the terminal gets
   the focus back. A call about an explorer names its directory, which git's

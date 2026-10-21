@@ -50,22 +50,37 @@ cursor is in them.
 "f(a, |b)" "di(" "f(|)"
 ```
 
-## Several places at once
+## Multicursor
 
-fude edits several places at once through regions, one cursor each.
-`<C-n>` on a word selects it as the first region, and each `<C-n>` after
-adds the next match of the whole word, going round the text. In visual
-mode `<C-n>` does the same for the selected text, which must be on one
-line. `:select` in visual mode makes a region of every node a tree-sitter
-query names in the selection, as `:select (identifier) @x` does. With the
-regions chosen:
+fude edits several places at once through multicursors. `Q` places one
+where the cursor is, or removes it. While multicursors are placed, every
+command that edits runs again at each of them, on that multicursor's own
+text, so `ciw` changes each one's own word and `<C-w>` in insert mode
+takes each one's own word. Motions move only the cursor, so you can walk
+to the next place and press `Q` again. `q=` turns follow on, and then
+`w`, `j`, `fx` and the like move every multicursor. `u` takes back one
+command at all of them. `<C-l>` removes them and `gQ` puts them back.
 
-- `c` deletes every region and types into all of them at once until
-  `<Esc>`, so `<C-n><C-n><C-n>cnew<Esc>` renames three matches.
-- `d` and `x` delete every region, and `y` yanks them as lines of one
-  register.
-- An operator from a module, such as `gc`, acts on each region.
-- Any other key keeps the first region alone and goes on from there.
+```keys
+"|ab\ncd\nef" "QjQjA;<Esc>" "ab;\ncd;\nef|;"
+```
+
+There are faster ways to place them:
+
+- `zq{motion}` places a multicursor at each place the motion reaches, to
+  the end of the text, so `zqj` places one on every line and
+  `zq*gvcnew<Esc>` renames every match of the word under the cursor.
+- `<C-n>` on a word selects it, and each `<C-n>` after places a
+  multicursor there and selects the next match, so
+  `<C-n><C-n><C-n>cnew<Esc>` renames three matches. In visual mode it
+  starts from the selected text.
+- `Q` in visual mode places one on each selected line, with follow on.
+- `:select` in visual mode places one at every node a tree-sitter query
+  names in the selection, as `:select (identifier) @x` does.
+
+Each multicursor keeps its own registers, so `yiw` at each and `p` puts
+each its own word. When `<C-l>` removes them, the register holds every
+one's text, one line each.
 
 `/word<CR>` then `cgn` changes one match and `.` the next, so `n` can skip
 one on the way. `<C-v>` with `I` or `A` types on every line of a block.
@@ -98,9 +113,11 @@ own.
 ```keys
 "|a b c d" "dw." "|c d"
 "|a b c d e" "dw2." "|d e"
-``` `qa` starts recording keys into register `a` and `q` stops. `@a`
-plays them back, `@@` plays the last register played, and `Q` the last one
-recorded. `@:` runs the last command line again. `:reg a` shows the keys
+```
+
+`qa` starts recording keys into register `a` and `q` stops. `@a` plays
+them back, and `@@` plays the last register played. `@:` runs the last
+command line again. `:reg a` shows the keys
 as text, and editing that text changes them.
 
 ## Searching and substituting

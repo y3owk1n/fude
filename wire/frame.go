@@ -20,6 +20,7 @@ type Frame struct {
 	Line         string         `json:",omitempty"`
 	LineCursor   int            `json:",omitempty"`
 	Mode         vim.Mode       `json:",omitempty"`
+	Pending      bool           `json:",omitempty"` // an operator waits for its target, or r for its character
 	Message      string         `json:",omitempty"`
 	Confirm      string         `json:",omitempty"` // the yes or no question showing (B362)
 	Selection    *vim.Selection `json:",omitempty"`

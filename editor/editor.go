@@ -96,6 +96,7 @@ type Session struct {
 	root        *node
 	win         *window // the current window
 	vim         *vim.Machine
+	cursorsIn   *buffer // the buffer the machine's cursors are in (N43)
 	message     string
 	done        bool
 	cell        [2]int                  // the client's cell in pixels, 0 when it shows no images (B303)
@@ -596,15 +597,16 @@ func (e *Session) feed(k vim.Key) {
 	e.vim.ExpandTab(e.win.opts.ExpandTab)
 	e.vim.UseClipboard(e.win.opts.Clipboard)
 	e.vim.UseLocal(e.localKeys(e.win.buf))
+	e.ownCursors()
 	at, top := e.Cursor(), e.topOf(e.win)
 	e.settle(e.vim.Feed(k))
 	e.incSearch(top, at)
-	if start, end, put, ok := e.vim.Flash(); ok {
+	if spans, put := e.vim.Flash(); len(spans) > 0 {
 		kind := "yank"
 		if put {
 			kind = "put"
 		}
-		e.touch(e.win.buf, kind, start, end)
+		e.touch(e.win.buf, kind, spans...)
 	}
 	e.snippetAfter()
 	e.autocomplete(k)
@@ -630,7 +632,17 @@ func (e *Session) Timeout() {
 		t.em.SendKey(uv.KeyPressEvent{Code: uv.KeyEscape})
 		return
 	}
+	e.ownCursors()
 	e.settle(e.vim.Timeout())
+}
+
+// ownCursors forgets the multicursors once the window shows another buffer
+// than theirs (N43).
+func (e *Session) ownCursors() {
+	if e.win.buf != e.cursorsIn {
+		e.vim.ForgetCursors()
+		e.cursorsIn = e.win.buf
+	}
 }
 
 // settle shows the error or message from the keys just run, and scrolls to
@@ -748,6 +760,7 @@ func (e *Session) Paste(text string) {
 		t.em.Paste(text)
 		return
 	}
+	e.ownCursors()
 	if err := e.vim.Paste(text); err != nil {
 		e.message = err.Error()
 	}
@@ -799,9 +812,14 @@ func (e *Session) Menu() (wire.Menu, bool) {
 // (B142).
 var floatKeys = map[string]string{"q": "<Plug>(float.close)"}
 
-// Cursors returns the cursors after the first while a change on several
-// regions types into all of them.
-func (e *Session) Cursors() []int { return e.vim.Cursors() }
+// Cursors returns the multicursors in the current window, when it shows
+// the buffer they were placed in (B392).
+func (e *Session) Cursors() []int {
+	if e.win.buf != e.cursorsIn {
+		return nil
+	}
+	return e.vim.Cursors()
+}
 
 // Selection returns the visual selection, or false outside visual mode.
 func (e *Session) Selection() (vim.Selection, bool) { return e.vim.Selection() }
@@ -812,6 +830,10 @@ func (e *Session) Line() string { return e.vim.Line() }
 // Substituting reports whether a :s is being typed with its pattern, whose
 // preview the windows show.
 func (e *Session) Substituting() bool { return e.vim.Substituting() }
+
+// Pending reports whether an operator waits for its target or r for its
+// character.
+func (e *Session) Pending() bool { return e.vim.Pending() }
 
 // setTheme makes name the theme every client draws in: dark, light or a
 // base16 scheme file, read again each time (B146, B158).

@@ -32,6 +32,7 @@ type register struct {
 // object, or the operator again for whole lines. label names the edit, as
 // the keys typed for it.
 func (m *Machine) operate(op string, reg rune, cmd string, count int, label string) error {
+	m.operated = true
 	t, c := m.h.Text(), m.h.Cursor()
 	r, ok := m.span(t, c, op, cmd, count)
 	if !ok {
@@ -348,6 +349,7 @@ func (m *Machine) store(reg rune, op string, r register) {
 	if m.regs == nil {
 		m.regs = map[rune]register{}
 	}
+	to := unicode.ToLower(reg) // the register written besides "
 	switch {
 	case reg == '_':
 		return
@@ -358,6 +360,7 @@ func (m *Machine) store(reg rune, op string, r register) {
 		if err := m.h.SetClipboard(r.text); err != nil {
 			m.msg = err.Error()
 		}
+		to = '"'
 	case unicode.IsUpper(reg):
 		reg = unicode.ToLower(reg)
 		if old, ok := m.regs[reg]; ok {
@@ -367,19 +370,26 @@ func (m *Machine) store(reg rune, op string, r register) {
 	case reg != 0:
 		m.regs[reg] = r
 	case op == "y":
-		m.regs['0'] = r
+		to = '0'
+		m.regs[to] = r
 	case r.linewise || strings.Contains(r.text, "\n"):
 		for i := '9'; i > '1'; i-- {
 			if old, ok := m.regs[i-1]; ok {
 				m.regs[i] = old
 			}
 		}
-		m.regs['1'] = r
+		to = '1'
+		m.regs[to] = r
 	default:
-		m.regs['-'] = r
+		to = '-'
+		m.regs[to] = r
 	}
 	m.regs['"'] = r
-	if reg == 0 && m.clipboard {
+	if m.written != nil {
+		// Each cursor's text in these goes into one when they are removed.
+		m.written[to], m.written['"'] = true, true
+	}
+	if reg == 0 && m.clipboard && len(m.cursors) == 0 {
 		if err := m.h.SetClipboard(r.text); err != nil {
 			m.msg = err.Error()
 		}
@@ -399,7 +409,8 @@ func (m *Machine) fetchPut(reg rune) (rune, register, bool, error) {
 		r, ok, err := m.fetch(reg)
 		return reg, r, ok, err
 	}
-	if m.clipboard {
+	// Multicursors put their own registers, not the one clipboard (B395).
+	if m.clipboard && len(m.cursors) == 0 {
 		r, ok, err := m.fetch('+')
 		if err != nil {
 			// The unnamed register puts, and the message says why.

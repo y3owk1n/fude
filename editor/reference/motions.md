@@ -371,6 +371,25 @@ the first line.
 "a\n{\nb\n}\nc\n{\n|d" "[]" "a\n{\nb\n|}\nc\n{\nd"
 ```
 
+## ]C
+
+Goes to the next multicursor, n times, going round to the first after the
+last, so `]CQ` removes multicursors one at a time. With none placed, it
+goes to the next of those `<C-l>` removed last. Exclusive.
+
+```keys
+"|a\nb\nc" "QjQj]C" "|a\nb\nc"
+"|a\nb\nc" "QjQj<C-l>ggd]C" "|b\nc"
+```
+
+## [C
+
+Goes to the multicursor before, as `]C` goes to the next.
+
+```keys
+"|a\nb\nc" "QjQj[C" "a\n|b\nc"
+```
+
 ## g0
 
 Goes to the start of the screen row the cursor is on, where a long line

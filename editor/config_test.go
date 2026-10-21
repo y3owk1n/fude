@@ -117,6 +117,10 @@ func TestB237TabWidth(t *testing.T) {
 	if feed(e, "j4lk"); e.Cursor() != 1 {
 		t.Errorf("k from column 4 went to %d, want the x after the tab", e.Cursor())
 	}
+	// From a tab, j keeps its last column, where the cursor shows.
+	if feed(e, "0j"); e.Cursor() != 6 {
+		t.Errorf("j from a tab went to %d, want the d under its end", e.Cursor())
+	}
 }
 
 // B39, for the settings of config.toml

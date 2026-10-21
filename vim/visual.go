@@ -12,7 +12,7 @@ type Selection struct {
 	Start, End  int // the selected bytes, or every line a block spans
 	Block       bool
 	Left, Right int      // a block's display columns, inclusive
-	Regions     [][2]int // every region :select chose, when it chose several
+	Regions     [][2]int // with cursors placed, every cursor's selection and its own
 }
 
 // Selection returns the visual selection, or false outside visual mode.
@@ -21,26 +21,25 @@ func (m *Machine) Selection() (Selection, bool) {
 		return Selection{}, false
 	}
 	r := m.selection()
-	s := Selection{Kind: m.visual, Start: r.start, End: r.end, Block: r.block, Left: r.left, Right: r.right}
-	for _, g := range m.regions {
-		s.Regions = append(s.Regions, [2]int{g.start, g.end})
-	}
-	return s, true
+	return Selection{Kind: m.visual, Start: r.start, End: r.end, Block: r.block, Left: r.left, Right: r.right, Regions: m.selections()}, true
 }
 
 // selection returns the text visual mode covers. Charwise it includes the
 // cluster under each end, and the line break after $ or on an empty line.
-func (m *Machine) selection() region {
+func (m *Machine) selection() region { return m.selectionAt(m.anchor, m.h.Cursor()) }
+
+// selectionAt is selection with its ends at anchor and c.
+func (m *Machine) selectionAt(anchor, c int) region {
 	tab := m.h.TabWidth()
-	t, c := m.h.Text(), m.h.Cursor()
-	s, e := min(m.anchor, c), max(m.anchor, c)
+	t := m.h.Text()
+	s, e := min(anchor, c), max(anchor, c)
 	toEnd := m.wantSet && m.want == math.MaxInt
 	switch m.visual {
 	case "V":
 		return m.folded(t, region{start: LineStart(t, s), end: LineEnd(t, e), lines: true})
 	case "<C-v>":
-		ca, cc := column(t, LineStart(t, m.anchor), m.anchor, tab), column(t, LineStart(t, c), c, tab)
-		wa := max(textWidth(t.Slice(m.anchor, next(t, m.anchor, LineEnd(t, m.anchor))), ca, tab), 1)
+		ca, cc := column(t, LineStart(t, anchor), anchor, tab), column(t, LineStart(t, c), c, tab)
+		wa := max(textWidth(t.Slice(anchor, next(t, anchor, LineEnd(t, anchor))), ca, tab), 1)
 		wc := max(textWidth(t.Slice(c, next(t, c, LineEnd(t, c))), cc, tab), 1)
 		r := region{start: LineStart(t, s), end: LineEnd(t, e), block: true, left: min(ca, cc), right: max(ca+wa, cc+wc) - 1}
 		if toEnd {
@@ -62,7 +61,7 @@ func (m *Machine) leaveVisual() {
 	m.h.SetMark('<', min(m.anchor, c))
 	m.h.SetMark('>', max(m.anchor, c))
 	m.lastVisual, m.anchorFirst = m.visual, m.anchor <= c
-	m.mode = Normal
+	m.mode, m.multi = Normal, ""
 }
 
 // reselect is gv, which selects what the last visual mode selected.
@@ -284,8 +283,12 @@ var visuals = map[string]visualKey{
 		return nil
 	}},
 	"o": {"moves the cursor to the other end of the selection", otherEnd},
-	"<C-n>": {"adds the next match of the selection's text as another region", func(m *Machine, _ visualCall) error {
-		return m.addRegion()
+	"<C-n>": {"places a multicursor and selects the next match", func(m *Machine, _ visualCall) error {
+		return m.addCursor()
+	}},
+	"Q": {"places a multicursor on each selected line, with follow on", func(m *Machine, _ visualCall) error {
+		m.eachLine()
+		return nil
 	}},
 	"O":      {"moves the cursor to the other end of the selection, or of a block's line", otherEnd},
 	"<C-a>":  {"adds n to the first number on each selected line", incrementSelection},
@@ -400,15 +403,6 @@ func joinSelection(m *Machine, x visualCall) error {
 
 // visualKey handles a command in visual mode.
 func (m *Machine) visualKey(cmd string, count int, reg rune) error {
-	if cmd == "<C-n>" {
-		// It adds a region, so it runs before the regions take the key.
-		return visuals[cmd].run(m, visualCall{})
-	}
-	if len(m.regions) > 0 {
-		if ok, err := m.regionKey(cmd, reg); ok {
-			return err
-		}
-	}
 	t, c := m.h.Text(), m.h.Cursor()
 	if name, ok := strings.CutPrefix(cmd, "<Plug>("); ok {
 		// A host's command runs with the selection kept, as a mapping in

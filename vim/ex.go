@@ -115,6 +115,11 @@ func (m *Machine) Ex(line string) error { return m.ex(line) }
 // ex runs a command line. The machine runs the commands that edit text and
 // :noh, and hands anything else to the host.
 func (m *Machine) ex(line string) error {
+	// An ex command runs once, not at each cursor, and the keys it runs, as
+	// :normal does, are not commands of their own.
+	m.once = true
+	m.inner++
+	defer func() { m.inner-- }()
 	t, c := m.h.Text(), m.h.Cursor()
 	first, last, rest, ranged, err := m.lineRange(t, c, line)
 	if err != nil {

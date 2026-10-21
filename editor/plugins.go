@@ -1434,7 +1434,7 @@ func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 	s.Selection = func() (api.Selection, bool) {
 		return api.Selection{Kind: string(sel.Kind), Start: sel.Start, End: sel.End, Block: sel.Block, Left: sel.Left, Right: sel.Right, Regions: sel.Regions}, selected
 	}
-	cursors := e.vim.Cursors()
+	cursors := e.Cursors()
 	s.Cursors = func() []int { return cursors }
 	var proposals []api.Proposal
 	for o, ds := range e.decos {

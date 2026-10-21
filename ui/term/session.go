@@ -33,6 +33,7 @@ type Session interface {
 	Line() string
 	LineCursor() int
 	Mode() vim.Mode
+	Pending() bool
 	Message() string
 	Confirm() string
 	Selection() (vim.Selection, bool)

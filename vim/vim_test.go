@@ -172,11 +172,12 @@ func TestB232Multi(t *testing.T) {
 		// cgn changes the match under or after the cursor, and . the next.
 		{"|foo bar foo", "/foo<CR>0cgnX<Esc>", "|X bar foo"},
 		{"|foo bar foo", "/foo<CR>0cgnX<Esc>.", "X bar |X"},
-		// <C-n> selects the word, and each <C-n> after adds its next match
-		// as a whole word, which c then changes everywhere.
-		{"|ab abc ab y ab", "<C-n><C-n>cZ<Esc>", "|Z abc Z y ab"},
-		// A <C-n> with no match left keeps the regions there are.
-		{"|ab x ab", "<C-n><C-n><C-n>d", "| x "},
+		// <C-n> selects the word, and each <C-n> after places a cursor and
+		// selects its next match as a whole word, which c then changes at
+		// every cursor.
+		{"|ab abc ab y ab", "<C-n><C-n>cZ<Esc>", "Z abc |Z y ab"},
+		// A <C-n> with no match left keeps the cursors there are.
+		{"|ab x ab", "<C-n><C-n><C-n>d", " x| "},
 		// In visual mode it starts from the selected text.
 		{"|a.b a.b", "vll<C-n>d", "| "},
 	} {
@@ -823,8 +824,9 @@ func TestB42SelectRegions(t *testing.T) {
 	for _, c := range [][3]string{
 		{"a1 b22 c333|\nd4", "V:select x<CR>d", "a| b c\nd4"},
 		{"a1 b22 c333|\nd4", "V:select x<CR>cXY<BS>Z<Esc>", "aX|Z bXZ cXZ\nd4"},
-		{"a1 b22 c333|\nd4", "V:select x<CR>y", "a|1 b22 c333\nd4"},
-		{"a1 b22 c333|\nd4", "V:select x<CR>ld", "a|b22 c333\nd4"},
+		{"a1 b22 c333|\nd4", "V:select x<CR>y<C-l>", "a|1 b22 c333\nd4"},
+		// Each key runs at every cursor, so l widens each selection.
+		{"a1 b22 c333|\nd4", "V:select x<CR>ld", "a|bc\nd4"},
 	} {
 		h := &host{text: strings.Replace(c[0], "|", "", 1), cursor: strings.Index(c[0], "|")}
 		m := vim.New(h)
@@ -837,9 +839,9 @@ func TestB42SelectRegions(t *testing.T) {
 		if got := h.text[:h.cursor] + "|" + h.text[h.cursor:]; got != c[2] {
 			t.Errorf("%q on %q: got %q, want %q", c[1], c[0], got, c[2])
 		}
-		if c[1] == "V:select x<CR>y" {
-			if r, _, _ := m.Register('"'); r != "1\n22\n333" {
-				t.Errorf("y on regions yanked %q, want them joined by newlines", r)
+		if c[1] == "V:select x<CR>y<C-l>" {
+			if r, _, _ := m.Register('"'); r != "1\n22\n333\n" {
+				t.Errorf("y at the cursors joined %q, want their lines", r)
 			}
 		}
 	}

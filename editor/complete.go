@@ -248,12 +248,13 @@ func (e *Session) choose(i int) {
 	if i < len(m.items) {
 		text = m.items[i]
 	}
-	if err := (host{e}).Apply([]vim.Edit{{Start: start, End: start + len(old), Text: text}}, "completion"); err != nil {
+	// The cursor is after old, and the multicursors after the same (B393).
+	e.setCursor(start + len(old))
+	if err := e.vim.Complete(len(old), text); err != nil {
 		e.message = err.Error()
 		return
 	}
 	m.sel = i
-	e.setCursor(start + len(text))
 	e.showMenu()
 }
 

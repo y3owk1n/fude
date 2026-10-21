@@ -3,6 +3,7 @@ package hints_test
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -44,7 +45,8 @@ func TestB172KeyHints(t *testing.T) {
 	if _, ok := e.Menu(); ok {
 		t.Error("the hints stay after <Esc>")
 	}
-	// The machine's own keys follow g.
+	// The machine's own keys follow g, in a column as wide as the widest.
 	editortest.Feed(e, "g")
-	editortest.Settle(t, e, func() bool { return shows("g  goes to the first line") })
+	gg := regexp.MustCompile(`(^|  )g +goes to the first line`)
+	editortest.Settle(t, e, func() bool { f, ok := e.Menu(); return ok && gg.MatchString(f.Text) })
 }

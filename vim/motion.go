@@ -50,15 +50,23 @@ func (m *Machine) moved(p int, k kind, keep bool) (int, kind) {
 func wordMotion(back, end bool) func(m *Machine, x motionCall) (int, kind) {
 	return func(m *Machine, x motionCall) (int, kind) {
 		big := unicode.IsUpper(rune(x.cmd[len(x.cmd)-1]))
+		var p int
+		k := exclusive
 		switch {
 		case back && end:
-			return m.moved(wordEndBack(x.t, x.c, x.n, big), inclusive, false)
+			p, k = wordEndBack(x.t, x.c, x.n, big), inclusive
 		case back:
-			return m.moved(wordBack(x.t, x.c, x.n, big), exclusive, false)
+			p = wordBack(x.t, x.c, x.n, big)
 		case end:
-			return m.moved(wordEnd(x.t, x.c, x.n, big, false), inclusive, false)
+			p, k = wordEnd(x.t, x.c, x.n, big, false), inclusive
+		default:
+			p = wordForward(x.t, x.c, x.n, big, false)
 		}
-		return m.moved(wordForward(x.t, x.c, x.n, big, false), exclusive, false)
+		// One with nowhere to go, at either end of the text, fails.
+		if clamp(x.t, p) == x.c {
+			return x.c, failed
+		}
+		return m.moved(p, k, false)
 	}
 }
 
@@ -298,6 +306,12 @@ var motions = map[string]motionKey{
 	"G":  {"goes to the last line, or line n", lineMotion},
 	"gj": {"moves down a row on the screen", screenMotion},
 	"gk": {"moves up a row on the screen", screenMotion},
+	"]C": {"goes to the next multicursor, n times", func(m *Machine, x motionCall) (int, kind) {
+		return m.toCursor(x)
+	}},
+	"[C": {"goes to the previous multicursor, n times", func(m *Machine, x motionCall) (int, kind) {
+		return m.toCursor(x)
+	}},
 	"go": {"goes to byte n", func(m *Machine, x motionCall) (int, kind) {
 		p := min(x.n-1, x.t.Len())
 		for p > 0 && p < x.t.Len() && !utf8.RuneStart(x.t.Slice(p, p+1)[0]) {
@@ -458,11 +472,22 @@ func lastChar(t Text, end int) int {
 // toLine returns the cluster under the column j and k aim for on the line
 // starting at line. It sets that column from c first if it is unset.
 func (m *Machine) toLine(t Text, c, line int) int {
-	tab := m.h.TabWidth()
 	if !m.wantSet {
-		m.want, m.wantSet = column(t, LineStart(t, c), c, tab), true
+		m.want, m.wantSet = m.shownColumn(t, c), true
 	}
-	return atColumn(t, line, m.want, tab)
+	return atColumn(t, line, m.want, m.h.TabWidth())
+}
+
+// shownColumn is the column the cursor at c shows in. Outside insert mode
+// that is a tab's last column, as Vim draws it there, and else it is the
+// first column of the character.
+func (m *Machine) shownColumn(t Text, c int) int {
+	tab := m.h.TabWidth()
+	ls := LineStart(t, c)
+	if m.mode != Insert && m.mode != Replace && c < LineEnd(t, c) && t.Slice(c, c+1) == "\t" {
+		return column(t, ls, c+1, tab) - 1
+	}
+	return column(t, ls, c, tab)
 }
 
 // match returns the bracket matching the first one at or after c on its

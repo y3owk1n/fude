@@ -167,7 +167,7 @@ func (h host) Undo() (int, int, error) {
 		cursor = start
 	}
 	b.head = b.text.Head()
-	h.e.touch(b, "undo", b.touched[0], b.touched[1])
+	h.e.touch(b, "undo", b.touched)
 	return start, cursor, nil
 }
 
@@ -179,7 +179,7 @@ func (h host) Redo() (int, int, error) {
 	if !ok {
 		return 0, 0, vim.ErrNoStep
 	}
-	h.e.touch(b, "redo", b.touched[0], b.touched[1])
+	h.e.touch(b, "redo", b.touched)
 	return start, b.before[b.head], nil
 }
 

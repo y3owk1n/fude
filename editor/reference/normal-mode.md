@@ -128,17 +128,23 @@ Goes forward n places in the jump list, back to where `<C-o>` came from.
 ## <C-l>
 
 Hides the highlight of the last search's matches. The next search, `n`,
-`N`, `*`, `#` or `:s` shows them again.
+`N`, `*`, `#` or `:s` shows them again. It also removes every
+multicursor, and `gQ` puts them back. Each register a command wrote while
+they were placed then holds what every multicursor and the cursor held
+there, one line each, in order through the text.
+
+```keys
+"|a\nb" "Qj<C-l>x" "a\n|"
+```
 
 ## <C-n>
 
-Selects the word under the cursor in visual mode, as a region that
-`<C-n>` in visual mode adds the next whole-word match to. `c`, `d`, `x`,
-`y` and the host's operators then act on every region at once. It fails
-when the cursor is not on a letter, digit or `_`.
+Selects the word under the cursor in visual mode, for `<C-n>` in visual
+mode to place multicursors at its next whole-word matches. It fails when
+the cursor is not on a letter, digit or `_`.
 
 ```keys
-"|foo bar foo" "<C-n><C-n>cx<Esc>" "|x bar x"
+"|foo bar foo" "<C-n><C-n>cx<Esc>" "x bar |x"
 ```
 
 ## <C-o>
@@ -560,11 +566,55 @@ what the unnamed register holds.
 
 ## Q
 
-Replays the register last recorded with `q`, n times, as `@` does. It does
-nothing before any recording.
+Places a multicursor where the cursor is, or removes the one there. `1Q`
+only places one and `2Q` only removes one. While multicursors are placed,
+every command that edits runs again at each of them, on that
+multicursor's own text: operators with their targets, `x`, `p`, `.`,
+macros, the keys of a mapping, insert mode as it is typed, and visual
+mode key by key. Motions move only the cursor, unless `q=` sets follow
+on, and ex commands, undo and scrolls run once. `u` takes back a command
+at every multicursor as one step. Each multicursor has its own registers
+and marks, so `yiw` at each and `p` puts each its own word. A multicursor
+where the cursor is moves with it. `<C-l>` removes them. `Q` sets follow
+off. They show in the colour of the mode, and in visual mode each with
+its own selection. In kitty they are real cursors in the cursor's shape.
+`:h multicursor` has more examples.
 
 ```keys
-"|abcdef" "qaxq2Q" "|def"
+"|ab\ncd\nef" "QjQjx" "b\nd\n|f"
+"|ab cd\nef gh" "Qjciwx<Esc>" "x cd\n|x gh"
+"|a\nbbb" "QjA xy<C-w>z<Esc>" "a z\nbbb |z"
+```
+
+## gQ
+
+Puts back the multicursors `<C-l>` removed last, and the cursor where it
+was then. It does nothing while multicursors are placed.
+
+```keys
+"|ab\ncd" "Qj<C-l>ggxgQx" "\n|d"
+```
+
+## g<C-a>
+
+Puts a number before each multicursor and the cursor, counting up from n
+through the text, so a column of multicursors becomes 1, 2, 3. It does
+nothing without multicursors.
+
+```keys
+"|a\nb\nc" "QjQjg<C-a>" "1a\n2b\n3|c"
+```
+
+## q=
+
+Toggles multicursor follow. With follow on, a motion that goes from where
+the cursor is, such as `w`, `fx`, `j`, `n` or `*`, moves every
+multicursor too. `G`, `gg`, `H`, `M`, `L`, marks and the jumplist move
+only the cursor. Multicursors that land in one place become one. `1q=`
+sets follow on and `2q=` off.
+
+```keys
+"|ab cd\nef gh" "Qjq=wx" "ab d\nef |h"
 ```
 
 ## q{reg}
@@ -742,6 +792,21 @@ the view's first column when the view passes it.
 
 Closes the window without writing, as `:q!` does. In the last window it
 quits fude and drops unsaved changes.
+
+## zq{motion}
+
+Places a multicursor at the cursor and at each place the motion reaches
+from there, again and again, to the end of the text. A search, `n`, `N`,
+`*`, `#`, `/` or `?`, places one at every match instead, and makes each
+match its multicursor's last selection, so `zq*gvc` changes every match
+of the word under the cursor. In visual mode it stays within the
+selection, and a block starts each of its lines at its left column. Text
+objects are not motions here.
+
+```keys
+"|a b\nc d" "zqwx" "| \n "
+"|ab x ab" "zq*gvcz<Esc>" "|z x z"
+```
 
 ## zs
 

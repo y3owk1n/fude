@@ -134,7 +134,11 @@ func (m *Machine) scrollSideways(cmd string, n int) {
 // keeps its column. It moves only as far as it must to stay in the view,
 // except that <C-d> and <C-u> move it with the view.
 func (m *Machine) scroll(cmd string, count int) (bool, error) {
+	if _, ok := scrolls[cmd]; ok {
+		m.once = true
+	}
 	if _, ok := sideways[cmd]; ok {
+		m.once = true
 		m.scrollSideways(cmd, max(count, 1))
 		return true, nil
 	}

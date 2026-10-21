@@ -30,6 +30,9 @@
 - **Version**: a counter on a buffer that moves with every applied edit.
 - **Mark**: a position in a buffer that moves with edits. Cursors,
   selections, named marks and decorations are marks.
+- **Multicursor**: a place `Q`, `zq`, `<C-n>` or `:select` puts in a
+  buffer besides the cursor, where each edit runs again (B392). The
+  cursor is the one keys move.
 - **Window**: a place on the screen that shows one buffer and acts on it,
   with its own cursor, selection, scroll, jumplist and options. Every view
   is a window: a split, the start screen, help, a list, hover, a terminal.

@@ -464,8 +464,8 @@ type Window struct {
 
 // Selection is what visual mode selects: its Kind, v, V or <C-v>, the
 // bytes from Start to End, or every line a block spans, a block's display
-// columns from Left to Right, and each region :select chose when it chose
-// several (B340).
+// columns from Left to Right, and with cursors placed, every cursor's
+// selection and its own (B340, B401).
 type Selection struct {
 	Kind        string
 	Start, End  int
@@ -690,8 +690,8 @@ type Scope struct {
 	// (B340).
 	Windows func() []Window
 	// Selection returns what visual mode selects in the current window, or
-	// false outside it, and Cursors the other cursors there while a change
-	// types into several regions (B340).
+	// false outside it, and Cursors the cursors there besides the one keys
+	// move (B340, B392).
 	Selection func() (Selection, bool)
 	Cursors   func() []int
 	// Decorations returns the owner's decorations on every open buffer, by

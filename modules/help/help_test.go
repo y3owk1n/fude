@@ -30,7 +30,11 @@ func TestB162Help(t *testing.T) {
 	if editortest.Feed(e, ":h<CR>"); !strings.HasPrefix(editortest.Text(e), "# fude help") || !strings.Contains(editortest.Text(e), "`:write [file]  :w`\n  writes the buffer") {
 		t.Fatalf(":h opened %q", editortest.Text(e)[:min(200, len(editortest.Text(e)))])
 	}
-	for topic, want := range map[string]string{":w": "`:write [file]  :w`", "w": "`w`", "theme": "`theme = \"dark\"`", "colors": "`[colors]`", "guide-start": "### Getting started"} {
+	for topic, want := range map[string]string{
+		":w": "`:write [file]  :w`", "w": "`w`", "theme": "`theme = \"dark\"`", "colors": "`[colors]`", "guide-start": "### Getting started",
+		// A guide page's heading is a name too, but never over a section's.
+		"multicursor": "#### Multicursor", "insert-mode": "### Insert mode",
+	} {
 		if editortest.Feed(e, ":h "+topic+"<CR>"); line() != want {
 			t.Errorf(":h %s went to %q, want %q", topic, line(), want)
 		}

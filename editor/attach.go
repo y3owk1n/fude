@@ -18,7 +18,7 @@ import (
 // sent on.
 func (e *Session) frame(sent map[int]kernel.Version) wire.Frame {
 	f := wire.Frame{
-		Windows: e.Windows(), Buffers: e.Buffers(), Line: e.Line(), LineCursor: e.LineCursor(), Mode: e.Mode(), Message: e.Message(), Confirm: e.Confirm(),
+		Windows: e.Windows(), Buffers: e.Buffers(), Line: e.Line(), LineCursor: e.LineCursor(), Mode: e.Mode(), Pending: e.Pending(), Message: e.Message(), Confirm: e.Confirm(),
 		Cursors: e.Cursors(), Recording: e.Recording(), Substituting: e.Substituting(), Terminal: e.Terminal(), Shown: e.Shown(),
 	}
 	if fl, ok := e.Menu(); ok {

@@ -2,15 +2,24 @@ package editor
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/y3owk1n/fude/core/kernel"
 )
 
 // touch tells the modules a key yanked, put, undid or redid the text of b
-// from start to end, as kind, which flash shows for a moment (B139, B313).
-func (e *Session) touch(b *buffer, kind string, start, end int) {
-	if start < end {
-		e.emit("text.touched", fmt.Sprintf("%s %d %d", kind, start, end), b)
+// in spans, one at the cursor and one at each multicursor, as kind, which
+// flash shows for a moment (B139, B313).
+func (e *Session) touch(b *buffer, kind string, spans ...[2]int) {
+	var detail strings.Builder
+	detail.WriteString(kind)
+	for _, s := range spans {
+		if s[0] < s[1] {
+			fmt.Fprintf(&detail, " %d %d", s[0], s[1])
+		}
+	}
+	if detail.Len() > len(kind) {
+		e.emit("text.touched", detail.String(), b)
 	}
 }
 

@@ -129,8 +129,6 @@ var inserts = map[string]insertKey{
 		return nil
 	}},
 	"<C-o>": {"runs one normal mode command, then comes back", func(m *Machine, _ Text, _ int, _ Key) error {
-		// The other cursors of a change on several regions stop here.
-		m.cursors = nil
 		m.h.EndGroup()
 		m.mode, m.oneshot, m.armed = Normal, true, false
 		return nil
@@ -447,7 +445,6 @@ func (m *Machine) indentLine(in bool) error {
 
 // leaveInsert is <Esc>, which goes back to normal mode.
 func leaveInsert(m *Machine, _ Text, _ int, _ Key) error {
-	m.cursors = nil
 	if b := m.blockInsert; b != nil {
 		m.blockInsert = nil
 		if err := m.finishBlock(b); err != nil {

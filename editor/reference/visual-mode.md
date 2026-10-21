@@ -77,19 +77,19 @@ line it beeps. The cursor goes to the start of the selection.
 
 ## <C-n>
 
-Makes the selection a region, the first time, and adds the next match of
-its text as another region, going on from the start at the end of the
-text. It looks for the text as it is, or for the whole word after `<C-n>`
-in normal mode selected it. The selection must be on one line, and when no
-match is left it says "no more matches". Then `d`, `x`, `y`, `c` and the
-operators of modules act on every region at once. `c` types into every
-region until `<Esc>`, and `y` yanks them as lines of one register. Any
-other key keeps the first region alone.
+Places a multicursor that keeps the selection, as `Q` places one, and
+selects the next match of its text that no multicursor selects, going on
+from the start at the end of the text. It looks for the text as it is,
+or for the whole word after `<C-n>` in normal mode selected it. The
+selection must be on one line, and when no match is left it says "no
+more matches". Each key after
+runs at every multicursor on its own selection, so `c` types into every
+match until `<Esc>`.
 
 ```keys
-"|ab x ab" "vl<C-n>d" "| x "
-"|ab x ab" "vl<C-n>cz<Esc>" "|z x z"
-"|foo foobar foo" "<C-n><C-n>cx<Esc>" "|x foobar x"
+"|ab x ab" "vl<C-n>d" " x| "
+"|ab x ab" "vl<C-n>cz<Esc>" "z x |z"
+"|foo foobar foo" "<C-n><C-n>cx<Esc>" "x foobar |x"
 ```
 
 ## <C-v>
@@ -355,6 +355,15 @@ with no line break goes on every line of the block.
 "|a b" "yiwwviwpbviwp" "|b a"
 "|a\nb" "yyjVp" "a\n|a"
 "|x\nabc" "yyjlvp" "x\na\n|x\nc"
+```
+
+## Q
+
+Places a multicursor on each selected line at the cursor's column, and
+sets multicursor follow on, as `1q=` does, so motions move them all.
+
+```keys
+"|ab\ncd\nef" "VjjQx" "b\nd\n|f"
 ```
 
 ## R

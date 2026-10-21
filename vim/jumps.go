@@ -9,6 +9,16 @@ func isJump(cmd string) bool {
 	return len(cmd) > 1 && (cmd[0] == '/' || cmd[0] == '?' || cmd[0] == '`' || cmd[0] == '\'')
 }
 
+// absolute reports whether the motion cmd goes to a place that does not
+// depend on where the cursor is, which follow does not repeat (B396).
+func absolute(cmd string) bool {
+	switch cmd {
+	case "G", "gg", "go", "H", "M", "L", "]C", "[C":
+		return true
+	}
+	return len(cmd) > 1 && (cmd[0] == '`' || cmd[0] == '\'')
+}
+
 // jumpFrom records a jump that leaves from c, and puts the mark ' there.
 func (m *Machine) jumpFrom(c int) {
 	m.h.SetMark('\'', c)
