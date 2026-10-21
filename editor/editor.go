@@ -609,6 +609,7 @@ func (e *Session) feed(k vim.Key) {
 	}
 	e.vim.IgnoreCase(e.win.opts.IgnoreCase, e.win.opts.SmartCase)
 	e.vim.WrapScan(e.win.opts.WrapScan)
+	e.vim.VirtualEdit(e.cfg.VirtualEdit)
 	e.vim.ExpandTab(e.win.opts.ExpandTab)
 	e.vim.TextWidth(e.win.opts.TextWidth)
 	e.vim.Abbreviate(e.cfg.Abbreviations)
@@ -771,7 +772,7 @@ func (e *Session) reveal() {
 	// Without wrap the window scrolls sideways the least it must to show the
 	// cursor's column and side_scroll_off columns each side of it, at most
 	// half the window (B37, B482).
-	if col := vim.Column(t, line, c, tab, d.inlines); !w.opts.Wrap {
+	if col := vim.Column(t, line, c, tab, d.inlines) + e.vim.Past(); !w.opts.Wrap {
 		off := min(w.opts.SideScrollOff, (w.cols()-1)/2)
 		w.left = max(min(max(w.left, col+off-w.cols()+1), col-off), 0)
 	}

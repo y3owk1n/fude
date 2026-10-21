@@ -58,6 +58,7 @@ type Window struct {
 	Buffer           int             // the buffer's number, which a frame's Texts name
 	Text             kernel.Snapshot `json:"-"`
 	Top, Cursor      int
+	Past             int // the columns past the end of its line the cursor shows (B490)
 	X, Y, W, H       int // H counts the status line on the bottom row
 	Name             string
 	Modified         bool

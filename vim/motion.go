@@ -352,16 +352,32 @@ func findMotion(m *Machine, x motionCall) (int, kind) {
 // f and any character, and motionOf finds the entry for typed keys.
 var motions = map[string]motionKey{
 	"h": {"moves left", func(m *Machine, x motionCall) (int, kind) {
+		n := x.n
+		// Past the line's end it comes back over the columns there first
+		// (B490).
+		if past := m.Past(); x.op == "" && past > 0 {
+			if n < past {
+				m.want = column(x.t, x.sol, x.c, m.h.TabWidth()) + past - n
+				return m.moved(x.c, exclusive, true)
+			}
+			n -= past
+		}
 		p := x.c
-		for range x.n {
+		for range n {
 			p = prev(x.t, x.sol, p)
 		}
 		return m.moved(p, exclusive, false)
 	}},
 	"l": {"moves right", func(m *Machine, x motionCall) (int, kind) {
+		end := LineEnd(x.t, x.c)
 		p := x.c
 		for range x.n {
-			p = next(x.t, p, LineEnd(x.t, x.c))
+			p = next(x.t, p, end)
+		}
+		// With VirtualEdit, it goes on past the line's end (B490).
+		if x.op == "" && m.virtual() && p == end {
+			m.want = m.shownColumn(x.t, x.c) + m.Past() + x.n
+			return m.moved(end, exclusive, true)
 		}
 		return m.moved(p, exclusive, false)
 	}},
@@ -551,6 +567,57 @@ func (m *Machine) found(p int, f string, ok bool) (int, kind) {
 		return p, inclusive
 	}
 	return p, exclusive
+}
+
+// VirtualEdit sets where the cursor may go past the end of its line. It
+// goes on in a block selection for block, in normal and visual mode for
+// all, and one column past its last character in normal mode for onemore. Any other
+// value keeps it on the line (B490).
+func (m *Machine) VirtualEdit(where string) { m.virtualEdit = where }
+
+// Past returns how many columns past the end of its line the cursor shows,
+// for a host to draw it there (B490).
+func (m *Machine) Past() int {
+	t, c := m.h.Text(), m.h.Cursor()
+	if !m.virtual() || c != m.pastAt || c != LineEnd(t, c) {
+		return 0
+	}
+	return m.past
+}
+
+// virtual reports whether the cursor may go past its line's end now.
+func (m *Machine) virtual() bool {
+	switch m.virtualEdit {
+	case "all":
+		return m.mode == Normal || m.mode == Visual
+	case "block":
+		return m.mode == Visual && m.visual == "<C-v>"
+	}
+	return false
+}
+
+// land returns where a motion that ends at p leaves the cursor, and keeps
+// how far past its line's end it shows. Past the line's last character it
+// goes one column with onemore, and with VirtualEdit out to the column j
+// and k aim for (B490).
+func (m *Machine) land(t Text, p int) int {
+	m.past = 0
+	onemore := m.virtualEdit == "onemore" && m.mode == Normal
+	if !m.virtual() && !onemore {
+		return clamp(t, p)
+	}
+	if !m.wantSet || m.want == math.MaxInt {
+		return p
+	}
+	end := LineEnd(t, p)
+	w := column(t, LineStart(t, p), end, m.h.TabWidth())
+	if m.want < w {
+		return p
+	}
+	if m.virtual() {
+		m.pastAt, m.past = end, m.want-w
+	}
+	return end
 }
 
 // clamp keeps a normal-mode cursor off a line's end, unless the line is

@@ -1128,6 +1128,50 @@ func TestB484WrapScan(t *testing.T) {
 	}
 }
 
+// B490
+func TestB490VirtualEdit(t *testing.T) {
+	for _, c := range []struct {
+		where, text, keys, want string
+		past                    int
+	}{
+		{"none", "ab", "5l", "a|b", 0},
+		{"onemore", "ab", "5l", "ab|", 0},
+		{"all", "ab", "5l", "ab|", 3},
+		{"all", "ab", "5l2h", "ab|", 1},
+		{"all", "ab", "5lix<Esc>", "ab   |x", 0},
+		{"all", "ab", "5li<Esc>", "a|b", 0},
+		{"all", "abcdef\nab", "$j", "abcdef\na|b", 0},
+		{"all", "abcdef\nab", "5lj", "abcdef\nab|", 3},
+		{"block", "abcdef\nab", "5lj", "abcdef\na|b", 0},
+		{"block", "abcdef\nab", "<C-v>j5l", "abcdef\nab|", 3},
+		{"block", "abcdef\nab", "<C-v>j5lAx<Esc>", "|abcdefx\nab    x", 0},
+	} {
+		h := &host{text: c.text}
+		m := vim.New(h)
+		m.VirtualEdit(c.where)
+		for _, k := range vim.Keys(c.keys) {
+			if err := m.Feed(k); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if got := h.text[:h.cursor] + "|" + h.text[h.cursor:]; got != c.want || m.Past() != c.past {
+			t.Errorf("%q with virtual_edit %s made %q, %d past the end, want %q, %d", c.keys, c.where, got, m.Past(), c.want, c.past)
+		}
+	}
+	// The block's right edge is the cursor's column past the line's end.
+	h := &host{text: "abcdef\nab"}
+	m := vim.New(h)
+	m.VirtualEdit("block")
+	for _, k := range vim.Keys("<C-v>j5l") {
+		if err := m.Feed(k); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if sel, _ := m.Selection(); sel.Left != 0 || sel.Right != 5 {
+		t.Errorf("the block spans columns %d to %d, want 0 to 5", sel.Left, sel.Right)
+	}
+}
+
 // B450
 func TestB450TextWidth(t *testing.T) {
 	for _, c := range [][3]string{

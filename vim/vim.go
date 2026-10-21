@@ -242,6 +242,9 @@ type Machine struct {
 	flashPut              bool     // the last key put it, not yanked it
 	expandTab             bool     // indents are spaces only
 	textWidth             int      // the column typing past breaks the line at, or 0
+	virtualEdit           string   // where the cursor may go past a line's end: block, all or onemore
+	past, pastAt          int      // the columns past its line's end the cursor shows while it is at pastAt (B490)
+	pad                   int      // the blanks the first text typed in insert mode goes after (B490)
 	abbrevs               map[string]string
 	asTyped               bool // insert mode types each key as it is (B323)
 	wait                  *charWait
@@ -429,9 +432,9 @@ func (m *Machine) keep(name rune, text string) {
 func (m *Machine) Feed(k Key) error {
 	defer m.show(k)
 	m.beep, m.msg, m.flash, m.flashes = false, "", [2]int{}, nil
-	if m.mode == Normal {
+	if m.mode == Normal && m.virtualEdit != "all" && m.virtualEdit != "onemore" {
 		// The host's own edits, such as another client's, can leave the
-		// cursor past the end of its line.
+		// cursor past the end of its line, which VirtualEdit may allow.
 		m.h.SetCursor(clamp(m.h.Text(), m.h.Cursor()))
 	}
 	if m.recording != 0 {
@@ -953,7 +956,7 @@ func (m *Machine) command(cmd string) error {
 			if isJump(cmd) {
 				m.jumpFrom(m.h.Cursor())
 			}
-			m.h.SetCursor(clamp(m.h.Text(), p))
+			m.h.SetCursor(m.land(m.h.Text(), p))
 		}
 		// A motion that fails moves no multicursor (B396).
 		m.went = k != failed && !absolute(cmd)
@@ -1000,11 +1003,19 @@ type normalKey struct {
 	run  func(m *Machine, x normalCall) error
 }
 
-// insertAt starts insert mode at where returns.
+// insertAt starts insert mode at where returns. i and a past a line's end
+// type their text after blanks out to the cursor's column (B490).
 func insertAt(where func(x normalCall) int) func(m *Machine, x normalCall) error {
 	return func(m *Machine, x normalCall) error {
+		pad := m.Past()
+		if x.k == "a" && m.virtualEdit == "all" && x.c == x.end {
+			pad++
+		}
 		if err := m.startInsert(x.k, where(x)); err != nil {
 			return err
+		}
+		if x.k == "i" || x.k == "a" {
+			m.pad = pad
 		}
 		m.insCount = x.count
 		return nil

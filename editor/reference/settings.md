@@ -210,6 +210,16 @@ the same column. Off unless set.
 column = true
 ```
 
+## virtual_edit
+
+Where the cursor may go past the end of its line. `block` lets it in a
+block selection, so `<C-v>`, `j` and `l` select a rectangle wider than
+short lines, and `A` types after it on every line, filling short ones
+with blanks. `all` lets it in normal mode too, where `i` or `a` past the
+end types after blanks out to the cursor. `onemore` lets it rest one
+column past a line's last character. `none`, the default, keeps it on
+the line.
+
 ## show_break
 
 With `wrap` on, the text that starts the rows of a long line after its

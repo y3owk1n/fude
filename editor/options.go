@@ -289,6 +289,9 @@ func (e *Session) setSetting(name, value string, given bool) error {
 // A character of [list_chars] or [fill_chars] is one column wide, and
 // list_chars.tab is two or three of them (B486, B487).
 func checkSetting(name, value string) error {
+	if ways := []string{"none", "block", "all", "onemore"}; name == "virtual_edit" && !slices.Contains(ways, value) {
+		return fmt.Errorf("virtual_edit takes %s, not %q", strings.Join(ways, ", "), value)
+	}
 	table, key, _ := strings.Cut(name, ".")
 	if table != "list_chars" && table != "fill_chars" || value == "" {
 		return nil

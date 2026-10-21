@@ -2430,3 +2430,23 @@ func TestB489BreakIndent(t *testing.T) {
 		t.Errorf("gj from column 10 went to %d, want 124", got)
 	}
 }
+
+// B490
+func TestB490VirtualEditCursor(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.txt")
+	if err := os.WriteFile(path, []byte("ab\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for config, want := range map[string]int{"": 1, "virtual_edit = \"all\"\n": 5} {
+		mt := vt.NewMockTerm(vt.MockOptSize{X: 120, Y: 40})
+		c := startWith(t, config, path)
+		c.s = screenOn(t, mt)
+		for _, k := range vim.Keys("5l") {
+			c.e.Feed(k)
+		}
+		c.draw()
+		if got := mt.Pos(); int(got.X) != want || got.Y != 0 {
+			t.Errorf("with %q after 5l the cursor shows at %v, want column %d", config, got, want)
+		}
+	}
+}

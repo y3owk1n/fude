@@ -13,6 +13,9 @@ func (m *Machine) insert(k Key) error {
 	if k != "<Up>" && k != "<Down>" {
 		m.wantSet = false
 	}
+	if !k.isChar() {
+		m.pad = 0
+	}
 	switch m.pending {
 	case "<C-v>":
 		return m.literal(k)
@@ -367,6 +370,7 @@ func (m *Machine) insertText(s string) error {
 		return m.overwrite(s)
 	}
 	c := m.h.Cursor()
+	s, m.pad = strings.Repeat(" ", m.pad)+s, 0
 	if err := m.apply([]Edit{{Start: c, End: c, Text: s}}, m.label); err != nil {
 		return err
 	}

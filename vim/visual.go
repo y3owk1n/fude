@@ -39,6 +39,11 @@ func (m *Machine) selectionAt(anchor, c int) region {
 		return m.folded(t, region{start: LineStart(t, s), end: LineEnd(t, e), lines: true})
 	case "<C-v>":
 		ca, cc := column(t, LineStart(t, anchor), anchor, tab), column(t, LineStart(t, c), c, tab)
+		// With VirtualEdit, the cursor's corner may be past its line's end
+		// (B490).
+		if c == m.h.Cursor() {
+			cc += m.Past()
+		}
 		wa := max(textWidth(t.Slice(anchor, next(t, anchor, LineEnd(t, anchor))), ca, tab), 1)
 		wc := max(textWidth(t.Slice(c, next(t, c, LineEnd(t, c))), cc, tab), 1)
 		r := region{start: LineStart(t, s), end: LineEnd(t, e), block: true, left: min(ca, cc), right: max(ca+wa, cc+wc) - 1}
@@ -485,7 +490,7 @@ func (m *Machine) visualKey(cmd string, count int, reg rune) error {
 		if k == failed {
 			m.beep = true
 		} else {
-			m.h.SetCursor(clamp(t, p))
+			m.h.SetCursor(m.land(t, p))
 		}
 	}
 	return nil

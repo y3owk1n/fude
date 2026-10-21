@@ -133,6 +133,16 @@ Where fude departs, the line says so and cites the departure in
   ; ,` move as in Neovim, with counts. `-` alone in normal mode is the
   explorer's (B124), so the `-` motion works after an operator, as `d-`,
   and in visual mode.
+- B490 [2] `virtual_edit` lets the cursor past the end of its line, as
+  Neovim's `virtualedit` does with the same words. With `block`, in a
+  block selection `l` goes on past a line's end and `j` and `k` keep the
+  cursor's column on shorter lines, so the block reaches that column on
+  every line, and `A` then types after it, filling short lines with
+  blanks. With `all` the same holds in normal mode too, and `i` or `a`
+  there types its text after blanks out to the cursor's column, none if
+  nothing is typed. With `onemore` the cursor may rest one column past a
+  line's last character. `none`, the default, keeps it on the line. Any
+  other word changes nothing and says why.
 - B11 [2] `d`, `c`, `y` combine with every motion and text object, with
   counts on both sides: `2d3w` deletes six words. `v`, `V` or `<C-v>`
   after the operator forces the motion's kind: `v` makes a linewise one

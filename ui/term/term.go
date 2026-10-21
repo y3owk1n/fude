@@ -675,7 +675,7 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 						continue
 					}
 					if v.Current && at == v.Cursor && (rest != "" || stop == end) {
-						cx, cy, found = v.X+min(x, v.W-1), y, true
+						cx, cy, found = v.X+min(x+v.Past, v.W-1), y, true
 					}
 					if rest != "" && x >= v.W && v.List && list.Extends != "" {
 						c.s.Put(v.X+v.W-1, y, list.Extends, ground.Foreground(th.faint))

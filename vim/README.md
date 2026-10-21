@@ -72,6 +72,7 @@ The machine draws nothing. How text looks is up to the host, and the machine tel
 - `Rows` and `WordRows` return where each screen row of a line starts when it wraps, by character or after a space, and `Hang` how many columns the rows after the first start in, for an indent kept or a mark.
 - `Column` returns the display column a byte draws at, and `ColumnStart` the byte at a column. They count graphemes, wide characters and tab stops.
 - `Selection` returns the visual selection's bytes, and for a block its display columns `Left` and `Right`.
+- `Past` returns how many columns past the end of its line the cursor shows, which `VirtualEdit` allows.
 - `Mode`, `Shown`, `Line`, `LineCursor` and `Message` give the mode, the keys of the command being typed, the command line with its cursor, and what the last key has to say.
 
 Measure columns with `Column`, passing nil inlines and the width your `TabWidth` returns, rather than with code of your own. The machine measures block selections and `gj` the same way, so the highlight then covers what `d` deletes.
