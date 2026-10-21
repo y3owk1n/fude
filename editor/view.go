@@ -65,7 +65,7 @@ func (e *Session) draw(w *window) wire.Window {
 		X: w.x, Y: w.y, W: w.w, H: w.h,
 		Name: w.buf.name(), Modified: w.buf.modified(), Current: w == e.win, Zoomed: w == e.zoomed,
 		Gutter: w.gutter(), SignCols: w.signCols(), Number: w.numberCols() > 0 && w.opts.Number, Relative: w.numberCols() > 0 && w.opts.RelativeNumber,
-		Wrap: w.opts.Wrap, Left: w.left, CursorLine: w.opts.CursorLine, List: w.opts.List,
+		Wrap: w.opts.Wrap, LineBreak: w.opts.LineBreak, Left: w.left, CursorLine: w.opts.CursorLine, List: w.opts.List,
 		Tab: tab, ColorColumn: w.opts.ColorColumn,
 	}
 	// Centered, the colour column is the windows' edge, so it shows none.

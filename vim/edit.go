@@ -384,6 +384,9 @@ func (m *Machine) indentText(w int) string {
 // types spaces to the next indent width's column (B122, N10).
 func (m *Machine) ExpandTab(on bool) { m.expandTab = on }
 
+// TextWidth makes typing past column n break the line, or never for 0.
+func (m *Machine) TextWidth(n int) { m.textWidth = n }
+
 // Prompt makes insert mode type each key as it is, without the commands the
 // host added for keys typed, as a finder's query does (B202, B323).
 func (m *Machine) Prompt(on bool) { m.asTyped = on }

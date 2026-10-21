@@ -598,6 +598,7 @@ func (e *Session) feed(k vim.Key) {
 	}
 	e.vim.IgnoreCase(e.win.opts.IgnoreCase, e.win.opts.SmartCase)
 	e.vim.ExpandTab(e.win.opts.ExpandTab)
+	e.vim.TextWidth(e.win.opts.TextWidth)
 	e.vim.UseClipboard(e.win.opts.Clipboard)
 	e.vim.UseLocal(e.localKeys(e.win.buf))
 	e.ownCursors()

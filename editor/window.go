@@ -136,12 +136,13 @@ func (w *window) rows(t kernel.Snapshot, start, tab int, d drawn) int {
 }
 
 // starts returns where each row of the line at start begins. A line takes
-// one row without wrap, and a float's rows end after a space (B364).
+// one row without wrap, and a float's rows, or with line_break any
+// window's, end after a space (B364).
 func (w *window) starts(t kernel.Snapshot, start, tab int, in []vim.Inline) []int {
 	switch {
 	case !w.opts.Wrap:
 		return []int{start}
-	case w.anchor != "":
+	case w.anchor != "" || w.opts.LineBreak:
 		return vim.WordRows(t, start, w.cols(), tab, in)
 	}
 	return vim.Rows(t, start, w.cols(), tab, in)

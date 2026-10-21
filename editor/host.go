@@ -132,7 +132,7 @@ func (h host) Fold(line int) (int, int) { return h.e.win.fold(h.e.Text(), line) 
 
 // Shown returns what the current window shows in its lines from start to
 // end that the text does not hold (B295).
-func (h host) WordWrap() bool { return h.e.win.anchor != "" }
+func (h host) WordWrap() bool { return h.e.win.anchor != "" || h.e.win.opts.LineBreak }
 
 func (h host) Shown(start, end int) []vim.Inline {
 	return h.e.shown(h.e.win, start, end).inlines

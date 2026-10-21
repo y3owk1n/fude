@@ -125,6 +125,8 @@ type options struct {
 	Number         bool `toml:"number" help:"shows line numbers"`
 	RelativeNumber bool `toml:"relative_number" help:"numbers lines from the cursor's"`
 	Wrap           bool `toml:"wrap" help:"long lines go on the rows below, else the window scrolls sideways"`
+	LineBreak      bool `toml:"line_break" help:"a long line goes on the rows below between words, not in the middle of one"`
+	TextWidth      int  `toml:"text_width" help:"typing past this column breaks the line, and gq wraps prose to it, 0 for no breaking and 79 columns for gq"`
 	ScrollOff      int  `toml:"scroll_off" help:"the lines kept in view above and below the cursor's"`
 	CursorLine     bool `toml:"cursor_line" help:"shades the cursor's line"`
 	List           bool `toml:"list" help:"shows tabs, trailing spaces and no-break spaces"`

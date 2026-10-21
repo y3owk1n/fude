@@ -2265,3 +2265,19 @@ func TestB402CursorShape(t *testing.T) {
 		}
 	}
 }
+
+// B452
+func TestB452LineBreak(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.txt")
+	if err := os.WriteFile(path, []byte(strings.Repeat("abcdef ", 20)+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	// 17 words fill 119 of the 120 columns, so the 18th starts in the last.
+	for config, want := range map[string]string{"": "bcdef abcdef", "line_break = true\n": "abcdef abcdef"} {
+		c := startWith(t, config, path)
+		c.draw()
+		if row := c.row(1); !strings.HasPrefix(row, want) {
+			t.Errorf("with %q the second row is %q, want it to start %q", config, row, want)
+		}
+	}
+}

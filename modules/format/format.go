@@ -12,11 +12,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/api/diff"
@@ -127,7 +129,8 @@ func (m *Module) Callback(_ context.Context, id uint32, s api.Scope) (api.Result
 		a.ranged = false
 		return m.request(s, a, "textDocument/formatting"), nil
 	case a.explicit && strings.HasPrefix(s.About["error"], "no language server offers"):
-		return api.Result{Error: "nothing formats this file"}, nil
+		// Nothing else formats the file, so its lines are filled as prose.
+		return api.Result{Edits: wrap(s, a.from, a.to)}, nil
 	case s.About["error"] != "":
 		return api.Result{Error: s.About["error"]}, nil
 	}
@@ -185,6 +188,82 @@ func (m *Module) Work(ctx context.Context, j api.Job) (string, error) {
 }
 
 func (m *Module) Close(context.Context) error { return nil }
+
+// wrap fills the paragraphs of the lines from from to to as prose, out to
+// text_width, or 79 columns without it, and returns the edits that make
+// them so. Blank lines and list items start paragraphs. Each line keeps its
+// paragraph's leader, its indent and a comment's marker, and the lines
+// after a list item's first go under its text (B451).
+func wrap(s api.Scope, from, to int) []api.Edit {
+	v, _ := s.Option("text_width")
+	width, _ := strconv.Atoi(v)
+	if width <= 0 {
+		width = 79
+	}
+	marker := ""
+	if c, ok := s.Comment(from); ok {
+		marker = strings.TrimSpace(strings.SplitN(c, "%s", 2)[0])
+	}
+	text := s.Text.Slice(from, to)
+	var out []string
+	var words []string
+	lead, next := "", ""
+	fill := func() {
+		if len(words) == 0 {
+			return
+		}
+		line := lead + words[0]
+		for _, w := range words[1:] {
+			if utf8.RuneCountInString(line)+1+utf8.RuneCountInString(w) > width {
+				out = append(out, line)
+				line = next + w
+				continue
+			}
+			line += " " + w
+		}
+		out, words = append(out, line), nil
+	}
+	for _, l := range strings.Split(text, "\n") {
+		ll, nl, item := leaderOf(l, marker)
+		body := strings.TrimSpace(l[len(ll):])
+		if body == "" {
+			fill()
+			out = append(out, l)
+			continue
+		}
+		if len(words) == 0 || item || ll != next {
+			fill()
+			lead, next = ll, nl
+		}
+		words = append(words, strings.Fields(body)...)
+	}
+	fill()
+	wrapped := strings.Join(out, "\n")
+	if wrapped == text {
+		return nil
+	}
+	return []api.Edit{{Start: from, End: to, Text: wrapped}}
+}
+
+// listItem is the marker that starts a list item.
+var listItem = regexp.MustCompile(`^([-*+]|[0-9]+[.)])[ \t]+`)
+
+// leaderOf returns what line starts with that the line after it in a
+// paragraph repeats, what that line starts with, and whether line starts a
+// list item.
+func leaderOf(line, marker string) (string, string, bool) {
+	indent := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+	rest := line[len(indent):]
+	if marker != "" && strings.HasPrefix(rest, marker) {
+		after := rest[len(marker):]
+		l := indent + marker + after[:len(after)-len(strings.TrimLeft(after, " \t"))]
+		return l, l, false
+	}
+	if item := listItem.FindString(rest); item != "" {
+		return indent + item, indent + strings.Repeat(" ", utf8.RuneCountInString(item)), true
+	}
+	return indent, indent, false
+}
 
 // start formats [from, to) of the text through the filetype's formatters,
 // or else the server. explicit says :format or gq asked, so what is wrong

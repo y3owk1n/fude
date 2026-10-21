@@ -2,6 +2,7 @@ package vim
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -67,9 +68,79 @@ func (m *Machine) insert(k Key) error {
 			iw := m.h.IndentWidth()
 			return m.typeText(strings.Repeat(" ", iw-column(t, LineStart(t, c), c, m.h.TabWidth())%iw))
 		}
-		return m.typeText(string(k))
+		if err := m.typeText(string(k)); err != nil {
+			return err
+		}
+		return m.wrapTyped()
 	}
 	return nil
+}
+
+// wrapTyped breaks the line once what is typed goes past text_width, at
+// the last blank where the line before it fits. The new line takes the
+// line's leader: its indent and a comment's marker, or blanks under a list
+// item's.
+func (m *Machine) wrapTyped() error {
+	if m.textWidth <= 0 || m.mode != Insert {
+		return nil
+	}
+	t, c := m.h.Text(), m.h.Cursor()
+	ls, tab := LineStart(t, c), m.h.TabWidth()
+	if column(t, ls, c, tab) <= m.textWidth {
+		return nil
+	}
+	line := t.Slice(ls, c)
+	lead, next := leader(line, tab)
+	at := -1
+	for i := len(lead); i < len(line); i++ {
+		if (line[i] == ' ' || line[i] == '\t') && column(t, ls, ls+i, tab) <= m.textWidth {
+			at = i
+		}
+	}
+	if at < 0 {
+		return nil
+	}
+	s, e := at, at
+	for s > len(lead) && (line[s-1] == ' ' || line[s-1] == '\t') {
+		s--
+	}
+	for e < len(line) && (line[e] == ' ' || line[e] == '\t') {
+		e++
+	}
+	if s <= len(lead) {
+		return nil
+	}
+	text := "\n" + next
+	if err := m.apply([]Edit{{Start: ls + s, End: ls + e, Text: text}}, m.label); err != nil {
+		return err
+	}
+	m.h.SetCursor(c - (e - s) + len(text))
+	return nil
+}
+
+// leaders are the comment markers a broken line goes on with, and lists
+// the markers of a list item, whose next lines go under its text.
+var (
+	leaders = []string{"///", "//!", "//", "#", "--", ";", "%", ">"}
+	lists   = regexp.MustCompile(`^([-*+]|[0-9]+[.)])[ \t]+`)
+)
+
+// leader returns the start of line that a line broken from it repeats, and
+// what the next line starts with in its place.
+func leader(line string, tab int) (string, string) {
+	indent := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+	rest := line[len(indent):]
+	for _, l := range leaders {
+		if strings.HasPrefix(rest, l) {
+			after := rest[len(l):]
+			l += after[:len(after)-len(strings.TrimLeft(after, " \t"))]
+			return indent + l, indent + l
+		}
+	}
+	if item := lists.FindString(rest); item != "" {
+		return indent + item, indent + strings.Repeat(" ", textWidth(item, 0, tab))
+	}
+	return indent, indent
 }
 
 // typedKeyed runs the host's command for a key typed at c. Its edits go in

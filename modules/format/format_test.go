@@ -82,3 +82,22 @@ command = ["tr", "A-Z", "a-z"]
 	editortest.Feed(e, ":w<CR>")
 	editortest.Settle(t, e, func() bool { return editortest.Disk(t, path) == "AB\n" })
 }
+
+// B451
+func TestB451WrapProse(t *testing.T) {
+	// With nothing else to format a file, gq fills its paragraphs to
+	// text_width, keeping a comment's marker and a list item's indent.
+	editortest.Config(t, "text_width = 20\n")
+	for _, c := range []struct{ name, text, keys, want string }{
+		{"a.txt", "one two three four five six seven\n\nnext\n", "gqip", "one two three four\nfive six seven\n\nnext"},
+		{"a.txt", "- one two three four five\n- six\n", "gqap", "- one two three four\n  five\n- six"},
+		{"a.go", "// one two three four five six\nfunc f() {}\n", "gqq", "// one two three\n// four five six\nfunc f() {}"},
+	} {
+		path := filepath.Join(t.TempDir(), c.name)
+		editortest.Change(t, path, c.text)
+		e := editortest.Start(t, path)
+		e.Use(format.New())
+		editortest.Feed(e, c.keys)
+		editortest.Settle(t, e, func() bool { return editortest.Text(e) == c.want })
+	}
+}

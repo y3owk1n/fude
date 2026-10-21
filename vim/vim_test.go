@@ -1098,3 +1098,27 @@ func TestB156TextCommands(t *testing.T) {
 		}
 	}
 }
+
+// B450
+func TestB450TextWidth(t *testing.T) {
+	for _, c := range [][3]string{
+		{"|", "ione two three four five<Esc>", "one two\nthree four\nfiv|e"},
+		{"|", "i  // one two three<Esc>", "  // one\n  // two\n  // thre|e"},
+		{"|", "i- one two three four<Esc>", "- one two\n  three\n  fou|r"},
+		{"|", "ionetwothreefour<Esc>", "onetwothreefou|r"},
+	} {
+		h := &host{text: strings.Replace(c[0], "|", "", 1), cursor: strings.Index(c[0], "|")}
+		m := vim.New(h)
+		m.TextWidth(10)
+		for _, k := range vim.Keys(c[1]) {
+			if err := m.Feed(k); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if got := h.text[:h.cursor] + "|" + h.text[h.cursor:]; got != c[2] {
+			t.Errorf("%q with text_width 10 made %q, want %q", c[1], got, c[2])
+		}
+	}
+}
+
+// B453

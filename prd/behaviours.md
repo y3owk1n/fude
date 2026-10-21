@@ -153,6 +153,13 @@ Where fude departs, the line says so and cites the departure in
 - B36 [2] `"+` and `"*` are the system clipboard: `y`, `d` and `c` write
   it, and `p`, `P`, `@` and insert `<C-r>` read it. Text ending in a line
   break puts as lines.
+- B452 [2] With `line_break` on, a wrapped line breaks between words, so a
+  word that does not fit on a row starts the next, and `gj` and `gk` count
+  those rows.
+- B450 [2] With `text_width` above 0, a character typed past that column
+  breaks the line at the last blank that leaves it within the column. The
+  new line keeps the line's indent and a comment's marker, and goes under
+  the text of a list item. A word longer than the width stays whole.
 - B37 [2] A line longer than its window wraps onto the rows below, as with
   Neovim's `wrap`, and the window scrolls so the cursor's whole line shows.
   With `wrap` off, each line takes one row and the window scrolls sideways
@@ -1814,7 +1821,13 @@ Where fude departs, the line says so and cites the departure in
   through the filetype's formatters or else the server, which hears the
   file's indent width and whether it indents with spaces. The formatting is
   one timeline node. A formatter formats the whole file, and fude applies
-  only its changes inside the lines.
+  only its changes inside the lines. When nothing formats the file, `gq`
+  fills its lines as prose (B451).
+- B451 [5] `gq` on a file nothing formats fills each paragraph of its
+  lines to `text_width`, or 79 columns when that is 0. Blank lines and
+  list items start paragraphs, each line keeps its paragraph's indent and
+  comment marker, and the lines after a list item's first go under its
+  text.
 - B66 [5] `grn` renames, `gra` lists code actions, `grr` references, `gri`
   implementations, `grt` the type definition, `gO` document symbols, and
   insert `<C-s>` shows signature help. They exist only while a server is

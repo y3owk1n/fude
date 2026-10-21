@@ -81,6 +81,7 @@ type Window struct {
 	Icons            map[int]Sign      // by line, an explorer's icon at the gutter's right (B128)
 	Number, Relative bool              // show line numbers, and relative ones (B39)
 	Wrap             bool              // long lines go on the rows below
+	LineBreak        bool              // and break between words
 	CursorLine       bool              // shade the cursor's line (B117)
 	Pair             []int             // the bracket at the cursor and its match, shown bold (B121)
 	List             bool              // show tabs, trailing spaces and no-break spaces (B118)

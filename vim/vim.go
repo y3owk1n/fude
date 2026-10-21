@@ -236,6 +236,7 @@ type Machine struct {
 	flashes               [][2]int // the same at the multicursors
 	flashPut              bool     // the last key put it, not yanked it
 	expandTab             bool     // indents are spaces only
+	textWidth             int      // the column typing past breaks the line at, or 0
 	asTyped               bool     // insert mode types each key as it is (B323)
 	wait                  *charWait
 	lastRep               string // the previous replacement, for ~

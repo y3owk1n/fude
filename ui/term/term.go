@@ -540,7 +540,7 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 		// A line wraps onto as many rows as it needs (B37).
 		starts := []int{pos}
 		switch {
-		case v.Wrap && v.Float != "":
+		case v.Wrap && (v.Float != "" || v.LineBreak):
 			starts = vim.WordRows(t, pos, v.W, v.Tab, in)
 		case v.Wrap:
 			starts = vim.Rows(t, pos, v.W, v.Tab, in)

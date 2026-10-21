@@ -20,6 +20,21 @@ Numbers each line by its distance from the cursor's, for counts such as
 A line longer than the window goes on over the rows below. Off, each line
 takes one row and the window scrolls sideways to keep the cursor in view.
 
+## line_break
+
+With `wrap` on, a long line goes on over the rows below between words, so
+no word is cut in two at the window's edge. A word longer than the window
+still breaks. `gj` and `gk` count the rows as they show.
+
+## text_width
+
+Typing past this column in insert mode breaks the line at the last blank
+that leaves it within the column. The new line keeps the line's indent
+and a comment's marker, as `//` or `#`, and goes under the text of a list
+item. `gq` fills prose to this width when nothing else formats the file,
+or to 79 columns when it is 0. 0, the default, never breaks a line typed.
+A `[filetype.markdown]` table may set it for one filetype.
+
 ## scroll_off
 
 How many lines to keep in view above and below the cursor's, at most half
