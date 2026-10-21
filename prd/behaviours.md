@@ -1992,6 +1992,18 @@ Where fude departs, the line says so and cites the departure in
   Neovim's `document_highlight()` on `CursorHold` shows them. Moving the
   cursor within one keeps them, and moving off them, a change to the text
   or leaving normal mode takes them away.
+- B462 [5] With `lens.enabled` on, as it is unless set off, the code
+  lenses a language server gives for a buffer show in a dim row above the
+  line each is about, from its first lens's column, with a line's titles
+  joined by ` | `, as Neovim draws them once enabled. A lens that comes without a
+  command is resolved once its line is in view, and shows then. The row
+  shows on the cursor's line too, so moving the cursor moves no text. fude
+  asks again after each change, and when the server asks with
+  `workspace/codeLens/refresh`.
+- B463 [5] `grx` runs the code lens on the cursor's line while a server
+  is attached, as in Neovim. One lens runs its command on its server,
+  several show in a menu with each one's server, and none says "no code
+  lens on this line". A guest may not run one.
 
 ## Debugging
 

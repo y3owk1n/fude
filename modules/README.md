@@ -29,6 +29,7 @@ and a program that embeds the editor does the same.
 | [`history`](history) | `q:`, `q/` and `q?` list the command lines or searches to edit and run one |
 | [`inlay`](inlay) | a language server's inlay hints |
 | [`jump`](jump) | `s` jumps to text in view by its label |
+| [`lens`](lens) | a language server's code lenses above their lines, and `grx` runs one |
 | [`links`](links) | `gx` opens the link or file under the cursor, `gf` the file |
 | [`lists`](lists) | `:buffers`, `:marks`, `:jumps`, `:changes`, `:registers` and `:messages` |
 | [`lsp`](lsp) | diagnostics, hover, definitions, references, symbols, rename, code actions and the `:lsp` panel |

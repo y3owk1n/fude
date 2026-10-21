@@ -175,6 +175,13 @@ the cursor and edits pass over them. The default is on. Some servers send
 hints only when their settings ask for them, such as gopls with
 `[lsp.gopls.settings.gopls.hints]`.
 
+## lens.enabled
+
+A language server's code lenses, such as a test's run or a function's
+count of references, show in a dim row above the line each is about,
+joined by `|`. They show on the cursor's line too, and `grx` runs the one
+on it. The default is on.
+
 ## references.enabled
 
 Once the cursor rests on a symbol in normal mode for a moment, its

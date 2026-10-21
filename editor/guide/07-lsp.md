@@ -51,6 +51,8 @@ it again until `:lsp restart`.
   map one in `[keymap.normal]`.
 - `]d` and `[d` go to the next and previous diagnostic.
 - Resting the cursor on a name lights up its other places in the file.
+- A server's code lenses, such as "run test", show above their lines, and
+  `grx` runs the one on the cursor's line.
 - `<C-x><C-o>` in insert mode lists completions, and with `autocomplete`
   on they show as you type. `<C-n>` and `<C-p>` select one and `<C-y>`
   takes it. With no menu, `<C-n>` and `<C-p>` complete the word from the

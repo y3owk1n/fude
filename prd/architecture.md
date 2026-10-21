@@ -69,6 +69,7 @@ modules/         Go packages over api/ and protocol/ that cmd/fude adds with
   git/           git signs, hunks, gh, gH and :gitdiff
   grep/          :pick grep, a live search of the files' lines
   inlay/         a language server's inlay hints
+  lens/          a language server's code lenses, and grx
   references/    the references to the symbol under the cursor, lit
   lsp/           diagnostics, hover, definitions, references, symbols,
                  rename and code actions
@@ -682,6 +683,8 @@ or scrolls the window, `mode.changed`, `syntax.updated` when a parse lands,
 (B284), `editor.focused` when the terminal gets the focus back
 (B277), `buffer.shown` when the current window shows another buffer
 (B314), `lsp.changed` when a language server's state changes (B317),
+`lsp.refresh` with what a server asks to be asked for again, such as
+`codeLens` for `workspace/codeLens/refresh` (B463),
 `editor.started` when fude starts with no file (B319), `config.reloaded`
 after `:config reload` and `option.set` with the name `:set` set (B331), `keys.pending`
 when the command being typed changes (B326), `editor.quitting`

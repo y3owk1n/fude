@@ -476,6 +476,14 @@ typing more of the text never jumps. The status line shows what was
 typed, and a jump is in the jumplist. It takes no count. While it is
 mapped, `s` does not substitute a character as in Vim.
 
+## <Plug>(lens.run)
+
+`grx` runs it while a language server is attached. Runs the code lens on
+the cursor's line, the command its server gave it, such as running a test
+or showing a function's references. A line with several shows them in a
+menu, each with its server's name, where `<CR>` or a digit runs one. A
+line with none says "no code lens on this line". A guest may not run one.
+
 ## <Plug>(links.open)
 
 `gx` by default. It opens what is under the cursor with the system's

@@ -376,9 +376,10 @@ func (c *Client) write(root string, options any, initialized <-chan answer, noti
 				"declaration":     map[string]any{"linkSupport": true},
 
 				"documentHighlight": map[string]any{},
+				"codeLens":          map[string]any{},
 			},
 			"window":    map[string]any{"workDoneProgress": true},
-			"workspace": map[string]any{"configuration": true, "didChangeConfiguration": map[string]any{}},
+			"workspace": map[string]any{"configuration": true, "didChangeConfiguration": map[string]any{}, "codeLens": map[string]any{"refreshSupport": true}},
 		},
 	}
 	if c.frame(request{ID: 0, Method: "initialize", Params: params}) != nil {

@@ -36,11 +36,13 @@ import (
 // crashes when a change inserts "#". Each "bad" in an opened document gets
 // an error diagnostic, a definition or type definition is the first "target"
 // in it and a declaration the last, references and implementations are
-// every "target", its symbols are f with x inside, rename changes every "target" and puts a line at the top
-// of other.go beside it, code actions are an edit that puts "hi " first and
+// every "target", its symbols are f with x inside, rename changes every
+// "target" and puts a line at the top of other.go beside it, code actions are an edit that puts "hi " first and
 // a command that asks fude to put "cmd " first, signature help is
 // f(a int, b string) on b, and hover
-// is markdown that says where it was asked. Completion offers apple, apricot
+// is markdown that says where it was asked. Each func has a code lens that
+// runs that command and one that resolves to a command that asks fude to
+// ask for the lenses again. Completion offers apple, apricot
 // and banana, and formatting the whole document puts a tab before each line,
 // as gopls formats only whole documents. Positions are in bytes.
 func TestFakeServer(t *testing.T) {
@@ -68,6 +70,7 @@ func TestFakeServer(t *testing.T) {
 		fmt.Fprintf(os.Stdout, "Content-Length: %d\r\n\r\n%s", len(body), body)
 	}
 	opened := map[string]string{}
+	lensAsks := 0
 	for {
 		n := 0
 		for {
@@ -91,9 +94,11 @@ func TestFakeServer(t *testing.T) {
 			ID     *int   `json:"id"`
 			Method string `json:"method"`
 			Params struct {
-				NewName      string   `json:"newName"`
-				Query        string   `json:"query"`
-				Arguments    []string `json:"arguments"`
+				NewName      string          `json:"newName"`
+				Query        string          `json:"query"`
+				Arguments    []string        `json:"arguments"`
+				Command      string          `json:"command"`
+				Range        json.RawMessage `json:"range"`
 				TextDocument struct {
 					URI  string `json:"uri"`
 					Text string `json:"text"`
@@ -153,7 +158,29 @@ func TestFakeServer(t *testing.T) {
 				map[string]any{"title": "Add hi", "edit": map[string]any{"changes": map[string]any{uri: []any{map[string]any{"range": top, "newText": "hi "}}}}},
 				map[string]any{"title": "Run cmd", "command": "fake.run", "arguments": []any{uri}},
 			})
+		case "textDocument/codeLens":
+			// A lens that runs, with how many times lenses were asked for,
+			// and one to resolve, at each func.
+			lensAsks++
+			uri := m.Params.TextDocument.URI
+			var lenses []any
+			for line, l := range strings.Split(opened[uri], "\n") {
+				if i := strings.Index(l, "func"); i >= 0 {
+					r := map[string]any{"start": map[string]int{"line": line, "character": i}, "end": map[string]int{"line": line, "character": i + 4}}
+					run := map[string]any{"title": fmt.Sprintf("run %d", lensAsks), "command": "fake.run", "arguments": []any{uri}}
+					lenses = append(lenses, map[string]any{"range": r, "command": run}, map[string]any{"range": r, "data": 1})
+				}
+			}
+			reply(m.ID, lenses)
+		case "codeLens/resolve":
+			reply(m.ID, map[string]any{"range": m.Params.Range, "command": map[string]any{"title": "2 references", "command": "fake.refresh"}})
 		case "workspace/executeCommand":
+			if m.Params.Command == "fake.refresh" {
+				refresh, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": "refresh-1", "method": "workspace/codeLens/refresh"})
+				fmt.Fprintf(os.Stdout, "Content-Length: %d\r\n\r\n%s", len(refresh), refresh)
+				reply(m.ID, nil)
+				break
+			}
 			top := map[string]any{"start": map[string]int{"line": 0, "character": 0}, "end": map[string]int{"line": 0, "character": 0}}
 			edit := map[string]any{"changes": map[string]any{m.Params.Arguments[0]: []any{map[string]any{"range": top, "newText": "cmd "}}}}
 			apply, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": "apply-1", "method": "workspace/applyEdit", "params": map[string]any{"edit": edit}})
@@ -252,7 +279,7 @@ func TestFakeServer(t *testing.T) {
 				"positionEncoding": os.Getenv("FUDE_FAKE_ENCODING"), "textDocumentSync": json.RawMessage(cmp.Or(os.Getenv("FUDE_FAKE_SYNC"), "2")), "documentFormattingProvider": true, "completionProvider": map[string]any{"triggerCharacters": []string{"."}, "resolveProvider": true},
 				"definitionProvider": true, "typeDefinitionProvider": true, "implementationProvider": true, "referencesProvider": true, "renameProvider": true,
 				"codeActionProvider": true, "colorProvider": true, "signatureHelpProvider": map[string]any{"triggerCharacters": []string{"("}, "retriggerCharacters": []string{","}}, "documentSymbolProvider": true, "workspaceSymbolProvider": true, "inlayHintProvider": true, "hoverProvider": true,
-				"declarationProvider": true, "documentHighlightProvider": true,
+				"declarationProvider": true, "documentHighlightProvider": true, "codeLensProvider": map[string]any{"resolveProvider": true},
 			}})
 		case "shutdown":
 			reply(m.ID, nil)

@@ -2,9 +2,11 @@ package editor_test
 
 import (
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/y3owk1n/fude/editor/editortest"
+	"github.com/y3owk1n/fude/modules/lens"
 	"github.com/y3owk1n/fude/modules/references"
 )
 
@@ -40,5 +42,43 @@ func TestB461References(t *testing.T) {
 	editortest.Quiet(t, e)
 	if len(decorations(e)) != 0 {
 		t.Errorf("resting in insert mode lit %q", decorations(e))
+	}
+}
+
+// B462, B463
+func TestB462CodeLens(t *testing.T) {
+	e, log := withServer(t, "package p\n\tfunc f() {}\n", "utf-8")
+	e.Use(lens.New())
+	row := func() string {
+		for _, v := range e.Windows()[0].Virtual[1] {
+			if v.Above && v.Style == "lens" {
+				return v.Text
+			}
+		}
+		return ""
+	}
+	// The lens that came without a title shows once it is resolved, from
+	// the first lens's column, and stays on the cursor's line.
+	settle(t, e, func() bool { return strings.HasSuffix(row(), " | 2 references") })
+	shown := row()
+	if !strings.HasPrefix(shown, "\trun ") {
+		t.Errorf("the lenses show as %q", shown)
+	}
+	feed(e, "j")
+	editortest.Quiet(t, e)
+	if row() != shown {
+		t.Errorf("on the cursor's line the lenses show as %q, want %q", row(), shown)
+	}
+	// grx offers the line's lenses, the second asks for them again, and the
+	// first runs its command.
+	feed(e, "grx")
+	settle(t, e, func() bool { _, ok := e.Menu(); return ok })
+	feed(e, "2")
+	settle(t, e, func() bool { return row() != shown && strings.HasSuffix(row(), " | 2 references") })
+	feed(e, "grx1")
+	settle(t, e, func() bool { return strings.HasPrefix(text(e), "cmd ") })
+	heard(t, log, `"command":"fake.run"`, 1)
+	if feed(e, "gggrx"); e.Message() != "no code lens on this line" {
+		t.Errorf("grx on a line with no lens said %q", e.Message())
 	}
 }

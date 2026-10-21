@@ -443,8 +443,9 @@ func (e *Session) workspaceEdit(s *server, from *buffer, t kernel.Snapshot, res 
 
 // served answers a request from s. workspace/applyEdit applies its edit, as
 // a code action's command asks, and workspace/configuration gets the
-// sections of s's settings that the request names (B168). Other requests get an empty
-// answer, as fude offers nothing else.
+// sections of s's settings that the request names (B168). A refresh is an
+// lsp.refresh event. Other requests get an empty answer, as fude offers
+// nothing else.
 func (e *Session) served(s *server, method string, params json.RawMessage) any {
 	if method == "workspace/configuration" {
 		var p struct {
@@ -458,6 +459,14 @@ func (e *Session) served(s *server, method string, params json.RawMessage) any {
 			out[i] = section(e.cfg.LSP[s.name].Settings, it.Section)
 		}
 		return out
+	}
+	// A server that asks to be asked again, as for its code lenses, tells
+	// the modules of its buffers (B463).
+	if what, ok := strings.CutSuffix(strings.TrimPrefix(method, "workspace/"), "/refresh"); ok {
+		for _, b := range s.bufs {
+			e.emit("lsp.refresh", what, b)
+		}
+		return nil
 	}
 	if method != "workspace/applyEdit" {
 		return nil
