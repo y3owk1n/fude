@@ -1027,10 +1027,14 @@ Every list of places a window shows, such as `grr`'s, `:marks`', a
 finder's matches sent with `<C-q>`, becomes the last
 list, which `]q`, `[q`, `:cnext`, `:cprev`,
 `:cfirst`, `:clast` and `:cc` go through after its window closes (B194).
-`:copen` shows it again. Neovim keeps one quickfix list and a location list
-per window, which commands fill and others list. Why: fude already shows
-every list of places in a window, so the newest one is the one to go
-through, and a second kind of list would make the user pick which.
+`:copen` shows it again. fude keeps the last ten lists, as Neovim keeps
+ten quickfix lists, and `:colder` and `:cnewer` go back and forth between
+them (B501). Neovim also keeps a location list per window, which fude
+does not. Where `:colder 5` goes past the oldest list, fude goes as far
+as it can and says which list it is, where Neovim goes as far and says it
+is at the bottom. Why: fude already shows every list of places in a
+window, so the newest one is the one to go through, and a second kind of
+list would make the user pick which.
 
 ### N26. The timeline keeps its newest megabyte
 

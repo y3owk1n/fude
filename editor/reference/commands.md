@@ -728,6 +728,12 @@ With no change it says "no changes".
 
 Goes to the last place of the last list of places, as `]Q` does.
 
+## :cnewer
+
+Makes the list of places after the last one the last list again, or n
+after it with `:cnewer n`, as `:colder` goes back. Past the newest it goes
+as far as it can, and from the newest it says "no newer list".
+
 ## :cnext
 
 Goes to the next place of the last list of places, as `]q` does, in a
@@ -739,6 +745,16 @@ count, and `]q` does. With no list it says "no list of places".
 The last list is the latest of: the places of a language server's answer,
 such as references, `:marks`, `:jumps` and `:changes`, a finder's matches
 after `<C-q>`, and the places a task's output names.
+
+## :colder
+
+Makes the list of places before the last one the last list, or n before
+it with `:colder n`, so `]q` and `:cnext` go through an older list. fude
+keeps the last ten lists. The message says which list it is, of how many,
+with its title and how many places it has. A window that showed the list
+it leaves shows the older one. Past the oldest it goes as far as it can,
+and from the oldest it says "no older list". A new list goes after the
+last list and drops those that were newer.
 
 ## :copen
 

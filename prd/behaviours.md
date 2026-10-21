@@ -981,6 +981,13 @@ Where fude departs, the line says so and cites the departure in
   does not show the list, and work after its window closes too. Each says
   which place it is, of how many. `:copen` shows the list again, and
   `:cclose` closes its window.
+- B501 [2] fude keeps the last ten lists of places (N25). `:colder` makes
+  the one before the last list the last list, and `:cnewer` the one after,
+  or n before or after with `:colder n` and `:cnewer n`, going as far as
+  there are. Each says which list it is, of how many, its title and its
+  number of places, or "no older list" and "no newer list" at the ends. A
+  window that showed the list it leaves shows the new one. A new list goes
+  after the last list and drops the ones newer than it, as in Neovim.
 - B195 [2] In a `:pick` finder, `<C-q>` closes the finder and shows every
   match in a list of places, which becomes the last list. A grep match, a
   diagnostic or a symbol is a place at its line and column, and a file is

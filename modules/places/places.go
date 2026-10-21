@@ -1,15 +1,18 @@
 // Package places shows the last list of places in a window, where <CR>
 // goes to the place on the cursor's line, and steps through it: ]q, [q,
 // [Q, ]Q, :cnext, :cprevious, :cfirst, :clast, :cc, :copen, :cclose, :cdo
-// and :cfdo (B194, B257, B347). Its name is list, so its plugs are
+// and :cfdo, and goes back to older lists with :colder and :cnewer (B194,
+// B257, B347, B501). Its name is list, so its plugs are
 // <Plug>(list.next) and the others config.toml maps.
 package places
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -34,16 +37,30 @@ const (
 	visit
 	nextKey
 	prevKey
+	older
+	newer
 )
+
+// kept is how many lists of places a session keeps for :colder (N25).
+const kept = 10
 
 // keys are a list window's own keys, which [keymap.list] changes (B142).
 var keys = map[string]string{"<CR>": "<Plug>(list.open)", "q": ":close<CR>"}
 
 // Module is places. It keeps each list it showed, by its window's title,
-// so <CR> in an older list goes to its own places.
+// so <CR> in an older list goes to its own places, and each session's last
+// lists, by its id.
 type Module struct {
-	mu    sync.Mutex
-	lists map[string][]entry
+	mu     sync.Mutex
+	lists  map[string][]entry
+	stacks map[string]*stack
+}
+
+// stack is a session's last lists of places, oldest first, and the one
+// that is the last list now.
+type stack struct {
+	lists []api.Places
+	at    int
 }
 
 // entry is one place of a list: its file, line and column from 1, 0 for
@@ -55,7 +72,7 @@ type entry struct {
 }
 
 // New returns places.
-func New() *Module { return &Module{lists: map[string][]entry{}} }
+func New() *Module { return &Module{lists: map[string][]entry{}, stacks: map[string]*stack{}} }
 
 func (m *Module) Name() string { return "list" }
 
@@ -72,6 +89,8 @@ func (m *Module) Registered() []api.Registration {
 		{Kind: api.Command, Name: "cfdo", Args: "{cmd}", Help: "runs cmd once in each file of the last list of places", ID: runFiles},
 		{Kind: api.Command, Name: "copen", Short: []string{"cope"}, Help: "shows the last list of places in a window", ID: open},
 		{Kind: api.Command, Name: "cclose", Short: []string{"ccl"}, Help: "closes the window of the last list of places", ID: shut},
+		{Kind: api.Command, Name: "colder", Short: []string{"col"}, Args: "[n]", Help: "makes the list of places before the last one, or n before, the last list", ID: older},
+		{Kind: api.Command, Name: "cnewer", Short: []string{"cnew"}, Args: "[n]", Help: "makes the list of places after the last one, or n after, the last list", ID: newer},
 		{Kind: api.Plug, Name: "open", Help: "goes to the place under the cursor", ID: visit},
 		{Kind: api.Plug, Name: "next", Keys: "]q", Help: "goes to the next place of the last list", ID: nextKey},
 		{Kind: api.Plug, Name: "prev", Keys: "[q", Help: "goes to the place before in the last list", ID: prevKey},
@@ -138,6 +157,15 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 		return api.Result{Each: each}, nil
 	case open:
 		return m.show(s, pl), nil
+	case older, newer:
+		n, err := strconv.Atoi(cmp.Or(arg, "1"))
+		if err != nil {
+			return api.Result{Error: "not a number: " + arg}, nil
+		}
+		if id == older {
+			n = -n
+		}
+		return m.age(s, pl, n), nil
 	}
 	return shutAll(s, "["+pl.Title+"]"), nil
 }
@@ -153,6 +181,7 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 	}
 	es := entries(s, pl)
 	m.lists["["+pl.Title+"]"] = es
+	m.keep(s.About["session"], pl)
 	if !strings.HasSuffix(name, " show") {
 		return api.Result{}, nil
 	}
@@ -160,6 +189,58 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 		return api.Result{Error: "no " + pl.Title}, nil
 	}
 	return api.Result{Show: panel(pl.Title, es, 0)}, nil
+}
+
+// keep makes pl the session's last list: a new list after the one that
+// was, dropping those after that one and the oldest past kept, or the same
+// list with another place last gone to.
+func (m *Module) keep(session string, pl api.Places) {
+	st := m.stacks[session]
+	if st == nil {
+		st = &stack{}
+		m.stacks[session] = st
+	}
+	if len(st.lists) > 0 {
+		if now := st.lists[st.at]; now.Title == pl.Title && slices.Equal(now.Items, pl.Items) {
+			st.lists[st.at] = pl
+			return
+		}
+		st.lists = st.lists[:st.at+1]
+	}
+	st.lists = append(st.lists, pl)
+	st.lists = st.lists[max(len(st.lists)-kept, 0):]
+	st.at = len(st.lists) - 1
+}
+
+// age makes the list n after the last one the last list, or as far as
+// there are, before it for a negative n, and says which it is. A window
+// that showed the list it leaves shows the new one (B501).
+func (m *Module) age(s api.Scope, pl api.Places, n int) api.Result {
+	st, ok := m.stacks[s.About["session"]]
+	to := 0
+	if ok {
+		to = min(max(st.at+n, 0), len(st.lists)-1)
+	}
+	switch {
+	case (!ok || to == st.at) && n < 0:
+		return api.Result{Error: "no older list"}
+	case !ok || to == st.at:
+		return api.Result{Error: "no newer list"}
+	}
+	st.at = to
+	next := st.lists[to]
+	res := shutAll(s, "["+pl.Title+"]")
+	next.Show = len(res.Windows) > 0
+	if next.Title == pl.Title {
+		res.Windows = nil
+	}
+	places := "places"
+	if len(next.Items) == 1 {
+		places = "place"
+	}
+	res.Places = &next
+	res.Message = fmt.Sprintf("list %d of %d, %s, %d %s", to+1, len(st.lists), next.Title, len(next.Items), places)
+	return res
 }
 
 // step goes to the place of the list that to gives, from the place last

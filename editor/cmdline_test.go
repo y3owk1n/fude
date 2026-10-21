@@ -1,6 +1,7 @@
 package editor_test
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -194,6 +195,82 @@ func TestB257Cdo(t *testing.T) {
 	if got := texts(); !slices.Equal(got, []string{"keep", ""}) {
 		t.Errorf(":cdo d left %q", got)
 	}
+}
+
+// B501
+func TestB501OlderLists(t *testing.T) {
+	dir := t.TempDir()
+	var words []string
+	for i := range 12 {
+		words = append(words, fmt.Sprintf("w%02d", i))
+	}
+	change(t, filepath.Join(dir, "a.txt"), strings.Join(words, "\n")+"\nw00\n")
+	if out, err := exec.Command("git", "-C", dir, "init", "-q").CombinedOutput(); err != nil {
+		t.Skipf("git init: %v: %s", err, out)
+	}
+	t.Chdir(dir)
+	e := withCommands(open(t, "a.txt"))
+	e.Use(grep.New())
+	e.SetSize(100, 24)
+	shows := func(word string) bool {
+		return slices.ContainsFunc(e.Windows(), func(w wire.Window) bool {
+			return w.Name == "[grep]" && strings.Contains(w.Text.Slice(0, w.Text.Len()), word)
+		})
+	}
+	list := func(word string) {
+		feed(e, ":pick grep "+word+"<CR>")
+		settle(t, e, func() bool { f, _ := e.Menu(); return strings.Count(f.Text, word) > 1 })
+		feed(e, "<C-q>")
+		settle(t, e, func() bool { return shows(word) })
+	}
+	list("w00")
+	list("w01")
+	// :colder makes the list before the last list, and its window shows it.
+	if feed(e, ":colder<CR>"); !strings.HasPrefix(e.Message(), "list 1 of 2, ") || !strings.HasSuffix(e.Message(), ", 2 places") {
+		t.Errorf(":colder said %q", e.Message())
+	}
+	settle(t, e, func() bool { return shows("w00") })
+	if feed(e, ":clast<CR>"); e.Cursor() != 48 {
+		t.Errorf(":clast in the older list went to %d, want 48", e.Cursor())
+	}
+	if feed(e, ":colder<CR>"); e.Message() != "no older list" {
+		t.Errorf(":colder at the oldest said %q", e.Message())
+	}
+	if feed(e, ":cnewer 5<CR>"); !strings.HasPrefix(e.Message(), "list 2 of 2, ") {
+		t.Errorf(":cnewer 5 said %q", e.Message())
+	}
+	if feed(e, ":cnewer<CR>"); e.Message() != "no newer list" {
+		t.Errorf(":cnewer at the newest said %q", e.Message())
+	}
+	// A new list drops those after the last list, and the oldest past ten.
+	feed(e, ":colder<CR>")
+	list("w02")
+	if feed(e, ":colder<CR>"); !strings.HasPrefix(e.Message(), "list 1 of 2, ") {
+		t.Errorf(":colder after a new list said %q", e.Message())
+	}
+	feed(e, ":cnewer<CR>")
+	for _, w := range words[3:] {
+		list(w)
+	}
+	if feed(e, ":colder 20<CR>"); !strings.HasPrefix(e.Message(), "list 1 of 10, ") || !strings.HasSuffix(e.Message(), ", 1 place") {
+		t.Errorf(":colder 20 said %q", e.Message())
+	}
+	settle(t, e, func() bool { return shows("w02") })
+	// A list with another title shows in its own window, which :colder
+	// closes as it shows the older list again.
+	e.Use(listsmod.New())
+	feed(e, ":cnewer 20<CR>")
+	settle(t, e, func() bool { return shows("w11") })
+	titles := func() (out []string) {
+		for _, w := range e.Windows() {
+			out = append(out, w.Name)
+		}
+		return out
+	}
+	feed(e, "ma:marks<CR>")
+	settle(t, e, func() bool { return slices.Contains(titles(), "[marks]") })
+	feed(e, ":colder<CR>")
+	settle(t, e, func() bool { return !slices.Contains(titles(), "[marks]") && shows("w11") })
 }
 
 // B425

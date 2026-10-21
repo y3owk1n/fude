@@ -150,6 +150,8 @@ window, where `<CR>` goes to one. The last list shown is the quickfix
 list. `]q` and `[q` go to its next place and the one before, `]Q` and
 `[Q` to its ends, and `:cnext`, `:cprev` and `:cc 3` do the same from the
 command line, after its window closes too. `:copen` shows it again.
+`:colder` goes back to the list before, of the last ten, and `:cnewer`
+forward again.
 
 `<C-q>` in a `:pick` finder sends every match to a list of places, which
 becomes the last list. `:pick diagnostics` finds the open buffers'
