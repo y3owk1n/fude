@@ -32,7 +32,7 @@ and a program that embeds the editor does the same.
 | [`lens`](lens) | a language server's code lenses above their lines, and `grx` runs one |
 | [`links`](links) | `gx` opens the link or file under the cursor, `gf` the file |
 | [`lists`](lists) | `:buffers`, `:marks`, `:jumps`, `:changes`, `:registers` and `:messages` |
-| [`lsp`](lsp) | diagnostics, hover, definitions, references, symbols, rename, code actions and the `:lsp` panel |
+| [`lsp`](lsp) | diagnostics, hover, definitions, references, symbols, rename, code actions, call and type hierarchies and the `:lsp` panel |
 | [`markdown`](markdown) | a markdown file draws as it reads, with `markdown.enabled` on |
 | [`pick`](pick) | `:pick help`, `:pick keymaps` and `:pick commands` |
 | [`pins`](pins) | `:pin`, `<Leader>a`, `<Leader>1` to `<Leader>9` and `:pin list`, a short list of files for each working directory, with each pin on the status line |

@@ -348,6 +348,10 @@ func (s *server) offers(method string) bool {
 		provider = "documentRangeFormattingProvider"
 	case "textDocument/documentColor":
 		provider = "colorProvider"
+	case "textDocument/prepareCallHierarchy":
+		provider = "callHierarchyProvider"
+	case "textDocument/prepareTypeHierarchy":
+		provider = "typeHierarchyProvider"
 	}
 	return s.client.Encoding() == "" || s.client.Supports(provider)
 }

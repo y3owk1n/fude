@@ -1,8 +1,9 @@
 // Package lsp is what a language server tells about the symbol under the
 // cursor: hover, its definition, declaration, type definition,
-// implementations and references, the file's symbols, the workspace's, and
-// renaming it (B62, B66, B214, B460). Its :lsp panel shows the language servers and restarts,
-// stops, disables or enables them (B159).
+// implementations, references, calls and types, the file's symbols, the
+// workspace's, and renaming it (B62, B66, B214, B460, B464, B465). Its :lsp
+// panel shows the language servers and restarts, stops, disables or
+// enables them (B159).
 package lsp
 
 import (
@@ -43,6 +44,10 @@ const (
 	firstDiag
 	lastDiag
 	declaration
+	incomingCalls
+	outgoingCalls
+	supertypes
+	subtypes
 )
 
 // The callbacks lsp asks for, by id. A request's id is the id of the call
@@ -54,6 +59,9 @@ const (
 	menuID                         // the code action menu
 	actionsReq                     // the code actions asked for
 	ranReq                         // a code action's command
+	prepared                       // the hierarchy items under the cursor
+	itemPick                       // the menu of hierarchy items
+	hierarchy                      // a hierarchy item's places
 	resolveReq uint32 = 200        // a menu item being resolved, plus its index
 	actReq     uint32 = 300        // an action being resolved to act on, plus its index
 	searches   uint32 = 1000
@@ -92,6 +100,7 @@ type Module struct {
 	menu     []action                           // the code actions the menu shows
 	showing  bool                               // the menu is up
 	encoding string                             // the encoding of the menu's server
+	tree     tree                               // the hierarchy asked for
 }
 
 // New returns lsp.
@@ -129,6 +138,10 @@ func (m *Module) Registered() []api.Registration {
 		{Kind: api.Plug, Name: "disable", Help: "keeps the language server under the cursor off", ID: disableKey},
 		{Kind: api.Plug, Name: "enable", Help: "lets the language server under the cursor start again", ID: enableKey},
 		{Kind: api.Plug, Name: "declaration", Help: "goes to the declaration of the symbol under the cursor", ID: declaration},
+		{Kind: api.Plug, Name: "incoming_calls", Help: "lists the calls of the function under the cursor", ID: incomingCalls},
+		{Kind: api.Plug, Name: "outgoing_calls", Help: "lists the calls the function under the cursor makes", ID: outgoingCalls},
+		{Kind: api.Plug, Name: "supertypes", Help: "lists the types the type under the cursor comes from", ID: supertypes},
+		{Kind: api.Plug, Name: "subtypes", Help: "lists the types that come from the type under the cursor", ID: subtypes},
 		{Kind: api.Option, Name: "diagnostic_notes", Default: "true", Help: "a diagnostic's message shows after its line", Window: true},
 	}
 }
@@ -180,6 +193,8 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 		return api.Result{Error: "no language server"}, nil
 	}
 	switch id {
+	case incomingCalls, outgoingCalls, supertypes, subtypes:
+		return m.tree.prepare(id, cursor), nil
 	case renameKey:
 		// grn asks for the new name on the command line, starting from the
 		// word under the cursor, and :rename sends it from the same place.
@@ -241,6 +256,8 @@ func (m *Module) Callback(_ context.Context, id uint32, s api.Scope) (api.Result
 	defer m.mu.Unlock()
 	var res api.Result
 	switch {
+	case id == prepared || id == itemPick || id == hierarchy:
+		return m.tree.answered(id, s), nil
 	case id == diagPick || id == ranReq:
 		res.Error = s.About["error"]
 		return res, nil

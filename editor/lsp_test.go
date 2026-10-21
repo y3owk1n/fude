@@ -42,7 +42,7 @@ import (
 // f(a int, b string) on b, and hover
 // is markdown that says where it was asked. Each func has a code lens that
 // runs that command and one that resolves to a command that asks fude to
-// ask for the lenses again. Completion offers apple, apricot
+// ask for the lenses again. Its call and type hierarchies are fixed ones. Completion offers apple, apricot
 // and banana, and formatting the whole document puts a tab before each line,
 // as gopls formats only whole documents. Positions are in bytes.
 func TestFakeServer(t *testing.T) {
@@ -172,6 +172,25 @@ func TestFakeServer(t *testing.T) {
 				}
 			}
 			reply(m.ID, lenses)
+		case "textDocument/prepareCallHierarchy", "textDocument/prepareTypeHierarchy", "callHierarchy/incomingCalls", "callHierarchy/outgoingCalls", "typeHierarchy/supertypes":
+			// f is called on line 2 from caller and calls callee on line
+			// 1. T and U are types, and Base is T's or U's supertype.
+			uri := m.Params.TextDocument.URI
+			item := func(name, detail string, line, col int) map[string]any {
+				at := map[string]int{"line": line, "character": col}
+				r := map[string]any{"start": at, "end": at}
+				return map[string]any{"name": name, "detail": detail, "kind": 12, "uri": "file:///elsewhere/b.go", "range": r, "selectionRange": r}
+			}
+			f := item("f", "", 0, 5)
+			f["uri"] = uri
+			r := map[string]any{"start": map[string]int{"line": 1, "character": 11}, "end": map[string]int{"line": 1, "character": 12}}
+			reply(m.ID, map[string][]any{
+				"textDocument/prepareCallHierarchy": {f},
+				"textDocument/prepareTypeHierarchy": {item("T", "struct", 0, 0), item("U", "", 1, 0)},
+				"callHierarchy/incomingCalls":       {map[string]any{"from": item("caller", "", 7, 0), "fromRanges": []any{r}}},
+				"callHierarchy/outgoingCalls":       {map[string]any{"to": item("callee", "", 0, 0), "fromRanges": []any{r}}},
+				"typeHierarchy/supertypes":          {item("Base", "interface", 2, 5)},
+			}[m.Method])
 		case "codeLens/resolve":
 			reply(m.ID, map[string]any{"range": m.Params.Range, "command": map[string]any{"title": "2 references", "command": "fake.refresh"}})
 		case "workspace/executeCommand":
@@ -280,6 +299,7 @@ func TestFakeServer(t *testing.T) {
 				"definitionProvider": true, "typeDefinitionProvider": true, "implementationProvider": true, "referencesProvider": true, "renameProvider": true,
 				"codeActionProvider": true, "colorProvider": true, "signatureHelpProvider": map[string]any{"triggerCharacters": []string{"("}, "retriggerCharacters": []string{","}}, "documentSymbolProvider": true, "workspaceSymbolProvider": true, "inlayHintProvider": true, "hoverProvider": true,
 				"declarationProvider": true, "documentHighlightProvider": true, "codeLensProvider": map[string]any{"resolveProvider": true},
+				"callHierarchyProvider": true, "typeHierarchyProvider": true,
 			}})
 		case "shutdown":
 			reply(m.ID, nil)

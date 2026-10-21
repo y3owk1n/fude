@@ -533,6 +533,37 @@ prototype in its header. Several show as a list of places, and none says
 gD = "<Plug>(lsp.declaration)"
 ```
 
+## <Plug>(lsp.incoming_calls)
+
+Lists the calls of the function under the cursor as a list of places, the
+last list, each at the call in the caller's file with the caller's name.
+When the server finds several things under the cursor, a menu offers them
+first, where `<CR>` or a digit picks one. With none it says "no incoming
+calls found". No key runs it, so map one.
+
+```toml
+[keymap.normal]
+"<Leader>ci" = "<Plug>(lsp.incoming_calls)"
+```
+
+## <Plug>(lsp.outgoing_calls)
+
+Lists the calls the function under the cursor makes, as
+`<Plug>(lsp.incoming_calls)` lists its callers, each at the call in the
+function's own file with the name of the function it calls.
+
+## <Plug>(lsp.supertypes)
+
+Lists the types the type under the cursor comes from, such as the
+interfaces a class implements, as a list of places with each one's name
+and detail. A menu offers the things under the cursor first when the
+server finds several. No key runs it, so map one.
+
+## <Plug>(lsp.subtypes)
+
+Lists the types that come from the type under the cursor, as
+`<Plug>(lsp.supertypes)` lists those it comes from.
+
 ## <Plug>(lsp.type_definition)
 
 `grt` runs it, and is mapped only while a language server is attached to

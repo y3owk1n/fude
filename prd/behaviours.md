@@ -2004,6 +2004,18 @@ Where fude departs, the line says so and cites the departure in
   is attached, as in Neovim. One lens runs its command on its server,
   several show in a menu with each one's server, and none says "no code
   lens on this line". A guest may not run one.
+- B464 [5] `<Plug>(lsp.incoming_calls)` lists the calls of the function
+  under the cursor, each at its place in the caller's file with the
+  caller's name, and `<Plug>(lsp.outgoing_calls)` the calls it makes, at
+  their places in its own file with the name of the function each calls.
+  The list is a list of places, as `grr`'s is, so it becomes the last list
+  (N25). When the server finds several items under the cursor, a menu
+  offers them by name and detail, as Neovim asks which. None says "no
+  incoming calls found" or "no outgoing calls found". As in Neovim, no key
+  runs either.
+- B465 [5] `<Plug>(lsp.supertypes)` and `<Plug>(lsp.subtypes)` list the
+  types the type under the cursor comes from and those that come from it,
+  as B464 lists calls, each at its place with its name and detail.
 
 ## Debugging
 

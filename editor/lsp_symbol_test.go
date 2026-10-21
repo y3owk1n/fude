@@ -1,6 +1,7 @@
 package editor_test
 
 import (
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -42,6 +43,32 @@ func TestB461References(t *testing.T) {
 	editortest.Quiet(t, e)
 	if len(decorations(e)) != 0 {
 		t.Errorf("resting in insert mode lit %q", decorations(e))
+	}
+}
+
+// B464, B465
+func TestB464Hierarchy(t *testing.T) {
+	elsewhere := filepath.FromSlash("/elsewhere/b.go")
+	for _, c := range []struct{ keys, want string }{
+		{"gI", elsewhere + ":2:12: caller"},
+		{"gX", "a.go:2:12: callee"},
+		// Two types are under the cursor, so a menu offers them.
+		{"gS2", elsewhere + ":3:6: Base interface"},
+	} {
+		e, log := withServer(t, "func f() {}\nfunc g() { f() }\n", "utf-8",
+			`keymap.normal.gI = "<Plug>(lsp.incoming_calls)"`, `keymap.normal.gX = "<Plug>(lsp.outgoing_calls)"`, `keymap.normal.gS = "<Plug>(lsp.supertypes)"`)
+		withCommands(e)
+		heard(t, log, `"method":"textDocument/didOpen"`, 1)
+		dir := filepath.Dir(e.Windows()[0].Name)
+		feed(e, c.keys[:2])
+		if len(c.keys) > 2 {
+			settle(t, e, func() bool { _, ok := e.Menu(); return ok })
+			feed(e, c.keys[2:])
+		}
+		settle(t, e, func() bool { return len(e.Windows()) == 2 })
+		if got := strings.ReplaceAll(text(e), dir+string(filepath.Separator), ""); got != c.want {
+			t.Errorf("%s listed %q, want %q", c.keys, got, c.want)
+		}
 	}
 }
 

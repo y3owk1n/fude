@@ -47,8 +47,11 @@ it again until `:lsp restart`.
   definition and `gO` the file's symbols. `<CR>` on a line of the list
   goes there.
 - `grn` renames the name everywhere, and `gra` lists code actions.
-- `<Plug>(lsp.declaration)` goes to the declaration. It has no key, so
-  map one in `[keymap.normal]`.
+- `<Plug>(lsp.declaration)` goes to the declaration,
+  `<Plug>(lsp.incoming_calls)` and `<Plug>(lsp.outgoing_calls)` list the
+  calls of a function and those it makes, and `<Plug>(lsp.supertypes)` and
+  `<Plug>(lsp.subtypes)` the types around a type. They have no keys, so
+  map them in `[keymap.normal]`.
 - `]d` and `[d` go to the next and previous diagnostic.
 - Resting the cursor on a name lights up its other places in the file.
 - A server's code lenses, such as "run test", show above their lines, and

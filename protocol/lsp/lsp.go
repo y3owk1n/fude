@@ -377,6 +377,8 @@ func (c *Client) write(root string, options any, initialized <-chan answer, noti
 
 				"documentHighlight": map[string]any{},
 				"codeLens":          map[string]any{},
+				"callHierarchy":     map[string]any{},
+				"typeHierarchy":     map[string]any{},
 			},
 			"window":    map[string]any{"workDoneProgress": true},
 			"workspace": map[string]any{"configuration": true, "didChangeConfiguration": map[string]any{}, "codeLens": map[string]any{"refreshSupport": true}},

@@ -72,7 +72,7 @@ modules/         Go packages over api/ and protocol/ that cmd/fude adds with
   lens/          a language server's code lenses, and grx
   references/    the references to the symbol under the cursor, lit
   lsp/           diagnostics, hover, definitions, references, symbols,
-                 rename and code actions
+                 rename, code actions and call and type hierarchies
   spell/         spell, ]s, [s, z= and zg
   task/          :task and :pick tasks, a project's tasks in a terminal
 distribution/    the modules fude runs, which cmd/fude and the speed promises share
@@ -2097,7 +2097,8 @@ phases, each unit a commit that keeps every behaviour.
    LSP keys are, so vim's `gd` keeps working without one. `Result.Apply`
    applies a workspace edit across files with the editor's version
    checks. `modules/lsp` then holds hover, the goto family, references,
-   symbols, rename, code actions and the diagnostics display. The editor
+   symbols, rename, code actions, call and type hierarchies and the
+   diagnostics display. The editor
    keeps the server lifecycle, document sync and completion. The `:lsp`
    panel is the module's. `Scope.Servers` reads the servers' state, and
    `Result.Servers` restarts, stops, disables or enables one. On
