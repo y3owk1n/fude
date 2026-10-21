@@ -2033,6 +2033,10 @@ Where fude departs, the line says so and cites the departure in
   matching its patterns hears of the explorer's, and one that edits files
   for a rename does so before the explorer renames, its edits applied as
   rename's are.
+- B481 [5] The completion menu at the cursor shows at most `menu_height`
+  rows, and scrolls to keep the selected item in them. 0, as it is unless
+  set, shows as many as fit above or below the cursor, as Neovim's
+  `pumheight` does.
 - B167 [5] `[filetype.<name>] lsp` names a filetype's servers. An
   `[lsp.<name>]` table sets a server's `command`, which is its name when
   unset, and its `root`, the files that mark a project's root, most wanted

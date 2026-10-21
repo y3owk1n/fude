@@ -349,7 +349,7 @@ func TestB64MenuScrolls(t *testing.T) {
 	if err := os.WriteFile(path, []byte(strings.Join(words, " ")+"\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	c := startWith(t, "", path)
+	c := startWith(t, "menu_height = 20\n", path)
 	c.e.(*editor.Session).Use(completionmod.New())
 	for _, k := range vim.Keys("o w<C-x><C-o>" + strings.Repeat("<C-n>", 24)) {
 		c.e.Feed(k)
@@ -2295,6 +2295,35 @@ func TestB480Title(t *testing.T) {
 		c.draw()
 		if got := mt.GetTitle(); got != want {
 			t.Errorf("with %q the title is %q, want %q", config, got, want)
+		}
+	}
+}
+
+// B481
+func TestB481MenuHeight(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.txt")
+	var words []string
+	for i := range 30 {
+		words = append(words, fmt.Sprintf("w%02d", i))
+	}
+	if err := os.WriteFile(path, []byte(strings.Join(words, " ")+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for config, want := range map[string]int{"": 30, "menu_height = 5\n": 5} {
+		c := startWith(t, config, path)
+		c.e.(*editor.Session).Use(completionmod.New())
+		for _, k := range vim.Keys("o w<C-x><C-o>") {
+			c.e.Feed(k)
+		}
+		c.draw()
+		rows := 0
+		for y := range 40 {
+			if strings.Contains(c.row(y), "[buffer]") {
+				rows++
+			}
+		}
+		if rows != want {
+			t.Errorf("with %q the menu shows %d rows, want %d", config, rows, want)
 		}
 	}
 }

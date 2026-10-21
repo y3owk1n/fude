@@ -47,6 +47,7 @@ type config struct {
 	Abbreviations  map[string]string `toml:"abbreviations" help:"words that insert mode replaces with their text once a character that ends a word follows"`
 	Theme          string            `toml:"theme" help:"the colours: dark, light or a base16 scheme file"`
 	Title          bool              `toml:"title" help:"the terminal's title shows the current file's name, and gets its old title back as fude quits"`
+	MenuHeight     uint              `toml:"menu_height" help:"the most rows the completion menu at the cursor shows, 0 for as many as fit"`
 	options
 	Colors   wire.Colors `toml:"colors" help:"colours by role, each as #rrggbb, that replace the theme's"`
 	Keymap   keymap      `toml:"keymap"`

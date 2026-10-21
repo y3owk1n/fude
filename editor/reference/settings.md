@@ -197,6 +197,12 @@ one steps over it, `<BS>` in an empty pair deletes both, and `<CR>` in
 empty brackets opens an indented line between them. A quote after a
 letter stays one, as in `don't`. The default is on.
 
+## menu_height
+
+The most rows the completion menu at the cursor shows. It scrolls to keep
+the selected item in view. 0, the default, shows as many as fit above or
+below the cursor. The command line's completions show 10 at most.
+
 ## completion_sources
 
 Where completions come from, in the menu's order. `lsp` is the language

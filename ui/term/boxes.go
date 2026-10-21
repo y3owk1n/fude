@@ -179,7 +179,10 @@ func (c *client) menu(f wire.Menu, cx, cy, lo, hi, h int) (int, int, bool) {
 	}
 	rows, width := wrap(f.Text, f.Spans, min(80, hi-lo-4))
 	below, above := h-cy-1, cy
-	n := min(len(rows), max(below, above)-2, 20)
+	n := min(len(rows), max(below, above)-2)
+	if f.Rows > 0 {
+		n = min(n, f.Rows)
+	}
 	if width < 1 || n < 1 {
 		return 0, 0, false
 	}
