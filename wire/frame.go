@@ -90,6 +90,7 @@ type Window struct {
 	Tab              int               // the columns a tab shows as
 	Guides           map[int][]int     // by line, the display columns where a faint line marks the indent (B153)
 	ColorColumn      int               // the column of the text to shade, from 1, or 0 (B200)
+	CursorColumn     int               // the column of the window's text the cursor shows in, from 1, to shade, or 0 (B483)
 	Colours          []Colour          // text that names a colour, shown on it (B208, B209)
 	Folds            map[int]int       // by the first line of each closed fold shown, the lines it hides (B224)
 	Grounds          map[int]string    // by line, the style whose ground shades its rows (B296)

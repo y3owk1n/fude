@@ -508,7 +508,7 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 		cursors = c.e.Cursors()
 	}
 	// win holds what every line of the window draws from.
-	win := sig(nil).int(v.X).int(v.Y).int(v.W).int(v.Left).flag(v.Wrap).flag(v.List).int(v.ColorColumn).int(v.Tab).int(int(c.shape)).int(int(c.tint.Hex())).flag(c.extra != nil && c.extra.Load())
+	win := sig(nil).int(v.X).int(v.Y).int(v.W).int(v.Left).flag(v.Wrap).flag(v.List).int(v.ColorColumn).int(v.CursorColumn).int(v.Tab).int(int(c.shape)).int(int(c.tint.Hex())).flag(c.extra != nil && c.extra.Load())
 	// Pinned lines cover rows, so a change to them draws every row again.
 	for _, p := range v.Context {
 		win = win.int(p)
@@ -743,6 +743,7 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 					c.guides(v, guides, y)
 				}
 				c.colorColumn(v, y)
+				c.shade(v, v.CursorColumn-1, y, th.cursorLine)
 				if i == len(starts)-1 && slices.Contains(cursors, end) && x < v.W {
 					c.s.Put(v.X+x, y, " ", c.multicursor(base, base))
 					last.marks = append(last.marks, [2]int{v.X + x, y})
@@ -887,19 +888,26 @@ func (c *client) edge(v wire.Window, left int) {
 	c.status(v, v.X, v.W)
 }
 
-// colorColumn shades the colour column on row y of v's text, where the
-// row's cell keeps the ground, so the cursor's line, a selection and a
-// match keep theirs (B200).
+// colorColumn shades the colour column on row y of v's text (B200).
 func (c *client) colorColumn(v wire.Window, y int) {
 	x := v.ColorColumn - 1
 	if !v.Wrap {
 		x -= v.Left
 	}
-	if v.ColorColumn == 0 || x < 0 || x >= v.W {
+	if v.ColorColumn > 0 {
+		c.shade(v, x, y, th.raised)
+	}
+}
+
+// shade puts bg under the cell at column x of row y of v's text, where the
+// cell keeps the ground, so the cursor's line, a selection and a match
+// keep theirs (B200, B483).
+func (c *client) shade(v wire.Window, x, y int, bg color.Color) {
+	if x < 0 || x >= v.W {
 		return
 	}
 	if s, style, _ := c.s.Get(v.X+x, y); s != "" && style.GetBackground() == base.GetBackground() {
-		c.s.Put(v.X+x, y, s, style.Background(th.raised))
+		c.s.Put(v.X+x, y, s, style.Background(bg))
 	}
 }
 

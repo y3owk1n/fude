@@ -90,6 +90,9 @@ func (e *Session) draw(w *window) wire.Window {
 	last := vim.LineEnd(t, lastStart)
 	d := e.shown(w, top, last)
 	v.Virtual = w.unfilled(d.virtual, t.LineOf(top))
+	if w.opts.CursorColumn {
+		v.CursorColumn = w.screenColumn(t, tab, d.inlines) + 1
+	}
 	for _, f := range w.buf.folds {
 		first, end := w.fold(t, t.LineOf(w.buf.text.Mark(f.start)))
 		if s := t.LineStart(first); s >= top && s <= last {

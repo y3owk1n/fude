@@ -2327,3 +2327,26 @@ func TestB481MenuHeight(t *testing.T) {
 		}
 	}
 }
+
+// B483
+func TestB483CursorColumn(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.txt")
+	if err := os.WriteFile(path, []byte("text\n\nmore\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	c := startWith(t, "cursor_column = true\n", path)
+	c.e.Feed(vim.Keys("l")[0])
+	c.draw()
+	ground := func(x, y int) color.Color {
+		_, style, _ := c.s.Get(x, y)
+		return style.GetBackground()
+	}
+	for y := range 3 {
+		if ground(1, y) != themes["dark"].cursorLine || ground(2, y) != themes["dark"].bg {
+			t.Errorf("on line %d the cursor's column is %v and the column after it %v", y+1, ground(1, y), ground(2, y))
+		}
+	}
+	if ground(1, 3) != themes["dark"].bg {
+		t.Errorf("past the text the cursor's column is %v", ground(1, 3))
+	}
+}

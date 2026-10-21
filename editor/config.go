@@ -133,6 +133,7 @@ type options struct {
 	ScrollOff      int  `toml:"scroll_off" help:"the lines kept in view above and below the cursor's"`
 	SideScrollOff  int  `toml:"side_scroll_off" help:"without wrap, the columns kept in view left and right of the cursor's"`
 	CursorLine     bool `toml:"cursor_line" help:"shades the cursor's line"`
+	CursorColumn   bool `toml:"cursor_column" help:"shades the cursor's column"`
 	List           bool `toml:"list" help:"shows tabs, trailing spaces and no-break spaces"`
 	IgnoreCase     bool `toml:"ignore_case" help:"searches ignore case"`
 	SmartCase      bool `toml:"smart_case" help:"a pattern with an uppercase letter matches case"`

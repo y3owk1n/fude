@@ -153,6 +153,22 @@ func (w *window) starts(t kernel.Snapshot, start, tab int, in []vim.Inline) []in
 	return vim.Rows(t, start, w.cols(), tab, in)
 }
 
+// screenColumn returns the column of w's text the cursor shows in, on the
+// row that holds it.
+func (w *window) screenColumn(t kernel.Snapshot, tab int, in []vim.Inline) int {
+	c := w.pos()
+	ls := vim.LineStart(t, c)
+	if !w.opts.Wrap {
+		return vim.Column(t, ls, c, tab, in) - w.left
+	}
+	starts := w.starts(t, ls, tab, in)
+	r := len(starts) - 1
+	for r > 0 && starts[r] > c {
+		r--
+	}
+	return vim.Column(t, ls, c, tab, in) - vim.Column(t, ls, starts[r], tab, in)
+}
+
 // show switches the window to b, at the place b was last left. Its marks
 // in the buffer it showed go.
 func (w *window) show(b *buffer) {

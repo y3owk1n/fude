@@ -51,6 +51,11 @@ at a time to keep them.
 
 Shades the line the cursor is on, and shows its number in bold.
 
+## cursor_column
+
+Shades the column the cursor shows in, on every row of text in the
+window, so text above and below can be lined up with it.
+
 ## list
 
 Shows a tab as `>` and blanks, a trailing space as `-` and a no-break space

@@ -210,6 +210,10 @@ Where fude departs, the line says so and cites the departure in
   `sidescrolloff` does with `sidescroll` at 1.
 - B117 [2] `cursor_line` shades the cursor's line and shows its number in
   bold, as Neovim's `cursorline` does.
+- B483 [2] `cursor_column` shades the column the cursor shows in on each
+  row of the window's text, past a line's end too, as Neovim's
+  `cursorcolumn` does. A selection, a match and a cell with a ground of
+  its own keep theirs.
 - B118 [2] `list` shows a tab as `>` and blanks, a trailing space as `-`
   and a no-break space as `+`, Neovim's default `listchars`.
 - B119 [5] A buffer with diagnostics shows a sign column, two columns left
