@@ -1790,11 +1790,10 @@ Where fude departs, the line says so and cites the departure in
   of the directory a path before the cursor names when it holds a `/`,
   relative to the file's directory, and the words of the open buffers that
   start with the word typed, nearest the cursor first. So it works in a
-  file with no server. `completion_sources` picks the sources and orders
-  them in the menu, `["lsp", "snippet", "path", "buffer"]` by default, and
-  the menu
-  names the source of each item that is not a server's. With
-  `autocomplete` on, a `/` lists a path's entries.
+  file with no server (N8). `completion_sources` picks the sources and
+  orders them in the menu, `["lsp", "snippet", "path", "buffer"]` by
+  default, and the menu names the source of each item that is not a
+  server's. With `autocomplete` on, a `/` lists a path's entries.
 - B207 [5] A completion can be a snippet, from a server or from
   `snippets/<filetype>.json` or `snippets/all.json` in fude's config
   directory, in VS Code's format (N30). It goes in with its placeholders,
@@ -1805,9 +1804,31 @@ Where fude departs, the line says so and cites the departure in
   `<Tab>` and `<S-Tab>` go to the next stop and the one before. The last
   stop, `$0` or the snippet's end, ends it, and so do leaving insert mode
   and moving out of the stop. fude tells servers it takes snippets.
+- B440 [5] In insert mode with no menu, `<C-n>` completes the word before
+  the cursor from the words of the open buffers, as Neovim's keyword
+  completion does. The menu lists those of the current buffer from the
+  cursor to its end and then from its start, then those of the other
+  buffers, and puts the first in the text. `<C-p>` lists the other
+  buffers' first and puts the last in the text, the nearest word before
+  the cursor. With nothing typed, every word is listed. The menu then
+  works as B64's, and with multicursors placed the item goes in at each
+  (B393).
+- B441 [5] `<C-x><C-n>` and `<C-x><C-p>` complete as `<C-n>` and `<C-p>`
+  do, from the words of the current buffer alone.
+- B442 [5] `<C-x><C-l>` completes the whole line from the lines of the
+  open buffers that start, after their indent, with what is typed on the
+  cursor's line after its indent. As `<C-p>` does, it puts in the line
+  found first going up from the cursor, then up from the buffer's end.
+  That line goes in without its indent, and the cursor's line keeps its
+  own. The cursor's line is never listed.
+- B443 [5] `<C-x><C-f>` completes the file name before the cursor from
+  the entries of the directory it names, as B206's paths do, and a name
+  with no `/` from the entries of the file's directory. It puts the first
+  in the text.
 - B67 [5] With `autocomplete` on, typing a word character or a trigger
-  character in insert mode lists the server's completions, with none put in
-  the text until `<C-n>` or `<C-p>`.
+  character in insert mode lists the completions of every source
+  `completion_sources` names (B206), with none put in the text until
+  `<C-n>` or `<C-p>`.
 - B68 [5] The selected completion's detail and documentation show beside
   the menu, resolved from the server when the item came without them.
 - B167 [5] `[filetype.<name>] lsp` names a filetype's servers. An

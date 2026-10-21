@@ -278,6 +278,18 @@ func hostBindings() []vim.Binding {
 			out = append(out, vim.Binding{Kind: "normal", Keys: "<C-w>" + k, Help: w.help})
 		}
 	}
+	// The keys of completion, which complete.go handles (B64, B440).
+	for _, k := range [][2]string{
+		{"<C-n>", "completes the word before the cursor from the open buffers, or selects the next item"},
+		{"<C-p>", "completes the word before the cursor from the open buffers, nearest before first, or selects the item before"},
+		{"<C-x><C-f>", "completes the file name before the cursor"},
+		{"<C-x><C-l>", "completes the line from the lines of the open buffers"},
+		{"<C-x><C-n>", "completes the word before the cursor from the buffer's words"},
+		{"<C-x><C-o>", "lists the completions of every source"},
+		{"<C-x><C-p>", "completes the word before the cursor from the buffer's words, nearest before first"},
+	} {
+		out = append(out, vim.Binding{Kind: "insert", Keys: k[0], Help: k[1]})
+	}
 	return out
 }
 

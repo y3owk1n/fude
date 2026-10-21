@@ -22,6 +22,11 @@ by number, and `<C-k>` by a digraph, two keys that look like the
 character, such as `e'` for é or `Eu` for €. The digraphs are Vim's
 default table of 1366. `ga` in normal mode shows a character's digraph.
 
+`<C-n>`, `<C-p>` and `<C-x>` with a second key complete the text before
+the cursor. A menu shows the items, `<C-n>` and `<C-p>` step through
+them, `<C-y>` keeps the one in the text, and `<C-e>` puts back what was
+typed. With multicursors placed, the item goes in at each.
+
 ## <BS>
 
 Deletes the character before the cursor. In the indent it deletes back to
@@ -130,6 +135,14 @@ so `e'` and `'e` both type é. When the two name none, it types the second.
 "|" "i<C-k>e<Esc>" "|"
 ```
 
+## <C-n>
+
+With no menu, completes the word before the cursor from the words of the
+open buffers. They are listed from the cursor to the end of the buffer,
+then from its start, then from the other buffers, and the first goes in
+the text. With nothing typed, every word is listed. While the menu shows,
+it puts in the next item, and after the last the word as typed.
+
 ## <C-o>
 
 Runs one normal mode command, then comes back to insert mode where it
@@ -142,6 +155,13 @@ when the selection ends.
 "|abc def" "i<C-o>dwx" "x|def"
 "|abc" "i<C-o>$x" "abcx|"
 ```
+
+## <C-p>
+
+With no menu, completes the word before the cursor as `<C-n>` does, but
+the other buffers' words are listed first and the last item goes in the
+text, the nearest word before the cursor. While the menu shows, it puts
+in the item before.
 
 ## <C-r>
 
@@ -206,6 +226,37 @@ start of a line it joins the line to the one above.
 "fo|o" "Abar<C-w><C-w>" "|"
 "a\n|b" "i<C-w>" "a|b"
 ```
+
+## <C-x><C-f>
+
+Completes the file name before the cursor from the entries of the
+directory it names, as the `path` source does. A relative name is from
+the file's directory, and a name with no `/` is an entry of it. Dot files
+are listed once a dot is typed.
+
+## <C-x><C-l>
+
+Completes the whole line. It lists the lines of the open buffers that
+start, after their indent, with what is typed on the line after its
+indent. It puts in the line found first going up from the cursor, then
+up from the buffer's end, and `<C-p>` steps on up. The cursor's line
+keeps its own indent.
+
+## <C-x><C-n>
+
+Completes the word before the cursor as `<C-n>` does, from the words of
+the current buffer alone.
+
+## <C-x><C-o>
+
+Lists the completions of every source `completion_sources` names, in its
+order, and puts the first in the text. A language server's items come
+with those of snippets, paths and the open buffers' words.
+
+## <C-x><C-p>
+
+Completes the word before the cursor as `<C-p>` does, from the words of
+the current buffer alone.
 
 ## <C-y>
 

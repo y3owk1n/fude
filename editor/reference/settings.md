@@ -139,10 +139,11 @@ right of the current one, or left of it when off. On unless set.
 
 ## autocomplete
 
-In insert mode, the language server's completions show as a word or a
-trigger character such as `.` is typed, with none put in the text until
-`<C-n>` or `<C-p>`. On the command line, the completion menu shows as the
-line is typed. Off, `<C-x><C-o>` and `<Tab>` ask for them.
+In insert mode, the completions of the sources `completion_sources` names
+show as a word or a trigger character such as `.` is typed, with none put
+in the text until `<C-n>` or `<C-p>`. On the command line, the completion
+menu shows as the line is typed. Off, `<C-x><C-o>` and `<Tab>` ask for
+them.
 
 ## git.signs
 

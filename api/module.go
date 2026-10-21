@@ -58,7 +58,11 @@ const (
 	// Completer is a source of insert mode completion by its Name, which
 	// completion_sources orders, called with (cursor). Its result's
 	// Completion has what it offers. Autocomplete asks it after a word
-	// character, and after each character of its Keys (B336).
+	// character, and after each character of its Keys (B336). keys in
+	// About are the keys that asked, such as <C-x><C-o>, empty for
+	// autocomplete. <C-n>, <C-p>, <C-x><C-n>, <C-x><C-p> and <C-x><C-l>
+	// ask the source named buffer alone, and <C-x><C-f> the one named
+	// path (B440).
 	Completer
 	// Write writes the buffers of the kind Name, such as explorer, in place
 	// of a file, as :w does. It is called with (cursor), and its scope has

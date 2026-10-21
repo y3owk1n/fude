@@ -280,3 +280,75 @@ func TestB207Snippets(t *testing.T) {
 	_, log := withServer(t, "x\n", "utf-8")
 	heard(t, log, `"snippetSupport":true`, 1)
 }
+
+// withWords is an editor on a file of words, with a second buffer of
+// more, and the completion module.
+func withWords(t *testing.T, words string) *editor.Session {
+	dir := t.TempDir()
+	change(t, filepath.Join(dir, "a.txt"), words)
+	change(t, filepath.Join(dir, "b.txt"), "alto alder\n")
+	e := start(t, filepath.Join(dir, "a.txt"), filepath.Join(dir, "b.txt"))
+	e.Use(completionmod.New())
+	return e
+}
+
+// B440
+func TestB440KeywordCompletion(t *testing.T) {
+	e := withWords(t, "alpha alpine\nbeta\nalgae al\nalso\n")
+	// <C-n> puts in the first word after the cursor, and steps on.
+	for _, step := range []struct{ keys, want string }{
+		{"jo al<C-n>", " algae"},
+		{"<C-n>", " also"},
+		// <C-p> puts in the nearest word before the cursor.
+		{"<C-e><C-p>", " alpine"},
+	} {
+		if feed(e, step.keys); strings.Split(text(e), "\n")[2] != step.want {
+			t.Errorf("%s made %q, want the line %q", step.keys, text(e), step.want)
+		}
+	}
+	if f, _ := e.Menu(); !strings.Contains(f.Text, "alder") {
+		t.Errorf("the menu %q has no word of the other buffer", f.Text)
+	}
+	// Every multicursor gets the word.
+	e = withWords(t, "abc\nx\ny\n")
+	if feed(e, "jQjA ab<C-n>"); text(e) != "abc\nx abc\ny abc" {
+		t.Errorf("<C-n> at two cursors made %q", text(e))
+	}
+}
+
+// B441
+func TestB441BufferKeywordCompletion(t *testing.T) {
+	e := withWords(t, "alpha alpine\nbeta\nalgae al\nalso\n")
+	if feed(e, "jo al<C-x><C-n>"); strings.Split(text(e), "\n")[2] != " algae" {
+		t.Fatalf("<C-x><C-n> made %q", text(e))
+	}
+	if f, _ := e.Menu(); strings.Contains(f.Text, "alder") {
+		t.Errorf("the menu %q has a word of the other buffer", f.Text)
+	}
+	if feed(e, "<C-e><C-x><C-p>"); strings.Split(text(e), "\n")[2] != " alpine" {
+		t.Errorf("<C-x><C-p> made %q", text(e))
+	}
+}
+
+// B442
+func TestB442LineCompletion(t *testing.T) {
+	e := withWords(t, "func one() {\n\treturn x\n}\n  return y + 1\n\tretain\n")
+	if feed(e, "jjo    ret<C-x><C-l>"); strings.Split(text(e), "\n")[3] != "    return x" {
+		t.Fatalf("<C-x><C-l> made %q", text(e))
+	}
+	if feed(e, "<C-p>"); strings.Split(text(e), "\n")[3] != "    retain" {
+		t.Errorf("<C-p> after <C-x><C-l> made %q", text(e))
+	}
+}
+
+// B443
+func TestB443FileCompletion(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "a.txt")
+	change(t, path, "x\n")
+	change(t, filepath.Join(dir, "notes.md"), "")
+	e := open(t, path)
+	e.Use(completionmod.New())
+	feed(e, "o see no<C-x><C-f>")
+	settle(t, e, func() bool { return text(e) == "x\n see notes.md" })
+}

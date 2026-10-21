@@ -1645,14 +1645,26 @@ their styles as spans, and a line of `---` draws as a rule across the
 float's box. A full markdown grammar comes only if servers start sending more.
 
 Completion works as Neovim's does with the same items. In insert mode,
-`<C-x><C-o>` asks the server what may go at the cursor. When the answer
-comes, fude puts the first item in place of the word before the cursor and
-shows every item's label in a menu at the cursor. `<C-n>` and `<C-p>` step through the
+`<C-x><C-o>` asks the server, and the other sources `completion_sources`
+names, what may go at the cursor (N8). When the answer comes, fude puts
+the first item in place of the word before the cursor and shows every
+item's label in a menu at the cursor. `<C-n>` and `<C-p>` step through the
 items and the typed word, putting each in the text. `<C-y>` keeps the item
-and `<C-e>` puts the typed word back. Any other key keeps the item and goes
-on to type. An item puts in its `textEdit`, else its `insertText`, else its
-label, and fude offers no snippets. Each step is an edit inside the insert's
-undo group, so the whole insert stays one undo step (B64).
+and `<C-e>` puts the typed word back. Any other key keeps the item and
+goes on to type. An item puts in its `textEdit`, else its `insertText`,
+else its label, and a snippet goes in with its placeholders (B207). Each
+step is an edit inside the insert's undo group, so the whole insert stays
+one undo step (B64).
+
+`<C-n>` and `<C-p>` with no menu, and `<C-x>` with `<C-n>`, `<C-p>` or
+`<C-l>`, ask the `buffer` source alone, and `<C-x><C-f>` the `path`
+source, with the keys as `keys` in the call's `About`. The source lists
+words, or for `<C-x><C-l>` lines after their indent, in the order
+Neovim's search finds them: from the cursor to the buffer's end, then
+from its start, then the other buffers. For a key that searches back it
+lists the other buffers first, and the editor puts in the last item, the
+nearest before the cursor. Each goes in through `vim.Machine.Complete`,
+so every multicursor gets it (B440 to B443).
 
 A second box beside the menu shows the selected item's `detail` as code of
 the buffer's filetype, then its `documentation` rendered from markdown as
@@ -1666,8 +1678,8 @@ With `autocomplete` on, as with Neovim's `'autocomplete'`, typing a word
 character or one of the server's trigger characters asks for completions
 too. That menu puts nothing in the text until `<C-n>` or `<C-p>`, and the
 next typed key closes it and asks again. fude drops an answer for text that
-changed after the request. The items come from the language
-server only, not from the buffer's words (N8).
+changed after the request. The items come from every source
+`completion_sources` names, as `<C-x><C-o>`'s do (N8).
 
 `gq` is an operator `modules/format` registers. With no formatter that applies, it
 asks for `rangeFormatting` of the target's lines when the server offers it. Otherwise it asks for

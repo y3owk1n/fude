@@ -835,7 +835,7 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 	// A Completer's items that came later fill the menu it held (B336).
 	if w := e.completion.waiting; w != nil && w.p == p && res.Completion != nil {
 		e.completion.waiting = nil
-		e.offer(w.auto, b.text.Snapshot(), res.Completion.Start, map[string][]item{w.name: items(res.Completion.Items)})
+		e.offer(w.keys, b.text.Snapshot(), res.Completion.Start, []string{w.name}, map[string][]item{w.name: items(res.Completion.Items)})
 	}
 	if tr := res.Travel; tr != nil {
 		on, err := e.buffer(tr.Buffer)

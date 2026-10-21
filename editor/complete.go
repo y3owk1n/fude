@@ -22,12 +22,11 @@ type completion struct {
 	waiting *waiting // the source whose items come later (B336)
 }
 
-// waiting is a Completer whose items come in a callback, and how the menu
-// was asked for (B336).
+// waiting is a Completer whose items come in a callback, and the keys
+// that asked for the menu (B336).
 type waiting struct {
-	p    api.Module
-	name string
-	auto bool
+	p          api.Module
+	name, keys string
 }
 
 // completer is what a module registered as a source of completion (B336).
@@ -53,9 +52,9 @@ type menu struct {
 }
 
 // key handles a key while completing in insert mode, and reports whether
-// it took it. <C-x><C-o> asks the server, and while the menu shows,
-// <C-n>, <C-p>, <C-y> and <C-e> work it. Any other key keeps the item and
-// goes on to type.
+// it took it. <C-x> and a key after it ask for completions, and so do
+// <C-n> and <C-p> with no menu. While the menu shows, <C-n>, <C-p>, <C-y>
+// and <C-e> work it. Any other key keeps the item and goes on to type.
 func (c *completion) key(e *Session, k vim.Key) bool {
 	if e.vim.Mode() != vim.Insert {
 		c.ctrlX = false
@@ -74,8 +73,9 @@ func (c *completion) key(e *Session, k vim.Key) bool {
 	}
 	if c.ctrlX {
 		c.ctrlX = false
-		if k == "<C-o>" {
-			e.complete(false)
+		switch k {
+		case "<C-o>", "<C-n>", "<C-p>", "<C-l>", "<C-f>":
+			e.complete("<C-x>" + string(k))
 			return true
 		}
 	}
@@ -85,6 +85,10 @@ func (c *completion) key(e *Session, k vim.Key) bool {
 	}
 	m := c.menu
 	if m == nil {
+		if k == "<C-n>" || k == "<C-p>" {
+			e.complete(string(k))
+			return true
+		}
 		return false
 	}
 	switch k {
@@ -105,12 +109,20 @@ func (c *completion) key(e *Session, k vim.Key) bool {
 }
 
 // complete lists completions for the word before the cursor as one menu,
-// with its first item in the text, from the sources completion_sources
-// names, in its order, each text once: the current buffer's servers, the
-// entries of the directory a path before the cursor names, snippets and
-// the words of the open buffers. With auto it only shows them, and says
-// nothing when there are none (B64, B206).
-func (e *Session) complete(auto bool) {
+// from the sources completion_sources names, in its order, each text
+// once: the current buffer's servers, the entries of the directory a path
+// before the cursor names, snippets and the words of the open buffers.
+// keys are what asked, which the sources hear, none for autocomplete.
+// <C-n>, <C-p> and <C-x> with <C-n>, <C-p> or <C-l> ask the buffer
+// source alone, and <C-x><C-f> the path source (B64, B206, B440).
+func (e *Session) complete(keys string) {
+	sources := e.cfg.Sources
+	switch keys {
+	case "<C-n>", "<C-p>", "<C-x><C-n>", "<C-x><C-p>", "<C-x><C-l>":
+		sources = []string{"buffer"}
+	case "<C-x><C-f>":
+		sources = []string{"path"}
+	}
 	b := e.win.buf
 	t, c := b.text.Snapshot(), e.Cursor()
 	start := c
@@ -119,27 +131,29 @@ func (e *Session) complete(auto bool) {
 	}
 	e.completion.waiting = nil
 	local := map[string][]item{}
-	for _, name := range e.cfg.Sources {
+	for _, name := range sources {
 		cp, ok := e.completionSources[name]
 		if !ok {
 			continue
 		}
-		_, res, err := e.run(cp.p, cp.id, e.scope(cp.p, b, t), c)
+		scope := e.scope(cp.p, b, t)
+		scope.About["keys"] = keys
+		_, res, err := e.run(cp.p, cp.id, scope, c)
 		got := res.Completion
 		switch {
 		case err != nil || got == nil:
 		case got.Only && got.Later:
-			e.completion.waiting = &waiting{cp.p, name, auto}
+			e.completion.waiting = &waiting{cp.p, name, keys}
 			return
 		case got.Only:
-			e.offer(auto, t, got.Start, map[string][]item{name: items(got.Items)})
+			e.offer(keys, t, got.Start, []string{name}, map[string][]item{name: items(got.Items)})
 			return
 		default:
 			local[name] = items(got.Items)
 		}
 	}
-	if !slices.Contains(e.cfg.Sources, "lsp") || len(b.servers) == 0 {
-		e.offer(auto, t, start, local)
+	if !slices.Contains(sources, "lsp") || len(b.servers) == 0 {
+		e.offer(keys, t, start, sources, local)
 		return
 	}
 	uri := lsp.URI(b.file.path)
@@ -163,18 +177,20 @@ func (e *Session) complete(auto bool) {
 				local["lsp"] = append(local["lsp"], it)
 			}
 		}
-		e.offer(auto, t, start, local)
+		e.offer(keys, t, start, sources, local)
 	})
 	if !asked {
-		e.offer(auto, t, start, local)
+		e.offer(keys, t, start, sources, local)
 	}
 }
 
 // offer shows the menu of items, by source, that replace the text from
-// start to the cursor in t, in the order completion_sources gives the
-// sources and without a second item of the same text. An answer about
-// text since changed is dropped.
-func (e *Session) offer(auto bool, t kernel.Snapshot, start int, items map[string][]item) {
+// start to the cursor in t, in the order of sources and without a second
+// item of the same text. An answer about text since changed is dropped.
+// It puts the first item in the text, or the last for keys that search
+// back. For autocomplete, with no keys, it only shows them, and says
+// nothing when there are none.
+func (e *Session) offer(keys string, t kernel.Snapshot, start int, sources []string, items map[string][]item) {
 	b, cur := e.win.buf, e.Cursor()
 	if e.vim.Mode() != vim.Insert || b.text.Snapshot().Version() != t.Version() || cur < start {
 		return
@@ -189,7 +205,7 @@ func (e *Session) offer(auto bool, t kernel.Snapshot, start int, items map[strin
 		unit = strings.Repeat(" ", e.indentWidth(b))
 	}
 	vars := e.snippetVars(b, start)
-	for _, source := range e.cfg.Sources {
+	for _, source := range sources {
 		for _, it := range items[source] {
 			var stops []lsp.Stop
 			if it.snippet {
@@ -208,7 +224,7 @@ func (e *Session) offer(auto bool, t kernel.Snapshot, start int, items map[strin
 		}
 	}
 	if len(m.items) == 0 {
-		if !auto {
+		if keys != "" {
 			e.message = "no completions"
 		}
 		return
@@ -218,11 +234,14 @@ func (e *Session) offer(auto bool, t kernel.Snapshot, start int, items map[strin
 	}
 	m.start, m.sel = b.text.SetMark(start, kernel.Left), len(m.items)
 	e.completion.menu = m
-	if auto {
+	switch keys {
+	case "":
 		e.showMenu()
-		return
+	case "<C-p>", "<C-x><C-p>", "<C-x><C-l>":
+		e.choose(len(m.items) - 1)
+	default:
+		e.choose(0)
 	}
-	e.choose(0)
 }
 
 // items are a Completer's items as the menu takes them (B336).
@@ -350,7 +369,7 @@ func (e *Session) autocomplete(k vim.Key) {
 		}
 	}
 	if server || local {
-		e.complete(true)
+		e.complete("")
 	}
 }
 

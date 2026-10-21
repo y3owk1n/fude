@@ -871,12 +871,18 @@ Neovim marks track the line and keep their column, and drop a mark whose
 line is deleted. Why: a mark should point at the text you marked, which is
 what kernel marks already do.
 
-### N8. Autocomplete asks the language server only
+### N8. Autocomplete and <C-x><C-o> list every source
 
-With `autocomplete` on, the menu lists the server's items and never the
-buffer's words, which Neovim's `'autocomplete'` takes from `'complete'`.
-Why: fude has no keyword completion, and a server's items already cover a
-buffer's own names.
+With `autocomplete` on, and on `<C-x><C-o>`, the menu lists the items of
+every source `completion_sources` names: a language server's, snippets,
+paths and the open buffers' words (B206). Neovim's `'autocomplete'` lists
+what `'complete'` names, which by default is the buffers' words and no
+server's items, and its `<C-x><C-o>` asks `'omnifunc'` alone. Why: one
+menu of a server's names, the buffers' words and paths works with a
+server and without one, and `completion_sources` picks and orders what
+it holds. The keys that ask for one kind, `<C-n>`, `<C-p>`, `<C-x><C-n>`,
+`<C-x><C-p>`, `<C-x><C-l>` and `<C-x><C-f>`, work as Neovim's do (B440
+to B443).
 
 ### N9. No mouse
 

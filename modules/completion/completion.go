@@ -81,11 +81,20 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 	for start > 0 && isWord(t.Slice(start-1, start)[0]) {
 		start--
 	}
+	keys := s.About["keys"]
 	switch id {
 	case buffer:
+		switch keys {
+		case "<C-x><C-l>":
+			// The line's text after its indent.
+			start = c - len(strings.TrimLeft(t.Slice(t.LineStart(t.LineOf(c)), c), " \t"))
+			return api.Result{Completion: &api.Completion{Start: start, Items: searched(s, keys, t.Slice(start, c), c), Only: true}}, nil
+		case "<C-n>", "<C-p>", "<C-x><C-n>", "<C-x><C-p>":
+			return api.Result{Completion: &api.Completion{Start: start, Items: searched(s, keys, t.Slice(start, c), c)}}, nil
+		}
 		return api.Result{Completion: &api.Completion{Start: start, Items: words(s, t.Slice(start, c), c)}}, nil
 	case path:
-		dir, at, ok := pathBefore(t, c, s.About["path"])
+		dir, at, ok := pathBefore(t, c, s.About["path"], keys == "<C-x><C-f>")
 		if !ok {
 			return api.Result{}, nil
 		}
@@ -148,6 +157,78 @@ func isWord(c byte) bool {
 	return c == '_' || c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
 }
 
+// unit is a word, or a line after its indent, and where it starts.
+type unit struct {
+	text string
+	at   int
+}
+
+// units returns the words of text, or with lines its lines after their
+// indent, that start with prefix and are longer, each where it starts
+// plus base.
+func units(text string, base int, lines bool, prefix string) []unit {
+	var out []unit
+	keep := func(s string, at int) {
+		if len(s) > len(prefix) && strings.HasPrefix(s, prefix) {
+			out = append(out, unit{s, base + at})
+		}
+	}
+	if lines {
+		at := 0
+		for l := range strings.Lines(text) {
+			keep(strings.TrimLeft(strings.TrimSuffix(l, "\n"), " \t"), at)
+			at += len(l)
+		}
+		return out
+	}
+	for i := 0; i < len(text); {
+		if !isWord(text[i]) {
+			i++
+			continue
+		}
+		j := i
+		for j < len(text) && isWord(text[j]) {
+			j++
+		}
+		keep(text[i:j], i)
+		i = j
+	}
+	return out
+}
+
+// elsewhere returns the units of the open buffers except the call's and
+// the terminals, from the start of each, by buffer id.
+func elsewhere(s api.Scope, lines bool, prefix string) []unit {
+	var out []unit
+	self, _ := strconv.Atoi(s.About["buffer"])
+	for _, id := range slices.Sorted(maps.Keys(s.Buffers)) {
+		if b := s.Buffers[id]; id != self && b.Kind != "terminal" {
+			out = append(out, units(b.Text.Slice(0, min(b.Text.Len(), wordWindow)), 0, lines, prefix)...)
+		}
+	}
+	return out
+}
+
+// unique returns the texts of us as items, each once where it first
+// comes, or with last where it last comes.
+func unique(us []unit, last bool) []api.CompletionItem {
+	if last {
+		slices.Reverse(us)
+	}
+	seen := map[string]bool{}
+	var out []api.CompletionItem
+	for _, u := range us {
+		if !seen[u.text] {
+			seen[u.text] = true
+			out = append(out, api.CompletionItem{Label: u.text, Text: u.text})
+		}
+	}
+	if last {
+		slices.Reverse(out)
+	}
+	return out
+}
+
 // words returns the words longer than prefix that start with it, from the
 // buffer the call is about nearest c first, then from the other open
 // buffers but terminals (B206).
@@ -155,58 +236,58 @@ func words(s api.Scope, prefix string, c int) []api.CompletionItem {
 	if prefix == "" {
 		return nil
 	}
-	cur := s.Text
-	lo, hi := max(c-wordWindow, 0), min(c+wordWindow, cur.Len())
-	type found struct {
-		word string
-		far  int
+	t, lo := s.Text, max(c-wordWindow, 0)
+	near := units(t.Slice(lo, min(c+wordWindow, t.Len())), lo, false, prefix)
+	slices.SortStableFunc(near, func(a, b unit) int { return cmp.Compare(max(a.at-c, c-a.at), max(b.at-c, c-b.at)) })
+	return unique(slices.Concat(near, elsewhere(s, false, prefix)), false)
+}
+
+// searched returns the words that start with prefix, or for <C-x><C-l>
+// the lines that do after their indent, in the order keys search: the
+// buffer the call is about from c to its end and then from its start,
+// then the other open buffers. A key that searches back puts the other
+// buffers first, so the last item is the nearest before c. <C-x><C-n> and
+// <C-x><C-p> search the buffer alone (B440, B441, B442).
+func searched(s api.Scope, keys, prefix string, c int) []api.CompletionItem {
+	t, lines := s.Text, keys == "<C-x><C-l>"
+	// Lines go from the one after the cursor's, which is left out.
+	pivot := c
+	if lines {
+		pivot = t.LineStart(t.LineOf(c))
 	}
-	var all []found
-	seen := map[string]bool{}
-	scan := func(text string, at, base int) {
-		for i := 0; i < len(text); {
-			if !isWord(text[i]) {
-				i++
-				continue
-			}
-			j := i
-			for j < len(text) && isWord(text[j]) {
-				j++
-			}
-			if w := text[i:j]; len(w) > len(prefix) && strings.HasPrefix(w, prefix) && !seen[w] {
-				seen[w] = true
-				all = append(all, found{w, base + max(at-i, i-at)})
-			}
-			i = j
+	lo := t.LineStart(t.LineOf(max(c-wordWindow, 0)))
+	var after, before, others []unit
+	for _, u := range units(t.Slice(lo, min(c+wordWindow, t.Len())), lo, lines, prefix) {
+		switch {
+		case lines && u.at == pivot:
+		case u.at < pivot:
+			before = append(before, u)
+		default:
+			after = append(after, u)
 		}
 	}
-	scan(cur.Slice(lo, hi), c-lo, 0)
-	self, _ := strconv.Atoi(s.About["buffer"])
-	for _, id := range slices.Sorted(maps.Keys(s.Buffers)) {
-		if b := s.Buffers[id]; id != self && b.Kind != "terminal" {
-			scan(b.Text.Slice(0, min(b.Text.Len(), wordWindow)), 0, cur.Len())
-		}
+	if keys != "<C-x><C-n>" && keys != "<C-x><C-p>" {
+		others = elsewhere(s, lines, prefix)
 	}
-	slices.SortStableFunc(all, func(a, b found) int { return cmp.Compare(a.far, b.far) })
-	out := make([]api.CompletionItem, len(all))
-	for i, f := range all {
-		out[i] = api.CompletionItem{Label: f.word, Text: f.word}
+	if keys == "<C-p>" || keys == "<C-x><C-p>" || lines {
+		return unique(slices.Concat(others, after, before), true)
 	}
-	return out
+	return unique(slices.Concat(after, before, others), false)
 }
 
 // pathBefore reports whether the text before c, back to a blank or a
 // quote, is a path, and returns the directory it names and where its last
 // part starts. A relative path is from file's directory, and ~/ is the
-// home directory.
-func pathBefore(t api.Text, c int, file string) (string, int, bool) {
+// home directory. With bare, a name with no / is a path in file's
+// directory too (B443).
+func pathBefore(t api.Text, c int, file string, bare bool) (string, int, bool) {
 	ls := t.LineStart(t.LineOf(c))
 	line := t.Slice(ls, c)
 	p := line[strings.LastIndexAny(line, " \t\"'`(<=,;")+1:]
 	// Windows takes \ between folders as well as /.
 	sep := string(filepath.Separator)
 	slash := strings.LastIndexAny(p, "/"+sep)
-	if slash < 0 {
+	if slash < 0 && !bare {
 		return "", 0, false
 	}
 	dir := p[:slash+1]

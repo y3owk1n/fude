@@ -50,7 +50,9 @@ it again until `:lsp restart`.
 - `]d` and `[d` go to the next and previous diagnostic.
 - `<C-x><C-o>` in insert mode lists completions, and with `autocomplete`
   on they show as you type. `<C-n>` and `<C-p>` select one and `<C-y>`
-  takes it. `<C-s>` shows the signature of the call being typed.
+  takes it. With no menu, `<C-n>` and `<C-p>` complete the word from the
+  open buffers' words. `<C-s>` shows the signature of the call being
+  typed.
 
 With several servers on a file, every one's diagnostics show, and
 hover, places, symbols, code actions and completions come from each server
