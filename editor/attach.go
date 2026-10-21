@@ -36,6 +36,7 @@ func (e *Session) frame(sent map[int]kernel.Version) wire.Frame {
 	f.Suspend = e.Suspend()
 	f.Theme, f.Base16, f.Colors = e.Theme()
 	f.Styles, f.Restyled = e.Styles()
+	f.Title = e.Title()
 	// A session that left is gone from the sessions. One that fude quit is
 	// still there.
 	if f.Done = e.done; f.Done && slices.Contains(e.sessions, e) {

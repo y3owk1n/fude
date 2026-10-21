@@ -108,6 +108,10 @@ Where fude departs, the line says so and cites the departure in
   bar in insert mode, and an underline in replace mode, while an operator
   waits for its target and while `r` waits for its character, as Neovim's
   default `guicursor` has it.
+- B480 [1] With `title` on, the terminal's title shows the name of the
+  current window's file, without its folder, and fude puts the title it
+  found back as it quits, as Neovim's `title` does. Off, as it is unless
+  set, fude leaves the title alone.
 - B7 [1] Text typed in insert mode is one timeline node from entering
   insert to leaving it, except where `<Left>`, `<Right>`, `<C-w>`, `<C-u>`
   or `<C-g>u` split it, as in Neovim.

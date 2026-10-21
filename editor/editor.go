@@ -885,6 +885,15 @@ func (e *Session) Theme() (string, *[16]int32, *wire.Colors) {
 	return e.theme, e.base16, &over
 }
 
+// Title returns what the terminal's title shows: the name of the current
+// window's file with title on, else "" (B480).
+func (e *Session) Title() string {
+	if !e.cfg.Title {
+		return ""
+	}
+	return filepath.Base(e.win.buf.name())
+}
+
 // Styles returns the styles modules defined, by name, and how many times
 // they changed (B345).
 func (e *Session) Styles() (map[string]wire.Style, int) { return e.styles, e.restyled }

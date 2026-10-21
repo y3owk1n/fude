@@ -342,6 +342,7 @@ func (a *Attached) Recording() rune    { return a.f.Recording }
 func (a *Attached) Substituting() bool { return a.f.Substituting }
 func (a *Attached) Terminal() bool     { return a.f.Terminal }
 func (a *Attached) Shown() string      { return a.f.Shown }
+func (a *Attached) Title() string      { return a.f.Title }
 
 // Theme returns a guest's own theme, or else the one fude draws in.
 func (a *Attached) Styles() (map[string]wire.Style, int) { return a.f.Styles, a.f.Restyled }

@@ -46,6 +46,7 @@ type Session interface {
 	Shown() string
 	Theme() (string, *[16]int32, *wire.Colors)
 	Styles() (map[string]wire.Style, int)
+	Title() string // what the terminal's title shows, "" to leave it
 	TerminalClipboard() (string, bool)
 	Image(id int) ([]byte, bool) // the PNG an image's rows show (B303)
 	Freed() []int                // the images dropped since it was last called (B306)

@@ -2281,3 +2281,20 @@ func TestB452LineBreak(t *testing.T) {
 		}
 	}
 }
+
+// B480
+func TestB480Title(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "notes.txt")
+	if err := os.WriteFile(path, []byte("a\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for config, want := range map[string]string{"": "", "title = true\n": "notes.txt"} {
+		c := startWith(t, config, path)
+		mt := vt.NewMockTerm(vt.MockOptSize{X: 120, Y: 40})
+		c.s = screenOn(t, mt)
+		c.draw()
+		if got := mt.GetTitle(); got != want {
+			t.Errorf("with %q the title is %q, want %q", config, got, want)
+		}
+	}
+}

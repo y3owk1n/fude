@@ -219,6 +219,7 @@ type client struct {
 	out   io.Writer
 	marks [][2]int
 	wrote string // the cursors last written to out
+	title string // the terminal's title last set
 }
 
 // Kitty's multiple cursors protocol: clearCursors removes the terminal's
@@ -431,6 +432,11 @@ func (c *client) draw() {
 	shape := c.shape
 	if text, ok := c.e.TerminalClipboard(); ok {
 		c.s.SetClipboard([]byte(text))
+	}
+	// The screen puts the terminal's old title back as it ends (B480).
+	if title := c.e.Title(); title != "" && title != c.title {
+		c.s.SetTitle(title)
+		c.title = title
 	}
 	c.s.SetCursorStyle(shape)
 	c.s.ShowCursor(cx, cy)

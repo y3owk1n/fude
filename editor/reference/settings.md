@@ -299,6 +299,11 @@ directory, which spell reads too.
 in. A path may start with `~/`. `:theme` switches the theme until fude
 quits.
 
+## title
+
+The terminal's title shows the name of the current window's file, without
+its folder, and gets the title it had back as fude quits. Off unless set.
+
 ## colors
 
 Replaces the theme's colour for a role, such as `bg = "#101418"` under
