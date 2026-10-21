@@ -485,6 +485,10 @@ func TestB426FileInfo(t *testing.T) {
 	if feed(e, ":w<CR>"); disk(t, renamed) != "one\ntwo\nthree\nfour\n" {
 		t.Errorf(":w after :file wrote %q", disk(t, renamed))
 	}
+	// The old name is the alternate file.
+	if feed(e, ":e #<CR>"); e.Windows()[0].Name != path {
+		t.Errorf(":e # after :file showed %q, want %q", e.Windows()[0].Name, path)
+	}
 	empty := open(t, "")
 	if feed(empty, "<C-g>"); empty.Message() != `"[No Name]" has no lines` {
 		t.Errorf("<C-g> in an empty buffer said %q", empty.Message())
@@ -513,5 +517,9 @@ func TestB427SaveAs(t *testing.T) {
 	// left as it was.
 	if feed(e, ":saveas! "+b+"<CR>x:w<CR>"); disk(t, b) != "e\n" || disk(t, a) != "one\n" || e.Windows()[0].Name != b {
 		t.Errorf(":saveas! then :w left %q in b and %q in a, the buffer named %q", disk(t, b), disk(t, a), e.Windows()[0].Name)
+	}
+	// The old name is the alternate file, with the text on disk.
+	if feed(e, ":e #<CR>"); e.Windows()[0].Name != a || text(e) != "one" {
+		t.Errorf(":e # after :saveas showed %q with %q", e.Windows()[0].Name, text(e))
 	}
 }

@@ -223,7 +223,8 @@ files under the project.
 Says the buffer's name, whether it is modified, how many lines it has and
 how far down the cursor's line is, as `<C-g>` does. With a file name it
 first makes that the buffer's file, so the next `:w` writes there. The
-old file stays as it was. It writes nothing itself, and `:saveas` names
+old file stays as it was, and becomes the alternate file, which `<C-^>`
+and `#` name. It writes nothing itself, and `:saveas` names
 and writes at once. A name that is a file already makes `:w` ask before
 writing over it.
 
@@ -414,8 +415,8 @@ cursor stays.
 
 Makes the file the buffer's file and writes the buffer there, as `:file`
 then `:w` would. From then on `:w` writes to the new file, and the old one
-stays as it was. It refuses a file that is already there, and `:saveas!`
-writes over it.
+stays as it was and becomes the alternate file. It refuses a file that is
+already there, and `:saveas!` writes over it.
 
 ## :select
 

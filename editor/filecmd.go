@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -78,8 +79,9 @@ func (e *Session) writeTo(b *buffer, path string, force bool) error {
 }
 
 // rename makes path b's file, which b is not yet written to, as :file
-// path does, with the filetype and language servers of the new name.
-// Writing over a file already there asks first (B426).
+// path does, with the filetype and language servers of the new name. The
+// old name becomes the window's alternate file. Writing over a file
+// already there asks first (B426).
 func (e *Session) rename(b *buffer, path string) error {
 	// The servers hear of the close under the old name.
 	e.detach(b)
@@ -88,7 +90,18 @@ func (e *Session) rename(b *buffer, path string) error {
 	_, err := os.Stat(path)
 	b.file.isNew = err != nil
 	e.emit("buffer.renamed", old, b)
-	return e.retype(b)
+	if err := e.retype(b); err != nil || old == "" || b.is(old) {
+		return err
+	}
+	i := slices.IndexFunc(e.bufs, func(o *buffer) bool { return o.is(old) })
+	if i < 0 {
+		if _, err := e.add(old); err != nil {
+			return fmt.Errorf("open %s as the alternate file: %w", old, err)
+		}
+		i = len(e.bufs) - 1
+	}
+	e.win.alt = e.bufs[i]
+	return nil
 }
 
 // saveAs makes path the current buffer's file and writes it there, as

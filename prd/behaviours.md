@@ -583,8 +583,9 @@ Where fude departs, the line says so and cites the departure in
   --50%--`. A count gives the full path, and a count over 1 the
   buffer's number first. `:file name` makes name the buffer's file
   without writing, and the next `:w` writes there. The buffer takes the
-  filetype and language servers of its new name, here and after
-  `:saveas`.
+  filetype and language servers of its new name, and the old name becomes
+  the window's alternate file, so `<C-^>` and `#` reach it, as in Neovim,
+  here and after `:saveas`.
 - B427 [2] `:saveas file` makes file the buffer's file and writes it
   there, and `:w` writes there after. The old file stays as it was. It
   refuses a file that exists, and `:saveas!` writes over it.
