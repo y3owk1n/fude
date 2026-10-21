@@ -3,7 +3,6 @@ package vim
 import (
 	"slices"
 	"strings"
-	"unicode"
 	"unicode/utf8"
 )
 
@@ -251,7 +250,6 @@ func wordRight(m *Machine, _ Key, _, after string) error {
 }
 
 func lineWordStart(s string) int {
-	isWord := func(r rune) bool { return r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r) }
 	i := len(strings.TrimRight(s, " "))
 	last, _ := utf8.DecodeLastRuneInString(s[:i])
 	for i > 0 {

@@ -869,11 +869,14 @@ func class(t Text, p int, big bool) int {
 		return 0
 	case big:
 		return 1
-	case r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r):
+	case isWord(r):
 		return 2
 	}
 	return 1
 }
+
+// isWord reports whether r is part of a word: a letter, a digit or _.
+func isWord(r rune) bool { return r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r) }
 
 func at(t Text, p int) byte {
 	if p >= t.Len() {
