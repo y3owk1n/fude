@@ -132,17 +132,25 @@ type Buffer struct {
 	quit  chan struct{}
 }
 
+// change is the edits of one change. tree is the same edits, last first,
+// for a tree, and none when the change makes more than many, as a tree is
+// then parsed again whole.
 type change struct {
 	seq   int
 	edits []Edit
-	tree  []ts.InputEdit // the same edits, last first, for a tree
+	tree  []ts.InputEdit
 }
 
+// many is how many edits a change makes before a tree is parsed again
+// whole, which is faster than moving it through each.
+const many = 1000
+
 // pending is an edit the worker has yet to make to its tree, from the
-// change numbered seq.
+// change numbered seq, or with whole the tree to drop.
 type pending struct {
-	seq  int
-	tree ts.InputEdit
+	seq   int
+	tree  ts.InputEdit
+	whole bool
 }
 
 // request asks for the spans of the parts of text that views show, each
@@ -327,8 +335,11 @@ func (h *Buffer) Changed(before Text, edits []Edit) {
 	c := change{seq: h.seq, edits: edits}
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	if len(edits) > many {
+		h.edits = append(h.edits, pending{seq: h.seq, whole: true})
+	}
 	// Last first, so each edit's positions hold when it is made.
-	for i := len(edits) - 1; i >= 0; i-- {
+	for i := len(edits) - 1; i >= 0 && len(edits) <= many; i-- {
 		e := edits[i]
 		start := point(before, e.Start)
 		in := ts.InputEdit{
@@ -336,25 +347,36 @@ func (h *Buffer) Changed(before Text, edits []Edit) {
 			StartPosition: start, OldEndPosition: point(before, e.End), NewEndPosition: after(start, e.Text),
 		}
 		c.tree = append(c.tree, in)
-		h.edits = append(h.edits, pending{h.seq, in})
+		h.edits = append(h.edits, pending{seq: h.seq, tree: in})
 	}
 	h.log = append(h.log, c)
-	c.move(h.spans, h.regions, h.tree)
+	h.tree = c.move(h.spans, h.regions, h.tree)
 }
 
-// move moves spans, regions and tree through c. tree may be nil.
-func (c change) move(spans []Span, regions []Region, tree *ts.Tree) {
+// move moves spans, regions and tree through c and returns the tree. When
+// c makes more than many edits it frees the tree off the loop and returns
+// nil. tree may be nil.
+func (c change) move(spans []Span, regions []Region, tree *ts.Tree) *ts.Tree {
+	grew := make([]int, len(c.edits)+1)
+	for i, e := range c.edits {
+		grew[i+1] = grew[i] + len(e.Text) - (e.End - e.Start)
+	}
 	for i, s := range spans {
-		spans[i].Start, spans[i].End = through(c.edits, s.Start, true), through(c.edits, s.End, false)
+		spans[i].Start, spans[i].End = through(c.edits, grew, s.Start, true), through(c.edits, grew, s.End, false)
 	}
 	for i, r := range regions {
-		regions[i].Start, regions[i].End = through(c.edits, r.Start, true), through(c.edits, r.End, false)
+		regions[i].Start, regions[i].End = through(c.edits, grew, r.Start, true), through(c.edits, grew, r.End, false)
+	}
+	if tree != nil && len(c.edits) > many {
+		go tree.Close()
+		return nil
 	}
 	if tree != nil {
 		for i := range c.tree {
 			tree.Edit(&c.tree[i])
 		}
 	}
+	return tree
 }
 
 // Show returns the spans that colour [from, to) of t, the text now, which
@@ -445,7 +467,7 @@ func (h *Buffer) take(seq int, spans []Span, regions []Region, missing []problem
 	}
 	h.log = h.log[i:]
 	for _, c := range h.log {
-		c.move(spans, regions, tree)
+		tree = c.move(spans, regions, tree)
 	}
 	h.spans, h.regions, h.tree = spans, regions, tree
 	h.parsed()
@@ -488,8 +510,12 @@ func (h *Buffer) run(filetype string, p *ts.Parser, q, inj *ts.Query, in *inject
 		edits := slices.Clone(h.edits[:n])
 		h.edits = slices.Delete(h.edits, 0, n)
 		h.mu.Unlock()
-		if tree != nil {
-			for i := range edits {
+		for i := range edits {
+			switch {
+			case tree != nil && edits[i].whole:
+				tree.Close()
+				tree = nil
+			case tree != nil:
 				tree.Edit(&edits[i].tree)
 			}
 		}
@@ -1042,13 +1068,18 @@ func after(start ts.Point, text string) ts.Point {
 	return ts.Point{Row: start.Row, Column: start.Column + uint(len(text))}
 }
 
-// through moves pos through a change's sorted edits. Text inserted at pos
-// goes before it when right is set.
-func through(edits []Edit, pos int, right bool) int {
-	for i := len(edits) - 1; i >= 0; i-- {
+// through moves pos through a change's sorted edits, which grew the text
+// by grew[i] before the i-th. Text inserted at pos goes before it when
+// right is set. It looks only at the edits about pos, and moves it by how
+// much the edits before them grew the text.
+func through(edits []Edit, grew []int, pos int, right bool) int {
+	k, _ := slices.BinarySearchFunc(edits, pos+1, func(e Edit, p int) int { return cmp.Compare(e.Start, p) })
+	for i := k - 1; i >= 0; i-- {
 		e := edits[i]
 		switch {
-		case pos > e.End || pos == e.End && (e.Start < e.End || right):
+		case pos > e.End:
+			return pos + grew[i+1]
+		case pos == e.End && (e.Start < e.End || right):
 			pos += len(e.Text) - (e.End - e.Start)
 		case pos > e.Start:
 			pos = e.Start
