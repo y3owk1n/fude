@@ -1,7 +1,10 @@
 // Package rope is a persistent, balanced rope of bytes.
 package rope
 
-import "strings"
+import (
+	"slices"
+	"strings"
+)
 
 // maxLeaf is the most bytes a leaf holds.
 const maxLeaf = 1024
@@ -49,8 +52,19 @@ func (r Rope) Slice(start, end int) string {
 	}
 	var b strings.Builder
 	b.Grow(end - start)
-	collect(n, start, end, &b)
+	collect(n, start, end, func(s string) { b.WriteString(s) })
 	return b.String()
+}
+
+// AppendSlice appends the bytes in [start, end) to dst and returns it, so a
+// reader that reuses dst copies the text without garbage.
+func (r Rope) AppendSlice(dst []byte, start, end int) []byte {
+	if start < 0 || end > r.Len() || start > end {
+		panic("rope: slice out of range")
+	}
+	dst = slices.Grow(dst, end-start)
+	collect(r.root, start, end, func(s string) { dst = append(dst, s...) })
+	return dst
 }
 
 // Lines returns the number of lines, one more than the newlines.
@@ -119,20 +133,20 @@ func build(s string) *node {
 	return branch(build(s[:mid]), build(s[mid:]))
 }
 
-func collect(n *node, start, end int, b *strings.Builder) {
+func collect(n *node, start, end int, put func(string)) {
 	if n == nil || start >= end {
 		return
 	}
 	if n.left == nil {
-		b.WriteString(n.text[start:end])
+		put(n.text[start:end])
 		return
 	}
 	l := n.left.length
 	if start < l {
-		collect(n.left, start, min(end, l), b)
+		collect(n.left, start, min(end, l), put)
 	}
 	if end > l {
-		collect(n.right, max(start-l, 0), end-l, b)
+		collect(n.right, max(start-l, 0), end-l, put)
 	}
 }
 

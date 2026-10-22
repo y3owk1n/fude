@@ -109,6 +109,11 @@ func (s Snapshot) Len() int { return s.text.Len() }
 // Slice returns the bytes in [start, end).
 func (s Snapshot) Slice(start, end int) string { return s.text.Slice(start, end) }
 
+// AppendSlice appends the bytes in [start, end) to dst and returns it.
+func (s Snapshot) AppendSlice(dst []byte, start, end int) []byte {
+	return s.text.AppendSlice(dst, start, end)
+}
+
 // Lines returns the number of lines, one more than the newlines.
 func (s Snapshot) Lines() int { return s.text.Lines() }
 

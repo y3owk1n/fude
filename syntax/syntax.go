@@ -56,7 +56,7 @@ var Objects = map[string]Object{
 }
 
 // chunk is the most text a parse reads at once.
-const chunk = 64 << 10
+const chunk = 1 << 10
 
 // Text is the text of a buffer as syntax reads it. Lines count from 0.
 // core's Snapshot satisfies it as is.
@@ -66,6 +66,17 @@ type Text interface {
 	Lines() int
 	LineStart(line int) int
 	LineOf(pos int) int
+}
+
+// appendSlice appends t's bytes in [start, end) to dst and returns it,
+// without garbage when t has AppendSlice.
+func appendSlice(dst []byte, t Text, start, end int) []byte {
+	if a, ok := t.(interface {
+		AppendSlice(dst []byte, start, end int) []byte
+	}); ok {
+		return a.AppendSlice(dst, start, end)
+	}
+	return append(dst, t.Slice(start, end)...)
 }
 
 // Edit replaces the bytes from Start to End with Text.
@@ -516,10 +527,7 @@ func (h *Buffer) run(filetype string, p *ts.Parser, q, inj *ts.Query, in *inject
 		if r.seq != parsed || tree == nil {
 			// The worker copies the text once a parse. Moving its copy through
 			// each edit would move up to the file's size an edit.
-			text = text[:0]
-			for at := 0; at < r.text.Len(); at += chunk {
-				text = append(text, r.text.Slice(at, min(at+chunk, r.text.Len()))...)
-			}
+			text = appendSlice(text[:0], r.text, 0, r.text.Len())
 			// A parse runs to the end even when a newer request comes, since a
 			// stopped parse would start over. Only Close stops one. Reset does
 			// not clear a parser stopped as it balances its tree, so its next
@@ -532,8 +540,8 @@ func (h *Buffer) run(filetype string, p *ts.Parser, q, inj *ts.Query, in *inject
 					return false
 				}
 			}
-			// The binding copies each chunk the callback returns, so chunks stay
-			// small.
+			// The binding copies each chunk the callback returns, and a reparse
+			// reads a little at many places, so chunks stay small.
 			at := time.Now()
 			parse := p.ParseWithOptions(func(i int, _ ts.Point) []byte { return text[i:min(i+chunk, len(text))] }, tree,
 				&ts.ParseOptions{ProgressCallback: stop})
