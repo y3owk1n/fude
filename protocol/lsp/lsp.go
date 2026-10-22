@@ -379,6 +379,7 @@ func (c *Client) write(root string, options any, initialized <-chan answer, noti
 			"textDocument": map[string]any{
 				"completion":         map[string]any{"completionItem": map[string]any{"snippetSupport": true}},
 				"diagnostic":         map[string]any{},
+				"publishDiagnostics": map[string]any{},
 				"inlayHint":          map[string]any{},
 				"inlineCompletion":   map[string]any{},
 				"onTypeFormatting":   map[string]any{},

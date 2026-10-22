@@ -34,8 +34,8 @@ import (
 // run as a process of its own. It answers initialize with the encoding in
 // FUDE_FAKE_ENCODING, appends every message it gets to FUDE_FAKE_LOG, and
 // crashes when a change inserts "#". Each "bad" in an opened document gets
-// an error diagnostic, a definition or type definition is the first "target"
-// in it and a declaration the last, references and implementations are
+// an error diagnostic, published only to a client that says it takes them.
+// A definition or type definition is the first "target" in it and a declaration the last, references and implementations are
 // every "target", its symbols are f with x inside, rename changes every
 // "target" and puts a line at the top of other.go beside it, code actions are an edit that puts "hi " first and
 // a command that asks fude to put "cmd " first, signature help is
@@ -83,7 +83,7 @@ func TestFakeServer(t *testing.T) {
 	opened := map[string]string{}
 	lensAsks := 0
 	offers := strings.Fields(os.Getenv("FUDE_FAKE_OFFER"))
-	saves, root := 0, ""
+	saves, root, publishes := 0, "", false
 	// send sends a request or a notification of its own.
 	send := func(m map[string]any) {
 		m["jsonrpc"] = "2.0"
@@ -116,9 +116,14 @@ func TestFakeServer(t *testing.T) {
 			ID     *int   `json:"id"`
 			Method string `json:"method"`
 			Params struct {
-				NewName string `json:"newName"`
-				RootURI string `json:"rootUri"`
-				Files   []struct {
+				NewName      string `json:"newName"`
+				RootURI      string `json:"rootUri"`
+				Capabilities struct {
+					TextDocument struct {
+						PublishDiagnostics json.RawMessage `json:"publishDiagnostics"`
+					} `json:"textDocument"`
+				} `json:"capabilities"`
+				Files []struct {
 					OldURI string `json:"oldUri"`
 				} `json:"files"`
 				Query          string          `json:"query"`
@@ -325,8 +330,9 @@ func TestFakeServer(t *testing.T) {
 					ds = append(ds, map[string]any{"range": r, "severity": 1, "message": "bad word", "source": "fake", "code": 7})
 				}
 			}
-			body, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "method": "textDocument/publishDiagnostics", "params": map[string]any{"uri": m.Params.TextDocument.URI, "diagnostics": ds}})
-			fmt.Fprintf(os.Stdout, "Content-Length: %d\r\n\r\n%s", len(body), body)
+			if publishes {
+				send(map[string]any{"method": "textDocument/publishDiagnostics", "params": map[string]any{"uri": m.Params.TextDocument.URI, "diagnostics": ds}})
+			}
 		case "textDocument/diagnostic":
 			var ds []any
 			for line, l := range strings.Split(opened[m.Params.TextDocument.URI], "\n") {
@@ -382,6 +388,7 @@ func TestFakeServer(t *testing.T) {
 			}
 		case "initialize":
 			root = m.Params.RootURI
+			publishes = m.Params.Capabilities.TextDocument.PublishDiagnostics != nil
 			goFiles := map[string]any{"filters": []any{map[string]any{"pattern": map[string]any{"glob": "**/*.go"}}}}
 			// What each word of FUDE_FAKE_OFFER adds to what it offers.
 			more := map[string]map[string]any{
