@@ -192,7 +192,7 @@ func help() {
 	fmt.Fprint(w, `fude is a modal text editor.
 
 usage:
-  fude [flags] [+<line>] [<file>...]
+  fude [flags] [+<cmd>...] [<file>[:<line>[:<byte>]]...]
   fude <command> [flags] [<args>]
 
 commands:

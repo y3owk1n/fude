@@ -1413,6 +1413,17 @@ already the choice to use what it offers, as inlay hints show unless set
 off (B216). An option for each would be five switches to find before a
 server works.
 
+### N57. A file opens at a line as `path:N`
+
+`fude a.go:12:5` opens a.go at line 12, byte 5 (B80). Compilers, `grep -n`
+and stack traces print a place in this form, and Neovim cannot open it.
+fude runs each `+cmd` as a `:` command once the files and modules load, so
+`+N`, `+` and `+/pat` are `:N`, `:$` and `:/pat`. There is no `-c`,
+`--cmd`, `-t` or `-q`. Why: a place pasted from a tool's output should
+open as printed, and `:` commands already cover every other start-up need.
+A colon before anything but a number stays in the name, as in `C:\a.go`.
+A name that is already a file opens as that file.
+
 ## Open
 
 None.

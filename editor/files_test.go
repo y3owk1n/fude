@@ -191,20 +191,23 @@ func TestB80StartWithFiles(t *testing.T) {
 	if err := os.WriteFile(a, []byte("one\n  two\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(b, []byte("bee\n"), 0o644); err != nil {
+	if err := os.WriteFile(b, []byte("bee\nsea\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	e, err := editor.Start([]string{"+2", a, b})
+	// :bn comes from a module, so this shows the commands run after modules
+	// load.
+	e, err := editor.Start([]string{"+2", "+bn", a, b + ":2:2"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	e.Use(buffersmod.New())
-	if text(e) != "one\n  two" || e.Cursor() != 6 {
-		t.Fatalf("started on %q at %d, want line 2 of a at 6", text(e), e.Cursor())
+	e.Load()
+	if text(e) != "bee\nsea" || e.Cursor() != 5 {
+		t.Fatalf("started on %q at %d, want byte 2 of line 2 of b at 5", text(e), e.Cursor())
 	}
-	feed(e, ":bn<CR>")
-	if text(e) != "bee" {
-		t.Fatalf(":bn showed %q, want b", text(e))
+	feed(e, ":bp<CR>")
+	if text(e) != "one\n  two" || e.Cursor() != 6 {
+		t.Fatalf(":bp showed %q at %d, want line 2 of a at 6", text(e), e.Cursor())
 	}
 }
 

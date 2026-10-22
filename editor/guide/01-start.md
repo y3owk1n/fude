@@ -7,9 +7,12 @@ together. This page covers enough to open, edit and save files.
 ## Opening files
 
 `fude a.go b.go` opens both files, each in a buffer, and shows the first.
-`fude +42 a.go` starts on line 42. `fude` alone shows a start screen, where
-`f` finds a file, `r` lists the files you opened last, a digit opens one of
-them and `e` starts an empty buffer. When you quit, fude keeps the
+`fude a.go:42` starts on line 42, and `fude a.go:42:7` on its seventh byte,
+the form compilers and `grep -n` print. `fude +cmd a.go` runs `:cmd`
+once the file is open, so `+42` also goes to line 42 and `+` to the last.
+`fude` alone shows a start screen, where `f` finds a file, `r` lists the
+files you opened last, a digit opens one of them and `e` starts an empty
+buffer. When you quit, fude keeps the
 directory's windows and cursors, and `s` on the start screen brings them
 back. `fude src/` lists a folder. In an explorer, `<CR>` opens the entry under the
 cursor and `-` goes up a folder.

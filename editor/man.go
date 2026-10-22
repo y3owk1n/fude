@@ -135,13 +135,15 @@ func Man(page string, modules ...api.Module) (string, error) {
 		b.WriteString(`.SH NAME
 fude \- a modal text editor
 .SH SYNOPSIS
-` + usageRoff("fude [<flags>] [+<line>] [<file>...]") + `
+` + usageRoff("fude [<flags>] [+<cmd>...] [<file>[:<line>[:<byte>]]...]") + `
 .br
 ` + usageRoff("fude <command> [<flags>] [<args>]") + `
 .SH DESCRIPTION
 fude opens each file in a buffer, or an empty buffer when none is given.
 A folder opens in an explorer.
-With \fB+\fR\fIline\fR, the cursor starts on that line of the first file.
+A file given as \fIfile\fB:\fIline\fR or \fIfile\fB:\fIline\fB:\fIbyte\fR opens there,
+unless a file has that whole name.
+Each \fB+\fR\fIcmd\fR runs as a \fB:\fR command once the files are open, in order.
 Inside fude, \fB:h\fR shows this reference, the settings, the mappings
 config.toml adds and the guide.
 .SH SUBCOMMANDS

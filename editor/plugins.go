@@ -60,6 +60,9 @@ func (e *Session) Load() {
 	}
 	e.plugged = len(e.setup)
 	e.loadPlugins()
+	// This runs after the first frame, so a command such as :terminal knows
+	// the screen's size.
+	e.begin()
 }
 
 // Use runs m, a module built into the distribution, as it runs a plugin

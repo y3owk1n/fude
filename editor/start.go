@@ -24,6 +24,21 @@ func (e *Session) Diff() {
 	e.settle(err)
 }
 
+// begin runs the commands fude started with after +, in order, and stops at
+// the first that fails (B80).
+func (e *Session) begin() {
+	if len(e.startup) == 0 {
+		return
+	}
+	var err error
+	for _, cmd := range e.startup {
+		if err = e.vim.Ex(cmd); err != nil {
+			break
+		}
+	}
+	e.settle(err)
+}
+
 // screenPanel shows p in the current window in place of b, while the
 // window shows b. The window shows no line numbers, guides or wrap, and
 // gets its options back once it shows another buffer (B320).

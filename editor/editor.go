@@ -100,6 +100,7 @@ type Session struct {
 	cursorsIn   *buffer            // the buffer the machine's cursors are in (N43)
 	fileMarks   map[rune]place     // the marks A to Z, each in the one buffer that holds it
 	marksToOpen map[rune]filePlace // the file marks fude remembered whose files are not open yet
+	startup     []string           // the commands after + that Load runs (B80)
 	message     string
 	done        bool
 	cell        [2]int                  // the client's cell in pixels, 0 when it shows no images (B303)
@@ -313,24 +314,24 @@ func builtins(e *Session) {
 	})
 }
 
-// Start reads config.toml and opens the files a command line names. +N puts
-// the cursor on the first non-blank of line N of the first file.
+// Start reads config.toml and opens the files a command line names. A
+// path:N starts that file on line N, and path:N:M on byte M of it. Load
+// runs each +cmd (B80).
 func Start(args []string) (*Session, error) {
-	line := 0
-	var paths []string
+	var paths, cmds []string
+	var places [][2]int
 	for _, a := range args {
-		if n, ok := strings.CutPrefix(a, "+"); ok {
-			if v, err := strconv.Atoi(n); err == nil {
-				line = v
-				continue
-			}
+		if cmd, ok := strings.CutPrefix(a, "+"); ok {
+			cmds = append(cmds, cmp.Or(cmd, "$"))
+			continue
 		}
-		paths = append(paths, a)
+		path, line, col := fileAt(a)
+		paths, places = append(paths, path), append(places, [2]int{line, col})
 	}
 	// A restart opens the saved session's files instead (B170).
 	restored, restoreErr := restartSession()
 	if restored != nil {
-		paths, line = nil, 0
+		paths, places, cmds = nil, nil, nil
 		for _, b := range restored.Buffers {
 			paths = append(paths, b.Path)
 		}
@@ -358,12 +359,19 @@ func Start(args []string) (*Session, error) {
 	if restoreErr != nil {
 		e.message = restoreErr.Error()
 	}
-	if line > 0 {
-		t := e.Text()
-		p := t.LineStart(min(line, t.Lines()) - 1)
-		l := t.Slice(p, vim.LineEnd(t, p))
-		e.setCursor(p + len(l) - len(strings.TrimLeft(l, " \t")))
+	// Each path added one buffer, in order.
+	for i, at := range places {
+		if at[0] == 0 {
+			continue
+		}
+		b := e.bufs[i]
+		pos := lineByte(b.text.Snapshot(), at[0], at[1])
+		b.setMark('"', pos)
+		if b == e.win.buf {
+			e.setCursor(pos)
+		}
 	}
+	e.startup = cmds
 	if cfgErr != nil {
 		e.message = cfgErr.Error()
 	}
@@ -378,6 +386,35 @@ func Start(args []string) (*Session, error) {
 		}
 	})
 	return e, nil
+}
+
+// fileAt splits a path:N or path:N:M that names no file into the path, line
+// N and byte M. A colon before anything but a number stays, as in C:\a.go.
+func fileAt(arg string) (path string, line, col int) {
+	if _, err := os.Lstat(arg); err == nil {
+		return arg, 0, 0
+	}
+	path = arg
+	for range 2 {
+		i := strings.LastIndexByte(path, ':')
+		n, err := strconv.Atoi(path[i+1:])
+		if i < 1 || err != nil || n < 1 {
+			break
+		}
+		path, line, col = path[:i], n, line
+	}
+	return path, line, col
+}
+
+// lineByte returns where byte col of line is in t, both from 1, or the
+// line's first non-blank when col is 0.
+func lineByte(t kernel.Snapshot, line, col int) int {
+	p := t.LineStart(min(line, t.Lines()) - 1)
+	l := t.Slice(p, vim.LineEnd(t, p))
+	if col > 0 {
+		return p + min(col-1, max(len(l)-1, 0))
+	}
+	return p + len(l) - len(strings.TrimLeft(l, " \t"))
 }
 
 // useKeys maps km's keys on e's machine and kinds of buffer, with leader as

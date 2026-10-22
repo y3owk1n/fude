@@ -245,7 +245,7 @@ func TestB354State(t *testing.T) {
 	if err := os.WriteFile(path, []byte("one\ntwo\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	socket := serve(t, "+2", path)
+	socket := serve(t, path+":2")
 	out, err := fude(t.TempDir(), "state", "--socket", socket)
 	var st state
 	if err != nil || strings.Count(out, "\n") != 1 || json.Unmarshal([]byte(out), &st) != nil {

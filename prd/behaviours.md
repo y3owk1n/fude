@@ -21,7 +21,11 @@ Where fude departs, the line says so and cites the departure in
 - B4 [1] A file that is not valid UTF-8 opens read-only with a message saying
   so, unless it is an image (B304).
 - B5 [1] `:q` on a modified buffer refuses and names the buffer. `:q!` quits.
-- B80 [1] `fude a b` opens both as buffers. `fude +N path` opens at line N.
+- B80 [1] `fude a b` opens both as buffers. `fude a:N` opens a at line N
+  and `fude a:N:M` at byte M of it, unless a file has that whole name.
+  `fude +cmd` runs cmd as a `:` command once the files are open, so `+N`
+  goes to line N, `+` to the last line and `+/pat` to the next match. The
+  commands run in order, and one that fails stops those after it.
 - B348 [1] `fude help`, `fude -h` and `fude --help` print fude's
   subcommands and flags, one line each with what it does. Each flag names
   the subcommands that take it. fude(1) lists the same (B163).

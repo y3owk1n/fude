@@ -42,8 +42,9 @@ man: build
     bin/fude man guide > share/man/man7/fude-guide.7
 
 # Build fude and open the files or directories given, or an empty buffer.
+[positional-arguments]
 run *args: build
-    bin/fude {{ args }}
+    bin/fude "$@"
 
 # Build the test plugins, each written with the sdk, with fude plugin build.
 wasm:
