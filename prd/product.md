@@ -57,7 +57,7 @@ Neovim works and drops the weight.
   - `:%s` over the same 10MB of Go, from `<CR>` to the frame that shows
     it, under 50ms.
   - A 1GB file shows its first frame in under 1s and scrolls at frame rate.
-  - Through `fude attach` on the local socket, key read to frame drawn
+  - Through `fude attach` on the local socket, key read to frame written
     under 5ms at p99, on the same file as the 1ms promise.
 - **Extendable**: every built-in operator, target, ex command, keymap,
   decoration and UI element uses the API a plugin gets. Anything the

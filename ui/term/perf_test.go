@@ -2,8 +2,9 @@
 
 // The speed promises in prd/product.md, measured on an M-series Mac. The
 // race detector slows code several times over, so these build only without
-// it, and run with just perf. The mock terminal parses each frame fude
-// writes, so frame times here are higher than in a real terminal.
+// it, and run with just perf. A promise times fude to the frame written,
+// and a terminal parses that frame in a process of its own, so the tests'
+// terminal throws it away.
 
 package term
 
@@ -23,6 +24,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gdamore/tcell/v3"
+	"github.com/gdamore/tcell/v3/vt"
 	"github.com/y3owk1n/fude/distribution"
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/editor/editortest"
@@ -70,6 +73,30 @@ func realCode(t *testing.T, size int) string {
 		t.Fatal(err)
 	}
 	return path
+}
+
+// written returns a screen on a mock terminal that throws away what fude
+// writes once the screen is set up.
+func written(t *testing.T) tcell.Screen {
+	t.Helper()
+	mt := &discard{MockTerm: vt.NewMockTerm(vt.MockOptSize{X: 120, Y: 40})}
+	s := screenOn(t, mt)
+	mt.quiet = true
+	return s
+}
+
+// discard is a mock terminal that, once quiet, takes writes without
+// parsing them.
+type discard struct {
+	vt.MockTerm
+	quiet bool
+}
+
+func (d *discard) Write(b []byte) (int, error) {
+	if d.quiet {
+		return len(b), nil
+	}
+	return d.MockTerm.Write(b)
 }
 
 // press runs the editor loop for gap, as it runs between keys. It does the
@@ -124,6 +151,7 @@ func TestPromiseColdStart(t *testing.T) {
 // arrives while it runs waits for it.
 func TestPromiseKeyLatency(t *testing.T) {
 	c := startWith(t, "large_file = 20", realCode(t, 10<<20))
+	c.s = written(t)
 	c.draw()
 	session := "jjjjkkwwbbeeWB}}{{50%ggG90000G/funcxyz<BS><BS><BS><CR>nnN*#xu.uddpyyPuuciwbar<Esc>u" +
 		"ihello world<Esc>uoreturn nil<Esc>uA;<Esc>u<C-d><C-u><C-f><C-b>zzHML%:s/err/e/<CR>u"
@@ -141,7 +169,7 @@ func TestPromiseKeyLatency(t *testing.T) {
 	}
 }
 
-// Key read to frame drawn under 5ms at p99 through fude attach on the
+// Key read to frame written under 5ms at p99 through fude attach on the
 // local socket, on the file and keys of TestPromiseKeyLatency. fude runs its
 // loop on a goroutine of its own, as a fude in another terminal does, and
 // the attached client draws each key's frame once it comes.
@@ -153,7 +181,7 @@ func TestPromiseAttachLatency(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer a.Close()
-	c := &client{s: mock(t), e: a}
+	c := &client{s: written(t), e: a}
 	// upTo runs the frames that come, drawing after each, until fude has
 	// handled n of the client's notices.
 	upTo := func(n int) {
@@ -220,6 +248,7 @@ lsp = ["busy"]
 path = %q
 capabilities = ["buffer.read", "ui"]
 `, os.Args[0], count), path)
+	c.s = written(t)
 	for _, m := range distribution.Modules() {
 		c.e.(*editor.Session).Use(m)
 	}
@@ -250,6 +279,7 @@ capabilities = ["buffer.read", "ui"]
 // it scrolled to. Keys come 10ms apart.
 func TestPromiseScrollSettles(t *testing.T) {
 	c := startWith(t, "large_file = 20\n[module.spell]\nenabled = true", committed(t, realCode(t, 10<<20)))
+	c.s = written(t)
 	for _, m := range distribution.Modules() {
 		c.e.(*editor.Session).Use(m)
 	}
@@ -390,6 +420,7 @@ func TestPerfServer(t *testing.T) {
 // holds 10,000 steps.
 func TestPromiseUndo(t *testing.T) {
 	c := startWith(t, "large_file = 20", realCode(t, 10<<20))
+	c.s = written(t)
 	c.draw()
 	// Each x is a step of its own, on a line of its own, so each deletes a
 	// character.
@@ -419,6 +450,7 @@ func TestPromiseUndo(t *testing.T) {
 // keys and draws no frame until the keys stop.
 func TestPromiseBurst(t *testing.T) {
 	c := startWith(t, "large_file = 20", realCode(t, 10<<20))
+	c.s = written(t)
 	for _, m := range distribution.Modules() {
 		c.e.(*editor.Session).Use(m)
 	}
@@ -455,6 +487,7 @@ func TestPromiseBurst(t *testing.T) {
 // run before the next.
 func TestPromiseSubstitute(t *testing.T) {
 	c := startWith(t, "large_file = 20", realCode(t, 10<<20))
+	c.s = written(t)
 	c.draw()
 	e := c.e.(*editor.Session)
 	size := e.Text().Len()
@@ -483,8 +516,10 @@ func TestPromiseHugeFile(t *testing.T) {
 	for range 3 {
 		c = nil
 		runtime.GC()
+		screen := written(t)
 		at := time.Now()
 		c = start(t, path)
+		c.s = screen
 		c.draw()
 		best = min(best, time.Since(at))
 	}
