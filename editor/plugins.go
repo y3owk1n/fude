@@ -1389,11 +1389,13 @@ func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 	}
 	s := api.Scope{Text: t, About: e.about(b), Buffers: bufs, Language: func(int) string { return ft }}
 	if e.win.buf == b {
-		// Where the current window's text starts, and the end of the line a
-		// window's height below, as wrap may show less (B316).
-		top := e.Top()
-		s.About["top"] = strconv.Itoa(top)
-		s.About["bottom"] = strconv.Itoa(vim.LineEnd(t, t.LineStart(min(t.LineOf(top)+max(e.win.h-2, 0), t.Lines()-1))))
+		// The text the current window shows, as start:end ranges.
+		ranges, _ := e.view(e.win, e.win.buf.text.Snapshot(), e.Top(), e.tabWidth(b))
+		var view []string
+		for _, r := range ranges {
+			view = append(view, fmt.Sprintf("%d:%d", r.Start, r.End))
+		}
+		s.About["view"] = strings.Join(view, " ")
 	}
 	s.About["columns"] = strconv.Itoa(e.width)
 	s.Object = func(keys string, pos int) (int, int, bool) {

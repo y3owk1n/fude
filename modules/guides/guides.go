@@ -96,15 +96,18 @@ func lead(t api.Text, line, tab int) (int, bool) {
 	if line+1 < t.Lines() {
 		end = t.LineStart(line+1) - 1
 	}
+	// A long line is read a piece at a time, up to its first non-blank.
 	col := 0
-	for _, r := range t.Slice(start, end) {
-		switch r {
-		case ' ':
-			col++
-		case '\t':
-			col += tab - col%tab
-		default:
-			return col, false
+	for ; start < end; start += 256 {
+		for _, b := range []byte(t.Slice(start, min(start+256, end))) {
+			switch b {
+			case ' ':
+				col++
+			case '\t':
+				col += tab - col%tab
+			default:
+				return col, false
+			}
 		}
 	}
 	return col, true

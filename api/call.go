@@ -1,6 +1,10 @@
 package api
 
-import "time"
+import (
+	"strconv"
+	"strings"
+	"time"
+)
 
 // Decoration is a style a call puts on [Start, End) of the text, such as a
 // highlight name. ID names it to its owner, for Undecorate.
@@ -761,8 +765,51 @@ type Buffer struct {
 // args is the text typed after its name, and bang is true when ! followed
 // the name. first and last are where its range's first and last lines
 // start, and ranged is true when it was given a range. A buffer with a
-// title, such as a panel, has title.
+// title, such as a panel, has title. view is the text the current window
+// shows when it shows the buffer, which View reads.
 type Context map[string]string
+
+// View returns the text the current window shows, when it shows the
+// buffer, as start and end pairs in order: its lines, and without wrap the
+// part in view of a line too long to show whole.
+func (c Context) View() [][2]int {
+	var out [][2]int
+	for _, r := range strings.Fields(c["view"]) {
+		from, to, _ := strings.Cut(r, ":")
+		start, err1 := strconv.Atoi(from)
+		end, err2 := strconv.Atoi(to)
+		if err1 == nil && err2 == nil {
+			out = append(out, [2]int{start, end})
+		}
+	}
+	return out
+}
+
+// Ahead returns the text a module reads to decorate what the current window
+// shows and the lines just past it. That is the view, with its last range
+// going on to the end of the line lines past the view's top, but no more
+// than 64KB further. Without a view it starts at top.
+func (s Scope) Ahead(top, lines int) [][2]int {
+	t := s.Text
+	view := s.About.View()
+	if len(view) == 0 {
+		view = [][2]int{{min(top, t.Len()), min(top, t.Len())}}
+	}
+	end := t.Len()
+	if l := t.LineOf(view[0][0]) + lines; l < t.Lines() {
+		end = t.LineStart(l)
+	}
+	last := &view[len(view)-1]
+	last[1] = max(last[1], min(end, last[1]+64<<10))
+	return view
+}
+
+// Cut reports whether p, an end of a range Ahead returns, is inside a line.
+// Something found at a cut may go on past it.
+func (s Scope) Cut(p int) bool {
+	t := s.Text
+	return p > 0 && p < t.Len() && t.Slice(p-1, p) != "\n" && t.Slice(p, p+1) != "\n"
+}
 
 // Done frees what s holds. fude calls it once the call that read s
 // returns, so a module never does.

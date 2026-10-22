@@ -157,16 +157,15 @@ func (m *Module) name(s api.Scope) api.Result {
 	buf, t := s.About["buffer"], s.Text
 	res := api.Result{Undecorate: m.named[buf]}
 	m.named[buf] = []int{}
-	from := min(m.tops[buf], t.Len())
-	last := min(t.LineOf(from)+rows, t.Lines()-1)
-	to := t.Len()
-	if last+1 < t.Lines() {
-		to = t.LineStart(last + 1)
-	}
-	for _, c := range textColours(t.Slice(from, to), from) {
-		m.ids++
-		res.Decorate = append(res.Decorate, api.Decoration{ID: m.ids, Start: c.start, End: c.end, Style: style(c.rgb)})
-		m.named[buf] = append(m.named[buf], m.ids)
+	for _, r := range s.Ahead(m.tops[buf], rows) {
+		for _, c := range textColours(t.Slice(r[0], r[1]), r[0]) {
+			if c.start == r[0] && s.Cut(r[0]) || c.end == r[1] && s.Cut(r[1]) {
+				continue
+			}
+			m.ids++
+			res.Decorate = append(res.Decorate, api.Decoration{ID: m.ids, Start: c.start, End: c.end, Style: style(c.rgb)})
+			m.named[buf] = append(m.named[buf], m.ids)
+		}
 	}
 	return res
 }

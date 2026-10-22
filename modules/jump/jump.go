@@ -7,7 +7,6 @@ import (
 	"cmp"
 	"context"
 	"slices"
-	"strconv"
 	"strings"
 	"sync"
 	"unicode/utf8"
@@ -92,25 +91,26 @@ func (m *Module) find(s api.Scope, cursor int) api.Result {
 	if m.query == "" {
 		return res
 	}
-	t := s.Text
-	top, _ := strconv.Atoi(s.About["top"])
-	bottom, _ := strconv.Atoi(s.About["bottom"])
-	hay, q := t.Slice(top, bottom), m.query
-	if q == strings.ToLower(q) {
-		hay = strings.ToLower(hay)
-	}
+	t, q := s.Text, m.query
 	next := map[string]bool{}
-	for at := 0; ; {
-		i := strings.Index(hay[at:], q)
-		if i < 0 {
-			break
+	for _, r := range s.About.View() {
+		top := r[0]
+		hay := t.Slice(top, r[1])
+		if q == strings.ToLower(q) {
+			hay = strings.ToLower(hay)
 		}
-		start := top + at + i
-		m.matches = append(m.matches, [2]int{start, start + len(q)})
-		if r, _ := utf8.DecodeRuneInString(hay[at+i+len(q):]); r != utf8.RuneError {
-			next[strings.ToLower(string(r))] = true
+		for at := 0; ; {
+			i := strings.Index(hay[at:], q)
+			if i < 0 {
+				break
+			}
+			start := top + at + i
+			m.matches = append(m.matches, [2]int{start, start + len(q)})
+			if r, _ := utf8.DecodeRuneInString(hay[at+i+len(q):]); r != utf8.RuneError {
+				next[strings.ToLower(string(r))] = true
+			}
+			at += i + 1
 		}
-		at += i + 1
 	}
 	dist := func(a [2]int) int { return max(a[0]-cursor, cursor-a[0]) }
 	slices.SortStableFunc(m.matches, func(a, b [2]int) int { return cmp.Compare(dist(a), dist(b)) })

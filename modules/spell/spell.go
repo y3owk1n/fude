@@ -226,19 +226,18 @@ func (m *Module) clear(buf string) api.Result {
 
 // underline underlines the typos in the lines of the window, from its top.
 func (m *Module) underline(s api.Scope) api.Result {
-	buf, t := s.About["buffer"], s.Text
+	buf := s.About["buffer"]
 	res := m.clear(buf)
-	from := min(m.tops[buf], t.Len())
-	last := min(t.LineOf(from)+rows, t.Lines()-1)
-	to := t.Len()
-	if last+1 < t.Lines() {
-		to = t.LineStart(last + 1)
-	}
 	m.shown[buf] = []int{}
-	for _, w := range typos(s, from, to, m.known) {
-		m.ids++
-		res.Decorate = append(res.Decorate, api.Decoration{ID: m.ids, Start: w[0], End: w[1], Style: "spell.bad"})
-		m.shown[buf] = append(m.shown[buf], m.ids)
+	for _, r := range s.Ahead(m.tops[buf], rows) {
+		for _, w := range typos(s, r[0], r[1], m.known) {
+			if w[0] == r[0] && s.Cut(r[0]) || w[1] == r[1] && s.Cut(r[1]) {
+				continue
+			}
+			m.ids++
+			res.Decorate = append(res.Decorate, api.Decoration{ID: m.ids, Start: w[0], End: w[1], Style: "spell.bad"})
+			m.shown[buf] = append(m.shown[buf], m.ids)
+		}
 	}
 	return res
 }

@@ -224,12 +224,11 @@ func (m *Module) ask(s api.Scope) api.Result {
 // resolve asks the servers to resolve the lenses in the current window's
 // view that came without a command.
 func (m *Module) resolve(s api.Scope) []api.Request {
-	top, err1 := strconv.Atoi(s.About["top"])
-	bottom, err2 := strconv.Atoi(s.About["bottom"])
-	if err1 != nil || err2 != nil {
+	view := s.About.View()
+	if len(view) == 0 {
 		return nil
 	}
-	first, last := s.Text.LineOf(top), s.Text.LineOf(bottom)
+	first, last := s.Text.LineOf(view[0][0]), s.Text.LineOf(view[len(view)-1][1])
 	var out []api.Request
 	for _, l := range m.lenses[s.About["buffer"]] {
 		if l.title == "" && !l.resolving && l.at.Line >= first && l.at.Line <= last {
