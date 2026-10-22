@@ -151,8 +151,9 @@ func aliasFiletypes(c *config) error {
 	return nil
 }
 
-// badPattern returns an error naming the first files or root pattern in c
-// that is not a pattern, or nil.
+// badPattern returns an error naming the first files pattern or formatter
+// root pattern in c that is not a pattern, or nil. parseServers checks the
+// servers' roots.
 func badPattern(c config) error {
 	for _, ft := range slices.Sorted(maps.Keys(c.Filetype)) {
 		for _, p := range c.Filetype[ft].Files {
@@ -162,9 +163,6 @@ func badPattern(c config) error {
 		}
 	}
 	tables := map[string][]string{}
-	for name, l := range c.LSP {
-		tables["[lsp."+name+"] root"] = l.Root
-	}
 	for name, f := range c.Formatter {
 		tables["[formatter."+name+"] root"] = f.Root
 	}

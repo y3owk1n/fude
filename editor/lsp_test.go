@@ -10,7 +10,9 @@ import (
 	"io"
 	"io/fs"
 	"maps"
+	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -719,12 +721,17 @@ func TestB528RootPattern(t *testing.T) {
 func TestB527Placeholders(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "a.go")
 	root := filepath.Dir(path)
+	change(t, filepath.Join(root, "marker.txt"), "")
 	_, log := withServerAt(t, path, "x\n", "utf-8", `lsp.fake.init_options.mode = "{root}/test"`,
-		`lsp.fake.settings.fake = { uri = "{root_uri}", cache = "{cache}" }`)
+		`lsp.fake.settings.fake = { uri = "{root_uri}", cache = "{cache}", env = "{env:FUDE_UNSET:-{root_name}}", find = "{find:marker.txt}", pid = "{pid}" }`)
 	heard(t, log, fmt.Sprintf("%q]", filepath.Base(root)), 1)
 	mode, _ := json.Marshal(root + "/test")
 	heard(t, log, `"initializationOptions":{"mode":`+string(mode)+`}`, 1)
 	heard(t, log, fmt.Sprintf(`"uri":%q`, lsp.URI(root)), 1)
+	heard(t, log, fmt.Sprintf(`"env":%q`, filepath.Base(root)), 1)
+	find, _ := json.Marshal(filepath.Join(root, "marker.txt"))
+	heard(t, log, `"find":`+string(find), 1)
+	heard(t, log, fmt.Sprintf(`"pid":"%d"`, os.Getpid()), 1)
 	// {cache} is a folder fude made for the server and the project.
 	b, _ := os.ReadFile(log)
 	m := regexp.MustCompile(`"cache":("[^"]*")`).FindSubmatch(b)
@@ -735,6 +742,127 @@ func TestB527Placeholders(t *testing.T) {
 	if info, err := os.Stat(cache); err != nil || !info.IsDir() || !strings.Contains(cache, filepath.Base(root)) {
 		t.Errorf("{cache} was %q, which is not a folder for the project: %v", cache, err)
 	}
+}
+
+// withServers starts an editor on the Go file at path, with the fake
+// server under each of names configured for Go, in order, and tables
+// added first, and returns the editor and the servers' log.
+func withServers(t *testing.T, path, tables string, names ...string) (*editor.Session, string) {
+	t.Helper()
+	log := fakeLog(t, "server.log")
+	t.Setenv("FUDE_FAKE_LSP", "1")
+	t.Setenv("FUDE_FAKE_LOG", log)
+	t.Setenv("FUDE_FAKE_ENCODING", "utf-8")
+	var c strings.Builder
+	for _, name := range names {
+		if !strings.Contains(tables, "lsp."+name+".command") {
+			fmt.Fprintf(&c, "lsp.%s.command = [%q, \"-test.run=^TestFakeServer$\"]\n", name, os.Args[0])
+		}
+	}
+	quoted, _ := json.Marshal(names)
+	config(t, c.String()+tables+"\n[filetype.go]\nlsp = "+string(quoted)+"\n")
+	e := start(t, path)
+	e.SetSize(80, 20)
+	t.Cleanup(func() { feed(e, ":qa!<CR>") })
+	e.Load()
+	return e, log
+}
+
+// B533
+func TestB533RootMarkers(t *testing.T) {
+	dir := t.TempDir()
+	inner := filepath.Join(dir, "a")
+	if err := os.MkdirAll(filepath.Join(inner, "b"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	for file, text := range map[string]string{"package.json": `{"workspaces": []}`, "a/package.json": "{}", "yarn.lock": "", "a/package-lock.json": "", "mix.exs": "", "a/mix.exs": ""} {
+		change(t, filepath.Join(dir, file), text)
+	}
+	path := filepath.Join(inner, "b", "a.go")
+	change(t, path, "x\n")
+	// The nearest of a group wins, a marker may need to hold a text, and an
+	// outermost one finds the farthest.
+	_, log := withServers(t, path, `lsp.group.root = [["yarn.lock", "package-lock.json"]]
+lsp.holds.root = [{ name = "package.json", contains = ["workspaces"] }]
+lsp.outer.root = [{ name = "mix.exs", outermost = true }]`, "group", "holds", "outer")
+	heard(t, log, fmt.Sprintf(`"rootUri":%q`, lsp.URI(inner)), 1)
+	heard(t, log, fmt.Sprintf(`"rootUri":%q`, lsp.URI(dir)), 2)
+}
+
+// B534
+func TestB534RequiresExcludes(t *testing.T) {
+	dir := t.TempDir()
+	for _, file := range []string{"go.mod", "eslint.config.js", "deno.json"} {
+		change(t, filepath.Join(dir, file), "")
+	}
+	path := filepath.Join(dir, "a.go")
+	change(t, path, "x\n")
+	e, _ := withServers(t, path, `lsp.needs.requires = ["eslint.config.js"]
+lsp.lacks.requires = ["absent.json"]
+lsp.skips.excludes = ["deno.json"]`, "needs", "lacks", "skips")
+	if v := e.Windows()[0]; v.Server != "needs" {
+		t.Errorf("a.go has %q, want needs alone", v.Server)
+	}
+}
+
+// B535
+func TestB535RootFallback(t *testing.T) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, log := withServers(t, filepath.Join(t.TempDir(), "a.go"), `lsp.fake.root = ["absent.json"]
+lsp.fake.fallback = "cwd"`, "fake")
+	heard(t, log, fmt.Sprintf(`"rootUri":%q`, lsp.URI(cwd)), 1)
+}
+
+// B536
+func TestB536CommandCandidates(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.go")
+	change(t, path, "x\n")
+	_, log := withServers(t, path, fmt.Sprintf(`lsp.fake.command = [["{root}/fude-missing"], [%q, "-test.run=^TestFakeServer$", "second"]]`, os.Args[0]), "fake")
+	heard(t, log, `"second"]`, 1)
+}
+
+// B537
+func TestB537Capabilities(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.go")
+	change(t, path, "x\n")
+	_, log := withServers(t, path, `[lsp.fake.capabilities]
+textDocument = { completion = { editsNearCursor = true }, codeLens = false }
+experimental = { serverStatus = true }`, "fake")
+	heard(t, log, `"completion":{"completionItem":{"snippetSupport":true},"editsNearCursor":true}`, 1)
+	heard(t, log, `"experimental":{"serverStatus":true}`, 1)
+	// codeLens is gone from textDocument, between callHierarchy and
+	// completion.
+	heard(t, log, `"callHierarchy":{},"completion"`, 1)
+}
+
+// B538
+func TestB538Connect(t *testing.T) {
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer l.Close()
+	// The fake server talks over the first connection, as a server that
+	// runs already does.
+	go func() {
+		conn, err := l.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		cmd := exec.Command(os.Args[0], "-test.run=^TestFakeServer$")
+		cmd.Stdin, cmd.Stdout = conn, conn
+		cmd.Run()
+	}()
+	t.Setenv("FAKE_PORT", strconv.Itoa(l.Addr().(*net.TCPAddr).Port))
+	path := filepath.Join(t.TempDir(), "a.go")
+	change(t, path, "x\n")
+	_, log := withServers(t, path, `lsp.fake.command = ["fude-missing"]
+lsp.fake.connect = "127.0.0.1:{env:FAKE_PORT}"`, "fake")
+	heard(t, log, `"method":"textDocument/didOpen"`, 1)
 }
 
 // B168

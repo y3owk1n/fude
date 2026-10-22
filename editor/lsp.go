@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -32,9 +33,9 @@ type server struct {
 	name      string // the name config.toml gives it
 	command   []string
 	root      string
-	fill      *strings.Replacer // the placeholders of its table, filled in (B527)
-	restarted bool              // it crashed once, and the next crash leaves it off
-	closing   bool              // fude asked it to exit
+	fill      func(string) string // fills in the placeholders of its table (B527)
+	restarted bool                // it crashed once, and the next crash leaves it off
+	closing   bool                // fude asked it to exit
 	bufs      []*buffer
 	versions  map[*buffer]int      // the changes it has heard of each, since it opened
 	pulls     map[*buffer]bool     // the buffers whose diagnostics it was asked for, true to ask again (B470)
@@ -124,25 +125,28 @@ func (e *Session) attachTo(b *buffer, name string) error {
 		return err
 	}
 	c := e.cfg.LSP[name]
-	root, found := root.Of(abs, c.Root)
-	if !found && c.Workspace || len(c.Files) > 0 && !slices.ContainsFunc(c.Files, func(p string) bool { return matchEnd(p, abs) }) {
+	dir, found := root.Of(abs, c.roots)
+	switch {
+	case found:
+	case c.Fallback == "cwd":
+		dir = e.wd
+	case c.Fallback == "home":
+		if dir, err = os.UserHomeDir(); err != nil {
+			return fmt.Errorf("start %s: find the home directory: %w", name, err)
+		}
+	}
+	if !found && c.Workspace || len(c.Files) > 0 && !slices.ContainsFunc(c.Files, func(p string) bool { return matchEnd(p, abs) }) ||
+		len(c.requires) > 0 && !root.Between(abs, dir, c.requires) || root.Between(abs, dir, c.excludes) {
 		return nil
 	}
-	key := name + "\x00" + root
+	key := name + "\x00" + dir
 	s := e.servers[key]
 	if s == nil {
-		fill, err := placeholders(name, root, c)
+		fill, err := placeholders(name, dir, c)
 		if err != nil {
 			return fmt.Errorf("start %s: %w", name, err)
 		}
-		command, err := commandOf(name, c.Command)
-		if err != nil {
-			return fmt.Errorf("start %s: %w", name, err)
-		}
-		for i := range command {
-			command[i] = fill.Replace(command[i])
-		}
-		s = &server{name: name, command: command, root: root, fill: fill, versions: map[*buffer]int{}, pulls: map[*buffer]bool{}}
+		s = &server{name: name, command: commandFor(name, c, fill), root: dir, fill: fill, versions: map[*buffer]int{}, pulls: map[*buffer]bool{}}
 		if err := e.start(s); err != nil {
 			e.serversChanged(name)
 			e.down[name] = err.Error()
@@ -174,30 +178,97 @@ func (e *Editor) serverNames(b *buffer) []string {
 	return e.cfg.Filetype[e.filetype(b)].LSP
 }
 
-// placeholders returns what fills in a server's table c for name at root:
-// {root}, {root_uri}, {root_name}, and {cache}, a folder of fude's cache for
-// the server and project, made when c names it (B527).
-func placeholders(name, root string, c serverConfig) (*strings.Replacer, error) {
-	dir, err := keep.Dir("XDG_CACHE_HOME", ".cache")
+// placeholder is a placeholder that takes an argument: {env:NAME},
+// {env:NAME:-default} and {find:path} (B527).
+var placeholder = regexp.MustCompile(`\{(env|find):([^{}]*)\}`)
+
+// placeholders returns what fills in the strings of a server's table c for
+// name at dir, its root: {root}, {root_uri}, {root_name}, {pid}, {cache},
+// a folder of fude's cache for the server and project made when c names
+// it, {env:NAME:-default}, {find:path}, the nearest path from dir up, and a
+// leading ~/ (B527).
+func placeholders(name, dir string, c serverConfig) (func(string) string, error) {
+	cacheDir, err := keep.Dir("XDG_CACHE_HOME", ".cache")
 	if err != nil {
 		return nil, fmt.Errorf("find the cache directory: %w", err)
 	}
-	sum := sha256.Sum256([]byte(paths.Key(root)))
-	cache := filepath.Join(dir, "fude", "lsp", name, fmt.Sprintf("%s-%x", filepath.Base(root), sum[:4]))
+	sum := sha256.Sum256([]byte(paths.Key(dir)))
+	cache := filepath.Join(cacheDir, "fude", "lsp", name, fmt.Sprintf("%s-%x", filepath.Base(dir), sum[:4]))
 	// fmt.Sprint shows every string in c.
-	if strings.Contains(fmt.Sprint(c), "{cache}") {
+	text := fmt.Sprint(c)
+	if strings.Contains(text, "{cache}") {
 		if err := os.MkdirAll(cache, 0o700); err != nil {
 			return nil, fmt.Errorf("make %s: %w", cache, err)
 		}
 	}
-	return strings.NewReplacer("{root}", root, "{root_uri}", lsp.URI(root), "{root_name}", filepath.Base(root), "{cache}", cache), nil
+	var home string
+	if strings.Contains(text, "~/") {
+		if home, err = os.UserHomeDir(); err != nil {
+			return nil, fmt.Errorf("find the home directory: %w", err)
+		}
+	}
+	plain := strings.NewReplacer("{root}", dir, "{root_uri}", lsp.URI(dir), "{root_name}", filepath.Base(dir), "{cache}", cache, "{pid}", strconv.Itoa(os.Getpid()))
+	return func(s string) string {
+		// The plain ones go first, so a default may hold one.
+		s = placeholder.ReplaceAllStringFunc(plain.Replace(s), func(p string) string {
+			m := placeholder.FindStringSubmatch(p)
+			if m[1] == "find" {
+				return nearest(dir, m[2])
+			}
+			name, fallback, _ := strings.Cut(m[2], ":-")
+			return cmp.Or(os.Getenv(name), fallback)
+		})
+		if rest, ok := strings.CutPrefix(s, "~/"); ok {
+			s = filepath.Join(home, rest)
+		}
+		return s
+	}, nil
 }
 
-// filled returns v with r's placeholders filled into its strings (B527).
-func filled(v any, r *strings.Replacer) any {
+// nearest returns rel joined to the nearest folder from dir up that holds
+// it, or "" when none does.
+func nearest(dir, rel string) string {
+	for {
+		if _, err := os.Stat(filepath.Join(dir, rel)); err == nil {
+			return filepath.Join(dir, rel)
+		}
+		up := filepath.Dir(dir)
+		if up == dir {
+			return ""
+		}
+		dir = up
+	}
+}
+
+// commandFor returns the first of c's commands, or name alone, whose
+// program is found, with fill's placeholders filled in, or the first when
+// none is (B536).
+func commandFor(name string, c serverConfig, fill func(string) string) []string {
+	candidates := c.commands
+	if len(candidates) == 0 {
+		candidates = [][]string{{name}}
+	}
+	var first []string
+	for _, words := range candidates {
+		out := make([]string, len(words))
+		for i, w := range words {
+			out[i] = fill(w)
+		}
+		if _, err := exec.LookPath(out[0]); err == nil {
+			return out
+		}
+		if first == nil {
+			first = out
+		}
+	}
+	return first
+}
+
+// filled returns v with fill's placeholders filled into its strings (B527).
+func filled(v any, fill func(string) string) any {
 	switch v := v.(type) {
 	case string:
-		return r.Replace(v)
+		return fill(v)
 	case map[string]any:
 		// An unset table stays unset, not {}.
 		if v == nil {
@@ -205,13 +276,13 @@ func filled(v any, r *strings.Replacer) any {
 		}
 		out := make(map[string]any, len(v))
 		for k, x := range v {
-			out[k] = filled(x, r)
+			out[k] = filled(x, fill)
 		}
 		return out
 	case []any:
 		out := make([]any, len(v))
 		for i, x := range v {
-			out[i] = filled(x, r)
+			out[i] = filled(x, fill)
 		}
 		return out
 	}
@@ -248,9 +319,13 @@ func (e *Session) start(s *server) error {
 	cfg := e.cfg.LSP[s.name]
 	var env []string
 	for _, k := range slices.Sorted(maps.Keys(cfg.Env)) {
-		env = append(env, k+"="+s.fill.Replace(cfg.Env[k]))
+		env = append(env, k+"="+s.fill(cfg.Env[k]))
 	}
-	c, err := lsp.Start(s.name, s.command, env, s.root, filled(cfg.InitOptions, s.fill), e.queue, logLine,
+	sv := lsp.Server{
+		Name: s.name, Command: s.command, Env: env, Connect: s.fill(cfg.Connect), Root: s.root,
+		Options: filled(cfg.InitOptions, s.fill), Capabilities: filled(cfg.Capabilities, s.fill).(map[string]any),
+	}
+	c, err := lsp.Start(sv, e.queue, logLine,
 		func(text string, took time.Duration) { trace.Record("lsp", text, took) },
 		func(method string, params json.RawMessage) { e.notified(s, method, params) },
 		func(method string, params json.RawMessage) any { return e.served(s, method, params) },
@@ -750,20 +825,4 @@ func markupText(raw json.RawMessage) string {
 		return ""
 	}
 	return markup.Value
-}
-
-// commandOf returns the command config.toml gives name, or the name alone,
-// with a leading ~/ in each word made the home directory.
-func commandOf(name string, command []string) ([]string, error) {
-	if len(command) == 0 {
-		return []string{name}, nil
-	}
-	out := make([]string, len(command))
-	for i, word := range command {
-		var err error
-		if out[i], err = expandHome(word); err != nil {
-			return nil, err
-		}
-	}
-	return out, nil
 }

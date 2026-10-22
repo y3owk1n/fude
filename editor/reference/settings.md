@@ -628,16 +628,43 @@ project.
 ## lsp.command
 
 The server's program and arguments, found on PATH. Unset, it is the table's
-name alone. `~/` at the start of a word is the home folder.
+name alone. A list of commands runs the first whose program is found, so a
+project's own program can win over the one on PATH.
 
-In `command`, `init_options`, `settings`, `env` and `answers`, fude fills
-in `{root}` with the server's root, `{root_uri}` with its URI and
-`{root_name}` with its folder's name. `{cache}` is a folder fude makes in
-its cache for the server and the project.
+```toml
+[lsp.eslint]
+command = [
+  ["{root}/node_modules/.bin/vscode-eslint-language-server", "--stdio"],
+  ["vscode-eslint-language-server", "--stdio"],
+]
+```
+
+In the strings of `command`, `connect`, `init_options`, `settings`,
+`capabilities`, `env` and `answers`, fude fills in these placeholders.
+
+- `{root}`, `{root_uri}` and `{root_name}` are the server's root, its URI
+  and its folder's name.
+- `{cache}` is a folder fude makes in its cache for the server and the
+  project.
+- `{env:NAME}` is a variable, and `{env:NAME:-default}` its default when
+  it is unset or empty. The default may hold a placeholder.
+- `{find:path}` is the nearest path from the root up, or nothing.
+- `{pid}` is fude's process id, and a leading `~/` the home folder.
 
 ```toml
 [lsp.jdtls]
 command = ["jdtls", "-data", "{cache}"]
+```
+
+## lsp.connect
+
+The `host:port` of a server that is already running, such as Godot's,
+which fude connects to in place of running `command`. fude hangs up when it would
+stop the server.
+
+```toml
+[lsp.gdscript]
+connect = "127.0.0.1:{env:GDScript_Port:-6005}"
 ```
 
 ## lsp.root
@@ -645,7 +672,43 @@ command = ["jdtls", "-data", "{cache}"]
 The files that mark a project's root, most wanted first. fude looks for each
 in turn from the file's folder up, and starts one server for each root. With
 none found, the root is the file's folder. A name with `*`, `?` or `[` is a
-pattern, such as `*.cabal`.
+pattern, such as `*.cabal`. A list in `root` is a group whose files rank
+the same, so the one nearest the file wins. A table names a file with
+`name`, the texts it must hold with `contains`, and with `outermost =
+true` takes the farthest folder up that holds it.
+
+```toml
+[lsp.ts_ls]
+root = [["package-lock.json", "yarn.lock", "pnpm-lock.yaml"], ".git"]
+
+[lsp.expert]
+root = [{ name = "mix.exs", outermost = true }]
+```
+
+## lsp.requires
+
+Files, named as `root` names them, one of which must be in a folder from
+the file's up to the root, root included, for the server to start.
+
+```toml
+[lsp.eslint]
+requires = ["eslint.config.js", { name = "package.json", contains = ["eslintConfig"] }]
+```
+
+## lsp.excludes
+
+Files, named as `root` names them, none of which may be in a folder from
+the file's up to the root, root included, for the server to start.
+
+```toml
+[lsp.ts_ls]
+excludes = ["deno.json", "deno.jsonc"]
+```
+
+## lsp.fallback
+
+The root when no root file is found: `cwd` for the working directory, or
+`home`. Unset, it is the file's folder.
 
 ```toml
 [lsp.gopls]
@@ -670,6 +733,17 @@ servers fail to start without it, even empty, as `init_options = {}`.
 ```toml
 [lsp.astro.init_options.typescript]
 tsdk = "{root}/node_modules/typescript/lib"
+```
+
+## lsp.capabilities
+
+What fude tells the server it can do, over fude's own, table by table.
+`false` removes one.
+
+```toml
+[lsp.clangd.capabilities]
+offsetEncoding = ["utf-8", "utf-16"]
+textDocument = { completion = { editsNearCursor = true } }
 ```
 
 ## lsp.env

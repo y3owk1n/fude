@@ -39,17 +39,31 @@ is optional.
 - `answers` answer requests the server sends that fude does not answer
   itself, by method.
 
-`{root}`, `{root_uri}` and `{root_name}` in `command`, `init_options`,
-`settings`, `env` and `answers` are the server's root, its URI and its
-folder's name, and `{cache}` is a folder fude keeps for the server and
-the project. A root file may be a pattern, such as `*.cabal`. A
-filetype's `language_id` changes what its servers hear the files are
-written in.
+- `requires` and `excludes` start the server only when one of some files,
+  and none of others, is in a folder between the file's and its root.
+- `fallback` is the root when no root file is found: `cwd` or `home`.
+- `capabilities` change what fude tells the server it can do.
+- `connect` connects to a server that is already running, at a host and
+  port.
+
+Placeholders fill in a table's strings: `{root}`, `{root_uri}` and
+`{root_name}` for the server's root, `{cache}` for a folder fude keeps
+for the server and the project, `{env:NAME:-default}`, `{find:path}`
+for the nearest path from the root up, and `{pid}`. A `command` may be
+a list of commands, and fude runs the first one it finds. A root file
+may be a pattern, a group that ranks the same, or a table that asks the
+file to hold some text. A filetype's `language_id` changes what its
+servers hear the files are written in.
 
 ```toml
-[lsp.jdtls]
-command = ["jdtls", "-data", "{cache}"]
-root = ["pom.xml", "build.gradle", "*.iml", ".git"]
+[lsp.eslint]
+command = [
+  ["{root}/node_modules/.bin/vscode-eslint-language-server", "--stdio"],
+  ["vscode-eslint-language-server", "--stdio"],
+]
+root = [["package-lock.json", "yarn.lock", "pnpm-lock.yaml"], ".git"]
+requires = ["eslint.config.js", { name = "package.json", contains = ["eslintConfig"] }]
+fallback = "cwd"
 
 [lsp.eslint.settings]
 workspaceFolder = { uri = "{root_uri}", name = "{root_name}" }

@@ -1217,10 +1217,15 @@ root = [".prettierrc", "package.json"]   # it runs where the first is found
 workspace_required = false   # true runs it only under a root file
 
 [lsp.gopls]          # a language server, all optional (B167)
-command = ["gopls"]  # its name when unset
+command = ["gopls"]  # its name when unset, or a list of commands, the first found running (B536)
+connect = ""         # a host:port to connect to in place of running command (B538)
 files = ["*.go"]     # the files it is for, by name or the end of the path (B169)
 workspace_required = false   # true starts it only under a root file (B169)
-root = ["go.work", "go.mod", ".git"]   # marks a project's root, most wanted first, names or patterns (B528)
+root = ["go.work", "go.mod", ".git"]   # marks a project's root, most wanted first, names, patterns, groups or tables (B528, B533)
+requires = []        # files one of which must be from the file up to the root (B534)
+excludes = []        # files none of which may be (B534)
+fallback = ""        # the root with no root file: cwd, home, or the file's folder (B535)
+capabilities = {}    # over what fude tells the server it can do, false removing (B537)
 init_options = {}    # sent with initialize (B168)
 env = { GOFLAGS = "-tags=integration" }   # variables it runs with (B529)
 answers = {}         # answers to its requests fude does not answer, by method (B531)
@@ -1594,9 +1599,11 @@ since only it may use `syntax`'s cgo, and refuses a guest's build (B333).
 ## LSP
 
 `[filetype.<name>] lsp` names a filetype's servers, and `[lsp.<name>]`
-sets one's command and root markers. `{root}`, `{root_uri}`,
-`{root_name}` and `{cache}` in a table fill in for the server's root and
-a cache folder fude makes for it (B527). A server's message fude does not
+sets one's command and root markers. Placeholders such as `{root}`,
+`{cache}` and `{env:NAME}` in a table fill in for the server's root, a
+cache folder fude makes for it and the environment (B527). Root groups,
+`requires`, `excludes`, `fallback`, command candidates, `capabilities`
+and `connect` cover what servers need to start (B533 to B538). A server's message fude does not
 handle goes to the modules as `lsp.notified` or `lsp.requested`, and a
 request no module hears gets the table's `answers`, or an empty answer
 (B531, B532, D62). fude starts one server per name and

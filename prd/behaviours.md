@@ -2134,11 +2134,15 @@ Where fude departs, the line says so and cites the departure in
   one of its patterns: a name, such as `*.go`, or with a slash the end of a
   path, such as `.github/workflows/*`. `workspace_required` keeps it to
   files under one of its root files.
-- B527 [5] In an `[lsp.<name>]` table's `command`, `init_options`,
-  `settings`, `env` and `answers`, fude fills in `{root}` with the
-  server's root, `{root_uri}` with its URI, `{root_name}` with its
-  folder's name, and `{cache}` with a folder of fude's cache for the
-  server and the project, which fude makes when the table names it.
+- B527 [5] In the strings of an `[lsp.<name>]` table's `command`,
+  `connect`, `init_options`, `settings`, `capabilities`, `env` and
+  `answers`, fude fills in `{root}` with the server's root, `{root_uri}`
+  with its URI, `{root_name}` with its folder's name, `{pid}` with fude's
+  process id, `{cache}` with a folder of fude's cache for the server and
+  the project, which fude makes when the table names it,
+  `{env:NAME:-default}` with a variable or else its default,
+  `{find:path}` with the nearest path from the root up, and a leading
+  `~/` with the home directory. A default may hold a placeholder.
 - B528 [5] A root file with `*`, `?` or `[`, in an `[lsp.<name>]` or a
   `[formatter.<name>]` table, is a pattern of names, such as `*.cabal`.
   config.toml with a pattern that is not one says where it is (B93).
@@ -2148,6 +2152,24 @@ Where fude departs, the line says so and cites the departure in
   files are written in, in place of the filetype's name.
 - B531 [5] An `[lsp.<name>]` table's `answers` give, by method, the
   answer to a request the server sends that fude does not answer itself.
+- B533 [5] An entry of a server's `root` may be a list of root files that
+  rank the same, of which the one nearest the file wins. It may also be a
+  table of the file's `name`, the texts it must contain as `contains`, and
+  `outermost`, which takes the farthest folder up that holds it in place
+  of the nearest.
+- B534 [5] A server starts for a file only when one of its `requires`
+  files, and none of its `excludes` files, is in a folder from the
+  file's up to its root, root included. Each names a file as `root` does.
+- B535 [5] With no root file found, `fallback = "cwd"` makes the working
+  directory the server's root, and `"home"` the home directory.
+- B536 [5] A server's `command` may be a list of commands. The first
+  whose program is found runs, or the first when none is, so a project's
+  own `{root}/node_modules/.bin` program wins over one on PATH.
+- B537 [5] A server's `capabilities` go over the capabilities fude sends
+  it, table by table, and `false` removes one.
+- B538 [5] With `connect`, fude connects to a server that is already
+  running, at a host and port, in place of running its command, and hangs
+  up when it would stop it.
 - B460 [5] `<Plug>(lsp.declaration)` goes to the declaration of the
   symbol under the cursor, as `<C-]>` goes to its definition. One is a
   jump, several are a list of places, and none says "no declaration

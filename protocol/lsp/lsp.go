@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/url"
 	"os"
 	"os/exec"
@@ -24,6 +25,7 @@ import (
 type Client struct {
 	queue chan<- func()
 	stdin io.WriteCloser
+	conn  net.Conn // the connection to a server Start dialed, or nil
 	log   func(string)
 	trace func(text string, took time.Duration)
 	name  string
@@ -76,52 +78,99 @@ type Range struct {
 	End   Position `json:"end"`
 }
 
-// Start runs command, the server called name, for the files under root,
-// with env's KEY=value variables over the editor's, and sends options with
-// initialize. Three funcs run on the editor loop,
-// through queue. notify gets each notification the server sends. serve gets
-// each request, and its result goes back as the answer. exited runs once
-// the server exits, with why. Lines the server writes to stderr go to log,
-// after its name. trace hears each message sent and received, and how long
-// an answer took.
-func Start(name string, command, env []string, root string, options any, queue chan<- func(), log func(string), trace func(text string, took time.Duration), notify func(method string, params json.RawMessage), serve func(method string, params json.RawMessage) any, exited func(error)) (*Client, error) {
-	cmd := exec.Command(command[0], command[1:]...)
-	// Wait returns once stderr is read to its end, or a moment after the
-	// server exits when a child it left keeps it open.
-	stderr := &framing.Lines{Log: log, Name: name}
-	cmd.Dir, cmd.Stderr, cmd.WaitDelay = root, stderr, time.Second
-	if len(env) > 0 {
-		cmd.Env = append(os.Environ(), env...)
-	}
-	stdin, err1 := cmd.StdinPipe()
-	stdout, err2 := cmd.StdoutPipe()
-	if err := errors.Join(err1, err2); err != nil {
-		return nil, fmt.Errorf("start %s: %w", command[0], err)
-	}
-	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("start %s: %w", command[0], err)
-	}
+// Server is a language server to start, and what it hears as it starts.
+type Server struct {
+	Name    string
+	Command []string // its program and arguments, run in Root
+	Env     []string // KEY=value variables over the editor's
+	// Connect is the host:port of a server that runs already, which Start
+	// dials in place of running Command.
+	Connect string
+	Root    string
+	Options any // sent as initializationOptions
+	// Capabilities go over the client's own, table by table, and a false
+	// value removes one.
+	Capabilities map[string]any
+}
+
+// Start runs sv, or connects to it, for the files under its Root. Three
+// funcs run on the editor loop, through queue. notify gets each
+// notification the server sends. serve gets each request, and its result
+// goes back as the answer. exited runs once the server exits or hangs up,
+// with why. Lines the server writes to stderr go to log, after its name.
+// trace hears each message sent and received, and how long an answer took.
+func Start(sv Server, queue chan<- func(), log func(string), trace func(text string, took time.Duration), notify func(method string, params json.RawMessage), serve func(method string, params json.RawMessage) any, exited func(error)) (*Client, error) {
 	c := &Client{
-		queue: queue, stdin: stdin, log: log, trace: trace, name: name, pending: map[int]pending{},
+		queue: queue, log: log, trace: trace, name: sv.Name, pending: map[int]pending{},
 		wake: make(chan struct{}, 1), done: make(chan struct{}),
 	}
-	initialized := make(chan answer, 1)
-	go c.write(root, options, initialized, notify)
-	go c.read(stdout, initialized, notify, serve)
-	go func() {
-		err := cmd.Wait()
-		stderr.Flush()
+	end := func(err error) {
 		close(c.done)
 		c.queue <- func() {
-			// The server exited, so no answer to these will come.
+			// The server is gone, so no answer to these will come.
 			for id, p := range c.pending {
 				delete(c.pending, id)
 				p.answer(nil)
 			}
 			exited(err)
 		}
+	}
+	initialized := make(chan answer, 1)
+	if sv.Connect != "" {
+		conn, err := net.Dial("tcp", sv.Connect)
+		if err != nil {
+			return nil, fmt.Errorf("connect to %s: %w", sv.Connect, err)
+		}
+		c.stdin, c.conn = conn, conn
+		go c.write(sv, initialized, notify)
+		go func() {
+			c.read(conn, initialized, notify, serve)
+			end(nil)
+		}()
+		return c, nil
+	}
+	cmd := exec.Command(sv.Command[0], sv.Command[1:]...)
+	// Wait returns once stderr is read to its end, or a moment after the
+	// server exits when a child it left keeps it open.
+	stderr := &framing.Lines{Log: log, Name: sv.Name}
+	cmd.Dir, cmd.Stderr, cmd.WaitDelay = sv.Root, stderr, time.Second
+	if len(sv.Env) > 0 {
+		cmd.Env = append(os.Environ(), sv.Env...)
+	}
+	stdin, err1 := cmd.StdinPipe()
+	stdout, err2 := cmd.StdoutPipe()
+	if err := errors.Join(err1, err2); err != nil {
+		return nil, fmt.Errorf("start %s: %w", sv.Command[0], err)
+	}
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("start %s: %w", sv.Command[0], err)
+	}
+	c.stdin = stdin
+	go c.write(sv, initialized, notify)
+	go c.read(stdout, initialized, notify, serve)
+	go func() {
+		err := cmd.Wait()
+		stderr.Flush()
+		end(err)
 	}()
 	return c, nil
+}
+
+// merge puts over's values over base's, recursing into tables both have,
+// where a false value removes base's.
+func merge(base, over map[string]any) {
+	for k, v := range over {
+		inner, isTable := v.(map[string]any)
+		had, hadTable := base[k].(map[string]any)
+		switch {
+		case v == false:
+			delete(base, k)
+		case isTable && hadTable:
+			merge(had, inner)
+		default:
+			base[k] = v
+		}
+	}
 }
 
 // Close asks the server to shut down and exit.
@@ -393,38 +442,40 @@ type answer struct {
 
 // write sends initialize, waits for the server's answer, then sends what is
 // queued, in order, until the server exits.
-func (c *Client) write(root string, options any, initialized <-chan answer, notify func(string, json.RawMessage)) {
-	params := map[string]any{
-		"processId": nil, "rootUri": URI(root), "initializationOptions": options,
-		"workspaceFolders": []map[string]string{{"uri": URI(root), "name": filepath.Base(root)}},
-		"capabilities": map[string]any{
-			"general": map[string]any{"positionEncodings": []string{"utf-8", "utf-16"}},
-			"textDocument": map[string]any{
-				"completion":         map[string]any{"completionItem": map[string]any{"snippetSupport": true}},
-				"diagnostic":         map[string]any{},
-				"publishDiagnostics": map[string]any{},
-				"inlayHint":          map[string]any{},
-				"inlineCompletion":   map[string]any{},
-				"onTypeFormatting":   map[string]any{},
-				"semanticTokens":     map[string]any{"requests": map[string]any{"full": true}, "formats": []string{"relative"}, "tokenTypes": tokenTypes, "tokenModifiers": []string{}},
-				"synchronization":    map[string]any{"didSave": true},
-				"declaration":        map[string]any{"linkSupport": true},
-				"documentHighlight":  map[string]any{},
-				"codeLens":           map[string]any{},
-				"callHierarchy":      map[string]any{},
-				"typeHierarchy":      map[string]any{},
-				"linkedEditingRange": map[string]any{},
-			},
-			"window": map[string]any{"workDoneProgress": true},
-			"workspace": map[string]any{
-				"configuration": true, "didChangeConfiguration": map[string]any{},
-				"codeLens":              map[string]any{"refreshSupport": true},
-				"diagnostics":           map[string]any{"refreshSupport": true},
-				"semanticTokens":        map[string]any{"refreshSupport": true},
-				"didChangeWatchedFiles": map[string]any{"dynamicRegistration": true, "relativePatternSupport": true},
-				"fileOperations":        map[string]any{"willRename": true, "didRename": true, "didCreate": true, "didDelete": true},
-			},
+func (c *Client) write(sv Server, initialized <-chan answer, notify func(string, json.RawMessage)) {
+	caps := map[string]any{
+		"general": map[string]any{"positionEncodings": []string{"utf-8", "utf-16"}},
+		"textDocument": map[string]any{
+			"completion":         map[string]any{"completionItem": map[string]any{"snippetSupport": true}},
+			"diagnostic":         map[string]any{},
+			"publishDiagnostics": map[string]any{},
+			"inlayHint":          map[string]any{},
+			"inlineCompletion":   map[string]any{},
+			"onTypeFormatting":   map[string]any{},
+			"semanticTokens":     map[string]any{"requests": map[string]any{"full": true}, "formats": []string{"relative"}, "tokenTypes": tokenTypes, "tokenModifiers": []string{}},
+			"synchronization":    map[string]any{"didSave": true},
+			"declaration":        map[string]any{"linkSupport": true},
+			"documentHighlight":  map[string]any{},
+			"codeLens":           map[string]any{},
+			"callHierarchy":      map[string]any{},
+			"typeHierarchy":      map[string]any{},
+			"linkedEditingRange": map[string]any{},
 		},
+		"window": map[string]any{"workDoneProgress": true},
+		"workspace": map[string]any{
+			"configuration": true, "didChangeConfiguration": map[string]any{},
+			"codeLens":              map[string]any{"refreshSupport": true},
+			"diagnostics":           map[string]any{"refreshSupport": true},
+			"semanticTokens":        map[string]any{"refreshSupport": true},
+			"didChangeWatchedFiles": map[string]any{"dynamicRegistration": true, "relativePatternSupport": true},
+			"fileOperations":        map[string]any{"willRename": true, "didRename": true, "didCreate": true, "didDelete": true},
+		},
+	}
+	merge(caps, sv.Capabilities)
+	params := map[string]any{
+		"processId": nil, "rootUri": URI(sv.Root), "initializationOptions": sv.Options,
+		"workspaceFolders": []map[string]string{{"uri": URI(sv.Root), "name": filepath.Base(sv.Root)}},
+		"capabilities":     caps,
 	}
 	if c.frame(request{ID: 0, Method: "initialize", Params: params}) != nil {
 		return
@@ -454,7 +505,13 @@ func (c *Client) write(root string, options any, initialized <-chan answer, noti
 		c.outbox = nil
 		c.mu.Unlock()
 		for _, m := range out {
-			if c.frame(m(enc)) != nil {
+			v := m(enc)
+			if c.frame(v) != nil {
+				return
+			}
+			// A server fude dialed keeps running, so fude hangs up.
+			if msg, ok := v.(message); ok && msg.Method == "exit" && c.conn != nil {
+				c.conn.Close()
 				return
 			}
 		}

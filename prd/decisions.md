@@ -817,10 +817,16 @@ kept proposals for any client.
 fude has no code for any one language server. What a server needs to
 start and work is either data in its `[lsp.<name>]` table, such as
 placeholders for its root and a cache folder, root patterns, variables,
-a language id and fixed answers to its requests (B527 to B531), or a
-plugin over the messages fude does not handle itself (B532). Vue's
-server, whose TypeScript requests another server must answer, is such a
-plugin.
+a language id, fixed answers to its requests, root groups and
+conditions, command candidates, capabilities and a socket to connect to
+(B527 to B538), or a plugin over the messages fude does not handle
+itself (B532). Vue's server, whose TypeScript
+requests another server must answer, is such a plugin. The pieces come
+from what nvim-lspconfig's 421 configs do with code, read on 2026-10-22.
+Each piece is what one or more of them needs. A plugin handles a root
+that only a command finds, such as `cargo metadata`'s, and arguments
+worked out from a program's output. utf-32 positions, which ccls and lean3 ask for, are
+out, since they would change how fude counts text.
 
 Why, as of 2026-10-22: a table of default servers, and code to pass
 Vue's requests on, were built and dropped. The defaults would put

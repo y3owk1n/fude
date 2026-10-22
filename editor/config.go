@@ -14,6 +14,7 @@ import (
 
 	"github.com/pelletier/go-toml/v2"
 	"github.com/y3owk1n/fude/internal/keep"
+	"github.com/y3owk1n/fude/internal/root"
 	"github.com/y3owk1n/fude/internal/tomlerr"
 	"github.com/y3owk1n/fude/internal/trace"
 	"github.com/y3owk1n/fude/vim"
@@ -92,18 +93,164 @@ type config struct {
 	} `toml:"plugin"`
 }
 
-// serverConfig is an [lsp.<name>] table, a language server's. Its command,
-// init_options, settings, env and answers may hold {root}, {root_uri}, {root_name} and
-// {cache} (B527).
+// serverConfig is an [lsp.<name>] table, a language server's. The strings
+// of its command, connect, init_options, settings, capabilities, env and
+// answers may hold placeholders (B527).
 type serverConfig struct {
-	Command     []string          `toml:"command" help:"the server's command, its name when unset"`
-	Root        []string          `toml:"root" help:"the files that mark a project's root, most wanted first, looked for from the file's folder up, each a name or a pattern such as *.cabal"`
-	Settings    map[string]any    `toml:"settings" help:"the server's settings, which it reads by section"`
-	InitOptions map[string]any    `toml:"init_options" help:"what the server gets as its initialization options"`
-	Files       []string          `toml:"files" help:"the files the server is for, as patterns of names or, with a slash, of the ends of paths, such as .github/workflows/*"`
-	Workspace   bool              `toml:"workspace_required" help:"the server starts only for a file under one of its root files"`
-	Env         map[string]string `toml:"env" help:"the variables the server runs with, over fude's own, which may hold placeholders such as {root}"`
-	Answers     map[string]any    `toml:"answers" help:"the answers to the server's requests fude does not answer itself, by method"`
+	Command      any               `toml:"command" help:"the server's command, its name when unset, or a list of commands, of which the first whose program is found runs"`
+	Connect      string            `toml:"connect" help:"the host:port of a server that runs already, which fude connects to in place of running command"`
+	Root         any               `toml:"root" help:"the files that mark a project's root, most wanted first, looked for from the file's folder up: each a name, a pattern such as *.cabal, a table of a marker's name, contains and outermost, or a list of those that rank the same"`
+	Requires     any               `toml:"requires" help:"files, as root names them, of which one must be from the file's folder up to its root for the server to start"`
+	Excludes     any               `toml:"excludes" help:"files, as root names them, none of which may be from the file's folder up to its root for the server to start"`
+	Fallback     string            `toml:"fallback" help:"the root when no root file is found: cwd for the working directory, home, or unset for the file's folder"`
+	Settings     map[string]any    `toml:"settings" help:"the server's settings, which it reads by section"`
+	InitOptions  map[string]any    `toml:"init_options" help:"what the server gets as its initialization options"`
+	Capabilities map[string]any    `toml:"capabilities" help:"what fude tells the server it can do, over fude's own, table by table, where false removes one"`
+	Files        []string          `toml:"files" help:"the files the server is for, as patterns of names or, with a slash, of the ends of paths, such as .github/workflows/*"`
+	Workspace    bool              `toml:"workspace_required" help:"the server starts only for a file under one of its root files"`
+	Env          map[string]string `toml:"env" help:"the variables the server runs with, over fude's own"`
+	Answers      map[string]any    `toml:"answers" help:"the answers to the server's requests fude does not answer itself, by method"`
+
+	// What loadConfig read from Command, Root, Requires and Excludes.
+	commands           [][]string
+	roots              [][]root.Marker
+	requires, excludes []root.Marker
+}
+
+// parseServers reads each [lsp] table's command, root, requires and
+// excludes, and checks its fallback (B533 to B536).
+func parseServers(c *config) error {
+	for _, name := range slices.Sorted(maps.Keys(c.LSP)) {
+		s := c.LSP[name]
+		var err error
+		var requires, excludes [][]root.Marker
+		switch {
+		case !slices.Contains([]string{"", "cwd", "home"}, s.Fallback):
+			err = fmt.Errorf("fallback: %q is not cwd or home", s.Fallback)
+		default:
+			s.commands, err = commandsOf(s.Command)
+		}
+		if err == nil {
+			s.roots, err = markersOf("root", s.Root, true)
+		}
+		if err == nil {
+			requires, err = markersOf("requires", s.Requires, false)
+		}
+		if err == nil {
+			excludes, err = markersOf("excludes", s.Excludes, false)
+		}
+		if err != nil {
+			return fmt.Errorf("[lsp.%s] %w", name, err)
+		}
+		s.requires, s.excludes = slices.Concat(requires...), slices.Concat(excludes...)
+		c.LSP[name] = s
+	}
+	return nil
+}
+
+// commandsOf reads a command: a list of words, or a list of such lists.
+func commandsOf(v any) ([][]string, error) {
+	list, ok := v.([]any)
+	if v == nil || ok && len(list) == 0 {
+		return nil, nil
+	}
+	if words, ok := wordsOf(list); ok {
+		return [][]string{words}, nil
+	}
+	var out [][]string
+	for _, c := range list {
+		inner, _ := c.([]any)
+		words, ok := wordsOf(inner)
+		if !ok || len(words) == 0 {
+			return nil, errors.New("command: not a list of words or a list of such lists")
+		}
+		out = append(out, words)
+	}
+	return out, nil
+}
+
+// wordsOf returns list as strings, and whether each is one.
+func wordsOf(list []any) ([]string, bool) {
+	out := make([]string, len(list))
+	for i, w := range list {
+		s, ok := w.(string)
+		if !ok {
+			return nil, false
+		}
+		out[i] = s
+	}
+	return out, len(list) > 0
+}
+
+// markersOf reads key's list of markers, each a name or a table of name,
+// contains and outermost, and with groups also a list of those that rank
+// the same, each entry a group.
+func markersOf(key string, v any, groups bool) ([][]root.Marker, error) {
+	if v == nil {
+		return nil, nil
+	}
+	list, ok := v.([]any)
+	if !ok {
+		return nil, fmt.Errorf("%s: not a list", key)
+	}
+	var out [][]root.Marker
+	for _, e := range list {
+		var g []root.Marker
+		if inner, ok := e.([]any); ok && groups {
+			for _, x := range inner {
+				m, err := markerOf(x)
+				if err != nil {
+					return nil, fmt.Errorf("%s: %w", key, err)
+				}
+				g = append(g, m)
+			}
+		} else {
+			m, err := markerOf(e)
+			if err != nil {
+				return nil, fmt.Errorf("%s: %w", key, err)
+			}
+			g = []root.Marker{m}
+		}
+		for _, m := range g {
+			if _, err := filepath.Match(m.Name, ""); err != nil {
+				return nil, fmt.Errorf("%s: %q: %w", key, m.Name, err)
+			}
+		}
+		out = append(out, g)
+	}
+	return out, nil
+}
+
+// markerOf reads a marker: a name, or a table of name, contains and
+// outermost.
+func markerOf(v any) (root.Marker, error) {
+	if name, ok := v.(string); ok {
+		return root.Marker{Name: name}, nil
+	}
+	t, ok := v.(map[string]any)
+	if !ok {
+		return root.Marker{}, fmt.Errorf("%v is not a name or a table", v)
+	}
+	var m root.Marker
+	for k, x := range t {
+		var ok bool
+		switch k {
+		case "name":
+			m.Name, ok = x.(string)
+		case "outermost":
+			m.Outermost, ok = x.(bool)
+		case "contains":
+			list, _ := x.([]any)
+			m.Contains, ok = wordsOf(list)
+		}
+		if !ok {
+			return root.Marker{}, fmt.Errorf("%s in %v is not a marker's", k, v)
+		}
+	}
+	if m.Name == "" {
+		return root.Marker{}, fmt.Errorf("%v names no file", v)
+	}
+	return m, nil
 }
 
 // keymap is config.toml's [keymap] tables by name: normal, visual and
@@ -187,6 +334,9 @@ func loadConfig() (config, error) {
 		return c, tomlerr.Where(path, err)
 	}
 	if err := aliasFiletypes(&c); err != nil {
+		return c, fmt.Errorf("%s: %w", path, err)
+	}
+	if err := parseServers(&c); err != nil {
 		return c, fmt.Errorf("%s: %w", path, err)
 	}
 	if err := badPattern(c); err != nil {

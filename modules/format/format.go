@@ -343,7 +343,7 @@ func formatters(s api.Scope) (runs []run, missing []string, err error) {
 			}
 			continue
 		}
-		dir, found := root.Of(abs, list(s, table+"root"))
+		dir, found := root.Of(abs, root.Names(list(s, table+"root")))
 		if workspace, _ := s.Config(table + "workspace_required"); !found && workspace == "true" {
 			continue
 		}
