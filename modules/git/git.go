@@ -46,14 +46,23 @@ var (
 // what it shows on the buffer.
 type Module struct {
 	mu    sync.Mutex
-	base  map[string]*string // by buffer, the index's text, nil outside a repository
-	stale map[string]bool    // by buffer, the index may have changed since base was read
-	signs map[string][]int   // by buffer, the ids of the signs showing
-	list  map[string][]int   // by explorer, the ids of its entries' signs
-	off   map[string]bool    // by buffer, git.signs was off when it was last signed
+	base  map[string]*string  // by buffer, the index's text, nil outside a repository
+	lines map[string][]string // by buffer, the index's text's lines, once a change needs them
+	stale map[string]bool     // by buffer, the index may have changed since base was read
+	shown map[string]*signed  // by buffer, the hunks it signs
+	list  map[string][]int    // by explorer, the ids of its entries' signs
+	off   map[string]bool     // by buffer, git.signs was off when it was last signed
 	ids   int
 	jobs  uint32
 	about map[uint32]job // by id, what each job that runs does
+}
+
+// signed is what git signs on a buffer: its hunks, the ids of each one's
+// signs, and how many lines the text had.
+type signed struct {
+	hunks []hunk
+	ids   [][]int
+	lines int
 }
 
 // job is what one job does, for the buffer buf: it reads the base from
@@ -64,7 +73,7 @@ type job struct {
 
 // New returns git.
 func New() *Module {
-	return &Module{base: map[string]*string{}, stale: map[string]bool{}, signs: map[string][]int{}, list: map[string][]int{}, off: map[string]bool{}, about: map[uint32]job{}}
+	return &Module{base: map[string]*string{}, lines: map[string][]string{}, stale: map[string]bool{}, shown: map[string]*signed{}, list: map[string][]int{}, off: map[string]bool{}, about: map[uint32]job{}}
 }
 
 func (m *Module) Name() string { return "git" }
@@ -138,8 +147,9 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 	case "buffer.closed":
 		maps.DeleteFunc(m.about, func(_ uint32, j job) bool { return j.buf == buf })
 		delete(m.base, buf)
+		delete(m.lines, buf)
 		delete(m.stale, buf)
-		delete(m.signs, buf)
+		delete(m.shown, buf)
 		delete(m.off, buf)
 		return api.Result{}, nil
 	case "editor.focused":
@@ -157,6 +167,12 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 			return m.sign(s), nil
 		}
 		return api.Result{}, nil
+	case "buffer.changed":
+		// Its range is where the text changed since git last heard.
+		var start, end int
+		if _, err := fmt.Sscanf(name, "buffer.changed %d %d", &start, &end); err == nil {
+			return m.resign(s, start, end), nil
+		}
 	}
 	return m.sign(s), nil
 }
@@ -186,6 +202,7 @@ func (m *Module) Callback(_ context.Context, id uint32, s api.Scope) (api.Result
 	case "status":
 		return m.signStatus(s), nil
 	}
+	delete(m.lines, j.buf)
 	if s.About["error"] != "" {
 		m.base[j.buf] = nil
 		return m.hide(j.buf), nil
@@ -340,8 +357,13 @@ func (m *Module) read(s api.Scope) api.Result {
 
 // hide takes the signs off buffer buf.
 func (m *Module) hide(buf string) api.Result {
-	res := api.Result{Undecorate: m.signs[buf]}
-	delete(m.signs, buf)
+	var res api.Result
+	if sh := m.shown[buf]; sh != nil {
+		for _, ids := range sh.ids {
+			res.Undecorate = append(res.Undecorate, ids...)
+		}
+	}
+	delete(m.shown, buf)
 	return res
 }
 
@@ -356,34 +378,112 @@ func (m *Module) sign(s api.Scope) api.Result {
 	if base == nil || m.off[buf] {
 		return res
 	}
-	for _, h := range hunks(*base, t.Slice(0, t.Len())) {
-		add, del := h.count, len(h.old)
-		signs := map[int]sign{}
-		for j := range add {
-			signs[h.line+j] = added
-			if j < del {
-				signs[h.line+j] = changed
-			}
-		}
-		switch {
-		case add == 0 && h.line == 0:
-			signs[0] = topDeleted
-		case add == 0:
-			signs[h.line-1] = deleted
-		case del > add:
-			signs[h.line+add-1] = changeDelete
-		}
-		for _, line := range slices.Sorted(maps.Keys(signs)) {
-			if line >= t.Lines() {
-				continue
-			}
-			m.ids++
-			at := t.LineStart(line)
-			res.Decorate = append(res.Decorate, api.Decoration{ID: m.ids, Start: at, End: at, Style: signs[line].style, Sign: signs[line].text, Layer: -1})
-			m.signs[buf] = append(m.signs[buf], m.ids)
+	sh := &signed{hunks: hunks(*base, t.Slice(0, t.Len())), lines: t.Lines()}
+	for _, h := range sh.hunks {
+		sh.ids = append(sh.ids, m.decorate(t, h, &res))
+	}
+	m.shown[buf] = sh
+	return res
+}
+
+// resign signs the buffer s is about again after its text changed from
+// start to end. Only its lines there, and the hunks that touch them, are
+// diffed again with the base, and only their signs change. The editor
+// moves the others with the text.
+func (m *Module) resign(s api.Scope, start, end int) api.Result {
+	buf, t := s.About["buffer"], s.Text
+	sh, base := m.shown[buf], m.base[buf]
+	if on, _ := s.Option("git.signs"); sh == nil || base == nil || on != "true" || end > t.Len() {
+		return m.sign(s)
+	}
+	if m.lines[buf] == nil {
+		m.lines[buf] = strings.Split(*base, "\n")
+	}
+	old := m.lines[buf]
+	// The lines changed, in the text before the change from a to b and
+	// after it from a to b+grew.
+	grew := t.Lines() - sh.lines
+	a := t.LineOf(start)
+	b := max(t.LineOf(end)+1-grew, a)
+	i := 0
+	for i < len(sh.hunks) && sh.hunks[i].line+sh.hunks[i].count < a {
+		i++
+	}
+	j := i
+	for ; j < len(sh.hunks) && sh.hunks[j].line <= b; j++ {
+		a, b = min(a, sh.hunks[j].line), max(b, sh.hunks[j].line+sh.hunks[j].count)
+	}
+	// The base's lines there are as far past the text's as the hunks
+	// before them took or gave.
+	off := 0
+	for _, h := range sh.hunks[:i] {
+		off += len(h.old) - h.count
+	}
+	gone := 0
+	for _, h := range sh.hunks[i:j] {
+		gone += len(h.old) - h.count
+	}
+	from, to := min(a+off, len(old)), min(b+off+gone, len(old))
+	var now []string
+	if b+grew > a {
+		now = strings.Split(t.Slice(t.LineStart(a), lineEnd(t, b+grew-1)), "\n")
+	}
+	var res api.Result
+	for _, ids := range sh.ids[i:j] {
+		res.Undecorate = append(res.Undecorate, ids...)
+	}
+	fresh := toHunks(diff.Lines(old[from:to], now), a)
+	ids := make([][]int, len(fresh))
+	for k, h := range fresh {
+		ids[k] = m.decorate(t, h, &res)
+	}
+	after := slices.Clone(sh.hunks[j:])
+	for k := range after {
+		after[k].line += grew
+	}
+	sh.hunks = slices.Concat(sh.hunks[:i], fresh, after)
+	sh.ids = slices.Concat(sh.ids[:i], ids, sh.ids[j:])
+	sh.lines = t.Lines()
+	return res
+}
+
+// decorate adds to res the signs of hunk h on t, and returns their ids.
+func (m *Module) decorate(t api.Text, h hunk, res *api.Result) []int {
+	add, del := h.count, len(h.old)
+	signs := map[int]sign{}
+	for j := range add {
+		signs[h.line+j] = added
+		if j < del {
+			signs[h.line+j] = changed
 		}
 	}
-	return res
+	switch {
+	case add == 0 && h.line == 0:
+		signs[0] = topDeleted
+	case add == 0:
+		signs[h.line-1] = deleted
+	case del > add:
+		signs[h.line+add-1] = changeDelete
+	}
+	var ids []int
+	for _, line := range slices.Sorted(maps.Keys(signs)) {
+		if line >= t.Lines() {
+			continue
+		}
+		m.ids++
+		at := t.LineStart(line)
+		res.Decorate = append(res.Decorate, api.Decoration{ID: m.ids, Start: at, End: at, Style: signs[line].style, Sign: signs[line].text, Layer: -1})
+		ids = append(ids, m.ids)
+	}
+	return ids
+}
+
+// lineEnd returns where line n of t ends, before its line break.
+func lineEnd(t api.Text, n int) int {
+	if n+1 < t.Lines() {
+		return t.LineStart(n+1) - 1
+	}
+	return t.Len()
 }
 
 // hunk is one run of lines that differ from git's index: count lines of
@@ -418,9 +518,12 @@ func hunks(base, now string) []hunk {
 		end--
 	}
 	a, b := base[pre:len(base)-end], now[pre:len(now)-end]
-	ops := diff.Lines(strings.Split(a, "\n"), strings.Split(b, "\n"))
+	return toHunks(diff.Lines(strings.Split(a, "\n"), strings.Split(b, "\n")), strings.Count(base[:pre], "\n"))
+}
+
+// toHunks returns the runs of lines ops change, the first op at line.
+func toHunks(ops []diff.Op, line int) []hunk {
 	var out []hunk
-	line := strings.Count(base[:pre], "\n") // the line of now the next op is at
 	for i := 0; i < len(ops); {
 		if ops[i].Kind == ' ' {
 			line, i = line+1, i+1
@@ -631,10 +734,4 @@ func gitDiff(s api.Scope, base string) api.Result {
 }
 
 // line returns line n of t.
-func line(t api.Text, n int) string {
-	start, end := t.LineStart(n), t.Len()
-	if n+1 < t.Lines() {
-		end = t.LineStart(n+1) - 1
-	}
-	return t.Slice(start, end)
-}
+func line(t api.Text, n int) string { return t.Slice(t.LineStart(n), lineEnd(t, n)) }
