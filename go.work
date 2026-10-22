@@ -14,4 +14,4 @@ use (
 
 // cmd/fude requires the root at the version the modules release together,
 // which the workspace takes from the checkout.
-replace github.com/y3owk1n/fude v0.2.0 => ./ // x-release-please-version
+replace github.com/y3owk1n/fude v0.2.1 => ./ // x-release-please-version
