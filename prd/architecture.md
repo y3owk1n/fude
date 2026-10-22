@@ -1208,6 +1208,7 @@ format = ["goimports", "gofumpt"]   # formatters, run in turn by format_on_save 
 format_first = false # true runs only the first that applies (B171)
 format_on_save = true # over the top-level one, for this filetype (B136)
 lsp = ["gopls", "golangci_lint_ls"]   # its language servers, by name, in order (B167, B169)
+language_id = "go"   # what its servers hear the files are written in, the filetype unset (B530)
 
 [formatter.prettierd]   # a formatter, all optional (B136, B171)
 command = ["prettierd", "{path}"]   # reads stdin, writes stdout; its name when unset
@@ -1218,8 +1219,10 @@ workspace_required = false   # true runs it only under a root file
 command = ["gopls"]  # its name when unset
 files = ["*.go"]     # the files it is for, by name or the end of the path (B169)
 workspace_required = false   # true starts it only under a root file (B169)
-root = ["go.work", "go.mod", ".git"]   # marks a project's root, most wanted first
+root = ["go.work", "go.mod", ".git"]   # marks a project's root, most wanted first, names or patterns (B528)
 init_options = {}    # sent with initialize (B168)
+env = { GOFLAGS = "-tags=integration" }   # variables it runs with (B529)
+answers = {}         # answers to its requests fude does not answer, by method (B531)
 
 [lsp.gopls.settings.gopls]   # what workspace/configuration answers, by section (B168)
 gofumpt = true
@@ -1590,7 +1593,10 @@ since only it may use `syntax`'s cgo, and refuses a guest's build (B333).
 ## LSP
 
 `[filetype.<name>] lsp` names a filetype's servers, and `[lsp.<name>]`
-sets one's command and root markers. fude starts one server per name and
+sets one's command and root markers. `{root}`, `{root_uri}`,
+`{root_name}` and `{cache}` in a table fill in for the server's root and
+a cache folder fude makes for it (B527). A request fude does not answer
+gets the table's `answers`, or an empty answer (B531). fude starts one server per name and
 project root, after the first frame, for the buffers open then and any
 opened later. A buffer has each server its filetype names whose `files`
 match it. A request goes to every one of them that declared the provider

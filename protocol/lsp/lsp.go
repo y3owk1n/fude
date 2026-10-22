@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
@@ -72,18 +73,22 @@ type Range struct {
 }
 
 // Start runs command, the server called name, for the files under root,
-// and sends options with initialize. Three funcs run on the editor loop,
+// with env's KEY=value variables over the editor's, and sends options with
+// initialize. Three funcs run on the editor loop,
 // through queue. notify gets each notification the server sends. serve gets
 // each request, and its result goes back as the answer. exited runs once
 // the server exits, with why. Lines the server writes to stderr go to log,
 // after its name. trace hears each message sent and received, and how long
 // an answer took.
-func Start(name string, command []string, root string, options any, queue chan<- func(), log func(string), trace func(text string, took time.Duration), notify func(method string, params json.RawMessage), serve func(method string, params json.RawMessage) any, exited func(error)) (*Client, error) {
+func Start(name string, command, env []string, root string, options any, queue chan<- func(), log func(string), trace func(text string, took time.Duration), notify func(method string, params json.RawMessage), serve func(method string, params json.RawMessage) any, exited func(error)) (*Client, error) {
 	cmd := exec.Command(command[0], command[1:]...)
 	// Wait returns once stderr is read to its end, or a moment after the
 	// server exits when a child it left keeps it open.
 	stderr := &framing.Lines{Log: log, Name: name}
 	cmd.Dir, cmd.Stderr, cmd.WaitDelay = root, stderr, time.Second
+	if len(env) > 0 {
+		cmd.Env = append(os.Environ(), env...)
+	}
 	stdin, err1 := cmd.StdinPipe()
 	stdout, err2 := cmd.StdoutPipe()
 	if err := errors.Join(err1, err2); err != nil {

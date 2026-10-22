@@ -555,6 +555,18 @@ formats, renames or gives signature help does it.
 lsp = ["gopls", "golangci_lint_ls"]
 ```
 
+## filetype.language_id
+
+What the language servers hear files of the type are written in, when it
+is not the filetype's name. Unset, it is the filetype's name, except
+`shellscript` for bash, `typescriptreact` for tsx and `objective-c` for
+objc.
+
+```toml
+[filetype.gitcommit]
+language_id = "git-commit"
+```
+
 ## filetype.format
 
 The formatters of this filetype, by the names of their `[formatter.<name>]`
@@ -618,16 +630,22 @@ project.
 The server's program and arguments, found on PATH. Unset, it is the table's
 name alone. `~/` at the start of a word is the home folder.
 
+In `command`, `init_options`, `settings`, `env` and `answers`, fude fills
+in `{root}` with the server's root, `{root_uri}` with its URI and
+`{root_name}` with its folder's name. `{cache}` is a folder fude makes in
+its cache for the server and the project.
+
 ```toml
-[lsp.bashls]
-command = ["bash-language-server", "start"]
+[lsp.jdtls]
+command = ["jdtls", "-data", "{cache}"]
 ```
 
 ## lsp.root
 
 The files that mark a project's root, most wanted first. fude looks for each
 in turn from the file's folder up, and starts one server for each root. With
-none found, the root is the file's folder.
+none found, the root is the file's folder. A name with `*`, `?` or `[` is a
+pattern, such as `*.cabal`.
 
 ```toml
 [lsp.gopls]
@@ -648,6 +666,31 @@ gofumpt = true
 
 What the server gets when it starts, as its initialization options. Some
 servers fail to start without it, even empty, as `init_options = {}`.
+
+```toml
+[lsp.astro.init_options.typescript]
+tsdk = "{root}/node_modules/typescript/lib"
+```
+
+## lsp.env
+
+The variables the server runs with, over fude's own.
+
+```toml
+[lsp.jdtls.env]
+JDTLS_JVM_ARGS = "-Xmx2g"
+```
+
+## lsp.answers
+
+What fude answers a request the server sends that it does not answer
+itself, by the request's method. A request with no answer here gets an
+empty answer.
+
+```toml
+[lsp.eslint.answers]
+"eslint/confirmESLintExecution" = 4
+```
 
 ## lsp.files
 
@@ -675,7 +718,7 @@ command = ["biome", "format", "--stdin-file-path", "{path}"]
 
 The files that mark the folder the formatter runs in, most wanted first,
 looked for from the file's folder up. With none found, it runs in the file's
-folder.
+folder. A name with `*`, `?` or `[` is a pattern, as in `lsp.root`.
 
 ## formatter.workspace_required
 

@@ -68,18 +68,12 @@ type config struct {
 		ColorColumn  *int     `toml:"color_column" help:"the column shaded in files of the type, 0 for none"`
 		Spell        *bool    `toml:"spell" help:"spell checks files of the type, as spell.enabled"`
 		Debug        []string `toml:"debug" help:"the debug adapters of files of the type, by the names of their [debug.{name}] tables"`
+		LanguageID   string   `toml:"language_id" help:"what the language servers hear files of the type are written in, when it is not the filetype's name"`
 	} `toml:"filetype" key:"type"`
 	Debug map[string]struct {
 		Command []string `toml:"command" help:"the debug adapter's command, with {port} where it listens if it does not talk on stdio"`
 	} `toml:"debug" key:"name"`
-	LSP map[string]struct {
-		Command     []string       `toml:"command" help:"the server's command, its name when unset"`
-		Root        []string       `toml:"root" help:"the files that mark a project's root, most wanted first, looked for from the file's folder up"`
-		Settings    map[string]any `toml:"settings" help:"the server's settings, which it reads by section"`
-		InitOptions map[string]any `toml:"init_options" help:"what the server gets as its initialization options"`
-		Files       []string       `toml:"files" help:"the files the server is for, as patterns of names or, with a slash, of the ends of paths, such as .github/workflows/*"`
-		Workspace   bool           `toml:"workspace_required" help:"the server starts only for a file under one of its root files"`
-	} `toml:"lsp" key:"name"`
+	LSP       map[string]serverConfig `toml:"lsp" key:"name"`
 	Formatter map[string]struct {
 		Command   []string `toml:"command" help:"the formatter's command, its name when unset, which reads the text on stdin and writes it on stdout. {path} in it is the file's path"`
 		Root      []string `toml:"root" help:"the files that mark the folder it runs in, most wanted first, looked for from the file's folder up"`
@@ -96,6 +90,20 @@ type config struct {
 		Options      map[string]any `toml:"options" help:"where the plugin's options start, by name"`
 		Disabled     bool           `toml:"disabled" help:"keeps the plugin from loading, with its table kept"`
 	} `toml:"plugin"`
+}
+
+// serverConfig is an [lsp.<name>] table, a language server's. Its command,
+// init_options, settings, env and answers may hold {root}, {root_uri}, {root_name} and
+// {cache} (B527).
+type serverConfig struct {
+	Command     []string          `toml:"command" help:"the server's command, its name when unset"`
+	Root        []string          `toml:"root" help:"the files that mark a project's root, most wanted first, looked for from the file's folder up, each a name or a pattern such as *.cabal"`
+	Settings    map[string]any    `toml:"settings" help:"the server's settings, which it reads by section"`
+	InitOptions map[string]any    `toml:"init_options" help:"what the server gets as its initialization options"`
+	Files       []string          `toml:"files" help:"the files the server is for, as patterns of names or, with a slash, of the ends of paths, such as .github/workflows/*"`
+	Workspace   bool              `toml:"workspace_required" help:"the server starts only for a file under one of its root files"`
+	Env         map[string]string `toml:"env" help:"the variables the server runs with, over fude's own, which may hold placeholders such as {root}"`
+	Answers     map[string]any    `toml:"answers" help:"the answers to the server's requests fude does not answer itself, by method"`
 }
 
 // keymap is config.toml's [keymap] tables by name: normal, visual and

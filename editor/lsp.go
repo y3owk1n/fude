@@ -2,6 +2,7 @@ package editor
 
 import (
 	"cmp"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,6 +16,9 @@ import (
 
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/core/kernel"
+	"github.com/y3owk1n/fude/internal/keep"
+	"github.com/y3owk1n/fude/internal/paths"
+	"github.com/y3owk1n/fude/internal/root"
 	"github.com/y3owk1n/fude/internal/trace"
 	"github.com/y3owk1n/fude/protocol/lsp"
 	"github.com/y3owk1n/fude/syntax"
@@ -27,8 +31,9 @@ type server struct {
 	name      string // the name config.toml gives it
 	command   []string
 	root      string
-	restarted bool // it crashed once, and the next crash leaves it off
-	closing   bool // fude asked it to exit
+	fill      *strings.Replacer // the placeholders of its table, filled in (B527)
+	restarted bool              // it crashed once, and the next crash leaves it off
+	closing   bool              // fude asked it to exit
 	bufs      []*buffer
 	versions  map[*buffer]int      // the changes it has heard of each, since it opened
 	pulls     map[*buffer]bool     // the buffers whose diagnostics it was asked for, true to ask again (B470)
@@ -118,18 +123,25 @@ func (e *Session) attachTo(b *buffer, name string) error {
 		return err
 	}
 	c := e.cfg.LSP[name]
-	root, found := rootOf(abs, c.Root)
+	root, found := root.Of(abs, c.Root)
 	if !found && c.Workspace || len(c.Files) > 0 && !slices.ContainsFunc(c.Files, func(p string) bool { return matchEnd(p, abs) }) {
 		return nil
 	}
 	key := name + "\x00" + root
 	s := e.servers[key]
 	if s == nil {
+		fill, err := placeholders(name, root, c)
+		if err != nil {
+			return fmt.Errorf("start %s: %w", name, err)
+		}
 		command, err := commandOf(name, c.Command)
 		if err != nil {
 			return fmt.Errorf("start %s: %w", name, err)
 		}
-		s = &server{name: name, command: command, root: root, versions: map[*buffer]int{}, pulls: map[*buffer]bool{}}
+		for i := range command {
+			command[i] = fill.Replace(command[i])
+		}
+		s = &server{name: name, command: command, root: root, fill: fill, versions: map[*buffer]int{}, pulls: map[*buffer]bool{}}
 		if err := e.start(s); err != nil {
 			e.serversChanged(name)
 			e.down[name] = err.Error()
@@ -150,7 +162,7 @@ func (e *Session) attachTo(b *buffer, name string) error {
 	slices.SortStableFunc(b.servers, func(x, y *server) int {
 		return cmp.Compare(slices.Index(names, x.name), slices.Index(names, y.name))
 	})
-	s.client.Open(lsp.URI(b.file.path), languageID(e.filetype(b)), b.text.Snapshot())
+	s.client.Open(lsp.URI(b.file.path), e.languageID(e.filetype(b)), b.text.Snapshot())
 	e.askDiagnostics(s, b)
 	e.askTokens(b)
 	return nil
@@ -161,23 +173,48 @@ func (e *Editor) serverNames(b *buffer) []string {
 	return e.cfg.Filetype[e.filetype(b)].LSP
 }
 
-// rootOf returns the project root of the file at abs: the nearest folder
-// above it that holds the first of markers found, or the file's folder
-// when it has none, and whether a marker was found (B167).
-func rootOf(abs string, markers []string) (string, bool) {
-	for _, m := range markers {
-		for dir := filepath.Dir(abs); ; {
-			if _, err := os.Stat(filepath.Join(dir, m)); err == nil {
-				return dir, true
-			}
-			up := filepath.Dir(dir)
-			if up == dir {
-				break
-			}
-			dir = up
+// placeholders returns what fills in a server's table c for name at root:
+// {root}, {root_uri}, {root_name}, and {cache}, a folder of fude's cache for
+// the server and project, made when c names it (B527).
+func placeholders(name, root string, c serverConfig) (*strings.Replacer, error) {
+	dir, err := keep.Dir("XDG_CACHE_HOME", ".cache")
+	if err != nil {
+		return nil, fmt.Errorf("find the cache directory: %w", err)
+	}
+	sum := sha256.Sum256([]byte(paths.Key(root)))
+	cache := filepath.Join(dir, "fude", "lsp", name, fmt.Sprintf("%s-%x", filepath.Base(root), sum[:4]))
+	// fmt.Sprint shows every string in c.
+	if strings.Contains(fmt.Sprint(c), "{cache}") {
+		if err := os.MkdirAll(cache, 0o700); err != nil {
+			return nil, fmt.Errorf("make %s: %w", cache, err)
 		}
 	}
-	return filepath.Dir(abs), false
+	return strings.NewReplacer("{root}", root, "{root_uri}", lsp.URI(root), "{root_name}", filepath.Base(root), "{cache}", cache), nil
+}
+
+// filled returns v with r's placeholders filled into its strings (B527).
+func filled(v any, r *strings.Replacer) any {
+	switch v := v.(type) {
+	case string:
+		return r.Replace(v)
+	case map[string]any:
+		// An unset table stays unset, not {}.
+		if v == nil {
+			return v
+		}
+		out := make(map[string]any, len(v))
+		for k, x := range v {
+			out[k] = filled(x, r)
+		}
+		return out
+	case []any:
+		out := make([]any, len(v))
+		for i, x := range v {
+			out[i] = filled(x, r)
+		}
+		return out
+	}
+	return v
 }
 
 // matchEnd reports whether pattern matches the file at abs: its name, or
@@ -189,10 +226,10 @@ func matchEnd(pattern, abs string) bool {
 	return ok
 }
 
-// languageID is the protocol's name for filetype ft. It is ft except for
-// these two.
-func languageID(ft string) string {
-	return cmp.Or(map[string]string{"bash": "shellscript", "tsx": "typescriptreact", "objc": "objective-c"}[ft], ft)
+// languageID is the protocol's name for filetype ft: its language_id, or
+// else ft except for these three (B530).
+func (e *Editor) languageID(ft string) string {
+	return cmp.Or(e.cfg.Filetype[ft].LanguageID, map[string]string{"bash": "shellscript", "tsx": "typescriptreact", "objc": "objective-c"}[ft], ft)
 }
 
 // detach disconnects b from its language servers.
@@ -208,7 +245,11 @@ func (e *Session) detach(b *buffer) {
 
 func (e *Session) start(s *server) error {
 	cfg := e.cfg.LSP[s.name]
-	c, err := lsp.Start(s.name, s.command, s.root, cfg.InitOptions, e.queue, logLine,
+	var env []string
+	for _, k := range slices.Sorted(maps.Keys(cfg.Env)) {
+		env = append(env, k+"="+s.fill.Replace(cfg.Env[k]))
+	}
+	c, err := lsp.Start(s.name, s.command, env, s.root, filled(cfg.InitOptions, s.fill), e.queue, logLine,
 		func(text string, took time.Duration) { trace.Record("lsp", text, took) },
 		func(method string, params json.RawMessage) { e.notified(s, method, params) },
 		func(method string, params json.RawMessage) any { return e.served(s, method, params) },
@@ -222,7 +263,7 @@ func (e *Session) start(s *server) error {
 	// watchers.
 	s.client, s.work, s.watchers = c, map[string]*work{}, map[string][]watcher{}
 	if len(cfg.Settings) > 0 {
-		c.Notify("workspace/didChangeConfiguration", map[string]any{"settings": cfg.Settings})
+		c.Notify("workspace/didChangeConfiguration", map[string]any{"settings": filled(cfg.Settings, s.fill)})
 	}
 	return nil
 }
@@ -252,7 +293,7 @@ func (e *Session) exited(s *server, err error) {
 	}
 	for _, b := range s.bufs {
 		s.versions[b] = 0
-		s.client.Open(lsp.URI(b.file.path), languageID(e.filetype(b)), b.text.Snapshot())
+		s.client.Open(lsp.URI(b.file.path), e.languageID(e.filetype(b)), b.text.Snapshot())
 	}
 	e.message = fmt.Sprintf("language server %s exited (%v) and was restarted", s.name, err)
 }
@@ -470,7 +511,7 @@ func (e *Session) served(s *server, method string, params json.RawMessage) any {
 		json.Unmarshal(params, &p)
 		out := make([]any, len(p.Items))
 		for i, it := range p.Items {
-			out[i] = section(e.cfg.LSP[s.name].Settings, it.Section)
+			out[i] = section(filled(e.cfg.LSP[s.name].Settings, s.fill).(map[string]any), it.Section)
 		}
 		return out
 	}
@@ -497,6 +538,9 @@ func (e *Session) served(s *server, method string, params json.RawMessage) any {
 		return nil
 	}
 	if method != "workspace/applyEdit" {
+		if answer, ok := e.cfg.LSP[s.name].Answers[method]; ok {
+			return filled(answer, s.fill)
+		}
 		return nil
 	}
 	var p struct {

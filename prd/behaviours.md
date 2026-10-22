@@ -2126,6 +2126,20 @@ Where fude departs, the line says so and cites the departure in
   one of its patterns: a name, such as `*.go`, or with a slash the end of a
   path, such as `.github/workflows/*`. `workspace_required` keeps it to
   files under one of its root files.
+- B527 [5] In an `[lsp.<name>]` table's `command`, `init_options`,
+  `settings`, `env` and `answers`, fude fills in `{root}` with the
+  server's root, `{root_uri}` with its URI, `{root_name}` with its
+  folder's name, and `{cache}` with a folder of fude's cache for the
+  server and the project, which fude makes when the table names it.
+- B528 [5] A root file with `*`, `?` or `[`, in an `[lsp.<name>]` or a
+  `[formatter.<name>]` table, is a pattern of names, such as `*.cabal`.
+  config.toml with a pattern that is not one says where it is (B93).
+- B529 [5] An `[lsp.<name>]` table's `env` sets variables the server runs
+  with, over fude's own.
+- B530 [5] A filetype's `language_id` is what its files' servers hear the
+  files are written in, in place of the filetype's name.
+- B531 [5] An `[lsp.<name>]` table's `answers` give, by method, the
+  answer to a request the server sends that fude does not answer itself.
 - B460 [5] `<Plug>(lsp.declaration)` goes to the declaration of the
   symbol under the cursor, as `<C-]>` goes to its definition. One is a
   jump, several are a list of places, and none says "no declaration

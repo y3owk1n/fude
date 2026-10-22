@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -23,6 +22,7 @@ import (
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/api/diff"
 	"github.com/y3owk1n/fude/internal/home"
+	"github.com/y3owk1n/fude/internal/root"
 	"github.com/y3owk1n/fude/protocol/lsp"
 )
 
@@ -343,7 +343,7 @@ func formatters(s api.Scope) (runs []run, missing []string, err error) {
 			}
 			continue
 		}
-		dir, found := rootOf(abs, list(s, table+"root"))
+		dir, found := root.Of(abs, list(s, table+"root"))
 		if workspace, _ := s.Config(table + "workspace_required"); !found && workspace == "true" {
 			continue
 		}
@@ -379,25 +379,6 @@ func commandOf(name string, command []string) ([]string, error) {
 		out[i] = path
 	}
 	return out, nil
-}
-
-// rootOf returns the folder the formatter runs in: the nearest above the
-// file at abs that holds the first of markers found, or the file's folder,
-// and whether a marker was found.
-func rootOf(abs string, markers []string) (string, bool) {
-	for _, m := range markers {
-		for dir := filepath.Dir(abs); ; {
-			if _, err := os.Stat(filepath.Join(dir, m)); err == nil {
-				return dir, true
-			}
-			up := filepath.Dir(dir)
-			if up == dir {
-				break
-			}
-			dir = up
-		}
-	}
-	return filepath.Dir(abs), false
 }
 
 // textEdit is an edit as the server sends it.

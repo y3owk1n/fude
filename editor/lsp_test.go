@@ -11,6 +11,7 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -32,7 +33,8 @@ import (
 
 // TestFakeServer is a language server when FUDE_FAKE_LSP is set, which tests
 // run as a process of its own. It answers initialize with the encoding in
-// FUDE_FAKE_ENCODING, appends every message it gets to FUDE_FAKE_LOG, and
+// FUDE_FAKE_ENCODING, appends its arguments, FAKE_SEEN when set, and every
+// message it gets to FUDE_FAKE_LOG, and
 // crashes when a change inserts "#". Each "bad" in an opened document gets
 // an error diagnostic, published only to a client that says it takes them.
 // A definition or type definition is the first "target" in it and a declaration the last, references and implementations are
@@ -55,6 +57,7 @@ import (
 // line up to the cursor, with a command. With files, it watches the Go
 // files under its root, hears of the Go files fude renames, creates and
 // deletes, and puts a line at the top of a Go file before it is renamed.
+// With ask, it asks fude fake/ask when a document opens.
 // A whole text a change sends becomes the document's.
 func TestFakeServer(t *testing.T) {
 	if os.Getenv("FUDE_FAKE_LSP") == "" {
@@ -65,6 +68,9 @@ func TestFakeServer(t *testing.T) {
 		os.Exit(2)
 	}
 	fmt.Fprintf(log, "args %q\n", os.Args[1:])
+	if v, ok := os.LookupEnv("FAKE_SEEN"); ok {
+		fmt.Fprintf(log, "seen %q\n", v)
+	}
 	r := bufio.NewReader(os.Stdin)
 	reply := func(id *int, result any) {
 		body, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": id, "result": result})
@@ -322,6 +328,9 @@ func TestFakeServer(t *testing.T) {
 			reply(m.ID, map[string]any{"contents": map[string]any{"kind": "markdown", "value": value}})
 		case "textDocument/didOpen":
 			opened[m.Params.TextDocument.URI] = m.Params.TextDocument.Text
+			if slices.Contains(offers, "ask") {
+				send(map[string]any{"id": "ask-1", "method": "fake/ask", "params": map[string]any{}})
+			}
 			var ds []any
 			for line, l := range strings.Split(m.Params.TextDocument.Text, "\n") {
 				for i := 0; strings.Contains(l[i:], "bad"); i += 3 {
@@ -462,8 +471,8 @@ func withServerAt(t *testing.T, path, text, encoding string, settings ...string)
 	t.Setenv("FUDE_FAKE_LSP", "1")
 	t.Setenv("FUDE_FAKE_LOG", log)
 	t.Setenv("FUDE_FAKE_ENCODING", encoding)
-	// The last argument tests B167's ~/.
-	command := fmt.Sprintf("lsp.fake.command = [%q, \"-test.run=^TestFakeServer$\", \"~/fake\"]\n", os.Args[0])
+	// The last two arguments test B167's ~/ and B527's {root_name}.
+	command := fmt.Sprintf("lsp.fake.command = [%q, \"-test.run=^TestFakeServer$\", \"~/fake\", \"{root_name}\"]\n", os.Args[0])
 	config(t, command+strings.Join(settings, "\n")+"\n[filetype.go]\nlsp = [\"fake\"]\n")
 	change(t, path, text)
 	e := start(t, path)
@@ -609,6 +618,74 @@ func TestB167ProjectRoot(t *testing.T) {
 		t.Fatal(err)
 	}
 	heard(t, log, fmt.Sprintf("%q", filepath.Join(home, "fake")), 1)
+}
+
+// B529
+func TestB529ServerEnv(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.go")
+	_, log := withServerAt(t, path, "x\n", "utf-8", `lsp.fake.env.FAKE_SEEN = "in {root_name}"`)
+	heard(t, log, fmt.Sprintf("seen %q", "in "+filepath.Base(filepath.Dir(path))), 1)
+}
+
+// B531
+func TestB531ServerAnswers(t *testing.T) {
+	t.Setenv("FUDE_FAKE_OFFER", "ask")
+	path := filepath.Join(t.TempDir(), "a.go")
+	e, log := withServerAt(t, path, "x\n", "utf-8", `lsp.fake.answers."fake/ask" = { approved = "{root_name}" }`)
+	// The answer goes out on the editor loop.
+	want := fmt.Sprintf(`"result":{"approved":%q}`, filepath.Base(filepath.Dir(path)))
+	settle(t, e, func() bool {
+		b, _ := os.ReadFile(log)
+		return strings.Contains(string(b), want)
+	})
+}
+
+// B530
+func TestB530LanguageID(t *testing.T) {
+	log := fakeLog(t, "server.log")
+	t.Setenv("FUDE_FAKE_LSP", "1")
+	t.Setenv("FUDE_FAKE_LOG", log)
+	t.Setenv("FUDE_FAKE_ENCODING", "utf-8")
+	config(t, fmt.Sprintf("lsp.fake.command = [%q, \"-test.run=^TestFakeServer$\"]\n[filetype.go]\nlsp = [\"fake\"]\nlanguage_id = \"golang\"\n", os.Args[0]))
+	path := filepath.Join(t.TempDir(), "a.go")
+	change(t, path, "x\n")
+	e := start(t, path)
+	t.Cleanup(func() { feed(e, ":qa!<CR>") })
+	e.Load()
+	heard(t, log, `"languageId":"golang"`, 1)
+}
+
+// B528
+func TestB528RootPattern(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "pkg"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	change(t, filepath.Join(dir, "m.cabal"), "")
+	_, log := withServerAt(t, filepath.Join(dir, "pkg", "a.go"), "x\n", "utf-8", `lsp.fake.root = ["*.cabal"]`)
+	heard(t, log, fmt.Sprintf(`"rootUri":%q`, lsp.URI(dir)), 1)
+}
+
+// B527
+func TestB527Placeholders(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.go")
+	root := filepath.Dir(path)
+	_, log := withServerAt(t, path, "x\n", "utf-8", `lsp.fake.init_options.mode = "{root}/test"`,
+		`lsp.fake.settings.fake = { uri = "{root_uri}", cache = "{cache}" }`)
+	heard(t, log, fmt.Sprintf("%q]", filepath.Base(root)), 1)
+	mode, _ := json.Marshal(root + "/test")
+	heard(t, log, `"initializationOptions":{"mode":`+string(mode)+`}`, 1)
+	heard(t, log, fmt.Sprintf(`"uri":%q`, lsp.URI(root)), 1)
+	// {cache} is a folder fude made for the server and the project.
+	b, _ := os.ReadFile(log)
+	m := regexp.MustCompile(`"cache":("[^"]*")`).FindSubmatch(b)
+	var cache string
+	if m == nil || json.Unmarshal(m[1], &cache) != nil {
+		t.Fatalf("the settings named no cache folder in %s", b)
+	}
+	if info, err := os.Stat(cache); err != nil || !info.IsDir() || !strings.Contains(cache, filepath.Base(root)) {
+		t.Errorf("{cache} was %q, which is not a folder for the project: %v", cache, err)
+	}
 }
 
 // B168

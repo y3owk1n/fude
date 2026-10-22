@@ -35,6 +35,28 @@ is optional.
   such as `.github/workflows/*.yml`.
 - `workspace_required = true` starts the server only when a root file is
   found, such as a linter's config.
+- `env` sets variables the server runs with.
+- `answers` answer requests the server sends that fude does not answer
+  itself, by method.
+
+`{root}`, `{root_uri}` and `{root_name}` in `command`, `init_options`,
+`settings`, `env` and `answers` are the server's root, its URI and its
+folder's name, and `{cache}` is a folder fude keeps for the server and
+the project. A root file may be a pattern, such as `*.cabal`. A
+filetype's `language_id` changes what its servers hear the files are
+written in.
+
+```toml
+[lsp.jdtls]
+command = ["jdtls", "-data", "{cache}"]
+root = ["pom.xml", "build.gradle", "*.iml", ".git"]
+
+[lsp.eslint.settings]
+workspaceFolder = { uri = "{root_uri}", name = "{root_name}" }
+
+[lsp.eslint.answers]
+"eslint/confirmESLintExecution" = 4
+```
 
 fude watches no files. A server hears of the files fude writes, of an
 open file fude finds changed when it comes back into focus, and of what

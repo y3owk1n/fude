@@ -151,13 +151,27 @@ func aliasFiletypes(c *config) error {
 	return nil
 }
 
-// badPattern returns an error naming the first files pattern in c that is
-// not a pattern, or nil.
+// badPattern returns an error naming the first files or root pattern in c
+// that is not a pattern, or nil.
 func badPattern(c config) error {
 	for _, ft := range slices.Sorted(maps.Keys(c.Filetype)) {
 		for _, p := range c.Filetype[ft].Files {
 			if _, err := filepath.Match(p, ""); err != nil {
 				return fmt.Errorf("[filetype.%s] files: %q: %w", ft, p, err)
+			}
+		}
+	}
+	tables := map[string][]string{}
+	for name, l := range c.LSP {
+		tables["[lsp."+name+"] root"] = l.Root
+	}
+	for name, f := range c.Formatter {
+		tables["[formatter."+name+"] root"] = f.Root
+	}
+	for _, table := range slices.Sorted(maps.Keys(tables)) {
+		for _, p := range tables[table] {
+			if _, err := filepath.Match(p, ""); err != nil {
+				return fmt.Errorf("%s: %q: %w", table, p, err)
 			}
 		}
 	}
