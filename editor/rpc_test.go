@@ -39,9 +39,14 @@ func dial(t *testing.T, e *editor.Session) *client {
 	}
 	t.Cleanup(func() { os.RemoveAll(dir) })
 	t.Cleanup(e.Serve(filepath.Join(dir, "s")))
-	do, done := make(chan func()), make(chan struct{})
-	t.Cleanup(func() { close(done) })
+	do, done, stopped := make(chan func()), make(chan struct{}), make(chan struct{})
+	// The loop ends before the editor quits, so their keys never run at once.
+	t.Cleanup(func() {
+		close(done)
+		<-stopped
+	})
 	go func() {
+		defer close(stopped)
 		for {
 			select {
 			case f := <-e.Queue():
