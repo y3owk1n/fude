@@ -165,28 +165,25 @@ func TestB48RunPrograms(t *testing.T) {
 	}
 	config(t, fmt.Sprintf("[[plugin]]\npath = %q\ncapabilities = [\"process\"]\nprograms = [\"echo\", \"sleep\"]\n", wasm))
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	// sleep outlasts the test's patience, so only its budget ends the call.
+	editortest.FakeProgram(t, "sleep")
+	t.Setenv("FUDE_FAKE_SLEEP", (2 * editortest.Patience).String())
 	e := start(t, "")
 	e.Load()
-	began := time.Now()
 	next(t, e)
-	// The budget stops it well before its 5 seconds, with room for a slow
-	// machine.
-	if took := time.Since(began); took > 4*time.Second || !strings.Contains(e.Message(), "budget") {
-		t.Fatalf("sleep 5 ran %v and the plugin said %q, want its budget to stop it", took, e.Message())
+	if !strings.Contains(e.Message(), "budget") {
+		t.Fatalf("the plugin said %q, want its budget to stop sleep", e.Message())
 	}
 	if log := fudeLog(); !strings.Contains(log, "proc: hi\n") || !strings.Contains(log, "proc: refused") {
 		t.Fatalf("the plugin logged:\n%s", log)
 	}
-	// A program that leaves a child holding its output ends with it.
-	t.Setenv("FUDE_FAKE_CHILD", "5s")
-	editortest.FakeProgram(t, "sleep")
+	// A program that leaves a child holding its output ends with it, though
+	// the child outlasts the test's patience.
+	t.Setenv("FUDE_FAKE_SLEEP", "")
+	t.Setenv("FUDE_FAKE_CHILD", (2 * editortest.Patience).String())
 	e = start(t, "")
 	e.Load()
-	began = time.Now()
 	next(t, e)
-	if took := time.Since(began); took > 4*time.Second {
-		t.Fatalf("a program whose child kept its output ran %v, want it to end with the program", took)
-	}
 }
 
 // B49
