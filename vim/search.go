@@ -1,6 +1,7 @@
 package vim
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"strconv"
@@ -312,8 +313,9 @@ const litChunk = 1 << 16
 // in [least, limit).
 func (p *pattern) firstLit(t Text, least, limit int) (int, bool) {
 	n := len(p.lit)
+	var s []byte
 	for at := least; at < limit; at += litChunk {
-		s := t.Slice(at, min(at+litChunk+n-1, t.Len()))
+		s = appendSlice(s[:0], t, at, min(at+litChunk+n-1, t.Len()))
 		for off := 0; ; off++ {
 			i := p.index(s[off:])
 			if i < 0 || off+i >= litChunk {
@@ -335,9 +337,10 @@ func (p *pattern) firstLit(t Text, least, limit int) (int, bool) {
 // [least, limit).
 func (p *pattern) lastLit(t Text, least, limit int) (int, bool) {
 	n := len(p.lit)
+	var s []byte
 	for to := limit; to > least; to -= litChunk {
 		from := max(to-litChunk, least)
-		s := t.Slice(from, min(to+n-1, t.Len()))
+		s = appendSlice(s[:0], t, from, min(to+n-1, t.Len()))
 		// A match starts before to, so it ends by to+n-1.
 		for end := len(s); ; {
 			i := p.lastIndex(s[:end])
@@ -353,23 +356,24 @@ func (p *pattern) lastLit(t Text, least, limit int) (int, bool) {
 	return 0, false
 }
 
-// index returns where the literal first is in s, or -1. When it folds case,
-// it tracks where each case of the first letter comes next, so it reads s
-// once.
-func (p *pattern) index(s string) int {
-	if !p.fold {
-		return strings.Index(s, p.lit)
+// index returns where the literal first is in s, or -1. It looks for the
+// literal's rarest byte, in both cases when it folds, so it reads s once and
+// seldom stops.
+func (p *pattern) index(s []byte) int {
+	r, n := p.rare, len(p.lit)
+	lo, up := p.cases()
+	i, j := -1, -1 // the next lo and up at or after at+r, or len(s) for none
+	if lo == up {
+		j = len(s)
 	}
-	lo, up := p.lit[0], upper(p.lit[0])
-	i, j := -1, -1 // the next lo and up at or after at, or len(s) for none
-	for at := 0; at+len(p.lit) <= len(s); at++ {
-		if i < at {
-			i = nextByte(s, at, lo)
+	for at := 0; at+n <= len(s); at++ {
+		if i < at+r {
+			i = nextByte(s, at+r, lo)
 		}
-		if j < at {
-			j = nextByte(s, at, up)
+		if j < at+r {
+			j = nextByte(s, at+r, up)
 		}
-		if at = min(i, j); at+len(p.lit) <= len(s) && strings.EqualFold(s[at:at+len(p.lit)], p.lit) {
+		if at = min(i, j) - r; at+n <= len(s) && p.is(s[at:at+n]) {
 			return at
 		}
 	}
@@ -377,34 +381,97 @@ func (p *pattern) index(s string) int {
 }
 
 // nextByte returns where c is in s at or after at, or len(s).
-func nextByte(s string, at int, c byte) int {
-	if i := strings.IndexByte(s[at:], c); i >= 0 {
+func nextByte(s []byte, at int, c byte) int {
+	if i := bytes.IndexByte(s[at:], c); i >= 0 {
 		return at + i
 	}
 	return len(s)
 }
 
 // lastIndex returns where the literal last is in s, or -1.
-func (p *pattern) lastIndex(s string) int {
-	if !p.fold {
-		return strings.LastIndex(s, p.lit)
+func (p *pattern) lastIndex(s []byte) int {
+	r, n := p.rare, len(p.lit)
+	lo, up := p.cases()
+	i, j := len(s), len(s) // the last lo and up before to+r, or -1 for none
+	if lo == up {
+		j = -1
 	}
-	lo, up := p.lit[0], upper(p.lit[0])
-	i, j := len(s), len(s) // the last lo and up before end, or -1 for none
-	for end := len(s); ; {
-		if i >= end {
-			i = strings.LastIndexByte(s[:end], lo)
+	// A match starts before to.
+	for to := len(s) - n + 1; to > 0; {
+		if i >= to+r {
+			i = bytes.LastIndexByte(s[:to+r], lo)
 		}
-		if j >= end {
-			j = strings.LastIndexByte(s[:end], up)
+		if j >= to+r {
+			j = bytes.LastIndexByte(s[:to+r], up)
 		}
-		if end = max(i, j); end < 0 {
+		at := max(i, j) - r
+		if at < 0 {
 			return -1
 		}
-		if end+len(p.lit) <= len(s) && strings.EqualFold(s[end:end+len(p.lit)], p.lit) {
-			return end
+		if p.is(s[at : at+n]) {
+			return at
+		}
+		to = at
+	}
+	return -1
+}
+
+// cases returns the literal's rarest byte in lower and upper case, the same
+// byte twice when it does not fold.
+func (p *pattern) cases() (byte, byte) {
+	c := p.lit[p.rare]
+	if p.fold {
+		return c, upper(c)
+	}
+	return c, c
+}
+
+// is reports whether s is the literal. A literal that folds is ASCII in
+// lower case.
+func (p *pattern) is(s []byte) bool {
+	if !p.fold {
+		return string(s) == p.lit
+	}
+	for i, c := range s {
+		if c >= 'A' && c <= 'Z' {
+			c += 'a' - 'A'
+		}
+		if c != p.lit[i] {
+			return false
 		}
 	}
+	return true
+}
+
+// appendSlice appends t's bytes in [start, end) to dst and returns it.
+func appendSlice(dst []byte, t Text, start, end int) []byte {
+	if a, ok := t.(interface {
+		AppendSlice(dst []byte, start, end int) []byte
+	}); ok {
+		return a.AppendSlice(dst, start, end)
+	}
+	return append(dst, t.Slice(start, end)...)
+}
+
+// common holds bytes from most to least frequent in code and prose. Any
+// other byte is rarer.
+const common = " e\tt\nainorslcdu.mpf(h)g,_=\"b;y/:{}w*v-x0k1>[]&<2!jq+z"
+
+// rarest returns where in lit its least frequent byte is, the first of them.
+func rarest(lit string) int {
+	score := func(c byte) int {
+		if i := strings.IndexByte(common, c); i >= 0 {
+			return i
+		}
+		return len(common)
+	}
+	at := 0
+	for i := range len(lit) {
+		if score(lit[i]) > score(lit[at]) {
+			at = i
+		}
+	}
+	return at
 }
 
 // upper returns the ASCII letter c in upper case, and c itself otherwise.
@@ -788,11 +855,75 @@ func (m *Machine) Incremental() (int, int, bool) {
 		return 0, 0, false
 	}
 	t := m.h.Text()
-	at, ok := p.wrapped(t, m.searchFrom, m.prompt == "/", !m.noWrapScan)
-	if !ok {
-		return 0, 0, false
+	f := found{p: p, from: m.searchFrom, size: t.Len(), forward: m.prompt == "/", wrap: !m.noWrapScan}
+	// Every window asks each frame, so the machine keeps a pattern's match
+	// while the search and the text's length stay the same. A literal that extends a kept one
+	// matches no nearer than it, so it searches on from there.
+	if len(m.typed) > 0 && !m.typed[0].in(f) {
+		m.typed = nil
 	}
-	return at, p.endAt(t, at), true
+	for len(m.typed) > 0 && !m.typed[len(m.typed)-1].covers(p) {
+		m.typed = m.typed[:len(m.typed)-1]
+	}
+	if len(m.typed) == 0 {
+		f.at, f.ok = p.wrapped(t, f.from, f.forward, f.wrap)
+	} else if last := m.typed[len(m.typed)-1]; last.same(p) {
+		return last.at, last.end, last.ok
+	} else if last.ok {
+		f.at, f.ok = p.on(t, f.from, last.at, f.forward, f.wrap)
+	}
+	if f.ok {
+		f.end = p.endAt(t, f.at)
+	}
+	m.typed = append(m.typed, f)
+	return f.at, f.end, f.ok
+}
+
+// found is where pattern p went in a search from from, through a text size
+// bytes long, or ok false when it matched nowhere.
+type found struct {
+	p                 *pattern
+	from, size        int
+	forward, wrap, ok bool
+	at, end           int
+}
+
+// in reports whether f is from the same search as g, through a text as long.
+// An edit that keeps the length shows a stale match until the next key.
+func (f found) in(g found) bool {
+	return f.from == g.from && f.size == g.size && f.forward == g.forward && f.wrap == g.wrap
+}
+
+// same reports whether p matches just where f's pattern does.
+func (f found) same(p *pattern) bool {
+	return f.p == p || f.p.lit != "" && f.p.lit == p.lit && f.p.fold == p.fold && f.p.words == p.words
+}
+
+// covers reports whether every match of p is a match of f's pattern at the
+// same place, as when p's literal starts with f's.
+func (f found) covers(p *pattern) bool {
+	return f.same(p) || f.p.lit != "" && !f.p.words && !p.words && f.p.fold == p.fold && strings.HasPrefix(p.lit, f.p.lit)
+}
+
+// on is wrapped for a pattern whose match, going from at, is no nearer than
+// near.
+func (p *pattern) on(t Text, at, near int, forward, wrap bool) (int, bool) {
+	if forward {
+		if near <= at {
+			return p.first(t, near, at+1)
+		}
+		if to, ok := p.first(t, near, t.Len()+1); ok || !wrap {
+			return to, ok
+		}
+		return p.first(t, 0, at+1)
+	}
+	if near >= at {
+		return p.last(t, at, near+1)
+	}
+	if to, ok := p.last(t, 0, near+1); ok || !wrap {
+		return to, ok
+	}
+	return p.last(t, at, t.Len()+1)
 }
 
 // wrapped returns the start of the first match after at, or going back the

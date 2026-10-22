@@ -18,6 +18,7 @@ type pattern struct {
 	// means it matches only between word edges, as \<word\> does.
 	lit         string
 	fold, words bool
+	rare        int // where the literal's least frequent byte is, which a search looks for
 	// spans are the Go groups that \zs and \ze mark, one per branch that
 	// uses them. A match without one is the whole match.
 	spans []int
@@ -71,6 +72,7 @@ func compile(src, last string, ignore bool) (*pattern, error) {
 	}
 	p := &pattern{re: re}
 	p.lit, p.fold, p.words = literal(flags + body)
+	p.rare = rarest(p.lit)
 	for i, name := range re.SubexpNames() {
 		if strings.HasPrefix(name, "zs") {
 			p.spans = append(p.spans, i)

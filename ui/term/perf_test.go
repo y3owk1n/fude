@@ -117,14 +117,15 @@ func TestPromiseColdStart(t *testing.T) {
 }
 
 // Key read to frame written under 1ms at p99, on 10MB of real Go with its
-// syntax on. The test feeds a mix of motions, edits, searches and scrolls,
-// over a thousand keys, 10ms apart, which is faster than key repeat. The
-// work the edits queue, such as reparsing, runs between keys as the loop
-// runs it, and a key that arrives while it runs waits for it.
+// syntax on. The test feeds over a thousand keys, 10ms apart, which is
+// faster than key repeat. They mix motions, edits, scrolls and searches,
+// one of them typed on past its last match. The work the edits queue, such
+// as reparsing, runs between keys as the loop runs it, and a key that
+// arrives while it runs waits for it.
 func TestPromiseKeyLatency(t *testing.T) {
 	c := startWith(t, "large_file = 20", realCode(t, 10<<20))
 	c.draw()
-	session := "jjjjkkwwbbeeWB}}{{50%ggG90000G/func<CR>nnN*#xu.uddpyyPuuciwbar<Esc>u" +
+	session := "jjjjkkwwbbeeWB}}{{50%ggG90000G/funcxyz<BS><BS><BS><CR>nnN*#xu.uddpyyPuuciwbar<Esc>u" +
 		"ihello world<Esc>uoreturn nil<Esc>uA;<Esc>u<C-d><C-u><C-f><C-b>zzHML%:s/err/e/<CR>u"
 	var times []time.Duration
 	for len(times) < 1000 {

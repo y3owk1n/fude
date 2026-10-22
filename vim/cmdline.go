@@ -18,7 +18,7 @@ var arrows = map[Key]Key{
 func (m *Machine) enterLine(back Mode, prompt, line string) {
 	m.back, m.mode, m.prompt = back, Cmdline, prompt
 	m.line, m.lineAt, m.recalling = line, len(line), false
-	m.searchFrom = m.h.Cursor()
+	m.searchFrom, m.typed = m.h.Cursor(), nil
 }
 
 // cmdline takes a key while a command line is typed.

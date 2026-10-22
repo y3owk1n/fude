@@ -121,8 +121,10 @@ func (e *Session) draw(w *window) wire.Window {
 	if w.opts.HLSearch {
 		v.Matches = e.vim.Matches(t, top, last)
 	}
-	if s, end, ok := e.vim.Incremental(); ok && w == e.win && w.opts.IncSearch {
-		v.Searched = [2]int{s, end}
+	if w == e.win && w.opts.IncSearch {
+		if s, end, ok := e.vim.Incremental(); ok {
+			v.Searched = [2]int{s, end}
+		}
 	}
 	if v.Current {
 		v.Tasks = e.runningTasks()

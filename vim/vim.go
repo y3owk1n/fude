@@ -24,7 +24,8 @@ import (
 )
 
 // Text is the host's text. Positions are byte offsets, and lines count from
-// 0.
+// 0. A Text that also has AppendSlice, which is Slice into a buffer the
+// caller reuses, lets a search read it without garbage.
 type Text interface {
 	Len() int
 	Slice(start, end int) string
@@ -225,8 +226,9 @@ type Machine struct {
 	recalled   int
 	recalling  bool
 	recallFrom string
-	back       Mode // the mode a search returns to
-	searchFrom int  // where the search being typed starts, which <C-g> and <C-t> move
+	back       Mode    // the mode a search returns to
+	searchFrom int     // where the search being typed starts, which <C-g> and <C-t> move
+	typed      []found // where the search being typed went for each pattern on the way to its own
 	search     struct {
 		pattern string
 		forward bool
