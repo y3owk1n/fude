@@ -20,7 +20,7 @@ func TestLogKeepsTheTimelineAndTheUnsavedEdit(t *testing.T) {
 	if err := b.Apply(kernel.Transaction{Edits: []kernel.Edit{{Text: "ab"}}}); err != nil {
 		t.Fatal(err)
 	}
-	log.Saved(b.Head(), "ab")
+	log.Saved(b.Head(), b.Snapshot())
 	if err := b.Apply(kernel.Transaction{Base: b.Snapshot().Version(), Edits: []kernel.Edit{{Start: 2, End: 2, Text: "c"}}}); err != nil {
 		t.Fatal(err)
 	}

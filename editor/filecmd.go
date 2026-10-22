@@ -32,7 +32,7 @@ func (e *Session) revert(b *buffer) error {
 		b.head = b.text.Head()
 	}
 	b.file = f
-	b.markSaved(text)
+	b.markSaved(b.text.Snapshot())
 	return nil
 }
 
@@ -68,8 +68,7 @@ func (e *Session) writeTo(b *buffer, path string, force bool) error {
 	}
 	f := b.file
 	f.path = path
-	t := b.text.Snapshot()
-	n, err := f.write(t.Slice(0, t.Len()))
+	n, err := f.write(b.text.Snapshot())
 	if err != nil {
 		return err
 	}
@@ -282,8 +281,7 @@ func (e *Session) write(b *buffer, force bool, then func()) error {
 // writeOut writes b's text to its file, then runs then.
 func (e *Session) writeOut(b *buffer, then func()) {
 	s, at := b.text.Snapshot(), time.Now()
-	text := s.Slice(0, s.Len())
-	n, err := b.file.write(text)
+	n, err := b.file.write(s)
 	trace.Since("file", fmt.Sprintf("wrote %q, %d bytes", b.file.path, n), at, err)
 	if err != nil {
 		e.message = err.Error()
@@ -295,7 +293,7 @@ func (e *Session) writeOut(b *buffer, then func()) {
 	}
 	e.filesChanged(fileChange{b.file.path, kind})
 	b.file.isNew = false
-	b.markSaved(text)
+	b.markSaved(s)
 	for _, srv := range b.servers {
 		srv.client.Save(lsp.URI(b.file.path), s)
 	}

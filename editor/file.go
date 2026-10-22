@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"image"
@@ -12,6 +13,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/internal/fsys"
 )
 
@@ -79,19 +81,9 @@ func slurp(path string) (string, error) {
 	return b.String(), err
 }
 
-// write stores text at the file's path through a temp file and a rename, so
-// a failed write leaves the old file unchanged. It returns the bytes written.
-func (f *file) write(text string) (int, error) {
-	// The final line break goes in a write of its own, as adding it would
-	// copy the text.
-	eol := ""
-	if f.eol {
-		eol = "\n"
-	}
-	if f.crlf {
-		eol = strings.ReplaceAll(eol, "\n", "\r\n")
-		text = strings.ReplaceAll(text, "\n", "\r\n")
-	}
+// write stores t at the file's path through a temp file and a rename, so a
+// failed write leaves the old file unchanged. It returns the bytes written.
+func (f *file) write(t kernel.Snapshot) (int, error) {
 	path := f.path
 	if p, err := filepath.EvalSymlinks(path); err == nil {
 		path = p
@@ -108,9 +100,26 @@ func (f *file) write(text string) (int, error) {
 		return 0, fmt.Errorf("write %s: %w", f.path, err)
 	}
 	defer os.Remove(tmp.Name())
-	_, err = tmp.WriteString(text)
-	if err == nil {
-		_, err = tmp.WriteString(eol)
+	// It writes a chunk at a time, since the whole text would be a copy of
+	// the file.
+	const chunk = 1 << 20
+	n, buf := 0, make([]byte, 0, chunk+1)
+	for at := 0; ; at += chunk {
+		end := min(at+chunk, t.Len())
+		buf = t.AppendSlice(buf[:0], at, end)
+		if end == t.Len() && f.eol {
+			buf = append(buf, '\n')
+		}
+		out := buf
+		if f.crlf {
+			out = bytes.ReplaceAll(buf, []byte("\n"), []byte("\r\n"))
+		}
+		var w int
+		w, err = tmp.Write(out)
+		n += w
+		if err != nil || end == t.Len() {
+			break
+		}
 	}
 	err = errors.Join(err, tmp.Chmod(mode), tmp.Sync(), tmp.Close())
 	if err == nil {
@@ -120,7 +129,7 @@ func (f *file) write(text string) (int, error) {
 		return 0, fmt.Errorf("write %s: %w", f.path, err)
 	}
 	f.note()
-	return len(text) + len(eol), nil
+	return n, nil
 }
 
 // note records the file's modification time and size on disk.

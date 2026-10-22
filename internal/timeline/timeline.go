@@ -28,11 +28,11 @@ import (
 // holds a node record for every timeline node as it is made, a save record
 // at every write, and a close record when the file is closed cleanly.
 type record struct {
-	Kind string        `json:"kind"`           // base, node, save or close
-	Node *kernel.Node  `json:"node,omitempty"` // for node
-	Head kernel.NodeID `json:"head"`           // for save and close
-	Hash string        `json:"hash,omitempty"` // of the text, for base and save
-	text string        // for a save, the text the writer hashes
+	Kind string           `json:"kind"`           // base, node, save or close
+	Node *kernel.Node     `json:"node,omitempty"` // for node
+	Head kernel.NodeID    `json:"head"`           // for save and close
+	Hash string           `json:"hash,omitempty"` // of the text, for base and save
+	text *kernel.Snapshot // for a save, the text the writer hashes
 }
 
 // Log is one buffer's log. It is the kernel's Store, so the kernel hands it
@@ -173,12 +173,23 @@ func hash(text string) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
+// hashOf is hash for a snapshot of the text.
+func hashOf(t kernel.Snapshot) string {
+	const chunk = 64 << 10
+	h, buf := sha256.New(), make([]byte, 0, chunk)
+	for at := 0; at < t.Len(); at += chunk {
+		buf = t.AppendSlice(buf[:0], at, min(at+chunk, t.Len()))
+		h.Write(buf)
+	}
+	return hex.EncodeToString(h.Sum(nil))
+}
+
 // Append writes a node to the log.
 func (l *Log) Append(n kernel.Node) { l.write(record{Kind: "node", Node: &n}) }
 
-// Saved records a write of text at head.
-func (l *Log) Saved(head kernel.NodeID, text string) {
-	l.write(record{Kind: "save", Head: head, text: text})
+// Saved records a write of t at head.
+func (l *Log) Saved(head kernel.NodeID, t kernel.Snapshot) {
+	l.write(record{Kind: "save", Head: head, text: &t})
 }
 
 // newLog returns the log at path, which nothing has written yet.
@@ -197,7 +208,7 @@ func (l *Log) write(r record) {
 	}
 	// A save's hash comes from the writer, which sets it on l.saved too.
 	if r.Kind == "base" || r.Kind == "save" {
-		l.saved, l.saved.text = r, ""
+		l.saved, l.saved.text = r, nil
 	}
 	l.queue = append(l.queue, r)
 	if !l.writing {
@@ -217,8 +228,8 @@ func (l *Log) drain() {
 		var lines []byte
 		var err error
 		for i := range batch {
-			if r := &batch[i]; r.text != "" {
-				r.Hash, r.text = hash(r.text), ""
+			if r := &batch[i]; r.text != nil {
+				r.Hash, r.text = hashOf(*r.text), nil
 			}
 			line, merr := json.Marshal(batch[i])
 			err = cmp.Or(err, merr)

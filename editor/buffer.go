@@ -230,12 +230,12 @@ func (b *buffer) is(path string) bool {
 	return b.file.path != "" && err1 == nil && err == nil && paths.Same(x, y)
 }
 
-// markSaved notes that the file on disk holds text, the buffer's text.
-func (b *buffer) markSaved(text string) {
+// markSaved notes that the file on disk holds t, the buffer's text.
+func (b *buffer) markSaved(t kernel.Snapshot) {
 	b.saved = b.text.Head()
 	b.saves = append(b.saves, b.saved)
 	if b.log != nil {
-		b.log.Saved(b.saved, text)
+		b.log.Saved(b.saved, t)
 	}
 }
 
