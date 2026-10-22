@@ -89,6 +89,12 @@ var termKeys = map[vim.Key]rune{
 	"<PageUp>": uv.KeyPgUp, "<PageDown>": uv.KeyPgDown,
 }
 
+// bareOptions are the options of a window that shows no file, such as a
+// terminal or a panel. They keep how searches go and the clipboard (B137).
+func (e *Session) bareOptions() options {
+	return options{HLSearch: true, WrapScan: true, Clipboard: e.opts.Clipboard}
+}
+
 // terminalWindow shows b in a new window placed where says, above or below
 // terminal_height percent of the screen tall, with none of the window
 // options, and moves to it. A locked one stays there (B205, B367).
@@ -97,10 +103,10 @@ func (e *Session) terminalWindow(b *buffer, where string, lock bool) {
 	if where == "above" || where == "below" {
 		e.root.leaf(e.win).size = max((e.height*int(e.cfg.TerminalHeight)+50)/100, 3)
 	}
-	// A terminal window has no options but how searches go. A split copies
-	// the window it came from, own options under its filetype's included,
-	// so those go too.
-	e.win.opts, e.win.own, e.win.locked = options{HLSearch: true, WrapScan: true}, nil, lock
+	// A terminal window takes the bare options. The split copied the window
+	// it came from, with that window's own options for its filetype, so
+	// those go.
+	e.win.opts, e.win.own, e.win.locked = e.bareOptions(), nil, lock
 	e.layout()
 }
 

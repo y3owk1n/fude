@@ -10,6 +10,7 @@ import (
 
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/editor/editortest"
+	"github.com/y3owk1n/fude/internal/clipboard"
 	terminalmod "github.com/y3owk1n/fude/modules/terminal"
 )
 
@@ -37,6 +38,24 @@ func screen(e *editor.Session) string {
 // line. A shell's echo of the typed command never is.
 func shows(e *editor.Session, line string) bool {
 	return slices.Contains(strings.Split(screen(e), "\n"), line)
+}
+
+// B137, in a terminal window, which keeps no other window option
+func TestB137TerminalClipboard(t *testing.T) {
+	t.Cleanup(clipboard.Fake(""))
+	t.Setenv("SHELL", "sh")
+	editortest.Config(t, "clipboard = true\n")
+	path := filepath.Join(t.TempDir(), "a.txt")
+	change(t, path, "file\n")
+	e := editortest.Start(t, path)
+	e.Use(terminalmod.New())
+	e.SetSize(80, 24)
+	feed(e, ":terminal cat<CR>hi<CR>")
+	settle(t, e, func() bool { return strings.Count(screen(e), "hi") == 2 })
+	feed(e, `<C-\><C-n>ggyy`)
+	if text, ok := e.TerminalClipboard(); !ok || text != "hi\n" {
+		t.Fatalf("yy in a terminal window gave the clipboard %q, %v", text, ok)
+	}
 }
 
 // B205

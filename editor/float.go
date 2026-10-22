@@ -30,7 +30,7 @@ func (e *Session) openFloat(b *buffer, anchor string, focus bool) *window {
 		}
 	}
 	w := newWindow(b, 0, 0)
-	w.opts.Wrap = true
+	w.opts.Wrap, w.opts.Clipboard = true, e.opts.Clipboard
 	w.anchor, w.from = anchor, e.win
 	e.floats = append(e.floats, w)
 	e.place(w)

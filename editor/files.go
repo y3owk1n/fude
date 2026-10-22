@@ -86,7 +86,7 @@ func (e *Session) openFinder(f *finder, query string) {
 	}
 	b := &buffer{text: kernel.New(query, nil), before: map[kernel.NodeID]int{}, marks: map[rune]kernel.MarkID{}, title: "[find]"}
 	w := newWindow(b, 0, 0)
-	w.from = e.win
+	w.from, w.opts.Clipboard = e.win, e.opts.Clipboard
 	e.finder, e.win = f, w
 	e.later = append(e.later, "A")
 }
