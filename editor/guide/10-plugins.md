@@ -23,7 +23,8 @@ programs = ["git"]
 - `fs.read` reads files in the folder fude started in.
 - `process` runs the programs `programs` lists.
 - `net` gets http and https URLs on the hosts `hosts` lists.
-- `lsp` asks the buffer's language servers.
+- `lsp` asks the buffer's language servers, sends them notifications and
+  answers their requests.
 - `keys` runs keys as if typed, which may run any command.
 
 A call outside them gets an error and changes nothing, and fude writes it

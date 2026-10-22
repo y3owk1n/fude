@@ -78,6 +78,8 @@ type Result struct {
 	Jobs       []Job          // the work to do in the background
 	Send       []Send         // text for the input of the owner's stream jobs, or their end
 	Requests   []Request      // the requests to send the buffer's language servers
+	Notify     []Notify       // notifications to send the buffer's language servers (B532)
+	Answers    []Answer       // answers to requests language servers sent (B532)
 	Selected   *[2]int        // what an object's call selects, nil for none
 	Terminal   *Terminal      // a program to run in a terminal window below
 	Places     *Places        // the last list of places, which ]q steps through
@@ -176,6 +178,23 @@ type Request struct {
 	Pos, End int
 	Params   string
 	Server   string
+}
+
+// Notify is a notification a call sends the language server named Server
+// on the buffer it was about. Params is a JSON value, or null when empty
+// (B532).
+type Notify struct {
+	Server string
+	Method string
+	Params string
+}
+
+// Answer answers the request of id Request that a module heard as
+// lsp.requested. Result is a JSON value, or null when empty. The server
+// gets the first answer to a request (B532).
+type Answer struct {
+	Request string
+	Result  string
 }
 
 // Pick is a list of items a call asks the user to pick from with Prompt,

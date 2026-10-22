@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -330,6 +331,7 @@ func (e *Session) notified(s *server, method string, params json.RawMessage) {
 		return
 	}
 	if method != "textDocument/publishDiagnostics" {
+		e.told(s, "lsp.notified", method, params, "")
 		return
 	}
 	var p struct {
@@ -345,6 +347,28 @@ func (e *Session) notified(s *server, method string, params json.RawMessage) {
 	if i := slices.IndexFunc(s.bufs, func(b *buffer) bool { return ok && b.is(path) }); i >= 0 {
 		e.published(s, s.bufs[i], params)
 	}
+}
+
+// told tells the modules subscribed to name, lsp.notified or lsp.requested,
+// of a message s sent that fude does not act on itself, with the id an
+// answer to a request names, and returns how many it told (B532).
+func (e *Session) told(s *server, name, method string, params json.RawMessage, id string) int {
+	b := e.win.buf
+	if len(s.bufs) > 0 {
+		b = s.bufs[0]
+	}
+	extra := api.Context{"server": s.name, "method": method, "params": string(params)}
+	if id != "" {
+		extra["request"] = id
+	}
+	told := 0
+	for _, l := range e.listeners {
+		if slices.Contains(l.p.Subscribed(), name) {
+			l.put(event{name: name, detail: s.name, buf: b, extra: extra, from: e}, nil)
+			told++
+		}
+	}
+	return told
 }
 
 // published tells every module subscribed to lsp.published of the
@@ -540,6 +564,13 @@ func (e *Session) served(s *server, method string, params json.RawMessage) any {
 	if method != "workspace/applyEdit" {
 		if answer, ok := e.cfg.LSP[s.name].Answers[method]; ok {
 			return filled(answer, s.fill)
+		}
+		// A module that hears the request answers it, and with none
+		// listening the answer is empty (B532).
+		e.asked++
+		id := strconv.Itoa(e.asked)
+		if e.told(s, "lsp.requested", method, params, id) > 0 {
+			e.waiting[id] = s.client.Later()
 		}
 		return nil
 	}

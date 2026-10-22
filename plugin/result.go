@@ -32,7 +32,7 @@ var needs = map[string]string{
 	"Marks": "ui", "Registers": "ui", "Search": "ui", "Ex": "keys", "Place": "keys", "Each": "keys", "Styles": "ui",
 	"Emit": "", "Timers": "", "Set": "", "Log": "", "Selected": "", "Error": "",
 	"Jobs": "", "Send": "process", "Terminal": "process", "Build": "process",
-	"Requests": "lsp", "Apply": "lsp", "Servers": "lsp",
+	"Requests": "lsp", "Notify": "lsp", "Answers": "lsp", "Apply": "lsp", "Servers": "lsp",
 	"Restore": "fs.read", "Keys": "keys",
 }
 

@@ -252,6 +252,19 @@ func (d decoration) remove() {
 // pluginRequest sends a plugin's request to those of b's servers that offer it,
 // every one for a method outside textDocument/, and hands the plugin the
 // first answer that is not null, as a job's output (B190).
+// pluginNotify sends n to the language server n names on b (B532).
+func (e *Session) pluginNotify(p api.Module, b *buffer, n api.Notify) {
+	i := slices.IndexFunc(b.servers, func(s *server) bool { return s.name == n.Server })
+	switch {
+	case i < 0:
+		logLine(fmt.Sprintf("%s: %s to %s, which is not on %s", p.Name(), n.Method, n.Server, cmp.Or(b.file.path, "the buffer")))
+	case n.Params != "" && !json.Valid([]byte(n.Params)):
+		logLine(fmt.Sprintf("%s: the params of %s are not JSON: %s", p.Name(), n.Method, n.Params))
+	default:
+		b.servers[i].client.Notify(n.Method, json.RawMessage(cmp.Or(n.Params, "null")))
+	}
+}
+
 func (e *Session) pluginRequest(p api.Module, b *buffer, rq api.Request, save *saving) {
 	l := e.listen(p)
 	reply := func(extra api.Context) {
@@ -683,6 +696,21 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 	for _, rq := range res.Requests {
 		wait()
 		e.pluginRequest(p, b, rq, save)
+	}
+	for _, n := range res.Notify {
+		e.pluginNotify(p, b, n)
+	}
+	for _, a := range res.Answers {
+		answer, ok := e.waiting[a.Request]
+		switch {
+		case !ok:
+			logLine(fmt.Sprintf("%s: an answer to request %s, which no server waits for", p.Name(), a.Request))
+		case a.Result != "" && !json.Valid([]byte(a.Result)):
+			logLine(fmt.Sprintf("%s: the answer to request %s is not JSON: %s", p.Name(), a.Request, a.Result))
+		default:
+			delete(e.waiting, a.Request)
+			answer(json.RawMessage(cmp.Or(a.Result, "null")))
+		}
 	}
 	for _, j := range res.Jobs {
 		wait()

@@ -62,6 +62,8 @@ type Editor struct {
 	decos             map[any][]decoration                  // by owner: a plugin, or a buffer for its diagnostics
 	servers           map[string]*server                    // by command and root
 	down              map[string]string                     // by name, why a configured language server is not running
+	waiting           map[string]func(any)                  // by the id lsp.requested gave, what answers a server's request a module answers (B532)
+	asked             int                                   // the last id lsp.requested gave
 	building          map[string]bool                       // the filetypes whose grammar builds now
 	failed            map[string]string                     // by filetype, why its grammar did not build this session
 	started           bool                                  // Load ran, so new buffers attach to servers at once
@@ -181,7 +183,7 @@ func open(cfg config, paths []string) (*Session, error) {
 	if len(paths) == 0 {
 		paths = []string{""}
 	}
-	ed := &Editor{next: 1, aside: firstAside, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(*Session, call) error{}, sources: map[string]func(*Session, string){}, writers: map[string]writer{}, completionSources: map[string]completer{}, shortOf: map[string]string{}, completers: map[string]func(*Session, string){}, decos: map[any][]decoration{}, servers: map[string]*server{}, down: map[string]string{}, building: map[string]bool{}, failed: map[string]string{}, listeners: map[api.Module]*listener{}, declared: map[string]declared{}, values: map[string]string{}, segments: map[api.Module]map[*buffer]string{}, leftSegments: map[api.Module]map[*buffer]string{}}
+	ed := &Editor{next: 1, aside: firstAside, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(*Session, call) error{}, sources: map[string]func(*Session, string){}, writers: map[string]writer{}, completionSources: map[string]completer{}, shortOf: map[string]string{}, completers: map[string]func(*Session, string){}, decos: map[any][]decoration{}, servers: map[string]*server{}, down: map[string]string{}, waiting: map[string]func(any){}, building: map[string]bool{}, failed: map[string]string{}, listeners: map[api.Module]*listener{}, declared: map[string]declared{}, values: map[string]string{}, segments: map[api.Module]map[*buffer]string{}, leftSegments: map[api.Module]map[*buffer]string{}}
 	// Without a config directory there are no overrides, and loadConfig
 	// reports why.
 	if dir, err := keep.Dir("XDG_CONFIG_HOME", ".config"); err == nil {

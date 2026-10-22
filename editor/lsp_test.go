@@ -3,6 +3,7 @@ package editor_test
 import (
 	"bufio"
 	"cmp"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/editor/editortest"
 	buffersmod "github.com/y3owk1n/fude/modules/buffers"
@@ -57,7 +59,8 @@ import (
 // line up to the cursor, with a command. With files, it watches the Go
 // files under its root, hears of the Go files fude renames, creates and
 // deletes, and puts a line at the top of a Go file before it is renamed.
-// With ask, it asks fude fake/ask when a document opens.
+// With ask, it asks fude fake/ask when a document opens, and with note it
+// sends fude fake/note.
 // A whole text a change sends becomes the document's.
 func TestFakeServer(t *testing.T) {
 	if os.Getenv("FUDE_FAKE_LSP") == "" {
@@ -330,6 +333,9 @@ func TestFakeServer(t *testing.T) {
 			opened[m.Params.TextDocument.URI] = m.Params.TextDocument.Text
 			if slices.Contains(offers, "ask") {
 				send(map[string]any{"id": "ask-1", "method": "fake/ask", "params": map[string]any{}})
+			}
+			if slices.Contains(offers, "note") {
+				send(map[string]any{"method": "fake/note", "params": map[string]any{"n": 1}})
 			}
 			var ds []any
 			for line, l := range strings.Split(m.Params.TextDocument.Text, "\n") {
@@ -625,6 +631,49 @@ func TestB529ServerEnv(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "a.go")
 	_, log := withServerAt(t, path, "x\n", "utf-8", `lsp.fake.env.FAKE_SEEN = "in {root_name}"`)
 	heard(t, log, fmt.Sprintf("seen %q", "in "+filepath.Base(filepath.Dir(path))), 1)
+}
+
+// relay is a module that answers each fake/ask a server sends, and sends
+// fake/heard with the params of each fake/note.
+type relay struct{ idle }
+
+func (relay) Subscribed() []string { return []string{"lsp.notified", "lsp.requested"} }
+
+func (relay) Event(_ context.Context, name string, s api.Scope) (api.Result, error) {
+	switch {
+	case name == "lsp.notified fake" && s.About["method"] == "fake/note":
+		return api.Result{Notify: []api.Notify{{Server: "fake", Method: "fake/heard", Params: s.About["params"]}}}, nil
+	case name == "lsp.requested fake" && s.About["method"] == "fake/ask":
+		return api.Result{Answers: []api.Answer{{Request: s.About["request"], Result: `{"by":"module"}`}}}, nil
+	}
+	return api.Result{}, nil
+}
+
+// B532
+func TestB532ModuleHearsServers(t *testing.T) {
+	log := fakeLog(t, "server.log")
+	t.Setenv("FUDE_FAKE_LSP", "1")
+	t.Setenv("FUDE_FAKE_LOG", log)
+	t.Setenv("FUDE_FAKE_ENCODING", "utf-8")
+	t.Setenv("FUDE_FAKE_OFFER", "ask note")
+	config(t, fmt.Sprintf("lsp.fake.command = [%q, \"-test.run=^TestFakeServer$\"]\n[filetype.go]\nlsp = [\"fake\"]\n", os.Args[0]))
+	path := filepath.Join(t.TempDir(), "a.go")
+	change(t, path, "x\n")
+	e := start(t, path)
+	e.Use(relay{})
+	t.Cleanup(func() { feed(e, ":qa!<CR>") })
+	e.Load()
+	for _, want := range []string{`"method":"fake/heard","params":{"n":1}`, `"result":{"by":"module"}`} {
+		settle(t, e, func() bool {
+			b, _ := os.ReadFile(log)
+			return strings.Contains(string(b), want)
+		})
+	}
+	// The module's answer is the only one.
+	editortest.Quiet(t, e)
+	if b, _ := os.ReadFile(log); strings.Count(string(b), `"id":"ask-1"`) != 1 {
+		t.Errorf("the server got %d answers to fake/ask, want 1", strings.Count(string(b), `"id":"ask-1"`))
+	}
 }
 
 // B531

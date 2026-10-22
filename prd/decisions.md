@@ -812,6 +812,23 @@ is, so a distribution may leave it out. The user first wanted this for
 AI agent integrations, then chose not to support agent workflows, and
 kept proposals for any client.
 
+## D62. A server's needs are config data or a plugin, never editor code
+
+fude has no code for any one language server. What a server needs to
+start and work is either data in its `[lsp.<name>]` table, such as
+placeholders for its root and a cache folder, root patterns, variables,
+a language id and fixed answers to its requests (B527 to B531), or a
+plugin over the messages fude does not handle itself (B532). Vue's
+server, whose TypeScript requests another server must answer, is such a
+plugin.
+
+Why, as of 2026-10-22: a table of default servers, and code to pass
+Vue's requests on, were built and dropped. The defaults would put
+dozens of servers' commands and root files in fude to keep up with, and
+start whatever is on PATH in any project. The Vue code would be the
+first of many pieces of code for one server. The user chose general
+pieces any server's config or a plugin builds on, and no defaults.
+
 ## Departures from Neovim
 
 Each entry: what differs, then why.

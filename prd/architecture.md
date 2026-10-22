@@ -684,7 +684,8 @@ or scrolls the window, `mode.changed`, `syntax.updated` when a parse lands,
 (B277), `buffer.shown` when the current window shows another buffer
 (B314), `lsp.changed` when a language server's state changes (B317),
 `lsp.refresh` with what a server asks to be asked for again, such as
-`codeLens` for `workspace/codeLens/refresh` (B463),
+`codeLens` for `workspace/codeLens/refresh` (B463), `lsp.notified` and
+`lsp.requested` with a server's message fude does not handle (B532),
 `editor.started` when fude starts with no file (B319), `config.reloaded`
 after `:config reload` and `option.set` with the name `:set` set (B331), `keys.pending`
 when the command being typed changes (B326), `editor.quitting`
@@ -1266,7 +1267,7 @@ under a budget of 100ms. A plugin imports host functions from the module `fude`,
 | `fs.read` | read files under the project root |
 | `process` | spawn a declared program |
 | `net` | get http and https URLs on declared hosts |
-| `lsp` | send requests to the buffer's language servers |
+| `lsp` | send requests and notifications to the buffer's language servers, and answer their requests |
 | `keys` | run keys as typed, which may run any command |
 
 Each call reads a `plugin.Scope` that the editor loop builds before the
@@ -1595,8 +1596,10 @@ since only it may use `syntax`'s cgo, and refuses a guest's build (B333).
 `[filetype.<name>] lsp` names a filetype's servers, and `[lsp.<name>]`
 sets one's command and root markers. `{root}`, `{root_uri}`,
 `{root_name}` and `{cache}` in a table fill in for the server's root and
-a cache folder fude makes for it (B527). A request fude does not answer
-gets the table's `answers`, or an empty answer (B531). fude starts one server per name and
+a cache folder fude makes for it (B527). A server's message fude does not
+handle goes to the modules as `lsp.notified` or `lsp.requested`, and a
+request no module hears gets the table's `answers`, or an empty answer
+(B531, B532, D62). fude starts one server per name and
 project root, after the first frame, for the buffers open then and any
 opened later. A buffer has each server its filetype names whose `files`
 match it. A request goes to every one of them that declared the provider

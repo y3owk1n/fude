@@ -684,8 +684,8 @@ JDTLS_JVM_ARGS = "-Xmx2g"
 ## lsp.answers
 
 What fude answers a request the server sends that it does not answer
-itself, by the request's method. A request with no answer here gets an
-empty answer.
+itself, by the request's method. A request with no answer here, and no
+module that answers it, gets an empty answer.
 
 ```toml
 [lsp.eslint.answers]

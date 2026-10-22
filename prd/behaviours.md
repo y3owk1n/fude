@@ -1920,6 +1920,14 @@ Where fude departs, the line says so and cites the departure in
   typed, which runs nothing. The layer of its sign orders it on a line
   with the others. `servers` in its scope names the servers attached to
   the buffer.
+- B532 [4] A module hears `lsp.notified` for each notification a
+  language server sends that fude does not act on, and `lsp.requested`
+  for each request it does not answer and `answers` does not, with the
+  server, method and params in `About`, and a request's id. The first
+  answer a module gives that id is the server's, and a request no module
+  hears gets an empty answer. A module sends a notification to a server
+  on the buffer its call is about. A plugin needs `lsp` to answer or
+  send.
 - B293 [4] A module shows a numbered menu at the cursor, as code actions
   show, each item with its kind and what it does beside it, and hears
   which was picked. A menu of the same id while one shows replaces its

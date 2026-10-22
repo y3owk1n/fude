@@ -32,6 +32,10 @@ type Client struct {
 	// only the loop touches.
 	next    int
 	pending map[int]pending
+	// The request serve is answering, and whether it asked to answer it
+	// later, which only the loop touches.
+	serving json.RawMessage
+	later   bool
 
 	// Messages waiting for the writer, built once the server chose its
 	// position encoding.
@@ -248,6 +252,20 @@ func (c *Client) Request(method string, build func(enc string) any, answer func(
 	id := c.next
 	c.pending[id] = pending{answer, method, time.Now()}
 	c.send(func(enc string) any { return request{ID: id, Method: method, Params: build(enc)} })
+}
+
+// Later keeps the request serve is answering from being answered when
+// serve returns, and returns the func that answers it. Only serve may call
+// it.
+func (c *Client) Later() func(result any) {
+	c.later = true
+	id := c.serving
+	return func(result any) { c.answer(id, result) }
+}
+
+// answer sends result as the answer to the server's request id.
+func (c *Client) answer(id json.RawMessage, result any) {
+	c.send(func(string) any { return map[string]any{"jsonrpc": "2.0", "id": id, "result": result} })
 }
 
 // Supports reports whether the server offers capability, such as
@@ -500,8 +518,11 @@ func (c *Client) read(r io.Reader, initialized chan<- answer, notify func(string
 			if m.ID != nil {
 				id := m.ID
 				f = func() {
+					c.serving, c.later = id, false
 					result := serve(method, params)
-					c.send(func(string) any { return map[string]any{"jsonrpc": "2.0", "id": id, "result": result} })
+					if !c.later {
+						c.answer(id, result)
+					}
 				}
 			}
 			select {
