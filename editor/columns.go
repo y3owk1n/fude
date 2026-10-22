@@ -224,6 +224,11 @@ func (w *window) rowsFrom(t kernel.Snapshot, start, from, n, to, tab int, d draw
 // row kept before pos with enough rows after it.
 func (w *window) rowsTo(t kernel.Snapshot, start, pos, keep, tab int, d drawn) []int {
 	wr, c := w.wrap(t, start, tab, d)
+	// The columns to pos, which the ruler needs too, find which of the text
+	// is plain, which the walk then takes unread.
+	if c != nil {
+		w.buf.column(t, start, pos, tab)
+	}
 	for back := pos; ; {
 		from, mark := kept{p: start}, func(int, int, bool) {}
 		if c != nil {

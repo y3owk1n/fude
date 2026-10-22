@@ -2,6 +2,7 @@
 package rope
 
 import (
+	"iter"
 	"slices"
 	"strings"
 )
@@ -52,7 +53,10 @@ func (r Rope) Slice(start, end int) string {
 	}
 	var b strings.Builder
 	b.Grow(end - start)
-	collect(n, start, end, func(s string) { b.WriteString(s) })
+	chunks(n, start, end, func(s string) bool {
+		b.WriteString(s)
+		return true
+	})
 	return b.String()
 }
 
@@ -63,7 +67,10 @@ func (r Rope) AppendSlice(dst []byte, start, end int) []byte {
 		panic("rope: slice out of range")
 	}
 	dst = slices.Grow(dst, end-start)
-	collect(r.root, start, end, func(s string) { dst = append(dst, s...) })
+	chunks(r.root, start, end, func(s string) bool {
+		dst = append(dst, s...)
+		return true
+	})
 	return dst
 }
 
@@ -133,21 +140,26 @@ func build(s string) *node {
 	return branch(build(s[:mid]), build(s[mid:]))
 }
 
-func collect(n *node, start, end int, put func(string)) {
+// Chunks yields the bytes in [start, end) in the pieces the rope holds
+// them in, in order, without a copy.
+func (r Rope) Chunks(start, end int) iter.Seq[string] {
+	return func(yield func(string) bool) { chunks(r.root, start, end, yield) }
+}
+
+// chunks calls yield with each piece of n's bytes in [start, end), and
+// reports whether yield took them all.
+func chunks(n *node, start, end int, yield func(string) bool) bool {
 	if n == nil || start >= end {
-		return
+		return true
 	}
 	if n.left == nil {
-		put(n.text[start:end])
-		return
+		return yield(n.text[start:end])
 	}
 	l := n.left.length
-	if start < l {
-		collect(n.left, start, min(end, l), put)
+	if start < l && !chunks(n.left, start, min(end, l), yield) {
+		return false
 	}
-	if end > l {
-		collect(n.right, max(start-l, 0), end-l, put)
-	}
+	return end <= l || chunks(n.right, max(start-l, 0), end-l, yield)
 }
 
 // split returns the first i bytes of n and the rest.

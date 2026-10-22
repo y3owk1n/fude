@@ -25,7 +25,9 @@ import (
 
 // Text is the host's text. Positions are byte offsets, and lines count from
 // 0. A Text that also has AppendSlice, which is Slice into a buffer the
-// caller reuses, lets a search read it without garbage.
+// caller reuses, lets a search read it without garbage. One with
+// Chunks(start, end int) iter.Seq[string], which yields its text in the
+// pieces it holds, lets a walk of a long line read it without a copy.
 type Text interface {
 	Len() int
 	Slice(start, end int) string

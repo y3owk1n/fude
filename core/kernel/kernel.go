@@ -11,6 +11,7 @@ import (
 	"cmp"
 	"errors"
 	"fmt"
+	"iter"
 	"slices"
 	"strings"
 	"time"
@@ -115,6 +116,10 @@ func (s Snapshot) Slice(start, end int) string { return s.text.Slice(start, end)
 func (s Snapshot) AppendSlice(dst []byte, start, end int) []byte {
 	return s.text.AppendSlice(dst, start, end)
 }
+
+// Chunks yields the bytes in [start, end) in the pieces the text holds them
+// in, without a copy.
+func (s Snapshot) Chunks(start, end int) iter.Seq[string] { return s.text.Chunks(start, end) }
 
 // Lines returns the number of lines, one more than the newlines.
 func (s Snapshot) Lines() int { return s.text.Lines() }

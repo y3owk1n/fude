@@ -1,6 +1,7 @@
 package vim
 
 import (
+	"iter"
 	"math"
 	"strings"
 	"unicode"
@@ -1241,9 +1242,10 @@ const piece = 4096
 // each character a cluster one column wide, which stops when it returns
 // false. Given plain too, which returns where printable ASCII the caller
 // knows of from p goes on to, it takes that text to run unread. It reads
-// the rest a piece at a time, and an ASCII character before another is a
-// cluster of its own.
+// the rest in the pieces a chunker holds, or else a piece at a time, and
+// an ASCII character before another is a cluster of its own.
 func clusters(t Text, start, end int, f func(p int, c string) bool, run func(p, n int) bool, plain func(p int) int) {
+	ch, chunked := t.(chunker)
 	for p := start; p < end; {
 		// The last character known may begin a cluster with what follows.
 		if q := p; run != nil && plain != nil {
@@ -1258,43 +1260,126 @@ func clusters(t Text, start, end int, f func(p int, c string) bool, run func(p, 
 				continue
 			}
 		}
-		hi := min(p+piece, end)
-		s, i := t.Slice(p, hi), 0
-		for i < len(s) {
-			if run != nil {
-				j := i
-				for j < len(s) && s[j] >= ' ' && s[j] < 0x7f {
-					j++
-				}
-				// The run's last character may begin a cluster with what follows.
-				if j < len(s) && s[j] >= utf8.RuneSelf || j == len(s) && hi < end {
-					j--
-				}
-				if j-i > 1 {
-					if !run(p+i, j-i) {
-						return
-					}
-					i = j
-					continue
-				}
+		var stop bool
+		if chunked {
+			p, stop = scanChunks(ch, p, end, f, run, plain)
+		} else {
+			hi, next := min(p+piece, end), unknown
+			if hi == end {
+				next = last
 			}
-			n := 1
-			if s[i] >= utf8.RuneSelf || i+1 < len(s) && (s[i+1] >= utf8.RuneSelf || s[i] == '\r') {
-				g := graphemes.FromString(s[i:])
-				g.Next()
-				n = g.End()
+			s := t.Slice(p, hi)
+			n, st := scan(s, p, next, f, run)
+			// A cluster as long as the piece goes whole.
+			if n == 0 && !st {
+				n, st = scan(s, p, last, f, run)
 			}
-			// A cluster at the end of the piece may go on past it.
-			if i > 0 && i+n == len(s) && hi < end {
-				break
-			}
-			if !f(p+i, s[i:i+n]) {
-				return
-			}
-			i += n
+			p, stop = p+n, st
 		}
-		p += i
+		if stop {
+			return
+		}
 	}
+}
+
+// chunker is a Text that gives its text in the pieces it holds, without a
+// copy.
+type chunker interface {
+	Chunks(start, end int) iter.Seq[string]
+}
+
+// unknown and last stand in for the byte after a piece that scan takes,
+// when that byte is not known and when the piece ends the text walked.
+const (
+	unknown = -2
+	last    = -1
+)
+
+// scanChunks scans ch's text from p to end, a chunk at a time. It returns
+// where it stopped, which is end or a place where plain says the walk can
+// go on unread, and whether f or run stopped it.
+func scanChunks(ch chunker, p, end int, f func(p int, c string) bool, run func(p, n int) bool, plain func(p int) int) (int, bool) {
+	s, at := "", p // the text from at not yet scanned
+	for c := range ch.Chunks(p, end) {
+		if s != "" {
+			n, stop := scan(s, at, int(c[0]), f, run)
+			if stop {
+				return at, true
+			}
+			s, at = s[n:], at+n
+			if s == "" && run != nil && plain != nil && plain(at)-at > piece {
+				return at, false
+			}
+		}
+		// Only a cluster that may go on into c is copied.
+		s += c
+	}
+	for s != "" {
+		n, stop := scan(s, at, last, f, run)
+		if stop {
+			return at, true
+		}
+		s, at = s[n:], at+n
+	}
+	return end, false
+}
+
+// scan calls f, or run, with the clusters of s, which begins at at, and
+// returns how many bytes it took and whether f or run stopped it. next is
+// the byte after s, or last or unknown. It leaves a cluster at the end of s
+// for the next piece when what follows could join it. An ASCII character
+// followed by another ASCII one cannot, unless it is a carriage return
+// before a line feed.
+func scan(s string, at, next int, f func(p int, c string) bool, run func(p, n int) bool) (int, bool) {
+	i := 0
+	for i < len(s) {
+		if run != nil {
+			j := plainRun(s, i)
+			// The run's last character may begin a cluster with what follows.
+			if j < len(s) && s[j] >= utf8.RuneSelf || j == len(s) && (next == unknown || next >= utf8.RuneSelf) {
+				j--
+			}
+			if j-i > 1 {
+				if !run(at+i, j-i) {
+					return i, true
+				}
+				i = j
+				continue
+			}
+		}
+		n := 1
+		if s[i] >= utf8.RuneSelf || i+1 < len(s) && (s[i+1] >= utf8.RuneSelf || s[i] == '\r') {
+			g := graphemes.FromString(s[i:])
+			g.Next()
+			n = g.End()
+		}
+		ends := n == 1 && s[i] < utf8.RuneSelf && next >= 0 && next < utf8.RuneSelf && (s[i] != '\r' || next != '\n')
+		if i+n == len(s) && next != last && !ends {
+			break
+		}
+		if !f(at+i, s[i:i+n]) {
+			return i, true
+		}
+		i += n
+	}
+	return i, false
+}
+
+// plainRun returns where the printable ASCII in s from i ends. It looks at
+// eight bytes a step while none is below a space or above ~.
+func plainRun(s string, i int) int {
+	const ones, highs = 0x0101010101010101, 0x8080808080808080
+	for ; i+8 <= len(s); i += 8 {
+		w := uint64(s[i]) | uint64(s[i+1])<<8 | uint64(s[i+2])<<16 | uint64(s[i+3])<<24 |
+			uint64(s[i+4])<<32 | uint64(s[i+5])<<40 | uint64(s[i+6])<<48 | uint64(s[i+7])<<56
+		if (w-' '*ones)&^w&highs != 0 || (w+ones|w)&highs != 0 {
+			break
+		}
+	}
+	for i < len(s) && s[i] >= ' ' && s[i] < 0x7f {
+		i++
+	}
+	return i
 }
 
 // chunk is how many bytes line scans read at a time.
