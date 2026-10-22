@@ -31,14 +31,15 @@ func InlineText(s string) string { return inlineText.Replace(s) }
 // hides it. A tab is as wide as it is at its column in the text, hidden
 // text counting. f returns false to stop.
 func walk(t Text, start, tab int, in []Inline, f func(p, x, w int, c string) bool) {
-	walkFrom(t, start, start, 0, tab, in, f, nil)
+	walkFrom(t, start, start, 0, tab, in, f, nil, nil)
 }
 
 // walkFrom is walk from from on. from is a cluster of the line at start at
 // column col, and the screen columns count from col. Given run, once no
 // inline is ahead, it calls run in place of f for each run of printable
-// ASCII, with where the run begins, its screen column and its length.
-func walkFrom(t Text, start, from, col, tab int, in []Inline, f func(p, x, w int, c string) bool, run func(p, x, n int) bool) {
+// ASCII, with where the run begins, its screen column and its length, and
+// takes the text plain says is printable ASCII as clusters does.
+func walkFrom(t Text, start, from, col, tab int, in []Inline, f func(p, x, w int, c string) bool, run func(p, x, n int) bool, plain func(p int) int) {
 	end := LineEnd(t, start)
 	k := 0
 	for k < len(in) && in[k].Start < from {
@@ -75,7 +76,7 @@ func walkFrom(t Text, start, from, col, tab int, in []Inline, f func(p, x, w int
 		more = f(p, x, w+cw, c)
 		x += w + cw
 		return more
-	}, runs)
+	}, runs, plain)
 	if w, _ := at(end); more && w > 0 {
 		f(end, x, w, "")
 	}
@@ -144,29 +145,32 @@ func Hang(t Text, start, cols, tab int, indent bool, show string) int {
 // hang columns in: start, then each place that does not fit on the row
 // before it.
 func Rows(t Text, start, n, cols, hang, tab int, in []Inline) []int {
-	return RowsFrom(t, start, start, 0, n, math.MaxInt, Wrap{cols, hang, tab, in, false}, nil)
+	return RowsFrom(t, start, start, 0, n, math.MaxInt, Wrap{Cols: cols, Hang: hang, Tab: tab, In: in}, nil)
 }
 
 // WordRows is Rows that ends a row after its last space that fits, or
 // where Rows does on a row with none, as a float wraps its text.
 func WordRows(t Text, start, n, cols, hang, tab int, in []Inline) []int {
-	return RowsFrom(t, start, start, 0, n, math.MaxInt, Wrap{cols, hang, tab, in, true}, nil)
+	return RowsFrom(t, start, start, 0, n, math.MaxInt, Wrap{Cols: cols, Hang: hang, Tab: tab, In: in, Words: true}, nil)
 }
 
 // Wrap is how a line wraps: at Cols columns, the rows after its first Hang
 // columns in, with tabs Tab columns wide and the inlines In, and with Words
-// after a row's last space that fits.
+// after a row's last space that fits. Plain, when set, returns where the
+// printable ASCII from a place goes on to as far as the caller knows, so a
+// walk of the line takes it unread.
 type Wrap struct {
 	Cols, Hang, Tab int
 	In              []Inline
 	Words           bool
+	Plain           func(p int) int
 }
 
 // RowsFrom is Rows from from on, a row of the line at start that begins at
 // display column col. It returns at most n rows, and stops after the row
 // that follows the one holding to. Given mark, it tells mark of the rows it
 // finds, marks bytes apart, and the screen columns they begin at.
-func RowsFrom(t Text, start, from, col, n, to int, wr Wrap, mark func(p, x int)) []int {
+func RowsFrom(t Text, start, from, col, n, to int, wr Wrap, mark func(p, x int, plain bool)) []int {
 	cols, hang, tab, in, words := wr.Cols, wr.Hang, wr.Tab, wr.In, wr.Words
 	rows := []int{from}
 	end := LineEnd(t, start)
@@ -181,7 +185,7 @@ func RowsFrom(t Text, start, from, col, n, to int, wr Wrap, mark func(p, x int))
 	if from > start {
 		x, left = hang, hang
 	}
-	note := marker(from, mark)
+	note, spoil := marker(from, mark)
 	// add starts a row at p, at screen column at, or reports false once
 	// there are n or the last starts after to.
 	add := func(p, at int) bool {
@@ -236,7 +240,10 @@ func RowsFrom(t Text, start, from, col, n, to int, wr Wrap, mark func(p, x int))
 		if words && c == " " {
 			brk, brkX, brkAt = p+1, x, at+w
 		}
+		if !printable(c) {
+			spoil()
+		}
 		return true
-	}, run)
+	}, run, wr.Plain)
 	return rows
 }

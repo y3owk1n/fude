@@ -150,6 +150,23 @@ func (h host) Shown(start, end int) []vim.Inline {
 	return h.e.shown(h.e.win, start, end).inlines
 }
 
+// RowFrom is where the current window's row that holds pos begins, which
+// on a long line it finds from the rows it keeps, or without wrap the
+// nearest place before pos whose column it keeps.
+func (h host) RowFrom(start, pos int) (int, int) {
+	w, t, tab := h.e.win, h.e.win.buf.text.Snapshot(), h.e.tabWidth(h.e.win.buf)
+	if vim.LineEnd(t, start)-start <= clip {
+		return start, 0
+	}
+	if !w.opts.Wrap {
+		k := w.buf.columnsOf(t, start, tab).before(pos)
+		return k.p, k.x
+	}
+	d := h.e.shown(w, start, vim.LineEnd(t, start))
+	from := w.rowsTo(t, start, pos, 1, tab, d)[0]
+	return from, w.buf.column(t, start, from, tab)
+}
+
 // indentWidth is the columns an indent takes in b, as a module set it,
 // or else its filetype's indent_width, or else the global one, or else the
 // tab width (B238).

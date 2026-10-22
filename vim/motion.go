@@ -164,29 +164,86 @@ func (m *Machine) row(t Text, c int) (start, end, cols int) {
 		if shown <= 0 {
 			return ls, le, math.MaxInt
 		}
+		// The row starts at the first cluster left columns in, counted from
+		// a place the host knows the column of when it is before left.
 		tab := m.h.TabWidth()
-		return colStart(t, ls, left, tab), next(t, atColumn(t, ls, left+shown-1, tab), le), shown
+		from, x := m.h.RowFrom(ls, c)
+		for from > ls && x > left {
+			from, x = m.h.RowFrom(ls, from-1)
+		}
+		start, sx := ColumnStartFrom(t, from, x, left, tab, nil)
+		end, _ := ColumnStartFrom(t, start, sx, left+shown, tab, nil)
+		return start, end, shown
 	}
-	starts, _, _ := m.rows(t, ls, cols)
-	r := len(starts) - 1
-	for r > 0 && starts[r] > c {
-		r--
+	rs := m.rowsAt(t, ls, c, cols, 0, 1)
+	if rs.r+1 < len(rs.starts) {
+		le = rs.starts[rs.r+1]
 	}
-	if r+1 < len(starts) {
-		le = starts[r+1]
-	}
-	return starts[r], le, cols
+	return rs.starts[rs.r], le, cols
 }
 
-// rows returns where each row of the line at ls starts, as the host wraps
-// it at cols, the inlines the rows count and the columns the rows after
-// the first start in (B295, B489).
-func (m *Machine) rows(t Text, ls, cols int) ([]int, []Inline, int) {
-	in, hang := m.h.Shown(ls, LineEnd(t, ls)), m.h.Hang(ls)
-	if m.h.WordWrap() {
-		return WordRows(t, ls, math.MaxInt, cols, hang, m.h.TabWidth(), in), in, hang
+// rows is some rows of a line as the host wraps it: where each begins,
+// the index of the one asked for, the display column the first begins at,
+// and the inlines and hang the rows count (B295, B489). known is a place
+// on the row asked for whose column the host gave, and knownX that column.
+type rows struct {
+	starts        []int
+	r, x          int
+	in            []Inline
+	hang          int
+	known, knownX int
+}
+
+// rowsAt returns the rows of the line at ls, as the host wraps it at cols,
+// from the one that holds p: it and up to before rows before it and after
+// rows after it. A walk starts from a row the host gives near where it
+// goes, in place of the line's start.
+func (m *Machine) rowsAt(t Text, ls, p, cols, before, after int) rows {
+	in, hang, tab := m.h.Shown(ls, LineEnd(t, ls)), m.h.Hang(ls), m.h.TabWidth()
+	// Without wrap a line is one row, which columns count on from a place
+	// the host knows.
+	if cols == math.MaxInt {
+		from, x := m.h.RowFrom(ls, p)
+		return rows{starts: []int{ls}, in: in, known: from, knownX: x}
 	}
-	return Rows(t, ls, math.MaxInt, cols, hang, m.h.TabWidth(), in), in, hang
+	wr := Wrap{Cols: cols, Hang: hang, Tab: tab, In: in, Words: m.h.WordWrap()}
+	for back := p; ; {
+		from, col := m.h.RowFrom(ls, back)
+		starts := RowsFrom(t, ls, from, col, math.MaxInt, p, wr, nil)
+		r := len(starts) - 1
+		for r > 0 && starts[r] > p {
+			r--
+		}
+		if r < before && from > ls {
+			back = from - 1
+			continue
+		}
+		k := max(r-before, 0)
+		x := ColumnFrom(t, from, col, starts[k], tab, nil)
+		starts, r = starts[k:], r-k
+		if more := after + 1 - (len(starts) - 1 - r); more > 0 && len(starts)-1 > r {
+			last := starts[len(starts)-1]
+			starts = append(starts, RowsFrom(t, ls, last, ColumnFrom(t, starts[0], x, last, tab, nil), more+1, math.MaxInt, wr, nil)[1:]...)
+		}
+		return rows{starts, r, x, in, hang, starts[r], ColumnFrom(t, starts[0], x, starts[r], tab, nil)}
+	}
+}
+
+// column returns the display columns from where row i of rs begins to the
+// place pos on it, inlines counting.
+func (rs rows) column(t Text, ls, i, pos, tab int) int {
+	x0, at := ColumnFrom(t, rs.starts[0], rs.x, rs.starts[i], tab, nil), 0
+	if len(rs.in) == 0 && i == rs.r && rs.known >= rs.starts[i] && rs.known <= pos {
+		return ColumnFrom(t, rs.known, rs.knownX, pos, tab, nil) - x0
+	}
+	walkFrom(t, ls, rs.starts[i], x0, tab, rs.in, func(p, x, w int, _ string) bool {
+		at = x + w - x0
+		if p >= pos {
+			at = x - x0
+		}
+		return p < pos
+	}, nil, nil)
+	return at
 }
 
 // lineMotion is j, k, gg and G.
@@ -1006,31 +1063,41 @@ func column(t Text, start, pos, tab int) int { return ColumnFrom(t, start, 0, po
 // marks is how far apart the places a walk of a line tells of are.
 const marks = 64 << 10
 
-// marker returns mark, told only of places marks bytes past the last it
-// was told of, from from on.
-func marker(from int, mark func(p, x int)) func(p, x int) {
-	return func(p, x int) {
+// marker returns note and spoil. note tells mark of a place marks bytes
+// past the last one it told of, from from on, and whether only printable
+// ASCII came between. spoil records that something else came.
+func marker(from int, mark func(p, x int, plain bool)) (note func(p, x int), spoil func()) {
+	plain := true
+	note = func(p, x int) {
 		if mark != nil && p-from >= marks {
-			mark(p, x)
-			from = p
+			mark(p, x, plain)
+			from, plain = p, true
 		}
 	}
+	return note, func() { plain = false }
 }
+
+// printable reports whether c is one printable ASCII character.
+func printable(c string) bool { return len(c) == 1 && c[0] >= ' ' && c[0] < 0x7f }
 
 // ColumnFrom returns the display column of pos on its line given that the
 // cluster at from, before it on the line, starts at column x. Given mark, it
-// tells mark of clusters it passes, marks bytes apart, and their columns.
-func ColumnFrom(t Text, from, x, pos, tab int, mark func(p, x int)) int {
-	note := marker(from, mark)
+// tells mark of clusters it passes, marks bytes apart, their columns and
+// whether only printable ASCII came since the last.
+func ColumnFrom(t Text, from, x, pos, tab int, mark func(p, x int, plain bool)) int {
+	note, spoil := marker(from, mark)
 	clusters(t, from, pos, func(p int, c string) bool {
 		note(p, x)
+		if !printable(c) {
+			spoil()
+		}
 		x += width(c, x, tab)
 		return true
 	}, func(p, n int) bool {
 		note(p, x)
 		x += n
 		return true
-	})
+	}, nil)
 	return x
 }
 
@@ -1054,14 +1121,18 @@ func colStart(t Text, start, col, tab int) int {
 // on the line from from on, or the line's end, and the column it starts at,
 // given that the cluster at from starts at column x. It tells mark of
 // clusters as ColumnFrom does.
-func ColumnStartFrom(t Text, from, x, col, tab int, mark func(p, x int)) (int, int) {
-	at, note := LineEnd(t, from), marker(from, mark)
+func ColumnStartFrom(t Text, from, x, col, tab int, mark func(p, x int, plain bool)) (int, int) {
+	at := LineEnd(t, from)
+	note, spoil := marker(from, mark)
 	clusters(t, from, at, func(p int, c string) bool {
 		if x >= col {
 			at = p
 			return false
 		}
 		note(p, x)
+		if !printable(c) {
+			spoil()
+		}
 		x += width(c, x, tab)
 		return true
 	}, func(p, n int) bool {
@@ -1072,7 +1143,7 @@ func ColumnStartFrom(t Text, from, x, col, tab int, mark func(p, x int)) (int, i
 		}
 		x += n
 		return true
-	})
+	}, nil)
 	return at, x
 }
 
@@ -1091,7 +1162,7 @@ func atColumn(t Text, start, col, tab int) int {
 		}
 		at, x = p+n-1, x+n
 		return true
-	})
+	}, nil)
 	return at
 }
 
@@ -1103,31 +1174,29 @@ func (m *Machine) screenLine(t Text, c, n int, down bool) (int, bool) {
 	tab := m.h.TabWidth()
 	_, _, cols := m.h.Viewport()
 	ls := LineStart(t, c)
-	starts, in, hang := m.rows(t, ls, cols)
-	r := len(starts) - 1
-	for r > 0 && starts[r] > c {
-		r--
+	before, after := n, 0
+	if down {
+		before, after = 0, n
 	}
-	at := Column(t, ls, c, tab, in) - Column(t, ls, starts[r], tab, in)
-	if r > 0 {
-		at += hang
+	rs := m.rowsAt(t, ls, c, cols, before, after)
+	at := rs.column(t, ls, rs.r, c, tab)
+	if rs.starts[rs.r] > ls {
+		at += rs.hang
 	}
 	// A count past the last row stops there, and no row to move to fails.
 moves:
 	for i := range n {
 		switch {
-		case down && r+1 < len(starts):
-			r++
+		case down && rs.r+1 < len(rs.starts):
+			rs.r++
 		case down && LineEnd(t, ls) < t.Len():
 			ls = LineEnd(t, ls) + 1
-			starts, in, hang = m.rows(t, ls, cols)
-			r = 0
-		case !down && r > 0:
-			r--
+			rs = m.rowsAt(t, ls, ls, cols, 0, n-i)
+		case !down && rs.r > 0:
+			rs.r--
 		case !down && ls > 0:
 			ls = LineStart(t, ls-1)
-			starts, in, hang = m.rows(t, ls, cols)
-			r = len(starts) - 1
+			rs = m.rowsAt(t, ls, LineEnd(t, ls), cols, n-i, 0)
 		case i == 0:
 			return 0, false
 		default:
@@ -1135,24 +1204,21 @@ moves:
 		}
 	}
 	// The place at the same column of the row, or the row's last.
-	end := LineEnd(t, ls)
-	if r+1 < len(starts) {
-		end = starts[r+1]
+	start, end := rs.starts[rs.r], LineEnd(t, ls)
+	if rs.r+1 < len(rs.starts) {
+		end = rs.starts[rs.r+1]
 	}
-	to, base := starts[r], Column(t, ls, starts[r], tab, in)
-	if r > 0 {
-		base -= hang
+	if start > ls {
+		at -= rs.hang
 	}
-	walk(t, ls, tab, in, func(p, x, w int, _ string) bool {
-		if p < starts[r] {
-			return true
-		}
-		if p >= end && p > starts[r] {
+	to, x0 := start, ColumnFrom(t, rs.starts[0], rs.x, start, tab, nil)
+	walkFrom(t, ls, start, x0, tab, rs.in, func(p, x, w int, _ string) bool {
+		if p >= end && p > start {
 			return false
 		}
 		to = p
-		return x-base+w <= at
-	})
+		return x-x0+w <= at
+	}, nil, nil)
 	return clamp(t, to), true
 }
 
@@ -1160,7 +1226,7 @@ func width(cluster string, col, tab int) int {
 	switch {
 	case cluster == "\t":
 		return tab - col%tab
-	case len(cluster) == 1 && cluster[0] >= ' ' && cluster[0] < 0x7f:
+	case printable(cluster):
 		return 1
 	}
 	return displaywidth.String(cluster)
@@ -1173,10 +1239,25 @@ const piece = 4096
 // begins and the cluster, until f returns false. Given run, it calls run in
 // its place with where a run of printable ASCII begins and how long it is,
 // each character a cluster one column wide, which stops when it returns
-// false. It reads the text a piece at a time, and an ASCII character before
-// another is a cluster of its own.
-func clusters(t Text, start, end int, f func(p int, c string) bool, run func(p, n int) bool) {
+// false. Given plain too, which returns where printable ASCII the caller
+// knows of from p goes on to, it takes that text to run unread. It reads
+// the rest a piece at a time, and an ASCII character before another is a
+// cluster of its own.
+func clusters(t Text, start, end int, f func(p int, c string) bool, run func(p, n int) bool, plain func(p int) int) {
 	for p := start; p < end; {
+		// The last character known may begin a cluster with what follows.
+		if q := p; run != nil && plain != nil {
+			if q = min(plain(p), end); q < end {
+				q--
+			}
+			if q-p > 1 {
+				if !run(p, q-p) {
+					return
+				}
+				p = q
+				continue
+			}
+		}
 		hi := min(p+piece, end)
 		s, i := t.Slice(p, hi), 0
 		for i < len(s) {

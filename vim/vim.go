@@ -114,6 +114,11 @@ type Host interface {
 	// Hang returns the columns the rows after the first of the line at
 	// start begin with, as Hang gives them, which gj and gk count (B489).
 	Hang(start int) int
+	// RowFrom returns where a row of the line at start that the window
+	// shows begins, at or before pos, or without wrap any cluster there,
+	// and the display column it begins at, so gj and gk count from there in
+	// place of the line's start.
+	RowFrom(start, pos int) (from, col int)
 	// Editable returns why the text may not change, or nil. A key that
 	// would start insert or replace mode returns that reason and stays in
 	// normal mode (B302).
@@ -132,28 +137,29 @@ const OwnMarks = 0xF0000
 // Viewport and SetTop.
 type Defaults struct{}
 
-func (Defaults) BeginGroup()                {}
-func (Defaults) EndGroup()                  {}
-func (Defaults) Unhandled(string) error     { return nil }
-func (Defaults) Undo() (int, int, error)    { return 0, 0, ErrNoStep }
-func (Defaults) Redo() (int, int, error)    { return 0, 0, ErrNoStep }
-func (Defaults) Step(int) (int, bool)       { return 0, false }
-func (Defaults) PushJump(int)               {}
-func (Defaults) Jump(int) bool              { return false }
-func (Defaults) Change(int) bool            { return false }
-func (Defaults) IndentWidth() int           { return Tabstop }
-func (Defaults) TabWidth() int              { return Tabstop }
-func (Defaults) Fold(line int) (int, int)   { return line, line }
-func (Defaults) Sideways() (int, int)       { return 0, 0 }
-func (Defaults) FileName() string           { return "" }
-func (Defaults) SetLeft(int)                {}
-func (Defaults) Shown(int, int) []Inline    { return nil }
-func (Defaults) WordWrap() bool             { return false }
-func (Defaults) Hang(int) int               { return 0 }
-func (Defaults) Editable() error            { return nil }
-func (Defaults) ShowMark(rune) bool         { return false }
-func (Defaults) Clipboard() (string, error) { return "", errNoClipboard }
-func (Defaults) SetClipboard(string) error  { return errNoClipboard }
+func (Defaults) BeginGroup()                     {}
+func (Defaults) EndGroup()                       {}
+func (Defaults) Unhandled(string) error          { return nil }
+func (Defaults) Undo() (int, int, error)         { return 0, 0, ErrNoStep }
+func (Defaults) Redo() (int, int, error)         { return 0, 0, ErrNoStep }
+func (Defaults) Step(int) (int, bool)            { return 0, false }
+func (Defaults) PushJump(int)                    {}
+func (Defaults) Jump(int) bool                   { return false }
+func (Defaults) Change(int) bool                 { return false }
+func (Defaults) IndentWidth() int                { return Tabstop }
+func (Defaults) TabWidth() int                   { return Tabstop }
+func (Defaults) Fold(line int) (int, int)        { return line, line }
+func (Defaults) Sideways() (int, int)            { return 0, 0 }
+func (Defaults) FileName() string                { return "" }
+func (Defaults) SetLeft(int)                     {}
+func (Defaults) Shown(int, int) []Inline         { return nil }
+func (Defaults) WordWrap() bool                  { return false }
+func (Defaults) Hang(int) int                    { return 0 }
+func (Defaults) RowFrom(start, _ int) (int, int) { return start, 0 }
+func (Defaults) Editable() error                 { return nil }
+func (Defaults) ShowMark(rune) bool              { return false }
+func (Defaults) Clipboard() (string, error)      { return "", errNoClipboard }
+func (Defaults) SetClipboard(string) error       { return errNoClipboard }
 
 var errNoClipboard = errors.New("there is no system clipboard")
 
