@@ -150,7 +150,8 @@ Deletes all of the line before the cursor, and keeps what is after it.
 
 Types the next key as it is, as in insert mode, so `<C-v><Tab>` types a
 tab where `<Tab>` would complete. A number after it types the character it
-names, as `<C-v>065`, `<C-v>x41` and `<C-v>u20ac` do.
+names, as `<C-v>065`, `<C-v>x41` and `<C-v>u20ac` do. A control character
+shows as `^` and a letter, as `^A` for the one `<C-v><C-a>` types.
 
 ```keys
 "|two" ":s/two/<C-v>u00e9/<CR>" "|é"

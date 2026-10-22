@@ -1229,9 +1229,15 @@ func width(cluster string, col, tab int) int {
 		return tab - col%tab
 	case printable(cluster):
 		return 1
+	case control(cluster):
+		return 2
 	}
 	return displaywidth.String(cluster)
 }
+
+// control reports whether c is a control character, which shows as ^ and
+// a letter, as ^A does for 0x01 and ^? for 0x7f. width checks a tab first.
+func control(c string) bool { return len(c) == 1 && (c[0] < ' ' || c[0] == 0x7f) }
 
 // piece is how many bytes a walk over a line reads at a time.
 const piece = 4096

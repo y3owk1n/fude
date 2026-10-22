@@ -205,7 +205,9 @@ instead: up to three decimal digits, `o` and three octal digits, `x` and
 two hex digits, `u` and four, or `U` and eight. A key that is not a digit
 ends the number early and types after it. A named key types the character
 it sends, as `<CR>` types a carriage return, or its name when it sends
-none.
+none. A control character shows as `^` and a letter, such as `^A` for
+the one `<C-v><C-a>` types and `^[` for an escape. The file keeps the
+character itself.
 
 ```keys
 "|" "i<C-v>065" "A|"

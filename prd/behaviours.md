@@ -257,6 +257,11 @@ Where fude departs, the line says so and cites the departure in
   unless set, and `fold_open`, `fold_close` and `fold_sep` for the fold
   column (B488). A character not one column wide changes nothing and
   says why.
+- B540 [2] A control character in the text, such as one `<C-v>` types,
+  shows as `^` and a letter in the faint colour, two columns wide. 0x01
+  shows as `^A`, an escape as `^[` and 0x7f as `^?`. The file keeps the
+  character itself. The command line and messages show it as `^` and a
+  letter too.
 - B119 [5] A buffer with diagnostics shows a sign column, two columns left
   of the line numbers, with the letter of each line's worst diagnostic,
   `E`, `W`, `I` or `H`, as Neovim's `signcolumn=auto` does.

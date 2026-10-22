@@ -156,7 +156,8 @@ the line before it. `<C-r>a` types register `a`, `<C-t>` and `<C-d>`
 indent and dedent the line, and `<C-o>` runs one normal mode command.
 `<C-v>` types the next key as it is, `<C-k>e'` types é and the other
 digraphs, `<C-a>` types the text last typed, and `<C-e>` and `<C-y>`
-copy the character below and above the cursor.
+copy the character below and above the cursor. A control key typed after
+`<C-v>` shows as `^` and a letter, as `<C-a>` shows as `^A`.
 
 ## Spelling
 

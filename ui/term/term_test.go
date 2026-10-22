@@ -2386,6 +2386,45 @@ func TestB486ListChars(t *testing.T) {
 	}
 }
 
+// B540
+func TestB540ControlCharacters(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.txt")
+	if err := os.WriteFile(path, []byte("a\x01b\x1b[Hc\x7f\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	mt := vt.NewMockTerm(vt.MockOptSize{X: 120, Y: 40})
+	c := start(t, path)
+	c.s = screenOn(t, mt)
+	// What the terminal shows, so a byte it acted on shows up too.
+	shown := func(y int) string {
+		var b strings.Builder
+		for x := range 120 {
+			b.WriteString(mt.GetCell(vt.Coord{X: vt.Col(x), Y: vt.Row(y)}).C)
+		}
+		return strings.TrimRight(b.String(), " ")
+	}
+	c.draw()
+	if got := shown(0); got != "a^Ab^[[Hc^?" {
+		t.Errorf("the line shows %q, want a^Ab^[[Hc^?", got)
+	}
+	c.e.Feed(vim.Keys("$")[0])
+	c.draw()
+	if got := mt.Pos(); got.X != 9 || got.Y != 0 {
+		t.Errorf("after $ the cursor shows at %v, want column 9", got)
+	}
+	for _, k := range vim.Keys(":<C-v><C-a>") {
+		c.e.Feed(k)
+	}
+	c.draw()
+	found := false
+	for y := range 40 {
+		found = found || strings.Contains(shown(y), "│ : ^A  ")
+	}
+	if !found {
+		t.Errorf("the command line does not show ^A")
+	}
+}
+
 // B487
 func TestB487FillChars(t *testing.T) {
 	c := startWith(t, "[fill_chars]\neob = \"@\"\nvert = \"!\"\n")

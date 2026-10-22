@@ -390,7 +390,7 @@ func (c *client) draw() {
 	// A modal box, the command line or the finder, has the windows under it
 	// drawn in the tinted theme, and draws on the tinted ground (B151).
 	f, floats := c.e.Menu()
-	msg, ask := c.e.Message(), c.e.Confirm()
+	msg, ask := carets(c.e.Message()), c.e.Confirm()
 	wins := c.e.Windows()
 	// A float in the middle of the screen dims the windows under it, as a
 	// modal box does.
@@ -815,6 +815,16 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 						x, col, rest = x+w, col+w, rest[1:]
 						continue
 					}
+					if control(rest[0]) {
+						// A terminal would act on the byte, so it shows as ^ and a
+						// letter (B540).
+						c.s.Put(v.X+x, y, "^", style.Foreground(th.faint))
+						if x+1 < v.W {
+							c.s.Put(v.X+x+1, y, string(rest[0]^0x40), style.Foreground(th.faint))
+						}
+						x, col, rest = x+2, col+2, rest[1:]
+						continue
+					}
 					if v.List {
 						if mark, ok := listChar(list, rest, at < lead, at >= trail); ok {
 							// The mark takes the place of the one-column character.
@@ -1064,6 +1074,24 @@ func (c *client) number(line, rel int, onCursor bool, x, y int, v wire.Window) {
 		style = base.Bold(true)
 	}
 	c.s.PutStrStyled(x, y, text, style)
+}
+
+// control reports whether b is a control character other than a tab.
+func control(b byte) bool { return b < ' ' && b != '\t' || b == 0x7f }
+
+// carets returns s with each control character, a tab too, as ^ and a
+// letter, as ^A for 0x01. A line break stays, as it ends a message's line.
+func carets(s string) string {
+	var b strings.Builder
+	for i := range len(s) {
+		if s[i] == '\t' || s[i] != '\n' && control(s[i]) {
+			b.WriteByte('^')
+			b.WriteByte(s[i] ^ 0x40)
+		} else {
+			b.WriteByte(s[i])
+		}
+	}
+	return b.String()
 }
 
 // listChar returns what list shows in place of the character rest starts

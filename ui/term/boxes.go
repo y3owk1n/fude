@@ -57,7 +57,8 @@ func (c *client) commandLine(w, h int, menu string, spans []syntax.Span) (int, i
 	}
 	c.s.Put(left+2, top+1, prompt, base.Foreground(colour).Bold(true))
 	// A line longer than the box shows its end, where the cursor usually is.
-	before := rest[:c.e.LineCursor()-1]
+	before := carets(rest[:c.e.LineCursor()-1])
+	rest = carets(rest)
 	skip := 0 // the bytes of rest left out at its start
 	for displaywidth.String(before[skip:]) > inner-4 {
 		_, n := utf8.DecodeRuneInString(before[skip:])
