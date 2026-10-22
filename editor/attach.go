@@ -15,8 +15,9 @@ import (
 
 // frame returns what e's client draws. It brings the text of each shown
 // buffer that changed since sent, the versions the client has, and moves
-// sent on.
-func (e *Session) frame(sent map[int]kernel.Version) wire.Frame {
+// sent on. For a text the client takes whole, it returns the snapshot by
+// its index in Texts, which a caller copies off the loop.
+func (e *Session) frame(sent map[int]kernel.Version) (wire.Frame, map[int]kernel.Snapshot) {
 	f := wire.Frame{
 		Windows: e.Windows(), Buffers: e.Buffers(), Line: e.Line(), LineCursor: e.LineCursor(), Mode: e.Mode(), Pending: e.Pending(), Message: e.Message(), Confirm: e.Confirm(),
 		Cursors: e.Cursors(), Recording: e.Recording(), Substituting: e.Substituting(), Terminal: e.Terminal(), Shown: e.Shown(),
@@ -67,6 +68,7 @@ func (e *Session) frame(sent map[int]kernel.Version) wire.Frame {
 		}
 	}
 	f.Freed = e.Freed()
+	var wholes map[int]kernel.Snapshot
 	for _, v := range f.Windows {
 		b, err := e.buffer(v.Buffer)
 		if err != nil {
@@ -83,13 +85,15 @@ func (e *Session) frame(sent map[int]kernel.Version) wire.Frame {
 		if edits, ok := b.text.Since(have); known && ok {
 			text.Edits = edits
 		} else {
-			whole := t.Slice(0, t.Len())
-			text.Whole = &whole
+			if wholes == nil {
+				wholes = map[int]kernel.Snapshot{}
+			}
+			wholes[len(f.Texts)] = t
 		}
 		f.Texts = append(f.Texts, text)
 		sent[b.id] = t.Version()
 	}
-	return f
+	return f, wholes
 }
 
 // attached runs the input of s's client on the loop through on, one notice
@@ -112,12 +116,27 @@ func (e *Session) attached(s *Session, in *bufio.Scanner, out func(any) error, o
 			var b []byte
 			var done bool
 			var err error
+			var texts []wire.Text
+			var wholes map[int]kernel.Snapshot
 			on(func() {
-				f := s.frame(sent)
+				var f wire.Frame
+				f, wholes = s.frame(sent)
 				f.Input = handled
 				done = f.Done
+				texts, f.Texts = f.Texts, nil
 				b, err = json.Marshal(f)
 			})
+			// A text can be the size of a file, so this goroutine copies and
+			// encodes it off the loop, into the frame's last field.
+			if len(texts) > 0 && err == nil {
+				for i, t := range wholes {
+					whole := t.Slice(0, t.Len())
+					texts[i].Whole = &whole
+				}
+				var tb []byte
+				tb, err = json.Marshal(texts)
+				b = append(append(append(b[:len(b)-1], `,"Texts":`...), tb...), '}')
+			}
 			if err != nil {
 				logLine(fmt.Sprintf("attached client: %v", err))
 				return
