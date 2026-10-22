@@ -540,6 +540,39 @@ func TestB217PinnedReplace(t *testing.T) {
 	}
 }
 
+// ghosted is a module that shows ghost text before the first line's second
+// byte.
+type ghosted struct{ heading }
+
+func (ghosted) Init(context.Context, api.Scope) (api.Result, error) {
+	return api.Result{Decorate: []api.Decoration{{ID: 1, Start: 1, End: 1, Style: "proposal", Note: "xy", Insert: true}}}, nil
+}
+
+// B384, B216: the cursor shows before ghost text at it in insert mode, and
+// on the character after it in normal mode.
+func TestB384DrawGhostCursor(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.txt")
+	if err := os.WriteFile(path, []byte("ab\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for keys, want := range map[string]int{"a": 1, "l": 3} {
+		mt := vt.NewMockTerm(vt.MockOptSize{X: 120, Y: 40})
+		c := start(t, path)
+		c.s = screenOn(t, mt)
+		c.e.(*editor.Session).Use(ghosted{})
+		for _, k := range vim.Keys(keys) {
+			c.e.Feed(k)
+		}
+		c.draw()
+		if row := c.row(0); !strings.HasPrefix(row, "axyb") {
+			t.Fatalf("the line draws as %q", row)
+		}
+		if got := mt.Pos(); int(got.X) != want || got.Y != 0 {
+			t.Errorf("after %q the cursor shows at %v, want column %d", keys, got, want)
+		}
+	}
+}
+
 // spaced is a module that draws a row of its own below the second line.
 type spaced struct{ heading }
 

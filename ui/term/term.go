@@ -511,6 +511,7 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 	numbers, cur := v.X, t.LineOf(v.Cursor)
 	v.X, v.W = v.X+v.Gutter, v.W-v.Gutter
 	cx, cy, found := 0, 0, false
+	insert := c.e.Mode() == vim.Insert
 	pos := v.Top
 	// The rows show at most one line each from the top's, a closed fold
 	// taking one (B224). place is each line's place among them, for
@@ -735,6 +736,12 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 				}
 				for rest := t.Slice(start, stop); ; {
 					at := stop - len(rest)
+					// In insert mode the cursor shows before a ghost at it, where
+					// typing goes. Else it shows on the character after (B384, B216).
+					cursor := v.Current && at == v.Cursor && (rest != "" || stop == end)
+					if cursor && insert {
+						cx, cy, found = v.X+min(x+v.Past, v.W-1), y, true
+					}
 					// A ghost at a row's end draws at the next row's start, where
 					// vim.Rows puts it. At the line's end it draws after the text.
 					hidden := at
@@ -748,7 +755,7 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 						rest = t.Slice(hidden, stop)
 						continue
 					}
-					if v.Current && at == v.Cursor && (rest != "" || stop == end) {
+					if cursor && !insert {
 						cx, cy, found = v.X+min(x+v.Past, v.W-1), y, true
 					}
 					if rest != "" && x >= v.W && v.List && list.Extends != "" {

@@ -1870,7 +1870,9 @@ Where fude departs, the line says so and cites the departure in
 - B384 [4] A module's decoration, or a plugin's with `ui`, may show ghost
   text. Its note shows among the text at a place, after the cursor, and
   its rows show below its line, on the cursor's line too. So a suggestion
-  of several lines shows while the user types at it.
+  of several lines shows while the user types at it. In insert mode the
+  cursor shows before ghost text at it, where typing goes. In normal mode
+  it shows on the character after the ghost text.
 - B300 [4] A module's decoration, or a plugin's with `ui`, may make its
   lines one block. While the
   cursor or a selection is on any of them, every line of the block shows
