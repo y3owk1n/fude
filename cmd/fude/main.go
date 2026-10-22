@@ -267,14 +267,19 @@ func remote(cmd string, words []string, flags map[string]string) error {
 	var params any
 	switch {
 	case cmd == "open" && len(words) > 0:
-		// The paths are from here, not from where fude runs (B351).
+		// The paths are from here, not from where fude runs (B351). Abs would
+		// read the a: of a:2 as a Windows drive, so a relative path joins the
+		// working directory instead.
+		wd, err := os.Getwd()
+		if err != nil {
+			return fmt.Errorf("open: %w", err)
+		}
 		paths := make([]string, len(words))
 		for i, w := range words {
-			abs, err := filepath.Abs(w)
-			if err != nil {
-				return fmt.Errorf("open %s: %w", w, err)
+			paths[i] = w
+			if !filepath.IsAbs(w) {
+				paths[i] = filepath.Join(wd, w)
 			}
-			paths[i] = abs
 		}
 		params = map[string]any{"paths": paths}
 	case cmd == "keys" && len(words) == 1:
