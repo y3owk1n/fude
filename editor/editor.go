@@ -816,7 +816,13 @@ func (e *Session) reveal() {
 	// Without wrap the window scrolls sideways the least it must to show the
 	// cursor's column and side_scroll_off columns each side of it, at most
 	// half the window (B37, B482).
-	if col := vim.Column(t, line, c, tab, d.inlines) + e.vim.Past(); !w.opts.Wrap {
+	if !w.opts.Wrap {
+		col := e.vim.Past()
+		if len(d.inlines) > 0 {
+			col += vim.Column(t, line, c, tab, d.inlines)
+		} else {
+			col += w.buf.column(t, line, c, tab)
+		}
 		off := min(w.opts.SideScrollOff, (w.cols()-1)/2)
 		w.left = max(min(max(w.left, col+off-w.cols()+1), col-off), 0)
 	}

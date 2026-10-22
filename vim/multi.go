@@ -33,10 +33,9 @@ func (m *Machine) searchMatch(t Text, c int, back bool) (int, int, error) {
 // endAt returns where the match of p that starts at at ends, or the end of
 // the character at at when none starts there.
 func (p *pattern) endAt(t Text, at int) int {
-	ls := LineStart(t, at)
-	for _, mt := range p.all(t.Slice(ls, LineEnd(t, at))) {
-		if s, e := p.span(mt); ls+s == at {
-			return ls + e
+	for _, mt := range p.near(t, at, at) {
+		if mt[0] == at {
+			return mt[1]
 		}
 	}
 	return next(t, at, LineEnd(t, at))

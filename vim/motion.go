@@ -184,9 +184,9 @@ func (m *Machine) row(t Text, c int) (start, end, cols int) {
 func (m *Machine) rows(t Text, ls, cols int) ([]int, []Inline, int) {
 	in, hang := m.h.Shown(ls, LineEnd(t, ls)), m.h.Hang(ls)
 	if m.h.WordWrap() {
-		return WordRows(t, ls, cols, hang, m.h.TabWidth(), in), in, hang
+		return WordRows(t, ls, math.MaxInt, cols, hang, m.h.TabWidth(), in), in, hang
 	}
-	return Rows(t, ls, cols, hang, m.h.TabWidth(), in), in, hang
+	return Rows(t, ls, math.MaxInt, cols, hang, m.h.TabWidth(), in), in, hang
 }
 
 // lineMotion is j, k, gg and G.
@@ -1001,8 +1001,37 @@ func up(t Text, start, n int) int {
 }
 
 // column returns the display column of pos on the line at start.
-func column(t Text, start, pos, tab int) int {
-	return textWidth(t.Slice(start, pos), 0, tab)
+func column(t Text, start, pos, tab int) int { return ColumnFrom(t, start, 0, pos, tab, nil) }
+
+// marks is how far apart the places a walk of a line tells of are.
+const marks = 64 << 10
+
+// marker returns mark, told only of places marks bytes past the last it
+// was told of, from from on.
+func marker(from int, mark func(p, x int)) func(p, x int) {
+	return func(p, x int) {
+		if mark != nil && p-from >= marks {
+			mark(p, x)
+			from = p
+		}
+	}
+}
+
+// ColumnFrom returns the display column of pos on its line given that the
+// cluster at from, before it on the line, starts at column x. Given mark, it
+// tells mark of clusters it passes, marks bytes apart, and their columns.
+func ColumnFrom(t Text, from, x, pos, tab int, mark func(p, x int)) int {
+	note := marker(from, mark)
+	clusters(t, from, pos, func(p int, c string) bool {
+		note(p, x)
+		x += width(c, x, tab)
+		return true
+	}, func(p, n int) bool {
+		note(p, x)
+		x += n
+		return true
+	})
+	return x
 }
 
 // textWidth returns the display width of s starting at column col.
@@ -1017,28 +1046,53 @@ func textWidth(s string, col, tab int) int {
 // colStart returns the first cluster on the line at start that begins at or
 // after display column col, or the line's end.
 func colStart(t Text, start, col, tab int) int {
-	end := LineEnd(t, start)
-	x := 0
-	for g := graphemes.FromString(t.Slice(start, end)); g.Next(); {
+	p, _ := ColumnStartFrom(t, start, 0, col, tab, nil)
+	return p
+}
+
+// ColumnStartFrom returns the first cluster at or after display column col
+// on the line from from on, or the line's end, and the column it starts at,
+// given that the cluster at from starts at column x. It tells mark of
+// clusters as ColumnFrom does.
+func ColumnStartFrom(t Text, from, x, col, tab int, mark func(p, x int)) (int, int) {
+	at, note := LineEnd(t, from), marker(from, mark)
+	clusters(t, from, at, func(p int, c string) bool {
 		if x >= col {
-			return start + g.Start()
+			at = p
+			return false
 		}
-		x += width(g.Value(), x, tab)
-	}
-	return end
+		note(p, x)
+		x += width(c, x, tab)
+		return true
+	}, func(p, n int) bool {
+		note(p, x)
+		if x+n > col {
+			at, x = p+max(col-x, 0), max(x, col)
+			return false
+		}
+		x += n
+		return true
+	})
+	return at, x
 }
 
 // atColumn returns the cluster covering col on the line at start, or the
 // line's last cluster.
 func atColumn(t Text, start, col, tab int) int {
-	p, x := start, 0
-	for g := graphemes.FromString(t.Slice(start, LineEnd(t, start))); g.Next(); {
-		p = start + g.Start()
-		if x += width(g.Value(), x, tab); x > col {
-			break
+	at, x := start, 0
+	clusters(t, start, LineEnd(t, start), func(p int, c string) bool {
+		at = p
+		x += width(c, x, tab)
+		return x <= col
+	}, func(p, n int) bool {
+		if x+n > col {
+			at = p + max(col-x, 0)
+			return false
 		}
-	}
-	return p
+		at, x = p+n-1, x+n
+		return true
+	})
+	return at
 }
 
 // screenLine returns where n rows below the cursor, or above it when down
@@ -1089,7 +1143,7 @@ moves:
 	if r > 0 {
 		base -= hang
 	}
-	walk(t, ls, tab, in, func(p, x, w int) bool {
+	walk(t, ls, tab, in, func(p, x, w int, _ string) bool {
 		if p < starts[r] {
 			return true
 		}
@@ -1103,36 +1157,90 @@ moves:
 }
 
 func width(cluster string, col, tab int) int {
-	if cluster == "\t" {
+	switch {
+	case cluster == "\t":
 		return tab - col%tab
+	case len(cluster) == 1 && cluster[0] >= ' ' && cluster[0] < 0x7f:
+		return 1
 	}
 	return displaywidth.String(cluster)
+}
+
+// piece is how many bytes a walk over a line reads at a time.
+const piece = 4096
+
+// clusters calls f with where each grapheme cluster from start to end
+// begins and the cluster, until f returns false. Given run, it calls run in
+// its place with where a run of printable ASCII begins and how long it is,
+// each character a cluster one column wide, which stops when it returns
+// false. It reads the text a piece at a time, and an ASCII character before
+// another is a cluster of its own.
+func clusters(t Text, start, end int, f func(p int, c string) bool, run func(p, n int) bool) {
+	for p := start; p < end; {
+		hi := min(p+piece, end)
+		s, i := t.Slice(p, hi), 0
+		for i < len(s) {
+			if run != nil {
+				j := i
+				for j < len(s) && s[j] >= ' ' && s[j] < 0x7f {
+					j++
+				}
+				// The run's last character may begin a cluster with what follows.
+				if j < len(s) && s[j] >= utf8.RuneSelf || j == len(s) && hi < end {
+					j--
+				}
+				if j-i > 1 {
+					if !run(p+i, j-i) {
+						return
+					}
+					i = j
+					continue
+				}
+			}
+			n := 1
+			if s[i] >= utf8.RuneSelf || i+1 < len(s) && (s[i+1] >= utf8.RuneSelf || s[i] == '\r') {
+				g := graphemes.FromString(s[i:])
+				g.Next()
+				n = g.End()
+			}
+			// A cluster at the end of the piece may go on past it.
+			if i > 0 && i+n == len(s) && hi < end {
+				break
+			}
+			if !f(p+i, s[i:i+n]) {
+				return
+			}
+			i += n
+		}
+		p += i
+	}
 }
 
 // chunk is how many bytes line scans read at a time.
 const chunk = 256
 
-// LineStart returns the start of the line holding pos.
+// LineStart returns the start of the line holding pos. A line longer than
+// a chunk is found by its number.
 func LineStart(t Text, pos int) int {
-	for pos > 0 {
-		lo := max(pos-chunk, 0)
-		if i := strings.LastIndexByte(t.Slice(lo, pos), '\n'); i >= 0 {
-			return lo + i + 1
-		}
-		pos = lo
+	lo := max(pos-chunk, 0)
+	if i := strings.LastIndexByte(t.Slice(lo, pos), '\n'); i >= 0 || lo == 0 {
+		return lo + i + 1
 	}
-	return 0
+	return t.LineStart(t.LineOf(pos))
 }
 
 // LineEnd returns the end of the line holding pos, before its newline.
 func LineEnd(t Text, pos int) int {
 	n := t.Len()
-	for pos < n {
-		hi := min(pos+chunk, n)
-		if i := strings.IndexByte(t.Slice(pos, hi), '\n'); i >= 0 {
-			return pos + i
-		}
-		pos = hi
+	hi := min(pos+chunk, n)
+	if i := strings.IndexByte(t.Slice(pos, hi), '\n'); i >= 0 {
+		return pos + i
+	}
+	if hi == n {
+		return n
+	}
+	if line := t.LineOf(pos) + 1; line < t.Lines() {
+		return t.LineStart(line) - 1
 	}
 	return n
 }
@@ -1164,9 +1272,11 @@ func prev(t Text, start, pos int) int {
 }
 
 func firstNonBlank(t Text, start, end int) int {
-	line := t.Slice(start, end)
-	if i := strings.IndexFunc(line, func(r rune) bool { return r != ' ' && r != '\t' }); i >= 0 {
-		return start + i
+	for p := start; p < end; p += chunk {
+		s := t.Slice(p, min(p+chunk, end))
+		if i := strings.IndexFunc(s, func(r rune) bool { return r != ' ' && r != '\t' }); i >= 0 {
+			return p + i
+		}
 	}
 	return end
 }

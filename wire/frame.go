@@ -58,8 +58,9 @@ type Window struct {
 	Buffer           int             // the buffer's number, which a frame's Texts name
 	Text             kernel.Snapshot `json:"-"`
 	Top, Cursor      int
-	Past             int // the columns past the end of its line the cursor shows (B490)
-	X, Y, W, H       int // H counts the status line on the bottom row
+	Ranges           []Range // the text it shows, in order: its lines, and without wrap the part in view of a long line
+	Past             int     // the columns past the end of its line the cursor shows (B490)
+	X, Y, W, H       int     // H counts the status line on the bottom row
 	Name             string
 	Modified         bool
 	Current          bool          // the window with the focus
@@ -121,6 +122,10 @@ type Window struct {
 	Foot      string
 	FootSpans []syntax.Span
 }
+
+// Range is text a window shows, from Start to End. Col is the display
+// column Start begins at on its line.
+type Range struct{ Start, End, Col int }
 
 // Ghost is text a window draws that the text does not hold, before the
 // byte at Pos: a proposal's, an inlay hint or a replacement (B71, B216,

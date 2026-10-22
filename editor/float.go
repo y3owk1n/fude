@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"math"
 	"slices"
 	"strings"
 
@@ -226,7 +227,7 @@ func (e *Session) place(f *window) {
 	measure := func(limit int) (width, rows int) {
 		for line := range t.Lines() {
 			start := t.LineStart(line)
-			starts := append(vim.WordRows(t, start, limit, 0, tab, nil), vim.LineEnd(t, start))
+			starts := append(vim.WordRows(t, start, math.MaxInt, limit, 0, tab, nil), vim.LineEnd(t, start))
 			for i := range starts[:len(starts)-1] {
 				width = max(width, vim.Column(t, start, starts[i+1], tab, nil)-vim.Column(t, start, starts[i], tab, nil))
 			}

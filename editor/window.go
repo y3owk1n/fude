@@ -10,6 +10,7 @@ import (
 
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/vim"
+	"github.com/y3owk1n/fude/wire"
 )
 
 // window shows one buffer. Its cursor and top line are marks in the buffer,
@@ -135,22 +136,24 @@ func (w *window) nextLine(t kernel.Snapshot, start int) (int, bool) {
 }
 
 // rows is how many rows the line at start takes in the window, with tabs
-// tab columns wide and what d draws there that the text does not hold.
+// tab columns wide and what d draws there that the text does not hold. A
+// line taller than the window counts as its height.
 func (w *window) rows(t kernel.Snapshot, start, tab int, d drawn) int {
 	return len(w.starts(t, start, tab, d)) + d.rows(t.LineOf(start))
 }
 
-// starts returns where each row of the line at start begins. A line takes
-// one row without wrap, and a float's rows, or with line_break any
-// window's, end after a space (B364).
+// starts returns where each row of the line at start begins, up to the
+// window's height. A line takes one row without wrap, and a float's rows,
+// or with line_break any window's, end after a space (B364).
 func (w *window) starts(t kernel.Snapshot, start, tab int, d drawn) []int {
+	n := max(w.h, 1)
 	switch {
 	case !w.opts.Wrap:
 		return []int{start}
 	case w.anchor != "" || w.opts.LineBreak:
-		return vim.WordRows(t, start, w.cols(), w.hang(t, start, tab, d.show), tab, d.inlines)
+		return vim.WordRows(t, start, n, w.cols(), w.hang(t, start, tab, d.show), tab, d.inlines)
 	}
-	return vim.Rows(t, start, w.cols(), w.hang(t, start, tab, d.show), tab, d.inlines)
+	return vim.Rows(t, start, n, w.cols(), w.hang(t, start, tab, d.show), tab, d.inlines)
 }
 
 // hang returns the columns the rows after the first of the line at start
@@ -163,20 +166,98 @@ func (w *window) hang(t kernel.Snapshot, start, tab int, show string) int {
 	return vim.Hang(t, start, w.cols(), tab, w.opts.BreakIndent, show)
 }
 
+// clip is how long a line is, in bytes, before a window without wrap
+// shows only the part of it in view.
+const clip = 4096
+
+// whole is how many bytes a window's lines hold at most for it to show them
+// whole, though they may wrap to more rows than it has.
+const whole = 64 << 10
+
+// view returns the text w shows from top, as ranges in order, and what
+// draws there that the text does not hold. The lines shown make one range,
+// which ends at the end of the last or, past whole bytes, where the first
+// row with no room starts. Without wrap a line longer than clip is a range
+// of its own, the part of it in view. A closed fold counts as one line
+// (B224).
+func (e *Session) view(w *window, t kernel.Snapshot, top, tab int) ([]wire.Range, drawn) {
+	room := max(w.h-1, 1)
+	// The lines a row each would show.
+	last := t.LineStart(min(t.LineOf(top)+room-1, t.Lines()-1))
+	if len(w.buf.folds) > 0 {
+		last = top
+		for range room - 1 {
+			next, ok := w.nextLine(t, last)
+			if !ok {
+				break
+			}
+			last = next
+		}
+	}
+	d := e.shown(w, top, vim.LineEnd(t, last))
+	// A session given no size yet shows its windows' lines whole.
+	if end := vim.LineEnd(t, last); e.width == 0 || end-top <= whole {
+		return []wire.Range{{Start: top, End: end}}, d
+	}
+	var out []wire.Range
+	open := false // the last range takes the next line
+	for p := top; ; {
+		starts, end := w.starts(t, p, tab, d), vim.LineEnd(t, p)
+		room -= d.rows(t.LineOf(p))
+		cut := room > 0 && len(starts) > room
+		if cut {
+			end = starts[room]
+		}
+		switch {
+		case !w.opts.Wrap && end-p > clip:
+			var r wire.Range
+			if len(d.inlines) == 0 {
+				r.Start, r.Col = w.buf.columnStart(t, p, w.left, tab)
+				r.End, _ = w.buf.columnStart(t, p, w.left+w.cols(), tab)
+			} else {
+				r.Start, r.End = vim.ColumnStart(t, p, w.left, tab, d.inlines), vim.ColumnStart(t, p, w.left+w.cols(), tab, d.inlines)
+				r.Col = vim.Column(t, p, r.Start, tab, nil)
+			}
+			out, open = append(out, r), false
+		case open:
+			out[len(out)-1].End = end
+		default:
+			out, open = append(out, wire.Range{Start: p, End: end}), true
+		}
+		room -= len(starts)
+		next, ok := w.nextLine(t, p)
+		if cut || !ok || room <= 0 {
+			return out, d
+		}
+		p = next
+	}
+}
+
 // screenAt returns the row of its line that w's cursor shows on, and the
 // column of the window's text.
 func (w *window) screenAt(t kernel.Snapshot, tab int, d drawn) (row, col int) {
 	c := w.pos()
 	ls := vim.LineStart(t, c)
+	// column returns the column p begins at on the cursor's line.
+	column := func(p int) int {
+		if len(d.inlines) == 0 {
+			return w.buf.column(t, ls, p, tab)
+		}
+		return vim.Column(t, ls, p, tab, d.inlines)
+	}
 	if !w.opts.Wrap {
-		return 0, vim.Column(t, ls, c, tab, d.inlines) - w.left
+		return 0, column(c) - w.left
 	}
 	starts := w.starts(t, ls, tab, d)
 	r := len(starts) - 1
 	for r > 0 && starts[r] > c {
 		r--
 	}
-	col = vim.Column(t, ls, c, tab, d.inlines) - vim.Column(t, ls, starts[r], tab, d.inlines)
+	// A cursor on the window's last row or past it is out of view.
+	if r == w.h-1 {
+		return r, 0
+	}
+	col = column(c) - column(starts[r])
 	if r > 0 {
 		col += w.hang(t, ls, tab, d.show)
 	}

@@ -507,6 +507,39 @@ func TestPromiseSubstitute(t *testing.T) {
 	}
 }
 
+// On a file of one 50MB line, with wrap on and off, a key that moves or
+// edits near the cursor draws under 1ms at p99, at the line's start and at
+// its end, as TestPromiseKeyLatency measures it. Each session edits only at
+// the line's end, then moves at its start, and goes back with $.
+func TestPromiseLongLine(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "min.json")
+	if err := os.WriteFile(path, []byte(strings.Repeat(`{"key":"value","n":12345},`, 50<<20/26)+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c := start(t, path)
+	c.s = written(t)
+	c.draw()
+	session := "$hhbbwwxuia<Esc>ull0llwwbbhh"
+	var times []time.Duration
+	for _, wrap := range []string{"true", "false"} {
+		c.press(":set wrap "+wrap+"<CR>", 0)
+		c.press("$", 0)
+		c.press("0", 0)
+		for n := 0; n < 500; {
+			for _, k := range vim.Keys(session) {
+				times = append(times, c.press(string(k), 10*time.Millisecond))
+				n++
+			}
+		}
+	}
+	slices.Sort(times)
+	p50, p99, worst := times[len(times)/2], times[len(times)*99/100], times[len(times)-1]
+	t.Logf("p50 %v, p99 %v, worst %v over %d keys", p50, p99, worst, len(times))
+	if p99 > time.Millisecond {
+		t.Errorf("p99 is %v, want under 1ms", p99)
+	}
+}
+
 // A 1GB file shows its first frame in under 1s and scrolls at frame rate,
 // which is a frame every 16ms. The best of three opens counts.
 func TestPromiseHugeFile(t *testing.T) {

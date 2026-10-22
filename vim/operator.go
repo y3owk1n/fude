@@ -203,10 +203,7 @@ func (m *Machine) act(op string, reg rune, label string, r region) error {
 		return m.waitFor(o.chars, func(chars []string) error { return m.hostOp(op, label, r, chars) })
 	}
 	t, c := m.h.Text(), m.h.Cursor()
-	col := column(t, LineStart(t, c), c, tab)
-	if m.wantSet {
-		col = m.want
-	}
+	wanted := m.wantSet
 	m.wantSet = false
 	switch {
 	case op == "g~" || op == "gu" || op == "gU" || op == "g?":
@@ -268,6 +265,11 @@ func (m *Machine) act(op string, reg rune, label string, r region) error {
 		return m.apply([]Edit{{Start: start, End: end}}, label)
 	}
 
+	// Deleting lines keeps the cursor's column.
+	col := m.want
+	if lines && !wanted {
+		col = column(t, LineStart(t, c), c, tab)
+	}
 	if lines {
 		// Deleting lines also deletes the newline after them, or the one before
 		// on the last line.

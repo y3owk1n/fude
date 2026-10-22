@@ -8,6 +8,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"math"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -160,38 +161,72 @@ func selected(sel vim.Selection, at, x int) bool {
 	return at >= sel.Start && at < sel.End && (!sel.Block || x >= sel.Left && x <= sel.Right)
 }
 
-// paint returns the style of each byte in [top, end) that a highlight
-// colours, and the base style for the bytes between them. It reuses out.
-func paint(out []tcell.Style, spans []syntax.Span, top, end int) []tcell.Style {
-	n := max(end-top, 0)
+// trailing returns where the spaces that end the line from pos to end
+// start, reading back from end.
+func trailing(t vim.Text, pos, end int) int {
+	for end > pos {
+		lo := max(end-256, pos)
+		if n := len(strings.TrimRight(t.Slice(lo, end), " ")); n > 0 {
+			return lo + n
+		}
+		end = lo
+	}
+	return pos
+}
+
+// paint returns the style of each byte of the ranges, one range after
+// another and each with the byte after it, that a highlight colours, and
+// the base style for the bytes between them. It reuses out.
+func paint(out []tcell.Style, spans []syntax.Span, ranges []wire.Range) []tcell.Style {
+	n := 0
+	for _, r := range ranges {
+		n += max(r.End+1-r.Start, 0)
+	}
 	out = slices.Grow(out[:0], n)[:n]
 	for i := range out {
 		out[i] = base
 	}
-	for _, s := range spans {
-		s.Start, s.End = max(s.Start, top), min(s.End, end)
-		if s.Start >= s.End {
-			continue
-		}
-		if c, ok := underlines[s.Name]; ok {
-			for i := s.Start - top; i < s.End-top; i++ {
-				out[i] = out[i].Underline(true, c)
+	off := 0
+	for _, r := range ranges {
+		top, end := r.Start, r.End+1
+		for _, s := range spans {
+			s.Start, s.End = max(s.Start, top), min(s.End, end)
+			if s.Start >= s.End {
+				continue
 			}
-			continue
+			if c, ok := underlines[s.Name]; ok {
+				for i := off + s.Start - top; i < off+s.End-top; i++ {
+					out[i] = out[i].Underline(true, c)
+				}
+				continue
+			}
+			style, ok := colours[s.Name]
+			for name := s.Name; !ok && strings.Contains(name, "."); {
+				name = name[:strings.LastIndexByte(name, '.')]
+				style, ok = colours[name]
+			}
+			if !ok {
+				continue
+			}
+			for i := off + s.Start - top; i < off+s.End-top; i++ {
+				out[i] = style
+			}
 		}
-		style, ok := colours[s.Name]
-		for name := s.Name; !ok && strings.Contains(name, "."); {
-			name = name[:strings.LastIndexByte(name, '.')]
-			style, ok = colours[name]
-		}
-		if !ok {
-			continue
-		}
-		for i := s.Start - top; i < s.End-top; i++ {
-			out[i] = style
-		}
+		off += max(end-top, 0)
 	}
 	return out
+}
+
+// leading returns where the blanks that start the line from pos to end
+// end, reading on from pos.
+func leading(t vim.Text, pos, end int) int {
+	for ; pos < end; pos += 256 {
+		s := t.Slice(pos, min(pos+256, end))
+		if n := len(s) - len(strings.TrimLeft(s, " \t")); n < len(s) {
+			return pos + n
+		}
+	}
+	return end
 }
 
 type client struct {
@@ -489,20 +524,32 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 			last += 1 + v.Folds[last]
 		}
 	}
-	end := vim.LineEnd(t, t.LineStart(min(last, t.Lines()-1))) + 1
-	c.styles = paint(c.styles, append(v.Highlights, v.Decorations...), v.Top, end)
+	c.styles = paint(c.styles, append(v.Highlights, v.Decorations...), v.Ranges)
 	paint := c.styles
+	// index returns where in paint the style of the byte at p is, or -1. A
+	// line's bytes are in the range ri, whose styles start at ro in paint.
+	ri, ro := 0, 0
+	index := func(p int) int {
+		if ri < len(v.Ranges) && p >= v.Ranges[ri].Start && p <= v.Ranges[ri].End {
+			return ro + p - v.Ranges[ri].Start
+		}
+		return -1
+	}
 	// Text that names a colour shows on it, in black or white, whichever
 	// reads better (B208).
-	for _, col := range v.Colours {
-		r, g, b := col.RGB>>16&0xff, col.RGB>>8&0xff, col.RGB&0xff
-		ink := color.Black
-		if r*299+g*587+b*114 < 128000 {
-			ink = color.White
+	off := 0
+	for _, rg := range v.Ranges {
+		for _, col := range v.Colours {
+			r, g, b := col.RGB>>16&0xff, col.RGB>>8&0xff, col.RGB&0xff
+			ink := color.Black
+			if r*299+g*587+b*114 < 128000 {
+				ink = color.White
+			}
+			for p := max(col.Start, rg.Start); p < min(col.End, rg.End+1); p++ {
+				paint[off+p-rg.Start] = paint[off+p-rg.Start].Background(color.NewHexColor(col.RGB)).Foreground(ink)
+			}
 		}
-		for i := max(col.Start, v.Top) - v.Top; i < min(col.End, end)-v.Top && i < len(paint); i++ {
-			paint[i] = paint[i].Background(color.NewHexColor(col.RGB)).Foreground(ink)
-		}
+		off += max(rg.End+1-rg.Start, 0)
 	}
 	var cursors []int
 	if v.Current {
@@ -551,19 +598,34 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 				matches = append(matches, mt)
 			}
 		}
+		for ri < len(v.Ranges)-1 && v.Ranges[ri].End < pos {
+			ro += v.Ranges[ri].End + 1 - v.Ranges[ri].Start
+			ri++
+		}
+		// startCol is the column the row starts at, when the range gives it.
+		from, startCol := pos, -1
 		// A line wraps onto as many rows as it needs, those after the first
-		// hang columns in (B37, B489).
-		starts, hang := []int{pos}, 0
+		// hang columns in (B37, B489). The rows with no room are cut, and the
+		// text shown ends where the first of them starts.
+		starts, hang, room := []int{from}, 0, v.H-1-row
 		if v.Wrap {
 			hang = vim.Hang(t, pos, v.W, v.Tab, v.BreakIndent, v.ShowBreak)
+			starts = vim.RowsFrom(t, pos, from, max(startCol, 0), room+1, math.MaxInt, vim.Wrap{Cols: v.W, Hang: hang, Tab: v.Tab, In: in, Words: v.Float != "" || v.LineBreak}, nil)
 		}
+		shownStart, shownEnd, lastRow := from, end, len(starts)-1
+		if len(starts) > room {
+			shownEnd, lastRow, starts = starts[room], -1, starts[:room]
+		}
+		// Without wrap the row starts at the first cluster v.Left columns
+		// into the line, and a long line shows only its range, the part in
+		// view.
 		switch {
-		case v.Wrap && (v.Float != "" || v.LineBreak):
-			starts = vim.WordRows(t, pos, v.W, hang, v.Tab, in)
 		case v.Wrap:
-			starts = vim.Rows(t, pos, v.W, hang, v.Tab, in)
+		case ri < len(v.Ranges) && (v.Ranges[ri].Start > pos || v.Ranges[ri].End < end):
+			shownStart, shownEnd, startCol = v.Ranges[ri].Start, v.Ranges[ri].End, v.Ranges[ri].Col
+		default:
+			shownStart = vim.ColumnStart(t, pos, v.Left, v.Tab, in)
 		}
-		starts = starts[:min(len(starts), v.H-1-row)]
 		// The gutter draws in every frame, as relative numbers change with
 		// the cursor's line.
 		c.s.FillArea(numbers, v.Y+row, v.Gutter, len(starts), ' ', base)
@@ -591,11 +653,11 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 		if !v.List {
 			guides = v.Guides[line]
 		}
-		text := t.Slice(pos, end)
+		text := t.Slice(shownStart, shownEnd)
 		// A tag starts each part of the sig, so two different lines never
 		// read the same. Its positions count from the line's start, so a
 		// line keeps its sig when text above it changes.
-		k := append(c.sig[:0], win...).int(row).int(len(starts)).str(text).flag(shade).ints(guides).str(v.Notes[line].Text).str(v.Notes[line].Name).int(v.Folds[line]).str(v.Grounds[line])
+		k := append(c.sig[:0], win...).int(row).int(len(starts)).int(shownStart - pos).str(text).flag(shade).ints(guides).str(v.Notes[line].Text).str(v.Notes[line].Name).int(v.Folds[line]).str(v.Grounds[line])
 		for _, p := range v.Pair {
 			if p >= pos && p <= end {
 				k = k.int(1).int(p - pos)
@@ -618,7 +680,10 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 			}
 		}
 		c.sig = k
-		styles := paint[min(pos-v.Top, len(paint)):min(end-v.Top, len(paint))]
+		var styles []tcell.Style
+		if i := index(shownStart); i >= 0 {
+			styles = paint[i:min(i+shownEnd-shownStart, len(paint))]
+		}
 		at := [2]int{v.X, v.Y + row}
 		last := c.lines[at]
 		if last != nil && last.frame == c.frame-1 && bytes.Equal(last.sig, k) && slices.Equal(last.styles, styles) &&
@@ -634,11 +699,11 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 			// trail is where the line's trailing spaces start, and lead where its
 			// leading blanks end. col is the column in the line, which tabs are
 			// measured from.
-			trail := pos + len(strings.TrimRight(text, " "))
-			lead := end - len(strings.TrimLeft(text, " \t"))
-			col := 0
+			trail := trailing(t, pos, end)
+			lead := leading(t, pos, end)
+			col := max(startCol, 0)
 			for i, start := range starts {
-				y, stop := v.Y+row+i, end
+				y, stop := v.Y+row+i, shownEnd
 				if i+1 < len(starts) {
 					stop = starts[i+1]
 				}
@@ -652,12 +717,17 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 					c.s.FillArea(v.X, y, hang, 1, ' ', bg)
 					c.putClipped(v.X+max(hang-displaywidth.String(v.ShowBreak), 0), y, v.X+hang, part{v.ShowBreak, bg.Foreground(th.faint)})
 				}
-				// Without wrap the row starts at the first cluster v.Left columns
-				// into the line, after blanks for a wide one cut by the edge.
+				// Without wrap the row starts after blanks for a wide cluster cut
+				// by the edge.
 				if !v.Wrap {
-					start = vim.ColumnStart(t, pos, v.Left, v.Tab, in)
-					col = vim.Column(t, pos, start, v.Tab, nil)
-					x = vim.Column(t, pos, start, v.Tab, in) - v.Left
+					start, col = shownStart, startCol
+					if col < 0 {
+						col = vim.Column(t, pos, start, v.Tab, nil)
+					}
+					x = col - v.Left
+					if len(in) > 0 {
+						x = vim.Column(t, pos, start, v.Tab, in) - v.Left
+					}
 				}
 				for rest := t.Slice(start, stop); ; {
 					at := stop - len(rest)
@@ -684,7 +754,7 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 						break
 					}
 					style := base
-					if i := at - v.Top; i < len(paint) {
+					if i := index(at); i >= 0 && i < len(paint) {
 						style = paint[i]
 					}
 					if style.GetBackground() == base.GetBackground() {
@@ -757,12 +827,12 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 				if v.List && list.Precedes != "" && !v.Wrap && start > pos {
 					c.s.Put(v.X, y, list.Precedes, ground.Foreground(th.faint))
 				}
-				if v.List && list.Eol != "" && i == len(starts)-1 && x < v.W {
+				if v.List && list.Eol != "" && i == lastRow && x < v.W {
 					c.s.Put(v.X+x, y, list.Eol, ground.Foreground(th.faint))
 					x++
 				}
 				// A closed fold's first line says how many lines it hides.
-				if n := v.Folds[line]; n > 0 && i == len(starts)-1 && x < v.W {
+				if n := v.Folds[line]; n > 0 && i == lastRow && x < v.W {
 					s := fmt.Sprintf("  ⋯ %d lines ", n)
 					if n == 1 {
 						s = "  ⋯ 1 line "
@@ -772,7 +842,7 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 						c.s.Put(v.X+x, y, v.FillChars.Fold, base.Foreground(th.muted))
 					}
 				}
-				if n := v.Notes[line]; i == len(starts)-1 && x >= 0 && n.Text != "" {
+				if n := v.Notes[line]; i == lastRow && x >= 0 && n.Text != "" {
 					x = c.note(v, x, y, n, shade)
 				}
 				if shade && x < v.W {
@@ -786,12 +856,12 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 				}
 				c.colorColumn(v, y)
 				c.shade(v, v.CursorColumn-1, y, th.cursorLine)
-				if i == len(starts)-1 && slices.Contains(cursors, end) && x < v.W {
+				if i == lastRow && slices.Contains(cursors, end) && x < v.W {
 					c.s.Put(v.X+x, y, " ", c.multicursor(base, base))
 					last.marks = append(last.marks, [2]int{v.X + x, y})
 				}
 				for _, o := range v.Others {
-					if i == len(starts)-1 && o.Cursor == end && x < v.W {
+					if i == lastRow && o.Cursor == end && x < v.W {
 						c.s.Put(v.X+x, y, " ", base.Background(presence(o.Colour)))
 					}
 				}
@@ -890,7 +960,7 @@ func (c *client) pin(v wire.Window, numbers, cur int) {
 				}
 			}
 		}
-		styles := paint(nil, v.ContextHighlights, start, end)
+		styles := paint(nil, v.ContextHighlights, []wire.Range{{Start: start, End: end - 1}})
 		x, col := 0, 0
 		for rest := t.Slice(start, end); x < v.W; {
 			at := end - len(rest)

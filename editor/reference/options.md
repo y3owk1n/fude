@@ -18,7 +18,9 @@ Numbers each line by its distance from the cursor's, for counts such as
 ## wrap
 
 A line longer than the window goes on over the rows below. Off, each line
-takes one row and the window scrolls sideways to keep the cursor in view.
+takes one row and the window scrolls sideways to keep the cursor in view,
+and a line too long to show whole matches brackets and shows search
+matches only in the columns in view.
 
 ## line_break
 

@@ -540,12 +540,32 @@ func (m *Machine) Matches(t Text, from, to int) [][2]int {
 	if err != nil {
 		return nil
 	}
-	from, to = LineStart(t, from), LineEnd(t, to)
 	var out [][2]int
-	for _, mt := range p.all(t.Slice(from, to)) {
-		if s, e := p.span(mt); e > s {
-			out = append(out, [2]int{from + s, from + e})
+	for _, mt := range p.near(t, from, to) {
+		if mt[1] > mt[0] && mt[1] >= from && mt[0] <= to {
+			out = append(out, mt)
 		}
+	}
+	return out
+}
+
+// reach is how far past a range a search on a long line reads, for a
+// match that starts before the range and reaches into it.
+const reach = 64 << 10
+
+// near returns where p matches, after \zs and \ze, on the lines that hold
+// from to to, reading at most reach bytes beyond them. A match at such a
+// cut, which the rest of the line could change, is left out.
+func (p *pattern) near(t Text, from, to int) [][2]int {
+	ls, le := LineStart(t, from), LineEnd(t, to)
+	lo, hi := max(ls, from-reach), min(le, to+reach)
+	var out [][2]int
+	for _, mt := range p.all(t.Slice(lo, hi)) {
+		if lo > ls && mt[0] == 0 || hi < le && mt[1] == hi-lo {
+			continue
+		}
+		s, e := p.span(mt)
+		out = append(out, [2]int{lo + s, lo + e})
 	}
 	return out
 }
@@ -566,7 +586,7 @@ func (m *Machine) substitute(first, last int, pat, rep, flags string) error {
 	m.lastRep = rep
 	m.lastSub.pattern, m.lastSub.rep, m.lastSub.flags = pat, rep, flags
 	m.search.pattern, m.search.forward, m.hl = pat, true, true
-	edits, err := m.subEdits(first, last, pat, rep, flags)
+	edits, err := m.subEdits(first, LineEnd(m.h.Text(), last), pat, rep, flags)
 	if err != nil {
 		return err
 	}
@@ -681,9 +701,10 @@ func (m *Machine) confirmKey(k Key) error {
 	return nil
 }
 
-// subEdits returns the edits :s with pat, rep and flags makes on the lines
-// from first to last, changing nothing.
-func (m *Machine) subEdits(first, last int, pat, rep, flags string) ([]Edit, error) {
+// subEdits returns the edits :s with pat, rep and flags makes on the text
+// from from to to, changing nothing. Where from or to is inside a line, a
+// match there, which the rest of the line could change, is left out.
+func (m *Machine) subEdits(from, to int, pat, rep, flags string) ([]Edit, error) {
 	src := pat
 	switch {
 	case strings.Contains(flags, "i"):
@@ -696,15 +717,21 @@ func (m *Machine) subEdits(first, last int, pat, rep, flags string) ([]Edit, err
 		return nil, err
 	}
 	t := m.h.Text()
-	text := t.Slice(first, LineEnd(t, last))
+	text, g := t.Slice(from, to), strings.Contains(flags, "g")
+	ls, le := LineStart(t, from), LineEnd(t, to)
 	var edits []Edit
-	line := -1
+	end := -1 // the end of the line of the last edit
 	for _, mt := range p.all(text) {
-		s, e := p.span(mt)
-		if ls := LineStart(t, first+s); ls != line || strings.Contains(flags, "g") {
-			line = ls
-			edits = append(edits, Edit{Start: first + s, End: first + e, Text: p.expand(rep, text, mt)})
+		if from > ls && mt[0] == 0 || to < le && mt[1] == len(text) {
+			continue
 		}
+		s, e := p.span(mt)
+		if from+s > end {
+			end = LineEnd(t, from+s)
+		} else if !g {
+			continue
+		}
+		edits = append(edits, Edit{Start: from + s, End: from + e, Text: p.expand(rep, text, mt)})
 	}
 	return edits, nil
 }
@@ -725,7 +752,10 @@ func (m *Machine) Preview(top, end int) ([]Edit, bool) {
 	if first, last = max(first, LineStart(t, top)), min(last, LineStart(t, end)); first > last {
 		return nil, false
 	}
-	edits, err := m.subEdits(first, last, parts[0], replaceTilde(parts[1], m.lastRep), parts[2])
+	// On a long line it reads no further than reach past top and end, and
+	// takes the first match there as the line's first.
+	from, to := max(first, top-reach), min(LineEnd(t, last), end+reach)
+	edits, err := m.subEdits(from, to, parts[0], replaceTilde(parts[1], m.lastRep), parts[2])
 	if err != nil {
 		return nil, false
 	}

@@ -75,20 +75,9 @@ func (e *Session) draw(w *window) wire.Window {
 	if term := w.buf.term; term != nil && term.typing {
 		v.Cells, v.CellX, v.CellY = term.screen()
 	}
-	// The last line shown, a closed fold counting as one (B224).
-	lastStart := t.LineStart(min(t.LineOf(top)+max(w.h-2, 0), t.Lines()-1))
-	if len(w.buf.folds) > 0 {
-		lastStart = top
-		for range max(w.h-2, 0) {
-			next, ok := w.nextLine(t, lastStart)
-			if !ok {
-				break
-			}
-			lastStart = next
-		}
-	}
-	last := vim.LineEnd(t, lastStart)
-	d := e.shown(w, top, last)
+	ranges, d := e.view(w, t, top, tab)
+	last := ranges[len(ranges)-1].End
+	v.Ranges = ranges
 	v.Virtual = w.unfilled(d.virtual, t.LineOf(top))
 	if w == e.win {
 		v.Past = e.vim.Past()
@@ -110,16 +99,20 @@ func (e *Session) draw(w *window) wire.Window {
 		v.Guides = w.guides.lines
 	}
 	if h := w.buf.syntax; h != nil {
-		v.Highlights = h.Show(t, w, top, last)
+		for _, r := range ranges {
+			v.Highlights = append(v.Highlights, h.Show(t, w, r.Start, r.End)...)
+		}
 		v.Context = pinned(w, t, top)
 		for i, start := range v.Context {
 			v.ContextHighlights = append(v.ContextHighlights, h.Show(t, contextRow{w, i}, start, vim.LineEnd(t, start))...)
 		}
 	}
 	// A server's semantic tokens draw over the syntax's highlights (B471).
-	v.Highlights = append(v.Highlights, w.buf.tokensIn(top, last)...)
-	if w.opts.HLSearch {
-		v.Matches = e.vim.Matches(t, top, last)
+	for _, r := range ranges {
+		v.Highlights = append(v.Highlights, w.buf.tokensIn(r.Start, r.End)...)
+		if w.opts.HLSearch {
+			v.Matches = append(v.Matches, e.vim.Matches(t, r.Start, r.End)...)
+		}
 	}
 	if w == e.win && w.opts.IncSearch {
 		if s, end, ok := e.vim.Incremental(); ok {
@@ -153,8 +146,8 @@ func (e *Session) draw(w *window) wire.Window {
 			}
 		}
 	}
-	v.Pair = e.pair(w, t, top, last)
-	v.Ruler = ruler(t, w.pos(), top, max(w.h-1, 1), tab, func(p int) int { return w.rows(t, p, tab, d) })
+	v.Pair = e.pair(w, t, ranges)
+	v.Ruler = ruler(w.buf, t, w.pos(), top, max(w.h-1, 1), tab, func(p int) int { return w.rows(t, p, tab, d) })
 	for _, p := range e.modules {
 		if s := e.segments[p][w.buf]; s != "" {
 			v.Segments = append(v.Segments, s)
@@ -190,8 +183,16 @@ func (e *Session) draw(w *window) wire.Window {
 	if w == e.win {
 		// The :s being typed shows its matches, then each match struck
 		// out before its replacement (B154).
-		edits, replacing := e.vim.Preview(top, last)
+		var edits []vim.Edit
+		replacing := false
+		for _, r := range ranges {
+			in, rep := e.vim.Preview(r.Start, r.End)
+			edits, replacing = append(edits, in...), rep
+		}
 		for _, ed := range edits {
+			if !slices.ContainsFunc(ranges, func(r wire.Range) bool { return ed.End >= r.Start && ed.Start <= r.End }) {
+				continue
+			}
 			if !replacing {
 				v.Matches = append(v.Matches, [2]int{ed.Start, ed.End})
 				continue
@@ -269,17 +270,22 @@ func pinned(w *window, t kernel.Snapshot, top int) []int {
 	return out
 }
 
-// pair returns the bracket at w's cursor and its match within the lines
-// from top to last, or nil. In insert mode the bracket may be the one
-// before the cursor.
-func (e *Session) pair(w *window, t kernel.Snapshot, top, last int) []int {
+// pair returns the bracket at w's cursor and its match within the range of
+// the window's text that holds it, or nil. In insert mode the bracket may
+// be the one before the cursor.
+func (e *Session) pair(w *window, t kernel.Snapshot, ranges []wire.Range) []int {
 	at := []int{w.pos()}
 	if w == e.win && e.vim.Mode() == vim.Insert && at[0] > 0 {
 		at = append(at, at[0]-1)
 	}
 	for _, p := range at {
-		if q, ok := vim.Pair(t, p, top, last); ok {
-			return []int{p, q}
+		for _, r := range ranges {
+			if p < r.Start || p > r.End {
+				continue
+			}
+			if q, ok := vim.Pair(t, p, r.Start, r.End); ok {
+				return []int{p, q}
+			}
 		}
 	}
 	return nil
@@ -336,9 +342,9 @@ func (e *Session) icons(b *buffer, top, last int) map[int]wire.Sign {
 // top, whose lines take rowsOf rows each. It is line,col, then -screen
 // column when that differs, then All, Top, Bot or how far down the window is
 // (B38).
-func ruler(t kernel.Snapshot, c, top, rows, tab int, rowsOf func(int) int) string {
+func ruler(b *buffer, t kernel.Snapshot, c, top, rows, tab int, rowsOf func(int) int) string {
 	line, ls := t.LineOf(c), vim.LineStart(t, c)
-	col, vcol := c-ls+1, vim.Column(t, ls, c, tab, nil)+1
+	col, vcol := c-ls+1, b.column(t, ls, c, tab)+1
 	if ls == vim.LineEnd(t, ls) {
 		col = 0
 	}
