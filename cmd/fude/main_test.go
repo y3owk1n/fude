@@ -208,17 +208,17 @@ func TestB350Flags(t *testing.T) {
 func TestB351Open(t *testing.T) {
 	socket := serve(t)
 	dir := t.TempDir()
-	for name, text := range map[string]string{"a": "one\n", "b": "two\n"} {
+	for name, text := range map[string]string{"a": "one\n  ok\n", "b": "two\n"} {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(text), 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}
 	// The paths are from the directory fude open runs in.
-	if out, err := fude(dir, "open", "--socket", socket, "a", "b"); err != nil {
-		t.Fatalf("fude open a b: %v: %s", err, out)
+	if out, err := fude(dir, "open", "--socket", socket, "a:2:3", "b"); err != nil {
+		t.Fatalf("fude open a:2:3 b: %v: %s", err, out)
 	}
-	if st := stateOf(t, socket); st.Text != "one" {
-		t.Fatalf("after fude open a b, fude shows %q", st.Text)
+	if st := stateOf(t, socket); st.Text != "one\n  ok" || st.Cursor != 6 {
+		t.Fatalf("after fude open a:2:3 b, fude shows %q at %d, want a at 6", st.Text, st.Cursor)
 	}
 	if out, err := fude(dir, "keys", "--socket", socket, ":e #<CR>"); err != nil {
 		t.Fatalf("fude keys: %v: %s", err, out)

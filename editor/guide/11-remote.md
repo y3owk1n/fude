@@ -85,6 +85,7 @@ shell's directory.
 
 ```sh
 fude open main.go util.go   # opens them, as :e does
+fude open main.go:42:7      # opens main.go at line 42, byte 7
 fude keys ':w<CR>'          # types the keys, as if typed in fude
 fude state | jq .mode       # the buffer, cursor and mode as JSON
 ```

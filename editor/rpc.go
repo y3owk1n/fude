@@ -461,8 +461,13 @@ func (e *Session) call(method string, params json.RawMessage) (any, error) {
 			return nil, fmt.Errorf("read open: %w", err)
 		}
 		// The first is edited last, so it shows (B351).
-		for _, path := range slices.Backward(p.Paths) {
-			e.report(e.edit(path))
+		for _, arg := range slices.Backward(p.Paths) {
+			path, line, col := fileAt(arg)
+			err := e.edit(path)
+			if err == nil && line > 0 {
+				e.setCursor(lineByte(e.Text(), line, col))
+			}
+			e.report(err)
 		}
 	case "request":
 		var r Request

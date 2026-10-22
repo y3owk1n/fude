@@ -2269,7 +2269,7 @@ Where fude departs, the line says so and cites the departure in
 - B351 [6] `fude open file...` opens the files in the session B352
   finds, as `:e` does in its current window. The first one shows, and
   the others are buffers. A relative path is from the directory `fude
-  open` runs in.
+  open` runs in. A `path:N` or `path:N:M` opens there, as B80 says.
 - B352 [6] `fude open`, `keys`, `state`, `attach` and `tail` reach the
   fude at `--socket path`. Without it they reach the fude at
   `$FUDE_SOCKET`, or else at the socket setting, or else the one fude
