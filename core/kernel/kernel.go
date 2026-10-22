@@ -8,9 +8,11 @@
 package kernel
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/y3owk1n/fude/core/rope"
@@ -295,17 +297,17 @@ func (b *Buffer) At(id NodeID) (Snapshot, bool) {
 	if g := b.group; g != nil {
 		// The open group's edits are in the text but on no node yet.
 		for j := len(g.Changes) - 1; j >= 0; j-- {
-			text = replace(text, inverse(g.Changes[j]))
+			text = replace(text, inverse(g.Changes[j]), nil)
 		}
 	}
 	for _, n := range up {
 		for j := len(n.Changes) - 1; j >= 0; j-- {
-			text = replace(text, inverse(n.Changes[j]))
+			text = replace(text, inverse(n.Changes[j]), nil)
 		}
 	}
 	for _, n := range down {
 		for _, c := range n.Changes {
-			text = replace(text, c.Edits)
+			text = replace(text, c.Edits, nil)
 		}
 	}
 	return Snapshot{text, b.version}, true
@@ -358,10 +360,44 @@ func (b *Buffer) path(id NodeID) (up, down []Node, ok bool) {
 	return from, to, true
 }
 
-// replace applies edits to text without touching marks.
-func replace(text rope.Rope, edits []Edit) rope.Rope {
-	for i := len(edits) - 1; i >= 0; i-- {
-		text = text.Replace(edits[i].Start, edits[i].End, edits[i].Text)
+// near is how close edits are for replace to splice them as one.
+const near = 1024
+
+// replace applies edits to text without touching marks, and puts the text
+// each replaced in removed when it is not nil. Edits less than near apart
+// are spliced as one piece of text, so many small ones build the rope once.
+func replace(text rope.Rope, edits []Edit, removed []string) rope.Rope {
+	old := text
+	var buf []byte
+	for i := len(edits) - 1; i >= 0; {
+		j := i
+		for j > 0 && edits[j].Start-edits[j-1].End < near {
+			j--
+		}
+		from, to := edits[j].Start, edits[i].End
+		if j == i {
+			if removed != nil {
+				removed[i] = old.Slice(from, to)
+			}
+			text = text.Replace(from, to, edits[i].Text)
+			i--
+			continue
+		}
+		buf = old.AppendSlice(buf[:0], from, to)
+		var b strings.Builder
+		b.Grow(len(buf))
+		at := from
+		for k := j; k <= i; k++ {
+			e := edits[k]
+			b.Write(buf[at-from : e.Start-from])
+			b.WriteString(e.Text)
+			if removed != nil {
+				removed[k] = string(buf[e.Start-from : e.End-from])
+			}
+			at = e.End
+		}
+		text = text.Replace(from, to, b.String())
+		i = j - 1
 	}
 	return text
 }
@@ -402,18 +438,23 @@ func (b *Buffer) edit(edits []Edit) Change {
 	}
 	b.log = append(b.log, logged{b.version, edits})
 	c := Change{Edits: edits, Removed: make([]string, len(edits))}
-	text := b.text
-	for i := len(edits) - 1; i >= 0; i-- {
-		e := edits[i]
-		c.Removed[i] = b.text.Slice(e.Start, e.End)
-		text = text.Replace(e.Start, e.End, e.Text)
-		for m := range b.marks {
-			if !b.marks[m].dead {
-				b.marks[m].pos = move(b.marks[m], e)
-			}
-		}
+	b.text = replace(b.text, edits, c.Removed)
+	// A mark first moves through the edits that touch it, the last first.
+	// Then it shifts by how much the edits before them grew the text.
+	grew := make([]int, len(edits)+1)
+	for i, e := range edits {
+		grew[i+1] = grew[i] + len(e.Text) - (e.End - e.Start)
 	}
-	b.text = text
+	for m := range b.marks {
+		if b.marks[m].dead {
+			continue
+		}
+		k, _ := slices.BinarySearchFunc(edits, b.marks[m].pos+1, func(e Edit, p int) int { return cmp.Compare(e.Start, p) })
+		for k--; k >= 0 && edits[k].End >= b.marks[m].pos; k-- {
+			b.marks[m].pos = move(b.marks[m], edits[k])
+		}
+		b.marks[m].pos += grew[k+1]
+	}
 	return c
 }
 
