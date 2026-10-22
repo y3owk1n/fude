@@ -819,8 +819,8 @@ start and work is either data in its `[lsp.<name>]` table, such as
 placeholders for its root and a cache folder, root patterns, variables,
 a language id, fixed answers to its requests, root groups and
 conditions, command candidates, capabilities and a socket to connect to
-(B527 to B538), or a plugin over the messages fude does not handle
-itself (B532). Vue's server, whose TypeScript
+(B527 to B538), or a plugin over the messages and client commands fude
+does not handle itself (B532, B539). Vue's server, whose TypeScript
 requests another server must answer, is such a plugin. The pieces come
 from what nvim-lspconfig's 421 configs do with code, read on 2026-10-22.
 Each piece is what one or more of them needs. A plugin handles a root

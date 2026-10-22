@@ -75,7 +75,8 @@ workspaceFolder = { uri = "{root_uri}", name = "{root_name}" }
 A server that needs more than its table, such as Vue's, whose TypeScript
 requests another server answers, takes a plugin. A plugin with `lsp`
 hears the messages a server sends that fude does not handle, answers its
-requests and sends it notifications.
+requests, sends it notifications, and runs the client commands its code
+actions and lenses name, such as `editor.action.showReferences`.
 
 fude watches no files. A server hears of the files fude writes, of an
 open file fude finds changed when it comes back into focus, and of what

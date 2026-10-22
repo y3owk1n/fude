@@ -81,6 +81,12 @@ const (
 	// switch, and one of digits a number. Window makes it each window's, as
 	// fude's options are. It is never called (B377).
 	Option
+	// ClientCommand is a command a language server's code action, code lens
+	// or completion names for the editor to run, by Name, such as
+	// editor.action.showReferences. fude calls it with (cursor), the
+	// command's JSON arguments in About as arguments and the server as
+	// server, in place of sending the command to the server (B539).
+	ClientCommand
 )
 
 // Registration is one thing a module's init registered: its name, what it

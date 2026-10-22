@@ -678,6 +678,37 @@ func TestB532ModuleHearsServers(t *testing.T) {
 	}
 }
 
+// runner is a module that runs fake.run, a command a code action names,
+// saying what it got.
+type runner struct{ idle }
+
+func (runner) Registered() []api.Registration {
+	return []api.Registration{{Kind: api.ClientCommand, Name: "fake.run", ID: 1}}
+}
+
+func (runner) Call(_ context.Context, _ uint32, s api.Scope, _ ...int) (api.Result, error) {
+	return api.Result{Message: "ran " + s.About["arguments"] + " from " + s.About["server"]}, nil
+}
+
+// B539
+func TestB539ClientCommand(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.go")
+	e, log := withServerAt(t, path, "x\n", "utf-8")
+	e.Use(runner{})
+	heard(t, log, `"method":"textDocument/didOpen"`, 1)
+	feed(e, "gra")
+	settle(t, e, func() bool { _, ok := e.Menu(); return ok })
+	feed(e, "2")
+	settle(t, e, func() bool { return strings.HasPrefix(e.Message(), "ran ") })
+	if want := fmt.Sprintf("ran [%q] from fake", lsp.URI(path)); e.Message() != want {
+		t.Errorf("the code action said %q, want %q", e.Message(), want)
+	}
+	editortest.Quiet(t, e)
+	if b, _ := os.ReadFile(log); strings.Contains(string(b), "workspace/executeCommand") {
+		t.Errorf("the server got the command too")
+	}
+}
+
 // B531
 func TestB531ServerAnswers(t *testing.T) {
 	t.Setenv("FUDE_FAKE_OFFER", "ask")

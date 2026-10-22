@@ -190,7 +190,7 @@ func (g *suggestion) key(e *Session, k vim.Key) bool {
 		Command   string          `json:"command"`
 		Arguments json.RawMessage `json:"arguments"`
 	}
-	if json.Unmarshal(command, &cmd) == nil && cmd.Command != "" {
+	if json.Unmarshal(command, &cmd) == nil && cmd.Command != "" && !e.clientCommand(s, cmd.Command, cmd.Arguments) {
 		params := map[string]any{"command": cmd.Command, "arguments": cmd.Arguments}
 		s.client.Request("workspace/executeCommand", func(string) any { return params }, func(json.RawMessage) {})
 	}

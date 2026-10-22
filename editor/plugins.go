@@ -252,6 +252,23 @@ func (d decoration) remove() {
 // pluginRequest sends a plugin's request to those of b's servers that offer it,
 // every one for a method outside textDocument/, and hands the plugin the
 // first answer that is not null, as a job's output (B190).
+// clientCommand runs command, which from named, through the module that
+// registered it, and reports whether one did (B539).
+func (e *Session) clientCommand(from *server, command, args any) bool {
+	name, _ := command.(string)
+	run := e.clientCommands[name]
+	if run == nil {
+		return false
+	}
+	raw, err := json.Marshal(args)
+	if err != nil {
+		logLine(fmt.Sprintf("the arguments of %s: %v", name, err))
+		return true
+	}
+	run(e, from, string(raw))
+	return true
+}
+
 // pluginNotify sends n to the language server n names on b (B532).
 func (e *Session) pluginNotify(p api.Module, b *buffer, n api.Notify) {
 	i := slices.IndexFunc(b.servers, func(s *server) bool { return s.name == n.Server })
@@ -288,6 +305,10 @@ func (e *Session) pluginRequest(p api.Module, b *buffer, rq api.Request, save *s
 	}
 	if len(to) == 0 {
 		reply(api.Context{"error": "no language server offers " + rq.Method})
+		return
+	}
+	if rq.Method == "workspace/executeCommand" && e.clientCommand(to[0], params["command"], params["arguments"]) {
+		reply(api.Context{})
 		return
 	}
 	t, uri := b.text.Snapshot(), lsp.URI(b.file.path)
@@ -1121,6 +1142,8 @@ func (e *Session) unregister(p api.Module) {
 		case api.Source:
 			delete(e.sources, r.Name)
 			delete(e.pluginHelp, ":pick "+r.Name)
+		case api.ClientCommand:
+			delete(e.clientCommands, r.Name)
 		case api.Operator, api.Object:
 			e.pluginBindings = slices.DeleteFunc(e.pluginBindings, func(b vim.Binding) bool {
 				return b.Kind == "operator" && b.Keys == bindingKeys(r) || b.Kind == "object" && b.Keys == r.Name
@@ -1234,6 +1257,12 @@ func (e *Session) register(p api.Module, r api.Registration) {
 		}
 		for _, short := range r.Short {
 			e.shortOf[short] = r.Name
+		}
+	case api.ClientCommand:
+		e.clientCommands[r.Name] = func(s *Session, from *server, args string) {
+			scope := s.scope(p, s.win.buf, s.Text())
+			scope.About["arguments"], scope.About["server"] = args, from.name
+			s.run(p, r.ID, scope, s.Cursor())
 		}
 	case api.Source:
 		e.pluginHelp[":pick "+r.Name] = r.Help

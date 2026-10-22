@@ -51,31 +51,32 @@ type Editor struct {
 	pluginArgs        map[string]string // the arguments of a module's command, by its name (B324)
 	pathArgs          map[string]bool   // the modules' commands whose argument completes as a path (B290)
 	pluginBindings    []vim.Binding
-	plugged           int                                   // how many of setup come before the plugins' own
-	commands          map[string]func(*Session, call) error // ex commands plugins registered
-	sources           map[string]func(*Session, string)     // :pick sources modules registered, by name (B287)
-	writers           map[string]writer                     // what writes each kind of buffer modules write, by kind (B327)
-	completionSources map[string]completer                  // the modules' sources of completion, by name (B336)
-	shortOf           map[string]string                     // the modules' command each short name stands for (B329)
-	tabs              []api.Tab                             // what a module says the buffer line lists (B331)
-	completers        map[string]func(*Session, string)     // by command, what asks a module to complete its argument (B290)
-	decos             map[any][]decoration                  // by owner: a plugin, or a buffer for its diagnostics
-	servers           map[string]*server                    // by command and root
-	down              map[string]string                     // by name, why a configured language server is not running
-	waiting           map[string]func(any)                  // by the id lsp.requested gave, what answers a server's request a module answers (B532)
-	asked             int                                   // the last id lsp.requested gave
-	building          map[string]bool                       // the filetypes whose grammar builds now
-	failed            map[string]string                     // by filetype, why its grammar did not build this session
-	started           bool                                  // Load ran, so new buffers attach to servers at once
-	project           string                                // the directory fude started in, symlinks resolved (B243)
-	wd                string                                // the working directory, which :cd changes (B340)
-	share             *share                                // the guests' listener, while fude shares (B248)
-	socket            string                                // where Serve listens, for a :terminal's FUDE_SOCKET (B355)
-	clients           atomic.Int64                          // the attached clients yet to have their last frame (B242)
-	began             int                                   // how many sessions began, for the next one's colour (B252)
-	sessions          []*Session                            // the first is the one that opened the editor
-	setup             []func(*Session)                      // what every session's machine gets, such as keymaps
-	proposed          int                                   // the id of the newest proposal
+	plugged           int                                        // how many of setup come before the plugins' own
+	commands          map[string]func(*Session, call) error      // ex commands plugins registered
+	sources           map[string]func(*Session, string)          // :pick sources modules registered, by name (B287)
+	writers           map[string]writer                          // what writes each kind of buffer modules write, by kind (B327)
+	completionSources map[string]completer                       // the modules' sources of completion, by name (B336)
+	shortOf           map[string]string                          // the modules' command each short name stands for (B329)
+	tabs              []api.Tab                                  // what a module says the buffer line lists (B331)
+	completers        map[string]func(*Session, string)          // by command, what asks a module to complete its argument (B290)
+	decos             map[any][]decoration                       // by owner: a plugin, or a buffer for its diagnostics
+	servers           map[string]*server                         // by command and root
+	down              map[string]string                          // by name, why a configured language server is not running
+	waiting           map[string]func(any)                       // by the id lsp.requested gave, what answers a server's request a module answers (B532)
+	clientCommands    map[string]func(*Session, *server, string) // by name, what runs a command a server names for a module to run (B539)
+	asked             int                                        // the last id lsp.requested gave
+	building          map[string]bool                            // the filetypes whose grammar builds now
+	failed            map[string]string                          // by filetype, why its grammar did not build this session
+	started           bool                                       // Load ran, so new buffers attach to servers at once
+	project           string                                     // the directory fude started in, symlinks resolved (B243)
+	wd                string                                     // the working directory, which :cd changes (B340)
+	share             *share                                     // the guests' listener, while fude shares (B248)
+	socket            string                                     // where Serve listens, for a :terminal's FUDE_SOCKET (B355)
+	clients           atomic.Int64                               // the attached clients yet to have their last frame (B242)
+	began             int                                        // how many sessions began, for the next one's colour (B252)
+	sessions          []*Session                                 // the first is the one that opened the editor
+	setup             []func(*Session)                           // what every session's machine gets, such as keymaps
+	proposed          int                                        // the id of the newest proposal
 	listeners         map[api.Module]*listener
 	segments          map[api.Module]map[*buffer]string // what each plugin shows on the statusline of each buffer
 	leftSegments      map[api.Module]map[*buffer]string // what each shows on its left, after the buffer's name (B147)
@@ -183,7 +184,7 @@ func open(cfg config, paths []string) (*Session, error) {
 	if len(paths) == 0 {
 		paths = []string{""}
 	}
-	ed := &Editor{next: 1, aside: firstAside, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(*Session, call) error{}, sources: map[string]func(*Session, string){}, writers: map[string]writer{}, completionSources: map[string]completer{}, shortOf: map[string]string{}, completers: map[string]func(*Session, string){}, decos: map[any][]decoration{}, servers: map[string]*server{}, down: map[string]string{}, waiting: map[string]func(any){}, building: map[string]bool{}, failed: map[string]string{}, listeners: map[api.Module]*listener{}, declared: map[string]declared{}, values: map[string]string{}, segments: map[api.Module]map[*buffer]string{}, leftSegments: map[api.Module]map[*buffer]string{}}
+	ed := &Editor{next: 1, aside: firstAside, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(*Session, call) error{}, sources: map[string]func(*Session, string){}, writers: map[string]writer{}, completionSources: map[string]completer{}, shortOf: map[string]string{}, completers: map[string]func(*Session, string){}, decos: map[any][]decoration{}, servers: map[string]*server{}, down: map[string]string{}, waiting: map[string]func(any){}, clientCommands: map[string]func(*Session, *server, string){}, building: map[string]bool{}, failed: map[string]string{}, listeners: map[api.Module]*listener{}, declared: map[string]declared{}, values: map[string]string{}, segments: map[api.Module]map[*buffer]string{}, leftSegments: map[api.Module]map[*buffer]string{}}
 	// Without a config directory there are no overrides, and loadConfig
 	// reports why.
 	if dir, err := keep.Dir("XDG_CONFIG_HOME", ".config"); err == nil {

@@ -1603,7 +1603,9 @@ sets one's command and root markers. Placeholders such as `{root}`,
 `{cache}` and `{env:NAME}` in a table fill in for the server's root, a
 cache folder fude makes for it and the environment (B527). Root groups,
 `requires`, `excludes`, `fallback`, command candidates, `capabilities`
-and `connect` cover what servers need to start (B533 to B538). A server's message fude does not
+and `connect` cover what servers need to start (B533 to B538), and a
+module registers the client commands a server names for the editor
+(B539). A server's message fude does not
 handle goes to the modules as `lsp.notified` or `lsp.requested`, and a
 request no module hears gets the table's `answers`, or an empty answer
 (B531, B532, D62). fude starts one server per name and

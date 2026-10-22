@@ -1928,6 +1928,11 @@ Where fude departs, the line says so and cites the departure in
   hears gets an empty answer. A module sends a notification to a server
   on the buffer its call is about. A plugin needs `lsp` to answer or
   send.
+- B539 [4] A module registers a client command by the name a language
+  server's code action, code lens or completion gives it, such as
+  `editor.action.showReferences`. fude calls the module with the
+  command's arguments and the server's name in place of sending the
+  command to the server. A plugin needs `lsp`.
 - B293 [4] A module shows a numbered menu at the cursor, as code actions
   show, each item with its kind and what it does beside it, and hears
   which was picked. A menu of the same id while one shows replaces its

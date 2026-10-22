@@ -43,12 +43,13 @@ var needs = map[string]string{
 var kinds = map[fude.Kind]string{
 	fude.Command: "", fude.Operator: "", fude.Object: "", fude.Key: "", fude.Insert: "", fude.Plug: "", fude.Source: "",
 	fude.Typed: "buffer.read", fude.Completer: "buffer.read", fude.Write: "buffer.read", fude.Page: "", fude.Option: "",
+	fude.ClientCommand: "lsp",
 }
 
 // init panics on a Result field with no entry in needs, or a kind with no
 // entry in kinds, which no plugin could set or register.
 func init() {
-	for k := fude.Command; k <= fude.Option; k++ {
+	for k := fude.Command; k <= fude.ClientCommand; k++ {
 		if _, ok := kinds[k]; !ok {
 			panic(fmt.Sprintf("plugin: no capability for kind %d", k))
 		}
