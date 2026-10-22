@@ -31,6 +31,7 @@ func TestB131CommandCompletion(t *testing.T) {
 	}
 	change(t, filepath.Join(dir, "editor", "files.go"), "")
 	change(t, filepath.Join(dir, "readme"), "")
+	change(t, filepath.Join(dir, ".hidden"), "")
 	t.Chdir(dir)
 	config(t, "autocomplete = true")
 	e := start(t, "readme")
@@ -90,6 +91,12 @@ func TestB131CommandCompletion(t *testing.T) {
 	settle(t, e, func() bool { return lit("readme") })
 	if feed(e, "<C-e><CR>"); e.Windows()[0].Name != "rea" {
 		t.Errorf(":e rea<C-e><CR> opened %s, want the new file rea", e.Windows()[0].Name)
+	}
+	// A path that is there, such as ., opens as typed, not an entry in it.
+	feed(e, ":e .")
+	settle(t, e, func() bool { f, ok := e.Menu(); return ok && strings.Contains(f.Text, ".hidden") })
+	if feed(e, "<CR>"); e.Windows()[0].Name != dir+string(filepath.Separator) {
+		t.Errorf(":e .<CR> opened %s, want the directory", e.Windows()[0].Name)
 	}
 	feed(e, ":b readme<CR>")
 	// A short name matches as its command, which shows its short names.

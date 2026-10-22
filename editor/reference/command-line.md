@@ -14,8 +14,9 @@ line, ranked by how well they match, and after the
 last comes the word as typed. The word is a command's name, its short
 names matching as it does, or an argument the command takes, such as a
 path for `:edit` or an option for `:set`. The menu lights the item the
-word is, or else its first. While the typed word is in the line, `<CR>`
-runs the lit item and `<Tab>` puts it in the line. `<C-y>` keeps the
+word is, or else its first. A path that is there already, such as `.` or
+`src/`, lights none, so `<CR>` opens it as typed. While the typed word is
+in the line, `<CR>` runs the lit item and `<Tab>` puts it in the line. `<C-y>` keeps the
 completion in the line and `<C-e>` puts the typed word back. With
 `autocomplete` on, the menu shows as the line is typed. Searches do not
 complete.

@@ -122,8 +122,9 @@ func (e *Session) menuOf(line string, wait bool) *cmenu {
 }
 
 // light chooses the item of m that shows lit, which <CR> takes: the one
-// typed, a command by any of its names, or else the first. A command's
-// short names show beside it (B131).
+// typed, a command by any of its names, or else the first. A path that is
+// there already, such as . or src/, lights none, so <CR> opens it as typed.
+// A command's short names show beside it (B131).
 func (e *Session) light(m *cmenu, line string) {
 	if m == nil {
 		return
@@ -145,7 +146,18 @@ func (e *Session) light(m *cmenu, line string) {
 		}
 		return
 	}
-	m.lit = max(slices.Index(m.items, m.typed), 0)
+	if m.lit = slices.Index(m.items, m.typed); m.lit >= 0 {
+		return
+	}
+	name, _, _ := strings.Cut(line, " ")
+	if c, ok := commandsByName[name]; ok && takesPath(c) || e.pathArgs[name] {
+		if full, err := e.expand(m.typed); err == nil {
+			if _, err := os.Stat(full); err == nil {
+				return
+			}
+		}
+	}
+	m.lit = 0
 }
 
 // fullName returns the name of the command name names, by its name or a

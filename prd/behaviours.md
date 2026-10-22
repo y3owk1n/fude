@@ -404,11 +404,12 @@ Where fude departs, the line says so and cites the departure in
   show in the menu once found, and typing goes on meanwhile. A command's
   short names match as it does, and show dim beside it. The menu lights
   the item the word is, a command by its short names too, or else its
-  first. `<CR>` runs the one lit, and `<Tab>` puts it in the line.
-  `<C-n>` and `<C-p>` step from it to the next item and the one before.
-  So `:bde` runs `:bdelete`, `:w` stays `:write` and `:e rea` opens
-  `readme`. `<C-e>` puts back the word
-  as typed, such as the name of a new file. With `autocomplete` on, the
+  first. A path that is there already, such as `.` or `src/`, lights
+  none. `<CR>` runs the one lit, or the line as typed when none is, and
+  `<Tab>` puts the lit one in the line. `<C-n>` and `<C-p>` step from it to
+  the next item and the one before. So `:bde` runs `:bdelete`, `:w` stays
+  `:write`, `:e rea` opens `readme` and `:e .` opens the directory.
+  `<C-e>` puts back the word as typed, such as the name of a new file. With `autocomplete` on, the
   menu shows as the line is typed (N12).
 - B132 [2] In normal and visual mode the arrows, `<Home>`, `<End>`,
   `<PageUp>`, `<PageDown>` and `<Del>` are `k`, `j`, `h`, `l`, `0`, `$`,
