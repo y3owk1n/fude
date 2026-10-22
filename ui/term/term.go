@@ -602,8 +602,12 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 			ro += v.Ranges[ri].End + 1 - v.Ranges[ri].Start
 			ri++
 		}
-		// startCol is the column the row starts at, when the range gives it.
+		// With wrap the top line shows from its first row shown, where the
+		// first range starts. startCol is the column that row starts at.
 		from, startCol := pos, -1
+		if v.Wrap && pos == v.Top && ri < len(v.Ranges) && v.Ranges[ri].Start > pos {
+			from, startCol = v.Ranges[ri].Start, v.Ranges[ri].Col
+		}
 		// A line wraps onto as many rows as it needs, those after the first
 		// hang columns in (B37, B489). The rows with no room are cut, and the
 		// text shown ends where the first of them starts.
@@ -708,7 +712,7 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 					stop = starts[i+1]
 				}
 				x := 0
-				if i > 0 {
+				if i > 0 || start > pos {
 					x = hang
 					bg := ground
 					if shade {

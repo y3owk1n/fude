@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"math"
 	"slices"
 
 	"github.com/y3owk1n/fude/core/kernel"
@@ -93,4 +94,48 @@ func (b *buffer) columnStart(t kernel.Snapshot, start, col, tab int) (int, int) 
 		c.keep(p, x)
 	}
 	return p, x
+}
+
+// wrap returns how w wraps the line at start, and the rows kept of a line
+// without inlines, or nil.
+func (w *window) wrap(t kernel.Snapshot, start, tab int, d drawn) (vim.Wrap, *places) {
+	wr := vim.Wrap{Cols: w.cols(), Hang: w.hang(t, start, tab, d.show), Tab: tab, In: d.inlines, Words: w.anchor != "" || w.opts.LineBreak}
+	if len(d.inlines) > 0 || vim.LineEnd(t, start)-start <= clip {
+		return wr, nil
+	}
+	words := 0
+	if wr.Words {
+		words = 1
+	}
+	c := &w.buf.rows
+	c.sync(w.buf, t, [4]int{start, wr.Cols, wr.Hang, tab<<1 | words})
+	return wr, c
+}
+
+// rowsFrom returns where each of w's rows of the line at start begins, from
+// the row at from on: at most n, and none after the row after the one that
+// holds to.
+func (w *window) rowsFrom(t kernel.Snapshot, start, from, n, to, tab int, d drawn) []int {
+	wr, c := w.wrap(t, start, tab, d)
+	if c == nil {
+		return vim.RowsFrom(t, start, from, vim.Column(t, start, from, tab, nil), n, to, wr, nil)
+	}
+	return vim.RowsFrom(t, start, from, w.buf.column(t, start, from, tab), n, to, wr, c.keep)
+}
+
+// rowsTo returns where the row of w's line at start that holds pos begins,
+// after the starts of as many as keep-1 rows before it. A line without
+// inlines keeps where its rows begin, so the walk starts from the nearest
+// row kept before pos.
+func (w *window) rowsTo(t kernel.Snapshot, start, pos, keep, tab int, d drawn) []int {
+	wr, c := w.wrap(t, start, tab, d)
+	from, mark := [2]int{start, 0}, func(int, int) {}
+	if c != nil {
+		from, mark = c.before(pos), c.keep
+	}
+	starts := vim.RowsFrom(t, start, from[0], from[1], math.MaxInt, pos, wr, mark)
+	if len(starts) > 1 && starts[len(starts)-1] > pos {
+		starts = starts[:len(starts)-1]
+	}
+	return starts[max(len(starts)-keep, 0):]
 }

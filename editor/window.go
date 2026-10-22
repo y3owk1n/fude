@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 	"strconv"
 	"sync/atomic"
@@ -196,11 +197,24 @@ func (e *Session) view(w *window, t kernel.Snapshot, top, tab int) ([]wire.Range
 	}
 	d := e.shown(w, top, vim.LineEnd(t, last))
 	// A session given no size yet shows its windows' lines whole.
-	if end := vim.LineEnd(t, last); e.width == 0 || end-top <= whole {
+	if end := vim.LineEnd(t, last); e.width == 0 || end-top <= whole && w.firstRow() == top {
 		return []wire.Range{{Start: top, End: end}}, d
 	}
 	var out []wire.Range
 	open := false // the last range takes the next line
+	// The top line shows from its first row shown.
+	if from := w.firstRow(); from > top {
+		starts := w.rowsFrom(t, top, from, room+1, math.MaxInt, tab, d)
+		r := wire.Range{Start: from, End: vim.LineEnd(t, top), Col: w.buf.column(t, top, from, tab)}
+		if len(starts) > room {
+			return []wire.Range{{Start: from, End: starts[room], Col: r.Col}}, d
+		}
+		next, ok := w.nextLine(t, top)
+		if room -= len(starts); !ok || room <= 0 {
+			return []wire.Range{r}, d
+		}
+		out, open, top = append(out, r), true, next
+	}
 	for p := top; ; {
 		starts, end := w.starts(t, p, tab, d), vim.LineEnd(t, p)
 		room -= d.rows(t.LineOf(p))
@@ -233,8 +247,37 @@ func (e *Session) view(w *window, t kernel.Snapshot, top, tab int) ([]wire.Range
 	}
 }
 
-// screenAt returns the row of its line that w's cursor shows on, and the
-// column of the window's text.
+// firstRow returns where w shows its text from: the start of its top line,
+// or with wrap of a row of it after its first.
+func (w *window) firstRow() int {
+	t, p := w.buf.text.Snapshot(), w.buf.text.Mark(w.top)
+	if !w.opts.Wrap {
+		return vim.LineStart(t, p)
+	}
+	return p
+}
+
+// topRow returns the start of the row that w shows first of the line at
+// start, which is taller than w, so that the row holding pos is among the
+// room rows shown. That is from, a row of the line, while pos's row still
+// shows from it. Else it is the row that puts pos's row first when pos is
+// before from, or last when it is after.
+func (w *window) topRow(t kernel.Snapshot, start, pos, from, room, tab int, d drawn) int {
+	inLine := from >= start && from <= vim.LineEnd(t, start)
+	if inLine && from <= pos {
+		if starts := w.rowsFrom(t, start, from, room+1, pos, tab, d); len(starts) <= room || pos < starts[room] {
+			return from
+		}
+	}
+	starts := w.rowsTo(t, start, pos, room, tab, d)
+	if inLine && pos < from {
+		return starts[len(starts)-1]
+	}
+	return starts[0]
+}
+
+// screenAt returns the row that w's cursor shows on, counting from the
+// first row its line shows, and the column of the window's text.
 func (w *window) screenAt(t kernel.Snapshot, tab int, d drawn) (row, col int) {
 	c := w.pos()
 	ls := vim.LineStart(t, c)
@@ -248,7 +291,11 @@ func (w *window) screenAt(t kernel.Snapshot, tab int, d drawn) (row, col int) {
 	if !w.opts.Wrap {
 		return 0, column(c) - w.left
 	}
-	starts := w.starts(t, ls, tab, d)
+	from := ls
+	if f := w.firstRow(); f > ls && f <= c {
+		from = f
+	}
+	starts := w.rowsFrom(t, ls, from, max(w.h, 1), c, tab, d)
 	r := len(starts) - 1
 	for r > 0 && starts[r] > c {
 		r--
@@ -258,7 +305,7 @@ func (w *window) screenAt(t kernel.Snapshot, tab int, d drawn) (row, col int) {
 		return r, 0
 	}
 	col = column(c) - column(starts[r])
-	if r > 0 {
+	if starts[r] > ls {
 		col += w.hang(t, ls, tab, d.show)
 	}
 	return r, col

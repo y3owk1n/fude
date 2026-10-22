@@ -190,6 +190,10 @@ Where fude departs, the line says so and cites the departure in
   the text of a list item. A word longer than the width stays whole.
 - B37 [2] A line longer than its window wraps onto the rows below, as with
   Neovim's `wrap`, and the window scrolls so the cursor's whole line shows.
+  A line taller than the window shows only some of its rows. The window
+  keeps its first row shown while the cursor stays in view. When the
+  cursor leaves the view, its row becomes the window's first row if it
+  went up, or its last if it went down.
   With `wrap` off, each line takes one row and the window scrolls sideways
   the least it must to show the cursor. Rows past the end of the text show
   `~`.

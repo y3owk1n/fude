@@ -49,7 +49,7 @@ type buffer struct {
 	saved kernel.NodeID
 	hl    highlights // for calls that read its captures (B273)
 
-	columns places // where clusters of a long line begin
+	columns, rows places // where clusters and rows of a long line begin
 
 	// The top line when the buffer was last left, for the next window to
 	// show it. The mark " is where the cursor was.

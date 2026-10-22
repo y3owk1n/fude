@@ -216,7 +216,7 @@ func TestB485HLSearch(t *testing.T) {
 // B37
 func TestB37Wrap(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "f")
-	change(t, path, strings.Repeat("a", 20)+"\nb\nc\n")
+	change(t, path, strings.Repeat("a", 20)+"\nb\nc\n"+strings.Repeat("x", 100)+"\n")
 	e := open(t, path)
 	// Three rows of text, ten columns wide: the first line takes two.
 	e.SetSize(10, 4)
@@ -225,6 +225,16 @@ func TestB37Wrap(t *testing.T) {
 	}
 	if feed(e, "j"); e.Top() != 21 {
 		t.Fatalf("on line 3 the window starts at %d, want line 2 at 21", e.Top())
+	}
+	// A line of ten rows shows the three around the cursor, from the row it
+	// showed first while the cursor stays in them.
+	for _, c := range []struct {
+		keys string
+		from int
+	}{{"j$", 95}, {"10h", 95}, {"30h", 75}, {"0", 25}} {
+		if feed(e, c.keys); e.Top() != 25 || e.Windows()[0].Ranges[0].Start != c.from {
+			t.Fatalf("after %q the window shows from %d, line %d, want %d, line 25", c.keys, e.Windows()[0].Ranges[0].Start, e.Top(), c.from)
+		}
 	}
 	// Without wrap the window scrolls sideways to the cursor's column.
 	feed(e, "gg:set wrap false<CR>$")

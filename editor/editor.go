@@ -785,7 +785,7 @@ func (e *Session) rows() int { return max(e.win.h-1, 1) }
 // typed, it shows the match the search goes to instead.
 func (e *Session) reveal() {
 	w := e.win
-	t, c := w.buf.text.Snapshot(), w.pos()
+	t, c, first := w.buf.text.Snapshot(), w.pos(), w.firstRow()
 	// While a search is typed, the match it goes to shows instead (B21).
 	if s, _, ok := e.vim.Incremental(); ok && w.opts.IncSearch {
 		c = s
@@ -811,8 +811,29 @@ func (e *Session) reveal() {
 		low = prev
 	}
 	// A top inside a closed fold is its first line (B224).
-	first, _ := w.fold(t, t.LineOf(e.Top()))
-	w.buf.text.MoveMark(w.top, min(max(t.LineStart(first), low), above))
+	folded, _ := w.fold(t, t.LineOf(e.Top()))
+	w.buf.text.MoveMark(w.top, min(max(t.LineStart(folded), low), above))
+	// A line taller than the window shows from one of its rows, chosen so
+	// the cursor's row shows. The row shown first stays while it does.
+	if w.opts.Wrap && len(w.starts(t, line, tab, d)) > e.rows() {
+		above := 0 // the rows of the lines shown above the cursor's
+		for p := e.Top(); p < line; {
+			above += w.rows(t, p, tab, d)
+			next, ok := w.nextLine(t, p)
+			if !ok {
+				break
+			}
+			p = next
+		}
+		starts := w.rowsFrom(t, line, line, e.rows()+1, c, tab, d)
+		r := len(starts) - 1
+		for r > 0 && starts[r] > c {
+			r--
+		}
+		if above+r >= e.rows() {
+			w.buf.text.MoveMark(w.top, w.topRow(t, line, c, first, e.rows(), tab, d))
+		}
+	}
 	// Without wrap the window scrolls sideways the least it must to show the
 	// cursor's column and side_scroll_off columns each side of it, at most
 	// half the window (B37, B482).
