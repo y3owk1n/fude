@@ -17,19 +17,17 @@ var textSize = systemSize
 
 // makeFonts makes the text's fonts in textSize, of the first family the
 // session asked for that the system has, or else the system's monospace,
-// and the cells they fill.
+// the cells they fill, and the fonts of the window's own text.
 func makeFonts() {
 	fonts := cls("NSFontManager").Send(sel("sharedFontManager"))
-	font, boldFont = 0, 0
+	font, boldFont, chosen = 0, 0, ""
 	for _, family := range wanted.Families {
-		// NSFontManager's weights are 5 for regular and 9 for bold.
-		font = msgFontFamily(fonts, sel("fontWithFamily:traits:weight:size:"), nsString(family), 0, 5, textSize)
-		boldFont = msgFontFamily(fonts, sel("fontWithFamily:traits:weight:size:"), nsString(family), 0, 9, textSize)
-		if font != 0 && boldFont != 0 {
+		if f, b := familyFont(family, textSize, false), familyFont(family, textSize, true); f != 0 && b != 0 {
+			font, boldFont, chosen = f, b, family
 			break
 		}
 	}
-	if font == 0 || boldFont == 0 {
+	if chosen == "" {
 		font = msgFont(cls("NSFont"), sel("monospacedSystemFontOfSize:weight:"), textSize, 0)
 		boldFont = msgFont(cls("NSFont"), sel("monospacedSystemFontOfSize:weight:"), textSize, 0.4)
 	}
@@ -38,6 +36,50 @@ func makeFonts() {
 	boldItalicFont = fonts.Send(sel("convertFont:toHaveTrait:"), boldFont, 1).Send(sel("retain"))
 	cellW = msgSizeOf(nsString("M"), sel("sizeWithAttributes:"), textAttrs(font, 0)).W
 	cellH = float64(int(msgFloat(font, sel("ascender")) - msgFloat(font, sel("descender")) + msgFloat(font, sel("leading")) + 0.999))
+	makeChromeFonts()
+}
+
+// chosen is the family the text takes, "" for the system's monospace.
+var chosen string
+
+// familyFont returns the font of family in points, bold or not, or 0 when
+// the system lacks it. NSFontManager's weights are 5 for regular and 9 for
+// bold.
+func familyFont(family string, points float64, bold bool) objc.ID {
+	weight := 5
+	if bold {
+		weight = 9
+	}
+	return msgFontFamily(cls("NSFontManager").Send(sel("sharedFontManager")), sel("fontWithFamily:traits:weight:size:"), nsString(family), 0, weight, points)
+}
+
+// makeChromeFonts makes the fonts of the text the window composes itself,
+// at their own sizes: in the text's family when the session chose one,
+// else in the system's font (B559, B584).
+func makeChromeFonts() {
+	for _, f := range []objc.ID{toastFont, uiFont, uiBold, listFont, listBold, inputFont} {
+		if f != 0 {
+			f.Send(sel("release"))
+		}
+	}
+	for k, a := range uiAttrsOf {
+		a.Send(sel("release"))
+		delete(uiAttrsOf, k)
+	}
+	ui := func(points float64, bold bool) objc.ID {
+		if chosen != "" {
+			if f := familyFont(chosen, points, bold); f != 0 {
+				return f.Send(sel("retain"))
+			}
+		}
+		weight := 0.0
+		if bold {
+			weight = 0.4
+		}
+		return msgFont(cls("NSFont"), sel("systemFontOfSize:weight:"), points, weight).Send(sel("retain"))
+	}
+	toastFont, uiFont, uiBold = ui(13, false), ui(12, false), ui(12, true)
+	listFont, listBold, inputFont = ui(13, false), ui(13, true), ui(16, false)
 }
 
 // sizeText makes the text points tall, from 8 to 40, and every window as

@@ -64,12 +64,6 @@ func startApp(background bool) objc.ID {
 	fieldClass = class("FudeField", "NSAccessibilityElement", fieldAccess...)
 	windowDelegate = objc.ID(class("FudeWindowDelegate", "NSObject", objc.MethodDef{Cmd: sel("windowShouldClose:"), Fn: windowShouldClose})).Send(sel("alloc")).Send(sel("init"))
 	makeFonts()
-	toastFont = msgFont(cls("NSFont"), sel("systemFontOfSize:weight:"), 13, 0).Send(sel("retain"))
-	uiFont = msgFont(cls("NSFont"), sel("systemFontOfSize:weight:"), 12, 0).Send(sel("retain"))
-	uiBold = msgFont(cls("NSFont"), sel("systemFontOfSize:weight:"), 12, 0.4).Send(sel("retain"))
-	listFont = msgFont(cls("NSFont"), sel("systemFontOfSize:weight:"), 13, 0).Send(sel("retain"))
-	listBold = msgFont(cls("NSFont"), sel("systemFontOfSize:weight:"), 13, 0.4).Send(sel("retain"))
-	inputFont = msgFont(cls("NSFont"), sel("systemFontOfSize:weight:"), 16, 0).Send(sel("retain"))
 	menu(app)
 	return app
 }

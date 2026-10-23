@@ -1388,8 +1388,9 @@ Where fude departs, the line says so and cites the departure in
 - B559 [10] With `--gui` the tab strip and the status bars draw on the
   system's title bar material. The palette, the finder, menus, floats and
   toasts draw on the system's translucent material, in rounded panels
-  with a shadow. Text the window composes itself takes the system's font
-  and colours. A selected item takes the system's selection colour, and a
+  with a shadow. Text the window composes itself takes the system's font,
+  or the text's family when `gui.font` names one (B584), and the system's
+  colours. A selected item takes the system's selection colour, and a
   mode or a count of diagnostics the system's colour for it.
   A tab's close button and its mark of changes, and the prompts of the
   command line and of search, are the system's symbols. The rows past a
@@ -1572,9 +1573,11 @@ Where fude departs, the line says so and cites the departure in
   selected item and each message as they show.
 - B584 [10] With `--gui`, `gui.font` lists font families for the text,
   and the text takes the first one the system has. `gui.font_size` is
-  its size in points. Unset, or with none of its families
-  on the system, the text takes the system's monospace font, 14 points on
-  macOS and 11 on Linux and Windows. `:set` changes either in
+  its size in points. The status bars, the tab strip, the palette, the
+  finder, menus and toasts take the same family at their own sizes.
+  Unset, or with none of its families on the system, the text takes the
+  system's monospace font, 14 points on macOS and 11 on Linux and
+  Windows, and the rest the system's own font. `:set` changes either in
   every window at once, each window taking as many cells as it then
   holds, and the menu's actual size goes back to `gui.font_size`. An
   attached window draws in its session's font.

@@ -1,6 +1,7 @@
 package gui
 
 import (
+	"cmp"
 	"math"
 	"slices"
 	"unsafe"
@@ -48,11 +49,13 @@ func newFormat(family string, weight, style uint32, size float64) unsafe.Pointer
 // them.
 func makeTextFonts() {
 	size, family := dips(textSize), textFamily
+	chosen = ""
 	if i := slices.IndexFunc(wanted.Families, installed); i >= 0 {
-		family = wanted.Families[i]
+		family, chosen = wanted.Families[i], wanted.Families[i]
 	}
 	font, boldFont = newFormat(family, 400, 0, size), newFormat(family, 700, 0, size)
 	italicFont, boldItalicFont = newFormat(family, 400, 2, size), newFormat(family, 700, 2, size)
+	makeChromeFonts()
 	m := measure("M", font)
 	cellW, cellH = m.W, math.Ceil(m.H)
 }
@@ -92,15 +95,33 @@ func makeFonts() {
 	}
 	textFamily = first("Cascadia Mono", "Consolas")
 	captionFont = newFormat(first("Segoe Fluent Icons", "Segoe MDL2 Assets"), 400, 0, 10)
-	ui, size := "Segoe UI", 12.0
+	uiFamily, uiSize = "Segoe UI", 12.0
 	m := ncMetrics{}
 	m.size = uint32(unsafe.Sizeof(m))
 	if call(systemParams, 0x29, uintptr(m.size), uintptr(unsafe.Pointer(&m)), 0, 96) != 0 {
-		ui, size = windows.UTF16ToString(m.message.face[:]), float64(-m.message.height)
+		uiFamily, uiSize = windows.UTF16ToString(m.message.face[:]), float64(-m.message.height)
 	}
-	uiFont, uiBold = newFormat(ui, 400, 0, size), newFormat(ui, 700, 0, size)
-	inputFont = newFormat(ui, 400, 0, dips(14))
 	makeTextFonts()
+}
+
+// uiFamily and uiSize are the system's message font, its size in
+// DirectWrite's units, and chosen the family of the session's that the
+// text takes, "" for none.
+var (
+	uiFamily, chosen string
+	uiSize           float64
+)
+
+// makeChromeFonts makes the fonts of the text the window composes itself,
+// at their own sizes: in the first of the session's families the system
+// has, else in the system's message font (B559, B584).
+func makeChromeFonts() {
+	for _, f := range []unsafe.Pointer{uiFont, uiBold, inputFont} {
+		release(f)
+	}
+	family := cmp.Or(chosen, uiFamily)
+	uiFont, uiBold = newFormat(family, 400, 0, uiSize), newFormat(family, 700, 0, uiSize)
+	inputFont = newFormat(family, 400, 0, dips(14))
 }
 
 // installed reports whether the system has the font family.

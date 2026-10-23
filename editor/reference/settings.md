@@ -392,8 +392,10 @@ its folder, and gets the title it had back as fude quits. Off unless set.
 
 Font families for the text in the window of `--gui`. The text takes the
 first family the system has, so one config.toml works on macOS, Linux and
-Windows. With none of them installed, or none set, the text takes the
-system's monospace font. `:set gui.font JetBrains Mono,Menlo` sets them in
+Windows. The status bars, the tabs, the palette, menus and messages take
+the same family at their own sizes. With none of them installed, or none
+set, the text takes the system's monospace font and the rest the
+system's own font. `:set gui.font JetBrains Mono,Menlo` sets them in
 the running fude.
 
 ```toml

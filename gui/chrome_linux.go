@@ -38,6 +38,7 @@ func makeTextFonts() {
 	if len(wanted.Families) > 0 {
 		pangoFontSetFamily(font, strings.Join(append(slices.Clone(wanted.Families), "Monospace"), ","))
 	}
+	makeChromeFonts()
 	boldFont, italicFont, boldItalicFont = pangoFontCopy(font), pangoFontCopy(font), pangoFontCopy(font)
 	pangoFontSetWeight(boldFont, 700)
 	pangoFontSetStyle(italicFont, 2)
@@ -57,13 +58,33 @@ func makeFonts() {
 	if name == "" {
 		name = "Sans 10"
 	}
-	uiFont = pangoFontFromString(name)
-	uiBold = pangoFontCopy(uiFont)
-	pangoFontSetWeight(uiBold, 700)
-	family := strings.TrimRightFunc(name, func(r rune) bool { return r == ' ' || r >= '0' && r <= '9' || r == '.' })
-	inputFont = pangoFontFromString(family + " 14")
+	desktopFont = name
 	measurer = pangoLayoutNew(pangoFontMapContext(pangoCairoFontMap()))
 	makeTextFonts()
+}
+
+// desktopFont is the desktop's font, as GTK names it, such as "Cantarell 11".
+var desktopFont string
+
+// makeChromeFonts makes the fonts of the text the window composes itself,
+// at their own sizes: in the session's families first when it asked for
+// any, then in the desktop's font (B559, B584).
+func makeChromeFonts() {
+	for _, f := range []uintptr{uiFont, uiBold, inputFont} {
+		if f != 0 {
+			pangoFontFree(f)
+		}
+	}
+	family := strings.TrimRightFunc(desktopFont, func(r rune) bool { return r == ' ' || r >= '0' && r <= '9' || r == '.' })
+	uiFont = pangoFontFromString(desktopFont)
+	inputFont = pangoFontFromString(family + " 14")
+	if len(wanted.Families) > 0 {
+		families := strings.Join(append(slices.Clone(wanted.Families), family), ",")
+		pangoFontSetFamily(uiFont, families)
+		pangoFontSetFamily(inputFont, families)
+	}
+	uiBold = pangoFontCopy(uiFont)
+	pangoFontSetWeight(uiBold, 700)
 }
 
 // sizeText makes the text points tall, from 6 to 40, and every window as

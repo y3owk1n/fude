@@ -546,7 +546,9 @@ func TestB584GTKFont(t *testing.T) {
 	typed(":set gui.font_size 20\r:set gui.font NoSuchFont,DejaVu Sans Mono\r")
 	until(t, "the families at 20 points", func() bool {
 		f, p := now()
-		return f == "NoSuchFont,DejaVu Sans Mono,Monospace" && p == 20
+		var chrome string
+		onMain(func() { chrome = pangoFontFamily(uiFont) }, true)
+		return f == "NoSuchFont,DejaVu Sans Mono,Monospace" && p == 20 && strings.HasPrefix(chrome, "NoSuchFont,DejaVu Sans Mono,")
 	})
 	// No family and no size are the system's.
 	typed(":set gui.font_size 0\r")

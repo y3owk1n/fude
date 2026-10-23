@@ -1461,16 +1461,22 @@ func TestB584Font(t *testing.T) {
 			onMain(func() { press(w, code, 0, string(c), string(c)) }, true)
 		}
 	}
-	// now is the text's family and size.
+	// now is the text's family and size, and the family of the status
+	// bars' text.
+	var chrome string
 	now := func() (family string, points float64) {
-		onMain(func() { family, points = goString(font.Send(sel("familyName"))), textSize }, true)
+		onMain(func() {
+			family, points = goString(font.Send(sel("familyName"))), textSize
+			chrome = goString(uiFont.Send(sel("familyName")))
+		}, true)
 		return family, points
 	}
 	system, size := now()
+	systemUI := chrome
 	// :set changes the font's size and family at once, the first family
 	// the system has.
 	typed(":set gui.font_size 20\r:set gui.font NoSuchFont,Courier\r")
-	until(t, "Courier at 20 points", func() bool { f, p := now(); return f == "Courier" && p == 20 })
+	until(t, "Courier at 20 points", func() bool { f, p := now(); return f == "Courier" && p == 20 && chrome == "Courier" })
 	// Actual size goes back to gui.font_size.
 	onMain(func() {
 		mainRun.Send(sel("bigger:"), 0)
@@ -1481,7 +1487,7 @@ func TestB584Font(t *testing.T) {
 	}
 	// A family the system does not have, and no size, are the system's.
 	typed(":set gui.font NoSuchFont\r:set gui.font_size 0\r")
-	until(t, "the system's font", func() bool { f, p := now(); return f == system && p == size })
+	until(t, "the system's font", func() bool { f, p := now(); return f == system && p == size && chrome == systemUI })
 	typed(":qa!\r")
 	until(t, "the session to end", func() bool {
 		open := true
