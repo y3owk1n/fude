@@ -1,8 +1,6 @@
 package tui
 
 import (
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -10,7 +8,8 @@ import (
 	"github.com/clipperhouse/displaywidth"
 	"github.com/gdamore/tcell/v3"
 	"github.com/gdamore/tcell/v3/color"
-	"github.com/y3owk1n/fude/vim"
+
+	fudeclient "github.com/y3owk1n/fude/client"
 	"github.com/y3owk1n/fude/wire"
 )
 
@@ -57,73 +56,49 @@ func (c *client) putParts(left, right []part, x, y, w int) {
 // statusParts are what v's status line shows on its left and on its right,
 // in styles over ground. They hold v's name when named is set.
 func (c *client) statusParts(v wire.Window, ground tcell.Style, named bool) (left, right []part) {
-	if v.Current {
-		label, colour := c.mode()
-		left = append(left, part{" " + label + " ", ground.Background(colour).Foreground(th.bg).Bold(true)})
-		if r := c.e.Recording(); r != 0 {
-			left = append(left, part{" ● @" + string(r), ground.Foreground(th.err).Bold(true)})
-		}
+	l, r := fudeclient.StatusParts(c.e, v, named)
+	for _, p := range l {
+		left = append(left, c.statusPart(p, ground, v.Current))
 	}
-	if named {
-		dir, name := splitName(v.Name)
-		left = append(left, part{" " + dir, ground.Foreground(th.faint)}, part{name, ground.Bold(v.Current)})
+	for _, p := range r {
+		right = append(right, c.statusPart(p, ground, v.Current))
 	}
-	if v.Modified {
-		left = append(left, part{" ●", ground.Foreground(th.cmd)})
-	}
-	for _, s := range v.LeftSegments {
-		left = append(left, part{"   " + s, ground.Foreground(th.muted)})
-	}
-	if v.Errors > 0 {
-		left = append(left, part{"   " + strconv.Itoa(v.Errors), ground.Foreground(th.err)})
-	}
-	if v.Warnings > 0 {
-		left = append(left, part{"   " + strconv.Itoa(v.Warnings), ground.Foreground(th.warn)})
-	}
-	muted := ground.Foreground(th.muted)
-	if v.Sharing != "" {
-		right = append(right, part{v.Sharing + "  ", ground.Foreground(th.cmd)})
-	}
-	// A zoomed window says so, as the others are hidden behind it (B370).
-	if v.Zoomed {
-		right = append(right, part{"zoomed  ", ground.Foreground(th.cmd)})
-	}
-	// The other sessions in the buffer, each in its colour (B253).
-	for _, o := range v.Others {
-		right = append(right, part{o.Name + "  ", ground.Foreground(presence(o.Colour))})
-	}
-	for _, s := range v.Segments {
-		right = append(right, part{s + "  ", muted})
-	}
-	if v.Current {
-		if shown := c.e.Shown(); shown != "" {
-			right = append(right, part{shown + "  ", muted})
-		}
-		// Tasks that run turn a spinner before their names (B231).
-		if len(v.Tasks) > 0 {
-			frame := spinner[time.Now().UnixMilli()/spinnerFrame.Milliseconds()%int64(len(spinner))]
-			right = append(right, part{string(frame) + " ", ground.Foreground(th.normal)}, part{strings.Join(v.Tasks, ", ") + "  ", muted})
-			c.spinning = true
-		}
-	}
-	// The buffer's language server goes before the filetype. While it
-	// works, a spinner and what it is doing go with it (B161).
-	if v.Progress != "" {
-		frame := spinner[time.Now().UnixMilli()/spinnerFrame.Milliseconds()%int64(len(spinner))]
-		doing := v.Progress
-		if r := []rune(doing); len(r) > 32 {
-			doing = string(r[:31]) + "…"
-		}
-		right = append(right, part{string(frame) + " ", ground.Foreground(th.normal)}, part{v.Server + " " + doing + "  ", muted})
-		c.spinning = true
-	} else if v.Server != "" {
-		right = append(right, part{v.Server + "  ", muted})
-	}
-	if v.Filetype != "" {
-		right = append(right, part{v.Filetype + "  ", muted})
-	}
-	right = append(right, part{ruler(v.Ruler) + " ", muted})
 	return left, right
+}
+
+// statusPart is p as the terminal draws it: its text with the spaces its
+// role puts around it, in a style over ground.
+func (c *client) statusPart(p fudeclient.Part, ground tcell.Style, current bool) part {
+	if kind, ok := strings.CutPrefix(p.Role, "mode."); ok {
+		return part{" " + p.Text + " ", ground.Background(modeColour(kind)).Foreground(th.bg).Bold(true)}
+	}
+	switch p.Role {
+	case "recording":
+		return part{" ● " + p.Text, ground.Foreground(th.err).Bold(true)}
+	case "dir":
+		return part{" " + p.Text, ground.Foreground(th.faint)}
+	case "name":
+		return part{p.Text, ground.Bold(current)}
+	case "modified":
+		return part{" ●", ground.Foreground(th.cmd)}
+	case "segment":
+		return part{"   " + p.Text, ground.Foreground(th.muted)}
+	case "errors":
+		return part{"   " + p.Text, ground.Foreground(th.err)}
+	case "warnings":
+		return part{"   " + p.Text, ground.Foreground(th.warn)}
+	case "sharing", "zoomed":
+		return part{p.Text + "  ", ground.Foreground(th.cmd)}
+	case "other":
+		return part{p.Text + "  ", ground.Foreground(presence(p.Colour))}
+	case "busy":
+		c.spinning = true
+		frame := spinner[time.Now().UnixMilli()/spinnerFrame.Milliseconds()%int64(len(spinner))]
+		return part{string(frame) + " ", ground.Foreground(th.normal)}
+	case "ruler":
+		return part{p.Text + " ", ground.Foreground(th.muted)}
+	}
+	return part{p.Text + "  ", ground.Foreground(th.muted)}
 }
 
 // spinner is the frames of the spinner a busy language server shows, one
@@ -135,21 +110,23 @@ const spinnerFrame = 80 * time.Millisecond
 // mode is the current window's mode as the status line names it, and its
 // colour.
 func (c *client) mode() (string, color.Color) {
-	if c.e.Terminal() {
-		return "TERMINAL", th.insert
+	label, kind := fudeclient.ModeName(c.e)
+	return label, modeColour(kind)
+}
+
+// modeColour is the colour of a mode of the kind ModeName gives.
+func modeColour(kind string) color.Color {
+	switch kind {
+	case "insert", "terminal":
+		return th.insert
+	case "replace":
+		return th.err
+	case "command":
+		return th.cmd
+	case "visual":
+		return th.visual
 	}
-	switch c.e.Mode() {
-	case vim.Insert:
-		return "INSERT", th.insert
-	case vim.Replace:
-		return "REPLACE", th.err
-	case vim.Cmdline:
-		return "COMMAND", th.cmd
-	case vim.Visual:
-		sel, _ := c.e.Selection()
-		return map[vim.Key]string{"v": "VISUAL", "V": "V-LINE", "<C-v>": "V-BLOCK"}[sel.Kind], th.visual
-	}
-	return "NORMAL", th.normal
+	return th.normal
 }
 
 // putClipped draws p from x on row y, cut at end, and returns the column
@@ -161,34 +138,6 @@ func (c *client) putClipped(x, y, end int, p part) int {
 		x += w
 	}
 	return x
-}
-
-// splitName splits a buffer's name into its directory, with a trailing
-// slash and the home directory as ~, and the rest. An explorer's name keeps
-// its own trailing slash.
-func splitName(name string) (string, string) {
-	sep := string(filepath.Separator)
-	if home, err := os.UserHomeDir(); err == nil {
-		if rest, ok := strings.CutPrefix(name, home+sep); ok {
-			name = "~" + sep + rest
-		}
-	}
-	i := strings.LastIndex(strings.TrimSuffix(name, "/"), sep)
-	return name[:i+1], name[i+1:]
-}
-
-// ruler shows a Vim ruler, "21,12-13  48%", as the status line does:
-// "21:13  48%", with the screen column when it differs.
-func ruler(r string) string {
-	f := strings.Fields(r)
-	if len(f) < 2 {
-		return r
-	}
-	line, col, _ := strings.Cut(f[0], ",")
-	if _, screen, ok := strings.Cut(col, "-"); ok {
-		col = screen
-	}
-	return line + ":" + col + "  " + f[1]
 }
 
 // width is how many cells ps take.

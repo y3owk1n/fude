@@ -54,6 +54,8 @@ internal/        packages only fude's own packages may import
   pty/           a program in a pseudo-terminal, for :terminal
   relay/         passes a share's connections between its host and guests
   share/         a share's certificate, share string and address
+  theme/         the themes' colours and each highlight name's style, for
+                 any frontend
   timeline/      a buffer's timeline log on disk
   tomlerr/       where in a TOML file a decoding error is
   trace/         what fude did, for fude tail
@@ -1466,10 +1468,11 @@ allocated before the switch frees safely.
 
 Captures paint as tree-sitter's own highlighter picks them (B46). A capture
 on a node inside another wins, and of the captures on one node only the last
-pattern's counts. The terminal client colours them from fude's theme, in
-`tui/theme.go`: a set of named colours for each of dark and light,
+pattern's counts. A frontend colours them from fude's theme, in
+`internal/theme`: a set of named colours for each of dark and light,
 from which every style derives, starting with the text's colours on the
-ground (B145, D33). A base16 scheme fills the same set: base00 to base03
+ground (B145, D33). The terminal client turns its colours and styles into
+tcell's. A base16 scheme fills the same set: base00 to base03
 are the grounds and faint text, base04 and base05 muted and plain text, and
 base08 to base0E errors, numbers, warnings, strings, hints, functions and
 keywords. `editor/` reads the scheme, as config, with one pattern that

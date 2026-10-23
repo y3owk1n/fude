@@ -20,6 +20,7 @@ import (
 	"github.com/gdamore/tcell/v3/color"
 
 	fudeclient "github.com/y3owk1n/fude/client"
+	look "github.com/y3owk1n/fude/internal/theme"
 	"github.com/y3owk1n/fude/internal/trace"
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
@@ -366,11 +367,11 @@ func (c *client) draw() {
 	if name != c.theme || colours != c.colours || *given != c.over || restyled != c.restyled {
 		fresh = true
 		c.theme, c.colours, c.over, c.restyled = name, colours, *given, restyled
-		t := themes[name]
+		t := look.Themes[name]
 		if colours != nil {
-			t = fromBase16(*colours)
+			t = look.FromBase16(*colours)
 		}
-		useTheme(t.with(*given), own)
+		useTheme(t.With(*given), own)
 	}
 	// The windows take every row: the command line floats and messages
 	// are toasts (B148, B149).

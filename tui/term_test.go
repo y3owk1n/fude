@@ -27,6 +27,7 @@ import (
 	"github.com/y3owk1n/fude/editor/editortest"
 	"github.com/y3owk1n/fude/internal/clipboard"
 	"github.com/y3owk1n/fude/internal/relay"
+	look "github.com/y3owk1n/fude/internal/theme"
 	bufferlinemod "github.com/y3owk1n/fude/modules/bufferline"
 	buffersmod "github.com/y3owk1n/fude/modules/buffers"
 	colourmod "github.com/y3owk1n/fude/modules/colours"
@@ -45,6 +46,9 @@ import (
 	"github.com/y3owk1n/fude/vim"
 	"github.com/y3owk1n/fude/wire"
 )
+
+// themes are the themes in the colours the client draws them in.
+var themes = map[string]theme{"dark": tcellTheme(look.Themes["dark"]), "light": tcellTheme(look.Themes["light"])}
 
 // An in-process session is one the terminal client draws (D39).
 var _ fudeclient.Session = (*editor.Session)(nil)
