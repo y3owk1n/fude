@@ -290,12 +290,8 @@ func pasted(clipboard, result, win uintptr) uintptr {
 		return 0
 	}
 	defer gFree(unsafe.Pointer(text))
-	n := 0
-	for *(*byte)(unsafe.Add(unsafe.Pointer(text), n)) != 0 {
-		n++
-	}
 	if w := windows[win]; w != nil {
-		w.pastes <- string(unsafe.Slice(text, n))
+		w.pastes <- cString(text)
 	}
 	return 0
 }

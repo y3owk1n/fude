@@ -1455,8 +1455,7 @@ Where fude departs, the line says so and cites the departure in
   Keys typed there go to the session as Vim keys, with an Alt chord as
   `<Esc>` and the key and a Super chord left to the desktop. Resizing the
   window resizes the session, a question shows in a dialog, and closing
-  the window quits as `:qa` does. It needs GTK 4. Input methods do not
-  work there yet.
+  the window quits as `:qa` does. It needs GTK 4.
 - B567 [10] With `--gui` on Linux, the mouse does what it does on macOS
   (B552, B555, B556, B557, B560, B562, B563). A click on text puts the
   cursor there, a drag selects, a double click selects a word and a triple
@@ -1480,6 +1479,14 @@ Where fude departs, the line says so and cites the departure in
 - B570 [10] With `--gui` on Linux, each window has GTK's scroll bar at its
   right edge, which shows for a second while its view moves, when the text
   is taller than it, and dragging its knob scrolls the window there.
+- B571 [10] With `--gui` on Linux, GTK's input method takes each key
+  first, as on macOS (B551). What it composes shows underlined at the
+  cursor, its candidates show by the cursor, and what it inserts goes to
+  the session as keys. A key it does not take, such as one with Control
+  or Alt or one that types no character, goes to the session as it is.
+- B572 [10] With `--gui` on Linux, an alert while the window is not active
+  shows in the desktop's notification (B564). oku installs `fude-gui`,
+  which runs `fude --gui`, and a launcher entry, Fude, that runs it.
 - B544 [2] A session has tab pages, each with its own windows, floats
   and current window, as in Neovim. `:tabnew` and `:tabedit` open one
   after the current page, on a file or a new empty buffer. `gt`, `{n}gt`,

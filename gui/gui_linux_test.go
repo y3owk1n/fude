@@ -402,6 +402,54 @@ func TestB570GTKScrollBar(t *testing.T) {
 	})
 }
 
+// B571
+func TestB571GTKInputMethods(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.txt")
+	editortest.Change(t, path, "one\n")
+	e := editortest.Open(t, path)
+	var w *window
+	onMain(func() { w = open(e, nil) }, true)
+	until(t, "the cursor", func() bool {
+		shown := false
+		onMain(func() { _, shown = w.caret() }, true)
+		return shown
+	})
+	// What the input method composes shows at the cursor, and goes once
+	// it ends.
+	onMain(func() { w.mark("か") }, true)
+	shown, at := false, point{}
+	onMain(func() { shown = gtkWidgetVisible(w.preedit) != 0; at, _ = w.caret() }, true)
+	if !shown || at.X < 0 {
+		t.Errorf("composed text shows %v at %v", shown, at)
+	}
+	onMain(func() { w.mark("") }, true)
+	onMain(func() { shown = gtkWidgetVisible(w.preedit) != 0 }, true)
+	if shown {
+		t.Error("composed text stayed once it ended")
+	}
+	// What it inserts goes to the session as keys.
+	onMain(func() { keyPressed(0, 'A', 0, gdkShift, w.win) }, true)
+	onMain(func() { w.typeText("かé") }, true)
+	onMain(func() { keyPressed(0, 0xff1b, 0, 0, w.win) }, true)
+	until(t, "the text it inserted", func() bool {
+		text := ""
+		w.onLoop(func() { text = editortest.Text(e) })
+		return text == "oneかé"
+	})
+	for _, k := range ":qa!\r" {
+		keyval := uintptr(k)
+		if k == '\r' {
+			keyval = 0xff0d
+		}
+		onMain(func() { keyPressed(0, keyval, 0, 0, w.win) }, true)
+	}
+	until(t, "the session to end", func() bool {
+		open := true
+		onMain(func() { _, open = windows[w.win] }, true)
+		return !open
+	})
+}
+
 var (
 	cairoCreate           func(surface uintptr) uintptr
 	cairoDestroy          func(cr uintptr)

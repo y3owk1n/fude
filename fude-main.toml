@@ -111,7 +111,8 @@ shell = "sh"
 env = { CGO_ENABLED = "1", GOTOOLCHAIN = "local", GOFLAGS = "-buildvcs=false" }
 when = [{ os = "darwin" }, { os = "linux" }]
 
-# The window runs only on macOS, so only macOS gets Fude.app (B565).
+# macOS gets Fude.app (B565), and Linux a launcher entry for Fude that
+# runs fude-gui, which runs fude --gui (B572).
 [[build.step]]
 run = "sh gui/app/bundle.sh fude Fude.app"
 shell = "sh"
@@ -122,7 +123,7 @@ install = { bin = ["fude"], man = ["man/fude.1", "man/fude-config.5", "man/fude-
 when = { os = "darwin" }
 
 [[build.step]]
-install = { bin = ["fude"], man = ["man/fude.1", "man/fude-config.5", "man/fude-guide.7"] }
+install = { bin = ["fude", { name = "fude-gui", run = "{{prefix}}/bin/fude", args = ["--gui"] }], man = ["man/fude.1", "man/fude-config.5", "man/fude-guide.7"], app = [{ path = "fude-gui", name = "Fude" }] }
 when = { os = "linux" }
 
 # Windows has no man, so it takes fude alone. PowerShell 5.1 does not stop

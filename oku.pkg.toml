@@ -33,18 +33,22 @@ man = ["share/man/man1/fude.1", "share/man/man5/fude-config.5", "share/man/man7/
 app = ["Fude.app"]
 
 # The Linux binary links glibc, so a musl machine builds from source instead.
+# fude-gui runs fude --gui, and the launcher entry for Fude runs fude-gui
+# (B572).
 [[artifact]]
 match = { os = "linux", arch = "arm64", libc = "glibc" }
 url = "https://github.com/y3owk1n/fude/releases/download/{{tag}}/fude-linux-arm64.zip"
 sha256_url = "https://github.com/y3owk1n/fude/releases/download/{{tag}}/fude-linux-arm64.zip.sha256"
-bin = ["bin/fude"]
+bin = ["bin/fude", { name = "fude-gui", run = "{{pkg}}/bin/fude", args = ["--gui"] }]
+app = [{ path = "fude-gui", name = "Fude" }]
 man = ["share/man/man1/fude.1", "share/man/man5/fude-config.5", "share/man/man7/fude-guide.7"]
 
 [[artifact]]
 match = { os = "linux", arch = "amd64", libc = "glibc" }
 url = "https://github.com/y3owk1n/fude/releases/download/{{tag}}/fude-linux-amd64.zip"
 sha256_url = "https://github.com/y3owk1n/fude/releases/download/{{tag}}/fude-linux-amd64.zip.sha256"
-bin = ["bin/fude"]
+bin = ["bin/fude", { name = "fude-gui", run = "{{pkg}}/bin/fude", args = ["--gui"] }]
+app = [{ path = "fude-gui", name = "Fude" }]
 man = ["share/man/man1/fude.1", "share/man/man5/fude-config.5", "share/man/man7/fude-guide.7"]
 
 [[artifact]]
@@ -154,7 +158,8 @@ shell = "sh"
 env = { CGO_ENABLED = "1", GOTOOLCHAIN = "local", GOFLAGS = "-buildvcs=false" }
 when = [{ os = "darwin" }, { os = "linux" }]
 
-# The window runs only on macOS, so only macOS gets Fude.app (B565).
+# macOS gets Fude.app (B565), and Linux a launcher entry for Fude that
+# runs fude-gui, which runs fude --gui (B572).
 [[build.step]]
 run = "sh gui/app/bundle.sh fude Fude.app"
 shell = "sh"
@@ -165,7 +170,7 @@ install = { bin = ["fude"], man = ["man/fude.1", "man/fude-config.5", "man/fude-
 when = { os = "darwin" }
 
 [[build.step]]
-install = { bin = ["fude"], man = ["man/fude.1", "man/fude-config.5", "man/fude-guide.7"] }
+install = { bin = ["fude", { name = "fude-gui", run = "{{prefix}}/bin/fude", args = ["--gui"] }], man = ["man/fude.1", "man/fude-config.5", "man/fude-guide.7"], app = [{ path = "fude-gui", name = "Fude" }] }
 when = { os = "linux" }
 
 # Windows has no man, so it takes fude alone. PowerShell 5.1 does not stop

@@ -29,6 +29,9 @@ type native struct {
 	pressing     bool            // the mouse's button went down on a pane and is still down
 	actions      map[int]uintptr // the right click's actions, by their item of contextItems
 	images       map[int]uintptr // by id, the cairo surfaces of the images shown
+	im           uintptr         // the input method
+	preedit      uintptr         // the view that shows what it composes
+	marked       string          // what it composes
 }
 
 // windows are the windows by their GtkWindows.
@@ -87,6 +90,7 @@ func startApp(ready func()) {
 	callbacks.modifiers = purego.NewCallback(modifiers)
 	makeMouseCallbacks()
 	makeStripCallbacks()
+	makeInputCallbacks()
 	callbacks.closing = purego.NewCallback(func(win, _ uintptr) uintptr {
 		// It quits as :qa does, which asks about unsaved changes, so the
 		// window closes once the session ends.
@@ -102,7 +106,7 @@ func startApp(ready func()) {
 		barMoved(adjustment, area)
 		return 0
 	})
-	app = gtkApplicationNew("dev.fude.fude", 32)
+	app = gtkApplicationNew("com.github.y3owk1n.fude", 32)
 	gSignalConnectData(app, "activate", callbacks.activate, 0, 0, 0)
 }
 
@@ -131,6 +135,7 @@ func open(s client.Session, ended func()) *window {
 	scale := float64(gtkWidgetScale(w.win))
 	w.cellPx = [2]int{int(cellW * scale), int(cellH * scale)}
 	w.panel, w.toast = newBox(w), newBox(w)
+	w.newInput(ctl)
 	w.contextActions()
 	windows[w.win] = w
 	gtkWindowPresent(w.win)
@@ -191,6 +196,9 @@ func (w *window) apply() {
 		if f.copied != nil {
 			gdkClipboardSetText(gdkDisplayClipboard(gdkDisplayDefault()), *f.copied)
 		}
+		if f.alert != "" && gtkWindowIsActive(w.win) == 0 {
+			w.notify(f.alert)
+		}
 	}
 	f := fs[len(fs)-1]
 	if f.title != "" {
@@ -227,6 +235,7 @@ func (w *window) apply() {
 	}
 	w.panel.show(f.panel)
 	w.toast.show(f.toast)
+	w.placeCaret()
 	if f.asked != w.asked {
 		w.asked = f.asked
 		if w.asking != 0 {
@@ -357,4 +366,13 @@ func modifiers(_, state, win uintptr) uintptr {
 		}
 	}
 	return 0
+}
+
+// notify shows text in the desktop's notification, from the application
+// (B564, B572).
+func (w *window) notify(text string) {
+	n := gNotificationNew("fude")
+	gNotificationBody(n, text)
+	gApplicationNotify(app, 0, n)
+	gObjectUnref(n)
 }

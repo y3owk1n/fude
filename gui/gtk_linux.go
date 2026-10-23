@@ -109,6 +109,17 @@ var (
 	gtkAdjustmentSet     func(a uintptr, value, lower, upper, step, page, pageSize float64)
 	gtkAdjustmentValue   func(a uintptr) float64
 	gtkScrollbarNew      func(orientation int32, adjustment uintptr) uintptr
+	gtkIMNew             func() uintptr
+	gtkIMSetClient       func(im, widget uintptr)
+	gtkIMFocusIn         func(im uintptr)
+	gtkIMPreedit         func(im uintptr, text **byte, attrs *uintptr, cursor *int32)
+	gtkIMCursorAt        func(im uintptr, r *gdkRect)
+	gtkKeySetIM          func(ctl, im uintptr)
+	gStrdup              func(s uintptr) *byte
+	pangoAttrListUnref   func(l uintptr)
+	gNotificationNew     func(title string) uintptr
+	gNotificationBody    func(n uintptr, body string)
+	gApplicationNotify   func(app, id, n uintptr)
 	gtkAlertSetButtons   func(d uintptr, labels *uintptr)
 	gtkAlertSetCancel    func(d uintptr, button int32)
 	gtkAlertChoose       func(d, parent, cancellable, fn, data uintptr)
@@ -295,6 +306,17 @@ func load() error {
 			{gtk, &gtkAdjustmentSet, "gtk_adjustment_configure"},
 			{gtk, &gtkAdjustmentValue, "gtk_adjustment_get_value"},
 			{gtk, &gtkScrollbarNew, "gtk_scrollbar_new"},
+			{gtk, &gtkIMNew, "gtk_im_multicontext_new"},
+			{gtk, &gtkIMSetClient, "gtk_im_context_set_client_widget"},
+			{gtk, &gtkIMFocusIn, "gtk_im_context_focus_in"},
+			{gtk, &gtkIMPreedit, "gtk_im_context_get_preedit_string"},
+			{gtk, &gtkIMCursorAt, "gtk_im_context_set_cursor_location"},
+			{gtk, &gtkKeySetIM, "gtk_event_controller_key_set_im_context"},
+			{gtk, &gStrdup, "g_strdup"},
+			{gtk, &gNotificationNew, "g_notification_new"},
+			{gtk, &gNotificationBody, "g_notification_set_body"},
+			{gtk, &gApplicationNotify, "g_application_send_notification"},
+			{pango, &pangoAttrListUnref, "pango_attr_list_unref"},
 			{gtk, &gtkAlertSetButtons, "gtk_alert_dialog_set_buttons"},
 			{gtk, &gtkAlertSetCancel, "gtk_alert_dialog_set_cancel_button"},
 			{gtk, &gtkAlertChoose, "gtk_alert_dialog_choose"},
@@ -381,4 +403,13 @@ func drain(uintptr) uintptr {
 		fn()
 	}
 	return 0
+}
+
+// cString copies the C string at p, which GTK made.
+func cString(p *byte) string {
+	n := 0
+	for *(*byte)(unsafe.Add(unsafe.Pointer(p), n)) != 0 {
+		n++
+	}
+	return string(unsafe.Slice(p, n))
 }
