@@ -57,6 +57,21 @@ func startApp(background bool) objc.ID {
 		flipped, {Cmd: sel("drawRect:"), Fn: drawText}, {Cmd: sel("menuForEvent:"), Fn: menuFor}, {Cmd: sel("scrolled:"), Fn: scrolled},
 	}, append(append(textMouse, restMouse...), textAccess...)...)...)
 	statusClass = class("FudeStatus", "NSView", append([]objc.MethodDef{flipped, {Cmd: sel("drawRect:"), Fn: drawStatus}}, statusMouse...)...)
+	// A box's table never takes the keyboard. Its rows draw the selection
+	// as they would with the focus, since the keys go to the box's list.
+	tableClass = class("FudeTable", "NSTableView",
+		objc.MethodDef{Cmd: sel("acceptsFirstResponder"), Fn: func(objc.ID, objc.SEL) bool { return false }},
+		objc.MethodDef{Cmd: sel("acceptsFirstMouse:"), Fn: func(objc.ID, objc.SEL, objc.ID) bool { return true }},
+		objc.MethodDef{Cmd: sel("mouseDown:"), Fn: tableClicked},
+		objc.MethodDef{Cmd: sel("hitTest:"), Fn: tableHit},
+		objc.MethodDef{Cmd: sel("mouseMoved:"), Fn: func(self objc.ID, _ objc.SEL, ev objc.ID) { tableHover(self, ev) }},
+		objc.MethodDef{Cmd: sel("mouseExited:"), Fn: func(self objc.ID, _ objc.SEL, _ objc.ID) { tableHover(self, 0) }})
+	rowClass = class("FudeRow", "NSTableRowView",
+		objc.MethodDef{Cmd: sel("isEmphasized"), Fn: func(objc.ID, objc.SEL) bool { return true }},
+		objc.MethodDef{Cmd: sel("drawBackgroundInRect:"), Fn: drawRowBack},
+		objc.MethodDef{Cmd: sel("drawSelectionInRect:"), Fn: drawRowSelection})
+	tableSource = objc.ID(class("FudeTableSource", "NSObject", tableMethods...)).Send(sel("alloc")).Send(sel("init"))
+	previewClass = class("FudePreview", "NSView", flipped, objc.MethodDef{Cmd: sel("drawRect:"), Fn: drawWholePreview})
 	// A label takes no clicks, which go to the status bar under it.
 	labelClass = class("FudeLabel", "NSTextField", objc.MethodDef{Cmd: sel("hitTest:"), Fn: func(objc.ID, objc.SEL, point) objc.ID { return 0 }})
 	splitClass = class("FudeSplit", "NSSplitView", objc.MethodDef{Cmd: sel("drawDividerInRect:"), Fn: drawDivider})

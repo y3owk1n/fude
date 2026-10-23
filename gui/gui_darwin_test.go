@@ -745,11 +745,11 @@ func TestB556MenusByMouse(t *testing.T) {
 		}
 		var scroll func(uintptr, uint32, uint32, int32, int32, int32) uintptr
 		purego.RegisterLibFunc(&scroll, cg, "CGEventCreateScrollWheelEvent2")
-		w.panel.view.Send(sel("scrollWheel:"), cls("NSEvent").Send(sel("eventWithCGEvent:"), scroll(0, 1, 1, -1, 0, 0)))
+		w.panel.scrolled.Send(sel("scrollWheel:"), cls("NSEvent").Send(sel("eventWithCGEvent:"), scroll(0, 1, 1, -1, 0, 0)))
 	}, true)
 	until(t, "the menu to scroll", func() bool {
 		var scrolled float64
-		onMain(func() { scrolled = w.panel.scroll }, true)
+		onMain(func() { scrolled = msgRect(w.panel.scrolled.Send(sel("contentView")), sel("bounds")).Origin.Y }, true)
 		return scrolled > 0 && line() == ":"+items[1]
 	})
 	// A click off the palette closes it.
@@ -958,7 +958,7 @@ func TestB559SystemChrome(t *testing.T) {
 		want := cls("NSColor").Send(sel("selectedContentBackgroundColor")).Send(sel("colorUsingColorSpace:"), srgb)
 		rgb, scale, _ := pixels(w.panel.view)
 		l := w.panel.list
-		got := rgb(int(scale*12), int(scale*(l.top()+(float64(l.selected)+0.5)*l.rowH)))
+		got := rgb(int(scale*40), int(scale*(l.top()+(float64(l.selected)+0.5)*l.rowH)))
 		for i, part := range []string{"redComponent", "greenComponent", "blueComponent"} {
 			if d := got[i] - msgComponent(want, sel(part)); d > 0.05 || d < -0.05 {
 				t.Errorf("the selected item is %v, not the system's selection", got)
@@ -988,6 +988,7 @@ func TestB560NativeLists(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)
 	editortest.Change(t, filepath.Join(dir, "a.txt"), "one\n")
+	editortest.Change(t, filepath.Join(dir, "long.txt"), strings.Repeat("a line\n", 200))
 	e := editortest.Open(t, "a.txt")
 	e.Use(filesmod.New())
 	var w *window
@@ -1027,10 +1028,9 @@ func TestB560NativeLists(t *testing.T) {
 		at := msgConvertPoint(w.panel.view, sel("convertPoint:toView:"), point{40, l.top() + 2.5*l.rowH}, 0)
 		ev := msgMouseEvent(cls("NSEvent"), sel("mouseEventWithType:location:modifierFlags:timestamp:windowNumber:context:eventNumber:clickCount:pressure:"),
 			5, at, 0, 0, objc.Send[int](w.win, sel("windowNumber")), 0, 0, 0, 0)
-		w.panel.view.Send(sel("mouseMoved:"), ev)
-		w.panel.view.Send(sel("display"))
-		if l.hovered != 2 {
-			t.Errorf("the mouse over the third row lights row %d", l.hovered)
+		w.panel.table.Send(sel("mouseMoved:"), ev)
+		if w.panel.hovered != 2 {
+			t.Errorf("the mouse over the third row lights row %d", w.panel.hovered)
 		}
 	}, true)
 	// The finder's files show the Finder's icon for them.
@@ -1043,6 +1043,17 @@ func TestB560NativeLists(t *testing.T) {
 					ok = ok || it.Label == "a.txt" && icons[it.Path] != 0
 				}
 			}
+		}, true)
+		return ok
+	})
+	// A preview longer than its box scrolls past the rows the box shows.
+	typed("long")
+	until(t, "the long file's whole preview", func() bool {
+		ok := false
+		onMain(func() {
+			doc := w.panel.previewScroll.Send(sel("documentView"))
+			ok = !objc.Send[bool](w.panel.previewScroll, sel("isHidden")) &&
+				msgRect(doc, sel("frame")).Size.H > msgRect(w.panel.previewScroll, sel("frame")).Size.H
 		}, true)
 		return ok
 	})
@@ -1412,13 +1423,13 @@ func TestB581Accessibility(t *testing.T) {
 	until(t, "the palette to have the focus", func() bool {
 		return focus() == said{"AXTextField", "command line", "ec", nsRange{2, 0}}
 	})
-	// The finder's field has its list of items beside it.
+	// The finder's field has the system's table of its items beside it.
 	typed("\x1b:pick\r")
 	until(t, "the finder's items", func() bool {
 		rows := 0
 		onMain(func() {
-			if parts := w.panel.view.Send(sel("accessibilityChildren")); objc.Send[int](parts, sel("count")) == 2 {
-				rows = objc.Send[int](parts.Send(sel("objectAtIndex:"), 1).Send(sel("accessibilityChildren")), sel("count"))
+			if parts := w.panel.view.Send(sel("accessibilityChildren")); objc.Send[int](parts, sel("count")) >= 2 && parts.Send(sel("objectAtIndex:"), 1) == w.panel.scrolled {
+				rows = objc.Send[int](w.panel.table.Send(sel("accessibilityRows")), sel("count"))
 			}
 		}, true)
 		return focus().role == "AXTextField" && rows > 0

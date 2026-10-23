@@ -392,6 +392,8 @@ Where fude departs, the line says so and cites the departure in
 - B130 [2] On a screen of 60 columns or more, the finder shows the start
   of the selected file in a box right of the list, as fff.nvim does, with
   its filetype's highlights. The two boxes have the same width and height.
+  With `--gui` on macOS the preview scrolls by the wheel and the trackpad
+  through up to 300 lines past those its box shows.
   A file with a zero byte in its first 16KB shows "binary file". When
   nothing matches, the list says "no matches". Before a query is typed,
   `:pick grep` says "type to search the files' lines".
@@ -1411,8 +1413,9 @@ Where fude departs, the line says so and cites the departure in
   right, and the selected item takes the system's selection colour. The
   row the mouse is over lights. A list taller than its box scrolls by the
   wheel and the trackpad, with a thin knob where it is, and scrolls to
-  show its selection when that moves. The finder's preview and the
-  documentation beside a menu keep the theme.
+  show its selection when that moves. On macOS each list is the system's
+  table, which takes the mouse and never the keyboard (D68). The finder's
+  preview and the documentation beside a menu keep the theme.
 - B561 [10] With `--gui` a right click on text puts the cursor there,
   unless a selection shows, and opens the system's menu. It offers Go to
   Definition, Go to Type Definition, Find References, Find

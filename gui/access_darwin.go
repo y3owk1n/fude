@@ -176,10 +176,8 @@ var boxAccess = append([]objc.MethodDef{
 			return nsString("AXGroup")
 		case b.read != nil:
 			return nsString("AXTextArea")
-		case b.list != nil && b.list.typing:
-			return nsString("AXGroup")
 		case b.list != nil:
-			return nsString("AXList")
+			return nsString("AXGroup")
 		}
 		return nsString("AXStaticText")
 	}},
@@ -192,15 +190,21 @@ var boxAccess = append([]objc.MethodDef{
 		}
 		return 0
 	}},
+	// The palette's and the finder's text field, the system's table of
+	// the items, and the finder's preview.
 	{Cmd: sel("accessibilityChildren"), Fn: func(self objc.ID, _ objc.SEL) objc.ID {
 		b := boxes[self]
-		switch {
-		case b == nil || b.boxed == nil || b.list == nil:
+		if b == nil || b.boxed == nil || b.list == nil {
 			return cls("NSArray").Send(sel("array"))
-		case b.list.typing:
-			return b.parts()
 		}
-		return b.rows()
+		kids := []objc.ID{b.scrolled}
+		if b.list.typing {
+			kids = append([]objc.ID{b.field}, kids...)
+		}
+		if preview := cellsText(b.cells); preview != "" {
+			kids = append(kids, b.previewOf(preview))
+		}
+		return nsArray(kids)
 	}},
 }, readingAccess...)
 
@@ -364,51 +368,16 @@ func (w *window) tabElements() objc.ID {
 	})
 }
 
-// rows are a menu's rows, the list a menu at the cursor is.
-func (b *box) rows() objc.ID {
-	l := b.list
-	return b.rowIDs.of(fmt.Sprint("rows", l.items, l.selected, l.scroll), func() []objc.ID { return b.rowsIn(b.view) })
-}
-
-// parts are the palette's and the finder's: the text field, the list of
-// items and the finder's preview.
-func (b *box) parts() objc.ID {
-	l, preview := b.list, cellsText(b.cells)
-	parts := b.rowIDs.of(fmt.Sprint("parts", l.items, l.selected, l.scroll, preview), func() []objc.ID {
-		bounds := msgRect(b.view, sel("bounds")).Size
-		list := newAction("AXList", "", b.view, b.view, rect{point{0, l.top()}, size{bounds.W, float64(l.shown()) * l.rowH}}, nil)
-		// The list's children retain its rows.
-		rows := b.rowsIn(list)
-		list.Send(sel("setAccessibilityChildren:"), nsArray(rows))
-		for _, row := range rows {
-			row.Send(sel("release"))
-		}
-		ids := []objc.ID{list}
-		if preview != "" {
-			p := newAction("AXStaticText", "preview", b.view, b.view, rect{Size: bounds}, nil)
-			p.Send(sel("setAccessibilityValue:"), nsString(preview))
-			ids = append(ids, p)
-		}
-		return ids
-	})
-	parts.Send(sel("insertObject:atIndex:"), b.field, 0)
-	return parts
-}
-
-// rowsIn returns a list's rows in parent, each its item's text, which picks
-// it when pressed (B556).
-func (b *box) rowsIn(parent objc.ID) []objc.ID {
-	l := b.list
-	wide := msgRect(b.view, sel("bounds")).Size.W - 16
-	var ids []objc.ID
-	for i, it := range l.items {
-		y := l.top() + float64(i)*l.rowH - l.scroll
-		row := newAction("AXStaticText", itemText(it), parent, b.view, rect{point{8, y}, size{wide, l.rowH}}, func() { b.w.mice <- mouse{kind: 'p', y: i} })
-		row.Send(sel("setAccessibilityValue:"), nsString(itemText(it)))
-		row.Send(sel("setAccessibilitySelected:"), i == l.selected)
-		ids = append(ids, row)
+// preview is the finder's preview of the box, as text, made the first
+// time.
+func (b *box) previewOf(text string) objc.ID {
+	if b.preview == 0 {
+		b.preview = newAction("AXStaticText", "preview", b.view, b.view, rect{}, nil)
 	}
-	return ids
+	origin := b.cellsOrigin()
+	actions[b.preview] = action{b.view, rect{origin, size{msgRect(b.view, sel("bounds")).Size.W - origin.X, msgRect(b.view, sel("bounds")).Size.H - origin.Y}}, nil}
+	b.preview.Send(sel("setAccessibilityValue:"), nsString(text))
+	return b.preview
 }
 
 // fields are the palette's and the finder's text fields, by element, each

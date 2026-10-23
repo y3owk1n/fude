@@ -526,6 +526,10 @@ func shorten(dir string, room int) (shown string, place func(int) int) {
 	}
 }
 
+// previewMore is how many lines a preview reads past those its box shows,
+// which a window frontend scrolls to (B130).
+const previewMore = 300
+
 // finderPrompt goes before the finder's query.
 const finderPrompt = "› "
 
@@ -538,7 +542,7 @@ func (f *finder) read(m string, rows, cols int) {
 		if cfg, format, err := imageFile(path); err == nil {
 			text, image = fmt.Sprintf("%s, %d by %d pixels", strings.ToUpper(format), cfg.Width, cfg.Height), path
 		} else {
-			text, at = preview(path, max(line-1, 0), rows, cols)
+			text, at = preview(path, max(line-1, 0), rows, previewMore, cols)
 		}
 	}
 	var spans []wire.Span
@@ -569,10 +573,11 @@ func imageFile(path string) (image.Config, string, error) {
 }
 
 // preview returns rows lines of the file at path from a third of them
-// above line, cut to cols columns with tabs as 4 spaces, and the row line
+// above line, and up to more lines after them for a window frontend to
+// scroll to, cut to cols columns with tabs as 4 spaces, and the row line
 // is on. A file with a zero byte in its first 16KB, or one that fails to
 // read, shows why there is no preview.
-func preview(path string, line, rows, cols int) (string, int) {
+func preview(path string, line, rows, more, cols int) (string, int) {
 	f, err := os.Open(path)
 	if err != nil {
 		return err.Error(), -1
@@ -584,7 +589,7 @@ func preview(path string, line, rows, cols int) (string, int) {
 	}
 	first := max(line-rows/3, 0)
 	var lines []string
-	for i := 0; len(lines) < rows; i++ {
+	for i := 0; len(lines) < rows+more; i++ {
 		b, err := r.ReadSlice('\n')
 		l := string(b)
 		// A long line shows its start, and the rest is never read in.

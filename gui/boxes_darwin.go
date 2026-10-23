@@ -10,11 +10,17 @@ import (
 // rounded corners and a shadow, and view on it, which draws what the box
 // shows.
 type boxNative struct {
-	frame, view objc.ID
-	field       objc.ID  // the palette's and the finder's text field for assistive apps
-	said        spoken   // its text as assistive apps count it
-	told        told     // what assistive apps were last told of it
-	rowIDs      elements // its list's elements for assistive apps
+	frame, view   objc.ID
+	field         objc.ID // the palette's and the finder's text field for assistive apps
+	said          spoken  // its text as assistive apps count it
+	told          told    // what assistive apps were last told of it
+	scrolled      objc.ID // the scroll view of its table
+	table         objc.ID // the system's list its menu shows in
+	listed        string  // what the table shows, to know when it changes
+	hovered       int     // the row the mouse is over, -1 for none
+	previewScroll objc.ID // the scroll view of the finder's whole preview
+	previewed     string  // the preview it shows, to know when another file shows
+	preview       objc.ID // the finder's preview for assistive apps, 0 until asked
 }
 
 // newBox makes a hidden box over w's views (B559).
@@ -48,12 +54,20 @@ func newBox(w *window) *box {
 	field.Send(sel("setAccessibilityParent:"), v)
 	b := &box{boxNative: boxNative{frame: frame, view: v, field: field, said: spoken{count: utf16Units}}, w: w, seen: -2, hover: point{X: -1}}
 	boxes[v], fields[field] = b, b
+	b.hovered = -1
+	b.newTable()
+	b.newPreview()
 	return b
 }
 
 // drop forgets b, whose window or float closed.
 func (b *box) drop() {
-	b.rowIDs.drop()
+	delete(tables, b.table)
+	delete(previews, b.previewScroll.Send(sel("documentView")))
+	if b.preview != 0 {
+		delete(actions, b.preview)
+		b.preview.Send(sel("release"))
+	}
 	delete(boxes, b.view)
 	delete(fields, b.field)
 	b.field.Send(sel("release"))
@@ -68,6 +82,8 @@ func (b *box) show(what *boxed, view objc.ID, top float64) {
 		b.frame.Send(sel("setHidden:"), 1)
 		b.view.Send(sel("setHidden:"), 1)
 		b.scroll, b.seen, b.hover = 0, -2, point{X: -1}
+		b.showTable()
+		b.showPreview()
 		return
 	}
 	r := placeBox(what, msgRect(view, sel("bounds")).Size, top, &b.scroll, &b.seen)
@@ -83,6 +99,8 @@ func (b *box) show(what *boxed, view objc.ID, top float64) {
 		b.frame.Send(sel("setHidden:"), 0)
 		b.view.Send(sel("setHidden:"), 0)
 	}
+	b.showTable()
+	b.showPreview()
 	b.view.Send(sel("setNeedsDisplay:"), 1)
 }
 

@@ -24,21 +24,45 @@ const statusH = 22
 // boxed is what a box shows, cells or a toast's text. The loop makes it
 // whole each frame.
 type boxed struct {
-	cells  [][]cell
-	rules  []rule // drawn over the cells
-	cursor cursorAt
-	middle bool    // it goes in the middle of the window, not its upper part
-	at     *[2]int // where its first cell goes, in cells of the area
-	title  string  // over the cells
-	pics   []pic   // over the cells
-	chosen []rule  // the rows a menu has selected, which take the system's selection
-	prompt string  // what a command line's prompt is, command or search, which each system shows as its own symbol
-	list   *list   // a menu the window lays out, before any cells
+	cells   [][]cell
+	rules   []rule // drawn over the cells
+	cursor  cursorAt
+	middle  bool             // it goes in the middle of the window, not its upper part
+	at      *[2]int          // where its first cell goes, in cells of the area
+	title   string           // over the cells
+	pics    []pic            // over the cells
+	chosen  []rule           // the rows a menu has selected, which take the system's selection
+	prompt  string           // what a command line's prompt is, command or search, which each system shows as its own symbol
+	list    *list            // a menu the window lays out, before any cells
+	whole   *scrolledPreview // the finder's preview past the rows its box shows, nil when they show it all
+	scrolls bool             // the window shows whole in a scroll view of its own, not the cells
 	// A float with the focus has its status line under its text.
 	left, right []client.Part
 	read        *reading // a float's text, for assistive apps
 	text        string
 	look        theme.Look
+}
+
+// drawPreview draws cells from origin with the cursor, the rows chosen on
+// the system's selection and the rules over them. Cells on ground draw
+// none, so the box's material shows.
+func drawPreview(cells [][]cell, cursor cursorAt, chosen, rules []rule, origin point, ground theme.RGB) {
+	for _, c := range chosen {
+		r := at(c.x, c.y, c.w, origin)
+		fillRounded("selectedContentBackgroundColor", rect{point{r.Origin.X - 4, r.Origin.Y}, size{r.Size.W + 8, r.Size.H}}, 5)
+	}
+	drawCells(cells, cursor, origin, &ground, chosen)
+	for _, ru := range rules {
+		r := at(ru.x, ru.y, ru.w, origin)
+		fill("separatorColor", rect{point{r.Origin.X, r.Origin.Y + math.Floor(cellH/2)}, size{r.Size.W, 1}})
+	}
+}
+
+// scrolledPreview is the finder's whole preview, as cells and the lines
+// and selected rows over them.
+type scrolledPreview struct {
+	cells         [][]cell
+	rules, chosen []rule
 }
 
 // rule is a line across w cells from column x of row y.
@@ -79,6 +103,15 @@ func finder(m wire.Menu, lk theme.Look) *boxed {
 		rows, _ := compose.Wrap(m.Doc, m.DocSpans, dw)
 		b.rules, b.chosen = write(g, m.Doc, m.DocSpans, rows[:min(len(rows), h)], lk, 0, 0, dw)
 		b.cells = cellsOf(g)
+		// The whole preview, past the rows its box shows, for a window
+		// that scrolls it.
+		if len(rows) > h {
+			all := compose.NewGrid(dw, len(rows), lk.Base)
+			p := &scrolledPreview{}
+			p.rules, p.chosen = write(all, m.Doc, m.DocSpans, rows, lk, 0, 0, dw)
+			p.cells = cellsOf(all)
+			b.whole = p
+		}
 		if p := m.DocImage; p != nil {
 			b.pics = []pic{{p.ID, 0, p.Row, min(p.Cols, dw), p.Rows}}
 		}
@@ -322,17 +355,10 @@ func (w *window) drawBoxed(b *boxed, hover point, bounds size) {
 		run{text: b.title, fg: "secondaryLabelColor"}.draw(inset, inset/2, head)
 	}
 	origin := b.cellsOrigin()
-	for _, c := range b.chosen {
-		r := at(c.x, c.y, c.w, origin)
-		fillRounded("selectedContentBackgroundColor", rect{point{r.Origin.X - 4, r.Origin.Y}, size{r.Size.W + 8, r.Size.H}}, 5)
+	if !b.scrolls {
+		drawPreview(b.cells, b.cursor, b.chosen, b.rules, origin, b.look.Base.Bg)
 	}
-	ground := b.look.Base.Bg
-	drawCells(b.cells, b.cursor, origin, &ground, b.chosen)
 	w.drawPics(b.pics, origin)
-	for _, ru := range b.rules {
-		r := at(ru.x, ru.y, ru.w, origin)
-		fill("separatorColor", rect{point{r.Origin.X, r.Origin.Y + math.Floor(cellH/2)}, size{r.Size.W, 1}})
-	}
 	if f := b.foot(); f > 0 {
 		drawParts(b.left, b.right, true, rect{point{0, bounds.H - f}, size{bounds.W, f}})
 	}

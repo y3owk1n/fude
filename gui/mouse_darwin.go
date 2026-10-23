@@ -88,14 +88,6 @@ func mouseAt(view objc.ID, ev objc.ID, kind byte) {
 func wheel(self objc.ID, _ objc.SEL, ev objc.ID) {
 	dy := msgFloat(ev, sel("scrollingDeltaY"))
 	precise := objc.Send[bool](ev, sel("hasPreciseScrollingDeltas"))
-	if b := boxes[self]; b != nil && b.boxed != nil && b.list != nil {
-		if !precise {
-			dy *= b.list.rowH
-		}
-		b.roll(-dy)
-		self.Send(sel("setNeedsDisplay:"), 1)
-		return
-	}
 	p := panes[self]
 	switch {
 	case p == nil:

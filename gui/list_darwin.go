@@ -3,7 +3,6 @@ package gui
 import (
 	"math"
 	"path/filepath"
-	"strconv"
 	"unicode/utf16"
 	"unicode/utf8"
 
@@ -26,68 +25,11 @@ func (l *list) natural() float64 {
 	return math.Ceil(w)
 }
 
-// draw draws l in its box from x, with its rows w wide.
+// draw draws the row typed into of l in its box from x. The system's table
+// under it shows the items (D68).
 func (l *list) draw(x float64) {
-	w := l.width
 	if l.typing {
-		l.drawInput(x, w)
-	}
-	y, h := l.top(), float64(l.shown())*l.rowH
-	ctx := cls("NSGraphicsContext").Send(sel("currentContext"))
-	ctx.Send(sel("saveGraphicsState"))
-	defer ctx.Send(sel("restoreGraphicsState"))
-	msgSetRect(cls("NSBezierPath"), sel("clipRect:"), rect{point{x, y}, size{w, h}})
-	// A list taller than its rows shows a thin knob where its rows are.
-	if all := float64(len(l.items)) * l.rowH; all > h {
-		system("tertiaryLabelColor").Send(sel("setFill"))
-		msgRounded(cls("NSBezierPath"), sel("bezierPathWithRoundedRect:xRadius:yRadius:"), rect{point{x + w - 4, y + l.scroll/all*h}, size{3, max(h*h/all, 16)}}, 1.5, 1.5).Send(sel("fill"))
-		w -= 8
-	}
-	first := int(l.scroll / l.rowH)
-	for i := first; i < min(len(l.items), first+l.shown()+1); i++ {
-		it := l.items[i]
-		r := rect{point{x, y + float64(i)*l.rowH - l.scroll}, size{w, l.rowH}}
-		label, detail := system("labelColor"), system("secondaryLabelColor")
-		if i == l.hovered && i != l.selected {
-			system("quaternaryLabelColor").Send(sel("setFill"))
-			msgRounded(cls("NSBezierPath"), sel("bezierPathWithRoundedRect:xRadius:yRadius:"), r, 6, 6).Send(sel("fill"))
-		}
-		if i == l.selected {
-			system("selectedContentBackgroundColor").Send(sel("setFill"))
-			msgRounded(cls("NSBezierPath"), sel("bezierPathWithRoundedRect:xRadius:yRadius:"), r, 6, 6).Send(sel("fill"))
-			label, detail = system("alternateSelectedControlTextColor"), system("alternateSelectedControlTextColor")
-		}
-		if it.Disabled {
-			label = system("tertiaryLabelColor")
-		}
-		font := listFont
-		if it.Header {
-			font, label = listBold, system("secondaryLabelColor")
-		}
-		at := r.Origin.X + 8
-		if icon := iconOf(it, label); icon != 0 {
-			drawSymbol(icon, rect{point{at, r.Origin.Y + (l.rowH-16)/2}, size{16, 16}})
-			at += 24
-		}
-		if it.Line > 0 {
-			n := nsString(strconv.Itoa(it.Line))
-			a := uiAttrs(listFont, detail)
-			msgDrawAt(n, sel("drawAtPoint:withAttributes:"), point{at, r.Origin.Y + (l.rowH-msgSizeOf(n, sel("sizeWithAttributes:"), a).H)/2}, a)
-			at += 36
-		}
-		end := r.Origin.X + w - 10
-		if it.Detail != "" {
-			d := nsString(it.Detail)
-			a := uiAttrs(listFont, detail)
-			sz := msgSizeOf(d, sel("sizeWithAttributes:"), a)
-			dx := max(end-sz.W, at+80)
-			msgDrawIn(d, sel("drawWithRect:options:attributes:context:"), rect{point{dx, r.Origin.Y + (l.rowH-sz.H)/2}, size{end - dx, sz.H}}, lineFragments, a, 0)
-			end = dx - 12
-		}
-		s := marked(it, font, label)
-		sz := msgSize(s, sel("size"))
-		msgDrawAttrIn(s, sel("drawWithRect:options:context:"), rect{point{at, r.Origin.Y + (l.rowH-sz.H)/2}, size{max(end-at, 0), sz.H}}, lineFragments, 0)
-		s.Send(sel("release"))
+		l.drawInput(x, l.width)
 	}
 }
 
