@@ -22,6 +22,7 @@ import (
 	"github.com/gdamore/tcell/v3/color"
 	"github.com/gdamore/tcell/v3/vt"
 	"github.com/y3owk1n/fude/api"
+	fudeclient "github.com/y3owk1n/fude/client"
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/editor/editortest"
 	"github.com/y3owk1n/fude/internal/clipboard"
@@ -46,7 +47,7 @@ import (
 )
 
 // An in-process session is one the terminal client draws (D39).
-var _ Session = (*editor.Session)(nil)
+var _ fudeclient.Session = (*editor.Session)(nil)
 
 // start opens args in an editor drawn on a mock terminal, with its config
 // and timeline logs in temp directories.
@@ -1396,7 +1397,7 @@ func TestB239Attach(t *testing.T) {
 	}
 	host := startWith(t, "", path).e.(*editor.Session)
 	socket, on, halt := serve(t, host)
-	a, err := Attach(socket, "pat")
+	a, err := fudeclient.Attach(socket, "pat")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1416,7 +1417,7 @@ func TestB239Attach(t *testing.T) {
 		t.Errorf("the attached client's keys left fude's buffer %q", text)
 	}
 	// A client whose connection breaks ends, and says why.
-	broken, err := Attach(socket, "pat")
+	broken, err := fudeclient.Attach(socket, "pat")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1521,7 +1522,7 @@ func asked(t *testing.T, host *editor.Session, on func(func()), name string) {
 func joining(share string) <-chan joined {
 	ch := make(chan joined, 1)
 	go func() {
-		a, err := Join(share, os.Getenv("USER"), editor.Own{}, false)
+		a, err := fudeclient.Join(share, os.Getenv("USER"), editor.Own{}, wire.Theme{}, false)
 		ch <- joined{a, err}
 	}()
 	return ch
@@ -1541,7 +1542,7 @@ func refused(t *testing.T, s, why string) {
 }
 
 type joined struct {
-	a   *Attached
+	a   *fudeclient.Attached
 	err error
 }
 
@@ -1707,7 +1708,7 @@ func TestB250WhoAndKick(t *testing.T) {
 	}
 	// Two guests called kyle are kyle and kyle2.
 	str := share(t, host, on, "")
-	var guests []*Attached
+	var guests []*fudeclient.Attached
 	for range 2 {
 		waiting := joining(str)
 		asked(t, host, on, "kyle")
@@ -1857,7 +1858,7 @@ func TestB252Names(t *testing.T) {
 	t.Setenv("USER", "kyle")
 	host := startWith(t, "", path).e.(*editor.Session)
 	socket, on, _ := serve(t, host)
-	a, err := Attach(socket, "pat")
+	a, err := fudeclient.Attach(socket, "pat")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1970,13 +1971,13 @@ func TestB254OwnConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("XDG_CONFIG_HOME", dir)
-	own, err := editor.OwnConfig()
+	own, theme, err := editor.OwnConfig()
 	if err != nil {
 		t.Fatal(err)
 	}
 	waiting := make(chan joined, 1)
 	go func() {
-		a, err := Join(str, "kyle", own, false)
+		a, err := fudeclient.Join(str, "kyle", own, theme, false)
 		waiting <- joined{a, err}
 	}()
 	asked(t, host, on, "kyle")
@@ -2031,7 +2032,7 @@ func TestB255JoinReadOnly(t *testing.T) {
 	str := share(t, host, on, "")
 	waiting := make(chan joined, 1)
 	go func() {
-		a, err := Join(str, "kyle", editor.Own{}, true)
+		a, err := fudeclient.Join(str, "kyle", editor.Own{}, wire.Theme{}, true)
 		waiting <- joined{a, err}
 	}()
 	// The host's question says the guest asks to be read-only.

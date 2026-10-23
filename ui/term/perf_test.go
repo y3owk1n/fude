@@ -26,6 +26,7 @@ import (
 
 	"github.com/gdamore/tcell/v3"
 	"github.com/gdamore/tcell/v3/vt"
+	fudeclient "github.com/y3owk1n/fude/client"
 	"github.com/y3owk1n/fude/distribution"
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/editor/editortest"
@@ -176,7 +177,7 @@ func TestPromiseKeyLatency(t *testing.T) {
 func TestPromiseAttachLatency(t *testing.T) {
 	host := startWith(t, "large_file = 20", realCode(t, 10<<20)).e.(*editor.Session)
 	socket, _, _ := serve(t, host)
-	a, err := Attach(socket, "pat")
+	a, err := fudeclient.Attach(socket, "pat")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -185,13 +186,13 @@ func TestPromiseAttachLatency(t *testing.T) {
 	// upTo runs the frames that come, drawing after each, until fude has
 	// handled n of the client's notices.
 	upTo := func(n int) {
-		for deadline := time.After(editortest.Patience); a.f.Input < n; {
+		for deadline := time.After(editortest.Patience); a.Handled() < n; {
 			select {
 			case f := <-a.Queue():
 				f()
 				c.draw()
 			case <-deadline:
-				t.Fatalf("fude handled %d notices of %d", a.f.Input, n)
+				t.Fatalf("fude handled %d notices of %d", a.Handled(), n)
 			}
 		}
 	}
@@ -214,7 +215,7 @@ func TestPromiseAttachLatency(t *testing.T) {
 			}
 			at := time.Now()
 			a.Feed(k)
-			upTo(a.f.Input + 1)
+			upTo(a.Handled() + 1)
 			times = append(times, time.Since(at))
 		}
 	}

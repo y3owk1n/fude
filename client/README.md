@@ -21,6 +21,11 @@ r.End()
 edits, err := r.Sync() // pushes the edit, and pulls what others made
 ```
 
+`Session` is what a frontend draws and types into. `*editor.Session` is
+one. `Attach` and `Join` make another, `Attached`, a session of a fude
+over its socket or a share. A frontend draws it from the frames that fude
+sends.
+
 `Changed` tells when the server has new edits to pull. `NewEditor` puts
 the vim machine over a replica, so a program edits a buffer with Vim's
 grammar from another process, as an agent does.

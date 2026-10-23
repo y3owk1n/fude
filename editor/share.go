@@ -17,6 +17,7 @@ import (
 	"github.com/y3owk1n/fude/internal/relay"
 	tlsshare "github.com/y3owk1n/fude/internal/share"
 	"github.com/y3owk1n/fude/internal/trace"
+	"github.com/y3owk1n/fude/wire"
 )
 
 // share is fude listening for guests (B248), or holding places for them
@@ -37,13 +38,11 @@ type share struct {
 	place *relay.Place
 }
 
-// Hello is the first line a joining guest sends.
-type Hello struct {
-	Secret string `json:"secret"`
-	Name   string `json:"name"`
-	Own    Own    `json:"own"`
-	// ReadOnly asks for a read-only guest's session (B255).
-	ReadOnly bool `json:"read_only,omitempty"`
+// guestHello is a guest's wire.Hello with what it takes from its config.toml.
+// Its Own hides wire.Hello's, so the JSON decodes into the editor's type.
+type guestHello struct {
+	wire.Hello
+	Own Own `json:"own"`
 }
 
 // Share listens on address with TLS for guests to join, and offers the
@@ -217,7 +216,7 @@ func (e *Session) admit(c net.Conn, stopped <-chan struct{}) {
 	in := bufio.NewScanner(c)
 	in.Buffer(nil, 1<<26)
 	c.SetReadDeadline(time.Now().Add(10 * time.Second))
-	var hello Hello
+	var hello guestHello
 	if !in.Scan() || json.Unmarshal(in.Bytes(), &hello) != nil {
 		trace.Record("share", c.RemoteAddr().String()+" sent no hello", 0)
 		return
@@ -267,7 +266,7 @@ func (e *Session) admit(c net.Conn, stopped <-chan struct{}) {
 // secret it says hello with is the share's. It sends the guest's new
 // session, which takes what the hello asks, on admitted, or nil when the
 // host says no, and returns why it did not ask.
-func (e *Session) letIn(name string, hello Hello, admitted chan<- *Session) error {
+func (e *Session) letIn(name string, hello guestHello, admitted chan<- *Session) error {
 	secret := hello.Secret
 	host, sh := e.sessions[0], e.share
 	switch {

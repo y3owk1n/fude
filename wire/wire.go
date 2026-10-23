@@ -29,3 +29,20 @@ type Pushed struct {
 	Applied bool           `json:"applied"`
 	Version kernel.Version `json:"version"`
 }
+
+// Hello is the first line a joining guest sends.
+type Hello struct {
+	Secret string `json:"secret"`
+	Name   string `json:"name"`
+	Own    any    `json:"own"` // what the guest's session takes from its config.toml (B254)
+	// ReadOnly asks for a read-only guest's session (B255).
+	ReadOnly bool `json:"read_only,omitempty"`
+}
+
+// Theme is what a client draws in: dark, light or a base16 scheme's name,
+// that scheme's colours, and the colours config.toml sets.
+type Theme struct {
+	Name   string
+	Base16 *[16]int32
+	Colors *Colors
+}

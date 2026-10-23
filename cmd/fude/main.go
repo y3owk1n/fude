@@ -443,7 +443,7 @@ func attach(flags map[string]string) error {
 	if err != nil {
 		return err
 	}
-	a, err := term.Attach(path, name(flags))
+	a, err := client.Attach(path, name(flags))
 	if err != nil {
 		return err
 	}
@@ -466,13 +466,13 @@ func join(words []string, flags map[string]string) error {
 		return usage("join")
 	}
 	// A guest still joins with what it read of a config that fails (B254).
-	own, err := editor.OwnConfig()
+	own, theme, err := editor.OwnConfig()
 	if err != nil {
 		fmt.Println("fude:", err)
 	}
 	fmt.Println("waiting for the host to let you in")
 	_, readOnly := flags["--read-only"]
-	a, err := term.Join(words[0], name(flags), own, readOnly)
+	a, err := client.Join(words[0], name(flags), own, theme, readOnly)
 	if err != nil {
 		return err
 	}

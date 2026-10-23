@@ -1,4 +1,4 @@
-package term
+package client
 
 import (
 	"time"
@@ -7,9 +7,9 @@ import (
 	"github.com/y3owk1n/fude/wire"
 )
 
-// Session is what the terminal client draws and types into: a session of
-// the fude the client runs in, or one of another fude it attached to
-// (D39). *editor.Session is the first.
+// Session is what a frontend draws and types into: a session of the fude
+// the frontend runs in, or one of another fude it attached to (D39, D63).
+// *editor.Session is the first.
 type Session interface {
 	// What the user does.
 	Feed(k vim.Key)

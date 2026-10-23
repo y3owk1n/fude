@@ -113,33 +113,32 @@ func (e *Session) mayShow(b *buffer) *buffer {
 }
 
 // Own is what a guest's session takes from config.toml on the guest's
-// machine. Its client keeps the theme and draws in it (B254).
+// machine (B254).
 type Own struct {
 	Leader  string
 	Keymap  keymap
 	Options options
-	Theme   string       `json:"-"`
-	Base16  *[16]int32   `json:"-"`
-	Colors  *wire.Colors `json:"-"`
 }
 
-// OwnConfig reads what of config.toml on this machine a guest takes. After
-// an error it returns what it read and the defaults for the rest.
-func OwnConfig() (Own, error) {
+// OwnConfig reads what of config.toml on this machine a guest takes, and
+// the theme its client draws in (B254). After an error it returns what it
+// read and the defaults for the rest.
+func OwnConfig() (Own, wire.Theme, error) {
 	cfg, err := loadConfig()
-	own := Own{Leader: cfg.Leader, Keymap: cfg.Keymap, Options: cfg.options, Theme: cfg.Theme}
+	own := Own{Leader: cfg.Leader, Keymap: cfg.Keymap, Options: cfg.options}
+	theme := wire.Theme{Name: cfg.Theme}
 	if cfg.Colors != (wire.Colors{}) {
-		own.Colors = &cfg.Colors
+		theme.Colors = &cfg.Colors
 	}
 	if cfg.Theme != "dark" && cfg.Theme != "light" {
 		colours, berr := readBase16(cfg.Theme)
 		if berr != nil {
-			own.Theme = "dark"
-			return own, cmp.Or(err, berr)
+			theme.Name = "dark"
+			return own, theme, cmp.Or(err, berr)
 		}
-		own.Base16 = &colours
+		theme.Base16 = &colours
 	}
-	return own, err
+	return own, theme, err
 }
 
 // use gives e the keys and window options of a guest's own config, and

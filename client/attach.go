@@ -1,4 +1,4 @@
-package term
+package client
 
 import (
 	"bufio"
@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/y3owk1n/fude/core/kernel"
-	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/internal/clipboard"
 	"github.com/y3owk1n/fude/internal/relay"
 	tlsshare "github.com/y3owk1n/fude/internal/share"
@@ -22,8 +21,8 @@ import (
 	"github.com/y3owk1n/fude/wire"
 )
 
-// Attached is a session of another fude. The terminal client draws it from
-// the frames that fude sends, and sends the user's input back (B239, D39).
+// Attached is a session of another fude. A frontend draws it from the
+// frames that fude sends, and sends the user's input back (B239, D39).
 type Attached struct {
 	c     net.Conn
 	enc   *json.Encoder
@@ -38,7 +37,7 @@ type Attached struct {
 	stop  bool                   // the user asked to suspend, until Suspend says so (B424)
 	done  bool
 	ended string     // why the session ended, for after the screen is gone
-	own   editor.Own // a guest's own config, whose theme it draws in (B254)
+	theme wire.Theme // a guest's own theme, which it draws in (B254)
 }
 
 var _ Session = (*Attached)(nil)
@@ -57,11 +56,11 @@ func Attach(socket, name string) (*Attached, error) {
 	return a, nil
 }
 
-// Join makes a guest session called name of the fude a share string
-// names, which takes own and is read-only when readOnly says, once its host
-// lets the guest in. It returns the session once its first frame has come
-// (B248, B254, B255).
-func Join(share, name string, own editor.Own, readOnly bool) (*Attached, error) {
+// Join makes a guest session called name of the fude that a share string
+// names. The session takes own, draws in theme and is read-only when
+// readOnly says. Join returns it once the host lets the guest in and its
+// first frame has come (B248, B254, B255).
+func Join(share, name string, own any, theme wire.Theme, readOnly bool) (*Attached, error) {
 	inv, err := tlsshare.Parse(share)
 	if err != nil {
 		return nil, fmt.Errorf("join: %w", err)
@@ -70,11 +69,11 @@ func Join(share, name string, own editor.Own, readOnly bool) (*Attached, error) 
 	if err != nil {
 		return nil, fmt.Errorf("join %s: %w", inv.Addr, err)
 	}
-	a, err := begin(c, editor.Hello{Secret: inv.Secret, Name: name, Own: own, ReadOnly: readOnly})
+	a, err := begin(c, wire.Hello{Secret: inv.Secret, Name: name, Own: own, ReadOnly: readOnly})
 	if err != nil {
 		return nil, fmt.Errorf("join %s: %w", inv.Addr, err)
 	}
-	a.own = own
+	a.theme = theme
 	return a, nil
 }
 
@@ -253,6 +252,10 @@ func (a *Attached) end(why string) {
 // accord or has not ended (B242).
 func (a *Attached) Ended() string { return a.ended }
 
+// Handled returns how many of the user's notices fude has handled, as of
+// the last frame.
+func (a *Attached) Handled() int { return a.f.Input }
+
 // Close ends the connection.
 func (a *Attached) Close() error { return a.c.Close() }
 
@@ -344,12 +347,12 @@ func (a *Attached) Terminal() bool     { return a.f.Terminal }
 func (a *Attached) Shown() string      { return a.f.Shown }
 func (a *Attached) Title() string      { return a.f.Title }
 
-// Theme returns a guest's own theme, or else the one fude draws in.
 func (a *Attached) Styles() (map[string]wire.Style, int) { return a.f.Styles, a.f.Restyled }
 
+// Theme returns a guest's own theme, or else the one fude draws in.
 func (a *Attached) Theme() (string, *[16]int32, *wire.Colors) {
-	if a.own.Theme != "" {
-		return a.own.Theme, a.own.Base16, a.own.Colors
+	if a.theme.Name != "" {
+		return a.theme.Name, a.theme.Base16, a.theme.Colors
 	}
 	return a.f.Theme, a.f.Base16, a.f.Colors
 }

@@ -2053,10 +2053,11 @@ as the edits since the version the client holds, the lists `Since` gives
 and `pull` returns. A client that falls too far behind gets the whole
 text again.
 
-`ui/term` reads a session through one interface, the methods it calls
-today, such as `Windows`, `Menu`, `Feed` and `SetSize`. `*editor.Session`
-implements it, and so does the attached session in `ui/term`, which
-applies frames as they come and sends input as it is typed. The speed
+A frontend reads a session through one interface, `client.Session`. Its
+methods are the ones `ui/term` calls today, such as `Windows`, `Menu`,
+`Feed` and `SetSize`. `*editor.Session` implements it, and so does
+`client.Attached`, which applies frames as they come and sends input as
+the user types. `client` imports no frontend and no editor (D63). The speed
 harness measures the attached path on the local socket as it measures
 the local one.
 

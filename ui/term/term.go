@@ -19,6 +19,7 @@ import (
 	"github.com/gdamore/tcell/v3"
 	"github.com/gdamore/tcell/v3/color"
 
+	fudeclient "github.com/y3owk1n/fude/client"
 	"github.com/y3owk1n/fude/internal/trace"
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
@@ -26,7 +27,7 @@ import (
 )
 
 // Run shows e in the terminal until the user quits.
-func Run(e Session) error {
+func Run(e fudeclient.Session) error {
 	tty, err := tcell.NewDevTty()
 	if err != nil {
 		return fmt.Errorf("open terminal: %w", err)
@@ -137,7 +138,7 @@ func dirty(s tcell.Screen) bool {
 // drain runs the work queued for the loop that is waiting now, so a burst
 // of it, such as a server's answers, draws one frame. It stops when a key
 // is waiting, which goes first.
-func drain(e Session, key func() bool) {
+func drain(e fudeclient.Session, key func() bool) {
 	for !key() {
 		select {
 		case f := <-e.Queue():
@@ -231,7 +232,7 @@ func leading(t vim.Text, pos, end int) int {
 
 type client struct {
 	s        tcell.Screen
-	e        Session
+	e        fudeclient.Session
 	theme    string            // the theme drawn in, as e names it
 	colours  *[16]int32        // its base16 scheme's colours, if it is one
 	over     wire.Colors       // the colours [colors] puts in place of its own
