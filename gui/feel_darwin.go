@@ -140,7 +140,8 @@ func (p *pane) showScroll(top, rows, lines int) {
 	go func() {
 		time.Sleep(time.Second)
 		onMain(func() {
-			if p.shownAt == at {
+			// A pane its window dropped, as switching tab pages does, freed its bar.
+			if p.shownAt == at && panes[p.text] == p {
 				msgSetFloat(p.scroller.Send(sel("animator")), sel("setAlphaValue:"), 0)
 			}
 		}, false)
