@@ -4,6 +4,7 @@ import (
 	"math"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/ebitengine/purego/objc"
 
@@ -22,6 +23,7 @@ type pane struct {
 	id                 int     // the window's
 	wheel              float64 // the lines a scroll moved short of one
 	cells              [][]cell
+	pics               []pic
 	cursor             cursorAt
 	left, right        []client.Part
 	current            bool
@@ -234,7 +236,7 @@ func (p *pane) update(sh shown, ground theme.RGB) {
 			p.cells[c.y][c.x+i] = cell{style: c.style}
 		}
 	}
-	p.cursor, p.left, p.right, p.current = sh.cursor, sh.left, sh.right, sh.current
+	p.cursor, p.left, p.right, p.current, p.pics = sh.cursor, sh.left, sh.right, sh.current, sh.pics
 	p.text.Send(sel("setNeedsDisplay:"), 1)
 	p.status.Send(sel("setNeedsDisplay:"), 1)
 }
@@ -247,6 +249,7 @@ func drawText(self objc.ID, _ objc.SEL, _ rect) {
 	nsColor(p.w.look.Base.Bg).Send(sel("setFill"))
 	rectFill(msgRect(self, sel("bounds")))
 	drawCells(p.cells, p.cursor, point{pad, pad})
+	p.w.drawPics(p.pics, point{pad, pad})
 }
 
 func drawDivider(self objc.ID, _ objc.SEL, r rect) {
@@ -369,7 +372,7 @@ func runs(parts []client.Part, lk theme.Look, current bool) []run {
 		case "sharing", "zoomed":
 			r.fg = th.Cmd
 		case "busy":
-			r.text, r.fg = "⠋", th.Normal
+			r.text, r.fg = string(spinner[time.Now().UnixMilli()/spinnerFrame.Milliseconds()%int64(len(spinner))]), th.Normal
 		}
 		if r.text != "" {
 			out = append(out, r)
@@ -377,6 +380,17 @@ func runs(parts []client.Part, lk theme.Look, current bool) []run {
 	}
 	return out
 }
+
+// turning reports whether parts turn a spinner.
+func turning(parts []client.Part) bool {
+	return slices.ContainsFunc(parts, func(p client.Part) bool { return p.Role == "busy" })
+}
+
+// spinner is the frames of the spinner a busy part turns, one each
+// spinnerFrame (B231).
+var spinner = []rune("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏")
+
+const spinnerFrame = 80 * time.Millisecond
 
 // modeColour is the colour of a mode of the kind client.ModeName gives.
 func modeColour(th theme.Theme, kind string) theme.RGB {

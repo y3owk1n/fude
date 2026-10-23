@@ -903,12 +903,14 @@ views, and each pane places its window (B542, B549). The title bar holds
 the buffers as tabs and the tab pages at its right. Floats and menus show
 in boxes over the panes, placed by their anchors (B543, B550). The root
 view is an input method's client, and the menus' Edit actions type Vim's
-keys for them (B551). The mouse goes to the session by cell (B552). The
-editor stays the source of each, and keys still go through Vim's grammar,
-so a palette holds no text field of its own. On other systems `fude gui`
-says it runs only on macOS for now. The GUI ships later as an app bundle
-built from the same code, and `fude` stays one binary, since the window
-adds about 0.1MB to it.
+keys for them (B551). The mouse goes to the session by cell (B552).
+Terminal windows draw from their cells. Images draw from the PNGs the
+session gives, with no terminal protocol (B553). The editor stays the
+source of each, and keys still go through Vim's grammar, so a palette
+holds no text field of its own. On other systems `fude gui` says it runs
+only on macOS for now. The GUI ships later as an app bundle built from the
+same code, and `fude` stays one binary, since the window adds about 0.1MB
+to it.
 
 Why, as of 2026-10-23: the user wants a first-class Vim GUI with native
 controls, not a terminal in a window. A spike drew fude's text in a native

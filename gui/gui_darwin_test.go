@@ -1,7 +1,12 @@
 package gui
 
 import (
+	"bytes"
 	"fmt"
+	"image"
+	"image/color"
+	"image/draw"
+	pngenc "image/png"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,7 +21,9 @@ import (
 	"github.com/y3owk1n/fude/modules/bufferline"
 	"github.com/y3owk1n/fude/modules/buffers"
 	"github.com/y3owk1n/fude/modules/completion"
+	filesmod "github.com/y3owk1n/fude/modules/files"
 	"github.com/y3owk1n/fude/modules/hints"
+	termmod "github.com/y3owk1n/fude/modules/terminal"
 	winmod "github.com/y3owk1n/fude/modules/window"
 )
 
@@ -455,6 +462,87 @@ func TestB552Mouse(t *testing.T) {
 	})
 }
 
+// B553
+func TestB553TerminalsAndImages(t *testing.T) {
+	t.Setenv("SHELL", "sh")
+	dir := t.TempDir()
+	t.Chdir(dir)
+	img := image.NewRGBA(image.Rect(0, 0, 64, 64))
+	draw.Draw(img, img.Bounds(), &image.Uniform{color.RGBA{255, 0, 0, 255}}, image.Point{}, draw.Src)
+	var png bytes.Buffer
+	if err := pngenc.Encode(&png, img); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "pic.png"), png.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	editortest.Change(t, filepath.Join(dir, "a.txt"), "one\n")
+	e := editortest.Open(t, "a.txt")
+	e.Use(termmod.New())
+	e.Use(filesmod.New())
+	var w *window
+	onMain(func() { w = open(e, nil) }, true)
+	typed := func(keys string) {
+		for _, c := range keys {
+			code := uint16(0)
+			switch c {
+			case '\r':
+				code = 36
+			case '\x1b':
+				code = 53
+			}
+			onMain(func() { press(w, code, 0, string(c), string(c)) }, true)
+		}
+	}
+	// A terminal window shows its program's screen.
+	typed(":terminal cat\rhi\r")
+	term := 0
+	until(t, "the terminal", func() bool {
+		w.onLoop(func() {
+			for _, v := range e.Windows() {
+				if v.Cells != nil {
+					term = v.ID
+				}
+			}
+		})
+		return term != 0
+	})
+	// cat shows what it reads under the line typed.
+	until(t, "the terminal's screen", func() bool {
+		drawn := false
+		onMain(func() {
+			p := w.panes[term]
+			drawn = p != nil && inked(p.text, pad, 0, 0) && inked(p.text, pad, 0, 1)
+		}, true)
+		return drawn
+	})
+	// The finder shows an image from its pixels.
+	typed("\x1b\x1b:pick files\rpic.png")
+	until(t, "the image in the finder", func() bool {
+		shown := false
+		onMain(func() {
+			b := w.panel
+			if b.boxed == nil || len(b.pics) == 0 || w.images[b.pics[0].id] == 0 {
+				return
+			}
+			// The middle of its first cell is the image's red.
+			p := b.pics[0]
+			rgb, scale, ok := pixels(b.view)
+			if ok {
+				c := rgb(int(scale*(inset+(float64(p.x)+0.5)*cellW)), int(scale*(inset+(float64(p.y)+0.5)*cellH)))
+				shown = c[0] > 0.8 && c[1] < 0.2 && c[2] < 0.2
+			}
+		}, true)
+		return shown
+	})
+	typed("\x1b:qa!\r")
+	until(t, "the session to end", func() bool {
+		open := true
+		onMain(func() { _, open = windows[w.view] }, true)
+		return !open
+	})
+}
+
 // onLoop runs fn on w's loop, where the session may be read.
 func (w *window) onLoop(fn func()) {
 	done := make(chan struct{})
@@ -490,20 +578,29 @@ var (
 	msgComponent  func(objc.ID, objc.SEL) float64
 )
 
-// inked reports whether the cell at column x and row y, its cells edge
-// points in from the view's edges, shows anything but the ground, read from
-// what the view draws.
-func inked(view objc.ID, edge float64, x, y int) bool {
+// pixels returns the colour of each pixel of what view draws, and how many
+// pixels a point takes.
+func pixels(view objc.ID) (func(px, py int) [3]float64, float64, bool) {
 	b := msgRect(view, sel("bounds"))
 	if b.Size.W < 1 {
-		return false
+		return nil, 0, false
 	}
 	rep := msgInitView(view, sel("bitmapImageRepForCachingDisplayInRect:"), b)
 	msgCache(view, sel("cacheDisplayInRect:toBitmapImageRep:"), b, rep)
 	scale := float64(objc.Send[int](rep, sel("pixelsWide"))) / b.Size.W
-	rgb := func(px, py int) [3]float64 {
+	return func(px, py int) [3]float64 {
 		c := msgColorAt(rep, sel("colorAtX:y:"), px, py)
 		return [3]float64{msgComponent(c, sel("redComponent")), msgComponent(c, sel("greenComponent")), msgComponent(c, sel("blueComponent"))}
+	}, scale, true
+}
+
+// inked reports whether the cell at column x and row y, its cells edge
+// points in from the view's edges, shows anything but the ground, read from
+// what the view draws.
+func inked(view objc.ID, edge float64, x, y int) bool {
+	rgb, scale, ok := pixels(view)
+	if !ok {
+		return false
 	}
 	ground := rgb(int(scale*2), int(scale*2))
 	for py := int(scale * (edge + float64(y)*cellH)); py < int(scale*(edge+float64(y+1)*cellH)); py++ {

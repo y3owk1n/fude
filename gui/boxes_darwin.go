@@ -31,6 +31,7 @@ type boxed struct {
 	middle bool    // it goes in the middle of the window, not its upper part
 	at     *[2]int // where its first cell goes, in cells of the area
 	title  string  // over the cells
+	pics   []pic   // over the cells
 	// A float with the focus has its status line under its text.
 	left, right []client.Part
 	text        string
@@ -98,6 +99,9 @@ func finder(m wire.Menu, lk theme.Look) *boxed {
 		muted.Base.Fg = lk.Theme.Muted
 		write(g, m.Title, nil, []compose.Row{{End: len(m.Title)}}, muted, r.x, r.y, n, -1)
 		r.x, r.w = r.x+n+1, r.w-n-1
+	}
+	if p := m.DocImage; p != nil && dw > 0 {
+		b.pics = []pic{{p.ID, lw + 3, p.Row, min(p.Cols, dw), p.Rows}}
 	}
 	if dw > 0 {
 		rows, _ := compose.Wrap(m.Doc, m.DocSpans, dw)
@@ -243,12 +247,14 @@ func cellsOf(g *compose.Grid) [][]cell {
 type box struct {
 	view objc.ID
 	*boxed
-	id int     // a float's window, which the mouse goes to, or 0
-	w  *window // a float's
+	id int // a float's window, which the mouse goes to, or 0
+	w  *window
 }
 
-// newBox makes a hidden box in view, with rounded corners and a shadow.
-func newBox(view objc.ID) *box {
+// newBox makes a hidden box over w's views, with rounded corners and a
+// shadow.
+func newBox(w *window) *box {
+	view := w.view
 	v := msgInitView(objc.ID(boxClass).Send(sel("alloc")), sel("initWithFrame:"), rect{})
 	v.Send(sel("setWantsLayer:"), 1)
 	l := v.Send(sel("layer"))
@@ -262,7 +268,7 @@ func newBox(view objc.ID) *box {
 	shadow.Send(sel("release"))
 	v.Send(sel("setHidden:"), 1)
 	view.Send(sel("addSubview:"), v)
-	b := &box{view: v}
+	b := &box{view: v, w: w}
 	boxes[v] = b
 	return b
 }
@@ -334,6 +340,7 @@ func drawBox(self objc.ID, _ objc.SEL, _ rect) {
 	}
 	origin := point{inset, inset + b.head()}
 	drawCells(b.cells, b.cursor, origin)
+	b.w.drawPics(b.pics, origin)
 	nsColor(b.look.Theme.Border).Send(sel("setFill"))
 	for _, ru := range b.rules {
 		r := at(ru.x, ru.y, ru.w, origin)

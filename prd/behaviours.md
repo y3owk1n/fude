@@ -1337,6 +1337,13 @@ Where fude departs, the line says so and cites the departure in
   the window, and a double click there zooms it. A trackpad scrolls a
   line for each row's height it moves, and a wheel a line for each line
   it turns.
+- B553 [10] In `fude gui` a terminal window shows its program's screen,
+  with the sixteen basic colours taken from the theme. Text shows bold,
+  italic, underlined and struck through as its style says, and a
+  diagnostic's underline is wavy. An image shows from its own pixels in
+  its rows (B303) and in the finder's preview (B305), in any window,
+  with no terminal's help. A busy part of a status line turns its
+  spinner (B231).
 - B544 [2] A session has tab pages, each with its own windows, floats
   and current window, as in Neovim. `:tabnew` and `:tabedit` open one
   after the current page, on a file or a new empty buffer. `gt`, `{n}gt`,

@@ -3,6 +3,7 @@ package gui
 import (
 	"fmt"
 	"maps"
+	"math"
 	"slices"
 	"strings"
 	"sync"
@@ -70,6 +71,9 @@ func startApp(background bool) objc.ID {
 	windowDelegate = objc.ID(class("FudeWindowDelegate", "NSObject", objc.MethodDef{Cmd: sel("windowShouldClose:"), Fn: windowShouldClose})).Send(sel("alloc")).Send(sel("init"))
 	font = msgFont(cls("NSFont"), sel("monospacedSystemFontOfSize:weight:"), 14, 0).Send(sel("retain"))
 	boldFont = msgFont(cls("NSFont"), sel("monospacedSystemFontOfSize:weight:"), 14, 0.4).Send(sel("retain"))
+	fonts := cls("NSFontManager").Send(sel("sharedFontManager"))
+	italicFont = fonts.Send(sel("convertFont:toHaveTrait:"), font, 1).Send(sel("retain"))
+	boldItalicFont = fonts.Send(sel("convertFont:toHaveTrait:"), boldFont, 1).Send(sel("retain"))
 	toastFont = msgFont(cls("NSFont"), sel("systemFontOfSize:weight:"), 13, 0).Send(sel("retain"))
 	uiFont = msgFont(cls("NSFont"), sel("systemFontOfSize:weight:"), 12, 0).Send(sel("retain"))
 	uiBold = msgFont(cls("NSFont"), sel("systemFontOfSize:weight:"), 12, 0.4).Send(sel("retain"))
@@ -93,6 +97,7 @@ var (
 	barClass, boxClass, markedClass objc.Class
 	windowDelegate                  objc.ID
 	font, boldFont, toastFont       objc.ID
+	italicFont, boldItalicFont      objc.ID
 	uiFont, uiBold                  objc.ID // the status bars' and the tab strip's
 	cellW, cellH                    float64
 	attrsOf                         = map[[2]int64]objc.ID{} // by font and colour
@@ -127,13 +132,15 @@ type window struct {
 	tabs         strip
 	floats       map[int]*box
 	panel, toast *box
-	asked        int     // the question the sheet is for, as frame.asked counts
-	sheet        objc.ID // the alert showing, 0 for none
-	dragged      mouse   // the last click or drag, to send a drag once a cell
-	hits         []hit   // the tabs the strip shows
-	marked       string  // the text an input method composes
-	preedit      objc.ID // the view that shows it
-	event        objc.ID // the key down the input method has
+	asked        int             // the question the sheet is for, as frame.asked counts
+	sheet        objc.ID         // the alert showing, 0 for none
+	images       map[int]objc.ID // by id, the NSImages of the images shown
+	cellPx       [2]int          // a cell's size in the screen's pixels
+	dragged      mouse           // the last click or drag, to send a drag once a cell
+	hits         []hit           // the tabs the strip shows
+	marked       string          // the text an input method composes
+	preedit      objc.ID         // the view that shows it
+	event        objc.ID         // the key down the input method has
 }
 
 type cell struct {
@@ -156,12 +163,15 @@ type frame struct {
 	wins    []shown
 	floats  map[int]*boxed // by window id, and -1 and -2 for a menu and its documentation
 	tabs    strip
-	look    theme.Look // the windows', dim under a modal box
-	panel   *boxed     // the command line or the finder, nil for neither
-	toast   *boxed     // the message, nil for none
-	confirm string     // the question, "" for none
-	asked   int        // counts each change of the question, to tell a new one
-	copied  *string    // to put on the system's clipboard
+	look    theme.Look     // the windows', dim under a modal box
+	panel   *boxed         // the command line or the finder, nil for neither
+	toast   *boxed         // the message, nil for none
+	confirm string         // the question, "" for none
+	asked   int            // counts each change of the question, to tell a new one
+	copied  *string        // to put on the system's clipboard
+	busy    bool           // a status line turns a spinner, so frames go on
+	pngs    map[int][]byte // by id, the images the main thread lacks
+	freed   []int          // the images the session dropped
 }
 
 // shown is a window of the layout as a frame brings it, with the cells
@@ -172,6 +182,7 @@ type shown struct {
 	cursor      cursorAt
 	left, right []client.Part
 	current     bool
+	pics        []pic
 }
 
 type placed struct {
@@ -184,7 +195,7 @@ type placed struct {
 func open(s client.Session, ended func()) *window {
 	cols, rows := 100, 32
 	r := rect{Size: size{cellW*float64(cols) + 2*pad, cellH*float64(rows) + 2*pad}}
-	w := &window{s: s, keys: make(chan vim.Key, 1024), do: make(chan func()), pastes: make(chan string, 8), mice: make(chan mouse, 64), ended: ended, placed: make(chan struct{}, 1), panes: map[int]*pane{}, floats: map[int]*box{}}
+	w := &window{s: s, keys: make(chan vim.Key, 1024), do: make(chan func()), pastes: make(chan string, 8), mice: make(chan mouse, 64), ended: ended, placed: make(chan struct{}, 1), panes: map[int]*pane{}, floats: map[int]*box{}, images: map[int]objc.ID{}}
 	// The content reaches under the title bar, which the tab strip takes.
 	w.win = msgInitWindow(cls("NSWindow").Send(sel("alloc")), sel("initWithContentRect:styleMask:backing:defer:"), r, 15|1<<15, 2, false)
 	w.win.Send(sel("setReleasedWhenClosed:"), 0)
@@ -192,6 +203,8 @@ func open(s client.Session, ended func()) *window {
 	w.win.Send(sel("setTitleVisibility:"), 1)
 	w.win.Send(sel("setTitle:"), nsString("fude"))
 	w.win.Send(sel("setDelegate:"), windowDelegate)
+	scale := msgFloat(w.win, sel("backingScaleFactor"))
+	w.cellPx = [2]int{int(cellW * scale), int(cellH * scale)}
 	w.view = msgInitView(objc.ID(viewClass).Send(sel("alloc")), sel("initWithFrame:"), r)
 	w.bar = msgInitView(objc.ID(barClass).Send(sel("alloc")), sel("initWithFrame:"), rect{})
 	w.area = msgInitView(cls("NSView").Send(sel("alloc")), sel("initWithFrame:"), rect{})
@@ -199,7 +212,7 @@ func open(s client.Session, ended func()) *window {
 	w.view.Send(sel("addSubview:"), w.bar)
 	cls("NSNotificationCenter").Send(sel("defaultCenter")).Send(sel("addObserver:selector:name:object:"), w.view, sel("splitResized:"), nsString("NSSplitViewDidResizeSubviewsNotification"), 0)
 	w.win.Send(sel("setContentView:"), w.view)
-	w.panel, w.toast = newBox(w.view), newBox(w.view)
+	w.panel, w.toast = newBox(w), newBox(w)
 	w.preedit = msgInitView(objc.ID(markedClass).Send(sel("alloc")), sel("initWithFrame:"), rect{})
 	w.preedit.Send(sel("setHidden:"), 1)
 	w.view.Send(sel("addSubview:"), w.preedit)
@@ -232,15 +245,20 @@ func (w *window) loop(cols, rows int) {
 	s := w.s
 	var p painter
 	question, asked := "", 0
+	var spin <-chan time.Time
 	draw := func() {
 		f := p.paint(s, cols, rows)
 		f.asked = asked
+		if f.busy && spin == nil {
+			spin = time.After(spinnerFrame)
+		}
 		w.mu.Lock()
 		w.pending = append(w.pending, f)
 		w.mu.Unlock()
 		onMain(w.apply, false)
 	}
 	s.SetSize(cols, rows)
+	s.SetCell(w.cellPx[0], w.cellPx[1])
 	draw()
 	s.Load()
 	var timeout <-chan time.Time
@@ -268,6 +286,8 @@ func (w *window) loop(cols, rows int) {
 		case <-timeout:
 			timeout = nil
 			s.Timeout()
+		case <-spin:
+			spin = nil
 		}
 		if d, ok := s.Wait(); !ok {
 			timeout = nil
@@ -291,6 +311,9 @@ func (w *window) loop(cols, rows int) {
 		for _, p := range w.panes {
 			p.drop()
 		}
+		for _, img := range w.images {
+			img.Send(sel("release"))
+		}
 		for _, b := range append([]*box{w.panel, w.toast}, slices.Collect(maps.Values(w.floats))...) {
 			delete(boxes, b.view)
 		}
@@ -308,6 +331,7 @@ type painter struct {
 	grids   map[int]*compose.Grid
 	had     map[int]bool // the windows of the last frame's layout
 	menuTop int          // the first row of a menu at the cursor that shows (B64)
+	sent    map[int]bool // the images the main thread has
 	frame   int
 	lookKey string
 	modal   bool
@@ -362,7 +386,7 @@ func (p *painter) paint(s client.Session, cols, rows int) frame {
 	}
 	_, mode := client.ModeName(s)
 	f := frame{
-		title: s.Title(), layout: layout, key: fmt.Sprint(layout), floats: map[int]*boxed{},
+		title: s.Title(), layout: layout, key: fmt.Sprint(layout), floats: map[int]*boxed{}, pngs: map[int][]byte{},
 		tabs: strip{buffers: s.Buffers(), pages: s.Pages(), mode: mode}, look: look, confirm: question,
 	}
 	in := map[int]bool{}
@@ -373,7 +397,7 @@ func (p *painter) paint(s client.Session, cols, rows int) frame {
 	floated := false // a float has the focus
 	cx, cy := 0, 0   // where the cursor is in the area
 	for _, v := range wins {
-		if v.Cells != nil || v.Float == "" && !in[v.ID] {
+		if v.Float == "" && !in[v.ID] {
 			continue
 		}
 		var cursors []int
@@ -385,12 +409,19 @@ func (p *painter) paint(s client.Session, cols, rows int) frame {
 			Selection: sel, Visual: visual && v.Current, Tint: look.Theme.Normal,
 		}
 		at := cursorAt{shape: shape(s)}
+		// draw draws v in g: its text, or a terminal's screen.
+		draw := func(g *compose.Grid, o compose.Options) compose.Composed {
+			if v.Cells != nil {
+				return termCells(g, v, o.Look)
+			}
+			return p.comp.Compose(g, v, o)
+		}
 		if v.Float != "" {
 			// A float shows lit in a box of its own, composed whole.
 			o.Look, o.Tint = boxLook, boxLook.Theme.Normal
 			g := compose.NewGrid(v.W, v.H, boxLook.Base)
-			out := p.comp.Compose(g, v, o)
-			b := &boxed{look: boxLook, at: &[2]int{v.X, v.Y}, title: v.Name, cells: cellsOf(g)}
+			out := draw(g, o)
+			b := &boxed{look: boxLook, at: &[2]int{v.X, v.Y}, title: v.Name, cells: cellsOf(g), pics: pics(v, out)}
 			// Its foot shows under a rule, and its status line under that
 			// while it has the focus (D55, B159).
 			if v.Foot != "" {
@@ -402,6 +433,7 @@ func (p *painter) paint(s client.Session, cols, rows int) frame {
 			}
 			if v.Current {
 				b.left, b.right = client.StatusParts(s, v, false)
+				f.busy = f.busy || turning(b.right)
 			}
 			if out.Found && v.Current {
 				at.x, at.y, at.shown = out.X, out.Y, true
@@ -417,7 +449,7 @@ func (p *painter) paint(s client.Session, cols, rows int) frame {
 			g = compose.NewGrid(v.W, v.H, look.Base)
 			p.grids[v.ID] = g
 		}
-		out := p.comp.Compose(g, v, o)
+		out := draw(g, o)
 		sh := shown{id: v.ID, w: v.W, h: v.H, current: v.Current}
 		g.Paint(0, 0, func(x, y int, text string, width int, st theme.Style) {
 			sh.put = append(sh.put, placed{x, y, cell{text, width, st}})
@@ -430,6 +462,8 @@ func (p *painter) paint(s client.Session, cols, rows int) frame {
 			}
 		}
 		sh.left, sh.right = client.StatusParts(s, v, true)
+		f.busy = f.busy || turning(sh.right)
+		sh.pics = pics(v, out)
 		f.wins = append(f.wins, sh)
 	}
 	p.had = in
@@ -455,6 +489,17 @@ func (p *painter) paint(s client.Session, cols, rows int) frame {
 	if text, ok := s.Clipboard(); ok {
 		f.copied = &text
 	}
+	var all []pic
+	for _, sh := range f.wins {
+		all = append(all, sh.pics...)
+	}
+	for _, b := range f.floats {
+		all = append(all, b.pics...)
+	}
+	if f.panel != nil {
+		all = append(all, f.panel.pics...)
+	}
+	p.images(s, &f, all)
 	// While the palette, the finder or a question shows, no window shows
 	// the cursor. A float with the focus shows it, and the window it opened
 	// from does not.
@@ -506,6 +551,7 @@ func (w *window) apply() {
 	}
 	for _, f := range fs {
 		w.look = f.look
+		w.keep(f.pngs, f.freed)
 		if f.key != w.key {
 			w.key = f.key
 			w.build(f.layout)
@@ -544,8 +590,8 @@ func (w *window) apply() {
 		b := w.floats[id]
 		if b == nil {
 			// It goes under the palette, the finder and toasts.
-			b = newBox(w.view)
-			b.id, b.w = id, w
+			b = newBox(w)
+			b.id = id
 			w.view.Send(sel("addSubview:positioned:relativeTo:"), b.view, -1, w.panel.view)
 			w.floats[id] = b
 		}
@@ -566,10 +612,44 @@ func (w *window) apply() {
 
 // attrs returns the text attributes of a style in the text's font.
 func attrs(s theme.Style) objc.ID {
-	if s.Bold {
+	switch {
+	case s.Bold && s.Italic:
+		return textAttrs(boldItalicFont, s.Fg)
+	case s.Bold:
 		return textAttrs(boldFont, s.Fg)
+	case s.Italic:
+		return textAttrs(italicFont, s.Fg)
 	}
 	return textAttrs(font, s.Fg)
+}
+
+// decorate draws the lines s asks for over the text in r: a strike through
+// its middle and an underline under it. An underline with a colour of its
+// own, as a diagnostic's has, is wavy.
+func decorate(s theme.Style, r rect) {
+	if s.Strike {
+		nsColor(s.Fg).Send(sel("setFill"))
+		rectFill(rect{point{r.Origin.X, r.Origin.Y + math.Floor(cellH/2)}, size{r.Size.W, 1}})
+	}
+	switch {
+	case !s.Underline:
+	case s.UnderSet:
+		nsColor(s.Under).Send(sel("setStroke"))
+		path := cls("NSBezierPath").Send(sel("bezierPath"))
+		y := r.Origin.Y + cellH - 2
+		msgPointArg(path, sel("moveToPoint:"), point{r.Origin.X, y})
+		for x, up := r.Origin.X+2, true; x <= r.Origin.X+r.Size.W; x, up = x+2, !up {
+			dy := 0.0
+			if up {
+				dy = -2
+			}
+			msgPointArg(path, sel("lineToPoint:"), point{x, y + dy})
+		}
+		path.Send(sel("stroke"))
+	default:
+		nsColor(s.Fg).Send(sel("setFill"))
+		rectFill(rect{point{r.Origin.X, r.Origin.Y + cellH - 2}, size{r.Size.W, 1}})
+	}
 }
 
 // textAttrs returns the text attributes of f in fg, made once each.
@@ -613,6 +693,7 @@ func drawCells(cells [][]cell, cursor cursorAt, o point) {
 			if t := strings.TrimRight(text.String(), " "); t != "" {
 				msgDrawAt(nsString(t), sel("drawAtPoint:withAttributes:"), r.Origin, attrs(c.style))
 			}
+			decorate(c.style, r)
 			x += max(n, c.width)
 		}
 	}
