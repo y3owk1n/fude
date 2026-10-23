@@ -24,4 +24,15 @@ jobs:
       - uses: y3owk1n/oku@v0.18.3
         env:
           GITHUB_TOKEN: ${{ github.token }}
-      - run: just ci
+      # The window's tests on Linux need GTK 4 and a display, which Xvfb
+      # gives, drawn with cairo as it has no GL (B566).
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libgtk-4-1 xvfb
+      - if: runner.os == 'Linux'
+        run: xvfb-run -a just ci
+        env:
+          GSK_RENDERER: cairo
+          GDK_BACKEND: x11
+          NO_AT_BRIDGE: "1"
+      - if: runner.os != 'Linux'
+        run: just ci

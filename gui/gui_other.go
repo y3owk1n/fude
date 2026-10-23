@@ -1,4 +1,4 @@
-//go:build !darwin
+//go:build !darwin && !linux
 
 package gui
 
@@ -9,8 +9,8 @@ import (
 	"github.com/y3owk1n/fude/frontend/theme"
 )
 
-// Run says the window is for macOS only (B547).
-func Run(client.Session) error { return errors.New("--gui runs only on macOS for now") }
+// Run says the window is for macOS and Linux only (B547, B566).
+func Run(client.Session) error { return errors.New("--gui runs only on macOS and Linux for now") }
 
 // native is a window's system objects, none until the system has a window.
 type native struct{}

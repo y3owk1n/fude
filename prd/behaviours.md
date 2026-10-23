@@ -1445,6 +1445,16 @@ Where fude departs, the line says so and cites the departure in
   the user's login shell sets, so language servers are found as in a
   terminal. Opened at `/`, as Finder opens an app, it starts in the home
   folder.
+- B566 [10] With `--gui` on Linux, fude shows a session in a GTK 4
+  window, as on macOS (B547). Each window of the layout is a pane of the
+  window's splits, its text over its status bar. The command line shows
+  in a palette, messages as toasts, and floats and menus in boxes over the
+  panes, in the GTK theme's colours, with its dark look on a dark theme.
+  Keys typed there go to the session as Vim keys, with an Alt chord as
+  `<Esc>` and the key and a Super chord left to the desktop. Resizing the
+  window resizes the session, a question shows in a dialog, and closing
+  the window quits as `:qa` does. It needs GTK 4. The mouse, images, the
+  tab strip and input methods do not work there yet.
 - B544 [2] A session has tab pages, each with its own windows, floats
   and current window, as in Neovim. `:tabnew` and `:tabedit` open one
   after the current page, on a file or a new empty buffer. `gt`, `{n}gt`,

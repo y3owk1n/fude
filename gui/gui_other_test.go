@@ -1,4 +1,4 @@
-//go:build !darwin
+//go:build !darwin && !linux
 
 package gui_test
 
@@ -10,7 +10,7 @@ import (
 
 // B547
 func TestB547OnlyOnMacOS(t *testing.T) {
-	if err := gui.Run(nil); err == nil || err.Error() != "--gui runs only on macOS for now" {
+	if err := gui.Run(nil); err == nil || err.Error() != "--gui runs only on macOS and Linux for now" {
 		t.Errorf("--gui elsewhere said %v", err)
 	}
 }

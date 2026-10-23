@@ -151,6 +151,9 @@ The order is dependency order, not priority. Behaviours in
     messages as toasts, questions as sheets, the buffers as tabs in the
     title bar, native splits with status bars, floats and menus by their
     anchors, the mouse and input methods, and an app bundle.
+11. Native windows on Linux through GTK 4, then on Windows through Win32
+    and DirectWrite (D66), sharing the painter with macOS: first the
+    window, its panes, boxes and keys, then the mouse, images, the tab
+    strip, input methods and the rest of step 10.
 
-Not scheduled: lenses, GPU and web clients, native windows on Windows and
-Linux.
+Not scheduled: lenses, GPU and web clients.

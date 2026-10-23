@@ -1,0 +1,289 @@
+package gui
+
+import (
+	"fmt"
+	"runtime"
+	"sync"
+
+	"github.com/ebitengine/purego"
+)
+
+// GTK runs on the main thread, which the main goroutine keeps.
+func init() { runtime.LockOSThread() }
+
+// GTK4's, cairo's and Pango's calls, which load opens (D66). A pointer is a
+// uintptr, as purego passes it.
+var (
+	gIdleAdd             func(fn, data uintptr) uint32
+	gSignalConnectData   func(inst uintptr, signal string, fn, data, destroy uintptr, flags uint32) uint64
+	gObjectRefSink       func(o uintptr) uintptr
+	gObjectUnref         func(o uintptr)
+	gObjectSetProperty   func(o uintptr, name string, v *gValue)
+	gObjectGetProperty   func(o uintptr, name string, v *gValue)
+	gValueInit           func(v *gValue, t uint64) *gValue
+	gValueSetBoolean     func(v *gValue, b int32)
+	gValueGetString      func(v *gValue) string
+	gValueUnset          func(v *gValue)
+	gApplicationRun      func(app uintptr, argc int32, argv uintptr) int32
+	gApplicationHold     func(app uintptr)
+	gApplicationQuit     func(app uintptr)
+	gtkApplicationNew    func(id string, flags uint32) uintptr
+	gtkAppWindowNew      func(app uintptr) uintptr
+	gtkWindowSetTitle    func(w uintptr, title string)
+	gtkWindowSetSize     func(w uintptr, width, height int32)
+	gtkWindowSetChild    func(w, child uintptr)
+	gtkWindowPresent     func(w uintptr)
+	gtkWindowDestroy     func(w uintptr)
+	gtkWindowIsActive    func(w uintptr) int32
+	gtkOverlayNew        func() uintptr
+	gtkOverlaySetChild   func(o, child uintptr)
+	gtkOverlayAdd        func(o, child uintptr)
+	gtkOverlayRemove     func(o, child uintptr)
+	gtkPanedNew          func(orientation int32) uintptr
+	gtkPanedSetStart     func(p, child uintptr)
+	gtkPanedSetEnd       func(p, child uintptr)
+	gtkPanedSetPosition  func(p uintptr, position int32)
+	gtkDrawingAreaNew    func() uintptr
+	gtkDrawingAreaSetFn  func(a, fn, data, destroy uintptr)
+	gtkWidgetQueueDraw   func(w uintptr)
+	gtkWidgetGetWidth    func(w uintptr) int32
+	gtkWidgetGetHeight   func(w uintptr) int32
+	gtkWidgetSetVisible  func(w uintptr, on int32)
+	gtkWidgetSetHalign   func(w uintptr, align int32)
+	gtkWidgetSetValign   func(w uintptr, align int32)
+	gtkWidgetSetHexpand  func(w uintptr, on int32)
+	gtkWidgetSetVexpand  func(w uintptr, on int32)
+	gtkWidgetMarginStart func(w uintptr, margin int32)
+	gtkWidgetMarginTop   func(w uintptr, margin int32)
+	gtkWidgetSizeRequest func(w uintptr, width, height int32)
+	gtkWidgetSetTarget   func(w uintptr, on int32)
+	gtkWidgetAddControl  func(w, c uintptr)
+	gtkWidgetBounds      func(w, target uintptr, out *grect) int32
+	gtkWidgetStyle       func(w uintptr) uintptr
+	gtkWidgetScale       func(w uintptr) int32
+	gtkWidgetParent      func(w uintptr) uintptr
+	gtkStyleLookupColor  func(ctx uintptr, name string, out *gdkRGBA) int32
+	gtkKeyControllerNew  func() uintptr
+	gtkControllerPhase   func(c uintptr, phase int32)
+	gtkSettingsDefault   func() uintptr
+	gtkAlertDialogNew    func(format string) uintptr
+	gtkAlertSetMessage   func(d uintptr, message string)
+	gCancellableNew      func() uintptr
+	gCancellableCancel   func(c uintptr)
+	gdkDisplayDefault    func() uintptr
+	gdkDisplayClipboard  func(d uintptr) uintptr
+	gdkClipboardSetText  func(c uintptr, text string)
+	gtkAlertSetButtons   func(d uintptr, labels *uintptr)
+	gtkAlertSetCancel    func(d uintptr, button int32)
+	gtkAlertChoose       func(d, parent, cancellable, fn, data uintptr)
+	gtkAlertChooseFinish func(d, result uintptr, err *uintptr) int32
+	gdkKeyvalToUnicode   func(keyval uint32) uint32
+	cairoSetRGBA         func(cr uintptr, r, g, b, a float64)
+	cairoRectangle       func(cr uintptr, x, y, w, h float64)
+	cairoFill            func(cr uintptr)
+	cairoStroke          func(cr uintptr)
+	cairoMoveTo          func(cr uintptr, x, y float64)
+	cairoLineTo          func(cr uintptr, x, y float64)
+	cairoLineWidth       func(cr uintptr, w float64)
+	cairoArc             func(cr uintptr, x, y, r, from, to float64)
+	cairoNewSubPath      func(cr uintptr)
+	cairoClosePath       func(cr uintptr)
+	cairoSave            func(cr uintptr)
+	cairoRestore         func(cr uintptr)
+	cairoClip            func(cr uintptr)
+	pangoCairoLayout     func(cr uintptr) uintptr
+	pangoCairoShow       func(cr, layout uintptr)
+	pangoCairoFontMap    func() uintptr
+	pangoFontMapContext  func(fm uintptr) uintptr
+	pangoLayoutNew       func(ctx uintptr) uintptr
+	pangoLayoutSetText   func(l uintptr, text string, n int32)
+	pangoLayoutMarkup    func(l uintptr, markup string, n int32)
+	pangoLayoutSetFont   func(l, desc uintptr)
+	pangoLayoutSetWidth  func(l uintptr, w int32)
+	pangoLayoutSetHeight func(l uintptr, h int32)
+	pangoLayoutSetWrap   func(l uintptr, wrap int32)
+	pangoLayoutEllipsize func(l uintptr, mode int32)
+	pangoLayoutSize      func(l uintptr, w, h *int32)
+	pangoFontFromString  func(s string) uintptr
+	pangoFontSetWeight   func(desc uintptr, weight int32)
+	pangoFontSetStyle    func(desc uintptr, style int32)
+	pangoFontCopy        func(desc uintptr) uintptr
+)
+
+// gValue is a GValue, a type and two words of data.
+type gValue struct {
+	typ  uint64
+	data [2]uint64
+}
+
+// The GTypes of the values fude reads and writes.
+const (
+	gTypeBoolean = 5 << 2
+	gTypeString  = 16 << 2
+)
+
+// grect is a graphene_rect_t, and gdkRGBA a GdkRGBA.
+type (
+	grect   struct{ X, Y, W, H float32 }
+	gdkRGBA struct{ R, G, B, A float32 }
+)
+
+// pangoScale is how many of Pango's units make a point.
+const pangoScale = 1024
+
+var loadOnce sync.Once
+
+// load opens GTK4, cairo and Pango, and finds their calls, once.
+func load() error {
+	var err error
+	loadOnce.Do(func() {
+		libs := map[string]uintptr{}
+		for _, name := range []string{"libgtk-4.so.1", "libcairo.so.2", "libpango-1.0.so.0", "libpangocairo-1.0.so.0"} {
+			h, e := purego.Dlopen(name, purego.RTLD_NOW|purego.RTLD_GLOBAL)
+			if e != nil {
+				err = fmt.Errorf("--gui on Linux needs GTK 4: open %s: %w", name, e)
+				return
+			}
+			libs[name] = h
+		}
+		gtk, cairo, pango, pc := libs["libgtk-4.so.1"], libs["libcairo.so.2"], libs["libpango-1.0.so.0"], libs["libpangocairo-1.0.so.0"]
+		for _, f := range []struct {
+			lib  uintptr
+			fn   any
+			name string
+		}{
+			{gtk, &gIdleAdd, "g_idle_add"},
+			{gtk, &gSignalConnectData, "g_signal_connect_data"},
+			{gtk, &gObjectRefSink, "g_object_ref_sink"},
+			{gtk, &gObjectUnref, "g_object_unref"},
+			{gtk, &gObjectSetProperty, "g_object_set_property"},
+			{gtk, &gObjectGetProperty, "g_object_get_property"},
+			{gtk, &gValueInit, "g_value_init"},
+			{gtk, &gValueSetBoolean, "g_value_set_boolean"},
+			{gtk, &gValueGetString, "g_value_get_string"},
+			{gtk, &gValueUnset, "g_value_unset"},
+			{gtk, &gApplicationRun, "g_application_run"},
+			{gtk, &gApplicationHold, "g_application_hold"},
+			{gtk, &gApplicationQuit, "g_application_quit"},
+			{gtk, &gtkApplicationNew, "gtk_application_new"},
+			{gtk, &gtkAppWindowNew, "gtk_application_window_new"},
+			{gtk, &gtkWindowSetTitle, "gtk_window_set_title"},
+			{gtk, &gtkWindowSetSize, "gtk_window_set_default_size"},
+			{gtk, &gtkWindowSetChild, "gtk_window_set_child"},
+			{gtk, &gtkWindowPresent, "gtk_window_present"},
+			{gtk, &gtkWindowDestroy, "gtk_window_destroy"},
+			{gtk, &gtkWindowIsActive, "gtk_window_is_active"},
+			{gtk, &gtkOverlayNew, "gtk_overlay_new"},
+			{gtk, &gtkOverlaySetChild, "gtk_overlay_set_child"},
+			{gtk, &gtkOverlayAdd, "gtk_overlay_add_overlay"},
+			{gtk, &gtkOverlayRemove, "gtk_overlay_remove_overlay"},
+			{gtk, &gtkPanedNew, "gtk_paned_new"},
+			{gtk, &gtkPanedSetStart, "gtk_paned_set_start_child"},
+			{gtk, &gtkPanedSetEnd, "gtk_paned_set_end_child"},
+			{gtk, &gtkPanedSetPosition, "gtk_paned_set_position"},
+			{gtk, &gtkDrawingAreaNew, "gtk_drawing_area_new"},
+			{gtk, &gtkDrawingAreaSetFn, "gtk_drawing_area_set_draw_func"},
+			{gtk, &gtkWidgetQueueDraw, "gtk_widget_queue_draw"},
+			{gtk, &gtkWidgetGetWidth, "gtk_widget_get_width"},
+			{gtk, &gtkWidgetGetHeight, "gtk_widget_get_height"},
+			{gtk, &gtkWidgetSetVisible, "gtk_widget_set_visible"},
+			{gtk, &gtkWidgetSetHalign, "gtk_widget_set_halign"},
+			{gtk, &gtkWidgetSetValign, "gtk_widget_set_valign"},
+			{gtk, &gtkWidgetSetHexpand, "gtk_widget_set_hexpand"},
+			{gtk, &gtkWidgetSetVexpand, "gtk_widget_set_vexpand"},
+			{gtk, &gtkWidgetMarginStart, "gtk_widget_set_margin_start"},
+			{gtk, &gtkWidgetMarginTop, "gtk_widget_set_margin_top"},
+			{gtk, &gtkWidgetSizeRequest, "gtk_widget_set_size_request"},
+			{gtk, &gtkWidgetSetTarget, "gtk_widget_set_can_target"},
+			{gtk, &gtkWidgetAddControl, "gtk_widget_add_controller"},
+			{gtk, &gtkWidgetBounds, "gtk_widget_compute_bounds"},
+			{gtk, &gtkWidgetStyle, "gtk_widget_get_style_context"},
+			{gtk, &gtkWidgetScale, "gtk_widget_get_scale_factor"},
+			{gtk, &gtkWidgetParent, "gtk_widget_get_parent"},
+			{gtk, &gtkStyleLookupColor, "gtk_style_context_lookup_color"},
+			{gtk, &gtkKeyControllerNew, "gtk_event_controller_key_new"},
+			{gtk, &gtkControllerPhase, "gtk_event_controller_set_propagation_phase"},
+			{gtk, &gtkSettingsDefault, "gtk_settings_get_default"},
+			{gtk, &gtkAlertDialogNew, "gtk_alert_dialog_new"},
+			{gtk, &gtkAlertSetMessage, "gtk_alert_dialog_set_message"},
+			{gtk, &gCancellableNew, "g_cancellable_new"},
+			{gtk, &gCancellableCancel, "g_cancellable_cancel"},
+			{gtk, &gdkDisplayDefault, "gdk_display_get_default"},
+			{gtk, &gdkDisplayClipboard, "gdk_display_get_clipboard"},
+			{gtk, &gdkClipboardSetText, "gdk_clipboard_set_text"},
+			{gtk, &gtkAlertSetButtons, "gtk_alert_dialog_set_buttons"},
+			{gtk, &gtkAlertSetCancel, "gtk_alert_dialog_set_cancel_button"},
+			{gtk, &gtkAlertChoose, "gtk_alert_dialog_choose"},
+			{gtk, &gtkAlertChooseFinish, "gtk_alert_dialog_choose_finish"},
+			{gtk, &gdkKeyvalToUnicode, "gdk_keyval_to_unicode"},
+			{cairo, &cairoSetRGBA, "cairo_set_source_rgba"},
+			{cairo, &cairoRectangle, "cairo_rectangle"},
+			{cairo, &cairoFill, "cairo_fill"},
+			{cairo, &cairoStroke, "cairo_stroke"},
+			{cairo, &cairoMoveTo, "cairo_move_to"},
+			{cairo, &cairoLineTo, "cairo_line_to"},
+			{cairo, &cairoLineWidth, "cairo_set_line_width"},
+			{cairo, &cairoArc, "cairo_arc"},
+			{cairo, &cairoNewSubPath, "cairo_new_sub_path"},
+			{cairo, &cairoClosePath, "cairo_close_path"},
+			{cairo, &cairoSave, "cairo_save"},
+			{cairo, &cairoRestore, "cairo_restore"},
+			{cairo, &cairoClip, "cairo_clip"},
+			{pc, &pangoCairoLayout, "pango_cairo_create_layout"},
+			{pc, &pangoCairoShow, "pango_cairo_show_layout"},
+			{pc, &pangoCairoFontMap, "pango_cairo_font_map_get_default"},
+			{pango, &pangoFontMapContext, "pango_font_map_create_context"},
+			{pango, &pangoLayoutNew, "pango_layout_new"},
+			{pango, &pangoLayoutSetText, "pango_layout_set_text"},
+			{pango, &pangoLayoutMarkup, "pango_layout_set_markup"},
+			{pango, &pangoLayoutSetFont, "pango_layout_set_font_description"},
+			{pango, &pangoLayoutSetWidth, "pango_layout_set_width"},
+			{pango, &pangoLayoutSetHeight, "pango_layout_set_height"},
+			{pango, &pangoLayoutSetWrap, "pango_layout_set_wrap"},
+			{pango, &pangoLayoutEllipsize, "pango_layout_set_ellipsize"},
+			{pango, &pangoLayoutSize, "pango_layout_get_size"},
+			{pango, &pangoFontFromString, "pango_font_description_from_string"},
+			{pango, &pangoFontSetWeight, "pango_font_description_set_weight"},
+			{pango, &pangoFontSetStyle, "pango_font_description_set_style"},
+			{pango, &pangoFontCopy, "pango_font_description_copy"},
+		} {
+			purego.RegisterLibFunc(f.fn, f.lib, f.name)
+		}
+	})
+	return err
+}
+
+// The main thread's queue of work from other goroutines, which drain runs.
+var (
+	mainMu    sync.Mutex
+	mainQueue []func()
+	drainFn   uintptr
+)
+
+// onMain runs fn on the main thread, after what it already has queued, and
+// with wait returns once fn has run.
+func onMain(fn func(), wait bool) {
+	done := make(chan struct{})
+	mainMu.Lock()
+	mainQueue = append(mainQueue, func() {
+		defer close(done)
+		fn()
+	})
+	mainMu.Unlock()
+	gIdleAdd(drainFn, 0)
+	if wait {
+		<-done
+	}
+}
+
+// drain runs the queued work, as GLib's idle source, which it removes.
+func drain(uintptr) uintptr {
+	mainMu.Lock()
+	q := mainQueue
+	mainQueue = nil
+	mainMu.Unlock()
+	for _, fn := range q {
+		fn()
+	}
+	return 0
+}
