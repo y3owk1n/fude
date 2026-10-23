@@ -196,7 +196,7 @@ autocmds, options). Attaching them would mean emulating Neovim.
 
 ## D26. tcell v3 for the terminal, behind fude's own screen interface
 
-`ui/term/` wraps tcell v3 with `OptAdvancedKeys`, so the rest of fude sees
+`tui/` wraps tcell v3 with `OptAdvancedKeys`, so the rest of fude sees
 fude's key and cell types, never tcell's. Startup turns tcell's
 negotiation round trip off (`OptNegotiation(false)`) and enables the kitty
 keyboard protocol unconditionally, which terminals without it ignore. It
@@ -211,7 +211,7 @@ and a README that says its API may change. vaxis blocks startup on two
 round trips with no opt-out, which breaks the 5ms first frame.
 
 Costs accepted: Super and Meta are one modifier, so `<D-x>` cannot differ
-from `<M-x>`. Paste arrives as keys between markers, which `ui/term/`
+from `<M-x>`. Paste arrives as keys between markers, which `tui/`
 collects into one paste (B8). Grapheme mode 2027 is never enabled. Without
 kitty or modifyOtherKeys, `<C-i>` and `<Tab>` are the same key, as in every
 terminal library. With the kitty protocol forced, tcell's
@@ -511,8 +511,9 @@ such program.
 
 `wire/` holds the types fude and its clients send each other: a replica's
 edits, pulls and pushes, and the frames an attached client draws. `editor/`,
-`client/` and `ui/term/` use it. A guest's hello stays in `editor/`, since
-it carries the guest's own keymaps and options. Why: each side had its
+`client/` and `tui/` use it. A guest's hello is there too, and the
+editor decodes the keymaps and options it carries, so `client/` joins a
+share without the editor. Why: each side had its
 own copy of the replica types, and two copies of one protocol can
 disagree with nothing to catch it. A client that draws frames needs
 them without the editor. `wire/` stays in the root module until a client
@@ -837,7 +838,7 @@ pieces any server's config or a plugin builds on, and no defaults.
 
 ## D63. The editor serves frontends, and the terminal is one
 
-`editor/` holds no frontend. `ui/term` is the terminal frontend fude
+`editor/` holds no frontend. `tui` is the terminal frontend fude
 ships, and it stays as it is. fude may add a native frontend that uses
 the system's own tabs, splits and mouse. Every frontend draws a session
 through `client.Session` (D39), so it runs a local session or an

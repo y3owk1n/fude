@@ -1,4 +1,4 @@
-package term
+package tui
 
 import (
 	"bytes"
@@ -386,7 +386,7 @@ func TestB64MenuScrolls(t *testing.T) {
 
 // B345
 func TestB345ModuleStyles(t *testing.T) {
-	full, err := filepath.Abs("../../plugin/testdata/full/full.wasm")
+	full, err := filepath.Abs("../plugin/testdata/full/full.wasm")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1925,7 +1925,7 @@ func TestB253Presence(t *testing.T) {
 
 // B254
 func TestB254OwnConfig(t *testing.T) {
-	kit, err := filepath.Abs("../../plugin/testdata/kit/kit.wasm")
+	kit, err := filepath.Abs("../plugin/testdata/kit/kit.wasm")
 	if err != nil {
 		t.Fatal(err)
 	}

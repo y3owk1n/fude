@@ -1,4 +1,4 @@
-package term
+package tui
 
 import (
 	"github.com/gdamore/tcell/v3"

@@ -6,7 +6,7 @@
 // and a terminal parses that frame in a process of its own, so the tests'
 // terminal throws it away.
 
-package term
+package tui
 
 import (
 	"bufio"
@@ -235,7 +235,7 @@ func TestPromiseAttachLatency(t *testing.T) {
 // each change.
 func TestPromiseKeyLatencyFullSetup(t *testing.T) {
 	path := committed(t, realCode(t, 10<<20))
-	count, err := filepath.Abs("../../plugin/testdata/count/count.wasm")
+	count, err := filepath.Abs("../plugin/testdata/count/count.wasm")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -45,8 +45,9 @@ protocol/        Go module: stdlib only, no dependency on fude's other packages
   framing/       the Content-Length frames both use
 wire/            what fude and its clients send over the socket: replica
                  edits and the frames an attached client draws
-ui/term/         terminal client
-client/          a client over the socket, with replicas of buffers
+tui/             terminal client
+client/          what a frontend draws a session through, and a client over
+                 the socket with replicas of buffers
 internal/        packages only fude's own packages may import
   clipboard/     the system clipboard, through pbcopy, wl-copy or xclip
   keep/          the XDG directories, files written whole and the recent files
@@ -1466,7 +1467,7 @@ allocated before the switch frees safely.
 Captures paint as tree-sitter's own highlighter picks them (B46). A capture
 on a node inside another wins, and of the captures on one node only the last
 pattern's counts. The terminal client colours them from fude's theme, in
-`ui/term/theme.go`: a set of named colours for each of dark and light,
+`tui/theme.go`: a set of named colours for each of dark and light,
 from which every style derives, starting with the text's colours on the
 ground (B145, D33). A base16 scheme fills the same set: base00 to base03
 are the grounds and faint text, base04 and base05 muted and plain text, and
@@ -2044,7 +2045,7 @@ client knows which of its keys it shows. Because one goroutine sends,
 each frame's edits arrive in order. Closing the connection makes the
 session leave (B240).
 
-A frame holds what `ui/term` reads of a session: the windows without their
+A frame holds what `tui` reads of a session: the windows without their
 text, the float, the command line and its cursor, the mode, message,
 selection, other cursors, theme, signature help, `:s` preview,
 the macro being recorded and the text to put on the client's clipboard.
@@ -2054,7 +2055,7 @@ and `pull` returns. A client that falls too far behind gets the whole
 text again.
 
 A frontend reads a session through one interface, `client.Session`. Its
-methods are the ones `ui/term` calls today, such as `Windows`, `Menu`,
+methods are the ones `tui` calls today, such as `Windows`, `Menu`,
 `Feed` and `SetSize`. `*editor.Session` implements it, and so does
 `client.Attached`, which applies frames as they come and sends input as
 the user types. `client` imports no frontend and no editor (D63).
@@ -2133,7 +2134,7 @@ as `relay/room/fingerprint/secret`, when `fude share --relay host` made it.
 
 Each session has a name and a colour, a number fixed when it begins.
 `Windows` gives each window the other sessions whose current window shows
-its buffer, with their names, colours, cursors and selections. `ui/term`
+its buffer, with their names, colours, cursors and selections. `tui`
 maps the number to one of six of the theme's accents, so each client
 draws the others in its own theme. The attach call and a guest's first
 line carry the client's name.
@@ -2235,7 +2236,7 @@ phases, each unit a commit that keeps every behaviour.
 3. Tests beside the libraries. The tests that use only `syntax`,
    `protocol`, `plugin` or `api` move beside them, so `go test` in each
    proves its behaviours. One headless test per module moves beside
-   it. `editor`, `ui/term`, `client`, `wire` and `modules` get READMEs.
+   it. `editor`, `tui`, `client`, `wire` and `modules` get READMEs.
 
 Not in step 9: rewriting `vim` or `core`, replacing tcell or wazero, or
 splitting `editor` into packages for its own sake.

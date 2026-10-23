@@ -1,6 +1,6 @@
 //go:build !windows
 
-package term
+package tui
 
 import (
 	"fmt"

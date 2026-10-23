@@ -46,7 +46,7 @@ for _, v := range e.Windows() {
 - `Serve` listens on a socket for clients, `Attach` makes a session for one,
   and `Share` and `ShareRelay` let guests in over TLS.
 
-[`ui/term`](../ui/term) is the client fude ships. It runs any
+[`tui`](../tui) is the client fude ships. It runs any
 [`client.Session`](../client), the editor's own or one attached over the
 socket.
 

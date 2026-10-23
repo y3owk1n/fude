@@ -57,7 +57,7 @@ demo tape="fude":
 # Check the speed and memory promises, without the race detector, one
 # package at a time so none slows another's timings.
 perf:
-    go test -count=1 -p 1 -v -run Promise ./ui/term/ ./editor/
+    go test -count=1 -p 1 -v -run Promise ./tui/ ./editor/
     cd cmd/fude && go test -count=1 -v -run Promise .
 
 # Tidy cmd/fude's go.mod against the checkout, and fail if that changed it.
@@ -104,7 +104,7 @@ loc:
     editor editor
     vim vim
     modules syntax plugin protocol/lsp sdk api api/diff modules/blame modules/colours modules/comment modules/debug modules/editorconfig modules/fold modules/format modules/git modules/grep modules/inlay modules/lsp modules/spell modules/task
-    clients ui/term client
+    clients tui client
     kernel core/kernel core/rope
     glue cmd/fude internal/pty internal/clipboard internal/trace
     EOF

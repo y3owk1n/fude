@@ -1,6 +1,6 @@
 // Package term is the terminal client. It draws an editor on a tcell screen
 // and feeds it keys.
-package term
+package tui
 
 import (
 	"bytes"

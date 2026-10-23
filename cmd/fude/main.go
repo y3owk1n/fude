@@ -23,7 +23,7 @@ import (
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/internal/relay"
 	"github.com/y3owk1n/fude/plugin"
-	"github.com/y3owk1n/fude/ui/term"
+	"github.com/y3owk1n/fude/tui"
 )
 
 func main() {
@@ -448,7 +448,7 @@ func attach(flags map[string]string) error {
 		return err
 	}
 	defer a.Close()
-	if err := term.Run(a); err != nil {
+	if err := tui.Run(a); err != nil {
 		return err
 	}
 	// The reason is a whole message, such as "fude quit".
@@ -477,7 +477,7 @@ func join(words []string, flags map[string]string) error {
 		return err
 	}
 	defer a.Close()
-	if err := term.Run(a); err != nil {
+	if err := tui.Run(a); err != nil {
 		return err
 	}
 	// The reason is a whole message, such as "fude quit".
@@ -542,7 +542,7 @@ func edit(sharing bool, words []string, flags map[string]string, remove func()) 
 		}
 		defer unshare()
 	}
-	err = term.Run(e)
+	err = tui.Run(e)
 	e.Finish(time.Second)
 	stop()
 	if path := e.Restart(); err == nil && path != "" {
