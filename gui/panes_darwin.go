@@ -265,15 +265,11 @@ func (p *pane) label() {
 	p.placeLabels()
 }
 
-// statusString is runs as one string of the system's font, a mode in its
-// colour rather than on it.
+// statusString is runs as one string of the system's font.
 func statusString(rs []run) objc.ID {
 	s := cls("NSMutableAttributedString").Send(sel("alloc")).Send(sel("init")).Send(sel("autorelease"))
 	gap := ""
 	for _, r := range rs {
-		if r.pill {
-			r.fg = r.ground
-		}
 		part := cls("NSAttributedString").Send(sel("alloc")).Send(sel("initWithString:attributes:"), nsString(gap+r.text), r.attrs())
 		s.Send(sel("appendAttributedString:"), part)
 		part.Send(sel("release"))

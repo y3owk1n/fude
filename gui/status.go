@@ -34,7 +34,7 @@ func width(rs []run) float64 {
 }
 
 // runs are a status line's parts as the bar draws them, by their roles,
-// in the system's colours (B147).
+// in the system's colours, the mode in its own (B147).
 func runs(parts []client.Part, current bool) []run {
 	label, muted := "labelColor", "secondaryLabelColor"
 	if !current {
@@ -44,7 +44,7 @@ func runs(parts []client.Part, current bool) []run {
 	for _, p := range parts {
 		r := run{text: p.Text, fg: muted}
 		if kind, ok := strings.CutPrefix(p.Role, "mode."); ok {
-			r = run{text: p.Text, bold: true, fg: "whiteColor", ground: modeColour(kind), pill: true}
+			r = run{text: p.Text, bold: true, fg: modeColour(kind)}
 		}
 		switch p.Role {
 		case "recording":

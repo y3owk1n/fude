@@ -1391,10 +1391,10 @@ Where fude departs, the line says so and cites the departure in
   transparent title bar, so the title bar, the text and the status bars
   are one surface with hairlines between them. Without tabs the title bar
   shows the current file's name, and on macOS its icon, as a document
-  window does. On macOS and Linux each status bar is the system's labels,
-  with the mode in its colour. The palette, the finder, menus, floats and
-  toasts draw on the system's translucent material, in rounded panels
-  with a shadow. Text the window composes itself takes the system's font,
+  window does. Each status bar shows the mode as bold text in its colour,
+  and on macOS and Linux the bar is the system's labels. The palette, the
+  finder, menus, floats and toasts draw on the system's translucent
+  material, in rounded panels with a shadow. Text the window composes itself takes the system's font,
   or the text's family when `gui.font` names one (B584), and the system's
   colours. A selected item takes the system's selection colour, and a
   mode or a count of diagnostics the system's colour for it.

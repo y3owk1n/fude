@@ -267,8 +267,8 @@ func (w *window) apply() {
 	}
 }
 
-// dress gives the window GTK's dark look on a dark theme, and its light
-// look on a light one.
+// dress gives the window GTK's dark look on a dark theme and its light
+// look on a light one. It also gives the status bars the theme's ground.
 func (w *window) dress(f frame) {
 	if d := dark(f.ground); d != w.dark {
 		w.dark = d
@@ -281,6 +281,10 @@ func (w *window) dress(f frame) {
 		gValueSetBoolean(&v, on)
 		gObjectSetProperty(gtkSettingsDefault(), "gtk-application-prefer-dark-theme", &v)
 		clear(colours)
+	}
+	if bg := f.look.Base.Bg; bg != statusGround {
+		statusGround = bg
+		styleChrome()
 	}
 }
 

@@ -67,15 +67,12 @@ func makeFonts() {
 // desktopFont is the desktop's font, as GTK names it, such as "Cantarell 11".
 var desktopFont string
 
-// markup is runs as Pango's markup in the theme's colours, a mode in its
-// colour rather than on it, for a status bar's labels.
+// markup is runs as Pango's markup in the theme's colours, for a status
+// bar's labels.
 func markup(rs []run) string {
 	var b strings.Builder
 	gap := ""
 	for _, r := range rs {
-		if r.pill {
-			r.fg = r.ground
-		}
 		c := system(r.fg)
 		weight := "normal"
 		if r.bold {
@@ -91,23 +88,28 @@ func markup(rs []run) string {
 	return b.String()
 }
 
-// chromeStyle gives the status bars the theme's window colour under a
-// hairline, and the chrome's family when the session chose one.
-var chromeStyle uintptr
+// chromeStyle gives the status bars the theme's ground under a hairline,
+// and the chrome's family when the session chose one. chromeFamilies and
+// statusGround are what it last styled.
+var (
+	chromeStyle    uintptr
+	chromeFamilies string
+	statusGround   theme.RGB
+)
 
-// styleChrome loads the window's own style, which makeChromeFonts calls
-// as its fonts change.
-func styleChrome(families string) {
+// styleChrome loads the window's own style. makeChromeFonts calls it when
+// the fonts change, and dress when the theme's ground does.
+func styleChrome() {
 	if chromeStyle == 0 {
 		chromeStyle = gtkCSSProviderNew()
 		// GTK_STYLE_PROVIDER_PRIORITY_APPLICATION.
 		gtkStyleAddProvider(gdkDisplayDefault(), chromeStyle, 600)
 	}
 	// Each list row is the box's row height, as showTable expects.
-	css := ".fude-status { background-color: @theme_bg_color; border-top: 1px solid @borders; padding: 0 6px; min-height: 22px; }" +
+	css := fmt.Sprintf(".fude-status { background-color: #%06x; border-top: 1px solid @borders; padding: 0 %dpx; min-height: %dpx; }", statusGround, pad, statusH-1) +
 		" .fude-list { background: none; } .fude-list > row { min-height: 0; padding: 0 8px; margin: 0 4px; }"
-	if families != "" {
-		css += fmt.Sprintf(" .fude-status label { font-family: %s; }", families)
+	if chromeFamilies != "" {
+		css += fmt.Sprintf(" .fude-status label { font-family: %s; }", chromeFamilies)
 	}
 	gtkCSSProviderLoad(chromeStyle, css, -1)
 }
@@ -124,14 +126,14 @@ func makeChromeFonts() {
 	family := strings.TrimRightFunc(desktopFont, func(r rune) bool { return r == ' ' || r >= '0' && r <= '9' || r == '.' })
 	uiFont = pangoFontFromString(desktopFont)
 	inputFont = pangoFontFromString(family + " 14")
-	css := ""
+	chromeFamilies = ""
 	if len(wanted.Families) > 0 {
 		families := strings.Join(append(slices.Clone(wanted.Families), family), ",")
 		pangoFontSetFamily(uiFont, families)
 		pangoFontSetFamily(inputFont, families)
-		css = `"` + strings.Join(wanted.Families, `", "`) + `"`
+		chromeFamilies = `"` + strings.Join(wanted.Families, `", "`) + `"`
 	}
-	styleChrome(css)
+	styleChrome()
 	uiBold = pangoFontCopy(uiFont)
 	pangoFontSetWeight(uiBold, 700)
 }
