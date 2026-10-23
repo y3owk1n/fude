@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/fude/editor"
-	"github.com/y3owk1n/fude/wire"
+	"github.com/y3owk1n/fude/frontend/wire"
 )
 
 // proposeQuote has agent propose text for the quote around at.

@@ -18,10 +18,10 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/y3owk1n/fude/client"
 	"github.com/y3owk1n/fude/distribution"
 	"github.com/y3owk1n/fude/editor"
-	"github.com/y3owk1n/fude/internal/relay"
+	"github.com/y3owk1n/fude/frontend/client"
+	"github.com/y3owk1n/fude/frontend/relay"
 	"github.com/y3owk1n/fude/plugin"
 	"github.com/y3owk1n/fude/tui"
 )

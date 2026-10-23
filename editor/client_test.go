@@ -1,4 +1,4 @@
-package client_test
+package editor_test
 
 import (
 	"fmt"
@@ -9,36 +9,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/y3owk1n/fude/client"
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/editor/editortest"
-	"github.com/y3owk1n/fude/internal/clipboard"
+	fudeclient "github.com/y3owk1n/fude/frontend/client"
+	"github.com/y3owk1n/fude/frontend/clipboard"
 	"github.com/y3owk1n/fude/vim"
 )
-
-// TestMain keeps the editor's timeline logs, config and caches in a
-// directory of their own.
-func TestMain(m *testing.M) {
-	dir, err := os.MkdirTemp("", "fude-test")
-	if err != nil {
-		panic(err)
-	}
-	os.Setenv("XDG_STATE_HOME", filepath.Join(dir, "state"))
-	os.Setenv("XDG_CONFIG_HOME", filepath.Join(dir, "config"))
-	os.Setenv("XDG_CACHE_HOME", filepath.Join(dir, "cache"))
-	os.Setenv("XDG_DATA_HOME", filepath.Join(dir, "data"))
-	// No test fetches a grammar.
-	if err := os.MkdirAll(filepath.Join(dir, "config", "fude"), 0o700); err != nil {
-		panic(err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "config", "fude", "config.toml"), []byte("auto_install = false\n"), 0o600); err != nil {
-		panic(err)
-	}
-	code := m.Run()
-	os.RemoveAll(dir)
-	os.Exit(code)
-}
 
 // served starts an editor on the files args name, or an empty buffer, serves it on a socket and
 // runs its loop. typed runs keys in its session on the loop and returns
@@ -91,9 +68,9 @@ func served(t *testing.T, args ...string) (typed func(keys string) string, path 
 }
 
 // dial connects to the editor at path.
-func dial(t *testing.T, path string) *client.Conn {
+func dialConn(t *testing.T, path string) *fudeclient.Conn {
 	t.Helper()
-	c, err := client.Dial(path)
+	c, err := fudeclient.Dial(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,7 +83,7 @@ func TestB79Replica(t *testing.T) {
 	typed, path := served(t)
 	typed("ihello world<Esc>")
 
-	r, err := dial(t, path).Open(0)
+	r, err := dialConn(t, path).Open(0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,8 +114,8 @@ func TestB79Replica(t *testing.T) {
 	}
 }
 
-// feed sends keys to ed.
-func feed(t *testing.T, ed *client.Editor, keys string) {
+// feedReplica sends keys to ed.
+func feedReplica(t *testing.T, ed *fudeclient.Editor, keys string) {
 	t.Helper()
 	for _, k := range vim.Keys(keys) {
 		if err := ed.Feed(k); err != nil {
@@ -148,10 +125,10 @@ func feed(t *testing.T, ed *client.Editor, keys string) {
 }
 
 // B78, through the client
-func TestB78ClientHearsChanges(t *testing.T) {
+func TestB78ConnHearsChanges(t *testing.T) {
 	typed, path := served(t)
 	typed("ione<Esc>")
-	c := dial(t, path)
+	c := dialConn(t, path)
 	if _, err := c.Open(0); err != nil {
 		t.Fatal(err)
 	}
@@ -168,13 +145,13 @@ func TestB78ClientHearsChanges(t *testing.T) {
 func TestB98EditorOnReplica(t *testing.T) {
 	typed, path := served(t)
 	typed("ione two<Esc>")
-	r, err := dial(t, path).Open(0)
+	r, err := dialConn(t, path).Open(0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	ed := client.NewEditor(r, 22, 80)
+	ed := fudeclient.NewEditor(r, 22, 80)
 	// Its keys edit the copy at once.
-	if feed(t, ed, "wciwX<Esc>"); ed.Text() != "one X" {
+	if feedReplica(t, ed, "wciwX<Esc>"); ed.Text() != "one X" {
 		t.Fatalf("ciwX made %q", ed.Text())
 	}
 	if _, err := ed.Sync(); err != nil || typed("") != "one X" {
@@ -183,12 +160,12 @@ func TestB98EditorOnReplica(t *testing.T) {
 	// The insert is one node of the client's, so its u reverts it whole and
 	// leaves the terminal's later edit.
 	typed("A!<Esc>")
-	if feed(t, ed, "u"); ed.Text() != "one two!" || typed("") != ed.Text() {
+	if feedReplica(t, ed, "u"); ed.Text() != "one two!" || typed("") != ed.Text() {
 		t.Fatalf("u from the client left %q, and the server %q", ed.Text(), typed(""))
 	}
 	// A u inside :normal runs on the server while the copy's group is open,
 	// and the copy takes it at the next sync.
-	feed(t, ed, "0x")
+	feedReplica(t, ed, "0x")
 	if _, err := ed.Sync(); err != nil {
 		t.Fatal(err)
 	}
@@ -206,32 +183,32 @@ func TestB362ClientConfirm(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "f")
 	editortest.Change(t, file, "one\n")
 	_, path := served(t, file)
-	r, err := dial(t, path).Open(0)
+	r, err := dialConn(t, path).Open(0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	ed := client.NewEditor(r, 22, 80)
-	feed(t, ed, "x")
+	ed := fudeclient.NewEditor(r, 22, 80)
+	feedReplica(t, ed, "x")
 	editortest.Change(t, file, "disk\n")
-	if feed(t, ed, ":w<CR>"); !strings.Contains(ed.Confirm(), "changed on disk") {
+	if feedReplica(t, ed, ":w<CR>"); !strings.Contains(ed.Confirm(), "changed on disk") {
 		t.Fatalf(":w asked %q", ed.Confirm())
 	}
-	if feed(t, ed, "x"); ed.Text() != "ne" || ed.Confirm() == "" {
+	if feedReplica(t, ed, "x"); ed.Text() != "ne" || ed.Confirm() == "" {
 		t.Fatalf("x while asked left %q and the question %q", ed.Text(), ed.Confirm())
 	}
-	if feed(t, ed, "y"); ed.Confirm() != "" || editortest.Disk(t, file) != "ne\n" {
+	if feedReplica(t, ed, "y"); ed.Confirm() != "" || editortest.Disk(t, file) != "ne\n" {
 		t.Fatalf("y left the question %q and the file %q", ed.Confirm(), editortest.Disk(t, file))
 	}
 }
 
 // B110, through a client running the grammar on a replica
-func TestB110GrammarCases(t *testing.T) {
+func TestB110ClientGrammarCases(t *testing.T) {
 	src, err := os.ReadFile("../vim/testdata/grammar.txt")
 	if err != nil {
 		t.Fatal(err)
 	}
 	_, path := served(t)
-	c := dial(t, path)
+	c := dialConn(t, path)
 	base, err := c.Open(0)
 	if err != nil {
 		t.Fatal(err)
@@ -255,8 +232,8 @@ func TestB110GrammarCases(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		ed := client.NewEditor(r, 22, 80)
-		feed(t, ed, fmt.Sprintf("%dgo%s", strings.Index(cs[0], "|")+1, cs[1]))
+		ed := fudeclient.NewEditor(r, 22, 80)
+		feedReplica(t, ed, fmt.Sprintf("%dgo%s", strings.Index(cs[0], "|")+1, cs[1]))
 		if got := ed.Text()[:ed.Cursor()] + "|" + ed.Text()[ed.Cursor():]; got != cs[2] {
 			t.Errorf("%q on %q: got %q, want %q", cs[1], cs[0], got, cs[2])
 		}
@@ -267,23 +244,23 @@ func TestB110GrammarCases(t *testing.T) {
 func TestB99ClientJumpsChangesAndSteps(t *testing.T) {
 	typed, path := served(t)
 	typed("ione<CR>two<CR>three<Esc>")
-	r, err := dial(t, path).Open(0)
+	r, err := dialConn(t, path).Open(0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	ed := client.NewEditor(r, 22, 80)
+	ed := fudeclient.NewEditor(r, 22, 80)
 	line := func() int { return strings.Count(ed.Text()[:ed.Cursor()], "\n") + 1 }
-	if feed(t, ed, "Gxgg<C-o>"); line() != 3 {
+	if feedReplica(t, ed, "Gxgg<C-o>"); line() != 3 {
 		t.Fatalf("<C-o> after gg went to line %d, want 3", line())
 	}
-	if feed(t, ed, "ggg;"); line() != 3 {
+	if feedReplica(t, ed, "ggg;"); line() != 3 {
 		t.Fatalf("g; went to line %d, want the change on 3", line())
 	}
 	// g- moves the server's timeline, which the copy follows.
 	if _, err := ed.Sync(); err != nil {
 		t.Fatal(err)
 	}
-	if feed(t, ed, "g-"); ed.Text() != "one\ntwo\nthree" || typed("") != ed.Text() {
+	if feedReplica(t, ed, "g-"); ed.Text() != "one\ntwo\nthree" || typed("") != ed.Text() {
 		t.Fatalf("g- left %q, and the server %q", ed.Text(), typed(""))
 	}
 }
@@ -295,18 +272,18 @@ func TestB36ClientClipboard(t *testing.T) {
 	t.Cleanup(clipboard.Fake(board))
 	typed, path := served(t)
 	typed("ione two<Esc>")
-	r, err := dial(t, path).Open(0)
+	r, err := dialConn(t, path).Open(0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	ed := client.NewEditor(r, 22, 80)
-	if feed(t, ed, `"+yiw`); readFile(t, board) != "one" {
+	ed := fudeclient.NewEditor(r, 22, 80)
+	if feedReplica(t, ed, `"+yiw`); readFile(t, board) != "one" {
 		t.Fatalf(`"+yiw put %q on the clipboard`, readFile(t, board))
 	}
 	if err := os.WriteFile(board, []byte("Z"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if feed(t, ed, `$"+p`); ed.Text() != "one twoZ" {
+	if feedReplica(t, ed, `$"+p`); ed.Text() != "one twoZ" {
 		t.Fatalf(`"+p made %q`, ed.Text())
 	}
 }
@@ -335,11 +312,11 @@ func TestB94ClientIndentWidth(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, path := served(t, file)
-	r, err := dial(t, path).Open(0)
+	r, err := dialConn(t, path).Open(0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if feed(t, client.NewEditor(r, 22, 80), ">>"); r.Text() != "    x" {
+	if feedReplica(t, fudeclient.NewEditor(r, 22, 80), ">>"); r.Text() != "    x" {
 		t.Fatalf(">> in a Go file made %q, want four spaces", r.Text())
 	}
 }

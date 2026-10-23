@@ -10,9 +10,9 @@ import (
 
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/editor/editortest"
+	"github.com/y3owk1n/fude/frontend/wire"
 	diffmod "github.com/y3owk1n/fude/modules/diff"
 	"github.com/y3owk1n/fude/modules/hints"
-	"github.com/y3owk1n/fude/wire"
 )
 
 func TestMain(m *testing.M) { os.Exit(editortest.Main(m)) }

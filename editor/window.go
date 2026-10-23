@@ -10,8 +10,8 @@ import (
 	"sync/atomic"
 
 	"github.com/y3owk1n/fude/core/kernel"
+	"github.com/y3owk1n/fude/frontend/wire"
 	"github.com/y3owk1n/fude/vim"
-	"github.com/y3owk1n/fude/wire"
 )
 
 // window shows one buffer. Its cursor and top line are marks in the buffer,

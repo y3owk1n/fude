@@ -4,8 +4,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/y3owk1n/fude/frontend/wire"
 	"github.com/y3owk1n/fude/syntax"
-	"github.com/y3owk1n/fude/wire"
 )
 
 // markdown renders the markdown language servers write: fenced code in its

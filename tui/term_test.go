@@ -22,12 +22,13 @@ import (
 	"github.com/gdamore/tcell/v3/color"
 	"github.com/gdamore/tcell/v3/vt"
 	"github.com/y3owk1n/fude/api"
-	fudeclient "github.com/y3owk1n/fude/client"
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/editor/editortest"
-	"github.com/y3owk1n/fude/internal/clipboard"
-	"github.com/y3owk1n/fude/internal/relay"
-	look "github.com/y3owk1n/fude/internal/theme"
+	fudeclient "github.com/y3owk1n/fude/frontend/client"
+	"github.com/y3owk1n/fude/frontend/clipboard"
+	"github.com/y3owk1n/fude/frontend/relay"
+	look "github.com/y3owk1n/fude/frontend/theme"
+	"github.com/y3owk1n/fude/frontend/wire"
 	bufferlinemod "github.com/y3owk1n/fude/modules/bufferline"
 	buffersmod "github.com/y3owk1n/fude/modules/buffers"
 	colourmod "github.com/y3owk1n/fude/modules/colours"
@@ -45,7 +46,6 @@ import (
 	windowmod "github.com/y3owk1n/fude/modules/window"
 	"github.com/y3owk1n/fude/syntax/syntaxtest"
 	"github.com/y3owk1n/fude/vim"
-	"github.com/y3owk1n/fude/wire"
 )
 
 // themes are the themes in the colours the client draws them in.

@@ -7,8 +7,8 @@ import (
 
 	"github.com/clipperhouse/displaywidth"
 
+	"github.com/y3owk1n/fude/frontend/wire"
 	"github.com/y3owk1n/fude/vim"
-	"github.com/y3owk1n/fude/wire"
 )
 
 // drawn is what a window draws in a range of its lines that the text does

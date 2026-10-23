@@ -3,8 +3,8 @@ package client
 import (
 	"time"
 
+	"github.com/y3owk1n/fude/frontend/wire"
 	"github.com/y3owk1n/fude/vim"
-	"github.com/y3owk1n/fude/wire"
 )
 
 // Session is what a frontend draws and types into: a session of the fude

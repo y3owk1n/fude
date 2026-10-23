@@ -5,7 +5,7 @@ import (
 	"net"
 	"testing"
 
-	"github.com/y3owk1n/fude/internal/share"
+	"github.com/y3owk1n/fude/frontend/share"
 )
 
 // B248, B249

@@ -4,8 +4,8 @@ import (
 	"github.com/gdamore/tcell/v3"
 	"github.com/gdamore/tcell/v3/color"
 
-	look "github.com/y3owk1n/fude/internal/theme"
-	"github.com/y3owk1n/fude/wire"
+	look "github.com/y3owk1n/fude/frontend/theme"
+	"github.com/y3owk1n/fude/frontend/wire"
 )
 
 // theme is a theme's colours as tcell takes them (D33).

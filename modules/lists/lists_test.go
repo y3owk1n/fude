@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/fude/editor/editortest"
-	"github.com/y3owk1n/fude/internal/clipboard"
+	"github.com/y3owk1n/fude/frontend/clipboard"
 	"github.com/y3owk1n/fude/modules/lists"
 	"github.com/y3owk1n/fude/modules/places"
 	"github.com/y3owk1n/fude/modules/window"

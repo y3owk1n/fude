@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/y3owk1n/fude/internal/clipboard"
+	"github.com/y3owk1n/fude/frontend/clipboard"
 	"github.com/y3owk1n/fude/internal/trace"
 )
 

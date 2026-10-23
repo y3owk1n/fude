@@ -13,7 +13,7 @@ import (
 
 	"github.com/clipperhouse/displaywidth"
 	"github.com/y3owk1n/fude/api"
-	"github.com/y3owk1n/fude/wire"
+	"github.com/y3owk1n/fude/frontend/wire"
 )
 
 // switches are the options :set turns on and off, by their names in

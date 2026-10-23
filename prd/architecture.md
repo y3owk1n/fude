@@ -43,20 +43,21 @@ protocol/        Go module: stdlib only, no dependency on fude's other packages
   lsp/           language server client
   dap/           debug adapter client
   framing/       the Content-Length frames both use
-wire/            what fude and its clients send over the socket: replica
-                 edits and the frames an attached client draws
-tui/             terminal client
-client/          what a frontend draws a session through, and a client over
+frontend/        Go module: what any frontend builds on, with no cgo, and of
+                 fude's packages only core/ and vim/ (D64)
+  wire/          what fude and its clients send over the socket: replica
+                 edits and the frames a frontend draws
+  client/        what a frontend draws a session through, and a client over
                  the socket with replicas of buffers
-internal/        packages only fude's own packages may import
+  theme/         the themes' colours and each highlight name's style
+  compose/       a window drawn into a grid of styled cells
+  share/         a share's certificate, share string and address
+  relay/         passes a share's connections between its host and guests
   clipboard/     the system clipboard, through pbcopy, wl-copy or xclip
-  compose/       a window drawn into a grid of styled cells, for any frontend
+tui/             terminal client
+internal/        packages only fude's own packages may import
   keep/          the XDG directories, files written whole and the recent files
   pty/           a program in a pseudo-terminal, for :terminal
-  relay/         passes a share's connections between its host and guests
-  share/         a share's certificate, share string and address
-  theme/         the themes' colours and each highlight name's style, for
-                 any frontend
   timeline/      a buffer's timeline log on disk
   tomlerr/       where in a TOML file a decoding error is
   trace/         what fude did, for fude tail
@@ -83,8 +84,8 @@ distribution/    the modules fude runs, which cmd/fude and the speed promises sh
 cmd/fude/        main, a module of its own for go install (D37)
 ```
 
-Modules import `api/`, never `core/` or `vim/` directly. `client/` is not
-a module: it runs in a client's process and keeps its replicas in kernels
+Modules import `api/`, never `core/` or `vim/` directly. `frontend/client`
+is not one of the editor's modules: it runs in a client's process and keeps its replicas in kernels
 of its own. Only `editor/`
 holds a kernel and a vim machine, and it holds the machine through a small
 grammar interface (`Feed`, `Timeout`, `Registry`), so a distribution can
@@ -1471,7 +1472,7 @@ allocated before the switch frees safely.
 Captures paint as tree-sitter's own highlighter picks them (B46). A capture
 on a node inside another wins, and of the captures on one node only the last
 pattern's counts. A frontend colours them from fude's theme, in
-`internal/theme`: a set of named colours for each of dark and light,
+`frontend/theme`: a set of named colours for each of dark and light,
 from which every style derives, starting with the text's colours on the
 ground (B145, D33). The terminal client turns its colours and styles into
 tcell's. A base16 scheme fills the same set: base00 to base03
@@ -2213,7 +2214,7 @@ phases, each unit a commit that keeps every behaviour.
    and a snippet session.
    One interface and a fixed priority list spell out the order `feed`
    had by hand, and each overlay owns its state. The pure parts leave the
-   editor: `internal/share` holds certificates, tokens and the TLS
+   editor: `frontend/share` holds certificates, tokens and the TLS
    config, `internal/timeline` the log's record format and
    `internal/keep` the recent files and writing a file whole, each with tests. The
    editor's tests split by feature.

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/y3owk1n/fude/internal/relay"
+	"github.com/y3owk1n/fude/frontend/relay"
 )
 
 // B251, bytes a guest sends as soon as it joins reach the host, even when

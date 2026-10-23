@@ -13,12 +13,12 @@ import (
 	"github.com/gdamore/tcell/v3"
 	"github.com/gdamore/tcell/v3/color"
 
-	fudeclient "github.com/y3owk1n/fude/client"
-	"github.com/y3owk1n/fude/internal/compose"
-	look "github.com/y3owk1n/fude/internal/theme"
+	fudeclient "github.com/y3owk1n/fude/frontend/client"
+	"github.com/y3owk1n/fude/frontend/compose"
+	look "github.com/y3owk1n/fude/frontend/theme"
+	"github.com/y3owk1n/fude/frontend/wire"
 	"github.com/y3owk1n/fude/internal/trace"
 	"github.com/y3owk1n/fude/vim"
-	"github.com/y3owk1n/fude/wire"
 )
 
 // Run shows e in the terminal until the user quits.

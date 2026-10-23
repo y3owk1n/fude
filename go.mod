@@ -11,6 +11,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.4.3
 	github.com/y3owk1n/fude/api v0.2.1 // x-release-please-version
 	github.com/y3owk1n/fude/core v0.2.1 // x-release-please-version
+	github.com/y3owk1n/fude/frontend v0.2.1 // x-release-please-version
 	github.com/y3owk1n/fude/plugin v0.2.1 // x-release-please-version
 	github.com/y3owk1n/fude/protocol v0.2.1 // x-release-please-version
 	github.com/y3owk1n/fude/syntax v0.2.1 // x-release-please-version
@@ -43,6 +44,7 @@ require (
 replace (
 	github.com/y3owk1n/fude/api => ./api
 	github.com/y3owk1n/fude/core => ./core
+	github.com/y3owk1n/fude/frontend => ./frontend
 	github.com/y3owk1n/fude/plugin => ./plugin
 	github.com/y3owk1n/fude/protocol => ./protocol
 	github.com/y3owk1n/fude/syntax => ./syntax

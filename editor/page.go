@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 
 	"github.com/y3owk1n/fude/api"
-	"github.com/y3owk1n/fude/wire"
+	"github.com/y3owk1n/fude/frontend/wire"
 )
 
 // tabPage is a tab page: its layout, its floats and the window with the

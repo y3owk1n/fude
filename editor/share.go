@@ -14,10 +14,10 @@ import (
 	"time"
 
 	"github.com/y3owk1n/fude/core/kernel"
-	"github.com/y3owk1n/fude/internal/relay"
-	tlsshare "github.com/y3owk1n/fude/internal/share"
+	"github.com/y3owk1n/fude/frontend/relay"
+	tlsshare "github.com/y3owk1n/fude/frontend/share"
+	"github.com/y3owk1n/fude/frontend/wire"
 	"github.com/y3owk1n/fude/internal/trace"
-	"github.com/y3owk1n/fude/wire"
 )
 
 // share is fude listening for guests (B248), or holding places for them

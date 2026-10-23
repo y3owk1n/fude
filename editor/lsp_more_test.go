@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/y3owk1n/fude/frontend/wire"
 	explorermod "github.com/y3owk1n/fude/modules/explorer"
 	"github.com/y3owk1n/fude/protocol/lsp"
-	"github.com/y3owk1n/fude/wire"
 )
 
 // B470

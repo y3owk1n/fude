@@ -12,8 +12,8 @@ import (
 
 	"github.com/y3owk1n/fude/internal/fuzzy"
 
+	"github.com/y3owk1n/fude/frontend/wire"
 	"github.com/y3owk1n/fude/vim"
-	"github.com/y3owk1n/fude/wire"
 )
 
 // cmdline is what completes a command line: the menu showing, the entries

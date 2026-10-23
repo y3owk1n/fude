@@ -3,7 +3,7 @@ package editor
 import (
 	"cmp"
 
-	"github.com/y3owk1n/fude/wire"
+	"github.com/y3owk1n/fude/frontend/wire"
 )
 
 // Buffers returns what the buffer line shows: the buffers a module lists,

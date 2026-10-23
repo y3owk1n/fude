@@ -10,7 +10,7 @@ import (
 
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/editor/editortest"
-	"github.com/y3owk1n/fude/internal/clipboard"
+	"github.com/y3owk1n/fude/frontend/clipboard"
 	terminalmod "github.com/y3owk1n/fude/modules/terminal"
 )
 

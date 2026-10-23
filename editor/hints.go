@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/y3owk1n/fude/api"
+	"github.com/y3owk1n/fude/frontend/wire"
 	"github.com/y3owk1n/fude/vim"
-	"github.com/y3owk1n/fude/wire"
 )
 
 // keyGroups name the keys that fude's own keys start with (B172).

@@ -6,7 +6,7 @@ package theme
 import (
 	"strings"
 
-	"github.com/y3owk1n/fude/wire"
+	"github.com/y3owk1n/fude/frontend/wire"
 )
 
 // RGB is a colour as 0xRRGGBB, or None.

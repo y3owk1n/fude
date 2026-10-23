@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/fude/editor"
-	"github.com/y3owk1n/fude/internal/clipboard"
+	"github.com/y3owk1n/fude/frontend/clipboard"
 	buffersmod "github.com/y3owk1n/fude/modules/buffers"
 	"github.com/y3owk1n/fude/modules/debug"
 	explorermod "github.com/y3owk1n/fude/modules/explorer"

@@ -7,8 +7,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/y3owk1n/fude/api"
+	"github.com/y3owk1n/fude/frontend/wire"
 	"github.com/y3owk1n/fude/vim"
-	"github.com/y3owk1n/fude/wire"
 )
 
 // pick is a module's menu at the cursor, as code actions show: its items,

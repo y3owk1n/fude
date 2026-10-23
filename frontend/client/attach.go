@@ -14,11 +14,11 @@ import (
 	"time"
 
 	"github.com/y3owk1n/fude/core/kernel"
-	"github.com/y3owk1n/fude/internal/clipboard"
-	"github.com/y3owk1n/fude/internal/relay"
-	tlsshare "github.com/y3owk1n/fude/internal/share"
+	"github.com/y3owk1n/fude/frontend/clipboard"
+	"github.com/y3owk1n/fude/frontend/relay"
+	tlsshare "github.com/y3owk1n/fude/frontend/share"
+	"github.com/y3owk1n/fude/frontend/wire"
 	"github.com/y3owk1n/fude/vim"
-	"github.com/y3owk1n/fude/wire"
 )
 
 // Attached is a session of another fude. A frontend draws it from the

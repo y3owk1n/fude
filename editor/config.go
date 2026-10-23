@@ -13,12 +13,12 @@ import (
 	"time"
 
 	"github.com/pelletier/go-toml/v2"
+	"github.com/y3owk1n/fude/frontend/wire"
 	"github.com/y3owk1n/fude/internal/keep"
 	"github.com/y3owk1n/fude/internal/root"
 	"github.com/y3owk1n/fude/internal/tomlerr"
 	"github.com/y3owk1n/fude/internal/trace"
 	"github.com/y3owk1n/fude/vim"
-	"github.com/y3owk1n/fude/wire"
 )
 
 // taskConfig is a task config.toml names (B228).

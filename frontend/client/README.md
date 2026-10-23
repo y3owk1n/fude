@@ -36,4 +36,4 @@ the protocol.
 
 ## License
 
-[MIT](../LICENSE)
+[MIT](../../LICENSE)

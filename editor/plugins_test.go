@@ -20,8 +20,8 @@ import (
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/editor/editortest"
+	"github.com/y3owk1n/fude/frontend/wire"
 	helpmod "github.com/y3owk1n/fude/modules/help"
-	"github.com/y3owk1n/fude/wire"
 )
 
 // withPlugin writes a config that loads the test plugin name with caps, and

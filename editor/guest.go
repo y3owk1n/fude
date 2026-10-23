@@ -8,8 +8,8 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/y3owk1n/fude/frontend/wire"
 	"github.com/y3owk1n/fude/vim"
-	"github.com/y3owk1n/fude/wire"
 )
 
 // Power is how much a session may do, fixed when it is made (B243).

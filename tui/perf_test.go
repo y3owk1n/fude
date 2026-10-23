@@ -26,10 +26,10 @@ import (
 
 	"github.com/gdamore/tcell/v3"
 	"github.com/gdamore/tcell/v3/vt"
-	fudeclient "github.com/y3owk1n/fude/client"
 	"github.com/y3owk1n/fude/distribution"
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/editor/editortest"
+	fudeclient "github.com/y3owk1n/fude/frontend/client"
 	"github.com/y3owk1n/fude/vim"
 )
 

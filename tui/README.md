@@ -13,14 +13,14 @@ if err != nil {
 return tui.Run(e)
 ```
 
-`Run` takes any [`client.Session`](../client), the editor's own or an
+`Run` takes any [`client.Session`](../frontend/client), the editor's own or an
 `Attached` one from `client.Attach` or `client.Join`. An `Attached`
 session holds the frames another fude sends over its socket or a share,
 and `Run` draws them. The interface is what a frontend needs of an
 editor: keys in, and the windows, floats, command line, mode and message
 out.
 
-Everything the client draws comes as [`wire`](../wire) types, so another
+Everything the client draws comes as [`wire`](../frontend/wire) types, so another
 client, for a GPU or the web, draws the same frames.
 
 ## License

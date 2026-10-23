@@ -24,6 +24,7 @@ import (
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/editor/editortest"
+	"github.com/y3owk1n/fude/frontend/wire"
 	buffersmod "github.com/y3owk1n/fude/modules/buffers"
 	"github.com/y3owk1n/fude/modules/colours"
 	explorermod "github.com/y3owk1n/fude/modules/explorer"
@@ -32,7 +33,6 @@ import (
 	lspmod "github.com/y3owk1n/fude/modules/lsp"
 	"github.com/y3owk1n/fude/protocol/lsp"
 	"github.com/y3owk1n/fude/vim"
-	"github.com/y3owk1n/fude/wire"
 )
 
 // TestFakeServer is a language server when FUDE_FAKE_LSP is set, which tests

@@ -13,7 +13,7 @@ import (
 	"sync"
 
 	"github.com/y3owk1n/fude/core/kernel"
-	"github.com/y3owk1n/fude/wire"
+	"github.com/y3owk1n/fude/frontend/wire"
 )
 
 // Conn is a connection to fude, a session of its own on the server.

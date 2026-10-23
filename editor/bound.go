@@ -4,8 +4,8 @@ import (
 	"maps"
 	"slices"
 
+	"github.com/y3owk1n/fude/frontend/wire"
 	"github.com/y3owk1n/fude/vim"
-	"github.com/y3owk1n/fude/wire"
 )
 
 // level puts the top line, cursor and first column of every other bound

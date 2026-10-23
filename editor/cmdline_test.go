@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/fude/editor"
+	"github.com/y3owk1n/fude/frontend/wire"
 	completionmod "github.com/y3owk1n/fude/modules/completion"
 	"github.com/y3owk1n/fude/modules/debug"
 	"github.com/y3owk1n/fude/modules/grep"
@@ -19,7 +20,6 @@ import (
 	sessionsmod "github.com/y3owk1n/fude/modules/sessions"
 	"github.com/y3owk1n/fude/modules/task"
 	timelinemod "github.com/y3owk1n/fude/modules/timeline"
-	"github.com/y3owk1n/fude/wire"
 )
 
 // B131, B290

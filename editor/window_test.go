@@ -11,13 +11,13 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/fude/editor"
+	"github.com/y3owk1n/fude/frontend/wire"
 	completionmod "github.com/y3owk1n/fude/modules/completion"
 	explorermod "github.com/y3owk1n/fude/modules/explorer"
 	filesmod "github.com/y3owk1n/fude/modules/files"
 	hintsmod "github.com/y3owk1n/fude/modules/hints"
 	"github.com/y3owk1n/fude/modules/sticky"
 	windowmod "github.com/y3owk1n/fude/modules/window"
-	"github.com/y3owk1n/fude/wire"
 )
 
 // B27

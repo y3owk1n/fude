@@ -38,7 +38,7 @@ jobs:
           SHA: ${{ needs.release-please.outputs.sha }}
         run: |
           set -eu
-          for m in api core vim syntax protocol plugin sdk cmd/fude; do
+          for m in api core vim frontend syntax protocol plugin sdk cmd/fude; do
             git tag "$m/$TAG" "$SHA"
             git push origin "refs/tags/$m/$TAG"
           done

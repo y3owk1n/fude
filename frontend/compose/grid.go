@@ -7,7 +7,7 @@ import (
 
 	"github.com/clipperhouse/displaywidth"
 
-	look "github.com/y3owk1n/fude/internal/theme"
+	look "github.com/y3owk1n/fude/frontend/theme"
 )
 
 // widths measures clusters as tcell does, so a Grid's cells line up with

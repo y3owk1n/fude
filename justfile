@@ -1,5 +1,5 @@
 # The Go modules in this repo.
-modules := "api core vim syntax protocol plugin . cmd/fude"
+modules := "api core vim frontend syntax protocol plugin . cmd/fude"
 
 # List the recipes.
 default:
@@ -21,6 +21,8 @@ standalone:
     # workflow's go install checks it instead.
     for m in {{ modules }}; do [ $m = cmd/fude ] || (cd $m && GOWORK=off go build ./...) || exit 1; done
     cd sdk && GOWORK=off GOOS=wasip1 GOARCH=wasm go build ./...
+    # A frontend builds with no C compiler (D64).
+    cd frontend && GOWORK=off CGO_ENABLED=0 go build ./...
 
 # Format every Go file.
 fmt:
@@ -68,7 +70,7 @@ cmd-tidy:
     set -euo pipefail
     cd cmd/fude
     replace=(); drop=()
-    for m in "" /api /core /vim /syntax /protocol /plugin; do
+    for m in "" /api /core /vim /frontend /syntax /protocol /plugin; do
         replace+=("-replace=github.com/y3owk1n/fude$m=../..$m")
         drop+=("-dropreplace=github.com/y3owk1n/fude$m")
     done
@@ -104,9 +106,9 @@ loc:
     editor editor
     vim vim
     modules syntax plugin protocol/lsp sdk api api/diff modules/blame modules/colours modules/comment modules/debug modules/editorconfig modules/fold modules/format modules/git modules/grep modules/inlay modules/lsp modules/spell modules/task
-    clients tui client
+    clients tui frontend
     kernel core/kernel core/rope
-    glue cmd/fude internal/pty internal/clipboard internal/trace
+    glue cmd/fude internal/pty internal/trace
     EOF
     printf '%-12s %6d\n' total "$total"
 

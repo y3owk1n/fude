@@ -8,8 +8,8 @@ import (
 
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/editor/editortest"
+	"github.com/y3owk1n/fude/frontend/wire"
 	"github.com/y3owk1n/fude/modules/jump"
-	"github.com/y3owk1n/fude/wire"
 )
 
 func TestMain(m *testing.M) { os.Exit(editortest.Main(m)) }

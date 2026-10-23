@@ -13,10 +13,10 @@ What fude and its clients send each other over the socket, as JSON.
 - A `Hello` is the first line a guest sends to join a share, and a
   `Theme` is what a client draws in.
 
-The terminal client in [`tui`](../tui) draws frames, and
+The terminal client in [`tui`](../../tui) draws frames, and
 [`client`](../client) keeps replicas. A client in another language reads
 these types as its protocol.
 
 ## License
 
-[MIT](../LICENSE)
+[MIT](../../LICENSE)

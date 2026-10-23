@@ -40,14 +40,14 @@ for _, v := range e.Windows() {
   loop, such as a module's answer or a server's diagnostics. The client runs
   each func it receives, then draws.
 - `Windows`, `Buffers`, `Menu`, `Line`, `Mode` and `Message` are
-  what to draw, in the types of [`wire`](../wire).
+  what to draw, in the types of [`wire`](../frontend/wire).
 - `Use` adds a module over [`api`](../api). `cmd/fude` lists the built-in
   ones, and [`modules`](../modules) holds them.
 - `Serve` listens on a socket for clients, `Attach` makes a session for one,
   and `Share` and `ShareRelay` let guests in over TLS.
 
 [`tui`](../tui) is the client fude ships. It runs any
-[`client.Session`](../client), the editor's own or one attached over the
+[`client.Session`](../frontend/client), the editor's own or one attached over the
 socket.
 
 ## Testing on the editor
@@ -77,8 +77,10 @@ The package is one Go package on purpose, since splitting it would make
 `Session` export an API the size of the package. It is arranged by
 feature, one file each, and the spec in [`prd/`](../prd) names what each
 file promises. The parts that need no `Session` live in
-[`internal`](../internal): the share's certificates and strings, the
-timeline log and the files fude keeps between runs.
+[`internal`](../internal): the timeline log and the files fude keeps
+between runs. The share's certificates and strings are in
+[`frontend/share`](../frontend/share), since a guest's client reads them
+too.
 
 ## License
 

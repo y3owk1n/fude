@@ -5,6 +5,7 @@ use (
 	./api
 	./cmd/fude
 	./core
+	./frontend
 	./plugin
 	./protocol
 	./sdk

@@ -16,9 +16,9 @@ import (
 
 	"github.com/clipperhouse/displaywidth"
 
-	look "github.com/y3owk1n/fude/internal/theme"
+	look "github.com/y3owk1n/fude/frontend/theme"
+	"github.com/y3owk1n/fude/frontend/wire"
 	"github.com/y3owk1n/fude/vim"
-	"github.com/y3owk1n/fude/wire"
 )
 
 // Composer composes windows. It reuses the buffers one window's lines took

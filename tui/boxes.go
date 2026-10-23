@@ -7,9 +7,9 @@ import (
 	"unicode/utf8"
 
 	"github.com/clipperhouse/displaywidth"
-	"github.com/y3owk1n/fude/internal/compose"
+	"github.com/y3owk1n/fude/frontend/compose"
+	"github.com/y3owk1n/fude/frontend/wire"
 	"github.com/y3owk1n/fude/vim"
-	"github.com/y3owk1n/fude/wire"
 )
 
 // panel draws a box with a rounded border around w columns and h rows

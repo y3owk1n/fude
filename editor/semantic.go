@@ -5,8 +5,8 @@ import (
 	"sort"
 
 	"github.com/y3owk1n/fude/core/kernel"
+	"github.com/y3owk1n/fude/frontend/wire"
 	"github.com/y3owk1n/fude/protocol/lsp"
-	"github.com/y3owk1n/fude/wire"
 )
 
 // tokens are a language server's semantic tokens of a buffer, by where they

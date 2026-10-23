@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/y3owk1n/fude/frontend/wire"
 	"github.com/y3owk1n/fude/modules/autopairs"
 	explorermod "github.com/y3owk1n/fude/modules/explorer"
 	filesmod "github.com/y3owk1n/fude/modules/files"
@@ -20,7 +21,6 @@ import (
 	pickmod "github.com/y3owk1n/fude/modules/pick"
 	plugmod "github.com/y3owk1n/fude/modules/plug"
 	timelinemod "github.com/y3owk1n/fude/modules/timeline"
-	"github.com/y3owk1n/fude/wire"
 )
 
 // B305

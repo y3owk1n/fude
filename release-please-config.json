@@ -10,6 +10,7 @@
 				{ "type": "generic", "path": "go.mod" },
 				{ "type": "generic", "path": "go.work" },
 				{ "type": "generic", "path": "cmd/fude/go.mod" },
+				{ "type": "generic", "path": "frontend/go.mod" },
 				{ "type": "generic", "path": "plugin/go.mod" },
 				{ "type": "generic", "path": "sdk/go.mod" },
 				{ "type": "generic", "path": "plugin/testdata/count/go.mod" },

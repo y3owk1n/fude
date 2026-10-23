@@ -59,12 +59,14 @@ touches none of them names the part of fude it changes, as in
 - Modules import `api/`, `protocol/` and `internal/`, never `core/` or
   `vim/`.
 - cgo lives only in `syntax/`.
+- `frontend/` imports only `core/` and `vim/` of fude's packages, so any
+  program builds a frontend on it without the editor or a C compiler.
 
-In `just check`, the `go.mod` files of `core/` and `vim/` enforce their
-imports, `just module-imports` that `modules/` imports only `api/`, `protocol/` and
-`internal/`, and
-`just cgo` the cgo rule. Nothing checks that `core/` starts no goroutines
-and does no I/O, so a review must.
+In `just check`, the `go.mod` files of `core/`, `vim/` and `frontend/`
+enforce their imports, `just standalone` builds `frontend/` with no cgo,
+`just module-imports` checks that `modules/` imports only `api/`,
+`protocol/` and `internal/`, and `just cgo` the cgo rule. Nothing checks
+that `core/` starts no goroutines and does no I/O, so a review must.
 
 ## Help
 

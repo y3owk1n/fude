@@ -9,8 +9,8 @@ import (
 	"github.com/gdamore/tcell/v3"
 	"github.com/gdamore/tcell/v3/color"
 
-	fudeclient "github.com/y3owk1n/fude/client"
-	"github.com/y3owk1n/fude/wire"
+	fudeclient "github.com/y3owk1n/fude/frontend/client"
+	"github.com/y3owk1n/fude/frontend/wire"
 )
 
 // part is a run of a status line, in its style.

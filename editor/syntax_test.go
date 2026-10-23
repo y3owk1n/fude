@@ -10,11 +10,11 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/fude/api"
+	"github.com/y3owk1n/fude/frontend/wire"
 	"github.com/y3owk1n/fude/modules/comment"
 	grammarsmod "github.com/y3owk1n/fude/modules/grammars"
 	listsmod "github.com/y3owk1n/fude/modules/lists"
 	"github.com/y3owk1n/fude/syntax"
-	"github.com/y3owk1n/fude/wire"
 )
 
 // B46, and B43 for the edit

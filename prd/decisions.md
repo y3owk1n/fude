@@ -502,22 +502,23 @@ The cost is a seventh tag on every release (D37).
 
 ## D46. Packages no other program needs are internal
 
-`internal/` holds `clipboard/`, `pty/` and `relay/`. Each is small, and only
-fude uses it. Why: a program may import any package outside `internal/`,
-and fude would have to keep that package's API for it. These have no
-such program.
+`internal/` holds packages such as `pty/` and `keep/`. Each is small, and
+only fude uses it. Why: a program may import any package outside
+`internal/`, and fude would have to keep that package's API for it. These
+have no such program. `clipboard/`, `relay/` and `share/` were here until
+a client outside fude needed them, and are in `frontend/` now (D64).
 
 ## D47. One package holds what goes over the socket
 
-`wire/` holds the types fude and its clients send each other: a replica's
-edits, pulls and pushes, and the frames an attached client draws. `editor/`,
-`client/` and `tui/` use it. A guest's hello is there too, and the
-editor decodes the keymaps and options it carries, so `client/` joins a
-share without the editor. Why: each side had its
+`frontend/wire` holds the types fude and its clients send each other: a
+replica's edits, pulls and pushes, and the frames a frontend draws.
+`editor/`, `frontend/client` and `tui/` use it. A guest's hello is there too, and the
+editor decodes the keymaps and options it carries, so `frontend/client` joins
+a share without the editor. Why: each side had its
 own copy of the replica types, and two copies of one protocol can
 disagree with nothing to catch it. A client that draws frames needs
-them without the editor. `wire/` stays in the root module until a client
-outside it needs the types. It has a `Span` of its own. The editor
+them without the editor, so it is in the frontend module (D64). It has a
+`Span` of its own. The editor
 converts a grammar's spans to it, so a client compiles no tree-sitter. A
 window carries its `kernel.Snapshot` for a client in the same process, so
 it imports `core`.
@@ -867,6 +868,24 @@ default, because headless sessions and attached clients have no frontend
 to place their windows, and moving it out would mean two copies of it.
 fude has no users yet, so the plugin API and the wire format changed
 with it.
+
+## D64. Frontends build on one module with no cgo
+
+`frontend/` is a Go module of `wire/`, `client/`, `theme/`, `compose/`,
+`share/`, `relay/` and `clipboard/`. Of fude's packages it imports only
+`core/` and `vim/`, and it builds with no C compiler, which
+`just standalone` checks. The editor and `tui/` import it. A frontend
+written outside fude, such as a native window, a client in another
+process or an agent, needs nothing else. It is one module, not one for
+each package, since they import one another. `protocol/` is one module
+for the same reason (D44).
+
+Why, as of 2026-10-23: the user wants fude's libraries to be what other
+people build on. Before this, a frontend outside fude could not import
+`theme` or `compose`, which were internal. Importing `client` compiled
+tree-sitter and put the editor's dependencies in its `go.mod`. The
+packages' API is now a promise, as D46 says of any package outside
+`internal/`.
 
 ## Departures from Neovim
 

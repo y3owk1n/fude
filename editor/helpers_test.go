@@ -11,10 +11,10 @@ import (
 
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/editor/editortest"
+	"github.com/y3owk1n/fude/frontend/wire"
 	buffersmod "github.com/y3owk1n/fude/modules/buffers"
 	placesmod "github.com/y3owk1n/fude/modules/places"
 	windowmod "github.com/y3owk1n/fude/modules/window"
-	"github.com/y3owk1n/fude/wire"
 )
 
 func TestMain(m *testing.M) { os.Exit(editortest.Main(m)) }
