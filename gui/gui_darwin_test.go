@@ -274,6 +274,102 @@ func TestB550BoxesByAnchor(t *testing.T) {
 	})
 }
 
+// B551
+func TestB551InputMethodsAndMenu(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.txt")
+	editortest.Change(t, path, "one\n")
+	e := editortest.Open(t, path)
+	var w *window
+	onMain(func() { w = open(e, nil) }, true)
+	text := func() string {
+		var got string
+		w.onLoop(func() { got = editortest.Text(e) })
+		return got
+	}
+	onMain(func() { press(w, 34, 0, "i", "i") }, true)
+	// Text being composed shows at the cursor and types nothing, until the
+	// input method inserts it.
+	var marked func(objc.ID, objc.SEL, objc.ID, nsRange, nsRange)
+	var inserted func(objc.ID, objc.SEL, objc.ID, nsRange)
+	lib, err := purego.Dlopen("/usr/lib/libobjc.A.dylib", purego.RTLD_GLOBAL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	purego.RegisterLibFunc(&marked, lib, "objc_msgSend")
+	purego.RegisterLibFunc(&inserted, lib, "objc_msgSend")
+	until(t, "insert mode", func() bool {
+		var mode string
+		onMain(func() { mode = w.tabs.mode }, true)
+		return mode == "insert"
+	})
+	onMain(func() {
+		marked(w.view, sel("setMarkedText:selectedRange:replacementRange:"), nsString("にほん"), nsRange{3, 0}, nsRange{Loc: notFound})
+	}, true)
+	var composing, shown bool
+	var at, frame rect
+	onMain(func() {
+		composing = objc.Send[bool](w.view, sel("hasMarkedText"))
+		shown = !objc.Send[bool](w.preedit, sel("isHidden")) && inked(w.preedit, 0, 0, 0)
+		at = msgFirstRect(w.view, sel("firstRectForCharacterRange:actualRange:"), nsRange{}, 0)
+		frame = msgRect(w.win, sel("frame"))
+	}, true)
+	if !composing || !shown || text() != "one" {
+		t.Errorf("composing showed %v and typed %q", shown, text())
+	}
+	// The candidates go by the cursor, in the window.
+	if at.Origin.X < frame.Origin.X || at.Origin.X > frame.Origin.X+frame.Size.W || at.Origin.Y < frame.Origin.Y || at.Origin.Y > frame.Origin.Y+frame.Size.H {
+		t.Errorf("the cursor is at %v, outside the window at %v", at, frame)
+	}
+	onMain(func() {
+		inserted(w.view, sel("insertText:replacementRange:"), nsString("日本"), nsRange{Loc: notFound})
+	}, true)
+	until(t, "the inserted text", func() bool { return text() == "日本one" })
+	// Command-Z undoes, and Command-Q quits.
+	onMain(func() { press(w, 53, 0, "\x1b", "\x1b") }, true)
+	// command sends the action of the menu item Command and key choose to
+	// the window, as AppKit does with the window that has the keys, which a
+	// test's window in the background does not.
+	command := func(key string) {
+		var find func(m objc.ID) objc.ID
+		find = func(m objc.ID) objc.ID {
+			for i := range objc.Send[int](m, sel("numberOfItems")) {
+				it := m.Send(sel("itemAtIndex:"), i)
+				if sub := it.Send(sel("submenu")); sub != 0 {
+					if found := find(sub); found != 0 {
+						return found
+					}
+				}
+				if goString(it.Send(sel("keyEquivalent"))) == key && objc.Send[uint](it, sel("keyEquivalentModifierMask")) == modCommand {
+					return it
+				}
+			}
+			return 0
+		}
+		onMain(func() {
+			app := cls("NSApplication").Send(sel("sharedApplication"))
+			it := find(app.Send(sel("mainMenu")))
+			to := it.Send(sel("target"))
+			if to == 0 {
+				to = w.win.Send(sel("firstResponder"))
+			}
+			app.Send(sel("sendAction:to:from:"), objc.Send[objc.SEL](it, sel("action")), to, it)
+		}, true)
+	}
+	until(t, "normal mode", func() bool {
+		var mode string
+		onMain(func() { mode = w.tabs.mode }, true)
+		return mode == "normal"
+	})
+	command("z")
+	until(t, "Command-Z to undo", func() bool { return text() == "one" })
+	command("q")
+	until(t, "the session to end", func() bool {
+		open := true
+		onMain(func() { _, open = windows[w.view] }, true)
+		return !open
+	})
+}
+
 // onLoop runs fn on w's loop, where the session may be read.
 func (w *window) onLoop(fn func()) {
 	done := make(chan struct{})
@@ -300,6 +396,7 @@ func press(w *window, code uint16, mods uint, chars, bare string) {
 }
 
 var (
+	msgFirstRect func(objc.ID, objc.SEL, nsRange, uintptr) rect
 	msgCache     func(objc.ID, objc.SEL, rect, objc.ID)
 	msgColorAt   func(objc.ID, objc.SEL, int, int) objc.ID
 	msgComponent func(objc.ID, objc.SEL) float64
@@ -314,7 +411,7 @@ func inked(view objc.ID, edge float64, x, y int) bool {
 		if err != nil {
 			panic(err)
 		}
-		for _, f := range []any{&msgCache, &msgColorAt, &msgComponent} {
+		for _, f := range []any{&msgFirstRect, &msgCache, &msgColorAt, &msgComponent} {
 			purego.RegisterLibFunc(f, lib, "objc_msgSend")
 		}
 	}

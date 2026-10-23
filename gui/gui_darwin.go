@@ -51,13 +51,16 @@ func startApp(background bool) objc.ID {
 		}
 		return c
 	}
-	mainRun = objc.ID(class("FudeMain", "NSObject", objc.MethodDef{Cmd: sel("drain:"), Fn: drain})).Send(sel("alloc")).Send(sel("init"))
-	viewClass = class("FudeView", "NSView", flipped,
-		objc.MethodDef{Cmd: sel("acceptsFirstResponder"), Fn: func(objc.ID, objc.SEL) bool { return true }},
-		objc.MethodDef{Cmd: sel("keyDown:"), Fn: keyDown},
-		objc.MethodDef{Cmd: sel("resizeSubviewsWithOldSize:"), Fn: resizeRoot},
-		objc.MethodDef{Cmd: sel("splitResized:"), Fn: splitResized},
-	)
+	mainRun = objc.ID(class("FudeMain", "NSObject", objc.MethodDef{Cmd: sel("drain:"), Fn: drain}, objc.MethodDef{Cmd: sel("quit:"), Fn: quit})).Send(sel("alloc")).Send(sel("init"))
+	viewClass = class("FudeView", "NSView", append(append([]objc.MethodDef{
+		flipped,
+		{Cmd: sel("acceptsFirstResponder"), Fn: func(objc.ID, objc.SEL) bool { return true }},
+		{Cmd: sel("keyDown:"), Fn: keyDown},
+		{Cmd: sel("resizeSubviewsWithOldSize:"), Fn: resizeRoot},
+		{Cmd: sel("splitResized:"), Fn: splitResized},
+	}, textInput...), editing...)...)
+	viewClass.AddProtocol(objc.GetProtocol("NSTextInputClient"))
+	markedClass = class("FudeMarked", "NSView", flipped, objc.MethodDef{Cmd: sel("drawRect:"), Fn: drawMarked})
 	paneClass = class("FudePane", "NSView", flipped, objc.MethodDef{Cmd: sel("resizeSubviewsWithOldSize:"), Fn: resizePane})
 	textClass = class("FudeText", "NSView", flipped, objc.MethodDef{Cmd: sel("drawRect:"), Fn: drawText})
 	statusClass = class("FudeStatus", "NSView", flipped, objc.MethodDef{Cmd: sel("drawRect:"), Fn: drawStatus})
@@ -73,6 +76,7 @@ func startApp(background bool) objc.ID {
 	toastFont = msgFont(cls("NSFont"), sel("systemFontOfSize:weight:"), 13, 0).Send(sel("retain"))
 	uiFont = msgFont(cls("NSFont"), sel("systemFontOfSize:weight:"), 12, 0).Send(sel("retain"))
 	uiBold = msgFont(cls("NSFont"), sel("systemFontOfSize:weight:"), 12, 0.4).Send(sel("retain"))
+	menu(app)
 	cellW = msgSizeOf(nsString("M"), sel("sizeWithAttributes:"), textAttrs(font, 0)).W
 	cellH = float64(int(msgFloat(font, sel("ascender")) - msgFloat(font, sel("descender")) + msgFloat(font, sel("leading")) + 0.999))
 	return app
@@ -89,7 +93,7 @@ func stop(app objc.ID) {
 var (
 	viewClass, paneClass, textClass objc.Class
 	statusClass, splitClass         objc.Class
-	barClass, boxClass              objc.Class
+	barClass, boxClass, markedClass objc.Class
 	windowDelegate                  objc.ID
 	font, boldFont, toastFont       objc.ID
 	uiFont, uiBold                  objc.ID // the status bars' and the tab strip's
@@ -103,12 +107,13 @@ var (
 
 // window is a session in a native window.
 type window struct {
-	s     client.Session
-	win   objc.ID
-	view  objc.ID // the root, which takes the keys
-	keys  chan vim.Key
-	do    chan func() // run on the loop, between keys, for tests
-	ended func()      // runs on the main thread once the session ends
+	s      client.Session
+	win    objc.ID
+	view   objc.ID // the root, which takes the keys
+	keys   chan vim.Key
+	do     chan func() // run on the loop, between keys, for tests
+	pastes chan string
+	ended  func() // runs on the main thread once the session ends
 
 	mu      sync.Mutex
 	pending []frame
@@ -126,6 +131,9 @@ type window struct {
 	panel, toast *box
 	asked        int     // the question the sheet is for, as frame.asked counts
 	sheet        objc.ID // the alert showing, 0 for none
+	marked       string  // the text an input method composes
+	preedit      objc.ID // the view that shows it
+	event        objc.ID // the key down the input method has
 }
 
 type cell struct {
@@ -153,6 +161,7 @@ type frame struct {
 	toast   *boxed     // the message, nil for none
 	confirm string     // the question, "" for none
 	asked   int        // counts each change of the question, to tell a new one
+	copied  *string    // to put on the system's clipboard
 }
 
 // shown is a window of the layout as a frame brings it, with the cells
@@ -175,7 +184,7 @@ type placed struct {
 func open(s client.Session, ended func()) *window {
 	cols, rows := 100, 32
 	r := rect{Size: size{cellW*float64(cols) + 2*pad, cellH*float64(rows) + 2*pad}}
-	w := &window{s: s, keys: make(chan vim.Key, 1024), do: make(chan func()), ended: ended, placed: make(chan struct{}, 1), panes: map[int]*pane{}, floats: map[int]*box{}}
+	w := &window{s: s, keys: make(chan vim.Key, 1024), do: make(chan func()), pastes: make(chan string, 8), ended: ended, placed: make(chan struct{}, 1), panes: map[int]*pane{}, floats: map[int]*box{}}
 	// The content reaches under the title bar, which the tab strip takes.
 	w.win = msgInitWindow(cls("NSWindow").Send(sel("alloc")), sel("initWithContentRect:styleMask:backing:defer:"), r, 15|1<<15, 2, false)
 	w.win.Send(sel("setReleasedWhenClosed:"), 0)
@@ -191,9 +200,12 @@ func open(s client.Session, ended func()) *window {
 	cls("NSNotificationCenter").Send(sel("defaultCenter")).Send(sel("addObserver:selector:name:object:"), w.view, sel("splitResized:"), nsString("NSSplitViewDidResizeSubviewsNotification"), 0)
 	w.win.Send(sel("setContentView:"), w.view)
 	w.panel, w.toast = newBox(w.view), newBox(w.view)
+	w.preedit = msgInitView(objc.ID(markedClass).Send(sel("alloc")), sel("initWithFrame:"), rect{})
+	w.preedit.Send(sel("setHidden:"), 1)
+	w.view.Send(sel("addSubview:"), w.preedit)
 	w.win.Send(sel("makeFirstResponder:"), w.view)
 	w.win.Send(sel("center"))
-	windows[w.view], windows[w.win], windows[w.bar] = w, w, w
+	windows[w.view], windows[w.win], windows[w.bar], windows[w.preedit] = w, w, w, w
 	resizeRoot(w.view, 0, size{})
 	w.win.Send(sel("makeKeyAndOrderFront:"), 0)
 	if !inBackground {
@@ -238,6 +250,8 @@ func (w *window) loop(cols, rows int) {
 			s.Feed(k)
 		case f := <-s.Queue():
 			f()
+		case text := <-w.pastes:
+			s.Paste(text)
 		case <-w.placed:
 			w.mu.Lock()
 			pl := w.places
@@ -269,7 +283,7 @@ func (w *window) loop(cols, rows int) {
 		draw()
 	}
 	onMain(func() {
-		for _, v := range []objc.ID{w.view, w.win, w.bar} {
+		for _, v := range []objc.ID{w.view, w.win, w.bar, w.preedit} {
 			delete(windows, v)
 		}
 		for _, p := range w.panes {
@@ -436,6 +450,9 @@ func (p *painter) paint(s client.Session, cols, rows int) frame {
 	if msg := s.Message(); msg != "" {
 		f.toast = &boxed{text: compose.Carets(msg), look: boxLook}
 	}
+	if text, ok := s.Clipboard(); ok {
+		f.copied = &text
+	}
 	// While the palette, the finder or a question shows, no window shows
 	// the cursor. A float with the focus shows it, and the window it opened
 	// from does not.
@@ -495,6 +512,11 @@ func (w *window) apply() {
 			if p := w.panes[sh.id]; p != nil {
 				p.update(sh, f.look.Base.Bg)
 			}
+		}
+	}
+	for _, f := range fs {
+		if f.copied != nil {
+			copyOut(*f.copied)
 		}
 	}
 	f := fs[len(fs)-1]
@@ -604,18 +626,6 @@ func drawCells(cells [][]cell, cursor cursorAt, o point) {
 		if under := cells[c.y][c.x]; c.shape == 0 && strings.TrimSpace(under.text) != "" {
 			msgDrawAt(nsString(under.text), sel("drawAtPoint:withAttributes:"), r.Origin, attrs(theme.Style{Fg: under.style.Bg}))
 		}
-	}
-}
-
-func keyDown(self objc.ID, _ objc.SEL, ev objc.ID) {
-	w := windows[self]
-	if w == nil {
-		return
-	}
-	code := objc.Send[uint16](ev, sel("keyCode"))
-	mods := objc.Send[uint](ev, sel("modifierFlags"))
-	for _, k := range keys(code, mods, goString(ev.Send(sel("characters"))), goString(ev.Send(sel("charactersIgnoringModifiers")))) {
-		w.keys <- k
 	}
 }
 

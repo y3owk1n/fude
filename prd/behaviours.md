@@ -1312,6 +1312,16 @@ Where fude departs, the line says so and cites the departure in
   typed as its title (B172). A float's box has its name over its text and
   its foot under a rule. While the float has the focus, its status line
   shows at the bottom of the box.
+- B551 [10] In `fude gui` an input method types what the keyboard does
+  not, such as Japanese. The text it composes shows underlined at the
+  cursor, its candidates show by the cursor, and the text it inserts
+  goes to the session as keys. While nothing is being composed, a key
+  with Control, Option or Command, or one that types no character, goes
+  to the session as it is. The menus have Quit, Hide, Close Window,
+  Minimize and Zoom with their usual Command keys. Edit's Undo, Redo,
+  Cut, Copy, Paste and Select All do what `u`, `<C-r>`, `"+d`, `"+y`, a
+  paste of the system's clipboard and `ggVG` do, in the mode the session
+  is in. Command-Q quits as closing the window does.
 - B544 [2] A session has tab pages, each with its own windows, floats
   and current window, as in Neovim. `:tabnew` and `:tabedit` open one
   after the current page, on a file or a new empty buffer. `gt`, `{n}gt`,
