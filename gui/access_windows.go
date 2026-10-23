@@ -884,7 +884,9 @@ func (w *window) rootKids() []*node {
 		p := w.panes[id]
 		kids = append(kids, p.textNode(), p.statusNode())
 	}
-	kids = append(kids, w.strip)
+	if w.tabbed {
+		kids = append(kids, w.strip)
+	}
 	for _, b := range w.order {
 		if b.boxed != nil {
 			kids = append(kids, b.boxNode())

@@ -48,7 +48,7 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-// B573
+// B573, B575
 func TestB573WindowsWindow(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "a.txt")
 	editortest.Change(t, path, "one\n")
@@ -73,8 +73,18 @@ func TestB573WindowsWindow(t *testing.T) {
 		}, true)
 		return drawn
 	})
+	// Without tabs the window has the system's title bar over the panes.
+	var frame rectI
+	var top [2]int32
+	onMain(func() {
+		call(getWindowRect, w.hwnd, uintptr(unsafe.Pointer(&frame)))
+		call(clientToScreen, w.hwnd, uintptr(unsafe.Pointer(&top)))
+	}, true)
+	if top[1]-frame.T <= w.border() {
+		t.Errorf("the panes start %d pixels under the window's top, with no title bar over them", top[1]-frame.T)
+	}
 	// A window made smaller makes the session smaller.
-	onMain(func() { w.fit(cellW*80+2*pad, stripH+cellH*24+2*pad+statusH) }, true)
+	onMain(func() { w.fit(cellW*80+2*pad, cellH*24+2*pad+statusH) }, true)
 	until(t, "the session to take 80 columns", func() bool {
 		cols := 0
 		w.onLoop(func() { cols = e.Windows()[0].W })

@@ -59,7 +59,7 @@ func (w *window) build(l wire.Split) {
 // it, and the loop where the panes put the windows' text.
 func (w *window) arrange() {
 	w.dividers = w.dividers[:0]
-	w.node(w.layout, rect{point{0, stripH}, w.area()}, "")
+	w.node(w.layout, rect{point{0, w.top()}, w.area()}, "")
 	w.placeAll()
 	w.redraw()
 }
@@ -133,7 +133,7 @@ func (w *window) placeAll() {
 	pl := places{cols: max(int(area.W/cellW), 1), rows: max(int(area.H/cellH), 1), cell: w.cellPx}
 	for id, p := range w.panes {
 		r := p.frame
-		x, y := r.Origin.X+pad, r.Origin.Y-stripH+pad
+		x, y := r.Origin.X+pad, r.Origin.Y-w.top()+pad
 		pl.wins = append(pl.wins, [5]int{id, int(x / cellW), int(y / cellH), max(int((r.Size.W-2*pad)/cellW), 1), max(int((r.Size.H-statusH-2*pad)/cellH), 1)})
 	}
 	slices.SortFunc(pl.wins, func(a, b [5]int) int { return a[0] - b[0] })
@@ -151,13 +151,12 @@ func (w *window) placeAll() {
 }
 
 // drawPane draws a pane bounds big: its text on the theme's ground, and
-// its status bar under it on the system's bar colour (B147).
+// its status bar under it on the same ground (B147, B559).
 func drawPane(p *pane, bounds size) {
 	fillRGB(p.w.look.Base.Bg, rect{Size: bounds})
 	drawCells(p.cells, p.cursor, p.origin(), nil, nil)
 	p.w.drawPics(p.pics, point{pad, pad})
 	bar := rect{point{0, bounds.H - statusH}, size{bounds.W, statusH}}
-	fill("barColor", bar)
 	drawParts(p.left, p.right, p.current, bar)
 	if k, ok := p.knob(); ok {
 		fillRounded("tertiaryLabelColor", k, 2.5)

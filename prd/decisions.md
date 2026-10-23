@@ -980,9 +980,11 @@ the row typed into stays fude's own, as D65 says. Tabs stay fude's own
 on every system, drawn to the system's measures. macOS and Windows have
 no public tab bar of this kind. GNOME's tab bar is libadwaita's, which
 fude does not load. GTK's notebook would add a row of tabs under the
-header bar, a style GNOME's own applications no longer use. A part that
-becomes a system control loses the accessibility D67 gave it by hand, as
-the control has its own.
+header bar, a style GNOME's own applications no longer use. Windows'
+status bars stay fude's own too. Win32 has no label that shows text in
+several colours, and its status bar control draws the classic grey bar
+with no dark look. A part that becomes a system control loses the
+accessibility D67 gave it by hand, as the control has its own.
 
 Why, as of 2026-10-24: the user found the drawn chrome did not look
 native and chose the system's controls over drawing closer to them. The

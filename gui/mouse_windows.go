@@ -169,7 +169,7 @@ func (w *window) count(at point) int {
 // to the strip (B552, B561).
 func (w *window) mouseDown(button int, at point) {
 	clicks, mods := w.count(at), held()
-	if at.Y < stripH {
+	if at.Y < w.top() {
 		w.stripDown(button, at.X)
 		return
 	}
@@ -240,7 +240,7 @@ func (w *window) mouseMove(at point) {
 		return
 	}
 	hover := -1.0
-	if at.Y < stripH {
+	if at.Y < w.top() {
 		hover = at.X
 	}
 	if hover != w.hover {

@@ -39,7 +39,7 @@ func (b *box) show(what *boxed) {
 		return
 	}
 	r := placeBox(what, b.w.area(), 0, &b.scroll, &b.seen)
-	b.frame = rect{point{math.Round(r.Origin.X), stripH + math.Round(r.Origin.Y)}, size{math.Ceil(r.Size.W), math.Ceil(r.Size.H)}}
+	b.frame = rect{point{math.Round(r.Origin.X), b.w.top() + math.Round(r.Origin.Y)}, size{math.Ceil(r.Size.W), math.Ceil(r.Size.H)}}
 }
 
 // drawBox draws b bounds big on the system's popover ground, inside a

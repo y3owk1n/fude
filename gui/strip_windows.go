@@ -64,11 +64,15 @@ func (w *window) border() int32 {
 	return int32(call(systemMetrics, smCyFrame, dpi) + call(systemMetrics, smCxPaddedBorder, dpi))
 }
 
-// frame handles a message of the window's frame. The frame has no title
-// bar, because the strip is the title bar. Off the tabs, the strip drags the window,
-// and a double click there maximizes it. Its buttons minimize, maximize
-// and close the window (B575).
+// frame handles a message of the window's frame while there are tabs.
+// The frame then has no title bar, because the strip is the title bar.
+// Off the tabs, the strip drags the window, and a double click there
+// maximizes it. Its buttons minimize, maximize and close the window
+// (B575). Without tabs the frame is the system's own.
 func (w *window) frame(m uint32, wp, lp uintptr) (uintptr, bool) {
+	if !w.tabbed {
+		return 0, false
+	}
 	switch m {
 	case wmNcCalcSize:
 		if wp == 0 {

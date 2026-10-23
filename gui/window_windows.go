@@ -35,6 +35,7 @@ type native struct {
 	marked        string // what the input method composes
 	notifying     bool   // the window has its icon in the notification area
 	surrogate     uint16 // the first half of a character two WM_CHARs bring
+	tabbed        bool   // there are tabs, so the strip is the title bar
 
 	mouseNative
 	stripNative
@@ -164,10 +165,10 @@ func open(s client.Session, ended func()) *window {
 	w.cellPx = [2]int{int(cellW * w.scale), int(cellH * w.scale)}
 	w.panel, w.toast = newBox(w), newBox(w)
 	w.newAccess()
-	// fit changes the frame, so the window takes its frame's messages
-	// first. Otherwise the system's title bar stays over the strip.
+	// fit sends the window messages, which reach w only once opened
+	// holds it.
 	opened[w.hwnd] = w
-	w.fit(cellW*float64(cols)+2*pad, stripH+cellH*float64(rows)+2*pad+statusH)
+	w.fit(cellW*float64(cols)+2*pad, cellH*float64(rows)+2*pad+statusH)
 	call(showWindow, w.hwnd, 1)
 	go w.loop(cols, rows)
 	return w
@@ -229,7 +230,9 @@ func (w *window) paint() {
 	com(rt, 48)
 	ground := rgba(w.look.Base.Bg, 1)
 	com(rt, 47, uintptr(unsafe.Pointer(&ground)))
-	w.drawStripBar(w.area().W)
+	if w.tabbed {
+		w.drawStripBar(w.area().W)
+	}
 	for _, p := range w.panes {
 		within(p.frame, func(sz size) { drawPane(p, sz) })
 	}
@@ -263,21 +266,35 @@ func within(r rect, draw func(size)) {
 // redraw asks Windows to paint the window again.
 func (w *window) redraw() { call(invalidateRect, w.hwnd, 0, 0) }
 
+// top is where the panes start in the client area. With tabs they start
+// under the tab strip, and without them at the client area's top, under
+// the system's title bar.
+func (w *window) top() float64 {
+	if w.tabbed {
+		return stripH
+	}
+	return 0
+}
+
 // area is the size of the window's client area under the tab strip, in
 // points.
 func (w *window) area() size {
 	var r rectI
 	call(getClientRect, w.hwnd, uintptr(unsafe.Pointer(&r)))
-	return size{float64(r.R) / w.scale, max(float64(r.B)/w.scale-stripH, 0)}
+	return size{float64(r.R) / w.scale, max(float64(r.B)/w.scale-w.top(), 0)}
 }
 
-// fit makes w's client area width by height points. Its frame has no
-// title bar, so the client area starts at the window's top.
+// fit makes w's client area width by height points. While there are tabs
+// its frame has no title bar, so the client area starts at the window's
+// top.
 func (w *window) fit(width, height float64) {
 	dpi := uintptr(96 * w.scale)
 	r := rectI{0, 0, int32(math.Ceil(width * w.scale)), int32(math.Ceil(height * w.scale))}
 	call(adjustWindowRect, uintptr(unsafe.Pointer(&r)), style, 0, 0, dpi)
-	call(setWindowPos, w.hwnd, 0, 0, 0, uintptr(r.R-r.L), uintptr(r.B), 0x36)
+	if w.tabbed {
+		r.T = 0
+	}
+	call(setWindowPos, w.hwnd, 0, 0, 0, uintptr(r.R-r.L), uintptr(r.B-r.T), 0x36)
 }
 
 // apply shows the frames the loop sent, on the main thread.
@@ -324,6 +341,14 @@ func (w *window) apply() {
 	call(setWindowText, w.hwnd, uintptr(unsafe.Pointer(cwide(title))))
 	f.tabs.title = cmp.Or(w.title, "fude")
 	w.tabs = f.tabs
+	if tabbed := len(f.tabs.buffers)+len(f.tabs.pages) > 0; tabbed != w.tabbed {
+		// SWP_FRAMECHANGED has Windows lay the frame out again, so the
+		// title bar becomes the strip with tabs and the system's own
+		// without them.
+		w.tabbed, w.caption, w.down = tabbed, 0, 0
+		call(setWindowPos, w.hwnd, 0, 0, 0, 0, 0, 0x37)
+		w.arrange()
+	}
 	w.dress(f)
 	for id, b := range w.floats {
 		if f.floats[id] == nil {
@@ -372,6 +397,11 @@ func (w *window) dress(f frame) {
 		on = 1
 	}
 	call(dwmSetAttribute, w.hwnd, 20, uintptr(unsafe.Pointer(&on)), 4)
+	// On Windows 11 the system's title bar takes the theme's ground. DWM
+	// takes it as a COLORREF, 0x00BBGGRR.
+	bg := f.look.Base.Bg
+	g := uint32(bg>>16&0xff | bg&0xff00 | bg&0xff<<16)
+	call(dwmSetAttribute, w.hwnd, 35, uintptr(unsafe.Pointer(&g)), 4)
 }
 
 // ask shows q in a dialog over the window, whose buttons answer it as y
