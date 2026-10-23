@@ -4,31 +4,18 @@ import (
 	"maps"
 	"math"
 	"slices"
+	"strings"
 	"time"
-	"unicode"
-	"unicode/utf8"
 
 	"github.com/ebitengine/purego/objc"
 )
 
-// contextItems are what a right click on text offers, the language
-// server's items for the place clicked, then the clipboard's. Each has its
-// title, the action it sends, the keys that action types and the language
-// server feature it needs (B561).
-var contextItems = []struct{ title, action, keys, needs string }{
-	{"Go to Definition", "goToDefinition:", "<C-]>", "definition"},
-	{"Go to Type Definition", "goToTypeDefinition:", "grt", "typeDefinition"},
-	{"Find References", "findReferences:", "grr", "references"},
-	{"Find Implementations", "findImplementations:", "gri", "implementation"},
-	{"Rename Symbol", "renameSymbol:", "grn", "rename"},
-	{"Code Actions", "codeActions:", "gra", "codeAction"},
-	{"Show Hover", "showHover:", "K", "hover"},
-	{},
-	{"Cut", "cut:", "", ""},
-	{"Copy", "copy:", "", ""},
-	{"Paste", "paste:", "", ""},
-	{},
-	{"Select All", "selectAll:", "", ""},
+// selectorOf is the action a context item sends, its title in lower camel
+// case, as goToDefinition: for Go to Definition.
+func selectorOf(title string) string {
+	words := strings.Fields(title)
+	words[0] = strings.ToLower(words[0])
+	return strings.Join(words, "") + ":"
 }
 
 // contextActions are the root view's methods for the language server's
@@ -40,12 +27,11 @@ func contextActions() []objc.MethodDef {
 		if it.keys == "" {
 			continue
 		}
-		keys, visual := it.keys, "<Esc>"+it.keys
-		if it.keys == "gra" {
-			visual = keys
-		}
-		defs = append(defs, objc.MethodDef{Cmd: sel(it.action), Fn: func(self objc.ID, _ objc.SEL, _ objc.ID) {
-			act(self, keys, "<Esc>"+keys, visual)
+		keys := it.keys
+		defs = append(defs, objc.MethodDef{Cmd: sel(selectorOf(it.title)), Fn: func(self objc.ID, _ objc.SEL, _ objc.ID) {
+			if w := windows[self]; w != nil {
+				w.contextAct(keys)
+			}
 		}})
 	}
 	return defs
@@ -75,28 +61,15 @@ func menuFor(self objc.ID, _ objc.SEL, ev objc.ID) objc.ID {
 				contextMenu.Send(sel("addItem:"), cls("NSMenuItem").Send(sel("separatorItem")))
 				continue
 			}
-			contextMenu.Send(sel("addItemWithTitle:action:keyEquivalent:"), nsString(it.title), sel(it.action), nsString(""))
+			contextMenu.Send(sel("addItemWithTitle:action:keyEquivalent:"), nsString(it.title), sel(selectorOf(it.title)), nsString(""))
 		}
 	}
 	pasted := goString(cls("NSPasteboard").Send(sel("generalPasteboard")).Send(sel("stringForType:"), nsString(pasteboardText))) != ""
-	offered := false
-	for i, it := range contextItems {
+	shown, enabled := contextState(p.offers, visual, pasted)
+	for i := range contextItems {
 		item := contextMenu.Send(sel("itemAtIndex:"), i)
-		switch {
-		case it.needs != "":
-			on := slices.Contains(p.offers, it.needs)
-			offered = offered || on
-			item.Send(sel("setHidden:"), !on)
-		case it.title == "Cut" || it.title == "Copy":
-			item.Send(sel("setEnabled:"), visual)
-		case it.title == "Paste":
-			item.Send(sel("setEnabled:"), pasted)
-		case it.title == "":
-			// The separator after the language server's items hides with them.
-			if contextItems[i-1].needs != "" {
-				item.Send(sel("setHidden:"), !offered)
-			}
-		}
+		item.Send(sel("setHidden:"), !shown[i])
+		item.Send(sel("setEnabled:"), enabled[i])
 	}
 	return contextMenu
 }
@@ -116,21 +89,15 @@ func newScroller(p *pane) objc.ID {
 	return s
 }
 
-// showScroll puts where a pane's view is in its scroll bar. The bar shows
-// for a second after the view moves, when the text is taller than it.
-func (p *pane) showScroll(top, rows, lines int) {
-	moved := top != p.top
-	// With no scroll asked for on the way, the view asks for where it is.
-	if p.want == p.top {
-		p.want = top
-	}
-	p.top, p.rows, p.lines = top, rows, lines
-	if lines <= rows {
+// showBar puts where p's view is in its scroll bar, which shows for a
+// second after the view moved, when the text is taller than it.
+func (p *pane) showBar(moved bool) {
+	if p.lines <= p.rows {
 		msgSetFloat(p.scroller, sel("setAlphaValue:"), 0)
 		return
 	}
-	msgSetFloat(p.scroller, sel("setKnobProportion:"), float64(rows)/float64(lines))
-	msgSetFloat(p.scroller, sel("setDoubleValue:"), float64(top)/float64(lines-rows))
+	msgSetFloat(p.scroller, sel("setKnobProportion:"), float64(p.rows)/float64(p.lines))
+	msgSetFloat(p.scroller, sel("setDoubleValue:"), float64(p.top)/float64(p.lines-p.rows))
 	if !moved {
 		return
 	}
@@ -141,39 +108,11 @@ func (p *pane) showScroll(top, rows, lines int) {
 		time.Sleep(time.Second)
 		onMain(func() {
 			// A pane its window dropped, as switching tab pages does, freed its bar.
-			if p.shownAt == at && panes[p.text] == p {
+			if p.shownAt == at && !p.gone {
 				msgSetFloat(p.scroller.Send(sel("animator")), sel("setAlphaValue:"), 0)
 			}
 		}, false)
 	}()
-}
-
-// smooth moves p's text up by dy points, a trackpad's move, asking its
-// window to scroll a line for each row's height it passes. At the ends of
-// the text it stops. When the phase says the fingers or the momentum let
-// go, the text settles on the nearest line.
-func (p *pane) smooth(dy float64, phase uint) {
-	p.offset -= dy
-	n := int(math.Floor(p.offset / cellH))
-	n = min(max(n, -p.want), max(p.lines-1-p.want, 0))
-	if n != 0 {
-		p.w.mice <- mouse{'s', p.id, 0, n, 0}
-		p.want += n
-		p.offset -= float64(n) * cellH
-	}
-	if p.want == 0 && p.offset < 0 || p.want >= p.lines-1 && p.offset > 0 {
-		p.offset = 0
-	}
-	// The fingers or the momentum ended.
-	if phase&8 != 0 {
-		if p.offset > cellH/2 && p.want < p.lines-1 {
-			p.w.mice <- mouse{'s', p.id, 0, 1, 0}
-			p.want++
-		}
-		p.offset = 0
-	}
-	p.offset = min(max(p.offset, 0), cellH)
-	p.text.Send(sel("setNeedsDisplay:"), 1)
 }
 
 // scrolled scrolls a pane's window to where its scroll bar's knob went.
@@ -190,74 +129,23 @@ func scrolled(self objc.ID, _ objc.SEL, s objc.ID) {
 	p.shownAt = time.Now()
 }
 
-// restFor is how long the mouse rests on a word before its hover shows.
-const restFor = 500 * time.Millisecond
-
 // moved marks the cell of a pane's text the mouse is over, or for ev 0
-// that it left. A move off the word whose hover it asked for closes that
-// hover, and a rest on another word asks for its hover. A move over a box,
-// such as that hover's, changes nothing (B562).
+// that it left. A move over a box, such as a hover's, changes nothing
+// (B562).
 func moved(view objc.ID, _ objc.SEL, ev objc.ID) {
 	p := panes[view]
 	if p == nil {
 		return
 	}
-	cell, mods := [2]int{-1, -1}, uint(0)
-	if ev != 0 {
-		mods = objc.Send[uint](ev, sel("modifierFlags"))
-		in := msgPoint(ev, sel("locationInWindow"))
-		if p.w.overBox(msgConvertPoint(p.w.view, sel("convertPoint:fromView:"), in, 0)) {
-			return
-		}
-		at := msgConvertPoint(view, sel("convertPoint:fromView:"), in, 0)
-		cell = [2]int{int(math.Floor((at.X - pad) / cellW)), int(math.Floor((at.Y - pad) / cellH))}
-	}
-	// Command may go down or up between moves on one cell.
-	same := cell == p.mouse
-	p.mouse = cell
-	if p.relink(mods); same {
+	if ev == 0 {
+		p.pointAt([2]int{-1, -1}, 0)
 		return
 	}
-	p.movedAt = time.Now()
-	if h := p.hovered; h[0] >= 0 && (cell[1] != h[0] || cell[0] < h[1] || cell[0] >= h[2]) {
-		p.hovered = [3]int{-1}
-		p.w.mice <- mouse{'h', p.id, -1, -1, 0}
-	}
-	from, to := p.wordAt(cell)
-	if from == to || p.hovered[0] >= 0 {
+	in := msgPoint(ev, sel("locationInWindow"))
+	if p.w.overBox(msgConvertPoint(p.w.view, sel("convertPoint:fromView:"), in, 0)) {
 		return
 	}
-	at := p.movedAt
-	time.AfterFunc(restFor, func() {
-		onMain(func() {
-			if p.movedAt == at && panes[p.text] == p {
-				p.hovered = [3]int{cell[1], from, to}
-				p.w.mice <- mouse{'h', p.id, cell[0], cell[1], 0}
-			}
-		}, false)
-	})
-}
-
-// relink makes the word under the mouse a link while mods hold Command
-// and the window's servers offer definitions. A link is underlined, and
-// the pointer over it is the pointing hand (B563).
-func (p *pane) relink(mods uint) {
-	var l rule
-	if mods&modCommand != 0 && slices.Contains(p.offers, "definition") {
-		if from, to := p.wordAt(p.mouse); from != to {
-			l = rule{from, p.mouse[1], to - from}
-		}
-	}
-	if l == p.link {
-		return
-	}
-	p.link = l
-	if l.w > 0 {
-		cls("NSCursor").Send(sel("pointingHandCursor")).Send(sel("set"))
-	} else if p.mouse[0] >= 0 {
-		cls("NSCursor").Send(sel("IBeamCursor")).Send(sel("set"))
-	}
-	p.text.Send(sel("setNeedsDisplay:"), 1)
+	p.pointAt(cellAt(msgConvertPoint(view, sel("convertPoint:fromView:"), in, 0)), heldOf(objc.Send[uint](ev, sel("modifierFlags"))))
 }
 
 // flagsChanged shows or ends the link under the mouse as Command goes down
@@ -265,34 +153,9 @@ func (p *pane) relink(mods uint) {
 func flagsChanged(self objc.ID, _ objc.SEL, ev objc.ID) {
 	if w := windows[self]; w != nil {
 		for _, p := range w.panes {
-			p.relink(objc.Send[uint](ev, sel("modifierFlags")))
+			p.relink(heldOf(objc.Send[uint](ev, sel("modifierFlags"))))
 		}
 	}
-}
-
-// wordAt returns the columns of the word the pane shows at cell, from its
-// first to past its last, the same twice for none.
-func (p *pane) wordAt(cell [2]int) (int, int) {
-	x, y := cell[0], cell[1]
-	if y < 0 || y >= len(p.cells) || x < 0 || x >= len(p.cells[y]) {
-		return 0, 0
-	}
-	row := p.cells[y]
-	word := func(i int) bool {
-		r, _ := utf8.DecodeRuneInString(row[i].text)
-		return r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r)
-	}
-	if !word(x) {
-		return 0, 0
-	}
-	from, to := x, x+1
-	for from > 0 && word(from-1) {
-		from--
-	}
-	for to < len(row) && word(to) {
-		to++
-	}
-	return from, to
 }
 
 // overBox reports whether at, in the root view, is over a box that shows.

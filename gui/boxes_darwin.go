@@ -6,19 +6,10 @@ import (
 	"github.com/ebitengine/purego/objc"
 )
 
-// box is a panel over a window's text, which shows the palette, the
-// finder, a menu, a float or a toast: the system's translucent material
-// with rounded corners and a shadow, and view on it, which draws what it
+// boxNative is a box's views: the system's translucent material with
+// rounded corners and a shadow, and view on it, which draws what the box
 // shows.
-type box struct {
-	frame, view objc.ID
-	*boxed
-	scroll float64 // how far its list scrolled, in points
-	seen   int     // the item its list selected last, to tell when that moves
-	hover  point   // where the mouse is over it, X -1 when it is not
-	id     int     // a float's window, which the mouse goes to, or 0
-	w      *window
-}
+type boxNative struct{ frame, view objc.ID }
 
 // newBox makes a hidden box over w's views (B559).
 func newBox(w *window) *box {
@@ -47,7 +38,7 @@ func newBox(w *window) *box {
 	frame.Send(sel("setHidden:"), 1)
 	v.Send(sel("setHidden:"), 1)
 	w.view.Send(sel("addSubview:"), frame)
-	b := &box{frame: frame, view: v, w: w, seen: -2, hover: point{X: -1}}
+	b := &box{boxNative: boxNative{frame, v}, w: w, seen: -2, hover: point{X: -1}}
 	boxes[v] = b
 	return b
 }

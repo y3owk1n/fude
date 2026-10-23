@@ -1331,7 +1331,7 @@ Where fude departs, the line says so and cites the departure in
   past the text its last. A click on a status line only gives the focus. A
   click ends visual mode and keeps insert mode, and closes a float or a
   menu at the cursor, such as hover or code actions, as a key does. A drag
-  selects from the click as `v` does. A scroll moves a window's view by
+  selects from the click as `v` does,. A scroll moves a window's view by
   lines as `<C-e>` and `<C-y>` do, its cursor kept in view, and leaves the
   focus where it is. While the command line, the finder or a question
   shows, clicks and drags do nothing. With `--gui` a click on a buffer's
@@ -1429,10 +1429,11 @@ Where fude departs, the line says so and cites the departure in
   message. `K` at the cursor does not enter it. With `--gui` the mouse
   resting half a second on a word shows its hover, and moving off the
   word closes it, unless the mouse moves onto the hover's box.
-- B563 [10] With `--gui`, while Command is held, the word under the
-  mouse is a link when the window's servers offer definitions. A link is
-  underlined, and the pointer over it is the pointing hand. A click on it
-  goes to its definition, as `<C-]>` there does, after insert mode ends.
+- B563 [10] With `--gui`, while Command is held on macOS, or Control on
+  Linux, the word under the mouse is a link when the window's servers
+  offer definitions. A link is underlined, and the pointer over it is the
+  pointing hand. A click on it goes to its definition, as `<C-]>` there
+  does, after insert mode ends.
 - B564 [10] A module's message may be an alert, one worth telling the
   user of while they are away, such as a task's end. A frontend gets each
   alert once. With `--gui`, an alert while the window is not in front
@@ -1445,16 +1446,25 @@ Where fude departs, the line says so and cites the departure in
   the user's login shell sets, so language servers are found as in a
   terminal. Opened at `/`, as Finder opens an app, it starts in the home
   folder.
-- B566 [10] With `--gui` on Linux, fude shows a session in a GTK 4
-  window, as on macOS (B547). Each window of the layout is a pane of the
-  window's splits, its text over its status bar. The command line shows
-  in a palette, messages as toasts, and floats and menus in boxes over the
+- B566 [10] With `--gui` on Linux, fude shows a session in a GTK 4 window,
+  as on macOS (B547). Each window of the layout is a pane of the window's
+  splits, its text over its status bar. The command line shows in a
+  palette, messages as toasts, and floats and menus in boxes over the
   panes, in the GTK theme's colours, with its dark look on a dark theme.
   Keys typed there go to the session as Vim keys, with an Alt chord as
   `<Esc>` and the key and a Super chord left to the desktop. Resizing the
   window resizes the session, a question shows in a dialog, and closing
-  the window quits as `:qa` does. It needs GTK 4. The mouse, images, the
+  the window quits as `:qa` does. It needs GTK 4. Images, scroll bars, the
   tab strip and input methods do not work there yet.
+- B567 [10] With `--gui` on Linux, the mouse does what it does on macOS
+  (B552, B555, B556, B557, B560, B562, B563). A click on text puts the
+  cursor there, a drag selects, a double click selects a word and a triple
+  click a line, and a dragged selection moves its text. A click picks from
+  a list, and a click off the palette or the finder closes it. A wheel
+  scrolls a window three lines a notch, and a touchpad by its points. A
+  rest on a word shows its hover, and with Control a word is a link to its
+  definition. A right click shows the menu of B561 as GTK's popover menu.
+  Control and Shift with C copy and with V paste, as Linux's terminals do.
 - B544 [2] A session has tab pages, each with its own windows, floats
   and current window, as in Neovim. `:tabnew` and `:tabedit` open one
   after the current page, on a file or a new empty buffer. `gt`, `{n}gt`,

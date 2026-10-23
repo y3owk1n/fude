@@ -12,8 +12,16 @@ import (
 // Run says the window is for macOS and Linux only (B547, B566).
 func Run(client.Session) error { return errors.New("--gui runs only on macOS and Linux for now") }
 
-// native is a window's system objects, none until the system has a window.
-type native struct{}
+// native, paneNative and boxNative are a window's, a pane's and a box's
+// system objects, none until the system has a window.
+type (
+	native     struct{}
+	paneNative struct{}
+	boxNative  struct{}
+)
+
+// linkKey is the modifier that makes the word under the mouse a link.
+const linkKey = controlKey
 
 func onMain(fn func(), _ bool)                      { fn() }
 func (w *window) apply()                            {}
@@ -31,3 +39,6 @@ func drawToast(string, rect)                        {}
 func drawPrompt(string, rect)                       {}
 func (l *list) draw(float64)                        {}
 func (w *window) drawPics([]pic, point)             {}
+func (p *pane) redraw()                             {}
+func (p *pane) pointer(bool)                        {}
+func (p *pane) showBar(bool)                        {}

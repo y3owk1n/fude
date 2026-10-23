@@ -16,16 +16,15 @@ import (
 // native is a window's GTK widgets and what the main thread keeps of them.
 type native struct {
 	win, overlay uintptr
-	panes        map[int]*pane
 	splits       []uintptr // the GtkPaneds the layout made, which build takes apart
 	key          string    // the layout the splits show
 	sent         places    // the places the loop was last given
 	look         theme.Look
-	floats       map[int]*box
-	panel, toast *box
-	asked        int     // the question the dialog is for, as frame.asked counts
-	asking       uintptr // the GCancellable of the dialog showing, 0 for none
-	dark         bool    // the window has GTK's dark look
+	asked        int             // the question the dialog is for, as frame.asked counts
+	asking       uintptr         // the GCancellable of the dialog showing, 0 for none
+	dark         bool            // the window has GTK's dark look
+	pressing     bool            // the mouse's button went down on a pane and is still down
+	actions      map[int]uintptr // the right click's actions, by their item of contextItems
 }
 
 // windows are the windows by their GtkWindows.
@@ -40,7 +39,7 @@ var (
 // callbacks are the C functions GTK calls back, made once, as purego
 // cannot free one.
 var callbacks struct {
-	activate, drawPane, drawBox, resized, key, closing, answered uintptr
+	activate, drawPane, drawBox, resized, key, modifiers, closing, answered uintptr
 }
 
 // Run shows s in a GTK window until s ends (B566).
@@ -81,6 +80,8 @@ func startApp(ready func()) {
 		return 0
 	})
 	callbacks.key = purego.NewCallback(keyPressed)
+	callbacks.modifiers = purego.NewCallback(modifiers)
+	makeMouseCallbacks()
 	callbacks.closing = purego.NewCallback(func(win, _ uintptr) uintptr {
 		// It quits as :qa does, which asks about unsaved changes, so the
 		// window closes once the session ends.
@@ -100,7 +101,7 @@ func startApp(ready func()) {
 // thread once s ends.
 func open(s client.Session, ended func()) *window {
 	cols, rows := 100, 32
-	w := &window{s: s, keys: make(chan vim.Key, 1024), do: make(chan func()), pastes: make(chan string, 8), mice: make(chan mouse, 64), ended: ended, placed: make(chan struct{}, 1), native: native{panes: map[int]*pane{}, floats: map[int]*box{}}}
+	w := &window{s: s, keys: make(chan vim.Key, 1024), do: make(chan func()), pastes: make(chan string, 8), mice: make(chan mouse, 64), ended: ended, placed: make(chan struct{}, 1), panes: map[int]*pane{}, floats: map[int]*box{}, caretOn: true}
 	w.win = gtkAppWindowNew(app)
 	gtkWindowSetTitle(w.win, "fude")
 	gtkWindowSetSize(w.win, int32(cellW*float64(cols)+2*pad), int32(cellH*float64(rows)+2*pad+statusH))
@@ -111,6 +112,7 @@ func open(s client.Session, ended func()) *window {
 	ctl := gtkKeyControllerNew()
 	gtkControllerPhase(ctl, 1)
 	gSignalConnectData(ctl, "key-pressed", callbacks.key, w.win, 0, 0)
+	gSignalConnectData(ctl, "modifiers", callbacks.modifiers, w.win, 0, 0)
 	gtkWidgetAddControl(w.win, ctl)
 	gSignalConnectData(w.win, "close-request", callbacks.closing, 0, 0, 0)
 	if styled == 0 {
@@ -119,6 +121,7 @@ func open(s client.Session, ended func()) *window {
 	scale := float64(gtkWidgetScale(w.win))
 	w.cellPx = [2]int{int(cellW * scale), int(cellH * scale)}
 	w.panel, w.toast = newBox(w), newBox(w)
+	w.contextActions()
 	windows[w.win] = w
 	gtkWindowPresent(w.win)
 	go w.loop(cols, rows)
@@ -151,7 +154,7 @@ func (w *window) apply() {
 		return
 	}
 	for _, f := range fs {
-		w.look = f.look
+		w.look, w.tabs = f.look, f.tabs
 		if f.key != w.key {
 			w.key = f.key
 			w.build(f.layout)
@@ -181,6 +184,7 @@ func (w *window) apply() {
 		if b == nil {
 			// It goes under the palette, the finder and toasts.
 			b = newBox(w)
+			b.id = id
 			w.floats[id] = b
 			w.panel.raise()
 			w.toast.raise()
@@ -259,14 +263,6 @@ func answered(d, result, _ uintptr) uintptr {
 	return 0
 }
 
-// The modifier bits of a GdkModifierType.
-const (
-	gdkShift   = 1
-	gdkControl = 1 << 2
-	gdkAlt     = 1 << 3
-	gdkSuper   = 1 << 26
-)
-
 // keyvals are the keys that type no character, by GDK's keyval.
 var keyvals = map[uint32]vim.Key{
 	0xff1b: "<Esc>", 0xff0d: "<CR>", 0xff8d: "<CR>", 0xff08: "<BS>", 0xffff: "<Del>",
@@ -276,17 +272,21 @@ var keyvals = map[uint32]vim.Key{
 }
 
 // keyPressed types a key down as the keys it is in Vim's notation, and
-// tells GTK whether it took the key.
+// tells GTK whether it took the key. Control and Shift with C copy and with
+// V paste, as Linux's terminals do.
 func keyPressed(_, keyval, _, state, win uintptr) uintptr {
 	w := windows[win]
 	if w == nil {
 		return 0
 	}
-	held := 0
-	for _, m := range [][2]uintptr{{gdkShift, shiftKey}, {gdkControl, controlKey}, {gdkAlt, altKey}, {gdkSuper, superKey}} {
-		if state&m[0] != 0 {
-			held |= int(m[1])
+	held := heldOf(state)
+	if held == controlKey|shiftKey && (keyval == 'C' || keyval == 'V') {
+		if keyval == 'C' {
+			w.edit("Copy")
+		} else {
+			w.paste()
 		}
+		return 1
 	}
 	chars := ""
 	if r := gdkKeyvalToUnicode(uint32(keyval)); r != 0 {
@@ -300,4 +300,15 @@ func keyPressed(_, keyval, _, state, win uintptr) uintptr {
 		return 0
 	}
 	return 1
+}
+
+// modifiers shows or ends the link under the mouse as Control goes down or
+// up (B563).
+func modifiers(_, state, win uintptr) uintptr {
+	if w := windows[win]; w != nil {
+		for _, p := range w.panes {
+			p.relink(heldOf(state))
+		}
+	}
+	return 0
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"runtime"
 	"sync"
+	"unsafe"
 
 	"github.com/ebitengine/purego"
 )
@@ -73,6 +74,31 @@ var (
 	gdkDisplayDefault    func() uintptr
 	gdkDisplayClipboard  func(d uintptr) uintptr
 	gdkClipboardSetText  func(c uintptr, text string)
+	gdkClipboardFormats  func(c uintptr) uintptr
+	gdkFormatsHasType    func(f uintptr, t uint64) int32
+	gdkClipboardRead     func(c, cancellable, fn, data uintptr)
+	gdkClipboardReadDone func(c, result uintptr, err *uintptr) *byte
+	gFree                func(p unsafe.Pointer)
+	gtkGestureClickNew   func() uintptr
+	gtkGestureSetButton  func(g uintptr, button uint32)
+	gtkGestureButton     func(g uintptr) uint32
+	gtkMotionNew         func() uintptr
+	gtkScrollNew         func(flags uint32) uintptr
+	gtkScrollUnit        func(c uintptr) int32
+	gtkControllerState   func(c uintptr) uint32
+	gtkWidgetSetCursor   func(w uintptr, name string)
+	gtkWidgetSetParent   func(w, parent uintptr)
+	gtkWidgetUnparent    func(w uintptr)
+	gMenuNew             func() uintptr
+	gMenuAppend          func(m uintptr, label, action string)
+	gMenuAppendSection   func(m, label, section uintptr)
+	gSimpleActionNew     func(name string, param uintptr) uintptr
+	gSimpleActionEnable  func(a uintptr, on int32)
+	gActionMapAdd        func(m, action uintptr)
+	gtkPopoverMenuNew    func(model uintptr) uintptr
+	gtkPopoverPointTo    func(p uintptr, r *gdkRect)
+	gtkPopoverHasArrow   func(p uintptr, on int32)
+	gtkPopoverPopup      func(p uintptr)
 	gtkAlertSetButtons   func(d uintptr, labels *uintptr)
 	gtkAlertSetCancel    func(d uintptr, button int32)
 	gtkAlertChoose       func(d, parent, cancellable, fn, data uintptr)
@@ -122,10 +148,12 @@ const (
 	gTypeString  = 16 << 2
 )
 
-// grect is a graphene_rect_t, and gdkRGBA a GdkRGBA.
+// grect is a graphene_rect_t, gdkRGBA a GdkRGBA and gdkRect a
+// GdkRectangle.
 type (
 	grect   struct{ X, Y, W, H float32 }
 	gdkRGBA struct{ R, G, B, A float32 }
+	gdkRect struct{ X, Y, W, H int32 }
 )
 
 // pangoScale is how many of Pango's units make a point.
@@ -211,6 +239,31 @@ func load() error {
 			{gtk, &gdkDisplayDefault, "gdk_display_get_default"},
 			{gtk, &gdkDisplayClipboard, "gdk_display_get_clipboard"},
 			{gtk, &gdkClipboardSetText, "gdk_clipboard_set_text"},
+			{gtk, &gdkClipboardFormats, "gdk_clipboard_get_formats"},
+			{gtk, &gdkFormatsHasType, "gdk_content_formats_contain_gtype"},
+			{gtk, &gdkClipboardRead, "gdk_clipboard_read_text_async"},
+			{gtk, &gdkClipboardReadDone, "gdk_clipboard_read_text_finish"},
+			{gtk, &gFree, "g_free"},
+			{gtk, &gtkGestureClickNew, "gtk_gesture_click_new"},
+			{gtk, &gtkGestureSetButton, "gtk_gesture_single_set_button"},
+			{gtk, &gtkGestureButton, "gtk_gesture_single_get_current_button"},
+			{gtk, &gtkMotionNew, "gtk_event_controller_motion_new"},
+			{gtk, &gtkScrollNew, "gtk_event_controller_scroll_new"},
+			{gtk, &gtkScrollUnit, "gtk_event_controller_scroll_get_unit"},
+			{gtk, &gtkControllerState, "gtk_event_controller_get_current_event_state"},
+			{gtk, &gtkWidgetSetCursor, "gtk_widget_set_cursor_from_name"},
+			{gtk, &gtkWidgetSetParent, "gtk_widget_set_parent"},
+			{gtk, &gtkWidgetUnparent, "gtk_widget_unparent"},
+			{gtk, &gMenuNew, "g_menu_new"},
+			{gtk, &gMenuAppend, "g_menu_append"},
+			{gtk, &gMenuAppendSection, "g_menu_append_section"},
+			{gtk, &gSimpleActionNew, "g_simple_action_new"},
+			{gtk, &gSimpleActionEnable, "g_simple_action_set_enabled"},
+			{gtk, &gActionMapAdd, "g_action_map_add_action"},
+			{gtk, &gtkPopoverMenuNew, "gtk_popover_menu_new_from_model"},
+			{gtk, &gtkPopoverPointTo, "gtk_popover_set_pointing_to"},
+			{gtk, &gtkPopoverHasArrow, "gtk_popover_set_has_arrow"},
+			{gtk, &gtkPopoverPopup, "gtk_popover_popup"},
 			{gtk, &gtkAlertSetButtons, "gtk_alert_dialog_set_buttons"},
 			{gtk, &gtkAlertSetCancel, "gtk_alert_dialog_set_cancel_button"},
 			{gtk, &gtkAlertChoose, "gtk_alert_dialog_choose"},

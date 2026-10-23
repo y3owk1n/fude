@@ -3,7 +3,6 @@ package gui
 import (
 	"maps"
 	"slices"
-	"time"
 
 	"github.com/ebitengine/purego/objc"
 
@@ -103,35 +102,28 @@ type native struct {
 	win  objc.ID
 	view objc.ID // the root, which takes the keys
 
-	bar, area    objc.ID // the tab strip, and the view the splits fill
-	barBack      objc.ID // the material under the strip
-	panes        map[int]*pane
-	key          string // the layout the splits show
-	sent         places // the places the loop was last given
-	look         theme.Look
-	tabs         strip
-	floats       map[int]*box
-	panel, toast *box
-	asked        int             // the question the sheet is for, as frame.asked counts
-	sheet        objc.ID         // the alert showing, 0 for none
-	images       map[int]objc.ID // by id, the NSImages of the images shown
-	appearance   string          // the window's look, as dress last set it
-	file         string          // the file the title bar shows
-	dragged      mouse           // the last click or drag, to send a drag once a cell
-	hits         []hit           // the tabs the strip shows
-	hover        float64         // where the mouse is along the strip, -1 off it
-	pressed      *hit            // the tab the mouse went down on
-	pressX       float64         // where along the strip
-	dragging     bool            // the tab pressed moves with the mouse
-	dropX        float64         // where it is
-	moving       bool            // the strip drags the window
-	moveFrom     point           // where on the screen the drag began
-	origin       point           // where the window was then
-	marked       string          // the text an input method composes
-	preedit      objc.ID         // the view that shows it
-	event        objc.ID         // the key down the input method has
-	typed        time.Time       // when a key or the mouse last went, which shows the cursor
-	caretOn      bool            // the cursor shows, as it blinks
+	bar, area  objc.ID // the tab strip, and the view the splits fill
+	barBack    objc.ID // the material under the strip
+	key        string  // the layout the splits show
+	sent       places  // the places the loop was last given
+	look       theme.Look
+	asked      int             // the question the sheet is for, as frame.asked counts
+	sheet      objc.ID         // the alert showing, 0 for none
+	images     map[int]objc.ID // by id, the NSImages of the images shown
+	appearance string          // the window's look, as dress last set it
+	file       string          // the file the title bar shows
+	hits       []hit           // the tabs the strip shows
+	hover      float64         // where the mouse is along the strip, -1 off it
+	pressed    *hit            // the tab the mouse went down on
+	pressX     float64         // where along the strip
+	dragging   bool            // the tab pressed moves with the mouse
+	dropX      float64         // where it is
+	moving     bool            // the strip drags the window
+	moveFrom   point           // where on the screen the drag began
+	origin     point           // where the window was then
+	marked     string          // the text an input method composes
+	preedit    objc.ID         // the view that shows it
+	event      objc.ID         // the key down the input method has
 }
 
 // open makes a window for s and starts its loop. ended runs on the main
@@ -139,7 +131,7 @@ type native struct {
 func open(s client.Session, ended func()) *window {
 	cols, rows := 100, 32
 	r := rect{Size: size{cellW*float64(cols) + 2*pad, cellH*float64(rows) + 2*pad}}
-	w := &window{s: s, keys: make(chan vim.Key, 1024), do: make(chan func()), pastes: make(chan string, 8), mice: make(chan mouse, 64), ended: ended, placed: make(chan struct{}, 1), native: native{panes: map[int]*pane{}, floats: map[int]*box{}, images: map[int]objc.ID{}, hover: -1, caretOn: true}}
+	w := &window{s: s, keys: make(chan vim.Key, 1024), do: make(chan func()), pastes: make(chan string, 8), mice: make(chan mouse, 64), ended: ended, placed: make(chan struct{}, 1), panes: map[int]*pane{}, floats: map[int]*box{}, caretOn: true, native: native{images: map[int]objc.ID{}, hover: -1}}
 	// The content reaches under the title bar, which the tab strip takes.
 	w.win = msgInitWindow(cls("NSWindow").Send(sel("alloc")), sel("initWithContentRect:styleMask:backing:defer:"), r, 15|1<<15, 2, false)
 	w.win.Send(sel("setReleasedWhenClosed:"), 0)
@@ -320,14 +312,23 @@ var named = map[uint16]vim.Key{
 // modifier flags, chars what it types and plain what it types without
 // modifiers.
 func keys(code uint16, mods uint, chars, plain string) []vim.Key {
+	return chord(named[code], heldOf(mods), chars, plain)
+}
+
+// heldOf is the modifiers mods hold, as chord counts them.
+func heldOf(mods uint) int {
 	held := 0
 	for _, m := range [][2]uint{{modShift, shiftKey}, {modControl, controlKey}, {modOption, altKey}, {modCommand, superKey}} {
 		if mods&m[0] != 0 {
 			held |= int(m[1])
 		}
 	}
-	return chord(named[code], held, chars, plain)
+	return held
 }
+
+// linkKey is the modifier that makes the word under the mouse a link,
+// Command (B563).
+const linkKey = superKey
 
 // close closes the window of a session that ended, and forgets its views.
 func (w *window) close() {

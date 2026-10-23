@@ -7,32 +7,15 @@ import (
 
 	"github.com/ebitengine/purego/objc"
 
-	"github.com/y3owk1n/fude/frontend/client"
-	"github.com/y3owk1n/fude/frontend/theme"
 	"github.com/y3owk1n/fude/frontend/wire"
 )
 
-// pane shows a window of the layout, its text over its status bar.
-type pane struct {
-	w                  *window
+// paneNative is a pane's views: its text and status bar on a view of
+// their own, and its scroll bar, which shows from shownAt for a second.
+type paneNative struct {
 	view, text, status objc.ID
-	id                 int       // the window's
-	wheel              float64   // the lines a scroll moved short of one
-	scroller           objc.ID   // its scroll bar
-	top, rows, lines   int       // its window's first line shown, its rows and its text's lines
-	want               int       // the first line the view asked its window for, ahead of the frames
-	shownAt            time.Time // when the scroll bar last showed
-	offset             float64   // how far a trackpad moved the text up past its first line, in points
-	cells              [][]cell
-	mouse              [2]int    // the cell of its text the mouse is over, -1s off it
-	movedAt            time.Time // when the mouse last moved over it, or went down
-	hovered            [3]int    // the row and the first and end columns of the word whose hover the mouse asked for, a row of -1 for none
-	pics               []pic
-	cursor             cursorAt
-	left, right        []client.Part
-	current            bool
-	offers             []string // which language server features of the right click's menu its buffer's servers offer
-	link               rule     // the word under the mouse shown as a link while Command is held, w 0 for none
+	scroller           objc.ID
+	shownAt            time.Time
 }
 
 // pane returns the pane of the window with id, made the first time.
@@ -40,7 +23,7 @@ func (w *window) pane(id int) *pane {
 	if p := w.panes[id]; p != nil {
 		return p
 	}
-	p := &pane{w: w, id: id, mouse: [2]int{-1, -1}, hovered: [3]int{-1}}
+	p := newPane(w, id)
 	p.view = msgInitView(objc.ID(paneClass).Send(sel("alloc")), sel("initWithFrame:"), rect{})
 	p.text = msgInitView(objc.ID(textClass).Send(sel("alloc")), sel("initWithFrame:"), rect{})
 	track := msgInitTracking(cls("NSTrackingArea").Send(sel("alloc")), sel("initWithRect:options:owner:userInfo:"), rect{}, 0x223, p.text, 0)
@@ -61,6 +44,7 @@ func (w *window) pane(id int) *pane {
 
 // drop forgets p, whose window closed.
 func (p *pane) drop() {
+	p.gone = true
 	delete(panes, p.text)
 	delete(panes, p.status)
 	delete(panes, p.view)
@@ -221,33 +205,6 @@ func splitResized(self objc.ID, _ objc.SEL, note objc.ID) {
 	}
 }
 
-// update shows in p what the loop sent for its window.
-func (p *pane) update(sh shown, ground theme.RGB) {
-	if len(p.cells) != sh.h || len(p.cells) > 0 && len(p.cells[0]) != sh.w {
-		p.cells = make([][]cell, sh.h)
-		for y := range p.cells {
-			p.cells[y] = make([]cell, sh.w)
-			for x := range p.cells[y] {
-				p.cells[y][x] = cell{" ", 1, theme.Style{Bg: ground}}
-			}
-		}
-	}
-	for _, c := range sh.put {
-		if c.y >= len(p.cells) || c.x >= len(p.cells[c.y]) {
-			continue
-		}
-		p.cells[c.y][c.x] = c.cell
-		// A wide cell covers the next.
-		for i := 1; i < c.width && c.x+i < len(p.cells[c.y]); i++ {
-			p.cells[c.y][c.x+i] = cell{style: c.style}
-		}
-	}
-	p.cursor, p.left, p.right, p.current, p.pics, p.offers = sh.cursor, sh.left, sh.right, sh.current, sh.pics, sh.offers
-	p.showScroll(sh.scroll[0], sh.scroll[1], sh.scroll[2])
-	p.text.Send(sel("setNeedsDisplay:"), 1)
-	p.status.Send(sel("setNeedsDisplay:"), 1)
-}
-
 func drawText(self objc.ID, _ objc.SEL, _ rect) {
 	p := panes[self]
 	if p == nil {
@@ -257,9 +214,7 @@ func drawText(self objc.ID, _ objc.SEL, _ rect) {
 	rectFill(msgRect(self, sel("bounds")))
 	cursor := p.cursor
 	cursor.shown = cursor.shown && p.w.caretOn
-	// The text moves by the trackpad's points and by the lines asked for
-	// that no frame shows yet, so it moves at once and never jumps back.
-	o := point{pad, pad - p.offset - float64(p.want-p.top)*cellH}
+	o := p.origin()
 	drawCells(p.cells, cursor, o, nil, nil)
 	if l := p.link; l.w > 0 {
 		r := at(l.x, l.y, l.w, o)
@@ -327,4 +282,20 @@ func (r run) draw(x, top, h float64) float64 {
 		drawSymbol(symbol(r.slot, system(r.slotFg)), rect{point{at + math.Ceil(sz.W) + 4, top + math.Floor(h/2) - 4}, size{slotW - 8, 8}})
 	}
 	return x + r.size()
+}
+
+// redraw draws p's text and status bar again.
+func (p *pane) redraw() {
+	p.text.Send(sel("setNeedsDisplay:"), 1)
+	p.status.Send(sel("setNeedsDisplay:"), 1)
+}
+
+// pointer makes the mouse's pointer over p's text the pointing hand over a
+// link, and the I-beam otherwise.
+func (p *pane) pointer(link bool) {
+	if link {
+		cls("NSCursor").Send(sel("pointingHandCursor")).Send(sel("set"))
+	} else if p.mouse[0] >= 0 {
+		cls("NSCursor").Send(sel("IBeamCursor")).Send(sel("set"))
+	}
 }

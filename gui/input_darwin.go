@@ -234,24 +234,24 @@ func quit(objc.ID, objc.SEL, objc.ID) {
 // redo as u and <C-r>, cut and copy of a selection through the + register,
 // paste of the system's clipboard as a paste, and select all as ggVG.
 var editing = []objc.MethodDef{
-	{Cmd: sel("undo:"), Fn: func(self objc.ID, _ objc.SEL, _ objc.ID) { act(self, "u", "<C-o>u", "<Esc>u") }},
-	{Cmd: sel("redo:"), Fn: func(self objc.ID, _ objc.SEL, _ objc.ID) { act(self, "<C-r>", "<C-o><C-r>", "<Esc><C-r>") }},
-	{Cmd: sel("cut:"), Fn: func(self objc.ID, _ objc.SEL, _ objc.ID) { act(self, "", "", `"+d`) }},
-	{Cmd: sel("copy:"), Fn: func(self objc.ID, _ objc.SEL, _ objc.ID) { act(self, "", "", `"+y`) }},
-	{Cmd: sel("selectAll:"), Fn: func(self objc.ID, _ objc.SEL, _ objc.ID) { act(self, "ggVG", "<Esc>ggVG", "<Esc>ggVG") }},
+	editAction("Undo"), editAction("Redo"), editAction("Cut"), editAction("Copy"), editAction("Select All"),
 	{Cmd: sel("paste:"), Fn: paste},
 }
 
-// act types the keys for the mode the window is in: normal, insert, or
-// visual. Another mode takes none.
+// editAction is the root view's method for the system's editing command of
+// the title, which types what edits says.
+func editAction(title string) objc.MethodDef {
+	return objc.MethodDef{Cmd: sel(selectorOf(title)), Fn: func(self objc.ID, _ objc.SEL, _ objc.ID) {
+		if w := windows[self]; w != nil {
+			w.edit(title)
+		}
+	}}
+}
+
+// act types keys on the window of view as w.act does.
 func act(view objc.ID, normal, insert, visual string) {
-	w := windows[view]
-	if w == nil {
-		return
-	}
-	keys := map[string]string{"normal": normal, "insert": insert, "visual": visual}[w.tabs.mode]
-	for _, k := range vim.Keys(keys) {
-		w.keys <- k
+	if w := windows[view]; w != nil {
+		w.act(normal, insert, visual)
 	}
 }
 

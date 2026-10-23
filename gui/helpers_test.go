@@ -1,9 +1,12 @@
 package gui
 
 import (
+	"context"
+	"fmt"
 	"testing"
 	"time"
 
+	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/editor/editortest"
 )
 
@@ -23,3 +26,26 @@ func until(t *testing.T, what string, ok func() bool) {
 		}
 	}
 }
+
+// hovering is a module whose hover says where it was asked.
+type hovering struct{}
+
+func (hovering) Name() string         { return "hovering" }
+func (hovering) Subscribed() []string { return nil }
+func (hovering) Registered() []api.Registration {
+	return []api.Registration{{Kind: api.Plug, Name: "hover", ID: 1}}
+}
+func (hovering) Init(context.Context, api.Scope) (api.Result, error) { return api.Result{}, nil }
+func (hovering) Call(_ context.Context, _ uint32, _ api.Scope, args ...int) (api.Result, error) {
+	return api.Result{Float: &api.Float{Text: fmt.Sprint("at ", args[0]), Spans: []api.Span{}}}, nil
+}
+
+func (hovering) Event(context.Context, string, api.Scope) (api.Result, error) {
+	return api.Result{}, nil
+}
+
+func (hovering) Callback(context.Context, uint32, api.Scope) (api.Result, error) {
+	return api.Result{}, nil
+}
+func (hovering) Work(context.Context, api.Job) (string, error) { return "", nil }
+func (hovering) Close(context.Context) error                   { return nil }

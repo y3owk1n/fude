@@ -1,15 +1,19 @@
 package gui
 
 import (
+	"fmt"
 	"image"
 	"image/png"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/ebitengine/purego"
 
 	"github.com/y3owk1n/fude/editor/editortest"
+	"github.com/y3owk1n/fude/vim"
 )
 
 // TestMain runs GTK on the main thread and the tests beside it, which reach
@@ -32,6 +36,7 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 	purego.RegisterLibFunc(&gtkWindowClose, gtk, "gtk_window_close")
+	purego.RegisterLibFunc(&gActionActivate, gtk, "g_action_activate")
 	ready := make(chan struct{})
 	startApp(func() { close(ready) })
 	// The application stays up between the tests' windows.
@@ -97,6 +102,115 @@ func TestB566GTKWindow(t *testing.T) {
 	})
 }
 
+// B567
+func TestB567GTKMouse(t *testing.T) {
+	lines := []string{"one two", "three"}
+	for i := range 100 {
+		lines = append(lines, fmt.Sprint("line ", i))
+	}
+	path := filepath.Join(t.TempDir(), "a.txt")
+	editortest.Change(t, path, strings.Join(lines, "\n")+"\n")
+	e := editortest.Open(t, path)
+	e.Use(hovering{})
+	var w *window
+	onMain(func() { w = open(e, nil) }, true)
+	var p *pane
+	until(t, "the pane", func() bool {
+		onMain(func() {
+			for _, q := range w.panes {
+				if len(q.cells) > 0 && gtkWidgetGetHeight(q.area) > 0 {
+					p = q
+				}
+			}
+		}, true)
+		return p != nil
+	})
+	cell := func(x, y int) point { return point{pad + (float64(x)+0.5)*cellW, pad + (float64(y)+0.5)*cellH} }
+	click := func(clicks int, from, to point) {
+		onMain(func() {
+			mousePress(p.area, 1, clicks, from, 0)
+			if to != from {
+				mouseMove(p.area, to, 0)
+			}
+			mouseRelease(p.area, to, 0)
+		}, true)
+	}
+	// selected reads the selection once the session has every click.
+	selected := func(start, end int) bool {
+		var s vim.Selection
+		var ok bool
+		until(t, "the clicks to be given", func() bool { return len(w.mice) == 0 })
+		w.onLoop(func() { s, ok = e.Selection() })
+		return ok && s.Start == start && s.End == end
+	}
+	// A click puts the cursor on the character it hits, and a drag selects
+	// from there.
+	click(1, cell(4, 0), cell(4, 0))
+	until(t, "the cursor on two", func() bool {
+		c := -1
+		w.onLoop(func() { c = e.Cursor() })
+		return c == 4
+	})
+	click(1, cell(0, 1), cell(2, 1))
+	until(t, "thr to be selected", func() bool { return selected(8, 11) })
+	// A double click selects the word it hits.
+	click(1, cell(5, 0), cell(5, 0))
+	click(2, cell(5, 0), cell(5, 0))
+	until(t, "two to be selected", func() bool { return selected(4, 7) })
+	onMain(func() { keyPressed(0, 0xff1b, 0, 0, w.win) }, true)
+	until(t, "normal mode", func() bool {
+		var m vim.Mode
+		w.onLoop(func() { m = e.Mode() })
+		return m == vim.Normal
+	})
+	// A rest on a word shows its hover, once the mouse moved since the
+	// last click.
+	onMain(func() { mouseMove(p.area, cell(6, 0), 0) }, true)
+	until(t, "the hover of two", func() bool {
+		text := ""
+		w.onLoop(func() {
+			for _, v := range e.Windows() {
+				if v.Float == "cursor" {
+					text = v.Text.Slice(0, v.Text.Len())
+				}
+			}
+		})
+		return text == "at 6"
+	})
+	// The wheel scrolls the window three lines a notch.
+	onMain(func() { mouseRoll(p.area, true, 2) }, true)
+	until(t, "the window to scroll 6 lines", func() bool {
+		top := -1
+		w.onLoop(func() { top = e.Windows()[0].Text.LineOf(e.Windows()[0].Top) })
+		return top == 6
+	})
+	// The right click's Select All selects the text.
+	onMain(func() { mousePress(p.area, 3, 1, cell(0, 0), 0) }, true)
+	all := slices.IndexFunc(contextItems, func(it struct{ title, keys, needs string }) bool { return it.title == "Select All" })
+	onMain(func() { gActionActivate(w.actions[all], 0) }, true)
+	until(t, "the text to be selected", func() bool {
+		var s vim.Selection
+		var ok bool
+		w.onLoop(func() { s, ok = e.Selection() })
+		return ok && s.Kind == "V" && s.Start == 0
+	})
+	for _, k := range "\x1b:qa!\r" {
+		keyval := uintptr(k)
+		switch k {
+		case '\x1b':
+			keyval = 0xff1b
+		case '\r':
+			keyval = 0xff0d
+		}
+		onMain(func() { keyPressed(0, keyval, 0, 0, w.win) }, true)
+	}
+	until(t, "the session to end", func() bool {
+		open := true
+		onMain(func() { _, open = windows[w.win] }, true)
+		return !open
+	})
+}
+
 var (
 	cairoImageSurface   func(format, w, h int32) uintptr
 	cairoCreate         func(surface uintptr) uintptr
@@ -104,6 +218,7 @@ var (
 	cairoSurfaceDestroy func(surface uintptr)
 	cairoWritePNG       func(surface uintptr, path string) int32
 	gtkWindowClose      func(w uintptr)
+	gActionActivate     func(action, param uintptr)
 )
 
 // paint draws p as GTK would, into an image, or returns nil before p has

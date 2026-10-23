@@ -2,16 +2,9 @@ package gui
 
 import "math"
 
-// box is a panel over a window's text, which shows the palette, the
-// finder, a menu, a float or a toast: a drawing area over the panes, on
-// the theme's popover ground with rounded corners.
-type box struct {
-	area uintptr
-	*boxed
-	scroll float64 // how far its list scrolled, in points
-	seen   int     // the item its list selected last, to tell when that moves
-	w      *window
-}
+// boxNative is a box's drawing area, laid over the panes on the theme's
+// popover ground with rounded corners.
+type boxNative struct{ area uintptr }
 
 // boxes are the boxes by their drawing areas, which the callbacks get.
 var boxes = map[uintptr]*box{}
@@ -20,10 +13,10 @@ var boxes = map[uintptr]*box{}
 // keeps a reference to its area, which the overlay drops and takes again
 // as boxes go over it.
 func newBox(w *window) *box {
-	b := &box{area: gObjectRefSink(gtkDrawingAreaNew()), w: w, seen: -2}
+	b := &box{boxNative: boxNative{gObjectRefSink(gtkDrawingAreaNew())}, w: w, seen: -2, hover: point{X: -1}}
 	gtkWidgetSetHalign(b.area, 1)
 	gtkWidgetSetValign(b.area, 1)
-	gtkWidgetSetTarget(b.area, 0)
+	listen(b.area)
 	gtkWidgetSetVisible(b.area, 0)
 	gtkDrawingAreaSetFn(b.area, callbacks.drawBox, b.area, 0)
 	gtkOverlayAdd(w.overlay, b.area)
@@ -50,7 +43,7 @@ func (b *box) show(what *boxed) {
 	b.boxed = what
 	if what == nil {
 		gtkWidgetSetVisible(b.area, 0)
-		b.scroll, b.seen = 0, -2
+		b.scroll, b.seen, b.hover = 0, -2, point{X: -1}
 		return
 	}
 	area := size{float64(gtkWidgetGetWidth(b.w.overlay)), float64(gtkWidgetGetHeight(b.w.overlay))}
@@ -74,7 +67,7 @@ func drawBox(area, cairo uintptr, width, height int32, _ uintptr) {
 	bounds := size{float64(width), float64(height)}
 	fillRounded("separatorColor", rect{Size: bounds}, 10)
 	fillRounded("popoverColor", rect{point{1, 1}, size{bounds.W - 2, bounds.H - 2}}, 9)
-	b.w.drawBoxed(b.boxed, point{X: -1}, bounds)
+	b.w.drawBoxed(b.boxed, b.hover, bounds)
 }
 
 // drawToast draws a toast's text in r, in the desktop's font, its lines

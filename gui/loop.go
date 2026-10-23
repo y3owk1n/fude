@@ -27,6 +27,15 @@ type window struct {
 	placed  chan struct{} // tells the loop places changed
 	cellPx  [2]int        // a cell's size in the screen's pixels
 
+	// The main thread's.
+	panes        map[int]*pane
+	floats       map[int]*box
+	panel, toast *box
+	dragged      mouse     // the last click or drag, to send a drag once a cell
+	typed        time.Time // when a key or the mouse last went, which shows the cursor
+	caretOn      bool      // the cursor shows, as it blinks
+	tabs         strip     // the tab strip, and the mode
+
 	native
 }
 

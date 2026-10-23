@@ -4,22 +4,11 @@ import (
 	"math"
 	"slices"
 
-	"github.com/y3owk1n/fude/frontend/client"
-	"github.com/y3owk1n/fude/frontend/theme"
 	"github.com/y3owk1n/fude/frontend/wire"
 )
 
-// pane is a window of the layout in a drawing area of its own, its text
-// over its status bar.
-type pane struct {
-	w           *window
-	area        uintptr
-	id          int // the window's
-	cells       [][]cell
-	cursor      cursorAt
-	left, right []client.Part
-	current     bool
-}
+// paneNative is a pane's drawing area, its text over its status bar.
+type paneNative struct{ area uintptr }
 
 // panes are the panes by their drawing areas, which the callbacks get.
 var panes = map[uintptr]*pane{}
@@ -31,17 +20,21 @@ func (w *window) pane(id int) *pane {
 	if p := w.panes[id]; p != nil {
 		return p
 	}
-	p := &pane{w: w, id: id, area: gObjectRefSink(gtkDrawingAreaNew())}
+	p := newPane(w, id)
+	p.area = gObjectRefSink(gtkDrawingAreaNew())
+	gtkWidgetSetCursor(p.area, "text")
 	gtkWidgetSetHexpand(p.area, 1)
 	gtkWidgetSetVexpand(p.area, 1)
 	gtkDrawingAreaSetFn(p.area, callbacks.drawPane, p.area, 0)
 	gSignalConnectData(p.area, "resize", callbacks.resized, p.area, 0, 0)
+	listen(p.area)
 	w.panes[id], panes[p.area] = p, p
 	return p
 }
 
 // drop forgets p, whose window closed.
 func (p *pane) drop() {
+	p.gone = true
 	delete(panes, p.area)
 	gObjectUnref(p.area)
 }
@@ -145,31 +138,6 @@ func (w *window) placeAll() {
 	}
 }
 
-// update shows in p what the loop sent for its window.
-func (p *pane) update(sh shown, ground theme.RGB) {
-	if len(p.cells) != sh.h || len(p.cells) > 0 && len(p.cells[0]) != sh.w {
-		p.cells = make([][]cell, sh.h)
-		for y := range p.cells {
-			p.cells[y] = make([]cell, sh.w)
-			for x := range p.cells[y] {
-				p.cells[y][x] = cell{" ", 1, theme.Style{Bg: ground}}
-			}
-		}
-	}
-	for _, c := range sh.put {
-		if c.y >= len(p.cells) || c.x >= len(p.cells[c.y]) {
-			continue
-		}
-		p.cells[c.y][c.x] = c.cell
-		// A wide cell covers the next.
-		for i := 1; i < c.width && c.x+i < len(p.cells[c.y]); i++ {
-			p.cells[c.y][c.x+i] = cell{style: c.style}
-		}
-	}
-	p.cursor, p.left, p.right, p.current = sh.cursor, sh.left, sh.right, sh.current
-	gtkWidgetQueueDraw(p.area)
-}
-
 // drawPane draws a pane's text on the theme's ground, and its status bar
 // under it on GTK's window colour (B147).
 func drawPane(area, cairo uintptr, width, height int32, _ uintptr) {
@@ -181,8 +149,24 @@ func drawPane(area, cairo uintptr, width, height int32, _ uintptr) {
 	defer func() { cr = 0 }()
 	b := size{float64(width), float64(height)}
 	fillRGB(p.w.look.Base.Bg, rect{Size: b})
-	drawCells(p.cells, p.cursor, point{pad, pad}, nil, nil)
+	drawCells(p.cells, p.cursor, p.origin(), nil, nil)
 	bar := rect{point{0, b.H - statusH}, size{b.W, statusH}}
 	fill("barColor", bar)
 	drawParts(p.left, p.right, p.current, bar)
 }
+
+// redraw draws p again.
+func (p *pane) redraw() { gtkWidgetQueueDraw(p.area) }
+
+// pointer makes the mouse's pointer over p's text the hand over a link,
+// and the text's otherwise.
+func (p *pane) pointer(link bool) {
+	if link {
+		gtkWidgetSetCursor(p.area, "pointer")
+	} else {
+		gtkWidgetSetCursor(p.area, "text")
+	}
+}
+
+// showBar shows no scroll bar, which Linux does not have yet.
+func (p *pane) showBar(bool) {}

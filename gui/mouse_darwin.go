@@ -3,7 +3,6 @@ package gui
 import (
 	"math"
 	"strconv"
-	"time"
 
 	"github.com/ebitengine/purego/objc"
 
@@ -61,57 +60,25 @@ var (
 	}
 )
 
-// mouseAt gives the session a click or a drag at the cell under ev, in the
-// text of a pane or of a float's box, or picks the item a click on a menu
-// hits. A drag goes once per cell. While the palette or the finder shows,
-// a click off it closes it as <Esc> does (B556).
+// mouseAt gives the session what ev did at a pane's text or a float's
+// box, as press does.
 func mouseAt(view objc.ID, ev objc.ID, kind byte) {
+	p, b := panes[view], boxes[view]
 	var w *window
-	var id int
-	o := point{pad, pad}
-	b := boxes[view]
-	if p := panes[view]; p != nil {
-		w, id = p.w, p.id
-	} else if b != nil && b.boxed != nil {
-		w, id, o = b.w, b.id, point{inset, inset + b.head()}
-	}
-	if w == nil {
-		return
-	}
-	w.typed, w.caretOn = time.Now(), true
-	at := msgConvertPoint(view, sel("convertPoint:fromView:"), msgPoint(ev, sel("locationInWindow")), 0)
-	m := mouse{kind, id, int(math.Floor((at.X - o.X) / cellW)), int(math.Floor((at.Y - o.Y) / cellH)), 1}
 	switch {
-	case b != nil && b.list != nil:
-		if i, ok := b.list.itemAt(at); kind == 'c' && ok {
-			w.mice <- mouse{kind: 'p', y: i}
-		}
-		return
-	case w.panel.boxed != nil:
-		if kind == 'c' && b != w.panel {
-			w.keys <- "<Esc>"
-		}
-		return
-	case id <= 0:
+	case p != nil:
+		w, b = p.w, nil
+	case b != nil:
+		w = b.w
+	default:
 		return
 	}
+	at := msgConvertPoint(view, sel("convertPoint:fromView:"), msgPoint(ev, sel("locationInWindow")), 0)
+	clicks := 1
 	if kind == 'c' {
-		m.clicks = objc.Send[int](ev, sel("clickCount"))
-		// A click closes hover, and a rest after it waits for a move.
-		if p := panes[view]; p != nil {
-			p.movedAt, p.hovered = time.Now(), [3]int{-1}
-			// A click on a link goes to its definition (B563).
-			p.mouse = [2]int{m.x, m.y}
-			if p.relink(objc.Send[uint](ev, sel("modifierFlags"))); p.link.w > 0 {
-				m.kind = 'g'
-			}
-		}
+		clicks = objc.Send[int](ev, sel("clickCount"))
 	}
-	if kind == 'd' && m == w.dragged {
-		return
-	}
-	w.dragged = m
-	w.mice <- m
+	w.press(p, b, at, kind, clicks, heldOf(objc.Send[uint](ev, sel("modifierFlags"))))
 }
 
 // wheel scrolls the window or the list under the mouse: a window a line
@@ -126,9 +93,7 @@ func wheel(self objc.ID, _ objc.SEL, ev objc.ID) {
 		if !precise {
 			dy *= b.list.rowH
 		}
-		b.list.scroll -= dy
-		b.list.follow(false)
-		b.scroll = b.list.scroll
+		b.roll(-dy)
 		self.Send(sel("setNeedsDisplay:"), 1)
 		return
 	}
@@ -137,14 +102,11 @@ func wheel(self objc.ID, _ objc.SEL, ev objc.ID) {
 	case p == nil:
 		return
 	case precise:
-		p.smooth(dy, objc.Send[uint](ev, sel("phase"))|objc.Send[uint](ev, sel("momentumPhase")))
+		// Phase 8 is the fingers or the momentum letting go.
+		p.smooth(dy, (objc.Send[uint](ev, sel("phase"))|objc.Send[uint](ev, sel("momentumPhase")))&8 != 0)
 		return
 	}
-	p.wheel -= dy
-	if n := int(p.wheel); n != 0 {
-		p.wheel -= float64(n)
-		p.w.mice <- mouse{'s', p.id, 0, n, 0}
-	}
+	p.roll(-dy)
 }
 
 // hit is where a tab of the strip is: a buffer's, numbered n, or with page
