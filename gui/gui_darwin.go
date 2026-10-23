@@ -56,7 +56,9 @@ func startApp(background bool) objc.ID {
 	textClass = class("FudeText", "NSView", append([]objc.MethodDef{
 		flipped, {Cmd: sel("drawRect:"), Fn: drawText}, {Cmd: sel("menuForEvent:"), Fn: menuFor}, {Cmd: sel("scrolled:"), Fn: scrolled},
 	}, append(append(textMouse, restMouse...), textAccess...)...)...)
-	statusClass = class("FudeStatus", "NSView", append([]objc.MethodDef{flipped, {Cmd: sel("drawRect:"), Fn: drawStatus}}, append(statusMouse, statusAccess...)...)...)
+	statusClass = class("FudeStatus", "NSView", append([]objc.MethodDef{flipped, {Cmd: sel("drawRect:"), Fn: drawStatus}}, statusMouse...)...)
+	// A label takes no clicks, which go to the status bar under it.
+	labelClass = class("FudeLabel", "NSTextField", objc.MethodDef{Cmd: sel("hitTest:"), Fn: func(objc.ID, objc.SEL, point) objc.ID { return 0 }})
 	splitClass = class("FudeSplit", "NSSplitView", objc.MethodDef{Cmd: sel("drawDividerInRect:"), Fn: drawDivider})
 	barClass = class("FudeBar", "NSView", append([]objc.MethodDef{flipped, {Cmd: sel("drawRect:"), Fn: drawBar}}, append(barMouse, barAccess...)...)...)
 	boxClass = class("FudeBox", "NSView", append(append(append([]objc.MethodDef{flipped, {Cmd: sel("drawRect:"), Fn: drawBox}}, textMouse...), boxMouse...), boxAccess...)...)
@@ -79,6 +81,7 @@ func stop(app objc.ID) {
 var (
 	viewClass, paneClass, textClass objc.Class
 	statusClass, splitClass         objc.Class
+	labelClass                      objc.Class // the status bars' labels
 	barClass, boxClass, markedClass objc.Class
 	actionClass, fieldClass         objc.Class // the elements of actions and fields
 	windowDelegate                  objc.ID
@@ -99,10 +102,10 @@ type native struct {
 	win  objc.ID
 	view objc.ID // the root, which takes the keys
 
-	bar, area  objc.ID // the tab strip, and the view the splits fill
-	barBack    objc.ID // the material under the strip
-	key        string  // the layout the splits show
-	sent       places  // the places the loop was last given
+	bar, area  objc.ID   // the tab strip, and the view the splits fill
+	ground     theme.RGB // the window's background, the theme's ground
+	key        string    // the layout the splits show
+	sent       places    // the places the loop was last given
 	look       theme.Look
 	asked      int             // the question the sheet is for, as frame.asked counts
 	sheet      objc.ID         // the alert showing, 0 for none
@@ -138,10 +141,7 @@ func open(s client.Session, ended func()) *window {
 	w.view = msgInitView(objc.ID(viewClass).Send(sel("alloc")), sel("initWithFrame:"), r)
 	w.bar = msgInitView(objc.ID(barClass).Send(sel("alloc")), sel("initWithFrame:"), rect{})
 	w.area = msgInitView(cls("NSView").Send(sel("alloc")), sel("initWithFrame:"), rect{})
-	// The tab strip draws on the title bar's material.
-	w.barBack = material(titlebar, behindWindow)
 	w.view.Send(sel("addSubview:"), w.area)
-	w.view.Send(sel("addSubview:"), w.barBack)
 	w.view.Send(sel("addSubview:"), w.bar)
 	// The strip hears the mouse move over it, for its tabs' ×.
 	track := msgInitTracking(cls("NSTrackingArea").Send(sel("alloc")), sel("initWithRect:options:owner:userInfo:"), rect{}, 0x283, w.bar, 0)
@@ -222,6 +222,15 @@ func (w *window) apply() {
 		f.tabs.title = w.tabs.title
 	}
 	w.tabs = f.tabs
+	// Without tabs, the title bar shows the title and the file's icon
+	// itself. NSWindowDocumentIconButton is 4.
+	tabbed := len(f.tabs.buffers)+len(f.tabs.pages) > 0
+	hidden := 0
+	if tabbed {
+		hidden = 1
+	}
+	w.win.Send(sel("setTitleVisibility:"), hidden)
+	w.win.Send(sel("standardWindowButton:"), 4).Send(sel("setHidden:"), tabbed)
 	w.bar.Send(sel("setNeedsDisplay:"), 1)
 	w.dress(f)
 	for id, b := range w.floats {

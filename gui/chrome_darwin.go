@@ -62,13 +62,10 @@ func uiAttrs(font, colour objc.ID) objc.ID {
 	return a
 }
 
-// The materials and blendings of NSVisualEffectView.
+// popover is NSVisualEffectView's material of popovers, and withinWindow
+// its blending with what is under it in the window.
 const (
-	titlebar     = 3
-	menuMaterial = 5
 	popover      = 6
-
-	behindWindow = 0
 	withinWindow = 1
 )
 

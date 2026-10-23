@@ -966,6 +966,25 @@ Windows followed, its tests run in the user's VM. purego passes the
 floats that Direct2D's and DirectWrite's methods take, as `syscall` does
 not on arm64.
 
+## D68. The window is made of the system's own controls
+
+D65 drew the window's chrome itself on the system's materials. Where a
+system has a control for a part, the window now uses it. The title bar
+shows the title and the file's icon itself, and the status bars are the
+system's labels. Lists, popovers and banners come next. fude still takes
+every key, so the controls only show the session and take the mouse.
+They never take the keyboard's focus, and the row typed into stays
+fude's own, as D65 says. Tabs stay fude's own on macOS and Windows,
+drawn to the system's measures, since neither system has a public tab
+bar of this kind. On Linux they are GTK's notebook tabs. A part that
+becomes a system control loses the accessibility D67 gave it by hand, as
+the control has its own.
+
+Why, as of 2026-10-24: the user found the drawn chrome did not look
+native and chose the system's controls over drawing closer to them. The
+first part, the title bar and the status bars on macOS, also removes the
+seam between the grey title bar and the theme's ground.
+
 ## D67. Assistive apps read the window through each system's accessibility
 
 The window's views draw their own text, so each system's assistive apps

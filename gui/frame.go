@@ -243,6 +243,11 @@ func (p *painter) paint(s client.Session, cols, rows int) frame {
 		f.wins = append(f.wins, sh)
 	}
 	p.had = in
+	// The window's title is the current file's name, as a document
+	// window's is, whatever title says of the terminal's.
+	if f.title == "" && p.name != "" {
+		f.title = filepath.Base(p.name)
+	}
 	switch {
 	case cmdline:
 		// The completion menu is part of the command line's box.

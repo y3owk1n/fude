@@ -164,17 +164,6 @@ var textAccess = append([]objc.MethodDef{
 	}},
 }, readingAccess...)
 
-// statusAccess are a status bar's, its parts as text.
-var statusAccess = []objc.MethodDef{
-	element, role("AXStaticText"),
-	{Cmd: sel("accessibilityValue"), Fn: func(self objc.ID, _ objc.SEL) objc.ID {
-		if p := panes[self]; p != nil {
-			return nsString(statusText(p.left, p.right))
-		}
-		return 0
-	}},
-}
-
 // boxAccess are a box's: a text area for a float, a group of a text field
 // and a list for the palette and the finder, a list for a menu and text
 // for the rest.

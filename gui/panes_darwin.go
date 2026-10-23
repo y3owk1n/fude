@@ -1,6 +1,7 @@
 package gui
 
 import (
+	"fmt"
 	"math"
 	"slices"
 	"time"
@@ -14,6 +15,9 @@ import (
 // their own, and its scroll bar, which shows from shownAt for a second.
 type paneNative struct {
 	view, text, status objc.ID
+	leftLabel          objc.ID // the status bar's parts at its left
+	rightLabel         objc.ID // and at its right
+	labelled           string  // what the labels say, to know when it changes
 	scroller           objc.ID
 	shownAt            time.Time
 	said               spoken // its text as assistive apps count it
@@ -33,12 +37,15 @@ func (w *window) pane(id int) *pane {
 	p.text.Send(sel("addTrackingArea:"), track)
 	track.Send(sel("release"))
 	p.status = msgInitView(objc.ID(statusClass).Send(sel("alloc")), sel("initWithFrame:"), rect{})
-	// The status bar draws on the title bar's material.
-	back := material(titlebar, behindWindow)
+	for _, l := range []*objc.ID{&p.leftLabel, &p.rightLabel} {
+		*l = objc.ID(labelClass).Send(sel("labelWithString:"), nsString(""))
+		// NSLineBreakByTruncatingTail.
+		l.Send(sel("setLineBreakMode:"), 4)
+		l.Send(sel("setRefusesFirstResponder:"), true)
+		p.status.Send(sel("addSubview:"), *l)
+	}
 	p.view.Send(sel("addSubview:"), p.text)
-	p.view.Send(sel("addSubview:"), back)
 	p.view.Send(sel("addSubview:"), p.status)
-	back.Send(sel("release"))
 	p.scroller = newScroller(p)
 	p.view.Send(sel("addSubview:"), p.scroller)
 	w.panes[id], panes[p.text], panes[p.status], panes[p.view] = p, p, p, p
@@ -181,7 +188,6 @@ func resizeRoot(self objc.ID, _ objc.SEL, _ size) {
 	b := msgRect(self, sel("bounds"))
 	top := barHeight(w.win)
 	msgSetRect(w.bar, sel("setFrame:"), rect{Size: size{b.Size.W, top}})
-	msgSetRect(w.barBack, sel("setFrame:"), rect{Size: size{b.Size.W, top}})
 	msgSetRect(w.area, sel("setFrame:"), rect{point{0, top}, size{b.Size.W, max(b.Size.H-top, 1)}})
 	w.placeAll()
 }
@@ -196,9 +202,8 @@ func resizePane(self objc.ID, _ objc.SEL, _ size) {
 	b := msgRect(self, sel("bounds")).Size
 	h := max(b.H-statusH, 1)
 	msgSetRect(p.text, sel("setFrame:"), rect{Size: size{b.W, h}})
-	for _, v := range subviews(self)[1:3] {
-		msgSetRect(v, sel("setFrame:"), rect{point{0, h}, size{b.W, statusH}})
-	}
+	msgSetRect(p.status, sel("setFrame:"), rect{point{0, h}, size{b.W, statusH}})
+	p.placeLabels()
 	msgSetRect(p.scroller, sel("setFrame:"), rect{point{b.W - scrollerW, 0}, size{scrollerW, h}})
 }
 
@@ -233,16 +238,70 @@ func drawDivider(_ objc.ID, _ objc.SEL, r rect) {
 	rectFill(r)
 }
 
-// drawStatus draws a window's status bar (B147), on the title bar's
-// material. The left has the mode for the current window, the file's name
-// after its folder, a dot while it is modified, the segments and the
+// drawStatus draws a window's status bar on the window's ground, under a
+// hairline. Its labels draw its parts.
+func drawStatus(self objc.ID, _ objc.SEL, _ rect) {
+	if p := panes[self]; p != nil {
+		b := msgRect(self, sel("bounds"))
+		fillRGB(p.w.look.Base.Bg, b)
+		fill("separatorColor", rect{Size: size{b.Size.W, 1}})
+	}
+}
+
+// label shows a window's status line in its bar's labels (B147). The left
+// has the mode for the current window in the mode's colour, the file's
+// name after its folder, a dot while it is modified, the segments and the
 // diagnostics. The right has the others' names, the keys being typed and
 // the ruler, and goes when both sides do not fit. Another window's bar has
 // dimmer text.
-func drawStatus(self objc.ID, _ objc.SEL, _ rect) {
-	if p := panes[self]; p != nil {
-		drawParts(p.left, p.right, p.current, msgRect(self, sel("bounds")))
+func (p *pane) label() {
+	said := fmt.Sprint(p.left, p.right, p.current)
+	if said == p.labelled {
+		return
 	}
+	p.labelled = said
+	p.leftLabel.Send(sel("setAttributedStringValue:"), statusString(runs(p.left, p.current)))
+	p.rightLabel.Send(sel("setAttributedStringValue:"), statusString(runs(p.right, p.current)))
+	p.placeLabels()
+}
+
+// statusString is runs as one string of the system's font, a mode in its
+// colour rather than on it.
+func statusString(rs []run) objc.ID {
+	s := cls("NSMutableAttributedString").Send(sel("alloc")).Send(sel("init")).Send(sel("autorelease"))
+	gap := ""
+	for _, r := range rs {
+		if r.pill {
+			r.fg = r.ground
+		}
+		part := cls("NSAttributedString").Send(sel("alloc")).Send(sel("initWithString:attributes:"), nsString(gap+r.text), r.attrs())
+		s.Send(sel("appendAttributedString:"), part)
+		part.Send(sel("release"))
+		gap = "  "
+		if r.tight {
+			gap = ""
+		}
+	}
+	return s
+}
+
+// placeLabels puts the status bar's labels at its ends, the right one
+// gone when both do not fit.
+func (p *pane) placeLabels() {
+	b := msgRect(p.status, sel("bounds")).Size
+	fit := func(l objc.ID) size {
+		l.Send(sel("sizeToFit"))
+		return msgRect(l, sel("frame")).Size
+	}
+	ls, rs := fit(p.leftLabel), fit(p.rightLabel)
+	right := ls.W+rs.W+3*pad <= b.W
+	p.rightLabel.Send(sel("setHidden:"), !right)
+	end := b.W - pad
+	if right {
+		end -= rs.W + pad
+		msgSetRect(p.rightLabel, sel("setFrame:"), rect{point{b.W - pad - rs.W, math.Floor((b.H - rs.H) / 2)}, rs})
+	}
+	msgSetRect(p.leftLabel, sel("setFrame:"), rect{point{pad, math.Floor((b.H - ls.H) / 2)}, size{max(end-pad, 0), ls.H}})
 }
 
 // attrs are r's text attributes, in the system's font.
@@ -294,6 +353,7 @@ func (r run) draw(x, top, h float64) float64 {
 func (p *pane) redraw() {
 	p.text.Send(sel("setNeedsDisplay:"), 1)
 	p.status.Send(sel("setNeedsDisplay:"), 1)
+	p.label()
 }
 
 // pointer makes the mouse's pointer over p's text the pointing hand over a

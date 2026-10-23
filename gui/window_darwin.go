@@ -132,6 +132,12 @@ func (w *window) dress(f frame) {
 		w.appearance = look
 		w.win.Send(sel("setAppearance:"), cls("NSAppearance").Send(sel("appearanceNamed:"), nsString(look)))
 	}
+	// The window's ground is the theme's, under its transparent title
+	// bar, so the title bar and the text are one surface.
+	if f.ground != w.ground || w.ground == 0 {
+		w.ground = f.ground
+		w.win.Send(sel("setBackgroundColor:"), nsColor(f.ground))
+	}
 	w.win.Send(sel("setDocumentEdited:"), f.edited)
 	if f.file != w.file {
 		w.file = f.file

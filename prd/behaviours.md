@@ -1385,8 +1385,12 @@ Where fude departs, the line says so and cites the departure in
   make the text bigger, smaller and its first size, and each window
   takes as many cells as it then holds. The window opens where and as big
   as it last closed.
-- B559 [10] With `--gui` the tab strip and the status bars draw on the
-  system's title bar material. The palette, the finder, menus, floats and
+- B559 [10] With `--gui` the window's ground is the theme's, under a
+  transparent title bar, so the title bar, the text and the status bars
+  are one surface with hairlines between them. Without tabs the title bar
+  shows the current file's name and icon as a document window does. On
+  macOS each status bar is the system's labels, with the mode in its
+  colour. The palette, the finder, menus, floats and
   toasts draw on the system's translucent material, in rounded panels
   with a shadow. Text the window composes itself takes the system's font,
   or the text's family when `gui.font` names one (B584), and the system's

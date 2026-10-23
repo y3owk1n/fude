@@ -905,15 +905,27 @@ func TestB559SystemChrome(t *testing.T) {
 		}, true)
 		return text != 0
 	})
-	onMain(func() {
-		// The tab strip and each status bar draw on the system's material.
-		if !kind(w.barBack) {
-			t.Error("the tab strip has no material under it")
-		}
-		for _, p := range w.panes {
-			if !slices.ContainsFunc(subviews(p.view), kind) {
-				t.Error("a status bar has no material under it")
+	// The window's ground is the theme's, under its transparent title bar,
+	// and each status bar shows its parts in the system's labels.
+	until(t, "the status bar's labels", func() bool {
+		said := ""
+		onMain(func() {
+			for _, p := range w.panes {
+				for _, l := range subviews(p.status) {
+					if objc.Send[bool](l, sel("isKindOfClass:"), cls("NSTextField")) {
+						said += goString(l.Send(sel("stringValue")))
+					}
+				}
 			}
+		}, true)
+		return strings.Contains(said, "a.txt")
+	})
+	onMain(func() {
+		srgb := cls("NSColorSpace").Send(sel("sRGBColorSpace"))
+		got := w.win.Send(sel("backgroundColor")).Send(sel("colorUsingColorSpace:"), srgb)
+		want := float64(w.look.Base.Bg>>16&0xff) / 255
+		if d := msgComponent(got, sel("redComponent")) - want; d > 0.01 || d < -0.01 {
+			t.Error("the window's ground is not the theme's")
 		}
 		// The rows past the text show nothing.
 		if inked(text, pad, 0, 4) {
