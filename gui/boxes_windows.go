@@ -8,7 +8,12 @@ import (
 // boxNative is where a box draws over its window's panes, on the system's
 // popover ground with rounded corners.
 type boxNative struct {
-	frame rect
+	frame       rect
+	listView    uintptr // the system's list its menu shows in
+	listed      string  // what the list shows, to know when it changes
+	selectedRow int     // the item the list last selected
+	rowPx       int32   // how tall the list's rows are, in pixels
+	themed      string  // the system's look the list has
 	boxAccess
 }
 
@@ -36,10 +41,12 @@ func (b *box) show(what *boxed) {
 	b.boxed = what
 	if what == nil {
 		b.scroll, b.seen, b.hover = 0, -2, point{X: -1}
+		b.showTable()
 		return
 	}
 	r := placeBox(what, b.w.area(), 0, &b.scroll, &b.seen)
 	b.frame = rect{point{math.Round(r.Origin.X), b.w.top() + math.Round(r.Origin.Y)}, size{math.Ceil(r.Size.W), math.Ceil(r.Size.H)}}
+	b.showTable()
 }
 
 // drawBox draws b bounds big on the system's popover ground, inside a

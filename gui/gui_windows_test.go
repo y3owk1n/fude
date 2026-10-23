@@ -101,7 +101,7 @@ func TestB573WindowsWindow(t *testing.T) {
 	})
 }
 
-// B574
+// B574, B560
 func TestB574WindowsMouse(t *testing.T) {
 	lines := []string{"one two", "three"}
 	for i := range 100 {
@@ -201,6 +201,32 @@ func TestB574WindowsMouse(t *testing.T) {
 		w.onLoop(func() { s, ok = e.Selection() })
 		return ok && s.Kind == "V" && s.Start == 0
 	})
+	// A click on a row of the palette's list puts its item in the line,
+	// and leaves the keyboard's focus off the list.
+	typeIn(w, "\x1b:\t")
+	var second string
+	until(t, "the palette's list", func() bool {
+		onMain(func() {
+			if b := w.panel; b.boxed != nil && b.list != nil && len(b.list.items) > 2 && b.listView != 0 {
+				second = b.list.items[1].Label
+			}
+		}, true)
+		return second != ""
+	})
+	var focused uintptr
+	onMain(func() {
+		y := uintptr(w.panel.list.rowH * w.scale * 1.5)
+		call(sendMessage, w.panel.listView, wmLButtonDown, 1, 20|y<<16)
+		focused = call(focusOf)
+	}, true)
+	until(t, "the second item in the line", func() bool {
+		line := ""
+		w.onLoop(func() { line = e.Line() })
+		return line == ":"+second
+	})
+	if focused == w.panel.listView {
+		t.Error("the palette's list took the keyboard's focus")
+	}
 	// Dragging the divider between two windows resizes them.
 	typeIn(w, "\x1b:vsplit\r")
 	var d divider
@@ -653,8 +679,8 @@ var (
 	getWindowRect        = user32.NewProc("GetWindowRect")
 	keyboardState        = user32.NewProc("GetKeyboardState")
 	setKeyboardState     = user32.NewProc("SetKeyboardState")
-	sendMessage          = user32.NewProc("SendMessageW")
 	setCursorPos         = user32.NewProc("SetCursorPos")
+	focusOf              = user32.NewProc("GetFocus")
 	wic                  unsafe.Pointer
 	clsidWIC             = windows.GUID{Data1: 0xcacaf262, Data2: 0x9370, Data3: 0x4615, Data4: [8]byte{0xa1, 0x3b, 0x9f, 0x55, 0x39, 0xda, 0x4c, 0x0a}}
 	iidWIC               = windows.GUID{Data1: 0xec5ec8a9, Data2: 0xc395, Data3: 0x4314, Data4: [8]byte{0x9c, 0x77, 0x54, 0xd7, 0xa9, 0x35, 0xff, 0x70}}
@@ -662,12 +688,12 @@ var (
 )
 
 // typeIn types keys into w's window as Windows brings them: a character
-// as WM_CHAR, and \r and \x1b as the keys that type them.
+// as WM_CHAR, and \r, \x1b and \t as the keys that type them.
 func typeIn(w *window, keys string) {
 	for _, r := range keys {
 		onMain(func() {
 			switch r {
-			case '\r', '\x1b':
+			case '\r', '\x1b', '\t':
 				call(sendMessage, w.hwnd, wmKeyDown, uintptr(r), 0)
 			default:
 				call(sendMessage, w.hwnd, wmChar, uintptr(r), 0)

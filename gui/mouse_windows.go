@@ -97,7 +97,14 @@ func (w *window) mouse(m uint32, wp, lp uintptr) bool {
 		w.tracking = false
 		w.mouseLeft()
 	case wmMouseWheel:
-		w.mouseRoll(w.client(int32(int16(lp)), int32(int16(lp>>16))), -float64(int16(wp>>16))/120)
+		at := w.client(int32(int16(lp)), int32(int16(lp>>16)))
+		// A list view scrolls itself, when the wheel comes to the window
+		// with the focus rather than to the list view under it.
+		if _, b, _ := w.under(at); b != nil && b.list != nil && b.listView != 0 {
+			call(sendMessage, b.listView, uintptr(m), wp, lp)
+			return true
+		}
+		w.mouseRoll(at, -float64(int16(wp>>16))/120)
 	case wmSetCursor:
 		if lp&0xffff != 1 {
 			return false
@@ -298,17 +305,10 @@ func (w *window) split(at point) {
 	w.arrange()
 }
 
-// mouseRoll scrolls the list of the box at a point by a wheel's notches,
-// or the pane's window by the lines the system scrolls a notch (B552,
-// B560).
+// mouseRoll scrolls the pane's window at a point by the lines the system
+// scrolls a wheel's notch (B552).
 func (w *window) mouseRoll(at point, notches float64) {
-	p, b, _ := w.under(at)
-	if b != nil && b.list != nil {
-		b.roll(notches * 3 * b.list.rowH)
-		w.redraw()
-		return
-	}
-	if p != nil {
+	if p, b, _ := w.under(at); b == nil && p != nil {
 		lines := uint32(3)
 		call(systemParameters, 0x68, 0, uintptr(unsafe.Pointer(&lines)), 0)
 		p.roll(notches * float64(lines))

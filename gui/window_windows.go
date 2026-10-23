@@ -31,19 +31,22 @@ type native struct {
 	asking        bool   // the dialog shows
 	order         []*box // the boxes, from the bottom
 	images        map[int]*bitmap
-	gen           int    // the render target's generation, as rtGen counts
-	marked        string // what the input method composes
-	notifying     bool   // the window has its icon in the notification area
-	surrogate     uint16 // the first half of a character two WM_CHARs bring
-	tabbed        bool   // there are tabs, so the strip is the title bar
+	gen           int            // the render target's generation, as rtGen counts
+	marked        string         // what the input method composes
+	notifying     bool           // the window has its icon in the notification area
+	surrogate     uint16         // the first half of a character two WM_CHARs bring
+	tabbed        bool           // there are tabs, so the strip is the title bar
+	rowTarget     unsafe.Pointer // where the list views' rows draw, nil until one does
+	rowBrush      unsafe.Pointer
 
 	mouseNative
 	stripNative
 	accessNative
 }
 
-// style is a window's, WS_OVERLAPPEDWINDOW.
-const style = 0x00CF0000
+// style is a window's, WS_OVERLAPPEDWINDOW with WS_CLIPCHILDREN, so the
+// window draws around its list views.
+const style = 0x02CF0000
 
 // opened are the windows by their HWNDs.
 var opened = map[uintptr]*window{}
@@ -74,6 +77,7 @@ func startApp() {
 	call(registerClass, uintptr(unsafe.Pointer(&wc)))
 	mainHwnd = call(createWindow, 0, uintptr(unsafe.Pointer(className)), 0, 0, 0, 0, 0, 0, ^uintptr(2), 0, instance, 0)
 	makeFonts()
+	startTables()
 }
 
 // wndProc gives a window's messages to it, and the message window's to the
@@ -102,6 +106,8 @@ func (w *window) handle(m uint32, wp, lp uintptr) (uintptr, bool) {
 		call(validateRect, w.hwnd, 0)
 	case wmEraseBkgnd:
 		return 1, true
+	case wmNotify:
+		return w.listNotify(lp)
 	case wmGetObject:
 		// UI Automation asks for the window's root, other clients for
 		// what Windows gives (B583).
@@ -214,9 +220,10 @@ func (w *window) makeTarget() bool {
 // dropTarget lets go of w's render target and its brush, which paint
 // makes again.
 func (w *window) dropTarget() {
-	release(w.brush)
-	release(w.target)
-	w.brush, w.target = nil, nil
+	for _, o := range []unsafe.Pointer{w.brush, w.target, w.rowBrush, w.rowTarget} {
+		release(o)
+	}
+	w.brush, w.target, w.rowBrush, w.rowTarget = nil, nil, nil, nil
 }
 
 // paint draws the panes, the dividers between them and the boxes over
@@ -354,6 +361,7 @@ func (w *window) apply() {
 		if f.floats[id] == nil {
 			b.drop()
 			b.dropAccess()
+			b.dropTable()
 			delete(w.floats, id)
 		}
 	}
@@ -397,10 +405,8 @@ func (w *window) dress(f frame) {
 		on = 1
 	}
 	call(dwmSetAttribute, w.hwnd, 20, uintptr(unsafe.Pointer(&on)), 4)
-	// On Windows 11 the system's title bar takes the theme's ground. DWM
-	// takes it as a COLORREF, 0x00BBGGRR.
-	bg := f.look.Base.Bg
-	g := uint32(bg>>16&0xff | bg&0xff00 | bg&0xff<<16)
+	// On Windows 11 the system's title bar takes the theme's ground.
+	g := uint32(colorRef(rgba(f.look.Base.Bg, 1)))
 	call(dwmSetAttribute, w.hwnd, 35, uintptr(unsafe.Pointer(&g)), 4)
 }
 

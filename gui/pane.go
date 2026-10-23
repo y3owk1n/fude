@@ -265,11 +265,3 @@ func (p *pane) smooth(dy float64, ended bool) {
 	p.offset = min(max(p.offset, 0), cellH)
 	p.redraw()
 }
-
-// roll scrolls b's list by dy points, leaving its selection where it is
-// (B560).
-func (b *box) roll(dy float64) {
-	b.list.scroll += dy
-	b.list.follow(false)
-	b.scroll = b.list.scroll
-}
