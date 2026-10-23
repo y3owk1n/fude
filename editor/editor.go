@@ -145,6 +145,7 @@ type Session struct {
 	unzoomed    [4]int                  // where the zoomed window is in the layout, its x, y, w and h
 	tabpages    []tabPage               // the tab pages, of which the one at tabpage shows (B544)
 	tabpage     int
+	tabNames    map[int]string // by page id, what the top row calls each tab page a module named (B545)
 	placed      map[int][4]int // by window id, where a frontend put a window's text, its x, y, w and h (B542)
 	lastWin     *window        // the window current when a key last ended, and prevWin the one before it, for <C-w>p (B420)
 	prevWin     *window
@@ -250,8 +251,8 @@ func (e *Session) join() {
 	e.opts, e.centered = e.cfg.options, e.cfg.Center
 	e.win = newWindow(b, 0, 0)
 	e.win.opts = e.opts
-	e.root = &node{win: e.win}
-	e.tabpages = []tabPage{{}}
+	e.tabpages = []tabPage{newPage(e.win)}
+	e.root = e.tabpages[0].root
 	e.colour, e.began = e.began%6, e.began+1
 	e.sessions = append(e.sessions, e)
 	e.layout()

@@ -50,6 +50,7 @@ import (
 	startmod "github.com/y3owk1n/fude/modules/start"
 	"github.com/y3owk1n/fude/modules/sticky"
 	"github.com/y3owk1n/fude/modules/surround"
+	"github.com/y3owk1n/fude/modules/tabline"
 	"github.com/y3owk1n/fude/modules/task"
 	terminalmod "github.com/y3owk1n/fude/modules/terminal"
 	thememod "github.com/y3owk1n/fude/modules/theme"
@@ -64,5 +65,5 @@ func Modules() []api.Module {
 	if dir, err := editor.ConfigDir(); err == nil {
 		words = filepath.Join(dir, "words.txt")
 	}
-	return []api.Module{autopairs.New(), blame.New(), bufferline.New(), buffers.New(), colours.New(), comment.New(), completion.New(), debugmod.New(), diffmod.New(), editorconfig.New(), files.New(), flash.New(), fold.New(), format.New(), git.New(), grammars.New(), grep.New(), guides.New(), helpmod.New(), hints.New(), history.New(), inlay.New(), jump.New(), lens.New(), links.New(), explorermod.New(), lists.New(), lspmod.New(), markdown.New(), pickmod.New(), places.New(), pins.New(), plug.New(), recent.New(), references.New(), review.New(), sessionmod.New(), sessions.New(), shell.New(), spell.New(words), startmod.New(), sticky.New(), surround.New(), task.New(), terminalmod.New(), thememod.New(), timeline.New(), window.New()}
+	return []api.Module{autopairs.New(), blame.New(), bufferline.New(), buffers.New(), colours.New(), comment.New(), completion.New(), debugmod.New(), diffmod.New(), editorconfig.New(), files.New(), flash.New(), fold.New(), format.New(), git.New(), grammars.New(), grep.New(), guides.New(), helpmod.New(), hints.New(), history.New(), inlay.New(), jump.New(), lens.New(), links.New(), explorermod.New(), lists.New(), lspmod.New(), markdown.New(), pickmod.New(), places.New(), pins.New(), plug.New(), recent.New(), references.New(), review.New(), sessionmod.New(), sessions.New(), shell.New(), spell.New(words), startmod.New(), sticky.New(), surround.New(), tabline.New(), task.New(), terminalmod.New(), thememod.New(), timeline.New(), window.New()}
 }

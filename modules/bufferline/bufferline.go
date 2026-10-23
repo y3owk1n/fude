@@ -1,6 +1,6 @@
 // Package bufferline says what the top row lists: the open buffers that
 // have files, each by its file's name, with its folder too when two names
-// are the same, while buffer_line is on (B258).
+// are the same, while bufferline.enabled is on (B258).
 package bufferline
 
 import (
@@ -21,7 +21,7 @@ func New() *Module { return &Module{} }
 func (m *Module) Name() string { return "bufferline" }
 
 // Subscribed are what opens, closes or renames a buffer, and what may
-// change buffer_line.
+// change bufferline.enabled.
 func (m *Module) Subscribed() []string {
 	return []string{"buffer.opened", "buffer.closed", "buffer.renamed", "explorer.read", "config.reloaded", "option.set"}
 }
@@ -45,7 +45,7 @@ func (m *Module) Event(_ context.Context, _ string, s api.Scope) (api.Result, er
 }
 
 // tabs are the buffers a user edits that have files, in the order they
-// opened, or none while buffer_line is off.
+// opened, or none while bufferline.enabled is off.
 func tabs(s api.Scope) *[]api.Tab {
 	out := []api.Tab{}
 	if on, _ := s.Option("bufferline.enabled"); on != "true" {

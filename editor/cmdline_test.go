@@ -55,6 +55,8 @@ func TestB131CommandCompletion(t *testing.T) {
 		{"<Esc>:set remote_i<Tab>", ":set remote_images"},
 		{" f<Tab>", ":set remote_images false"},
 		{"<Esc>:set completion_sources lsp,b<Tab>", ":set completion_sources lsp,buffer"},
+		// A setting that takes one of some words completes them.
+		{"<Esc>:set virtual_edit bl<Tab>", ":set virtual_edit block"},
 	} {
 		if feed(e, c.keys); e.Line() != c.line {
 			t.Fatalf("after %q the line is %q, want %q", c.keys, e.Line(), c.line)

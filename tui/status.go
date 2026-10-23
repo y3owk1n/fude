@@ -149,16 +149,35 @@ func width(ps []part) int {
 	return n
 }
 
-// bufferLine draws tabs on the top row, the part around the current one
-// when they do not fit, with ‹ or › where it is cut (B258).
-func (c *client) bufferLine(tabs []wire.Tab, w int) {
-	if len(tabs) == 0 {
+// topLine draws the buffers on the top row from its left and the tab pages
+// at its right (B258, B545).
+func (c *client) topLine(tabs []wire.Tab, pages []wire.Page, w int) {
+	if len(tabs) == 0 && len(pages) == 0 {
 		return
 	}
 	ground := base.Background(th.surface)
 	c.s.FillArea(0, 0, w, 1, ' ', ground)
-	parts := make([]part, len(tabs))
-	current := 0
+	right, at := make([]part, len(pages)), 0
+	for i, p := range pages {
+		_, name := fudeclient.SplitName(p.Name)
+		text, style := " "+strconv.Itoa(i+1)+" "+name+" ", ground.Foreground(th.muted)
+		if p.Modified {
+			text += "● "
+		}
+		if p.Current {
+			at, style = i, ground.Background(th.normal).Foreground(th.bg).Bold(true)
+		}
+		right[i] = part{text, style}
+	}
+	// The pages take up to half the row, with a blank column between them
+	// and the buffers.
+	end := w
+	if len(right) > 0 {
+		end = w - min(width(right), w/2)
+		c.cut(right, at, end, w, ground)
+		end--
+	}
+	left, current := make([]part, len(tabs)), 0
 	for i, t := range tabs {
 		text, style := " "+strconv.Itoa(t.Number)+" "+t.Name+" ", ground.Foreground(th.muted)
 		if t.Modified {
@@ -167,23 +186,34 @@ func (c *client) bufferLine(tabs []wire.Tab, w int) {
 		if t.Current {
 			current, style = i, ground.Background(th.raised).Foreground(th.text).Bold(true)
 		}
-		parts[i] = part{text, style}
+		left[i] = part{text, style}
 	}
-	// first is the first tab shown, the least that keeps the current one in
-	// view with room for the marks at the cuts.
+	c.cut(left, current, 0, end, ground)
+}
+
+// cut draws parts on the top row from x to end, the part around the one at
+// current when they do not fit, with ‹ or › where it is cut.
+func (c *client) cut(parts []part, current, x, end int, ground tcell.Style) {
+	if width(parts) <= end-x {
+		for _, p := range parts {
+			x = c.putClipped(x, 0, end, p)
+		}
+		return
+	}
+	// first is the first part shown, the least that keeps the current one
+	// in view with room for the marks at the cuts.
 	first := 0
-	for first < current && width(parts[first:current+1])+2 > w {
+	for first < current && width(parts[first:current+1])+2 > end-x {
 		first++
 	}
-	x := 0
 	if first > 0 {
-		x = c.putClipped(x, 0, w, part{"‹", ground.Foreground(th.faint)})
+		x = c.putClipped(x, 0, end, part{"‹", ground.Foreground(th.faint)})
 	}
 	for i, p := range parts[first:] {
-		if i > 0 && x+width(parts[first+i:first+i+1])+1 > w {
-			c.putClipped(w-1, 0, w, part{"›", ground.Foreground(th.faint)})
+		if i > 0 && x+width(parts[first+i:first+i+1])+1 > end {
+			c.putClipped(end-1, 0, end, part{"›", ground.Foreground(th.faint)})
 			return
 		}
-		x = c.putClipped(x, 0, w, p)
+		x = c.putClipped(x, 0, end, p)
 	}
 }

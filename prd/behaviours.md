@@ -406,7 +406,8 @@ Where fude departs, the line says so and cites the departure in
   menu above the line shows the completions, ranked as `matchfuzzy()`
   ranks them, as Neovim's wildmenu does with `wildoptions=pum,fuzzy`.
   The word is a command's name, a path for `:edit`, `:split` and
-  `:vsplit`, an option for `:set`, a buffer for `:buffer` and
+  `:vsplit`, an option for `:set` and then the values it takes, such as
+  `true` or `false` or a setting's words, a buffer for `:buffer` and
   `:bdelete`, a subcommand and launch settings for `:debug`, another
   session for `:follow`, a guest for `:kick` or a task for `:task`.
   Completions that need a file read or a program run, such as tasks,
@@ -1272,6 +1273,13 @@ Where fude departs, the line says so and cites the departure in
 - B422 [2] `<C-w>H`, `<C-w>J`, `<C-w>K` and `<C-w>L` move the window to the
   far left, bottom, top or right, as tall or as wide as the layout, as in
   Neovim. In the only window they do nothing.
+- B545 [2] While there are two tab pages or more, the top row shows them
+  at its right, each by its number and the name of the buffer its
+  current window shows, the current one in the mode's colour. The
+  buffers keep the rest of the row. `tabline.enabled` off hides them. A
+  module reads the session's pages, hears `tabpage.changed` when one
+  opens, closes, moves or shows, and names the pages the row lists, as
+  the tabline module does.
 - B544 [2] A session has tab pages, each with its own windows, floats
   and current window, as in Neovim. `:tabnew` and `:tabedit` open one
   after the current page, on a file or a new empty buffer. `gt`, `{n}gt`,

@@ -336,8 +336,16 @@ before stay.
 
 Once two or more files are open, the top row lists them by number and
 name, the current one lit and a modified one marked ●. `:b 3` shows
-buffer 3. With it off, the windows take the top row and only `:ls` and
-`:pick buffers` list the buffers.
+buffer 3. With it off, only `:ls` and `:pick buffers` list the buffers,
+and the windows take the top row unless `tabline.enabled` shows the tab
+pages there.
+
+## tabline.enabled
+
+Once two or more tab pages are open, the top row lists them at its right,
+after the buffers, each by its number and the name of the buffer its
+current window shows, the current page in the mode's colour. With it off
+the pages still work, but the top row does not list them.
 
 ## guides.enabled
 

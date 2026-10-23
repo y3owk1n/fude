@@ -685,7 +685,8 @@ or scrolls the window, `mode.changed`, `syntax.updated` when a parse lands,
 `lsp.diagnostics`, `lsp.attached` once a server is ready for a buffer
 (B284), `editor.focused` when the terminal gets the focus back
 (B277), `buffer.shown` when the current window shows another buffer
-(B314), `lsp.changed` when a language server's state changes (B317),
+(B314), `tabpage.changed` when a tab page opens, closes, moves or shows
+(B545), `lsp.changed` when a language server's state changes (B317),
 `lsp.refresh` with what a server asks to be asked for again, such as
 `codeLens` for `workspace/codeLens/refresh` (B463), `lsp.notified` and
 `lsp.requested` with a server's message fude does not handle (B532),
@@ -2064,8 +2065,10 @@ methods are the ones `tui` calls today, such as `Windows`, `Menu`,
 the user types. `client` imports no frontend and no editor (D63).
 
 A frame carries the layout of the tab page that shows as a tree of
-`wire.Split`, each window at a leaf by its id (B541), and every page as a
-`wire.Page`, named by the buffer its current window shows (B544). Each window's `X`, `Y`, `W` and `H` are where the
+`wire.Split`, each window at a leaf by its id (B541), and the pages the
+top row shows as `wire.Page`s. A module reads the pages from
+`Scope.Pages` and names those the row lists in `Result.TabLine`, as
+`modules/tabline` does (B544, B545). Each window's `X`, `Y`, `W` and `H` are where the
 layout puts its text. A frontend that draws its own splits calls `Place`
 with each window's place in cells of its grid. The editor then takes
 that window's rows and columns from it, and `<C-w>hjkl` measures from it

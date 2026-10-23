@@ -101,6 +101,7 @@ type Result struct {
 	Copy       string         // text to put on the clipboard (B329)
 	Window     string         // h, j, k or l: the window next to the current one that way becomes current (B330)
 	Tabs       *[]Tab         // what the buffer line lists, none for no row (B331)
+	TabLine    *[]TabName     // the tab pages the top row lists, by id, none for none (B545)
 	Pins       map[int][]int  // by window id, the starts of the lines pinned over its top rows, in place of those it had (B217)
 	// Guides are by window id, then by line, the display columns where a
 	// faint line marks the indent, in place of those the window had (B153).
@@ -509,6 +510,19 @@ type Tab struct {
 	Name   string
 }
 
+// TabPage is a tab page of the session, as Scope.Pages lists it: its id,
+// the buffer its current window shows, and whether it shows (B545).
+type TabPage struct {
+	ID, Buffer int
+	Current    bool
+}
+
+// TabName is what the top row calls the tab page with the id (B545).
+type TabName struct {
+	Page int
+	Name string
+}
+
 // Completion is what a Completer offers for the text before the cursor:
 // items that replace the text from Start. Only makes them the menu's
 // alone, as a path's entries are. With Later they come in a callback, and
@@ -722,6 +736,8 @@ type Scope struct {
 	// Windows returns the session's windows, in the order of the layout
 	// (B340).
 	Windows func() []Window
+	// Pages returns the session's tab pages in order (B545).
+	Pages func() []TabPage
 	// Selection returns what visual mode selects in the current window, or
 	// false outside it, and Cursors the cursors there besides the one keys
 	// move (B340, B392).

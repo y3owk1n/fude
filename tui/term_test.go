@@ -38,6 +38,7 @@ import (
 	lspmod "github.com/y3owk1n/fude/modules/lsp"
 	sessionsmod "github.com/y3owk1n/fude/modules/sessions"
 	stickymod "github.com/y3owk1n/fude/modules/sticky"
+	tablinemod "github.com/y3owk1n/fude/modules/tabline"
 	terminalmod "github.com/y3owk1n/fude/modules/terminal"
 	thememod "github.com/y3owk1n/fude/modules/theme"
 	timelinemod "github.com/y3owk1n/fude/modules/timeline"
@@ -2143,6 +2144,35 @@ func TestB258BufferLine(t *testing.T) {
 	c = lined(startWith(t, "", "a.txt", "b.txt", away))
 	if tabs := c.e.(*editor.Session).Attach("guest", editor.Guest).Buffers(); len(tabs) != 2 {
 		t.Errorf("a guest's buffer line lists %v, want the two files in the project", tabs)
+	}
+}
+
+// B545
+func TestB545TabLine(t *testing.T) {
+	t.Chdir(t.TempDir())
+	if err := os.WriteFile("a.txt", []byte("one\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	c := startWith(t, "", "a.txt")
+	e := c.e.(*editor.Session)
+	e.Use(bufferlinemod.New())
+	e.Use(tablinemod.New())
+	for _, k := range vim.Keys(":tabnew<CR>") {
+		e.Feed(k)
+	}
+	// The pages show at the right of the buffers, the current one in the
+	// mode's colour.
+	editortest.Settle(t, e, func() bool {
+		c.draw()
+		return strings.HasSuffix(strings.TrimRight(c.row(0), " "), " 1 a.txt  2 [No Name]")
+	})
+	row := c.row(0)
+	if !strings.HasPrefix(row, " 1 a.txt ") {
+		t.Errorf("the buffers left the top row %q", row)
+	}
+	at := strings.LastIndex(row, " 2 [No Name]")
+	if _, s, _ := c.s.Get(at+1, 0); s.GetBackground() != themes["dark"].normal {
+		t.Errorf("the current page is not lit in the mode's colour")
 	}
 }
 

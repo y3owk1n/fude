@@ -6,7 +6,9 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync/atomic"
 
+	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/wire"
 )
 
@@ -15,6 +17,7 @@ import (
 // fields, and the session keeps the others in tabpages, as they were when
 // they stopped showing.
 type tabPage struct {
+	id               int
 	root             *node
 	win              *window
 	floats           []*window
@@ -23,15 +26,24 @@ type tabPage struct {
 	lastWin, prevWin *window
 }
 
-// parkPage returns the page that shows, to keep while another shows.
-func (e *Session) parkPage() tabPage {
-	return tabPage{e.root, e.win, e.floats, e.zoomed, e.unzoomed, e.lastWin, e.prevWin}
+// pageIDs is the id the last tab page got.
+var pageIDs atomic.Int64
+
+// newPage returns a tab page with w alone in it.
+func newPage(w *window) tabPage {
+	return tabPage{id: int(pageIDs.Add(1)), root: &node{win: w}, win: w}
+}
+
+// park keeps the page that shows in tabpages, to show again later.
+func (e *Session) park() {
+	p := &e.tabpages[e.tabpage]
+	p.root, p.win, p.floats, p.zoomed, p.unzoomed, p.lastWin, p.prevWin = e.root, e.win, e.floats, e.zoomed, e.unzoomed, e.lastWin, e.prevWin
 }
 
 // showPage shows the page at i.
 func (e *Session) showPage(i int) {
 	if i != e.tabpage {
-		e.tabpages[e.tabpage] = e.parkPage()
+		e.park()
 		e.loadPage(i)
 	}
 }
@@ -48,6 +60,7 @@ func (e *Session) loadPage(i int) {
 	e.seen = seenAt{}
 	e.layout()
 	e.reveal()
+	e.emit("tabpage.changed", "", e.win.buf)
 }
 
 // parked returns the windows in the layouts of the pages that do not show.
@@ -75,13 +88,13 @@ func (e *Session) unseen() []*window {
 
 // openPage shows a new page after the one that shows, with w alone in it.
 func (e *Session) openPage(w *window) {
-	e.tabpages = slices.Insert(e.tabpages, e.tabpage+1, tabPage{root: &node{win: w}, win: w})
+	e.tabpages = slices.Insert(e.tabpages, e.tabpage+1, newPage(w))
 	e.showPage(e.tabpage + 1)
 }
 
-// newPage shows a new page with a window on the file at path, or on a new
+// tabNew shows a new page with a window on the file at path, or on a new
 // empty buffer without one (B544).
-func (e *Session) newPage(path string) error {
+func (e *Session) tabNew(path string) error {
 	old := e.win
 	w := newWindow(old.buf, old.pos(), old.buf.text.Mark(old.top))
 	w.opts = old.opts
@@ -118,7 +131,7 @@ func (e *Session) closePage(i int) error {
 		return errors.New("cannot close the last tab page")
 	}
 	if i == e.tabpage {
-		e.tabpages[i] = e.parkPage()
+		e.park()
 	}
 	p := e.tabpages[i]
 	var gone []*window
@@ -141,6 +154,9 @@ func (e *Session) closePage(i int) error {
 		e.loadPage(min(i, len(e.tabpages)-1))
 	case i < e.tabpage:
 		e.tabpage--
+		e.emit("tabpage.changed", "", e.win.buf)
+	default:
+		e.emit("tabpage.changed", "", e.win.buf)
 	}
 	// An ended terminal's buffer goes with its last window.
 	for _, w := range gone {
@@ -223,31 +239,51 @@ func (e *Session) movePage(arg string) error {
 			return fmt.Errorf("cannot move the tab page to %s", arg)
 		}
 	}
-	e.tabpages[e.tabpage] = e.parkPage()
+	e.park()
 	p := e.tabpages[e.tabpage]
 	e.tabpages = slices.Insert(slices.Delete(e.tabpages, e.tabpage, e.tabpage+1), to, p)
 	e.tabpage = to
+	e.emit("tabpage.changed", "", e.win.buf)
 	return nil
 }
 
 // topRow reports whether the top row of the screen shows, for the buffers
-// or for more than one tab page (B258, B544).
-func (e *Session) topRow() bool { return len(e.Buffers()) > 0 || len(e.tabpages) > 1 }
+// or the tab pages (B258, B545).
+func (e *Session) topRow() bool { return len(e.Buffers()) > 0 || len(e.Pages()) > 0 }
 
-// Pages returns the tab pages, each by the buffer its current window shows
-// (B544).
+// Pages returns the tab pages the top row shows, those a module named
+// (B545).
 func (e *Session) Pages() []wire.Page {
-	out := make([]wire.Page, len(e.tabpages))
+	var out []wire.Page
 	for i, p := range e.tabpages {
-		w := p.win
-		if i == e.tabpage {
-			w = e.win
+		name, ok := e.tabNames[p.id]
+		if !ok {
+			continue
 		}
-		// A float names the page by the window it opened from.
-		for w.from != nil {
-			w = w.from
-		}
-		out[i] = wire.Page{Name: w.buf.name(), Modified: w.buf.modified(), Current: i == e.tabpage}
+		w := e.pageWindow(i)
+		out = append(out, wire.Page{Name: name, Modified: w.buf.modified(), Current: i == e.tabpage})
+	}
+	return out
+}
+
+// pageWindow returns the window of the page at i that has the focus, or
+// the one a float there opened from.
+func (e *Session) pageWindow(i int) *window {
+	w := e.tabpages[i].win
+	if i == e.tabpage {
+		w = e.win
+	}
+	for w.from != nil {
+		w = w.from
+	}
+	return w
+}
+
+// scopePages returns the tab pages as a module reads them (B545).
+func (e *Session) scopePages() []api.TabPage {
+	out := make([]api.TabPage, len(e.tabpages))
+	for i, p := range e.tabpages {
+		out[i] = api.TabPage{ID: p.id, Buffer: e.pageWindow(i).buf.id, Current: i == e.tabpage}
 	}
 	return out
 }

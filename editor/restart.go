@@ -248,11 +248,15 @@ func (e *Session) restoreLayout(s saved) {
 	for _, sp := range s.Pages {
 		if r := build(sp.Layout); r != nil {
 			ws := r.windows()
-			pages = append(pages, tabPage{root: r, win: ws[min(sp.Current, len(ws)-1)]})
+			p := newPage(ws[min(sp.Current, len(ws)-1)])
+			p.root = r
+			pages = append(pages, p)
 		}
 	}
+	cur := newPage(e.win)
+	cur.root = root
 	e.tabpage = min(s.Page, len(pages))
-	e.tabpages = slices.Insert(pages, e.tabpage, tabPage{})
+	e.tabpages = slices.Insert(pages, e.tabpage, cur)
 	// New windows start with the current one's options, as after :set.
 	e.opts = e.win.opts
 	e.layout()

@@ -432,7 +432,7 @@ func (c *client) draw() {
 			cx, cy = x, y
 		}
 	}
-	c.bufferLine(c.e.Buffers(), w)
+	c.topLine(c.e.Buffers(), c.e.Pages(), w)
 	if modal {
 		apply(boxed)
 	}

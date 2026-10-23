@@ -867,6 +867,12 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 	if res.Tabs != nil {
 		e.tabs = *res.Tabs
 	}
+	if res.TabLine != nil {
+		e.tabNames = map[int]string{}
+		for _, t := range *res.TabLine {
+			e.tabNames[t.Page] = t.Name
+		}
+	}
 	for _, s := range e.sessions {
 		for _, w := range s.windows() {
 			if starts, ok := res.Pins[w.id]; ok {
@@ -1498,6 +1504,8 @@ func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 		}
 	}
 	s.Windows = func() []api.Window { return wins }
+	pages := e.scopePages()
+	s.Pages = func() []api.TabPage { return pages }
 	sel, selected := e.vim.Selection()
 	s.Selection = func() (api.Selection, bool) {
 		return api.Selection{Kind: string(sel.Kind), Start: sel.Start, End: sel.End, Block: sel.Block, Left: sel.Left, Right: sel.Right, Regions: sel.Regions}, selected
