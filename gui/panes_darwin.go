@@ -35,6 +35,7 @@ type pane struct {
 	cursor             cursorAt
 	left, right        []client.Part
 	current            bool
+	offers             []string // which language server features of the right click's menu its buffer's servers offer
 }
 
 // places are where the panes put the windows' text, for the loop to give
@@ -264,7 +265,7 @@ func (p *pane) update(sh shown, ground theme.RGB) {
 			p.cells[c.y][c.x+i] = cell{style: c.style}
 		}
 	}
-	p.cursor, p.left, p.right, p.current, p.pics = sh.cursor, sh.left, sh.right, sh.current, sh.pics
+	p.cursor, p.left, p.right, p.current, p.pics, p.offers = sh.cursor, sh.left, sh.right, sh.current, sh.pics, sh.offers
 	p.showScroll(sh.scroll[0], sh.scroll[1], sh.scroll[2])
 	p.text.Send(sel("setNeedsDisplay:"), 1)
 	p.status.Send(sel("setNeedsDisplay:"), 1)

@@ -54,6 +54,10 @@ func (e *Session) Windows() []wire.Window {
 	return out
 }
 
+// menuFeatures are the language server features a right click's menu
+// offers, by their methods' names (B561).
+var menuFeatures = []string{"definition", "typeDefinition", "references", "implementation", "rename", "codeAction", "hover"}
+
 // draw is how a client draws w.
 func (e *Session) draw(w *window) wire.Window {
 	_, _, centered := e.area()
@@ -66,6 +70,11 @@ func (e *Session) draw(w *window) wire.Window {
 		Gutter: w.gutter(), SignCols: w.signCols(), Number: w.numberCols() > 0 && w.opts.Number, Relative: w.numberCols() > 0 && w.opts.RelativeNumber,
 		Wrap: w.opts.Wrap, LineBreak: w.opts.LineBreak, BreakIndent: w.opts.BreakIndent, ShowBreak: e.cfg.ShowBreak, Left: w.left, CursorLine: w.opts.CursorLine, List: w.opts.List,
 		Tab: tab, ColorColumn: w.opts.ColorColumn, ListChars: e.cfg.ListChars, FillChars: e.cfg.FillChars,
+	}
+	for _, m := range menuFeatures {
+		if slices.ContainsFunc(w.buf.servers, func(s *server) bool { return s.offers("textDocument/" + m) }) {
+			v.Offers = append(v.Offers, m)
+		}
 	}
 	// Centered, the colour column is the windows' edge, so it shows none.
 	if centered {

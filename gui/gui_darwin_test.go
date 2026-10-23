@@ -1043,15 +1043,19 @@ func TestB561Feel(t *testing.T) {
 		w.onLoop(func() { n = e.Windows()[0].Text.LineOf(e.Windows()[0].Top) })
 		return n
 	}
-	// A right click shows the language server's items and the clipboard's,
-	// and Select All there selects the text.
+	// A right click with no language server shows only the clipboard's
+	// items, Copy greyed with nothing selected, and Select All there selects
+	// the text.
 	onMain(func() {
 		at := msgConvertPoint(p.text, sel("convertPoint:toView:"), point{pad + cellW/2, pad + cellH/2}, 0)
 		ev := msgMouseEvent(cls("NSEvent"), sel("mouseEventWithType:location:modifierFlags:timestamp:windowNumber:context:eventNumber:clickCount:pressure:"),
 			3, at, 0, 0, objc.Send[int](w.win, sel("windowNumber")), 0, 0, 1, 1)
 		menu := p.text.Send(sel("menuForEvent:"), ev)
-		if menu.Send(sel("itemWithTitle:"), nsString("Go to Definition")) == 0 || menu.Send(sel("itemWithTitle:"), nsString("Copy")) == 0 {
-			t.Error("the menu lacks the language server's or the clipboard's items")
+		if !objc.Send[bool](menu.Send(sel("itemWithTitle:"), nsString("Go to Definition")), sel("isHidden")) {
+			t.Error("the menu offers the language server's items with no server")
+		}
+		if objc.Send[bool](menu.Send(sel("itemWithTitle:"), nsString("Copy")), sel("isEnabled")) {
+			t.Error("the menu offers Copy with nothing selected")
 		}
 		item := menu.Send(sel("itemWithTitle:"), nsString("Select All"))
 		cls("NSApplication").Send(sel("sharedApplication")).Send(sel("sendAction:to:from:"), objc.Send[objc.SEL](item, sel("action")), w.view, item)

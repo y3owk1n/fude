@@ -11,23 +11,24 @@ import (
 	"github.com/ebitengine/purego/objc"
 )
 
-// contextItems are what a right click on text offers, by title, with the
-// action each sends and the keys the action types: the language server's
-// for the place clicked, then the clipboard's (B561).
-var contextItems = []struct{ title, action, keys string }{
-	{"Go to Definition", "goToDefinition:", "<C-]>"},
-	{"Go to Type Definition", "goToTypeDefinition:", "grt"},
-	{"Find References", "findReferences:", "grr"},
-	{"Find Implementations", "findImplementations:", "gri"},
-	{"Rename Symbol", "renameSymbol:", "grn"},
-	{"Code Actions", "codeActions:", "gra"},
-	{"Show Hover", "showHover:", "K"},
+// contextItems are what a right click on text offers, the language
+// server's items for the place clicked, then the clipboard's. Each has its
+// title, the action it sends, the keys that action types and the language
+// server feature it needs (B561).
+var contextItems = []struct{ title, action, keys, needs string }{
+	{"Go to Definition", "goToDefinition:", "<C-]>", "definition"},
+	{"Go to Type Definition", "goToTypeDefinition:", "grt", "typeDefinition"},
+	{"Find References", "findReferences:", "grr", "references"},
+	{"Find Implementations", "findImplementations:", "gri", "implementation"},
+	{"Rename Symbol", "renameSymbol:", "grn", "rename"},
+	{"Code Actions", "codeActions:", "gra", "codeAction"},
+	{"Show Hover", "showHover:", "K", "hover"},
 	{},
-	{"Cut", "cut:", ""},
-	{"Copy", "copy:", ""},
-	{"Paste", "paste:", ""},
+	{"Cut", "cut:", "", ""},
+	{"Copy", "copy:", "", ""},
+	{"Paste", "paste:", "", ""},
 	{},
-	{"Select All", "selectAll:", ""},
+	{"Select All", "selectAll:", "", ""},
 }
 
 // contextActions are the root view's methods for the language server's
@@ -54,23 +55,47 @@ func contextActions() []objc.MethodDef {
 var contextMenu objc.ID
 
 // menuFor puts the cursor where a right click hits, unless a selection
-// shows, and returns the menu it shows (B561).
+// shows, and returns the menu it shows. It shows the language server's
+// items the window's servers offer, and Cut, Copy and Paste only when
+// there is a selection to take or text to paste (B561).
 func menuFor(self objc.ID, _ objc.SEL, ev objc.ID) objc.ID {
 	p := panes[self]
 	if p == nil {
 		return 0
 	}
-	if p.w.tabs.mode != "visual" {
+	visual := p.w.tabs.mode == "visual"
+	if !visual {
 		mouseAt(self, ev, 'c')
 	}
 	if contextMenu == 0 {
 		contextMenu = cls("NSMenu").Send(sel("alloc")).Send(sel("initWithTitle:"), nsString(""))
+		contextMenu.Send(sel("setAutoenablesItems:"), 0)
 		for _, it := range contextItems {
 			if it.title == "" {
 				contextMenu.Send(sel("addItem:"), cls("NSMenuItem").Send(sel("separatorItem")))
 				continue
 			}
 			contextMenu.Send(sel("addItemWithTitle:action:keyEquivalent:"), nsString(it.title), sel(it.action), nsString(""))
+		}
+	}
+	pasted := goString(cls("NSPasteboard").Send(sel("generalPasteboard")).Send(sel("stringForType:"), nsString(pasteboardText))) != ""
+	offered := false
+	for i, it := range contextItems {
+		item := contextMenu.Send(sel("itemAtIndex:"), i)
+		switch {
+		case it.needs != "":
+			on := slices.Contains(p.offers, it.needs)
+			offered = offered || on
+			item.Send(sel("setHidden:"), !on)
+		case it.title == "Cut" || it.title == "Copy":
+			item.Send(sel("setEnabled:"), visual)
+		case it.title == "Paste":
+			item.Send(sel("setEnabled:"), pasted)
+		case it.title == "":
+			// The separator after the language server's items hides with them.
+			if contextItems[i-1].needs != "" {
+				item.Send(sel("setHidden:"), !offered)
+			}
 		}
 	}
 	return contextMenu

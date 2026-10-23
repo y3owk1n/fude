@@ -63,10 +63,11 @@ type Window struct {
 	X, Y, W, H       int     // where its text goes, gutter included, as the layout places it
 	Name             string
 	Modified         bool
-	Current          bool   // the window with the focus
-	Zoomed           bool   // it shows alone, the other windows of the layout hidden behind it (B370)
-	Highlights       []Span // in paint order, later ones drawing over earlier ones
-	Decorations      []Span // plugins' styles, drawn over highlights
+	Current          bool     // the window with the focus
+	Zoomed           bool     // it shows alone, the other windows of the layout hidden behind it (B370)
+	Offers           []string // which language server features of a right click's menu its buffer's servers offer, such as definition (B561)
+	Highlights       []Span   // in paint order, later ones drawing over earlier ones
+	Decorations      []Span   // plugins' styles, drawn over highlights
 	Ghosts           []Ghost
 	Matches          [][2]int          // of the search, shown in every window
 	Searched         [2]int            // the match the search being typed goes to, lit apart from the rest (B21)

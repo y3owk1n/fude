@@ -1164,6 +1164,19 @@ func TestB562HoverAtTheMouse(t *testing.T) {
 	}
 }
 
+// B561
+func TestB561WhatTheMenuOffers(t *testing.T) {
+	e, log := withServer(t, "a\n", "utf-8")
+	heard(t, log, `"method":"textDocument/didOpen"`, 1)
+	want := []string{"definition", "typeDefinition", "references", "implementation", "rename", "codeAction", "hover"}
+	if got := e.Windows()[0].Offers; !slices.Equal(got, want) {
+		t.Errorf("a window with a server offers %v, want %v", got, want)
+	}
+	if feed(e, ":e "+filepath.Join(t.TempDir(), "b.txt")+"<CR>"); e.Windows()[0].Offers != nil {
+		t.Errorf("a window with no server offers %v", e.Windows()[0].Offers)
+	}
+}
+
 // B552
 func TestB552ClickClosesWhatIsAtTheCursor(t *testing.T) {
 	e, log := withServer(t, "a\nb target\n", "utf-8")

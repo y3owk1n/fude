@@ -1408,14 +1408,17 @@ Where fude departs, the line says so and cites the departure in
   unless a selection shows, and opens the system's menu. It offers Go to
   Definition, Go to Type Definition, Find References, Find
   Implementations, Rename Symbol, Code Actions and Show Hover, which type
-  the language server's keys, then Cut, Copy, Paste and Select All. Each
-  window has the system's thin scroll bar, which shows while its view
-  moves, and dragging its knob scrolls the window there. A trackpad moves
-  a window's text by points, scrolling a line for each row's height, and
-  the text settles on the nearest line when the fingers or the momentum
-  let go, or when a key is typed. The cursor of the window with the keys
-  blinks as the system's text fields do, and stays shown while keys and
-  clicks come.
+  the language server's keys, then Cut, Copy, Paste and Select All. Of the
+  language server's items it shows only those the window's servers offer,
+  so none show without a server. Cut and Copy are greyed with nothing
+  selected, and Paste with no text on the clipboard. A frontend learns
+  what a window's servers offer from its frame. Each window has the
+  system's thin scroll bar, which shows while its view moves, and dragging
+  its knob scrolls the window there. A trackpad moves a window's text by
+  points, scrolling a line for each row's height, and the text settles on
+  the nearest line when the fingers or the momentum let go, or when a key
+  is typed. The cursor of the window with the keys blinks as the system's
+  text fields do, and stays shown while keys and clicks come.
 - B562 [10] A frontend gives the session the cell of a window's text
   where the mouse rests. On a word of the current window, in normal mode,
   the session shows what the language server says of it, as `K` does,

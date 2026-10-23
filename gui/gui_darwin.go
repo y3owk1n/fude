@@ -198,6 +198,7 @@ type shown struct {
 	cursor      cursorAt
 	left, right []client.Part
 	current     bool
+	offers      []string
 	pics        []pic
 	scroll      [3]int // its first line shown, its rows and its text's lines
 }
@@ -485,7 +486,7 @@ func (p *painter) paint(s client.Session, cols, rows int) frame {
 			p.grids[v.ID] = g
 		}
 		out := draw(g, o)
-		sh := shown{id: v.ID, w: v.W, h: v.H, current: v.Current, scroll: [3]int{v.Text.LineOf(v.Top), v.H, v.Text.Lines()}}
+		sh := shown{id: v.ID, w: v.W, h: v.H, current: v.Current, offers: v.Offers, scroll: [3]int{v.Text.LineOf(v.Top), v.H, v.Text.Lines()}}
 		g.Paint(0, 0, func(x, y int, text string, width int, st theme.Style) {
 			sh.put = append(sh.put, placed{x, y, cell{text, width, st}})
 		})
