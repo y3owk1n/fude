@@ -1072,10 +1072,10 @@ func (e *Session) applyWorkspace(b *buffer, a *api.WorkspaceEdit) {
 }
 
 // styled turns a module's spans into the editor's.
-func styled(in []api.Span) []syntax.Span {
-	out := make([]syntax.Span, len(in))
+func styled(in []api.Span) []wire.Span {
+	out := make([]wire.Span, len(in))
 	for i, sp := range in {
-		out[i] = syntax.Span(sp)
+		out[i] = wire.Span(sp)
 	}
 	return out
 }

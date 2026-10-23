@@ -1378,9 +1378,9 @@ func (e *Session) overlays() []overlay {
 // documentation shown beside it.
 type cursorMenu struct {
 	text     string
-	spans    []syntax.Span
+	spans    []wire.Span
 	doc      string // the selected item's documentation, beside the menu
-	docSpans []syntax.Span
+	docSpans []wire.Span
 }
 
 // key closes the menu and the float at the cursor, which any key does. It

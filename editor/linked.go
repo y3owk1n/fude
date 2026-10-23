@@ -7,8 +7,8 @@ import (
 
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/protocol/lsp"
-	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
+	"github.com/y3owk1n/fude/wire"
 )
 
 // links are the ranges a language server linked around the cursor, such as
@@ -112,14 +112,14 @@ func (e *Session) unlink() {
 }
 
 // linkedSpans are the linked ranges in b, drawn as linked.
-func (e *Session) linkedSpans(b *buffer) []syntax.Span {
+func (e *Session) linkedSpans(b *buffer) []wire.Span {
 	l := &e.links
 	if l.b != b {
 		return nil
 	}
-	var out []syntax.Span
+	var out []wire.Span
 	for _, r := range l.ranges {
-		out = append(out, syntax.Span{Start: b.text.Mark(r[0]), End: b.text.Mark(r[1]), Name: "lsp.linked"})
+		out = append(out, wire.Span{Start: b.text.Mark(r[0]), End: b.text.Mark(r[1]), Name: "lsp.linked"})
 	}
 	return out
 }

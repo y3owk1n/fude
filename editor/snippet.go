@@ -9,8 +9,8 @@ import (
 
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/protocol/lsp"
-	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
+	"github.com/y3owk1n/fude/wire"
 )
 
 // snippetVars are the variables a snippet can use, for the file of b with
@@ -186,11 +186,11 @@ func (e *Session) endSnippet() {
 }
 
 // snippetSpan is the fresh placeholder the cursor is on, drawn selected.
-func (e *Session) snippetSpan(b *buffer) []syntax.Span {
+func (e *Session) snippetSpan(b *buffer) []wire.Span {
 	sn := e.snip
 	if sn == nil || !sn.fresh || sn.b != b {
 		return nil
 	}
 	start, end := sn.place(sn.at, 0)
-	return []syntax.Span{{Start: start, End: end, Name: "snippet.placeholder"}}
+	return []wire.Span{{Start: start, End: end, Name: "snippet.placeholder"}}
 }

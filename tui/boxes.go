@@ -8,7 +8,6 @@ import (
 
 	"github.com/clipperhouse/displaywidth"
 	"github.com/y3owk1n/fude/internal/compose"
-	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
 	"github.com/y3owk1n/fude/wire"
 )
@@ -38,7 +37,7 @@ func (c *client) rule(x, y, w int) {
 // a screen w columns by h rows, its prompt in the colour of commands or of
 // search, with menu's completions under a rule in the same box, and returns
 // where its cursor is (B148).
-func (c *client) commandLine(w, h int, menu string, spans []syntax.Span) (int, int) {
+func (c *client) commandLine(w, h int, menu string, spans []wire.Span) (int, int) {
 	line := c.e.Line()
 	prompt, rest := line[:1], line[1:]
 	inner := max(min(60, w-4), 4)
@@ -244,7 +243,7 @@ func (c *client) scroll(rows []row, f wire.Menu, n int) int {
 		return max(i-1, 0)
 	}
 	if f.Cursor < 0 {
-		i := slices.IndexFunc(f.Spans, func(s syntax.Span) bool { return s.Name == "menu.selected" })
+		i := slices.IndexFunc(f.Spans, func(s wire.Span) bool { return s.Name == "menu.selected" })
 		if i < 0 {
 			c.menuTop = 0
 			return 0
@@ -266,7 +265,7 @@ type row struct {
 // wrap splits text into rows at most limit columns wide and returns them
 // with the widest one's width. A row ends after the last space that fits,
 // or at the limit when none does. A markup.rule line is a rule.
-func wrap(text string, spans []syntax.Span, limit int) ([]row, int) {
+func wrap(text string, spans []wire.Span, limit int) ([]row, int) {
 	var rows []row
 	width := 0
 	for at := 0; at <= len(text); {
@@ -275,7 +274,7 @@ func wrap(text string, spans []syntax.Span, limit int) ([]row, int) {
 			end = len(text) - at
 		}
 		end += at
-		if slices.ContainsFunc(spans, func(s syntax.Span) bool { return s.Name == "markup.rule" && s.Start == at }) {
+		if slices.ContainsFunc(spans, func(s wire.Span) bool { return s.Name == "markup.rule" && s.Start == at }) {
 			rows = append(rows, row{at, end, true})
 		} else {
 			start, col := at, 0
@@ -309,7 +308,7 @@ func wrap(text string, spans []syntax.Span, limit int) ([]row, int) {
 // columns wide inside it, and reports where the byte at cursor is. A row a
 // selected item starts takes the raised colour, with an accent bar for its
 // left border (B150).
-func (c *client) box(text string, spans []syntax.Span, rows []row, x, y, width, cursor int) (int, int, bool) {
+func (c *client) box(text string, spans []wire.Span, rows []row, x, y, width, cursor int) (int, int, bool) {
 	styles := compose.Styles(nil, spans, []wire.Range{{End: len(text) - 1}}, lk)
 	style := base
 	fx, fy, found := 0, 0, false
@@ -321,7 +320,7 @@ func (c *client) box(text string, spans []syntax.Span, rows []row, x, y, width, 
 		if r.rule {
 			c.rule(x-1, y+1+i, width+2)
 		}
-		if slices.ContainsFunc(spans, func(s syntax.Span) bool {
+		if slices.ContainsFunc(spans, func(s wire.Span) bool {
 			return s.Name == "menu.selected" && s.Start <= r.start && r.start < s.End
 		}) {
 			ground = th.raised

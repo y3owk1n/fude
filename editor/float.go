@@ -8,7 +8,6 @@ import (
 	"github.com/clipperhouse/displaywidth"
 
 	"github.com/y3owk1n/fude/core/kernel"
-	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
 	"github.com/y3owk1n/fude/wire"
 )
@@ -109,7 +108,7 @@ func (e *Session) under() *window {
 
 // floatBuffer returns a read-only buffer titled title holding text, styled
 // by spans, for a float to show.
-func (e *Session) floatBuffer(title, text string, spans []syntax.Span) *buffer {
+func (e *Session) floatBuffer(title, text string, spans []wire.Span) *buffer {
 	// A float is gone with its next key, so it takes no number.
 	b := &buffer{id: e.newID(false), text: kernel.New(text, nil), before: map[kernel.NodeID]int{}, marks: map[rune]kernel.MarkID{}, title: title}
 	b.saved = b.text.Head()
@@ -121,7 +120,7 @@ func (e *Session) floatBuffer(title, text string, spans []syntax.Span) *buffer {
 // refill replaces b's text with text, styled by spans, keeping its marks
 // where the text around them stays. b is a view, so it keeps no timeline
 // of what it showed before (B381).
-func (e *Session) refill(b *buffer, text string, spans []syntax.Span) error {
+func (e *Session) refill(b *buffer, text string, spans []wire.Span) error {
 	t := b.text.Snapshot()
 	if old := t.Slice(0, t.Len()); old != text {
 		if err := b.text.Apply(kernel.Transaction{Base: t.Version(), Edits: []kernel.Edit{replace(old, text)}, Forget: true}); err != nil {
@@ -135,7 +134,7 @@ func (e *Session) refill(b *buffer, text string, spans []syntax.Span) error {
 
 // popup shows text at the cursor in a float that the next key closes, with
 // the image at image below it, or closes the one showing for "" (B309).
-func (e *Session) popup(text string, spans []syntax.Span, image string) {
+func (e *Session) popup(text string, spans []wire.Span, image string) {
 	if text == "" {
 		if f := e.floatAt(atCursor); f != nil && f != e.win {
 			e.closeFloat(f)
@@ -147,7 +146,7 @@ func (e *Session) popup(text string, spans []syntax.Span, image string) {
 
 // showSignature shows text above the cursor while insert mode types, or
 // closes it for "" (B203).
-func (e *Session) showSignature(text string, spans []syntax.Span) {
+func (e *Session) showSignature(text string, spans []wire.Span) {
 	f := e.floatAt(aboveCursor)
 	switch {
 	case text == "" && f != nil:

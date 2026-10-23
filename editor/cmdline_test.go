@@ -19,7 +19,6 @@ import (
 	sessionsmod "github.com/y3owk1n/fude/modules/sessions"
 	"github.com/y3owk1n/fude/modules/task"
 	timelinemod "github.com/y3owk1n/fude/modules/timeline"
-	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/wire"
 )
 
@@ -64,7 +63,7 @@ func TestB131CommandCompletion(t *testing.T) {
 	}
 	lit := func(want string) bool {
 		f, _ := e.Menu()
-		return slices.ContainsFunc(f.Spans, func(s syntax.Span) bool { return s.Name == "menu.selected" && f.Text[s.Start:s.End] == want })
+		return slices.ContainsFunc(f.Spans, func(s wire.Span) bool { return s.Name == "menu.selected" && f.Text[s.Start:s.End] == want })
 	}
 	// <CR> on a name that is no command runs the menu's first, and on one
 	// that is a command runs it as typed.

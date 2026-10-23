@@ -23,8 +23,8 @@ import (
 	"github.com/y3owk1n/fude/internal/root"
 	"github.com/y3owk1n/fude/internal/trace"
 	"github.com/y3owk1n/fude/protocol/lsp"
-	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
+	"github.com/y3owk1n/fude/wire"
 )
 
 // server is a running language server and the buffers attached to it.
@@ -775,7 +775,7 @@ func (e *Session) signature(typed bool) {
 		if sig.ActiveParameter != nil {
 			active = *sig.ActiveParameter
 		}
-		var spans []syntax.Span
+		var spans []wire.Span
 		var docs []string
 		if active >= 0 && active < len(sig.Parameters) {
 			if d := markupText(sig.Parameters[active].Documentation); d != "" {
@@ -792,7 +792,7 @@ func (e *Session) signature(typed bool) {
 				json.Unmarshal(sig.Parameters[active].Label, &at)
 			}
 			if at[0] < at[1] && at[1] <= len(sig.Label) {
-				spans = []syntax.Span{{Start: at[0], End: at[1], Name: "markup.strong"}}
+				spans = []wire.Span{{Start: at[0], End: at[1], Name: "markup.strong"}}
 			}
 		}
 		if d := markupText(sig.Documentation); d != "" {

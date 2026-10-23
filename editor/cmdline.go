@@ -12,7 +12,6 @@ import (
 
 	"github.com/y3owk1n/fude/internal/fuzzy"
 
-	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
 	"github.com/y3owk1n/fude/wire"
 )
@@ -352,7 +351,7 @@ func (m *cmenu) box() wire.Menu {
 	}
 	first := m.first
 	var s strings.Builder
-	var spans []syntax.Span
+	var spans []wire.Span
 	width := 0
 	for _, it := range m.items[first : first+rows] {
 		width = max(width, utf8.RuneCountInString(it))
@@ -363,18 +362,18 @@ func (m *cmenu) box() wire.Menu {
 		}
 		it := m.items[i]
 		if i == m.sel || i == m.lit && m.sel == len(m.items) {
-			spans = append(spans, syntax.Span{Start: s.Len(), End: s.Len() + len(it), Name: "menu.selected"})
+			spans = append(spans, wire.Span{Start: s.Len(), End: s.Len() + len(it), Name: "menu.selected"})
 		}
 		// A path marks the letters of its last part that the typed part
 		// matches (B152).
 		dir := strings.LastIndexAny(m.typed, "/"+string(filepath.Separator)) + 1
 		for _, at := range fuzzy.Positions(fuzzy.Lower(m.typed[dir:]), it[dir:]) {
-			spans = append(spans, syntax.Span{Start: s.Len() + dir + at, End: s.Len() + dir + at + 1, Name: "match"})
+			spans = append(spans, wire.Span{Start: s.Len() + dir + at, End: s.Len() + dir + at + 1, Name: "match"})
 		}
 		s.WriteString(it)
 		if i < len(m.notes) && m.notes[i] != "" {
 			s.WriteString(strings.Repeat(" ", width-utf8.RuneCountInString(it)+2))
-			spans = append(spans, syntax.Span{Start: s.Len(), End: s.Len() + len(m.notes[i]), Name: "comment"})
+			spans = append(spans, wire.Span{Start: s.Len(), End: s.Len() + len(m.notes[i]), Name: "comment"})
 			s.WriteString(m.notes[i])
 		}
 	}

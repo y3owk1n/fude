@@ -17,7 +17,6 @@ import (
 	"github.com/clipperhouse/displaywidth"
 
 	look "github.com/y3owk1n/fude/internal/theme"
-	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
 	"github.com/y3owk1n/fude/wire"
 )
@@ -706,7 +705,7 @@ func (p *Composer) note(g *Grid, v wire.Window, x, y int, n wire.Note, shade boo
 // Styles returns the style of each byte of the ranges, one range after
 // another and each with the byte after it, that a highlight colours in lk,
 // and lk's base style for the bytes between them. It reuses out.
-func Styles(out []look.Style, spans []syntax.Span, ranges []wire.Range, lk look.Look) []look.Style {
+func Styles(out []look.Style, spans []wire.Span, ranges []wire.Range, lk look.Look) []look.Style {
 	n := 0
 	for _, r := range ranges {
 		n += max(r.End+1-r.Start, 0)
@@ -745,7 +744,7 @@ func Styles(out []look.Style, spans []syntax.Span, ranges []wire.Range, lk look.
 // FloatRule reports whether the line at pos of v, a float, is a
 // markup.rule one, which the float's border draws across.
 func FloatRule(v wire.Window, pos int) bool {
-	rule := func(s syntax.Span) bool { return s.Name == "markup.rule" && s.Start == pos }
+	rule := func(s wire.Span) bool { return s.Name == "markup.rule" && s.Start == pos }
 	return slices.ContainsFunc(v.Highlights, rule) || slices.ContainsFunc(v.Decorations, rule)
 }
 

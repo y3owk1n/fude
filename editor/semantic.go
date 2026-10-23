@@ -6,13 +6,13 @@ import (
 
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/protocol/lsp"
-	"github.com/y3owk1n/fude/syntax"
+	"github.com/y3owk1n/fude/wire"
 )
 
 // tokens are a language server's semantic tokens of a buffer, by where they
 // start, and whether they are being asked for, and again after (B471).
 type tokens struct {
-	spans         []syntax.Span
+	spans         []wire.Span
 	asking, again bool
 }
 
@@ -73,8 +73,8 @@ func (ed *Editor) askTokens(b *buffer) {
 
 // tokenSpans reads data, five numbers a token, each token's line and start
 // counted from the one before, as highlights of t named after their types.
-func tokenSpans(t kernel.Snapshot, data []int, types []string, enc string) []syntax.Span {
-	var out []syntax.Span
+func tokenSpans(t kernel.Snapshot, data []int, types []string, enc string) []wire.Span {
+	var out []wire.Span
 	line, char := 0, 0
 	for i := 0; i+4 < len(data); i += 5 {
 		if data[i] > 0 {
@@ -86,7 +86,7 @@ func tokenSpans(t kernel.Snapshot, data []int, types []string, enc string) []syn
 		}
 		start := lsp.Offset(t, lsp.Position{Line: line, Character: char}, enc)
 		end := lsp.Offset(t, lsp.Position{Line: line, Character: char + data[i+2]}, enc)
-		out = append(out, syntax.Span{Start: start, End: end, Name: tokenNames[types[data[i+3]]]})
+		out = append(out, wire.Span{Start: start, End: end, Name: tokenNames[types[data[i+3]]]})
 	}
 	return out
 }
@@ -98,14 +98,14 @@ func (b *buffer) moveTokens(edits []kernel.Edit) {
 	for _, sp := range b.tokens.spans {
 		start, end := moved(edits, sp.Start), moved(edits, sp.End)
 		if end-start == sp.End-sp.Start {
-			kept = append(kept, syntax.Span{Start: start, End: end, Name: sp.Name})
+			kept = append(kept, wire.Span{Start: start, End: end, Name: sp.Name})
 		}
 	}
 	b.tokens.spans = kept
 }
 
 // tokensIn returns b's tokens over [from, to), while a server is attached.
-func (b *buffer) tokensIn(from, to int) []syntax.Span {
+func (b *buffer) tokensIn(from, to int) []wire.Span {
 	if len(b.servers) == 0 {
 		return nil
 	}

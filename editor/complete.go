@@ -10,8 +10,8 @@ import (
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/protocol/lsp"
-	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
+	"github.com/y3owk1n/fude/wire"
 )
 
 // completion is what completes in insert mode: the menu showing, whether
@@ -312,11 +312,11 @@ func (e *Session) showMenu() {
 	} else if i < len(m.items) {
 		e.resolve(m, i)
 	}
-	var spans []syntax.Span
+	var spans []wire.Span
 	var shown strings.Builder
 	for j, l := range m.labels {
 		if j == m.sel {
-			spans = append(spans, syntax.Span{Start: shown.Len(), End: shown.Len() + len(l), Name: "menu.selected"})
+			spans = append(spans, wire.Span{Start: shown.Len(), End: shown.Len() + len(l), Name: "menu.selected"})
 		}
 		shown.WriteString(l + "\n")
 	}

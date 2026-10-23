@@ -10,7 +10,6 @@ import (
 
 	explorermod "github.com/y3owk1n/fude/modules/explorer"
 	"github.com/y3owk1n/fude/protocol/lsp"
-	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/wire"
 )
 
@@ -37,7 +36,7 @@ func TestB471SemanticTokens(t *testing.T) {
 	e, _ := withServer(t, "x call\n", "utf-8")
 	function := func(at int) func() bool {
 		return func() bool {
-			return slices.Contains(e.Windows()[0].Highlights, syntax.Span{Start: at, End: at + 4, Name: "function"})
+			return slices.Contains(e.Windows()[0].Highlights, wire.Span{Start: at, End: at + 4, Name: "function"})
 		}
 	}
 	settle(t, e, function(2))

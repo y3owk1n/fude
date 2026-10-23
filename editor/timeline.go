@@ -8,8 +8,8 @@ import (
 
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/core/kernel"
-	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
+	"github.com/y3owk1n/fude/wire"
 )
 
 // states returns the buffer's timeline in the order it was made: the text
@@ -184,7 +184,7 @@ func (e *Session) scratch(title, text, where string, numbered bool) {
 type panelStyles struct{ b *buffer }
 
 // style puts spans on b, a panel, in place of the styles it had (B276).
-func (e *Session) style(b *buffer, spans []syntax.Span) {
+func (e *Session) style(b *buffer, spans []wire.Span) {
 	for _, d := range e.decos[panelStyles{b}] {
 		d.remove()
 	}

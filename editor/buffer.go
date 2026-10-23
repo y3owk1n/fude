@@ -15,6 +15,7 @@ import (
 	"github.com/y3owk1n/fude/internal/trace"
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
+	"github.com/y3owk1n/fude/wire"
 )
 
 // highlights keeps the highlight captures of one version of a buffer's
@@ -22,12 +23,12 @@ import (
 type highlights struct {
 	mu      sync.Mutex
 	version kernel.Version
-	spans   []syntax.Span
+	spans   []wire.Span
 	ok      bool
 }
 
 // of returns the captures of t in filetype ft, parsing t once per version.
-func (h *highlights) of(t kernel.Snapshot, ft, queries string) []syntax.Span {
+func (h *highlights) of(t kernel.Snapshot, ft, queries string) []wire.Span {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if !h.ok || h.version != t.Version() {
@@ -35,7 +36,7 @@ func (h *highlights) of(t kernel.Snapshot, ft, queries string) []syntax.Span {
 		if err != nil {
 			logLine(err.Error())
 		}
-		h.version, h.spans, h.ok = t.Version(), spans, true
+		h.version, h.spans, h.ok = t.Version(), shownSpans(nil, spans), true
 	}
 	return h.spans
 }
@@ -83,7 +84,7 @@ type buffer struct {
 	// foot is text a panel keeps under a rule at its window's foot as it
 	// scrolls, styled by footSpans (B159).
 	foot      string
-	footSpans []syntax.Span
+	footSpans []wire.Span
 	screen    bool      // a panel in place of a window's buffer, which shows it bare (B320)
 	term      *terminal // the program a terminal buffer shows, nil for any other (B205)
 	// A scratch buffer shows something about another buffer, such as its
@@ -290,4 +291,13 @@ func (b *buffer) kind() string {
 		return "scratch"
 	}
 	return ""
+}
+
+// shownSpans appends the spans a grammar gave to out, as a frame carries
+// them.
+func shownSpans(out []wire.Span, in []syntax.Span) []wire.Span {
+	for _, s := range in {
+		out = append(out, wire.Span(s))
+	}
+	return out
 }

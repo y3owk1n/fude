@@ -47,7 +47,7 @@ type finder struct {
 	busy     bool                // a match runs
 	shown    string              // the match previewed
 	preview  string              // the lines around it
-	spans    []syntax.Span       // their highlights
+	spans    []wire.Span         // their highlights
 	at       int                 // the row of the preview its line is on
 	reading  bool                // a preview is read off the loop
 	image    string              // the image file previewed, when it is one (B305)
@@ -272,7 +272,7 @@ func (f *finder) box(query string, cursor, width, height int) wire.Menu {
 	}
 	rows := max(h-4, 0) // below the query and its rule
 	var s strings.Builder
-	var spans []syntax.Span
+	var spans []wire.Span
 	// The query after a prompt, with the count of matches on the right.
 	prompt := cmp.Or(f.prompt, finderPrompt)
 	s.WriteString(prompt)
@@ -286,11 +286,11 @@ func (f *finder) box(query string, cursor, width, height int) wire.Menu {
 	}
 	if gap := w - 4 - utf8.RuneCountInString(prompt+query) - len(count); gap > 1 {
 		s.WriteString(strings.Repeat(" ", gap))
-		spans = append(spans, syntax.Span{Start: s.Len(), End: s.Len() + len(count), Name: "comment"})
+		spans = append(spans, wire.Span{Start: s.Len(), End: s.Len() + len(count), Name: "comment"})
 		s.WriteString(count)
 	}
 	s.WriteByte('\n')
-	spans = append(spans, syntax.Span{Start: s.Len(), End: s.Len(), Name: "markup.rule"})
+	spans = append(spans, wire.Span{Start: s.Len(), End: s.Len(), Name: "markup.rule"})
 	// Grep's matches show under a row for their file, so each is just its
 	// line number and text. A row is a match, or its file's name when header.
 	type listRow struct {
@@ -328,7 +328,7 @@ func (f *finder) box(query string, cursor, width, height int) wire.Menu {
 			writePath(&s, &spans, path, nil, w-4, "finder.file")
 		case f.places:
 			num := fmt.Sprintf("%*d  ", lineW, line)
-			spans = append(spans, syntax.Span{Start: s.Len(), End: s.Len() + lineW, Name: "finder.dir"})
+			spans = append(spans, wire.Span{Start: s.Len(), End: s.Len() + lineW, Name: "finder.dir"})
 			s.WriteString(num)
 			text = strings.TrimLeft(text, " \t")
 			if r := []rune(text); len(r) > w-4-len(num) {
@@ -339,7 +339,7 @@ func (f *finder) box(query string, cursor, width, height int) wire.Menu {
 				marks = fuzzy.Positions(fuzzy.Lower(f.query), text)
 			}
 			for _, at := range marks {
-				spans = append(spans, syntax.Span{Start: s.Len() + at, End: s.Len() + at + 1, Name: "match"})
+				spans = append(spans, wire.Span{Start: s.Len() + at, End: s.Len() + at + 1, Name: "match"})
 			}
 			s.WriteString(text)
 		case f.chose != nil && !f.asFiles:
@@ -348,14 +348,14 @@ func (f *finder) box(query string, cursor, width, height int) wire.Menu {
 				m = string(r[:max(w-4, 0)])
 			}
 			for _, at := range fuzzy.Positions(fuzzy.Lower(f.query), m) {
-				spans = append(spans, syntax.Span{Start: s.Len() + at, End: s.Len() + at + 1, Name: "match"})
+				spans = append(spans, wire.Span{Start: s.Len() + at, End: s.Len() + at + 1, Name: "match"})
 			}
 			s.WriteString(m)
 		default:
 			writePath(&s, &spans, m, fuzzy.Positions(fuzzy.Lower(f.query), m), w-4, "")
 		}
 		if r.match == f.sel && !r.header {
-			spans = append(spans, syntax.Span{Start: start, End: s.Len(), Name: "menu.selected"})
+			spans = append(spans, wire.Span{Start: start, End: s.Len(), Name: "menu.selected"})
 		}
 	}
 	// An empty list says why, once the matches are for the query typed.
@@ -366,14 +366,14 @@ func (f *finder) box(query string, cursor, width, height int) wire.Menu {
 			empty = f.hint
 		}
 		s.WriteByte('\n')
-		spans = append(spans, syntax.Span{Start: s.Len(), End: s.Len() + len(empty), Name: "comment"})
+		spans = append(spans, wire.Span{Start: s.Len(), End: s.Len() + len(empty), Name: "comment"})
 		s.WriteString(empty)
 	}
 	if docW > 0 {
 		// The list is as tall as the preview beside it.
 		s.WriteString(strings.Repeat("\n", max(rows-len(list), 0)))
 	}
-	doc, docSpans := "", []syntax.Span(nil)
+	doc, docSpans := "", []wire.Span(nil)
 	if docW > 0 && f.sel < len(f.matches) {
 		if m := f.matches[f.sel]; m != f.shown && !f.reading {
 			f.reading = true
@@ -383,9 +383,9 @@ func (f *finder) box(query string, cursor, width, height int) wire.Menu {
 		path, _, _, _ := grepSpot(f.shown)
 		head := path + "\n\n"
 		doc = head + f.preview
-		docSpans = []syntax.Span{{Start: 0, End: len(path), Name: "comment"}, {Start: len(path) + 1, End: len(path) + 1, Name: "markup.rule"}}
+		docSpans = []wire.Span{{Start: 0, End: len(path), Name: "comment"}, {Start: len(path) + 1, End: len(path) + 1, Name: "markup.rule"}}
 		for _, sp := range f.spans {
-			docSpans = append(docSpans, syntax.Span{Start: sp.Start + len(head), End: sp.End + len(head), Name: sp.Name})
+			docSpans = append(docSpans, wire.Span{Start: sp.Start + len(head), End: sp.End + len(head), Name: sp.Name})
 		}
 		if f.places && f.at >= 0 {
 			// The matching line is marked.
@@ -397,7 +397,7 @@ func (f *finder) box(query string, cursor, width, height int) wire.Menu {
 			if end < 0 {
 				end = len(doc) - start
 			}
-			docSpans = append(slices.Clip(docSpans), syntax.Span{Start: start, End: start + end, Name: "menu.selected"})
+			docSpans = append(slices.Clip(docSpans), wire.Span{Start: start, End: start + end, Name: "menu.selected"})
 		}
 	}
 	return wire.Menu{Anchor: "middle", Text: s.String(), Spans: spans, Title: f.title, Cursor: cursor + len(prompt), Doc: doc, DocSpans: docSpans, X: (width - total) / 2, Y: (height - h) / 2, W: w, H: h, DocW: docW}
@@ -406,7 +406,7 @@ func (f *finder) box(query string, cursor, width, height int) wire.Menu {
 // writePath writes path in at most width columns: its name, in style when
 // given, then its directory dimmed and cut in the middle to fit. marks are
 // the bytes of path that match the query, marked where they show (B129, B152).
-func writePath(s *strings.Builder, spans *[]syntax.Span, path string, marks []int, width int, style string) {
+func writePath(s *strings.Builder, spans *[]wire.Span, path string, marks []int, width int, style string) {
 	dir, name := filepath.Split(path)
 	nameAt, at := len(dir), s.Len()
 	dir = strings.TrimSuffix(dir, string(filepath.Separator))
@@ -414,14 +414,14 @@ func writePath(s *strings.Builder, spans *[]syntax.Span, path string, marks []in
 		name = string(r[:max(width, 0)])
 	}
 	if style != "" {
-		*spans = append(*spans, syntax.Span{Start: at, End: at + len(name), Name: style})
+		*spans = append(*spans, wire.Span{Start: at, End: at + len(name), Name: style})
 	}
 	s.WriteString(name)
 	shown, place := "", func(int) int { return -1 }
 	if room := width - utf8.RuneCountInString(name) - 2; dir != "" && room >= 4 {
 		shown, place = shorten(dir, room)
 		s.WriteString("  ")
-		*spans = append(*spans, syntax.Span{Start: s.Len(), End: s.Len() + len(shown), Name: "finder.dir"})
+		*spans = append(*spans, wire.Span{Start: s.Len(), End: s.Len() + len(shown), Name: "finder.dir"})
 	}
 	dirAt := s.Len()
 	s.WriteString(shown)
@@ -434,7 +434,7 @@ func writePath(s *strings.Builder, spans *[]syntax.Span, path string, marks []in
 			k = dirAt + place(m)
 		}
 		if k >= 0 {
-			*spans = append(*spans, syntax.Span{Start: k, End: k + 1, Name: "match"})
+			*spans = append(*spans, wire.Span{Start: k, End: k + 1, Name: "match"})
 		}
 	}
 }
@@ -489,10 +489,11 @@ func (f *finder) read(m string, rows, cols int) {
 			text, at = preview(path, max(line-1, 0), rows, cols)
 		}
 	}
-	var spans []syntax.Span
+	var spans []wire.Span
 	if at >= 0 {
-		var err error
-		if spans, err = syntax.Highlight(f.filetype(path), f.queries, text); err != nil {
+		hl, err := syntax.Highlight(f.filetype(path), f.queries, text)
+		spans = shownSpans(spans[:0], hl)
+		if err != nil {
 			logLine(err.Error())
 		}
 	}

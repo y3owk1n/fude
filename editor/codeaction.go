@@ -7,8 +7,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/y3owk1n/fude/api"
-	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
+	"github.com/y3owk1n/fude/wire"
 )
 
 // pick is a module's menu at the cursor, as code actions show: its items,
@@ -41,7 +41,7 @@ func (e *Session) offerMenu(p api.Module, b *buffer, m *api.Menu) {
 func (e *Session) drawMenu() {
 	p := e.pick
 	var s strings.Builder
-	var spans []syntax.Span
+	var spans []wire.Span
 	width, kinds := 0, 0
 	for _, it := range p.items {
 		width, kinds = max(width, utf8.RuneCountInString(it.Title)), max(kinds, utf8.RuneCountInString(it.Kind))
@@ -64,18 +64,18 @@ func (e *Session) drawMenu() {
 		if r := []rune(title); len(r) > width {
 			title = string(r[:width-1]) + "…"
 		}
-		spans = append(spans, syntax.Span{Start: s.Len(), End: s.Len() + len(num), Name: "comment"})
+		spans = append(spans, wire.Span{Start: s.Len(), End: s.Len() + len(num), Name: "comment"})
 		s.WriteString(num + "  " + title)
 		if it.Kind != "" {
 			s.WriteString(strings.Repeat(" ", width-utf8.RuneCountInString(title)+2))
-			spans = append(spans, syntax.Span{Start: s.Len(), End: s.Len() + len(it.Kind), Name: "comment"})
+			spans = append(spans, wire.Span{Start: s.Len(), End: s.Len() + len(it.Kind), Name: "comment"})
 			s.WriteString(it.Kind)
 		}
 		if it.Disabled != "" {
-			spans = append(spans, syntax.Span{Start: start, End: s.Len(), Name: "comment"})
+			spans = append(spans, wire.Span{Start: start, End: s.Len(), Name: "comment"})
 		}
 		if i == p.sel {
-			spans = append(spans, syntax.Span{Start: start, End: s.Len(), Name: "menu.selected"})
+			spans = append(spans, wire.Span{Start: start, End: s.Len(), Name: "menu.selected"})
 		}
 	}
 	e.menu.text, e.menu.spans = s.String(), spans

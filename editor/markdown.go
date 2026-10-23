@@ -5,15 +5,16 @@ import (
 	"strings"
 
 	"github.com/y3owk1n/fude/syntax"
+	"github.com/y3owk1n/fude/wire"
 )
 
 // markdown renders the markdown language servers write: fenced code in its
 // language's colours, and inline code, bold, italic, headings and links with
 // their markers gone. A line of --- stays, spanned as markup.rule for the
 // client to draw across. It returns the text and the spans that style it.
-func (e *Session) markdown(src string) (string, []syntax.Span) {
+func (e *Session) markdown(src string) (string, []wire.Span) {
 	var b strings.Builder
-	var spans []syntax.Span
+	var spans []wire.Span
 	lines := strings.Split(src, "\n")
 	for i := 0; i < len(lines); i++ {
 		l := lines[i]
@@ -29,13 +30,13 @@ func (e *Session) markdown(src string) (string, []syntax.Span) {
 			}
 			for _, s := range hl {
 				s.Start, s.End = s.Start+b.Len(), s.End+b.Len()
-				spans = append(spans, s)
+				spans = append(spans, wire.Span(s))
 			}
 			b.WriteString(text + "\n")
 			continue
 		}
 		if t := strings.TrimSpace(l); t == "---" || t == "***" || t == "___" {
-			spans = append(spans, syntax.Span{Start: b.Len(), End: b.Len() + 3, Name: "markup.rule"})
+			spans = append(spans, wire.Span{Start: b.Len(), End: b.Len() + 3, Name: "markup.rule"})
 			b.WriteString("---\n")
 			continue
 		}
@@ -46,7 +47,7 @@ func (e *Session) markdown(src string) (string, []syntax.Span) {
 		}
 		spans = inline(&b, spans, l)
 		if heading {
-			spans = append(spans, syntax.Span{Start: start, End: b.Len(), Name: "markup.heading"})
+			spans = append(spans, wire.Span{Start: start, End: b.Len(), Name: "markup.heading"})
 		}
 		b.WriteByte('\n')
 	}
@@ -55,9 +56,9 @@ func (e *Session) markdown(src string) (string, []syntax.Span) {
 
 // inline writes l to b without its inline markers, and returns spans with
 // the styles they stood for added.
-func inline(b *strings.Builder, spans []syntax.Span, l string) []syntax.Span {
+func inline(b *strings.Builder, spans []wire.Span, l string) []wire.Span {
 	styled := func(text, name string) {
-		spans = append(spans, syntax.Span{Start: b.Len(), End: b.Len() + len(text), Name: name})
+		spans = append(spans, wire.Span{Start: b.Len(), End: b.Len() + len(text), Name: name})
 		b.WriteString(text)
 	}
 	for i := 0; i < len(l); i++ {
@@ -95,7 +96,7 @@ func inline(b *strings.Builder, spans []syntax.Span, l string) []syntax.Span {
 					// A link shows its text, which may have markup of its own.
 					start := b.Len()
 					spans = inline(b, spans, rest[1:close])
-					spans = append(spans, syntax.Span{Start: start, End: b.Len(), Name: "markup.link"})
+					spans = append(spans, wire.Span{Start: start, End: b.Len(), Name: "markup.link"})
 					i += close + end
 					continue
 				}

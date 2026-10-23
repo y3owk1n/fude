@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/y3owk1n/fude/core/kernel"
-	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
 )
 
@@ -66,10 +65,10 @@ type Window struct {
 	X, Y, W, H       int     // where its text goes, gutter included, as the layout places it
 	Name             string
 	Modified         bool
-	Current          bool          // the window with the focus
-	Zoomed           bool          // it shows alone, the other windows of the layout hidden behind it (B370)
-	Highlights       []syntax.Span // in paint order, later ones drawing over earlier ones
-	Decorations      []syntax.Span // plugins' styles, drawn over highlights
+	Current          bool   // the window with the focus
+	Zoomed           bool   // it shows alone, the other windows of the layout hidden behind it (B370)
+	Highlights       []Span // in paint order, later ones drawing over earlier ones
+	Decorations      []Span // plugins' styles, drawn over highlights
 	Ghosts           []Ghost
 	Matches          [][2]int          // of the search, shown in every window
 	Searched         [2]int            // the match the search being typed goes to, lit apart from the rest (B21)
@@ -111,7 +110,7 @@ type Window struct {
 	// the functions and classes the text under them is in, with their
 	// highlights (B217).
 	Context           []int
-	ContextHighlights []syntax.Span
+	ContextHighlights []Span
 	// A terminal window in terminal mode shows its program's screen, with
 	// the program's cursor at CellX and CellY, or -1 when it hides it (B205).
 	Cells        [][]Cell
@@ -123,7 +122,7 @@ type Window struct {
 	// styled by FootSpans, and stays as the text scrolls (D55, B159).
 	Float     string
 	Foot      string
-	FootSpans []syntax.Span
+	FootSpans []Span
 }
 
 // Range is text a window shows, from Start to End. Col is the display
@@ -195,11 +194,11 @@ type Menu struct {
 	// or "bottom" across the bottom (B543).
 	Anchor   string
 	Text     string
-	Spans    []syntax.Span
+	Spans    []Span
 	Cursor   int
 	Title    string // drawn in the top of its border
 	Doc      string // drawn beside it, styled by DocSpans
-	DocSpans []syntax.Span
+	DocSpans []Span
 	DocImage *Picture // an image in the documentation's box, as the finder previews one (B305)
 	Rows     int      // the most rows a menu at the cursor shows, 0 for as many as fit (B481)
 	// Where a box in a place of its own goes, its border included. W is 0
@@ -243,4 +242,11 @@ type Split struct {
 type Page struct {
 	Name              string
 	Modified, Current bool
+}
+
+// Span is a range of text that a highlight or a decoration names, which a
+// frontend styles by its name.
+type Span struct {
+	Start, End int
+	Name       string
 }

@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/y3owk1n/fude/core/kernel"
-	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
 	"github.com/y3owk1n/fude/wire"
 )
@@ -100,11 +99,11 @@ func (e *Session) draw(w *window) wire.Window {
 	}
 	if h := w.buf.syntax; h != nil {
 		for _, r := range ranges {
-			v.Highlights = append(v.Highlights, h.Show(t, w, r.Start, r.End)...)
+			v.Highlights = shownSpans(v.Highlights, h.Show(t, w, r.Start, r.End))
 		}
 		v.Context = pinned(w, t, top)
 		for i, start := range v.Context {
-			v.ContextHighlights = append(v.ContextHighlights, h.Show(t, contextRow{w, i}, start, vim.LineEnd(t, start))...)
+			v.ContextHighlights = shownSpans(v.ContextHighlights, h.Show(t, contextRow{w, i}, start, vim.LineEnd(t, start)))
 		}
 	}
 	// A server's semantic tokens draw over the syntax's highlights (B471).
@@ -197,7 +196,7 @@ func (e *Session) draw(w *window) wire.Window {
 				v.Matches = append(v.Matches, [2]int{ed.Start, ed.End})
 				continue
 			}
-			v.Decorations = append(v.Decorations, syntax.Span{Start: ed.Start, End: ed.End, Name: "sub.old"})
+			v.Decorations = append(v.Decorations, wire.Span{Start: ed.Start, End: ed.End, Name: "sub.old"})
 			v.Ghosts = append(v.Ghosts, wire.Ghost{Pos: ed.End, Text: ed.Text, Style: "sub.new"})
 		}
 	}
@@ -235,7 +234,7 @@ func (e *Session) draw(w *window) wire.Window {
 				continue
 			}
 			if !d.insert && !d.replace && !d.cover && !d.block && s < end && end > top && s < last {
-				v.Decorations = append(v.Decorations, syntax.Span{Start: s, End: end, Name: d.style})
+				v.Decorations = append(v.Decorations, wire.Span{Start: s, End: end, Name: d.style})
 			}
 		}
 	}

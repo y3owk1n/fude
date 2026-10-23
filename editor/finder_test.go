@@ -20,7 +20,7 @@ import (
 	pickmod "github.com/y3owk1n/fude/modules/pick"
 	plugmod "github.com/y3owk1n/fude/modules/plug"
 	timelinemod "github.com/y3owk1n/fude/modules/timeline"
-	"github.com/y3owk1n/fude/syntax"
+	"github.com/y3owk1n/fude/wire"
 )
 
 // B305
@@ -68,7 +68,7 @@ func TestB130FilesPreview(t *testing.T) {
 	feed(e, "<C-n>")
 	settle(t, e, func() bool {
 		f, _ := e.Menu()
-		return f.Doc == "c.go\n\npackage c" && slices.ContainsFunc(f.DocSpans, func(s syntax.Span) bool { return s.Name == "keyword" })
+		return f.Doc == "c.go\n\npackage c" && slices.ContainsFunc(f.DocSpans, func(s wire.Span) bool { return s.Name == "keyword" })
 	})
 	// A zero byte in the first 16KB makes a binary file, and a long line
 	// shows its start.

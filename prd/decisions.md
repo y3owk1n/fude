@@ -517,9 +517,10 @@ share without the editor. Why: each side had its
 own copy of the replica types, and two copies of one protocol can
 disagree with nothing to catch it. A client that draws frames needs
 them without the editor. `wire/` stays in the root module until a client
-outside it needs the types. It takes `Span` from `syntax/`, and a window
-carries its `kernel.Snapshot` for a client in the same process, so it
-imports both.
+outside it needs the types. It has a `Span` of its own. The editor
+converts a grammar's spans to it, so a client compiles no tree-sitter. A
+window carries its `kernel.Snapshot` for a client in the same process, so
+it imports `core`.
 
 ## D48. api is a Go module that imports only the standard library
 
