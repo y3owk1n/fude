@@ -189,13 +189,16 @@ type Other struct {
 // completion's, code actions', the command line's, the finder or the key
 // hints. Cursor is where the cursor is in it, or -1.
 type Menu struct {
+	// Anchor is where it goes: "cursor" under the current window's cursor,
+	// "line" with the command line, "middle" in the middle of the screen
+	// or "bottom" across the bottom (B543).
+	Anchor   string
 	Text     string
 	Spans    []syntax.Span
 	Cursor   int
 	Title    string // drawn in the top of its border
 	Doc      string // drawn beside it, styled by DocSpans
 	DocSpans []syntax.Span
-	Lit      bool     // the windows under it stay lit, as under the key hints (B151)
 	DocImage *Picture // an image in the documentation's box, as the finder previews one (B305)
 	Rows     int      // the most rows a menu at the cursor shows, 0 for as many as fit (B481)
 	// Where a box in a place of its own goes, its border included. W is 0

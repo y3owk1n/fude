@@ -400,7 +400,7 @@ func (c *client) draw() {
 		middle, floated = middle || v.Float == "middle", floated || v.Float != ""
 	}
 	// A :s being typed shows its preview in the windows, so they stay lit.
-	modal := c.e.Mode() == vim.Cmdline && !c.e.Substituting() || floats && f.W > 0 && !f.Lit || middle || ask != ""
+	modal := c.e.Mode() == vim.Cmdline && !c.e.Substituting() || floats && f.Anchor == "middle" || middle || ask != ""
 	if modal {
 		apply(dimmed)
 		defer apply(lit)

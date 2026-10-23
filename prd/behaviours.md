@@ -2359,6 +2359,9 @@ Where fude departs, the line says so and cites the departure in
   rows and columns as that place has. `<C-w>h`, `j`, `k` and `l` go to the
   nearest window wholly past that side of the place. A window the
   frontend has not placed keeps the layout's place.
+- B543 [7] A frame's menu says where it goes: completion and code actions
+  at the cursor, the command line's menu with the command line, the
+  finder in the middle of the screen and the key hints across the bottom.
 
 ## Sharing
 

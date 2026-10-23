@@ -851,7 +851,10 @@ each window, a column between windows side by side and the buffer line
 on top, in the room the layout leaves for them. A frontend that draws its
 own splits reads the layout from the frame. It gives each window's place
 in cells of its own grid, and the editor uses that place instead (B541,
-B542). The editor still places floats, menus and key hints in cells.
+B542). The editor gives floats, the finder and the key hints a place in
+cells too, as the default. A float and a menu each say where they go,
+such as at the cursor, in the middle or across the bottom, so a frontend
+may place them its own way (B543).
 
 Why, as of 2026-10-23: a spike drew fude in a system webview from the
 terminal client's cells. A key took 9ms at p50 from press to paint, so

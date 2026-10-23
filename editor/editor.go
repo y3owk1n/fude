@@ -919,7 +919,7 @@ func (e *Session) Menu() (wire.Menu, bool) {
 		}
 		return fl, true
 	}
-	return wire.Menu{Text: e.menu.text, Spans: e.menu.spans, Cursor: -1, Doc: e.menu.doc, DocSpans: e.menu.docSpans, Rows: int(e.cfg.MenuHeight)}, e.menu.text != ""
+	return wire.Menu{Anchor: "cursor", Text: e.menu.text, Spans: e.menu.spans, Cursor: -1, Doc: e.menu.doc, DocSpans: e.menu.docSpans, Rows: int(e.cfg.MenuHeight)}, e.menu.text != ""
 }
 
 // floatKeys are a focused float's own keys, which [keymap.float] changes

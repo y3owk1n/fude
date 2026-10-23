@@ -82,7 +82,7 @@ func (e *Session) keysMenu() wire.Menu {
 		title += fmt.Sprintf("  %d/%d", n+1, len(pages))
 	}
 	h := strings.Count(text, "\n") + 3
-	return wire.Menu{Text: text, Spans: styled(spans), Cursor: -1, Title: title, Lit: true, X: x, Y: max(e.height-1-h, 0), W: w, H: h}
+	return wire.Menu{Anchor: "bottom", Text: text, Spans: styled(spans), Cursor: -1, Title: title, X: x, Y: max(e.height-1-h, 0), W: w, H: h}
 }
 
 // turnPage turns the key hints a page on for <C-d> and back for <C-u>,

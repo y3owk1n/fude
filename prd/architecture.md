@@ -2065,7 +2065,8 @@ layout puts its text. A frontend that draws its own splits calls `Place`
 with each window's place in cells of its grid. The editor then takes
 that window's rows and columns from it, and `<C-w>hjkl` measures from it
 (B542). `Attached` sends a `place` notice only when a window's place
-changes. The speed
+changes. A float's `Float` and a menu's `Anchor` say where it goes, so a
+frontend may draw it as a popover of its own (B543). The speed
 harness measures the attached path on the local socket as it measures
 the local one.
 

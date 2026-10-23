@@ -378,7 +378,7 @@ func (m *cmenu) box() wire.Menu {
 			s.WriteString(m.notes[i])
 		}
 	}
-	return wire.Menu{Text: s.String(), Spans: spans, Cursor: -1}
+	return wire.Menu{Anchor: "line", Text: s.String(), Spans: spans, Cursor: -1}
 }
 
 // incSearch remembers top and at, the window's top and the cursor before a

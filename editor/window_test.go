@@ -11,8 +11,10 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/fude/editor"
+	completionmod "github.com/y3owk1n/fude/modules/completion"
 	explorermod "github.com/y3owk1n/fude/modules/explorer"
 	filesmod "github.com/y3owk1n/fude/modules/files"
+	hintsmod "github.com/y3owk1n/fude/modules/hints"
 	"github.com/y3owk1n/fude/modules/sticky"
 	windowmod "github.com/y3owk1n/fude/modules/window"
 	"github.com/y3owk1n/fude/wire"
@@ -682,4 +684,29 @@ func TestB542FrontendPlaces(t *testing.T) {
 	f := cl.frames(texts, func(f wire.Frame) bool { return len(f.Windows) == 1 && f.Windows[0].H == 23 })
 	fmt.Fprintf(cl.c, "{\"method\":\"place\",\"params\":[%d,2,3,40,7]}\n", f.Windows[0].ID)
 	cl.frames(texts, func(f wire.Frame) bool { return f.Windows[0].X == 2 && f.Windows[0].Y == 3 && f.Windows[0].H == 7 })
+}
+
+// B543
+func TestB543MenuAnchors(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "a.txt")
+	change(t, path, "apple apricot\n")
+	t.Chdir(dir)
+	config(t, "autocomplete = true\n[module.hints]\ndelay = 1\n[keymap.normal]\n\"<Leader>w\" = \":w<CR>\"\n")
+	e := start(t, path)
+	e.Use(completionmod.New())
+	e.Use(filesmod.New())
+	e.Use(hintsmod.New())
+	e.SetSize(100, 30)
+	anchored := func(want string) func() bool {
+		return func() bool { f, ok := e.Menu(); return ok && f.Anchor == want }
+	}
+	feed(e, "o ap<C-x><C-o>")
+	settle(t, e, anchored("cursor"))
+	feed(e, "<Esc><Esc>:e a")
+	settle(t, e, anchored("line"))
+	feed(e, "<Esc>:pick files<CR>")
+	settle(t, e, anchored("middle"))
+	feed(e, "<Esc><Space>")
+	settle(t, e, anchored("bottom"))
 }

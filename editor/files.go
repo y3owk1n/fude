@@ -400,7 +400,7 @@ func (f *finder) box(query string, cursor, width, height int) wire.Menu {
 			docSpans = append(slices.Clip(docSpans), syntax.Span{Start: start, End: start + end, Name: "menu.selected"})
 		}
 	}
-	return wire.Menu{Text: s.String(), Spans: spans, Title: f.title, Cursor: cursor + len(prompt), Doc: doc, DocSpans: docSpans, X: (width - total) / 2, Y: (height - h) / 2, W: w, H: h, DocW: docW}
+	return wire.Menu{Anchor: "middle", Text: s.String(), Spans: spans, Title: f.title, Cursor: cursor + len(prompt), Doc: doc, DocSpans: docSpans, X: (width - total) / 2, Y: (height - h) / 2, W: w, H: h, DocW: docW}
 }
 
 // writePath writes path in at most width columns: its name, in style when
