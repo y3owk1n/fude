@@ -1381,6 +1381,15 @@ Where fude departs, the line says so and cites the departure in
   make the text bigger, smaller and its first size, and each window
   takes as many cells as it then holds. The window opens where and as big
   as it last closed.
+- B559 [10] In `fude gui` the tab strip and the status bars draw on the
+  system's title bar material. The palette, the finder, menus, floats and
+  toasts draw on the system's translucent material, in rounded panels
+  with a shadow. Text the window composes itself takes the system's font
+  and colours. A selected item takes the system's selection colour, and a
+  mode, a tab page or a count of diagnostics the system's colour for it.
+  A tab's close button and its mark of changes, and the prompts of the
+  command line and of search, are the system's symbols. The rows past a
+  window's text show nothing.
 - B544 [2] A session has tab pages, each with its own windows, floats
   and current window, as in Neovim. `:tabnew` and `:tabedit` open one
   after the current page, on a file or a new empty buffer. `gt`, `{n}gt`,

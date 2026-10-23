@@ -7,7 +7,6 @@ import (
 	"github.com/ebitengine/purego/objc"
 
 	"github.com/y3owk1n/fude/frontend/client"
-	"github.com/y3owk1n/fude/frontend/theme"
 	"github.com/y3owk1n/fude/frontend/wire"
 )
 
@@ -21,21 +20,18 @@ type strip struct {
 	title   string
 }
 
-// drawBar draws the tab strip right of the window's buttons (B258, B545).
-// The pages take up to half of it. Each tab ends in a slot that shows ●
-// while its buffer has changes, and × to close it while the mouse is over
-// it or it is current. It keeps where each tab is, for the mouse (B552,
-// B555).
+// drawBar draws the tab strip right of the window's buttons (B258, B545),
+// on the title bar's material in the system's colours. The pages take up
+// to half of it. Each tab ends in a slot that shows a dot while its buffer
+// has changes, and × to close it while the mouse is over it or it is
+// current. It keeps where each tab is, for the mouse (B552, B555, B559).
 func drawBar(self objc.ID, _ objc.SEL, _ rect) {
 	w := windows[self]
 	if w == nil {
 		return
 	}
-	th := w.look.Theme
 	b := msgRect(self, sel("bounds")).Size
-	nsColor(th.Surface).Send(sel("setFill"))
-	rectFill(rect{Size: b})
-	nsColor(th.Border).Send(sel("setFill"))
+	system("separatorColor").Send(sel("setFill"))
 	rectFill(rect{point{0, b.H - 1}, size{b.W, 1}})
 	zoom := w.win.Send(sel("standardWindowButton:"), 2)
 	r := msgConvertRect(zoom, sel("convertRect:toView:"), msgRect(zoom, sel("bounds")), self)
@@ -43,38 +39,43 @@ func drawBar(self objc.ID, _ objc.SEL, _ rect) {
 	t := w.tabs
 	w.hits = w.hits[:0]
 	if len(t.buffers) == 0 && len(t.pages) == 0 {
-		r := run{text: t.title, font: uiFont, fg: th.Muted}
+		r := run{text: t.title, font: uiBold, fg: system("secondaryLabelColor")}
 		r.draw(math.Round((b.W-r.size())/2), 0, b.H)
 		return
 	}
-	tab := func(text string, modified, current bool, ground theme.RGB) run {
-		r := run{text: text, font: uiFont, fg: th.Muted, ground: th.Surface, pill: true, slot: " "}
+	tab := func(text string, modified, current bool) run {
+		r := run{text: text, font: uiFont, fg: system("secondaryLabelColor"), pill: true, slotted: true, slotFg: system("secondaryLabelColor")}
 		if current {
-			r.font, r.fg, r.ground = uiBold, th.Text, ground
+			r.font, r.fg, r.ground = uiBold, system("labelColor"), system("quaternaryLabelColor")
 		}
 		if modified {
-			r.slot = "●"
+			r.slot = "circle.fill"
 		}
 		return r
 	}
-	// over marks the tab under the mouse, which shows ×, as the current
-	// one does while it has no changes.
+	// over marks the tab under the mouse, which shows × on a light ground,
+	// as the current one shows × while it has no changes.
 	over := func(rs []run, current int, from, to float64, i int) {
-		if w.hover >= from && w.hover < to || i == current && rs[i].slot != "●" {
-			rs[i].slot = "×"
+		hovered := w.hover >= from && w.hover < to
+		if hovered && rs[i].ground == 0 {
+			rs[i].ground = system("quaternaryLabelColor")
+		}
+		if hovered || i == current && rs[i].slot == "" {
+			rs[i].slot = "xmark"
 		}
 	}
 	if len(t.pages) > 0 {
 		pages, at := make([]run, len(t.pages)), 0
 		for i, p := range t.pages {
 			_, name := client.SplitName(p.Name)
-			pages[i] = tab(strconv.Itoa(i+1)+" "+name, p.Modified, p.Current, modeColour(th, t.mode))
+			pages[i] = tab(strconv.Itoa(i+1)+" "+name, p.Modified, p.Current)
 			if p.Current {
-				at, pages[i].fg = i, th.Bg
+				at = i
+				pages[i].fg, pages[i].ground, pages[i].slotFg = system("whiteColor"), modeSystem(t.mode), system("whiteColor")
 			}
 		}
 		start := end - min(width(pages), (end-x)/2)
-		cut(pages, at, start, end, b.H, th, func(i int, from, to float64) {
+		cut(pages, at, start, end, b.H, func(i int, from, to float64) {
 			over(pages, at, from, to, i)
 			w.hits = append(w.hits, hit{from, to, true, i, i})
 		})
@@ -82,19 +83,19 @@ func drawBar(self objc.ID, _ objc.SEL, _ rect) {
 	}
 	bufs, at := make([]run, len(t.buffers)), 0
 	for i, tb := range t.buffers {
-		bufs[i] = tab(strconv.Itoa(tb.Number)+" "+tb.Name, tb.Modified, tb.Current, th.Raised)
+		bufs[i] = tab(strconv.Itoa(tb.Number)+" "+tb.Name, tb.Modified, tb.Current)
 		if tb.Current {
 			at = i
 		}
 	}
-	cut(bufs, at, x, end, b.H, th, func(i int, from, to float64) {
+	cut(bufs, at, x, end, b.H, func(i int, from, to float64) {
 		over(bufs, at, from, to, i)
 		w.hits = append(w.hits, hit{from, to, false, t.buffers[i].Number, i})
 	})
 	// A tab being dragged shows where it would go.
 	if h, ok := w.dropAt(); ok {
-		nsColor(th.Normal).Send(sel("setFill"))
-		rectFill(rect{point{h - 1, 4}, size{2, b.H - 8}})
+		system("controlAccentColor").Send(sel("setFill"))
+		rectFill(rect{point{h - 1, 6}, size{2, b.H - 12}})
 	}
 }
 
@@ -102,8 +103,8 @@ func drawBar(self objc.ID, _ objc.SEL, _ rect) {
 // by its index, before it draws, so at may change it. When they do not all
 // fit, it draws the ones around the one at current, with ‹ or › where it
 // cuts.
-func cut(rs []run, current int, x, end, h float64, th theme.Theme, at func(i int, from, to float64)) {
-	mark := func(text string) run { return run{text: text, font: uiFont, fg: th.Faint} }
+func cut(rs []run, current int, x, end, h float64, at func(i int, from, to float64)) {
+	mark := func(text string) run { return run{text: text, font: uiFont, fg: system("tertiaryLabelColor")} }
 	if width(rs) <= end-x {
 		for i := range rs {
 			at(i, x, x+rs[i].size())

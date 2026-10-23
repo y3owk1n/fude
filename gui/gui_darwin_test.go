@@ -259,7 +259,7 @@ func TestB550BoxesByAnchor(t *testing.T) {
 		ok := false
 		onMain(func() {
 			if b := w.floats[key]; b != nil && !objc.Send[bool](b.view, sel("isHidden")) && inked(b.view, inset, 0, 0) {
-				r, ok = msgRect(b.view, sel("frame")), true
+				r, ok = msgRect(b.frame, sel("frame")), true
 			}
 		}, true)
 		return r, ok
@@ -282,7 +282,7 @@ func TestB550BoxesByAnchor(t *testing.T) {
 		return ok && r.Origin.Y+r.Size.H > bounds.Size.H*3/4 && r.Size.W > bounds.Size.W/2
 	})
 	// A float shows in a box at its place, with its status line.
-	typed("\x1b:window float split b.txt\r")
+	typed("\x1b:window float split " + filepath.Join(dir, "b.txt") + "\r")
 	until(t, "the float", func() bool {
 		shown := false
 		onMain(func() {
@@ -825,6 +825,88 @@ func TestB558WindowFollowsTheSession(t *testing.T) {
 	until(t, "fewer columns", func() bool { return cols() < before })
 	onMain(func() { mainRun.Send(sel("actualSize:"), 0) }, true)
 	until(t, "the columns again", func() bool { return cols() == before })
+	for _, c := range "\x1b:qa!\r" {
+		code := uint16(0)
+		switch c {
+		case '\r':
+			code = 36
+		case '\x1b':
+			code = 53
+		}
+		onMain(func() { press(w, code, 0, string(c), string(c)) }, true)
+	}
+	until(t, "the session to end", func() bool {
+		open := true
+		onMain(func() { _, open = windows[w.view] }, true)
+		return !open
+	})
+}
+
+// B559
+func TestB559SystemChrome(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.txt")
+	editortest.Change(t, path, "one\n")
+	e := editortest.Open(t, path)
+	var w *window
+	onMain(func() { w = open(e, nil) }, true)
+	effect := cls("NSVisualEffectView")
+	kind := func(v objc.ID) bool { return v != 0 && objc.Send[bool](v, sel("isKindOfClass:"), effect) }
+	var text objc.ID
+	until(t, "the pane", func() bool {
+		onMain(func() {
+			for _, p := range w.panes {
+				text = p.text
+			}
+		}, true)
+		return text != 0
+	})
+	onMain(func() {
+		// The tab strip and each status bar draw on the system's material.
+		if !kind(w.barBack) {
+			t.Error("the tab strip has no material under it")
+		}
+		for _, p := range w.panes {
+			if !slices.ContainsFunc(subviews(p.view), kind) {
+				t.Error("a status bar has no material under it")
+			}
+		}
+		// The rows past the text show nothing.
+		if inked(text, pad, 0, 4) {
+			t.Error("a row past the text shows something")
+		}
+	}, true)
+	// The palette is a rounded panel of the system's material, its selected
+	// item in the system's selection.
+	for _, c := range ":se\t" {
+		code := uint16(0)
+		if c == '\t' {
+			code = 48
+		}
+		onMain(func() { press(w, code, 0, string(c), string(c)) }, true)
+	}
+	until(t, "the selection", func() bool {
+		ok := false
+		onMain(func() { ok = w.panel.boxed != nil && len(w.panel.chosen) > 0 }, true)
+		return ok
+	})
+	onMain(func() {
+		back := subviews(w.panel.frame)[0]
+		if !kind(back) || msgFloat(back.Send(sel("layer")), sel("cornerRadius")) == 0 {
+			t.Error("the palette is not a rounded panel of the system's material")
+		}
+		cls("NSAppearance").Send(sel("setCurrentAppearance:"), w.win.Send(sel("effectiveAppearance")))
+		srgb := cls("NSColorSpace").Send(sel("sRGBColorSpace"))
+		want := cls("NSColor").Send(sel("selectedContentBackgroundColor")).Send(sel("colorUsingColorSpace:"), srgb)
+		rgb, scale, _ := pixels(w.panel.view)
+		c := w.panel.chosen[0]
+		got := rgb(int(scale*(inset+(float64(c.x+c.w)-0.5)*cellW)), int(scale*(inset+(float64(c.y)+0.5)*cellH)))
+		for i, part := range []string{"redComponent", "greenComponent", "blueComponent"} {
+			if d := got[i] - msgComponent(want, sel(part)); d > 0.05 || d < -0.05 {
+				t.Errorf("the selected item is %v, not the system's selection", got)
+				break
+			}
+		}
+	}, true)
 	for _, c := range "\x1b:qa!\r" {
 		code := uint16(0)
 		switch c {

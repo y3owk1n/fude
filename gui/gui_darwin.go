@@ -119,6 +119,7 @@ type window struct {
 
 	// The main thread's.
 	bar, area    objc.ID // the tab strip, and the view the splits fill
+	barBack      objc.ID // the material under the strip
 	panes        map[int]*pane
 	key          string // the layout the splits show
 	sent         places // the places the loop was last given
@@ -217,7 +218,10 @@ func open(s client.Session, ended func()) *window {
 	w.view = msgInitView(objc.ID(viewClass).Send(sel("alloc")), sel("initWithFrame:"), r)
 	w.bar = msgInitView(objc.ID(barClass).Send(sel("alloc")), sel("initWithFrame:"), rect{})
 	w.area = msgInitView(cls("NSView").Send(sel("alloc")), sel("initWithFrame:"), rect{})
+	// The tab strip draws on the title bar's material.
+	w.barBack = material(titlebar, behindWindow)
 	w.view.Send(sel("addSubview:"), w.area)
+	w.view.Send(sel("addSubview:"), w.barBack)
 	w.view.Send(sel("addSubview:"), w.bar)
 	// The strip hears the mouse move over it, for its tabs' ×.
 	track := msgInitTracking(cls("NSTrackingArea").Send(sel("alloc")), sel("initWithRect:options:owner:userInfo:"), rect{}, 0x283, w.bar, 0)
@@ -421,6 +425,8 @@ func (p *painter) paint(s client.Session, cols, rows int) frame {
 		if v.Float == "" && !in[v.ID] {
 			continue
 		}
+		// The rows past the text show nothing, as a window's do.
+		v.FillChars.Eob = " "
 		var cursors []int
 		if v.Current {
 			cursors = s.Cursors()
@@ -607,7 +613,8 @@ func (w *window) apply() {
 	for id, b := range w.floats {
 		if f.floats[id] == nil {
 			b.show(nil, w.view, 0)
-			b.view.Send(sel("removeFromSuperview"))
+			b.frame.Send(sel("removeFromSuperview"))
+			b.frame.Send(sel("release"))
 			b.view.Send(sel("release"))
 			delete(boxes, b.view)
 			delete(w.floats, id)
@@ -620,7 +627,7 @@ func (w *window) apply() {
 			// It goes under the palette, the finder and toasts.
 			b = newBox(w)
 			b.id = id
-			w.view.Send(sel("addSubview:positioned:relativeTo:"), b.view, -1, w.panel.view)
+			w.view.Send(sel("addSubview:positioned:relativeTo:"), b.frame, -1, w.panel.frame)
 			w.floats[id] = b
 		}
 		b.show(what, w.view, top)
@@ -639,16 +646,19 @@ func (w *window) apply() {
 }
 
 // attrs returns the text attributes of a style in the text's font.
-func attrs(s theme.Style) objc.ID {
+func attrs(s theme.Style) objc.ID { return textAttrs(fontOf(s), s.Fg) }
+
+// fontOf is the text's font a style takes.
+func fontOf(s theme.Style) objc.ID {
 	switch {
 	case s.Bold && s.Italic:
-		return textAttrs(boldItalicFont, s.Fg)
+		return boldItalicFont
 	case s.Bold:
-		return textAttrs(boldFont, s.Fg)
+		return boldFont
 	case s.Italic:
-		return textAttrs(italicFont, s.Fg)
+		return italicFont
 	}
-	return textAttrs(font, s.Fg)
+	return font
 }
 
 // decorate draws the lines s asks for over the text in r: a strike through
@@ -701,8 +711,13 @@ func at(x, y, n int, o point) rect {
 // drawCells draws cells and the cursor on them, the first cell at o. A run
 // of one-column ASCII in one style draws as one string, and any other cell
 // alone at its own column, so the font's fallbacks for other characters
-// never shift the row.
-func drawCells(cells [][]cell, cursor cursorAt, o point) {
+// never shift the row. A cell whose ground is clear draws none, so what is
+// under it shows, and the text of chosen rows is the system's selected
+// text.
+func drawCells(cells [][]cell, cursor cursorAt, o point, clear *theme.RGB, chosen []rule) {
+	picked := func(x, y int) bool {
+		return slices.ContainsFunc(chosen, func(r rule) bool { return r.y == y && x >= r.x && x < r.x+r.w })
+	}
 	ascii := func(c cell) bool { return c.width == 1 && len(c.text) == 1 && c.text[0] >= ' ' && c.text[0] <= '~' }
 	for y, row := range cells {
 		for x := 0; x < len(row); {
@@ -712,14 +727,20 @@ func drawCells(cells [][]cell, cursor cursorAt, o point) {
 				n++
 			}
 			r := at(x, y, max(n, c.width), o)
-			nsColor(c.style.Bg).Send(sel("setFill"))
-			rectFill(r)
+			if clear == nil || c.style.Bg != *clear {
+				nsColor(c.style.Bg).Send(sel("setFill"))
+				rectFill(r)
+			}
 			var text strings.Builder
 			for _, o := range row[x : x+n] {
 				text.WriteString(o.text)
 			}
 			if t := strings.TrimRight(text.String(), " "); t != "" {
-				msgDrawAt(nsString(t), sel("drawAtPoint:withAttributes:"), r.Origin, attrs(c.style))
+				a := attrs(c.style)
+				if picked(x, y) {
+					a = uiAttrs(fontOf(c.style), system("alternateSelectedControlTextColor"))
+				}
+				msgDrawAt(nsString(t), sel("drawAtPoint:withAttributes:"), r.Origin, a)
 			}
 			decorate(c.style, r)
 			x += max(n, c.width)

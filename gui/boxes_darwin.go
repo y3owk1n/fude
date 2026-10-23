@@ -33,6 +33,8 @@ type boxed struct {
 	at     *[2]int // where its first cell goes, in cells of the area
 	title  string  // over the cells
 	pics   []pic   // over the cells
+	chosen []rule  // the rows a menu has selected, which take the system's selection
+	prompt string  // the system's symbol for a command line's prompt
 	// lines are, by row, the line of a menu's text the row shows, for a
 	// click to pick, or -1. width is how many columns hold the menu.
 	lines []int
@@ -60,11 +62,6 @@ func palette(line string, cursor int, menu wire.Menu, lk theme.Look, cols int) *
 	}
 	g := compose.NewGrid(w, rows, lk.Base)
 	prompt := line[:1]
-	colour := lk.Theme.Normal
-	if prompt == ":" {
-		colour = lk.Theme.Cmd
-	}
-	g.Put(0, 0, prompt, theme.Style{Fg: colour, Bg: lk.Base.Bg, Bold: true})
 	// A line longer than the box shows its end, where the cursor usually is.
 	before, rest := compose.Carets(line[1:min(max(cursor, 1), len(line))]), compose.Carets(line[1:])
 	skip := 0
@@ -74,10 +71,14 @@ func palette(line string, cursor int, menu wire.Menu, lk theme.Look, cols int) *
 	}
 	b := &boxed{look: lk}
 	write(g, rest[skip:], nil, []compose.Row{{End: len(rest) - skip}}, lk, 2, 0, w-2, -1)
+	b.prompt = "chevron.right"
+	if prompt != ":" {
+		b.prompt = "magnifyingglass"
+	}
 	b.cursor = cursorAt{x: 2 + displaywidth.String(before[skip:]), shape: 1, shown: true}
 	if len(items) > 0 {
 		b.rules = []rule{{0, 1, w}}
-		write(g, menu.Text, menu.Spans, items, lk, 0, 2, w, -1)
+		_, b.chosen, _ = write(g, menu.Text, menu.Spans, items, lk, 0, 2, w, -1)
 		b.lines, b.width = append([]int{-1, -1}, lines(menu.Text, items)...), w
 	}
 	b.cells = cellsOf(g)
@@ -95,7 +96,7 @@ func finder(m wire.Menu, lk theme.Look) *boxed {
 	g := compose.NewGrid(total, h, lk.Base)
 	b := &boxed{middle: true, look: lk}
 	rows, _ := compose.Wrap(m.Text, m.Spans, lw)
-	b.rules, b.cursor = write(g, m.Text, m.Spans, rows[:min(len(rows), h)], lk, 0, 0, lw, m.Cursor)
+	b.rules, b.chosen, b.cursor = write(g, m.Text, m.Spans, rows[:min(len(rows), h)], lk, 0, 0, lw, m.Cursor)
 	b.lines, b.width = lines(m.Text, rows[:min(len(rows), h)]), lw
 	b.cursor.shape = 1
 	// The title heads the rule under the query.
@@ -112,8 +113,8 @@ func finder(m wire.Menu, lk theme.Look) *boxed {
 	}
 	if dw > 0 {
 		rows, _ := compose.Wrap(m.Doc, m.DocSpans, dw)
-		rules, _ := write(g, m.Doc, m.DocSpans, rows[:min(len(rows), h)], lk, lw+3, 0, dw, -1)
-		b.rules, b.split = append(b.rules, rules...), lw+1
+		rules, chosen, _ := write(g, m.Doc, m.DocSpans, rows[:min(len(rows), h)], lk, lw+3, 0, dw, -1)
+		b.rules, b.chosen, b.split = append(b.rules, rules...), append(b.chosen, chosen...), lw+1
 	}
 	b.cells = cellsOf(g)
 	return b
@@ -198,31 +199,26 @@ func lines(text string, rows []compose.Row) []int {
 func textBox(text string, spans []wire.Span, rows []compose.Row, lk theme.Look, w, x, y int) *boxed {
 	g := compose.NewGrid(w, max(len(rows), 1), lk.Base)
 	b := &boxed{look: lk, at: &[2]int{x, y}}
-	b.rules, _ = write(g, text, spans, rows, lk, 0, 0, w, -1)
+	b.rules, b.chosen, _ = write(g, text, spans, rows, lk, 0, 0, w, -1)
 	b.cells = cellsOf(g)
 	return b
 }
 
 // write puts rows of text, styled by spans in lk, in g from column x and
-// row y, cut at w columns. A row that a menu.selected span starts takes
-// that span's ground, and a rule row is a rule. It returns the rules and
-// where the byte at cursor is.
-func write(g *compose.Grid, text string, spans []wire.Span, rows []compose.Row, lk theme.Look, x, y, w, cursor int) ([]rule, cursorAt) {
+// row y, cut at w columns. A rule row is a rule. It returns the rules, the
+// rows that a menu.selected span starts, which draw as the system's
+// selection, and where the byte at cursor is.
+func write(g *compose.Grid, text string, spans []wire.Span, rows []compose.Row, lk theme.Look, x, y, w, cursor int) (rules, chosen []rule, at cursorAt) {
 	styles := compose.Styles(nil, spans, []wire.Range{{End: len(text) - 1}}, lk)
-	selected, _ := lk.Name("menu.selected")
-	var rules []rule
-	var at cursorAt
 	for i, r := range rows {
 		if r.Rule {
 			rules = append(rules, rule{x, y + i, w})
 			continue
 		}
-		ground := lk.Base.Bg
 		if slices.ContainsFunc(spans, func(s wire.Span) bool {
 			return s.Name == "menu.selected" && s.Start <= r.Start && r.Start < s.End
 		}) {
-			ground = selected.Bg
-			g.FillArea(x, y+i, w, 1, ' ', theme.Style{Fg: lk.Base.Fg, Bg: ground})
+			chosen = append(chosen, rule{x, y + i, w})
 		}
 		col := x
 		for p := r.Start; p <= r.End && col < x+w; {
@@ -238,12 +234,12 @@ func write(g *compose.Grid, text string, spans []wire.Span, rows []compose.Row, 
 				continue
 			}
 			st := styles[p]
-			st.Bg = ground
+			st.Bg = lk.Base.Bg
 			rest, n := g.Put(col, y+i, text[p:r.End], st)
 			p, col = r.End-len(rest), col+n
 		}
 	}
-	return rules, at
+	return rules, chosen, at
 }
 
 // cellsOf returns g's cells.
@@ -259,33 +255,41 @@ func cellsOf(g *compose.Grid) [][]cell {
 	return cells
 }
 
-// box is a panel over a window's text, which shows the palette or the
-// finder, or a toast.
+// box is a panel over a window's text, which shows the palette, the
+// finder, a menu, a float or a toast: the system's translucent material
+// with rounded corners and a shadow, and view on it, which draws what it
+// shows.
 type box struct {
-	view objc.ID
+	frame, view objc.ID
 	*boxed
 	id int // a float's window, which the mouse goes to, or 0
 	w  *window
 }
 
-// newBox makes a hidden box over w's views, with rounded corners and a
-// shadow.
+// newBox makes a hidden box over w's views (B559).
 func newBox(w *window) *box {
-	view := w.view
-	v := msgInitView(objc.ID(boxClass).Send(sel("alloc")), sel("initWithFrame:"), rect{})
-	v.Send(sel("setWantsLayer:"), 1)
-	l := v.Send(sel("layer"))
-	msgSetFloat(l, sel("setCornerRadius:"), 10)
-	msgSetFloat(l, sel("setBorderWidth:"), 1)
+	frame := msgInitView(cls("NSView").Send(sel("alloc")), sel("initWithFrame:"), rect{})
+	frame.Send(sel("setWantsLayer:"), 1)
 	shadow := cls("NSShadow").Send(sel("alloc")).Send(sel("init"))
 	msgSetFloat(shadow, sel("setShadowBlurRadius:"), 18)
 	msgSetSize(shadow, sel("setShadowOffset:"), size{0, -6})
 	shadow.Send(sel("setShadowColor:"), msgColor(cls("NSColor"), sel("colorWithSRGBRed:green:blue:alpha:"), 0, 0, 0, 0.35))
-	v.Send(sel("setShadow:"), shadow)
+	frame.Send(sel("setShadow:"), shadow)
 	shadow.Send(sel("release"))
+	back := material(popover, withinWindow)
+	back.Send(sel("setWantsLayer:"), 1)
+	msgSetFloat(back.Send(sel("layer")), sel("setCornerRadius:"), 10)
+	back.Send(sel("layer")).Send(sel("setMasksToBounds:"), 1)
+	back.Send(sel("setAutoresizingMask:"), 18)
+	v := msgInitView(objc.ID(boxClass).Send(sel("alloc")), sel("initWithFrame:"), rect{})
+	v.Send(sel("setAutoresizingMask:"), 18)
+	frame.Send(sel("addSubview:"), back)
+	frame.Send(sel("addSubview:"), v)
+	back.Send(sel("release"))
+	frame.Send(sel("setHidden:"), 1)
 	v.Send(sel("setHidden:"), 1)
-	view.Send(sel("addSubview:"), v)
-	b := &box{view: v, w: w}
+	w.view.Send(sel("addSubview:"), frame)
+	b := &box{frame: frame, view: v, w: w}
 	boxes[v] = b
 	return b
 }
@@ -298,6 +302,7 @@ func (b *box) show(what *boxed, view objc.ID, top float64) {
 	shown := b.boxed != nil
 	b.boxed = what
 	if what == nil {
+		b.frame.Send(sel("setHidden:"), 1)
 		b.view.Send(sel("setHidden:"), 1)
 		return
 	}
@@ -307,7 +312,7 @@ func (b *box) show(what *boxed, view objc.ID, top float64) {
 		// It wraps at half the window's width, and a third of its height
 		// ends in an ellipsis.
 		limit := size{max(bounds.W/2, 240) - 2*inset, max(bounds.H/3-2*inset, cellH)}
-		need := msgBounding(nsString(what.text), sel("boundingRectWithSize:options:attributes:context:"), size{limit.W, math.MaxFloat32}, lineFragments, textAttrs(toastFont, what.look.Base.Fg), 0).Size
+		need := msgBounding(nsString(what.text), sel("boundingRectWithSize:options:attributes:context:"), size{limit.W, math.MaxFloat32}, lineFragments, uiAttrs(toastFont, system("labelColor")), 0).Size
 		r.Size = size{math.Ceil(min(need.W, limit.W)) + 2*inset, math.Ceil(min(need.H, limit.H)) + 2*inset}
 		r.Origin = point{bounds.W - r.Size.W - 2*pad, top + 2*pad}
 	} else {
@@ -322,15 +327,16 @@ func (b *box) show(what *boxed, view objc.ID, top float64) {
 			r.Origin.Y = max(min(top+float64(what.at[1])*cellH-inset-what.head(), bounds.H-r.Size.H), top)
 		}
 	}
-	msgSetRect(b.view, sel("setFrame:"), r)
-	l := b.view.Send(sel("layer"))
-	l.Send(sel("setBackgroundColor:"), nsColor(what.look.Base.Bg).Send(sel("CGColor")))
-	l.Send(sel("setBorderColor:"), nsColor(what.look.Theme.Border).Send(sel("CGColor")))
+	msgSetRect(b.frame, sel("setFrame:"), r)
+	for _, v := range subviews(b.frame) {
+		msgSetRect(v, sel("setFrame:"), rect{Size: r.Size})
+	}
 	if !shown {
 		if what.text != "" {
-			msgSetFloat(b.view, sel("setAlphaValue:"), 0)
-			msgSetFloat(b.view.Send(sel("animator")), sel("setAlphaValue:"), 1)
+			msgSetFloat(b.frame, sel("setAlphaValue:"), 0)
+			msgSetFloat(b.frame.Send(sel("animator")), sel("setAlphaValue:"), 1)
 		}
+		b.frame.Send(sel("setHidden:"), 0)
 		b.view.Send(sel("setHidden:"), 0)
 	}
 	b.view.Send(sel("setNeedsDisplay:"), 1)
@@ -340,6 +346,10 @@ func (b *box) show(what *boxed, view objc.ID, top float64) {
 // an ellipsis.
 const lineFragments = 1 | 1<<5
 
+// drawBox draws what a box shows on its material: a toast's text in the
+// system's font and colour, or cells with no ground of their own, the
+// rows a menu selected in the system's selection, and its rules and
+// symbols in the system's colours.
 func drawBox(self objc.ID, _ objc.SEL, _ rect) {
 	b := boxes[self]
 	if b == nil || b.boxed == nil {
@@ -348,17 +358,26 @@ func drawBox(self objc.ID, _ objc.SEL, _ rect) {
 	if b.text != "" {
 		r := msgRect(self, sel("bounds"))
 		r = rect{point{inset, inset}, size{r.Size.W - 2*inset, r.Size.H - 2*inset}}
-		msgDrawIn(nsString(b.text), sel("drawWithRect:options:attributes:context:"), r, lineFragments, textAttrs(toastFont, b.look.Base.Fg), 0)
+		msgDrawIn(nsString(b.text), sel("drawWithRect:options:attributes:context:"), r, lineFragments, uiAttrs(toastFont, system("labelColor")), 0)
 		return
 	}
 	bounds := msgRect(self, sel("bounds")).Size
 	if b.title != "" {
-		run{text: b.title, font: uiFont, fg: b.look.Theme.Muted}.draw(inset, inset/2, head)
+		run{text: b.title, font: uiFont, fg: system("secondaryLabelColor")}.draw(inset, inset/2, head)
 	}
 	origin := point{inset, inset + b.head()}
-	drawCells(b.cells, b.cursor, origin)
+	system("selectedContentBackgroundColor").Send(sel("setFill"))
+	for _, c := range b.chosen {
+		r := at(c.x, c.y, c.w, origin)
+		msgRounded(cls("NSBezierPath"), sel("bezierPathWithRoundedRect:xRadius:yRadius:"), rect{point{r.Origin.X - 4, r.Origin.Y}, size{r.Size.W + 8, r.Size.H}}, 5, 5).Send(sel("fill"))
+	}
+	ground := b.look.Base.Bg
+	drawCells(b.cells, b.cursor, origin, &ground, b.chosen)
+	if b.prompt != "" {
+		drawSymbol(symbol(b.prompt, system("secondaryLabelColor")), at(0, 0, 1, origin))
+	}
 	b.w.drawPics(b.pics, origin)
-	nsColor(b.look.Theme.Border).Send(sel("setFill"))
+	system("separatorColor").Send(sel("setFill"))
 	for _, ru := range b.rules {
 		r := at(ru.x, ru.y, ru.w, origin)
 		rectFill(rect{point{r.Origin.X, r.Origin.Y + math.Floor(cellH/2)}, size{r.Size.W, 1}})
@@ -368,7 +387,7 @@ func drawBox(self objc.ID, _ objc.SEL, _ rect) {
 		rectFill(rect{point{r.Origin.X + math.Floor(cellW/2), r.Origin.Y}, size{1, float64(len(b.cells)) * cellH}})
 	}
 	if f := b.foot(); f > 0 {
-		drawParts(b.left, b.right, b.look, true, rect{point{0, bounds.H - f}, size{bounds.W, f}})
+		drawParts(b.left, b.right, true, rect{point{0, bounds.H - f}, size{bounds.W, f}})
 	}
 }
 

@@ -46,8 +46,12 @@ func (w *window) pane(id int) *pane {
 	p.view = msgInitView(objc.ID(paneClass).Send(sel("alloc")), sel("initWithFrame:"), rect{})
 	p.text = msgInitView(objc.ID(textClass).Send(sel("alloc")), sel("initWithFrame:"), rect{})
 	p.status = msgInitView(objc.ID(statusClass).Send(sel("alloc")), sel("initWithFrame:"), rect{})
+	// The status bar draws on the title bar's material.
+	back := material(titlebar, behindWindow)
 	p.view.Send(sel("addSubview:"), p.text)
+	p.view.Send(sel("addSubview:"), back)
 	p.view.Send(sel("addSubview:"), p.status)
+	back.Send(sel("release"))
 	w.panes[id], panes[p.text], panes[p.status] = p, p, p
 	return p
 }
@@ -198,16 +202,20 @@ func resizeRoot(self objc.ID, _ objc.SEL, _ size) {
 	b := msgRect(self, sel("bounds"))
 	top := barHeight(w.win)
 	msgSetRect(w.bar, sel("setFrame:"), rect{Size: size{b.Size.W, top}})
+	msgSetRect(w.barBack, sel("setFrame:"), rect{Size: size{b.Size.W, top}})
 	msgSetRect(w.area, sel("setFrame:"), rect{point{0, top}, size{b.Size.W, max(b.Size.H-top, 1)}})
 	w.placeAll()
 }
 
-// resizePane puts a pane's text over its status bar.
+// resizePane puts a pane's text over its status bar and the material
+// behind it.
 func resizePane(self objc.ID, _ objc.SEL, _ size) {
 	b := msgRect(self, sel("bounds")).Size
 	subs := subviews(self)
 	msgSetRect(subs[0], sel("setFrame:"), rect{Size: size{b.W, max(b.H-statusH, 1)}})
-	msgSetRect(subs[1], sel("setFrame:"), rect{point{0, max(b.H-statusH, 0)}, size{b.W, statusH}})
+	for _, v := range subs[1:] {
+		msgSetRect(v, sel("setFrame:"), rect{point{0, max(b.H-statusH, 0)}, size{b.W, statusH}})
+	}
 }
 
 func splitResized(self objc.ID, _ objc.SEL, note objc.ID) {
@@ -249,38 +257,32 @@ func drawText(self objc.ID, _ objc.SEL, _ rect) {
 	}
 	nsColor(p.w.look.Base.Bg).Send(sel("setFill"))
 	rectFill(msgRect(self, sel("bounds")))
-	drawCells(p.cells, p.cursor, point{pad, pad})
+	drawCells(p.cells, p.cursor, point{pad, pad}, nil, nil)
 	p.w.drawPics(p.pics, point{pad, pad})
 }
 
-func drawDivider(self objc.ID, _ objc.SEL, r rect) {
-	if w := windows[self.Send(sel("window"))]; w != nil {
-		nsColor(w.look.Theme.Border).Send(sel("setFill"))
-		rectFill(r)
-	}
+func drawDivider(_ objc.ID, _ objc.SEL, r rect) {
+	system("separatorColor").Send(sel("setFill"))
+	rectFill(r)
 }
 
-// drawStatus draws a window's status bar (B147). The left has the mode for
-// the current window, the file's name after its folder, a dot while it is
-// modified, the segments and the diagnostics. The right has the others'
-// names, the keys being typed and the ruler, and goes when both sides do
-// not fit. Another window's bar has muted text.
+// drawStatus draws a window's status bar (B147), on the title bar's
+// material. The left has the mode for the current window, the file's name
+// after its folder, a dot while it is modified, the segments and the
+// diagnostics. The right has the others' names, the keys being typed and
+// the ruler, and goes when both sides do not fit. Another window's bar has
+// dimmer text.
 func drawStatus(self objc.ID, _ objc.SEL, _ rect) {
-	p := panes[self]
-	if p == nil {
-		return
+	if p := panes[self]; p != nil {
+		drawParts(p.left, p.right, p.current, msgRect(self, sel("bounds")))
 	}
-	b := msgRect(self, sel("bounds"))
-	nsColor(p.w.look.Theme.Surface).Send(sel("setFill"))
-	rectFill(b)
-	drawParts(p.left, p.right, p.w.look, p.current, b)
 }
 
-// drawParts draws a status line's parts in r, under a rule.
-func drawParts(left, right []client.Part, lk theme.Look, current bool, r rect) {
-	nsColor(lk.Theme.Border).Send(sel("setFill"))
+// drawParts draws a status line's parts in r, under a hairline.
+func drawParts(left, right []client.Part, current bool, r rect) {
+	system("separatorColor").Send(sel("setFill"))
 	rectFill(rect{r.Origin, size{r.Size.W, 1}})
-	ls, rs := runs(left, lk, current), runs(right, lk, current)
+	ls, rs := runs(left, current), runs(right, current)
 	if width(ls)+width(rs)+3*pad > r.Size.W {
 		rs = nil
 	}
@@ -295,23 +297,26 @@ func drawParts(left, right []client.Part, lk theme.Look, current bool, r rect) {
 }
 
 // run is a part of a status bar or of the tab strip as it draws, its text
-// in a font and colour. A pill run has a rounded ground, and a tight run
-// has no room after it. A tab's run ends in a slot that shows slot.
+// in a font and one of the system's colours. A pill run has a rounded
+// ground when it has one, and a tight run has no room after it. A tab's
+// run ends in a slot that shows the system's symbol slot.
 type run struct {
 	text        string
 	font        objc.ID
-	fg, ground  theme.RGB
+	fg, ground  objc.ID
 	pill, tight bool
+	slotted     bool
 	slot        string
+	slotFg      objc.ID
 }
 
 // size is how wide r draws, its room included.
 func (r run) size() float64 {
-	w := math.Ceil(msgSizeOf(nsString(r.text), sel("sizeWithAttributes:"), textAttrs(r.font, r.fg)).W)
+	w := math.Ceil(msgSizeOf(nsString(r.text), sel("sizeWithAttributes:"), uiAttrs(r.font, r.fg)).W)
 	if r.pill {
 		w += 2 * pad
 	}
-	if r.slot != "" {
+	if r.slotted {
 		w += slotW
 	}
 	if r.tight {
@@ -323,18 +328,19 @@ func (r run) size() float64 {
 // draw draws r from x in a bar h tall from top, and returns where the next
 // goes.
 func (r run) draw(x, top, h float64) float64 {
-	a := textAttrs(r.font, r.fg)
+	a := uiAttrs(r.font, r.fg)
 	sz := msgSizeOf(nsString(r.text), sel("sizeWithAttributes:"), a)
 	at := x
 	if r.pill {
-		nsColor(r.ground).Send(sel("setFill"))
-		msgRounded(cls("NSBezierPath"), sel("bezierPathWithRoundedRect:xRadius:yRadius:"), rect{point{x, top + 3}, size{r.size() - pad, h - 6}}, 5, 5).Send(sel("fill"))
+		if r.ground != 0 {
+			r.ground.Send(sel("setFill"))
+			msgRounded(cls("NSBezierPath"), sel("bezierPathWithRoundedRect:xRadius:yRadius:"), rect{point{x, top + 4}, size{r.size() - pad, h - 8}}, 6, 6).Send(sel("fill"))
+		}
 		at += pad
 	}
 	msgDrawAt(nsString(r.text), sel("drawAtPoint:withAttributes:"), point{at, top + math.Floor((h-sz.H)/2)}, a)
 	if r.slot != "" {
-		ss := msgSizeOf(nsString(r.slot), sel("sizeWithAttributes:"), a)
-		msgDrawAt(nsString(r.slot), sel("drawAtPoint:withAttributes:"), point{at + math.Ceil(sz.W) + (slotW-ss.W)/2, top + math.Floor((h-ss.H)/2)}, a)
+		drawSymbol(symbol(r.slot, r.slotFg), rect{point{at + math.Ceil(sz.W) + 4, top + math.Floor(h/2) - 4}, size{slotW - 8, 8}})
 	}
 	return x + r.size()
 }
@@ -348,40 +354,39 @@ func width(rs []run) float64 {
 	return n
 }
 
-// runs are a status line's parts as the bar draws them, by their roles
-// (B147).
-func runs(parts []client.Part, lk theme.Look, current bool) []run {
-	th := lk.Theme
-	text := th.Text
+// runs are a status line's parts as the bar draws them, by their roles,
+// in the system's colours (B147).
+func runs(parts []client.Part, current bool) []run {
+	label, muted := system("labelColor"), system("secondaryLabelColor")
 	if !current {
-		text = th.Muted
+		label, muted = system("secondaryLabelColor"), system("tertiaryLabelColor")
 	}
 	var out []run
 	for _, p := range parts {
-		r := run{text: p.Text, font: uiFont, fg: th.Muted}
+		r := run{text: p.Text, font: uiFont, fg: muted}
 		if kind, ok := strings.CutPrefix(p.Role, "mode."); ok {
-			r = run{text: p.Text, font: uiBold, fg: th.Bg, ground: modeColour(th, kind), pill: true}
+			r = run{text: p.Text, font: uiBold, fg: system("whiteColor"), ground: modeSystem(kind), pill: true}
 		}
 		switch p.Role {
 		case "recording":
-			r.text, r.font, r.fg = "● "+p.Text, uiBold, th.Error
+			r.text, r.font, r.fg = "● "+p.Text, uiBold, system("systemRedColor")
 		case "dir":
-			r.fg, r.tight = th.Faint, true
+			r.fg, r.tight = system("tertiaryLabelColor"), true
 		case "name":
-			r.fg = text
+			r.fg = label
 			if current {
 				r.font = uiBold
 			}
 		case "modified":
-			r.text, r.fg = "●", th.Cmd
+			r.text, r.fg = "●", system("systemOrangeColor")
 		case "errors":
-			r.fg = th.Error
+			r.fg = system("systemRedColor")
 		case "warnings":
-			r.fg = th.Warn
+			r.fg = system("systemYellowColor")
 		case "sharing", "zoomed":
-			r.fg = th.Cmd
+			r.fg = system("systemOrangeColor")
 		case "busy":
-			r.text, r.fg = string(spinner[time.Now().UnixMilli()/spinnerFrame.Milliseconds()%int64(len(spinner))]), th.Normal
+			r.text, r.fg = string(spinner[time.Now().UnixMilli()/spinnerFrame.Milliseconds()%int64(len(spinner))]), system("controlAccentColor")
 		}
 		if r.text != "" {
 			out = append(out, r)
@@ -400,18 +405,3 @@ func turning(parts []client.Part) bool {
 var spinner = []rune("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏")
 
 const spinnerFrame = 80 * time.Millisecond
-
-// modeColour is the colour of a mode of the kind client.ModeName gives.
-func modeColour(th theme.Theme, kind string) theme.RGB {
-	switch kind {
-	case "insert", "terminal":
-		return th.Insert
-	case "replace":
-		return th.Error
-	case "command":
-		return th.Cmd
-	case "visual":
-		return th.Visual
-	}
-	return th.Normal
-}
