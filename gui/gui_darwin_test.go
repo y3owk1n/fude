@@ -1065,6 +1065,63 @@ func TestB560NativeLists(t *testing.T) {
 	})
 }
 
+// B560
+func TestB560LongDocumentationScrolls(t *testing.T) {
+	t.Setenv("FUDE_GUI_FAKE_LSP", "1")
+	editortest.Config(t, fmt.Sprintf("lsp.fake.command = [%q, \"-test.run=^TestFakeServer$\"]\n[filetype.go]\nlsp = [\"fake\"]\n", os.Args[0]))
+	path := filepath.Join(t.TempDir(), "a.go")
+	editortest.Change(t, path, "one\n")
+	e := editortest.Start(t, path)
+	e.Use(lspmod.New())
+	e.Use(completion.New())
+	var w *window
+	onMain(func() { w = open(e, nil) }, true)
+	until(t, "the server", func() bool {
+		ok := false
+		onMain(func() {
+			for _, p := range w.panes {
+				ok = ok || slices.Contains(p.offers, "definition")
+			}
+		}, true)
+		return ok
+	})
+	// The documentation beside the menu scrolls past the rows its box
+	// shows.
+	onMain(func() {
+		press(w, 0, 0, "A", "a")
+		press(w, 0, modControl, "\x18", "x")
+		press(w, 0, modControl, "\x0f", "o")
+	}, true)
+	until(t, "the documentation's whole text", func() bool {
+		ok := false
+		onMain(func() {
+			for _, b := range w.floats {
+				doc := b.previewScroll.Send(sel("documentView"))
+				ok = ok || b.boxed != nil && b.whole != nil && !objc.Send[bool](b.previewScroll, sel("isHidden")) &&
+					msgRect(doc, sel("frame")).Size.H > msgRect(b.previewScroll, sel("frame")).Size.H
+			}
+		}, true)
+		return ok
+	})
+	onMain(func() {
+		for _, c := range "\x1b:qa!\r" {
+			code := uint16(0)
+			switch c {
+			case '\r':
+				code = 36
+			case '\x1b':
+				code = 53
+			}
+			press(w, code, 0, string(c), string(c))
+		}
+	}, true)
+	until(t, "the session to end", func() bool {
+		open := true
+		onMain(func() { _, open = windows[w.view] }, true)
+		return !open
+	})
+}
+
 // B561
 func TestB561Feel(t *testing.T) {
 	var lines []string
@@ -1169,7 +1226,7 @@ func TestB562HoverAtTheMouse(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "a.txt")
 	editortest.Change(t, path, "one two\n")
 	e := editortest.Open(t, path)
-	e.Use(hovering{})
+	e.Use(hovering{more: 100})
 	var w *window
 	onMain(func() { w = open(e, nil) }, true)
 	var p *pane
@@ -1204,7 +1261,32 @@ func TestB562HoverAtTheMouse(t *testing.T) {
 	}
 	// A rest on a word shows its hover, and a move off it closes it.
 	move(5.5)
-	until(t, "the hover of two", func() bool { return float() == "at 5" })
+	until(t, "the hover of two", func() bool { return strings.HasPrefix(float(), "at 5") })
+	// A hover taller than its float scrolls by the wheel.
+	onMain(func() {
+		cg, err := purego.Dlopen("/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics", purego.RTLD_GLOBAL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var scroll func(uintptr, uint32, uint32, int32, int32, int32) uintptr
+		purego.RegisterLibFunc(&scroll, cg, "CGEventCreateScrollWheelEvent2")
+		for _, b := range w.floats {
+			if b.boxed != nil && b.read != nil {
+				b.view.Send(sel("scrollWheel:"), cls("NSEvent").Send(sel("eventWithCGEvent:"), scroll(0, 1, 1, -3, 0, 0)))
+			}
+		}
+	}, true)
+	until(t, "the hover to scroll", func() bool {
+		top := 0
+		w.onLoop(func() {
+			for _, v := range e.Windows() {
+				if v.Float == "cursor" {
+					top = v.Text.LineOf(v.Top)
+				}
+			}
+		})
+		return top > 0
+	})
 	move(3.5)
 	until(t, "the hover to close", func() bool { return float() == "" })
 	onMain(func() {
@@ -1362,7 +1444,9 @@ func TestFakeServer(t *testing.T) {
 		var result any
 		switch m.Method {
 		case "initialize":
-			result = map[string]any{"capabilities": map[string]any{"positionEncoding": "utf-8", "textDocumentSync": 1, "definitionProvider": true}}
+			result = map[string]any{"capabilities": map[string]any{"positionEncoding": "utf-8", "textDocumentSync": 1, "definitionProvider": true, "completionProvider": map[string]any{}}}
+		case "textDocument/completion":
+			result = []map[string]any{{"label": "alpha", "documentation": strings.Repeat("a line of alpha's documentation\n", 60)}}
 		case "textDocument/definition":
 			at := map[string]int{"line": 0, "character": 1}
 			result = map[string]any{"uri": m.Params.TextDocument.URI, "range": map[string]any{"start": at, "end": at}}

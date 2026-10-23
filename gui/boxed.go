@@ -34,7 +34,7 @@ type boxed struct {
 	chosen  []rule           // the rows a menu has selected, which take the system's selection
 	prompt  string           // what a command line's prompt is, command or search, which each system shows as its own symbol
 	list    *list            // a menu the window lays out, before any cells
-	whole   *scrolledPreview // the finder's preview past the rows its box shows, nil when they show it all
+	whole   *scrolledPreview // the finder's preview or a menu's documentation past the rows its box shows, nil when they show it all
 	scrolls bool             // the window shows whole in a scroll view of its own, not the cells
 	// A float with the focus has its status line under its text.
 	left, right []client.Part
@@ -58,8 +58,19 @@ func drawPreview(cells [][]cell, cursor cursorAt, chosen, rules []rule, origin p
 	}
 }
 
-// scrolledPreview is the finder's whole preview, as cells and the lines
-// and selected rows over them.
+// wholeOf is all rows of text, styled by spans in lk and w columns wide,
+// for a window that scrolls past the rows a box shows.
+func wholeOf(text string, spans []wire.Span, rows []compose.Row, lk theme.Look, w int) *scrolledPreview {
+	g := compose.NewGrid(w, len(rows), lk.Base)
+	p := &scrolledPreview{}
+	p.rules, p.chosen = write(g, text, spans, rows, lk, 0, 0, w)
+	p.cells = cellsOf(g)
+	return p
+}
+
+// scrolledPreview is a box's whole text, the finder's preview or a
+// menu's documentation, as cells and the lines and selected rows over
+// them.
 type scrolledPreview struct {
 	cells         [][]cell
 	rules, chosen []rule
@@ -103,14 +114,8 @@ func finder(m wire.Menu, lk theme.Look) *boxed {
 		rows, _ := compose.Wrap(m.Doc, m.DocSpans, dw)
 		b.rules, b.chosen = write(g, m.Doc, m.DocSpans, rows[:min(len(rows), h)], lk, 0, 0, dw)
 		b.cells = cellsOf(g)
-		// The whole preview, past the rows its box shows, for a window
-		// that scrolls it.
 		if len(rows) > h {
-			all := compose.NewGrid(dw, len(rows), lk.Base)
-			p := &scrolledPreview{}
-			p.rules, p.chosen = write(all, m.Doc, m.DocSpans, rows, lk, 0, 0, dw)
-			p.cells = cellsOf(all)
-			b.whole = p
+			b.whole = wholeOf(m.Doc, m.DocSpans, rows, lk, dw)
 		}
 		if p := m.DocImage; p != nil {
 			b.pics = []pic{{p.ID, 0, p.Row, min(p.Cols, dw), p.Rows}}
@@ -175,8 +180,11 @@ func (p *painter) atCursor(m wire.Menu, lk theme.Look, cx, cy, cols, rows int) [
 			dy = y - min(len(doc), 20) - 2
 		}
 	}
-	doc = doc[:min(len(doc), 20, max(rows-dy-1, 1))]
-	return []*boxed{menu, textBox(m.Doc, m.DocSpans, doc, lk, dw, dx, dy)}
+	shown := textBox(m.Doc, m.DocSpans, doc[:min(len(doc), 20, max(rows-dy-1, 1))], lk, dw, dx, dy)
+	if len(doc) > len(shown.cells) {
+		shown.whole = wholeOf(m.Doc, m.DocSpans, doc, lk, dw)
+	}
+	return []*boxed{menu, shown}
 }
 
 // keyHints is the box of the key hints, across the bottom of the area

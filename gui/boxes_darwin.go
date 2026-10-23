@@ -20,6 +20,7 @@ type boxNative struct {
 	hovered       int     // the row the mouse is over, -1 for none
 	previewScroll objc.ID // the scroll view of the finder's whole preview
 	previewed     string  // the preview it shows, to know when another file shows
+	wheeled       float64 // the lines a float's wheel moved short of one
 	preview       objc.ID // the finder's preview for assistive apps, 0 until asked
 }
 

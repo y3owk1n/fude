@@ -970,15 +970,17 @@ not on arm64.
 
 D65 drew the window's chrome itself on the system's materials. Where a
 system has a control for a part, the window now uses it. The title bar
-shows the title and the file's icon itself, and the status bars are the
-system's labels. Lists, popovers and banners come next. fude still takes
-every key, so the controls only show the session and take the mouse.
-They never take the keyboard's focus, and the row typed into stays
-fude's own, as D65 says. Tabs stay fude's own on macOS and Windows,
-drawn to the system's measures, since neither system has a public tab
-bar of this kind. On Linux they are GTK's notebook tabs. A part that
-becomes a system control loses the accessibility D67 gave it by hand, as
-the control has its own.
+shows the title and the file's icon itself, the status bars are the
+system's labels, and lists are the system's tables. Floats, such as a
+hover, stay fude's panels inside the window, where the session places
+them. A system popover places and sizes itself and may leave the window.
+fude still takes every key, so the controls only show the
+session and take the mouse. They never take the keyboard's focus, and
+the row typed into stays fude's own, as D65 says. Tabs stay fude's own
+on macOS and Windows, drawn to the system's measures, since neither
+system has a public tab bar of this kind. On Linux they are GTK's
+notebook tabs. A part that becomes a system control loses the
+accessibility D67 gave it by hand, as the control has its own.
 
 Why, as of 2026-10-24: the user found the drawn chrome did not look
 native and chose the system's controls over drawing closer to them. The

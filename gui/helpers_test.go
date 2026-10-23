@@ -3,6 +3,7 @@ package gui
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -27,8 +28,9 @@ func until(t *testing.T, what string, ok func() bool) {
 	}
 }
 
-// hovering is a module whose hover says where it was asked.
-type hovering struct{}
+// hovering is a module whose hover says where it was asked, over more
+// lines after it.
+type hovering struct{ more int }
 
 func (hovering) Name() string         { return "hovering" }
 func (hovering) Subscribed() []string { return nil }
@@ -36,8 +38,8 @@ func (hovering) Registered() []api.Registration {
 	return []api.Registration{{Kind: api.Plug, Name: "hover", ID: 1}}
 }
 func (hovering) Init(context.Context, api.Scope) (api.Result, error) { return api.Result{}, nil }
-func (hovering) Call(_ context.Context, _ uint32, _ api.Scope, args ...int) (api.Result, error) {
-	return api.Result{Float: &api.Float{Text: fmt.Sprint("at ", args[0]), Spans: []api.Span{}}}, nil
+func (h hovering) Call(_ context.Context, _ uint32, _ api.Scope, args ...int) (api.Result, error) {
+	return api.Result{Float: &api.Float{Text: fmt.Sprint("at ", args[0]) + strings.Repeat("\nmore", h.more), Spans: []api.Span{}}}, nil
 }
 
 func (hovering) Event(context.Context, string, api.Scope) (api.Result, error) {

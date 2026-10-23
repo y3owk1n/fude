@@ -1415,7 +1415,9 @@ Where fude departs, the line says so and cites the departure in
   wheel and the trackpad, with a thin knob where it is, and scrolls to
   show its selection when that moves. On macOS each list is the system's
   table, which takes the mouse and never the keyboard (D68). The finder's
-  preview and the documentation beside a menu keep the theme.
+  preview and the documentation beside a menu keep the theme. On macOS the
+  documentation scrolls by the wheel and the trackpad past the 20 rows its
+  box shows.
 - B561 [10] With `--gui` a right click on text puts the cursor there,
   unless a selection shows, and opens the system's menu. It offers Go to
   Definition, Go to Type Definition, Find References, Find
@@ -1438,7 +1440,9 @@ Where fude departs, the line says so and cites the departure in
   closes it, and a word with nothing to say shows nothing, with no
   message. `K` at the cursor does not enter it. With `--gui` the mouse
   resting half a second on a word shows its hover, and moving off the
-  word closes it, unless the mouse moves onto the hover's box.
+  word closes it, unless the mouse moves onto the hover's box. On macOS
+  the wheel and the trackpad over a float, such as a hover, scroll its
+  window.
 - B563 [10] With `--gui`, while Command is held on macOS, or Control on
   Linux, the word under the mouse is a link when the window's servers
   offer definitions. A link is underlined, and the pointer over it is the

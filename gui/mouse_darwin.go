@@ -88,6 +88,19 @@ func mouseAt(view objc.ID, ev objc.ID, kind byte) {
 func wheel(self objc.ID, _ objc.SEL, ev objc.ID) {
 	dy := msgFloat(ev, sel("scrollingDeltaY"))
 	precise := objc.Send[bool](ev, sel("hasPreciseScrollingDeltas"))
+	// A float's window scrolls in the session, a line for each row's
+	// height the wheel or the trackpad moves.
+	if b := boxes[self]; b != nil && b.boxed != nil && b.read != nil && b.id > 0 {
+		if precise {
+			dy /= cellH
+		}
+		b.wheeled -= dy
+		if n := int(b.wheeled); n != 0 {
+			b.wheeled -= float64(n)
+			b.w.mice <- mouse{'s', b.id, 0, n, 0}
+		}
+		return
+	}
 	p := panes[self]
 	switch {
 	case p == nil:
