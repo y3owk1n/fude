@@ -1,6 +1,7 @@
 package gui
 
 import (
+	"fmt"
 	"math"
 	"strings"
 
@@ -19,15 +20,25 @@ var (
 // cr is the cairo context of the drawing being made, on the main thread.
 var cr uintptr
 
-// makeFonts makes the fonts, the chrome's from the desktop's font, and
-// sizes a cell in the text's font.
-func makeFonts() {
-	font = pangoFontFromString("Monospace 11")
+// textSize is the text's size in points, which Control with =, minus and
+// 0 change (B568).
+var textSize = 11.0
+
+// makeTextFonts makes the text's fonts in textSize, and sizes a cell in
+// them.
+func makeTextFonts() {
+	font = pangoFontFromString(fmt.Sprintf("Monospace %g", textSize))
 	boldFont, italicFont, boldItalicFont = pangoFontCopy(font), pangoFontCopy(font), pangoFontCopy(font)
 	pangoFontSetWeight(boldFont, 700)
 	pangoFontSetStyle(italicFont, 2)
 	pangoFontSetWeight(boldItalicFont, 700)
 	pangoFontSetStyle(boldItalicFont, 2)
+	m := measure("M", font)
+	cellW, cellH = m.W, math.Ceil(m.H)
+}
+
+// makeFonts makes the fonts, the chrome's from the desktop's font.
+func makeFonts() {
 	var v gValue
 	gValueInit(&v, gTypeString)
 	gObjectGetProperty(gtkSettingsDefault(), "gtk-font-name", &v)
@@ -42,8 +53,25 @@ func makeFonts() {
 	family := strings.TrimRightFunc(name, func(r rune) bool { return r == ' ' || r >= '0' && r <= '9' || r == '.' })
 	inputFont = pangoFontFromString(family + " 14")
 	measurer = pangoLayoutNew(pangoFontMapContext(pangoCairoFontMap()))
-	m := measure("M", font)
-	cellW, cellH = m.W, math.Ceil(m.H)
+	makeTextFonts()
+}
+
+// sizeText makes the text points tall, from 6 to 40, and every window as
+// many cells as it then holds.
+func sizeText(points float64) {
+	for _, f := range []uintptr{font, boldFont, italicFont, boldItalicFont} {
+		pangoFontFree(f)
+	}
+	textSize = min(max(points, 6), 40)
+	makeTextFonts()
+	for _, w := range windows {
+		scale := float64(gtkWidgetScale(w.win))
+		w.cellPx = [2]int{int(cellW * scale), int(cellH * scale)}
+		w.placeAll()
+		for _, p := range w.panes {
+			p.redraw()
+		}
+	}
 }
 
 // measure is how big text draws in font.
@@ -262,7 +290,6 @@ func (r run) draw(x, top, h float64) float64 {
 	}
 	return x + r.size()
 }
-
 
 // toastSize is how big a toast's text draws in lines w points wide.
 func toastSize(s string, w float64) size {

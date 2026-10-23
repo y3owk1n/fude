@@ -1,6 +1,7 @@
 package gui
 
 import (
+	"cmp"
 	"maps"
 	"runtime"
 	"slices"
@@ -16,6 +17,8 @@ import (
 // native is a window's GTK widgets and what the main thread keeps of them.
 type native struct {
 	win, overlay uintptr
+	bar          uintptr   // the tab strip, in the header bar
+	title        string    // the title the session last gave
 	splits       []uintptr // the GtkPaneds the layout made, which build takes apart
 	key          string    // the layout the splits show
 	sent         places    // the places the loop was last given
@@ -82,6 +85,7 @@ func startApp(ready func()) {
 	callbacks.key = purego.NewCallback(keyPressed)
 	callbacks.modifiers = purego.NewCallback(modifiers)
 	makeMouseCallbacks()
+	makeStripCallbacks()
 	callbacks.closing = purego.NewCallback(func(win, _ uintptr) uintptr {
 		// It quits as :qa does, which asks about unsaved changes, so the
 		// window closes once the session ends.
@@ -101,7 +105,7 @@ func startApp(ready func()) {
 // thread once s ends.
 func open(s client.Session, ended func()) *window {
 	cols, rows := 100, 32
-	w := &window{s: s, keys: make(chan vim.Key, 1024), do: make(chan func()), pastes: make(chan string, 8), mice: make(chan mouse, 64), ended: ended, placed: make(chan struct{}, 1), panes: map[int]*pane{}, floats: map[int]*box{}, caretOn: true}
+	w := &window{s: s, keys: make(chan vim.Key, 1024), do: make(chan func()), pastes: make(chan string, 8), mice: make(chan mouse, 64), ended: ended, placed: make(chan struct{}, 1), panes: map[int]*pane{}, floats: map[int]*box{}, caretOn: true, hover: -1}
 	w.win = gtkAppWindowNew(app)
 	gtkWindowSetTitle(w.win, "fude")
 	gtkWindowSetSize(w.win, int32(cellW*float64(cols)+2*pad), int32(cellH*float64(rows)+2*pad+statusH))
@@ -115,6 +119,7 @@ func open(s client.Session, ended func()) *window {
 	gSignalConnectData(ctl, "modifiers", callbacks.modifiers, w.win, 0, 0)
 	gtkWidgetAddControl(w.win, ctl)
 	gSignalConnectData(w.win, "close-request", callbacks.closing, 0, 0, 0)
+	w.newStrip()
 	if styled == 0 {
 		styled = w.win
 	}
@@ -154,7 +159,7 @@ func (w *window) apply() {
 		return
 	}
 	for _, f := range fs {
-		w.look, w.tabs = f.look, f.tabs
+		w.look = f.look
 		if f.key != w.key {
 			w.key = f.key
 			w.build(f.layout)
@@ -170,8 +175,18 @@ func (w *window) apply() {
 	}
 	f := fs[len(fs)-1]
 	if f.title != "" {
-		gtkWindowSetTitle(w.win, f.title)
+		w.title = f.title
 	}
+	// A title starts with a dot while a buffer the window shows has
+	// changes. The tab strip shows the title when there are no tabs.
+	title := cmp.Or(w.title, "fude")
+	if f.edited {
+		title = "• " + title
+	}
+	gtkWindowSetTitle(w.win, title)
+	f.tabs.title = cmp.Or(w.title, "fude")
+	w.tabs = f.tabs
+	gtkWidgetQueueDraw(w.bar)
 	w.dress(f)
 	for id, b := range w.floats {
 		if f.floats[id] == nil {
@@ -280,6 +295,21 @@ func keyPressed(_, keyval, _, state, win uintptr) uintptr {
 		return 0
 	}
 	held := heldOf(state)
+	// Control with =, minus and 0 make the text bigger, smaller and its
+	// first size, as GTK's applications zoom (B568).
+	if held&^shiftKey == controlKey {
+		switch keyval {
+		case '=', '+':
+			sizeText(textSize + 1)
+			return 1
+		case '-', '_':
+			sizeText(textSize - 1)
+			return 1
+		case '0':
+			sizeText(11)
+			return 1
+		}
+	}
 	if held == controlKey|shiftKey && (keyval == 'C' || keyval == 'V') {
 		if keyval == 'C' {
 			w.edit("Copy")

@@ -99,6 +99,12 @@ var (
 	gtkPopoverPointTo    func(p uintptr, r *gdkRect)
 	gtkPopoverHasArrow   func(p uintptr, on int32)
 	gtkPopoverPopup      func(p uintptr)
+	gtkHeaderBarNew      func() uintptr
+	gtkWindowSetTitlebar func(w, bar uintptr)
+	gtkHeaderBarTitle    func(bar, widget uintptr)
+	gtkDrawingAreaHeight func(a uintptr, h int32)
+	gtkGestureSetState   func(g uintptr, state int32) int32
+	pangoFontFree        func(desc uintptr)
 	gtkAlertSetButtons   func(d uintptr, labels *uintptr)
 	gtkAlertSetCancel    func(d uintptr, button int32)
 	gtkAlertChoose       func(d, parent, cancellable, fn, data uintptr)
@@ -264,6 +270,12 @@ func load() error {
 			{gtk, &gtkPopoverPointTo, "gtk_popover_set_pointing_to"},
 			{gtk, &gtkPopoverHasArrow, "gtk_popover_set_has_arrow"},
 			{gtk, &gtkPopoverPopup, "gtk_popover_popup"},
+			{gtk, &gtkHeaderBarNew, "gtk_header_bar_new"},
+			{gtk, &gtkWindowSetTitlebar, "gtk_window_set_titlebar"},
+			{gtk, &gtkHeaderBarTitle, "gtk_header_bar_set_title_widget"},
+			{gtk, &gtkDrawingAreaHeight, "gtk_drawing_area_set_content_height"},
+			{gtk, &gtkGestureSetState, "gtk_gesture_set_state"},
+			{pango, &pangoFontFree, "pango_font_description_free"},
 			{gtk, &gtkAlertSetButtons, "gtk_alert_dialog_set_buttons"},
 			{gtk, &gtkAlertSetCancel, "gtk_alert_dialog_set_cancel_button"},
 			{gtk, &gtkAlertChoose, "gtk_alert_dialog_choose"},

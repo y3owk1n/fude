@@ -13,6 +13,8 @@ import (
 	"github.com/ebitengine/purego"
 
 	"github.com/y3owk1n/fude/editor/editortest"
+	"github.com/y3owk1n/fude/modules/bufferline"
+	"github.com/y3owk1n/fude/modules/buffers"
 	"github.com/y3owk1n/fude/vim"
 )
 
@@ -37,6 +39,7 @@ func TestMain(m *testing.M) {
 	}
 	purego.RegisterLibFunc(&gtkWindowClose, gtk, "gtk_window_close")
 	purego.RegisterLibFunc(&gActionActivate, gtk, "g_action_activate")
+	purego.RegisterLibFunc(&gtkWindowTitle, gtk, "gtk_window_get_title")
 	ready := make(chan struct{})
 	startApp(func() { close(ready) })
 	// The application stays up between the tests' windows.
@@ -210,6 +213,81 @@ func TestB567GTKMouse(t *testing.T) {
 	})
 }
 
+// B568
+func TestB568GTKStripAndLook(t *testing.T) {
+	dir := t.TempDir()
+	editortest.Change(t, filepath.Join(dir, "a.txt"), "one\n")
+	editortest.Change(t, filepath.Join(dir, "b.txt"), "two\n")
+	e := editortest.Open(t, filepath.Join(dir, "a.txt"))
+	e.Use(bufferline.New())
+	e.Use(buffers.New())
+	var w *window
+	onMain(func() { w = open(e, nil) }, true)
+	for _, k := range ":e " + filepath.Join(dir, "b.txt") + "\r" {
+		keyval := uintptr(k)
+		if k == '\r' {
+			keyval = 0xff0d
+		}
+		onMain(func() { keyPressed(0, keyval, 0, 0, w.win) }, true)
+	}
+	// The strip shows a tab for each buffer, and a click on one shows it.
+	until(t, "two tabs", func() bool {
+		n := 0
+		onMain(func() {
+			surface := cairoImageSurface(0, 800, stripH)
+			defer cairoSurfaceDestroy(surface)
+			cr = cairoCreate(surface)
+			w.drawStrip(800, pad, 800-pad, stripH)
+			cairoDestroy(cr)
+			cr = 0
+			n = len(w.hits)
+		}, true)
+		return n == 2
+	})
+	onMain(func() { w.stripPress((w.hits[0].from+w.hits[0].to)/2 - slotW) }, true)
+	until(t, "a.txt to show", func() bool {
+		name := ""
+		w.onLoop(func() { name = e.Windows()[0].Name })
+		return strings.HasSuffix(name, "a.txt")
+	})
+	// A change to a buffer puts a dot before the title.
+	for _, k := range "ix" {
+		onMain(func() { keyPressed(0, uintptr(k), 0, 0, w.win) }, true)
+	}
+	onMain(func() { keyPressed(0, 0xff1b, 0, 0, w.win) }, true)
+	until(t, "the title to show the change", func() bool {
+		title := ""
+		onMain(func() { title = gtkWindowTitle(w.win) }, true)
+		return strings.HasPrefix(title, "• ")
+	})
+	// Control with = makes the text bigger, so the window holds fewer
+	// columns.
+	cols := 0
+	w.onLoop(func() { cols = e.Windows()[0].W })
+	onMain(func() { keyPressed(0, '=', 0, gdkControl, w.win) }, true)
+	until(t, "fewer columns", func() bool {
+		now := 0
+		w.onLoop(func() { now = e.Windows()[0].W })
+		return now < cols
+	})
+	onMain(func() { keyPressed(0, '0', 0, gdkControl, w.win) }, true)
+	for _, k := range "\x1b:qa!\r" {
+		keyval := uintptr(k)
+		switch k {
+		case '\x1b':
+			keyval = 0xff1b
+		case '\r':
+			keyval = 0xff0d
+		}
+		onMain(func() { keyPressed(0, keyval, 0, 0, w.win) }, true)
+	}
+	until(t, "the session to end", func() bool {
+		open := true
+		onMain(func() { _, open = windows[w.win] }, true)
+		return !open
+	})
+}
+
 var (
 	cairoImageSurface   func(format, w, h int32) uintptr
 	cairoCreate         func(surface uintptr) uintptr
@@ -218,6 +296,7 @@ var (
 	cairoWritePNG       func(surface uintptr, path string) int32
 	gtkWindowClose      func(w uintptr)
 	gActionActivate     func(action, param uintptr)
+	gtkWindowTitle      func(w uintptr) string
 )
 
 // paint draws p as GTK would, into an image, or returns nil before p has

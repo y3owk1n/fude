@@ -1455,8 +1455,8 @@ Where fude departs, the line says so and cites the departure in
   Keys typed there go to the session as Vim keys, with an Alt chord as
   `<Esc>` and the key and a Super chord left to the desktop. Resizing the
   window resizes the session, a question shows in a dialog, and closing
-  the window quits as `:qa` does. It needs GTK 4. Images, scroll bars, the
-  tab strip and input methods do not work there yet.
+  the window quits as `:qa` does. It needs GTK 4. Images, scroll bars and
+  input methods do not work there yet.
 - B567 [10] With `--gui` on Linux, the mouse does what it does on macOS
   (B552, B555, B556, B557, B560, B562, B563). A click on text puts the
   cursor there, a drag selects, a double click selects a word and a triple
@@ -1466,6 +1466,14 @@ Where fude departs, the line says so and cites the departure in
   rest on a word shows its hover, and with Control a word is a link to its
   definition. A right click shows the menu of B561 as GTK's popover menu.
   Control and Shift with C copy and with V paste, as Linux's terminals do.
+- B568 [10] With `--gui` on Linux, the tab strip is the title of a GTK
+  header bar, beside its window buttons, and works as on macOS (B555). A
+  click on a tab shows it, a click on its × or a middle click closes it,
+  and a dragged tab moves. A press off the tabs drags the window, and a
+  double click there maximizes it. The window's title starts with a dot
+  while a buffer it shows has changes. Control with =, minus and 0 make
+  the text bigger, smaller and its first size, and each window takes as
+  many cells as it then holds.
 - B544 [2] A session has tab pages, each with its own windows, floats
   and current window, as in Neovim. `:tabnew` and `:tabedit` open one
   after the current page, on a file or a new empty buffer. `gt`, `{n}gt`,
