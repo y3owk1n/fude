@@ -89,7 +89,7 @@ func (c *client) commandLine(w, h int, menu string, spans []syntax.Span) (int, i
 				break
 			}
 			style := ground
-			if p := at + k; p < len(styles) && styles[p] == colours["match"] {
+			if p := at + k; p < len(styles) && styles[p] == lk.Names["match"] {
 				style = colours["match"].Background(ground.GetBackground())
 			}
 			_, cw := c.s.Put(x, top+3+i, string(r), style)
@@ -339,7 +339,7 @@ func (c *client) box(text string, spans []syntax.Span, rows []row, x, y, width, 
 			}
 			s := style
 			if p < len(styles) {
-				s = styles[p]
+				s = tcellStyle(styles[p])
 			}
 			s = s.Background(ground)
 			if rest[0] == '\t' {
@@ -391,7 +391,7 @@ func (c *client) floating(v wire.Window, sel vim.Selection, visual bool) (int, i
 		for rest := line; rest != "" && col < v.X+v.W; {
 			s := base
 			if p := at + len(line) - len(rest); p < len(styles) {
-				s = styles[p]
+				s = tcellStyle(styles[p])
 			}
 			next, w := c.s.Put(col, v.Y+v.H+1+i, rest, s)
 			if len(next) == len(rest) {
@@ -402,13 +402,4 @@ func (c *client) floating(v wire.Window, sel vim.Selection, visual bool) (int, i
 		at += len(line) + 1
 	}
 	return x, y, ok
-}
-
-// floatRows draws a rule across row of v, a float, when the line at pos is
-// a markup.rule one.
-func (c *client) floatRows(v wire.Window, pos, row int) {
-	if slices.ContainsFunc(v.Highlights, func(s syntax.Span) bool { return s.Name == "markup.rule" && s.Start == pos }) ||
-		slices.ContainsFunc(v.Decorations, func(s syntax.Span) bool { return s.Name == "markup.rule" && s.Start == pos }) {
-		c.rule(v.X-2, v.Y+row, v.W+2)
-	}
 }

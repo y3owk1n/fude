@@ -3,10 +3,18 @@
 // and the style each name of highlighted text takes (D33).
 package theme
 
-import "github.com/y3owk1n/fude/wire"
+import (
+	"strings"
 
-// RGB is a colour as 0xRRGGBB.
+	"github.com/y3owk1n/fude/wire"
+)
+
+// RGB is a colour as 0xRRGGBB, or None.
 type RGB int32
+
+// None is no colour: a style with it keeps the colour of the cell it draws
+// over.
+const None RGB = -1
 
 // Theme is a theme's colour for each role.
 type Theme struct {
@@ -102,10 +110,29 @@ func Mix(a, b RGB, f float64) RGB {
 	return at(16) | at(8) | at(0)
 }
 
-// Style is how a name's text draws.
+// Style is how text draws. Its underline is in Under while UnderSet, and
+// else in the text's colour.
 type Style struct {
 	Fg, Bg                          RGB
 	Bold, Italic, Underline, Strike bool
+	Under                           RGB
+	UnderSet                        bool
+}
+
+// Name returns the style of text called name in l: its own, or that of the
+// name without its last part, so function.builtin falls back to function,
+// or else one of no colours.
+func (l Look) Name(name string) (Style, bool) {
+	for {
+		if s, ok := l.Names[name]; ok {
+			return s, true
+		}
+		i := strings.LastIndexByte(name, '.')
+		if i < 0 {
+			return Style{Fg: None, Bg: None}, false
+		}
+		name = name[:i]
+	}
 }
 
 // Look is what drawing takes from a theme.

@@ -20,8 +20,13 @@ type theme struct {
 	number, comment, punct      color.Color
 }
 
-// rgb is c as tcell takes it.
-func rgb(c look.RGB) color.Color { return color.NewHexColor(int32(c)) }
+// rgb is c as tcell takes it, None as no colour.
+func rgb(c look.RGB) color.Color {
+	if c == look.None {
+		return color.None
+	}
+	return color.NewHexColor(int32(c))
+}
 
 // tcellTheme is t in tcell's colours.
 func tcellTheme(t look.Theme) theme {
@@ -38,6 +43,7 @@ func tcellTheme(t look.Theme) theme {
 
 // styles are a look of internal/theme as tcell draws it.
 type styles struct {
+	look        look.Look
 	th          theme
 	base        tcell.Style
 	colours     map[string]tcell.Style
@@ -78,14 +84,14 @@ func useTheme(t look.Theme, own map[string]wire.Style) {
 
 // apply makes drawing take s.
 func apply(s styles) {
-	th, base, colours, underlines, signColours = s.th, s.base, s.colours, s.underlines, s.signColours
+	lk, th, base, colours, underlines, signColours = s.look, s.th, s.base, s.colours, s.underlines, s.signColours
 }
 
 // build is l as tcell draws it.
 func build(l look.Look) styles {
-	s := styles{th: tcellTheme(l.Theme), base: style(l.Base), colours: map[string]tcell.Style{}, underlines: map[string]color.Color{}, signColours: map[string]color.Color{}}
+	s := styles{look: l, th: tcellTheme(l.Theme), base: tcellStyle(l.Base), colours: map[string]tcell.Style{}, underlines: map[string]color.Color{}, signColours: map[string]color.Color{}}
 	for name, st := range l.Names {
-		s.colours[name] = style(st)
+		s.colours[name] = tcellStyle(st)
 	}
 	for name, c := range l.Underlines {
 		s.underlines[name] = rgb(c)
@@ -96,7 +102,11 @@ func build(l look.Look) styles {
 	return s
 }
 
-// style is s as tcell draws it.
-func style(s look.Style) tcell.Style {
-	return tcell.StyleDefault.Background(rgb(s.Bg)).Foreground(rgb(s.Fg)).Bold(s.Bold).Italic(s.Italic).Underline(s.Underline).StrikeThrough(s.Strike)
+// tcellStyle is s as tcell draws it.
+func tcellStyle(s look.Style) tcell.Style {
+	t := tcell.StyleDefault.Background(rgb(s.Bg)).Foreground(rgb(s.Fg)).Bold(s.Bold).Italic(s.Italic).StrikeThrough(s.Strike)
+	if s.UnderSet {
+		return t.Underline(s.Underline, rgb(s.Under))
+	}
+	return t.Underline(s.Underline)
 }

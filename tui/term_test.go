@@ -437,7 +437,7 @@ func TestB208Colours(t *testing.T) {
 	for _, cell := range []struct {
 		x       int
 		bg, ink color.Color
-	}{{2, color.NewHexColor(0xff0000), color.White}, {10, color.NewHexColor(0x00ff00), color.Black}, {26, color.NewHexColor(0x0000ff), color.White}} {
+	}{{2, color.NewHexColor(0xff0000), color.NewHexColor(0xffffff)}, {10, color.NewHexColor(0x00ff00), color.NewHexColor(0x000000)}, {26, color.NewHexColor(0x0000ff), color.NewHexColor(0xffffff)}} {
 		if _, style, _ := c.s.Get(cell.x, 0); style.GetBackground() != cell.bg || style.GetForeground() != cell.ink {
 			t.Errorf("the colour at column %d is drawn on %v in %v, want %v in %v", cell.x, style.GetBackground(), style.GetForeground(), cell.bg, cell.ink)
 		}
