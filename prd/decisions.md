@@ -948,11 +948,11 @@ can show its session in a window.
 Win32, each the platform's own, as D65 uses AppKit. On Linux purego opens
 GTK4, cairo and Pango, as it opens AppKit, so no cgo is added outside
 `syntax/`. On Windows `syscall` calls Win32, and DirectWrite and Direct2D
-through their COM interfaces, with Mica from DWM on Windows 11. `gui/`
-keeps what all three share, the painter and the frames it hands the main
-thread, in plain files, and each system has the same unexported functions
-in its own `_darwin`, `_linux` and `_windows` files, with no interface
-type between them.
+through their COM interfaces, with the tab strip drawn as the window's
+title bar. `gui/` keeps what all three share, the painter and the frames
+it hands the main thread, in plain files, and each system has the same
+unexported functions in its own `_darwin`, `_linux` and `_windows` files,
+with no interface type between them.
 
 Why, as of 2026-10-23: the user chose GTK4 for Linux and Win32 with
 DirectWrite for Windows. A spike showed purego calls GTK 4.18 on
@@ -961,8 +961,10 @@ linux/arm64 with cgo on, with callbacks for signals and drawing,
 desktop's theme, fonts and menus, which raw Wayland and X11 would leave to
 fude. WinUI 3 needs the Windows App SDK's runtime, and GDI blurs text at
 high DPI, so Windows takes Win32 with DirectWrite. Linux comes first, as
-Docker with a virtual display runs and shows its window here, while
-Windows waits on the user's VM.
+Docker with a virtual display runs and shows its window here, and
+Windows followed, its tests run in the user's VM. purego passes the
+floats that Direct2D's and DirectWrite's methods take, as `syscall` does
+not on arm64.
 
 ## Departures from Neovim
 

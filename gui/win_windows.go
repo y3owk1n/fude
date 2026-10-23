@@ -66,6 +66,7 @@ const (
 	wmClose      = 0x0010
 	wmEraseBkgnd = 0x0014
 	wmKeyDown    = 0x0100
+	wmKeyUp      = 0x0101
 	wmChar       = 0x0102
 	wmSysKeyDown = 0x0104
 	wmSysChar    = 0x0106

@@ -1499,6 +1499,16 @@ Where fude departs, the line says so and cites the departure in
   left to the system. Resizing the window, or moving it to a screen of
   another scale, resizes the session, a question shows in a dialog, and
   closing the window quits as `:qa` does.
+- B574 [10] With `--gui` on Windows, the mouse does what it does on macOS
+  (B552, B555, B556, B557, B560, B562, B563). A click on text puts the
+  cursor there, a drag selects, a double click selects a word and a triple
+  click a line, and a dragged selection moves its text. A click picks from
+  a list, and a click off the palette or the finder closes it. A wheel
+  scrolls a window the lines Windows scrolls for a notch, and dragging the
+  divider between two panes resizes their windows. A rest on a word shows
+  its hover, and with Control a word is a link to its definition. A right
+  click shows the menu of B561 as a Windows menu. Control and Shift with C
+  copy and with V paste, as Windows Terminal does.
 - B544 [2] A session has tab pages, each with its own windows, floats
   and current window, as in Neovim. `:tabnew` and `:tabedit` open one
   after the current page, on a file or a new empty buffer. `gt`, `{n}gt`,

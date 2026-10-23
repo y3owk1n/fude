@@ -18,18 +18,21 @@ import (
 // everything on, and what the main thread keeps of them.
 type native struct {
 	hwnd          uintptr
-	target, brush unsafe.Pointer // nil until it paints, and again once the device goes
-	scale         float64        // the window's pixels to a point
-	title         string         // the title the session last gave
-	layout        wire.Split     // the layout the panes show
-	key           string         // says what layout is
-	dividers      []rect         // between the panes, in the window's points
-	sent          places         // the places the loop was last given
+	target, brush unsafe.Pointer     // nil until it paints, and again once the device goes
+	scale         float64            // the window's pixels to a point
+	title         string             // the title the session last gave
+	layout        wire.Split         // the layout the panes show
+	key           string             // says what layout is
+	dividers      []divider          // between the panes
+	moved         map[string]float64 // the sizes of the kids dividers were dragged after, by divider
+	sent          places             // the places the loop was last given
 	look          theme.Look
 	asked         int    // the question the dialog is for, as frame.asked counts
 	asking        bool   // the dialog shows
 	order         []*box // the boxes, from the bottom
 	surrogate     uint16 // the first half of a character two WM_CHARs bring
+
+	mouseNative
 }
 
 // opened are the windows by their HWNDs.
@@ -106,21 +109,35 @@ func (w *window) handle(m uint32, wp, lp uintptr) (uintptr, bool) {
 		}
 	case wmKeyDown, wmSysKeyDown:
 		return 0, w.keyDown(wp)
+	case wmKeyUp:
+		// Control going up ends the link under the mouse.
+		if wp == 0x11 {
+			w.relink()
+		}
+		return 0, false
 	case wmChar:
 		w.char(wp)
 	case wmSysChar:
 		return 0, w.sysChar(wp)
 	default:
-		return 0, false
+		return 0, w.mouse(m, wp, lp)
 	}
 	return 0, true
+}
+
+// relink shows or ends the link under the mouse as Control goes down or up
+// (B563).
+func (w *window) relink() {
+	for _, p := range w.panes {
+		p.relink(held())
+	}
 }
 
 // open makes a window for s and starts its loop. ended runs on the main
 // thread once s ends.
 func open(s client.Session, ended func()) *window {
 	cols, rows := 100, 32
-	w := &window{s: s, keys: make(chan vim.Key, 1024), do: make(chan func()), pastes: make(chan string, 8), mice: make(chan mouse, 64), ended: ended, placed: make(chan struct{}, 1), panes: map[int]*pane{}, floats: map[int]*box{}, caretOn: true, hover: -1}
+	w := &window{s: s, keys: make(chan vim.Key, 1024), do: make(chan func()), pastes: make(chan string, 8), mice: make(chan mouse, 64), ended: ended, placed: make(chan struct{}, 1), panes: map[int]*pane{}, floats: map[int]*box{}, caretOn: true, hover: -1, native: native{mouseNative: mouseNative{splitting: -1}}}
 	const style = 0x00CF0000 // WS_OVERLAPPEDWINDOW
 	w.hwnd = call(createWindow, 0, uintptr(unsafe.Pointer(className)), uintptr(unsafe.Pointer(cwide("fude"))), style, 1<<31, 1<<31, 1<<31, 1<<31, 0, 0, call(getModuleHandle, 0), 0)
 	dpi := call(getDpiForWindow, w.hwnd)
@@ -189,7 +206,7 @@ func (w *window) paint() {
 		within(p.frame, func(sz size) { drawPane(p, sz) })
 	}
 	for _, d := range w.dividers {
-		fill("separatorColor", d)
+		fill("separatorColor", d.r)
 	}
 	for _, b := range w.order {
 		if b.boxed != nil {
@@ -361,9 +378,21 @@ func held() int {
 
 // keyDown types a key down that types no character, or one with Control,
 // as its keys in Vim's notation, and reports whether it took the key. The
-// characters the others type come as WM_CHAR and WM_SYSCHAR.
+// characters the others type come as WM_CHAR and WM_SYSCHAR. Control and
+// Shift with C copy and with V paste, as Windows Terminal does.
 func (w *window) keyDown(vk uintptr) bool {
 	mods := held()
+	switch {
+	case vk == 0x11:
+		w.relink()
+		return false
+	case mods == controlKey|shiftKey && vk == 'C':
+		w.edit("Copy")
+		return true
+	case mods == controlKey|shiftKey && vk == 'V':
+		w.paste()
+		return true
+	}
 	named, plain := virtualKeys[vk], ""
 	if named == "" {
 		if mods&controlKey == 0 {

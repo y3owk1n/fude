@@ -1,16 +1,21 @@
 package gui
 
 import (
+	"fmt"
 	"image"
 	"math"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"testing"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
 
 	"github.com/y3owk1n/fude/editor/editortest"
+	windowmod "github.com/y3owk1n/fude/modules/window"
+	"github.com/y3owk1n/fude/vim"
 )
 
 // TestMain runs the windows' messages on the main thread and the tests
@@ -71,6 +76,143 @@ func TestB573WindowsWindow(t *testing.T) {
 	typeIn(w, ":w\r")
 	until(t, "the file to be written", func() bool { b, _ := os.ReadFile(path); return string(b) == "one!\n" })
 	onMain(func() { call(sendMessage, w.hwnd, wmClose, 0, 0) }, true)
+	until(t, "the session to end", func() bool {
+		open := true
+		onMain(func() { _, open = opened[w.hwnd] }, true)
+		return !open
+	})
+}
+
+// B574
+func TestB574WindowsMouse(t *testing.T) {
+	lines := []string{"one two", "three"}
+	for i := range 100 {
+		lines = append(lines, fmt.Sprint("line ", i))
+	}
+	path := filepath.Join(t.TempDir(), "a.txt")
+	editortest.Change(t, path, strings.Join(lines, "\n")+"\n")
+	e := editortest.Open(t, path)
+	e.Use(hovering{})
+	e.Use(windowmod.New())
+	var w *window
+	onMain(func() { w = open(e, nil) }, true)
+	var p *pane
+	until(t, "the pane", func() bool {
+		onMain(func() {
+			for _, q := range w.panes {
+				if len(q.cells) > 0 && q.frame.Size.H > 0 {
+					p = q
+				}
+			}
+		}, true)
+		return p != nil
+	})
+	cell := func(x, y int) point {
+		return point{p.frame.Origin.X + pad + (float64(x)+0.5)*cellW, p.frame.Origin.Y + pad + (float64(y)+0.5)*cellH}
+	}
+	send := func(m uint32, wp uintptr, at point) {
+		onMain(func() {
+			lp := uintptr(uint16(int16(at.X*w.scale))) | uintptr(uint16(int16(at.Y*w.scale)))<<16
+			call(sendMessage, w.hwnd, uintptr(m), wp, lp)
+		}, true)
+	}
+	click := func(from, to point) {
+		send(wmLButtonDown, 1, from)
+		send(wmMouseMove, 1, to)
+		send(wmLButtonUp, 0, to)
+	}
+	// selected reads the selection once the session has every click.
+	selected := func(start, end int) bool {
+		var s vim.Selection
+		var ok bool
+		until(t, "the clicks to be given", func() bool { return len(w.mice) == 0 })
+		w.onLoop(func() { s, ok = e.Selection() })
+		return ok && s.Start == start && s.End == end
+	}
+	// A click puts the cursor on the character it hits, and a drag selects
+	// from there.
+	click(cell(4, 0), cell(4, 0))
+	until(t, "the cursor on two", func() bool {
+		c := -1
+		w.onLoop(func() { c = e.Cursor() })
+		return c == 4
+	})
+	click(cell(0, 1), cell(2, 1))
+	until(t, "thr to be selected", func() bool { return selected(8, 11) })
+	// A second click soon after the first selects the word it hits, and a
+	// move within its cell does not drag.
+	click(cell(5, 0), cell(5, 0))
+	click(cell(5, 0), cell(5, 0))
+	until(t, "two to be selected", func() bool { return selected(4, 7) })
+	typeIn(w, "\x1b")
+	until(t, "normal mode", func() bool {
+		var m vim.Mode
+		w.onLoop(func() { m = e.Mode() })
+		return m == vim.Normal
+	})
+	// A rest on a word shows its hover, once the mouse moved since the
+	// last click.
+	send(wmMouseMove, 0, cell(6, 0))
+	until(t, "the hover of two", func() bool {
+		text := ""
+		w.onLoop(func() {
+			for _, v := range e.Windows() {
+				if v.Float == "cursor" {
+					text = v.Text.Slice(0, v.Text.Len())
+				}
+			}
+		})
+		return text == "at 6"
+	})
+	// The wheel scrolls the window the lines the system scrolls a notch.
+	onMain(func() {
+		at := cell(0, 2)
+		pt := [2]int32{int32(at.X * w.scale), int32(at.Y * w.scale)}
+		call(clientToScreen, w.hwnd, uintptr(unsafe.Pointer(&pt)))
+		delta := int16(-240)
+		call(sendMessage, w.hwnd, wmMouseWheel, uintptr(uint16(delta))<<16, uintptr(uint16(pt[0]))|uintptr(uint16(pt[1]))<<16)
+	}, true)
+	notch := uint32(0)
+	call(systemParameters, 0x68, 0, uintptr(unsafe.Pointer(&notch)), 0)
+	until(t, "the window to scroll two notches", func() bool {
+		top := -1
+		w.onLoop(func() { top = e.Windows()[0].Text.LineOf(e.Windows()[0].Top) })
+		return top == int(2*notch)
+	})
+	// The right click's Select All selects the text.
+	all := slices.IndexFunc(contextItems, func(it struct{ title, keys, needs string }) bool { return it.title == "Select All" })
+	onMain(func() { w.choose(all) }, true)
+	until(t, "the text to be selected", func() bool {
+		var s vim.Selection
+		var ok bool
+		w.onLoop(func() { s, ok = e.Selection() })
+		return ok && s.Kind == "V" && s.Start == 0
+	})
+	// Dragging the divider between two windows resizes them.
+	typeIn(w, "\x1b:vsplit\r")
+	var d divider
+	until(t, "the divider", func() bool {
+		onMain(func() {
+			if len(w.dividers) == 1 {
+				d = w.dividers[0]
+			}
+		}, true)
+		return d.across
+	})
+	mid := point{d.r.Origin.X, d.r.Origin.Y + 50}
+	send(wmLButtonDown, 1, mid)
+	send(wmMouseMove, 1, point{mid.X - 20*cellW, mid.Y})
+	send(wmLButtonUp, 0, point{mid.X - 20*cellW, mid.Y})
+	until(t, "the left window 20 columns narrower", func() bool {
+		var ws []int
+		w.onLoop(func() {
+			for _, v := range e.Windows() {
+				ws = append(ws, v.W)
+			}
+		})
+		return len(ws) == 2 && max(ws[0], ws[1])-min(ws[0], ws[1]) >= 38
+	})
+	typeIn(w, ":qa!\r")
 	until(t, "the session to end", func() bool {
 		open := true
 		onMain(func() { _, open = opened[w.hwnd] }, true)

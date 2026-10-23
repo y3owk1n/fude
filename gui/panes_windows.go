@@ -3,6 +3,7 @@ package gui
 import (
 	"math"
 	"slices"
+	"strconv"
 
 	"github.com/y3owk1n/fude/frontend/wire"
 )
@@ -10,6 +11,16 @@ import (
 // paneNative is where a pane draws in its window, its text over its status
 // bar.
 type paneNative struct{ frame rect }
+
+// divider is a line a point wide between two kids of a split, which the
+// mouse drags. key names it in moved, and from and to are where the kids
+// on either side start and end, along the split.
+type divider struct {
+	r        rect
+	across   bool
+	key      string
+	from, to float64
+}
 
 // pane returns the pane of the window with id, made the first time.
 func (w *window) pane(id int) *pane {
@@ -34,7 +45,7 @@ func (w *window) build(l wire.Split) {
 	for _, id := range ids {
 		w.pane(id)
 	}
-	w.layout = l
+	w.layout, w.moved = l, map[string]float64{}
 	w.arrange()
 }
 
@@ -42,15 +53,16 @@ func (w *window) build(l wire.Split) {
 // it, and the loop where the panes put the windows' text.
 func (w *window) arrange() {
 	w.dividers = w.dividers[:0]
-	w.node(w.layout, rect{Size: w.area()})
+	w.node(w.layout, rect{Size: w.area()}, "")
 	w.placeAll()
 	w.redraw()
 }
 
-// node gives the panes of l their frames in r, with a divider a point wide
-// between each two. A kid that asks for rows or columns gets them, the
-// others share the rest, and the last takes what is left.
-func (w *window) node(l wire.Split, r rect) {
+// node gives the panes of l, at path in the layout, their frames in r,
+// with a divider between each two kids. A kid a divider was dragged after
+// keeps its size, one that asks for rows or columns gets them, the others
+// share the rest, and the last takes what is left.
+func (w *window) node(l wire.Split, r rect, path string) {
 	if len(l.Kids) == 0 {
 		if p := w.panes[l.Window]; p != nil {
 			p.frame = r
@@ -63,8 +75,12 @@ func (w *window) node(l wire.Split, r rect) {
 	}
 	total -= float64(len(l.Kids) - 1)
 	sizes, left, shared := make([]float64, len(l.Kids)), total, 0
+	key := func(i int) string { return path + "/" + strconv.Itoa(i) }
 	for i, k := range l.Kids {
-		if k.Size > 0 {
+		if moved, ok := w.moved[key(i)]; ok {
+			sizes[i] = min(moved, left)
+			left -= sizes[i]
+		} else if k.Size > 0 {
 			sizes[i] = min(float64(k.Size)*cell+room, left)
 			left -= sizes[i]
 		} else {
@@ -72,7 +88,7 @@ func (w *window) node(l wire.Split, r rect) {
 		}
 	}
 	for i, k := range l.Kids {
-		if k.Size == 0 {
+		if _, ok := w.moved[key(i)]; !ok && k.Size == 0 {
 			sizes[i] = math.Floor(left / float64(shared))
 		}
 	}
@@ -82,17 +98,23 @@ func (w *window) node(l wire.Split, r rect) {
 		if i == len(l.Kids)-1 {
 			n = total + float64(i) - at
 		}
-		kid, divider := r, r
+		kid, line := r, r
+		start := r.Origin.Y
 		if l.Across {
-			kid.Origin.X, kid.Size.W = r.Origin.X+at, n
-			divider.Origin.X, divider.Size.W = r.Origin.X+at+n, 1
+			start = r.Origin.X
+			kid.Origin.X, kid.Size.W = start+at, n
+			line.Origin.X, line.Size.W = start+at+n, 1
 		} else {
-			kid.Origin.Y, kid.Size.H = r.Origin.Y+at, n
-			divider.Origin.Y, divider.Size.H = r.Origin.Y+at+n, 1
+			kid.Origin.Y, kid.Size.H = start+at, n
+			line.Origin.Y, line.Size.H = start+at+n, 1
 		}
-		w.node(k, kid)
+		w.node(k, kid, key(i))
 		if i < len(l.Kids)-1 {
-			w.dividers = append(w.dividers, divider)
+			next := sizes[i+1]
+			if i+1 == len(l.Kids)-1 {
+				next = total + float64(i+1) - at - n - 1
+			}
+			w.dividers = append(w.dividers, divider{line, l.Across, key(i), start + at, start + at + n + 1 + next})
 		}
 		at += n + 1
 	}
@@ -136,8 +158,6 @@ func drawPane(p *pane, bounds size) {
 // redraw draws p again, with its window.
 func (p *pane) redraw() { p.w.redraw() }
 
-// pointer, showBar and drawPics do nothing until the mouse, the scroll
-// bars and images come.
-func (p *pane) pointer(bool)            {}
+// showBar and drawPics do nothing until the scroll bars and images come.
 func (p *pane) showBar(bool)            {}
 func (w *window) drawPics([]pic, point) {}
