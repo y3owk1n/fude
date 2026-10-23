@@ -19,6 +19,8 @@ const statusH = 22
 type pane struct {
 	w                  *window
 	view, text, status objc.ID
+	id                 int     // the window's
+	wheel              float64 // the lines a scroll moved short of one
 	cells              [][]cell
 	cursor             cursorAt
 	left, right        []client.Part
@@ -37,7 +39,7 @@ func (w *window) pane(id int) *pane {
 	if p := w.panes[id]; p != nil {
 		return p
 	}
-	p := &pane{w: w}
+	p := &pane{w: w, id: id}
 	p.view = msgInitView(objc.ID(paneClass).Send(sel("alloc")), sel("initWithFrame:"), rect{})
 	p.text = msgInitView(objc.ID(textClass).Send(sel("alloc")), sel("initWithFrame:"), rect{})
 	p.status = msgInitView(objc.ID(statusClass).Send(sel("alloc")), sel("initWithFrame:"), rect{})

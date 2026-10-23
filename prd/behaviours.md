@@ -1322,6 +1322,21 @@ Where fude departs, the line says so and cites the departure in
   Cut, Copy, Paste and Select All do what `u`, `<C-r>`, `"+d`, `"+y`, a
   paste of the system's clipboard and `ggVG` do, in the mode the session
   is in. Command-Q quits as closing the window does.
+- B552 [10] A frontend gives the mouse's clicks, drags and scrolls to the
+  session by the cell of a window's text, gutter included. A click gives
+  that window the focus and puts its cursor on the character the cell
+  shows. A cell in the gutter means the row's first character, and one
+  past the text its last. A click on a status line only gives the
+  focus. A click ends
+  visual mode and keeps insert mode. A drag selects from the click as
+  `v` does. A scroll moves a window's view by lines as `<C-e>` and `<C-y>`
+  do, its cursor kept in view, and leaves the focus where it is. While
+  the command line, the finder or a question shows, clicks and drags do
+  nothing. In `fude gui` a click on a buffer's tab shows it as `:b`
+  does, and one on a tab page as `gt` does. The rest of the strip moves
+  the window, and a double click there zooms it. A trackpad scrolls a
+  line for each row's height it moves, and a wheel a line for each line
+  it turns.
 - B544 [2] A session has tab pages, each with its own windows, floats
   and current window, as in Neovim. `:tabnew` and `:tabedit` open one
   after the current page, on a file or a new empty buffer. `gt`, `{n}gt`,

@@ -1,8 +1,10 @@
 package gui
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -11,6 +13,8 @@ import (
 
 	"github.com/y3owk1n/fude/editor/editortest"
 	"github.com/y3owk1n/fude/frontend/wire"
+	"github.com/y3owk1n/fude/modules/bufferline"
+	"github.com/y3owk1n/fude/modules/buffers"
 	"github.com/y3owk1n/fude/modules/completion"
 	"github.com/y3owk1n/fude/modules/hints"
 	winmod "github.com/y3owk1n/fude/modules/window"
@@ -20,6 +24,13 @@ import (
 // beside it.
 func TestMain(m *testing.M) {
 	load()
+	lib, err := purego.Dlopen("/usr/lib/libobjc.A.dylib", purego.RTLD_GLOBAL)
+	if err != nil {
+		panic(err)
+	}
+	for _, f := range []any{&msgMarked, &msgInserted, &msgMouseEvent, &msgFirstRect, &msgCache, &msgColorAt, &msgComponent} {
+		purego.RegisterLibFunc(f, lib, "objc_msgSend")
+	}
 	app := startApp(true)
 	code := 0
 	go func() {
@@ -289,21 +300,13 @@ func TestB551InputMethodsAndMenu(t *testing.T) {
 	onMain(func() { press(w, 34, 0, "i", "i") }, true)
 	// Text being composed shows at the cursor and types nothing, until the
 	// input method inserts it.
-	var marked func(objc.ID, objc.SEL, objc.ID, nsRange, nsRange)
-	var inserted func(objc.ID, objc.SEL, objc.ID, nsRange)
-	lib, err := purego.Dlopen("/usr/lib/libobjc.A.dylib", purego.RTLD_GLOBAL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	purego.RegisterLibFunc(&marked, lib, "objc_msgSend")
-	purego.RegisterLibFunc(&inserted, lib, "objc_msgSend")
 	until(t, "insert mode", func() bool {
 		var mode string
 		onMain(func() { mode = w.tabs.mode }, true)
 		return mode == "insert"
 	})
 	onMain(func() {
-		marked(w.view, sel("setMarkedText:selectedRange:replacementRange:"), nsString("にほん"), nsRange{3, 0}, nsRange{Loc: notFound})
+		msgMarked(w.view, sel("setMarkedText:selectedRange:replacementRange:"), nsString("にほん"), nsRange{3, 0}, nsRange{Loc: notFound})
 	}, true)
 	var composing, shown bool
 	var at, frame rect
@@ -321,7 +324,7 @@ func TestB551InputMethodsAndMenu(t *testing.T) {
 		t.Errorf("the cursor is at %v, outside the window at %v", at, frame)
 	}
 	onMain(func() {
-		inserted(w.view, sel("insertText:replacementRange:"), nsString("日本"), nsRange{Loc: notFound})
+		msgInserted(w.view, sel("insertText:replacementRange:"), nsString("日本"), nsRange{Loc: notFound})
 	}, true)
 	until(t, "the inserted text", func() bool { return text() == "日本one" })
 	// Command-Z undoes, and Command-Q quits.
@@ -370,6 +373,88 @@ func TestB551InputMethodsAndMenu(t *testing.T) {
 	})
 }
 
+// B552
+func TestB552Mouse(t *testing.T) {
+	dir := t.TempDir()
+	var lines []string
+	for i := range 60 {
+		lines = append(lines, fmt.Sprint("line ", i))
+	}
+	editortest.Change(t, filepath.Join(dir, "b.txt"), "two\n")
+	path := filepath.Join(dir, "a.txt")
+	editortest.Change(t, path, strings.Join(lines, "\n"))
+	e := editortest.Open(t, path)
+	e.Use(bufferline.New())
+	e.Use(buffers.New())
+	var w *window
+	onMain(func() { w = open(e, nil) }, true)
+	for _, c := range ":e b.txt" {
+		onMain(func() { press(w, 0, 0, string(c), string(c)) }, true)
+	}
+	onMain(func() { press(w, 36, 0, "\r", "\r") }, true)
+	// shown is the name of the buffer the window shows, and its top.
+	shown := func() (string, int) {
+		var name string
+		var top int
+		w.onLoop(func() { name, top = filepath.Base(e.Windows()[0].Name), e.Windows()[0].Top })
+		return name, top
+	}
+	until(t, "b.txt", func() bool { name, _ := shown(); return name == "b.txt" })
+	// click sends a click at p in view, as the mouse does.
+	click := func(view objc.ID, p point) {
+		onMain(func() {
+			at := msgConvertPoint(view, sel("convertPoint:toView:"), p, 0)
+			ev := msgMouseEvent(cls("NSEvent"), sel("mouseEventWithType:location:modifierFlags:timestamp:windowNumber:context:eventNumber:clickCount:pressure:"),
+				1, at, 0, 0, objc.Send[int](w.win, sel("windowNumber")), 0, 0, 1, 1)
+			w.win.Send(sel("sendEvent:"), ev)
+		}, true)
+	}
+	// A click on the first buffer's tab shows it.
+	until(t, "the tabs", func() bool {
+		n := 0
+		onMain(func() { n = len(w.hits) }, true)
+		return n == 2
+	})
+	var tab hit
+	onMain(func() { tab = w.hits[0] }, true)
+	click(w.bar, point{(tab.from + tab.to) / 2, 10})
+	until(t, "a.txt", func() bool { name, _ := shown(); return name == "a.txt" })
+	// A click in the text puts the cursor on the cell.
+	var text objc.ID
+	onMain(func() {
+		for _, p := range w.panes {
+			text = p.text
+		}
+	}, true)
+	click(text, point{pad + 2.5*cellW, pad + 3.5*cellH})
+	until(t, "the cursor on the cell clicked", func() bool {
+		var at int
+		w.onLoop(func() { at = e.Cursor() })
+		return at == strings.Index(strings.Join(lines, "\n"), "line 3")+2
+	})
+	// A turn of the wheel scrolls the window.
+	onMain(func() {
+		cg, err := purego.Dlopen("/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics", purego.RTLD_GLOBAL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var scroll func(uintptr, uint32, uint32, int32, int32, int32) uintptr
+		purego.RegisterLibFunc(&scroll, cg, "CGEventCreateScrollWheelEvent2")
+		ev := cls("NSEvent").Send(sel("eventWithCGEvent:"), scroll(0, 1, 1, -3, 0, 0))
+		text.Send(sel("scrollWheel:"), ev)
+	}, true)
+	until(t, "the view to scroll", func() bool { _, top := shown(); return top > 0 })
+	for _, c := range ":qa!" {
+		onMain(func() { press(w, 0, 0, string(c), string(c)) }, true)
+	}
+	onMain(func() { press(w, 36, 0, "\r", "\r") }, true)
+	until(t, "the session to end", func() bool {
+		open := true
+		onMain(func() { _, open = windows[w.view] }, true)
+		return !open
+	})
+}
+
 // onLoop runs fn on w's loop, where the session may be read.
 func (w *window) onLoop(fn func()) {
 	done := make(chan struct{})
@@ -396,25 +481,19 @@ func press(w *window, code uint16, mods uint, chars, bare string) {
 }
 
 var (
-	msgFirstRect func(objc.ID, objc.SEL, nsRange, uintptr) rect
-	msgCache     func(objc.ID, objc.SEL, rect, objc.ID)
-	msgColorAt   func(objc.ID, objc.SEL, int, int) objc.ID
-	msgComponent func(objc.ID, objc.SEL) float64
+	msgMarked     func(objc.ID, objc.SEL, objc.ID, nsRange, nsRange)
+	msgInserted   func(objc.ID, objc.SEL, objc.ID, nsRange)
+	msgMouseEvent func(objc.ID, objc.SEL, uint, point, uint, float64, int, objc.ID, int, int, float32) objc.ID
+	msgFirstRect  func(objc.ID, objc.SEL, nsRange, uintptr) rect
+	msgCache      func(objc.ID, objc.SEL, rect, objc.ID)
+	msgColorAt    func(objc.ID, objc.SEL, int, int) objc.ID
+	msgComponent  func(objc.ID, objc.SEL) float64
 )
 
 // inked reports whether the cell at column x and row y, its cells edge
 // points in from the view's edges, shows anything but the ground, read from
 // what the view draws.
 func inked(view objc.ID, edge float64, x, y int) bool {
-	if msgCache == nil {
-		lib, err := purego.Dlopen("/usr/lib/libobjc.A.dylib", purego.RTLD_GLOBAL)
-		if err != nil {
-			panic(err)
-		}
-		for _, f := range []any{&msgFirstRect, &msgCache, &msgColorAt, &msgComponent} {
-			purego.RegisterLibFunc(f, lib, "objc_msgSend")
-		}
-	}
 	b := msgRect(view, sel("bounds"))
 	if b.Size.W < 1 {
 		return false

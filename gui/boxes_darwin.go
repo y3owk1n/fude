@@ -243,6 +243,8 @@ func cellsOf(g *compose.Grid) [][]cell {
 type box struct {
 	view objc.ID
 	*boxed
+	id int     // a float's window, which the mouse goes to, or 0
+	w  *window // a float's
 }
 
 // newBox makes a hidden box in view, with rounded corners and a shadow.

@@ -19,6 +19,11 @@ type Session interface {
 	// Place puts a window's text where the frontend drew it, in cells of
 	// its own grid, over the layout's place for it (B542).
 	Place(window, x, y, w, h int)
+	// Click, Drag and Scroll are the mouse's, in cells of a window's text
+	// as Place counts them. Scroll moves the view n lines (B552).
+	Click(window, x, y int)
+	Drag(window, x, y int)
+	Scroll(window, n int)
 	Focus()
 	Timeout()
 

@@ -22,7 +22,8 @@ type strip struct {
 }
 
 // drawBar draws the tab strip right of the window's buttons (B258, B545).
-// The pages take up to half of it.
+// The pages take up to half of it. It keeps where each tab is, for a click
+// to show it (B552).
 func drawBar(self objc.ID, _ objc.SEL, _ rect) {
 	w := windows[self]
 	if w == nil {
@@ -38,6 +39,7 @@ func drawBar(self objc.ID, _ objc.SEL, _ rect) {
 	r := msgConvertRect(zoom, sel("convertRect:toView:"), msgRect(zoom, sel("bounds")), self)
 	x, end := r.Origin.X+r.Size.W+2*pad, b.W-pad
 	t := w.tabs
+	w.hits = w.hits[:0]
 	if len(t.buffers) == 0 && len(t.pages) == 0 {
 		r := run{text: t.title, font: uiFont, fg: th.Muted}
 		r.draw(math.Round((b.W-r.size())/2), 0, b.H)
@@ -63,7 +65,9 @@ func drawBar(self objc.ID, _ objc.SEL, _ rect) {
 			}
 		}
 		start := end - min(width(pages), (end-x)/2)
-		cut(pages, at, start, end, b.H, th)
+		cut(pages, at, start, end, b.H, th, func(i int, from, to float64) {
+			w.hits = append(w.hits, hit{from, to, pageKeys(i)})
+		})
 		end = start - pad
 	}
 	bufs, at := make([]run, len(t.buffers)), 0
@@ -73,15 +77,19 @@ func drawBar(self objc.ID, _ objc.SEL, _ rect) {
 			at = i
 		}
 	}
-	cut(bufs, at, x, end, b.H, th)
+	cut(bufs, at, x, end, b.H, th, func(i int, from, to float64) {
+		w.hits = append(w.hits, hit{from, to, bufferKeys(t.buffers[i].Number)})
+	})
 }
 
-// cut draws rs from x to end in a bar h tall. When they do not all fit, it
-// draws the ones around the one at current, with ‹ or › where it cuts.
-func cut(rs []run, current int, x, end, h float64, th theme.Theme) {
+// cut draws rs from x to end in a bar h tall, and tells at where each it
+// draws goes, by its index. When they do not all fit, it draws the ones
+// around the one at current, with ‹ or › where it cuts.
+func cut(rs []run, current int, x, end, h float64, th theme.Theme, at func(i int, from, to float64)) {
 	mark := func(text string) run { return run{text: text, font: uiFont, fg: th.Faint} }
 	if width(rs) <= end-x {
-		for _, r := range rs {
+		for i, r := range rs {
+			at(i, x, x+r.size())
 			x = r.draw(x, 0, h)
 		}
 		return
@@ -99,6 +107,7 @@ func cut(rs []run, current int, x, end, h float64, th theme.Theme) {
 			mark("›").draw(x, 0, h)
 			return
 		}
+		at(first+i, x, x+r.size())
 		x = r.draw(x, 0, h)
 	}
 }

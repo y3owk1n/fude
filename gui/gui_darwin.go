@@ -62,14 +62,11 @@ func startApp(background bool) objc.ID {
 	viewClass.AddProtocol(objc.GetProtocol("NSTextInputClient"))
 	markedClass = class("FudeMarked", "NSView", flipped, objc.MethodDef{Cmd: sel("drawRect:"), Fn: drawMarked})
 	paneClass = class("FudePane", "NSView", flipped, objc.MethodDef{Cmd: sel("resizeSubviewsWithOldSize:"), Fn: resizePane})
-	textClass = class("FudeText", "NSView", flipped, objc.MethodDef{Cmd: sel("drawRect:"), Fn: drawText})
-	statusClass = class("FudeStatus", "NSView", flipped, objc.MethodDef{Cmd: sel("drawRect:"), Fn: drawStatus})
+	textClass = class("FudeText", "NSView", append([]objc.MethodDef{flipped, {Cmd: sel("drawRect:"), Fn: drawText}}, textMouse...)...)
+	statusClass = class("FudeStatus", "NSView", append([]objc.MethodDef{flipped, {Cmd: sel("drawRect:"), Fn: drawStatus}}, statusMouse...)...)
 	splitClass = class("FudeSplit", "NSSplitView", objc.MethodDef{Cmd: sel("drawDividerInRect:"), Fn: drawDivider})
-	barClass = class("FudeBar", "NSView", flipped,
-		objc.MethodDef{Cmd: sel("drawRect:"), Fn: drawBar},
-		objc.MethodDef{Cmd: sel("mouseDownCanMoveWindow"), Fn: func(objc.ID, objc.SEL) bool { return true }},
-	)
-	boxClass = class("FudeBox", "NSView", flipped, objc.MethodDef{Cmd: sel("drawRect:"), Fn: drawBox})
+	barClass = class("FudeBar", "NSView", append([]objc.MethodDef{flipped, {Cmd: sel("drawRect:"), Fn: drawBar}}, barMouse...)...)
+	boxClass = class("FudeBox", "NSView", append([]objc.MethodDef{flipped, {Cmd: sel("drawRect:"), Fn: drawBox}}, textMouse...)...)
 	windowDelegate = objc.ID(class("FudeWindowDelegate", "NSObject", objc.MethodDef{Cmd: sel("windowShouldClose:"), Fn: windowShouldClose})).Send(sel("alloc")).Send(sel("init"))
 	font = msgFont(cls("NSFont"), sel("monospacedSystemFontOfSize:weight:"), 14, 0).Send(sel("retain"))
 	boldFont = msgFont(cls("NSFont"), sel("monospacedSystemFontOfSize:weight:"), 14, 0.4).Send(sel("retain"))
@@ -113,6 +110,7 @@ type window struct {
 	keys   chan vim.Key
 	do     chan func() // run on the loop, between keys, for tests
 	pastes chan string
+	mice   chan mouse
 	ended  func() // runs on the main thread once the session ends
 
 	mu      sync.Mutex
@@ -131,6 +129,8 @@ type window struct {
 	panel, toast *box
 	asked        int     // the question the sheet is for, as frame.asked counts
 	sheet        objc.ID // the alert showing, 0 for none
+	dragged      mouse   // the last click or drag, to send a drag once a cell
+	hits         []hit   // the tabs the strip shows
 	marked       string  // the text an input method composes
 	preedit      objc.ID // the view that shows it
 	event        objc.ID // the key down the input method has
@@ -184,7 +184,7 @@ type placed struct {
 func open(s client.Session, ended func()) *window {
 	cols, rows := 100, 32
 	r := rect{Size: size{cellW*float64(cols) + 2*pad, cellH*float64(rows) + 2*pad}}
-	w := &window{s: s, keys: make(chan vim.Key, 1024), do: make(chan func()), pastes: make(chan string, 8), ended: ended, placed: make(chan struct{}, 1), panes: map[int]*pane{}, floats: map[int]*box{}}
+	w := &window{s: s, keys: make(chan vim.Key, 1024), do: make(chan func()), pastes: make(chan string, 8), mice: make(chan mouse, 64), ended: ended, placed: make(chan struct{}, 1), panes: map[int]*pane{}, floats: map[int]*box{}}
 	// The content reaches under the title bar, which the tab strip takes.
 	w.win = msgInitWindow(cls("NSWindow").Send(sel("alloc")), sel("initWithContentRect:styleMask:backing:defer:"), r, 15|1<<15, 2, false)
 	w.win.Send(sel("setReleasedWhenClosed:"), 0)
@@ -252,6 +252,8 @@ func (w *window) loop(cols, rows int) {
 			f()
 		case text := <-w.pastes:
 			s.Paste(text)
+		case m := <-w.mice:
+			m.give(s)
 		case <-w.placed:
 			w.mu.Lock()
 			pl := w.places
@@ -543,6 +545,7 @@ func (w *window) apply() {
 		if b == nil {
 			// It goes under the palette, the finder and toasts.
 			b = newBox(w.view)
+			b.id, b.w = id, w
 			w.view.Send(sel("addSubview:positioned:relativeTo:"), b.view, -1, w.panel.view)
 			w.floats[id] = b
 		}
