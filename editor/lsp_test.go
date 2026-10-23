@@ -330,6 +330,10 @@ func TestFakeServer(t *testing.T) {
 		case "textDocument/hover":
 			p := m.Params.Position
 			value := fmt.Sprintf("```go\nfunc target()\n```\n---\n**hover** at %d:%d", p.Line, p.Character)
+			// The text's first character has nothing to say.
+			if p.Line == 0 && p.Character == 0 {
+				value = ""
+			}
 			reply(m.ID, map[string]any{"contents": map[string]any{"kind": "markdown", "value": value}})
 		case "textDocument/didOpen":
 			opened[m.Params.TextDocument.URI] = m.Params.TextDocument.Text
@@ -1126,11 +1130,45 @@ func TestB62DefinitionAndHover(t *testing.T) {
 	}
 }
 
+// B562
+func TestB562HoverAtTheMouse(t *testing.T) {
+	e, log := withServer(t, "a\nb target\n", "utf-8")
+	heard(t, log, `"method":"textDocument/didOpen"`, 1)
+	v := e.Windows()[0]
+	e.Hover(v.ID, v.Gutter+4, 1)
+	settle(t, e, func() bool { _, text := floatAt(e, "cursor"); return text != "" })
+	f, float := floatAt(e, "cursor")
+	if float != "func target()\n---\nhover at 1:4" || e.Cursor() != 0 || e.Message() != "" {
+		t.Errorf("hover at the mouse showed %q with the cursor at %d and message %q", float, e.Cursor(), e.Message())
+	}
+	// It shows below the hovered cell, not the cursor's.
+	if f.Y != v.Y+3 {
+		t.Errorf("hover at the mouse is at row %d, want %d", f.Y, v.Y+3)
+	}
+	// K at the cursor does not enter it.
+	if feed(e, "K"); floated(e) {
+		t.Error("K entered the hover the mouse opened")
+	}
+	e.Hover(v.ID, v.Gutter+4, 1)
+	settle(t, e, func() bool { _, text := floatAt(e, "cursor"); return text != "" })
+	// Off a word it closes.
+	if e.Hover(v.ID, v.Gutter+1, 1); func() bool { _, text := floatAt(e, "cursor"); return text != "" }() {
+		t.Error("hover stayed with the mouse off the word")
+	}
+	// A word with nothing to say says nothing.
+	e.Hover(v.ID, v.Gutter, 0)
+	heard(t, log, `"method":"textDocument/hover"`, 2)
+	editortest.Quiet(t, e)
+	if e.Message() != "" {
+		t.Errorf("hover with nothing to say showed %q", e.Message())
+	}
+}
+
 // B552
 func TestB552ClickClosesWhatIsAtTheCursor(t *testing.T) {
 	e, log := withServer(t, "a\nb target\n", "utf-8")
 	heard(t, log, `"method":"textDocument/didOpen"`, 1)
-	feed(e, "K")
+	feed(e, "jwK")
 	settle(t, e, func() bool { _, text := floatAt(e, "cursor"); return text != "" })
 	v := e.Windows()[0]
 	if e.Click(v.ID, v.Gutter+2, 1); func() bool { _, text := floatAt(e, "cursor"); return text != "" }() {

@@ -19,13 +19,14 @@ type Session interface {
 	// Place puts a window's text where the frontend drew it, in cells of
 	// its own grid, over the layout's place for it (B542).
 	Place(window, x, y, w, h int)
-	// Click, Drag, Release and Scroll are the mouse's, in cells of a
-	// window's text as Place counts them. Scroll moves the view n lines
-	// (B552, B557).
+	// Click, Drag, Release, Scroll and Hover are the mouse's, in cells of
+	// a window's text as Place counts them. Scroll moves the view n lines,
+	// and Hover is where the mouse rests (B552, B557, B562).
 	Click(window, x, y int)
 	Drag(window, x, y int)
 	Scroll(window, n int)
 	Release(window, x, y int)
+	Hover(window, x, y int)
 	// Pick takes item n of the Items of the menu that shows (B556).
 	Pick(n int)
 	Focus()

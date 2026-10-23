@@ -53,8 +53,9 @@ type window struct {
 	// imageRows and imageCols how big it shows (B309).
 	image                string
 	imageRows, imageCols int
-	was                  slot // where a hidden window was in the layout (B364)
-	locked               bool // its module keeps it where it opened (B367)
+	at                   *[2]int // the screen cell a float the mouse opened is at, in place of the cursor's (B562)
+	was                  slot    // where a hidden window was in the layout (B364)
+	locked               bool    // its module keeps it where it opened (B367)
 	// bound windows scroll together, and wrapped is the wrap a bound one
 	// had before. To stay level, it hides fill of the rows drawn above its
 	// top line while that line starts at fillAt (B523).

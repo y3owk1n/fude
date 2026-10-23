@@ -6,6 +6,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/vim"
 )
@@ -31,6 +32,7 @@ func (e *Session) Click(id, x, y int) {
 	if e.pick != nil {
 		e.chose(e.pick, -1, false)
 	}
+	e.pointing = nil
 	if s, ok := e.vim.Selection(); ok && !s.Block && w == e.win && y >= 0 && y < w.h {
 		if p := e.posAt(w, x, y, false); p >= s.Start && p < s.End {
 			e.grabbed = true
@@ -153,6 +155,43 @@ func (e *Session) Scroll(id, n int) {
 			end--
 		}
 		w.buf.text.MoveMark(w.cursor, min(ls+c-vim.LineStart(t, c), end))
+	}
+}
+
+// pointed is the screen cell of a word of w's text that the mouse rests
+// on. Module p's hover shows below it (B562).
+type pointed struct {
+	p    api.Module
+	w    *window
+	x, y int
+}
+
+// Hover shows what the language server says of the word at the cell at
+// column x and row y of the current window, below that cell, as K does at
+// the cursor, and leaves the cursor where it is. It first closes the hover
+// the last call showed, so a cell off a word only closes it. A word with
+// nothing to say shows nothing, with no message (B562).
+func (e *Session) Hover(id, x, y int) {
+	if f := e.floatAt(atCursor); f != nil && f.at != nil {
+		e.closeFloat(f)
+	}
+	e.pointing = nil
+	w := e.windowOf(id)
+	if w == nil || w != e.win || x < w.gutter() || y < 0 || y >= w.h || w.buf.term != nil || e.busy() || e.pick != nil || e.vim.Mode() != vim.Normal {
+		return
+	}
+	t, pos := w.buf.text.Snapshot(), e.posAt(w, x, y, true)
+	if pos >= t.Len() || !isWord(t.Slice(pos, pos+1)[0]) {
+		return
+	}
+	for _, p := range e.modules {
+		for _, r := range p.Registered() {
+			if r.Kind == api.Plug && r.Name == "hover" {
+				e.pointing = &pointed{p, w, w.x + x, w.y + y}
+				e.run(p, r.ID, e.scope(p, w.buf, t), pos, 1)
+				return
+			}
+		}
 	}
 }
 

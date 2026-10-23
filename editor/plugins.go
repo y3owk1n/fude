@@ -825,9 +825,11 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 			}
 		})
 	}
-	// A failure's reason shows in place of the message.
+	// A failure's reason shows in place of the message, but not one of a
+	// hover the mouse asked for (B562).
+	pointed := e.pointing != nil && e.pointing.p == p
 	switch msg := cmp.Or(res.Error, res.Message); {
-	case msg == "":
+	case msg == "", pointed && res.Error != "":
 	case save != nil:
 		save.notes = append(save.notes, msg)
 	default:
@@ -840,9 +842,9 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 		}
 	} else if f != nil && f.Spans == nil {
 		text, spans := e.markdown(f.Text)
-		e.popup(text, spans, markdownImage(f.Text, b.file.path))
+		e.popup(text, spans, markdownImage(f.Text, b.file.path), pointed)
 	} else if f != nil {
-		e.popup(f.Text, styled(f.Spans), "")
+		e.popup(f.Text, styled(f.Spans), "", pointed)
 	}
 	if a := res.Apply; a != nil {
 		e.applyWorkspace(b, a)

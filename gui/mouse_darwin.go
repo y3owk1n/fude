@@ -16,7 +16,7 @@ import (
 // y lines, or a pick of line y of a menu. A click's clicks count a double
 // or triple click.
 type mouse struct {
-	kind             byte // c a click, d a drag, u a release, s a scroll and p a pick
+	kind             byte // c a click, d a drag, u a release, s a scroll, p a pick and h a rest
 	id, x, y, clicks int
 }
 
@@ -46,6 +46,8 @@ func (m mouse) give(s client.Session) {
 		s.Release(m.id, m.x, m.y)
 	case 'p':
 		s.Pick(m.y)
+	case 'h':
+		s.Hover(m.id, m.x, m.y)
 	default:
 		s.Scroll(m.id, m.y)
 	}
@@ -82,6 +84,11 @@ var (
 		{Cmd: sel("otherMouseDown:"), Fn: barMiddle},
 		{Cmd: sel("mouseMoved:"), Fn: func(self objc.ID, _ objc.SEL, ev objc.ID) { hover(self, barX(self, ev)) }},
 		{Cmd: sel("mouseExited:"), Fn: func(self objc.ID, _ objc.SEL, _ objc.ID) { hover(self, -1) }},
+	}
+	// restMouse shows the hover of the word the mouse rests on (B562).
+	restMouse = []objc.MethodDef{
+		{Cmd: sel("mouseMoved:"), Fn: moved},
+		{Cmd: sel("mouseExited:"), Fn: func(self objc.ID, _ objc.SEL, _ objc.ID) { moved(self, 0, 0) }},
 	}
 	// boxMouse lights the row of a list the mouse is over (B560).
 	boxMouse = []objc.MethodDef{
@@ -133,6 +140,10 @@ func mouseAt(view objc.ID, ev objc.ID, kind byte) {
 	}
 	if kind == 'c' {
 		m.clicks = objc.Send[int](ev, sel("clickCount"))
+		// A click closes hover, and a rest after it waits for a move.
+		if p := panes[view]; p != nil {
+			p.movedAt, p.hovered = time.Now(), [3]int{-1}
+		}
 	}
 	if kind == 'd' && m == w.dragged {
 		return

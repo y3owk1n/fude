@@ -149,6 +149,7 @@ type Session struct {
 	placed      map[int][4]int // by window id, where a frontend put a window's text, its x, y, w and h (B542)
 	clicked     int            // where the last click put the cursor, which a drag selects from (B552)
 	grabbed     bool           // a click grabbed the selection, which its release moves (B557)
+	pointing    *pointed       // the word the mouse rests on, until the next key (B562)
 	lastWin     *window        // the window current when a key last ended, and prevWin the one before it, for <C-w>p (B420)
 	prevWin     *window
 	suspending  bool                // the client has yet to suspend to the shell, as <C-z> asked (B424)
@@ -643,6 +644,7 @@ func (e *Session) feed(k vim.Key) {
 	e.message = ""
 	// A modifier places the window its command opens by the next key.
 	e.placing = ""
+	e.pointing = nil
 	// Hover enters a float the last key closed only while the next key
 	// runs, so the float closed before this key is freed.
 	if c := e.closed; c != nil {
@@ -1392,7 +1394,10 @@ type cursorMenu struct {
 func (f *cursorMenu) key(e *Session, _ vim.Key) bool {
 	f.text = ""
 	if w := e.floatAt(atCursor); w != nil && w != e.win {
-		e.closed = w
+		// Hover enters the float it opened at the cursor, not the mouse's.
+		if w.at == nil {
+			e.closed = w
+		}
 		e.closeFloat(w)
 	}
 	return false

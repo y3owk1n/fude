@@ -2,6 +2,7 @@ package gui
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"image"
 	"image/color"
@@ -17,6 +18,7 @@ import (
 	"github.com/ebitengine/purego"
 	"github.com/ebitengine/purego/objc"
 
+	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/editor/editortest"
 	"github.com/y3owk1n/fude/frontend/wire"
 	"github.com/y3owk1n/fude/modules/bufferline"
@@ -1117,6 +1119,88 @@ func (w *window) onLoop(fn func()) {
 	w.do <- func() { fn(); close(done) }
 	<-done
 }
+
+// B562
+func TestB562HoverAtTheMouse(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.txt")
+	editortest.Change(t, path, "one two\n")
+	e := editortest.Open(t, path)
+	e.Use(hovering{})
+	var w *window
+	onMain(func() { w = open(e, nil) }, true)
+	var p *pane
+	until(t, "the text", func() bool {
+		onMain(func() {
+			for _, q := range w.panes {
+				if len(q.cells) > 0 {
+					p = q
+				}
+			}
+		}, true)
+		return p != nil
+	})
+	move := func(col float64) {
+		onMain(func() {
+			at := msgConvertPoint(p.text, sel("convertPoint:toView:"), point{pad + col*cellW, pad + cellH/2}, 0)
+			ev := msgMouseEvent(cls("NSEvent"), sel("mouseEventWithType:location:modifierFlags:timestamp:windowNumber:context:eventNumber:clickCount:pressure:"),
+				5, at, 0, 0, objc.Send[int](w.win, sel("windowNumber")), 0, 0, 0, 0)
+			p.text.Send(sel("mouseMoved:"), ev)
+		}, true)
+	}
+	float := func() string {
+		text := ""
+		w.onLoop(func() {
+			for _, v := range e.Windows() {
+				if v.Float == "cursor" {
+					text = v.Text.Slice(0, v.Text.Len())
+				}
+			}
+		})
+		return text
+	}
+	// A rest on a word shows its hover, and a move off it closes it.
+	move(5.5)
+	until(t, "the hover of two", func() bool { return float() == "at 5" })
+	move(3.5)
+	until(t, "the hover to close", func() bool { return float() == "" })
+	onMain(func() {
+		for _, c := range ":qa!\r" {
+			code := uint16(0)
+			if c == '\r' {
+				code = 36
+			}
+			press(w, code, 0, string(c), string(c))
+		}
+	}, true)
+	until(t, "the session to end", func() bool {
+		open := true
+		onMain(func() { _, open = windows[w.view] }, true)
+		return !open
+	})
+}
+
+// hovering is a module whose hover says where it was asked.
+type hovering struct{}
+
+func (hovering) Name() string         { return "hovering" }
+func (hovering) Subscribed() []string { return nil }
+func (hovering) Registered() []api.Registration {
+	return []api.Registration{{Kind: api.Plug, Name: "hover", ID: 1}}
+}
+func (hovering) Init(context.Context, api.Scope) (api.Result, error) { return api.Result{}, nil }
+func (hovering) Call(_ context.Context, _ uint32, _ api.Scope, args ...int) (api.Result, error) {
+	return api.Result{Float: &api.Float{Text: fmt.Sprint("at ", args[0]), Spans: []api.Span{}}}, nil
+}
+
+func (hovering) Event(context.Context, string, api.Scope) (api.Result, error) {
+	return api.Result{}, nil
+}
+
+func (hovering) Callback(context.Context, uint32, api.Scope) (api.Result, error) {
+	return api.Result{}, nil
+}
+func (hovering) Work(context.Context, api.Job) (string, error) { return "", nil }
+func (hovering) Close(context.Context) error                   { return nil }
 
 // until waits for ok, failing t once it waited too long for what.
 func until(t *testing.T, what string, ok func() bool) {

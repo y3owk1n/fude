@@ -1416,6 +1416,14 @@ Where fude departs, the line says so and cites the departure in
   let go, or when a key is typed. The cursor of the window with the keys
   blinks as the system's text fields do, and stays shown while keys and
   clicks come.
+- B562 [10] A frontend gives the session the cell of a window's text
+  where the mouse rests. On a word of the current window, in normal mode,
+  the session shows what the language server says of it, as `K` does,
+  below that cell, and leaves the cursor where it is. A rest off a word
+  closes it, and a word with nothing to say shows nothing, with no
+  message. `K` at the cursor does not enter it. In `fude gui` the mouse
+  resting half a second on a word shows its hover, and moving off the
+  word closes it, unless the mouse moves onto the hover's box.
 - B544 [2] A session has tab pages, each with its own windows, floats
   and current window, as in Neovim. `:tabnew` and `:tabedit` open one
   after the current page, on a file or a new empty buffer. `gt`, `{n}gt`,

@@ -1,8 +1,12 @@
 package gui
 
 import (
+	"maps"
 	"math"
+	"slices"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/ebitengine/purego/objc"
 )
@@ -158,6 +162,87 @@ func scrolled(self objc.ID, _ objc.SEL, s objc.ID) {
 		p.want = to
 	}
 	p.shownAt = time.Now()
+}
+
+// restFor is how long the mouse rests on a word before its hover shows.
+const restFor = 500 * time.Millisecond
+
+// moved marks the cell of a pane's text the mouse is over, or for ev 0
+// that it left. A move off the word whose hover it asked for closes that
+// hover, and a rest on another word asks for its hover. A move over a box,
+// such as that hover's, changes nothing (B562).
+func moved(view objc.ID, _ objc.SEL, ev objc.ID) {
+	p := panes[view]
+	if p == nil {
+		return
+	}
+	cell := [2]int{-1, -1}
+	if ev != 0 {
+		in := msgPoint(ev, sel("locationInWindow"))
+		if p.w.overBox(msgConvertPoint(p.w.view, sel("convertPoint:fromView:"), in, 0)) {
+			return
+		}
+		at := msgConvertPoint(view, sel("convertPoint:fromView:"), in, 0)
+		cell = [2]int{int(math.Floor((at.X - pad) / cellW)), int(math.Floor((at.Y - pad) / cellH))}
+	}
+	if cell == p.mouse {
+		return
+	}
+	p.mouse, p.movedAt = cell, time.Now()
+	if h := p.hovered; h[0] >= 0 && (cell[1] != h[0] || cell[0] < h[1] || cell[0] >= h[2]) {
+		p.hovered = [3]int{-1}
+		p.w.mice <- mouse{'h', p.id, -1, -1, 0}
+	}
+	from, to := p.wordAt(cell)
+	if from == to || p.hovered[0] >= 0 {
+		return
+	}
+	at := p.movedAt
+	time.AfterFunc(restFor, func() {
+		onMain(func() {
+			if p.movedAt == at && panes[p.text] == p {
+				p.hovered = [3]int{cell[1], from, to}
+				p.w.mice <- mouse{'h', p.id, cell[0], cell[1], 0}
+			}
+		}, false)
+	})
+}
+
+// wordAt returns the columns of the word the pane shows at cell, from its
+// first to past its last, the same twice for none.
+func (p *pane) wordAt(cell [2]int) (int, int) {
+	x, y := cell[0], cell[1]
+	if y < 0 || y >= len(p.cells) || x < 0 || x >= len(p.cells[y]) {
+		return 0, 0
+	}
+	row := p.cells[y]
+	word := func(i int) bool {
+		r, _ := utf8.DecodeRuneInString(row[i].text)
+		return r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r)
+	}
+	if !word(x) {
+		return 0, 0
+	}
+	from, to := x, x+1
+	for from > 0 && word(from-1) {
+		from--
+	}
+	for to < len(row) && word(to) {
+		to++
+	}
+	return from, to
+}
+
+// overBox reports whether at, in the root view, is over a box that shows.
+func (w *window) overBox(at point) bool {
+	for _, b := range append(slices.Collect(maps.Values(w.floats)), w.panel, w.toast) {
+		if b != nil && !objc.Send[bool](b.frame, sel("isHidden")) {
+			if r := msgRect(b.frame, sel("frame")); at.X >= r.Origin.X && at.X < r.Origin.X+r.Size.W && at.Y >= r.Origin.Y && at.Y < r.Origin.Y+r.Size.H {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // blink turns the cursor of a window with the keys off and on, as the

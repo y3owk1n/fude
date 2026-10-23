@@ -28,6 +28,9 @@ type pane struct {
 	shownAt            time.Time // when the scroll bar last showed
 	offset             float64   // how far a trackpad moved the text up past its first line, in points
 	cells              [][]cell
+	mouse              [2]int    // the cell of its text the mouse is over, -1s off it
+	movedAt            time.Time // when the mouse last moved over it, or went down
+	hovered            [3]int    // the row and the first and end columns of the word whose hover the mouse asked for, a row of -1 for none
 	pics               []pic
 	cursor             cursorAt
 	left, right        []client.Part
@@ -47,9 +50,12 @@ func (w *window) pane(id int) *pane {
 	if p := w.panes[id]; p != nil {
 		return p
 	}
-	p := &pane{w: w, id: id}
+	p := &pane{w: w, id: id, mouse: [2]int{-1, -1}, hovered: [3]int{-1}}
 	p.view = msgInitView(objc.ID(paneClass).Send(sel("alloc")), sel("initWithFrame:"), rect{})
 	p.text = msgInitView(objc.ID(textClass).Send(sel("alloc")), sel("initWithFrame:"), rect{})
+	track := msgInitTracking(cls("NSTrackingArea").Send(sel("alloc")), sel("initWithRect:options:owner:userInfo:"), rect{}, 0x223, p.text, 0)
+	p.text.Send(sel("addTrackingArea:"), track)
+	track.Send(sel("release"))
 	p.status = msgInitView(objc.ID(statusClass).Send(sel("alloc")), sel("initWithFrame:"), rect{})
 	// The status bar draws on the title bar's material.
 	back := material(titlebar, behindWindow)

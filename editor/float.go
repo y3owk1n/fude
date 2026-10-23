@@ -134,14 +134,20 @@ func (e *Session) refill(b *buffer, text string, spans []wire.Span) error {
 
 // popup shows text at the cursor in a float that the next key closes, with
 // the image at image below it, or closes the one showing for "" (B309).
-func (e *Session) popup(text string, spans []wire.Span, image string) {
+// With pointed it shows below the word the mouse rests on (B562).
+func (e *Session) popup(text string, spans []wire.Span, image string, pointed bool) {
 	if text == "" {
 		if f := e.floatAt(atCursor); f != nil && f != e.win {
 			e.closeFloat(f)
 		}
 		return
 	}
-	e.openFloat(e.floatBuffer("[float]", text, spans), atCursor, false).image = image
+	f := e.openFloat(e.floatBuffer("[float]", text, spans), atCursor, false)
+	f.image = image
+	if pointed {
+		f.from, f.at = e.pointing.w, &[2]int{e.pointing.x, e.pointing.y}
+		e.place(f)
+	}
 }
 
 // showSignature shows text above the cursor while insert mode types, or
@@ -246,6 +252,9 @@ func (e *Session) place(f *window) {
 	}
 	width, rows := measure(max(min(80, wide-4), 1))
 	cx, cy := e.cursorCell(f.from)
+	if f.at != nil {
+		cx, cy = f.at[0], f.at[1]
+	}
 	below, above := e.height-cy-1, cy
 	n, y := 0, 0
 	if f.anchor == aboveCursor {

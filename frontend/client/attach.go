@@ -274,6 +274,7 @@ func (a *Attached) Click(window, x, y int)   { a.send("click", [3]int{window, x,
 func (a *Attached) Drag(window, x, y int)    { a.send("drag", [3]int{window, x, y}) }
 func (a *Attached) Scroll(window, n int)     { a.send("scroll", [3]int{window, n, 0}) }
 func (a *Attached) Release(window, x, y int) { a.send("release", [3]int{window, x, y}) }
+func (a *Attached) Hover(window, x, y int)   { a.send("hover", [3]int{window, x, y}) }
 func (a *Attached) Pick(n int)               { a.send("pick", n) }
 func (a *Attached) Timeout()                 { a.send("timeout", nil) }
 

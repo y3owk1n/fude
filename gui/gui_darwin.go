@@ -65,7 +65,7 @@ func startApp(background bool) objc.ID {
 	paneClass = class("FudePane", "NSView", flipped, objc.MethodDef{Cmd: sel("resizeSubviewsWithOldSize:"), Fn: resizePane})
 	textClass = class("FudeText", "NSView", append([]objc.MethodDef{
 		flipped, {Cmd: sel("drawRect:"), Fn: drawText}, {Cmd: sel("menuForEvent:"), Fn: menuFor}, {Cmd: sel("scrolled:"), Fn: scrolled},
-	}, textMouse...)...)
+	}, append(textMouse, restMouse...)...)...)
 	statusClass = class("FudeStatus", "NSView", append([]objc.MethodDef{flipped, {Cmd: sel("drawRect:"), Fn: drawStatus}}, statusMouse...)...)
 	splitClass = class("FudeSplit", "NSSplitView", objc.MethodDef{Cmd: sel("drawDividerInRect:"), Fn: drawDivider})
 	barClass = class("FudeBar", "NSView", append([]objc.MethodDef{flipped, {Cmd: sel("drawRect:"), Fn: drawBar}}, barMouse...)...)
