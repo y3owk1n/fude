@@ -15,13 +15,21 @@ import (
 // Place counts them (B552). A cell in the gutter means its row's first
 // character, and one past a row's text its last. A row at or past the
 // window's height, such as its status line's, only gives it the focus.
-// A click ends visual mode and keeps insert mode. While the command line,
-// the finder or a question shows, it does nothing. A click on the
-// selection grabs it, for Release to move it where it goes (B557).
+// A click ends visual mode and keeps insert mode. It closes the menu at
+// the cursor, and the float there unless the click is on that float.
+// While the command line, the finder or a question shows, it does nothing.
+// A click on the selection grabs it, for Release to move it where it goes
+// (B557).
 func (e *Session) Click(id, x, y int) {
 	w := e.windowOf(id)
 	if w == nil || e.busy() {
 		return
+	}
+	if f := e.floatAt(atCursor); f != nil && f != w && f != e.win {
+		e.closeFloat(f)
+	}
+	if e.pick != nil {
+		e.chose(e.pick, -1, false)
 	}
 	if s, ok := e.vim.Selection(); ok && !s.Block && w == e.win && y >= 0 && y < w.h {
 		if p := e.posAt(w, x, y, false); p >= s.Start && p < s.End {

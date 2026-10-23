@@ -1126,6 +1126,23 @@ func TestB62DefinitionAndHover(t *testing.T) {
 	}
 }
 
+// B552
+func TestB552ClickClosesWhatIsAtTheCursor(t *testing.T) {
+	e, log := withServer(t, "a\nb target\n", "utf-8")
+	heard(t, log, `"method":"textDocument/didOpen"`, 1)
+	feed(e, "K")
+	settle(t, e, func() bool { _, text := floatAt(e, "cursor"); return text != "" })
+	v := e.Windows()[0]
+	if e.Click(v.ID, v.Gutter+2, 1); func() bool { _, text := floatAt(e, "cursor"); return text != "" }() {
+		t.Error("a click left the hover shown, to follow the cursor")
+	}
+	feed(e, "gra")
+	settle(t, e, func() bool { _, ok := e.Menu(); return ok })
+	if e.Click(v.ID, v.Gutter, 0); func() bool { _, ok := e.Menu(); return ok }() {
+		t.Error("a click left the code actions shown")
+	}
+}
+
 // B64
 func TestB64Completion(t *testing.T) {
 	for _, c := range [][2]string{
