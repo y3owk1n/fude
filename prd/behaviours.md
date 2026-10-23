@@ -1374,6 +1374,13 @@ Where fude departs, the line says so and cites the departure in
   with their line breaks. A selection let go on itself ends visual mode
   with the cursor there, as a click elsewhere does. In `fude gui`
   dragging a selection moves it so.
+- B558 [10] In `fude gui` the window, its title bar and its sheets are
+  light or dark as the theme's ground is. The window's close button
+  shows a dot while a buffer it shows has changes, and the title bar
+  shows the current file's icon. Command-=, Command-minus and Command-0
+  make the text bigger, smaller and its first size, and each window
+  takes as many cells as it then holds. The window opens where and as big
+  as it last closed.
 - B544 [2] A session has tab pages, each with its own windows, floats
   and current window, as in Neovim. `:tabnew` and `:tabedit` open one
   after the current page, on a file or a new empty buffer. `gt`, `{n}gt`,

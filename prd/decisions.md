@@ -905,7 +905,9 @@ views, and each pane places its window (B542, B549). The title bar holds
 the buffers as tabs and the tab pages at its right. Floats and menus show
 in boxes over the panes, placed by their anchors (B543, B550). The root
 view is an input method's client, and the menus' Edit actions type Vim's
-keys for them (B551). The mouse goes to the session by cell (B552).
+keys for them (B551). The mouse goes to the session by cell (B552). The
+window takes the theme's light or dark look, and AppKit shows the current
+file's icon and unsaved changes as it does for any document window (B558).
 Terminal windows draw from their cells. Images draw from the PNGs the
 session gives, with no terminal protocol (B553). The editor stays the
 source of each, and keys still go through Vim's grammar, so a palette

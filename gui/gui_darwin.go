@@ -52,7 +52,7 @@ func startApp(background bool) objc.ID {
 		}
 		return c
 	}
-	mainRun = objc.ID(class("FudeMain", "NSObject", objc.MethodDef{Cmd: sel("drain:"), Fn: drain}, objc.MethodDef{Cmd: sel("quit:"), Fn: quit})).Send(sel("alloc")).Send(sel("init"))
+	mainRun = objc.ID(class("FudeMain", "NSObject", append([]objc.MethodDef{{Cmd: sel("drain:"), Fn: drain}, {Cmd: sel("quit:"), Fn: quit}}, sizing...)...)).Send(sel("alloc")).Send(sel("init"))
 	viewClass = class("FudeView", "NSView", append(append([]objc.MethodDef{
 		flipped,
 		{Cmd: sel("acceptsFirstResponder"), Fn: func(objc.ID, objc.SEL) bool { return true }},
@@ -69,17 +69,11 @@ func startApp(background bool) objc.ID {
 	barClass = class("FudeBar", "NSView", append([]objc.MethodDef{flipped, {Cmd: sel("drawRect:"), Fn: drawBar}}, barMouse...)...)
 	boxClass = class("FudeBox", "NSView", append([]objc.MethodDef{flipped, {Cmd: sel("drawRect:"), Fn: drawBox}}, textMouse...)...)
 	windowDelegate = objc.ID(class("FudeWindowDelegate", "NSObject", objc.MethodDef{Cmd: sel("windowShouldClose:"), Fn: windowShouldClose})).Send(sel("alloc")).Send(sel("init"))
-	font = msgFont(cls("NSFont"), sel("monospacedSystemFontOfSize:weight:"), 14, 0).Send(sel("retain"))
-	boldFont = msgFont(cls("NSFont"), sel("monospacedSystemFontOfSize:weight:"), 14, 0.4).Send(sel("retain"))
-	fonts := cls("NSFontManager").Send(sel("sharedFontManager"))
-	italicFont = fonts.Send(sel("convertFont:toHaveTrait:"), font, 1).Send(sel("retain"))
-	boldItalicFont = fonts.Send(sel("convertFont:toHaveTrait:"), boldFont, 1).Send(sel("retain"))
+	makeFonts()
 	toastFont = msgFont(cls("NSFont"), sel("systemFontOfSize:weight:"), 13, 0).Send(sel("retain"))
 	uiFont = msgFont(cls("NSFont"), sel("systemFontOfSize:weight:"), 12, 0).Send(sel("retain"))
 	uiBold = msgFont(cls("NSFont"), sel("systemFontOfSize:weight:"), 12, 0.4).Send(sel("retain"))
 	menu(app)
-	cellW = msgSizeOf(nsString("M"), sel("sizeWithAttributes:"), textAttrs(font, 0)).W
-	cellH = float64(int(msgFloat(font, sel("ascender")) - msgFloat(font, sel("descender")) + msgFloat(font, sel("leading")) + 0.999))
 	return app
 }
 
@@ -136,6 +130,8 @@ type window struct {
 	sheet        objc.ID         // the alert showing, 0 for none
 	images       map[int]objc.ID // by id, the NSImages of the images shown
 	cellPx       [2]int          // a cell's size in the screen's pixels
+	appearance   string          // the window's look, as dress last set it
+	file         string          // the file the title bar shows
 	dragged      mouse           // the last click or drag, to send a drag once a cell
 	hits         []hit           // the tabs the strip shows
 	hover        float64         // where the mouse is along the strip, -1 off it
@@ -178,6 +174,9 @@ type frame struct {
 	confirm string         // the question, "" for none
 	asked   int            // counts each change of the question, to tell a new one
 	copied  *string        // to put on the system's clipboard
+	ground  theme.RGB      // the theme's own ground, for the window's look
+	edited  bool           // a window shown has changes
+	file    string         // the current window's file, "" for none
 	busy    bool           // a status line turns a spinner, so frames go on
 	pngs    map[int][]byte // by id, the images the main thread lacks
 	freed   []int          // the images the session dropped
@@ -214,8 +213,7 @@ func open(s client.Session, ended func()) *window {
 	w.win.Send(sel("setTitleVisibility:"), 1)
 	w.win.Send(sel("setTitle:"), nsString("fude"))
 	w.win.Send(sel("setDelegate:"), windowDelegate)
-	scale := msgFloat(w.win, sel("backingScaleFactor"))
-	w.cellPx = [2]int{int(cellW * scale), int(cellH * scale)}
+	w.cellPx = cellPixels(w.win)
 	w.view = msgInitView(objc.ID(viewClass).Send(sel("alloc")), sel("initWithFrame:"), r)
 	w.bar = msgInitView(objc.ID(barClass).Send(sel("alloc")), sel("initWithFrame:"), rect{})
 	w.area = msgInitView(cls("NSView").Send(sel("alloc")), sel("initWithFrame:"), rect{})
@@ -234,6 +232,10 @@ func open(s client.Session, ended func()) *window {
 	w.view.Send(sel("addSubview:"), w.preedit)
 	w.win.Send(sel("makeFirstResponder:"), w.view)
 	w.win.Send(sel("center"))
+	// The window opens where it last closed.
+	if !inBackground {
+		w.win.Send(sel("setFrameAutosaveName:"), nsString("fude"))
+	}
 	windows[w.view], windows[w.win], windows[w.bar], windows[w.preedit] = w, w, w, w
 	resizeRoot(w.view, 0, size{})
 	w.win.Send(sel("makeKeyAndOrderFront:"), 0)
@@ -294,6 +296,7 @@ func (w *window) loop(cols, rows int) {
 			w.mu.Unlock()
 			cols, rows = pl.cols, pl.rows
 			s.SetSize(pl.cols, pl.rows)
+			s.SetCell(pl.cell[0], pl.cell[1])
 			for _, at := range pl.wins {
 				s.Place(at[0], at[1], at[2], at[3], at[4])
 			}
@@ -348,6 +351,8 @@ type painter struct {
 	had     map[int]bool // the windows of the last frame's layout
 	menuTop int          // the first row of a menu at the cursor that shows (B64)
 	sent    map[int]bool // the images the main thread has
+	name    string       // the current window's name, and its file
+	file    string
 	frame   int
 	lookKey string
 	modal   bool
@@ -402,7 +407,7 @@ func (p *painter) paint(s client.Session, cols, rows int) frame {
 	}
 	_, mode := client.ModeName(s)
 	f := frame{
-		title: s.Title(), layout: layout, key: fmt.Sprint(layout), floats: map[int]*boxed{}, pngs: map[int][]byte{},
+		title: s.Title(), layout: layout, key: fmt.Sprint(layout), floats: map[int]*boxed{}, pngs: map[int][]byte{}, ground: p.lit.Theme.Bg,
 		tabs: strip{buffers: s.Buffers(), pages: s.Pages(), mode: mode}, look: look, confirm: question,
 	}
 	in := map[int]bool{}
@@ -478,6 +483,11 @@ func (p *painter) paint(s client.Session, cols, rows int) frame {
 			}
 		}
 		sh.left, sh.right = client.StatusParts(s, v, true)
+		f.edited = f.edited || v.Modified
+		// A name looks for its file on disk once.
+		if v.Current && v.Name != p.name {
+			p.name, p.file = v.Name, file(v.Name)
+		}
 		f.busy = f.busy || turning(sh.right)
 		sh.pics = pics(v, out)
 		f.wins = append(f.wins, sh)
@@ -516,6 +526,7 @@ func (p *painter) paint(s client.Session, cols, rows int) frame {
 		all = append(all, f.panel.pics...)
 	}
 	p.images(s, &f, all)
+	f.file = p.file
 	// While the palette, the finder or a question shows, no window shows
 	// the cursor. A float with the focus shows it, and the window it opened
 	// from does not.
@@ -592,6 +603,7 @@ func (w *window) apply() {
 	}
 	w.tabs = f.tabs
 	w.bar.Send(sel("setNeedsDisplay:"), 1)
+	w.dress(f)
 	for id, b := range w.floats {
 		if f.floats[id] == nil {
 			b.show(nil, w.view, 0)

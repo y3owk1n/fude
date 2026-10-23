@@ -33,6 +33,7 @@ type pane struct {
 // the session (B542).
 type places struct {
 	cols, rows int      // the area's, in cells
+	cell       [2]int   // a cell's size in pixels
 	wins       [][5]int // each window's id, x, y, w and h, in cells of the area
 }
 
@@ -150,7 +151,7 @@ func leaves(l wire.Split) []int {
 // of another starts past its end, as <C-w>l needs (B542).
 func (w *window) placeAll() {
 	area := msgRect(w.area, sel("frame"))
-	pl := places{cols: max(int(area.Size.W/cellW), 1), rows: max(int(area.Size.H/cellH), 1)}
+	pl := places{cols: max(int(area.Size.W/cellW), 1), rows: max(int(area.Size.H/cellH), 1), cell: w.cellPx}
 	for id, p := range w.panes {
 		if objc.Send[objc.ID](p.view, sel("superview")) == 0 {
 			continue
@@ -160,7 +161,7 @@ func (w *window) placeAll() {
 		pl.wins = append(pl.wins, [5]int{id, int(x / cellW), int(y / cellH), max(int((r.Size.W-2*pad)/cellW), 1), max(int((r.Size.H-2*pad)/cellH), 1)})
 	}
 	slices.SortFunc(pl.wins, func(a, b [5]int) int { return a[0] - b[0] })
-	if pl.cols == w.sent.cols && pl.rows == w.sent.rows && slices.Equal(pl.wins, w.sent.wins) {
+	if pl.cols == w.sent.cols && pl.rows == w.sent.rows && pl.cell == w.sent.cell && slices.Equal(pl.wins, w.sent.wins) {
 		return
 	}
 	w.sent = pl

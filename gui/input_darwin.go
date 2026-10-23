@@ -2,6 +2,7 @@ package gui
 
 import (
 	"math"
+	"slices"
 	"unicode/utf16"
 
 	"github.com/ebitengine/purego/objc"
@@ -183,7 +184,8 @@ func menu(app objc.ID) {
 				continue
 			}
 			item := m.Send(sel("addItemWithTitle:action:keyEquivalent:"), nsString(it[0]), sel(it[1]), nsString(it[2]))
-			if it[1] == "quit:" {
+			// The application's own actions go to it, not to a window.
+			if it[1] == "quit:" || slices.ContainsFunc(sizing, func(m objc.MethodDef) bool { return m.Cmd == sel(it[1]) }) {
 				item.Send(sel("setTarget:"), mainRun)
 			}
 		}
@@ -199,6 +201,7 @@ func menu(app objc.ID) {
 		[3]string{"Cut", "cut:", "x"}, [3]string{"Copy", "copy:", "c"}, [3]string{"Paste", "paste:", "v"},
 		[3]string{"Select All", "selectAll:", "a"},
 	)
+	add("View", [3]string{"Bigger", "bigger:", "="}, [3]string{"Smaller", "smaller:", "-"}, [3]string{"Actual Size", "actualSize:", "0"})
 	window := add("Window", [3]string{"Minimize", "performMiniaturize:", "m"}, [3]string{"Zoom", "performZoom:", ""})
 	// Hide Others is Option-Command-H.
 	items := bar.Send(sel("itemAtIndex:"), 0).Send(sel("submenu"))

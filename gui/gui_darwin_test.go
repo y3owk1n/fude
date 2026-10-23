@@ -787,6 +787,61 @@ func TestB557MovingTextByMouse(t *testing.T) {
 	})
 }
 
+// B558
+func TestB558WindowFollowsTheSession(t *testing.T) {
+	editortest.Config(t, "theme = \"light\"\n")
+	path := filepath.Join(t.TempDir(), "a.txt")
+	editortest.Change(t, path, "one\n")
+	e := editortest.Start(t, path)
+	var w *window
+	onMain(func() { w = open(e, nil) }, true)
+	// The window takes the theme's look, shows the file's icon, and a dot in
+	// its close button once the file has changes.
+	until(t, "the light look and the file", func() bool {
+		var look, file string
+		onMain(func() {
+			look = goString(w.win.Send(sel("effectiveAppearance")).Send(sel("name")))
+			file = goString(w.win.Send(sel("representedFilename")))
+		}, true)
+		return look == "NSAppearanceNameAqua" && file == path
+	})
+	onMain(func() { press(w, 31, 0, "o", "o") }, true)
+	onMain(func() { press(w, 7, 0, "x", "x") }, true)
+	onMain(func() { press(w, 53, 0, "\x1b", "\x1b") }, true)
+	until(t, "the dot", func() bool {
+		edited := false
+		onMain(func() { edited = objc.Send[bool](w.win, sel("isDocumentEdited")) }, true)
+		return edited
+	})
+	// Command-= makes the text bigger, so the window holds fewer columns,
+	// and Command-0 makes it its first size again.
+	cols := func() int {
+		n := 0
+		w.onLoop(func() { n = e.Windows()[0].W })
+		return n
+	}
+	before := cols()
+	onMain(func() { mainRun.Send(sel("bigger:"), 0) }, true)
+	until(t, "fewer columns", func() bool { return cols() < before })
+	onMain(func() { mainRun.Send(sel("actualSize:"), 0) }, true)
+	until(t, "the columns again", func() bool { return cols() == before })
+	for _, c := range "\x1b:qa!\r" {
+		code := uint16(0)
+		switch c {
+		case '\r':
+			code = 36
+		case '\x1b':
+			code = 53
+		}
+		onMain(func() { press(w, code, 0, string(c), string(c)) }, true)
+	}
+	until(t, "the session to end", func() bool {
+		open := true
+		onMain(func() { _, open = windows[w.view] }, true)
+		return !open
+	})
+}
+
 // dragInfo is a class whose objects tell of a drag of the pasteboard
 // dragged, as AppKit tells a view of a drop.
 var (
