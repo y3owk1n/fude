@@ -15,7 +15,7 @@ type Session interface {
 	Feed(k vim.Key)
 	Paste(text string)
 	SetSize(w, h int)
-	SetCell(w, h int) // a cell's pixels, 0 when the terminal shows no images (B303)
+	SetCell(w, h int) // a cell's pixels, 0 when the frontend shows no images (B303)
 	// Place puts a window's text where the frontend drew it, in cells of
 	// its own grid, over the layout's place for it (B542).
 	Place(window, x, y, w, h int)
@@ -49,10 +49,10 @@ type Session interface {
 	Substituting() bool
 	Terminal() bool
 	Shown() string
-	Theme() (string, *[16]int32, *wire.Colors)
+	Theme() wire.Theme
 	Styles() (map[string]wire.Style, int)
-	Title() string // what the terminal's title shows, "" to leave it
-	TerminalClipboard() (string, bool)
+	Title() string               // what the frontend's title shows, "" to leave it
+	Clipboard() (string, bool)   // text to put on the frontend's clipboard, once
 	Image(id int) ([]byte, bool) // the PNG an image's rows show (B303)
 	Freed() []int                // the images dropped since it was last called (B306)
 }

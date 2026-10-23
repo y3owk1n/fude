@@ -32,13 +32,13 @@ func TestB36TerminalClipboard(t *testing.T) {
 	change(t, path, "ab cd\n")
 	e := open(t, path)
 	feed(e, `"+yiw`)
-	if text, ok := e.TerminalClipboard(); !ok || text != "ab" {
+	if text, ok := e.Clipboard(); !ok || text != "ab" {
 		t.Fatalf(`"+yiw gave the terminal %q`, text)
 	}
 	if feed(e, `$"*p`); text(e) != "ab cdab" {
 		t.Fatalf(`"*p put %q`, text(e))
 	}
-	if _, ok := e.TerminalClipboard(); ok {
+	if _, ok := e.Clipboard(); ok {
 		t.Fatal("the terminal was given the copy twice")
 	}
 }
@@ -54,7 +54,7 @@ func TestB241AttachedClipboard(t *testing.T) {
 	agent := e.Attach("agent", editor.Host)
 	// Its copy goes to its client, and leaves the host's clipboard alone.
 	feed(agent, `"+yiw`)
-	if text, ok := agent.TerminalClipboard(); !ok || text != "ab" || disk(t, board) != "host" {
+	if text, ok := agent.Clipboard(); !ok || text != "ab" || disk(t, board) != "host" {
 		t.Fatalf(`"+yiw in an attached session gave its client %q, and the host's clipboard holds %q`, text, disk(t, board))
 	}
 	// Its put takes its own copy, not the host's clipboard.
@@ -106,7 +106,7 @@ func TestB244GuestRefuses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	theme, _, _ := e.Theme()
+	theme := e.Theme().Name
 	ran := filepath.Join(t.TempDir(), "ran")
 	for _, keys := range []string{
 		":!touch " + ran + "<CR>", ":r !touch " + ran + "<CR>", ":%!sort<CR>", ":terminal<CR>", ":task<CR>",
@@ -118,7 +118,7 @@ func TestB244GuestRefuses(t *testing.T) {
 		}
 	}
 	now, _ := os.Getwd()
-	if name, _, _ := e.Theme(); now != wd || name != theme || text(e) != "b\na" || guest.Done() || len(guest.Windows()) != 1 {
+	if name := e.Theme().Name; now != wd || name != theme || text(e) != "b\na" || guest.Done() || len(guest.Windows()) != 1 {
 		t.Errorf("a guest's refused commands left the directory %s, the theme %s, the text %q, it done %v, %d windows", now, name, text(e), guest.Done(), len(guest.Windows()))
 	}
 	if _, err := os.Stat(ran); err == nil {

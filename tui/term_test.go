@@ -2021,7 +2021,7 @@ func TestB254OwnConfig(t *testing.T) {
 	}
 	var hostNumber bool
 	on(func() { hostNumber = host.Windows()[0].Number })
-	if name, _, _ := j.a.Theme(); name != "light" || hostNumber {
+	if name := j.a.Theme().Name; name != "light" || hostNumber {
 		t.Errorf("the guest draws in %q, and the host shows numbers %v", name, hostNumber)
 	}
 }

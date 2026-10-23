@@ -16,6 +16,38 @@ or an agent needs this module, which brings `core` and `vim` with it.
 - [`share`](share), [`relay`](relay) and [`clipboard`](clipboard) join a
   share, pass it through a relay and reach the system clipboard.
 
+A program that attaches to a running fude and composes its windows, as a
+frontend does before it paints them:
+
+```go
+s, err := client.Attach(os.Getenv("FUDE_SOCKET"), "viewer")
+if err != nil {
+	return err
+}
+defer s.Close()
+s.SetSize(100, 30)
+look := theme.LookOf(theme.Themes["dark"])
+var c compose.Composer
+grids := map[int]*compose.Grid{}
+for frame := 1; !s.Done(); frame++ {
+	(<-s.Queue())() // apply what fude sent
+	for _, w := range s.Windows() {
+		g := grids[w.ID]
+		if gw, gh := g.Size(); g == nil || gw != w.W || gh != w.H {
+			g = compose.NewGrid(w.W, w.H, look.Base)
+			grids[w.ID] = g
+		}
+		c.Compose(g, w, compose.Options{Look: look, Frame: frame})
+		g.Paint(w.X, w.Y, func(x, y int, text string, st theme.Style) {
+			// Draw text at x, y in st's colours.
+		})
+	}
+}
+```
+
+A frontend that draws its own splits calls `s.Place` with each window's
+place, and reads `s.Layout` and `s.Pages` for its splits and tabs.
+
 ## License
 
 [MIT](../LICENSE)

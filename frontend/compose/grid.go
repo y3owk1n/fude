@@ -140,8 +140,15 @@ func (g *Grid) putClipped(x, y, end int, text string, style look.Style) int {
 	return x
 }
 
-// Size returns how many columns and rows g has.
-func (g *Grid) Size() (int, int) { return g.w, g.h }
+// Size returns how many columns and rows g has. A nil Grid has none, so one
+// check tells a frontend to make a window's grid when it has none or when
+// the window resized.
+func (g *Grid) Size() (int, int) {
+	if g == nil {
+		return 0, 0
+	}
+	return g.w, g.h
+}
 
 // Paint gives put each cell changed since the last Paint, at its column and
 // row counted from x, y. When g moved since then, it gives every cell. put

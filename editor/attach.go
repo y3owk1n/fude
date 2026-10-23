@@ -28,14 +28,14 @@ func (e *Session) frame(sent map[int]kernel.Version) (wire.Frame, map[int]kernel
 	if sel, ok := e.Selection(); ok {
 		f.Selection = &sel
 	}
-	if text, ok := e.TerminalClipboard(); ok {
+	if text, ok := e.Clipboard(); ok {
 		f.Clipboard = &text
 	}
 	if d, ok := e.Wait(); ok {
 		f.Wait = &d
 	}
 	f.Suspend = e.Suspend()
-	f.Theme, f.Base16, f.Colors = e.Theme()
+	f.Theme = e.Theme()
 	f.Styles, f.Restyled = e.Styles()
 	f.Title = e.Title()
 	// A session that left is gone from the sessions. One that fude quit is

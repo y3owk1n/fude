@@ -53,7 +53,7 @@ func TestB137TerminalClipboard(t *testing.T) {
 	feed(e, ":terminal cat<CR>hi<CR>")
 	settle(t, e, func() bool { return strings.Count(screen(e), "hi") == 2 })
 	feed(e, `<C-\><C-n>ggyy`)
-	if text, ok := e.TerminalClipboard(); !ok || text != "hi\n" {
+	if text, ok := e.Clipboard(); !ok || text != "hi\n" {
 		t.Fatalf("yy in a terminal window gave the clipboard %q, %v", text, ok)
 	}
 }

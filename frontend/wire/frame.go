@@ -30,12 +30,10 @@ type Frame struct {
 	Substituting bool           `json:",omitempty"`
 	Terminal     bool           `json:",omitempty"`
 	Shown        string         `json:",omitempty"`
-	Theme        string
-	Base16       *[16]int32       `json:",omitempty"`
-	Colors       *Colors          `json:",omitempty"`
+	Theme        Theme
 	Styles       map[string]Style `json:",omitempty"` // the styles modules defined (B345)
 	Restyled     int              `json:",omitempty"` // how many times they changed
-	Title        string           `json:",omitempty"` // what the terminal's title shows, "" to leave it (B480)
+	Title        string           `json:",omitempty"` // what the frontend's title shows, "" to leave it (B480)
 	Images       map[int][]byte   `json:",omitempty"` // by id, the PNG of each image a window shows that the client lacks (B303)
 	Freed        []int            `json:",omitempty"` // the images dropped since the last frame, for the client to free (B306)
 	Clipboard    *string          `json:",omitempty"` // to put on the client's clipboard (B241)

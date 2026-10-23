@@ -50,10 +50,10 @@ func (h host) SetClipboard(text string) error {
 	return err
 }
 
-// TerminalClipboard returns text the client should put on its terminal's
-// clipboard with OSC 52, or false when there is none. It returns each copy
-// once.
-func (e *Session) TerminalClipboard() (string, bool) {
+// Clipboard returns text a copy asks the frontend to put on its own
+// clipboard, as a terminal does with OSC 52, or false when there is none.
+// It returns each copy once.
+func (e *Session) Clipboard() (string, bool) {
 	ok := e.toTerminal
 	e.toTerminal = false
 	return e.clip, ok

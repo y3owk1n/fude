@@ -34,7 +34,7 @@ type Attached struct {
 	placed map[int][4]int         // by window id, where each window was last placed (B542)
 	pics   map[int][]byte         // the images the frames brought, by id
 	freed  []int                  // the images frames dropped since Freed was called
-	clip   *string                // for the terminal's clipboard, once
+	clip   *string                // for the frontend's clipboard, once
 	stop   bool                   // the user asked to suspend, until Suspend says so (B424)
 	done   bool
 	ended  string     // why the session ended, for after the screen is gone
@@ -214,8 +214,8 @@ func (a *Attached) apply(f wire.Frame) {
 		}
 	}
 	a.stop = a.stop || f.Suspend
-	// A copy goes on this machine's clipboard, or else the terminal's
-	// (B241).
+	// A copy goes on this machine's clipboard, or else, through Clipboard,
+	// the frontend's (B241).
 	if f.Clipboard != nil {
 		if err := clipboard.Write(*f.Clipboard); errors.Is(err, clipboard.ErrNone) {
 			a.clip = f.Clipboard
@@ -223,8 +223,8 @@ func (a *Attached) apply(f wire.Frame) {
 	}
 	// The client redraws everything when the colours' pointer changes, so
 	// equal colours keep the old pointer.
-	if f.Base16 != nil && a.f.Base16 != nil && *f.Base16 == *a.f.Base16 {
-		f.Base16 = a.f.Base16
+	if f.Theme.Base16 != nil && a.f.Theme.Base16 != nil && *f.Theme.Base16 == *a.f.Theme.Base16 {
+		f.Theme.Base16 = a.f.Theme.Base16
 	}
 	for id, b := range f.Images {
 		if a.pics == nil {
@@ -364,11 +364,11 @@ func (a *Attached) Title() string      { return a.f.Title }
 func (a *Attached) Styles() (map[string]wire.Style, int) { return a.f.Styles, a.f.Restyled }
 
 // Theme returns a guest's own theme, or else the one fude draws in.
-func (a *Attached) Theme() (string, *[16]int32, *wire.Colors) {
+func (a *Attached) Theme() wire.Theme {
 	if a.theme.Name != "" {
-		return a.theme.Name, a.theme.Base16, a.theme.Colors
+		return a.theme
 	}
-	return a.f.Theme, a.f.Base16, a.f.Colors
+	return a.f.Theme
 }
 
 // Suspend reports, once, that the user asked to suspend to the shell.
@@ -378,8 +378,8 @@ func (a *Attached) Suspend() bool {
 	return ok
 }
 
-// TerminalClipboard returns a copy for the terminal's clipboard once.
-func (a *Attached) TerminalClipboard() (string, bool) {
+// Clipboard returns a copy for the frontend's clipboard once.
+func (a *Attached) Clipboard() (string, bool) {
 	clip := a.clip
 	a.clip = nil
 	if clip == nil {

@@ -235,7 +235,8 @@ func (c *client) draw() {
 	c.spinning = false
 	fresh := c.grids == nil
 	// The theme e names may change at any time with :theme (B158).
-	name, colours, given := c.e.Theme()
+	th := c.e.Theme()
+	name, colours, given := th.Name, th.Base16, th.Colors
 	if given == nil {
 		given = &wire.Colors{}
 	}
@@ -350,7 +351,7 @@ func (c *client) draw() {
 	}
 
 	shape := c.shape
-	if text, ok := c.e.TerminalClipboard(); ok {
+	if text, ok := c.e.Clipboard(); ok {
 		c.s.SetClipboard([]byte(text))
 	}
 	// The screen puts the terminal's old title back as it ends (B480).
@@ -390,7 +391,7 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 		return c.cells(v, left)
 	}
 	g := c.grids[v.ID]
-	if g == nil || !sameSize(g, v) {
+	if w, h := g.Size(); g == nil || w != v.W || h != v.H {
 		g = compose.NewGrid(v.W, v.H, lk.Base)
 		c.grids[v.ID] = g
 	}
@@ -421,12 +422,6 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 		c.edge(v, left)
 	}
 	return v.X + out.X, v.Y + out.Y, out.Found
-}
-
-// sameSize reports whether g is as wide and tall as v.
-func sameSize(g *compose.Grid, v wire.Window) bool {
-	w, h := g.Size()
-	return w == v.W && h == v.H
 }
 
 // put paints a grid's cell on the screen. Cells side by side mostly share a

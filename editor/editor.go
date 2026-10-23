@@ -968,19 +968,19 @@ func (e *Editor) setTheme(name string) error {
 	return nil
 }
 
-// Theme names the colours config.toml or :theme asks the client for, dark
-// or light, or returns the sixteen colours of the base16 scheme it names
-// (B146, B158). It also returns the colours [colors] puts in place of the
-// theme's, or nil (B294).
-func (e *Session) Theme() (string, *[16]int32, *wire.Colors) {
-	if e.cfg.Colors == (wire.Colors{}) {
-		return e.theme, e.base16, nil
+// Theme returns the theme config.toml or :theme asks the frontend to draw
+// in: dark, light or a base16 scheme with its sixteen colours (B146, B158).
+// It also holds the colours [colors] puts in place of the theme's (B294).
+func (e *Session) Theme() wire.Theme {
+	t := wire.Theme{Name: e.theme, Base16: e.base16}
+	if e.cfg.Colors != (wire.Colors{}) {
+		over := e.cfg.Colors
+		t.Colors = &over
 	}
-	over := e.cfg.Colors
-	return e.theme, e.base16, &over
+	return t
 }
 
-// Title returns what the terminal's title shows: the name of the current
+// Title returns what the frontend's title shows: the name of the current
 // window's file with title on, else "" (B480).
 func (e *Session) Title() string {
 	if !e.cfg.Title {
