@@ -119,5 +119,5 @@ func fitted(s string, bold []int, font unsafe.Pointer, at point, w float64) {
 		}
 		u += utf16.RuneLen(r)
 	}
-	draw(l, at)
+	drawText(l, at)
 }

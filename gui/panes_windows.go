@@ -4,13 +4,17 @@ import (
 	"math"
 	"slices"
 	"strconv"
+	"time"
 
 	"github.com/y3owk1n/fude/frontend/wire"
 )
 
 // paneNative is where a pane draws in its window, its text over its status
-// bar.
-type paneNative struct{ frame rect }
+// bar, and when its scroll bar was last shown.
+type paneNative struct {
+	frame   rect
+	shownAt time.Time
+}
 
 // divider is a line a point wide between two kids of a split, which the
 // mouse drags. key names it in moved, and from and to are where the kids
@@ -153,11 +157,55 @@ func drawPane(p *pane, bounds size) {
 	bar := rect{point{0, bounds.H - statusH}, size{bounds.W, statusH}}
 	fill("barColor", bar)
 	drawParts(p.left, p.right, p.current, bar)
+	if k, ok := p.knob(); ok {
+		fillRounded("tertiaryLabelColor", k, 2.5)
+	}
 }
 
 // redraw draws p again, with its window.
 func (p *pane) redraw() { p.w.redraw() }
 
-// showBar and drawPics do nothing until the scroll bars and images come.
-func (p *pane) showBar(bool)            {}
-func (w *window) drawPics([]pic, point) {}
+// barW is how wide a pane's scroll bar is to the mouse, in points.
+const barW = 12
+
+// knob is where the knob of p's scroll bar is in p, at its right edge, and
+// whether it shows: for a second after its view moved, or while the mouse
+// drags it, when its text is taller than it.
+func (p *pane) knob() (rect, bool) {
+	h := p.frame.Size.H - statusH - 4
+	if p.lines <= p.rows || h <= 0 {
+		return rect{}, false
+	}
+	tall := max(float64(p.rows)/float64(p.lines)*h, 16)
+	top := min(float64(p.want)/float64(p.lines)*h, h-tall)
+	return rect{point{p.frame.Size.W - 8, 2 + top}, size{5, tall}}, time.Since(p.shownAt) < time.Second || p.w.barring == p
+}
+
+// showBar shows p's scroll bar for a second after its view moved (B577).
+func (p *pane) showBar(moved bool) {
+	if !moved || p.lines <= p.rows {
+		return
+	}
+	p.shownAt = time.Now()
+	at := p.shownAt
+	time.AfterFunc(time.Second, func() {
+		onMain(func() {
+			if p.shownAt == at && !p.gone {
+				p.redraw()
+			}
+		}, false)
+	})
+}
+
+// dragBar scrolls p's window to where its knob's top at y puts it, as
+// dragging the knob does.
+func (p *pane) dragBar(y float64) {
+	h := p.frame.Size.H - statusH - 4
+	line := min(max(int(math.Round((y-2)/h*float64(p.lines))), 0), p.lines-1)
+	if n := line - p.want; n != 0 {
+		p.w.mice <- mouse{'s', p.id, 0, n, 0}
+		p.want += n
+	}
+	p.shownAt = time.Now()
+	p.redraw()
+}

@@ -53,7 +53,7 @@ func drawToast(s string, r rect) {
 	l := wrapped(s, uiFont, r.Size.W, r.Size.H)
 	defer release(l)
 	setColour("labelColor")
-	draw(l, r.Origin)
+	drawText(l, r.Origin)
 }
 
 // promptGlyphs show a command line's prompt, by what it is.

@@ -1517,6 +1517,12 @@ Where fude departs, the line says so and cites the departure in
   starts with a dot while a buffer it shows has changes. Control with =,
   minus and 0 make the text bigger, smaller and its first size, and each
   window takes as many cells as it then holds.
+- B576 [10] With `--gui` on Windows, images show as on macOS (B553), from
+  the PNGs the session gives, scaled into their cells, in a window's text
+  and in boxes such as the finder's preview.
+- B577 [10] With `--gui` on Windows, each window has a thin scroll bar at
+  its right edge, which shows for a second while its view moves, when the
+  text is taller than it, and dragging its knob scrolls the window there.
 - B544 [2] A session has tab pages, each with its own windows, floats
   and current window, as in Neovim. `:tabnew` and `:tabedit` open one
   after the current page, on a file or a new empty buffer. `gt`, `{n}gt`,

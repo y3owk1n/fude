@@ -60,6 +60,8 @@ type trackEvent struct {
 // mouseNative is what a window keeps of the mouse.
 type mouseNative struct {
 	pressing  *pane     // the pane the left button went down on, while it is down
+	barring   *pane     // the pane whose scroll bar's knob is being dragged
+	grab      float64   // where along the knob the mouse took it
 	splitting int       // the divider being dragged, -1 for none
 	over      *pane     // the pane the mouse was last over
 	tracking  bool      // Windows tells the window when the mouse leaves it
@@ -179,6 +181,7 @@ func (w *window) mouseDown(button int, at point) {
 	switch {
 	case p != nil && local.Y >= p.frame.Size.H-statusH:
 		w.mice <- mouse{'c', p.id, 0, math.MaxInt32, 1}
+	case p != nil && button == 1 && local.X >= p.frame.Size.W-barW && w.takeBar(p, local.Y):
 	case p != nil && button == 3:
 		p.contextMenu(local)
 	case p != nil && button == 1:
@@ -189,10 +192,26 @@ func (w *window) mouseDown(button int, at point) {
 	}
 }
 
+// takeBar starts dragging p's scroll bar's knob from y, when it shows,
+// and reports whether it does. Off the knob, the knob's middle jumps to y
+// (B577).
+func (w *window) takeBar(p *pane, y float64) bool {
+	k, shown := p.knob()
+	if !shown {
+		return false
+	}
+	w.barring, w.grab = p, y-k.Origin.Y
+	if y < k.Origin.Y || y >= k.Origin.Y+k.Size.H {
+		w.grab = k.Size.H / 2
+		p.dragBar(y - w.grab)
+	}
+	return true
+}
+
 // mouseUp ends a click on a pane's text where it let go, or a divider's or
 // a tab's drag (B555, B557).
 func (w *window) mouseUp(at point) {
-	w.splitting = -1
+	w.splitting, w.barring = -1, nil
 	if w.stripRelease() {
 		w.redraw()
 	}
@@ -214,6 +233,10 @@ func (w *window) mouseMove(at point) {
 	}
 	if w.stripDrag(at.X) {
 		w.redraw()
+		return
+	}
+	if p := w.barring; p != nil {
+		p.dragBar(at.Y - p.frame.Origin.Y - w.grab)
 		return
 	}
 	hover := -1.0

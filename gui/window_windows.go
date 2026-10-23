@@ -30,6 +30,8 @@ type native struct {
 	asked         int    // the question the dialog is for, as frame.asked counts
 	asking        bool   // the dialog shows
 	order         []*box // the boxes, from the bottom
+	images        map[int]*bitmap
+	gen           int    // the render target's generation, as rtGen counts
 	surrogate     uint16 // the first half of a character two WM_CHARs bring
 
 	mouseNative
@@ -144,7 +146,7 @@ func (w *window) relink() {
 // thread once s ends.
 func open(s client.Session, ended func()) *window {
 	cols, rows := 100, 32
-	w := &window{s: s, keys: make(chan vim.Key, 1024), do: make(chan func()), pastes: make(chan string, 8), mice: make(chan mouse, 64), ended: ended, placed: make(chan struct{}, 1), panes: map[int]*pane{}, floats: map[int]*box{}, caretOn: true, hover: -1, native: native{mouseNative: mouseNative{splitting: -1}}}
+	w := &window{s: s, keys: make(chan vim.Key, 1024), do: make(chan func()), pastes: make(chan string, 8), mice: make(chan mouse, 64), ended: ended, placed: make(chan struct{}, 1), panes: map[int]*pane{}, floats: map[int]*box{}, caretOn: true, hover: -1, native: native{images: map[int]*bitmap{}, mouseNative: mouseNative{splitting: -1}}}
 	w.hwnd = call(createWindow, 0, uintptr(unsafe.Pointer(className)), uintptr(unsafe.Pointer(cwide("fude"))), style, 1<<31, 1<<31, 1<<31, 1<<31, 0, 0, call(getModuleHandle, 0), 0)
 	w.scale = float64(call(getDpiForWindow, w.hwnd)) / 96
 	w.fit(cellW*float64(cols)+2*pad, stripH+cellH*float64(rows)+2*pad+statusH)
@@ -164,6 +166,9 @@ func (w *window) close() {
 		p.gone = true
 	}
 	w.dropTarget()
+	for _, b := range w.images {
+		release(b.bmp)
+	}
 	call(destroyWindow, w.hwnd)
 	if w.ended != nil {
 		w.ended()
@@ -183,6 +188,8 @@ func (w *window) makeTarget() bool {
 	}
 	var c colorF
 	com(w.target, 8, uintptr(unsafe.Pointer(&c)), 0, uintptr(unsafe.Pointer(&w.brush)))
+	gens++
+	w.gen = gens
 	return true
 }
 
@@ -200,7 +207,7 @@ func (w *window) paint() {
 	if w.target == nil && !w.makeTarget() {
 		return
 	}
-	rt, brush = w.target, w.brush
+	rt, brush, rtGen = w.target, w.brush, w.gen
 	defer func() { rt, brush = nil, nil }()
 	com(rt, 48)
 	ground := rgba(w.look.Base.Bg, 1)
@@ -266,6 +273,7 @@ func (w *window) apply() {
 	}
 	for _, f := range fs {
 		w.look = f.look
+		w.keep(f.pngs, f.freed)
 		if f.key != w.key {
 			w.key = f.key
 			w.build(f.layout)

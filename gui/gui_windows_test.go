@@ -1,8 +1,12 @@
 package gui
 
 import (
+	"bytes"
 	"fmt"
 	"image"
+	"image/color"
+	"image/draw"
+	"image/png"
 	"math"
 	"os"
 	"path/filepath"
@@ -16,6 +20,7 @@ import (
 	"github.com/y3owk1n/fude/editor/editortest"
 	"github.com/y3owk1n/fude/modules/bufferline"
 	"github.com/y3owk1n/fude/modules/buffers"
+	filesmod "github.com/y3owk1n/fude/modules/files"
 	windowmod "github.com/y3owk1n/fude/modules/window"
 	"github.com/y3owk1n/fude/vim"
 )
@@ -281,6 +286,96 @@ func TestB575WindowsStripAndLook(t *testing.T) {
 	})
 }
 
+// B576
+func TestB576WindowsImages(t *testing.T) {
+	dir := t.TempDir()
+	img := image.NewRGBA(image.Rect(0, 0, 64, 64))
+	draw.Draw(img, img.Bounds(), &image.Uniform{color.RGBA{255, 0, 0, 255}}, image.Point{}, draw.Src)
+	var data bytes.Buffer
+	if err := png.Encode(&data, img); err != nil {
+		t.Fatal(err)
+	}
+	editortest.Change(t, filepath.Join(dir, "pic.png"), data.String())
+	editortest.Change(t, filepath.Join(dir, "a.txt"), "one\n")
+	t.Chdir(dir)
+	e := editortest.Open(t, filepath.Join(dir, "a.txt"))
+	e.Use(filesmod.New())
+	var w *window
+	onMain(func() { w = open(e, nil) }, true)
+	typeIn(w, ":pick files\rpic.png")
+	// The finder's preview shows the image from its pixels.
+	until(t, "the image in the finder", func() bool {
+		red := false
+		onMain(func() {
+			b := w.panel
+			if b.boxed == nil || len(b.pics) == 0 || w.images[b.pics[0].id] == nil {
+				return
+			}
+			shot := paint(b.frame.Size, func(sz size) { drawBox(b, sz) })
+			p, o := b.pics[0], b.cellsOrigin()
+			r, g, _, _ := shot.At(int(o.X+(float64(p.x)+0.5)*cellW), int(o.Y+(float64(p.y)+0.5)*cellH)).RGBA()
+			red = r>>8 > 200 && g>>8 < 50
+		}, true)
+		return red
+	})
+	typeIn(w, "\x1b\x1b:qa!\r")
+	until(t, "the session to end", func() bool {
+		open := true
+		onMain(func() { _, open = opened[w.hwnd] }, true)
+		return !open
+	})
+}
+
+// B577
+func TestB577WindowsScrollBar(t *testing.T) {
+	var lines []string
+	for i := range 200 {
+		lines = append(lines, fmt.Sprint("line ", i))
+	}
+	path := filepath.Join(t.TempDir(), "a.txt")
+	editortest.Change(t, path, strings.Join(lines, "\n")+"\n")
+	e := editortest.Open(t, path)
+	var w *window
+	onMain(func() { w = open(e, nil) }, true)
+	var p *pane
+	until(t, "the pane", func() bool {
+		onMain(func() {
+			for _, q := range w.panes {
+				if q.lines > q.rows {
+					p = q
+				}
+			}
+		}, true)
+		return p != nil
+	})
+	// The bar shows where the view is once it moves.
+	onMain(func() { p.roll(30) }, true)
+	var k rect
+	until(t, "the bar at line 30", func() bool {
+		shown, top := false, 0
+		onMain(func() { k, shown = p.knob(); top = p.top }, true)
+		return shown && top == 30
+	})
+	// Dragging its knob scrolls the window there.
+	h := p.frame.Size.H - statusH - 4
+	from := point{p.frame.Origin.X + k.Origin.X + 2, p.frame.Origin.Y + k.Origin.Y + k.Size.H/2}
+	to := point{from.X, from.Y + 2 + 100/float64(p.lines)*h - k.Origin.Y}
+	mouseAt(w, wmLButtonDown, 1, from)
+	mouseAt(w, wmMouseMove, 1, to)
+	mouseAt(w, wmLButtonUp, 0, to)
+	until(t, "the window at line 100", func() bool {
+		top := -1
+		w.onLoop(func() { top = e.Windows()[0].Text.LineOf(e.Windows()[0].Top) })
+		return top == 100
+	})
+	typeIn(w, ":qa!\r")
+	until(t, "the session to end", func() bool {
+		open := true
+		onMain(func() { _, open = opened[w.hwnd] }, true)
+		return !open
+	})
+}
+
 var (
 	getWindowText    = user32.NewProc("GetWindowTextW")
 	keyboardState    = user32.NewProc("GetKeyboardState")
@@ -309,9 +404,11 @@ func typeIn(w *window, keys string) {
 }
 
 // mouseAt sends w's window the mouse's message m at a point, with the
-// system's pointer there, as Windows tracks it.
+// system's pointer there, as Windows tracks it. The window stays on top,
+// so no other window is under the pointer.
 func mouseAt(w *window, m uint32, wp uintptr, at point) {
 	onMain(func() {
+		call(setWindowPos, w.hwnd, ^uintptr(0), 0, 0, 0, 0, 0x13)
 		pt := [2]int32{int32(at.X * w.scale), int32(at.Y * w.scale)}
 		lp := uintptr(uint16(pt[0])) | uintptr(uint16(pt[1]))<<16
 		call(clientToScreen, w.hwnd, uintptr(unsafe.Pointer(&pt)))
@@ -349,7 +446,8 @@ func paint(sz size, draw func(size)) *image.RGBA {
 	var c colorF
 	com(target, 8, uintptr(unsafe.Pointer(&c)), 0, uintptr(unsafe.Pointer(&b)))
 	defer release(b)
-	rt, brush = target, b
+	gens++
+	rt, brush, rtGen = target, b, gens
 	com(rt, 48)
 	draw(sz)
 	com(rt, 49, 0, 0)

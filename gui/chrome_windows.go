@@ -253,8 +253,8 @@ func clip(r rect) { com(rt, 45, uintptr(unsafe.Pointer(rf(r))), 1) }
 
 func unclip() { com(rt, 46) }
 
-// draw draws the layout l from at, in the colour set last.
-func draw(l unsafe.Pointer, at point) {
+// drawText draws the text layout l from at, in the colour set last.
+func drawText(l unsafe.Pointer, at point) {
 	drawLayout(rt, float32(at.X), float32(at.Y), l, brush)
 }
 
@@ -263,7 +263,7 @@ func draw(l unsafe.Pointer, at point) {
 func text(s string, font unsafe.Pointer, at point) size {
 	l := layoutOf(s, font, 1e6, 1e6)
 	defer release(l)
-	draw(l, at)
+	drawText(l, at)
 	return metrics(l)
 }
 
