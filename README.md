@@ -4,7 +4,7 @@
 
 **Vim's grammar, with everything built in.**
 
-A modal editor for the terminal, built from Go libraries you can use on their own.
+A modal editor for the terminal and a native window, built from Go libraries you can use on their own.
 
 [![License](https://img.shields.io/github/license/y3owk1n/fude?style=flat-square)](LICENSE)
 [![Status](https://img.shields.io/badge/status-alpha-orange?style=flat-square)](#status)
@@ -12,7 +12,7 @@ A modal editor for the terminal, built from Go libraries you can use on their ow
 
 macOS | Linux | Windows
 
-[Install](#install) | [Tour](#first-steps) | [Built in](#built-in) | [Together](#edit-together) | [Plugins](#plugins) | [Libraries](#build-on-fude) | [Speed](#speed)
+[Install](#install) | [Tour](#first-steps) | [Built in](#built-in) | [Window](#in-a-window) | [Together](#edit-together) | [Plugins](#plugins) | [Libraries](#build-on-fude) | [Speed](#speed)
 
 </div>
 
@@ -95,13 +95,22 @@ fude main.go
 
 Neovim is the reference, and fude departs only where that is better. [`prd/decisions.md`](prd/decisions.md) gives each reason.
 
-- **Gone.** fude has no vimscript, Lua, Ex mode, Select mode, modelines, swap files or mouse. The timeline does what swap and undo files did.
+- **Gone.** fude has no vimscript, Lua, Ex mode, Select mode, modelines or swap files. The timeline does what swap and undo files did.
 - **Config.** It is one TOML file, with fude's own option names such as `relative_number`. Plugins are sandboxed wasm.
 - **Search.** fude runs Vim's patterns on a linear-time engine and refuses backreferences, so no pattern can hang the editor.
 - **Defaults.** Space is the leader, splits open below and right, brackets close themselves, and indent guides and key hints are on.
 - **Keys.** `s` jumps by label, `S` in visual mode surrounds, `<C-n>` adds a region, `=` formats as `gq` does, and `q` closes fude's own windows.
 - **Built in.** `:pick` replaces `:grep` and picker plugins, folds come from indent, and language server keys exist only while a server is attached.
 - **Restart.** `:restart` keeps unsaved changes, since the timeline holds them.
+
+## In a window
+
+`fude --gui` opens fude in the system's own window: AppKit on macOS, GTK 4 on Linux and Win32 with DirectWrite on Windows. `fude share`, `attach` and `join` take `--gui` too.
+
+- **Native chrome.** Buffers are tabs in the title bar, and splits are the system's split views. The command line, the finder and menus show in panels, in the system's font and icons.
+- **The mouse.** Click, drag, double and triple click, drag a selection to move it, rest on a word for its hover, and hold Command or Control to go to a definition.
+- **Input methods and the clipboard.** Composed text shows at the cursor, and the system's copy and paste work.
+- **Screen readers.** VoiceOver, Orca and Narrator read each window's text with its cursor and selection, and the status bars, the palette, menus and tabs. They speak each message as it shows.
 
 ## Edit together
 
