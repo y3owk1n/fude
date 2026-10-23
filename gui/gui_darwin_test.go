@@ -17,7 +17,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/ebitengine/purego"
 	"github.com/ebitengine/purego/objc"
@@ -1126,13 +1125,6 @@ var (
 	dragged  objc.ID
 )
 
-// onLoop runs fn on w's loop, where the session may be read.
-func (w *window) onLoop(fn func()) {
-	done := make(chan struct{})
-	w.do <- func() { fn(); close(done) }
-	<-done
-}
-
 // B562
 func TestB562HoverAtTheMouse(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "a.txt")
@@ -1367,16 +1359,6 @@ func (hovering) Callback(context.Context, uint32, api.Scope) (api.Result, error)
 }
 func (hovering) Work(context.Context, api.Job) (string, error) { return "", nil }
 func (hovering) Close(context.Context) error                   { return nil }
-
-// until waits for ok, failing t once it waited too long for what.
-func until(t *testing.T, what string, ok func() bool) {
-	t.Helper()
-	for deadline := time.Now().Add(editortest.Patience); !ok(); time.Sleep(5 * time.Millisecond) {
-		if time.Now().After(deadline) {
-			t.Fatalf("still waiting for %s", what)
-		}
-	}
-}
 
 // press sends w a key down, as the keyboard does.
 func press(w *window, code uint16, mods uint, chars, bare string) {

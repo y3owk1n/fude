@@ -3,7 +3,6 @@ package gui
 import (
 	"math"
 	"slices"
-	"strings"
 	"time"
 
 	"github.com/ebitengine/purego/objc"
@@ -288,41 +287,17 @@ func drawStatus(self objc.ID, _ objc.SEL, _ rect) {
 	}
 }
 
-// drawParts draws a status line's parts in r, under a hairline.
-func drawParts(left, right []client.Part, current bool, r rect) {
-	system("separatorColor").Send(sel("setFill"))
-	rectFill(rect{r.Origin, size{r.Size.W, 1}})
-	ls, rs := runs(left, current), runs(right, current)
-	if width(ls)+width(rs)+3*pad > r.Size.W {
-		rs = nil
+// attrs are r's text attributes, in the system's font.
+func (r run) attrs() objc.ID {
+	if r.bold {
+		return uiAttrs(uiBold, system(r.fg))
 	}
-	x := r.Origin.X + pad
-	for _, p := range ls {
-		x = p.draw(x, r.Origin.Y, r.Size.H)
-	}
-	x = r.Origin.X + r.Size.W - pad - width(rs)
-	for _, p := range rs {
-		x = p.draw(x, r.Origin.Y, r.Size.H)
-	}
-}
-
-// run is a part of a status bar or of the tab strip as it draws, its text
-// in a font and one of the system's colours. A pill run has a rounded
-// ground when it has one, and a tight run has no room after it. A tab's
-// run ends in a slot that shows the system's symbol slot.
-type run struct {
-	text        string
-	font        objc.ID
-	fg, ground  objc.ID
-	pill, tight bool
-	slotted     bool
-	slot        string
-	slotFg      objc.ID
+	return uiAttrs(uiFont, system(r.fg))
 }
 
 // size is how wide r draws, its room included.
 func (r run) size() float64 {
-	w := math.Ceil(msgSizeOf(nsString(r.text), sel("sizeWithAttributes:"), uiAttrs(r.font, r.fg)).W)
+	w := math.Ceil(msgSizeOf(nsString(r.text), sel("sizeWithAttributes:"), r.attrs()).W)
 	if r.pill {
 		w += 2 * pad
 	}
@@ -338,69 +313,18 @@ func (r run) size() float64 {
 // draw draws r from x in a bar h tall from top, and returns where the next
 // goes.
 func (r run) draw(x, top, h float64) float64 {
-	a := uiAttrs(r.font, r.fg)
+	a := r.attrs()
 	sz := msgSizeOf(nsString(r.text), sel("sizeWithAttributes:"), a)
 	at := x
 	if r.pill {
-		if r.ground != 0 {
-			r.ground.Send(sel("setFill"))
-			msgRounded(cls("NSBezierPath"), sel("bezierPathWithRoundedRect:xRadius:yRadius:"), rect{point{x, top + 4}, size{r.size() - pad, h - 8}}, 6, 6).Send(sel("fill"))
+		if r.ground != "" {
+			fillRounded(r.ground, rect{point{x, top + 4}, size{r.size() - pad, h - 8}}, 6)
 		}
 		at += pad
 	}
 	msgDrawAt(nsString(r.text), sel("drawAtPoint:withAttributes:"), point{at, top + math.Floor((h-sz.H)/2)}, a)
 	if r.slot != "" {
-		drawSymbol(symbol(r.slot, r.slotFg), rect{point{at + math.Ceil(sz.W) + 4, top + math.Floor(h/2) - 4}, size{slotW - 8, 8}})
+		drawSymbol(symbol(r.slot, system(r.slotFg)), rect{point{at + math.Ceil(sz.W) + 4, top + math.Floor(h/2) - 4}, size{slotW - 8, 8}})
 	}
 	return x + r.size()
-}
-
-// width is how wide rs draw.
-func width(rs []run) float64 {
-	n := 0.0
-	for _, r := range rs {
-		n += r.size()
-	}
-	return n
-}
-
-// runs are a status line's parts as the bar draws them, by their roles,
-// in the system's colours (B147).
-func runs(parts []client.Part, current bool) []run {
-	label, muted := system("labelColor"), system("secondaryLabelColor")
-	if !current {
-		label, muted = system("secondaryLabelColor"), system("tertiaryLabelColor")
-	}
-	var out []run
-	for _, p := range parts {
-		r := run{text: p.Text, font: uiFont, fg: muted}
-		if kind, ok := strings.CutPrefix(p.Role, "mode."); ok {
-			r = run{text: p.Text, font: uiBold, fg: system("whiteColor"), ground: modeSystem(kind), pill: true}
-		}
-		switch p.Role {
-		case "recording":
-			r.text, r.font, r.fg = "● "+p.Text, uiBold, system("systemRedColor")
-		case "dir":
-			r.fg, r.tight = system("tertiaryLabelColor"), true
-		case "name":
-			r.fg = label
-			if current {
-				r.font = uiBold
-			}
-		case "modified":
-			r.text, r.fg = "●", system("systemOrangeColor")
-		case "errors":
-			r.fg = system("systemRedColor")
-		case "warnings":
-			r.fg = system("systemYellowColor")
-		case "sharing", "zoomed":
-			r.fg = system("systemOrangeColor")
-		case "busy":
-			r.text, r.fg = string(spinner[time.Now().UnixMilli()/spinnerFrame.Milliseconds()%int64(len(spinner))]), system("controlAccentColor")
-		}
-		if r.text != "" {
-			out = append(out, r)
-		}
-	}
-	return out
 }

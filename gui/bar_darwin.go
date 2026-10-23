@@ -28,14 +28,14 @@ func drawBar(self objc.ID, _ objc.SEL, _ rect) {
 	t := w.tabs
 	w.hits = w.hits[:0]
 	if len(t.buffers) == 0 && len(t.pages) == 0 {
-		r := run{text: t.title, font: uiBold, fg: system("secondaryLabelColor")}
+		r := run{text: t.title, bold: true, fg: "secondaryLabelColor"}
 		r.draw(math.Round((b.W-r.size())/2), 0, b.H)
 		return
 	}
 	tab := func(text string, modified, current bool) run {
-		r := run{text: text, font: uiFont, fg: system("secondaryLabelColor"), pill: true, slotted: true, slotFg: system("secondaryLabelColor")}
+		r := run{text: text, fg: "secondaryLabelColor", pill: true, slotted: true, slotFg: "secondaryLabelColor"}
 		if current {
-			r.font, r.fg, r.ground = uiBold, system("labelColor"), system("quaternaryLabelColor")
+			r.bold, r.fg, r.ground = true, "labelColor", "quaternaryLabelColor"
 		}
 		if modified {
 			r.slot = "circle.fill"
@@ -46,8 +46,8 @@ func drawBar(self objc.ID, _ objc.SEL, _ rect) {
 	// as the current one shows × while it has no changes.
 	over := func(rs []run, current int, from, to float64, i int) {
 		hovered := w.hover >= from && w.hover < to
-		if hovered && rs[i].ground == 0 {
-			rs[i].ground = system("quaternaryLabelColor")
+		if hovered && rs[i].ground == "" {
+			rs[i].ground = "quaternaryLabelColor"
 		}
 		if hovered || i == current && rs[i].slot == "" {
 			rs[i].slot = "xmark"
@@ -60,7 +60,7 @@ func drawBar(self objc.ID, _ objc.SEL, _ rect) {
 			pages[i] = tab(strconv.Itoa(i+1)+" "+name, p.Modified, p.Current)
 			if p.Current {
 				at = i
-				pages[i].fg, pages[i].ground, pages[i].slotFg = system("whiteColor"), modeSystem(t.mode), system("whiteColor")
+				pages[i].fg, pages[i].ground, pages[i].slotFg = "whiteColor", modeColour(t.mode), "whiteColor"
 			}
 		}
 		start := end - min(width(pages), (end-x)/2)
@@ -93,7 +93,7 @@ func drawBar(self objc.ID, _ objc.SEL, _ rect) {
 // fit, it draws the ones around the one at current, with ‹ or › where it
 // cuts.
 func cut(rs []run, current int, x, end, h float64, at func(i int, from, to float64)) {
-	mark := func(text string) run { return run{text: text, font: uiFont, fg: system("tertiaryLabelColor")} }
+	mark := func(text string) run { return run{text: text, fg: "tertiaryLabelColor"} }
 	if width(rs) <= end-x {
 		for i := range rs {
 			at(i, x, x+rs[i].size())

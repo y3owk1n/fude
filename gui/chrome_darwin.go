@@ -2,6 +2,7 @@ package gui
 
 import (
 	"github.com/ebitengine/purego/objc"
+	"github.com/y3owk1n/fude/frontend/theme"
 )
 
 // The system's colours, symbols and text attributes, made once each by
@@ -81,18 +82,47 @@ func material(kind, blend int) objc.ID {
 	return v
 }
 
-// modeSystem is the system's colour of a mode of the kind client.ModeName
-// gives.
-func modeSystem(kind string) objc.ID {
-	switch kind {
-	case "insert", "terminal":
-		return system("systemGreenColor")
-	case "replace":
-		return system("systemRedColor")
-	case "command":
-		return system("systemOrangeColor")
-	case "visual":
-		return system("systemPurpleColor")
+// fill fills r with the system's colour of the name.
+func fill(colour string, r rect) {
+	system(colour).Send(sel("setFill"))
+	rectFill(r)
+}
+
+// fillRounded fills r with corners of the radius, in the system's colour
+// of the name.
+func fillRounded(colour string, r rect, radius float64) {
+	system(colour).Send(sel("setFill"))
+	msgRounded(cls("NSBezierPath"), sel("bezierPathWithRoundedRect:xRadius:yRadius:"), r, radius, radius).Send(sel("fill"))
+}
+
+// fillRGB fills r with c.
+func fillRGB(c theme.RGB, r rect) {
+	nsColor(c).Send(sel("setFill"))
+	rectFill(r)
+}
+
+// drawString draws text from at in st's font and colour, or in the
+// system's colour of the name when colour is not "".
+func drawString(text string, st theme.Style, colour string, at point) {
+	a := attrs(st)
+	if colour != "" {
+		a = uiAttrs(fontOf(st), system(colour))
 	}
-	return system("systemBlueColor")
+	msgDrawAt(nsString(text), sel("drawAtPoint:withAttributes:"), at, a)
+}
+
+// wavy draws a wavy line in c from x0 to x1 along y, as a diagnostic's
+// underline.
+func wavy(c theme.RGB, x0, x1, y float64) {
+	nsColor(c).Send(sel("setStroke"))
+	path := cls("NSBezierPath").Send(sel("bezierPath"))
+	msgPointArg(path, sel("moveToPoint:"), point{x0, y})
+	for x, up := x0+2, true; x <= x1; x, up = x+2, !up {
+		dy := 0.0
+		if up {
+			dy = -2
+		}
+		msgPointArg(path, sel("lineToPoint:"), point{x, y + dy})
+	}
+	path.Send(sel("stroke"))
 }

@@ -332,3 +332,9 @@ func file(name string) string {
 	}
 	return path
 }
+
+// dark reports whether c is a dark ground.
+func dark(c theme.RGB) bool {
+	r, g, b := float64(c>>16&0xff), float64(c>>8&0xff), float64(c&0xff)
+	return 0.299*r+0.587*g+0.114*b < 128
+}

@@ -6,8 +6,6 @@ import (
 
 	"github.com/ebitengine/purego"
 	"github.com/ebitengine/purego/objc"
-
-	"github.com/y3owk1n/fude/frontend/theme"
 )
 
 // textSize is the text's size in points, which Command-= and Command-minus
@@ -80,12 +78,6 @@ func (w *window) dress(f frame) {
 		w.file = f.file
 		w.win.Send(sel("setRepresentedFilename:"), nsString(f.file))
 	}
-}
-
-// dark reports whether c is a dark ground.
-func dark(c theme.RGB) bool {
-	r, g, b := float64(c>>16&0xff), float64(c>>8&0xff), float64(c&0xff)
-	return 0.299*r+0.587*g+0.114*b < 128
 }
 
 // notify tells the user of text while w is not in front. It bounces the

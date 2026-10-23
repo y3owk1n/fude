@@ -2,11 +2,8 @@ package gui
 
 import (
 	"maps"
-	"math"
 	"slices"
-	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/ebitengine/purego/objc"
 
@@ -291,35 +288,6 @@ func fontOf(s theme.Style) objc.ID {
 	return font
 }
 
-// decorate draws the lines s asks for over the text in r: a strike through
-// its middle and an underline under it. An underline with a colour of its
-// own, as a diagnostic's has, is wavy.
-func decorate(s theme.Style, r rect) {
-	if s.Strike {
-		nsColor(s.Fg).Send(sel("setFill"))
-		rectFill(rect{point{r.Origin.X, r.Origin.Y + math.Floor(cellH/2)}, size{r.Size.W, 1}})
-	}
-	switch {
-	case !s.Underline:
-	case s.UnderSet:
-		nsColor(s.Under).Send(sel("setStroke"))
-		path := cls("NSBezierPath").Send(sel("bezierPath"))
-		y := r.Origin.Y + cellH - 2
-		msgPointArg(path, sel("moveToPoint:"), point{r.Origin.X, y})
-		for x, up := r.Origin.X+2, true; x <= r.Origin.X+r.Size.W; x, up = x+2, !up {
-			dy := 0.0
-			if up {
-				dy = -2
-			}
-			msgPointArg(path, sel("lineToPoint:"), point{x, y + dy})
-		}
-		path.Send(sel("stroke"))
-	default:
-		nsColor(s.Fg).Send(sel("setFill"))
-		rectFill(rect{point{r.Origin.X, r.Origin.Y + cellH - 2}, size{r.Size.W, 1}})
-	}
-}
-
 // textAttrs returns the text attributes of f in fg, made once each.
 func textAttrs(f objc.ID, fg theme.RGB) objc.ID {
 	k := [2]int64{int64(f), int64(fg)}
@@ -333,60 +301,6 @@ func textAttrs(f objc.ID, fg theme.RGB) objc.ID {
 	return a
 }
 
-// drawCells draws cells and the cursor on them, the first cell at o. A run
-// of one-column ASCII in one style draws as one string, and any other cell
-// alone at its own column, so the font's fallbacks for other characters
-// never shift the row. A cell whose ground is clear draws none, so what is
-// under it shows, and the text of chosen rows is the system's selected
-// text.
-func drawCells(cells [][]cell, cursor cursorAt, o point, clear *theme.RGB, chosen []rule) {
-	picked := func(x, y int) bool {
-		return slices.ContainsFunc(chosen, func(r rule) bool { return r.y == y && x >= r.x && x < r.x+r.w })
-	}
-	ascii := func(c cell) bool { return c.width == 1 && len(c.text) == 1 && c.text[0] >= ' ' && c.text[0] <= '~' }
-	for y, row := range cells {
-		for x := 0; x < len(row); {
-			c := row[x]
-			n := 1
-			for ascii(c) && x+n < len(row) && ascii(row[x+n]) && row[x+n].style == c.style {
-				n++
-			}
-			r := at(x, y, max(n, c.width), o)
-			if clear == nil || c.style.Bg != *clear {
-				nsColor(c.style.Bg).Send(sel("setFill"))
-				rectFill(r)
-			}
-			var text strings.Builder
-			for _, o := range row[x : x+n] {
-				text.WriteString(o.text)
-			}
-			if t := strings.TrimRight(text.String(), " "); t != "" {
-				a := attrs(c.style)
-				if picked(x, y) {
-					a = uiAttrs(fontOf(c.style), system("alternateSelectedControlTextColor"))
-				}
-				msgDrawAt(nsString(t), sel("drawAtPoint:withAttributes:"), r.Origin, a)
-			}
-			decorate(c.style, r)
-			x += max(n, c.width)
-		}
-	}
-	if c := cursor; c.shown && c.y >= 0 && c.x >= 0 && c.y < len(cells) && c.x < len(cells[c.y]) {
-		r := at(c.x, c.y, 1, o)
-		switch c.shape {
-		case 1:
-			r.Size.W = 2
-		case 2:
-			r.Origin.Y, r.Size.H = r.Origin.Y+cellH-2, 2
-		}
-		nsColor(cells[c.y][c.x].style.Fg).Send(sel("setFill"))
-		rectFill(r)
-		if under := cells[c.y][c.x]; c.shape == 0 && strings.TrimSpace(under.text) != "" {
-			msgDrawAt(nsString(under.text), sel("drawAtPoint:withAttributes:"), r.Origin, attrs(theme.Style{Fg: under.style.Bg}))
-		}
-	}
-}
-
 // The modifier flags of a key event.
 const (
 	modShift   = 1 << 17
@@ -397,52 +311,22 @@ const (
 
 // named are the keys that type no character, by key code.
 var named = map[uint16]vim.Key{
-	53: "<Esc>", 36: "<CR>", 76: "<CR>", 51: "<BS>", 117: "<Del>",
+	48: "\t", 53: "<Esc>", 36: "<CR>", 76: "<CR>", 51: "<BS>", 117: "<Del>",
 	123: "<Left>", 124: "<Right>", 125: "<Down>", 126: "<Up>",
 	115: "<Home>", 119: "<End>", 116: "<PageUp>", 121: "<PageDown>", 114: "<Insert>",
 }
 
 // keys returns a key down in Vim notation: code is its key code, mods its
 // modifier flags, chars what it types and plain what it types without
-// modifiers. An Option chord is <Esc> and the key, as the terminal client
-// reads one (D26). A Command chord is the system's, so it gives none.
+// modifiers.
 func keys(code uint16, mods uint, chars, plain string) []vim.Key {
-	switch {
-	case mods&modCommand != 0:
-		return nil
-	case code == 48 && mods&modShift != 0:
-		return []vim.Key{"<S-Tab>"}
-	case code == 48:
-		return []vim.Key{"\t"}
-	}
-	if k, ok := named[code]; ok {
-		if mods&modControl != 0 && strings.Contains("<Left><Right><Up><Down><Home><End>", string(k)) {
-			return []vim.Key{"<C-" + k[1:]}
+	held := 0
+	for _, m := range [][2]uint{{modShift, shiftKey}, {modControl, controlKey}, {modOption, altKey}, {modCommand, superKey}} {
+		if mods&m[0] != 0 {
+			held |= int(m[1])
 		}
-		if mods&modShift != 0 && strings.Contains("<Left><Right><Up><Down><Home><End>", string(k)) {
-			return []vim.Key{"<S-" + k[1:]}
-		}
-		return []vim.Key{k}
 	}
-	if mods&modControl != 0 {
-		switch p := strings.ToLower(plain); {
-		case p == "6" || p == "^":
-			return []vim.Key{"<C-^>"}
-		case p == " " || p == "@" || p == "2":
-			return []vim.Key{"<C-@>"}
-		case utf8.RuneCountInString(p) == 1:
-			return []vim.Key{vim.Key("<C-" + p + ">")}
-		}
-		return nil
-	}
-	if mods&modOption != 0 && plain != "" {
-		return []vim.Key{"<Esc>", vim.Key(plain)}
-	}
-	var out []vim.Key
-	for _, r := range chars {
-		out = append(out, vim.Key(string(r)))
-	}
-	return out
+	return chord(named[code], held, chars, plain)
 }
 
 // close closes the window of a session that ended, and forgets its views.

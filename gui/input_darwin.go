@@ -52,7 +52,7 @@ func keyDown(self objc.ID, _ objc.SEL, ev objc.ID) {
 	}
 	code := objc.Send[uint16](ev, sel("keyCode"))
 	mods := objc.Send[uint](ev, sel("modifierFlags"))
-	if _, ok := named[code]; w.marked == "" && (ok || code == 48 || mods&(modControl|modOption|modCommand) != 0) {
+	if _, ok := named[code]; w.marked == "" && (ok || mods&(modControl|modOption|modCommand) != 0) {
 		w.typeEvent(ev)
 		return
 	}
