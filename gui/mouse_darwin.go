@@ -107,9 +107,9 @@ func mouseAt(view objc.ID, ev objc.ID, kind byte) {
 	at := msgConvertPoint(view, sel("convertPoint:fromView:"), msgPoint(ev, sel("locationInWindow")), 0)
 	m := mouse{kind, id, int(math.Floor((at.X - o.X) / cellW)), int(math.Floor((at.Y - o.Y) / cellH)), 1}
 	switch {
-	case b != nil && b.lines != nil:
-		if kind == 'c' && m.y >= 0 && m.y < len(b.lines) && b.lines[m.y] >= 0 && m.x >= 0 && m.x < b.width {
-			w.mice <- mouse{kind: 'p', y: b.lines[m.y]}
+	case b != nil && b.list != nil:
+		if i, ok := b.list.itemAt(at); kind == 'c' && ok {
+			w.mice <- mouse{kind: 'p', y: b.list.first + i}
 		}
 		return
 	case w.panel.boxed != nil:
@@ -140,7 +140,7 @@ func wheel(self objc.ID, _ objc.SEL, ev objc.ID) {
 	switch {
 	case p != nil:
 		w, turned = p.w, &p.wheel
-	case b != nil && b.lines != nil:
+	case b != nil && b.list != nil:
 		w, turned = b.w, &b.w.menuWheel
 	default:
 		return

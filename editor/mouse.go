@@ -148,17 +148,16 @@ func (e *Session) Scroll(id, n int) {
 	}
 }
 
-// Pick takes the item on line n of the text of the menu that shows, as a
-// click on it does (B556). The command line's menu puts it in the line, as
-// <Tab> does, the finder opens it and a menu at the cursor takes it as
-// <CR> or <C-y> does. A line that holds no item does nothing.
+// Pick takes item n of the Items of the menu that shows, as a click on it
+// does (B556, B560). The command line's menu puts it in the line, as <Tab>
+// does, the finder opens it and a menu at the cursor takes it as <CR> or
+// <C-y> does. A heading, and an n with no item, do nothing.
 func (e *Session) Pick(n int) {
 	defer e.reveal()
 	switch c := e.cmdline.menu; {
 	case e.finder != nil:
-		// The query and the rule under it come before the list.
 		f := e.finder
-		if n -= 2; n >= 0 && n < len(f.rows) && f.rows[n] >= 0 {
+		if n >= 0 && n < len(f.rows) && f.rows[n] >= 0 {
 			f.sel = f.rows[n]
 			e.Feed("<CR>")
 		}

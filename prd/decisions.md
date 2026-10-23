@@ -910,14 +910,15 @@ window takes the theme's light or dark look, and AppKit shows the current
 file's icon and unsaved changes as it does for any document window (B558).
 The strip, the status bars and the boxes take the system's materials,
 colours, font and symbols, as the chrome of other Mac applications does.
-The text keeps the theme, and so does text the editor lays out in columns
-for a fixed-width font (B559). Terminal windows draw from their cells.
-Images draw from the PNGs the session gives, with no terminal protocol
-(B553). The editor stays the source of each, and keys still go through
-Vim's grammar, so a palette holds no text field of its own. On other
-systems `fude gui` says it runs only on macOS for now. The GUI ships later
-as an app bundle built from the same code, and `fude` stays one binary,
-since the window adds about 0.1MB to it.
+The text keeps the theme (B559). A menu carries its items as data beside
+its text, which the terminal client draws, so the window lays them out as
+lists in the system's font with icons (B560). Terminal windows draw from
+their cells. Images draw from the PNGs the session gives, with no terminal
+protocol (B553). The editor stays the source of each, and keys still go
+through Vim's grammar, so a palette holds no text field of its own. On
+other systems `fude gui` says it runs only on macOS for now. The GUI ships
+later as an app bundle built from the same code, and `fude` stays one
+binary, since the window adds about 0.1MB to it.
 
 Why, as of 2026-10-23: the user wants a first-class Vim GUI with native
 controls, not a terminal in a window. A spike drew fude's text in a native

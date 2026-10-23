@@ -321,6 +321,8 @@ func (f *finder) box(query string, cursor, width, height int) wire.Menu {
 	f.first = max(min(f.first, top), selRow-rows+1)
 	f.first = max(min(f.first, len(list)-rows), 0)
 	f.rows = f.rows[:0]
+	var items []wire.Item
+	selected := -1
 	for _, r := range list[f.first:min(f.first+rows, len(list))] {
 		if r.header {
 			f.rows = append(f.rows, -1)
@@ -330,14 +332,17 @@ func (f *finder) box(query string, cursor, width, height int) wire.Menu {
 		s.WriteByte('\n')
 		start := s.Len()
 		m := f.matches[r.match]
+		var item wire.Item
 		switch path, line, _, text := grepSpot(m); {
 		case r.header:
 			writePath(&s, &spans, path, nil, w-4, "finder.file")
+			item = wire.Item{Label: path, Header: true, Kind: "file", Path: path}
 		case f.places:
 			num := fmt.Sprintf("%*d  ", lineW, line)
 			spans = append(spans, wire.Span{Start: s.Len(), End: s.Len() + lineW, Name: "finder.dir"})
 			s.WriteString(num)
 			text = strings.TrimLeft(text, " \t")
+			item = wire.Item{Label: text, Line: line, Path: path, Marks: fuzzy.Positions(fuzzy.Lower(f.query), text)}
 			if r := []rune(text); len(r) > w-4-len(num) {
 				text = string(r[:max(w-4-len(num), 0)])
 			}
@@ -351,6 +356,7 @@ func (f *finder) box(query string, cursor, width, height int) wire.Menu {
 			s.WriteString(text)
 		case f.chose != nil && !f.asFiles:
 			// An item of a list is text, not a path.
+			item = wire.Item{Label: m, Marks: fuzzy.Positions(fuzzy.Lower(f.query), m)}
 			if r := []rune(m); len(r) > w-4 {
 				m = string(r[:max(w-4, 0)])
 			}
@@ -359,10 +365,14 @@ func (f *finder) box(query string, cursor, width, height int) wire.Menu {
 			}
 			s.WriteString(m)
 		default:
-			writePath(&s, &spans, m, fuzzy.Positions(fuzzy.Lower(f.query), m), w-4, "")
+			marks := fuzzy.Positions(fuzzy.Lower(f.query), m)
+			writePath(&s, &spans, m, marks, w-4, "")
+			item = fileItem(m, marks)
 		}
+		items = append(items, item)
 		if r.match == f.sel && !r.header {
 			spans = append(spans, wire.Span{Start: start, End: s.Len(), Name: "menu.selected"})
+			selected = len(items) - 1
 		}
 	}
 	// An empty list says why, once the matches are for the query typed.
@@ -375,6 +385,7 @@ func (f *finder) box(query string, cursor, width, height int) wire.Menu {
 		s.WriteByte('\n')
 		spans = append(spans, wire.Span{Start: s.Len(), End: s.Len() + len(empty), Name: "comment"})
 		s.WriteString(empty)
+		items = append(items, wire.Item{Label: empty, Disabled: true})
 	}
 	if docW > 0 {
 		// The list is as tall as the preview beside it.
@@ -407,7 +418,28 @@ func (f *finder) box(query string, cursor, width, height int) wire.Menu {
 			docSpans = append(slices.Clip(docSpans), wire.Span{Start: start, End: start + end, Name: "menu.selected"})
 		}
 	}
-	return wire.Menu{Anchor: "middle", Text: s.String(), Spans: spans, Title: f.title, Cursor: cursor + len(prompt), Doc: doc, DocSpans: docSpans, X: (width - total) / 2, Y: (height - h) / 2, W: w, H: h, DocW: docW}
+	return wire.Menu{
+		Anchor: "middle", Text: s.String(), Spans: spans, Title: f.title, Cursor: cursor + len(prompt), Doc: doc, DocSpans: docSpans,
+		X: (width - total) / 2, Y: (height - h) / 2, W: w, H: h, DocW: docW,
+		Items: items, Selected: selected, Prompt: prompt, Query: query, Count: count,
+	}
+}
+
+// fileItem is a path the finder lists, as a frontend lays its row out: its
+// name, with the letters marks says the query matches, after its folder
+// (B560).
+func fileItem(path string, marks []int) wire.Item {
+	dir, name := filepath.Split(strings.TrimSuffix(path, "/"))
+	it := wire.Item{Label: name, Detail: strings.TrimSuffix(dir, "/"), Kind: "file", Path: path}
+	if strings.HasSuffix(path, "/") {
+		it.Kind = "folder"
+	}
+	for _, at := range marks {
+		if at >= len(dir) && at < len(dir)+len(name) {
+			it.Marks = append(it.Marks, at-len(dir))
+		}
+	}
+	return it
 }
 
 // writePath writes path in at most width columns: its name, in style when

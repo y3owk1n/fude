@@ -26,8 +26,7 @@ type Session interface {
 	Drag(window, x, y int)
 	Scroll(window, n int)
 	Release(window, x, y int)
-	// Pick takes the item on line n of the text of the menu that shows
-	// (B556).
+	// Pick takes item n of the Items of the menu that shows (B556).
 	Pick(n int)
 	Focus()
 	Timeout()

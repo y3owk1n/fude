@@ -123,10 +123,13 @@ func TestB548NativeBoxes(t *testing.T) {
 			onMain(func() { press(w, code, 0, string(c), string(c)) }, true)
 		}
 	}
-	// shows reports whether b shows with something drawn in its first cell.
+	// shows reports whether b shows with something drawn in its first cells.
 	shows := func(b *box) bool {
 		var hidden, drawn bool
-		onMain(func() { hidden, drawn = objc.Send[bool](b.view, sel("isHidden")), inked(b.view, inset, 0, 0) }, true)
+		onMain(func() {
+			hidden = objc.Send[bool](b.view, sel("isHidden"))
+			drawn = inked(b.view, inset, 0, 0) || inked(b.view, inset, 1, 0) || inked(b.view, inset, 2, 0)
+		}, true)
 		return !hidden && drawn
 	}
 	// The command line shows in the palette, and goes with it.
@@ -534,10 +537,10 @@ func TestB553TerminalsAndImages(t *testing.T) {
 				return
 			}
 			// The middle of its first cell is the image's red.
-			p := b.pics[0]
+			p, o := b.pics[0], b.cellsOrigin()
 			rgb, scale, ok := pixels(b.view)
 			if ok {
-				c := rgb(int(scale*(inset+(float64(p.x)+0.5)*cellW)), int(scale*(inset+(float64(p.y)+0.5)*cellH)))
+				c := rgb(int(scale*(o.X+(float64(p.x)+0.5)*cellW)), int(scale*(o.Y+(float64(p.y)+0.5)*cellH)))
 				shown = c[0] > 0.8 && c[1] < 0.2 && c[2] < 0.2
 			}
 		}, true)
@@ -680,7 +683,7 @@ func TestB556MenusByMouse(t *testing.T) {
 			}
 		})
 		shown := false
-		onMain(func() { shown = w.panel.boxed != nil && len(w.panel.lines) > 3 }, true)
+		onMain(func() { shown = w.panel.boxed != nil && w.panel.list != nil && len(w.panel.list.items) > 2 }, true)
 		return len(items) > 2 && shown
 	})
 	line := func() string {
@@ -690,7 +693,8 @@ func TestB556MenusByMouse(t *testing.T) {
 	}
 	// A click on an item puts it in the line.
 	onMain(func() {
-		at := msgConvertPoint(w.panel.view, sel("convertPoint:toView:"), point{inset + 2.5*cellW, inset + 3.5*cellH}, 0)
+		l := w.panel.list
+		at := msgConvertPoint(w.panel.view, sel("convertPoint:toView:"), point{40, l.top() + 1.5*l.rowH}, 0)
 		ev := msgMouseEvent(cls("NSEvent"), sel("mouseEventWithType:location:modifierFlags:timestamp:windowNumber:context:eventNumber:clickCount:pressure:"),
 			1, at, 0, 0, objc.Send[int](w.win, sel("windowNumber")), 0, 0, 1, 1)
 		w.win.Send(sel("sendEvent:"), ev)
@@ -886,7 +890,9 @@ func TestB559SystemChrome(t *testing.T) {
 	}
 	until(t, "the selection", func() bool {
 		ok := false
-		onMain(func() { ok = w.panel.boxed != nil && len(w.panel.chosen) > 0 }, true)
+		onMain(func() {
+			ok = w.panel.boxed != nil && w.panel.list != nil && len(w.panel.list.items) > 0 && w.panel.list.selected >= 0
+		}, true)
 		return ok
 	})
 	onMain(func() {
@@ -898,8 +904,8 @@ func TestB559SystemChrome(t *testing.T) {
 		srgb := cls("NSColorSpace").Send(sel("sRGBColorSpace"))
 		want := cls("NSColor").Send(sel("selectedContentBackgroundColor")).Send(sel("colorUsingColorSpace:"), srgb)
 		rgb, scale, _ := pixels(w.panel.view)
-		c := w.panel.chosen[0]
-		got := rgb(int(scale*(inset+(float64(c.x+c.w)-0.5)*cellW)), int(scale*(inset+(float64(c.y)+0.5)*cellH)))
+		l := w.panel.list
+		got := rgb(int(scale*12), int(scale*(l.top()+(float64(l.selected)+0.5)*l.rowH)))
 		for i, part := range []string{"redComponent", "greenComponent", "blueComponent"} {
 			if d := got[i] - msgComponent(want, sel(part)); d > 0.05 || d < -0.05 {
 				t.Errorf("the selected item is %v, not the system's selection", got)
@@ -917,6 +923,62 @@ func TestB559SystemChrome(t *testing.T) {
 		}
 		onMain(func() { press(w, code, 0, string(c), string(c)) }, true)
 	}
+	until(t, "the session to end", func() bool {
+		open := true
+		onMain(func() { _, open = windows[w.view] }, true)
+		return !open
+	})
+}
+
+// B560
+func TestB560NativeLists(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	editortest.Change(t, filepath.Join(dir, "a.txt"), "one\n")
+	e := editortest.Open(t, "a.txt")
+	e.Use(filesmod.New())
+	var w *window
+	onMain(func() { w = open(e, nil) }, true)
+	typed := func(keys string) {
+		for _, c := range keys {
+			code := uint16(0)
+			switch c {
+			case '\r':
+				code = 36
+			case '\t':
+				code = 48
+			case '\x1b':
+				code = 53
+			}
+			onMain(func() { press(w, code, 0, string(c), string(c)) }, true)
+		}
+	}
+	// The command line's menu is a list of rows the window lays out, with
+	// no cells of the editor's.
+	typed(":se\t")
+	until(t, "the list", func() bool {
+		ok := false
+		onMain(func() {
+			l := w.panel.list
+			ok = w.panel.boxed != nil && l != nil && len(l.items) > 2 && w.panel.cells == nil &&
+				inked(w.panel.view, 0, int((8+l.width/2)/cellW), int((l.top()+0.5*l.rowH)/cellH))
+		}, true)
+		return ok
+	})
+	// The finder's files show the Finder's icon for them.
+	typed("\x1b:pick files\r")
+	until(t, "the file's icon", func() bool {
+		ok := false
+		onMain(func() {
+			if l := w.panel.list; w.panel.boxed != nil && l != nil {
+				for _, it := range l.items {
+					ok = ok || it.Label == "a.txt" && icons[it.Path] != 0
+				}
+			}
+		}, true)
+		return ok
+	})
+	typed("\x1b:qa!\r")
 	until(t, "the session to end", func() bool {
 		open := true
 		onMain(func() { _, open = windows[w.view] }, true)

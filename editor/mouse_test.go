@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
+	"github.com/y3owk1n/fude/frontend/wire"
 	completionmod "github.com/y3owk1n/fude/modules/completion"
 	filesmod "github.com/y3owk1n/fude/modules/files"
 	"github.com/y3owk1n/fude/vim"
@@ -129,8 +131,8 @@ func TestB556Pick(t *testing.T) {
 	at := -1
 	settle(t, e, func() bool {
 		m, _ := e.Menu()
-		for i, l := range strings.Split(m.Text, "\n") {
-			if strings.Contains(l, "b.txt") {
+		for i, it := range m.Items {
+			if it.Label == "b.txt" {
 				at = i
 			}
 		}
@@ -173,5 +175,75 @@ func TestB557MoveSelection(t *testing.T) {
 	e.Click(v.ID, 1, 1)
 	if e.Release(v.ID, 1, 1); e.Mode() != vim.Normal || e.Cursor() != 3 || text(e) != "b\none two three\nc" {
 		t.Errorf("letting go on the selection left mode %v at %d with %q", e.Mode(), e.Cursor(), text(e))
+	}
+}
+
+// B560
+func TestB560MenuItems(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	change(t, filepath.Join(dir, "a.txt"), "hello helium\n")
+	if err := os.Mkdir(filepath.Join(dir, "sub"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	change(t, filepath.Join(dir, "sub", "bat.txt"), "x\n")
+	e := open(t, "a.txt")
+	e.Use(completionmod.New())
+	e.Use(filesmod.New())
+	e.SetSize(80, 24)
+	// rows checks that a menu's items are the rows of its text after skip,
+	// and that Selected is the row its selection starts.
+	rows := func(what string, skip int) wire.Menu {
+		t.Helper()
+		m, _ := e.Menu()
+		// Blank rows may follow, as the finder's do to be as tall as its
+		// preview.
+		lines := strings.Split(m.Text, "\n")[skip:]
+		for len(lines) > len(m.Items) && strings.TrimSpace(lines[len(lines)-1]) == "" {
+			lines = lines[:len(lines)-1]
+		}
+		if len(m.Items) != len(lines) {
+			t.Errorf("%s has %d items for %d rows", what, len(m.Items), len(lines))
+			return m
+		}
+		for i, it := range m.Items {
+			if !strings.Contains(lines[i], it.Label) {
+				t.Errorf("%s's item %q is not on its row %q", what, it.Label, lines[i])
+			}
+		}
+		sel := -1
+		for _, sp := range m.Spans {
+			if sp.Name == "menu.selected" {
+				sel = strings.Count(m.Text[:sp.Start], "\n") - skip
+			}
+		}
+		if m.Selected != sel {
+			t.Errorf("%s selects item %d, its text row %d", what, m.Selected, sel)
+		}
+		return m
+	}
+	feed(e, ":se<Tab>")
+	rows("the command line's menu", 0)
+	feed(e, "<Esc>Ohe<C-n>")
+	if m := rows("the completion menu", 0); len(m.Items) == 0 || m.Items[0].Detail != "buffer" {
+		t.Errorf("the completion menu's items are %+v", m.Items)
+	}
+	// The finder's items are its list, after its query and the rule under
+	// it, and a file's marks are those in its name.
+	feed(e, "<Esc><Esc>:pick files<CR>bt")
+	settle(t, e, func() bool {
+		m, _ := e.Menu()
+		return m.Query == "bt" && slices.ContainsFunc(m.Items, func(it wire.Item) bool { return it.Label == "bat.txt" })
+	})
+	m := rows("the finder", 2)
+	i := slices.IndexFunc(m.Items, func(it wire.Item) bool { return it.Label == "bat.txt" })
+	if it := m.Items[i]; it.Detail != "sub" || it.Path != filepath.Join("sub", "bat.txt") || it.Kind != "file" || len(it.Marks) == 0 || m.Count == "" || m.Prompt == "" {
+		t.Errorf("the finder's item is %+v, its count %q and prompt %q", it, m.Count, m.Prompt)
+	} else {
+		for _, at := range it.Marks {
+			if at >= len(it.Label) || !strings.ContainsRune("bt", rune(it.Label[at])) {
+				t.Errorf("the finder marks %d of %q", at, it.Label)
+			}
+		}
 	}
 }

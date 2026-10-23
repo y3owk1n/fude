@@ -155,8 +155,9 @@ func (w *window) caret() (point, bool) {
 		r := msgConvertRect(view, sel("convertRect:toView:"), at(c.x, c.y, 1, o), w.view)
 		return r.Origin, true
 	}
-	if b := w.panel; b.boxed != nil && b.cursor.shown {
-		return in(b.view, b.cursor, point{inset, inset})
+	if b := w.panel; b.boxed != nil && b.list != nil {
+		r := msgConvertRect(b.view, sel("convertRect:toView:"), rect{b.list.caret, size{1, 1}}, w.view)
+		return r.Origin, true
 	}
 	for _, b := range w.floats {
 		if b.boxed != nil && b.cursor.shown {

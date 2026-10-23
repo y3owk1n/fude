@@ -199,10 +199,29 @@ type Menu struct {
 	DocSpans []Span
 	DocImage *Picture // an image in the documentation's box, as the finder previews one (B305)
 	Rows     int      // the most rows a menu at the cursor shows, 0 for as many as fit (B481)
+	// Items are the items Text shows, row for row, for a frontend that
+	// lays its own rows out, and Selected is the selected one's index, -1
+	// for none. The finder also gives its Prompt, Query and Count (B560).
+	Items                []Item `json:",omitempty"`
+	Selected             int
+	Prompt, Query, Count string `json:",omitempty"`
 	// Where a box in a place of its own goes, its border included. W is 0
 	// for a box at the cursor. DocW is the width of the documentation's box
 	// right of it.
 	X, Y, W, H, DocW int
+}
+
+// Item is an item of a menu, for a frontend that lays its rows out
+// itself (B560).
+type Item struct {
+	Label    string
+	Marks    []int  `json:",omitempty"` // the bytes of Label the typed text matches
+	Detail   string `json:",omitempty"` // dim beside it: short names, where it came from, a kind or a folder
+	Kind     string `json:",omitempty"` // what it is, such as file, folder or function, or ""
+	Path     string `json:",omitempty"` // a file's, for its icon
+	Line     int    `json:",omitempty"` // a grep match's
+	Header   bool   `json:",omitempty"` // a name over the items after it, which nothing picks
+	Disabled bool   `json:",omitempty"`
 }
 
 // Tab is a buffer as the buffer line shows it (B258).

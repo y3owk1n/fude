@@ -3,8 +3,6 @@ package gui
 import (
 	"math"
 	"slices"
-	"strings"
-	"unicode/utf8"
 
 	"github.com/clipperhouse/displaywidth"
 	"github.com/ebitengine/purego/objc"
@@ -27,7 +25,6 @@ const (
 type boxed struct {
 	cells  [][]cell
 	rules  []rule // drawn over the cells
-	split  int    // the column a divider goes down, 0 for none
 	cursor cursorAt
 	middle bool    // it goes in the middle of the window, not its upper part
 	at     *[2]int // where its first cell goes, in cells of the area
@@ -35,10 +32,7 @@ type boxed struct {
 	pics   []pic   // over the cells
 	chosen []rule  // the rows a menu has selected, which take the system's selection
 	prompt string  // the system's symbol for a command line's prompt
-	// lines are, by row, the line of a menu's text the row shows, for a
-	// click to pick, or -1. width is how many columns hold the menu.
-	lines []int
-	width int
+	list   *list   // a menu the window lays out, before any cells
 	// A float with the focus has its status line under its text.
 	left, right []client.Part
 	text        string
@@ -48,108 +42,89 @@ type boxed struct {
 // rule is a line across w cells from column x of row y.
 type rule struct{ x, y, w int }
 
-// palette is the command line in a box, its prompt in the colour of
-// commands or of search, with menu's completions under a rule (B148).
-func palette(line string, cursor int, menu wire.Menu, lk theme.Look, cols int) *boxed {
-	w := max(min(60, cols-6), 8)
-	var items []compose.Row
-	if menu.Text != "" {
-		items, _ = compose.Wrap(menu.Text, menu.Spans, math.MaxInt)
-	}
-	rows := 1
-	if len(items) > 0 {
-		rows += 1 + len(items)
-	}
-	g := compose.NewGrid(w, rows, lk.Base)
-	prompt := line[:1]
-	// A line longer than the box shows its end, where the cursor usually is.
-	before, rest := compose.Carets(line[1:min(max(cursor, 1), len(line))]), compose.Carets(line[1:])
-	skip := 0
-	for displaywidth.String(before[skip:]) > w-3 {
-		_, n := utf8.DecodeRuneInString(before[skip:])
-		skip += n
-	}
-	b := &boxed{look: lk}
-	write(g, rest[skip:], nil, []compose.Row{{End: len(rest) - skip}}, lk, 2, 0, w-2, -1)
-	b.prompt = "chevron.right"
-	if prompt != ":" {
+// palette is the command line in a box, after the system's symbol for its
+// prompt, with menu's completions under it as a list (B148, B560).
+func palette(line string, cursor int, menu wire.Menu, lk theme.Look) *boxed {
+	b := &boxed{look: lk, prompt: "chevron.right"}
+	if line[:1] != ":" {
 		b.prompt = "magnifyingglass"
 	}
-	b.cursor = cursorAt{x: 2 + displaywidth.String(before[skip:]), shape: 1, shown: true}
-	if len(items) > 0 {
-		b.rules = []rule{{0, 1, w}}
-		_, b.chosen, _ = write(g, menu.Text, menu.Spans, items, lk, 0, 2, w, -1)
-		b.lines, b.width = append([]int{-1, -1}, lines(menu.Text, items)...), w
+	b.list = &list{
+		typing: true, input: compose.Carets(line[1:]), at: len(compose.Carets(line[1:min(max(cursor, 1), len(line))])),
+		items: menu.Items, selected: -1, rowH: listRowH,
 	}
-	b.cells = cellsOf(g)
+	if len(menu.Items) > 0 {
+		b.list.selected = menu.Selected
+	}
 	return b
 }
 
-// finder is the finder's box, as wide and tall as the editor makes it, its
-// list left of a divider and the preview right of it (B130, B150).
+// finder is the finder's box: its query and its list, and the preview
+// right of them as the editor lays it out (B130, B150, B560).
 func finder(m wire.Menu, lk theme.Look) *boxed {
 	lw, dw, h := max(m.W-4, 1), max(m.DocW-4, 0), max(m.H-2, 1)
-	total := lw
-	if dw > 0 {
-		total += 3 + dw
+	b := &boxed{middle: true, look: lk, prompt: "magnifyingglass"}
+	note := m.Count
+	if m.Title != "" {
+		note = m.Title + "   " + m.Count
 	}
-	g := compose.NewGrid(total, h, lk.Base)
-	b := &boxed{middle: true, look: lk}
-	rows, _ := compose.Wrap(m.Text, m.Spans, lw)
-	b.rules, b.chosen, b.cursor = write(g, m.Text, m.Spans, rows[:min(len(rows), h)], lk, 0, 0, lw, m.Cursor)
-	b.lines, b.width = lines(m.Text, rows[:min(len(rows), h)]), lw
-	b.cursor.shape = 1
-	// The title heads the rule under the query.
-	if m.Title != "" && len(b.rules) > 0 {
-		r := &b.rules[0]
-		n := min(displaywidth.String(m.Title), r.w-1)
-		muted := lk
-		muted.Base.Fg = lk.Theme.Muted
-		write(g, m.Title, nil, []compose.Row{{End: len(m.Title)}}, muted, r.x, r.y, n, -1)
-		r.x, r.w = r.x+n+1, r.w-n-1
-	}
-	if p := m.DocImage; p != nil && dw > 0 {
-		b.pics = []pic{{p.ID, lw + 3, p.Row, min(p.Cols, dw), p.Rows}}
+	b.list = &list{
+		typing: true, input: m.Query, at: min(max(m.Cursor-len(m.Prompt), 0), len(m.Query)), note: note,
+		items: m.Items, selected: m.Selected, rowH: listRowH, width: float64(lw) * cellW,
 	}
 	if dw > 0 {
+		g := compose.NewGrid(dw, h, lk.Base)
 		rows, _ := compose.Wrap(m.Doc, m.DocSpans, dw)
-		rules, chosen, _ := write(g, m.Doc, m.DocSpans, rows[:min(len(rows), h)], lk, lw+3, 0, dw, -1)
-		b.rules, b.chosen, b.split = append(b.rules, rules...), append(b.chosen, chosen...), lw+1
+		b.rules, b.chosen = write(g, m.Doc, m.DocSpans, rows[:min(len(rows), h)], lk, 0, 0, dw)
+		b.cells = cellsOf(g)
+		if p := m.DocImage; p != nil {
+			b.pics = []pic{{p.ID, 0, p.Row, min(p.Cols, dw), p.Rows}}
+		}
 	}
-	b.cells = cellsOf(g)
 	return b
 }
 
 // atCursor returns the boxes of a menu at the cursor and of its
 // documentation. The cursor is at column cx and row cy of an area cols wide
 // and rows tall. The menu goes under the cursor, or over it when there is
-// more room there. It shows at most m.Rows rows, scrolled to keep its
+// more room there. It shows at most m.Rows items, scrolled to keep its
 // selected item in view (B64, B481). The documentation goes right or left
 // of the menu when one side has room for its widest line or 40 columns,
 // and under or over the menu otherwise (B227).
 func (p *painter) atCursor(m wire.Menu, lk theme.Look, cx, cy, cols, rows int) []*boxed {
-	all, width := compose.Wrap(m.Text, m.Spans, min(80, cols-4))
+	// tall is how many rows of cells n items take.
+	tall := func(n int) int { return int(math.Ceil((float64(n)*menuRowH + 8) / cellH)) }
 	below, above := rows-cy-2, cy-1
-	n := min(len(all), max(below, above))
+	n := len(m.Items)
+	for n > 0 && tall(n) > max(below, above) {
+		n--
+	}
 	if m.Rows > 0 {
 		n = min(n, m.Rows)
 	}
-	if width < 1 || n < 1 {
+	if n < 1 {
 		return nil
 	}
-	if i := slices.IndexFunc(m.Spans, func(s wire.Span) bool { return s.Name == "menu.selected" }); i >= 0 {
-		sel := slices.IndexFunc(all, func(r compose.Row) bool { return r.End >= m.Spans[i].Start })
-		p.menuTop = max(min(max(p.menuTop, sel-n+1), sel, len(all)-n), 0)
+	if m.Selected >= 0 {
+		p.menuTop = max(min(max(p.menuTop, m.Selected-n+1), m.Selected, len(m.Items)-n), 0)
 	} else {
 		p.menuTop = 0
 	}
+	// width is about how many columns the items take, for the
+	// documentation to go beside them.
+	width := 0
+	for _, it := range m.Items[p.menuTop : p.menuTop+n] {
+		width = max(width, displaywidth.String(it.Label)+displaywidth.String(it.Detail)+6)
+	}
+	width = min(width, cols-4)
 	y := cy + 2
-	if below < n && above > below {
-		y = cy - n - 1
+	if below < tall(n) && above > below {
+		y = cy - tall(n) - 1
 	}
 	x := max(min(cx, cols-width-1), 0)
-	menu := textBox(m.Text, m.Spans, all[p.menuTop:p.menuTop+n], lk, width, x, y)
-	menu.lines, menu.width = lines(m.Text, all[p.menuTop:p.menuTop+n]), width
+	menu := &boxed{look: lk, at: &[2]int{x, y}, list: &list{
+		items: m.Items[p.menuTop : p.menuTop+n], selected: m.Selected - p.menuTop, first: p.menuTop, rowH: menuRowH,
+	}}
 	if m.Doc == "" {
 		return []*boxed{menu}
 	}
@@ -167,7 +142,7 @@ func (p *painter) atCursor(m wire.Menu, lk theme.Look, cx, cy, cols, rows int) [
 		dx, dy = x-dw-3, y
 	default:
 		doc, dw = compose.Wrap(m.Doc, m.DocSpans, min(80, cols-4))
-		dx, dy = max(min(x, cols-dw-1), 0), y+n+2
+		dx, dy = max(min(x, cols-dw-1), 0), y+tall(n)+2
 		if y < cy {
 			dy = y - min(len(doc), 20) - 2
 		}
@@ -185,30 +160,21 @@ func keyHints(m wire.Menu, lk theme.Look) *boxed {
 	return b
 }
 
-// lines are, by row, the line of text each of rows starts on.
-func lines(text string, rows []compose.Row) []int {
-	out := make([]int, len(rows))
-	for i, r := range rows {
-		out[i] = strings.Count(text[:r.Start], "\n")
-	}
-	return out
-}
-
 // textBox is rows of text, styled by spans in lk, in a box w columns wide
 // whose first cell goes at column x and row y of the area.
 func textBox(text string, spans []wire.Span, rows []compose.Row, lk theme.Look, w, x, y int) *boxed {
 	g := compose.NewGrid(w, max(len(rows), 1), lk.Base)
 	b := &boxed{look: lk, at: &[2]int{x, y}}
-	b.rules, b.chosen, _ = write(g, text, spans, rows, lk, 0, 0, w, -1)
+	b.rules, b.chosen = write(g, text, spans, rows, lk, 0, 0, w)
 	b.cells = cellsOf(g)
 	return b
 }
 
 // write puts rows of text, styled by spans in lk, in g from column x and
-// row y, cut at w columns. A rule row is a rule. It returns the rules, the
-// rows that a menu.selected span starts, which draw as the system's
-// selection, and where the byte at cursor is.
-func write(g *compose.Grid, text string, spans []wire.Span, rows []compose.Row, lk theme.Look, x, y, w, cursor int) (rules, chosen []rule, at cursorAt) {
+// row y, cut at w columns. A rule row is a rule. It returns the rules, and
+// the rows that a menu.selected span starts, which draw as the system's
+// selection.
+func write(g *compose.Grid, text string, spans []wire.Span, rows []compose.Row, lk theme.Look, x, y, w int) (rules, chosen []rule) {
 	styles := compose.Styles(nil, spans, []wire.Range{{End: len(text) - 1}}, lk)
 	for i, r := range rows {
 		if r.Rule {
@@ -221,14 +187,7 @@ func write(g *compose.Grid, text string, spans []wire.Span, rows []compose.Row, 
 			chosen = append(chosen, rule{x, y + i, w})
 		}
 		col := x
-		for p := r.Start; p <= r.End && col < x+w; {
-			// The end of a wrapped row is the start of the next one.
-			if p == cursor && (p < r.End || i == len(rows)-1 || rows[i+1].Start != p) {
-				at = cursorAt{x: col, y: y + i, shown: true}
-			}
-			if p == r.End {
-				break
-			}
+		for p := r.Start; p < r.End && col < x+w; {
 			if text[p] == '\t' {
 				p, col = p+1, col+4
 				continue
@@ -239,7 +198,7 @@ func write(g *compose.Grid, text string, spans []wire.Span, rows []compose.Row, 
 			p, col = r.End-len(rest), col+n
 		}
 	}
-	return rules, chosen, at
+	return rules, chosen
 }
 
 // cellsOf returns g's cells.
@@ -315,6 +274,28 @@ func (b *box) show(what *boxed, view objc.ID, top float64) {
 		need := msgBounding(nsString(what.text), sel("boundingRectWithSize:options:attributes:context:"), size{limit.W, math.MaxFloat32}, lineFragments, uiAttrs(toastFont, system("labelColor")), 0).Size
 		r.Size = size{math.Ceil(min(need.W, limit.W)) + 2*inset, math.Ceil(min(need.H, limit.H)) + 2*inset}
 		r.Origin = point{bounds.W - r.Size.W - 2*pad, top + 2*pad}
+	} else if l := what.list; l != nil {
+		switch {
+		case what.middle:
+			r.Size = size{l.width + 16, max(l.height(), float64(len(what.cells))*cellH+inputH) + 4}
+			if len(what.cells) > 0 {
+				r.Size.W += 12 + float64(len(what.cells[0]))*cellW + inset
+			}
+		case what.at == nil:
+			l.width = min(620, bounds.W-80) - 16
+			r.Size = size{l.width + 16, l.height() + 4}
+		default:
+			l.width = min(max(l.natural(), 160), 520)
+			r.Size = size{l.width + 16, l.height()}
+		}
+		r.Origin = point{math.Round((bounds.W - r.Size.W) / 2), math.Round(bounds.H / 5)}
+		switch {
+		case what.middle:
+			r.Origin.Y = math.Round((bounds.H - r.Size.H) / 2)
+		case what.at != nil:
+			r.Origin.X = max(min(float64(what.at[0])*cellW, bounds.W-r.Size.W), 0)
+			r.Origin.Y = max(min(top+float64(what.at[1])*cellH, bounds.H-r.Size.H), top)
+		}
 	} else {
 		r.Size = size{float64(len(what.cells[0]))*cellW + 2*inset, float64(len(what.cells))*cellH + 2*inset + what.head() + what.foot()}
 		r.Origin = point{math.Round((bounds.W - r.Size.W) / 2), math.Round(bounds.H / 5)}
@@ -362,10 +343,21 @@ func drawBox(self objc.ID, _ objc.SEL, _ rect) {
 		return
 	}
 	bounds := msgRect(self, sel("bounds")).Size
-	if b.title != "" {
+	if l := b.list; l != nil {
+		l.draw(8)
+		if b.prompt != "" {
+			drawSymbol(symbol(b.prompt, system("secondaryLabelColor")), rect{point{14, (inputH - 16) / 2}, size{16, 16}})
+		}
+		if len(b.cells) == 0 {
+			return
+		}
+		// The finder's preview goes right of its list, past a hairline.
+		system("separatorColor").Send(sel("setFill"))
+		rectFill(rect{point{b.cellsOrigin().X - 6, inputH}, size{1, bounds.H - inputH}})
+	} else if b.title != "" {
 		run{text: b.title, font: uiFont, fg: system("secondaryLabelColor")}.draw(inset, inset/2, head)
 	}
-	origin := point{inset, inset + b.head()}
+	origin := b.cellsOrigin()
 	system("selectedContentBackgroundColor").Send(sel("setFill"))
 	for _, c := range b.chosen {
 		r := at(c.x, c.y, c.w, origin)
@@ -373,22 +365,24 @@ func drawBox(self objc.ID, _ objc.SEL, _ rect) {
 	}
 	ground := b.look.Base.Bg
 	drawCells(b.cells, b.cursor, origin, &ground, b.chosen)
-	if b.prompt != "" {
-		drawSymbol(symbol(b.prompt, system("secondaryLabelColor")), at(0, 0, 1, origin))
-	}
 	b.w.drawPics(b.pics, origin)
 	system("separatorColor").Send(sel("setFill"))
 	for _, ru := range b.rules {
 		r := at(ru.x, ru.y, ru.w, origin)
 		rectFill(rect{point{r.Origin.X, r.Origin.Y + math.Floor(cellH/2)}, size{r.Size.W, 1}})
 	}
-	if b.split > 0 {
-		r := at(b.split, 0, 1, origin)
-		rectFill(rect{point{r.Origin.X + math.Floor(cellW/2), r.Origin.Y}, size{1, float64(len(b.cells)) * cellH}})
-	}
 	if f := b.foot(); f > 0 {
 		drawParts(b.left, b.right, true, rect{point{0, bounds.H - f}, size{bounds.W, f}})
 	}
+}
+
+// cellsOrigin is where b's first cell is: past its title, or right of its
+// list, where the finder's preview goes.
+func (b *boxed) cellsOrigin() point {
+	if l := b.list; l != nil {
+		return point{8 + l.width + 12, inputH + inset}
+	}
+	return point{inset, inset + b.head()}
 }
 
 // head is the height of b's title, and foot of its status line.

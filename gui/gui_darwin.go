@@ -73,6 +73,9 @@ func startApp(background bool) objc.ID {
 	toastFont = msgFont(cls("NSFont"), sel("systemFontOfSize:weight:"), 13, 0).Send(sel("retain"))
 	uiFont = msgFont(cls("NSFont"), sel("systemFontOfSize:weight:"), 12, 0).Send(sel("retain"))
 	uiBold = msgFont(cls("NSFont"), sel("systemFontOfSize:weight:"), 12, 0.4).Send(sel("retain"))
+	listFont = msgFont(cls("NSFont"), sel("systemFontOfSize:weight:"), 13, 0).Send(sel("retain"))
+	listBold = msgFont(cls("NSFont"), sel("systemFontOfSize:weight:"), 13, 0.4).Send(sel("retain"))
+	inputFont = msgFont(cls("NSFont"), sel("systemFontOfSize:weight:"), 16, 0).Send(sel("retain"))
 	menu(app)
 	return app
 }
@@ -93,6 +96,7 @@ var (
 	font, boldFont, toastFont       objc.ID
 	italicFont, boldItalicFont      objc.ID
 	uiFont, uiBold                  objc.ID // the status bars' and the tab strip's
+	listFont, listBold, inputFont   objc.ID // lists' rows and the row typed into
 	cellW, cellH                    float64
 	attrsOf                         = map[[2]int64]objc.ID{} // by font and colour
 	windows                         = map[objc.ID]*window{}  // by view, and by NSWindow
@@ -454,7 +458,7 @@ func (p *painter) paint(s client.Session, cols, rows int) frame {
 			if v.Foot != "" {
 				foot, _ := compose.Wrap(v.Foot, v.FootSpans, v.W)
 				fg := compose.NewGrid(v.W, len(foot)+1, boxLook.Base)
-				write(fg, v.Foot, v.FootSpans, foot, boxLook, 0, 1, v.W, -1)
+				write(fg, v.Foot, v.FootSpans, foot, boxLook, 0, 1, v.W)
 				b.rules = []rule{{0, v.H, v.W}}
 				b.cells = append(b.cells, cellsOf(fg)...)
 			}
@@ -505,7 +509,7 @@ func (p *painter) paint(s client.Session, cols, rows int) frame {
 		if !floats {
 			menu = wire.Menu{}
 		}
-		f.panel = palette(s.Line(), s.LineCursor(), menu, boxLook, cols)
+		f.panel = palette(s.Line(), s.LineCursor(), menu, boxLook)
 	case floats && menu.Anchor == "middle":
 		f.panel = finder(menu, boxLook)
 	case floats && menu.Anchor == "cursor":

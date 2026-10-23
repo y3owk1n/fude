@@ -352,6 +352,8 @@ func (m *cmenu) box() wire.Menu {
 	first := m.first
 	var s strings.Builder
 	var spans []wire.Span
+	var items []wire.Item
+	selected := -1
 	width := 0
 	for _, it := range m.items[first : first+rows] {
 		width = max(width, utf8.RuneCountInString(it))
@@ -361,23 +363,33 @@ func (m *cmenu) box() wire.Menu {
 			s.WriteByte('\n')
 		}
 		it := m.items[i]
+		item := wire.Item{Label: it}
+		if strings.HasSuffix(it, "/") {
+			item.Kind = "folder"
+		}
 		if i == m.sel || i == m.lit && m.sel == len(m.items) {
 			spans = append(spans, wire.Span{Start: s.Len(), End: s.Len() + len(it), Name: "menu.selected"})
+			selected = i - first
 		}
 		// A path marks the letters of its last part that the typed part
 		// matches (B152).
 		dir := strings.LastIndexAny(m.typed, "/"+string(filepath.Separator)) + 1
 		for _, at := range fuzzy.Positions(fuzzy.Lower(m.typed[dir:]), it[dir:]) {
 			spans = append(spans, wire.Span{Start: s.Len() + dir + at, End: s.Len() + dir + at + 1, Name: "match"})
+			item.Marks = append(item.Marks, dir+at)
 		}
 		s.WriteString(it)
+		if i < len(m.notes) {
+			item.Detail = m.notes[i]
+		}
+		items = append(items, item)
 		if i < len(m.notes) && m.notes[i] != "" {
 			s.WriteString(strings.Repeat(" ", width-utf8.RuneCountInString(it)+2))
 			spans = append(spans, wire.Span{Start: s.Len(), End: s.Len() + len(m.notes[i]), Name: "comment"})
 			s.WriteString(m.notes[i])
 		}
 	}
-	return wire.Menu{Anchor: "line", Text: s.String(), Spans: spans, Cursor: -1}
+	return wire.Menu{Anchor: "line", Text: s.String(), Spans: spans, Cursor: -1, Items: items, Selected: selected}
 }
 
 // incSearch remembers top and at, the window's top and the cursor before a

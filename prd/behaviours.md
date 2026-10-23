@@ -1361,10 +1361,10 @@ Where fude departs, the line says so and cites the departure in
   selects the word it hits as `viw` does, and a triple click the line as
   `V` does.
 - B556 [10] A frontend gives a click on a menu's item to the session by
-  the line of the menu's text that shows it. The command line's menu puts
+  its index among the menu's items (B560). The command line's menu puts
   the item in the line as `<Tab>` does, a menu at the cursor takes it as
-  `<CR>` and `<C-y>` do, and the finder opens it. A line that holds no
-  item, such as a file's name over its matches, does nothing. In `fude
+  `<CR>` and `<C-y>` do, and the finder opens it. A heading, such as a
+  file's name over its matches, does nothing. In `fude
   gui` a click on an item picks it, and the wheel over a menu moves its
   selection as `<C-n>` and `<C-p>` do. A click off the command line's
   palette or the finder closes it as `<Esc>` does.
@@ -1390,6 +1390,17 @@ Where fude departs, the line says so and cites the departure in
   A tab's close button and its mark of changes, and the prompts of the
   command line and of search, are the system's symbols. The rows past a
   window's text show nothing.
+- B560 [10] A frame's menu carries the items its text shows, row for row,
+  and which is selected. Each item has its label, the letters of it the
+  typed text matches, a dim detail, its kind, a file's path, a grep
+  match's line, and whether it is a heading or disabled. The finder's
+  menu also carries its prompt, its query and its count. In `fude gui`
+  the palette, the finder and menus at the cursor show their items as
+  lists in the system's font, each row with its icon: a file's icon as
+  the Finder shows it, or the system's symbol for its kind. The letters
+  matched are bold, the detail is dim at the row's right, and the
+  selected item takes the system's selection colour. The finder's
+  preview and the documentation beside a menu keep the theme.
 - B544 [2] A session has tab pages, each with its own windows, floats
   and current window, as in Neovim. `:tabnew` and `:tabedit` open one
   after the current page, on a file or a new empty buffer. `gt`, `{n}gt`,

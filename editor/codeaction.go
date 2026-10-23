@@ -79,6 +79,10 @@ func (e *Session) drawMenu() {
 		}
 	}
 	e.menu.text, e.menu.spans = s.String(), spans
+	e.menu.items, e.menu.selected = nil, p.sel
+	for _, it := range p.items {
+		e.menu.items = append(e.menu.items, wire.Item{Label: it.Title, Detail: it.Kind, Disabled: it.Disabled != ""})
+	}
 	e.menu.doc, e.menu.docSpans = "", nil
 	if doc := p.items[p.sel].Doc; doc != nil {
 		if doc.Spans == nil {
@@ -120,7 +124,7 @@ func (p *pick) key(e *Session, k vim.Key) bool {
 // chose closes the menu and tells its module which item was picked, or
 // that none was.
 func (e *Session) chose(p *pick, i int, ok bool) {
-	e.pick, e.menu.text, e.menu.doc, e.menu.docSpans = nil, "", "", nil
+	e.pick, e.menu.text, e.menu.doc, e.menu.docSpans, e.menu.items = nil, "", "", nil, nil
 	if !ok {
 		i = -1
 	}

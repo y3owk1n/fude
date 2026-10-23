@@ -925,7 +925,7 @@ func (e *Session) Menu() (wire.Menu, bool) {
 		}
 		return fl, true
 	}
-	return wire.Menu{Anchor: "cursor", Text: e.menu.text, Spans: e.menu.spans, Cursor: -1, Doc: e.menu.doc, DocSpans: e.menu.docSpans, Rows: int(e.cfg.MenuHeight)}, e.menu.text != ""
+	return wire.Menu{Anchor: "cursor", Text: e.menu.text, Spans: e.menu.spans, Cursor: -1, Doc: e.menu.doc, DocSpans: e.menu.docSpans, Rows: int(e.cfg.MenuHeight), Items: e.menu.items, Selected: e.menu.selected}, e.menu.text != ""
 }
 
 // floatKeys are a focused float's own keys, which [keymap.float] changes
@@ -1381,6 +1381,8 @@ func (e *Session) overlays() []overlay {
 type cursorMenu struct {
 	text     string
 	spans    []wire.Span
+	items    []wire.Item // the text's rows, for a frontend that lays them out (B560)
+	selected int
 	doc      string // the selected item's documentation, beside the menu
 	docSpans []wire.Span
 }

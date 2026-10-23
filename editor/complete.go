@@ -46,6 +46,7 @@ type menu struct {
 	raws   []json.RawMessage // each as its server sent it, to resolve
 	from   []*server         // the server each came from, nil for the other sources
 	asked  map[int]bool      // the items resolve was asked for
+	shown  []wire.Item       // each as a frontend lays its row out (B560)
 	start  kernel.MarkID
 	typed  string // the word it replaced, the menu's last stop
 	sel    int    // the item in the text, or len(items) for typed
@@ -209,11 +210,12 @@ func (e *Session) offer(keys string, t kernel.Snapshot, start int, sources []str
 				continue
 			}
 			seen[it.text] = true
-			label := it.label
+			label, shown := it.label, wire.Item{Label: it.label, Kind: it.kind}
 			if source != "lsp" {
 				label += "  [" + source + "]"
+				shown.Detail, shown.Kind = source, cmp.Or(it.kind, source)
 			}
-			m.items, m.labels, m.docs = append(m.items, it.text), append(m.labels, label), append(m.docs, it.doc)
+			m.items, m.labels, m.docs, m.shown = append(m.items, it.text), append(m.labels, label), append(m.docs, it.doc), append(m.shown, shown)
 			m.raws, m.from, m.stops = append(m.raws, it.raw), append(m.from, it.from), append(m.stops, stops)
 		}
 	}
@@ -275,9 +277,18 @@ func (e *Session) choose(i int) {
 // item as it came and the server, to resolve it.
 type item struct {
 	label, text, doc string
-	snippet          bool // text is a snippet's body (B207)
+	kind             string // what it is, as wire.Item names it
+	snippet          bool   // text is a snippet's body (B207)
 	raw              json.RawMessage
 	from             *server
+}
+
+// kinds name the kinds of completion item a server sends by number, as
+// wire.Item names them.
+var kinds = map[int]string{
+	1: "text", 2: "method", 3: "function", 4: "function", 5: "field", 6: "variable", 7: "type",
+	8: "type", 9: "module", 10: "field", 12: "constant", 13: "type", 14: "keyword", 15: "snippet",
+	17: "file", 19: "folder", 21: "constant", 22: "type",
 }
 
 // readItem reads a completion item. Its doc is its detail as code of
@@ -288,6 +299,7 @@ func readItem(raw json.RawMessage, filetype string) item {
 		InsertText    string          `json:"insertText"`
 		Detail        string          `json:"detail"`
 		Format        int             `json:"insertTextFormat"`
+		Kind          int             `json:"kind"`
 		Documentation json.RawMessage `json:"documentation"`
 		TextEdit      struct {
 			NewText string `json:"newText"`
@@ -299,7 +311,7 @@ func readItem(raw json.RawMessage, filetype string) item {
 		doc = "```" + filetype + "\n" + it.Detail + "\n```\n" + doc
 	}
 	// Format 2 is a snippet.
-	return item{label: it.Label, text: cmp.Or(it.TextEdit.NewText, it.InsertText, it.Label), doc: strings.TrimSpace(doc), snippet: it.Format == 2}
+	return item{label: it.Label, text: cmp.Or(it.TextEdit.NewText, it.InsertText, it.Label), doc: strings.TrimSpace(doc), snippet: it.Format == 2, kind: kinds[it.Kind]}
 }
 
 // showMenu shows the menu's labels at the cursor, the item in the text
@@ -321,6 +333,10 @@ func (e *Session) showMenu() {
 		shown.WriteString(l + "\n")
 	}
 	e.menu.text, e.menu.spans = strings.TrimSuffix(shown.String(), "\n"), spans
+	e.menu.items, e.menu.selected = m.shown, m.sel
+	if m.sel == len(m.items) {
+		e.menu.selected = -1
+	}
 }
 
 // resolve asks the server once for the documentation of item i of m, which
@@ -406,7 +422,7 @@ func (e *Session) closeMenu() bool {
 	m := e.completion.menu
 	start := e.win.buf.text.Mark(m.start)
 	e.win.buf.text.DeleteMark(m.start)
-	e.completion.menu, e.menu.text, e.menu.spans, e.menu.doc, e.menu.docSpans = nil, "", nil, "", nil
+	e.completion.menu, e.menu.text, e.menu.spans, e.menu.doc, e.menu.docSpans, e.menu.items = nil, "", nil, "", nil, nil
 	if m.sel < len(m.items) && m.stops[m.sel] != nil {
 		e.startSnippet(start, m.items[m.sel], m.stops[m.sel])
 		return true
