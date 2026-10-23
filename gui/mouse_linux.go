@@ -39,7 +39,7 @@ const wheelLines = 3
 
 // The callbacks of the mouse, made once with the others.
 var mouseCallbacks struct {
-	pressed, released, motion, leave, scroll, scrollEnd, context, closed, pasted uintptr
+	pressed, released, motion, leave, scroll, scrollEnd, context, closed, pasted, status uintptr
 }
 
 // makeMouseCallbacks makes the mouse's callbacks.
@@ -68,6 +68,21 @@ func makeMouseCallbacks() {
 		return 0
 	})
 	mouseCallbacks.pasted = purego.NewCallback(pasted)
+	mouseCallbacks.status = purego.NewCallback(func(_ uintptr, _ int32, _, _ float64, area uintptr) uintptr {
+		// A click on the status bar gives its window the focus alone.
+		if p := panes[area]; p != nil {
+			p.w.mice <- mouse{'c', p.id, 0, math.MaxInt32, 1}
+		}
+		return 0
+	})
+}
+
+// statusClick gives a click on a pane's status bar to its window, by the
+// pane's area.
+func statusClick(status, area uintptr) {
+	click := gtkGestureClickNew()
+	gSignalConnectData(click, "pressed", mouseCallbacks.status, area, 0, 0)
+	gtkWidgetAddControl(status, click)
 }
 
 // listen gives a pane's or a box's area to the mouse: its buttons, its
@@ -110,13 +125,10 @@ func scrolled(ctl uintptr, _, dy float64, area uintptr) uintptr {
 }
 
 // mousePress gives the session a click of a button on a pane's text or a
-// box, or shows the right click's menu. A click on a status bar only gives
-// its window the focus (B552, B561).
+// box, or shows the right click's menu (B552, B561).
 func mousePress(area uintptr, button, clicks int, at point, mods int) {
 	p, b := panes[area], boxes[area]
 	switch {
-	case p != nil && at.Y >= float64(gtkWidgetGetHeight(area))-statusH:
-		p.w.mice <- mouse{'c', p.id, 0, math.MaxInt32, 1}
 	case p != nil && button == 3:
 		p.contextMenu(at)
 	case p != nil && button == 1:

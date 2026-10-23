@@ -17,7 +17,9 @@ import (
 // native is a window's GTK widgets and what the main thread keeps of them.
 type native struct {
 	win, overlay uintptr
-	bar          uintptr   // the tab strip, in the header bar
+	bar          uintptr   // the tab strip, in the header bar while there are tabs
+	header       uintptr   // the header bar, which shows the title while there are no tabs
+	tabbed       bool      // the strip is in the header bar
 	title        string    // the title the session last gave
 	splits       []uintptr // the GtkPaneds the layout made, which build takes apart
 	key          string    // the layout the splits show
@@ -208,7 +210,7 @@ func (w *window) apply() {
 		w.title = f.title
 	}
 	// A title starts with a dot while a buffer the window shows has
-	// changes. The tab strip shows the title when there are no tabs.
+	// changes. Without tabs the header bar shows it itself.
 	title := cmp.Or(w.title, "fude")
 	if f.edited {
 		title = "• " + title
@@ -216,6 +218,14 @@ func (w *window) apply() {
 	gtkWindowSetTitle(w.win, title)
 	f.tabs.title = cmp.Or(w.title, "fude")
 	w.tabs = f.tabs
+	if tabbed := len(f.tabs.buffers)+len(f.tabs.pages) > 0; tabbed != w.tabbed {
+		w.tabbed = tabbed
+		if tabbed {
+			gtkHeaderBarTitle(w.header, w.bar)
+		} else {
+			gtkHeaderBarTitle(w.header, 0)
+		}
+	}
 	gtkWidgetQueueDraw(w.bar)
 	w.dress(f)
 	for id, b := range w.floats {

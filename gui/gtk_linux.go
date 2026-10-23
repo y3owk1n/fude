@@ -166,6 +166,16 @@ var (
 	pangoFontSetWeight   func(desc uintptr, weight int32)
 	pangoFontSetStyle    func(desc uintptr, style int32)
 	pangoFontSetFamily   func(desc uintptr, family string)
+	gtkBoxNew            func(orientation int32, spacing int32) uintptr
+	gtkBoxAppend         func(box, child uintptr)
+	gtkLabelNew          func(text string) uintptr
+	gtkLabelSetMarkup    func(l uintptr, markup string)
+	gtkLabelEllipsize    func(l uintptr, mode int32)
+	gtkLabelSetXalign    func(l uintptr, x float32)
+	gtkWidgetAddClass    func(w uintptr, class string)
+	gtkCSSProviderNew    func() uintptr
+	gtkCSSProviderLoad   func(p uintptr, data string, n int)
+	gtkStyleAddProvider  func(display, provider uintptr, priority uint32)
 	pangoFontCopy        func(desc uintptr) uintptr
 )
 
@@ -364,6 +374,16 @@ func load() error {
 			{pango, &pangoFontSetWeight, "pango_font_description_set_weight"},
 			{pango, &pangoFontSetStyle, "pango_font_description_set_style"},
 			{pango, &pangoFontSetFamily, "pango_font_description_set_family"},
+			{gtk, &gtkBoxNew, "gtk_box_new"},
+			{gtk, &gtkBoxAppend, "gtk_box_append"},
+			{gtk, &gtkLabelNew, "gtk_label_new"},
+			{gtk, &gtkLabelSetMarkup, "gtk_label_set_markup"},
+			{gtk, &gtkLabelEllipsize, "gtk_label_set_ellipsize"},
+			{gtk, &gtkLabelSetXalign, "gtk_label_set_xalign"},
+			{gtk, &gtkWidgetAddClass, "gtk_widget_add_css_class"},
+			{gtk, &gtkCSSProviderNew, "gtk_css_provider_new"},
+			{gtk, &gtkCSSProviderLoad, "gtk_css_provider_load_from_data"},
+			{gtk, &gtkStyleAddProvider, "gtk_style_context_add_provider_for_display"},
 			{pango, &pangoFontCopy, "pango_font_description_copy"},
 		} {
 			purego.RegisterLibFunc(f.fn, f.lib, f.name)

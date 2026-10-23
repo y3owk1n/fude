@@ -1390,9 +1390,9 @@ Where fude departs, the line says so and cites the departure in
 - B559 [10] With `--gui` the window's ground is the theme's, under a
   transparent title bar, so the title bar, the text and the status bars
   are one surface with hairlines between them. Without tabs the title bar
-  shows the current file's name and icon as a document window does. On
-  macOS each status bar is the system's labels, with the mode in its
-  colour. The palette, the finder, menus, floats and
+  shows the current file's name, and on macOS its icon, as a document
+  window does. On macOS and Linux each status bar is the system's labels,
+  with the mode in its colour. The palette, the finder, menus, floats and
   toasts draw on the system's translucent material, in rounded panels
   with a shadow. Text the window composes itself takes the system's font,
   or the text's family when `gui.font` names one (B584), and the system's
@@ -1479,9 +1479,10 @@ Where fude departs, the line says so and cites the departure in
   definition. A right click shows the menu of B561 as GTK's popover menu.
   Control and Shift with C copy and with V paste, as Linux's terminals do.
 - B568 [10] With `--gui` on Linux, the tab strip is the title of a GTK
-  header bar, beside its window buttons, and works as on macOS (B555). A
-  click on a tab shows it, a click on its × or a middle click closes it,
-  and a dragged tab moves. A press off the tabs drags the window, and a
+  header bar, beside its window buttons, and works as on macOS (B555).
+  While there are no tabs the header bar shows the window's title itself.
+  A click on a tab shows it, a click on its × or a middle click closes
+  it, and a dragged tab moves. A press off the tabs drags the window, and a
   double click there maximizes it. The window's title starts with a dot
   while a buffer it shows has changes. Control with =, minus and 0 make
   the text bigger, smaller and its first size, and each window takes as

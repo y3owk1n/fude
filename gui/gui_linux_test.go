@@ -54,6 +54,8 @@ func TestMain(m *testing.M) {
 	purego.RegisterLibFunc(&gBytesData, gtk, "g_bytes_get_data")
 	purego.RegisterLibFunc(&gBytesUnref, gtk, "g_bytes_unref")
 	purego.RegisterLibFunc(&pangoFontFamily, gtk, "pango_font_description_get_family")
+	purego.RegisterLibFunc(&gtkHeaderTitle, gtk, "gtk_header_bar_get_title_widget")
+	purego.RegisterLibFunc(&gtkLabelText, gtk, "gtk_label_get_text")
 	ready := make(chan struct{})
 	startApp(func() { close(ready) })
 	// The application stays up between the tests' windows.
@@ -94,6 +96,18 @@ func TestB566GTKWindow(t *testing.T) {
 			}
 		}, true)
 		return drawn
+	})
+	// Without tabs the header bar shows the title itself, and each status
+	// bar is GTK's labels.
+	until(t, "the status bar's labels", func() bool {
+		said, titled := "", true
+		onMain(func() {
+			titled = gtkHeaderTitle(w.header) != 0
+			for _, p := range w.panes {
+				said = gtkLabelText(p.leftLabel)
+			}
+		}, true)
+		return !titled && strings.Contains(said, "a.txt")
 	})
 	// A window made bigger makes the session bigger.
 	onMain(func() { gtkWidgetSizeRequest(w.overlay, int32(cellW*120+2*pad), int32(cellH*40+2*pad+statusH)) }, true)
@@ -258,6 +272,12 @@ func TestB568GTKStripAndLook(t *testing.T) {
 		}, true)
 		return n == 2
 	})
+	// With tabs the strip is the header bar's title.
+	onMain(func() {
+		if gtkHeaderTitle(w.header) != w.bar {
+			t.Error("the header bar does not show the tabs")
+		}
+	}, true)
 	onMain(func() { w.stripPress((w.hits[0].from+w.hits[0].to)/2 - slotW) }, true)
 	until(t, "a.txt to show", func() bool {
 		name := ""
@@ -571,6 +591,8 @@ var (
 	gBytesData            func(b uintptr, n *uintptr) *byte
 	gBytesUnref           func(b uintptr)
 	pangoFontFamily       func(desc uintptr) string
+	gtkHeaderTitle        func(bar uintptr) uintptr
+	gtkLabelText          func(l uintptr) string
 	cairoCreate           func(surface uintptr) uintptr
 	cairoDestroy          func(cr uintptr)
 	cairoWritePNG         func(surface uintptr, path string) int32

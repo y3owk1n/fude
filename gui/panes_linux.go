@@ -1,6 +1,7 @@
 package gui
 
 import (
+	"fmt"
 	"math"
 	"slices"
 	"time"
@@ -14,6 +15,9 @@ import (
 type paneNative struct {
 	area, root, menu uintptr
 	bar, adjustment  uintptr
+	leftLabel        uintptr // the status bar's label of its parts at its left
+	rightLabel       uintptr // and of those at its right
+	labelled         string  // what they say, to know when it changes
 	shownAt          time.Time
 	said             spoken // its text as assistive apps count it
 	told             told
@@ -44,9 +48,24 @@ func (w *window) pane(id int) *pane {
 	p.bar = gtkScrollbarNew(1, p.adjustment)
 	gtkWidgetSetHalign(p.bar, 2)
 	gtkWidgetSetVisible(p.bar, 0)
-	p.root = gObjectRefSink(gtkOverlayNew())
-	gtkOverlaySetChild(p.root, p.area)
-	gtkOverlayAdd(p.root, p.bar)
+	text := gtkOverlayNew()
+	gtkWidgetSetVexpand(text, 1)
+	gtkOverlaySetChild(text, p.area)
+	gtkOverlayAdd(text, p.bar)
+	// The status bar is GTK's labels in a box under the text (D68).
+	status := gtkBoxNew(0, 0)
+	gtkWidgetAddClass(status, "fude-status")
+	p.leftLabel, p.rightLabel = gtkLabelNew(""), gtkLabelNew("")
+	gtkWidgetSetHexpand(p.leftLabel, 1)
+	gtkLabelSetXalign(p.leftLabel, 0)
+	// PANGO_ELLIPSIZE_END.
+	gtkLabelEllipsize(p.leftLabel, 3)
+	gtkBoxAppend(status, p.leftLabel)
+	gtkBoxAppend(status, p.rightLabel)
+	statusClick(status, p.area)
+	p.root = gObjectRefSink(gtkBoxNew(1, 0))
+	gtkBoxAppend(p.root, text)
+	gtkBoxAppend(p.root, status)
 	w.panes[id], panes[p.area] = p, p
 	return p
 }
@@ -147,7 +166,7 @@ func (w *window) placeAll() {
 			continue
 		}
 		x, y := float64(r.X)+pad, float64(r.Y)+pad
-		pl.wins = append(pl.wins, [5]int{id, int(x / cellW), int(y / cellH), max(int((float64(r.W)-2*pad)/cellW), 1), max(int((float64(r.H)-statusH-2*pad)/cellH), 1)})
+		pl.wins = append(pl.wins, [5]int{id, int(x / cellW), int(y / cellH), max(int((float64(r.W)-2*pad)/cellW), 1), max(int((float64(r.H)-2*pad)/cellH), 1)})
 	}
 	slices.SortFunc(pl.wins, func(a, b [5]int) int { return a[0] - b[0] })
 	if pl.cols == w.sent.cols && pl.rows == w.sent.rows && pl.cell == w.sent.cell && slices.Equal(pl.wins, w.sent.wins) {
@@ -163,8 +182,8 @@ func (w *window) placeAll() {
 	}
 }
 
-// drawPane draws a pane's text on the theme's ground, and its status bar
-// under it on GTK's window colour (B147).
+// drawPane draws a pane's text on the theme's ground. Its status bar is
+// GTK's labels under it.
 func drawPane(area, cairo uintptr, width, height int32, _ uintptr) {
 	p := panes[area]
 	if p == nil {
@@ -176,13 +195,17 @@ func drawPane(area, cairo uintptr, width, height int32, _ uintptr) {
 	fillRGB(p.w.look.Base.Bg, rect{Size: b})
 	drawCells(p.cells, p.cursor, p.origin(), nil, nil)
 	p.w.drawPics(p.pics, point{pad, pad})
-	bar := rect{point{0, b.H - statusH}, size{b.W, statusH}}
-	fill("barColor", bar)
-	drawParts(p.left, p.right, p.current, bar)
 }
 
-// redraw draws p again.
-func (p *pane) redraw() { gtkWidgetQueueDraw(p.area) }
+// redraw draws p again, and shows its status line in its labels.
+func (p *pane) redraw() {
+	gtkWidgetQueueDraw(p.area)
+	if said := fmt.Sprint(p.left, p.right, p.current); said != p.labelled {
+		p.labelled = said
+		gtkLabelSetMarkup(p.leftLabel, markup(runs(p.left, p.current)))
+		gtkLabelSetMarkup(p.rightLabel, markup(runs(p.right, p.current)))
+	}
+}
 
 // pointer makes the mouse's pointer over p's text the hand over a link,
 // and the text's otherwise.

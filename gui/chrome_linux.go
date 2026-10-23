@@ -2,6 +2,7 @@ package gui
 
 import (
 	"fmt"
+	"html"
 	"math"
 	"slices"
 	"strings"
@@ -66,6 +67,49 @@ func makeFonts() {
 // desktopFont is the desktop's font, as GTK names it, such as "Cantarell 11".
 var desktopFont string
 
+// markup is runs as Pango's markup in the theme's colours, a mode in its
+// colour rather than on it, for a status bar's labels.
+func markup(rs []run) string {
+	var b strings.Builder
+	gap := ""
+	for _, r := range rs {
+		if r.pill {
+			r.fg = r.ground
+		}
+		c := system(r.fg)
+		weight := "normal"
+		if r.bold {
+			weight = "bold"
+		}
+		fmt.Fprintf(&b, `%s<span foreground="#%02x%02x%02x" alpha="%d%%" weight="%s">%s</span>`, gap,
+			int(c.R*255), int(c.G*255), int(c.B*255), max(int(c.A*100), 1), weight, html.EscapeString(r.text))
+		gap = "  "
+		if r.tight {
+			gap = ""
+		}
+	}
+	return b.String()
+}
+
+// chromeStyle gives the status bars the theme's window colour under a
+// hairline, and the chrome's family when the session chose one.
+var chromeStyle uintptr
+
+// styleChrome loads the window's own style, which makeChromeFonts calls
+// as its fonts change.
+func styleChrome(families string) {
+	if chromeStyle == 0 {
+		chromeStyle = gtkCSSProviderNew()
+		// GTK_STYLE_PROVIDER_PRIORITY_APPLICATION.
+		gtkStyleAddProvider(gdkDisplayDefault(), chromeStyle, 600)
+	}
+	css := ".fude-status { background-color: @theme_bg_color; border-top: 1px solid @borders; padding: 0 6px; min-height: 22px; }"
+	if families != "" {
+		css += fmt.Sprintf(" .fude-status label { font-family: %s; }", families)
+	}
+	gtkCSSProviderLoad(chromeStyle, css, -1)
+}
+
 // makeChromeFonts makes the fonts of the text the window composes itself,
 // at their own sizes: in the session's families first when it asked for
 // any, then in the desktop's font (B559, B584).
@@ -78,11 +122,14 @@ func makeChromeFonts() {
 	family := strings.TrimRightFunc(desktopFont, func(r rune) bool { return r == ' ' || r >= '0' && r <= '9' || r == '.' })
 	uiFont = pangoFontFromString(desktopFont)
 	inputFont = pangoFontFromString(family + " 14")
+	css := ""
 	if len(wanted.Families) > 0 {
 		families := strings.Join(append(slices.Clone(wanted.Families), family), ",")
 		pangoFontSetFamily(uiFont, families)
 		pangoFontSetFamily(inputFont, families)
+		css = `"` + strings.Join(wanted.Families, `", "`) + `"`
 	}
+	styleChrome(css)
 	uiBold = pangoFontCopy(uiFont)
 	pangoFontSetWeight(uiBold, 700)
 }
@@ -149,7 +196,6 @@ var systemColours = map[string]struct {
 	"systemYellowColor":                 {"warning_color", 1},
 	"systemGreenColor":                  {"success_color", 1},
 	"popoverColor":                      {"theme_bg_color", 1},
-	"barColor":                          {"theme_bg_color", 1},
 }
 
 // fixedColours are the colours GTK's theme does not name.

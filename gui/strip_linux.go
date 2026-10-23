@@ -63,12 +63,15 @@ func makeStripCallbacks() {
 // stripH is how tall the tab strip is, in points.
 const stripH = 34
 
-// newStrip puts w's tab strip in a header bar as its title, and makes the
-// header bar the window's title bar. Where no tab is, the header bar drags
-// and maximizes the window (B568).
+// newStrip makes w's header bar its title bar, and the tab strip, which
+// the header bar shows as its title while there are tabs and in place of
+// its own title. Where no tab is, the header bar drags and maximizes the
+// window (B568).
 func (w *window) newStrip() {
-	header := gtkHeaderBarNew()
-	w.bar = newArea("tab-list")
+	w.header = gtkHeaderBarNew()
+	// The strip leaves the header bar while there are no tabs, and keeps
+	// a reference of its own to come back.
+	w.bar = gObjectRefSink(newArea("tab-list"))
 	gtkWidgetSetHexpand(w.bar, 1)
 	gtkDrawingAreaHeight(w.bar, stripH)
 	gtkDrawingAreaSetFn(w.bar, stripCallbacks.draw, w.win, 0)
@@ -81,6 +84,5 @@ func (w *window) newStrip() {
 	gSignalConnectData(move, "motion", stripCallbacks.motion, w.win, 0, 0)
 	gSignalConnectData(move, "leave", stripCallbacks.leave, w.win, 0, 0)
 	gtkWidgetAddControl(w.bar, move)
-	gtkHeaderBarTitle(header, w.bar)
-	gtkWindowSetTitlebar(w.win, header)
+	gtkWindowSetTitlebar(w.win, w.header)
 }
