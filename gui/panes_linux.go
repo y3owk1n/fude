@@ -3,13 +3,19 @@ package gui
 import (
 	"math"
 	"slices"
+	"time"
 
 	"github.com/y3owk1n/fude/frontend/wire"
 )
 
-// paneNative is a pane's drawing area, its text over its status bar, and
-// the right click's menu showing over it, 0 for none.
-type paneNative struct{ area, menu uintptr }
+// paneNative is a pane's drawing area, its text over its status bar, in
+// an overlay with its scroll bar, and the right click's menu showing over
+// it, 0 for none. The bar shows from shownAt for a second.
+type paneNative struct {
+	area, root, menu uintptr
+	bar, adjustment  uintptr
+	shownAt          time.Time
+}
 
 // panes are the panes by their drawing areas, which the callbacks get.
 var panes = map[uintptr]*pane{}
@@ -29,6 +35,14 @@ func (w *window) pane(id int) *pane {
 	gtkDrawingAreaSetFn(p.area, callbacks.drawPane, p.area, 0)
 	gSignalConnectData(p.area, "resize", callbacks.resized, p.area, 0, 0)
 	listen(p.area)
+	p.adjustment = gtkAdjustmentNew(0, 0, 1, 1, 1, 1)
+	gSignalConnectData(p.adjustment, "value-changed", callbacks.barMoved, p.area, 0, 0)
+	p.bar = gtkScrollbarNew(1, p.adjustment)
+	gtkWidgetSetHalign(p.bar, 2)
+	gtkWidgetSetVisible(p.bar, 0)
+	p.root = gObjectRefSink(gtkOverlayNew())
+	gtkOverlaySetChild(p.root, p.area)
+	gtkOverlayAdd(p.root, p.bar)
 	w.panes[id], panes[p.area] = p, p
 	return p
 }
@@ -42,6 +56,7 @@ func (p *pane) drop() {
 		p.menu = 0
 		gtkWidgetUnparent(m)
 	}
+	gObjectUnref(p.root)
 	gObjectUnref(p.area)
 }
 
@@ -71,7 +86,7 @@ func (w *window) build(l wire.Split) {
 // others share the rest.
 func (w *window) node(l wire.Split, area size) uintptr {
 	if len(l.Kids) == 0 {
-		return w.pane(l.Window).area
+		return w.pane(l.Window).root
 	}
 	total, cell, room := area.H, cellH, float64(2*pad+statusH)
 	if l.Across {
@@ -124,7 +139,7 @@ func (w *window) placeAll() {
 	pl := places{cols: max(int(area.W/cellW), 1), rows: max(int(area.H/cellH), 1), cell: w.cellPx}
 	for id, p := range w.panes {
 		var r grect
-		if gtkWidgetParent(p.area) == 0 || gtkWidgetBounds(p.area, w.overlay, &r) == 0 {
+		if gtkWidgetParent(p.root) == 0 || gtkWidgetBounds(p.area, w.overlay, &r) == 0 {
 			continue
 		}
 		x, y := float64(r.X)+pad, float64(r.Y)+pad
@@ -156,6 +171,7 @@ func drawPane(area, cairo uintptr, width, height int32, _ uintptr) {
 	b := size{float64(width), float64(height)}
 	fillRGB(p.w.look.Base.Bg, rect{Size: b})
 	drawCells(p.cells, p.cursor, p.origin(), nil, nil)
+	p.w.drawPics(p.pics, point{pad, pad})
 	bar := rect{point{0, b.H - statusH}, size{b.W, statusH}}
 	fill("barColor", bar)
 	drawParts(p.left, p.right, p.current, bar)
@@ -174,5 +190,39 @@ func (p *pane) pointer(link bool) {
 	}
 }
 
-// showBar shows no scroll bar, which Linux does not have yet.
-func (p *pane) showBar(bool) {}
+// showBar puts where p's view is in its scroll bar, which shows for a
+// second after the view moved, when the text is taller than it (B570).
+func (p *pane) showBar(moved bool) {
+	if p.lines <= p.rows {
+		gtkWidgetSetVisible(p.bar, 0)
+		return
+	}
+	gtkAdjustmentSet(p.adjustment, float64(p.top), 0, float64(p.lines), 1, float64(p.rows), float64(p.rows))
+	if !moved {
+		return
+	}
+	gtkWidgetSetVisible(p.bar, 1)
+	p.shownAt = time.Now()
+	at := p.shownAt
+	time.AfterFunc(time.Second, func() {
+		onMain(func() {
+			if p.shownAt == at && !p.gone {
+				gtkWidgetSetVisible(p.bar, 0)
+			}
+		}, false)
+	})
+}
+
+// barMoved scrolls a pane's window to where its scroll bar's knob went,
+// and keeps the bar showing while it moves.
+func barMoved(adjustment, area uintptr) {
+	p := panes[area]
+	if p == nil || p.lines <= p.rows {
+		return
+	}
+	if n := int(math.Round(gtkAdjustmentValue(adjustment))) - p.want; n != 0 {
+		p.w.mice <- mouse{'s', p.id, 0, n, 0}
+		p.want += n
+		p.shownAt = time.Now()
+	}
+}

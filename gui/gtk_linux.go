@@ -105,6 +105,10 @@ var (
 	gtkDrawingAreaHeight func(a uintptr, h int32)
 	gtkGestureSetState   func(g uintptr, state int32) int32
 	pangoFontFree        func(desc uintptr)
+	gtkAdjustmentNew     func(value, lower, upper, step, page, pageSize float64) uintptr
+	gtkAdjustmentSet     func(a uintptr, value, lower, upper, step, page, pageSize float64)
+	gtkAdjustmentValue   func(a uintptr) float64
+	gtkScrollbarNew      func(orientation int32, adjustment uintptr) uintptr
 	gtkAlertSetButtons   func(d uintptr, labels *uintptr)
 	gtkAlertSetCancel    func(d uintptr, button int32)
 	gtkAlertChoose       func(d, parent, cancellable, fn, data uintptr)
@@ -123,6 +127,17 @@ var (
 	cairoSave            func(cr uintptr)
 	cairoRestore         func(cr uintptr)
 	cairoClip            func(cr uintptr)
+	cairoTranslate       func(cr uintptr, x, y float64)
+	cairoScale           func(cr uintptr, x, y float64)
+	cairoSetSource       func(cr, surface uintptr, x, y float64)
+	cairoPaint           func(cr uintptr)
+	cairoImageNew        func(format, w, h int32) uintptr
+	cairoImageData       func(s uintptr) *byte
+	cairoImageStride     func(s uintptr) int32
+	cairoImageWidth      func(s uintptr) int32
+	cairoImageHeight     func(s uintptr) int32
+	cairoSurfaceDirty    func(s uintptr)
+	cairoSurfaceFree     func(s uintptr)
 	pangoCairoLayout     func(cr uintptr) uintptr
 	pangoCairoShow       func(cr, layout uintptr)
 	pangoCairoFontMap    func() uintptr
@@ -276,6 +291,10 @@ func load() error {
 			{gtk, &gtkDrawingAreaHeight, "gtk_drawing_area_set_content_height"},
 			{gtk, &gtkGestureSetState, "gtk_gesture_set_state"},
 			{pango, &pangoFontFree, "pango_font_description_free"},
+			{gtk, &gtkAdjustmentNew, "gtk_adjustment_new"},
+			{gtk, &gtkAdjustmentSet, "gtk_adjustment_configure"},
+			{gtk, &gtkAdjustmentValue, "gtk_adjustment_get_value"},
+			{gtk, &gtkScrollbarNew, "gtk_scrollbar_new"},
 			{gtk, &gtkAlertSetButtons, "gtk_alert_dialog_set_buttons"},
 			{gtk, &gtkAlertSetCancel, "gtk_alert_dialog_set_cancel_button"},
 			{gtk, &gtkAlertChoose, "gtk_alert_dialog_choose"},
@@ -294,6 +313,17 @@ func load() error {
 			{cairo, &cairoSave, "cairo_save"},
 			{cairo, &cairoRestore, "cairo_restore"},
 			{cairo, &cairoClip, "cairo_clip"},
+			{cairo, &cairoTranslate, "cairo_translate"},
+			{cairo, &cairoScale, "cairo_scale"},
+			{cairo, &cairoSetSource, "cairo_set_source_surface"},
+			{cairo, &cairoPaint, "cairo_paint"},
+			{cairo, &cairoImageNew, "cairo_image_surface_create"},
+			{cairo, &cairoImageData, "cairo_image_surface_get_data"},
+			{cairo, &cairoImageStride, "cairo_image_surface_get_stride"},
+			{cairo, &cairoImageWidth, "cairo_image_surface_get_width"},
+			{cairo, &cairoImageHeight, "cairo_image_surface_get_height"},
+			{cairo, &cairoSurfaceDirty, "cairo_surface_mark_dirty"},
+			{cairo, &cairoSurfaceFree, "cairo_surface_destroy"},
 			{pc, &pangoCairoLayout, "pango_cairo_create_layout"},
 			{pc, &pangoCairoShow, "pango_cairo_show_layout"},
 			{pc, &pangoCairoFontMap, "pango_cairo_font_map_get_default"},

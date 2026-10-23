@@ -1,8 +1,11 @@
 package gui
 
 import (
+	"bytes"
 	"fmt"
 	"image"
+	"image/color"
+	"image/draw"
 	"image/png"
 	"os"
 	"path/filepath"
@@ -15,6 +18,7 @@ import (
 	"github.com/y3owk1n/fude/editor/editortest"
 	"github.com/y3owk1n/fude/modules/bufferline"
 	"github.com/y3owk1n/fude/modules/buffers"
+	filesmod "github.com/y3owk1n/fude/modules/files"
 	"github.com/y3owk1n/fude/vim"
 )
 
@@ -30,10 +34,8 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		panic(err)
 	}
-	purego.RegisterLibFunc(&cairoImageSurface, cairo, "cairo_image_surface_create")
 	purego.RegisterLibFunc(&cairoCreate, cairo, "cairo_create")
 	purego.RegisterLibFunc(&cairoDestroy, cairo, "cairo_destroy")
-	purego.RegisterLibFunc(&cairoSurfaceDestroy, cairo, "cairo_surface_destroy")
 	purego.RegisterLibFunc(&cairoWritePNG, cairo, "cairo_surface_write_to_png")
 	gtk, err := purego.Dlopen("libgtk-4.so.1", purego.RTLD_NOW|purego.RTLD_GLOBAL)
 	if err != nil {
@@ -42,6 +44,8 @@ func TestMain(m *testing.M) {
 	purego.RegisterLibFunc(&gtkWindowClose, gtk, "gtk_window_close")
 	purego.RegisterLibFunc(&gActionActivate, gtk, "g_action_activate")
 	purego.RegisterLibFunc(&gtkWindowTitle, gtk, "gtk_window_get_title")
+	purego.RegisterLibFunc(&gtkWidgetVisible, gtk, "gtk_widget_get_visible")
+	purego.RegisterLibFunc(&gtkAdjustmentSetValue, gtk, "gtk_adjustment_set_value")
 	ready := make(chan struct{})
 	startApp(func() { close(ready) })
 	// The application stays up between the tests' windows.
@@ -77,7 +81,7 @@ func TestB566GTKWindow(t *testing.T) {
 		drawn := false
 		onMain(func() {
 			for _, p := range w.panes {
-				img := paint(t, p)
+				img := paint(t, p.area, drawPane)
 				drawn = img != nil && inked(img, 0, 0) && !inked(img, 40, 10)
 			}
 		}, true)
@@ -236,8 +240,8 @@ func TestB568GTKStripAndLook(t *testing.T) {
 	until(t, "two tabs", func() bool {
 		n := 0
 		onMain(func() {
-			surface := cairoImageSurface(0, 800, stripH)
-			defer cairoSurfaceDestroy(surface)
+			surface := cairoImageNew(0, 800, stripH)
+			defer cairoSurfaceFree(surface)
 			cr = cairoCreate(surface)
 			w.drawStrip(800, pad, 800-pad, stripH)
 			cairoDestroy(cr)
@@ -290,30 +294,138 @@ func TestB568GTKStripAndLook(t *testing.T) {
 	})
 }
 
+// B569
+func TestB569GTKImages(t *testing.T) {
+	dir := t.TempDir()
+	img := image.NewRGBA(image.Rect(0, 0, 64, 64))
+	draw.Draw(img, img.Bounds(), &image.Uniform{color.RGBA{255, 0, 0, 255}}, image.Point{}, draw.Src)
+	var data bytes.Buffer
+	if err := png.Encode(&data, img); err != nil {
+		t.Fatal(err)
+	}
+	editortest.Change(t, filepath.Join(dir, "pic.png"), data.String())
+	editortest.Change(t, filepath.Join(dir, "a.txt"), "one\n")
+	t.Chdir(dir)
+	e := editortest.Open(t, filepath.Join(dir, "a.txt"))
+	e.Use(filesmod.New())
+	var w *window
+	onMain(func() { w = open(e, nil) }, true)
+	for _, k := range ":pick files\rpic.png" {
+		keyval := uintptr(k)
+		if k == '\r' {
+			keyval = 0xff0d
+		}
+		onMain(func() { keyPressed(0, keyval, 0, 0, w.win) }, true)
+	}
+	// The finder's preview shows the image from its pixels.
+	until(t, "the image in the finder", func() bool {
+		red := false
+		onMain(func() {
+			b := w.panel
+			if b.boxed == nil || len(b.pics) == 0 || w.images[b.pics[0].id] == 0 {
+				return
+			}
+			shot := paint(t, b.area, drawBox)
+			if shot == nil {
+				return
+			}
+			p, o := b.pics[0], b.cellsOrigin()
+			r, g, _, _ := shot.At(int(o.X+(float64(p.x)+0.5)*cellW), int(o.Y+(float64(p.y)+0.5)*cellH)).RGBA()
+			red = r>>8 > 200 && g>>8 < 50
+		}, true)
+		return red
+	})
+	for _, k := range "\x1b\x1b:qa!\r" {
+		keyval := uintptr(k)
+		switch k {
+		case '\x1b':
+			keyval = 0xff1b
+		case '\r':
+			keyval = 0xff0d
+		}
+		onMain(func() { keyPressed(0, keyval, 0, 0, w.win) }, true)
+	}
+	until(t, "the session to end", func() bool {
+		open := true
+		onMain(func() { _, open = windows[w.win] }, true)
+		return !open
+	})
+}
+
+// B570
+func TestB570GTKScrollBar(t *testing.T) {
+	var lines []string
+	for i := range 200 {
+		lines = append(lines, fmt.Sprint("line ", i))
+	}
+	path := filepath.Join(t.TempDir(), "a.txt")
+	editortest.Change(t, path, strings.Join(lines, "\n")+"\n")
+	e := editortest.Open(t, path)
+	var w *window
+	onMain(func() { w = open(e, nil) }, true)
+	var p *pane
+	until(t, "the pane", func() bool {
+		onMain(func() {
+			for _, q := range w.panes {
+				if gtkWidgetGetHeight(q.area) > 0 {
+					p = q
+				}
+			}
+		}, true)
+		return p != nil
+	})
+	// The bar shows where the view is once it moves.
+	onMain(func() { mouseRoll(p.area, true, 10) }, true)
+	until(t, "the bar at line 30", func() bool {
+		shown, at := false, 0.0
+		onMain(func() { shown, at = gtkWidgetVisible(p.bar) != 0, gtkAdjustmentValue(p.adjustment) }, true)
+		return shown && at == 30
+	})
+	// Dragging its knob scrolls the window there.
+	onMain(func() { gtkAdjustmentSetValue(p.adjustment, 100) }, true)
+	until(t, "the window at line 100", func() bool {
+		top := -1
+		w.onLoop(func() { top = e.Windows()[0].Text.LineOf(e.Windows()[0].Top) })
+		return top == 100
+	})
+	for _, k := range ":qa!\r" {
+		keyval := uintptr(k)
+		if k == '\r' {
+			keyval = 0xff0d
+		}
+		onMain(func() { keyPressed(0, keyval, 0, 0, w.win) }, true)
+	}
+	until(t, "the session to end", func() bool {
+		open := true
+		onMain(func() { _, open = windows[w.win] }, true)
+		return !open
+	})
+}
+
 var (
-	cairoImageSurface   func(format, w, h int32) uintptr
-	cairoCreate         func(surface uintptr) uintptr
-	cairoDestroy        func(cr uintptr)
-	cairoSurfaceDestroy func(surface uintptr)
-	cairoWritePNG       func(surface uintptr, path string) int32
-	gtkWindowClose      func(w uintptr)
-	gActionActivate     func(action, param uintptr)
-	gtkWindowTitle      func(w uintptr) string
+	cairoCreate           func(surface uintptr) uintptr
+	cairoDestroy          func(cr uintptr)
+	cairoWritePNG         func(surface uintptr, path string) int32
+	gtkWindowClose        func(w uintptr)
+	gActionActivate       func(action, param uintptr)
+	gtkWindowTitle        func(w uintptr) string
+	gtkWidgetVisible      func(w uintptr) int32
+	gtkAdjustmentSetValue func(a uintptr, value float64)
 )
 
-// paint draws p as GTK would, into an image, or returns nil before p has
-// a size.
-func paint(t *testing.T, p *pane) image.Image {
-	width, height := gtkWidgetGetWidth(p.area), gtkWidgetGetHeight(p.area)
+// paint draws a pane or a box as GTK would, with its draw function, into
+// an image, or returns nil before it has a size.
+func paint(t *testing.T, area uintptr, draw func(area, cairo uintptr, width, height int32, data uintptr)) image.Image {
+	width, height := gtkWidgetGetWidth(area), gtkWidgetGetHeight(area)
 	if width == 0 || height == 0 {
 		return nil
 	}
-	surface := cairoImageSurface(0, width, height)
-	defer cairoSurfaceDestroy(surface)
+	surface := cairoImageNew(0, width, height)
+	defer cairoSurfaceFree(surface)
 	c := cairoCreate(surface)
-	drawPane(p.area, c, width, height, 0)
+	draw(area, c, width, height, 0)
 	cairoDestroy(c)
-	path := filepath.Join(t.TempDir(), "pane.png")
+	path := filepath.Join(t.TempDir(), "area.png")
 	cairoWritePNG(surface, path)
 	f, err := os.Open(path)
 	if err != nil {
