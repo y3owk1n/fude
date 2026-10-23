@@ -49,17 +49,19 @@ func startApp(background bool) objc.ID {
 		{Cmd: sel("flagsChanged:"), Fn: flagsChanged},
 		{Cmd: sel("resizeSubviewsWithOldSize:"), Fn: resizeRoot},
 		{Cmd: sel("splitResized:"), Fn: splitResized},
-	}, textInput...), append(append(editing, dropFiles...), contextActions()...)...)...)
+	}, textInput...), append(append(append(editing, dropFiles...), contextActions()...), rootAccess...)...)...)
 	viewClass.AddProtocol(objc.GetProtocol("NSTextInputClient"))
 	markedClass = class("FudeMarked", "NSView", flipped, objc.MethodDef{Cmd: sel("drawRect:"), Fn: drawMarked})
 	paneClass = class("FudePane", "NSView", flipped, objc.MethodDef{Cmd: sel("resizeSubviewsWithOldSize:"), Fn: resizePane})
 	textClass = class("FudeText", "NSView", append([]objc.MethodDef{
 		flipped, {Cmd: sel("drawRect:"), Fn: drawText}, {Cmd: sel("menuForEvent:"), Fn: menuFor}, {Cmd: sel("scrolled:"), Fn: scrolled},
-	}, append(textMouse, restMouse...)...)...)
-	statusClass = class("FudeStatus", "NSView", append([]objc.MethodDef{flipped, {Cmd: sel("drawRect:"), Fn: drawStatus}}, statusMouse...)...)
+	}, append(append(textMouse, restMouse...), textAccess...)...)...)
+	statusClass = class("FudeStatus", "NSView", append([]objc.MethodDef{flipped, {Cmd: sel("drawRect:"), Fn: drawStatus}}, append(statusMouse, statusAccess...)...)...)
 	splitClass = class("FudeSplit", "NSSplitView", objc.MethodDef{Cmd: sel("drawDividerInRect:"), Fn: drawDivider})
-	barClass = class("FudeBar", "NSView", append([]objc.MethodDef{flipped, {Cmd: sel("drawRect:"), Fn: drawBar}}, barMouse...)...)
-	boxClass = class("FudeBox", "NSView", append(append([]objc.MethodDef{flipped, {Cmd: sel("drawRect:"), Fn: drawBox}}, textMouse...), boxMouse...)...)
+	barClass = class("FudeBar", "NSView", append([]objc.MethodDef{flipped, {Cmd: sel("drawRect:"), Fn: drawBar}}, append(barMouse, barAccess...)...)...)
+	boxClass = class("FudeBox", "NSView", append(append(append([]objc.MethodDef{flipped, {Cmd: sel("drawRect:"), Fn: drawBox}}, textMouse...), boxMouse...), boxAccess...)...)
+	actionClass = class("FudeAction", "NSAccessibilityElement", actionAccess...)
+	fieldClass = class("FudeField", "NSAccessibilityElement", fieldAccess...)
 	windowDelegate = objc.ID(class("FudeWindowDelegate", "NSObject", objc.MethodDef{Cmd: sel("windowShouldClose:"), Fn: windowShouldClose})).Send(sel("alloc")).Send(sel("init"))
 	makeFonts()
 	toastFont = msgFont(cls("NSFont"), sel("systemFontOfSize:weight:"), 13, 0).Send(sel("retain"))
@@ -84,6 +86,7 @@ var (
 	viewClass, paneClass, textClass objc.Class
 	statusClass, splitClass         objc.Class
 	barClass, boxClass, markedClass objc.Class
+	actionClass, fieldClass         objc.Class // the elements of actions and fields
 	windowDelegate                  objc.ID
 	font, boldFont, toastFont       objc.ID
 	italicFont, boldItalicFont      objc.ID
@@ -118,6 +121,8 @@ type native struct {
 	marked     string          // the text an input method composes
 	preedit    objc.ID         // the view that shows it
 	event      objc.ID         // the key down the input method has
+	focused    objc.ID         // the view assistive apps were last told has the focus
+	tabIDs     elements        // the strip's tabs for assistive apps
 }
 
 // open makes a window for s and starts its loop. ended runs on the main
@@ -214,6 +219,7 @@ func (w *window) apply() {
 		}
 	}
 	f := fs[len(fs)-1]
+	defer w.tell()
 	if f.title != "" {
 		w.win.Send(sel("setTitle:"), nsString(f.title))
 		f.tabs.title = f.title
@@ -229,7 +235,7 @@ func (w *window) apply() {
 			b.frame.Send(sel("removeFromSuperview"))
 			b.frame.Send(sel("release"))
 			b.view.Send(sel("release"))
-			delete(boxes, b.view)
+			b.drop()
 			delete(w.floats, id)
 		}
 	}
@@ -329,6 +335,7 @@ func (w *window) close() {
 	for _, v := range []objc.ID{w.view, w.win, w.bar, w.preedit} {
 		delete(windows, v)
 	}
+	w.tabIDs.drop()
 	for _, p := range w.panes {
 		p.drop()
 	}
@@ -336,7 +343,7 @@ func (w *window) close() {
 		img.Send(sel("release"))
 	}
 	for _, b := range append([]*box{w.panel, w.toast}, slices.Collect(maps.Values(w.floats))...) {
-		delete(boxes, b.view)
+		b.drop()
 	}
 	w.win.Send(sel("close"))
 	if w.ended != nil {

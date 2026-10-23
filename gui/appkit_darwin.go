@@ -48,6 +48,8 @@ var (
 	msgOtherEvent   func(objc.ID, objc.SEL, uint, point, uint, float64, int, objc.ID, int16, int, int) objc.ID
 	msgUTF8         func(objc.ID, objc.SEL) *byte
 	rectFill        func(rect)
+	postAccess      func(element, name objc.ID)
+	postAccessInfo  func(element, name, info objc.ID)
 	poolPush        func() uintptr
 	poolPop         func(uintptr)
 
@@ -71,6 +73,8 @@ func load() {
 			purego.RegisterLibFunc(f, lib, "objc_msgSend")
 		}
 		purego.RegisterLibFunc(&rectFill, appkit, "NSRectFill")
+		purego.RegisterLibFunc(&postAccess, appkit, "NSAccessibilityPostNotification")
+		purego.RegisterLibFunc(&postAccessInfo, appkit, "NSAccessibilityPostNotificationWithUserInfo")
 		purego.RegisterLibFunc(&poolPush, lib, "objc_autoreleasePoolPush")
 		purego.RegisterLibFunc(&poolPop, lib, "objc_autoreleasePoolPop")
 		attrFont, attrColor = global(appkit, "NSFontAttributeName"), global(appkit, "NSForegroundColorAttributeName")

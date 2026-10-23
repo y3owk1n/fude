@@ -23,6 +23,7 @@ type pane struct {
 	left, right []client.Part
 	current     bool
 	offers      []string // which language server features of the right click's menu its buffer's servers offer
+	read        reading  // its text, for assistive apps
 	gone        bool     // its window closed and its views went
 
 	mouse   [2]int    // the cell of its text the mouse is over, -1s off it
@@ -77,7 +78,7 @@ func (p *pane) update(sh shown, ground theme.RGB) {
 			p.cells[c.y][c.x+i] = cell{style: c.style}
 		}
 	}
-	p.cursor, p.left, p.right, p.current, p.pics, p.offers = sh.cursor, sh.left, sh.right, sh.current, sh.pics, sh.offers
+	p.cursor, p.left, p.right, p.current, p.pics, p.offers, p.read = sh.cursor, sh.left, sh.right, sh.current, sh.pics, sh.offers, sh.read
 	moved := sh.scroll[0] != p.top
 	// With no scroll asked for on the way, the view asks for where it is.
 	if p.want == p.top {

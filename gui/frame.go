@@ -72,6 +72,7 @@ type shown struct {
 	offers      []string
 	pics        []pic
 	scroll      [3]int // its first line shown, its rows and its text's lines
+	read        reading
 }
 
 type placed struct {
@@ -189,7 +190,8 @@ func (p *painter) paint(s client.Session, cols, rows int) frame {
 			o.Look, o.Tint = boxLook, boxLook.Theme.Normal
 			g := compose.NewGrid(v.W, v.H, boxLook.Base)
 			out := draw(g, o)
-			b := &boxed{look: boxLook, at: &[2]int{v.X, v.Y}, title: v.Name, cells: cellsOf(g), pics: pics(v, out)}
+			read := readingOf(v, sel, visual)
+			b := &boxed{look: boxLook, at: &[2]int{v.X, v.Y}, title: v.Name, cells: cellsOf(g), pics: pics(v, out), read: &read}
 			// Its foot shows under a rule, and its status line under that
 			// while it has the focus (D55, B159).
 			if v.Foot != "" {
@@ -218,7 +220,7 @@ func (p *painter) paint(s client.Session, cols, rows int) frame {
 			p.grids[v.ID] = g
 		}
 		out := draw(g, o)
-		sh := shown{id: v.ID, w: v.W, h: v.H, current: v.Current, offers: v.Offers, scroll: [3]int{v.Text.LineOf(v.Top), v.H, v.Text.Lines()}}
+		sh := shown{id: v.ID, w: v.W, h: v.H, current: v.Current, offers: v.Offers, scroll: [3]int{v.Text.LineOf(v.Top), v.H, v.Text.Lines()}, read: readingOf(v, sel, visual)}
 		g.Paint(0, 0, func(x, y int, text string, width int, st theme.Style) {
 			sh.put = append(sh.put, placed{x, y, cell{text, width, st}})
 		})

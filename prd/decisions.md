@@ -966,6 +966,30 @@ Windows followed, its tests run in the user's VM. purego passes the
 floats that Direct2D's and DirectWrite's methods take, as `syscall` does
 not on arm64.
 
+## D67. Assistive apps read the window through each system's accessibility
+
+The window's views draw their own text, so each system's assistive apps
+find nothing in them on their own. `gui/` gives each window's text to
+the system's accessibility as a text area holding the buffer's whole
+text, with the cursor or the visual selection as its selection and the
+lines in view as its visible part (B581). The loop hands the main thread
+the buffer's snapshot with each frame. The main thread turns the text
+into the system's units, UTF-16 on macOS, when an assistive app first
+asks, and again only after the snapshot changes. Each status bar is
+static text and the tab strip a tab group of radio buttons, each with a
+close button. The palette and the finder are each a group of a text
+field and a list, a menu is a list and a toast is static text. The
+assistive app speaks a list's selected item and each message, since the
+focus stays in the text while a menu shows. On macOS the views answer
+NSAccessibility's methods and post its notifications. Where a range does
+not start at the cursor, its frame is the whole view, since cells do not
+say where other text is.
+
+Why, as of 2026-10-24: the user found the macOS window empty to the
+accessibility tree, and asked for Linux and Windows too. The whole text,
+not the rows in view, is what a native text view gives, so a screen
+reader reads past the window's edge as it does in other editors.
+
 ## Departures from Neovim
 
 Each entry: what differs, then why.

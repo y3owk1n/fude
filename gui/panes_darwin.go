@@ -16,6 +16,8 @@ type paneNative struct {
 	view, text, status objc.ID
 	scroller           objc.ID
 	shownAt            time.Time
+	said               spoken // its text as assistive apps count it
+	told               told
 }
 
 // pane returns the pane of the window with id, made the first time.
@@ -24,6 +26,7 @@ func (w *window) pane(id int) *pane {
 		return p
 	}
 	p := newPane(w, id)
+	p.said.count = unitsOf
 	p.view = msgInitView(objc.ID(paneClass).Send(sel("alloc")), sel("initWithFrame:"), rect{})
 	p.text = msgInitView(objc.ID(textClass).Send(sel("alloc")), sel("initWithFrame:"), rect{})
 	track := msgInitTracking(cls("NSTrackingArea").Send(sel("alloc")), sel("initWithRect:options:owner:userInfo:"), rect{}, 0x223, p.text, 0)

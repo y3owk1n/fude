@@ -51,7 +51,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		panic(err)
 	}
-	for _, f := range []any{&msgMarked, &msgInserted, &msgMouseEvent, &msgFirstRect, &msgCache, &msgColorAt, &msgComponent} {
+	for _, f := range []any{&msgMarked, &msgInserted, &msgMouseEvent, &msgFirstRect, &msgCache, &msgColorAt, &msgComponent, &msgRangeOf} {
 		purego.RegisterLibFunc(f, lib, "objc_msgSend")
 	}
 	app := startApp(true)
@@ -1335,6 +1335,99 @@ func TestFakeServer(t *testing.T) {
 	}
 }
 
+// B581
+func TestB581Accessibility(t *testing.T) {
+	dir := t.TempDir()
+	editortest.Change(t, filepath.Join(dir, "a.txt"), "one\ntwo\n")
+	editortest.Change(t, filepath.Join(dir, "b.txt"), "three\n")
+	e := editortest.Open(t, filepath.Join(dir, "a.txt"))
+	e.Use(bufferline.New())
+	e.Use(buffers.New())
+	var w *window
+	onMain(func() { w = open(e, nil) }, true)
+	typed := func(keys string) {
+		for _, c := range keys {
+			code := uint16(0)
+			switch c {
+			case '\r':
+				code = 36
+			case '\x1b':
+				code = 53
+			}
+			onMain(func() { press(w, code, 0, string(c), string(c)) }, true)
+		}
+	}
+	// focus reads the element with the focus, as an assistive app does.
+	type said struct {
+		role, label, value string
+		chosen             nsRange
+	}
+	focus := func() said {
+		var s said
+		onMain(func() {
+			f := w.win.Send(sel("accessibilityFocusedUIElement"))
+			s = said{goString(f.Send(sel("accessibilityRole"))), goString(f.Send(sel("accessibilityLabel"))), goString(f.Send(sel("accessibilityValue"))), msgRangeOf(f, sel("accessibilitySelectedTextRange"))}
+		}, true)
+		return s
+	}
+	// The current window's text has the focus, with the cursor as its
+	// selection, which the visual selection takes.
+	until(t, "the text to have the focus", func() bool {
+		return focus() == said{"AXTextArea", "a.txt", "one\ntwo", nsRange{0, 0}}
+	})
+	typed("jvl")
+	until(t, "the selection to follow", func() bool { return focus().chosen == nsRange{4, 2} })
+	// The palette takes the focus while it shows.
+	typed("\x1b:ec")
+	until(t, "the palette to have the focus", func() bool {
+		return focus() == said{"AXTextField", "command line", "ec", nsRange{2, 0}}
+	})
+	// The finder's field has its list of items beside it.
+	typed("\x1b:pick\r")
+	until(t, "the finder's items", func() bool {
+		rows := 0
+		onMain(func() {
+			if parts := w.panel.view.Send(sel("accessibilityChildren")); objc.Send[int](parts, sel("count")) == 2 {
+				rows = objc.Send[int](parts.Send(sel("objectAtIndex:"), 1).Send(sel("accessibilityChildren")), sel("count"))
+			}
+		}, true)
+		return focus().role == "AXTextField" && rows > 0
+	})
+	typed("\x1b:e " + filepath.Join(dir, "b.txt") + "\r")
+	until(t, "b.txt to have the focus", func() bool { return focus().label == "b.txt" })
+	// The strip's tabs show their buffers when pressed, and their close
+	// buttons close them.
+	tabs := func() (out []objc.ID) {
+		onMain(func() {
+			w.bar.Send(sel("display"))
+			kids := w.bar.Send(sel("accessibilityChildren"))
+			for i := range objc.Send[int](kids, sel("count")) {
+				out = append(out, kids.Send(sel("objectAtIndex:"), i))
+			}
+		}, true)
+		return out
+	}
+	until(t, "two tabs", func() bool { return len(tabs()) == 2 })
+	first := tabs()[0]
+	onMain(func() { first.Send(sel("accessibilityPerformPress")) }, true)
+	until(t, "a.txt to show", func() bool { return focus().label == "a.txt" })
+	second := tabs()[1]
+	onMain(func() {
+		shut := second.Send(sel("accessibilityChildren")).Send(sel("objectAtIndex:"), 0)
+		if got := goString(shut.Send(sel("accessibilityLabel"))); got != "close" {
+			t.Errorf("a tab's button says %q", got)
+		}
+		shut.Send(sel("accessibilityPerformPress"))
+	}, true)
+	until(t, "b.txt to close", func() bool { return len(tabs()) == 1 })
+	typed(":qa!\r")
+	until(t, "the session to end", func() bool {
+		open := true
+		onMain(func() { _, open = windows[w.view] }, true)
+		return !open
+	})
+}
+
 // press sends w a key down, as the keyboard does.
 func press(w *window, code uint16, mods uint, chars, bare string) {
 	n := objc.Send[int](w.win, sel("windowNumber"))
@@ -1351,6 +1444,7 @@ var (
 	msgCache      func(objc.ID, objc.SEL, rect, objc.ID)
 	msgColorAt    func(objc.ID, objc.SEL, int, int) objc.ID
 	msgComponent  func(objc.ID, objc.SEL) float64
+	msgRangeOf    func(objc.ID, objc.SEL) nsRange
 )
 
 // pixels returns the colour of each pixel of what view draws, and how many

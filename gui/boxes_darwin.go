@@ -9,7 +9,13 @@ import (
 // boxNative is a box's views: the system's translucent material with
 // rounded corners and a shadow, and view on it, which draws what the box
 // shows.
-type boxNative struct{ frame, view objc.ID }
+type boxNative struct {
+	frame, view objc.ID
+	field       objc.ID  // the palette's and the finder's text field for assistive apps
+	said        spoken   // its text as assistive apps count it
+	told        told     // what assistive apps were last told of it
+	rowIDs      elements // its list's elements for assistive apps
+}
 
 // newBox makes a hidden box over w's views (B559).
 func newBox(w *window) *box {
@@ -38,9 +44,19 @@ func newBox(w *window) *box {
 	frame.Send(sel("setHidden:"), 1)
 	v.Send(sel("setHidden:"), 1)
 	w.view.Send(sel("addSubview:"), frame)
-	b := &box{boxNative: boxNative{frame, v}, w: w, seen: -2, hover: point{X: -1}}
-	boxes[v] = b
+	field := objc.ID(fieldClass).Send(sel("alloc")).Send(sel("init"))
+	field.Send(sel("setAccessibilityParent:"), v)
+	b := &box{boxNative: boxNative{frame: frame, view: v, field: field, said: spoken{count: unitsOf}}, w: w, seen: -2, hover: point{X: -1}}
+	boxes[v], fields[field] = b, b
 	return b
+}
+
+// drop forgets b, whose window or float closed.
+func (b *box) drop() {
+	b.rowIDs.drop()
+	delete(boxes, b.view)
+	delete(fields, b.field)
+	b.field.Send(sel("release"))
 }
 
 // show makes b show what in view, where placeBox puts it, and a toast

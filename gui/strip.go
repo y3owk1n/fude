@@ -238,3 +238,18 @@ func (w *window) stripShut(x float64) {
 		w.typeKeys(h.shut())
 	}
 }
+
+// tabName is what the tab h shows, and whether it is current.
+func (w *window) tabName(h hit) (string, bool) {
+	if h.page {
+		p := w.tabs.pages[h.n]
+		_, name := client.SplitName(p.Name)
+		return strconv.Itoa(h.n+1) + " " + name, p.Current
+	}
+	for _, t := range w.tabs.buffers {
+		if t.Number == h.n {
+			return strconv.Itoa(t.Number) + " " + t.Name, t.Current
+		}
+	}
+	return "", false
+}

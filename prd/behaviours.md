@@ -1534,6 +1534,18 @@ Where fude departs, the line says so and cites the departure in
 - B580 [10] On Windows, `fude-gui.exe` is fude built with no console, and
   it opens its window as `fude --gui` does. The release zips hold it, and
   oku adds Fude to the Start menu, which runs it.
+- B581 [10] With `--gui` on macOS, VoiceOver and other assistive apps read
+  the window. Each window's text is a text area named by its buffer, with
+  the buffer's whole text, or a terminal's screen in terminal mode. The
+  cursor, or the visual selection, is its selection, and the lines in
+  view are its visible part. The current window has the focus, or the
+  palette or the finder while one shows. Each is a text field of what is
+  typed, named for the command line or the search, beside a list of its
+  items. A menu is a list of its items, and each status bar is text. The tab strip is a group of
+  tabs, each named by its buffer or page. Pressing a tab shows it, and
+  pressing its close button closes it. fude tells the assistive app of
+  each change to the text, the cursor and the focus. The assistive app
+  speaks a list's selected item and each message as they show.
 - B544 [2] A session has tab pages, each with its own windows, floats
   and current window, as in Neovim. `:tabnew` and `:tabedit` open one
   after the current page, on a file or a new empty buffer. `gt`, `{n}gt`,

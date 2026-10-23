@@ -36,6 +36,7 @@ type boxed struct {
 	list   *list   // a menu the window lays out, before any cells
 	// A float with the focus has its status line under its text.
 	left, right []client.Part
+	read        *reading // a float's text, for assistive apps
 	text        string
 	look        theme.Look
 }
