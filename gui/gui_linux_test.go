@@ -129,9 +129,7 @@ func TestB567GTKMouse(t *testing.T) {
 	click := func(clicks int, from, to point) {
 		onMain(func() {
 			mousePress(p.area, 1, clicks, from, 0)
-			if to != from {
-				mouseMove(p.area, to, 0)
-			}
+			mouseMove(p.area, to, 0)
 			mouseRelease(p.area, to, 0)
 		}, true)
 	}
@@ -153,7 +151,8 @@ func TestB567GTKMouse(t *testing.T) {
 	})
 	click(1, cell(0, 1), cell(2, 1))
 	until(t, "thr to be selected", func() bool { return selected(8, 11) })
-	// A double click selects the word it hits.
+	// A double click selects the word it hits, and a move within its
+	// cell does not drag.
 	click(1, cell(5, 0), cell(5, 0))
 	click(2, cell(5, 0), cell(5, 0))
 	until(t, "two to be selected", func() bool { return selected(4, 7) })

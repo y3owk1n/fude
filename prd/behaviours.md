@@ -1331,14 +1331,15 @@ Where fude departs, the line says so and cites the departure in
   past the text its last. A click on a status line only gives the focus. A
   click ends visual mode and keeps insert mode, and closes a float or a
   menu at the cursor, such as hover or code actions, as a key does. A drag
-  selects from the click as `v` does,. A scroll moves a window's view by
-  lines as `<C-e>` and `<C-y>` do, its cursor kept in view, and leaves the
-  focus where it is. While the command line, the finder or a question
-  shows, clicks and drags do nothing. With `--gui` a click on a buffer's
-  tab shows it as `:b` does, and one on a tab page as `gt` does. The rest
-  of the strip moves the window, and a double click there zooms it. A
-  trackpad scrolls a line for each row's height it moves, and a wheel a
-  line for each line it turns.
+  selects from the click as `v` does, once the mouse reaches another cell,
+  so a mouse that moves within a double click's cell does not drag. A
+  scroll moves a window's view by lines as `<C-e>` and `<C-y>` do, its
+  cursor kept in view, and leaves the focus where it is. While the command
+  line, the finder or a question shows, clicks and drags do nothing. With
+  `--gui` a click on a buffer's tab shows it as `:b` does, and one on a
+  tab page as `gt` does. The rest of the strip moves the window, and a
+  double click there zooms it. A trackpad scrolls a line for each row's
+  height it moves, and a wheel a line for each line it turns.
 - B553 [10] With `--gui` a terminal window shows its program's screen,
   with the sixteen basic colours taken from the theme. Text shows bold,
   italic, underlined and struck through as its style says, and a

@@ -219,7 +219,9 @@ func (w *window) press(p *pane, b *box, at point, kind byte, clicks, mods int) {
 			}
 		}
 	}
-	if kind == 'd' && m == w.dragged {
+	// A drag counts once it reaches another cell, so a mouse that moves
+	// within a double click's cell does not drag.
+	if kind == 'd' && m.id == w.dragged.id && m.x == w.dragged.x && m.y == w.dragged.y {
 		return
 	}
 	w.dragged = m
