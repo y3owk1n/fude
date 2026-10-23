@@ -1288,7 +1288,8 @@ Where fude departs, the line says so and cites the departure in
   keys, with an Option chord as `<Esc>` and the key and a Command chord
   left to the system, and resizing the window resizes the session.
   Closing the window quits as `:qa` does. `:restart` starts it again in a
-  window. Elsewhere `--gui` says it runs only on macOS for now.
+  window. Elsewhere `--gui` says it runs only on macOS, Linux and Windows
+  for now.
 - B548 [10] With `--gui` the command line shows in a palette, a box in
   the upper middle of the window, with its completion menu under a rule.
   The finder shows in a box in the middle of the window. The windows under
@@ -1487,6 +1488,17 @@ Where fude departs, the line says so and cites the departure in
 - B572 [10] With `--gui` on Linux, an alert while the window is not active
   shows in the desktop's notification (B564). oku installs `fude-gui`,
   which runs `fude --gui`, and a launcher entry, Fude, that runs it.
+- B573 [10] With `--gui` on Windows, fude shows a session in a Win32
+  window drawn with Direct2D and DirectWrite, as on macOS (B547). Each
+  window of the layout is a pane of the window's splits, its text over its
+  status bar. The command line shows in a palette, messages as toasts, and
+  floats and menus in boxes over the panes, with the dark title bar on a
+  dark theme. The text is in Cascadia Mono, or Consolas where Windows lacks
+  it. Keys typed there go to the session as Vim keys, with an Alt chord as
+  `<Esc>` and the key, AltGr typing its character, and a Windows key chord
+  left to the system. Resizing the window, or moving it to a screen of
+  another scale, resizes the session, a question shows in a dialog, and
+  closing the window quits as `:qa` does.
 - B544 [2] A session has tab pages, each with its own windows, floats
   and current window, as in Neovim. `:tabnew` and `:tabedit` open one
   after the current page, on a file or a new empty buffer. `gt`, `{n}gt`,

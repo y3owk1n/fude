@@ -1,4 +1,4 @@
-//go:build !darwin && !linux
+//go:build !darwin && !linux && !windows
 
 package gui
 
@@ -9,8 +9,11 @@ import (
 	"github.com/y3owk1n/fude/frontend/theme"
 )
 
-// Run says the window is for macOS and Linux only (B547, B566).
-func Run(client.Session) error { return errors.New("--gui runs only on macOS and Linux for now") }
+// Run says the window is for macOS, Linux and Windows only (B547, B566,
+// B573).
+func Run(client.Session) error {
+	return errors.New("--gui runs only on macOS, Linux and Windows for now")
+}
 
 // native, paneNative and boxNative are a window's, a pane's and a box's
 // system objects, none until the system has a window.
