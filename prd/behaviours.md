@@ -956,6 +956,8 @@ Where fude departs, the line says so and cites the departure in
   panels, a diff, `:grammar`, the timeline, `q:`, the output of `:!`, a
   task's window, the pins and the list `:set` shows take none. Files, new
   empty buffers and shells are numbered (D58).
+- B546 [2] `:restart` and a saved session keep every tab page with its
+  windows, and which page is current (B170).
 - B170 [2] `:restart` and `ZR` replace fude's process with a new fude,
   which loads config.toml, plugins, grammars and language servers again.
   The new process opens the same files and splits, with each window's cursor,
@@ -1270,6 +1272,15 @@ Where fude departs, the line says so and cites the departure in
 - B422 [2] `<C-w>H`, `<C-w>J`, `<C-w>K` and `<C-w>L` move the window to the
   far left, bottom, top or right, as tall or as wide as the layout, as in
   Neovim. In the only window they do nothing.
+- B544 [2] A session has tab pages, each with its own windows, floats
+  and current window, as in Neovim. `:tabnew` and `:tabedit` open one
+  after the current page, on a file or a new empty buffer. `gt`, `{n}gt`,
+  `gT`, `:tabnext` and `:tabprevious` move between them, going round at
+  the ends. `:tabmove` moves the current page, `<C-w>T` moves the window
+  to a page of its own, and `:tabclose`, `:tabonly` and `:q` in a page's
+  last window close pages, showing the page on the right. Closing a page
+  keeps its buffers, and a window whose program runs hides. The last page
+  does not close.
 - B425 [2] `:bufdo cmd` shows each buffer being edited in turn and runs
   cmd there, and `:windo cmd` moves to each window in turn and runs cmd
   there, as in Neovim. The last buffer or window stays current. If cmd

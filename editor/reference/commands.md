@@ -155,8 +155,9 @@ Closes the current window. Its buffer stays loaded with any changes, so
 `:b` shows it again. In a float it closes the float, and the focus goes
 back to the window the float opened from. A window whose program still
 runs, such as a terminal's, hides instead, as `:hide` does, and the program
-goes on. The last window does not close and says "cannot close the last
-window". `:q` there quits.
+goes on. The last window of a tab page closes the page, while others are
+left. The last window of the last page does not close and says "cannot
+close the last window". `:q` there quits.
 
 ## :config
 
@@ -361,8 +362,8 @@ empty register says so.
 
 ## :quit
 
-Closes the current window, as `:close` does, and in the last window quits
-fude. Quitting refuses while any buffer has changes and names one, and
+Closes the current window, as `:close` does, and in the last window of the
+last tab page quits fude. Quitting refuses while any buffer has changes and names one, and
 `:q!` quits anyway and drops them. A float closes, and a window whose
 program runs hides. In a session attached to a running fude, the last
 window's `:q` leaves, and fude goes on for the other sessions.
@@ -520,6 +521,45 @@ with its flags, as `:&&` does.
 "|ab ab" ":s/a/[&]/<CR>:s/b/~/<CR>" "|[a][b] ab"
 "|abc" ":s/b//<CR>" "|ac"
 ```
+
+## :tabclose
+
+Closes the tab page and its windows, and the page on its right shows, or
+the one before when it was the last. The buffers stay loaded with their
+changes, and a window whose program runs hides. The last page does not
+close and says "cannot close the last tab page".
+
+## :tabedit
+
+Opens the file in a new tab page after the current one, as `:tabnew`
+does.
+
+## :tabmove
+
+Moves the tab page after page n, counted from 1 before it moves, or first
+with 0. `+n` and `-n` move it n places on or back, and with no n it goes
+last. A place past either end is refused.
+
+## :tabnew
+
+Opens a new tab page after the current one, with a window on the file, or
+on a new empty buffer without one. Each page has its own windows, floats
+and current window.
+
+## :tabnext
+
+Goes to the next tab page, and after the last to the first, as `gt` does.
+`:tabnext n` goes to page n, counted from 1, and `:tabnext +n` n pages on.
+A page that is not there is refused.
+
+## :tabonly
+
+Closes every tab page but the current one, as `:tabclose` closes each.
+
+## :tabprevious
+
+Goes to the tab page before, and before the first to the last, as `gT`
+does. `:tabprevious n` goes n pages back. `:tabNext` is the same.
 
 ## :undo
 

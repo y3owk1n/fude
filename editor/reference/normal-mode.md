@@ -528,6 +528,16 @@ cursor just after the text put.
 "|a\nb" "yygp" "a\na\n|b"
 ```
 
+## gT
+
+Goes to the tab page before the current one, and before the first to the
+last. With a count it goes that many pages back.
+
+## gt
+
+Goes to the next tab page, and after the last to the first. With a count
+n it goes to page n, counted from 1.
+
 ## gv
 
 Selects the last selection again, of the same kind and with the cursor at
@@ -912,7 +922,7 @@ cursor goes to line n first, keeping its column.
 ## ZZ
 
 Writes the buffer when it is modified, then closes the window, as `:x`
-does. In the last window it quits fude.
+does. In the last window of the last tab page it quits fude.
 
 ## zz
 
@@ -1057,6 +1067,11 @@ Moves the window to the top of the screen, as wide as all the windows, as
 
 Moves the window to the far right of the screen, as tall as all the
 windows, as `:window right` does.
+
+## <C-w>T
+
+Moves the window to a new tab page after the current one, where it is
+alone. In the only window of its page it says "already only one window".
 
 ## ds{char}
 

@@ -1293,13 +1293,14 @@ buffer's multicursors until it is current again. Why: one vim machine
 runs every window of a session, and a set of cursors for each buffer is
 more state for little use.
 
-### N44. No tab pages
+### N44. Tab pages, beside the buffer line
 
-fude has no `:tabnew`, `gt` or `gT`. A session has one layout of splits
-and floats, which the session module keeps as fude quits. Why: splits,
-floats, pins and the buffer line already give each place its own view, and
-a second layout is a second session through `fude attach`, which keeps the
-frame and the saved session to one layout.
+fude has Neovim's tab pages, each with its own layout of splits and
+floats, and the session module keeps them all as fude quits (B544, B546).
+Why: a native frontend's tabs need a page to stand for, and a second
+layout no longer needs a second session through `fude attach`. Until 2026-10-23 fude
+had none, since splits, floats, pins and the buffer line gave each place
+its own view. The user chose them that day, for the terminal too.
 
 ### N45. No tags
 

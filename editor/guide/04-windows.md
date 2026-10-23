@@ -37,6 +37,12 @@ count tall or wide, and `<C-w>=` makes every window the same size again.
 `:resize 20`, `:resize +5` and `:vertical resize 80` do the same from the
 command line.
 
+Tab pages each hold their own windows. `:tabnew` opens a page, on a file
+with `:tabedit file`, and `gt` and `gT` go to the next and previous page,
+`3gt` to the third. `<C-w>T` moves a window to a page of its own,
+`:tabmove` moves a page, and `:tabclose` closes one, as `:q` in its last
+window does.
+
 `<Plug>(window.left)` and the others for down, up and right move between
 windows too, and inside tmux they move to the next tmux pane when no
 window is that way. No key is mapped to them, so map them, such as

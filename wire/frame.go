@@ -15,6 +15,7 @@ import (
 type Frame struct {
 	Windows      []Window
 	Layout       Split          // how the windows split the screen (B541)
+	Pages        []Page         `json:",omitempty"` // the tab pages (B544)
 	Buffers      []Tab          `json:",omitempty"` // what the buffer line shows (B258)
 	Texts        []Text         `json:",omitempty"`
 	Menu         *Menu          `json:",omitempty"`
@@ -236,4 +237,10 @@ type Split struct {
 	Across bool    `json:",omitempty"`
 	Size   int     `json:",omitempty"` // the rows of text, or columns side by side, it asks for, 0 to share
 	Kids   []Split `json:",omitempty"`
+}
+
+// Page is a tab page, by the buffer its current window shows (B544).
+type Page struct {
+	Name              string
+	Modified, Current bool
 }

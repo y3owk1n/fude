@@ -143,8 +143,10 @@ type Session struct {
 	placing     string                  // where a modifier puts the window its command opens, until the next key (B365)
 	zoomed      *window                 // the window that shows alone across the layout's room, nil for none (B370)
 	unzoomed    [4]int                  // where the zoomed window is in the layout, its x, y, w and h
-	placed      map[int][4]int          // by window id, where a frontend put a window's text, its x, y, w and h (B542)
-	lastWin     *window                 // the window current when a key last ended, and prevWin the one before it, for <C-w>p (B420)
+	tabpages    []tabPage               // the tab pages, of which the one at tabpage shows (B544)
+	tabpage     int
+	placed      map[int][4]int // by window id, where a frontend put a window's text, its x, y, w and h (B542)
+	lastWin     *window        // the window current when a key last ended, and prevWin the one before it, for <C-w>p (B420)
 	prevWin     *window
 	suspending  bool                // the client has yet to suspend to the shell, as <C-z> asked (B424)
 	exitCode    int                 // what fude exits with, which :cquit sets (B423)
@@ -249,6 +251,7 @@ func (e *Session) join() {
 	e.win = newWindow(b, 0, 0)
 	e.win.opts = e.opts
 	e.root = &node{win: e.win}
+	e.tabpages = []tabPage{{}}
 	e.colour, e.began = e.began%6, e.began+1
 	e.sessions = append(e.sessions, e)
 	e.layout()
@@ -443,7 +446,7 @@ func (e *Session) nextID() (int, *buffer) {
 			continue
 		}
 		if !slices.ContainsFunc(e.sessions, func(s *Session) bool {
-			return slices.ContainsFunc(append(s.windows(), s.hidden...), func(w *window) bool { return w.buf == b && w != e.win })
+			return slices.ContainsFunc(append(s.windows(), s.unseen()...), func(w *window) bool { return w.buf == b && w != e.win })
 		}) {
 			return b.id, b
 		}
@@ -1071,7 +1074,7 @@ func (e *Session) jump(n int) bool {
 // quit closes the current window, or quits once it is the last one. Without
 // force it refuses to quit while a buffer has unsaved changes.
 func (e *Session) quit(force bool) error {
-	if e.root.win == nil || e.win.anchor != "" {
+	if e.root.win == nil || e.win.anchor != "" || len(e.tabpages) > 1 {
 		return e.closeWindow(e.win)
 	}
 	return e.quitAll(force)
@@ -1329,7 +1332,7 @@ func (e *Session) close(b *buffer, force bool) {
 	}
 	for _, s := range e.sessions {
 		s.hidden = slices.DeleteFunc(s.hidden, func(w *window) bool { return w.buf == b })
-		for _, w := range s.root.windows() {
+		for _, w := range append(s.root.windows(), s.parked()...) {
 			var kept []place
 			for _, j := range w.jumps {
 				if j.buf != b {

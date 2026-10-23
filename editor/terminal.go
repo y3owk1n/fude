@@ -343,7 +343,7 @@ func (e *Session) freeze(b *buffer) {
 	s := b.text.Snapshot()
 	at := vim.ColumnStart(s, s.LineStart(last), cur.X, e.tabWidth(b), nil)
 	for _, s := range e.sessions {
-		for _, w := range append(s.windows(), s.hidden...) {
+		for _, w := range append(s.windows(), s.unseen()...) {
 			if w.buf == b {
 				w.cursor, w.top = b.text.SetMark(at, kernel.Right), b.text.SetMark(0, kernel.Left)
 			}

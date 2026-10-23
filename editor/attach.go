@@ -19,7 +19,7 @@ import (
 // its index in Texts, which a caller copies off the loop.
 func (e *Session) frame(sent map[int]kernel.Version) (wire.Frame, map[int]kernel.Snapshot) {
 	f := wire.Frame{
-		Windows: e.Windows(), Layout: e.Layout(), Buffers: e.Buffers(), Line: e.Line(), LineCursor: e.LineCursor(), Mode: e.Mode(), Pending: e.Pending(), Message: e.Message(), Confirm: e.Confirm(),
+		Windows: e.Windows(), Layout: e.Layout(), Pages: e.Pages(), Buffers: e.Buffers(), Line: e.Line(), LineCursor: e.LineCursor(), Mode: e.Mode(), Pending: e.Pending(), Message: e.Message(), Confirm: e.Confirm(),
 		Cursors: e.Cursors(), Recording: e.Recording(), Substituting: e.Substituting(), Terminal: e.Terminal(), Shown: e.Shown(),
 	}
 	if fl, ok := e.Menu(); ok {

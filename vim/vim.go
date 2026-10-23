@@ -1143,6 +1143,15 @@ func init() {
 			m.reselect()
 			return nil
 		}},
+		"gt": {"goes to the next tab page, or page n", func(m *Machine, x normalCall) error {
+			if x.count > 0 {
+				return m.h.Unhandled(":tabnext " + strconv.Itoa(x.count))
+			}
+			return m.h.Unhandled(":tabnext")
+		}},
+		"gT": {"goes to the tab page before, or n pages back", func(m *Machine, x normalCall) error {
+			return m.h.Unhandled(":tabprevious " + strconv.Itoa(x.n()))
+		}},
 		"ZZ": {"writes the buffer if it is modified, and closes the window", func(m *Machine, _ normalCall) error {
 			return m.h.Unhandled(":x")
 		}},

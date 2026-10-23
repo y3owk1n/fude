@@ -328,6 +328,7 @@ func wait(d *time.Duration) (time.Duration, bool) {
 
 func (a *Attached) Windows() []wire.Window { return a.f.Windows }
 func (a *Attached) Layout() wire.Split     { return a.f.Layout }
+func (a *Attached) Pages() []wire.Page     { return a.f.Pages }
 func (a *Attached) Buffers() []wire.Tab    { return a.f.Buffers }
 
 func (a *Attached) Menu() (wire.Menu, bool) { return orZero(a.f.Menu) }

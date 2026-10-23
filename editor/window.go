@@ -623,6 +623,11 @@ func (e *Session) zoom(w *window) error {
 
 // closeWindow closes w, or hides it while its program runs.
 func (e *Session) closeWindow(w *window) error {
+	// The last window of a tab page closes the page, while others are left
+	// (B544).
+	if e.root.win == w && len(e.tabpages) > 1 {
+		return e.closePage(e.tabpage)
+	}
 	// A window whose program runs hides, and the program goes on (B231).
 	if t := w.buf.term; t != nil && !t.exited {
 		return e.hide(w)
@@ -644,10 +649,10 @@ func (e *Session) closeWindow(w *window) error {
 }
 
 // showing reports whether a window of any session shows b, one out of
-// sight too.
+// sight or on another tab page too.
 func (e *Session) showing(b *buffer) bool {
 	for _, s := range e.sessions {
-		if slices.ContainsFunc(append(s.windows(), s.hidden...), func(w *window) bool { return w.buf == b }) {
+		if slices.ContainsFunc(append(s.windows(), s.unseen()...), func(w *window) bool { return w.buf == b }) {
 			return true
 		}
 	}
@@ -818,7 +823,7 @@ func (e *Session) layout() {
 	x, w, _ := e.area()
 	// The buffer line takes the top row while it shows (B258).
 	top := 0
-	if e.lined = len(e.Buffers()) > 0; e.lined {
+	if e.lined = e.topRow(); e.lined {
 		top = 1
 	}
 	e.root.place(x, top, w, max(e.height-top, 2))
@@ -915,6 +920,7 @@ type windowKey struct {
 
 // windowKeys are the <C-w> commands (B91).
 var windowKeys = []windowKey{
+	{[]string{"T"}, "moves the window to a new tab page", func(e *Session, _ int) error { return e.windowPage() }},
 	{[]string{"s", "S", "<C-s>"}, "splits the window, the new one below, or above with split_below off", func(e *Session, _ int) error { e.split(false); return nil }},
 	{[]string{"v", "<C-v>"}, "splits the window, the new one right, or left with split_right off", func(e *Session, _ int) error { e.split(true); return nil }},
 	{[]string{"h", "<C-h>"}, "moves to the window left", func(e *Session, _ int) error { e.moveTo('h'); return nil }},

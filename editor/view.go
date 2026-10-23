@@ -17,7 +17,7 @@ import (
 func (e *Session) Windows() []wire.Window {
 	e.follow()
 	// Opening or closing a buffer may show or hide the buffer line.
-	if (len(e.Buffers()) > 0) != e.lined {
+	if e.topRow() != e.lined {
 		e.layout()
 		e.reveal()
 	}

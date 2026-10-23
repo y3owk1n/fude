@@ -25,6 +25,16 @@ type saved struct {
 	Windows  bool `json:"-"` // Layout has a window on a file or explorer
 	Current  int  // the current window, counted from the top left
 	Centered bool // :center is on (B199)
+	// Pages are the other tab pages, and Page is where among them the one
+	// in Layout goes (B546).
+	Pages []savedPage
+	Page  int
+}
+
+// savedPage is a tab page's windows and which is current.
+type savedPage struct {
+	Layout  savedNode
+	Current int
 }
 
 // savedBuffer is a buffer's file and the timeline node its text was at.
@@ -103,15 +113,29 @@ func (e *Session) session() saved {
 		}
 	}
 	s.Layout, s.Windows = e.root.save()
-	for _, w := range e.root.windows() {
-		if w == e.win {
-			break
-		}
-		if restorable(w.buf) || w.buf.listed != "" {
-			s.Current++
+	s.Current = savedCurrent(e.root, e.win)
+	for i, p := range e.tabpages {
+		if i == e.tabpage {
+			s.Page = len(s.Pages)
+		} else if layout, ok := p.root.save(); ok {
+			s.Pages = append(s.Pages, savedPage{layout, savedCurrent(p.root, p.win)})
 		}
 	}
 	return s
+}
+
+// savedCurrent counts the windows a session keeps before win in root's.
+func savedCurrent(root *node, win *window) int {
+	n := 0
+	for _, w := range root.windows() {
+		if w == win {
+			break
+		}
+		if restorable(w.buf) || w.buf.listed != "" {
+			n++
+		}
+	}
+	return n
 }
 
 // writeSession writes s to a file of its own in fude's state directory and
@@ -220,6 +244,15 @@ func (e *Session) restoreLayout(s saved) {
 	e.root = root
 	ws := root.windows()
 	e.win = ws[min(s.Current, len(ws)-1)]
+	var pages []tabPage
+	for _, sp := range s.Pages {
+		if r := build(sp.Layout); r != nil {
+			ws := r.windows()
+			pages = append(pages, tabPage{root: r, win: ws[min(sp.Current, len(ws)-1)]})
+		}
+	}
+	e.tabpage = min(s.Page, len(pages))
+	e.tabpages = slices.Insert(pages, e.tabpage, tabPage{})
 	// New windows start with the current one's options, as after :set.
 	e.opts = e.win.opts
 	e.layout()

@@ -2063,8 +2063,9 @@ methods are the ones `tui` calls today, such as `Windows`, `Menu`,
 `client.Attached`, which applies frames as they come and sends input as
 the user types. `client` imports no frontend and no editor (D63).
 
-A frame carries the layout as a tree of `wire.Split`, each window at a
-leaf by its id (B541). Each window's `X`, `Y`, `W` and `H` are where the
+A frame carries the layout of the tab page that shows as a tree of
+`wire.Split`, each window at a leaf by its id (B541), and every page as a
+`wire.Page`, named by the buffer its current window shows (B544). Each window's `X`, `Y`, `W` and `H` are where the
 layout puts its text. A frontend that draws its own splits calls `Place`
 with each window's place in cells of its grid. The editor then takes
 that window's rows and columns from it, and `<C-w>hjkl` measures from it

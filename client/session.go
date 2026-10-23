@@ -34,6 +34,7 @@ type Session interface {
 	// What the client draws.
 	Windows() []wire.Window
 	Layout() wire.Split
+	Pages() []wire.Page
 	Buffers() []wire.Tab
 	Menu() (wire.Menu, bool)
 	Line() string

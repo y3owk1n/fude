@@ -96,6 +96,13 @@ func init() {
 		{vim.Command{Name: "saveas", Short: []string{"sav"}, Args: "{file}", Help: "names the buffer's file and writes it there. ! writes over a file that exists"}, func(e *Session, x call) error { return e.saveAs(x.arg, x.force) }, completePath},
 		{vim.Command{Name: "set", Short: []string{"se"}, Args: "[name [value]]", Help: "sets an option to a value, as config.toml would, shows one, or lists them all"}, func(e *Session, x call) error { return e.set(x.arg) }, completeOption},
 		{vim.Command{Name: "share", Help: "shows a new share string, which lets one more guest join"}, func(e *Session, _ call) error { return e.reshare() }, nil},
+		{vim.Command{Name: "tabclose", Short: []string{"tabc"}, Help: "closes the tab page and its windows"}, func(e *Session, _ call) error { return e.closePage(e.tabpage) }, nil},
+		{vim.Command{Name: "tabedit", Short: []string{"tabe"}, Args: "[file]", Help: "opens file, or a new empty buffer, in a new tab page"}, func(e *Session, x call) error { return e.newPage(x.arg) }, completePath},
+		{vim.Command{Name: "tabmove", Short: []string{"tabm"}, Args: "[n]", Help: "moves the tab page after page n, first with 0, by n with +n or -n, or to the end"}, func(e *Session, x call) error { return e.movePage(x.arg) }, nil},
+		{vim.Command{Name: "tabnew", Args: "[file]", Help: "opens file, or a new empty buffer, in a new tab page"}, func(e *Session, x call) error { return e.newPage(x.arg) }, completePath},
+		{vim.Command{Name: "tabnext", Short: []string{"tabn"}, Args: "[n]", Help: "goes to the next tab page, page n, or n pages on with +n"}, func(e *Session, x call) error { return e.nextPage(x.arg) }, nil},
+		{vim.Command{Name: "tabonly", Short: []string{"tabo"}, Help: "closes every other tab page"}, func(e *Session, _ call) error { return e.onlyPage() }, nil},
+		{vim.Command{Name: "tabprevious", Short: []string{"tabp", "tabNext", "tabN"}, Args: "[n]", Help: "goes to the tab page before, or n pages back"}, func(e *Session, x call) error { return e.previousPage(x.arg) }, nil},
 		{vim.Command{Name: "windo", Args: "{cmd}", Help: "runs cmd in each window, moving to each in turn"}, func(e *Session, x call) error { return e.windo(x.arg) }, nil},
 		{vim.Command{Name: "wall", Short: []string{"wa"}, Help: "writes every modified buffer"}, func(e *Session, x call) error { return e.writeAll(e.bufs, x.force, nil) }, nil},
 		{vim.Command{Name: "wq", Help: "writes the buffer and closes the window"}, func(e *Session, x call) error {
