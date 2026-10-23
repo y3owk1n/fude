@@ -15,6 +15,9 @@ type paneNative struct {
 	area, root, menu uintptr
 	bar, adjustment  uintptr
 	shownAt          time.Time
+	said             spoken // its text as assistive apps count it
+	told             told
+	labels           labels
 }
 
 // panes are the panes by their drawing areas, which the callbacks get.
@@ -28,7 +31,8 @@ func (w *window) pane(id int) *pane {
 		return p
 	}
 	p := newPane(w, id)
-	p.area = gObjectRefSink(gtkDrawingAreaNew())
+	p.said.count = func(rune) int { return 1 }
+	p.area = gObjectRefSink(newArea("text-box"))
 	gtkWidgetSetCursor(p.area, "text")
 	gtkWidgetSetHexpand(p.area, 1)
 	gtkWidgetSetVexpand(p.area, 1)

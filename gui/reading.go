@@ -80,6 +80,13 @@ type textKey struct {
 
 func (r reading) key() textKey { return textKey{r.buffer, r.text.Version(), r.own, r.plain} }
 
+// told is what an element last told assistive apps of.
+type told struct {
+	key    textKey
+	chosen [2]int
+	spoke  string // the item or the message last spoken
+}
+
 // spoken is a reading's text in the units a system's accessibility counts
 // it in, with each line's start, made when an assistive app asks.
 type spoken struct {
@@ -92,15 +99,25 @@ type spoken struct {
 	total  int
 }
 
+// whole is r's text.
+func (r reading) whole() string {
+	if r.own {
+		return r.plain
+	}
+	return r.text.Slice(0, r.text.Len())
+}
+
 // of makes s hold r's text, unless it already does.
 func (s *spoken) of(r reading) *spoken {
-	if s.made && s.key == r.key() {
-		return s
+	if !s.made || s.key != r.key() {
+		s.hold(r.key(), r.whole())
 	}
-	s.key, s.made, s.text = r.key(), true, r.plain
-	if !r.own {
-		s.text = r.text.Slice(0, r.text.Len())
-	}
+	return s
+}
+
+// hold makes s hold text, which key says.
+func (s *spoken) hold(key textKey, text string) {
+	s.key, s.made, s.text = key, true, text
 	s.starts, s.units, s.total = []int{0}, []int{0}, 0
 	for i, c := range s.text {
 		s.total += s.count(c)
@@ -108,7 +125,6 @@ func (s *spoken) of(r reading) *spoken {
 			s.starts, s.units = append(s.starts, i+1), append(s.units, s.total)
 		}
 	}
-	return s
 }
 
 // unit is the unit at byte b.

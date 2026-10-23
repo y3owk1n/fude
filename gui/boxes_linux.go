@@ -4,16 +4,21 @@ import "math"
 
 // boxNative is a box's drawing area, laid over the panes on the theme's
 // popover ground with rounded corners.
-type boxNative struct{ area uintptr }
+type boxNative struct {
+	area   uintptr
+	said   spoken // its text as assistive apps count it
+	told   told
+	labels labels
+}
 
 // boxes are the boxes by their drawing areas, which the callbacks get.
 var boxes = map[uintptr]*box{}
 
-// newBox makes a hidden box over w's panes, above every box before it. It
-// keeps a reference to its area, which the overlay drops and takes again
-// as boxes go over it.
-func newBox(w *window) *box {
-	b := &box{boxNative: boxNative{gObjectRefSink(gtkDrawingAreaNew())}, w: w, seen: -2, hover: point{X: -1}}
+// newBox makes a hidden box over w's panes, above every box before it,
+// whose area has the accessible role. It keeps a reference to its area,
+// which the overlay drops and takes again as boxes go over it.
+func newBox(w *window, role string) *box {
+	b := &box{boxNative: boxNative{area: gObjectRefSink(newArea(role)), said: spoken{count: func(rune) int { return 1 }}}, w: w, seen: -2, hover: point{X: -1}}
 	gtkWidgetSetHalign(b.area, 1)
 	gtkWidgetSetValign(b.area, 1)
 	listen(b.area)

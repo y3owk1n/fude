@@ -366,6 +366,7 @@ func load() error {
 		} {
 			purego.RegisterLibFunc(f.fn, f.lib, f.name)
 		}
+		loadAccess(gtk)
 	})
 	return err
 }

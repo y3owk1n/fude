@@ -32,6 +32,8 @@ type native struct {
 	im           uintptr         // the input method
 	preedit      uintptr         // the view that shows what it composes
 	marked       string          // what it composes
+	focused      uintptr         // the area assistive apps were last told has the focus
+	barLabels    labels          // the tab strip's for assistive apps
 }
 
 // windows are the windows by their GtkWindows.
@@ -134,7 +136,7 @@ func open(s client.Session, ended func()) *window {
 	}
 	scale := float64(gtkWidgetScale(w.win))
 	w.cellPx = [2]int{int(cellW * scale), int(cellH * scale)}
-	w.panel, w.toast = newBox(w), newBox(w)
+	w.panel, w.toast = newBox(w, "text-box"), newBox(w, "label")
 	w.newInput(ctl)
 	w.contextActions()
 	windows[w.win] = w
@@ -225,7 +227,11 @@ func (w *window) apply() {
 		b := w.floats[id]
 		if b == nil {
 			// It goes under the palette, the finder and toasts.
-			b = newBox(w)
+			role := "label"
+			if what.read != nil {
+				role = "text-box"
+			}
+			b = newBox(w, role)
 			b.id = id
 			w.floats[id] = b
 			w.panel.raise()
@@ -236,6 +242,7 @@ func (w *window) apply() {
 	w.panel.show(f.panel)
 	w.toast.show(f.toast)
 	w.placeCaret()
+	w.tell()
 	if f.asked != w.asked {
 		w.asked = f.asked
 		if w.asking != 0 {

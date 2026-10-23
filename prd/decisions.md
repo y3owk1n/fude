@@ -981,9 +981,18 @@ close button. The palette and the finder are each a group of a text
 field and a list, a menu is a list and a toast is static text. The
 assistive app speaks a list's selected item and each message, since the
 focus stays in the text while a menu shows. On macOS the views answer
-NSAccessibility's methods and post its notifications. Where a range does
-not start at the cursor, its frame is the whole view, since cells do not
-say where other text is.
+NSAccessibility's methods and post its notifications. On Linux GTK gives
+AT-SPI each widget. fude's text areas are FudeText, a subclass of
+GtkDrawingArea that purego registers with GtkAccessibleText, which
+counts in characters. The area with the focus takes GTK's focus, since
+AT-SPI reports that focus. The window's key controller still takes every
+key first. Once an assistive app has read a text, fude tells it of each
+change as a removal and an insertion, so Orca speaks only what changed.
+Without an assistive app fude compares no texts. GTK shows no widget for
+a tab or a list's row, so on Linux the tab strip is named by its tabs
+and the assistive app speaks a list's selected item. Where a range does not start at the
+cursor, its frame is the whole view, since cells do not say where other
+text is.
 
 Why, as of 2026-10-24: the user found the macOS window empty to the
 accessibility tree, and asked for Linux and Windows too. The whole text,

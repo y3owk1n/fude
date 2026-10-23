@@ -13,13 +13,6 @@ import (
 // unitsOf counts a character as NSString does, in UTF-16 units.
 func unitsOf(r rune) int { return max(utf16.RuneLen(r), 1) }
 
-// told is what an element last told assistive apps of.
-type told struct {
-	key    textKey
-	chosen [2]int
-	spoke  string // the item or the message last spoken
-}
-
 // readingAccess are the NSAccessibility methods of a view that shows text:
 // a pane's, or a box's holding a float or what the palette has typed. A
 // float and a pane are text areas, the palette a text field (B581).

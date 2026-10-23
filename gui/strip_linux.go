@@ -68,7 +68,7 @@ const stripH = 34
 // and maximizes the window (B568).
 func (w *window) newStrip() {
 	header := gtkHeaderBarNew()
-	w.bar = gtkDrawingAreaNew()
+	w.bar = newArea("tab-list")
 	gtkWidgetSetHexpand(w.bar, 1)
 	gtkDrawingAreaHeight(w.bar, stripH)
 	gtkDrawingAreaSetFn(w.bar, stripCallbacks.draw, w.win, 0)

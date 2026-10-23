@@ -7,11 +7,13 @@ import (
 	"image/color"
 	"image/draw"
 	"image/png"
+	"math"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
+	"unsafe"
 
 	"github.com/ebitengine/purego"
 
@@ -46,6 +48,11 @@ func TestMain(m *testing.M) {
 	purego.RegisterLibFunc(&gtkWindowTitle, gtk, "gtk_window_get_title")
 	purego.RegisterLibFunc(&gtkWidgetVisible, gtk, "gtk_widget_get_visible")
 	purego.RegisterLibFunc(&gtkAdjustmentSetValue, gtk, "gtk_adjustment_set_value")
+	purego.RegisterLibFunc(&gtkWindowFocus, gtk, "gtk_window_get_focus")
+	purego.RegisterLibFunc(&gtkAccessibleRole, gtk, "gtk_accessible_get_accessible_role")
+	purego.RegisterLibFunc(&gTypeIfacePeek, gtk, "g_type_interface_peek")
+	purego.RegisterLibFunc(&gBytesData, gtk, "g_bytes_get_data")
+	purego.RegisterLibFunc(&gBytesUnref, gtk, "g_bytes_unref")
 	ready := make(chan struct{})
 	startApp(func() { close(ready) })
 	// The application stays up between the tests' windows.
@@ -450,7 +457,77 @@ func TestB571GTKInputMethods(t *testing.T) {
 	})
 }
 
+// B582
+func TestB582GTKAccessibility(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.txt")
+	editortest.Change(t, path, "one\ntwo\n")
+	e := editortest.Open(t, path)
+	var w *window
+	onMain(func() { w = open(e, nil) }, true)
+	typed := func(keys string) {
+		for _, k := range keys {
+			keyval := uintptr(k)
+			switch k {
+			case '\r':
+				keyval = 0xff0d
+			case '\x1b':
+				keyval = 0xff1b
+			}
+			onMain(func() { keyPressed(0, keyval, 0, 0, w.win) }, true)
+		}
+	}
+	// said reads the area with the focus as an assistive app does, through
+	// its GtkAccessibleText: its role, its text and its caret.
+	type said struct {
+		role  string
+		text  string
+		caret uintptr
+	}
+	focus := func() said {
+		var s said
+		onMain(func() {
+			area := gtkWindowFocus(w.win)
+			if area == 0 {
+				return
+			}
+			s.role = map[int32]string{roleOf("text-box"): "text-box", roleOf("label"): "label"}[gtkAccessibleRole(area)]
+			iface := gTypeIfacePeek(**(**uintptr)(unsafe.Pointer(&area)), gtkTextIfaceType())
+			slot := func(at uintptr) uintptr {
+				return *(*uintptr)(unsafe.Add(*(*unsafe.Pointer)(unsafe.Pointer(&iface)), at))
+			}
+			bytes, _, _ := purego.SyscallN(slot(16), area, 0, math.MaxUint32)
+			var n uintptr
+			data := gBytesData(bytes, &n)
+			s.text = string(unsafe.Slice(data, n))
+			gBytesUnref(bytes)
+			s.caret, _, _ = purego.SyscallN(slot(32), area)
+		}, true)
+		return s
+	}
+	// The current window's text has the focus, with the cursor as its caret.
+	until(t, "the text to have the focus", func() bool { return focus() == said{"text-box", "one\ntwo", 0} })
+	typed("j")
+	until(t, "the caret to follow", func() bool { return focus().caret == 4 })
+	// The palette takes the focus while it shows.
+	typed(":ec")
+	until(t, "the palette to have the focus", func() bool { return focus() == said{"text-box", "ec", 2} })
+	typed("\x1b:qa!\r")
+	until(t, "the session to end", func() bool {
+		open := true
+		onMain(func() { _, open = windows[w.win] }, true)
+		return !open
+	})
+}
+
+// roleOf is the value of the accessible role named nick.
+func roleOf(nick string) int32 { return gEnumByNick(roleClass, nick).value }
+
 var (
+	gtkWindowFocus        func(w uintptr) uintptr
+	gtkAccessibleRole     func(a uintptr) int32
+	gTypeIfacePeek        func(class uintptr, iface uint64) uintptr
+	gBytesData            func(b uintptr, n *uintptr) *byte
+	gBytesUnref           func(b uintptr)
 	cairoCreate           func(surface uintptr) uintptr
 	cairoDestroy          func(cr uintptr)
 	cairoWritePNG         func(surface uintptr, path string) int32

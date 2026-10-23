@@ -1546,6 +1546,17 @@ Where fude departs, the line says so and cites the departure in
   pressing its close button closes it. fude tells the assistive app of
   each change to the text, the cursor and the focus. The assistive app
   speaks a list's selected item and each message as they show.
+- B582 [10] With `--gui` on Linux, Orca and other assistive apps read the
+  window through AT-SPI, with GTK 4.14 or later. Each window's text is a
+  text box named by its buffer, with the buffer's whole text, or a
+  terminal's screen in terminal mode, its caret at the cursor, the visual
+  selection as its selection, and its status bar as its description. The
+  current window has the focus, or the palette or the finder while one
+  shows, each a text box of what is typed. The tab strip is a tab list
+  named by its tabs, the current one marked. fude tells the assistive app
+  of a change to the text as what was removed and what was inserted. The
+  assistive app speaks a list's selected item and each message as they
+  show.
 - B544 [2] A session has tab pages, each with its own windows, floats
   and current window, as in Neovim. `:tabnew` and `:tabedit` open one
   after the current page, on a file or a new empty buffer. `gt`, `{n}gt`,
