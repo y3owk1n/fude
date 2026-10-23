@@ -56,9 +56,15 @@ func makeMouseCallbacks() {
 		return 0
 	})
 	mouseCallbacks.context = purego.NewCallback(contextChosen)
-	mouseCallbacks.closed = purego.NewCallback(func(popover, _ uintptr) uintptr {
-		// The menu goes once its item's action has run.
-		onMain(func() { gtkWidgetUnparent(popover) }, false)
+	mouseCallbacks.closed = purego.NewCallback(func(popover, area uintptr) uintptr {
+		// The menu goes once its item's action has run, unless its pane
+		// went first and removed it.
+		onMain(func() {
+			if p := panes[area]; p != nil && p.menu == popover {
+				p.menu = 0
+				gtkWidgetUnparent(popover)
+			}
+		}, false)
 		return 0
 	})
 	mouseCallbacks.pasted = purego.NewCallback(pasted)
@@ -223,10 +229,14 @@ func (p *pane) contextMenu(at point) {
 	gObjectUnref(section)
 	pop := gtkPopoverMenuNew(menu)
 	gObjectUnref(menu)
+	if p.menu != 0 {
+		gtkWidgetUnparent(p.menu)
+	}
+	p.menu = pop
 	gtkWidgetSetParent(pop, p.area)
 	gtkPopoverHasArrow(pop, 0)
 	gtkPopoverPointTo(pop, &gdkRect{int32(at.X), int32(at.Y), 1, 1})
-	gSignalConnectData(pop, "closed", mouseCallbacks.closed, 0, 0, 0)
+	gSignalConnectData(pop, "closed", mouseCallbacks.closed, p.area, 0, 0)
 	gtkPopoverPopup(pop)
 }
 

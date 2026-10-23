@@ -7,8 +7,9 @@ import (
 	"github.com/y3owk1n/fude/frontend/wire"
 )
 
-// paneNative is a pane's drawing area, its text over its status bar.
-type paneNative struct{ area uintptr }
+// paneNative is a pane's drawing area, its text over its status bar, and
+// the right click's menu showing over it, 0 for none.
+type paneNative struct{ area, menu uintptr }
 
 // panes are the panes by their drawing areas, which the callbacks get.
 var panes = map[uintptr]*pane{}
@@ -36,6 +37,11 @@ func (w *window) pane(id int) *pane {
 func (p *pane) drop() {
 	p.gone = true
 	delete(panes, p.area)
+	// Its menu goes with it, so the menu's close finds no pane.
+	if m := p.menu; m != 0 {
+		p.menu = 0
+		gtkWidgetUnparent(m)
+	}
 	gObjectUnref(p.area)
 }
 
