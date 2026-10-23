@@ -924,9 +924,12 @@ Terminal windows draw from their cells. Images draw from the PNGs the
 session gives, with no terminal protocol (B553). The editor stays the
 source of each, and keys still go through Vim's grammar, so a palette
 holds no text field of its own. On other systems `--gui` says it runs only
-on macOS for now. The GUI ships later as an app bundle built from the same
-code, and `fude` stays one binary, since the window adds about 0.1MB to
-it.
+on macOS for now. `just app` puts the same binary in an app bundle,
+`Fude.app`, behind a launcher script that takes the login shell's PATH,
+since Finder gives an app only the system's (B565). `gui/app/bundle.sh`
+makes it for `just app`, a release's macOS zips and both oku manifests, so
+all of them ship the same bundle. `fude` stays one binary, since the
+window adds about 0.1MB to it.
 
 Why, as of 2026-10-23: the user wants a first-class Vim GUI with native
 controls, not a terminal in a window. A spike drew fude's text in a native

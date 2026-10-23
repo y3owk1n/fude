@@ -2,8 +2,9 @@ name: publish-artifacts
 
 # Builds fude for each system on a runner of that system, as cgo needs a C
 # compiler for the target, and uploads a zip, its checksum and its build
-# provenance to the release. Each build is go install of the release's tag,
-# so it is the build a user's go install makes (D37).
+# provenance to the release. A macOS zip also holds Fude.app (B565). Each
+# build is go install of the release's tag, so it is the build a user's go
+# install makes (D37).
 on:
   workflow_call:
     inputs:
@@ -56,6 +57,8 @@ jobs:
           dist/bin/fude man > dist/share/man/man1/fude.1
           dist/bin/fude man config > dist/share/man/man5/fude-config.5
           dist/bin/fude man guide > dist/share/man/man7/fude-guide.7
+          # The window runs only on macOS, so only its zips hold the app (B565).
+          [ "${{ matrix.os }}" != darwin ] || sh gui/app/bundle.sh dist/bin/fude dist/Fude.app
           cp LICENSE README.md dist/
           (cd dist && zip -qr "../$NAME.zip" .)
           shasum -a 256 "$NAME.zip" > "$NAME.zip.sha256"

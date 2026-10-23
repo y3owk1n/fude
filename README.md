@@ -41,6 +41,8 @@ go install github.com/y3owk1n/fude/cmd/fude@latest
 
 Each [release](https://github.com/y3owk1n/fude/releases) also has zips for macOS, Linux and Windows on arm64 and amd64. On macOS and Linux, fude builds grammars with the `tree-sitter` CLI.
 
+On macOS, `fude --gui` opens fude in a native window, and oku also puts `Fude.app` in `~/Applications`. The macOS zips hold it too. `Fude.app` is unsigned for now, so a copy downloaded in a browser opens only after `xattr -dr com.apple.quarantine Fude.app`.
+
 <details>
 <summary>Building from source, and what fude uses when it is on PATH</summary>
 

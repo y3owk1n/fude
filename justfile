@@ -36,6 +36,11 @@ fmt-check:
 build:
     go build -o bin/fude ./cmd/fude
 
+# Build bin/Fude.app, fude in a macOS app that opens in its window,
+# unsigned and with no icon (B565).
+app: build
+    sh gui/app/bundle.sh bin/fude bin/Fude.app
+
 # Write fude's man pages to share/man, for packaging.
 man: build
     mkdir -p share/man/man1 share/man/man5 share/man/man7

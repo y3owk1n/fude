@@ -1,0 +1,9 @@
+#!/bin/sh
+# Fude.app runs fude in its window (B565). Finder gives an app only the
+# system's PATH, so it takes the one the user's login shell sets, and a
+# start at / begins in the home folder.
+login=$("${SHELL:-/bin/zsh}" -l -c env 2>/dev/null | sed -n 's/^PATH=//p')
+[ -n "$login" ] && PATH=$login
+export PATH
+[ "$PWD" = / ] && cd "$HOME"
+exec "$(dirname "$0")/fude" --gui "$@"

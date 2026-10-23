@@ -1438,6 +1438,13 @@ Where fude departs, the line says so and cites the departure in
   alert once. With `--gui`, an alert while the window is not in front
   bounces the Dock's icon once, and from an app bundle it also shows the
   message in the system's notification.
+- B565 [10] `just app` builds `bin/Fude.app`, fude as a macOS app,
+  unsigned and with no icon for now. A release's macOS zips hold it, and
+  oku installs it in `~/Applications`, from a zip or from a build of main.
+  Opening it shows fude in its window, as `fude --gui` does, with the PATH
+  the user's login shell sets, so language servers are found as in a
+  terminal. Opened at `/`, as Finder opens an app, it starts in the home
+  folder.
 - B544 [2] A session has tab pages, each with its own windows, floats
   and current window, as in Neovim. `:tabnew` and `:tabedit` open one
   after the current page, on a file or a new empty buffer. `gt`, `{n}gt`,

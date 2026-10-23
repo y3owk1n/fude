@@ -22,6 +22,7 @@ url = "https://github.com/y3owk1n/fude/releases/download/{{tag}}/fude-darwin-arm
 sha256_url = "https://github.com/y3owk1n/fude/releases/download/{{tag}}/fude-darwin-arm64.zip.sha256"
 bin = ["bin/fude"]
 man = ["share/man/man1/fude.1", "share/man/man5/fude-config.5", "share/man/man7/fude-guide.7"]
+app = ["Fude.app"]
 
 [[artifact]]
 match = { os = "darwin", arch = "amd64" }
@@ -29,6 +30,7 @@ url = "https://github.com/y3owk1n/fude/releases/download/{{tag}}/fude-darwin-amd
 sha256_url = "https://github.com/y3owk1n/fude/releases/download/{{tag}}/fude-darwin-amd64.zip.sha256"
 bin = ["bin/fude"]
 man = ["share/man/man1/fude.1", "share/man/man5/fude-config.5", "share/man/man7/fude-guide.7"]
+app = ["Fude.app"]
 
 # The Linux binary links glibc, so a musl machine builds from source instead.
 [[artifact]]
@@ -152,9 +154,19 @@ shell = "sh"
 env = { CGO_ENABLED = "1", GOTOOLCHAIN = "local", GOFLAGS = "-buildvcs=false" }
 when = [{ os = "darwin" }, { os = "linux" }]
 
+# The window runs only on macOS, so only macOS gets Fude.app (B565).
+[[build.step]]
+run = "sh gui/app/bundle.sh fude Fude.app"
+shell = "sh"
+when = { os = "darwin" }
+
+[[build.step]]
+install = { bin = ["fude"], man = ["man/fude.1", "man/fude-config.5", "man/fude-guide.7"], app = ["Fude.app"] }
+when = { os = "darwin" }
+
 [[build.step]]
 install = { bin = ["fude"], man = ["man/fude.1", "man/fude-config.5", "man/fude-guide.7"] }
-when = [{ os = "darwin" }, { os = "linux" }]
+when = { os = "linux" }
 
 # Windows has no man, so it takes fude alone. PowerShell 5.1 does not stop
 # on a failed native command, so go's exit code is checked.
