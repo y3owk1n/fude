@@ -14,6 +14,7 @@ import (
 // brings up to date.
 type Frame struct {
 	Windows      []Window
+	Layout       Split          // how the windows split the screen (B541)
 	Buffers      []Tab          `json:",omitempty"` // what the buffer line shows (B258)
 	Texts        []Text         `json:",omitempty"`
 	Menu         *Menu          `json:",omitempty"`
@@ -55,6 +56,7 @@ type Text struct {
 
 // Window is one window as a client draws it.
 type Window struct {
+	ID               int             // the id the layout and Place name it by (B541, B542)
 	Buffer           int             // the buffer's number, which a frame's Texts name
 	Text             kernel.Snapshot `json:"-"`
 	Top, Cursor      int
@@ -222,4 +224,13 @@ type Cell struct {
 type Colour struct {
 	Start, End int
 	RGB        int32 // 0xRRGGBB
+}
+
+// Split is a part of the layout: a window, or splits side by side when
+// Across is set and stacked otherwise (B541).
+type Split struct {
+	Window int     `json:",omitempty"` // the window's ID, at a leaf
+	Across bool    `json:",omitempty"`
+	Size   int     `json:",omitempty"` // the rows of text, or columns side by side, it asks for, 0 to share
+	Kids   []Split `json:",omitempty"`
 }

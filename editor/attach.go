@@ -19,7 +19,7 @@ import (
 // its index in Texts, which a caller copies off the loop.
 func (e *Session) frame(sent map[int]kernel.Version) (wire.Frame, map[int]kernel.Snapshot) {
 	f := wire.Frame{
-		Windows: e.Windows(), Buffers: e.Buffers(), Line: e.Line(), LineCursor: e.LineCursor(), Mode: e.Mode(), Pending: e.Pending(), Message: e.Message(), Confirm: e.Confirm(),
+		Windows: e.Windows(), Layout: e.Layout(), Buffers: e.Buffers(), Line: e.Line(), LineCursor: e.LineCursor(), Mode: e.Mode(), Pending: e.Pending(), Message: e.Message(), Confirm: e.Confirm(),
 		Cursors: e.Cursors(), Recording: e.Recording(), Substituting: e.Substituting(), Terminal: e.Terminal(), Shown: e.Shown(),
 	}
 	if fl, ok := e.Menu(); ok {
@@ -200,7 +200,7 @@ func (e *Session) Finish(d time.Duration) {
 }
 
 // input is one notice of an attached client's: keys typed, a paste, its
-// size, focus, a key that timed out or hints to show.
+// size, where it put a window, focus, a key that timed out or hints to show.
 func (e *Session) input(method string, params json.RawMessage) error {
 	switch method {
 	case "keys":
@@ -223,6 +223,12 @@ func (e *Session) input(method string, params json.RawMessage) error {
 			return fmt.Errorf("read size: %w", err)
 		}
 		e.SetSize(size[0], size[1])
+	case "place":
+		var p [5]int
+		if err := json.Unmarshal(params, &p); err != nil {
+			return fmt.Errorf("read place: %w", err)
+		}
+		e.Place(p[0], p[1], p[2], p[3], p[4])
 	case "cell":
 		var cell [2]int
 		if err := json.Unmarshal(params, &cell); err != nil {

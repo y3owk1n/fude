@@ -61,7 +61,7 @@ func (e *Session) draw(w *window) wire.Window {
 	e.fit(w)
 	t, top, tab := w.buf.text.Snapshot(), e.topOf(w), e.tabWidth(w.buf)
 	v := wire.Window{
-		Buffer: w.buf.id, Text: t, Top: top, Cursor: w.pos(),
+		ID: w.id, Buffer: w.buf.id, Text: t, Top: top, Cursor: w.pos(),
 		X: w.x, Y: w.y, W: w.w, H: w.h,
 		Name: w.buf.name(), Modified: w.buf.modified(), Current: w == e.win, Zoomed: w == e.zoomed,
 		Gutter: w.gutter(), SignCols: w.signCols(), Number: w.numberCols() > 0 && w.opts.Number, Relative: w.numberCols() > 0 && w.opts.RelativeNumber,

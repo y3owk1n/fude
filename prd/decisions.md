@@ -840,26 +840,28 @@ pieces any server's config or a plugin builds on, and no defaults.
 `editor/` holds no frontend. `ui/term` is the terminal frontend fude
 ships, and it stays as it is. fude may add a native frontend that uses
 the system's own tabs, splits and mouse. Every frontend draws a session
-through the one interface D39 names, so it runs a local session or an
+through `client.Session` (D39), so it runs a local session or an
 attached one alike.
 
-These parts of the editor assume a cell grid. The commits that add the
-native frontend change them, and no commit changes them earlier:
-
-- The editor lays windows out in cells from one screen size. The buffer
-  line takes the top row, each window's status line takes a row, and
-  windows side by side have a column between them.
-- The editor places floats, menus and key hints in cells, and pads some
-  menu rows to a width in columns.
-- Modules and plugins read each window's cells through `api.Window`, so
-  a change to how the editor expresses layout changes the plugin API.
+The editor's layout is the default place of every window. It holds the
+split tree, the rows of text or columns each split asks for, and the
+cells it gives each window from one screen size. A window's place is its
+text, gutter included. The terminal frontend draws a status line under
+each window, a column between windows side by side and the buffer line
+on top, in the room the layout leaves for them. A frontend that draws its
+own splits reads the layout from the frame. It gives each window's place
+in cells of its own grid, and the editor uses that place instead (B541,
+B542). The editor still places floats, menus and key hints in cells.
 
 Why, as of 2026-10-23: a spike drew fude in a system webview from the
 terminal client's cells. A key took 9ms at p50 from press to paint, so
 the editor needs no rewrite to run in a window. The user chose native
-tabs, splits and mouse for that window over a cell grid. They also chose
-to refactor toward it first. Changing the parts above before the native
-frontend exists would add code with no second use.
+tabs, splits and mouse for that window, so a native split resizes freely
+instead of in the editor's cells. The layout stays in the editor as the
+default, because headless sessions and attached clients have no frontend
+to place their windows, and moving it out would mean two copies of it.
+fude has no users yet, so the plugin API and the wire format changed
+with it.
 
 ## Departures from Neovim
 

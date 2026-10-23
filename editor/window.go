@@ -416,8 +416,8 @@ type node struct {
 	across bool
 	kids   []*node
 	parent *node
-	// size is the rows, or the columns side by side, the node asks for in
-	// its split, and 0 shares what the others leave (B193).
+	// size is the rows of text, or the columns side by side, the node asks
+	// for in its split, and 0 shares what the others leave (B193).
 	size int
 	w, h int // where the layout last placed it
 }
@@ -452,7 +452,11 @@ func (n *node) place(x, y, w, h int) {
 			continue
 		}
 		fixed--
-		sizes[i] = max(least, min(kid.size, left-least*fixed))
+		want := kid.size
+		if !n.across {
+			want++ // its status line
+		}
+		sizes[i] = max(least, min(want, left-least*fixed))
 		left -= sizes[i]
 	}
 	left += least * flex
@@ -477,6 +481,18 @@ func (n *node) place(x, y, w, h int) {
 			y += size
 		}
 	}
+}
+
+// split returns n as a frame carries it (B541).
+func (n *node) split() wire.Split {
+	if n.win != nil {
+		return wire.Split{Window: n.win.id, Size: n.size}
+	}
+	s := wire.Split{Across: n.across, Size: n.size}
+	for _, k := range n.kids {
+		s.Kids = append(s.Kids, k.split())
+	}
+	return s
 }
 
 // windows returns the layout's windows from the top left.
@@ -520,7 +536,7 @@ func (e *Session) resize(across bool, to func(now, room int) int) {
 		l.size = max(to(l.w, p.w-(len(p.kids)-1)), 1)
 	} else {
 		// A height counts the rows of text, without the status line.
-		l.size = max(to(l.h-1, p.h-1), 1) + 1
+		l.size = max(to(l.h-1, p.h-1), 1)
 	}
 	e.layout()
 }
@@ -752,7 +768,7 @@ func (e *Session) moveTo(d byte) {
 	}
 }
 
-// beside returns the window next to the current one in direction d, on the
+// beside returns the window next to the current one in direction d, by the
 // cursor's row or column, or nil (B330).
 func (e *Session) beside(d byte) *window {
 	w := e.win
@@ -768,23 +784,33 @@ func (e *Session) beside(d byte) *window {
 		row++
 	}
 	col += min(w.pos()-vim.LineStart(t, w.pos()), ww-1)
-	switch d {
-	case 'h':
-		col = x - 2
-	case 'l':
-		col = x + ww + 1
-	case 'k':
-		row = y - 1
-	case 'j':
-		row = y + h + 1
+	// off is how far p is outside the span of n from start.
+	off := func(p, start, n int) int {
+		return max(start-p, p-(start+n-1), 0)
 	}
-	// A window's status line is the row under its text.
+	// The window that way is the nearest one wholly past w's edge, and of
+	// those the nearest to the cursor's row or column. It skips any rows or
+	// columns between windows, such as status lines, so it works on a
+	// frontend's places too (B542).
+	var near *window
+	nearGap, nearOff := 0, 0
 	for _, o := range e.root.windows() {
-		if o != w && col >= o.x && col < o.x+o.w && row >= o.y && row <= o.y+o.h {
-			return o
+		gap, by := 0, 0
+		switch d {
+		case 'h':
+			gap, by = x-(o.x+o.w), off(row, o.y, o.h)
+		case 'l':
+			gap, by = o.x-(x+ww), off(row, o.y, o.h)
+		case 'k':
+			gap, by = y-(o.y+o.h), off(col, o.x, o.w)
+		case 'j':
+			gap, by = o.y-(y+h), off(col, o.x, o.w)
+		}
+		if o != w && gap >= 0 && (near == nil || gap < nearGap || gap == nearGap && by < nearOff) {
+			near, nearGap, nearOff = o, gap, by
 		}
 	}
-	return nil
+	return near
 }
 
 // layout places every window in the space the editor has.
@@ -802,8 +828,12 @@ func (e *Session) layout() {
 		e.unzoomed = [4]int{z.x, z.y, z.w, z.h}
 		z.x, z.y, z.w, z.h = x, top, w, max(e.height-top, 2)-1
 	}
+	for _, win := range e.root.windows() {
+		e.placedBy(win)
+	}
 	for _, f := range e.floats {
 		e.place(f)
+		e.placedBy(f)
 	}
 	// A terminal is as big as the window showing it.
 	for _, win := range e.root.windows() {
@@ -812,6 +842,13 @@ func (e *Session) layout() {
 				e.message = err.Error()
 			}
 		}
+	}
+}
+
+// placedBy moves w to where a frontend put it, if it did (B542).
+func (e *Session) placedBy(w *window) {
+	if r, ok := e.placed[w.id]; ok {
+		w.x, w.y, w.w, w.h = r[0], r[1], r[2], r[3]
 	}
 }
 

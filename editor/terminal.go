@@ -101,7 +101,8 @@ func (e *Session) bareOptions() options {
 func (e *Session) terminalWindow(b *buffer, where string, lock bool) {
 	e.openIn(b, where)
 	if where == "above" || where == "below" {
-		e.root.leaf(e.win).size = max((e.height*int(e.cfg.TerminalHeight)+50)/100, 3)
+		// The percent counts the window's status line.
+		e.root.leaf(e.win).size = max((e.height*int(e.cfg.TerminalHeight)+50)/100, 3) - 1
 	}
 	// A terminal window takes the bare options. The split copied the window
 	// it came from, with that window's own options for its filetype, so

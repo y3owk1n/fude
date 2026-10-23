@@ -143,6 +143,7 @@ type Session struct {
 	placing     string                  // where a modifier puts the window its command opens, until the next key (B365)
 	zoomed      *window                 // the window that shows alone across the layout's room, nil for none (B370)
 	unzoomed    [4]int                  // where the zoomed window is in the layout, its x, y, w and h
+	placed      map[int][4]int          // by window id, where a frontend put a window's text, its x, y, w and h (B542)
 	lastWin     *window                 // the window current when a key last ended, and prevWin the one before it, for <C-w>p (B420)
 	prevWin     *window
 	suspending  bool                // the client has yet to suspend to the shell, as <C-z> asked (B424)
@@ -766,6 +767,21 @@ func (e *Session) SetSize(w, h int) {
 	e.layout()
 	e.reveal()
 }
+
+// Place puts the text of the window with the id at x and y, w columns
+// wide, gutter included, and h rows tall, in cells of the frontend's own
+// grid. The window takes that place over the layout's (B542).
+func (e *Session) Place(id, x, y, w, h int) {
+	if e.placed == nil {
+		e.placed = map[int][4]int{}
+	}
+	e.placed[id] = [4]int{x, y, w, h}
+	e.layout()
+	e.reveal()
+}
+
+// Layout returns how the windows split the screen (B541).
+func (e *Session) Layout() wire.Split { return e.root.split() }
 
 // Shown returns the keys of the command being typed, or "".
 func (e *Session) Shown() string { return e.vim.Shown() }

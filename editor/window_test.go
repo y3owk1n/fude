@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -14,6 +15,7 @@ import (
 	filesmod "github.com/y3owk1n/fude/modules/files"
 	"github.com/y3owk1n/fude/modules/sticky"
 	windowmod "github.com/y3owk1n/fude/modules/window"
+	"github.com/y3owk1n/fude/wire"
 )
 
 // B27
@@ -626,4 +628,58 @@ func TestB422MoveToEdge(t *testing.T) {
 			t.Errorf("%s left the windows %q, want %q", c[0], windows(e), c[1])
 		}
 	}
+}
+
+// B541
+func TestB541LayoutInTheFrame(t *testing.T) {
+	e := withCommands(open(t, ""))
+	e.SetSize(80, 23)
+	feed(e, "<C-w>v<C-w>s:resize 5<CR>")
+	ws := e.Windows()
+	want := wire.Split{Across: true, Kids: []wire.Split{
+		{Window: ws[0].ID},
+		{Kids: []wire.Split{{Window: ws[1].ID}, {Window: ws[2].ID, Size: 5}}},
+	}}
+	if got := e.Layout(); !reflect.DeepEqual(got, want) {
+		t.Errorf("the layout is %+v, want %+v", got, want)
+	}
+}
+
+// B542
+func TestB542FrontendPlaces(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "f")
+	change(t, path, strings.Repeat("x\n", 30))
+	e := open(t, path)
+	e.SetSize(80, 23)
+	feed(e, "<C-w>v")
+	ws := e.Windows()
+	left, right := ws[0].ID, ws[1].ID
+	// A frontend's own split, with a wide gap between the windows.
+	e.Place(left, 0, 0, 50, 10)
+	e.Place(right, 60, 0, 20, 30)
+	ws = e.Windows()
+	if got := [4]int{ws[0].X, ws[0].Y, ws[0].W, ws[0].H}; got != [4]int{0, 0, 50, 10} {
+		t.Fatalf("the placed window is at %v", got)
+	}
+	if shown := strings.Count(text(e)[:ws[0].Ranges[0].End], "\n"); shown != 9 {
+		t.Errorf("the window 10 rows tall shows %d lines", shown+1)
+	}
+	if feed(e, "<C-w>h"); !e.Windows()[0].Current {
+		t.Errorf("<C-w>h did not cross the gap to the window on the left")
+	}
+	if feed(e, "<C-w>l"); !e.Windows()[1].Current {
+		t.Errorf("<C-w>l did not cross the gap to the window on the right")
+	}
+	// A new window keeps the layout's place.
+	if feed(e, "<C-w>s"); e.Windows()[2].W != 39 {
+		t.Errorf("a window the frontend has not placed is %d wide, want the layout's 39", e.Windows()[2].W)
+	}
+	// An attached client places its own windows.
+	cl := dial(t, e)
+	fmt.Fprintln(cl.c, `{"id":1,"method":"attach"}`)
+	fmt.Fprintln(cl.c, `{"method":"size","params":[80,24]}`)
+	texts := map[int]string{}
+	f := cl.frames(texts, func(f wire.Frame) bool { return len(f.Windows) == 1 && f.Windows[0].H == 23 })
+	fmt.Fprintf(cl.c, "{\"method\":\"place\",\"params\":[%d,2,3,40,7]}\n", f.Windows[0].ID)
+	cl.frames(texts, func(f wire.Frame) bool { return f.Windows[0].X == 2 && f.Windows[0].Y == 3 && f.Windows[0].H == 7 })
 }

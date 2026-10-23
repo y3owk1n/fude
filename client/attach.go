@@ -24,20 +24,21 @@ import (
 // Attached is a session of another fude. A frontend draws it from the
 // frames that fude sends, and sends the user's input back (B239, D39).
 type Attached struct {
-	c     net.Conn
-	enc   *json.Encoder
-	queue chan func()
-	f     wire.Frame
-	texts map[int]*kernel.Buffer // each buffer's text, as the frames bring it
-	w, h  int                    // the size last sent
-	cell  [2]int                 // the cell's pixels last sent (B303)
-	pics  map[int][]byte         // the images the frames brought, by id
-	freed []int                  // the images frames dropped since Freed was called
-	clip  *string                // for the terminal's clipboard, once
-	stop  bool                   // the user asked to suspend, until Suspend says so (B424)
-	done  bool
-	ended string     // why the session ended, for after the screen is gone
-	theme wire.Theme // a guest's own theme, which it draws in (B254)
+	c      net.Conn
+	enc    *json.Encoder
+	queue  chan func()
+	f      wire.Frame
+	texts  map[int]*kernel.Buffer // each buffer's text, as the frames bring it
+	w, h   int                    // the size last sent
+	cell   [2]int                 // the cell's pixels last sent (B303)
+	placed map[int][4]int         // by window id, where each window was last placed (B542)
+	pics   map[int][]byte         // the images the frames brought, by id
+	freed  []int                  // the images frames dropped since Freed was called
+	clip   *string                // for the terminal's clipboard, once
+	stop   bool                   // the user asked to suspend, until Suspend says so (B424)
+	done   bool
+	ended  string     // why the session ended, for after the screen is gone
+	theme  wire.Theme // a guest's own theme, which it draws in (B254)
 }
 
 var _ Session = (*Attached)(nil)
@@ -287,6 +288,17 @@ func (a *Attached) SetCell(w, h int) {
 	}
 }
 
+// Place tells fude where a window's text is when that changes.
+func (a *Attached) Place(window, x, y, w, h int) {
+	if a.placed == nil {
+		a.placed = map[int][4]int{}
+	}
+	if r := [4]int{x, y, w, h}; a.placed[window] != r {
+		a.placed[window] = r
+		a.send("place", [5]int{window, x, y, w, h})
+	}
+}
+
 // Freed returns the images frames dropped since it was last called.
 func (a *Attached) Freed() []int {
 	out := a.freed
@@ -315,6 +327,7 @@ func wait(d *time.Duration) (time.Duration, bool) {
 }
 
 func (a *Attached) Windows() []wire.Window { return a.f.Windows }
+func (a *Attached) Layout() wire.Split     { return a.f.Layout }
 func (a *Attached) Buffers() []wire.Tab    { return a.f.Buffers }
 
 func (a *Attached) Menu() (wire.Menu, bool) { return orZero(a.f.Menu) }

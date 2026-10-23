@@ -2350,6 +2350,15 @@ Where fude departs, the line says so and cites the departure in
   `FUDE_SESSION` to the id of its session, in the program it runs. So
   `fude open`, `keys` and `state` in that program act on that session.
   When fude has no socket, it sets neither.
+- B541 [7] A session's frame carries its layout: each split, with its
+  windows side by side or stacked and the rows of text or columns it asks
+  for, down to each window by its id.
+- B542 [7] A frontend may place a window itself. It gives where the
+  window's text goes, gutter included, in cells of its own grid, and the
+  window takes that place over the layout's. The window shows as many
+  rows and columns as that place has. `<C-w>h`, `j`, `k` and `l` go to the
+  nearest window wholly past that side of the place. A window the
+  frontend has not placed keeps the layout's place.
 
 ## Sharing
 

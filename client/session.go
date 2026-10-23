@@ -16,6 +16,9 @@ type Session interface {
 	Paste(text string)
 	SetSize(w, h int)
 	SetCell(w, h int) // a cell's pixels, 0 when the terminal shows no images (B303)
+	// Place puts a window's text where the frontend drew it, in cells of
+	// its own grid, over the layout's place for it (B542).
+	Place(window, x, y, w, h int)
 	Focus()
 	Timeout()
 
@@ -30,6 +33,7 @@ type Session interface {
 
 	// What the client draws.
 	Windows() []wire.Window
+	Layout() wire.Split
 	Buffers() []wire.Tab
 	Menu() (wire.Menu, bool)
 	Line() string
