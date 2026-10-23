@@ -243,7 +243,16 @@ func TestB575WindowsStripAndLook(t *testing.T) {
 		return n == 2
 	})
 	// Off the tabs the strip is the title bar, and its buttons are the
-	// window's.
+	// window's. The system's title bar does not show over it.
+	var frame rectI
+	var top [2]int32
+	onMain(func() {
+		call(getWindowRect, w.hwnd, uintptr(unsafe.Pointer(&frame)))
+		call(clientToScreen, w.hwnd, uintptr(unsafe.Pointer(&top)))
+	}, true)
+	if top[1] != frame.T {
+		t.Errorf("the strip starts %d pixels under the window's top, under the system's title bar", top[1]-frame.T)
+	}
 	var tab, title, closing uintptr
 	onMain(func() {
 		width := w.area().W
@@ -434,6 +443,7 @@ func TestB578WindowsInputMethods(t *testing.T) {
 
 var (
 	getWindowText    = user32.NewProc("GetWindowTextW")
+	getWindowRect    = user32.NewProc("GetWindowRect")
 	keyboardState    = user32.NewProc("GetKeyboardState")
 	setKeyboardState = user32.NewProc("SetKeyboardState")
 	sendMessage      = user32.NewProc("SendMessageW")

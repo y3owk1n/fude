@@ -153,10 +153,12 @@ func open(s client.Session, ended func()) *window {
 	w := &window{s: s, keys: make(chan vim.Key, 1024), do: make(chan func()), pastes: make(chan string, 8), mice: make(chan mouse, 64), ended: ended, placed: make(chan struct{}, 1), panes: map[int]*pane{}, floats: map[int]*box{}, caretOn: true, hover: -1, native: native{images: map[int]*bitmap{}, mouseNative: mouseNative{splitting: -1}}}
 	w.hwnd = call(createWindow, 0, uintptr(unsafe.Pointer(className)), uintptr(unsafe.Pointer(cwide("fude"))), style, 1<<31, 1<<31, 1<<31, 1<<31, 0, 0, call(getModuleHandle, 0), 0)
 	w.scale = float64(call(getDpiForWindow, w.hwnd)) / 96
-	w.fit(cellW*float64(cols)+2*pad, stripH+cellH*float64(rows)+2*pad+statusH)
 	w.cellPx = [2]int{int(cellW * w.scale), int(cellH * w.scale)}
 	w.panel, w.toast = newBox(w), newBox(w)
+	// fit changes the frame, so the window takes its frame's messages
+	// first. Otherwise the system's title bar stays over the strip.
 	opened[w.hwnd] = w
+	w.fit(cellW*float64(cols)+2*pad, stripH+cellH*float64(rows)+2*pad+statusH)
 	call(showWindow, w.hwnd, 1)
 	go w.loop(cols, rows)
 	return w
