@@ -835,6 +835,32 @@ start whatever is on PATH in any project. The Vue code would be the
 first of many pieces of code for one server. The user chose general
 pieces any server's config or a plugin builds on, and no defaults.
 
+## D63. The editor serves frontends, and the terminal is one
+
+`editor/` holds no frontend. `ui/term` is the terminal frontend fude
+ships, and it stays as it is. fude may add a native frontend that uses
+the system's own tabs, splits and mouse. Every frontend draws a session
+through the one interface D39 names, so it runs a local session or an
+attached one alike.
+
+These parts of the editor assume a cell grid. The commits that add the
+native frontend change them, and no commit changes them earlier:
+
+- The editor lays windows out in cells from one screen size. The buffer
+  line takes the top row, each window's status line takes a row, and
+  windows side by side have a column between them.
+- The editor places floats, menus and key hints in cells, and pads some
+  menu rows to a width in columns.
+- Modules and plugins read each window's cells through `api.Window`, so
+  a change to how the editor expresses layout changes the plugin API.
+
+Why, as of 2026-10-23: a spike drew fude in a system webview from the
+terminal client's cells. A key took 9ms at p50 from press to paint, so
+the editor needs no rewrite to run in a window. The user chose native
+tabs, splits and mouse for that window over a cell grid. They also chose
+to refactor toward it first. Changing the parts above before the native
+frontend exists would add code with no second use.
+
 ## Departures from Neovim
 
 Each entry: what differs, then why.
@@ -907,11 +933,13 @@ it holds. The keys that ask for one kind, `<C-n>`, `<C-p>`, `<C-x><C-n>`,
 `<C-x><C-p>`, `<C-x><C-l>` and `<C-x><C-f>`, work as Neovim's do (B440
 to B443).
 
-### N9. No mouse
+### N9. No mouse in the terminal
 
-fude takes no mouse input, where Neovim's `mouse` defaults to `nvi`. The
-terminal keeps its own selection, scrolling and copy. Why: the user chose
-keys only on 2026-10-15.
+fude's terminal frontend takes no mouse input, where Neovim's `mouse`
+defaults to `nvi`. The terminal keeps its own selection, scrolling and
+copy. A native frontend takes the mouse as its platform does (D63). Why:
+the user chose keys only in the terminal on 2026-10-15, and the mouse
+for a native frontend on 2026-10-23.
 
 ### N10. Tab with expand_tab goes to the next indent column
 

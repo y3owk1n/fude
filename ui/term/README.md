@@ -1,7 +1,7 @@
 # ui/term
 
 The terminal client fude ships. It draws a session on a tcell screen in
-fude's own true colour theme and feeds it the keys and mouse it reads,
+fude's own true colour theme and feeds it the keys and pastes it reads,
 with the latency promises of [`prd/product.md`](../../prd/product.md) tested
 in `perf_test.go`.
 
