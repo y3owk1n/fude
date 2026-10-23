@@ -2,8 +2,6 @@ package gui
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"sync"
 
 	"github.com/ebitengine/purego"
@@ -88,19 +86,6 @@ func (w *window) dress(f frame) {
 func dark(c theme.RGB) bool {
 	r, g, b := float64(c>>16&0xff), float64(c>>8&0xff), float64(c&0xff)
 	return 0.299*r+0.587*g+0.114*b < 128
-}
-
-// file is the absolute path of a window's file, or "" when it names none
-// on disk.
-func file(name string) string {
-	path, err := filepath.Abs(name)
-	if err != nil {
-		return ""
-	}
-	if _, err := os.Stat(path); err != nil {
-		return ""
-	}
-	return path
 }
 
 // notify tells the user of text while w is not in front. It bounces the

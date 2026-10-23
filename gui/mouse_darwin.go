@@ -7,61 +7,8 @@ import (
 
 	"github.com/ebitengine/purego/objc"
 
-	"github.com/y3owk1n/fude/frontend/client"
 	"github.com/y3owk1n/fude/vim"
 )
-
-// mouse is what the mouse did, for the loop to give the session: a click,
-// a drag or a release at cell x, y of the window with the id, a scroll of
-// y lines, or a pick of line y of a menu. A click's clicks count a double
-// or triple click.
-type mouse struct {
-	kind             byte // c a click, g a click with Command, d a drag, u a release, s a scroll, p a pick and h a rest
-	id, x, y, clicks int
-}
-
-// give gives the session what the mouse did, on the loop. A double click
-// selects the word it hits and a triple click the line, as viw and V do
-// (B552, B555).
-func (m mouse) give(s client.Session) {
-	switch m.kind {
-	case 'c':
-		// A double or triple click first ends the selection the click
-		// before it made, so it selects anew and never grabs that one.
-		if m.clicks > 1 && (s.Mode() == vim.Insert || s.Mode() == vim.Visual) {
-			s.Feed("<Esc>")
-		}
-		s.Click(m.id, m.x, m.y)
-		switch {
-		case m.clicks == 2:
-			for _, k := range vim.Keys("viw") {
-				s.Feed(k)
-			}
-		case m.clicks > 2:
-			s.Feed("V")
-		}
-	case 'g':
-		// Insert mode ends first, so the click puts the cursor where <C-]>
-		// reads it.
-		if s.Mode() == vim.Insert {
-			s.Feed("<Esc>")
-		}
-		s.Click(m.id, m.x, m.y)
-		for _, k := range vim.Keys("<C-]>") {
-			s.Feed(k)
-		}
-	case 'd':
-		s.Drag(m.id, m.x, m.y)
-	case 'u':
-		s.Release(m.id, m.x, m.y)
-	case 'p':
-		s.Pick(m.y)
-	case 'h':
-		s.Hover(m.id, m.x, m.y)
-	default:
-		s.Scroll(m.id, m.y)
-	}
-}
 
 // The mouse's methods for a pane's text, its status bar, a float's box and
 // the tab strip.

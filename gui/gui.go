@@ -1,5 +1,6 @@
-// Package gui is fude's native window on macOS, a frontend of
-// client.Session drawn with AppKit, which it calls through purego with no
-// cgo (D65). It draws each window's text from the cells frontend/compose
-// gives.
+// Package gui is fude's native window, a frontend of client.Session. Its
+// plain files run the session and turn it into frames of cells, from
+// frontend/compose, and each system's files draw them in its own window:
+// AppKit on macOS, through purego with no cgo (D65), and GTK4 on Linux and
+// Win32 on Windows to come (D66).
 package gui

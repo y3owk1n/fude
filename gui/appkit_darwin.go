@@ -15,15 +15,6 @@ import (
 // AppKit runs on the main thread, which the main goroutine keeps.
 func init() { runtime.LockOSThread() }
 
-type (
-	point struct{ X, Y float64 }
-	size  struct{ W, H float64 }
-	rect  struct {
-		Origin point
-		Size   size
-	}
-)
-
 // The calls whose arguments or results objc.Send cannot pass: structs and
 // floats.
 var (

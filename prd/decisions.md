@@ -942,6 +942,28 @@ Windows and Linux need windows of their own later. `--gui` is a flag on
 each command that shows a session, as the user asked, since each of them
 can show its session in a window.
 
+## D66. Native windows on Linux through GTK4, and on Windows through Win32
+
+`--gui` shows the window on Linux through GTK4 and on Windows through
+Win32, each the platform's own, as D65 uses AppKit. On Linux purego opens
+GTK4, cairo and Pango, as it opens AppKit, so no cgo is added outside
+`syntax/`. On Windows `syscall` calls Win32, and DirectWrite and Direct2D
+through their COM interfaces, with Mica from DWM on Windows 11. `gui/`
+keeps what all three share, the painter and the frames it hands the main
+thread, in plain files, and each system has the same unexported functions
+in its own `_darwin`, `_linux` and `_windows` files, with no interface
+type between them.
+
+Why, as of 2026-10-23: the user chose GTK4 for Linux and Win32 with
+DirectWrite for Windows. A spike showed purego calls GTK 4.18 on
+linux/arm64 with cgo on, with callbacks for signals and drawing,
+`g_idle_add` from another goroutine, and Pango's cell size. GTK4 takes the
+desktop's theme, fonts and menus, which raw Wayland and X11 would leave to
+fude. WinUI 3 needs the Windows App SDK's runtime, and GDI blurs text at
+high DPI, so Windows takes Win32 with DirectWrite. Linux comes first, as
+Docker with a virtual display runs and shows its window here, while
+Windows waits on the user's VM.
+
 ## Departures from Neovim
 
 Each entry: what differs, then why.

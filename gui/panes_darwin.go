@@ -13,9 +13,6 @@ import (
 	"github.com/y3owk1n/fude/frontend/wire"
 )
 
-// statusH is a status bar's height, in points.
-const statusH = 22
-
 // pane shows a window of the layout, its text over its status bar.
 type pane struct {
 	w                  *window
@@ -37,14 +34,6 @@ type pane struct {
 	current            bool
 	offers             []string // which language server features of the right click's menu its buffer's servers offer
 	link               rule     // the word under the mouse shown as a link while Command is held, w 0 for none
-}
-
-// places are where the panes put the windows' text, for the loop to give
-// the session (B542).
-type places struct {
-	cols, rows int      // the area's, in cells
-	cell       [2]int   // a cell's size in pixels
-	wins       [][5]int // each window's id, x, y, w and h, in cells of the area
 }
 
 // pane returns the pane of the window with id, made the first time.
@@ -152,18 +141,6 @@ func (w *window) node(l wire.Split, r rect) objc.ID {
 		at += thick
 	}
 	return sv.Send(sel("autorelease"))
-}
-
-// leaves returns the ids of l's windows.
-func leaves(l wire.Split) []int {
-	if len(l.Kids) == 0 {
-		return []int{l.Window}
-	}
-	var ids []int
-	for _, k := range l.Kids {
-		ids = append(ids, leaves(k)...)
-	}
-	return ids
 }
 
 // placeAll gives the loop where each pane puts its window's text, in cells
@@ -427,14 +404,3 @@ func runs(parts []client.Part, current bool) []run {
 	}
 	return out
 }
-
-// turning reports whether parts turn a spinner.
-func turning(parts []client.Part) bool {
-	return slices.ContainsFunc(parts, func(p client.Part) bool { return p.Role == "busy" })
-}
-
-// spinner is the frames of the spinner a busy part turns, one each
-// spinnerFrame (B231).
-var spinner = []rune("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏")
-
-const spinnerFrame = 80 * time.Millisecond

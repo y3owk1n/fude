@@ -7,18 +7,7 @@ import (
 	"github.com/ebitengine/purego/objc"
 
 	"github.com/y3owk1n/fude/frontend/client"
-	"github.com/y3owk1n/fude/frontend/wire"
 )
-
-// strip is what the tab strip in the title bar shows. It has the buffers
-// as tabs and the tab pages at its right, the current page in the colour
-// of mode. With neither it shows the title.
-type strip struct {
-	buffers []wire.Tab
-	pages   []wire.Page
-	mode    string
-	title   string
-}
 
 // drawBar draws the tab strip right of the window's buttons (B258, B545),
 // on the title bar's material in the system's colours. The pages take up
