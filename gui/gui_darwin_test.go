@@ -621,27 +621,37 @@ func TestB555MouseOnTabsFilesAndWords(t *testing.T) {
 		w.view.Send(sel("performDragOperation:"), info)
 	}, true)
 	until(t, "d to open", func() bool { return row() == "c a d" })
-	// A double click on a word selects it.
+	// A double click on a word selects it, and a triple click its line.
 	var text objc.ID
 	onMain(func() {
 		for _, p := range w.panes {
 			text = p.text
 		}
 	}, true)
-	for clicks := 1; clicks <= 2; clicks++ {
+	click := func(clicks int) {
 		onMain(func() {
 			at := msgConvertPoint(text, sel("convertPoint:toView:"), point{pad + 5.5*cellW, pad + cellH/2}, 0)
-			ev := msgMouseEvent(cls("NSEvent"), sel("mouseEventWithType:location:modifierFlags:timestamp:windowNumber:context:eventNumber:clickCount:pressure:"),
-				1, at, 0, 0, objc.Send[int](w.win, sel("windowNumber")), 0, 0, clicks, 1)
-			w.win.Send(sel("sendEvent:"), ev)
+			for _, kind := range []uint{1, 2} {
+				ev := msgMouseEvent(cls("NSEvent"), sel("mouseEventWithType:location:modifierFlags:timestamp:windowNumber:context:eventNumber:clickCount:pressure:"),
+					kind, at, 0, 0, objc.Send[int](w.win, sel("windowNumber")), 0, 0, clicks, 1)
+				w.win.Send(sel("sendEvent:"), ev)
+			}
 		}, true)
 	}
-	until(t, "two to be selected", func() bool {
-		var s vim.Selection
-		var ok bool
+	selected := func() (s vim.Selection, ok bool) {
+		until(t, "the clicks to be given", func() bool { return len(w.mice) == 0 })
 		w.onLoop(func() { s, ok = e.Selection() })
-		return ok && s.Start == 4 && s.End == 7
-	})
+		return s, ok
+	}
+	click(1)
+	click(2)
+	if s, ok := selected(); !ok || s.Start != 4 || s.End != 7 {
+		t.Errorf("a double click selected %+v, %v", s, ok)
+	}
+	click(3)
+	if s, ok := selected(); !ok || s.Kind != "V" {
+		t.Errorf("a triple click selected %+v, %v", s, ok)
+	}
 	for _, c := range "\x1b:qa!\r" {
 		code := uint16(0)
 		switch c {

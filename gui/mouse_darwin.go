@@ -26,7 +26,9 @@ type mouse struct {
 func (m mouse) give(s client.Session) {
 	switch m.kind {
 	case 'c':
-		if m.clicks > 1 && s.Mode() == vim.Insert {
+		// A double or triple click first ends the selection the click
+		// before it made, so it selects anew and never grabs that one.
+		if m.clicks > 1 && (s.Mode() == vim.Insert || s.Mode() == vim.Visual) {
 			s.Feed("<Esc>")
 		}
 		s.Click(m.id, m.x, m.y)
