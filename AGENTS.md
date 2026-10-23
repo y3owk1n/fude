@@ -80,6 +80,8 @@ that does not give what it shows.
 
 The test plugins in `plugin/testdata` are checked-in `.wasm` files. After
 changing `sdk/` or a test plugin's source, run `just wasm` to rebuild them.
+The Windows resources `gui/rsrc_windows_*.syso` are checked in too. Run
+`just winres` after changing the `winres` recipe.
 
 Test only what `prd/behaviours.md` promises, through a public boundary:
 keys into a headless buffer, the CLI, a file on disk, the exported API of

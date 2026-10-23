@@ -158,6 +158,83 @@ sha256 = 'c507872ff21f8a7cd3c1c217b059c6f7271a4a9d8e692810ef9dd3e1f601197c'
 verified = 'checksum-file'
 
 [[package]]
+name = 'go-winres'
+ref = 'go:github.com/tc-hib/go-winres'
+manifest_sha256 = 'd766d9e2056507a32e4b5e8dc73da7998660439436fe3348241ea94d617086a6'
+version = '0.3.3'
+inferred = true
+manifest = "[package]\nname = \"go-winres\"\nhomepage = \"https://pkg.go.dev/github.com/tc-hib/go-winres\"\n\n[version]\nfrom = \"go\"\nrepo = \"github.com/tc-hib/go-winres\"\n\n[build]\ndeps = [{ ref = \"./.oku/go.toml\", version = \"1.27\" }]\n\n[[build.step]]\nvendor = \"go\"\npackage = \"github.com/tc-hib/go-winres\"\n"
+
+[package.platform]
+[package.platform.darwin-amd64]
+strategy = 'build'
+vendor_sha256 = 'e9bd09efb5e880035208faafc1730c158d4e4784edb948ad744e577759881899'
+
+[package.platform.darwin-arm64]
+strategy = 'build'
+vendor_sha256 = 'e9bd09efb5e880035208faafc1730c158d4e4784edb948ad744e577759881899'
+
+[package.platform.linux-amd64-glibc]
+strategy = 'build'
+vendor_sha256 = 'e9bd09efb5e880035208faafc1730c158d4e4784edb948ad744e577759881899'
+
+[package.platform.linux-arm64-glibc]
+strategy = 'build'
+vendor_sha256 = 'e9bd09efb5e880035208faafc1730c158d4e4784edb948ad744e577759881899'
+
+[package.platform.windows-amd64]
+strategy = 'build'
+vendor_sha256 = 'e9bd09efb5e880035208faafc1730c158d4e4784edb948ad744e577759881899'
+
+[package.platform.windows-arm64]
+strategy = 'build'
+vendor_sha256 = 'e9bd09efb5e880035208faafc1730c158d4e4784edb948ad744e577759881899'
+
+[[package.dep]]
+name = 'go'
+ref = './.oku/go.toml'
+manifest_sha256 = '4e86afdeda4063d8c7cc15bedb7857112496c03e8608295229e30bd61a6dd9d8'
+version = '1.27.3'
+tag = 'go1.27.3'
+
+[package.dep.platform]
+[package.dep.platform.darwin-amd64]
+strategy = 'artifact'
+url = 'https://dl.google.com/go/go1.27.3.darwin-amd64.tar.gz'
+sha256 = 'b6f8e931e4ab497fcde6da8ae4499a58f9d258e55c8a80824a516eae5950a750'
+verified = 'checksum-file'
+
+[package.dep.platform.darwin-arm64]
+strategy = 'artifact'
+url = 'https://dl.google.com/go/go1.27.3.darwin-arm64.tar.gz'
+sha256 = 'dd3908cf20959d798c1e06ebe5b72213f0505ce01373b40ce3110975a6cd99c2'
+verified = 'checksum-file'
+
+[package.dep.platform.linux-amd64-glibc]
+strategy = 'artifact'
+url = 'https://dl.google.com/go/go1.27.3.linux-amd64.tar.gz'
+sha256 = '65efbc80fdc1fa2cd2631cad5b481777a68e8725f34e89f50fc6ac714e379b40'
+verified = 'checksum-file'
+
+[package.dep.platform.linux-arm64-glibc]
+strategy = 'artifact'
+url = 'https://dl.google.com/go/go1.27.3.linux-arm64.tar.gz'
+sha256 = 'a06e99309dbcbdca1a8ccd2282c3ee146e55930886e26b4f1193269587165f49'
+verified = 'checksum-file'
+
+[package.dep.platform.windows-amd64]
+strategy = 'artifact'
+url = 'https://dl.google.com/go/go1.27.3.windows-amd64.zip'
+sha256 = 'f26081f438319757f8a1b46d7d0b2c5ec7583d4038e485e0aa725cfde7885fff'
+verified = 'checksum-file'
+
+[package.dep.platform.windows-arm64]
+strategy = 'artifact'
+url = 'https://dl.google.com/go/go1.27.3.windows-arm64.zip'
+sha256 = 'c507872ff21f8a7cd3c1c217b059c6f7271a4a9d8e692810ef9dd3e1f601197c'
+verified = 'checksum-file'
+
+[[package]]
 name = 'gofumpt'
 ref = 'go:mvdan.cc/gofumpt'
 manifest_sha256 = '2d8d2bb68c45828d5a06d1a88efffeddeaf183e4c46f6bf097041e6484b303da'

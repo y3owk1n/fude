@@ -57,6 +57,11 @@ run *args: build
 wasm:
     for d in plugin/testdata/*/; do go run ./cmd/fude plugin build $d || exit 1; done
 
+# Write the resource that gives fude's Windows window the system's current
+# common controls (D69), linked into every Windows binary that imports gui.
+winres:
+    go-winres simply --arch amd64,arm64 --manifest gui --out gui/rsrc
+
 # Record a README demo with VHS, fude.tape unless tape names another (demos/README.md).
 demo tape="fude":
     vhs demos/{{tape}}.tape

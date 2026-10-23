@@ -1029,6 +1029,23 @@ accessibility tree, and asked for Linux and Windows too. The whole text,
 not the rows in view, is what a native text view gives, so a screen
 reader reads past the window's edge as it does in other editors.
 
+## D69. Windows' common controls come from a checked-in resource
+
+Windows draws a list view, a button or a status bar in the Windows 95
+style unless the program asks for version 6 of the common controls. The
+program asks in its manifest, a resource linked into the binary. `gui/`
+holds that resource as a `.syso` file for each Windows architecture,
+which Go links into every Windows binary that imports `gui/`, its tests
+too. `just winres` writes them with go-winres, and they are checked in,
+as the test plugins' `.wasm` files are, so `go build` and `go install`
+need no step of their own. The standard library cannot write a
+resource, and activating a manifest at run time needs a file on disk and
+more Win32 code.
+
+Why, as of 2026-10-24: the user chose the system's list view for
+Windows' lists (D68) and an embedded manifest over activating one at
+run time.
+
 ## Departures from Neovim
 
 Each entry: what differs, then why.
