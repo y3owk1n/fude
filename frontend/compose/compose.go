@@ -849,5 +849,20 @@ func (k sig) flag(b bool) sig {
 	return k.int(0)
 }
 
+// Carets returns s with each control character, a tab too, as ^ and a
+// letter, as ^A for 0x01. A line break stays, as it ends a message's line.
+func Carets(s string) string {
+	var b strings.Builder
+	for i := range len(s) {
+		if s[i] == '\t' || s[i] != '\n' && Control(s[i]) {
+			b.WriteByte('^')
+			b.WriteByte(s[i] ^ 0x40)
+		} else {
+			b.WriteByte(s[i])
+		}
+	}
+	return b.String()
+}
+
 // Control reports whether b is a control character other than a tab.
 func Control(b byte) bool { return b < ' ' && b != '\t' || b == 0x7f }

@@ -893,10 +893,12 @@ packages' API is now a promise, as D46 says of any package outside
 frontend of `client.Session`, as `tui/` is. It calls AppKit through
 purego's Objective-C runtime, so it needs no cgo, and cgo stays in
 `syntax/`. A custom view draws each window's text from the cells
-`frontend/compose` gives. Later steps give the rest of what fude shows
-the system's own controls: the command line as a command palette, messages as toasts, questions as sheets, tab pages as tabs and
-splits as split views. The editor stays the source of each, and keys
-still go through Vim's grammar. On other systems `fude gui` says it runs
+`frontend/compose` gives. The command line, the finder and messages show
+in boxes over the text, as a palette, a panel and toasts. Questions show
+in the system's sheets (B548). Later steps give tab pages as
+tabs and splits as split views. The editor stays the source of each, and
+keys still go through Vim's grammar, so a palette holds no text field of
+its own. On other systems `fude gui` says it runs
 only on macOS for now. The GUI ships later as an app bundle built from
 the same code, and `fude` stays one binary, since the window adds about
 0.1MB to it.

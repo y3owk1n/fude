@@ -270,7 +270,7 @@ func (c *client) draw() {
 	// A modal box, the command line or the finder, has the windows under it
 	// drawn in the tinted theme, and draws on the tinted ground (B151).
 	f, floats := c.e.Menu()
-	msg, ask := carets(c.e.Message()), c.e.Confirm()
+	msg, ask := compose.Carets(c.e.Message()), c.e.Confirm()
 	wins := c.e.Windows()
 	// A float in the middle of the screen dims the windows under it, as a
 	// modal box does.
@@ -442,19 +442,4 @@ func (c *client) edge(v wire.Window, left int) {
 		}
 	}
 	c.status(v, v.X, v.W)
-}
-
-// carets returns s with each control character, a tab too, as ^ and a
-// letter, as ^A for 0x01. A line break stays, as it ends a message's line.
-func carets(s string) string {
-	var b strings.Builder
-	for i := range len(s) {
-		if s[i] == '\t' || s[i] != '\n' && compose.Control(s[i]) {
-			b.WriteByte('^')
-			b.WriteByte(s[i] ^ 0x40)
-		} else {
-			b.WriteByte(s[i])
-		}
-	}
-	return b.String()
 }

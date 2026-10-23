@@ -1287,6 +1287,15 @@ Where fude departs, the line says so and cites the departure in
   left to the system, and resizing the window resizes the session.
   Closing the window quits as `:qa` does. `:restart` starts it again in
   a window. Elsewhere `fude gui` says it runs only on macOS for now.
+- B548 [10] In `fude gui` the command line shows in a palette, a box in
+  the upper middle of the window, with its completion menu under a rule.
+  The finder shows in a box in the middle of the window. The windows under
+  either box darken as B151 says, and the windows take every row. A
+  message shows as a toast in the top right corner until the next key. It
+  wraps at half the window's width and ends in an ellipsis past a third of
+  its height. A yes or no question shows in a sheet on the window. `y`,
+  `n` and the sheet's buttons answer it, and the sheet closes when the
+  question goes away unanswered.
 - B544 [2] A session has tab pages, each with its own windows, floats
   and current window, as in Neovim. `:tabnew` and `:tabedit` open one
   after the current page, on a file or a new empty buffer. `gt`, `{n}gt`,

@@ -59,6 +59,14 @@ func startApp(background bool) objc.ID {
 		panic(err)
 	}
 	viewClass = view
+	box, err := objc.RegisterClass("FudeBox", objc.GetClass("NSView"), nil, nil, []objc.MethodDef{
+		{Cmd: sel("drawRect:"), Fn: drawBox},
+		{Cmd: sel("isFlipped"), Fn: func(objc.ID, objc.SEL) bool { return true }},
+	})
+	if err != nil {
+		panic(err)
+	}
+	boxClass = box
 	delegate, err := objc.RegisterClass("FudeWindowDelegate", objc.GetClass("NSObject"), nil, nil, []objc.MethodDef{
 		{Cmd: sel("windowShouldClose:"), Fn: windowShouldClose},
 	})
@@ -68,6 +76,7 @@ func startApp(background bool) objc.ID {
 	windowDelegate = objc.ID(delegate).Send(sel("alloc")).Send(sel("init"))
 	font = msgFont(cls("NSFont"), sel("monospacedSystemFontOfSize:weight:"), 14, 0).Send(sel("retain"))
 	boldFont = msgFont(cls("NSFont"), sel("monospacedSystemFontOfSize:weight:"), 14, 0.4).Send(sel("retain"))
+	toastFont = msgFont(cls("NSFont"), sel("systemFontOfSize:weight:"), 13, 0).Send(sel("retain"))
 	attrs := cls("NSMutableDictionary").Send(sel("dictionary"))
 	attrs.Send(sel("setObject:forKey:"), font, attrFont)
 	cellW = msgSizeOf(nsString("M"), sel("sizeWithAttributes:"), attrs).W
@@ -85,12 +94,15 @@ func stop(app objc.ID) {
 // The application's own, which the main thread sets once.
 var (
 	viewClass      objc.Class
+	boxClass       objc.Class
 	windowDelegate objc.ID
 	font, boldFont objc.ID
+	toastFont      objc.ID
 	cellW, cellH   float64
-	attrsOf        = map[[2]int64]objc.ID{}
-	windows        = map[objc.ID]*window{} // by view, and by NSWindow
-	inBackground   bool                    // the application takes no focus
+	attrsOf        = map[[2]int64]objc.ID{} // by colour, and 0 plain, 1 bold or 2 a toast's
+	windows        = map[objc.ID]*window{}  // by view, and by NSWindow
+	boxes          = map[objc.ID]*box{}     // by view
+	inBackground   bool                     // the application takes no focus
 )
 
 // window is a session in a native window.
@@ -105,12 +117,16 @@ type window struct {
 	mu      sync.Mutex
 	pending []frame
 
-	// The main thread's: the cells shown, and where the cursor is.
-	cells  [][]cell
-	bg     theme.RGB
-	cursor cursorAt
-	cols   int
-	rows   int
+	// The main thread's: the cells shown, where the cursor is, the boxes
+	// over them and the question's sheet.
+	cells        [][]cell
+	bg           theme.RGB
+	cursor       cursorAt
+	cols         int
+	rows         int
+	panel, toast *box
+	asked        int     // the question the sheet is for, as frame.asked counts
+	sheet        objc.ID // the alert showing, 0 for none
 }
 
 type cell struct {
@@ -132,6 +148,10 @@ type frame struct {
 	put        []placed
 	cursor     cursorAt
 	title      string
+	panel      *boxed // the command line or the finder, nil for neither
+	toast      *boxed // the message, nil for none
+	confirm    string // the question, "" for none
+	asked      int    // counts each change of the question, to tell a new one
 }
 
 type placed struct {
@@ -153,6 +173,7 @@ func open(s client.Session, ended func()) *window {
 	w.view.Send(sel("setPostsFrameChangedNotifications:"), 1)
 	cls("NSNotificationCenter").Send(sel("defaultCenter")).Send(sel("addObserver:selector:name:object:"), w.view, sel("frameChanged:"), nsString("NSViewFrameDidChangeNotification"), w.view)
 	w.win.Send(sel("setContentView:"), w.view)
+	w.panel, w.toast = newBox(w.view), newBox(w.view)
 	w.win.Send(sel("makeFirstResponder:"), w.view)
 	w.win.Send(sel("center"))
 	w.win.Send(sel("makeKeyAndOrderFront:"), 0)
@@ -167,7 +188,7 @@ func open(s client.Session, ended func()) *window {
 // grid returns how many columns and rows of cells the view holds.
 func grid(view objc.ID) (int, int) {
 	b := msgRect(view, sel("bounds"))
-	return max(int((b.Size.W-2*pad)/cellW), 1), max(int((b.Size.H-2*pad)/cellH), 2)
+	return max(int((b.Size.W-2*pad)/cellW), 1), max(int((b.Size.H-2*pad)/cellH), 1)
 }
 
 func frameChanged(self objc.ID, _ objc.SEL, _ objc.ID) {
@@ -189,14 +210,15 @@ func windowShouldClose(_ objc.ID, _ objc.SEL, win objc.ID) bool {
 }
 
 // loop runs the session, as tui.Run does: it feeds keys and runs the
-// session's work, and after each draws what changed. The last row is the
-// command line's and the message's.
+// session's work, and after each draws what changed.
 func (w *window) loop(cols, rows int) {
 	s := w.s
 	var p painter
+	question, asked := "", 0
 	draw := func() {
-		s.SetSize(cols, rows-1)
+		s.SetSize(cols, rows)
 		f := p.paint(s, cols, rows)
+		f.asked = asked
 		w.mu.Lock()
 		w.pending = append(w.pending, f)
 		w.mu.Unlock()
@@ -225,6 +247,11 @@ func (w *window) loop(cols, rows int) {
 		} else if timeout == nil {
 			timeout = time.After(d)
 		}
+		// A question asked again after its answer, between frames, is new.
+		if q := s.Confirm(); q != question {
+			question = q
+			asked++
+		}
 		if len(w.keys) > 0 {
 			continue
 		}
@@ -233,6 +260,8 @@ func (w *window) loop(cols, rows int) {
 	onMain(func() {
 		delete(windows, w.view)
 		delete(windows, w.win)
+		delete(boxes, w.panel.view)
+		delete(boxes, w.toast.view)
 		w.win.Send(sel("close"))
 		if w.ended != nil {
 			w.ended()
@@ -246,8 +275,11 @@ type painter struct {
 	comp    compose.Composer
 	grids   map[int]*compose.Grid
 	frame   int
-	look    theme.Look
 	lookKey string
+	modal   bool
+	// lit is the theme's look, dim the windows' under a modal box, and
+	// boxed lit on dim's ground for the box (B151).
+	lit, dim, boxed theme.Look
 }
 
 func (p *painter) paint(s client.Session, cols, rows int) frame {
@@ -265,13 +297,29 @@ func (p *painter) paint(s client.Session, cols, rows int) frame {
 		if th.Colors != nil {
 			t = t.With(*th.Colors)
 		}
-		p.look, p.lookKey, p.grids = theme.LookOf(t), key, nil
-		p.look.Restyle(own, func(c theme.RGB) theme.RGB { return c })
+		p.lit, p.dim = theme.LookOf(t), theme.LookOf(t.Tint())
+		ground := t
+		ground.Bg = p.dim.Theme.Bg
+		p.boxed = theme.LookOf(ground)
+		same := func(c theme.RGB) theme.RGB { return c }
+		p.lit.Restyle(own, same)
+		p.boxed.Restyle(own, same)
+		p.dim.Restyle(own, func(c theme.RGB) theme.RGB { return theme.Mix(c, p.dim.Theme.Bg, 0.55) })
+		p.lookKey, p.grids = key, nil
 	}
-	if p.grids == nil {
-		p.grids = map[int]*compose.Grid{}
+	menu, floats := s.Menu()
+	question := s.Confirm()
+	cmdline := s.Mode() == vim.Cmdline
+	// A :s being typed shows its preview in the windows, so they stay lit.
+	modal := cmdline && !s.Substituting() || floats && menu.Anchor == "middle" || question != ""
+	if p.grids == nil || modal != p.modal {
+		p.grids, p.modal = map[int]*compose.Grid{}, modal
 	}
-	f := frame{cols: cols, rows: rows, bg: p.look.Base.Bg, title: s.Title()}
+	look, boxLook := p.lit, p.lit
+	if modal {
+		look, boxLook = p.dim, p.boxed
+	}
+	f := frame{cols: cols, rows: rows, bg: look.Base.Bg, title: s.Title(), confirm: question}
 	put := func(x, y int, text string, width int, st theme.Style) {
 		f.put = append(f.put, placed{x, y, cell{text, width, st}})
 	}
@@ -282,7 +330,7 @@ func (p *painter) paint(s client.Session, cols, rows int) frame {
 		}
 		g := p.grids[v.ID]
 		if gw, gh := g.Size(); g == nil || gw != v.W || gh != v.H {
-			g = compose.NewGrid(v.W, v.H, p.look.Base)
+			g = compose.NewGrid(v.W, v.H, look.Base)
 			p.grids[v.ID] = g
 		}
 		var cursors []int
@@ -290,33 +338,30 @@ func (p *painter) paint(s client.Session, cols, rows int) frame {
 			cursors = s.Cursors()
 		}
 		out := p.comp.Compose(g, v, compose.Options{
-			Look: p.look, Frame: p.frame, Insert: s.Mode() == vim.Insert, Cursors: cursors,
-			Selection: sel, Visual: visual && v.Current, Tint: p.look.Theme.Normal,
+			Look: look, Frame: p.frame, Insert: s.Mode() == vim.Insert, Cursors: cursors,
+			Selection: sel, Visual: visual && v.Current, Tint: look.Theme.Normal,
 		})
 		g.Paint(v.X, v.Y, put)
 		if out.Found && v.Current {
 			f.cursor = cursorAt{x: v.X + out.X, y: v.Y + out.Y, shape: shape(s), shown: true}
 		}
 	}
-	line := s.Line()
-	text := line
-	if text == "" {
-		text = s.Message()
-	}
-	text, _, _ = strings.Cut(text, "\n")
-	x := 0
-	for _, r := range text {
-		if x >= cols {
-			break
+	switch {
+	case cmdline:
+		// The completion menu is part of the command line's box.
+		if !floats {
+			menu = wire.Menu{}
 		}
-		put(x, rows-1, string(r), 1, p.look.Base)
-		x++
+		f.panel = palette(s.Line(), s.LineCursor(), menu, boxLook, cols)
+	case floats && menu.Anchor == "middle":
+		f.panel = finder(menu, boxLook)
 	}
-	for ; x < cols; x++ {
-		put(x, rows-1, " ", 1, p.look.Base)
+	if msg := s.Message(); msg != "" {
+		f.toast = &boxed{text: compose.Carets(msg), look: boxLook}
 	}
-	if s.Mode() == vim.Cmdline {
-		f.cursor = cursorAt{x: min(utf8.RuneCountInString(line[:min(s.LineCursor(), len(line))]), cols-1), y: rows - 1, shape: 1, shown: true}
+	// The cursor is the box's, and no window's while a question shows.
+	if f.panel != nil || question != "" {
+		f.cursor.shown = false
 	}
 	return f
 }
@@ -379,6 +424,21 @@ func (w *window) apply() {
 		}
 	}
 	w.view.Send(sel("setNeedsDisplay:"), 1)
+	if len(fs) == 0 {
+		return
+	}
+	f := fs[len(fs)-1]
+	w.panel.show(f.panel, w.view)
+	w.toast.show(f.toast, w.view)
+	if f.asked != w.asked {
+		w.asked = f.asked
+		if w.sheet != 0 {
+			w.win.Send(sel("endSheet:"), w.sheet.Send(sel("window")))
+		}
+		if f.confirm != "" {
+			w.ask(f.confirm)
+		}
+	}
 }
 
 // attrs returns the text attributes of a style, made once each.
@@ -401,9 +461,6 @@ func attrs(s theme.Style) objc.ID {
 	return a
 }
 
-// drawRect draws the cells. A run of one-column ASCII in one style draws as
-// one string, and any other cell alone at its own column, so the font's
-// fallbacks for other characters never shift the row.
 func drawRect(self objc.ID, _ objc.SEL, _ rect) {
 	w := windows[self]
 	if w == nil {
@@ -411,18 +468,29 @@ func drawRect(self objc.ID, _ objc.SEL, _ rect) {
 	}
 	nsColor(w.bg).Send(sel("setFill"))
 	rectFill(msgRect(self, sel("bounds")))
-	at := func(x, y, n int) rect {
-		return rect{point{pad + float64(x)*cellW, pad + float64(y)*cellH}, size{float64(n) * cellW, cellH}}
-	}
+	drawCells(w.cells, w.cursor, pad)
+}
+
+// at is where the n cells from column x of row y go, the first edge points
+// in from the view's.
+func at(x, y, n int, edge float64) rect {
+	return rect{point{edge + float64(x)*cellW, edge + float64(y)*cellH}, size{float64(n) * cellW, cellH}}
+}
+
+// drawCells draws cells and the cursor on them, edge points in from the
+// view's edges. A run of one-column ASCII in one style draws as one string,
+// and any other cell alone at its own column, so the font's fallbacks for
+// other characters never shift the row.
+func drawCells(cells [][]cell, cursor cursorAt, edge float64) {
 	ascii := func(c cell) bool { return c.width == 1 && len(c.text) == 1 && c.text[0] >= ' ' && c.text[0] <= '~' }
-	for y, row := range w.cells {
+	for y, row := range cells {
 		for x := 0; x < len(row); {
 			c := row[x]
 			n := 1
 			for ascii(c) && x+n < len(row) && ascii(row[x+n]) && row[x+n].style == c.style {
 				n++
 			}
-			r := at(x, y, max(n, c.width))
+			r := at(x, y, max(n, c.width), edge)
 			nsColor(c.style.Bg).Send(sel("setFill"))
 			rectFill(r)
 			var text strings.Builder
@@ -435,17 +503,17 @@ func drawRect(self objc.ID, _ objc.SEL, _ rect) {
 			x += max(n, c.width)
 		}
 	}
-	if c := w.cursor; c.shown && c.y < len(w.cells) && c.x < len(w.cells[c.y]) {
-		r := at(c.x, c.y, 1)
+	if c := cursor; c.shown && c.y < len(cells) && c.x < len(cells[c.y]) {
+		r := at(c.x, c.y, 1, edge)
 		switch c.shape {
 		case 1:
 			r.Size.W = 2
 		case 2:
 			r.Origin.Y, r.Size.H = r.Origin.Y+cellH-2, 2
 		}
-		nsColor(w.cells[c.y][c.x].style.Fg).Send(sel("setFill"))
+		nsColor(cells[c.y][c.x].style.Fg).Send(sel("setFill"))
 		rectFill(r)
-		if under := w.cells[c.y][c.x]; c.shape == 0 && strings.TrimSpace(under.text) != "" {
+		if under := cells[c.y][c.x]; c.shape == 0 && strings.TrimSpace(under.text) != "" {
 			msgDrawAt(nsString(under.text), sel("drawAtPoint:withAttributes:"), r.Origin, attrs(theme.Style{Fg: under.style.Bg}))
 		}
 	}
