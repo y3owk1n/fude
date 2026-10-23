@@ -112,12 +112,6 @@ type native struct {
 	images     map[int]objc.ID // by id, the NSImages of the images shown
 	appearance string          // the window's look, as dress last set it
 	file       string          // the file the title bar shows
-	hits       []hit           // the tabs the strip shows
-	hover      float64         // where the mouse is along the strip, -1 off it
-	pressed    *hit            // the tab the mouse went down on
-	pressX     float64         // where along the strip
-	dragging   bool            // the tab pressed moves with the mouse
-	dropX      float64         // where it is
 	moving     bool            // the strip drags the window
 	moveFrom   point           // where on the screen the drag began
 	origin     point           // where the window was then
@@ -131,7 +125,7 @@ type native struct {
 func open(s client.Session, ended func()) *window {
 	cols, rows := 100, 32
 	r := rect{Size: size{cellW*float64(cols) + 2*pad, cellH*float64(rows) + 2*pad}}
-	w := &window{s: s, keys: make(chan vim.Key, 1024), do: make(chan func()), pastes: make(chan string, 8), mice: make(chan mouse, 64), ended: ended, placed: make(chan struct{}, 1), panes: map[int]*pane{}, floats: map[int]*box{}, caretOn: true, native: native{images: map[int]objc.ID{}, hover: -1}}
+	w := &window{s: s, keys: make(chan vim.Key, 1024), do: make(chan func()), pastes: make(chan string, 8), mice: make(chan mouse, 64), ended: ended, placed: make(chan struct{}, 1), panes: map[int]*pane{}, floats: map[int]*box{}, caretOn: true, hover: -1, native: native{images: map[int]objc.ID{}}}
 	// The content reaches under the title bar, which the tab strip takes.
 	w.win = msgInitWindow(cls("NSWindow").Send(sel("alloc")), sel("initWithContentRect:styleMask:backing:defer:"), r, 15|1<<15, 2, false)
 	w.win.Send(sel("setReleasedWhenClosed:"), 0)

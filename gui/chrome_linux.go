@@ -263,8 +263,6 @@ func (r run) draw(x, top, h float64) float64 {
 	return x + r.size()
 }
 
-// slotW is how wide a tab's slot is, in points.
-const slotW = 16
 
 // toastSize is how big a toast's text draws in lines w points wide.
 func toastSize(s string, w float64) size {

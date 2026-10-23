@@ -2,7 +2,6 @@ package gui
 
 import (
 	"math"
-	"strconv"
 
 	"github.com/ebitengine/purego/objc"
 
@@ -109,53 +108,9 @@ func wheel(self objc.ID, _ objc.SEL, ev objc.ID) {
 	p.roll(-dy)
 }
 
-// hit is where a tab of the strip is: a buffer's, numbered n, or with page
-// set the tab page at index n. index is its place in its row.
-type hit struct {
-	from, to float64
-	page     bool
-	n, index int
-}
-
-// slotW is the width of a tab's slot for ● or ×, which ends it.
-const slotW = 16
-
-// show, shut and move are the keys that show a tab, close it, and move the
-// current one after the tab at index n of its row, first with 0.
-func (h hit) show() string {
-	if h.page {
-		return strconv.Itoa(h.n+1) + "gt"
-	}
-	return ":b " + strconv.Itoa(h.n) + "<CR>"
-}
-
-func (h hit) shut() string {
-	if h.page {
-		return h.show() + ":tabclose<CR>"
-	}
-	return ":bd " + strconv.Itoa(h.n) + "<CR>"
-}
-
-func (h hit) move(n int) string {
-	if h.page {
-		return ":tabmove " + strconv.Itoa(n) + "<CR>"
-	}
-	return ":bmove " + strconv.Itoa(n) + "<CR>"
-}
-
 // barX is where ev is along the strip.
 func barX(view, ev objc.ID) float64 {
 	return msgConvertPoint(view, sel("convertPoint:fromView:"), msgPoint(ev, sel("locationInWindow")), 0).X
-}
-
-// at returns the tab at x, if one is there.
-func (w *window) at(x float64) (hit, bool) {
-	for _, h := range w.hits {
-		if x >= h.from && x < h.to {
-			return h, true
-		}
-	}
-	return hit{}, false
 }
 
 // barDown shows the tab a click hits, as :b and gt do, or closes it when
@@ -166,15 +121,8 @@ func barDown(self objc.ID, _ objc.SEL, ev objc.ID) {
 	if w == nil {
 		return
 	}
-	x := barX(self, ev)
-	w.pressed, w.dragging, w.moving = nil, false, false
-	if h, ok := w.at(x); ok {
-		if x >= h.to-pad-slotW {
-			typeKeys(w, h.shut())
-			return
-		}
-		typeKeys(w, h.show())
-		w.pressed, w.pressX = &h, x
+	w.moving = false
+	if w.stripPress(barX(self, ev)) {
 		return
 	}
 	if objc.Send[int](ev, sel("clickCount")) == 2 {
@@ -198,13 +146,9 @@ func barDragged(self objc.ID, _ objc.SEL, ev objc.ID) {
 		at := msgPoint(cls("NSEvent"), sel("mouseLocation"))
 		msgPointArg(w.win, sel("setFrameOrigin:"), point{w.origin.X + at.X - w.moveFrom.X, w.origin.Y + at.Y - w.moveFrom.Y})
 		return
-	case w.pressed == nil:
-		return
+	case w.stripDrag(barX(self, ev)):
+		self.Send(sel("setNeedsDisplay:"), 1)
 	}
-	x := barX(self, ev)
-	w.dragging = w.dragging || math.Abs(x-w.pressX) > 4
-	w.dropX = x
-	self.Send(sel("setNeedsDisplay:"), 1)
 }
 
 // barUp moves a dragged tab where it was dropped, as :bmove and :tabmove
@@ -215,46 +159,9 @@ func barUp(self objc.ID, _ objc.SEL, _ objc.ID) {
 		return
 	}
 	w.moving = false
-	if w.pressed == nil {
-		return
+	if w.stripRelease() {
+		self.Send(sel("setNeedsDisplay:"), 1)
 	}
-	if w.dragging {
-		typeKeys(w, w.pressed.move(w.dropIndex()))
-	}
-	w.pressed, w.dragging = nil, false
-	self.Send(sel("setNeedsDisplay:"), 1)
-}
-
-// dropIndex is the place of the tab after which a dragged one goes, as
-// :bmove and :tabmove count it, 0 for first.
-func (w *window) dropIndex() int {
-	n := 0
-	for _, h := range w.hits {
-		if h.page == w.pressed.page && (h.from+h.to)/2 < w.dropX {
-			n = h.index + 1
-		}
-	}
-	return n
-}
-
-// dropAt is where the mark goes that shows where a dragged tab would go.
-func (w *window) dropAt() (float64, bool) {
-	if !w.dragging || w.pressed == nil {
-		return 0, false
-	}
-	x, found := 0.0, false
-	for _, h := range w.hits {
-		if h.page != w.pressed.page {
-			continue
-		}
-		switch {
-		case (h.from+h.to)/2 < w.dropX:
-			x, found = h.to, true
-		case !found:
-			x, found = h.from, true
-		}
-	}
-	return x, found
 }
 
 // barMiddle closes the tab a middle click hits.
@@ -263,9 +170,7 @@ func barMiddle(self objc.ID, _ objc.SEL, ev objc.ID) {
 	if w == nil || objc.Send[int](ev, sel("buttonNumber")) != 2 {
 		return
 	}
-	if h, ok := w.at(barX(self, ev)); ok {
-		typeKeys(w, h.shut())
-	}
+	w.stripShut(barX(self, ev))
 }
 
 // hoverBox marks where the mouse is over a box, and draws its list again
@@ -287,12 +192,6 @@ func hover(self objc.ID, x float64) {
 		w.hover = x
 		self.Send(sel("setNeedsDisplay:"), 1)
 	}
-}
-
-// typeKeys types keys in the mode the window is in, after <Esc> in insert
-// and visual mode. Other modes take none.
-func typeKeys(w *window, keys string) {
-	act(w.view, keys, "<Esc>"+keys, "<Esc>"+keys)
 }
 
 // dropped opens each file dropped on the window, as :e does.

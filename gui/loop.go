@@ -35,6 +35,12 @@ type window struct {
 	typed        time.Time // when a key or the mouse last went, which shows the cursor
 	caretOn      bool      // the cursor shows, as it blinks
 	tabs         strip     // the tab strip, and the mode
+	hits         []hit     // the tabs the strip shows
+	hover        float64   // where the mouse is along the strip, -1 off it
+	pressed      *hit      // the tab the mouse went down on
+	pressX       float64   // where along the strip
+	dragging     bool      // the tab pressed moves with the mouse
+	dropX        float64   // where it is
 
 	native
 }
