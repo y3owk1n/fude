@@ -2,6 +2,7 @@ package gui
 
 import (
 	"math"
+	"slices"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -24,7 +25,11 @@ var rt, brush unsafe.Pointer
 
 // textSize is the text's size in points, which Control with =, minus and
 // 0 change.
-var textSize = 11.0
+var textSize = systemSize
+
+// systemSize is the text's size in points unless the session asks for
+// another (B584).
+const systemSize = 11.0
 
 // dips converts points to DirectWrite's units, 96 to an inch.
 func dips(points float64) float64 { return points * 96 / 72 }
@@ -42,9 +47,12 @@ func newFormat(family string, weight, style uint32, size float64) unsafe.Pointer
 // makeTextFonts makes the text's fonts in textSize, and sizes a cell in
 // them.
 func makeTextFonts() {
-	size := dips(textSize)
-	font, boldFont = newFormat(textFamily, 400, 0, size), newFormat(textFamily, 700, 0, size)
-	italicFont, boldItalicFont = newFormat(textFamily, 400, 2, size), newFormat(textFamily, 700, 2, size)
+	size, family := dips(textSize), textFamily
+	if i := slices.IndexFunc(wanted.Families, installed); i >= 0 {
+		family = wanted.Families[i]
+	}
+	font, boldFont = newFormat(family, 400, 0, size), newFormat(family, 700, 0, size)
+	italicFont, boldItalicFont = newFormat(family, 400, 2, size), newFormat(family, 700, 2, size)
 	m := measure("M", font)
 	cellW, cellH = m.W, math.Ceil(m.H)
 }
@@ -73,15 +81,10 @@ type (
 // where it is missing, the chrome's in the system's message font, and the
 // window's buttons' in its icon font, Windows 11's or else Windows 10's.
 func makeFonts() {
-	var collection unsafe.Pointer
-	com(dw, 3, uintptr(unsafe.Pointer(&collection)), 0)
-	defer release(collection)
 	// first is the first of the families the system has.
 	first := func(families ...string) string {
 		for _, f := range families[:len(families)-1] {
-			var index uint32
-			var exists int32
-			if com(collection, 5, uintptr(unsafe.Pointer(cwide(f))), uintptr(unsafe.Pointer(&index)), uintptr(unsafe.Pointer(&exists))) == 0 && exists != 0 {
+			if installed(f) {
 				return f
 			}
 		}
@@ -98,6 +101,16 @@ func makeFonts() {
 	uiFont, uiBold = newFormat(ui, 400, 0, size), newFormat(ui, 700, 0, size)
 	inputFont = newFormat(ui, 400, 0, dips(14))
 	makeTextFonts()
+}
+
+// installed reports whether the system has the font family.
+func installed(family string) bool {
+	var collection unsafe.Pointer
+	com(dw, 3, uintptr(unsafe.Pointer(&collection)), 0)
+	defer release(collection)
+	var index uint32
+	var exists int32
+	return com(collection, 5, uintptr(unsafe.Pointer(cwide(family))), uintptr(unsafe.Pointer(&index)), uintptr(unsafe.Pointer(&exists))) == 0 && exists != 0
 }
 
 // sizeText makes the text points tall, from 6 to 40, and every window as

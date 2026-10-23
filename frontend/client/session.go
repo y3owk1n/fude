@@ -62,6 +62,7 @@ type Session interface {
 	Theme() wire.Theme
 	Styles() (map[string]wire.Style, int)
 	Title() string               // what the frontend's title shows, "" to leave it
+	Font() wire.Font             // what a window frontend draws the text in (B584)
 	Clipboard() (string, bool)   // text to put on the frontend's clipboard, once
 	Alert() (string, bool)       // a message to notify the user of while the frontend is not in front, once (B564)
 	Image(id int) ([]byte, bool) // the PNG an image's rows show (B303)

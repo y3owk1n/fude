@@ -53,6 +53,10 @@ type config struct {
 	VirtualEdit    string            `toml:"virtual_edit" help:"where the cursor may go past the end of its line: none, block, all or onemore"`
 	ListChars      wire.ListChars    `toml:"list_chars" help:"what list shows tabs, blanks and the ends of lines as, by what they stand for"`
 	FillChars      wire.FillChars    `toml:"fill_chars" help:"what fills the rows past the text, the line between windows and closed folds"`
+	GUI            struct {
+		Font     []string `toml:"font" help:"font families for the text in the window of --gui, the first the system has, else the system's monospace"`
+		FontSize uint     `toml:"font_size" help:"the size of the text's font in points in the window of --gui, the system's when 0"`
+	} `toml:"gui"`
 	options
 	Colors   wire.Colors `toml:"colors" help:"colours by role, each as #rrggbb, that replace the theme's"`
 	Keymap   keymap      `toml:"keymap"`

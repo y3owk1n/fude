@@ -985,6 +985,12 @@ func (e *Session) Theme() wire.Theme {
 	return t
 }
 
+// Font returns the font config.toml's [gui] or :set asks a window frontend
+// to draw the text in (B584).
+func (e *Session) Font() wire.Font {
+	return wire.Font{Families: e.cfg.GUI.Font, Size: e.cfg.GUI.FontSize}
+}
+
 // Title returns what the frontend's title shows: the name of the current
 // window's file with title on, else "" (B480).
 func (e *Session) Title() string {

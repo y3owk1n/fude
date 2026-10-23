@@ -1444,6 +1444,51 @@ func TestB581Accessibility(t *testing.T) {
 	})
 }
 
+// B584
+func TestB584Font(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.txt")
+	editortest.Change(t, path, "one\n")
+	e := editortest.Open(t, path)
+	var w *window
+	onMain(func() { w = open(e, nil) }, true)
+	typed := func(keys string) {
+		for _, c := range keys {
+			code := uint16(0)
+			if c == '\r' {
+				code = 36
+			}
+			onMain(func() { press(w, code, 0, string(c), string(c)) }, true)
+		}
+	}
+	// now is the text's family and size.
+	now := func() (family string, points float64) {
+		onMain(func() { family, points = goString(font.Send(sel("familyName"))), textSize }, true)
+		return family, points
+	}
+	system, size := now()
+	// :set changes the font's size and family at once, the first family
+	// the system has.
+	typed(":set gui.font_size 20\r:set gui.font NoSuchFont,Courier\r")
+	until(t, "Courier at 20 points", func() bool { f, p := now(); return f == "Courier" && p == 20 })
+	// Actual size goes back to gui.font_size.
+	onMain(func() {
+		mainRun.Send(sel("bigger:"), 0)
+		mainRun.Send(sel("actualSize:"), 0)
+	}, true)
+	if _, p := now(); p != 20 {
+		t.Errorf("actual size is %g points", p)
+	}
+	// A family the system does not have, and no size, are the system's.
+	typed(":set gui.font NoSuchFont\r:set gui.font_size 0\r")
+	until(t, "the system's font", func() bool { f, p := now(); return f == system && p == size })
+	typed(":qa!\r")
+	until(t, "the session to end", func() bool {
+		open := true
+		onMain(func() { _, open = windows[w.view] }, true)
+		return !open
+	})
+}
+
 // press sends w a key down, as the keyboard does.
 func press(w *window, code uint16, mods uint, chars, bare string) {
 	n := objc.Send[int](w.win, sel("windowNumber"))

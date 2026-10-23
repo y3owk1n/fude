@@ -165,6 +165,7 @@ var (
 	pangoFontFromString  func(s string) uintptr
 	pangoFontSetWeight   func(desc uintptr, weight int32)
 	pangoFontSetStyle    func(desc uintptr, style int32)
+	pangoFontSetFamily   func(desc uintptr, family string)
 	pangoFontCopy        func(desc uintptr) uintptr
 )
 
@@ -362,6 +363,7 @@ func load() error {
 			{pango, &pangoFontFromString, "pango_font_description_from_string"},
 			{pango, &pangoFontSetWeight, "pango_font_description_set_weight"},
 			{pango, &pangoFontSetStyle, "pango_font_description_set_style"},
+			{pango, &pangoFontSetFamily, "pango_font_description_set_family"},
 			{pango, &pangoFontCopy, "pango_font_description_copy"},
 		} {
 			purego.RegisterLibFunc(f.fn, f.lib, f.name)

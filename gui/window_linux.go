@@ -183,6 +183,7 @@ func (w *window) apply() {
 	if len(fs) == 0 {
 		return
 	}
+	askFont(fs[len(fs)-1].font)
 	for _, f := range fs {
 		w.look = f.look
 		w.keep(f.pngs, f.freed)
@@ -338,7 +339,7 @@ func keyPressed(_, keyval, _, state, win uintptr) uintptr {
 			sizeText(textSize - 1)
 			return 1
 		case '0':
-			sizeText(11)
+			sizeText(firstSize())
 			return 1
 		}
 	}

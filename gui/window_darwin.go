@@ -8,15 +8,32 @@ import (
 	"github.com/ebitengine/purego/objc"
 )
 
-// textSize is the text's size in points, which Command-= and Command-minus
-// change (B558).
-var textSize = 14.0
+// systemSize is the text's size in points unless the session asks for
+// another, and textSize its size, which Command-= and Command-minus change
+// (B558, B584).
+const systemSize = 14.0
 
-// makeFonts makes the text's fonts in textSize, and the cells they fill.
+var textSize = systemSize
+
+// makeFonts makes the text's fonts in textSize, of the first family the
+// session asked for that the system has, or else the system's monospace,
+// and the cells they fill.
 func makeFonts() {
-	font = msgFont(cls("NSFont"), sel("monospacedSystemFontOfSize:weight:"), textSize, 0).Send(sel("retain"))
-	boldFont = msgFont(cls("NSFont"), sel("monospacedSystemFontOfSize:weight:"), textSize, 0.4).Send(sel("retain"))
 	fonts := cls("NSFontManager").Send(sel("sharedFontManager"))
+	font, boldFont = 0, 0
+	for _, family := range wanted.Families {
+		// NSFontManager's weights are 5 for regular and 9 for bold.
+		font = msgFontFamily(fonts, sel("fontWithFamily:traits:weight:size:"), nsString(family), 0, 5, textSize)
+		boldFont = msgFontFamily(fonts, sel("fontWithFamily:traits:weight:size:"), nsString(family), 0, 9, textSize)
+		if font != 0 && boldFont != 0 {
+			break
+		}
+	}
+	if font == 0 || boldFont == 0 {
+		font = msgFont(cls("NSFont"), sel("monospacedSystemFontOfSize:weight:"), textSize, 0)
+		boldFont = msgFont(cls("NSFont"), sel("monospacedSystemFontOfSize:weight:"), textSize, 0.4)
+	}
+	font, boldFont = font.Send(sel("retain")), boldFont.Send(sel("retain"))
 	italicFont = fonts.Send(sel("convertFont:toHaveTrait:"), font, 1).Send(sel("retain"))
 	boldItalicFont = fonts.Send(sel("convertFont:toHaveTrait:"), boldFont, 1).Send(sel("retain"))
 	cellW = msgSizeOf(nsString("M"), sel("sizeWithAttributes:"), textAttrs(font, 0)).W
@@ -57,7 +74,7 @@ func cellPixels(win objc.ID) [2]int {
 var sizing = []objc.MethodDef{
 	{Cmd: sel("bigger:"), Fn: func(objc.ID, objc.SEL, objc.ID) { sizeText(textSize + 1) }},
 	{Cmd: sel("smaller:"), Fn: func(objc.ID, objc.SEL, objc.ID) { sizeText(textSize - 1) }},
-	{Cmd: sel("actualSize:"), Fn: func(objc.ID, objc.SEL, objc.ID) { sizeText(14) }},
+	{Cmd: sel("actualSize:"), Fn: func(objc.ID, objc.SEL, objc.ID) { sizeText(firstSize()) }},
 }
 
 // dress shows on w what the frame says of the session: the theme's light

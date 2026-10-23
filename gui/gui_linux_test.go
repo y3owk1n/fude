@@ -53,6 +53,7 @@ func TestMain(m *testing.M) {
 	purego.RegisterLibFunc(&gTypeIfacePeek, gtk, "g_type_interface_peek")
 	purego.RegisterLibFunc(&gBytesData, gtk, "g_bytes_get_data")
 	purego.RegisterLibFunc(&gBytesUnref, gtk, "g_bytes_unref")
+	purego.RegisterLibFunc(&pangoFontFamily, gtk, "pango_font_description_get_family")
 	ready := make(chan struct{})
 	startApp(func() { close(ready) })
 	// The application stays up between the tests' windows.
@@ -519,6 +520,45 @@ func TestB582GTKAccessibility(t *testing.T) {
 	})
 }
 
+// B584
+func TestB584GTKFont(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.txt")
+	editortest.Change(t, path, "one\n")
+	e := editortest.Open(t, path)
+	var w *window
+	onMain(func() { w = open(e, nil) }, true)
+	typed := func(keys string) {
+		for _, k := range keys {
+			keyval := uintptr(k)
+			if k == '\r' {
+				keyval = 0xff0d
+			}
+			onMain(func() { keyPressed(0, keyval, 0, 0, w.win) }, true)
+		}
+	}
+	// now is the families the text asks Pango for, of which Pango takes
+	// the first it has, and its size.
+	now := func() (family string, points float64) {
+		onMain(func() { family, points = pangoFontFamily(font), textSize }, true)
+		return family, points
+	}
+	// :set changes the font's size and family at once.
+	typed(":set gui.font_size 20\r:set gui.font NoSuchFont,DejaVu Sans Mono\r")
+	until(t, "the families at 20 points", func() bool {
+		f, p := now()
+		return f == "NoSuchFont,DejaVu Sans Mono,Monospace" && p == 20
+	})
+	// No family and no size are the system's.
+	typed(":set gui.font_size 0\r")
+	until(t, "the system's size", func() bool { _, p := now(); return p == systemSize })
+	typed(":qa!\r")
+	until(t, "the session to end", func() bool {
+		open := true
+		onMain(func() { _, open = windows[w.win] }, true)
+		return !open
+	})
+}
+
 // roleOf is the value of the accessible role named nick.
 func roleOf(nick string) int32 { return gEnumByNick(roleClass, nick).value }
 
@@ -528,6 +568,7 @@ var (
 	gTypeIfacePeek        func(class uintptr, iface uint64) uintptr
 	gBytesData            func(b uintptr, n *uintptr) *byte
 	gBytesUnref           func(b uintptr)
+	pangoFontFamily       func(desc uintptr) string
 	cairoCreate           func(surface uintptr) uintptr
 	cairoDestroy          func(cr uintptr)
 	cairoWritePNG         func(surface uintptr, path string) int32

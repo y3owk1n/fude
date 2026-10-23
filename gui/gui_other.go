@@ -23,8 +23,12 @@ type (
 	boxNative  struct{}
 )
 
-// linkKey is the modifier that makes the word under the mouse a link.
-const linkKey = controlKey
+// linkKey is the modifier that makes the word under the mouse a link, and
+// systemSize the text's size.
+const (
+	linkKey    = controlKey
+	systemSize = 0
+)
 
 func onMain(fn func(), _ bool)                      { fn() }
 func (w *window) apply()                            {}
@@ -43,5 +47,6 @@ func drawPrompt(string, rect)                       {}
 func (l *list) draw(float64)                        {}
 func (w *window) drawPics([]pic, point)             {}
 func (p *pane) redraw()                             {}
+func sizeText(float64)                              {}
 func (p *pane) pointer(bool)                        {}
 func (p *pane) showBar(bool)                        {}

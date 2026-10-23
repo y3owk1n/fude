@@ -197,6 +197,7 @@ func (w *window) apply() {
 	if len(fs) == 0 {
 		return
 	}
+	askFont(fs[len(fs)-1].font)
 	for _, f := range fs {
 		w.look = f.look
 		w.keep(f.pngs, f.freed)

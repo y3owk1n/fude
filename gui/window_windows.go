@@ -289,6 +289,7 @@ func (w *window) apply() {
 	if len(fs) == 0 {
 		return
 	}
+	askFont(fs[len(fs)-1].font)
 	for _, f := range fs {
 		w.look = f.look
 		w.keep(f.pngs, f.freed)
@@ -447,7 +448,7 @@ func (w *window) keyDown(vk uintptr) bool {
 		sizeText(textSize - 1)
 		return true
 	case mods&^shiftKey == controlKey && (vk == '0' || vk == 0x60):
-		sizeText(11)
+		sizeText(firstSize())
 		return true
 	}
 	named, plain := virtualKeys[vk], ""

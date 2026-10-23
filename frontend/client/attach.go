@@ -371,6 +371,7 @@ func (a *Attached) Substituting() bool { return a.f.Substituting }
 func (a *Attached) Terminal() bool     { return a.f.Terminal }
 func (a *Attached) Shown() string      { return a.f.Shown }
 func (a *Attached) Title() string      { return a.f.Title }
+func (a *Attached) Font() wire.Font    { return a.f.Font }
 
 func (a *Attached) Styles() (map[string]wire.Style, int) { return a.f.Styles, a.f.Restyled }
 

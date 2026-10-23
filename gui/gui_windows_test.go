@@ -597,6 +597,38 @@ func TestB583WindowsAccessibility(t *testing.T) {
 	})
 }
 
+// B584
+func TestB584WindowsFont(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.txt")
+	editortest.Change(t, path, "one\n")
+	e := editortest.Open(t, path)
+	var w *window
+	onMain(func() { w = open(e, nil) }, true)
+	// now is the family of the text's font, and its size.
+	now := func() (family string, points float64) {
+		onMain(func() {
+			var name [64]uint16
+			com(font, 21, uintptr(unsafe.Pointer(&name[0])), uintptr(len(name)))
+			family, points = windows.UTF16ToString(name[:]), textSize
+		}, true)
+		return family, points
+	}
+	system, _ := now()
+	// :set changes the font's size and family at once, the first family
+	// the system has.
+	typeIn(w, ":set gui.font_size 20\r:set gui.font NoSuchFont,Courier New\r")
+	until(t, "Courier New at 20 points", func() bool { f, p := now(); return f == "Courier New" && p == 20 })
+	// A family the system does not have, and no size, are the system's.
+	typeIn(w, ":set gui.font NoSuchFont\r:set gui.font_size 0\r")
+	until(t, "the system's font", func() bool { f, p := now(); return f == system && p == systemSize })
+	typeIn(w, ":qa!\r")
+	until(t, "the session to end", func() bool {
+		open := true
+		onMain(func() { _, open = opened[w.hwnd] }, true)
+		return !open
+	})
+}
+
 var (
 	ole32                = windows.NewLazySystemDLL("ole32.dll")
 	clsidUIA             = windows.GUID{Data1: 0xff48dba4, Data2: 0x60ef, Data3: 0x4201, Data4: [8]byte{0xaa, 0x87, 0x54, 0x10, 0x3e, 0xef, 0x59, 0x4e}}

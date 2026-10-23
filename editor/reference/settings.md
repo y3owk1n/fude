@@ -388,6 +388,25 @@ quits.
 The terminal's title shows the name of the current window's file, without
 its folder, and gets the title it had back as fude quits. Off unless set.
 
+## gui.font
+
+Font families for the text in the window of `--gui`. The text takes the
+first family the system has, so one config.toml works on macOS, Linux and
+Windows. With none of them installed, or none set, the text takes the
+system's monospace font. `:set gui.font JetBrains Mono,Menlo` sets them in
+the running fude.
+
+```toml
+[gui]
+font = ["JetBrains Mono", "Menlo", "Cascadia Mono", "DejaVu Sans Mono"]
+```
+
+## gui.font_size
+
+The size of the text's font in points in the window of `--gui`. 0, the
+default, is the system's: 14 on macOS and 11 on Linux and Windows. The
+menu's actual size goes back to it.
+
 ## colors
 
 Replaces the theme's colour for a role, such as `bg = "#101418"` under

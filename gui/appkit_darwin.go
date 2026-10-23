@@ -41,6 +41,7 @@ var (
 	msgConvertPoint func(objc.ID, objc.SEL, point, objc.ID) point
 	msgFloat        func(objc.ID, objc.SEL) float64
 	msgFont         func(objc.ID, objc.SEL, float64, float64) objc.ID
+	msgFontFamily   func(objc.ID, objc.SEL, objc.ID, uint, int, float64) objc.ID
 	msgColor        func(objc.ID, objc.SEL, float64, float64, float64, float64) objc.ID
 	msgSizeOf       func(objc.ID, objc.SEL, objc.ID) size
 	msgDrawAt       func(objc.ID, objc.SEL, point, objc.ID)
@@ -69,7 +70,7 @@ func load() {
 		if err != nil {
 			panic(fmt.Sprintf("gui: open libobjc: %v", err))
 		}
-		for _, f := range []any{&msgInitWindow, &msgInitView, &msgRect, &msgSetSize, &msgSetRect, &msgSetFloat, &msgBounding, &msgDrawIn, &msgSetPosition, &msgConvertRect, &msgRounded, &msgMapRect, &msgPoint, &msgPointArg, &msgDrawImage, &msgRectID, &msgSize, &msgAddAttrs, &msgDrawAttrIn, &msgInitTracking, &msgConvertPoint, &msgFloat, &msgFont, &msgColor, &msgSizeOf, &msgDrawAt, &msgKeyEvent, &msgOtherEvent, &msgUTF8} {
+		for _, f := range []any{&msgInitWindow, &msgInitView, &msgRect, &msgSetSize, &msgSetRect, &msgSetFloat, &msgBounding, &msgDrawIn, &msgSetPosition, &msgConvertRect, &msgRounded, &msgMapRect, &msgPoint, &msgPointArg, &msgDrawImage, &msgRectID, &msgSize, &msgAddAttrs, &msgDrawAttrIn, &msgInitTracking, &msgConvertPoint, &msgFloat, &msgFont, &msgFontFamily, &msgColor, &msgSizeOf, &msgDrawAt, &msgKeyEvent, &msgOtherEvent, &msgUTF8} {
 			purego.RegisterLibFunc(f, lib, "objc_msgSend")
 		}
 		purego.RegisterLibFunc(&rectFill, appkit, "NSRectFill")

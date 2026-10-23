@@ -187,7 +187,7 @@ func (c *config) settings() map[string]reflect.Value {
 		}
 		out[f.Tag.Get("toml")] = v.FieldByIndex(f.Index)
 	}
-	tables := map[string]any{"colors": &c.Colors, "list_chars": &c.ListChars, "fill_chars": &c.FillChars}
+	tables := map[string]any{"colors": &c.Colors, "list_chars": &c.ListChars, "fill_chars": &c.FillChars, "gui": &c.GUI}
 	for name, table := range tables {
 		t := reflect.ValueOf(table).Elem()
 		for _, f := range reflect.VisibleFields(t.Type()) {

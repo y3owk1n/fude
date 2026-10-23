@@ -1570,6 +1570,14 @@ Where fude departs, the line says so and cites the departure in
   closes it. fude tells the assistive app of each change to the text,
   the cursor and the focus, and the assistive app speaks a list's
   selected item and each message as they show.
+- B584 [10] With `--gui`, `gui.font` lists font families for the text,
+  and the text takes the first one the system has. `gui.font_size` is
+  its size in points. Unset, or with none of its families
+  on the system, the text takes the system's monospace font, 14 points on
+  macOS and 11 on Linux and Windows. `:set` changes either in
+  every window at once, each window taking as many cells as it then
+  holds, and the menu's actual size goes back to `gui.font_size`. An
+  attached window draws in its session's font.
 - B544 [2] A session has tab pages, each with its own windows, floats
   and current window, as in Neovim. `:tabnew` and `:tabedit` open one
   after the current page, on a file or a new empty buffer. `gt`, `{n}gt`,

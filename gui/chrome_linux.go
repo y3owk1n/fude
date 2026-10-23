@@ -3,6 +3,7 @@ package gui
 import (
 	"fmt"
 	"math"
+	"slices"
 	"strings"
 
 	"github.com/y3owk1n/fude/frontend/theme"
@@ -22,12 +23,21 @@ var cr uintptr
 
 // textSize is the text's size in points, which Control with =, minus and
 // 0 change (B568).
-var textSize = 11.0
+var textSize = systemSize
+
+// systemSize is the text's size in points unless the session asks for
+// another (B584).
+const systemSize = 11.0
 
 // makeTextFonts makes the text's fonts in textSize, and sizes a cell in
 // them.
 func makeTextFonts() {
 	font = pangoFontFromString(fmt.Sprintf("Monospace %g", textSize))
+	// Pango takes the first of the families it has, and else the
+	// monospace.
+	if len(wanted.Families) > 0 {
+		pangoFontSetFamily(font, strings.Join(append(slices.Clone(wanted.Families), "Monospace"), ","))
+	}
 	boldFont, italicFont, boldItalicFont = pangoFontCopy(font), pangoFontCopy(font), pangoFontCopy(font)
 	pangoFontSetWeight(boldFont, 700)
 	pangoFontSetStyle(italicFont, 2)

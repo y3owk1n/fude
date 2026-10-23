@@ -46,3 +46,11 @@ type Theme struct {
 	Base16 *[16]int32
 	Colors *Colors
 }
+
+// Font is the font a window frontend draws the text in: families, of
+// which it takes the first the system has, and a size in points. None and
+// 0 mean the system's (B584).
+type Font struct {
+	Families []string `json:",omitempty"`
+	Size     uint     `json:",omitempty"`
+}

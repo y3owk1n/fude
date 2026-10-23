@@ -41,6 +41,7 @@ type cursorAt struct {
 // frame is what the loop hands the main thread after each change.
 type frame struct {
 	title   string
+	font    wire.Font  // what the text draws in
 	layout  wire.Split // the zoomed window alone while one is
 	key     string     // says what layout is, to tell when it changes
 	wins    []shown
@@ -153,7 +154,7 @@ func (p *painter) paint(s client.Session, cols, rows int) frame {
 	}
 	_, mode := client.ModeName(s)
 	f := frame{
-		title: s.Title(), layout: layout, key: fmt.Sprint(layout), floats: map[int]*boxed{}, pngs: map[int][]byte{}, ground: p.lit.Theme.Bg,
+		title: s.Title(), font: s.Font(), layout: layout, key: fmt.Sprint(layout), floats: map[int]*boxed{}, pngs: map[int][]byte{}, ground: p.lit.Theme.Bg,
 		tabs: strip{buffers: s.Buffers(), pages: s.Pages(), mode: mode}, look: look, confirm: question,
 	}
 	in := map[int]bool{}
