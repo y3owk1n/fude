@@ -974,8 +974,11 @@ func TestB560NativeLists(t *testing.T) {
 	until(t, "the list", func() bool {
 		ok := false
 		onMain(func() {
+			if w.panel == nil || w.panel.boxed == nil {
+				return
+			}
 			l := w.panel.list
-			ok = w.panel.boxed != nil && l != nil && len(l.items) > 2 && w.panel.cells == nil &&
+			ok = l != nil && len(l.items) > 2 && w.panel.cells == nil &&
 				inked(w.panel.view, 0, int((8+l.width/2)/cellW), int((l.top()+0.5*l.rowH)/cellH))
 		}, true)
 		return ok
