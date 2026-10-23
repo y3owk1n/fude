@@ -199,9 +199,10 @@ type Menu struct {
 	DocSpans []Span
 	DocImage *Picture // an image in the documentation's box, as the finder previews one (B305)
 	Rows     int      // the most rows a menu at the cursor shows, 0 for as many as fit (B481)
-	// Items are the items Text shows, row for row, for a frontend that
-	// lays its own rows out, and Selected is the selected one's index, -1
-	// for none. The finder also gives its Prompt, Query and Count (B560).
+	// Items are the menu's items, for a frontend that lays out and scrolls
+	// its own rows: all of them up to 300, where Text shows a part.
+	// Selected is the selected one's index, -1 for none. The finder also
+	// gives its Prompt, Query and Count (B560).
 	Items                []Item `json:",omitempty"`
 	Selected             int
 	Prompt, Query, Count string `json:",omitempty"`

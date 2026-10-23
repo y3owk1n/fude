@@ -20,8 +20,13 @@ const statusH = 22
 type pane struct {
 	w                  *window
 	view, text, status objc.ID
-	id                 int     // the window's
-	wheel              float64 // the lines a scroll moved short of one
+	id                 int       // the window's
+	wheel              float64   // the lines a scroll moved short of one
+	scroller           objc.ID   // its scroll bar
+	top, rows, lines   int       // its window's first line shown, its rows and its text's lines
+	want               int       // the first line the view asked its window for, ahead of the frames
+	shownAt            time.Time // when the scroll bar last showed
+	offset             float64   // how far a trackpad moved the text up past its first line, in points
 	cells              [][]cell
 	pics               []pic
 	cursor             cursorAt
@@ -52,7 +57,9 @@ func (w *window) pane(id int) *pane {
 	p.view.Send(sel("addSubview:"), back)
 	p.view.Send(sel("addSubview:"), p.status)
 	back.Send(sel("release"))
-	w.panes[id], panes[p.text], panes[p.status] = p, p, p
+	p.scroller = newScroller(p)
+	p.view.Send(sel("addSubview:"), p.scroller)
+	w.panes[id], panes[p.text], panes[p.status], panes[p.view] = p, p, p, p
 	return p
 }
 
@@ -60,8 +67,9 @@ func (w *window) pane(id int) *pane {
 func (p *pane) drop() {
 	delete(panes, p.text)
 	delete(panes, p.status)
+	delete(panes, p.view)
 	p.view.Send(sel("removeFromSuperview"))
-	for _, v := range []objc.ID{p.text, p.status, p.view} {
+	for _, v := range []objc.ID{p.text, p.status, p.scroller, p.view} {
 		v.Send(sel("release"))
 	}
 }
@@ -208,14 +216,19 @@ func resizeRoot(self objc.ID, _ objc.SEL, _ size) {
 }
 
 // resizePane puts a pane's text over its status bar and the material
-// behind it.
+// behind it, and its scroll bar at the text's right edge.
 func resizePane(self objc.ID, _ objc.SEL, _ size) {
-	b := msgRect(self, sel("bounds")).Size
-	subs := subviews(self)
-	msgSetRect(subs[0], sel("setFrame:"), rect{Size: size{b.W, max(b.H-statusH, 1)}})
-	for _, v := range subs[1:] {
-		msgSetRect(v, sel("setFrame:"), rect{point{0, max(b.H-statusH, 0)}, size{b.W, statusH}})
+	p := panes[self]
+	if p == nil {
+		return
 	}
+	b := msgRect(self, sel("bounds")).Size
+	h := max(b.H-statusH, 1)
+	msgSetRect(p.text, sel("setFrame:"), rect{Size: size{b.W, h}})
+	for _, v := range subviews(self)[1:3] {
+		msgSetRect(v, sel("setFrame:"), rect{point{0, h}, size{b.W, statusH}})
+	}
+	msgSetRect(p.scroller, sel("setFrame:"), rect{point{b.W - scrollerW, 0}, size{scrollerW, h}})
 }
 
 func splitResized(self objc.ID, _ objc.SEL, note objc.ID) {
@@ -246,6 +259,7 @@ func (p *pane) update(sh shown, ground theme.RGB) {
 		}
 	}
 	p.cursor, p.left, p.right, p.current, p.pics = sh.cursor, sh.left, sh.right, sh.current, sh.pics
+	p.showScroll(sh.scroll[0], sh.scroll[1], sh.scroll[2])
 	p.text.Send(sel("setNeedsDisplay:"), 1)
 	p.status.Send(sel("setNeedsDisplay:"), 1)
 }
@@ -257,7 +271,11 @@ func drawText(self objc.ID, _ objc.SEL, _ rect) {
 	}
 	nsColor(p.w.look.Base.Bg).Send(sel("setFill"))
 	rectFill(msgRect(self, sel("bounds")))
-	drawCells(p.cells, p.cursor, point{pad, pad}, nil, nil)
+	cursor := p.cursor
+	cursor.shown = cursor.shown && p.w.caretOn
+	// The text moves by the trackpad's points and by the lines asked for
+	// that no frame shows yet, so it moves at once and never jumps back.
+	drawCells(p.cells, cursor, point{pad, pad - p.offset - float64(p.want-p.top)*cellH}, nil, nil)
 	p.w.drawPics(p.pics, point{pad, pad})
 }
 

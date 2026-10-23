@@ -14,11 +14,15 @@ import (
 
 // list is a menu the window lays out itself, as a Mac application's lists
 // are: rows in the system's font, each with its icon, and over them the
-// line typed into, for the palette and the finder (B560).
+// line typed into, for the palette and the finder. It shows view rows of
+// its items at a time, scrolled by scroll points, which the wheel moves
+// and the selection keeps in view (B560).
 type list struct {
 	items    []wire.Item
-	selected int  // the index of the selected item, -1 for none
-	first    int  // the index in the session's menu of the first item, for Pick
+	selected int // the index of the selected item, -1 for none
+	hovered  int // the index of the item under the mouse, -1 for none
+	view     int
+	scroll   float64
 	typing   bool // it has a row typed into
 	input    string
 	at       int    // the cursor's byte in input
@@ -35,9 +39,29 @@ const (
 	menuRowH = 22
 )
 
+// shown is how many rows l shows.
+func (l *list) shown() int {
+	if l.view == 0 {
+		return len(l.items)
+	}
+	return min(len(l.items), l.view)
+}
+
+// follow scrolls l the least it must to show its selected item, and keeps
+// its scroll within its rows.
+func (l *list) follow(moved bool) {
+	h := float64(l.shown()) * l.rowH
+	if moved && l.selected >= 0 {
+		top := float64(l.selected) * l.rowH
+		l.scroll = min(l.scroll, top)
+		l.scroll = max(l.scroll, top+l.rowH-h)
+	}
+	l.scroll = min(max(l.scroll, 0), max(float64(len(l.items))*l.rowH-h, 0))
+}
+
 // height is how tall l draws.
 func (l *list) height() float64 {
-	h := float64(len(l.items))*l.rowH + 8
+	h := float64(l.shown())*l.rowH + 8
 	if l.typing {
 		h += inputH
 		if len(l.items) == 0 {
@@ -58,8 +82,8 @@ func (l *list) top() float64 {
 // itemAt returns the item a point in l's box hits, if one is there that a
 // click picks.
 func (l *list) itemAt(p point) (int, bool) {
-	i := int(math.Floor((p.Y - l.top()) / l.rowH))
-	if p.Y < l.top() || i < 0 || i >= len(l.items) || p.X < 8 || p.X > 8+l.width {
+	i := int(math.Floor((p.Y - l.top() + l.scroll) / l.rowH))
+	if p.Y < l.top() || p.Y >= l.top()+float64(l.shown())*l.rowH || i < 0 || i >= len(l.items) || p.X < 8 || p.X > 8+l.width {
 		return 0, false
 	}
 	return i, !l.items[i].Header && !l.items[i].Disabled
@@ -85,10 +109,26 @@ func (l *list) draw(x float64) {
 	if l.typing {
 		l.drawInput(x, w)
 	}
-	y := l.top()
-	for i, it := range l.items {
-		r := rect{point{x, y + float64(i)*l.rowH}, size{w, l.rowH}}
+	y, h := l.top(), float64(l.shown())*l.rowH
+	ctx := cls("NSGraphicsContext").Send(sel("currentContext"))
+	ctx.Send(sel("saveGraphicsState"))
+	defer ctx.Send(sel("restoreGraphicsState"))
+	msgSetRect(cls("NSBezierPath"), sel("clipRect:"), rect{point{x, y}, size{w, h}})
+	// A list taller than its rows shows a thin knob where its rows are.
+	if all := float64(len(l.items)) * l.rowH; all > h {
+		system("tertiaryLabelColor").Send(sel("setFill"))
+		msgRounded(cls("NSBezierPath"), sel("bezierPathWithRoundedRect:xRadius:yRadius:"), rect{point{x + w - 4, y + l.scroll/all*h}, size{3, max(h*h/all, 16)}}, 1.5, 1.5).Send(sel("fill"))
+		w -= 8
+	}
+	first := int(l.scroll / l.rowH)
+	for i := first; i < min(len(l.items), first+l.shown()+1); i++ {
+		it := l.items[i]
+		r := rect{point{x, y + float64(i)*l.rowH - l.scroll}, size{w, l.rowH}}
 		label, detail := system("labelColor"), system("secondaryLabelColor")
+		if i == l.hovered && i != l.selected {
+			system("quaternaryLabelColor").Send(sel("setFill"))
+			msgRounded(cls("NSBezierPath"), sel("bezierPathWithRoundedRect:xRadius:yRadius:"), r, 6, 6).Send(sel("fill"))
+		}
 		if i == l.selected {
 			system("selectedContentBackgroundColor").Send(sel("setFill"))
 			msgRounded(cls("NSBezierPath"), sel("bezierPathWithRoundedRect:xRadius:yRadius:"), r, 6, 6).Send(sel("fill"))

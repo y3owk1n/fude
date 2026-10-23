@@ -1364,10 +1364,10 @@ Where fude departs, the line says so and cites the departure in
   its index among the menu's items (B560). The command line's menu puts
   the item in the line as `<Tab>` does, a menu at the cursor takes it as
   `<CR>` and `<C-y>` do, and the finder opens it. A heading, such as a
-  file's name over its matches, does nothing. In `fude
-  gui` a click on an item picks it, and the wheel over a menu moves its
-  selection as `<C-n>` and `<C-p>` do. A click off the command line's
-  palette or the finder closes it as `<Esc>` does.
+  file's name over its matches, does nothing. In `fude gui` a click on an
+  item picks it, and the wheel over a menu scrolls it and leaves its
+  selection where it is. A click off the command line's palette or the
+  finder closes it as `<Esc>` does.
 - B557 [10] A click on the visual selection grabs it. Where the mouse lets
   go, the selection moves there as one change, cut and put in that place.
   Whole lines selected with `V` move before the line they are dropped on,
@@ -1390,17 +1390,32 @@ Where fude departs, the line says so and cites the departure in
   A tab's close button and its mark of changes, and the prompts of the
   command line and of search, are the system's symbols. The rows past a
   window's text show nothing.
-- B560 [10] A frame's menu carries the items its text shows, row for row,
-  and which is selected. Each item has its label, the letters of it the
-  typed text matches, a dim detail, its kind, a file's path, a grep
-  match's line, and whether it is a heading or disabled. The finder's
-  menu also carries its prompt, its query and its count. In `fude gui`
-  the palette, the finder and menus at the cursor show their items as
-  lists in the system's font, each row with its icon: a file's icon as
-  the Finder shows it, or the system's symbol for its kind. The letters
-  matched are bold, the detail is dim at the row's right, and the
-  selected item takes the system's selection colour. The finder's
-  preview and the documentation beside a menu keep the theme.
+- B560 [10] A frame's menu carries its items, all of them up to 300 where
+  its text shows a part, and which is selected. Each item has its label,
+  the letters of it the typed text matches, a dim detail, its kind, a
+  file's path, a grep match's line, and whether it is a heading or
+  disabled. The finder's menu also carries its prompt, its query and its
+  count. In `fude gui` the palette, the finder and menus at the cursor
+  show their items as lists in the system's font, each row with its icon:
+  a file's icon as the Finder shows it, or the system's symbol for its
+  kind. The letters matched are bold, the detail is dim at the row's
+  right, and the selected item takes the system's selection colour. The
+  row the mouse is over lights. A list taller than its box scrolls by the
+  wheel and the trackpad, with a thin knob where it is, and scrolls to
+  show its selection when that moves. The finder's preview and the
+  documentation beside a menu keep the theme.
+- B561 [10] In `fude gui` a right click on text puts the cursor there,
+  unless a selection shows, and opens the system's menu. It offers Go to
+  Definition, Go to Type Definition, Find References, Find
+  Implementations, Rename Symbol, Code Actions and Show Hover, which type
+  the language server's keys, then Cut, Copy, Paste and Select All. Each
+  window has the system's thin scroll bar, which shows while its view
+  moves, and dragging its knob scrolls the window there. A trackpad moves
+  a window's text by points, scrolling a line for each row's height, and
+  the text settles on the nearest line when the fingers or the momentum
+  let go, or when a key is typed. The cursor of the window with the keys
+  blinks as the system's text fields do, and stays shown while keys and
+  clicks come.
 - B544 [2] A session has tab pages, each with its own windows, floats
   and current window, as in Neovim. `:tabnew` and `:tabedit` open one
   after the current page, on a file or a new empty buffer. `gt`, `{n}gt`,

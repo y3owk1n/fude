@@ -666,25 +666,26 @@ func TestB556MenusByMouse(t *testing.T) {
 	e := editortest.Open(t, path)
 	var w *window
 	onMain(func() { w = open(e, nil) }, true)
-	for _, c := range ":se\t" {
+	for _, c := range ":\t" {
 		code := uint16(0)
 		if c == '\t' {
 			code = 48
 		}
 		onMain(func() { press(w, code, 0, string(c), string(c)) }, true)
 	}
+	// The menu of every command is longer than the palette shows.
 	var items []string
 	until(t, "the menu", func() bool {
 		w.onLoop(func() {
 			m, _ := e.Menu()
 			items = nil
-			for _, l := range strings.Split(m.Text, "\n") {
-				items = append(items, strings.Fields(l + " .")[0])
+			for _, it := range m.Items {
+				items = append(items, it.Label)
 			}
 		})
 		shown := false
-		onMain(func() { shown = w.panel.boxed != nil && w.panel.list != nil && len(w.panel.list.items) > 2 }, true)
-		return len(items) > 2 && shown
+		onMain(func() { shown = w.panel.boxed != nil && w.panel.list != nil && len(w.panel.list.items) > 20 }, true)
+		return len(items) > 20 && shown
 	})
 	line := func() string {
 		var l string
@@ -700,7 +701,7 @@ func TestB556MenusByMouse(t *testing.T) {
 		w.win.Send(sel("sendEvent:"), ev)
 	}, true)
 	until(t, "the second item in the line", func() bool { return line() == ":"+items[1] })
-	// A turn of the wheel over the menu goes to the next item.
+	// A turn of the wheel scrolls the menu, and leaves its selection.
 	onMain(func() {
 		cg, err := purego.Dlopen("/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics", purego.RTLD_GLOBAL)
 		if err != nil {
@@ -710,7 +711,11 @@ func TestB556MenusByMouse(t *testing.T) {
 		purego.RegisterLibFunc(&scroll, cg, "CGEventCreateScrollWheelEvent2")
 		w.panel.view.Send(sel("scrollWheel:"), cls("NSEvent").Send(sel("eventWithCGEvent:"), scroll(0, 1, 1, -1, 0, 0)))
 	}, true)
-	until(t, "the third item in the line", func() bool { return line() == ":"+items[2] })
+	until(t, "the menu to scroll", func() bool {
+		var scrolled float64
+		onMain(func() { scrolled = w.panel.scroll }, true)
+		return scrolled > 0 && line() == ":"+items[1]
+	})
 	// A click off the palette closes it.
 	onMain(func() {
 		for _, p := range w.panes {
@@ -965,6 +970,18 @@ func TestB560NativeLists(t *testing.T) {
 		}, true)
 		return ok
 	})
+	// The row the mouse is over lights.
+	onMain(func() {
+		l := w.panel.list
+		at := msgConvertPoint(w.panel.view, sel("convertPoint:toView:"), point{40, l.top() + 2.5*l.rowH}, 0)
+		ev := msgMouseEvent(cls("NSEvent"), sel("mouseEventWithType:location:modifierFlags:timestamp:windowNumber:context:eventNumber:clickCount:pressure:"),
+			5, at, 0, 0, objc.Send[int](w.win, sel("windowNumber")), 0, 0, 0, 0)
+		w.panel.view.Send(sel("mouseMoved:"), ev)
+		w.panel.view.Send(sel("display"))
+		if l.hovered != 2 {
+			t.Errorf("the mouse over the third row lights row %d", l.hovered)
+		}
+	}, true)
 	// The finder's files show the Finder's icon for them.
 	typed("\x1b:pick files\r")
 	until(t, "the file's icon", func() bool {
@@ -979,6 +996,94 @@ func TestB560NativeLists(t *testing.T) {
 		return ok
 	})
 	typed("\x1b:qa!\r")
+	until(t, "the session to end", func() bool {
+		open := true
+		onMain(func() { _, open = windows[w.view] }, true)
+		return !open
+	})
+}
+
+// B561
+func TestB561Feel(t *testing.T) {
+	var lines []string
+	for i := range 200 {
+		lines = append(lines, fmt.Sprint("line ", i))
+	}
+	path := filepath.Join(t.TempDir(), "a.txt")
+	editortest.Change(t, path, strings.Join(lines, "\n"))
+	e := editortest.Open(t, path)
+	var w *window
+	onMain(func() { w = open(e, nil) }, true)
+	var p *pane
+	until(t, "the pane", func() bool {
+		onMain(func() {
+			for _, q := range w.panes {
+				p = q
+			}
+		}, true)
+		return p != nil
+	})
+	top := func() int {
+		n := 0
+		w.onLoop(func() { n = e.Windows()[0].Text.LineOf(e.Windows()[0].Top) })
+		return n
+	}
+	// A right click shows the language server's items and the clipboard's,
+	// and Select All there selects the text.
+	onMain(func() {
+		at := msgConvertPoint(p.text, sel("convertPoint:toView:"), point{pad + cellW/2, pad + cellH/2}, 0)
+		ev := msgMouseEvent(cls("NSEvent"), sel("mouseEventWithType:location:modifierFlags:timestamp:windowNumber:context:eventNumber:clickCount:pressure:"),
+			3, at, 0, 0, objc.Send[int](w.win, sel("windowNumber")), 0, 0, 1, 1)
+		menu := p.text.Send(sel("menuForEvent:"), ev)
+		if menu.Send(sel("itemWithTitle:"), nsString("Go to Definition")) == 0 || menu.Send(sel("itemWithTitle:"), nsString("Copy")) == 0 {
+			t.Error("the menu lacks the language server's or the clipboard's items")
+		}
+		item := menu.Send(sel("itemWithTitle:"), nsString("Select All"))
+		cls("NSApplication").Send(sel("sharedApplication")).Send(sel("sendAction:to:from:"), objc.Send[objc.SEL](item, sel("action")), w.view, item)
+	}, true)
+	until(t, "the text to be selected", func() bool {
+		var s vim.Selection
+		var ok bool
+		w.onLoop(func() { s, ok = e.Selection() })
+		return ok && s.Start == 0 && s.Kind == "V"
+	})
+	onMain(func() { press(w, 53, 0, "\x1b", "\x1b") }, true)
+	for range 2 {
+		onMain(func() { press(w, 5, 0, "g", "g") }, true)
+	}
+	until(t, "the top", func() bool { return top() == 0 })
+	// Dragging the scroll bar's knob to its end scrolls to the end.
+	until(t, "the scroll bar", func() bool {
+		ok := false
+		onMain(func() { ok = p.lines == 200 }, true)
+		return ok
+	})
+	onMain(func() {
+		msgSetFloat(p.scroller, sel("setDoubleValue:"), 1)
+		p.text.Send(sel("scrolled:"), p.scroller)
+	}, true)
+	until(t, "the end", func() bool { return top() > 150 })
+	// A trackpad moves the text by points: two rows and a half up show
+	// three lines more, with the text moved up by the half left over.
+	before := top()
+	onMain(func() {
+		cg, err := purego.Dlopen("/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics", purego.RTLD_GLOBAL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var scroll func(uintptr, uint32, uint32, int32, int32, int32) uintptr
+		purego.RegisterLibFunc(&scroll, cg, "CGEventCreateScrollWheelEvent2")
+		p.text.Send(sel("scrollWheel:"), cls("NSEvent").Send(sel("eventWithCGEvent:"), scroll(0, 0, 1, int32(2.5*cellH), 0, 0)))
+	}, true)
+	until(t, "the text two rows and a half up", func() bool {
+		var offset float64
+		onMain(func() { offset = p.offset }, true)
+		return top() == before-3 && offset > cellH/4 && offset < 3*cellH/4
+	})
+	for _, c := range ":qa!" {
+		onMain(func() { press(w, 0, 0, string(c), string(c)) }, true)
+	}
+	onMain(func() { press(w, 36, 0, "\r", "\r") }, true)
 	until(t, "the session to end", func() bool {
 		open := true
 		onMain(func() { _, open = windows[w.view] }, true)

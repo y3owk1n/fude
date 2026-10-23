@@ -352,8 +352,6 @@ func (m *cmenu) box() wire.Menu {
 	first := m.first
 	var s strings.Builder
 	var spans []wire.Span
-	var items []wire.Item
-	selected := -1
 	width := 0
 	for _, it := range m.items[first : first+rows] {
 		width = max(width, utf8.RuneCountInString(it))
@@ -363,34 +361,54 @@ func (m *cmenu) box() wire.Menu {
 			s.WriteByte('\n')
 		}
 		it := m.items[i]
-		item := wire.Item{Label: it}
-		if strings.HasSuffix(it, "/") {
-			item.Kind = "folder"
-		}
 		if i == m.sel || i == m.lit && m.sel == len(m.items) {
 			spans = append(spans, wire.Span{Start: s.Len(), End: s.Len() + len(it), Name: "menu.selected"})
-			selected = i - first
 		}
 		// A path marks the letters of its last part that the typed part
 		// matches (B152).
 		dir := strings.LastIndexAny(m.typed, "/"+string(filepath.Separator)) + 1
 		for _, at := range fuzzy.Positions(fuzzy.Lower(m.typed[dir:]), it[dir:]) {
 			spans = append(spans, wire.Span{Start: s.Len() + dir + at, End: s.Len() + dir + at + 1, Name: "match"})
-			item.Marks = append(item.Marks, dir+at)
 		}
 		s.WriteString(it)
-		if i < len(m.notes) {
-			item.Detail = m.notes[i]
-		}
-		items = append(items, item)
 		if i < len(m.notes) && m.notes[i] != "" {
 			s.WriteString(strings.Repeat(" ", width-utf8.RuneCountInString(it)+2))
 			spans = append(spans, wire.Span{Start: s.Len(), End: s.Len() + len(m.notes[i]), Name: "comment"})
 			s.WriteString(m.notes[i])
 		}
 	}
+	items, selected := m.listed()
 	return wire.Menu{Anchor: "line", Text: s.String(), Spans: spans, Cursor: -1, Items: items, Selected: selected}
 }
+
+// listed returns the menu's items as a frontend lays out their rows, all
+// of them up to listMost, and the selected one's index or -1 (B560).
+func (m *cmenu) listed() ([]wire.Item, int) {
+	var items []wire.Item
+	selected := -1
+	dir := strings.LastIndexAny(m.typed, "/"+string(filepath.Separator)) + 1
+	for i, it := range m.items[:min(len(m.items), listMost)] {
+		item := wire.Item{Label: it}
+		if strings.HasSuffix(it, "/") {
+			item.Kind = "folder"
+		}
+		if i < len(m.notes) {
+			item.Detail = m.notes[i]
+		}
+		for _, at := range fuzzy.Positions(fuzzy.Lower(m.typed[dir:]), it[dir:]) {
+			item.Marks = append(item.Marks, dir+at)
+		}
+		if i == m.sel || i == m.lit && m.sel == len(m.items) {
+			selected = i
+		}
+		items = append(items, item)
+	}
+	return items, selected
+}
+
+// listMost is how many items a menu gives a frontend, which scrolls them
+// itself (B560).
+const listMost = 300
 
 // incSearch remembers top and at, the window's top and the cursor before a
 // search first matched, since reveal shows the match while the search is

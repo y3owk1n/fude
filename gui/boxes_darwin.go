@@ -105,15 +105,10 @@ func (p *painter) atCursor(m wire.Menu, lk theme.Look, cx, cy, cols, rows int) [
 	if n < 1 {
 		return nil
 	}
-	if m.Selected >= 0 {
-		p.menuTop = max(min(max(p.menuTop, m.Selected-n+1), m.Selected, len(m.Items)-n), 0)
-	} else {
-		p.menuTop = 0
-	}
 	// width is about how many columns the items take, for the
 	// documentation to go beside them.
 	width := 0
-	for _, it := range m.Items[p.menuTop : p.menuTop+n] {
+	for _, it := range m.Items[:min(len(m.Items), 50)] {
 		width = max(width, displaywidth.String(it.Label)+displaywidth.String(it.Detail)+6)
 	}
 	width = min(width, cols-4)
@@ -122,9 +117,7 @@ func (p *painter) atCursor(m wire.Menu, lk theme.Look, cx, cy, cols, rows int) [
 		y = cy - tall(n) - 1
 	}
 	x := max(min(cx, cols-width-1), 0)
-	menu := &boxed{look: lk, at: &[2]int{x, y}, list: &list{
-		items: m.Items[p.menuTop : p.menuTop+n], selected: m.Selected - p.menuTop, first: p.menuTop, rowH: menuRowH,
-	}}
+	menu := &boxed{look: lk, at: &[2]int{x, y}, list: &list{items: m.Items, selected: m.Selected, view: n, rowH: menuRowH}}
 	if m.Doc == "" {
 		return []*boxed{menu}
 	}
@@ -221,8 +214,11 @@ func cellsOf(g *compose.Grid) [][]cell {
 type box struct {
 	frame, view objc.ID
 	*boxed
-	id int // a float's window, which the mouse goes to, or 0
-	w  *window
+	scroll float64 // how far its list scrolled, in points
+	seen   int     // the item its list selected last, to tell when that moves
+	hover  point   // where the mouse is over it, X -1 when it is not
+	id     int     // a float's window, which the mouse goes to, or 0
+	w      *window
 }
 
 // newBox makes a hidden box over w's views (B559).
@@ -244,11 +240,15 @@ func newBox(w *window) *box {
 	v.Send(sel("setAutoresizingMask:"), 18)
 	frame.Send(sel("addSubview:"), back)
 	frame.Send(sel("addSubview:"), v)
+	// It hears the mouse move over it, for its list's rows to light.
+	track := msgInitTracking(cls("NSTrackingArea").Send(sel("alloc")), sel("initWithRect:options:owner:userInfo:"), rect{}, 0x283, v, 0)
+	v.Send(sel("addTrackingArea:"), track)
+	track.Send(sel("release"))
 	back.Send(sel("release"))
 	frame.Send(sel("setHidden:"), 1)
 	v.Send(sel("setHidden:"), 1)
 	w.view.Send(sel("addSubview:"), frame)
-	b := &box{frame: frame, view: v, w: w}
+	b := &box{frame: frame, view: v, w: w, seen: -2, hover: point{X: -1}}
 	boxes[v] = b
 	return b
 }
@@ -263,6 +263,7 @@ func (b *box) show(what *boxed, view objc.ID, top float64) {
 	if what == nil {
 		b.frame.Send(sel("setHidden:"), 1)
 		b.view.Send(sel("setHidden:"), 1)
+		b.scroll, b.seen, b.hover = 0, -2, point{X: -1}
 		return
 	}
 	bounds := msgRect(view, sel("bounds")).Size
@@ -277,17 +278,26 @@ func (b *box) show(what *boxed, view objc.ID, top float64) {
 	} else if l := what.list; l != nil {
 		switch {
 		case what.middle:
-			r.Size = size{l.width + 16, max(l.height(), float64(len(what.cells))*cellH+inputH) + 4}
+			// The finder is as tall as its preview, and shows as many rows
+			// as fit under its query.
+			h := float64(max(len(what.cells), 12))*cellH + inputH + inset
+			l.view = max(int((h-inputH-12)/l.rowH), 1)
+			r.Size = size{l.width + 16, h}
 			if len(what.cells) > 0 {
 				r.Size.W += 12 + float64(len(what.cells[0]))*cellW + inset
 			}
 		case what.at == nil:
 			l.width = min(620, bounds.W-80) - 16
+			l.view = 10
 			r.Size = size{l.width + 16, l.height() + 4}
 		default:
 			l.width = min(max(l.natural(), 160), 520)
 			r.Size = size{l.width + 16, l.height()}
 		}
+		// The list keeps where it scrolled, and follows its selection.
+		l.scroll = b.scroll
+		l.follow(l.selected != b.seen)
+		b.scroll, b.seen = l.scroll, l.selected
 		r.Origin = point{math.Round((bounds.W - r.Size.W) / 2), math.Round(bounds.H / 5)}
 		switch {
 		case what.middle:
@@ -344,6 +354,10 @@ func drawBox(self objc.ID, _ objc.SEL, _ rect) {
 	}
 	bounds := msgRect(self, sel("bounds")).Size
 	if l := b.list; l != nil {
+		l.hovered = -1
+		if i, ok := l.itemAt(b.hover); ok && b.hover.X >= 0 {
+			l.hovered = i
+		}
 		l.draw(8)
 		if b.prompt != "" {
 			drawSymbol(symbol(b.prompt, system("secondaryLabelColor")), rect{point{14, (inputH - 16) / 2}, size{16, 16}})

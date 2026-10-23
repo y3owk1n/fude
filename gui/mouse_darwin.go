@@ -3,6 +3,7 @@ package gui
 import (
 	"math"
 	"strconv"
+	"time"
 
 	"github.com/ebitengine/purego/objc"
 
@@ -80,6 +81,13 @@ var (
 		{Cmd: sel("mouseMoved:"), Fn: func(self objc.ID, _ objc.SEL, ev objc.ID) { hover(self, barX(self, ev)) }},
 		{Cmd: sel("mouseExited:"), Fn: func(self objc.ID, _ objc.SEL, _ objc.ID) { hover(self, -1) }},
 	}
+	// boxMouse lights the row of a list the mouse is over (B560).
+	boxMouse = []objc.MethodDef{
+		{Cmd: sel("mouseMoved:"), Fn: func(self objc.ID, _ objc.SEL, ev objc.ID) {
+			hoverBox(self, msgConvertPoint(self, sel("convertPoint:fromView:"), msgPoint(ev, sel("locationInWindow")), 0))
+		}},
+		{Cmd: sel("mouseExited:"), Fn: func(self objc.ID, _ objc.SEL, _ objc.ID) { hoverBox(self, point{X: -1}) }},
+	}
 	// dropFiles opens the files dropped on the window (B555).
 	dropFiles = []objc.MethodDef{
 		{Cmd: sel("draggingEntered:"), Fn: func(objc.ID, objc.SEL, objc.ID) uint { return 1 }},
@@ -104,12 +112,13 @@ func mouseAt(view objc.ID, ev objc.ID, kind byte) {
 	if w == nil {
 		return
 	}
+	w.typed, w.caretOn = time.Now(), true
 	at := msgConvertPoint(view, sel("convertPoint:fromView:"), msgPoint(ev, sel("locationInWindow")), 0)
 	m := mouse{kind, id, int(math.Floor((at.X - o.X) / cellW)), int(math.Floor((at.Y - o.Y) / cellH)), 1}
 	switch {
 	case b != nil && b.list != nil:
 		if i, ok := b.list.itemAt(at); kind == 'c' && ok {
-			w.mice <- mouse{kind: 'p', y: b.list.first + i}
+			w.mice <- mouse{kind: 'p', y: i}
 		}
 		return
 	case w.panel.boxed != nil:
@@ -130,41 +139,36 @@ func mouseAt(view objc.ID, ev objc.ID, kind byte) {
 	w.mice <- m
 }
 
-// wheel scrolls the window under the mouse, or moves the selection of a
-// menu under it as <C-n> and <C-p> do: a line for each row's height a
-// trackpad moves, or each line a wheel turns.
+// wheel scrolls the window or the list under the mouse: a window a line
+// for each line a wheel turns, and a list by the points a trackpad moves
+// or a row for each line a wheel turns, leaving its selection where it is.
+// A trackpad moves a window's text by its points between lines, and when
+// it lets go the text settles on the nearest line (B560, B561).
 func wheel(self objc.ID, _ objc.SEL, ev objc.ID) {
-	var w *window
-	var turned *float64
-	p, b := panes[self], boxes[self]
+	dy := msgFloat(ev, sel("scrollingDeltaY"))
+	precise := objc.Send[bool](ev, sel("hasPreciseScrollingDeltas"))
+	if b := boxes[self]; b != nil && b.boxed != nil && b.list != nil {
+		if !precise {
+			dy *= b.list.rowH
+		}
+		b.list.scroll -= dy
+		b.list.follow(false)
+		b.scroll = b.list.scroll
+		self.Send(sel("setNeedsDisplay:"), 1)
+		return
+	}
+	p := panes[self]
 	switch {
-	case p != nil:
-		w, turned = p.w, &p.wheel
-	case b != nil && b.list != nil:
-		w, turned = b.w, &b.w.menuWheel
-	default:
+	case p == nil:
+		return
+	case precise:
+		p.smooth(dy, objc.Send[uint](ev, sel("phase"))|objc.Send[uint](ev, sel("momentumPhase")))
 		return
 	}
-	unit := 1.0
-	if objc.Send[bool](ev, sel("hasPreciseScrollingDeltas")) {
-		unit = cellH
-	}
-	*turned -= msgFloat(ev, sel("scrollingDeltaY")) / unit
-	n := int(*turned)
-	if n == 0 {
-		return
-	}
-	*turned -= float64(n)
-	if p != nil {
-		w.mice <- mouse{'s', p.id, 0, n, 0}
-		return
-	}
-	k := vim.Key("<C-n>")
-	if n < 0 {
-		k, n = "<C-p>", -n
-	}
-	for range n {
-		w.keys <- k
+	p.wheel -= dy
+	if n := int(p.wheel); n != 0 {
+		p.wheel -= float64(n)
+		p.w.mice <- mouse{'s', p.id, 0, n, 0}
 	}
 }
 
@@ -324,6 +328,19 @@ func barMiddle(self objc.ID, _ objc.SEL, ev objc.ID) {
 	}
 	if h, ok := w.at(barX(self, ev)); ok {
 		typeKeys(w, h.shut())
+	}
+}
+
+// hoverBox marks where the mouse is over a box, and draws its list again
+// when that lights another row.
+func hoverBox(view objc.ID, at point) {
+	b := boxes[view]
+	if b == nil {
+		return
+	}
+	b.hover = at
+	if b.boxed != nil && b.list != nil {
+		view.Send(sel("setNeedsDisplay:"), 1)
 	}
 }
 

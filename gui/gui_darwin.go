@@ -59,15 +59,17 @@ func startApp(background bool) objc.ID {
 		{Cmd: sel("keyDown:"), Fn: keyDown},
 		{Cmd: sel("resizeSubviewsWithOldSize:"), Fn: resizeRoot},
 		{Cmd: sel("splitResized:"), Fn: splitResized},
-	}, textInput...), append(editing, dropFiles...)...)...)
+	}, textInput...), append(append(editing, dropFiles...), contextActions()...)...)...)
 	viewClass.AddProtocol(objc.GetProtocol("NSTextInputClient"))
 	markedClass = class("FudeMarked", "NSView", flipped, objc.MethodDef{Cmd: sel("drawRect:"), Fn: drawMarked})
 	paneClass = class("FudePane", "NSView", flipped, objc.MethodDef{Cmd: sel("resizeSubviewsWithOldSize:"), Fn: resizePane})
-	textClass = class("FudeText", "NSView", append([]objc.MethodDef{flipped, {Cmd: sel("drawRect:"), Fn: drawText}}, textMouse...)...)
+	textClass = class("FudeText", "NSView", append([]objc.MethodDef{
+		flipped, {Cmd: sel("drawRect:"), Fn: drawText}, {Cmd: sel("menuForEvent:"), Fn: menuFor}, {Cmd: sel("scrolled:"), Fn: scrolled},
+	}, textMouse...)...)
 	statusClass = class("FudeStatus", "NSView", append([]objc.MethodDef{flipped, {Cmd: sel("drawRect:"), Fn: drawStatus}}, statusMouse...)...)
 	splitClass = class("FudeSplit", "NSSplitView", objc.MethodDef{Cmd: sel("drawDividerInRect:"), Fn: drawDivider})
 	barClass = class("FudeBar", "NSView", append([]objc.MethodDef{flipped, {Cmd: sel("drawRect:"), Fn: drawBar}}, barMouse...)...)
-	boxClass = class("FudeBox", "NSView", append([]objc.MethodDef{flipped, {Cmd: sel("drawRect:"), Fn: drawBox}}, textMouse...)...)
+	boxClass = class("FudeBox", "NSView", append(append([]objc.MethodDef{flipped, {Cmd: sel("drawRect:"), Fn: drawBox}}, textMouse...), boxMouse...)...)
 	windowDelegate = objc.ID(class("FudeWindowDelegate", "NSObject", objc.MethodDef{Cmd: sel("windowShouldClose:"), Fn: windowShouldClose})).Send(sel("alloc")).Send(sel("init"))
 	makeFonts()
 	toastFont = msgFont(cls("NSFont"), sel("systemFontOfSize:weight:"), 13, 0).Send(sel("retain"))
@@ -144,13 +146,14 @@ type window struct {
 	pressX       float64         // where along the strip
 	dragging     bool            // the tab pressed moves with the mouse
 	dropX        float64         // where it is
-	menuWheel    float64         // the lines a scroll over a menu moved short of one
 	moving       bool            // the strip drags the window
 	moveFrom     point           // where on the screen the drag began
 	origin       point           // where the window was then
 	marked       string          // the text an input method composes
 	preedit      objc.ID         // the view that shows it
 	event        objc.ID         // the key down the input method has
+	typed        time.Time       // when a key or the mouse last went, which shows the cursor
+	caretOn      bool            // the cursor shows, as it blinks
 }
 
 type cell struct {
@@ -196,6 +199,7 @@ type shown struct {
 	left, right []client.Part
 	current     bool
 	pics        []pic
+	scroll      [3]int // its first line shown, its rows and its text's lines
 }
 
 type placed struct {
@@ -208,7 +212,7 @@ type placed struct {
 func open(s client.Session, ended func()) *window {
 	cols, rows := 100, 32
 	r := rect{Size: size{cellW*float64(cols) + 2*pad, cellH*float64(rows) + 2*pad}}
-	w := &window{s: s, keys: make(chan vim.Key, 1024), do: make(chan func()), pastes: make(chan string, 8), mice: make(chan mouse, 64), ended: ended, placed: make(chan struct{}, 1), panes: map[int]*pane{}, floats: map[int]*box{}, images: map[int]objc.ID{}, hover: -1}
+	w := &window{s: s, keys: make(chan vim.Key, 1024), do: make(chan func()), pastes: make(chan string, 8), mice: make(chan mouse, 64), ended: ended, placed: make(chan struct{}, 1), panes: map[int]*pane{}, floats: map[int]*box{}, images: map[int]objc.ID{}, hover: -1, caretOn: true}
 	// The content reaches under the title bar, which the tab strip takes.
 	w.win = msgInitWindow(cls("NSWindow").Send(sel("alloc")), sel("initWithContentRect:styleMask:backing:defer:"), r, 15|1<<15, 2, false)
 	w.win.Send(sel("setReleasedWhenClosed:"), 0)
@@ -251,6 +255,7 @@ func open(s client.Session, ended func()) *window {
 		cls("NSApplication").Send(sel("sharedApplication")).Send(sel("activateIgnoringOtherApps:"), 1)
 	}
 	go w.loop(cols, rows)
+	go w.blink()
 	return w
 }
 
@@ -357,7 +362,6 @@ type painter struct {
 	comp    compose.Composer
 	grids   map[int]*compose.Grid
 	had     map[int]bool // the windows of the last frame's layout
-	menuTop int          // the first row of a menu at the cursor that shows (B64)
 	sent    map[int]bool // the images the main thread has
 	name    string       // the current window's name, and its file
 	file    string
@@ -481,7 +485,7 @@ func (p *painter) paint(s client.Session, cols, rows int) frame {
 			p.grids[v.ID] = g
 		}
 		out := draw(g, o)
-		sh := shown{id: v.ID, w: v.W, h: v.H, current: v.Current}
+		sh := shown{id: v.ID, w: v.W, h: v.H, current: v.Current, scroll: [3]int{v.Text.LineOf(v.Top), v.H, v.Text.Lines()}}
 		g.Paint(0, 0, func(x, y int, text string, width int, st theme.Style) {
 			sh.put = append(sh.put, placed{x, y, cell{text, width, st}})
 		})

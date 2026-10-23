@@ -163,9 +163,9 @@ func (e *Session) Pick(n int) {
 		}
 	case e.vim.Mode() == vim.Cmdline && c != nil:
 		line, _ := strings.CutPrefix(e.vim.Line(), ":")
-		if i := c.first + n; n >= 0 && i < len(c.items) {
-			c.sel = i
-			e.vim.SetLine(line[:c.start] + c.items[i])
+		if n >= 0 && n < len(c.items) {
+			c.sel = n
+			e.vim.SetLine(line[:c.start] + c.items[n])
 		}
 	case e.pick != nil:
 		if n >= 0 && n < len(e.pick.items) {

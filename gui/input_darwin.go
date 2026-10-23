@@ -3,6 +3,7 @@ package gui
 import (
 	"math"
 	"slices"
+	"time"
 	"unicode/utf16"
 
 	"github.com/ebitengine/purego/objc"
@@ -40,6 +41,14 @@ func keyDown(self objc.ID, _ objc.SEL, ev objc.ID) {
 	w := windows[self]
 	if w == nil {
 		return
+	}
+	w.typed, w.caretOn = time.Now(), true
+	// A key settles text a trackpad left between lines.
+	for _, p := range w.panes {
+		if p.offset != 0 || p.want != p.top {
+			p.offset, p.want = 0, p.top
+			p.text.Send(sel("setNeedsDisplay:"), 1)
+		}
 	}
 	code := objc.Send[uint16](ev, sel("keyCode"))
 	mods := objc.Send[uint](ev, sel("modifierFlags"))
