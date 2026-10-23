@@ -895,11 +895,12 @@ purego's Objective-C runtime, so it needs no cgo, and cgo stays in
 `syntax/`. A custom view draws each window's text from the cells
 `frontend/compose` gives. The command line, the finder and messages show
 in boxes over the text, as a palette, a panel and toasts. Questions show
-in the system's sheets (B548). Later steps give tab pages as
-tabs and splits as split views. The editor stays the source of each, and
+in the system's sheets (B548). Each window of the layout shows in a pane,
+with a status bar under its text. The panes sit in the system's split
+views, and each pane places its window (B542, B549). The title bar holds the buffers as tabs
+and the tab pages at its right. The editor stays the source of each, and
 keys still go through Vim's grammar, so a palette holds no text field of
-its own. On other systems `fude gui` says it runs
-only on macOS for now. The GUI ships later as an app bundle built from
+its own. On other systems `fude gui` says it runs only on macOS for now. The GUI ships later as an app bundle built from
 the same code, and `fude` stays one binary, since the window adds about
 0.1MB to it.
 

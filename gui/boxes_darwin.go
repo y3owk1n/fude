@@ -23,7 +23,8 @@ type boxed struct {
 	rules  []rule // drawn over the cells
 	split  int    // the column a divider goes down, 0 for none
 	cursor cursorAt
-	middle bool // it goes in the middle of the window, not its upper part
+	middle bool    // it goes in the middle of the window, not its upper part
+	at     *[2]int // a float's place, in cells of the area
 	text   string
 	look   theme.Look
 }
@@ -182,10 +183,11 @@ func newBox(view objc.ID) *box {
 	return b
 }
 
-// show makes b show what, sized and placed in the view it is over. A
-// palette goes in the upper middle, the finder in the middle and a toast
-// in the top right corner, where it fades in (B149). A nil what hides b.
-func (b *box) show(what *boxed, view objc.ID) {
+// show makes b show what, sized and placed in view, whose area under the
+// title bar starts top points down. A palette goes in the upper middle,
+// the finder in the middle and a float at its place. A toast goes in the
+// area's top right corner, where it fades in (B149). A nil what hides b.
+func (b *box) show(what *boxed, view objc.ID, top float64) {
 	shown := b.boxed != nil
 	b.boxed = what
 	if what == nil {
@@ -198,14 +200,17 @@ func (b *box) show(what *boxed, view objc.ID) {
 		// It wraps at half the window's width, and a third of its height
 		// ends in an ellipsis.
 		limit := size{max(bounds.W/2, 240) - 2*inset, max(bounds.H/3-2*inset, cellH)}
-		need := msgBounding(nsString(what.text), sel("boundingRectWithSize:options:attributes:context:"), size{limit.W, math.MaxFloat32}, lineFragments, toastAttrs(what.look.Base.Fg), 0).Size
+		need := msgBounding(nsString(what.text), sel("boundingRectWithSize:options:attributes:context:"), size{limit.W, math.MaxFloat32}, lineFragments, textAttrs(toastFont, what.look.Base.Fg), 0).Size
 		r.Size = size{math.Ceil(min(need.W, limit.W)) + 2*inset, math.Ceil(min(need.H, limit.H)) + 2*inset}
-		r.Origin = point{bounds.W - r.Size.W - 2*pad, 2 * pad}
+		r.Origin = point{bounds.W - r.Size.W - 2*pad, top + 2*pad}
 	} else {
 		r.Size = size{float64(len(what.cells[0]))*cellW + 2*inset, float64(len(what.cells))*cellH + 2*inset}
 		r.Origin = point{math.Round((bounds.W - r.Size.W) / 2), math.Round(bounds.H / 5)}
-		if what.middle {
+		switch {
+		case what.middle:
 			r.Origin.Y = math.Round((bounds.H - r.Size.H) / 2)
+		case what.at != nil:
+			r.Origin = point{float64(what.at[0])*cellW - inset, top + float64(what.at[1])*cellH - inset}
 		}
 	}
 	msgSetRect(b.view, sel("setFrame:"), r)
@@ -226,19 +231,6 @@ func (b *box) show(what *boxed, view objc.ID) {
 // an ellipsis.
 const lineFragments = 1 | 1<<5
 
-// toastAttrs returns the text attributes of a toast in fg, made once each.
-func toastAttrs(fg theme.RGB) objc.ID {
-	k := [2]int64{int64(fg), 2}
-	if a, ok := attrsOf[k]; ok {
-		return a
-	}
-	a := cls("NSMutableDictionary").Send(sel("alloc")).Send(sel("init"))
-	a.Send(sel("setObject:forKey:"), toastFont, attrFont)
-	a.Send(sel("setObject:forKey:"), nsColor(fg), attrColor)
-	attrsOf[k] = a
-	return a
-}
-
 func drawBox(self objc.ID, _ objc.SEL, _ rect) {
 	b := boxes[self]
 	if b == nil || b.boxed == nil {
@@ -247,7 +239,7 @@ func drawBox(self objc.ID, _ objc.SEL, _ rect) {
 	if b.text != "" {
 		r := msgRect(self, sel("bounds"))
 		r = rect{point{inset, inset}, size{r.Size.W - 2*inset, r.Size.H - 2*inset}}
-		msgDrawIn(nsString(b.text), sel("drawWithRect:options:attributes:context:"), r, lineFragments, toastAttrs(b.look.Base.Fg), 0)
+		msgDrawIn(nsString(b.text), sel("drawWithRect:options:attributes:context:"), r, lineFragments, textAttrs(toastFont, b.look.Base.Fg), 0)
 		return
 	}
 	drawCells(b.cells, b.cursor, inset)

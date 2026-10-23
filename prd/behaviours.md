@@ -1296,6 +1296,15 @@ Where fude departs, the line says so and cites the departure in
   its height. A yes or no question shows in a sheet on the window. `y`,
   `n` and the sheet's buttons answer it, and the sheet closes when the
   question goes away unanswered.
+- B549 [10] In `fude gui` each window of the layout shows in a pane, with
+  its status line as a bar under its text. Splits show as the system's
+  split views, sized as the layout asks (B541). Dragging a divider
+  resizes the windows on either side, and the panes place them there
+  (B542). `:resize` sizes them again. A zoomed window fills the area under
+  the title bar. A float shows in a box at its place. The title bar
+  holds the buffers as tabs, the current one raised, and the tab pages
+  at its right, the current one in the mode's colour (B258, B545). With
+  neither it shows the title.
 - B544 [2] A session has tab pages, each with its own windows, floats
   and current window, as in Neovim. `:tabnew` and `:tabedit` open one
   after the current page, on a file or a new empty buffer. `gt`, `{n}gt`,

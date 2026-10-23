@@ -10,6 +10,7 @@ import (
 	"github.com/ebitengine/purego/objc"
 
 	"github.com/y3owk1n/fude/editor/editortest"
+	"github.com/y3owk1n/fude/frontend/wire"
 )
 
 // TestMain runs AppKit on the main thread, in the background, and the tests
@@ -49,7 +50,11 @@ func TestB547NativeWindow(t *testing.T) {
 	// The window shows the text: a cell with text differs from an empty one.
 	until(t, "the text to show", func() bool {
 		var drawn, empty bool
-		onMain(func() { drawn, empty = inked(w.view, pad, 0, 0), inked(w.view, pad, 40, 10) }, true)
+		onMain(func() {
+			for _, p := range w.panes {
+				drawn, empty = inked(p.text, pad, 0, 0), inked(p.text, pad, 40, 10)
+			}
+		}, true)
 		return drawn && !empty
 	})
 	// A resized window resizes the session.
@@ -130,6 +135,61 @@ func TestB548NativeBoxes(t *testing.T) {
 	typed(":pick\r")
 	until(t, "the finder", func() bool { return shows(w.panel) })
 	typed("\x1b:qa!\r")
+	until(t, "the session to end", func() bool {
+		open := true
+		onMain(func() { _, open = windows[w.view] }, true)
+		return !open
+	})
+}
+
+// B549
+func TestB549NativeSplits(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.txt")
+	editortest.Change(t, path, "one\n")
+	e := editortest.Open(t, path)
+	var w *window
+	onMain(func() { w = open(e, nil) }, true)
+	onMain(func() { press(w, 13, modControl, "\x17", "w") }, true)
+	onMain(func() { press(w, 9, 0, "v", "v") }, true)
+	// sides returns the two windows from the left, once there are two.
+	sides := func() (l, r wire.Window, ok bool) {
+		w.onLoop(func() {
+			if ws := e.Windows(); len(ws) == 2 {
+				l, r, ok = ws[0], ws[1], true
+				if l.X > r.X {
+					l, r = r, l
+				}
+			}
+		})
+		return l, r, ok
+	}
+	// The panes place the windows side by side across the area.
+	until(t, "two windows side by side", func() bool {
+		l, r, ok := sides()
+		var cols int
+		onMain(func() { cols = w.sent.cols }, true)
+		return ok && r.X >= l.X+l.W && l.W+r.W >= cols-3
+	})
+	// Dragging the divider resizes the windows beside it.
+	onMain(func() { msgSetPosition(subviews(w.area)[0], sel("setPosition:ofDividerAtIndex:"), 200, 0) }, true)
+	until(t, "the left window to follow the divider", func() bool {
+		l, r, _ := sides()
+		return l.W == int((200-2*pad)/cellW) && r.X >= l.X+l.W
+	})
+	// The window with the focus has its mode in its status bar.
+	until(t, "the status bar", func() bool {
+		drawn := false
+		onMain(func() {
+			for _, p := range w.panes {
+				drawn = drawn || p.current && inked(p.status, pad, 0, 0)
+			}
+		}, true)
+		return drawn
+	})
+	for _, c := range ":qa!" {
+		onMain(func() { press(w, 0, 0, string(c), string(c)) }, true)
+	}
+	onMain(func() { press(w, 36, 0, "\r", "\r") }, true)
 	until(t, "the session to end", func() bool {
 		open := true
 		onMain(func() { _, open = windows[w.view] }, true)

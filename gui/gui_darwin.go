@@ -2,6 +2,8 @@ package gui
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -41,45 +43,37 @@ func startApp(background bool) objc.ID {
 		policy = 1
 	}
 	app.Send(sel("setActivationPolicy:"), policy)
-	main, err := objc.RegisterClass("FudeMain", objc.GetClass("NSObject"), nil, nil, []objc.MethodDef{
-		{Cmd: sel("drain:"), Fn: drain},
-	})
-	if err != nil {
-		panic(err)
+	flipped := objc.MethodDef{Cmd: sel("isFlipped"), Fn: func(objc.ID, objc.SEL) bool { return true }}
+	class := func(name, super string, methods ...objc.MethodDef) objc.Class {
+		c, err := objc.RegisterClass(name, objc.GetClass(super), nil, nil, methods)
+		if err != nil {
+			panic(err)
+		}
+		return c
 	}
-	mainRun = objc.ID(main).Send(sel("alloc")).Send(sel("init"))
-	view, err := objc.RegisterClass("FudeView", objc.GetClass("NSView"), nil, nil, []objc.MethodDef{
-		{Cmd: sel("drawRect:"), Fn: drawRect},
-		{Cmd: sel("isFlipped"), Fn: func(objc.ID, objc.SEL) bool { return true }},
-		{Cmd: sel("acceptsFirstResponder"), Fn: func(objc.ID, objc.SEL) bool { return true }},
-		{Cmd: sel("keyDown:"), Fn: keyDown},
-		{Cmd: sel("frameChanged:"), Fn: frameChanged},
-	})
-	if err != nil {
-		panic(err)
-	}
-	viewClass = view
-	box, err := objc.RegisterClass("FudeBox", objc.GetClass("NSView"), nil, nil, []objc.MethodDef{
-		{Cmd: sel("drawRect:"), Fn: drawBox},
-		{Cmd: sel("isFlipped"), Fn: func(objc.ID, objc.SEL) bool { return true }},
-	})
-	if err != nil {
-		panic(err)
-	}
-	boxClass = box
-	delegate, err := objc.RegisterClass("FudeWindowDelegate", objc.GetClass("NSObject"), nil, nil, []objc.MethodDef{
-		{Cmd: sel("windowShouldClose:"), Fn: windowShouldClose},
-	})
-	if err != nil {
-		panic(err)
-	}
-	windowDelegate = objc.ID(delegate).Send(sel("alloc")).Send(sel("init"))
+	mainRun = objc.ID(class("FudeMain", "NSObject", objc.MethodDef{Cmd: sel("drain:"), Fn: drain})).Send(sel("alloc")).Send(sel("init"))
+	viewClass = class("FudeView", "NSView", flipped,
+		objc.MethodDef{Cmd: sel("acceptsFirstResponder"), Fn: func(objc.ID, objc.SEL) bool { return true }},
+		objc.MethodDef{Cmd: sel("keyDown:"), Fn: keyDown},
+		objc.MethodDef{Cmd: sel("resizeSubviewsWithOldSize:"), Fn: resizeRoot},
+		objc.MethodDef{Cmd: sel("splitResized:"), Fn: splitResized},
+	)
+	paneClass = class("FudePane", "NSView", flipped, objc.MethodDef{Cmd: sel("resizeSubviewsWithOldSize:"), Fn: resizePane})
+	textClass = class("FudeText", "NSView", flipped, objc.MethodDef{Cmd: sel("drawRect:"), Fn: drawText})
+	statusClass = class("FudeStatus", "NSView", flipped, objc.MethodDef{Cmd: sel("drawRect:"), Fn: drawStatus})
+	splitClass = class("FudeSplit", "NSSplitView", objc.MethodDef{Cmd: sel("drawDividerInRect:"), Fn: drawDivider})
+	barClass = class("FudeBar", "NSView", flipped,
+		objc.MethodDef{Cmd: sel("drawRect:"), Fn: drawBar},
+		objc.MethodDef{Cmd: sel("mouseDownCanMoveWindow"), Fn: func(objc.ID, objc.SEL) bool { return true }},
+	)
+	boxClass = class("FudeBox", "NSView", flipped, objc.MethodDef{Cmd: sel("drawRect:"), Fn: drawBox})
+	windowDelegate = objc.ID(class("FudeWindowDelegate", "NSObject", objc.MethodDef{Cmd: sel("windowShouldClose:"), Fn: windowShouldClose})).Send(sel("alloc")).Send(sel("init"))
 	font = msgFont(cls("NSFont"), sel("monospacedSystemFontOfSize:weight:"), 14, 0).Send(sel("retain"))
 	boldFont = msgFont(cls("NSFont"), sel("monospacedSystemFontOfSize:weight:"), 14, 0.4).Send(sel("retain"))
 	toastFont = msgFont(cls("NSFont"), sel("systemFontOfSize:weight:"), 13, 0).Send(sel("retain"))
-	attrs := cls("NSMutableDictionary").Send(sel("dictionary"))
-	attrs.Send(sel("setObject:forKey:"), font, attrFont)
-	cellW = msgSizeOf(nsString("M"), sel("sizeWithAttributes:"), attrs).W
+	uiFont = msgFont(cls("NSFont"), sel("systemFontOfSize:weight:"), 12, 0).Send(sel("retain"))
+	uiBold = msgFont(cls("NSFont"), sel("systemFontOfSize:weight:"), 12, 0.4).Send(sel("retain"))
+	cellW = msgSizeOf(nsString("M"), sel("sizeWithAttributes:"), textAttrs(font, 0)).W
 	cellH = float64(int(msgFloat(font, sel("ascender")) - msgFloat(font, sel("descender")) + msgFloat(font, sel("leading")) + 0.999))
 	return app
 }
@@ -93,37 +87,42 @@ func stop(app objc.ID) {
 
 // The application's own, which the main thread sets once.
 var (
-	viewClass      objc.Class
-	boxClass       objc.Class
-	windowDelegate objc.ID
-	font, boldFont objc.ID
-	toastFont      objc.ID
-	cellW, cellH   float64
-	attrsOf        = map[[2]int64]objc.ID{} // by colour, and 0 plain, 1 bold or 2 a toast's
-	windows        = map[objc.ID]*window{}  // by view, and by NSWindow
-	boxes          = map[objc.ID]*box{}     // by view
-	inBackground   bool                     // the application takes no focus
+	viewClass, paneClass, textClass objc.Class
+	statusClass, splitClass         objc.Class
+	barClass, boxClass              objc.Class
+	windowDelegate                  objc.ID
+	font, boldFont, toastFont       objc.ID
+	uiFont, uiBold                  objc.ID // the status bars' and the tab strip's
+	cellW, cellH                    float64
+	attrsOf                         = map[[2]int64]objc.ID{} // by font and colour
+	windows                         = map[objc.ID]*window{}  // by view, and by NSWindow
+	panes                           = map[objc.ID]*pane{}    // by text view, and by status view
+	boxes                           = map[objc.ID]*box{}     // by view
+	inBackground                    bool                     // the application takes no focus
 )
 
 // window is a session in a native window.
 type window struct {
-	s         client.Session
-	win, view objc.ID
-	keys      chan vim.Key
-	sizes     chan [2]int
-	do        chan func() // run on the loop, between keys, for tests
-	ended     func()      // runs on the main thread once the session ends
+	s     client.Session
+	win   objc.ID
+	view  objc.ID // the root, which takes the keys
+	keys  chan vim.Key
+	do    chan func() // run on the loop, between keys, for tests
+	ended func()      // runs on the main thread once the session ends
 
 	mu      sync.Mutex
 	pending []frame
+	places  places        // the latest, for the loop
+	placed  chan struct{} // tells the loop places changed
 
-	// The main thread's: the cells shown, where the cursor is, the boxes
-	// over them and the question's sheet.
-	cells        [][]cell
-	bg           theme.RGB
-	cursor       cursorAt
-	cols         int
-	rows         int
+	// The main thread's.
+	bar, area    objc.ID // the tab strip, and the view the splits fill
+	panes        map[int]*pane
+	key          string // the layout the splits show
+	sent         places // the places the loop was last given
+	look         theme.Look
+	tabs         strip
+	floats       map[int]*box
 	panel, toast *box
 	asked        int     // the question the sheet is for, as frame.asked counts
 	sheet        objc.ID // the alert showing, 0 for none
@@ -143,15 +142,27 @@ type cursorAt struct {
 
 // frame is what the loop hands the main thread after each change.
 type frame struct {
-	cols, rows int
-	bg         theme.RGB
-	put        []placed
-	cursor     cursorAt
-	title      string
-	panel      *boxed // the command line or the finder, nil for neither
-	toast      *boxed // the message, nil for none
-	confirm    string // the question, "" for none
-	asked      int    // counts each change of the question, to tell a new one
+	title   string
+	layout  wire.Split // the zoomed window alone while one is
+	key     string     // says what layout is, to tell when it changes
+	wins    []shown
+	floats  map[int]*boxed
+	tabs    strip
+	look    theme.Look // the windows', dim under a modal box
+	panel   *boxed     // the command line or the finder, nil for neither
+	toast   *boxed     // the message, nil for none
+	confirm string     // the question, "" for none
+	asked   int        // counts each change of the question, to tell a new one
+}
+
+// shown is a window of the layout as a frame brings it, with the cells
+// that changed, the cursor and its status line's parts.
+type shown struct {
+	id, w, h    int
+	put         []placed
+	cursor      cursorAt
+	left, right []client.Part
+	current     bool
 }
 
 type placed struct {
@@ -164,38 +175,32 @@ type placed struct {
 func open(s client.Session, ended func()) *window {
 	cols, rows := 100, 32
 	r := rect{Size: size{cellW*float64(cols) + 2*pad, cellH*float64(rows) + 2*pad}}
-	w := &window{s: s, keys: make(chan vim.Key, 1024), sizes: make(chan [2]int, 8), do: make(chan func()), ended: ended}
-	w.win = msgInitWindow(cls("NSWindow").Send(sel("alloc")), sel("initWithContentRect:styleMask:backing:defer:"), r, 15, 2, false)
+	w := &window{s: s, keys: make(chan vim.Key, 1024), do: make(chan func()), ended: ended, placed: make(chan struct{}, 1), panes: map[int]*pane{}, floats: map[int]*box{}}
+	// The content reaches under the title bar, which the tab strip takes.
+	w.win = msgInitWindow(cls("NSWindow").Send(sel("alloc")), sel("initWithContentRect:styleMask:backing:defer:"), r, 15|1<<15, 2, false)
 	w.win.Send(sel("setReleasedWhenClosed:"), 0)
+	w.win.Send(sel("setTitlebarAppearsTransparent:"), 1)
+	w.win.Send(sel("setTitleVisibility:"), 1)
 	w.win.Send(sel("setTitle:"), nsString("fude"))
 	w.win.Send(sel("setDelegate:"), windowDelegate)
 	w.view = msgInitView(objc.ID(viewClass).Send(sel("alloc")), sel("initWithFrame:"), r)
-	w.view.Send(sel("setPostsFrameChangedNotifications:"), 1)
-	cls("NSNotificationCenter").Send(sel("defaultCenter")).Send(sel("addObserver:selector:name:object:"), w.view, sel("frameChanged:"), nsString("NSViewFrameDidChangeNotification"), w.view)
+	w.bar = msgInitView(objc.ID(barClass).Send(sel("alloc")), sel("initWithFrame:"), rect{})
+	w.area = msgInitView(cls("NSView").Send(sel("alloc")), sel("initWithFrame:"), rect{})
+	w.view.Send(sel("addSubview:"), w.area)
+	w.view.Send(sel("addSubview:"), w.bar)
+	cls("NSNotificationCenter").Send(sel("defaultCenter")).Send(sel("addObserver:selector:name:object:"), w.view, sel("splitResized:"), nsString("NSSplitViewDidResizeSubviewsNotification"), 0)
 	w.win.Send(sel("setContentView:"), w.view)
 	w.panel, w.toast = newBox(w.view), newBox(w.view)
 	w.win.Send(sel("makeFirstResponder:"), w.view)
 	w.win.Send(sel("center"))
+	windows[w.view], windows[w.win], windows[w.bar] = w, w, w
+	resizeRoot(w.view, 0, size{})
 	w.win.Send(sel("makeKeyAndOrderFront:"), 0)
 	if !inBackground {
 		cls("NSApplication").Send(sel("sharedApplication")).Send(sel("activateIgnoringOtherApps:"), 1)
 	}
-	windows[w.view], windows[w.win] = w, w
 	go w.loop(cols, rows)
 	return w
-}
-
-// grid returns how many columns and rows of cells the view holds.
-func grid(view objc.ID) (int, int) {
-	b := msgRect(view, sel("bounds"))
-	return max(int((b.Size.W-2*pad)/cellW), 1), max(int((b.Size.H-2*pad)/cellH), 1)
-}
-
-func frameChanged(self objc.ID, _ objc.SEL, _ objc.ID) {
-	if w := windows[self]; w != nil {
-		cols, rows := grid(self)
-		w.sizes <- [2]int{cols, rows}
-	}
 }
 
 // windowShouldClose quits as :qa does, which asks about unsaved changes,
@@ -216,14 +221,14 @@ func (w *window) loop(cols, rows int) {
 	var p painter
 	question, asked := "", 0
 	draw := func() {
-		s.SetSize(cols, rows)
-		f := p.paint(s, cols, rows)
+		f := p.paint(s, cols)
 		f.asked = asked
 		w.mu.Lock()
 		w.pending = append(w.pending, f)
 		w.mu.Unlock()
 		onMain(w.apply, false)
 	}
+	s.SetSize(cols, rows)
 	draw()
 	s.Load()
 	var timeout <-chan time.Time
@@ -233,9 +238,15 @@ func (w *window) loop(cols, rows int) {
 			s.Feed(k)
 		case f := <-s.Queue():
 			f()
-		case size := <-w.sizes:
-			cols, rows = size[0], size[1]
-			p.grids = nil
+		case <-w.placed:
+			w.mu.Lock()
+			pl := w.places
+			w.mu.Unlock()
+			cols = pl.cols
+			s.SetSize(pl.cols, pl.rows)
+			for _, at := range pl.wins {
+				s.Place(at[0], at[1], at[2], at[3], at[4])
+			}
 		case f := <-w.do:
 			f()
 		case <-timeout:
@@ -258,10 +269,15 @@ func (w *window) loop(cols, rows int) {
 		draw()
 	}
 	onMain(func() {
-		delete(windows, w.view)
-		delete(windows, w.win)
-		delete(boxes, w.panel.view)
-		delete(boxes, w.toast.view)
+		for _, v := range []objc.ID{w.view, w.win, w.bar} {
+			delete(windows, v)
+		}
+		for _, p := range w.panes {
+			p.drop()
+		}
+		for _, b := range append([]*box{w.panel, w.toast}, slices.Collect(maps.Values(w.floats))...) {
+			delete(boxes, b.view)
+		}
 		w.win.Send(sel("close"))
 		if w.ended != nil {
 			w.ended()
@@ -274,6 +290,7 @@ func (w *window) loop(cols, rows int) {
 type painter struct {
 	comp    compose.Composer
 	grids   map[int]*compose.Grid
+	had     map[int]bool // the windows of the last frame's layout
 	frame   int
 	lookKey string
 	modal   bool
@@ -282,7 +299,7 @@ type painter struct {
 	lit, dim, boxed theme.Look
 }
 
-func (p *painter) paint(s client.Session, cols, rows int) frame {
+func (p *painter) paint(s client.Session, cols int) frame {
 	p.frame++
 	th := s.Theme()
 	own, restyled := s.Styles()
@@ -319,33 +336,70 @@ func (p *painter) paint(s client.Session, cols, rows int) frame {
 	if modal {
 		look, boxLook = p.dim, p.boxed
 	}
-	f := frame{cols: cols, rows: rows, bg: look.Base.Bg, title: s.Title(), confirm: question}
-	put := func(x, y int, text string, width int, st theme.Style) {
-		f.put = append(f.put, placed{x, y, cell{text, width, st}})
+	wins := s.Windows()
+	layout := s.Layout()
+	for _, v := range wins {
+		if v.Zoomed {
+			layout = wire.Split{Window: v.ID}
+		}
+	}
+	_, mode := client.ModeName(s)
+	f := frame{
+		title: s.Title(), layout: layout, key: fmt.Sprint(layout), floats: map[int]*boxed{},
+		tabs: strip{buffers: s.Buffers(), pages: s.Pages(), mode: mode}, look: look, confirm: question,
+	}
+	in := map[int]bool{}
+	for _, id := range leaves(layout) {
+		in[id] = true
 	}
 	sel, visual := s.Selection()
-	for _, v := range s.Windows() {
-		if v.Cells != nil {
+	floated := false // a float has the focus
+	for _, v := range wins {
+		if v.Cells != nil || v.Float == "" && !in[v.ID] {
 			continue
-		}
-		g := p.grids[v.ID]
-		if gw, gh := g.Size(); g == nil || gw != v.W || gh != v.H {
-			g = compose.NewGrid(v.W, v.H, look.Base)
-			p.grids[v.ID] = g
 		}
 		var cursors []int
 		if v.Current {
 			cursors = s.Cursors()
 		}
-		out := p.comp.Compose(g, v, compose.Options{
+		o := compose.Options{
 			Look: look, Frame: p.frame, Insert: s.Mode() == vim.Insert, Cursors: cursors,
 			Selection: sel, Visual: visual && v.Current, Tint: look.Theme.Normal,
-		})
-		g.Paint(v.X, v.Y, put)
-		if out.Found && v.Current {
-			f.cursor = cursorAt{x: v.X + out.X, y: v.Y + out.Y, shape: shape(s), shown: true}
 		}
+		at := cursorAt{shape: shape(s)}
+		if v.Float != "" {
+			// A float shows lit in a box of its own, composed whole.
+			o.Look, o.Tint = boxLook, boxLook.Theme.Normal
+			g := compose.NewGrid(v.W, v.H, boxLook.Base)
+			out := p.comp.Compose(g, v, o)
+			b := &boxed{look: boxLook, at: &[2]int{v.X, v.Y}}
+			b.fill(g)
+			if out.Found && v.Current {
+				at.x, at.y, at.shown = out.X, out.Y, true
+				b.cursor, floated = at, true
+			}
+			f.floats[v.ID] = b
+			continue
+		}
+		// A window new to the layout has a new pane, which takes every cell.
+		g := p.grids[v.ID]
+		if gw, gh := g.Size(); g == nil || !p.had[v.ID] || gw != v.W || gh != v.H {
+			g = compose.NewGrid(v.W, v.H, look.Base)
+			p.grids[v.ID] = g
+		}
+		out := p.comp.Compose(g, v, o)
+		sh := shown{id: v.ID, w: v.W, h: v.H, current: v.Current}
+		g.Paint(0, 0, func(x, y int, text string, width int, st theme.Style) {
+			sh.put = append(sh.put, placed{x, y, cell{text, width, st}})
+		})
+		if out.Found && v.Current {
+			at.x, at.y, at.shown = out.X, out.Y, true
+			sh.cursor = at
+		}
+		sh.left, sh.right = client.StatusParts(s, v, true)
+		f.wins = append(f.wins, sh)
 	}
+	p.had = in
 	switch {
 	case cmdline:
 		// The completion menu is part of the command line's box.
@@ -359,9 +413,18 @@ func (p *painter) paint(s client.Session, cols, rows int) frame {
 	if msg := s.Message(); msg != "" {
 		f.toast = &boxed{text: compose.Carets(msg), look: boxLook}
 	}
-	// The cursor is the box's, and no window's while a question shows.
+	// While the palette, the finder or a question shows, no window shows
+	// the cursor. A float with the focus shows it, and the window it opened
+	// from does not.
+	if f.panel != nil || question != "" || floated {
+		for i := range f.wins {
+			f.wins[i].cursor.shown = false
+		}
+	}
 	if f.panel != nil || question != "" {
-		f.cursor.shown = false
+		for _, b := range f.floats {
+			b.cursor.shown = false
+		}
 	}
 	return f
 }
@@ -390,46 +453,58 @@ func shape(s client.Session) int {
 	return 0
 }
 
-// apply runs on the main thread: it puts the frames the loop sent in the
-// cells shown and asks for a redraw.
+// apply shows the frames the loop sent, on the main thread.
 func (w *window) apply() {
 	w.mu.Lock()
 	fs := w.pending
 	w.pending = nil
 	w.mu.Unlock()
-	for _, f := range fs {
-		if f.cols != w.cols || f.rows != w.rows || f.bg != w.bg {
-			w.cols, w.rows, w.bg = f.cols, f.rows, f.bg
-			w.cells = make([][]cell, f.rows)
-			for y := range w.cells {
-				w.cells[y] = make([]cell, f.cols)
-				for x := range w.cells[y] {
-					w.cells[y][x] = cell{" ", 1, theme.Style{Bg: f.bg}}
-				}
-			}
-		}
-		for _, p := range f.put {
-			if p.y >= len(w.cells) || p.x >= len(w.cells[p.y]) {
-				continue
-			}
-			w.cells[p.y][p.x] = p.cell
-			// A wide cell covers the next.
-			for i := 1; i < p.width && p.x+i < len(w.cells[p.y]); i++ {
-				w.cells[p.y][p.x+i] = cell{style: p.style}
-			}
-		}
-		w.cursor = f.cursor
-		if f.title != "" {
-			w.win.Send(sel("setTitle:"), nsString(f.title))
-		}
-	}
-	w.view.Send(sel("setNeedsDisplay:"), 1)
 	if len(fs) == 0 {
 		return
 	}
+	for _, f := range fs {
+		w.look = f.look
+		if f.key != w.key {
+			w.key = f.key
+			w.build(f.layout)
+		}
+		for _, sh := range f.wins {
+			if p := w.panes[sh.id]; p != nil {
+				p.update(sh, f.look.Base.Bg)
+			}
+		}
+	}
 	f := fs[len(fs)-1]
-	w.panel.show(f.panel, w.view)
-	w.toast.show(f.toast, w.view)
+	if f.title != "" {
+		w.win.Send(sel("setTitle:"), nsString(f.title))
+		f.tabs.title = f.title
+	} else {
+		f.tabs.title = w.tabs.title
+	}
+	w.tabs = f.tabs
+	w.bar.Send(sel("setNeedsDisplay:"), 1)
+	for id, b := range w.floats {
+		if f.floats[id] == nil {
+			b.show(nil, w.view, 0)
+			b.view.Send(sel("removeFromSuperview"))
+			b.view.Send(sel("release"))
+			delete(boxes, b.view)
+			delete(w.floats, id)
+		}
+	}
+	top := barHeight(w.win)
+	for id, what := range f.floats {
+		b := w.floats[id]
+		if b == nil {
+			// It goes under the palette, the finder and toasts.
+			b = newBox(w.view)
+			w.view.Send(sel("addSubview:positioned:relativeTo:"), b.view, -1, w.panel.view)
+			w.floats[id] = b
+		}
+		b.show(what, w.view, top)
+	}
+	w.panel.show(f.panel, w.view, top)
+	w.toast.show(f.toast, w.view, top)
 	if f.asked != w.asked {
 		w.asked = f.asked
 		if w.sheet != 0 {
@@ -441,34 +516,25 @@ func (w *window) apply() {
 	}
 }
 
-// attrs returns the text attributes of a style, made once each.
+// attrs returns the text attributes of a style in the text's font.
 func attrs(s theme.Style) objc.ID {
-	k := [2]int64{int64(s.Fg), 0}
 	if s.Bold {
-		k[1] = 1
+		return textAttrs(boldFont, s.Fg)
 	}
+	return textAttrs(font, s.Fg)
+}
+
+// textAttrs returns the text attributes of f in fg, made once each.
+func textAttrs(f objc.ID, fg theme.RGB) objc.ID {
+	k := [2]int64{int64(f), int64(fg)}
 	if a, ok := attrsOf[k]; ok {
 		return a
 	}
-	f := font
-	if s.Bold {
-		f = boldFont
-	}
 	a := cls("NSMutableDictionary").Send(sel("alloc")).Send(sel("init"))
 	a.Send(sel("setObject:forKey:"), f, attrFont)
-	a.Send(sel("setObject:forKey:"), nsColor(s.Fg), attrColor)
+	a.Send(sel("setObject:forKey:"), nsColor(fg), attrColor)
 	attrsOf[k] = a
 	return a
-}
-
-func drawRect(self objc.ID, _ objc.SEL, _ rect) {
-	w := windows[self]
-	if w == nil {
-		return
-	}
-	nsColor(w.bg).Send(sel("setFill"))
-	rectFill(msgRect(self, sel("bounds")))
-	drawCells(w.cells, w.cursor, pad)
 }
 
 // at is where the n cells from column x of row y go, the first edge points

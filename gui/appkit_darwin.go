@@ -27,25 +27,28 @@ type (
 // The calls whose arguments or results objc.Send cannot pass: structs and
 // floats.
 var (
-	msgInitWindow func(objc.ID, objc.SEL, rect, uint, uint, bool) objc.ID
-	msgInitView   func(objc.ID, objc.SEL, rect) objc.ID
-	msgRect       func(objc.ID, objc.SEL) rect
-	msgSetSize    func(objc.ID, objc.SEL, size)
-	msgSetRect    func(objc.ID, objc.SEL, rect)
-	msgSetFloat   func(objc.ID, objc.SEL, float64)
-	msgBounding   func(objc.ID, objc.SEL, size, uint, objc.ID, objc.ID) rect
-	msgDrawIn     func(objc.ID, objc.SEL, rect, uint, objc.ID, objc.ID)
-	msgFloat      func(objc.ID, objc.SEL) float64
-	msgFont       func(objc.ID, objc.SEL, float64, float64) objc.ID
-	msgColor      func(objc.ID, objc.SEL, float64, float64, float64, float64) objc.ID
-	msgSizeOf     func(objc.ID, objc.SEL, objc.ID) size
-	msgDrawAt     func(objc.ID, objc.SEL, point, objc.ID)
-	msgKeyEvent   func(objc.ID, objc.SEL, uint, point, uint, float64, int, objc.ID, objc.ID, objc.ID, bool, uint16) objc.ID
-	msgOtherEvent func(objc.ID, objc.SEL, uint, point, uint, float64, int, objc.ID, int16, int, int) objc.ID
-	msgUTF8       func(objc.ID, objc.SEL) *byte
-	rectFill      func(rect)
-	poolPush      func() uintptr
-	poolPop       func(uintptr)
+	msgInitWindow  func(objc.ID, objc.SEL, rect, uint, uint, bool) objc.ID
+	msgInitView    func(objc.ID, objc.SEL, rect) objc.ID
+	msgRect        func(objc.ID, objc.SEL) rect
+	msgSetSize     func(objc.ID, objc.SEL, size)
+	msgSetRect     func(objc.ID, objc.SEL, rect)
+	msgSetFloat    func(objc.ID, objc.SEL, float64)
+	msgBounding    func(objc.ID, objc.SEL, size, uint, objc.ID, objc.ID) rect
+	msgDrawIn      func(objc.ID, objc.SEL, rect, uint, objc.ID, objc.ID)
+	msgSetPosition func(objc.ID, objc.SEL, float64, int)
+	msgConvertRect func(objc.ID, objc.SEL, rect, objc.ID) rect
+	msgRounded     func(objc.ID, objc.SEL, rect, float64, float64) objc.ID
+	msgFloat       func(objc.ID, objc.SEL) float64
+	msgFont        func(objc.ID, objc.SEL, float64, float64) objc.ID
+	msgColor       func(objc.ID, objc.SEL, float64, float64, float64, float64) objc.ID
+	msgSizeOf      func(objc.ID, objc.SEL, objc.ID) size
+	msgDrawAt      func(objc.ID, objc.SEL, point, objc.ID)
+	msgKeyEvent    func(objc.ID, objc.SEL, uint, point, uint, float64, int, objc.ID, objc.ID, objc.ID, bool, uint16) objc.ID
+	msgOtherEvent  func(objc.ID, objc.SEL, uint, point, uint, float64, int, objc.ID, int16, int, int) objc.ID
+	msgUTF8        func(objc.ID, objc.SEL) *byte
+	rectFill       func(rect)
+	poolPush       func() uintptr
+	poolPop        func(uintptr)
 
 	attrFont, attrColor objc.ID
 )
@@ -63,7 +66,7 @@ func load() {
 		if err != nil {
 			panic(fmt.Sprintf("gui: open libobjc: %v", err))
 		}
-		for _, f := range []any{&msgInitWindow, &msgInitView, &msgRect, &msgSetSize, &msgSetRect, &msgSetFloat, &msgBounding, &msgDrawIn, &msgFloat, &msgFont, &msgColor, &msgSizeOf, &msgDrawAt, &msgKeyEvent, &msgOtherEvent, &msgUTF8} {
+		for _, f := range []any{&msgInitWindow, &msgInitView, &msgRect, &msgSetSize, &msgSetRect, &msgSetFloat, &msgBounding, &msgDrawIn, &msgSetPosition, &msgConvertRect, &msgRounded, &msgFloat, &msgFont, &msgColor, &msgSizeOf, &msgDrawAt, &msgKeyEvent, &msgOtherEvent, &msgUTF8} {
 			purego.RegisterLibFunc(f, lib, "objc_msgSend")
 		}
 		purego.RegisterLibFunc(&rectFill, appkit, "NSRectFill")
