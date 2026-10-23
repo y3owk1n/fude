@@ -236,7 +236,7 @@ func (e *Session) SetCell(w, h int) { e.cell = [2]int{w, h} }
 // imageRows returns the rows and columns p takes in w, at most all but two
 // of its rows.
 func (e *Session) imageRows(w *window, p *picture) (rows, cols int) {
-	return e.fitImage(p, w.cols(), max(w.h-2, 1))
+	return e.fitImage(p, w.cols(), max(w.h-1, 1))
 }
 
 // fitImage returns the rows and columns p takes: as many columns as its pixels

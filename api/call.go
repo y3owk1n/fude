@@ -478,7 +478,7 @@ type Peer struct {
 
 // Window is a window of the session, as Scope.Windows lists it: its id,
 // the buffer it shows, its cursor and the start of its top line in that
-// buffer, and where it is on the screen, its status line included (B340).
+// buffer, and where its text is on the screen, gutter included (B340).
 type Window struct {
 	ID, Buffer    int
 	Alt           int // the buffer it showed before, which # names, or 0

@@ -365,7 +365,7 @@ func (c *client) floating(v wire.Window, sel vim.Selection, visual bool) (int, i
 	if v.Foot != "" {
 		foot = strings.Split(v.Foot, "\n")
 	}
-	rows := v.H - 1
+	rows := v.H
 	if len(foot) > 0 {
 		rows += len(foot) + 1
 	}
@@ -383,7 +383,7 @@ func (c *client) floating(v wire.Window, sel vim.Selection, visual bool) (int, i
 	if len(foot) == 0 {
 		return x, y, ok
 	}
-	c.rule(v.X-2, v.Y+v.H-1, v.W+2)
+	c.rule(v.X-2, v.Y+v.H, v.W+2)
 	styles := paint(nil, v.FootSpans, []wire.Range{{End: len(v.Foot) - 1}})
 	at := 0
 	for i, line := range foot {
@@ -393,7 +393,7 @@ func (c *client) floating(v wire.Window, sel vim.Selection, visual bool) (int, i
 			if p := at + len(line) - len(rest); p < len(styles) {
 				s = styles[p]
 			}
-			next, w := c.s.Put(col, v.Y+v.H+i, rest, s)
+			next, w := c.s.Put(col, v.Y+v.H+1+i, rest, s)
 			if len(next) == len(rest) {
 				break
 			}

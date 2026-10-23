@@ -115,8 +115,8 @@ func TestB231BackgroundTasks(t *testing.T) {
 	editortest.Settle(t, e, func() bool { f, _ := e.Menu(); return strings.Contains(f.Text, "wait  config, running") })
 	editortest.Feed(e, "<CR>")
 	editortest.Settle(t, e, func() bool { return len(e.Windows()) == 2 })
-	if e.Windows()[1].H != 12 {
-		t.Fatalf("picking the running task shows %d windows, the last %d rows tall, want 12", len(e.Windows()), e.Windows()[len(e.Windows())-1].H)
+	if e.Windows()[1].H != 11 {
+		t.Fatalf("picking the running task shows %d windows, the last %d rows tall, want 11", len(e.Windows()), e.Windows()[len(e.Windows())-1].H)
 	}
 	// Once it ends, the message says so and the status line drops it.
 	editortest.Settle(t, e, func() bool {

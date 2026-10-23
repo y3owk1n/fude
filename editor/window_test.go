@@ -69,12 +69,12 @@ func TestB23Splits(t *testing.T) {
 	}
 	for _, c := range []struct{ keys, want string }{
 		// A new window goes below or right, and the cursor goes to it.
-		{"<C-w>s", "0,0 80x12 *0,12 80x11"},
-		{"<C-w>v", "0,0 40x23 *41,0 39x23"},
-		{"<C-w>s<C-w>v", "0,0 80x12 0,12 40x11 *41,12 39x11"},
-		{"<C-w>s<C-w>k", "*0,0 80x12 0,12 80x11"},
-		{"<C-w>v<C-w>h", "*0,0 40x23 41,0 39x23"},
-		{"<C-w>v<C-w>h<C-w>l", "0,0 40x23 *41,0 39x23"},
+		{"<C-w>s", "0,0 80x11 *0,12 80x10"},
+		{"<C-w>v", "0,0 40x22 *41,0 39x22"},
+		{"<C-w>s<C-w>v", "0,0 80x11 0,12 40x10 *41,12 39x10"},
+		{"<C-w>s<C-w>k", "*0,0 80x11 0,12 80x10"},
+		{"<C-w>v<C-w>h", "*0,0 40x22 41,0 39x22"},
+		{"<C-w>v<C-w>h<C-w>l", "0,0 40x22 *41,0 39x22"},
 	} {
 		e := open(t, path)
 		e.SetSize(80, 23)
@@ -101,8 +101,8 @@ func TestB23Splits(t *testing.T) {
 	// split_below and split_right off put a new window above or left.
 	config(t, "split_below = false\nsplit_right = false\n")
 	for _, c := range []struct{ keys, want string }{
-		{"<C-w>s", "*0,0 80x12 0,12 80x11"},
-		{"<C-w>v", "*0,0 40x23 41,0 39x23"},
+		{"<C-w>s", "*0,0 80x11 0,12 80x10"},
+		{"<C-w>v", "*0,0 40x22 41,0 39x22"},
 	} {
 		e := start(t, path)
 		e.SetSize(80, 23)
@@ -120,12 +120,12 @@ func TestB91WindowCommands(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, c := range []struct{ keys, want string }{
-		{"<C-w>s<C-w>c", "*0,0 80x23"},
-		{"<C-w>s<C-w>s", "0,0 80x8 0,8 80x8 *0,16 80x7"},
-		{"<C-w>s<C-w>s<C-w>o", "*0,0 80x23"},
-		{"<C-w>s<C-w>s<C-w>=", "0,0 80x8 0,8 80x8 *0,16 80x7"},
-		{"<C-w>s:q<CR>", "*0,0 80x23"},
-		{"<C-w>v<C-w>q", "*0,0 80x23"},
+		{"<C-w>s<C-w>c", "*0,0 80x22"},
+		{"<C-w>s<C-w>s", "0,0 80x7 0,8 80x7 *0,16 80x6"},
+		{"<C-w>s<C-w>s<C-w>o", "*0,0 80x22"},
+		{"<C-w>s<C-w>s<C-w>=", "0,0 80x7 0,8 80x7 *0,16 80x6"},
+		{"<C-w>s:q<CR>", "*0,0 80x22"},
+		{"<C-w>v<C-w>q", "*0,0 80x22"},
 	} {
 		e := open(t, path)
 		e.SetSize(80, 23)
@@ -162,15 +162,15 @@ func TestB193WindowSizes(t *testing.T) {
 		want []int
 	}{
 		// The new window is below, and is the current one.
-		{"<C-w>s", []int{10, 10}},
-		{"3<C-w>+", []int{7, 13}},
-		{"<C-w>=", []int{10, 10}},
-		// A height is the rows of text, and the status line is one more.
-		{":resize 5<CR>", []int{14, 6}},
-		{":resize +2<CR>", []int{12, 8}},
-		{"2<C-w>-", []int{14, 6}},
-		// The other window keeps a row and its status line.
-		{"<C-w>_", []int{2, 18}},
+		{"<C-w>s", []int{9, 9}},
+		{"3<C-w>+", []int{6, 12}},
+		{"<C-w>=", []int{9, 9}},
+		// A height is the rows of text.
+		{":resize 5<CR>", []int{13, 5}},
+		{":resize +2<CR>", []int{11, 7}},
+		{"2<C-w>-", []int{13, 5}},
+		// The other window keeps a row.
+		{"<C-w>_", []int{1, 17}},
 	} {
 		if feed(e, c.keys); !slices.Equal(heights(), c.want) {
 			t.Errorf("%s left the windows %v rows tall, want %v", c.keys, heights(), c.want)
@@ -597,7 +597,7 @@ func TestB421ExchangeAndRotate(t *testing.T) {
 	}
 	// Each window keeps its size as it moves.
 	sized := threeWindows(t)
-	if feed(sized, ":resize 3<CR><C-w>r"); sized.Windows()[0].H != 4 || !sized.Windows()[0].Current {
+	if feed(sized, ":resize 3<CR><C-w>r"); sized.Windows()[0].H != 3 || !sized.Windows()[0].Current {
 		t.Errorf("<C-w>r left the windows %q", windows(sized))
 	}
 	// A split beside the window stops a rotation.
@@ -612,15 +612,15 @@ func TestB422MoveToEdge(t *testing.T) {
 	change(t, path, "a\n")
 	e := withCommands(open(t, path))
 	e.SetSize(80, 23)
-	if feed(e, "<C-w>L"); windows(e) != "*0,0 80x23" || e.Message() != "" {
+	if feed(e, "<C-w>L"); windows(e) != "*0,0 80x22" || e.Message() != "" {
 		t.Errorf("<C-w>L in the only window left %q saying %q", windows(e), e.Message())
 	}
 	feed(e, ":sp<CR>")
 	for _, c := range [][2]string{
-		{"<C-w>L", "0,0 40x23 *41,0 39x23"},
-		{"<C-w>K", "*0,0 80x12 0,12 80x11"},
-		{"<C-w>J", "0,0 80x12 *0,12 80x11"},
-		{"<C-w>H", "*0,0 40x23 41,0 39x23"},
+		{"<C-w>L", "0,0 40x22 *41,0 39x22"},
+		{"<C-w>K", "*0,0 80x11 0,12 80x10"},
+		{"<C-w>J", "0,0 80x11 *0,12 80x10"},
+		{"<C-w>H", "*0,0 40x22 41,0 39x22"},
 	} {
 		if feed(e, c[0]); windows(e) != c[1] {
 			t.Errorf("%s left the windows %q, want %q", c[0], windows(e), c[1])

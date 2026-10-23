@@ -130,7 +130,7 @@ func (e *Session) openTerminal(term api.Terminal, owner api.Module, where string
 		b.title = "[" + owner.Name() + " " + task + "]"
 	}
 	e.terminalWindow(b, where, term.Lock)
-	t := &terminal{name: cmp.Or(arg, argv[0]), typing: true, cols: max(e.win.w, 1), rows: max(e.win.h-1, 1), owner: owner, task: task, started: time.Now(), close: term.Close}
+	t := &terminal{name: cmp.Or(arg, argv[0]), typing: true, cols: max(e.win.w, 1), rows: max(e.win.h, 1), owner: owner, task: task, started: time.Now(), close: term.Close}
 	t.em = vt.NewEmulator(t.cols, t.rows)
 	cmd := exec.Command(argv[0], argv[1:]...)
 	cmd.Env = append(os.Environ(), "TERM=xterm-256color")

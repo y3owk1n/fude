@@ -151,7 +151,7 @@ func TestB239AttachFrames(t *testing.T) {
 	fmt.Fprintln(cl.c, `{"method":"size","params":[80,24]}`)
 	texts := map[int]string{}
 	// The first frame brings the whole text, and later ones its edits.
-	f := cl.frames(texts, func(f wire.Frame) bool { return len(f.Windows) == 1 && f.Windows[0].H == 24 })
+	f := cl.frames(texts, func(f wire.Frame) bool { return len(f.Windows) == 1 && f.Windows[0].H == 23 })
 	if b := f.Windows[0].Buffer; texts[b] != "one" {
 		t.Fatalf("the first frame gave the text %q", texts[b])
 	}

@@ -147,7 +147,7 @@ func (e *Session) draw(w *window) wire.Window {
 		}
 	}
 	v.Pair = e.pair(w, t, ranges)
-	v.Ruler = ruler(w.buf, t, w.pos(), top, max(w.h-1, 1), tab, func(p int) int { return w.rows(t, p, tab, d) })
+	v.Ruler = ruler(w.buf, t, w.pos(), top, max(w.h, 1), tab, func(p int) int { return w.rows(t, p, tab, d) })
 	for _, p := range e.modules {
 		if s := e.segments[p][w.buf]; s != "" {
 			v.Segments = append(v.Segments, s)

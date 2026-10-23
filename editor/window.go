@@ -42,7 +42,7 @@ type window struct {
 		lines map[int][]int
 	}
 
-	x, y, w, h int // where the layout puts it, its status line included
+	x, y, w, h int // where the layout puts its text, gutter included
 
 	// anchor is where a float sits over the layout, or "" for a window in
 	// it, and from is the window a float or the finder opened from, which
@@ -147,7 +147,7 @@ func (w *window) rows(t kernel.Snapshot, start, tab int, d drawn) int {
 // window's height. A line takes one row without wrap, and a float's rows,
 // or with line_break any window's, end after a space (B364).
 func (w *window) starts(t kernel.Snapshot, start, tab int, d drawn) []int {
-	n := max(w.h, 1)
+	n := w.h + 1
 	switch {
 	case !w.opts.Wrap:
 		return []int{start}
@@ -182,7 +182,7 @@ const whole = 64 << 10
 // of its own, the part of it in view. A closed fold counts as one line
 // (B224).
 func (e *Session) view(w *window, t kernel.Snapshot, top, tab int) ([]wire.Range, drawn) {
-	room := max(w.h-1, 1)
+	room := max(w.h, 1)
 	// The lines a row each would show.
 	last := t.LineStart(min(t.LineOf(top)+room-1, t.Lines()-1))
 	if len(w.buf.folds) > 0 {
@@ -295,13 +295,14 @@ func (w *window) screenAt(t kernel.Snapshot, tab int, d drawn) (row, col int) {
 	if f := w.firstRow(); f > ls && f <= c {
 		from = f
 	}
-	starts := w.rowsFrom(t, ls, from, max(w.h, 1), c, tab, d)
+	starts := w.rowsFrom(t, ls, from, w.h+1, c, tab, d)
 	r := len(starts) - 1
 	for r > 0 && starts[r] > c {
 		r--
 	}
-	// A cursor on the window's last row or past it is out of view.
-	if r == w.h-1 {
+	// A cursor past the window's last row is out of view. A window with no
+	// size yet shows every row.
+	if w.h > 0 && r == w.h {
 		return r, 0
 	}
 	col = column(c) - column(starts[r])
@@ -429,7 +430,8 @@ type node struct {
 func (n *node) place(x, y, w, h int) {
 	n.w, n.h = w, h
 	if n.win != nil {
-		n.win.x, n.win.y, n.win.w, n.win.h = x, y, w, h
+		// The bottom row is the window's status line.
+		n.win.x, n.win.y, n.win.w, n.win.h = x, y, w, h-1
 		return
 	}
 	k := len(n.kids)
@@ -762,7 +764,7 @@ func (e *Session) beside(d byte) *window {
 	}
 	t := w.buf.text.Snapshot()
 	row, col := y, x
-	for p := e.Top(); p < vim.LineStart(t, w.pos()) && row < y+h-2; p = vim.LineEnd(t, p) + 1 {
+	for p := e.Top(); p < vim.LineStart(t, w.pos()) && row < y+h-1; p = vim.LineEnd(t, p) + 1 {
 		row++
 	}
 	col += min(w.pos()-vim.LineStart(t, w.pos()), ww-1)
@@ -774,10 +776,11 @@ func (e *Session) beside(d byte) *window {
 	case 'k':
 		row = y - 1
 	case 'j':
-		row = y + h
+		row = y + h + 1
 	}
+	// A window's status line is the row under its text.
 	for _, o := range e.root.windows() {
-		if o != w && col >= o.x && col < o.x+o.w && row >= o.y && row < o.y+o.h {
+		if o != w && col >= o.x && col < o.x+o.w && row >= o.y && row <= o.y+o.h {
 			return o
 		}
 	}
@@ -797,15 +800,15 @@ func (e *Session) layout() {
 	// for when it is not.
 	if z := e.zoomed; z != nil {
 		e.unzoomed = [4]int{z.x, z.y, z.w, z.h}
-		z.x, z.y, z.w, z.h = x, top, w, max(e.height-top, 2)
+		z.x, z.y, z.w, z.h = x, top, w, max(e.height-top, 2)-1
 	}
 	for _, f := range e.floats {
 		e.place(f)
 	}
-	// A terminal is as big as the window showing it, its status line aside.
+	// A terminal is as big as the window showing it.
 	for _, win := range e.root.windows() {
 		if t := win.buf.term; t != nil {
-			if err := t.fit(win.w, win.h-1); err != nil {
+			if err := t.fit(win.w, win.h); err != nil {
 				e.message = err.Error()
 			}
 		}

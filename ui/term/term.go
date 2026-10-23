@@ -518,10 +518,10 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 	// taking one (B224). place is each line's place among them, for
 	// relative numbers, which count a closed fold as one line.
 	var place map[int]int
-	last := t.LineOf(v.Top) + v.H
+	last := t.LineOf(v.Top) + v.H + 1
 	if len(v.Folds) > 0 {
 		place, last = map[int]int{}, t.LineOf(v.Top)
-		for i := 0; i <= v.H && last < t.Lines(); i++ {
+		for i := 0; i <= v.H+1 && last < t.Lines(); i++ {
 			place[last] = i
 			last += 1 + v.Folds[last]
 		}
@@ -587,11 +587,11 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 	}
 	in := wire.Inlines(v.Ghosts)
 	row := 0
-	for row < v.H-1 {
+	for row < v.H {
 		end, line := vim.LineEnd(t, pos), t.LineOf(pos)
 		// The rows a decoration draws above a line come before it, and those
 		// below after it (B299).
-		if row = c.virtual(v, line, true, numbers, row); row >= v.H-1 {
+		if row = c.virtual(v, line, true, numbers, row); row >= v.H {
 			break
 		}
 		var matches [][2]int
@@ -613,7 +613,7 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 		// A line wraps onto as many rows as it needs, those after the first
 		// hang columns in (B37, B489). The rows with no room are cut, and the
 		// text shown ends where the first of them starts.
-		starts, hang, room := []int{from}, 0, v.H-1-row
+		starts, hang, room := []int{from}, 0, v.H-row
 		if v.Wrap {
 			hang = vim.Hang(t, pos, v.W, v.Tab, v.BreakIndent, v.ShowBreak)
 			starts = vim.RowsFrom(t, pos, from, max(startCol, 0), room+1, math.MaxInt, vim.Wrap{Cols: v.W, Hang: hang, Tab: v.Tab, In: in, Words: v.Float != "" || v.LineBreak}, nil)
@@ -907,7 +907,7 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 		pos = end + 1
 	}
 	// Rows past the end of the text show ~, and a float's show nothing.
-	for ; row < v.H-1; row++ {
+	for ; row < v.H; row++ {
 		c.s.FillArea(numbers, v.Y+row, v.Gutter+v.W, 1, ' ', base)
 		if v.Float == "" {
 			c.s.Put(numbers, v.Y+row, cmp.Or(v.FillChars.Eob, " "), base.Foreground(th.faint))
@@ -927,7 +927,7 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 // cut at the window's edge, and returns the row after them.
 func (c *client) virtual(v wire.Window, line int, above bool, numbers, row int) int {
 	for _, r := range v.Virtual[line] {
-		if r.Above != above || row >= v.H-1 {
+		if r.Above != above || row >= v.H {
 			continue
 		}
 		y := v.Y + row
@@ -1015,7 +1015,7 @@ func (c *client) pin(v wire.Window, numbers, cur int) {
 // left unless the windows start there, at left.
 func (c *client) edge(v wire.Window, left int) {
 	if v.X > left {
-		for y := v.Y; y < v.Y+v.H; y++ {
+		for y := v.Y; y <= v.Y+v.H; y++ {
 			c.s.Put(v.X-1, y, cmp.Or(v.FillChars.Vert, " "), base.Foreground(th.border))
 		}
 	}

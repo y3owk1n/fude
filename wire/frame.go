@@ -60,7 +60,7 @@ type Window struct {
 	Top, Cursor      int
 	Ranges           []Range // the text it shows, in order: its lines, and without wrap the part in view of a long line
 	Past             int     // the columns past the end of its line the cursor shows (B490)
-	X, Y, W, H       int     // H counts the status line on the bottom row
+	X, Y, W, H       int     // where its text goes, gutter included, as the layout places it
 	Name             string
 	Modified         bool
 	Current          bool          // the window with the focus

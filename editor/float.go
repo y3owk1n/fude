@@ -196,21 +196,20 @@ func (e *Session) cursorCell(w *window) (int, int) {
 	}
 	r, x := w.screenAt(t, tab, d)
 	y += r
-	return w.x + w.gutter() + min(x, w.cols()-1), min(y, w.y+w.h-2)
+	return w.x + w.gutter() + min(x, w.cols()-1), min(y, w.y+w.h-1)
 }
 
 // place puts the float f on the screen. It is as big as its text, up to
 // the screen, and a float at the cursor is at most 80 columns and 20 rows.
-// Its x, y, w and h are its text's, with one more row where the bottom of
-// its border goes in place of a status line. Its border and a column of
-// room each side go around them, and a foot goes under a rule above the
-// bottom of the border.
+// Its x, y, w and h are its text's. Its border and a column of room each
+// side go around them, and a foot goes under a rule above the bottom of the
+// border.
 func (e *Session) place(f *window) {
 	if t := f.buf.term; t != nil {
 		// A terminal takes four fifths of the screen, in its middle.
-		f.w, f.h = max(e.width*4/5-4, 1), max(e.height*4/5-1, 2)
-		f.x, f.y = (e.width-f.w)/2, (e.height-f.h-1)/2+1
-		if err := t.fit(f.w, f.h-1); err != nil {
+		f.w, f.h = max(e.width*4/5-4, 1), max(e.height*4/5-2, 1)
+		f.x, f.y = (e.width-f.w)/2, (e.height-f.h-2)/2+1
+		if err := t.fit(f.w, f.h); err != nil {
 			e.message = err.Error()
 		}
 		return
@@ -242,7 +241,7 @@ func (e *Session) place(f *window) {
 		}
 		f.w = min(width, e.width-4)
 		outer := min(rows+2+foot, e.height-2)
-		f.h = max(outer-1-foot, 2)
+		f.h = max(outer-2-foot, 1)
 		f.x, f.y = (e.width-f.w-4)/2+2, max(min(e.height/5, e.height-1-outer), 0)+1
 		return
 	}
@@ -279,7 +278,7 @@ func (e *Session) place(f *window) {
 			y = cy - n - 2
 		}
 	}
-	f.w, f.h = max(width, 1), max(n, 1)+1
+	f.w, f.h = max(width, 1), max(n, 1)
 	f.x, f.y = max(min(cx, hi-f.w-4), lo)+2, y+1
 }
 

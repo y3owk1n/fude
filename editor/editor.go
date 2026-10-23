@@ -778,7 +778,7 @@ func (e *Session) topOf(w *window) int {
 }
 
 // rows is how many lines of text the current window shows.
-func (e *Session) rows() int { return max(e.win.h-1, 1) }
+func (e *Session) rows() int { return max(e.win.h, 1) }
 
 // reveal scrolls the current window the least it must to show the cursor's
 // line, which takes as many rows as it wraps to (B37). While a search is

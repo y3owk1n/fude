@@ -349,7 +349,7 @@ func TestB256Follow(t *testing.T) {
 	feed(pat, "<C-w>w95G")
 	e.SetSize(80, 8)
 	for _, v := range e.Windows() {
-		if v.Name == "b.txt" && (v.Cursor/2 < v.Top/2 || v.Cursor/2 >= v.Top/2+v.H-1) {
+		if v.Name == "b.txt" && (v.Cursor/2 < v.Top/2 || v.Cursor/2 >= v.Top/2+v.H) {
 			t.Errorf("the follower's short window shows lines %d on, the cursor on %d", v.Top/2, v.Cursor/2)
 		}
 	}

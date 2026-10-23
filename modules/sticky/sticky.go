@@ -71,7 +71,7 @@ func pinned(t api.Text, holding func(pos int) []int, w api.Window, lines int) []
 	if below < 0 {
 		below = lines
 	}
-	room := min(lines, below, max(w.Height-3, 0))
+	room := min(lines, below, max(w.Height-2, 0))
 	// Each pinned line covers one more line of text, so the loop asks again
 	// about the line under them until the answer stops changing.
 	for range lines {
