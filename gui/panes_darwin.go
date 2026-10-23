@@ -244,7 +244,7 @@ func drawText(self objc.ID, _ objc.SEL, _ rect) {
 	}
 	nsColor(p.w.look.Base.Bg).Send(sel("setFill"))
 	rectFill(msgRect(self, sel("bounds")))
-	drawCells(p.cells, p.cursor, pad)
+	drawCells(p.cells, p.cursor, point{pad, pad})
 }
 
 func drawDivider(self objc.ID, _ objc.SEL, r rect) {
@@ -264,23 +264,27 @@ func drawStatus(self objc.ID, _ objc.SEL, _ rect) {
 	if p == nil {
 		return
 	}
-	lk := p.w.look
-	b := msgRect(self, sel("bounds")).Size
-	nsColor(lk.Theme.Surface).Send(sel("setFill"))
-	rectFill(rect{Size: b})
+	b := msgRect(self, sel("bounds"))
+	nsColor(p.w.look.Theme.Surface).Send(sel("setFill"))
+	rectFill(b)
+	drawParts(p.left, p.right, p.w.look, p.current, b)
+}
+
+// drawParts draws a status line's parts in r, under a rule.
+func drawParts(left, right []client.Part, lk theme.Look, current bool, r rect) {
 	nsColor(lk.Theme.Border).Send(sel("setFill"))
-	rectFill(rect{Size: size{b.W, 1}})
-	left, right := runs(p.left, lk, p.current), runs(p.right, lk, p.current)
-	if width(left)+width(right)+3*pad > b.W {
-		right = nil
+	rectFill(rect{r.Origin, size{r.Size.W, 1}})
+	ls, rs := runs(left, lk, current), runs(right, lk, current)
+	if width(ls)+width(rs)+3*pad > r.Size.W {
+		rs = nil
 	}
-	x := float64(pad)
-	for _, r := range left {
-		x = r.draw(x, b.H)
+	x := r.Origin.X + pad
+	for _, p := range ls {
+		x = p.draw(x, r.Origin.Y, r.Size.H)
 	}
-	x = b.W - pad - width(right)
-	for _, r := range right {
-		x = r.draw(x, b.H)
+	x = r.Origin.X + r.Size.W - pad - width(rs)
+	for _, p := range rs {
+		x = p.draw(x, r.Origin.Y, r.Size.H)
 	}
 }
 
@@ -306,17 +310,18 @@ func (r run) size() float64 {
 	return w + pad
 }
 
-// draw draws r from x in a bar h tall, and returns where the next goes.
-func (r run) draw(x, h float64) float64 {
+// draw draws r from x in a bar h tall from top, and returns where the next
+// goes.
+func (r run) draw(x, top, h float64) float64 {
 	a := textAttrs(r.font, r.fg)
 	sz := msgSizeOf(nsString(r.text), sel("sizeWithAttributes:"), a)
 	at := x
 	if r.pill {
 		nsColor(r.ground).Send(sel("setFill"))
-		msgRounded(cls("NSBezierPath"), sel("bezierPathWithRoundedRect:xRadius:yRadius:"), rect{point{x, 3}, size{math.Ceil(sz.W) + 2*pad, h - 6}}, 5, 5).Send(sel("fill"))
+		msgRounded(cls("NSBezierPath"), sel("bezierPathWithRoundedRect:xRadius:yRadius:"), rect{point{x, top + 3}, size{math.Ceil(sz.W) + 2*pad, h - 6}}, 5, 5).Send(sel("fill"))
 		at += pad
 	}
-	msgDrawAt(nsString(r.text), sel("drawAtPoint:withAttributes:"), point{at, math.Floor((h - sz.H) / 2)}, a)
+	msgDrawAt(nsString(r.text), sel("drawAtPoint:withAttributes:"), point{at, top + math.Floor((h-sz.H)/2)}, a)
 	return x + r.size()
 }
 

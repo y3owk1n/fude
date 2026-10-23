@@ -146,7 +146,7 @@ type frame struct {
 	layout  wire.Split // the zoomed window alone while one is
 	key     string     // says what layout is, to tell when it changes
 	wins    []shown
-	floats  map[int]*boxed
+	floats  map[int]*boxed // by window id, and -1 and -2 for a menu and its documentation
 	tabs    strip
 	look    theme.Look // the windows', dim under a modal box
 	panel   *boxed     // the command line or the finder, nil for neither
@@ -221,7 +221,7 @@ func (w *window) loop(cols, rows int) {
 	var p painter
 	question, asked := "", 0
 	draw := func() {
-		f := p.paint(s, cols)
+		f := p.paint(s, cols, rows)
 		f.asked = asked
 		w.mu.Lock()
 		w.pending = append(w.pending, f)
@@ -242,7 +242,7 @@ func (w *window) loop(cols, rows int) {
 			w.mu.Lock()
 			pl := w.places
 			w.mu.Unlock()
-			cols = pl.cols
+			cols, rows = pl.cols, pl.rows
 			s.SetSize(pl.cols, pl.rows)
 			for _, at := range pl.wins {
 				s.Place(at[0], at[1], at[2], at[3], at[4])
@@ -291,6 +291,7 @@ type painter struct {
 	comp    compose.Composer
 	grids   map[int]*compose.Grid
 	had     map[int]bool // the windows of the last frame's layout
+	menuTop int          // the first row of a menu at the cursor that shows (B64)
 	frame   int
 	lookKey string
 	modal   bool
@@ -299,7 +300,7 @@ type painter struct {
 	lit, dim, boxed theme.Look
 }
 
-func (p *painter) paint(s client.Session, cols int) frame {
+func (p *painter) paint(s client.Session, cols, rows int) frame {
 	p.frame++
 	th := s.Theme()
 	own, restyled := s.Styles()
@@ -354,6 +355,7 @@ func (p *painter) paint(s client.Session, cols int) frame {
 	}
 	sel, visual := s.Selection()
 	floated := false // a float has the focus
+	cx, cy := 0, 0   // where the cursor is in the area
 	for _, v := range wins {
 		if v.Cells != nil || v.Float == "" && !in[v.ID] {
 			continue
@@ -372,11 +374,23 @@ func (p *painter) paint(s client.Session, cols int) frame {
 			o.Look, o.Tint = boxLook, boxLook.Theme.Normal
 			g := compose.NewGrid(v.W, v.H, boxLook.Base)
 			out := p.comp.Compose(g, v, o)
-			b := &boxed{look: boxLook, at: &[2]int{v.X, v.Y}}
-			b.fill(g)
+			b := &boxed{look: boxLook, at: &[2]int{v.X, v.Y}, title: v.Name, cells: cellsOf(g)}
+			// Its foot shows under a rule, and its status line under that
+			// while it has the focus (D55, B159).
+			if v.Foot != "" {
+				foot, _ := compose.Wrap(v.Foot, v.FootSpans, v.W)
+				fg := compose.NewGrid(v.W, len(foot)+1, boxLook.Base)
+				write(fg, v.Foot, v.FootSpans, foot, boxLook, 0, 1, v.W, -1)
+				b.rules = []rule{{0, v.H, v.W}}
+				b.cells = append(b.cells, cellsOf(fg)...)
+			}
+			if v.Current {
+				b.left, b.right = client.StatusParts(s, v, false)
+			}
 			if out.Found && v.Current {
 				at.x, at.y, at.shown = out.X, out.Y, true
 				b.cursor, floated = at, true
+				cx, cy = v.X+out.X, v.Y+out.Y
 			}
 			f.floats[v.ID] = b
 			continue
@@ -395,6 +409,9 @@ func (p *painter) paint(s client.Session, cols int) frame {
 		if out.Found && v.Current {
 			at.x, at.y, at.shown = out.X, out.Y, true
 			sh.cursor = at
+			if !floated {
+				cx, cy = v.X+out.X, v.Y+out.Y
+			}
 		}
 		sh.left, sh.right = client.StatusParts(s, v, true)
 		f.wins = append(f.wins, sh)
@@ -409,6 +426,12 @@ func (p *painter) paint(s client.Session, cols int) frame {
 		f.panel = palette(s.Line(), s.LineCursor(), menu, boxLook, cols)
 	case floats && menu.Anchor == "middle":
 		f.panel = finder(menu, boxLook)
+	case floats && menu.Anchor == "cursor":
+		for i, b := range p.atCursor(menu, boxLook, cx, cy, cols, rows) {
+			f.floats[-1-i] = b
+		}
+	case floats && menu.Anchor == "bottom":
+		f.floats[-1] = keyHints(menu, boxLook)
 	}
 	if msg := s.Message(); msg != "" {
 		f.toast = &boxed{text: compose.Carets(msg), look: boxLook}
@@ -537,17 +560,16 @@ func textAttrs(f objc.ID, fg theme.RGB) objc.ID {
 	return a
 }
 
-// at is where the n cells from column x of row y go, the first edge points
-// in from the view's.
-func at(x, y, n int, edge float64) rect {
-	return rect{point{edge + float64(x)*cellW, edge + float64(y)*cellH}, size{float64(n) * cellW, cellH}}
+// at is where the n cells from column x of row y go, the first cell at o.
+func at(x, y, n int, o point) rect {
+	return rect{point{o.X + float64(x)*cellW, o.Y + float64(y)*cellH}, size{float64(n) * cellW, cellH}}
 }
 
-// drawCells draws cells and the cursor on them, edge points in from the
-// view's edges. A run of one-column ASCII in one style draws as one string,
-// and any other cell alone at its own column, so the font's fallbacks for
-// other characters never shift the row.
-func drawCells(cells [][]cell, cursor cursorAt, edge float64) {
+// drawCells draws cells and the cursor on them, the first cell at o. A run
+// of one-column ASCII in one style draws as one string, and any other cell
+// alone at its own column, so the font's fallbacks for other characters
+// never shift the row.
+func drawCells(cells [][]cell, cursor cursorAt, o point) {
 	ascii := func(c cell) bool { return c.width == 1 && len(c.text) == 1 && c.text[0] >= ' ' && c.text[0] <= '~' }
 	for y, row := range cells {
 		for x := 0; x < len(row); {
@@ -556,7 +578,7 @@ func drawCells(cells [][]cell, cursor cursorAt, edge float64) {
 			for ascii(c) && x+n < len(row) && ascii(row[x+n]) && row[x+n].style == c.style {
 				n++
 			}
-			r := at(x, y, max(n, c.width), edge)
+			r := at(x, y, max(n, c.width), o)
 			nsColor(c.style.Bg).Send(sel("setFill"))
 			rectFill(r)
 			var text strings.Builder
@@ -569,8 +591,8 @@ func drawCells(cells [][]cell, cursor cursorAt, edge float64) {
 			x += max(n, c.width)
 		}
 	}
-	if c := cursor; c.shown && c.y < len(cells) && c.x < len(cells[c.y]) {
-		r := at(c.x, c.y, 1, edge)
+	if c := cursor; c.shown && c.y >= 0 && c.x >= 0 && c.y < len(cells) && c.x < len(cells[c.y]) {
+		r := at(c.x, c.y, 1, o)
 		switch c.shape {
 		case 1:
 			r.Size.W = 2

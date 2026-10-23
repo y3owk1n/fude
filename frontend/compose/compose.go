@@ -849,6 +849,54 @@ func (k sig) flag(b bool) sig {
 	return k.int(0)
 }
 
+// Row is one row of a box: bytes of its text, or a rule across it.
+type Row struct {
+	Start, End int
+	Rule       bool
+}
+
+// Wrap splits text into rows at most limit columns wide and returns them
+// with the widest one's width. A row ends after the last space that fits,
+// or at the limit when none does. A markup.rule line is a rule.
+func Wrap(text string, spans []wire.Span, limit int) ([]Row, int) {
+	var rows []Row
+	width := 0
+	for at := 0; at <= len(text); {
+		end := strings.IndexByte(text[at:], '\n')
+		if end < 0 {
+			end = len(text) - at
+		}
+		end += at
+		if slices.ContainsFunc(spans, func(s wire.Span) bool { return s.Name == "markup.rule" && s.Start == at }) {
+			rows = append(rows, Row{at, end, true})
+		} else {
+			start, col := at, 0
+			brk, brkCol := start, 0 // just after the row's last space, and its column
+			for i, r := range text[at:end] {
+				cw := 1
+				if r == '\t' {
+					cw = 4
+				}
+				if col+cw > limit {
+					if brk == start {
+						brk, brkCol = at+i, col
+					}
+					rows = append(rows, Row{start, brk, false})
+					start, col = brk, col-brkCol
+				}
+				col += cw
+				width = max(width, col)
+				if r == ' ' {
+					brk, brkCol = at+i+1, col
+				}
+			}
+			rows = append(rows, Row{start, end, false})
+		}
+		at = end + 1
+	}
+	return rows, width
+}
+
 // Carets returns s with each control character, a tab too, as ^ and a
 // letter, as ^A for 0x01. A line break stays, as it ends a message's line.
 func Carets(s string) string {

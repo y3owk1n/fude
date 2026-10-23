@@ -111,10 +111,10 @@ func (c *client) toast(msg string, left, right, h int) {
 	}
 	w := right - left
 	inner := min(longest+2, max(w/2, 20), w-4)
-	rows, _ := wrap(msg, nil, inner-2)
+	rows, _ := compose.Wrap(msg, nil, inner-2)
 	lines := make([]string, len(rows))
 	for i, r := range rows {
-		lines[i] = msg[r.start:r.end]
+		lines[i] = msg[r.Start:r.End]
 	}
 	if limit := max(h/3, 1); len(lines) > limit {
 		lines = lines[:limit]
@@ -137,11 +137,11 @@ func (c *client) confirm(q string, w, h int) {
 		longest = max(longest, displaywidth.String(l))
 	}
 	inner := max(min(max(longest, 30)+2, 60, w-4), 4)
-	rows, _ := wrap(q, nil, inner-2)
+	rows, _ := compose.Wrap(q, nil, inner-2)
 	left, top := (w-inner-2)/2, max((h-len(rows)-4)/2, 0)
 	c.panel(left, top, inner, len(rows)+2)
 	for i, r := range rows {
-		c.putClipped(left+2, top+1+i, left+inner+1, part{q[r.start:r.end], base.Bold(true)})
+		c.putClipped(left+2, top+1+i, left+inner+1, part{q[r.Start:r.End], base.Bold(true)})
 	}
 	y := top + 1 + len(rows)
 	c.rule(left, y, inner)
@@ -163,14 +163,14 @@ func (c *client) menu(f wire.Menu, cx, cy, lo, hi, h int) (int, int, bool) {
 		if f.DocW > 2 {
 			// The documentation box is as tall as the box beside it.
 			doc := f.Doc + strings.Repeat("\n", max(f.H-3-strings.Count(f.Doc, "\n"), 0))
-			rows, _ := wrap(doc, f.DocSpans, f.DocW-4)
+			rows, _ := compose.Wrap(doc, f.DocSpans, f.DocW-4)
 			c.box(doc, f.DocSpans, rows[:min(len(rows), f.H-2)], f.X+f.W, f.Y, f.DocW-4, -1)
 			if p := f.DocImage; p != nil {
 				c.picture(*p, f.X+f.W+2, f.Y+1, f.DocW-4)
 			}
 		}
 		n := f.H - 2
-		all, _ := wrap(f.Text, f.Spans, f.W-4)
+		all, _ := compose.Wrap(f.Text, f.Spans, f.W-4)
 		first := c.scroll(all, f, n)
 		x, y, ok := c.box(f.Text, f.Spans, all[first:min(first+n, len(all))], f.X, f.Y, f.W-4, f.Cursor)
 		if f.Title != "" {
@@ -178,7 +178,7 @@ func (c *client) menu(f wire.Menu, cx, cy, lo, hi, h int) (int, int, bool) {
 		}
 		return x, y, ok
 	}
-	rows, width := wrap(f.Text, f.Spans, min(80, hi-lo-4))
+	rows, width := compose.Wrap(f.Text, f.Spans, min(80, hi-lo-4))
 	below, above := h-cy-1, cy
 	n := min(len(rows), max(below, above)-2)
 	if f.Rows > 0 {
@@ -201,18 +201,18 @@ func (c *client) menu(f wire.Menu, cx, cy, lo, hi, h int) (int, int, bool) {
 	// has room for its widest line or 40 columns. Otherwise it goes under
 	// the box, or over it when there is more room there, as wide as the
 	// windows (B227).
-	_, natural := wrap(f.Doc, f.DocSpans, 80)
+	_, natural := compose.Wrap(f.Doc, f.DocSpans, 80)
 	need := min(natural, 40)
 	right, left := hi-x-width-8, x-lo-4
 	switch {
 	case right >= need:
-		rows, dw := wrap(f.Doc, f.DocSpans, min(80, right))
+		rows, dw := compose.Wrap(f.Doc, f.DocSpans, min(80, right))
 		c.box(f.Doc, f.DocSpans, rows[:min(len(rows), h-y-2, 20)], x+width+4, y, dw, -1)
 	case left >= need:
-		rows, dw := wrap(f.Doc, f.DocSpans, min(80, left))
+		rows, dw := compose.Wrap(f.Doc, f.DocSpans, min(80, left))
 		c.box(f.Doc, f.DocSpans, rows[:min(len(rows), h-y-2, 20)], x-dw-4, y, dw, -1)
 	default:
-		rows, dw := wrap(f.Doc, f.DocSpans, min(80, hi-lo-4))
+		rows, dw := compose.Wrap(f.Doc, f.DocSpans, min(80, hi-lo-4))
 		dx := max(min(x, hi-dw-4), lo)
 		// It leaves the cursor's line in view, whichever side of it the box
 		// is on.
@@ -236,10 +236,10 @@ func (c *client) menu(f wire.Menu, cx, cy, lo, hi, h int) (int, int, bool) {
 // cursor in f, it is the first that keeps the cursor's row showing. A menu
 // without the cursor starts where the last frame showed it, and moves only
 // as far as it must to show its selected item (B64).
-func (c *client) scroll(rows []row, f wire.Menu, n int) int {
+func (c *client) scroll(rows []compose.Row, f wire.Menu, n int) int {
 	// rowOf is the row that shows the byte at p.
 	rowOf := func(p int) int {
-		i, _ := slices.BinarySearchFunc(rows, p, func(r row, p int) int { return cmp.Compare(r.start, p+1) })
+		i, _ := slices.BinarySearchFunc(rows, p, func(r compose.Row, p int) int { return cmp.Compare(r.Start, p+1) })
 		return max(i-1, 0)
 	}
 	if f.Cursor < 0 {
@@ -256,59 +256,11 @@ func (c *client) scroll(rows []row, f wire.Menu, n int) int {
 	return min(max(cur-n+1, 0), cur)
 }
 
-// row is one row of a box: bytes of its text, or a rule across it.
-type row struct {
-	start, end int
-	rule       bool
-}
-
-// wrap splits text into rows at most limit columns wide and returns them
-// with the widest one's width. A row ends after the last space that fits,
-// or at the limit when none does. A markup.rule line is a rule.
-func wrap(text string, spans []wire.Span, limit int) ([]row, int) {
-	var rows []row
-	width := 0
-	for at := 0; at <= len(text); {
-		end := strings.IndexByte(text[at:], '\n')
-		if end < 0 {
-			end = len(text) - at
-		}
-		end += at
-		if slices.ContainsFunc(spans, func(s wire.Span) bool { return s.Name == "markup.rule" && s.Start == at }) {
-			rows = append(rows, row{at, end, true})
-		} else {
-			start, col := at, 0
-			brk, brkCol := start, 0 // just after the row's last space, and its column
-			for i, r := range text[at:end] {
-				cw := 1
-				if r == '\t' {
-					cw = 4
-				}
-				if col+cw > limit {
-					if brk == start {
-						brk, brkCol = at+i, col
-					}
-					rows = append(rows, row{start, brk, false})
-					start, col = brk, col-brkCol
-				}
-				col += cw
-				width = max(width, col)
-				if r == ' ' {
-					brk, brkCol = at+i+1, col
-				}
-			}
-			rows = append(rows, row{start, end, false})
-		}
-		at = end + 1
-	}
-	return rows, width
-}
-
 // box draws rows of text, styled by spans, in a panel at x and y, width
 // columns wide inside it, and reports where the byte at cursor is. A row a
 // selected item starts takes the raised colour, with an accent bar for its
 // left border (B150).
-func (c *client) box(text string, spans []wire.Span, rows []row, x, y, width, cursor int) (int, int, bool) {
+func (c *client) box(text string, spans []wire.Span, rows []compose.Row, x, y, width, cursor int) (int, int, bool) {
 	styles := compose.Styles(nil, spans, []wire.Range{{End: len(text) - 1}}, lk)
 	style := base
 	fx, fy, found := 0, 0, false
@@ -317,24 +269,24 @@ func (c *client) box(text string, spans []wire.Span, rows []row, x, y, width, cu
 	x++
 	for i, r := range rows {
 		ground := base.GetBackground()
-		if r.rule {
+		if r.Rule {
 			c.rule(x-1, y+1+i, width+2)
 		}
 		if slices.ContainsFunc(spans, func(s wire.Span) bool {
-			return s.Name == "menu.selected" && s.Start <= r.start && r.start < s.End
+			return s.Name == "menu.selected" && s.Start <= r.Start && r.Start < s.End
 		}) {
 			ground = th.raised
 			c.s.FillArea(x, y+1+i, width+2, 1, ' ', style.Background(ground))
 			c.s.Put(x-1, y+1+i, "▌", base.Foreground(th.normal))
 		}
 		col := 0
-		for rest := text[r.start:r.end]; ; {
-			p := r.end - len(rest)
+		for rest := text[r.Start:r.End]; ; {
+			p := r.End - len(rest)
 			// The end of a wrapped row is the start of the next one.
-			if p == cursor && (rest != "" || i == len(rows)-1 || rows[i+1].start != p) {
+			if p == cursor && (rest != "" || i == len(rows)-1 || rows[i+1].Start != p) {
 				fx, fy, found = x+1+min(col, width-1), y+1+i, true
 			}
-			if r.rule || rest == "" {
+			if r.Rule || rest == "" {
 				break
 			}
 			s := style

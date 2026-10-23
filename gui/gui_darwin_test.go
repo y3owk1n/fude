@@ -11,6 +11,9 @@ import (
 
 	"github.com/y3owk1n/fude/editor/editortest"
 	"github.com/y3owk1n/fude/frontend/wire"
+	"github.com/y3owk1n/fude/modules/completion"
+	"github.com/y3owk1n/fude/modules/hints"
+	winmod "github.com/y3owk1n/fude/modules/window"
 )
 
 // TestMain runs AppKit on the main thread, in the background, and the tests
@@ -190,6 +193,80 @@ func TestB549NativeSplits(t *testing.T) {
 		onMain(func() { press(w, 0, 0, string(c), string(c)) }, true)
 	}
 	onMain(func() { press(w, 36, 0, "\r", "\r") }, true)
+	until(t, "the session to end", func() bool {
+		open := true
+		onMain(func() { _, open = windows[w.view] }, true)
+		return !open
+	})
+}
+
+// B550
+func TestB550BoxesByAnchor(t *testing.T) {
+	dir := t.TempDir()
+	editortest.Change(t, filepath.Join(dir, "b.txt"), "two\n")
+	path := filepath.Join(dir, "a.txt")
+	editortest.Change(t, path, "hello helium\n")
+	e := editortest.Open(t, path)
+	e.Use(completion.New())
+	e.Use(hints.New())
+	e.Use(winmod.New())
+	var w *window
+	onMain(func() { w = open(e, nil) }, true)
+	typed := func(keys string) {
+		for _, c := range keys {
+			code, mods, ch := uint16(0), uint(0), string(c)
+			switch c {
+			case '\r':
+				code = 36
+			case '\x1b':
+				code = 53
+			case '\x0e':
+				code, mods, ch = 45, modControl, "n"
+			}
+			onMain(func() { press(w, code, mods, ch, ch) }, true)
+		}
+	}
+	// frame returns where the box at key is in the window's content, once
+	// it shows something.
+	frame := func(key int) (rect, bool) {
+		var r rect
+		ok := false
+		onMain(func() {
+			if b := w.floats[key]; b != nil && !objc.Send[bool](b.view, sel("isHidden")) && inked(b.view, inset, 0, 0) {
+				r, ok = msgRect(b.view, sel("frame")), true
+			}
+		}, true)
+		return r, ok
+	}
+	var top float64
+	onMain(func() { top = barHeight(w.win) }, true)
+	// The completion menu shows under the cursor, on the second line.
+	typed("Ohe\x0e")
+	until(t, "the menu under the cursor", func() bool {
+		r, ok := frame(-1)
+		return ok && r.Origin.Y > top+pad+cellH
+	})
+	// The key hints show across the bottom.
+	typed("\x1bu")
+	typed("g")
+	until(t, "the key hints at the bottom", func() bool {
+		r, ok := frame(-1)
+		var bounds rect
+		onMain(func() { bounds = msgRect(w.view, sel("bounds")) }, true)
+		return ok && r.Origin.Y+r.Size.H > bounds.Size.H*3/4 && r.Size.W > bounds.Size.W/2
+	})
+	// A float shows in a box at its place, with its status line.
+	typed("\x1b:window float split b.txt\r")
+	until(t, "the float", func() bool {
+		shown := false
+		onMain(func() {
+			for id, b := range w.floats {
+				shown = shown || id > 0 && b.boxed != nil && b.foot() > 0 && inked(b.view, inset, 0, 0)
+			}
+		}, true)
+		return shown
+	})
+	typed("\x1b:qa!\r")
 	until(t, "the session to end", func() bool {
 		open := true
 		onMain(func() { _, open = windows[w.view] }, true)

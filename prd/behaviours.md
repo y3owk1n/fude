@@ -1305,6 +1305,13 @@ Where fude departs, the line says so and cites the departure in
   holds the buffers as tabs, the current one raised, and the tab pages
   at its right, the current one in the mode's colour (B258, B545). With
   neither it shows the title.
+- B550 [10] In `fude gui` a menu at the cursor shows in a box under the
+  cursor, or over it when there is more room there, scrolled as B64
+  says. Its documentation shows in a box beside it, as B227 says. The
+  key hints show in a box across the bottom of the area, with the keys
+  typed as its title (B172). A float's box has its name over its text and
+  its foot under a rule. While the float has the focus, its status line
+  shows at the bottom of the box.
 - B544 [2] A session has tab pages, each with its own windows, floats
   and current window, as in Neovim. `:tabnew` and `:tabedit` open one
   after the current page, on a file or a new empty buffer. `gt`, `{n}gt`,

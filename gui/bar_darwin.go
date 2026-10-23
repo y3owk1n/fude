@@ -40,7 +40,7 @@ func drawBar(self objc.ID, _ objc.SEL, _ rect) {
 	t := w.tabs
 	if len(t.buffers) == 0 && len(t.pages) == 0 {
 		r := run{text: t.title, font: uiFont, fg: th.Muted}
-		r.draw(math.Round((b.W-r.size())/2), b.H)
+		r.draw(math.Round((b.W-r.size())/2), 0, b.H)
 		return
 	}
 	tab := func(text string, modified, current bool, ground theme.RGB) run {
@@ -82,7 +82,7 @@ func cut(rs []run, current int, x, end, h float64, th theme.Theme) {
 	mark := func(text string) run { return run{text: text, font: uiFont, fg: th.Faint} }
 	if width(rs) <= end-x {
 		for _, r := range rs {
-			x = r.draw(x, h)
+			x = r.draw(x, 0, h)
 		}
 		return
 	}
@@ -92,13 +92,13 @@ func cut(rs []run, current int, x, end, h float64, th theme.Theme) {
 		first++
 	}
 	if first > 0 {
-		x = mark("‹").draw(x, h)
+		x = mark("‹").draw(x, 0, h)
 	}
 	for i, r := range rs[first:] {
 		if more := first+i < len(rs)-1; x+r.size() > end-mark("›").size() && more || x+r.size() > end {
-			mark("›").draw(x, h)
+			mark("›").draw(x, 0, h)
 			return
 		}
-		x = r.draw(x, h)
+		x = r.draw(x, 0, h)
 	}
 }
