@@ -31,6 +31,9 @@ func (e *Session) frame(sent map[int]kernel.Version) (wire.Frame, map[int]kernel
 	if text, ok := e.Clipboard(); ok {
 		f.Clipboard = &text
 	}
+	if text, ok := e.Alert(); ok {
+		f.Alert = &text
+	}
 	if d, ok := e.Wait(); ok {
 		f.Wait = &d
 	}

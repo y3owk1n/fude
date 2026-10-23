@@ -123,3 +123,31 @@ func TestB231BackgroundTasks(t *testing.T) {
 		return strings.HasPrefix(e.Message(), "the wait task ended in") && e.Windows()[0].Tasks == nil
 	})
 }
+
+// B564
+func TestB564TaskEndsAlert(t *testing.T) {
+	// sh from PATH, which on Windows comes with Git for Windows.
+	t.Setenv("SHELL", "sh")
+	dir := t.TempDir()
+	editortest.Change(t, filepath.Join(dir, "a.txt"), "a\n")
+	t.Chdir(dir)
+	editortest.Config(t, "[task.quick]\ncommand = \"true\"\n")
+	e := editortest.Start(t, "a.txt")
+	e.SetSize(80, 24)
+	e.Use(task.New())
+	editortest.Feed(e, ":task quick<CR>")
+	// The first alert is the task's end, and it comes once.
+	alert := ""
+	editortest.Settle(t, e, func() bool {
+		if a, ok := e.Alert(); ok && alert == "" {
+			alert = a
+		}
+		return alert != ""
+	})
+	if !strings.HasPrefix(alert, "the quick task ended in") {
+		t.Errorf("the alert is %q", alert)
+	}
+	if a, ok := e.Alert(); ok {
+		t.Errorf("the alert came again, %q", a)
+	}
+}

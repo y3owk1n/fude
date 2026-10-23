@@ -183,6 +183,7 @@ type frame struct {
 	confirm string         // the question, "" for none
 	asked   int            // counts each change of the question, to tell a new one
 	copied  *string        // to put on the system's clipboard
+	alert   string         // to tell the user of while the window is not in front, "" for none
 	ground  theme.RGB      // the theme's own ground, for the window's look
 	edited  bool           // a window shown has changes
 	file    string         // the current window's file, "" for none
@@ -531,6 +532,7 @@ func (p *painter) paint(s client.Session, cols, rows int) frame {
 	if text, ok := s.Clipboard(); ok {
 		f.copied = &text
 	}
+	f.alert, _ = s.Alert()
 	var all []pic
 	for _, sh := range f.wins {
 		all = append(all, sh.pics...)
@@ -608,6 +610,9 @@ func (w *window) apply() {
 	for _, f := range fs {
 		if f.copied != nil {
 			copyOut(*f.copied)
+		}
+		if f.alert != "" {
+			w.notify(f.alert)
 		}
 	}
 	f := fs[len(fs)-1]

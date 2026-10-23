@@ -834,6 +834,9 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 		save.notes = append(save.notes, msg)
 	default:
 		e.message = msg
+		if res.Alert && res.Error == "" {
+			e.alert = &msg
+		}
 	}
 	if f := res.Float; f != nil && f.Keys {
 		// Key hints for a command no longer typed are too late.

@@ -1433,6 +1433,11 @@ Where fude departs, the line says so and cites the departure in
   mouse is a link when the window's servers offer definitions. A link is
   underlined, and the pointer over it is the pointing hand. A click on it
   goes to its definition, as `<C-]>` there does, after insert mode ends.
+- B564 [10] A module's message may be an alert, one worth telling the
+  user of while they are away, such as a task's end. A frontend gets each
+  alert once. With `--gui`, an alert while the window is not in front
+  bounces the Dock's icon once, and from an app bundle it also shows the
+  message in the system's notification.
 - B544 [2] A session has tab pages, each with its own windows, floats
   and current window, as in Neovim. `:tabnew` and `:tabedit` open one
   after the current page, on a file or a new empty buffer. `gt`, `{n}gt`,

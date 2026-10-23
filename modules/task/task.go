@@ -105,7 +105,8 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 	defer m.mu.Unlock()
 	_, task, _ := strings.Cut(name, " ")
 	delete(m.running, task)
-	res := api.Result{Message: fmt.Sprintf("the %s task ended in %s", task, s.About["took"])}
+	// Its end is worth a notification while the user is away (B564).
+	res := api.Result{Message: fmt.Sprintf("the %s task ended in %s", task, s.About["took"]), Alert: true}
 	if status := s.About["status"]; status != "0" {
 		res.Message = fmt.Sprintf("the %s task failed with %s after %s", task, status, s.About["took"])
 	}

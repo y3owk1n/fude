@@ -35,6 +35,7 @@ type Attached struct {
 	pics   map[int][]byte         // the images the frames brought, by id
 	freed  []int                  // the images frames dropped since Freed was called
 	clip   *string                // for the frontend's clipboard, once
+	alert  *string                // to notify the user of, once
 	stop   bool                   // the user asked to suspend, until Suspend says so (B424)
 	done   bool
 	ended  string     // why the session ended, for after the screen is gone
@@ -221,6 +222,9 @@ func (a *Attached) apply(f wire.Frame) {
 			a.clip = f.Clipboard
 		}
 	}
+	if f.Alert != nil {
+		a.alert = f.Alert
+	}
 	// The client redraws everything when the colours' pointer changes, so
 	// equal colours keep the old pointer.
 	if f.Theme.Base16 != nil && a.f.Theme.Base16 != nil && *f.Theme.Base16 == *a.f.Theme.Base16 {
@@ -383,6 +387,17 @@ func (a *Attached) Suspend() bool {
 	ok := a.stop
 	a.stop = false
 	return ok
+}
+
+// Alert returns, once, the message the last frames asked the frontend to
+// notify the user of (B564).
+func (a *Attached) Alert() (string, bool) {
+	alert := a.alert
+	a.alert = nil
+	if alert == nil {
+		return "", false
+	}
+	return *alert, true
 }
 
 // Clipboard returns a copy for the frontend's clipboard once.

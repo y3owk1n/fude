@@ -25,7 +25,7 @@ import (
 var needs = map[string]string{
 	"Edits": "buffer.write", "Travel": "buffer.write",
 	"Decorate": "ui", "Undecorate": "ui", "Status": "ui", "StatusLeft": "ui", "SessionLeft": "ui", "Capture": "ui",
-	"Message": "ui", "Float": "ui", "Show": "ui", "Jump": "ui", "Pick": "ui", "Menu": "ui",
+	"Message": "ui", "Alert": "ui", "Float": "ui", "Show": "ui", "Jump": "ui", "Pick": "ui", "Menu": "ui",
 	"Places": "ui", "Complete": "ui", "Cmdline": "ui", "Confirm": "ui", "Moved": "ui",
 	"Completion": "ui", "Copy": "ui", "Pins": "ui", "Guides": "ui", "Window": "ui", "Tabs": "ui", "TabLine": "ui", "Follow": "ui", "Kick": "ui",
 	"Close": "ui", "Drop": "buffer.write", "Windows": "ui", "Scratch": "ui", "Write": "buffer.write",

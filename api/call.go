@@ -69,6 +69,7 @@ type Result struct {
 	Capture    bool
 	StatusLeft *string // its segment on the statusline's left, after the buffer's name, as git's branch is (B147)
 	Message    string  // a line for the message area, "" for none
+	Alert      bool    // a frontend notifies the user of Message while they are away (B564)
 	// Error is why the call failed, "" when it did not. It shows in place of
 	// Message, and a command that fails stops what ran it, such as :cdo, :g
 	// or a macro.

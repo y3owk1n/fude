@@ -63,6 +63,7 @@ type Session interface {
 	Styles() (map[string]wire.Style, int)
 	Title() string               // what the frontend's title shows, "" to leave it
 	Clipboard() (string, bool)   // text to put on the frontend's clipboard, once
+	Alert() (string, bool)       // a message to notify the user of while the frontend is not in front, once (B564)
 	Image(id int) ([]byte, bool) // the PNG an image's rows show (B303)
 	Freed() []int                // the images dropped since it was last called (B306)
 }

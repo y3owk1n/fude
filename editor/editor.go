@@ -159,6 +159,7 @@ type Session struct {
 	notices     *notices            // what its client over the socket has yet to hear of its proposals (B389)
 	clip        string              // the text last copied, when no clipboard command runs
 	toTerminal  bool                // the client has yet to put clip on its terminal's clipboard
+	alert       *string             // a message the client has yet to notify the user of (B564)
 	mode        vim.Mode            // the mode as plugins last heard it
 	seen        seenAt              // the current window as plugins last heard it
 	noticed     noticed             // the windows and the rest as modules last heard of them (B346)

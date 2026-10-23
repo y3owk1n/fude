@@ -1,9 +1,12 @@
 package gui
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 
+	"github.com/ebitengine/purego"
 	"github.com/ebitengine/purego/objc"
 
 	"github.com/y3owk1n/fude/frontend/theme"
@@ -99,3 +102,45 @@ func file(name string) string {
 	}
 	return path
 }
+
+// notify tells the user of text while w is not in front. It bounces the
+// Dock's icon once, and from an app bundle it also posts a notification,
+// which needs a bundle (B564).
+func (w *window) notify(text string) {
+	app := cls("NSApplication").Send(sel("sharedApplication"))
+	if objc.Send[bool](app, sel("isActive")) && objc.Send[bool](w.win, sel("isKeyWindow")) {
+		return
+	}
+	// NSInformationalRequest bounces the icon once.
+	app.Send(sel("requestUserAttention:"), 10)
+	if cls("NSBundle").Send(sel("mainBundle")).Send(sel("bundleIdentifier")) == 0 {
+		return
+	}
+	center := notifications()
+	if center == 0 {
+		return
+	}
+	content := cls("UNMutableNotificationContent").Send(sel("new"))
+	content.Send(sel("setTitle:"), nsString("fude"))
+	content.Send(sel("setBody:"), nsString(text))
+	notified++
+	request := cls("UNNotificationRequest").Send(sel("requestWithIdentifier:content:trigger:"), nsString(fmt.Sprint("fude-", notified)), content, 0)
+	center.Send(sel("addNotificationRequest:withCompletionHandler:"), request, 0)
+	content.Send(sel("release"))
+}
+
+// notified counts the notifications sent, each its own.
+var notified int
+
+// notifications returns the system's notification centre, which asks the
+// user to allow fude's notifications the first time, or 0 when it is not
+// there.
+var notifications = sync.OnceValue(func() objc.ID {
+	if _, err := purego.Dlopen("/System/Library/Frameworks/UserNotifications.framework/UserNotifications", purego.RTLD_GLOBAL); err != nil {
+		return 0
+	}
+	center := cls("UNUserNotificationCenter").Send(sel("currentNotificationCenter"))
+	// The answer needs no handling, as a refusal leaves only the Dock.
+	center.Send(sel("requestAuthorizationWithOptions:completionHandler:"), 6, objc.NewBlock(func(objc.Block, bool, objc.ID) {}))
+	return center
+})

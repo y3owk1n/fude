@@ -58,3 +58,14 @@ func (e *Session) Clipboard() (string, bool) {
 	e.toTerminal = false
 	return e.clip, ok
 }
+
+// Alert returns, once, a message a module asked the frontend to notify the
+// user of while they are away (B564).
+func (e *Session) Alert() (string, bool) {
+	a := e.alert
+	e.alert = nil
+	if a == nil {
+		return "", false
+	}
+	return *a, true
+}
