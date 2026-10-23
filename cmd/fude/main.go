@@ -28,7 +28,13 @@ import (
 )
 
 func main() {
-	err := run(os.Args[1:])
+	args := os.Args[1:]
+	// fude-gui is fude built for Windows with no console. It opens its
+	// window as fude --gui does (B580).
+	if strings.TrimSuffix(filepath.Base(os.Args[0]), ".exe") == "fude-gui" {
+		args = append([]string{"--gui"}, args...)
+	}
+	err := run(args)
 	var code exitCode
 	if errors.As(err, &code) {
 		os.Exit(int(code))

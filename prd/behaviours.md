@@ -1531,6 +1531,9 @@ Where fude departs, the line says so and cites the departure in
 - B579 [10] With `--gui` on Windows, an alert while the window is not in
   front shows in Windows' notification (B564), from an icon the window
   keeps in the notification area while it is open.
+- B580 [10] On Windows, `fude-gui.exe` is fude built with no console, and
+  it opens its window as `fude --gui` does. The release zips hold it, and
+  oku adds Fude to the Start menu, which runs it.
 - B544 [2] A session has tab pages, each with its own windows, floats
   and current window, as in Neovim. `:tabnew` and `:tabedit` open one
   after the current page, on a file or a new empty buffer. `gt`, `{n}gt`,

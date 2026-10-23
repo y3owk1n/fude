@@ -75,6 +75,11 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $v = & dist/bin/fude.exe version
           if ($v -ne "fude $env:TAG") { throw "fude version said $v" }
+          # fude-gui.exe is fude with no console, for the Start menu (B580).
+          $env:GOBIN = (New-Item -ItemType Directory -Force gui-bin).FullName
+          go install -trimpath "-ldflags=-s -w -H=windowsgui" "github.com/y3owk1n/fude/cmd/fude@$env:TAG"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Move-Item gui-bin/fude.exe dist/bin/fude-gui.exe
           Copy-Item LICENSE, README.md dist/
           Compress-Archive -Path dist/* -DestinationPath "$env:NAME.zip"
           $hash = (Get-FileHash "$env:NAME.zip" -Algorithm SHA256).Hash.ToLower()
