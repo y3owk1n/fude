@@ -18,6 +18,16 @@ type hit struct {
 // slotW is the width of a tab's slot for ● or ×, which ends it.
 const slotW = 16
 
+// shutFrom is where the slot of a tab that ends at to begins. A click from
+// there closes the tab.
+func shutFrom(to float64) float64 { return to - 2*pad - slotW }
+
+// slotAt is where a tab's slot draws, after its text from at ends, in a
+// bar h tall from top.
+func slotAt(at, top, h float64) rect {
+	return rect{point{at, top + math.Floor(h/2) - slotW/2}, size{slotW, slotW}}
+}
+
 // show, shut and move are the keys that show a tab, close it, and move the
 // current one after the tab at index n of its row, first with 0.
 func (h hit) show() string {
@@ -109,7 +119,8 @@ func (w *window) drawStrip(wide, x, end, height float64) {
 		return r
 	}
 	// over marks the tab under the mouse, which shows × on a light ground,
-	// as the current one shows × while it has no changes.
+	// as the current one shows × while it has no changes. The × under the
+	// mouse draws on a rounded ground of its own.
 	over := func(rs []run, current int, from, to float64, i int) {
 		hovered := w.hover >= from && w.hover < to
 		if hovered && rs[i].ground == "" {
@@ -117,6 +128,9 @@ func (w *window) drawStrip(wide, x, end, height float64) {
 		}
 		if hovered || i == current && rs[i].slot == "" {
 			rs[i].slot = "xmark"
+		}
+		if hovered && w.hover >= shutFrom(to) {
+			rs[i].slotGround = "tertiaryLabelColor"
 		}
 	}
 	if len(t.pages) > 0 {
@@ -126,7 +140,6 @@ func (w *window) drawStrip(wide, x, end, height float64) {
 			pages[i] = tab(strconv.Itoa(i+1)+" "+name, p.Modified, p.Current)
 			if p.Current {
 				at = i
-				pages[i].fg, pages[i].ground, pages[i].slotFg = "whiteColor", modeColour(t.mode), "whiteColor"
 			}
 		}
 		start := end - min(width(pages), (end-x)/2)
@@ -199,7 +212,7 @@ func (w *window) stripPress(x float64) bool {
 	switch {
 	case !ok:
 		return false
-	case x >= h.to-pad-slotW:
+	case x >= shutFrom(h.to):
 		w.typeKeys(h.shut())
 		return true
 	}

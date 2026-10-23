@@ -1305,9 +1305,8 @@ Where fude departs, the line says so and cites the departure in
   resizes the windows on either side, and the panes place them there
   (B542). `:resize` sizes them again. A zoomed window fills the area under
   the title bar. A float shows in a box at its place. The title bar
-  holds the buffers as tabs, the current one raised, and the tab pages
-  at its right, the current one in the mode's colour (B258, B545). With
-  neither it shows the title.
+  holds the buffers as tabs and the tab pages at its right, the current
+  one of each raised (B258, B545). With neither it shows the title.
 - B550 [10] With `--gui` a menu at the cursor shows in a box under the
   cursor, or over it when there is more room there, scrolled as B64
   says. Its documentation shows in a box beside it, as B227 says. The
@@ -1355,7 +1354,8 @@ Where fude departs, the line says so and cites the departure in
   refused, and a buffer opened later goes last.
 - B555 [10] With `--gui` each tab ends in a slot that shows ● while its
   buffer has changes, and × while the mouse is over the tab or while it is
-  current without changes. A click on × closes the tab, as `:bd` closes a
+  current without changes. While the mouse is over the ×, it shows on a
+  rounded ground of its own. A click on × closes the tab, as `:bd` closes a
   buffer and `:tabclose` a tab page, and so does a middle click on the
   tab. Dragging a tab along its row moves it there, as `:bmove` and
   `:tabmove` do, with a mark where it would go, and leaves the window
@@ -1390,7 +1390,7 @@ Where fude departs, the line says so and cites the departure in
   toasts draw on the system's translucent material, in rounded panels
   with a shadow. Text the window composes itself takes the system's font
   and colours. A selected item takes the system's selection colour, and a
-  mode, a tab page or a count of diagnostics the system's colour for it.
+  mode or a count of diagnostics the system's colour for it.
   A tab's close button and its mark of changes, and the prompts of the
   command line and of search, are the system's symbols. The rows past a
   window's text show nothing.

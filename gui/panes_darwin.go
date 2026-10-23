@@ -281,6 +281,9 @@ func (r run) draw(x, top, h float64) float64 {
 		at += pad
 	}
 	msgDrawAt(nsString(r.text), sel("drawAtPoint:withAttributes:"), point{at, top + math.Floor((h-sz.H)/2)}, a)
+	if r.slotGround != "" {
+		fillRounded(r.slotGround, slotAt(at+math.Ceil(sz.W), top, h), 4)
+	}
 	if r.slot != "" {
 		drawSymbol(symbol(r.slot, system(r.slotFg)), rect{point{at + math.Ceil(sz.W) + 4, top + math.Floor(h/2) - 4}, size{slotW - 8, 8}})
 	}

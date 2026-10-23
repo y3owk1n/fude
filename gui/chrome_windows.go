@@ -330,6 +330,9 @@ func (r run) draw(x, top, h float64) float64 {
 	}
 	setColour(r.fg)
 	text(r.text, r.font(), point{at, top + math.Floor((h-sz.H)/2)})
+	if r.slotGround != "" {
+		fillRounded(r.slotGround, slotAt(at+math.Ceil(sz.W), top, h), 4)
+	}
 	if g := slotGlyphs[r.slot]; g != "" {
 		setColour(r.slotFg)
 		gs := measure(g, uiFont)

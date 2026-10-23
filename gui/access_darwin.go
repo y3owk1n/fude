@@ -376,7 +376,7 @@ func (w *window) tabElements() objc.ID {
 			}
 			tab.Send(sel("setAccessibilityValue:"), cls("NSNumber").Send(sel("numberWithInt:"), value))
 			// The tab's children retain its close button.
-			shut := newAction("AXButton", "close", tab, w.bar, rect{point{t.to - pad - slotW, 0}, size{slotW, h}}, func() { w.typeKeys(t.shut()) })
+			shut := newAction("AXButton", "close", tab, w.bar, rect{point{shutFrom(t.to), 0}, size{slotW, h}}, func() { w.typeKeys(t.shut()) })
 			tab.Send(sel("setAccessibilityChildren:"), cls("NSArray").Send(sel("arrayWithObject:"), shut))
 			shut.Send(sel("release"))
 			ids = append(ids, tab)

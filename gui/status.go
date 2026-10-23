@@ -11,7 +11,8 @@ import (
 // bold or not in one of the system's colours, which it names as AppKit
 // does and each system takes for its own. A pill run has a rounded ground
 // when it has one, and a tight run has no room after it. A tab's run ends
-// in a slot that shows the system's symbol slot.
+// in a slot that shows the system's symbol slot, on slotGround when it has
+// one.
 type run struct {
 	text        string
 	bold        bool
@@ -20,6 +21,7 @@ type run struct {
 	slotted     bool
 	slot        string
 	slotFg      string
+	slotGround  string
 }
 
 // width is how wide rs draw.

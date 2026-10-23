@@ -616,6 +616,23 @@ func TestB555MouseOnTabsFilesAndWords(t *testing.T) {
 		onMain(func() { tabs = slices.Clone(w.hits) }, true)
 		return len(tabs) == 3 && tabs[0].n == 2
 	})
+	// The × under the mouse draws on a ground of its own. The strip draws
+	// over the material, so the ground shows in the alpha.
+	lit := func(x float64) float64 {
+		var alpha float64
+		onMain(func() {
+			hover(w.bar, x)
+			b := msgRect(w.bar, sel("bounds"))
+			rep := msgInitView(w.bar, sel("bitmapImageRepForCachingDisplayInRect:"), b)
+			msgCache(w.bar, sel("cacheDisplayInRect:toBitmapImageRep:"), b, rep)
+			scale := float64(objc.Send[int](rep, sel("pixelsWide"))) / b.Size.W
+			alpha = msgComponent(msgColorAt(rep, sel("colorAtX:y:"), int(scale*(shutFrom(tabs[0].to)+3)), int(scale*b.Size.H/2)), sel("alphaComponent"))
+		}, true)
+		return alpha
+	}
+	if lit(tabs[0].to-pad-slotW/2) <= lit(tabs[0].from+pad) {
+		t.Error("the × under the mouse has no ground of its own")
+	}
 	mouse(1, tabs[0].to-pad-slotW/2, 1)
 	until(t, "b to close", func() bool { return row() == "c a" })
 	// A file dropped on the window opens.
