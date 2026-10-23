@@ -4,7 +4,6 @@ import (
 	"maps"
 	"runtime"
 	"slices"
-	"unicode"
 	"unicode/utf8"
 	"unsafe"
 
@@ -251,29 +250,6 @@ func textContentsAt(area uintptr, offset uint32, granularity int32, start, end *
 	return bytesOf(s.slice(from, to))
 }
 
-// wordAt returns the word at unit u, from its start to the next word's,
-// or the space it is in.
-func (s *spoken) wordAt(u int) (int, int) {
-	b := s.byteAt(u)
-	word := func(b int) bool {
-		c, _ := utf8.DecodeRuneInString(s.text[b:])
-		return b < len(s.text) && (c == '_' || unicode.IsLetter(c) || unicode.IsDigit(c))
-	}
-	from, to := b, b
-	for from > 0 && word(from-1) == word(b) {
-		_, n := utf8.DecodeLastRuneInString(s.text[:from])
-		from -= n
-	}
-	for to < len(s.text) && word(to) == word(b) {
-		_, n := utf8.DecodeRuneInString(s.text[to:])
-		to += n
-	}
-	for to < len(s.text) && s.text[to] == ' ' {
-		to++
-	}
-	return s.unit(from), s.unit(to)
-}
-
 func textCaret(area uintptr) uint32 {
 	if r, s, ok := readerOf(area); ok {
 		return uint32(s.unit(r.cursor))
@@ -413,7 +389,7 @@ func (w *window) focus() uintptr {
 // tabsText is what the tab strip says: its tabs, the current one marked.
 func (w *window) tabsText() string {
 	text := ""
-	for _, h := range w.hits {
+	for _, h := range w.everyTab() {
 		name, current := w.tabName(h)
 		if current {
 			name += " (current)"

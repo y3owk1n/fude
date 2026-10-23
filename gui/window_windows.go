@@ -38,6 +38,7 @@ type native struct {
 
 	mouseNative
 	stripNative
+	accessNative
 }
 
 // style is a window's, WS_OVERLAPPEDWINDOW.
@@ -100,6 +101,13 @@ func (w *window) handle(m uint32, wp, lp uintptr) (uintptr, bool) {
 		call(validateRect, w.hwnd, 0)
 	case wmEraseBkgnd:
 		return 1, true
+	case wmGetObject:
+		// UI Automation asks for the window's root, other clients for
+		// what Windows gives (B583).
+		if int32(uint32(lp)) != uiaRootObjectID {
+			return 0, false
+		}
+		return call(uiaReturn, w.hwnd, wp, lp, w.root.ptr(slotSimple)), true
 	case wmSize:
 		if w.target != nil {
 			s := sizeU{uint32(lp & 0xffff), uint32(lp >> 16 & 0xffff)}
@@ -155,6 +163,7 @@ func open(s client.Session, ended func()) *window {
 	w.scale = float64(call(getDpiForWindow, w.hwnd)) / 96
 	w.cellPx = [2]int{int(cellW * w.scale), int(cellH * w.scale)}
 	w.panel, w.toast = newBox(w), newBox(w)
+	w.newAccess()
 	// fit changes the frame, so the window takes its frame's messages
 	// first. Otherwise the system's title bar stays over the strip.
 	opened[w.hwnd] = w
@@ -167,6 +176,7 @@ func open(s client.Session, ended func()) *window {
 // close closes the window of a session that ended, and forgets its
 // render target.
 func (w *window) close() {
+	w.dropAccess()
 	delete(opened, w.hwnd)
 	for _, p := range w.panes {
 		p.gone = true
@@ -317,6 +327,7 @@ func (w *window) apply() {
 	for id, b := range w.floats {
 		if f.floats[id] == nil {
 			b.drop()
+			b.dropAccess()
 			delete(w.floats, id)
 		}
 	}
@@ -336,6 +347,7 @@ func (w *window) apply() {
 	w.toast.show(f.toast)
 	w.placeCaret()
 	w.redraw()
+	w.tell()
 	if f.asked != w.asked {
 		w.asked = f.asked
 		if w.asking {

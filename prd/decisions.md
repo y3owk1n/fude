@@ -990,9 +990,14 @@ key first. Once an assistive app has read a text, fude tells it of each
 change as a removal and an insertion, so Orca speaks only what changed.
 Without an assistive app fude compares no texts. GTK shows no widget for
 a tab or a list's row, so on Linux the tab strip is named by its tabs
-and the assistive app speaks a list's selected item. Where a range does not start at the
-cursor, its frame is the whole view, since cells do not say where other
-text is.
+and the assistive app speaks a list's selected item. On Windows the
+window answers WM_GETOBJECT with a UI Automation provider written in Go.
+Each element is a node, a COM object whose methods are syscall
+callbacks, and its text ranges count in UTF-16 units. UI Automation
+calls them on the window's thread. Two of their methods take floats, which amd64 and
+arm64 pass in different registers, so each CPU's file says where the
+result goes. Where a range does not start at the cursor, its frame is
+the whole view, since cells do not say where other text is.
 
 Why, as of 2026-10-24: the user found the macOS window empty to the
 accessibility tree, and asked for Linux and Windows too. The whole text,

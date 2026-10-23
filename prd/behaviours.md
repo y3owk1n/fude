@@ -1557,6 +1557,19 @@ Where fude departs, the line says so and cites the departure in
   of a change to the text as what was removed and what was inserted. The
   assistive app speaks a list's selected item and each message as they
   show.
+- B583 [10] With `--gui` on Windows, Narrator and other assistive apps
+  read the window through UI Automation, as on macOS (B581). Each
+  window's text is a document named by its buffer, with the buffer's
+  whole text, or a terminal's screen in terminal mode, the cursor or the
+  visual selection as its selection, and the lines in view as its visible
+  range. Its status bar is text. The current window has the focus, or
+  the palette or the finder while one shows, each a group of a text field
+  of what is typed and a list of its items. A menu is a list of its
+  items. The tab strip is a tab control with a tab item for each buffer
+  and page. Invoking a tab item shows it, and invoking its close button
+  closes it. fude tells the assistive app of each change to the text,
+  the cursor and the focus, and the assistive app speaks a list's
+  selected item and each message as they show.
 - B544 [2] A session has tab pages, each with its own windows, floats
   and current window, as in Neovim. `:tabnew` and `:tabedit` open one
   after the current page, on a file or a new empty buffer. `gt`, `{n}gt`,

@@ -7,7 +7,10 @@ import (
 
 // boxNative is where a box draws over its window's panes, on the system's
 // popover ground with rounded corners.
-type boxNative struct{ frame rect }
+type boxNative struct {
+	frame rect
+	boxAccess
+}
 
 // newBox makes a hidden box over w's panes, above every box before it.
 func newBox(w *window) *box {

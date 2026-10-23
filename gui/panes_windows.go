@@ -14,6 +14,7 @@ import (
 type paneNative struct {
 	frame   rect
 	shownAt time.Time
+	paneAccess
 }
 
 // divider is a line a point wide between two kids of a split, which the
@@ -43,6 +44,7 @@ func (w *window) build(l wire.Split) {
 	for id, p := range w.panes {
 		if !slices.Contains(ids, id) {
 			p.gone = true
+			p.dropAccess()
 			delete(w.panes, id)
 		}
 	}

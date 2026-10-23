@@ -5,6 +5,8 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"unicode"
+	"unicode/utf16"
 	"unicode/utf8"
 
 	"github.com/y3owk1n/fude/core/kernel"
@@ -169,6 +171,33 @@ func (s *spoken) lineUnits(n int) (int, int) {
 func (s *spoken) slice(from, to int) string {
 	return s.text[s.byteAt(from):s.byteAt(max(from, to))]
 }
+
+// wordAt returns the word at unit u, from its start to the next word's,
+// or the space it is in.
+func (s *spoken) wordAt(u int) (int, int) {
+	b := s.byteAt(u)
+	word := func(b int) bool {
+		c, _ := utf8.DecodeRuneInString(s.text[b:])
+		return b < len(s.text) && (c == '_' || unicode.IsLetter(c) || unicode.IsDigit(c))
+	}
+	from, to := b, b
+	for from > 0 && word(from-1) == word(b) {
+		_, n := utf8.DecodeLastRuneInString(s.text[:from])
+		from -= n
+	}
+	for to < len(s.text) && word(to) == word(b) {
+		_, n := utf8.DecodeRuneInString(s.text[to:])
+		to += n
+	}
+	for to < len(s.text) && s.text[to] == ' ' {
+		to++
+	}
+	return s.unit(from), s.unit(to)
+}
+
+// utf16Units counts a character as macOS and Windows count text, in UTF-16
+// units.
+func utf16Units(r rune) int { return max(utf16.RuneLen(r), 1) }
 
 // statusText is what a status bar says, its parts in order.
 func statusText(left, right []client.Part) string {

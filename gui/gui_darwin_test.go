@@ -1416,7 +1416,6 @@ func TestB581Accessibility(t *testing.T) {
 	// buttons close them.
 	tabs := func() (out []objc.ID) {
 		onMain(func() {
-			w.bar.Send(sel("display"))
 			kids := w.bar.Send(sel("accessibilityChildren"))
 			for i := range objc.Send[int](kids, sel("count")) {
 				out = append(out, kids.Send(sel("objectAtIndex:"), i))

@@ -46,7 +46,7 @@ func newBox(w *window) *box {
 	w.view.Send(sel("addSubview:"), frame)
 	field := objc.ID(fieldClass).Send(sel("alloc")).Send(sel("init"))
 	field.Send(sel("setAccessibilityParent:"), v)
-	b := &box{boxNative: boxNative{frame: frame, view: v, field: field, said: spoken{count: unitsOf}}, w: w, seen: -2, hover: point{X: -1}}
+	b := &box{boxNative: boxNative{frame: frame, view: v, field: field, said: spoken{count: utf16Units}}, w: w, seen: -2, hover: point{X: -1}}
 	boxes[v], fields[field] = b, b
 	return b
 }

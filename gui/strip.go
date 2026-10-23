@@ -2,6 +2,7 @@ package gui
 
 import (
 	"math"
+	"slices"
 	"strconv"
 
 	"github.com/y3owk1n/fude/frontend/client"
@@ -250,6 +251,25 @@ func (w *window) stripShut(x float64) {
 	if h, ok := w.at(x); ok {
 		w.typeKeys(h.shut())
 	}
+}
+
+// everyTab is each tab of the strip, the buffers' and then the pages',
+// where the strip last drew it, or at 0 when it did not fit.
+func (w *window) everyTab() []hit {
+	var out []hit
+	add := func(h hit) {
+		if i := slices.IndexFunc(w.hits, func(d hit) bool { return d.page == h.page && d.n == h.n }); i >= 0 {
+			h = w.hits[i]
+		}
+		out = append(out, h)
+	}
+	for i, b := range w.tabs.buffers {
+		add(hit{page: false, n: b.Number, index: i})
+	}
+	for i := range w.tabs.pages {
+		add(hit{page: true, n: i, index: i})
+	}
+	return out
 }
 
 // tabName is what the tab h shows, and whether it is current.

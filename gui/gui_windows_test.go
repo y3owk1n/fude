@@ -10,9 +10,11 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
+	"unicode/utf16"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -32,7 +34,6 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 	// paint draws into WIC's bitmaps, which COM makes.
-	ole32 := windows.NewLazySystemDLL("ole32.dll")
 	call(ole32.NewProc("CoInitializeEx"), 0, 2)
 	if err := failed("make WIC's factory", call(ole32.NewProc("CoCreateInstance"), uintptr(unsafe.Pointer(&clsidWIC)), 0, 1, uintptr(unsafe.Pointer(&iidWIC)), uintptr(unsafe.Pointer(&wic)))); err != nil {
 		panic(err)
@@ -441,17 +442,177 @@ func TestB578WindowsInputMethods(t *testing.T) {
 	})
 }
 
+// B583
+func TestB583WindowsAccessibility(t *testing.T) {
+	dir := t.TempDir()
+	editortest.Change(t, filepath.Join(dir, "a.txt"), "one\ntwo\n")
+	editortest.Change(t, filepath.Join(dir, "b.txt"), "three\n")
+	e := editortest.Open(t, filepath.Join(dir, "a.txt"))
+	e.Use(bufferline.New())
+	e.Use(buffers.New())
+	var w *window
+	onMain(func() { w = open(e, nil) }, true)
+	// An assistive app reads the window through UI Automation's client, on
+	// a thread of its own.
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	call(ole32.NewProc("CoInitializeEx"), 0, 0)
+	defer call(ole32.NewProc("CoUninitialize"))
+	var uia unsafe.Pointer
+	if err := failed("make UI Automation's client", call(ole32.NewProc("CoCreateInstance"), uintptr(unsafe.Pointer(&clsidUIA)), 0, 1, uintptr(unsafe.Pointer(&iidUIA)), uintptr(unsafe.Pointer(&uia)))); err != nil {
+		t.Fatal(err)
+	}
+	defer release(uia)
+	var root unsafe.Pointer
+	com(uia, 6, w.hwnd, uintptr(unsafe.Pointer(&root)))
+	defer release(root)
+	// find returns the elements under the window whose property is v.
+	find := func(prop int, v variant) []unsafe.Pointer {
+		var cond, all unsafe.Pointer
+		com(uia, 23, uintptr(prop), uintptr(unsafe.Pointer(&v)), uintptr(unsafe.Pointer(&cond)))
+		defer release(cond)
+		com(root, 6, 4, uintptr(cond), uintptr(unsafe.Pointer(&all)))
+		if all == nil {
+			return nil
+		}
+		defer release(all)
+		var n int32
+		com(all, 3, uintptr(unsafe.Pointer(&n)))
+		out := make([]unsafe.Pointer, n)
+		for i := range out {
+			com(all, 4, uintptr(i), uintptr(unsafe.Pointer(&out[i])))
+		}
+		return out
+	}
+	text := func(r unsafe.Pointer) string {
+		var b uintptr
+		com(r, 12, ^uintptr(0), uintptr(unsafe.Pointer(&b)))
+		defer call(sysFreeString, b)
+		return windows.UTF16PtrToString(out[uint16](b))
+	}
+	// focus reads the element with the focus: its control type, its name,
+	// its text and where its caret is.
+	type said struct {
+		role       int32
+		name, text string
+		caret      int
+	}
+	focus := func() said {
+		var s said
+		found := find(propHasFocus, variant{vt: vtBool, val: 0xffff})
+		if len(found) == 0 {
+			return s
+		}
+		el := found[0]
+		for _, f := range found {
+			defer release(f)
+		}
+		var name uintptr
+		com(el, 21, uintptr(unsafe.Pointer(&s.role)))
+		com(el, 23, uintptr(unsafe.Pointer(&name)))
+		s.name = windows.UTF16PtrToString(out[uint16](name))
+		call(sysFreeString, name)
+		var tp, doc, sel, head, picked unsafe.Pointer
+		if com(el, 14, textPattern, uintptr(unsafe.Pointer(&iidTextPatternClient)), uintptr(unsafe.Pointer(&tp))); tp == nil {
+			return s
+		}
+		defer release(tp)
+		com(tp, 7, uintptr(unsafe.Pointer(&doc)))
+		defer release(doc)
+		s.text = text(doc)
+		com(tp, 5, uintptr(unsafe.Pointer(&sel)))
+		defer release(sel)
+		com(sel, 4, 0, uintptr(unsafe.Pointer(&picked)))
+		defer release(picked)
+		com(doc, 3, uintptr(unsafe.Pointer(&head)))
+		defer release(head)
+		com(head, 15, 1, uintptr(picked), 0)
+		s.caret = len(utf16.Encode([]rune(text(head))))
+		return s
+	}
+	// The current window's text has the focus, with the cursor as its
+	// selection.
+	until(t, "the text to have the focus", func() bool {
+		return focus() == said{ctlDocument, "a.txt", "one\ntwo", 0}
+	})
+	typeIn(w, "j")
+	until(t, "the selection to follow", func() bool { return focus().caret == 4 })
+	// The palette's text field takes the focus while it shows.
+	typeIn(w, ":ec")
+	until(t, "the palette to have the focus", func() bool {
+		return focus() == said{ctlEdit, "command line", "ec", 2}
+	})
+	typeIn(w, "\x1b:e "+filepath.Join(dir, "b.txt")+"\r")
+	until(t, "b.txt to have the focus", func() bool { return focus().name == "b.txt" })
+	// The strip's tabs show their buffers when invoked, and their close
+	// buttons close them.
+	press := func(el unsafe.Pointer) {
+		var ip unsafe.Pointer
+		com(el, 14, invokePattern, uintptr(unsafe.Pointer(&iidInvokeClient)), uintptr(unsafe.Pointer(&ip)))
+		com(ip, 3)
+		release(ip)
+	}
+	tabs := func() []unsafe.Pointer { return find(propControlType, variant{vt: vtI4, val: ctlTabItem}) }
+	until(t, "two tabs", func() bool {
+		ts := tabs()
+		for _, tab := range ts {
+			release(tab)
+		}
+		return len(ts) == 2
+	})
+	ts := tabs()
+	press(ts[0])
+	for _, tab := range ts {
+		release(tab)
+	}
+	until(t, "a.txt to show", func() bool { return focus().name == "a.txt" })
+	// Windows' own buttons of the title bar are buttons too.
+	var shut []unsafe.Pointer
+	for _, b := range find(propControlType, variant{vt: vtI4, val: ctlButton}) {
+		var name uintptr
+		com(b, 23, uintptr(unsafe.Pointer(&name)))
+		if windows.UTF16PtrToString(out[uint16](name)) == "close" {
+			shut = append(shut, b)
+		} else {
+			release(b)
+		}
+		call(sysFreeString, name)
+	}
+	press(shut[1])
+	for _, b := range shut {
+		release(b)
+	}
+	until(t, "b.txt to close", func() bool {
+		ts := tabs()
+		for _, tab := range ts {
+			release(tab)
+		}
+		return len(ts) == 1
+	})
+	typeIn(w, ":qa!\r")
+	until(t, "the session to end", func() bool {
+		open := true
+		onMain(func() { _, open = opened[w.hwnd] }, true)
+		return !open
+	})
+}
+
 var (
-	getWindowText    = user32.NewProc("GetWindowTextW")
-	getWindowRect    = user32.NewProc("GetWindowRect")
-	keyboardState    = user32.NewProc("GetKeyboardState")
-	setKeyboardState = user32.NewProc("SetKeyboardState")
-	sendMessage      = user32.NewProc("SendMessageW")
-	setCursorPos     = user32.NewProc("SetCursorPos")
-	wic              unsafe.Pointer
-	clsidWIC         = windows.GUID{Data1: 0xcacaf262, Data2: 0x9370, Data3: 0x4615, Data4: [8]byte{0xa1, 0x3b, 0x9f, 0x55, 0x39, 0xda, 0x4c, 0x0a}}
-	iidWIC           = windows.GUID{Data1: 0xec5ec8a9, Data2: 0xc395, Data3: 0x4314, Data4: [8]byte{0x9c, 0x77, 0x54, 0xd7, 0xa9, 0x35, 0xff, 0x70}}
-	pbgra            = windows.GUID{Data1: 0x6fddc324, Data2: 0x4e03, Data3: 0x4bfe, Data4: [8]byte{0xb1, 0x85, 0x3d, 0x77, 0x76, 0x8d, 0xc9, 0x10}}
+	ole32                = windows.NewLazySystemDLL("ole32.dll")
+	clsidUIA             = windows.GUID{Data1: 0xff48dba4, Data2: 0x60ef, Data3: 0x4201, Data4: [8]byte{0xaa, 0x87, 0x54, 0x10, 0x3e, 0xef, 0x59, 0x4e}}
+	iidUIA               = windows.GUID{Data1: 0x30cbe57d, Data2: 0xd9d0, Data3: 0x452a, Data4: [8]byte{0xab, 0x13, 0x7a, 0xc5, 0xac, 0x48, 0x25, 0xee}}
+	iidTextPatternClient = windows.GUID{Data1: 0x32eba289, Data2: 0x3583, Data3: 0x42c9, Data4: [8]byte{0x9c, 0x59, 0x3b, 0x6d, 0x9a, 0x1e, 0x9b, 0x6a}}
+	iidInvokeClient      = windows.GUID{Data1: 0xfb377fbe, Data2: 0x8ea6, Data3: 0x46d5, Data4: [8]byte{0x9c, 0x73, 0x64, 0x99, 0x64, 0x2d, 0x30, 0x59}}
+	getWindowText        = user32.NewProc("GetWindowTextW")
+	getWindowRect        = user32.NewProc("GetWindowRect")
+	keyboardState        = user32.NewProc("GetKeyboardState")
+	setKeyboardState     = user32.NewProc("SetKeyboardState")
+	sendMessage          = user32.NewProc("SendMessageW")
+	setCursorPos         = user32.NewProc("SetCursorPos")
+	wic                  unsafe.Pointer
+	clsidWIC             = windows.GUID{Data1: 0xcacaf262, Data2: 0x9370, Data3: 0x4615, Data4: [8]byte{0xa1, 0x3b, 0x9f, 0x55, 0x39, 0xda, 0x4c, 0x0a}}
+	iidWIC               = windows.GUID{Data1: 0xec5ec8a9, Data2: 0xc395, Data3: 0x4314, Data4: [8]byte{0x9c, 0x77, 0x54, 0xd7, 0xa9, 0x35, 0xff, 0x70}}
+	pbgra                = windows.GUID{Data1: 0x6fddc324, Data2: 0x4e03, Data3: 0x4bfe, Data4: [8]byte{0xb1, 0x85, 0x3d, 0x77, 0x76, 0x8d, 0xc9, 0x10}}
 )
 
 // typeIn types keys into w's window as Windows brings them: a character

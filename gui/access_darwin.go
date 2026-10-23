@@ -4,14 +4,10 @@ import (
 	"fmt"
 	"maps"
 	"slices"
-	"unicode/utf16"
 	"unicode/utf8"
 
 	"github.com/ebitengine/purego/objc"
 )
-
-// unitsOf counts a character as NSString does, in UTF-16 units.
-func unitsOf(r rune) int { return max(utf16.RuneLen(r), 1) }
 
 // readingAccess are the NSAccessibility methods of a view that shows text:
 // a pane's, or a box's holding a float or what the palette has typed. A
@@ -76,7 +72,7 @@ var readingAccess = []objc.MethodDef{
 			b := s.byteAt(i)
 			n := 0
 			if c, size := utf8.DecodeRuneInString(s.text[b:]); size > 0 {
-				n = unitsOf(c)
+				n = utf16Units(c)
 			}
 			return nsRange{uint(s.unit(b)), uint(n)}
 		}
@@ -357,10 +353,11 @@ func newAction(role, label string, parent, view objc.ID, frame rect, press func(
 // tabElements are the strip's tabs, each a radio button that shows its
 // tab, with a close button that closes it (B555).
 func (w *window) tabElements() objc.ID {
-	return w.tabIDs.of(fmt.Sprint(w.hits, w.tabs), func() []objc.ID {
+	tabs := w.everyTab()
+	return w.tabIDs.of(fmt.Sprint(tabs, w.tabs), func() []objc.ID {
 		h := msgRect(w.bar, sel("bounds")).Size.H
 		var ids []objc.ID
-		for _, t := range w.hits {
+		for _, t := range tabs {
 			name, current := w.tabName(t)
 			tab := newAction("AXRadioButton", name, w.bar, w.bar, rect{point{t.from, 0}, size{t.to - t.from, h}}, func() { w.typeKeys(t.show()) })
 			value := 0
