@@ -70,17 +70,25 @@ type (
 )
 
 // makeFonts makes the fonts: the text's in Cascadia Mono, or Consolas
-// where it is missing, and the chrome's in the system's message font.
+// where it is missing, the chrome's in the system's message font, and the
+// window's buttons' in its icon font, Windows 11's or else Windows 10's.
 func makeFonts() {
 	var collection unsafe.Pointer
 	com(dw, 3, uintptr(unsafe.Pointer(&collection)), 0)
-	textFamily = "Consolas"
-	var index uint32
-	var exists int32
-	if com(collection, 5, uintptr(unsafe.Pointer(cwide("Cascadia Mono"))), uintptr(unsafe.Pointer(&index)), uintptr(unsafe.Pointer(&exists))) == 0 && exists != 0 {
-		textFamily = "Cascadia Mono"
+	defer release(collection)
+	// first is the first of the families the system has.
+	first := func(families ...string) string {
+		for _, f := range families[:len(families)-1] {
+			var index uint32
+			var exists int32
+			if com(collection, 5, uintptr(unsafe.Pointer(cwide(f))), uintptr(unsafe.Pointer(&index)), uintptr(unsafe.Pointer(&exists))) == 0 && exists != 0 {
+				return f
+			}
+		}
+		return families[len(families)-1]
 	}
-	release(collection)
+	textFamily = first("Cascadia Mono", "Consolas")
+	captionFont = newFormat(first("Segoe Fluent Icons", "Segoe MDL2 Assets"), 400, 0, 10)
 	ui, size := "Segoe UI", 12.0
 	m := ncMetrics{}
 	m.size = uint32(unsafe.Sizeof(m))

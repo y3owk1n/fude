@@ -27,8 +27,8 @@ func (b *box) drop() {
 	b.w.order = slices.DeleteFunc(b.w.order, func(o *box) bool { return o == b })
 }
 
-// show makes b show what, where placeBox puts it over the panes. A nil
-// what hides b.
+// show makes b show what, where placeBox puts it over the panes, under the
+// tab strip. A nil what hides b.
 func (b *box) show(what *boxed) {
 	b.boxed = what
 	if what == nil {
@@ -36,7 +36,7 @@ func (b *box) show(what *boxed) {
 		return
 	}
 	r := placeBox(what, b.w.area(), 0, &b.scroll, &b.seen)
-	b.frame = rect{point{math.Round(r.Origin.X), math.Round(r.Origin.Y)}, size{math.Ceil(r.Size.W), math.Ceil(r.Size.H)}}
+	b.frame = rect{point{math.Round(r.Origin.X), stripH + math.Round(r.Origin.Y)}, size{math.Ceil(r.Size.W), math.Ceil(r.Size.H)}}
 }
 
 // drawBox draws b bounds big on the system's popover ground, inside a

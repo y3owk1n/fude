@@ -33,7 +33,11 @@ type native struct {
 	surrogate     uint16 // the first half of a character two WM_CHARs bring
 
 	mouseNative
+	stripNative
 }
+
+// style is a window's, WS_OVERLAPPEDWINDOW.
+const style = 0x00CF0000
 
 // opened are the windows by their HWNDs.
 var opened = map[uintptr]*window{}
@@ -83,6 +87,9 @@ func wndProc(hwnd, m, wp, lp uintptr) uintptr {
 
 // handle handles a message of w's window, and reports whether it did.
 func (w *window) handle(m uint32, wp, lp uintptr) (uintptr, bool) {
+	if r, ok := w.frame(m, wp, lp); ok {
+		return r, true
+	}
 	switch m {
 	case wmPaint:
 		w.paint()
@@ -138,13 +145,9 @@ func (w *window) relink() {
 func open(s client.Session, ended func()) *window {
 	cols, rows := 100, 32
 	w := &window{s: s, keys: make(chan vim.Key, 1024), do: make(chan func()), pastes: make(chan string, 8), mice: make(chan mouse, 64), ended: ended, placed: make(chan struct{}, 1), panes: map[int]*pane{}, floats: map[int]*box{}, caretOn: true, hover: -1, native: native{mouseNative: mouseNative{splitting: -1}}}
-	const style = 0x00CF0000 // WS_OVERLAPPEDWINDOW
 	w.hwnd = call(createWindow, 0, uintptr(unsafe.Pointer(className)), uintptr(unsafe.Pointer(cwide("fude"))), style, 1<<31, 1<<31, 1<<31, 1<<31, 0, 0, call(getModuleHandle, 0), 0)
-	dpi := call(getDpiForWindow, w.hwnd)
-	w.scale = float64(dpi) / 96
-	r := rectI{0, 0, int32(math.Ceil((cellW*float64(cols) + 2*pad) * w.scale)), int32(math.Ceil((cellH*float64(rows) + 2*pad + statusH) * w.scale))}
-	call(adjustWindowRect, uintptr(unsafe.Pointer(&r)), style, 0, 0, dpi)
-	call(setWindowPos, w.hwnd, 0, 0, 0, uintptr(r.R-r.L), uintptr(r.B-r.T), 0x16)
+	w.scale = float64(call(getDpiForWindow, w.hwnd)) / 96
+	w.fit(cellW*float64(cols)+2*pad, stripH+cellH*float64(rows)+2*pad+statusH)
 	w.cellPx = [2]int{int(cellW * w.scale), int(cellH * w.scale)}
 	w.panel, w.toast = newBox(w), newBox(w)
 	opened[w.hwnd] = w
@@ -202,6 +205,7 @@ func (w *window) paint() {
 	com(rt, 48)
 	ground := rgba(w.look.Base.Bg, 1)
 	com(rt, 47, uintptr(unsafe.Pointer(&ground)))
+	w.drawStripBar(w.area().W)
 	for _, p := range w.panes {
 		within(p.frame, func(sz size) { drawPane(p, sz) })
 	}
@@ -234,11 +238,21 @@ func within(r rect, draw func(size)) {
 // redraw asks Windows to paint the window again.
 func (w *window) redraw() { call(invalidateRect, w.hwnd, 0, 0) }
 
-// area is the size of the window's client area, in points.
+// area is the size of the window's client area under the tab strip, in
+// points.
 func (w *window) area() size {
 	var r rectI
 	call(getClientRect, w.hwnd, uintptr(unsafe.Pointer(&r)))
-	return size{float64(r.R) / w.scale, float64(r.B) / w.scale}
+	return size{float64(r.R) / w.scale, max(float64(r.B)/w.scale-stripH, 0)}
+}
+
+// fit makes w's client area width by height points. Its frame has no
+// title bar, so the client area starts at the window's top.
+func (w *window) fit(width, height float64) {
+	dpi := uintptr(96 * w.scale)
+	r := rectI{0, 0, int32(math.Ceil(width * w.scale)), int32(math.Ceil(height * w.scale))}
+	call(adjustWindowRect, uintptr(unsafe.Pointer(&r)), style, 0, 0, dpi)
+	call(setWindowPos, w.hwnd, 0, 0, 0, uintptr(r.R-r.L), uintptr(r.B), 0x36)
 }
 
 // apply shows the frames the loop sent, on the main thread.
@@ -379,7 +393,9 @@ func held() int {
 // keyDown types a key down that types no character, or one with Control,
 // as its keys in Vim's notation, and reports whether it took the key. The
 // characters the others type come as WM_CHAR and WM_SYSCHAR. Control and
-// Shift with C copy and with V paste, as Windows Terminal does.
+// Shift with C copy and with V paste, as Windows Terminal does, and
+// Control with =, minus and 0 make the text bigger, smaller and its first
+// size (B575).
 func (w *window) keyDown(vk uintptr) bool {
 	mods := held()
 	switch {
@@ -391,6 +407,15 @@ func (w *window) keyDown(vk uintptr) bool {
 		return true
 	case mods == controlKey|shiftKey && vk == 'V':
 		w.paste()
+		return true
+	case mods&^shiftKey == controlKey && (vk == 0xbb || vk == 0x6b):
+		sizeText(textSize + 1)
+		return true
+	case mods&^shiftKey == controlKey && (vk == 0xbd || vk == 0x6d):
+		sizeText(textSize - 1)
+		return true
+	case mods&^shiftKey == controlKey && (vk == '0' || vk == 0x60):
+		sizeText(11)
 		return true
 	}
 	named, plain := virtualKeys[vk], ""

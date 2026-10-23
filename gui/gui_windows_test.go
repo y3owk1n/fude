@@ -14,6 +14,8 @@ import (
 	"golang.org/x/sys/windows"
 
 	"github.com/y3owk1n/fude/editor/editortest"
+	"github.com/y3owk1n/fude/modules/bufferline"
+	"github.com/y3owk1n/fude/modules/buffers"
 	windowmod "github.com/y3owk1n/fude/modules/window"
 	"github.com/y3owk1n/fude/vim"
 )
@@ -66,7 +68,7 @@ func TestB573WindowsWindow(t *testing.T) {
 		return drawn
 	})
 	// A window made smaller makes the session smaller.
-	onMain(func() { resize(w, cellW*80+2*pad, cellH*24+2*pad+statusH) }, true)
+	onMain(func() { w.fit(cellW*80+2*pad, stripH+cellH*24+2*pad+statusH) }, true)
 	until(t, "the session to take 80 columns", func() bool {
 		cols := 0
 		w.onLoop(func() { cols = e.Windows()[0].W })
@@ -110,12 +112,7 @@ func TestB574WindowsMouse(t *testing.T) {
 	cell := func(x, y int) point {
 		return point{p.frame.Origin.X + pad + (float64(x)+0.5)*cellW, p.frame.Origin.Y + pad + (float64(y)+0.5)*cellH}
 	}
-	send := func(m uint32, wp uintptr, at point) {
-		onMain(func() {
-			lp := uintptr(uint16(int16(at.X*w.scale))) | uintptr(uint16(int16(at.Y*w.scale)))<<16
-			call(sendMessage, w.hwnd, uintptr(m), wp, lp)
-		}, true)
-	}
+	send := func(m uint32, wp uintptr, at point) { mouseAt(w, m, wp, at) }
 	click := func(from, to point) {
 		send(wmLButtonDown, 1, from)
 		send(wmMouseMove, 1, to)
@@ -220,12 +217,80 @@ func TestB574WindowsMouse(t *testing.T) {
 	})
 }
 
+// B575
+func TestB575WindowsStripAndLook(t *testing.T) {
+	dir := t.TempDir()
+	editortest.Change(t, filepath.Join(dir, "a.txt"), "one\n")
+	editortest.Change(t, filepath.Join(dir, "b.txt"), "two\n")
+	e := editortest.Open(t, filepath.Join(dir, "a.txt"))
+	e.Use(bufferline.New())
+	e.Use(buffers.New())
+	var w *window
+	onMain(func() { w = open(e, nil) }, true)
+	typeIn(w, ":e "+filepath.Join(dir, "b.txt")+"\r")
+	// The strip shows a tab for each buffer, and a click on one shows it.
+	until(t, "two tabs", func() bool {
+		n := 0
+		onMain(func() {
+			paint(size{w.area().W, stripH}, func(sz size) { w.drawStripBar(sz.W) })
+			n = len(w.hits)
+		}, true)
+		return n == 2
+	})
+	// Off the tabs the strip is the title bar, and its buttons are the
+	// window's.
+	var tab, title, closing uintptr
+	onMain(func() {
+		width := w.area().W
+		tab, title, closing = w.hit(point{(w.hits[0].from + w.hits[0].to) / 2, stripH / 2}), w.hit(point{width / 2, stripH / 2}), w.hit(point{width - captionW/2, stripH / 2})
+	}, true)
+	if tab != htClient || title != htCaption || closing != htClose {
+		t.Errorf("the strip hits %d on a tab, %d off them and %d on the last button", tab, title, closing)
+	}
+	at := point{(w.hits[0].from+w.hits[0].to)/2 - slotW, stripH / 2}
+	mouseAt(w, wmLButtonDown, 1, at)
+	mouseAt(w, wmLButtonUp, 0, at)
+	until(t, "a.txt to show", func() bool {
+		name := ""
+		w.onLoop(func() { name = e.Windows()[0].Name })
+		return strings.HasSuffix(name, "a.txt")
+	})
+	// A change to a buffer puts a dot before the title.
+	typeIn(w, "ix\x1b")
+	until(t, "the title to show the change", func() bool {
+		var title [64]uint16
+		onMain(func() { call(getWindowText, w.hwnd, uintptr(unsafe.Pointer(&title[0])), 64) }, true)
+		return strings.HasPrefix(windows.UTF16ToString(title[:]), "• ")
+	})
+	// Control with = makes the text bigger, so the window holds fewer
+	// columns.
+	cols := 0
+	w.onLoop(func() { cols = e.Windows()[0].W })
+	withControl(w, 0xbb)
+	until(t, "fewer columns", func() bool {
+		now := 0
+		w.onLoop(func() { now = e.Windows()[0].W })
+		return now < cols
+	})
+	withControl(w, '0')
+	typeIn(w, ":qa!\r")
+	until(t, "the session to end", func() bool {
+		open := true
+		onMain(func() { _, open = opened[w.hwnd] }, true)
+		return !open
+	})
+}
+
 var (
-	sendMessage = user32.NewProc("SendMessageW")
-	wic         unsafe.Pointer
-	clsidWIC    = windows.GUID{Data1: 0xcacaf262, Data2: 0x9370, Data3: 0x4615, Data4: [8]byte{0xa1, 0x3b, 0x9f, 0x55, 0x39, 0xda, 0x4c, 0x0a}}
-	iidWIC      = windows.GUID{Data1: 0xec5ec8a9, Data2: 0xc395, Data3: 0x4314, Data4: [8]byte{0x9c, 0x77, 0x54, 0xd7, 0xa9, 0x35, 0xff, 0x70}}
-	pbgra       = windows.GUID{Data1: 0x6fddc324, Data2: 0x4e03, Data3: 0x4bfe, Data4: [8]byte{0xb1, 0x85, 0x3d, 0x77, 0x76, 0x8d, 0xc9, 0x10}}
+	getWindowText    = user32.NewProc("GetWindowTextW")
+	keyboardState    = user32.NewProc("GetKeyboardState")
+	setKeyboardState = user32.NewProc("SetKeyboardState")
+	sendMessage      = user32.NewProc("SendMessageW")
+	setCursorPos     = user32.NewProc("SetCursorPos")
+	wic              unsafe.Pointer
+	clsidWIC         = windows.GUID{Data1: 0xcacaf262, Data2: 0x9370, Data3: 0x4615, Data4: [8]byte{0xa1, 0x3b, 0x9f, 0x55, 0x39, 0xda, 0x4c, 0x0a}}
+	iidWIC           = windows.GUID{Data1: 0xec5ec8a9, Data2: 0xc395, Data3: 0x4314, Data4: [8]byte{0x9c, 0x77, 0x54, 0xd7, 0xa9, 0x35, 0xff, 0x70}}
+	pbgra            = windows.GUID{Data1: 0x6fddc324, Data2: 0x4e03, Data3: 0x4bfe, Data4: [8]byte{0xb1, 0x85, 0x3d, 0x77, 0x76, 0x8d, 0xc9, 0x10}}
 )
 
 // typeIn types keys into w's window as Windows brings them: a character
@@ -243,12 +308,29 @@ func typeIn(w *window, keys string) {
 	}
 }
 
-// resize makes w's client area width by height points.
-func resize(w *window, width, height float64) {
-	dpi := uintptr(96 * w.scale)
-	r := rectI{0, 0, int32(math.Ceil(width * w.scale)), int32(math.Ceil(height * w.scale))}
-	call(adjustWindowRect, uintptr(unsafe.Pointer(&r)), 0x00CF0000, 0, 0, dpi)
-	call(setWindowPos, w.hwnd, 0, 0, 0, uintptr(r.R-r.L), uintptr(r.B-r.T), 0x16)
+// mouseAt sends w's window the mouse's message m at a point, with the
+// system's pointer there, as Windows tracks it.
+func mouseAt(w *window, m uint32, wp uintptr, at point) {
+	onMain(func() {
+		pt := [2]int32{int32(at.X * w.scale), int32(at.Y * w.scale)}
+		lp := uintptr(uint16(pt[0])) | uintptr(uint16(pt[1]))<<16
+		call(clientToScreen, w.hwnd, uintptr(unsafe.Pointer(&pt)))
+		call(setCursorPos, uintptr(pt[0]), uintptr(pt[1]))
+		call(sendMessage, w.hwnd, uintptr(m), wp, lp)
+	}, true)
+}
+
+// withControl presses the key vk with Control held, as the keyboard does.
+func withControl(w *window, vk uintptr) {
+	onMain(func() {
+		var keys [256]byte
+		call(keyboardState, uintptr(unsafe.Pointer(&keys)))
+		keys[0x11] = 0x80
+		call(setKeyboardState, uintptr(unsafe.Pointer(&keys)))
+		call(sendMessage, w.hwnd, wmKeyDown, vk, 0)
+		keys[0x11] = 0
+		call(setKeyboardState, uintptr(unsafe.Pointer(&keys)))
+	}, true)
 }
 
 // paint calls draw on an image sz big, as a window at 96 DPI draws, and

@@ -1509,6 +1509,14 @@ Where fude departs, the line says so and cites the departure in
   its hover, and with Control a word is a link to its definition. A right
   click shows the menu of B561 as a Windows menu. Control and Shift with C
   copy and with V paste, as Windows Terminal does.
+- B575 [10] With `--gui` on Windows, the tab strip is the window's title
+  bar, beside its minimize, maximize and close buttons, and works as on
+  macOS (B555). A click on a tab shows it, a click on its × or a middle
+  click closes it, and a dragged tab moves. Off the tabs the strip drags
+  the window, and a double click there maximizes it. The window's title
+  starts with a dot while a buffer it shows has changes. Control with =,
+  minus and 0 make the text bigger, smaller and its first size, and each
+  window takes as many cells as it then holds.
 - B544 [2] A session has tab pages, each with its own windows, floats
   and current window, as in Neovim. `:tabnew` and `:tabedit` open one
   after the current page, on a file or a new empty buffer. `gt`, `{n}gt`,

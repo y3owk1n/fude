@@ -84,15 +84,15 @@ func (w *window) mouse(m uint32, wp, lp uintptr) bool {
 		call(releaseCapture)
 		w.mouseUp(at)
 	case wmMouseMove:
-		if !w.tracking {
-			w.tracking = true
+		if !w.mouseNative.tracking {
+			w.mouseNative.tracking = true
 			t := trackEvent{flags: 2, hwnd: w.hwnd}
 			t.size = uint32(unsafe.Sizeof(t))
 			call(trackMouseEvent, uintptr(unsafe.Pointer(&t)))
 		}
 		w.mouseMove(at)
 	case wmMouseLeave:
-		w.tracking = false
+		w.mouseNative.tracking = false
 		w.mouseLeft()
 	case wmMouseWheel:
 		w.mouseRoll(w.client(int32(int16(lp)), int32(int16(lp>>16))), -float64(int16(wp>>16))/120)
@@ -163,9 +163,14 @@ func (w *window) count(at point) int {
 
 // mouseDown gives the session a click of a button on a pane's text or a
 // box, shows the right click's menu, or starts dragging a divider. A click
-// on a status bar only gives its window the focus (B552, B561).
+// on a status bar only gives its window the focus, and one on a tab goes
+// to the strip (B552, B561).
 func (w *window) mouseDown(button int, at point) {
 	clicks, mods := w.count(at), held()
+	if at.Y < stripH {
+		w.stripDown(button, at.X)
+		return
+	}
 	if i := w.dividerAt(at); i >= 0 && button == 1 {
 		w.splitting = i
 		return
@@ -184,23 +189,40 @@ func (w *window) mouseDown(button int, at point) {
 	}
 }
 
-// mouseUp ends a click on a pane's text where it let go, or a divider's
-// drag (B557).
+// mouseUp ends a click on a pane's text where it let go, or a divider's or
+// a tab's drag (B555, B557).
 func (w *window) mouseUp(at point) {
 	w.splitting = -1
+	if w.stripRelease() {
+		w.redraw()
+	}
 	if p := w.pressing; p != nil {
 		w.pressing = nil
 		w.press(p, nil, point{at.X - p.frame.Origin.X, at.Y - p.frame.Origin.Y}, 'u', 1, held())
 	}
 }
 
-// mouseMove drags a divider, or drags over the pane the button went down
-// on. Otherwise it marks where the mouse is over a pane's text or a box's
-// list. Over a box, the pane's hover stays (B552, B560, B562).
+// mouseMove drags a divider or a tab, or drags over the pane the button
+// went down on. Otherwise it marks where the mouse is over the strip, a
+// pane's text or a box's list. Over a box, the pane's hover stays (B552,
+// B560, B562).
 func (w *window) mouseMove(at point) {
+	w.hoverCaption(0)
 	if w.splitting >= 0 {
 		w.split(at)
 		return
+	}
+	if w.stripDrag(at.X) {
+		w.redraw()
+		return
+	}
+	hover := -1.0
+	if at.Y < stripH {
+		hover = at.X
+	}
+	if hover != w.hover {
+		w.hover = hover
+		w.redraw()
 	}
 	if p := w.pressing; p != nil {
 		w.press(p, nil, point{at.X - p.frame.Origin.X, at.Y - p.frame.Origin.Y}, 'd', 1, held())
@@ -230,6 +252,7 @@ func (w *window) mouseMove(at point) {
 
 // mouseLeft marks that the mouse left the window.
 func (w *window) mouseLeft() {
+	w.hover = -1
 	for _, b := range w.order {
 		b.hover = point{X: -1}
 	}
