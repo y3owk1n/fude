@@ -137,6 +137,16 @@ func open(s client.Session, ended func()) *window {
 // widgets.
 func (w *window) close() {
 	delete(windows, w.win)
+	// The theme's colours come from another open window's style context
+	// once this one closes.
+	if styled == w.win {
+		styled = 0
+		for win := range windows {
+			styled = win
+			break
+		}
+		clear(colours)
+	}
 	for _, p := range w.panes {
 		p.drop()
 	}

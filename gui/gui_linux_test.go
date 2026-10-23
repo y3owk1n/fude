@@ -21,6 +21,8 @@ import (
 // TestMain runs GTK on the main thread and the tests beside it, which reach
 // it through onMain.
 func TestMain(m *testing.M) {
+	// A GTK call on a freed or wrong object fails the tests.
+	os.Setenv("G_DEBUG", "fatal-criticals")
 	if err := load(); err != nil {
 		panic(err)
 	}
