@@ -443,7 +443,7 @@ func (f *finder) box(query string, cursor, width, height int) wire.Menu {
 // (B560).
 func fileItem(path string, marks []int) wire.Item {
 	dir, name := filepath.Split(strings.TrimSuffix(path, "/"))
-	it := wire.Item{Label: name, Detail: strings.TrimSuffix(dir, "/"), Kind: "file", Path: path}
+	it := wire.Item{Label: name, Detail: strings.TrimSuffix(dir, string(filepath.Separator)), Kind: "file", Path: path}
 	if strings.HasSuffix(path, "/") {
 		it.Kind = "folder"
 	}
