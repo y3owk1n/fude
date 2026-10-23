@@ -893,36 +893,36 @@ packages' API is now a promise, as D46 says of any package outside
 
 ## D65. A native window on macOS, through AppKit with purego
 
-`fude gui` shows a session in a native macOS window (B547). `gui/` is a
-frontend of `client.Session`, as `tui/` is. It calls AppKit through
-purego's Objective-C runtime, so it needs no cgo, and cgo stays in
-`syntax/`. A custom view draws each window's text from the cells
-`frontend/compose` gives. The command line, the finder and messages show
-in boxes over the text, as a palette, a panel and toasts. Questions show
-in the system's sheets (B548). Each window of the layout shows in a pane,
-with a status bar under its text. The panes sit in the system's split
-views, and each pane places its window (B542, B549). The title bar holds
-the buffers as tabs and the tab pages at its right. Floats and menus show
-in boxes over the panes, placed by their anchors (B543, B550). The root
-view is an input method's client, and the menus' Edit actions type Vim's
-keys for them (B551). The mouse goes to the session by cell (B552). The
-window takes the theme's light or dark look, and AppKit shows the current
-file's icon and unsaved changes as it does for any document window (B558).
-The strip, the status bars and the boxes take the system's materials,
-colours, font and symbols, as the chrome of other Mac applications does.
-The text keeps the theme (B559). A menu carries its items as data beside
-its text, which the terminal client draws, so the window lays them out as
-lists in the system's font with icons (B560). A right click opens a menu
-of the language server's actions and the clipboard's, and the scroll bars,
-a trackpad's scroll and the blinking cursor behave as they do in other Mac
-applications (B561). The mouse resting on a word shows its hover there
-(B562). Terminal windows draw from their cells. Images draw from the PNGs
-the session gives, with no terminal protocol (B553). The editor stays the
-source of each, and keys still go through Vim's grammar, so a palette
-holds no text field of its own. On other systems `fude gui` says it runs
-only on macOS for now. The GUI ships later as an app bundle built from the
-same code, and `fude` stays one binary, since the window adds about 0.1MB
-to it.
+`--gui` shows a session in a native macOS window, for each command that
+shows one (B547). `gui/` is a frontend of `client.Session`, as `tui/` is.
+It calls AppKit through purego's Objective-C runtime, so it needs no cgo,
+and cgo stays in `syntax/`. A custom view draws each window's text from
+the cells `frontend/compose` gives. The command line, the finder and
+messages show in boxes over the text, as a palette, a panel and toasts.
+Questions show in the system's sheets (B548). Each window of the layout
+shows in a pane, with a status bar under its text. The panes sit in the
+system's split views, and each pane places its window (B542, B549). The
+title bar holds the buffers as tabs and the tab pages at its right. Floats
+and menus show in boxes over the panes, placed by their anchors (B543,
+B550). The root view is an input method's client, and the menus' Edit
+actions type Vim's keys for them (B551). The mouse goes to the session by
+cell (B552). The window takes the theme's light or dark look, and AppKit
+shows the current file's icon and unsaved changes as it does for any
+document window (B558). The strip, the status bars and the boxes take the
+system's materials, colours, font and symbols, as the chrome of other Mac
+applications does. The text keeps the theme (B559). A menu carries its
+items as data beside its text, which the terminal client draws, so the
+window lays them out as lists in the system's font with icons (B560). A
+right click opens a menu of the language server's actions and the
+clipboard's, and the scroll bars, a trackpad's scroll and the blinking
+cursor behave as they do in other Mac applications (B561). The mouse
+resting on a word shows its hover there (B562). Terminal windows draw from
+their cells. Images draw from the PNGs the session gives, with no terminal
+protocol (B553). The editor stays the source of each, and keys still go
+through Vim's grammar, so a palette holds no text field of its own. On
+other systems `--gui` says it runs only on macOS for now. The GUI ships
+later as an app bundle built from the same code, and `fude` stays one
+binary, since the window adds about 0.1MB to it.
 
 Why, as of 2026-10-23: the user wants a first-class Vim GUI with native
 controls, not a terminal in a window. A spike drew fude's text in a native
@@ -931,7 +931,9 @@ webview. mygo was considered, but its windows show web content, so its
 tabs and splits would be HTML. purego is a new dependency because the
 standard library cannot call the Objective-C runtime, and cgo there would
 break the rule that cgo lives only in `syntax/`. AppKit is macOS's own, so
-Windows and Linux need windows of their own later.
+Windows and Linux need windows of their own later. `--gui` is a flag on
+each command that shows a session, as the user asked, since each of them
+can show its session in a window.
 
 ## Departures from Neovim
 

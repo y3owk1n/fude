@@ -1280,14 +1280,16 @@ Where fude departs, the line says so and cites the departure in
   module reads the session's pages, hears `tabpage.changed` when one
   opens, closes, moves or shows, and names the pages the row lists, as
   the tabline module does.
-- B547 [10] `fude gui` opens the files in a native macOS window, as `fude`
-  opens them in the terminal. The window shows each window's text as the
+- B547 [10] `--gui` shows fude in a native macOS window in place of the
+  terminal. `fude --gui` opens the files there as `fude` opens them, and
+  `fude share --gui`, `fude attach --gui` and `fude join --gui` show
+  their sessions there. The window shows each window's text as the
   terminal client draws it, keys typed there go to the session as Vim
   keys, with an Option chord as `<Esc>` and the key and a Command chord
   left to the system, and resizing the window resizes the session.
-  Closing the window quits as `:qa` does. `:restart` starts it again in
-  a window. Elsewhere `fude gui` says it runs only on macOS for now.
-- B548 [10] In `fude gui` the command line shows in a palette, a box in
+  Closing the window quits as `:qa` does. `:restart` starts it again in a
+  window. Elsewhere `--gui` says it runs only on macOS for now.
+- B548 [10] With `--gui` the command line shows in a palette, a box in
   the upper middle of the window, with its completion menu under a rule.
   The finder shows in a box in the middle of the window. The windows under
   either box darken as B151 says, and the windows take every row. A
@@ -1296,7 +1298,7 @@ Where fude departs, the line says so and cites the departure in
   its height. A yes or no question shows in a sheet on the window. `y`,
   `n` and the sheet's buttons answer it, and the sheet closes when the
   question goes away unanswered.
-- B549 [10] In `fude gui` each window of the layout shows in a pane, with
+- B549 [10] With `--gui` each window of the layout shows in a pane, with
   its status line as a bar under its text. Splits show as the system's
   split views, sized as the layout asks (B541). Dragging a divider
   resizes the windows on either side, and the panes place them there
@@ -1305,14 +1307,14 @@ Where fude departs, the line says so and cites the departure in
   holds the buffers as tabs, the current one raised, and the tab pages
   at its right, the current one in the mode's colour (B258, B545). With
   neither it shows the title.
-- B550 [10] In `fude gui` a menu at the cursor shows in a box under the
+- B550 [10] With `--gui` a menu at the cursor shows in a box under the
   cursor, or over it when there is more room there, scrolled as B64
   says. Its documentation shows in a box beside it, as B227 says. The
   key hints show in a box across the bottom of the area, with the keys
   typed as its title (B172). A float's box has its name over its text and
   its foot under a rule. While the float has the focus, its status line
   shows at the bottom of the box.
-- B551 [10] In `fude gui` an input method types what the keyboard does
+- B551 [10] With `--gui` an input method types what the keyboard does
   not, such as Japanese. The text it composes shows underlined at the
   cursor, its candidates show by the cursor, and the text it inserts
   goes to the session as keys. While nothing is being composed, a key
@@ -1332,12 +1334,12 @@ Where fude departs, the line says so and cites the departure in
   selects from the click as `v` does. A scroll moves a window's view by
   lines as `<C-e>` and `<C-y>` do, its cursor kept in view, and leaves the
   focus where it is. While the command line, the finder or a question
-  shows, clicks and drags do nothing. In `fude gui` a click on a buffer's
+  shows, clicks and drags do nothing. With `--gui` a click on a buffer's
   tab shows it as `:b` does, and one on a tab page as `gt` does. The rest
   of the strip moves the window, and a double click there zooms it. A
   trackpad scrolls a line for each row's height it moves, and a wheel a
   line for each line it turns.
-- B553 [10] In `fude gui` a terminal window shows its program's screen,
+- B553 [10] With `--gui` a terminal window shows its program's screen,
   with the sixteen basic colours taken from the theme. Text shows bold,
   italic, underlined and struck through as its style says, and a
   diagnostic's underline is wavy. An image shows from its own pixels in
@@ -1349,7 +1351,7 @@ Where fude departs, the line says so and cites the departure in
   from 1 before it moves, or first with 0. `+n` and `-n` move it n places
   on or back, and without n it goes last. A place past either end is
   refused, and a buffer opened later goes last.
-- B555 [10] In `fude gui` each tab ends in a slot that shows ● while its
+- B555 [10] With `--gui` each tab ends in a slot that shows ● while its
   buffer has changes, and × while the mouse is over the tab or while it is
   current without changes. A click on × closes the tab, as `:bd` closes a
   buffer and `:tabclose` a tab page, and so does a middle click on the
@@ -1364,7 +1366,7 @@ Where fude departs, the line says so and cites the departure in
   its index among the menu's items (B560). The command line's menu puts
   the item in the line as `<Tab>` does, a menu at the cursor takes it as
   `<CR>` and `<C-y>` do, and the finder opens it. A heading, such as a
-  file's name over its matches, does nothing. In `fude gui` a click on an
+  file's name over its matches, does nothing. With `--gui` a click on an
   item picks it, and the wheel over a menu scrolls it and leaves its
   selection where it is. A click off the command line's palette or the
   finder closes it as `<Esc>` does.
@@ -1372,16 +1374,16 @@ Where fude departs, the line says so and cites the departure in
   go, the selection moves there as one change, cut and put in that place.
   Whole lines selected with `V` move before the line they are dropped on,
   with their line breaks. A selection let go on itself ends visual mode
-  with the cursor there, as a click elsewhere does. In `fude gui`
+  with the cursor there, as a click elsewhere does. With `--gui`
   dragging a selection moves it so.
-- B558 [10] In `fude gui` the window, its title bar and its sheets are
+- B558 [10] With `--gui` the window, its title bar and its sheets are
   light or dark as the theme's ground is. The window's close button
   shows a dot while a buffer it shows has changes, and the title bar
   shows the current file's icon. Command-=, Command-minus and Command-0
   make the text bigger, smaller and its first size, and each window
   takes as many cells as it then holds. The window opens where and as big
   as it last closed.
-- B559 [10] In `fude gui` the tab strip and the status bars draw on the
+- B559 [10] With `--gui` the tab strip and the status bars draw on the
   system's title bar material. The palette, the finder, menus, floats and
   toasts draw on the system's translucent material, in rounded panels
   with a shadow. Text the window composes itself takes the system's font
@@ -1395,7 +1397,7 @@ Where fude departs, the line says so and cites the departure in
   the letters of it the typed text matches, a dim detail, its kind, a
   file's path, a grep match's line, and whether it is a heading or
   disabled. The finder's menu also carries its prompt, its query and its
-  count. In `fude gui` the palette, the finder and menus at the cursor
+  count. With `--gui` the palette, the finder and menus at the cursor
   show their items as lists in the system's font, each row with its icon:
   a file's icon as the Finder shows it, or the system's symbol for its
   kind. The letters matched are bold, the detail is dim at the row's
@@ -1404,7 +1406,7 @@ Where fude departs, the line says so and cites the departure in
   wheel and the trackpad, with a thin knob where it is, and scrolls to
   show its selection when that moves. The finder's preview and the
   documentation beside a menu keep the theme.
-- B561 [10] In `fude gui` a right click on text puts the cursor there,
+- B561 [10] With `--gui` a right click on text puts the cursor there,
   unless a selection shows, and opens the system's menu. It offers Go to
   Definition, Go to Type Definition, Find References, Find
   Implementations, Rename Symbol, Code Actions and Show Hover, which type
@@ -1424,7 +1426,7 @@ Where fude departs, the line says so and cites the departure in
   the session shows what the language server says of it, as `K` does,
   below that cell, and leaves the cursor where it is. A rest off a word
   closes it, and a word with nothing to say shows nothing, with no
-  message. `K` at the cursor does not enter it. In `fude gui` the mouse
+  message. `K` at the cursor does not enter it. With `--gui` the mouse
   resting half a second on a word shows its hover, and moving off the
   word closes it, unless the mouse moves onto the hover's box.
 - B544 [2] A session has tab pages, each with its own windows, floats

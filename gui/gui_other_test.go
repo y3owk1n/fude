@@ -10,7 +10,7 @@ import (
 
 // B547
 func TestB547OnlyOnMacOS(t *testing.T) {
-	if err := gui.Run(nil); err == nil || err.Error() != "fude gui runs only on macOS for now" {
-		t.Errorf("fude gui elsewhere said %v", err)
+	if err := gui.Run(nil); err == nil || err.Error() != "--gui runs only on macOS for now" {
+		t.Errorf("--gui elsewhere said %v", err)
 	}
 }

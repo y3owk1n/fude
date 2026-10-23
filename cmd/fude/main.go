@@ -436,9 +436,8 @@ func bytes(n int64) string {
 	return fmt.Sprintf("%.1f%s", f, units[i])
 }
 
-// attach runs fude attach, a terminal client on a session of a running
-// fude, and says why the session ended once the screen is gone (B239,
-// B242).
+// attach runs fude attach, a client on a session of a running fude, and
+// says why the session ended once the screen is gone (B239, B242).
 func attach(flags map[string]string) error {
 	path, err := socket(flags)
 	if err != nil {
@@ -449,7 +448,7 @@ func attach(flags map[string]string) error {
 		return err
 	}
 	defer a.Close()
-	if err := tui.Run(a); err != nil {
+	if err := frontend(flags)(a); err != nil {
 		return err
 	}
 	// The reason is a whole message, such as "fude quit".
@@ -459,9 +458,9 @@ func attach(flags map[string]string) error {
 	return nil
 }
 
-// join runs fude join, a terminal client on a guest session of the fude
-// that shares with the string, and says why the session ended once the
-// screen is gone (B248, B249, B255).
+// join runs fude join, a client on a guest session of the fude that shares
+// with the string, and says why the session ended once the screen is gone
+// (B248, B249, B255).
 func join(words []string, flags map[string]string) error {
 	if len(words) != 1 {
 		return usage("join")
@@ -478,7 +477,7 @@ func join(words []string, flags map[string]string) error {
 		return err
 	}
 	defer a.Close()
-	if err := tui.Run(a); err != nil {
+	if err := frontend(flags)(a); err != nil {
 		return err
 	}
 	// The reason is a whole message, such as "fude quit".
@@ -486,6 +485,15 @@ func join(words []string, flags map[string]string) error {
 		fmt.Println(why)
 	}
 	return nil
+}
+
+// frontend returns what shows a session, a native window with --gui
+// (B547) or else the terminal.
+func frontend(flags map[string]string) func(client.Session) error {
+	if _, ok := flags["--gui"]; ok {
+		return gui.Run
+	}
+	return tui.Run
 }
 
 // relays runs fude relay [address], which passes shares through until the
@@ -502,7 +510,7 @@ func relays(words []string) error {
 	return relay.Serve(l)
 }
 
-// edit opens the files in words in the terminal, or with gui in a native
+// edit opens the files in words in the terminal, or with --gui in a native
 // window (B547), and with share lets guests join (B248, B251). After
 // :restart it runs fude again in its place, on the saved session (B170),
 // and calls remove first.
@@ -545,11 +553,7 @@ func edit(cmd string, words []string, flags map[string]string, remove func()) er
 		}
 		defer unshare()
 	}
-	run := tui.Run
-	if cmd == "gui" {
-		run = gui.Run
-	}
-	err = run(e)
+	err = frontend(flags)(e)
 	e.Finish(time.Second)
 	stop()
 	if path := e.Restart(); err == nil && path != "" {
@@ -561,8 +565,8 @@ func edit(cmd string, words []string, flags map[string]string, remove func()) er
 		if _, clean := flags["--clean"]; clean {
 			argv = append(argv, "--clean")
 		}
-		if cmd == "gui" {
-			argv = append(argv, "gui")
+		if _, ok := flags["--gui"]; ok {
+			argv = append(argv, "--gui")
 		}
 		// On Unix the new fude replaces this process, so deferred calls
 		// never run.

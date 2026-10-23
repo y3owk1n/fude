@@ -146,7 +146,7 @@ The order is dependency order, not priority. Behaviours in
    packages, the LSP features as a module, tests beside the libraries
    and a README for every package, so each part is readable alone and
    the libraries can be published (architecture, step 9).
-10. Native window: `fude gui` on macOS through AppKit (D65), its text from
+10. Native window: `--gui` on macOS through AppKit (D65), its text from
     `frontend/compose`, then the command line as a command palette,
     messages as toasts, questions as sheets, the buffers as tabs in the
     title bar, native splits with status bars, floats and menus by their

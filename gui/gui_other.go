@@ -9,4 +9,4 @@ import (
 )
 
 // Run says the window is for macOS only (B547).
-func Run(client.Session) error { return errors.New("fude gui runs only on macOS for now") }
+func Run(client.Session) error { return errors.New("--gui runs only on macOS for now") }
