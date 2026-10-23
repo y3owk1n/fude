@@ -21,6 +21,7 @@ import (
 	"github.com/ebitengine/purego/objc"
 
 	"github.com/y3owk1n/fude/editor/editortest"
+	"github.com/y3owk1n/fude/frontend/theme"
 	"github.com/y3owk1n/fude/frontend/wire"
 	"github.com/y3owk1n/fude/modules/bufferline"
 	"github.com/y3owk1n/fude/modules/buffers"
@@ -51,7 +52,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		panic(err)
 	}
-	for _, f := range []any{&msgMarked, &msgInserted, &msgMouseEvent, &msgFirstRect, &msgCache, &msgColorAt, &msgComponent, &msgRangeOf} {
+	for _, f := range []any{&msgMarked, &msgInserted, &msgMouseEvent, &msgFirstRect, &msgCache, &msgColorAt, &msgComponent, &msgRangeOf, &msgInitSize} {
 		purego.RegisterLibFunc(f, lib, "objc_msgSend")
 	}
 	app := startApp(true)
@@ -1489,6 +1490,34 @@ func TestB584Font(t *testing.T) {
 	})
 }
 
+// B547
+func TestB547WideGlyphShowsWhole(t *testing.T) {
+	// A glyph wider than its cell, as a nerd font's icon is, draws over
+	// the blank cell after it, as a terminal draws it.
+	ink, ground := theme.Style{Fg: 0xffffff, Bg: 0}, theme.Style{Bg: 0x0000ff}
+	cells := [][]cell{{{"MMMM", 1, ink}, {" ", 1, ground}, {" ", 1, ground}}}
+	var drawn bool
+	onMain(func() {
+		img := msgInitSize(cls("NSImage").Send(sel("alloc")), sel("initWithSize:"), size{4 * cellW, cellH})
+		defer img.Send(sel("release"))
+		img.Send(sel("lockFocusFlipped:"), true)
+		drawCells(cells, cursorAt{}, point{}, nil, nil)
+		img.Send(sel("unlockFocus"))
+		rep := cls("NSBitmapImageRep").Send(sel("imageRepWithData:"), img.Send(sel("TIFFRepresentation")))
+		scale := float64(objc.Send[int](rep, sel("pixelsWide"))) / (4 * cellW)
+		for px := int(scale * cellW); px < int(scale*2*cellW); px++ {
+			for py := 0; py < int(scale*cellH); py++ {
+				if c := msgColorAt(rep, sel("colorAtX:y:"), px, py); msgComponent(c, sel("redComponent")) > 0.5 {
+					drawn = true
+				}
+			}
+		}
+	}, true)
+	if !drawn {
+		t.Error("the blank cell after a wide glyph hides it")
+	}
+}
+
 // press sends w a key down, as the keyboard does.
 func press(w *window, code uint16, mods uint, chars, bare string) {
 	n := objc.Send[int](w.win, sel("windowNumber"))
@@ -1506,6 +1535,7 @@ var (
 	msgColorAt    func(objc.ID, objc.SEL, int, int) objc.ID
 	msgComponent  func(objc.ID, objc.SEL) float64
 	msgRangeOf    func(objc.ID, objc.SEL) nsRange
+	msgInitSize   func(objc.ID, objc.SEL, size) objc.ID
 )
 
 // pixels returns the colour of each pixel of what view draws, and how many

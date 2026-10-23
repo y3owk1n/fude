@@ -11,7 +11,9 @@ import (
 // drawCells draws cells and the cursor on them, the first cell at o. A run
 // of one-column ASCII in one style draws as one string, and any other cell
 // alone at its own column, so the font's fallbacks for other characters
-// never shift the row. A cell whose ground is clear draws none, so what is
+// never shift the row. A row's grounds draw before its text, so a glyph
+// wider than its cell, such as a nerd font's icon, shows whole over the
+// blank cell after it. A cell whose ground is clear draws none, so what is
 // under it shows, and the text of chosen rows is the system's selected
 // text.
 func drawCells(cells [][]cell, cursor cursorAt, o point, clear *theme.RGB, chosen []rule) {
@@ -19,30 +21,36 @@ func drawCells(cells [][]cell, cursor cursorAt, o point, clear *theme.RGB, chose
 		return slices.ContainsFunc(chosen, func(r rule) bool { return r.y == y && x >= r.x && x < r.x+r.w })
 	}
 	ascii := func(c cell) bool { return c.width == 1 && len(c.text) == 1 && c.text[0] >= ' ' && c.text[0] <= '~' }
+	type run struct{ x, n int }
 	for y, row := range cells {
+		var runs []run
 		for x := 0; x < len(row); {
 			c := row[x]
 			n := 1
 			for ascii(c) && x+n < len(row) && ascii(row[x+n]) && row[x+n].style == c.style {
 				n++
 			}
-			r := at(x, y, max(n, c.width), o)
 			if clear == nil || c.style.Bg != *clear {
-				fillRGB(c.style.Bg, r)
+				fillRGB(c.style.Bg, at(x, y, max(n, c.width), o))
 			}
+			runs = append(runs, run{x, n})
+			x += max(n, c.width)
+		}
+		for _, rn := range runs {
+			c := row[rn.x]
+			r := at(rn.x, y, max(rn.n, c.width), o)
 			var text strings.Builder
-			for _, o := range row[x : x+n] {
+			for _, o := range row[rn.x : rn.x+rn.n] {
 				text.WriteString(o.text)
 			}
 			if t := strings.TrimRight(text.String(), " "); t != "" {
 				colour := ""
-				if picked(x, y) {
+				if picked(rn.x, y) {
 					colour = "alternateSelectedControlTextColor"
 				}
 				drawString(t, c.style, colour, r.Origin)
 			}
 			decorate(c.style, r)
-			x += max(n, c.width)
 		}
 	}
 	if c := cursor; c.shown && c.y >= 0 && c.x >= 0 && c.y < len(cells) && c.x < len(cells[c.y]) {
