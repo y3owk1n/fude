@@ -1429,6 +1429,10 @@ Where fude departs, the line says so and cites the departure in
   message. `K` at the cursor does not enter it. With `--gui` the mouse
   resting half a second on a word shows its hover, and moving off the
   word closes it, unless the mouse moves onto the hover's box.
+- B563 [10] With `--gui`, while Command is held, the word under the
+  mouse is a link when the window's servers offer definitions. A link is
+  underlined, and the pointer over it is the pointing hand. A click on it
+  goes to its definition, as `<C-]>` there does, after insert mode ends.
 - B544 [2] A session has tab pages, each with its own windows, floats
   and current window, as in Neovim. `:tabnew` and `:tabedit` open one
   after the current page, on a file or a new empty buffer. `gt`, `{n}gt`,

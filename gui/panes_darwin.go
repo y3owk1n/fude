@@ -36,6 +36,7 @@ type pane struct {
 	left, right        []client.Part
 	current            bool
 	offers             []string // which language server features of the right click's menu its buffer's servers offer
+	link               rule     // the word under the mouse shown as a link while Command is held, w 0 for none
 }
 
 // places are where the panes put the windows' text, for the loop to give
@@ -282,7 +283,14 @@ func drawText(self objc.ID, _ objc.SEL, _ rect) {
 	cursor.shown = cursor.shown && p.w.caretOn
 	// The text moves by the trackpad's points and by the lines asked for
 	// that no frame shows yet, so it moves at once and never jumps back.
-	drawCells(p.cells, cursor, point{pad, pad - p.offset - float64(p.want-p.top)*cellH}, nil, nil)
+	o := point{pad, pad - p.offset - float64(p.want-p.top)*cellH}
+	drawCells(p.cells, cursor, o, nil, nil)
+	if l := p.link; l.w > 0 {
+		r := at(l.x, l.y, l.w, o)
+		r.Origin.Y, r.Size.H = r.Origin.Y+cellH-2, 1
+		system("linkColor").Send(sel("setFill"))
+		rectFill(r)
+	}
 	p.w.drawPics(p.pics, point{pad, pad})
 }
 

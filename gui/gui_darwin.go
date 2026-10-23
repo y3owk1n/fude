@@ -57,6 +57,7 @@ func startApp(background bool) objc.ID {
 		flipped,
 		{Cmd: sel("acceptsFirstResponder"), Fn: func(objc.ID, objc.SEL) bool { return true }},
 		{Cmd: sel("keyDown:"), Fn: keyDown},
+		{Cmd: sel("flagsChanged:"), Fn: flagsChanged},
 		{Cmd: sel("resizeSubviewsWithOldSize:"), Fn: resizeRoot},
 		{Cmd: sel("splitResized:"), Fn: splitResized},
 	}, textInput...), append(append(editing, dropFiles...), contextActions()...)...)...)

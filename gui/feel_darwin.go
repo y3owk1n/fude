@@ -201,8 +201,9 @@ func moved(view objc.ID, _ objc.SEL, ev objc.ID) {
 	if p == nil {
 		return
 	}
-	cell := [2]int{-1, -1}
+	cell, mods := [2]int{-1, -1}, uint(0)
 	if ev != 0 {
+		mods = objc.Send[uint](ev, sel("modifierFlags"))
 		in := msgPoint(ev, sel("locationInWindow"))
 		if p.w.overBox(msgConvertPoint(p.w.view, sel("convertPoint:fromView:"), in, 0)) {
 			return
@@ -210,10 +211,13 @@ func moved(view objc.ID, _ objc.SEL, ev objc.ID) {
 		at := msgConvertPoint(view, sel("convertPoint:fromView:"), in, 0)
 		cell = [2]int{int(math.Floor((at.X - pad) / cellW)), int(math.Floor((at.Y - pad) / cellH))}
 	}
-	if cell == p.mouse {
+	// Command may go down or up between moves on one cell.
+	same := cell == p.mouse
+	p.mouse = cell
+	if p.relink(mods); same {
 		return
 	}
-	p.mouse, p.movedAt = cell, time.Now()
+	p.movedAt = time.Now()
 	if h := p.hovered; h[0] >= 0 && (cell[1] != h[0] || cell[0] < h[1] || cell[0] >= h[2]) {
 		p.hovered = [3]int{-1}
 		p.w.mice <- mouse{'h', p.id, -1, -1, 0}
@@ -231,6 +235,38 @@ func moved(view objc.ID, _ objc.SEL, ev objc.ID) {
 			}
 		}, false)
 	})
+}
+
+// relink makes the word under the mouse a link while mods hold Command
+// and the window's servers offer definitions. A link is underlined, and
+// the pointer over it is the pointing hand (B563).
+func (p *pane) relink(mods uint) {
+	var l rule
+	if mods&modCommand != 0 && slices.Contains(p.offers, "definition") {
+		if from, to := p.wordAt(p.mouse); from != to {
+			l = rule{from, p.mouse[1], to - from}
+		}
+	}
+	if l == p.link {
+		return
+	}
+	p.link = l
+	if l.w > 0 {
+		cls("NSCursor").Send(sel("pointingHandCursor")).Send(sel("set"))
+	} else if p.mouse[0] >= 0 {
+		cls("NSCursor").Send(sel("IBeamCursor")).Send(sel("set"))
+	}
+	p.text.Send(sel("setNeedsDisplay:"), 1)
+}
+
+// flagsChanged shows or ends the link under the mouse as Command goes down
+// or up (B563).
+func flagsChanged(self objc.ID, _ objc.SEL, ev objc.ID) {
+	if w := windows[self]; w != nil {
+		for _, p := range w.panes {
+			p.relink(objc.Send[uint](ev, sel("modifierFlags")))
+		}
+	}
 }
 
 // wordAt returns the columns of the word the pane shows at cell, from its

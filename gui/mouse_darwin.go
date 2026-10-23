@@ -16,7 +16,7 @@ import (
 // y lines, or a pick of line y of a menu. A click's clicks count a double
 // or triple click.
 type mouse struct {
-	kind             byte // c a click, d a drag, u a release, s a scroll, p a pick and h a rest
+	kind             byte // c a click, g a click with Command, d a drag, u a release, s a scroll, p a pick and h a rest
 	id, x, y, clicks int
 }
 
@@ -39,6 +39,16 @@ func (m mouse) give(s client.Session) {
 			}
 		case m.clicks > 2:
 			s.Feed("V")
+		}
+	case 'g':
+		// Insert mode ends first, so the click puts the cursor where <C-]>
+		// reads it.
+		if s.Mode() == vim.Insert {
+			s.Feed("<Esc>")
+		}
+		s.Click(m.id, m.x, m.y)
+		for _, k := range vim.Keys("<C-]>") {
+			s.Feed(k)
 		}
 	case 'd':
 		s.Drag(m.id, m.x, m.y)
@@ -143,6 +153,11 @@ func mouseAt(view objc.ID, ev objc.ID, kind byte) {
 		// A click closes hover, and a rest after it waits for a move.
 		if p := panes[view]; p != nil {
 			p.movedAt, p.hovered = time.Now(), [3]int{-1}
+			// A click on a link goes to its definition (B563).
+			p.mouse = [2]int{m.x, m.y}
+			if p.relink(objc.Send[uint](ev, sel("modifierFlags"))); p.link.w > 0 {
+				m.kind = 'g'
+			}
 		}
 	}
 	if kind == 'd' && m == w.dragged {

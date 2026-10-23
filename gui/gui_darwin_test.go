@@ -1,16 +1,20 @@
 package gui
 
 import (
+	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"image"
 	"image/color"
 	"image/draw"
 	pngenc "image/png"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -26,6 +30,7 @@ import (
 	"github.com/y3owk1n/fude/modules/completion"
 	filesmod "github.com/y3owk1n/fude/modules/files"
 	"github.com/y3owk1n/fude/modules/hints"
+	lspmod "github.com/y3owk1n/fude/modules/lsp"
 	termmod "github.com/y3owk1n/fude/modules/terminal"
 	winmod "github.com/y3owk1n/fude/modules/window"
 	"github.com/y3owk1n/fude/vim"
@@ -34,6 +39,10 @@ import (
 // TestMain runs AppKit on the main thread, in the background, and the tests
 // beside it.
 func TestMain(m *testing.M) {
+	// As a language server it needs no window.
+	if os.Getenv("FUDE_GUI_FAKE_LSP") != "" {
+		os.Exit(m.Run())
+	}
 	load()
 	lib, err := purego.Dlopen("/usr/lib/libobjc.A.dylib", purego.RTLD_GLOBAL)
 	if err != nil {
@@ -1181,6 +1190,159 @@ func TestB562HoverAtTheMouse(t *testing.T) {
 		onMain(func() { _, open = windows[w.view] }, true)
 		return !open
 	})
+}
+
+// B563
+func TestB563CommandClickGoesToTheDefinition(t *testing.T) {
+	t.Setenv("FUDE_GUI_FAKE_LSP", "1")
+	editortest.Config(t, fmt.Sprintf("lsp.fake.command = [%q, \"-test.run=^TestFakeServer$\"]\n[filetype.go]\nlsp = [\"fake\"]\n", os.Args[0]))
+	path := filepath.Join(t.TempDir(), "a.go")
+	editortest.Change(t, path, "one two\n")
+	e := editortest.Start(t, path)
+	e.Use(lspmod.New())
+	var w *window
+	onMain(func() { w = open(e, nil) }, true)
+	var p *pane
+	until(t, "the server", func() bool {
+		onMain(func() {
+			for _, q := range w.panes {
+				if slices.Contains(q.offers, "definition") && len(q.cells) > 0 {
+					p = q
+				}
+			}
+		}, true)
+		return p != nil
+	})
+	mouse := func(kind uint, col float64, mods uint) {
+		onMain(func() {
+			at := msgConvertPoint(p.text, sel("convertPoint:toView:"), point{pad + col*cellW, pad + cellH/2}, 0)
+			ev := msgMouseEvent(cls("NSEvent"), sel("mouseEventWithType:location:modifierFlags:timestamp:windowNumber:context:eventNumber:clickCount:pressure:"),
+				kind, at, mods, 0, objc.Send[int](w.win, sel("windowNumber")), 0, 0, 1, 1)
+			switch kind {
+			case 5:
+				p.text.Send(sel("mouseMoved:"), ev)
+			default:
+				w.win.Send(sel("sendEvent:"), ev)
+			}
+		}, true)
+	}
+	// The text starts after the gutter, at the column of o.
+	one := 0
+	onMain(func() {
+		for one < len(p.cells[0]) && p.cells[0][one].text != "o" {
+			one++
+		}
+	}, true)
+	two := float64(one) + 5.5
+	// underlined reports whether the bottom of column x of the first row
+	// shows anything but the cell's ground.
+	underlined := func(x int) bool {
+		ok := false
+		onMain(func() {
+			rgb, scale, drawn := pixels(p.text)
+			if !drawn {
+				return
+			}
+			top, bottom := int(scale*(pad+1)), int(scale*(pad+cellH-1.5))
+			for px := int(scale * (pad + float64(x)*cellW)); px < int(scale*(pad+float64(x+1)*cellW)); px++ {
+				ok = ok || rgb(px, bottom) != rgb(px, top)
+			}
+		}, true)
+		return ok
+	}
+	// With Command held the word under the mouse is a link.
+	mouse(5, two, 0)
+	if underlined(one + 5) {
+		t.Error("a word is a link with Command up")
+	}
+	mouse(5, two, modCommand)
+	if !underlined(one+5) || underlined(one+1) {
+		t.Errorf("with Command held two is a link %v and one %v", underlined(one+5), underlined(one+1))
+	}
+	// A click on it goes where the server says its definition is.
+	mouse(1, two, modCommand)
+	mouse(2, two, modCommand)
+	until(t, "the definition", func() bool {
+		c := -1
+		w.onLoop(func() { c = e.Cursor() })
+		return c == 1
+	})
+	// A plain click stays a click.
+	mouse(1, two, 0)
+	mouse(2, two, 0)
+	until(t, "the click", func() bool {
+		c := -1
+		w.onLoop(func() { c = e.Cursor() })
+		return c == 5
+	})
+	onMain(func() {
+		for _, c := range ":qa!\r" {
+			code := uint16(0)
+			if c == '\r' {
+				code = 36
+			}
+			press(w, code, 0, string(c), string(c))
+		}
+	}, true)
+	until(t, "the session to end", func() bool {
+		open := true
+		onMain(func() { _, open = windows[w.view] }, true)
+		return !open
+	})
+}
+
+// TestFakeServer runs as a language server while FUDE_GUI_FAKE_LSP is set.
+// It says every definition is at the second character of the text.
+func TestFakeServer(t *testing.T) {
+	if os.Getenv("FUDE_GUI_FAKE_LSP") == "" {
+		return
+	}
+	r := bufio.NewReader(os.Stdin)
+	for {
+		n := 0
+		for {
+			line, err := r.ReadString('\n')
+			if err != nil {
+				os.Exit(0)
+			}
+			if line = strings.TrimSpace(line); line == "" {
+				break
+			}
+			if v, ok := strings.CutPrefix(line, "Content-Length: "); ok {
+				n, _ = strconv.Atoi(v)
+			}
+		}
+		body := make([]byte, n)
+		if _, err := io.ReadFull(r, body); err != nil {
+			os.Exit(0)
+		}
+		var m struct {
+			ID     *int   `json:"id"`
+			Method string `json:"method"`
+			Params struct {
+				TextDocument struct {
+					URI string `json:"uri"`
+				} `json:"textDocument"`
+			} `json:"params"`
+		}
+		if err := json.Unmarshal(body, &m); err != nil {
+			os.Exit(2)
+		}
+		var result any
+		switch m.Method {
+		case "initialize":
+			result = map[string]any{"capabilities": map[string]any{"positionEncoding": "utf-8", "textDocumentSync": 1, "definitionProvider": true}}
+		case "textDocument/definition":
+			at := map[string]int{"line": 0, "character": 1}
+			result = map[string]any{"uri": m.Params.TextDocument.URI, "range": map[string]any{"start": at, "end": at}}
+		case "exit":
+			os.Exit(0)
+		}
+		if m.ID != nil {
+			reply, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": m.ID, "result": result})
+			fmt.Printf("Content-Length: %d\r\n\r\n%s", len(reply), reply)
+		}
+	}
 }
 
 // hovering is a module whose hover says where it was asked.

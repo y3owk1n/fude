@@ -916,8 +916,9 @@ window lays them out as lists in the system's font with icons (B560). A
 right click opens a menu of the language server's actions and the
 clipboard's, and the scroll bars, a trackpad's scroll and the blinking
 cursor behave as they do in other Mac applications (B561). The mouse
-resting on a word shows its hover there (B562). Terminal windows draw from
-their cells. Images draw from the PNGs the session gives, with no terminal
+resting on a word shows its hover there (B562), and with Command held a
+word is a link to its definition (B563). Terminal windows draw from their
+cells. Images draw from the PNGs the session gives, with no terminal
 protocol (B553). The editor stays the source of each, and keys still go
 through Vim's grammar, so a palette holds no text field of its own. On
 other systems `--gui` says it runs only on macOS for now. The GUI ships
