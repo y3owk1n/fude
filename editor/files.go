@@ -43,6 +43,7 @@ type finder struct {
 	matches  []string // paths, or grep's path:line:column:text
 	sel      int
 	first    int                 // the list's first row shown
+	rows     []int               // the match each row shown is, -1 for a file's name over its matches
 	stale    bool                // paths came after matches were found
 	busy     bool                // a match runs
 	shown    string              // the match previewed
@@ -319,7 +320,13 @@ func (f *finder) box(query string, cursor, width, height int) wire.Menu {
 	}
 	f.first = max(min(f.first, top), selRow-rows+1)
 	f.first = max(min(f.first, len(list)-rows), 0)
+	f.rows = f.rows[:0]
 	for _, r := range list[f.first:min(f.first+rows, len(list))] {
+		if r.header {
+			f.rows = append(f.rows, -1)
+		} else {
+			f.rows = append(f.rows, r.match)
+		}
 		s.WriteByte('\n')
 		start := s.Len()
 		m := f.matches[r.match]

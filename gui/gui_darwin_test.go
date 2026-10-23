@@ -656,6 +656,137 @@ func TestB555MouseOnTabsFilesAndWords(t *testing.T) {
 	})
 }
 
+// B556
+func TestB556MenusByMouse(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.txt")
+	editortest.Change(t, path, "one\n")
+	e := editortest.Open(t, path)
+	var w *window
+	onMain(func() { w = open(e, nil) }, true)
+	for _, c := range ":se\t" {
+		code := uint16(0)
+		if c == '\t' {
+			code = 48
+		}
+		onMain(func() { press(w, code, 0, string(c), string(c)) }, true)
+	}
+	var items []string
+	until(t, "the menu", func() bool {
+		w.onLoop(func() {
+			m, _ := e.Menu()
+			items = nil
+			for _, l := range strings.Split(m.Text, "\n") {
+				items = append(items, strings.Fields(l + " .")[0])
+			}
+		})
+		shown := false
+		onMain(func() { shown = w.panel.boxed != nil && len(w.panel.lines) > 3 }, true)
+		return len(items) > 2 && shown
+	})
+	line := func() string {
+		var l string
+		w.onLoop(func() { l = e.Line() })
+		return l
+	}
+	// A click on an item puts it in the line.
+	onMain(func() {
+		at := msgConvertPoint(w.panel.view, sel("convertPoint:toView:"), point{inset + 2.5*cellW, inset + 3.5*cellH}, 0)
+		ev := msgMouseEvent(cls("NSEvent"), sel("mouseEventWithType:location:modifierFlags:timestamp:windowNumber:context:eventNumber:clickCount:pressure:"),
+			1, at, 0, 0, objc.Send[int](w.win, sel("windowNumber")), 0, 0, 1, 1)
+		w.win.Send(sel("sendEvent:"), ev)
+	}, true)
+	until(t, "the second item in the line", func() bool { return line() == ":"+items[1] })
+	// A turn of the wheel over the menu goes to the next item.
+	onMain(func() {
+		cg, err := purego.Dlopen("/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics", purego.RTLD_GLOBAL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var scroll func(uintptr, uint32, uint32, int32, int32, int32) uintptr
+		purego.RegisterLibFunc(&scroll, cg, "CGEventCreateScrollWheelEvent2")
+		w.panel.view.Send(sel("scrollWheel:"), cls("NSEvent").Send(sel("eventWithCGEvent:"), scroll(0, 1, 1, -1, 0, 0)))
+	}, true)
+	until(t, "the third item in the line", func() bool { return line() == ":"+items[2] })
+	// A click off the palette closes it.
+	onMain(func() {
+		for _, p := range w.panes {
+			at := msgConvertPoint(p.text, sel("convertPoint:toView:"), point{pad + cellW/2, pad + cellH/2}, 0)
+			ev := msgMouseEvent(cls("NSEvent"), sel("mouseEventWithType:location:modifierFlags:timestamp:windowNumber:context:eventNumber:clickCount:pressure:"),
+				1, at, 0, 0, objc.Send[int](w.win, sel("windowNumber")), 0, 0, 1, 1)
+			w.win.Send(sel("sendEvent:"), ev)
+		}
+	}, true)
+	until(t, "the command line to close", func() bool {
+		var mode vim.Mode
+		w.onLoop(func() { mode = e.Mode() })
+		return mode == vim.Normal
+	})
+	for _, c := range ":qa!\r" {
+		code := uint16(0)
+		if c == '\r' {
+			code = 36
+		}
+		onMain(func() { press(w, code, 0, string(c), string(c)) }, true)
+	}
+	until(t, "the session to end", func() bool {
+		open := true
+		onMain(func() { _, open = windows[w.view] }, true)
+		return !open
+	})
+}
+
+// B557
+func TestB557MovingTextByMouse(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.txt")
+	editortest.Change(t, path, "one two three\n")
+	e := editortest.Open(t, path)
+	var w *window
+	onMain(func() { w = open(e, nil) }, true)
+	var text objc.ID
+	until(t, "the pane", func() bool {
+		onMain(func() {
+			for _, p := range w.panes {
+				text = p.text
+			}
+		}, true)
+		return text != 0
+	})
+	// mouse sends a mouse event of the kind at column x of the first row.
+	mouse := func(kind uint, x float64) {
+		onMain(func() {
+			at := msgConvertPoint(text, sel("convertPoint:toView:"), point{pad + (x+0.5)*cellW, pad + cellH/2}, 0)
+			ev := msgMouseEvent(cls("NSEvent"), sel("mouseEventWithType:location:modifierFlags:timestamp:windowNumber:context:eventNumber:clickCount:pressure:"),
+				kind, at, 0, 0, objc.Send[int](w.win, sel("windowNumber")), 0, 0, 1, 1)
+			w.win.Send(sel("sendEvent:"), ev)
+		}, true)
+	}
+	// Select "one " by dragging across it, then drag it past the end.
+	mouse(1, 0)
+	mouse(6, 3)
+	mouse(2, 3)
+	mouse(1, 1)
+	mouse(6, 20)
+	mouse(2, 20)
+	until(t, "the selection to move", func() bool {
+		var got string
+		w.onLoop(func() { got = editortest.Text(e) })
+		return got == "two threeone "
+	})
+	onMain(func() { press(w, 0, 0, ":", ":") }, true)
+	for _, c := range "qa!\r" {
+		code := uint16(0)
+		if c == '\r' {
+			code = 36
+		}
+		onMain(func() { press(w, code, 0, string(c), string(c)) }, true)
+	}
+	until(t, "the session to end", func() bool {
+		open := true
+		onMain(func() { _, open = windows[w.view] }, true)
+		return !open
+	})
+}
+
 // dragInfo is a class whose objects tell of a drag of the pasteboard
 // dragged, as AppKit tells a view of a drop.
 var (

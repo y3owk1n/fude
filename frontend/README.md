@@ -47,8 +47,10 @@ for frame := 1; !s.Done(); frame++ {
 
 A frontend that draws its own splits calls `s.Place` with each window's
 place, and reads `s.Layout` and `s.Pages` for its splits and tabs. One
-with a mouse calls `s.Click`, `s.Drag` and `s.Scroll` with the cell of a
-window's text it points at. fude finds the text in that cell.
+with a mouse calls `s.Click`, `s.Drag`, `s.Release` and `s.Scroll` with
+the cell of a window's text it points at. fude finds the text in that
+cell. A click on a menu's item calls `s.Pick` with the line of the menu's
+text that shows it.
 
 ## License
 

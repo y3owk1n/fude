@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	completionmod "github.com/y3owk1n/fude/modules/completion"
+	filesmod "github.com/y3owk1n/fude/modules/files"
 	"github.com/y3owk1n/fude/vim"
 )
 
@@ -86,5 +88,90 @@ func TestB552Mouse(t *testing.T) {
 		if w.ID == other.ID && !w.Current {
 			t.Error("a click on the other window's status line left it without the focus")
 		}
+	}
+}
+
+// B556
+func TestB556Pick(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	for _, f := range []string{"a.txt", "b.txt"} {
+		change(t, filepath.Join(dir, f), "hello helium\n")
+	}
+	e := open(t, "a.txt")
+	e.Use(completionmod.New())
+	e.Use(filesmod.New())
+	e.SetSize(80, 24)
+	// line returns the item on line n of the menu that shows.
+	line := func(n int) string {
+		m, _ := e.Menu()
+		lines := strings.Split(m.Text, "\n")
+		if n >= len(lines) {
+			return ""
+		}
+		return strings.Fields(lines[n] + " .")[0]
+	}
+	// The command line's menu puts the item in the line.
+	feed(e, ":se<Tab>")
+	want := line(1)
+	if e.Pick(1); e.Line() != ":"+want {
+		t.Errorf("picking %q from the command line's menu left the line %q", want, e.Line())
+	}
+	// A completion menu puts the item in the text and closes.
+	feed(e, "<Esc>Ohe<C-n>")
+	want = line(1)
+	e.Pick(1)
+	if _, open := e.Menu(); open || !strings.HasPrefix(text(e), want+"\n") {
+		t.Errorf("picking %q from the completion menu left %q, the menu open %v", want, text(e), open)
+	}
+	// The finder opens the file on the line.
+	feed(e, "<Esc>:pick files<CR>")
+	at := -1
+	settle(t, e, func() bool {
+		m, _ := e.Menu()
+		for i, l := range strings.Split(m.Text, "\n") {
+			if strings.Contains(l, "b.txt") {
+				at = i
+			}
+		}
+		return at >= 0
+	})
+	e.Pick(at)
+	settle(t, e, func() bool { return filepath.Base(e.Windows()[0].Name) == "b.txt" })
+}
+
+// B557
+func TestB557MoveSelection(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "f")
+	change(t, path, "one two three\nb\nc\n")
+	e := open(t, path)
+	e.SetSize(40, 12)
+	v := e.Windows()[0]
+	// Dragging the selection to the end of its line moves it there.
+	e.Click(v.ID, 0, 0)
+	e.Drag(v.ID, 3, 0)
+	e.Release(v.ID, 3, 0)
+	e.Click(v.ID, 1, 0)
+	e.Drag(v.ID, 20, 0)
+	e.Release(v.ID, 20, 0)
+	if text(e) != "two threeone \nb\nc" || e.Mode() != vim.Normal {
+		t.Errorf("moving the selection gave %q in mode %v", text(e), e.Mode())
+	}
+	// It is one change.
+	if feed(e, "u"); text(e) != "one two three\nb\nc" {
+		t.Errorf("u after the move gave %q", text(e))
+	}
+	// A line selected with V moves before the line it goes to.
+	feed(e, "ggV<Esc>gv")
+	e.Click(v.ID, 0, 0)
+	e.Release(v.ID, 0, 2)
+	if text(e) != "b\none two three\nc" {
+		t.Errorf("moving a line gave %q", text(e))
+	}
+	// A selection let go on itself puts the cursor there.
+	feed(e, "j0vll")
+	e.Click(v.ID, 1, 1)
+	if e.Release(v.ID, 1, 1); e.Mode() != vim.Normal || e.Cursor() != 3 || text(e) != "b\none two three\nc" {
+		t.Errorf("letting go on the selection left mode %v at %d with %q", e.Mode(), e.Cursor(), text(e))
 	}
 }

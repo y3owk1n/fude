@@ -235,7 +235,7 @@ func (e *Session) input(method string, params json.RawMessage) error {
 			return fmt.Errorf("read cell: %w", err)
 		}
 		e.SetCell(cell[0], cell[1])
-	case "click", "drag", "scroll":
+	case "click", "drag", "scroll", "release":
 		var m [3]int
 		if err := json.Unmarshal(params, &m); err != nil {
 			return fmt.Errorf("read %s: %w", method, err)
@@ -245,9 +245,17 @@ func (e *Session) input(method string, params json.RawMessage) error {
 			e.Click(m[0], m[1], m[2])
 		case "drag":
 			e.Drag(m[0], m[1], m[2])
+		case "release":
+			e.Release(m[0], m[1], m[2])
 		default:
 			e.Scroll(m[0], m[1])
 		}
+	case "pick":
+		var n int
+		if err := json.Unmarshal(params, &n); err != nil {
+			return fmt.Errorf("read pick: %w", err)
+		}
+		e.Pick(n)
 	case "focus":
 		e.Focus()
 	case "timeout":

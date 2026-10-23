@@ -10,11 +10,12 @@ import (
 	"github.com/y3owk1n/fude/vim"
 )
 
-// mouse is what the mouse did, for the loop to give the session: a click
-// or a drag at cell x, y of the window with the id, or a scroll of y lines.
-// A click's clicks count a double or triple click.
+// mouse is what the mouse did, for the loop to give the session: a click,
+// a drag or a release at cell x, y of the window with the id, a scroll of
+// y lines, or a pick of line y of a menu. A click's clicks count a double
+// or triple click.
 type mouse struct {
-	kind             byte // c a click, d a drag and s a scroll
+	kind             byte // c a click, d a drag, u a release, s a scroll and p a pick
 	id, x, y, clicks int
 }
 
@@ -38,6 +39,10 @@ func (m mouse) give(s client.Session) {
 		}
 	case 'd':
 		s.Drag(m.id, m.x, m.y)
+	case 'u':
+		s.Release(m.id, m.x, m.y)
+	case 'p':
+		s.Pick(m.y)
 	default:
 		s.Scroll(m.id, m.y)
 	}
@@ -50,6 +55,7 @@ var (
 		{Cmd: sel("acceptsFirstMouse:"), Fn: func(objc.ID, objc.SEL, objc.ID) bool { return true }},
 		{Cmd: sel("mouseDown:"), Fn: func(self objc.ID, _ objc.SEL, ev objc.ID) { mouseAt(self, ev, 'c') }},
 		{Cmd: sel("mouseDragged:"), Fn: func(self objc.ID, _ objc.SEL, ev objc.ID) { mouseAt(self, ev, 'd') }},
+		{Cmd: sel("mouseUp:"), Fn: func(self objc.ID, _ objc.SEL, ev objc.ID) { mouseAt(self, ev, 'u') }},
 		{Cmd: sel("scrollWheel:"), Fn: wheel},
 		{Cmd: sel("resetCursorRects"), Fn: func(self objc.ID, _ objc.SEL) {
 			msgRectID(self, sel("addCursorRect:cursor:"), msgRect(self, sel("bounds")), cls("NSCursor").Send(sel("IBeamCursor")))
@@ -82,14 +88,17 @@ var (
 )
 
 // mouseAt gives the session a click or a drag at the cell under ev, in the
-// text of a pane or of a float's box. A drag goes once per cell.
+// text of a pane or of a float's box, or picks the item a click on a menu
+// hits. A drag goes once per cell. While the palette or the finder shows,
+// a click off it closes it as <Esc> does (B556).
 func mouseAt(view objc.ID, ev objc.ID, kind byte) {
 	var w *window
 	var id int
 	o := point{pad, pad}
+	b := boxes[view]
 	if p := panes[view]; p != nil {
 		w, id = p.w, p.id
-	} else if b := boxes[view]; b != nil && b.id > 0 && b.boxed != nil {
+	} else if b != nil && b.boxed != nil {
 		w, id, o = b.w, b.id, point{inset, inset + b.head()}
 	}
 	if w == nil {
@@ -97,6 +106,20 @@ func mouseAt(view objc.ID, ev objc.ID, kind byte) {
 	}
 	at := msgConvertPoint(view, sel("convertPoint:fromView:"), msgPoint(ev, sel("locationInWindow")), 0)
 	m := mouse{kind, id, int(math.Floor((at.X - o.X) / cellW)), int(math.Floor((at.Y - o.Y) / cellH)), 1}
+	switch {
+	case b != nil && b.lines != nil:
+		if kind == 'c' && m.y >= 0 && m.y < len(b.lines) && b.lines[m.y] >= 0 && m.x >= 0 && m.x < b.width {
+			w.mice <- mouse{kind: 'p', y: b.lines[m.y]}
+		}
+		return
+	case w.panel.boxed != nil:
+		if kind == 'c' && b != w.panel {
+			w.keys <- "<Esc>"
+		}
+		return
+	case id <= 0:
+		return
+	}
 	if kind == 'c' {
 		m.clicks = objc.Send[int](ev, sel("clickCount"))
 	}
@@ -107,21 +130,41 @@ func mouseAt(view objc.ID, ev objc.ID, kind byte) {
 	w.mice <- m
 }
 
-// wheel scrolls the window under the mouse: a line for each row's height
-// a trackpad moves, or each line a wheel turns.
+// wheel scrolls the window under the mouse, or moves the selection of a
+// menu under it as <C-n> and <C-p> do: a line for each row's height a
+// trackpad moves, or each line a wheel turns.
 func wheel(self objc.ID, _ objc.SEL, ev objc.ID) {
-	p := panes[self]
-	if p == nil {
+	var w *window
+	var turned *float64
+	p, b := panes[self], boxes[self]
+	switch {
+	case p != nil:
+		w, turned = p.w, &p.wheel
+	case b != nil && b.lines != nil:
+		w, turned = b.w, &b.w.menuWheel
+	default:
 		return
 	}
 	unit := 1.0
 	if objc.Send[bool](ev, sel("hasPreciseScrollingDeltas")) {
 		unit = cellH
 	}
-	p.wheel -= msgFloat(ev, sel("scrollingDeltaY")) / unit
-	if n := int(p.wheel); n != 0 {
-		p.wheel -= float64(n)
-		p.w.mice <- mouse{'s', p.id, 0, n, 0}
+	*turned -= msgFloat(ev, sel("scrollingDeltaY")) / unit
+	n := int(*turned)
+	if n == 0 {
+		return
+	}
+	*turned -= float64(n)
+	if p != nil {
+		w.mice <- mouse{'s', p.id, 0, n, 0}
+		return
+	}
+	k := vim.Key("<C-n>")
+	if n < 0 {
+		k, n = "<C-p>", -n
+	}
+	for range n {
+		w.keys <- k
 	}
 }
 

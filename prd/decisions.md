@@ -859,7 +859,9 @@ cells too, as the default. A float and a menu each say where they go,
 such as at the cursor, in the middle or across the bottom, so a frontend
 may place them its own way (B543). A frontend with a mouse gives the cell
 of a window it points at. The editor finds the text there, since it
-knows how each line wraps and what draws between lines (B552).
+knows how each line wraps and what draws between lines (B552). A click on
+a menu gives the line of the menu's text, and the editor finds the item
+(B556).
 
 Why, as of 2026-10-23: a spike drew fude in a system webview from the
 terminal client's cells. A key took 9ms at p50 from press to paint, so

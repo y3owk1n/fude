@@ -148,6 +148,7 @@ type Session struct {
 	tabNames    map[int]string // by page id, what the top row calls each tab page a module named (B545)
 	placed      map[int][4]int // by window id, where a frontend put a window's text, its x, y, w and h (B542)
 	clicked     int            // where the last click put the cursor, which a drag selects from (B552)
+	grabbed     bool           // a click grabbed the selection, which its release moves (B557)
 	lastWin     *window        // the window current when a key last ended, and prevWin the one before it, for <C-w>p (B420)
 	prevWin     *window
 	suspending  bool                // the client has yet to suspend to the shell, as <C-z> asked (B424)

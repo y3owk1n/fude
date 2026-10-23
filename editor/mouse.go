@@ -1,9 +1,12 @@
 package editor
 
 import (
+	"fmt"
 	"slices"
+	"strings"
 	"unicode/utf8"
 
+	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/vim"
 )
 
@@ -13,11 +16,18 @@ import (
 // character, and one past a row's text its last. A row at or past the
 // window's height, such as its status line's, only gives it the focus.
 // A click ends visual mode and keeps insert mode. While the command line,
-// the finder or a question shows, it does nothing.
+// the finder or a question shows, it does nothing. A click on the
+// selection grabs it, for Release to move it where it goes (B557).
 func (e *Session) Click(id, x, y int) {
 	w := e.windowOf(id)
 	if w == nil || e.busy() {
 		return
+	}
+	if s, ok := e.vim.Selection(); ok && !s.Block && w == e.win && y >= 0 && y < w.h {
+		if p := e.posAt(w, x, y, false); p >= s.Start && p < s.End {
+			e.grabbed = true
+			return
+		}
 	}
 	insert := e.vim.Mode() == vim.Insert
 	if insert || e.vim.Mode() == vim.Visual {
@@ -39,7 +49,7 @@ func (e *Session) Click(id, x, y int) {
 // gave the focus (B552).
 func (e *Session) Drag(id, x, y int) {
 	w := e.windowOf(id)
-	if w == nil || w != e.win || e.busy() || w.buf.term != nil {
+	if w == nil || w != e.win || e.busy() || w.buf.term != nil || e.grabbed {
 		return
 	}
 	if e.vim.Mode() != vim.Visual {
@@ -51,6 +61,53 @@ func (e *Session) Drag(id, x, y int) {
 	}
 	e.setCursor(e.posAt(w, x, min(max(y, 0), max(w.h-1, 0)), false))
 	e.reveal()
+}
+
+// Release ends a click at the cell at column x and row y of the window
+// with the id. A selection the click grabbed moves there, and lines
+// selected with V move to the start of that cell's line. A selection let
+// go on itself ends visual mode with the cursor there, as a click
+// elsewhere does (B557).
+func (e *Session) Release(id, x, y int) {
+	w := e.windowOf(id)
+	if !e.grabbed || w == nil {
+		return
+	}
+	e.grabbed = false
+	s, ok := e.vim.Selection()
+	if !ok || w != e.win {
+		return
+	}
+	t := w.buf.text.Snapshot()
+	to := e.posAt(w, x, min(max(y, 0), max(w.h-1, 0)), true)
+	// Lines move with their line breaks.
+	if s.Kind == "V" {
+		to = vim.LineStart(t, to)
+		s.Start, s.End = vim.LineStart(t, s.Start), min(vim.LineEnd(t, max(s.End-1, s.Start))+1, t.Len())
+	}
+	e.Feed("<Esc>")
+	defer e.reveal()
+	if to >= s.Start && to <= s.End {
+		e.setCursor(min(to, max(s.End-1, s.Start)))
+		return
+	}
+	if err := e.mayEdit(); err != nil {
+		e.message = err.Error()
+		return
+	}
+	text, at := t.Slice(s.Start, s.End), to
+	edits := []kernel.Edit{{Start: to, End: to, Text: text}, {Start: s.Start, End: s.End}}
+	if to > s.Start {
+		edits[0], edits[1] = edits[1], edits[0]
+		at -= len(text)
+	}
+	tx := kernel.Transaction{Base: t.Version(), Origin: e.origin, Label: "move", Time: e.now(), Edits: edits}
+	if err := w.buf.text.Apply(tx); err != nil {
+		e.message = fmt.Sprintf("move the selection: %v", err)
+		return
+	}
+	w.buf.head = w.buf.text.Head()
+	e.setCursor(at)
 }
 
 // Scroll moves the view of the window with the id n lines down, or up
@@ -88,6 +145,38 @@ func (e *Session) Scroll(id, n int) {
 			end--
 		}
 		w.buf.text.MoveMark(w.cursor, min(ls+c-vim.LineStart(t, c), end))
+	}
+}
+
+// Pick takes the item on line n of the text of the menu that shows, as a
+// click on it does (B556). The command line's menu puts it in the line, as
+// <Tab> does, the finder opens it and a menu at the cursor takes it as
+// <CR> or <C-y> does. A line that holds no item does nothing.
+func (e *Session) Pick(n int) {
+	defer e.reveal()
+	switch c := e.cmdline.menu; {
+	case e.finder != nil:
+		// The query and the rule under it come before the list.
+		f := e.finder
+		if n -= 2; n >= 0 && n < len(f.rows) && f.rows[n] >= 0 {
+			f.sel = f.rows[n]
+			e.Feed("<CR>")
+		}
+	case e.vim.Mode() == vim.Cmdline && c != nil:
+		line, _ := strings.CutPrefix(e.vim.Line(), ":")
+		if i := c.first + n; n >= 0 && i < len(c.items) {
+			c.sel = i
+			e.vim.SetLine(line[:c.start] + c.items[i])
+		}
+	case e.pick != nil:
+		if n >= 0 && n < len(e.pick.items) {
+			e.chose(e.pick, n, true)
+		}
+	case e.completion.menu != nil:
+		if n >= 0 && n < len(e.completion.menu.items) {
+			e.choose(n)
+			e.closeMenu()
+		}
 	}
 }
 

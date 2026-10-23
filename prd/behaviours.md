@@ -1360,6 +1360,20 @@ Where fude departs, the line says so and cites the departure in
   opens them. The mouse pointer is an I-beam over text. A double click
   selects the word it hits as `viw` does, and a triple click the line as
   `V` does.
+- B556 [10] A frontend gives a click on a menu's item to the session by
+  the line of the menu's text that shows it. The command line's menu puts
+  the item in the line as `<Tab>` does, a menu at the cursor takes it as
+  `<CR>` and `<C-y>` do, and the finder opens it. A line that holds no
+  item, such as a file's name over its matches, does nothing. In `fude
+  gui` a click on an item picks it, and the wheel over a menu moves its
+  selection as `<C-n>` and `<C-p>` do. A click off the command line's
+  palette or the finder closes it as `<Esc>` does.
+- B557 [10] A click on the visual selection grabs it. Where the mouse lets
+  go, the selection moves there as one change, cut and put in that place.
+  Whole lines selected with `V` move before the line they are dropped on,
+  with their line breaks. A selection let go on itself ends visual mode
+  with the cursor there, as a click elsewhere does. In `fude gui`
+  dragging a selection moves it so.
 - B544 [2] A session has tab pages, each with its own windows, floats
   and current window, as in Neovim. `:tabnew` and `:tabedit` open one
   after the current page, on a file or a new empty buffer. `gt`, `{n}gt`,

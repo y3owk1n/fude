@@ -3,6 +3,7 @@ package gui
 import (
 	"math"
 	"slices"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/clipperhouse/displaywidth"
@@ -32,6 +33,10 @@ type boxed struct {
 	at     *[2]int // where its first cell goes, in cells of the area
 	title  string  // over the cells
 	pics   []pic   // over the cells
+	// lines are, by row, the line of a menu's text the row shows, for a
+	// click to pick, or -1. width is how many columns hold the menu.
+	lines []int
+	width int
 	// A float with the focus has its status line under its text.
 	left, right []client.Part
 	text        string
@@ -73,6 +78,7 @@ func palette(line string, cursor int, menu wire.Menu, lk theme.Look, cols int) *
 	if len(items) > 0 {
 		b.rules = []rule{{0, 1, w}}
 		write(g, menu.Text, menu.Spans, items, lk, 0, 2, w, -1)
+		b.lines, b.width = append([]int{-1, -1}, lines(menu.Text, items)...), w
 	}
 	b.cells = cellsOf(g)
 	return b
@@ -90,6 +96,7 @@ func finder(m wire.Menu, lk theme.Look) *boxed {
 	b := &boxed{middle: true, look: lk}
 	rows, _ := compose.Wrap(m.Text, m.Spans, lw)
 	b.rules, b.cursor = write(g, m.Text, m.Spans, rows[:min(len(rows), h)], lk, 0, 0, lw, m.Cursor)
+	b.lines, b.width = lines(m.Text, rows[:min(len(rows), h)]), lw
 	b.cursor.shape = 1
 	// The title heads the rule under the query.
 	if m.Title != "" && len(b.rules) > 0 {
@@ -141,6 +148,7 @@ func (p *painter) atCursor(m wire.Menu, lk theme.Look, cx, cy, cols, rows int) [
 	}
 	x := max(min(cx, cols-width-1), 0)
 	menu := textBox(m.Text, m.Spans, all[p.menuTop:p.menuTop+n], lk, width, x, y)
+	menu.lines, menu.width = lines(m.Text, all[p.menuTop:p.menuTop+n]), width
 	if m.Doc == "" {
 		return []*boxed{menu}
 	}
@@ -174,6 +182,15 @@ func keyHints(m wire.Menu, lk theme.Look) *boxed {
 	b := textBox(m.Text, m.Spans, rows[:min(len(rows), max(m.H-2, 1))], lk, max(m.W-4, 1), m.X+2, m.Y+1)
 	b.title = m.Title
 	return b
+}
+
+// lines are, by row, the line of text each of rows starts on.
+func lines(text string, rows []compose.Row) []int {
+	out := make([]int, len(rows))
+	for i, r := range rows {
+		out[i] = strings.Count(text[:r.Start], "\n")
+	}
+	return out
 }
 
 // textBox is rows of text, styled by spans in lk, in a box w columns wide

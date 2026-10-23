@@ -143,6 +143,7 @@ type window struct {
 	pressX       float64         // where along the strip
 	dragging     bool            // the tab pressed moves with the mouse
 	dropX        float64         // where it is
+	menuWheel    float64         // the lines a scroll over a menu moved short of one
 	moving       bool            // the strip drags the window
 	moveFrom     point           // where on the screen the drag began
 	origin       point           // where the window was then
