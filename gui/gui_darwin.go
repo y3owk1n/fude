@@ -59,7 +59,7 @@ func startApp(background bool) objc.ID {
 		{Cmd: sel("keyDown:"), Fn: keyDown},
 		{Cmd: sel("resizeSubviewsWithOldSize:"), Fn: resizeRoot},
 		{Cmd: sel("splitResized:"), Fn: splitResized},
-	}, textInput...), editing...)...)
+	}, textInput...), append(editing, dropFiles...)...)...)
 	viewClass.AddProtocol(objc.GetProtocol("NSTextInputClient"))
 	markedClass = class("FudeMarked", "NSView", flipped, objc.MethodDef{Cmd: sel("drawRect:"), Fn: drawMarked})
 	paneClass = class("FudePane", "NSView", flipped, objc.MethodDef{Cmd: sel("resizeSubviewsWithOldSize:"), Fn: resizePane})
@@ -138,6 +138,14 @@ type window struct {
 	cellPx       [2]int          // a cell's size in the screen's pixels
 	dragged      mouse           // the last click or drag, to send a drag once a cell
 	hits         []hit           // the tabs the strip shows
+	hover        float64         // where the mouse is along the strip, -1 off it
+	pressed      *hit            // the tab the mouse went down on
+	pressX       float64         // where along the strip
+	dragging     bool            // the tab pressed moves with the mouse
+	dropX        float64         // where it is
+	moving       bool            // the strip drags the window
+	moveFrom     point           // where on the screen the drag began
+	origin       point           // where the window was then
 	marked       string          // the text an input method composes
 	preedit      objc.ID         // the view that shows it
 	event        objc.ID         // the key down the input method has
@@ -195,11 +203,13 @@ type placed struct {
 func open(s client.Session, ended func()) *window {
 	cols, rows := 100, 32
 	r := rect{Size: size{cellW*float64(cols) + 2*pad, cellH*float64(rows) + 2*pad}}
-	w := &window{s: s, keys: make(chan vim.Key, 1024), do: make(chan func()), pastes: make(chan string, 8), mice: make(chan mouse, 64), ended: ended, placed: make(chan struct{}, 1), panes: map[int]*pane{}, floats: map[int]*box{}, images: map[int]objc.ID{}}
+	w := &window{s: s, keys: make(chan vim.Key, 1024), do: make(chan func()), pastes: make(chan string, 8), mice: make(chan mouse, 64), ended: ended, placed: make(chan struct{}, 1), panes: map[int]*pane{}, floats: map[int]*box{}, images: map[int]objc.ID{}, hover: -1}
 	// The content reaches under the title bar, which the tab strip takes.
 	w.win = msgInitWindow(cls("NSWindow").Send(sel("alloc")), sel("initWithContentRect:styleMask:backing:defer:"), r, 15|1<<15, 2, false)
 	w.win.Send(sel("setReleasedWhenClosed:"), 0)
 	w.win.Send(sel("setTitlebarAppearsTransparent:"), 1)
+	// The strip moves the window itself, so dragging a tab moves only it.
+	w.win.Send(sel("setMovable:"), 0)
 	w.win.Send(sel("setTitleVisibility:"), 1)
 	w.win.Send(sel("setTitle:"), nsString("fude"))
 	w.win.Send(sel("setDelegate:"), windowDelegate)
@@ -210,6 +220,11 @@ func open(s client.Session, ended func()) *window {
 	w.area = msgInitView(cls("NSView").Send(sel("alloc")), sel("initWithFrame:"), rect{})
 	w.view.Send(sel("addSubview:"), w.area)
 	w.view.Send(sel("addSubview:"), w.bar)
+	// The strip hears the mouse move over it, for its tabs' ×.
+	track := msgInitTracking(cls("NSTrackingArea").Send(sel("alloc")), sel("initWithRect:options:owner:userInfo:"), rect{}, 0x283, w.bar, 0)
+	w.bar.Send(sel("addTrackingArea:"), track)
+	track.Send(sel("release"))
+	w.view.Send(sel("registerForDraggedTypes:"), cls("NSArray").Send(sel("arrayWithObject:"), nsString("public.file-url")))
 	cls("NSNotificationCenter").Send(sel("defaultCenter")).Send(sel("addObserver:selector:name:object:"), w.view, sel("splitResized:"), nsString("NSSplitViewDidResizeSubviewsNotification"), 0)
 	w.win.Send(sel("setContentView:"), w.view)
 	w.panel, w.toast = newBox(w), newBox(w)

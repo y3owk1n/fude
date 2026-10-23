@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/y3owk1n/fude/editor/editortest"
@@ -46,4 +47,42 @@ func TestB331BufferLineFollows(t *testing.T) {
 	editortest.Settle(t, e, func() bool { return len(names()) == 0 })
 	editortest.Feed(e, ":set bufferline.enabled true<CR>")
 	editortest.Settle(t, e, func() bool { return len(names()) == 2 })
+}
+
+// B554
+func TestB554MoveBuffer(t *testing.T) {
+	dir := t.TempDir()
+	for _, f := range []string{"a.txt", "b.txt", "c.txt"} {
+		editortest.Change(t, filepath.Join(dir, f), f+"\n")
+	}
+	t.Chdir(dir)
+	e := editortest.Open(t, "a.txt")
+	e.Use(bufferline.New())
+	e.Use(buffers.New())
+	editortest.Feed(e, ":e b.txt<CR>:e c.txt<CR>")
+	names := func() string {
+		var out []string
+		for _, tab := range e.Buffers() {
+			out = append(out, strings.TrimSuffix(tab.Name, ".txt"))
+		}
+		return strings.Join(out, " ")
+	}
+	for _, c := range []struct{ keys, want string }{
+		{":bmove 0<CR>", "c a b"},
+		{":bmove +1<CR>", "a c b"},
+		{":bmove<CR>", "a b c"},
+		{":b a.txt<CR>:bmove 2<CR>", "b a c"},
+		{":bmove -1<CR>", "a b c"},
+	} {
+		editortest.Feed(e, c.keys)
+		editortest.Settle(t, e, func() bool { return names() == c.want })
+	}
+	// A place past the row's ends is refused.
+	if editortest.Feed(e, ":bmove 9<CR>"); e.Message() != "cannot move the buffer to 9" || names() != "a b c" {
+		t.Errorf(":bmove 9 said %q and left %q", e.Message(), names())
+	}
+	// A buffer opened after a move goes last.
+	editortest.Change(t, filepath.Join(dir, "d.txt"), "d\n")
+	editortest.Feed(e, ":bmove 0<CR>:e d.txt<CR>")
+	editortest.Settle(t, e, func() bool { return names() == "a b c d" })
 }

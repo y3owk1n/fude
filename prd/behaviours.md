@@ -1344,6 +1344,22 @@ Where fude departs, the line says so and cites the departure in
   its rows (B303) and in the finder's preview (B305), in any window,
   with no terminal's help. A busy part of a status line turns its
   spinner (B231).
+- B554 [10] `:bmove` moves the current buffer along the top row as
+  `:tabmove` moves a tab page. It goes after buffer n of the row, counted
+  from 1 before it moves, or first with 0. `+n` and `-n` move it n places
+  on or back, and without n it goes last. A place past either end is
+  refused, and a buffer opened later goes last.
+- B555 [10] In `fude gui` each tab ends in a slot that shows ● while its
+  buffer has changes, and × while the mouse is over the tab or while it is
+  current without changes. A click on × closes the tab, as `:bd` closes a
+  buffer and `:tabclose` a tab page, and so does a middle click on the
+  tab. Dragging a tab along its row moves it there, as `:bmove` and
+  `:tabmove` do, with a mark where it would go, and leaves the window
+  where it is. Dragging the strip beside the tabs moves the window, and a
+  double click there zooms it. Files dropped on the window open as `:e`
+  opens them. The mouse pointer is an I-beam over text. A double click
+  selects the word it hits as `viw` does, and a triple click the line as
+  `V` does.
 - B544 [2] A session has tab pages, each with its own windows, floats
   and current window, as in Neovim. `:tabnew` and `:tabedit` open one
   after the current page, on a file or a new empty buffer. `gt`, `{n}gt`,

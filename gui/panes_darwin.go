@@ -295,12 +295,13 @@ func drawParts(left, right []client.Part, lk theme.Look, current bool, r rect) {
 
 // run is a part of a status bar or of the tab strip as it draws, its text
 // in a font and colour. A pill run has a rounded ground, and a tight run
-// has no room after it.
+// has no room after it. A tab's run ends in a slot that shows slot.
 type run struct {
 	text        string
 	font        objc.ID
 	fg, ground  theme.RGB
 	pill, tight bool
+	slot        string
 }
 
 // size is how wide r draws, its room included.
@@ -308,6 +309,9 @@ func (r run) size() float64 {
 	w := math.Ceil(msgSizeOf(nsString(r.text), sel("sizeWithAttributes:"), textAttrs(r.font, r.fg)).W)
 	if r.pill {
 		w += 2 * pad
+	}
+	if r.slot != "" {
+		w += slotW
 	}
 	if r.tight {
 		return w
@@ -323,10 +327,14 @@ func (r run) draw(x, top, h float64) float64 {
 	at := x
 	if r.pill {
 		nsColor(r.ground).Send(sel("setFill"))
-		msgRounded(cls("NSBezierPath"), sel("bezierPathWithRoundedRect:xRadius:yRadius:"), rect{point{x, top + 3}, size{math.Ceil(sz.W) + 2*pad, h - 6}}, 5, 5).Send(sel("fill"))
+		msgRounded(cls("NSBezierPath"), sel("bezierPathWithRoundedRect:xRadius:yRadius:"), rect{point{x, top + 3}, size{r.size() - pad, h - 6}}, 5, 5).Send(sel("fill"))
 		at += pad
 	}
 	msgDrawAt(nsString(r.text), sel("drawAtPoint:withAttributes:"), point{at, top + math.Floor((h-sz.H)/2)}, a)
+	if r.slot != "" {
+		ss := msgSizeOf(nsString(r.slot), sel("sizeWithAttributes:"), a)
+		msgDrawAt(nsString(r.slot), sel("drawAtPoint:withAttributes:"), point{at + math.Ceil(sz.W) + (slotW-ss.W)/2, top + math.Floor((h-ss.H)/2)}, a)
+	}
 	return x + r.size()
 }
 

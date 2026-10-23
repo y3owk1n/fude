@@ -9,6 +9,7 @@ import (
 	pngenc "image/png"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -25,6 +26,7 @@ import (
 	"github.com/y3owk1n/fude/modules/hints"
 	termmod "github.com/y3owk1n/fude/modules/terminal"
 	winmod "github.com/y3owk1n/fude/modules/window"
+	"github.com/y3owk1n/fude/vim"
 )
 
 // TestMain runs AppKit on the main thread, in the background, and the tests
@@ -32,6 +34,12 @@ import (
 func TestMain(m *testing.M) {
 	load()
 	lib, err := purego.Dlopen("/usr/lib/libobjc.A.dylib", purego.RTLD_GLOBAL)
+	if err != nil {
+		panic(err)
+	}
+	dragInfo, err = objc.RegisterClass("FudeTestDrag", objc.GetClass("NSObject"), nil, nil, []objc.MethodDef{
+		{Cmd: sel("draggingPasteboard"), Fn: func(objc.ID, objc.SEL) objc.ID { return dragged }},
+	})
 	if err != nil {
 		panic(err)
 	}
@@ -542,6 +550,118 @@ func TestB553TerminalsAndImages(t *testing.T) {
 		return !open
 	})
 }
+
+// B555
+func TestB555MouseOnTabsFilesAndWords(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	for _, f := range []string{"a.txt", "b.txt", "c.txt", "d.txt"} {
+		editortest.Change(t, filepath.Join(dir, f), "one two\n")
+	}
+	e := editortest.Open(t, "a.txt")
+	e.Use(bufferline.New())
+	e.Use(buffers.New())
+	var w *window
+	onMain(func() { w = open(e, nil) }, true)
+	for _, c := range ":e b.txt\r:e c.txt\r" {
+		code := uint16(0)
+		if c == '\r' {
+			code = 36
+		}
+		onMain(func() { press(w, code, 0, string(c), string(c)) }, true)
+	}
+	row := func() string {
+		var names []string
+		w.onLoop(func() {
+			for _, tb := range e.Buffers() {
+				names = append(names, strings.TrimSuffix(tb.Name, ".txt"))
+			}
+		})
+		return strings.Join(names, " ")
+	}
+	until(t, "three tabs", func() bool {
+		n := 0
+		onMain(func() { n = len(w.hits) }, true)
+		return row() == "a b c" && n == 3
+	})
+	// mouse sends a mouse event of the type at x along the strip.
+	mouse := func(kind uint, x float64, clicks int) {
+		onMain(func() {
+			at := msgConvertPoint(w.bar, sel("convertPoint:toView:"), point{x, 10}, 0)
+			ev := msgMouseEvent(cls("NSEvent"), sel("mouseEventWithType:location:modifierFlags:timestamp:windowNumber:context:eventNumber:clickCount:pressure:"),
+				kind, at, 0, 0, objc.Send[int](w.win, sel("windowNumber")), 0, 0, clicks, 1)
+			w.win.Send(sel("sendEvent:"), ev)
+		}, true)
+	}
+	var tabs []hit
+	onMain(func() { tabs = slices.Clone(w.hits) }, true)
+	// Dragging the first tab past the last moves it there.
+	mouse(1, (tabs[0].from+tabs[0].to)/2, 1)
+	mouse(6, tabs[2].to-2, 1)
+	mouse(2, tabs[2].to-2, 1)
+	until(t, "a last", func() bool { return row() == "b c a" })
+	// A click on a tab's × closes its buffer.
+	until(t, "the tabs to move", func() bool {
+		onMain(func() { tabs = slices.Clone(w.hits) }, true)
+		return len(tabs) == 3 && tabs[0].n == 2
+	})
+	mouse(1, tabs[0].to-pad-slotW/2, 1)
+	until(t, "b to close", func() bool { return row() == "c a" })
+	// A file dropped on the window opens.
+	onMain(func() {
+		pb := cls("NSPasteboard").Send(sel("pasteboardWithUniqueName"))
+		pb.Send(sel("clearContents"))
+		url := cls("NSURL").Send(sel("fileURLWithPath:"), nsString(filepath.Join(dir, "d.txt")))
+		pb.Send(sel("writeObjects:"), cls("NSArray").Send(sel("arrayWithObject:"), url))
+		info := objc.ID(dragInfo).Send(sel("alloc")).Send(sel("init"))
+		dragged = pb
+		w.view.Send(sel("performDragOperation:"), info)
+	}, true)
+	until(t, "d to open", func() bool { return row() == "c a d" })
+	// A double click on a word selects it.
+	var text objc.ID
+	onMain(func() {
+		for _, p := range w.panes {
+			text = p.text
+		}
+	}, true)
+	for clicks := 1; clicks <= 2; clicks++ {
+		onMain(func() {
+			at := msgConvertPoint(text, sel("convertPoint:toView:"), point{pad + 5.5*cellW, pad + cellH/2}, 0)
+			ev := msgMouseEvent(cls("NSEvent"), sel("mouseEventWithType:location:modifierFlags:timestamp:windowNumber:context:eventNumber:clickCount:pressure:"),
+				1, at, 0, 0, objc.Send[int](w.win, sel("windowNumber")), 0, 0, clicks, 1)
+			w.win.Send(sel("sendEvent:"), ev)
+		}, true)
+	}
+	until(t, "two to be selected", func() bool {
+		var s vim.Selection
+		var ok bool
+		w.onLoop(func() { s, ok = e.Selection() })
+		return ok && s.Start == 4 && s.End == 7
+	})
+	for _, c := range "\x1b:qa!\r" {
+		code := uint16(0)
+		switch c {
+		case '\r':
+			code = 36
+		case '\x1b':
+			code = 53
+		}
+		onMain(func() { press(w, code, 0, string(c), string(c)) }, true)
+	}
+	until(t, "the session to end", func() bool {
+		open := true
+		onMain(func() { _, open = windows[w.view] }, true)
+		return !open
+	})
+}
+
+// dragInfo is a class whose objects tell of a drag of the pasteboard
+// dragged, as AppKit tells a view of a drop.
+var (
+	dragInfo objc.Class
+	dragged  objc.ID
+)
 
 // onLoop runs fn on w's loop, where the session may be read.
 func (w *window) onLoop(fn func()) {

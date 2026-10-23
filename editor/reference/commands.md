@@ -687,6 +687,13 @@ follows the cursor and the edits, and git reads the buffer's text, so
 unsaved lines still line up. Outside a git repository, or for a buffer
 with no file, it turns on and shows nothing.
 
+## :bmove
+
+Moves the current buffer along the top row, after buffer n of the row,
+counted from 1 before it moves, or first with 0. `+n` and `-n` move it n
+places on or back, and with no n it goes last. A place past either end is
+refused. A buffer opened later goes last.
+
 ## :bnext
 
 Shows the next buffer being edited in the current window, after the last

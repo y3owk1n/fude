@@ -22,8 +22,10 @@ type strip struct {
 }
 
 // drawBar draws the tab strip right of the window's buttons (B258, B545).
-// The pages take up to half of it. It keeps where each tab is, for a click
-// to show it (B552).
+// The pages take up to half of it. Each tab ends in a slot that shows ●
+// while its buffer has changes, and × to close it while the mouse is over
+// it or it is current. It keeps where each tab is, for the mouse (B552,
+// B555).
 func drawBar(self objc.ID, _ objc.SEL, _ rect) {
 	w := windows[self]
 	if w == nil {
@@ -46,14 +48,21 @@ func drawBar(self objc.ID, _ objc.SEL, _ rect) {
 		return
 	}
 	tab := func(text string, modified, current bool, ground theme.RGB) run {
-		if modified {
-			text += " ●"
-		}
-		r := run{text: text, font: uiFont, fg: th.Muted, ground: th.Surface, pill: true}
+		r := run{text: text, font: uiFont, fg: th.Muted, ground: th.Surface, pill: true, slot: " "}
 		if current {
 			r.font, r.fg, r.ground = uiBold, th.Text, ground
 		}
+		if modified {
+			r.slot = "●"
+		}
 		return r
+	}
+	// over marks the tab under the mouse, which shows ×, as the current
+	// one does while it has no changes.
+	over := func(rs []run, current int, from, to float64, i int) {
+		if w.hover >= from && w.hover < to || i == current && rs[i].slot != "●" {
+			rs[i].slot = "×"
+		}
 	}
 	if len(t.pages) > 0 {
 		pages, at := make([]run, len(t.pages)), 0
@@ -66,7 +75,8 @@ func drawBar(self objc.ID, _ objc.SEL, _ rect) {
 		}
 		start := end - min(width(pages), (end-x)/2)
 		cut(pages, at, start, end, b.H, th, func(i int, from, to float64) {
-			w.hits = append(w.hits, hit{from, to, pageKeys(i)})
+			over(pages, at, from, to, i)
+			w.hits = append(w.hits, hit{from, to, true, i, i})
 		})
 		end = start - pad
 	}
@@ -78,19 +88,26 @@ func drawBar(self objc.ID, _ objc.SEL, _ rect) {
 		}
 	}
 	cut(bufs, at, x, end, b.H, th, func(i int, from, to float64) {
-		w.hits = append(w.hits, hit{from, to, bufferKeys(t.buffers[i].Number)})
+		over(bufs, at, from, to, i)
+		w.hits = append(w.hits, hit{from, to, false, t.buffers[i].Number, i})
 	})
+	// A tab being dragged shows where it would go.
+	if h, ok := w.dropAt(); ok {
+		nsColor(th.Normal).Send(sel("setFill"))
+		rectFill(rect{point{h - 1, 4}, size{2, b.H - 8}})
+	}
 }
 
-// cut draws rs from x to end in a bar h tall, and tells at where each it
-// draws goes, by its index. When they do not all fit, it draws the ones
-// around the one at current, with ‹ or › where it cuts.
+// cut draws rs from x to end in a bar h tall. It tells at where each goes,
+// by its index, before it draws, so at may change it. When they do not all
+// fit, it draws the ones around the one at current, with ‹ or › where it
+// cuts.
 func cut(rs []run, current int, x, end, h float64, th theme.Theme, at func(i int, from, to float64)) {
 	mark := func(text string) run { return run{text: text, font: uiFont, fg: th.Faint} }
 	if width(rs) <= end-x {
-		for i, r := range rs {
-			at(i, x, x+r.size())
-			x = r.draw(x, 0, h)
+		for i := range rs {
+			at(i, x, x+rs[i].size())
+			x = rs[i].draw(x, 0, h)
 		}
 		return
 	}
@@ -102,12 +119,12 @@ func cut(rs []run, current int, x, end, h float64, th theme.Theme, at func(i int
 	if first > 0 {
 		x = mark("‹").draw(x, 0, h)
 	}
-	for i, r := range rs[first:] {
-		if more := first+i < len(rs)-1; x+r.size() > end-mark("›").size() && more || x+r.size() > end {
+	for i := first; i < len(rs); i++ {
+		if more := i < len(rs)-1; x+rs[i].size() > end-mark("›").size() && more || x+rs[i].size() > end {
 			mark("›").draw(x, 0, h)
 			return
 		}
-		at(first+i, x, x+r.size())
-		x = r.draw(x, 0, h)
+		at(i, x, x+rs[i].size())
+		x = rs[i].draw(x, 0, h)
 	}
 }
