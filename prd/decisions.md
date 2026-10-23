@@ -887,6 +887,29 @@ tree-sitter and put the editor's dependencies in its `go.mod`. The
 packages' API is now a promise, as D46 says of any package outside
 `internal/`.
 
+## D65. A native window on macOS, through AppKit with purego
+
+`fude gui` shows a session in a native macOS window (B547). `gui/` is a
+frontend of `client.Session`, as `tui/` is. It calls AppKit through
+purego's Objective-C runtime, so it needs no cgo, and cgo stays in
+`syntax/`. A custom view draws each window's text from the cells
+`frontend/compose` gives. Later steps give the rest of what fude shows
+the system's own controls: the command line as a command palette, messages as toasts, questions as sheets, tab pages as tabs and
+splits as split views. The editor stays the source of each, and keys
+still go through Vim's grammar. On other systems `fude gui` says it runs
+only on macOS for now. The GUI ships later as an app bundle built from
+the same code, and `fude` stays one binary, since the window adds about
+0.1MB to it.
+
+Why, as of 2026-10-23: the user wants a first-class Vim GUI with native
+controls, not a terminal in a window. A spike drew fude's text in a native
+view through purego, with p50 5.7ms from key to paint against 9ms in a
+webview. mygo was considered, but its windows show web content, so its
+tabs and splits would be HTML. purego is a new dependency because the
+standard library cannot call the Objective-C runtime, and cgo there would
+break the rule that cgo lives only in `syntax/`. AppKit is macOS's own, so
+Windows and Linux need windows of their own later.
+
 ## Departures from Neovim
 
 Each entry: what differs, then why.

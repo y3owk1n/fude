@@ -426,7 +426,7 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 
 // put paints a grid's cell on the screen. Cells side by side mostly share a
 // style, so it converts a style to tcell's once for each run of them.
-func (c *client) put(x, y int, text string, s look.Style) {
+func (c *client) put(x, y int, text string, _ int, s look.Style) {
 	if s != c.painted || c.paintedT == (tcell.Style{}) {
 		c.painted, c.paintedT = s, tcellStyle(s)
 	}

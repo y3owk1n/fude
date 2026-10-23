@@ -9,7 +9,7 @@ cells that changed since the last, so a frontend redraws only those.
 ```go
 g := compose.NewGrid(w.W, w.H, look.Base)
 out := c.Compose(g, w, compose.Options{Look: look, Frame: frame})
-g.Paint(w.X, w.Y, put) // put draws one cell
+g.Paint(w.X, w.Y, put) // put draws one cell, as wide as it says
 ```
 
 `Compose` returns where the cursor is, the multicursors, the rows of

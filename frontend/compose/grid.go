@@ -151,9 +151,9 @@ func (g *Grid) Size() (int, int) {
 }
 
 // Paint gives put each cell changed since the last Paint, at its column and
-// row counted from x, y. When g moved since then, it gives every cell. put
-// does not get the cell a wide cell covers.
-func (g *Grid) Paint(x, y int, put func(x, y int, text string, style look.Style)) {
+// row counted from x, y, with its width in columns. When g moved since then,
+// it gives every cell. put does not get the cell a wide cell covers.
+func (g *Grid) Paint(x, y int, put func(x, y int, text string, width int, style look.Style)) {
 	if g.at != [2]int{x, y} {
 		g.at = [2]int{x, y}
 		g.touchAll()
@@ -161,7 +161,7 @@ func (g *Grid) Paint(x, y int, put func(x, y int, text string, style look.Style)
 	for row := range g.h {
 		for col := g.lo[row]; col <= g.hi[row]; {
 			c := &g.cells[row*g.w+col]
-			put(x+col, y+row, c.text, c.style)
+			put(x+col, y+row, c.text, max(c.width, 1), c.style)
 			col += max(c.width, 1)
 		}
 		g.lo[row], g.hi[row] = g.w, -1

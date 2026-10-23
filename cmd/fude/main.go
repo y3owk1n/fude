@@ -22,6 +22,7 @@ import (
 	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/frontend/client"
 	"github.com/y3owk1n/fude/frontend/relay"
+	"github.com/y3owk1n/fude/gui"
 	"github.com/y3owk1n/fude/plugin"
 	"github.com/y3owk1n/fude/tui"
 )
@@ -103,7 +104,7 @@ func run(args []string) error {
 	case "open", "keys", "state":
 		return remote(cmd, words, flags)
 	default:
-		return edit(cmd == "share", words, flags, remove)
+		return edit(cmd, words, flags, remove)
 	}
 	return nil
 }
@@ -501,10 +502,12 @@ func relays(words []string) error {
 	return relay.Serve(l)
 }
 
-// edit opens the files in words in the terminal, and with sharing lets
-// guests join (B248, B251). After :restart it runs fude again in its place,
-// on the saved session (B170), and calls remove first.
-func edit(sharing bool, words []string, flags map[string]string, remove func()) error {
+// edit opens the files in words in the terminal, or with gui in a native
+// window (B547), and with share lets guests join (B248, B251). After
+// :restart it runs fude again in its place, on the saved session (B170),
+// and calls remove first.
+func edit(cmd string, words []string, flags map[string]string, remove func()) error {
+	sharing := cmd == "share"
 	// A share's first word is where it listens when it is an address
 	// (B248), unless it goes through a relay (B251).
 	address, via := ":0", flags["--relay"]
@@ -542,7 +545,11 @@ func edit(sharing bool, words []string, flags map[string]string, remove func()) 
 		}
 		defer unshare()
 	}
-	err = tui.Run(e)
+	run := tui.Run
+	if cmd == "gui" {
+		run = gui.Run
+	}
+	err = run(e)
 	e.Finish(time.Second)
 	stop()
 	if path := e.Restart(); err == nil && path != "" {
@@ -552,7 +559,10 @@ func edit(sharing bool, words []string, flags map[string]string, remove func()) 
 		}
 		argv := os.Args[:1]
 		if _, clean := flags["--clean"]; clean {
-			argv = []string{os.Args[0], "--clean"}
+			argv = append(argv, "--clean")
+		}
+		if cmd == "gui" {
+			argv = append(argv, "gui")
 		}
 		// On Unix the new fude replaces this process, so deferred calls
 		// never run.

@@ -38,7 +38,7 @@ for frame := 1; !s.Done(); frame++ {
 			grids[w.ID] = g
 		}
 		c.Compose(g, w, compose.Options{Look: look, Frame: frame})
-		g.Paint(w.X, w.Y, func(x, y int, text string, st theme.Style) {
+		g.Paint(w.X, w.Y, func(x, y int, text string, width int, st theme.Style) {
 			// Draw text at x, y in st's colours.
 		})
 	}

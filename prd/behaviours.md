@@ -1280,6 +1280,13 @@ Where fude departs, the line says so and cites the departure in
   module reads the session's pages, hears `tabpage.changed` when one
   opens, closes, moves or shows, and names the pages the row lists, as
   the tabline module does.
+- B547 [10] `fude gui` opens the files in a native macOS window, as `fude`
+  opens them in the terminal. The window shows each window's text as the
+  terminal client draws it, keys typed there go to the session as Vim
+  keys, with an Option chord as `<Esc>` and the key and a Command chord
+  left to the system, and resizing the window resizes the session.
+  Closing the window quits as `:qa` does. `:restart` starts it again in
+  a window. Elsewhere `fude gui` says it runs only on macOS for now.
 - B544 [2] A session has tab pages, each with its own windows, floats
   and current window, as in Neovim. `:tabnew` and `:tabedit` open one
   after the current page, on a file or a new empty buffer. `gt`, `{n}gt`,

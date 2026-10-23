@@ -106,7 +106,7 @@ loc:
     editor editor
     vim vim
     modules syntax plugin protocol/lsp sdk api api/diff modules/blame modules/colours modules/comment modules/debug modules/editorconfig modules/fold modules/format modules/git modules/grep modules/inlay modules/lsp modules/spell modules/task
-    clients tui frontend
+    clients tui gui frontend
     kernel core/kernel core/rope
     glue cmd/fude internal/pty internal/trace
     EOF
