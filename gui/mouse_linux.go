@@ -190,15 +190,21 @@ func leave(_, area uintptr) uintptr {
 }
 
 // mouseRoll scrolls a pane's window by dy, a wheel's notches of lines when
-// wheel is set and a touchpad's points otherwise, or a box's list, and
-// reports whether it scrolled anything (B552, B560, B561).
+// wheel is set and a touchpad's points otherwise, or a float's window, and
+// reports whether it scrolled anything (B552, B560, B561). A float's window
+// scrolls in the session, a list in its own scrolled window.
 func mouseRoll(area uintptr, wheel bool, dy float64) bool {
-	if b := boxes[area]; b != nil && b.boxed != nil && b.list != nil {
+	if b := boxes[area]; b != nil && b.boxed != nil && b.read != nil && b.id > 0 {
 		if wheel {
-			dy *= b.list.rowH
+			dy *= wheelLines
+		} else {
+			dy /= cellH
 		}
-		b.roll(dy)
-		gtkWidgetQueueDraw(area)
+		b.wheeled += dy
+		if n := int(b.wheeled); n != 0 {
+			b.wheeled -= float64(n)
+			b.w.mice <- mouse{'s', b.id, 0, n, 0}
+		}
 		return true
 	}
 	p := panes[area]

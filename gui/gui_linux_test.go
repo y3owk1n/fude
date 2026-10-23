@@ -47,7 +47,6 @@ func TestMain(m *testing.M) {
 	purego.RegisterLibFunc(&gActionActivate, gtk, "g_action_activate")
 	purego.RegisterLibFunc(&gtkWindowTitle, gtk, "gtk_window_get_title")
 	purego.RegisterLibFunc(&gtkWidgetVisible, gtk, "gtk_widget_get_visible")
-	purego.RegisterLibFunc(&gtkAdjustmentSetValue, gtk, "gtk_adjustment_set_value")
 	purego.RegisterLibFunc(&gtkWindowFocus, gtk, "gtk_window_get_focus")
 	purego.RegisterLibFunc(&gtkAccessibleRole, gtk, "gtk_accessible_get_accessible_role")
 	purego.RegisterLibFunc(&gTypeIfacePeek, gtk, "g_type_interface_peek")
@@ -56,6 +55,7 @@ func TestMain(m *testing.M) {
 	purego.RegisterLibFunc(&pangoFontFamily, gtk, "pango_font_description_get_family")
 	purego.RegisterLibFunc(&gtkHeaderTitle, gtk, "gtk_header_bar_get_title_widget")
 	purego.RegisterLibFunc(&gtkLabelText, gtk, "gtk_label_get_text")
+	purego.RegisterLibFunc(&gtkWidgetActivate, gtk, "gtk_widget_activate")
 	ready := make(chan struct{})
 	startApp(func() { close(ready) })
 	// The application stays up between the tests' windows.
@@ -133,7 +133,7 @@ func TestB566GTKWindow(t *testing.T) {
 	})
 }
 
-// B567
+// B567, B560
 func TestB567GTKMouse(t *testing.T) {
 	lines := []string{"one two", "three"}
 	for i := range 100 {
@@ -141,8 +141,10 @@ func TestB567GTKMouse(t *testing.T) {
 	}
 	path := filepath.Join(t.TempDir(), "a.txt")
 	editortest.Change(t, path, strings.Join(lines, "\n")+"\n")
+	t.Chdir(filepath.Dir(path))
 	e := editortest.Open(t, path)
-	e.Use(hovering{})
+	e.Use(hovering{more: 100})
+	e.Use(filesmod.New())
 	var w *window
 	onMain(func() { w = open(e, nil) }, true)
 	var p *pane
@@ -157,6 +159,15 @@ func TestB567GTKMouse(t *testing.T) {
 		return p != nil
 	})
 	cell := func(x, y int) point { return point{pad + (float64(x)+0.5)*cellW, pad + (float64(y)+0.5)*cellH} }
+	typed := func(keys string) {
+		for _, k := range keys {
+			keyval := map[rune]uintptr{'\x1b': 0xff1b, '\t': 0xff09, '\r': 0xff0d}[k]
+			if keyval == 0 {
+				keyval = uintptr(k)
+			}
+			onMain(func() { keyPressed(0, keyval, 0, 0, w.win) }, true)
+		}
+	}
 	click := func(clicks int, from, to point) {
 		onMain(func() {
 			mousePress(p.area, 1, clicks, from, 0)
@@ -205,7 +216,26 @@ func TestB567GTKMouse(t *testing.T) {
 				}
 			}
 		})
-		return text == "at 6"
+		return strings.HasPrefix(text, "at 6")
+	})
+	// The wheel over the hover scrolls its window.
+	onMain(func() {
+		for _, b := range w.floats {
+			if b.boxed != nil && b.read != nil {
+				mouseRoll(b.area, true, 1)
+			}
+		}
+	}, true)
+	until(t, "the hover to scroll", func() bool {
+		top := 0
+		w.onLoop(func() {
+			for _, v := range e.Windows() {
+				if v.Float == "cursor" {
+					top = v.Text.LineOf(v.Top)
+				}
+			}
+		})
+		return top > 0
 	})
 	// The wheel scrolls the window three lines a notch.
 	onMain(func() { mouseRoll(p.area, true, 2) }, true)
@@ -224,16 +254,36 @@ func TestB567GTKMouse(t *testing.T) {
 		w.onLoop(func() { s, ok = e.Selection() })
 		return ok && s.Kind == "V" && s.Start == 0
 	})
-	for _, k := range "\x1b:qa!\r" {
-		keyval := uintptr(k)
-		switch k {
-		case '\x1b':
-			keyval = 0xff1b
-		case '\r':
-			keyval = 0xff0d
-		}
-		onMain(func() { keyPressed(0, keyval, 0, 0, w.win) }, true)
-	}
+	// A click on a row of the palette's list puts its item in the line.
+	typed("\x1b:\t")
+	var second string
+	until(t, "the palette's list", func() bool {
+		onMain(func() {
+			if w.panel.boxed != nil && w.panel.list != nil && len(w.panel.list.items) > 2 {
+				second = w.panel.list.items[1].Label
+			}
+		}, true)
+		return second != ""
+	})
+	onMain(func() { gtkWidgetActivate(gtkListBoxRowAt(w.panel.listBox, 1)) }, true)
+	until(t, "the second item in the line", func() bool {
+		line := ""
+		w.onLoop(func() { line = e.Line() })
+		return line == ":"+second
+	})
+	// The finder's preview of a file longer than its box scrolls.
+	typed("\x1b:pick files\r")
+	until(t, "the whole preview", func() bool {
+		ok := false
+		onMain(func() {
+			var shown, whole grect
+			ok = gtkWidgetVisible(w.panel.previewScroll) != 0 &&
+				gtkWidgetBounds(w.panel.previewScroll, w.overlay, &shown) != 0 && gtkWidgetBounds(w.panel.previewArea, w.overlay, &whole) != 0 &&
+				whole.H > shown.H
+		}, true)
+		return ok
+	})
+	typed("\x1b:qa!\r")
 	until(t, "the session to end", func() bool {
 		open := true
 		onMain(func() { _, open = windows[w.win] }, true)
@@ -585,22 +635,22 @@ func TestB584GTKFont(t *testing.T) {
 func roleOf(nick string) int32 { return gEnumByNick(roleClass, nick).value }
 
 var (
-	gtkWindowFocus        func(w uintptr) uintptr
-	gtkAccessibleRole     func(a uintptr) int32
-	gTypeIfacePeek        func(class uintptr, iface uint64) uintptr
-	gBytesData            func(b uintptr, n *uintptr) *byte
-	gBytesUnref           func(b uintptr)
-	pangoFontFamily       func(desc uintptr) string
-	gtkHeaderTitle        func(bar uintptr) uintptr
-	gtkLabelText          func(l uintptr) string
-	cairoCreate           func(surface uintptr) uintptr
-	cairoDestroy          func(cr uintptr)
-	cairoWritePNG         func(surface uintptr, path string) int32
-	gtkWindowClose        func(w uintptr)
-	gActionActivate       func(action, param uintptr)
-	gtkWindowTitle        func(w uintptr) string
-	gtkWidgetVisible      func(w uintptr) int32
-	gtkAdjustmentSetValue func(a uintptr, value float64)
+	gtkWindowFocus    func(w uintptr) uintptr
+	gtkAccessibleRole func(a uintptr) int32
+	gTypeIfacePeek    func(class uintptr, iface uint64) uintptr
+	gBytesData        func(b uintptr, n *uintptr) *byte
+	gBytesUnref       func(b uintptr)
+	pangoFontFamily   func(desc uintptr) string
+	gtkHeaderTitle    func(bar uintptr) uintptr
+	gtkLabelText      func(l uintptr) string
+	gtkWidgetActivate func(w uintptr) int32
+	cairoCreate       func(surface uintptr) uintptr
+	cairoDestroy      func(cr uintptr)
+	cairoWritePNG     func(surface uintptr, path string) int32
+	gtkWindowClose    func(w uintptr)
+	gActionActivate   func(action, param uintptr)
+	gtkWindowTitle    func(w uintptr) string
+	gtkWidgetVisible  func(w uintptr) int32
 )
 
 // paint draws a pane or a box as GTK would, with its draw function, into

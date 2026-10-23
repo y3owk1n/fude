@@ -1413,11 +1413,11 @@ Where fude departs, the line says so and cites the departure in
   right, and the selected item takes the system's selection colour. The
   row the mouse is over lights. A list taller than its box scrolls by the
   wheel and the trackpad, with a thin knob where it is, and scrolls to
-  show its selection when that moves. On macOS each list is the system's
-  table, which takes the mouse and never the keyboard (D68). The finder's
-  preview and the documentation beside a menu keep the theme. On macOS the
-  documentation scrolls by the wheel and the trackpad past the 20 rows its
-  box shows.
+  show its selection when that moves. Each list is the system's own list
+  control, a table on macOS and a list box on Linux. It takes the mouse
+  and never the keyboard (D68). The finder's preview and the documentation beside a
+  menu keep the theme. On macOS and Linux the documentation scrolls by the
+  wheel and the trackpad past the 20 rows its box shows.
 - B561 [10] With `--gui` a right click on text puts the cursor there,
   unless a selection shows, and opens the system's menu. It offers Go to
   Definition, Go to Type Definition, Find References, Find

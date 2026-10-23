@@ -103,7 +103,9 @@ func styleChrome(families string) {
 		// GTK_STYLE_PROVIDER_PRIORITY_APPLICATION.
 		gtkStyleAddProvider(gdkDisplayDefault(), chromeStyle, 600)
 	}
-	css := ".fude-status { background-color: @theme_bg_color; border-top: 1px solid @borders; padding: 0 6px; min-height: 22px; }"
+	// Each list row is the box's row height, as showTable expects.
+	css := ".fude-status { background-color: @theme_bg_color; border-top: 1px solid @borders; padding: 0 6px; min-height: 22px; }" +
+		" .fude-list { background: none; } .fude-list > row { min-height: 0; padding: 0 8px; margin: 0 4px; }"
 	if families != "" {
 		css += fmt.Sprintf(" .fude-status label { font-family: %s; }", families)
 	}

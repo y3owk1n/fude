@@ -93,6 +93,7 @@ func startApp(ready func()) {
 	callbacks.key = purego.NewCallback(keyPressed)
 	callbacks.modifiers = purego.NewCallback(modifiers)
 	makeMouseCallbacks()
+	makeTableCallbacks()
 	makeStripCallbacks()
 	makeInputCallbacks()
 	callbacks.closing = purego.NewCallback(func(win, _ uintptr) uintptr {

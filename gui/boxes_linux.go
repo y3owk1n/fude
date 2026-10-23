@@ -5,10 +5,17 @@ import "math"
 // boxNative is a box's drawing area, laid over the panes on the theme's
 // popover ground with rounded corners.
 type boxNative struct {
-	area   uintptr
-	said   spoken // its text as assistive apps count it
-	told   told
-	labels labels
+	area          uintptr
+	listBox       uintptr // the system's list its menu shows in
+	scrolled      uintptr // the scrolled window of the list
+	listed        string  // what the list shows, to know when it changes
+	previewArea   uintptr // the finder's whole preview, or a menu's whole documentation
+	previewScroll uintptr // its scrolled window
+	previewed     string  // what it shows, to know when another shows
+	wheeled       float64 // the part of a line the wheel moved a float, not yet sent
+	said          spoken  // its text as assistive apps count it
+	told          told
+	labels        labels
 }
 
 // boxes are the boxes by their drawing areas, which the callbacks get.
@@ -26,17 +33,21 @@ func newBox(w *window, role string) *box {
 	gtkDrawingAreaSetFn(b.area, callbacks.drawBox, b.area, 0)
 	gtkOverlayAdd(w.overlay, b.area)
 	boxes[b.area] = b
+	b.newTable()
 	return b
 }
 
-// raise puts b over every other box.
+// raise puts b, its list and its preview over every other box.
 func (b *box) raise() {
-	gtkOverlayRemove(b.w.overlay, b.area)
-	gtkOverlayAdd(b.w.overlay, b.area)
+	for _, w := range []uintptr{b.area, b.scrolled, b.previewScroll} {
+		gtkOverlayRemove(b.w.overlay, w)
+		gtkOverlayAdd(b.w.overlay, w)
+	}
 }
 
 // drop forgets b, whose float closed.
 func (b *box) drop() {
+	b.dropTable()
 	gtkOverlayRemove(b.w.overlay, b.area)
 	delete(boxes, b.area)
 	gObjectUnref(b.area)
@@ -49,6 +60,8 @@ func (b *box) show(what *boxed) {
 	if what == nil {
 		gtkWidgetSetVisible(b.area, 0)
 		b.scroll, b.seen, b.hover = 0, -2, point{X: -1}
+		b.showTable(rect{})
+		b.showPreview(rect{})
 		return
 	}
 	area := size{float64(gtkWidgetGetWidth(b.w.overlay)), float64(gtkWidgetGetHeight(b.w.overlay))}
@@ -57,6 +70,8 @@ func (b *box) show(what *boxed) {
 	gtkWidgetMarginTop(b.area, int32(r.Origin.Y))
 	gtkWidgetSizeRequest(b.area, int32(math.Ceil(r.Size.W)), int32(math.Ceil(r.Size.H)))
 	gtkWidgetSetVisible(b.area, 1)
+	b.showTable(r)
+	b.showPreview(r)
 	gtkWidgetQueueDraw(b.area)
 }
 

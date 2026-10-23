@@ -15,168 +15,186 @@ func init() { runtime.LockOSThread() }
 // GTK4's, cairo's and Pango's calls, which load opens (D66). A pointer is a
 // uintptr, as purego passes it.
 var (
-	gIdleAdd             func(fn, data uintptr) uint32
-	gSignalConnectData   func(inst uintptr, signal string, fn, data, destroy uintptr, flags uint32) uint64
-	gObjectRefSink       func(o uintptr) uintptr
-	gObjectUnref         func(o uintptr)
-	gObjectSetProperty   func(o uintptr, name string, v *gValue)
-	gObjectGetProperty   func(o uintptr, name string, v *gValue)
-	gValueInit           func(v *gValue, t uint64) *gValue
-	gValueSetBoolean     func(v *gValue, b int32)
-	gValueGetString      func(v *gValue) string
-	gValueUnset          func(v *gValue)
-	gApplicationRun      func(app uintptr, argc int32, argv uintptr) int32
-	gApplicationHold     func(app uintptr)
-	gApplicationQuit     func(app uintptr)
-	gtkApplicationNew    func(id string, flags uint32) uintptr
-	gtkAppWindowNew      func(app uintptr) uintptr
-	gtkWindowSetTitle    func(w uintptr, title string)
-	gtkWindowSetSize     func(w uintptr, width, height int32)
-	gtkWindowSetChild    func(w, child uintptr)
-	gtkWindowPresent     func(w uintptr)
-	gtkWindowDestroy     func(w uintptr)
-	gtkWindowIsActive    func(w uintptr) int32
-	gtkOverlayNew        func() uintptr
-	gtkOverlaySetChild   func(o, child uintptr)
-	gtkOverlayAdd        func(o, child uintptr)
-	gtkOverlayRemove     func(o, child uintptr)
-	gtkPanedNew          func(orientation int32) uintptr
-	gtkPanedSetStart     func(p, child uintptr)
-	gtkPanedSetEnd       func(p, child uintptr)
-	gtkPanedSetPosition  func(p uintptr, position int32)
-	gtkDrawingAreaNew    func() uintptr
-	gtkDrawingAreaSetFn  func(a, fn, data, destroy uintptr)
-	gtkWidgetQueueDraw   func(w uintptr)
-	gtkWidgetGetWidth    func(w uintptr) int32
-	gtkWidgetGetHeight   func(w uintptr) int32
-	gtkWidgetSetVisible  func(w uintptr, on int32)
-	gtkWidgetSetHalign   func(w uintptr, align int32)
-	gtkWidgetSetValign   func(w uintptr, align int32)
-	gtkWidgetSetHexpand  func(w uintptr, on int32)
-	gtkWidgetSetVexpand  func(w uintptr, on int32)
-	gtkWidgetMarginStart func(w uintptr, margin int32)
-	gtkWidgetMarginTop   func(w uintptr, margin int32)
-	gtkWidgetSizeRequest func(w uintptr, width, height int32)
-	gtkWidgetSetTarget   func(w uintptr, on int32)
-	gtkWidgetAddControl  func(w, c uintptr)
-	gtkWidgetBounds      func(w, target uintptr, out *grect) int32
-	gtkWidgetStyle       func(w uintptr) uintptr
-	gtkWidgetScale       func(w uintptr) int32
-	gtkWidgetParent      func(w uintptr) uintptr
-	gtkStyleLookupColor  func(ctx uintptr, name string, out *gdkRGBA) int32
-	gtkKeyControllerNew  func() uintptr
-	gtkControllerPhase   func(c uintptr, phase int32)
-	gtkSettingsDefault   func() uintptr
-	gtkAlertDialogNew    func(format string) uintptr
-	gtkAlertSetMessage   func(d uintptr, message string)
-	gCancellableNew      func() uintptr
-	gCancellableCancel   func(c uintptr)
-	gdkDisplayDefault    func() uintptr
-	gdkDisplayClipboard  func(d uintptr) uintptr
-	gdkClipboardSetText  func(c uintptr, text string)
-	gdkClipboardFormats  func(c uintptr) uintptr
-	gdkFormatsHasType    func(f uintptr, t uint64) int32
-	gdkClipboardRead     func(c, cancellable, fn, data uintptr)
-	gdkClipboardReadDone func(c, result uintptr, err *uintptr) *byte
-	gFree                func(p unsafe.Pointer)
-	gtkGestureClickNew   func() uintptr
-	gtkGestureSetButton  func(g uintptr, button uint32)
-	gtkGestureButton     func(g uintptr) uint32
-	gtkMotionNew         func() uintptr
-	gtkScrollNew         func(flags uint32) uintptr
-	gtkScrollUnit        func(c uintptr) int32
-	gtkControllerState   func(c uintptr) uint32
-	gtkWidgetSetCursor   func(w uintptr, name string)
-	gtkWidgetSetParent   func(w, parent uintptr)
-	gtkWidgetUnparent    func(w uintptr)
-	gMenuNew             func() uintptr
-	gMenuAppend          func(m uintptr, label, action string)
-	gMenuAppendSection   func(m, label, section uintptr)
-	gSimpleActionNew     func(name string, param uintptr) uintptr
-	gSimpleActionEnable  func(a uintptr, on int32)
-	gActionMapAdd        func(m, action uintptr)
-	gtkPopoverMenuNew    func(model uintptr) uintptr
-	gtkPopoverPointTo    func(p uintptr, r *gdkRect)
-	gtkPopoverHasArrow   func(p uintptr, on int32)
-	gtkPopoverPopup      func(p uintptr)
-	gtkHeaderBarNew      func() uintptr
-	gtkWindowSetTitlebar func(w, bar uintptr)
-	gtkHeaderBarTitle    func(bar, widget uintptr)
-	gtkDrawingAreaHeight func(a uintptr, h int32)
-	gtkGestureSetState   func(g uintptr, state int32) int32
-	pangoFontFree        func(desc uintptr)
-	gtkAdjustmentNew     func(value, lower, upper, step, page, pageSize float64) uintptr
-	gtkAdjustmentSet     func(a uintptr, value, lower, upper, step, page, pageSize float64)
-	gtkAdjustmentValue   func(a uintptr) float64
-	gtkScrollbarNew      func(orientation int32, adjustment uintptr) uintptr
-	gtkIMNew             func() uintptr
-	gtkIMSetClient       func(im, widget uintptr)
-	gtkIMFocusIn         func(im uintptr)
-	gtkIMPreedit         func(im uintptr, text **byte, attrs *uintptr, cursor *int32)
-	gtkIMCursorAt        func(im uintptr, r *gdkRect)
-	gtkKeySetIM          func(ctl, im uintptr)
-	gStrdup              func(s uintptr) *byte
-	pangoAttrListUnref   func(l uintptr)
-	gNotificationNew     func(title string) uintptr
-	gNotificationBody    func(n uintptr, body string)
-	gApplicationNotify   func(app, id, n uintptr)
-	gtkAlertSetButtons   func(d uintptr, labels *uintptr)
-	gtkAlertSetCancel    func(d uintptr, button int32)
-	gtkAlertChoose       func(d, parent, cancellable, fn, data uintptr)
-	gtkAlertChooseFinish func(d, result uintptr, err *uintptr) int32
-	gdkKeyvalToUnicode   func(keyval uint32) uint32
-	cairoSetRGBA         func(cr uintptr, r, g, b, a float64)
-	cairoRectangle       func(cr uintptr, x, y, w, h float64)
-	cairoFill            func(cr uintptr)
-	cairoStroke          func(cr uintptr)
-	cairoMoveTo          func(cr uintptr, x, y float64)
-	cairoLineTo          func(cr uintptr, x, y float64)
-	cairoLineWidth       func(cr uintptr, w float64)
-	cairoArc             func(cr uintptr, x, y, r, from, to float64)
-	cairoNewSubPath      func(cr uintptr)
-	cairoClosePath       func(cr uintptr)
-	cairoSave            func(cr uintptr)
-	cairoRestore         func(cr uintptr)
-	cairoClip            func(cr uintptr)
-	cairoTranslate       func(cr uintptr, x, y float64)
-	cairoScale           func(cr uintptr, x, y float64)
-	cairoSetSource       func(cr, surface uintptr, x, y float64)
-	cairoPaint           func(cr uintptr)
-	cairoImageNew        func(format, w, h int32) uintptr
-	cairoImageData       func(s uintptr) *byte
-	cairoImageStride     func(s uintptr) int32
-	cairoImageWidth      func(s uintptr) int32
-	cairoImageHeight     func(s uintptr) int32
-	cairoSurfaceDirty    func(s uintptr)
-	cairoSurfaceFree     func(s uintptr)
-	pangoCairoLayout     func(cr uintptr) uintptr
-	pangoCairoShow       func(cr, layout uintptr)
-	pangoCairoFontMap    func() uintptr
-	pangoFontMapContext  func(fm uintptr) uintptr
-	pangoLayoutNew       func(ctx uintptr) uintptr
-	pangoLayoutSetText   func(l uintptr, text string, n int32)
-	pangoLayoutMarkup    func(l uintptr, markup string, n int32)
-	pangoLayoutSetFont   func(l, desc uintptr)
-	pangoLayoutSetWidth  func(l uintptr, w int32)
-	pangoLayoutSetHeight func(l uintptr, h int32)
-	pangoLayoutSetWrap   func(l uintptr, wrap int32)
-	pangoLayoutEllipsize func(l uintptr, mode int32)
-	pangoLayoutSize      func(l uintptr, w, h *int32)
-	pangoFontFromString  func(s string) uintptr
-	pangoFontSetWeight   func(desc uintptr, weight int32)
-	pangoFontSetStyle    func(desc uintptr, style int32)
-	pangoFontSetFamily   func(desc uintptr, family string)
-	gtkBoxNew            func(orientation int32, spacing int32) uintptr
-	gtkBoxAppend         func(box, child uintptr)
-	gtkLabelNew          func(text string) uintptr
-	gtkLabelSetMarkup    func(l uintptr, markup string)
-	gtkLabelEllipsize    func(l uintptr, mode int32)
-	gtkLabelSetXalign    func(l uintptr, x float32)
-	gtkWidgetAddClass    func(w uintptr, class string)
-	gtkCSSProviderNew    func() uintptr
-	gtkCSSProviderLoad   func(p uintptr, data string, n int)
-	gtkStyleAddProvider  func(display, provider uintptr, priority uint32)
-	pangoFontCopy        func(desc uintptr) uintptr
+	gIdleAdd              func(fn, data uintptr) uint32
+	gSignalConnectData    func(inst uintptr, signal string, fn, data, destroy uintptr, flags uint32) uint64
+	gObjectRefSink        func(o uintptr) uintptr
+	gObjectUnref          func(o uintptr)
+	gObjectSetProperty    func(o uintptr, name string, v *gValue)
+	gObjectGetProperty    func(o uintptr, name string, v *gValue)
+	gValueInit            func(v *gValue, t uint64) *gValue
+	gValueSetBoolean      func(v *gValue, b int32)
+	gValueGetString       func(v *gValue) string
+	gValueUnset           func(v *gValue)
+	gApplicationRun       func(app uintptr, argc int32, argv uintptr) int32
+	gApplicationHold      func(app uintptr)
+	gApplicationQuit      func(app uintptr)
+	gtkApplicationNew     func(id string, flags uint32) uintptr
+	gtkAppWindowNew       func(app uintptr) uintptr
+	gtkWindowSetTitle     func(w uintptr, title string)
+	gtkWindowSetSize      func(w uintptr, width, height int32)
+	gtkWindowSetChild     func(w, child uintptr)
+	gtkWindowPresent      func(w uintptr)
+	gtkWindowDestroy      func(w uintptr)
+	gtkWindowIsActive     func(w uintptr) int32
+	gtkOverlayNew         func() uintptr
+	gtkOverlaySetChild    func(o, child uintptr)
+	gtkOverlayAdd         func(o, child uintptr)
+	gtkOverlayRemove      func(o, child uintptr)
+	gtkPanedNew           func(orientation int32) uintptr
+	gtkPanedSetStart      func(p, child uintptr)
+	gtkPanedSetEnd        func(p, child uintptr)
+	gtkPanedSetPosition   func(p uintptr, position int32)
+	gtkDrawingAreaNew     func() uintptr
+	gtkDrawingAreaSetFn   func(a, fn, data, destroy uintptr)
+	gtkWidgetQueueDraw    func(w uintptr)
+	gtkWidgetGetWidth     func(w uintptr) int32
+	gtkWidgetGetHeight    func(w uintptr) int32
+	gtkWidgetSetVisible   func(w uintptr, on int32)
+	gtkWidgetSetHalign    func(w uintptr, align int32)
+	gtkWidgetSetValign    func(w uintptr, align int32)
+	gtkWidgetSetHexpand   func(w uintptr, on int32)
+	gtkWidgetSetVexpand   func(w uintptr, on int32)
+	gtkWidgetMarginStart  func(w uintptr, margin int32)
+	gtkWidgetMarginTop    func(w uintptr, margin int32)
+	gtkWidgetSizeRequest  func(w uintptr, width, height int32)
+	gtkWidgetSetTarget    func(w uintptr, on int32)
+	gtkWidgetAddControl   func(w, c uintptr)
+	gtkWidgetBounds       func(w, target uintptr, out *grect) int32
+	gtkWidgetStyle        func(w uintptr) uintptr
+	gtkWidgetScale        func(w uintptr) int32
+	gtkWidgetParent       func(w uintptr) uintptr
+	gtkStyleLookupColor   func(ctx uintptr, name string, out *gdkRGBA) int32
+	gtkKeyControllerNew   func() uintptr
+	gtkControllerPhase    func(c uintptr, phase int32)
+	gtkSettingsDefault    func() uintptr
+	gtkAlertDialogNew     func(format string) uintptr
+	gtkAlertSetMessage    func(d uintptr, message string)
+	gCancellableNew       func() uintptr
+	gCancellableCancel    func(c uintptr)
+	gdkDisplayDefault     func() uintptr
+	gdkDisplayClipboard   func(d uintptr) uintptr
+	gdkClipboardSetText   func(c uintptr, text string)
+	gdkClipboardFormats   func(c uintptr) uintptr
+	gdkFormatsHasType     func(f uintptr, t uint64) int32
+	gdkClipboardRead      func(c, cancellable, fn, data uintptr)
+	gdkClipboardReadDone  func(c, result uintptr, err *uintptr) *byte
+	gFree                 func(p unsafe.Pointer)
+	gtkGestureClickNew    func() uintptr
+	gtkGestureSetButton   func(g uintptr, button uint32)
+	gtkGestureButton      func(g uintptr) uint32
+	gtkMotionNew          func() uintptr
+	gtkScrollNew          func(flags uint32) uintptr
+	gtkScrollUnit         func(c uintptr) int32
+	gtkControllerState    func(c uintptr) uint32
+	gtkWidgetSetCursor    func(w uintptr, name string)
+	gtkWidgetSetParent    func(w, parent uintptr)
+	gtkWidgetUnparent     func(w uintptr)
+	gMenuNew              func() uintptr
+	gMenuAppend           func(m uintptr, label, action string)
+	gMenuAppendSection    func(m, label, section uintptr)
+	gSimpleActionNew      func(name string, param uintptr) uintptr
+	gSimpleActionEnable   func(a uintptr, on int32)
+	gActionMapAdd         func(m, action uintptr)
+	gtkPopoverMenuNew     func(model uintptr) uintptr
+	gtkPopoverPointTo     func(p uintptr, r *gdkRect)
+	gtkPopoverHasArrow    func(p uintptr, on int32)
+	gtkPopoverPopup       func(p uintptr)
+	gtkHeaderBarNew       func() uintptr
+	gtkWindowSetTitlebar  func(w, bar uintptr)
+	gtkHeaderBarTitle     func(bar, widget uintptr)
+	gtkDrawingAreaHeight  func(a uintptr, h int32)
+	gtkGestureSetState    func(g uintptr, state int32) int32
+	pangoFontFree         func(desc uintptr)
+	gtkAdjustmentNew      func(value, lower, upper, step, page, pageSize float64) uintptr
+	gtkAdjustmentSet      func(a uintptr, value, lower, upper, step, page, pageSize float64)
+	gtkAdjustmentValue    func(a uintptr) float64
+	gtkScrollbarNew       func(orientation int32, adjustment uintptr) uintptr
+	gtkIMNew              func() uintptr
+	gtkIMSetClient        func(im, widget uintptr)
+	gtkIMFocusIn          func(im uintptr)
+	gtkIMPreedit          func(im uintptr, text **byte, attrs *uintptr, cursor *int32)
+	gtkIMCursorAt         func(im uintptr, r *gdkRect)
+	gtkKeySetIM           func(ctl, im uintptr)
+	gStrdup               func(s uintptr) *byte
+	pangoAttrListUnref    func(l uintptr)
+	gNotificationNew      func(title string) uintptr
+	gNotificationBody     func(n uintptr, body string)
+	gApplicationNotify    func(app, id, n uintptr)
+	gtkAlertSetButtons    func(d uintptr, labels *uintptr)
+	gtkAlertSetCancel     func(d uintptr, button int32)
+	gtkAlertChoose        func(d, parent, cancellable, fn, data uintptr)
+	gtkAlertChooseFinish  func(d, result uintptr, err *uintptr) int32
+	gdkKeyvalToUnicode    func(keyval uint32) uint32
+	cairoSetRGBA          func(cr uintptr, r, g, b, a float64)
+	cairoRectangle        func(cr uintptr, x, y, w, h float64)
+	cairoFill             func(cr uintptr)
+	cairoStroke           func(cr uintptr)
+	cairoMoveTo           func(cr uintptr, x, y float64)
+	cairoLineTo           func(cr uintptr, x, y float64)
+	cairoLineWidth        func(cr uintptr, w float64)
+	cairoArc              func(cr uintptr, x, y, r, from, to float64)
+	cairoNewSubPath       func(cr uintptr)
+	cairoClosePath        func(cr uintptr)
+	cairoSave             func(cr uintptr)
+	cairoRestore          func(cr uintptr)
+	cairoClip             func(cr uintptr)
+	cairoTranslate        func(cr uintptr, x, y float64)
+	cairoScale            func(cr uintptr, x, y float64)
+	cairoSetSource        func(cr, surface uintptr, x, y float64)
+	cairoPaint            func(cr uintptr)
+	cairoImageNew         func(format, w, h int32) uintptr
+	cairoImageData        func(s uintptr) *byte
+	cairoImageStride      func(s uintptr) int32
+	cairoImageWidth       func(s uintptr) int32
+	cairoImageHeight      func(s uintptr) int32
+	cairoSurfaceDirty     func(s uintptr)
+	cairoSurfaceFree      func(s uintptr)
+	pangoCairoLayout      func(cr uintptr) uintptr
+	pangoCairoShow        func(cr, layout uintptr)
+	pangoCairoFontMap     func() uintptr
+	pangoFontMapContext   func(fm uintptr) uintptr
+	pangoLayoutNew        func(ctx uintptr) uintptr
+	pangoLayoutSetText    func(l uintptr, text string, n int32)
+	pangoLayoutMarkup     func(l uintptr, markup string, n int32)
+	pangoLayoutSetFont    func(l, desc uintptr)
+	pangoLayoutSetWidth   func(l uintptr, w int32)
+	pangoLayoutSetHeight  func(l uintptr, h int32)
+	pangoLayoutSetWrap    func(l uintptr, wrap int32)
+	pangoLayoutEllipsize  func(l uintptr, mode int32)
+	pangoLayoutSize       func(l uintptr, w, h *int32)
+	pangoFontFromString   func(s string) uintptr
+	pangoFontSetWeight    func(desc uintptr, weight int32)
+	pangoFontSetStyle     func(desc uintptr, style int32)
+	pangoFontSetFamily    func(desc uintptr, family string)
+	gtkBoxNew             func(orientation int32, spacing int32) uintptr
+	gtkBoxAppend          func(box, child uintptr)
+	gtkLabelNew           func(text string) uintptr
+	gtkLabelSetMarkup     func(l uintptr, markup string)
+	gtkLabelEllipsize     func(l uintptr, mode int32)
+	gtkLabelSetXalign     func(l uintptr, x float32)
+	gtkWidgetAddClass     func(w uintptr, class string)
+	gtkCSSProviderNew     func() uintptr
+	gtkCSSProviderLoad    func(p uintptr, data string, n int)
+	gtkStyleAddProvider   func(display, provider uintptr, priority uint32)
+	gtkScrolledNew        func() uintptr
+	gtkScrolledSetChild   func(sw, child uintptr)
+	gtkScrolledPolicy     func(sw uintptr, h, v int32)
+	gtkScrolledVAdjust    func(sw uintptr) uintptr
+	gtkListBoxNew         func() uintptr
+	gtkListBoxMode        func(l uintptr, mode int32)
+	gtkListBoxAppend      func(l, child uintptr)
+	gtkListBoxRemove      func(l, child uintptr)
+	gtkListBoxRowAt       func(l uintptr, i int32) uintptr
+	gtkListBoxSelect      func(l, row uintptr)
+	gtkListBoxUnselect    func(l uintptr)
+	gtkRowSelectable      func(row uintptr, on int32)
+	gtkRowActivatable     func(row uintptr, on int32)
+	gtkRowIndex           func(row uintptr) int32
+	gtkWidgetFirstChild   func(w uintptr) uintptr
+	gtkAdjustmentPage     func(a uintptr) float64
+	gtkAdjustmentSetValue func(a uintptr, value float64)
+	gtkImageFromIcon      func(name string) uintptr
+	pangoFontCopy         func(desc uintptr) uintptr
 )
 
 // gValue is a GValue, a type and two words of data.
@@ -384,6 +402,24 @@ func load() error {
 			{gtk, &gtkCSSProviderNew, "gtk_css_provider_new"},
 			{gtk, &gtkCSSProviderLoad, "gtk_css_provider_load_from_data"},
 			{gtk, &gtkStyleAddProvider, "gtk_style_context_add_provider_for_display"},
+			{gtk, &gtkScrolledNew, "gtk_scrolled_window_new"},
+			{gtk, &gtkScrolledSetChild, "gtk_scrolled_window_set_child"},
+			{gtk, &gtkScrolledPolicy, "gtk_scrolled_window_set_policy"},
+			{gtk, &gtkScrolledVAdjust, "gtk_scrolled_window_get_vadjustment"},
+			{gtk, &gtkListBoxNew, "gtk_list_box_new"},
+			{gtk, &gtkListBoxMode, "gtk_list_box_set_selection_mode"},
+			{gtk, &gtkListBoxAppend, "gtk_list_box_append"},
+			{gtk, &gtkListBoxRemove, "gtk_list_box_remove"},
+			{gtk, &gtkListBoxRowAt, "gtk_list_box_get_row_at_index"},
+			{gtk, &gtkListBoxSelect, "gtk_list_box_select_row"},
+			{gtk, &gtkListBoxUnselect, "gtk_list_box_unselect_all"},
+			{gtk, &gtkRowSelectable, "gtk_list_box_row_set_selectable"},
+			{gtk, &gtkRowActivatable, "gtk_list_box_row_set_activatable"},
+			{gtk, &gtkRowIndex, "gtk_list_box_row_get_index"},
+			{gtk, &gtkWidgetFirstChild, "gtk_widget_get_first_child"},
+			{gtk, &gtkAdjustmentPage, "gtk_adjustment_get_page_size"},
+			{gtk, &gtkAdjustmentSetValue, "gtk_adjustment_set_value"},
+			{gtk, &gtkImageFromIcon, "gtk_image_new_from_icon_name"},
 			{pango, &pangoFontCopy, "pango_font_description_copy"},
 		} {
 			purego.RegisterLibFunc(f.fn, f.lib, f.name)
