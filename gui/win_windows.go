@@ -24,6 +24,8 @@ var (
 	d2d1     = windows.NewLazySystemDLL("d2d1.dll")
 	dwrite   = windows.NewLazySystemDLL("dwrite.dll")
 	dwmapi   = windows.NewLazySystemDLL("dwmapi.dll")
+	shell32  = windows.NewLazySystemDLL("shell32.dll")
+	imm32    = windows.NewLazySystemDLL("imm32.dll")
 
 	registerClass       = user32.NewProc("RegisterClassExW")
 	createWindow        = user32.NewProc("CreateWindowExW")
@@ -50,6 +52,8 @@ var (
 	getWindow           = user32.NewProc("GetWindow")
 	endDialog           = user32.NewProc("EndDialog")
 	getForeground       = user32.NewProc("GetForegroundWindow")
+	shellNotifyIcon     = shell32.NewProc("Shell_NotifyIconW")
+	loadIcon            = user32.NewProc("LoadIconW")
 	systemParams        = user32.NewProc("SystemParametersInfoForDpi")
 	getModuleHandle     = kernel32.NewProc("GetModuleHandleW")
 	d2dCreateFactory    = d2d1.NewProc("D2D1CreateFactory")
@@ -214,7 +218,7 @@ var loadOnce sync.Once
 func load() error {
 	var err error
 	loadOnce.Do(func() {
-		for _, dll := range []*windows.LazyDLL{user32, kernel32, d2d1, dwrite, dwmapi} {
+		for _, dll := range []*windows.LazyDLL{user32, kernel32, d2d1, dwrite, dwmapi, shell32, imm32} {
 			if err = dll.Load(); err != nil {
 				err = fmt.Errorf("--gui on Windows needs %s: %w", dll.Name, err)
 				return

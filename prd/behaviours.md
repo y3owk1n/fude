@@ -1523,6 +1523,14 @@ Where fude departs, the line says so and cites the departure in
 - B577 [10] With `--gui` on Windows, each window has a thin scroll bar at
   its right edge, which shows for a second while its view moves, when the
   text is taller than it, and dragging its knob scrolls the window there.
+- B578 [10] With `--gui` on Windows, the input method takes each key
+  first, as on macOS (B551). What it composes shows underlined at the
+  cursor, its candidates show by the cursor, and what it inserts goes to
+  the session as keys. A key it does not take, such as one with Control
+  or Alt or one that types no character, goes to the session as it is.
+- B579 [10] With `--gui` on Windows, an alert while the window is not in
+  front shows in Windows' notification (B564), from an icon the window
+  keeps in the notification area while it is open.
 - B544 [2] A session has tab pages, each with its own windows, floats
   and current window, as in Neovim. `:tabnew` and `:tabedit` open one
   after the current page, on a file or a new empty buffer. `gt`, `{n}gt`,

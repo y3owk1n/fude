@@ -32,6 +32,8 @@ type native struct {
 	order         []*box // the boxes, from the bottom
 	images        map[int]*bitmap
 	gen           int    // the render target's generation, as rtGen counts
+	marked        string // what the input method composes
+	notifying     bool   // the window has its icon in the notification area
 	surrogate     uint16 // the first half of a character two WM_CHARs bring
 
 	mouseNative
@@ -128,6 +130,8 @@ func (w *window) handle(m uint32, wp, lp uintptr) (uintptr, bool) {
 		w.char(wp)
 	case wmSysChar:
 		return 0, w.sysChar(wp)
+	case wmImeStartComposition, wmImeEndComposition, wmImeComposition:
+		return 0, w.ime(m, lp)
 	default:
 		return 0, w.mouse(m, wp, lp)
 	}
@@ -166,6 +170,7 @@ func (w *window) close() {
 		p.gone = true
 	}
 	w.dropTarget()
+	w.unnotify()
 	for _, b := range w.images {
 		release(b.bmp)
 	}
@@ -224,6 +229,7 @@ func (w *window) paint() {
 			within(b.frame, func(sz size) { drawBox(b, sz) })
 		}
 	}
+	w.drawMarked()
 	// Direct2D lost its device, as when a driver updates.
 	if com(rt, 49, 0, 0) == 0x8899000C {
 		w.dropTarget()
@@ -288,6 +294,9 @@ func (w *window) apply() {
 		if f.copied != nil {
 			_ = clipboard.Write(*f.copied)
 		}
+		if f.alert != "" && call(getForeground) != w.hwnd {
+			w.notify(f.alert)
+		}
 	}
 	f := fs[len(fs)-1]
 	if f.title != "" {
@@ -323,6 +332,7 @@ func (w *window) apply() {
 	}
 	w.panel.show(f.panel)
 	w.toast.show(f.toast)
+	w.placeCaret()
 	w.redraw()
 	if f.asked != w.asked {
 		w.asked = f.asked
@@ -472,4 +482,46 @@ func (w *window) sysChar(c uintptr) bool {
 		w.keys <- k
 	}
 	return true
+}
+
+// notifyIcon is a NOTIFYICONDATAW.
+type notifyIcon struct {
+	size                uint32
+	hwnd                uintptr
+	id, flags, callback uint32
+	icon                uintptr
+	tip                 [128]uint16
+	state, stateMask    uint32
+	info                [256]uint16
+	version             uint32
+	infoTitle           [64]uint16
+	infoFlags           uint32
+	guid                [16]byte
+	balloonIcon         uintptr
+}
+
+// notify shows text in Windows' notification, from an icon the window
+// puts in the notification area while it is open (B564, B579).
+func (w *window) notify(text string) {
+	// NIF_INFO, NIF_ICON and NIF_TIP, with the application's icon.
+	n := notifyIcon{hwnd: w.hwnd, id: 1, flags: 0x10 | 0x2 | 0x4, icon: call(loadIcon, 0, 32512)}
+	n.size = uint32(unsafe.Sizeof(n))
+	copy(n.tip[:127], wide("fude"))
+	copy(n.infoTitle[:63], wide("fude"))
+	copy(n.info[:255], wide(text))
+	// NIM_ADD the first time, then NIM_MODIFY.
+	op := uintptr(1)
+	if !w.notifying {
+		w.notifying, op = true, 0
+	}
+	call(shellNotifyIcon, op, uintptr(unsafe.Pointer(&n)))
+}
+
+// unnotify takes the window's icon out of the notification area.
+func (w *window) unnotify() {
+	if w.notifying {
+		n := notifyIcon{hwnd: w.hwnd, id: 1}
+		n.size = uint32(unsafe.Sizeof(n))
+		call(shellNotifyIcon, 2, uintptr(unsafe.Pointer(&n)))
+	}
 }

@@ -86,15 +86,15 @@ func (w *window) mouse(m uint32, wp, lp uintptr) bool {
 		call(releaseCapture)
 		w.mouseUp(at)
 	case wmMouseMove:
-		if !w.mouseNative.tracking {
-			w.mouseNative.tracking = true
+		if !w.tracking {
+			w.tracking = true
 			t := trackEvent{flags: 2, hwnd: w.hwnd}
 			t.size = uint32(unsafe.Sizeof(t))
 			call(trackMouseEvent, uintptr(unsafe.Pointer(&t)))
 		}
 		w.mouseMove(at)
 	case wmMouseLeave:
-		w.mouseNative.tracking = false
+		w.tracking = false
 		w.mouseLeft()
 	case wmMouseWheel:
 		w.mouseRoll(w.client(int32(int16(lp)), int32(int16(lp>>16))), -float64(int16(wp>>16))/120)

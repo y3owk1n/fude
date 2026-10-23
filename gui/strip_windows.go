@@ -50,9 +50,9 @@ var captions = []struct {
 
 // stripNative is what a window keeps of its strip's buttons.
 type stripNative struct {
-	caption  uintptr // the button the mouse is over, 0 for none
-	down     uintptr // the button the mouse went down on, 0 for none
-	tracking bool    // Windows tells the window when the mouse leaves its frame
+	caption uintptr // the button the mouse is over, 0 for none
+	down    uintptr // the button the mouse went down on, 0 for none
+	framed  bool    // Windows tells the window when the mouse leaves its frame
 }
 
 // zoomed reports whether w is maximized.
@@ -89,8 +89,8 @@ func (w *window) frame(m uint32, wp, lp uintptr) (uintptr, bool) {
 		}
 		return w.hit(w.client(int32(int16(lp)), int32(int16(lp>>16)))), true
 	case wmNcMouseMove:
-		if !w.stripNative.tracking {
-			w.stripNative.tracking = true
+		if !w.framed {
+			w.framed = true
 			t := trackEvent{flags: 0x12, hwnd: w.hwnd}
 			t.size = uint32(unsafe.Sizeof(t))
 			call(trackMouseEvent, uintptr(unsafe.Pointer(&t)))
@@ -98,7 +98,7 @@ func (w *window) frame(m uint32, wp, lp uintptr) (uintptr, bool) {
 		w.hoverCaption(wp)
 		w.hover = -1
 	case wmNcMouseLeave:
-		w.stripNative.tracking = false
+		w.framed = false
 		w.hoverCaption(0)
 	case wmNcLButtonDown:
 		if !w.isCaption(wp) {

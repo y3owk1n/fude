@@ -376,6 +376,62 @@ func TestB577WindowsScrollBar(t *testing.T) {
 	})
 }
 
+// B578
+func TestB578WindowsInputMethods(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.txt")
+	editortest.Change(t, path, "one\n")
+	e := editortest.Open(t, path)
+	var w *window
+	onMain(func() { w = open(e, nil) }, true)
+	until(t, "the cursor", func() bool {
+		shown := false
+		onMain(func() { _, shown = w.caret() }, true)
+		return shown
+	})
+	// What the input method composes draws at the cursor, and goes once
+	// it ends.
+	inked := func() bool {
+		ink := false
+		onMain(func() {
+			at, _ := w.caret()
+			sz := w.area()
+			img := paint(size{sz.W, sz.H + stripH}, func(size) {
+				ground := rgba(w.look.Base.Bg, 1)
+				com(rt, 47, uintptr(unsafe.Pointer(&ground)))
+				w.drawMarked()
+			})
+			ground := img.At(1, 1)
+			for x := int(at.X); x < int(at.X+cellW*2); x++ {
+				ink = ink || img.At(x, int(at.Y+cellH/2)) != ground
+			}
+		}, true)
+		return ink
+	}
+	onMain(func() { w.mark("か") }, true)
+	if !inked() {
+		t.Error("composed text did not show at the cursor")
+	}
+	onMain(func() { w.mark("") }, true)
+	if inked() {
+		t.Error("composed text stayed once it ended")
+	}
+	// What it inserts goes to the session as keys.
+	typeIn(w, "A")
+	onMain(func() { w.typeText("かé") }, true)
+	typeIn(w, "\x1b")
+	until(t, "the text it inserted", func() bool {
+		text := ""
+		w.onLoop(func() { text = editortest.Text(e) })
+		return text == "oneかé"
+	})
+	typeIn(w, ":qa!\r")
+	until(t, "the session to end", func() bool {
+		open := true
+		onMain(func() { _, open = opened[w.hwnd] }, true)
+		return !open
+	})
+}
+
 var (
 	getWindowText    = user32.NewProc("GetWindowTextW")
 	keyboardState    = user32.NewProc("GetKeyboardState")
