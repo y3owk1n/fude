@@ -4,19 +4,17 @@ package tui
 
 import (
 	"cmp"
-	"encoding/binary"
 	"fmt"
 	"io"
-	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
 
-	"github.com/clipperhouse/displaywidth"
 	"github.com/gdamore/tcell/v3"
 	"github.com/gdamore/tcell/v3/color"
 
 	fudeclient "github.com/y3owk1n/fude/client"
+	"github.com/y3owk1n/fude/internal/compose"
 	look "github.com/y3owk1n/fude/internal/theme"
 	"github.com/y3owk1n/fude/internal/trace"
 	"github.com/y3owk1n/fude/vim"
@@ -151,53 +149,21 @@ func presence(n int) color.Color {
 	return [...]color.Color{th.insert, th.visual, th.cmd, th.hint, th.warn, th.normal}[n%6]
 }
 
-// selected reports whether the byte at, drawn at column x, is in sel.
-func selected(sel vim.Selection, at, x int) bool {
-	if len(sel.Regions) > 0 {
-		return slices.ContainsFunc(sel.Regions, func(r [2]int) bool { return at >= r[0] && at < r[1] })
-	}
-	return at >= sel.Start && at < sel.End && (!sel.Block || x >= sel.Left && x <= sel.Right)
-}
-
-// trailing returns where the spaces that end the line from pos to end
-// start, reading back from end.
-func trailing(t vim.Text, pos, end int) int {
-	for end > pos {
-		lo := max(end-256, pos)
-		if n := len(strings.TrimRight(t.Slice(lo, end), " ")); n > 0 {
-			return lo + n
-		}
-		end = lo
-	}
-	return pos
-}
-
-// leading returns where the blanks that start the line from pos to end
-// end, reading on from pos.
-func leading(t vim.Text, pos, end int) int {
-	for ; pos < end; pos += 256 {
-		s := t.Slice(pos, min(pos+256, end))
-		if n := len(s) - len(strings.TrimLeft(s, " \t")); n < len(s) {
-			return pos + n
-		}
-	}
-	return end
-}
-
 type client struct {
 	s        tcell.Screen
 	e        fudeclient.Session
-	theme    string            // the theme drawn in, as e names it
-	colours  *[16]int32        // its base16 scheme's colours, if it is one
-	over     wire.Colors       // the colours [colors] puts in place of its own
-	restyled int               // how many times the modules' styles had changed (B345)
-	spinning bool              // the last frame shows a spinner
-	styles   []look.Style      // a window's, kept between frames so painting them allocates nothing
-	frame    int               // counts the frames drawn
-	grids    map[int]*grid     // each window's cells, by its id
+	theme    string                // the theme drawn in, as e names it
+	colours  *[16]int32            // its base16 scheme's colours, if it is one
+	over     wire.Colors           // the colours [colors] puts in place of its own
+	restyled int                   // how many times the modules' styles had changed (B345)
+	spinning bool                  // the last frame shows a spinner
+	frame    int                   // counts the frames drawn
+	grids    map[int]*compose.Grid // each window's cells, by its id
+	comp     compose.Composer      // composes the windows into their grids
+	painted  look.Style            // the style the last cell painted was in, and painting it as tcell does
+	paintedT tcell.Style
 	overlaid bool              // the last frame drew a box, the command line or a message over the windows
 	size     [4]int            // the screen's size, and where the windows started and ended, in the last frame
-	sig      sig               // reused to build each line's sig
 	img      images            // how the client shows images (B303)
 	menuTop  int               // the first row of the cursor's menu in the last frame
 	cursor   [3]int            // where the last frame written put the cursor, and its shape
@@ -221,36 +187,6 @@ const (
 	clearCursors = "\x1b[>0;4 q"
 	drawCursors  = "\x1b[>29"
 )
-
-// shown is what a frame drew a window's line from. When the next frame
-// would draw the line from the same, it leaves the line's rows as they are.
-type shown struct {
-	frame  int
-	sig    sig
-	styles []look.Style
-	marks  [][2]int // the cells of the multicursors drawn
-}
-
-// sig holds what a line draws from, as bytes to compare.
-type sig []byte
-
-func (k sig) int(n int) sig    { return binary.AppendVarint(k, int64(n)) }
-func (k sig) str(s string) sig { return append(k.int(len(s)), s...) }
-
-func (k sig) ints(ns []int) sig {
-	k = k.int(len(ns))
-	for _, n := range ns {
-		k = k.int(n)
-	}
-	return k
-}
-
-func (k sig) flag(b bool) sig {
-	if b {
-		return k.int(1)
-	}
-	return k.int(0)
-}
 
 // cursorShape is the cursor's shape. It is an underline in replace mode,
 // while an operator waits for its target and while r waits for its
@@ -362,10 +298,10 @@ func (c *client) draw() {
 	if fresh || over || c.overlaid || c.size != [4]int{w, h, left, right} {
 		c.s.Fill(' ', base)
 		if c.grids == nil {
-			c.grids = map[int]*grid{}
+			c.grids = map[int]*compose.Grid{}
 		}
 		for _, g := range c.grids {
-			g.clear(lk.Base)
+			g.Clear(lk.Base)
 		}
 	}
 	c.overlaid, c.size = over, [4]int{w, h, left, right}
@@ -454,51 +390,52 @@ func (c *client) window(v wire.Window, left int, sel vim.Selection, visual bool)
 		return c.cells(v, left)
 	}
 	g := c.grids[v.ID]
-	if g == nil || g.w != v.W || g.h != v.H {
-		g = newGrid(v.W, v.H, lk.Base)
+	if g == nil || !sameSize(g, v) {
+		g = compose.NewGrid(v.W, v.H, lk.Base)
 		c.grids[v.ID] = g
 	}
-	g.frame = c.frame
-	var out composed
-	c.compose(g, v, sel, visual, &out)
-	g.paint(c.s, v.X, v.Y)
+	var cursors []int
+	if v.Current {
+		cursors = c.e.Cursors()
+	}
+	out := c.comp.Compose(g, v, compose.Options{
+		Look: lk, Frame: c.frame, Insert: c.e.Mode() == vim.Insert, Cursors: cursors, Selection: sel, Visual: visual,
+		Shape: int(c.shape), Underline: c.shape == tcell.CursorStyleSteadyUnderline, Tint: c.tintRGB, OwnCursors: c.extra != nil && c.extra.Load(),
+	})
+	g.Paint(v.X, v.Y, c.put)
 	// The client draws images and a float's rules over the text's cells.
 	tv := v
 	tv.X, tv.W = v.X+v.Gutter, v.W-v.Gutter
-	for _, r := range out.images {
-		c.image(tv, r.line, r.row, v.Y+r.y)
+	for _, r := range out.Images {
+		c.image(tv, r.Line, r.Row, v.Y+r.Y)
 	}
-	for _, s := range out.starts {
-		if isFloatRule(v, s[1]) {
+	for _, s := range out.Starts {
+		if compose.FloatRule(v, s[1]) {
 			c.rule(tv.X-2, v.Y+s[0], tv.W+2)
 		}
 	}
-	for _, m := range out.marks {
+	for _, m := range out.Marks {
 		c.marks = append(c.marks, [2]int{v.X + m[0], v.Y + m[1]})
 	}
 	if v.Float == "" {
 		c.edge(v, left)
 	}
-	return v.X + out.cx, v.Y + out.cy, out.found
+	return v.X + out.X, v.Y + out.Y, out.Found
 }
 
-// expandTabs returns s with each tab as the spaces to the next tab stop,
-// every tab columns, as the text's own tabs draw.
-func expandTabs(s string, tab int) string {
-	var b strings.Builder
-	col := 0
-	for {
-		i := strings.IndexByte(s, '\t')
-		if i < 0 {
-			b.WriteString(s)
-			return b.String()
-		}
-		col += displaywidth.String(s[:i])
-		n := tab - col%tab
-		b.WriteString(s[:i])
-		b.WriteString(strings.Repeat(" ", n))
-		col, s = col+n, s[i+1:]
+// sameSize reports whether g is as wide and tall as v.
+func sameSize(g *compose.Grid, v wire.Window) bool {
+	w, h := g.Size()
+	return w == v.W && h == v.H
+}
+
+// put paints a grid's cell on the screen. Cells side by side mostly share a
+// style, so it converts a style to tcell's once for each run of them.
+func (c *client) put(x, y int, text string, s look.Style) {
+	if s != c.painted || c.paintedT == (tcell.Style{}) {
+		c.painted, c.paintedT = s, tcellStyle(s)
 	}
+	c.s.Put(x, y, text, c.paintedT)
 }
 
 // edge draws v's status line on its bottom row, and a separator on its
@@ -512,15 +449,12 @@ func (c *client) edge(v wire.Window, left int) {
 	c.status(v, v.X, v.W)
 }
 
-// control reports whether b is a control character other than a tab.
-func control(b byte) bool { return b < ' ' && b != '\t' || b == 0x7f }
-
 // carets returns s with each control character, a tab too, as ^ and a
 // letter, as ^A for 0x01. A line break stays, as it ends a message's line.
 func carets(s string) string {
 	var b strings.Builder
 	for i := range len(s) {
-		if s[i] == '\t' || s[i] != '\n' && control(s[i]) {
+		if s[i] == '\t' || s[i] != '\n' && compose.Control(s[i]) {
 			b.WriteByte('^')
 			b.WriteByte(s[i] ^ 0x40)
 		} else {
@@ -528,22 +462,4 @@ func carets(s string) string {
 		}
 	}
 	return b.String()
-}
-
-// listChar returns what list shows in place of the character rest starts
-// with, from [list_chars]: trail for a trailing space, lead for a leading
-// one, else space, and nbsp for a no-break space (B118, B486).
-func listChar(list wire.ListChars, rest string, leading, trailing bool) (string, bool) {
-	var mark string
-	switch {
-	case rest[0] == ' ' && trailing:
-		mark = cmp.Or(list.Trail, list.Space)
-	case rest[0] == ' ' && leading:
-		mark = cmp.Or(list.Lead, list.Space)
-	case rest[0] == ' ':
-		mark = list.Space
-	case strings.HasPrefix(rest, "\u00a0"):
-		mark = list.Nbsp
-	}
-	return mark, mark != ""
 }

@@ -54,6 +54,7 @@ type styles struct {
 // The styles drawing takes now, which apply sets, from the theme in use and
 // its tint under a modal box.
 var (
+	lk          look.Look
 	th          theme
 	base        tcell.Style
 	colours     map[string]tcell.Style

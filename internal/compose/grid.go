@@ -1,4 +1,4 @@
-package tui
+package compose
 
 import (
 	"os"
@@ -6,12 +6,11 @@ import (
 	"unicode/utf8"
 
 	"github.com/clipperhouse/displaywidth"
-	"github.com/gdamore/tcell/v3"
 
 	look "github.com/y3owk1n/fude/internal/theme"
 )
 
-// widths measures clusters as tcell does, so a grid's cells line up with
+// widths measures clusters as tcell does, so a Grid's cells line up with
 // the screen's.
 var widths = func() displaywidth.Options {
 	if rw := strings.ToLower(os.Getenv("RUNEWIDTH_EASTASIAN")); rw == "1" || rw == "true" || rw == "yes" {
@@ -20,12 +19,11 @@ var widths = func() displaywidth.Options {
 	return displaywidth.Options{}
 }()
 
-// grid is a window's cells as composed, kept between frames. It records
+// Grid is a window's cells as composed, kept between frames. It records
 // which cells changed since it last painted.
-type grid struct {
+type Grid struct {
 	w, h   int
 	at     [2]int // the screen cell its top left was last painted at
-	frame  int    // the last frame it was drawn in
 	cells  []gridCell
 	lo, hi []int          // by row, the columns changed, lo > hi for none
 	lines  map[int]*shown // by row, what each line was composed from
@@ -37,10 +35,10 @@ type gridCell struct {
 	width int
 }
 
-// newGrid returns a grid w wide and h tall of blanks in style, every cell
+// NewGrid returns a Grid w wide and h tall of blanks in style, every cell
 // changed.
-func newGrid(w, h int, style look.Style) *grid {
-	g := &grid{w: w, h: h, at: [2]int{-1, -1}, cells: make([]gridCell, w*h), lo: make([]int, h), hi: make([]int, h), lines: map[int]*shown{}}
+func NewGrid(w, h int, style look.Style) *Grid {
+	g := &Grid{w: w, h: h, at: [2]int{-1, -1}, cells: make([]gridCell, w*h), lo: make([]int, h), hi: make([]int, h), lines: map[int]*shown{}}
 	for i := range g.cells {
 		g.cells[i] = gridCell{" ", style, 1}
 	}
@@ -48,9 +46,9 @@ func newGrid(w, h int, style look.Style) *grid {
 	return g
 }
 
-// clear makes every cell a blank in style, as the screen under the grid
+// Clear makes every cell a blank in style, as the screen under the Grid
 // now is, so no cell needs painting. It also forgets the lines composed.
-func (g *grid) clear(style look.Style) {
+func (g *Grid) Clear(style look.Style) {
 	for i := range g.cells {
 		g.cells[i] = gridCell{" ", style, 1}
 	}
@@ -61,20 +59,20 @@ func (g *grid) clear(style look.Style) {
 }
 
 // touchAll counts every cell changed, to paint them all.
-func (g *grid) touchAll() {
+func (g *Grid) touchAll() {
 	for y := range g.h {
 		g.lo[y], g.hi[y] = 0, g.w-1
 	}
 }
 
-func (g *grid) touch(x, y int) {
+func (g *Grid) touch(x, y int) {
 	g.lo[y], g.hi[y] = min(g.lo[y], x), max(g.hi[y], x)
 }
 
 // Put puts the first cluster of str at x, y in style, as tcell's Put does,
 // and returns the rest of str and the cluster's width. A colour of None
 // keeps the cell's.
-func (g *grid) Put(x, y int, str string, style look.Style) (string, int) {
+func (g *Grid) Put(x, y int, str string, style look.Style) (string, int) {
 	if x < 0 || y < 0 || x >= g.w || y >= g.h {
 		return str, 0
 	}
@@ -110,7 +108,7 @@ func (g *grid) Put(x, y int, str string, style look.Style) (string, int) {
 
 // Get returns the cluster at x, y, its style and its width, a blank for a
 // cell with none, as tcell's Get does.
-func (g *grid) Get(x, y int) (string, look.Style, int) {
+func (g *Grid) Get(x, y int) (string, look.Style, int) {
 	if x < 0 || y < 0 || x >= g.w || y >= g.h {
 		return "", look.Style{}, 0
 	}
@@ -122,7 +120,7 @@ func (g *grid) Get(x, y int) (string, look.Style, int) {
 }
 
 // FillArea puts r in style in every cell of the w by h area at x, y.
-func (g *grid) FillArea(x, y, w, h int, r rune, style look.Style) {
+func (g *Grid) FillArea(x, y, w, h int, r rune, style look.Style) {
 	s := string(r)
 	for row := y; row < y+h; row++ {
 		for col := x; col < x+w; col++ {
@@ -133,7 +131,7 @@ func (g *grid) FillArea(x, y, w, h int, r rune, style look.Style) {
 
 // putClipped puts text from x on row y, cut at end, and returns the column
 // after it.
-func (g *grid) putClipped(x, y, end int, text string, style look.Style) int {
+func (g *Grid) putClipped(x, y, end int, text string, style look.Style) int {
 	for rest := text; rest != "" && x < end; {
 		var w int
 		rest, w = g.Put(x, y, rest, style)
@@ -142,24 +140,21 @@ func (g *grid) putClipped(x, y, end int, text string, style look.Style) int {
 	return x
 }
 
-// paint writes the changed cells to s with the grid's top left at x, y,
-// every cell when the grid moved since it last painted.
-func (g *grid) paint(s tcell.Screen, x, y int) {
+// Size returns how many columns and rows g has.
+func (g *Grid) Size() (int, int) { return g.w, g.h }
+
+// Paint gives put each cell changed since the last Paint, at its column and
+// row counted from x, y. When g moved since then, it gives every cell. put
+// does not get the cell a wide cell covers.
+func (g *Grid) Paint(x, y int, put func(x, y int, text string, style look.Style)) {
 	if g.at != [2]int{x, y} {
 		g.at = [2]int{x, y}
 		g.touchAll()
 	}
-	// Cells side by side mostly share a style, so paint converts a style to
-	// tcell's once for each run of them.
-	var last look.Style
-	ts := tcellStyle(last)
 	for row := range g.h {
 		for col := g.lo[row]; col <= g.hi[row]; {
 			c := &g.cells[row*g.w+col]
-			if c.style != last {
-				last, ts = c.style, tcellStyle(c.style)
-			}
-			s.Put(x+col, y+row, c.text, ts)
+			put(x+col, y+row, c.text, c.style)
 			col += max(c.width, 1)
 		}
 		g.lo[row], g.hi[row] = g.w, -1

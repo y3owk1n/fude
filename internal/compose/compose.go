@@ -1,15 +1,20 @@
-package tui
+// Package compose draws a window of a session into a grid of styled cells,
+// for any frontend: its text, highlights, gutter, ghost text, notes, rows
+// a decoration adds, pinned lines, guides and cursors (D63). A frontend
+// paints the cells that changed.
+package compose
 
 import (
 	"bytes"
 	"cmp"
+	"encoding/binary"
 	"fmt"
 	"math"
 	"slices"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/clipperhouse/displaywidth"
-	"github.com/gdamore/tcell/v3"
 
 	look "github.com/y3owk1n/fude/internal/theme"
 	"github.com/y3owk1n/fude/syntax"
@@ -17,13 +22,39 @@ import (
 	"github.com/y3owk1n/fude/wire"
 )
 
-// lk is the look drawing takes now, which apply sets.
-var lk look.Look
+// Composer composes windows. It reuses the buffers one window's lines took
+// for the next window, so composing allocates little.
+type Composer struct {
+	lk     look.Look
+	styles []look.Style
+	sig    sig
+}
+
+// Options are what composing a window takes besides the window: the look,
+// the frame being drawn, the session's mode, cursors and selection, and how
+// the frontend shows the cursor.
+type Options struct {
+	Look      look.Look
+	Frame     int
+	Insert    bool
+	Cursors   []int // the multicursors, for the current window
+	Selection vim.Selection
+	Visual    bool
+	// Shape is the cursor's shape, as the frontend numbers shapes. Underline
+	// is set when that shape is an underline, and multicursors then show as
+	// one too.
+	Shape     int
+	Underline bool
+	Tint      look.RGB // the multicursors' colour
+	// OwnCursors is set when the frontend draws the multicursors itself, so
+	// their cells keep their own style.
+	OwnCursors bool
+}
 
 // named is the style of text called name, with no colours when the look has
 // none.
-func named(name string) look.Style {
-	if s, ok := lk.Names[name]; ok {
+func (p *Composer) named(name string) look.Style {
+	if s, ok := p.lk.Names[name]; ok {
 		return s
 	}
 	return look.Style{Fg: look.None, Bg: look.None}
@@ -38,40 +69,44 @@ func underlined(s look.Style, c look.RGB) look.Style {
 	return s
 }
 
-// presenceRGB returns the colour of other sessions numbered n (B253).
-func presenceRGB(n int) look.RGB {
-	t := lk.Theme
+// presence returns the colour of other sessions numbered n (B253).
+func (p *Composer) presence(n int) look.RGB {
+	t := p.lk.Theme
 	return [...]look.RGB{t.Insert, t.Visual, t.Cmd, t.Hint, t.Warn, t.Normal}[n%6]
 }
 
-// composed is what composing a window gives besides its cells: where the
+// Composed is what composing a window gives besides its cells: where the
 // cursor is, the multicursors drawn, the image rows, and the first row of
 // each line a float shows. Each counts in the grid's cells.
-type composed struct {
-	cx, cy int
-	found  bool
-	marks  [][2]int
-	images []imageRow
-	starts [][2]int // a float's rows that start a line, and the line's start
+type Composed struct {
+	X, Y   int
+	Found  bool // the cursor is in the window
+	Marks  [][2]int
+	Images []ImageRow
+	Starts [][2]int // a float's rows that start a line, and the line's start
 }
 
-// imageRow is a row of an image a window shows below or above line.
-type imageRow struct {
-	line int
-	row  wire.Virtual
-	y    int
+// ImageRow is a row of an image a window shows below or above Line, at row
+// Y of the grid.
+type ImageRow struct {
+	Line int
+	Row  wire.Virtual
+	Y    int
 }
 
-// compose draws v into g, its cells counted from the gutter's left and the
+// Compose draws v into g, its cells counted from the gutter's left and the
 // window's top. A line keeps its cells when the last frame drew it from the
 // same, unless it holds the cursor.
-func (c *client) compose(g *grid, v wire.Window, sel vim.Selection, visual bool, out *composed) {
+func (p *Composer) Compose(g *Grid, v wire.Window, o Options) Composed {
+	p.lk = o.Look
+	var out Composed
+	sel, visual := o.Selection, o.Visual
 	t := v.Text
 	// The text goes right of the sign column and the line numbers.
 	numbers, cur := 0, t.LineOf(v.Cursor)
 	v.X, v.Y = v.Gutter, 0
 	v.W -= v.Gutter
-	insert := c.e.Mode() == vim.Insert
+	insert := o.Insert
 	pos := v.Top
 	// The rows show at most one line each from the top's, a closed fold
 	// taking one (B224). place is each line's place among them, for
@@ -84,8 +119,8 @@ func (c *client) compose(g *grid, v wire.Window, sel vim.Selection, visual bool,
 			last += 1 + v.Folds[last]
 		}
 	}
-	c.styles = paint(c.styles, append(v.Highlights, v.Decorations...), v.Ranges)
-	paint := c.styles
+	p.styles = Styles(p.styles, append(v.Highlights, v.Decorations...), v.Ranges, p.lk)
+	paint := p.styles
 	// index returns where in paint the style of the byte at p is, or -1. A
 	// line's bytes are in the range ri, whose styles start at ro in paint.
 	ri, ro := 0, 0
@@ -111,13 +146,10 @@ func (c *client) compose(g *grid, v wire.Window, sel vim.Selection, visual bool,
 		}
 		off += max(rg.End+1-rg.Start, 0)
 	}
-	var cursors []int
-	if v.Current {
-		cursors = c.e.Cursors()
-	}
-	base, th := lk.Base, lk.Theme
+	cursors := o.Cursors
+	base, th := p.lk.Base, p.lk.Theme
 	// win holds what every line of the window draws from.
-	win := sig(nil).int(v.X).int(v.W).int(v.Left).flag(v.Wrap).flag(v.BreakIndent).str(v.ShowBreak).flag(v.List).int(v.ColorColumn).int(v.CursorColumn).int(v.Tab).int(int(c.shape)).int(int(c.tintRGB)).flag(c.extra != nil && c.extra.Load())
+	win := sig(nil).int(v.X).int(v.W).int(v.Left).flag(v.Wrap).flag(v.BreakIndent).str(v.ShowBreak).flag(v.List).int(v.ColorColumn).int(v.CursorColumn).int(v.Tab).int(o.Shape).int(int(o.Tint)).flag(o.OwnCursors)
 	list := v.ListChars
 	var tabs []rune
 	if v.List {
@@ -150,7 +182,7 @@ func (c *client) compose(g *grid, v wire.Window, sel vim.Selection, visual bool,
 		end, line := vim.LineEnd(t, pos), t.LineOf(pos)
 		// The rows a decoration draws above a line come before it, and those
 		// below after it (B299).
-		if row = c.virtual(g, v, line, true, numbers, row, out); row >= v.H {
+		if row = p.virtual(g, v, line, true, numbers, row, &out); row >= v.H {
 			break
 		}
 		var matches [][2]int
@@ -195,27 +227,27 @@ func (c *client) compose(g *grid, v wire.Window, sel vim.Selection, visual bool,
 		// the cursor's line.
 		g.FillArea(numbers, v.Y+row, v.Gutter, len(starts), ' ', base)
 		if s, ok := v.Signs[line]; ok {
-			g.putClipped(numbers, v.Y+row, g.w, s.Text, withFg(base, lk.Signs[s.Name]))
+			g.putClipped(numbers, v.Y+row, g.w, s.Text, withFg(base, p.lk.Signs[s.Name]))
 		}
 		if s, ok := v.Icons[line]; ok {
-			g.putClipped(v.X-2, v.Y+row, g.w, s.Text, withFg(base, lk.Signs[s.Name]))
+			g.putClipped(v.X-2, v.Y+row, g.w, s.Text, withFg(base, p.lk.Signs[s.Name]))
 		}
 		if v.Number || v.Relative {
 			rel := max(line-cur, cur-line)
 			if at, ok := place[cur]; ok {
 				rel = max(place[line]-at, at-place[line])
 			}
-			number(g, line, rel, line == cur, numbers+v.SignCols, v.Y+row, v)
+			p.number(g, line, rel, line == cur, numbers+v.SignCols, v.Y+row, v)
 		}
 		shade := v.CursorLine && line == cur
 		// A line decoration's ground shades the line's rows, in place of the
 		// cursor line's (B296).
 		ground := base
 		if name, ok := v.Grounds[line]; ok {
-			ground, shade = withBg(base, named(name).Bg), false
+			ground, shade = withBg(base, p.named(name).Bg), false
 		}
 		if v.Float != "" {
-			out.starts = append(out.starts, [2]int{row, pos})
+			out.Starts = append(out.Starts, [2]int{row, pos})
 		}
 		var guides []int
 		if !v.List {
@@ -225,7 +257,7 @@ func (c *client) compose(g *grid, v wire.Window, sel vim.Selection, visual bool,
 		// A tag starts each part of the sig, so two different lines never
 		// read the same. Its positions count from the line's start, so a
 		// line keeps its sig when text above it changes.
-		k := append(c.sig[:0], win...).int(row).int(len(starts)).int(shownStart - pos).str(text).flag(shade).ints(guides).str(v.Notes[line].Text).str(v.Notes[line].Name).int(v.Folds[line]).str(v.Grounds[line])
+		k := append(p.sig[:0], win...).int(row).int(len(starts)).int(shownStart - pos).str(text).flag(shade).ints(guides).str(v.Notes[line].Text).str(v.Notes[line].Name).int(v.Folds[line]).str(v.Grounds[line])
 		for _, p := range v.Pair {
 			if p >= pos && p <= end {
 				k = k.int(1).int(p - pos)
@@ -247,21 +279,21 @@ func (c *client) compose(g *grid, v wire.Window, sel vim.Selection, visual bool,
 				k = k.int(6).int(gh.Pos - pos).int(gh.End - pos).str(gh.Text).str(gh.Style).flag(gh.Stale)
 			}
 		}
-		c.sig = k
+		p.sig = k
 		var styles []look.Style
 		if i := index(shownStart); i >= 0 {
 			styles = paint[i:min(i+shownEnd-shownStart, len(paint))]
 		}
 		last := g.lines[row]
-		if last != nil && last.frame == c.frame-1 && bytes.Equal(last.sig, k) && slices.Equal(last.styles, styles) &&
+		if last != nil && last.frame == o.Frame-1 && bytes.Equal(last.sig, k) && slices.Equal(last.styles, styles) &&
 			!(v.Current && v.Cursor >= pos && v.Cursor <= end) {
-			last.frame = c.frame
+			last.frame = o.Frame
 		} else {
 			if last == nil {
 				last = &shown{}
 				g.lines[row] = last
 			}
-			last.frame, last.sig, last.styles, last.marks = c.frame, append(last.sig[:0], k...), append(last.styles[:0], styles...), last.marks[:0]
+			last.frame, last.sig, last.styles, last.marks = o.Frame, append(last.sig[:0], k...), append(last.styles[:0], styles...), last.marks[:0]
 			g.FillArea(v.X, v.Y+row, v.W, len(starts), ' ', ground)
 			// trail is where the line's trailing spaces start, and lead where its
 			// leading blanks end. col is the column in the line, which tabs are
@@ -302,13 +334,13 @@ func (c *client) compose(g *grid, v wire.Window, sel vim.Selection, visual bool,
 					// typing goes. Else it shows on the character after (B384, B216).
 					cursor := v.Current && at == v.Cursor && (rest != "" || stop == end)
 					if cursor && insert {
-						out.cx, out.cy, out.found = v.X+min(x+v.Past, v.W-1), y, true
+						out.X, out.Y, out.Found = v.X+min(x+v.Past, v.W-1), y, true
 					}
 					// A ghost at a row's end draws at the next row's start, where
 					// vim.Rows puts it. At the line's end it draws after the text.
 					hidden := at
 					if rest != "" || stop == end {
-						x, hidden = ghosts(g, v, at, stop, x, y, ground.Bg)
+						x, hidden = p.ghosts(g, v, at, stop, x, y, ground.Bg)
 					}
 					if hidden > at {
 						// A replacement's text shows in place of the text it hides
@@ -318,7 +350,7 @@ func (c *client) compose(g *grid, v wire.Window, sel vim.Selection, visual bool,
 						continue
 					}
 					if cursor && !insert {
-						out.cx, out.cy, out.found = v.X+min(x+v.Past, v.W-1), y, true
+						out.X, out.Y, out.Found = v.X+min(x+v.Past, v.W-1), y, true
 					}
 					if rest != "" && x >= v.W && v.List && list.Extends != "" {
 						g.Put(v.X+v.W-1, y, list.Extends, withFg(ground, th.Faint))
@@ -356,17 +388,17 @@ func (c *client) compose(g *grid, v wire.Window, sel vim.Selection, visual bool,
 						style = withBg(base, th.Selection)
 					}
 					if slices.Contains(cursors, at) {
-						style = c.multicursorRGB(style, base)
+						style = p.multicursor(style, base, o)
 						last.marks = append(last.marks, [2]int{v.X + x, y})
 					}
 					// Other sessions' selections draw underlined, and their
 					// cursors draw as cells, in their colours (B253).
 					for _, o := range v.Others {
 						if o.Selection != nil && selected(*o.Selection, at, col) {
-							style = underlined(style, presenceRGB(o.Colour))
+							style = underlined(style, p.presence(o.Colour))
 						}
 						if at == o.Cursor {
-							style = withFg(withBg(base, presenceRGB(o.Colour)), th.Bg)
+							style = withFg(withBg(base, p.presence(o.Colour)), th.Bg)
 						}
 					}
 					if rest[0] == '\t' {
@@ -384,7 +416,7 @@ func (c *client) compose(g *grid, v wire.Window, sel vim.Selection, visual bool,
 						x, col, rest = x+w, col+w, rest[1:]
 						continue
 					}
-					if control(rest[0]) {
+					if Control(rest[0]) {
 						// A terminal would act on the byte, so it shows as ^ and a
 						// letter (B540).
 						g.Put(v.X+x, y, "^", withFg(style, th.Faint))
@@ -426,7 +458,7 @@ func (c *client) compose(g *grid, v wire.Window, sel vim.Selection, visual bool,
 					}
 				}
 				if n := v.Notes[line]; i == lastRow && x >= 0 && n.Text != "" {
-					x = note(g, v, x, y, n, shade)
+					x = p.note(g, v, x, y, n, shade)
 				}
 				if shade && x < v.W {
 					g.FillArea(v.X+x, y, v.W-x, 1, ' ', withBg(base, th.CursorLine))
@@ -435,23 +467,23 @@ func (c *client) compose(g *grid, v wire.Window, sel vim.Selection, visual bool,
 					g.FillArea(v.X+x, y, v.W-x, 1, ' ', ground)
 				}
 				if i == 0 {
-					guideCells(g, v, guides, y)
+					p.guides(g, v, guides, y)
 				}
-				colorColumn(g, v, y)
-				shadeCell(g, v, v.CursorColumn-1, y, th.CursorLine)
+				p.colorColumn(g, v, y)
+				p.shade(g, v, v.CursorColumn-1, y, th.CursorLine)
 				if i == lastRow && slices.Contains(cursors, end) && x < v.W {
-					g.Put(v.X+x, y, " ", c.multicursorRGB(base, base))
+					g.Put(v.X+x, y, " ", p.multicursor(base, base, o))
 					last.marks = append(last.marks, [2]int{v.X + x, y})
 				}
 				for _, o := range v.Others {
 					if i == lastRow && o.Cursor == end && x < v.W {
-						g.Put(v.X+x, y, " ", withBg(base, presenceRGB(o.Colour)))
+						g.Put(v.X+x, y, " ", withBg(base, p.presence(o.Colour)))
 					}
 				}
 			}
 		}
-		out.marks = append(out.marks, last.marks...)
-		row = c.virtual(g, v, line, false, numbers, row+len(starts), out)
+		out.Marks = append(out.Marks, last.marks...)
+		row = p.virtual(g, v, line, false, numbers, row+len(starts), &out)
 		// A closed fold's other lines do not show.
 		if n := v.Folds[line]; n > 0 {
 			if line+n+1 >= t.Lines() {
@@ -471,37 +503,38 @@ func (c *client) compose(g *grid, v wire.Window, sel vim.Selection, visual bool,
 			g.Put(numbers, v.Y+row, cmp.Or(v.FillChars.Eob, " "), withFg(base, th.Faint))
 		}
 	}
-	pin(g, v, numbers, cur)
+	p.pin(g, v, numbers, cur)
+	return out
 }
 
-// multicursorRGB is style for a cell under a multicursor, in the mode's
-// colour. Where the terminal draws cursors of its own it stays as it
+// multicursor is style for a cell under a multicursor, in the mode's
+// colour. Where the frontend draws cursors of its own it stays as it
 // is. Elsewhere an underline shows as one, and a block or a bar, which a
 // cell cannot draw, as a block (B401).
-func (c *client) multicursorRGB(style, base look.Style) look.Style {
+func (p *Composer) multicursor(style, base look.Style, o Options) look.Style {
 	switch {
-	case c.extra != nil && c.extra.Load():
+	case o.OwnCursors:
 		return style
-	case c.shape == tcell.CursorStyleSteadyUnderline:
-		return underlined(style, c.tintRGB)
+	case o.Underline:
+		return underlined(style, o.Tint)
 	}
-	return withFg(withBg(base, c.tintRGB), lk.Theme.Bg)
+	return withFg(withBg(base, o.Tint), p.lk.Theme.Bg)
 }
 
 // virtual draws the rows v draws above line, or below it, from row, each
 // cut at the window's edge, and returns the row after them. An image's rows
-// go to out, for the client to show.
-func (c *client) virtual(g *grid, v wire.Window, line int, above bool, numbers, row int, out *composed) int {
+// go to out, for the frontend to show.
+func (p *Composer) virtual(g *Grid, v wire.Window, line int, above bool, numbers, row int, out *Composed) int {
 	for _, r := range v.Virtual[line] {
 		if r.Above != above || row >= v.H {
 			continue
 		}
 		y := v.Y + row
-		g.FillArea(numbers, y, v.Gutter+v.W, 1, ' ', lk.Base)
+		g.FillArea(numbers, y, v.Gutter+v.W, 1, ' ', p.lk.Base)
 		if r.Image != 0 {
-			out.images = append(out.images, imageRow{line, r, y})
+			out.Images = append(out.Images, ImageRow{line, r, y})
 		} else {
-			g.putClipped(v.X, y, v.X+v.W, expandTabs(r.Text, v.Tab), named(r.Style))
+			g.putClipped(v.X, y, v.X+v.W, expandTabs(r.Text, v.Tab), p.named(r.Style))
 		}
 		row++
 	}
@@ -511,31 +544,31 @@ func (c *client) virtual(g *grid, v wire.Window, line int, above bool, numbers, 
 // pin draws the lines of v.Context over v's first rows on the surface
 // colour, each with its number and highlights, cut at the window's edge
 // (B217). numbers is where the gutter starts.
-func pin(g *grid, v wire.Window, numbers, cur int) {
+func (p *Composer) pin(g *Grid, v wire.Window, numbers, cur int) {
 	t := v.Text
-	base, th := lk.Base, lk.Theme
+	base, th := p.lk.Base, p.lk.Theme
 	for i, start := range v.Context {
 		y, end := v.Y+i, vim.LineEnd(t, start)
 		ground := withBg(base, th.Surface)
 		if name, ok := v.Grounds[t.LineOf(start)]; ok {
-			ground = withBg(base, named(name).Bg)
+			ground = withBg(base, p.named(name).Bg)
 		}
 		g.FillArea(numbers, y, v.Gutter+v.W, 1, ' ', ground)
 		if v.Number || v.Relative {
 			line := t.LineOf(start)
-			number(g, line, max(line-cur, cur-line), false, numbers+v.SignCols, y, v)
+			p.number(g, line, max(line-cur, cur-line), false, numbers+v.SignCols, y, v)
 			for x := numbers; x < v.X; x++ {
 				if s, style, _ := g.Get(x, y); s != "" {
 					g.Put(x, y, s, withBg(style, th.Surface))
 				}
 			}
 		}
-		styles := paint(nil, v.ContextHighlights, []wire.Range{{Start: start, End: end - 1}})
+		styles := Styles(nil, v.ContextHighlights, []wire.Range{{Start: start, End: end - 1}}, p.lk)
 		x, col := 0, 0
 		for rest := t.Slice(start, end); x < v.W; {
 			at := end - len(rest)
 			var hidden int
-			if x, hidden = ghosts(g, v, at, end, x, y, ground.Bg); hidden > at {
+			if x, hidden = p.ghosts(g, v, at, end, x, y, ground.Bg); hidden > at {
 				col = vim.Column(t, start, hidden, v.Tab, nil)
 				rest = t.Slice(hidden, end)
 				continue
@@ -560,31 +593,31 @@ func pin(g *grid, v wire.Window, numbers, cur int) {
 }
 
 // colorColumn shades the colour column on row y of v's text (B200).
-func colorColumn(g *grid, v wire.Window, y int) {
+func (p *Composer) colorColumn(g *Grid, v wire.Window, y int) {
 	x := v.ColorColumn - 1
 	if !v.Wrap {
 		x -= v.Left
 	}
 	if v.ColorColumn > 0 {
-		shadeCell(g, v, x, y, lk.Theme.Raised)
+		p.shade(g, v, x, y, p.lk.Theme.Raised)
 	}
 }
 
-// shadeCell puts bg under the cell at column x of row y of v's text, where
+// shade puts bg under the cell at column x of row y of v's text, where
 // the cell keeps the ground, so the cursor's line, a selection and a match
 // keep theirs (B200, B483).
-func shadeCell(g *grid, v wire.Window, x, y int, bg look.RGB) {
+func (p *Composer) shade(g *Grid, v wire.Window, x, y int, bg look.RGB) {
 	if x < 0 || x >= v.W {
 		return
 	}
-	if s, style, _ := g.Get(v.X+x, y); s != "" && style.Bg == lk.Base.Bg {
+	if s, style, _ := g.Get(v.X+x, y); s != "" && style.Bg == p.lk.Base.Bg {
 		g.Put(v.X+x, y, s, withBg(style, bg))
 	}
 }
 
-// guideCells draws a faint line at each of a line's guide columns, on row
+// guides draws a faint line at each of a line's guide columns, on row
 // y, where the cell is blank (B153).
-func guideCells(g *grid, v wire.Window, cols []int, y int) {
+func (p *Composer) guides(g *Grid, v wire.Window, cols []int, y int) {
 	left := 0
 	if !v.Wrap {
 		left = v.Left
@@ -595,7 +628,7 @@ func guideCells(g *grid, v wire.Window, cols []int, y int) {
 			continue
 		}
 		if s, style, _ := g.Get(x, y); s == " " {
-			g.Put(x, y, "│", withFg(style, lk.Theme.Border))
+			g.Put(x, y, "│", withFg(style, p.lk.Theme.Border))
 		}
 	}
 }
@@ -603,7 +636,7 @@ func guideCells(g *grid, v wire.Window, cols []int, y int) {
 // number draws line's number in the gutter at x, y: from the cursor's
 // line cur with relative numbers, and its own on that line when numbers are
 // on too, put on the left (B39).
-func number(g *grid, line, rel int, onCursor bool, x, y int, v wire.Window) {
+func (p *Composer) number(g *Grid, line, rel int, onCursor bool, x, y int, v wire.Window) {
 	n := line + 1
 	if v.Relative {
 		n = rel
@@ -613,10 +646,10 @@ func number(g *grid, line, rel int, onCursor bool, x, y int, v wire.Window) {
 	if v.Relative && v.Number && onCursor {
 		text = fmt.Sprintf("%-*d ", w, line+1)
 	}
-	style := withFg(lk.Base, lk.Theme.Faint)
+	style := withFg(p.lk.Base, p.lk.Theme.Faint)
 	if v.CursorLine && onCursor {
 		// The cursor's line number stands out.
-		style = lk.Base
+		style = p.lk.Base
 		style.Bold = true
 	}
 	g.putClipped(x, y, g.w, text, style)
@@ -625,11 +658,11 @@ func number(g *grid, line, rel int, onCursor bool, x, y int, v wire.Window) {
 // ghosts draws v's ghosts at position at, from column x of row y, on bg.
 // It returns the column after them and the end of the text they hide, at
 // least at and at most to.
-func ghosts(g *grid, v wire.Window, at, to, x, y int, bg look.RGB) (int, int) {
+func (p *Composer) ghosts(g *Grid, v wire.Window, at, to, x, y int, bg look.RGB) (int, int) {
 	hidden := at
 	for _, gh := range v.Ghosts {
 		if gh.Pos == at {
-			x = ghost(g, gh, v.X, x, y, v.W, bg)
+			x = p.ghost(g, gh, v.X, x, y, v.W, bg)
 			hidden = max(hidden, min(gh.End, to))
 		}
 	}
@@ -639,16 +672,16 @@ func ghosts(g *grid, v wire.Window, at, to, x, y int, bg look.RGB) (int, int) {
 // ghost draws gh's text from column x of a window at left that is w wide,
 // on bg where its style has no ground of its own, and returns the column
 // after it.
-func ghost(g *grid, gh wire.Ghost, left, x, y, w int, bg look.RGB) int {
-	style := withFg(lk.Base, lk.Theme.Faint)
+func (p *Composer) ghost(g *Grid, gh wire.Ghost, left, x, y, w int, bg look.RGB) int {
+	style := withFg(p.lk.Base, p.lk.Theme.Faint)
 	style.Italic = true
 	switch {
 	case gh.Style != "":
-		style = named(gh.Style)
+		style = p.named(gh.Style)
 	case gh.Stale:
-		style = withFg(style, lk.Theme.Error)
+		style = withFg(style, p.lk.Theme.Error)
 	}
-	if style.Bg == lk.Base.Bg {
+	if style.Bg == p.lk.Base.Bg {
 		style = withBg(style, bg)
 	}
 	return g.putClipped(left+x, y, left+w, vim.InlineText(gh.Text), style) - left
@@ -658,22 +691,22 @@ func ghost(g *grid, gh wire.Ghost, left, x, y, w int, bg look.RGB) int {
 // returns the column after it. A diagnostic's shows after a gap, on its
 // severity's tint in its colour, as a label of its own. Any other is dim
 // (B61, B184).
-func note(g *grid, v wire.Window, x, y int, n wire.Note, shade bool) int {
-	gap := lk.Base
+func (p *Composer) note(g *Grid, v wire.Window, x, y int, n wire.Note, shade bool) int {
+	gap := p.lk.Base
 	if shade {
-		gap = withBg(gap, lk.Theme.CursorLine)
+		gap = withBg(gap, p.lk.Theme.CursorLine)
 	}
-	if style, ok := lk.Names[n.Name+".note"]; ok {
+	if style, ok := p.lk.Names[n.Name+".note"]; ok {
 		x = g.putClipped(v.X+x, y, v.X+v.W, "  ", gap) - v.X
 		return g.putClipped(v.X+x, y, v.X+v.W, " "+n.Text+" ", style) - v.X
 	}
-	return g.putClipped(v.X+x, y, v.X+v.W, n.Text, withFg(gap, lk.Theme.Faint)) - v.X
+	return g.putClipped(v.X+x, y, v.X+v.W, n.Text, withFg(gap, p.lk.Theme.Faint)) - v.X
 }
 
-// paint returns the style of each byte of the ranges, one range after
-// another and each with the byte after it, that a highlight colours, and
-// the base style for the bytes between them. It reuses out.
-func paint(out []look.Style, spans []syntax.Span, ranges []wire.Range) []look.Style {
+// Styles returns the style of each byte of the ranges, one range after
+// another and each with the byte after it, that a highlight colours in lk,
+// and lk's base style for the bytes between them. It reuses out.
+func Styles(out []look.Style, spans []syntax.Span, ranges []wire.Range, lk look.Look) []look.Style {
 	n := 0
 	for _, r := range ranges {
 		n += max(r.End+1-r.Start, 0)
@@ -709,9 +742,113 @@ func paint(out []look.Style, spans []syntax.Span, ranges []wire.Range) []look.St
 	return out
 }
 
-// isFloatRule reports whether the line at pos of v, a float, is a
+// FloatRule reports whether the line at pos of v, a float, is a
 // markup.rule one, which the float's border draws across.
-func isFloatRule(v wire.Window, pos int) bool {
+func FloatRule(v wire.Window, pos int) bool {
 	rule := func(s syntax.Span) bool { return s.Name == "markup.rule" && s.Start == pos }
 	return slices.ContainsFunc(v.Highlights, rule) || slices.ContainsFunc(v.Decorations, rule)
 }
+
+// selected reports whether the byte at, drawn at column x, is in sel.
+func selected(sel vim.Selection, at, x int) bool {
+	if len(sel.Regions) > 0 {
+		return slices.ContainsFunc(sel.Regions, func(r [2]int) bool { return at >= r[0] && at < r[1] })
+	}
+	return at >= sel.Start && at < sel.End && (!sel.Block || x >= sel.Left && x <= sel.Right)
+}
+
+// trailing returns where the spaces that end the line from pos to end
+// start, reading back from end.
+func trailing(t vim.Text, pos, end int) int {
+	for end > pos {
+		lo := max(end-256, pos)
+		if n := len(strings.TrimRight(t.Slice(lo, end), " ")); n > 0 {
+			return lo + n
+		}
+		end = lo
+	}
+	return pos
+}
+
+// leading returns where the blanks that start the line from pos to end
+// end, reading on from pos.
+func leading(t vim.Text, pos, end int) int {
+	for ; pos < end; pos += 256 {
+		s := t.Slice(pos, min(pos+256, end))
+		if n := len(s) - len(strings.TrimLeft(s, " \t")); n < len(s) {
+			return pos + n
+		}
+	}
+	return end
+}
+
+// expandTabs returns s with each tab as the spaces to the next tab stop,
+// every tab columns, as the text's own tabs draw.
+func expandTabs(s string, tab int) string {
+	var b strings.Builder
+	col := 0
+	for {
+		i := strings.IndexByte(s, '\t')
+		if i < 0 {
+			b.WriteString(s)
+			return b.String()
+		}
+		col += displaywidth.String(s[:i])
+		n := tab - col%tab
+		b.WriteString(s[:i])
+		b.WriteString(strings.Repeat(" ", n))
+		col, s = col+n, s[i+1:]
+	}
+}
+
+// listChar returns what list shows in place of the character rest starts
+// with, from [list_chars]: trail for a trailing space, lead for a leading
+// one, else space, and nbsp for a no-break space (B118, B486).
+func listChar(list wire.ListChars, rest string, leading, trailing bool) (string, bool) {
+	var mark string
+	switch {
+	case rest[0] == ' ' && trailing:
+		mark = cmp.Or(list.Trail, list.Space)
+	case rest[0] == ' ' && leading:
+		mark = cmp.Or(list.Lead, list.Space)
+	case rest[0] == ' ':
+		mark = list.Space
+	case strings.HasPrefix(rest, "\u00a0"):
+		mark = list.Nbsp
+	}
+	return mark, mark != ""
+}
+
+// shown is what a frame drew a window's line from. When the next frame
+// would draw the line from the same, it leaves the line's rows as they are.
+type shown struct {
+	frame  int
+	sig    sig
+	styles []look.Style
+	marks  [][2]int // the cells of the multicursors drawn
+}
+
+// sig holds what a line draws from, as bytes to compare.
+type sig []byte
+
+func (k sig) int(n int) sig { return binary.AppendVarint(k, int64(n)) }
+
+func (k sig) str(s string) sig { return append(k.int(len(s)), s...) }
+
+func (k sig) ints(ns []int) sig {
+	k = k.int(len(ns))
+	for _, n := range ns {
+		k = k.int(n)
+	}
+	return k
+}
+
+func (k sig) flag(b bool) sig {
+	if b {
+		return k.int(1)
+	}
+	return k.int(0)
+}
+
+// Control reports whether b is a control character other than a tab.
+func Control(b byte) bool { return b < ' ' && b != '\t' || b == 0x7f }

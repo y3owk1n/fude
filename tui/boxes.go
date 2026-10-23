@@ -7,6 +7,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/clipperhouse/displaywidth"
+	"github.com/y3owk1n/fude/internal/compose"
 	"github.com/y3owk1n/fude/syntax"
 	"github.com/y3owk1n/fude/vim"
 	"github.com/y3owk1n/fude/wire"
@@ -74,7 +75,7 @@ func (c *client) commandLine(w, h int, menu string, spans []syntax.Span) (int, i
 			sel = strings.Count(menu[:s.Start], "\n")
 		}
 	}
-	styles := paint(nil, spans, []wire.Range{{End: len(menu) - 1}})
+	styles := compose.Styles(nil, spans, []wire.Range{{End: len(menu) - 1}}, lk)
 	at := 0 // where the item starts in menu
 	for i, it := range items {
 		ground := base
@@ -309,7 +310,7 @@ func wrap(text string, spans []syntax.Span, limit int) ([]row, int) {
 // selected item starts takes the raised colour, with an accent bar for its
 // left border (B150).
 func (c *client) box(text string, spans []syntax.Span, rows []row, x, y, width, cursor int) (int, int, bool) {
-	styles := paint(nil, spans, []wire.Range{{End: len(text) - 1}})
+	styles := compose.Styles(nil, spans, []wire.Range{{End: len(text) - 1}}, lk)
 	style := base
 	fx, fy, found := 0, 0, false
 	// The text has a column of room on either side inside the border.
@@ -384,7 +385,7 @@ func (c *client) floating(v wire.Window, sel vim.Selection, visual bool) (int, i
 		return x, y, ok
 	}
 	c.rule(v.X-2, v.Y+v.H, v.W+2)
-	styles := paint(nil, v.FootSpans, []wire.Range{{End: len(v.Foot) - 1}})
+	styles := compose.Styles(nil, v.FootSpans, []wire.Range{{End: len(v.Foot) - 1}}, lk)
 	at := 0
 	for i, line := range foot {
 		col := v.X

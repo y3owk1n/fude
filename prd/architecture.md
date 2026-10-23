@@ -50,6 +50,7 @@ client/          what a frontend draws a session through, and a client over
                  the socket with replicas of buffers
 internal/        packages only fude's own packages may import
   clipboard/     the system clipboard, through pbcopy, wl-copy or xclip
+  compose/       a window drawn into a grid of styled cells, for any frontend
   keep/          the XDG directories, files written whole and the recent files
   pty/           a program in a pseudo-terminal, for :terminal
   relay/         passes a share's connections between its host and guests
