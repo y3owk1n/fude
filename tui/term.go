@@ -307,12 +307,22 @@ func (c *client) draw() {
 	}
 	c.overlaid, c.size = over, [4]int{w, h, left, right}
 	cx, cy := 0, 0
+	shown := map[int]bool{}
 	for _, v := range wins {
 		if v.Float != "" {
 			continue
 		}
+		shown[v.ID] = true
 		if x, y, ok := c.window(v, left, sel, visual && v.Current); ok {
 			cx, cy = x, y
+		}
+	}
+	// A grid holds what the screen last showed of its window. A window
+	// hidden behind a zoom or on another tab page loses its grid, so it
+	// draws whole when it shows again.
+	for id := range c.grids {
+		if !shown[id] {
+			delete(c.grids, id)
 		}
 	}
 	c.topLine(c.e.Buffers(), c.e.Pages(), w)

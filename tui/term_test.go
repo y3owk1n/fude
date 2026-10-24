@@ -227,6 +227,7 @@ func TestB197FrameAfterFrame(t *testing.T) {
 		"jjjihello<Esc>", "dd", "u", "Gk", "J", "u", "ggjA" + strings.Repeat(" more", 30) + "<Esc>", "u",
 		"/return<CR>", "<<", "k", ":vsplit<CR>", "/that<CR>", "b", "rq", "<C-w>w", ":set list true<CR>",
 		":set wrap false<CR>", "/wraps<CR>", "j", "k", "$", "0", "x", "gg", ":w<CR>", "j", ":set number false<CR>",
+		":tabnew<CR>", "gt",
 	} {
 		step(keys)
 	}
