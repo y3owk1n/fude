@@ -33,9 +33,11 @@ Where fude departs, the line says so and cites the departure in
   release fude was installed as, as `fude v0.1.0`. A build from a checkout
   prints the date and commit it was built from, as `fude 2026.10.18
   (eda0e6e)`, with `, modified` after the commit when it had uncommitted
-  changes, or `fude (devel)` when the build does not know them (D52). A
-  build oku makes from source prints the same as the release or commit it
-  built. `:version` shows the same in the message line.
+  changes, or `fude (devel)` when the build does not know them (D52). At
+  a release's commit it prints the release, with ` (modified)` after it
+  when it had uncommitted changes. A build oku makes from source prints
+  the same as the release or commit it built. `:version` shows the same
+  in the message line.
 - B350 [1] The first word after `fude` that is not a flag names a
   subcommand, or else a file to open. Flags may come before or after the
   words, and `--` ends them, so `fude -- tail` opens the file `tail`. A

@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -183,6 +184,17 @@ func TestB349Version(t *testing.T) {
 		if out, err := fude(t.TempDir(), args...); err != nil || out != "fude (devel)\n" {
 			t.Errorf("fude %s printed %q, %v", args[0], out, err)
 		}
+	}
+	// A build from this checkout prints its commit's date and hash, or the
+	// release when the commit is a release's.
+	// Windows runs only a file whose name ends in .exe.
+	bin := filepath.Join(t.TempDir(), "fude.exe")
+	if out, err := exec.Command("go", "build", "-o", bin, ".").CombinedOutput(); err != nil {
+		t.Fatalf("go build: %v: %s", err, out)
+	}
+	out, err := exec.Command(bin, "version").Output()
+	if err != nil || !regexp.MustCompile(`^fude (v\d+\.\d+\.\d+( \(modified\))?|\d{4}\.\d\d\.\d\d \([0-9a-f]{7}(, modified)?\))\n$`).Match(out) {
+		t.Errorf("fude version of a checkout printed %q, %v", out, err)
 	}
 }
 

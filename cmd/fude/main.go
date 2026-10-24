@@ -12,6 +12,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime/debug"
 	"slices"
 	"strings"
@@ -228,31 +229,30 @@ open, keys, state, attach and tail reach the one fude running, or the one
 var build string
 
 // version is build when set, else the release fude was installed as, else
-// the date and commit it was built from (B349).
+// the date and commit of a build from a checkout or of a commit (B349).
 func version() string {
 	if build != "" {
 		return build
 	}
-	vcs := map[string]string{}
-	if info, ok := debug.ReadBuildInfo(); ok {
-		// A build by go install of a release, as the release workflow makes,
-		// knows its version.
-		if v := info.Main.Version; v != "" && v != "(devel)" {
-			return v
-		}
-		for _, s := range info.Settings {
-			vcs[s.Key] = s.Value
-		}
-	}
-	rev, at := vcs["vcs.revision"], vcs["vcs.time"]
-	if len(rev) < 7 || len(at) < 10 {
+	info, ok := debug.ReadBuildInfo()
+	if !ok || info.Main.Version == "" || info.Main.Version == "(devel)" {
 		return "(devel)"
 	}
-	v := strings.ReplaceAll(at[:10], "-", ".") + " (" + rev[:7]
-	if vcs["vcs.modified"] == "true" {
-		v += ", modified"
+	// A build with uncommitted changes ends in +dirty.
+	v, dirty := strings.CutSuffix(info.Main.Version, "+dirty")
+	// A pseudo-version, such as v0.3.1-0.20261024092411-1f4c5b5b9abd, ends
+	// in the commit's time and hash.
+	if m := regexp.MustCompile(`[-.](\d{4})(\d\d)(\d\d)\d{6}-([0-9a-f]{7})[0-9a-f]{5}$`).FindStringSubmatch(v); m != nil {
+		v = m[1] + "." + m[2] + "." + m[3] + " (" + m[4]
+		if dirty {
+			v += ", modified"
+		}
+		return v + ")"
 	}
-	return v + ")"
+	if dirty {
+		v += " (modified)"
+	}
+	return v
 }
 
 // name is the session's name others see (B252).
