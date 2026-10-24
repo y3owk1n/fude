@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.3.1](https://github.com/y3owk1n/fude/compare/v0.3.0...v0.3.1) (2026-10-24)
+
+
+### Features
+
+* **api:** calls know fude's version, which the start screen and :version show ([43045e2](https://github.com/y3owk1n/fude/commit/43045e2afc71599d1d4ed4c604af388640efa9c1))
+
+
+### Bug Fixes
+
+* **cli:** --gui help no longer says macOS only ([901227e](https://github.com/y3owk1n/fude/commit/901227eb68115602b22a81c4aaba5eaaf2587833))
+* **demos:** setup.sh records from a clean tree ([61ebfd6](https://github.com/y3owk1n/fude/commit/61ebfd638633119af4b34c5bae1674b0b3629dca))
+* **finder:** ties keep git's order and marks land where the score says ([680d2cb](https://github.com/y3owk1n/fude/commit/680d2cb822b5202c9dec101baf18b0bad66161bb))
+* **jobs:** a stream's callbacks reach the module while the finder shows ([3458ba5](https://github.com/y3owk1n/fude/commit/3458ba5c8787be85e0b3a405f1f0fa88d2dc52a2))
+* **perf:** just perf refuses to time a busy or locked Mac ([cb42fbd](https://github.com/y3owk1n/fude/commit/cb42fbd008742cb334306c3d84fb3fcce27264d7))
+* **perf:** just quiet names what was busy in the second it sampled ([1f4c5b5](https://github.com/y3owk1n/fude/commit/1f4c5b5b9abd738cc70468b0a5cd39a78cf4d00c))
+* **version:** a build from a checkout shows its date and commit again ([dea9486](https://github.com/y3owk1n/fude/commit/dea9486f462776fa818eb6f9fe80d21ed690286c))
+
+
+### Performance Improvements
+
+* **finder:** :pick files shows the tracked files before git walks for untracked ones ([f3abff0](https://github.com/y3owk1n/fude/commit/f3abff054e0c7dc6e791f216bb2c98205d3d80d1))
+* **finder:** a draw reads only the matches it shows ([2cabb82](https://github.com/y3owk1n/fude/commit/2cabb825cbef9878bb80de0159054277ff997905))
+* **finder:** a query cut back to one it grew from shows its matches with no search ([4538f7b](https://github.com/y3owk1n/fude/commit/4538f7beffd6889d6b222889acdeb4181d148e00))
+* **finder:** each letter scores only where it can fit ([e1ea63b](https://github.com/y3owk1n/fude/commit/e1ea63b70de4f2f95fa5dfe3a0bbffa02d72a95e))
+* **finder:** marks score only each letter's places and reuse their memory ([695985a](https://github.com/y3owk1n/fude/commit/695985a1e39ec5348758b3147c94723a274db775))
+* **finder:** skip paths that cannot match and score them on every core ([1d4e686](https://github.com/y3owk1n/fude/commit/1d4e68628d23691796a5c1248f4dacdb96ecb417))
+* **finder:** typing narrows in git's order, merges only the rows shown, and stops stale matches ([df3e590](https://github.com/y3owk1n/fude/commit/df3e590c5182c8fbf4a8884d61a90e2733e2b7a4))
+
 ## [0.3.0](https://github.com/y3owk1n/fude/compare/v0.2.1...v0.3.0) (2026-10-24)
 
 
