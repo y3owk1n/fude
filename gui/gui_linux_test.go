@@ -133,7 +133,7 @@ func TestB566GTKWindow(t *testing.T) {
 	})
 }
 
-// B567, B560
+// B567, B130, B560, B562
 func TestB567GTKMouse(t *testing.T) {
 	lines := []string{"one two", "three"}
 	for i := range 100 {

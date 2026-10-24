@@ -31,7 +31,13 @@ var (
 	fileInfo      = shell32.NewProc("SHGetFileInfoW")
 	giveFocus     = user32.NewProc("SetFocus")
 	sendMessage   = user32.NewProc("SendMessageW")
+	setScrollInfo = user32.NewProc("SetScrollInfo")
+	getScrollInfo = user32.NewProc("GetScrollInfo")
+	beginPaint    = user32.NewProc("BeginPaint")
+	endPaint      = user32.NewProc("EndPaint")
 	tables        = map[uintptr]*box{} // by list view
+	previews      = map[uintptr]*box{} // by preview window
+	previewClass  *uint16
 	tableCallback = syscall.NewCallback(tableMessage)
 	shellIcons    uintptr            // the system's small icons
 	iconOf        = map[string]int{} // their indexes, by a file's extension or "/" for a folder
@@ -44,6 +50,7 @@ const (
 	wmLButtonDblClk   = 0x0203
 	wmRButtonUp       = 0x0205
 	wmRButtonDblClk   = 0x0206
+	wmVScroll         = 0x0115
 	lvmSetBkColor     = 0x1001
 	lvmSetImageList   = 0x1003
 	lvmEnsureVisible  = 0x1013
@@ -92,10 +99,15 @@ type customDraw struct {
 	sub    int32
 }
 
-// startTables loads the list view's class and the system's small icons.
+// startTables loads the list view's class and the system's small icons,
+// and registers the class of the previews' windows.
 func startTables() {
 	icc := [2]uint32{8, 1}
 	call(initControls, uintptr(unsafe.Pointer(&icc)))
+	previewClass = cwide("fude-preview")
+	wc := wndClass{proc: syscall.NewCallback(previewMessage), instance: call(getModuleHandle, 0), name: previewClass, cursor: call(loadCursor, 0, idcArrow)}
+	wc.size = uint32(unsafe.Sizeof(wc))
+	call(registerClass, uintptr(unsafe.Pointer(&wc)))
 	var info shellFileInfo
 	// SHGFI_SYSICONINDEX, SHGFI_SMALLICON and SHGFI_USEFILEATTRIBUTES.
 	shellIcons = call(fileInfo, uintptr(unsafe.Pointer(cwide(".txt"))), 0x80, uintptr(unsafe.Pointer(&info)), unsafe.Sizeof(info), 0x4011)
@@ -126,9 +138,6 @@ func (b *box) newTable() {
 	call(sendMessage, b.listView, lvmInsertColumn, 0, uintptr(unsafe.Pointer(&col)))
 	call(setSubclass, b.listView, tableCallback, 0, 0)
 	tables[b.listView] = b
-	// Direct2D's target for the window stops showing once the window has
-	// a child, so newTable drops it and paint makes a new one.
-	b.w.dropTarget()
 }
 
 // showTable shows b's menu in its list view, under the row typed into,
@@ -136,14 +145,9 @@ func (b *box) newTable() {
 // hides the list view.
 func (b *box) showTable() {
 	if b.boxed == nil || b.list == nil || len(b.list.items) == 0 {
-		if b.listView != 0 {
-			call(showWindow, b.listView, 0)
-		}
+		call(showWindow, b.listView, 0)
 		b.listed, b.selectedRow = "", -1
 		return
-	}
-	if b.listView == 0 {
-		b.newTable()
 	}
 	l, s, lv := b.list, b.w.scale, b.listView
 	width := b.frame.Size.W - 2
@@ -152,18 +156,14 @@ func (b *box) showTable() {
 	}
 	px := func(v float64) uintptr { return uintptr(math.Round(v * s)) }
 	call(setWindowPos, lv, 0, px(b.frame.Origin.X+1), px(b.frame.Origin.Y+l.top()), px(width), px(float64(l.shown())*l.rowH), 0x50)
-	// A row is as tall as the small image list's images.
+	// A row is a pixel taller than the small image list's images.
 	if h := int32(px(l.rowH)); h != b.rowPx {
 		b.rowPx = h
 		// ILC_COLOR32.
-		old := call(sendMessage, lv, lvmSetImageList, 1, call(imageListNew, 1, uintptr(h), 0x20, 1, 0))
+		old := call(sendMessage, lv, lvmSetImageList, 1, call(imageListNew, 1, uintptr(h-1), 0x20, 1, 0))
 		call(imageListDrop, old)
 	}
-	theme := "Explorer"
-	if darkLook {
-		theme = "DarkMode_Explorer"
-	}
-	if theme != b.themed {
+	if theme := systemTheme(); theme != b.themed {
 		b.themed = theme
 		call(setTheme, lv, uintptr(unsafe.Pointer(cwide(theme))), 0)
 		ground := colorRef(system("popoverColor"))
@@ -198,13 +198,16 @@ func (b *box) showTable() {
 	}
 }
 
-// dropTable destroys b's list view, as b goes.
+// dropTable destroys b's list view and preview, as b goes.
 func (b *box) dropTable() {
-	if b.listView != 0 {
-		delete(tables, b.listView)
-		call(destroyWindow, b.listView)
-		b.listView = 0
+	delete(tables, b.listView)
+	delete(previews, b.preview)
+	for _, hwnd := range []uintptr{b.listView, b.preview} {
+		if hwnd != 0 {
+			call(destroyWindow, hwnd)
+		}
 	}
+	b.listView, b.preview = 0, 0
 }
 
 // tableMessage takes a list view's clicks itself: the left button picks
@@ -363,6 +366,161 @@ func iconIndex(it wire.Item) (int, bool) {
 	call(fileInfo, uintptr(unsafe.Pointer(cwide(name))), attr, uintptr(unsafe.Pointer(&info)), unsafe.Sizeof(info), 0x4011)
 	iconOf[key] = int(info.index)
 	return int(info.index), true
+}
+
+// systemTheme is the name of the system's look for a control, dark on a
+// dark theme.
+func systemTheme() string {
+	if darkLook {
+		return "DarkMode_Explorer"
+	}
+	return "Explorer"
+}
+
+// scrollInfo is a SCROLLINFO.
+type scrollInfo struct {
+	size, mask uint32
+	min, max   int32
+	page       uint32
+	pos, track int32
+}
+
+// paintInfo is a PAINTSTRUCT.
+type paintInfo struct {
+	hdc      uintptr
+	erase    int32
+	rc       rectI
+	restore  int32
+	inc      int32
+	reserved [36]byte
+}
+
+// showPreview shows the finder's whole preview, or a menu's whole
+// documentation, in a window of its own over b's cells, which scrolls by
+// the system's scroll bar and the wheel. It goes back to the top whenever
+// another file shows, and hides when there is no whole preview (B130,
+// B560).
+func (b *box) showPreview() {
+	if b.boxed == nil || b.whole == nil || len(b.cells) == 0 {
+		if b.preview != 0 {
+			call(showWindow, b.preview, 0)
+		}
+		b.previewed = ""
+		return
+	}
+	b.scrolls = true
+	if b.preview == 0 {
+		// WS_CHILD, WS_CLIPSIBLINGS and WS_VSCROLL.
+		b.preview = call(createWindow, 0, uintptr(unsafe.Pointer(previewClass)), 0, 0x44200000, 0, 0, 0, 0, b.w.hwnd, 0, call(getModuleHandle, 0), 0)
+		previews[b.preview] = b
+	}
+	if theme := systemTheme(); theme != b.previewThemed {
+		b.previewThemed = theme
+		call(setTheme, b.preview, uintptr(unsafe.Pointer(cwide(theme))), 0)
+	}
+	s := b.w.scale
+	px := func(v float64) int32 { return int32(math.Round(v * s)) }
+	o := b.cellsOrigin()
+	view := px(float64(len(b.cells)) * cellH)
+	bar := int32(call(systemMetrics, 2, uintptr(96*s)))
+	call(setWindowPos, b.preview, 0, uintptr(px(b.frame.Origin.X+o.X)), uintptr(px(b.frame.Origin.Y+o.Y)), uintptr(px(float64(len(b.cells[0]))*cellW)+bar), uintptr(view), 0x50)
+	si := scrollInfo{mask: 3, max: px(float64(len(b.whole.cells))*cellH) - 1, page: uint32(view)}
+	if seen := cellsText(b.whole.cells); seen != b.previewed {
+		b.previewed = seen
+		si.mask |= 4
+	}
+	si.size = uint32(unsafe.Sizeof(si))
+	call(setScrollInfo, b.preview, 1, uintptr(unsafe.Pointer(&si)), 1)
+	call(invalidateRect, b.preview, 0, 0)
+}
+
+// previewMessage handles a preview window's messages. It draws the
+// preview from its scroll position, scrolls by the bar and the wheel, and
+// never takes the keyboard's focus.
+func previewMessage(hwnd, m, wp, lp uintptr) uintptr {
+	b := previews[hwnd]
+	switch {
+	case b == nil || b.boxed == nil || b.whole == nil:
+	case m == wmPaint:
+		var ps paintInfo
+		hdc := call(beginPaint, hwnd, uintptr(unsafe.Pointer(&ps)))
+		b.drawPreview(hdc)
+		call(endPaint, hwnd, uintptr(unsafe.Pointer(&ps)))
+		return 0
+	case m == wmEraseBkgnd:
+		return 1
+	case m == wmVScroll:
+		si := scrollInfo{mask: 0x17}
+		si.size = uint32(unsafe.Sizeof(si))
+		call(getScrollInfo, hwnd, 1, uintptr(unsafe.Pointer(&si)))
+		line, pos := int32(cellH*b.w.scale), si.pos
+		// SB_LINEUP, SB_LINEDOWN, SB_PAGEUP, SB_PAGEDOWN, SB_THUMBTRACK,
+		// SB_TOP and SB_BOTTOM.
+		switch wp & 0xffff {
+		case 0:
+			pos -= line
+		case 1:
+			pos += line
+		case 2:
+			pos -= int32(si.page)
+		case 3:
+			pos += int32(si.page)
+		case 5:
+			pos = si.track
+		case 6:
+			pos = 0
+		case 7:
+			pos = si.max
+		}
+		b.scrollPreview(pos)
+		return 0
+	case m == wmMouseWheel:
+		lines := uint32(3)
+		call(systemParameters, 0x68, 0, uintptr(unsafe.Pointer(&lines)), 0)
+		si := scrollInfo{mask: 4}
+		si.size = uint32(unsafe.Sizeof(si))
+		call(getScrollInfo, hwnd, 1, uintptr(unsafe.Pointer(&si)))
+		notches := float64(int16(wp>>16)) / 120
+		b.scrollPreview(si.pos - int32(notches*float64(lines)*cellH*b.w.scale))
+		return 0
+	case m == wmSetFocus:
+		call(giveFocus, b.w.hwnd)
+		return 0
+	case m == wmLButtonDown || m == wmLButtonDblClk || m == wmRButtonDown || m == wmMButtonDown:
+		return 0
+	}
+	return call(defWindowProc, hwnd, m, wp, lp)
+}
+
+// scrollPreview scrolls b's preview to pos pixels from its top, kept
+// within its text.
+func (b *box) scrollPreview(pos int32) {
+	si := scrollInfo{mask: 4, pos: pos}
+	si.size = uint32(unsafe.Sizeof(si))
+	call(setScrollInfo, b.preview, 1, uintptr(unsafe.Pointer(&si)), 1)
+	call(invalidateRect, b.preview, 0, 0)
+}
+
+// drawPreview draws b's whole preview on hdc of its window, on the
+// popover's ground, from its scroll position.
+func (b *box) drawPreview(hdc uintptr) {
+	w := b.w
+	var rc rectI
+	call(getClientRect, b.preview, uintptr(unsafe.Pointer(&rc)))
+	if rc.R <= rc.L || rc.B <= rc.T || w.rowTarget == nil && !w.makeRowTarget() {
+		return
+	}
+	si := scrollInfo{mask: 4}
+	si.size = uint32(unsafe.Sizeof(si))
+	call(getScrollInfo, b.preview, 1, uintptr(unsafe.Pointer(&si)))
+	com(w.rowTarget, 57, hdc, uintptr(unsafe.Pointer(&rc)))
+	rt, brush = w.rowTarget, w.rowBrush
+	defer func() { rt, brush = nil, nil }()
+	com(rt, 48)
+	ground := system("popoverColor")
+	com(rt, 47, uintptr(unsafe.Pointer(&ground)))
+	drawPreview(b.whole.cells, cursorAt{}, b.whole.chosen, b.whole.rules, point{0, -float64(si.pos) / w.scale}, b.look.Base.Bg)
+	com(rt, 49, 0, 0)
 }
 
 // colorRef is c as a COLORREF, 0x00BBGGRR.

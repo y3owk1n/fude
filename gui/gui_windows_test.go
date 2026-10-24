@@ -101,7 +101,7 @@ func TestB573WindowsWindow(t *testing.T) {
 	})
 }
 
-// B574, B560
+// B574, B130, B560, B562
 func TestB574WindowsMouse(t *testing.T) {
 	lines := []string{"one two", "three"}
 	for i := range 100 {
@@ -109,9 +109,11 @@ func TestB574WindowsMouse(t *testing.T) {
 	}
 	path := filepath.Join(t.TempDir(), "a.txt")
 	editortest.Change(t, path, strings.Join(lines, "\n")+"\n")
+	t.Chdir(filepath.Dir(path))
 	e := editortest.Open(t, path)
-	e.Use(hovering{})
+	e.Use(hovering{more: 100})
 	e.Use(windowmod.New())
+	e.Use(filesmod.New())
 	var w *window
 	onMain(func() { w = open(e, nil) }, true)
 	var p *pane
@@ -175,7 +177,34 @@ func TestB574WindowsMouse(t *testing.T) {
 				}
 			}
 		})
-		return text == "at 6"
+		return strings.HasPrefix(text, "at 6")
+	})
+	// The wheel over the hover scrolls its window.
+	var hover *box
+	onMain(func() {
+		for _, b := range w.floats {
+			if b.boxed != nil && b.read != nil {
+				hover = b
+			}
+		}
+	}, true)
+	onMain(func() {
+		at := point{hover.frame.Origin.X + 20, hover.frame.Origin.Y + 20}
+		pt := [2]int32{int32(at.X * w.scale), int32(at.Y * w.scale)}
+		call(clientToScreen, w.hwnd, uintptr(unsafe.Pointer(&pt)))
+		delta := int16(-120)
+		call(sendMessage, w.hwnd, wmMouseWheel, uintptr(uint16(delta))<<16, uintptr(uint16(pt[0]))|uintptr(uint16(pt[1]))<<16)
+	}, true)
+	until(t, "the hover to scroll", func() bool {
+		top := 0
+		w.onLoop(func() {
+			for _, v := range e.Windows() {
+				if v.Float == "cursor" {
+					top = v.Text.LineOf(v.Top)
+				}
+			}
+		})
+		return top > 0
 	})
 	// The wheel scrolls the window the lines the system scrolls a notch.
 	onMain(func() {
@@ -227,6 +256,20 @@ func TestB574WindowsMouse(t *testing.T) {
 	if focused == w.panel.listView {
 		t.Error("the palette's list took the keyboard's focus")
 	}
+	// The finder's preview of a file longer than its box scrolls.
+	typeIn(w, "\x1b:pick files\r")
+	until(t, "the whole preview", func() bool {
+		ok := false
+		onMain(func() {
+			si := scrollInfo{mask: 3}
+			si.size = uint32(unsafe.Sizeof(si))
+			// WS_VISIBLE, as the test's own window reports hidden on the
+			// service desktop.
+			ok = w.panel.preview != 0 && call(windowLong, w.panel.preview, ^uintptr(15))&0x10000000 != 0 &&
+				call(getScrollInfo, w.panel.preview, 1, uintptr(unsafe.Pointer(&si))) != 0 && si.max+1 > int32(si.page)
+		}, true)
+		return ok
+	})
 	// Dragging the divider between two windows resizes them.
 	typeIn(w, "\x1b:vsplit\r")
 	var d divider
@@ -681,6 +724,7 @@ var (
 	setKeyboardState     = user32.NewProc("SetKeyboardState")
 	setCursorPos         = user32.NewProc("SetCursorPos")
 	focusOf              = user32.NewProc("GetFocus")
+	windowLong           = user32.NewProc("GetWindowLongPtrW")
 	wic                  unsafe.Pointer
 	clsidWIC             = windows.GUID{Data1: 0xcacaf262, Data2: 0x9370, Data3: 0x4615, Data4: [8]byte{0xa1, 0x3b, 0x9f, 0x55, 0x39, 0xda, 0x4c, 0x0a}}
 	iidWIC               = windows.GUID{Data1: 0xec5ec8a9, Data2: 0xc395, Data3: 0x4314, Data4: [8]byte{0x9c, 0x77, 0x54, 0xd7, 0xa9, 0x35, 0xff, 0x70}}

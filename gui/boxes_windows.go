@@ -8,12 +8,16 @@ import (
 // boxNative is where a box draws over its window's panes, on the system's
 // popover ground with rounded corners.
 type boxNative struct {
-	frame       rect
-	listView    uintptr // the system's list its menu shows in
-	listed      string  // what the list shows, to know when it changes
-	selectedRow int     // the item the list last selected
-	rowPx       int32   // how tall the list's rows are, in pixels
-	themed      string  // the system's look the list has
+	frame         rect
+	listView      uintptr // the system's list its menu shows in
+	listed        string  // what the list shows, to know when it changes
+	selectedRow   int     // the item the list last selected
+	rowPx         int32   // how tall the list's rows are, in pixels
+	themed        string  // the system's look the list has
+	preview       uintptr // the window the finder's whole preview scrolls in
+	previewed     string  // what it shows, to know when another shows
+	previewThemed string  // the system's look its scroll bar has
+	wheeled       float64 // the lines a float's wheel moved short of one
 	boxAccess
 }
 
@@ -21,6 +25,9 @@ type boxNative struct {
 func newBox(w *window) *box {
 	b := &box{w: w, seen: -2, hover: point{X: -1}}
 	w.order = append(w.order, b)
+	// Direct2D's target for the window shows nothing once a child comes
+	// after it, so each box makes its list view before the window paints.
+	b.newTable()
 	return b
 }
 
@@ -42,11 +49,13 @@ func (b *box) show(what *boxed) {
 	if what == nil {
 		b.scroll, b.seen, b.hover = 0, -2, point{X: -1}
 		b.showTable()
+		b.showPreview()
 		return
 	}
 	r := placeBox(what, b.w.area(), 0, &b.scroll, &b.seen)
 	b.frame = rect{point{math.Round(r.Origin.X), b.w.top() + math.Round(r.Origin.Y)}, size{math.Ceil(r.Size.W), math.Ceil(r.Size.H)}}
 	b.showTable()
+	b.showPreview()
 }
 
 // drawBox draws b bounds big on the system's popover ground, inside a
