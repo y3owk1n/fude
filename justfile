@@ -85,10 +85,12 @@ quiet:
         echo "the screen is locked, which slows the timings. Rerun just perf with it unlocked." >&2
         exit 1
     fi
-    idle=$(top -l 2 -n 0 -s 1 | awk '/CPU usage/ { idle = $7 } END { print int(idle) }')
+    # top's first sample averages since boot, so this reads the second.
+    sample=$(top -l 2 -n 3 -o cpu -s 1 -stats cpu,command | awk '/CPU usage/ { n++ } n == 2')
+    idle=$(awk '/CPU usage/ { print int($7) }' <<< "$sample")
     if [ "$idle" -lt 80 ]; then
         echo "the CPU is $((100 - idle))% busy, and the timings need it under 20%. Rerun just perf when these are done:" >&2
-        ps -A -r -o pcpu=,comm= | awk 'NR <= 3' >&2
+        awk '/%CPU/ { on = 1; next } on' <<< "$sample" >&2
         exit 1
     fi
 
