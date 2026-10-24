@@ -1,12 +1,13 @@
 # Two people in one fude: ana shares, ben joins and she lets him in, they
 # edit the same buffer at once, ben's u undoes only his own edit, and ben
-# follows ana. Both run on this machine, in two tmux panes.
+# follows ana, into a tab page of her own. Both run on this machine, in two
+# tmux panes.
 Output demos/together.gif
 Output demos/out/together.mp4
 Source demos/style.tape
-Set FontSize 15
-# Two panes side by side need the width.
-Set Width 1800
+Set FontSize 14
+# Two panes side by side need the width, so each status line shows whole.
+Set Width 2100
 
 Hide
 Type "source demos/setup.sh"
@@ -66,7 +67,8 @@ Sleep 300ms
 Type "u"
 Sleep 2s
 
-# ben follows ana, and his window goes where hers does.
+# ben follows ana, and his window goes where hers does, into a new tab
+# page and back.
 Type ":follow ana"
 Enter
 Sleep 1s
@@ -79,6 +81,11 @@ Sleep 1.5s
 Type "G"
 Sleep 1.5s
 Type "gg"
+Sleep 1.5s
+Type ":tabe protocol/framing/framing_test.go"
+Enter
+Sleep 2s
+Type "gt"
 Sleep 2s
 
 Hide

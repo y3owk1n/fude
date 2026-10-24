@@ -124,7 +124,7 @@ font_size = 13
 
 ## Edit together
 
-![ana shares a file and lets ben in, they edit at once, ben's u undoes only his edit, and ben follows ana](demos/together.gif)
+![ana shares a file and lets ben in, they edit at once, ben's u undoes only his edit, and ben follows ana into a tab page](demos/together.gif)
 
 ```sh
 fude attach            # another session of the fude running here
