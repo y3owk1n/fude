@@ -4,6 +4,7 @@ package files
 
 import (
 	"context"
+	"fmt"
 	"io/fs"
 	"maps"
 	"os"
@@ -25,10 +26,12 @@ const (
 	walks uint32 = 100
 )
 
-// Module is files. It keeps the job of the newest walk asked for.
+// Module is files. It keeps the job of the newest walk asked for, and the
+// files git tracks once that walk has listed them.
 type Module struct {
-	mu     sync.Mutex
-	newest uint32
+	mu      sync.Mutex
+	newest  uint32
+	tracked []string
 }
 
 // New returns files.
@@ -72,8 +75,8 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, _ ...int) (api.
 // list starts a job that lists the files, the ignored ones too with all.
 // Only the newest walk fills the finder.
 func (m *Module) list(all bool) api.Result {
-	m.newest = max(m.newest+1, walks)
-	return api.Result{Jobs: []api.Job{{ID: m.newest, Argv: []string{strconv.FormatBool(all)}}}}
+	m.newest, m.tracked = max(m.newest+1, walks), nil
+	return api.Result{Jobs: []api.Job{{ID: m.newest, Argv: []string{strconv.FormatBool(all)}, Stream: true}}}
 }
 
 func (m *Module) Event(context.Context, string, api.Scope) (api.Result, error) {
@@ -97,20 +100,35 @@ func (m *Module) Callback(_ context.Context, id uint32, s api.Scope) (api.Result
 	if err := s.About["error"]; err != "" {
 		return api.Result{Error: err}, nil
 	}
-	paths := strings.FieldsFunc(s.About["output"], func(r rune) bool { return r == 0 })
+	var paths []string
+	if out := strings.TrimSuffix(s.About["output"], "\x00"); out != "" {
+		paths = strings.Split(out, "\x00")
+	}
+	// The tracked files come first, emitted. The job's end adds the
+	// untracked ones before them, in git's order.
+	if s.About["done"] != "true" {
+		m.tracked = paths
+	} else {
+		paths = append(paths, m.tracked...)
+	}
 	return api.Result{Pick: &api.Pick{ID: filesSrc, Items: paths, Files: true, Update: true}}, nil
 }
 
-// Work lists the files below the working directory. In a repository they
-// are those git tracks and the untracked ones it does not ignore.
-// Elsewhere, or with all, they are every file outside .git and unreadable
-// directories.
+// Work lists the files below the working directory. In a repository it
+// emits those git tracks, then returns the untracked ones git does not
+// ignore, which git finds by walking every folder. Elsewhere, or with all,
+// it returns every file outside .git and unreadable directories.
 func (m *Module) Work(_ context.Context, j api.Job) (string, error) {
 	if j.Argv[0] != "true" {
 		// Outside a repository, or without git, git fails and the walk lists
 		// the files.
 		// git writes / between folders on Windows too.
-		if out, err := exec.Command("git", "ls-files", "-z", "--cached", "--others", "--exclude-standard").Output(); err == nil {
+		if out, err := exec.Command("git", "ls-files", "-z", "--cached").Output(); err == nil {
+			j.Emit(filepath.FromSlash(string(out)))
+			out, err := exec.Command("git", "ls-files", "-z", "--others", "--exclude-standard").Output()
+			if err != nil {
+				return "", fmt.Errorf("git ls-files --others: %w", err)
+			}
 			return filepath.FromSlash(string(out)), nil
 		}
 	}

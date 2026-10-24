@@ -1103,12 +1103,15 @@ it, the finder closes. The editor places the box in the middle of the
 screen, at most 80 columns and 20 rows, through `Menu`'s `X`, `Y`, `W`
 and `H`, and the terminal draws it there.
 
-`modules/files` is `:pick files` and `:pick buffers`. The files come from
-`git ls-files -z --cached --others --exclude-standard` when the working
-directory is in a repository, and from a walk of it that skips `.git` and
-unreadable directories when it is not. The module opens the finder with no
-items and lists the files in a job, off the loop. Its callback fills the
-finder with a `Pick` marked `Update`. `<C-g>` tells the pick's callback
+`modules/files` is `:pick files` and `:pick buffers`. In a repository the
+files come from `git ls-files -z --cached`, then the untracked ones from
+`git ls-files -z --others --exclude-standard`, which walks every folder.
+On Chromium's 511,910 files the first takes 75ms and the second 1.1s.
+Elsewhere they come from a walk of the working directory that skips
+`.git` and unreadable directories. The module opens the finder with no
+items and lists the files in a stream job, off the loop. It emits the
+tracked files, and its callback fills the finder with them in a `Pick`
+marked `Update`, then again with every file at the job's end. `<C-g>` tells the pick's callback
 `all`, and the module lists the files again (B321).
 
 Matching uses fzy's algorithm, as `matchfuzzy()` does, so the ranking is
