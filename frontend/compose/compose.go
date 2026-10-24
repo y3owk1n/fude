@@ -391,12 +391,13 @@ func (p *Composer) Compose(g *Grid, v wire.Window, o Options) Composed {
 						last.marks = append(last.marks, [2]int{v.X + x, y})
 					}
 					// Other sessions' selections draw underlined, and their
-					// cursors draw as cells, in their colours (B253).
+					// cursors draw as cells, in their colours, except under
+					// this session's own (B253).
 					for _, o := range v.Others {
 						if o.Selection != nil && selected(*o.Selection, at, col) {
 							style = underlined(style, p.presence(o.Colour))
 						}
-						if at == o.Cursor {
+						if at == o.Cursor && !cursor {
 							style = withFg(withBg(base, p.presence(o.Colour)), th.Bg)
 						}
 					}
@@ -475,7 +476,7 @@ func (p *Composer) Compose(g *Grid, v wire.Window, o Options) Composed {
 					last.marks = append(last.marks, [2]int{v.X + x, y})
 				}
 				for _, o := range v.Others {
-					if i == lastRow && o.Cursor == end && x < v.W {
+					if i == lastRow && o.Cursor == end && x < v.W && !(v.Current && v.Cursor == end) {
 						g.Put(v.X+x, y, " ", withBg(base, p.presence(o.Colour)))
 					}
 				}

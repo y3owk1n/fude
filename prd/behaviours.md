@@ -2793,7 +2793,9 @@ Where fude departs, the line says so and cites the departure in
 - B253 [7] A window shows the cursor of each other session whose current
   window shows its buffer, as a cell in that session's colour, and that
   session's selection underlined in it. The window's status line names
-  those sessions, each in its colour.
+  those sessions, each in its colour. A session with a float or the
+  finder open counts as in the window under it. On the same cell, the
+  session's own cursor shows over another's.
 - B254 [7] A guest's session takes the keymaps, leader and window
   options of `config.toml` on the guest's machine, never the host's, and
   its leader stands for `<Leader>` in plugins' keys too. The guest's

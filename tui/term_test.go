@@ -35,6 +35,7 @@ import (
 	completionmod "github.com/y3owk1n/fude/modules/completion"
 	filesmod "github.com/y3owk1n/fude/modules/files"
 	guidesmod "github.com/y3owk1n/fude/modules/guides"
+	helpmod "github.com/y3owk1n/fude/modules/help"
 	hintsmod "github.com/y3owk1n/fude/modules/hints"
 	lspmod "github.com/y3owk1n/fude/modules/lsp"
 	sessionsmod "github.com/y3owk1n/fude/modules/sessions"
@@ -1900,6 +1901,8 @@ func TestB253Presence(t *testing.T) {
 	}
 	c := startWith(t, "", path)
 	host := c.e.(*editor.Session)
+	host.Use(windowmod.New())
+	host.Use(helpmod.New())
 	other := host.Attach("agent", editor.Host)
 	for _, k := range vim.Keys("jwvl") {
 		other.Feed(k)
@@ -1925,6 +1928,35 @@ func TestB253Presence(t *testing.T) {
 	c.draw()
 	if _, s, _ := c.s.Get(11, 1); s.GetBackground() != colour {
 		t.Errorf("the other session's cursor after the line has the ground %v, want %v", s.GetBackground(), colour)
+	}
+	// On the host's cursor, the host's own shows.
+	for _, k := range vim.Keys("<Esc>gg0") {
+		other.Feed(k)
+	}
+	c.draw()
+	if _, s, _ := c.s.Get(0, 0); s.GetBackground() == colour {
+		t.Error("the other session's cursor covers the host's own")
+	}
+	// The same holds when the host's cursor moves onto the other's.
+	for _, k := range vim.Keys("w") {
+		other.Feed(k)
+	}
+	c.draw()
+	for _, k := range vim.Keys("w") {
+		host.Feed(k)
+	}
+	c.draw()
+	if _, s, _ := c.s.Get(6, 0); s.GetBackground() == colour {
+		t.Error("the other session's cursor covers the host's own moved onto it")
+	}
+	// A float it opens leaves its cursor and name in the window under it.
+	for _, k := range vim.Keys("j:window float help<CR>") {
+		other.Feed(k)
+	}
+	editortest.Settle(t, other, func() bool { return len(other.Windows()) == 2 })
+	c.draw()
+	if _, s, _ := c.s.Get(6, 1); s.GetBackground() != colour || !strings.Contains(c.row(39), "agent") {
+		t.Errorf("with a float open, the other session's cursor has the ground %v and the status line is %q", s.GetBackground(), c.row(39))
 	}
 }
 

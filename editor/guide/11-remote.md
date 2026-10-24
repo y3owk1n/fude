@@ -69,7 +69,8 @@ next. `:who` lists the guests, and `:kick name` ends one's session.
 Others see you by `$USER`, or by the name `--name` gives, as in
 `fude join --name kyle <string>`. A window shows the
 cursor of each other session on its file as a cell in that session's
-colour, with its selection underlined, and its status line names them. A
+colour, with its selection underlined, and its status line names them.
+On the same cell, your cursor shows over theirs. A
 guest's keymaps, leader, window options and theme come from
 `config.toml` on its own machine. `fude join --read-only` asks to only
 watch, so the guest's session changes no text. `:follow name` keeps your

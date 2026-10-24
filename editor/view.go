@@ -385,15 +385,17 @@ func ruler(b *buffer, t kernel.Snapshot, c, top, rows, tab int, rowsOf func(int)
 }
 
 // others returns the other sessions whose current window shows b, with
-// their cursors and selections (B253).
+// their cursors and selections (B253). A session with a float or the
+// finder open shows where it is in the window under it.
 func (e *Session) others(b *buffer) []wire.Other {
 	var out []wire.Other
 	for _, s := range e.sessions {
-		if s == e || s.win.buf != b {
+		w := s.under()
+		if s == e || w.buf != b {
 			continue
 		}
-		o := wire.Other{Name: s.label(), Colour: s.colour, Cursor: s.win.pos()}
-		if sel, ok := s.Selection(); ok {
+		o := wire.Other{Name: s.label(), Colour: s.colour, Cursor: w.pos()}
+		if sel, ok := s.Selection(); ok && w == s.win {
 			o.Selection = &sel
 		}
 		out = append(out, o)
