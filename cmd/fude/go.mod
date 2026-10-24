@@ -7,9 +7,9 @@ go 1.27.0
 // release together, which the release pull request sets. In the workspace
 // they come from the checkout.
 require (
-	github.com/y3owk1n/fude v0.3.0 // x-release-please-version
-	github.com/y3owk1n/fude/frontend v0.3.0 // x-release-please-version
-	github.com/y3owk1n/fude/plugin v0.3.0 // x-release-please-version
+	github.com/y3owk1n/fude v0.3.1 // x-release-please-version
+	github.com/y3owk1n/fude/frontend v0.3.1 // x-release-please-version
+	github.com/y3owk1n/fude/plugin v0.3.1 // x-release-please-version
 )
 
 require (
@@ -36,11 +36,11 @@ require (
 	github.com/tree-sitter/go-tree-sitter v0.25.0 // indirect
 	github.com/tree-sitter/tree-sitter-go v0.25.0 // indirect
 	github.com/xo/terminfo v1.2.0 // indirect
-	github.com/y3owk1n/fude/api v0.3.0 // indirect; x-release-please-version
-	github.com/y3owk1n/fude/core v0.3.0 // indirect; x-release-please-version
-	github.com/y3owk1n/fude/protocol v0.3.0 // indirect; x-release-please-version
-	github.com/y3owk1n/fude/syntax v0.3.0 // indirect; x-release-please-version
-	github.com/y3owk1n/fude/vim v0.3.0 // indirect; x-release-please-version
+	github.com/y3owk1n/fude/api v0.3.1 // indirect; x-release-please-version
+	github.com/y3owk1n/fude/core v0.3.1 // indirect; x-release-please-version
+	github.com/y3owk1n/fude/protocol v0.3.1 // indirect; x-release-please-version
+	github.com/y3owk1n/fude/syntax v0.3.1 // indirect; x-release-please-version
+	github.com/y3owk1n/fude/vim v0.3.1 // indirect; x-release-please-version
 	golang.org/x/sync v0.24.0 // indirect
 	golang.org/x/sys v0.49.0 // indirect
 	golang.org/x/term v0.47.0 // indirect
