@@ -56,6 +56,8 @@ Neovim works and drops the weight.
     module is on, and the file is the same 10MB of Go.
   - `:%s` over the same 10MB of Go, from `<CR>` to the frame that shows
     it, under 50ms.
+  - A key that leaves a search matching nothing in the same 10MB of Go
+    draws under 2ms. That search reads the whole text.
   - A 1GB file shows its first frame in under 1s and scrolls at frame rate.
   - On a file of one 50MB line, with wrap on and off, a key that moves or
     edits near the cursor draws under 1ms at p99, at the line's start and

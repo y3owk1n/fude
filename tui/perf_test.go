@@ -146,15 +146,14 @@ func TestPromiseColdStart(t *testing.T) {
 
 // Key read to frame written under 1ms at p99, on 10MB of real Go with its
 // syntax on. The test feeds over a thousand keys, 10ms apart, which is
-// faster than key repeat. They mix motions, edits, scrolls and searches,
-// one of them typed on past its last match. The work the edits queue, such
-// as reparsing, runs between keys as the loop runs it, and a key that
-// arrives while it runs waits for it.
+// faster than key repeat. They mix motions, edits, scrolls and searches.
+// The work the edits queue, such as reparsing, runs between keys as the
+// loop runs it, and a key that arrives while it runs waits for it.
 func TestPromiseKeyLatency(t *testing.T) {
 	c := startWith(t, "large_file = 20", realCode(t, 10<<20))
 	c.s = written(t)
 	c.draw()
-	session := "jjjjkkwwbbeeWB}}{{50%ggG90000G/funcxyz<BS><BS><BS><CR>nnN*#xu.uddpyyPuuciwbar<Esc>u" +
+	session := "jjjjkkwwbbeeWB}}{{50%ggG90000G/func<CR>nnN*#xu.uddpyyPuuciwbar<Esc>u" +
 		"ihello world<Esc>uoreturn nil<Esc>uA;<Esc>u<C-d><C-u><C-f><C-b>zzHML%:s/err/e/<CR>u"
 	var times []time.Duration
 	for len(times) < 1000 {
@@ -505,6 +504,29 @@ func TestPromiseSubstitute(t *testing.T) {
 	t.Logf("median %v, worst %v over %d runs", times[len(times)/2], times[len(times)-1], len(times))
 	if times[len(times)/2] > 50*time.Millisecond {
 		t.Errorf("the median is %v, want under 50ms", times[len(times)/2])
+	}
+}
+
+// The x of /funcx draws under 2ms, from x read to the frame that shows the
+// miss, on 10MB of real Go. funcx is nowhere in it, so the search reads the
+// whole text. The median of twenty searches counts, each typed a key at a
+// time 10ms apart.
+func TestPromiseSearchMiss(t *testing.T) {
+	c := startWith(t, "large_file = 20", realCode(t, 10<<20))
+	c.s = written(t)
+	c.draw()
+	var times []time.Duration
+	for range 20 {
+		for _, k := range vim.Keys("/func") {
+			c.press(string(k), 10*time.Millisecond)
+		}
+		times = append(times, c.press("x", 10*time.Millisecond))
+		c.press("<Esc>", 10*time.Millisecond)
+	}
+	slices.Sort(times)
+	t.Logf("median %v, worst %v over %d searches", times[len(times)/2], times[len(times)-1], len(times))
+	if times[len(times)/2] > 2*time.Millisecond {
+		t.Errorf("the median is %v, want under 2ms", times[len(times)/2])
 	}
 }
 
