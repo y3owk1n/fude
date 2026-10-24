@@ -32,6 +32,8 @@ var (
 	gtkUpdateSelection func(a uintptr)
 	gtkUpdateContents  func(a uintptr, change int32, start, end uint32)
 	gtkAnnounce        func(a uintptr, message string, priority int32)
+	gtkContextOf       func(a uintptr) uintptr
+	gTypeNameOf        func(o uintptr) string
 	gtkSetFocusable    func(w uintptr, on int32)
 	gtkGrabFocus       func(w uintptr) int32
 )
@@ -103,6 +105,8 @@ func loadAccess(gtk uintptr) {
 		{&gtkUpdateSelection, "gtk_accessible_text_update_selection_bound"},
 		{&gtkUpdateContents, "gtk_accessible_text_update_contents"},
 		{&gtkAnnounce, "gtk_accessible_announce"},
+		{&gtkContextOf, "gtk_accessible_get_at_context"},
+		{&gTypeNameOf, "g_type_name_from_instance"},
 	} {
 		purego.RegisterLibFunc(f.fn, gtk, f.name)
 	}
@@ -313,11 +317,23 @@ func (w *window) tell() {
 		}
 		if said := boxText(b.boxed); said != b.told.spoke {
 			b.told.spoke = said
-			if said != "" && textType != 0 {
+			if said != "" && textType != 0 && speaks(b.area) {
 				gtkAnnounce(b.area, said, 1)
 			}
 		}
 	}
+}
+
+// speaks reports whether area's assistive context is AT-SPI's, the one
+// that can announce. Without an accessibility bus GTK gives a test
+// context, which crashes on an announcement.
+func speaks(area uintptr) bool {
+	c := gtkContextOf(area)
+	if c == 0 {
+		return false
+	}
+	defer gObjectUnref(c)
+	return gTypeNameOf(c) == "GtkAtSpiContext"
 }
 
 // tellText tells of a change to an area's text and its cursor. Once an
