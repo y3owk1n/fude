@@ -301,6 +301,11 @@ func (f *finder) box(query string, cursor, width, height int) wire.Menu {
 	var list []listRow
 	selRow, lineW := 0, 1
 	for i, m := range f.matches {
+		// The list stops once it holds the selection, the rows shown and
+		// those a frontend gets.
+		if i > f.sel && len(list) >= max(listMost, f.first+rows) {
+			break
+		}
 		if path, line, _, _ := grepSpot(m); f.places {
 			if prev, _, _, _ := grepSpot(f.matches[max(i-1, 0)]); i == 0 || prev != path {
 				list = append(list, listRow{i, true})
