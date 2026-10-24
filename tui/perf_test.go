@@ -50,8 +50,12 @@ func code(t *testing.T, size int) string {
 // comments and unicode of real code.
 func realCode(t *testing.T, size int) string {
 	t.Helper()
+	root, err := exec.Command("go", "env", "GOROOT").Output()
+	if err != nil {
+		t.Fatalf("go env GOROOT: %v", err)
+	}
 	var b strings.Builder
-	err := filepath.WalkDir(filepath.Join(runtime.GOROOT(), "src"), func(path string, d fs.DirEntry, err error) error {
+	err = filepath.WalkDir(filepath.Join(strings.TrimSpace(string(root)), "src"), func(path string, d fs.DirEntry, err error) error {
 		switch {
 		case err != nil:
 			return err
