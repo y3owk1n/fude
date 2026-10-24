@@ -12,7 +12,7 @@ A modal editor for the terminal and a native window, built from Go libraries you
 
 macOS | Linux | Windows
 
-[Install](#install) | [Tour](#first-steps) | [Built in](#built-in) | [Window](#in-a-window) | [Together](#edit-together) | [Plugins](#plugins) | [Libraries](#build-on-fude) | [Speed](#speed)
+[Install](#install) | [Tour](#first-steps) | [Built in](#built-in) | [Recover](#nothing-is-lost) | [Window](#in-a-window) | [Together](#edit-together) | [Plugins](#plugins) | [Libraries](#build-on-fude) | [Speed](#speed)
 
 </div>
 
@@ -92,6 +92,12 @@ fude main.go
 | **Files** | Edit a folder as text, then `:w` to rename, create and delete |
 | **Terminal and tasks** | `:terminal`, and `:task` for just recipes, make targets and npm scripts |
 | **Look** | Dark and light themes, any base16 scheme, markdown drawn as it reads, images in kitty, Ghostty, WezTerm and iTerm2 |
+
+## Nothing is lost
+
+![two edits, fude killed before a save, the file on disk unchanged, and :recover bringing both edits back](demos/recover.gif)
+
+fude writes each edit to the file's timeline on disk as you make it, before any save. After a crash, opening the file again offers back every edit since the last save, and `:recover` restores them. `:timeline` lists each one, and edits you do not recover stay on the timeline as a branch.
 
 ## Where it drifts from Neovim
 

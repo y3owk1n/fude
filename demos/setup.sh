@@ -35,7 +35,7 @@ export XDG_DATA_HOME=$root/.local/share
 export XDG_RUNTIME_DIR=$root/run
 export GOMODCACHE=$modcache GOCACHE=$gocache
 export PATH=$root/bin:/usr/bin:/bin:/usr/sbin:/sbin
-export TERM=xterm-256color COLORTERM=truecolor
+export TERM=xterm-256color COLORTERM=truecolor SHELL=/bin/zsh
 # A clipboard of its own, so a recording never takes or leaves yours.
 printf '#!/bin/sh\ncat > %s/clipboard\n' $root > $root/bin/pbcopy
 printf '#!/bin/sh\ncat %s/clipboard\n' $root > $root/bin/pbpaste

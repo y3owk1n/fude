@@ -2,9 +2,9 @@
 
 Each tape records a clip in the README with
 [VHS](https://github.com/charmbracelet/vhs). `fude.tape` is the one at the
-top, and `together.tape` is two people in one fude, under Editing together.
-A recording writes the GIF to `demos/` and an MP4 to `demos/out/`, which
-git ignores.
+top, `recover.tape` is a crash and `:recover`, under Nothing is lost, and
+`together.tape` is two people in one fude, under Edit together. A recording
+writes the GIF to `demos/` and an MP4 to `demos/out/`, which git ignores.
 
 ## Record
 
@@ -14,6 +14,7 @@ From the repo root, with VHS, ttyd and ffmpeg on PATH, and tmux for
 ```sh
 just demo             # fude.tape
 just demo together    # together.tape
+just demo recover     # recover.tape
 ```
 
 Record one tape at a time. VHS keeps only the frames it captures, so a busy
