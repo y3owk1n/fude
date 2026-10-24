@@ -30,7 +30,8 @@ fude (筆) is a writing brush. It is an editor for people who already think in V
 - **Plugins can't freeze you.** They run as sandboxed WebAssembly with a time limit on every call.
 - **Nothing is lost.** Every edit lands on a branching timeline on disk, so a crash loses nothing and undo never drops a branch.
 - **Fast, and tested to stay fast.** A key draws in under 1ms at p99 on 10MB of Go, and a test fails when it doesn't.
-- **A library too.** The kernel, the Vim grammar, the syntax and the LSP and DAP clients are Go modules you can import.
+- **In a terminal or a window.** The same editor runs in any true colour terminal, or in the system's own window on macOS, Linux and Windows.
+- **A library too.** The kernel, the Vim grammar, the syntax, the LSP and DAP clients, and the session a frontend draws are Go modules you can import.
 
 ## Install
 
@@ -107,10 +108,18 @@ Neovim is the reference, and fude departs only where that is better. [`prd/decis
 
 `fude --gui` opens fude in the system's own window: AppKit on macOS, GTK 4 on Linux and Win32 with DirectWrite on Windows. `fude share`, `attach` and `join` take `--gui` too.
 
-- **Native chrome.** Buffers are tabs in the title bar, and splits are the system's split views. The command line, the finder and menus show in panels, in the system's font and icons.
+- **Native chrome.** Buffers are tabs in the title bar, and splits are the system's split views. The lists of the palette, the finder and menus are the system's tables, and on macOS and Linux the status bars are the system's labels.
 - **The mouse.** Click, drag, double and triple click, drag a selection to move it, rest on a word for its hover, and hold Command or Control to go to a definition.
 - **Input methods and the clipboard.** Composed text shows at the cursor, and the system's copy and paste work.
 - **Screen readers.** VoiceOver, Orca and Narrator read each window's text with its cursor and selection, and the status bars, the palette, menus and tabs. They speak each message as it shows.
+
+`[gui]` in the config sets the window's font. The text takes the first family in `font` that the system has, so one config works on every system.
+
+```toml
+[gui]
+font = ["JetBrains Mono", "Menlo", "Cascadia Mono"]
+font_size = 13
+```
 
 ## Edit together
 
@@ -181,13 +190,15 @@ Every layer is a Go module with a small API, and the editor uses each one the wa
 | [`syntax`](syntax) | tree-sitter highlighting and syntax text objects | cgo |
 | [`protocol`](protocol) | LSP and DAP clients that never block your loop | The standard library |
 | [`api`](api), [`plugin`](plugin), [`sdk`](sdk) | The module API, the wasm plugin host and its Go SDK | wazero |
-| [`editor`](editor), [`modules`](modules) | The whole editor headless, and its 44 built-in modules | fude's root module |
+| [`frontend`](frontend) | A session to draw, in this process or another fude, the wire format, themes and windows composed into cells | `core` and `vim`, no cgo |
+| [`editor`](editor), [`modules`](modules) | The whole editor headless, and its 49 built-in modules | fude's root module |
+| [`tui`](tui), [`gui`](gui) | The terminal client and the native window, both frontends of `client.Session` | fude's root module, plus tcell for the terminal and purego for the window |
 
 ```sh
 go get github.com/y3owk1n/fude/core github.com/y3owk1n/fude/vim
 ```
 
-A distribution of your own is a list of modules handed to `editor.Use`. Each package's README shows how to start.
+A distribution of your own is a list of modules handed to `editor.Use`. A frontend of your own gets its `client.Session` from the editor in the same process, or from `client.Attach` to a running fude. Each package's README shows how to start.
 
 ## Speed
 
@@ -237,7 +248,7 @@ fude follows [Neovim](https://neovim.io) and [Vim](https://www.vim.org) for how 
 <details>
 <summary>Built on, and following</summary>
 
-fude is built on [tcell](https://github.com/gdamore/tcell), [wazero](https://github.com/tetratelabs/wazero), [tree-sitter](https://tree-sitter.github.io) and its [Go binding](https://github.com/tree-sitter/go-tree-sitter) with every grammar's authors, [go-toml](https://github.com/pelletier/go-toml), [uax29](https://github.com/clipperhouse/uax29), [displaywidth](https://github.com/clipperhouse/displaywidth), [charmbracelet/x/vt](https://github.com/charmbracelet/x), [go-colorful](https://github.com/lucasb-eyer/go-colorful), [go-pointer](https://github.com/mattn/go-pointer), Go's [x](https://pkg.go.dev/golang.org/x) packages, [TinyGo](https://tinygo.org) and [Binaryen](https://github.com/WebAssembly/binaryen).
+fude is built on [tcell](https://github.com/gdamore/tcell), [purego](https://github.com/ebitengine/purego), [wazero](https://github.com/tetratelabs/wazero), [tree-sitter](https://tree-sitter.github.io) and its [Go binding](https://github.com/tree-sitter/go-tree-sitter) with every grammar's authors, [go-toml](https://github.com/pelletier/go-toml), [uax29](https://github.com/clipperhouse/uax29), [displaywidth](https://github.com/clipperhouse/displaywidth), [charmbracelet/x](https://github.com/charmbracelet/x) and [ultraviolet](https://github.com/charmbracelet/ultraviolet), [go-colorful](https://github.com/lucasb-eyer/go-colorful), [go-pointer](https://github.com/mattn/go-pointer), Go's [x](https://pkg.go.dev/golang.org/x) packages, [TinyGo](https://tinygo.org) and [Binaryen](https://github.com/WebAssembly/binaryen).
 
 Much of it follows a project that did it first: [oil.nvim](https://github.com/stevearc/oil.nvim), [fff.nvim](https://github.com/dmtrKovalenko/fff), [which-key.nvim](https://github.com/folke/which-key.nvim), [gitsigns.nvim](https://github.com/lewis6991/gitsigns.nvim), [mini.diff](https://github.com/nvim-mini/mini.diff), [mini.icons](https://github.com/nvim-mini/mini.icons), [conform.nvim](https://github.com/stevearc/conform.nvim), [undo-glow.nvim](https://github.com/y3owk1n/undo-glow.nvim), [nvim-tmux-navigation](https://github.com/alexghergh/nvim-tmux-navigation), [fzy](https://github.com/jhawthorn/fzy), [CodeMirror's collab module](https://codemirror.net/examples/collab/), [base16](https://github.com/chriskempson/base16), [Tinted Theming](https://github.com/tinted-theming), [stylix](https://github.com/nix-community/stylix), [Helix](https://helix-editor.com) and [Zed](https://zed.dev). `:pick grep` runs [ripgrep](https://github.com/BurntSushi/ripgrep), and [just](https://github.com/casey/just) and [oku](https://github.com/y3owk1n/oku) run fude's development.
 
