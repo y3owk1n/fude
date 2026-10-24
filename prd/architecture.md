@@ -1368,7 +1368,9 @@ callback runs once, after its delay. A job is a program or a get with no
 budget, which `Plugin.Work` runs through the same checks as `run` and
 `http_get`, at most 8 at once for a plugin. fude runs a stream job's
 callback with each line its program prints, as it prints it, and once more
-at its end with `done` true (B339). A `Fed` stream job's program keeps
+at its end with `done` true (B339). The callback is about the current
+buffer, or the one under the finder, whose query is no buffer the
+listener knows (B291). A `Fed` stream job's program keeps
 its stdin open. The editor keeps each running stream job on its
 listener. It hands the text of each `Send` to the job's `Work` on
 `Job.Feed`, from a goroutine that waits for the one before. So the text

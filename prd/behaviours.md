@@ -2242,8 +2242,9 @@ Where fude departs, the line says so and cites the departure in
   module answers, ranked against the word typed, unless the command line
   changed meanwhile.
 - B291 [4] A module runs its own long work as a stream job. Each line
-  it hands fude runs its callback, about the buffer current then, and
-  the end of the work runs it once more. A module decorates any open
+  it hands fude runs its callback, about the buffer current then, or
+  the one under the finder while the finder shows, and the end of the
+  work runs it once more. A module decorates any open
   buffer by id and reads its decorations on every buffer. A sign it puts
   over shows over a diagnostic's. It jumps to a line and column of a
   file, in a window that shows a file. A window it shows has keys of its

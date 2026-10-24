@@ -744,7 +744,7 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 			j.Emit = func(line string) {
 				e.queue <- func() {
 					if slices.Contains(e.modules, p) {
-						l.add(event{buf: e.win.buf, id: j.ID, extra: api.Context{"output": line}, from: e})
+						l.add(event{buf: e.streamBuf(), id: j.ID, extra: api.Context{"output": line}, from: e})
 					}
 				}
 			}
@@ -786,7 +786,7 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 				e.working--
 				about := b
 				if j.Stream {
-					about = e.win.buf
+					about = e.streamBuf()
 					if l.streams[j.ID] == st {
 						delete(l.streams, j.ID)
 					}
@@ -1687,6 +1687,16 @@ func (e *Session) moduleConfirm(p api.Module, b *buffer, c *api.Confirm, save *s
 		return
 	}
 	e.confirm(c.Question, tell)
+}
+
+// streamBuf is the buffer a stream's callback is about, the current one.
+// The finder's query is no buffer of the session, so while it shows the
+// callback is about the buffer under it (B291).
+func (e *Session) streamBuf() *buffer {
+	if b := e.win.buf; slices.Contains(e.bufs, b) {
+		return b
+	}
+	return e.under().buf
 }
 
 // showPick shows pk, a list or question of p about b, in the finder, or gives
