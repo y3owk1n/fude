@@ -1,6 +1,7 @@
-// Package start shows the start screen of fude started with no file: what
-// each key does, the recent files, and the working directory's session
-// when it has one (B225, B226).
+// Package start shows the start screen of fude started with no file: fude's
+// version, what each key does, the recent files, and the working
+// directory's session when it has one (B225, B226). :version shows the
+// version too (B349).
 package start
 
 import (
@@ -20,6 +21,7 @@ import (
 const (
 	open uint32 = iota + 1
 	config
+	version
 	recentFile
 )
 
@@ -57,6 +59,7 @@ func (m *Module) Registered() []api.Registration {
 		{Kind: api.Option, Name: "enabled", Default: "true", Help: "fude started with no file shows the start screen"},
 		{Kind: api.Plug, Name: "open", Help: "runs the start screen's line under the cursor", ID: open},
 		{Kind: api.Plug, Name: "config", Help: "opens config.toml", ID: config},
+		{Kind: api.Command, Name: "version", Help: "shows the version of fude that runs", ID: version},
 	}
 	for n := 1; n <= 9; n++ {
 		regs = append(regs, api.Registration{Kind: api.Plug, Name: strconv.Itoa(n), Help: "opens the start screen's recent file " + strconv.Itoa(n), ID: recentFile + uint32(n-1)})
@@ -67,7 +70,7 @@ func (m *Module) Registered() []api.Registration {
 func (m *Module) Init(context.Context, api.Scope) (api.Result, error) { return api.Result{}, nil }
 
 // Call runs the key at the start of the line under the cursor, opens
-// config.toml, or opens a recent file.
+// config.toml, shows fude's version, or opens a recent file.
 func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (api.Result, error) {
 	switch id {
 	case open:
@@ -93,6 +96,8 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 			return api.Result{Error: fmt.Sprintf("config.toml: %v", err)}, nil
 		}
 		return api.Result{Jump: &api.Jump{Path: filepath.Join(dir, "config.toml")}}, nil
+	case version:
+		return api.Result{Message: "fude " + s.About["version"]}, nil
 	}
 	// The list is the start screen's, from any window (B225).
 	recent, err := recentFiles()
@@ -141,13 +146,13 @@ func (m *Module) Event(_ context.Context, _ string, s api.Scope) (api.Result, er
 			list = append([][2]string{{"s", "restore the last session here"}}, list...)
 		}
 	}
-	res.Show = screen(list, recent)
+	res.Show = screen(s.About["version"], list, recent)
 	return res, nil
 }
 
-// screen is the start screen: fude's name, a line for each of list's keys,
-// and the recent files, numbered.
-func screen(list [][2]string, recent []string) *api.Panel {
+// screen is the start screen: fude's name and version v, a line for each of
+// list's keys, and the recent files, numbered.
+func screen(v string, list [][2]string, recent []string) *api.Panel {
 	var b strings.Builder
 	var spans []api.Span
 	mark := func(text, style string) {
@@ -156,6 +161,10 @@ func screen(list [][2]string, recent []string) *api.Panel {
 	}
 	b.WriteString("\n   ")
 	mark("fude 筆", "markup.heading")
+	if v != "" {
+		b.WriteString("  ")
+		mark(v, "comment")
+	}
 	b.WriteString("\n\n")
 	cursor := b.Len() + 3
 	for _, a := range list {

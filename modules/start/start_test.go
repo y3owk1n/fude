@@ -27,6 +27,7 @@ func TestB225StartScreen(t *testing.T) {
 	e.Use(files.New())
 	e.Use(buffers.New())
 	e.SetSize(80, 24)
+	e.SetVersion("v1.2.3")
 	abs, err := filepath.Abs("a.txt")
 	if err != nil {
 		t.Fatal(err)
@@ -40,13 +41,13 @@ func TestB225StartScreen(t *testing.T) {
 	if editortest.Feed(e, ":enew<CR>Q"); e.Windows()[0].Name != "a.txt" {
 		t.Errorf("<Plug>(start.1) opened %q and said %q", e.Windows()[0].Name, e.Message())
 	}
-	// The start screen lists the actions, then the recent files, without
-	// line numbers.
+	// The start screen shows fude's version, lists the actions, then the
+	// recent files, without line numbers.
 	editortest.Feed(e, ":set number true<CR>:enew<CR>")
 	e.Welcome()
 	editortest.Settle(t, e, func() bool {
 		got := editortest.Text(e)
-		return strings.Contains(got, "f  find a file") && strings.Contains(got, "q  quit") && strings.Contains(got, "1  a.txt")
+		return strings.Contains(got, "fude 筆  v1.2.3") && strings.Contains(got, "f  find a file") && strings.Contains(got, "q  quit") && strings.Contains(got, "1  a.txt")
 	})
 	if e.Windows()[0].Number {
 		t.Error("the start screen shows line numbers")
@@ -79,5 +80,15 @@ func TestB225StartScreen(t *testing.T) {
 	editortest.Quiet(t, e)
 	if got := editortest.Text(e); got != "" {
 		t.Errorf("with start.enabled off, the window shows %q", got)
+	}
+}
+
+// B349
+func TestB349Version(t *testing.T) {
+	e := editortest.Start(t)
+	e.Use(start.New())
+	e.SetVersion("v1.2.3")
+	if editortest.Feed(e, ":version<CR>"); e.Message() != "fude v1.2.3" {
+		t.Errorf(":version said %q", e.Message())
 	}
 }

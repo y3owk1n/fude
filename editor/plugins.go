@@ -1539,14 +1539,14 @@ func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 
 // about is what a call about b tells the plugin through context: the
 // buffer's id, path and filetype, the mode (B176), its indent and tab
-// widths (B280), and the session by its id (B332).
+// widths (B280), the session by its id (B332), and fude's version (B349).
 func (e *Session) about(b *buffer) api.Context {
 	return api.Context{
 		"buffer": strconv.Itoa(b.id), "path": b.file.path, "filetype": e.filetype(b), "mode": modes[e.vim.Mode()],
 		"power": powers[e.power], "session": strconv.Itoa(e.id),
 		"servers": strings.Join(serverNames(b.servers), ","),
 		"indent":  strconv.Itoa(e.indentWidth(b)), "tab": strconv.Itoa(e.tabWidth(b)),
-		"cwd": e.wd, "project": e.project,
+		"cwd": e.wd, "project": e.project, "version": e.version,
 	}
 }
 

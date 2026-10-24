@@ -69,6 +69,7 @@ type Editor struct {
 	failed            map[string]string                          // by filetype, why its grammar did not build this session
 	started           bool                                       // Load ran, so new buffers attach to servers at once
 	project           string                                     // the directory fude started in, symlinks resolved (B243)
+	version           string                                     // the version of fude that runs, which :version shows (B349)
 	wd                string                                     // the working directory, which :cd changes (B340)
 	share             *share                                     // the guests' listener, while fude shares (B248)
 	socket            string                                     // where Serve listens, for a :terminal's FUDE_SOCKET (B355)
@@ -1160,6 +1161,10 @@ func (e *Session) Suspend() bool {
 
 // SetName names the session, as --name does (B252).
 func (e *Session) SetName(name string) { e.name = name }
+
+// SetVersion sets the version of fude that runs, such as v0.1.0, which
+// fude version prints after fude's name (B349).
+func (e *Session) SetVersion(v string) { e.version = v }
 
 // label is the name others see the session by: its name, or else its
 // origin (B252).

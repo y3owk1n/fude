@@ -775,15 +775,16 @@ type Buffer struct {
 
 // Context is what a call is about, by name. Every call has buffer, path
 // and filetype, of the buffer it is about, and mode. It also has cwd, the
-// working directory, and project, the directory fude started in. cursor is
-// where the cursor is in that buffer, in the current window or else in the
-// first window that shows it. A call about a buffer no window shows has no
-// cursor (B340). In a command's call, command is the name it was typed by,
-// args is the text typed after its name, and bang is true when ! followed
-// the name. first and last are where its range's first and last lines
-// start, and ranged is true when it was given a range. A buffer with a
-// title, such as a panel, has title. view is the text the current window
-// shows when it shows the buffer, which View reads.
+// working directory, project, the directory fude started in, and version,
+// the version of fude that runs, such as v0.1.0. cursor is where the cursor
+// is in that buffer, in the current window or else in the first window
+// that shows it. A call about a buffer no window shows has no cursor
+// (B340). In a command's call, command is the name it was typed by, args is
+// the text typed after its name, and bang is true when ! followed the name.
+// first and last are where its range's first and last lines start, and
+// ranged is true when it was given a range. A buffer with a title, such as
+// a panel, has title. view is the text the current window shows when it
+// shows the buffer, which View reads.
 type Context map[string]string
 
 // View returns the text the current window shows, when it shows the

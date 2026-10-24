@@ -569,6 +569,11 @@ Undoes one change, as `u` does.
 "|ab" "x:undo<CR>" "|ab"
 ```
 
+## :version
+
+Shows in the message line the version of fude that runs, as `fude version`
+prints it. The start screen shows the version beside fude's name.
+
 ## :vglobal
 
 Runs the command on each line that does not match the pattern, as

@@ -35,7 +35,7 @@ Where fude departs, the line says so and cites the departure in
   (eda0e6e)`, with `, modified` after the commit when it had uncommitted
   changes, or `fude (devel)` when the build does not know them (D52). A
   build oku makes from source prints the same as the release or commit it
-  built.
+  built. `:version` shows the same in the message line.
 - B350 [1] The first word after `fude` that is not a flag names a
   subcommand, or else a file to open. Flags may come before or after the
   words, and `--` ends them, so `fude -- tail` opens the file `tail`. A
@@ -296,8 +296,8 @@ Where fude departs, the line says so and cites the departure in
   oil.nvim's keys do. B142 changes these keys.
 - B225 [2] `fude` with no file, when not restarting, shows a start screen
   in place of the empty buffer, unless `start.enabled` is off. Under
-  fude's name, a line for each key
-  says what it does. `f` runs `:pick files`, `g` runs `:pick grep`, `r`
+  fude's name and version, as `fude version` prints them, a line for each
+  key says what it does. `f` runs `:pick files`, `g` runs `:pick grep`, `r`
   runs `:pick recent`, `e` opens an empty buffer, `c` opens config.toml
   and `q` quits. The 9 newest recent files under the working directory
   follow, numbered, or the 9 newest anywhere when it has none, with `~`

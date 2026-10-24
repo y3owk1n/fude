@@ -70,7 +70,7 @@ func run(args []string) error {
 			return usage(cmd)
 		}
 		if cmd == "version" {
-			fmt.Println(version())
+			fmt.Println("fude " + version())
 			return nil
 		}
 		help()
@@ -231,14 +231,14 @@ var build string
 // the date and commit it was built from (B349).
 func version() string {
 	if build != "" {
-		return "fude " + build
+		return build
 	}
 	vcs := map[string]string{}
 	if info, ok := debug.ReadBuildInfo(); ok {
 		// A build by go install of a release, as the release workflow makes,
 		// knows its version.
 		if v := info.Main.Version; v != "" && v != "(devel)" {
-			return "fude " + v
+			return v
 		}
 		for _, s := range info.Settings {
 			vcs[s.Key] = s.Value
@@ -246,9 +246,9 @@ func version() string {
 	}
 	rev, at := vcs["vcs.revision"], vcs["vcs.time"]
 	if len(rev) < 7 || len(at) < 10 {
-		return "fude (devel)"
+		return "(devel)"
 	}
-	v := "fude " + strings.ReplaceAll(at[:10], "-", ".") + " (" + rev[:7]
+	v := strings.ReplaceAll(at[:10], "-", ".") + " (" + rev[:7]
 	if vcs["vcs.modified"] == "true" {
 		v += ", modified"
 	}
@@ -540,6 +540,7 @@ func edit(cmd string, words []string, flags map[string]string, remove func()) er
 		e.Use(m)
 	}
 	e.SetName(name(flags))
+	e.SetVersion(version())
 	if _, ok := flags["-d"]; ok {
 		e.Diff()
 	}
