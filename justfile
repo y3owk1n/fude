@@ -68,9 +68,29 @@ demo tape="fude":
 
 # Check the speed and memory promises, without the race detector, one
 # package at a time so none slows another's timings.
-perf:
+perf: quiet
     go test -count=1 -p 1 -v -run Promise ./tui/ ./editor/
     cd cmd/fude && go test -count=1 -v -run Promise .
+
+# Fail when the Mac is too busy to time fude. A locked screen slows every
+# process. Over a fifth of the CPU in use moves fude onto slower cores and
+# takes the CPU from it mid-key. It samples one second before the run, so
+# load that starts during the run still shows in the timings.
+quiet:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    [ "$(uname)" = Darwin ] || exit 0
+    locked=$(ioreg -n Root -d1 -a | grep -A1 CGSSessionScreenIsLocked || true)
+    if [[ $locked == *true* ]]; then
+        echo "the screen is locked, which slows the timings. Rerun just perf with it unlocked." >&2
+        exit 1
+    fi
+    idle=$(top -l 2 -n 0 -s 1 | awk '/CPU usage/ { idle = $7 } END { print int(idle) }')
+    if [ "$idle" -lt 80 ]; then
+        echo "the CPU is $((100 - idle))% busy, and the timings need it under 20%. Rerun just perf when these are done:" >&2
+        ps -A -r -o pcpu=,comm= | awk 'NR <= 3' >&2
+        exit 1
+    fi
 
 # Tidy cmd/fude's go.mod against the checkout, and fail if that changed it.
 # go install of a release takes the versions go.mod lists, and the newest
