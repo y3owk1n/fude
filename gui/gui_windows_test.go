@@ -723,6 +723,7 @@ var (
 	keyboardState        = user32.NewProc("GetKeyboardState")
 	setKeyboardState     = user32.NewProc("SetKeyboardState")
 	setCursorPos         = user32.NewProc("SetCursorPos")
+	peekMessage          = user32.NewProc("PeekMessageW")
 	focusOf              = user32.NewProc("GetFocus")
 	windowLong           = user32.NewProc("GetWindowLongPtrW")
 	wic                  unsafe.Pointer
@@ -748,7 +749,8 @@ func typeIn(w *window, keys string) {
 
 // mouseAt sends w's window the mouse's message m at a point, with the
 // system's pointer there, as Windows tracks it. The window stays on top,
-// so no other window is under the pointer.
+// so no other window is under the pointer. mouseAt drops the system's own
+// move to the point, which would come after m and drag a held button back.
 func mouseAt(w *window, m uint32, wp uintptr, at point) {
 	onMain(func() {
 		call(setWindowPos, w.hwnd, ^uintptr(0), 0, 0, 0, 0, 0x13)
@@ -756,6 +758,9 @@ func mouseAt(w *window, m uint32, wp uintptr, at point) {
 		lp := uintptr(uint16(pt[0])) | uintptr(uint16(pt[1]))<<16
 		call(clientToScreen, w.hwnd, uintptr(unsafe.Pointer(&pt)))
 		call(setCursorPos, uintptr(pt[0]), uintptr(pt[1]))
+		var moved msg
+		for call(peekMessage, uintptr(unsafe.Pointer(&moved)), w.hwnd, wmMouseMove, wmMouseMove, 1) != 0 {
+		}
 		call(sendMessage, w.hwnd, uintptr(m), wp, lp)
 	}, true)
 }
