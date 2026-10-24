@@ -1,5 +1,89 @@
 # Changelog
 
+## [0.3.0](https://github.com/y3owk1n/fude/compare/v0.2.1...v0.3.0) (2026-10-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* **api:** a window's height is its text rows, without its status line
+
+### Features
+
+* **api:** a module's message may be an alert, which the window notifies of while away ([1c41ca5](https://github.com/y3owk1n/fude/commit/1c41ca5f8f275bc98242f3bc2797a0140b243dd3))
+* **api:** the tabline module lists the tab pages on the top row, beside the buffers ([4b22ad3](https://github.com/y3owk1n/fude/commit/4b22ad3d51b24f8b43c56e959aa7f58ceb147646))
+* **cli:** --gui shows fude, a share, an attach or a join in a native window ([1742db9](https://github.com/y3owk1n/fude/commit/1742db972c9f0b7c22f5e99eb8282f4f3392b155))
+* **client:** a frontend may place windows, and frames carry the layout ([36c52d6](https://github.com/y3owk1n/fude/commit/36c52d60c86f91a19aee2014e5ffd75be0453e23))
+* **follow:** a follower copies zoom and tab pages, and says whom it follows ([3d86a18](https://github.com/y3owk1n/fude/commit/3d86a182d5c9abe6ddb7396cafc6133afab47179))
+* **gui:** --gui on Linux opens a GTK 4 window ([3e60623](https://github.com/y3owk1n/fude/commit/3e60623a6234bae572bfd286a5516d0eb18e3495))
+* **gui:** --gui on Windows opens a Win32 window ([73e9836](https://github.com/y3owk1n/fude/commit/73e9836200214dde820fbafd8347c72a75334740))
+* **gui:** a native title bar and status bars on macOS ([679a4f0](https://github.com/y3owk1n/fude/commit/679a4f0940e69ac504d85bc4f049320f55d615e9))
+* **gui:** a word under Command is a link to its definition ([9dfef1a](https://github.com/y3owk1n/fude/commit/9dfef1ada005754ca55a69b523f3f2ff239c9153))
+* **gui:** assistive apps read the window on Linux ([5a6e1f1](https://github.com/y3owk1n/fude/commit/5a6e1f16e3fd5cf844a5ee821c876af9fd34423a))
+* **gui:** assistive apps read the window on macOS ([c70e318](https://github.com/y3owk1n/fude/commit/c70e3184cf337455969097438186ce803c6f8b54))
+* **gui:** assistive apps read the window on Windows ([966dca2](https://github.com/y3owk1n/fude/commit/966dca2b08e8b3f282c69f62bb22cd0e52579060))
+* **gui:** fude gui opens files in a native macOS window, through AppKit with purego ([17adad4](https://github.com/y3owk1n/fude/commit/17adad44d21e4ee3e3a779fc8c516aed745bd092))
+* **gui:** fude-gui.exe and a Start menu entry on Windows ([0231d70](https://github.com/y3owk1n/fude/commit/0231d70c0ee83573f2c427f5f8698683ad13ccdb))
+* **gui:** Fude.app, built by just app, in macOS releases and oku installs ([0ee0f16](https://github.com/y3owk1n/fude/commit/0ee0f162af52e9a47ee1ceacb20cbf6be38ff416))
+* **gui:** gui.font and gui.font_size set the window's text font ([c0234ba](https://github.com/y3owk1n/fude/commit/c0234ba7140c769418f89b036770bc0686c5f1e1))
+* **gui:** hover shows at the word the mouse rests on ([100aaa9](https://github.com/y3owk1n/fude/commit/100aaa9c9c01dcec4ebd5e21dd0bc09f906e36ce))
+* **gui:** images and scroll bars on Linux ([c85adda](https://github.com/y3owk1n/fude/commit/c85adda03552da5e9bfc2aeb0179f16c7c89fcd4))
+* **gui:** images and scroll bars on Windows ([6b20952](https://github.com/y3owk1n/fude/commit/6b20952e26a61226bdd2712a3c2f0859820682bd))
+* **gui:** input methods and notifications on Windows ([573bcad](https://github.com/y3owk1n/fude/commit/573bcad2b98877b8798dc68416f3142747e3c257))
+* **gui:** input methods type into the window, and the menus give Command keys their usual meanings ([95fe65d](https://github.com/y3owk1n/fude/commit/95fe65de4af4428526d6056cbfba5598b1011e0f))
+* **gui:** input methods, notifications and a launcher on Linux ([0d984b2](https://github.com/y3owk1n/fude/commit/0d984b2e95702f4b4405906b1aec982eb8de29ae))
+* **gui:** long documentation and floats scroll on macOS ([c3b8859](https://github.com/y3owk1n/fude/commit/c3b88596de613c100f32fdb540e34bd22942181a))
+* **gui:** menus carry their items, and the window shows them as native lists ([2d151c2](https://github.com/y3owk1n/fude/commit/2d151c28870593826282a285f209fe8fdaf49cdc))
+* **gui:** menus pick, scroll and close by mouse, and a dragged selection moves its text ([3bd9607](https://github.com/y3owk1n/fude/commit/3bd9607529a615304a31a7f1bef6b930b932e4b0))
+* **gui:** menus, key hints and floats show in boxes placed by their anchors ([a30bc48](https://github.com/y3owk1n/fude/commit/a30bc48a3fb56facdcf3403fe23bdbb240c64a97))
+* **gui:** right-click menus, scroll bars, smooth scrolling, a blinking caret, and lists that scroll and light under the mouse ([36a9f2b](https://github.com/y3owk1n/fude/commit/36a9f2b7934c527817ab8e627b7a96c0cb5144c7))
+* **gui:** splits are native split views with status bars, and the title bar holds the buffers as tabs ([6e529cd](https://github.com/y3owk1n/fude/commit/6e529cdfcbec7187c95950295db09f1cc5e04f66))
+* **gui:** tabs close, move and show changes under the mouse, files drop in, and :bmove moves a buffer ([9d28498](https://github.com/y3owk1n/fude/commit/9d284981f47d242f9e0923b8e6ef127a1ea615cf))
+* **gui:** terminals, text styles and images draw in the window, and the spinner turns ([098b114](https://github.com/y3owk1n/fude/commit/098b114109630b2f064b061c801929c4394f17c6))
+* **gui:** the chrome takes the system's materials, colours, font and symbols ([747eb3c](https://github.com/y3owk1n/fude/commit/747eb3c50efc64bd8427d4912294c8cfcd895af0))
+* **gui:** the command line, finder, messages and questions show in native boxes and sheets ([2afc828](https://github.com/y3owk1n/fude/commit/2afc8282f81502bd30bac481f4f6629bcafe6772))
+* **gui:** the finder's preview and floats scroll on Windows ([4e6bdd8](https://github.com/y3owk1n/fude/commit/4e6bdd880bfc50b29705dfb9680b3eb490f1a523))
+* **gui:** the header bar's own title and status bars of GTK labels on Linux ([c083a79](https://github.com/y3owk1n/fude/commit/c083a793d0de52bd855e20809afc682234faa8ae))
+* **gui:** the mouse clicks, drags, scrolls and picks tabs, and frontends give it to the session by cell ([3fd34d3](https://github.com/y3owk1n/fude/commit/3fd34d3ea23380b6a8cbd056131c86cc01f407f5))
+* **gui:** the mouse on Linux, with panes, boxes and the mouse's logic shared ([104ab12](https://github.com/y3owk1n/fude/commit/104ab125abee586f22b3612f242f066937b15291))
+* **gui:** the mouse on Windows ([40c09e6](https://github.com/y3owk1n/fude/commit/40c09e65c7f010015056cd3abd6472bf739fb436))
+* **gui:** the palette's, the finder's and menus' lists are GTK lists on Linux ([8c9d9e7](https://github.com/y3owk1n/fude/commit/8c9d9e7d204ee014d148c7890c59e681c9ab7778))
+* **gui:** the palette's, the finder's and menus' lists are list views on Windows ([130d590](https://github.com/y3owk1n/fude/commit/130d590b78ebfe34907f3586fb90c89e5137b65b))
+* **gui:** the palette's, the finder's and menus' lists are system tables on macOS ([4f1ac00](https://github.com/y3owk1n/fude/commit/4f1ac003e9b27b605aece95332c07c7ec683f269))
+* **gui:** the right-click menu shows what the window's servers offer ([90a0c7d](https://github.com/y3owk1n/fude/commit/90a0c7d71c52b990cd4021e1b68b0aa6d710322c))
+* **gui:** the system's own title bar without tabs on Windows ([37e0fa1](https://github.com/y3owk1n/fude/commit/37e0fa1f0f6d7d388d19d91d6e084b3b51ef046b))
+* **gui:** the tab strip, title and text size on Linux ([3120718](https://github.com/y3owk1n/fude/commit/31207181565b9998478c2ea34324ebcf442dd83d))
+* **gui:** the tab strip, title and text size on Windows ([5f8f4dd](https://github.com/y3owk1n/fude/commit/5f8f4dd7dc3b2b24e170a3f21f19fa5fc74afe54))
+* **gui:** the tab's × has a hover of its own, and the current page is raised ([e83475b](https://github.com/y3owk1n/fude/commit/e83475b87ea9407b7396af94438972fe502579be))
+* **gui:** the window takes the theme's look, shows unsaved changes and the file's icon, and sizes its text ([8d4eaae](https://github.com/y3owk1n/fude/commit/8d4eaae0bb71659881044bf4015c90931ac8269d))
+* **gui:** the window's own text takes gui.font's family ([512510d](https://github.com/y3owk1n/fude/commit/512510d1d3ca4f887c75263da2c81db407418646))
+* **vim:** tab pages, with gt, gT, &lt;C-w&gt;T and the :tab commands ([473a5c4](https://github.com/y3owk1n/fude/commit/473a5c4cb5d4c35d15fd657a445d85f28b83d48f))
+* **wire:** a frame's menu says where it goes ([6eb91e4](https://github.com/y3owk1n/fude/commit/6eb91e48aed50d39eef4c85d5b928f9d276b317e))
+
+
+### Bug Fixes
+
+* **finder:** a file's folder drops its trailing separator on Windows ([f56c894](https://github.com/y3owk1n/fude/commit/f56c894159dce7b543f2fbeba5373fa9239bae1f))
+* **gui:** a closed window no longer leaves Linux's theme colours to a freed widget ([ceaf3a5](https://github.com/y3owk1n/fude/commit/ceaf3a529436ae7edb46e17899902e5ef26ec9b1))
+* **gui:** a drag starts once the mouse reaches another cell ([64d810b](https://github.com/y3owk1n/fude/commit/64d810b22a424c3f759b9bb909213896fd3d825c))
+* **gui:** a glyph wider than its cell shows whole ([469f1d4](https://github.com/y3owk1n/fude/commit/469f1d44f66374fc125589453fe31aaec23eae9c))
+* **gui:** a scroll bar's fade no longer crashes once its pane is gone ([b81f78b](https://github.com/y3owk1n/fude/commit/b81f78b97bbe12b8db034b90574418f056cdbf80))
+* **gui:** a triple click keeps the line it selects ([102600a](https://github.com/y3owk1n/fude/commit/102600a616c28b599a12294e848a65188c5877f8))
+* **gui:** closing a window with its right-click menu open no longer crashes on Linux ([25afa2c](https://github.com/y3owk1n/fude/commit/25afa2cdb2f32573346854ed208bc1ca232f9aa0))
+* **gui:** no crash on Linux without an accessibility bus ([0234c87](https://github.com/y3owk1n/fude/commit/0234c877aebe312f777d276da14362e6c88fd2d7))
+* **gui:** no system title bar over the strip on Windows ([5f8044d](https://github.com/y3owk1n/fude/commit/5f8044d3336ecd37cc90ecc62292a0c4fac0df01))
+* **gui:** the status bars match on every system ([f782c1d](https://github.com/y3owk1n/fude/commit/f782c1d2437a684e3af285299cdc394720df761b))
+* **mouse:** a click closes the float and the menu at the cursor ([c01c5ee](https://github.com/y3owk1n/fude/commit/c01c5ee7f7971a294bba4a7fa7532226beaa00c5))
+* **oku:** put fude-gui.exe in bin on Windows builds ([6e32921](https://github.com/y3owk1n/fude/commit/6e3292187efb7b12bbced5ed058f66c0c9e32f4b))
+* **share:** your cursor shows over another's, and a session in a float stays shown ([5448cf2](https://github.com/y3owk1n/fude/commit/5448cf2c1d796b8e198ffad001f17acbaa6b8987))
+* **tui:** a window that shows again after a zoom or another tab page draws whole ([093eefc](https://github.com/y3owk1n/fude/commit/093eefc3ef839bc24cc7b339008cad1cd67ca392))
+* **ui:** the cursor shows before ghost text in insert mode ([e17fb84](https://github.com/y3owk1n/fude/commit/e17fb848fbd20dfc0dd6a4f84cc75544302aff01))
+* **vim:** control characters show as ^ and a letter ([e94ed61](https://github.com/y3owk1n/fude/commit/e94ed61a08f0b3bf24e7bd8627354aedade8d913))
+
+
+### Code Refactoring
+
+* **api:** a window's height is its text rows, without its status line ([ea1a0de](https://github.com/y3owk1n/fude/commit/ea1a0de34e73a2749bf877f120b5021a08bf8727))
+
 ## [0.2.1](https://github.com/y3owk1n/fude/compare/v0.2.0...v0.2.1) (2026-10-22)
 
 
