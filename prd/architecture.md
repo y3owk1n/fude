@@ -1119,9 +1119,9 @@ matched letter by what comes before it:
 - 0.8 after `-`, `_` or a space
 - 0.7 for a capital after a lower case letter
 - 0.6 after `.`
-Each letter skipped costs a little. A tie keeps git's order. A byte
-search drops a path that lacks the query's letters in order before any
-scoring. Scoring then covers only the bytes from the first place of the
+Each letter skipped costs a little. Scores are whole thousandths, so no
+rounding splits a tie, and a tie keeps git's order. A byte search drops
+a path that lacks the query's letters in order before any scoring. Scoring then covers only the bytes from the first place of the
 query's first letter to the last place of its last letter. A list of
 8,192 paths or more splits across the cores. Each core sorts its share,
 and the shares merge. Matching runs off the loop, one match at a time,
