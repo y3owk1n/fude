@@ -81,12 +81,13 @@ fude main.go
 
 | Area | What you get |
 | :--- | :----------- |
-| **Editing** | Jump by label with `s`, edit every match with `<C-n>`, folds, surround, macros, `:s` with a live preview |
+| **Editing** | Jump by label with `s`, edit every match with `<C-n>`, folds, surround, macros, abbreviations, `:s` with a live preview |
 | **Timeline** | Branching undo, `:earlier 10m`, `:timeline` to diff and restore, `:recover` after a crash |
 | **Syntax** | tree-sitter with 49 grammars built on first use, `daf` and `cia`, the enclosing function pinned on top |
-| **Language servers** | Several per file, hover, references, code actions with a preview, inlay hints, completion |
+| **Language servers** | Several per file, hover, references, code actions with a preview, inlay hints, completion, semantic colours, code lenses, call hierarchies |
 | **Debugging** | DAP adapters, breakpoints, stepping and a panel of frames and variables |
 | **Finder** | Files, grep, buffers, symbols, diagnostics and help, and `:pin` for files a key away |
+| **Splits and tabs** | Splits, floats, tab pages, diff mode with `do` and `dp`, windows that scroll together |
 | **Git** | Signs, hunk preview, stage with `gh`, `:gitdiff`, `:blame` |
 | **Files** | Edit a folder as text, then `:w` to rename, create and delete |
 | **Terminal and tasks** | `:terminal`, and `:task` for just recipes, make targets and npm scripts |
