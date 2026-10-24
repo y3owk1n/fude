@@ -1121,14 +1121,17 @@ matched letter by what comes before it:
 - 0.6 after `.`
 Each letter skipped costs a little. Scores are whole thousandths, so no
 rounding splits a tie, and a tie keeps git's order. A byte search drops
-a path that lacks the query's letters in order before any scoring. Scoring then covers only the bytes from the first place of the
-query's first letter to the last place of its last letter. A list of
-8,192 paths or more splits across the cores. Each core sorts its share,
-and the shares merge. Matching runs off the loop, one match at a time,
-and a query that grows searches only the last matches. 4,000 paths take
-0.5ms for one letter, and 125,000 take 5ms. The box reads the matches
-only as far as the rows it shows and the rows it gives a frontend. It
-shows the last matches until the new ones come (B129).
+a path that lacks the query's letters in order before any scoring.
+Scoring then covers only the bytes from the first place of the query's
+first letter to the last place of its last letter. A list of 8,192 paths
+or more splits across the cores, and each core sorts its share. The box
+reads the matches, and merges the shares, only as far as the rows it
+shows and the rows it gives a frontend. Matching runs off the loop, one
+match at a time, and a match for a query since typed over stops early. A
+query that grows searches only the last matches, kept in git's order, so
+a query typed a letter at a time ranks as it does typed at once. 4,000
+paths take 0.5ms for one letter, and 125,000 take 5ms. The box shows the
+last matches until the new ones come (B129).
 
 The marks come from the same dynamic program kept whole, for the visible
 rows only: from the last letter back, each takes the last place that

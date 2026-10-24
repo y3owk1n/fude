@@ -18,7 +18,7 @@ func TestMain(m *testing.M) { os.Exit(editortest.Main(m)) }
 // B129
 func TestB129Files(t *testing.T) {
 	dir := t.TempDir()
-	for _, f := range []string{"editor/editor.go", "editor/git.go", "editor/editor_test.go", "prd/decisions.md", "skip.go"} {
+	for _, f := range []string{"editor/editor.go", "editor/git.go", "editor/editor_test.go", "prd/decisions.md", "skip.go", "aaxbaa", "axxxb"} {
 		if err := os.MkdirAll(filepath.Dir(filepath.Join(dir, f)), 0o755); err != nil {
 			t.Fatal(err)
 		}
@@ -39,7 +39,7 @@ func TestB129Files(t *testing.T) {
 	// The finder lists the files git does not ignore, each by its name and
 	// then its directory.
 	editortest.Feed(e, ":pick files<CR>")
-	editortest.Settle(t, e, func() bool { return len(results()) == 5 })
+	editortest.Settle(t, e, func() bool { return len(results()) == 7 })
 	editortest.Feed(e, "edgo")
 	editortest.Settle(t, e, func() bool {
 		return slices.Equal(results(), []string{"editor.go  editor", "git.go  editor", "editor_test.go  editor"})
@@ -47,6 +47,13 @@ func TestB129Files(t *testing.T) {
 	if editortest.Feed(e, "<C-n><CR>"); e.Windows()[0].Name != filepath.Join("editor", "git.go") || e.Mode() != vim.Normal {
 		t.Fatalf("<C-n><CR> opened %q in %v mode", e.Windows()[0].Name, e.Mode())
 	}
+	// aaxbaa and axxxb tie on ab. Typed a letter at a time, they keep
+	// git's order, though axxxb matches a better.
+	editortest.Feed(e, ":pick files<CR>a")
+	editortest.Settle(t, e, func() bool { return len(results()) == 2 })
+	editortest.Feed(e, "b")
+	editortest.Settle(t, e, func() bool { return slices.Equal(results(), []string{"aaxbaa", "axxxb"}) })
+	editortest.Feed(e, "<Esc>")
 	// A screen too short for a row of matches still shows the query.
 	e.SetSize(80, 5)
 	editortest.Feed(e, ":pick files<CR>zzz")

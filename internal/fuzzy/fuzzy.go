@@ -9,74 +9,135 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 )
 
-// Match returns the paths query matches, the best first, and all of them
-// for no query. A tie keeps the order of paths.
-func Match(paths []string, query string) []string {
-	if query == "" {
-		return paths
+// Match returns the items of list query matches, the best first, and all
+// of them for no query. A tie keeps the order of list.
+func Match(list []string, query string) []string {
+	r, _ := All(list).Narrow(query, nil)
+	out := make([]string, r.Len())
+	for i := range out {
+		out[i] = r.At(i)
 	}
-	q := Lower(query)
+	return out
+}
+
+// Ranked is the items of a list a query matched, the best first. A tie
+// keeps the order of the list.
+type Ranked struct {
+	list []string
+	in   []int32 // the matches' places in list, in its order, nil for all of it
+	runs [][]hit // each core's matches, the best first, nil for no query
+	best []int32 // the first matches, the best first, merged from runs as At reads
+}
+
+// hit is the item at a place in a list, and its score.
+type hit struct{ at, score int32 }
+
+// All is every item of list, in order, as no query ranks them.
+func All(list []string) *Ranked { return &Ranked{list: list} }
+
+// Len is how many items matched.
+func (r *Ranked) Len() int {
+	switch {
+	case r == nil:
+		return 0
+	case r.in == nil:
+		return len(r.list)
+	}
+	return len(r.in)
+}
+
+// At returns the match ranked i.
+func (r *Ranked) At(i int) string {
+	if r.runs == nil {
+		if r.in == nil {
+			return r.list[i]
+		}
+		return r.list[r.in[i]]
+	}
+	for len(r.best) <= i {
+		w := -1
+		for k, run := range r.runs {
+			if len(run) > 0 && (w < 0 || better(run[0], r.runs[w][0]) < 0) {
+				w = k
+			}
+		}
+		r.best = append(r.best, r.runs[w][0].at)
+		r.runs[w] = r.runs[w][1:]
+	}
+	return r.list[r.best[i]]
+}
+
+// Narrow ranks those of r's matches that query matches. A query that grows
+// r's matches nothing else. Narrow gives up, and reports false, once stop
+// is set.
+func (r *Ranked) Narrow(query string, stop *atomic.Bool) (*Ranked, bool) {
+	if query == "" {
+		return &Ranked{list: r.list, in: r.in}, true
+	}
+	q, n := Lower(query), r.Len()
 	workers := 1
-	if len(paths) >= parallelFrom {
+	if n >= parallelFrom {
 		workers = runtime.GOMAXPROCS(0)
 	}
-	// Each worker scores and sorts a run of paths, and the runs merge.
-	size := (len(paths) + workers - 1) / workers
-	runs := make([][]scored, workers)
+	// Each core scores and sorts a run of matches, which At merges.
+	size := (n + workers - 1) / workers
+	runs := make([][]hit, workers)
 	var wg sync.WaitGroup
 	for w := range workers {
 		wg.Go(func() {
 			var scratch []int32
-			for i := w * size; i < min((w+1)*size, len(paths)); i++ {
-				if s, ok := fuzzy(q, paths[i], &scratch); ok {
-					runs[w] = append(runs[w], scored{i, s})
+			for k := w * size; k < min((w+1)*size, n); k++ {
+				if k%1024 == 0 && stop != nil && stop.Load() {
+					return
+				}
+				at := int32(k)
+				if r.in != nil {
+					at = r.in[k]
+				}
+				if s, ok := fuzzy(q, r.list[at], &scratch); ok {
+					runs[w] = append(runs[w], hit{at, s})
 				}
 			}
-			slices.SortFunc(runs[w], better)
 		})
 	}
 	wg.Wait()
+	if stop != nil && stop.Load() {
+		return nil, false
+	}
 	total := 0
-	for _, r := range runs {
-		total += len(r)
+	for _, run := range runs {
+		total += len(run)
 	}
-	out := make([]string, 0, total)
-	for {
-		best := -1
-		for w, r := range runs {
-			if len(r) > 0 && (best < 0 || better(r[0], runs[best][0]) < 0) {
-				best = w
-			}
+	// The runs are in the list's order until they are sorted.
+	in := make([]int32, 0, total)
+	for _, run := range runs {
+		for _, h := range run {
+			in = append(in, h.at)
 		}
-		if best < 0 {
-			return out
-		}
-		out = append(out, paths[runs[best][0].at])
-		runs[best] = runs[best][1:]
 	}
+	for _, run := range runs {
+		wg.Go(func() { slices.SortFunc(run, better) })
+	}
+	wg.Wait()
+	return &Ranked{list: r.list, in: in, runs: runs}, true
 }
 
-// parallelFrom is the fewest paths Match splits across cores. Fewer, such
+// parallelFrom is the fewest items Narrow splits across cores. Fewer, such
 // as a command line's words, match faster on one core.
 const parallelFrom = 8192
 
-// scored is the path at index at in Match's paths, and its score.
-type scored struct {
-	at    int
-	score int32
-}
-
 // better orders a before b when it scores more, or ties and comes first.
-func better(a, b scored) int {
+func better(a, b hit) int {
 	switch {
 	case a.score > b.score:
 		return -1
 	case a.score < b.score:
 		return 1
 	}
-	return a.at - b.at
+	return int(a.at) - int(b.at)
 }
 
 // The scores of fzy's algorithm, which ranks the finder's matches (B129),

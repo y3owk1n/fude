@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"unicode/utf8"
 
 	"github.com/y3owk1n/fude/internal/fuzzy"
@@ -37,15 +38,17 @@ type finder struct {
 	// lookup asks for the query's items on the loop and passes them to
 	// found, for a search a language server answers.
 	lookup   func(q string, found func([]string, error))
-	all      bool     // it searches the files git ignores and hidden ones too
-	paths    []string // the working directory's files, nil until read
-	query    string   // the query matches are for
-	matches  []string // paths, or grep's path:line:column:text
+	all      bool          // it searches the files git ignores and hidden ones too
+	paths    []string      // the working directory's files, nil until read
+	query    string        // the query matches are for
+	matches  *fuzzy.Ranked // paths, or grep's path:line:column:text
 	sel      int
 	first    int                 // the list's first row shown
 	rows     []int               // the match each row shown is, -1 for a file's name over its matches
 	stale    bool                // paths came after matches were found
 	busy     bool                // a match runs
+	seeking  string              // the query it runs for
+	stop     *atomic.Bool        // stops it, nil for a lookup
 	shown    string              // the match previewed
 	preview  string              // the lines around it
 	spans    []wire.Span         // their highlights
@@ -115,7 +118,7 @@ func (e *Session) finderAct(act string) {
 	case "list":
 		f.list = true
 	case "next":
-		f.sel = max(min(f.sel+1, len(f.matches)-1), 0)
+		f.sel = max(min(f.sel+1, f.matches.Len()-1), 0)
 	case "prev":
 		f.sel = max(f.sel-1, 0)
 	case "all":
@@ -146,7 +149,8 @@ func (f *finder) key(e *Session, k vim.Key) bool {
 	query := t.Slice(0, t.Len())
 	if (f.open || f.list) && query != f.query && f.lookup == nil && f.paths != nil {
 		// Keys typed faster than matching runs pick from what they typed.
-		f.query, f.matches, f.sel = query, fuzzy.Match(f.paths, query), 0
+		f.matches, _ = fuzzy.All(f.paths).Narrow(query, nil)
+		f.query, f.sel = query, 0
 	}
 	switch {
 	case f.list && (f.chose == nil || f.places || f.asFiles):
@@ -156,8 +160,8 @@ func (f *finder) key(e *Session, k vim.Key) bool {
 		e.closeFinder()
 		if f.chose != nil {
 			picked, item := -1, ""
-			if f.sel < len(f.matches) {
-				item = f.matches[f.sel]
+			if f.sel < f.matches.Len() {
+				item = f.matches.At(f.sel)
 				if picked = slices.Index(f.paths, item); picked < 0 && f.lookup != nil {
 					picked = f.sel
 				}
@@ -166,8 +170,8 @@ func (f *finder) key(e *Session, k vim.Key) bool {
 		}
 		// A place or file opens as the finder's own do, after the module hears
 		// of it.
-		if (f.chose == nil || f.places || f.asFiles) && f.sel < len(f.matches) {
-			path, line, col, _ := grepSpot(f.matches[f.sel])
+		if (f.chose == nil || f.places || f.asFiles) && f.sel < f.matches.Len() {
+			path, line, col, _ := grepSpot(f.matches.At(f.sel))
 			if e.edit(path); line > 0 && e.win.buf.is(path) {
 				t := e.Text()
 				start := t.LineStart(min(line-1, t.Lines()-1))
@@ -194,13 +198,14 @@ func (e *Session) listMatches(f *finder) {
 	if f.places {
 		what = cmp.Or(f.title, "matches")
 	}
-	if len(f.matches) == 0 {
+	if f.matches.Len() == 0 {
 		e.message = "no " + what
 		return
 	}
 	// A match shows its text without the indent around it.
-	items := make([]string, len(f.matches))
-	for i, m := range f.matches {
+	items := make([]string, f.matches.Len())
+	for i := range items {
+		m := f.matches.At(i)
 		items[i] = m
 		if path, line, col, text := grepSpot(m); line > 0 {
 			items[i] = fmt.Sprintf("%s:%d:%d:%s", path, line, col, strings.TrimSpace(text))
@@ -217,6 +222,9 @@ func (e *Session) closeFinder() {
 	var seen []string
 	// A list resumes with what was typed in it, and a question does not.
 	if f := e.finder; f != nil {
+		if f.stop != nil {
+			f.stop.Store(true)
+		}
 		seen = f.seen
 		if f.prompt == "" {
 			f.typed, f.open, f.list, f.seen, f.shown = e.Text().Slice(0, e.Text().Len()), false, false, nil, ""
@@ -236,7 +244,14 @@ func (e *Session) closeFinder() {
 func (e *Session) seek(f *finder) {
 	t := e.Text()
 	q := t.Slice(0, t.Len())
-	if f.busy || f.lookup == nil && f.paths == nil || q == f.query && !f.stale {
+	if f.busy {
+		// A match for a query since typed over stops early.
+		if f.stop != nil && q != f.seeking {
+			f.stop.Store(true)
+		}
+		return
+	}
+	if f.lookup == nil && f.paths == nil || q == f.query && !f.stale {
 		return
 	}
 	if f.lookup != nil {
@@ -245,18 +260,24 @@ func (e *Session) seek(f *finder) {
 			if err != nil {
 				e.message = err.Error()
 			}
-			f.query, f.matches, f.sel, f.busy = q, matches, 0, false
+			f.query, f.matches, f.sel, f.busy = q, fuzzy.All(matches), 0, false
 		})
 		return
 	}
-	from := f.paths
+	from := fuzzy.All(f.paths)
 	if !f.stale && strings.HasPrefix(q, f.query) {
 		from = f.matches
 	}
-	f.busy, f.stale = true, false
+	stop := new(atomic.Bool)
+	f.busy, f.stale, f.seeking, f.stop = true, false, q, stop
 	go func() {
-		matches := fuzzy.Match(from, q)
-		e.queue <- func() { f.query, f.matches, f.sel, f.busy = q, matches, 0, false }
+		matches, ok := from.Narrow(q, stop)
+		e.queue <- func() {
+			f.busy = false
+			if ok {
+				f.query, f.matches, f.sel = q, matches, 0
+			}
+		}
 	}()
 }
 
@@ -278,9 +299,9 @@ func (f *finder) box(query string, cursor, width, height int) wire.Menu {
 	prompt := cmp.Or(f.prompt, finderPrompt)
 	s.WriteString(prompt)
 	s.WriteString(query)
-	count := fmt.Sprintf("%d / %d", len(f.matches), len(f.paths))
+	count := fmt.Sprintf("%d / %d", f.matches.Len(), len(f.paths))
 	if f.lookup != nil {
-		count = strconv.Itoa(len(f.matches))
+		count = strconv.Itoa(f.matches.Len())
 	}
 	if f.all {
 		count = "with ignored  " + count
@@ -300,14 +321,14 @@ func (f *finder) box(query string, cursor, width, height int) wire.Menu {
 	}
 	var list []listRow
 	selRow, lineW := 0, 1
-	for i, m := range f.matches {
+	for i := range f.matches.Len() {
 		// The list stops once it holds the selection, the rows shown and
 		// those a frontend gets.
 		if i > f.sel && len(list) >= max(listMost, f.first+rows) {
 			break
 		}
-		if path, line, _, _ := grepSpot(m); f.places {
-			if prev, _, _, _ := grepSpot(f.matches[max(i-1, 0)]); i == 0 || prev != path {
+		if path, line, _, _ := grepSpot(f.matches.At(i)); f.places {
+			if prev, _, _, _ := grepSpot(f.matches.At(max(i-1, 0))); i == 0 || prev != path {
 				list = append(list, listRow{i, true})
 			}
 			lineW = max(lineW, len(strconv.Itoa(line)))
@@ -331,7 +352,7 @@ func (f *finder) box(query string, cursor, width, height int) wire.Menu {
 	var items []wire.Item
 	selected := -1
 	for _, r := range list[:min(len(list), listMost)] {
-		m := f.matches[r.match]
+		m := f.matches.At(r.match)
 		var item wire.Item
 		switch path, line, _, text := grepSpot(m); {
 		case r.header:
@@ -357,7 +378,7 @@ func (f *finder) box(query string, cursor, width, height int) wire.Menu {
 	for _, r := range list[f.first:min(f.first+rows, len(list))] {
 		s.WriteByte('\n')
 		start := s.Len()
-		m := f.matches[r.match]
+		m := f.matches.At(r.match)
 		switch path, line, _, text := grepSpot(m); {
 		case r.header:
 			writePath(&s, &spans, path, nil, w-4, "finder.file")
@@ -410,8 +431,8 @@ func (f *finder) box(query string, cursor, width, height int) wire.Menu {
 		s.WriteString(strings.Repeat("\n", max(rows-len(list), 0)))
 	}
 	doc, docSpans := "", []wire.Span(nil)
-	if docW > 0 && f.sel < len(f.matches) {
-		if m := f.matches[f.sel]; m != f.shown && !f.reading {
+	if docW > 0 && f.sel < f.matches.Len() {
+		if m := f.matches.At(f.sel); m != f.shown && !f.reading {
 			f.reading = true
 			go f.read(m, h-4, docW-4)
 		}
