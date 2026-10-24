@@ -42,6 +42,7 @@ type finder struct {
 	paths    []string      // the working directory's files, nil until read
 	query    string        // the query matches are for
 	matches  *fuzzy.Ranked // paths, or grep's path:line:column:text
+	grew     []earlier     // the queries this one grew from, the shortest first
 	sel      int
 	first    int                 // the list's first row shown
 	rows     []int               // the match each row shown is, -1 for a file's name over its matches
@@ -76,6 +77,12 @@ type finder struct {
 	pick  uint32
 	found func([]string, error)
 	tell  func(api.Context) // what the owner's pick hears, such as all (B321)
+}
+
+// earlier is a query the finder's grew from, and its matches.
+type earlier struct {
+	query   string
+	matches *fuzzy.Ranked
 }
 
 // openFinder opens f in a box with query typed.
@@ -264,9 +271,18 @@ func (e *Session) seek(f *finder) {
 		})
 		return
 	}
+	// A query cut back to one it grew from shows that one's matches again.
+	if i := slices.IndexFunc(f.grew, func(g earlier) bool { return g.query == q }); i >= 0 && !f.stale {
+		f.query, f.matches, f.sel, f.grew = q, f.grew[i].matches, 0, f.grew[:i]
+		return
+	}
 	from := fuzzy.All(f.paths)
-	if !f.stale && strings.HasPrefix(q, f.query) {
+	grows := !f.stale && strings.HasPrefix(q, f.query)
+	if grows {
 		from = f.matches
+	}
+	if f.stale {
+		f.grew = nil
 	}
 	stop := new(atomic.Bool)
 	f.busy, f.stale, f.seeking, f.stop = true, false, q, stop
@@ -274,9 +290,14 @@ func (e *Session) seek(f *finder) {
 		matches, ok := from.Narrow(q, stop)
 		e.queue <- func() {
 			f.busy = false
-			if ok {
-				f.query, f.matches, f.sel = q, matches, 0
+			if !ok {
+				return
 			}
+			f.grew = slices.DeleteFunc(f.grew, func(g earlier) bool { return !strings.HasPrefix(q, g.query) })
+			if grows && f.query != "" && f.query != q {
+				f.grew = append(f.grew, earlier{f.query, f.matches})
+			}
+			f.query, f.matches, f.sel = q, matches, 0
 		}
 	}()
 }

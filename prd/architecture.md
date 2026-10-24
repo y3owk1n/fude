@@ -1134,9 +1134,10 @@ rows it shows and the rows it gives a frontend. Matching runs off the
 loop, one match at a time, and a match for a query since typed over
 stops early. A query that grows searches only the last matches, kept in
 git's order, so a query typed a letter at a time ranks as it does typed
-at once. 4,000 paths take 0.4ms for one letter, 125,000 take 3ms, and
-Chromium's 509,413 take 14ms. The box shows the last matches until the
-new ones come (B129).
+at once. A query cut back to one it grew from shows that one's matches
+again, with no search. 4,000 paths take 0.4ms for one letter, 125,000
+take 3ms, and Chromium's 509,413 take 14ms. The box shows the last
+matches until the new ones come (B129).
 
 The marks come from the same dynamic program kept whole over each
 letter's places, for the visible rows only: from the last letter back, each takes the last place that
