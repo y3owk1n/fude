@@ -192,9 +192,7 @@ func fuzzy(q, s string, scratch *[]int32) (int32, bool) {
 		score = single(q[0], s, start, end)
 	} else {
 		n := end - start + 1
-		if cap(*scratch) < 2*len(q)+4*n {
-			*scratch = make([]int32, 2*len(q)+4*n)
-		}
+		*scratch = slices.Grow((*scratch)[:2*len(q)], 4*n)
 		buf := (*scratch)[2*len(q) : 2*len(q)+4*n]
 		d, m, pd, pm := buf[:n], buf[n:2*n], buf[2*n:3*n], buf[3*n:]
 		for i := range len(q) {
@@ -252,29 +250,47 @@ func Positions(q, s string) []int {
 	if q == "" {
 		return nil
 	}
-	if _, ok := fuzzy(q, s, new([]int32)); !ok {
+	scratch := tables.Get().(*[]int32)
+	defer tables.Put(scratch)
+	if _, ok := fuzzy(q, s, scratch); !ok {
 		return nil
 	}
-	n := len(s)
+	out := make([]int, len(q))
+	if len(q) == len(s) {
+		for i := range out {
+			out[i] = i
+		}
+		return out
+	}
+	// The rows cover the places fuzzy found for each letter, and the way
+	// back reads only those.
+	lo, hi := slices.Clone((*scratch)[:len(q)]), slices.Clone((*scratch)[len(q):2*len(q)])
+	start, end := int(lo[0]), int(hi[len(q)-1])
+	n := end - start + 1
+	*scratch = slices.Grow((*scratch)[:0], 2*len(q)*n)
+	cells := (*scratch)[:2*len(q)*n]
 	d, m := make([][]int32, len(q)), make([][]int32, len(q))
 	for i := range len(q) {
-		d[i], m[i] = make([]int32, n), make([]int32, n)
+		d[i], m[i] = cells[2*i*n:(2*i+1)*n], cells[(2*i+1)*n:(2*i+2)*n]
 		var pd, pm []int32
 		if i > 0 {
 			pd, pm = d[i-1], m[i-1]
 		}
-		row(q, i, s, 0, 0, n, pd, pm, d[i], m[i])
+		to := end + 1
+		if i < len(q)-1 {
+			to = int(hi[i+1])
+		}
+		row(q, i, s, start, int(lo[i]), to, pd, pm, d[i], m[i])
 	}
 	// Back from the end, each letter takes the last place that leads to the
 	// best score, or the place a run of letters needs.
-	out := make([]int, len(q))
 	run := false
 	j := n - 1
 	for i := len(q) - 1; i >= 0; i-- {
 		for ; j >= 0; j-- {
 			if d[i][j] > none/2 && (run || d[i][j] == m[i][j]) {
 				run = i > 0 && j > 0 && m[i][j] == d[i-1][j-1]+matchRun
-				out[i] = j
+				out[i] = start + j
 				j--
 				break
 			}
@@ -282,6 +298,9 @@ func Positions(q, s string) []int {
 	}
 	return out
 }
+
+// tables is memory Positions reuses for its rows.
+var tables = sync.Pool{New: func() any { return new([]int32) }}
 
 // Occurrences returns the bytes of each place in s from start that query
 // is at, ignoring case for a query without capitals, as grep searched.

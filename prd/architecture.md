@@ -1138,8 +1138,8 @@ at once. 4,000 paths take 0.4ms for one letter, 125,000 take 3ms, and
 Chromium's 509,413 take 14ms. The box shows the last matches until the
 new ones come (B129).
 
-The marks come from the same dynamic program kept whole, for the visible
-rows only: from the last letter back, each takes the last place that
+The marks come from the same dynamic program kept whole over each
+letter's places, for the visible rows only: from the last letter back, each takes the last place that
 leads to the best score, or the place a run of letters needs, as fzy's
 `match_positions` and `matchfuzzypos()` do. Scoring keeps two rows, and
 both share the function that fills one (B152).
