@@ -74,8 +74,8 @@ On the same cell, your cursor shows over theirs. A
 guest's keymaps, leader, window options and theme come from
 `config.toml` on its own machine. `fude join --read-only` asks to only
 watch, so the guest's session changes no text. `:follow name` keeps your
-windows on what the session called name shows, its splits too, until you
-type. While fude shares, its status line says so and counts the guests.
+windows on what the session called name shows, its splits and tab pages
+too, until you type, and your status line says whom you follow. While fude shares, its status line says so and counts the guests.
 A guest's status line says it is a guest. Quitting fude ends the share.
 
 ## From the shell

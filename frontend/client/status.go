@@ -52,6 +52,9 @@ func StatusParts(s Session, v wire.Window, named bool) (left, right []Part) {
 	if v.Sharing != "" {
 		right = append(right, Part{Text: v.Sharing, Role: "sharing"})
 	}
+	if v.Following != "" {
+		right = append(right, Part{Text: "following " + v.Following, Role: "sharing"})
+	}
 	// A zoomed window says so, as the others are hidden behind it (B370).
 	if v.Zoomed {
 		right = append(right, Part{Text: "zoomed", Role: "zoomed"})

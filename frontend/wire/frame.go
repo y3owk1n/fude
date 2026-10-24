@@ -107,6 +107,7 @@ type Window struct {
 	Tasks            []string          // the tasks running, on the current window's status line (B231)
 	Others           []Other           // the other sessions whose current window shows the buffer (B253)
 	Sharing          string            // on the current window, whether fude shares or the session is a guest (B269)
+	Following        string            // on the current window, the session :follow copies (B256)
 	// Context is the start of each line pinned over the window's first rows,
 	// the functions and classes the text under them is in, with their
 	// highlights (B217).

@@ -2806,13 +2806,15 @@ Where fude departs, the line says so and cites the departure in
   session is read-only.
 - B256 [7] `:follow name` makes the session's windows show what the
   windows of the session called name show: their layout, which one is
-  current, and each one's buffer, top line, left column and cursor. They
-  keep up as that session moves. A window too short to show the cursor
-  from that top line scrolls the least it must to show it. A key typed
-  or a paste in the following session stops following, and the windows
-  stay as they are. So does that session leaving, and the message says
-  so. A guest's window keeps its buffer when the other's is one the
-  guest may not show (B244, B245).
+  current and which zoomed, the tab pages the top row shows, and each
+  one's buffer, top line, left column and cursor. The current window's
+  status line says `following name`. They keep up as that session moves.
+  `:follow` with the session's own name says it cannot follow itself. A
+  window too short to show the cursor from that top line scrolls the least
+  it must to show it. A key typed or a paste in the following session
+  stops following, and the windows stay as they are. So does that session
+  leaving, and the message says so. A guest's window keeps its buffer when
+  the other's is one the guest may not show (B244, B245).
 - B269 [7] The current window's status line says when fude shares,
   `sharing`, or `sharing with 2` once two guests are in. A guest's says
   `guest`, or `read-only guest`.

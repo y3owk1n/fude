@@ -946,12 +946,14 @@ one a file.
 ## :follow
 
 Makes the session's windows show what the session called name shows: its
-splits, its current window, and each window's buffer, top line and cursor.
-They follow it as it moves, until a key or a paste here ends it, which
-says "stopped following name". When that session leaves, following stops
-and says so. `<Tab>` completes the other sessions' names. A name no other
-session has says "no session is called name". A guest's window keeps its
-own buffer where the other shows one outside the project.
+splits, its current and zoomed window, its tab pages, and each window's
+buffer, top line and cursor. The status line says "following name". They
+follow it as it moves, until a key or a paste here ends it, which says
+"stopped following name". When that session leaves, following stops and
+says so. `<Tab>` completes the other sessions' names. A name no other
+session has says "no session is called name", and the session's own
+name says "cannot follow yourself". A guest's window keeps its own buffer
+where the other shows one outside the project.
 
 ## :format
 

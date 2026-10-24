@@ -10,17 +10,19 @@ func (e *Session) startFollow(name string) {
 	case name == "":
 		e.message = "follow whom? :follow name"
 		return
+	case name == e.label():
+		e.message = "cannot follow yourself"
+		return
 	case i < 0:
 		e.message = "no session is called " + name
 		return
 	}
 	e.following, e.mirrors = e.sessions[i], nil
-	e.message = "following " + name
 	e.follow()
 }
 
 // follow makes the windows a copy of those of the session they follow:
-// the same layout, the same window current, and each one on its
+// the same layout, the same window current and zoomed, and each one on its
 // counterpart's buffer, top, left column and cursor (B256).
 func (e *Session) follow() {
 	s := e.following
@@ -32,15 +34,15 @@ func (e *Session) follow() {
 		e.message = s.label() + " left, so following stopped"
 		return
 	}
-	mirrors := map[*window]*window{}
+	mirrors, old := map[*window]*window{}, e.root.windows()
 	e.root = e.mirror(s.root, nil, mirrors)
 	// A window that mirrors none now goes.
-	for l, w := range e.mirrors {
-		if mirrors[l] != w {
+	for _, w := range old {
+		if !slices.Contains(e.root.windows(), w) {
 			w.drop()
 		}
 	}
-	e.mirrors = mirrors
+	e.mirrors, e.zoomed = mirrors, mirrors[s.zoomed]
 	// While the other has a float or the finder open, the window under it
 	// is the current one.
 	current := s.under()

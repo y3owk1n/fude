@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"slices"
@@ -252,16 +253,17 @@ func (e *Session) movePage(arg string) error {
 func (e *Session) topRow() bool { return len(e.Buffers()) > 0 || len(e.Pages()) > 0 }
 
 // Pages returns the tab pages the top row shows, those a module named
-// (B545).
+// (B545), or while following, those of the session followed (B256).
 func (e *Session) Pages() []wire.Page {
+	s := cmp.Or(e.following, e)
 	var out []wire.Page
-	for i, p := range e.tabpages {
-		name, ok := e.tabNames[p.id]
+	for i, p := range s.tabpages {
+		name, ok := s.tabNames[p.id]
 		if !ok {
 			continue
 		}
-		w := e.pageWindow(i)
-		out = append(out, wire.Page{Name: name, Modified: w.buf.modified(), Current: i == e.tabpage})
+		w := s.pageWindow(i)
+		out = append(out, wire.Page{Name: name, Modified: w.buf.modified(), Current: i == s.tabpage})
 	}
 	return out
 }

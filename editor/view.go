@@ -130,6 +130,9 @@ func (e *Session) draw(w *window) wire.Window {
 	if v.Current {
 		v.Tasks = e.runningTasks()
 		v.Sharing = e.sharing()
+		if e.following != nil {
+			v.Following = e.following.label()
+		}
 	}
 	v.Others = e.others(w.buf)
 	v.Signs = e.signs(w.buf, top, last)

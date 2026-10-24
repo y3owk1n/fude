@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -19,6 +20,7 @@ import (
 	listsmod "github.com/y3owk1n/fude/modules/lists"
 	sessionsmod "github.com/y3owk1n/fude/modules/sessions"
 	shellmod "github.com/y3owk1n/fude/modules/shell"
+	tablinemod "github.com/y3owk1n/fude/modules/tabline"
 	"github.com/y3owk1n/fude/modules/task"
 	terminalmod "github.com/y3owk1n/fude/modules/terminal"
 	thememod "github.com/y3owk1n/fude/modules/theme"
@@ -314,18 +316,26 @@ func TestB256Follow(t *testing.T) {
 	config(t, "wrap = false\n")
 	e := withCommands(start(t, "a.txt"))
 	e.Use(sessionsmod.New())
+	e.Use(tablinemod.New())
 	e.SetName("host")
 	e.SetSize(80, 20)
 	pat := e.Attach("pat", editor.Host)
 	pat.SetSize(80, 20)
 	feed(pat, ":e b.txt<CR>50G")
-	// The window shows what pat's shows, and keeps up as pat moves.
+	if feed(e, ":follow host<CR>"); e.Message() != "cannot follow yourself" {
+		t.Errorf(":follow host in host said %q", e.Message())
+	}
+	// The window shows what pat's shows, and keeps up as pat moves. Its
+	// status line says whom it follows.
 	same := func() bool {
 		v, w := e.Windows()[0], pat.Windows()[0]
 		return v.Name == w.Name && v.Cursor == w.Cursor && v.Top == w.Top
 	}
 	if feed(e, ":follow pat<CR>"); !same() {
 		t.Fatalf(":follow pat shows %s at %d, want pat's %s at %d", e.Windows()[0].Name, e.Windows()[0].Cursor, pat.Windows()[0].Name, pat.Windows()[0].Cursor)
+	}
+	if v := e.Windows()[0]; v.Following != "pat" {
+		t.Errorf("the follower's status line follows %q, want pat", v.Following)
 	}
 	if feed(pat, "90G"); !same() {
 		t.Errorf("after pat moved, the follower is at %d, want %d", e.Windows()[0].Cursor, pat.Windows()[0].Cursor)
@@ -354,6 +364,17 @@ func TestB256Follow(t *testing.T) {
 		}
 	}
 	e.SetSize(80, 20)
+	// It copies a zoom, and the tab pages the top row shows.
+	feed(pat, "<C-w>z")
+	if vs := e.Windows(); len(vs) != 1 || !vs[0].Zoomed {
+		t.Errorf("with pat zoomed, the follower shows %d windows, zoomed %v", len(vs), vs[0].Zoomed)
+	}
+	feed(pat, "<C-w>z:tabnew a.txt<CR>")
+	settle(t, e, func() bool { return len(pat.Pages()) == 2 })
+	if v := e.Windows(); !slices.Equal(e.Pages(), pat.Pages()) || len(v) != 1 || v[0].Name != "a.txt" {
+		t.Errorf("after pat's :tabnew, the follower has the pages %v and shows %d windows, want pat's pages %v", e.Pages(), len(v), pat.Pages())
+	}
+	feed(pat, "gt")
 	// A key typed stops following.
 	feed(e, "k")
 	if feed(pat, "10G"); same() || e.Message() != "stopped following pat" {
