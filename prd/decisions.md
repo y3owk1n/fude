@@ -1046,6 +1046,24 @@ Why, as of 2026-10-24: the user chose the system's list view for
 Windows' lists (D68) and an embedded manifest over activating one at
 run time.
 
+## D70. The finder keeps its own matcher, not fzf's or fff's
+
+`internal/fuzzy` ranks the finder's matches with fzy's algorithm in Go
+(B129). On Chromium's 509,413 files, fzf's Go matcher found the same
+matches and was slower on every query, on one thread or ten. The fzf
+program prints no match positions, so B152's marks would come from a
+different ranker. fff is Rust, which fude could call only through cgo,
+and fude keeps cgo to `syntax/`. fff allows typos, so its first results
+for `httpserver` are Python scripts under `third_party`, where fude
+lists `net/server/http_server.h` first. B129's ranking does not allow
+that. fff is faster when a query matches nearly every file, 13.6ms
+against fude's 40.7ms for `net`, because it ranks only the top 50. fude
+is faster on specific queries, 3.9ms against 26.5ms for
+`renderframehostimpl`.
+
+Why, as of 2026-10-24: the user asked whether fzf or fff would make the
+picker better, and chose to bring their methods into fude's matcher.
+
 ## Departures from Neovim
 
 Each entry: what differs, then why.

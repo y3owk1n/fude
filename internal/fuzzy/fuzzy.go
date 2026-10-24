@@ -3,36 +3,80 @@
 package fuzzy
 
 import (
-	"cmp"
 	"math"
 	"os"
+	"runtime"
 	"slices"
 	"strings"
+	"sync"
 )
 
 // Match returns the paths query matches, the best first, and all of them
-// for no query.
+// for no query. A tie keeps the order of paths.
 func Match(paths []string, query string) []string {
 	if query == "" {
 		return paths
 	}
-	type scored struct {
-		path  string
-		score float64
+	q := Lower(query)
+	workers := 1
+	if len(paths) >= parallelFrom {
+		workers = runtime.GOMAXPROCS(0)
 	}
-	var found []scored
-	q, scratch := Lower(query), []float64(nil)
-	for _, p := range paths {
-		if s, ok := fuzzy(q, p, &scratch); ok {
-			found = append(found, scored{p, s})
+	// Each worker scores and sorts a run of paths, and the runs merge.
+	size := (len(paths) + workers - 1) / workers
+	runs := make([][]scored, workers)
+	var wg sync.WaitGroup
+	for w := range workers {
+		wg.Go(func() {
+			var scratch []float64
+			for i := w * size; i < min((w+1)*size, len(paths)); i++ {
+				if s, ok := fuzzy(q, paths[i], &scratch); ok {
+					runs[w] = append(runs[w], scored{i, s})
+				}
+			}
+			slices.SortFunc(runs[w], better)
+		})
+	}
+	wg.Wait()
+	total := 0
+	for _, r := range runs {
+		total += len(r)
+	}
+	out := make([]string, 0, total)
+	for {
+		best := -1
+		for w, r := range runs {
+			if len(r) > 0 && (best < 0 || better(r[0], runs[best][0]) < 0) {
+				best = w
+			}
 		}
+		if best < 0 {
+			return out
+		}
+		out = append(out, paths[runs[best][0].at])
+		runs[best] = runs[best][1:]
 	}
-	slices.SortStableFunc(found, func(a, b scored) int { return cmp.Compare(b.score, a.score) })
-	out := make([]string, len(found))
-	for i, f := range found {
-		out[i] = f.path
+}
+
+// parallelFrom is the fewest paths Match splits across cores. Fewer, such
+// as a command line's words, match faster on one core.
+const parallelFrom = 8192
+
+// scored is the path at index at in Match's paths, and its score.
+type scored struct {
+	at    int
+	score float64
+}
+
+// better orders a before b when it scores more, or ties and comes first.
+func better(a, b scored) int {
+	switch {
+	case a.score > b.score:
+		return -1
+	case a.score < b.score:
+		return 1
 	}
-	return out
+	return a.at - b.at
 }
 
 // The scores of fzy's algorithm, which ranks the finder's matches (B129).
@@ -52,43 +96,92 @@ const (
 // after a separator or as a capital, and runs of letters score more than
 // scattered ones. scratch is memory to reuse between calls.
 func fuzzy(q, s string, scratch *[]float64) (float64, bool) {
-	i := 0
-	for j := 0; j < len(s) && i < len(q); j++ {
-		if lowerByte(s[j]) == q[i] {
-			i++
+	start, at := 0, 0
+	for i := range len(q) {
+		k := indexFold(s[at:], q[i])
+		if k < 0 {
+			return 0, false
 		}
-	}
-	if i < len(q) {
-		return 0, false
+		if i == 0 {
+			start = at + k
+		}
+		at += k + 1
 	}
 	if len(q) == len(s) {
 		return math.MaxFloat64, true
 	}
-	n := len(s)
-	if cap(*scratch) < 5*n {
-		*scratch = make([]float64, 5*n)
+	// A match lies between the first place of q's first letter and the last
+	// place of its last letter. Each byte after that costs a trailing gap.
+	end := len(s) - 1
+	for lowerByte(s[end]) != q[len(q)-1] {
+		end--
 	}
-	buf := (*scratch)[:5*n]
-	bonus, d, m, pd, pm := buf[:n], buf[n:2*n], buf[2*n:3*n], buf[3*n:4*n], buf[4*n:]
-	bonuses(s, bonus)
-	for i := range len(q) {
-		row(q, i, s, bonus, pd, pm, d, m)
-		d, pd = pd, d
-		m, pm = pm, m
+	var score float64
+	if len(q) == 1 {
+		score = single(q[0], s, start, end)
+	} else {
+		n := end - start + 1
+		if cap(*scratch) < 5*n {
+			*scratch = make([]float64, 5*n)
+		}
+		buf := (*scratch)[:5*n]
+		bonus, d, m, pd, pm := buf[:n], buf[n:2*n], buf[2*n:3*n], buf[3*n:4*n], buf[4*n:]
+		bonuses(s, start, bonus)
+		for i := range len(q) {
+			row(q, i, s[start:end+1], start, bonus, pd, pm, d, m)
+			d, pd = pd, d
+			m, pm = pm, m
+		}
+		score = pm[n-1]
 	}
-	return pm[n-1], true
+	for range len(s) - 1 - end {
+		score += gapTrailing
+	}
+	return score, true
+}
+
+// single scores the one letter c over s[start:end+1] as row does, with no
+// rows to keep.
+func single(c byte, s string, start, end int) float64 {
+	best := math.Inf(-1)
+	for j := start; j <= end; j++ {
+		d := math.Inf(-1)
+		if lowerByte(s[j]) == c {
+			d = float64(j)*gapLeading + bonusAt(s, j)
+		}
+		best = max(d, best+gapTrailing)
+	}
+	return best
+}
+
+// indexFold returns the first byte of s that is c, a lower case byte, in
+// either case, or -1.
+func indexFold(s string, c byte) int {
+	i := strings.IndexByte(s, c)
+	if c >= 'a' && c <= 'z' {
+		if i >= 0 {
+			s = s[:i]
+		}
+		if k := strings.IndexByte(s, c-'a'+'A'); k >= 0 {
+			return k
+		}
+	}
+	return i
 }
 
 // Positions returns where in s each letter of q, in lower case, matches
 // for its best score, or nil when s lacks them, so a list can mark them
 // (B152).
 func Positions(q, s string) []int {
-	if _, ok := fuzzy(q, s, new([]float64)); !ok || q == "" {
+	if q == "" {
+		return nil
+	}
+	if _, ok := fuzzy(q, s, new([]float64)); !ok {
 		return nil
 	}
 	n := len(s)
 	bonus := make([]float64, n)
-	bonuses(s, bonus)
+	bonuses(s, 0, bonus)
 	d, m := make([][]float64, len(q)), make([][]float64, len(q))
 	for i := range len(q) {
 		d[i], m[i] = make([]float64, n), make([]float64, n)
@@ -96,7 +189,7 @@ func Positions(q, s string) []int {
 		if i > 0 {
 			pd, pm = d[i-1], m[i-1]
 		}
-		row(q, i, s, bonus, pd, pm, d[i], m[i])
+		row(q, i, s, 0, bonus, pd, pm, d[i], m[i])
 	}
 	// Back from the end, each letter takes the last place that leads to the
 	// best score, or the place a run of letters needs.
@@ -137,31 +230,38 @@ func Occurrences(s, query string, start int) []int {
 	return out
 }
 
-// bonuses fills bonus with what a match at each byte of s scores for the
-// byte before it: after a separator, or a capital after a lower case letter.
-func bonuses(s string, bonus []float64) {
-	clear(bonus)
-	prev := byte('/')
-	for j := range len(s) {
-		c := s[j]
-		switch {
-		case prev == '/' || prev == os.PathSeparator:
-			bonus[j] = matchSlash
-		case prev == '-' || prev == '_' || prev == ' ':
-			bonus[j] = matchWord
-		case prev == '.':
-			bonus[j] = matchDot
-		case prev >= 'a' && prev <= 'z' && c >= 'A' && c <= 'Z':
-			bonus[j] = matchCapital
-		}
-		prev = c
+// bonuses fills bonus with what a match at each byte of s from start
+// scores.
+func bonuses(s string, start int, bonus []float64) {
+	for j := range bonus {
+		bonus[j] = bonusAt(s, start+j)
 	}
+}
+
+// bonusAt is what a match at s[j] scores for the byte before it: after a
+// separator, or a capital after a lower case letter.
+func bonusAt(s string, j int) float64 {
+	prev, c := byte('/'), s[j]
+	if j > 0 {
+		prev = s[j-1]
+	}
+	switch {
+	case prev == '/' || prev == os.PathSeparator:
+		return matchSlash
+	case prev == '-' || prev == '_' || prev == ' ':
+		return matchWord
+	case prev == '.':
+		return matchDot
+	case prev >= 'a' && prev <= 'z' && c >= 'A' && c <= 'Z':
+		return matchCapital
+	}
+	return 0
 }
 
 // row fills d and m for q's letter i from pd and pm, the row of q[i-1]: d
 // is the best score with q[i] matched at s[j], and m the best with
-// q[:i+1] matched by s[:j+1].
-func row(q string, i int, s string, bonus, pd, pm, d, m []float64) {
+// q[:i+1] matched by s[:j+1]. s starts at byte off of the text matched.
+func row(q string, i int, s string, off int, bonus, pd, pm, d, m []float64) {
 	best := math.Inf(-1)
 	gap := gapInner
 	if i == len(q)-1 {
@@ -172,7 +272,7 @@ func row(q string, i int, s string, bonus, pd, pm, d, m []float64) {
 		case q[i] != lowerByte(s[j]):
 			d[j] = math.Inf(-1)
 		case i == 0:
-			d[j] = float64(j)*gapLeading + bonus[j]
+			d[j] = float64(off+j)*gapLeading + bonus[j]
 		case j > 0:
 			d[j] = max(pm[j-1]+bonus[j], pd[j-1]+matchRun)
 		default:
