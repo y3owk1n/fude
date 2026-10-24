@@ -21,7 +21,7 @@ ln -s $(command -v tree-sitter) $root/bin/tree-sitter
 ln -s $(command -v just) $root/bin/just
 ln -s $(command -v tmux) $root/bin/tmux
 git clone -q $repo $root/fude
-git -C $repo diff --no-ext-diff --no-color --binary HEAD | git -C $root/fude apply || return 1
+git -C $repo diff --no-ext-diff --no-color --binary HEAD | git -C $root/fude apply --allow-empty || return 1
 cp $repo/demos/config.toml $root/.config/fude/config.toml
 # A copy of your built grammars, so a build the tape starts writes to the
 # copy, and the clip shows colours from its first frame.
