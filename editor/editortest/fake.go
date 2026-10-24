@@ -1,12 +1,15 @@
 package editortest
 
 import (
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -48,10 +51,50 @@ func FakeProgram(t testing.TB, names ...string) string {
 			}
 		}
 	}
+	// A child that FUDE_FAKE_CHILD leaves runs from the test binary.
+	// Windows cannot delete a program while it runs, so this kills the
+	// child when the test ends.
+	t.Cleanup(func() {
+		pids, err := os.ReadFile(filepath.Join(dir, "children"))
+		if errors.Is(err, fs.ErrNotExist) {
+			return
+		}
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		for _, pid := range strings.Fields(string(pids)) {
+			if err := end(pid); err != nil {
+				t.Errorf("end child %s: %v", pid, err)
+			}
+		}
+	})
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	t.Setenv(fakeEnv, dir)
 	t.Setenv("FUDE_FAKE_ORIGIN", exe)
 	return filepath.Join(dir, "log")
+}
+
+// end kills the process pid. On Windows it also waits for the process to
+// exit, so the program it ran can be deleted. Elsewhere Go cannot wait on
+// a process this one did not start.
+func end(pid string) error {
+	n, err := strconv.Atoi(pid)
+	if err != nil {
+		return err
+	}
+	p, err := os.FindProcess(n)
+	if err != nil {
+		return err
+	}
+	if err := p.Kill(); err != nil {
+		return err
+	}
+	if runtime.GOOS != "windows" {
+		return nil
+	}
+	_, err = p.Wait()
+	return err
 }
 
 // link makes to the file from, as a hard link where it can, else a copy.
@@ -94,14 +137,7 @@ func fakeProgram() (int, bool) {
 	if dir == "" || err != nil || !sameDir(filepath.Dir(exe), dir) {
 		return 0, false
 	}
-	f, err := os.OpenFile(filepath.Join(dir, "log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
-	if err == nil {
-		_, err = fmt.Fprintln(f, strings.Join(os.Args[1:], " "))
-		if cerr := f.Close(); err == nil {
-			err = cerr
-		}
-	}
-	if err != nil {
+	if err := appendLine(filepath.Join(dir, "log"), strings.Join(os.Args[1:], " ")); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1, true
 	}
@@ -115,8 +151,26 @@ func fakeProgram() (int, bool) {
 			fmt.Fprintln(os.Stderr, err)
 			return 1, true
 		}
+		// FakeProgram kills it when the test ends.
+		if err := appendLine(filepath.Join(dir, "children"), strconv.Itoa(child.Process.Pid)); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1, true
+		}
 	}
 	return 0, true
+}
+
+// appendLine adds line to the end of the file at path.
+func appendLine(path, line string) error {
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(f, line)
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	return err
 }
 
 // sameDir reports whether the folders x and y are one, after symlinks.
