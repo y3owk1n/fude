@@ -1057,7 +1057,7 @@ and fude keeps cgo to `syntax/`. fff allows typos, so its first results
 for `httpserver` are Python scripts under `third_party`, where fude
 lists `net/server/http_server.h` first. B129's ranking does not allow
 that. fff is faster when a query matches nearly every file, 13.6ms
-against fude's 40.7ms for `net`, because it ranks only the top 50. fude
+against fude's 29.1ms for `net`, because it ranks only the top 50. fude
 is faster on specific queries, 3.9ms against 26.5ms for
 `renderframehostimpl`.
 

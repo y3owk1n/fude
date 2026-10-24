@@ -161,39 +161,50 @@ const (
 // after a separator or as a capital, and runs of letters score more than
 // scattered ones. scratch is memory to reuse between calls.
 func fuzzy(q, s string, scratch *[]int32) (int32, bool) {
-	start, at := 0, 0
+	if cap(*scratch) < 2*len(q) {
+		*scratch = make([]int32, 2*len(q))
+	}
+	// Letter i takes a place from lo[i], where the letters before it first
+	// fit, to hi[i], where the letters after it last fit.
+	lo, hi := (*scratch)[:len(q)], (*scratch)[len(q):2*len(q)]
+	at := 0
 	for i := range len(q) {
 		k := indexFold(s[at:], q[i])
 		if k < 0 {
 			return 0, false
 		}
-		if i == 0 {
-			start = at + k
-		}
+		lo[i] = int32(at + k)
 		at += k + 1
 	}
 	if len(q) == len(s) {
 		return math.MaxInt32, true
 	}
-	// A match lies between the first place of q's first letter and the last
-	// place of its last letter. Each byte after that costs a trailing gap.
-	end := len(s) - 1
-	for lowerByte(s[end]) != q[len(q)-1] {
-		end--
+	at = len(s)
+	for i := len(q) - 1; i >= 0; i-- {
+		for at--; lowerByte(s[at]) != q[i]; at-- {
+		}
+		hi[i] = int32(at)
 	}
+	// Each byte after the last letter's last place costs a trailing gap.
+	start, end := int(lo[0]), int(hi[len(q)-1])
 	var score int32
 	if len(q) == 1 {
 		score = single(q[0], s, start, end)
 	} else {
 		n := end - start + 1
-		if cap(*scratch) < 5*n {
-			*scratch = make([]int32, 5*n)
+		if cap(*scratch) < 2*len(q)+4*n {
+			*scratch = make([]int32, 2*len(q)+4*n)
 		}
-		buf := (*scratch)[:5*n]
-		bonus, d, m, pd, pm := buf[:n], buf[n:2*n], buf[2*n:3*n], buf[3*n:4*n], buf[4*n:]
-		bonuses(s, start, bonus)
+		buf := (*scratch)[2*len(q) : 2*len(q)+4*n]
+		d, m, pd, pm := buf[:n], buf[n:2*n], buf[2*n:3*n], buf[3*n:]
 		for i := range len(q) {
-			row(q, i, s[start:end+1], start, bonus, pd, pm, d, m)
+			// Row i+1 reads this row only before a place of its letter, and
+			// so only before hi[i+1].
+			to := end + 1
+			if i < len(q)-1 {
+				to = int(hi[i+1])
+			}
+			row(q, i, s, start, int(lo[i]), to, pd, pm, d, m)
 			d, pd = pd, d
 			m, pm = pm, m
 		}
@@ -245,8 +256,6 @@ func Positions(q, s string) []int {
 		return nil
 	}
 	n := len(s)
-	bonus := make([]int32, n)
-	bonuses(s, 0, bonus)
 	d, m := make([][]int32, len(q)), make([][]int32, len(q))
 	for i := range len(q) {
 		d[i], m[i] = make([]int32, n), make([]int32, n)
@@ -254,7 +263,7 @@ func Positions(q, s string) []int {
 		if i > 0 {
 			pd, pm = d[i-1], m[i-1]
 		}
-		row(q, i, s, 0, bonus, pd, pm, d[i], m[i])
+		row(q, i, s, 0, 0, n, pd, pm, d[i], m[i])
 	}
 	// Back from the end, each letter takes the last place that leads to the
 	// best score, or the place a run of letters needs.
@@ -295,14 +304,6 @@ func Occurrences(s, query string, start int) []int {
 	return out
 }
 
-// bonuses fills bonus with what a match at each byte of s from start
-// scores.
-func bonuses(s string, start int, bonus []int32) {
-	for j := range bonus {
-		bonus[j] = bonusAt(s, start+j)
-	}
-}
-
 // bonusAt is what a match at s[j] scores for the byte before it: after a
 // separator, or a capital after a lower case letter.
 func bonusAt(s string, j int) int32 {
@@ -323,28 +324,29 @@ func bonusAt(s string, j int) int32 {
 	return 0
 }
 
-// row fills d and m for q's letter i from pd and pm, the row of q[i-1]: d
-// is the best score with q[i] matched at s[j], and m the best with
-// q[:i+1] matched by s[:j+1]. s starts at byte off of the text matched.
-func row(q string, i int, s string, off int, bonus, pd, pm, d, m []int32) {
+// row fills d and m from s[from] to s[to-1] for q's letter i from pd and
+// pm, the row of q[i-1]: d is the best score with q[i] matched at s[j], and
+// m the best with q[:i+1] matched by s[:j+1]. The rows start at s[off].
+func row(q string, i int, s string, off, from, to int, pd, pm, d, m []int32) {
 	best := int32(none)
 	gap := int32(gapInner)
 	if i == len(q)-1 {
 		gap = gapTrailing
 	}
-	for j := range len(s) {
+	for j := from; j < to; j++ {
+		k := j - off
 		switch {
 		case q[i] != lowerByte(s[j]):
-			d[j] = none
+			d[k] = none
 		case i == 0:
-			d[j] = int32(off+j)*gapLeading + bonus[j]
-		case j > 0:
-			d[j] = max(pm[j-1]+bonus[j], pd[j-1]+matchRun)
+			d[k] = int32(j)*gapLeading + bonusAt(s, j)
+		case k > 0:
+			d[k] = max(pm[k-1]+bonusAt(s, j), pd[k-1]+matchRun)
 		default:
-			d[j] = none
+			d[k] = none
 		}
-		best = max(d[j], best+gap, none)
-		m[j] = best
+		best = max(d[k], best+gap, none)
+		m[k] = best
 	}
 }
 
