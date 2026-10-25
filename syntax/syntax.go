@@ -27,6 +27,7 @@ import (
 type language struct {
 	lang                            *ts.Language
 	highlights, objects, injections string
+	folds                           string // where the grammar folds, as @fold captures (B591)
 	comment                         string // %s stands for the commented text
 }
 
@@ -202,6 +203,26 @@ func New(filetype, dir string, queue chan<- func(), parsed func(), missing func(
 	}
 	go h.run(filetype, p, q, inj, newInjector(dir))
 	return h, true, nil
+}
+
+// Folds returns the folds query of filetype's grammar, from dir when the
+// file is there, or false when it has none (B591).
+func Folds(filetype, dir string) (string, bool, error) {
+	l, ok, err := lookup(filetype)
+	if !ok || err != nil {
+		return "", false, err
+	}
+	src := l.folds
+	if dir != "" {
+		b, err := os.ReadFile(filepath.Join(dir, filetype, "folds.scm"))
+		switch {
+		case err == nil:
+			src = string(b)
+		case !errors.Is(err, fs.ErrNotExist):
+			return "", false, fmt.Errorf("read query: %w", err)
+		}
+	}
+	return src, src != "", nil
 }
 
 // query compiles the query name of filetype from dir when the file is

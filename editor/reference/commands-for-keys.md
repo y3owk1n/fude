@@ -309,7 +309,9 @@ as `<Plug>(fold.close)` does, and says "no fold here" when there is none.
 
 `zc` by default. Folds go by indent. A fold starts on a line followed by
 lines indented more, and holds them and the blank lines among them, so a
-line can be in folds within folds. Of the folds that hold the cursor's
+line can be in folds within folds. In a file whose grammar says where it
+folds, such as markdown, folds go there instead. A heading's section holds
+the sections under it. Of the folds that hold the cursor's
 line, outermost first, it closes the last one open before the first
 closed one, which with every fold open is the innermost. With a count it
 closes that many levels, outward. The closed folds inside stay closed, so
@@ -330,7 +332,7 @@ that many levels. The cursor sits on the first line of a closed fold,
 which the folds inside it do not hold, so a count opens more than one
 level only where folds start on the same line. On a line in no closed
 fold it does nothing. A fold `zf` made is gone once opened, and
-`<Plug>(fold.close)` folds by indent after that.
+`<Plug>(fold.close)` folds as before after that.
 
 ## <Plug>(fold.open_deep)
 
@@ -345,7 +347,7 @@ open.
 
 ## <Plug>(fold.close_all)
 
-`zM` by default. It closes every fold by indent, the nested ones too, so
+`zM` by default. It closes every fold, the nested ones too, so
 `<Plug>(fold.open)` opens them one level at a time. The cursor goes to
 the first line of the fold it is in.
 
@@ -388,7 +390,7 @@ With no fold closed and none kept, it does nothing.
 ## <Plug>(fold.next)
 
 `zj` by default. It goes to the first line of the n-th fold below the
-cursor's line, closed or by indent, nested ones too. A closed fold counts
+cursor's line, closed or open, nested ones too. A closed fold counts
 as one line, so the folds inside it are passed over. With fewer than n
 folds below, the cursor stays and the message says "no fold there".
 
@@ -398,6 +400,21 @@ folds below, the cursor stays and the message says "no fold there".
 cursor's line. A closed fold counts as one line, and the cursor lands on
 its first. With fewer than n folds above, the cursor stays and the
 message says "no fold there".
+
+## <Plug>(fold.cycle)
+
+No key by default. On the first line of a fold, it steps the fold from
+closed, to open with the folds inside it closed, to open with every fold
+inside it open, and back to closed. A fold with none inside opens and
+closes. Off a fold's first line it does nothing, so a key mapped to it in
+one filetype may do something else elsewhere.
+
+## <Plug>(fold.cycle_all)
+
+No key by default. It steps the whole buffer from every outermost fold
+closed, to every fold closed that holds no other, to every fold open, and
+back. It skips a step that would leave the folds as they are, so a buffer
+with no nested folds steps between closed and open.
 
 ## <Plug>(git.next)
 

@@ -655,6 +655,9 @@ type Scope struct {
 	// first, or none without a grammar. A query that does not compile is an
 	// error (B297).
 	Query func(queries map[string]string) ([]Span, error)
+	// Folds runs the folds query of the buffer's grammar as Query runs a
+	// query, and is false when the grammar has none (B591).
+	Folds func() ([]Span, bool, error)
 	// Comment returns how the language at pos comments a line, such as
 	// "// %s", or false when fude knows none (B275).
 	Comment func(pos int) (string, bool)

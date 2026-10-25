@@ -236,6 +236,12 @@ func load(path, filetype string) (*language, error) {
 	} else if l.objects, err = read("textobjects"); err != nil {
 		return nil, err
 	}
+	// fude's own folds come first too, as a grammar's repo seldom has them.
+	if b, err := shipped.ReadFile("queries/" + filetype + "/folds.scm"); err == nil {
+		l.folds = string(b)
+	} else if l.folds, err = read("folds"); err != nil {
+		return nil, err
+	}
 	return l, nil
 }
 

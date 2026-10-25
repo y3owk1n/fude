@@ -14,7 +14,7 @@ import (
 // off. A closed fold's first line shows fill_chars.fold_close, a line
 // that starts an open fold fold_open, and the other lines a fold holds
 // fold_sep (B488).
-func (m *Module) column(s api.Scope, res api.Result) api.Result {
+func (m *Module) column(s api.Scope, sh shape, res api.Result) api.Result {
 	buf := s.About["buffer"]
 	res.Undecorate = append(res.Undecorate, m.signs[buf]...)
 	delete(m.signs, buf)
@@ -22,7 +22,6 @@ func (m *Module) column(s api.Scope, res api.Result) api.Result {
 		return res
 	}
 	t := s.Text
-	tab, _ := strconv.Atoi(s.About["tab"])
 	open, shut, sep := fillChar(s, "fold_open", "-"), fillChar(s, "fold_close", "+"), fillChar(s, "fold_sep", "│")
 	// The closed folds once res applies.
 	gone := map[int]bool{}
@@ -39,7 +38,7 @@ func (m *Module) column(s api.Scope, res api.Result) api.Result {
 	for _, w := range s.Windows() {
 		if strconv.Itoa(w.Buffer) == buf {
 			at := t.LineOf(w.Top)
-			mark(t, max(at-w.Height, 0), min(at+2*w.Height, t.Lines()-1), tab, open, sep, marks)
+			sh.mark(max(at-w.Height, 0), min(at+2*w.Height, t.Lines()-1), open, sep, marks)
 		}
 	}
 	for line, sign := range marks {

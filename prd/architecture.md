@@ -1601,7 +1601,8 @@ filetype, such as one for `markdown` and one for `markdown_inline` (B297). `synt
 module's goroutine, runs the buffer's language's query on its tree, and
 walks the injected regions as the worker does, running each region's
 language's query on that region's tree. Its queries are strict, as
-`:select`'s are.
+`:select`'s are. `Scope.Folds` runs the grammar's `folds.scm` the same
+way, fude's own for a grammar first, as with text objects (B591).
 
 Queries use only the predicates the binding evaluates: the `eq?`,
 `match?` and `any-of?` families. A query that uses any other fails to load

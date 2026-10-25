@@ -1483,10 +1483,19 @@ func (e *Session) scope(p api.Module, b *buffer, t api.Text) api.Scope {
 				}
 				return out, err
 			}
+			s.Folds = func() ([]api.Span, bool, error) {
+				src, ok, err := syntax.Folds(ft, queries)
+				if !ok || err != nil {
+					return nil, false, err
+				}
+				spans, err := s.Query(map[string]string{ft: src})
+				return spans, true, err
+			}
 		}
 	}
 	if s.Query == nil {
 		s.Query = func(map[string]string) ([]api.Span, error) { return nil, nil }
+		s.Folds = func() ([]api.Span, bool, error) { return nil, false, nil }
 	}
 	language := s.Language
 	s.Comment = func(pos int) (string, bool) { return syntax.Comment(language(pos)) }

@@ -1,6 +1,7 @@
-// Package fold folds a buffer by indent, through zc, zC, zo, zO, za, zA,
-// zv, zR, zM, zm, zr and zi, folds the lines zf covers, and moves between
-// folds with zj and zk (B224, B502, N34).
+// Package fold folds a buffer by indent, or as its grammar's folds query
+// says, through zc, zC, zo, zO, za, zA, zv, zR, zM, zm, zr and zi, folds the
+// lines zf covers, moves between folds with zj and zk, and cycles folds
+// (B224, B502, B591, B592, N34).
 package fold
 
 import (
@@ -31,6 +32,8 @@ const (
 	enable
 	openDeep
 	closeDeep
+	cycle
+	cycleAll
 )
 
 // Module is fold.
@@ -65,6 +68,8 @@ func (m *Module) Registered() []api.Registration {
 		{Kind: api.Plug, Name: "more", Keys: "zm", Help: "folds one level more, or n levels", ID: more},
 		{Kind: api.Plug, Name: "less", Keys: "zr", Help: "folds one level less, or n levels", ID: less},
 		{Kind: api.Plug, Name: "enable", Keys: "zi", Help: "opens every closed fold, or closes again those it opened", ID: enable},
+		{Kind: api.Plug, Name: "cycle", Help: "on a fold's first line, opens it with the folds inside it closed, then every fold inside it, then closes it", ID: cycle},
+		{Kind: api.Plug, Name: "cycle_all", Help: "closes the outermost folds, then the folds that hold no other, then opens every fold", ID: cycleAll},
 		{Kind: api.Option, Name: "column", Default: "false", Help: "the sign column shows where folds start and the lines they hold"},
 	}
 }
@@ -81,12 +86,15 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 	defer m.mu.Unlock()
 	t := s.Text
 	line := t.LineOf(args[0])
-	tab, _ := strconv.Atoi(s.About["tab"])
+	sh, err := shapeOf(s)
+	if err != nil {
+		return api.Result{Error: err.Error()}, nil
+	}
 	folds := closed(s)
 	var res api.Result
 	switch id {
 	case nextFold, prevFold:
-		to, ok := moveTo(t, folds, line, max(args[1], 1), tab, id == nextFold)
+		to, ok := moveTo(sh, folds, line, max(args[1], 1), id == nextFold)
 		if !ok {
 			return api.Result{Error: "no fold there"}, nil
 		}
@@ -100,13 +108,13 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 	case view:
 		res = opened(t, folds, line)
 	case open, closeOne, toggle, openDeep, closeDeep, toggleAll:
-		res = m.levels(t, folds, spans(t, folds, line, tab), id, max(args[1], 1))
+		res = m.levels(t, folds, spans(sh, folds, line), id, max(args[1], 1))
 	case more, less:
 		n := max(args[1], 1)
 		if id == more {
 			n = -n
 		}
-		res = m.level(t, folds, tab, n)
+		res = m.level(sh, folds, n)
 	case enable:
 		res = m.enable(s, folds)
 	case openAll:
@@ -114,19 +122,21 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 			res.Undecorate = append(res.Undecorate, f.ID)
 		}
 	case closeAll:
-		for l := 0; l < t.Lines(); l++ {
-			if last, ok := foldEnd(t, l, tab); ok && !slices.ContainsFunc(folds, func(f api.Decoration) bool {
-				return t.LineOf(f.Start) == l && t.LineOf(f.End) == last
-			}) {
-				res.Decorate = append(res.Decorate, m.fold(t, l, last))
+		for _, sp := range sh.all() {
+			if !isClosed(t, folds, sp) {
+				res.Decorate = append(res.Decorate, m.fold(t, sp.first, sp.last))
 			}
 		}
+	case cycle:
+		res = m.cycle(sh, folds, line)
+	case cycleAll:
+		res = m.cycleAll(sh, folds)
 	}
 	// The cursor lands on the first line of the fold it is in.
 	if first := firstLine(t, folds, res, line); first != line {
 		res.Jump = &api.Jump{Pos: t.LineStart(first)}
 	}
-	return m.column(s, res), nil
+	return m.column(s, sh, res), nil
 }
 
 // Event draws the fold column again on the buffer it is about, and
@@ -141,7 +151,15 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 	case event == "option.set" && detail != "fold.column" && !strings.HasPrefix(detail, "fill_chars."):
 		return api.Result{}, nil
 	}
-	return m.column(s, api.Result{}), nil
+	// The folds query parses the buffer, so it runs only for the column.
+	var sh shape
+	if on, _ := s.Option("fold.column"); on == "true" {
+		var err error
+		if sh, err = shapeOf(s); err != nil {
+			return api.Result{Error: err.Error()}, nil
+		}
+	}
+	return m.column(s, sh, api.Result{}), nil
 }
 
 func (m *Module) Callback(context.Context, uint32, api.Scope) (api.Result, error) {
@@ -158,9 +176,27 @@ type span struct {
 	closed      *api.Decoration
 }
 
-// spans returns the folds that hold line, by indent or closed, outermost
+// spans returns the folds that hold line, from sh or closed, outermost
 // first.
-func spans(t api.Text, folds []api.Decoration, line, tab int) []span {
+func spans(sh shape, folds []api.Decoration, line int) []span {
+	t, out := sh.t, sh.holding(line)
+	for _, f := range folds {
+		first, last := t.LineOf(f.Start), t.LineOf(f.End)
+		if line < first || line > last {
+			continue
+		}
+		if i := slices.IndexFunc(out, func(sp span) bool { return sp.first == first && sp.last == last }); i >= 0 {
+			out[i].closed = &f
+		} else {
+			out = append(out, span{first, last, &f})
+		}
+	}
+	slices.SortFunc(out, func(a, b span) int { return cmp.Or(a.first-b.first, b.last-a.last) })
+	return out
+}
+
+// indentHolding returns the folds by indent that hold line.
+func indentHolding(t api.Text, line, tab int) []span {
 	var out []span
 	if last, ok := foldEnd(t, line, tab); ok {
 		out = append(out, span{first: line, last: last})
@@ -174,18 +210,6 @@ func spans(t api.Text, folds []api.Decoration, line, tab int) []span {
 			ind, ok = col, true
 		}
 	}
-	for _, f := range folds {
-		first, last := t.LineOf(f.Start), t.LineOf(f.End)
-		if line < first || line > last {
-			continue
-		}
-		if i := slices.IndexFunc(out, func(sp span) bool { return sp.first == first && sp.last == last }); i >= 0 {
-			out[i].closed = &f
-		} else {
-			out = append(out, span{first, last, &f})
-		}
-	}
-	slices.SortFunc(out, func(a, b span) int { return cmp.Or(a.first-b.first, b.last-a.last) })
 	return out
 }
 
@@ -250,29 +274,113 @@ func (m *Module) levels(t api.Text, folds []api.Decoration, path []span, id uint
 // level folds n levels less, or more for a negative n, from the level the
 // closed folds are at. Folds deeper than the level close and the rest
 // open. With no fold closed the level is the deepest, as after zR.
-func (m *Module) level(t api.Text, folds []api.Decoration, tab, n int) api.Result {
-	depth := depths(t, tab)
+func (m *Module) level(sh shape, folds []api.Decoration, n int) api.Result {
+	t, depth, all := sh.t, sh.depth(), sh.all()
 	deepest := 0
-	for l, d := range depth {
-		if _, ok := foldEnd(t, l, tab); ok {
-			deepest = max(deepest, d)
-		}
+	for _, sp := range all {
+		deepest = max(deepest, depth(sp.first))
 	}
 	at := deepest
 	for _, f := range folds {
-		at = min(at, depth[t.LineOf(f.Start)]-1)
+		at = min(at, depth(t.LineOf(f.Start))-1)
 	}
 	to := min(max(at+n, 0), deepest)
 	var res api.Result
 	for _, f := range folds {
 		res.Undecorate = append(res.Undecorate, f.ID)
 	}
-	for l, d := range depth {
-		if last, ok := foldEnd(t, l, tab); ok && d > to {
-			res.Decorate = append(res.Decorate, m.fold(t, l, last))
+	for _, sp := range all {
+		if depth(sp.first) > to {
+			res.Decorate = append(res.Decorate, m.fold(t, sp.first, sp.last))
 		}
 	}
 	return res
+}
+
+// cycle steps the fold that starts on line from closed, to open with the
+// folds inside it closed, to open with every fold inside it open, and back
+// to closed. Off a fold's first line it does nothing (B592).
+func (m *Module) cycle(sh shape, folds []api.Decoration, line int) api.Result {
+	t := sh.t
+	last, ok := sh.end(line)
+	var shut *api.Decoration
+	for _, f := range folds {
+		if t.LineOf(f.Start) == line {
+			shut, last, ok = &f, max(last, t.LineOf(f.End)), true
+		}
+	}
+	if !ok {
+		return api.Result{}
+	}
+	inside := func(first, end int) bool { return first > line && end <= last }
+	var res api.Result
+	switch {
+	case shut != nil:
+		res.Undecorate = append(res.Undecorate, shut.ID)
+		for _, sp := range sh.all() {
+			if inside(sp.first, sp.last) && !isClosed(t, folds, sp) {
+				res.Decorate = append(res.Decorate, m.fold(t, sp.first, sp.last))
+			}
+		}
+	case slices.ContainsFunc(folds, func(f api.Decoration) bool { return inside(t.LineOf(f.Start), t.LineOf(f.End)) }):
+		for _, f := range folds {
+			if inside(t.LineOf(f.Start), t.LineOf(f.End)) {
+				res.Undecorate = append(res.Undecorate, f.ID)
+			}
+		}
+	default:
+		res.Decorate = append(res.Decorate, m.fold(t, line, last))
+	}
+	return res
+}
+
+// cycleAll steps the buffer from every outermost fold closed, to every
+// fold closed that holds no other, to every fold open, and back. It skips
+// a step that would change nothing (B592).
+func (m *Module) cycleAll(sh shape, folds []api.Decoration) api.Result {
+	t := sh.t
+	all := sh.all()
+	within := func(a, b span) bool {
+		return (a.first != b.first || a.last != b.last) && b.first <= a.first && a.last <= b.last
+	}
+	var outer, leaves []span
+	for _, a := range all {
+		if !slices.ContainsFunc(all, func(b span) bool { return within(a, b) }) {
+			outer = append(outer, a)
+		}
+		if !slices.ContainsFunc(all, func(b span) bool { return within(b, a) }) {
+			leaves = append(leaves, a)
+		}
+	}
+	shut := func(sp span) bool { return isClosed(t, folds, sp) }
+	same := func(step []span) bool {
+		return len(step) == len(folds) && !slices.ContainsFunc(step, func(sp span) bool { return !shut(sp) })
+	}
+	steps := [][]span{outer, leaves, nil}
+	at := slices.IndexFunc(steps, same)
+	next := (at + 1) % len(steps)
+	for next != at && same(steps[next]) {
+		next = (next + 1) % len(steps)
+	}
+	var res api.Result
+	for _, f := range folds {
+		if !slices.ContainsFunc(steps[next], func(sp span) bool { return sp.first == t.LineOf(f.Start) && sp.last == t.LineOf(f.End) }) {
+			res.Undecorate = append(res.Undecorate, f.ID)
+		}
+	}
+	for _, sp := range steps[next] {
+		if !shut(sp) {
+			res.Decorate = append(res.Decorate, m.fold(t, sp.first, sp.last))
+		}
+	}
+	return res
+}
+
+// isClosed reports whether one of folds closes sp.
+func isClosed(t api.Text, folds []api.Decoration, sp span) bool {
+	return slices.ContainsFunc(folds, func(f api.Decoration) bool {
+		return t.LineOf(f.Start) == sp.first && t.LineOf(f.End) == sp.last
+	})
 }
 
 // enable opens every closed fold, keeping where each was as a decoration
@@ -423,8 +531,8 @@ func foldEnd(t api.Text, line, tab int) (int, bool) {
 // moveTo returns the line n folds below line, where one starts, or above
 // it, where one ends. A closed fold counts as one line, which is its first,
 // and false means there are fewer than n.
-func moveTo(t api.Text, folds []api.Decoration, line, n, tab int, down bool) (int, bool) {
-	step := -1
+func moveTo(sh shape, folds []api.Decoration, line, n int, down bool) (int, bool) {
+	t, step := sh.t, -1
 	if down {
 		step = 1
 	}
@@ -435,7 +543,7 @@ func moveTo(t api.Text, folds []api.Decoration, line, n, tab int, down bool) (in
 			continue
 		case first != l:
 			l = first
-		case down && !startsFold(t, folds, l, tab), !down && !endsFold(t, l, tab):
+		case down && !startsFold(sh, folds, l), !down && !sh.ends(l):
 			continue
 		}
 		if n--; n == 0 {
@@ -445,14 +553,14 @@ func moveTo(t api.Text, folds []api.Decoration, line, n, tab int, down bool) (in
 	return 0, false
 }
 
-// startsFold reports whether a fold starts on line, closed or by indent.
-func startsFold(t api.Text, folds []api.Decoration, line, tab int) bool {
+// startsFold reports whether a fold starts on line, closed or in sh.
+func startsFold(sh shape, folds []api.Decoration, line int) bool {
 	for _, f := range folds {
-		if t.LineOf(f.Start) == line {
+		if sh.t.LineOf(f.Start) == line {
 			return true
 		}
 	}
-	_, ok := foldEnd(t, line, tab)
+	_, ok := sh.end(line)
 	return ok
 }
 

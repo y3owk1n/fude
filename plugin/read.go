@@ -17,7 +17,7 @@ import (
 var reads = map[string]string{
 	"About": "", "Option": "", "Config": "", "Keys": "", "Commands": "", "HelpTags": "",
 	"HelpAt": "", "Grammars": "", "Sessions": "", "Windows": "", "Pages": "",
-	"Buffers": "buffer.read", "Language": "buffer.read", "Spans": "buffer.read", "Query": "buffer.read",
+	"Buffers": "buffer.read", "Language": "buffer.read", "Spans": "buffer.read", "Query": "buffer.read", "Folds": "buffer.read",
 	"Comment": "buffer.read", "Object": "buffer.read", "Node": "buffer.read", "Context": "buffer.read", "States": "buffer.read",
 	"StateText": "buffer.read", "Marks": "buffer.read", "Jumps": "buffer.read", "Changes": "buffer.read",
 	"Register": "buffer.read", "Entries": "buffer.read", "Selection": "buffer.read", "Cursors": "buffer.read",

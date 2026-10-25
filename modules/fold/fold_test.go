@@ -6,11 +6,12 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/editor/editortest"
 	"github.com/y3owk1n/fude/modules/fold"
 )
 
-func TestMain(m *testing.M) { os.Exit(editortest.Main(m)) }
+func TestMain(m *testing.M) { os.Exit(editortest.Main(m, "markdown", "markdown_inline")) }
 
 // B224
 func TestB224Folds(t *testing.T) {
@@ -135,4 +136,52 @@ func TestB488FoldColumn(t *testing.T) {
 	editortest.Settle(t, e, func() bool { return signs()[0] == "+" })
 	editortest.Feed(e, ":set fold.column false<CR>")
 	editortest.Settle(t, e, func() bool { return len(signs()) == 0 })
+}
+
+// sections starts fude with fold on a markdown file of sections, which
+// has no indent to fold by.
+func sections(t *testing.T) (*editor.Session, func() map[int]int) {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "a.md")
+	editortest.Change(t, path, "# A\ntext\n## B\nmore\n# C\nlast\n")
+	e := editortest.Start(t, path)
+	e.Use(fold.New())
+	e.SetSize(80, 20)
+	return e, func() map[int]int { return e.Windows()[0].Folds }
+}
+
+// B591
+func TestB591GrammarFolds(t *testing.T) {
+	e, folds := sections(t)
+	if editortest.Feed(e, "zM"); !maps.Equal(folds(), map[int]int{0: 3, 4: 1}) {
+		t.Errorf("zM made %v, want the sections closed", folds())
+	}
+	if editortest.Feed(e, "zRggzj"); e.Text().LineOf(e.Cursor()) != 2 {
+		t.Errorf("zj went to line %d, want the section under A", e.Text().LineOf(e.Cursor()))
+	}
+	if editortest.Feed(e, "jzc"); !maps.Equal(folds(), map[int]int{2: 1}) {
+		t.Errorf("zc in B made %v, want B closed", folds())
+	}
+}
+
+// B592
+func TestB592CycleFolds(t *testing.T) {
+	e, folds := sections(t)
+	for _, step := range []struct {
+		keys string
+		want map[int]int
+	}{
+		{"gg<Plug>(fold.cycle)", map[int]int{0: 3}},
+		{"<Plug>(fold.cycle)", map[int]int{2: 1}},
+		{"<Plug>(fold.cycle)", nil},
+		{"<Plug>(fold.cycle)", map[int]int{0: 3}},
+		{"zRj<Plug>(fold.cycle)", nil},
+		{"<Plug>(fold.cycle_all)", map[int]int{0: 3, 4: 1}},
+		{"<Plug>(fold.cycle_all)", map[int]int{2: 1, 4: 1}},
+		{"<Plug>(fold.cycle_all)", nil},
+	} {
+		if editortest.Feed(e, step.keys); !maps.Equal(folds(), step.want) {
+			t.Fatalf("%s made %v, want %v", step.keys, folds(), step.want)
+		}
+	}
 }
