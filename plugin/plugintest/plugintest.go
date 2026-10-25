@@ -18,8 +18,11 @@ import (
 	"github.com/y3owk1n/fude/plugin"
 )
 
-// Plugin is a plugin loaded for a test.
+// Plugin is a plugin loaded for a test. Path and Filetype are the file
+// and filetype of the buffer its calls are about, none by default.
 type Plugin struct {
+	Path, Filetype string
+
 	t   testing.TB
 	p   *plugin.Plugin
 	mu  sync.Mutex
@@ -136,12 +139,12 @@ func Apply(text string, res api.Result) string {
 // scope is what a call against text reads, as the only open buffer, with
 // what extra adds to its context.
 func (p *Plugin) scope(text string, extra api.Context) api.Scope {
-	about := api.Context{"buffer": "1", "path": "", "filetype": "", "mode": "normal"}
+	about := api.Context{"buffer": "1", "path": p.Path, "filetype": p.Filetype, "mode": "normal"}
 	for k, v := range extra {
 		about[k] = v
 	}
 	t := str(text)
-	return api.Scope{Text: t, About: about, Buffers: map[int]api.Buffer{1: {Text: t}}, Option: p.option}
+	return api.Scope{Text: t, About: about, Buffers: map[int]api.Buffer{1: {Path: p.Path, Filetype: p.Filetype, Text: t}}, Option: p.option}
 }
 
 // option returns the plugin's option name as its table or its default

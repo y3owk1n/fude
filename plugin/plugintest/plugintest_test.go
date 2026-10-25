@@ -3,6 +3,7 @@ package plugintest_test
 import (
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/y3owk1n/fude/plugin"
@@ -32,6 +33,11 @@ func TestB192TestHost(t *testing.T) {
 	ctx := plugintest.Load(t, wasm(t, "ctx"), plugin.Grants{Capabilities: []string{"buffer.write"}, Options: map[string]string{"depth": "3"}}, "")
 	if got := plugintest.Apply("", ctx.Command("Opt", "ctx.depth", "", 0)) + plugintest.Apply("", ctx.Command("Opt", "ctx.on", "", 0)); got != "3|false|" {
 		t.Errorf(":Opt typed %q, want 3|false|", got)
+	}
+	// A call is about the file and filetype the test gives.
+	ctx.Path, ctx.Filetype = "notes.md", "markdown"
+	if got := plugintest.Apply("", ctx.Command("Where", "", "", 0)); !strings.Contains(got, "notes.md") || !strings.Contains(got, "markdown") {
+		t.Errorf(":Where typed %q, want the path and filetype", got)
 	}
 	listen := plugintest.Load(t, wasm(t, "listen"), plugin.Grants{Capabilities: []string{"buffer.read", "ui"}}, "")
 	res := listen.Event("buffer.changed", "abc")

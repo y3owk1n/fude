@@ -1969,7 +1969,8 @@ Where fude departs, the line says so and cites the departure in
   a `[[plugin]]` table would give it. It runs a command, a key, an event
   or a callback against a text, and returns what the call asked for and
   what the plugin logged. A call reads the plugin's options as its table
-  or their defaults start them.
+  or their defaults start them, and is about a buffer of the path and
+  filetype the test gives.
 - B186 [4] A plugin with `ui` shows text in a read-only window with a
   title, coloured as a filetype it names. Showing text under a title
   already open replaces what that window shows. `:q` closes it without
