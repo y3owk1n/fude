@@ -318,8 +318,8 @@ func (e *Session) writeAll(bs []*buffer, force bool, then func()) error {
 	return nil
 }
 
-// Focus reloads each unmodified buffer whose file changed on disk, as one
-// undo step. A modified one keeps its text, and fude warns once.
+// Focus tells the modules fude has the focus again, and reloads the
+// buffers whose files changed on disk (B82).
 func (e *Session) Focus() {
 	e.emit("editor.focused", "", e.win.buf)
 	e.recheck()
@@ -328,6 +328,15 @@ func (e *Session) Focus() {
 		if b.listed != "" {
 			e.emit("explorer.read", "", b)
 		}
+	}
+	e.reloadChanged()
+}
+
+// reloadChanged reloads each unmodified buffer whose file changed on disk,
+// as one undo step. A modified one keeps its text, and fude warns once.
+func (e *Session) reloadChanged() {
+	reloaded := false
+	for _, b := range e.bufs {
 		if b.title != "" || b.file.warned || !b.file.changed() {
 			continue
 		}
@@ -342,6 +351,9 @@ func (e *Session) Focus() {
 			continue
 		}
 		e.message = fmt.Sprintf("\"%s\" changed on disk, reloaded", b.file.path)
+		reloaded = true
 	}
-	e.reveal()
+	if reloaded {
+		e.reveal()
+	}
 }

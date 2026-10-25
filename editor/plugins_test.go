@@ -218,6 +218,116 @@ func TestB49HTTPGet(t *testing.T) {
 	}
 }
 
+// withNotes makes a home folder for ~ holding notes/a.txt, and starts fude in a
+// project of its own with the files plugin, whose table lists more and
+// grants caps. It returns the home folder and the project.
+func withNotes(t *testing.T, more string, caps ...string) (*editor.Session, string, string) {
+	t.Helper()
+	home, project := t.TempDir(), t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	if err := os.Mkdir(filepath.Join(home, "notes"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	change(t, filepath.Join(home, "notes", "a.txt"), "* a")
+	useTable(t, "files", more, caps...)
+	t.Chdir(project)
+	e := start(t)
+	e.Load()
+	next(t, e)
+	return e, home, project
+}
+
+// B585
+func TestB585PluginPaths(t *testing.T) {
+	// A folder neither absolute nor under ~ keeps the plugin from loading.
+	useTable(t, "files", "paths = [\"notes\"]\n", "fs.read", "ui")
+	e := start(t)
+	e.Load()
+	if next(t, e); !strings.Contains(e.Message(), `path "notes"`) {
+		t.Errorf("paths = [\"notes\"] said %q, want it named", e.Message())
+	}
+	e, home, _ := withNotes(t, "paths = [\"~/notes\"]\n", "fs.read", "ui")
+	change(t, filepath.Join(home, "secret.txt"), "secret")
+	if err := os.Symlink(filepath.Join(home, "secret.txt"), filepath.Join(home, "notes", "link")); err != nil {
+		t.Fatal(err)
+	}
+	for _, read := range []struct{ path, want string }{
+		{"~/notes/a.txt", "* a"},
+		{filepath.Join(home, "notes", "a.txt"), "* a"},
+		{"~/secret.txt", "error"},
+		{"~/notes/../secret.txt", "error"},
+		{"~/notes/link", "error"},
+	} {
+		if feed(e, ":Read "+read.path+"<CR>"); !strings.HasPrefix(e.Message(), read.want) {
+			t.Errorf(":Read %s said %q, want %s", read.path, e.Message(), read.want)
+		}
+	}
+}
+
+// B586
+func TestB586ListAndStat(t *testing.T) {
+	e, home, _ := withNotes(t, "paths = [\"~/notes\"]\n", "fs.read", "ui")
+	if err := os.Mkdir(filepath.Join(home, "notes", "sub"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if feed(e, ":List ~/notes<CR>"); e.Message() != "a.txt sub/" {
+		t.Errorf(":List ~/notes said %q, want a.txt sub/", e.Message())
+	}
+	info, err := os.Stat(filepath.Join(home, "notes", "a.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for path, want := range map[string]string{
+		"~/notes/a.txt": fmt.Sprintf("3 %d", info.ModTime().UnixNano()),
+		"~/notes/sub":   "dir",
+		"~/notes/none":  "none",
+	} {
+		if feed(e, ":Stat "+path+"<CR>"); e.Message() != want {
+			t.Errorf(":Stat %s said %q, want %q", path, e.Message(), want)
+		}
+	}
+}
+
+// B587
+func TestB587WriteFiles(t *testing.T) {
+	e, home, project := withNotes(t, "paths = [\"~/notes\"]\n", "fs.read", "fs.write", "buffer.write", "ui")
+	notes := filepath.Join(home, "notes")
+	for _, step := range []struct{ cmd, want string }{
+		{":Mkdir ~/notes/new/deep", "made"},
+		{":Write ~/notes/new/deep/b.txt hello there", "wrote"},
+		{":Mv ~/notes/new/deep/b.txt ~/notes/c.txt", "moved"},
+		{":Rm ~/notes/new", "error"},
+		{":Write ~/outside.txt no", "error"},
+		{":Write here.txt in the project", "wrote"},
+	} {
+		if feed(e, step.cmd+"<CR>"); !strings.HasPrefix(e.Message(), step.want) {
+			t.Fatalf("%s said %q, want %s", step.cmd, e.Message(), step.want)
+		}
+	}
+	if disk(t, filepath.Join(notes, "c.txt")) != "hello there" || disk(t, filepath.Join(project, "here.txt")) != "in the project" {
+		t.Fatal("the writes did not reach the disk")
+	}
+	if _, err := os.Stat(filepath.Join(home, "outside.txt")); err == nil {
+		t.Fatal("a write outside the paths made its file")
+	}
+	if feed(e, ":Rm ~/notes/c.txt<CR>"); e.Message() != "removed" {
+		t.Fatalf(":Rm said %q", e.Message())
+	}
+	if _, err := os.Stat(filepath.Join(notes, "c.txt")); err == nil {
+		t.Fatal(":Rm left the file")
+	}
+	// A buffer open unchanged reloads, and one with changes is refused.
+	feed(e, ":e ~/notes/a.txt<CR>")
+	if feed(e, ":Write ~/notes/a.txt * b<CR>"); text(e) != "* b" {
+		t.Fatalf("the open buffer shows %q after the write, want * b", text(e))
+	}
+	feed(e, "A!<Esc>")
+	if feed(e, ":Write ~/notes/a.txt * c<CR>"); !strings.Contains(e.Message(), "a.txt") || disk(t, filepath.Join(notes, "a.txt")) != "* b" {
+		t.Errorf("a write over unwritten changes said %q and left %q", e.Message(), disk(t, filepath.Join(notes, "a.txt")))
+	}
+}
+
 // B50
 func TestB50Capabilities(t *testing.T) {
 	e := withPlugin(t, "write")

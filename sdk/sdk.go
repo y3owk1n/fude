@@ -8,6 +8,7 @@ package sdk
 import (
 	"encoding/json"
 	"errors"
+	"io/fs"
 	"maps"
 	"slices"
 	"strconv"
@@ -54,7 +55,7 @@ var (
 	ErrDenied = errors.New("the plugin did not declare the capability it needs")
 	ErrRange  = errors.New("a range outside the text")
 	ErrMemory = errors.New("the plugin's memory could not take the result")
-	ErrFile   = errors.New("a file outside the project, or one that cannot be read")
+	ErrFile   = errors.New("a file outside the project and the plugin's paths, or one that cannot be read or written")
 	ErrRun    = errors.New("a program the plugin did not declare, or one that failed")
 	ErrNet    = errors.New("a host the plugin did not declare, or a request that failed")
 )
@@ -113,6 +114,24 @@ func hostResult(ptr *byte, n uint32) int32
 
 //go:wasmimport fude read_file
 func hostReadFile(ptr *byte, n uint32) int64
+
+//go:wasmimport fude list_dir
+func hostListDir(ptr *byte, n uint32) int64
+
+//go:wasmimport fude stat
+func hostStat(ptr *byte, n uint32) int64
+
+//go:wasmimport fude write_file
+func hostWriteFile(ptr *byte, n uint32, data *byte, dataLen uint32) int32
+
+//go:wasmimport fude make_dir
+func hostMakeDir(ptr *byte, n uint32) int32
+
+//go:wasmimport fude rename
+func hostRename(ptr *byte, n uint32, to *byte, toLen uint32) int32
+
+//go:wasmimport fude remove
+func hostRemove(ptr *byte, n uint32) int32
 
 //go:wasmimport fude run
 func hostRun(ptr *byte, n uint32) int64
@@ -417,8 +436,8 @@ func About(name string) string {
 // Key adds <Plug>(plugin.name), which runs f, and maps keys in normal mode
 // to it, as a module's keys are. A mapping of those keys in config.toml
 // wins. help says what it does, for :h and the key hints. For keys in
-// visual mode, in a kind of buffer or only while a language server is
-// attached, use Register.
+// visual mode, in a kind of buffer, in one filetype or only while a
+// language server is attached, use Register.
 func Key(name, keys, help string, f func(Call)) {
 	add(api.Registration{Kind: api.Plug, Name: name, Keys: keys, Help: help}, func(a, b, _ int64) int64 {
 		f(Call{Cursor: int(a), Count: int(b)})
@@ -859,10 +878,104 @@ func Message(text string) error { return Do(api.Result{Message: text}) }
 func Float(markdown string) error { return Do(api.Result{Float: &api.Float{Text: markdown}}) }
 
 // ReadFile returns the file at path, relative to the folder fude started
-// in, and refuses a path outside it. It needs fs.read.
+// in or to ~, and refuses a path outside that folder and the plugin's
+// paths. It needs fs.read.
 func ReadFile(path string) (string, error) {
 	p, n := ptr(path)
 	return answer(hostReadFile(p, n))
+}
+
+// Entry is a file or folder that List finds.
+type Entry struct {
+	Name string
+	Dir  bool
+}
+
+// List returns the entries of the folder at path, where ReadFile reads, in
+// the order of their names (B586). It needs fs.read.
+func List(path string) ([]Entry, error) {
+	p, n := ptr(path)
+	text, err := answer(hostListDir(p, n))
+	if err != nil {
+		return nil, &fs.PathError{Op: "list", Path: path, Err: err}
+	}
+	var out []Entry
+	for name := range strings.SplitSeq(text, "\x00") {
+		if name != "" {
+			dir, isDir := strings.CutSuffix(name, "/")
+			out = append(out, Entry{dir, isDir})
+		}
+	}
+	return out, nil
+}
+
+// File is what Stat finds at a path.
+type File struct {
+	Dir     bool
+	Size    int64
+	Changed time.Time
+}
+
+// Stat returns what is at path, where ReadFile reads, and false when
+// nothing is there (B586). It needs fs.read.
+func Stat(path string) (File, bool, error) {
+	p, n := ptr(path)
+	text, err := answer(hostStat(p, n))
+	if err != nil {
+		return File{}, false, &fs.PathError{Op: "stat", Path: path, Err: err}
+	}
+	if text == "" {
+		return File{}, false, nil
+	}
+	kind, rest, _ := strings.Cut(text, " ")
+	size, changed, _ := strings.Cut(rest, " ")
+	sz, _ := strconv.ParseInt(size, 10, 64)
+	ns, _ := strconv.ParseInt(changed, 10, 64)
+	return File{kind == "d", sz, time.Unix(0, ns)}, true, nil
+}
+
+// WriteFile writes text to the file at path, relative to the folder fude
+// started in or to ~, in that folder or the plugin's paths. A failed write
+// leaves the file as it was, and fude refuses a file open in a buffer with
+// changes not written (B587). It needs fs.write.
+func WriteFile(path, text string) error {
+	p, n := ptr(path)
+	d, dn := ptr(text)
+	if err := fail(int64(hostWriteFile(p, n, d, dn))); err != nil {
+		return &fs.PathError{Op: "write", Path: path, Err: err}
+	}
+	return nil
+}
+
+// MakeDir creates the folder at path and the folders above it, where
+// WriteFile writes (B587). It needs fs.write.
+func MakeDir(path string) error {
+	p, n := ptr(path)
+	if err := fail(int64(hostMakeDir(p, n))); err != nil {
+		return &fs.PathError{Op: "make", Path: path, Err: err}
+	}
+	return nil
+}
+
+// Rename moves the file or folder at from to to, both where WriteFile
+// writes, and a buffer open on it follows (B587). It needs fs.write.
+func Rename(from, to string) error {
+	p, n := ptr(from)
+	t, tn := ptr(to)
+	if err := fail(int64(hostRename(p, n, t, tn))); err != nil {
+		return &fs.PathError{Op: "rename", Path: from, Err: err}
+	}
+	return nil
+}
+
+// Remove deletes the file at path, where WriteFile writes, and refuses a
+// folder (B587). It needs fs.write.
+func Remove(path string) error {
+	p, n := ptr(path)
+	if err := fail(int64(hostRemove(p, n))); err != nil {
+		return &fs.PathError{Op: "remove", Path: path, Err: err}
+	}
+	return nil
 }
 
 // Run runs name with args in the folder fude started in, and returns what

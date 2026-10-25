@@ -106,7 +106,7 @@ func (e *Session) loadPlugins() {
 		go func() {
 			defer scope.Done()
 			ctx, at := context.Background(), time.Now()
-			p, err := plugin.Load(ctx, path, plugin.Grants{Capabilities: s.Capabilities, Programs: s.Programs, Hosts: s.Hosts, Options: options}, filepath.Join(cache, "fude", "wasm"), logLine, func(text string, took time.Duration) { trace.Record("plugin", text, took) })
+			p, err := plugin.Load(ctx, path, plugin.Grants{Capabilities: s.Capabilities, Programs: s.Programs, Hosts: s.Hosts, Paths: s.Paths, Options: options}, filepath.Join(cache, "fude", "wasm"), logLine, func(text string, took time.Duration) { trace.Record("plugin", text, took) })
 			if err != nil {
 				trace.Since("plugin", "load "+path, at, err)
 				e.queue <- func() {
@@ -503,6 +503,10 @@ func (e *Session) notice() {
 // act does what res asks of buffers, windows and the vim machine, once the
 // call's edits are made (B343, B344, B345).
 func (e *Session) act(p api.Module, res api.Result) {
+	// The buffers open on files a plugin wrote show what it wrote (B587).
+	if w, ok := p.(*plugin.Plugin); ok && slices.Contains(w.Capabilities, "fs.write") {
+		e.reloadChanged()
+	}
 	for i, id := range slices.Concat(res.Close, res.Drop) {
 		if b, err := e.buffer(id); err != nil {
 			e.message = err.Error()
@@ -1560,8 +1564,11 @@ func (e *Session) about(b *buffer) api.Context {
 // fails unloads p, and calls into an unloaded module do nothing.
 func (e *Session) run(p api.Module, id uint32, scope api.Scope, args ...int) ([]vim.Edit, api.Result, error) {
 	defer scope.Done()
-	// A guest may not call a plugin granted process, net, fs.read or keys (B246).
-	if w, ok := p.(*plugin.Plugin); ok && e.power != Host && slices.ContainsFunc(w.Capabilities, func(c string) bool { return c == "process" || c == "net" || c == "fs.read" || c == "keys" }) {
+	// A guest may not call a plugin granted process, net, fs.read, fs.write
+	// or keys (B246).
+	if w, ok := p.(*plugin.Plugin); ok && e.power != Host && slices.ContainsFunc(w.Capabilities, func(c string) bool {
+		return c == "process" || c == "net" || c == "fs.read" || c == "fs.write" || c == "keys"
+	}) {
 		return nil, api.Result{}, e.fail(errors.New("a guest may not use plugin " + p.Name()))
 	}
 	if !slices.Contains(e.modules, p) {

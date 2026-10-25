@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"net/url"
 	"os"
@@ -42,14 +43,14 @@ const maxFed = 8
 const memoryPages = 1024
 
 // capabilities are the ones a plugin may declare.
-var capabilities = []string{"buffer.read", "buffer.write", "ui", "fs.read", "process", "net", "lsp", "keys"}
+var capabilities = []string{"buffer.read", "buffer.write", "ui", "fs.read", "fs.write", "process", "net", "lsp", "keys"}
 
 // Errors a host function returns to the plugin.
 const (
 	errDenied = -1 // the plugin did not declare the capability, or no call runs
 	errRange  = -2 // a range outside the text
 	errMemory = -3 // the plugin's memory could not take the result
-	errFile   = -4 // a file outside the project, or one that cannot be read
+	errFile   = -4 // a file outside the project and paths, or one that cannot be read or written
 	errRun    = -5 // a program the plugin did not declare, or one that failed
 	errNet    = -6 // a host the plugin did not declare, or a request that failed
 )
@@ -62,7 +63,8 @@ type Plugin struct {
 	Grants
 	log   func(string)
 	trace func(text string, took time.Duration)
-	root  string // the project: the directory fude started in
+	root  string   // the project: the directory fude started in
+	roots []string // the folders of its paths, with ~ expanded (B585)
 
 	turn    chan struct{} // held by the call running, as calls take turns
 	cache   wazero.CompilationCache
@@ -84,12 +86,14 @@ type call struct {
 var errBudget = errors.New("ran past its budget")
 
 // Grants are what config.toml lets a plugin do: its capabilities, the
-// programs process may run and the hosts net may reach. Options are where
-// its options start, by name (B377).
+// programs process may run, the hosts net may reach and the folders outside
+// the project fs.read and fs.write reach (B585). Options are where its
+// options start, by name (B377).
 type Grants struct {
 	Capabilities []string
 	Programs     []string
 	Hosts        []string
+	Paths        []string
 	Options      map[string]string
 }
 
@@ -112,6 +116,16 @@ func Load(ctx context.Context, path string, g Grants, cacheDir string, log func(
 		return nil, fmt.Errorf("load plugin: %w", err)
 	}
 	p := &Plugin{name: strings.TrimSuffix(filepath.Base(path), ".wasm"), Grants: g, log: log, trace: trace, root: root, turn: make(chan struct{}, 1), jobs: make(chan struct{}, maxJobs), fed: make(chan struct{}, maxFed)}
+	for _, d := range g.Paths {
+		home, err := expand(d)
+		if err != nil {
+			return nil, fmt.Errorf("plugin %s: %w", p.name, err)
+		}
+		if !filepath.IsAbs(home) {
+			return nil, fmt.Errorf("plugin %s: path %q is not absolute and does not start with ~", p.name, d)
+		}
+		p.roots = append(p.roots, filepath.Clean(home))
+	}
 	if p.cache, err = wazero.NewCompilationCacheWithDir(cacheDir); err != nil {
 		return nil, fmt.Errorf("plugin cache: %w", err)
 	}
@@ -295,6 +309,12 @@ func (p *Plugin) host(ctx context.Context) error {
 		NewFunctionBuilder().WithFunc(p.lineStart).Export("line_start").
 		NewFunctionBuilder().WithFunc(p.text).Export("text").
 		NewFunctionBuilder().WithFunc(p.readFile).Export("read_file").
+		NewFunctionBuilder().WithFunc(p.listDir).Export("list_dir").
+		NewFunctionBuilder().WithFunc(p.stat).Export("stat").
+		NewFunctionBuilder().WithFunc(p.writeFile).Export("write_file").
+		NewFunctionBuilder().WithFunc(p.makeDir).Export("make_dir").
+		NewFunctionBuilder().WithFunc(p.rename).Export("rename").
+		NewFunctionBuilder().WithFunc(p.remove).Export("remove").
 		NewFunctionBuilder().WithFunc(p.runProgram).Export("run").
 		NewFunctionBuilder().WithFunc(p.httpGet).Export("http_get").
 		NewFunctionBuilder().WithFunc(p.register).Export("register").
@@ -429,8 +449,8 @@ func give(ctx context.Context, m api.Module, s string) int64 {
 }
 
 // readFile writes the file at the path at (ptr, n), relative to the
-// project, into memory the plugin allocates. A path that leads outside the
-// project, through .. or a link, is refused (B47).
+// project, into memory the plugin allocates. It refuses a path that leads
+// outside the project and the plugin's paths, through .. or a link (B47).
 func (p *Plugin) readFile(ctx context.Context, m api.Module, ptr, n uint32) int64 {
 	if p.call == nil || !p.allowed("fs.read", "read_file") {
 		return errDenied
@@ -650,25 +670,58 @@ func (p *Plugin) get(ctx context.Context, rawURL string) ([]byte, error) {
 	return body, nil
 }
 
-// inside returns where the file at name, relative to the project, is, or an
-// error when it is not in the project, through .. or a link.
+// inside returns where the file at name, relative to the project or to ~,
+// is, or an error when it is outside the project and the plugin's paths,
+// through .. or a link. The file need not exist (B585).
 func (p *Plugin) inside(name string) (string, error) {
-	root, err := filepath.EvalSymlinks(p.root)
+	path, err := expand(name)
 	if err != nil {
-		return "", fmt.Errorf("find the project: %w", err)
+		return "", err
 	}
-	path := name
 	if !filepath.IsAbs(path) {
-		path = filepath.Join(root, name)
+		path = filepath.Join(p.root, path)
 	}
-	path, err = filepath.EvalSymlinks(path)
-	if err != nil {
+	if path, err = resolve(path); err != nil {
 		return "", fmt.Errorf("find %s: %w", name, err)
 	}
-	if rel, err := filepath.Rel(root, path); err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return "", fmt.Errorf("%s is outside the project", name)
+	for _, dir := range append([]string{p.root}, p.roots...) {
+		root, err := resolve(dir)
+		if err != nil {
+			return "", fmt.Errorf("find %s: %w", dir, err)
+		}
+		if rel, err := filepath.Rel(root, path); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			return path, nil
+		}
 	}
-	return path, nil
+	return "", fmt.Errorf("%s is outside the project and the plugin's paths", name)
+}
+
+// expand puts the home folder in place of a leading ~.
+func expand(path string) (string, error) {
+	rest, ok := strings.CutPrefix(path, "~")
+	if !ok || rest != "" && rest[0] != '/' && rest[0] != filepath.Separator {
+		return path, nil
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("expand %s: %w", path, err)
+	}
+	return filepath.Join(home, rest), nil
+}
+
+// resolve returns path with its links resolved, as far as it exists.
+func resolve(path string) (string, error) {
+	rest := ""
+	for {
+		real, err := filepath.EvalSymlinks(path)
+		switch {
+		case err == nil:
+			return filepath.Join(real, rest), nil
+		case !errors.Is(err, fs.ErrNotExist) || filepath.Dir(path) == path:
+			return "", err
+		}
+		rest, path = filepath.Join(filepath.Base(path), rest), filepath.Dir(path)
+	}
 }
 
 // traced traces what a host call did, the time since at and any err.

@@ -1310,8 +1310,8 @@ The plugin passes text as a pointer and length into its memory. The host returns
 plugin's `alloc` and writing there, and returns the `i64` `ptr<<32|len`. A
 negative result is an error: -1 when the plugin did not declare the
 capability, -2 for a range outside the text, -3 when its memory could not
-take the result, -4 for a file outside the project or one that cannot be
-read, -5 for a program the plugin may not run or one that failed, -6 for a
+take the result, -4 for a file outside the project and the plugin's
+`paths` or one that cannot be read or written, -5 for a program the plugin may not run or one that failed, -6 for a
 host it may not reach or a request that failed.
 
 | Function | Capability | Does |
@@ -1332,6 +1332,12 @@ host it may not reach or a request that failed.
 | `read(ptr, len) -> i64` | each field's | reads the field of the call's `api.Scope` that the JSON `{"Name": name, "Args": [...]}` at `ptr` names, and returns a JSON list. For a func, the list holds what it returns when called with `Args`, an error as its text. For any other field, the list holds the field. It returns -2 for a name the scope does not have, or for arguments the func does not take or fails on. A plugin reads `Text` through `text` and the other text functions, and never reads `Free` (D51) |
 | `result(ptr, len) -> i32` | each field's | asks for what the JSON `api.Result` at `ptr` holds, as a module's call returns it. fude applies it once the call returns. Its lists add to those the call asked for before, and its other fields replace theirs. fude takes none of it when a field needs a capability the plugin did not declare (D51) |
 | `read_file(ptr, len) -> i64` | `fs.read` | the file at the path, relative to the project, the directory fude started in, or under the plugin's `paths`. fude refuses a path that leads outside them, through `..` or a link (B47, B585) |
+| `list_dir(ptr, len) -> i64` | `fs.read` | the entries of the folder at the path, where `read_file` reads, each name followed by `/` for a folder and ended by a NUL byte (B586) |
+| `stat(ptr, len) -> i64` | `fs.read` | what is at the path, where `read_file` reads: `d` for a folder or `f`, its size and when it last changed in nanoseconds since 1970, separated by spaces, or nothing when nothing is there (B586) |
+| `write_file(ptr, len, data, data_len) -> i32` | `fs.write` | writes the text at `data` to the file at the path, in the project or under the plugin's `paths`, through a file beside it that takes its place. fude refuses a file open in a buffer with changes not written, and reloads a buffer open on it without changes (B587) |
+| `make_dir(ptr, len) -> i32` | `fs.write` | creates the folder at the path, where `write_file` writes, and the folders above it (B587) |
+| `rename(ptr, len, to, to_len) -> i32` | `fs.write` | moves the file or folder at the path to the one at `to`, both where `write_file` writes, and a buffer open on it follows (B587) |
+| `remove(ptr, len) -> i32` | `fs.write` | deletes the file at the path, where `write_file` writes, and refuses a folder (B587) |
 | `run(ptr, len) -> i64` | `process` | what the program prints, run with its arguments, NUL-separated, in the project. It must be in the plugin's `programs`, and the call's budget stops it (B48) |
 | `http_get(ptr, len) -> i64` | `net` | the body of the http or https URL, up to 16MB. Its host, and any host a redirect leads to, must be in the plugin's `hosts`, and the call's budget stops the request (B49) |
 
@@ -1355,7 +1361,7 @@ the plugin, and using what it added then says the plugin is unloaded.
 A plugin declares its capabilities in `config.toml`, for `process` the
 programs it may run as `programs = ["git"]`, and for `net` the hosts it may
 reach as `hosts = ["api.github.com"]`. For `fs.read` and `fs.write`,
-`paths = ["~/org"]` adds folders outside the project (B585). A call outside the
+`paths = ["~/notes"]` adds folders outside the project (B585). A call outside the
 declared capabilities returns -1, and fude logs it to
 `$XDG_STATE_HOME/fude/log` (B50). Its table's `options`, such as
 `options = { depth = 3 }`, start the options it defines (B178, B377).

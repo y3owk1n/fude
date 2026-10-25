@@ -851,7 +851,8 @@ The plugin's WebAssembly file, from the folder of config.toml, such as
 ## plugin.capabilities
 
 What the plugin may call: `buffer.read`, `buffer.write`, `ui`, `fs.read`,
-`process`, `net` and `lsp`. A call outside them gets an error and changes nothing.
+`fs.write`, `process`, `net`, `lsp` and `keys`. A call outside them gets an
+error and changes nothing.
 
 ## plugin.programs
 
@@ -861,6 +862,12 @@ The programs a plugin with `process` may run, such as `["git"]`.
 
 The hosts a plugin with `net` may reach over http and https, a redirect too,
 such as `["api.github.com"]`.
+
+## plugin.paths
+
+The folders outside the project that a plugin with `fs.read` reads and one
+with `fs.write` writes, each absolute or starting with `~`, such as
+`["~/notes"]`. Any other keeps the plugin from loading.
 
 ## plugin.disabled
 

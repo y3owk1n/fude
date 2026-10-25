@@ -20,7 +20,9 @@ programs = ["git"]
 - `buffer.read` reads the text.
 - `buffer.write` asks for edits.
 - `ui` shows styles, a status line segment and floats.
-- `fs.read` reads files in the folder fude started in.
+- `fs.read` reads and lists files in the folder fude started in and the
+  folders `paths` lists, such as `["~/notes"]`.
+- `fs.write` writes, moves and deletes files and makes folders there.
 - `process` runs the programs `programs` lists.
 - `net` gets http and https URLs on the hosts `hosts` lists.
 - `lsp` asks the buffer's language servers, sends them notifications and
@@ -117,8 +119,8 @@ text.
 `sdk.Decorate`, `sdk.Sign`, `sdk.Note`, `sdk.Status`, `sdk.Float` and
 `sdk.Show` show things, and `sdk.Pick`, `sdk.Ask` and `sdk.Confirm` ask the
 user to pick from a list, to type an answer or to answer yes or no. `sdk.Jump` moves the cursor, and
-`sdk.Open` opens a file of the project. `sdk.ReadFile`, `sdk.Run` and `sdk.Get` reach
-files, programs and the web, and `sdk.Log` writes to fude's log. A call
+`sdk.Open` opens a file of the project. `sdk.ReadFile`, `sdk.List`, `sdk.WriteFile`,
+`sdk.Run` and `sdk.Get` reach files, programs and the web, and `sdk.Log` writes to fude's log. A call
 outside the plugin's capabilities returns `sdk.ErrDenied`.
 
 `sdk.Register` and `sdk.Do` give a plugin all a built-in module has. `sdk.Register` takes an

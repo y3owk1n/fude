@@ -92,6 +92,7 @@ type config struct {
 		Capabilities []string       `toml:"capabilities" help:"what the plugin may do"`
 		Programs     []string       `toml:"programs" help:"the programs process may run"`
 		Hosts        []string       `toml:"hosts" help:"the hosts net may reach"`
+		Paths        []string       `toml:"paths" help:"the folders outside the project fs.read and fs.write reach"`
 		Options      map[string]any `toml:"options" help:"where the plugin's options start, by name"`
 		Disabled     bool           `toml:"disabled" help:"keeps the plugin from loading, with its table kept"`
 	} `toml:"plugin"`

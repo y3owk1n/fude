@@ -73,7 +73,8 @@ A call outside the plugin's capabilities fails with an error, and fude logs it.
 | `buffer.read` | `Len`, `Lines`, `LineOf`, `LineStart`, `Text`, `NodeAt`, `Language`, `Spans`, `Comment`, `Buffers`, `LenOf`, `TextOf` |
 | `buffer.write` | `Edit` |
 | `ui` | `Decorate`, `Undecorate`, `Fold`, `Replace`, `Shade`, `Rows`, `Block`, `Decorations`, `Sign`, `SignUnder`, `Note`, `Status`, `Message`, `Float`, `Show`, `ShowStyled`, `Pick`, `Picker`, `Ask`, `Confirm`, `Jump`, `Open` |
-| `fs.read` | `ReadFile`, inside the folder fude started in |
+| `fs.read` | `ReadFile`, `List` and `Stat`, inside the folder fude started in and the plugin's `paths` |
+| `fs.write` | `WriteFile`, `MakeDir`, `Rename` and `Remove`, inside the folder fude started in and the plugin's `paths` |
 | `process` | `Run`, `Start`, `Pipe`, `Stream`, `Spawn` and its program's `Send` and `Stop`, for the programs the plugin's table lists |
 | `net` | `Get`, `Fetch`, for the hosts the plugin's table lists |
 | `lsp` | `Request`, `RequestRange`, to the buffer's language servers |

@@ -1856,7 +1856,7 @@ Where fude departs, the line says so and cites the departure in
   `[[plugin]]` table lists, and no others, even through a redirect. It
   follows at most 10 redirects.
 - B585 [4] A plugin's `[[plugin]]` table may list folders in `paths`, such
-  as `["~/org"]`, each absolute or starting with `~` for the home folder.
+  as `["~/notes"]`, each absolute or starting with `~` for the home folder.
   One that is neither keeps the plugin from loading, with a message that
   names it. fude refuses a path that leads outside the project and those
   folders, through `..` or a link (D72).
@@ -2795,8 +2795,8 @@ Where fude departs, the line says so and cites the departure in
   status lines never show them. A guest pins and goes to only files it may
   show (B245).
 - B246 [7] A guest's key or command from a plugin that declared `process`,
-  `net`, `fs.read` or `keys` says a guest may not, and the plugin is not
-  called.
+  `net`, `fs.read`, `fs.write` or `keys` says a guest may not, and the
+  plugin is not called.
   Those of other plugins run as they do for any session.
 - B247 [7] A read-only guest changes no text. Its keys, its requests, a
   replica's pushes and its `:accept` each say it is read-only, whichever

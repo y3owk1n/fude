@@ -346,8 +346,8 @@ plugin's keys do, as they do for fude's own.
 `wasm-unknown` target (B173). Why: the plugin ABI moves text through
 pointers into the plugin's memory, which nobody should write by hand.
 TinyGo's `wasm-unknown` modules import nothing, so the sandbox stays as the
-capabilities draw it. A plugin that uses only `sdk`'s reads is about 30KB,
-and one that asks for anything is about 200KB, with `encoding/json` (D51). Go's own `wasip1`
+capabilities draw it. A plugin is about 540KB, as `sdk` builds
+`encoding/json`'s encoder in its init for every plugin (D51). Go's own `wasip1`
 target would need WASI in the sandbox, builds modules of megabytes, and its
 runtime takes longer to start. TinyGo leaves out parts of the standard
 library, such as `os` and `net`, which a plugin reaches through fude's
@@ -582,7 +582,7 @@ function of its own, and about 25 never got one, so a plugin could not do
 what a module did. With the types themselves, a plugin can set a field as
 soon as `api` has it. Tables in `plugin/` name the capability each field
 needs, and every field must be in them. It costs size and load time. A
-plugin that asks for anything is about 200KB, and a cold load of one took 112ms before its compiled code
+plugin is about 540KB with `encoding/json` (D36), and a cold load of one took 112ms before its compiled code
 was cached, against 2.4ms after. A plugin now compiles before its init
 budget starts. A result of 500 decorations takes 2.7ms in the plugin and
 0.9ms for fude to read. Keys a result runs may run any command, so they
