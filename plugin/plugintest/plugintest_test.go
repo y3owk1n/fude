@@ -28,6 +28,11 @@ func TestB192TestHost(t *testing.T) {
 	if got := plugintest.Apply("ab", kit.Key("gS", "ab", 0, 1)); got != "!ab" {
 		t.Errorf("gS made %q, want !ab", got)
 	}
+	// A call reads the plugin's options as its table starts them.
+	ctx := plugintest.Load(t, wasm(t, "ctx"), plugin.Grants{Capabilities: []string{"buffer.write"}, Options: map[string]string{"depth": "3"}}, "")
+	if got := plugintest.Apply("", ctx.Command("Opt", "ctx.depth", "", 0)) + plugintest.Apply("", ctx.Command("Opt", "ctx.on", "", 0)); got != "3|false|" {
+		t.Errorf(":Opt typed %q, want 3|false|", got)
+	}
 	listen := plugintest.Load(t, wasm(t, "listen"), plugin.Grants{Capabilities: []string{"buffer.read", "ui"}}, "")
 	res := listen.Event("buffer.changed", "abc")
 	if len(res.Decorate) != 1 || res.Decorate[0].Style != "keyword" || !slices.Contains(listen.Log(), "listen: buffer.changed") {

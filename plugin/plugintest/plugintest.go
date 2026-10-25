@@ -2,7 +2,8 @@
 // without fude. A test loads the plugin with the capabilities its
 // [[plugin]] table would give it, runs a command, a key or an event against
 // a text, and reads what the call asked for: its edits, decorations, status
-// and the rest of api.Result (B192).
+// and the rest of api.Result. A call reads the plugin's options as its
+// table starts them (B192).
 package plugintest
 
 import (
@@ -37,7 +38,7 @@ func Load(t testing.TB, path string, g plugin.Grants, text string) *Plugin {
 	}
 	tp.p = p
 	t.Cleanup(func() { p.Close(context.Background()) })
-	if _, err := p.Init(context.Background(), scope(text, nil)); err != nil {
+	if _, err := p.Init(context.Background(), tp.scope(text, nil)); err != nil {
 		t.Fatalf("init %s: %v", path, err)
 	}
 	return tp
@@ -62,7 +63,7 @@ func (p *Plugin) Log() []string {
 func (p *Plugin) Command(name, args, text string, cursor int) api.Result {
 	p.t.Helper()
 	id := p.id(api.Command, name)
-	return p.call(id, scope(text, api.Context{"args": args, "bang": "false", "first": "0", "last": "0", "ranged": "false"}), cursor, 0)
+	return p.call(id, p.scope(text, api.Context{"args": args, "bang": "false", "first": "0", "last": "0", "ranged": "false"}), cursor, 0)
 }
 
 // Key runs what the plugin maps keys to in normal mode, a key or a plug's
@@ -76,7 +77,7 @@ func (p *Plugin) Key(keys, text string, cursor, count int) api.Result {
 	if i < 0 {
 		p.t.Fatalf("the plugin maps no %s", keys)
 	}
-	return p.call(p.p.Registered()[i].ID, scope(text, nil), cursor, count)
+	return p.call(p.p.Registered()[i].ID, p.scope(text, nil), cursor, count)
 }
 
 // Event tells the plugin of the event name, such as buffer.changed, about
@@ -84,7 +85,7 @@ func (p *Plugin) Key(keys, text string, cursor, count int) api.Result {
 // a space, as fude sends it, such as "buffer.changed 0 3".
 func (p *Plugin) Event(name, text string) api.Result {
 	p.t.Helper()
-	res, err := p.p.Event(context.Background(), name, scope(text, nil))
+	res, err := p.p.Event(context.Background(), name, p.scope(text, nil))
 	if err != nil {
 		p.t.Fatalf("event %s: %v", name, err)
 	}
@@ -95,7 +96,7 @@ func (p *Plugin) Event(name, text string) api.Result {
 // against text, with what its context adds, such as a job's output.
 func (p *Plugin) Callback(id uint32, text string, extra api.Context) api.Result {
 	p.t.Helper()
-	res, err := p.p.Callback(context.Background(), id, scope(text, extra))
+	res, err := p.p.Callback(context.Background(), id, p.scope(text, extra))
 	if err != nil {
 		p.t.Fatalf("callback %d: %v", id, err)
 	}
@@ -134,13 +135,30 @@ func Apply(text string, res api.Result) string {
 
 // scope is what a call against text reads, as the only open buffer, with
 // what extra adds to its context.
-func scope(text string, extra api.Context) api.Scope {
+func (p *Plugin) scope(text string, extra api.Context) api.Scope {
 	about := api.Context{"buffer": "1", "path": "", "filetype": "", "mode": "normal"}
 	for k, v := range extra {
 		about[k] = v
 	}
 	t := str(text)
-	return api.Scope{Text: t, About: about, Buffers: map[int]api.Buffer{1: {Text: t}}}
+	return api.Scope{Text: t, About: about, Buffers: map[int]api.Buffer{1: {Text: t}}, Option: p.option}
+}
+
+// option returns the plugin's option name as its table or its default
+// starts it, as fude has it before a :set (B377).
+func (p *Plugin) option(name string) (string, bool) {
+	short, own := strings.CutPrefix(name, p.p.Name()+".")
+	if !own {
+		return "", false
+	}
+	if v, ok := p.p.Options[short]; ok {
+		return v, true
+	}
+	i := slices.IndexFunc(p.p.Registered(), func(r api.Registration) bool { return r.Kind == api.Option && r.Name == short })
+	if i < 0 {
+		return "", false
+	}
+	return p.p.Registered()[i].Default, true
 }
 
 // str is a text held in a string.

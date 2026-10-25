@@ -1968,7 +1968,8 @@ Where fude departs, the line says so and cites the departure in
   `plugin/plugintest`. It loads the plugin's `.wasm` with the capabilities
   a `[[plugin]]` table would give it. It runs a command, a key, an event
   or a callback against a text, and returns what the call asked for and
-  what the plugin logged.
+  what the plugin logged. A call reads the plugin's options as its table
+  or their defaults start them.
 - B186 [4] A plugin with `ui` shows text in a read-only window with a
   title, coloured as a filetype it names. Showing text under a title
   already open replaces what that window shows. `:q` closes it without
