@@ -670,9 +670,11 @@ func (p *Plugin) get(ctx context.Context, rawURL string) ([]byte, error) {
 	return body, nil
 }
 
-// inside returns where the file at name, relative to the project or to ~,
-// is, or an error when it is outside the project and the plugin's paths,
-// through .. or a link. The file need not exist (B585).
+// inside returns the absolute path of the file at name, relative to the
+// project or to ~, or an error when it is outside the project and the
+// plugin's paths, through .. or a link. The file need not exist. The path
+// leaves its links unresolved, so the editor matches it to a buffer opened
+// by the same path (B585).
 func (p *Plugin) inside(name string) (string, error) {
 	path, err := expand(name)
 	if err != nil {
@@ -681,7 +683,8 @@ func (p *Plugin) inside(name string) (string, error) {
 	if !filepath.IsAbs(path) {
 		path = filepath.Join(p.root, path)
 	}
-	if path, err = resolve(path); err != nil {
+	real, err := resolve(path)
+	if err != nil {
 		return "", fmt.Errorf("find %s: %w", name, err)
 	}
 	for _, dir := range append([]string{p.root}, p.roots...) {
@@ -689,8 +692,8 @@ func (p *Plugin) inside(name string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("find %s: %w", dir, err)
 		}
-		if rel, err := filepath.Rel(root, path); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-			return path, nil
+		if rel, err := filepath.Rel(root, real); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			return filepath.Clean(path), nil
 		}
 	}
 	return "", fmt.Errorf("%s is outside the project and the plugin's paths", name)

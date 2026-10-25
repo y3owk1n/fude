@@ -1,6 +1,6 @@
 // Package main is a test plugin written with the sdk. Its commands read,
-// list, stat, write, make, move and remove what their arguments name, and
-// show what they found, or the error. Needs fs.read, fs.write and ui.
+// list, stat, write, make, move, remove and open what their arguments name,
+// and show what they found, or the error. Needs fs.read, fs.write and ui.
 package main
 
 import (
@@ -50,6 +50,7 @@ func init() {
 	command("Mkdir", func(a []string) (string, error) { return "made", sdk.MakeDir(a[0]) })
 	command("Mv", func(a []string) (string, error) { return "moved", sdk.Rename(a[0], a[1]) })
 	command("Rm", func(a []string) (string, error) { return "removed", sdk.Remove(a[0]) })
+	command("Open", func(a []string) (string, error) { return "opened", sdk.Open(a[0], 0) })
 }
 
 func main() {}

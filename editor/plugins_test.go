@@ -252,6 +252,14 @@ func TestB585PluginPaths(t *testing.T) {
 	if err := os.Symlink(filepath.Join(home, "secret.txt"), filepath.Join(home, "notes", "link")); err != nil {
 		t.Fatal(err)
 	}
+	// A file it opens that a buffer holds already shows in that buffer,
+	// though a link leads to the plugin's folder, as one leads to macOS's
+	// temporary folders.
+	feed(e, ":e ~/notes/a.txt<CR>")
+	open := e.Windows()[0].Buffer
+	if feed(e, ":Open ~/notes/a.txt<CR>"); e.Windows()[0].Buffer != open {
+		t.Errorf(":Open of the open file showed buffer %d, want %d", e.Windows()[0].Buffer, open)
+	}
 	for _, read := range []struct{ path, want string }{
 		{"~/notes/a.txt", "* a"},
 		{filepath.Join(home, "notes", "a.txt"), "* a"},
@@ -325,6 +333,11 @@ func TestB587WriteFiles(t *testing.T) {
 	feed(e, "A!<Esc>")
 	if feed(e, ":Write ~/notes/a.txt * c<CR>"); !strings.Contains(e.Message(), "a.txt") || disk(t, filepath.Join(notes, "a.txt")) != "* b" {
 		t.Errorf("a write over unwritten changes said %q and left %q", e.Message(), disk(t, filepath.Join(notes, "a.txt")))
+	}
+	// So is one to a file a buffer holds by a path relative to the project.
+	feed(e, ":e here.txt<CR>A!<Esc>")
+	if feed(e, ":Write here.txt over<CR>"); !strings.Contains(e.Message(), "here.txt") || disk(t, filepath.Join(project, "here.txt")) != "in the project" {
+		t.Errorf("a write over a relative buffer's changes said %q and left %q", e.Message(), disk(t, filepath.Join(project, "here.txt")))
 	}
 }
 

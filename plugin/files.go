@@ -157,11 +157,20 @@ func (p *Plugin) writable(name string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	real, err := resolve(path)
+	if err != nil {
+		return "", fmt.Errorf("find %s: %w", name, err)
+	}
+	// A buffer's path may be relative, or reach the file through a link.
 	for _, b := range p.call.Buffers {
 		if !b.Modified || b.Path == "" {
 			continue
 		}
-		if open, err := resolve(b.Path); err == nil && open == path {
+		open, err := p.inside(b.Path)
+		if err != nil {
+			continue
+		}
+		if open, err = resolve(open); err == nil && open == real {
 			return "", fmt.Errorf("%s is open with changes not written", name)
 		}
 	}
