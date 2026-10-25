@@ -1835,7 +1835,7 @@ Where fude departs, the line says so and cites the departure in
 - B55 [4] A plugin's decorations render and move with edits, and are
   removed when the plugin unloads.
 - B56 [4] Loading plugins never delays the first frame.
-- B386 [4] A plugin reads the time of day.
+- B386 [4] A plugin reads the time of day, in the local time zone.
 - B390 [4] A module reads every proposal on the open buffers, each with
   its number, buffer, range, new text, whether it is stale and who
   proposed it, and hears `proposals.changed` when one comes, goes or goes

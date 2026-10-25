@@ -12,7 +12,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -647,8 +646,8 @@ func TestB385PluginTalksToAProgram(t *testing.T) {
 // B386
 func TestB386PluginReadsTheClock(t *testing.T) {
 	e := loaded(t, "later", "f", "a\n", "buffer.write")
-	if feed(e, ":Now<CR>"); text(e) != strconv.Itoa(time.Now().Year())+"a" {
-		t.Errorf(":Now typed %q, want this year", text(e))
+	if feed(e, ":Now<CR>"); text(e) != time.Now().Format("2006 -0700")+"a" {
+		t.Errorf(":Now typed %q, want this year in the local time zone", text(e))
 	}
 }
 

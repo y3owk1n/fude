@@ -1318,6 +1318,7 @@ host it may not reach or a request that failed.
 |---|---|---|
 | `log(ptr, len)` | none | adds a line to fude's log |
 | `now() -> i64` | none | the time of day, in nanoseconds since 1970, as a plugin has no clock of its own (B386) |
+| `zone() -> i32` | none | how many seconds the local time is ahead of UTC, as a plugin has no time zones (B386) |
 | `setting(ptr, len) -> i64` | none | the value of the plugin's setting by its name, as text, or -2 for a name it has none of (B178) |
 | `context(ptr, len) -> i64` | none | the value of what the call is about by its name, or -2 for a name it has none of. Every call has `buffer`, `path` and `filetype`, of the buffer it is about, and `mode` (B176) |
 | `text_len() -> i32` | `buffer.read` | the length of the text |

@@ -12,11 +12,7 @@
 // and ui.
 package main
 
-import (
-	"strconv"
-
-	"github.com/y3owk1n/fude/sdk"
-)
+import "github.com/y3owk1n/fude/sdk"
 
 // typed types out at the start of the text, or the error.
 func typed(out string, err error) {
@@ -55,8 +51,8 @@ func init() {
 		cat.Send("y\n")
 	})
 	sdk.Command("Hush", "stops cat", func(sdk.Call) { cat.Stop() })
-	sdk.Command("Now", "types the year", func(sdk.Call) {
-		sdk.Edit(0, 0, strconv.Itoa(sdk.Now().Year()))
+	sdk.Command("Now", "types the year and the local time's offset from UTC", func(sdk.Call) {
+		sdk.Edit(0, 0, sdk.Now().Format("2006 -0700"))
 	})
 	sdk.Command("Jobs", "runs two programs in the background", func(sdk.Call) {
 		sdk.Start(func(out string, err error) { typed("slept"+out, err) }, "sleep", "0.1")
