@@ -1126,6 +1126,11 @@ past its capture, as `} else {` does, so a query folds blocks and the
 `else` stays in view. Lua's `if` folds whole, to its `end`, with an
 `elseif` or `else` folding inside it.
 
+In markdown, `<Tab>` and `<S-Tab>` cycle the sections, as org's do (B594).
+They are filetype keys of the fold module. Off a heading `<Tab>` moves no
+fold, so it goes forward in the jump list, and other filetypes keep
+`<Tab>` as it is.
+
 ## Departures from Neovim
 
 Each entry: what differs, then why.

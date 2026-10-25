@@ -405,15 +405,17 @@ message says "no fold there".
 
 ## <Plug>(fold.cycle)
 
-No key by default. On the first line of a fold, it steps the fold from
+`<Tab>` in a markdown file by default, help's too. On the first line of
+a fold, it steps the fold from
 closed, to open with the folds inside it closed, to open with every fold
 inside it open, and back to closed. A fold with none inside opens and
-closes. Off a fold's first line it does nothing, so a key mapped to it in
-one filetype may do something else elsewhere.
+closes. Off a fold's first line it does nothing, so `<Tab>` off a
+heading goes forward in the jump list, as it does in any other file.
 
 ## <Plug>(fold.cycle_all)
 
-No key by default. It steps the whole buffer from every outermost fold
+`<S-Tab>` in a markdown file by default, help's too. It steps the whole
+buffer from every outermost fold
 closed, to every fold closed that holds no other, to every fold open, and
 back. It skips a step that would leave the folds as they are, so a buffer
 with no nested folds steps between closed and open.

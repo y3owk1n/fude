@@ -204,3 +204,17 @@ func TestB592CycleFolds(t *testing.T) {
 		}
 	}
 }
+
+// B594
+func TestB594MarkdownTab(t *testing.T) {
+	e, folds := sections(t)
+	if editortest.Feed(e, "6G2G<C-o><Tab>"); e.Text().LineOf(e.Cursor()) != 1 || folds() != nil {
+		t.Errorf("<Tab> off a heading went to line %d with folds %v, want line 1 as the jump list has it", e.Text().LineOf(e.Cursor()), folds())
+	}
+	if editortest.Feed(e, "gg<Tab>"); !maps.Equal(folds(), map[int]int{0: 3}) {
+		t.Errorf("<Tab> on a heading made %v, want its section closed", folds())
+	}
+	if editortest.Feed(e, "<S-Tab>"); !maps.Equal(folds(), map[int]int{0: 3, 4: 1}) {
+		t.Errorf("<S-Tab> made %v, want the top sections closed", folds())
+	}
+}

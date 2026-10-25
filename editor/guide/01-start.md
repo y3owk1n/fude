@@ -42,7 +42,9 @@ opens it
 again, one level at a time, as `zC` and `zO` do every level. `za`
 toggles, `zM` folds every block and `zR` opens them all, and `zm` and
 `zr` fold one level more or less. `j` and `k` pass over a closed fold as
-one line.
+one line. In a markdown file or help, `<Tab>` on a heading closes its
+section. Pressed again, it opens the section with the sections under it
+closed, then opens them all. `<S-Tab>` steps the whole file the same way.
 
 `s` jumps anywhere in view. Type a character or two of where you want to
 go, and each match gets a highlighted label. Type the label to go there,

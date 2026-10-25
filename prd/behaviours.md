@@ -1182,8 +1182,13 @@ Where fude departs, the line says so and cites the departure in
   every fold inside it open, then closed again. Off a fold's first line it
   does nothing. `<Plug>(fold.cycle_all)` moves the buffer one step: every
   outermost fold closed, then every fold closed that holds no other, then
-  every fold open, then the first step again. Neither has keys of its own
+  every fold open, then the first step again. Their keys are B594's
   (D74).
+- B594 [3] In a markdown buffer, help's too, `<Tab>` runs
+  `<Plug>(fold.cycle)` and `<S-Tab>` runs `<Plug>(fold.cycle_all)`, as
+  filetype keys (B588). Off a heading `<Tab>` moves no fold, so it does
+  what it does in any other buffer, and goes forward in the jump list
+  (B589, D74).
 - B488 [2] With `fold.column` on, the sign column shows the folds, as
   Neovim's `foldcolumn` at 1 does. It shows `-` on a line that starts an
   open fold, `+` on a closed fold and `│` on the other lines a fold holds,

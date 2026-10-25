@@ -1,7 +1,7 @@
 // Package fold folds a buffer by indent, or as its grammar's folds query
 // says, through zc, zC, zo, zO, za, zA, zv, zR, zM, zm, zr and zi, folds the
-// lines zf covers, moves between folds with zj and zk, and cycles folds
-// (B224, B502, B591, B592, N34).
+// lines zf covers, moves between folds with zj and zk, and cycles folds,
+// with <Tab> and <S-Tab> in markdown (B224, B502, B591, B592, B594, N34).
 package fold
 
 import (
@@ -68,8 +68,8 @@ func (m *Module) Registered() []api.Registration {
 		{Kind: api.Plug, Name: "more", Keys: "zm", Help: "folds one level more, or n levels", ID: more},
 		{Kind: api.Plug, Name: "less", Keys: "zr", Help: "folds one level less, or n levels", ID: less},
 		{Kind: api.Plug, Name: "enable", Keys: "zi", Help: "opens every closed fold, or closes again those it opened", ID: enable},
-		{Kind: api.Plug, Name: "cycle", Help: "on a fold's first line, opens it with the folds inside it closed, then every fold inside it, then closes it", ID: cycle},
-		{Kind: api.Plug, Name: "cycle_all", Help: "closes the outermost folds, then the folds that hold no other, then opens every fold", ID: cycleAll},
+		{Kind: api.Plug, Name: "cycle", Keys: "<Tab>", Filetype: "markdown", Help: "on a fold's first line, opens it with the folds inside it closed, then every fold inside it, then closes it", ID: cycle},
+		{Kind: api.Plug, Name: "cycle_all", Keys: "<S-Tab>", Filetype: "markdown", Help: "closes the outermost folds, then the folds that hold no other, then opens every fold", ID: cycleAll},
 		{Kind: api.Option, Name: "column", Default: "false", Help: "the sign column shows where folds start and the lines they hold"},
 	}
 }
@@ -131,6 +131,11 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 		res = m.cycle(sh, folds, line)
 	case cycleAll:
 		res = m.cycleAll(sh, folds)
+	}
+	// A cycle that moved no fold asks for nothing, so its key does what it
+	// does elsewhere, as <Tab> off a heading (B594).
+	if (id == cycle || id == cycleAll) && len(res.Decorate)+len(res.Undecorate) == 0 {
+		return api.Result{}, nil
 	}
 	// The cursor lands on the first line of the fold it is in.
 	if first := firstLine(t, folds, res, line); first != line {
