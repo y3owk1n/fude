@@ -580,21 +580,26 @@ func TestB177PluginInsertKeys(t *testing.T) {
 
 // B178
 func TestB178PluginSettings(t *testing.T) {
-	useTable(t, "ctx", "options = { depth = 3, on = true }\n", "buffer.write")
+	useTable(t, "ctx", "options = { depth = 3, on = true, skip = [\"markdown\", \"text\"] }\n", "buffer.write")
 	e := opened(t, "f", "a\n")
-	if feed(e, ":Opt ctx.depth<CR>:Opt ctx.on<CR>"); text(e) != "true|3|a" {
-		t.Errorf(":Opt typed %q, want true|3|a", text(e))
+	if feed(e, ":Opt ctx.depth<CR>:Opt ctx.on<CR>:Opt ctx.skip<CR>"); text(e) != "markdown,text|true|3|a" {
+		t.Errorf(":Opt typed %q, want markdown,text|true|3|a", text(e))
 	}
 	// A name that is no option says so.
 	useTable(t, "ctx", "options = { deep = 3 }\n", "buffer.write")
 	if e = opened(t, "f", "a\n"); e.Message() != "ctx.deep is no option of ctx" {
 		t.Errorf("a setting of no option said %q", e.Message())
 	}
-	// A list is no setting, so the plugin does not load.
-	useTable(t, "ctx", "options = { depth = [3] }\n", "buffer.write")
-	e = start(t, filepath.Join(t.TempDir(), "f"))
-	if e.Load(); !strings.Contains(e.Message(), "option depth is not a number, string or boolean") {
-		t.Errorf("a list as an option said %q", e.Message())
+	// A list of anything but text, or a table, keeps the plugin from loading.
+	for src, want := range map[string]string{
+		"options = { depth = [3] }\n":       "option depth lists 3, and a list holds only text with no commas",
+		"options = { depth = { a = 1 } }\n": "option depth is not a number, string, boolean or list",
+	} {
+		useTable(t, "ctx", src, "buffer.write")
+		e = start(t, filepath.Join(t.TempDir(), "f"))
+		if e.Load(); !strings.Contains(e.Message(), want) {
+			t.Errorf("%s said %q, want %q", strings.TrimSpace(src), e.Message(), want)
+		}
 	}
 }
 

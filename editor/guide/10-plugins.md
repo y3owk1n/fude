@@ -107,7 +107,8 @@ event is about, and `sdk.Mode` the mode. `sdk.Define("depth", "3", "how
 deep it looks")` adds the option `wordcount.depth` to a plugin named
 wordcount. `options = { depth = 5 }` in its table in `config.toml`
 starts it at 5, `:set wordcount.depth 4` changes it, and
-`sdk.Option("wordcount.depth")` reads it. `sdk.After` runs a function
+`sdk.Option("wordcount.depth")` reads it. A list there, such as
+`skip = ["markdown", "text"]`, reaches the plugin as `markdown,text`. `sdk.After` runs a function
 once, a number of milliseconds later, as an event runs. `sdk.Start` and `sdk.Fetch` run
 a program or get a URL in the background, with no budget, then run a
 function with the output. `sdk.Stream` runs a program and runs a

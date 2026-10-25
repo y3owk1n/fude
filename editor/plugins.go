@@ -127,16 +127,27 @@ func (e *Session) loadPlugins() {
 }
 
 // texts returns a plugin's options table, or a [module.name] table, as the
-// text its options start at. Only numbers, strings and booleans read as text, so
-// a table or a list is refused (B178, B377).
+// text its options start at. Numbers, strings and booleans read as text, and
+// a list of strings as its strings separated by commas. It refuses a table
+// (B178, B377).
 func texts(settings map[string]any) (map[string]string, error) {
 	out := map[string]string{}
 	for name, v := range settings {
-		switch v.(type) {
+		switch v := v.(type) {
 		case string, int64, float64, bool:
 			out[name] = fmt.Sprint(v)
+		case []any:
+			items := make([]string, len(v))
+			for i, item := range v {
+				s, ok := item.(string)
+				if !ok || strings.Contains(s, ",") {
+					return nil, fmt.Errorf("option %s lists %v, and a list holds only text with no commas", name, item)
+				}
+				items[i] = s
+			}
+			out[name] = strings.Join(items, ",")
 		default:
-			return nil, fmt.Errorf("option %s is not a number, string or boolean", name)
+			return nil, fmt.Errorf("option %s is not a number, string, boolean or list", name)
 		}
 	}
 	return out, nil

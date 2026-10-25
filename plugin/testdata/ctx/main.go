@@ -42,6 +42,7 @@ func init() {
 	})
 	sdk.Define("depth", "0", "how deep it looks")
 	sdk.Define("on", "false", "turns it on")
+	sdk.Define("skip", "", "the filetypes it leaves alone")
 	sdk.Command("Opt", "types an option", func(c sdk.Call) {
 		v, ok := sdk.Option(c.Args)
 		if !ok {

@@ -1907,9 +1907,11 @@ Where fude departs, the line says so and cites the departure in
   registered, and the cursor lands after the text it typed (B179).
 - B178 [4] The `options` table of a plugin's `[[plugin]]` table starts
   its options by name (B377), which its init may read once it defines
-  them. Each is a number, a string or a boolean, and a table or a list
-  there keeps the plugin from loading, with a message that names it. A
-  name that is no option of the plugin says so.
+  them. Each is a number, a string, a boolean or a list of strings. The
+  plugin reads a list as its strings separated by commas, as `:set` takes
+  `completion_sources`. A table keeps the plugin from loading, as does a
+  list that holds anything but strings or a string with a comma, and the
+  message names the option. A name that is no option of the plugin says so.
 - B180 [4] A plugin can ask to run a function after a while. The function
   runs once, off the input path, as an event does. It is about the buffer
   the call that asked was about, and does not run when that buffer closed
@@ -2048,9 +2050,10 @@ Where fude departs, the line says so and cites the departure in
   window's, as fude's options are. Otherwise every session shares it, and
   a guest may not change it. A plugin's option starts at its key in the
   plugin's `options` (B178), and a built-in module's at its key in
-  `[module.<name>]`. A key there
-  that names no option, or a value of the wrong kind, is an error that
-  names it, and `:config reload` changes nothing then (D59).
+  `[module.<name>]`, where a list of strings also reads as its strings
+  separated by commas. A key there that names no option, or a value of the wrong
+  kind, is an error that names it, and `:config reload` changes nothing
+  then (D59).
 - B379 [4] A module's call reads where each function and class that
   holds a place starts, the outermost first, as the grammar's text objects
   say. Its result pins lines over a window's top rows, by the window's id,
