@@ -123,26 +123,59 @@ module-imports:
 kernel-size:
     test $(find core -name '*.go' ! -name '*_test.go' -exec cat {} + | wc -l) -le 10000
 
-# Count lines of Go code by category, without tests, test plugins, blanks
-# or comment-only lines.
+# Count the lines of the Go files git tracks, by the layers of
+# prd/architecture.md, without blank lines. A comment line is one that
+# starts with //. Tests are _test.go files, the test helpers and the test
+# plugins. The native window splits into what every OS shares and each
+# OS's own files. It also counts the lines of the help pages, the
+# tree-sitter queries and the spec.
 loc:
     #!/usr/bin/env bash
     set -euo pipefail
-    count() { find "$@" -maxdepth 1 -name '*.go' ! -name '*_test.go' -exec cat {} + | grep -cvE '^[[:space:]]*(//|$)'; }
-    total=0
-    while read -r name dirs; do
-        n=$(count $dirs)
-        total=$((total + n))
-        printf '%-12s %6d  %s\n' "$name" "$n" "$dirs"
-    done <<'EOF'
-    editor editor
-    vim vim
-    modules syntax plugin protocol/lsp sdk api api/diff modules/blame modules/colours modules/comment modules/debug modules/editorconfig modules/fold modules/format modules/git modules/grep modules/inlay modules/lsp modules/spell modules/task
-    clients tui gui frontend
-    kernel core/kernel core/rope
-    glue cmd/fude internal/pty internal/trace
-    EOF
-    printf '%-12s %6d\n' total "$total"
+    git ls-files '*.go' | awk '
+    BEGIN {
+        n = split("kernel vim editor api plugins modules syntax protocols frontend tui gui gui_darwin gui_linux gui_windows support", order, " ")
+        name["kernel"] = "kernel (core)"; name["vim"] = "vim machine"; name["editor"] = "editor"
+        name["api"] = "module API"; name["plugins"] = "plugin host and SDK"; name["modules"] = "modules"
+        name["syntax"] = "syntax (cgo)"; name["protocols"] = "LSP and DAP"; name["frontend"] = "frontend"
+        name["tui"] = "terminal UI"; name["gui"] = "window, shared"; name["gui_darwin"] = "window, macOS"
+        name["gui_linux"] = "window, Linux"; name["gui_windows"] = "window, Windows"; name["support"] = "internal and main"
+    }
+    {
+        file = $0
+        split(file, part, "/")
+        g = part[1]
+        if (g == "core") g = "kernel"
+        else if (g == "plugin" || g == "sdk") g = "plugins"
+        else if (g == "distribution") g = "modules"
+        else if (g == "protocol") g = "protocols"
+        else if (g == "internal" || g == "cmd") g = "support"
+        else if (g == "gui" && match(file, /_(darwin|linux|windows)[_.]/)) g = "gui_" substr(file, RSTART + 1, RLENGTH - 2)
+        # A folder no layer names yet still counts, under its own name.
+        if (!(g in name)) { name[g] = g; order[++n] = g }
+        test = file ~ /_test\.go$/ || file ~ /\/(editortest|plugintest|syntaxtest|testdata)\//
+        while ((getline line < file) > 0) {
+            if (line ~ /^[[:space:]]*$/) continue
+            if (test) tests[g]++
+            else if (line ~ /^[[:space:]]*\/\//) comments[g]++
+            else code[g]++
+        }
+        close(file)
+    }
+    END {
+        printf "%-22s %7s %9s %7s\n", "", "code", "comments", "tests"
+        for (i = 1; i <= n; i++) {
+            g = order[i]
+            printf "%-22s %7d %9d %7d\n", name[g], code[g], comments[g], tests[g]
+            c += code[g]; m += comments[g]; t += tests[g]
+        }
+        printf "%-22s %7d %9d %7d\n", "total", c, m, t
+    }'
+    lines() { git ls-files "$@" | xargs cat | grep -cv '^[[:space:]]*$'; }
+    echo
+    printf '%-22s %7d\n' "help pages" "$(lines 'editor/reference/*.md' 'editor/guide/*.md')"
+    printf '%-22s %7d\n' "tree-sitter queries" "$(lines '*.scm')"
+    printf '%-22s %7d\n' "spec (prd)" "$(lines 'prd/*.md')"
 
 # Run everything a commit needs.
 check: ci perf
