@@ -8,6 +8,7 @@ package plugintest
 
 import (
 	"context"
+	"os"
 	"slices"
 	"strings"
 	"sync"
@@ -19,11 +20,14 @@ import (
 )
 
 // Plugin is a plugin loaded for a test. Path and Filetype are the file
-// and filetype of the buffer its calls are about, none by default.
+// and filetype of the buffer its calls are about, none by default. A
+// call's cwd is the folder the test ran in when it loaded the plugin,
+// which is the plugin's project too.
 type Plugin struct {
 	Path, Filetype string
 
 	t   testing.TB
+	cwd string // the folder the test ran in when it loaded the plugin
 	p   *plugin.Plugin
 	mu  sync.Mutex
 	log []string
@@ -34,7 +38,11 @@ type Plugin struct {
 // not load or its init fails, and closes the plugin when t ends.
 func Load(t testing.TB, path string, g plugin.Grants, text string) *Plugin {
 	t.Helper()
-	tp := &Plugin{t: t}
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("load %s: %v", path, err)
+	}
+	tp := &Plugin{t: t, cwd: cwd}
 	p, err := plugin.Load(context.Background(), path, g, t.TempDir(), tp.logged, func(string, time.Duration) {})
 	if err != nil {
 		t.Fatalf("load %s: %v", path, err)
@@ -139,7 +147,7 @@ func Apply(text string, res api.Result) string {
 // scope is what a call against text reads, as the only open buffer, with
 // what extra adds to its context.
 func (p *Plugin) scope(text string, extra api.Context) api.Scope {
-	about := api.Context{"buffer": "1", "path": p.Path, "filetype": p.Filetype, "mode": "normal"}
+	about := api.Context{"buffer": "1", "path": p.Path, "filetype": p.Filetype, "mode": "normal", "cwd": p.cwd}
 	for k, v := range extra {
 		about[k] = v
 	}
