@@ -851,7 +851,9 @@ The plugin's WebAssembly file, from the folder of config.toml, such as
 ## plugin.capabilities
 
 What the plugin may call: `buffer.read`, `buffer.write`, `ui`, `fs.read`,
-`fs.write`, `process`, `net`, `lsp` and `keys`. A call outside them gets an
+`fs.write`, `process`, `net`, `lsp`, `keys` and `grammar`, which builds the
+grammar the plugin names. A built grammar runs in fude itself, outside the
+plugin's sandbox. A call outside them gets an
 error and changes nothing.
 
 ## plugin.programs

@@ -1,11 +1,15 @@
 package editor
 
 import (
+	"cmp"
+	"maps"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/internal/trace"
+	"github.com/y3owk1n/fude/plugin"
 	"github.com/y3owk1n/fude/syntax"
 )
 
@@ -84,8 +88,36 @@ func (e *Session) buildGrammar(ft string, force bool) bool {
 	return true
 }
 
+// addLanguage adds the grammar r names for p, a built-in module or a
+// plugin granted grammar, and gives it to the open buffers of its filetype.
+// It keeps why it adds none, for :grammar (B590, D71).
+func (e *Session) addLanguage(p api.Module, r api.Registration) {
+	w, isPlugin := p.(*plugin.Plugin)
+	switch {
+	case isPlugin && !slices.Contains(w.Capabilities, "grammar"):
+		e.unbuilt[r.Name] = "plugin " + p.Name() + " has no grant for it"
+		return
+	case r.Source == nil || r.Source.Repo == "" || r.Source.Commit == "":
+		e.unbuilt[r.Name] = p.Name() + " names no repo or commit for it"
+		return
+	}
+	if err := syntax.Add(r.Name, p.Name(), syntax.Source(*r.Source)); err != nil {
+		e.unbuilt[r.Name] = err.Error()
+		return
+	}
+	delete(e.unbuilt, r.Name)
+	for _, b := range e.bufs {
+		if b.syntax == nil && e.filetype(b) == r.Name {
+			if msg := e.syntaxFor(b); msg != "" {
+				e.message = msg
+			}
+		}
+	}
+}
+
 // grammarList is the grammars fude builds, each with its state, building
-// or failed this session too (B165, B333).
+// or failed this session too, and those of modules it builds none for
+// (B165, B333, B590).
 func (e *Session) grammarList() []api.Grammar {
 	var out []api.Grammar
 	for _, g := range syntax.Grammars() {
@@ -96,8 +128,17 @@ func (e *Session) grammarList() []api.Grammar {
 		case e.failed[g.Filetype] != "":
 			state = "failed: " + e.failed[g.Filetype]
 		}
-		out = append(out, api.Grammar{Filetype: g.Filetype, State: state})
+		if why, ok := e.unbuilt[g.Filetype]; ok {
+			state += ", " + why
+		}
+		out = append(out, api.Grammar{Filetype: g.Filetype, State: state, Owner: g.Owner})
 	}
+	for _, ft := range slices.Sorted(maps.Keys(e.unbuilt)) {
+		if !slices.ContainsFunc(out, func(g api.Grammar) bool { return g.Filetype == ft }) {
+			out = append(out, api.Grammar{Filetype: ft, State: "not built, " + e.unbuilt[ft]})
+		}
+	}
+	slices.SortFunc(out, func(a, b api.Grammar) int { return cmp.Compare(a.Filetype, b.Filetype) })
 	return out
 }
 

@@ -87,6 +87,11 @@ const (
 	// command's JSON arguments in About as arguments and the server as
 	// server, in place of sending the command to the server (B539).
 	ClientCommand
+	// Language is a grammar for the filetype Name, which fude builds as it
+	// builds its own, from where Source says. A plugin's needs grammar in
+	// its capabilities, as the grammar runs outside the sandbox. It is never
+	// called (B590, D71).
+	Language
 )
 
 // Registration is one thing a module's init registered: its name, what it
@@ -146,4 +151,15 @@ type Registration struct {
 	// Default and Window are an Option's (B377).
 	Default string
 	Window  bool
+	// Source is where a Language's grammar comes from (B590).
+	Source *GrammarSource
+}
+
+// GrammarSource is where a grammar comes from: its git repo, the commit
+// fude builds and the folder of its sources there. Files are its queries
+// by name, highlights, injections, textobjects or folds, each a path in the
+// repo. Queries are the same as text, which fude puts after a file's (B590).
+type GrammarSource struct {
+	Repo, Commit, Dir string
+	Files, Queries    map[string]string
 }

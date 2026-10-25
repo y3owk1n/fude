@@ -2,6 +2,8 @@ package editor_test
 
 import (
 	"context"
+	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -10,8 +12,10 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/fude/api"
+	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/frontend/wire"
 	"github.com/y3owk1n/fude/modules/comment"
+	foldmod "github.com/y3owk1n/fude/modules/fold"
 	grammarsmod "github.com/y3owk1n/fude/modules/grammars"
 	listsmod "github.com/y3owk1n/fude/modules/lists"
 	"github.com/y3owk1n/fude/syntax"
@@ -307,6 +311,92 @@ func TestB165BuiltGrammar(t *testing.T) {
 		t.Fatalf(":grammar update said %q", e.Message())
 	}
 	settle(t, e, func() bool { return strings.Contains(e.Message(), "git is not installed") })
+}
+
+// goxRepo makes a git repo of Go's grammar whose language is named gox,
+// and returns it and its commit.
+func goxRepo(t *testing.T) (string, string) {
+	t.Helper()
+	mod, err := exec.Command("go", "list", "-m", "-f", "{{.Dir}}", "github.com/tree-sitter/tree-sitter-go").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	repo := t.TempDir()
+	if err := os.CopyFS(repo, os.DirFS(strings.TrimSpace(string(mod)))); err != nil {
+		t.Fatal(err)
+	}
+	for name, from := range map[string]string{"parser.c": "tree_sitter_go(", "grammar.json": `"name": "go"`} {
+		path := filepath.Join(repo, "src", name)
+		b, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(strings.Replace(string(b), from, strings.Replace(from, "go", "gox", 1), 1)), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	git := func(args ...string) string {
+		cmd := exec.Command("git", append([]string{"-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false"}, args...)...)
+		cmd.Dir = repo
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %s: %v: %s", args[0], err, out)
+		}
+		return strings.TrimSpace(string(out))
+	}
+	git("init", "-q")
+	git("add", "-A")
+	git("commit", "-q", "-m", "gox")
+	return repo, git("rev-parse", "HEAD")
+}
+
+// B590
+func TestB590PluginGrammar(t *testing.T) {
+	repo, commit := goxRepo(t)
+	// Windows will not delete the library fude loads, so the folder may
+	// outlive the test.
+	data, err := os.MkdirTemp("", "fude-grammar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(data) })
+	t.Setenv("XDG_DATA_HOME", data)
+	path := filepath.Join(t.TempDir(), "a.gox")
+	change(t, path, "package p\n\nfunc f() {\n}\n")
+	open := func(options string, caps ...string) *editor.Session {
+		useTable(t, "lang", fmt.Sprintf("options = { repo = %q, commit = %q%s }\n", repo, commit, options), caps...)
+		e := start(t, path)
+		e.Use(grammarsmod.New())
+		e.SetSize(80, 20)
+		e.Load()
+		next(t, e)
+		// fold's own work would come before the plugin's load in the queue.
+		e.Use(foldmod.New())
+		return e
+	}
+	// Without the grant fude builds nothing, and :grammar says why.
+	e := open("")
+	if feed(e, ":grammar<CR>"); !strings.Contains(text(e), "gox          not built, plugin lang has no grant for it") {
+		t.Fatalf(":grammar listed %q", text(e))
+	}
+	// With it, the grammar builds as fude's own do, with its queries from
+	// the repo and as text, and :grammar names the plugin.
+	e = open("", "grammar")
+	feed(e, ":grammar install gox<CR>")
+	settle(t, e, func() bool {
+		return slices.ContainsFunc(e.Windows()[0].Highlights, func(s wire.Span) bool { return s.Name == "keyword" })
+	})
+	if feed(e, "zM"); !maps.Equal(e.Windows()[0].Folds, map[int]int{2: 1}) {
+		t.Fatalf("zM made %v, want the function folded by the plugin's query", e.Windows()[0].Folds)
+	}
+	if feed(e, ":grammar<CR>"); !strings.Contains(text(e), "gox          built, added by lang") {
+		t.Fatalf(":grammar listed %q", text(e))
+	}
+	// A filetype fude has a grammar for keeps fude's.
+	e = open(`, filetype = "go"`, "grammar")
+	if feed(e, ":grammar<CR>"); !strings.Contains(text(e), "fude keeps its own go grammar over lang's") {
+		t.Errorf(":grammar listed %q", text(e))
+	}
 }
 
 // B166, through an injection a query override makes: Go inside a Go raw

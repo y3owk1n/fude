@@ -43,7 +43,9 @@ var needs = map[string]string{
 var kinds = map[fude.Kind]string{
 	fude.Command: "", fude.Operator: "", fude.Object: "", fude.Key: "", fude.Insert: "", fude.Plug: "", fude.Source: "",
 	fude.Typed: "buffer.read", fude.Completer: "buffer.read", fude.Write: "buffer.read", fude.Page: "", fude.Option: "",
-	fude.ClientCommand: "lsp",
+	// The editor checks grammar itself, so :grammar can say when a plugin
+	// lacks it (B590).
+	fude.ClientCommand: "lsp", fude.Language: "",
 }
 
 // init panics on a Result field with no entry in needs, or a kind with no

@@ -14,6 +14,7 @@ void ts_set_allocator(void *(*)(size_t), void *(*)(size_t, size_t), void *(*)(vo
 import "C"
 
 import (
+	"cmp"
 	"embed"
 	"errors"
 	"fmt"
@@ -100,6 +101,56 @@ var registry = map[string]grammar{
 	"prisma":          {"https://github.com/victorhqc/tree-sitter-prisma", "3556b2c1f20ec9ac91e92d32c43d9d2a0ca3cc49", ".", []string{"queries/highlights.scm"}, nil, "// %s"},
 }
 
+// Source is where a module's grammar comes from: its git repo, the commit
+// fude builds, the folder of its sources there, and its queries by name,
+// highlights, injections, textobjects or folds, as paths in the repo and
+// as text. fude puts the text after the path's query (B590).
+type Source struct {
+	Repo, Commit, Dir string
+	Files, Queries    map[string]string
+}
+
+// added are the grammars modules added, by filetype, with the module each
+// came from (B590).
+var (
+	addMu sync.Mutex
+	added = map[string]module{}
+)
+
+// module is a grammar a module added.
+type module struct {
+	owner string
+	src   Source
+}
+
+// Add has fude build filetype's grammar from src, for the module owner.
+// fude keeps its own grammar for a filetype over a module's, and the first
+// module's over another's (B590).
+func Add(filetype, owner string, src Source) error {
+	if _, ok := registry[filetype]; ok {
+		return fmt.Errorf("fude keeps its own %s grammar over %s's", filetype, owner)
+	}
+	addMu.Lock()
+	defer addMu.Unlock()
+	if m, ok := added[filetype]; ok && m.owner != owner {
+		return fmt.Errorf("fude keeps %s's %s grammar over %s's", m.owner, filetype, owner)
+	}
+	added[filetype] = module{owner, src}
+	return nil
+}
+
+// find returns how fude builds filetype's grammar, its own or a module's,
+// with the queries a module gives.
+func find(filetype string) (grammar, Source, bool) {
+	if g, ok := registry[filetype]; ok {
+		return g, Source{}, true
+	}
+	addMu.Lock()
+	defer addMu.Unlock()
+	m, ok := added[filetype]
+	return grammar{repo: m.src.Repo, commit: m.src.Commit, src: cmp.Or(m.src.Dir, ".")}, m.src, ok
+}
+
 // shipped holds the text objects fude writes for the grammars it builds
 // (D28), and the queries it adds to or puts in place of theirs.
 //
@@ -146,7 +197,7 @@ const buildVersion = 2
 // library ends in .dll.
 func Library(dir, filetype string) string {
 	name := "parser"
-	if g, ok := registry[filetype]; ok {
+	if g, _, ok := find(filetype); ok {
 		name = fmt.Sprintf("%s-%d", g.commit, buildVersion)
 	}
 	return filepath.Join(dir, filetype, name+libExt)
@@ -247,7 +298,7 @@ func load(path, filetype string) (*language, error) {
 
 // Buildable reports whether fude knows how to build filetype's grammar.
 func Buildable(filetype string) bool {
-	_, ok := registry[filetype]
+	_, _, ok := find(filetype)
 	return ok
 }
 
@@ -255,7 +306,7 @@ func Buildable(filetype string) bool {
 // into the directory Use named, with git and the tree-sitter CLI. It takes
 // seconds, so it belongs off the editor loop (B165).
 func Build(filetype string) error {
-	g, ok := registry[filetype]
+	g, mod, ok := find(filetype)
 	if !ok {
 		return fmt.Errorf("fude cannot build a grammar for %s", filetype)
 	}
@@ -293,7 +344,8 @@ func Build(filetype string) error {
 		if err := os.Mkdir(dir, 0o755); err != nil {
 			return "", fmt.Errorf("build the %s grammar: %w", filetype, err)
 		}
-		for _, step := range [][]string{{"init", "-q"}, {"fetch", "-q", "--depth", "1", registry[ft].repo, registry[ft].commit}, {"checkout", "-q", "FETCH_HEAD"}} {
+		from, _, _ := find(ft)
+		for _, step := range [][]string{{"init", "-q"}, {"fetch", "-q", "--depth", "1", from.repo, from.commit}, {"checkout", "-q", "FETCH_HEAD"}} {
 			if err := run(dir, "git", step...); err != nil {
 				return "", err
 			}
@@ -309,7 +361,11 @@ func Build(filetype string) error {
 	if err := os.MkdirAll(filepath.Join(out, "queries"), 0o755); err != nil {
 		return fmt.Errorf("build the %s grammar: %w", filetype, err)
 	}
-	for name, files := range map[string][]string{"highlights": g.highlights, "injections": g.injections} {
+	for _, name := range []string{"highlights", "injections", "textobjects", "folds"} {
+		files := map[string][]string{"highlights": g.highlights, "injections": g.injections}[name]
+		if path, ok := mod.Files[name]; ok {
+			files = append(files, path)
+		}
 		var parts []string
 		for _, q := range files {
 			ft, path, ok := strings.Cut(q, ":")
@@ -325,6 +381,9 @@ func Build(filetype string) error {
 				return fmt.Errorf("build the %s grammar: %w", filetype, err)
 			}
 			parts = append(parts, string(b))
+		}
+		if text, ok := mod.Queries[name]; ok {
+			parts = append(parts, text)
 		}
 		if err := os.WriteFile(filepath.Join(out, "queries", name+".scm"), []byte(strings.Join(parts, "\n")), 0o644); err != nil {
 			return fmt.Errorf("build the %s grammar: %w", filetype, err)
@@ -348,9 +407,10 @@ func Build(filetype string) error {
 	return nil
 }
 
-// Grammar is a grammar fude has or can build, and its state.
+// Grammar is a grammar fude has or can build, its state, and the module
+// that added it, "" for fude's own.
 type Grammar struct {
-	Filetype, State string
+	Filetype, State, Owner string
 }
 
 // Grammars returns the grammars fude builds, by filetype, and whether each
@@ -359,8 +419,17 @@ func Grammars() []Grammar {
 	loadMu.Lock()
 	dir := grammarsDir
 	loadMu.Unlock()
+	addMu.Lock()
+	owners := map[string]string{}
+	for ft, m := range added {
+		owners[ft] = m.owner
+	}
+	addMu.Unlock()
+	// Add refuses a module a filetype fude has, so the two never overlap.
+	fts := slices.AppendSeq(slices.Collect(maps.Keys(registry)), maps.Keys(owners))
+	slices.Sort(fts)
 	var out []Grammar
-	for _, ft := range slices.Sorted(maps.Keys(registry)) {
+	for _, ft := range fts {
 		state := "not built"
 		if _, err := os.Stat(Library(dir, ft)); err == nil {
 			state = "built"
@@ -368,7 +437,7 @@ func Grammars() []Grammar {
 			// It was built at an older pin, or by an older fude.
 			state = "outdated"
 		}
-		out = append(out, Grammar{ft, state})
+		out = append(out, Grammar{ft, state, owners[ft]})
 	}
 	return out
 }

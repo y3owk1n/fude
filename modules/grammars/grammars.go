@@ -64,6 +64,9 @@ func (m *Module) Call(_ context.Context, _ uint32, s api.Scope, _ ...int) (api.R
 	lines := make([]string, len(grammars))
 	for i, g := range grammars {
 		lines[i] = fmt.Sprintf("%-12s %s", g.Filetype, g.State)
+		if g.Owner != "" {
+			lines[i] += ", added by " + g.Owner
+		}
 	}
 	return api.Result{Show: &api.Panel{Unnumbered: true, Title: "[grammars]", Text: strings.Join(lines, "\n")}}, nil
 }

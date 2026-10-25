@@ -43,7 +43,7 @@ const maxFed = 8
 const memoryPages = 1024
 
 // capabilities are the ones a plugin may declare.
-var capabilities = []string{"buffer.read", "buffer.write", "ui", "fs.read", "fs.write", "process", "net", "lsp", "keys"}
+var capabilities = []string{"buffer.read", "buffer.write", "ui", "fs.read", "fs.write", "process", "net", "lsp", "keys", "grammar"}
 
 // Errors a host function returns to the plugin.
 const (

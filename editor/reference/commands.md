@@ -995,8 +995,10 @@ pin), building, not built, or failed with why. `:grammar install
 {filetype}` builds that one again, even after it failed. `:grammar update`
 builds again every grammar that is outdated, or says each is up to date.
 A build says when it starts and ends, and a build that needs a missing tool
-names it. `<Tab>` completes `update` and `install` with each filetype. A
-guest may list the grammars but not build them.
+names it. The list names the plugin that added a grammar. For a plugin's
+grammar fude does not build, it says why, such as a plugin with no
+`grammar` in its capabilities. `<Tab>` completes `update` and `install` with each
+filetype. A guest may list the grammars but not build them.
 
 ## :help
 

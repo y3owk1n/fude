@@ -465,10 +465,10 @@ type ExCommand struct {
 	Name, Args, Help string
 }
 
-// Grammar is a grammar fude builds, by its filetype, as :grammar lists it
-// (B333).
+// Grammar is a grammar fude builds, by its filetype, as :grammar lists it,
+// with the module that added it, "" for fude's own (B333, B590).
 type Grammar struct {
-	Filetype, State string
+	Filetype, State, Owner string
 }
 
 // Peer is a session on this fude, as :who lists it. Power is host, guest

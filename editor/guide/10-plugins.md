@@ -23,6 +23,8 @@ programs = ["git"]
 - `fs.read` reads and lists files in the folder fude started in and the
   folders `paths` lists, such as `["~/notes"]`.
 - `fs.write` writes, moves and deletes files and makes folders there.
+- `grammar` builds the grammar the plugin names for a filetype, as fude
+  builds its own. The grammar runs in fude itself, outside the sandbox.
 - `process` runs the programs `programs` lists.
 - `net` gets http and https URLs on the hosts `hosts` lists.
 - `lsp` asks the buffer's language servers, sends them notifications and

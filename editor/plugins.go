@@ -1160,6 +1160,9 @@ func (e *Session) unregister(p api.Module) {
 			delete(e.pluginHelp, ":pick "+r.Name)
 		case api.ClientCommand:
 			delete(e.clientCommands, r.Name)
+		case api.Language:
+			// A grammar built stays loaded, as fude never closes one.
+			delete(e.unbuilt, r.Name)
 		case api.Operator, api.Object:
 			e.pluginBindings = slices.DeleteFunc(e.pluginBindings, func(b vim.Binding) bool {
 				return b.Kind == "operator" && b.Keys == bindingKeys(r) || b.Kind == "object" && b.Keys == r.Name
@@ -1274,6 +1277,8 @@ func (e *Session) register(p api.Module, r api.Registration) {
 		for _, short := range r.Short {
 			e.shortOf[short] = r.Name
 		}
+	case api.Language:
+		e.addLanguage(p, r)
 	case api.ClientCommand:
 		e.clientCommands[r.Name] = func(s *Session, from *server, args string) {
 			scope := s.scope(p, s.win.buf, s.Text())
