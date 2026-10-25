@@ -3,6 +3,7 @@ package fold
 import (
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/y3owk1n/fude/api"
 )
@@ -28,10 +29,27 @@ func shapeOf(s api.Scope) (shape, error) {
 		return sh, err
 	}
 	sh.byQuery = true
+	// lineEnd is where line ends, before its newline.
+	lineEnd := func(line int) int {
+		if line+1 < s.Text.Lines() {
+			return s.Text.LineStart(line+1) - 1
+		}
+		return s.Text.Len()
+	}
 	for _, sp := range spans {
 		first, last := s.Text.LineOf(sp.Start), s.Text.LineOf(max(sp.End-1, sp.Start))
-		if last > first {
-			sh.query = append(sh.query, span{first: first, last: last})
+		// A capture whose last line goes on past closing marks, as } else {
+		// does, ends a line before, so that line shows.
+		if end := lineEnd(last); sp.End < end && strings.Trim(s.Text.Slice(sp.End, end), " \t\r;,)]}") != "" {
+			last--
+		}
+		// The blank lines after a capture, as after a TOML table, show.
+		for last > first && strings.TrimSpace(s.Text.Slice(s.Text.LineStart(last), lineEnd(last))) == "" {
+			last--
+		}
+		// A query may capture a node and its body over the same lines.
+		if f := (span{first: first, last: last}); last > first && !slices.Contains(sh.query, f) {
+			sh.query = append(sh.query, f)
 		}
 	}
 	return sh, nil

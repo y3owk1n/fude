@@ -1117,6 +1117,15 @@ section that holds others still shows its own text, where org hides it.
 A fold holds all of a section's lines, and the section's own text has no
 fold.
 
+Indent folds leave out a block's closing line, such as Go's `}` or Lua's
+`end`. fude ships folds queries for those languages, and for TOML, whose
+tables have no indent to fold by. Python and YAML keep indent's folds. Their grammars start a
+body on the line after its colon, so a query could only fold a whole `if`
+with its `elif` and `else`. A fold stops before a last line that goes on
+past its capture, as `} else {` does, so a query folds blocks and the
+`else` stays in view. Lua's `if` folds whole, to its `end`, with an
+`elseif` or `else` folding inside it.
+
 ## Departures from Neovim
 
 Each entry: what differs, then why.

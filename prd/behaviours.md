@@ -1170,9 +1170,13 @@ Where fude departs, the line says so and cites the departure in
   not hold (N34).
 - B591 [3] In a buffer whose grammar has a folds query, the fold module
   folds by its `@fold` captures in place of indent. A fold holds the lines
-  from a capture's first line to its last. fude ships one for markdown,
-  whose sections fold under their headings. Every key of B224 and B502
-  works on these folds as on indent's (D74).
+  from a capture's first line to its last. When that last line goes on
+  past the capture with more than closing marks, as `} else {` does, the
+  fold ends a line before it, and blank lines after the capture stay out
+  of the fold. fude ships folds queries for markdown, whose sections fold
+  under their headings, and for Go, C, Rust, JavaScript, TypeScript, TSX,
+  Lua, JSON and TOML, whose folds hold their closing lines. Every key of
+  B224 and B502 works on these folds as on indent's (D74).
 - B592 [3] `<Plug>(fold.cycle)` on a fold's first line moves the fold one
   step: closed, then open with the folds inside it closed, then open with
   every fold inside it open, then closed again. Off a fold's first line it

@@ -1,0 +1,26 @@
+;; fude's folds for Rust (B591).
+
+[
+  (function_item)
+  (impl_item)
+  (trait_item)
+  (struct_item)
+  (enum_item)
+  (union_item)
+  (mod_item)
+  (use_declaration)
+  (macro_definition)
+  (block)
+  (declaration_list)
+  (field_declaration_list)
+  (enum_variant_list)
+  (match_block)
+  (match_arm)
+  (arguments)
+  (parameters)
+  (field_initializer_list)
+  (array_expression)
+  (token_tree)
+  (closure_expression)
+  (block_comment)
+] @fold

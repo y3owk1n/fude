@@ -15,7 +15,7 @@ func TestMain(m *testing.M) { os.Exit(editortest.Main(m, "markdown", "markdown_i
 
 // B224
 func TestB224Folds(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "a.go")
+	path := filepath.Join(t.TempDir(), "a.txt")
 	editortest.Change(t, path, "func a() {\n\tx\n\ty\n}\nfunc b() {\n\tz\n}\n")
 	e := editortest.Start(t, path)
 	e.Use(fold.New())
@@ -86,7 +86,7 @@ func TestB224Folds(t *testing.T) {
 
 // B502
 func TestB502FoldLevels(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "a.go")
+	path := filepath.Join(t.TempDir(), "a.txt")
 	editortest.Change(t, path, "a\n\tb\n\t\tc\n\t\t\td\n\t\t\td\n\t\te\n\tf\ng\n")
 	e := editortest.Start(t, path)
 	e.Use(fold.New())
@@ -116,7 +116,7 @@ func TestB502FoldLevels(t *testing.T) {
 
 // B488
 func TestB488FoldColumn(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "a.go")
+	path := filepath.Join(t.TempDir(), "a.txt")
 	editortest.Change(t, path, "func a() {\n\tx\n\n\ty\n}\nb\n")
 	e := editortest.Start(t, path)
 	e.Use(fold.New())
@@ -161,6 +161,25 @@ func TestB591GrammarFolds(t *testing.T) {
 	}
 	if editortest.Feed(e, "jzc"); !maps.Equal(folds(), map[int]int{2: 1}) {
 		t.Errorf("zc in B made %v, want B closed", folds())
+	}
+	// A fold holds a function's closing brace, ends before a line that goes
+	// on past the capture, and leaves out the blank lines after it.
+	for _, c := range []struct {
+		name, text, keys string
+		want             map[int]int
+	}{
+		{"a.go", "func a() {\n\tif x {\n\t\ty\n\t} else {\n\t\tz\n\t}\n}\n", "zM", map[int]int{0: 6}},
+		{"a.go", "func a() {\n\tif x {\n\t\ty\n\t} else {\n\t\tz\n\t}\n}\n", "3Gzc", map[int]int{1: 1}},
+		{"a.md", "# A\ntext\n\n# B\nmore\n", "zM", map[int]int{0: 1, 3: 1}},
+	} {
+		path := filepath.Join(t.TempDir(), c.name)
+		editortest.Change(t, path, c.text)
+		e := editortest.Start(t, path)
+		e.Use(fold.New())
+		e.SetSize(80, 20)
+		if editortest.Feed(e, c.keys); !maps.Equal(e.Windows()[0].Folds, c.want) {
+			t.Errorf("%s in %q made %v, want %v", c.keys, c.text, e.Windows()[0].Folds, c.want)
+		}
 	}
 }
 

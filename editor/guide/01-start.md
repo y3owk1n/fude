@@ -36,8 +36,9 @@ and `G` to the first and last line. `/text<CR>` searches forward, and `n`
 and `N` go to the next and previous match. A count repeats a motion, so
 `3j` goes down three lines.
 
-`zc` folds the block the cursor is in, by its indent or, in a markdown
-file, by its heading's section, and `zo` opens it
+`zc` folds the block the cursor is in, by its indent or, where its
+grammar says, by a markdown heading's section or a Go function, and `zo`
+opens it
 again, one level at a time, as `zC` and `zO` do every level. `za`
 toggles, `zM` folds every block and `zR` opens them all, and `zm` and
 `zr` fold one level more or less. `j` and `k` pass over a closed fold as

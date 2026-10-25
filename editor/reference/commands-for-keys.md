@@ -310,13 +310,15 @@ as `<Plug>(fold.close)` does, and says "no fold here" when there is none.
 `zc` by default. Folds go by indent. A fold starts on a line followed by
 lines indented more, and holds them and the blank lines among them, so a
 line can be in folds within folds. In a file whose grammar says where it
-folds, such as markdown, folds go there instead. A heading's section holds
-the sections under it. Of the folds that hold the cursor's
-line, outermost first, it closes the last one open before the first
-closed one, which with every fold open is the innermost. With a count it
-closes that many levels, outward. The closed folds inside stay closed, so
-`<Plug>(fold.open)` shows them again. The cursor goes to the first line of
-the fold it is in. With no fold there, the message says "no fold here".
+folds, such as markdown, Go or TOML, folds go there instead. A heading's
+section holds the sections under it, a function's fold holds its closing
+brace, and a TOML table folds under its header. Of the folds that hold
+the cursor's line, outermost first, it closes the last one open before
+the first closed one, which with every fold open is the innermost. With
+a count it closes that many levels, outward. The closed folds inside
+stay closed, so `<Plug>(fold.open)` shows them again. The cursor goes to
+the first line of the fold it is in. With no fold there, the message
+says "no fold here".
 
 ## <Plug>(fold.close_deep)
 
