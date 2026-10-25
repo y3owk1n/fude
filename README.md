@@ -108,7 +108,7 @@ Neovim is the reference, and fude departs only where that is better. [`prd/decis
 - **Search.** fude runs Vim's patterns on a linear-time engine and refuses backreferences, so no pattern can hang the editor.
 - **Defaults.** Space is the leader, splits open below and right, brackets close themselves, and indent guides and key hints are on.
 - **Keys.** `s` jumps by label, `S` in visual mode surrounds, `<C-n>` adds a region, `=` formats as `gq` does, and `q` closes fude's own windows.
-- **Built in.** `:pick` replaces `:grep` and picker plugins, folds come from indent, and language server keys exist only while a server is attached.
+- **Built in.** `:pick` replaces `:grep` and picker plugins, folds come from the grammar or from indent, and language server keys exist only while a server is attached.
 - **Restart.** `:restart` keeps unsaved changes, since the timeline holds them.
 
 ## In a window

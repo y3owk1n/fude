@@ -18,7 +18,7 @@ and a program that embeds the editor does the same.
 | [`explorer`](explorer) | `-`, an explorer's keys, its notes and icons, `:w` renaming, deleting and creating its entries, and `:pwd` |
 | [`files`](files) | `:pick files` and `:pick buffers` |
 | [`flash`](flash) | text just yanked, put, undone or redone shows for a moment |
-| [`fold`](fold) | `zc`, `zo`, `za`, `zR` and `zM` fold by indent, `zf` folds a motion's lines, and `zj` and `zk` move between folds |
+| [`fold`](fold) | `zc`, `zo`, `za`, `zR` and `zM` fold by the grammar's folds query or by indent, `zf` folds a motion's lines, `zj` and `zk` move between folds, and `<Plug>(fold.cycle)` and `<Plug>(fold.cycle_all)` cycle them |
 | [`format`](format) | `gq`, `=`, `:format` and `format_on_save` |
 | [`git`](git) | git signs, hunks, `gh`, `gH`, `:gitdiff`, an explorer's git status and the branch on the status line |
 | [`grammars`](grammars) | `:grammar` lists, installs and updates the grammars |

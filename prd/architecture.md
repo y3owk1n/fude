@@ -70,7 +70,8 @@ modules/         Go packages over api/ and protocol/ that cmd/fude adds with
   debug/         :debug, breakpoints, stepping and the debug panel
   diff/          diff mode: :diffthis, ]c, do and dp, and its rows of fill
   editorconfig/  .editorconfig files set a file's indentation
-  fold/          zc, zo, za, zR and zM, folds by indent
+  fold/          zc, zo, za, zR and zM, folds by the grammar's folds query
+                 or by indent, and cycling them
   format/        gq, :format and format_on_save
   git/           git signs, hunks, gh, gH and :gitdiff
   grep/          :pick grep, a live search of the files' lines
@@ -1612,8 +1613,9 @@ because fude keeps no locals. A plain `#lua-match?` becomes `#match?` in
 the source before it compiles, and `#set! "priority"` is ignored (D28). A
 file at
 `$XDG_CONFIG_HOME/fude/queries/<lang>/<name>.scm` replaces the shipped
-query of that name (B41). Indentation follows brackets (B211) and folds
-follow indent (B224), so there are no indent or fold queries.
+query of that name (B41). Indentation follows brackets (B211), so there
+are no indent queries. Folds follow a grammar's folds query, and indent
+for a grammar with none (B224, B591).
 
 Every grammar, Go's too, comes from a registry in
 `syntax/grammar.go`, each a repo, a pinned commit, the directories of its
