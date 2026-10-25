@@ -70,7 +70,10 @@ func (p *Plugin) register(_ context.Context, m api.Module, ptr, n uint32) int32 
 	}
 	b, ok := m.Memory().Read(ptr, n)
 	var r fude.Registration
-	if !ok || json.Unmarshal(b, &r) != nil || r.Kind < fude.Command || r.Kind > fude.Option || r.Name == "" {
+	if !ok || json.Unmarshal(b, &r) != nil || r.Name == "" {
+		return errRange
+	}
+	if _, known := kinds[r.Kind]; !known {
 		return errRange
 	}
 	if c := kinds[r.Kind]; c != "" && !p.allowed(c, "register "+r.Name) {
