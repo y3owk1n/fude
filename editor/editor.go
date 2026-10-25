@@ -294,13 +294,13 @@ func builtins(e *Session) {
 		})
 	}
 	for _, p := range plugs {
-		e.vim.Command(p.name, func(_ vim.Text, _, count int) []vim.Edit {
+		e.vim.Command(p.name, func(_ vim.Text, _, count int) ([]vim.Edit, string) {
 			if e.power != Host && refusedPlugs[p.name] {
 				e.message = "a guest may not run <Plug>(" + p.name + ")"
-				return nil
+				return nil, ""
 			}
 			p.run(e, count)
-			return nil
+			return nil, ""
 		})
 	}
 	// The host's leader stands for <Leader> in every session's defaults.

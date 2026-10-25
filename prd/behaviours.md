@@ -2925,5 +2925,8 @@ Tested through `vim/`'s exported API with a minimal host over a byte slice.
 - B179 [2] A command the host adds, run from a mapping in insert mode,
   leaves the cursor after the text its first edit puts in, as typing that
   text would.
+- B593 [2] A command the host adds may return keys with its edits. They
+  run after the edits, with the count typed before the command and through
+  no mapping, and dot repeats the change they make (B589).
 - B114 [2] Removing a mapping removes the prefixes only it used, so typing
   one no longer waits.

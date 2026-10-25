@@ -134,14 +134,16 @@ func (m *Machine) waitFor(n int, run func(chars []string) error) error {
 
 // Command adds a normal mode command, run by the key <Plug>(name), for the
 // host to map keys to. run gets the cursor and the count, and returns the
-// edits it makes. Dot repeats it like any change. A nil run removes it.
-func (m *Machine) Command(name string, run func(t Text, pos, count int) []Edit) {
+// edits it makes and keys to run after them, with the count and through no
+// mapping, as a mapping's keys run. Dot repeats it like any change. A nil
+// run removes it.
+func (m *Machine) Command(name string, run func(t Text, pos, count int) ([]Edit, string)) {
 	if run == nil {
 		delete(m.cmds, name)
 		return
 	}
 	if m.cmds == nil {
-		m.cmds = map[string]func(Text, int, int) []Edit{}
+		m.cmds = map[string]func(Text, int, int) ([]Edit, string){}
 	}
 	m.cmds[name] = run
 }
@@ -154,19 +156,28 @@ func (m *Machine) plug(name string, count int, typed bool) error {
 	if run == nil {
 		return nil
 	}
-	edits := run(m.h.Text(), m.h.Cursor(), count)
-	if len(edits) == 0 {
+	edits, keys := run(m.h.Text(), m.h.Cursor(), count)
+	if len(edits) > 0 {
+		if err := m.apply(edits, "<Plug>("+name+")"); err != nil {
+			return err
+		}
+		if typed {
+			m.h.SetCursor(edits[0].Start + len(edits[0].Text))
+		} else {
+			m.h.SetCursor(clamp(m.h.Text(), edits[0].Start))
+		}
+	}
+	if keys == "" {
 		return nil
 	}
-	if err := m.apply(edits, "<Plug>("+name+")"); err != nil {
-		return err
+	var counted []Key
+	if count > 0 {
+		counted = Keys(strconv.Itoa(count))
 	}
-	if typed {
-		m.h.SetCursor(edits[0].Start + len(edits[0].Text))
-		return nil
-	}
-	m.h.SetCursor(clamp(m.h.Text(), edits[0].Start))
-	return nil
+	// They run as dot replays a change, so cursors do not step twice.
+	m.inner++
+	defer func() { m.inner-- }()
+	return m.run(append(counted, Keys(keys)...), false)
 }
 
 // hostOp applies an operator the host added to r, and leaves the cursor at

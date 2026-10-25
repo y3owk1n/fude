@@ -283,7 +283,7 @@ type Machine struct {
 
 	objects map[string]func(Text, int, int) (int, int, bool) // text objects the host added
 	ops     map[string]hostOperator                          // operators the host added
-	cmds    map[string]func(Text, int, int) []Edit           // commands the host added
+	cmds    map[string]func(Text, int, int) ([]Edit, string) // commands the host added
 	keyed   map[Mode]map[string]keyedCommand                 // commands the host added by their keys
 
 	selector func(Text, string, int, int) ([][2]int, error) // what :select asks

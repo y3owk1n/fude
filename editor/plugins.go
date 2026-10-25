@@ -1318,16 +1318,16 @@ func (e *Session) register(p api.Module, r api.Registration) {
 		name := p.Name() + "." + r.Name
 		e.pluginHelp["<Plug>("+name+")"] = r.Help
 		e.each(func(s *Session) {
-			s.vim.Command(name, func(t vim.Text, pos, count int) []vim.Edit {
+			s.vim.Command(name, func(t vim.Text, pos, count int) ([]vim.Edit, string) {
 				if r.Enters && s.enter() {
-					return nil
+					return nil, ""
 				}
 				args := []int{pos, count}
 				if sel, ok := s.Selection(); r.Visual && ok {
 					args = []int{sel.Start, min(sel.End, t.Len())}
 				}
 				edits, _, _ := s.run(p, r.ID, s.scope(p, s.win.buf, t), args...)
-				return edits
+				return edits, ""
 			})
 			for _, k := range keysOf(p, r) {
 				s.mapKey(k, true)
@@ -1345,9 +1345,9 @@ func (e *Session) register(p api.Module, r api.Registration) {
 		name := p.Name() + ".insert." + r.Name
 		e.pluginHelp["<Plug>("+name+")"] = r.Help
 		e.each(func(s *Session) {
-			s.vim.Command(name, func(t vim.Text, pos, _ int) []vim.Edit {
+			s.vim.Command(name, func(t vim.Text, pos, _ int) ([]vim.Edit, string) {
 				edits, _, _ := s.run(p, r.ID, s.scope(p, s.win.buf, t), pos)
-				return edits
+				return edits, ""
 			})
 			s.vim.Map(vim.Insert, r.Name, "<Plug>("+name+")")
 		})

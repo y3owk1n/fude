@@ -776,7 +776,9 @@ func TestB112Unhandled(t *testing.T) {
 func TestB179HostCommandInInsert(t *testing.T) {
 	h := &host{text: "abcd", cursor: 2}
 	m := vim.New(h)
-	m.Command("xy", func(_ vim.Text, pos, _ int) []vim.Edit { return []vim.Edit{{Start: pos, End: pos, Text: "XY"}} })
+	m.Command("xy", func(_ vim.Text, pos, _ int) ([]vim.Edit, string) {
+		return []vim.Edit{{Start: pos, End: pos, Text: "XY"}}, ""
+	})
 	m.Map(vim.Insert, "<C-j>", "<Plug>(xy)")
 	for _, k := range vim.Keys("i<C-j>z<Esc>") {
 		if err := m.Feed(k); err != nil {
@@ -785,6 +787,23 @@ func TestB179HostCommandInInsert(t *testing.T) {
 	}
 	if h.text != "abXYzcd" {
 		t.Errorf("typing z after the command left %q, want abXYzcd", h.text)
+	}
+}
+
+// B593
+func TestB593HostCommandKeys(t *testing.T) {
+	h := &host{text: "abcdefgh"}
+	m := vim.New(h)
+	m.Command("cut", func(vim.Text, int, int) ([]vim.Edit, string) { return nil, "x" })
+	// x maps to the command, which runs x through no mapping.
+	m.Map(vim.Normal, "x", "<Plug>(cut)")
+	for _, k := range vim.Keys("2x.") {
+		if err := m.Feed(k); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if h.text != "efgh" {
+		t.Errorf("2x. left %q, want efgh", h.text)
 	}
 }
 
