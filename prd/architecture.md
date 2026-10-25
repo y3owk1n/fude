@@ -1291,11 +1291,13 @@ under a budget of 100ms. A plugin imports host functions from the module `fude`,
 | `buffer.read` | read the text, where its lines start, its syntax nodes, and every open buffer's text |
 | `buffer.write` | edit the text |
 | `ui` | decorations, signs, notes after a line, statusline segments, floating windows, read-only windows, lists to pick from and questions, moving the cursor, opening project files |
-| `fs.read` | read files under the project root |
+| `fs.read` | read and list files, and their sizes and times, under the project root and the declared paths |
+| `fs.write` | write, rename and delete files and create folders under the project root and the declared paths |
 | `process` | spawn a declared program |
 | `net` | get http and https URLs on declared hosts |
 | `lsp` | send requests and notifications to the buffer's language servers, and answer their requests |
 | `keys` | run keys as typed, which may run any command |
+| `grammar` | build and load the grammar the plugin names, native code outside the sandbox (D71) |
 
 Each call reads a `plugin.Scope` that the editor loop builds before the
 call. It holds the text of the buffer the call is about, its `context`,
@@ -1329,7 +1331,7 @@ host it may not reach or a request that failed.
 | `subscribe(ptr, len) -> i32` | none, in `init` only | hears the event named through `on_event` |
 | `read(ptr, len) -> i64` | each field's | reads the field of the call's `api.Scope` that the JSON `{"Name": name, "Args": [...]}` at `ptr` names, and returns a JSON list. For a func, the list holds what it returns when called with `Args`, an error as its text. For any other field, the list holds the field. It returns -2 for a name the scope does not have, or for arguments the func does not take or fails on. A plugin reads `Text` through `text` and the other text functions, and never reads `Free` (D51) |
 | `result(ptr, len) -> i32` | each field's | asks for what the JSON `api.Result` at `ptr` holds, as a module's call returns it. fude applies it once the call returns. Its lists add to those the call asked for before, and its other fields replace theirs. fude takes none of it when a field needs a capability the plugin did not declare (D51) |
-| `read_file(ptr, len) -> i64` | `fs.read` | the file at the path, relative to the project, the directory fude started in. fude refuses a path that leads outside it, through `..` or a link (B47) |
+| `read_file(ptr, len) -> i64` | `fs.read` | the file at the path, relative to the project, the directory fude started in, or under the plugin's `paths`. fude refuses a path that leads outside them, through `..` or a link (B47, B585) |
 | `run(ptr, len) -> i64` | `process` | what the program prints, run with its arguments, NUL-separated, in the project. It must be in the plugin's `programs`, and the call's budget stops it (B48) |
 | `http_get(ptr, len) -> i64` | `net` | the body of the http or https URL, up to 16MB. Its host, and any host a redirect leads to, must be in the plugin's `hosts`, and the call's budget stops the request (B49) |
 
@@ -1352,7 +1354,8 @@ the plugin, and using what it added then says the plugin is unloaded.
 
 A plugin declares its capabilities in `config.toml`, for `process` the
 programs it may run as `programs = ["git"]`, and for `net` the hosts it may
-reach as `hosts = ["api.github.com"]`. A call outside the
+reach as `hosts = ["api.github.com"]`. For `fs.read` and `fs.write`,
+`paths = ["~/org"]` adds folders outside the project (B585). A call outside the
 declared capabilities returns -1, and fude logs it to
 `$XDG_STATE_HOME/fude/log` (B50). Its table's `options`, such as
 `options = { depth = 3 }`, start the options it defines (B178, B377).

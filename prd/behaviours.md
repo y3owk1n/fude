@@ -1168,6 +1168,18 @@ Where fude departs, the line says so and cites the departure in
   one, and `zA` does `zO` with a closed one there and `zC` without. The
   cursor sits on a closed fold's first line, which the folds inside it do
   not hold (N34).
+- B591 [3] In a buffer whose grammar has a folds query, the fold module
+  folds by its `@fold` captures in place of indent. A fold holds the lines
+  from a capture's first line to its last. fude ships one for markdown,
+  whose sections fold under their headings. Every key of B224 and B502
+  works on these folds as on indent's (D74).
+- B592 [3] `<Plug>(fold.cycle)` on a fold's first line moves the fold one
+  step: closed, then open with the folds inside it closed, then open with
+  every fold inside it open, then closed again. Off a fold's first line it
+  does nothing. `<Plug>(fold.cycle_all)` moves the buffer one step: every
+  outermost fold closed, then every fold closed that holds no other, then
+  every fold open, then the first step again. Neither has keys of its own
+  (D74).
 - B488 [2] With `fold.column` on, the sign column shows the folds, as
   Neovim's `foldcolumn` at 1 does. It shows `-` on a line that starts an
   open fold, `+` on a closed fold and `│` on the other lines a fold holds,
@@ -1834,7 +1846,8 @@ Where fude departs, the line says so and cites the departure in
   event waits for it at most half the key's budget, and says the plugin
   is busy if it is still busy then.
 - B47 [4] A plugin with `fs.read` reads files in the project, the
-  directory fude started in, and no file outside it.
+  directory fude started in. Outside it, it reads only files under its
+  `paths` (B585).
 - B48 [4] A plugin with `process` runs the programs its `[[plugin]]` table
   lists, and no others, in the project and within its call's budget, and
   reads what they print. A child a program leaves running does not hold the
@@ -1842,6 +1855,30 @@ Where fude departs, the line says so and cites the departure in
 - B49 [4] A plugin with `net` gets http and https URLs on the hosts its
   `[[plugin]]` table lists, and no others, even through a redirect. It
   follows at most 10 redirects.
+- B585 [4] A plugin's `[[plugin]]` table may list folders in `paths`, such
+  as `["~/org"]`, each absolute or starting with `~` for the home folder.
+  One that is neither keeps the plugin from loading, with a message that
+  names it. fude refuses a path that leads outside the project and those
+  folders, through `..` or a link (D72).
+- B586 [4] A plugin with `fs.read` lists a folder it may read, giving each
+  entry's name and whether it is a folder. It reads whether a file or
+  folder exists, its size and when it last changed, and one that does not
+  exist is no error.
+- B587 [4] A plugin with `fs.write` writes a file, creates a folder and
+  the folders above it, renames a file or folder, and deletes a file,
+  only in the project and under its `paths`. A write is atomic, as `:w`'s
+  is (B2). fude refuses to write a file open in a buffer with unwritten
+  changes, with an error that names it. A buffer open on an unchanged file
+  reloads, as B82 says. A failed step changes nothing, and its error names
+  the path (D72).
+- B590 [4] A plugin may name a grammar for a filetype: the repo, the
+  commit to build, the folder of its sources, and its highlights,
+  injections, text objects and folds queries, each as a file in the repo
+  or as text. With `grammar` in its capabilities, fude builds and loads it as it
+  does its own (B165), and `:grammar` lists it with the plugin's name.
+  Without, the plugin loads with no grammar, and `:grammar` says the
+  plugin has no grant for it. A filetype fude has a grammar for keeps
+  fude's, and `:grammar` says so (D71).
 - B173 [4] `fude plugin new <name>` writes a plugin in a new folder, in Go
   with fude's sdk, and `fude plugin build [dir]` builds it with TinyGo into
   `<name>.wasm`. Its commands, keys, operators, objects and event handlers
@@ -2105,6 +2142,15 @@ Where fude departs, the line says so and cites the departure in
   its own work. Its edits go in as typed text does, and dot repeats
   them. With none the key does what it does, as `<BS>` deletes outside a
   pair. A finder's query and a paste never run it (B202).
+- B588 [4] A module's key, or a plug's keys, may name a filetype, and then
+  maps only in buffers of that filetype. There it goes over fude's own key
+  and a module's key that names none. A `config.toml` mapping still wins
+  (D53, D73).
+- B589 [4] A module's key that names a filetype (B588), in normal or
+  visual mode, whose call asks for nothing does what the key does with
+  that mapping gone, as B323 does in insert mode. So `<Tab>` may cycle a
+  heading and still jump forward elsewhere. The count typed reaches the
+  key, and dot repeats what it did (D73).
 - B322 [4] A module's operator or key may wait for characters typed
   after it, which its call gets, and dot repeats it with them. Such a key
   in normal mode follows an operator's key, as `ds` does, and `d` does

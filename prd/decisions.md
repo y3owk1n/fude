@@ -1064,6 +1064,59 @@ is faster on specific queries, 3.9ms against 26.5ms for
 Why, as of 2026-10-24: the user asked whether fzf or fff would make the
 picker better, and chose to bring their methods into fude's matcher.
 
+## D71. A plugin's grammar is the user's grant
+
+A plugin may name a grammar for its filetype, and fude builds it only
+with `grammar` in the plugin's capabilities (B590). Why: a built grammar
+is C that fude loads into its own process, outside the wasm sandbox, so
+D8's promise that a plugin cannot crash the editor does not hold for it.
+The grant lets the user make that choice, as `process` and `net` do. The
+grammar builds as fude's own do (D9), not as wasm, because tree-sitter
+runs wasm grammars on wasmtime, and fude would carry a second wasm
+runtime beside wazero.
+
+Why, as of 2026-10-25: the user wants org mode as a plugin, and chose a
+grant over a grammar any plugin may build, and over one the user writes
+into `config.toml` in full.
+
+## D72. Plugins reach the folders the user lists, and write with fs.write
+
+`paths` in a plugin's table lists folders outside the project it may
+reach, and `fs.write` is a capability of its own (B585, B586, B587).
+Why: org keeps notes in one folder, such as `~/org`, whatever the project
+is, and its agenda, capture and refile read and write files there. Going
+through buffers would open windows the user did not ask for, and a buffer
+cannot list a folder. fude refuses to write a file whose buffer has
+unwritten changes, so a plugin never drops the user's edits.
+
+Why, as of 2026-10-25: the user chose a grant of folders over doing
+everything through buffers.
+
+## D73. A plugin's key may belong to a filetype and give the key back
+
+A key may name a filetype (B588), and one whose call returns nothing
+does what the key does without it (B589). Why: org's keys depend on the
+text under the cursor, so `<Tab>` cycles a heading and `<C-a>` steps a
+date, and elsewhere they must stay Vim's. A call cannot run fude's own key
+without running its own mapping again. B323 already gives insert mode
+this rule, so normal mode follows it. Only a key that names a filetype
+gives the key back, so the keys modules ship today still do nothing when
+they find nothing. The key names a filetype rather than using `In`,
+because `In` names the kinds of buffer fude makes, such as explorer.
+
+## D74. Folds come from the grammar when it has a folds query
+
+The fold module folds by a grammar's `@fold` captures when it has a
+folds query, and by indent otherwise (B591). Why: org and markdown
+sections are not indented, so indent folds miss them. It is a query, not
+an interface for modules, because grammars already ship folds queries in
+this form, and a plugin's grammar brings its own (D71). Cycling is in the
+fold module (B592), because the fold module owns the folds (B502) and
+markdown cycles them too. In the middle step for the whole buffer, a
+section that holds others still shows its own text, where org hides it.
+A fold holds all of a section's lines, and the section's own text has no
+fold.
+
 ## Departures from Neovim
 
 Each entry: what differs, then why.
