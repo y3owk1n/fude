@@ -9,6 +9,7 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -1326,7 +1327,10 @@ func (e *Session) register(p api.Module, r api.Registration) {
 				if sel, ok := s.Selection(); r.Visual && ok {
 					args = []int{sel.Start, min(sel.End, t.Len())}
 				}
-				edits, _, _ := s.run(p, r.ID, s.scope(p, s.win.buf, t), args...)
+				edits, res, err := s.run(p, r.ID, s.scope(p, s.win.buf, t), args...)
+				if r.Filetype != "" && err == nil && reflect.ValueOf(res).IsZero() {
+					return nil, s.beneath(p, r)
+				}
 				return edits, ""
 			})
 			for _, k := range keysOf(p, r) {
@@ -1755,6 +1759,7 @@ func (e *Session) showPick(p api.Module, b *buffer, pk *api.Pick, save *saving) 
 type moduleKey struct {
 	table, keys, plug string
 	attached, bound   bool
+	filetype          string
 }
 
 // keysOf are the keys r maps to p's plug, a Key's own or a Plug's Keys.
@@ -1770,11 +1775,11 @@ func keysOf(p api.Module, r api.Registration) []moduleKey {
 	}
 	plug := "<Plug>(" + p.Name() + "." + r.Name + ")"
 	if r.In != "" {
-		return []moduleKey{{r.In, keys, plug, r.Attached, r.Bound}}
+		return []moduleKey{{r.In, keys, plug, r.Attached, r.Bound, r.Filetype}}
 	}
-	out := []moduleKey{{"normal", keys, plug, r.Attached, r.Bound}}
+	out := []moduleKey{{"normal", keys, plug, r.Attached, r.Bound, r.Filetype}}
 	if r.Visual {
-		out = append(out, moduleKey{"visual", keys, plug, r.Attached, r.Bound})
+		out = append(out, moduleKey{"visual", keys, plug, r.Attached, r.Bound, r.Filetype})
 	}
 	return out
 }
@@ -1800,15 +1805,67 @@ func (e *Session) mapKey(k moduleKey, on bool) {
 	keys := withLeader(k.keys, e.leader)
 	if on && e.keyOn(k) {
 		m.Map(mode, keys, k.plug)
-	} else {
-		m.Unmap(mode, keys)
+		return
 	}
+	// Another module's key may map them in its place, as one that names no
+	// filetype does once the filetype's key is off (B588). A module going
+	// away maps none of its own.
+	owner, _, _ := strings.Cut(k.plug, ".")
+	for _, o := range e.moduleKeys() {
+		if o != k && o.table == k.table && o.keys == k.keys && e.keyOn(o) && (on || !strings.HasPrefix(o.plug, owner+".")) {
+			m.Map(mode, keys, o.plug)
+			return
+		}
+	}
+	m.Unmap(mode, keys)
 }
 
 // keyOn reports whether k is mapped now: an attached key while the buffer
-// has a server, and a bound key while the window is bound.
+// has a server, a bound key while the window is bound, and a filetype's key
+// in a buffer of it, over a key that names none (B588).
 func (e *Session) keyOn(k moduleKey) bool {
+	if !e.holds(k) {
+		return false
+	}
+	// A session joining has no window yet.
+	ft := e.keyFiletype
+	if e.win != nil {
+		ft = e.filetype(e.win.buf)
+	}
+	if k.filetype != "" {
+		return k.filetype == ft
+	}
+	return !slices.ContainsFunc(e.moduleKeys(), func(o moduleKey) bool {
+		return o.filetype != "" && o.filetype == ft && o.table == k.table && o.keys == k.keys && e.holds(o)
+	})
+}
+
+// holds reports whether k's server and window allow it: an attached key
+// while the buffer has a server, and a bound key while the window is bound.
+func (e *Session) holds(k moduleKey) bool {
 	return (!k.attached || e.lspKeys) && (!k.bound || e.boundKeys)
+}
+
+// beneath returns what r's keys do without p's mapping of them in the
+// filetype: the keys of a module that names no filetype, or else the keys
+// themselves, which run through no mapping (B589).
+func (e *Session) beneath(p api.Module, r api.Registration) string {
+	table := "normal"
+	if e.vim.Mode() == vim.Visual {
+		table = "visual"
+	}
+	for _, k := range keysOf(p, r) {
+		if k.table != table {
+			continue
+		}
+		for _, o := range e.moduleKeys() {
+			if o.filetype == "" && o.table == k.table && o.keys == k.keys && e.holds(o) {
+				return o.plug
+			}
+		}
+		return withLeader(k.keys, e.leader)
+	}
+	return ""
 }
 
 // none is no marks, as a scope off the loop has (B329).

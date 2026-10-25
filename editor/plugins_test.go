@@ -1285,6 +1285,69 @@ func TestB323TypedTab(t *testing.T) {
 	}
 }
 
+// starred is a module whose x and Q, in a notes file, put ! at the end of
+// a line that starts with *, and whose Q of no filetype shows global.
+type starred struct{ idle }
+
+func (starred) Name() string { return "starred" }
+
+func (starred) Registered() []api.Registration {
+	return []api.Registration{
+		{Kind: api.Plug, Name: "global", Keys: "Q", ID: 1},
+		{Kind: api.Plug, Name: "cut", Keys: "x", Filetype: "notes", ID: 2},
+		{Kind: api.Plug, Name: "mark", Keys: "Q", Filetype: "notes", ID: 3},
+	}
+}
+
+func (starred) Call(_ context.Context, id uint32, s api.Scope, args ...int) (api.Result, error) {
+	if id == 1 {
+		return api.Result{Message: "global"}, nil
+	}
+	t := s.Text
+	start := t.LineStart(t.LineOf(args[0]))
+	line, _, _ := strings.Cut(t.Slice(start, t.Len()), "\n")
+	if !strings.HasPrefix(line, "*") {
+		return api.Result{}, nil
+	}
+	end := start + len(line)
+	return api.Result{Edits: []api.Edit{{Start: end, End: end, Text: "!"}}}, nil
+}
+
+// B588
+func TestB588FiletypeKeys(t *testing.T) {
+	dir := t.TempDir()
+	notes, txt := filepath.Join(dir, "a.notes"), filepath.Join(dir, "a.txt")
+	change(t, notes, "* a\n")
+	change(t, txt, "* a\n")
+	e := start(t, txt)
+	e.Use(starred{})
+	if feed(e, "xQ"); text(e) != " a" || e.Message() != "global" {
+		t.Fatalf("xQ in a text file made %q and said %q, want x's own and global", text(e), e.Message())
+	}
+	feed(e, ":e "+notes+"<CR>")
+	if feed(e, "xQ"); text(e) != "* a!!" {
+		t.Fatalf("xQ in a notes file made %q, want the module's", text(e))
+	}
+	feed(e, ":w<CR>:e "+txt+"<CR>")
+	if feed(e, "Q"); e.Message() != "global" {
+		t.Errorf("Q back in the text file said %q, want global", e.Message())
+	}
+}
+
+// B589
+func TestB589KeysGiveBack(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.notes")
+	change(t, path, "* a\nabcdefgh\n")
+	e := start(t, path)
+	e.Use(starred{})
+	if feed(e, "j2x."); text(e) != "* a\nefgh" {
+		t.Fatalf("2x. off a heading made %q, want x's own twice", text(e))
+	}
+	if feed(e, "Q"); e.Message() != "global" {
+		t.Errorf("Q off a heading said %q, want the key that names no filetype", e.Message())
+	}
+}
+
 // ruled is a module that draws a row of its own above the line before the
 // last.
 type ruled struct{ idle }

@@ -125,6 +125,7 @@ type Session struct {
 	completion  completion              // the completions shown while typing
 	lspKeys     bool                    // the attached keys are mapped
 	boundKeys   bool                    // the bound keys are mapped
+	keyFiletype string                  // the filetype whose keys are mapped (B588)
 	later       []vim.Key               // keys to feed once the key being fed is done
 	pick        *pick                   // the code actions shown to choose from
 	finder      *finder                 // the file finder, while it shows

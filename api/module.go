@@ -113,6 +113,10 @@ type Registration struct {
 	// Bound maps a Key, or a Plug's Keys, only while the current window
 	// scrolls with others, as windows in diff mode do (B523).
 	Bound bool
+	// Filetype maps a Key, or a Plug's Keys, only in buffers of that
+	// filetype, over a module's key that names none. When its call asks for
+	// nothing, the key does what it does without this mapping (B588, B589).
+	Filetype string
 	// Enters makes a Key or a Plug run while a float shows move the cursor
 	// into the float instead, as K does on hover (B62).
 	Enters bool
