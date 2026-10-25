@@ -4,6 +4,9 @@ A plugin is a WebAssembly module. It can add commands, operators, text
 objects and keys that work like fude's own, in macros and with `.` too.
 It can only call what its table in `config.toml` allows.
 
+Plugins others have written carry the `fude-plugin` topic on GitHub, at
+https://github.com/topics/fude-plugin. Each one's README gives its table.
+
 ## Loading a plugin
 
 ```toml
@@ -55,7 +58,8 @@ fude plugin build
 `fude plugin new` writes a folder with a `go.mod` that requires the sdk and
 a `main.go` with one command. `fude plugin build` builds `wordcount.wasm`
 in the folder, which a `[[plugin]]` table then loads. After a rebuild, or
-a change to the tables, `:plugin reload` loads every plugin anew.
+a change to the tables, `:plugin reload` loads every plugin anew. Give
+its repo the `fude-plugin` topic on GitHub so others find it.
 
 ```go
 package main

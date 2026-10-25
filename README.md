@@ -194,6 +194,8 @@ capabilities = ["buffer.read", "buffer.write"]
 
 `zu` now works with every motion, count, macro and `.`. `fude plugin new upper` starts one, and `:h guide-plugins` covers the rest.
 
+Plugins others have written carry the [`fude-plugin`](https://github.com/topics/fude-plugin) topic on GitHub, such as [fude-org](https://github.com/y3owk1n/fude-org) for org mode and [fude-supermaven](https://github.com/y3owk1n/fude-supermaven) for Supermaven completion. Give yours the topic so others find it.
+
 ## Build on fude
 
 Every layer is a Go module with a small API, and the editor uses each one the way your program would.
