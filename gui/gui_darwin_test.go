@@ -48,6 +48,7 @@ func TestMain(m *testing.M) {
 	}
 	dragInfo, err = objc.RegisterClass("FudeTestDrag", objc.GetClass("NSObject"), nil, nil, []objc.MethodDef{
 		{Cmd: sel("draggingPasteboard"), Fn: func(objc.ID, objc.SEL) objc.ID { return dragged }},
+		{Cmd: sel("draggingLocation"), Fn: func(objc.ID, objc.SEL) point { return dragAt }},
 	})
 	if err != nil {
 		panic(err)
@@ -1215,10 +1216,11 @@ func TestB561Feel(t *testing.T) {
 }
 
 // dragInfo is a class whose objects tell of a drag of the pasteboard
-// dragged, as AppKit tells a view of a drop.
+// dragged let go at dragAt in the window, as AppKit tells a view of a drop.
 var (
 	dragInfo objc.Class
 	dragged  objc.ID
+	dragAt   point
 )
 
 // B562

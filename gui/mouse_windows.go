@@ -5,6 +5,8 @@ import (
 	"time"
 	"unsafe"
 
+	"golang.org/x/sys/windows"
+
 	"github.com/y3owk1n/fude/frontend/clipboard"
 )
 
@@ -22,6 +24,7 @@ const (
 	wmMButtonDown = 0x0207
 	wmMouseWheel  = 0x020A
 	wmMouseLeave  = 0x02A3
+	wmDropFiles   = 0x0233
 )
 
 // The system's pointers, by their ids.
@@ -49,6 +52,10 @@ var (
 	clipboardHasText = user32.NewProc("IsClipboardFormatAvailable")
 	systemParameters = user32.NewProc("SystemParametersInfoW")
 	childAt          = user32.NewProc("ChildWindowFromPointEx")
+	dragAcceptFiles  = shell32.NewProc("DragAcceptFiles")
+	dragQueryFile    = shell32.NewProc("DragQueryFileW")
+	dragQueryPoint   = shell32.NewProc("DragQueryPoint")
+	dragFinish       = shell32.NewProc("DragFinish")
 )
 
 // trackEvent is a TRACKMOUSEEVENT.
@@ -97,6 +104,8 @@ func (w *window) mouse(m uint32, wp, lp uintptr) bool {
 	case wmMouseLeave:
 		w.tracking = false
 		w.mouseLeft()
+	case wmDropFiles:
+		w.dropped(wp)
 	case wmMouseWheel:
 		// A list view or a preview scrolls itself, when the wheel comes to
 		// the window with the focus rather than to the one under it.
@@ -119,6 +128,26 @@ func (w *window) mouse(m uint32, wp, lp uintptr) bool {
 		return false
 	}
 	return true
+}
+
+// dropped gives the session the files of the HDROP h, at the cell of the
+// pane's text they were let go on (B555, B595).
+func (w *window) dropped(h uintptr) {
+	defer call(dragFinish, h)
+	var pt [2]int32
+	call(dragQueryPoint, h, uintptr(unsafe.Pointer(&pt)))
+	id, c := 0, [2]int{}
+	if p, _, local := w.under(point{float64(pt[0]) / w.scale, float64(pt[1]) / w.scale}); p != nil {
+		id, c = p.id, cellAt(local)
+	}
+	var paths []string
+	for i := range call(dragQueryFile, h, 0xFFFFFFFF, 0, 0) {
+		buf := make([]uint16, call(dragQueryFile, h, i, 0, 0)+1)
+		call(dragQueryFile, h, i, uintptr(unsafe.Pointer(&buf[0])), uintptr(len(buf)))
+		paths = append(paths, windows.UTF16ToString(buf))
+	}
+	// The loop may be busy, and the main thread must not wait for it.
+	go func() { w.do <- func() { w.s.Drop(id, c[0], c[1], paths) } }()
 }
 
 // client converts the screen pixel x, y to a point in the window.

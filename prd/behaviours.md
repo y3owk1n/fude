@@ -1386,9 +1386,16 @@ Where fude departs, the line says so and cites the departure in
   `:tabmove` do, with a mark where it would go, and leaves the window
   where it is. Dragging the strip beside the tabs moves the window, and a
   double click there zooms it. Files dropped on the window open as `:e`
-  opens them. The mouse pointer is an I-beam over text. A double click
-  selects the word it hits as `viw` does, and a triple click the line as
-  `V` does.
+  opens them, unless B595 puts them in. The mouse pointer is an I-beam
+  over text. A double click selects the word it hits as `viw` does, and a
+  triple click the line as `V` does.
+- B595 [10] A frontend gives the files dropped on a window's text to the
+  session, at the cell they were let go on. On a markdown file's text each
+  PNG, JPEG or GIF goes in at that cell as `![name](path)` and shows below
+  its line (B298). The name is the file's name without its extension. The
+  path starts from the markdown file's directory, and goes in `<>` when it
+  has a space. Several go in one per line, as one change. Every other file
+  opens as `:e` opens it.
 - B556 [10] A frontend gives a click on a menu's item to the session by
   its index among the menu's items (B560). The command line's menu puts
   the item in the line as `<Tab>` does, a menu at the cursor takes it as

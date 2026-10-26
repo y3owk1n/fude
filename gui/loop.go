@@ -16,7 +16,7 @@ import (
 type window struct {
 	s      client.Session
 	keys   chan vim.Key
-	do     chan func() // run on the loop, between keys, for tests
+	do     chan func() // run on the loop, between keys
 	pastes chan string
 	mice   chan mouse
 	ended  func() // runs on the main thread once the session ends

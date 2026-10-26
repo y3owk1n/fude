@@ -114,3 +114,39 @@ func TestB298Render(t *testing.T) {
 	editortest.Feed(e, ":set markdown.enabled false<CR>")
 	editortest.Settle(t, e, func() bool { v := e.Windows()[0]; return len(v.Ghosts) == 0 && len(v.Grounds) == 0 })
 }
+
+// B595
+func TestB595DropImage(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "notes.md")
+	editortest.Change(t, path, "see\n")
+	var pic bytes.Buffer
+	if err := png.Encode(&pic, image.NewRGBA(image.Rect(0, 0, 80, 32))); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(dir, "shots"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	shot := filepath.Join(dir, "shots", "my shot.png")
+	if err := os.WriteFile(shot, pic.Bytes(), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	e := editortest.Open(t, path)
+	e.SetSize(80, 40)
+	e.SetCell(8, 16)
+	e.Use(markdown.New())
+	// An image dropped past the end of a line goes in there, as a link
+	// beside the file, and shows below its line.
+	e.Drop(e.Windows()[0].ID, 10, 0, []string{shot})
+	if want := "see![my shot](<shots/my shot.png>)"; editortest.Text(e) != want {
+		t.Fatalf("the drop gave %q, want %q", editortest.Text(e), want)
+	}
+	editortest.Settle(t, e, func() bool {
+		rows := e.Windows()[0].Virtual[0]
+		return len(rows) == 2 && rows[0].Image != 0
+	})
+	// It is one change.
+	if editortest.Feed(e, "u"); editortest.Text(e) != "see" {
+		t.Errorf("u after the drop gave %q", editortest.Text(e))
+	}
+}

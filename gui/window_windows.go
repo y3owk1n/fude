@@ -174,6 +174,7 @@ func open(s client.Session, ended func()) *window {
 	// fit sends the window messages, which reach w only once opened
 	// holds it.
 	opened[w.hwnd] = w
+	call(dragAcceptFiles, w.hwnd, 1)
 	w.fit(cellW*float64(cols)+2*pad, cellH*float64(rows)+2*pad+statusH)
 	call(showWindow, w.hwnd, 1)
 	go w.loop(cols, rows)

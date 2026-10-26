@@ -282,6 +282,13 @@ func (a *Attached) Hover(window, x, y int)   { a.send("hover", [3]int{window, x,
 func (a *Attached) Pick(n int)               { a.send("pick", n) }
 func (a *Attached) Timeout()                 { a.send("timeout", nil) }
 
+func (a *Attached) Drop(window, x, y int, paths []string) {
+	a.send("drop", struct {
+		Window, X, Y int
+		Paths        []string
+	}{window, x, y, paths})
+}
+
 // SetSize tells fude the screen's size only when it changes, because the
 // client calls it on every frame.
 func (a *Attached) SetSize(w, h int) {

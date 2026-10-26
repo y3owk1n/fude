@@ -27,6 +27,9 @@ type Session interface {
 	Scroll(window, n int)
 	Release(window, x, y int)
 	Hover(window, x, y int)
+	// Drop gives the files at paths let go on a window's cell, or on no
+	// window when it is 0 (B555, B595).
+	Drop(window, x, y int, paths []string)
 	// Pick takes item n of the Items of the menu that shows (B556).
 	Pick(n int)
 	Focus()

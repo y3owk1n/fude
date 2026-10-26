@@ -39,7 +39,7 @@ const wheelLines = 3
 
 // The callbacks of the mouse, made once with the others.
 var mouseCallbacks struct {
-	pressed, released, motion, leave, scroll, scrollEnd, context, closed, pasted, status uintptr
+	pressed, released, motion, leave, scroll, scrollEnd, context, closed, pasted, status, dropped uintptr
 }
 
 // makeMouseCallbacks makes the mouse's callbacks.
@@ -68,6 +68,7 @@ func makeMouseCallbacks() {
 		return 0
 	})
 	mouseCallbacks.pasted = purego.NewCallback(pasted)
+	mouseCallbacks.dropped = purego.NewCallback(dropped)
 	mouseCallbacks.status = purego.NewCallback(func(_ uintptr, _ int32, _, _ float64, area uintptr) uintptr {
 		// A click on the status bar gives its window the focus alone.
 		if p := panes[area]; p != nil {
@@ -101,6 +102,38 @@ func listen(area uintptr) {
 	gSignalConnectData(roll, "scroll", mouseCallbacks.scroll, area, 0, 0)
 	gSignalConnectData(roll, "scroll-end", mouseCallbacks.scrollEnd, area, 0, 0)
 	gtkWidgetAddControl(area, roll)
+}
+
+// dropOn takes the files dropped on to, a pane's area or a window, for the
+// session.
+func dropOn(to uintptr) {
+	drop := gtkDropTargetNew(gdkFileListType(), 1)
+	gSignalConnectData(drop, "drop", mouseCallbacks.dropped, to, 0, 0)
+	gtkWidgetAddControl(to, drop)
+}
+
+// dropped gives the session the files dropped on a pane's area, at the
+// cell they were let go on, or elsewhere on a window (B555, B595).
+func dropped(_, value uintptr, x, y float64, to uintptr) uintptr {
+	w, id, c := windows[to], 0, [2]int{}
+	if p := panes[to]; p != nil {
+		w, id, c = p.w, p.id, cellAt(point{x, y})
+	}
+	if w == nil {
+		return 0
+	}
+	files := gdkFileListFiles(gValueGetBoxed(value))
+	var paths []string
+	for l := files; l != nil; l = l.next {
+		if p := gFilePath(l.data); p != nil {
+			paths = append(paths, cString(p))
+			gFree(unsafe.Pointer(p))
+		}
+	}
+	gSlistFree(files)
+	// The loop may be busy, and the main thread must not wait for it.
+	go func() { w.do <- func() { w.s.Drop(id, c[0], c[1], paths) } }()
+	return 1
 }
 
 // The mouse's callbacks take what GTK gives and pass it on, in points of

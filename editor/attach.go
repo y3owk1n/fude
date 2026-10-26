@@ -256,6 +256,15 @@ func (e *Session) input(method string, params json.RawMessage) error {
 		default:
 			e.Scroll(m[0], m[1])
 		}
+	case "drop":
+		var d struct {
+			Window, X, Y int
+			Paths        []string
+		}
+		if err := json.Unmarshal(params, &d); err != nil {
+			return fmt.Errorf("read drop: %w", err)
+		}
+		e.Drop(d.Window, d.X, d.Y, d.Paths)
 	case "pick":
 		var n int
 		if err := json.Unmarshal(params, &n); err != nil {

@@ -134,6 +134,7 @@ func open(s client.Session, ended func()) *window {
 	gtkWidgetAddControl(w.win, ctl)
 	gSignalConnectData(w.win, "close-request", callbacks.closing, 0, 0, 0)
 	w.newStrip()
+	dropOn(w.win)
 	if styled == 0 {
 		styled = w.win
 	}

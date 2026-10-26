@@ -79,6 +79,12 @@ var (
 	gdkClipboardRead      func(c, cancellable, fn, data uintptr)
 	gdkClipboardReadDone  func(c, result uintptr, err *uintptr) *byte
 	gFree                 func(p unsafe.Pointer)
+	gtkDropTargetNew      func(t uint64, actions uint32) uintptr
+	gdkFileListType       func() uint64
+	gValueGetBoxed        func(v uintptr) uintptr
+	gdkFileListFiles      func(l uintptr) *gSList
+	gSlistFree            func(l *gSList)
+	gFilePath             func(f uintptr) *byte
 	gtkGestureClickNew    func() uintptr
 	gtkGestureSetButton   func(g uintptr, button uint32)
 	gtkGestureButton      func(g uintptr) uint32
@@ -203,6 +209,12 @@ type gValue struct {
 	data [2]uint64
 }
 
+// gSList is a cell of GLib's singly linked list.
+type gSList struct {
+	data uintptr
+	next *gSList
+}
+
 // The GTypes of the values fude reads and writes.
 const (
 	gTypeBoolean = 5 << 2
@@ -305,6 +317,12 @@ func load() error {
 			{gtk, &gdkClipboardRead, "gdk_clipboard_read_text_async"},
 			{gtk, &gdkClipboardReadDone, "gdk_clipboard_read_text_finish"},
 			{gtk, &gFree, "g_free"},
+			{gtk, &gtkDropTargetNew, "gtk_drop_target_new"},
+			{gtk, &gdkFileListType, "gdk_file_list_get_type"},
+			{gtk, &gValueGetBoxed, "g_value_get_boxed"},
+			{gtk, &gdkFileListFiles, "gdk_file_list_get_files"},
+			{gtk, &gSlistFree, "g_slist_free"},
+			{gtk, &gFilePath, "g_file_get_path"},
 			{gtk, &gtkGestureClickNew, "gtk_gesture_click_new"},
 			{gtk, &gtkGestureSetButton, "gtk_gesture_single_set_button"},
 			{gtk, &gtkGestureButton, "gtk_gesture_single_get_current_button"},

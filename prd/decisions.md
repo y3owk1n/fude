@@ -1131,6 +1131,14 @@ They are filetype keys of the fold module. Off a heading `<Tab>` moves no
 fold, so it goes forward in the jump list, and other filetypes keep
 `<Tab>` as it is.
 
+## D75. A dropped image links to where it is
+
+An image dropped on a markdown file's text goes in as a link to the file
+where it is, not to a copy beside the note (B595). Why: a copy needs an
+option to name its folder, and the image then takes twice the disk. The
+editor decides what a drop does, not the frontend, so every window
+frontend drops the same way and a headless test covers it.
+
 ## Departures from Neovim
 
 Each entry: what differs, then why.

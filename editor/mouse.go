@@ -2,6 +2,7 @@ package editor
 
 import (
 	"fmt"
+	"path/filepath"
 	"slices"
 	"strings"
 	"unicode/utf8"
@@ -118,6 +119,70 @@ func (e *Session) Release(id, x, y int) {
 	}
 	w.buf.head = w.buf.text.Head()
 	e.setCursor(at)
+}
+
+// Drop takes the files at paths let go on the cell at column x and row y
+// of the window with the id. On a markdown file's text each PNG, JPEG or
+// GIF goes in at that cell as a link to it, one per line, as one change.
+// That window takes the focus. Every other file then opens as :e opens it.
+// While the command line, the finder or a question shows, it does nothing
+// (B555, B595).
+func (e *Session) Drop(id, x, y int, paths []string) {
+	if e.busy() {
+		return
+	}
+	defer e.reveal()
+	insert := e.vim.Mode() == vim.Insert
+	if insert || e.vim.Mode() == vim.Visual {
+		e.Feed("<Esc>")
+	}
+	w := e.windowOf(id)
+	markdown := w != nil && y >= 0 && y < w.h && e.filetype(w.buf) == "markdown"
+	var links, rest []string
+	for _, p := range paths {
+		if markdown {
+			if _, _, err := imageFile(p); err == nil {
+				links = append(links, imageLink(w.buf.file.path, p))
+				continue
+			}
+		}
+		rest = append(rest, p)
+	}
+	if len(links) > 0 {
+		e.win = w
+		at, text := e.posAt(w, x, y, true), strings.Join(links, "\n")
+		if err := (host{e}).Apply([]vim.Edit{{Start: at, End: at, Text: text}}, "drop"); err != nil {
+			e.message = err.Error()
+			return
+		}
+		e.setCursor(at + len(text) - 1)
+		if insert && len(rest) == 0 {
+			e.setCursor(at + len(text))
+			e.Feed("i")
+		}
+	}
+	for _, p := range rest {
+		if err := e.edit(p); err != nil {
+			e.message = err.Error()
+			return
+		}
+	}
+}
+
+// imageLink is a markdown link to the image at path from the markdown file
+// at from, relative to it when it can be. A path with a space goes in <>.
+func imageLink(from, path string) string {
+	to := path
+	if dir, err := filepath.Abs(filepath.Dir(from)); from != "" && err == nil {
+		if rel, err := filepath.Rel(dir, path); err == nil {
+			to = rel
+		}
+	}
+	if to = filepath.ToSlash(to); strings.Contains(to, " ") {
+		to = "<" + to + ">"
+	}
+	name := filepath.Base(path)
+	return "![" + strings.TrimSuffix(name, filepath.Ext(name)) + "](" + to + ")"
 }
 
 // Scroll moves the view of the window with the id n lines down, or up

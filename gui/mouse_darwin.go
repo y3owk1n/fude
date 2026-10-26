@@ -4,8 +4,6 @@ import (
 	"math"
 
 	"github.com/ebitengine/purego/objc"
-
-	"github.com/y3owk1n/fude/vim"
 )
 
 // The mouse's methods for a pane's text, its status bar, a float's box and
@@ -199,7 +197,8 @@ func hover(self objc.ID, x float64) {
 	}
 }
 
-// dropped opens each file dropped on the window, as :e does.
+// dropped gives the session the files dropped on the window, at the cell
+// of the pane's text they were let go on (B555, B595).
 func dropped(self objc.ID, _ objc.SEL, info objc.ID) bool {
 	w := windows[self]
 	if w == nil {
@@ -209,22 +208,20 @@ func dropped(self objc.ID, _ objc.SEL, info objc.ID) bool {
 	if urls == 0 {
 		return false
 	}
-	var keys []vim.Key
-	if mode := w.tabs.mode; mode == "insert" || mode == "visual" {
-		keys = append(keys, "<Esc>")
-	} else if mode != "normal" {
-		return false
-	}
+	var paths []string
 	for i := range objc.Send[int](urls, sel("count")) {
-		path := goString(urls.Send(sel("objectAtIndex:"), i).Send(sel("path")))
-		keys = append(keys, vim.Keys(":e ")...)
-		for _, r := range path {
-			keys = append(keys, vim.Key(string(r)))
+		paths = append(paths, goString(urls.Send(sel("objectAtIndex:"), i).Send(sel("path"))))
+	}
+	id, x, y := 0, 0, 0
+	loc := msgPoint(info, sel("draggingLocation"))
+	for _, p := range w.panes {
+		at := msgConvertPoint(p.text, sel("convertPoint:fromView:"), loc, 0)
+		if b := msgRect(p.text, sel("bounds")); at.X >= 0 && at.Y >= 0 && at.X < b.Size.W && at.Y < b.Size.H {
+			c := cellAt(at)
+			id, x, y = p.id, c[0], c[1]
 		}
-		keys = append(keys, "<CR>")
 	}
-	for _, k := range keys {
-		w.keys <- k
-	}
+	// The loop may be busy, and the main thread must not wait for it.
+	go func() { w.do <- func() { w.s.Drop(id, x, y, paths) } }()
 	return true
 }

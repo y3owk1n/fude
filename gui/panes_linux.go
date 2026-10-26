@@ -43,6 +43,7 @@ func (w *window) pane(id int) *pane {
 	gtkDrawingAreaSetFn(p.area, callbacks.drawPane, p.area, 0)
 	gSignalConnectData(p.area, "resize", callbacks.resized, p.area, 0, 0)
 	listen(p.area)
+	dropOn(p.area)
 	p.adjustment = gtkAdjustmentNew(0, 0, 1, 1, 1, 1)
 	gSignalConnectData(p.adjustment, "value-changed", callbacks.barMoved, p.area, 0, 0)
 	p.bar = gtkScrollbarNew(1, p.adjustment)
