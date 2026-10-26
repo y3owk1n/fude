@@ -9,13 +9,13 @@ require (
 	github.com/clipperhouse/displaywidth v0.11.0
 	github.com/gdamore/tcell/v3 v3.6.0
 	github.com/pelletier/go-toml/v2 v2.4.3
-	github.com/y3owk1n/fude/api v0.3.1 // x-release-please-version
-	github.com/y3owk1n/fude/core v0.3.1 // x-release-please-version
-	github.com/y3owk1n/fude/frontend v0.3.1 // x-release-please-version
-	github.com/y3owk1n/fude/plugin v0.3.1 // x-release-please-version
-	github.com/y3owk1n/fude/protocol v0.3.1 // x-release-please-version
-	github.com/y3owk1n/fude/syntax v0.3.1 // x-release-please-version
-	github.com/y3owk1n/fude/vim v0.3.1 // x-release-please-version
+	github.com/y3owk1n/fude/api v0.3.2 // x-release-please-version
+	github.com/y3owk1n/fude/core v0.3.2 // x-release-please-version
+	github.com/y3owk1n/fude/frontend v0.3.2 // x-release-please-version
+	github.com/y3owk1n/fude/plugin v0.3.2 // x-release-please-version
+	github.com/y3owk1n/fude/protocol v0.3.2 // x-release-please-version
+	github.com/y3owk1n/fude/syntax v0.3.2 // x-release-please-version
+	github.com/y3owk1n/fude/vim v0.3.2 // x-release-please-version
 	golang.org/x/sys v0.49.0
 )
 
