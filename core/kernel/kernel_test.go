@@ -253,15 +253,18 @@ func TestB108Map(t *testing.T) {
 	v := b.Snapshot().Version()
 	apply(t, b, kernel.Edit{Start: 0, End: 0, Text: "xx"})
 	apply(t, b, kernel.Edit{Start: 4, End: 6, Text: ""})
+	// Text inserted at a position goes after it with left gravity.
 	for _, c := range []struct {
-		pos, want int
-		ok        bool
-	}{{0, 2, true}, {1, 3, true}, {2, 4, true}, {3, 0, false}, {5, 5, true}} {
-		if got, ok := b.Map(c.pos, v); got != c.want || ok != c.ok {
-			t.Errorf("Map(%d) is %d, %v, want %d, %v", c.pos, got, ok, c.want, c.ok)
+		pos  int
+		g    kernel.Gravity
+		want int
+		ok   bool
+	}{{0, kernel.Right, 2, true}, {0, kernel.Left, 0, true}, {1, kernel.Right, 3, true}, {2, kernel.Right, 4, true}, {3, kernel.Right, 0, false}, {5, kernel.Right, 5, true}} {
+		if got, ok := b.Map(c.pos, v, c.g); got != c.want || ok != c.ok {
+			t.Errorf("Map(%d, %v) is %d, %v, want %d, %v", c.pos, c.g, got, ok, c.want, c.ok)
 		}
 	}
-	if _, ok := b.Map(0, b.Snapshot().Version()+1); ok {
+	if _, ok := b.Map(0, b.Snapshot().Version()+1, kernel.Right); ok {
 		t.Error("Map from a version still to come gave a position")
 	}
 }

@@ -143,7 +143,7 @@ func (e *Session) Request(r Request) error {
 	at := e.Cursor()
 	if r.At != nil {
 		var ok bool
-		if at, ok = b.text.Map(*r.At, r.Base); !ok {
+		if at, ok = b.text.Map(*r.At, r.Base, kernel.Right); !ok {
 			return fmt.Errorf("the text at %d changed since version %d", *r.At, r.Base)
 		}
 	}

@@ -301,8 +301,8 @@ func (r *Replica) again(p pending) (pending, error) {
 		t := r.text.Snapshot()
 		next := change{at: t.Version(), old: c.old}
 		for i, e := range c.edits {
-			start, ok1 := r.text.Map(e.Start, c.at)
-			end, ok2 := r.text.Map(e.End, c.at)
+			start, ok1 := r.text.Map(e.Start, c.at, kernel.Right)
+			end, ok2 := r.text.Map(e.End, c.at, kernel.Right)
 			if !ok1 || !ok2 || t.Slice(start, end) != c.old[i] {
 				r.text.EndGroup("local")
 				if len(moved) > 0 {

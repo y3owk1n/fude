@@ -23,8 +23,8 @@ const logSize = 4096
 
 // Map returns where pos in the text at version from is now, or false when an
 // edit since replaced it, or from is older than the edits Map remembers. Text
-// inserted at pos goes before it.
-func (b *Buffer) Map(pos int, from Version) (int, bool) {
+// inserted at pos goes on the side g says, as it does for a mark.
+func (b *Buffer) Map(pos int, from Version, g Gravity) (int, bool) {
 	lists, ok := b.Since(from)
 	if !ok {
 		return 0, false
@@ -35,7 +35,7 @@ func (b *Buffer) Map(pos int, from Version) (int, bool) {
 			if e.Start < pos && pos < e.End {
 				return 0, false
 			}
-			pos = move(mark{pos: pos, gravity: Right}, e)
+			pos = move(mark{pos: pos, gravity: g}, e)
 		}
 	}
 	return pos, true
