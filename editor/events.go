@@ -332,16 +332,35 @@ func (e *Session) handled(p api.Module, ev event, err error, t kernel.Snapshot, 
 		e.feedLater()
 		e.message = cmp.Or(e.message, msg)
 	default:
-		e.result(p, b, t, stale(res))
+		e.result(p, b, t, stale(res, b.text, t.Version()))
 	}
 }
 
-// stale returns what of res applies once the text it read has changed:
-// everything but its edits, what it selected, its pins and guides, and its
-// decorations and a jump on that text (B153, B291, B379).
-func stale(res api.Result) api.Result {
+// stale returns what of res applies when the text changed after res read
+// it at version from. Its edits, what it selected, its pins and guides, and
+// a jump on that text go. Its decorations on that text move with the edits
+// made since, as their marks would have. A decoration whose text an edit
+// replaced goes too (B153, B291, B379).
+func stale(res api.Result, text *kernel.Buffer, from kernel.Version) api.Result {
 	res.Edits, res.Selected, res.Apply, res.Pins, res.Guides = nil, nil, nil, nil, nil
-	res.Decorate = slices.DeleteFunc(slices.Clone(res.Decorate), func(d api.Decoration) bool { return d.Buffer == 0 })
+	var decorate []api.Decoration
+	for _, d := range res.Decorate {
+		if d.Buffer == 0 {
+			// A fold's start stays at its line's start, as decorate sets it.
+			g := kernel.Right
+			if d.Fold {
+				g = kernel.Left
+			}
+			start, ok1 := text.Map(d.Start, from, g)
+			end, ok2 := text.Map(d.End, from, kernel.Left)
+			if !ok1 || !ok2 {
+				continue
+			}
+			d.Start, d.End = start, end
+		}
+		decorate = append(decorate, d)
+	}
+	res.Decorate = decorate
 	if res.Jump != nil && res.Jump.Path == "" && res.Jump.Buffer == 0 {
 		res.Jump = nil
 	}

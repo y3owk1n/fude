@@ -2321,8 +2321,9 @@ Where fude departs, the line says so and cites the departure in
   own, and showing it again keeps the cursor's line and the focus. It
   may map a key in visual mode too, called with the selection. When the
   text a callback read has changed since, its message, window, file jump
-  and decorations on other buffers still apply. Its edits, and its
-  decorations and jump on that text, wait for a newer event.
+  and decorations on other buffers still apply. Its decorations on that
+  text move with the edits made since, and one an edit replaced does not
+  show. Its edits and its jump on that text wait for a newer event.
 - B292 [4] A module works with the language servers the editor runs. A
   key it marks attached is mapped only while a server is attached to the
   buffer, as B66's are. A key it marks as entering moves the cursor into

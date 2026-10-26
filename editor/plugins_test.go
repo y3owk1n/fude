@@ -1781,3 +1781,56 @@ func TestB367LockedWindow(t *testing.T) {
 		t.Errorf(":window below in the locked float left a float current %v, saying %q", floated(e), e.Message())
 	}
 }
+
+// redrawer is a module that styles the word two. On the first change it
+// reads the text, closes read, and draws again once held is closed.
+type redrawer struct {
+	idle
+	read, held chan struct{}
+}
+
+func (redrawer) Subscribed() []string { return []string{"buffer.changed"} }
+
+func (redrawer) Init(_ context.Context, s api.Scope) (api.Result, error) {
+	at := strings.Index(s.Text.Slice(0, s.Text.Len()), "two")
+	return api.Result{Decorate: []api.Decoration{{ID: 1, Start: at, End: at + 3, Style: "keyword"}}}, nil
+}
+
+func (r redrawer) Event(_ context.Context, _ string, s api.Scope) (api.Result, error) {
+	select {
+	case <-r.read:
+		return api.Result{}, nil
+	default:
+	}
+	at := strings.Index(s.Text.Slice(0, s.Text.Len()), "two")
+	close(r.read)
+	<-r.held
+	return api.Result{Undecorate: []int{1}, Decorate: []api.Decoration{{ID: 2, Start: at, End: at + 3, Style: "keyword"}}}, nil
+}
+
+// B291
+func TestB291StaleDecorationsMove(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "f")
+	change(t, path, "one two\n")
+	e := start(t, path)
+	r := redrawer{read: make(chan struct{}), held: make(chan struct{})}
+	e.Use(r)
+	settle(t, e, func() bool { return len(decorations(e)) == 1 })
+	// A key comes while the module draws again. What it drew moves with the
+	// key's edit, and replaces what it drew before.
+	feed(e, "I-")
+	settle(t, e, func() bool {
+		select {
+		case <-r.read:
+			return true
+		default:
+			return false
+		}
+	})
+	feed(e, "+")
+	close(r.held)
+	editortest.Quiet(t, e)
+	if got := decorations(e); text(e) != "-+one two" || !slices.Equal(got, []string{"two keyword"}) {
+		t.Errorf("%q has decorations %q, want two as keyword", text(e), got)
+	}
+}
