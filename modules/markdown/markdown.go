@@ -40,7 +40,7 @@ var queries = map[string]string{
 (inline_link ["[" "]" "(" ")"] @hide)
 (inline_link [(link_destination) (link_title)] @hide)
 (image ["!" "[" "]" "(" ")"] @hide)
-(image [(link_destination) (link_title)] @hide)
+(image (link_title) @hide)
 (image (link_destination) @picture)`,
 }
 
@@ -221,9 +221,12 @@ func (m *Module) draw(s api.Scope) api.Result {
 				}
 			}
 		case "picture":
-			// An image on disk or at an http or https address shows below
-			// its line. A relative path is beside the markdown file, and
-			// one in <> may have spaces (B303, B308, B595).
+			// The path hides here, since Query gives a span one capture
+			// name and this one is picture. An image on disk or at an http
+			// or https address shows below its line. A relative path is
+			// beside the markdown file, and one in <> may have spaces
+			// (B303, B308, B595).
+			show(sp.Start, sp.End, "", "")
 			src := t.Slice(sp.Start, sp.End)
 			if strings.HasPrefix(src, "<") && strings.HasSuffix(src, ">") {
 				src = src[1 : len(src)-1]

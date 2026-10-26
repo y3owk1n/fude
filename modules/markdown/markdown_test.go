@@ -59,6 +59,7 @@ func TestB298Render(t *testing.T) {
 		{Pos: at("*em"), End: at("*em") + 1},
 		{Pos: at("[link"), End: at("[link") + 1},
 		{Pos: at("http"), End: at("http") + len("http://x.y")},
+		{Pos: at("pic.png"), End: at("pic.png") + len("pic.png")},
 		// The first column is as wide as *ccc* shows, five columns, so a's
 		// pipe pads by two. The second aligns right, so d pads on its left.
 		{Pos: at("| bb"), End: at("| bb") + 1, Text: "  │", Style: "markdown.table"},
