@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.3.2](https://github.com/y3owk1n/fude/compare/v0.3.1...v0.3.2) (2026-10-26)
+
+
+### Features
+
+* **core:** Map takes a gravity ([beca014](https://github.com/y3owk1n/fude/commit/beca01432b282bae558d64db128ce5038465e606))
+* **fold:** &lt;Tab&gt; and &lt;S-Tab&gt; cycle a markdown file's sections ([dbf7a70](https://github.com/y3owk1n/fude/commit/dbf7a70fb760c47f27e6cc66e3f1bd17bdc3ce69))
+* **gui:** drop an image on a markdown file to link it ([bac4660](https://github.com/y3owk1n/fude/commit/bac4660b2b9899c63ee245547d08d6632a26ad63))
+* **plugin:** plugin and module options take a list of strings ([8a0e80e](https://github.com/y3owk1n/fude/commit/8a0e80e78a634809439d2b695856796a589960e8))
+* **syntax:** folds queries for Go, C, Rust, JavaScript, TypeScript, TSX, Lua, JSON and TOML ([f13b68a](https://github.com/y3owk1n/fude/commit/f13b68ad641d53fcbd66130f5fe1115e4640f88a))
+
+
+### Bug Fixes
+
+* **markdown:** an image link hides its path ([03f70d5](https://github.com/y3owk1n/fude/commit/03f70d509e111ea9f59b46b218047da08956a7ac))
+* **modules:** a module's late redraw no longer blanks its decorations ([b0ec34c](https://github.com/y3owk1n/fude/commit/b0ec34cb709e1632c4655f1b888a153bae9ce5d9))
+* **plugin:** release bumps the files and lang test plugins ([2d5f654](https://github.com/y3owk1n/fude/commit/2d5f6547435aba2b08ee6850813bd58f90ebba61))
+
 ## [0.3.1](https://github.com/y3owk1n/fude/compare/v0.3.0...v0.3.1) (2026-10-25)
 
 
