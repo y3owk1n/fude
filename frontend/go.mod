@@ -4,8 +4,8 @@ go 1.27
 
 require (
 	github.com/clipperhouse/displaywidth v0.11.0
-	github.com/y3owk1n/fude/core v0.3.2 // x-release-please-version
-	github.com/y3owk1n/fude/vim v0.3.2 // x-release-please-version
+	github.com/y3owk1n/fude/core v0.4.0 // x-release-please-version
+	github.com/y3owk1n/fude/vim v0.4.0 // x-release-please-version
 	golang.org/x/sys v0.49.0
 )
 

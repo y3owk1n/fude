@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.4.0](https://github.com/y3owk1n/fude/compare/v0.3.2...v0.4.0) (2026-10-31)
+
+
+### ⚠ BREAKING CHANGES
+
+* **api:** a result opens a list of terminals, and one may start hidden
+* **plugin:** a plugin carries a manifest, and fude loads only the sdk versions it takes
+
+### Features
+
+* **api:** a result opens a list of terminals, and one may start hidden ([9dada7e](https://github.com/y3owk1n/fude/commit/9dada7e08455e4d2e6d9ad7e0cf0591f8c992997))
+* **plugin:** :plugin lists, installs, updates, enables and disables plugins ([4a09772](https://github.com/y3owk1n/fude/commit/4a09772f8e29b82db8079afd9a079b0b6e94dcf3))
+* **plugin:** a plugin carries a manifest, and fude loads only the sdk versions it takes ([15d7b55](https://github.com/y3owk1n/fude/commit/15d7b5540df439239dd60c37347cf9dfc712f529))
+* **plugin:** a plugin installs from a repo, pinned in plugins.lock ([cbdaf3d](https://github.com/y3owk1n/fude/commit/cbdaf3d4eb48d6e5cdc5f2e75020b9be2a5cfb96))
+* **plugin:** a plugin's path may be the folder of its source ([089c644](https://github.com/y3owk1n/fude/commit/089c64433c78989d1600ea91becd938a0f92384e))
+* **plugin:** fude plugin add, install and update run from a shell ([63aa74a](https://github.com/y3owk1n/fude/commit/63aa74a1edf25414f7c66b7a0927880e83220393))
+* **task:** a task of .fude/tasks.toml with start = true runs as fude starts ([b0f059a](https://github.com/y3owk1n/fude/commit/b0f059a39ce87d95358ec309b5329833c432effd))
+
+
+### Bug Fixes
+
+* **gui:** UI Automation reads a window's state only while it holds it ([0ce3341](https://github.com/y3owk1n/fude/commit/0ce33416cfa31bf5a279b23261b59824646cf5c3))
+* **plugin:** a later completion source's items join the menu ([0ea3a67](https://github.com/y3owk1n/fude/commit/0ea3a67945d88f9dc1f4a7feb28caf62ddfbae1e))
+* **plugin:** a plugin's completion source is asked ([28affd3](https://github.com/y3owk1n/fude/commit/28affd309c125678ae3f35cb92de5cf7c9643faf))
+* **plugin:** a plugin's path may start with ~ ([c8074fb](https://github.com/y3owk1n/fude/commit/c8074fb2aadd068a8cf8414cd976126f88879d02))
+* **plugin:** fude plugin add says :plugin reload loads the plugin ([9ec3d06](https://github.com/y3owk1n/fude/commit/9ec3d064eccbe637b70b7ae9a31e2191c1cad1d2))
+
 ## [0.3.2](https://github.com/y3owk1n/fude/compare/v0.3.1...v0.3.2) (2026-10-26)
 
 
