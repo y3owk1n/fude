@@ -7,37 +7,46 @@ The timeline is still there when the file opens again.
 
 ## Undo and redo
 
-`u` undoes a change and `<C-r>` redoes it. Typing between entering and
-leaving insert mode is one change. An edit after an undo starts a new
-branch, and the old one stays on the timeline.
-
-`g-` and `g+` move through every state in the order it was made, across
-branches. `:earlier 10m` goes back to the text as it was ten minutes ago,
-and `:earlier 1f` to the last write. `:later` goes the other way, and both
-take a count of changes too.
+- `u` undoes a change and `<C-r>` redoes it.
+- Typing between entering and leaving insert mode is one change.
+- An edit after an undo starts a new branch, and the old one stays on
+  the timeline.
+- `g-` and `g+` move through every state in the order it was made,
+  across branches.
+- `:earlier 10m` goes back to the text as it was ten minutes ago, and
+  `:earlier 1f` to the last write.
+- `:later` goes the other way.
+- `:earlier` and `:later` take a count of changes too.
 
 ## The timeline window
 
 `:timeline` lists every state with its time and the command that made
-it. In its window, `[` and `]` show the text at the state above
-or below, `d` shows how the state under the cursor differs from now, and
-`<CR>` restores it. A restore is a new state on top of the newest, so the
-states after the restored one stay.
+it. In its window:
+
+- `[` and `]` show the text at the state above or below.
+- `d` shows how the state under the cursor differs from now.
+- `<CR>` restores it. A restore is a new state on top of the newest, so
+  the states after the restored one stay.
 
 ## After a crash
 
-The timeline is written as changes are made. When a file opens with
-changes that were never written, fude says so, and `:recover` brings them
-back. Leaving them keeps them on the timeline as a branch.
+The timeline is written as changes are made.
 
-The timeline of a file carries over from session to session while the
-file on disk is the one fude last wrote. fude deletes it when the file
-changes outside fude, and 30 days after the last change to it.
+- When a file opens with changes that were never written, fude says so,
+  and `:recover` brings them back.
+- Leaving them keeps them on the timeline as a branch.
+- The timeline of a file carries over from session to session while the
+  file on disk is the one fude last wrote.
+- fude deletes it when the file changes outside fude, and 30 days after
+  the last change to it.
 
-`fude storage` in a shell lists where fude keeps timelines and its other
-files, and how much space each takes. `fude storage clean` deletes the
-ones fude makes again, and `fude storage clean --force` the timelines too,
-after it says what that loses.
+## Storage
+
+- `fude storage` in a shell lists where fude keeps timelines and its
+  other files, and how much space each takes.
+- `fude storage clean` deletes the ones fude makes again.
+- `fude storage clean --force` deletes the timelines too, after it says
+  what that loses.
 
 ## Restarting
 

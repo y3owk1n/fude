@@ -38,22 +38,31 @@ is optional.
 - `env` sets variables the server runs with.
 - `answers` answer requests the server sends that fude does not answer
   itself, by method.
-
 - `requires` and `excludes` start the server only when one of some files,
   and none of others, is in a folder between the file's and its root.
-- `fallback` is the root when no root file is found: `cwd` or `home`.
+- `fallback` is the root when no root file is found, either `cwd` or
+  `home`.
 - `capabilities` change what fude tells the server it can do.
 - `connect` connects to a server that is already running, at a host and
   port.
 
-Placeholders fill in a table's strings: `{root}`, `{root_uri}` and
-`{root_name}` for the server's root, `{cache}` for a folder fude keeps
-for the server and the project, `{env:NAME:-default}`, `{find:path}`
-for the nearest path from the root up, and `{pid}`. A `command` may be
-a list of commands, and fude runs the first one it finds. A root file
-may be a pattern, a group that ranks the same, or a table that asks the
-file to hold some text. A filetype's `language_id` changes what its
-servers hear the files are written in.
+Placeholders fill in a table's strings:
+
+- `{root}`, `{root_uri}` and `{root_name}` are the server's root.
+- `{cache}` is a folder fude keeps for the server and the project.
+- `{env:NAME:-default}` is the variable NAME, or default when it is
+  empty.
+- `{find:path}` is the nearest path from the root up.
+- `{pid}` is fude's process id.
+
+A table can say more:
+
+- A `command` may be a list of commands, and fude runs the first one it
+  finds.
+- A root file may be a pattern, a group that ranks the same, or a table
+  that asks the file to hold some text.
+- A filetype's `language_id` changes what its servers hear the files are
+  written in.
 
 ```toml
 [lsp.eslint]
@@ -72,19 +81,21 @@ workspaceFolder = { uri = "{root_uri}", name = "{root_name}" }
 "eslint/confirmESLintExecution" = 4
 ```
 
-A server that needs more than its table, such as Vue's, whose TypeScript
-requests another server answers, takes a plugin. A plugin with `lsp`
-hears the messages a server sends that fude does not handle, answers its
-requests, sends it notifications, and runs the client commands its code
-actions and lenses name, such as `editor.action.showReferences`.
+## More about servers
 
-fude watches no files. A server hears of the files fude writes, of an
-open file fude finds changed when it comes back into focus, and of what
-the explorer renames, creates and deletes, and may edit files for a
-rename before it happens, as it does to update imports.
-
-A server whose program is not on PATH says so once, and fude does not try
-it again until `:lsp restart`.
+- A server that needs more than its table, such as Vue's, whose
+  TypeScript requests another server answers, takes a plugin. A plugin
+  with `lsp` hears the messages a server sends that fude does not
+  handle, answers its requests, sends it notifications, and runs the
+  client commands its code actions and lenses name, such as
+  `editor.action.showReferences`.
+- fude watches no files. A server hears of the files fude writes, of an
+  open file fude finds changed when it comes back into focus, and of
+  what the explorer renames, creates and deletes.
+- A server may edit files for a rename before it happens, as it does to
+  update imports.
+- A server whose program is not on PATH says so once, and fude does not
+  try it again until `:lsp restart`.
 
 ## Using a server
 
@@ -94,11 +105,6 @@ it again until `:lsp restart`.
   definition and `gO` the file's symbols. `<CR>` on a line of the list
   goes there.
 - `grn` renames the name everywhere, and `gra` lists code actions.
-- `<Plug>(lsp.declaration)` goes to the declaration,
-  `<Plug>(lsp.incoming_calls)` and `<Plug>(lsp.outgoing_calls)` list the
-  calls of a function and those it makes, and `<Plug>(lsp.supertypes)` and
-  `<Plug>(lsp.subtypes)` the types around a type. They have no keys, so
-  map them in `[keymap.normal]`.
 - `]d` and `[d` go to the next and previous diagnostic.
 - Resting the cursor on a name lights up its other places in the file.
 - A server's code lenses, such as "run test", show above their lines, and
@@ -110,31 +116,52 @@ it again until `:lsp restart`.
   cursor in insert mode, and `<Tab>` takes it.
 - A server's semantic tokens colour names by what they are, such as a
   function or a type, over the syntax's colours.
-- `<C-x><C-o>` in insert mode lists completions, and with `autocomplete`
-  on they show as you type. `<C-n>` and `<C-p>` select one and `<C-y>`
-  takes it. With no menu, `<C-n>` and `<C-p>` complete the word from the
-  open buffers' words. `<C-s>` shows the signature of the call being
-  typed. A server that formats as you type, such as after `}`, does so
-  as part of the insert's undo step.
 
-With several servers on a file, every one's diagnostics show, and
-hover, places, symbols, code actions and completions come from each server
-that offers them. Rename, signature help and formatting go to the first
-server in the filetype's list that offers them.
+These have no keys, so map them in `[keymap.normal]`:
+
+- `<Plug>(lsp.declaration)` goes to the declaration.
+- `<Plug>(lsp.incoming_calls)` and `<Plug>(lsp.outgoing_calls)` list the
+  calls of a function and those it makes.
+- `<Plug>(lsp.supertypes)` and `<Plug>(lsp.subtypes)` list the types
+  around a type.
+
+In insert mode:
+
+- `<C-x><C-o>` lists completions, and with `autocomplete` on they show
+  as you type.
+- `<C-n>` and `<C-p>` select one and `<C-y>` takes it. With no menu,
+  `<C-n>` and `<C-p>` complete the word from the open buffers' words.
+- `<C-s>` shows the signature of the call being typed.
+- A server that formats as you type, such as after `}`, does so as part
+  of the insert's undo step.
+
+With several servers on a file:
+
+- Every one's diagnostics show.
+- Hover, places, symbols, code actions and completions come from each
+  server that offers them.
+- Rename, signature help and formatting go to the first server in the
+  filetype's list that offers them.
 
 ## Watching servers
 
-The status line shows a file's servers, and a spinner with what a server
-is doing while it starts or works. `:lsp` opens a panel with every server
-and its state, roots and files. In the panel, `r` restarts the server
-under the cursor, `s` stops it, `d` keeps it off and `e` lets it start
-again. `:lsp restart` restarts the current file's servers.
+- The status line shows a file's servers, and a spinner with what a
+  server is doing while it starts or works.
+- `:lsp` opens a panel with every server and its state, roots and files.
+- `:lsp restart` restarts the current file's servers.
+
+In the panel:
+
+- `r` restarts the server under the cursor.
+- `s` stops it.
+- `d` keeps it off.
+- `e` lets it start again.
 
 ## Debugging
 
 fude debugs a program through a debug adapter, the way it reads code
-through a language server. Name the adapter in `config.toml`, and what to debug in
-`.fude/launch.toml` in the project.
+through a language server. Name the adapter in `config.toml`, and what
+to debug in `.fude/launch.toml` in the project.
 
 ```toml
 # config.toml
@@ -151,17 +178,23 @@ debug = ["delve"]
 args = { mode = "test", program = "{dir}" }
 ```
 
-`<Leader>db` puts a breakpoint on the line, and `<Leader>dc` starts the
-session, or lets it go on once it stops. `<Leader>dn`, `<Leader>di` and
-`<Leader>do` step over, into and out, and `<Leader>dq` ends it. Each is
-a `:debug` command too, such as `:debug next`.
+These keys run the program:
 
-`<Leader>dp` opens a panel of the stopped thread's frames, the chosen
-frame's variables and the program's output. `<CR>` on a frame chooses it,
-and on a variable shows or hides its members.
+- `<Leader>db` puts a breakpoint on the line.
+- `<Leader>dc` starts the session, or lets it go on once it stops.
+- `<Leader>dn`, `<Leader>di` and `<Leader>do` step over, into and out.
+- `<Leader>dq` ends it.
 
-`<Leader>de` shows the value of the name under the cursor, or of the
-selection, in a float, and `:debug eval expr` shows that of expr.
+Each is a `:debug` command too, such as `:debug next`.
+
+These keys look at a stopped program:
+
+- `<Leader>dp` opens a panel of the stopped thread's frames, the chosen
+  frame's variables and the program's output. `<CR>` on a frame chooses
+  it, and on a variable shows or hides its members.
+- `<Leader>de` shows the value of the name under the cursor, or of the
+  selection, in a float.
+- `:debug eval expr` shows the value of expr.
 
 ## Next
 

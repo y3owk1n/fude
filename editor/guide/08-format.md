@@ -30,17 +30,23 @@ workspace_required = true
 command = ["prettierd", "{path}"]
 ```
 
-A filetype's `format` names its formatters, which run in turn, each on the
-output of the one before. A filetype's own `format_on_save` wins over the
-top-level one, so `format_on_save = false` in `[filetype.markdown]` writes
-markdown files as they are. With `format_first = true`, only the first that
-applies runs.
+A filetype's table says which formatters run:
 
-Each `[formatter.<name>]` table is optional. `command` is the program and
-its arguments, the name alone when unset, and `{path}` in it is the
-file's path. A formatter runs in the folder of the first `root` file
-found above the file, or else the file's folder. With
-`workspace_required = true`, it runs only when a root file is found.
+- `format` names its formatters, which run in turn, each on the output
+  of the one before.
+- With `format_first = true`, only the first that applies runs.
+- A filetype's own `format_on_save` wins over the top-level one, so
+  `format_on_save = false` in `[filetype.markdown]` writes markdown files
+  as they are.
+
+Each `[formatter.<name>]` table is optional.
+
+- `command` is the program and its arguments, the name alone when unset,
+  and `{path}` in it is the file's path.
+- A formatter runs in the folder of the first `root` file found above
+  the file, or else the file's folder.
+- With `workspace_required = true`, it runs only when a root file is
+  found.
 
 A formatter applies when its program is on PATH and its root, when
 required, is found. With the tables above, a project with a `biome.json`
@@ -48,20 +54,20 @@ formats with biome, and any other with prettierd.
 
 ## When formatting fails
 
-A formatter that fails, or takes longer than `format_timeout`
-milliseconds, leaves the text as it was, and fude writes it anyway and
-says why. The write's message names a formatter that is not installed.
-The formatting is one change on the timeline, so `u` undoes it.
+- A formatter that fails, or takes longer than `format_timeout`
+  milliseconds, leaves the text as it was, and fude writes it anyway and
+  says why.
+- The write's message names a formatter that is not installed.
+- The formatting is one change on the timeline, so `u` undoes it.
 
 ## Formatting by hand
 
-`:format` formats the file as a write would, through its formatters or
-else its language server, and does not write it. It works whether
-`format_on_save` is on or off.
-
-`gq` and a motion format the lines the motion covers the same way, such
-as `gqip` for a paragraph. A formatter formats the whole file, and fude
-applies only its changes to those lines.
+- `:format` formats the file as a write would, through its formatters or
+  else its language server, and does not write it. It works whether
+  `format_on_save` is on or off.
+- `gq` and a motion format the lines the motion covers the same way, such
+  as `gqip` for a paragraph. A formatter formats the whole file, and fude
+  applies only its changes to those lines.
 
 ## Next
 
