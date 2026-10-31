@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/y3owk1n/fude/compare/v0.4.0...v0.4.1) (2026-10-31)
+
+
+### Bug Fixes
+
+* **plugin:** a plugins.lock that is a link stays one ([8e27651](https://github.com/y3owk1n/fude/commit/8e27651cf98e5ff3543c25c937c0a2715c786392))
+
 ## [0.4.0](https://github.com/y3owk1n/fude/compare/v0.3.2...v0.4.0) (2026-10-31)
 
 

@@ -4,7 +4,7 @@ go 1.27
 
 require (
 	github.com/tetratelabs/wazero v1.12.0
-	github.com/y3owk1n/fude/api v0.4.0 // x-release-please-version
+	github.com/y3owk1n/fude/api v0.4.1 // x-release-please-version
 )
 
 require (
