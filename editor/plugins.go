@@ -128,9 +128,12 @@ func (e *Session) loadPlugin(i int, s pluginConfig, lock install.Lock, force boo
 	go func() {
 		defer scope.Done()
 		ctx, at := context.Background(), time.Now()
-		wasm, err := e.built(src, path)
+		var wasm string
+		var err error
 		if s.Repo != "" {
 			wasm, err = e.fromRepo(src, s.Version, locked, auto)
+		} else {
+			wasm, err = e.built(src, path)
 		}
 		var p *plugin.Plugin
 		if err == nil {
