@@ -17,18 +17,24 @@ import (
 )
 
 // completion is what completes in insert mode: the menu showing, whether
-// <C-x> began a completion key, and the source whose items come later.
+// <C-x> began a completion key, and the menu waiting for items.
 type completion struct {
 	menu    *menu
 	ctrlX   bool
-	waiting *waiting // the source whose items come later (B336)
+	waiting *waiting // the menu waiting for items that come later (B336)
 }
 
-// waiting is a Completer whose items come in a callback, and the keys
-// that asked for the menu (B336).
+// waiting is a menu that shows once the servers and the Completers whose
+// items come in a callback have answered (B336).
 type waiting struct {
-	p          api.Module
-	name, keys string
+	keys    string
+	t       kernel.Snapshot
+	start   int
+	sources []string
+	items   map[string][]item
+	later   map[api.Module]string // the sources yet to answer, by their module
+	servers bool                  // the servers have yet to answer
+	only    bool                  // the menu shows only the items of the source yet to answer
 }
 
 // completer is what a module registered as a source of completion (B336).
@@ -168,7 +174,7 @@ func (e *Session) complete(keys string) {
 		start--
 	}
 	e.completion.waiting = nil
-	local := map[string][]item{}
+	w := &waiting{keys: keys, t: t, start: start, sources: sources, items: map[string][]item{}, later: map[api.Module]string{}}
 	for _, name := range sources {
 		cp, ok := e.completionSources[name]
 		if !ok {
@@ -181,21 +187,24 @@ func (e *Session) complete(keys string) {
 		switch {
 		case err != nil || got == nil:
 		case got.Only && got.Later:
-			e.completion.waiting = &waiting{cp.p, name, keys}
+			e.completion.waiting = &waiting{keys: keys, sources: []string{name}, items: map[string][]item{}, later: map[api.Module]string{cp.p: name}, only: true}
 			return
 		case got.Only:
 			e.offer(keys, t, got.Start, []string{name}, map[string][]item{name: items(got.Items)})
 			return
+		case got.Later:
+			w.later[cp.p] = name
 		default:
-			local[name] = items(got.Items)
+			w.items[name] = items(got.Items)
 		}
 	}
+	e.completion.waiting = w
 	if !slices.Contains(sources, "lsp") || len(b.servers) == 0 {
-		e.offer(keys, t, start, sources, local)
+		e.fill(w)
 		return
 	}
 	uri := lsp.URI(b.file.path)
-	asked := ask(b.servers, "textDocument/completion", func(_ *server, enc string) any {
+	w.servers = ask(b.servers, "textDocument/completion", func(_ *server, enc string) any {
 		return map[string]any{"textDocument": map[string]any{"uri": uri}, "position": lsp.Point(t, c, enc)}
 	}, func(rs []reply) {
 		ft := e.filetype(b)
@@ -212,14 +221,23 @@ func (e *Session) complete(keys string) {
 			for _, raw := range got {
 				it := readItem(raw, ft)
 				it.raw, it.from = raw, r.s
-				local["lsp"] = append(local["lsp"], it)
+				w.items["lsp"] = append(w.items["lsp"], it)
 			}
 		}
-		e.offer(keys, t, start, sources, local)
+		w.servers = false
+		e.fill(w)
 	})
-	if !asked {
-		e.offer(keys, t, start, sources, local)
+	e.fill(w)
+}
+
+// fill shows w's menu once every source has answered, unless a newer
+// completion replaced w.
+func (e *Session) fill(w *waiting) {
+	if e.completion.waiting != w || w.servers || len(w.later) > 0 {
+		return
 	}
+	e.completion.waiting = nil
+	e.offer(w.keys, w.t, w.start, w.sources, w.items)
 }
 
 // offer shows the menu of items, by source, that replace the text from

@@ -1697,11 +1697,11 @@ func TestB338PluginDoesWhatAModuleDoes(t *testing.T) {
 
 // B336, by a plugin
 func TestB336PluginCompletionSource(t *testing.T) {
-	// With completion_sources unset, fude asks a plugin's source too.
+	// With completion_sources unset, fude asks a plugin's sources too. The
+	// menu waits for the items of later, then shows them with those of words.
 	e := loaded(t, "words", "f", "\n", "buffer.read", "ui")
-	if feed(e, "ifu<C-x><C-o>"); text(e) != "fude" {
-		t.Fatalf("<C-x><C-o> after fu made %q", text(e))
-	}
+	feed(e, "ifu<C-x><C-o>")
+	settle(t, e, func() bool { return text(e) == "fuzzy" })
 	if f, _ := e.Menu(); !strings.Contains(f.Text, "fudge  [words]") {
 		t.Errorf("the menu is %q, want fudge from words", f.Text)
 	}

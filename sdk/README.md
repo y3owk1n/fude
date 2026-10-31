@@ -78,7 +78,7 @@ sdk.Register(api.Registration{Kind: api.Completer, Name: "colors", Help: "colour
 
 `Name` is the source's name in `completion_sources`. While that setting is unset, fude asks every source, so the plugin's items show in the menu once it loads, each marked `[colors]`. With `autocomplete` on, fude asks a source after each word character typed, and after each character in its `Keys`. The path source's `Keys` is `/`.
 
-An item's `Text` replaces the word before the cursor, `Label` shows in the menu and `Doc` beside it. With `Snippet`, `Text` is a snippet's body that fude expands. With `Only`, the menu shows only these items, and they replace the text from `Start` to the cursor. With both `Only` and `Later`, the menu waits for the items. The plugin sends them later with `Do`, from work such as `Fetch`'s func, and the first `Completion` it sends fills the menu.
+An item's `Text` replaces the word before the cursor, `Label` shows in the menu and `Doc` beside it. With `Snippet`, `Text` is a snippet's body that fude expands. With `Only`, the menu shows only these items, and they replace the text from `Start` to the cursor. With `Later`, the menu waits for the items, then shows them with the other sources' items. The plugin sends them with `Do` from later work, such as `Fetch`'s func. The first `Completion` it sends is the source's answer.
 
 A source needs `buffer.read` to register, because it hears the text being typed, and `ui` to offer items.
 

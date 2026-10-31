@@ -936,10 +936,18 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 			e.message = err.Error()
 		}
 	}
-	// A Completer's items that came later fill the menu it held (B336).
-	if w := e.completion.waiting; w != nil && w.p == p && res.Completion != nil {
-		e.completion.waiting = nil
-		e.offer(w.keys, b.text.Snapshot(), res.Completion.Start, []string{w.name}, map[string][]item{w.name: items(res.Completion.Items)})
+	// A Completer's later items go into the menu waiting for them. Items
+	// with Only replace the text from their Start, as the text is now
+	// (B336).
+	if w := e.completion.waiting; w != nil && res.Completion != nil {
+		if name, ok := w.later[p]; ok {
+			delete(w.later, p)
+			w.items[name] = items(res.Completion.Items)
+			if w.only {
+				w.t, w.start = b.text.Snapshot(), res.Completion.Start
+			}
+			e.fill(w)
+		}
 	}
 	if tr := res.Travel; tr != nil {
 		on, err := e.buffer(tr.Buffer)
