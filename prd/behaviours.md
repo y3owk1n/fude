@@ -2033,7 +2033,8 @@ Where fude departs, the line says so and cites the departure in
 - B601 [4] `fude plugin add {repo}[@version]` installs the repo's plugin,
   prints what its manifest asks for, and once the user answers y, appends
   a `[[plugin]]` table to config.toml with the repo and those
-  capabilities, programs and hosts. It changes nothing else in the file.
+  capabilities, programs and hosts. It changes nothing else in the file,
+  and says that `:plugin reload` loads the plugin in a fude already running.
   `fude plugin install` and `fude plugin update [name]` do what `:plugin
   install` and `:plugin update` do, and print each plugin they install.
 - B602 [4] `fude plugin new` writes a `fude.toml` beside `main.go`, the

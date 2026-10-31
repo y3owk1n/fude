@@ -178,7 +178,7 @@ func pluginAdd(arg string) error {
 	if err := appendTable(path, repo, ver, m); err != nil {
 		return fmt.Errorf("add %s to %s: %w", repo, path, err)
 	}
-	fmt.Printf("added %s to %s\n", m.Name, path)
+	fmt.Printf("added %s to %s, and :plugin reload loads it in a fude already running\n", m.Name, path)
 	return nil
 }
 
