@@ -1,10 +1,16 @@
 # editor
 
-The editor that fude runs: its buffers, windows and sessions, the loop that
-feeds keys to the vim machine and applies the edits, the language server
-host, the plugin host and what every module is given. It is the product, not
-a library. It imports every other package here. A program imports it to run
-fude's editor under a client of its own, or to test a module.
+The editor that fude runs. It is the product, not a library, and it
+imports every other package here. It holds:
+
+- its buffers, windows and sessions
+- the loop that feeds keys to the vim machine and applies the edits
+- the language server host
+- the plugin host
+- what every module is given
+
+A program imports it to run fude's editor under a client of its own, or to
+test a module.
 
 ```sh
 go get github.com/y3owk1n/fude
@@ -53,10 +59,12 @@ socket.
 ## Testing on the editor
 
 [`editortest`](editortest) drives a headless editor in tests, for a module
-or any program that builds on the editor. Its `Main` gives the tests
-directories of their own and Go's grammar, `Start` and `Open` make a
-session that quits when the test ends, `Feed` types keys, and `Settle`
-runs the loop until what the test waits for has happened.
+or any program that builds on the editor.
+
+- `Main` gives the tests directories of their own and Go's grammar.
+- `Start` and `Open` make a session that quits when the test ends.
+- `Feed` types keys.
+- `Settle` runs the loop until what the test waits for has happened.
 
 ```go
 func TestMain(m *testing.M) { os.Exit(editortest.Main(m)) }
@@ -76,11 +84,12 @@ func TestFolds(t *testing.T) {
 The package is one Go package on purpose, since splitting it would make
 `Session` export an API the size of the package. It is arranged by
 feature, one file each, and the spec in [`prd/`](../prd) names what each
-file promises. The parts that need no `Session` live in
-[`internal`](../internal): the timeline log and the files fude keeps
-between runs. The share's certificates and strings are in
-[`frontend/share`](../frontend/share), since a guest's client reads them
-too.
+file promises. Some parts live elsewhere:
+
+- [`internal`](../internal) holds the parts that need no `Session`: the
+  timeline log and the files fude keeps between runs.
+- [`frontend/share`](../frontend/share) holds the share's certificates and
+  strings, since a guest's client reads them too.
 
 ## License
 

@@ -27,7 +27,12 @@ func TestCount(t *testing.T) {
 }
 ```
 
-The text is the only open buffer. `Command`, `Key` and `Event` run what the plugin registered against it, and return the call's `api.Result`. `plugintest.Apply` makes the edits a result asks for. A timer, job, request or pick stays in the result, and the test runs its callback with `Callback`. `Log` returns what the plugin logged, and the calls it was denied.
+The text is the only open buffer.
+
+- `Command`, `Key` and `Event` run what the plugin registered against it, and return the call's `api.Result`.
+- `plugintest.Apply` makes the edits a result asks for.
+- A timer, job, request or pick stays in the result, and the test runs its callback with `Callback`.
+- `Log` returns what the plugin logged, and the calls it was denied.
 
 ## Hosting plugins
 
@@ -58,7 +63,11 @@ fude's [architecture spec](../prd/architecture.md#plugin-abi) describes the ABI 
 
 ## Building plugins
 
-`New` writes a new plugin folder, with a `go.mod` that requires the sdk, a `main.go` that adds one command, a `fude.toml` manifest and a release workflow. `Build` builds a folder with TinyGo into a `.wasm` named after it, with the manifest and the sdk's version in a custom section that `ReadManifest` reads. `Load` refuses a plugin with no manifest, or one built with an sdk older than `OldestSDK` or newer than the host's version, and grants only the capabilities the manifest lists. They are what `fude plugin new` and `fude plugin build` run. `New` requires the sdk of the running fude's release, or the newest sdk in any other build or program.
+- `New` writes a new plugin folder, with a `go.mod` that requires the sdk, a `main.go` that adds one command, a `fude.toml` manifest and a release workflow. It requires the sdk of the running fude's release, or the newest sdk in any other build or program.
+- `Build` builds a folder with TinyGo into a `.wasm` named after it, with the manifest and the sdk's version in a custom section that `ReadManifest` reads.
+- `Load` refuses a plugin with no manifest, or one built with an sdk older than `OldestSDK` or newer than the host's version, and grants only the capabilities the manifest lists.
+
+`New` and `Build` are what `fude plugin new` and `fude plugin build` run.
 
 ## License
 

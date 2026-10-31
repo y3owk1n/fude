@@ -1,10 +1,14 @@
 # Demo tapes
 
 Each tape records a clip in the README with
-[VHS](https://github.com/charmbracelet/vhs). `fude.tape` is the one at the
-top, `recover.tape` is a crash and `:recover`, under Nothing is lost, and
-`together.tape` is two people in one fude, under Edit together. A recording
-writes the GIF to `demos/` and an MP4 to `demos/out/`, which git ignores.
+[VHS](https://github.com/charmbracelet/vhs).
+
+- `fude.tape` is the one at the top.
+- `recover.tape` is a crash and `:recover`, under Nothing is lost.
+- `together.tape` is two people in one fude, under Edit together.
+
+A recording writes the GIF to `demos/` and an MP4 to `demos/out/`, which
+git ignores.
 
 ## Record
 
@@ -22,17 +26,22 @@ machine gives a clip that plays too fast.
 
 ## What a tape runs
 
-`setup.sh` runs hidden at the start. It builds fude from the working tree,
-copies the repo with the working tree's changes into a throwaway HOME under
-`/tmp/fude-demo`, and gives it `config.toml`, so a recording never reads or
-writes your own config or files. gopls, tree-sitter and Go's caches come
-from the repo's oku environment. It copies your built grammars, and the
-tape builds Go's grammar before the clip starts, out of view. The sandbox
-has a clipboard of its own, so a recording never reads or writes yours.
+`setup.sh` runs hidden at the start.
+
+- It builds fude from the working tree.
+- It copies the repo with the working tree's changes into a throwaway HOME
+  under `/tmp/fude-demo`, and gives it `config.toml`, so a recording never
+  reads or writes your own config or files.
+- gopls, tree-sitter and Go's caches come from the repo's oku environment.
+- It copies your built grammars, and the tape builds Go's grammar before
+  the clip starts, out of view.
+- The sandbox has a clipboard of its own, so a recording never reads or
+  writes yours.
+
 `together.tape` runs its two panes on a tmux server of its own, set by
 `tmux.conf`, and shares on 127.0.0.1 so the clip shows no address of your
-network.
-`style.tape` sets the shell, font, colours, window size and frame rate.
+network. `style.tape` sets the shell, font, colours, window size and frame
+rate.
 
 ## The window
 
@@ -46,11 +55,11 @@ it.
 - `window-macos.png`, `window-linux.png` and `window-windows.png` open
   `protocol/framing/framing.go` and `framing_test.go`, then
   `fude keys ':split<CR>:b 2<CR>'` and `fude keys '<Space><Space>framing'`.
-  On macOS `screencapture -o -x -l <window id>` takes the shot. On Linux
-  fude runs in Docker under Xvfb with `GDK_SCALE=2` and
-  `GSK_RENDERER=cairo`, and `import -window root` takes it. On Windows a
-  scheduled task runs the steps in the signed-in session, and PowerShell
-  copies the window's rectangle with System.Drawing.
+  - On macOS `screencapture -o -x -l <window id>` takes the shot.
+  - On Linux fude runs in Docker under Xvfb with `GDK_SCALE=2` and
+    `GSK_RENDERER=cairo`, and `import -window root` takes it.
+  - On Windows a scheduled task runs the steps in the signed-in session,
+    and PowerShell copies the window's rectangle with System.Drawing.
 - `window.gif` opens `framing_test.go` at line 10, and
   `screencapture -v -R` records the window's rectangle. The mouse rests on
   `NewReader` for its hover, Command-clicks `Write`, clicks the first tab,

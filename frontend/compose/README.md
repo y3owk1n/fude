@@ -1,9 +1,15 @@
 # compose
 
-Draws a window of a session into a grid of styled cells: its text and
-highlights, the gutter with signs and numbers, ghost text, notes, the
-rows a decoration adds, pinned lines, indent guides and the cursors. A
-`Grid` keeps a window's cells between frames, and `Paint` gives only the
+Draws a window of a session into a grid of styled cells:
+
+- its text and highlights
+- the gutter with signs and numbers
+- ghost text and notes
+- the rows a decoration adds
+- pinned lines and indent guides
+- the cursors
+
+A `Grid` keeps a window's cells between frames, and `Paint` gives only the
 cells that changed since the last, so a frontend redraws only those.
 
 ```go

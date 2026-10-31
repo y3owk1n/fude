@@ -1,11 +1,13 @@
 # theme
 
-The colours fude draws in, for any frontend. `Themes` holds dark and
-light, `FromBase16` makes a theme from a base16 scheme, and `With` puts
-the colours config.toml's `[colors]` sets over one. `LookOf` gives what
-drawing takes: the style of each highlight's name, the colours
-diagnostics underline in, and those of signs and icons. `Tint` darkens a
-theme for what shows under a modal box.
+The colours fude draws in, for any frontend.
+
+- `Themes` holds dark and light.
+- `FromBase16` makes a theme from a base16 scheme.
+- `With` puts the colours config.toml's `[colors]` sets over one.
+- `LookOf` gives what drawing takes: the style of each highlight's name,
+  the colours diagnostics underline in, and those of signs and icons.
+- `Tint` darkens a theme for what shows under a modal box.
 
 ```go
 look := theme.LookOf(theme.Themes["dark"].With(colours))

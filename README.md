@@ -42,7 +42,11 @@ go install github.com/y3owk1n/fude/cmd/fude@latest
 
 Each [release](https://github.com/y3owk1n/fude/releases) also has zips for macOS, Linux and Windows on arm64 and amd64. On macOS and Linux, fude builds grammars with the `tree-sitter` CLI.
 
-On macOS, `fude --gui` opens fude in a native window, and oku also puts `Fude.app` in `~/Applications`. On Linux it opens a GTK 4 window, so it needs GTK 4, as `libgtk-4-1` on Debian and Ubuntu, and oku also adds Fude to the desktop's launcher. On Windows it opens a Win32 window, and oku also adds Fude to the Start menu. The macOS zips hold `Fude.app` too. `Fude.app` is unsigned for now, so a copy downloaded in a browser opens only after `xattr -dr com.apple.quarantine Fude.app`.
+`fude --gui` opens fude in a window of the system's own:
+
+- **macOS.** A native window. oku also puts `Fude.app` in `~/Applications`, and the macOS zips hold `Fude.app` too. `Fude.app` is unsigned for now, so a copy downloaded in a browser opens only after `xattr -dr com.apple.quarantine Fude.app`.
+- **Linux.** A GTK 4 window, so it needs GTK 4, as `libgtk-4-1` on Debian and Ubuntu. oku also adds Fude to the desktop's launcher.
+- **Windows.** A Win32 window. oku also adds Fude to the Start menu.
 
 <details>
 <summary>Building from source, and what fude uses when it is on PATH</summary>
@@ -146,7 +150,10 @@ fude share             # let someone in over TLS
 fude join <string>     # on their machine
 ```
 
-Everyone has their own cursor, colour, windows and undo. `:follow ana` keeps your view on what ana sees. A guest edits only the project, and `fude join --read-only` watches without editing. Agents attach the same way and propose edits you `:accept` or `:reject`.
+- Everyone has their own cursor, colour, windows and undo.
+- `:follow ana` keeps your view on what ana sees.
+- A guest edits only the project, and `fude join --read-only` watches without editing.
+- Agents attach the same way and propose edits you `:accept` or `:reject`.
 
 ## Configure
 
@@ -232,7 +239,10 @@ Every layer is a Go module with a small API, and the editor uses each one the wa
 go get github.com/y3owk1n/fude/core github.com/y3owk1n/fude/vim
 ```
 
-A distribution of your own is a list of modules handed to `editor.Use`. A frontend of your own gets its `client.Session` from the editor in the same process, or from `client.Attach` to a running fude. Each package's README shows how to start.
+- A distribution of your own is a list of modules handed to `editor.Use`.
+- A frontend of your own gets its `client.Session` from the editor in the same process, or from `client.Attach` to a running fude.
+
+Each package's README shows how to start.
 
 ## Speed
 
@@ -284,9 +294,42 @@ fude follows [Neovim](https://neovim.io) and [Vim](https://www.vim.org) for how 
 <details>
 <summary>Built on, and following</summary>
 
-fude is built on [tcell](https://github.com/gdamore/tcell), [purego](https://github.com/ebitengine/purego), [wazero](https://github.com/tetratelabs/wazero), [tree-sitter](https://tree-sitter.github.io) and its [Go binding](https://github.com/tree-sitter/go-tree-sitter) with every grammar's authors, [go-toml](https://github.com/pelletier/go-toml), [uax29](https://github.com/clipperhouse/uax29), [displaywidth](https://github.com/clipperhouse/displaywidth), [charmbracelet/x](https://github.com/charmbracelet/x) and [ultraviolet](https://github.com/charmbracelet/ultraviolet), [go-colorful](https://github.com/lucasb-eyer/go-colorful), [go-pointer](https://github.com/mattn/go-pointer), Go's [x](https://pkg.go.dev/golang.org/x) packages, [TinyGo](https://tinygo.org) and [Binaryen](https://github.com/WebAssembly/binaryen).
+fude is built on:
 
-Much of it follows a project that did it first: [oil.nvim](https://github.com/stevearc/oil.nvim), [fff.nvim](https://github.com/dmtrKovalenko/fff), [which-key.nvim](https://github.com/folke/which-key.nvim), [gitsigns.nvim](https://github.com/lewis6991/gitsigns.nvim), [mini.diff](https://github.com/nvim-mini/mini.diff), [mini.icons](https://github.com/nvim-mini/mini.icons), [conform.nvim](https://github.com/stevearc/conform.nvim), [undo-glow.nvim](https://github.com/y3owk1n/undo-glow.nvim), [nvim-tmux-navigation](https://github.com/alexghergh/nvim-tmux-navigation), [fzy](https://github.com/jhawthorn/fzy), [CodeMirror's collab module](https://codemirror.net/examples/collab/), [base16](https://github.com/chriskempson/base16), [Tinted Theming](https://github.com/tinted-theming), [stylix](https://github.com/nix-community/stylix), [Helix](https://helix-editor.com) and [Zed](https://zed.dev). `:pick grep` runs [ripgrep](https://github.com/BurntSushi/ripgrep), and [just](https://github.com/casey/just) and [oku](https://github.com/y3owk1n/oku) run fude's development.
+- [tcell](https://github.com/gdamore/tcell)
+- [purego](https://github.com/ebitengine/purego)
+- [wazero](https://github.com/tetratelabs/wazero)
+- [tree-sitter](https://tree-sitter.github.io) and its [Go binding](https://github.com/tree-sitter/go-tree-sitter) with every grammar's authors
+- [go-toml](https://github.com/pelletier/go-toml)
+- [uax29](https://github.com/clipperhouse/uax29)
+- [displaywidth](https://github.com/clipperhouse/displaywidth)
+- [charmbracelet/x](https://github.com/charmbracelet/x) and [ultraviolet](https://github.com/charmbracelet/ultraviolet)
+- [go-colorful](https://github.com/lucasb-eyer/go-colorful)
+- [go-pointer](https://github.com/mattn/go-pointer)
+- Go's [x](https://pkg.go.dev/golang.org/x) packages
+- [TinyGo](https://tinygo.org)
+- [Binaryen](https://github.com/WebAssembly/binaryen)
+
+Much of it follows a project that did it first:
+
+- [oil.nvim](https://github.com/stevearc/oil.nvim)
+- [fff.nvim](https://github.com/dmtrKovalenko/fff)
+- [which-key.nvim](https://github.com/folke/which-key.nvim)
+- [gitsigns.nvim](https://github.com/lewis6991/gitsigns.nvim)
+- [mini.diff](https://github.com/nvim-mini/mini.diff)
+- [mini.icons](https://github.com/nvim-mini/mini.icons)
+- [conform.nvim](https://github.com/stevearc/conform.nvim)
+- [undo-glow.nvim](https://github.com/y3owk1n/undo-glow.nvim)
+- [nvim-tmux-navigation](https://github.com/alexghergh/nvim-tmux-navigation)
+- [fzy](https://github.com/jhawthorn/fzy)
+- [CodeMirror's collab module](https://codemirror.net/examples/collab/)
+- [base16](https://github.com/chriskempson/base16)
+- [Tinted Theming](https://github.com/tinted-theming)
+- [stylix](https://github.com/nix-community/stylix)
+- [Helix](https://helix-editor.com)
+- [Zed](https://zed.dev)
+
+`:pick grep` runs [ripgrep](https://github.com/BurntSushi/ripgrep), and [just](https://github.com/casey/just) and [oku](https://github.com/y3owk1n/oku) run fude's development.
 
 </details>
 

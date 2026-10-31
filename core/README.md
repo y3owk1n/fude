@@ -45,7 +45,7 @@ Write a buffer from one goroutine.
 
 ## With the vim grammar
 
-A `Snapshot` is a [`vim`](../vim) `Text` as it is, and `kernel.Edit(e)` converts a `vim.Edit`, so a small host gives a buffer Vim's keys. The root [README](../README.md#build-on-fude) has that host.
+A `Snapshot` is a [`vim`](../vim) `Text` as it is, and `kernel.Edit(e)` converts a `vim.Edit`, so a small host gives a buffer Vim's keys.
 
 ## License
 

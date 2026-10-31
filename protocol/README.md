@@ -75,7 +75,9 @@ A command with `{port}` in it gets a free port, and `Start` dials it until the a
 
 ## framing
 
-`framing.Read` reads one message body after its headers, and `framing.Write` writes a body with its `Content-Length` header. `framing.Lines` is an `io.Writer` for a server's stderr that logs a line at a time.
+- `framing.Read` reads one message body after its headers.
+- `framing.Write` writes a body with its `Content-Length` header.
+- `framing.Lines` is an `io.Writer` for a server's stderr that logs a line at a time.
 
 ## License
 

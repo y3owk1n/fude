@@ -1,6 +1,10 @@
 # sdk
 
-Write fude plugins in Go. A plugin is a `.wasm` file that fude runs in a sandbox, with only the capabilities its table in `config.toml` grants. A plugin adds commands, keys, operators and text objects, reacts to events, and asks fude for edits, decorations and windows.
+Write fude plugins in Go. A plugin is a `.wasm` file that fude runs in a sandbox, with only the capabilities its table in `config.toml` grants. A plugin:
+
+- adds commands, keys, operators and text objects
+- reacts to events
+- asks fude for edits, decorations and windows
 
 You need Go and [TinyGo](https://tinygo.org).
 
@@ -8,7 +12,9 @@ You need Go and [TinyGo](https://tinygo.org).
 fude plugin new upper && cd upper && fude plugin build
 ```
 
-`fude plugin new` writes a `go.mod`, a `main.go`, a `fude.toml` and a release workflow, and gets this module. `fude.toml` names the plugin and lists the capabilities it asks for. `fude plugin build` builds the plugin with TinyGo into `upper.wasm`, with that manifest and the version of this module inside.
+- `fude plugin new` writes a `go.mod`, a `main.go`, a `fude.toml` and a release workflow, and gets this module.
+- `fude.toml` names the plugin and lists the capabilities it asks for.
+- `fude plugin build` builds the plugin with TinyGo into `upper.wasm`, with that manifest and the version of this module inside.
 
 ## Example
 
@@ -85,9 +91,19 @@ sdk.Register(api.Registration{Kind: api.Completer, Name: "colors", Help: "colour
 })
 ```
 
-`Name` is the source's name in `completion_sources`. While that setting is unset, fude asks every source, so the plugin's items show in the menu once it loads, each marked `[colors]`. With `autocomplete` on, fude asks a source after each word character typed, and after each character in its `Keys`. The path source's `Keys` is `/`.
+- `Name` is the source's name in `completion_sources`. While that setting is unset, fude asks every source, so the plugin's items show in the menu once it loads, each marked `[colors]`.
+- With `autocomplete` on, fude asks a source after each word character typed, and after each character in its `Keys`. The path source's `Keys` is `/`.
 
-An item's `Text` replaces the word before the cursor, `Label` shows in the menu and `Doc` beside it. With `Snippet`, `Text` is a snippet's body that fude expands. With `Only`, the menu shows only these items, and they replace the text from `Start` to the cursor. With `Later`, the menu waits for the items, then shows them with the other sources' items. The plugin sends them with `Do` from later work, such as `Fetch`'s func. The first `Completion` it sends is the source's answer.
+An item's fields:
+
+- `Text` replaces the word before the cursor.
+- `Label` shows in the menu, and `Doc` beside it.
+- With `Snippet`, `Text` is a snippet's body that fude expands.
+
+A `Completion`'s fields:
+
+- With `Only`, the menu shows only these items, and they replace the text from `Start` to the cursor.
+- With `Later`, the menu waits for the items, then shows them with the other sources' items. The plugin sends them with `Do` from later work, such as `Fetch`'s func. The first `Completion` it sends is the source's answer.
 
 A source needs `buffer.read` to register, because it hears the text being typed, and `ui` to offer items.
 

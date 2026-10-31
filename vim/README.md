@@ -12,7 +12,9 @@ go get github.com/y3owk1n/fude/vim
 
 Your program is the host. It feeds the machine keys, and the machine reads and edits the text through the `Host` interface you write.
 
-The machine owns modes, counts, operators, motions, text objects, registers, dot repeat, macros, search and the ex commands that edit text. The host owns the text, its undo history, files, windows and what shows on screen. An ex line the machine does not own, such as `:w`, reaches the host through `Unhandled`, and an error it returns stops what ran the line, such as a macro or `:g`.
+- **The machine** owns modes, counts, operators, motions, text objects, registers, dot repeat, macros, search and the ex commands that edit text.
+- **The host** owns the text, its undo history, files, windows and what shows on screen.
+- **Other ex lines.** An ex line the machine does not own, such as `:w`, reaches the host through `Unhandled`, and an error it returns stops what ran the line, such as a macro or `:g`.
 
 Feed keys from one goroutine. When `Waiting` reports keys that wait for more, as `d` waits for a motion, call `Timeout` after your own delay.
 
@@ -89,7 +91,7 @@ Measure columns with `Column`, passing nil inlines and the width your `TabWidth`
 
 ## With fude's kernel
 
-[`core`](../core) holds text with marks, transactions and a branching history. Its `Snapshot` is a `Text` as it is, and `kernel.Edit(e)` converts an `Edit`. The root [README](../README.md#build-on-fude) has a host over the kernel.
+[`core`](../core) holds text with marks, transactions and a branching history. Its `Snapshot` is a `Text` as it is, and `kernel.Edit(e)` converts an `Edit`.
 
 ## License
 
