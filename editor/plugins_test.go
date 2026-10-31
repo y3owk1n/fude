@@ -384,7 +384,8 @@ func TestB51PluginOverBudget(t *testing.T) {
 		"\x01\x04\x01\x60\x00\x00" + // a func type of no params or results
 		"\x03\x02\x01\x00" + // one func of it
 		"\x08\x01\x00" + // which is the start function
-		"\x0a\x09\x01\x07\x00\x03\x40\x0c\x00\x0b\x0b" // loop br 0 end end
+		"\x0a\x09\x01\x07\x00\x03\x40\x0c\x00\x0b\x0b" + // loop br 0 end end
+		manifest("loop")
 	if err := os.WriteFile(wasm, []byte(module), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -412,7 +413,7 @@ func TestB53PluginTraps(t *testing.T) {
 	}
 	// A module that exports no alloc or memory does not load.
 	wasm := filepath.Join(t.TempDir(), "bare.wasm")
-	if err := os.WriteFile(wasm, []byte("\x00asm\x01\x00\x00\x00"), 0o644); err != nil {
+	if err := os.WriteFile(wasm, []byte("\x00asm\x01\x00\x00\x00"+manifest("bare")), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	config(t, fmt.Sprintf("[[plugin]]\npath = %q\ncapabilities = [\"buffer.read\"]\n", wasm))
@@ -424,6 +425,13 @@ func TestB53PluginTraps(t *testing.T) {
 	if !strings.Contains(e.Message(), "plugin bare exports no alloc or no memory") {
 		t.Errorf("a bare module said %q, want that it exports no alloc", e.Message())
 	}
+}
+
+// manifest is the custom section of a manifest that names a module name
+// and asks for nothing.
+func manifest(name string) string {
+	j := `{"name":"` + name + `"}`
+	return string([]byte{0, byte(5 + len(j)), 4}) + "fude" + j
 }
 
 // withKit starts an editor on "ab cd\nef" with the kit plugin loaded.

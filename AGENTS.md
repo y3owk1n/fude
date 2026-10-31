@@ -68,6 +68,9 @@ enforce their imports, `just standalone` builds `frontend/` with no cgo,
 `protocol/` and `internal/`, and `just cgo` the cgo rule. Nothing checks
 that `core/` starts no goroutines and does no I/O, so a review must.
 
+A change that breaks the plugin ABI, such as a host function that goes or
+changes, sets `plugin.OldestSDK` to the release it ships in (D77).
+
 ## Help
 
 A change to a key, command, option or behaviour updates its section in

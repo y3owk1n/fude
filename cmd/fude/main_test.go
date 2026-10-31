@@ -268,7 +268,7 @@ func TestB354State(t *testing.T) {
 	}
 }
 
-// B173
+// B173, B602
 func TestB173PluginNewAndBuild(t *testing.T) {
 	dir := t.TempDir()
 	// The new plugin takes the sdk through the module proxy.
@@ -278,10 +278,14 @@ func TestB173PluginNewAndBuild(t *testing.T) {
 		}
 		t.Fatalf("fude plugin new words: %v: %s", err, out)
 	}
-	for _, name := range []string{"go.mod", "main.go"} {
+	for _, name := range []string{"go.mod", "main.go", "fude.toml", ".github/workflows/release.yml"} {
 		if _, err := os.Stat(filepath.Join(dir, "words", name)); err != nil {
 			t.Fatalf("plugin new wrote no %s: %v", name, err)
 		}
+	}
+	// A folder with no manifest does not build.
+	if out, err := fude(dir, "plugin", "build", t.TempDir()); err == nil || !strings.Contains(out, "fude.toml") {
+		t.Errorf("fude plugin build of a folder with no fude.toml said %q, %v", out, err)
 	}
 	if _, err := exec.LookPath("tinygo"); err != nil {
 		t.Skip("tinygo is not installed, so the plugin is not built")
@@ -290,9 +294,9 @@ func TestB173PluginNewAndBuild(t *testing.T) {
 		t.Fatalf("fude plugin build words: %v: %s", err, out)
 	}
 	// A build that is not a release takes the newest sdk, which may be older
-	// than this fude's ABI (D51).
-	if p, err := plugin.Load(context.Background(), filepath.Join(dir, "words", "words.wasm"), plugin.Grants{}, t.TempDir(), func(string) {}, func(string, time.Duration) {}); err != nil {
-		if strings.Contains(err.Error(), "import func[fude.") {
+	// than this fude takes (B603).
+	if p, err := plugin.Load(context.Background(), filepath.Join(dir, "words", "words.wasm"), plugin.Grants{}, "", t.TempDir(), func(string) {}, func(string, time.Duration) {}); err != nil {
+		if strings.Contains(err.Error(), "fude takes sdk") {
 			t.Skipf("the published sdk is older than this fude: %v", err)
 		}
 	} else {

@@ -1,0 +1,3 @@
+# A test plugin asks for every capability, and each test grants what it needs.
+name = "ctx"
+capabilities = ["buffer.read", "buffer.write", "ui", "fs.read", "fs.write", "process", "net", "lsp", "keys", "grammar"]

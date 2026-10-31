@@ -43,7 +43,7 @@ func Load(t testing.TB, path string, g plugin.Grants, text string) *Plugin {
 		t.Fatalf("load %s: %v", path, err)
 	}
 	tp := &Plugin{t: t, cwd: cwd}
-	p, err := plugin.Load(context.Background(), path, g, t.TempDir(), tp.logged, func(string, time.Duration) {})
+	p, err := plugin.Load(context.Background(), path, g, "", t.TempDir(), tp.logged, func(string, time.Duration) {})
 	if err != nil {
 		t.Fatalf("load %s: %v", path, err)
 	}

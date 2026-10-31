@@ -34,7 +34,7 @@ The text is the only open buffer. `Command`, `Key` and `Event` run what the plug
 A `*plugin.Plugin` is an `api.Module`, so a host runs plugins and its own Go modules through one interface.
 
 ```go
-p, err := plugin.Load(ctx, "upper.wasm", plugin.Grants{Capabilities: []string{"buffer.read", "buffer.write"}}, cacheDir, logLine)
+p, err := plugin.Load(ctx, "upper.wasm", plugin.Grants{Capabilities: []string{"buffer.read", "buffer.write"}}, "", cacheDir, logLine, func(string, time.Duration) {})
 if err != nil {
 	return err
 }
@@ -58,7 +58,7 @@ fude's [architecture spec](../prd/architecture.md#plugin-abi) describes the ABI 
 
 ## Building plugins
 
-`New` writes a new plugin folder, with a `go.mod` that requires the sdk and a `main.go` that adds one command. `Build` builds a folder with TinyGo into a `.wasm` named after it. They are what `fude plugin new` and `fude plugin build` run. `New` requires the sdk of the running fude's release, or the newest sdk in any other build or program.
+`New` writes a new plugin folder, with a `go.mod` that requires the sdk, a `main.go` that adds one command, a `fude.toml` manifest and a release workflow. `Build` builds a folder with TinyGo into a `.wasm` named after it, with the manifest and the sdk's version in a custom section that `ReadManifest` reads. `Load` refuses a plugin with no manifest, or one built with an sdk older than `OldestSDK` or newer than the host's version, and grants only the capabilities the manifest lists. They are what `fude plugin new` and `fude plugin build` run. `New` requires the sdk of the running fude's release, or the newest sdk in any other build or program.
 
 ## License
 

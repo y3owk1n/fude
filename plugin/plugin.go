@@ -61,10 +61,11 @@ type Plugin struct {
 	registered []fude.Registration // what its init registered
 	subscribed []string            // the events its init subscribed to
 	Grants
-	log   func(string)
-	trace func(text string, took time.Duration)
-	root  string   // the project: the directory fude started in
-	roots []string // the folders of its paths, with ~ expanded (B585)
+	Manifest Manifest // what it asks for, and the sdk it was built with
+	log      func(string)
+	trace    func(text string, took time.Duration)
+	root     string   // the project: the directory fude started in
+	roots    []string // the folders of its paths, with ~ expanded (B585)
 
 	turn    chan struct{} // held by the call running, as calls take turns
 	cache   wazero.CompilationCache
@@ -97,11 +98,14 @@ type Grants struct {
 	Options      map[string]string
 }
 
-// Load compiles the plugin at path and instantiates it with g. Compiled code
-// is kept in cacheDir between runs. log takes what the plugin logs and the
-// calls it was denied, and trace each file it read, program it ran and URL
-// it got, with how long it took.
-func Load(ctx context.Context, path string, g Grants, cacheDir string, log func(string), trace func(text string, took time.Duration)) (*Plugin, error) {
+// Load compiles the plugin at path and instantiates it with g, of which it
+// keeps the capabilities the plugin's manifest lists too (B604). host is
+// the version of fude that runs it, as v1.2.3, which the plugin's sdk may
+// not be newer than, or "" for any (B603). Compiled code is kept in
+// cacheDir between runs. log takes what the plugin logs and the calls it
+// was denied, and trace each file it read, program it ran and URL it got,
+// with how long it took.
+func Load(ctx context.Context, path string, g Grants, host, cacheDir string, log func(string), trace func(text string, took time.Duration)) (*Plugin, error) {
 	for _, c := range g.Capabilities {
 		if !slices.Contains(capabilities, c) {
 			return nil, fmt.Errorf("plugin %s: no capability %q", path, c)
@@ -111,11 +115,19 @@ func Load(ctx context.Context, path string, g Grants, cacheDir string, log func(
 	if err != nil {
 		return nil, fmt.Errorf("load plugin: %w", err)
 	}
+	m, err := ReadManifest(wasm)
+	if err != nil {
+		return nil, fmt.Errorf("plugin %s: %w", path, err)
+	}
+	if err := m.check(host); err != nil {
+		return nil, err
+	}
+	g.Capabilities = slices.DeleteFunc(slices.Clone(g.Capabilities), func(c string) bool { return !slices.Contains(m.Capabilities, c) })
 	root, err := os.Getwd()
 	if err != nil {
 		return nil, fmt.Errorf("load plugin: %w", err)
 	}
-	p := &Plugin{name: strings.TrimSuffix(filepath.Base(path), ".wasm"), Grants: g, log: log, trace: trace, root: root, turn: make(chan struct{}, 1), jobs: make(chan struct{}, maxJobs), fed: make(chan struct{}, maxFed)}
+	p := &Plugin{name: m.Name, Manifest: m, Grants: g, log: log, trace: trace, root: root, turn: make(chan struct{}, 1), jobs: make(chan struct{}, maxJobs), fed: make(chan struct{}, maxFed)}
 	for _, d := range g.Paths {
 		home, err := expand(d)
 		if err != nil {
@@ -161,7 +173,7 @@ func Load(ctx context.Context, path string, g Grants, cacheDir string, log func(
 	return p, nil
 }
 
-// Name is the plugin's file name without .wasm.
+// Name is the name its manifest gives.
 func (p *Plugin) Name() string { return p.name }
 
 // Registered is what its init registered.

@@ -43,7 +43,7 @@ func TestB57KeyWaitsForAnEvent(t *testing.T) {
 			waited.Do(func() { close(h.release) })
 		}
 	}
-	p, err := plugin.Load(ctx, filepath.Join("testdata", "listen", "listen.wasm"), plugin.Grants{Capabilities: []string{"buffer.read", "ui"}}, t.TempDir(), func(string) {}, trace)
+	p, err := plugin.Load(ctx, filepath.Join("testdata", "listen", "listen.wasm"), plugin.Grants{Capabilities: []string{"buffer.read", "ui"}}, "", t.TempDir(), func(string) {}, trace)
 	if err != nil {
 		t.Fatal(err)
 	}

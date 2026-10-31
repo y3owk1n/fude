@@ -55,9 +55,17 @@ cd wordcount
 fude plugin build
 ```
 
-`fude plugin new` writes a folder with a `go.mod` that requires the sdk and
-a `main.go` with one command. `fude plugin build` builds `wordcount.wasm`
-in the folder, which a `[[plugin]]` table then loads. After a rebuild, or
+`fude plugin new` writes a folder with a `go.mod` that requires the sdk, a
+`main.go` with one command, a `fude.toml` and a release workflow.
+`fude.toml` is the manifest: the plugin's name and the capabilities,
+programs and hosts it asks for. `fude plugin build` builds `wordcount.wasm`
+in the folder with the manifest inside, which a `[[plugin]]` table then
+loads. The plugin may use only the capabilities both its manifest and its
+table list, so add one to the manifest when the plugin starts to need it.
+The build also writes the sdk's version into the manifest. fude refuses a
+plugin built with an sdk newer than itself, or older than the oldest sdk
+it takes, and says which fude the plugin needs. The release workflow builds the plugin on a tag such as
+`v1.0.0` and attaches its `.wasm` to the release. After a rebuild, or
 a change to the tables, `:plugin reload` loads every plugin anew. Give
 its repo the `fude-plugin` topic on GitHub so others find it.
 

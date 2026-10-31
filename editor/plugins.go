@@ -108,7 +108,7 @@ func (e *Session) loadPlugins() {
 		go func() {
 			defer scope.Done()
 			ctx, at := context.Background(), time.Now()
-			p, err := plugin.Load(ctx, path, plugin.Grants{Capabilities: s.Capabilities, Programs: s.Programs, Hosts: s.Hosts, Paths: s.Paths, Options: options}, filepath.Join(cache, "fude", "wasm"), logLine, func(text string, took time.Duration) { trace.Record("plugin", text, took) })
+			p, err := plugin.Load(ctx, path, plugin.Grants{Capabilities: s.Capabilities, Programs: s.Programs, Hosts: s.Hosts, Paths: s.Paths, Options: options}, e.version, filepath.Join(cache, "fude", "wasm"), logLine, func(text string, took time.Duration) { trace.Record("plugin", text, took) })
 			if err != nil {
 				trace.Since("plugin", "load "+path, at, err)
 				e.queue <- func() {

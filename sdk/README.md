@@ -8,7 +8,7 @@ You need Go and [TinyGo](https://tinygo.org).
 fude plugin new upper && cd upper && fude plugin build
 ```
 
-`fude plugin new` writes a `go.mod` and a `main.go` and gets this module. `fude plugin build` builds the plugin with TinyGo into `upper.wasm`.
+`fude plugin new` writes a `go.mod`, a `main.go`, a `fude.toml` and a release workflow, and gets this module. `fude.toml` names the plugin and lists the capabilities it asks for. `fude plugin build` builds the plugin with TinyGo into `upper.wasm`, with that manifest and the version of this module inside.
 
 ## Example
 
@@ -34,6 +34,15 @@ func init() {
 
 func main() {}
 ```
+
+Its `fude.toml` asks for what it uses:
+
+```toml
+name = "upper"
+capabilities = ["buffer.read", "buffer.write"]
+```
+
+And a table in fude's `config.toml` grants it:
 
 ```toml
 [[plugin]]

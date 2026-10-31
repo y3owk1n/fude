@@ -1812,3 +1812,6 @@ plugin asks for. The table in config.toml still grants them, and a
 plugin gets only the capabilities both list (B604). So a manifest that
 leaves one out fails in the author's own tests, and the table `fude
 plugin add` writes from it lists every capability the plugin uses.
+
+The `plugin` module reads `fude.toml` with go-toml, which fude already
+reads config.toml with, as the standard library has no TOML.
