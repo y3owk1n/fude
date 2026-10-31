@@ -46,5 +46,6 @@ func Stores() ([]Store, error) {
 		{"log", filepath.Join(state, "log"), "what plugins log and language servers print on stderr", ""},
 		{"grammars", filepath.Join(data, "fude", "grammars"), "the tree-sitter grammars fude built, which it builds again", ""},
 		{"plugins", filepath.Join(cache, "fude", "wasm"), "plugins compiled for this machine, which fude compiles again", ""},
+		{"installed", filepath.Join(data, "fude", "plugins"), "the plugins fude installed from repos, which it installs again", ""},
 	}, nil
 }

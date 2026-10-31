@@ -105,9 +105,9 @@ func ReadManifest(wasm []byte) (Manifest, error) {
 	return m, nil
 }
 
-// check returns why fude at version host does not load a plugin of m, or
+// Check returns why fude at version host does not load a plugin of m, or
 // nil. host is v1.2.3, or "" for a build that is no release (B603).
-func (m Manifest) check(host string) error {
+func (m Manifest) Check(host string) error {
 	switch {
 	case m.SDK == "":
 		return nil

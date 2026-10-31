@@ -292,6 +292,8 @@ the sources it names, so leaving a name out turns that source off.
 When a file needs a grammar that is not built yet, fude builds it in the
 background, with git and the tree-sitter CLI, which must be on PATH. Off,
 only grammars already built load, and `:grammar install` builds one by hand.
+A plugin of a `repo` that is not installed installs in the background too,
+and loads once it is. Off, it does not load.
 
 ## socket
 
@@ -851,6 +853,25 @@ The plugin's WebAssembly file, from the folder of config.toml, such as
 `plugins/wordcount.wasm`, or the folder of its source. fude loads the
 `.wasm` built in a folder, and builds it first with TinyGo when it is
 missing or a file of the source is newer.
+
+## plugin.repo
+
+The repo the plugin installs from, such as `github.com/y3owk1n/fude-org`,
+or any URL git fetches. fude takes the `.wasm` the release carries, at
+`<repo>/releases/download/<tag>/<name>.wasm`, with `<name>` the repo's
+last part. When the release has no `.wasm`, or `version` names a branch
+or commit, fude fetches that commit with git and builds it with TinyGo. It says "installing" when it starts and
+"installed" with the version when it ends. `plugins.lock` beside
+config.toml pins the commit, so the next run loads the plugin with no
+network, and another machine with the same lock installs the same one.
+A table takes one of `path` and `repo`.
+
+## plugin.version
+
+The tag, branch or full commit of `repo` to install. Unset, fude takes
+the newest release `vX.Y.Z` whose plugin this fude loads, and keeps it
+until the lock changes. A version that is not the one locked installs
+again.
 
 ## plugin.capabilities
 

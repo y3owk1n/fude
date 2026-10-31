@@ -119,7 +119,7 @@ func Load(ctx context.Context, path string, g Grants, host, cacheDir string, log
 	if err != nil {
 		return nil, fmt.Errorf("plugin %s: %w", path, err)
 	}
-	if err := m.check(host); err != nil {
+	if err := m.Check(host); err != nil {
 		return nil, err
 	}
 	g.Capabilities = slices.DeleteFunc(slices.Clone(g.Capabilities), func(c string) bool { return !slices.Contains(m.Capabilities, c) })

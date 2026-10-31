@@ -18,6 +18,18 @@ programs = ["git"]
 
 `path` is the module's file, from the folder of `config.toml`, or the
 folder of a plugin's source, which fude builds when the source changes.
+In place of `path`, `repo` installs the plugin from a repo:
+
+```toml
+[[plugin]]
+repo = "github.com/y3owk1n/fude-org"
+capabilities = ["buffer.read", "ui"]
+```
+
+fude takes the newest release this fude loads, or the tag, branch or
+commit `version` names. It installs in the background and says when it
+is done. `plugins.lock`, beside `config.toml`, pins what it installed, so
+keep it with your config and another machine installs the same.
 `disabled = true` keeps it from loading, with the table kept.
 `capabilities` lets it call what each one grants.
 

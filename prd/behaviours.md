@@ -1990,7 +1990,7 @@ Where fude departs, the line says so and cites the departure in
   A `repo`, such as `github.com/owner/name` or a git URL, installs the
   plugin from it. Its `version` is a tag, branch or commit, and without
   one fude takes the newest release that it loads (B603). A table with
-  both or neither says so with its line. A plugin's name is the one its
+  both or neither says so, by its number among the tables. A plugin's name is the one its
   manifest gives, whatever its file is called.
 - B597 [4] Installing a repo's plugin writes its entry in `plugins.lock`
   beside config.toml: the repo, the version, the commit, and the sha256

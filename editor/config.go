@@ -40,7 +40,7 @@ type config struct {
 	Autocomplete   bool              `toml:"autocomplete" help:"completions show while typing, not only on <C-x><C-o>"`
 	RemoteImages   bool              `toml:"remote_images" help:"images at http and https addresses load from the network"`
 	Sources        []string          `toml:"completion_sources" help:"where completions come from, in the menu's order, from lsp, snippet, path, buffer and plugins' sources, all of them when unset or empty"`
-	AutoInstall    bool              `toml:"auto_install" help:"builds a missing grammar the first time a file needs it"`
+	AutoInstall    bool              `toml:"auto_install" help:"builds a missing grammar the first time a file needs it, and installs a plugin of a repo that is not installed"`
 	Socket         string            `toml:"socket" help:"where clients attach, instead of a path for each process"`
 	FormatOnSave   bool              `toml:"format_on_save" help:"a write formats the buffer first"`
 	FormatTimeout  uint              `toml:"format_timeout" help:"the milliseconds formatting may take"`
@@ -89,6 +89,8 @@ type config struct {
 	Module map[string]map[string]any `toml:"module" key:"name" help:"the starting values of a module's options by their names, as enabled = false in [module.autopairs] for autopairs.enabled"`
 	Plugin []struct {
 		Path         string         `toml:"path" help:"the plugin's .wasm, or the folder of its source to build, from the config directory"`
+		Repo         string         `toml:"repo" help:"the repo the plugin installs from, as github.com/owner/name or a git URL"`
+		Version      string         `toml:"version" help:"the tag, branch or commit of the repo to install, the newest release fude loads when unset"`
 		Capabilities []string       `toml:"capabilities" help:"what the plugin may do"`
 		Programs     []string       `toml:"programs" help:"the programs process may run"`
 		Hosts        []string       `toml:"hosts" help:"the hosts net may reach"`
