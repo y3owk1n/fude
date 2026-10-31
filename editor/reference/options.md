@@ -1,9 +1,12 @@
 # Options
 
-The settings of a window. `:set name value` changes one in the current
-window and those opened after it, and `:set name` shows its value. A
-switch takes true or false. config.toml sets their starting values, and a
-`[filetype.<name>]` table sets some for one filetype.
+The settings of a window.
+
+- `:set name value` changes one in the current window and those opened
+  after it, and `:set name` shows its value.
+- A switch takes true or false.
+- config.toml sets their starting values, and a `[filetype.<name>]` table
+  sets some for one filetype.
 
 ## number
 
@@ -18,10 +21,12 @@ Numbers each line by its distance from the cursor's, for counts such as
 ## wrap
 
 A line longer than the window goes on over the rows below, and a line
-taller than the window shows the rows around the cursor. Off, each line
-takes one row and the window scrolls sideways to keep the cursor in view,
-and a line too long to show whole matches brackets and shows search
-matches only in the columns in view.
+taller than the window shows the rows around the cursor.
+
+- Off, each line takes one row and the window scrolls sideways to keep
+  the cursor in view.
+- Off, a line too long to show whole matches brackets and shows search
+  matches only in the columns in view.
 
 ## line_break
 
@@ -39,11 +44,15 @@ indent keeps at least 20 columns of the window for the text.
 ## text_width
 
 Typing past this column in insert mode breaks the line at the last blank
-that leaves it within the column. The new line keeps the line's indent
-and a comment's marker, as `//` or `#`, and goes under the text of a list
-item. `gq` fills prose to this width when nothing else formats the file,
-or to 79 columns when it is 0. 0, the default, never breaks a line typed.
-A `[filetype.markdown]` table may set it for one filetype.
+that leaves it within the column.
+
+- The new line keeps the line's indent and a comment's marker, as `//`
+  or `#`.
+- The new line goes under the text of a list item.
+- `gq` fills prose to this width when nothing else formats the file, or
+  to 79 columns when it is 0.
+- 0, the default, never breaks a line typed.
+- A `[filetype.markdown]` table may set it for one filetype.
 
 ## scroll_off
 
@@ -111,12 +120,15 @@ of diagnostic signs. Needs a terminal font with nerd font glyphs.
 
 ## spell.enabled
 
-Underlines the words the word list lacks: all the text of Markdown, text
-and git commit files but their code and links, and the comments and
-strings of other files. `]s` and `[s` go to them, `z=` lists words for
-the one under the cursor, and `zg` adds it to your words. A filetype
-table may turn it on, as `[filetype.markdown] spell = true`. Off unless
-set.
+Underlines the words the word list lacks. Off unless set.
+
+- In Markdown, text and git commit files it underlines in all the text
+  but their code and links.
+- In other files it underlines in the comments and strings.
+- `]s` and `[s` go to them.
+- `z=` lists words for the one under the cursor.
+- `zg` adds the word under the cursor to your words.
+- A filetype table may turn it on, as `[filetype.markdown] spell = true`.
 
 ## inc_search
 
@@ -146,11 +158,15 @@ show each one.
 
 ## markdown.enabled
 
-A markdown file draws as it reads. A heading's `#`s go and its line is on
-its level's colour, a code block is on the surface colour without its
-fences, bullets, checkboxes, quotes and rules show as marks, and a
-table's columns line up between box lines. Emphasis loses its marks, a
-link shows its text alone, and an image file shows below its line where
-the terminal shows images. The cursor's line, and
-a selection's, show their text as it is. The default is on, and
+A markdown file draws as it reads. The default is on.
+
+- A heading's `#`s go and its line is on its level's colour.
+- A code block is on the surface colour without its fences.
+- Bullets, checkboxes, quotes and rules show as marks.
+- A table's columns line up between box lines.
+- Emphasis loses its marks.
+- A link shows its text alone.
+- An image file shows below its line where the terminal shows images.
+
+The cursor's line, and a selection's, show their text as it is.
 `:set markdown.enabled false` shows the text as it is everywhere.

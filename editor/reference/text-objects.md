@@ -1,20 +1,30 @@
 # Text objects
 
 A text object selects text around the cursor, wherever in it the cursor
-is. It works after an operator, as `diw` deletes the word, and in visual
-mode, where it selects what it covers at the cursor. An `i` object takes the text inside, and an `a` object takes the
-pair or the blanks around it too. n is the count typed before it, or 1
-without one. A count after the operator works as well, so `d2aw` and
-`2daw` both delete two words.
+is.
 
-An object that finds nothing fails, so the operator does nothing. Most
-select characters. `ip`, `ap`, `al` and `gc` select whole lines, as does
-an `i` bracket object whose brackets sit on lines of their own. In visual
-mode such an object selects lines as `V` does. Typing an object again in
-visual mode grows the selection. A word, sentence or paragraph object adds
-the next one after it, so `vawaw` selects two words. A bracket, quote or
-tag object takes the next pair out, so `vi(i(` selects inside the
-parentheses around those, and `vi"i"` takes the quotes too.
+- It works after an operator, as `diw` deletes the word, and in visual
+  mode, where it selects what it covers at the cursor.
+- An `i` object takes the text inside, and an `a` object takes the pair or
+  the blanks around it too.
+- n is the count typed before it, or 1 without one. A count after the
+  operator works as well, so `d2aw` and `2daw` both delete two words.
+
+An object that finds nothing fails, so the operator does nothing.
+
+Most select characters.
+
+- `ip`, `ap`, `al` and `gc` select whole lines, as does an `i` bracket
+  object whose brackets sit on lines of their own.
+- In visual mode such an object selects lines as `V` does.
+
+Typing an object again in visual mode grows the selection.
+
+- A word, sentence or paragraph object adds the next one after it, so
+  `vawaw` selects two words.
+- A bracket, quote or tag object takes the next pair out, so `vi(i(`
+  selects inside the parentheses around those, and `vi"i"` takes the
+  quotes too.
 
 ```keys
 "foo |bar baz qux" "vawawd" "foo |qux"
@@ -23,18 +33,24 @@ parentheses around those, and `vi"i"` takes the quotes too.
 ```
 
 The syntax objects, `af` to `[n` at the end, come from the grammar of the
-file's filetype. With no grammar built for it, or before its first parse,
-they find nothing. When the selection is already what `af`, `if`, `ac`,
-`ic`, `aa` or `ia` selects, it takes the next larger one, so a count, or
-the object again in visual mode, grows the selection.
+file's filetype.
+
+- With no grammar built for it, or before its first parse, they find
+  nothing.
+- When the selection is already what `af`, `if`, `ac`, `ic`, `aa` or `ia`
+  selects, it takes the next larger one, so a count, or the object again
+  in visual mode, grows the selection.
 
 ## a"
 
 The string in double quotes around the cursor, the quotes and the blanks
-after it, or the blanks before it when none follow. It looks on the
-cursor's line only, and a quote after a backslash does not count. On a
-quote, the quotes pair from the start of the line. Off one, it takes the
-quotes around the cursor, or the first string after it on the line.
+after it, or the blanks before it when none follow.
+
+- It looks on the cursor's line only.
+- A quote after a backslash does not count.
+- On a quote, the quotes pair from the start of the line.
+- Off one, it takes the quotes around the cursor, or the first string
+  after it on the line.
 
 ```keys
 "x = |\"ab\" + y" "da\"" "x = |+ y"
@@ -53,9 +69,12 @@ The string in single quotes, as `a"` takes one in double quotes.
 ## a(
 
 The parentheses around the cursor and the text inside, or the n-th pair
-out. A `(` under the cursor counts as the first. Off any pair, it takes
-the first pair after the cursor on its line. It may span lines.
-`a)` is the same.
+out.
+
+- A `(` under the cursor counts as the first.
+- Off any pair, it takes the first pair after the cursor on its line.
+- It may span lines.
+- `a)` is the same.
 
 ```keys
 "x = f(a, |b)" "da(" "x = |f"
@@ -109,8 +128,11 @@ it. A count changes nothing.
 ## ap
 
 The paragraph and the blank lines after it, n times, or the blank lines
-before it when it ends the text. A line of only blanks counts as blank.
-On blank lines it takes them and the paragraph after. Linewise.
+before it when it ends the text.
+
+- A line of only blanks counts as blank.
+- On blank lines it takes them and the paragraph after.
+- It is linewise.
 
 ```keys
 "|a\nb\n\nc" "dap" "|c"
@@ -121,9 +143,11 @@ On blank lines it takes them and the paragraph after. Linewise.
 ## as
 
 The sentence and the blanks after it, or the blanks before it when it is
-the paragraph's last, n times. A sentence ends as `)` finds the end.
-When the text ends a line and starts at or before its first non-blank,
-it takes whole lines.
+the paragraph's last, n times.
+
+- A sentence ends as `)` finds the end.
+- When the text ends a line and starts at or before its first non-blank,
+  it takes whole lines.
 
 ```keys
 "One. T|wo. Three." "das" "One. |Three."
@@ -133,9 +157,10 @@ it takes whole lines.
 ## at
 
 The n-th pair of tags of one name around the cursor, from the `<` of the
-opening tag to the `>` of the closing one. It reads the whole text, so a
-pair may span lines. A tag that closes itself, as `<br/>`, and a comment
-pair with nothing.
+opening tag to the `>` of the closing one.
+
+- It reads the whole text, so a pair may span lines.
+- A tag that closes itself, as `<br/>`, and a comment pair with nothing.
 
 ```keys
 "<p>a <b>|x</b></p>" "dat" "<p>a |</p>"
@@ -152,10 +177,13 @@ n runs of non-blanks, each with the blanks after it, as `aw` takes words.
 
 ## aw
 
-n words, each with the blanks after it. At the line's end, with no blanks
-after, it takes the blanks before. On blanks, it takes them and the word
-after. It stays on the cursor's line, and fails on an empty line or when
-the line has fewer than n words left.
+n words, each with the blanks after it.
+
+- At the line's end, with no blanks after, it takes the blanks before.
+- On blanks, it takes them and the word after.
+- It stays on the cursor's line.
+- It fails on an empty line or when the line has fewer than n words
+  left.
 
 ```keys
 "foo |bar baz" "daw" "foo |baz"
@@ -175,10 +203,12 @@ parentheses. `a}` is the same.
 
 ## i"
 
-The text inside the double quotes around the cursor, without them. It
-finds the string as `a"` does. `2i"` takes the quotes too, without the
-blanks around them. On an empty string it selects nothing, and `ci"`
-still starts insert mode between the quotes.
+The text inside the double quotes around the cursor, without them.
+
+- It finds the string as `a"` does.
+- `2i"` takes the quotes too, without the blanks around them.
+- On an empty string it selects nothing, and `ci"` still starts insert
+  mode between the quotes.
 
 ```keys
 "x = \"a|b\" y" "di\"" "x = \"|\" y"
@@ -199,9 +229,11 @@ quotes.
 ## i(
 
 The text inside the parentheses around the cursor, or the n-th pair out,
-found as `a(` finds them. When the `(` ends its line and the `)` starts
-its own, it takes the whole lines between them, linewise. `i)` is the
-same.
+found as `a(` finds them.
+
+- When the `(` ends its line and the `)` starts its own, it takes the
+  whole lines between them, linewise.
+- `i)` is the same.
 
 ```keys
 "f(a, |b)" "di(" "f(|)"
@@ -257,7 +289,10 @@ nothing.
 ## ip
 
 The paragraph, n times, where each run of blank lines between paragraphs
-counts as one. A line of only blanks counts as blank. Linewise.
+counts as one.
+
+- A line of only blanks counts as blank.
+- It is linewise.
 
 ```keys
 "|a\nb\n\nc" "dip" "|\nc"
@@ -267,9 +302,12 @@ counts as one. A line of only blanks counts as blank. Linewise.
 ## is
 
 The sentence, n times, where the blanks between two sentences count as
-one. It stays in the paragraph, and fails when the paragraph has fewer
-left. When the text ends a line and starts at or before its first
-non-blank, it takes whole lines.
+one.
+
+- It stays in the paragraph, and fails when the paragraph has fewer
+  left.
+- When the text ends a line and starts at or before its first non-blank,
+  it takes whole lines.
 
 ```keys
 "One. T|wo. Three." "dis" "One. | Three."
@@ -298,8 +336,10 @@ n runs of non-blanks or of blanks, as `iw` takes words.
 ## iw
 
 n runs of word characters, other non-blanks, or blanks, as `w` counts
-words, each run one. It stays on the cursor's line, and fails on an empty
-line or when the line has fewer runs left.
+words, each run one.
+
+- It stays on the cursor's line.
+- It fails on an empty line or when the line has fewer runs left.
 
 ```keys
 "foo |bar baz" "diw" "foo | baz"
@@ -310,9 +350,11 @@ line or when the line has fewer runs left.
 ## i{
 
 The text inside the braces, as `i(` takes the text inside parentheses.
-When the `{` ends its line and the `}` starts its own, as around a block
-of code, it takes the lines between them, so `ci{` changes the body and
-keeps the first line's indent. `i}` is the same.
+
+- When the `{` ends its line and the `}` starts its own, as around a
+  block of code, it takes the lines between them, so `ci{` changes the
+  body and keeps the first line's indent.
+- `i}` is the same.
 
 ```keys
 "if x {\n\t|a\n\tb\n}" "di{" "if x {\n|}"
@@ -350,18 +392,23 @@ the function that holds it.
 
 ## gc
 
-The comment block at the cursor, which is the lines around it commented in
-the language's comment syntax, up to a line that is not commented or is
-blank. It selects whole lines, so `dgc` deletes the block, `cgc` changes
-it, `ygc` yanks it and `gcgc` uncomments it. It works after an operator
-only, since `gc` in visual mode comments the selection. On a line that is
-not commented it fails. It comes with the comment module.
+The comment block at the cursor, which is the lines around it commented
+in the language's comment syntax, up to a line that is not commented or
+is blank.
+
+- It selects whole lines, so `dgc` deletes the block, `cgc` changes it,
+  `ygc` yanks it and `gcgc` uncomments it.
+- It works after an operator only, since `gc` in visual mode comments
+  the selection.
+- On a line that is not commented it fails.
+- It comes with the comment module.
 
 ## an
 
 The smallest syntax node that holds the character under the cursor, or
-in visual mode the selection. When the selection is already that node, it takes
-the node's parent, so each `an` climbs one level, and a count climbs n.
+in visual mode the selection. When the selection is already that node, it
+takes the node's parent, so each `an` climbs one level, and a count
+climbs n.
 
 ## ia
 
@@ -378,6 +425,8 @@ The body of the function at the cursor, as `af` takes the whole function.
 ## in
 
 The node `an` last climbed from, so `in` after `an` goes back down one
-level. Without that, it takes the first child of the selected node. When
-the selection is not a node, it takes the first node inside it, or else
-the smallest node that holds it.
+level.
+
+- Without that, it takes the first child of the selected node.
+- When the selection is not a node, it takes the first node inside it,
+  or else the smallest node that holds it.

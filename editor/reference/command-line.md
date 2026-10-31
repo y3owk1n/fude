@@ -1,25 +1,32 @@
 # Command line
 
-The `:` line and the searches `/` and `?` share these keys. Typed text goes
-in at the line's cursor. `:` lines keep one history and searches another,
-`/` and `?` alike, so `<Up>` in a search never recalls a command. A count,
-a register or an operator typed before `/` or `?` waits for the search, so
-`d/x<CR>` deletes up to the next `x`, and in visual mode a search moves the
-selection's end.
+The `:` line and the searches `/` and `?` share these keys.
+
+- Typed text goes in at the line's cursor.
+- `:` lines keep one history and searches another, `/` and `?` alike, so
+  `<Up>` in a search never recalls a command.
+- A count, a register or an operator typed before `/` or `?` waits for
+  the search, so `d/x<CR>` deletes up to the next `x`.
+- In visual mode a search moves the selection's end.
 
 In a `:` line, `<Tab>` puts the next completion of the word being typed in
-the line, and `<S-Tab>` the one before. While a menu of them shows,
-`<C-n>` and `<C-p>` step through it as well. The menu shows them above the
-line, ranked by how well they match, and after the
-last comes the word as typed. The word is a command's name, its short
-names matching as it does, or an argument the command takes, such as a
-path for `:edit` or an option for `:set`. The menu lights the item the
-word is, or else its first. A path that is there already, such as `.` or
-`src/`, lights none, so `<CR>` opens it as typed. While the typed word is
-in the line, `<CR>` runs the lit item and `<Tab>` puts it in the line. `<C-y>` keeps the
-completion in the line and `<C-e>` puts the typed word back. With
-`autocomplete` on, the menu shows as the line is typed. Searches do not
-complete.
+the line, and `<S-Tab>` the one before. Searches do not complete.
+
+- While a menu of them shows, `<C-n>` and `<C-p>` step through it as
+  well.
+- The menu shows them above the line, ranked by how well they match, and
+  after the last comes the word as typed.
+- The word is a command's name, its short names matching as it does, or
+  an argument the command takes, such as a path for `:edit` or an option
+  for `:set`.
+- The menu lights the item the word is, or else its first.
+- A path that is there already, such as `.` or `src/`, lights none, so
+  `<CR>` opens it as typed.
+- While the typed word is in the line, `<CR>` runs the lit item and
+  `<Tab>` puts it in the line.
+- `<C-y>` keeps the completion in the line and `<C-e>` puts the typed
+  word back.
+- With `autocomplete` on, the menu shows as the line is typed.
 
 ## <BS>
 
@@ -65,9 +72,11 @@ instead.
 ## <C-g>
 
 While a search is typed, moves the match it goes to on to the next one,
-wrapping around the text, so `<CR>` goes there. The window shows it as it
-shows the first. Typing more searches on from there. An operator takes the
-text up to that match.
+wrapping around the text, so `<CR>` goes there.
+
+- The window shows it as it shows the first.
+- Typing more searches on from there.
+- An operator takes the text up to that match.
 
 ```keys
 "|x foo foo foo y" "/foo<C-g><CR>" "x foo |foo foo y"
@@ -116,10 +125,13 @@ shows in a `:` line, it puts the completion before instead.
 ## <C-r>
 
 Types the register named next at the cursor, without its last line break,
-so `<C-r>"` types what was last yanked. `<C-r><C-w>` types the word under
-the text's cursor instead, so `:s/<C-r><C-w>/` starts a substitute of it.
-`<C-r><C-a>` types the word of non-blanks there, and `<C-r><C-l>` the
-cursor's line. An empty register types nothing.
+so `<C-r>"` types what was last yanked.
+
+- `<C-r><C-w>` types the word under the text's cursor instead, so
+  `:s/<C-r><C-w>/` starts a substitute of it.
+- `<C-r><C-a>` types the word of non-blanks there.
+- `<C-r><C-l>` types the cursor's line.
+- An empty register types nothing.
 
 ```keys
 "|foo bar foo" "yiw/<C-r>\"<CR>" "foo bar |foo"
@@ -170,10 +182,12 @@ run of letters, digits and `_`, or a run of other characters, so in
 
 ## <CR>
 
-Runs a `:` line as a command, or a search line as a search. A search with an
-empty line repeats the last one. A `:` line goes to the register `:`, so
-`@:` runs it again, and a search becomes the last search, for `n` and
-`N`. Each line goes in its history as the newest, once.
+Runs a `:` line as a command, or a search line as a search.
+
+- A search with an empty line repeats the last one.
+- A `:` line goes to the register `:`, so `@:` runs it again.
+- A search becomes the last search, for `n` and `N`.
+- Each line goes in its history as the newest, once.
 
 ```keys
 "|ab ab ab" "/ab<CR>/<CR>" "ab ab |ab"

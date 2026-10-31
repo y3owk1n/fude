@@ -1,23 +1,29 @@
 # Settings
 
-The keys of config.toml, beside the options above. `:set name value`
-changes any of them in the running fude, as config.toml would, and never
-writes config.toml. The tables, such
-as `keymap` and `filetype`, change in config.toml, and `:config reload`
-reads it again.
+The keys of config.toml, beside the options above.
+
+- `:set name value` changes any of them in the running fude, as
+  config.toml would, and never writes config.toml.
+- The tables, such as `keymap` and `filetype`, change in config.toml, and
+  `:config reload` reads it again.
 
 ## indent_width
 
 How many columns one indent level is, for `>`, `<`, insert mode's `<C-t>`
-and `<C-d>`, and the indent guides. 0, the default, means `tab_width`. With
-`expand_tab` on, indents are spaces, and otherwise tabs as far as they go. A
-`[filetype.<name>]` table sets it for one filetype.
+and `<C-d>`, and the indent guides.
+
+- 0, the default, means `tab_width`.
+- With `expand_tab` on, indents are spaces, and otherwise tabs as far as
+  they go.
+- A `[filetype.<name>]` table sets it for one filetype.
 
 ## tab_width
 
-How many columns a tab shows as, 8 unless set. Indents count tabs at this
-width, so with `tab_width = 4` and `indent_width = 2`, two `>>` make one
-tab. A `[filetype.<name>]` table sets it for one filetype.
+How many columns a tab shows as, 8 unless set.
+
+- Indents count tabs at this width, so with `tab_width = 4` and
+  `indent_width = 2`, two `>>` make one tab.
+- A `[filetype.<name>]` table sets it for one filetype.
 
 ```toml
 [filetype.go]
@@ -27,11 +33,12 @@ tab_width = 4
 ## editorconfig.enabled
 
 Opening a file reads the `.editorconfig` files in its folder and each one
-above it, up to the first that sets `root = true`. Their `indent_style`,
-`indent_size` and `tab_width` set the file's `expand_tab`, `indent_width`
-and `tab_width`, over config.toml's. `~/.editorconfig` applies to every
-file under the home folder, unless a project's `.editorconfig` above the
-file sets `root = true`. On unless set.
+above it, up to the first that sets `root = true`. On unless set.
+
+- Their `indent_style`, `indent_size` and `tab_width` set the file's
+  `expand_tab`, `indent_width` and `tab_width`, over config.toml's.
+- `~/.editorconfig` applies to every file under the home folder, unless a
+  project's `.editorconfig` above the file sets `root = true`.
 
 ```toml
 [module.editorconfig]
@@ -41,9 +48,10 @@ enabled = false
 ## key_timeout
 
 When the keys typed start a longer mapping, such as `<Leader>` with
-`<Leader>w` mapped, fude waits this many milliseconds for the next key. With
-none, it runs the mapping the keys complete, or the keys as typed. While the
-key hints show, it waits for the next key instead.
+`<Leader>w` mapped, fude waits this many milliseconds for the next key.
+
+- With none, it runs the mapping the keys complete, or the keys as typed.
+- While the key hints show, it waits for the next key instead.
 
 ## hints.enabled
 
@@ -80,19 +88,22 @@ keeps none, and the last one kept stays. On unless set.
 ## large_file
 
 A file larger than this many megabytes opens with syntax colours and
-language servers off, and fude says so when it opens one. The default is
-2. A file's syntax tree takes about 30 times the file's size in memory,
-60MB for a 2MB file.
+language servers off, and fude says so when it opens one.
+
+- The default is 2.
+- A file's syntax tree takes about 30 times the file's size in memory,
+  60MB for a 2MB file.
 
 ## center
 
 Starts with the windows centered, as `:center` and `<Plug>(theme.center)`
-toggle them. On a wide screen, the windows then sit in its middle, with
-blank margins on either side, so the text is in front of you on a wide
-monitor. Each window gets `color_column` columns of text, or 100 without
-one, and its gutter, so a split side by side doubles the width. When the
-windows need more than the screen, they take all of it. The default is
-off.
+toggle them. The default is off.
+
+- On a wide screen, the windows then sit in its middle, with blank margins
+  on either side, so the text is in front of you on a wide monitor.
+- Each window gets `color_column` columns of text, or 100 without one, and
+  its gutter, so a split side by side doubles the width.
+- When the windows need more than the screen, they take all of it.
 
 ## terminal_height
 
@@ -102,11 +113,17 @@ changes it after.
 
 ## open
 
-Where each module's windows open, by the module's name: `above`, `below`,
-`left` or `right` of the current window, `here` in it, or `float` in the
-middle of the screen or at the `cursor`. It wins over where the module
-asks, and `:window` typed before a command, such as `:window float help`,
-wins over it. A window its module locks opens where the module asks.
+Where each module's windows open, by the module's name, as one of these:
+
+- `above`, `below`, `left` or `right` opens them on that side of the
+  current window.
+- `here` opens them in the current window.
+- `float` opens them in a float in the middle of the screen.
+- `cursor` opens them in a float at the cursor.
+
+It wins over where the module asks, and `:window` typed before a command,
+such as `:window float help`, wins over it. A window its module locks
+opens where the module asks.
 
 ```toml
 [open]
@@ -118,8 +135,10 @@ timeline = "left"
 ## module
 
 Where a module's options start, in a table named after the module.
-`:set` takes each option as the module's name, a dot and the key. A key that names no option of the module, or a value of the
-wrong kind, is an error that names it.
+
+- `:set` takes each option as the module's name, a dot and the key.
+- A key that names no option of the module, or a value of the wrong kind,
+  is an error that names it.
 
 ```toml
 [module.autopairs]
@@ -139,48 +158,59 @@ right of the current one, or left of it when off. On unless set.
 
 ## autocomplete
 
-In insert mode, the completions of the sources `completion_sources` names
-show as a word or a trigger character such as `.` is typed, with none put
-in the text until `<C-n>` or `<C-p>`. On the command line, the completion
-menu shows as the line is typed. Off, `<C-x><C-o>` and `<Tab>` ask for
-them.
+Completions show on their own as text is typed.
+
+- In insert mode, the completions of the sources `completion_sources`
+  names show as a word or a trigger character such as `.` is typed. None
+  goes in the text until `<C-n>` or `<C-p>`.
+- On the command line, the completion menu shows as the line is typed.
+- Off, `<C-x><C-o>` and `<Tab>` ask for them.
 
 ## git.signs
 
 A file in a git repository shows in the sign column which lines differ
-from git's index. The default is on. When it is off, the sign column shows no git signs,
-and `]h`, `[h`, `gh` and `gH` still act on the hunks.
+from git's index. The default is on.
+
+- When it is off, the sign column shows no git signs.
+- When it is off, `]h`, `[h`, `gh` and `gH` still act on the hunks.
 
 ## remote_images
 
 An image at an http or https address, such as one a markdown file shows,
-loads from the network, in at most 10 seconds and 16MB. The default is
-on. `:set remote_images false` stops new ones loading, so opening a file
-contacts no server it names.
+loads from the network. The default is on.
+
+- It loads in at most 10 seconds and 16MB.
+- `:set remote_images false` stops new ones loading, so opening a file
+  contacts no server it names.
 
 ## colours.enabled
 
 Text that names a colour shows on that colour, in black or white text,
-whichever reads better. That is `#rgb`, `#rgba`, `#rrggbb` and
-`#rrggbbaa`, the CSS functions `rgb()`, `rgba()`, `hsl()` and `hsla()`,
-and the colours a language server reports, such as Tailwind's class
-names. The default is on.
+whichever reads better. The default is on.
+
+- `#rgb`, `#rgba`, `#rrggbb` and `#rrggbbaa` name a colour.
+- The CSS functions `rgb()`, `rgba()`, `hsl()` and `hsla()` name one.
+- The colours a language server reports, such as Tailwind's class names,
+  show too.
 
 ## inlay.enabled
 
-A language server's inlay hints, such as the names of a call's
-parameters or a variable's inferred type, show among the text in a dim
-colour, at the place the server gives. They are not part of the text, so
-the cursor and edits pass over them. The default is on. Some servers send
-hints only when their settings ask for them, such as gopls with
-`[lsp.gopls.settings.gopls.hints]`.
+A language server's inlay hints, such as the names of a call's parameters
+or a variable's inferred type, show among the text in a dim colour, at the
+place the server gives. The default is on.
+
+- They are not part of the text, so the cursor and edits pass over them.
+- Some servers send hints only when their settings ask for them, such as
+  gopls with `[lsp.gopls.settings.gopls.hints]`.
 
 ## lens.enabled
 
 A language server's code lenses, such as a test's run or a function's
 count of references, show in a dim row above the line each is about,
-joined by `|`. They show on the cursor's line too, and `grx` runs the one
-on it. The default is on.
+joined by `|`. The default is on.
+
+- They show on the cursor's line too.
+- `grx` runs the one on the cursor's line.
 
 ## references.enabled
 
@@ -192,18 +222,24 @@ changes. The default is on.
 ## autopairs.enabled
 
 An opening bracket or quote typed in insert mode comes with its closing
-one, before a blank, a line end or a closing bracket. Typing the closing
-one steps over it, `<BS>` in an empty pair deletes both, and `<CR>` in
-empty brackets opens an indented line between them. A quote after a
-letter stays one, as in `don't`. The default is on.
+one, before a blank, a line end or a closing bracket. The default is on.
+
+- Typing the closing one steps over it.
+- `<BS>` in an empty pair deletes both.
+- `<CR>` in empty brackets opens an indented line between them.
+- A quote after a letter stays one, as in `don't`.
 
 ## fold.column
 
-The sign column shows the folds. It puts `-` on a line that starts an open
-fold, `+` on a closed one, and `│` on the other lines a fold holds, or the
-characters `[fill_chars]` gives them. A line with another sign, such as
-git's or a diagnostic's, shows that one. Every window on a buffer shows
-the same column. Off unless set.
+The sign column shows the folds. Off unless set.
+
+- `-` marks a line that starts an open fold.
+- `+` marks a closed fold.
+- `│` marks the other lines a fold holds.
+- `[fill_chars]` gives other characters for these.
+- A line with another sign, such as git's or a diagnostic's, shows that
+  one.
+- Every window on a buffer shows the same column.
 
 ```toml
 [module.fold]
@@ -212,13 +248,15 @@ column = true
 
 ## virtual_edit
 
-Where the cursor may go past the end of its line. `block` lets it in a
-block selection, so `<C-v>`, `j` and `l` select a rectangle wider than
-short lines, and `A` types after it on every line, filling short ones
-with blanks. `all` lets it in normal mode too, where `i` or `a` past the
-end types after blanks out to the cursor. `onemore` lets it rest one
-column past a line's last character. `none`, the default, keeps it on
-the line.
+Where the cursor may go past the end of its line, as one of these:
+
+- `block` lets it in a block selection, so `<C-v>`, `j` and `l` select a
+  rectangle wider than short lines, and `A` types after it on every line,
+  filling short ones with blanks.
+- `all` lets it in normal mode too, where `i` or `a` past the end types
+  after blanks out to the cursor.
+- `onemore` lets it rest one column past a line's last character.
+- `none`, the default, keeps it on the line.
 
 ## show_break
 
@@ -232,16 +270,23 @@ show_break = "↪ "
 
 ## list_chars
 
-What `list` shows, by what it stands for, each one column wide. `tab`
-takes two or three characters: the first for a tab's first cell, the
-second for the cells after it, and a third for its last cell. The others
-take one: `space` for a blank, `lead` for the blanks before a line's text
-and `trail` for those after it, both in place of `space`, `nbsp` for a
-no-break space, `eol` after the end of a line, and with `wrap` off
-`extends` and `precedes` in the last and first column of a line that goes
-on past them. `tab = "> "`, `trail = "-"` and `nbsp = "+"` unless set,
-and `""` shows the text as it is. `:set list_chars.eol ¬` sets one in the
-running fude.
+What `list` shows, by what it stands for, each one column wide:
+
+- `tab` takes two or three characters, `"> "` unless set. The first is
+  for a tab's first cell, the second for the cells after it, and a third
+  for its last cell.
+- `space` takes one, for a blank.
+- `lead` takes one, for the blanks before a line's text, in place of
+  `space`.
+- `trail` takes one, for the blanks after a line's text, in place of
+  `space`. It is `"-"` unless set.
+- `nbsp` takes one, for a no-break space, `"+"` unless set.
+- `eol` takes one, shown after the end of a line.
+- `extends` and `precedes` take one each. With `wrap` off they show in the
+  last and first column of a line that goes on past them.
+
+A key set to `""` shows the text as it is. `:set list_chars.eol ¬` sets
+one in the running fude.
 
 ```toml
 [list_chars]
@@ -254,12 +299,17 @@ eol = "¬"
 ## fill_chars
 
 What fills parts of the screen with no text, each one character one
-column wide: `eob` for the rows past the end of the text, `~` unless set,
-`vert` for the line between windows side by side, `│` unless set, and
-`fold` for the rest of a closed fold's row, blank unless set. With
-`fold.column` on, `fold_open` marks a line that starts an open fold, `-`
-unless set, `fold_close` a closed fold, `+` unless set, and `fold_sep`
-the other lines a fold holds, `│` unless set.
+column wide:
+
+- `eob` fills the rows past the end of the text, `~` unless set.
+- `vert` is the line between windows side by side, `│` unless set.
+- `fold` fills the rest of a closed fold's row, blank unless set.
+
+With `fold.column` on, these mark the folds:
+
+- `fold_open` marks a line that starts an open fold, `-` unless set.
+- `fold_close` marks a closed fold, `+` unless set.
+- `fold_sep` marks the other lines a fold holds, `│` unless set.
 
 ```toml
 [fill_chars]
@@ -269,50 +319,64 @@ fold = "·"
 
 ## menu_height
 
-The most rows the completion menu at the cursor shows. It scrolls to keep
-the selected item in view. 0, the default, shows as many as fit above or
-below the cursor. The command line's completions show 10 at most.
+The most rows the completion menu at the cursor shows.
+
+- It scrolls to keep the selected item in view.
+- 0, the default, shows as many as fit above or below the cursor.
+- The command line's completions show 10 at most.
 
 ## completion_sources
 
-Where completions come from, in the menu's order. `lsp` is the language
-servers' items. `snippet` is the snippets in `snippets/<filetype>.json`
-and `snippets/all.json` next to this file, in VS Code's format, whose
-prefix starts with the word typed. `path` is the entries of the directory a path before the
-cursor names, once it holds a `/`, relative to the file's directory.
-`buffer` is the words of the open buffers that start with the word typed,
-nearest the cursor first. The menu names the source of each item that is
-not a server's. A plugin's source has the name it registers. The default
-is unset, and unset or empty means every source: `lsp`, `snippet`, `path`
-and `buffer`, then the plugins' sources sorted by name. A list asks only
-the sources it names, so leaving a name out turns that source off.
+Where completions come from, in the menu's order. The sources:
+
+- `lsp` is the language servers' items.
+- `snippet` is the snippets in `snippets/<filetype>.json` and
+  `snippets/all.json` next to this file, in VS Code's format, whose prefix
+  starts with the word typed.
+- `path` is the entries of the directory a path before the cursor names,
+  once it holds a `/`, relative to the file's directory.
+- `buffer` is the words of the open buffers that start with the word
+  typed, nearest the cursor first.
+- A plugin's source has the name it registers.
+
+The menu names the source of each item that is not a server's. The
+default is unset, and unset or empty means every source: `lsp`,
+`snippet`, `path` and `buffer`, then the plugins' sources sorted by name.
+A list asks only the sources it names, so leaving a name out turns that
+source off.
 
 ## auto_install
 
-When a file needs a grammar that is not built yet, fude builds it in the
-background, with git and the tree-sitter CLI, which must be on PATH. Off,
-only grammars already built load, and `:grammar install` builds one by hand.
-A plugin of a `repo` that is not installed installs in the background too,
-and loads once it is. Off, it does not load.
+What fude installs in the background on its own:
+
+- When a file needs a grammar that is not built yet, fude builds it, with
+  git and the tree-sitter CLI, which must be on PATH. Off, only grammars
+  already built load, and `:grammar install` builds one by hand.
+- A plugin of a `repo` that is not installed installs too, and loads once
+  it is. Off, it does not load.
 
 ## socket
 
-The path of the unix socket clients attach to. Unset, each fude listens at a
-socket of its own in `$XDG_RUNTIME_DIR`. A fixed path lets a client on
-another machine reach it through `ssh -L`. A second fude finds the path
-taken and listens at a socket of its own.
+The path of the unix socket clients attach to.
+
+- Unset, each fude listens at a socket of its own in `$XDG_RUNTIME_DIR`.
+- A fixed path lets a client on another machine reach it through
+  `ssh -L`.
+- A second fude finds the path taken and listens at a socket of its own.
 
 ## format_on_save
 
-`:w` formats the buffer before it writes it, through the filetype's `format`
-formatters, or else its first language server that formats. The formatting
-is one change on the timeline.
+`:w` formats the buffer before it writes it, through the filetype's
+`format` formatters, or else its first language server that formats. The
+formatting is one change on the timeline.
 
 ## format_timeout
 
-How long formatting may take, in milliseconds. A formatter or server that
-takes longer leaves the text as it was, and fude says why. Before a write,
-fude writes the text anyway.
+How long formatting may take, in milliseconds.
+
+- A formatter or server that takes longer leaves the text as it was, and
+  fude says why.
+- Before a write, fude writes the text anyway.
 
 ## leader
 
@@ -331,18 +395,23 @@ adn = "and"
 ```
 
 A word goes once a character that is not part of a word follows it, or
-`<CR>` or `<Esc>`, and `<C-]>` replaces it without typing anything more.
-It must start the line or follow a character that is not part of a word,
-and be typed in the same insert, so `xteh ` and a `teh` that was there
-before stay.
+`<CR>` or `<Esc>`.
+
+- `<C-]>` replaces it without typing anything more.
+- It must start the line or follow a character that is not part of a
+  word, so `xteh ` stays.
+- It must be typed in the same insert, so a `teh` that was there before
+  stays.
 
 ## bufferline.enabled
 
 Once two or more files are open, the top row lists them by number and
-name, the current one lit and a modified one marked ●. `:b 3` shows
-buffer 3. With it off, only `:ls` and `:pick buffers` list the buffers,
-and the windows take the top row unless `tabline.enabled` shows the tab
-pages there.
+name, the current one lit and a modified one marked ●.
+
+- `:b 3` shows buffer 3.
+- With it off, only `:ls` and `:pick buffers` list the buffers, and the
+  windows take the top row unless `tabline.enabled` shows the tab pages
+  there.
 
 ## tabline.enabled
 
@@ -354,18 +423,22 @@ the pages still work, but the top row does not list them.
 ## guides.enabled
 
 Draws a faint line at each indent level in a line's leading blanks, every
-`indent_width` columns, and a blank line shows the guides of the next line
-with text. `list` hides them. On unless set, and `:set guides.enabled
-false` turns them off in every window.
+`indent_width` columns. On unless set.
+
+- A blank line shows the guides of the next line with text.
+- `list` hides them.
+- `:set guides.enabled false` turns them off in every window.
 
 ## sticky.enabled
 
 When the top of a window is inside a function or a class whose first line
 has scrolled out of view, that first line stays pinned over the window's
-top row, on the surface colour. Nested ones pin too, the outermost first,
-at most `sticky.lines`, and never over the cursor's line. It needs the
-file's grammar. The default is on, and `:set sticky.enabled false` turns
-it off in every window.
+top row, on the surface colour. The default is on.
+
+- Nested ones pin too, the outermost first, at most `sticky.lines`, and
+  never over the cursor's line.
+- It needs the file's grammar.
+- `:set sticky.enabled false` turns it off in every window.
 
 ## sticky.lines
 
@@ -375,17 +448,23 @@ innermost ones pin.
 
 ## spell.words
 
-The word list spell checks against, one word a line, and
-`/usr/share/dict/words` when unset, which macOS ships and Linux has with
-the `words` package. Words `zg` adds go in `words.txt` in fude's config
-directory, which spell reads too.
+The word list spell checks against, one word a line.
+
+- Unset, it is `/usr/share/dict/words`, which macOS ships and Linux has
+  with the `words` package.
+- Words `zg` adds go in `words.txt` in fude's config directory, which
+  spell reads too.
 
 ## theme
 
-`dark`, `light`, or the path of a base16 scheme, such as stylix's
-`palette.json` or a Tinted Theming scheme, whose sixteen colours fude draws
-in. A path may start with `~/`. `:theme` switches the theme until fude
-quits.
+The theme fude draws in, as one of these:
+
+- `dark` and `light` are fude's own.
+- The path of a base16 scheme, such as stylix's `palette.json` or a
+  Tinted Theming scheme, gives the sixteen colours fude draws in. A path
+  may start with `~/`.
+
+`:theme` switches the theme until fude quits.
 
 ## title
 
@@ -394,13 +473,15 @@ its folder, and gets the title it had back as fude quits. Off unless set.
 
 ## gui.font
 
-Font families for the text in the window of `--gui`. The text takes the
-first family the system has, so one config.toml works on macOS, Linux and
-Windows. The status bars, the tabs, the palette, menus and messages take
-the same family at their own sizes. With none of them installed, or none
-set, the text takes the system's monospace font and the rest the
-system's own font. `:set gui.font JetBrains Mono,Menlo` sets them in
-the running fude.
+Font families for the text in the window of `--gui`.
+
+- The text takes the first family the system has, so one config.toml
+  works on macOS, Linux and Windows.
+- The status bars, the tabs, the palette, menus and messages take the same
+  family at their own sizes.
+- With none of them installed, or none set, the text takes the system's
+  monospace font and the rest the system's own font.
+- `:set gui.font JetBrains Mono,Menlo` sets them in the running fude.
 
 ```toml
 [gui]
@@ -409,9 +490,11 @@ font = ["JetBrains Mono", "Menlo", "Cascadia Mono", "DejaVu Sans Mono"]
 
 ## gui.font_size
 
-The size of the text's font in points in the window of `--gui`. 0, the
-default, is the system's: 14 on macOS and 11 on Linux and Windows. The
-menu's actual size goes back to it.
+The size of the text's font in points in the window of `--gui`.
+
+- 0, the default, is the system's size, 14 on macOS and 11 on Linux and
+  Windows.
+- The menu's actual size goes back to it.
 
 ## colors
 
@@ -455,8 +538,8 @@ mapping waits `key_timeout` before it shows.
 
 ## keymap.explorer
 
-Keys in an explorer of a folder, run at once over the normal mode ones. fude's
-own are `<CR>`, `<C-s>`, `<C-h>`, `_` and `<C-l>`.
+Keys in an explorer of a folder, run at once over the normal mode ones.
+fude's own are `<CR>`, `<C-s>`, `<C-h>`, `_` and `<C-l>`.
 
 ## keymap.list
 
@@ -465,8 +548,12 @@ the place on its line and `q` closes the list.
 
 ## keymap.timeline
 
-Keys in the `:timeline` window, where `[` and `]` move the text, `d` diffs,
-`<CR>` restores and `q` closes it.
+Keys in the `:timeline` window. fude's own:
+
+- `[` and `]` move the text.
+- `d` diffs.
+- `<CR>` restores.
+- `q` closes the window.
 
 ## keymap.finder
 
@@ -479,13 +566,20 @@ Keys while the cursor is in a float, such as hover's, where `q` closes it.
 
 ## keymap.lsp
 
-Keys in the `:lsp` panel. `r` restarts the server under the cursor, `s`
-stops it, `d` keeps it off and `e` lets it start.
+Keys in the `:lsp` panel. fude's own:
+
+- `r` restarts the server under the cursor.
+- `s` stops it.
+- `d` keeps it off.
+- `e` lets it start.
 
 ## keymap.debug
 
-Keys in the debug panel. `<CR>` chooses the frame under the cursor, or
-shows or hides the members of its variable, and `q` closes the panel.
+Keys in the debug panel. fude's own:
+
+- `<CR>` chooses the frame under the cursor, or shows or hides the members
+  of its variable.
+- `q` closes the panel.
 
 ## keymap.help
 
@@ -494,9 +588,11 @@ it.
 
 ## keymap.start
 
-Keys on the start screen that `fude` with no file shows, where `f`, `g`,
-`r`, `e`, `c` and `q` do what their lines say, a digit opens that recent
-file and `<CR>` runs the line under the cursor.
+Keys on the start screen that `fude` with no file shows. fude's own:
+
+- `f`, `g`, `r`, `e`, `c` and `q` do what their lines say.
+- A digit opens that recent file.
+- `<CR>` runs the line under the cursor.
 
 ## keymap.terminal
 
@@ -505,8 +601,8 @@ window once its program has ended.
 
 ## keymap.scratch
 
-Keys in a window fude writes to show something, such as `:messages`, `:grammar`
-or a diff, where `q` closes it.
+Keys in a window fude writes to show something, such as `:messages`,
+`:grammar` or a diff, where `q` closes it.
 
 ## keymap.<kind>
 
@@ -526,8 +622,8 @@ count of keys that follow.
 
 ## filetype.files
 
-Patterns of file names that have this filetype, matched before the names and
-extensions fude knows, such as `["*.toml.tmpl"]` in `[filetype.toml]`.
+Patterns of file names that have this filetype, matched before the names
+and extensions fude knows, such as `["*.toml.tmpl"]` in `[filetype.toml]`.
 
 ## filetype.indent_width
 
@@ -567,9 +663,9 @@ color_column = 73
 
 ## filetype.spell
 
-Turns `spell.enabled` on or off in a file of the type, over the setting outside
-the table. `[filetype.markdown] spell = true` checks the prose you write
-and leaves code alone.
+Turns `spell.enabled` on or off in a file of the type, over the setting
+outside the table. `[filetype.markdown] spell = true` checks the prose you
+write and leaves code alone.
 
 ## filetype.debug
 
@@ -591,9 +687,12 @@ lsp = ["gopls", "golangci_lint_ls"]
 ## filetype.language_id
 
 What the language servers hear files of the type are written in, when it
-is not the filetype's name. Unset, it is the filetype's name, except
-`shellscript` for bash, `typescriptreact` for tsx and `objective-c` for
-objc.
+is not the filetype's name. Unset, it is the filetype's name, except for
+these:
+
+- bash is `shellscript`.
+- tsx is `typescriptreact`.
+- objc is `objective-c`.
 
 ```toml
 [filetype.gitcommit]
@@ -612,9 +711,9 @@ format = ["goimports", "gofumpt"]
 
 ## filetype.format_first
 
-Runs only the first formatter of `format` whose program is on PATH and whose
-required root is found, such as biome where a project has its config and
-prettierd elsewhere.
+Runs only the first formatter of `format` whose program is on PATH and
+whose required root is found, such as biome where a project has its config
+and prettierd elsewhere.
 
 ## filetype.format_on_save
 
@@ -631,9 +730,11 @@ format_on_save = false
 
 ## debug.command
 
-The debug adapter's program and arguments, found on PATH. One that
-listens on a port, as Delve does, takes `{port}` where the port goes, and
-fude picks a free one and dials it. Any other talks on stdin and stdout.
+The debug adapter's program and arguments, found on PATH.
+
+- One that listens on a port, as Delve does, takes `{port}` where the port
+  goes, and fude picks a free one and dials it.
+- Any other talks on stdin and stdout.
 
 ```toml
 [debug.delve]
@@ -653,16 +754,20 @@ debug = ["delve"]
 args = { mode = "test", program = "{dir}" }
 ```
 
-`adapter` names one other than the filetype's first, and `request =
-"attach"` attaches to a running program. `{file}`, `{dir}` and
-`{project}` in `args` become the current file, its folder and the
-project.
+In a launch table:
+
+- `adapter` names one other than the filetype's first.
+- `request = "attach"` attaches to a running program.
+- `{file}`, `{dir}` and `{project}` in `args` become the current file, its
+  folder and the project.
 
 ## lsp.command
 
-The server's program and arguments, found on PATH. Unset, it is the table's
-name alone. A list of commands runs the first whose program is found, so a
-project's own program can win over the one on PATH.
+The server's program and arguments, found on PATH.
+
+- Unset, it is the table's name alone.
+- A list of commands runs the first whose program is found, so a
+  project's own program can win over the one on PATH.
 
 ```toml
 [lsp.eslint]
@@ -692,8 +797,8 @@ command = ["jdtls", "-data", "{cache}"]
 ## lsp.connect
 
 The `host:port` of a server that is already running, such as Godot's,
-which fude connects to in place of running `command`. fude hangs up when it would
-stop the server.
+which fude connects to in place of running `command`. fude hangs up when
+it would stop the server.
 
 ```toml
 [lsp.gdscript]
@@ -702,13 +807,17 @@ connect = "127.0.0.1:{env:GDScript_Port:-6005}"
 
 ## lsp.root
 
-The files that mark a project's root, most wanted first. fude looks for each
-in turn from the file's folder up, and starts one server for each root. With
-none found, the root is the file's folder. A name with `*`, `?` or `[` is a
-pattern, such as `*.cabal`. A list in `root` is a group whose files rank
-the same, so the one nearest the file wins. A table names a file with
-`name`, the texts it must hold with `contains`, and with `outermost =
-true` takes the farthest folder up that holds it.
+The files that mark a project's root, most wanted first.
+
+- fude looks for each in turn from the file's folder up, and starts one
+  server for each root.
+- With none found, the root is the file's folder.
+- A name with `*`, `?` or `[` is a pattern, such as `*.cabal`.
+- A list in `root` is a group whose files rank the same, so the one
+  nearest the file wins.
+- A table names a file with `name`, the texts it must hold with
+  `contains`, and with `outermost = true` takes the farthest folder up
+  that holds it.
 
 ```toml
 [lsp.ts_ls]
@@ -812,9 +921,11 @@ linter that needs its config.
 
 ## formatter.command
 
-The formatter's program and arguments, found on PATH. It reads the text on
-stdin and writes it formatted on stdout. `{path}` in it is the file's path.
-Unset, it is the table's name alone.
+The formatter's program and arguments, found on PATH.
+
+- It reads the text on stdin and writes it formatted on stdout.
+- `{path}` in it is the file's path.
+- Unset, it is the table's name alone.
 
 ```toml
 [formatter.biome]
@@ -824,8 +935,10 @@ command = ["biome", "format", "--stdin-file-path", "{path}"]
 ## formatter.root
 
 The files that mark the folder the formatter runs in, most wanted first,
-looked for from the file's folder up. With none found, it runs in the file's
-folder. A name with `*`, `?` or `[` is a pattern, as in `lsp.root`.
+looked for from the file's folder up.
+
+- With none found, it runs in the file's folder.
+- A name with `*`, `?` or `[` is a pattern, as in `lsp.root`.
 
 ## formatter.workspace_required
 
@@ -835,9 +948,12 @@ biome where a project has a `biome.json`.
 ## task.command
 
 The shell command a task runs, which `:task name` and `:pick tasks` run in
-a terminal window below. `{file}`, `{dir}`, `{line}` and `{word}` in it
-stand for the current buffer's file, its folder, the cursor's line and the
-word under the cursor.
+a terminal window below. In it:
+
+- `{file}` stands for the current buffer's file.
+- `{dir}` stands for its folder.
+- `{line}` stands for the cursor's line.
+- `{word}` stands for the word under the cursor.
 
 ```toml
 [task.test-file]
@@ -850,37 +966,44 @@ A project's own tasks go in `.fude/tasks.toml` in its folder, as the same
 ## plugin.path
 
 The plugin's WebAssembly file, from the folder of config.toml, such as
-`plugins/wordcount.wasm`, or the folder of its source. A `~` at its start
-is the home folder. fude loads the
-`.wasm` built in a folder, and builds it first with TinyGo when it is
-missing or a file of the source is newer.
+`plugins/wordcount.wasm`, or the folder of its source.
+
+- A `~` at its start is the home folder.
+- fude loads the `.wasm` built in a folder, and builds it first with
+  TinyGo when it is missing or a file of the source is newer.
 
 ## plugin.repo
 
 The repo the plugin installs from, such as `github.com/y3owk1n/fude-org`,
-or any URL git fetches. fude takes the `.wasm` the release carries, at
-`<repo>/releases/download/<tag>/<name>.wasm`, with `<name>` the repo's
-last part. When the release has no `.wasm`, or `version` names a branch
-or commit, fude fetches that commit with git and builds it with TinyGo. It says "installing" when it starts and
-"installed" with the version when it ends. `plugins.lock` beside
-config.toml pins the commit, so the next run loads the plugin with no
-network, and another machine with the same lock installs the same one.
-A table takes one of `path` and `repo`.
+or any URL git fetches. A table takes one of `path` and `repo`.
+
+- fude takes the `.wasm` the release carries, at
+  `<repo>/releases/download/<tag>/<name>.wasm`, with `<name>` the repo's
+  last part.
+- When the release has no `.wasm`, or `version` names a branch or commit,
+  fude fetches that commit with git and builds it with TinyGo.
+- It says "installing" when it starts and "installed" with the version
+  when it ends.
+- `plugins.lock` beside config.toml pins the commit, so the next run loads
+  the plugin with no network, and another machine with the same lock
+  installs the same one.
 
 ## plugin.version
 
-The tag, branch or full commit of `repo` to install. Unset, fude takes
-the newest release `vX.Y.Z` whose plugin this fude loads, and keeps it
-until the lock changes. A version that is not the one locked installs
-again.
+The tag, branch or full commit of `repo` to install.
+
+- Unset, fude takes the newest release `vX.Y.Z` whose plugin this fude
+  loads, and keeps it until the lock changes.
+- A version that is not the one locked installs again.
 
 ## plugin.capabilities
 
 What the plugin may call: `buffer.read`, `buffer.write`, `ui`, `fs.read`,
-`fs.write`, `process`, `net`, `lsp`, `keys` and `grammar`, which builds the
-grammar the plugin names. A built grammar runs in fude itself, outside the
-plugin's sandbox. A call outside them gets an
-error and changes nothing.
+`fs.write`, `process`, `net`, `lsp`, `keys` and `grammar`.
+
+- `grammar` builds the grammar the plugin names. A built grammar runs in
+  fude itself, outside the plugin's sandbox.
+- A call outside them gets an error and changes nothing.
 
 ## plugin.programs
 
@@ -888,14 +1011,16 @@ The programs a plugin with `process` may run, such as `["git"]`.
 
 ## plugin.hosts
 
-The hosts a plugin with `net` may reach over http and https, a redirect too,
-such as `["api.github.com"]`.
+The hosts a plugin with `net` may reach over http and https, a redirect
+too, such as `["api.github.com"]`.
 
 ## plugin.paths
 
 The folders outside the project that a plugin with `fs.read` reads and one
-with `fs.write` writes, each absolute or starting with `~`, such as
-`["~/notes"]`. Any other keeps the plugin from loading.
+with `fs.write` writes, such as `["~/notes"]`.
+
+- Each is absolute or starts with `~`.
+- Any other keeps the plugin from loading.
 
 ## plugin.disabled
 
@@ -904,7 +1029,9 @@ with `fs.write` writes, each absolute or starting with `~`, such as
 
 ## plugin.options
 
-Where the plugin's options start, by name, such as `{ depth = 3, style =
-"box" }`. Each is a number, a string or a boolean, and a name that is no
-option of the plugin is an error. `depth` here starts `wordcount.depth`
-for a plugin named wordcount.
+Where the plugin's options start, by name, such as
+`{ depth = 3, style = "box" }`.
+
+- Each is a number, a string or a boolean.
+- A name that is no option of the plugin is an error.
+- `depth` here starts `wordcount.depth` for a plugin named wordcount.

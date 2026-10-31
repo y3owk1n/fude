@@ -1,20 +1,35 @@
 # Visual mode
 
-`v` selects characters, `V` whole lines and `<C-v>` a block, the same
-columns on every line from the line it started on to the cursor's. The
-selection runs from where it started to the cursor, both ends included. A
-motion or a scroll moves the cursor, so it grows or shrinks the selection.
-`$` in a block takes every line to its end, however long. A text object,
-such as `iw` or `ip`, selects what it covers at the cursor, as lines when
-it is linewise, and typed again it grows the selection, as the text
-objects say.
+Three keys start a selection:
 
-A count goes to the key after it. A motion moves n, `>` shifts n levels,
-`p` puts n times and `<C-a>` adds n. A count before `v`, `V` or `<C-v>` in
-normal mode does nothing. A key that acts on the selection returns to
-normal mode and leaves the marks `'<` and `'>` at its ends, so `gv`
-selects it again and `:'<,'>` names its lines. `.` repeats the change with
-the keys that made the selection, from the cursor.
+- `v` selects characters.
+- `V` selects whole lines.
+- `<C-v>` selects a block, the same columns on every line from the line it
+  started on to the cursor's.
+
+The selection runs from where it started to the cursor, both ends
+included.
+
+- A motion or a scroll moves the cursor, so it grows or shrinks the
+  selection.
+- `$` in a block takes every line to its end, however long.
+- A text object, such as `iw` or `ip`, selects what it covers at the
+  cursor, as lines when it is linewise, and typed again it grows the
+  selection, as the text objects say.
+
+A count goes to the key after it.
+
+- A motion moves n.
+- `>` shifts n levels.
+- `p` puts n times.
+- `<C-a>` adds n.
+
+A count before `v`, `V` or `<C-v>` in normal mode does nothing.
+
+A key that acts on the selection returns to normal mode and leaves the
+marks `'<` and `'>` at its ends, so `gv` selects it again and `:'<,'>`
+names its lines. `.` repeats the change with the keys that made the
+selection, from the cursor.
 
 ## !
 
@@ -55,8 +70,11 @@ lines, so a command such as `:d` or `:s` acts on them.
 ## <
 
 Outdents the selected lines by n indent levels and keeps them selected, so
-another `<` outdents them again. An empty line stays empty. A line with less
-indent than a level loses all of it. `<Esc>` ends the selection.
+another `<` outdents them again.
+
+- An empty line stays empty.
+- A line with less indent than a level loses all of it.
+- `<Esc>` ends the selection.
 
 ```keys
 "|\t\ta\n\t\tb" "Vj<<Esc>" "\ta\n|\tb"
@@ -65,10 +83,13 @@ indent than a level loses all of it. `<Esc>` ends the selection.
 
 ## <C-a>
 
-Adds n to the first number in the selection on each selected line, a
-decimal, a hex such as `0x1f` or a binary such as `0b101`, as `<C-a>` in
-normal mode does. A line with none is left alone, and with none on any
-line it beeps. The cursor goes to the start of the selection.
+Adds n to the first number in the selection on each selected line, as
+`<C-a>` in normal mode does.
+
+- The number may be a decimal, a hex such as `0x1f` or a binary such as
+  `0b101`.
+- A line with none is left alone, and with none on any line it beeps.
+- The cursor goes to the start of the selection.
 
 ```keys
 "|x 1\nx 9" "Vj<C-a>" "|x 2\nx 10"
@@ -83,12 +104,14 @@ The same as `<Esc>`.
 
 Places a multicursor that keeps the selection, as `Q` places one, and
 selects the next match of its text that no multicursor selects, going on
-from the start at the end of the text. It looks for the text as it is,
-or for the whole word after `<C-n>` in normal mode selected it. The
-selection must be on one line, and when no match is left it says "no
-more matches". Each key after
-runs at every multicursor on its own selection, so `c` types into every
-match until `<Esc>`.
+from the start at the end of the text.
+
+- It looks for the text as it is, or for the whole word after `<C-n>` in
+  normal mode selected it.
+- The selection must be on one line.
+- When no match is left it says "no more matches".
+- Each key after runs at every multicursor on its own selection, so `c`
+  types into every match until `<Esc>`.
 
 ```keys
 "|ab x ab" "vl<C-n>d" " x| "
@@ -149,8 +172,11 @@ the selection.
 ## [e
 
 Moves the selected lines n lines up and keeps them selected, so `[e`
-again moves them further. At the first line it stops, and when they cannot
-move at all it beeps. Each move is one undo step.
+again moves them further.
+
+- At the first line it stops.
+- When they cannot move at all it beeps.
+- Each move is one undo step.
 
 ```keys
 "a\nb\n|c" "V[ed" "a\n|b"
@@ -169,12 +195,15 @@ moves them up, stopping at the last line.
 
 ## A
 
-In a block, inserts after its right edge on its first line. On `<Esc>` the
-text typed goes after the block on every other line too, and a line too
-short to reach the edge gets spaces up to it. After `$` it goes at the end
-of each line. Text is copied only when it was typed on the first line,
-with no line break. Over characters or lines it inserts at the end of
-the last selected line.
+In a block, inserts after its right edge on its first line.
+
+- On `<Esc>` the text typed goes after the block on every other line too.
+- A line too short to reach the edge gets spaces up to it.
+- After `$` it goes at the end of each line.
+- Text is copied only when it was typed on the first line, with no line
+  break.
+- Over characters or lines it inserts at the end of the last selected
+  line.
 
 ```keys
 "a|b\ncd\nef" "vjAx<Esc>" "ab\ncd|x\nef"
@@ -219,9 +248,12 @@ block's left edge to the end of every line.
 
 ## d
 
-Deletes the selection into the register. Over lines it deletes them whole,
-and in a block only its columns. The cursor goes to where the selection
-started, or for lines to the line after them.
+Deletes the selection into the register.
+
+- Over lines it deletes them whole.
+- In a block it deletes only its columns.
+- The cursor goes to where the selection started, or for lines to the
+  line after them.
 
 ```keys
 "a|bcd" "vld" "a|d"
@@ -304,11 +336,14 @@ Switches the case of every letter in the selection. The same as `~`.
 
 ## I
 
-In a block, inserts before its left edge on its first line. On `<Esc>` the
-text typed goes there on every other line too, except a line too short to
-reach the edge. Text is copied only when it was typed on the first line,
-with no line break. Over characters or lines it inserts at the start of
-the first selected line.
+In a block, inserts before its left edge on its first line.
+
+- On `<Esc>` the text typed goes there on every other line too, except a
+  line too short to reach the edge.
+- Text is copied only when it was typed on the first line, with no line
+  break.
+- Over characters or lines it inserts at the start of the first selected
+  line.
 
 ```keys
 "  a|b\ncd\nef" "VjIx<Esc>" "|x  ab\ncd\nef"
@@ -359,10 +394,12 @@ leaves the register as it was, so the next `P` puts the same text.
 ## p
 
 Replaces the selection with the register, put n times, in one undo step.
-The text it replaces goes to the registers as a delete's does, so the next
-`p` puts that. Lines put over characters go on lines of their own, and
-characters put over lines take their place as one line. In a block, text
-with no line break goes on every line of the block.
+
+- The text it replaces goes to the registers as a delete's does, so the
+  next `p` puts that.
+- Lines put over characters go on lines of their own.
+- Characters put over lines take their place as one line.
+- In a block, text with no line break goes on every line of the block.
 
 ```keys
 "|a b" "yiwwviwp" "a |a"
@@ -503,8 +540,14 @@ Switches the case of every letter in the selection. The same as `g~`.
 ## S{char}
 
 Puts a pair of brackets or quotes around the selection, from the surround
-module. `)` or `b` puts parentheses, `]` or `r` square brackets, `}` or
-`B` braces and `>` or `a` angle brackets. An opening bracket puts the same
-pair with a blank inside each side, so `S(` makes `( text )`. Any other
-character goes on both sides, as `S"` does. Over lines it surrounds their
-text from the first line's first non-blank to the end of the last.
+module.
+
+- `)` or `b` puts parentheses.
+- `]` or `r` puts square brackets.
+- `}` or `B` puts braces.
+- `>` or `a` puts angle brackets.
+- An opening bracket puts the same pair with a blank inside each side, so
+  `S(` makes `( text )`.
+- Any other character goes on both sides, as `S"` does.
+- Over lines it surrounds their text from the first line's first
+  non-blank to the end of the last.

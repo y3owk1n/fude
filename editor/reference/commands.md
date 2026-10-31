@@ -1,39 +1,47 @@
 # Commands
 
-A command is typed after `:` and runs on `<CR>`. Each answers to its full
-name and to the short names its entry lists, and to no other part of its
-name, so `:subst` is not a command. The commands that edit text take an
-argument that does not start with a letter straight after the name, as
-`:s/a/b/`, `:m0` and `:sort!`. Any other argument needs a space before it,
-as `:d x`, `:b 2` and `:e #`, since `:b2` is not a command. `!` goes
-straight after the name, as in `:q!`, and each entry says what it changes.
-A `|` ends a command and starts the next, so `:w | q` writes and closes.
-`:global`, `:vglobal`, `:normal`, `:!`, `:r !`, `:w !` and `:terminal` take
-the `|` in their argument instead, and `\|` is a `|` of its own, as in a
-pattern. In an entry's heading `|` means "or", as in `:read {file} |
-!{cmd}`.
+A command is typed after `:` and runs on `<CR>`.
+
+- Each answers to its full name and to the short names its entry lists,
+  and to no other part of its name, so `:subst` is not a command.
+- The commands that edit text take an argument that does not start with a
+  letter straight after the name, as `:s/a/b/`, `:m0` and `:sort!`.
+- Any other argument needs a space before it, as `:d x`, `:b 2` and
+  `:e #`, since `:b2` is not a command.
+- `!` goes straight after the name, as in `:q!`, and each entry says what
+  it changes.
+- A `|` ends a command and starts the next, so `:w | q` writes and closes.
+- `:global`, `:vglobal`, `:normal`, `:!`, `:r !`, `:w !` and `:terminal`
+  take the `|` in their argument instead, and `\|` is a `|` of its own,
+  as in a pattern.
+- In an entry's heading `|` means "or", as in `:read {file} | !{cmd}`.
 
 ```keys
 "|a\nb\nc" ":1d|$d<CR>" "|b"
 "|ab" ":s/a/x/|s/b/y/<CR>" "|xy"
 ```
 
-A range of lines may come before the name. Without one, a command acts on
-the cursor's line, or on every line where its entry says so. `%` is every
-line. Otherwise a range is one address, or two joined by `,` or `;`, and
-fude swaps two given last line first. After `;` the cursor moves to the
-first line, so the second counts from it, as `:5;+2` is lines 5 to 7. A
-second address left out is the cursor's line. An address is one of these,
-then any number of `+n` and `-n`:
+A range of lines may come before the name.
 
-- a line number. 0 is above the first line for `:move` and `:copy`, and
-  the first line for the rest
-- `.` for the cursor's line and `$` for the last
+- Without one, a command acts on the cursor's line, or on every line where
+  its entry says so.
+- `%` is every line.
+- Otherwise a range is one address, or two joined by `,` or `;`, and fude
+  swaps two given last line first.
+- After `;` the cursor moves to the first line, so the second counts from
+  it, as `:5;+2` is lines 5 to 7.
+- A second address left out is the cursor's line.
+
+An address is one of these, then any number of `+n` and `-n`:
+
+- A line number. 0 is above the first line for `:move` and `:copy`, and
+  the first line for the rest.
+- `.` for the cursor's line and `$` for the last.
 - `'a` for the line of mark a. `'<` and `'>` are the ends of the last
-  selection, so `:` in visual mode starts the line with `'<,'>`
+  selection, so `:` in visual mode starts the line with `'<,'>`.
 - `/pat/` for the next line after the cursor's that matches, and `?pat?`
-  for the one before
-- `+n` or `-n` alone, n lines from the cursor's
+  for the one before.
+- `+n` or `-n` alone, n lines from the cursor's.
 
 A count before `:` gives the range `.,.+n-1`. A range alone, as `:12`,
 goes to the first non-blank of its last line, as a jump. A mark that is not
@@ -53,18 +61,29 @@ set, or a pattern that matches nowhere, stops the command and says so.
 ```
 
 `<Tab>` puts the next completion of the word being typed in the line, and
-`<S-Tab>` the one before. While the menu shows, `<C-n>` and `<C-p>` step
-through it too, and else recall the history. After the last comes the
-word as typed. A menu above the line ranks them as a fuzzy finder does, so
-`:bde<Tab>` finds `:bdelete`. While the menu shows, `<CR>` runs its lit
-item, `<C-y>` keeps the completion and `<C-e>` puts the typed word back.
-With `autocomplete` on, the menu shows as the line is typed. The first word
-completes as a command's name, and the entries say what each argument
-completes as. In a path, as `:edit`, `:write`, `:cd`, `:read`, `:split`
-and `:vsplit` take, `%` is the current file's path and `#` the one shown
-before. `:p`, `:h`, `:t`, `:r` and `:e` after either make it the full
-path, its directory, its name, the name without its extension, or the
-extension. A `~` that starts a word is the home directory.
+`<S-Tab>` the one before.
+
+- While the menu shows, `<C-n>` and `<C-p>` step through it too, and else
+  recall the history.
+- After the last comes the word as typed.
+- A menu above the line ranks them as a fuzzy finder does, so
+  `:bde<Tab>` finds `:bdelete`.
+- While the menu shows, `<CR>` runs its lit item, `<C-y>` keeps the
+  completion and `<C-e>` puts the typed word back.
+- With `autocomplete` on, the menu shows as the line is typed.
+- The first word completes as a command's name, and the entries say what
+  each argument completes as.
+
+In a path, as `:edit`, `:write`, `:cd`, `:read`, `:split` and `:vsplit`
+take:
+
+- `%` is the current file's path and `#` the one shown before.
+- `:p` after either makes it the full path.
+- `:h` after either makes it its directory.
+- `:t` after either makes it its name.
+- `:r` after either makes it the name without its extension.
+- `:e` after either makes it the extension.
+- A `~` that starts a word is the home directory.
 
 ## :&
 
@@ -116,23 +135,28 @@ shifts that many lines from the range's last, as `:> 2`.
 
 Applies proposal n, or without n the newest proposal on the current
 buffer. A proposal is an edit that a client attached over RPC sent to show
-as ghost text, which changes nothing until accepted. Accepting applies it
-as one undo step, made by the client that proposed it. Several numbers
-apply each, as one undo step on each buffer they change. An edit since
-then that overlaps one makes it stale, and a stale one says "proposal n
-is stale" and stays while the others apply. A number with no proposal
-says "no proposal n", and applies none. A read-only guest may not accept
-one. `:review` lists the proposals.
+as ghost text, which changes nothing until accepted.
+
+- Accepting applies a proposal as one undo step, made by the client that
+  proposed it.
+- Several numbers apply each, as one undo step on each buffer they change.
+- An edit since then that overlaps a proposal makes it stale. A stale one
+  says "proposal n is stale" and stays while the others apply.
+- A number with no proposal says "no proposal n", and applies none.
+- A read-only guest may not accept one.
+- `:review` lists the proposals.
 
 ## :bufdo
 
 Runs the command in each buffer being edited, from the lowest number up.
 It shows each buffer in the current window in turn and runs the command
 there, as typed after `:`, so `:bufdo %s/old/new/g` changes every buffer.
-It passes help, lists, explorers, terminals and the other windows fude
-writes. The last buffer stays shown, and the buffers stay unwritten until
-`:wall`. When the command fails, the run stops there and the message says
-why.
+
+- It passes help, lists, explorers, terminals and the other windows fude
+  writes.
+- The last buffer stays shown, and the buffers stay unwritten until
+  `:wall`.
+- When the command fails, the run stops there and the message says why.
 
 ## :cquit
 
@@ -144,30 +168,40 @@ session attached to a running fude it leaves, and fude goes on.
 ## :cd
 
 Makes dir the working directory, or the home directory without one, and
-shows the new one. Each buffer keeps its file, since fude makes its path
-absolute first. Paths typed afterwards, the finder and grep start from the
-new directory. `<Tab>` completes a path. A directory that does not exist
-says why and changes nothing. A guest may not run it.
+shows the new one.
+
+- Each buffer keeps its file, since fude makes its path absolute first.
+- Paths typed afterwards, the finder and grep start from the new
+  directory.
+- `<Tab>` completes a path.
+- A directory that does not exist says why and changes nothing.
+- A guest may not run it.
 
 ## :close
 
 Closes the current window. Its buffer stays loaded with any changes, so
-`:b` shows it again. In a float it closes the float, and the focus goes
-back to the window the float opened from. A window whose program still
-runs, such as a terminal's, hides instead, as `:hide` does, and the program
-goes on. The last window of a tab page closes the page, while others are
-left. The last window of the last page does not close and says "cannot
-close the last window". `:q` there quits.
+`:b` shows it again.
+
+- In a float it closes the float, and the focus goes back to the window
+  the float opened from.
+- A window whose program still runs, such as a terminal's, hides instead,
+  as `:hide` does, and the program goes on.
+- The last window of a tab page closes the page, while others are left.
+- The last window of the last page does not close and says "cannot close
+  the last window". `:q` there quits.
 
 ## :config
 
-`:config reload` reads config.toml again and never writes it. A setting the
-file changed applies as `:set` would. An option it changed applies to every
-window, and an option it did not change keeps what `:set` gave it. Its
-keys and tables replace the old ones, so a key it no longer maps does what
-fude does by default, and its plugins load again. A file with an error
-changes nothing, and the message says where. Any other argument says
-"config what? reload". A guest may not run it.
+`:config reload` reads config.toml again and never writes it.
+
+- A setting the file changed applies as `:set` would.
+- An option it changed applies to every window, and an option it did not
+  change keeps what `:set` gave it.
+- Its keys and tables replace the old ones, so a key it no longer maps
+  does what fude does by default, and its plugins load again.
+- A file with an error changes nothing, and the message says where.
+- Any other argument says "config what? reload".
+- A guest may not run it.
 
 ## :copy
 
@@ -210,37 +244,46 @@ so.
 ## :edit
 
 Opens file in the current window, or shows the buffer that holds it
-already. A file that does not exist yet opens empty, and `:w` creates it.
-A directory opens as an explorer, and `#` shows the buffer the window
-showed before. The buffer the window leaves stays loaded with its changes.
+already. The buffer the window leaves stays loaded with its changes.
 
-Without a file it reads the buffer's file again, as one undo step. It
-refuses while the buffer has changes, and `:e!` drops them. In an explorer
-it reads the directory again. `<Tab>` completes a path. A guest opens only
-files under the project.
+- A file that does not exist yet opens empty, and `:w` creates it.
+- A directory opens as an explorer.
+- `#` shows the buffer the window showed before.
+- Without a file it reads the buffer's file again, as one undo step. It
+  refuses while the buffer has changes, and `:e!` drops them.
+- Without a file in an explorer it reads the directory again.
+- `<Tab>` completes a path.
+- A guest opens only files under the project.
 
 ## :file
 
 Says the buffer's name, whether it is modified, how many lines it has and
-how far down the cursor's line is, as `<C-g>` does. With a file name it
-first makes that the buffer's file, so the next `:w` writes there. The
-old file stays as it was, and becomes the alternate file, which `<C-^>`
-and `#` name. It writes nothing itself, and `:saveas` names
-and writes at once. A name that is a file already makes `:w` ask before
-writing over it.
+how far down the cursor's line is, as `<C-g>` does.
+
+- With a file name it first makes that the buffer's file, so the next `:w`
+  writes there.
+- The old file stays as it was, and becomes the alternate file, which
+  `<C-^>` and `#` name.
+- It writes nothing itself, and `:saveas` names and writes at once.
+- A name that is a file already makes `:w` ask before writing over it.
 
 ## :global
 
 Runs the command after the pattern on each line of the range that matches
-it, or of every line without a range. The pattern is a search's, and any
-character but a letter or `!` may stand for the `/`s. An empty pattern takes the last search,
-and the pattern becomes the last search and lights up. fude marks the
-matching lines first and then runs the command on each, so a command that
-deletes or adds lines does not upset the rest. The command is any command,
-fude's and the modules' too, and it starts on the line with the cursor at
-its start. The whole run is one undo step. A command that fails stops the
-run on that line, so `:g/a/s/x/y/` stops at the first line without an x.
-Without a command it does nothing more.
+it, or of every line without a range.
+
+- The pattern is a search's, and any character but a letter or `!` may
+  stand for the `/`s.
+- An empty pattern takes the last search, and the pattern becomes the last
+  search and lights up.
+- fude marks the matching lines first and then runs the command on each,
+  so a command that deletes or adds lines does not upset the rest.
+- The command is any command, fude's and the modules' too, and it starts
+  on the line with the cursor at its start.
+- The whole run is one undo step.
+- A command that fails stops the run on that line, so `:g/a/s/x/y/` stops
+  at the first line without an x.
+- Without a command it does nothing more.
 
 ```keys
 "|a1\nb\na2" ":g/a/d<CR>" "|b"
@@ -253,11 +296,14 @@ Without a command it does nothing more.
 ## :join
 
 Joins the range's lines into one, or the cursor's line and the next
-without a range, as `J` does. Each joined line loses its leading blanks
-and one space goes between, but none after a blank, before a `)` or for an
-empty line. With `!` nothing goes between and no blanks go. The cursor goes
-to the joined line's first non-blank. On the last line it does nothing. A
-count after it joins that many lines from the range's last, as `:j 3`.
+without a range, as `J` does.
+
+- Each joined line loses its leading blanks and one space goes between,
+  but none after a blank, before a `)` or for an empty line.
+- With `!` nothing goes between and no blanks go.
+- The cursor goes to the joined line's first non-blank.
+- On the last line it does nothing.
+- A count after it joins that many lines from the range's last, as `:j 3`.
 
 ```keys
 "|a\nb\nc" ":j<CR>" "|a b\nc"
@@ -345,37 +391,51 @@ building, not installed, disabled, or failed with why. A loaded plugin
 whose manifest asks for a capability its table does not grant says which.
 `q` closes the window.
 
-`:plugin install` installs each plugin of a `repo` that is not installed
-or failed to, whatever `auto_install` says. `:plugin install {name}`
-installs that one again at the commit `plugins.lock` pins.
+A word after `:plugin` acts on the plugins:
 
-`:plugin update` moves each plugin of a `repo` to the newest release this
-fude loads, or one whose `version` is a branch to the branch's newest
-commit, and loads it anew. `:plugin update {name}` updates that one. A
-plugin whose `version` is a release or a commit stays, and fude says it
-is pinned. A release that asks for a capability the plugin's table does
-not grant is not taken, and fude says which and keeps the version it has.
-With nothing newer it says "every plugin is up to date".
+- `:plugin install` installs each plugin of a `repo` that is not
+  installed or failed to, whatever `auto_install` says.
+- `:plugin install {name}` installs that one again at the commit
+  `plugins.lock` pins.
+- `:plugin update` moves each plugin of a `repo` to the newest release
+  this fude loads, or one whose `version` is a branch to the branch's
+  newest commit, and loads it anew. `:plugin update {name}` updates that
+  one.
+- `:plugin disable {name}` unloads the plugin with all it added, until
+  `:plugin enable {name}` loads it again or fude quits.
+- `:plugin enable` also loads a plugin whose table has `disabled = true`,
+  until fude quits.
+- `:plugin reload` reads the `[[plugin]]` tables of config.toml again,
+  closes every plugin with all it added, and loads them anew.
 
-`:plugin disable {name}` unloads the plugin with all it added, until
-`:plugin enable {name}` loads it again or fude quits. `:plugin enable`
-also loads a plugin whose table has `disabled = true`, until fude quits.
+With `:plugin update`:
 
-`:plugin reload` reads the `[[plugin]]` tables of config.toml again, closes
-every plugin with all it added, and loads them anew. A rebuilt plugin loads
-from its new file, and a folder's builds again first if its source changed.
-A plugin the file no longer lists goes, with its commands, keys, operators
-and objects. One disabled this session stays disabled. `<Tab>` completes
-the words and the plugins' names. A guest may list the plugins but run no
-other `:plugin` command.
+- A plugin whose `version` is a release or a commit stays, and fude says
+  it is pinned.
+- A release that asks for a capability the plugin's table does not grant
+  is not taken, and fude says which and keeps the version it has.
+- With nothing newer it says "every plugin is up to date".
+
+With `:plugin reload`:
+
+- A rebuilt plugin loads from its new file, and a folder's builds again
+  first if its source changed.
+- A plugin the file no longer lists goes, with its commands, keys,
+  operators and objects.
+- One disabled this session stays disabled.
+
+`<Tab>` completes the words and the plugins' names. A guest may list the
+plugins but run no other `:plugin` command.
 
 ## :put
 
 Puts register x, or the register `p` puts without one, on lines of its own
-below the range's last line, or the cursor's. Text yanked as characters
-goes on a line too. With `!`, or line 0 as `:0put`, the lines go above
-instead. The cursor goes to the first non-blank of the last line put. An
-empty register says so.
+below the range's last line, or the cursor's.
+
+- Text yanked as characters goes on a line too.
+- With `!`, or line 0 as `:0put`, the lines go above instead.
+- The cursor goes to the first non-blank of the last line put.
+- An empty register says so.
 
 ```keys
 "|a\nb" "yy:put<CR>" "a\n|a\nb"
@@ -387,10 +447,13 @@ empty register says so.
 ## :quit
 
 Closes the current window, as `:close` does, and in the last window of the
-last tab page quits fude. Quitting refuses while any buffer has changes and names one, and
-`:q!` quits anyway and drops them. A float closes, and a window whose
-program runs hides. In a session attached to a running fude, the last
-window's `:q` leaves, and fude goes on for the other sessions.
+last tab page quits fude.
+
+- Quitting refuses while any buffer has changes and names one, and `:q!`
+  quits anyway and drops them.
+- A float closes, and a window whose program runs hides.
+- In a session attached to a running fude, the last window's `:q` leaves,
+  and fude goes on for the other sessions.
 
 ## :quitall
 
@@ -410,27 +473,36 @@ Redoes one change, as `<C-r>` does.
 ## :reject
 
 Drops proposal n, or without n the newest proposal on the current buffer,
-or each of several numbers. The text stays as it was, and the timeline
-gets no state. It drops a stale proposal too. A number with no proposal
-says "no proposal n", and drops none.
+or each of several numbers.
+
+- The text stays as it was, and the timeline gets no state.
+- It drops a stale proposal too.
+- A number with no proposal says "no proposal n", and drops none.
 
 ## :restart
 
 Replaces fude with a new fude that loads config.toml, plugins, grammars
-and language servers afresh. The new one opens the same files and splits,
-each window with its cursor, top line and options, the same current
-window and every unsaved change. `ZR` does the same. It runs only in the
-terminal fude started in, and a client attached over RPC must attach
-again. It ends a share and every guest's session. A guest may not run it.
+and language servers afresh. `ZR` does the same.
+
+- The new one opens the same files and splits, each window with its
+  cursor, top line and options, the same current window and every unsaved
+  change.
+- It runs only in the terminal fude started in.
+- A client attached over RPC must attach again.
+- It ends a share and every guest's session.
+- A guest may not run it.
 
 ## :retab
 
 Rewrites the leading blanks of the range's lines, or of every line, so
-each keeps its width. With `expand_tab` on they become spaces. With it off
-`:retab` does nothing, and `:retab!` makes them tabs as far as they go,
-then spaces. A tab is `tab_width` columns. Blanks after the first
-non-blank stay as they are, and a width after the name does nothing. The
-cursor stays.
+each keeps its width. A tab is `tab_width` columns.
+
+- With `expand_tab` on they become spaces.
+- With it off `:retab` does nothing, and `:retab!` makes them tabs as far
+  as they go, then spaces.
+- Blanks after the first non-blank stay as they are.
+- A width after the name does nothing.
+- The cursor stays.
 
 ```keys
 "        |x" ":retab!<CR>" "\t|x"
@@ -446,29 +518,34 @@ already there, and `:saveas!` writes over it.
 ## :select
 
 Selects every node of the buffer's syntax tree that a capture of the query
-names, within the range's lines, or every line without a range. The query
-is in the syntax engine's query language, as `(identifier) @name`. Each
-node becomes a region of one selection, so `d`, `x`, `y` and the
-operators of modules act on every one at once, and `c` types into all of
-them until `<Esc>`. Any other key keeps the first region alone. In visual
-mode `:` fills in the selection's lines as the range. A file with no
-grammar says "no syntax for this file", and a query that finds nothing
-says "the query selected nothing".
+names, within the range's lines, or every line without a range.
+
+- The query is in the syntax engine's query language, as
+  `(identifier) @name`.
+- Each node becomes a region of one selection, so `d`, `x`, `y` and the
+  operators of modules act on every one at once, and `c` types into all
+  of them until `<Esc>`.
+- Any other key keeps the first region alone.
+- In visual mode `:` fills in the selection's lines as the range.
+- A file with no grammar says "no syntax for this file".
+- A query that finds nothing says "the query selected nothing".
 
 ## :set
 
 `:set name value` sets an option or a setting of config.toml in the
-running fude, as config.toml would, and never writes the file. A switch
-takes `true` or `false`, a number takes 0 or more, and a list takes its
-items apart by commas. An option changes the current window and the
-windows opened after it. A setting that is not a window's changes every
-session, and a guest may not change one. `:set name` shows the value, and
-`:set` alone lists every option and setting with its value in a window.
-A name or value fude does not know changes nothing and says why.
+running fude, as config.toml would, and never writes the file.
 
-`:set filetype yaml` gives the current buffer another filetype until it
-closes, with that filetype's grammar, language servers and table in
-config.toml, and `:set filetype` shows the one it has.
+- A switch takes `true` or `false`, a number takes 0 or more, and a list
+  takes its items apart by commas.
+- An option changes the current window and the windows opened after it.
+- A setting that is not a window's changes every session, and a guest may
+  not change one.
+- `:set name` shows the value.
+- `:set` alone lists every option and setting with its value in a window.
+- A name or value fude does not know changes nothing and says why.
+- `:set filetype yaml` gives the current buffer another filetype until it
+  closes, with that filetype's grammar, language servers and table in
+  config.toml. `:set filetype` shows the one it has.
 
 There is no `:set number` to turn a switch on, no `no` before a name and
 no `name=value`. `<Tab>` completes the name, then `true` and `false` for a
@@ -490,13 +567,18 @@ A guest may not run it.
 
 ## :sort
 
-Sorts the range's lines, or every line, by their text. `i` ignores case.
-`n` sorts by the first number in each line, with lines that have none
-first, in their order. `u` keeps the first of lines that sort the same,
-so with `n` that is the same number. `!` reverses the order, and comes
-before the other flags. The flags combine, as `:sort! nu`. The cursor
-goes to the start of the range's first line. The patterns and other flags
-Vim takes do nothing here.
+Sorts the range's lines, or every line, by their text. The cursor goes to
+the start of the range's first line. The flags are:
+
+- `i` ignores case.
+- `n` sorts by the first number in each line, with lines that have none
+  first, in their order.
+- `u` keeps the first of lines that sort the same, so with `n` that is the
+  same number.
+- `!` reverses the order, and comes before the other flags.
+
+The flags combine, as `:sort! nu`. The patterns and other flags Vim takes
+do nothing here.
 
 ```keys
 "c\n|a\nb" ":sort<CR>" "|a\nb\nc"
@@ -509,14 +591,28 @@ Vim takes do nothing here.
 ## :substitute
 
 Replaces the first match of the pattern on each line of the range, or of
-the cursor's line, with the replacement. The pattern is a search's, and any
-character but a letter may stand for the `/`s. An empty pattern takes the last search,
-and a missing replacement deletes the match. The flags are `g` for every
-match on a line, `i` to ignore case, `I` to match it, `n` to count the
-matches and change nothing, and `c` to ask at each match. While it asks,
-the match shows lit and `y` replaces it, `n` skips it, `a` replaces it
-and every one after, `l` replaces it and stops, and `q`, `<Esc>` or
-`<C-c>` stop. All it replaces is one undo step. In the replacement:
+the cursor's line, with the replacement.
+
+- The pattern is a search's, and any character but a letter may stand for
+  the `/`s.
+- An empty pattern takes the last search.
+- A missing replacement deletes the match.
+
+The flags are:
+
+- `g` replaces every match on a line.
+- `i` ignores case, and `I` matches it.
+- `n` counts the matches and changes nothing.
+- `c` asks at each match.
+
+While it asks, the match shows lit, and these keys answer:
+
+- `y` replaces it, and `n` skips it.
+- `a` replaces it and every one after.
+- `l` replaces it and stops.
+- `q`, `<Esc>` or `<C-c>` stop.
+
+All it replaces is one undo step. In the replacement:
 
 - `&` and `\0` are the match, and `\1` to `\9` its groups
 - `~` is the last substitute's replacement
@@ -526,11 +622,13 @@ and every one after, `l` replaces it and stops, and `q`, `<Esc>` or
 - `\` before any other character is that character, as `\&` and `\/`
 
 While the line is typed, the window shows each match struck out with its
-replacement after it, and the text changes only on `<CR>`. The cursor goes
-to the first non-blank of the last line changed. A pattern that matches
-nowhere says "pattern not found". The whole command is one undo step. `:s`
-alone repeats the last one, as `:&` does, and `&` in normal mode repeats it
-with its flags, as `:&&` does.
+replacement after it, and the text changes only on `<CR>`.
+
+- The cursor goes to the first non-blank of the last line changed.
+- A pattern that matches nowhere says "pattern not found".
+- The whole command is one undo step.
+- `:s` alone repeats the last one, as `:&` does.
+- `&` in normal mode repeats it with its flags, as `:&&` does.
 
 ```keys
 "|a a\na" ":s/a/b/<CR>" "|b a\na"
@@ -560,9 +658,12 @@ does.
 
 ## :tabmove
 
-Moves the tab page after page n, counted from 1 before it moves, or first
-with 0. `+n` and `-n` move it n places on or back, and with no n it goes
-last. A place past either end is refused.
+Moves the tab page after page n, counted from 1 before it moves.
+
+- With 0 it goes first.
+- `+n` and `-n` move it n places on or back.
+- With no n it goes last.
+- A place past either end is refused.
 
 ## :tabnew
 
@@ -638,20 +739,24 @@ without asking about files changed on disk and quits anyway.
 ## :write
 
 Writes the buffer to its file, through a temporary file, so a write that
-fails leaves the file as it was and says why. Modules may change the text first, as
-`format_on_save` does. A file changed on disk since fude read it asks
-before fude writes over it, and `:w!` writes without asking. A buffer with
-no file says "no file name", and a read-only file says so. A range does
-not narrow what it writes.
+fails leaves the file as it was and says why.
 
-`:w file` writes a copy to file, and the buffer stays on its own file and
-stays modified. It refuses to write over a file that exists, and `:w!
-file` writes over it. `<Tab>` completes a path. In an explorer or a pin
-list, `:w` makes the directory or the pins what the lines say.
+- Modules may change the text first, as `format_on_save` does.
+- A file changed on disk since fude read it asks before fude writes over
+  it, and `:w!` writes without asking.
+- A buffer with no file says "no file name", and a read-only file says so.
+- A range does not narrow what it writes.
 
-`:w !cmd` writes nothing. It gives the shell command the range's lines,
-or every line, and shows what it writes, as `:!` does. It comes with the
-shell module.
+It takes other forms too:
+
+- `:w file` writes a copy to file, and the buffer stays on its own file
+  and stays modified. It refuses to write over a file that exists, and
+  `:w! file` writes over it. `<Tab>` completes a path.
+- In an explorer or a pin list, `:w` makes the directory or the pins what
+  the lines say.
+- `:w !cmd` writes nothing. It gives the shell command the range's lines,
+  or every line, and shows what it writes, as `:!` does. It comes with the
+  shell module.
 
 ## :xall
 
@@ -679,18 +784,25 @@ from the range's last, as `:y 3` or `:y x 3`.
 ## :!
 
 `:!cmd` runs cmd in the shell and shows what it writes in the message
-line, or in a window below when it is more than 10 lines. The shell is
-`$SHELL -c`, or `/bin/sh` without `SHELL`, and on Windows PowerShell
-without its profile. It runs in the working directory. `%` in cmd is the
-buffer's file and `#` the alternate one, with the modifiers `:e` takes,
-as `%:t`, and `\%` is a `%` of its own.
+line, or in a window below when it is more than 10 lines.
+
+- The shell is `$SHELL -c`, or `/bin/sh` without `SHELL`, and on Windows
+  PowerShell without its profile.
+- It runs in the working directory.
+- `%` in cmd is the buffer's file and `#` the alternate one, with the
+  modifiers `:e` takes, as `%:t`, and `\%` is a `%` of its own.
 
 With a range, `:{range}!cmd` puts the range's lines through cmd, as its
-input, and puts what it writes in their place. `!{motion}` and `!!` in
-normal mode, and `!` in visual mode, start the command line with the range
-and `!`. Lines that change while cmd runs keep the change, and the message
-says so. A command that fails, or exits with a code other than 0, changes
-nothing and the message shows its error output. A guest may not run it.
+input, and puts what it writes in their place.
+
+- `!{motion}` and `!!` in normal mode, and `!` in visual mode, start the
+  command line with the range and `!`.
+- Lines that change while cmd runs keep the change, and the message says
+  so.
+- A command that fails, or exits with a code other than 0, changes nothing
+  and the message shows its error output.
+
+A guest may not run it.
 
 ```toml
 # the window of long output opens on the right
@@ -701,11 +813,14 @@ shell = "right"
 ## :bdelete
 
 Closes the buffer with that number, or whose name holds the text, or the
-current buffer without one. It refuses while the buffer has changes, and
-`:bd!` drops them. A window that showed the buffer shows the one it showed
-before, or else the next buffer being edited, and closing the last buffer
-leaves a new empty one. A range does not close more buffers. `<Tab>`
-completes the buffers, each as its number then its path.
+current buffer without one.
+
+- It refuses while the buffer has changes, and `:bd!` drops them.
+- A window that showed the buffer shows the one it showed before, or else
+  the next buffer being edited.
+- Closing the last buffer leaves a new empty one.
+- A range does not close more buffers.
+- `<Tab>` completes the buffers, each as its number then its path.
 
 ## :blame
 
@@ -719,9 +834,13 @@ with no file, it turns on and shows nothing.
 ## :bmove
 
 Moves the current buffer along the top row, after buffer n of the row,
-counted from 1 before it moves, or first with 0. `+n` and `-n` move it n
-places on or back, and with no n it goes last. A place past either end is
-refused. A buffer opened later goes last.
+counted from 1 before it moves.
+
+- With 0 it goes first.
+- `+n` and `-n` move it n places on or back.
+- With no n it goes last.
+- A place past either end is refused.
+- A buffer opened later goes last.
 
 ## :bnext
 
@@ -738,12 +857,15 @@ before the first going on from the last.
 ## :buffer
 
 Shows the buffer with that number in the current window, as `:b 2` does,
-or the one whose name holds the text. Text in one file's own name names
-that buffer, even if it is also in the directories of others. Text that
-more than one name holds says so. `#` is the buffer the window showed
-before, as `<C-^>` shows. `:ls` lists the numbers. `<Tab>` completes the
-buffers, each as its number then its path. The buffer the window leaves
-stays loaded with its changes.
+or the one whose name holds the text. The buffer the window leaves stays
+loaded with its changes.
+
+- Text in one file's own name names that buffer, even if it is also in
+  the directories of others.
+- Text that more than one name holds says so.
+- `#` is the buffer the window showed before, as `<C-^>` shows.
+- `:ls` lists the numbers.
+- `<Tab>` completes the buffers, each as its number then its path.
 
 ## :buffers
 
@@ -766,11 +888,13 @@ Closes the window of the last list of places. The list stays, so
 
 Runs the command at each place of the last list of places, as `:cfdo` does
 once in each file. It opens each place's file, puts the cursor on the
-place and runs the command there, as typed after `:`. Each place stays on
-its text as the command edits around it. The buffers stay unwritten, and
-`:wall` writes them. The message says how many places and files it ran
-in. When `:s` or another of the commands that edit text fails at a place,
-the run stops there and the message says why.
+place and runs the command there, as typed after `:`.
+
+- Each place stays on its text as the command edits around it.
+- The buffers stay unwritten, and `:wall` writes them.
+- The message says how many places and files it ran in.
+- When `:s` or another of the commands that edit text fails at a place,
+  the run stops there and the message says why.
 
 ## :center
 
@@ -815,24 +939,33 @@ as far as it can, and from the newest it says "no newer list".
 ## :cnext
 
 Goes to the next place of the last list of places, as `]q` does, in a
-window that shows a file, not in the list's own window. The message says
-which place it is, of how many, with its text. After the last place it
-says "no more places", without going on from the first. It takes no
-count, and `]q` does. With no list it says "no list of places".
+window that shows a file, not in the list's own window.
 
-The last list is the latest of: the places of a language server's answer,
-such as references, `:marks`, `:jumps` and `:changes`, a finder's matches
-after `<C-q>`, and the places a task's output names.
+- The message says which place it is, of how many, with its text.
+- After the last place it says "no more places", without going on from
+  the first.
+- It takes no count, and `]q` does.
+- With no list it says "no list of places".
+
+The last list is the latest of these:
+
+- The places of a language server's answer, such as references.
+- `:marks`, `:jumps` and `:changes`.
+- A finder's matches after `<C-q>`.
+- The places a task's output names.
 
 ## :colder
 
 Makes the list of places before the last one the last list, or n before
 it with `:colder n`, so `]q` and `:cnext` go through an older list. fude
-keeps the last ten lists. The message says which list it is, of how many,
-with its title and how many places it has. A window that showed the list
-it leaves shows the older one. Past the oldest it goes as far as it can,
-and from the oldest it says "no older list". A new list goes after the
-last list and drops those that were newer.
+keeps the last ten lists.
+
+- The message says which list it is, of how many, with its title and how
+  many places it has.
+- A window that showed the list it leaves shows the older one.
+- Past the oldest it goes as far as it can, and from the oldest it says
+  "no older list".
+- A new list goes after the last list and drops those that were newer.
 
 ## :copen
 
@@ -897,23 +1030,32 @@ debug = ["dlv"]
 ## :diff
 
 Shows the lines that differ between states n and m of the buffer's text,
-or between state n and now without m, in a window below. The numbers are
-those `:timeline` lists, and in the timeline's window n is the state under
-the cursor. Each part shows three lines around it, a removed line marked
-`-` and an added one `+`. Two states with the same text show "no
-difference". A number with no state says "no such state", and no number
-outside the timeline's window says "not in a timeline". `q` closes the
+or between state n and now without m, in a window below. `q` closes the
 window.
+
+- The numbers are those `:timeline` lists, and in the timeline's window n
+  is the state under the cursor.
+- Each part shows three lines around it, a removed line marked `-` and an
+  added one `+`.
+- Two states with the same text show "no difference".
+- A number with no state says "no such state".
+- No number outside the timeline's window says "not in a timeline".
 
 ## :diffget
 
 Replaces the lines of each change in the range with the other buffer's
-lines of it, in a window in diff mode. Without a range it is the change on
-the cursor's line, and a change with no lines here is on the line below
-its fill, or on the last line at the end. With more than two buffers in
-diff mode, the argument names the one to take from, by its number or part
-of its name. A part that is in one file's own name names that buffer, even
-if it is also in the directories of others. Without an argument it says "more than two buffers in diff mode, so name one". A range with no change says "no change here".
+lines of it, in a window in diff mode.
+
+- Without a range it is the change on the cursor's line. A change with no
+  lines here is on the line below its fill, or on the last line at the
+  end.
+- With more than two buffers in diff mode, the argument names the one to
+  take from, by its number or part of its name. A part that is in one
+  file's own name names that buffer, even if it is also in the
+  directories of others.
+- With more than two buffers and no argument it says "more than two
+  buffers in diff mode, so name one".
+- A range with no change says "no change here".
 
 ## :diffoff
 
@@ -960,11 +1102,15 @@ instead.
 
 Goes n states back through the buffer's text, 1 without n, as `g-` does.
 The states are in the order they were made, across every branch the undo
-tree has. n may be a time instead: `10s`, `5m`, `2h` or `1d` goes to the
-last state made at least that long before the current one. `nf` goes back
-n writes, and with changes since the last write that write counts as the
-first. Past the oldest state it stops at the text before any change. It
-makes no new state, and anything else says "bad count".
+tree has.
+
+- n may be a time instead. `10s`, `5m`, `2h` or `1d` goes to the last
+  state made at least that long before the current one.
+- `nf` goes back n writes, and with changes since the last write that
+  write counts as the first.
+- Past the oldest state it stops at the text before any change.
+- It makes no new state.
+- Anything else says "bad count".
 
 ## :enew
 
@@ -976,25 +1122,32 @@ one a file.
 
 Makes the session's windows show what the session called name shows: its
 splits, its current and zoomed window, its tab pages, and each window's
-buffer, top line and cursor. The status line says "following name". They
-follow it as it moves, until a key or a paste here ends it, which says
-"stopped following name". When that session leaves, following stops and
-says so. `<Tab>` completes the other sessions' names. A name no other
-session has says "no session is called name", and the session's own
-name says "cannot follow yourself". A guest's window keeps its own buffer
-where the other shows one outside the project.
+buffer, top line and cursor. The status line says "following name".
+
+- They follow it as it moves, until a key or a paste here ends it, which
+  says "stopped following name".
+- When that session leaves, following stops and says so.
+- `<Tab>` completes the other sessions' names.
+- A name no other session has says "no session is called name".
+- The session's own name says "cannot follow yourself".
+- A guest's window keeps its own buffer where the other shows one outside
+  the project.
 
 ## :format
 
 Formats the buffer, or the lines of a range, as a write does with
-`format_on_save` on, and does not write. The formatters are those the
-filetype's table names, each run in turn on the text, and only the first
-one installed with `format_first`. Without one, the language server
-formats it. Only the lines of the range change, and the whole format is
-one undo step. The message names a formatter that is not installed, and
-one that fails or takes longer than `format_timeout` leaves the text
-as it was and says why. A file nothing formats says "nothing formats this
-file". `gq` formats the lines a motion covers the same way.
+`format_on_save` on, and does not write. `gq` formats the lines a motion
+covers the same way.
+
+- The formatters are those the filetype's table names, each run in turn
+  on the text, and only the first one installed with `format_first`.
+- Without one, the language server formats it.
+- Only the lines of the range change, and the whole format is one undo
+  step.
+- The message names a formatter that is not installed.
+- A formatter that fails or takes longer than `format_timeout` leaves the
+  text as it was and says why.
+- A file nothing formats says "nothing formats this file".
 
 ```toml
 [filetype.go]
@@ -1015,23 +1168,32 @@ track says "not in a git repository". `q` closes the window.
 ## :grammar
 
 Lists the grammars in a window, each built, outdated (built at an older
-pin), building, not built, or failed with why. `:grammar install
-{filetype}` builds that one again, even after it failed. `:grammar update`
-builds again every grammar that is outdated, or says each is up to date.
-A build says when it starts and ends, and a build that needs a missing tool
-names it. The list names the plugin that added a grammar. For a plugin's
-grammar fude does not build, it says why, such as a plugin with no
-`grammar` in its capabilities. `<Tab>` completes `update` and `install` with each
-filetype. A guest may list the grammars but not build them.
+pin), building, not built, or failed with why.
+
+- The list names the plugin that added a grammar.
+- For a plugin's grammar fude does not build, it says why, such as a
+  plugin with no `grammar` in its capabilities.
+- `:grammar install {filetype}` builds that one again, even after it
+  failed.
+- `:grammar update` builds again every grammar that is outdated, or says
+  each is up to date.
+- A build says when it starts and ends, and a build that needs a missing
+  tool names it.
+- `<Tab>` completes `update` and `install` with each filetype.
+- A guest may list the grammars but not build them.
 
 ## :help
 
-Opens help in a window. Without an argument it opens at the index of the
-guide and the reference. `:h name` goes to a page of the guide, a section
-of the reference such as `commands`, or the entry for a command (`:w`), a
-key (`w`, `<Leader>w`), a `<Plug>` command, an option or a setting.
-`<CR>` on a name in help goes to it, and `q` closes the window. `<Tab>`
-completes the names. A name help does not know says "no help for name".
+Opens help in a window.
+
+- Without an argument it opens at the index of the guide and the
+  reference.
+- `:h name` goes to a page of the guide, a section of the reference such
+  as `commands`, or the entry for a command (`:w`), a key (`w`,
+  `<Leader>w`), a `<Plug>` command, an option or a setting.
+- `<CR>` on a name in help goes to it, and `q` closes the window.
+- `<Tab>` completes the names.
+- A name help does not know says "no help for name".
 
 ## :hide
 
@@ -1052,9 +1214,12 @@ goes there. The list becomes the last list of places. With no jump it says
 ## :kick
 
 Ends the session of the guest called name. The guest's client says the
-host ended it, and the host's message says whose session ended. `<Tab>`
-completes the guests' names. Without a name it says "kick whom? :kick
-name", and a name no guest has says so. A guest may not run it.
+host ended it, and the host's message says whose session ended.
+
+- `<Tab>` completes the guests' names.
+- Without a name it says "kick whom? :kick name".
+- A name no guest has says so.
+- A guest may not run it.
 
 ## :later
 
@@ -1101,10 +1266,12 @@ list of places. With no mark it says "no marks".
 ## :messages
 
 Lists the messages the session showed, the last 200, oldest first, in a
-window, since a message goes away with the next key. `:messages yank`
-puts the last one, whole, on the clipboard, as `"+y` does, so a message
-cut short copies as one. `<Tab>` completes `yank`, and any other argument
-says what it takes.
+window, since a message goes away with the next key.
+
+- `:messages yank` puts the last one, whole, on the clipboard, as `"+y`
+  does, so a message cut short copies as one.
+- `<Tab>` completes `yank`.
+- Any other argument says what it takes.
 
 ## :new
 
@@ -1158,9 +1325,12 @@ Shows the working directory in the message line. `:cd` changes it.
 ## :read
 
 `:r file` puts the file's text below the cursor's line, or below the last
-line of a range. `:r !cmd` puts there what cmd writes, run as `:!` runs
-it. A file that cannot be read says why. `<Tab>` completes a path. A
-guest reads only files under the project, and may not run a command.
+line of a range.
+
+- `:r !cmd` puts there what cmd writes, run as `:!` runs it.
+- A file that cannot be read says why.
+- `<Tab>` completes a path.
+- A guest reads only files under the project, and may not run a command.
 
 ## :recover
 
@@ -1177,37 +1347,51 @@ registers a and b.
 ## :rename
 
 Renames the symbol under the cursor in every file through the language
-server, to the name after `:rename`. `grn` starts the command line with
-`:rename` and the word under the cursor. Files without a buffer open in one and stay unwritten. The
-message says how many files changed, or why one was left alone. Without a
-name it says "no new name", and a buffer no server offers renames for says
-so.
+server, to the name after `:rename`.
+
+- `grn` starts the command line with `:rename` and the word under the
+  cursor.
+- Files without a buffer open in one and stay unwritten.
+- The message says how many files changed, or why one was left alone.
+- Without a name it says "no new name".
+- A buffer no server offers renames for says so.
 
 ## :resize
 
 Makes the window n rows tall, or n rows taller with `+n` and shorter with
-`-n`. Without n, or with 0, it makes the window as tall as it can be.
-Every other window keeps at least a row and its status line. A window with
-no split above or below it does not change, and a float says it sizes
-itself. Anything else after the name says "not a size".
+`-n`.
+
+- Without n, or with 0, it makes the window as tall as it can be.
+- Every other window keeps at least a row and its status line.
+- A window with no split above or below it does not change.
+- A float says it sizes itself.
+- Anything else after the name says "not a size".
 
 ## :restore
 
 Makes the text of state n the newest text, as a new state, so nothing is
-lost and `u` goes back. In the timeline's window n is the state under the
-cursor, which `<CR>` restores too. A state the text already is says so,
-and a number with no state says "no such state". With no number outside
-the timeline's window it says "not in a timeline".
+lost and `u` goes back.
+
+- In the timeline's window n is the state under the cursor, which `<CR>`
+  restores too.
+- A state the text already is says so.
+- A number with no state says "no such state".
+- With no number outside the timeline's window it says "not in a
+  timeline".
 
 ## :review
 
 Shows every proposal clients made in a window, by file. Each shows its
 number, its line, who proposed it and whether it is stale, then the lines
-it changes, those it removes after `-` and those it adds after `+`. `a`
-accepts the proposal under the cursor and `r` rejects it, `A` accepts
-every one the window shows and `R` rejects them, and `<CR>` goes to it.
-The window follows as proposals come, go and go stale. With none it says
-"no proposals".
+it changes, those it removes after `-` and those it adds after `+`. The
+window follows as proposals come, go and go stale. With none it says "no
+proposals".
+
+In the window:
+
+- `a` accepts the proposal under the cursor and `r` rejects it.
+- `A` accepts every one the window shows and `R` rejects them.
+- `<CR>` goes to the proposal under the cursor.
 
 ```toml
 [keymap.review]
@@ -1230,19 +1414,27 @@ split_right = false
 
 `:task name` runs that task in a terminal window below, and the cursor
 stays where it was. `:task` alone runs the last task run again, with its
-`{file}`, `{dir}`, `{line}` and `{word}` from the current buffer. The tasks
-come, in this order, from `[task.<name>]` tables of config.toml and of
-`.fude/tasks.toml`, the recipes of a justfile, the targets of a Makefile
-and the scripts of package.json. `{file}`, `{dir}`, `{line}` and `{word}`
-in a task's command become the current file, its directory, the cursor's
-line and the word under the cursor.
+`{file}`, `{dir}`, `{line}` and `{word}` from the current buffer.
+`{file}`, `{dir}`, `{line}` and `{word}` in a task's command become the
+current file, its directory, the cursor's line and the word under the
+cursor.
+
+The tasks come from these, in this order:
+
+- `[task.<name>]` tables of config.toml and of `.fude/tasks.toml`.
+- The recipes of a justfile.
+- The targets of a Makefile.
+- The scripts of package.json.
 
 The window's title shows a tick and the time taken when the task ends, or
-a cross and its exit code. Running a task again closes the last run's
-window first, and a task still running shows its window again instead of
-running twice. Places in its output, as `path:line:col:`, become the last
-list of places, and `]q` goes to the first. `<Tab>` completes the names,
-and `:pick tasks` lists them. A guest may not run one.
+a cross and its exit code.
+
+- Running a task again closes the last run's window first, and a task
+  still running shows its window again instead of running twice.
+- Places in its output, as `path:line:col:`, become the last list of
+  places, and `]q` goes to the first.
+- `<Tab>` completes the names, and `:pick tasks` lists them.
+- A guest may not run one.
 
 ```toml
 [task.test]
@@ -1255,18 +1447,23 @@ command = "go run {file}"
 ## :terminal
 
 Shows shell 1 in a terminal window below, starting it the first time, and
-hides it when the current window shows it. `:terminal n` does the same for
-shell n, as `:b n` names a buffer. Shells are numbered from 1. `<Tab>`
-completes the shells that started, each as its number then `shell`.
-`:terminal cmd` runs cmd through the shell in a new window each time, and
-when it ends the window stays and its title shows how it exited. A shell's
-window closes when the shell exits.
+hides it when the current window shows it.
+
+- `:terminal n` does the same for shell n, as `:b n` names a buffer.
+  Shells are numbered from 1.
+- `<Tab>` completes the shells that started, each as its number then
+  `shell`.
+- `:terminal cmd` runs cmd through the shell in a new window each time,
+  and when it ends the window stays and its title shows how it exited.
+- A shell's window closes when the shell exits.
 
 Keys typed in the window go to the program while in terminal mode.
-`<C-\><C-n>` or `<Esc><Esc>` leaves terminal mode for normal mode, and
-`i` goes back. The window is `terminal_height` percent of the screen tall.
-When fude listens on a socket, the program gets it as `FUDE_SOCKET`. A
-guest may not run it.
+
+- `<C-\><C-n>` or `<Esc><Esc>` leaves terminal mode for normal mode, and
+  `i` goes back.
+- The window is `terminal_height` percent of the screen tall.
+- When fude listens on a socket, the program gets it as `FUDE_SOCKET`.
+- A guest may not run it.
 
 ```toml
 terminal_height = 40
@@ -1278,11 +1475,13 @@ terminal = "right"
 ## :theme
 
 `:theme dark` and `:theme light` switch every client to that theme until
-fude quits, as `:set theme` does. A path to a base16 scheme file
-switches to that scheme, and one that does not load says why and leaves
-the theme as it was. `:theme` alone shows the theme in use. `<Tab>`
-completes `dark`, `light` and the scheme config.toml names. A guest may
-not run it.
+fude quits, as `:set theme` does.
+
+- A path to a base16 scheme file switches to that scheme, and one that
+  does not load says why and leaves the theme as it was.
+- `:theme` alone shows the theme in use.
+- `<Tab>` completes `dark`, `light` and the scheme config.toml names.
+- A guest may not run it.
 
 ```toml
 theme = "~/.config/fude/gruvbox.yaml"
@@ -1296,10 +1495,14 @@ bg = "#1d2021"
 Lists every state of the current buffer's text in a window below, one a
 line: its number, the time it was made and the command that made it.
 State 0 is the text before any change. A `*` marks the current state, and
-a state made from one other than the line above it says which. In the
-window `[` and `]` go one state back or forward from the one under the
-cursor, `d` shows the lines that differ from it to now, `<CR>` restores it
-as a new state, and `q` closes the window.
+a state made from one other than the line above it says which.
+
+In the window:
+
+- `[` and `]` go one state back or forward from the one under the cursor.
+- `d` shows the lines that differ from the state under the cursor to now.
+- `<CR>` restores the state under the cursor as a new state.
+- `q` closes the window.
 
 ```toml
 # open the timeline, and its diffs, in a float
@@ -1315,14 +1518,15 @@ writes over a file changed on disk without asking.
 ## :vertical
 
 Runs the command after it, and the window it opens goes right of the
-current one, or left with `split_right` off. So `:vertical split` splits
-as `:vsplit` does, `:vertical new` opens as `:vnew` does, and `:vertical
-help` shows help beside the window.
+current one, or left with `split_right` off.
 
-`:vertical resize` makes the window n columns wide, or n columns wider
-with `+n` and narrower with `-n`, as `:resize` does with rows. Without n it
-makes the window as wide as it can be. Every other window keeps at least a
-column.
+- `:vertical split` splits as `:vsplit` does.
+- `:vertical new` opens as `:vnew` does.
+- `:vertical help` shows help beside the window.
+- `:vertical resize` makes the window n columns wide, or n columns wider
+  with `+n` and narrower with `-n`, as `:resize` does with rows. Without n
+  it makes the window as wide as it can be. Every other window keeps at
+  least a column.
 
 ## :vnew
 

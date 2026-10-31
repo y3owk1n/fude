@@ -2,23 +2,36 @@
 
 An operator waits for a target, a motion or a text object, and acts on the
 text it covers. `dw` deletes to the next word and `di(` deletes inside the
-parentheses. The motion decides whether the operator takes characters or
-whole lines, as the motions say. A count may come before the operator, the
-target or both, and they multiply, so `2d3w` deletes six words. An operator
-typed twice acts on the line, or with n on n lines, as `dd` and `3dd` do.
-For an operator of two keys, its second key typed again does the same, so
-`guu` is `gugu`.
+parentheses.
+
+- The motion decides whether the operator takes characters or whole
+  lines, as the motions say.
+- A count may come before the operator, the target or both, and they
+  multiply, so `2d3w` deletes six words.
+- An operator typed twice acts on the line, or with n on n lines, as `dd`
+  and `3dd` do.
+- For an operator of two keys, its second key typed again does the same,
+  so `guu` is `gugu`.
 
 `<Esc>` while an operator waits cancels it and changes nothing. A target
 that cannot act, such as `j` on the last line or `i(` outside any
-parentheses, leaves the text as it was. `"x` before the count or the
-operator names the register `d`, `c` and `y` use. Without one, a yank goes
-to `"0`, a delete of lines or of text with a line break to `"1`, moving the
-older ones up to `"9`, and a smaller delete to `"-`. Each also sets `""`,
-which `p` puts. An uppercase name appends, `"_` keeps nothing, and `"+` and
-`"*` are the clipboard. `.` repeats the last change with its target,
-register and count, or with the count typed before the `.` instead. A yank
-changes nothing, so `.` never repeats one.
+parentheses, leaves the text as it was.
+
+`"x` before the count or the operator names the register `d`, `c` and `y`
+use. Without one:
+
+- A yank goes to `"0`.
+- A delete of lines or of text with a line break goes to `"1`, moving the
+  older ones up to `"9`.
+- A smaller delete goes to `"-`.
+- Each also sets `""`, which `p` puts.
+
+An uppercase name appends, `"_` keeps nothing, and `"+` and `"*` are the
+clipboard.
+
+`.` repeats the last change with its target, register and count, or with
+the count typed before the `.` instead. A yank changes nothing, so `.`
+never repeats one.
 
 In visual mode an operator acts on the selection at once.
 
@@ -33,10 +46,13 @@ replaces the lines with what the command writes. `!!` takes the line, and
 ## <{motion}
 
 Outdents the lines the target covers by `indent_width` columns, or to none
-when they have less. The rest of the indent is rebuilt in tabs and spaces,
-or spaces with `expand_tab`. Empty lines stay empty. A count before `<<`
-takes n lines, each shifted once. The cursor goes to the first non-blank
-of the first line.
+when they have less.
+
+- The rest of the indent is rebuilt in tabs and spaces, or spaces with
+  `expand_tab`.
+- Empty lines stay empty.
+- A count before `<<` takes n lines, each shifted once.
+- The cursor goes to the first non-blank of the first line.
 
 ```keys
 "\t\t|a\n\tb" "<<" "\t|a\n\tb"
@@ -58,11 +74,14 @@ after a paragraph alone.
 ## c{motion}
 
 Deletes the text the target covers into the register, then starts insert
-mode where it was. `.` repeats the change with the text typed. `cw` on a
-word changes to the word's end, as `ce` does, and keeps the blank after
-it. `cc` changes the line, or n lines, and keeps the first line's indent.
-A target that covers nothing, as `ci(` in `()`, starts insert mode
-anyway.
+mode where it was.
+
+- `.` repeats the change with the text typed.
+- `cw` on a word changes to the word's end, as `ce` does, and keeps the
+  blank after it.
+- `cc` changes the line, or n lines, and keeps the first line's indent.
+- A target that covers nothing, as `ci(` in `()`, starts insert mode
+  anyway.
 
 ```keys
 "foo |bar baz" "cwX<Esc>" "foo |X baz"
@@ -73,11 +92,14 @@ anyway.
 
 ## d{motion}
 
-Deletes the text the target covers into the register. After a charwise
-delete the cursor is where the text began. After a linewise one it keeps
-its column on the line that moved up, unless an exclusive motion became
-linewise, which puts it on the first non-blank. `dd` deletes the line, or
-n lines, and on the last line takes the line break before it.
+Deletes the text the target covers into the register.
+
+- After a charwise delete the cursor is where the text began.
+- After a linewise one it keeps its column on the line that moved up,
+  unless an exclusive motion became linewise, which puts it on the first
+  non-blank.
+- `dd` deletes the line, or n lines, and on the last line takes the line
+  break before it.
 
 ```keys
 "foo |bar baz" "dw" "foo |baz"
@@ -141,9 +163,12 @@ text, or of the first line for lines. `g~~` and `g~g~` take the line.
 ## y{motion}
 
 Copies the text the target covers into the register and changes nothing.
-The text flashes. The cursor goes to the start of the text, so `yb` moves
-it back a word. After a linewise yank it moves to the first line only
-when that is above, keeping its column. `yy` yanks the line, or n lines.
+
+- The text flashes.
+- The cursor goes to the start of the text, so `yb` moves it back a word.
+- After a linewise yank it moves to the first line only when that is
+  above, keeping its column.
+- `yy` yanks the line, or n lines.
 
 ```keys
 "foo b|ar" "yb" "foo |bar"
@@ -154,14 +179,18 @@ when that is above, keeping its column. `yy` yanks the line, or n lines.
 
 ## gc{motion}
 
-Comments the lines the target covers, in the comment syntax of the
-language where the target starts, which may be a language inside the file,
-such as the code in a markdown fence. The marks go at the least indent of
-the lines. When every line that is not blank is already commented, it
-takes the marks off instead. `gcc` toggles the line, or n lines, and
-`gcgc` takes the marks off the comment block at the cursor, the `gc`
-object. A file with no comment syntax gets a message and stays as it was.
-The comment module gives it.
+Comments the lines the target covers. The comment module gives it.
+
+- It uses the comment syntax of the language where the target starts,
+  which may be a language inside the file, such as the code in a
+  markdown fence.
+- The marks go at the least indent of the lines.
+- When every line that is not blank is already commented, it takes the
+  marks off instead.
+- `gcc` toggles the line, or n lines.
+- `gcgc` takes the marks off the comment block at the cursor, the `gc`
+  object.
+- A file with no comment syntax gets a message and stays as it was.
 
 ## zf{motion}
 
@@ -172,11 +201,15 @@ at its first or last line first. A target within one line makes no fold.
 ## gq{motion}
 
 Formats the lines the target covers through the filetype's `format`
-formatters, run in turn, or else through its language server. Only the
-changes inside those lines apply, as one change. Formatting that takes
-longer than `format_timeout` leaves the text as it was, and a file that
-nothing formats gets a message. fude has no formatter of its own. `gqq` formats
-the line. The format module gives it.
+formatters, run in turn, or else through its language server. The format
+module gives it.
+
+- Only the changes inside those lines apply, as one change.
+- Formatting that takes longer than `format_timeout` leaves the text as
+  it was.
+- A file that nothing formats gets a message. fude has no formatter of
+  its own.
+- `gqq` formats the line.
 
 ```toml
 [filetype.go]
@@ -205,10 +238,13 @@ session may run it.
 ## ys{motion}{char}
 
 Waits for one more character, then puts the pair it names around the text
-the target covers. `)` or `b`, `]` or `r`, `}` or `B`, and `>`, `<` or `a`
-name brackets, and `(`, `[` and `{` the same brackets with a space inside
-each. Any other character goes on both sides, as `"` does. The blanks at
-the end of the target stay outside the pair, so `ysaw(` wraps the word as
-`ysiw(` does. A linewise target wraps from the first line's first
-non-blank to the last line's end, so `yss)` wraps the line's text. `.`
-repeats it with the same character. The surround module gives it.
+the target covers. The surround module gives it.
+
+- `)` or `b`, `]` or `r`, `}` or `B`, and `>`, `<` or `a` name brackets.
+- `(`, `[` and `{` name the same brackets with a space inside each.
+- Any other character goes on both sides, as `"` does.
+- The blanks at the end of the target stay outside the pair, so `ysaw(`
+  wraps the word as `ysiw(` does.
+- A linewise target wraps from the first line's first non-blank to the
+  last line's end, so `yss)` wraps the line's text.
+- `.` repeats it with the same character.

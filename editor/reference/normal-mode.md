@@ -7,24 +7,30 @@ size or a place in a list instead.
 
 A register named with `"` and a count can come in either order before
 the command, so `"a3p` and `3"ap` both put register `a` three times. A
-count on each side of it multiplies, so `2"a3p` puts it six times. A
-command that changes the text is a change, and `.` repeats the last one
+count on each side of it multiplies, so `2"a3p` puts it six times.
+
+A command that changes the text is a change, and `.` repeats the last one
 with its count and register. Moves, scrolls, yanks and undo are not
 changes.
 
 ## "{reg}
 
 Names the register the next yank, delete, change or put uses, as `"ayy`
-yanks the line into `a`. `a` to `z` keep text until they are written
-again, and `A` to `Z` add to the end of the lowercase one. `"_` throws
-the text away, so a delete into it keeps the unnamed register. `"+` and
-`"*` are the system clipboard. `".` holds the text last typed in insert
-mode, `":` the last command line, `"/` the last search and `"%` the
-file's name, and none of these four can be written. Without a register a
-yank goes to `"0`, a delete of lines to `"1`, which moves the older ones
-up to `"9`, and a smaller delete to `"-`. Every one of them also fills the
-unnamed register `""`, which a put without a register takes. With
-`clipboard` on, that unnamed register is the system clipboard too.
+yanks the line into `a`.
+
+- `a` to `z` keep text until they are written again.
+- `A` to `Z` add to the end of the lowercase one.
+- `"_` throws the text away, so a delete into it keeps the unnamed
+  register.
+- `"+` and `"*` are the system clipboard.
+- `".` holds the text last typed in insert mode, `":` the last command
+  line, `"/` the last search and `"%` the file's name. None of these four
+  can be written.
+- Without a register a yank goes to `"0`, a delete of lines to `"1`,
+  which moves the older ones up to `"9`, and a smaller delete to `"-`.
+- Every one of them also fills the unnamed register `""`, which a put
+  without a register takes.
+- With `clipboard` on, that unnamed register is the system clipboard too.
 
 ```keys
 "|one two" "\"ayiww\"aP" "one on|etwo"
@@ -75,10 +81,12 @@ Shows the buffer the window showed before, or with a count buffer n, as
 ## <C-a>
 
 Adds n to the first number on the line that ends at or after the cursor,
-and puts the cursor on its last digit. A number is decimal, hex after
-`0x` or binary after `0b`. A `-` right before a decimal makes it
-negative. Leading zeros and the case of hex digits stay. It fails when
-the line has no number from the cursor on.
+and puts the cursor on its last digit.
+
+- A number is decimal, hex after `0x` or binary after `0b`.
+- A `-` right before a decimal makes it negative.
+- Leading zeros and the case of hex digits stay.
+- It fails when the line has no number from the cursor on.
 
 ```keys
 "|x 9 y" "<C-a>" "x 1|0 y"
@@ -95,8 +103,10 @@ view. The cursor moves only as far as it must to stay in the view.
 ## <C-d>
 
 Scrolls the view down half its height, and moves the cursor down as far.
-With a count it scrolls n lines instead, for this time only. The view stops
-once the last line is at its bottom, and on the last line `<C-d>` fails.
+
+- With a count it scrolls n lines instead, for this time only.
+- The view stops once the last line is at its bottom.
+- On the last line `<C-d>` fails.
 
 ```keys
 "|a\nb\nc\nd" "2<C-d>" "a\nb\n|c\nd"
@@ -127,11 +137,14 @@ Goes forward n places in the jump list, back to where `<C-o>` came from.
 
 ## <C-l>
 
-Hides the highlight of the last search's matches. The next search, `n`,
-`N`, `*`, `#` or `:s` shows them again. It also removes every
-multicursor, and `gQ` puts them back. Each register a command wrote while
-they were placed then holds what every multicursor and the cursor held
-there, one line each, in order through the text.
+Hides the highlight of the last search's matches, and removes every
+multicursor.
+
+- The next search, `n`, `N`, `*`, `#` or `:s` shows the matches again.
+- `gQ` puts the multicursors back.
+- Each register a command wrote while they were placed then holds what
+  every multicursor and the cursor held there, one line each, in order
+  through the text.
 
 ```keys
 "|a\nb" "Qj<C-l>x" "a\n|"
@@ -149,11 +162,13 @@ the cursor is not on a letter, digit or `_`.
 
 ## <C-o>
 
-Goes back n places in the jump list. The jump list is the places a jump
-left from, such as `G`, `%`, a search or a mark, one for each line, and
-the newest 100 of them. The first `<C-o>` adds where the cursor is, so
-`<C-i>` comes back to it. A place may be in another buffer, which the
-window then shows. It fails at the oldest place.
+Goes back n places in the jump list.
+
+- The jump list is the places a jump left from, such as `G`, `%`, a
+  search or a mark, one for each line, and the newest 100 of them.
+- The first `<C-o>` adds where the cursor is, so `<C-i>` comes back to it.
+- A place may be in another buffer, which the window then shows.
+- It fails at the oldest place.
 
 ```keys
 "|a\nb\nc" "G<C-o>" "|a\nb\nc"
@@ -188,12 +203,15 @@ cursor on every line between.
 
 ## <C-w>{key}
 
-Runs a window command, the key after `<C-w>`. fude's own split, close,
-arrange and move between windows, as the entries that follow say, and
-modules add more, such as the window module's keys that resize. A count
-before `<C-w>` reaches the command, which the keys that resize read as a
-size. In a float, a `<C-w>` key closes the float, except `<C-w>w`,
-`<C-w>W` and `<C-w>p`, which move to another window and leave it open.
+Runs a window command, the key after `<C-w>`.
+
+- fude's own keys split, close, arrange and move between windows, as the
+  entries that follow say.
+- Modules add more, such as the window module's keys that resize.
+- A count before `<C-w>` reaches the command, which the keys that resize
+  read as a size.
+- In a float, a `<C-w>` key closes the float, except `<C-w>w`, `<C-w>W`
+  and `<C-w>p`, which move to another window and leave it open.
 
 ## <C-x>
 
@@ -291,10 +309,13 @@ The same as `k`.
 
 ## @{reg}
 
-Runs the keys in the register as if typed, n times. `@@` runs the last
-register run again, and `@:` the last command line. Mappings apply to the
-keys. The run stops at the first motion that fails, so a count larger
-than needed is safe. It does nothing for an empty register.
+Runs the keys in the register as if typed, n times.
+
+- `@@` runs the last register run again, and `@:` the last command line.
+- Mappings apply to the keys.
+- The run stops at the first motion that fails, so a count larger than
+  needed is safe.
+- It does nothing for an empty register.
 
 ```keys
 "|abcdef" "qaxq2@a" "|def"
@@ -435,9 +456,12 @@ goes back.
 ## g-
 
 Goes n states back through the text's history, in the order the states
-were made, across branches, as `g+` goes forward. After an undo and a new
-change, `g-` reaches the state the undo left, which `u` does not. The
-cursor goes to where the state changed. It says so at the oldest state.
+were made, across branches, as `g+` goes forward.
+
+- After an undo and a new change, `g-` reaches the state the undo left,
+  which `u` does not.
+- The cursor goes to where the state changed.
+- It says so at the oldest state.
 
 ```keys
 "|abc" "xxu$xg-" "|c"
@@ -451,9 +475,12 @@ accent, shows each joined by ` + `.
 
 ## g;
 
-Goes back n places in the change list, the places where the text changed,
-one for each line, the newest 100 of them. The first `g;` goes to the
-newest change. It fails at the oldest place.
+Goes back n places in the change list.
+
+- The change list is the places where the text changed, one for each
+  line, the newest 100 of them.
+- The first `g;` goes to the newest change.
+- It fails at the oldest place.
 
 ```keys
 "|ab\ncd\nef" "xGxggg;" "b\ncd\n|f"
@@ -558,12 +585,14 @@ space or a tab.
 
 ## i
 
-Starts insert mode before the character under the cursor. `<Esc>` leaves
-it and the cursor moves back one character. After a count, `<Esc>` types
-the text that many times in all, and `<C-c>` leaves it typed once. `a`,
-`A`, `I` and `gI` take a count the same way, and `o` and `O` open that
-many lines. In a buffer that may not change, it says why and stays in
-normal mode.
+Starts insert mode before the character under the cursor.
+
+- `<Esc>` leaves it and the cursor moves back one character.
+- After a count, `<Esc>` types the text that many times in all, and
+  `<C-c>` leaves it typed once.
+- `a`, `A`, `I` and `gI` take a count the same way, and `o` and `O` open
+  that many lines.
+- In a buffer that may not change, it says why and stays in normal mode.
 
 ```keys
 "a|bc" "ix<Esc>" "a|xbc"
@@ -573,9 +602,12 @@ normal mode.
 
 ## J
 
-Joins n lines, at least two, dropping the indent of each line joined and putting one space between. It puts
-no space after a blank, before a `)`, or next to an empty line. The cursor
-goes to the last join. On the last line it fails.
+Joins n lines, at least two, dropping the indent of each line joined and
+putting one space between.
+
+- It puts no space after a blank, before a `)`, or next to an empty line.
+- The cursor goes to the last join.
+- On the last line it fails.
 
 ```keys
 "|a\n  b" "J" "a| b"
@@ -585,12 +617,14 @@ goes to the last join. On the last line it fails.
 
 ## m{a-zA-Z}
 
-Sets mark a to z at the cursor, for `` `a `` and `'a` to go to. A mark
-moves with its text as lines above it change. Marks a to z belong to the
-buffer. A to Z are file marks, one each across every buffer, and going to
-one shows the buffer that holds it, though an operator takes it only in
-its own buffer. `m'`, `` m` ``, `m[`, `m]`, `m<` and `m>` set those marks
-by hand.
+Sets mark a to z at the cursor, for `` `a `` and `'a` to go to.
+
+- A mark moves with its text as lines above it change.
+- Marks a to z belong to the buffer.
+- A to Z are file marks, one each across every buffer. Going to one shows
+  the buffer that holds it, though an operator takes it only in its own
+  buffer.
+- `m'`, `` m` ``, `m[`, `m]`, `m<` and `m>` set those marks by hand.
 
 ```keys
 "ab|c\nd" "maj`a" "ab|c\nd"
@@ -622,10 +656,12 @@ the text.
 
 ## P
 
-Puts the register before the cursor, n times. Text that is whole lines
-goes above the cursor's line, with the cursor on its first non-blank. Other
-text goes before the cursor, which lands on its last character. It says
-so when the register is empty.
+Puts the register before the cursor, n times.
+
+- Text that is whole lines goes above the cursor's line, with the cursor
+  on its first non-blank.
+- Other text goes before the cursor, which lands on its last character.
+- It says so when the register is empty.
 
 ```keys
 "a|b" "ylP" "a|bb"
@@ -634,12 +670,14 @@ so when the register is empty.
 
 ## p
 
-Puts the register after the cursor, n times. Text that is whole lines
-goes below the cursor's line, with the cursor on its first non-blank. Other
-text goes after the cursor, which lands on its last character, or on its
-start when it holds a line break. With `clipboard` on and no register
-named, it puts the system clipboard when that holds something other than
-what the unnamed register holds.
+Puts the register after the cursor, n times.
+
+- Text that is whole lines goes below the cursor's line, with the cursor
+  on its first non-blank.
+- Other text goes after the cursor, which lands on its last character, or
+  on its start when it holds a line break.
+- With `clipboard` on and no register named, it puts the system clipboard
+  when that holds something other than what the unnamed register holds.
 
 ```keys
 "|ab" "yl3p" "aaa|ab"
@@ -649,17 +687,25 @@ what the unnamed register holds.
 ## Q
 
 Places a multicursor where the cursor is, or removes the one there. `1Q`
-only places one and `2Q` only removes one. While multicursors are placed,
-every command that edits runs again at each of them, on that
-multicursor's own text: operators with their targets, `x`, `p`, `.`,
-macros, the keys of a mapping, insert mode as it is typed, and visual
-mode key by key. Motions move only the cursor, unless `q=` sets follow
-on, and ex commands, undo and scrolls run once. `u` takes back a command
-at every multicursor as one step. Each multicursor has its own registers
-and marks, so `yiw` at each and `p` puts each its own word. A multicursor
-where the cursor is moves with it. `<C-l>` removes them. `Q` sets follow
-off. They show in the colour of the mode, and in visual mode each with
-its own selection. In kitty they are real cursors in the cursor's shape.
+only places one and `2Q` only removes one. `<C-l>` removes them. `Q` sets
+follow off.
+
+While multicursors are placed:
+
+- Every command that edits runs again at each of them, on that
+  multicursor's own text. That is operators with their targets, `x`, `p`,
+  `.`, macros, the keys of a mapping, insert mode as it is typed, and
+  visual mode key by key.
+- Motions move only the cursor, unless `q=` sets follow on.
+- Ex commands, undo and scrolls run once.
+- `u` takes back a command at every multicursor as one step.
+- Each multicursor has its own registers and marks, so `yiw` at each and
+  `p` puts each its own word.
+- A multicursor where the cursor is moves with it.
+- They show in the colour of the mode, and in visual mode each with its
+  own selection.
+- In kitty they are real cursors in the cursor's shape.
+
 `:h multicursor` has more examples.
 
 ```keys
@@ -689,11 +735,13 @@ nothing without multicursors.
 
 ## q=
 
-Toggles multicursor follow. With follow on, a motion that goes from where
-the cursor is, such as `w`, `fx`, `j`, `n` or `*`, moves every
-multicursor too. `G`, `gg`, `H`, `M`, `L`, marks and the jumplist move
-only the cursor. Multicursors that land in one place become one. `1q=`
-sets follow on and `2q=` off.
+Toggles multicursor follow.
+
+- With follow on, a motion that goes from where the cursor is, such as
+  `w`, `fx`, `j`, `n` or `*`, moves every multicursor too.
+- `G`, `gg`, `H`, `M`, `L`, marks and the jumplist move only the cursor.
+- Multicursors that land in one place become one.
+- `1q=` sets follow on and `2q=` off.
 
 ```keys
 "|ab cd\nef gh" "Qjq=wx" "ab d\nef |h"
@@ -701,10 +749,12 @@ sets follow on and `2q=` off.
 
 ## q{reg}
 
-Records the keys typed into register reg until `q` is typed again. An
-uppercase name adds the keys to what the lowercase register holds. While
-it records, the status line says so. `q:` opens the history of command
-lines and `q/` that of searches, when the history module is loaded.
+Records the keys typed into register reg until `q` is typed again.
+
+- An uppercase name adds the keys to what the lowercase register holds.
+- While it records, the status line says so.
+- `q:` opens the history of command lines and `q/` that of searches, when
+  the history module is loaded.
 
 ```keys
 "|abcdef" "qaxqqAxq@a" "|ef"
@@ -753,11 +803,15 @@ Until then `cl` does what it does.
 ## U
 
 Puts back the line last changed on its own as it was before the changes
-made to it since, with the cursor where it was then. `U` is a change, so
-`u` undoes it, and `U` again puts back what it took away. `.` does not
-repeat it. A change that splits, joins or deletes the line, such as `o`,
-`J` or `dd`, forgets it, and `U` then does nothing. It keeps the line of
-the file changed last, and in another file does nothing.
+made to it since, with the cursor where it was then.
+
+- `U` is a change, so `u` undoes it, and `U` again puts back what it took
+  away.
+- `.` does not repeat it.
+- A change that splits, joins or deletes the line, such as `o`, `J` or
+  `dd`, forgets it, and `U` then does nothing.
+- It keeps the line of the file changed last, and in another file does
+  nothing.
 
 ```keys
 "|abc def\nxyz" "xxlxU" "|abc def\nxyz"
@@ -767,10 +821,12 @@ the file changed last, and in another file does nothing.
 
 ## u
 
-Undoes n changes. The cursor goes back to where it was before the change
-when that is on the change's first line, or else to that line's first
-non-blank. Everything typed in one stay in insert mode is one change. It
-says so when there is nothing to undo.
+Undoes n changes.
+
+- The cursor goes back to where it was before the change when that is on
+  the change's first line, or else to that line's first non-blank.
+- Everything typed in one stay in insert mode is one change.
+- It says so when there is nothing to undo.
 
 ```keys
 "|abc" "xxu" "|bc"
@@ -893,12 +949,14 @@ quits fude and drops unsaved changes.
 ## zq{motion}
 
 Places a multicursor at the cursor and at each place the motion reaches
-from there, again and again, to the end of the text. A search, `n`, `N`,
-`*`, `#`, `/` or `?`, places one at every match instead, and makes each
-match its multicursor's last selection, so `zq*gvc` changes every match
-of the word under the cursor. In visual mode it stays within the
-selection, and a block starts each of its lines at its left column. Text
-objects are not motions here.
+from there, again and again, to the end of the text.
+
+- A search, `n`, `N`, `*`, `#`, `/` or `?`, places one at every match
+  instead, and makes each match its multicursor's last selection, so
+  `zq*gvc` changes every match of the word under the cursor.
+- In visual mode it stays within the selection, and a block starts each
+  of its lines at its left column.
+- Text objects are not motions here.
 
 ```keys
 "|a b\nc d" "zqwx" "| \n "
@@ -935,10 +993,13 @@ cursor goes to line n first, keeping its column.
 
 ## {count}
 
-Digits typed before a command are its count, n. `0` starts a count only
-after another digit, and alone goes to the start of the line. A count
-before an operator and one before its motion multiply, so `2d3w` deletes
-six words. A command that takes no count ignores it.
+Digits typed before a command are its count, n.
+
+- `0` starts a count only after another digit, and alone goes to the
+  start of the line.
+- A count before an operator and one before its motion multiply, so
+  `2d3w` deletes six words.
+- A command that takes no count ignores it.
 
 ```keys
 "|abcdef" "3x" "|def"
@@ -989,9 +1050,13 @@ Moves to the window right of the current one, as `<C-w>h` moves left.
 
 ## <C-w>c
 
-Closes the window. The buffer stays open, and the window before it in its
-split, or else the one after, takes its place. A window whose program runs, such as a terminal,
-hides instead and the program goes on. It says so in the last window.
+Closes the window.
+
+- The buffer stays open, and the window before it in its split, or else
+  the one after, takes its place.
+- A window whose program runs, such as a terminal, hides instead and the
+  program goes on.
+- It says so in the last window.
 
 ## <C-w>q
 
@@ -1010,10 +1075,13 @@ Makes the windows of each split share its space equally again.
 ## <C-w>w
 
 Moves to the next window, from the top left, going on from the first
-after the last. The floats come after the windows of the layout, the
-newest first, and stay open as the focus moves in and out of them. With a
-count it moves to window n instead, or to the last when there are fewer.
-`<C-w><C-w>` is the same.
+after the last.
+
+- The floats come after the windows of the layout, the newest first, and
+  stay open as the focus moves in and out of them.
+- With a count it moves to window n instead, or to the last when there
+  are fewer.
+- `<C-w><C-w>` is the same.
 
 ## <C-w>W
 
@@ -1029,18 +1097,24 @@ that window has closed, the message says "no previous window".
 ## <C-w>x
 
 Exchanges the window with the next one in its split, or with the one
-before for the last, or with window n of the split with a count. Each
-window keeps its size. The cursor stays in its place in the split, so it
-is now in the other window. Beside a window that is split itself, it does
-nothing. `<C-w><C-x>` is the same.
+before for the last, or with window n of the split with a count.
+
+- Each window keeps its size.
+- The cursor stays in its place in the split, so it is now in the other
+  window.
+- Beside a window that is split itself, it does nothing.
+- `<C-w><C-x>` is the same.
 
 ## <C-w>r
 
 Rotates the windows of the window's split down or right. Each moves one
-place on, and the last becomes the first. A count rotates n times. Each
-window keeps its size, and the cursor goes with its window. Beside a
-window that is split itself, the message says it cannot rotate.
-`<C-w><C-r>` is the same.
+place on, and the last becomes the first.
+
+- A count rotates n times.
+- Each window keeps its size, and the cursor goes with its window.
+- Beside a window that is split itself, the message says it cannot
+  rotate.
+- `<C-w><C-r>` is the same.
 
 ## <C-w>R
 
@@ -1076,17 +1150,23 @@ alone. In the only window of its page it says "already only one window".
 ## ds{char}
 
 Deletes the pair of brackets or quotes around the cursor that char names,
-and leaves the cursor where the first was. A closing bracket, or `b`, `r`,
-`B` or `a`, names `()`, `[]`, `{}` or `<>`. An opening bracket names the
-same pair and also takes away the blanks inside it, so `ds(` on `( a )`
-leaves `a`. Any other character names a pair of itself, such as a quote.
-It does nothing when there is no such pair. `.` repeats it. It comes with
-the surround module.
+and leaves the cursor where the first was. It comes with the surround
+module.
+
+- A closing bracket, or `b`, `r`, `B` or `a`, names `()`, `[]`, `{}` or
+  `<>`.
+- An opening bracket names the same pair and also takes away the blanks
+  inside it, so `ds(` on `( a )` leaves `a`.
+- Any other character names a pair of itself, such as a quote.
+- It does nothing when there is no such pair.
+- `.` repeats it.
 
 ## cs{char}{char}
 
 Changes the pair of brackets or quotes around the cursor that the first
 char names into the pair the second names, as `cs"'` turns `"a"` into
-`'a'`. Characters name pairs as for `ds`, and an opening bracket as the
-second puts a blank inside each side. `.` repeats it. It comes with the
-surround module.
+`'a'`. It comes with the surround module.
+
+- Characters name pairs as for `ds`.
+- An opening bracket as the second puts a blank inside each side.
+- `.` repeats it.

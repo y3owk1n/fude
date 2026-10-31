@@ -1,40 +1,58 @@
 # Insert mode
 
 Text typed from entering insert mode to leaving it is one undo step, so
-`u` takes it all back and `.` types it again. `<Left>`, `<Right>`, `<Up>`,
-`<Down>`, `<Home>` and `<End>` split it where the cursor moves, `<C-w>`
-and `<C-u>` start a new step before they delete, and `<C-o>` ends it
-before its command. An example that ends in insert mode shows the cursor
-where the next character goes.
+`u` takes it all back and `.` types it again.
+
+- `<Left>`, `<Right>`, `<Up>`, `<Down>`, `<Home>` and `<End>` split it
+  where the cursor moves.
+- `<C-w>` and `<C-u>` start a new step before they delete.
+- `<C-o>` ends it before its command.
+
+An example that ends in insert mode shows the cursor where the next
+character goes.
 
 These keys work in replace mode too, which `R` and `<Insert>` start, except
-where a section says otherwise. There
-a typed character takes the place of the one under the cursor, or goes on
-the end of the line, and `<BS>` puts back what it typed over.
+where a section says otherwise.
+
+- In replace mode a typed character takes the place of the one under the
+  cursor, or goes on the end of the line.
+- `<BS>` puts back what it typed over.
 
 A new line gets the indent of the line it came from, and one level more
-after a line ending in `(`, `[` or `{`. An indent nothing is typed after
-goes away on `<Esc>` or the next `<CR>`. A closing bracket typed on a line
-of blanks takes the indent of the line with its opening bracket.
+after a line ending in `(`, `[` or `{`.
 
-`<C-v>` and `<C-k>` type characters a keyboard lacks. `<C-v>` names one
-by number, and `<C-k>` by a digraph, two keys that look like the
-character, such as `e'` for é or `Eu` for €. The digraphs are Vim's
-default table of 1366. `ga` in normal mode shows a character's digraph.
+- An indent nothing is typed after goes away on `<Esc>` or the next
+  `<CR>`.
+- A closing bracket typed on a line of blanks takes the indent of the line
+  with its opening bracket.
+
+`<C-v>` and `<C-k>` type characters a keyboard lacks.
+
+- `<C-v>` names one by number.
+- `<C-k>` names one by a digraph, two keys that look like the character,
+  such as `e'` for é or `Eu` for €. The digraphs are Vim's default table
+  of 1366.
+- `ga` in normal mode shows a character's digraph.
 
 `<C-n>`, `<C-p>` and `<C-x>` with a second key complete the text before
-the cursor. A menu shows the items, `<C-n>` and `<C-p>` step through
-them, `<C-y>` keeps the one in the text, and `<C-e>` puts back what was
-typed. With multicursors placed, the item goes in at each.
+the cursor. A menu shows the items.
+
+- `<C-n>` and `<C-p>` step through them.
+- `<C-y>` keeps the one in the text.
+- `<C-e>` puts back what was typed.
+- With multicursors placed, the item goes in at each.
 
 ## <BS>
 
-Deletes the character before the cursor. In the indent it deletes back to
-the column of the indent level before, and at the start of a line it joins
-the line to the one above. In replace mode it puts back the character the
-last one typed took the place of, and once nothing typed is left it moves
-left. With `autopairs.enabled` on, between an empty pair such as `()` it deletes
-both.
+Deletes the character before the cursor.
+
+- In the indent it deletes back to the column of the indent level
+  before.
+- At the start of a line it joins the line to the one above.
+- In replace mode it puts back the character the last one typed took the
+  place of, and once nothing typed is left it moves left.
+- With `autopairs.enabled` on, between an empty pair such as `()` it
+  deletes both.
 
 ```keys
 "ab|c" "i<BS>" "a|c"
@@ -124,8 +142,11 @@ Deletes the character before the cursor. The same as `<BS>`.
 ## <C-k>
 
 Types the character the next two keys name as a digraph, in either order,
-so `e'` and `'e` both type é. When the two name none, it types the second.
-`<Esc>` after it types nothing, and another named key types its name.
+so `e'` and `'e` both type é.
+
+- When the two name none, it types the second.
+- `<Esc>` after it types nothing.
+- Another named key after it types its name.
 
 ```keys
 "|" "i<C-k>e'" "é|"
@@ -138,18 +159,23 @@ so `e'` and `'e` both type é. When the two name none, it types the second.
 ## <C-n>
 
 With no menu, completes the word before the cursor from the words of the
-open buffers. They are listed from the cursor to the end of the buffer,
-then from its start, then from the other buffers, and the first goes in
-the text. With nothing typed, every word is listed. While the menu shows,
-it puts in the next item, and after the last the word as typed.
+open buffers.
+
+- They are listed from the cursor to the end of the buffer, then from
+  its start, then from the other buffers, and the first goes in the text.
+- With nothing typed, every word is listed.
+- While the menu shows, it puts in the next item, and after the last the
+  word as typed.
 
 ## <C-o>
 
 Runs one normal mode command, then comes back to insert mode where it
-left the cursor. The cursor does not move left first, and after `$` it
-stays past the line's last character, ready to type. A command that
-starts insert mode itself ends this, and from visual mode it comes back
-when the selection ends.
+left the cursor.
+
+- The cursor does not move left first, and after `$` it stays past the
+  line's last character, ready to type.
+- A command that starts insert mode itself ends this.
+- From visual mode it comes back when the selection ends.
 
 ```keys
 "|abc def" "i<C-o>dwx" "x|def"
@@ -165,10 +191,13 @@ in the item before.
 
 ## <C-r>
 
-Types the register named next, as typed text, so `<C-r>"` types what was
-last deleted or yanked, `<C-r>+` the clipboard, `<C-r>%` the file's name
-and `<C-r>/` the last search. An empty register types
+Types the register named next, as typed text. An empty register types
 nothing.
+
+- `<C-r>"` types what was last deleted or yanked.
+- `<C-r>+` types the clipboard.
+- `<C-r>%` types the file's name.
+- `<C-r>/` types the last search.
 
 ```keys
 "|ab" "yiwA <C-r>\"" "ab ab|"
@@ -201,13 +230,18 @@ start it joins the line to the one above.
 
 Types the next key as it is, with no mapping or indent, so `<C-v><Tab>`
 types a tab even with `expand_tab`. A number after it names a character
-instead: up to three decimal digits, `o` and three octal digits, `x` and
-two hex digits, `u` and four, or `U` and eight. A key that is not a digit
-ends the number early and types after it. A named key types the character
-it sends, as `<CR>` types a carriage return, or its name when it sends
-none. A control character shows as `^` and a letter, such as `^A` for
-the one `<C-v><C-a>` types and `^[` for an escape. The file keeps the
-character itself.
+instead:
+
+- Up to three decimal digits name it in decimal.
+- `o` and three octal digits name it in octal.
+- `x` and two hex digits name it in hex.
+- `u` and four hex digits, or `U` and eight, name it in hex.
+
+A key that is not a digit ends the number early and types after it. A
+named key types the character it sends, as `<CR>` types a carriage
+return, or its name when it sends none. A control character shows as `^`
+and a letter, such as `^A` for the one `<C-v><C-a>` types and `^[` for an
+escape. The file keeps the character itself.
 
 ```keys
 "|" "i<C-v>065" "A|"
@@ -271,11 +305,13 @@ types the one below.
 
 ## <CR>
 
-Breaks the line at the cursor. The new line gets the indent of the one it
-came from, and one level more after `(`, `[` or `{`. When the matching
-closing bracket comes next, it goes a line further down, at the first
-line's indent. In replace mode it puts in a line break and types over
-nothing.
+Breaks the line at the cursor.
+
+- The new line gets the indent of the one it came from, and one level
+  more after `(`, `[` or `{`.
+- When the matching closing bracket comes next, it goes a line further
+  down, at the first line's indent.
+- In replace mode it puts in a line break and types over nothing.
 
 ```keys
 "ab|c" "i<CR>" "ab\n|c"
@@ -314,11 +350,14 @@ Goes past the last character of the line, where typing appends.
 
 ## <Esc>
 
-Leaves insert mode. The cursor moves one character left, onto the last
-one typed, but not past the start of the line. The text typed goes to the
-register `.`, and `gi` starts insert mode again where it left. After a
-count, as `3ix`, the text goes in that many times, and after `3o` on that
-many lines.
+Leaves insert mode.
+
+- The cursor moves one character left, onto the last one typed, but not
+  past the start of the line.
+- The text typed goes to the register `.`, and `gi` starts insert mode
+  again where it left.
+- After a count, as `3ix`, the text goes in that many times, and after
+  `3o` on that many lines.
 
 ```keys
 "|abc" "ix<Esc>" "|xabc"
@@ -375,10 +414,14 @@ Goes to the start of the next word.
 ## <Tab>
 
 Takes the suggestion a language server's inline completion shows dim
-after the cursor. Its text goes in, in place of the text it replaces and
-what was typed since, with the cursor after it, and a snippet starts at
-its first stop. In a snippet or the completion menu it goes to the next
-stop or takes the item, and with no suggestion it types a tab.
+after the cursor.
+
+- Its text goes in, in place of the text it replaces and what was typed
+  since, with the cursor after it.
+- A snippet starts at its first stop.
+- In a snippet or the completion menu it goes to the next stop or takes
+  the item.
+- With no suggestion it types a tab.
 
 ```keys
 "|x" "i<Tab>" "\t|x"
@@ -397,10 +440,13 @@ Moves to the line above, as `<Down>` moves down.
 
 With `autopairs.enabled` on, as it is by default, `(`, `[`, `{`, `"`, `'` and
 `` ` `` type their closing one too, with the cursor between, when typed
-before a blank, the end of a line or a closing bracket. A quote after a
-letter, a digit or `_` types only itself. Typing a closing one that comes
-next steps over it. Pairs form only in insert mode, never in replace mode
-or from a paste. To type each one alone:
+before a blank, the end of a line or a closing bracket.
+
+- A quote after a letter, a digit or `_` types only itself.
+- Typing a closing one that comes next steps over it.
+- Pairs form only in insert mode, never in replace mode or from a paste.
+
+To type each one alone:
 
 ```toml
 [module.autopairs]
