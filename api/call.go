@@ -86,7 +86,7 @@ type Result struct {
 	Notify     []Notify       // notifications to send the buffer's language servers (B532)
 	Answers    []Answer       // answers to requests language servers sent (B532)
 	Selected   *[2]int        // what an object's call selects, nil for none
-	Terminal   *Terminal      // a program to run in a terminal window below
+	Terminals  []Terminal     // programs to run in terminal windows below
 	Places     *Places        // the last list of places, which ]q steps through
 	Complete   []string       // what the argument being typed completes with
 	Log        []string       // lines for fude's log, where a plugin's own go (B50)
@@ -261,6 +261,9 @@ type Terminal struct {
 	// shell's do. Without it, the window stays with the program's last
 	// screen as text to read, as a task's does (B205).
 	Close bool
+	// Hidden starts a named one with its window hidden, as q in a running
+	// task's window hides it (B231, B605).
+	Hidden bool
 }
 
 // Proposal is an edit a client proposed that no one has accepted or

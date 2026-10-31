@@ -31,7 +31,7 @@ var needs = map[string]string{
 	"Close": "ui", "Drop": "buffer.write", "Windows": "ui", "Scratch": "ui", "Write": "buffer.write",
 	"Marks": "ui", "Registers": "ui", "Search": "ui", "Ex": "keys", "Place": "keys", "Each": "keys", "Styles": "ui",
 	"Emit": "", "Timers": "", "Set": "", "Log": "", "Selected": "", "Error": "",
-	"Jobs": "", "Send": "process", "Terminal": "process", "Build": "process",
+	"Jobs": "", "Send": "process", "Terminals": "process", "Build": "process",
 	"Requests": "lsp", "Notify": "lsp", "Answers": "lsp", "Apply": "lsp", "Servers": "lsp",
 	"Restore": "fs.read", "Keys": "keys",
 }
@@ -155,7 +155,7 @@ func (p *Plugin) check(r *fude.Result) int32 {
 	}
 	// A terminal's command runs through the shell, so the shell is the
 	// program it runs.
-	if r.Terminal != nil {
+	if len(r.Terminals) > 0 {
 		if shell := shellName(); !slices.Contains(p.Programs, shell) {
 			p.log(fmt.Sprintf("%s: a terminal runs %s, which it did not declare", p.name, shell))
 			return errRun

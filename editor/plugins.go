@@ -1135,8 +1135,8 @@ func (e *Session) decorate(p api.Module, b *buffer, res api.Result) []vim.Edit {
 	if m := res.Menu; m != nil {
 		e.offerMenu(p, b, m)
 	}
-	if t := res.Terminal; t != nil {
-		e.moduleTerminal(p, *t)
+	for _, t := range res.Terminals {
+		e.moduleTerminal(p, t)
 	}
 	if pl := res.Places; pl != nil {
 		e.setPlaces(pl)

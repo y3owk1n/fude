@@ -18,7 +18,7 @@ import (
 
 // OldestSDK is the oldest sdk whose plugins fude loads. It moves only with
 // a change that breaks the ABI (D77).
-const OldestSDK = "v0.3.0"
+const OldestSDK = "v0.4.0"
 
 // Manifest is a plugin's fude.toml, which fude plugin build writes into
 // its .wasm with the version of the sdk it built with (B602).

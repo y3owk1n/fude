@@ -472,7 +472,18 @@ func (e *Session) moduleTerminal(p api.Module, t api.Terminal) {
 			}
 		}
 	}
-	e.openTerminal(t, p, where)
+	b := e.openTerminal(t, p, where)
+	if b == nil || !t.Hidden {
+		return
+	}
+	for _, w := range e.root.windows() {
+		if w.buf == b {
+			if err := e.hide(w); err != nil {
+				e.message = err.Error()
+			}
+		}
+	}
+	e.layout()
 }
 
 // toggleShell shows the session's shell numbered t.Shell, or 1, in terminal

@@ -187,7 +187,7 @@ A `Result` asks for any of these, and fude applies them together once the call r
 | `Log` | lines for fude's log |
 | `Selected` | the range an object's call selects |
 | `Set` | `expand_tab`, `indent_width` or `tab_width` on the buffer, over config.toml, and any other option as `:set` sets it |
-| `Terminal` | a program in a terminal window below, or placed by `Where`, which the status line names while it runs. With no `Name` it opens as `:terminal cmd` does, focused and not named, and with no `Command` either it is the session's shell numbered `Shell`. `Buffer` shows a terminal again, and `Close` closes its window once the program ends. With `Unnumbered` it takes no number |
+| `Terminals` | programs, each in a terminal window below, or placed by `Where`, which the status line names while it runs. With no `Name` one opens as `:terminal cmd` does, focused and not named, and with no `Command` either it is the session's shell numbered `Shell`. `Buffer` shows a terminal again, and `Close` closes its window once the program ends. With `Unnumbered` it takes no number, and with `Hidden` a named one starts with its window hidden |
 | `Places` | the last list of places, which `]q` steps through, each `path:line:column:text`, or `line:column:text` in `File`, or a path alone, in a window with `Show`, with columns in `Encoding` and the place last gone to in `At`, from 1. The editor keeps it and emits `places.set`, with `show` when it asks, and `modules/places` shows it |
 | `Each` | a command line to run at each place of a list, or once in each of its files, as `:cdo` and `:cfdo` do |
 | `Apply` | a language server's workspace edit, applied with the editor's version checks |

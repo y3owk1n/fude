@@ -64,12 +64,12 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, _ ...int) (api.
 	n, err := strconv.Atoi(args)
 	switch {
 	case args == "" || err == nil && n > 0:
-		return api.Result{Terminal: &api.Terminal{Shell: n, Close: true}}, nil
+		return api.Result{Terminals: []api.Terminal{{Shell: n, Close: true}}}, nil
 	case err == nil:
 		// Shells are numbered from 1.
 		return api.Result{Error: "no shell " + args}, nil
 	}
-	return api.Result{Terminal: &api.Terminal{Command: args}}, nil
+	return api.Result{Terminals: []api.Terminal{{Command: args}}}, nil
 }
 
 // shells are the session's shells as :terminal completes them, each its
@@ -120,7 +120,7 @@ func (m *Module) Callback(_ context.Context, id uint32, s api.Scope) (api.Result
 	if id != picked || s.About["ok"] != "true" || i < 0 || i >= len(m.shown) {
 		return api.Result{}, nil
 	}
-	return api.Result{Terminal: &api.Terminal{Buffer: m.shown[i]}}, nil
+	return api.Result{Terminals: []api.Terminal{{Buffer: m.shown[i]}}}, nil
 }
 
 func (m *Module) Work(context.Context, api.Job) (string, error) { return "", nil }
