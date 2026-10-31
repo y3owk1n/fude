@@ -1166,9 +1166,11 @@ preview starts a third of its rows above the match's line (B134).
 ```
 $XDG_CONFIG_HOME/fude/config.toml   settings, keymaps, plugin list
 $XDG_CONFIG_HOME/fude/plugins/      .wasm files
+$XDG_CONFIG_HOME/fude/plugins.lock  the commit each repo's plugin is pinned at
 $XDG_CONFIG_HOME/fude/queries/      tree-sitter queries that override shipped ones
 $XDG_STATE_HOME/fude/timeline/      timeline logs, keyed by file path
 $XDG_DATA_HOME/fude/grammars/       grammars and their queries, loaded at runtime
+$XDG_DATA_HOME/fude/plugins/        installed plugins, by repo and commit
 ```
 
 Without the variables, these are `~/.config`, `~/.local/state`,
@@ -1260,9 +1262,14 @@ gofumpt = true
 files = ["*.toml.tmpl"]   # more files of the filetype, by name (B164)
 
 [[plugin]]           # one table per plugin, loaded after the first frame
-path = "plugins/wordcount.wasm"   # relative to $XDG_CONFIG_HOME/fude
+path = "plugins/wordcount.wasm"   # a .wasm or a folder to build, relative to $XDG_CONFIG_HOME/fude
 capabilities = ["buffer.read", "ui", "process"]
 programs = ["git"]   # what process may run (B48)
+
+[[plugin]]
+repo = "github.com/y3owk1n/fude-org"   # installs from the repo (B596)
+version = "v0.4.0"   # a tag, branch or commit, the newest release it loads when unset
+capabilities = ["buffer.read", "ui"]
 ```
 
 fude shows an error with its line, and the settings after it keep their
@@ -1271,7 +1278,8 @@ indent width through `Host.IndentWidth`.
 
 ## Plugin ABI
 
-Core wasm on wazero (D8). A plugin exports `memory`, `alloc(n) -> ptr`,
+Core wasm on wazero (D8). A plugin carries its manifest in a custom
+section named `fude` (D77), and exports `memory`, `alloc(n) -> ptr`,
 `call(id, a, b, c) -> i64`, which runs what it registered, `on_event(ptr,
 len)` when it subscribes to events, `callback(id)` when it asks for a
 timer, and `_initialize`, `init` or both.
@@ -1454,6 +1462,31 @@ for a build that is not one, so a release tags `sdk/vX.Y.Z` beside
 info, which would make it twenty times its size, finding it through `go list -m` in the plugin's
 module (B173).
 
+The manifest is `fude.toml` in the plugin's folder, which `fude plugin
+new` writes with a release workflow (B602):
+
+```toml
+name = "wordcount"
+capabilities = ["buffer.read", "ui"]
+programs = []        # what it asks to run, which fude plugin add grants
+hosts = []
+```
+
+`fude plugin build` checks it, then appends it to the `.wasm` TinyGo
+wrote as JSON in a custom section named `fude`, with `sdk` set to the
+version `go list -m` gives the sdk, empty under a `replace`. A custom
+section is valid anywhere in a module, so it goes last. `plugin.Manifest`
+reads it by walking the module's sections, ids and LEB128 sizes, without
+a runtime, so the installer checks a download before it compiles it.
+`plugin.Load` refuses a `.wasm` with none, and one whose sdk is older
+than `plugin.OldestSDK` or newer than the running fude, as
+`debug.ReadBuildInfo` gives `cmd/fude`'s version (B603). A build that is
+no release has no upper bound. `OldestSDK` moves only with a change that
+breaks the ABI. The plugin's name is the manifest's, and
+`Plugin.Capabilities` holds the grants the manifest lists too, so every
+check of a capability, the grammar's and a guest's too, reads what the
+plugin may use (B604).
+
 `plugin/plugintest` runs a plugin in `go test` without fude (B192). It
 loads the `.wasm` with `plugin.Load`, as fude does, and calls it with a
 scope over a string, the only open buffer. A test gets the call's
@@ -1465,6 +1498,67 @@ and `api/` (D45), so a plugin's own module can require it (D37).
 Test plugins are written with the sdk, each a folder in `plugin/testdata`.
 `just wasm` builds each with `fude plugin build`, and the `.wasm` it builds
 sits beside the source, so tests never need TinyGo.
+
+## Installing plugins
+
+`internal/install` installs a repo's plugin and keeps the lock, for the
+editor and for `fude plugin add`, `install` and `update` (D76). It runs
+git and http off the editor loop, and the editor applies what it returns
+on the loop through `Queue`.
+
+`plugins.lock` is TOML beside config.toml, one `[[plugin]]` per repo,
+keyed by the repo, since fude learns the manifest's name only once it
+has the `.wasm`:
+
+```toml
+[[plugin]]
+repo = "github.com/y3owk1n/fude-org"
+version = "v0.4.0"
+commit = "3f9c..."
+sha256 = "b1e0..."   # only for a .wasm from a release, as a build differs by machine
+```
+
+The installed `.wasm` is
+`$XDG_DATA_HOME/fude/plugins/<repo>/<commit>.wasm`, written through a
+file beside it and a rename, so a file there is never partial. At startup a table
+whose lock entry has its file installed loads at once, with no network.
+A table whose `version` is set and differs from the lock's installs
+again, and one with no `version` keeps what the lock pins.
+
+A repo of the form `host/owner/name` is `https://host/owner/name`, and
+anything else is a git URL as git takes it. To resolve a version, `git
+ls-remote --tags --refs` lists the tags, and the `vX.Y.Z` ones, newest
+first, are the releases. With no `version`, the installer walks the
+releases, and with a tag it takes that one. For a release it gets
+`<url>/releases/download/<tag>/<name>.wasm`, with `<name>` the repo's
+last part, and reads its manifest. It takes the first whose sdk fude
+loads (B603), and with a sha256 locked, it refuses a download that does
+not match. A 404 means the release has no `.wasm`. On a 404, and always for a
+branch or a commit, git fetches the commit alone at depth 1 into a
+temporary folder, as a grammar build does, and `plugin.Build` builds
+it. A built plugin has no sha256 in the lock, so another machine builds
+the same commit.
+
+`:plugin update` resolves each repo again, skips a pinned tag or
+commit, and installs what is newer than the lock. Before it writes the
+lock it compares the new manifest's capabilities with the table's, and
+keeps the old version when the table does not grant one. Each install
+or update writes the lock through a rename, drops the entries of repos
+config.toml no longer lists, and removes the installed files the lock
+no longer names.
+
+A folder in `path` builds off the loop with `plugin.Build` when its
+`.wasm` is missing or older than a `.go` file, `go.mod`, `go.sum` or
+`fude.toml` in it, then loads. The editor counts installs and builds
+under way with the plugin loads, so `Session.Idle` waits for them, and
+keeps each plugin's state for `:plugin`: installing, building, not
+installed, failed with why, or disabled this session (B599, B600).
+Disabled names live on the session, so `:plugin reload` skips them.
+
+The install test serves a bare git repo from `net/http/cgi` running
+`git http-backend`, and the release asset from the same server, a
+checked-in testdata `.wasm`. The test needs git, as the grammar tests
+do, but neither TinyGo nor the network.
 
 ## Syntax
 

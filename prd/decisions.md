@@ -1757,3 +1757,58 @@ A name that is already a file opens as that file.
 ## Open
 
 None.
+
+## D76. fude installs plugins from repos, pinned in a lock file
+
+A `[[plugin]]` table names a `.wasm`, a folder of a plugin's source, or a
+repo (B596). fude installs a repo's plugin from the `.wasm` its release
+carries, and builds one from source only when the release has none. A
+lock file beside config.toml pins each repo's commit, so startup reads
+the disk and never the network (B597). Why: a `.wasm` is the same file on
+every system, so one release asset serves every user, where an editor of
+native plugins builds or ships one for each platform. Fetching a file is
+faster than building, and a user needs no Go or TinyGo. The lock lives in
+the config folder, so dotfiles bring the same plugins to another machine.
+
+It leaves some things out. There is no registry. A table names a plugin
+by its repo, and users find plugins by GitHub's `fude-plugin` topic.
+There are no dependencies between plugins, as a plugin is one module that
+imports only fude. There are no version ranges. A `version` is a tag,
+branch or commit, and `:plugin update` moves the lock. There is no lazy
+loading, as plugins load after the first frame on their own goroutines
+(B56). fude never edits config.toml from the
+editor, and only `fude plugin add` appends to it, once the user says y
+(B601).
+
+It uses the standard library for http and hashing, and git, which
+grammars already need, to list a repo's tags and fetch a commit. A
+release asset is at `<repo>/releases/download/<tag>/<name>.wasm`, which
+GitHub, Codeberg and Forgejo all serve, so fude needs no host's API and
+meets no rate limit.
+
+## D77. A plugin carries a manifest, and fude takes a range of sdk versions
+
+`fude plugin build` writes the plugin's `fude.toml` into its `.wasm`, as
+a custom section named `fude`, with the version of the sdk it was built
+with (B602). fude loads a plugin whose sdk is no older than
+`plugin.OldestSDK` and no newer than fude itself (B603). Why: once
+plugins come from repos, a plugin built for one version of fude runs on
+another. A host function or a field that version lacks would fail only
+when the plugin calls it, with an error that does not name the version
+it needs. The manifest is in the `.wasm`, so no copy of the file comes
+without it, and fude reads it by walking the sections, without running
+the plugin.
+
+The sdk is tagged with fude's own version, so the sdk a plugin names is
+the oldest fude it needs. `plugin.OldestSDK` moves only when the ABI
+breaks, so a plugin keeps working across releases that only add to it.
+A build of fude that is no release takes any newer sdk. A plugin built
+against an sdk that is no release, from a `replace` in its `go.mod`,
+loads from a `path` and never installs from a repo.
+
+The manifest names the plugin, so its options and keys no longer change
+with its file's name. It lists the capabilities, programs and hosts the
+plugin asks for. The table in config.toml still grants them, and a
+plugin gets only the capabilities both list (B604). So a manifest that
+leaves one out fails in the author's own tests, and the table `fude
+plugin add` writes from it lists every capability the plugin uses.

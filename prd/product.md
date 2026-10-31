@@ -100,8 +100,9 @@ Permanent edges, not deferrals.
   plugins, or RPC clients.
 - No bundled wasm plugins. The default distribution is the vim grammar
   and the syntax, lsp, statusline and file picker modules.
-- No package manager for plugins. A plugin is a `.wasm` file and a line of
-  config.
+- No plugin registry, dependencies or version ranges. A plugin is one
+  `.wasm`, from a file, a folder fude builds, or a repo's release, pinned
+  in a lock file (D76).
 - No legacy modes or files: Ex mode, Select mode, modelines and swap files
   are out.
 - Text is the source of truth. Lenses render it, they never replace it.

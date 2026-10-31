@@ -1753,9 +1753,9 @@ Where fude departs, the line says so and cites the departure in
 - B383 [2] `fude storage` lists each place fude keeps files between runs,
   with its path, its size and what it holds. `fude storage clean` deletes
   what fude makes again or never reads back: the compiled plugins, the
-  built grammars and the log. With `--force` it also deletes the timelines,
-  sessions, pins, recent files and what fude remembers (B454), once it says
-  what each loses and the user answers y.
+  installed plugins, the built grammars and the log. With `--force` it
+  also deletes the timelines, sessions, pins, recent files and what fude
+  remembers (B454), once it says what each loses and the user answers y.
 - B454 [2] What fude holds as it quits comes back in its next run: the
   registers except the clipboard and those fude fills itself, the file
   marks `A` to `Z`, the last 1000 command lines and searches, and the last
@@ -1977,11 +1977,83 @@ Where fude departs, the line says so and cites the departure in
   `textDocument/rangeFormatting` takes, and hears the server's position
   encoding with the answer, so it can read the positions in it.
 - B191 [4] `:plugin reload` reads the `[[plugin]]` tables of config.toml
-  again and loads every plugin anew, a rebuilt one from its new file. What
+  again and loads every plugin anew, a rebuilt one from its new file, and
+  a folder's after building it again when its source changed (B596). What
   a plugin it no longer lists added goes with it, its operators and
   objects too.
 - B378 [4] A `[[plugin]]` table with `disabled = true` loads no plugin,
   and `:plugin reload` drops one that was loaded.
+- B596 [4] A `[[plugin]]` table names where its plugin comes from, with
+  one of `path` and `repo`. A `path` to a `.wasm` loads that file. A
+  `path` to a folder loads the plugin built in it, after building it with
+  TinyGo when its `.wasm` is missing or older than a file of its source.
+  A `repo`, such as `github.com/owner/name` or a git URL, installs the
+  plugin from it. Its `version` is a tag, branch or commit, and without
+  one fude takes the newest release that it loads (B603). A table with
+  both or neither says so with its line. A plugin's name is the one its
+  manifest gives, whatever its file is called.
+- B597 [4] Installing a repo's plugin writes its entry in `plugins.lock`
+  beside config.toml: the repo, the version, the commit, and the sha256
+  of a `.wasm` from a release. With an entry and its file installed, fude
+  loads the plugin without the network. A table whose `version` is not
+  the one locked installs again, and a table with no `version` keeps the
+  locked one. Another machine with the same
+  config.toml and lock installs the same commit, and refuses a release's
+  `.wasm` whose sha256 is not the one locked, naming the repo. Installing
+  drops the entries of repos config.toml no longer lists, and removes the
+  installed files no entry names.
+- B598 [4] A repo's plugin that is not installed installs off the loop
+  after the first frame, and then loads. fude says "installing {repo}",
+  by the last part of its repo, when it starts, and "installed {name}
+  {version}" when it ends, or why it failed. `:plugin` shows it
+  installing between the two. It takes the `.wasm` the version's release
+  carries, and without one it fetches that commit with git and builds it
+  with TinyGo, naming a tool that is missing. With `auto_install = false`
+  nothing installs until `:plugin install` (B599).
+- B599 [4] `:plugin` lists each plugin in a window: its name, where it
+  comes from, as its path or its repo and version, and whether it is
+  loaded, installing, building, not installed, disabled, or failed with
+  why. It names the capabilities a plugin asks for that its table does
+  not grant (B604). `:plugin install [name]` installs each repo's plugin
+  that is not installed, or the one named again, even after it failed.
+  `:plugin update [name]` moves each repo's plugin, or the one named, to
+  the newest release fude loads, or a branch to its newest commit, and
+  loads it anew. A plugin pinned to a tag or commit stays and says so. A
+  release that asks for a capability its table does not grant is not
+  taken, and fude says which and stays at the version it has. With
+  nothing newer it says every plugin is up to date. `<Tab>` completes the
+  words and the plugins' names. A guest may list the plugins but not
+  install or update them.
+- B600 [4] `:plugin disable {name}` unloads a plugin and takes out what it
+  added, until `:plugin enable {name}` loads it again or fude quits.
+  `:plugin reload` keeps it disabled. `:plugin enable` loads a plugin
+  whose table has `disabled = true` too, for the session. A guest may not
+  run either.
+- B601 [4] `fude plugin add {repo}[@version]` installs the repo's plugin,
+  prints what its manifest asks for, and once the user answers y, appends
+  a `[[plugin]]` table to config.toml with the repo and those
+  capabilities, programs and hosts. It changes nothing else in the file.
+  `fude plugin install` and `fude plugin update [name]` do what `:plugin
+  install` and `:plugin update` do, and print each plugin they install.
+- B602 [4] `fude plugin new` writes a `fude.toml` beside `main.go`, the
+  manifest, with the plugin's name and the capabilities its example uses,
+  and a release workflow that builds the plugin on a tag `v*` and
+  attaches its `.wasm` to the tag's release. `fude plugin build` writes the
+  manifest into the `.wasm` with the version of the sdk it built with. It
+  refuses a folder with no `fude.toml`, and a manifest with no name or
+  with a capability fude does not have.
+- B603 [4] fude loads a plugin built with an sdk from `plugin.OldestSDK`
+  to fude's own version. One built with an older sdk says the oldest sdk
+  fude takes, and one built with a newer sdk says the fude it needs. A `.wasm`
+  with no manifest says to build it with `fude plugin build`. Installing
+  a repo's plugin with no `version` takes its newest release whose sdk
+  fude loads, and with none says the fude its newest release needs. A
+  plugin built with an sdk that is no release loads from a `path` only.
+  A build of fude that is no release loads a plugin with any newer sdk.
+- B604 [4] A plugin may use only the capabilities both its manifest and
+  its table list. `plugintest` grants a plugin the same way, so an
+  author's test of a call that needs a capability the manifest leaves out
+  fails as the call would in fude.
 - B192 [4] A plugin's author tests the plugin in `go test` with
   `plugin/plugintest`. It loads the plugin's `.wasm` with the capabilities
   a `[[plugin]]` table would give it. It runs a command, a key, an event
