@@ -69,6 +69,8 @@ type Editor struct {
 	building          map[string]bool                            // the filetypes whose grammar builds now
 	failed            map[string]string                          // by filetype, why its grammar did not build this session
 	unbuilt           map[string]string                          // by filetype, why fude builds no module's grammar for it (B590)
+	plugs             map[string]*pluginState                    // each [[plugin]] table's plugin, by its source (B599)
+	chosen            map[string]bool                            // by source, the plugins :plugin enable and disable chose this session (B600)
 	started           bool                                       // Load ran, so new buffers attach to servers at once
 	project           string                                     // the directory fude started in, symlinks resolved (B243)
 	version           string                                     // the version of fude that runs, which :version shows (B349)
@@ -196,7 +198,7 @@ func open(cfg config, paths []string) (*Session, error) {
 	if len(paths) == 0 {
 		paths = []string{""}
 	}
-	ed := &Editor{next: 1, aside: firstAside, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(*Session, call) error{}, sources: map[string]func(*Session, string){}, writers: map[string]writer{}, completionSources: map[string]completer{}, shortOf: map[string]string{}, completers: map[string]func(*Session, string){}, decos: map[any][]decoration{}, servers: map[string]*server{}, down: map[string]string{}, waiting: map[string]func(any){}, clientCommands: map[string]func(*Session, *server, string){}, building: map[string]bool{}, failed: map[string]string{}, unbuilt: map[string]string{}, listeners: map[api.Module]*listener{}, declared: map[string]declared{}, values: map[string]string{}, segments: map[api.Module]map[*buffer]string{}, leftSegments: map[api.Module]map[*buffer]string{}}
+	ed := &Editor{next: 1, aside: firstAside, now: time.Now, cfg: cfg, queue: make(chan func(), 16), commands: map[string]func(*Session, call) error{}, sources: map[string]func(*Session, string){}, writers: map[string]writer{}, completionSources: map[string]completer{}, shortOf: map[string]string{}, completers: map[string]func(*Session, string){}, decos: map[any][]decoration{}, servers: map[string]*server{}, down: map[string]string{}, waiting: map[string]func(any){}, clientCommands: map[string]func(*Session, *server, string){}, building: map[string]bool{}, failed: map[string]string{}, unbuilt: map[string]string{}, plugs: map[string]*pluginState{}, chosen: map[string]bool{}, listeners: map[api.Module]*listener{}, declared: map[string]declared{}, values: map[string]string{}, segments: map[api.Module]map[*buffer]string{}, leftSegments: map[api.Module]map[*buffer]string{}}
 	// Without a config directory there are no overrides, and loadConfig
 	// reports why.
 	if dir, err := keep.Dir("XDG_CONFIG_HOME", ".config"); err == nil {

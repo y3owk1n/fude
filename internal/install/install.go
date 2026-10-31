@@ -173,51 +173,50 @@ var (
 	hash    = regexp.MustCompile(`^[0-9a-f]{40}$`)
 )
 
+// Pinned reports whether version names a release or a commit, which
+// :plugin update leaves as it is (B599).
+func Pinned(version string) bool { return release.MatchString(version) || hash.MatchString(version) }
+
 // candidate is a commit of the repo that version may resolve to.
 type candidate struct {
 	version, commit string
 	release         bool // a tag vX.Y.Z, which may carry a .wasm
 }
 
-// Install installs repo's plugin at version, which is a tag, branch or
-// commit. For "" it takes the newest release that fude at version host
-// loads. It takes the .wasm a release carries, and builds the commit
-// otherwise. It reuses locked's
+// Fetch returns the .wasm of repo's plugin at version, which is a tag,
+// branch or commit, with its entry and manifest. For "" it takes the
+// newest release that fude at version host loads. It takes the .wasm a
+// release carries, and builds the commit otherwise. It reuses locked's
 // file when the commit is the one locked, and refuses a release's .wasm
 // whose sha256 is not locked's. It runs git and http, so it belongs off
 // the editor loop (B597, B598, B603).
-func Install(ctx context.Context, repo, version string, locked Entry, host string) (Entry, plugin.Manifest, error) {
+func Fetch(ctx context.Context, repo, version string, locked Entry, host string) (Entry, plugin.Manifest, []byte, error) {
 	url, web := remote(repo)
 	cands, err := resolve(ctx, url, version)
 	if err != nil {
-		return Entry{}, plugin.Manifest{}, fmt.Errorf("install %s: %w", repo, err)
+		return Entry{}, plugin.Manifest{}, nil, fmt.Errorf("install %s: %w", repo, err)
 	}
 	var first error
 	for _, c := range cands {
-		e := Entry{Repo: repo, Version: c.version, Commit: c.commit}
 		wasm, sum, err := fetch(ctx, url, web, Name(repo), c, locked)
 		if err != nil {
-			return Entry{}, plugin.Manifest{}, fmt.Errorf("install %s: %w", repo, err)
+			return Entry{}, plugin.Manifest{}, nil, fmt.Errorf("install %s: %w", repo, err)
 		}
 		m, err := plugin.ReadManifest(wasm)
 		switch {
 		case err != nil:
-			return Entry{}, m, fmt.Errorf("install %s: %w", repo, err)
+			return Entry{}, m, nil, fmt.Errorf("install %s: %w", repo, err)
 		case m.SDK == "":
-			return Entry{}, m, fmt.Errorf("install %s: it was built with an sdk that is no release, so fude loads it only from a path", repo)
+			return Entry{}, m, nil, fmt.Errorf("install %s: it was built with an sdk that is no release, so fude loads it only from a path", repo)
 		}
 		// An older release may suit this fude.
 		if err := m.Check(host); err != nil {
 			first = cmp.Or(first, err)
 			continue
 		}
-		e.SHA256 = sum
-		if err := store(e, wasm); err != nil {
-			return Entry{}, m, fmt.Errorf("install %s: %w", repo, err)
-		}
-		return e, m, nil
+		return Entry{Repo: repo, Version: c.version, Commit: c.commit, SHA256: sum}, m, wasm, nil
 	}
-	return Entry{}, plugin.Manifest{}, first
+	return Entry{}, plugin.Manifest{}, nil, first
 }
 
 // resolve returns what version may be in the repo at url, newest first.
@@ -253,6 +252,12 @@ func resolve(ctx context.Context, url, version string) ([]candidate, error) {
 	case c != "":
 		return []candidate{{version, c, false}}, nil
 	case hash.MatchString(version):
+		// A release's commit takes the release's .wasm.
+		for ref, c := range tags {
+			if tag := strings.TrimPrefix(ref, "refs/tags/"); c == version && release.MatchString(tag) {
+				return []candidate{{tag, c, true}}, nil
+			}
+		}
 		return []candidate{{version, version, false}}, nil
 	}
 	return nil, fmt.Errorf("it has no tag, branch or commit %s", version)
@@ -381,9 +386,9 @@ func build(ctx context.Context, url, commit, name string) ([]byte, error) {
 	return os.ReadFile(wasm)
 }
 
-// store installs e's .wasm and removes the files of the repo's other
+// Store installs e's .wasm and removes the files of the repo's other
 // commits, as nothing loads them now.
-func store(e Entry, wasm []byte) error {
+func Store(e Entry, wasm []byte) error {
 	p, err := File(e)
 	if err == nil {
 		err = keep.Write(p, wasm)

@@ -339,11 +339,35 @@ to resume".
 
 ## :plugin
 
+Lists each plugin in a window: its name, where it comes from, as its path
+or its repo and version, and whether it is loaded, loading, installing,
+building, not installed, disabled, or failed with why. A loaded plugin
+whose manifest asks for a capability its table does not grant says which.
+`q` closes the window.
+
+`:plugin install` installs each plugin of a `repo` that is not installed
+or failed to, whatever `auto_install` says. `:plugin install {name}`
+installs that one again at the commit `plugins.lock` pins.
+
+`:plugin update` moves each plugin of a `repo` to the newest release this
+fude loads, or one whose `version` is a branch to the branch's newest
+commit, and loads it anew. `:plugin update {name}` updates that one. A
+plugin whose `version` is a release or a commit stays, and fude says it
+is pinned. A release that asks for a capability the plugin's table does
+not grant is not taken, and fude says which and keeps the version it has.
+With nothing newer it says "every plugin is up to date".
+
+`:plugin disable {name}` unloads the plugin with all it added, until
+`:plugin enable {name}` loads it again or fude quits. `:plugin enable`
+also loads a plugin whose table has `disabled = true`, until fude quits.
+
 `:plugin reload` reads the `[[plugin]]` tables of config.toml again, closes
-every plugin with all it added, and loads them anew, a rebuilt plugin from
-its new file. A plugin the file no longer lists goes, with its commands,
-keys, operators and objects. Any other argument says "plugin what?
-reload". A guest may not run it.
+every plugin with all it added, and loads them anew. A rebuilt plugin loads
+from its new file, and a folder's builds again first if its source changed.
+A plugin the file no longer lists goes, with its commands, keys, operators
+and objects. One disabled this session stays disabled. `<Tab>` completes
+the words and the plugins' names. A guest may list the plugins but run no
+other `:plugin` command.
 
 ## :put
 

@@ -87,17 +87,20 @@ type config struct {
 	Task   map[string]taskConfig     `toml:"task" key:"name"`
 	Open   map[string]string         `toml:"open" key:"module" help:"where the module's windows open: above, below, left, right, here, float or cursor"`
 	Module map[string]map[string]any `toml:"module" key:"name" help:"the starting values of a module's options by their names, as enabled = false in [module.autopairs] for autopairs.enabled"`
-	Plugin []struct {
-		Path         string         `toml:"path" help:"the plugin's .wasm, or the folder of its source to build, from the config directory"`
-		Repo         string         `toml:"repo" help:"the repo the plugin installs from, as github.com/owner/name or a git URL"`
-		Version      string         `toml:"version" help:"the tag, branch or commit of the repo to install, the newest release fude loads when unset"`
-		Capabilities []string       `toml:"capabilities" help:"what the plugin may do"`
-		Programs     []string       `toml:"programs" help:"the programs process may run"`
-		Hosts        []string       `toml:"hosts" help:"the hosts net may reach"`
-		Paths        []string       `toml:"paths" help:"the folders outside the project fs.read and fs.write reach"`
-		Options      map[string]any `toml:"options" help:"where the plugin's options start, by name"`
-		Disabled     bool           `toml:"disabled" help:"keeps the plugin from loading, with its table kept"`
-	} `toml:"plugin"`
+	Plugin []pluginConfig            `toml:"plugin"`
+}
+
+// pluginConfig is a [[plugin]] table.
+type pluginConfig struct {
+	Path         string         `toml:"path" help:"the plugin's .wasm, or the folder of its source to build, from the config directory"`
+	Repo         string         `toml:"repo" help:"the repo the plugin installs from, as github.com/owner/name or a git URL"`
+	Version      string         `toml:"version" help:"the tag, branch or commit of the repo to install, the newest release fude loads when unset"`
+	Capabilities []string       `toml:"capabilities" help:"what the plugin may do"`
+	Programs     []string       `toml:"programs" help:"the programs process may run"`
+	Hosts        []string       `toml:"hosts" help:"the hosts net may reach"`
+	Paths        []string       `toml:"paths" help:"the folders outside the project fs.read and fs.write reach"`
+	Options      map[string]any `toml:"options" help:"where the plugin's options start, by name"`
+	Disabled     bool           `toml:"disabled" help:"keeps the plugin from loading, with its table kept"`
 }
 
 // serverConfig is an [lsp.<name>] table, a language server's. The strings

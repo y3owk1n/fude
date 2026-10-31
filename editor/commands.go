@@ -79,13 +79,10 @@ func init() {
 		}, func(_ *Session, _ string, start int, arg string, _ bool) (int, []string) {
 			return start, fuzzy.Match([]string{"reload"}, arg)
 		}},
-		{vim.Command{Name: "plugin", Args: "reload", Help: "reads config.toml's plugins again and loads them anew"}, func(e *Session, x call) error {
-			if x.arg != "reload" {
-				return errors.New("plugin what? reload")
-			}
-			return e.reloadPlugins()
-		}, func(_ *Session, _ string, start int, arg string, _ bool) (int, []string) {
-			return start, fuzzy.Match([]string{"reload"}, arg)
+		{vim.Command{Name: "plugin", Args: "[install|update|enable|disable|reload] [name]", Help: "lists the plugins, installs or updates those of repos, enables or disables one, or reads config.toml's plugins again and loads them anew"}, func(e *Session, x call) error {
+			return e.pluginCommand(x.arg)
+		}, func(e *Session, _ string, start int, arg string, _ bool) (int, []string) {
+			return start, fuzzy.Match(e.pluginWords(), arg)
 		}},
 		{vim.Command{Name: "quit", Short: []string{"q"}, Help: "closes the window, and quits with the last. ! drops changes"}, func(e *Session, x call) error { return e.quit(x.force) }, nil},
 		{vim.Command{Name: "quitall", Short: []string{"qa", "qall", "quita"}, Help: "quits. ! drops every change"}, func(e *Session, x call) error { return e.quitAll(x.force) }, nil},

@@ -83,82 +83,118 @@ func (e *Session) Use(m api.Module) {
 
 // loadPlugins starts the plugins config.toml lists.
 func (e *Session) loadPlugins() {
-	config, err1 := keep.Dir("XDG_CONFIG_HOME", ".config")
-	cache, err2 := keep.Dir("XDG_CACHE_HOME", ".cache")
-	if err := errors.Join(err1, err2); err != nil {
-		e.message = fmt.Sprintf("load plugins: %v", err)
-		return
-	}
 	lock, err := install.Read()
 	if err != nil {
 		e.message = err.Error()
 	}
-	var repos []string
-	for _, s := range e.cfg.Plugin {
-		if s.Repo != "" {
-			repos = append(repos, s.Repo)
-		}
-	}
-	auto := e.cfg.AutoInstall
 	e.loading++ // until every plugin has started loading
 	for i, s := range e.cfg.Plugin {
-		switch {
-		case s.Disabled:
-			continue
-		case (s.Path == "") == (s.Repo == ""):
-			e.message = fmt.Sprintf("plugin table %d needs one of path and repo", i+1)
-			continue
-		}
-		path := s.Path
-		if s.Path != "" && !filepath.IsAbs(path) {
-			path = filepath.Join(config, "fude", path)
-		}
-		locked, _ := lock.Find(s.Repo)
-		options, err := texts(s.Options)
-		if err != nil {
-			e.message = fmt.Sprintf("load plugin %s: %v", s.Path, err)
-			continue
-		}
-		b, t, scope := e.win.buf, e.Text(), e.scope(nil, e.win.buf, e.Text())
-		e.working++
-		e.loading++
-		go func() {
-			defer scope.Done()
-			ctx, at := context.Background(), time.Now()
-			wasm, err := e.built(path)
-			if s.Repo != "" {
-				wasm, err = e.fromRepo(s.Repo, s.Version, locked, repos, auto)
-			}
-			var p *plugin.Plugin
-			if err == nil {
-				p, err = plugin.Load(ctx, wasm, plugin.Grants{Capabilities: s.Capabilities, Programs: s.Programs, Hosts: s.Hosts, Paths: s.Paths, Options: options}, e.version, filepath.Join(cache, "fude", "wasm"), logLine, func(text string, took time.Duration) { trace.Record("plugin", text, took) })
-			}
-			if err != nil {
-				trace.Since("plugin", "load "+path, at, err)
-				e.queue <- func() {
-					e.working--
-					e.message = err.Error()
-					e.pluginLoaded()
-				}
-				return
-			}
-			res, err := p.Init(ctx, scope)
-			trace.Since("plugin", "compiled and ran init of "+p.Name(), at, err)
-			e.queue <- func() {
-				e.working--
-				e.declare(p, options)
-				e.loaded(p, err, b, t, res)
-				e.pluginLoaded()
-			}
-		}()
+		e.loadPlugin(i, s, lock, false)
 	}
 	e.pluginLoaded()
+}
+
+// loadPlugin starts the plugin of the table s, the i-th, on its own
+// goroutine, unless it is disabled. With force, a repo's plugin installs
+// when it is not installed, whatever auto_install says (B599, B600).
+func (e *Session) loadPlugin(i int, s pluginConfig, lock install.Lock, force bool) {
+	src := s.source()
+	if (s.Path == "") == (s.Repo == "") {
+		e.message = fmt.Sprintf("plugin table %d needs one of path and repo", i+1)
+		return
+	}
+	if on, set := e.chosen[src]; set && !on || !set && s.Disabled {
+		e.plugs[src] = &pluginState{name: e.plugName(s), state: "disabled"}
+		return
+	}
+	config, err1 := keep.Dir("XDG_CONFIG_HOME", ".config")
+	cache, err2 := keep.Dir("XDG_CACHE_HOME", ".cache")
+	options, err3 := texts(s.Options)
+	if err := errors.Join(err1, err2, err3); err != nil {
+		e.message = fmt.Sprintf("load plugin %s: %v", src, err)
+		return
+	}
+	path := s.Path
+	if s.Path != "" && !filepath.IsAbs(path) {
+		path = filepath.Join(config, "fude", path)
+	}
+	locked, _ := lock.Find(s.Repo)
+	auto := force || e.cfg.AutoInstall
+	e.plugs[src] = &pluginState{name: e.plugName(s), state: "loading"}
+	b, t, scope := e.win.buf, e.Text(), e.scope(nil, e.win.buf, e.Text())
+	e.working++
+	e.loading++
+	go func() {
+		defer scope.Done()
+		ctx, at := context.Background(), time.Now()
+		wasm, err := e.built(src, path)
+		if s.Repo != "" {
+			wasm, err = e.fromRepo(src, s.Version, locked, auto)
+		}
+		var p *plugin.Plugin
+		if err == nil {
+			p, err = plugin.Load(ctx, wasm, plugin.Grants{Capabilities: s.Capabilities, Programs: s.Programs, Hosts: s.Hosts, Paths: s.Paths, Options: options}, e.version, filepath.Join(cache, "fude", "wasm"), logLine, func(text string, took time.Duration) { trace.Record("plugin", text, took) })
+		}
+		if err != nil {
+			trace.Since("plugin", "load "+src, at, err)
+			e.queue <- func() {
+				e.working--
+				e.message = err.Error()
+				state := "failed: " + err.Error()
+				if errors.Is(err, errNotInstalled) {
+					state = "not installed"
+				}
+				e.plugs[src] = &pluginState{name: e.plugName(s), state: state}
+				e.pluginLoaded()
+			}
+			return
+		}
+		res, err := p.Init(ctx, scope)
+		trace.Since("plugin", "compiled and ran init of "+p.Name(), at, err)
+		e.queue <- func() {
+			e.working--
+			e.declare(p, options)
+			e.loaded(p, err, b, t, res)
+			e.plugs[src] = &pluginState{name: p.Name(), p: p}
+			if !slices.Contains(e.modules, api.Module(p)) {
+				e.plugs[src].state = "failed: " + e.message
+				e.plugs[src].p = nil
+			}
+			e.pluginLoaded()
+		}
+	}()
+}
+
+// source is what a table loads its plugin from, its repo or its path as
+// written, which :plugin knows it by.
+func (s pluginConfig) source() string { return cmp.Or(s.Repo, s.Path) }
+
+// repos are the repos config.toml lists.
+func (e *Session) repos() []string {
+	var out []string
+	for _, s := range e.cfg.Plugin {
+		if s.Repo != "" {
+			out = append(out, s.Repo)
+		}
+	}
+	return out
+}
+
+// starting tells the loop that src's plugin starts to install or build.
+// It runs off the loop.
+func (e *Session) starting(src, state, name string) {
+	e.queue <- func() {
+		e.message = state + " " + name
+		if pl := e.plugs[src]; pl != nil {
+			pl.state = state
+		}
+	}
 }
 
 // built returns the .wasm that a plugin's path names. For a folder, that
 // is the .wasm built in it. When a file of the source is newer, built says
 // so and builds it again first. It runs off the loop (B596).
-func (e *Session) built(path string) (string, error) {
+func (e *Session) built(src, path string) (string, error) {
 	if info, err := os.Stat(path); err != nil || !info.IsDir() {
 		return path, nil
 	}
@@ -166,30 +202,43 @@ func (e *Session) built(path string) (string, error) {
 	if !outdated(path, wasm) {
 		return wasm, nil
 	}
-	e.queue <- func() { e.message = "building " + filepath.Base(path) }
+	e.starting(src, "building", filepath.Base(path))
 	at := time.Now()
 	wasm, err := plugin.Build(path)
 	trace.Since("plugin", "build "+path, at, err)
 	return wasm, err
 }
 
+// errNotInstalled is a repo's plugin that is not installed, with
+// auto_install off.
+var errNotInstalled = errors.New(":plugin install installs it")
+
 // fromRepo returns the installed .wasm of repo's plugin. It installs it
 // first when it is not installed, or not at the version its table names,
-// and keeps it in plugins.lock. It runs off the loop (B597, B598).
-func (e *Session) fromRepo(repo, version string, locked install.Entry, repos []string, auto bool) (string, error) {
+// and keeps it in plugins.lock. A plugin locked but not installed installs
+// at the commit locked. It runs off the loop (B597, B598).
+func (e *Session) fromRepo(repo, version string, locked install.Entry, auto bool) (string, error) {
+	want := version
 	if locked.Commit != "" && (version == "" || version == locked.Version) {
 		if p, err := install.File(locked); err == nil {
 			if _, err := os.Stat(p); err == nil {
 				return p, nil
 			}
 		}
+		want = locked.Commit
 	}
 	if !auto {
-		return "", fmt.Errorf("plugin %s is not installed, and :plugin install installs it", install.Name(repo))
+		return "", fmt.Errorf("plugin %s is not installed, and %w", install.Name(repo), errNotInstalled)
 	}
-	e.queue <- func() { e.message = "installing " + install.Name(repo) }
+	e.starting(repo, "installing", install.Name(repo))
 	at := time.Now()
-	entry, m, err := install.Install(context.Background(), repo, version, locked, e.version)
+	entry, m, wasm, err := install.Fetch(context.Background(), repo, want, locked, e.version)
+	if err == nil {
+		if entry.Commit == locked.Commit {
+			entry.Version = locked.Version
+		}
+		err = install.Store(entry, wasm)
+	}
 	trace.Since("plugin", "install "+repo, at, err)
 	if err != nil {
 		return "", err
@@ -197,17 +246,23 @@ func (e *Session) fromRepo(repo, version string, locked install.Entry, repos []s
 	// The loop writes the lock, so installs that end together each keep
 	// their entry.
 	e.queue <- func() {
-		l, err := install.Read()
-		if err == nil {
-			l.Put(entry, repos)
-			err = errors.Join(l.Write(), install.Prune(repos))
-		}
 		e.message = fmt.Sprintf("installed %s %s", m.Name, cmp.Or(entry.Version, entry.Commit[:7]))
-		if err != nil {
+		if err := e.lock(entry); err != nil {
 			e.message = err.Error()
 		}
 	}
 	return install.File(entry)
+}
+
+// lock writes entry into plugins.lock, and drops the entries and files of
+// repos config.toml no longer lists.
+func (e *Session) lock(entry install.Entry) error {
+	l, err := install.Read()
+	if err != nil {
+		return err
+	}
+	l.Put(entry, e.repos())
+	return errors.Join(l.Write(), install.Prune(e.repos()))
 }
 
 // outdated reports whether wasm is missing or older than a file of the

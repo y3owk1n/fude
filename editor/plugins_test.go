@@ -441,9 +441,9 @@ func manifest(j string) string {
 	return string(append(binary.AppendUvarint([]byte{0}, uint64(len(body))), body...))
 }
 
-// serveRepo serves a git repo named kit, with a commit of files tagged
-// with each of tags, over http, and the .wasm of a release from assets by
-// its tag. It returns the repo's URL.
+// serveRepo serves a git repo named kit over http, with a commit of files
+// and a commit after it for each of tags, and the .wasm of a release from
+// assets by its tag. It returns the repo's URL.
 func serveRepo(t *testing.T, assets *sync.Map, files map[string][]byte, tags ...string) string {
 	t.Helper()
 	execPath, err := exec.Command("git", "--exec-path").Output()
@@ -468,6 +468,7 @@ func serveRepo(t *testing.T, assets *sync.Map, files map[string][]byte, tags ...
 	run(work, "add", ".")
 	run(work, "commit", "-q", "--allow-empty", "-m", "kit")
 	for _, tag := range tags {
+		run(work, "commit", "-q", "--allow-empty", "-m", tag)
 		run(work, "tag", tag)
 	}
 	run(root, "clone", "-q", "--bare", work, "kit.git")
@@ -488,14 +489,61 @@ func serveRepo(t *testing.T, assets *sync.Map, files map[string][]byte, tags ...
 	return srv.URL + "/kit.git"
 }
 
-// kitWith is the kit plugin's .wasm with a manifest built with sdk.
-func kitWith(t *testing.T, sdk string) []byte {
+// kitWith is the kit plugin's .wasm with a manifest built with sdk that
+// asks for buffer.read, buffer.write and more.
+func kitWith(t *testing.T, sdk string, more ...string) []byte {
 	t.Helper()
 	b, err := os.ReadFile(filepath.Join("..", "plugin", "testdata", "kit", "kit.wasm"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	return append(b, manifest(`{"name":"kit","sdk":"`+sdk+`","capabilities":["buffer.read","buffer.write"]}`)...)
+	caps := strings.Join(append([]string{`"buffer.read"`, `"buffer.write"`}, more...), ",")
+	return append(b, manifest(`{"name":"kit","sdk":"`+sdk+`","capabilities":[`+caps+`]}`)...)
+}
+
+// fromRepo writes a config.toml in a new config folder, of the lines top
+// and a table that installs repo's plugin, and empties the folder of
+// installed plugins. It returns the config folder.
+func fromRepo(t *testing.T, repo, top string) string {
+	t.Helper()
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	writeTable(t, dir, repo, top, "")
+	return dir
+}
+
+// writeTable writes the config.toml of fromRepo in dir, with the lines
+// more in the table.
+func writeTable(t *testing.T, dir, repo, top, more string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Join(dir, "fude"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	table := fmt.Sprintf("%s[[plugin]]\nrepo = %q\ncapabilities = [\"buffer.read\", \"buffer.write\"]\n%s", top, repo, more)
+	if err := os.WriteFile(filepath.Join(dir, "fude", "config.toml"), []byte(table), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// onRelease starts an editor on "ab" that takes itself for the release
+// plugin.OldestSDK, and loads its plugins.
+func onRelease(t *testing.T) *editor.Session {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "f")
+	change(t, path, "ab\n")
+	e := start(t, path)
+	e.SetVersion(plugin.OldestSDK)
+	e.Load()
+	return e
+}
+
+// shouts waits until :Shout of the kit plugin types "!".
+func shouts(t *testing.T, e *editor.Session) {
+	t.Helper()
+	before := text(e)
+	settle(t, e, func() bool { feed(e, ":Shout<CR>"); return text(e) != before })
 }
 
 // withKit starts an editor on "ab cd\nef" with the kit plugin loaded.
@@ -1371,30 +1419,10 @@ func TestB597PluginFromRepo(t *testing.T) {
 	assets.Store("v1.0.0", v1)
 	// The newest release needs a newer fude, so the one before installs.
 	assets.Store("v1.1.0", kitWith(t, "v99.0.0"))
-	repo := serveRepo(t, &assets, nil, "v1.0.0", "v1.1.0")
-	dir := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", dir)
-	t.Setenv("XDG_DATA_HOME", t.TempDir())
-	t.Setenv("XDG_STATE_HOME", t.TempDir())
-	if err := os.MkdirAll(filepath.Join(dir, "fude"), 0o700); err != nil {
-		t.Fatal(err)
-	}
-	table := fmt.Sprintf("[[plugin]]\nrepo = %q\ncapabilities = [\"buffer.read\", \"buffer.write\"]\n", repo)
-	if err := os.WriteFile(filepath.Join(dir, "fude", "config.toml"), []byte(table), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	run := func() *editor.Session {
-		t.Helper()
-		path := filepath.Join(t.TempDir(), "f")
-		change(t, path, "ab\n")
-		e := start(t, path)
-		e.SetVersion(plugin.OldestSDK)
-		e.Load()
-		return e
-	}
-	e := run()
+	dir := fromRepo(t, serveRepo(t, &assets, nil, "v1.0.0", "v1.1.0"), "")
+	e := onRelease(t)
 	settle(t, e, func() bool { return e.Message() == "installed kit v1.0.0" })
-	settle(t, e, func() bool { feed(e, ":Shout<CR>"); return strings.HasPrefix(text(e), "!") })
+	shouts(t, e)
 	lock, err := os.ReadFile(filepath.Join(dir, "fude", "plugins.lock"))
 	sum := sha256.Sum256(v1)
 	if err != nil || !strings.Contains(string(lock), "v1.0.0") || !strings.Contains(string(lock), hex.EncodeToString(sum[:])) {
@@ -1402,13 +1430,12 @@ func TestB597PluginFromRepo(t *testing.T) {
 	}
 	// With its file installed, it loads with no release to get.
 	assets.Clear()
-	e = run()
-	settle(t, e, func() bool { feed(e, ":Shout<CR>"); return strings.HasPrefix(text(e), "!") })
+	shouts(t, onRelease(t))
 	// Another machine refuses a release whose .wasm is not the one locked.
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	assets.Store("v1.0.0", kitWith(t, plugin.OldestSDK+"-other"))
 	assets.Store("v1.1.0", kitWith(t, "v99.0.0"))
-	e = run()
+	e = onRelease(t)
 	settle(t, e, func() bool { return strings.Contains(e.Message(), "not the "+hex.EncodeToString(sum[:])) })
 }
 
@@ -1431,18 +1458,83 @@ func TestB598PluginBuiltFromRepo(t *testing.T) {
 		}
 		files[name] = bytes.ReplaceAll(b, []byte("../../.."), []byte(root))
 	}
-	repo := serveRepo(t, &sync.Map{}, files)
-	dir := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", dir)
-	t.Setenv("XDG_DATA_HOME", t.TempDir())
-	if err := os.MkdirAll(filepath.Join(dir, "fude"), 0o700); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "fude", "config.toml"), []byte(fmt.Sprintf("[[plugin]]\nrepo = %q\n", repo)), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	e := opened(t, "f", "ab\n")
+	fromRepo(t, serveRepo(t, &sync.Map{}, files), "")
+	e := onRelease(t)
 	settle(t, e, func() bool { return strings.Contains(e.Message(), "sdk that is no release") })
+}
+
+// B599, B604
+func TestB599PluginInstallAndUpdate(t *testing.T) {
+	var assets sync.Map
+	assets.Store("v1.0.0", kitWith(t, plugin.OldestSDK))
+	assets.Store("v1.1.0", kitWith(t, "v99.0.0"))
+	repo := serveRepo(t, &assets, nil, "v1.0.0", "v1.1.0")
+	dir := fromRepo(t, repo, "auto_install = false\n")
+	e := onRelease(t)
+	settle(t, e, func() bool { feed(e, ":plugin<CR>"); return strings.Contains(text(e), "not installed") })
+	feed(e, "q:plugin install<CR>")
+	settle(t, e, func() bool { return e.Message() == "installed kit v1.0.0" })
+	shouts(t, e)
+	// The newest release needs a newer fude.
+	feed(e, ":plugin update<CR>")
+	settle(t, e, func() bool { return e.Message() == "every plugin is up to date" })
+	// A release that asks for more than the table grants is not taken.
+	assets.Store("v1.1.0", kitWith(t, plugin.OldestSDK, `"process"`))
+	feed(e, ":plugin update<CR>")
+	settle(t, e, func() bool {
+		return strings.Contains(e.Message(), "asks for process, which its table does not grant, so it stays at v1.0.0")
+	})
+	assets.Store("v1.1.0", kitWith(t, plugin.OldestSDK))
+	feed(e, ":plugin update kit<CR>")
+	settle(t, e, func() bool { return e.Message() == "updated kit v1.0.0 to v1.1.0" })
+	shouts(t, e)
+	if lock, err := os.ReadFile(filepath.Join(dir, "fude", "plugins.lock")); err != nil || !strings.Contains(string(lock), "v1.1.0") {
+		t.Errorf("after the update plugins.lock holds %q, %v", lock, err)
+	}
+	// A plugin pinned to a release stays.
+	writeTable(t, dir, repo, "", "version = \"v1.0.0\"\n")
+	feed(e, ":plugin reload<CR>")
+	settle(t, e, func() bool { feed(e, ":plugin update<CR>"); return e.Message() == "kit is pinned to v1.0.0" })
+	// The list names what the manifest asks for that the table does not grant.
+	assets.Store("v1.1.0", kitWith(t, plugin.OldestSDK, `"ui"`))
+	fromRepo(t, repo, "")
+	e = onRelease(t)
+	shouts(t, e)
+	if feed(e, ":plugin<CR>"); !strings.Contains(text(e), "loaded, asks for ui, which its table does not grant") {
+		t.Errorf(":plugin listed %q", text(e))
+	}
+}
+
+// B600
+func TestB600PluginDisableAndEnable(t *testing.T) {
+	ctx, err := filepath.Abs(filepath.Join("..", "plugin", "testdata", "ctx", "ctx.wasm"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	useTable(t, "kit", fmt.Sprintf("[[plugin]]\npath = %q\ncapabilities = [\"buffer.write\"]\ndisabled = true\n", ctx), "buffer.read", "buffer.write")
+	path := filepath.Join(t.TempDir(), "f")
+	change(t, path, "ab\n")
+	e := start(t, path)
+	e.Load()
+	shouts(t, e)
+	off := func(name string) bool {
+		feed(e, ":"+name+"<CR>")
+		return strings.Contains(e.Message(), "not a command")
+	}
+	if feed(e, ":plugin disable kit<CR>"); !off("Shout") {
+		t.Errorf(":Shout of the disabled kit said %q", e.Message())
+	}
+	// A reload keeps it disabled.
+	feed(e, ":plugin reload<CR>")
+	settle(t, e, e.Idle)
+	if !off("Shout") {
+		t.Errorf("after a reload, :Shout of the disabled kit said %q", e.Message())
+	}
+	feed(e, ":plugin enable kit<CR>")
+	shouts(t, e)
+	// A table with disabled = true loads for the session.
+	feed(e, ":plugin enable ctx<CR>")
+	settle(t, e, func() bool { return !off("Ctx") })
 }
 
 // B378
