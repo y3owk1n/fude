@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"unicode/utf16"
 	"unsafe"
@@ -267,6 +268,48 @@ func drain() {
 	}
 }
 
+// The windows' state belongs to the main thread, which holds state while
+// it handles a message. UI Automation calls a provider on a thread of its
+// own too, so each window's procedure and each provider's method takes
+// state.
+var (
+	state  sync.Mutex
+	holder atomic.Uint32 // the thread that holds state, 0 for none
+	later  []func()      // what the holder tells UI Automation once it lets go
+)
+
+// hold takes state, unless this thread holds it already. It returns what
+// lets go of state, then makes the calls to UI Automation that afterward
+// put off.
+func hold() func() {
+	me := windows.GetCurrentThreadId()
+	if holder.Load() == me {
+		return func() {}
+	}
+	state.Lock()
+	holder.Store(me)
+	return func() {
+		calls := later
+		later = nil
+		holder.Store(0)
+		state.Unlock()
+		for _, fn := range calls {
+			fn()
+		}
+	}
+}
+
+// afterward puts off fn, a call that tells UI Automation of a change,
+// until this thread lets go of state, so UI Automation never reads a change
+// half made. A thread without state makes the call at once.
+func afterward(fn func()) {
+	if holder.Load() != windows.GetCurrentThreadId() {
+		fn()
+		return
+	}
+	later = append(later, fn)
+}
+
 // pump dispatches the main thread's messages until PostQuitMessage.
 func pump() {
 	var m msg
@@ -274,4 +317,21 @@ func pump() {
 		call(translateMessage, uintptr(unsafe.Pointer(&m)))
 		call(dispatchMessage, uintptr(unsafe.Pointer(&m)))
 	}
+}
+
+// uia calls UI Automation for an answer it needs now, letting go of state
+// meanwhile when this thread holds it, as UI Automation may send the window
+// a message or call a provider on another thread before it answers.
+func uia(p *windows.LazyProc, args ...uintptr) uintptr {
+	me := windows.GetCurrentThreadId()
+	if holder.Load() != me {
+		return call(p, args...)
+	}
+	holder.Store(0)
+	state.Unlock()
+	defer func() {
+		state.Lock()
+		holder.Store(me)
+	}()
+	return call(p, args...)
 }

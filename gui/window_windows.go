@@ -83,6 +83,7 @@ func startApp() {
 // wndProc gives a window's messages to it, and the message window's to the
 // main thread's queue.
 func wndProc(hwnd, m, wp, lp uintptr) uintptr {
+	defer hold()()
 	if hwnd == mainHwnd && m == wmApp {
 		drain()
 		return 0
@@ -114,7 +115,7 @@ func (w *window) handle(m uint32, wp, lp uintptr) (uintptr, bool) {
 		if int32(uint32(lp)) != uiaRootObjectID {
 			return 0, false
 		}
-		return call(uiaReturn, w.hwnd, wp, lp, w.root.ptr(slotSimple)), true
+		return uia(uiaReturn, w.hwnd, wp, lp, w.root.ptr(slotSimple)), true
 	case wmSize:
 		if w.target != nil {
 			s := sizeU{uint32(lp & 0xffff), uint32(lp >> 16 & 0xffff)}

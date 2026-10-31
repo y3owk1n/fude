@@ -185,7 +185,8 @@ func (n *node) drop() {
 		return
 	}
 	n.gone = true
-	call(uiaDisconnect, n.ptr(slotSimple))
+	p := n.ptr(slotSimple)
+	afterward(func() { call(uiaDisconnect, p) })
 	n.release()
 }
 
@@ -254,7 +255,7 @@ var (
 )
 
 func init() {
-	cb := syscall.NewCallback
+	cb := func(fn any) uintptr { return syscall.NewCallback(guarded(fn)) }
 	unknown := []uintptr{cb(queryInterface), cb(addRef), cb(releaseNode)}
 	vtables[slotSimple] = append(slices.Clone(unknown), cb(providerOptions), cb(patternProvider), cb(propertyValue), cb(hostProvider))
 	vtables[slotFragment] = append(slices.Clone(unknown), cb(navigate), cb(runtimeID), cb(boundingRect), cb(embeddedRoots), cb(setFocus), cb(fragmentRoot))
@@ -272,6 +273,24 @@ func init() {
 		cb(func(uintptr) uintptr { return sOK }), cb(func(uintptr) uintptr { return sOK }), cb(func(uintptr) uintptr { return sOK }),
 		cb(func(uintptr, uintptr) uintptr { return sOK }), cb(rangeChildren),
 	}
+}
+
+// guarded is fn, a provider's method, holding the windows' state while it
+// runs.
+func guarded(fn any) any {
+	switch f := fn.(type) {
+	case func(uintptr) uintptr:
+		return func(a uintptr) uintptr { defer hold()(); return f(a) }
+	case func(uintptr, uintptr) uintptr:
+		return func(a, b uintptr) uintptr { defer hold()(); return f(a, b) }
+	case func(uintptr, uintptr, uintptr) uintptr:
+		return func(a, b, c uintptr) uintptr { defer hold()(); return f(a, b, c) }
+	case func(uintptr, uintptr, uintptr, uintptr) uintptr:
+		return func(a, b, c, d uintptr) uintptr { defer hold()(); return f(a, b, c, d) }
+	case func(uintptr, uintptr, uintptr, uintptr, uintptr) uintptr:
+		return func(a, b, c, d, e uintptr) uintptr { defer hold()(); return f(a, b, c, d, e) }
+	}
+	panic(fmt.Sprintf("guarded: a method of type %T", fn))
 }
 
 func queryInterface(this, iid, ret uintptr) uintptr {
@@ -358,7 +377,7 @@ func propertyValue(this, prop, ret uintptr) uintptr {
 func hostProvider(this, ret uintptr) uintptr {
 	*out[uintptr](ret) = 0
 	if n := nodes[this]; n.live() && n.role == 0 {
-		return call(uiaHost, n.w.hwnd, ret)
+		return uia(uiaHost, n.w.hwnd, ret)
 	}
 	return sOK
 }
@@ -872,7 +891,8 @@ func (w *window) dropAccess() {
 		b.dropAccess()
 	}
 	w.strip.drop()
-	call(uiaReturn, w.hwnd, 0, 0, 0)
+	hwnd := w.hwnd
+	afterward(func() { call(uiaReturn, hwnd, 0, 0, 0) })
 	w.root.drop()
 }
 
@@ -1116,18 +1136,24 @@ func (w *window) focus() *node {
 }
 
 // raise tells assistive apps of the event on n.
-func raise(n *node, event int) { call(uiaRaise, n.ptr(slotSimple), uintptr(event)) }
+func raise(n *node, event int) {
+	p := n.ptr(slotSimple)
+	afterward(func() { call(uiaRaise, p, uintptr(event)) })
+}
 
 // announce has assistive apps speak text, from Windows 10's 1709 on.
 func announce(n *node, text string) {
 	if uiaNotify.Find() != nil {
 		return
 	}
-	s, id := bstr(text), bstr("fude")
-	// NotificationKind_Other, NotificationProcessing_ImportantMostRecent.
-	call(uiaNotify, n.ptr(slotSimple), 4, 1, s, id)
-	call(sysFreeString, s)
-	call(sysFreeString, id)
+	p := n.ptr(slotSimple)
+	afterward(func() {
+		s, id := bstr(text), bstr("fude")
+		// NotificationKind_Other, NotificationProcessing_ImportantMostRecent.
+		call(uiaNotify, p, 4, 1, s, id)
+		call(sysFreeString, s)
+		call(sysFreeString, id)
+	})
 }
 
 // tell tells assistive apps what changed in the frame w shows: the focus,

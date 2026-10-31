@@ -214,6 +214,7 @@ func (b *box) dropTable() {
 // the item it hits, as a click on a menu's item does, and no click gives
 // the list view the keyboard's focus (B556).
 func tableMessage(hwnd, m, wp, lp, _, _ uintptr) uintptr {
+	defer hold()()
 	b := tables[hwnd]
 	switch {
 	case b == nil:
@@ -438,6 +439,7 @@ func (b *box) showPreview() {
 // preview from its scroll position, scrolls by the bar and the wheel, and
 // never takes the keyboard's focus.
 func previewMessage(hwnd, m, wp, lp uintptr) uintptr {
+	defer hold()()
 	b := previews[hwnd]
 	switch {
 	case b == nil || b.boxed == nil || b.whole == nil:
