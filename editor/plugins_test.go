@@ -4,14 +4,12 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
-	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"image"
 	"image/png"
 	"maps"
 	"net/http"
-	"net/http/cgi"
 	"net/http/httptest"
 	"os"
 	"os/exec"
@@ -392,7 +390,7 @@ func TestB51PluginOverBudget(t *testing.T) {
 		"\x03\x02\x01\x00" + // one func of it
 		"\x08\x01\x00" + // which is the start function
 		"\x0a\x09\x01\x07\x00\x03\x40\x0c\x00\x0b\x0b" + // loop br 0 end end
-		manifest(`{"name":"loop"}`)
+		string(editortest.WithManifest(nil, `{"name":"loop"}`))
 	if err := os.WriteFile(wasm, []byte(module), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -420,7 +418,7 @@ func TestB53PluginTraps(t *testing.T) {
 	}
 	// A module that exports no alloc or memory does not load.
 	wasm := filepath.Join(t.TempDir(), "bare.wasm")
-	if err := os.WriteFile(wasm, []byte("\x00asm\x01\x00\x00\x00"+manifest(`{"name":"bare"}`)), 0o644); err != nil {
+	if err := os.WriteFile(wasm, editortest.WithManifest([]byte("\x00asm\x01\x00\x00\x00"), `{"name":"bare"}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	config(t, fmt.Sprintf("[[plugin]]\npath = %q\ncapabilities = [\"buffer.read\"]\n", wasm))
@@ -434,61 +432,6 @@ func TestB53PluginTraps(t *testing.T) {
 	}
 }
 
-// manifest is the custom section of the manifest JSON j, which takes the
-// place of a module's own as the last.
-func manifest(j string) string {
-	body := append(binary.AppendUvarint(nil, 4), "fude"+j...)
-	return string(append(binary.AppendUvarint([]byte{0}, uint64(len(body))), body...))
-}
-
-// serveRepo serves a git repo named kit over http, with a commit of files
-// and a commit after it for each of tags, and the .wasm of a release from
-// assets by its tag. It returns the repo's URL.
-func serveRepo(t *testing.T, assets *sync.Map, files map[string][]byte, tags ...string) string {
-	t.Helper()
-	execPath, err := exec.Command("git", "--exec-path").Output()
-	if err != nil {
-		t.Skipf("git is not installed: %v", err)
-	}
-	work, root := t.TempDir(), t.TempDir()
-	run := func(dir string, args ...string) {
-		t.Helper()
-		cmd := exec.Command("git", append([]string{"-c", "user.name=t", "-c", "user.email=t@t"}, args...)...)
-		cmd.Dir = dir
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v: %s", args, err, out)
-		}
-	}
-	run(work, "init", "-q")
-	for name, b := range files {
-		if err := os.WriteFile(filepath.Join(work, name), b, 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	run(work, "add", ".")
-	run(work, "commit", "-q", "--allow-empty", "-m", "kit")
-	for _, tag := range tags {
-		run(work, "commit", "-q", "--allow-empty", "-m", tag)
-		run(work, "tag", tag)
-	}
-	run(root, "clone", "-q", "--bare", work, "kit.git")
-	backend := &cgi.Handler{Path: filepath.Join(strings.TrimSpace(string(execPath)), "git-http-backend"), Env: []string{"GIT_PROJECT_ROOT=" + root, "GIT_HTTP_EXPORT_ALL=1"}}
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		tag, ok := strings.CutPrefix(r.URL.Path, "/kit/releases/download/")
-		if !ok {
-			backend.ServeHTTP(w, r)
-			return
-		}
-		if b, ok := assets.Load(strings.TrimSuffix(tag, "/kit.wasm")); ok {
-			w.Write(b.([]byte))
-			return
-		}
-		http.NotFound(w, r)
-	}))
-	t.Cleanup(srv.Close)
-	return srv.URL + "/kit.git"
-}
-
 // kitWith is the kit plugin's .wasm with a manifest built with sdk that
 // asks for buffer.read, buffer.write and more.
 func kitWith(t *testing.T, sdk string, more ...string) []byte {
@@ -498,7 +441,7 @@ func kitWith(t *testing.T, sdk string, more ...string) []byte {
 		t.Fatal(err)
 	}
 	caps := strings.Join(append([]string{`"buffer.read"`, `"buffer.write"`}, more...), ",")
-	return append(b, manifest(`{"name":"kit","sdk":"`+sdk+`","capabilities":[`+caps+`]}`)...)
+	return editortest.WithManifest(b, `{"name":"kit","sdk":"`+sdk+`","capabilities":[`+caps+`]}`)
 }
 
 // fromRepo writes a config.toml in a new config folder, of the lines top
@@ -1419,7 +1362,7 @@ func TestB597PluginFromRepo(t *testing.T) {
 	assets.Store("v1.0.0", v1)
 	// The newest release needs a newer fude, so the one before installs.
 	assets.Store("v1.1.0", kitWith(t, "v99.0.0"))
-	dir := fromRepo(t, serveRepo(t, &assets, nil, "v1.0.0", "v1.1.0"), "")
+	dir := fromRepo(t, editortest.Repo(t, &assets, nil, "v1.0.0", "v1.1.0"), "")
 	e := onRelease(t)
 	settle(t, e, func() bool { return e.Message() == "installed kit v1.0.0" })
 	shouts(t, e)
@@ -1458,7 +1401,7 @@ func TestB598PluginBuiltFromRepo(t *testing.T) {
 		}
 		files[name] = bytes.ReplaceAll(b, []byte("../../.."), []byte(root))
 	}
-	fromRepo(t, serveRepo(t, &sync.Map{}, files), "")
+	fromRepo(t, editortest.Repo(t, &sync.Map{}, files), "")
 	e := onRelease(t)
 	settle(t, e, func() bool { return strings.Contains(e.Message(), "sdk that is no release") })
 }
@@ -1468,7 +1411,7 @@ func TestB599PluginInstallAndUpdate(t *testing.T) {
 	var assets sync.Map
 	assets.Store("v1.0.0", kitWith(t, plugin.OldestSDK))
 	assets.Store("v1.1.0", kitWith(t, "v99.0.0"))
-	repo := serveRepo(t, &assets, nil, "v1.0.0", "v1.1.0")
+	repo := editortest.Repo(t, &assets, nil, "v1.0.0", "v1.1.0")
 	dir := fromRepo(t, repo, "auto_install = false\n")
 	e := onRelease(t)
 	settle(t, e, func() bool { feed(e, ":plugin<CR>"); return strings.Contains(text(e), "not installed") })

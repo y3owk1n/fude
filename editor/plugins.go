@@ -213,32 +213,19 @@ func (e *Session) built(src, path string) (string, error) {
 // auto_install off.
 var errNotInstalled = errors.New(":plugin install installs it")
 
-// fromRepo returns the installed .wasm of repo's plugin. It installs it
-// first when it is not installed, or not at the version its table names,
-// and keeps it in plugins.lock. A plugin locked but not installed installs
-// at the commit locked. It runs off the loop (B597, B598).
+// fromRepo returns the installed .wasm of repo's plugin, which it
+// installs first when it is not, and keeps in plugins.lock. It runs off
+// the loop (B597, B598).
 func (e *Session) fromRepo(repo, version string, locked install.Entry, auto bool) (string, error) {
-	want := version
-	if locked.Commit != "" && (version == "" || version == locked.Version) {
-		if p, err := install.File(locked); err == nil {
-			if _, err := os.Stat(p); err == nil {
-				return p, nil
-			}
-		}
-		want = locked.Commit
+	if p, ok := install.Installed(locked, version); ok {
+		return p, nil
 	}
 	if !auto {
 		return "", fmt.Errorf("plugin %s is not installed, and %w", install.Name(repo), errNotInstalled)
 	}
 	e.starting(repo, "installing", install.Name(repo))
 	at := time.Now()
-	entry, m, wasm, err := install.Fetch(context.Background(), repo, want, locked, e.version)
-	if err == nil {
-		if entry.Commit == locked.Commit {
-			entry.Version = locked.Version
-		}
-		err = install.Store(entry, wasm)
-	}
+	entry, m, err := install.Install(context.Background(), repo, version, locked, e.version)
 	trace.Since("plugin", "install "+repo, at, err)
 	if err != nil {
 		return "", err
@@ -246,7 +233,7 @@ func (e *Session) fromRepo(repo, version string, locked install.Entry, auto bool
 	// The loop writes the lock, so installs that end together each keep
 	// their entry.
 	e.queue <- func() {
-		e.message = fmt.Sprintf("installed %s %s", m.Name, cmp.Or(entry.Version, entry.Commit[:7]))
+		e.message = fmt.Sprintf("installed %s %s", m.Name, install.Version(entry))
 		if err := e.lock(entry); err != nil {
 			e.message = err.Error()
 		}

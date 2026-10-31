@@ -175,13 +175,20 @@ A plugin is Go built into WebAssembly with TinyGo. It runs in a sandbox and gets
 
 Install one from its repo:
 
+```sh
+fude plugin add github.com/y3owk1n/fude-org
+```
+
+It shows what the plugin asks for, and once you answer y, adds its table to `config.toml`:
+
 ```toml
 [[plugin]]
 repo = "github.com/y3owk1n/fude-org"
 capabilities = ["buffer.read", "buffer.write", "ui"]
 ```
 
-- fude installs it in the background from the repo's release, and `plugins.lock` beside `config.toml` pins the commit.
+- fude installs a plugin from the repo's release, and `plugins.lock` beside `config.toml` pins the commit.
+- `fude plugin install` installs what the lock pins on a new machine, and `fude plugin update` updates them.
 - `:plugin` lists the plugins, `:plugin update` updates them, and `:plugin disable {name}` turns one off.
 - `path` in place of `repo` loads a `.wasm` file, or a folder of a plugin's source that fude builds.
 

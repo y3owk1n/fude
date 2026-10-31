@@ -10,6 +10,16 @@ https://github.com/topics/fude-plugin. Each one's README gives its table.
 
 ## Adding a plugin
 
+The quickest way is from a shell:
+
+```sh
+fude plugin add github.com/y3owk1n/fude-org
+```
+
+It installs the plugin, prints the capabilities, programs and hosts it
+asks for, and once you answer y, adds its table to `config.toml`.
+`repo@v1.2.0` adds a version too.
+
 Each plugin has a `[[plugin]]` table in `config.toml`, which names where
 the plugin comes from and what it may do. A plugin comes from one of
 three places.
@@ -100,6 +110,14 @@ them gets an error and changes nothing, and fude writes it to its log in
 
 With `auto_install = false`, a plugin of a repo installs only with
 `:plugin install`.
+
+These also run from a shell, for a new machine or a script:
+
+- `fude plugin add {repo}[@version]` installs a plugin and adds its table.
+- `fude plugin install` installs each plugin of a repo that is not
+  installed, at the commits `plugins.lock` pins.
+- `fude plugin update [name]` updates each plugin of a repo, or the one
+  named, as `:plugin update` does.
 
 ## Versions and plugins.lock
 

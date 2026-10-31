@@ -3,12 +3,14 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -122,6 +124,61 @@ func TestB348Help(t *testing.T) {
 		if out, err := fude(t.TempDir(), "tail", flag); err != nil || out != want {
 			t.Errorf("fude tail %s printed %q, %v", flag, out, err)
 		}
+	}
+}
+
+// B601
+func TestB601PluginAddInstallUpdate(t *testing.T) {
+	b, err := os.ReadFile(filepath.Join("..", "..", "plugin", "testdata", "kit", "kit.wasm"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	kit := editortest.WithManifest(b, `{"name":"kit","sdk":"`+plugin.OldestSDK+`","capabilities":["buffer.read","buffer.write"],"programs":["git"]}`)
+	var assets sync.Map
+	assets.Store("v1.0.0", kit)
+	assets.Store("v1.1.0", kit)
+	repo := editortest.Repo(t, &assets, nil, "v1.0.0", "v1.1.0")
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	config := filepath.Join(dir, "fude", "config.toml")
+	add := func(answer string) string {
+		t.Helper()
+		cmd := exec.Command(os.Args[0], "plugin", "add", repo+"@v1.0.0")
+		cmd.Env, cmd.Stdin = append(os.Environ(), "FUDE_TEST_CLI=1"), strings.NewReader(answer)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("fude plugin add: %v: %s", err, out)
+		}
+		return string(out)
+	}
+	if out := add("n\n"); !strings.Contains(out, "added nothing") {
+		t.Errorf("declining fude plugin add printed %q", out)
+	}
+	if _, err := os.Stat(config); err == nil {
+		t.Error("declining fude plugin add wrote config.toml")
+	}
+	if out := add("y\n"); !strings.Contains(out, "kit v1.0.0 asks for") || !strings.Contains(out, "programs: git") {
+		t.Errorf("fude plugin add printed %q", out)
+	}
+	table, err := os.ReadFile(config)
+	want := fmt.Sprintf("[[plugin]]\nrepo = %q\nversion = \"v1.0.0\"\ncapabilities = [\"buffer.read\", \"buffer.write\"]\nprograms = [\"git\"]\n", repo)
+	if err != nil || !strings.Contains(string(table), want) {
+		t.Errorf("fude plugin add wrote %q, %v, want %q", table, err, want)
+	}
+	if out, err := fude(dir, "plugin", "update"); err != nil || !strings.Contains(out, "kit is pinned to v1.0.0") {
+		t.Errorf("fude plugin update of a pinned plugin printed %q, %v", out, err)
+	}
+	if err := os.WriteFile(config, []byte(strings.Replace(string(table), "version = \"v1.0.0\"\n", "", 1)), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := fude(dir, "plugin", "update", "kit"); err != nil || !strings.Contains(out, "updated kit v1.0.0 to v1.1.0") {
+		t.Errorf("fude plugin update kit printed %q, %v", out, err)
+	}
+	// Another machine with the config and lock installs what the lock pins.
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	if out, err := fude(dir, "plugin", "install"); err != nil || !strings.Contains(out, "installed kit v1.1.0") {
+		t.Errorf("fude plugin install printed %q, %v", out, err)
 	}
 }
 

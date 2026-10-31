@@ -90,6 +90,25 @@ type config struct {
 	Plugin []pluginConfig            `toml:"plugin"`
 }
 
+// RepoPlugin is a [[plugin]] table that installs from a repo, as fude
+// plugin install and update read it (B601).
+type RepoPlugin struct {
+	Repo, Version string
+	Capabilities  []string
+}
+
+// RepoPlugins reads the tables of config.toml that install from a repo.
+func RepoPlugins() ([]RepoPlugin, error) {
+	c, err := loadConfig()
+	var out []RepoPlugin
+	for _, s := range c.Plugin {
+		if s.Repo != "" {
+			out = append(out, RepoPlugin{s.Repo, s.Version, s.Capabilities})
+		}
+	}
+	return out, err
+}
+
 // pluginConfig is a [[plugin]] table.
 type pluginConfig struct {
 	Path         string         `toml:"path" help:"the plugin's .wasm, or the folder of its source to build, from the config directory"`

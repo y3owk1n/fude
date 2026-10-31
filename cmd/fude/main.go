@@ -316,10 +316,16 @@ func remote(cmd string, words []string, flags map[string]string) error {
 	return nil
 }
 
-// pluginCommand runs fude plugin new <name> or fude plugin build [dir]
-// (B173).
+// pluginCommand runs fude plugin new <name>, build [dir], add <repo>,
+// install or update [name] (B173, B601).
 func pluginCommand(words []string) error {
 	switch {
+	case len(words) == 2 && words[0] == "add":
+		return pluginAdd(words[1])
+	case len(words) == 1 && words[0] == "install":
+		return pluginInstall()
+	case len(words) >= 1 && len(words) <= 2 && words[0] == "update":
+		return pluginUpdate(strings.Join(words[1:], ""))
 	case len(words) == 2 && words[0] == "new":
 		if err := plugin.New(words[1]); err != nil {
 			return err

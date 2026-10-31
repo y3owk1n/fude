@@ -88,7 +88,7 @@ func (e *Session) listPlugins() {
 		if s.Repo != "" {
 			from = strings.TrimSpace(s.Repo + " " + s.Version)
 			if l, ok := lock.Find(s.Repo); ok {
-				from = s.Repo + " " + version(l)
+				from = s.Repo + " " + install.Version(l)
 			}
 		}
 		state := "loading"
@@ -107,15 +107,6 @@ func (e *Session) listPlugins() {
 		lines[i] = fmt.Sprintf("%-16s %-48s %s", e.plugName(s), from, state)
 	}
 	e.panel(nil, api.Panel{Unnumbered: true, Title: "[plugins]", Text: strings.Join(lines, "\n")})
-}
-
-// version is the version an entry shows as, its tag or branch, or its
-// commit cut short.
-func version(l install.Entry) string {
-	if l.Version != "" || len(l.Commit) < 7 {
-		return l.Version
-	}
-	return l.Commit[:7]
 }
 
 // missing returns what want lists that have does not.
@@ -236,28 +227,15 @@ func (e *Session) updatePlugins(name string) error {
 		var updated []done
 		for _, j := range jobs {
 			at := time.Now()
-			entry, m, wasm, err := install.Fetch(context.Background(), j.s.Repo, j.s.Version, j.locked, e.version)
+			entry, m, err := install.Update(context.Background(), j.s.Repo, j.s.Version, j.s.Capabilities, j.locked, e.version)
 			trace.Since("plugin", "update "+j.s.Repo, at, err)
-			if err == nil && entry.Commit == j.locked.Commit {
-				continue
-			}
-			was := version(j.locked)
-			if wants := missing(m.Capabilities, j.s.Capabilities); err == nil && len(wants) > 0 {
-				err = fmt.Errorf("%s %s asks for %s, which its table does not grant, so it stays at %s", m.Name, version(entry), strings.Join(wants, ", "), was)
-			}
-			if err == nil {
-				err = install.Store(entry, wasm)
-			}
-			if err != nil {
+			switch {
+			case err != nil:
 				notes = append(notes, err.Error())
-				continue
+			case entry.Commit != j.locked.Commit:
+				notes = append(notes, install.Updated(m.Name, j.locked, entry))
+				updated = append(updated, done{j, entry})
 			}
-			note := fmt.Sprintf("updated %s %s to %s", m.Name, was, version(entry))
-			if j.locked.Commit == "" {
-				note = fmt.Sprintf("installed %s %s", m.Name, version(entry))
-			}
-			notes = append(notes, note)
-			updated = append(updated, done{j, entry})
 		}
 		e.queue <- func() {
 			e.working--

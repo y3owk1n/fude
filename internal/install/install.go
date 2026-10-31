@@ -219,6 +219,78 @@ func Fetch(ctx context.Context, repo, version string, locked Entry, host string)
 	return Entry{}, plugin.Manifest{}, nil, first
 }
 
+// Installed returns the file of locked's plugin when it is installed and
+// the table's version is unset or the one locked (B597).
+func Installed(locked Entry, version string) (string, bool) {
+	if locked.Commit == "" || version != "" && version != locked.Version {
+		return "", false
+	}
+	p, err := File(locked)
+	if err != nil {
+		return "", false
+	}
+	_, err = os.Stat(p)
+	return p, err == nil
+}
+
+// Install installs repo's plugin at version, or at the commit locked when
+// version is unset or the one locked (B597, B598).
+func Install(ctx context.Context, repo, version string, locked Entry, host string) (Entry, plugin.Manifest, error) {
+	want := version
+	if locked.Commit != "" && (version == "" || version == locked.Version) {
+		want = locked.Commit
+	}
+	e, m, wasm, err := Fetch(ctx, repo, want, locked, host)
+	if err != nil {
+		return e, m, err
+	}
+	if e.Commit == locked.Commit {
+		e.Version = locked.Version
+	}
+	return e, m, Store(e, wasm)
+}
+
+// Update installs repo's newest release that fude at version host loads,
+// or its branch's newest commit, and returns locked when there is nothing
+// newer. It refuses a newer one that asks for a capability grants lacks,
+// and installs nothing then (B599).
+func Update(ctx context.Context, repo, version string, grants []string, locked Entry, host string) (Entry, plugin.Manifest, error) {
+	e, m, wasm, err := Fetch(ctx, repo, version, locked, host)
+	switch {
+	case err != nil:
+		return locked, m, err
+	case e.Commit == locked.Commit:
+		return locked, m, nil
+	}
+	var wants []string
+	for _, c := range m.Capabilities {
+		if !slices.Contains(grants, c) {
+			wants = append(wants, c)
+		}
+	}
+	if len(wants) > 0 {
+		return locked, m, fmt.Errorf("%s %s asks for %s, which its table does not grant, so it stays at %s", m.Name, Version(e), strings.Join(wants, ", "), Version(locked))
+	}
+	return e, m, Store(e, wasm)
+}
+
+// Updated says that the plugin name moved from old to e.
+func Updated(name string, old, e Entry) string {
+	if old.Commit == "" {
+		return fmt.Sprintf("installed %s %s", name, Version(e))
+	}
+	return fmt.Sprintf("updated %s %s to %s", name, Version(old), Version(e))
+}
+
+// Version is the version e shows as: its tag or branch, or its commit cut
+// short.
+func Version(e Entry) string {
+	if e.Version != "" || len(e.Commit) < 7 {
+		return e.Version
+	}
+	return e.Commit[:7]
+}
+
 // resolve returns what version may be in the repo at url, newest first.
 func resolve(ctx context.Context, url, version string) ([]candidate, error) {
 	tags, err := refs(ctx, url, []string{"--tags"})
