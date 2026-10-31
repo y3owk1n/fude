@@ -2009,7 +2009,9 @@ Where fude departs, the line says so and cites the departure in
   the one locked installs again, and a table with no `version` keeps the
   locked one. Another machine with the same
   config.toml and lock installs the same commit, and refuses a release's
-  `.wasm` whose sha256 is not the one locked, naming the repo. Installing
+  `.wasm` whose sha256 is not the one locked, naming the repo. A
+  `plugins.lock` that is a link, as a dotfiles manager makes, stays one,
+  and the file it names takes the lock. Installing
   drops the entries of repos config.toml no longer lists, and removes the
   installed files no entry names.
 - B598 [4] A repo's plugin that is not installed installs off the loop

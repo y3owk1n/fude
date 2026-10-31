@@ -1366,13 +1366,24 @@ func TestB597PluginFromRepo(t *testing.T) {
 	// The newest release needs a newer fude, so the one before installs.
 	assets.Store("v1.1.0", kitWith(t, "v99.0.0"))
 	dir := fromRepo(t, editortest.Repo(t, &assets, nil, "v1.0.0", "v1.1.0"), "")
+	// The lock is a link to a file elsewhere, as a dotfiles manager makes.
+	kept := filepath.Join(t.TempDir(), "plugins.lock")
+	if err := os.WriteFile(kept, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(kept, filepath.Join(dir, "fude", "plugins.lock")); err != nil {
+		t.Fatal(err)
+	}
 	e := onRelease(t)
 	settle(t, e, func() bool { return e.Message() == "installed kit v1.0.0" })
 	shouts(t, e)
-	lock, err := os.ReadFile(filepath.Join(dir, "fude", "plugins.lock"))
+	lock, err := os.ReadFile(kept)
 	sum := sha256.Sum256(v1)
 	if err != nil || !strings.Contains(string(lock), "v1.0.0") || !strings.Contains(string(lock), hex.EncodeToString(sum[:])) {
-		t.Errorf("plugins.lock holds %q, %v, want v1.0.0 and its sha256", lock, err)
+		t.Errorf("the file plugins.lock links to holds %q, %v, want v1.0.0 and its sha256", lock, err)
+	}
+	if info, err := os.Lstat(filepath.Join(dir, "fude", "plugins.lock")); err != nil || info.Mode()&os.ModeSymlink == 0 {
+		t.Errorf("plugins.lock is no longer a link: %v, %v", info, err)
 	}
 	// With its file installed, it loads with no release to get.
 	assets.Clear()

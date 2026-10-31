@@ -52,9 +52,14 @@ func Dir(env, fallback string) (string, error) {
 }
 
 // Write replaces the file at path with data, whole, so a reader never
-// sees half of it. It makes the directories on the way.
+// sees half of it. It makes the directories on the way. A path that is a
+// link, as a dotfiles manager makes, stays one, and the file it names
+// takes data.
 func Write(path string, data []byte) error {
 	at := time.Now()
+	if real, err := filepath.EvalSymlinks(path); err == nil {
+		path = real
+	}
 	err := os.MkdirAll(filepath.Dir(path), 0o700)
 	if err == nil {
 		err = os.WriteFile(path+".new", data, 0o600)
