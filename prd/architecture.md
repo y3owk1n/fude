@@ -1553,7 +1553,8 @@ A folder in `path` builds off the loop with `plugin.Build` when its
 under way with the plugin loads, so `Session.Idle` waits for them, and
 keeps each plugin's state for `:plugin`: installing, building, not
 installed, failed with why, or disabled this session (B599, B600).
-Disabled names live on the session, so `:plugin reload` skips them.
+The editor keeps the plugins `:plugin enable` and `disable` chose, by
+their source, so `:plugin reload` keeps a disabled one out.
 
 The install test serves a bare git repo from `net/http/cgi` running
 `git http-backend`, and the release asset from the same server, a
