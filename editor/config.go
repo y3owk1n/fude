@@ -39,7 +39,7 @@ type config struct {
 	SplitRight     bool              `toml:"split_right" help:"a vertical split opens right of the window, else left of it"`
 	Autocomplete   bool              `toml:"autocomplete" help:"completions show while typing, not only on <C-x><C-o>"`
 	RemoteImages   bool              `toml:"remote_images" help:"images at http and https addresses load from the network"`
-	Sources        []string          `toml:"completion_sources" help:"where completions come from, in the menu's order: lsp, snippet, path and buffer"`
+	Sources        []string          `toml:"completion_sources" help:"where completions come from, in the menu's order, from lsp, snippet, path, buffer and plugins' sources, all of them when unset or empty"`
 	AutoInstall    bool              `toml:"auto_install" help:"builds a missing grammar the first time a file needs it"`
 	Socket         string            `toml:"socket" help:"where clients attach, instead of a path for each process"`
 	FormatOnSave   bool              `toml:"format_on_save" help:"a write formats the buffer first"`
@@ -283,7 +283,7 @@ var keymapTables = []struct{ name, help string }{
 	{"groups", "names of the keys mappings start with, which key hints show"},
 }
 
-var defaults = config{TabWidth: 8, KeyTimeout: 1000, FormatTimeout: 1000, LargeFile: 2, TerminalHeight: 33, SplitBelow: true, SplitRight: true, RemoteImages: true, Sources: []string{"lsp", "snippet", "path", "buffer"}, AutoInstall: true, Leader: "<Space>", Theme: "dark", VirtualEdit: "none", ListChars: wire.ListChars{Tab: "> ", Trail: "-", Nbsp: "+"}, FillChars: wire.FillChars{Eob: "~", Vert: "│", FoldOpen: "-", FoldClose: "+", FoldSep: "│"}, options: options{Wrap: true, IncSearch: true, HLSearch: true, WrapScan: true}}
+var defaults = config{TabWidth: 8, KeyTimeout: 1000, FormatTimeout: 1000, LargeFile: 2, TerminalHeight: 33, SplitBelow: true, SplitRight: true, RemoteImages: true, AutoInstall: true, Leader: "<Space>", Theme: "dark", VirtualEdit: "none", ListChars: wire.ListChars{Tab: "> ", Trail: "-", Nbsp: "+"}, FillChars: wire.FillChars{Eob: "~", Vert: "│", FoldOpen: "-", FoldClose: "+", FoldSep: "│"}, options: options{Wrap: true, IncSearch: true, HLSearch: true, WrapScan: true}}
 
 // options are the settings each window has, which :set changes for the
 // current window and the windows opened after it (B39). :set takes each by
@@ -350,11 +350,6 @@ func loadConfig() (config, error) {
 	for name, v := range c.settings() {
 		if err := checkSetting(name, settingText(v)); err != nil {
 			return c, fmt.Errorf("%s: %w", path, err)
-		}
-	}
-	for _, s := range c.Sources {
-		if !slices.Contains(defaults.Sources, s) {
-			return c, fmt.Errorf("%s: completion_sources has no source %q", path, s)
 		}
 	}
 	for module, where := range c.Open {
@@ -466,7 +461,7 @@ func (e *Session) configures(table, keys string) bool {
 func (e *Session) reloadConfig() error {
 	cfg, err := loadConfig()
 	if err == nil {
-		err = e.moduleConfig(cfg)
+		err = errors.Join(e.moduleConfig(cfg), e.checkSources(cfg.Sources))
 	}
 	if err != nil {
 		return err

@@ -30,6 +30,7 @@
 				{ "type": "generic", "path": "plugin/testdata/spin/go.mod" },
 				{ "type": "generic", "path": "plugin/testdata/trap/go.mod" },
 				{ "type": "generic", "path": "plugin/testdata/watch/go.mod" },
+				{ "type": "generic", "path": "plugin/testdata/words/go.mod" },
 				{ "type": "generic", "path": "plugin/testdata/write/go.mod" }
 			]
 		}

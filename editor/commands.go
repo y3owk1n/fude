@@ -237,7 +237,7 @@ func completeOption(e *Session, line string, start int, arg string, wait bool) (
 		return at, fuzzy.Match(slices.Compact(fts), value)
 	case name == "completion_sources":
 		done := value[:strings.LastIndexByte(value, ',')+1]
-		return at + len(done), fuzzy.Match(defaults.Sources, value[len(done):])
+		return at + len(done), fuzzy.Match(e.knownSources(), value[len(done):])
 	case settingWords[name] != nil:
 		return at, fuzzy.Match(settingWords[name], value)
 	}

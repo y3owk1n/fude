@@ -3,6 +3,8 @@ package editor
 import (
 	"cmp"
 	"encoding/json"
+	"fmt"
+	"maps"
 	"slices"
 	"strings"
 	"unicode/utf8"
@@ -34,6 +36,41 @@ type completer struct {
 	p    api.Module
 	id   uint32
 	keys string
+}
+
+// completionOrder is the sources completion_sources names, in its order,
+// or every source while it is unset or empty (B206, B336).
+func (e *Session) completionOrder() []string {
+	if len(e.cfg.Sources) > 0 {
+		return e.cfg.Sources
+	}
+	return e.knownSources()
+}
+
+// knownSources are lsp and the sources modules registered: lsp, snippet,
+// path and buffer first, then the others by name.
+func (e *Session) knownSources() []string {
+	known := []string{"lsp"}
+	for _, name := range []string{"snippet", "path", "buffer"} {
+		if _, ok := e.completionSources[name]; ok {
+			known = append(known, name)
+		}
+	}
+	for _, name := range slices.Sorted(maps.Keys(e.completionSources)) {
+		if !slices.Contains(known, name) {
+			known = append(known, name)
+		}
+	}
+	return known
+}
+
+// checkSources returns an error naming the first of names that is no source.
+func (e *Session) checkSources(names []string) error {
+	known := e.knownSources()
+	if bad := slices.IndexFunc(names, func(s string) bool { return !slices.Contains(known, s) }); bad >= 0 {
+		return fmt.Errorf("completion_sources takes %s, not %q", strings.Join(known, ","), names[bad])
+	}
+	return nil
 }
 
 // menu is the completions shown while typing, which <C-n> and <C-p> step
@@ -117,7 +154,7 @@ func (c *completion) key(e *Session, k vim.Key) bool {
 // <C-n>, <C-p> and <C-x> with <C-n>, <C-p> or <C-l> ask the buffer
 // source alone, and <C-x><C-f> the path source (B64, B206, B440).
 func (e *Session) complete(keys string) {
-	sources := e.cfg.Sources
+	sources := e.completionOrder()
 	switch keys {
 	case "<C-n>", "<C-p>", "<C-x><C-n>", "<C-x><C-p>", "<C-x><C-l>":
 		sources = []string{"buffer"}
@@ -373,7 +410,7 @@ func (e *Session) autocomplete(k vim.Key) {
 		return ok && (isWord(k[0]) || slices.Contains(p.TriggerCharacters, string(k)))
 	})
 	local := false
-	for _, name := range e.cfg.Sources {
+	for _, name := range e.completionOrder() {
 		if cp, ok := e.completionSources[name]; ok && (isWord(k[0]) || strings.Contains(cp.keys, string(k))) {
 			local = true
 		}

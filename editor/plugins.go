@@ -88,6 +88,7 @@ func (e *Session) loadPlugins() {
 		e.message = fmt.Sprintf("load plugins: %v", err)
 		return
 	}
+	e.loading++ // until every plugin has started loading
 	for _, s := range e.cfg.Plugin {
 		if s.Disabled {
 			continue
@@ -103,6 +104,7 @@ func (e *Session) loadPlugins() {
 		}
 		b, t, scope := e.win.buf, e.Text(), e.scope(nil, e.win.buf, e.Text())
 		e.working++
+		e.loading++
 		go func() {
 			defer scope.Done()
 			ctx, at := context.Background(), time.Now()
@@ -112,6 +114,7 @@ func (e *Session) loadPlugins() {
 				e.queue <- func() {
 					e.working--
 					e.message = err.Error()
+					e.pluginLoaded()
 				}
 				return
 			}
@@ -121,8 +124,20 @@ func (e *Session) loadPlugins() {
 				e.working--
 				e.declare(p, options)
 				e.loaded(p, err, b, t, res)
+				e.pluginLoaded()
 			}
 		}()
+	}
+	e.pluginLoaded()
+}
+
+// pluginLoaded counts down a plugin load. After the last one, every
+// completion source has registered, so it checks completion_sources.
+func (e *Session) pluginLoaded() {
+	if e.loading--; e.loading == 0 {
+		if err := e.checkSources(e.cfg.Sources); err != nil {
+			e.message = err.Error()
+		}
 	}
 }
 

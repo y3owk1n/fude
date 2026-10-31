@@ -282,8 +282,10 @@ prefix starts with the word typed. `path` is the entries of the directory a path
 cursor names, once it holds a `/`, relative to the file's directory.
 `buffer` is the words of the open buffers that start with the word typed,
 nearest the cursor first. The menu names the source of each item that is
-not a server's. The default is `["lsp", "snippet", "path", "buffer"]`, and
-leaving a name out turns that source off.
+not a server's. A plugin's source has the name it registers. The default
+is unset, and unset or empty means every source: `lsp`, `snippet`, `path`
+and `buffer`, then the plugins' sources sorted by name. A list asks only
+the sources it names, so leaving a name out turns that source off.
 
 ## auto_install
 

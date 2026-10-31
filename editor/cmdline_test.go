@@ -34,6 +34,7 @@ func TestB131CommandCompletion(t *testing.T) {
 	t.Chdir(dir)
 	config(t, "autocomplete = true")
 	e := start(t, "readme")
+	e.Use(completionmod.New())
 	e.Use(listsmod.New())
 	e.Use(sessionsmod.New())
 	e.Use(helpmod.New())
@@ -364,8 +365,11 @@ func TestB206CompletionSources(t *testing.T) {
 	if feed(e, "o./no<C-x><C-o>"); e.Message() != "no completions" {
 		t.Errorf("with only buffer words, a path completed to %q", text(e))
 	}
+	// A name is checked once every source has registered.
 	config(t, `completion_sources = ["nope"]`)
-	if e = start(t, path); !strings.Contains(e.Message(), `no source "nope"`) {
+	e = start(t, path)
+	e.Use(completionmod.New())
+	if e.Load(); !strings.Contains(e.Message(), `not "nope"`) {
 		t.Errorf("an unknown source said %q", e.Message())
 	}
 }

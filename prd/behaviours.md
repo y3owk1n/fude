@@ -2002,7 +2002,8 @@ Where fude departs, the line says so and cites the departure in
 - B277 [4] A plugin hears `editor.focused` when the terminal gets the
   focus back, as git's index may have changed while fude was away.
 - B336 [4] A module is a source of insert mode completion by a name
-  `completion_sources` orders. It offers items that replace the text
+  `completion_sources` orders, and fude asks it while that setting is
+  unset or empty. It offers items that replace the text
   from a place. They may be the menu's alone, and they may come later.
   It names the characters besides word characters after which
   autocomplete asks it. The editor expands a snippet's items. Buffer
@@ -2479,9 +2480,11 @@ Where fude departs, the line says so and cites the departure in
   relative to the file's directory, and the words of the open buffers that
   start with the word typed, nearest the cursor first. So it works in a
   file with no server (N8). `completion_sources` picks the sources and
-  orders them in the menu, `["lsp", "snippet", "path", "buffer"]` by
-  default, and the menu names the source of each item that is not a
-  server's. With `autocomplete` on, a `/` lists a path's entries.
+  orders them in the menu. Unset or empty, it means every source, with
+  `lsp`, `snippet`, `path` and `buffer` first and the others sorted by
+  name. Once every plugin has loaded, fude reports a name that is no
+  source. The menu names the source of each item that is not a server's.
+  With `autocomplete` on, a `/` lists a path's entries.
 - B207 [5] A completion can be a snippet, from a server or from
   `snippets/<filetype>.json` or `snippets/all.json` in fude's config
   directory, in VS Code's format (N30). It goes in with its placeholders,

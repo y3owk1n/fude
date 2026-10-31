@@ -223,6 +223,9 @@ func (e *Session) setSetting(name, value string, given bool) error {
 	case !given && name == "center":
 		e.message = fmt.Sprintf("%s %t", name, e.centered)
 		return nil
+	case !given && name == "completion_sources":
+		e.message = name + " " + strings.Join(e.completionOrder(), ",")
+		return nil
 	case !given:
 		e.message = name + " " + settingText(v)
 		return nil
@@ -246,9 +249,15 @@ func (e *Session) setSetting(name, value string, given bool) error {
 		}
 		set = reflect.ValueOf(uint(n))
 	case reflect.Slice:
-		items := strings.Split(value, ",")
-		if bad := slices.IndexFunc(items, func(s string) bool { return !slices.Contains(defaults.Sources, s) }); name == "completion_sources" && bad >= 0 {
-			return fmt.Errorf("%s takes %s, not %q", name, strings.Join(defaults.Sources, ","), items[bad])
+		// An empty completion_sources means every source.
+		var items []string
+		if value != "" {
+			items = strings.Split(value, ",")
+		}
+		if name == "completion_sources" {
+			if err := e.checkSources(items); err != nil {
+				return err
+			}
 		}
 		set = reflect.ValueOf(items)
 	case reflect.Struct:

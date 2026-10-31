@@ -1695,6 +1695,27 @@ func TestB338PluginDoesWhatAModuleDoes(t *testing.T) {
 	}
 }
 
+// B336, by a plugin
+func TestB336PluginCompletionSource(t *testing.T) {
+	// With completion_sources unset, fude asks a plugin's source too.
+	e := loaded(t, "words", "f", "\n", "buffer.read", "ui")
+	if feed(e, "ifu<C-x><C-o>"); text(e) != "fude" {
+		t.Fatalf("<C-x><C-o> after fu made %q", text(e))
+	}
+	if f, _ := e.Menu(); !strings.Contains(f.Text, "fudge  [words]") {
+		t.Errorf("the menu is %q, want fudge from words", f.Text)
+	}
+	// Once the plugin loads, its name is a source, and fude reports a name that is not.
+	wasm, err := filepath.Abs(filepath.Join("..", "plugin", "testdata", "words", "words.wasm"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	config(t, fmt.Sprintf("completion_sources = [\"words\", \"nope\"]\n[[plugin]]\npath = %q\ncapabilities = [\"buffer.read\", \"ui\"]\n", wasm))
+	if e = opened(t, "f", "\n"); !strings.HasSuffix(e.Message(), `not "nope"`) {
+		t.Errorf("completion_sources words,nope said %q", e.Message())
+	}
+}
+
 // confirmer is a module that asks go on? on gY, and on hearing a question
 // asks one of its own, telling heard what it hears.
 type confirmer struct {

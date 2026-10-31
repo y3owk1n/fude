@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/y3owk1n/fude/editor"
+	completionmod "github.com/y3owk1n/fude/modules/completion"
 	explorermod "github.com/y3owk1n/fude/modules/explorer"
 )
 
@@ -129,6 +130,7 @@ func TestB39SetSettings(t *testing.T) {
 	file := filepath.Join(os.Getenv("XDG_CONFIG_HOME"), "fude", "config.toml")
 	before := disk(t, file)
 	e := start(t)
+	e.Use(completionmod.New())
 	e.SetSize(80, 20)
 	// A setting shows, and takes a value as config.toml would.
 	if feed(e, ":set key_timeout<CR>"); e.Message() != "key_timeout 1000" {

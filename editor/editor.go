@@ -44,6 +44,7 @@ type Editor struct {
 	modules  []api.Module        // the plugins that loaded, in the order they did
 	declared map[string]declared // the options modules registered, by owner.name (B377)
 	working  int                 // the plugin loads, jobs, timers and requests modules started that have yet to come back to the loop
+	loading  int                 // the plugin loads yet to come back to the loop, and one more while they start
 	values   map[string]string   // their values, a window option's as it starts
 	// What plugins add, for help and the key hints: what each command and
 	// key does, by :name and <Plug>(name), and their operators and objects.
