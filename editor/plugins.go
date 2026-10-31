@@ -19,6 +19,7 @@ import (
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/core/kernel"
 	"github.com/y3owk1n/fude/frontend/wire"
+	"github.com/y3owk1n/fude/internal/home"
 	"github.com/y3owk1n/fude/internal/install"
 	"github.com/y3owk1n/fude/internal/keep"
 	"github.com/y3owk1n/fude/internal/timeline"
@@ -110,11 +111,11 @@ func (e *Session) loadPlugin(i int, s pluginConfig, lock install.Lock, force boo
 	config, err1 := keep.Dir("XDG_CONFIG_HOME", ".config")
 	cache, err2 := keep.Dir("XDG_CACHE_HOME", ".cache")
 	options, err3 := texts(s.Options)
-	if err := errors.Join(err1, err2, err3); err != nil {
+	path, err4 := home.Expand(s.Path)
+	if err := errors.Join(err1, err2, err3, err4); err != nil {
 		e.message = fmt.Sprintf("load plugin %s: %v", src, err)
 		return
 	}
-	path := s.Path
 	if s.Path != "" && !filepath.IsAbs(path) {
 		path = filepath.Join(config, "fude", path)
 	}

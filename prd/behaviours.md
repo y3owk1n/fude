@@ -1987,7 +1987,8 @@ Where fude departs, the line says so and cites the departure in
   one of `path` and `repo`. A `path` to a `.wasm` loads that file. A
   `path` to a folder loads the plugin built in it, after building it with
   TinyGo when its `.wasm` is missing or older than a file of its source.
-  A `repo`, such as `github.com/owner/name` or a git URL, installs the
+  A `path` may start with `~` for the home folder. A `repo`, such as
+  `github.com/owner/name` or a git URL, installs the
   plugin from it. Its `version` is a tag, branch or commit, and without
   one fude takes the newest release that it loads (B603). A table with
   both or neither says so, by its number among the tables. A plugin's name is the one its

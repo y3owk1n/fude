@@ -850,7 +850,8 @@ A project's own tasks go in `.fude/tasks.toml` in its folder, as the same
 ## plugin.path
 
 The plugin's WebAssembly file, from the folder of config.toml, such as
-`plugins/wordcount.wasm`, or the folder of its source. fude loads the
+`plugins/wordcount.wasm`, or the folder of its source. A `~` at its start
+is the home folder. fude loads the
 `.wasm` built in a folder, and builds it first with TinyGo when it is
 missing or a file of the source is newer.
 

@@ -36,7 +36,7 @@ A folder of a plugin's source, which fude builds with TinyGo:
 
 ```toml
 [[plugin]]
-path = "/home/me/code/wordcount"
+path = "~/code/wordcount"
 capabilities = ["buffer.read", "ui"]
 ```
 

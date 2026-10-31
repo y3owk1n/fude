@@ -1329,7 +1329,10 @@ func TestB596PluginFolder(t *testing.T) {
 	if err := os.Chtimes(wasm, later, later); err != nil {
 		t.Fatal(err)
 	}
-	config(t, fmt.Sprintf("[[plugin]]\npath = %q\ncapabilities = [\"buffer.read\", \"buffer.write\"]\n", dir))
+	// The path starts with ~ for the home folder.
+	t.Setenv("HOME", filepath.Dir(dir))
+	t.Setenv("USERPROFILE", filepath.Dir(dir))
+	config(t, "[[plugin]]\npath = \"~/kit\"\ncapabilities = [\"buffer.read\", \"buffer.write\"]\n")
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	path := filepath.Join(t.TempDir(), "f")
 	change(t, path, "ab\n")
