@@ -171,7 +171,21 @@ enabled = false
 
 ## Plugins
 
-A plugin is Go built into WebAssembly with TinyGo. It gets only the capabilities its table grants.
+A plugin is Go built into WebAssembly with TinyGo. It runs in a sandbox and gets only the capabilities its table grants.
+
+Install one from its repo:
+
+```toml
+[[plugin]]
+repo = "github.com/y3owk1n/fude-org"
+capabilities = ["buffer.read", "buffer.write", "ui"]
+```
+
+- fude installs it in the background from the repo's release, and `plugins.lock` beside `config.toml` pins the commit.
+- `:plugin` lists the plugins, `:plugin update` updates them, and `:plugin disable {name}` turns one off.
+- `path` in place of `repo` loads a `.wasm` file, or a folder of a plugin's source that fude builds.
+
+Write one:
 
 ```go
 func init() {
@@ -186,13 +200,9 @@ func init() {
 }
 ```
 
-```toml
-[[plugin]]
-path = "plugins/upper.wasm"
-capabilities = ["buffer.read", "buffer.write"]
-```
-
-`zu` now works with every motion, count, macro and `.`. `fude plugin new upper` starts one, and `:h guide-plugins` covers the rest.
+- `zu` now works with every motion, count, macro and `.`.
+- `fude plugin new upper` starts one, with its manifest and a release workflow, and `fude plugin build` builds it.
+- `:h guide-plugins` covers the rest.
 
 Plugins others have written carry the [`fude-plugin`](https://github.com/topics/fude-plugin) topic on GitHub, such as [fude-org](https://github.com/y3owk1n/fude-org) for org mode and [fude-supermaven](https://github.com/y3owk1n/fude-supermaven) for Supermaven completion. Give yours the topic so others find it.
 

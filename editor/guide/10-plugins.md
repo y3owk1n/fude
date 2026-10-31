@@ -2,12 +2,35 @@
 
 A plugin is a WebAssembly module. It can add commands, operators, text
 objects and keys that work like fude's own, in macros and with `.` too.
-It can only call what its table in `config.toml` allows.
+It runs in a sandbox and can call only what its table in `config.toml`
+grants.
 
 Plugins others have written carry the `fude-plugin` topic on GitHub, at
 https://github.com/topics/fude-plugin. Each one's README gives its table.
 
-## Loading a plugin
+## Adding a plugin
+
+Each plugin has a `[[plugin]]` table in `config.toml`, which names where
+the plugin comes from and what it may do. A plugin comes from one of
+three places.
+
+A repo, which fude installs from:
+
+```toml
+[[plugin]]
+repo = "github.com/y3owk1n/fude-org"
+capabilities = ["buffer.read", "ui"]
+```
+
+A folder of a plugin's source, which fude builds with TinyGo:
+
+```toml
+[[plugin]]
+path = "/home/me/code/wordcount"
+capabilities = ["buffer.read", "ui"]
+```
+
+A `.wasm` file:
 
 ```toml
 [[plugin]]
@@ -16,28 +39,35 @@ capabilities = ["buffer.read", "ui", "process"]
 programs = ["git"]
 ```
 
-`path` is the module's file, from the folder of `config.toml`, or the
-folder of a plugin's source, which fude builds when the source changes.
-In place of `path`, `repo` installs the plugin from a repo:
+Plugins load after the first frame, so they never slow fude's start. A
+plugin of a repo that is not installed installs in the background. fude
+says "installing" when it starts and "installed" with its version when
+it ends.
 
-```toml
-[[plugin]]
-repo = "github.com/y3owk1n/fude-org"
-capabilities = ["buffer.read", "ui"]
-```
+## A plugin's table
 
-fude takes the newest release this fude loads, or the tag, branch or
-commit `version` names. It installs in the background and says when it
-is done. `plugins.lock`, beside `config.toml`, pins what it installed, so
-keep it with your config and another machine installs the same.
-`disabled = true` keeps it from loading, with the table kept.
-`capabilities` lets it call what each one grants.
+- `repo` is the repo to install from, as `github.com/owner/name` or any
+  URL git fetches.
+- `version` is the tag, branch or full commit of `repo` to install.
+  Unset, fude takes the newest release this fude can load.
+- `path` is a `.wasm` file or a folder of source, from the folder of
+  `config.toml`. A table has one of `repo` and `path`.
+- `capabilities` lists what the plugin may call, as the next section
+  says.
+- `programs` lists the programs a plugin with `process` may run.
+- `hosts` lists the hosts a plugin with `net` may reach.
+- `paths` lists folders outside the project that `fs.read` and
+  `fs.write` reach, such as `["~/notes"]`.
+- `options` starts the plugin's options, such as `options = { depth = 5 }`.
+- `disabled = true` keeps the plugin from loading, with its table kept.
+
+## Capabilities
 
 - `buffer.read` reads the text.
 - `buffer.write` asks for edits.
-- `ui` shows styles, a status line segment and floats.
+- `ui` shows styles, a status line segment, floats and lists to pick from.
 - `fs.read` reads and lists files in the folder fude started in and the
-  folders `paths` lists, such as `["~/notes"]`.
+  folders `paths` lists.
 - `fs.write` writes, moves and deletes files and makes folders there.
 - `grammar` builds the grammar the plugin names for a filetype, as fude
   builds its own. The grammar runs in fude itself, outside the sandbox.
@@ -47,19 +77,60 @@ keep it with your config and another machine installs the same.
   answers their requests.
 - `keys` runs keys as if typed, which may run any command.
 
-A call outside them gets an error and changes nothing, and fude writes it
-to its log in `$XDG_STATE_HOME/fude/log`.
+A plugin's manifest lists the capabilities it asks for, and its README
+says which. The plugin gets only those that both its manifest and its
+table list, so leave one out of the table to deny it. A call outside
+them gets an error and changes nothing, and fude writes it to its log in
+`$XDG_STATE_HOME/fude/log`.
+
+## Managing plugins
+
+- `:plugin` lists each plugin, where it comes from and whether it loaded,
+  is installing or building, is not installed, is disabled, or failed and
+  why. It also names a capability a plugin asks for that its table does
+  not grant.
+- `:plugin install` installs each plugin of a repo that is not installed
+  or failed. `:plugin install {name}` installs that one again.
+- `:plugin update` moves each plugin of a repo to its newest release, or
+  its branch's newest commit. `:plugin update {name}` updates one.
+- `:plugin disable {name}` unloads a plugin until fude quits.
+  `:plugin enable {name}` loads it again, or loads one whose table has
+  `disabled = true`.
+- `:plugin reload` reads the tables again and loads every plugin anew.
+
+With `auto_install = false`, a plugin of a repo installs only with
+`:plugin install`.
+
+## Versions and plugins.lock
+
+`plugins.lock`, beside `config.toml`, records the commit of each plugin
+fude installed from a repo, and the sha256 of a `.wasm` from a release.
+
+- With the lock and the plugin installed, fude loads it with no network.
+- Keep the lock with your config, and another machine installs the same
+  commits. fude refuses a release's `.wasm` whose sha256 is not the one
+  locked.
+- A plugin records the version of fude's sdk it was built with. fude
+  loads it when that sdk is no newer than fude and no older than the
+  oldest sdk fude takes, and otherwise says which fude it needs.
+- Installing and updating take the newest release that this fude loads,
+  so a plugin stays on a release that works until you update fude.
+- `:plugin update` leaves a plugin whose `version` is a release or a
+  commit as it is.
+- `:plugin update` keeps a plugin at the version it has when a newer
+  release asks for a capability its table does not grant, and says which.
 
 ## Limits
 
-Plugins load after the first frame, so they never delay it. Each call has
-a time limit. A key gets one frame, an event 100ms and loading 200ms. A
-plugin that runs over its limit, or fails, is unloaded, fude says which,
-and editing goes on with no change from that call.
+- Each call has a time limit. A key gets one frame, an event 100ms and
+  loading 200ms.
+- fude unloads a plugin that runs over its limit or fails, and says
+  which. Editing goes on with no change from that call.
+- A plugin has 64MB of memory.
 
 ## Writing a plugin
 
-Plugins are written in Go with fude's sdk and built with TinyGo, which
+You write a plugin in Go with fude's sdk and build it with TinyGo, which
 must be on PATH.
 
 ```sh
@@ -68,20 +139,23 @@ cd wordcount
 fude plugin build
 ```
 
-`fude plugin new` writes a folder with a `go.mod` that requires the sdk, a
-`main.go` with one command, a `fude.toml` and a release workflow.
-`fude.toml` is the manifest: the plugin's name and the capabilities,
-programs and hosts it asks for. `fude plugin build` builds `wordcount.wasm`
-in the folder with the manifest inside, which a `[[plugin]]` table then
-loads. The plugin may use only the capabilities both its manifest and its
-table list, so add one to the manifest when the plugin starts to need it.
-The build also writes the sdk's version into the manifest. fude refuses a
-plugin built with an sdk newer than itself, or older than the oldest sdk
-it takes, and says which fude the plugin needs. The release workflow builds the plugin on a tag such as
-`v1.0.0` and attaches its `.wasm` to the release. `:plugin reload` loads
-every plugin anew. With `path` set to the folder, it first builds the
-plugin again if its source changed. Give
-its repo the `fude-plugin` topic on GitHub so others find it.
+`fude plugin new` writes a folder with:
+
+- `go.mod`, which requires the sdk of this fude.
+- `main.go`, with one command.
+- `fude.toml`, the manifest, with the plugin's name and the
+  capabilities, programs and hosts it asks for.
+- `.github/workflows/release.yml`, which builds the plugin on a tag such
+  as `v1.0.0` and attaches its `.wasm` to the release.
+
+`fude plugin build` builds `wordcount.wasm` in the folder, with the
+manifest and the sdk's version inside. While you work on the plugin, set
+its table's `path` to the folder. `:plugin reload` then builds it again
+when its source changed, and loads it anew.
+
+The plugin may use only the capabilities its manifest lists, so add one
+to `fude.toml` when the plugin starts to need it. The build refuses a
+manifest with no name or with a capability fude does not have.
 
 ```go
 package main
@@ -109,62 +183,97 @@ func init() {
 func main() {}
 ```
 
-A plugin registers what it adds from its `init` functions. `sdk.Command`
-adds an ex command, `sdk.Key` a `<Plug>(plugin.name)` with its keys in
-normal mode, which config.toml can map elsewhere, `sdk.Insert` keys in
-insert mode, `sdk.Operator` an
-operator and `sdk.Object` a text object, each with a line of help that
-`:h` and the key hints show. `sdk.Page` adds a page to this guide. A command's `sdk.Call` has what was typed
-after its name in `Args`, `Bang` for a `!` after the name, and its range
-in `First` and `Last`, where its lines start. `sdk.On` runs a function
-for an event:
-`buffer.opened`, `buffer.changed`, `buffer.saved`, `buffer.closed`,
-`mode.changed`, `window.moved`, `syntax.updated` or `lsp.diagnostics`.
-For `window.moved`, the event's `Cursor` and `Top` say where the cursor is
-and where the window's text starts, and for `buffer.changed`, its `Start` and
-`End` say what the change covered.
+## What a plugin adds
 
-`sdk.Current` gives the id, path and filetype of the buffer a call or
-event is about, and `sdk.Mode` the mode. `sdk.Define("depth", "3", "how
-deep it looks")` adds the option `wordcount.depth` to a plugin named
-wordcount. `options = { depth = 5 }` in its table in `config.toml`
-starts it at 5, `:set wordcount.depth 4` changes it, and
-`sdk.Option("wordcount.depth")` reads it. A list there, such as
-`skip = ["markdown", "text"]`, reaches the plugin as `markdown,text`. `sdk.After` runs a function
-once, a number of milliseconds later, as an event runs. `sdk.Start` and `sdk.Fetch` run
-a program or get a URL in the background, with no budget, then run a
-function with the output. `sdk.Stream` runs a program and runs a
-function with each line it prints, as it prints it. `sdk.Spawn` does
-the same with the program's input kept open, which its `Send` writes to
-and its `Stop` ends. `sdk.Request` asks the buffer's language
-servers, at a position, and runs a function with the answer.
+A plugin registers what it adds from its `init` functions. Each takes a
+line of help that `:h` and the key hints show.
 
-The rest of the sdk reaches fude, each function behind its capability.
-`sdk.Text` and `sdk.Len` read the text, and `sdk.Lines`, `sdk.LineOf`
-and `sdk.LineStart` where its lines start. `sdk.NodeAt` reads the syntax
-node at a position and its parents. `sdk.Buffers`, `sdk.LenOf` and
-`sdk.TextOf` read the other open buffers. `sdk.Edit` changes the
-text.
-`sdk.Decorate`, `sdk.Sign`, `sdk.Note`, `sdk.Status`, `sdk.Float` and
-`sdk.Show` show things, and `sdk.Pick`, `sdk.Ask` and `sdk.Confirm` ask the
-user to pick from a list, to type an answer or to answer yes or no. `sdk.Jump` moves the cursor, and
-`sdk.Open` opens a file of the project. `sdk.ReadFile`, `sdk.List`, `sdk.WriteFile`,
-`sdk.Run` and `sdk.Get` reach files, programs and the web, and `sdk.Log` writes to fude's log. A call
-outside the plugin's capabilities returns `sdk.ErrDenied`.
+- `sdk.Command` adds an ex command. Its `sdk.Call` has what was typed
+  after the name in `Args`, `Bang` for a `!`, and its range in `First`
+  and `Last`.
+- `sdk.Key` adds a `<Plug>(plugin.name)` mapped to keys in normal mode,
+  which `config.toml` can map elsewhere. `sdk.Insert` adds keys in insert
+  mode.
+- `sdk.Plug` adds a command that keys reach only as
+  `<Plug>(plugin.name)`.
+- `sdk.Operator` adds an operator that works with every motion and text
+  object. `sdk.Object` adds a text object that works with every operator.
+- `sdk.Source` adds a source of `:pick`.
+- `sdk.Define("depth", "3", "how deep it looks")` adds the option
+  `wordcount.depth` to a plugin named wordcount. `options = { depth = 5 }`
+  in its table starts it at 5, `:set wordcount.depth 4` changes it, and
+  `sdk.Option("wordcount.depth")` reads it. A list there, such as
+  `skip = ["markdown", "text"]`, reaches the plugin as `markdown,text`.
+- `sdk.Page` adds a page to this guide.
+- `sdk.On` runs a function for an event.
+- `sdk.Register` adds anything a built-in module registers, such as a
+  completion source.
 
-`sdk.Register` and `sdk.Do` give a plugin all a built-in module has. `sdk.Register` takes an
-`api.Registration`, as a built-in module registers, of any kind and with
-any field. `sdk.Do` asks for what an `api.Result` holds, as a built-in
-module's call returns it, and `sdk.Read` reads any field of an
-`api.Scope`, as a built-in module's call reads it, each field behind its
-capability. `sdk.Callback` gives the id of a callback a result asks for,
-such as a menu's, and `sdk.About` reads the callback's context, such as a job's output.
+## Events
+
+`sdk.On` takes the name of an event:
+
+- `buffer.opened`, `buffer.changed`, `buffer.saving`, `buffer.saved`,
+  `buffer.renamed` and `buffer.closed`. For `buffer.changed`, the
+  event's `Start` and `End` say what the change covered.
+- `mode.changed`, and `window.moved`, whose `Cursor` and `Top` say where
+  the cursor is and where the window's text starts.
+- `window.opened`, `window.closed` and `window.focused`.
+- `syntax.updated`, `lsp.attached` and `lsp.diagnostics`.
+- `search.changed`, `selection.changed`, `macro.recorded`,
+  `theme.changed` and `cwd.changed`.
+- A plugin's own events, named `plugin.event`, which `sdk.Emit` sends.
+
+## What a plugin calls
+
+Most functions need a capability, and return `sdk.ErrDenied` without it.
+
+- With none: `sdk.Log`, `sdk.Now`, `sdk.Current` for the buffer's id,
+  path and filetype, `sdk.Mode`, `sdk.Option`, `sdk.SetOption` and
+  `sdk.Emit`.
+- `buffer.read`: `sdk.Text` and `sdk.Len` read the text. `sdk.Lines`,
+  `sdk.LineOf` and `sdk.LineStart` read where its lines start.
+  `sdk.NodeAt` reads the syntax node at a position and its parents.
+  `sdk.Buffers`, `sdk.LenOf` and `sdk.TextOf` read the other open
+  buffers.
+- `buffer.write`: `sdk.Edit`.
+- `ui`: `sdk.Decorate`, `sdk.Sign`, `sdk.Note`, `sdk.Status`,
+  `sdk.Message`, `sdk.Float` and `sdk.Show` show things. `sdk.Pick`,
+  `sdk.Ask` and `sdk.Confirm` ask the user to pick from a list, type an
+  answer or answer yes or no. `sdk.Jump` moves the cursor, and `sdk.Open`
+  opens a file of the project.
+- `fs.read`: `sdk.ReadFile`, `sdk.List` and `sdk.Stat`.
+- `fs.write`: `sdk.WriteFile`, `sdk.MakeDir`, `sdk.Rename` and
+  `sdk.Remove`.
+- `process`: `sdk.Run`, and the background work below.
+- `net`: `sdk.Get` and `sdk.Fetch`.
+- `lsp`: `sdk.Request` and `sdk.RequestRange`.
+
+Edits, decorations and windows a call asks for apply together once it
+returns.
+
+`sdk.Do` asks for anything a built-in module's call returns, an
+`api.Result`. `sdk.Read` reads any field of the `api.Scope` a built-in
+module's call reads. Each field needs its capability. `sdk.Callback`
+gives the id of a callback a result asks for, such as a menu's, and
+`sdk.About` reads the callback's context, such as a job's output.
+
+## Background work
+
+These run with no time limit, then run a function with what they got,
+as an event runs.
+
+- `sdk.After` runs a function once, a number of milliseconds later.
+- `sdk.Start` runs a program, and `sdk.Fetch` gets a URL.
+- `sdk.Stream` runs a program and runs a function with each line it
+  prints, as it prints it. `sdk.Spawn` does the same with the program's
+  input kept open, which its `Send` writes to and its `Stop` ends.
+- `sdk.Request` asks the buffer's language servers about a position.
 
 ## Testing a plugin
 
 `plugin/plugintest` runs a built plugin in `go test`, as fude would,
-without fude. It works from a plugin's own module once fude has tagged
-releases.
+without fude.
 
 ```go
 func TestWords(t *testing.T) {
@@ -176,9 +285,26 @@ func TestWords(t *testing.T) {
 }
 ```
 
-`Command`, `Key` and `Event` run what the plugin added against a text and
-return what it asked for: its edits, decorations, status and the rest.
-`plugintest.Apply` makes its edits, and `Log` returns what it logged.
+- `Command`, `Key` and `Event` run what the plugin added against a text,
+  and return what it asked for: its edits, decorations, status and the
+  rest.
+- `plugintest.Apply` makes the edits a result asks for.
+- `Log` returns what the plugin logged.
+- A test grants the plugin only what its manifest lists too, as fude
+  does.
+
+## Releasing a plugin
+
+- Push a tag such as `v1.0.0`. The release workflow `fude plugin new`
+  wrote builds the plugin and attaches `<repo>.wasm` to the tag's
+  release, where fude installs it from.
+- A repo with no release installs too, by building, which needs Go and
+  TinyGo on the user's machine.
+- fude does not install a release built against an sdk that is no
+  release, as from a `replace` in `go.mod`. Require a released sdk
+  before you tag.
+- Give the repo the `fude-plugin` topic so others find it, and put its
+  `[[plugin]]` table in its README.
 
 ## Next
 
