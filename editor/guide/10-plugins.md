@@ -16,7 +16,8 @@ capabilities = ["buffer.read", "ui", "process"]
 programs = ["git"]
 ```
 
-`path` is the module's file, from the folder of `config.toml`.
+`path` is the module's file, from the folder of `config.toml`, or the
+folder of a plugin's source, which fude builds when the source changes.
 `disabled = true` keeps it from loading, with the table kept.
 `capabilities` lets it call what each one grants.
 
@@ -65,8 +66,9 @@ table list, so add one to the manifest when the plugin starts to need it.
 The build also writes the sdk's version into the manifest. fude refuses a
 plugin built with an sdk newer than itself, or older than the oldest sdk
 it takes, and says which fude the plugin needs. The release workflow builds the plugin on a tag such as
-`v1.0.0` and attaches its `.wasm` to the release. After a rebuild, or
-a change to the tables, `:plugin reload` loads every plugin anew. Give
+`v1.0.0` and attaches its `.wasm` to the release. `:plugin reload` loads
+every plugin anew. With `path` set to the folder, it first builds the
+plugin again if its source changed. Give
 its repo the `fude-plugin` topic on GitHub so others find it.
 
 ```go

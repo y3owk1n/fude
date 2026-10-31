@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -1245,6 +1246,59 @@ func TestB191PluginReload(t *testing.T) {
 			t.Errorf("after the reload, %s said %q", keys, e.Message())
 		}
 	}
+}
+
+// B596, B191
+func TestB596PluginFolder(t *testing.T) {
+	// A copy of the kit plugin's folder, with its .wasm built after its source.
+	kit := filepath.Join("..", "plugin", "testdata", "kit")
+	dir := filepath.Join(t.TempDir(), "kit")
+	if err := os.Mkdir(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	root, err := filepath.Abs("..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"main.go", "go.mod", "fude.toml", "kit.wasm"} {
+		b, err := os.ReadFile(filepath.Join(kit, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		b = bytes.ReplaceAll(b, []byte("../../.."), []byte(root))
+		if err := os.WriteFile(filepath.Join(dir, name), b, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	wasm := filepath.Join(dir, "kit.wasm")
+	later := time.Now().Add(time.Hour)
+	if err := os.Chtimes(wasm, later, later); err != nil {
+		t.Fatal(err)
+	}
+	config(t, fmt.Sprintf("[[plugin]]\npath = %q\ncapabilities = [\"buffer.read\", \"buffer.write\"]\n", dir))
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	path := filepath.Join(t.TempDir(), "f")
+	change(t, path, "ab\n")
+	e := start(t, path)
+	e.Load()
+	settle(t, e, func() bool { feed(e, ":Shout<CR>"); return strings.HasPrefix(text(e), "!") })
+	if strings.Contains(e.Message(), "building") {
+		t.Errorf("a folder whose .wasm is newer than its source said %q", e.Message())
+	}
+	// A change to its source builds it again as it reloads.
+	if _, err := exec.LookPath("tinygo"); err != nil {
+		t.Skip("tinygo is not installed, so the plugin is not built again")
+	}
+	if err := os.Chtimes(filepath.Join(dir, "main.go"), later.Add(time.Hour), later.Add(time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	feed(e, ":plugin reload<CR>")
+	settle(t, e, func() bool {
+		info, err := os.Stat(wasm)
+		return err == nil && info.ModTime().Before(later) && e.Idle()
+	})
+	before := text(e)
+	settle(t, e, func() bool { feed(e, ":Shout<CR>"); return text(e) != before })
 }
 
 // B378

@@ -19,10 +19,11 @@ const sdkModule = "github.com/y3owk1n/fude/sdk"
 
 // template is the main.go fude plugin new writes.
 const template = `// Package main is a fude plugin. "fude plugin build" builds it into a
-// .wasm, which a [[plugin]] table in config.toml loads:
+// .wasm, which a [[plugin]] table in config.toml loads. With path set to
+// this folder, fude builds it when its source changes:
 //
 //	[[plugin]]
-//	path = "plugins/NAME.wasm"
+//	path = "/path/to/NAME"
 //	capabilities = ["buffer.read", "ui"]
 package main
 

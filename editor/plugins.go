@@ -108,7 +108,11 @@ func (e *Session) loadPlugins() {
 		go func() {
 			defer scope.Done()
 			ctx, at := context.Background(), time.Now()
-			p, err := plugin.Load(ctx, path, plugin.Grants{Capabilities: s.Capabilities, Programs: s.Programs, Hosts: s.Hosts, Paths: s.Paths, Options: options}, e.version, filepath.Join(cache, "fude", "wasm"), logLine, func(text string, took time.Duration) { trace.Record("plugin", text, took) })
+			wasm, err := e.built(path)
+			var p *plugin.Plugin
+			if err == nil {
+				p, err = plugin.Load(ctx, wasm, plugin.Grants{Capabilities: s.Capabilities, Programs: s.Programs, Hosts: s.Hosts, Paths: s.Paths, Options: options}, e.version, filepath.Join(cache, "fude", "wasm"), logLine, func(text string, took time.Duration) { trace.Record("plugin", text, took) })
+			}
 			if err != nil {
 				trace.Since("plugin", "load "+path, at, err)
 				e.queue <- func() {
@@ -129,6 +133,51 @@ func (e *Session) loadPlugins() {
 		}()
 	}
 	e.pluginLoaded()
+}
+
+// built returns the .wasm that a plugin's path names. For a folder, that
+// is the .wasm built in it. When a file of the source is newer, built says
+// so and builds it again first. It runs off the loop (B596).
+func (e *Session) built(path string) (string, error) {
+	if info, err := os.Stat(path); err != nil || !info.IsDir() {
+		return path, nil
+	}
+	wasm := filepath.Join(path, filepath.Base(path)+".wasm")
+	if !outdated(path, wasm) {
+		return wasm, nil
+	}
+	e.queue <- func() { e.message = "building " + filepath.Base(path) }
+	at := time.Now()
+	wasm, err := plugin.Build(path)
+	trace.Since("plugin", "build "+path, at, err)
+	return wasm, err
+}
+
+// outdated reports whether wasm is missing or older than a file of the
+// plugin's source in dir. Tests and hidden folders are not its source.
+func outdated(dir, wasm string) bool {
+	info, err := os.Stat(wasm)
+	if err != nil {
+		return true
+	}
+	newer := errors.New("newer")
+	err = filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		switch name := d.Name(); {
+		case d.IsDir() && path != dir && strings.HasPrefix(name, "."):
+			return filepath.SkipDir
+		case d.IsDir() || strings.HasSuffix(name, "_test.go"):
+			return nil
+		case strings.HasSuffix(name, ".go") || name == "go.mod" || name == "go.sum" || name == "fude.toml":
+			if f, err := d.Info(); err != nil || f.ModTime().After(info.ModTime()) {
+				return newer
+			}
+		}
+		return nil
+	})
+	return err != nil
 }
 
 // pluginLoaded counts down a plugin load. After the last one, every
