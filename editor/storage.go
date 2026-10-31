@@ -36,6 +36,7 @@ func Stores() ([]Store, error) {
 			"the files and windows fude would reopen in each folder",
 		},
 		{"pins", filepath.Join(state, "pins"), "the files :pin keeps a key away, by folder", "every folder's pins"},
+		{"tasks", filepath.Join(state, "tasks"), "the folders whose start tasks you allowed", "which folders start their tasks without asking"},
 		{"recent", filepath.Join(state, "recent"), "the files the start screen lists as recent", "the list of recent files"},
 		{
 			"memory", filepath.Join(state, "memory"), "the registers, file marks, command and search histories and last search, as fude last quit",

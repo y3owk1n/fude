@@ -8,6 +8,8 @@ import (
 	"bytes"
 	"cmp"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -26,6 +28,7 @@ import (
 	"github.com/pelletier/go-toml/v2"
 
 	"github.com/y3owk1n/fude/api"
+	"github.com/y3owk1n/fude/internal/keep"
 	"github.com/y3owk1n/fude/internal/tomlerr"
 	"github.com/y3owk1n/fude/internal/trace"
 )
@@ -39,6 +42,13 @@ const (
 // picked is the id of the list of tasks, which runs the one picked.
 const picked = 1
 
+// The ids of the job that reads the start tasks, and of the question
+// whether to run them, past those of the searches for the tasks (B605).
+const (
+	starts uint32 = 1<<31 + iota
+	allow
+)
+
 // Module is task.
 type Module struct {
 	mu      sync.Mutex
@@ -48,11 +58,15 @@ type Module struct {
 	shown   []task            // the tasks the list shows
 	vars    *strings.Replacer // the {file}, {dir}, {line} and {word} of the call the list is for
 	jobs    uint32
+	waiting []task // the start tasks the question asks to run
+	hash    string // their hash, kept with the folder once allowed
 }
 
-// task is a command a project or config.toml names.
+// task is a command a project or config.toml names. Start runs it as
+// fude starts (B605).
 type task struct {
 	Name, Source, Command, Doc string
+	Start                      bool
 }
 
 // ask is what a search for the tasks is for, and the call that asked.
@@ -75,7 +89,14 @@ func (m *Module) Registered() []api.Registration {
 	}
 }
 
-func (m *Module) Init(context.Context, api.Scope) (api.Result, error) { return api.Result{}, nil }
+// Init reads the project's start tasks off the loop, unless fude runs with
+// --clean (B605).
+func (m *Module) Init(context.Context, api.Scope) (api.Result, error) {
+	if keep.Clean != "" {
+		return api.Result{}, nil
+	}
+	return api.Result{Jobs: []api.Job{{ID: starts, Argv: []string{"starts"}}}}, nil
+}
 
 // Call starts a job that finds the tasks for :task, :pick tasks or
 // completing :task, as finding them may run just. :task alone runs the
@@ -121,6 +142,18 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 func (m *Module) Callback(_ context.Context, id uint32, s api.Scope) (api.Result, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	switch id {
+	case starts:
+		return m.readStarts(s), nil
+	case allow:
+		if s.About["yes"] != "true" {
+			return api.Result{}, nil
+		}
+		if err := allowStarts(m.hash); err != nil {
+			return api.Result{Error: err.Error()}, nil
+		}
+		return m.startAll(m.waiting, vars(s, 0)), nil
+	}
 	if id == picked {
 		i, _ := strconv.Atoi(s.About["picked"])
 		if s.About["ok"] != "true" || i < 0 || i >= len(m.shown) {
@@ -175,6 +208,9 @@ func (m *Module) Callback(_ context.Context, id uint32, s api.Scope) (api.Result
 // Work finds the tasks, config.toml's given as JSON in the job's second
 // argument, and returns them as JSON, with why any failed to read.
 func (m *Module) Work(_ context.Context, j api.Job) (string, error) {
+	if j.Argv[0] == "starts" {
+		return startTasks()
+	}
 	var config map[string]struct{ Command string }
 	if err := json.Unmarshal([]byte(cmp.Or(j.Argv[1], "null")), &config); err != nil {
 		return "", fmt.Errorf("config.toml's tasks: %w", err)
@@ -195,6 +231,109 @@ func (m *Module) start(t task, vars *strings.Replacer) api.Result {
 	}
 	m.last, m.running[t.Name] = &t, true
 	return res
+}
+
+// readStarts runs the start tasks the job read, or asks whether to when
+// the user has not allowed them in this folder (B605).
+func (m *Module) readStarts(s api.Scope) api.Result {
+	if s.About["error"] != "" {
+		return api.Result{Error: s.About["error"]}
+	}
+	var r starting
+	if err := json.Unmarshal([]byte(s.About["output"]), &r); err != nil {
+		return api.Result{Error: "start tasks: " + err.Error()}
+	}
+	if len(r.Tasks) == 0 {
+		return api.Result{}
+	}
+	if r.Allowed {
+		return m.startAll(r.Tasks, vars(s, 0))
+	}
+	m.waiting, m.hash = r.Tasks, r.Hash
+	runs := make([]string, len(r.Tasks))
+	for i, t := range r.Tasks {
+		runs[i] = t.Name + " runs " + t.Command
+	}
+	return api.Result{Confirm: &api.Confirm{ID: allow, Question: "run the start tasks of .fude/tasks.toml? " + strings.Join(runs, ", ")}}
+}
+
+// startAll runs ts, each with its window hidden.
+func (m *Module) startAll(ts []task, vars *strings.Replacer) api.Result {
+	var res api.Result
+	for _, t := range ts {
+		if m.running[t.Name] {
+			continue
+		}
+		m.running[t.Name] = true
+		res.Terminals = append(res.Terminals, api.Terminal{Unnumbered: true, Hidden: true, Name: t.Name, Command: vars.Replace(t.Command)})
+	}
+	return res
+}
+
+// starting is the start tasks of the project, whether the user allowed
+// them, and their hash.
+type starting struct {
+	Tasks   []task
+	Allowed bool
+	Hash    string
+}
+
+// startTasks returns as JSON the start tasks of .fude/tasks.toml, with
+// whether the user allowed these in this folder.
+func startTasks() (string, error) {
+	ts, err := projectTasks()
+	if err != nil {
+		return "", err
+	}
+	ts = slices.DeleteFunc(ts, func(t task) bool { return !t.Start })
+	h := sha256.New()
+	for _, t := range ts {
+		fmt.Fprintf(h, "%s\x00%s\n", t.Name, t.Command)
+	}
+	r := starting{Tasks: ts, Hash: hex.EncodeToString(h.Sum(nil))}
+	if len(ts) > 0 {
+		line, path, err := allowedLine(r.Hash)
+		if err != nil {
+			return "", err
+		}
+		b, err := os.ReadFile(path)
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return "", fmt.Errorf("read %s: %w", path, err)
+		}
+		r.Allowed = slices.Contains(strings.Split(string(b), "\n"), line)
+	}
+	out, err := json.Marshal(r)
+	return string(out), err
+}
+
+// allowedLine returns the line of the file of allowed start tasks that
+// allows those of hash in the working directory, and the file's path.
+func allowedLine(hash string) (string, string, error) {
+	wd, err1 := os.Getwd()
+	state, err2 := keep.Dir("XDG_STATE_HOME", filepath.Join(".local", "state"))
+	if err := errors.Join(err1, err2); err != nil {
+		return "", "", fmt.Errorf("start tasks: %w", err)
+	}
+	return wd + "\t" + hash, filepath.Join(state, "fude", "tasks"), nil
+}
+
+// allowStarts keeps that the user allowed the start tasks of hash in the
+// working directory, in place of what it allowed there before.
+func allowStarts(hash string) error {
+	line, path, err := allowedLine(hash)
+	if err != nil {
+		return err
+	}
+	b, err := os.ReadFile(path)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("read %s: %w", path, err)
+	}
+	dir, _, _ := strings.Cut(line, "\t")
+	lines := slices.DeleteFunc(strings.Split(strings.TrimSpace(string(b)), "\n"), func(l string) bool {
+		d, _, _ := strings.Cut(l, "\t")
+		return l == "" || d == dir
+	})
+	return keep.Write(path, []byte(strings.Join(append(lines, line), "\n")+"\n"))
 }
 
 // vars puts the buffer's file, its folder, the cursor's line and the word
@@ -308,6 +447,7 @@ func projectTasks() ([]task, error) {
 	var f struct {
 		Task map[string]struct {
 			Command string `toml:"command"`
+			Start   bool   `toml:"start"`
 		} `toml:"task"`
 	}
 	d := toml.NewDecoder(bytes.NewReader(src))
@@ -317,7 +457,7 @@ func projectTasks() ([]task, error) {
 	}
 	var out []task
 	for _, name := range slices.Sorted(maps.Keys(f.Task)) {
-		out = append(out, task{Name: name, Source: "project", Command: f.Task[name].Command})
+		out = append(out, task{Name: name, Source: "project", Command: f.Task[name].Command, Start: f.Task[name].Start})
 	}
 	return out, nil
 }

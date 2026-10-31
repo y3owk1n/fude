@@ -961,7 +961,24 @@ command = "go test {dir}"
 ```
 
 A project's own tasks go in `.fude/tasks.toml` in its folder, as the same
-`[task.<name>]` tables and nothing else.
+`[task.<name>]` tables and nothing else. There a task may also take
+`start = true`, which runs it as fude starts in the folder:
+
+```toml
+[task.db]
+command = "docker compose up -d db"
+start = true
+```
+
+- A start task runs after the first frame, with its window hidden, as `q`
+  hides a running task's. `:task db` shows it.
+- The first time, and whenever a start task's name or command changes,
+  fude asks whether to run them, and runs them only on y. It remembers a
+  y for the folder, and asks again at the next start after an n.
+- A start task ends when fude quits. A command that detaches, such as
+  `docker compose up -d`, keeps its program running.
+- config.toml's tasks take no `start`, as it would run in every folder.
+- A guest's session, and `fude --clean`, start none.
 
 ## plugin.path
 

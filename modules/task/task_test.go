@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/editor/editortest"
 	"github.com/y3owk1n/fude/modules/places"
 	"github.com/y3owk1n/fude/modules/task"
@@ -150,4 +151,59 @@ func TestB564TaskEndsAlert(t *testing.T) {
 	if a, ok := e.Alert(); ok {
 		t.Errorf("the alert came again, %q", a)
 	}
+}
+
+// B605
+func TestB605StartTasks(t *testing.T) {
+	t.Setenv("SHELL", "sh")
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, ".fude"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	tasks := filepath.Join(dir, ".fude", "tasks.toml")
+	editortest.Change(t, tasks, "[task.up]\ncommand = \"echo up > up.txt\"\nstart = true\n[task.lint]\ncommand = \"echo l\"\n")
+	editortest.Change(t, filepath.Join(dir, "a.txt"), "one\n")
+	t.Chdir(dir)
+	editortest.Config(t, "")
+	open := func() *editor.Session {
+		t.Helper()
+		e := editortest.Start(t, "a.txt")
+		e.SetSize(80, 24)
+		e.Use(task.New())
+		return e
+	}
+	ran := func() bool { _, err := os.Stat(filepath.Join(dir, "up.txt")); return err == nil }
+	// It asks first, naming the task and its command, and n runs nothing.
+	e := open()
+	editortest.Settle(t, e, func() bool { return strings.Contains(e.Confirm(), "up runs echo up > up.txt") })
+	if strings.Contains(e.Confirm(), "lint") {
+		t.Errorf("the question names a task with no start: %q", e.Confirm())
+	}
+	editortest.Feed(e, "n")
+	editortest.Quiet(t, e)
+	if ran() {
+		t.Fatal("the start task ran after n")
+	}
+	// It asks again at the next start, and y runs it with its window hidden.
+	e = open()
+	editortest.Settle(t, e, func() bool { return e.Confirm() != "" })
+	editortest.Feed(e, "y")
+	editortest.Settle(t, e, ran)
+	if vs := e.Windows(); len(vs) != 1 {
+		t.Errorf("the start task showed a window: %+v", vs)
+	}
+	// Once allowed, it runs with no question.
+	if err := os.Remove(filepath.Join(dir, "up.txt")); err != nil {
+		t.Fatal(err)
+	}
+	e = open()
+	editortest.Settle(t, e, ran)
+	if e.Confirm() != "" {
+		t.Errorf("an allowed start task asked %q", e.Confirm())
+	}
+	// A changed command asks again.
+	editortest.Change(t, tasks, "[task.up]\ncommand = \"echo again > up.txt\"\nstart = true\n")
+	e = open()
+	editortest.Settle(t, e, func() bool { return strings.Contains(e.Confirm(), "echo again") })
 }

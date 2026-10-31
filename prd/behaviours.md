@@ -1763,8 +1763,8 @@ Where fude departs, the line says so and cites the departure in
   with its path, its size and what it holds. `fude storage clean` deletes
   what fude makes again or never reads back: the compiled plugins, the
   installed plugins, the built grammars and the log. With `--force` it
-  also deletes the timelines, sessions, pins, recent files and what fude
-  remembers (B454), once it says what each loses and the user answers y.
+  also deletes the timelines, sessions, pins, the folders allowed to
+  start tasks (B605), recent files and what fude remembers (B454), once it says what each loses and the user answers y.
 - B454 [2] What fude holds as it quits comes back in its next run: the
   registers except the clipboard and those fude fills itself, the file
   marks `A` to `Z`, the last 1000 command lines and searches, and the last

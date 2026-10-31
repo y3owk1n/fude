@@ -199,6 +199,22 @@ Running a task:
 - The places a task's output names, as `file.go:12:3: message`, become
   the last list of places, so `]q` goes through a build's errors.
 
+A project's task can start with fude, such as its database or dev server.
+Give it `start = true` in `.fude/tasks.toml`:
+
+```toml
+[task.web]
+command = "npm run dev"
+start = true
+```
+
+- It runs with its window hidden once fude starts in that folder, and
+  `:task web` shows it.
+- fude asks before the first run, and again when a start command
+  changes, as the file comes with the repo.
+- It stops when fude quits, so start a program that should outlive fude
+  with a command that detaches, such as `docker compose up -d`.
+
 ## Lists of places
 
 `grr`, `:marks`, `:jumps` and the others show their places in a list
