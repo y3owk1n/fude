@@ -1815,3 +1815,26 @@ plugin add` writes from it lists every capability the plugin uses.
 
 The `plugin` module reads `fude.toml` with go-toml, which fude already
 reads config.toml with, as the standard library has no TOML.
+
+## D78. A project's tasks may start with fude, once the user allows them
+
+A task of `.fude/tasks.toml` with `start = true` runs as fude starts in
+that folder, with its window hidden (B605). Why: a project's database, dev
+server or watcher should run whenever fude runs in the project, and a
+task already runs a command in a terminal fude keeps. `.fude/tasks.toml` comes
+with the repo, so it is someone else's code. fude asks before the first
+run, and again when a start command changes, as direnv's `allow` does,
+and keeps the y in its state folder by the project and a hash of the
+start tasks. A pulled change to a start command asks again. config.toml's
+tasks take no `start`, as one would run in every folder fude opens.
+
+A start task is fude's child and ends with it, which suits a dev server.
+A program that should outlive fude, such as a database, is started by a
+command that detaches, such as `docker compose up -d`. There is no stop
+command, ordering or dependency between start tasks. A command chains
+them, as `a && b`.
+
+A result opens a list of terminals, `Terminals`, so one callback starts
+every start task. The field was `Terminal`, one terminal, so plugins
+built with an older sdk no longer open terminals, and `plugin.OldestSDK`
+moves to the release it ships in.

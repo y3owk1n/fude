@@ -1169,6 +1169,7 @@ $XDG_CONFIG_HOME/fude/plugins/      .wasm files
 $XDG_CONFIG_HOME/fude/plugins.lock  the commit each repo's plugin is pinned at
 $XDG_CONFIG_HOME/fude/queries/      tree-sitter queries that override shipped ones
 $XDG_STATE_HOME/fude/timeline/      timeline logs, keyed by file path
+$XDG_STATE_HOME/fude/tasks          the folders whose start tasks the user allowed
 $XDG_DATA_HOME/fude/grammars/       grammars and their queries, loaded at runtime
 $XDG_DATA_HOME/fude/plugins/        installed plugins, by repo and commit
 ```
@@ -1983,7 +1984,12 @@ A terminal is a buffer whose `term` holds a program running in a
 pseudo-terminal (D38). `modules/terminal` is `:terminal`, a `Terminal`
 with no name. With no command it is a shell the session keeps by number,
 which the editor shows, or hides with `hide` while its window is current
-(B205). With a command it is a terminal of its own (B335). `:pick
+(B205). With a command it is a terminal of its own (B335). A result's
+`Terminals` opens each one it lists, and one marked `Hidden` starts with
+its window hidden, as a start task does (B605). `modules/task` reads the
+start tasks off the loop as fude starts, and keeps the folders whose start
+tasks the user allowed in `$XDG_STATE_HOME/fude/tasks`, a line each of the
+folder and the sha256 of its start tasks' names and commands. `:pick
 terminals` lists the terminal buffers from `Scope.Buffers` and shows one
 again with a `Terminal` of its `Buffer`. Closing a window whose program
 runs hides it, so the program goes on (B231). A `Terminal` with `Close`,

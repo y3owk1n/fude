@@ -344,8 +344,17 @@ Where fude departs, the line says so and cites the departure in
 - B233 [2] A project's own tasks are the `[task.<name>]` tables of
   `.fude/tasks.toml` in the working directory, listed as `project` beside
   config.toml's. The file holds tasks alone, and an unknown key in it
-  says where. A task in it runs only when you pick or name it, as any
-  other does.
+  says where. A task in it runs when you pick or name it, as any other
+  does, and at start only with `start = true` (B605).
+- B605 [2] A task of `.fude/tasks.toml` with `start = true` runs when fude
+  starts in that folder, after the first frame, with its window hidden as
+  `q` hides a running task's (B231). The first time, and whenever a start
+  task's name or command changes, fude first asks whether to run them,
+  naming each with its command, and runs them only on y. It remembers a y
+  for that folder and those commands, and asks again at the next start
+  after an n. A start task ends when fude quits, as any task does. The
+  tables of config.toml take no `start`, as it would run in every folder.
+  A guest's session starts none, and `fude --clean` starts none.
 - B201 [2] `fude dir`, with no other file, makes `dir` the working
   directory, so the finder, grep and relative paths start there. Helix's
   `hx dir` does the same.
