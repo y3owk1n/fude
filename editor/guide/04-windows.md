@@ -58,11 +58,12 @@ Tab pages each hold their own windows.
 - `:tabmove` moves a page.
 - `:tabclose` closes one, as `:q` in its last window does.
 
-## Windows and tmux
+## Windows, tmux and Rex
 
 `<Plug>(window.left)` and the others for down, up and right move between
-windows too, and inside tmux they move to the next tmux pane when no
-window is that way. No key is mapped to them, so map them, such as
+windows too. When no window is that way, inside tmux they move to the
+next tmux pane, and inside Rex to the next Rex pane. Inside both, tmux
+goes first. No key is mapped to them, so map them, such as
 `"<C-h>" = "<Plug>(window.left)"`.
 
 tmux decides which keys reach fude. With vim-tmux-navigator:
@@ -79,6 +80,16 @@ Set both before the plugin loads:
 set -g @vim_navigator_pattern '(\S+/)?g?\.?(view|l?n?vim?x?|fzf|fude)(diff)?(-wrapped)?'
 set -g @vim_navigator_check 'ps -o state= -o comm= -t "#{pane_tty}" | grep -iqE "^[^TXZ ]+ +@vim_navigator_pattern$" && ! ps -o args= -t "#{pane_tty}" | grep -qE "(^|/)fude +(tail|relay)( |$)"'
 ```
+
+A binding in Rex's config decides the same way:
+
+- Send the key on when the pane's foreground process is `fude`, and not
+  `fude tail` or `fude relay`. A wrapper such as `just run` is the
+  foreground process instead, so Rex keeps the key.
+- Otherwise move focus, with `rex.session.focus_direction` and wrap on.
+
+fude moves Rex's focus with `rex focus --wrap`, so it needs no remote
+control setting.
 
 ## Placing windows
 

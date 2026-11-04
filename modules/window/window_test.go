@@ -4,8 +4,10 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
+	"github.com/y3owk1n/fude/editor"
 	"github.com/y3owk1n/fude/editor/editortest"
 	"github.com/y3owk1n/fude/frontend/wire"
 	"github.com/y3owk1n/fude/modules/window"
@@ -15,25 +17,46 @@ func TestMain(m *testing.M) { os.Exit(editortest.Main(m)) }
 
 // B140, B330
 func TestB140Navigate(t *testing.T) {
-	log := editortest.FakeProgram(t, "tmux")
+	log := editortest.FakeProgram(t, "tmux", "rex")
 	t.Setenv("TMUX", "/tmp/tmux-1/default,1,0")
 	t.Setenv("TMUX_PANE", "%3")
+	t.Setenv("REX_BLOCK", "block:1")
+	t.Setenv("REX_SESSION", "session:1")
+	tmux := "select-pane -t %3 -L\n"
+	rex := tmux + "focus --wrap -s session:1 left\n"
+	logged := func(want string) func() bool {
+		return func() bool {
+			b, _ := os.ReadFile(log)
+			return string(b) == want
+		}
+	}
 	path := filepath.Join(t.TempDir(), "f")
 	editortest.Change(t, path, "a\n")
 	e := editortest.Open(t, path)
 	e.Use(window.New())
 	e.SetSize(80, 24)
 	// :vsplit leaves the cursor in the right window, so left moves within
-	// fude, and left again goes to tmux's pane.
+	// fude, and left again goes to tmux's pane, the nearer one, not Rex's.
 	editortest.Feed(e, ":vsplit<CR><Plug>(window.left)")
 	if v := e.Windows(); !v[0].Current || v[1].Current {
 		t.Fatal("<Plug>(window.left) did not move to the left window")
 	}
 	editortest.Feed(e, "<Plug>(window.left)")
-	editortest.Settle(t, e, func() bool {
-		b, _ := os.ReadFile(log)
-		return string(b) == "select-pane -t %3 -L\n"
-	})
+	editortest.Settle(t, e, logged(tmux))
+	// Outside tmux it goes to Rex's pane.
+	t.Setenv("TMUX", "")
+	editortest.Feed(e, "<Plug>(window.left)")
+	editortest.Settle(t, e, logged(rex))
+	// A guest's session moves no pane.
+	editortest.Feed(e.Attach("guest", editor.Guest), "<Plug>(window.left)")
+	editortest.Quiet(t, e)
+	if !logged(rex)() {
+		t.Error("a guest's <Plug>(window.left) ran rex")
+	}
+	// A rex that fails says why.
+	t.Setenv("PATH", t.TempDir())
+	editortest.Feed(e, "<Plug>(window.left)")
+	editortest.Settle(t, e, func() bool { return strings.HasPrefix(e.Message(), "rex focus left: ") })
 }
 
 // B365

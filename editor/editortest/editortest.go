@@ -34,6 +34,10 @@ func Main(m *testing.M, grammars ...string) int {
 	if err := syntaxtest.Install(filepath.Join(dir, "data"), grammars...); err != nil {
 		panic(err)
 	}
+	// A window move at the edge never moves the pane the tests run in.
+	for _, v := range []string{"TMUX", "TMUX_PANE", "REX_BLOCK", "REX_SESSION"} {
+		os.Unsetenv(v)
+	}
 	os.Setenv("XDG_STATE_HOME", filepath.Join(dir, "state"))
 	os.Setenv("XDG_CONFIG_HOME", filepath.Join(dir, "config"))
 	os.Setenv("XDG_CACHE_HOME", filepath.Join(dir, "cache"))

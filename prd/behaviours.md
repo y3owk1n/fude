@@ -535,7 +535,9 @@ Where fude departs, the line says so and cites the departure in
 - B140 [2] `<Plug>(window.left)`, `<Plug>(window.down)`,
   `<Plug>(window.up)` and `<Plug>(window.right)` move to the window that
   way. Inside tmux, with no window that way, they move to tmux's pane
-  there instead, as nvim-tmux-navigation does. No key is mapped to them.
+  there instead, as nvim-tmux-navigation does. Inside a Rex pane and not
+  tmux, they move to Rex's pane there. A window of `--gui` moves neither.
+  No key is mapped to them.
 - B141 [2] A terminal's byte 0x08 is `<C-h>` and 0x7f is `<BS>`, as
   Neovim reads them, so `<C-h>` maps apart from `<BS>` inside tmux too. In
   insert mode and a command line, `<C-h>` deletes as `<BS>` does.

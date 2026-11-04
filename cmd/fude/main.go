@@ -536,6 +536,13 @@ func edit(cmd string, words []string, flags map[string]string, remove func()) er
 			address, words = words[0], words[1:]
 		}
 	}
+	// A native window is in no tmux or Rex pane, even when the shell that
+	// ran it was, so its window moves stop at its edge (B140).
+	if _, ok := flags["--gui"]; ok {
+		for _, v := range []string{"TMUX", "TMUX_PANE", "REX_BLOCK", "REX_SESSION"} {
+			os.Unsetenv(v)
+		}
+	}
 	// Start reads RestartEnv and unsets it.
 	restarted := os.Getenv(editor.RestartEnv) != ""
 	e, err := editor.Start(words)

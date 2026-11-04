@@ -531,8 +531,11 @@ frame as they are, and the client draws them on the line's blank cells
 window is next to the current one that way, and the result's `Window`
 moves to it, as `<C-w>h`, `<C-w>j`, `<C-w>k` and `<C-w>l` do. With no
 window that way and `$TMUX` set, a job runs
-`tmux select-pane -t $TMUX_PANE` with `-L`, `-D`, `-U` or `-R`, and a
-guest's call runs none (B244, B330). tmux's own
+`tmux select-pane -t $TMUX_PANE` with `-L`, `-D`, `-U` or `-R`. With
+`$REX_BLOCK` set and no `$TMUX`, it runs `rex focus --wrap -s $REX_SESSION` with
+the direction. tmux goes first, as its pane is the nearer one and
+select-pane wraps at the edge. A guest's call runs neither, and `fude
+--gui` unsets `$TMUX` and `$REX_BLOCK` as it starts (B244, B330). tmux's own
 bindings decide which keys reach fude, so its `vim-tmux-navigator` pattern
 has to name `fude`, and its check has to leave out `fude tail` and `fude
 relay`, which share the name but read no keys (B140).

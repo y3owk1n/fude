@@ -1208,9 +1208,13 @@ moves only among fude's windows.
 
 - Inside tmux, with no window that way, it moves to tmux's pane to the
   left instead, so one key crosses from fude into the next pane.
-- Outside tmux, or with no pane either, it does nothing.
-- A tmux that fails says why.
-- A guest's session never moves tmux's panes.
+- Inside a Rex pane and not tmux, it moves to Rex's pane to the left.
+  Inside both, tmux goes first.
+- Outside tmux and Rex, or with no pane either, it does nothing.
+- A tmux or Rex that fails says why.
+- A guest's session never moves tmux's or Rex's panes.
+- The window of `fude --gui` never moves them, even when a shell in a pane
+  starts it.
 - A count does nothing.
 
 ```toml
@@ -1223,18 +1227,18 @@ moves only among fude's windows.
 
 ## <Plug>(window.down)
 
-Moves to the window below, or to tmux's pane below, as
+Moves to the window below, or to tmux's or Rex's pane below, as
 `<Plug>(window.left)` does to the left.
 
 ## <Plug>(window.up)
 
-Moves to the window above, or to tmux's pane above, as
+Moves to the window above, or to tmux's or Rex's pane above, as
 `<Plug>(window.left)` does to the left.
 
 ## <Plug>(window.right)
 
-Moves to the window to the right, or to tmux's pane to the right, as
-`<Plug>(window.left)` does to the left.
+Moves to the window to the right, or to tmux's or Rex's pane to the
+right, as `<Plug>(window.left)` does to the left.
 
 ## <Plug>(window.zoom)
 

@@ -1,6 +1,6 @@
-// Package window moves to the window that way, or inside tmux, with no
-// window that way, to tmux's pane there, as nvim-tmux-navigation does
-// (B140). It is also :split, :vsplit, :new, :vnew, :only, :resize,
+// Package window moves to the window that way, or inside tmux or Rex, with
+// no window that way, to the multiplexer's pane there, as
+// nvim-tmux-navigation does (B140). It is also :split, :vsplit, :new, :vnew, :only, :resize,
 // :vertical, :hide and :window, the <C-w> keys that size a window, and
 // <C-w>n (B91, B193, B365, B370, B422).
 package window
@@ -20,12 +20,12 @@ import (
 )
 
 // dirs are the ways it moves, by the ids Call runs them by, with tmux's
-// flag for each.
+// flag for each. The name is Rex's direction too.
 var dirs = []struct{ name, dir, flag, help string }{
-	{"left", "h", "-L", "goes to the window, or tmux pane, to the left"},
-	{"down", "j", "-D", "goes to the window, or tmux pane, below"},
-	{"up", "k", "-U", "goes to the window, or tmux pane, above"},
-	{"right", "l", "-R", "goes to the window, or tmux pane, to the right"},
+	{"left", "h", "-L", "goes to the window, or tmux or Rex pane, to the left"},
+	{"down", "j", "-D", "goes to the window, or tmux or Rex pane, below"},
+	{"up", "k", "-U", "goes to the window, or tmux or Rex pane, above"},
+	{"right", "l", "-R", "goes to the window, or tmux or Rex pane, to the right"},
 }
 
 // What window registers besides its moves, by the ids Call runs them by.
@@ -109,8 +109,9 @@ func (m *Module) Registered() []api.Registration {
 
 func (m *Module) Init(context.Context, api.Scope) (api.Result, error) { return api.Result{}, nil }
 
-// Call moves to the window that way, or else to tmux's pane there. A
-// guest's call runs no program on the host (B244).
+// Call moves to the window that way, or else to tmux's pane there, or else
+// Rex's. tmux's pane is nearer, and select-pane wraps at the edge, so inside
+// both Rex never moves. A guest's call runs no program on the host (B244).
 func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (api.Result, error) {
 	for _, sz := range sizes {
 		if sz.id == id {
@@ -128,13 +129,21 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 		return api.Result{}, nil
 	}
 	d := dirs[id-1]
+	var argv []string
 	switch {
 	case s.Window(d.dir):
 		return api.Result{Window: d.dir}, nil
-	case os.Getenv("TMUX") == "" || s.About["power"] != "host":
+	case s.About["power"] != "host":
+		return api.Result{}, nil
+	case os.Getenv("TMUX") != "":
+		argv = []string{"tmux", "select-pane", "-t", os.Getenv("TMUX_PANE"), d.flag}
+	case os.Getenv("REX_BLOCK") != "":
+		// The direction goes last, so an error names it.
+		argv = []string{"rex", "focus", "--wrap", "-s", os.Getenv("REX_SESSION"), d.name}
+	default:
 		return api.Result{}, nil
 	}
-	return api.Result{Jobs: []api.Job{{ID: id, Argv: []string{"tmux", "select-pane", "-t", os.Getenv("TMUX_PANE"), d.flag}}}}, nil
+	return api.Result{Jobs: []api.Job{{ID: id, Argv: argv}}}, nil
 }
 
 // command splits, sizes or hides the current window, or closes the others,
@@ -226,12 +235,12 @@ func (m *Module) Event(context.Context, string, api.Scope) (api.Result, error) {
 	return api.Result{}, nil
 }
 
-// Callback says why tmux could not move.
+// Callback says why tmux or Rex could not move.
 func (m *Module) Callback(_ context.Context, _ uint32, s api.Scope) (api.Result, error) {
 	return api.Result{Error: s.About["error"]}, nil
 }
 
-// Work runs tmux.
+// Work runs tmux or Rex.
 func (m *Module) Work(ctx context.Context, j api.Job) (string, error) {
 	var out bytes.Buffer
 	c := exec.CommandContext(ctx, j.Argv[0], j.Argv[1:]...)
