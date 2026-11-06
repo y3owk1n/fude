@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.2](https://github.com/y3owk1n/fude/compare/v0.4.1...v0.4.2) (2026-11-06)
+
+
+### Features
+
+* **term:** images show as kitty placeholders in Rex ([a96446e](https://github.com/y3owk1n/fude/commit/a96446e5ed5844ccfa53b4d8e5c3837802e292d9))
+* **window:** window moves cross into Rex panes as they do tmux's ([25e28d9](https://github.com/y3owk1n/fude/commit/25e28d9e2b978a1fe1df28b9b2f68ea8fe9fd35e))
+
 ## [0.4.1](https://github.com/y3owk1n/fude/compare/v0.4.0...v0.4.1) (2026-10-31)
 
 
