@@ -19,7 +19,7 @@ import (
 	"github.com/y3owk1n/fude/frontend/wire"
 )
 
-// images is how the client shows images. In kitty and Ghostty it sends
+// images is how the client shows images. In kitty, Ghostty and Rex it sends
 // each image to the terminal once and draws it as cells of Unicode
 // placeholders, so images scroll, split and clip as text does. In WezTerm
 // and iTerm2 it paints each image over cells it locks, after the frame
@@ -67,15 +67,16 @@ type overlay struct {
 var imageBase = os.Getpid() % 4096 << 12
 
 // newImages returns how the client at tty shows images, from what the
-// environment says the terminal is. kitty and Ghostty take placeholders,
-// through tmux too, when the terminal shows true colour, which carries each
-// image's id. WezTerm takes placements and iTerm2 inline images, outside
-// tmux, whose redraws would erase them.
+// environment says the terminal is. kitty, Ghostty and Rex take
+// placeholders when the terminal shows true colour, which carries each
+// image's id. kitty and Ghostty take them through tmux too. WezTerm
+// takes placements and iTerm2 inline images, outside tmux, whose redraws
+// would erase them.
 func newImages(tty tcell.Tty, colours int) images {
 	term, program, tmux := os.Getenv("TERM"), os.Getenv("TERM_PROGRAM"), os.Getenv("TMUX") != ""
 	mode := noImages
 	switch {
-	case os.Getenv("KITTY_WINDOW_ID") != "" || os.Getenv("GHOSTTY_RESOURCES_DIR") != "" || term == "xterm-kitty" || term == "xterm-ghostty":
+	case os.Getenv("KITTY_WINDOW_ID") != "" || os.Getenv("GHOSTTY_RESOURCES_DIR") != "" || term == "xterm-kitty" || term == "xterm-ghostty" || program == "rex":
 		if colours >= 1<<24 {
 			mode = placeholders
 		}

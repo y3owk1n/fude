@@ -555,7 +555,7 @@ a colour that is the image's id (B303). Why: those cells are text to tcell
 and to fude, so an image scrolls, splits, clips and has floats drawn over
 it with no code of its own, and tmux passes it on. Sixel and iTerm2's
 protocol paint over cells the screen then redraws, so each frame would
-have to lock the image's cells and paint it again. kitty and Ghostty draw
+have to lock the image's cells and paint it again. kitty, Ghostty and Rex draw
 placeholders, and `charmbracelet/x/ansi`, already a dependency, has the
 protocol's pieces. fude reads from the environment which terminal it is,
 as asking the terminal would slow the first frame (D26).

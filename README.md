@@ -95,7 +95,7 @@ fude main.go
 | **Git** | Signs, hunk preview, stage with `gh`, `:gitdiff`, `:blame` |
 | **Files** | Edit a folder as text, then `:w` to rename, create and delete |
 | **Terminal and tasks** | `:terminal`, and `:task` for just recipes, make targets and npm scripts |
-| **Look** | Dark and light themes, any base16 scheme, markdown drawn as it reads, images in kitty, Ghostty, WezTerm and iTerm2 |
+| **Look** | Dark and light themes, any base16 scheme, markdown drawn as it reads, images in kitty, Ghostty, Rex, WezTerm and iTerm2 |
 
 ## Nothing is lost
 
