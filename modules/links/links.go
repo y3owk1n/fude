@@ -9,13 +9,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/y3owk1n/fude/api"
 	"github.com/y3owk1n/fude/internal/home"
+	"github.com/y3owk1n/fude/internal/shell"
 )
 
 // What links registers, by the ids its calls run them by.
@@ -72,7 +72,7 @@ func (m *Module) Call(_ context.Context, id uint32, s api.Scope, args ...int) (a
 		}
 		m.jobs++
 		m.opened[m.jobs] = target
-		return api.Result{Jobs: []api.Job{{ID: m.jobs, Argv: opener(target)}}}, nil
+		return api.Result{Jobs: []api.Job{{ID: m.jobs, Argv: shell.Opener(target)}}}, nil
 	}
 	path, line := split(target)
 	found, ok := find(s, path)
@@ -115,18 +115,6 @@ func (m *Module) Work(ctx context.Context, j api.Job) (string, error) {
 }
 
 func (m *Module) Close(context.Context) error { return nil }
-
-// opener is the command that opens target, a link or file, as the system
-// would.
-func opener(target string) []string {
-	switch runtime.GOOS {
-	case "darwin":
-		return []string{"open", target}
-	case "windows":
-		return []string{"rundll32", "url.dll,FileProtocolHandler", target}
-	}
-	return []string{"xdg-open", target}
-}
 
 // under returns the link or path at pos. On a markdown link it is the
 // link's destination. Elsewhere it is the run of text around pos up to a
