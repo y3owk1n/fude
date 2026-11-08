@@ -47,6 +47,54 @@ sha256 = '492a8e1847a0be1554bb9a7f384227981d60bc013aedc02d8ba1372c3943178c'
 verified = 'checksum-file'
 
 [[package]]
+name = 'biome'
+ref = 'github:biomejs/biome'
+commit = '81d0187ed947e3647e4ad422112d012f7f1283d9'
+manifest_sha256 = 'defe09cb84f4d7223b2d62aee54144b8b8a6dc16e8e35c7f257b8778a08ddc24'
+version = '2.6.6'
+signer_workflow = 'biomejs/biome/.github/workflows/release.yml'
+tag = '@biomejs/biome@2.6.6'
+inferred = true
+manifest = "[package]\nname = \"biome\"\nhomepage = \"https://github.com/biomejs/biome\"\nsigner_workflow = \"biomejs/biome/.github/workflows/release.yml\"\nattestations = true\n\n[version]\nfrom = \"github-releases\"\nrepo = \"biomejs/biome\"\nstrip_prefix = \"@biomejs/biome@\"\n\n[[artifact]]\nmatch = { os = \"linux\", arch = \"amd64\", libc = \"glibc\" }\nurl = \"https://github.com/biomejs/biome/releases/download/%40biomejs/biome%402.6.6/biome-linux-x64\"\nbin = [\"biome\"]\n\n[[artifact]]\nmatch = { os = \"linux\", arch = \"amd64\" }\nurl = \"https://github.com/biomejs/biome/releases/download/%40biomejs/biome%402.6.6/biome-linux-x64-musl\"\nbin = [\"biome\"]\n\n[[artifact]]\nmatch = { os = \"darwin\", arch = \"amd64\" }\nurl = \"https://github.com/biomejs/biome/releases/download/%40biomejs/biome%402.6.6/biome-darwin-x64\"\nbin = [\"biome\"]\n\n[[artifact]]\nmatch = { os = \"windows\", arch = \"amd64\" }\nurl = \"https://github.com/biomejs/biome/releases/download/%40biomejs/biome%402.6.6/biome-win32-x64.exe\"\nbin = [\"biome.exe\"]\n\n[[artifact]]\nmatch = { os = \"linux\", arch = \"arm64\", libc = \"glibc\" }\nurl = \"https://github.com/biomejs/biome/releases/download/%40biomejs/biome%402.6.6/biome-linux-arm64\"\nbin = [\"biome\"]\n\n[[artifact]]\nmatch = { os = \"linux\", arch = \"arm64\" }\nurl = \"https://github.com/biomejs/biome/releases/download/%40biomejs/biome%402.6.6/biome-linux-arm64-musl\"\nbin = [\"biome\"]\n\n[[artifact]]\nmatch = { os = \"darwin\", arch = \"arm64\" }\nurl = \"https://github.com/biomejs/biome/releases/download/%40biomejs/biome%402.6.6/biome-darwin-arm64\"\nbin = [\"biome\"]\n\n[[artifact]]\nmatch = { os = \"windows\", arch = \"arm64\" }\nurl = \"https://github.com/biomejs/biome/releases/download/%40biomejs/biome%402.6.6/biome-win32-arm64.exe\"\nbin = [\"biome.exe\"]\n"
+
+[package.platform]
+[package.platform.darwin-amd64]
+strategy = 'artifact'
+url = 'https://github.com/biomejs/biome/releases/download/%40biomejs/biome%402.6.6/biome-darwin-x64'
+sha256 = 'b92f74faad4521cff6bc45b54fc3806562d9aa136f8655222f1266e9819526e1'
+verified = 'sigstore'
+
+[package.platform.darwin-arm64]
+strategy = 'artifact'
+url = 'https://github.com/biomejs/biome/releases/download/%40biomejs/biome%402.6.6/biome-darwin-arm64'
+sha256 = 'dec6124a5e3ea475e8625a7a85b5a2ec939c1077624f95b78cfc1cb96199fab1'
+verified = 'sigstore'
+
+[package.platform.linux-amd64-glibc]
+strategy = 'artifact'
+url = 'https://github.com/biomejs/biome/releases/download/%40biomejs/biome%402.6.6/biome-linux-x64'
+sha256 = '69ca8e9ff548091b2bfbd178d6f73142b483a5257b07854de702c68fb7f8c06b'
+verified = 'sigstore'
+
+[package.platform.linux-arm64-glibc]
+strategy = 'artifact'
+url = 'https://github.com/biomejs/biome/releases/download/%40biomejs/biome%402.6.6/biome-linux-arm64'
+sha256 = 'bd0c5860a6220b68ceb82d7a00b7a4ed97fbaf3904eb41bcb897f9ec74af4148'
+verified = 'sigstore'
+
+[package.platform.windows-amd64]
+strategy = 'artifact'
+url = 'https://github.com/biomejs/biome/releases/download/%40biomejs/biome%402.6.6/biome-win32-x64.exe'
+sha256 = 'd3aac0b55e1b52ce586892b7c64de6bd2fc3774fe5b71129426af92c8a3c0571'
+verified = 'sigstore'
+
+[package.platform.windows-arm64]
+strategy = 'artifact'
+url = 'https://github.com/biomejs/biome/releases/download/%40biomejs/biome%402.6.6/biome-win32-arm64.exe'
+sha256 = 'bafa8941638d2347d8fb9243ca5b7ee7d7e3e6bc96ca8c3de99a24be51274cae'
+verified = 'sigstore'
+
+[[package]]
 name = 'dlv'
 ref = 'go:github.com/go-delve/delve/cmd/dlv'
 manifest_sha256 = '7744f04eefd1d0c921bd37b4f6fe5ca89e1a2a7054f0cc4c34623d25aa9c60c0'

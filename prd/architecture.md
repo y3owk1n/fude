@@ -56,6 +56,7 @@ frontend/        Go module: what any frontend builds on, with no cgo, and of
   clipboard/     the system clipboard, through pbcopy, wl-copy or xclip
 tui/             terminal client
 gui/             native window on macOS, through AppKit with purego (D65)
+web/             a browser on the same machine, over local HTTP (D79)
 internal/        packages only fude's own packages may import
   keep/          the XDG directories, files written whole and the recent files
   pty/           a program in a pseudo-terminal, for :terminal

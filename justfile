@@ -24,13 +24,16 @@ standalone:
     # A frontend builds with no C compiler (D64).
     cd frontend && GOWORK=off CGO_ENABLED=0 go build ./...
 
-# Format every Go file.
+# Format every Go file, and the page web/ serves.
 fmt:
     gofumpt -w .
+    biome check --write
 
-# Fail if a Go file is not formatted.
+# Fail if a Go file or the page is not formatted, or the page's script has
+# a lint error.
 fmt-check:
     test -z "$(gofumpt -l .)"
+    biome check
 
 # Build bin/fude.
 build:

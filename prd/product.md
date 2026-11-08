@@ -158,5 +158,7 @@ The order is dependency order, not priority. Behaviours in
     and DirectWrite (D66), sharing the painter with macOS: first the
     window, its panes, boxes and keys, then the mouse, images, the tab
     strip, input methods and the rest of step 10.
+12. Web: `--web` shows a session in a browser on the same machine,
+    through the standard library's HTTP server (D79).
 
-Not scheduled: lenses, GPU and web clients.
+Not scheduled: lenses and GPU clients.

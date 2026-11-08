@@ -125,7 +125,7 @@ Neovim is the reference, and fude departs only where that is better. [`prd/decis
 <img src="demos/window-windows.png" alt="the finder in fude's Win32 window on Windows" width="32%">
 </p>
 
-`fude --gui` opens fude in the system's own window: AppKit on macOS, GTK 4 on Linux and Win32 with DirectWrite on Windows. `fude share`, `attach` and `join` take `--gui` too.
+`fude --gui` opens fude in the system's own window: AppKit on macOS, GTK 4 on Linux and Win32 with DirectWrite on Windows. `fude share`, `attach` and `join` take `--gui` too. `fude --web` shows it in a browser on the same machine instead.
 
 - **Native chrome.** Buffers are tabs in the title bar, and splits are the system's split views. The lists of the palette, the finder and menus are the system's tables, and on macOS and Linux the status bars are the system's labels.
 - **The mouse.** Click, drag, double and triple click, drag a selection to move it, rest on a word for its hover, and hold Command or Control to go to a definition.

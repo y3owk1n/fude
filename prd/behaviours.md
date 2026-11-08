@@ -1635,6 +1635,25 @@ Where fude departs, the line says so and cites the departure in
   every window at once, each window taking as many cells as it then
   holds, and the menu's actual size goes back to `gui.font_size`. An
   attached window draws in its session's font.
+- B606 [12] `--web` shows fude in a browser on the same machine in place
+  of the terminal, for the commands that take `--gui`. fude serves the
+  session at a local address with a secret in it until the session ends.
+  It opens the address in the system's browser and prints it, to open
+  again. The page shows each window's text as the terminal client draws
+  it, with a status bar under each window and the buffers along the top.
+  The command line shows in a palette with its completions. The finder,
+  floats, menus and key hints show in boxes, and messages as toasts. Keys
+  typed there go to the session as Vim keys. An Alt chord goes as `<Esc>`
+  and the key, and the browser keeps a Meta chord. A paste goes to the
+  session as a paste, and resizing the page resizes the session. A page
+  opened later takes the session from the one before, which says so. `:qa`
+  ends the session and the page says fude has ended. Terminal windows show
+  their screens, and images show over their rows where the editor places
+  them (B303).
+- B607 [12] With `--web`, fude listens only on 127.0.0.1. It answers only
+  a request that carries its secret and names the address it listens on,
+  and a post only from its own page. Another site, or a host name that
+  points at the machine, never reaches the session.
 - B544 [2] A session has tab pages, each with its own windows, floats
   and current window, as in Neovim. `:tabnew` and `:tabedit` open one
   after the current page, on a file or a new empty buffer. `gt`, `{n}gt`,

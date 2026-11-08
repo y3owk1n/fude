@@ -1838,3 +1838,40 @@ A result opens a list of terminals, `Terminals`, so one callback starts
 every start task. The field was `Terminal`, one terminal, so plugins
 built with an older sdk no longer open terminals, and `plugin.OldestSDK`
 moves to the release it ships in.
+
+## D79. A browser on the same machine shows a session over local HTTP
+
+`--web` shows a session in a browser, for each command that takes
+`--gui` (B606). `web/` is a frontend of `client.Session`, as `tui/` and
+`gui/` are. The session runs in fude. fude composes each window with
+`frontend/compose` and sends the page the cells that changed. The rest
+of the frame goes as data: status parts, the buffers, the command line,
+the menu, the message and the question. The page paints each window's
+cells on a canvas and lays the rest out as HTML at the editor's layout.
+It draws images from PNGs it gets by id, and posts keys, pastes and its
+size back. Frames go over server-sent events and input over posts,
+through the standard library's HTTP server. One page shows the session
+at a time.
+
+A terminal window's screen goes through `compose.Terminal`, which the
+native window uses too. The frontend module now depends on
+`charmbracelet/x/ansi` for the colours of a terminal's cells. `biome`
+formats and lints the page's HTML, CSS and script in `just fmt` and
+`just fmt-check`.
+
+fude listens only on 127.0.0.1. Every request carries the secret from
+the address fude prints and names that address as its host, and a post
+comes from the page. Without these checks, any program or site on the
+machine could drive an editor that runs commands (B607).
+
+Why, as of 2026-11-08: the user wants to show that fude's frontends are
+not tied to a terminal or a native toolkit, and a browser is the third
+kind. The D63 spike already drew fude in a webview at 9ms from key to
+paint. Server-sent events and posts need no dependency. A WebSocket
+needs `x/net` or a framer of fude's own, and on loopback a post for each
+key is fast enough. The page gets cells, not a Go client compiled to
+wasm. That client would weigh megabytes, and a browser can neither dial
+fude's socket nor run the clipboard tools `frontend/` calls. On Linux
+and Windows a browser keeps some chords for itself, such as `<C-w>` and
+`<C-t>` in a tab. So the page proves the frontend boundary more than it
+replaces the terminal or the window.

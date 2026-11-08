@@ -1,0 +1,772 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<title>fude</title>
+		<style>
+		:root {
+			--bg: #14161b;
+			--surface: #1a1d24;
+			--raised: #232733;
+			--border: #2c313c;
+			--text: #d5d9e0;
+			--muted: #8f97a5;
+			--faint: #4b5263;
+			--selection: #2b3a55;
+			--normal: #7aa7f5;
+			--insert: #86c58a;
+			--visual: #c49bf2;
+			--command: #e5a56b;
+			--error: #e8787a;
+			--warn: #e3b341;
+			--box: #0d0f12;
+			--font: 14px ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+		}
+		* {
+			box-sizing: border-box;
+		}
+		html,
+		body {
+			margin: 0;
+			height: 100%;
+			overflow: hidden;
+			background: var(--bg);
+			color: var(--text);
+			font: var(--font);
+		}
+		#screen {
+			position: absolute;
+			inset: 0;
+		}
+		.pane,
+		.cells,
+		.bar,
+		.top,
+		.cursor,
+		.box,
+		.dim,
+		.frame,
+		.rule,
+		.pic {
+			position: absolute;
+		}
+		.pic {
+			object-fit: contain;
+			object-position: left top;
+		}
+		#overlays {
+			position: absolute;
+			inset: 0;
+			z-index: 3;
+			pointer-events: none;
+		}
+		/* The chrome draws as the terminal client's does, a cell per character. */
+		.bar,
+		.top {
+			display: flex;
+			white-space: pre;
+			overflow: hidden;
+			background: var(--surface);
+			color: var(--muted);
+		}
+		.bar {
+			padding: 0 1ch;
+			gap: 1ch;
+		}
+		.bar .right {
+			margin-left: auto;
+			display: flex;
+			gap: 2ch;
+		}
+		.bar.current .name {
+			color: var(--text);
+			font-weight: bold;
+		}
+		.dir {
+			color: var(--faint);
+			margin-right: -1ch;
+		}
+		.mode {
+			font-weight: bold;
+			color: var(--bg);
+			padding: 0 1ch;
+			margin-left: -1ch;
+		}
+		.mode-normal {
+			background: var(--normal);
+		}
+		.mode-insert,
+		.mode-terminal {
+			background: var(--insert);
+		}
+		.mode-visual {
+			background: var(--visual);
+		}
+		.mode-command {
+			background: var(--command);
+		}
+		.mode-replace {
+			background: var(--error);
+		}
+		.modified {
+			color: var(--command);
+		}
+		.errors,
+		.recording {
+			color: var(--error);
+		}
+		.warnings {
+			color: var(--warn);
+		}
+		.busy {
+			display: inline-block;
+			width: 1ch;
+			animation: spin 0.8s linear infinite;
+			color: var(--normal);
+		}
+		@keyframes spin {
+			to {
+				transform: rotate(360deg);
+			}
+		}
+		.top .tab,
+		.top .page {
+			padding: 0 1ch;
+		}
+		.top .tab.current {
+			color: var(--text);
+			background: var(--raised);
+			font-weight: bold;
+		}
+		.top .pages {
+			margin-left: auto;
+			padding-left: 1ch;
+			display: flex;
+		}
+		.top .page.current {
+			color: var(--bg);
+			background: var(--normal);
+			font-weight: bold;
+		}
+		.rule {
+			border-left: 1px solid var(--border);
+		}
+		.cursor {
+			pointer-events: none;
+			background: var(--mode);
+			white-space: pre;
+			overflow: hidden;
+		}
+		.dim {
+			inset: 0;
+			background: color-mix(in srgb, var(--bg) 55%, transparent);
+		}
+		.frame {
+			z-index: -1;
+			border: 1px solid var(--border);
+			border-radius: 6px;
+			background: var(--bg);
+		}
+		.box,
+		.frame {
+			--accent: var(--normal);
+		}
+		/* A box's border takes a row of cells, as the terminal client's does. */
+		.box {
+			background: var(--bg);
+			border: 1px solid var(--border);
+			border-radius: 6px;
+			white-space: pre;
+			padding: var(--half) 0;
+		}
+		.box.modal {
+			background: var(--box);
+		}
+		.box .list {
+			overflow: hidden;
+		}
+		.title {
+			position: absolute;
+			top: 0;
+			left: 1ch;
+			padding: 0 1ch;
+			transform: translateY(-50%);
+			line-height: 1;
+			background: var(--bg);
+		}
+		.input {
+			display: flex;
+			padding: 0 1ch;
+			border-bottom: 1px solid var(--border);
+		}
+		.input:only-child,
+		.input:last-child {
+			border-bottom: 0;
+		}
+		.input .prompt {
+			color: var(--accent);
+			font-weight: bold;
+			margin-right: 1ch;
+		}
+		.input .count {
+			color: var(--muted);
+			font-style: italic;
+		}
+		.input .count {
+			margin-left: auto;
+			padding-left: 2ch;
+		}
+		.caret {
+			display: inline-block;
+			width: 2px;
+			height: 1.2em;
+			margin-right: -2px;
+			vertical-align: text-bottom;
+			background: var(--text);
+		}
+		.item {
+			padding: 0 1ch;
+			display: flex;
+			gap: 2ch;
+		}
+		.item.selected {
+			background: var(--raised);
+			box-shadow: inset 0.5ch 0 var(--accent);
+		}
+		.item .detail,
+		.item.header {
+			color: var(--muted);
+		}
+		.item .detail {
+			margin-left: auto;
+		}
+		mark {
+			background: none;
+			color: var(--accent);
+			font-weight: bold;
+		}
+		.text,
+		.ask,
+		.answers {
+			padding: 0 1ch;
+		}
+		.ask {
+			font-weight: bold;
+			white-space: pre-wrap;
+			border-bottom: 1px solid var(--border);
+		}
+		.answers b {
+			color: var(--command);
+		}
+		.answers span {
+			color: var(--muted);
+		}
+		.toast {
+			top: 0;
+			right: 1ch;
+			max-width: 50%;
+			padding: var(--half) 1ch;
+			white-space: pre-wrap;
+		}
+		.ended {
+			inset: 0;
+			display: grid;
+			place-items: center;
+			background: var(--bg);
+			color: var(--muted);
+		}
+		</style>
+	</head>
+	<body>
+		<div id="screen"></div>
+		<script>
+		"use strict";
+		const token = new URLSearchParams(location.search).get("t");
+		const screen = document.getElementById("screen");
+		const font = getComputedStyle(document.body).font;
+		const measure = document.createElement("canvas").getContext("2d");
+		measure.font = font;
+		const cw = measure.measureText("M").width,
+			ch = Math.ceil(
+				parseFloat(getComputedStyle(document.body).fontSize) * 1.4,
+			);
+		const dpr = window.devicePixelRatio || 1;
+		document.documentElement.style.setProperty("--half", `${ch / 2 - 1}px`);
+
+		function post(path, body) {
+			fetch(`${path}?t=${token}`, { method: "POST", body }).catch((err) =>
+				console.error(`post ${path}:`, err),
+			);
+		}
+
+		function px(el, x, y, w, h) {
+			Object.assign(el.style, {
+				left: `${x * cw}px`,
+				top: `${y * ch}px`,
+				width: `${w * cw}px`,
+				height: `${h * ch}px`,
+				lineHeight: `${ch}px`,
+			});
+		}
+
+		function el(tag, cls, parent, text) {
+			const e = document.createElement(tag);
+			if (cls) e.className = cls;
+			if (text !== undefined) e.textContent = text;
+			if (parent) parent.appendChild(e);
+			return e;
+		}
+
+		// A window's canvas keeps its cells between frames, and each frame paints
+		// the runs that changed.
+		const panes = new Map();
+
+		function pane(w) {
+			let p = panes.get(w.id);
+			if (!p || p.w !== w.w || p.h !== w.h || p.float !== !!w.float) {
+				if (p) p.root.remove();
+				const root = el("div", "pane", screen);
+				p = {
+					root,
+					w: w.w,
+					h: w.h,
+					float: !!w.float,
+					...canvas(root, w.w, w.h),
+					cells: Array.from({ length: w.h }, () => []),
+					pics: new Map(),
+				};
+				p.cursor = el("div", "cursor", root);
+				if (w.float) {
+					// A float shows in a box a column wider than its text each side, as
+					// the terminal client draws it.
+					p.frame = el("div", "frame", root);
+					Object.assign(p.frame.style, {
+						left: `${-1.5 * cw}px`,
+						right: `${-1.5 * cw}px`,
+						top: `${-ch / 2}px`,
+						bottom: `${-ch / 2}px`,
+					});
+					p.title = el("span", "title", p.frame);
+				} else {
+					p.bar = el("div", "bar", root);
+				}
+				panes.set(w.id, p);
+			}
+			return p;
+		}
+
+		// canvas is a canvas of w by h cells in parent, and its context.
+		function canvas(parent, w, h) {
+			const c = el("canvas", "cells", parent);
+			c.width = Math.ceil(w * cw * dpr);
+			c.height = h * ch * dpr;
+			c.style.width = `${w * cw}px`;
+			c.style.height = `${h * ch}px`;
+			const g = c.getContext("2d");
+			g.scale(dpr, dpr);
+			g.textBaseline = "middle";
+			return { canvas: c, g };
+		}
+
+		// paint draws runs of cells on g, and keeps each cell's text and style in
+		// cells, when given, for the cursor to draw over.
+		function paint(g, runs, styles, cells) {
+			for (const [x, y, n, si, text] of runs) {
+				const s = styles[si];
+				g.fillStyle = s.bg;
+				g.fillRect(x * cw, y * ch, n * cw, ch);
+				if (cells) {
+					if (ascii.test(text))
+						[...text].forEach((c, i) => {
+							cells[y][x + i] = [c, s];
+						});
+					else cells[y][x] = [text, s];
+				}
+				if (text.trim() !== "") {
+					g.font = `${s.i ? "italic " : ""}${s.b ? "bold " : ""}${font}`;
+					g.fillStyle = s.fg;
+					g.fillText(text, x * cw, y * ch + ch / 2);
+				}
+				if (s.u) {
+					g.fillStyle = s.u;
+					g.fillRect(x * cw, (y + 1) * ch - 2, n * cw, 1);
+				}
+				if (s.s) {
+					g.fillStyle = s.fg;
+					g.fillRect(x * cw, y * ch + ch / 2, n * cw, 1);
+				}
+			}
+		}
+
+		const ascii = /^[\x20-\x7e]+$/;
+
+		// pics shows a window's images over its cells, each an img the page gets
+		// by id, and drops the ones it no longer shows.
+		function pics(p, list) {
+			const live = new Set();
+			for (const [id, x, y, w, h] of list || []) {
+				live.add(id);
+				let img = p.pics.get(id);
+				if (!img) {
+					img = el("img", "pic", p.root);
+					img.src = `/images/${id}?t=${token}`;
+					p.pics.set(id, img);
+				}
+				px(img, x, y, w, h);
+			}
+			for (const [id, img] of p.pics)
+				if (!live.has(id)) {
+					img.remove();
+					p.pics.delete(id);
+				}
+		}
+
+		function parts(into, list) {
+			for (const p of list || []) {
+				const cls = p.Role.startsWith("mode.")
+					? `mode mode-${p.Role.slice(5)}`
+					: p.Role;
+				const text =
+					{ modified: "●", busy: "⠋", recording: `● ${p.Text}` }[p.Role] ??
+					p.Text;
+				if (text) el("span", cls, into, text);
+			}
+		}
+
+		function bar(p, w) {
+			p.bar.className = w.current ? "bar current" : "bar";
+			p.bar.replaceChildren();
+			parts(p.bar, w.left);
+			parts(el("span", "right", p.bar), w.right);
+		}
+
+		function marked(into, label, marks) {
+			const set = new Set(marks || []);
+			const bytes = new TextEncoder().encode(label);
+			let run = [],
+				on = false;
+			const flush = () => {
+				if (!run.length) return;
+				const text = new TextDecoder().decode(new Uint8Array(run));
+				on ? el("mark", "", into, text) : into.append(text);
+				run = [];
+			};
+			bytes.forEach((b, i) => {
+				if (set.has(i) !== on) {
+					flush();
+					on = !on;
+				}
+				run.push(b);
+			});
+			flush();
+		}
+
+		function items(into, menu, rows) {
+			const list = menu.Items || [];
+			if (!list.length) {
+				el("div", "text", into, menu.Text);
+				return;
+			}
+			const box = el("div", "list", into);
+			const first = Math.max(
+				0,
+				Math.min(menu.Selected - Math.floor(rows / 2), list.length - rows),
+			);
+			list.slice(first, first + rows).forEach((it, i) => {
+				const row = el(
+					"div",
+					"item" +
+						(first + i === menu.Selected ? " selected" : "") +
+						(it.Header ? " header" : ""),
+					box,
+				);
+				marked(el("span", "", row), it.Label, it.Marks);
+				if (it.Detail) el("span", "detail", row, it.Detail);
+			});
+		}
+
+		// input is a line of typed text after its prompt, with the caret at byte
+		// at and a note at its right.
+		function input(into, prompt, text, at, note) {
+			const line = el("div", "input", into);
+			el("span", "prompt", line, prompt);
+			const typed = el("span", "", line);
+			typed.append(text.slice(0, at));
+			el("span", "caret", typed);
+			typed.append(text.slice(at));
+			if (note) el("span", "count", line, note);
+		}
+
+		// box is a box at the place the editor gives it, border included, or
+		// where its caller puts it when w is 0.
+		function box(cls, x, y, w, h) {
+			const b = el("div", `box ${cls}`, overlays);
+			if (w) px(b, x, y, w, h);
+			b.style.lineHeight = `${ch}px`;
+			return b;
+		}
+
+		const overlays = el("div", "", screen);
+		overlays.id = "overlays";
+
+		// chrome draws what goes over the windows: the buffers and pages on the
+		// top row, the separators between windows and the boxes.
+		function chrome(f) {
+			overlays.replaceChildren();
+			const wins = f.wins.filter((w) => !w.float);
+			const left = Math.min(...wins.map((w) => w.x));
+			for (const w of wins) {
+				if (w.x <= left) continue;
+				const r = el("div", "rule", overlays);
+				Object.assign(r.style, {
+					left: `${(w.x - 0.5) * cw}px`,
+					top: `${w.y * ch}px`,
+					height: `${(w.h + 1) * ch}px`,
+				});
+			}
+			if (f.tabs?.length || f.pages?.length) {
+				const top = el("div", "top", overlays);
+				px(top, 0, 0, cols, 1);
+				for (const t of f.tabs || [])
+					el(
+						"span",
+						t.Current ? "tab current" : "tab",
+						top,
+						`${t.Number} ${t.Name}${t.Modified ? " ●" : ""}`,
+					);
+				if (f.pages?.length) {
+					const pages = el("span", "pages", top);
+					f.pages.forEach((pg, i) => {
+						el(
+							"span",
+							pg.Current ? "page current" : "page",
+							pages,
+							`${i + 1} ${pg.Name.split("/").pop()}${pg.Modified ? " ●" : ""}`,
+						);
+					});
+				}
+			}
+			if (f.modal) overlays.appendChild(el("div", "dim"));
+			const menu = f.menu;
+			if (f.line) {
+				const b = box("modal", 0, 0, 0, 0);
+				Object.assign(b.style, {
+					left: `${Math.round(cols * 0.2) * cw}px`,
+					width: `${Math.round(cols * 0.6) * cw}px`,
+					top: `${Math.round(rows * 0.15) * ch}px`,
+				});
+				b.style.setProperty("--accent", "var(--command)");
+				input(
+					b,
+					f.line.text.slice(0, 1),
+					f.line.text.slice(1),
+					Math.max(f.line.cursor - 1, 0),
+				);
+				if (menu) items(b, menu, 10);
+			} else if (menu?.Anchor === "middle") {
+				const list = box("modal", menu.X, menu.Y, menu.W, menu.H);
+				const note = [menu.Title, menu.Count].filter(Boolean).join("   ");
+				input(
+					list,
+					"›",
+					menu.Query || "",
+					Math.max(menu.Cursor - (menu.Prompt || "").length, 0),
+					note,
+				);
+				items(list, menu, Math.max(menu.H - 3, 1));
+				if (f.doc) {
+					const doc = box("modal", menu.X + menu.W, menu.Y, menu.DocW, menu.H);
+					doc.style.paddingInline = `${cw - 1}px`;
+					paint(canvas(doc, menu.DocW - 4, menu.H - 2).g, f.doc, f.styles);
+				}
+			} else if (menu) {
+				const b = box("", menu.X, menu.Y, menu.W, menu.H);
+				const at = document.querySelector(".cursor.shown");
+				if (!menu.W && at) {
+					const r = at.getBoundingClientRect();
+					Object.assign(b.style, {
+						left: `${r.left - 2 * cw}px`,
+						top: `${r.bottom + ch / 2}px`,
+					});
+				}
+				items(b, menu, menu.Rows || 10);
+			}
+			if (f.confirm) {
+				const b = box("modal", 0, 0, 0, 0);
+				Object.assign(b.style, {
+					left: "50%",
+					top: "40%",
+					transform: "translate(-50%, -50%)",
+					minWidth: `${32 * cw}px`,
+					maxWidth: `${62 * cw}px`,
+				});
+				el("div", "ask", b, f.confirm);
+				const answers = el("div", "answers", b);
+				el("b", "", answers, "y");
+				el("span", "", answers, " yes   ");
+				el("b", "", answers, "n");
+				el("span", "", answers, " no");
+			}
+			if (f.message) box("toast").textContent = f.message;
+		}
+
+		let cols = 0,
+			rows = 0;
+
+		function frame(f) {
+			if (f.moved) {
+				events.close();
+				el("div", "ended", document.body, "fude shows in another page now");
+				return;
+			}
+			if (f.full) {
+				for (const p of panes.values()) p.root.remove();
+				panes.clear();
+				for (const [k, v] of Object.entries(f.colors))
+					document.documentElement.style.setProperty(`--${k}`, v);
+			}
+			document.documentElement.style.setProperty(
+				"--mode",
+				`var(--${{ terminal: "insert", replace: "error" }[f.mode] || f.mode})`,
+			);
+			if (f.title) document.title = f.title;
+			const live = new Set();
+			for (const w of f.wins) {
+				live.add(w.id);
+				const p = pane(w);
+				px(p.root, w.x, w.y, w.w, w.h + (w.float ? 0 : 1));
+				p.root.style.zIndex = w.float ? 2 : 1;
+				paint(p.g, w.runs, f.styles, p.cells);
+				pics(p, w.pics);
+				if (p.bar) {
+					px(p.bar, 0, w.h, w.w, 1);
+					bar(p, w);
+				}
+				if (p.title) {
+					p.title.textContent = w.name || "";
+					p.title.style.display = w.name ? "" : "none";
+				}
+				const c = w.cursor;
+				p.cursor.className = c ? "cursor shown" : "cursor";
+				p.cursor.style.display = c && !f.line && !f.confirm ? "" : "none";
+				if (c) {
+					const [x, y, shape] = c;
+					Object.assign(p.cursor.style, {
+						left: `${x * cw}px`,
+						top: `${y * ch + (shape === 2 ? ch - 2 : 0)}px`,
+						width: shape === 1 ? "2px" : `${cw}px`,
+						height: shape === 2 ? "2px" : `${ch}px`,
+					});
+					// A block shows the character under it in its ground's colour, as
+					// the terminal draws it.
+					const [text, st] = p.cells[y]?.[x] ?? [" ", null];
+					p.cursor.textContent = shape === 0 ? text : "";
+					p.cursor.style.color = st?.bg ?? "var(--bg)";
+				}
+			}
+			for (const [id, p] of panes)
+				if (!live.has(id)) {
+					p.root.remove();
+					panes.delete(id);
+				}
+			chrome(f);
+			if (f.copy !== undefined)
+				navigator.clipboard
+					.writeText(f.copy)
+					.catch((err) => console.error("copy:", err));
+			if (f.ended) {
+				events.close();
+				el("div", "ended", document.body, "fude has ended");
+			}
+		}
+
+		function resize() {
+			const c = Math.max(1, Math.floor(innerWidth / cw)),
+				r = Math.max(1, Math.floor(innerHeight / ch));
+			if (c === cols && r === rows) return;
+			cols = c;
+			rows = r;
+			post(
+				"/size",
+				JSON.stringify([
+					cols,
+					rows,
+					Math.round(cw * dpr),
+					Math.round(ch * dpr),
+				]),
+			);
+		}
+
+		const named = {
+			Escape: "<Esc>",
+			Enter: "<CR>",
+			Backspace: "<BS>",
+			Delete: "<Del>",
+			Insert: "<Insert>",
+			ArrowUp: "<Up>",
+			ArrowDown: "<Down>",
+			ArrowLeft: "<Left>",
+			ArrowRight: "<Right>",
+			Home: "<Home>",
+			End: "<End>",
+			PageUp: "<PageUp>",
+			PageDown: "<PageDown>",
+		};
+		const arrows = new Set([
+			"<Up>",
+			"<Down>",
+			"<Left>",
+			"<Right>",
+			"<Home>",
+			"<End>",
+		]);
+
+		// keys turns a key going down into Vim keys, as the native window does: an
+		// Alt chord is <Esc> and the key, and a Meta chord is the browser's.
+		function keys(e) {
+			if (e.metaKey || e.isComposing) return [];
+			if (e.key === "Tab") return [e.shiftKey ? "<S-Tab>" : "\t"];
+			if (/^F\d+$/.test(e.key)) return [`<${e.key}>`];
+			const n = named[e.key];
+			if (n) {
+				if (e.ctrlKey && arrows.has(n)) return [`<C-${n.slice(1)}`];
+				if (e.shiftKey && arrows.has(n)) return [`<S-${n.slice(1)}`];
+				return [n];
+			}
+			const plain = e.code.startsWith("Key")
+				? e.code.slice(3).toLowerCase()
+				: e.code.startsWith("Digit")
+					? e.code.slice(5)
+					: e.key;
+			if (e.ctrlKey) {
+				if (plain === "6" || e.key === "^") return ["<C-^>"];
+				if (e.key === " " || plain === "2" || e.key === "@") return ["<C-@>"];
+				return [...e.key].length === 1 ? [`<C-${e.key.toLowerCase()}>`] : [];
+			}
+			if (e.altKey && plain.length === 1)
+				return ["<Esc>", e.shiftKey ? plain.toUpperCase() : plain];
+			return [...e.key].length === 1 ? [e.key] : [];
+		}
+
+		addEventListener("keydown", (e) => {
+			const ks = keys(e);
+			if (!ks.length) return;
+			e.preventDefault();
+			post("/keys", JSON.stringify(ks));
+		});
+		addEventListener("paste", (e) => {
+			e.preventDefault();
+			post("/paste", e.clipboardData.getData("text/plain"));
+		});
+		addEventListener("resize", resize);
+
+		const events = new EventSource(`/frames?t=${token}`);
+		events.onmessage = (m) => frame(JSON.parse(m.data));
+		events.onopen = () => {
+			cols = rows = 0;
+			resize();
+		};
+		</script>
+	</body>
+</html>

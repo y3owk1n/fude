@@ -26,6 +26,7 @@ import (
 	"github.com/y3owk1n/fude/gui"
 	"github.com/y3owk1n/fude/plugin"
 	"github.com/y3owk1n/fude/tui"
+	"github.com/y3owk1n/fude/web"
 )
 
 func main() {
@@ -500,10 +501,13 @@ func join(words []string, flags map[string]string) error {
 }
 
 // frontend returns what shows a session, a native window with --gui
-// (B547) or else the terminal.
+// (B547), a browser with --web (B606) or else the terminal.
 func frontend(flags map[string]string) func(client.Session) error {
 	if _, ok := flags["--gui"]; ok {
 		return gui.Run
+	}
+	if _, ok := flags["--web"]; ok {
+		return web.Run
 	}
 	return tui.Run
 }
@@ -536,9 +540,11 @@ func edit(cmd string, words []string, flags map[string]string, remove func()) er
 			address, words = words[0], words[1:]
 		}
 	}
-	// A native window is in no tmux or Rex pane, even when the shell that
-	// ran it was, so its window moves stop at its edge (B140).
-	if _, ok := flags["--gui"]; ok {
+	// A native window or a browser is in no tmux or Rex pane, even when the
+	// shell that ran it was, so its window moves stop at its edge (B140).
+	_, native := flags["--gui"]
+	_, browser := flags["--web"]
+	if native || browser {
 		for _, v := range []string{"TMUX", "TMUX_PANE", "REX_BLOCK", "REX_SESSION"} {
 			os.Unsetenv(v)
 		}
@@ -585,8 +591,11 @@ func edit(cmd string, words []string, flags map[string]string, remove func()) er
 		if _, clean := flags["--clean"]; clean {
 			argv = append(argv, "--clean")
 		}
-		if _, ok := flags["--gui"]; ok {
+		if native {
 			argv = append(argv, "--gui")
+		}
+		if browser {
+			argv = append(argv, "--web")
 		}
 		// On Unix the new fude replaces this process, so deferred calls
 		// never run.

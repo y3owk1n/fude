@@ -35,6 +35,9 @@ tree-sitter = { ref = "./.oku/tree-sitter.toml", version = "^0.27" }
 go-winres = "go:github.com/tc-hib/go-winres"
 # Windows has no C compiler of its own, which tree-sitter's binding needs.
 llvm-mingw = { ref = "./.oku/llvm-mingw.toml", when = { os = "windows" } }
+# biome formats and lints the page web/ serves, its HTML, CSS and script
+# (D79). Like the linter, a new major version is a change to review.
+biome = { ref = "github:biomejs/biome", version = "^2" }
 
 # tree-sitter grammars build through cgo, so builds need a C compiler.
 [host]

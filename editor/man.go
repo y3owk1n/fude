@@ -50,6 +50,7 @@ var Flags = []Flag{
 	{"-d", "show the files side by side, in diff mode", []string{"fude"}},
 	{"--name <name>", "the name others see you by", []string{"fude", "attach", "share", "join"}},
 	{"--gui", "show fude in a native window", []string{"fude", "attach", "share", "join"}},
+	{"--web", "show fude in a browser on this machine", []string{"fude", "attach", "share", "join"}},
 	{"--socket <path>", "the fude to reach", []string{"open", "keys", "state", "attach", "tail"}},
 	{"--session <name>", "the session to act on", []string{"open", "keys", "state"}},
 	{"--relay <host>", "share through the relay at host", []string{"share"}},
