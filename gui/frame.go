@@ -182,7 +182,7 @@ func (p *painter) paint(s client.Session, cols, rows int) frame {
 		// draw draws v in g: its text, or a terminal's screen.
 		draw := func(g *compose.Grid, o compose.Options) compose.Composed {
 			if v.Cells != nil {
-				return termCells(g, v, o.Look)
+				return compose.Terminal(g, v, o.Look)
 			}
 			return p.comp.Compose(g, v, o)
 		}

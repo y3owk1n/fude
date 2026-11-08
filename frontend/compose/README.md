@@ -8,6 +8,7 @@ Draws a window of a session into a grid of styled cells:
 - the rows a decoration adds
 - pinned lines and indent guides
 - the cursors
+- a terminal's screen, with `Terminal`
 
 A `Grid` keeps a window's cells between frames, and `Paint` gives only the
 cells that changed since the last, so a frontend redraws only those.
