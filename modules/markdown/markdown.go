@@ -72,7 +72,7 @@ func New() *Module {
 func (m *Module) Name() string { return "markdown" }
 
 func (m *Module) Subscribed() []string {
-	return []string{"buffer.opened", "buffer.changed", "buffer.closed", "window.moved", "option.set", "config.reloaded"}
+	return []string{"buffer.opened", "buffer.changed", "syntax.updated", "buffer.closed", "window.moved", "option.set", "config.reloaded"}
 }
 
 func (m *Module) Registered() []api.Registration {
@@ -91,7 +91,9 @@ func (m *Module) Call(context.Context, uint32, api.Scope, ...int) (api.Result, e
 }
 
 // Event draws a buffer as it opens, again when render turns on or off,
-// and redraw after a change, once for however many changes come meanwhile.
+// and redraw after a change or a parse, once for however many come
+// meanwhile. When a grammar finishes building after the buffer opened,
+// its first parse draws the buffer.
 func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -113,7 +115,7 @@ func (m *Module) Event(_ context.Context, name string, s api.Scope) (api.Result,
 			return m.draw(s), nil
 		}
 		return api.Result{}, nil
-	case "buffer.changed":
+	case "buffer.changed", "syntax.updated":
 		if s.About["filetype"] != "markdown" && len(m.shown[buf]) == 0 {
 			return api.Result{}, nil
 		}
