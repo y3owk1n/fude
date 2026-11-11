@@ -241,6 +241,7 @@ go get github.com/y3owk1n/fude/core github.com/y3owk1n/fude/vim
 
 - A distribution of your own is a list of modules handed to `editor.Use`.
 - A frontend of your own gets its `client.Session` from the editor in the same process, or from `client.Attach` to a running fude.
+- [fude-react](https://github.com/y3owk1n/fude-react) runs `core` and `vim` in a browser as a React component, built to wasm with tinygo.
 
 Each package's README shows how to start.
 
