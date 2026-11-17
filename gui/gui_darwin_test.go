@@ -551,7 +551,7 @@ func TestB553TerminalsAndImages(t *testing.T) {
 			rgb, scale, ok := pixels(b.view)
 			if ok {
 				c := rgb(int(scale*(o.X+(float64(p.x)+0.5)*cellW)), int(scale*(o.Y+(float64(p.y)+0.5)*cellH)))
-				shown = c[0] > 0.8 && c[1] < 0.2 && c[2] < 0.2
+				shown = near(c, drawn(w.win, nsColor(0xff0000)))
 			}
 		}, true)
 		return shown
@@ -955,16 +955,11 @@ func TestB559SystemChrome(t *testing.T) {
 			t.Error("the palette is not a rounded panel of the system's material")
 		}
 		cls("NSAppearance").Send(sel("setCurrentAppearance:"), w.win.Send(sel("effectiveAppearance")))
-		srgb := cls("NSColorSpace").Send(sel("sRGBColorSpace"))
-		want := cls("NSColor").Send(sel("selectedContentBackgroundColor")).Send(sel("colorUsingColorSpace:"), srgb)
+		want := drawn(w.win, cls("NSColor").Send(sel("selectedContentBackgroundColor")))
 		rgb, scale, _ := pixels(w.panel.view)
 		l := w.panel.list
-		got := rgb(int(scale*40), int(scale*(l.top()+(float64(l.selected)+0.5)*l.rowH)))
-		for i, part := range []string{"redComponent", "greenComponent", "blueComponent"} {
-			if d := got[i] - msgComponent(want, sel(part)); d > 0.05 || d < -0.05 {
-				t.Errorf("the selected item is %v, not the system's selection", got)
-				break
-			}
+		if got := rgb(int(scale*40), int(scale*(l.top()+(float64(l.selected)+0.5)*l.rowH))); !near(got, want) {
+			t.Errorf("the selected item is %v, not the system's selection %v", got, want)
 		}
 	}, true)
 	for _, c := range "\x1b:qa!\r" {
@@ -1667,6 +1662,24 @@ func pixels(view objc.ID) (func(px, py int) [3]float64, float64, bool) {
 		c := msgColorAt(rep, sel("colorAtX:y:"), px, py)
 		return [3]float64{msgComponent(c, sel("redComponent")), msgComponent(c, sel("greenComponent")), msgComponent(c, sel("blueComponent"))}
 	}, scale, true
+}
+
+// drawn returns colour c as win draws it, in its screen's colour space,
+// such as Display P3, which pixels reads in.
+func drawn(win, c objc.ID) [3]float64 {
+	c = c.Send(sel("colorUsingColorSpace:"), win.Send(sel("colorSpace")))
+	return [3]float64{msgComponent(c, sel("redComponent")), msgComponent(c, sel("greenComponent")), msgComponent(c, sel("blueComponent"))}
+}
+
+// near reports whether colours a and b differ by at most 0.05 in each
+// component.
+func near(a, b [3]float64) bool {
+	for i := range a {
+		if d := a[i] - b[i]; d > 0.05 || d < -0.05 {
+			return false
+		}
+	}
+	return true
 }
 
 // inked reports whether the cell at column x and row y, its cells edge
