@@ -38,6 +38,7 @@ type terminal struct {
 	task       string     // the name its module ran it under
 	started    time.Time  // when it started
 	close      bool       // its windows and buffer close once the program ends (B205)
+	gone       bool       // its buffer closed while the program ran, whose end is yet to come back
 }
 
 // terminalKeys are a terminal window's own keys in normal mode, which
@@ -215,6 +216,14 @@ func (e *Session) terminalExited(b *buffer, err error) {
 		return
 	}
 	t.exited = true
+	// Closing the buffer or quitting stopped the program, and nothing is
+	// left to show.
+	if t.em == nil {
+		if t.gone {
+			e.working--
+		}
+		return
+	}
 	if t.close {
 		e.record("term", t.name+" exited", time.Since(t.started))
 		e.closeTerminalBuffer(b)

@@ -43,7 +43,7 @@ type Editor struct {
 	queries  string              // the directory of query files that replace shipped ones
 	modules  []api.Module        // the plugins that loaded, in the order they did
 	declared map[string]declared // the options modules registered, by owner.name (B377)
-	working  int                 // the plugin loads, jobs, timers and requests modules started that have yet to come back to the loop
+	working  int                 // the plugin loads, jobs, timers and requests modules started, and the ends of programs closing a buffer stopped, that have yet to come back to the loop
 	loading  int                 // the plugin loads yet to come back to the loop, and one more while they start
 	values   map[string]string   // their values, a window option's as it starts
 	// What plugins add, for help and the key hints: what each command and
@@ -1317,6 +1317,11 @@ func (e *Session) close(b *buffer, force bool) {
 		return
 	}
 	e.detach(b)
+	if t := b.term; t != nil && !t.exited {
+		// Closing stops the program, whose end still comes back to the loop.
+		t.gone = true
+		e.working++
+	}
 	b.close()
 	e.emit("buffer.closed", "", b)
 	for _, segs := range e.segments {

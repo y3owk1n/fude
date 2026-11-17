@@ -109,11 +109,19 @@ func TestB205Terminal(t *testing.T) {
 	config(t, "number = true\n[filetype.go]\nexpand_tab = true\n")
 	goPath := filepath.Join(filepath.Dir(path), "a.go")
 	change(t, goPath, "package a\n")
-	e = start(t, goPath)
+	e = withCommands(start(t, goPath))
 	e.Use(terminalmod.New())
 	e.SetSize(80, 24)
 	if feed(e, `:terminal cat<CR><C-\><C-n>`); len(e.Windows()) != 2 || e.Windows()[1].Number {
 		t.Errorf("a terminal opened from a.go shows line numbers %v", e.Windows()[len(e.Windows())-1].Number)
+	}
+	// Closing the buffer ends the program, whose end then changes nothing.
+	feed(e, ":bd!<CR>")
+	editortest.Quiet(t, e)
+	for _, v := range e.Windows() {
+		if strings.HasPrefix(v.Name, "[terminal") {
+			t.Errorf(":bd! on a running terminal left a window %q", v.Name)
+		}
 	}
 }
 
