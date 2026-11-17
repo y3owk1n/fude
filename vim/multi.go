@@ -18,7 +18,7 @@ func (m *Machine) searchMatch(t Text, c int, back bool) (int, int, error) {
 		return 0, 0, err
 	}
 	ls, le := LineStart(t, c), LineEnd(t, c)
-	for _, mt := range p.all(t.Slice(ls, le)) {
+	for _, mt := range p.all(t, ls, le) {
 		if s, e := p.span(mt); s < e && ls+s <= c && c < ls+e {
 			return ls + s, ls + e, nil
 		}

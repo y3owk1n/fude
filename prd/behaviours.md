@@ -3063,3 +3063,14 @@ Tested through `vim/`'s exported API with a minimal host over a byte slice.
   no mapping, and dot repeats the change they make (B589).
 - B114 [2] Removing a mapping removes the prefixes only it used, so typing
   one no longer waits.
+- B608 [2] With a fold the host sets through `Machine.Fold`, every pattern
+  matches the text as the fold spells it: `/`, `?`, `n`, `N`, `*`, `#`,
+  `gn`, `gN`, the search being typed, `Matches`, `:s`, `:g` and the
+  multicursor search. The fold spells a pattern's literal characters too,
+  but not its syntax. A match starts only where a character's spelling
+  starts, and one that ends inside a character's spelling takes the whole
+  character. Cursors, ranges, highlights and `&` in a replacement are in
+  the host's text, and search offsets count its characters. Case rules and
+  word edges apply to the spelling, and `smart_case` reads the pattern as
+  typed. With 深 spelled `Shen` and 圳 `Zhen`, `/zh` finds 圳 and `/en`
+  finds nothing.

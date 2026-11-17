@@ -598,6 +598,64 @@ func TestB120IgnoreCase(t *testing.T) {
 	}
 }
 
+// romanize is a test fold: 深 is Shen, 圳 Zhen and é e.
+func romanize(s string) (string, [][2]int) {
+	var b strings.Builder
+	var src [][2]int
+	for i, r := range s {
+		w := len(string(r))
+		spelt, ok := map[rune]string{'深': "Shen", '圳': "Zhen", 'é': "e"}[r]
+		if !ok {
+			spelt = s[i : i+w]
+		}
+		b.WriteString(spelt)
+		for range len(spelt) {
+			src = append(src, [2]int{i, i + w})
+		}
+	}
+	return b.String(), src
+}
+
+// B608
+func TestB608Fold(t *testing.T) {
+	const start = "深圳 café 深圳"
+	for _, c := range []struct {
+		keys, want string
+		cursor     int
+	}{
+		{"/zh<CR>", start, 3},
+		{"/zh<CR>n", start, 16},
+		{"/en<CR>", start, 0},
+		{`/n\=zh<CR>`, start, 3},
+		{"/e<CR>", start, 10},
+		{"*", start, 13},
+		{":s/zhen/X/<CR>", "深X café 深圳", 0},
+		{":s/sh/&&/<CR>", "深深圳 café 深圳", 0},
+		{`:s/caf圳\=/X/<CR>`, "深圳 Xé 深圳", 0},
+		{"d/zh<CR>", "圳 café 深圳", 0},
+		{"/Zh<CR>", start, 3},
+		{"/ZH<CR>", start, 0},
+	} {
+		h := &host{text: start}
+		m := vim.New(h)
+		m.IgnoreCase(true, true)
+		m.Fold(romanize)
+		for _, k := range vim.Keys(c.keys) {
+			if err := m.Feed(k); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if h.text != c.want || h.cursor != c.cursor {
+			t.Errorf("%s gave %q at %d, want %q at %d", c.keys, h.text, h.cursor, c.want, c.cursor)
+		}
+		if c.keys == "/zh<CR>" {
+			if got, want := m.Matches(h.Text(), 0, len(start)), [][2]int{{3, 6}, {16, 19}}; !slices.Equal(got, want) {
+				t.Errorf("matches of zh are %v, want %v", got, want)
+			}
+		}
+	}
+}
+
 // B122
 func TestB122ExpandTab(t *testing.T) {
 	for _, c := range []struct {

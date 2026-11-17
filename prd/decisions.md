@@ -1875,3 +1875,24 @@ fude's socket nor run the clipboard tools `frontend/` calls. On Linux
 and Windows a browser keeps some chords for itself, such as `<C-w>` and
 `<C-t>` in a tab. So the page proves the frontend boundary more than it
 replaces the terminal or the window.
+
+## D80. A host's fold decides how patterns spell the text
+
+`Machine.Fold` takes a function from the host that spells a line as
+patterns match it and maps each byte of the spelling to the character
+it came from (B608). The machine compiles and runs every pattern on the
+spelling and maps each match back to the host's offsets. It folds a line
+at a time and keeps each line it folded, keyed by its text.
+
+Why, as of 2026-11-17: a host whose keys type only ASCII cannot search
+text in another script. Handing the machine the spelled text puts every
+offset in the spelling, so `y` would copy `ShenZhen` instead of 深圳.
+Catching `/` in the host loses `n`, `:s//new/`, offsets, history and the
+highlights. Only the machine sees every pattern, so the fold has to reach
+it. The host supplies the fold so `vim/` takes no dependency and each
+host chooses its own spelling. Folding by line, cached by the line's
+text, costs a search only the lines it reads and an edit only the lines
+it changed. A whole-text fold would fold everything after each key, and
+`Text` has no version to tell when to fold again. The literal search
+reads the host's bytes, so a fold sends every pattern through the
+regexp.

@@ -218,6 +218,7 @@ func (m *Machine) Command(name string, run func(t Text, pos, count int) []Edit) 
 func (m *Machine) Cursors() []int // the multicursors, besides the cursor keys move
 func (m *Machine) ForgetCursors() // removes them for good, as the host's text becomes another
 func (m *Machine) Pending() bool   // an operator waits for its target, or r for its character
+func (m *Machine) Fold(fold func(s string) (string, [][2]int)) // how patterns spell the text (B608)
 ```
 
 `Object`, `Operator` and `Command` with a nil function remove what they
@@ -256,6 +257,15 @@ command fails with its result's `Error` (D57).
 Tree targets are not part of `vim/`. `editor/` adds `af`, `if` and the rest
 from `syntax/` with `Machine.Object`, and `gc` with `Machine.Operator`, the
 way a plugin will.
+
+A host whose keys type only ASCII sets `Machine.Fold`, and every pattern
+then matches the text as the fold spells it, such as 深圳 as `ShenZhen`
+(B608). The machine folds the text a line at a time and keeps each line
+it folded, keyed by its text. So a search and the highlights after it
+fold a line once, and an edit folds again only the lines it changed. The
+regexp runs on the spelling, and each match maps back to the host's
+offsets. The literal search reads the text, not its spelling, so with a
+fold every pattern goes through the regexp (D80).
 
 `vim/` may use small pure-Go dependencies for Unicode segmentation and
 display width. It never imports `core/`, and `core/` never imports it.

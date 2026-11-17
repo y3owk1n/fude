@@ -591,7 +591,7 @@ func (m *Machine) global(first, last int, pat, cmd string, match bool) error {
 	t := m.h.Text()
 	var found []int
 	for ls := first; ; ls = LineEnd(t, ls) + 1 {
-		if (p.re.FindStringIndex(t.Slice(ls, LineEnd(t, ls))) != nil) == match {
+		if (len(p.all(t, ls, LineEnd(t, ls))) > 0) == match {
 			found = append(found, ls)
 		}
 		if ls >= last || LineEnd(t, ls) == t.Len() {

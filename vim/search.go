@@ -18,7 +18,7 @@ func (m *Machine) compile(src string) (*pattern, error) {
 	if p, ok := m.res[key]; ok {
 		return p, nil
 	}
-	p, err := compile(src, m.lastRep, ignore)
+	p, err := compile(src, m.lastRep, ignore, m.speller)
 	if err != nil {
 		return nil, err
 	}
@@ -259,7 +259,7 @@ func (p *pattern) first(t Text, least, limit int) (int, bool) {
 	for size := searchWindow; ; size *= 2 {
 		to := LineEnd(t, min(from+size, t.Len()))
 		retry := false // a match that reaches the window's end
-		for _, mt := range p.all(t.Slice(from, to)) {
+		for _, mt := range p.all(t, from, to) {
 			s, _ := p.span(mt)
 			switch {
 			case from+s < least:
@@ -290,7 +290,7 @@ func (p *pattern) last(t Text, least, limit int) (int, bool) {
 	for size := searchWindow; ; size *= 2 {
 		from := LineStart(t, max(to-size, 0))
 		found := -1
-		for _, mt := range p.all(t.Slice(from, to)) {
+		for _, mt := range p.all(t, from, to) {
 			if s, _ := p.span(mt); from+s < limit {
 				found = from + s
 			}
@@ -560,7 +560,7 @@ func (p *pattern) near(t Text, from, to int) [][2]int {
 	ls, le := LineStart(t, from), LineEnd(t, to)
 	lo, hi := max(ls, from-reach), min(le, to+reach)
 	var out [][2]int
-	for _, mt := range p.all(t.Slice(lo, hi)) {
+	for _, mt := range p.all(t, lo, hi) {
 		if lo > ls && mt[0] == 0 || hi < le && mt[1] == hi-lo {
 			continue
 		}
@@ -721,7 +721,7 @@ func (m *Machine) subEdits(from, to int, pat, rep, flags string) ([]Edit, error)
 	ls, le := LineStart(t, from), LineEnd(t, to)
 	var edits []Edit
 	end := -1 // the end of the line of the last edit
-	for _, mt := range p.all(text) {
+	for _, mt := range p.all(t, from, to) {
 		if from > ls && mt[0] == 0 || to < le && mt[1] == len(text) {
 			continue
 		}

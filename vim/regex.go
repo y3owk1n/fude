@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 // pattern is a Vim pattern translated to Go's regexp (N1).
@@ -24,6 +25,11 @@ type pattern struct {
 	spans []int
 	// groups maps Vim's \1 to \9 to Go group numbers.
 	groups [10]int
+	// speller spells the text when the host folds it, and prefixed is re
+	// after any one character, which a search in the spelling runs from the
+	// character before where it looks.
+	speller  *speller
+	prefixed *regexp.Regexp
 }
 
 // classes are the backslash classes and their Go equivalents.
@@ -46,18 +52,19 @@ type token struct {
 // compile translates a Vim pattern to Go's regexp. ~ stands for last, the
 // previous replacement. It ignores case when ignore is set, unless \C asks
 // for case, and always when \c asks for it. Atoms that need backtracking
-// are refused.
-func compile(src, last string, ignore bool) (*pattern, error) {
+// are refused. With sp, the pattern matches the text as sp spells it.
+func compile(src, last string, ignore bool, sp *speller) (*pattern, error) {
 	var toks []token
-	for i := 0; i < len(src); i++ {
-		if src[i] == '\\' && i+1 < len(src) {
-			toks = append(toks, token{src[i+1 : i+2], true})
+	for i := 0; i < len(src); {
+		escaped := src[i] == '\\' && i+1 < len(src)
+		if escaped {
 			i++
-			continue
 		}
-		toks = append(toks, token{src[i : i+1], false})
+		_, n := utf8.DecodeRuneInString(src[i:])
+		toks = append(toks, token{src[i : i+n], escaped})
+		i += n
 	}
-	c := &compiler{toks: toks, mode: 'm', last: last}
+	c := &compiler{toks: toks, mode: 'm', last: last, speller: sp}
 	body, err := c.branches()
 	if err != nil {
 		return nil, err
@@ -70,9 +77,14 @@ func compile(src, last string, ignore bool) (*pattern, error) {
 	if err != nil {
 		return nil, fmt.Errorf("bad pattern %s: %w", src, err)
 	}
-	p := &pattern{re: re}
-	p.lit, p.fold, p.words = literal(flags + body)
-	p.rare = rarest(p.lit)
+	p := &pattern{re: re, speller: sp}
+	if sp != nil {
+		// The literal search reads the text, not its spelling.
+		p.prefixed = regexp.MustCompile(flags + "(?s:.)(?:" + body + ")")
+	} else {
+		p.lit, p.fold, p.words = literal(flags + body)
+		p.rare = rarest(p.lit)
+	}
 	for i, name := range re.SubexpNames() {
 		if strings.HasPrefix(name, "zs") {
 			p.spans = append(p.spans, i)
@@ -91,6 +103,25 @@ type compiler struct {
 	caseFlag byte // c or C from \c or \C, \c winning, or 0
 	groups   int  // Vim capturing groups opened so far
 	spans    int  // \zs and \ze groups so far
+	speller  *speller
+	run      string // the literal text read since the sequence's last atom
+}
+
+// literal adds s to the run of literal text, which the sequence writes
+// once the run ends, so the host's fold spells it whole.
+func (c *compiler) literal(s string) (string, error) {
+	c.run += s
+	return "", nil
+}
+
+// quote returns the Go pattern that matches the text s, as the host's fold
+// spells it when there is one.
+func (c *compiler) quote(s string) string {
+	if c.speller == nil || s == "" {
+		return regexp.QuoteMeta(s)
+	}
+	s, _ = c.speller.fold(s)
+	return "(?:" + regexp.QuoteMeta(s) + ")"
 }
 
 // special reports whether t is an operator in the current magic mode.
@@ -128,6 +159,21 @@ func (c *compiler) branches() (string, error) {
 // end. At the top level it also places \zs and \ze.
 func (c *compiler) sequence(top bool) (string, error) {
 	var b strings.Builder
+	outer := c.run
+	c.run = ""
+	defer func() { c.run = outer }()
+	// flush writes the run, its last character apart when a count follows,
+	// as the count applies to that alone.
+	flush := func(count bool) {
+		r := c.run
+		c.run = ""
+		if count {
+			_, n := utf8.DecodeLastRuneInString(r)
+			b.WriteString(c.quote(r[:len(r)-n]))
+			r = r[len(r)-n:]
+		}
+		b.WriteString(c.quote(r))
+	}
 	zs, ze := -1, -1 // where \zs and \ze fall in b
 	start := c.i
 	for c.i < len(c.toks) {
@@ -140,10 +186,12 @@ func (c *compiler) sequence(top bool) (string, error) {
 			switch c.toks[c.i].s {
 			case "s":
 				c.i++
+				flush(false)
 				zs = b.Len()
 				continue
 			case "e":
 				c.i++
+				flush(false)
 				ze = b.Len()
 				continue
 			}
@@ -152,8 +200,12 @@ func (c *compiler) sequence(top bool) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		b.WriteString(s)
+		if s != "" {
+			flush(strings.ContainsAny(s[:1], "*+?{"))
+			b.WriteString(s)
+		}
 	}
+	flush(false)
 	out := b.String()
 	if zs < 0 && ze < 0 {
 		return out, nil
@@ -191,7 +243,7 @@ func (c *compiler) atom(t token, first bool) (string, error) {
 	case escapes[x] != "":
 		return escapes[x], nil
 	}
-	return regexp.QuoteMeta(t.s), nil
+	return c.literal(t.s)
 }
 
 // operator translates a token that is special in the current mode, or a
@@ -208,7 +260,7 @@ func (c *compiler) operator(t token, first bool) (string, error) {
 		}
 	}
 	if !c.special(t) {
-		return regexp.QuoteMeta(t.s), nil
+		return c.literal(t.s)
 	}
 	switch t.s {
 	case ".", "*", "+", "?":
@@ -216,7 +268,7 @@ func (c *compiler) operator(t token, first bool) (string, error) {
 	case "=":
 		return "?", nil
 	case "~":
-		return regexp.QuoteMeta(c.last), nil
+		return c.literal(c.last)
 	case "<", ">":
 		return `\b`, nil
 	case "{":
@@ -373,11 +425,6 @@ func literal(expr string) (lit string, fold, words bool) {
 		lit = strings.ToLower(lit)
 	}
 	return lit, fold, words
-}
-
-// all returns every match in text, each as Go submatch indexes.
-func (p *pattern) all(text string) [][]int {
-	return p.re.FindAllStringSubmatchIndex(text, -1)
 }
 
 // span returns where match m starts and ends after \zs and \ze.
