@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.3](https://github.com/y3owk1n/fude/compare/v0.4.2...v0.4.3) (2026-11-17)
+
+
+### Features
+
+* **vim:** patterns match a host's fold of the text ([aa3681f](https://github.com/y3owk1n/fude/commit/aa3681fab387c97a99bdfb5fce02c5b771580af8)), closes [#11](https://github.com/y3owk1n/fude/issues/11)
+
+
+### Bug Fixes
+
+* **terminal:** closing a running terminal's buffer no longer crashes ([36bd606](https://github.com/y3owk1n/fude/commit/36bd606079718966850c54e1392b43a5fa8de065))
+
 ## [0.4.2](https://github.com/y3owk1n/fude/compare/v0.4.1...v0.4.2) (2026-11-11)
 
 
