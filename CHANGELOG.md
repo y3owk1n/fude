@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.5](https://github.com/y3owk1n/fude/compare/v0.4.4...v0.4.5) (2026-11-23)
+
+
+### Features
+
+* **vim:** a block takes the characters between its corners on a host's own units (B609) ([dee09b4](https://github.com/y3owk1n/fude/commit/dee09b40647f979c3009a7b2de5a951581de4111))
+
 ## [0.4.4](https://github.com/y3owk1n/fude/compare/v0.4.3...v0.4.4) (2026-11-23)
 
 
