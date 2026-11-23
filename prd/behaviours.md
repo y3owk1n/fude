@@ -3083,6 +3083,10 @@ Tested through `vim/`'s exported API with a minimal host over a byte slice.
   of a range then keep that value in place of the display column. A line
   too short for it puts the cursor at its end, on its last character
   outside insert mode. `$` still aims for every line's end.
-  `virtual_edit` does nothing for such a host. Block selections, `|`,
-  `gm`, `gM`, `gj`, `gk` and indenting still count display columns. A
+  `virtual_edit` does nothing for such a host. A block takes, on each
+  line, the characters whose measure lies between its corners' measures.
+  `Selection.Lines` gives them. `I`, `A` and `c` in a block type at each
+  line's edge of the block. They leave out a line that ends before the
+  block, since padding with blanks needs display columns. Putting a block,
+  `|`, `gm`, `gM`, `gj`, `gk` and indenting still count display columns. A
   host with `vim.Defaults` keeps the display column.

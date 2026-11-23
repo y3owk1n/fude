@@ -2,7 +2,6 @@ package vim
 
 import (
 	"fmt"
-	"math"
 	"strconv"
 	"strings"
 	"unicode"
@@ -345,8 +344,7 @@ func (m *Machine) span(t Text, c int, op, cmd string, count int) (region, bool) 
 	case "V":
 		k = linewise
 	case "<C-v>":
-		tab := m.h.TabWidth()
-		ca, ct := column(t, LineStart(t, c), c, tab), column(t, LineStart(t, to), to, tab)
+		ca, ct := m.keptColumn(t, c), m.keptColumn(t, to)
 		return region{start: LineStart(t, min(c, to)), end: LineEnd(t, max(c, to)), block: true, left: min(ca, ct), right: max(ca, ct)}, true
 	}
 	r := region{start: min(c, to), end: max(c, to), lines: k == linewise}
@@ -533,11 +531,7 @@ func (m *Machine) lineRanges(t Text, r region) [][2]int {
 		le := LineEnd(t, a)
 		rg := [2]int{a, min(le, r.end)}
 		if r.block {
-			tab := m.h.TabWidth()
-			rg = [2]int{colStart(t, a, r.left, tab), le}
-			if r.right != math.MaxInt {
-				rg[1] = colStart(t, a, r.right+1, tab)
-			}
+			rg[0], rg[1] = m.blockSpan(t, a, r)
 		}
 		out = append(out, rg)
 		if le >= r.end || le == t.Len() {
@@ -560,7 +554,7 @@ func (m *Machine) actBlock(op string, reg rune, label string, r region) error {
 		}
 	}
 	m.store(reg, op, register{text: strings.Join(texts, "\n"), block: true})
-	top := colStart(t, r.start, r.left, m.h.TabWidth())
+	top, _ := m.blockSpan(t, r.start, r)
 	switch op {
 	case "y":
 		m.h.SetCursor(top)
@@ -569,7 +563,7 @@ func (m *Machine) actBlock(op string, reg rune, label string, r region) error {
 		if err := m.startInsert(Key(label), top); err != nil {
 			return err
 		}
-		m.blockInsert = &blockInsert{start: top, col: r.left, lines: len(texts) - 1, home: top}
+		m.blockInsert = &blockInsert{start: top, col: r.left, lines: len(texts) - 1, home: top, block: r}
 	}
 	if len(edits) > 0 {
 		if err := m.apply(edits, label); err != nil {
@@ -585,9 +579,10 @@ func (m *Machine) actBlock(op string, reg rune, label string, r region) error {
 // blockInsert is a block c waiting for insert mode to end.
 type blockInsert struct {
 	start, col, lines int
-	home              int  // the block's top-left, where the cursor ends
-	toEnd             bool // insert at each line's end, for $A
-	pad               bool // pad short lines with spaces to reach col, for A
+	home              int    // the block's top-left, where the cursor ends
+	toEnd             bool   // insert at each line's end, for $A
+	pad               bool   // pad short lines with spaces to reach col, for A
+	block             region // the block, for a host's goals (B609)
 }
 
 // finishBlock copies text typed on the first line of a block c to the same
@@ -606,6 +601,18 @@ func (m *Machine) finishBlock(b *blockInsert) error {
 			break
 		}
 		ls = LineEnd(t, ls) + 1
+		// Padding with blanks needs display columns, so with a host's goals a
+		// line that ends before the block is left out (B609).
+		if m.goals() && !b.toEnd {
+			if start, end := m.blockSpan(t, ls, b.block); start < LineEnd(t, ls) {
+				p := start
+				if b.pad {
+					p = end
+				}
+				edits = append(edits, Edit{Start: p, End: p, Text: typed})
+			}
+			continue
+		}
 		p := colStart(t, ls, b.col, tab)
 		w := column(t, ls, p, tab)
 		switch {

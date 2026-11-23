@@ -11,7 +11,8 @@ type Selection struct {
 	Kind        Key // v, V or <C-v>
 	Start, End  int // the selected bytes, or every line a block spans
 	Block       bool
-	Left, Right int      // a block's display columns, inclusive
+	Left, Right int      // a block's display columns, inclusive, or its goals (B609)
+	Lines       [][2]int // a block's bytes on each line it spans
 	Regions     [][2]int // with cursors placed, every cursor's selection and its own
 }
 
@@ -21,7 +22,11 @@ func (m *Machine) Selection() (Selection, bool) {
 		return Selection{}, false
 	}
 	r := m.selection()
-	return Selection{Kind: m.visual, Start: r.start, End: r.end, Block: r.block, Left: r.left, Right: r.right, Regions: m.selections()}, true
+	var lines [][2]int
+	if r.block {
+		lines = m.lineRanges(m.h.Text(), r)
+	}
+	return Selection{Kind: m.visual, Start: r.start, End: r.end, Block: r.block, Left: r.left, Right: r.right, Lines: lines, Regions: m.selections()}, true
 }
 
 // selection returns the text visual mode covers. Charwise it includes the
@@ -38,6 +43,14 @@ func (m *Machine) selectionAt(anchor, c int) region {
 	case "V":
 		return m.folded(t, region{start: LineStart(t, s), end: LineEnd(t, e), lines: true})
 	case "<C-v>":
+		if m.goals() {
+			ga, gc := m.goal(t, anchor), m.goal(t, c)
+			r := region{start: LineStart(t, s), end: LineEnd(t, e), block: true, left: min(ga, gc), right: max(ga, gc)}
+			if toEnd {
+				r.right = math.MaxInt
+			}
+			return r
+		}
 		ca, cc := column(t, LineStart(t, anchor), anchor, tab), column(t, LineStart(t, c), c, tab)
 		// With VirtualEdit, the cursor's corner may be past its line's end
 		// (B490).
@@ -57,6 +70,36 @@ func (m *Machine) selectionAt(anchor, c int) region {
 		end = LineEnd(t, e) + 1
 	}
 	return region{start: s, end: min(end, t.Len())}
+}
+
+// blockSpan returns the bytes of the line at ls that block r covers. Those are
+// the clusters in its display columns, or for a host that places the cursor in
+// its own units, the clusters whose goal lies between its corners' goals
+// (B609). A line that ends before the block gives its end as both.
+func (m *Machine) blockSpan(t Text, ls int, r region) (int, int) {
+	le := LineEnd(t, ls)
+	if !m.goals() {
+		tab := m.h.TabWidth()
+		end := le
+		if r.right != math.MaxInt {
+			end = colStart(t, ls, r.right+1, tab)
+		}
+		return colStart(t, ls, r.left, tab), end
+	}
+	start := le
+	for p := ls; p < le; p = next(t, p, le) {
+		g, _ := m.h.Goal(p)
+		if g < r.left {
+			continue
+		}
+		if start == le {
+			start = p
+		}
+		if g > r.right {
+			return start, p
+		}
+	}
+	return start, le
 }
 
 // leaveVisual returns to normal mode, keeping the selection's ends for '<
@@ -96,7 +139,14 @@ func (m *Machine) blockInsertStart(after bool) error {
 	if after && !toEnd {
 		col = r.right + 1
 	}
-	pos := colStart(t, r.start, col, tab)
+	pos, home := colStart(t, r.start, col, tab), colStart(t, r.start, r.left, tab)
+	if m.goals() {
+		start, end := m.blockSpan(t, r.start, r)
+		pos, home = start, start
+		if after {
+			pos = end
+		}
+	}
 	if toEnd {
 		pos = LineEnd(t, r.start)
 	}
@@ -107,14 +157,14 @@ func (m *Machine) blockInsertStart(after bool) error {
 	if err := m.startInsert(Key(label), pos); err != nil {
 		return err
 	}
-	if w := column(t, r.start, pos, tab); after && !toEnd && w < col {
+	if w := column(t, r.start, pos, tab); after && !toEnd && w < col && !m.goals() {
 		if err := m.insertText(strings.Repeat(" ", col-w)); err != nil {
 			return err
 		}
 	}
 	m.blockInsert = &blockInsert{
 		start: m.h.Cursor(), col: col, lines: t.LineOf(r.end) - t.LineOf(r.start),
-		toEnd: toEnd, pad: after, home: colStart(t, r.start, r.left, tab),
+		toEnd: toEnd, pad: after, home: home, block: r,
 	}
 	return nil
 }
@@ -331,11 +381,10 @@ func otherEnd(m *Machine, x visualCall) error {
 		m.h.SetCursor(x.c)
 		return nil
 	}
-	tab := m.h.TabWidth()
 	as, cs := LineStart(x.t, m.anchor), LineStart(x.t, x.c)
-	ac, cc := column(x.t, as, m.anchor, tab), column(x.t, cs, x.c, tab)
-	m.anchor = atColumn(x.t, as, cc, tab)
-	m.h.SetCursor(atColumn(x.t, cs, ac, tab))
+	ac, cc := m.keptColumn(x.t, m.anchor), m.keptColumn(x.t, x.c)
+	m.anchor = m.atGoal(x.t, as, cc)
+	m.h.SetCursor(m.atGoal(x.t, cs, ac))
 	return nil
 }
 

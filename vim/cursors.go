@@ -280,7 +280,8 @@ func (m *Machine) along(cmd string, count int) error {
 			ranges = ranges[:0]
 			for line := first; line <= last; line++ {
 				ls := t.LineStart(line)
-				ranges = append(ranges, [2]int{colStart(t, ls, r.left, m.h.TabWidth()), LineEnd(t, ls)})
+				start, _ := m.blockSpan(t, ls, r)
+				ranges = append(ranges, [2]int{start, LineEnd(t, ls)})
 			}
 		}
 	}

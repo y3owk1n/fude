@@ -1345,6 +1345,12 @@ func TestB609HostGoal(t *testing.T) {
 		{"mmm|x\nabcdefghijk", "Vj<Esc>", "mmmx\nabcdefghi|jk"},
 		{"mmm|x\nabcdefghijk\nz", ":2;y<CR>", "mmmx\nabcdefghi|jk\nz"},
 		{"mmm|x\nabcdefghijk", "VjQrZ", "mmmZ\nabcdefghi|Zk"},
+		// A block takes the characters between its corners' goals.
+		{"m|mmx\nabcdefghijk", "<C-v>jld", "m|mx\nabcfghijk"},
+		{"m|mmx\nabcdefghijk", "<C-v>jIZ<Esc>", "m|Zmmx\nabcZdefghijk"},
+		{"m|mmx\nabcdefghijk", "<C-v>jAZ<Esc>", "m|mZmx\nabcdZefghijk"},
+		{"m|mmx\nabcdefghijk", "<C-v>jlcZ<Esc>", "m|Zmx\nabcZfghijk"},
+		{"m|mmx\nab\nabcdefghijk", "<C-v>jjIZ<Esc>", "m|Zmmx\nab\nabcZdefghijk"},
 	} {
 		h := &goalHost{host{text: strings.Replace(c.start, "|", "", 1), cursor: strings.Index(c.start, "|")}}
 		m := vim.New(h)
@@ -1368,5 +1374,16 @@ func TestB609HostGoal(t *testing.T) {
 	}
 	if h.cursor != 1 || m.Past() != 0 {
 		t.Errorf("5l with virtual_edit all left the cursor at %d, %d past the end, want 1, 0", h.cursor, m.Past())
+	}
+	// The selection gives a client each line's share of the block to draw.
+	h = &goalHost{host{text: "mmmx\nabcdefghijk", cursor: 1}}
+	m = vim.New(h)
+	for _, k := range vim.Keys("<C-v>jl") {
+		if err := m.Feed(k); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if sel, _ := m.Selection(); !slices.Equal(sel.Lines, [][2]int{{1, 2}, {8, 10}}) {
+		t.Errorf("<C-v>jl selected %v on its lines, want [[1 2] [8 10]]", sel.Lines)
 	}
 }
