@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.4](https://github.com/y3owk1n/fude/compare/v0.4.3...v0.4.4) (2026-11-23)
+
+
+### Features
+
+* **vim:** j and k keep a host's own units along a line (B609) ([5cc98bc](https://github.com/y3owk1n/fude/commit/5cc98bc3dfe999a4a9ffd321a3feebc5f66e3626))
+
 ## [0.4.3](https://github.com/y3owk1n/fude/compare/v0.4.2...v0.4.3) (2026-11-17)
 
 
