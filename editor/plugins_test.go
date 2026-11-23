@@ -2110,3 +2110,37 @@ func TestB291StaleDecorationsMove(t *testing.T) {
 		t.Errorf("%q has decorations %q, want two as keyword", text(e), got)
 	}
 }
+
+// many is a source of 400,000 items, so many that a key typed right after
+// the first match starts stops it. Its finder opens with the query ab.
+type many struct{ idle }
+
+func (many) Registered() []api.Registration {
+	return []api.Registration{{Kind: api.Source, Name: "many", Help: "lists many items", ID: 1}}
+}
+
+func (many) Call(context.Context, uint32, api.Scope, ...int) (api.Result, error) {
+	items := make([]string, 400_000)
+	for i := range items {
+		items[i] = fmt.Sprintf("ab/%d", i)
+	}
+	items[len(items)-1] = "abc.go"
+	return api.Result{Pick: &api.Pick{ID: 3, Items: items, Query: "ab"}}, nil
+}
+
+// B129, for a key typed while the first match still runs. The finder
+// matches the new query against every item.
+func TestB129TypedOverTheFirstMatch(t *testing.T) {
+	e := start(t, filepath.Join(t.TempDir(), "f"))
+	e.SetSize(80, 20)
+	e.Use(many{})
+	feed(e, ":pick many<CR>")
+	// The first look at the finder starts matching ab, and c stops it.
+	settle(t, e, func() bool { _, ok := e.Menu(); return ok })
+	feed(e, "c")
+	e.Menu()
+	settle(t, e, func() bool { f, _ := e.Menu(); return strings.Contains(f.Text, "1 / 400000") })
+	if f, _ := e.Menu(); !strings.Contains(f.Text, "abc.go") {
+		t.Errorf("the finder for abc shows %q", f.Text)
+	}
+}

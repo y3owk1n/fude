@@ -284,13 +284,15 @@ func (e *Session) seek(f *finder) {
 	if f.stale {
 		f.grew = nil
 	}
-	stop := new(atomic.Bool)
+	stop, stale := new(atomic.Bool), f.stale
 	f.busy, f.stale, f.seeking, f.stop = true, false, q, stop
 	go func() {
 		matches, ok := from.Narrow(q, stop)
 		e.queue <- func() {
 			f.busy = false
 			if !ok {
+				// A stopped match leaves the new paths unmatched.
+				f.stale = f.stale || stale
 				return
 			}
 			f.grew = slices.DeleteFunc(f.grew, func(g earlier) bool { return !strings.HasPrefix(q, g.query) })
