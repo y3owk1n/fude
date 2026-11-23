@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.6](https://github.com/y3owk1n/fude/compare/v0.4.5...v0.4.6) (2026-11-23)
+
+
+### Bug Fixes
+
+* **editor:** typing while the finder's first match runs no longer crashes it ([561ec78](https://github.com/y3owk1n/fude/commit/561ec78b712b81c837e74b707bf11232504d94f0))
+
 ## [0.4.5](https://github.com/y3owk1n/fude/compare/v0.4.4...v0.4.5) (2026-11-23)
 
 
