@@ -672,8 +672,7 @@ func (m *Machine) lineRange(t Text, c int, s string) (int, int, string, bool, er
 	if rest != "" && (rest[0] == ',' || rest[0] == ';') {
 		if rest[0] == ';' {
 			// The cursor keeps its column, as far as the line reaches.
-			tab := m.h.TabWidth()
-			c = clamp(t, atColumn(t, max(first, 0), column(t, LineStart(t, c), c, tab), tab))
+			c = clamp(t, m.atGoal(t, max(first, 0), m.keptColumn(t, c)))
 			m.h.SetCursor(c)
 		}
 		// A second address left out is the cursor's line.

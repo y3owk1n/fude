@@ -3074,3 +3074,15 @@ Tested through `vim/`'s exported API with a minimal host over a byte slice.
   word edges apply to the spelling, and `smart_case` reads the pattern as
   typed. With 深 spelled `Shen` and 圳 `Zhen`, `/zh` finds 圳 and `/en`
   finds nothing.
+- B609 [2] A host may measure how far along its line a place is in its
+  own units, such as the pixels a proportional font takes, with
+  `Host.Goal`. `Host.AtGoal` names the place on a line nearest such a
+  value. `j`, `k`, `gg`, `G`, `H`, `M`, `L`, `%` with a count, a scroll
+  that moves the cursor's line, `<Up>` and `<Down>` in insert mode, the
+  cursor after a linewise yank or delete, `Q` in visual mode and the `;`
+  of a range then keep that value in place of the display column. A line
+  too short for it puts the cursor at its end, on its last character
+  outside insert mode. `$` still aims for every line's end.
+  `virtual_edit` does nothing for such a host. Block selections, `|`,
+  `gm`, `gM`, `gj`, `gk` and indenting still count display columns. A
+  host with `vim.Defaults` keeps the display column.

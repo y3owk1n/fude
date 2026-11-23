@@ -645,7 +645,7 @@ func (m *Machine) Past() int {
 
 // virtual reports whether the cursor may go past its line's end now.
 func (m *Machine) virtual() bool {
-	switch m.virtualEdit {
+	switch m.virtualWhere() {
 	case "all":
 		return m.mode == Normal || m.mode == Visual
 	case "block":
@@ -660,7 +660,7 @@ func (m *Machine) virtual() bool {
 // and k aim for (B490).
 func (m *Machine) land(t Text, p int) int {
 	m.past = 0
-	onemore := m.virtualEdit == "onemore" && m.mode == Normal
+	onemore := m.virtualWhere() == "onemore" && m.mode == Normal
 	if !m.virtual() && !onemore {
 		return clamp(t, p)
 	}
@@ -693,13 +693,55 @@ func lastChar(t Text, end int) int {
 	return prev(t, LineStart(t, end), end)
 }
 
-// toLine returns the cluster under the column j and k aim for on the line
-// starting at line. It sets that column from c first if it is unset.
+// toLine returns the cluster under the goal j and k aim for on the line
+// starting at line. It sets that goal from c first if it is unset.
 func (m *Machine) toLine(t Text, c, line int) int {
 	if !m.wantSet {
-		m.want, m.wantSet = m.shownColumn(t, c), true
+		m.want, m.wantSet = m.goal(t, c), true
 	}
-	return atColumn(t, line, m.want, m.h.TabWidth())
+	return m.atGoal(t, line, m.want)
+}
+
+// goal is how far along its line c is, in the host's units, or else the
+// column c shows in (B609).
+func (m *Machine) goal(t Text, c int) int {
+	if g, ok := m.h.Goal(c); ok {
+		return g
+	}
+	return m.shownColumn(t, c)
+}
+
+// keptColumn is goal, but falls back to the display column of c's first
+// cell. A command uses it to keep c's column on another line.
+func (m *Machine) keptColumn(t Text, c int) int {
+	if g, ok := m.h.Goal(c); ok {
+		return g
+	}
+	return column(t, LineStart(t, c), c, m.h.TabWidth())
+}
+
+// atGoal returns the cluster nearest goal on the line at start, or for $'s
+// goal the line's last.
+func (m *Machine) atGoal(t Text, start, goal int) int {
+	if m.goals() && goal != math.MaxInt {
+		return m.h.AtGoal(start, goal)
+	}
+	return atColumn(t, start, goal, m.h.TabWidth())
+}
+
+// goals reports whether the host places the cursor in its own units.
+func (m *Machine) goals() bool {
+	_, ok := m.h.Goal(0)
+	return ok
+}
+
+// virtualWhere is where virtual_edit applies, which is nowhere for a host
+// that places the cursor in its own units (B609).
+func (m *Machine) virtualWhere() string {
+	if m.goals() {
+		return ""
+	}
+	return m.virtualEdit
 }
 
 // shownColumn is the column the cursor at c shows in. Outside insert mode

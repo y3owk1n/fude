@@ -286,6 +286,10 @@ func (h host) RowFrom(start, _ int) (int, int) { return start, 0 }
 func (h host) Sideways() (int, int)            { return 0, 0 }
 func (h host) SetLeft(int)                     {}
 
+// Goal leaves j and k on display columns.
+func (h host) Goal(int) (int, bool)    { return 0, false }
+func (h host) AtGoal(start, _ int) int { return start }
+
 // FileName is "", as the replica knows its buffer by number alone.
 func (h host) FileName() string { return "" }
 

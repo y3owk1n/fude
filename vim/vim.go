@@ -121,6 +121,14 @@ type Host interface {
 	// and the display column it begins at, so gj and gk count from there in
 	// place of the line's start.
 	RowFrom(start, pos int) (from, col int)
+	// Goal returns how far along its line pos is, in the host's own units
+	// such as pixels, or false to keep the display column. j and k keep
+	// that value and aim for it (B609). A host answers it for every pos
+	// from 0 to Len, or for none.
+	Goal(pos int) (int, bool)
+	// AtGoal returns the cluster of the line at start nearest goal, as
+	// Goal measures it, or start on an empty line.
+	AtGoal(start, goal int) int
 	// Editable returns why the text may not change, or nil. A key that
 	// would start insert or replace mode returns that reason and stays in
 	// normal mode (B302).
@@ -158,6 +166,8 @@ func (Defaults) Shown(int, int) []Inline         { return nil }
 func (Defaults) WordWrap() bool                  { return false }
 func (Defaults) Hang(int) int                    { return 0 }
 func (Defaults) RowFrom(start, _ int) (int, int) { return start, 0 }
+func (Defaults) Goal(int) (int, bool)            { return 0, false }
+func (Defaults) AtGoal(start, _ int) int         { return start }
 func (Defaults) Editable() error                 { return nil }
 func (Defaults) ShowMark(rune) bool              { return false }
 func (Defaults) Clipboard() (string, error)      { return "", errNoClipboard }
@@ -443,7 +453,7 @@ func (m *Machine) keep(name rune, text string) {
 func (m *Machine) Feed(k Key) error {
 	defer m.show(k)
 	m.beep, m.msg, m.flash, m.flashes = false, "", [2]int{}, nil
-	if m.mode == Normal && m.virtualEdit != "all" && m.virtualEdit != "onemore" {
+	if where := m.virtualWhere(); m.mode == Normal && where != "all" && where != "onemore" {
 		// The host's own edits, such as another client's, can leave the
 		// cursor past the end of its line, which VirtualEdit may allow.
 		m.h.SetCursor(clamp(m.h.Text(), m.h.Cursor()))
@@ -1019,7 +1029,7 @@ type normalKey struct {
 func insertAt(where func(x normalCall) int) func(m *Machine, x normalCall) error {
 	return func(m *Machine, x normalCall) error {
 		pad := m.Past()
-		if x.k == "a" && m.virtualEdit == "all" && x.c == x.end {
+		if x.k == "a" && m.virtualWhere() == "all" && x.c == x.end {
 			pad++
 		}
 		if err := m.startInsert(x.k, where(x)); err != nil {

@@ -1300,3 +1300,73 @@ func TestB453Abbreviations(t *testing.T) {
 func TestB500UndoLine(t *testing.T) {
 	cases(t)
 }
+
+// goalHost measures m as three wide and every other byte as one, as a
+// proportional font would. Its goals and display columns then differ.
+type goalHost struct{ host }
+
+func goalWidth(b byte) int {
+	if b == 'm' {
+		return 3
+	}
+	return 1
+}
+
+func (h *goalHost) Goal(pos int) (int, bool) {
+	x := 0
+	for i := strings.LastIndexByte(h.text[:pos], '\n') + 1; i < pos; i++ {
+		x += goalWidth(h.text[i])
+	}
+	return x, true
+}
+
+func (h *goalHost) AtGoal(start, goal int) int {
+	end := start + strings.IndexByte(h.text[start:]+"\n", '\n')
+	x := 0
+	for i := start; i < end; i++ {
+		if x += goalWidth(h.text[i]); x > goal {
+			return i
+		}
+	}
+	return max(end-1, start)
+}
+
+// B609
+func TestB609HostGoal(t *testing.T) {
+	for _, c := range []struct{ start, keys, want string }{
+		{"mmm|x\nabcdefghijk", "j", "mmmx\nabcdefghi|jk"},
+		{"mmm|x\nab\nabcdefghijk", "jj", "mmmx\nab\nabcdefghi|jk"},
+		{"mmmx\nabcde|fghijk", "k", "m|mmx\nabcdefghijk"},
+		{"mmm|x\nabcdefghijk", "a<Down>", "mmmx\nabcdefghij|k"},
+		{"mmm|x\nabc", "a<Down>", "mmmx\nabc|"},
+		{"mmmx\nabcd|efghijk", "yk", "m|mmx\nabcdefghijk"},
+		{"mmm|x\nabcdefghijk", "dd", "abcdefghi|jk"},
+		{"|mmmx\nabcdefghijk", "$j", "mmmx\nabcdefghij|k"},
+		{"mmm|x\nabcdefghijk", "Vj<Esc>", "mmmx\nabcdefghi|jk"},
+		{"mmm|x\nabcdefghijk\nz", ":2;y<CR>", "mmmx\nabcdefghi|jk\nz"},
+		{"mmm|x\nabcdefghijk", "VjQrZ", "mmmZ\nabcdefghi|Zk"},
+	} {
+		h := &goalHost{host{text: strings.Replace(c.start, "|", "", 1), cursor: strings.Index(c.start, "|")}}
+		m := vim.New(h)
+		for _, k := range vim.Keys(c.keys) {
+			if err := m.Feed(k); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if got := h.text[:h.cursor] + "|" + h.text[h.cursor:]; got != c.want {
+			t.Errorf("%q on %q made %q, want %q", c.keys, c.start, got, c.want)
+		}
+	}
+	// virtual_edit counts display columns, so it does nothing here.
+	h := &goalHost{host{text: "ab"}}
+	m := vim.New(h)
+	m.VirtualEdit("all")
+	for _, k := range vim.Keys("5l") {
+		if err := m.Feed(k); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if h.cursor != 1 || m.Past() != 0 {
+		t.Errorf("5l with virtual_edit all left the cursor at %d, %d past the end, want 1, 0", h.cursor, m.Past())
+	}
+}

@@ -209,7 +209,6 @@ func (m *Machine) hostOp(op, label string, r region, chars []string) error {
 
 // act applies d, c or y to r.
 func (m *Machine) act(op string, reg rune, label string, r region) error {
-	tab := m.h.TabWidth()
 	if o, ok := m.ops[op]; ok {
 		return m.waitFor(o.chars, func(chars []string) error { return m.hostOp(op, label, r, chars) })
 	}
@@ -253,7 +252,7 @@ func (m *Machine) act(op string, reg rune, label string, r region) error {
 	switch {
 	case op == "y" && lines:
 		if s := LineStart(t, start); s != LineStart(t, c) {
-			m.h.SetCursor(atColumn(t, s, column(t, LineStart(t, c), c, tab), tab))
+			m.h.SetCursor(m.atGoal(t, s, m.keptColumn(t, c)))
 		}
 		return nil
 	case op == "y":
@@ -279,7 +278,7 @@ func (m *Machine) act(op string, reg rune, label string, r region) error {
 	// Deleting lines keeps the cursor's column.
 	col := m.want
 	if lines && !wanted {
-		col = column(t, LineStart(t, c), c, tab)
+		col = m.keptColumn(t, c)
 	}
 	if lines {
 		// Deleting lines also deletes the newline after them, or the one before
@@ -298,7 +297,7 @@ func (m *Machine) act(op string, reg rune, label string, r region) error {
 	case lines && r.adjusted:
 		m.h.SetCursor(firstNonBlank(t, s, LineEnd(t, s)))
 	case lines:
-		m.h.SetCursor(atColumn(t, s, col, tab))
+		m.h.SetCursor(m.atGoal(t, s, col))
 	default:
 		m.h.SetCursor(clamp(t, start))
 	}

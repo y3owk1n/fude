@@ -248,16 +248,15 @@ func (m *Machine) toggle(count int) {
 // at the column the cursor shows in, and sets follow on.
 func (m *Machine) eachLine() {
 	m.once, m.follow = true, true
-	tab := m.h.TabWidth()
 	t, c := m.h.Text(), m.h.Cursor()
 	first, last := t.LineOf(min(m.anchor, c)), t.LineOf(max(m.anchor, c))
 	m.leaveVisual()
 	col := math.MaxInt
 	if !m.wantSet || m.want != math.MaxInt {
-		col = m.shownColumn(t, c)
+		col = m.goal(t, c)
 	}
 	for line := first; line <= last; line++ {
-		m.place(atColumn(t, t.LineStart(line), col, tab))
+		m.place(m.atGoal(t, t.LineStart(line), col))
 	}
 	m.sortCursors()
 }

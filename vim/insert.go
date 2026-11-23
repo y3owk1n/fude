@@ -335,10 +335,15 @@ func (m *Machine) insertMove(t Text, c int, k Key) int {
 	if line == start {
 		return c
 	}
-	if p := m.toLine(t, c, line); column(t, line, LineEnd(t, line), m.h.TabWidth()) > m.want {
+	p, end := m.toLine(t, c, line), LineEnd(t, line)
+	reach, ok := m.h.Goal(end)
+	if !ok {
+		reach = column(t, line, end, m.h.TabWidth())
+	}
+	if reach > m.want {
 		return p
 	}
-	return LineEnd(t, line)
+	return end
 }
 
 // startInsert starts insert mode at pos for the key k, or returns why the

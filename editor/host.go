@@ -167,6 +167,10 @@ func (h host) RowFrom(start, pos int) (int, int) {
 	return from, w.buf.column(t, start, from, tab)
 }
 
+// Goal leaves j and k on display columns.
+func (h host) Goal(int) (int, bool)    { return 0, false }
+func (h host) AtGoal(start, _ int) int { return start }
+
 // indentWidth is the columns an indent takes in b, as a module set it,
 // or else its filetype's indent_width, or else the global one, or else the
 // tab width (B238).

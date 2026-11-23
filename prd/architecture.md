@@ -196,6 +196,8 @@ type Host interface {
     Fold(line int) (first, last int) // the closed fold holding line (B223)
     Shown(start, end int) []Inline   // what draws there that is not text, for gj and gk (B295)
     Editable() error                 // why the text may not change, before insert mode (B302)
+    Goal(pos int) (int, bool)        // how far along its line pos is, in the host's units, for j and k (B609)
+    AtGoal(start, goal int) int      // the cluster of that line nearest goal
 }
 
 // Defaults is the part of Host a host may leave out: no history, jumps,
